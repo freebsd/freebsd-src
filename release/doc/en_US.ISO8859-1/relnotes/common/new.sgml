@@ -111,7 +111,7 @@
     <para arch="i386,alpha,ia64" role="historic">The &man.agp.4; driver for AGP devices has been
       added. &merged;</para>
 
-    <para arch="i386">Preliminary support for Bluetooth devices has
+    <para arch="i386,pc98">Preliminary support for Bluetooth devices has
       been added, in the form of a series of Netgraph modules (see
       &man.ng.bluetooth.4;).  Two modules provide device driver
       support for Bluetooth adapters: The &man.ng.bt3c.4; driver
