@@ -97,7 +97,7 @@ procfs_rwmem(curp, p, uio)
 	writing = uio->uio_rw == UIO_WRITE;
 	reqprot = writing ? (VM_PROT_WRITE | VM_PROT_OVERRIDE_WRITE) : VM_PROT_READ;
 
-	kva = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
+	kva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
@@ -148,16 +148,8 @@ procfs_rwmem(curp, p, uio)
 		error = vm_map_lookup(&tmap, pageno, reqprot,
 			      &out_entry, &object, &pindex, &out_prot,
 			      &wired);
-
 		if (error) {
 			error = EFAULT;
-
-			/*
-			 * Make sure that there is no residue in 'object' from
-			 * an error return on vm_map_lookup.
-			 */
-			object = NULL;
-
 			break;
 		}
 
@@ -174,30 +166,19 @@ procfs_rwmem(curp, p, uio)
 		}
 
 		if (m == NULL) {
-			error = EFAULT;
-
-			/*
-			 * Make sure that there is no residue in 'object' from
-			 * an error return on vm_map_lookup.
-			 */
-			object = NULL;
-
 			vm_map_lookup_done(tmap, out_entry);
-
+			error = EFAULT;
 			break;
 		}
 
 		/*
-		 * Wire the page into memory
+		 * Hold the page in memory.
 		 */
-		vm_page_wire(m);
+		vm_page_hold(m);
 
 		/*
 		 * We're done with tmap now.
-		 * But reference the object first, so that we won't loose
-		 * it.
 		 */
-		vm_object_reference(object);
 		vm_map_lookup_done(tmap, out_entry);
 
 		pmap_kenter(kva, VM_PAGE_TO_PHYS(m));
@@ -210,17 +191,11 @@ procfs_rwmem(curp, p, uio)
 		pmap_kremove(kva);
 
 		/*
-		 * release the page and the object
+		 * Release the page.
 		 */
-		vm_page_unwire(m, 1);
-		vm_object_deallocate(object);
-
-		object = NULL;
+		vm_page_unhold(m);
 
 	} while (error == 0 && uio->uio_resid > 0);
-
-	if (object)
-		vm_object_deallocate(object);
 
 	kmem_free(kernel_map, kva, PAGE_SIZE);
 	vmspace_free(vm);
