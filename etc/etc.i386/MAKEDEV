@@ -69,9 +69,9 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #	socksys iBCS2 socket system driver
-*	vat	VAT compatibility audio driver (requires snd*)
+#	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.45 1994/10/29 10:03:37 phk Exp $
+#	$Id: MAKEDEV,v 1.46 1994/11/01 01:47:08 pst Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
