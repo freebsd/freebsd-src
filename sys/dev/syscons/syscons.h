@@ -272,6 +272,7 @@ typedef struct scr_stat {
 
 	u_char		*font;			/* current font */
 	int		font_size;		/* fontsize in Y direction */
+	int		font_width;		/* fontsize in X direction */
 
 	int		start;			/* modified area start */
 	int		end;			/* modified area end */
