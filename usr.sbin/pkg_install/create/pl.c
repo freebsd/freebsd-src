@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pl.c,v 1.6 1994/12/06 00:51:38 jkh Exp $";
+static const char *rcsid = "$Id: pl.c,v 1.7 1995/05/30 03:49:56 rgrimes Exp $";
 #endif
 
 /*
@@ -25,13 +25,12 @@ static const char *rcsid = "$Id: pl.c,v 1.6 1994/12/06 00:51:38 jkh Exp $";
 #include "lib.h"
 #include "create.h"
 #include <errno.h>
+#include <md5.h>
 
 /* Check a list for files that require preconversion */
 void
 check_list(char *home, Package *pkg)
 {
-    char cmd[FILENAME_MAX];
-    char name[FILENAME_MAX];
     char *where = home;
     char *there = NULL;
     PackingList p = pkg->head;
@@ -45,15 +44,18 @@ check_list(char *home, Package *pkg)
 	    there = p->name;
 	}
 	else if (p->type == PLIST_FILE) {
-	    cmd[0] = '\0';
-	    sprintf(name, "%s/%s", there ? there : where, p->name);
+	    char *cp, name[FILENAME_MAX], buf[33];
 
-	    if (*cmd) {
-		if (Verbose)
-		    printf("Uncompressing-> %s\n", cmd);
-		if (system(cmd))
-		    barf("%s failed!", cmd);
-		nuke_suffix(p->name);
+	    sprintf(name, "%s/%s", there ? there : where, p->name);
+	    if ((cp = MD5File(name, buf)) != NULL) {
+		PackingList tmp = new_plist_entry();
+
+		tmp->name = copy_string(strconcat("MD5:", cp));
+		tmp->type = PLIST_COMMENT;
+		tmp->next = p->next;
+		tmp->prev = p;
+		p->next = tmp;
+		p = tmp;
 	    }
 	}
 	p = p->next;
