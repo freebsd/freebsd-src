@@ -115,7 +115,7 @@
  *
  * SMP_PRIVPAGES: The per-cpu address space is 0xff80000 -> 0xffbfffff
  */
-#define	APTDPTDI	(NPDEPG-NPGPTD)	/* alt ptd entry that points to APTD */
+#define	APTDPTDI	(NPDEPTD-NPGPTD) /* alt ptd entry that points to APTD */
 #ifdef SMP
 #define MPPTDI		(APTDPTDI-1)	/* per cpu ptd entry */
 #define	KPTDI		(MPPTDI-NKPDE)	/* start of kernel virtual pde's */
