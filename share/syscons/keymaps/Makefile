@@ -37,7 +37,7 @@ KEYMAPS+= tr.iso9.q.kbd
 KEYMAPS+= ua.koi8-u.kbd ua.koi8-u.shift.alt.kbd ua.iso5.kbd
 KEYMAPS+= uk.iso.kbd uk.iso-ctrl.kbd uk.cp850.kbd uk.cp850-ctrl.kbd
 KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd
-KEYMAPS+= us.unix.kbd
+KEYMAPS+= us.unix.kbd us.iso.acc.kbd
 
 MAPSDIR = ${SHAREDIR}/syscons/keymaps
 NOMAN = noman
