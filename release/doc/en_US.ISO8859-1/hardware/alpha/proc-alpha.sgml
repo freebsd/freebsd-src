@@ -204,11 +204,7 @@
     not, however, mean that each and every PCI VGA card out on the
     street will work in an Alpha machine. Things like S3 Trio64,
     Mach64, and Matrox Millennium generally work. Old ET4000 based ISA
-    cards have also worked for me. But ask around first before buying.
-    Please note that TGA-based cards are not currently supported as 
-    &os; console display cards. Digital ZLXp-xx cards are often found
-    in Alpha machines and are TGA based. You will either have to use
-    a serial console or another display card.</para>
+    cards have also worked for me. But ask around first before buying.</para>
 
     <para>Most PCI devices from the PC-world will also work in
     &os; PCI-based machines. Check the
@@ -521,15 +517,6 @@ cpu	EV4</programlisting>
       <para>The CPU might or might not be socketed, check this before
       considering CPU upgrade hacks. The low-end Multias have a
       soldered-in CPU.</para>
-
-      <para>It comes with a TGA based graphics on-board. TGA is not
-      currently suitable for console use with &os;. This means you will have
-      to run Multia using a serial console. Note that the boot of the
-      installation disk will appear to work fine using the TGA
-      console, but then switches to using the serial port. This is
-      even mentioned during by installer (but never read by the human
-      doing the install). Your keyboard appears dead from that point
-      on.</para>
 
       <para>Multia has 2 serial ports but routes both of them to the
       outside world on a single 25 pin sub-D connector. The Multia FAQ
@@ -3044,11 +3031,8 @@ cpu	EV5</programlisting>
     on PCI VGA cards. This is, however, not guaranteed to work by
     Compaq/DEC for each and every card type out there. When the SRM
     thinks the VGA is acceptable &os; will be able to use it. The
-    console driver works just like on a &os;/intel machine. The TGA
-    video graphics which is embedded on for example Multia does
-    <emphasis>not</emphasis>
-    work with &os;. TGA based PCI cards are also <emphasis>not</emphasis>
-    supported. Please note that VESA modes are not supported on Alpha,
+    console driver works just like on a &os;/intel machine. 
+    Please note that VESA modes are not supported on Alpha,
     so that leaves you with 80x25 consoles.</para>
 
     <para>The <quote>PC standard</quote> serial ports found on most
