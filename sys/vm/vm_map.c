@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.18 1995/03/21 01:11:40 davidg Exp $
+ * $Id: vm_map.c,v 1.19 1995/03/22 12:24:08 davidg Exp $
  */
 
 /*
@@ -1505,10 +1505,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			 *     idea.
 			 */
 			if (current->protection & VM_PROT_WRITE)
-#if 0
 		   	    	vm_object_page_clean(object, offset, offset + size, syncio);
-#endif
-		   	    	vm_object_page_clean(object, offset, offset + size, TRUE);
 			if (invalidate)
 				vm_object_page_remove(object, offset, offset + size, FALSE);
 			vm_object_unlock(object);
