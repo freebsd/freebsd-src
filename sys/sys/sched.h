@@ -84,7 +84,6 @@ void	sched_rem(struct thread *td);
 void	sched_bind(struct thread *td, int cpu);
 void	sched_unbind(struct thread *td);
 
-
 /* these only work for curthread */
 void	sched_pin(void);
 void	sched_unpin(void);
