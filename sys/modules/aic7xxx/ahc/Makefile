@@ -20,7 +20,7 @@ aic7xxx_{seq.h,reg.h,reg_print.c}:					\
 			-i ${.CURDIR}/../../../dev/aic7xxx/aic7xxx_osm.h \
 			${.CURDIR}/../../../dev/aic7xxx/aic7xxx.seq
 
-GENSRCS= aic7xxx_reg.h aic7xxx_seq.h
+GENSRCS= aic7xxx_reg.h aic7xxx_seq.h pci.h
 
 AHC_REG_PRETTY_PRINT=1
 SRCS= ${GENSRCS}
@@ -33,5 +33,8 @@ SRCS+= opt_scsi.h opt_aic7xxx.h opt_cam.h
 SRCS+= device_if.h bus_if.h pci_if.h
 
 CLEANFILES= ${GENSRCS} aic7xxx_reg_print.c
+
+pci.h:
+	echo "#define NPCI 1" > pci.h
 
 .include <bsd.kmod.mk>
