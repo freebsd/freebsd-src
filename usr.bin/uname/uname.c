@@ -75,7 +75,7 @@ void setup_get(void);
 void usage(void);
 
 char *platform, *hostname, *arch, *release, *sysname, *version;
-const char *prefix;
+int space;
 
 int
 main(int argc, char *argv[])
@@ -83,11 +83,8 @@ main(int argc, char *argv[])
 	u_int flags;
 	int ch;
 
-	prefix = "";
-
 	setup_get();
 
-	flags = 0;
 	while ((ch = getopt(argc, argv, "amnprsv")) != -1)
 		switch(ch) {
 		case 'a':
@@ -129,13 +126,13 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-#define	CHECK_ENV(opt,var)			\
-do {						\
+#define	CHECK_ENV(opt,var)				\
+do {							\
 	if ((var = getenv("UNAME_" opt)) == NULL) {	\
-		get_##var = native_##var;	\
-	} else {				\
-		get_##var = (get_t)NULL;	\
-	}					\
+		get_##var = native_##var;		\
+	} else {					\
+		get_##var = (get_t)NULL;		\
+	}						\
 } while (0)
 
 void
@@ -151,10 +148,13 @@ setup_get(void)
 
 #define	PRINT_FLAG(flags,flag,var)		\
 	if ((flags & flag) == flag) {		\
+		if (space)			\
+			printf(" ");		\
+		else				\
+			space++;		\
 		if (get_##var != NULL)		\
 			(*get_##var)();		\
-		printf("%s%s", prefix, var);	\
-		prefix = " ";			\
+		printf("%s", var);		\
 	}
 
 void
