@@ -16,7 +16,7 @@ int     pwok;
     int     sflag;
 
     /* Attempt an s/key challenge. */
-    sflag = skeychallenge(&skey, username, buf);
+    sflag = skeyinfo(&skey, username, buf);
     if (!sflag)
 	printf("%s\n", buf);
 
