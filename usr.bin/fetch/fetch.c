@@ -197,6 +197,16 @@ fetch(char *URL, char *path)
 	goto failure;
     }
 
+    /* if no scheme was specified, take a guess */
+    if (!*url->scheme) {
+	if (!*url->host)
+	    strcpy(url->scheme, SCHEME_FILE);
+	else if (strncasecmp(url->host, "ftp.", 4))
+	    strcpy(url->scheme, SCHEME_FTP);
+	else if (strncasecmp(url->host, "www.", 4))
+	    strcpy(url->scheme, SCHEME_HTTP);
+    }
+
     timeout = 0;
     *flags = 0;
     count = 0;
