@@ -61,21 +61,45 @@ timespec_add(struct timespec *tsa, struct timespec *tsb)
 	}
 }
 
+static __inline int
+timespec_ge(struct timespec *a, struct timespec *b)
+{
+
+	if (a->tv_sec > b->tv_sec)
+		return (1);
+	if (a->tv_sec < b->tv_sec)
+		return (0);
+	if (a->tv_nsec >= b->tv_nsec)
+		return (1);
+	return (0);
+}
+
 /*
  * Busy wait spinning until we reach (or slightly pass) the desired time.
  * Optionally return the current time as retrieved on the last time check
- * to the caller.
+ * to the caller.  Optionally also increment a counter provided by the
+ * caller each time we loop.
  */
 int
-wait_time(struct timespec ts, struct timespec *wakeup_ts)
+wait_time(struct timespec ts, struct timespec *wakeup_ts, long long *waited)
 {
 	struct timespec curtime;
 
 	curtime.tv_sec = 0;
 	curtime.tv_nsec = 0;
 
-	while (curtime.tv_sec < ts.tv_sec || curtime.tv_nsec < ts.tv_nsec) {
-		if (clock_gettime(CLOCK_REALTIME, &curtime) < -1) {
+	if (clock_gettime(CLOCK_REALTIME, &curtime) == -1) {
+		perror("clock_gettime");
+		return (-1);
+	}
+#if 0
+	if (timespec_ge(&curtime, &ts))
+		printf("warning: wait_time missed deadline without spinning\n");
+#endif
+	while (timespec_ge(&ts, &curtime)) {
+		if (waited != NULL)
+			(*waited)++;
+		if (clock_gettime(CLOCK_REALTIME, &curtime) == -1) {
 			perror("clock_gettime");
 			return (-1);
 		}
@@ -94,11 +118,23 @@ int
 timing_loop(int s, struct timespec interval, long duration, u_char *packet,
     u_int packet_len)
 {
-	struct timespec starttime, tmptime;
+	struct timespec nexttime, starttime, tmptime;
+	long long waited;
 	u_int32_t counter;
 	long finishtime;
+	int send_errors, send_calls;
 
-	if (clock_gettime(CLOCK_REALTIME, &starttime) < -1) {
+	if (clock_getres(CLOCK_REALTIME, &tmptime) == -1) {
+		perror("clock_getres");
+		return (-1);
+	}
+
+	if (timespec_ge(&tmptime, &interval))
+		fprintf(stderr,
+		    "warning: interval less than resolution (%d.%09lu)\n",
+		    tmptime.tv_sec, tmptime.tv_nsec);
+
+	if (clock_gettime(CLOCK_REALTIME, &starttime) == -1) {
 		perror("clock_gettime");
 		return (-1);
 	}
@@ -106,14 +142,17 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 	tmptime.tv_nsec = 0;
 	timespec_add(&starttime, &tmptime);
 	starttime.tv_nsec = 0;
-	if (wait_time(starttime, NULL) == -1)
+	if (wait_time(starttime, NULL, NULL) == -1)
 		return (-1);
+	nexttime = starttime;
 	finishtime = starttime.tv_sec + duration;
 
+	send_errors = send_calls = 0;
 	counter = 0;
+	waited = 0;
 	while (1) {
-		timespec_add(&starttime, &interval);
-		if (wait_time(starttime, &tmptime) == -1)
+		timespec_add(&nexttime, &interval);
+		if (wait_time(nexttime, &tmptime, &waited) == -1)
 			return (-1);
 		/*
 		 * We maintain and, if there's room, send a counter.  Note
@@ -131,11 +170,33 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 			*((u_int32_t *)packet) = htonl(counter);
 			counter++;
 		}
-		if (send(s, packet, packet_len, 0) < 0)
+		if (send(s, packet, packet_len, 0) < 0) {
 			perror("send");
+			send_errors++;
+		}
+		send_calls++;
 		if (duration != 0 && tmptime.tv_sec >= finishtime)
-			return (0);
+			goto done;
 	}
+
+done:
+	if (clock_gettime(CLOCK_REALTIME, &tmptime) == -1) {
+		perror("clock_gettime");
+		return (-1);
+	}
+
+	printf("\n");
+	printf("start:             %d.%09lu\n", starttime.tv_sec,
+	    starttime.tv_nsec);
+	printf("finish:            %d.%09lu\n", tmptime.tv_sec,
+	    tmptime.tv_nsec);
+	printf("send calls:        %d\n", send_calls);
+	printf("send errors:       %d\n", send_errors);
+	printf("approx send rate:  %ld\n", (send_calls - send_errors) /
+	    duration);
+	printf("approx error rate: %ld\n", (send_errors / send_calls));
+	printf("waited:            %lld\n", waited);
+	printf("approx wait rate:  %lld\n", waited / send_calls);
 
 	return (0);
 }
@@ -175,7 +236,8 @@ main(int argc, char *argv[])
 
 	/*
 	 * Specify an arbitrary limit.  It's exactly that, not selected by
-	 * any particular strategy.
+	 .* any particular strategy.  '0' is a special value meaning "blast",
+	 * and avoids the cost of a timing loop.
 	 */
 	rate = strtoul(argv[4], &dummy, 10);
 	if (rate < 1 || *dummy != '\0')
@@ -196,7 +258,10 @@ main(int argc, char *argv[])
 	}
 	bzero(packet, payloadsize);
 
-	if (rate == 1) {
+	if (rate == 0) {
+		interval.tv_sec = 0;
+		interval.tv_nsec = 0;
+	} else if (rate == 1) {
 		interval.tv_sec = 1;
 		interval.tv_nsec = 0;
 	} else {
