@@ -4,7 +4,8 @@
 # machine-independent net sources
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/net ${.CURDIR}/net
 
-SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c getaddrinfo.c \
+SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c \
+	gai_strerror.c getaddrinfo.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	getifaddrs.c getifmaddrs.c getnameinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
