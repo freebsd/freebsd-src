@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.152 1996/06/21 07:19:17 sos Exp $
+ *  $Id: syscons.c,v 1.153 1996/06/21 11:31:09 sos Exp $
  */
 
 #include "sc.h"
@@ -152,6 +152,39 @@ u_short         	*Crtat;
 #define WRAPHIST(scp, pointer, offset)\
     ((scp->history) + ((((pointer) - (scp->history)) + (scp->history_size)\
     + (offset)) % (scp->history_size)))
+
+static void scinit(void);
+static u_int scgetc(int noblock);
+static scr_stat *get_scr_stat(dev_t dev);
+static scr_stat *alloc_scp(void);
+static void init_scp(scr_stat *scp);
+static int get_scr_num(void);
+static void scrn_timer(void);
+static void clear_screen(scr_stat *scp);
+static int switch_scr(scr_stat *scp, u_int next_scr);
+static void exchange_scr(void);
+static inline void move_crsr(scr_stat *scp, int x, int y);
+static void scan_esc(scr_stat *scp, u_char c);
+static inline void draw_cursor(scr_stat *scp, int show);
+static void ansi_put(scr_stat *scp, u_char *buf, int len);
+static u_char *get_fstr(u_int c, u_int *len);
+static void update_leds(int which);
+static void history_to_screen(scr_stat *scp);
+static int history_up_line(scr_stat *scp);
+static int history_down_line(scr_stat *scp);
+static void kbd_wait(void);
+static void kbd_cmd(u_char command);
+static void set_mode(scr_stat *scp);
+static void set_vgaregs(char *modetable);
+static void set_font_mode(void);
+static void set_normal_mode(void);
+static void copy_font(int operation, int font_type, char* font_image);
+static void set_destructive_cursor(scr_stat *scp, int force);
+static void reverse_mouse_cut(scr_stat *scp, int cut);
+static void draw_mouse_image(scr_stat *scp); 
+static void save_palette(void);
+static void do_bell(scr_stat *scp, int pitch, int duration);
+static void blink_screen(scr_stat *scp);
 
 struct  isa_driver scdriver = {
     scprobe, scattach, "sc", 1
