@@ -64,7 +64,8 @@ typedef struct image_decoder	scrn_saver_t;
 		name##_modevent,				\
 		NULL						\
 	};							\
-	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
+	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY); \
+	MODULE_DEPEND(name, splash, 1, 1, 1)
 
 #define SAVER_MODULE(name, sw)					\
 	static int name##_modevent(module_t mod, int type, void *data) \
@@ -84,7 +85,8 @@ typedef struct image_decoder	scrn_saver_t;
 		name##_modevent,				\
 		NULL						\
 	};							\
-	DECLARE_MODULE(name, name##_mod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE)
+	DECLARE_MODULE(name, name##_mod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE); \
+	MODULE_DEPEND(name, splash, 1, 1, 1)
 
 /* entry point for the splash image decoder */
 int	splash_register(splash_decoder_t *decoder);
