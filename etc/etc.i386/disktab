@@ -1,4 +1,4 @@
-#	$Id: disktab,v 1.15 1998/09/02 01:34:57 brian Exp $
+#	$Id: disktab,v 1.16 1998/10/06 12:06:43 dfr Exp $
 #
 # Disk geometry and partition layout tables. 
 # Key:
@@ -205,11 +205,6 @@ minimum:ty=mfs:se#512:nt#1:rm#300:\
 	:ns#2880:nc#1:\
 	:pa#2880:oa#0:ba#4096:fa#512:\
 	:pc#2880:oc#0:bc#4096:fc#512:
-
-minimum2:ty=mfs:se#512:nt#1:rm#300:\
-	:ns#5760:nc#1:\
-	:pa#5760:oa#0:ba#4096:fa#512:\
-	:pc#5760:oc#0:bc#4096:fc#512:
 
 zip100|zip 100:\
 	:ty=removable:se#512:nc#96:nt#64:ns#32:\
