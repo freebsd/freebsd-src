@@ -121,6 +121,7 @@ struct _pcm_channel {
 
 	int direction;
 	snd_dbuf buffer, buffer2nd;
+	snddev_info *parent;
 	void *devinfo;
 };
 
@@ -136,6 +137,7 @@ struct _snddev_info {
 	unsigned flags;
 	void *devinfo;
 	pcm_swap_t *swap;
+	device_t dev;
 	char status[SND_STATUSLEN];
 };
 
