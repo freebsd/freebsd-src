@@ -28,12 +28,12 @@
 .\" .Nm auth_env
 .\" .Nm auth_scan
 .\" .Nm auth_rmfiles
-.Nm auth_checknologin
-.Nm auth_cat
-.\" .Nm auth_ttyok
-.\" .Nm auth_hostok
+.Nm auth_checknologin ,
+.Nm auth_cat 
+.\" .Nm auth_ttyok 
+.\" .Nm auth_hostok 
 .\" .Nm auth_timesok
-.Nd Authentication style support library for login class capabilities database.
+.Nd authentication style support library for login class capabilities database.
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <login_cap.h>
@@ -61,8 +61,7 @@
 This set of functions support the login class authorisation style interface provided
 by
 .Xr login.conf 5 .
-
-.Sh RETURN VALUES
+.\" .Sh RETURN VALUES
 .Sh SEE ALSO
 .Xr getcap 3 ,
 .Xr login_cap 3 ,

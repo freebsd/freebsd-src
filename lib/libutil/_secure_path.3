@@ -38,7 +38,9 @@ in order to decide whether or not to trust the contents of a given
 file.
 It uses a method often used to detect system compromise.
 .Pp
-A file is considered 'secure' if it meets the following conditions:
+A file is considered
+.Sq secure
+if it meets the following conditions:
 .Bl -enum
 .It
 The file exists, and is a regular file (not a symlink, device
@@ -55,7 +57,7 @@ gid, if gid is not -1.
 This function returns zero if the file exists and may be
 considered secure, -2 if the file does not exist, and
 -1 otherwise to indicate a security failure.
-.Xr syslog 3 ,
+.Xr syslog 3
 is used to log any failure of this function, including the
 reason, at LOG_ERR priority.
 .Sh BUGS
@@ -67,4 +69,5 @@ access to the file referenced.
 .Xr syslog 3 .
 .Sh HISTORY
 Code from which this function was derived was contributed to the
-FreeBSD project by Berkeley Software Design, Inc.
+.Fx
+project by Berkeley Software Design, Inc.

@@ -23,10 +23,10 @@
 .Os FreeBSD
 .Dt LOGIN_TIMES 3
 .Sh NAME
-.Nm parse_lt
-.Nm in_ltm
+.Nm parse_lt ,
+.Nm in_ltm ,
 .Nm in_ltms
-.Nd Functions for parsing and checking login time periods
+.Nd functions for parsing and checking login time periods
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <time.h>
@@ -95,8 +95,8 @@ A series
 .Em LTM_*
 macros may be used for testing bits individually and in combination.
 If no bits are set in this field - ie. it contains the value
-.Em LTM_NONE -
-then the entire period is assumed invalid.
+.Em LTM_NONE
+- then the entire period is assumed invalid.
 This is used as a convention to mark the termination of an array
 of login_time_t values.
 If
