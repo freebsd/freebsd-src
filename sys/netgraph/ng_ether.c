@@ -75,6 +75,7 @@ struct private {
 	u_char		lowerOrphan;	/* whether lower is lower or orphan */
 	u_char		autoSrcAddr;	/* always overwrite source address */
 	u_char		promisc;	/* promiscuous mode enabled */
+	u_int		flags;		/* flags e.g. really die */
 };
 typedef struct private *priv_p;
 
@@ -326,23 +327,25 @@ ng_ether_attach(struct ifnet *ifp)
 
 /*
  * An Ethernet interface is being detached.
- * Destroy its node.
+ * REALLY Destroy its node.
  */
 static void
 ng_ether_detach(struct ifnet *ifp)
 {
 	const node_p node = IFP2NG(ifp);
-	priv_p priv;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (node == NULL)		/* no node (why not?), ignore */
 		return;
-	ng_rmnode_self(node);		/* break all links to other nodes */
-	IFP2NG(ifp) = NULL;		/* detach node from interface */
-	priv = NG_NODE_PRIVATE(node);		/* free node private info */
-	bzero(priv, sizeof(*priv));
-	FREE(priv, M_NETGRAPH);
-	NG_NODE_SET_PRIVATE(node, NULL);
-	NG_NODE_UNREF(node);			/* free node itself */
+	NG_NODE_REALLY_DIE(node);	/* Force real removal of node */
+	/*
+	 * We can't assume the ifnet is still around when we run shutdown
+	 * So zap it now. XXX We HOPE that anything running at this time
+	 * handles it (as it should in the non netgraph case).
+	 */
+	IFP2NG(ifp) = NULL;
+	priv->ifp = NULL;	/* XXX race if interrupted an output packet */
+	ng_rmnode_self(node);		/* remove all netgraph parts */
 }
 
 /*
@@ -672,39 +675,32 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta)
 }
 
 /*
- * Shutdown node. This resets the node but does not remove it.
- * Actually it produces a new node. XXX The problem  is what to do when 
- * the node really DOES need to go away,
- * or if our re-make of the node fails.
+ * Shutdown node. This resets the node but does not remove it
+ * unless the REALLY_DIE flag is set.
  */
 static int
 ng_ether_shutdown(node_p node)
 {
-	char name[IFNAMSIZ + 1];
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (priv->promisc) {		/* disable promiscuous mode */
 		(void)ifpromisc(priv->ifp, 0);
 		priv->promisc = 0;
 	}
-	NG_NODE_UNREF(node);
-	snprintf(name, sizeof(name), "%s%d", priv->ifp->if_name, priv->ifp->if_unit);
-	if (ng_make_node_common(&ng_ether_typestruct, &node) != 0) {
-		log(LOG_ERR, "%s: can't %s for %s\n",
-		    __FUNCTION__, "create node", name);
-		return (ENOMEM);
+	if (node->nd_flags & NG_REALLY_DIE) {
+		/*
+		 * WE came here because the ethernet card is being unloaded,
+		 * so stop being persistant.
+		 * Actually undo all the things we did on creation.
+		 * Assume the ifp has already been freed.
+		 */
+		NG_NODE_SET_PRIVATE(node, NULL);
+		FREE(priv, M_NETGRAPH);		
+		NG_NODE_UNREF(node);	/* free node itself */
+		return (0);
 	}
-
-	/* Allocate private data */
-	NG_NODE_SET_PRIVATE(node, priv);
-	IFP2NG(priv->ifp) = node;
 	priv->autoSrcAddr = 1;		/* reset auto-src-addr flag */
-
-	/* Try to give the node the same name as the interface */
-	if (ng_name_node(node, name) != 0) {
-		log(LOG_WARNING, "%s: can't name node %s\n",
-		    __FUNCTION__, name);
-	}
+	node->nd_flags &= ~NG_INVALID;	/* Signal ng_rmnode we are persisant */
 	return (0);
 }
 

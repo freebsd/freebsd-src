@@ -730,8 +730,8 @@ references
 and
 .Fn NG_HOOK_UNREF "hook"
 increment and decrement the hook reference count accordingly.
-After decrement you should always sume the hook has been freed.
-In fact the macro may set it to NULL.
+After decrement you should always assume the hook has been freed
+unless you have another reference still valid.
 .El
 .Pp
 The maintenance of the names, reference counts, and linked list
