@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.11 1996/01/12 08:49:43 peter Exp $
+ *	$Id: ps.c,v 1.12 1996/01/20 10:43:54 mpp Exp $
  */
 
 #ifndef lint
@@ -77,6 +77,7 @@ KINFO *kinfo;
 struct varent *vhead, *vtail;
 
 int	eval;			/* exit value */
+int	cflag;			/* -c */
 int	rawcpu;			/* -C */
 int	sumrusage;		/* -S */
 int	termwidth;		/* width of screen (0 == infinity) */
@@ -139,16 +140,19 @@ main(argc, argv)
 	ttydev = NODEV;
 	memf = nlistf = swapf = NULL;
 	while ((ch = getopt(argc, argv,
-	    "aCeghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != EOF)
+	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != EOF)
 		switch((char)ch) {
 		case 'a':
 			all = 1;
 			break;
-		case 'e':			/* XXX set ufmt */
-			needenv = 1;
-			break;
 		case 'C':
 			rawcpu = 1;
+			break;
+		case 'c':
+			cflag = 1;
+			break;
+		case 'e':			/* XXX set ufmt */
+			needenv = 1;
 			break;
 		case 'g':
 			break;			/* no-op */
