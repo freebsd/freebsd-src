@@ -94,7 +94,9 @@ show_mbr(struct mbr *mbr)
 	int x, y;
 	WINDOW *window;
 
-	window = newwin(LINES, COLS, 0, 0);
+	if (use_shadow)
+		draw_shadow(stdscr, 1, 1, LINES-2, COLS-2);
+	window = newwin(LINES-2, COLS-2, 1, 1);
 	keypad(window, TRUE);
 
 	draw_box(window, 1, 1, LINES - 2, COLS - 2,
@@ -122,14 +124,14 @@ show_mbr(struct mbr *mbr)
 			mvwprintw(window, y+5, x, "Size (in sectors) %ld", mbr->dospart[(i*2)+j].dp_size);
 		}
 	}
-	refresh();
+	dialog_update();
 
-	while (key != '\n')
+	while (key != '\n' && key != ' ' && key != '\033')
 		key = wgetch(window);
 
 	delwin(window);
-	refresh();
 	dialog_clear();
+	dialog_update();
 }
 
 int
