@@ -361,6 +361,7 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 		"mov %3, %0\n\t"		/* value to store */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 3f\n\t"		/* if it failed, spin */
+		"mb\n\t"			/* drain to memory */
 		"2:\n"				/* done */
 		".section .text3,\"ax\"\n"	/* improve branch prediction */
 		"3:\tbr 1b\n"			/* try again */
@@ -389,6 +390,7 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 		"mov %3, %0\n\t"		/* value to store */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 3f\n\t"		/* if it failed, spin */
+		"mb\n\t"			/* drain to memory */
 		"2:\n"				/* done */
 		".section .text3,\"ax\"\n"	/* improve branch prediction */
 		"3:\tbr 1b\n"			/* try again */
