@@ -354,7 +354,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: disktab [-p] [-d] [-s size] disk-type\n");
+	fprintf(stderr, "usage: diskpart [-p] [-d] [-s size] disk-type\n");
 	exit(1);
 }
 
