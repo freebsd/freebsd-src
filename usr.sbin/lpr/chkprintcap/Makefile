@@ -1,11 +1,10 @@
-#	$Id: Makefile,v 1.1 1997/12/02 20:45:07 wollman Exp $
+#	$Id: Makefile,v 1.2 1997/12/16 17:53:14 bde Exp $
 
 PROG=	chkprintcap
 MAN8=	chkprintcap.8
 CFLAGS+=-I${.CURDIR}/../common_source -Wall -Werror
 .PATH:	${.CURDIR}/../common_source
-DPADD=	${.OBJDIR}/../common_source/liblpr.a
-LDADD=	-L${.OBJDIR}/../common_source -llpr
+DPADD=	${LIBLPR}
+LDADD=	${LIBLPR}
 
-.include "../../Makefile.inc"
 .include <bsd.prog.mk>

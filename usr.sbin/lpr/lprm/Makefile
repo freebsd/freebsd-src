@@ -1,16 +1,15 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.4 1997/12/16 17:53:35 bde Exp $
+#	$Id: Makefile,v 1.5 1997/12/17 19:38:33 wollman Exp $
 
 PROG=	lprm
 CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}
-SRCS=	lprm.c
+.PATH:	${.CURDIR}/../common_source
+DPADD=	${LIBLPR}
+LDADD=	${LIBLPR}
+
 BINOWN=	root
 BINGRP=	daemon
 BINMODE=6555
 BINDIR=	/usr/bin
-MAN1=	lprm.1
-.PATH:	${.CURDIR}/../common_source
-DPADD=	${.OBJDIR}/../common_source/liblpr.a
-LDADD=	-L${.OBJDIR}/../common_source -llpr
 
 .include <bsd.prog.mk>
