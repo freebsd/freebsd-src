@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.25.4.4 1996/01/16 13:09:33 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.25.4.5 1997/03/26 20:29:14 guido Exp $
  */
 
 #include <sys/param.h>
@@ -647,11 +647,13 @@ open(p, uap, retval)
 	struct flock lf;
 	struct nameidata nd;
 
+	flags = FFLAGS(uap->flags);
+	if ((flags & FREAD + FWRITE) == 0)
+		return (EINVAL);
 	error = falloc(p, &nfp, &indx);
 	if (error)
 		return (error);
 	fp = nfp;
-	flags = FFLAGS(uap->flags);
 	cmode = ((uap->mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
 	p->p_dupfd = -indx - 1;			/* XXX check for fdopen */
