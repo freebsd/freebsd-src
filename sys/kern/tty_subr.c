@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: tty_subr.c,v 1.25 1997/02/22 09:39:26 peter Exp $
  */
 
 /*
@@ -131,7 +131,12 @@ cblock_alloc_cblocks(number)
 	struct cblock *cbp;
 
 	for (i = 0; i < number; ++i) {
-		cbp = malloc(sizeof *cbp, M_TTYS, M_WAITOK);
+		cbp = malloc(sizeof *cbp, M_TTYS, M_NOWAIT);
+		if (cbp == NULL) {
+			printf(
+"clist_alloc_cblocks: M_NOWAIT malloc failed, trying M_WAITOK\n");
+			cbp = malloc(sizeof *cbp, M_TTYS, M_WAITOK);
+		}
 		/*
 		 * Freed cblocks have zero quotes and garbage elsewhere.
 		 * Set the may-have-quote bit to force zeroing the quotes.
