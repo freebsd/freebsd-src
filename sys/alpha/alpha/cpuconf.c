@@ -40,91 +40,91 @@
 #include "opt_cpu.h"
 
 #ifdef DEC_3000_500
-extern void dec_3000_500_init __P((int));
+extern void dec_3000_500_init(int);
 #else
 #define	dec_3000_500_init	platform_not_configured
 #endif
 
 #ifdef DEC_3000_300
-extern void dec_3000_300_init __P((int));
+extern void dec_3000_300_init(int);
 #else
 #define	dec_3000_300_init	platform_not_configured
 #endif
 
 #ifdef DEC_AXPPCI_33
-extern void dec_axppci_33_init __P((int));
+extern void dec_axppci_33_init(int);
 #else
 #define	dec_axppci_33_init	platform_not_configured
 #endif
 
 #ifdef DEC_KN8AE
-extern void dec_kn8ae_init __P((int));
+extern void dec_kn8ae_init(int);
 #else
 #define	dec_kn8ae_init		platform_not_configured
 #endif
 
 #ifdef DEC_2100_A50
-extern void dec_2100_a50_init __P((int));
+extern void dec_2100_a50_init(int);
 #else
 #define	dec_2100_a50_init	platform_not_configured
 #endif
 
 #ifdef DEC_KN20AA
-extern void dec_kn20aa_init __P((int));
+extern void dec_kn20aa_init(int);
 #else
 #define	dec_kn20aa_init		platform_not_configured
 #endif
 
 #ifdef DEC_EB64PLUS
-extern void dec_eb64plus_init __P((int));
+extern void dec_eb64plus_init(int);
 #else
 #define	dec_eb64plus_init	platform_not_configured
 #endif
 
 #ifdef DEC_EB164
-extern void dec_eb164_init __P((int));
+extern void dec_eb164_init(int);
 #else
 #define	dec_eb164_init		platform_not_configured
 #endif
 
 #ifdef DEC_KN300
-extern void dec_kn300_init __P((int));
+extern void dec_kn300_init(int);
 #else
 #define	dec_kn300_init		platform_not_configured
 #endif
 
 #ifdef AVALON_A12
-extern void avalon_a12_init __P((int));
+extern void avalon_a12_init(int);
 #else
 #define	avalon_a12_init		platform_not_configured
 #endif
 
 #ifdef DEC_ST550
-extern void st550_init __P((int));
+extern void st550_init(int);
 #else
 #define	st550_init		platform_not_configured
 #endif
 
 #ifdef DEC_ST6600
-extern void st6600_init __P((int));
+extern void st6600_init(int);
 #else
 #define	st6600_init		platform_not_configured
 #endif
 
 #ifdef DEC_1000A
-extern void dec_1000a_init __P((int));
+extern void dec_1000a_init(int);
 #else
 #define dec_1000a_init          platform_not_configured
 #endif
 
 #ifdef DEC_2100_A500
-extern void dec_2100_a500_init __P((int));
+extern void dec_2100_a500_init(int);
 #else
 #define dec_2100_a500_init     platform_not_configured
 #endif
 
 #ifdef API_UP1000
-extern void api_up1000_init __P((int));
+extern void api_up1000_init(int);
 #else
 #define     api_up1000_init platform_not_configured
 #endif

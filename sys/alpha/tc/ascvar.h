@@ -53,12 +53,12 @@ struct asc_softc {
 	ScsiCmd		*cmd[ASC_NCMD];	/* active command indexed by SCSI ID */
 	State		st[ASC_NCMD];	/* state info for each active command */
 	/* Start dma routine */
-	int  (*dma_start) __P((struct asc_softc *asc,
+	int  (*dma_start)(struct asc_softc *asc,
 				struct scsi_state *state,
-				caddr_t cp, int flag, int len, int off));
+				caddr_t cp, int flag, int len, int off);
 	/* End dma routine */
-	void	(*dma_end) __P((struct asc_softc *asc,
-				struct scsi_state *state, int flag));
+	void	(*dma_end)(struct asc_softc *asc,
+				struct scsi_state *state, int flag);
 
 	u_char		*dma_next;
 	int		dma_xfer;	/* Dma len still to go */
@@ -82,8 +82,8 @@ typedef struct asc_softc *asc_softc_t;
 #define ASC_SPEED_25_MHZ	250
 #define ASC_SPEED_12_5_MHZ	125
 
-void	ascattach __P((struct asc_softc *asc, int bus_speed));
-int	asc_intr __P ((void *asc));
+void	ascattach(struct asc_softc *asc, int bus_speed);
+int	asc_intr(void *asc);
 
 /*
  * Dma operations.

@@ -83,16 +83,16 @@ static driver_t le_ioasic_driver = {
 
 static  devclass_t      le_ioasic_devclass;
 
-hide void le_ioasic_copytobuf_gap2 __P((struct am7990_softc *, void *,
-	    int, int));
-hide void le_ioasic_copyfrombuf_gap2 __P((struct am7990_softc *, void *,
-	    int, int));
+hide void le_ioasic_copytobuf_gap2(struct am7990_softc *, void *,
+	    int, int);
+hide void le_ioasic_copyfrombuf_gap2(struct am7990_softc *, void *,
+	    int, int);
 
-hide void le_ioasic_copytobuf_gap16 __P((struct am7990_softc *, void *,
-	    int, int));
-hide void le_ioasic_copyfrombuf_gap16 __P((struct am7990_softc *, void *,
-	    int, int));
-hide void le_ioasic_zerobuf_gap16 __P((struct am7990_softc *, int, int));
+hide void le_ioasic_copytobuf_gap16(struct am7990_softc *, void *,
+	    int, int);
+hide void le_ioasic_copyfrombuf_gap16(struct am7990_softc *, void *,
+	    int, int);
+hide void le_ioasic_zerobuf_gap16(struct am7990_softc *, int, int);
 
 
 static int

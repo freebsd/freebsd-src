@@ -54,10 +54,10 @@ extern struct prom_vec prom_dispatch_v;
 int		prom_mapped = 1;	/* Is PROM still mapped? */
 pt_entry_t	rom_pte, saved_pte[1];	/* XXX */
 
-static pt_entry_t *rom_lev1map __P((void));
+static pt_entry_t *rom_lev1map(void);
 extern pt_entry_t* Lev1map;
 
-static void prom_cache_sync __P((void));
+static void prom_cache_sync(void);
 
 static pt_entry_t *
 rom_lev1map()
@@ -112,8 +112,8 @@ init_bootstrap_console()
 	promcnattach(alpha_console);
 }
 
-static critical_t  enter_prom __P((void));
-static void leave_prom __P((critical_t));
+static critical_t  enter_prom(void);
+static void leave_prom(critical_t);
 
 
 /*

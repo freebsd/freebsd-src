@@ -49,5 +49,5 @@ struct stic_softc {
 	void*   stic_pktbuf;		/* kva of packet/polling area. */
 };
 
-int stic_init __P((struct stic_softc *stic_sc));
+int stic_init(struct stic_softc *stic_sc);
 #endif	/*_TC_STICVAR_H_ */

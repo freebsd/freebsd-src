@@ -68,11 +68,11 @@
 #include <alpha/osf1/osf1.h>
 
 
-void bsd2osf_statfs __P((struct statfs *, struct osf1_statfs *));
-int osf1_mount_mfs __P((struct thread *, struct osf1_mount_args *,
-			struct mount_args *));
-int osf1_mount_nfs __P((struct thread *, struct osf1_mount_args *,
-			struct mount_args *));
+void bsd2osf_statfs(struct statfs *, struct osf1_statfs *);
+int osf1_mount_mfs(struct thread *, struct osf1_mount_args *,
+			struct mount_args *);
+int osf1_mount_nfs(struct thread *, struct osf1_mount_args *,
+			struct mount_args *);
 
 #ifdef notanymore
 static const	char *fsnames[OSF1_MOUNT_MAXTYPE+2] = INITMOUNTNAMES;

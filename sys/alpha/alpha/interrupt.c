@@ -169,7 +169,7 @@ interrupt(a0, a1, a2, framep)
 
 void
 set_iointr(niointr)
-	void (*niointr) __P((void *, unsigned long));
+	void (*niointr)(void *, unsigned long);
 {
 	if (platform.iointr)
 		panic("set iointr twice");

@@ -223,10 +223,10 @@ LX98:	ldgp	$29,0($27);	\
 #ifdef GUPROF
 struct gmonparam;
 
-void	nullfunc_loop_profiled __P((void));
-void	nullfunc_profiled __P((void));
-void	startguprof __P((struct gmonparam *p));
-void	stopguprof __P((struct gmonparam *p));
+void	nullfunc_loop_profiled(void);
+void	nullfunc_profiled(void);
+void	startguprof(struct gmonparam *p);
+void	stopguprof(struct gmonparam *p);
 #else
 #define startguprof(p)
 #define stopguprof(p)

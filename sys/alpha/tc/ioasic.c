@@ -101,7 +101,7 @@ static int ioasic_attach(device_t dev);
 static driver_intr_t	ioasic_intrnull;
 static int ioasic_print_child(device_t bus, device_t dev);
 static void ioasic_lance_dma_setup(void *v);
-int     ioasic_intr __P((void *));
+int     ioasic_intr(void *);
 
 caddr_t le_iomem = 0;
 
@@ -145,7 +145,7 @@ struct ioasic_dev ioasic_devs[] = {
 };
 int ioasic_ndevs = sizeof(ioasic_devs) / sizeof(ioasic_devs[0]);
 struct ioasicintr {
-        void     (*iai_func) __P((void *));
+        void     (*iai_func)(void *);
         void    *iai_arg;
 } ioasicintrs[IOASIC_NCOOKIES];
 
@@ -283,7 +283,7 @@ ioasic_intr_establish(ioa, cookie, level, func, arg)
         device_t ioa;
         void *cookie, *arg;
         tc_intrlevel_t level;
-        void (*func) __P((void *));
+        void (*func)(void *);
 {
         u_long dev, i;
 

@@ -45,12 +45,12 @@ struct reg;
 struct cam_sim;
 struct pcicfg;
 
-void	busdma_swi __P((void));
-void	cpu_halt __P((void));
-void	cpu_reset __P((void));
-int	is_physical_memory __P((vm_offset_t addr));
-void	swi_vm __P((void *));
-void	alpha_register_pci_scsi __P((int bus, int slot, struct cam_sim *sim));
+void	busdma_swi(void);
+void	cpu_halt(void);
+void	cpu_reset(void);
+int	is_physical_memory(vm_offset_t addr);
+void	swi_vm(void *);
+void	alpha_register_pci_scsi(int bus, int slot, struct cam_sim *sim);
 #ifdef _SYS_BUS_H_
 struct resource *alpha_platform_alloc_ide_intr(int chan);
 int	alpha_platform_release_ide_intr(int chan, struct resource *res);
