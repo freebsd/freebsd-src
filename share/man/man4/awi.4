@@ -92,7 +92,9 @@ compatible adhoc mode.
 Indicates that the driver was not able to allocate 32kb of PCMCIA bus
 address space into which to map the device; the driver will use the
 (slightly slower) i/o-space only access methods to read and write to
-the shared memory.  Since by default, NetBSD, only allocates 16kb of
+the shared memory.  Since by default,
+.Nx ,
+only allocates 16kb of
 address space per PCMCIA controller, this message is in some sense to
 be expected and should not be a cause for alarm.
 See
