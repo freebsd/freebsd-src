@@ -10,6 +10,13 @@ SRCS+=	perl.c gv.c toke.c perly.c op.c regcomp.c dump.c util.c mg.c \
 CFLAGS+=-I${.OBJDIR} -I${PERL5SRC} -DPERL_EXTERNAL_GLOB -DPERL_CORE
 DPADD=	${LIBM} ${LIBCRYPT}
 LDADD=	-lm -lcrypt
+
+# In FreeBSD 4.0, setproctitle(3) is in -lutil.
+.if defined(BOOTSTRAPPING)
+DPADD+=	${LIBUTIL}
+LDADD+=	-lutil
+.endif
+
 # Miniperl _must_ be static!!
 NOSHARED= yes
 
