@@ -16,7 +16,7 @@ When using
 .Xr disklabel 8
 to lay out your filesystems on a hard disk it is important to remember
 that hard drives can transfer data much more quickly from outer tracks
-then they can from inner tracks.  To take advantage of this you should
+than they can from inner tracks.  To take advantage of this you should
 try to pack your smaller filesystems and swap closer to the outer tracks,
 follow with the larger filesystems, and end with the largest filesystems.
 It is also important to size system standard filesystems such that you
@@ -116,7 +116,7 @@ the edge of the disk (i.e. before the really big partitions instead of after
 in the partition table) will increase I/O performance in the partitions 
 where you need it the most.  Now it is true that you might also need I/O
 performance in the larger partitions, but they are so large that shifting
-them more towards the edge of the disk will not lead to a significnat
+them more towards the edge of the disk will not lead to a significant
 performance improvement whereas moving /var to the edge can have a huge impact.
 Finally, there are safety concerns.  Having a small neat root partition that
 is essentially read-only gives it a greater chance of surviving a bad crash
@@ -159,7 +159,7 @@ of inodes in a filesystem can greatly reduce
 recovery times after a crash.  Do not use this option
 unless you are actually storing large files on the partition, because if you
 overcompensate you can wind up with a filesystem that has lots of free
-space remaining but cannot accomodate any more files.  Using
+space remaining but cannot accommodate any more files.  Using
 32768, 65536, or 262144 bytes/inode is recommended.  You can go higher but
 it will have only incremental effects on fsck recovery times.  For
 example, 
@@ -187,10 +187,10 @@ with
 Softupdates drastically improves meta-data performance, mainly file
 creation and deletion.  We recommend turning softupdates on on all of your
 filesystems.  There are two downsides to softupdates that you should be
-aware of:  First, softupdates guarentees filesystem consistency in the
+aware of:  First, softupdates guarantees filesystem consistency in the
 case of a crash but could very easily be several seconds (even a minute!)
 behind updating the physical disk.  If you crash you may lose more work
-then otherwise.  Secondly, softupdates delays the freeing of filesystem
+than otherwise.  Secondly, softupdates delays the freeing of filesystem
 blocks.  If you have a filesystem (such as the root filesystem) which is 
 close to full, doing a major update of it, e.g.
 .Em make installworld,
@@ -209,11 +209,11 @@ or essentially read-only partitions such as /usr is a complete waste of
 time.  You should only stripe partitions that require serious I/O performance...
 typically /var, /home, or custom partitions used to hold databases and web
 pages.  Choosing the proper stripe size is also 
-important.  Filesystems tend to store meta-data on power-of-2 boundries
-and you usually want to reduce seeking rather then increase seeking.  This
+important.  Filesystems tend to store meta-data on power-of-2 boundaries
+and you usually want to reduce seeking rather than increase seeking.  This
 means you want to use a large off-center stripe size such as 1152 sectors
 so sequential I/O does not seek both disks and so meta-data is distributed
-across both disks rather then concentrated on a single disk.  If
+across both disks rather than concentrated on a single disk.  If
 you really need to get sophisticated, we recommend using a real hardware
 raid controller from the list of
 .Fx
@@ -249,7 +249,7 @@ amount of memory.  Turning on this sysctl allows the buffer cache to use
 the VM Page Cache to cache the directories.  The advantage is that all of
 memory is now available for caching directories.  The disadvantage is that
 the minimum in-core memory used to cache a directory is the physical page
-size (typically 4K) rather then 512 bytes.  We recommend turning this option
+size (typically 4K) rather than 512 bytes.  We recommend turning this option
 on if you are running any services which manipulate large numbers of files.
 Such services can include web caches, large mail systems, and news systems.
 Turning on this option will generally not reduce performance even with the
@@ -270,7 +270,7 @@ allowed for any given TCP connection.  The default is 16K.  You can often
 improve bandwidth utilization by increasing the default at the cost of 
 eating up more kernel memory for each connection.  We do not recommend
 increasing the defaults if you are serving hundreds or thousands of
-simultanious connections because it is possible to quickly run the system
+simultaneous connections because it is possible to quickly run the system
 out of memory due to stalled connections building up.  But if you need
 high bandwidth over a fewer number of connections, especially if you have
 gigabit ethernet, increasing these defaults can make a huge difference.
@@ -280,7 +280,7 @@ to decrease the recvspace in order to be able to increase the sendspace
 without eating too much kernel memory.  Note that the route table, see
 .Xr route 8 ,
 can be used to introduce route-specific send and receive buffer size
-defaults.  As an additional mangagement tool you can use pipes in your
+defaults.  As an additional management tool you can use pipes in your
 firewall rules, see
 .Xr ipfw 8 ,
 to limit the bandwidth going to or from particular IP blocks or ports.
@@ -293,12 +293,26 @@ out and lead to longer term stability.  Many people also enforce artificial
 bandwidth limitations in order to ensure that they are not charged for
 using too much bandwidth.
 .Pp
+Setting the send or receive TCP buffer to values larger then 65535 will result
+in a marginal performance improvement at best due to limitations within
+the TCP protocol itself.
+These limitations can prevent certain types of network links (specifically,
+gigabit WAN links and high-latency satellite links) from reaching
+their maximum level of performance.  For such cases we first recommend that
+you simply set the TCP buffer size to 65535 and stick with that if the
+performance is acceptable.  In extreme cases you may have to turn on the
+.Em net.inet.tcp.rfc1323
+sysctl and increase the buffer size to values greater then 65535.  This option
+turns on the window sizing extension to the TCP protocol.  We do not recommend
+that you use this option unless you absolutely have to because many hosts on
+the internet can't handle the feature and may cause connections to freeze up.
+.Pp
 We recommend that you turn on (set to 1) and leave on the 
 .Em net.inet.tcp.always_keepalive
 control.  The default is usually off.  This introduces a small amount of
-additional network bandwidth but guarentees that dead tcp connections
+additional network bandwidth but guarantees that dead tcp connections
 will eventually be recognized and cleared.  Dead tcp connections are a
-particular problem on systems accesed by users operating over dialups,
+particular problem on systems accessed by users operating over dialups,
 because users often disconnect their modems without properly closing active
 connections.
 .Pp
@@ -339,7 +353,7 @@ may be adjusted to increase the number of network mbufs the system is
 willing to allocate.  Each cluster represents approximately 2K of memory,
 so a value of 1024 represents 2M of kernel memory reserved for network
 buffers.  You can do a simple calculation to figure out how many you need.
-If you have a web server which maxes out at 1000 simultanious connections,
+If you have a web server which maxes out at 1000 simultaneous connections,
 and each connection eats a 16K receive and 16K send buffer, you need
 approximate 32MB worth of network buffers to deal with it.  A good rule of
 thumb is to multiply by 2, so 32MBx2 = 64MB/2K = 32768.  So for this case
@@ -388,20 +402,25 @@ timebase, and even device operations.  Additionally, higher-end cpus support
 4MB MMU pages which the kernel uses to map the kernel itself into memory,
 which increases its efficiency under heavy syscall loads.
 .Sh IDE WRITE CACHING
-As of
-.Fx 4.3 ,
-IDE write caching is turned off by default.  This will reduce write bandwidth
-to IDE disks but is considered necessary due to serious data consistency
+.Fx 4.3 
+flirted with turning off IDE write caching.  This reduced write bandwidth
+to IDE disks but was considered necessary due to serious data consistency
 issues introduced by hard drive vendors.  Basically the problem is that 
 IDE drives lie about when a write completes.  With IDE write caching turned
 on, IDE hard drives will not only write data to disk out of order, they
 will sometimes delay some of the blocks indefinitely when under heavy disk
 loads.  A crash or power failure can result in serious filesystem
-corruption.  So our default is to be safe.  If you are willing to risk
-filesystem corruption, you can return to the old behavior by setting the
-hw.ata.wc
+corruption.  So our default was changed to be safe.  Unfortunately, the
+result was such a huge loss in performance that we caved in and changed the
+default back to on after the release.  You should check the default on
+your system by observing the
+.Em hw.ata.wc
+sysctl variable.  If IDE write caching is turned off, you can turn it back
+on by setting the
+.Eme hw.ata.wc
 kernel variable back to 1.  This must be done from the boot loader at boot
-time.  Please see
+time.  Attempting to do it after the kernel boots will have no effect. 
+Please see
 .Xr ata 4 ,
 and
 .Xr loader 8 .
@@ -409,11 +428,13 @@ and
 There is a new experimental feature for IDE hard drives called hw.ata.tags
 (you also set this in the bootloader) which allows write caching to be safely
 turned on.  This brings SCSI tagging features to IDE drives.  As of this
-writing only IBM DPTA and DTLA drives support the feature.
+writing only IBM DPTA and DTLA drives support the feature.  Warning!  These
+drives apparently have quality control problems and I do not recommend
+purchasing them at this time.  If you need performance, go with SCSI.
 .Sh CPU, MEMORY, DISK, NETWORK
 The type of tuning you do depends heavily on where your system begins to
 bottleneck as load increases.  If your system runs out of cpu (idle times
-are pepetually 0%) then you need to consider upgrading the cpu or moving to
+are perpetually 0%) then you need to consider upgrading the cpu or moving to
 an SMP motherboard (multiple cpu's), or perhaps you need to revisit the
 programs that are causing the load and try to optimize them.  If your system
 is paging to swap a lot you need to consider adding more memory.  If your
@@ -436,7 +457,7 @@ as much as possible.  For example, in
 .Xr firewall 7
 we describe a firewall protecting internal hosts with a topology where
 the externally visible hosts are not routed through it.  Use 100BaseT rather
-then 10BaseT, or use 1000BaseT rather then 100BaseT, depending on your needs.
+than 10BaseT, or use 1000BaseT rather then 100BaseT, depending on your needs.
 Most bottlenecks occur at the WAN link (e.g. modem, T1, DSL, whatever).
 If expanding the link is not an option it may be possible to use ipfw's
 .Sy DUMMYNET
