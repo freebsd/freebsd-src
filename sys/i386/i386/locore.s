@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.120 1999/01/31 02:04:43 kato Exp $
+ *	$Id: locore.s,v 1.121 1999/04/28 01:03:20 luoqi Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -388,7 +388,7 @@ begin:
 	subl	$(13*4),%esp			/* space for rest of registers */
 
 	pushl	%esp				/* call main with frame pointer */
-	call	_main				/* autoconfiguration, mountroot etc */
+	call	_mi_startup			/* autoconfiguration, mountroot etc */
 
 	hlt		/* never returns to here */
 

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.118 1999/05/05 12:20:23 jb Exp $
+ * $Id: init_main.c,v 1.119 1999/05/07 17:37:08 des Exp $
  */
 
 #include "opt_devfs.h"
@@ -76,8 +76,7 @@
 
 extern struct linker_set	sysinit_set;	/* XXX */
 
-extern void __main __P((void));
-extern void main __P((void *framep));
+extern void mi_startup __P((void *framep));
 
 /* Components of the first process -- never freed. */
 static struct session session0;
@@ -103,16 +102,10 @@ SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
 /*
  * Promiscuous argument pass for start_init()
  *
- * This is a kludge because we use a return from main() rather than a call
+ * This is a kludge because we use a return from mi_startup() rather than a call
  * to a new routine in locore.s to kick the kernel alive from locore.s.
  */
 static void	*init_framep;
-
-
-#if __GNUC__ >= 2
-void __main() {}
-#endif
-
 
 /*
  * This ensures that there is at least one entry so that the sysinit_set
@@ -180,7 +173,7 @@ sysinit_add(set)
  * module.  Finally, it allows for optional "kernel threads".
  */
 void
-main(framep)
+mi_startup(framep)
 	void *framep;
 {
 
@@ -271,7 +264,7 @@ restart:
 
 /*
  * Start a kernel process.  This is called after a fork() call in
- * main() in the file kern/init_main.c.
+ * mi_startup() in the file kern/init_main.c.
  *
  * This function is used to start "internal" daemons.
  */
@@ -692,7 +685,7 @@ start_init(p)
 		 * Now try to exec the program.  If can't for any reason
 		 * other than it doesn't exist, complain.
 		 *
-		 * Otherwise return to main() which returns to btext
+		 * Otherwise return to mi_startup() which returns to btext
 		 * which completes the system startup.
 		 */
 		if ((error = execve(p, &args)) == 0)
