@@ -658,15 +658,14 @@ loop:
 				return (0);
 			}
 
-			sx_xlock(&allproc_lock);
-			LIST_REMOVE(p, p_list);	/* off zombproc */
-			sx_xunlock(&allproc_lock);
-
-			LIST_REMOVE(p, p_sibling);
 			/*
 			 * Remove other references to this process to ensure
 			 * we have an exclusive reference.
 			 */
+			sx_xlock(&allproc_lock);
+			LIST_REMOVE(p, p_list);	/* off zombproc */
+			sx_xunlock(&allproc_lock);
+			LIST_REMOVE(p, p_sibling);
 			leavepgrp(p);
 			sx_xunlock(&proctree_lock);
 
