@@ -96,7 +96,7 @@ The
 function returns a handle to an
 .Xr autofs 9
 filesystem based on the
-.Fn path
+.Fa path
 parameter.
 The handle returned should be freed via the
 .Fn autoh_free
@@ -114,10 +114,23 @@ function.
 .Pp
 The
 .Fn autoh_fd
-function returns a file descriptor that can selected or polled on
-for "excecption" data to detect an
+function returns a file descriptor that can be used with
+.Xr select 2
+or
+.Xr poll 2
+to check for "exceptional" data to detect an
 .Xr autofs 9
 event.
+Users of
+.Xr select 2
+should set the fd in the
+.Fa exceptfds
+fd_set.
+Users of
+.Xr poll 2
+should set POLLPRI in the pollfd
+.Fa fds
+argument.
 .Pp
 The
 .Fn autoh_mp
