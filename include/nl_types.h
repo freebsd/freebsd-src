@@ -1,4 +1,4 @@
-/*	$Id: nl_types.h,v 1.5 1998/04/30 10:09:58 ache Exp $ */
+/* $FreeBSD$ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
