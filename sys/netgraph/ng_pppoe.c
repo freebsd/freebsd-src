@@ -79,7 +79,6 @@ static ng_constructor_t	ng_pppoe_constructor;
 static ng_rcvmsg_t	ng_pppoe_rcvmsg;
 static ng_shutdown_t	ng_pppoe_shutdown;
 static ng_newhook_t	ng_pppoe_newhook;
-static ng_connect_t	ng_pppoe_connect;
 static ng_rcvdata_t	ng_pppoe_rcvdata;
 static ng_disconnect_t	ng_pppoe_disconnect;
 
@@ -175,7 +174,6 @@ static struct ng_type typestruct = {
 	.rcvmsg =	ng_pppoe_rcvmsg,
 	.shutdown =	ng_pppoe_shutdown,
 	.newhook =	ng_pppoe_newhook,
-	.connect =	ng_pppoe_connect,
 	.rcvdata =	ng_pppoe_rcvdata,
 	.disconnect =	ng_pppoe_disconnect,
 	.cmdlist =	ng_pppoe_cmds,
@@ -1548,17 +1546,6 @@ ng_pppoe_shutdown(node_p node)
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH_PPPOE);
-	return (0);
-}
-
-/*
- * This is called once we've already connected a new hook to the other node.
- * It gives us a chance to balk at the last minute.
- */
-static int
-ng_pppoe_connect(hook_p hook)
-{
-	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }
 

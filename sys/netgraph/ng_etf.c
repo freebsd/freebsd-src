@@ -67,7 +67,6 @@ static ng_constructor_t	ng_etf_constructor;
 static ng_rcvmsg_t	ng_etf_rcvmsg;
 static ng_shutdown_t	ng_etf_shutdown;
 static ng_newhook_t	ng_etf_newhook;
-static ng_connect_t	ng_etf_connect;
 static ng_rcvdata_t	ng_etf_rcvdata;	 /* note these are both ng_rcvdata_t */
 static ng_disconnect_t	ng_etf_disconnect;
 
@@ -120,7 +119,6 @@ static struct ng_type typestruct = {
 	.rcvmsg =	ng_etf_rcvmsg,
 	.shutdown =	ng_etf_shutdown,
 	.newhook =	ng_etf_newhook,
-	.connect =	ng_etf_connect,
 	.rcvdata =	ng_etf_rcvdata,
 	.disconnect =	ng_etf_disconnect,
 	.cmdlist =	ng_etf_cmdlist,
@@ -443,16 +441,6 @@ ng_etf_shutdown(node_p node)
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH_ETF);
-	return (0);
-}
-
-/*
- * This is called once we've already connected a new hook to the other node.
- * It gives us a chance to balk at the last minute.
- */
-static int
-ng_etf_connect(hook_p hook)
-{
 	return (0);
 }
 
