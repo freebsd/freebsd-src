@@ -114,7 +114,7 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	}
 #endif
 
-	MALLOC(kosa, struct osockaddr *, alloclen, mtype, 0);
+	MALLOC(kosa, struct osockaddr *, alloclen, mtype, M_WAITOK);
 
 	if ((error = copyin(osa, (caddr_t) kosa, *osalen)))
 		goto out;
