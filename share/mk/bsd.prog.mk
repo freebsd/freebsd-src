@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.24 1995/03/08 09:01:32 olah Exp $
+#	$Id: bsd.prog.mk,v 1.25 1995/04/26 14:34:19 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -86,7 +86,7 @@ ${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
 
 .endif
 
-.else defined(PROG)
+.else !defined(SRCS)
 
 SRCS=	${PROG}.c
 
