@@ -1,4 +1,5 @@
-.\"	$NetBSD: getopt_long.3,v 1.8 2002/06/03 12:01:43 wiz Exp $
+.\"	$OpenBSD: getopt_long.3,v 1.10 2004/01/06 23:44:28 fgsch Exp $
+.\"	$NetBSD: getopt_long.3,v 1.14 2003/08/07 16:43:40 agc Exp $
 .\"
 .\" Copyright (c) 1988, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -11,11 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -38,21 +35,27 @@
 .Dt GETOPT_LONG 3
 .Os
 .Sh NAME
-.Nm getopt_long
+.Nm getopt_long ,
+.Nm getopt_long_only
 .Nd get long options from command line argument list
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In getopt.h
 .Vt extern char *optarg ;
-.Vt extern int   optind ;
-.Vt extern int   optopt ;
-.Vt extern int   opterr ;
-.Vt extern int   optreset ;
+.Vt extern int optind ;
+.Vt extern int optopt ;
+.Vt extern int opterr ;
+.Vt extern int optreset ;
 .Ft int
 .Fo getopt_long
 .Fa "int argc" "char * const *argv" "const char *optstring"
-.Fa "struct option *long options" "int *index"
+.Fa "const struct option *longopts" "int *longindex"
+.Fc
+.Ft int
+.Fo getopt_long_only
+.Fa "int argc" "char * const *argv" "const char *optstring"
+.Fa "const struct option *longopts" "int *longindex"
 .Fc
 .Sh DESCRIPTION
 The
@@ -158,41 +161,87 @@ and setting
 to the corresponding short option will make this function act just
 like
 .Xr getopt 3 .
+.Pp
+If the
+.Fa longindex
+field is not
+.Dv NULL ,
+then the integer pointed to by it will be set to the index of the long
+option relative to
+.Fa longopts .
+.Pp
+The last element of the
+.Fa longopts
+array has to be filled with zeroes.
+.Pp
+The
+.Fn getopt_long_only
+function behaves identically to
+.Fn getopt_long
+with the exception that long options may start with
+.Ql -
+in addition to
+.Ql -- .
+If an option starting with
+.Ql -
+does not match a long option but does match a single-character option,
+the single-character option is returned.
+.Sh RETURN VALUES
+If the
+.Fa flag
+field in
+.Li struct option
+is
+.Dv NULL ,
+.Fn getopt_long
+and
+.Fn getopt_long_only
+return the value specified in the
+.Fa val
+field, which is usually just the corresponding short option.
+If
+.Fa flag
+is not
+.Dv NULL ,
+these functions return 0 and store
+.Fa val
+in the location pointed to by
+.Fa flag .
+These functions return
+.Ql \&:
+if there was a missing option argument,
+.Ql \&?
+if the user specified an unknown or ambiguous option, and
+\-1 when the argument list has been exhausted.
 .Sh EXAMPLES
 .Bd -literal -compact
-extern char *optarg;
-extern int optind;
 int bflag, ch, fd;
 int daggerset;
 
 /* options descriptor */
 static struct option longopts[] = {
-	{ "buffy",	no_argument,		0, 		'b' },
-	{ "floride",	required_argument,	0, 	       	'f' },
+	{ "buffy",	no_argument,		NULL, 		'b' },
+	{ "fluoride",	required_argument,	NULL, 	       	'f' },
 	{ "daggerset",	no_argument,		\*[Am]daggerset,	1 },
-	{ 0, 		0,			0, 		0 }
+	{ NULL,		0,			NULL, 		0 }
 };
 
 bflag = 0;
 while ((ch = getopt_long(argc, argv, "bf:", longopts, NULL)) != -1)
-	switch(ch) {
+	switch (ch) {
 	case 'b':
 		bflag = 1;
 		break;
 	case 'f':
-		if ((fd = open(optarg, O_RDONLY, 0)) \*[Lt] 0) {
-			(void)fprintf(stderr,
-			    "myname: %s: %s\en", optarg, strerror(errno));
-			exit(1);
-		}
+		if ((fd = open(optarg, O_RDONLY, 0)) == -1)
+			err(1, "unable to open %s", optarg);
 		break;
 	case 0:
-		if(daggerset) {
+		if (daggerset) {
 			fprintf(stderr,"Buffy will use her dagger to "
-				       "apply floride to dracula's teeth\en");
+			    "apply fluoride to dracula's teeth\en");
 		}
 		break;
-	case '?':
 	default:
 		usage();
 }
@@ -211,27 +260,50 @@ Handling of
 as first char of option string in presence of
 environment variable
 .Ev POSIXLY_CORRECT :
-.Bl -tag -width ".Nx"
+.Bl -tag -width ".Bx"
 .It Tn GNU
 ignores
 .Ev POSIXLY_CORRECT
 and returns non-options as
 arguments to option '\e1'.
-.It Nx
+.It Bx
 honors
 .Ev POSIXLY_CORRECT
 and stops at the first non-option.
 .El
 .It
 Handling of
+.Ql -
+within the option string (not the first character):
+.Bl -tag -width ".Bx"
+.It Tn GNU
+treats a
+.Ql -
+on the command line as a non-argument.
+.It Bx
+a
+.Ql -
+within the option string matches a
+.Ql -
+(single dash) on the command line.
+This functionality is provided for backward compatibility with
+programs, such as
+.Xr su 1 ,
+that use
+.Ql -
+as an option flag.
+This practice is wrong, and should not be used in any current development.
+.El
+.It
+Handling of
 .Ql ::
 in options string in presence of
 .Ev POSIXLY_CORRECT :
-.Bl -tag -width ".Nx"
+.Bl -tag -width ".Bx"
 .It Both
 .Tn GNU
 and
-.Nx
+.Bx
 ignore
 .Ev POSIXLY_CORRECT
 here and take
@@ -247,15 +319,15 @@ or
 .Ql - )
 in option string is not
 .Ql \&: :
-.Bl -tag -width ".Nx"
+.Bl -tag -width ".Bx"
 .It Tn GNU
 returns
 .Ql \&?
-.It Nx
+.It Bx
 returns
 .Ql \&:
 (since
-.Nx Ns 's
+.Bx Ns 's
 .Fn getopt
 does).
 .El
@@ -263,13 +335,13 @@ does).
 Handling of
 .Ql --a
 in getopt:
-.Bl -tag -width ".Nx"
+.Bl -tag -width ".Bx"
 .It Tn GNU
 parses this as option
 .Ql - ,
 option
 .Ql a .
-.It Nx
+.It Bx
 parses this as
 .Ql -- ,
 and returns \-1 (ignoring the
@@ -285,13 +357,13 @@ for long options with
 .Va flag
 !=
 .Dv NULL :
-.Bl -tag -width ".Nx"
+.Bl -tag -width ".Bx"
 .It Tn GNU
 sets
 .Va optopt
 to
 .Va val .
-.It Nx
+.It Bx
 sets
 .Va optopt
 to 0 (since
@@ -302,28 +374,18 @@ would never be returned).
 Handling of
 .Ql -W
 with
-.Ql W ;
+.Ql W;
 in option string in
 .Fn getopt
 (not
 .Fn getopt_long ) :
-.Bl -tag -width ".Nx"
+.Bl -tag -width ".Bx"
 .It Tn GNU
 causes a segfault.
-.It Nx
-returns \-1, with
-.Va optind
-pointing past the argument of
-.Ql -W
-(as if
-.Ql "-W arg"
-were
-.Ql --arg ,
-and thus
-.Ql --
-had been found).
-.\" How should we treat W; in the option string when called via
-.\" getopt?  Ignore the ';' or treat it as a ':'? Issue a warning?
+.It Bx
+no special handling is done;
+.Ql W;
+is interpreted as two separate options, neither of which take an argument.
 .El
 .It
 Setting of
@@ -331,15 +393,15 @@ Setting of
 for long options without an argument that are
 invoked via
 .Ql -W
-.Ql ( W ;
+.Ql ( W;
 in option string):
-.Bl -tag -width ".Nx"
+.Bl -tag -width ".Bx"
 .It Tn GNU
 sets
 .Va optarg
 to the option name (the argument of
 .Ql -W ) .
-.It Nx
+.It Bx
 sets
 .Va optarg
 to
@@ -353,14 +415,14 @@ with an argument that is not (a prefix to) a known
 long option
 .Ql ( W ;
 in option string):
-.Bl -tag -width ".Nx"
+.Bl -tag -width ".Bx"
 .It Tn GNU
 returns
 .Ql -W
 with
 .Va optarg
 set to the unknown option.
-.It Nx
+.It Bx
 treats this as an error (unknown option) and returns
 .Ql \&?
 with
@@ -376,7 +438,7 @@ man page documents).
 .It
 The error messages are different.
 .It
-.Nx
+.Bx
 does not permute the argument vector at the same points in
 the calling sequence as
 .Tn GNU
@@ -388,18 +450,57 @@ relative
 to current positions) are the same, though.
 (We do fewer variable swaps.)
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width POSIXLY_CORRECT
+.It Ev POSIXLY_CORRECT
+If set, option processing stops when the first non-option is found and
+a leading
+.Ql -
+or
+.Ql +
+in the
+.Ar optstring
+is ignored.
+.El
 .Sh SEE ALSO
 .Xr getopt 3
 .Sh HISTORY
 The
 .Fn getopt_long
-function first appeared in
+and
+.Fn getopt_long_only
+functions first appeared in
 .Tn GNU
 libiberty.
 The first
-.Nx
-implementation appeared in 1.5.
+.Bx
+implementation of
+.Fn getopt_long
+appeared in
+.Nx 1.5 ,
+the first
+.Bx
+implementation of
+.Fn getopt_long_only
+in
+.Ox 3.3 .
+.Fx
+first included
+.Fn getopt_long
+in
+.Fx 5.0 ,
+.Fn getopt_long_only
+in
+.Fx 5.2 .
 .Sh BUGS
+The
+.Ar argv
+argument is not really
+.Dv const
+as its elements may be permuted (unless
+.Ev POSIXLY_CORRECT
+is set).
+.Pp
 The implementation can completely replace
 .Xr getopt 3 ,
 but right now we are using separate code.
