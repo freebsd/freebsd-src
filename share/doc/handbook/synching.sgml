@@ -1,4 +1,4 @@
-<!-- $Id: synching.sgml,v 1.2 1996/08/29 04:26:42 jkh Exp $ -->
+<!-- $Id: synching.sgml,v 1.3 1996/10/04 22:54:16 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
@@ -7,7 +7,7 @@
 
 <!--
 
-Last updated: $Date: 1996/08/29 04:26:42 $
+Last updated: $Date: 1996/10/04 22:54:16 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.
@@ -55,7 +55,7 @@ the introduction of the <bf>CVSup</bf> utility, a highly efficient
 replacement for SUP which also offers access to any branch of FreeBSD
 development from a single CVS repository (which, in turn, can also be
 transferred non-destructively with CVSup - any local developer work on
-independant branches is preserved).  It overcomes many of SUP's shortcomings
+independent branches is preserved).  It overcomes many of SUP's shortcomings
 and may be <htmlurl url="ftp://freefall.freebsd.org/pub/CVSup/"
 name="downloaded"> from our development server, where additional documentation
 is also provided.  Both the CVSup client and server are compatible with
