@@ -35,24 +35,24 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: s_ceil.S,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $")
+RCSID("$Id: s_ceil.S,v 1.2 1994/08/19 11:14:21 jkh Exp $")
 
 ENTRY(ceil)
 	pushl	%ebp
 	movl	%esp,%ebp
 	subl	$8,%esp
 
-	fstcw	-12(%ebp)		/* store fpu control word */
-	movw	-12(%ebp),%dx
+	fstcw	-4(%ebp)		/* store fpu control word */
+	movw	-4(%ebp),%dx
 	orw	$0x0800,%dx		/* round towards +oo */
 	andw	$0xfbff,%dx
-	movw	%dx,-16(%ebp)
-	fldcw	-16(%ebp)		/* load modfied control word */
+	movw	%dx,-8(%ebp)
+	fldcw	-8(%ebp)		/* load modfied control word */
 
 	fldl	8(%ebp);		/* round */
 	frndint
 
-	fldcw	-12(%ebp)		/* restore original control word */
+	fldcw	-4(%ebp)		/* restore original control word */
 
 	leave
 	ret
