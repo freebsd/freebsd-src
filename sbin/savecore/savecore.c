@@ -104,7 +104,7 @@ struct nlist dump_nl[] = {	/* Name list for dumped system. */
 /* Types match kernel declarations. */
 off_t	dumplo;				/* where dump starts on dumpdev */
 int	dumpmag;			/* magic number in dump */
-int	dumpsize;			/* amount of memory dumped */
+off_t	dumpsize;			/* amount of memory dumped */
 
 char	*kernel;			/* user-specified kernel */
 char	*savedir;			/* directory to save dumps in */
@@ -579,10 +579,12 @@ get_crashtime()
 void
 get_dumpsize()
 {
+	unsigned int dumppages;
+
 	/* Read the dump size. */
-	DumpRead(dumpfd, &dumpsize, sizeof(dumpsize),
+	DumpRead(dumpfd, &dumppages, sizeof(dumppages),
 	    (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
-	dumpsize *= getpagesize();
+	dumpsize = dumppages * getpagesize();
 }
 
 /*
