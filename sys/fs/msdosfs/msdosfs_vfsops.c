@@ -51,8 +51,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
@@ -63,6 +61,7 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h> 				/* defines ALLPERMS */
+#include <sys/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
 #include <fs/msdosfs/bootsect.h>
@@ -70,6 +69,8 @@
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/fat.h>
+
+#define MSDOSFS_DFLTBSIZE       4096
 
 #if 1 /*def PC98*/
 /*
@@ -84,8 +85,6 @@
 
 MALLOC_DEFINE(M_MSDOSFSMNT, "MSDOSFS mount", "MSDOSFS mount structure");
 static MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table");
-
-int bdemsd = 0;
 
 static int	update_mp(struct mount *mp, struct msdosfs_args *argp);
 static int	mountmsdosfs(struct vnode *devvp, struct mount *mp,
@@ -142,67 +141,6 @@ update_mp(mp, argp)
 	}
 	return 0;
 }
-
-#if 0
-int
-msdosfs_mountroot()
-{
-	register struct mount *mp;
-	struct thread *td = curthread;	/* XXX */
-	size_t size;
-	int error;
-	struct msdosfs_args args;
-
-	if (root_device->dv_class != DV_DISK)
-		return (ENODEV);
-
-	/*
-	 * Get vnodes for swapdev and rootdev.
-	 */
-	if (bdevvp(rootdev, &rootvp))
-		panic("msdosfs_mountroot: can't setup rootvp");
-
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
-	mp->mnt_op = &msdosfs_vfsops;
-	mp->mnt_flag = 0;
-	TAILQ_INIT(&mp->mnt_nvnodelist);
-	TAILQ_INIT(&mp->mnt_reservedvnlist);
-
-	args.flags = 0;
-	args.uid = 0;
-	args.gid = 0;
-	args.mask = 0777;
-
-	if ((error = mountmsdosfs(rootvp, mp, p, &args)) != 0) {
-		free(mp, M_MOUNT);
-		return (error);
-	}
-
-	if ((error = update_mp(mp, &args)) != 0) {
-		(void)msdosfs_unmount(mp, 0, td);
-		free(mp, M_MOUNT);
-		return (error);
-	}
-
-	if ((error = vfs_lock(mp)) != 0) {
-		(void)msdosfs_unmount(mp, 0, td);
-		free(mp, M_MOUNT);
-		return (error);
-	}
-
-	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	mp->mnt_vnodecovered = NULLVP;
-	(void) copystr("/", mp->mnt_stat.f_mntonname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-	(void) copystr(ROOTNAME, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)msdosfs_statfs(mp, &mp->mnt_stat, td);
-	vfs_unlock(mp);
-	return (0);
-}
-#endif
 
 /*
  * mp - path - addr in user space of mount point (ie /usr or whatever)
@@ -392,9 +330,9 @@ mountmsdosfs(devvp, mp, td, argp)
 	 * Read the boot sector of the filesystem, and then check the
 	 * boot signature.  If not a dos boot sector then error out.
 	 *
-	 * NOTE: 8192 is a magic size that works for ffs.
+	 * NOTE: 2048 is a maximum sector size in current...
 	 */
-	error = bread(devvp, 0, 8192, NOCRED, &bp);
+	error = bread(devvp, 0, 2048, NOCRED, &bp);
 	if (error)
 		goto error_exit;
 	bp->b_flags |= B_AGE;
@@ -555,7 +493,7 @@ mountmsdosfs(devvp, mp, td, argp)
 	if (FAT12(pmp))
 		pmp->pm_fatblocksize = 3 * pmp->pm_BytesPerSec;
 	else
-		pmp->pm_fatblocksize = PAGE_SIZE;	/* XXX */
+		pmp->pm_fatblocksize = MSDOSFS_DFLTBSIZE;
 
 	pmp->pm_fatblocksec = pmp->pm_fatblocksize / DEV_BSIZE;
 	pmp->pm_bnshift = ffs(DEV_BSIZE) - 1;
@@ -608,9 +546,8 @@ mountmsdosfs(devvp, mp, td, argp)
 	 * Check and validate (or perhaps invalidate?) the fsinfo structure?
 	 */
 	if (pmp->pm_fsinfo && pmp->pm_nxtfree > pmp->pm_maxcluster) {
-		printf(
-		"Next free cluster in FSInfo (%lu) exceeds maxcluster (%lu)\n",
-		    pmp->pm_nxtfree, pmp->pm_maxcluster);
+		printf("Next free cluster in FSInfo (%u) exceeds maxcluster (%u)\n",
+				pmp->pm_nxtfree, pmp->pm_maxcluster);
 		error = EINVAL;
 		goto error_exit;
 	}
@@ -814,7 +751,7 @@ loop:
 		if (vp->v_type == VNON ||
 		    ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
-		    TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
+		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
 			mtx_unlock(&vp->v_interlock);
 			mtx_lock(&mntvnode_mtx);
 			continue;
@@ -840,12 +777,6 @@ loop:
 	 */
 	if (waitfor != MNT_LAZY) {
 		vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		if (!TAILQ_EMPTY(&pmp->pm_devvp->v_dirtyblkhd)) {
-			if (bdemsd)
-				Debugger("msdosfs: flush fs control info");
-			else
-				printf("msdosfs: flush fs control info\n");
-		}
 		error = VOP_FSYNC(pmp->pm_devvp, cred, waitfor, td);
 		if (error)
 			allerror = error;
