@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	LABELSECTOR	1
 #endif
 
+static int force;
 static int slice;
 
 static void
@@ -58,7 +59,7 @@ usage_migrate(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-s] device\n", getprogname());
+	    "usage: %s [-fs] device\n", getprogname());
 	exit(1);
 }
 
@@ -271,9 +272,11 @@ migrate(int fd)
 			break;
 		}
 		default:
-			warnx("%s: error: unknown partition type (%d)",
-			    device_name, mbr->mbr_part[i].part_typ);
-			return;
+			if (!force) {
+				warnx("%s: error: unknown partition type (%d)",
+				    device_name, mbr->mbr_part[i].part_typ);
+				return;
+			}
 		}
 	}
 	ent = tbl->map_data;
@@ -329,8 +332,11 @@ cmd_migrate(int argc, char *argv[])
 	int ch, fd;
 
 	/* Get the migrate options */
-	while ((ch = getopt(argc, argv, "s")) != -1) {
+	while ((ch = getopt(argc, argv, "fs")) != -1) {
 		switch(ch) {
+		case 'f':
+			force = 1;
+			break;
 		case 's':
 			slice = 1;
 			break;
