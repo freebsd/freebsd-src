@@ -4,6 +4,8 @@
 SUBDIR=csu/tahoe.pcc
 .elif	${MACHINE} == "vax"
 SUBDIR=csu/vax.pcc
+.elif	exists(${.CURDIR}/csu/${MACHINE}-${BINFORMAT})
+SUBDIR=csu/${MACHINE}-${BINFORMAT}
 .elif	exists(${.CURDIR}/csu/${MACHINE})
 SUBDIR=csu/${MACHINE}
 .endif
