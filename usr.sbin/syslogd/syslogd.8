@@ -40,7 +40,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl dknsuv
+.Op Fl 46Adknsuv
 .Op Fl a Ar allowed_peer
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
@@ -54,6 +54,21 @@ machines and/or users as specified by its configuration file.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl A
+.Nm
+tries to send the message to only one address
+even if the host has more than one A or AAAA record.
+If this option is specified,
+.Nm
+tries to send the message to all addresses.
 .It Fl a Ar allowed_peer
 Allow
 .Ar allowed_peer
@@ -71,8 +86,13 @@ Accept datagrams from
 .Ar ipaddr
 (in the usual dotted quad notation) with
 .Ar masklen
-bits being taken into account when doing the address comparison.  If
-specified,
+bits being taken into account when doing the address comparison.
+.Ar ipaddr
+can be also IPv6 address by enclosing the address with
+.Ql [
+and
+.Ql \&] .
+If specified,
 .Ar service
 is the name or number of an UDP service (see
 .Xr services 5 )
@@ -84,12 +104,18 @@ allows packets being sent from any UDP port.  The default
 .Ar service
 is
 .Ql syslog .
-A missing
+If
+.Ar ipaddr
+is IPv4 address, a missing
 .Ar masklen
 will be substituted by the historic class A or class B netmasks if
 .Ar ipaddr
 belongs into the address range of class A or B, respectively, or
-by 24 otherwise.
+by 24 otherwise.  If
+.Ar ipaddr
+is IPv6 address, a missing
+.Ar masklen
+will be substituted by 128.
 .It Ar domainname Ns Op Ar :service
 Accept datagrams where the reverse address lookup yields
 .Ar domainname
