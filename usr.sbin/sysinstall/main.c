@@ -101,6 +101,9 @@ main(int argc, char **argv)
     if (DebugFD)
 	dup2(DebugFD, 2);
 
+    /* Initialize driver modules */
+    moduleInitialize();
+
     /* Initialize PC-card */
     pccardInitialize();
 
