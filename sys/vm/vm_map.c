@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.147 1999/02/03 01:57:16 dillon Exp $
+ * $Id: vm_map.c,v 1.148 1999/02/07 21:48:22 dillon Exp $
  */
 
 /*
@@ -429,6 +429,9 @@ vm_map_lookup_entry(map, address, entry)
  *	size should match that of the address range.
  *
  *	Requires that the map be locked, and leaves it so.
+ *
+ *	If object is non-NULL, ref count must be bumped by caller
+ *	prior to making call to account for the new entry.
  */
 int
 vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
@@ -438,9 +441,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t new_entry;
 	vm_map_entry_t prev_entry;
 	vm_map_entry_t temp_entry;
-#if 0
-	vm_object_t prev_object;
-#endif
 	u_char protoeflags;
 
 	if ((object != NULL) && (cow & MAP_NOFAULT)) {
@@ -483,13 +483,18 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if (cow & MAP_NOFAULT)
 		protoeflags |= MAP_ENTRY_NOFAULT;
 
-	/*
-	 * See if we can avoid creating a new entry by extending one of our
-	 * neighbors.  Or at least extend the object.
-	 */
-
-	if (
-	    (object == NULL) &&
+	if (object) {
+		/*
+		 * When object is non-NULL, it could be shared with another
+		 * process.  We have to set or clear OBJ_ONEMAPPING 
+		 * appropriately.
+		 */
+		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
+			vm_object_clear_flag(object, OBJ_ONEMAPPING);
+		} else {
+			vm_object_set_flag(object, OBJ_ONEMAPPING);
+		}
+	} else if (
 	    (prev_entry != &map->header) &&
 	    ((prev_entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) &&
 		((prev_entry->object.vm_object == NULL) ||
@@ -506,8 +511,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 					(vm_size_t) (end - prev_entry->end)))) {
 
 			/*
-			 * Coalesced the two objects.  Can we extend the
-			 * previous map entry to include the new range?
+			 * We were able to extend the object.  Determine if we
+			 * can extend the previous map entry to include the 
+			 * new range as well.
 			 */
 			if ((prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
 			    (prev_entry->protection == prot) &&
@@ -515,26 +521,27 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 				map->size += (end - prev_entry->end);
 				prev_entry->end = end;
-#if 0
-				/*
-				 * (no longer applies)
-				 */
-				if ((cow & MAP_NOFAULT) == 0) {
-					prev_object = prev_entry->object.vm_object;
-					default_pager_convert_to_swapq(prev_object);
-				}
-#endif
 				return (KERN_SUCCESS);
 			}
-			else {
-				object = prev_entry->object.vm_object;
-				offset = prev_entry->offset + (prev_entry->end -
-							       prev_entry->start);
 
-				vm_object_reference(object);
-			}
+			/*
+			 * If we can extend the object but cannot extend the
+			 * map entry, we have to create a new map entry.  We
+			 * must bump the ref count on the extended object to
+			 * account for it.
+			 */
+			object = prev_entry->object.vm_object;
+			offset = prev_entry->offset +
+			    (prev_entry->end - prev_entry->start);
+			vm_object_reference(object);
 		}
 	}
+
+	/*
+	 * NOTE: if conditionals fail, object can be NULL here.  This occurs
+	 * in things like the buffer map where we manage kva but do not manage
+	 * backing objects.
+	 */
 
 	/*
 	 * Create a new entry
@@ -548,14 +555,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	new_entry->object.vm_object = object;
 	new_entry->offset = offset;
 	new_entry->avail_ssize = 0;
-
-	if (object) {
-		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
-			vm_object_clear_flag(object, OBJ_ONEMAPPING);
-		} else {
-			vm_object_set_flag(object, OBJ_ONEMAPPING);
-		}
-	}
 
 	if (map->is_main_map) {
 		new_entry->inheritance = VM_INHERIT_DEFAULT;
@@ -577,12 +576,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		(prev_entry->end >= new_entry->start))
 		map->first_free = new_entry;
 
-#if 0
-	/*
-	 * (no longer applies)
-	 */
-	default_pager_convert_to_swapq(object);
-#endif
 	return (KERN_SUCCESS);
 }
 
@@ -853,6 +846,8 @@ vm_map_findspace(map, start, length, addr)
  *	first-fit from the specified address; the region found is
  *	returned in the same parameter.
  *
+ *	If object is non-NULL, ref count must be bumped by caller
+ *	prior to making call to account for the new entry.
  */
 int
 vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
