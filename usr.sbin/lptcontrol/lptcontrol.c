@@ -42,7 +42,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <machine/lpt.h>
+#include <dev/ppbus/lptio.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
