@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dd.c,v 1.2 1994/09/24 02:54:52 davidg Exp $
  */
 
 #ifndef lint
@@ -195,8 +195,18 @@ setup()
 					if (islower(cnt))
 						ctab[cnt] = ctab[toupper(cnt)];
 			}
-		else
+		else {
 			ctab = ddflags & C_LCASE ? u2l : l2u;
+			if (ddflags & C_LCASE) {
+				for (cnt = 0; cnt < 0377; ++cnt)
+					if (isupper(cnt))
+						ctab[cnt] = tolower(cnt);
+			} else {
+				for (cnt = 0; cnt < 0377; ++cnt)
+					if (islower(cnt))
+						ctab[cnt] = toupper(cnt);
+			}
+		}
 	(void)time(&st.start);			/* Statistics timestamp. */
 }
 
