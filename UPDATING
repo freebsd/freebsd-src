@@ -4,6 +4,10 @@ This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
 done items, please see the COMMON ITEMS: section later in the file.
 
+Items affecting the ports and packages system can be found in
+/usr/ports/UPDATING.  Please read that file before running
+portupgrade.  Important recent entries: 20040724 (default X changes).
+
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	FreeBSD 5.x has many debugging features turned on, in
 	both the kernel and userland.  These features attempt to detect
