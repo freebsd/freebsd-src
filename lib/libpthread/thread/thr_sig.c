@@ -984,12 +984,13 @@ _thr_signal_init(void)
 void
 _thr_signal_deinit(void)
 {
-	sigset_t tmpmask, oldmask;
+	struct pthread *curthread = _get_curthread();
+	sigset_t tmpmask;
 	int i;
 
 	SIGFILLSET(tmpmask);
 	SIG_CANTMASK(tmpmask);
-	__sys_sigprocmask(SIG_SETMASK, &tmpmask, &oldmask);
+	__sys_sigprocmask(SIG_SETMASK, &tmpmask, NULL);
 	/* Enter a loop to get the existing signal status: */
 	for (i = 1; i <= _SIG_MAXSIG; i++) {
 		/* Check for signals which cannot be trapped: */
@@ -1005,6 +1006,6 @@ _thr_signal_deinit(void)
 			PANIC("Cannot set signal handler info");
 		}
 	}
-	__sys_sigprocmask(SIG_SETMASK, &oldmask, NULL);
+	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 }
 
