@@ -2,7 +2,7 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: co.1,v 5.7 1991/08/19 03:13:55 eggert Exp $
+.Id $Id: co.1,v 1.1.1.1 1993/06/18 04:22:11 jkh Exp $
 .ds g \&\s-1UTC\s0
 .ds r \&\s-1RCS\s0
 .if n .ds - \%--
@@ -140,6 +140,14 @@ useful in connection with
 See also
 .SM "FILE MODES"
 below.
+.TP
+.B \-K\f2keywordlist\fP
+Exclude or include keyword expansion when checking out a file.
+By default all keywords are expanded, you can turn individual
+keywords off with
+.BR \-K\f2eKeyword\fP
+or on with
+.BR \-K\f2iKeyword\fP .
 .TP
 .B \-kkv
 Generate keyword strings using the default form, e.g.\&
