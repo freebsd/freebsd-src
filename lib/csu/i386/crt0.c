@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.21 1995/11/02 12:42:42 ache Exp $
+ *	$Id: crt0.c,v 1.23 1996/01/30 05:55:20 nate Exp $
  */
 
 #include <sys/param.h>
@@ -249,13 +249,20 @@ __do_dynamic_link ()
 	crt.crt_ep = environ;
 	crt.crt_bp = (caddr_t)_callmain;
 	crt.crt_prog = __progname;
+	crt.crt_ldentry = NULL;
 
 	entry = (int (*)())(crt.crt_ba + sizeof hdr);
-	ret = (*entry)(CRT_VERSION_BSD_3, &crt);
+	ret = (*entry)(CRT_VERSION_BSD_4, &crt);
+	ld_entry = crt.crt_ldentry;
+	if (ret == -1 && ld_entry == NULL) {
+		/* if version 4 not recognised, try version 3 */
+		ret = (*entry)(CRT_VERSION_BSD_3, &crt);
+		ld_entry = _DYNAMIC.d_entry;
+	}
 	if (ret == -1) {
 		_PUTMSG("ld.so failed");
-		if(_DYNAMIC.d_entry != NULL) {
-			char *msg = (_DYNAMIC.d_entry->dlerror)();
+		if (ld_entry != NULL) {
+			char *msg = (ld_entry->dlerror)();
 			if(msg != NULL) {
 				char *endp;
 				_PUTMSG(": ");
@@ -267,7 +274,6 @@ __do_dynamic_link ()
 		_FATAL("\n");
 	}
 
-	ld_entry = _DYNAMIC.d_entry;
 
 	if (ret >= LDSO_VERSION_HAS_DLEXIT)
 		atexit(ld_entry->dlexit);
