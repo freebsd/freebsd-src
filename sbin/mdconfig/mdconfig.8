@@ -157,9 +157,8 @@ To create and mount a 128MByte swap backed file system on
 .Pa /tmp :
 .Bd -literal -offset indent
 mdconfig -a -t swap -s 128M -u 10
-disklabel -r -w md10 auto
-newfs -U /dev/md10c
-mount /dev/md10c /tmp
+newfs -U /dev/md10
+mount /dev/md10 /tmp
 chmod 1777 /tmp
 .Ed
 .Sh SEE ALSO
