@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.33 1994/02/01 10:03:43 davidg Exp $
+ *	$Id: machdep.c,v 1.34 1994/02/07 07:44:42 davidg Exp $
  */
 
 #include "npx.h"
@@ -94,6 +94,8 @@ extern vm_offset_t avail_start, avail_end;
 static void identifycpu(void);
 static void initcpu(void);
 static int test_page(int *, int);
+
+extern int grow(struct proc *,int);
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -431,7 +433,13 @@ sendsig(catcher, sig, mask, code)
 			- sizeof(struct sigframe));
 	}
 
-	if (useracc((caddr_t)fp, sizeof (struct sigframe), B_WRITE) == 0) {
+	/*
+	 * grow() will return FALSE if the fp will not fit inside the stack
+	 *	and the stack can not be grown. useracc will return FALSE
+	 *	if access is denied.
+	 */
+	if ((grow(p, (int)fp) == FALSE) ||
+	    (useracc((caddr_t)fp, sizeof (struct sigframe), B_WRITE) == FALSE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
