@@ -133,10 +133,13 @@ struct ifnet {
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
 		/*
 		 * if_addrhead is the list of all addresses associated to
-		 * an interface. The first element of the list must be
-		 * of type AF_LINK, and contains sockaddr_dl addresses,
-		 * which include the link-level address and the name
+		 * an interface.
+		 * Some code in the kernel assumes that first element
+		 * of the list has type AF_LINK, and contains sockaddr_dl
+		 * addresses which store the link-level address and the name
 		 * of the interface.
+		 * However, access to the AF_LINK address through this
+		 * field is deprecated. Use ifaddr_byindex() instead.
 		 */
 	struct	klist if_klist;		/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
@@ -442,6 +445,11 @@ struct ifindex_entry {
 };
 
 #define ifnet_byindex(idx)	ifindex_table[(idx)].ife_ifnet
+/*
+ * Given the index, ifaddr_byindex() returns the one and only
+ * link-level ifaddr for the interface. You are not supposed to use
+ * it to traverse the list of addresses associated to the interface.
+ */
 #define ifaddr_byindex(idx)	ifindex_table[(idx)].ife_ifnet_addr
 #define ifdev_byindex(idx)	ifindex_table[(idx)].ife_dev
 
