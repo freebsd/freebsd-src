@@ -451,7 +451,7 @@ struct proc {
 	u_short		p_acflag;	/* (c) Accounting flags. */
 	struct rusage	*p_ru;		/* (a) Exit information. XXX */
 	struct proc	*p_peers;	/* (c) */
-	struct proc	*p_leader;	/* (c) */
+	struct proc	*p_leader;	/* (b) */
 	void		*p_emuldata;	/* (c) Emulator state data. */
 };
 
