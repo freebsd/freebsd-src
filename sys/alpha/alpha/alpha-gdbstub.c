@@ -592,7 +592,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
    * Ignore float regs for now.
    */
   for (i = 0; i < FRAME_SIZE; i++)
-    if (tf2gdb[i] > 0)
+    if (tf2gdb[i] >= 0)
       registers.r[tf2gdb[i]] = raw_regs->tf_regs[i];
   registers.pc = raw_regs->tf_regs[FRAME_PC];
 
@@ -727,7 +727,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	   * Map gdb registers back to trapframe (ignoring fp regs).
 	   */
 	  for (i = 0; i < NUM_REGS; i++)
-	    if (gdb2tf[i] > 0)
+	    if (gdb2tf[i] >= 0)
 	      raw_regs->tf_regs[gdb2tf[i]] = registers.r[i];
 	  raw_regs->tf_regs[FRAME_PC] = registers.pc;
 
