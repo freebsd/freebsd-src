@@ -1574,6 +1574,11 @@ mlx*)
 	mknod mlx$unit c 130 $unit
 	;;
 
+amr*)
+	unit=`expr $i : 'amr\(.*\)'`
+	mknod amr$unit c 132 $unit
+	;;
+
 agpgart)
 	mknod agpgart c 148 0
 	;;
