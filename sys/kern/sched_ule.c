@@ -752,7 +752,7 @@ kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
 	 * threshold at which we start to reassign kses has a large impact
 	 * on the overall performance of the system.  Tuned too high and
 	 * some CPUs may idle.  Too low and there will be excess migration
-	 * and context swiches.
+	 * and context switches.
 	 */
 	if (ksg->ksg_load > (ksg->ksg_cpus * 2) && kseq_idle) {
 		/*
