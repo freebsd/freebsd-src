@@ -30,5 +30,3 @@ DESC: DESC.proto
 	    -e "s/^vert .*$$/vert `expr $(RES) / $(LPI)`/" \
 	    -e "s/^fonts .*$$/fonts `set $(FONTS); echo $$#` $(FONTS)/" \
 	    ${DIST_DIR}/DESC.proto >$@
-
-beforeinstall:: ${DEVFILES}

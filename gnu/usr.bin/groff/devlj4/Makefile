@@ -11,8 +11,6 @@ DEVFILES=	DESC \
 
 CLEANFILES+=	DESC
 
-.include "../Makefile.inc"
-
 DESC: DESC.in
 	-rm -f DESC
 	echo "res $(LJ4RES)" >DESC
