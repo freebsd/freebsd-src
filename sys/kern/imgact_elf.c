@@ -82,14 +82,16 @@ static int __elfN(load_section)(struct proc *p,
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 
 static int elf_trace = 0;
+static int elf_legacy_coredump = 0;
 #if __ELF_WORD_SIZE == 32
 SYSCTL_INT(_debug, OID_AUTO, elf32_trace, CTLFLAG_RW, &elf_trace, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, elf32_legacy_coredump, CTLFLAG_RW, 
+    &elf_legacy_coredump, 0, "");
 #else
 SYSCTL_INT(_debug, OID_AUTO, elf64_trace, CTLFLAG_RW, &elf_trace, 0, "");
-#endif
-static int elf_legacy_coredump = 0;
-SYSCTL_INT(_debug, OID_AUTO, elf_legacy_coredump, CTLFLAG_RW, 
+SYSCTL_INT(_debug, OID_AUTO, elf64_legacy_coredump, CTLFLAG_RW, 
     &elf_legacy_coredump, 0, "");
+#endif
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 extern int fallback_elf_brand;
