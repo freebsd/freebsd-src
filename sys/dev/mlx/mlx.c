@@ -2267,9 +2267,8 @@ mlx_alloccmd(struct mlx_softc *sc)
 
     /* allocate a new command buffer? */
     if (mc == NULL) {
-	mc = (struct mlx_command *)malloc(sizeof(*mc), M_DEVBUF, M_NOWAIT);
+	mc = (struct mlx_command *)malloc(sizeof(*mc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mc != NULL) {
-	    bzero(mc, sizeof(*mc));
 	    mc->mc_sc = sc;
 	    error = bus_dmamap_create(sc->mlx_buffer_dmat, 0, &mc->mc_dmamap);
 	    if (error) {
