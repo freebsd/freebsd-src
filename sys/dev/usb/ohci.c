@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.68 2000/01/31 20:17:25 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.71 2000/02/01 05:42:52 augustss Exp $ */
 /*	$FreeBSD$	*/
 
 /*
@@ -364,7 +364,7 @@ ohci_detach(sc, flags)
 	if (rv != 0)
 		return (rv);
 
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	powerhook_disestablish(sc->sc_powerhook);
 	shutdownhook_disestablish(sc->sc_shutdownhook);
 #endif
@@ -429,6 +429,7 @@ ohci_alloc_std(sc)
 			  OHCI_TD_ALIGN, &dma);
 		if (err)
 			return (0);
+		s = splusb();
 		for(i = 0; i < OHCI_STD_CHUNK; i++) {
 			offs = i * OHCI_STD_SIZE;
 			std = (ohci_soft_td_t *)((char *)KERNADDR(&dma, offs));
@@ -436,13 +437,15 @@ ohci_alloc_std(sc)
 			std->nexttd = sc->sc_freetds;
 			sc->sc_freetds = std;
 		}
+		splx(s);
 	}
+
+	s = splusb();
 	std = sc->sc_freetds;
 	sc->sc_freetds = std->nexttd;
 	memset(&std->td, 0, sizeof(ohci_td_t));
 	std->nexttd = NULL;
 
-	s = splusb();
 	ohci_hash_add_td(sc, std);
 	splx(s);
 
@@ -458,10 +461,10 @@ ohci_free_std(sc, std)
 
 	s = splusb();
 	ohci_hash_rem_td(sc, std);
-	splx(s);
 
 	std->nexttd = sc->sc_freetds;
 	sc->sc_freetds = std;
+	splx(s);
 }
 
 usbd_status
@@ -833,7 +836,7 @@ ohci_init(sc)
 	sc->sc_bus.methods = &ohci_bus_methods;
 	sc->sc_bus.pipe_size = sizeof(struct ohci_pipe);
 
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OPENBSD__)
 	sc->sc_powerhook = powerhook_establish(ohci_power, sc);
 	sc->sc_shutdownhook = shutdownhook_establish(ohci_shutdown, sc);
 #endif
@@ -1152,7 +1155,7 @@ ohci_process_done(sc, done)
 	/* Reverse the done list and store the reversed list in sdone */
 	sdone = NULL;
 	for (; done; done = le32toh(std->td.td_nexttd)) {
-		std = ohci_hash_find_td(sc, done & htole32(OHCI_TAILMASK));
+		std = ohci_hash_find_td(sc, done & htole32(OHCI_HEADMASK));
 		if (std == NULL) {
 #ifdef OHCI_DEBUG
 			DPRINTF(("%s: Invalid done queue 0x%08x",
@@ -1183,7 +1186,7 @@ ohci_process_done(sc, done)
 		xfer = std->xfer;
 		stdnext = std->dnext;
 		DPRINTFN(5, ("ohci_process_done: std=%p xfer=%p hcpriv=%p\n",
-				std, xfer, (xfer? xfer->hcpriv:NULL)));
+				std, xfer, (xfer ? xfer->hcpriv : NULL)));
 		if (xfer == NULL || (std->flags & OHCI_TD_HANDLED)) {
 			/* xfer == NULL: There seems to be no xfer associated
 			 * with this TD. It is tailp that happened to end up on
@@ -1310,7 +1313,6 @@ ohci_device_intr_done(xfer)
 		xfer->hcpriv = data;
 		xfer->actlen = 0;
 
-		ohci_hash_add_td(sc, data);
 		sed->ed.ed_tailp = htole32(tail->physaddr);
 		opipe->tail.td = tail;
 	}
@@ -1646,7 +1648,7 @@ ohci_hash_find_td(sc, a)
 	/* if these are present they should be masked out at an earlier
 	 * stage.
 	 */
-	KASSERT((a&~OHCI_TAILMASK) == 0, ("%s: 0x%b has lower bits set\n",
+	KASSERT((a&~OHCI_HEADMASK) == 0, ("%s: 0x%b has lower bits set\n",
 				      USBDEVNAME(sc->sc_bus.bdev),
 				      (int) a, "\20\1HALT\2TOGGLE"));
 
@@ -1844,8 +1846,8 @@ ohci_close_pipe(pipe, head)
 	s = splusb();
 #ifdef DIAGNOSTIC
 	sed->ed.ed_flags |= htole32(OHCI_ED_SKIP);
-	if ((le32toh(sed->ed.ed_tailp) & OHCI_TAILMASK)
-	    != (le32toh(sed->ed.ed_headp) & OHCI_HEADMASK)) {
+	if ((le32toh(sed->ed.ed_tailp) & OHCI_HEADMASK) !=
+	    (le32toh(sed->ed.ed_headp) & OHCI_HEADMASK)) {
 		ohci_physaddr_t td = sed->ed.ed_headp;
 		ohci_soft_td_t *std;
 		for (std = LIST_FIRST(&sc->sc_hash_tds[HASH(td)]); 
@@ -1859,7 +1861,7 @@ ohci_close_pipe(pipe, head)
 		       (int)le32toh(sed->ed.ed_tailp),
 		       pipe, std);
 		usb_delay_ms(&sc->sc_bus, 2);
-		if ((le32toh(sed->ed.ed_tailp) & OHCI_TAILMASK) !=
+		if ((le32toh(sed->ed.ed_tailp) & OHCI_HEADMASK) !=
 		    (le32toh(sed->ed.ed_headp) & OHCI_HEADMASK))
 			printf("ohci_close_pipe: pipe still not empty\n");
 	}
@@ -2587,7 +2589,6 @@ ohci_device_bulk_start(xfer)
 	s = splusb();
 	for (tdp = data; tdp != tail; tdp = tdp->nexttd) {
 		tdp->xfer = xfer;
-		ohci_hash_add_td(sc, tdp);
 	}
 	sed->ed.ed_tailp = htole32(tail->physaddr);
 	opipe->tail.td = tail;
@@ -2707,7 +2708,6 @@ ohci_device_intr_start(xfer)
 
 	/* Insert ED in schedule */
 	s = splusb();
-	ohci_hash_add_td(sc, data);
 	sed->ed.ed_tailp = htole32(tail->physaddr);
 	opipe->tail.td = tail;
 	sed->ed.ed_flags &= htole32(~OHCI_ED_SKIP);
@@ -2760,11 +2760,11 @@ ohci_device_intr_close(pipe)
 		    pipe, nslots, pos));
 	s = splusb();
 	sed->ed.ed_flags |= htole32(OHCI_ED_SKIP);
-	if ((le32toh(sed->ed.ed_tailp) & OHCI_TAILMASK) !=
+	if ((le32toh(sed->ed.ed_tailp) & OHCI_HEADMASK) !=
 	    (le32toh(sed->ed.ed_headp) & OHCI_HEADMASK))
 		usb_delay_ms(&sc->sc_bus, 2);
 #ifdef DIAGNOSTIC
-	if ((le32toh(sed->ed.ed_tailp) & OHCI_TAILMASK) !=
+	if ((le32toh(sed->ed.ed_tailp) & OHCI_HEADMASK) !=
 	    (le32toh(sed->ed.ed_headp) & OHCI_HEADMASK))
 		panic("%s: Intr pipe %p still has TDs queued\n",
 			USBDEVNAME(sc->sc_bus.bdev), pipe);
