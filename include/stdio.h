@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.12 1997/03/11 11:16:27 peter Exp $
+ *	$Id: stdio.h,v 1.13 1997/04/13 15:50:07 bde Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -292,7 +292,7 @@ _BSD_OFF_T_ lseek __P((int, _BSD_OFF_T_, int));
 #endif
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED
-char	*mmap __P((char *, size_t, int, int, int, _BSD_OFF_T_));
+char	*mmap __P((void *, size_t, int, int, int, _BSD_OFF_T_));
 #endif
 #ifndef _TRUNCATE_DECLARED
 #define	_TRUNCATE_DECLARED
