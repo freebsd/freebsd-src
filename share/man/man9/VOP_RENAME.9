@@ -295,13 +295,17 @@ out:
 .It Bq Er EPERM
 The file is immutable.
 .It Bq Er EXDEV
-cross device move
+It is not possible to rename a file between different file systems.
 .It Bq Er EINVAL
-illegal directory rename
+An attempt was made to rename
+.Ql .\& 
+or
+.Ql \&.. ,
+or a perform an operation which would break the directory tree structure.
 .It Bq Er ENOTDIR
-attempt to rename a directory to a file or vice versa
+An attempt was made to rename a directory to a file or vice versa.
 .It Bq Er ENOTEMPTY
-attempt to remove a directory which is not empty
+An attempt was made to remove a directory which is not empty.
 .El
 .Sh SEE ALSO
 .Xr vnode 9
