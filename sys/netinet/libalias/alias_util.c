@@ -50,6 +50,7 @@ then these routines will give a result of zero (useful for testing
 purposes);
 */
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -60,7 +61,7 @@ purposes);
 #include "alias_local.h"
 
 u_short
-PacketAliasInternetChecksum(u_short *ptr, int nbytes)
+LibAliasInternetChecksum(struct libalias *la, u_short *ptr, int nbytes)
 {
     int sum, oddbyte;
 

@@ -46,6 +46,92 @@
 #ifndef _ALIAS_LOCAL_H_
 #define	_ALIAS_LOCAL_H_
 
+#include <sys/queue.h>
+
+/* Sizes of input and output link tables */
+#define LINK_TABLE_OUT_SIZE         101
+#define LINK_TABLE_IN_SIZE         4001
+
+struct proxy_entry;
+
+struct libalias {
+	LIST_ENTRY(libalias)	instancelist;
+
+	int packetAliasMode;		/* Mode flags                      */
+					/*        - documented in alias.h  */
+
+	struct in_addr aliasAddress;	/* Address written onto source     */
+					/*   field of IP packet.           */
+
+	struct in_addr targetAddress;	/* IP address incoming packets     */
+					/*   are sent to if no aliasing    */
+					/*   link already exists           */
+
+	struct in_addr nullAddress;	/* Used as a dummy parameter for   */
+					/*   some function calls           */
+
+	LIST_HEAD(, alias_link) linkTableOut[LINK_TABLE_OUT_SIZE];
+					/* Lookup table of pointers to     */
+					/*   chains of link records. Each  */
+
+	LIST_HEAD(, alias_link) linkTableIn[LINK_TABLE_IN_SIZE];
+					/*   link record is doubly indexed */
+					/*   into input and output lookup  */
+					/*   tables.                       */
+
+					/* Link statistics                 */
+	int icmpLinkCount;
+	int udpLinkCount;
+	int tcpLinkCount;
+	int pptpLinkCount;
+	int protoLinkCount;
+	int fragmentIdLinkCount;
+	int fragmentPtrLinkCount;
+	int sockCount;
+
+	int cleanupIndex;		/* Index to chain of link table    */
+					/* being inspected for old links   */
+
+	int timeStamp;			/* System time in seconds for      */
+					/* current packet                  */
+
+	int lastCleanupTime;		/* Last time IncrementalCleanup()  */
+					/* was called                      */
+
+	int houseKeepingResidual;	/* used by HouseKeeping()          */
+
+	int deleteAllLinks;		/* If equal to zero, DeleteLink()  */
+					/* will not remove permanent links */
+
+	FILE *monitorFile;		/* File descriptor for link        */
+					/* statistics monitoring file      */
+
+	int newDefaultLink;		/* Indicates if a new aliasing     */
+					/* link has been created after a   */
+					/* call to PacketAliasIn/Out().    */
+
+#ifndef NO_FW_PUNCH
+	int fireWallFD;			/* File descriptor to be able to   */
+					/* control firewall.  Opened by    */
+					/* PacketAliasSetMode on first     */
+					/* setting the PKT_ALIAS_PUNCH_FW  */
+					/* flag.                           */
+	int fireWallBaseNum;     /* The first firewall entry free for our use */
+	int fireWallNumNums;     /* How many entries can we use? */
+	int fireWallActiveNum;   /* Which entry did we last use? */
+	char *fireWallField;     /* bool array for entries */
+#endif
+
+	unsigned int skinnyPort;	/* TCP port used by the Skinny     */
+					/* protocol.                       */
+
+	struct proxy_entry *proxyList;
+
+	struct in_addr true_addr;	/* in network byte order. */
+	u_short true_port;		/* in host byte order. */
+
+};
+
 /* Macros */
 
 /*
@@ -71,10 +157,6 @@
 		} \
 	} while (0)
 
-/* Globals */
-
-extern int packetAliasMode;
-extern unsigned int skinnyPort;
 
 /* Prototypes */
 
@@ -86,58 +168,58 @@ void	 DifferentialChecksum(u_short *_cksum, u_short *_new, u_short *_old,
 
 /* Internal data access */
 struct alias_link *
-	 FindIcmpIn(struct in_addr _dst_addr, struct in_addr _alias_addr,
+	 FindIcmpIn(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
 	    u_short _id_alias, int _create);
 struct alias_link *
-	 FindIcmpOut(struct in_addr _src_addr, struct in_addr _dst_addr,
+	 FindIcmpOut(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
 	    u_short _id, int _create);
 struct alias_link *
-	 FindFragmentIn1(struct in_addr _dst_addr, struct in_addr _alias_addr,
+	 FindFragmentIn1(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
 	    u_short _ip_id);
 struct alias_link *
-	 FindFragmentIn2(struct in_addr _dst_addr, struct in_addr _alias_addr,
+	 FindFragmentIn2(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
 	    u_short _ip_id);
 struct alias_link *
-	 AddFragmentPtrLink(struct in_addr _dst_addr, u_short _ip_id);
+	 AddFragmentPtrLink(struct libalias *la, struct in_addr _dst_addr, u_short _ip_id);
 struct alias_link *
-	 FindFragmentPtr(struct in_addr _dst_addr, u_short _ip_id);
+	 FindFragmentPtr(struct libalias *la, struct in_addr _dst_addr, u_short _ip_id);
 struct alias_link *
-	 FindProtoIn(struct in_addr _dst_addr, struct in_addr _alias_addr,
+	 FindProtoIn(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
 	    u_char _proto);
 struct alias_link *
-	 FindProtoOut(struct in_addr _src_addr, struct in_addr _dst_addr,
+	 FindProtoOut(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
 	    u_char _proto);
 struct alias_link *
-	 FindUdpTcpIn(struct in_addr _dst_addr, struct in_addr _alias_addr,
+	 FindUdpTcpIn(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
 	    u_short _dst_port, u_short _alias_port, u_char _proto, int _create);
 struct alias_link *
-	 FindUdpTcpOut(struct in_addr _src_addr, struct in_addr _dst_addr,
+	 FindUdpTcpOut(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
 	    u_short _src_port, u_short _dst_port, u_char _proto, int _create);
 struct alias_link *
-	 AddPptp(struct in_addr _src_addr, struct in_addr _dst_addr,
+	 AddPptp(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
 	    struct in_addr _alias_addr, u_int16_t _src_call_id);
 struct alias_link *
-	 FindPptpOutByCallId(struct in_addr _src_addr,
+	 FindPptpOutByCallId(struct libalias *la, struct in_addr _src_addr,
 	    struct in_addr _dst_addr, u_int16_t _src_call_id);
 struct alias_link *
-	 FindPptpInByCallId(struct in_addr _dst_addr,
+	 FindPptpInByCallId(struct libalias *la, struct in_addr _dst_addr,
 	    struct in_addr _alias_addr, u_int16_t _dst_call_id);
 struct alias_link *
-	 FindPptpOutByPeerCallId(struct in_addr _src_addr,
+	 FindPptpOutByPeerCallId(struct libalias *la, struct in_addr _src_addr,
 	    struct in_addr _dst_addr, u_int16_t _dst_call_id);
 struct alias_link *
-	 FindPptpInByPeerCallId(struct in_addr _dst_addr,
+	 FindPptpInByPeerCallId(struct libalias *la, struct in_addr _dst_addr,
 	    struct in_addr _alias_addr, u_int16_t _alias_call_id);
 struct alias_link *
-	 FindRtspOut(struct in_addr _src_addr, struct in_addr _dst_addr,
+	 FindRtspOut(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
 	    u_short _src_port, u_short _alias_port, u_char _proto);
 struct in_addr
-	 FindOriginalAddress(struct in_addr _alias_addr);
+	 FindOriginalAddress(struct libalias *la, struct in_addr _alias_addr);
 struct in_addr
-	 FindAliasAddress(struct in_addr _original_addr);
+	 FindAliasAddress(struct libalias *la, struct in_addr _original_addr);
 
 /* External data access/modification */
-int	 FindNewPortGroup(struct in_addr _dst_addr, struct in_addr _alias_addr,
+int	 FindNewPortGroup(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
                      u_short _src_port, u_short _dst_port, u_short _port_count,
 		     u_char _proto, u_char _align);
 void	 GetFragmentAddr(struct alias_link *_link, struct in_addr *_src_addr);
@@ -155,8 +237,8 @@ struct in_addr
 struct in_addr
 	 GetAliasAddress(struct alias_link *_link);
 struct in_addr
-	 GetDefaultAliasAddress(void);
-void	 SetDefaultAliasAddress(struct in_addr _alias_addr);
+	 GetDefaultAliasAddress(struct libalias *la);
+void	 SetDefaultAliasAddress(struct libalias *la, struct in_addr _alias_addr);
 u_short	 GetOriginalPort(struct alias_link *_link);
 u_short	 GetAliasPort(struct alias_link *_link);
 struct in_addr
@@ -170,7 +252,7 @@ int	 GetDeltaAckIn(struct ip *_pip, struct alias_link *_link);
 int	 GetDeltaSeqOut(struct ip *_pip, struct alias_link *_link);
 void	 AddSeq(struct ip *_pip, struct alias_link *_link, int _delta);
 void	 SetExpire(struct alias_link *_link, int _expire);
-void	 ClearCheckNewLink(void);
+void	 ClearCheckNewLink(struct libalias *la);
 void	 SetProtocolFlags(struct alias_link *_link, int _pflags);
 int	 GetProtocolFlags(struct alias_link *_link);
 void	 SetDestCallId(struct alias_link *_link, u_int16_t _cid);
@@ -179,47 +261,47 @@ void	 PunchFWHole(struct alias_link *_link);
 #endif
 
 /* Housekeeping function */
-void	 HouseKeeping(void);
+void	 HouseKeeping(struct libalias *);
 
 /* Tcp specfic routines */
 /* lint -save -library Suppress flexelint warnings */
 
 /* FTP routines */
-void	 AliasHandleFtpOut(struct ip *_pip, struct alias_link *_link,
+void	 AliasHandleFtpOut(struct libalias *la, struct ip *_pip, struct alias_link *_link,
 	    int _maxpacketsize);
 
 /* IRC routines */
-void	 AliasHandleIrcOut(struct ip *_pip, struct alias_link *_link,
+void	 AliasHandleIrcOut(struct libalias *la, struct ip *_pip, struct alias_link *_link,
 	    int _maxsize);
 
 /* RTSP routines */
-void	 AliasHandleRtspOut(struct ip *_pip, struct alias_link *_link,
+void	 AliasHandleRtspOut(struct libalias *la, struct ip *_pip, struct alias_link *_link,
 	    int _maxpacketsize);
 
 /* PPTP routines */
-void	 AliasHandlePptpOut(struct ip *_pip, struct alias_link *_link);
-void	 AliasHandlePptpIn(struct ip *_pip, struct alias_link *_link);
-int	 AliasHandlePptpGreOut(struct ip *_pip);
-int	 AliasHandlePptpGreIn(struct ip *_pip);
+void	 AliasHandlePptpOut(struct libalias *la, struct ip *_pip, struct alias_link *_link);
+void	 AliasHandlePptpIn(struct libalias *la, struct ip *_pip, struct alias_link *_link);
+int	 AliasHandlePptpGreOut(struct libalias *la, struct ip *_pip);
+int	 AliasHandlePptpGreIn(struct libalias *la, struct ip *_pip);
 
 /* NetBIOS routines */
-int	 AliasHandleUdpNbt(struct ip *_pip, struct alias_link *_link,
+int	 AliasHandleUdpNbt(struct libalias *la, struct ip *_pip, struct alias_link *_link,
 	    struct in_addr *_alias_address, u_short _alias_port);
-int	 AliasHandleUdpNbtNS(struct ip *_pip, struct alias_link *_link,
+int	 AliasHandleUdpNbtNS(struct libalias *la, struct ip *_pip, struct alias_link *_link,
 	    struct in_addr *_alias_address, u_short *_alias_port,
 	    struct in_addr *_original_address, u_short *_original_port);
 
 /* CUSeeMe routines */
-void	 AliasHandleCUSeeMeOut(struct ip *_pip, struct alias_link *_link);
-void	 AliasHandleCUSeeMeIn(struct ip *_pip, struct in_addr _original_addr);
+void	 AliasHandleCUSeeMeOut(struct libalias *la, struct ip *_pip, struct alias_link *_link);
+void	 AliasHandleCUSeeMeIn(struct libalias *la, struct ip *_pip, struct in_addr _original_addr);
 
 /* Skinny routines */
-void	 AliasHandleSkinny(struct ip *_pip, struct alias_link *_link);
+void	 AliasHandleSkinny(struct libalias *la, struct ip *_pip, struct alias_link *_link);
 
 /* Transparent proxy routines */
-int	 ProxyCheck(struct ip *_pip, struct in_addr *_proxy_server_addr,
+int	 ProxyCheck(struct libalias *la, struct ip *_pip, struct in_addr *_proxy_server_addr,
 	    u_short *_proxy_server_port);
-void	 ProxyModify(struct alias_link *_link, struct ip *_pip,
+void	 ProxyModify(struct libalias *la, struct alias_link *_link, struct ip *_pip,
 	    int _maxpacketsize, int _proxy_type);
 
 enum alias_tcp_state {
