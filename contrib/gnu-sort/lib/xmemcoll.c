@@ -1,5 +1,5 @@
 /* Locale-specific memory comparison.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,21 +28,14 @@ extern int errno;
 
 #include <stdlib.h>
 
-#if ENABLE_NLS
-# include <libintl.h>
-# define _(Text) gettext (Text)
-#else
-# define _(Text) Text
-#endif
+#include "gettext.h"
+#define _(msgid) gettext (msgid)
 
 #include "error.h"
+#include "exitfail.h"
 #include "memcoll.h"
 #include "quotearg.h"
 #include "xmemcoll.h"
-
-/* Exit value when xmemcoll fails.
-   The caller may set it to some other value.  */
-int xmemcoll_exit_failure = EXIT_FAILURE;
 
 /* Compare S1 (with length S1LEN) and S2 (with length S2LEN) according
    to the LC_COLLATE locale.  S1 and S2 do not overlap, and are not
@@ -60,7 +53,7 @@ xmemcoll (char *s1, size_t s1len, char *s2, size_t s2len)
     {
       error (0, collation_errno, _("string comparison failed"));
       error (0, 0, _("Set LC_ALL='C' to work around the problem."));
-      error (xmemcoll_exit_failure, 0,
+      error (exit_failure, 0,
 	     _("The strings compared were %s and %s."),
 	     quotearg_n_style_mem (0, locale_quoting_style, s1, s1len),
 	     quotearg_n_style_mem (1, locale_quoting_style, s2, s2len));
