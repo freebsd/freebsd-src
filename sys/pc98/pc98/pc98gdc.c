@@ -108,7 +108,7 @@ gdc_identify(driver_t *driver, device_t parent)
 }
 
 static int
-gdc_probe(device_t dev)
+gdcprobe(device_t dev)
 {
 	gdc_softc_t *sc;
 
@@ -235,7 +235,7 @@ gdcmmap(dev_t dev, vm_offset_t offset, int prot)
 
 static device_method_t gdc_methods[] = {
 	DEVMETHOD(device_identify,	gdc_identify),
-	DEVMETHOD(device_probe,		gdc_probe),
+	DEVMETHOD(device_probe,		gdcprobe),
 	DEVMETHOD(device_attach,	gdc_attach),
 	{ 0, 0 }
 };
