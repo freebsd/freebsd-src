@@ -67,7 +67,7 @@ uha0*   330     dyn     6       dyn     Ultrastore 14f
 aha0    330     dyn     5       dyn     Adaptec 154x/1535 SCSI controller
 ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
-aic0*   340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
+aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360/AIC-6260 SCSI
                                         controller
 isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 2100 SCSI/FC controllers
 dpt     n/a     n/a     n/a     n/a     DPT RAID SCSI controllers.
@@ -336,6 +336,10 @@ Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
 EISA/VLB/PCI SCSI controllers.
 Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
+Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
+Adaptec 152x series ISA SCSI controllers
+Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
+and SoundBlaster SCSI cards.
 
 AdvanSys SCSI controllers (all models).
 
@@ -407,14 +411,9 @@ NOT YET supported under the new CAM SCSI subsystem:
 
   WD7000 SCSI controller.
 
-  Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
-  Adaptec 152x series ISA SCSI controllers
-  Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
-  and SoundBlaster SCSI cards.
-
-  [ Note:  There is work-in-progress to port the AIC-6260/6360 and
-    UltraStor drivers to the new CAM SCSI framework, but no estimates on
-    when or if they will be completed. ]
+  [ Note:  There is work-in-progress to port the UltraStor driver to 
+    the new CAM SCSI framework, but no estimates on when or if it will 
+    be completed. ]
 
 Unmaintained drivers, they might or might not work for your hardware:
 
