@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.16 1998/10/28 10:37:54 jkh Exp $
+ *	$Id: ffs_softdep.c,v 1.17 1998/10/31 15:33:32 peter Exp $
  */
 
 /*
@@ -1261,7 +1261,7 @@ allocdirect_merge(adphead, newadp, oldadp)
 	if (newadp->ad_oldblkno != oldadp->ad_newblkno ||
 	    newadp->ad_oldsize != oldadp->ad_newsize ||
 	    newadp->ad_lbn >= NDADDR)
-		panic("allocdirect_check: old %d != new %d || lbn %d >= %d",
+		panic("allocdirect_check: old %d != new %d || lbn %ld >= %d",
 		    newadp->ad_oldblkno, oldadp->ad_newblkno, newadp->ad_lbn,
 		    NDADDR);
 	newadp->ad_oldblkno = oldadp->ad_oldblkno;
@@ -2827,12 +2827,12 @@ initiate_write_inodeblock(inodedep, bp)
 		prevlbn = adp->ad_lbn;
 		if (adp->ad_lbn < NDADDR &&
 		    dp->di_db[adp->ad_lbn] != adp->ad_newblkno)
-			panic("%s: direct pointer #%d mismatch %d != %d",
+			panic("%s: direct pointer #%ld mismatch %d != %d",
 			    "softdep_write_inodeblock", adp->ad_lbn,
 			    dp->di_db[adp->ad_lbn], adp->ad_newblkno);
 		if (adp->ad_lbn >= NDADDR &&
 		    dp->di_ib[adp->ad_lbn - NDADDR] != adp->ad_newblkno)
-			panic("%s: indirect pointer #%d mismatch %d != %d",
+			panic("%s: indirect pointer #%ld mismatch %d != %d",
 			    "softdep_write_inodeblock", adp->ad_lbn - NDADDR,
 			    dp->di_ib[adp->ad_lbn - NDADDR], adp->ad_newblkno);
 		deplist |= 1 << adp->ad_lbn;
@@ -3137,11 +3137,9 @@ handle_written_inodeblock(inodedep, bp)
 	struct inodedep *inodedep;
 	struct buf *bp;		/* buffer containing the inode block */
 {
-	struct pagedep *pagedep;
 	struct worklist *wk, *filefree;
 	struct allocdirect *adp, *nextadp;
 	struct dinode *dp;
-	struct diradd *dap;
 	int hadchanges;
 
 	if ((inodedep->id_state & IOSTARTED) == 0)
@@ -3175,14 +3173,14 @@ handle_written_inodeblock(inodedep, bp)
 			panic("handle_written_inodeblock: new entry");
 		if (adp->ad_lbn < NDADDR) {
 			if (dp->di_db[adp->ad_lbn] != adp->ad_oldblkno)
-				panic("%s: %s #%d mismatch %d != %d",
+				panic("%s: %s #%ld mismatch %d != %d",
 				    "handle_written_inodeblock",
 				    "direct pointer", adp->ad_lbn,
 				    dp->di_db[adp->ad_lbn], adp->ad_oldblkno);
 			dp->di_db[adp->ad_lbn] = adp->ad_newblkno;
 		} else {
 			if (dp->di_ib[adp->ad_lbn - NDADDR] != 0)
-				panic("%s: %s #%d allocated as %d",
+				panic("%s: %s #%ld allocated as %d",
 				    "handle_written_inodeblock",
 				    "indirect pointer", adp->ad_lbn - NDADDR,
 				    dp->di_ib[adp->ad_lbn - NDADDR]);
@@ -3432,7 +3430,6 @@ softdep_load_inodeblock(ip)
 	struct inode *ip;	/* the "in_core" copy of the inode */
 {
 	struct inodedep *inodedep;
-	int error, gotit;
 
 	/*
 	 * Check for alternate nlink count.
