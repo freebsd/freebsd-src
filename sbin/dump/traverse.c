@@ -274,8 +274,8 @@ mapdirs(ino_t maxino, long *tapesize)
 		for (ret = 0, i = 0; filesize > 0 && i < NDADDR; i++) {
 			if (DIP(&di, di_db[i]) != 0)
 				ret |= searchdir(ino, DIP(&di, di_db[i]),
-				    (long)sblksize(sblock, DIP(dp, di_size), i),
-				    filesize, tapesize, nodump);
+				    (long)sblksize(sblock, DIP(&di, di_size),
+				    i), filesize, tapesize, nodump);
 			if (ret & HASDUMPEDFILE)
 				filesize = 0;
 			else
@@ -289,7 +289,7 @@ mapdirs(ino_t maxino, long *tapesize)
 		}
 		if (ret & HASDUMPEDFILE) {
 			SETINO(ino, dumpinomap);
-			*tapesize += blockest(dp);
+			*tapesize += blockest(&di);
 			change = 1;
 			continue;
 		}
