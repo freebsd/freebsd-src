@@ -198,7 +198,7 @@ void	die __P((int));
 void	domark __P((int));
 void	fprintlog __P((struct filed *, int, char *));
 void	init __P((int));
-void	logerror __P((char *));
+void	logerror __P((const char *));
 void	logmsg __P((int, char *, char *, int));
 void	printline __P((char *, char *));
 void	printsys __P((char *));
@@ -844,7 +844,7 @@ domark(signo)
  */
 void
 logerror(type)
-	char *type;
+	const char *type;
 {
 	char buf[100];
 
