@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/imgact.h>
+#include <sys/kdb.h>
 #include <sys/sysproto.h>
 #include <sys/ktr.h>
 #include <sys/signalvar.h>
@@ -145,7 +146,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/chipset.h>
 #include <machine/vmparam.h>
 #include <machine/elf.h>
-#include <ddb/ddb.h>
 #include <alpha/alpha/db_instruction.h>
 #include <sys/vnode.h>
 #include <machine/sigframe.h>
@@ -170,9 +170,7 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
 
 #ifdef DDB
-/* start and end of kernel symbol table */
-void	*ksym_start, *ksym_end;
-db_regs_t	ddb_regs;
+extern vm_offset_t ksym_start, ksym_end;
 #endif
 
 int	alpha_unaligned_print = 1;	/* warn about unaligned accesses */
@@ -607,8 +605,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 */
 	kernstart = trunc_page(kernel_text) - 2 * PAGE_SIZE;
 #ifdef DDB
-	ksym_start = (void *)bootinfo.ssym;
-	ksym_end   = (void *)bootinfo.esym;
+	ksym_start = bootinfo.ssym;
+	ksym_end   = bootinfo.esym;
 	kernend = (vm_offset_t)round_page(ksym_end);
 #else
 	kernend = (vm_offset_t)round_page(_end);
@@ -881,17 +879,10 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * of some operations so needs to be after proc0/thread0/curthread
 	 * become valid.
 	 */
-#ifndef NO_SIO
-	if (platform.cons_init) {
-		platform.cons_init();
-		promcndetach();
-	}
-#else
 	if (platform.cons_init)
 		platform.cons_init();
 	promcndetach();
 	cninit();
-#endif
 
 	/*
 	 * Check to see if promcons needs to make_dev() now,
@@ -932,11 +923,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
-
-#ifdef KADB
-	boothowto |= RB_KDB;
-#endif
-/*	boothowto |= RB_KDB | RB_GDB; */
 	for (p = bootinfo.boot_flags; p && *p != '\0'; p++) {
 		/*
 		 * Note that we'd really like to differentiate case here,
@@ -956,7 +942,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			break;
 #endif
 
-#if defined(DDB)
 		case 'd': /* break into the kernel debugger ASAP */
 		case 'D':
 			boothowto |= RB_KDB;
@@ -965,7 +950,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		case 'G':
 			boothowto |= RB_GDB;
 			break;
-#endif
 
 		case 'h': /* always halt, never reboot */
 		case 'H':
@@ -1026,12 +1010,13 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	/*
 	 * Initialize debuggers, and break into them if appropriate.
 	 */
-#ifdef DDB
+	if (getenv("boot_gdb") != NULL)
+		boothowto |= RB_GDB;
 	kdb_init();
-	if (boothowto & RB_KDB) {
-		printf("Boot flags requested debugger\n");
-		breakpoint();
-	}
+
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter("Boot flags requested debugger\n");
 #endif
 
 	/*
@@ -2245,14 +2230,6 @@ set_fpregs(td, fpregs)
 	bcopy(fpregs, &td->td_pcb->pcb_fp, sizeof *fpregs);
 	return (0);
 }
-
-#ifndef DDB
-void
-Debugger(const char *msg)
-{
-	printf("Debugger(\"%s\") called.\n", msg);
-}
-#endif /* no DDB */
 
 static int
 sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
