@@ -88,13 +88,19 @@ void
 set_tty()
 {
 	struct sgttyb   sgn;
+	struct tchars	tc;
+
 	ioctl(std_in, TIOCGETP, &sgo);
+	ioctl(std_in, TIOCGETC, &tc);
 	/* bcopy(&sgn, &sgo, sizeof(struct sgttyb)); */
 	sgn = sgo;
 	sgn.sg_flags |= CBREAK;
 	sgn.sg_flags &= ~ECHO;
 	ospeed = sgo.sg_ospeed;
+	tc.t_intrc = 17;	/* ^Q */
+	tc.t_quitc = 17;	/* ^Q */
 	ioctl(std_in, TIOCSETP, &sgn);
+	ioctl(std_in, TIOCSETC, &tc);
 }
 
 void
