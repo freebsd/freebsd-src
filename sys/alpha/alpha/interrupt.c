@@ -396,8 +396,8 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;
 	struct ithd *ithd;			/* our interrupt thread */
-	int saveintr;
 	struct intrhand *ih;
+	int error;
 
 	/*
 	 * Walk the hash bucket for this vector looking for this vector's
@@ -432,48 +432,13 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		return;
 	}
 
-	CTR3(KTR_INTR, "alpha_dispatch_intr: pid %d(%s) need=%d",
-		ithd->it_proc->p_pid, ithd->it_proc->p_comm, ithd->it_need);
-
-	/*
-	 * Set it_need so that if the thread is already running but close
-	 * to done, it will do another go-round.  Then get the sched lock
-	 * and see if the thread is on whichkqs yet.  If not, put it on
-	 * there.  In any case, kick everyone so that if the new thread
-	 * is higher priority than their current thread, it gets run now.
-	 */
-	ithd->it_need = 1;
 	if (ithd->it_disable) {
 		CTR1(KTR_INTR,
 		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
 		ithd->it_disable(ithd->it_vector);
 	}
-	mtx_lock_spin(&sched_lock);
-	if (ithd->it_proc->p_stat == SWAIT) {
-		/* not on the run queue and not running */
-		CTR1(KTR_INTR, "alpha_dispatch_intr: setrunqueue %d",
-		    ithd->it_proc->p_pid);
-
-		alpha_mb();	/* XXX - this is bogus, mtx_lock_spin has a barrier */
-		ithd->it_proc->p_stat = SRUN;
-		setrunqueue(ithd->it_proc);
-#ifdef PREEMPTION
-		/* Does not work on 4100 */
-		if (!cold) {
-			saveintr = sched_lock.mtx_saveintr;
-			mtx_intr_enable(&sched_lock);
-			if (curproc != PCPU_GET(idleproc))
-				setrunqueue(curproc);
-			mi_switch();
-			sched_lock.mtx_saveintr = saveintr;
-		} else
-#endif
-			need_resched();
-	} else {
-		CTR3(KTR_INTR, "alpha_dispatch_intr: %d: it_need %d, state %d",
-		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
-	}
-	mtx_unlock_spin(&sched_lock);
+	error = ithread_schedule(ithd, !cold);
+	KASSERT(error == 0, ("got an impossible stray interrupt"));
 }
 
 static void

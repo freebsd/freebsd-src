@@ -31,8 +31,6 @@
 
 /* Interrupt thread code. */
 
-#include "opt_auto_eoi.h"
-
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/rtprio.h>			/* change this name XXX */
@@ -81,7 +79,8 @@ void
 sched_ithd(void *cookie)
 {
 	int irq = (int) cookie;		/* IRQ we're handling */
-	struct ithd *ir = ithds[irq];	/* and the process that does it */
+	struct ithd *ithd = ithds[irq];	/* and the process that does it */
+	int error;
 
 	/* This used to be in icu_vector.s */
 	/*
@@ -94,23 +93,15 @@ sched_ithd(void *cookie)
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
 
 	/*
-	 * If this interrupt is marked as being a source of entropy, use
-	 * the current timestamp to feed entropy to the PRNG.
+	 * Schedule the interrupt thread to run if needed and switch to it
+	 * if we schedule it if !cold.
 	 */
-	if (harvest.interrupt && ir != NULL && (ir->it_flags & IT_ENTROPY)) {
-		struct int_entropy entropy;
+	error = ithread_schedule(ithd, !cold);
 
-		entropy.irq = irq;
-		entropy.p = curproc;
-		random_harvest(&entropy, sizeof(entropy), 2, 0,
-			       RANDOM_INTERRUPT);
-	}
-		
 	/*
-	 * If we don't have an interrupt resource or an interrupt thread for
-	 * this IRQ, log it as a stray interrupt.
+	 * Log stray interrupts.
 	 */
-	if (ir == NULL || ir->it_proc == NULL) {
+	if (error == EINVAL)
 		if (straycount[irq] < MAX_STRAY_LOG) {
 			printf("stray irq %d\n", irq);
 			if (++straycount[irq] == MAX_STRAY_LOG)
@@ -118,40 +109,4 @@ sched_ithd(void *cookie)
 			    "got %d stray irq %d's: not logging anymore\n",
 				    MAX_STRAY_LOG, irq);
 		}
-		return;
-	}
-
-	CTR3(KTR_INTR, "sched_ithd pid %d(%s) need=%d",
-		ir->it_proc->p_pid, ir->it_proc->p_comm, ir->it_need);
-
-	/*
-	 * Set it_need so that if the thread is already running but close
-	 * to done, it will do another go-round.  Then get the sched lock
-	 * and see if the thread is on whichkqs yet.  If not, put it on
-	 * there.  In any case, kick everyone so that if the new thread
-	 * is higher priority than their current thread, it gets run now.
-	 */
-	ir->it_need = 1;
-	mtx_lock_spin(&sched_lock);
-	if (ir->it_proc->p_stat == SWAIT) { /* not on run queue */
-		CTR1(KTR_INTR, "sched_ithd: setrunqueue %d",
-			ir->it_proc->p_pid);
-/*		membar_lock(); */
-		ir->it_proc->p_stat = SRUN;
-		setrunqueue(ir->it_proc);
-		if (!cold) {
-			if (curproc != PCPU_GET(idleproc))
-				setrunqueue(curproc);
-			curproc->p_stats->p_ru.ru_nvcsw++;
-			mi_switch();
-		} else
-			need_resched();
-	}
-	else {
-		CTR3(KTR_INTR, "sched_ithd %d: it_need %d, state %d",
-			ir->it_proc->p_pid,
-		        ir->it_need,
-		        ir->it_proc->p_stat );
-	}
-	mtx_unlock_spin(&sched_lock);
 }
