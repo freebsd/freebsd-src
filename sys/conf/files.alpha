@@ -30,6 +30,8 @@ alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
 alpha/alpha/dec_eb164.c		optional	dec_eb164
 alpha/alpha/dec_eb64plus.c	optional	dec_eb64plus
 alpha/alpha/dec_kn20aa.c	optional	dec_kn20aa
+alpha/alpha/dec_1000a.c		optional	dec_1000a
+alpha/alpha/dec_1000a.c		optional	dec_1000a
 alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
 alpha/alpha/dec_st550.c		optional	dec_st550
 alpha/alpha/dec_st6600.c	optional	dec_st6600
@@ -132,14 +134,18 @@ alpha/isa/isa_dma.c		optional	isa
 alpha/isa/mcclock_isa.c		optional	isa
 alpha/pci/apecs.c		optional	dec_2100_a50
 alpha/pci/apecs.c		optional	dec_eb64plus
+alpha/pci/apecs.c		optional	dec_1000a
 alpha/pci/apecs_pci.c		optional	dec_2100_a50
 alpha/pci/apecs_pci.c		optional	dec_eb64plus
+alpha/pci/apecs_pci.c		optional	dec_1000a
 alpha/pci/cia.c			optional	dec_eb164
 alpha/pci/cia.c			optional	dec_kn20aa
 alpha/pci/cia.c			optional	dec_st550
+alpha/pci/cia.c			optional	dec_1000a
 alpha/pci/cia_pci.c		optional	dec_eb164
 alpha/pci/cia_pci.c		optional	dec_kn20aa
 alpha/pci/cia_pci.c		optional	dec_st550
+alpha/pci/cia_pci.c		optional	dec_1000a
 alpha/pci/lca.c			optional	dec_axppci_33
 alpha/pci/lca_pci.c		optional	dec_axppci_33
 alpha/pci/pci_eb164_intr.s	optional	dec_eb164
