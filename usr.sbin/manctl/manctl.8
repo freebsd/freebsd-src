@@ -1,0 +1,41 @@
+.\"
+.\" (c) Wolfram Schneider, Berlin, Germany. Public domain.
+.\"
+.\" $Id: manctl.8,v 1.1 1996/01/23 20:51:29 wosch Exp $
+
+.Dd Jan 1996
+.Dt manctl 8
+.Os FreeBSD
+
+.Sh NAME
+.Nm manctl
+.Nd manipulating manual pages
+
+.Sh SYNOPSIS
+.Nm manctl
+.Op Fl compress
+.Op Fl uncompress
+.Op Fl purge
+.Op Fl help
+path ...
+
+.Sh DESCRIPTION
+.Nm manctl
+compress or uncompress manual pages in directory path. 
+If possible, .so's are replaced with hard links.
+
+
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl help
+Print options and exit.
+.It Fl compress
+Compress uncompressed man pages (elliminating .so's)
+.It Fl uncompress
+Uncompress compressed man pages.
+.It Fl purge
+Purge old formatted man pages (not implemented yet).
+
+.Sh SEE ALSO
+.Xr man 1 ,
+.Xr catman 1 .
