@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.44 1997/12/24 09:28:11 brian Exp $
+ * $Id: ipcp.c,v 1.45 1997/12/24 09:29:02 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -153,7 +153,10 @@ ReportIpcpStatus(struct cmdargs const *arg)
   fprintf(VarTerm, "Defaults:\n");
   fprintf(VarTerm, " My Address:  %s/%d\n",
 	  inet_ntoa(DefMyAddress.ipaddr), DefMyAddress.width);
-  fprintf(VarTerm, " His Address: %s/%d\n",
+  if (iplist_isvalid(&DefHisChoice))
+    fprintf(VarTerm, " His Address: %s\n", DefHisChoice.src);
+  else
+    fprintf(VarTerm, " His Address: %s/%d\n",
 	  inet_ntoa(DefHisAddress.ipaddr), DefHisAddress.width);
   if (HaveTriggerAddress)
     fprintf(VarTerm, " Negotiation(trigger): %s\n", inet_ntoa(TriggerAddress));
