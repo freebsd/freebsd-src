@@ -311,9 +311,13 @@ struct TUNER {
 	char*		name;
 	u_char		type;
 	u_char		pllAddr;
-	u_char		pllControl;
+	u_char		pllControl[4];
 	u_char		bandLimits[ 2 ];
-	u_char		bandAddrs[ 3 ];
+	u_char		bandAddrs[ 4 ];        /* 3 first for the 3 TV 
+					       ** bands. Last for radio 
+					       ** band (0x00=NoRadio).
+					       */
+
 };
 
 /* description of the card */
@@ -429,8 +433,7 @@ struct bktr_softc {
 #define	TUNER_OPEN		0x00000002 
     u_short	fps;		/* frames per second */
 #ifdef DEVFS
-    void	*devfs_bktr_token;
-    void	*devfs_tuner_token;
+    void	*devfs_token;
 #endif
     struct meteor_video video;
     struct TVTUNER	tuner;
