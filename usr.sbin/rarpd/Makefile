@@ -4,9 +4,8 @@
 PROG=	rarpd
 MAN=	rarpd.8
 
-WARNS?=	2
+WARNS?=	5
 # This breaks with format strings returned by expand_syslog_m().. argh!
 #FORMAT_AUDIT?=	1
-CFLAGS+= -DTFTP_DIR=\"/tftpboot\"
 
 .include <bsd.prog.mk>
