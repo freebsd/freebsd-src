@@ -126,6 +126,9 @@ CD9660_ROOTDELAY	opt_cd9660.h
 # hidden yet.
 UNION
 
+# Options for all filesystems
+ALLOW_BDEV_ACCESS	opt_fs.h
+
 # Options used only in param.c.
 HZ		opt_param.h
 MAXFILES	opt_param.h
