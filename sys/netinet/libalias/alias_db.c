@@ -1106,6 +1106,14 @@ FindLinkIn(struct in_addr  dst_addr,
     if (dst_port == 0)
         flags_in |= LINK_UNKNOWN_DEST_PORT;
 
+/* The following allows permanent links to be
+   be specified as using the default aliasing address
+   (i.e. device interface address) without knowing
+   in advance what that address is. */
+
+    if (alias_addr.s_addr == aliasAddress.s_addr)
+        alias_addr.s_addr = 0;
+
 /* Search loop */
     start_point = StartPointIn(alias_addr, alias_port, link_type);
     link = linkTableIn[start_point];
@@ -1195,15 +1203,6 @@ FindLinkIn(struct in_addr  dst_addr,
                    link_unknown_all->src_port, dst_port, alias_port,
                    link_type)
           : link_unknown_all;
-    }
-/* The following allows permanent links to be
-   be specified as using the default aliasing address
-   (i.e. device interface address) without knowing
-   in advance what that address is. */
-    else if (alias_addr.s_addr != 0 && alias_addr.s_addr == aliasAddress.s_addr)
-    {
-        return FindLinkIn(dst_addr, nullAddress, dst_port, alias_port,
-                          link_type, replace_partial_links);
     }
     else
     {
