@@ -94,9 +94,8 @@ can be any combination of single or multiple numerical IPv6 addrs,
 or Full Qualified Domain Names.
 .Ar retrycmd
 has following syntax.
-
 .\"
-.Bl -tag -width Ds -compact
+.Bl -tag -width Ds
 .It Ic retry Ar retry-num
 .Ar retry-num
 specifies how many router renumbering messages are sent repeatedly.
@@ -249,8 +248,8 @@ dest ff05::2;
 
 add match-prefix fec0:0:0:: /48 use-prefix fec0:1:1:: /48 keeplen 16;
 .Ed
+.Pp
 .\"
-
 If your routers don't support IPv6 multicast forwarding,
 you'll need to specify each destination at
 .Cm dest
@@ -261,8 +260,8 @@ dest fec0:0:0:1:260:8ff:fe24:fb3a fec0:0:0:2:200:eff:fe2e:dfe1 fec0:0:0:3:5254:f
 
 add match-prefix fec0:0:0:: /48 use-prefix fec0:1:1:: /48 keeplen 16;
 .Ed
+.Pp
 .\"
-
 If you are going to do renumbering, then following procedure will be natural.
 .Bl -enum -offset indent
 .It
@@ -280,8 +279,8 @@ To make sure that they are deleted, send new router
 renumbering message, which specifies old prefixes as match
 prefix, and no use prefix.
 .El
+.Pp
 .\"
-
 The following configuration file will do 1 and 2.
 .\"
 .Bd -literal -offset indent
@@ -295,8 +294,8 @@ seqnum 1 {
 	change match-prefix fec0:1:1:: /48 use-prefix fec0:1:1:: /48 keeplen 16 vltime d7 pltime 0 rrf_decrvalid on rrf_decrprefd on;
 	};
 .Ed
+.Pp
 .\"
-
 And the following configuration file will do 3. (should be
 used for the router renumbering message to be sent 1 week
 afterward)
@@ -306,8 +305,8 @@ dest ff05::2;
 
 change match-prefix fec0:1:1:: /48;
 .Ed
+.Pp
 .\"
-
 In the above example, only
 .Cm add
 and
@@ -319,7 +318,6 @@ command.
 command is almost same with
 .Cm change
 command except that it deletes all pre-defined IPv6 global address.
-
 .Sh SEE ALSO
 .Xr rrenumd 8
 .Xr prefix 8

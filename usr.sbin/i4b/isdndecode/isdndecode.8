@@ -66,7 +66,6 @@ utility is only available for passive supported cards.
 .Pp
 The following options can be used:
 .Bl -tag -width Ds
-
 .It Fl a
 Run
 .Nm
@@ -79,60 +78,46 @@ transmitting direction on the S0 bus while the other card acts as a receiver
 for the receiving direction on the S0 bus.
 Complete traffic monitoring is
 possible using this setup.
-
 .It Fl b
 switch B channel tracing on (default off).
-
 .It Fl d
 switch D channel tracing off (default on).
-
 .It Fl f
 Use 
 .Ar filename
 as the name of a file into which to write tracing output (default filename is
 isdndecode<n> where n is the number of the unit to decode).
-
 .It Fl h
 switch display of header off (default on).
-
 .It Fl i
 print layer 1 (I.430) INFO signals to monitor layer 1 activity (default off).
-
 .It Fl l
 switch displaying of Layer 2 (Q.921) frames off (default on).
-
 .It Fl o
 switch off writing decode output to a file (default on).
-
 .It Fl p
 Use 
 .Ar filename
 as the name of a file used for the -B and -P options (default filename
 is isdntracebin<n> where n is the number of the unit to decode).
-
 .It Fl u
 Use 
 .Ar number
 as the unit number of the controller card to decode (default 0).
-
 .It Fl B
 Write undecoded binary decode data to a file for later or remote 
 analyzing (default off).
-
 .It Fl P
 Read undecoded binary decode data from file instead from device (default off).
-
 .It Fl R
 Use
 .Ar unit
 as the receiving interface unit number in analyze mode.
-
 .It Fl T
 Use
 .Ar unit
 as the transmitting interface unit number in analyze mode.
 .El
-
 .Pp
 When the USR1 signal is sent to a
 .Nm
@@ -151,15 +136,12 @@ ISDN D-channel layer 2 protocol description.
 .It Ar Q.931
 ISDN D-channel layer 3 protocol description.
 .El
-.Pp
-
 .Sh FILES
 .Bl -tag -width daddeldi -compact
 .It Pa /dev/i4btrc<n>
 The devicefile(s) used to get the decode messages for ISDN card unit <n>
 out of the kernel.
 .El
-
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
@@ -169,13 +151,10 @@ isdndecode -f /var/tmp/isdn.decode
 will start D channel tracing on passive controller 0 with all except B
 channel tracing enabled and logs everything into the output file 
 /var/tmp/isdn.decode.
-
 .Sh SEE ALSO
 .Xr isdnd 8
-
 .Sh BUGS
 Still one left.
-
 .Sh STANDARDS
 ITU Recommendations I.430, Q.920, Q.921, Q.930, Q.931
 .Pp
@@ -186,7 +165,6 @@ ETSI Recommendation ETS 300 179 (10/92), ETS 300 180 (10/92)
 ETSI Recommendation ETS 300 181 (04/93), ETS 300 182 (04/93)
 .Pp
 ITU Recommendation X.208, X.209
-
 .Sh AUTHORS
 The
 .Nm

@@ -62,13 +62,11 @@ Print the resulting conversion tables (as C-source) to stdout instead of
 doing the actual conversion.
 .El
 .Pp
-
 .Sh STANDARDS
 A-Law and u-Law conversions are specified in ITU Recommendation G.711.
 .Pp
 The reference implementation done by Sun Microsystems, Inc. is available
 from http://www.itu.int/itudoc/itu-t/rec/g/g700-799/refimpl.txt
-
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
@@ -85,7 +83,6 @@ cat max_headroom.ul | g711conv -u -R > /dev/i4btel0
 converts the u-law coded voice of Max Headroom to A-law, reverses the
 bits of the result and moves that to an active isdn4bsd telephone connection.
 .Pp
-
 .Sh AUTHORS
 The
 .Nm
@@ -93,4 +90,3 @@ utility and this manpage were written by
 .An Hellmuth Michaelis Aq hm@kts.org
 based on the G.711 conversion reference code written by Sun Microsystems, 
 Inc. and code contributed to isdn4bsd by Stefan Bethke.
-

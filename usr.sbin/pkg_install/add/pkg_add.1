@@ -64,7 +64,6 @@ directives, and/or use the
 .Xr pkg_info 1
 command to examine the package file.
 .Ef
-
 .Sh OPTIONS
 The following command line arguments are supported:
 .Bl -tag -width indent
@@ -211,7 +210,7 @@ ftp.
 is fairly simple.  It extracts each package's "packing list"
 into a special staging directory, parses it,
 and then runs through the following sequence to fully extract the contents:
-.Bl -enum -indent indent
+.Bl -enum
 .It
 Check if the package is already recorded as installed.  If so,
 terminate installation.
@@ -263,13 +262,13 @@ arguments:
 .Ar pkg-name
 .Ar PRE-INSTALL
 .Ed
-
+.Pp
 where
 .Ar pkg-name
 is the name of the package in question and
 .Ar PRE-INSTALL
 is a keyword denoting this as the preinstallation phase.
-
+.Pp
 .Cm Note:
 The
 .Ar PRE-INSTALL
@@ -326,7 +325,7 @@ where
 is the name of the package in question and
 .Ar POST-INSTALL
 is a keyword denoting this as the post-installation phase.
-
+.Pp
 .Cm Note:
 The
 .Ar POST-INSTALL
@@ -336,8 +335,8 @@ are given during package creation time (using the
 and 
 .Cm Fl I
 flags to 
-.Xr pkg_create 1 ).
-
+.Xr pkg_create 1 ) .
+.Pp
 Reasoning behind passing keywords such as
 .Ar POST-INSTALL
 and

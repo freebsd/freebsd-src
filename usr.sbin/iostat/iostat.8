@@ -70,7 +70,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl CdhKIoT?
+.Op Fl CdhKIoT?\&
 .Op Fl c Ar count
 .Op Fl M Ar core
 .Op Fl n Ar devs
@@ -141,10 +141,10 @@ miliseconds per seek are displayed.
 .It Fl t
 Specify which types of devices to display.  There are three different
 categories of devices:
-
+.Pp
 .Bl -tag -width indent -compact
 .It device type:
-.Bl -tag -width 123456789 -compact
+.Bl -tag -width 9n -compact
 .It da 
 Direct Access devices
 .It sa
@@ -174,7 +174,7 @@ Floppy devices
 .El
 .Pp
 .It interface:
-.Bl -tag -width 123456789 -compact
+.Bl -tag -width 9n -compact
 .It IDE
 Integrated Drive Electronics devices
 .It SCSI
@@ -184,7 +184,7 @@ Any other device interface
 .El
 .Pp
 .It passthrough:
-.Bl -tag -width 123456789 -compact
+.Bl -tag -width 9n -compact
 .It pass
 Passthrough devices
 .El
@@ -217,7 +217,7 @@ seconds between each display.
 If no repeat
 .Ar count
 is specified, the default is infinity.
-.It Fl ?
+.It Fl ?\&
 Display a usage statement and exit.
 .El
 .Pp

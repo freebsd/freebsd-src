@@ -63,7 +63,6 @@ directives, and/or use the
 .Xr pkg_info 1
 command to examine the installed package control files.
 .Ef
-
 .Sh OPTIONS
 The following command line options are supported:
 .Bl -tag -width indent
@@ -96,8 +95,6 @@ the package.
 Force removal of the package, even if a dependency is recorded or the
 deinstall or require script fails.
 .El
-
-.Pp
 .Sh TECHNICAL DETAILS
 .Nm
 does pretty much what it says.  It examines installed package records in 
@@ -156,7 +153,7 @@ where
 is the name of the package in question and
 .Ar DEINSTALL
 is a keyword denoting this as the pre-deinstallation phase.
-
+.Pp
 .Cm Note:
 The
 .Ar DEINSTALL
@@ -176,7 +173,7 @@ all files are removed.  It is this script's responsibility to clean up any
 additional messy details around the package's installation, and leave the
 system (hopefully) in the same state that it was prior to the installation
 of the package.
-
+.Pp
 The
 .Nm post-deinstall
 script is called as:
@@ -190,7 +187,7 @@ where
 is the name of the package in question and
 .Ar POST-DEINSTALL
 is a keyword denoting this as the post-deinstallation phase.
-
+.Pp
 .Cm Note:
 The
 .Ar POST-DEINSTALL
@@ -201,14 +198,14 @@ and
 .Cm Fl K
 flags to 
 .Xr pkg_create 1 ).
-
+.Pp
 Reasoning behind passing keywords such as
 .Ar DEINSTALL
 and
 .Ar POST-DEINSTALL
 is that it lets you potentially write only one program/script that handles
 all aspects of installation and deletion.
-
+.Pp
 But experience has proved that this is a lot more difficult to maintain and
 is not as advantageous as having separate scripts that handle each aspect of
 installation and deinstallation.
@@ -233,6 +230,7 @@ specifies an alternative location for the installed package database.
 .Bl -tag -width /var/db/pkg -compact
 .It Pa /var/db/pkg
 Default location of the installed package database.
+.El
 .Sh SEE ALSO
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,
