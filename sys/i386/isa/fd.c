@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.33 1994/10/10 01:12:25 phk Exp $
+ *	$Id: fd.c,v 1.35 1994/10/19 01:58:56 wollman Exp $
  *
  */
 
@@ -552,6 +552,11 @@ set_motor(fdcu, fdsu, turnon)
 	TRACE1("[0x%x->FDOUT]", fdout);
 
 	if(needspecify) {
+		/*
+		 * special case: since we have just woken up the FDC
+		 * from its sleep, we silently assume the command will
+		 * be accepted, and do not test for a timeout
+		 */
 		out_fdc(fdcu, NE7CMD_SPECIFY);
 		out_fdc(fdcu, NE7_SPEC_1(3, 240));
 		out_fdc(fdcu, NE7_SPEC_2(2, 0));
@@ -619,6 +624,7 @@ fdc_reset(fdc)
 	outb(fdc->baseport + FDOUT, fdc->fdout);
 	TRACE1("[0x%x->FDOUT]", fdc->fdout);
 
+	/* after a reset, silently believe the FDC will accept commands */
 	out_fdc(fdcu, NE7CMD_SPECIFY);
 	out_fdc(fdcu, NE7_SPEC_1(3, 240));
 	out_fdc(fdcu, NE7_SPEC_2(2, 0));
@@ -1047,7 +1053,15 @@ fdstate(fdcu, fdc)
 			fdc->state = SEEKCOMPLETE;
 			break;
 		}
-		out_fdc(fdcu, NE7CMD_SEEK);	/* Seek function */
+		if(out_fdc(fdcu, NE7CMD_SEEK) < 0) /* Seek function */
+		{
+			/*
+			 * seek command not accepted, looks like
+			 * the FDC went off to the Saints...
+			 */
+			fdc->retry = 6;	/* try a reset */
+			return(retrier(fdcu));
+		}
 		out_fdc(fdcu, fd->fdsu);	/* Drive number */
 		out_fdc(fdcu, bp->b_cylin * fd->ft->steptrac);
 		fd->track = -2;
@@ -1117,7 +1131,12 @@ fdstate(fdcu, fdc)
 		if(format || !read)
 		{
 			/* make sure the drive is writable */
-			out_fdc(fdcu, NE7CMD_SENSED);
+			if(out_fdc(fdcu, NE7CMD_SENSED) < 0)
+			{
+				/* stuck controller? */
+				fdc->retry = 6;	/* reset the beast */
+				return(retrier(fdcu));
+			}
 			out_fdc(fdcu, fdu);
 			st3 = in_fdc(fdcu);
 			if(st3 & NE7_ST3_WP)
@@ -1144,7 +1163,12 @@ fdstate(fdcu, fdc)
 		if(format)
 		{
 			/* formatting */
-			out_fdc(fdcu, NE7CMD_FORMAT);
+			if(out_fdc(fdcu, NE7CMD_FORMAT) < 0)
+			{
+				/* controller fell over */
+				fdc->retry = 6;
+				return(retrier(fdcu));
+			}
 			out_fdc(fdcu, head << 2 | fdu);
 			out_fdc(fdcu, finfo->fd_formb_secshift);
 			out_fdc(fdcu, finfo->fd_formb_nsecs);
@@ -1153,13 +1177,13 @@ fdstate(fdcu, fdc)
 		}			
 		else
 		{
-			if (read)
+			if ((read && out_fdc(fdcu, NE7CMD_READ) < 0)
+			    || (!read /* i.e., write */
+				&& out_fdc(fdcu, NE7CMD_WRITE) < 0))
 			{
-				out_fdc(fdcu, NE7CMD_READ);      /* READ */
-			}
-			else
-			{
-				out_fdc(fdcu, NE7CMD_WRITE);     /* WRITE */
+				/* the beast is sleeping again */
+				fdc->retry = 6;
+				return(retrier(fdcu));
 			}
 			out_fdc(fdcu, head << 2 | fdu);  /* head & unit */
 			out_fdc(fdcu, fd->track);        /* track */
@@ -1236,7 +1260,12 @@ fdstate(fdcu, fdc)
 		fdc->state = STARTRECAL;
 		break;
 	case STARTRECAL:
-		out_fdc(fdcu, NE7CMD_RECAL);	/* Recalibrate Function */
+		if(out_fdc(fdcu, NE7CMD_RECAL) < 0) /* Recalibrate Function */
+		{
+			/* arrgl */
+			fdc->retry = 6;
+			return(retrier(fdcu));
+		}
 		out_fdc(fdcu, fdu);
 		fdc->state = RECALWAIT;
 		return(0);	/* will return later */
@@ -1258,8 +1287,17 @@ fdstate(fdcu, fdc)
 		} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
 		if ((st0 & NE7_ST0_IC) != NE7_ST0_IC_NT || cyl != 0)
 		{
-			printf("fd%d: recal failed ST0 %b cyl %d\n", fdu,
-				st0, NE7_ST0BITS, cyl);
+			if(fdc->retry > 3)
+				/*
+				 * a recalibrate from beyond cylinder 77
+				 * will "fail" due to the FDC limitations;
+				 * since people used to complain much about
+				 * the failure message, try not logging
+				 * this one if it seems to be the first
+				 * time in a line
+				 */
+				printf("fd%d: recal failed ST0 %b cyl %d\n",
+				       fdu, st0, NE7_ST0BITS, cyl);
 			if(fdc->retry < 3) fdc->retry = 3;
 			return(retrier(fdcu));
 		}
@@ -1281,7 +1319,11 @@ fdstate(fdcu, fdc)
 		return(1);	/* will return immediatly */
 	default:
 		printf("Unexpected FD int->");
-		out_fdc(fdcu, NE7CMD_SENSEI);
+		if(out_fdc(fdcu, NE7CMD_SENSEI) < 0)
+		{
+			printf("[controller is dead now]\n");
+			return(0);
+		}
 		st0 = in_fdc(fdcu);
 		cyl = in_fdc(fdcu);
 		printf("ST0 = %x, PCN = %x\n", st0, cyl);
