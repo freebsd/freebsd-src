@@ -1,4 +1,5 @@
 #	@(#)Makefile	5.1 (Berkeley) 5/28/90
+#	$Id$
 
 MAN8=	named.restart.8
 CLEANFILES+=named.restart
@@ -6,9 +7,11 @@ CLEANFILES+=named.restart
 PIDDIR=/var/run
 INDOT=
 
-beforeinstall:	named.restart
+beforeinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    named.restart ${DESTDIR}${BINDIR}
+
+all: named.restart
 
 named.restart: named.restart.sh Makefile
 	sed -e "s|%PIDDIR%|${PIDDIR}|" \

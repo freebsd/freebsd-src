@@ -52,14 +52,17 @@
 .\" --Copyright--
 .\"
 .\"	from hostname.7	6.4 (Berkeley) 1/16/90
+.\"	$Id$
 .\"
-.TH NAMED.RESTART 8 "June 26, 1993"
+.TH NAMED.RESTART 8 "May 2, 1995"
 .UC 5
 .SH NAME
 named.restart \- stop and restart the name server
 .SH DESCRIPTION
 This command sends a \s-1SIGKILL\s+1 to the running name server and then
-starts a new one.
+starts a new one if
+.IR /etc/sysconfig
+states that one should be running on this system.
 .SH BUGS
 Does not check to see if the name server is actually running, and could
 use a stale PID cache file which may result in the death of an unrelated
