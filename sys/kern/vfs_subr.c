@@ -1824,6 +1824,7 @@ bdevvp(dev, vpp)
 	}
 	vp = nvp;
 	vp->v_type = VCHR;
+	vp->v_bsize = DEV_BSIZE;
 	addalias(vp, dev);
 	*vpp = vp;
 	return (0);
