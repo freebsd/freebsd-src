@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: show.c,v 1.11 1997/10/08 07:47:38 charnier Exp $";
+	"$Id: show.c,v 1.12 1997/10/18 05:42:05 jkh Exp $";
 #endif
 
 /*
@@ -25,6 +25,8 @@ static const char rcsid[] =
 
 #include "lib.h"
 #include "info.h"
+
+#include <err.h>
 
 void
 show_file(char *title, char *fname)
