@@ -1991,8 +1991,8 @@ vm_map_clean(map, start, end, syncio, invalidate)
 		 * may start out with a NULL object.
 		 */
 		while (object && object->backing_object) {
-			object = object->backing_object;
 			offset += object->backing_object_offset;
+			object = object->backing_object;
 			if (object->size < OFF_TO_IDX( offset + size))
 				size = IDX_TO_OFF(object->size) - offset;
 		}
