@@ -41,99 +41,19 @@
 
 #include <sys/select.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
-
-/*
- *	This defines the lkm_misc module use by modload
- *	to define the module name.
- */
-MOD_MISC(skel);
 
 static int skelinit(struct pccard_devinfo *);		/* init device */
 static void skelunload(struct pccard_devinfo *);	/* Disable driver */
 static int skelintr(struct pccard_devinfo *);		/* Interrupt handler */
 
-static struct pccard_device skel_info = {
-	"skel",
-	skelinit,
-	skelunload,
-	skelintr,
-	0,			/* Attributes - presently unused */
-	&net_imask		/* Interrupt mask for device */
-};
-
-DATA_SET(pccarddrv_set, skel_info);
+PCCARD_MODULE(skel, skelinit, skelunload, skelintr, 0, net_imask);
 
 static int opened;	/* Rather minimal device state... */
 	
-/*
- *	Module handler that processes loads and unloads.
- *	Once the module is loaded, the add driver routine is called
- *	to register the driver.
- *	If an unload is requested the remove driver routine is
- *	called to deregister the driver before unloading.
- */
-static int
-skel_handle(lkmtp, cmd)
-struct lkm_table	*lkmtp;
-int			cmd;
-{
-	int			i;
-	struct lkm_misc		*args = lkmtp->private.lkm_misc;
-	int			err = 0;	/* default = success*/
-
-	switch( cmd) {
-	case LKM_E_LOAD:
-/*
- *	Now register the driver
- */
-		pccard_add_driver(&skel_info);
-		break;		/* Success*/
-/*
- *	Attempt to deregister the driver.
- */
-	case LKM_E_UNLOAD:
-		pccard_remove_driver(&skel_info);
-		break;		/* Success*/
-
-	default:	/* we only understand load/unload*/
-		err = EINVAL;
-		break;
-	}
-
-	return( err);
-}
-
-
-/*
- * External entry point; should generally match name of .o file.  The
- * arguments are always the same for all loaded modules.  The "load",
- * "unload", and "stat" functions in "MOD_DISPATCH" will be called under
- * their respective circumstances unless their value is "nosys".  If
- * called, they are called with the same arguments (cmd is included to
- * allow the use of a single function, ver is included for version
- * matching between modules and the kernel loader for the modules).
- *
- * Since we expect to link in the kernel and add external symbols to
- * the kernel symbol name space in a future version, generally all
- * functions used in the implementation of a particular module should
- * be static unless they are expected to be seen in other modules or
- * to resolve unresolved symbols alread existing in the kernel (the
- * second case is not likely to ever occur).
- *
- * The entry point should return 0 unless it is refusing load (in which
- * case it should return an errno from errno.h).
- */
-int
-skel(lkmtp, cmd, ver)
-struct lkm_table	*lkmtp;	
-int			cmd;
-int			ver;
-{
-	MOD_DISPATCH(skel,lkmtp,cmd,ver,skel_handle,skel_handle,nosys)
-}
 /*
  *	Skeleton driver entry points for PCCARD configuration.
  */
