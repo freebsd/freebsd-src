@@ -1,7 +1,5 @@
-/*	$OpenBSD: p4tcc.c,v 1.1 2003/12/20 18:23:18 tedu Exp $ */
 /*-
- * Copyright (c) 2003 Ted Unangst
- * Copyright (c) 2004 Maxim Sobolev <sobomax@FreeBSD.org>
+ * Copyright (c) 2005 Nate Lawson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,246 +23,256 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 /*
- * Restrict power consumption by using thermal control circuit.
- * This operates independently of speedstep.
- * Found on Pentium 4 and later models (feature TM).
+ * Throttle clock frequency by using the thermal control circuit.  This
+ * operates independently of SpeedStep and ACPI throttling and is supported
+ * on Pentium 4 and later models (feature TM).
  *
- * References:
- * Intel Developer's manual v.3 #245472-012
+ * Reference:  Intel Developer's manual v.3 #245472-012
  *
- * On some models, the cpu can hang if it's running at a slow speed.
- * Workarounds included below.
+ * The original version of this driver was written by Ted Unangst for
+ * OpenBSD and imported by Maxim Sobolev.  It was rewritten by Nate Lawson
+ * for use with the cpufreq framework.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_cpu.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/cpu.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
-#include <sys/power.h>
-#include <sys/sysctl.h>
-#include <sys/types.h>
+#include <sys/module.h>
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-static u_int			p4tcc_percentage;
-static u_int			p4tcc_economy;
-static u_int			p4tcc_performance;
-static struct sysctl_ctx_list	p4tcc_sysctl_ctx;
-static struct sysctl_oid	*p4tcc_sysctl_tree;
+#include "cpufreq_if.h"
 
-static struct {
-	u_short level;
-	u_short rlevel;
-	u_short reg;
-} tcc[] = {
-	{ 88, 100, 0 },
-	{ 75, 88,  7 },
-	{ 63, 75,  6 },
-	{ 50, 63,  5 },
-	{ 38, 50,  4 },
-	{ 25, 38,  3 },
-	{ 13, 25,  2 },
-	{ 0,  13,  1 }
+struct p4tcc_softc {
+	device_t	dev;
+	int		set_count;
+	int		lowest_val;
+	int		auto_mode;
 };
 
-#define TCC_LEVELS	sizeof(tcc) / sizeof(tcc[0])
+#define TCC_NUM_SETTINGS	8
 
-static u_short
-p4tcc_getperf(void)
-{
-	u_int64_t msreg;
-	int i;
+#define TCC_ENABLE_ONDEMAND	(1<<4)
+#define TCC_REG_OFFSET		1
+#define TCC_SPEED_PERCENT(x)	((10000 * (x)) / TCC_NUM_SETTINGS)
 
-	msreg = rdmsr(MSR_THERM_CONTROL);
-	msreg = (msreg >> 1) & 0x07;
-	for (i = 0; i < TCC_LEVELS; i++) {
-		if (msreg == tcc[i].reg)
-			break;
-	}
+static void	p4tcc_identify(driver_t *driver, device_t parent);
+static int	p4tcc_probe(device_t dev);
+static int	p4tcc_attach(device_t dev);
+static int	p4tcc_settings(device_t dev, struct cf_setting *sets,
+		    int *count);
+static int	p4tcc_set(device_t dev, const struct cf_setting *set);
+static int	p4tcc_get(device_t dev, struct cf_setting *set);
+static int	p4tcc_type(device_t dev, int *type);
 
-	return (tcc[i].rlevel);
-}
+static device_method_t p4tcc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	p4tcc_identify),
+	DEVMETHOD(device_probe,		p4tcc_probe),
+	DEVMETHOD(device_attach,	p4tcc_attach),
 
-static void
-p4tcc_setperf(u_int percentage)
-{
-	int i;
-	u_int64_t msreg;
+	/* cpufreq interface */
+	DEVMETHOD(cpufreq_drv_set,	p4tcc_set),
+	DEVMETHOD(cpufreq_drv_get,	p4tcc_get),
+	DEVMETHOD(cpufreq_drv_type,	p4tcc_type),
+	DEVMETHOD(cpufreq_drv_settings,	p4tcc_settings),
+	{0, 0}
+};
 
-	if (percentage > tcc[0].rlevel)
-		percentage = tcc[0].rlevel;
-	for (i = 0; i < TCC_LEVELS - 1; i++) {
-		if (percentage > tcc[i].level)
-			break;
-	}
+static driver_t p4tcc_driver = {
+	"p4tcc",
+	p4tcc_methods,
+	sizeof(struct p4tcc_softc),
+};
 
-	msreg = rdmsr(MSR_THERM_CONTROL);
-	msreg &= ~0x1e;	/* bit 0 reserved */
-	if (tcc[i].reg != 0)
-		msreg |= tcc[i].reg << 1 | 1 << 4;
-	wrmsr(MSR_THERM_CONTROL, msreg);
-}
-
-static int
-p4tcc_perf_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	u_int percentage;
-	int error;
-
-	p4tcc_percentage = p4tcc_getperf();
-	percentage = p4tcc_percentage;
-	error = sysctl_handle_int(oidp, &percentage, 0, req);
-	if (error || !req->newptr) {
-		return (error);
-	}
-	if (p4tcc_percentage != percentage) {
-		p4tcc_setperf(percentage);
-	}
-
-	return (error);
-}
+static devclass_t p4tcc_devclass;
+DRIVER_MODULE(p4tcc, cpu, p4tcc_driver, p4tcc_devclass, 0, 0);
 
 static void
-p4tcc_power_profile(void *arg)
+p4tcc_identify(driver_t *driver, device_t parent)
 {
-	u_int new;
 
-	switch (power_profile_get_state()) {
-	case POWER_PROFILE_PERFORMANCE:
-		new = p4tcc_performance;
-		break;
-	case POWER_PROFILE_ECONOMY:
-		new = p4tcc_economy;
-		break;
-	default:
+	if ((cpu_feature & (CPUID_ACPI | CPUID_TM)) != (CPUID_ACPI | CPUID_TM))
 		return;
-	}
-
-	if (p4tcc_getperf() != new) {
-		p4tcc_setperf(new);
-	}
+	if (BUS_ADD_CHILD(parent, 0, "p4tcc", -1) == NULL)
+		device_printf(parent, "add p4tcc child failed\n");
 }
 
 static int
-p4tcc_profile_sysctl(SYSCTL_HANDLER_ARGS)
+p4tcc_probe(device_t dev)
 {
-	u_int32_t *argp;
-	u_int32_t arg;
-	int error;
 
-	argp = (u_int32_t *)oidp->oid_arg1;
-	arg = *argp;
-	error = sysctl_handle_int(oidp, &arg, 0, req);
+	if (resource_disabled("p4tcc", 0))
+		return (ENXIO);
 
-	/* error or no new value */
-	if ((error != 0) || (req->newptr == NULL))
-		return (error);
-
-	/* range check */
-	if (arg > tcc[0].rlevel)
-		arg = tcc[0].rlevel;
-
-	/* set new value and possibly switch */
-	*argp = arg;
-
-	p4tcc_power_profile(NULL);
-
-	*argp = p4tcc_getperf();
-
+	device_set_desc(dev, "CPU Frequency Thermal Control");
 	return (0);
 }
 
-static void
-setup_p4tcc(void *dummy __unused)
+static int
+p4tcc_attach(device_t dev)
 {
-	int nsteps, i;
-	static char p4tcc_levels[(3 * TCC_LEVELS) + 1];
-	char buf[4 + 1];
+	struct p4tcc_softc *sc;
 
-	if ((cpu_feature & (CPUID_ACPI | CPUID_TM)) !=
-	    (CPUID_ACPI | CPUID_TM))
-		return;
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+	sc->set_count = TCC_NUM_SETTINGS;
 
-	nsteps = TCC_LEVELS;
+	/*
+	 * On boot, the TCC is usually in Automatic mode where reading the
+	 * current performance level is likely to produce bogus results.
+	 * We record that state here and don't trust the contents of the
+	 * status MSR until we've set it ourselves.
+	 */
+	sc->auto_mode = TRUE;
+
 	switch (cpu_id & 0xf) {
-	case 0x22:	/* errata O50 P44 and Z21 */
+	case 0x22:
 	case 0x24:
 	case 0x25:
 	case 0x27:
 	case 0x29:
-		/* hang with 12.5 */
-		tcc[TCC_LEVELS - 1] = tcc[TCC_LEVELS - 2];
-		nsteps -= 1;
+		/*
+		 * These CPU models hang when set to 12.5%.
+		 * See Errata O50, P44, and Z21.
+		 */
+		sc->set_count -= 1;
 		break;
 	case 0x07:	/* errata N44 and P18 */
 	case 0x0a:
 	case 0x12:
 	case 0x13:
-		/* hang at 12.5 and 25 */
-		tcc[TCC_LEVELS - 1] = tcc[TCC_LEVELS - 2] = tcc[TCC_LEVELS - 3];
-		nsteps -= 2;
-		break;
-	default:
+		/*
+		 * These CPU models hang when set to 12.5% or 25%.
+		 * See Errata N44 and P18l.
+		 */
+		sc->set_count -= 2;
 		break;
 	}
+	sc->lowest_val = TCC_NUM_SETTINGS - sc->set_count + 1;
 
-	p4tcc_levels[0] = '\0';
-	for (i = nsteps; i > 0; i--) {
-	    sprintf(buf, "%d%s", tcc[i - 1].rlevel, (i != 1) ? " " : "");
-	    strcat(p4tcc_levels, buf);
+	cpufreq_register(dev);
+	return (0);
+}
+
+static int
+p4tcc_settings(device_t dev, struct cf_setting *sets, int *count)
+{
+	struct p4tcc_softc *sc;
+	int i, val;
+
+	sc = device_get_softc(dev);
+	if (sets == NULL || count == NULL)
+		return (EINVAL);
+	if (*count < sc->set_count)
+		return (E2BIG);
+
+	/* Return a list of valid settings for this driver. */
+	memset(sets, CPUFREQ_VAL_UNKNOWN, sizeof(*sets) * sc->set_count);
+	val = TCC_NUM_SETTINGS;
+	for (i = 0; i < sc->set_count; i++, val--) {
+		sets[i].freq = TCC_SPEED_PERCENT(val);
+		sets[i].dev = dev;
 	}
+	*count = sc->set_count;
 
-	p4tcc_economy = tcc[TCC_LEVELS - 1].rlevel;
-	p4tcc_performance = tcc[0].rlevel;
+	return (0);
+}
+
+static int
+p4tcc_set(device_t dev, const struct cf_setting *set)
+{
+	struct p4tcc_softc *sc;
+	uint64_t mask, msr;
+	int val;
+
+	if (set == NULL)
+		return (EINVAL);
+	sc = device_get_softc(dev);
 
 	/*
-	 * Since after the reboot the TCC is usually in the Automatic
-	 * mode, in which reading current performance level is likely to
-	 * produce bogus results make sure to switch it to the On-Demand
-	 * mode and set to some known performance level. Unfortunately
-	 * there is no reliable way to check that TCC is in the Automatic
-	 * mode, reading bit 4 of ACPI Thermal Monitor Control Register
-	 * produces 0 regardless of the current mode.
+	 * Validate requested state converts to a setting that is an integer
+	 * from [sc->lowest_val .. TCC_NUM_SETTINGS].
 	 */
-	p4tcc_setperf(p4tcc_performance);
+	val = set->freq * TCC_NUM_SETTINGS / 10000;
+	if (val * 10000 != set->freq * TCC_NUM_SETTINGS ||
+	    val < sc->lowest_val || val > TCC_NUM_SETTINGS)
+		return (EINVAL);
 
-	p4tcc_percentage = p4tcc_getperf();
-	printf("Pentium 4 TCC support enabled, %d steps from 100%% to %d%%, "
-	    "current performance %u%%\n", nsteps, p4tcc_economy,
-	    p4tcc_percentage);
+	/*
+	 * Read the current register and mask off the old setting and
+	 * On-Demand bit.  If the new val is < 100%, set it and the On-Demand
+	 * bit, otherwise just return to Automatic mode.
+	 */
+	msr = rdmsr(MSR_THERM_CONTROL);
+	mask = (TCC_NUM_SETTINGS - 1) << TCC_REG_OFFSET;
+	msr &= ~(mask | TCC_ENABLE_ONDEMAND);
+	if (val < TCC_NUM_SETTINGS)
+		msr |= (val << TCC_REG_OFFSET) | TCC_ENABLE_ONDEMAND;
+	wrmsr(MSR_THERM_CONTROL, msr);
 
-	sysctl_ctx_init(&p4tcc_sysctl_ctx);
-	p4tcc_sysctl_tree = SYSCTL_ADD_NODE(&p4tcc_sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "p4tcc", CTLFLAG_RD, 0,
-	    "Pentium 4 Thermal Control Circuitry support");
-	SYSCTL_ADD_PROC(&p4tcc_sysctl_ctx,
-	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
-	    "cpuperf", CTLTYPE_INT | CTLFLAG_RW,
-	    &p4tcc_percentage, 0, p4tcc_perf_sysctl, "I",
-	    "CPU performance in % of maximum");
-	SYSCTL_ADD_PROC(&p4tcc_sysctl_ctx,
-	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
-	    "cpuperf_performance", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
-	    &p4tcc_performance, 0, p4tcc_profile_sysctl, "I",
-	    "CPU performance in % of maximum in Performance mode");
-	SYSCTL_ADD_PROC(&p4tcc_sysctl_ctx,
-	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
-	    "cpuperf_economy", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
-	    &p4tcc_economy, 0, p4tcc_profile_sysctl, "I",
-	    "CPU performance in % of maximum in Economy mode");
-	SYSCTL_ADD_STRING(&p4tcc_sysctl_ctx,
-	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
-	    "cpuperf_levels", CTLFLAG_RD, p4tcc_levels, 0,
-	    "Perormance levels supported by the Pentium 4 Thermal Control "
-	    "Circuitry");
+	/*
+	 * Record whether we're now in Automatic or On-Demand mode.  We have
+	 * to cache this since there is no reliable way to check if TCC is in
+	 * Automatic mode (i.e., at 100% or possibly 50%).  Reading bit 4 of
+	 * the ACPI Thermal Monitor Control Register produces 0 no matter
+	 * what the current mode.
+	 */
+	if (msr & TCC_ENABLE_ONDEMAND)
+		sc->auto_mode = TRUE;
+	else
+		sc->auto_mode = FALSE;
 
-	/* register performance profile change handler */
-	EVENTHANDLER_REGISTER(power_profile_change, p4tcc_power_profile, NULL, 0);
+	return (0);
 }
-SYSINIT(setup_p4tcc, SI_SUB_CPU, SI_ORDER_ANY, setup_p4tcc, NULL);
+
+static int
+p4tcc_get(device_t dev, struct cf_setting *set)
+{
+	struct p4tcc_softc *sc;
+	uint64_t msr;
+	int val;
+
+	if (set == NULL)
+		return (EINVAL);
+	sc = device_get_softc(dev);
+
+	/*
+	 * Read the current register and extract the current setting.  If
+	 * in automatic mode, assume we're at TCC_NUM_SETTINGS (100%).
+	 *
+	 * XXX This is not completely reliable since at high temperatures
+	 * the CPU may be automatically throttling to 50% but it's the best
+	 * we can do.
+	 */
+	if (!sc->auto_mode) {
+		msr = rdmsr(MSR_THERM_CONTROL);
+		val = (msr >> TCC_REG_OFFSET) & (TCC_NUM_SETTINGS - 1);
+	} else
+		val = TCC_NUM_SETTINGS;
+
+	memset(set, CPUFREQ_VAL_UNKNOWN, sizeof(*set));
+	set->freq = TCC_SPEED_PERCENT(val);
+	set->dev = dev;
+
+	return (0);
+}
+
+static int
+p4tcc_type(device_t dev, int *type)
+{
+
+	if (type == NULL)
+		return (EINVAL);
+
+	*type = CPUFREQ_TYPE_RELATIVE;
+	return (0);
+}
