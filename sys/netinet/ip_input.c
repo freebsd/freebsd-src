@@ -122,6 +122,12 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&ip_keepfaith,	0,
 	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
+static int	ip_nfragpackets = 0;
+static int	ip_maxfragpackets;	/* initialized in ip_init() */
+SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_RW,
+	&ip_maxfragpackets, 0,
+	"Maximum number of IPv4 fragment reassembly queue entries");
+
 /*
  * XXX - Setting ip_checkinterface mostly implements the receive side of
  * the Strong ES model described in RFC 1122, but since the routing table
@@ -248,7 +254,8 @@ ip_init()
 	for (i = 0; i < IPREASS_NHASH; i++)
 	    ipq[i].next = ipq[i].prev = &ipq[i];
 
-	maxnipq = nmbclusters/4;
+	maxnipq = nmbclusters / 4;
+	ip_maxfragpackets = nmbclusters / 4;
 
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
@@ -861,6 +868,15 @@ ip_reass(m, fp, where)
 	 * If first fragment to arrive, create a reassembly queue.
 	 */
 	if (fp == 0) {
+		/*
+		 * Enforce upper bound on number of fragmented packets
+		 * for which we attempt reassembly;
+		 * If maxfrag is 0, never accept fragments.
+		 * If maxfrag is -1, accept all fragments without limitation.
+		 */
+		if ((ip_maxfragpackets >= 0) && (ip_nfragpackets >= ip_maxfragpackets))
+			goto dropfrag;
+		ip_nfragpackets++;
 		if ((t = m_get(M_DONTWAIT, MT_FTABLE)) == NULL)
 			goto dropfrag;
 		fp = mtod(t, struct ipq *);
@@ -1009,6 +1025,7 @@ inserted:
 	remque(fp);
 	nipq--;
 	(void) m_free(dtom(fp));
+	ip_nfragpackets--;
 	m->m_len += (IP_VHL_HL(ip->ip_vhl) << 2);
 	m->m_data -= (IP_VHL_HL(ip->ip_vhl) << 2);
 	/* some debugging cruft by sklower, below, will go away soon */
@@ -1049,6 +1066,7 @@ ip_freef(fp)
 	}
 	remque(fp);
 	(void) m_free(dtom(fp));
+	ip_nfragpackets--;
 	nipq--;
 }
 
@@ -1074,6 +1092,20 @@ ip_slowtimo()
 			if (fp->prev->ipq_ttl == 0) {
 				ipstat.ips_fragtimeout++;
 				ip_freef(fp->prev);
+			}
+		}
+	}
+	/*
+	 * If we are over the maximum number of fragments
+	 * (due to the limit being lowered), drain off
+	 * enough to get down to the new limit.
+	 */
+	for (i = 0; i < IPREASS_NHASH; i++) {
+		if (ip_maxfragpackets >= 0) {
+			while ((ip_nfragpackets > ip_maxfragpackets) &&
+				(ipq[i].next != &ipq[i])) {
+				ipstat.ips_fragdropped++;
+				ip_freef(ipq[i].next);
 			}
 		}
 	}
