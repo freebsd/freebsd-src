@@ -62,10 +62,10 @@ void	usage __P((void));
 
 struct termios mode, oldmode;
 
-int	erasechar;		/* new erase character */
+int	erasech;		/* new erase character */
 int	intrchar;		/* new interrupt character */
 int	isreset;		/* invoked as reset */
-int	killchar;		/* new kill character */
+int	killch;			/* new kill character */
 int	Lines, Columns;		/* window size */
 speed_t	Ospeed;
 
@@ -110,7 +110,7 @@ main(argc, argv)
 			add_mapping("dialup", optarg);
 			break;
 		case 'e':		/* erase character */
-			erasechar = optarg[0] == '^' && optarg[1] != '\0' ?
+			erasech = optarg[0] == '^' && optarg[1] != '\0' ?
 			    optarg[1] == '?' ? '\177' : CTRL(optarg[1]) :
 			    optarg[0];
 			break;
@@ -123,7 +123,7 @@ main(argc, argv)
 			    optarg[0];
 			break;
 		case 'k':		/* kill character */
-			killchar = optarg[0] == '^' && optarg[1] != '\0' ?
+			killch = optarg[0] == '^' && optarg[1] != '\0' ?
 			    optarg[1] == '?' ? '\177' : CTRL(optarg[1]) :
 			    optarg[0];
 			break;
