@@ -7,4 +7,6 @@ CFLAGS		+= -Wall
 
 CFLAGS		+= -DM3_DEBUG_LEVEL=-1
 
+KMODDEPS 	= snd_pcm
+
 .include <bsd.kmod.mk>
