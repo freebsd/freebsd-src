@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.34 1995/06/07 09:54:19 jkh Exp $
+ * $Id: menus.c,v 1.41.2.35 1995/06/07 20:35:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,7 +53,7 @@
 /* The initial installation menu */
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
-    "Welcome to FreeBSD 2.0.5!",	/* title */
+    "Welcome to FreeBSD 2.0.5-BETA!",	/* title */
     "This is the main menu of the FreeBSD installation system.  Please\n\
 select one of the options below by using the arrow keys or typing the\n\
 first character of the option name you're interested in.  Invoke an\n\
