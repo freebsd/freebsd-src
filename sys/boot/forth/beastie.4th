@@ -1,4 +1,5 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
+\ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
 \ All rights reserved.
 \
 \ Redistribution and use in source and binary forms, with or without
@@ -48,7 +49,29 @@ variable rebootkey
 46 constant dot
 
 \ The BSD Daemon.  He is 19 rows high and 34 columns wide
-: print-beastie ( x y -- )
+: technicolor-beastie ( x y -- )
+2dup at-xy ."               [1;31m,        ," 1+
+2dup at-xy ."              /(        )`" 1+
+2dup at-xy ."              \ \___   / |" 1+
+2dup at-xy ."              /- [37m_[31m  `-/  '" 1+
+2dup at-xy ."             ([37m/\/ \[31m \   /\" 1+
+2dup at-xy ."             [37m/ /   |[31m `    \" 1+
+2dup at-xy ."             [34mO O   [37m) [31m/    |" 1+
+2dup at-xy ."             [37m`-^--'[31m`<     '" 1+
+2dup at-xy ."            (_.)  _  )   /" 1+
+2dup at-xy ."             `.___/`    /       " 1+
+2dup at-xy ."               `-----' /" 1+
+2dup at-xy ."  [33m<----.[31m     __ / __   \" 1+
+2dup at-xy ."  [33m<----|====[31mO)))[33m==[31m) \) /[33m====|" 1+
+2dup at-xy ."  [33m<----'[31m    `--' `.__,' \" 1+
+2dup at-xy ."               |        |" 1+
+2dup at-xy ."                \       /       /\" 1+
+2dup at-xy ."           [36m______[31m( (_  / \______/" 1+
+2dup at-xy ."         [36m,'  ,-----'   |" 1+
+at-xy ."         `--{__________) [0m" 1+
+;
+
+: boring-beastie ( x y -- )
 	2dup at-xy ."              ,        ," 1+
 	2dup at-xy ."             /(        )`" 1+
 	2dup at-xy ."             \ \___   / |" 1+
@@ -68,6 +91,20 @@ variable rebootkey
 	2dup at-xy ."          ______( (_  / \______/" 1+
 	2dup at-xy ."        ,'  ,-----'   |" 1+
 	     at-xy ."        `--{__________)"
+;
+
+: print-beastie ( x y -- )
+	s" loader_color" getenv
+	dup -1 = if
+		drop
+		boring-beastie
+		exit
+	then
+	s" YES" compare-insensitive 0<> if
+		boring-beastie
+		exit
+	then
+	technicolor-beastie
 ;
 
 : acpienabled? ( -- flag )
