@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_tcp.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_tcp.c,v 1.6 1996/06/10 20:13:09 jraynard Exp $";
+static char *rcsid = "$Id: svc_tcp.c,v 1.7 1996/08/12 14:00:25 peter Exp $";
 #endif
 
 /*
@@ -50,9 +50,6 @@ static char *rcsid = "$Id: svc_tcp.c,v 1.6 1996/06/10 20:13:09 jraynard Exp $";
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <errno.h>
-
-int bindresvport(int sd, struct sockaddr_in *);
-int _rpc_dtablesize(void);
 
 /*
  * Ops vector for TCP/IP based rpc service handle
@@ -142,7 +139,7 @@ svctcp_create(sock, sendsize, recvsize)
 		}
 		madesock = TRUE;
 	}
-	bzero((char *)&addr, sizeof (addr));
+	memset(&addr, 0, sizeof (addr));
 	addr.sin_len = sizeof(struct sockaddr_in);
 	addr.sin_family = AF_INET;
 	if (bindresvport(sock, &addr)) {
@@ -247,6 +244,14 @@ rendezvous_request(xprt)
 	       return (FALSE);
 	}
 	/*
+	 * XXX careful for ftp bounce attacks. If discovered, close the
+	 * socket and look for another connection.
+	 */
+	if (addr.sin_port == htons(20)) {
+		close(sock);
+		goto again;
+	}
+	/*
 	 * make a new transporter (re-uses xprt)
 	 */
 	xprt = makefd_xprt(sock, r->sendsize, r->recvsize);
@@ -299,35 +304,52 @@ readtcp(xprt, buf, len)
 	register int len;
 {
 	register int sock = xprt->xp_sock;
-#ifdef FD_SETSIZE
-	fd_set mask;
-	fd_set readfds;
+	struct timeval start, delta, tv;
+	struct timeval tmp1, tmp2;
+	fd_set *fds, readfds;
 
-	FD_ZERO(&mask);
-	FD_SET(sock, &mask);
-#else
-	register int mask = 1 << sock;
-	int readfds;
-#endif /* def FD_SETSIZE */
+	if (sock + 1 > FD_SETSIZE) {
+		int bytes = howmany(sock+1, NFDBITS) * sizeof(fd_mask);
+		fds = (fd_set *)malloc(bytes);
+
+		if (fds == NULL)
+			goto fatal_err;
+		memset(fds, 0, bytes);
+	} else {
+		fds = &readfds;
+		FD_ZERO(fds);
+	}
+
+	delta = wait_per_try;
+	gettimeofday(&start, NULL);
 	do {
-		readfds = mask;
-		if (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
-			   (fd_set *)NULL, &wait_per_try) <= 0) {
-			if (errno == EINTR) {
-				continue;
-			}
+		/* XXX we know the other bits are still clear */
+		FD_SET(sock, fds);
+		tv = delta;	/* in case select() implements writeback */
+		switch (select(sock + 1, fds, NULL, NULL, &tv)) {
+		case -1:
+			if (errno != EINTR)
+				goto fatal_err;
+			gettimeofday(&tmp1, NULL);
+			timersub(&tmp1, &start, &tmp2);
+			timersub(&delta, &tmp2, &tmp1);
+			if (tmp1.tv_sec < 0 || !timerisset(&tmp1))
+				goto fatal_err;
+			delta = tmp1;
+			continue;
+		case 0:
 			goto fatal_err;
 		}
-#ifdef FD_SETSIZE
-	} while (!FD_ISSET(sock, &readfds));
-#else
-	} while (readfds != mask);
-#endif /* def FD_SETSIZE */
+	} while (!FD_ISSET(sock, fds));
 	if ((len = read(sock, buf, len)) > 0) {
+		if (fds != &readfds)
+			free(fds);
 		return (len);
 	}
 fatal_err:
 	((struct tcp_conn *)(xprt->xp_p1))->strm_stat = XPRT_DIED;
+	if (fds != &readfds)
+		free(fds);
 	return (-1);
 }
 
