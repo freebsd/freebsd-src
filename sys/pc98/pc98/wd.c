@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.44 1998/02/16 23:57:45 eivind Exp $
+ *	$Id: wd.c,v 1.45 1998/04/02 11:06:59 kato Exp $
  */
 
 /* TODO:
@@ -121,6 +121,7 @@ extern void wdstart(int ctrlr);
 #define WDOPT_32BIT	0x8000
 #define WDOPT_SLEEPHACK	0x4000
 #define WDOPT_DMA	0x2000
+#define WDOPT_LBA	0x1000
 #define WDOPT_FORCEHD(x)	(((x)&0x0f00)>>8)
 #define WDOPT_MULTIMASK	0x00ff
 
@@ -203,6 +204,7 @@ struct disk {
 #define DKFL_DMA	0x01000 /* using DMA on this transfer-- DKFL_SINGLE
 				 * overrides this
 				 */
+#define DKFL_LBA	0x02000	/* use LBA for data transfers */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
 	int	dk_dkunit;	/* disk stats unit number */
 	int	dk_multi;	/* multi transfers */
@@ -545,6 +547,8 @@ wdattach(struct isa_device *dvp)
 				dvp->id_unit, unit, lunit,
 				sizeof du->dk_params.wdp_model,
 				du->dk_params.wdp_model);
+			if (du->dk_flags & DKFL_LBA)
+				printf(", LBA");
 			if (du->dk_flags & DKFL_USEDMA)
 				printf(", DMA");
 			if (du->dk_flags & DKFL_32BIT)
@@ -936,10 +940,16 @@ wdstart(int ctrlr)
 		u_int	count1;
 		long	cylin, head, sector;
 
-		cylin = blknum / secpercyl;
-		head = (blknum % secpercyl) / secpertrk;
-		sector = blknum % secpertrk;
-
+		if (du->dk_flags & DKFL_LBA) {
+			sector = (blknum >> 0) & 0xff; 
+			cylin = (blknum >> 8) & 0xffff;
+			head = ((blknum >> 24) & 0xf) | WDSD_LBA; 
+		}
+		else {
+			cylin = blknum / secpercyl;
+			head = (blknum % secpercyl) / secpertrk;
+			sector = blknum % secpertrk;
+		}
 		/* 
 		 * XXX this looks like an attempt to skip bad sectors
 		 * on write.
@@ -1726,6 +1736,9 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 #else
 			outb(wdc + wd_sdh, WDSD_IBM | (du->dk_unit<<4) | head);
 #endif
+		if (head & WDSD_LBA)
+			outb(wdc + wd_sector, sector);
+		else
 			outb(wdc + wd_sector, sector + 1);
 			outb(wdc + wd_seccnt, count);
 		}
@@ -1780,42 +1793,44 @@ wdsetctlr(struct disk *du)
 	       du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks,
 	       du->dk_dd.d_nsectors);
 #endif
-	if (du->dk_dd.d_ntracks == 0 || du->dk_dd.d_ntracks > 16) {
-		struct wdparams *wp;
-
-		printf("wd%d: can't handle %lu heads from partition table ",
-		       du->dk_lunit, du->dk_dd.d_ntracks);
-		/* obtain parameters */
-		wp = &du->dk_params;
-		if (wp->wdp_heads > 0 && wp->wdp_heads <= 16) {
-			printf("(controller value %u restored)\n",
-				wp->wdp_heads);
-			du->dk_dd.d_ntracks = wp->wdp_heads;
+	if (!(du->dk_flags &= DKFL_LBA)) {
+		if (du->dk_dd.d_ntracks == 0 || du->dk_dd.d_ntracks > 16) {
+			struct wdparams *wp;
+	
+			printf("wd%d: can't handle %lu heads from partition table ",
+		       	du->dk_lunit, du->dk_dd.d_ntracks);
+			/* obtain parameters */
+			wp = &du->dk_params;
+			if (wp->wdp_heads > 0 && wp->wdp_heads <= 16) {
+				printf("(controller value %u restored)\n",
+					wp->wdp_heads);
+				du->dk_dd.d_ntracks = wp->wdp_heads;
+			}
+			else {
+				printf("(truncating to 16)\n");
+				du->dk_dd.d_ntracks = 16;
+			}
 		}
-		else {
-			printf("(truncating to 16)\n");
-			du->dk_dd.d_ntracks = 16;
+	
+		if (du->dk_dd.d_nsectors == 0 || du->dk_dd.d_nsectors > 255) {
+			printf("wd%d: cannot handle %lu sectors (max 255)\n",
+		       	du->dk_lunit, du->dk_dd.d_nsectors);
+			error = 1;
 		}
-	}
-
-	if (du->dk_dd.d_nsectors == 0 || du->dk_dd.d_nsectors > 255) {
-		printf("wd%d: cannot handle %lu sectors (max 255)\n",
-		       du->dk_lunit, du->dk_dd.d_nsectors);
-		error = 1;
-	}
-	if (error) {
+		if (error) {
 #ifdef CMD640 
-		wdtab[du->dk_ctrlr_cmd640].b_errcnt += RETRIES;
+			wdtab[du->dk_ctrlr_cmd640].b_errcnt += RETRIES;
 #else
-		wdtab[du->dk_ctrlr].b_errcnt += RETRIES;
+			wdtab[du->dk_ctrlr].b_errcnt += RETRIES;
 #endif
-		return (1);
-	}
-	if (wdcommand(du, du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks - 1, 0,
-		      du->dk_dd.d_nsectors, WDCC_IDC) != 0
-	    || wdwait(du, WDCS_READY, TIMEOUT) < 0) {
-		wderror((struct buf *)NULL, du, "wdsetctlr failed");
-		return (1);
+			return (1);
+		}
+		if (wdcommand(du, du->dk_dd.d_ncylinders, 						      du->dk_dd.d_ntracks - 1, 0,
+		      	      du->dk_dd.d_nsectors, WDCC_IDC) != 0
+	    		      || wdwait(du, WDCS_READY, TIMEOUT) < 0) {
+			wderror((struct buf *)NULL, du, "wdsetctlr failed");
+			return (1);
+		}
 	}
 
 	wdsetmulti(du);
@@ -2096,11 +2111,40 @@ failed:
 
 	/* update disklabel given drive information */
 	du->dk_dd.d_secsize = DEV_BSIZE;
-	du->dk_dd.d_ncylinders = wp->wdp_cylinders;	/* +- 1 */
-	du->dk_dd.d_ntracks = wp->wdp_heads;
-	du->dk_dd.d_nsectors = wp->wdp_sectors;
-	du->dk_dd.d_secpercyl = du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
-	du->dk_dd.d_secperunit = du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+	if ((du->cfg_flags & WDOPT_LBA) && wp->wdp_lbasize) {
+		du->dk_dd.d_nsectors = 63;
+		if (wp->wdp_lbasize < 16*63*1024) {		/* <=528.4 MB */
+			du->dk_dd.d_ntracks = 16;
+		}
+		else if (wp->wdp_lbasize < 32*63*1024) {	/* <=1.057 GB */
+			du->dk_dd.d_ntracks = 32;
+		}
+		else if (wp->wdp_lbasize < 64*63*1024) {	/* <=2.114 GB */
+			du->dk_dd.d_ntracks = 64;
+		}
+		else if (wp->wdp_lbasize < 128*63*1024) {	/* <=4.228 GB */
+			du->dk_dd.d_ntracks = 128;
+		}
+		else if (wp->wdp_lbasize < 128*63*1024) {	/* <=8.422 GB */
+			du->dk_dd.d_ntracks = 255;
+		}
+		else {						/* >8.422 GB */
+			du->dk_dd.d_ntracks = 255;		/* XXX */
+		}
+		du->dk_dd.d_secpercyl= du->dk_dd.d_ntracks*du->dk_dd.d_nsectors;
+		du->dk_dd.d_ncylinders = wp->wdp_lbasize/du->dk_dd.d_secpercyl;
+		du->dk_dd.d_secperunit = wp->wdp_lbasize;
+		du->dk_flags |= DKFL_LBA;
+	}
+	else {
+		du->dk_dd.d_ncylinders = wp->wdp_cylinders;	/* +- 1 */
+		du->dk_dd.d_ntracks = wp->wdp_heads;
+		du->dk_dd.d_nsectors = wp->wdp_sectors;
+		du->dk_dd.d_secpercyl = 
+			du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
+		du->dk_dd.d_secperunit = 
+			du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+	}
 	if (WDOPT_FORCEHD(du->cfg_flags)) {
 		du->dk_dd.d_ntracks = WDOPT_FORCEHD(du->cfg_flags);
 		du->dk_dd.d_secpercyl = 
