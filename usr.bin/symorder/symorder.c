@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-char copyright[] =
+char const copyright[] =
 "@(#) Copyright (c) 1980 The Regents of the University of California.\n\
  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)symorder.c	5.8 (Berkeley) 4/1/91";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -47,13 +51,15 @@ static char sccsid[] = "@(#)symorder.c	5.8 (Berkeley) 4/1/91";
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <a.out.h>
-#include <unistd.h>
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define SPACE		500
 
@@ -71,12 +77,18 @@ off_t	sa;
 int	nexclude, nsym, strtabsize, symfound, symkept, small, missing, clean;
 char	*kfile, *newstrings, *strings, asym[BUFSIZ];
 
+void badfmt __P((char *));
+int excluded __P((struct nlist *));
+int inlist __P((struct nlist *));
+void reorder __P((struct nlist *, struct nlist *, int));
+int savesymb __P((struct nlist *));
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	register struct nlist *p, *symp;
 	register FILE *f, *xfile;
 	register int i;
@@ -111,7 +123,7 @@ main(argc, argv)
 		usage();
 
 	if ((f = fopen(argv[0], "r")) == NULL)
-		error(argv[0]);
+		err(ERREXIT, "%s", argv[0]);
 
 	for (p = order; fgets(asym, sizeof(asym), f) != NULL;) {
 		for (t = asym; isspace(*t); ++t);
@@ -129,7 +141,7 @@ main(argc, argv)
 
 	if (xfilename != NULL) {
 		if ((xfile = fopen(xfilename, "r")) == NULL)
-			error(xfilename);
+			err(ERREXIT, "%s", xfilename);
 		for (; fgets(asym, sizeof(asym), xfile) != NULL;) {
 			for (t = asym; isspace(*t); ++t);
 			if (!*(start = t))
@@ -146,9 +158,9 @@ main(argc, argv)
 
 	kfile = argv[1];
 	if ((f = fopen(kfile, "r")) == NULL)
-		error(kfile);
+		err(ERREXIT, "%s", kfile);
 	if ((o = open(kfile, O_WRONLY)) < 0)
-		error(kfile);
+		err(ERREXIT, "%s", kfile);
 
 	/* read exec header */
 	if ((fread(&exec, sizeof(exec), 1, f)) != 1)
@@ -166,7 +178,7 @@ main(argc, argv)
 	(void)fseek(f, sa, SEEK_SET);
 	n = exec.a_syms;
 	if (!(symtab = (struct nlist *)malloc(n)))
-		error(NULL);
+		err(ERREXIT, NULL);
 	if (fread((void *)symtab, 1, n, f) != n)
 		badfmt("corrupted symbol table");
 
@@ -176,7 +188,7 @@ main(argc, argv)
 		badfmt("corrupted string table");
 	strings = malloc(strtabsize);
 	if (strings == NULL)
-		error(NULL);
+		err(ERREXIT, NULL);
 	/*
 	 * Subtract four from strtabsize since strtabsize includes itself,
 	 * and we've already read it.
@@ -189,7 +201,7 @@ main(argc, argv)
 	if (!clean) {
 		newtab = (struct nlist *)malloc(n);
 		if (newtab == (struct nlist *)NULL)
-			error(NULL);
+			err(ERREXIT, NULL);
 		memset(newtab, 0, n);
 
 		reorder(symtab, newtab, i);
@@ -201,7 +213,7 @@ main(argc, argv)
 
 	newstrings = malloc(strtabsize);
 	if (newstrings == NULL)
-		error(NULL);
+		err(ERREXIT, NULL);
 	t = newstrings;
 	for (symp = symtab; --i >= 0; symp++) {
 		if (symp->n_un.n_strx == 0)
@@ -227,16 +239,16 @@ main(argc, argv)
 	(void)lseek(o, (off_t)0, SEEK_SET);
 	exec.a_syms = n;
 	if (write(o, (void *)&exec, sizeof(exec)) != sizeof(exec))
-		error(kfile);
+		err(ERREXIT, "%s", kfile);
 
 	(void)lseek(o, sa, SEEK_SET);
 	if (write(o, (void *)symtab, n) != n)
-		error(kfile);
+		err(ERREXIT, "%s", kfile);
 	if (write(o, (void *)&strtabsize, sizeof(int)) != sizeof(int))
-		error(kfile);
+		err(ERREXIT, "%s", kfile);
 	if (write(o, newstrings, strtabsize - sizeof(int)) !=
 	    strtabsize - sizeof(int))
-		error(kfile);
+		err(ERREXIT, "%s", kfile);
 
 	ftruncate(o, lseek(o, (off_t)0, SEEK_CUR));
 
@@ -252,6 +264,7 @@ main(argc, argv)
 	exit(OKEXIT);
 }
 
+int
 savesymb(s)
 	register struct nlist *s;
 {
@@ -266,6 +279,7 @@ savesymb(s)
 	}
 }
 
+void
 reorder(st1, st2, entries)
 	register struct nlist *st1, *st2;
 	int entries;
@@ -288,6 +302,7 @@ reorder(st1, st2, entries)
 	}
 }
 
+int
 inlist(p)
 	register struct nlist *p;
 {
@@ -308,6 +323,7 @@ inlist(p)
 	return (-1);
 }
 
+int
 excluded(p)
 	register struct nlist *p;
 {
@@ -325,27 +341,14 @@ excluded(p)
 	return (0);
 }
 
+void
 badfmt(why)
 	char *why;
 {
-	(void)fprintf(stderr,
-	    "symorder: %s: %s: %s\n", kfile, why, strerror(EFTYPE));
-	exit(ERREXIT);
+	errx(ERREXIT, "%s: %s: %s", kfile, why, strerror(EFTYPE));
 }
 
-error(n)
-	char *n;
-{
-	int sverr;
-
-	sverr = errno;
-	(void)fprintf(stderr, "symorder: ");
-	if (n)
-		(void)fprintf(stderr, "%s: ", n);
-	(void)fprintf(stderr, "%s\n", strerror(sverr));
-	exit(ERREXIT);
-}
-
+static void
 usage()
 {
 	(void)fprintf(stderr,
