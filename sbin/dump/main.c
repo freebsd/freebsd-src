@@ -612,6 +612,7 @@ obsolete(argcp, argvp)
 		case 'b':
 		case 'd':
 		case 'f':
+		case 'D':
 		case 'h':
 		case 's':
 		case 'T':
