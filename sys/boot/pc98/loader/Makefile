@@ -2,7 +2,6 @@
 
 BASE=		loader
 PROG=		${BASE}
-#NOMAN=
 STRIP=
 NEWVERSWHAT=	"bootstrap loader" pc98
 BINDIR?=	/boot
@@ -94,7 +93,7 @@ vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../i386/loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../i386/loader/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
-${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
+${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 		-b ${BTXKERN} ${BASE}.bin
 #	/usr/bin/kzip ${.TARGET}
@@ -107,24 +106,13 @@ ${BASE}.bin: ${BASE}.sym
 ${BASE}.help: help.common help.i386
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
-beforeinstall:
-.if exists(${.OBJDIR}/loader.help)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
-.else
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
-.endif
+.PATH: ${.CURDIR}/../../forth 
+FILES=	${BASE}.help loader.4th support.4th loader.conf
+FILESDIR_loader.conf=	/boot/defaults
+
 .if !exists(${DESTDIR}/boot/loader.rc)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+FILES+=	loader.rc
 .endif
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
 
 .include <${.CURDIR}/../Makefile.inc>
 
