@@ -2,6 +2,7 @@ package ExtUtils::Install;
 
 $VERSION = substr q$Revision: 1.28 $, 10;
 # $Date: 1998/01/25 07:08:24 $
+# $FreeBSD$
 
 use Exporter;
 use Carp ();
@@ -77,6 +78,9 @@ sub install {
 	#install locations. AFS users may call this a bug. We'll have
 	#to reconsider how to add the means to satisfy AFS users also.
 
+	# FreeBSD also doesn't like this (much). At install time, the
+	# ctime should change, even if the file does not.
+
 	#October 1997: we want to install .pm files into archlib if
 	#there are any files in arch. So we depend on having ./blib/arch
 	#hardcoded here.
@@ -106,6 +110,8 @@ sub install {
 		print "$_ differs\n" if $verbose>1;
 		$diff++;
 	    }
+	    my $diff = 1; # Nasty, lowdown, rotten, scumsucking
+	                  # hack to make FreeBSD _really_ install.
 
 	    if ($diff){
 		if (-f $targetfile){
