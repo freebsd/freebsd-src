@@ -49,9 +49,6 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 	sigset_t oldset, newset;
 	int ret;
 
-	if (! _kse_isthreaded())
-		_kse_setthreaded(1);
-
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
 		ret = __sys_sigprocmask(how, set, oset);
 		if (ret != 0)
