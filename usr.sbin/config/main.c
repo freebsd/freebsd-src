@@ -90,8 +90,12 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 		perror(PREFIX);
 		exit(2);
 	}
+#ifndef CONFIG_DONT_CLOBBER
+	if (stat(p = path((char *)NULL), &buf)) {
+#else /* CONFIG_DONT_CLOBBER */
 	p = path((char *)NULL);
 	if (stat(p, &buf)) {
+#endif /* CONFIG_DONT_CLOBBER */
 		if (mkdir(p, 0777)) {
 			perror(p);
 			exit(2);
@@ -100,6 +104,7 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 	else if ((buf.st_mode & S_IFMT) != S_IFDIR) {
 		fprintf(stderr, "config: %s isn't a directory.\n", p);
 		exit(2);
+#ifdef CONFIG_DONT_CLOBBER
 	}
 	else {
 		char tmp[strlen(p) + 8];
@@ -117,6 +122,7 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 			perror(p);
 			exit(2);
 		}
+#endif /* CONFIG_DONT_CLOBBER */
 	}
 
 	loadaddress = -1;
