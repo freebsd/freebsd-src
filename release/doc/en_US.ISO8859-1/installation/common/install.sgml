@@ -12,42 +12,53 @@ from {alpha,i386}/INSTALL.TXT.
 <sect1>
   <title>Installing &os;</title>
 
-  <sect2 id="quickstart">
-    <title>Quick Start</title>
+  <para>This section documents the process of installing a new
+  distribution of &os;.  These instructions pay particular emphasis to
+  the process of obtaining the &os; &release.current; distribution and
+  to beginning the installation procedure.  The <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html"><quote>Installing
+  FreeBSD</quote></ulink>
+  chapter of the <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+  Handbook</ulink> provides more in-depth information about the
+  installation program itself, including a guided walkthrough with
+  screenshots.</para>
 
-    <para>This manual documents the process of making a new
-    installation of &os; on your machine.  If you are upgrading
-    from a previous release of &os;, please see <xref
-    linkend="upgrading">
-    for important information on upgrading.  If you are
-    not familiar with configuring hardware for &os;, you should
-    also read the <filename>HARDWARE.TXT</filename> file - it contains important
-    information which may save you a lot of grief.</para>
+  <para>If you are upgrading from a previous release
+  of &os;, please see <xref linkend="upgrading"> for instructions on
+  upgrading.</para>
 
-    <para>If you're new to &os; then you should also read
-    <emphasis>everything</emphasis> listed in the Documentation menu
-    of the installer.  It may seem like a lot to read, but the time
-    you spend now reading the documents will be made up many times
-    over because you were adequately prepared. Also, you will know the
-    types of information available should you get stuck later.  Once
-    the system is installed, you can also revisit this menu and use a
-    Web browser to read the installed FAQ (Frequently Asked Questions)
-    and Handbook HTML documentation sets for &os;.  Note that on-line
-    versions of the <ulink
-    url="http://www.FreeBSD.org/faq/">FAQ</ulink> and <ulink
-    url="http://www.FreeBSD.org/handbook/">Handbook</ulink> are also
-    available from the <ulink
-    url="http://www.FreeBSD.org/">FreeBSD Project Web
-    site</ulink>, if you have an Internet connection. See
-    <filename>README.TXT</filename> for more information on the
-    resources available to you.</para>
+  <sect2 id="getting-started">
+    <title>Getting Started</title>
+
+    <para>Probably the most important pre-installation step that can
+    be taken is that of reading the various instruction documents
+    provided with &os;.  A roadmap of documents pertaining to this
+    release of &os; can be found in <filename>README.TXT</filename>,
+    which can usually be found in the same location as this file; most
+    of these documents, such as the release notes and the hardware
+    compatability list, are also accessible in the Documentation menu
+    of the installer.</para>
+
+    <para>Note that on-line versions of the &os; <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> and <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink> are also
+    available from the <ulink url="http://www.FreeBSD.org/">FreeBSD
+    Project Web site</ulink>, if you have an Internet
+    connection.</para>
+
+    <para>This collection of documents may seem daunting, but the time
+    spent reading them will likely be saved many times over.  Being
+    familiar with what resources are available can also be helpful in
+    the event of problems during installation.</para>
 
     <para>The best laid plans sometimes go awry, so if you run into
     trouble take a look at <xref linkend="trouble">, which contains
     valuable troubleshooting information.  You should also read
-    <filename>ERRATA.TXT</filename> before installing and follow the
-    pointers there carefully since this will stop you from falling
-    over any problems which have reported in the interim for your
+    an updated copy of
+    <filename>ERRATA.TXT</filename> before installing,
+    since this will alert you to
+    any problems which have reported in the interim for your
     particular release.</para>
 
     <important>
@@ -55,10 +66,13 @@ from {alpha,i386}/INSTALL.TXT.
       accidental loss of data, it's still more than possible to
       <emphasis>wipe out your entire disk</emphasis>
       with this installation if you make a
-      mistake!  Please do not proceed to the final &os;
+      mistake.  Please do not proceed to the final &os;
       installation menu unless you've adequately backed up any
-      important data first!  We really mean it!</para>
+      important data first.</para>
     </important>
+
+  <sect2>
+    <title>Hardware Requirements</title>
 
     <para arch="i386">&os; for the &arch; requires a 386 or better
     processor to run (sorry, there is no support for 286 processors)
@@ -87,7 +101,82 @@ from {alpha,i386}/INSTALL.TXT.
     necessary to download new firmware from the vendor's Web
     site.</para>
 
-    <sect3>
+    <para>If you are
+    not familiar with configuring hardware for &os;, you should
+    be sure to read the <filename>HARDWARE.TXT</filename> file; 
+    it contains important
+    information on what hardware is supported by &os;.</para>
+  </sect2>
+
+  <sect2 id="floppies">
+  <title>Floppy Disk Image Instructions</title>
+
+  <para>Depending on how you choose to install &os;, you may need to
+  create a set of floppy disks (usually two) to begin the installation
+  process.  This section briefly describes how to create these disks,
+  either from a CDROM installation or from the Internet.  Note that in
+  the common case of installing &os; from CDROM, on a machine that
+  supports bootable CDROMs, the steps outlined in this section will
+  not be needed and can be skipped.</para>
+
+  <para>For a normal CDROM or network installation, all you need to
+  copy onto actual floppies from the <filename>floppies/</filename> directory are the
+  <filename>kern.flp</filename> and <filename>mfsroot.flp</filename>
+  images (for 1.44MB floppies).</para>
+
+  <para>Getting these images over the network is easy.  Simply fetch
+  the
+  <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>
+  and
+  <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>
+  files from <ulink
+  url="&release.url;"></ulink>
+  or one of the many mirrors listed at <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+    Sites</ulink> section of the Handbook, or on the
+    <ulink url="http://www.freebsdmirrors.org/"></ulink> Web pages.
+  </para>
+
+  <para>Get two blank, freshly formatted floppies and image copy
+  <filename>kern.flp</filename> onto one and <filename>mfsroot.flp</filename> onto the other.  These images are
+  <emphasis>not</emphasis> DOS files.  You cannot simply copy them to a DOS or UFS floppy
+  as regular files, you need to <quote>image</quote> copy them to the floppy with
+  <filename>fdimage.exe</filename> under DOS (see the
+  <filename>tools</filename> directory on your CDROM or &os; FTP
+  mirror) or the &man.dd.1; command in UNIX.</para>
+
+  <para>For example, to create the kernel floppy image from DOS, you'd
+  do something like this:</para>
+
+  <screen><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
+
+  <para>Assuming that you'd copied <filename>fdimage.exe</filename> and <filename>kern.flp</filename> into a directory
+  somewhere.  You would do the same for <filename>mfsroot.flp</filename>, of course.</para>
+
+  <para>If you're creating the boot floppy from a UNIX machine, you
+  may find that:</para>
+
+  <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
+
+  <para>or</para>
+
+  <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
+
+  <para>work well, depending on your hardware and operating system
+  environment (different versions of UNIX have different names
+  for the floppy drive).</para>
+
+  <para arch="alpha">If you're on an alpha machine that can network-boot its
+  floppy images or you have a 2.88MB or LS-120 floppy capable of
+  taking a 2.88MB image on an x86 machine, you may wish to use
+  the single (but twice as large) <filename>boot.flp</filename> image.
+  It contains the contents of <filename>kern.flp</filename> and <filename>mfsroot.flp</filename> on
+  a single floppy.  This file should also be used as the
+  boot file for those mastering <quote>El Torito</quote> bootable CD images.  See
+  the &man.mkisofs.8; command for more information.</para>
+  </sect2>
+
+  <sect2 id="start-installation">
       <title>Installing &os; from CDROM or the Internet</title>
 
       <para arch="i386">The easiest type of installation is from
@@ -117,6 +206,19 @@ from {alpha,i386}/INSTALL.TXT.
         </itemizedlist>
       </para>
 
+      <para arch="i386">If you don't have a CDROM (or your computer does not
+      support booting from CDROM) and would like to simply install
+      over the net using PPP, SLIP or a dedicated connection.
+      You should start the installation by building
+      a set of FreeBSD boot floppy from the files
+      <filename>floppies/kern.flp</filename> and
+      <filename>floppies/mfsroot.flp</filename> using the instructions
+      found in <xref linkend="floppies">.  Restart your computer using
+      the <filename>kern.flp</filename> disk; when prompted, insert
+      the <filename>mfsroot.flp</filename> disk.  Then, please go to
+      <xref linkend="ftpnfs"> for additional tips on installing
+      via FTP or NFS.</para>
+
       <para arch="alpha">The easiest type of installation is from
       CDROM.  If you have a supported CDROM drive and a FreeBSD
       installation CDROM, you can boot FreeBSD directly from the
@@ -141,15 +243,6 @@ from {alpha,i386}/INSTALL.TXT.
       <para arch="alpha">Insert the <filename>mfsroot.flp</filename>
       floppy when prompted and you will end up at the first screen of
       the install program.</para>
-
-      <para>If you don't have a CDROM and would like to simply install
-      over the net using PPP, SLIP or a dedicated connection, see
-      <xref linkend="floppies"> for instructions on
-      making boot floppies.  Then please go to
-      <xref linkend="ftpnfs"> for additional tips on installing
-      via FTP or NFS.</para>
-
-    </sect3>
   </sect2>
   <sect2>
     <title>Detail on various installation types</title>
@@ -162,7 +255,7 @@ from {alpha,i386}/INSTALL.TXT.
     general <quote>Usage</quote> instructions on the first menu.</para>
 
     <note>
-      <para>If you get stuck at a screen, hit the <keycap>F1</keycap> key for online
+      <para>If you get stuck at a screen, press the <keycap>F1</keycap> key for online
       documentation relevant to that specific section.</para>
     </note>
 
@@ -221,7 +314,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <title>Installing from a Network CDROM</title>
 
       <para>If you simply wish to install from a local CDROM drive
-      then see <xref linkend="quickstart">.  If you don't have a CDROM
+      then see <xref linkend="start-installation">.  If you don't have a CDROM
       drive on your system and wish to use a &os; distribution CD
       in the CDROM drive of another system to which you have network
       connectivity, there are also several ways of going about it:</para>
@@ -299,10 +392,11 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       use the Windows File Manager format command.</para>
 
       <important>
-        <para>Don't trust <quote>factory preformatted</quote>
-        floppies!  Format them again yourself, just to make sure.
-        Many problems reported by users in the past have resulted
-        from the use of improperly formatted media.</para>
+        <para>Frequently, floppy disks come <quote>factory
+        preformatted</quote>.  While convenient,
+        many problems reported by users in the past have resulted
+        from the use of improperly formatted media.
+        Re-format them yourself, just to make sure.</para>
       </important>
 
       <para>If you're creating the floppies from another &os;
@@ -332,7 +426,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         when fetching and concatenating the distribution.  When
         putting distributions onto floppies, the
         <filename>distname.inf</filename> file <emphasis>must</emphasis> occupy the first
-        floppy of each distribution set!  This is also covered in
+        floppy of each distribution set.  This is also covered in
         <filename>README.TXT</filename>.</para>
       </important>
 
@@ -350,7 +444,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       like this:</para>
 
       <screen><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
-<prompt>C:\></prompt <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
+<prompt>C:\></prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
 
       <para>Assuming that <devicename>E:</devicename> was where your CD was mounted.</para>
 
@@ -380,7 +474,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       (which you'll be allowed to choose) to accommodate the <emphasis>full</emphasis>
       contents of the tape you've created.  Due to the non-random
       access nature of tapes, this method of installation requires
-      quite a bit of temporary storage!  You should expect to require
+      quite a bit of temporary storage.  You should expect to require
       as much temporary storage as you have stuff written on tape.</para>
 
       <note>
@@ -389,7 +483,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         installation <quote>probe</quote> may otherwise fail to find it.</para>
       </note>
 
-      <para>Now create a boot floppy as described in <xref linkend="quickstart"> and
+      <para>Now create a boot floppy as described in <xref linkend="floppies"> and
       proceed with the installation.</para>
     </sect3>
 
@@ -454,13 +548,14 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <sect4>
         <title>Ethernet</title>
 
-	<para>&os; supports most common PC Ethernet cards, a table
-        of supported cards (and their required settings) being
-        provided as part of the &os; Hardware Guide (see the
-        Documentation menu on the boot floppy or the top level
+	<para>&os; supports many common Ethernet cards; a table
+        of supported cards is
+        provided as part of the &os; Hardware Notes (see
+        <filename>HARDWARE.TXT</filename> in
+	the Documentation menu on the boot floppy or the top level
         directory of the CDROM).  If you are using one of the
         supported PCMCIA Ethernet cards, also be sure that it's
-        plugged in <emphasis>before</emphasis> the laptop is powered on!  &os; does
+        plugged in <emphasis>before</emphasis> the laptop is powered on.  &os; does
         not, unfortunately, currently support <quote>hot insertion</quote> of
         PCMCIA cards during installation.</para>
 
@@ -478,9 +573,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         <para>If you do not know the answers to these questions then
         you should really probably talk to your system administrator
         <emphasis>first</emphasis> before trying this type of
-        installation!  Using a randomly chosen IP address or netmask
-        on a live network will almost certainly get you shot at
-        dawn.</para>
+        installation.  Using a randomly chosen IP address or netmask
+        on a live network is almost guaranteed not to work, and will
+        probably result in a lecture from said system administrator.</para>
 
         <para>Once you have a network connection of some sort working, the
 	installation can continue over NFS or FTP.</para>
@@ -514,7 +609,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         <option>-alldirs</option> option.  Other NFS servers may have different
         conventions.  If you are getting <literal>Permission Denied</literal> messages
         from the server then it's likely that you don't have this
-        properly enabled!</para>
+        properly enabled.</para>
       </sect4>
 
       <sect4>
@@ -543,7 +638,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
               not work through most firewalls but will often work best
               with older FTP servers that do not support passive mode.
               If your connection hangs with passive mode, try this
-              one!</para>
+              one.</para>
 	    </listitem>
 	    <listitem>
 	      <para>FTP Passive:  This sets the FTP "Passive" mode
@@ -652,7 +747,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  actually see that you now have two DOS Primary partitions
 	  where you formerly had one.  Don't be alarmed!  You can
 	  simply delete the extra DOS Primary partition (making sure
-	  it's the right one by examining its size! :)</para>
+	  it's the right one by examining its size).</para>
 
 	  <para><application>FIPS</application> does NOT currently
 	  work with FAT32 or VFAT style partitions as used by newer
@@ -720,7 +815,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  and indicate that you're interested in joining this ongoing
 	  effort!</para>
 
-	  <para>There is also a neat utility called <filename>pcemu</filename> in the
+	  <para>The <port>emulators/pcemu</port> port/package in the
 	  &os; Ports Collection which emulates an 8088 and enough BIOS
 	  services to run DOS text mode applications.  It requires the
 	  X Window System (XFree86) to operate.</para>
@@ -768,7 +863,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	<answer>
 	  <para>&os; can run Tru64 applications very well using the
-	  <filename>emulators/osf1_base</filename> port/package.</para>
+	  <port>emulators/osf1_base</port> port/package.</para>
 	</answer>
       </qandaentry>
 
