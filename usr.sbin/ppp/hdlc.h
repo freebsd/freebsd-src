@@ -36,11 +36,11 @@
 #define GOODFCS 0xf0b8		/* Good FCS value */
 
 #define	DEF_MRU		1500
-#define	MAX_MRU		2048
+#define	MAX_MRU		M_MAXLEN
 #define	MIN_MRU		296
 
 #define	DEF_MTU		0	/* whatever peer says */
-#define	MAX_MTU		2048
+#define	MAX_MTU		M_MAXLEN
 #define	MIN_MTU		296
 
 struct physical;
