@@ -207,6 +207,7 @@ privilege may change the value.
 .It HW\_USERMEM	integer	no
 .It HW\_PAGESIZE	integer	no
 .It HW\_FLOATINGPOINT	integer	no
+.It HW\_MACHINE\_ARCH	string	no
 .\".It HW\_DISKNAMES	integer	no
 .\".It HW\_DISKSTATS	integer	no
 .El
@@ -228,6 +229,8 @@ The bytes of non-kernel memory.
 The software page size.
 .It Li HW_FLOATINGPOINT
 Nonzero if the floating point support is in hardware.
+.It Li HW_MACHINE_ARCH
+The machine dependent architecture type.
 .\".It Fa HW_DISKNAMES
 .\".It Fa HW_DISKSTATS
 .El
