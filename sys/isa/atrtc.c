@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.34.2.1 1995/06/09 03:29:17 davidg Exp $
+ *	$Id: clock.c,v 1.35 1995/06/11 19:31:18 rgrimes Exp $
  */
 
 /*
@@ -265,7 +265,7 @@ printrtc(void)
 #endif
 
 static int
-getit()
+getit(void)
 {
 	int high, low;
 
@@ -336,7 +336,7 @@ DELAY(int n)
 	 * takes about 6 usec on a 486/33 and 13 usec on a 386/20.  The
 	 * multiplications and divisions to scale the count take a while).
 	 */
-	prev_tick = getit(0, 0);
+	prev_tick = getit();
 	n -= 20;
 	/*
 	 * Calculate (n * (TIMER_FREQ / 1e6)) without using floating point
@@ -350,7 +350,7 @@ DELAY(int n)
 		     + usec * (TIMER_FREQ % 1000) / 1000000;
 
 	while (ticks_left > 0) {
-		tick = getit(0, 0);
+		tick = getit();
 #ifdef DELAYDEBUG
 		++getit_calls;
 #endif
