@@ -52,8 +52,8 @@
 #		This file contains a default list of interfaces.
 #
 # EXPORT_SYMS	A list of symbols that should be exported from the module,
-#		or the name of a file containing a list of symbols, or NO
-#		to export no symbols.  If missing, all global symbols are
+#		or the name of a file containing a list of symbols, or YES
+#		to export all symbols.  If not defined, no symbols are
 #		exported.
 #
 # +++ targets +++
@@ -153,13 +153,15 @@ ${PROG}: ${FULLPROG}
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 
-.if defined(EXPORT_SYMS)
+EXPORT_SYMS?=	NO
+.if ${EXPORT_SYMS} != YES
 CLEANFILES+=	${.OBJDIR}/export_syms
 .endif
 
 ${KMOD}.kld: ${OBJS}
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
 .if defined(EXPORT_SYMS)
+.if ${EXPORT_SYMS} != YES
 .if ${EXPORT_SYMS} == NO
 	touch ${.OBJDIR}/export_syms
 .elif !exists(${.CURDIR}/${EXPORT_SYMS})
@@ -169,7 +171,8 @@ ${KMOD}.kld: ${OBJS}
 .endif
 	awk -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
 		${.OBJDIR}/export_syms | \
-	xargs -t -J% ${OBJCOPY} % ${.TARGET}
+	xargs -J% ${OBJCOPY} % ${.TARGET}
+.endif
 .endif
 
 
