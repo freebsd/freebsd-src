@@ -94,8 +94,6 @@
 41:75::Liechtenstein
 41:82:St. Moritz:Switzerland
 41:91:Lugano:Switzerland
-42:2:Prague:Czech Republic
-42:7:Bratislava:Slovak Republic
 43:1:Vienna:Austria
 43:316:Graz:Austria
 43:512:Innsbruck:Austria
@@ -379,6 +377,8 @@
 386:61:Ljubliana:Slovenia
 387:71:Sarajevo:Bosnia-Herzegovina
 389:91:Skopje:Macedonia
+420:2:Prague:Czech Republic
+421:7:Bratislava:Slovakia
 501:2:Belize City:Belize
 501:8:Belmopan:Belize
 502:2:Guatemala City:Guatemala
