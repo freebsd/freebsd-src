@@ -71,6 +71,8 @@
 static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
 static void setsigvec	__P((struct proc *p, int signum, struct sigaction *sa));
 static void stop	__P((struct proc *));
+static char *expand_name	__P((const char *, uid_t, int));
+static int coredump	__P((struct proc *));
 
 static int	kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 
@@ -1255,8 +1257,7 @@ sigexit(p, signum)
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */
-		if (p->p_sysent->sv_coredump != NULL &&
-		    (*p->p_sysent->sv_coredump)(p) == 0)
+		if (coredump(p) == 0)
 			signum |= WCOREFLAG;
 		if (kern_logsigexit)
 			log(LOG_INFO,
@@ -1286,7 +1287,7 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
  * This is controlled by the sysctl variable kern.corefile (see above).
  */
 
-char *
+static char *
 expand_name(name, uid, pid)
 const char *name; uid_t uid; pid_t pid; {
 	char *temp;
@@ -1350,6 +1351,71 @@ const char *name; uid_t uid; pid_t pid; {
 	}
 	temp[n] = '\0';
 	return temp;
+}
+
+/*
+ * Dump a process' core.  The main routine does some
+ * policy checking, and creates the name of the coredump;
+ * then it passes on a vnode and a size limit to the process-specific
+ * coredump routine if there is one; if there _is not_ one, it returns
+ * ENOSYS; otherwise it returns the error from the process-specific routine.
+ */
+
+static int
+coredump(p)
+	register struct proc *p;
+{
+	register struct vnode *vp;
+	register struct ucred *cred = p->p_cred->pc_ucred;
+	struct nameidata nd;
+	struct vattr vattr;
+	int error, error1;
+	char *name;			/* name of corefile */
+	off_t limit;
+	
+	STOPEVENT(p, S_CORE, 0);
+
+	if ((sugid_coredump == 0) && p->p_flag & P_SUGID)
+		return (EFAULT);
+	
+	/*
+	 * Note that this layout means that limit checking is done
+	 * AFTER the corefile name is created.  This could happen
+	 * other ways as well, so I'm not too worried about it, but
+	 * it is potentially confusing.
+	 */
+	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
+	error = vn_open(&nd, O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR);
+	free(name, M_TEMP);
+	if (error)
+		return (error);
+	vp = nd.ni_vp;
+
+	/* Don't dump to non-regular files or files with links. */
+	if (vp->v_type != VREG ||
+	    VOP_GETATTR(vp, &vattr, cred, p) || vattr.va_nlink != 1) {
+		error = EFAULT;
+		goto out;
+	}
+	VATTR_NULL(&vattr);
+	vattr.va_size = 0;
+	VOP_LEASE(vp, p, cred, LEASE_WRITE);
+	VOP_SETATTR(vp, &vattr, cred, p);
+	p->p_acflag |= ACORE;
+
+	limit = p->p_rlimit[RLIMIT_CORE].rlim_cur;
+
+	error = p->p_sysent->sv_coredump ?
+	  p->p_sysent->sv_coredump(p, vp, limit) :
+	  ENOSYS;
+
+out:
+	VOP_UNLOCK(vp, 0, p);
+	error1 = vn_close(vp, FWRITE, cred, p);
+	if (error == 0)
+		error = error1;
+	return (error);
 }
 
 /*
