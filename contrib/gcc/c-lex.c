@@ -19,8 +19,6 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-/* $FreeBSD$ */
-
 #include "config.h"
 #include "system.h"
 
@@ -247,8 +245,11 @@ static void
 cb_line_change (pfile, token, parsing_args)
      cpp_reader *pfile ATTRIBUTE_UNUSED;
      const cpp_token *token;
-     int parsing_args ATTRIBUTE_UNUSED;
+     int parsing_args;
 {
+  if (token->type == CPP_EOF || parsing_args)
+    return;
+
   src_lineno = SOURCE_LINE (map, token->line);
 }
 
@@ -299,13 +300,7 @@ cb_file_change (pfile, new_map)
     }
 
   update_header_times (new_map->to_file);
-  in_system_header = (warn_system_headers && new_map->sysp != 0);
-#ifdef FREEBSD_NATIVE
-  /* Correct logic should be: if warn_system_headers is set, no
-     header file should be considered system, so that no warnings
-     will be suppressed.  */
-  if (warn_system_headers) in_system_header = 0;
-#endif
+  in_system_header = new_map->sysp != 0;
   input_filename = new_map->to_file;
   lineno = to_line;
   map = new_map;
