@@ -48,6 +48,7 @@ int             opt_reconn_oflow = 0;
 int             opt_interactive = 1;
 int             opt_timestamp = 0;
 int		opt_write = 0;
+int		opt_no_switch = 0;
 
 char            dev_name[DEV_NAME_LEN];
 int             snp_io;
@@ -158,7 +159,7 @@ cleanup()
 void
 show_usage()
 {
-	printf("watch -[ciotW] [tty name]\n");
+	printf("watch -[ciotnW] [tty name]\n");
 	exit(1);
 }
 
@@ -274,16 +275,13 @@ main(ac, av)
 
 	(void) setlocale(LC_TIME, "");
 
-	if (getuid() != 0)
-		fatal(NULL);
-
 	if (isatty(std_out))
 		opt_interactive = 1;
 	else
 		opt_interactive = 0;
 
 
-	while ((ch = getopt(ac, av, "Wciot")) != EOF)
+	while ((ch = getopt(ac, av, "Wciotn")) != EOF)
 		switch (ch) {
 		case 'W':
 			opt_write = 1;
@@ -300,6 +298,9 @@ main(ac, av)
 		case 't':
 			opt_timestamp = 1;
 			break;
+		case 'n':
+			opt_no_switch = 1;
+			break;
 		case '?':
 		default:
 			show_usage();
@@ -312,7 +313,7 @@ main(ac, av)
 	snp_io = open_snp();
 
 	if (*(av += optind) == NULL) {
-		if (opt_interactive)
+		if (opt_interactive && !opt_no_switch)
 			ask_dev(dev_name, MSG_INIT);
 		else
 			fatal("No device name given.");
@@ -345,6 +346,8 @@ main(ac, av)
 				clear();
 				break;
 			case CHR_SWITCH:
+				if (opt_no_switch)
+					break;
 				detach_snp();
 				ask_dev(dev_name, MSG_CHANGE);
 				set_dev(dev_name);
@@ -353,6 +356,8 @@ main(ac, av)
 				if (opt_write) {
 					if (write(snp_io,chb,nread) != nread) {
 						detach_snp();
+						if (opt_no_switch)
+							fatal("Write failed.");
 						ask_dev(dev_name, MSG_NOWRITE);
 						set_dev(dev_name);
 					}
@@ -370,7 +375,7 @@ main(ac, av)
 		case SNP_OFLOW:
 			if (opt_reconn_oflow)
 				attach_snp();
-			else if (opt_interactive) {
+			else if (opt_interactive && !opt_no_switch) {
 				ask_dev(dev_name, MSG_OFLOW);
 				set_dev(dev_name);
 			} else
@@ -379,7 +384,7 @@ main(ac, av)
 		case SNP_TTYCLOSE:
 			if (opt_reconn_close)
 				attach_snp();
-			else if (opt_interactive) {
+			else if (opt_interactive && !opt_no_switch) {
 				ask_dev(dev_name, MSG_CLOSED);
 				set_dev(dev_name);
 			} else
