@@ -401,13 +401,13 @@ the minimum in-core memory used to cache a directory is the physical page
 size (typically 4K) rather than 512 bytes.
 We recommend turning this option off in memory-constrained environments;
 however, when on, it will substantially improve the performance of services
-which manipulate large numbers of files.
+that manipulate a large number of files.
 Such services can include web caches, large mail systems, and news systems.
 Turning on this option will generally not reduce performance even with the
 wasted memory but you should experiment to find out.
 .Pp
 There are various buffer-cache and VM page cache related sysctls.
-We do not recommend modifying those values.
+We do not recommend modifying these values.
 As of
 .Fx 4.3 ,
 the VM system does an extremely good job tuning itself.
@@ -420,8 +420,8 @@ sysctls are of particular interest if you are running network intensive
 applications.
 This controls the amount of send and receive buffer space
 allowed for any given TCP connection.
-The default sending buffer is 32k; the default receiving buffer
-is 64k.
+The default sending buffer is 32K; the default receiving buffer
+is 64K.
 You can often
 improve bandwidth utilization by increasing the default at the cost of
 eating up more kernel memory for each connection.
@@ -470,7 +470,8 @@ RFC1323 support is enabled by default.
 The
 .Va net.inet.tcp.always_keepalive
 sysctl determines whether or not the TCP implementation should attempt
-to detect dead TCP connections by intermittently delivering "keepalives"
+to detect dead TCP connections by intermittently delivering 
+.Dq keepalives
 on the connection.
 By default, this is enabled for all applications; by setting this
 sysctl to 0, only applications that specifically request keepalives
@@ -536,7 +537,7 @@ whole processes into and out of memory more easily.
 .Sh LOADER TUNABLES
 Some aspects of the system behavior may not be tunable at runtime because
 memory allocations they perform must occur early in the boot process.
-To change loader tunables, you must set their value in
+To change loader tunables, you must set their values in
 .Xr loader.conf 5
 and reboot the system.
 .Pp
