@@ -317,10 +317,12 @@ g_io_deliver(struct bio *bp, int error)
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	KASSERT(bp->bio_from != NULL, ("NULL bio_from in g_io_deliver"));
-	KASSERT(bp->bio_from->geom != NULL, ("NULL bio_from->geom in g_io_deliver"));
+	KASSERT(bp->bio_from->geom != NULL,
+	    ("NULL bio_from->geom in g_io_deliver"));
 	KASSERT(bp->bio_to != NULL, ("NULL bio_to in g_io_deliver"));
+
 	g_trace(G_T_BIO,
-	    "g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d off %jd len %jd",
+"g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d off %jd len %jd",
 	    bp, bp->bio_from, bp->bio_from->geom->name,
 	    bp->bio_to, bp->bio_to->name, bp->bio_cmd, error,
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
