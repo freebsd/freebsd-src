@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.33 2002/07/17 04:01:57 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.34 2002/09/10 06:29:09 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.163 2002/03/04 16:41:50 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -694,6 +694,7 @@
 #define	PCMCIA_VENDOR_AMBICOM	-1	/* AmbiCom Inc */
 #define	PCMCIA_VENDOR_ACCTON	-1	/* ACCTON */
 #define	PCMCIA_VENDOR_ADDTRON	-1	/* Addtron */
+#define	PCMCIA_VENDOR_ARGOSY	-1	/* ARGOSY */
 #define	PCMCIA_VENDOR_AMD	-1	/* AMD */
 #define	PCMCIA_VENDOR_BILLIONTON	-1	/* Billionton Systems Inc. */
 #define	PCMCIA_VENDOR_CNET	-1	/* CNet */
@@ -727,6 +728,9 @@
 #define	PCMCIA_CIS_AMBICOM_AMB8002T	{ "AmbiCom Inc", "AMB8002T", NULL, NULL }
 #define	PCMCIA_PRODUCT_AMBICOM_AMB8002T	-1
 #define	PCMCIA_STR_AMBICOM_AMB8002T	"AmbiCom AMB8002T"
+#define	PCMCIA_CIS_ARGOSY_SP320	{ "PCMCIA", "RS-COM 2P", NULL, NULL
+#define	PCMCIA_PRODUCT_ARGOSY_SP320	-1
+#define	PCMCIA_STR_ARGOSY_SP320	"} ARGOSY SP320 Dual port serial PCMCIA"
 #define	PCMCIA_CIS_AMD_AM79C930	{ "AMD", "Am79C930", NULL, NULL }
 #define	PCMCIA_PRODUCT_AMD_AM79C930	-1
 #define	PCMCIA_STR_AMD_AM79C930	"AMD Am79C930"
