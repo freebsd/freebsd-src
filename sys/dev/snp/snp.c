@@ -416,7 +416,7 @@ snpioctl(dev, cmd, data, flags, p)
 
 	switch (cmd) {
 	case SNPSTTY:
-		tdev = *((dev_t *) data);
+		tdev = udev2dev(*((udev_t *) data), 0);
 		if (tdev == NODEV)
 			return (snpdown(snp));
 
