@@ -101,7 +101,7 @@ typedef struct {
 
 struct ncp_bitname {
 	u_int	bn_bit;
-	char	*bn_name;
+	const char	*bn_name;
 };
 
 __BEGIN_DECLS
