@@ -296,7 +296,7 @@ DMenu MenuInitial = {
       { "X Exit Install",	NULL, NULL, dmenuExit },
       { " Usage",	"Quick start - How to use this menu system",	NULL, dmenuDisplayFile, NULL, "usage" },
       { "Standard",	"Begin a standard installation (recommended)",	NULL, installStandard },
-      { "Express",	"Begin a quick installation (for the impatient)", NULL, installExpress },
+      { "Express",	"Begin a quick installation (for experts)", NULL, installExpress },
       { " Custom",	"Begin a custom installation (for experts)",	NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
       { "Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "Doc",	"Installation instructions, README, etc.",	NULL, dmenuSubmenu, NULL, &MenuDocumentation },
