@@ -287,7 +287,6 @@ static int wi_pccard_detach(dev)
 	wi_free(dev);
 	sc->wi_gone = 1;
 
-	device_printf(dev, "unload\n");
 	WI_UNLOCK(sc);
 	mtx_destroy(&sc->wi_mtx);
 
@@ -377,6 +376,8 @@ wi_pci_attach(device_t dev)
 	/*
 	 * From Linux driver:
 	 * Write COR to enable PC card
+	 * This is a subset of the protocol that the pccard bus code
+	 * would do.
 	 */
 	CSM_WRITE_1(sc, WI_COR_OFFSET, WI_COR_VALUE); 
 	reg = CSM_READ_1(sc, WI_COR_OFFSET);
@@ -428,7 +429,11 @@ wi_generic_attach(device_t dev)
 	/* Read the station address. */
 	mac.wi_type = WI_RID_MAC_NODE;
 	mac.wi_len = 4;
-	wi_read_record(sc, (struct wi_ltv_gen *)&mac);
+	if (error = wi_read_record(sc, (struct wi_ltv_gen *)&mac)) {
+		device_printf(dev, "mac read failed %d\n", error);
+		wi_free(dev);
+		return (error);
+	}
 	bcopy((char *)&mac.wi_mac_addr,
 	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
@@ -810,13 +815,14 @@ static int wi_cmd(sc, cmd, val)
 static void wi_reset(sc)
 	struct wi_softc		*sc;
 {
-#ifdef foo
-	wi_cmd(sc, WI_CMD_INI, 0);
-	DELAY(100000);
-	wi_cmd(sc, WI_CMD_INI, 0);
-#endif
-	DELAY(100000);
-	if (wi_cmd(sc, WI_CMD_INI, 0))
+	int i, err;
+	
+	for (i = 0; i < 5; i++) {
+		if (wi_cmd(sc, WI_CMD_INI, 0) == 0)
+			break;
+		DELAY(100000);
+	}
+	if (i == 5)
 		device_printf(sc->dev, "init failed\n");
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
