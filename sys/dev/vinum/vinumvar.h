@@ -185,6 +185,7 @@ enum objflags {
     VF_CONFIG_SETUPSTATE = 0x2000,			    /* set a volume up if all plexes are empty */
     VF_READING_CONFIG = 0x4000,				    /* we're reading config database from disk */
     VF_KERNELOP = 0x8000,				    /* we're performing ops from kernel space */
+    VF_DIRTYCONFIG = 0x10000,				    /* config needs updating */
 };
 
 /* Global configuration information for the vinum subsystem */
@@ -212,6 +213,8 @@ struct _vinum_conf {
 #if DEBUG
     int lastrq;
     struct buf *lastbuf;
+    struct rqinfo **rqipp;
+    struct rqinfo *rqinfop;
 #endif
 };
 
@@ -226,7 +229,7 @@ struct _vinum_conf {
 
  * Vinum drives start with this structure:
  *
- *                                             Sector
+ *\                                            Sector
  * |--------------------------------------|
  * |   PDP-11 memorial boot block         |      0
  * |--------------------------------------|
@@ -500,11 +503,15 @@ enum setstateflags {
     setstate_force = 1,					    /* force the state change */
     setstate_configuring = 2,				    /* we're currently configuring, don't save */
     setstate_recursing = 4,				    /* we're called from another setstate function */
-    setstate_norecurse = 8				    /* don't call other setstate functions */
+    setstate_norecurse = 8,				    /* don't call other setstate functions */
+    setstate_noupdate = 16				    /* don't update config */
 };
 
 #ifdef DEBUG
 /* Debugging stuff */
 #define DEBUG_ADDRESSES 1
 #define DEBUG_NUMOUTPUT 2
+#define DEBUG_RESID     4				    /* go into debugger in complete_rqe */
+#define DEBUG_LASTREQS  8				    /* keep a circular buffer of last requests */
+#define DEBUG_REMOTEGDB 256				    /* go into remote gdb */
 #endif

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.7 1998/08/07 02:35:51 grog Exp grog $
+ * $Id: vinumkw.h,v 1.8 1998/09/29 05:17:39 grog Exp grog $
  */
 
 /* Command keywords that vinum knows.  These include both user-level
@@ -98,8 +98,8 @@ enum keyword {
     kw_detached,
 #ifdef DEBUG
     kw_debug,						    /* go into debugger */
-    kw_info,
 #endif
+    kw_info,
     kw_invalid_keyword = -1
 };
 

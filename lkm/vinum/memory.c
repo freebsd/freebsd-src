@@ -1,4 +1,3 @@
-
 /*-
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
@@ -34,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: memory.c,v 1.16 1998/08/08 04:43:22 grog Exp grog $
+ * $Id: memory.c,v 1.17 1998/09/29 05:18:09 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -42,6 +41,12 @@
 #include "vinumhdr.h"
 
 extern jmp_buf command_fail;				    /* return on a failed command */
+
+#ifdef DEBUG
+#include "request.h"
+extern struct rqinfo rqinfo[];
+extern struct rqinfo *rqip;
+#endif
 
 #if __FreeBSD__ >= 3
 /* Why aren't these declared anywhere? XXX */
@@ -67,20 +72,6 @@ expand_table(void **table, int oldsize, int newsize)
 	*table = temp;
     }
 }
-
-#ifndef DEBUG
-/* increase the size of a request block */
-void 
-expandrq(struct plexrq *prq)
-{
-    expand_table((void **) &prq->rqe,
-	prq->requests * sizeof(struct rqelement),
-	  (prq->requests + RQELTS) * sizeof(struct rqelement));
-    bzero(&prq->rqe[prq->requests], RQELTS * sizeof(struct rqelement));	/* clear the new part */
-    prq->rqcount += RQELTS;
-}
-
-#endif
 
 #if DEBUG						    /* XXX debug */
 #define MALLOCENTRIES 16384
@@ -115,6 +106,10 @@ MMalloc(int size, char *file, int line)
 		Debugger("Malloc overlap");
 	}
 	if (result) {
+	    char *f = index(file, '/');			    /* chop off dirname if present */
+
+	    if (f == NULL)
+		f = file;
 	    i = malloccount++;
 	    total_malloced += size;
 	    malloced[i].address = result;
@@ -123,7 +118,7 @@ MMalloc(int size, char *file, int line)
 	    malloced[i].seq = seq++;
 	    malloced[i].flags = me.flags;
 	    malloced[i].databuf = me.databuf;		    /* only used with kva alloc */
-	    bcopy(file, malloced[i].file, min(strlen(file) + 1, 16));
+	    bcopy(f, malloced[i].file, min(strlen(f) + 1, 16));
 	}
 	if (malloccount > highwater)
 	    highwater = malloccount;
@@ -183,4 +178,21 @@ vinum_mallocinfo(caddr_t data)
     return 0;
 }
 
+/* return the nth request trace buffer entry.  This
+ * is indexed back from the current entry (which
+ * has index 0) */
+int 
+vinum_rqinfo(caddr_t data)
+{
+    struct rqinfo *rq = (struct rqinfo *) data;
+    int ent = *(int *) data;				    /* 1st word is index */
+    int lastent = rqip - rqinfo;			    /* entry number of current entry */
+
+    if (ent >= RQINFO_SIZE)				    /* out of the table */
+	return ENOENT;
+    if ((ent = lastent - ent - 1) < 0)
+	ent += RQINFO_SIZE;				    /* roll over backwards */
+    bcopy(&rqinfo[ent], rq, sizeof(struct rqinfo));
+    return 0;
+}
 #endif

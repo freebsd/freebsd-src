@@ -157,3 +157,35 @@ enum requeststatus {
     REQUEST_DOWN,					    /* request failed: subdisk down  */
     REQUEST_ENOMEM					    /* ran out of memory */
 };
+
+#ifdef DEBUG
+/* Trace entry for request info (DEBUG_LASTREQS) */
+enum rqinfo_type {
+    loginfo_unused,					    /* never been used */
+    loginfo_user_bp,					    /* this is the bp when strategy is called */
+    loginfo_user_bpl,					    /* and this is the bp at launch time */
+    loginfo_rqe,					    /* user RQE */
+    loginfo_iodone,					    /* iodone */
+    loginfo_raid5_data,					    /* write RAID-5 data block */
+    loginfo_raid5_parity				    /* write RAID-5 parity block */
+};
+
+union rqinfou {						    /* info to pass to logrq */
+    struct buf *bp;
+    struct rqelement *rqe;				    /* address of request, for correlation */
+};
+
+struct rqinfo {
+    enum rqinfo_type type;				    /* kind of event */
+    struct timeval timestamp;				    /* time it happened */
+    struct buf *bp;					    /* point to user buffer */
+    union {
+	struct buf b;					    /* yup, the *whole* buffer header */
+	struct rqelement rqe;				    /* and the whole rqe */
+    } info;
+};
+
+#define RQINFO_SIZE 64					    /* number of info slots in buffer */
+
+void logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp);
+#endif
