@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: watch.c,v 1.8.2.6 1997/11/18 07:24:17 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -301,7 +301,7 @@ main(ac, av)
 		opt_interactive = 0;
 
 
-	while ((ch = getopt(ac, av, "Wciotn")) !=  -1)
+	while ((ch = getopt(ac, av, "Wciotn")) != -1)
 		switch (ch) {
 		case 'W':
 			opt_write = 1;

@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: stlload.c,v 1.2.4.1 1997/11/07 07:24:00 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -54,7 +54,7 @@ static const char rcsid[] =
 
 /*****************************************************************************/
 
-char	*version = "0.0.5";
+char	*version = "1.0.0";
 char	*defdevice = "/dev/staliomem%d";
 char	*image = BOOTDIR "/cdk.sys";
 char	*oldimage = BOOTDIR "/2681.sys";
@@ -84,7 +84,7 @@ char	buf[BUFSIZE];
 cdkfeature_t	feature = { 0, 0, ETYP_CDK, 0, 0, 0, 0, 0 };
 
 /*
- *	Have local copys of the board signatures ready.
+ *	Have local copies of the board signatures ready.
  */
 cdkecpsig_t	ecpsig;
 cdkonbsig_t	onbsig;
@@ -426,11 +426,9 @@ int download()
 void main(int argc, char *argv[])
 {
 	struct stat	statinfo;
-	int		optind, c;
+	int		c;
 
-	optind = 0;
-
-	while ((c = getopt(argc, argv, "hvVRB:i:b:d:t:r:")) != -1) {
+	while ((c = getopt(argc, argv, "hvVRB:i:b:c:t:r:")) != -1) {
 		switch (c) {
 		case 'V':
 			printf("stlload version %s\n", version);
@@ -454,7 +452,7 @@ void main(int argc, char *argv[])
 		case 'b':
 			brdnr = atoi(optarg);
 			break;
-		case 'd':
+		case 'c':
 			memdevice = optarg;
 			break;
 		case 't':

@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_mkdb.c,v 1.3.2.3 1997/11/18 07:32:59 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -117,7 +117,7 @@ int main (argc, argv)
 	FILE *ifp;
 	char hname[MAXHOSTNAMELEN + 2];
 
-	while ((ch = getopt(argc, argv, "uhcbsd:i:o:m:")) !=  -1) {
+	while ((ch = getopt(argc, argv, "uhcbsd:i:o:m:")) != -1) {
 		switch(ch) {
 		case 'u':
 			un++;
