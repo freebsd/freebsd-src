@@ -607,6 +607,16 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/* Lava Computers newer Quattro-PCI serial ports */
+	{   "Lava Computers Quattro-PCI serial port",
+	    {	0x1407,	0x0120,	0,	0	},
+	    {	0xffff,	0xfffc,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ },
+	    },
+	},
+
 	/* Lava Computers DSerial PCI serial ports */
 	{   "Lava Computers serial port",
 	    {	0x1407,	0x0110,	0,	0	},
