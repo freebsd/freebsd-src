@@ -1,1 +1,3 @@
+# $FreeBSD$
+
 .include "../../Makefile.inc"
