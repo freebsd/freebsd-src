@@ -12,23 +12,11 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- */
-
-/*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
+ *
+ *	$Id$
  */
 
-/*
-$Log:
-*
-*/
 #include <sys/types.h>
 #include "st.h"
 #include "sd.h"
@@ -136,6 +124,8 @@ knowndevs[] = {
 #if NCD > 0
 	{ T_READONLY,T_REMOV,"SONY    ","CD-ROM CDU-8012 "
 			,"3.1a",cdattach,"cd",SC_ONE_LU },
+	{ T_READONLY,T_REMOV,"PIONEER ","CD-ROM DRM-600  "
+			,"any",cdattach,"cd",SC_MORE_LUS },
 #endif NCD
 #if NBLL > 0
 	{ T_PROCESSOR,T_FIXED,"AEG     ","READER          "
@@ -198,6 +188,7 @@ struct	scsi_switch	*scsi_switch;
 			predef = scsi_get_predef(scsibus
 						,targ
 						,lun
+						,scsi_switch
 						,&maybe_more);
 			bestmatch = scsi_probedev(unit
 						,targ
@@ -254,8 +245,9 @@ struct	scsi_switch	*scsi_switch;
 * given a target and lu, check if there is a	*
 * predefined device for that address		*
 \***********************************************/
-struct	predefined	*scsi_get_predef(unit,target,lu,maybe_more)
+struct	predefined	*scsi_get_predef(unit,target,lu,scsi_switch,maybe_more)
 int	unit,target,lu,*maybe_more;
+struct	scsi_switch *scsi_switch;
 {
 	int upto,numents;
 
@@ -270,7 +262,9 @@ int	unit,target,lu,*maybe_more;
 		if(pd[upto].lu != lu)
 			continue;
 		
-		printf("  dev%d,lu%d: %s - PRECONFIGURED -\n"
+		printf("%s%d targ %d lun %d: <%s> - PRECONFIGURED -\n"
+			,scsi_switch->name
+			,unit
 			,target
 			,lu
 			,pd[upto].devname);
@@ -455,17 +449,30 @@ int *maybe_more;
 		strncpy(model,"unknown",16);
 		strncpy(version,"????",4);
 	}
-	printf("  dev%d,lu%d: type %d:%d(%s%s),%s '%s%s%s' scsi%d\n"
+	printf("%s%d targ %d lun %d: type %d(%s) %s <%s%s%s> SCSI%d\n"
+		,scsi_switch->name
+		,unit
 		,target
 		,lu
-		,qualifier,type
-		,dtype,qtype
+		,type
+		,dtype
 		,remov?"removable":"fixed"
 		,manu
 		,model
 		,version
 		,inqbuf.version & SID_ANSII
 	);
+	if(qtype[0])
+	{
+		printf("%s%d targ %d lun %d: qulaifier %d(%s)\n"
+		,scsi_switch->name
+		,unit
+		,target
+		,lu
+		,qualifier
+		,qtype
+	);
+	}
 	/***********************************************\
 	* Try make as good a match as possible with	*
 	* available sub drivers	 			*
