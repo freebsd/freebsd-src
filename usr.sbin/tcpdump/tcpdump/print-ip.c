@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-ip.c,v 1.1.1.1 1993/06/12 14:42:08 rgrimes Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-ip.c,v 1.2 1994/09/08 02:29:12 wollman Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -61,11 +61,12 @@ igmp_print(cp, len, ip)
 	switch (igmp->igmp_type) {
 	case IGMP_HOST_MEMBERSHIP_QUERY:
 		(void)printf("igmp query");
+		if (igmp->igmp_code)
+		  printf(" max delay %d", igmp->igmp_code);
+
 		if (igmp->igmp_group.s_addr)
 			(void)printf(" [gaddr %s]", 
 				     ipaddr_string(&igmp->igmp_group));
-		if (igmp->igmp_code)
-		  printf(" [code %d]", igmp->igmp_code);
 		if (len != IGMP_MINLEN)
 			(void)printf(" [len %d]", len);
 		break;
