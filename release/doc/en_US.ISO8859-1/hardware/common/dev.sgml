@@ -1934,6 +1934,8 @@
 	</listitem>
       </itemizedlist>
     </para>
+    <para arch="i386">Intel 443MX, 810, 815, and 815E integrated sound
+    devices (&man.pcm.4; driver)</para>
     <para>MSS/WSS Compatible DSPs (&man.pcm.4; driver)</para>
     <para>NeoMagic 256AV/ZX (&man.pcm.4; driver)</para>
     <para>OPTi 931/82C931 (&man.pcm.4; driver)</para>
