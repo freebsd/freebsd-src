@@ -234,9 +234,9 @@ manlint:
 manlint: ${page}lint
 ${page}lint: ${page}
 .if defined(MANFILTER)
-	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} -ww >/dev/null
+	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} -ww -z
 .else
-	${MROFF_CMD} -ww ${.ALLSRC} >/dev/null
+	${MROFF_CMD} -ww -z ${.ALLSRC}
 .endif
 .endfor
 .endif
