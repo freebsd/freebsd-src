@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.18 1996/02/18 07:29:53 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.19 1996/03/25 21:56:59 julian Exp $
  */
 
 #include "param.h"
@@ -1014,6 +1014,59 @@ void *dev_link(char *path, char *name, void *original)
 	 */
 	if( dev_add_name(name, dirnode, NULL, orig->dnp, &new_dev))
 		return NULL;
+	return new_dev;
+}
+
+/***********************************************************************\
+* Add the named device entry into the given directory, and make it 	*
+*  a link to the already created device given as an arg..		*
+* this function is exported.. see sys/devfsext.h			*
+\***********************************************************************/
+void *dev_linkf(void *original, char *fmt, ...)
+{
+	devnm_p	new_dev;
+	devnm_p	orig = (devnm_p) original;
+	dn_p	dirnode;	/* devnode for parent directory */
+	int	retval;
+	int major ;
+	union	typeinfo by;
+
+        va_list ap;
+        char *p, buf[256]; /* XXX */
+        int i;
+
+        va_start(ap, fmt);
+        i = kvprintf(fmt, NULL, (void*)buf, 32, ap);
+        va_end(ap);
+        buf[i] = '\0';
+        p = NULL;
+
+        for(i=strlen(buf); i>0; i--)
+                if(buf[i] == '/') {
+                        p=&buf[i];
+                        buf[i]=0;
+                        break;
+                }
+
+	DBPRINT(("dev_add\n"));
+
+	/*
+	 *  The DEV_CDEV below is not used other than it must NOT be DEV_DIR
+	 * the correctness of original shuold be checked..
+	 */
+
+        if (p) {
+                *p++ = '\0';
+		retval = dev_finddir(buf,NULL,1,&dirnode);
+		if (retval) return 0;
+		if( dev_add_name(p, dirnode, NULL, orig->dnp, &new_dev))
+			return NULL;
+	} else {
+		retval = dev_finddir("/",NULL,1,&dirnode);
+		if (retval) return 0;
+		if( dev_add_name(buf, dirnode, NULL, orig->dnp, &new_dev))
+			return NULL;
+	}
 	return new_dev;
 }
 
