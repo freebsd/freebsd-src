@@ -186,7 +186,7 @@ struct fw_xferq {
 
 #define FWXFERQ_PACKET (1 << 10)
 #define FWXFERQ_BULK (1 << 11)
-#if 0
+#if 0 /* BROKEN */
 #define FWXFERQ_DV (1 << 12)
 #endif
 #define FWXFERQ_MODEMASK (7 << 10)
@@ -213,10 +213,9 @@ struct fw_xferq {
 	struct fw_bulkxfer *bulkxfer;
 	STAILQ_HEAD(, fw_bulkxfer) stvalid;
 	STAILQ_HEAD(, fw_bulkxfer) stfree;
-	struct fw_bulkxfer *stdma;
-	struct fw_bulkxfer *stdma2;
+	STAILQ_HEAD(, fw_bulkxfer) stdma;
 	struct fw_bulkxfer *stproc;
-	u_int procptr;
+#ifdef FWXFERQ_DV
 	int dvdbc, dvdiff, dvsync, dvoffset;
 	struct fw_dvbuf *dvbuf;
 	STAILQ_HEAD(, fw_dvbuf) dvvalid;
@@ -225,14 +224,13 @@ struct fw_xferq {
 	struct fw_dvbuf *dvproc;
 	u_int dvptr;
 	u_int dvpacket;
-	u_int need_wakeup;
+#endif
 	struct selinfo rsel;
 	caddr_t sc;
 	void (*hand) __P((struct fw_xferq *));
 };
 
 struct fw_bulkxfer{
-	u_int32_t flag;
 	caddr_t buf;
 	STAILQ_ENTRY(fw_bulkxfer) link;
 	caddr_t start;
