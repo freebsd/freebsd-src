@@ -950,9 +950,9 @@ knote_fdclose(struct thread *td, int fd)
 static void
 knote_attach(struct knote *kn, struct filedesc *fdp)
 {
-	struct klist *list, *oldlist, *tmp_knhash;
+	struct klist *list, *tmp_knhash;
 	u_long tmp_knhashmask;
-	int size, newsize;
+	int size;
 
 	FILEDESC_LOCK(fdp);
 
@@ -966,9 +966,7 @@ knote_attach(struct knote *kn, struct filedesc *fdp)
 				fdp->fd_knhash = tmp_knhash;
 				fdp->fd_knhashmask = tmp_knhashmask;
 			} else {
-				FILEDESC_UNLOCK(fdp);
 				free(tmp_knhash, M_KQUEUE);
-				FILEDESC_LOCK(fdp);
 			}
 		}
 		list = &fdp->fd_knhash[KN_HASH(kn->kn_id, fdp->fd_knhashmask)];
@@ -976,7 +974,6 @@ knote_attach(struct knote *kn, struct filedesc *fdp)
 	}
 
 	if (fdp->fd_knlistsize <= kn->kn_id) {
-retry:
 		size = fdp->fd_knlistsize;
 		while (size <= kn->kn_id)
 			size += KQEXTENT;
@@ -984,31 +981,22 @@ retry:
 		MALLOC(list, struct klist *,
 		    size * sizeof(struct klist *), M_KQUEUE, M_WAITOK);
 		FILEDESC_LOCK(fdp);
-		newsize = fdp->fd_knlistsize;
-		while (newsize <= kn->kn_id)
-			newsize += KQEXTENT;
-		if (newsize != size) {
-			FILEDESC_UNLOCK(fdp);
-			free(list, M_TEMP);
-			FILEDESC_LOCK(fdp);
-			goto retry;
+		if (fdp->fd_knlistsize > kn->kn_id) {
+			FREE(list, M_KQUEUE);
+			goto bigenough;
 		}
-		bcopy(fdp->fd_knlist, list,
-		    fdp->fd_knlistsize * sizeof(struct klist *));
+		if (fdp->fd_knlist != NULL) {
+			bcopy(fdp->fd_knlist, list,
+			    fdp->fd_knlistsize * sizeof(struct klist *));
+			FREE(fdp->fd_knlist, M_KQUEUE);
+		}
 		bzero((caddr_t)list +
 		    fdp->fd_knlistsize * sizeof(struct klist *),
 		    (size - fdp->fd_knlistsize) * sizeof(struct klist *));
-		if (fdp->fd_knlist != NULL)
-			oldlist = fdp->fd_knlist;
-		else
-			oldlist = NULL;
 		fdp->fd_knlistsize = size;
 		fdp->fd_knlist = list;
-		FILEDESC_UNLOCK(fdp);
-		if (oldlist != NULL)
-			FREE(oldlist, M_KQUEUE);
-		FILEDESC_LOCK(fdp);
 	}
+bigenough:
 	list = &fdp->fd_knlist[kn->kn_id];
 done:
 	FILEDESC_UNLOCK(fdp);
