@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
+#include <sys/param.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -65,6 +66,8 @@ static void	parse(char *);
 static int	show_var(int *, int);
 static int	sysctl_all (int *oid, int len);
 static int	name2oid(char *, int *);
+
+static void	set_T_dev_t (char *, void **, int *);
 
 static void
 usage(void)
@@ -156,7 +159,7 @@ parse(char *string)
 	size_t newsize = 0;
 	quad_t quadval;
 	int mib[CTL_MAXNAME];
-	char *cp, *bufp, buf[BUFSIZ];
+	char *cp, *bufp, buf[BUFSIZ], fmt[BUFSIZ];
 	u_int kind;
 
 	bufp = buf;
@@ -174,7 +177,7 @@ parse(char *string)
 	if (len < 0) 
 		errx(1, "unknown oid '%s'", bufp);
 
-	if (oidfmt(mib, len, 0, &kind))
+	if (oidfmt(mib, len, fmt, &kind))
 		err(1, "couldn't find format of oid '%s'", bufp);
 
 	if (newval == NULL) {
@@ -216,11 +219,16 @@ parse(char *string)
 			case CTLTYPE_STRING:
 				break;
 			case CTLTYPE_QUAD:
-				break;
 				sscanf(newval, "%qd", &quadval);
 				newval = &quadval;
 				newsize = sizeof(quadval);
 				break;
+			case CTLTYPE_OPAQUE:
+				if (strcmp(fmt, "T,dev_t") == 0) {
+					set_T_dev_t ((char*)newval, &newval, &newsize);
+					break;
+				}
+				/* FALLTHROUGH */
 			default:
 				errx(1, "oid '%s' is type %d,"
 					" cannot set that", bufp,
@@ -320,6 +328,27 @@ T_dev_t(int l2, void *p)
 				major(*d), minor(*d));
 	}
 	return (0);
+}
+
+static void
+set_T_dev_t (char *path, void **val, int *size)
+{
+	static struct stat statb;
+
+	if (strcmp(path, "none") && strcmp(path, "off")) {
+		int rc = stat (path, &statb);
+		if (rc) {
+			err(1, "cannot stat %s", path);
+		}
+
+		if (!S_ISCHR(statb.st_mode)) {
+			errx(1, "must specify a device special file.");
+		}
+	} else {
+		statb.st_rdev = NODEV;
+	}
+	*val = (char*) &statb.st_rdev;
+	*size = sizeof statb.st_rdev;
 }
 
 /*
@@ -437,16 +466,8 @@ show_var(int *oid, int nlen)
 		return (0);
 	}
 
-	qoid[1] = 4;
-	j = sizeof(buf);
-	i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
-	if (i || !j)
-		err(1, "sysctl fmt %d %d %d", i, j, errno);
-
-	kind = *(u_int *)buf;
-
-	fmt = (char *)(buf + sizeof(u_int));
-
+	fmt = buf;
+	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
 	switch (*fmt) {
 	case 'A':
