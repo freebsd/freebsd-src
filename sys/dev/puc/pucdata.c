@@ -898,6 +898,23 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/* Moxa Technologies Co., Ltd. PCI I/O Card 8S RS232 */
+	{   "Moxa Technologies, C168U/PCI",
+	    NULL,
+	    {	0x1393,	0x1681,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0,	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x10, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x18, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x20, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x28, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x30, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x38, COM_FREQ * 8 },
+	    },
+	},
+
 	{   "Avlab Technology, PCI IO 2S",
 	    {	0x14db,	0x2130,	0,	0	},
 	    {	0xffff,	0xffff,	0,	0	},
