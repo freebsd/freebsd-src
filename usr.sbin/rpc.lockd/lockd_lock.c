@@ -64,11 +64,6 @@
 #define MAXBUFFERSIZE 1024
 
 /*
- * SM_MAXSTRLEN is usually 1024.  This means that lock requests and
- * host name monitoring entries are *MUCH* larger than they should be
- */
-
-/*
  * A set of utilities for managing file locking
  *
  * XXX: All locks are in a linked list, a better structure should be used
@@ -83,13 +78,12 @@ struct file_lock {
 	struct nlm4_holder client; /* lock holder */
 	/* XXX: client_cookie used *only* in send_granted */ 
 	netobj client_cookie; /* cookie sent by the client */
-	char client_name[SM_MAXSTRLEN];
 	int nsm_status; /* status from the remote lock manager */
 	int status; /* lock status, see below */
 	int flags; /* lock flags, see lockd_lock.h */
 	int blocking; /* blocking lock or not */
-	pid_t locker; /* pid of the child process trying to get the lock */
-	int fd;	/* file descriptor for this lock */
+	char client_name[SM_MAXSTRLEN];	/* client_name is really variable
+					   length and must be last! */
 };
 
 LIST_HEAD(nfslocklist_head, file_lock);
@@ -108,8 +102,9 @@ struct blockedlocklist_head blockedlocklist_head = LIST_HEAD_INITIALIZER(blocked
 /* struct describing a monitored host */
 struct host {
 	LIST_ENTRY(host) hostlst;
-	char name[SM_MAXSTRLEN];
 	int refcnt;
+	char name[SM_MAXSTRLEN]; /* name is really variable length and
+                                    must be last! */
 };
 /* list of hosts we monitor */
 LIST_HEAD(hostlst_head, host);
@@ -165,11 +160,13 @@ void unmonitor_lock_host(char *hostname);
 void	copy_nlm4_lock_to_nlm4_holder(const struct nlm4_lock *src,
     const bool_t exclusive, struct nlm4_holder *dest);
 struct file_lock *	allocate_file_lock(const netobj *lockowner,
-    const netobj *matchcookie);
+					   const netobj *matchcookie,
+					   const struct sockaddr *addr,
+					   const char *caller_name);
 void	deallocate_file_lock(struct file_lock *fl);
 void	fill_file_lock(struct file_lock *fl, const fhandle_t *fh,
-    struct sockaddr *addr, const bool_t exclusive, const int32_t svid,
-    const u_int64_t offset, const u_int64_t len, const char *caller_name,
+		       const bool_t exclusive, const int32_t svid,
+    const u_int64_t offset, const u_int64_t len,
     const int state, const int status, const int flags, const int blocking);
 int	regions_overlap(const u_int64_t start1, const u_int64_t len1,
     const u_int64_t start2, const u_int64_t len2);
@@ -372,20 +369,40 @@ copy_nlm4_lock_to_nlm4_holder(src, exclusive, dest)
 }
 
 
+size_t
+strnlen(const char *s, size_t len)
+{
+    size_t n;
+
+    for (n = 0;  s[n] != 0 && n < len; n++)
+        ;
+    return n;
+}
+
 /*
  * allocate_file_lock: Create a lock with the given parameters
  */
 
 struct file_lock *
-allocate_file_lock(const netobj *lockowner, const netobj *matchcookie)
+allocate_file_lock(const netobj *lockowner, const netobj *matchcookie,
+		   const struct sockaddr *addr, const char *caller_name)
 {
 	struct file_lock *newfl;
+	size_t n;
 
-	newfl = malloc(sizeof(struct file_lock));
+	/* Beware of rubbish input! */
+	n = strnlen(caller_name, SM_MAXSTRLEN);
+	if (n == SM_MAXSTRLEN) {
+		return NULL;
+	}
+
+	newfl = malloc(sizeof(*newfl) - sizeof(newfl->client_name) + n + 1);
 	if (newfl == NULL) {
 		return NULL;
 	}
-	bzero(newfl, sizeof(newfl));
+	bzero(newfl, sizeof(*newfl) - sizeof(newfl->client_name));
+	memcpy(newfl->client_name, caller_name, n);
+	newfl->client_name[n] = 0;
 
 	newfl->client.oh.n_bytes = malloc(lockowner->n_len);
 	if (newfl->client.oh.n_bytes == NULL) {
@@ -404,6 +421,15 @@ allocate_file_lock(const netobj *lockowner, const netobj *matchcookie)
 	newfl->client_cookie.n_len = matchcookie->n_len;
 	bcopy(matchcookie->n_bytes, newfl->client_cookie.n_bytes, matchcookie->n_len);
 
+	newfl->addr = malloc(addr->sa_len);
+	if (newfl->addr == NULL) {
+		free(newfl->client_cookie.n_bytes);
+		free(newfl->client.oh.n_bytes);
+		free(newfl);
+		return NULL;
+	}
+	memcpy(newfl->addr, addr, addr->sa_len);
+
 	return newfl;
 }
 
@@ -412,19 +438,16 @@ allocate_file_lock(const netobj *lockowner, const netobj *matchcookie)
  */
 void
 fill_file_lock(struct file_lock *fl, const fhandle_t *fh,
-    struct sockaddr *addr, const bool_t exclusive, const int32_t svid,
-    const u_int64_t offset, const u_int64_t len, const char *caller_name,
+    const bool_t exclusive, const int32_t svid,
+    const u_int64_t offset, const u_int64_t len,
     const int state, const int status, const int flags, const int blocking)
 {
 	bcopy(fh, &fl->filehandle, sizeof(fhandle_t));
-	fl->addr = addr;
 
 	fl->client.exclusive = exclusive;
 	fl->client.svid = svid;
 	fl->client.l_offset = offset;
 	fl->client.l_len = len;
-
-	strncpy(fl->client_name, caller_name, SM_MAXSTRLEN);
 
 	fl->nsm_status = state;
 	fl->status = status;
@@ -438,6 +461,7 @@ fill_file_lock(struct file_lock *fl, const fhandle_t *fh,
 void
 deallocate_file_lock(struct file_lock *fl)
 {
+	free(fl->addr);
 	free(fl->client.oh.n_bytes);
 	free(fl->client_cookie.n_bytes);
 	free(fl);
@@ -918,22 +942,21 @@ split_nfslock(exist_lock, unlock_lock, left_lock, right_lock)
 	    &start1, &len1, &start2, &len2);
 
 	if ((spstatus & SPL_LOCK1) != 0) {
-		*left_lock = allocate_file_lock(&exist_lock->client.oh, &exist_lock->client_cookie);
+		*left_lock = allocate_file_lock(&exist_lock->client.oh, &exist_lock->client_cookie, exist_lock->addr, exist_lock->client_name);
 		if (*left_lock == NULL) {
 			debuglog("Unable to allocate resource for split 1\n");
 			return SPL_RESERR;
 		}
 
 		fill_file_lock(*left_lock, &exist_lock->filehandle,
-		    exist_lock->addr,
 		    exist_lock->client.exclusive, exist_lock->client.svid,
 		    start1, len1,
-		    exist_lock->client_name, exist_lock->nsm_status,
+		    exist_lock->nsm_status,
 		    exist_lock->status, exist_lock->flags, exist_lock->blocking);
 	}
 
 	if ((spstatus & SPL_LOCK2) != 0) {
-		*right_lock = allocate_file_lock(&exist_lock->client.oh, &exist_lock->client_cookie);
+		*right_lock = allocate_file_lock(&exist_lock->client.oh, &exist_lock->client_cookie, exist_lock->addr, exist_lock->client_name);
 		if (*right_lock == NULL) {
 			debuglog("Unable to allocate resource for split 1\n");
 			if (*left_lock != NULL) {
@@ -943,10 +966,9 @@ split_nfslock(exist_lock, unlock_lock, left_lock, right_lock)
 		}
 
 		fill_file_lock(*right_lock, &exist_lock->filehandle,
-		    exist_lock->addr,
 		    exist_lock->client.exclusive, exist_lock->client.svid,
 		    start2, len2,
-		    exist_lock->client_name, exist_lock->nsm_status,
+		    exist_lock->nsm_status,
 		    exist_lock->status, exist_lock->flags, exist_lock->blocking);
 	}
 
@@ -972,7 +994,7 @@ unlock_nfslock(fl, released_lock, left_lock, right_lock)
 
 	retval = NFS_DENIED_NOLOCK;
 
-	printf("Attempting to match lock...\n");
+	debuglog("Attempting to match lock...\n");
 	mfl = get_lock_matching_unlock(fl);
 
 	if (mfl != NULL) {
@@ -1231,23 +1253,13 @@ void
 retry_blockingfilelocklist(void)
 {
 	/* Retry all locks in the blocked list */
-	struct file_lock *ifl, *nfl, *pfl; /* Iterator */
+	struct file_lock *ifl, *nfl; /* Iterator */
 	enum partialfilelock_status pflstatus;
 
 	debuglog("Entering retry_blockingfilelocklist\n");
 
-	pfl = NULL;
-	ifl = LIST_FIRST(&blockedlocklist_head);
-	debuglog("Iterator choice %p\n",ifl);
-
-	while (ifl != NULL) {
-		/*
-		 * SUBTLE BUG: The next element must be worked out before the
-		 * current element has been moved
-		 */
-		nfl = LIST_NEXT(ifl, nfslocklist);
+	LIST_FOREACH_SAFE(ifl, &blockedlocklist_head, nfslocklist, nfl) {
 		debuglog("Iterator choice %p\n",ifl);
-		debuglog("Prev iterator choice %p\n",pfl);
 		debuglog("Next iterator choice %p\n",nfl);
 
 		/*
@@ -1265,22 +1277,10 @@ retry_blockingfilelocklist(void)
 			/* lock granted and is now being used */
 			send_granted(ifl,0);
 		} else {
-			/* Reinsert lock back into same place in blocked list */
+			/* Reinsert lock back into blocked list */
 			debuglog("Replacing blocked lock\n");
-			if (pfl != NULL)
-				LIST_INSERT_AFTER(pfl, ifl, nfslocklist);
-			else
-				/* ifl is the only elem. in the list */
-				LIST_INSERT_HEAD(&blockedlocklist_head, ifl, nfslocklist);
+			LIST_INSERT_HEAD(&blockedlocklist_head, ifl, nfslocklist);
 		}
-
-		/* Valid increment behavior regardless of state of ifl */
-		ifl = nfl;
-		/* if a lock was granted incrementing pfl would make it nfl */
-		if (pfl != NULL && (LIST_NEXT(pfl, nfslocklist) != nfl))
-			pfl = LIST_NEXT(pfl, nfslocklist);
-		else
-			pfl = LIST_FIRST(&blockedlocklist_head);
 	}
 
 	debuglog("Exiting retry_blockingfilelocklist\n");
@@ -1895,7 +1895,8 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 		    nlm4_denied_grace_period : nlm_denied_grace_period;
 
 	/* allocate new file_lock for this request */
-	newfl = allocate_file_lock(&lckarg->alock.oh, &lckarg->cookie);
+	newfl = allocate_file_lock(&lckarg->alock.oh, &lckarg->cookie,
+				   (struct sockaddr *)svc_getrpccaller(rqstp->rq_xprt)->buf, lckarg->alock.caller_name);
 	if (newfl == NULL) {
 		syslog(LOG_NOTICE, "lock allocate failed: %s", strerror(errno));
 		/* failed */
@@ -1909,10 +1910,9 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 	}
 
 	fill_file_lock(newfl, (fhandle_t *)lckarg->alock.fh.n_bytes,
-	    (struct sockaddr *)svc_getrpccaller(rqstp->rq_xprt)->buf,
 	    lckarg->exclusive, lckarg->alock.svid, lckarg->alock.l_offset,
 	    lckarg->alock.l_len,
-	    lckarg->alock.caller_name, lckarg->state, 0, flags, lckarg->block);
+	    lckarg->state, 0, flags, lckarg->block);
 	
 	/*
 	 * newfl is now fully constructed and deallocate_file_lock
@@ -1990,6 +1990,7 @@ monitor_lock_host(const char *hostname)
 	struct mon smon;
 	struct sm_stat_res sres;
 	int rpcret, statflag;
+	size_t n;
 	
 	rpcret = 0;
 	statflag = 0;
@@ -2004,15 +2005,19 @@ monitor_lock_host(const char *hostname)
 	}
 
 	/* Host is not yet monitored, add it */
-	nhp = malloc(sizeof(struct host));
-		
+	n = strnlen(hostname, SM_MAXSTRLEN);
+	if (n == SM_MAXSTRLEN) {
+		return;
+	}
+	nhp = malloc(sizeof(*nhp) - sizeof(nhp->name) + n + 1);
 	if (nhp == NULL) {
 		debuglog("Unable to allocate entry for statd mon\n");
 		return;
 	}
 
 	/* Allocated new host entry, now fill the fields */
-	strncpy(nhp->name, hostname, SM_MAXSTRLEN);
+	memcpy(nhp->name, hostname, n);
+	nhp->name[n] = 0;
 	nhp->refcnt = 1;
 	debuglog("Locally Monitoring host %16s\n",hostname);
 			
@@ -2152,8 +2157,6 @@ send_granted(fl, opcode)
 	static struct nlm4_res retval4;
 
 	debuglog("About to send granted on blocked lock\n");
-	sleep(1);
-	debuglog("Blowing off return send\n");
 
 	cli = get_client(fl->addr,
 	    (fl->flags & LOCK_V4) ? NLM_VERS4 : NLM_VERS);
