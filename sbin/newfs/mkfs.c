@@ -886,9 +886,9 @@ fsinit(utime)
 	/*
 	 * initialize the node
 	 */
-	node.di_atime.ts_sec = utime;
-	node.di_mtime.ts_sec = utime;
-	node.di_ctime.ts_sec = utime;
+	node.di_atime.tv_sec = utime;
+	node.di_mtime.tv_sec = utime;
+	node.di_ctime.tv_sec = utime;
 #ifdef LOSTDIR
 	/*
 	 * create the lost+found directory
