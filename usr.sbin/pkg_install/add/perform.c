@@ -260,7 +260,7 @@ pkg_do(char *pkg)
 		    if (cp) {
 			if (Verbose)
 			    printf("Loading it from %s.\n", cp);
-			if (vsystem("pkg_add %s%s", Verbose ? "-v " : "", cp)) {
+			if (vsystem("pkg_add %s'%s'", Verbose ? "-v " : "", cp)) {
 			    warnx("autoload of dependency `%s' failed%s",
 				cp, Force ? " (proceeding anyway)" : "!");
 			    if (!Force)
