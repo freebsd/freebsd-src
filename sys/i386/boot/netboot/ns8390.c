@@ -19,6 +19,11 @@ SMC8416 support added by Bill Paul (wpaul@ctr.columbia.edu) on 12/25/94
 
 **************************************************************************/
 
+DELAY(int x)
+{ volatile long a, b, l;
+   for (x; x>0; x--) b=a;
+}  
+
 #include "netboot.h"
 #include "ns8390.h"
 
@@ -284,13 +289,19 @@ eth_probe()
 ne_again:
 		eth_asic_base = *tent_base + NE_ASIC_OFFSET;
 		eth_nic_base = *tent_base;
+		printf("Looking for NE1000/NE2000 at 0x%x\n", eth_nic_base);
 
 		eth_vendor = VENDOR_NOVELL;
 		eth_flags = FLAG_PIO;
 		eth_memsize = MEM_16384;
 		eth_tx_start = 32;
+#ifdef GWETHER
+		outb(eth_asic_base + NE_RESET, 0);
+		DELAY(200);
+#endif
 		c = inb(eth_asic_base + NE_RESET);
 		outb(eth_asic_base + NE_RESET, c);
+		DELAY(5000);
 	        inb(0x84);
 		outb(eth_nic_base + D8390_P0_COMMAND, D8390_COMMAND_STP |
 			D8390_COMMAND_RD2);
@@ -317,7 +328,8 @@ ne_again:
 					return (0);
 		}
 		eth_pio_read(0, romdata, 16);
-		printf("\r\nNE1000/NE2000 base 0x%x, addr ", eth_nic_base);
+		printf("\nNE1000/NE2000 (%d bit) base 0x%x, addr ",
+			eth_flags & FLAG_16BIT ? 16:8, eth_nic_base);
 		for (i=0; i<6; i++) {
 			printf("%b",(int)(arptable[ARP_CLIENT].node[i] = romdata[i
 				+ ((eth_flags & FLAG_16BIT) ? i : 0)]));
