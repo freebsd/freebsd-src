@@ -32,7 +32,7 @@
 .\"     @(#)mount_cd9660.8	8.3 (Berkeley) 3/27/94
 .\" $FreeBSD$
 .\"
-.Dd March 27, 1994
+.Dd September 26, 2003
 .Dt MOUNT_CD9660 8
 .Os
 .Sh NAME
@@ -41,9 +41,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl begjrv
+.Op Fl C Ar charset
 .Op Fl o Ar options
 .Op Fl s Ar startsector
-.Op Fl C Ar charset
 .Ar special | node
 .Sh DESCRIPTION
 The
@@ -152,6 +152,6 @@ The
 utility first appeared in
 .Bx 4.4 .
 .Pp
-The unicode conversion routine was added by
+The Unicode conversion routine was added by
 .An Ryuichiro Imura Aq imura@ryu16.org
-at 2003.
+in 2003.

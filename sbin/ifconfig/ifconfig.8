@@ -286,10 +286,10 @@ interface might support the use of either
 .Tn AUI
 or twisted pair connectors.
 Setting the media type to
-.Dq 10base5/AUI
+.Dq Li 10base5/AUI
 would change the currently active connector to the AUI port.
 Setting it to
-.Dq 10baseT/UTP
+.Dq Li 10baseT/UTP
 would activate twisted pair.
 Refer to the interfaces' driver
 specific documentation or man page for a complete list of the
@@ -312,11 +312,11 @@ operating mode on the interface to
 .Ar mode .
 For IEEE 802.11 wireless interfaces that support multiple operating modes
 this directive is used to select between 802.11a
-.Pq Dq 11a ,
+.Pq Dq Li 11a ,
 802.11b
-.Pq Dq 11b ,
+.Pq Dq Li 11b ,
 and 802.11g
-.Pq Dq 11g
+.Pq Dq Li 11g
 operating modes.
 .It Cm name Ar name
 Set the interface name to
@@ -627,10 +627,10 @@ in infrastructure mode.
 Not all adaptors support all modes.
 The set of
 valid modes is
-.Dq none ,
-.Dq open ,
+.Dq Li none ,
+.Dq Li open ,
 and
-.Dq shared .
+.Dq Li shared .
 Modes are case insensitive.
 .It Cm powersave
 For IEEE 802.11 wireless interfaces, enable powersave mode.
@@ -641,26 +641,31 @@ For IEEE 802.11 wireless interfaces, set the desired max powersave sleep
 time in milliseconds.
 .It Cm protmode Ar technique
 For IEEE 802.11 wireless interfaces operating in 11g, use the specified
-technique for protecting OFDM frames in a mixed 11b/11g network.
+.Ar technique
+for protecting OFDM frames in a mixed 11b/11g network.
 The set of valid techniques is
-.Dq off ,
-.Dq cts
+.Dq Li off ,
+.Dq Li cts
 (CTS to self),
 and
-.Dq rtscts
+.Dq Li rtscts
 (RTS/CTS).
 Technique names are case insensitive.
 .It Cm rtsthreshold Ar length
-For IEEE 802.11 wireless interfaces, set the threshold for which 
+For IEEE 802.11 wireless interfaces, set the threshold for which
 transmitted frames are preceded by transmission of an
 RTS
 control frame.
-.Ar Length
+The
+.Ar length
+argument
 is the frame size in bytes and must be in the range 1 to 2312.
 Not all adaptors support setting the RTS threshold.
 .It Cm txpower Ar power
 For IEEE 802.11 wireless interfaces, set the power used to transmit frames.
-.Ar Power
+The
+.Ar power
+argument
 is a unitless value in the range 0 to 100 that is interpreted
 by drivers to derive a device-specific value.
 Out of range values are truncated.
@@ -671,20 +676,21 @@ Not all adaptors support changing the transmit power.
 For IEEE 802.11 wireless interfaces, set the desired WEP mode.
 Not all adaptors support all modes.
 The set of valid modes is
-.Dq off ,
-.Dq on ,
+.Dq Li off ,
+.Dq Li on ,
 and
-.Dq mixed .
-.Dq Mixed
+.Dq Li mixed .
+The
+.Dq Li mixed
 mode explicitly tells the adaptor to allow association with access
 points which allow both encrypted and unencrypted traffic.
 On these adaptors,
-.Dq on
+.Dq Li on
 means that the access point must only allow encrypted connections.
 On other adaptors,
-.Dq on
+.Dq Li on
 is generally another name for
-.Dq mixed .
+.Dq Li mixed .
 Modes are case insensitive.
 .It Cm weptxkey Ar index
 For IEEE 802.11 wireless interfaces, set the WEP key to be used for
