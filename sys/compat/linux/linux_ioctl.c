@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.17 1997/06/02 06:28:04 msmith Exp $
+ *  $Id: linux_ioctl.c,v 1.18 1997/06/02 06:33:22 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -608,7 +608,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	    ifp = ifnet_addrs[ifn]->ifa_ifp;	/* pointer to interface */
 	    if (ifp->if_type == IFT_ETHER) {	/* looks good */
 		/* walk the address list */
-		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; ifa = TAILQ_NEXT(ifa, ifa_link)) {
 		    if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&	/* we have an address structure */
 			(sdl->sdl_family == AF_LINK) &&			/* it's a link address */
 			(sdl->sdl_type == IFT_ETHER)) {			/* for an ethernet link */
