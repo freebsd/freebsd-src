@@ -2338,24 +2338,24 @@ fill_dbregs(struct thread *td, struct dbreg *dbregs)
 	struct pcb *pcb;
 
 	if (td == NULL) {
-		dbregs->dr0 = rdr0();
-		dbregs->dr1 = rdr1();
-		dbregs->dr2 = rdr2();
-		dbregs->dr3 = rdr3();
-		dbregs->dr4 = rdr4();
-		dbregs->dr5 = rdr5();
-		dbregs->dr6 = rdr6();
-		dbregs->dr7 = rdr7();
+		dbregs->dr[0] = rdr0();
+		dbregs->dr[1] = rdr1();
+		dbregs->dr[2] = rdr2();
+		dbregs->dr[3] = rdr3();
+		dbregs->dr[4] = rdr4();
+		dbregs->dr[5] = rdr5();
+		dbregs->dr[6] = rdr6();
+		dbregs->dr[7] = rdr7();
 	} else {
 		pcb = td->td_pcb;
-		dbregs->dr0 = pcb->pcb_dr0;
-		dbregs->dr1 = pcb->pcb_dr1;
-		dbregs->dr2 = pcb->pcb_dr2;
-		dbregs->dr3 = pcb->pcb_dr3;
-		dbregs->dr4 = 0;
-		dbregs->dr5 = 0;
-		dbregs->dr6 = pcb->pcb_dr6;
-		dbregs->dr7 = pcb->pcb_dr7;
+		dbregs->dr[0] = pcb->pcb_dr0;
+		dbregs->dr[1] = pcb->pcb_dr1;
+		dbregs->dr[2] = pcb->pcb_dr2;
+		dbregs->dr[3] = pcb->pcb_dr3;
+		dbregs->dr[4] = 0;
+		dbregs->dr[5] = 0;
+		dbregs->dr[6] = pcb->pcb_dr6;
+		dbregs->dr[7] = pcb->pcb_dr7;
 	}
 	return (0);
 }
@@ -2368,14 +2368,14 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 	u_int32_t mask1, mask2;
 
 	if (td == NULL) {
-		load_dr0(dbregs->dr0);
-		load_dr1(dbregs->dr1);
-		load_dr2(dbregs->dr2);
-		load_dr3(dbregs->dr3);
-		load_dr4(dbregs->dr4);
-		load_dr5(dbregs->dr5);
-		load_dr6(dbregs->dr6);
-		load_dr7(dbregs->dr7);
+		load_dr0(dbregs->dr[0]);
+		load_dr1(dbregs->dr[1]);
+		load_dr2(dbregs->dr[2]);
+		load_dr3(dbregs->dr[3]);
+		load_dr4(dbregs->dr[4]);
+		load_dr5(dbregs->dr[5]);
+		load_dr6(dbregs->dr[6]);
+		load_dr7(dbregs->dr[7]);
 	} else {
 		/*
 		 * Don't let an illegal value for dr7 get set.	Specifically,
@@ -2385,7 +2385,7 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 */
 		for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8; 
 		     i++, mask1 <<= 2, mask2 <<= 2)
-			if ((dbregs->dr7 & mask1) == mask2)
+			if ((dbregs->dr[7] & mask1) == mask2)
 				return (EINVAL);
 		
 		pcb = td->td_pcb;
@@ -2406,37 +2406,37 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 */
 
 		if (suser(td) != 0) {
-			if (dbregs->dr7 & 0x3) {
+			if (dbregs->dr[7] & 0x3) {
 				/* dr0 is enabled */
-				if (dbregs->dr0 >= VM_MAXUSER_ADDRESS)
+				if (dbregs->dr[0] >= VM_MAXUSER_ADDRESS)
 					return (EINVAL);
 			}
 			
-			if (dbregs->dr7 & (0x3<<2)) {
+			if (dbregs->dr[7] & (0x3<<2)) {
 				/* dr1 is enabled */
-				if (dbregs->dr1 >= VM_MAXUSER_ADDRESS)
+				if (dbregs->dr[1] >= VM_MAXUSER_ADDRESS)
 					return (EINVAL);
 			}
 			
-			if (dbregs->dr7 & (0x3<<4)) {
+			if (dbregs->dr[7] & (0x3<<4)) {
 				/* dr2 is enabled */
-				if (dbregs->dr2 >= VM_MAXUSER_ADDRESS)
+				if (dbregs->dr[2] >= VM_MAXUSER_ADDRESS)
 					return (EINVAL);
 			}
 			
-			if (dbregs->dr7 & (0x3<<6)) {
+			if (dbregs->dr[7] & (0x3<<6)) {
 				/* dr3 is enabled */
-				if (dbregs->dr3 >= VM_MAXUSER_ADDRESS)
+				if (dbregs->dr[3] >= VM_MAXUSER_ADDRESS)
 					return (EINVAL);
 			}
 		}
 
-		pcb->pcb_dr0 = dbregs->dr0;
-		pcb->pcb_dr1 = dbregs->dr1;
-		pcb->pcb_dr2 = dbregs->dr2;
-		pcb->pcb_dr3 = dbregs->dr3;
-		pcb->pcb_dr6 = dbregs->dr6;
-		pcb->pcb_dr7 = dbregs->dr7;
+		pcb->pcb_dr0 = dbregs->dr[0];
+		pcb->pcb_dr1 = dbregs->dr[1];
+		pcb->pcb_dr2 = dbregs->dr[2];
+		pcb->pcb_dr3 = dbregs->dr[3];
+		pcb->pcb_dr6 = dbregs->dr[6];
+		pcb->pcb_dr7 = dbregs->dr[7];
 
 		pcb->pcb_flags |= PCB_DBREGS;
 	}
