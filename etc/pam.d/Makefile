@@ -1,25 +1,24 @@
 # $FreeBSD$
 
-PAMD  =
-PAMD +=	README
-PAMD +=	csshd
-PAMD +=	ftp
-PAMD +=	ftpd
-PAMD +=	gdm
-PAMD +=	imap
-PAMD +=	kde
-PAMD +=	login
-PAMD +=	other
-PAMD +=	passwd
-PAMD +=	pop3
-PAMD +=	rsh
-PAMD +=	sshd
-PAMD +=	su
-PAMD +=	telnetd
-PAMD +=	xdm
-PAMD +=	xserver
+FILESDIR = /etc/pam.d
 
-install:
-	(cd ${.CURDIR} && \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${PAMD} \
-		${DESTDIR}/etc/pam.d)
+FILES	 =
+FILES	+= README
+FILES	+= csshd
+FILES	+= ftp
+FILES	+= ftpd
+FILES	+= gdm
+FILES	+= imap
+FILES	+= kde
+FILES	+= login
+FILES	+= other
+FILES	+= passwd
+FILES	+= pop3
+FILES	+= rsh
+FILES	+= sshd
+FILES	+= su
+FILES	+= telnetd
+FILES	+= xdm
+FILES	+= xserver
+
+.include <bsd.prog.mk>
