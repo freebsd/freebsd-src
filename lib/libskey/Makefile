@@ -13,11 +13,9 @@ CFLAGS+=-DPERMIT_CONSOLE -D_SKEY_INTERNAL -I${.CURDIR}
 CFLAGS+=-W -Wall
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=-Werror
-.else
-CFLAGS+=-DMD5
 .endif
 
-.if ${BINFORMAT} == elf
+.if ${OBJFORMAT} == elf
 DPADD+= ${LIBCRYPT} ${LIBMD}
 LDADD+=	-lcrypt -lmd
 .endif
