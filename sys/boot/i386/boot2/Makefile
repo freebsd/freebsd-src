@@ -48,6 +48,12 @@ boot1.out: boot1.o
 boot1.o: boot1.s
 	${AS} ${AFLAGS} --defsym FLAGS=${B1FLAGS} ${.IMPSRC} -o ${.TARGET}
 
+boot2.o: boot2.c
+	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.IMPSRC}
+	sed -e '/align/d' -e '/nop/d' < boot2.s.tmp > boot2.s
+	rm -f boot2.s.tmp
+	${AS} ${AFLAGS} -o boot2.o boot2.s
+
 boot2.h: boot1.out
 	${NM} -t d ${.ALLSRC} | awk '/([0-9])+ T xread/ \
 	 	{ x = $$1 - ORG1; printf("#define XREADORG 0x7%x\n", x) }' \
