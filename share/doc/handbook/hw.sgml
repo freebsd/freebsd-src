@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.53 1996/12/10 07:11:57 max Exp $ -->
+<!-- $Id: hw.sgml,v 1.47.2.3 1996/12/23 02:01:26 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -60,41 +60,34 @@ Slippery when wet.  Beware of dog.
     forever.  I will try, when I can, to keep this list up-to-date but
     cannot obviously guarantee that it will be at any given time.
 
-  <sect2><heading>Motherboards</heading>
+  <sect2><heading>Motherboards<label id="hw:mb"></heading>
     <p>The <htmlurl url="http://asustek.asus.com.tw/" name="ASUS">
-    <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55tp4xe.txt"
-     name="P55TP4XE">
+    <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55tp4.txt"
+     name="P55T2P4">
     motherboard appears to be a good choice for mid-to-high range Pentium
-    server and workstation systems, though the newer Triton-II boards (see
-    below) have largely supplanted them.  If you buy one of these boards,
-    be also sure to get it with the
-    <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html"
-    name="pipelined burst cache module">.  If you're looking for a 486 class
-    motherboard, you might also investigate ASUS's
+    server and workstation systems.  You might also wish to investigate ASUS's
     <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pvi-486sp3.txt"
-    name="486SP3G"> offering (Note:  These have become increasingly hard to
-    get as ASUS apparently no longer manufactures them).
+    name="486SP3G"> offering if it's a 486-class motherboard you're looking
+    for (Note:  These have become increasingly hard to get as ASUS apparently
+    no longer manufactures them).
 
-    NOTE:  The Intel <htmlurl
-    url="http://asustek.asus.com.tw/Products/TB/triton-intro.html"
-    name="Triton"> chip-set based motherboards do not offer memory
-    parity logic, making it almost impossible to detect when a memory error
-    has occurred.  Those wishing to build more fault-tolerant systems should
-    therefore buy one of the newer Triton II based motherboards, which offer
-    both better performance, parity checking and ECC.  I'm also told that
-    if you are using ECC memory, be sure to get a motherboard with uses the
-    A2 or later steppings of the 82439HX Triton-II chipset.  Don't get this
-    confused with the 82371SB stepping - you have an A2 stepping if the
-    82439HX chip has a marking of "SU102."  You have an A1 stepping if it's
-    not marked with an S-number or if the number is "SU087."
+    Those wishing to build more fault-tolerant systems should also be sure to
+    use Parity memory or, for truly 24/7 applications, ECC memory.  Note
+    that ECC memory does involve a slight performance trade-off (which may
+    or may not be noticable depending on your application) but buys you
+    significantly increased fault-tolerance to memory errors.
 
-    <p>At the even higher end, the Intel/Venus Pro (<ref id="hw:mb:pci"
+    <p>At the higher end, the Intel/Venus Pro (<ref id="hw:mb:pci"
     name="VS440FX">) motherboard appears to work very well with FreeBSD,
     as does its accompanying 200Mhz P6 (Pentium Pro) CPU.  Recent price
-    drops (plummets might be a more accurate term) have dropped P6 systems
-    into a very affordable price bracket, at least in the United States,
-    and for serious server applications you may wish to look no further than
-    the Pentium Pro.
+    drops have dropped P6 systems into a very affordable price bracket,
+    at least in the United States, and for serious server applications you
+    may wish to look no further than the Pentium Pro.  My personal
+    `make world' times dropped from 3 hours and 40 minutes with a P5/166
+    to 1 hour and 22 minutes when I upgraded to a P6/200 machine - not
+    a fair comparison, to be sure, but just to note that in terms of
+    increased productivity, the P6/200 has definitely been worth the upgrade
+    for me.
 
     NOTE: The Intel motherboards are designed to a different form-factor
     and hence require <em>an entirely different PC case</em>, the so-called
@@ -105,6 +98,14 @@ Slippery when wet.  Beware of dog.
     most ATX cases appear to be of much higher quality than their typical PC
     counterparts.
 
+    The only known interoperability problem with the
+    <ref id="hw:mb:pci" name="VS440FX"> chipset (also known as ``Natoma'')
+    is that the Matrox Meteor frame-grabber board will lock up your system
+    if used in one of these motherboards.  Matrox blames Intel, Intel
+    blames Matrox, all we know is that it definitely doesn't work.  That is
+    the only card I've had any troubles with in my P6 system and the card
+    works just fine in my older Triton chipset based motherboard.
+
   <sect2><heading>Disk Controllers</heading>
     <p>This one is a bit trickier, and while I used to recommend the
     <htmlurl url="http://www.buslogic.com" name="Buslogic"> controllers
@@ -112,12 +113,18 @@ Slippery when wet.  Beware of dog.
     towards the <htmlurl url="http://www.adaptec.com" name="Adaptec">
     1542CF for ISA, Buslogic Bt747c for EISA and Adaptec 2940 for PCI.
 
+    The NCR/Symbios cards for PCI have also worked well for me, though
+    you need to make sure that your motherboard supports the BIOS-less
+    model if you're using one of those (if your card has nothing which
+    looks even vaguely like a ROM chip on it, you've probably got one
+    which expects its BIOS to be on your motherboard).
+
     <p>If you should find that you need more than one SCSI controller in a
     PCI machine, you may wish to consider conserving your scarce PCI
     bus resources by buying the Adaptec 3940 card, which puts two SCSI
     controllers (and internal busses) in a single slot.
 
-  <sect2><heading>Disk drives</heading>
+  <sect2><heading>Disk drives<label id="hw:disks"></heading>
     <p>In this particular game of Russian roulette, I'll make few specific
     recommendations except to say "SCSI over IDE whenever you can afford it."
     Even in small desktop configurations, SCSI often makes more sense since it
@@ -130,7 +137,7 @@ Slippery when wet.  Beware of dog.
     you're putting together an NFS or NEWS server that will be doing a lot
     of multiuser disk I/O.  
 
-  <sect2><heading>CDROM drives</heading>
+  <sect2><heading>CDROM drives<label id="hw:cdrom"></heading>
     <p>My SCSI preferences extend to SCSI CDROM drives as well, and while
     the <htmlurl url="http://www.toshiba.com" name="Toshiba"> XM-3501B (also
     released in a caddy-less model called the XM-5401B) drive has always
@@ -147,7 +154,7 @@ Slippery when wet.  Beware of dog.
     between the two.
 
 
-  <sect2><heading>CD Recordable (WORM) drives</heading>
+  <sect2><heading>CD Recordable (WORM) drives<label id="hw:worm"></heading>
     <p>At the time of this writing, FreeBSD supports 3 types of CDR drives
     (though I believe they all ultimately come from Phillips anyway):
     The Phillips CDD 522 (Acts like a Plasmon), the PLASMON RF4100 and
@@ -159,7 +166,7 @@ Slippery when wet.  Beware of dog.
     filesystem images (with RockRidge extensions) and burn them onto an
     HP4020i CDR.
 
-  <sect2><heading>Tape drives</heading>
+  <sect2><heading>Tape drives<label id="hw:tape"></heading>
    <p>I've had pretty good luck with both
    <htmlurl url="http://www.Exabyte.COM:80/Products/8mm/8505XL/Rfeatures.html"
    name="8mm drives"> from <htmlurl url="http://www.exabyte.com"
@@ -171,27 +178,35 @@ Slippery when wet.  Beware of dog.
    Exabyte due to the more robust nature (and higher storage capacity) of
    8mm tape.
 
-  <sect2><heading>Video Cards</heading>
-    <p>If you can also afford to buy a commercial X server for US&dollar;99 from
-    <htmlurl url="http://www.xinside.com/" name="X Inside"> then I
-    can heartily recommend the <htmlurl url="http://www.matrox.com/"
-    name="Matrox"> <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
-    name="Millenium"> card,  If free X servers are more to your
-    liking, you certainly can't go wrong with one of <htmlurl url="http://www.nine.com/" name="Number 9's"> cards - their S3 Vision 868 and 968 based cards 
-    (the 9FX series) are pretty fast cards as well, and are supported by
-    <htmlurl url="http://www.xfree86.org" name="XFree86">'s S3 server.
+  <sect2><heading>Video Cards<label id="hw:video"></heading>
+    <p>If you can also afford to buy a commercial X server for US&dollar;99
+    from <htmlurl url="http://www.xinside.com/"
+    name="Xi Graphics, Inc. (formerly X Inside, Inc)"> then I can heartily
+    recommend the <htmlurl url="http://www.matrox.com/" name="Matrox">
+    <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
+    name="Millenium"> card.  Note that support for this card is also
+    getting better with the <htmlurl url="http://www.xfree86.org"
+    name="XFree86"> server, which is available free of charge, though it's
+    still a fair bit slower than the XiG product at this time.  I'm told that
+    support is also a fair bit better in the 3.2A release of XFree86, but
+    it's not yet available for general release.
 
-  <sect2><heading>Monitors</heading>
+    You also certainly can't go wrong with one of
+    <htmlurl url="http://www.nine.com/" name="Number 9's"> cards -
+    their S3 Vision 868 and 968 based cards (the 9FX series) also being
+    quite fast and very well supported by XFree86's S3 server.
+
+  <sect2><heading>Monitors<label id="hw:monitors"></heading>
     <p>I have had very good luck with the <htmlurl url="http://cons3.sel.sony.com/SEL/ccpg/display/ms17se2.html"
     name="Sony Multiscan 17SE monitors">, as have I with 
     the Viewsonic offering in the same (trinitron) tube.  For larger than
     17", all I can recommend at the time of this writing is to not spend
     any less than U.S. &dollar;2,500 for a 21" monitor if that's what you really
     need.  There are good monitors available in the >=20" range and there
-    are also cheap monitors in the >=20" range.  Unfortunately, none are
+    are also cheap monitors in the >=20" range.  Unfortunately, very few are
     both cheap and good!
 
-  <sect2><heading>Networking</heading>
+  <sect2><heading>Networking<label id="hw:networking"></heading>
     <p>I can recommend the <htmlurl url="http://www.smc.com/" name="SMC">
     Ultra 16 controller for any ISA application and the SMC EtherPower
     or Compex ENET32 cards for any serious PCI based networking.  Both of
@@ -206,13 +221,14 @@ Slippery when wet.  Beware of dog.
     clone is a good choice.
 
 
-   <sect2><heading>Serial</heading>
+   <sect2><heading>Serial<label id="hw:serial"></heading>
     <p>If you're looking for high-speed serial networking solutions, then
     <htmlurl url="http://www.dgii.com/" name="Digi International">
     makes the <htmlurl url="http://www.dgii.com/prodprofiles/profiles-prices/digiprofiles/digispecs/sync570.html" name="SYNC/570"> series, with drivers now in
     FreeBSD-current. <htmlurl url="http://www.etinc.com"
     name="Emerging Technologies"> also manufactures a board with T1/E1
-    capabilities, using software they provide.
+    capabilities, using software they provide.  I have no direct experience
+    using either product, however.
 
     <p>Multiport card options are somewhat more numerous, though it has to be
     said that FreeBSD's support for <htmlurl url="http://www.cyclades.com/"
@@ -225,7 +241,7 @@ Slippery when wet.  Beware of dog.
     Technologies"> apparently offers an unofficial driver for their 
     cards at <htmlurl url="ftp://ftp.stallion.com/drivers/unsupported/freebsd/stalbsd-0.0.4.tar.gz" name="this"> location.
 
-   <sect2><heading>Audio</heading>
+   <sect2><heading>Audio<label id="hw:audio"></heading>
     <p>I currently use the <htmlurl url="http://www.gravis.com/" name="Gravis">
     Ultrasound MAX due to its high sound quality and full-duplex audio
     capabilities (dual DMA channels).  Support for Windows NT and OS/2 is
@@ -233,15 +249,16 @@ Slippery when wet.  Beware of dog.
     all-around card for a machine that will be running both FreeBSD and NT
     or OS/2.  In such a scenario, I might recommend the <htmlurl url="http://www.creaf.com/" name="Creative Labs"> AWE32 instead.
 
-   <sect2><heading>Video</heading>
+   <sect2><heading>Video<label id="hw:vgrabbers"></heading>
    <p>For video capture, there's really only once choice - the
    <htmlurl url="http://www.matrox.com/" name="Matrox">
    <htmlurl url="http://www.matrox.com/imgweb/meteor.htm" name="Meteor">
    card.  FreeBSD also supports the older video spigot card from
    Creative Labs, but those are getting somewhat difficult to find
    and the Meteor is a more current generation frame-grabber with
-   a higher-speed PCI interface.  I use one for broadcasting video
-   on the MBONE and it works quite well!
+   a higher-speed PCI interface.  Note that this card <em>will not work</em>
+   with motherboards based on the VS440FX chipset!  See the
+   <ref id="hw:mb" name="motherboard reference"> section for details.
 
 <sect><heading>Core/Processing<label id="hw:core"></heading>
 
@@ -312,7 +329,8 @@ Slippery when wet.  Beware of dog.
 	      name="Pentium Pro"> support chipset seems to work well,
 	      and does not suffer from any of the early Orion chipset
 	      problems.  It also supports a wider variety of memory,
-	      including ECC and parity.
+	      including ECC and parity.  The only known problem with it
+	      is that the Matrox Meteor frame grabber card doesn't like it.
 	    </descrip>
 	  </p>
 
