@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.25 1997/02/22 19:56:23 peter Exp $";
+	"$Id: route.c,v 1.26 1997/05/10 10:03:43 jhay Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -634,40 +634,16 @@ netname(in, mask)
 	char *cp = 0;
 	static char line[MAXHOSTNAMELEN + 1];
 	struct netent *np = 0;
-	u_long net, omask;
+	u_long net, omask, dmask;
 	register u_long i;
 	int subnetshift;
 
 	i = ntohl(in);
 	omask = mask;
 	if (!nflag && i) {
-		if (mask == 0) {
-			switch (mask = forgemask(i)) {
-			case IN_CLASSA_NET:
-				subnetshift = 8;
-				break;
-			case IN_CLASSB_NET:
-				subnetshift = 8;
-				break;
-			case IN_CLASSC_NET:
-				subnetshift = 4;
-				break;
-			default:
-				abort();
-			}
-			/*
-			 * If there are more bits than the standard mask
-			 * would suggest, subnets must be in use.
-			 * Guess at the subnet mask, assuming reasonable
-			 * width subnet fields.
-			 */
-			while (i &~ mask)
-				mask = (long)mask >> subnetshift;
-		}
-		net = i & mask;
-		while ((mask & 1) == 0)
-			mask >>= 1, net >>= 1;
-		if (!(np = getnetbyaddr(i, AF_INET)))
+		dmask = forgemask(i);
+		net = i & dmask;
+		if (!(np = getnetbyaddr(i, AF_INET)) && net != i)
 			np = getnetbyaddr(net, AF_INET);
 		if (np) {
 			cp = np->n_name;
