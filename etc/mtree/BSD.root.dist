@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.31 1998/09/30 22:27:27 jkh Exp $
+#	$Id: BSD.root.dist,v 1.32 1998/10/17 01:21:35 peter Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -31,6 +31,8 @@
         mtree
         ..
         namedb
+		s	uname=bind gname=bind mode=0750
+		..
         ..
         ppp
         ..
