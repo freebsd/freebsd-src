@@ -197,12 +197,16 @@ identification.
 
 Groff/troff/eqn has been updated to version 1.15.
 
-Gdb has been updated to version 4.18 and is now part of the standard
-release for FreeBSD/alpha.
+Gdb has been updated to version 4.18.
 
 Numerous fixes have been applied to improve the security of FreeBSD code
 as part of the FreeBSD Auditing Project.
 
+FreeBSD's threads library, libc_r, has had many features and performance
+improvements added, which makes it almost completely POSIX-compliant.  In
+addition, Linux's kernel-supported LinuxThreads library is now available as
+a port (ports/devel/linuxthreads), which can be used for native FreeBSD
+programs.
 
 2. Supported Configurations
 ---------------------------
