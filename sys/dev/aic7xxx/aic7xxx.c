@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.16.2.9 1999/05/18 03:59:39 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.16.2.10 1999/05/22 22:59:11 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -2158,7 +2158,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		 */
 		scb_index = ahc_inb(ahc, SCB_TAG);
 		scb = &ahc->scb_data->scbarray[scb_index];
-		hscb = scb->hscb; 
 
 		/*
 		 * Set the default return value to 0 (don't
@@ -2174,6 +2173,8 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			       devinfo.target, intstat, scb_index);
 			goto unpause;
 		}
+
+		hscb = scb->hscb; 
 
 		/* Don't want to clobber the original sense code */
 		if ((scb->flags & SCB_SENSE) != 0) {

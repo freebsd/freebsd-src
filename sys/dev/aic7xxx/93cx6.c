@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.c,v 1.1 1998/09/15 07:24:16 gibbs Exp $
+ *      $Id: 93cx6.c,v 1.1.2.1 1999/04/07 23:10:03 gibbs Exp $
  */
 
 /*
@@ -54,6 +54,8 @@
  *   bit to be sent from the chip.
  *
  */
+
+#include "opt_aic7xxx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -160,7 +162,7 @@ read_seeprom(sd, buf, start_addr, count)
 		SEEPROM_OUTB(sd, temp);
 		CLOCK_PULSE(sd, sd->sd_RDY);
 	}
-#ifdef DUMP_93CX6_EEPROM
+#ifdef AHC_DUMP_EEPROM
 	printf("\nSerial EEPROM:");
 	for (k = 0; k < count; k = k + 1) {
 		if (((k % 8) == 0) && (k != 0)) {
