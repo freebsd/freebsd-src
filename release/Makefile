@@ -155,7 +155,7 @@ rerelease release:
 .if exists(${CHROOTDIR})
 # The first command will fail on a handful of files that have their schg
 # flags set.  But it greatly speeds up the next two commands.
-	-rm -rf ${CHROOTDIR}
+	-rm -rf ${CHROOTDIR} 2>/dev/null
 	-chflags -R noschg ${CHROOTDIR}/.
 	-rm -rf ${CHROOTDIR}
 .endif
@@ -273,6 +273,7 @@ clean:
 # Clean out ${_R} and make the directory structure.
 release.1:
 	mkdir -p ${_R}
+	rm -rf ${_R}/* 2> /dev/null
 	-chflags -R noschg ${_R}/.
 	rm -rf ${_R}/*
 	mkdir ${RD}
