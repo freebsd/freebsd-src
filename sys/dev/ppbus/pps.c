@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.13 1999/01/30 15:35:39 nsouch Exp $
+ * $Id: pps.c,v 1.14 1999/03/11 15:09:51 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -39,7 +39,6 @@ static struct pps_data {
 } *softc[NPPS];
 
 static int npps;
-static pps_devsw_installed = 0;
 
 /*
  * Make ourselves visible as a ppbus driver
@@ -111,11 +110,8 @@ ppsattach(struct ppb_device *dev)
 		dev->id_unit, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", dev->id_unit);
 #endif
-	if( ! pps_devsw_installed ) {
-		devt = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&devt, &pps_cdevsw, NULL);
-		pps_devsw_installed = 1;
-    	}
+	devt = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&devt, &pps_cdevsw, NULL);
 	return (1);
 }
 
