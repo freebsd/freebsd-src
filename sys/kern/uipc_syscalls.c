@@ -198,7 +198,7 @@ accept1(p, uap, compat)
 	int namelen, error, s;
 	struct socket *head, *so;
 	int fd;
-	short fflag;		/* type must match fp->f_flag */
+	u_int fflag;		/* type must match fp->f_flag */
 
 	if (uap->name) {
 		error = copyin((caddr_t)uap->anamelen, (caddr_t)&namelen,
