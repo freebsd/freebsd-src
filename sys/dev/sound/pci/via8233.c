@@ -355,22 +355,25 @@ via8233chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		 struct pcm_channel *c, int dir)
 {
 	struct via_info *via = devinfo;
-	struct via_chinfo *ch = (dir == PCMDIR_PLAY)? &via->pch : &via->rch;
+	struct via_chinfo *ch;
+
+	if (dir == PCMDIR_PLAY) {
+		ch = &via->pch;
+		ch->rbase = VIA_MC_SGD_STATUS;
+		ch->sgd_table = &via->sgd_table[0];
+		ch->sgd_addr = via->sgd_addr;
+	} else {
+		ch = &via->rch;
+		ch->rbase = VIA_WR0_SGD_STATUS;
+		ch->sgd_table = &via->sgd_table[SEGS_PER_CHAN];
+		ch->sgd_addr = via->sgd_addr + sizeof(struct via_dma_op) * SEGS_PER_CHAN;
+		via_wr(via, VIA_WR0_SGD_FORMAT, WR_FIFO_ENABLE, 1);
+	}
 
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	ch->sgd_table = &via->sgd_table[(dir == PCMDIR_PLAY)? 0 : SEGS_PER_CHAN];
-	ch->sgd_addr = dir == PCMDIR_PLAY ? via->sgd_addr : 
-	    via->sgd_addr * SEGS_PER_CHAN;
-
-	if (ch->dir == PCMDIR_PLAY) {
-		ch->rbase = VIA_MC_SGD_STATUS;
-	} else {
-		ch->rbase = VIA_WR0_SGD_STATUS;
-		via_wr(via, VIA_WR0_SGD_FORMAT, WR_FIFO_ENABLE, 1);
-	}
 
 	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
 		return NULL;
