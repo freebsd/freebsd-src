@@ -1,4 +1,26 @@
 /*
+ * Copyright: (c) 2000 United States Government as represented by the
+ *	Secretary of the Navy. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *   3. The names of the authors may not be used to endorse or promote
+ *      products derived from this software without specific prior
+ *      written permission.
+ *  
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ */
+/*
  * This code unmangles RX packets.  RX is the mutant form of RPC that AFS
  * uses to communicate between clients and servers.
  *
@@ -8,12 +30,11 @@
  * Bah.  If I never look at rx_packet.h again, it will be too soon.
  *
  * Ken Hornstein <kenh@cmf.nrl.navy.mil>
- *
  */
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rx.c,v 1.20.2.1 2001/07/09 01:40:59 fenner Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rx.c,v 1.27 2001/10/20 07:41:55 itojun Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,9 +56,6 @@ static const char rcsid[] =
 #include "addrtoname.h"
 #include "extract.h"
 
-#undef NOERROR					/* Solaris sucks */
-#include <arpa/nameser.h>
-
 #include "rx.h"
 
 #include "ip.h"
@@ -56,12 +74,18 @@ static struct tok rx_types[] = {
 	{ 0,				NULL },
 };
 
-static struct tok rx_flags[] = {
-	{ RX_CLIENT_INITIATED,	"client-init" },
-	{ RX_REQUEST_ACK,	"req-ack" },
-	{ RX_LAST_PACKET,	"last-pckt" },
-	{ RX_MORE_PACKETS,	"more-pckts" },
-	{ RX_FREE_PACKET,	"free-pckt" }
+static struct double_tok {
+	int flag;		/* Rx flag */
+	int packetType;		/* Packet type */
+	char *s;		/* Flag string */
+} rx_flags[] = {
+	{ RX_CLIENT_INITIATED,	0,			"client-init" },
+	{ RX_REQUEST_ACK,	0,			"req-ack" },
+	{ RX_LAST_PACKET,	0,			"last-pckt" },
+	{ RX_MORE_PACKETS,	0,			"more-pckts" },
+	{ RX_FREE_PACKET,	0,			"free-pckt" },
+	{ RX_SLOW_START_OK,	RX_PACKET_TYPE_ACK,	"slow-start" },
+	{ RX_JUMBO_PACKET,	RX_PACKET_TYPE_DATA,	"jumbogram" }
 };
 
 static struct tok fs_req[] = {
@@ -99,6 +123,7 @@ static struct tok fs_req[] = {
 	{ 161,		"dfs-lookup" },
 	{ 162,		"dfs-flushcps" },
 	{ 163,		"dfs-symlink" },
+	{ 220,		"residency" },
 	{ 0,		NULL },
 };
 
@@ -114,6 +139,10 @@ static struct tok cb_req[] = {
 	{ 212,		"whoareyou" },
 	{ 213,		"initcb3" },
 	{ 214,		"probeuuid" },
+	{ 215,		"getsrvprefs" },
+	{ 216,		"getcellservdb" },
+	{ 217,		"getlocalcell" },
+	{ 218,		"getcacheconf" },
 	{ 0,		NULL },
 };
 
@@ -139,6 +168,7 @@ static struct tok pt_req[] = {
 	{ 518,		"get-cps2" },
 	{ 519,		"get-host-cps" },
 	{ 520,		"update-entry" },
+	{ 521,		"list-entries" },
 	{ 0,		NULL },
 };
 
@@ -176,6 +206,7 @@ static struct tok vldb_req[] = {
 	{ 531,		"linked-list-u" },
 	{ 532,		"regaddr" },
 	{ 533,		"get-addrs-u" },
+	{ 534,		"list-attrib-n2" },
 	{ 0,		NULL },
 };
 
@@ -270,6 +301,8 @@ static struct tok bos_req[] = {
 	{ 112,		"start-bozo-log" },
 	{ 113,		"wait-all" },
 	{ 114,		"get-instance-strings" },
+	{ 115,		"get-restricted" },
+	{ 116,		"set-restricted" },
 	{ 0,		NULL },
 };
 
@@ -439,7 +472,9 @@ rx_print(register const u_char *bp, int length, int sport, int dport,
 
 		if (vflag > 1)
 			for (i = 0; i < NUM_RX_FLAGS; i++) {
-				if (rxh->flags & rx_flags[i].v) {
+				if (rxh->flags & rx_flags[i].flag &&
+				    (!rx_flags[i].packetType ||
+				     rxh->type == rx_flags[i].packetType)) {
 					if (!firstflag) {
 						firstflag = 1;
 						printf(" ");
@@ -638,7 +673,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 #define STROUT(MAX) { unsigned int i; \
 			TCHECK2(bp[0], sizeof(int32_t)); \
 			i = EXTRACT_32BITS(bp); \
-			if (i > MAX) \
+			if (i > (MAX)) \
 				goto trunc; \
 			bp += sizeof(int32_t); \
 			printf(" \""); \
@@ -721,14 +756,17 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
  */
 
 #define VECOUT(MAX) { char *sp; \
+			char s[AFSNAMEMAX]; \
 			int k; \
-			TCHECK2(bp[0], MAX * sizeof(int32_t)); \
+			if ((MAX) + 1 > sizeof(s)) \
+				goto trunc; \
+			TCHECK2(bp[0], (MAX) * sizeof(int32_t)); \
 			sp = s; \
-			for (k = 0; k < MAX; k++) { \
+			for (k = 0; k < (MAX); k++) { \
 				*sp++ = (char) EXTRACT_32BITS(bp); \
 				bp += sizeof(int32_t); \
 			} \
-			s[MAX] = '\0'; \
+			s[(MAX)] = '\0'; \
 			printf(" \""); \
 			fn_print(s, NULL); \
 			printf("\""); \
@@ -812,7 +850,6 @@ fs_print(register const u_char *bp, int length)
 {
 	int fs_op;
 	unsigned long i;
-	char s[AFSNAMEMAX];
 
 	if (length <= sizeof(struct rx_header))
 		return;
@@ -963,7 +1000,6 @@ static void
 fs_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	unsigned long i;
-	char s[AFSNAMEMAX];
 	struct rx_header *rxh;
 
 	if (length <= sizeof(struct rx_header))
@@ -1259,7 +1295,6 @@ static void
 prot_print(register const u_char *bp, int length)
 {
 	unsigned long i;
-	char s[AFSNAMEMAX];
 	int pt_op;
 
 	if (length <= sizeof(struct rx_header))
@@ -1403,7 +1438,6 @@ prot_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 	unsigned long i;
-	char s[AFSNAMEMAX];
 
 	if (length < sizeof(struct rx_header))
 		return;
@@ -1516,7 +1550,6 @@ vldb_print(register const u_char *bp, int length)
 {
 	int vldb_op;
 	unsigned long i;
-	char s[AFSNAMEMAX];
 
 	if (length <= sizeof(struct rx_header))
 		return;
@@ -1610,7 +1643,6 @@ vldb_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 	unsigned long i;
-	char s[AFSNAMEMAX];
 
 	if (length < sizeof(struct rx_header))
 		return;
@@ -1797,7 +1829,6 @@ static void
 kauth_print(register const u_char *bp, int length)
 {
 	int kauth_op;
-	char s[AFSNAMEMAX];
 
 	if (length <= sizeof(struct rx_header))
 		return;
@@ -2024,7 +2055,6 @@ static void
 bos_print(register const u_char *bp, int length)
 {
 	int bos_op;
-	char s[BOSNAMEMAX];
 
 	if (length <= sizeof(struct rx_header))
 		return;

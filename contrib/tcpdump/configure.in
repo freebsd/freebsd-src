@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.132.4.1 2001/01/17 18:29:58 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.145 2002/01/17 05:00:16 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -6,11 +6,11 @@ dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.132.4.1 $)
+AC_REVISION($Revision: 1.145 $)
 AC_PREREQ(2.13)
 AC_INIT(tcpdump.c)
 
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_HOST
 
 AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 AC_C_INLINE
@@ -19,7 +19,7 @@ AC_C___ATTRIBUTE__
 AC_CHECK_HEADERS(fcntl.h rpc/rpcent.h netinet/if_ether.h)
 AC_HEADER_TIME
 
-case "$target_os" in
+case "$host_os" in
 
 linux*)
 	AC_MSG_CHECKING(Linux kernel version)
@@ -47,6 +47,8 @@ esac
 
 AC_CHECK_HEADERS(smi.h)
 AC_CHECK_LIB(smi, smiInit)
+if test "$ac_cv_header_smi_h" = yes -a "$ac_cv_lib_smi_smiInit" = yes
+then
 AC_MSG_CHECKING([whether to enable libsmi])
         AC_TRY_RUN([ /* libsmi available check */
 #include <smi.h>
@@ -69,12 +71,36 @@ main()
 [ AC_MSG_RESULT(yes)
   AC_DEFINE(LIBSMI)
   libsmi=yes],
-[ AC_MSG_RESULT(no)
+dnl autoconf documentation says that $? contains the exit value.
+dnl reality is that it does not.  We leave this in just in case
+dnl autoconf ever comes back to match the documentation.
+[ case $? in
+  1) AC_MSG_RESULT(no - smiInit failed) ;;
+  2) AC_MSG_RESULT(no - header/library version mismatch) ;;
+  3) AC_MSG_RESULT(no - can't determine library version) ;;
+  4) AC_MSG_RESULT(no - too old) ;;
+  *) AC_MSG_RESULT(no) ;;
+  esac
   libsmi=no],
 [ AC_MSG_RESULT(not when cross-compiling)
   libsmi=no]
 )
+fi
 
+AC_MSG_CHECKING([whether to enable the possibly-buggy SMB printer])
+AC_ARG_ENABLE(smb,
+[  --enable-smb            enable possibly-buggy SMB printer [default=yes]
+  --disable-smb           disable possibly-buggy SMB printer],,
+   enableval=yes)
+case "$enableval" in
+yes)	AC_MSG_RESULT(yes)
+	AC_WARN([The SMB printer may have exploitable buffer overflows!!!])
+	AC_DEFINE(TCPDUMP_DO_SMB)
+	LOCALSRC="print-smb.c smbutil.c $LOCALSRC"
+	;;
+*)	AC_MSG_RESULT(no)
+	;;
+esac
 
 CFLAGS="$CFLAGS -Dss_family=__ss_family -Dss_len=__ss_len"
 AC_MSG_CHECKING([whether to enable ipv6])
@@ -450,15 +476,32 @@ if test "$missing_includes" = "yes"; then
 fi
 
 
-AC_REPLACE_FUNCS(vfprintf strcasecmp strlcat strlcpy)
-AC_CHECK_FUNCS(ether_ntohost setlinebuf)
+AC_REPLACE_FUNCS(vfprintf strcasecmp strlcat strlcpy strdup)
+AC_CHECK_FUNCS(ether_ntohost, [
+    AC_CACHE_CHECK(for buggy ether_ntohost, ac_cv_buggy_ether_ntohost, [
+	AC_TRY_RUN([
+		#include <netdb.h>
+		#include <sys/types.h>
+		#include <sys/param.h>
+		#include <sys/socket.h>
 
-usegetipnodeby=yes
-AC_CHECK_FUNCS(getipnodebyname getipnodebyaddr freeaddrinfo,
-	[], [usegetipnodeby=no])
-if test $usegetipnodeby = yes; then
-	AC_DEFINE(USE_GETIPNODEBY)
-fi
+		int
+		main(int argc, char **argv)
+		{
+			u_char ea[6] = { 0xff, 0xff, 0xff, 0xff, 0xff };
+			char name[MAXHOSTNAMELEN];
+
+			ether_ntohost(name, (struct ether_addr *)ea);
+			exit(0);
+		}
+	], [ac_cv_buggy_ether_ntohost=no],
+	   [ac_cv_buggy_ether_ntohost=yes],
+	   [ac_cv_buggy_ether_ntohost=not while cross-compiling])])
+    if test "$ac_cv_buggy_ether_ntohost" = "no"; then
+	AC_DEFINE(USE_ETHER_NTOHOST)
+    fi
+])
+AC_CHECK_FUNCS(setlinebuf)
 
 needsnprintf=no
 AC_CHECK_FUNCS(vsnprintf snprintf,,
@@ -467,18 +510,17 @@ if test $needsnprintf = yes; then
 	LIBOBJS="$LIBOBJS snprintf.o"
 fi
 
-dnl The following generates a warning from autoconf...
-errprint(__file__:__line__: please ignore the next warning:
-)dnl
-AC_C_BIGENDIAN
+AC_LBL_TYPE_SIGNAL
 
-AC_CHECK_LIB(dnet, main)
-AC_CHECK_LIB(rpc, main)
-AC_CHECK_LIB(nsl, getrpcbynumber)
+AC_CHECK_LIB(dnet, dnet_htoa)
+
+AC_CHECK_LIB(rpc, main)		dnl It's unclear why we might need -lrpc
+
+dnl HP/UX may need -lnsl for getrpcbynumber.
+AC_SEARCH_LIBS(getrpcbynumber, nsl)
+
 dnl AC_CHECK_LIB(z, uncompress)
 dnl AC_CHECK_HEADERS(zlib.h)
-
-AC_LBL_TYPE_SIGNAL
 
 AC_LBL_LIBPCAP(V_PCAPDEP, V_INCLS)
 
@@ -488,7 +530,7 @@ V_GROUP=0
 if test -f /etc/group -a ! -z "`grep '^wheel:' /etc/group`" ; then
 	V_GROUP=wheel
 fi
-case "$target_os" in
+case "$host_os" in
 
 aix*)
 	dnl Workaround to enable certain features
@@ -535,11 +577,7 @@ for dir in /usr /usr/local /usr/local/ssl /usr/pkg; do
 	if test -d $dir/lib -a -f $dir/lib/libcrypto.a; then
 		ac_cv_ssleay_path=$dir
 	fi
-	if test -d $dir/include/ssleay -a -f $dir/include/ssleay/des.h; then
-	  incdir="-I$dir/include/ssleay"
-	elif test -d $dir/include/openssl -a -f $dir/include/openssl/des.h; then
-   	  incdir="-I$dir/include -I$dir/include/openssl"
-	elif test -d $dir/include -a -f $dir/include/des.h; then
+	if test -d $dir/include/openssl -a -f $dir/include/openssl/des.h; then
 		incdir="-I$dir/include"
 	fi
 	if test "$ac_cv_ssleay_path" != "no" -a "$incdir" != "no"; then

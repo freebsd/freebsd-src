@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/nameser.h,v 1.5 2000/12/28 20:30:41 itojun Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/nameser.h,v 1.9 2001/06/27 05:40:16 guy Exp $ (LBL) */
 /*
  * Copyright (c) 1983, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -96,6 +96,23 @@
 #define ZONEREF		0xf		/* incremental zone referesh */
 
 /*
+ * Undefine various #defines from various System V-flavored OSes (Solaris,
+ * SINIX, HP-UX) so the compiler doesn't whine that we redefine them.
+ */
+#ifdef T_NULL
+#undef T_NULL
+#endif
+#ifdef T_OPT
+#undef T_OPT
+#endif
+#ifdef T_UNSPEC
+#undef T_UNSPEC
+#endif
+#ifdef NOERROR
+#undef NOERROR
+#endif
+
+/*
  * Currently defined response codes
  */
 #define NOERROR		0		/* no error */
@@ -128,14 +145,36 @@
 #define T_TXT		16		/* text strings */
 #define	T_RP		17		/* responsible person */
 #define	T_AFSDB		18		/* AFS cell database */
+#define T_X25		19		/* X_25 calling address */
+#define T_ISDN		20		/* ISDN calling address */
+#define T_RT		21		/* router */
 #define	T_NSAP		22		/* NSAP address */
 #define	T_NSAP_PTR	23		/* reverse lookup for NSAP */
+#define T_SIG		24		/* security signature */
+#define T_KEY		25		/* security key */
+#define T_PX		26		/* X.400 mail mapping */
+#define T_GPOS		27		/* geographical position (withdrawn) */
+#define T_AAAA		28		/* IP6 Address */
+#define T_LOC		29		/* Location Information */
+#define T_NXT		30		/* Next Valid Name in Zone */
+#define T_EID		31		/* Endpoint identifier */
+#define T_NIMLOC	32		/* Nimrod locator */
+#define T_SRV		33		/* Server selection */
+#define T_ATMA		34		/* ATM Address */
+#define T_NAPTR		35		/* Naming Authority PoinTeR */
+#define T_A6		38		/* IP6 address */
+#define T_DNAME		39		/* non-terminal redirection */
+#define T_OPT		41		/* EDNS0 option (meta-RR) */
 	/* non standard */
 #define T_UINFO		100		/* user (finger) information */
 #define T_UID		101		/* user ID */
 #define T_GID		102		/* group ID */
 #define T_UNSPEC	103		/* Unspecified format (binary data) */
+#define T_UNSPECA	104		/* "unspecified ascii". Ugly MIT hack */
 	/* Query type values which do not appear in resource records */
+#define T_TKEY		249		/* Transaction Key [RFC2930] */
+#define T_TSIG		250		/* Transaction Signature [RFC2845] */
+#define T_IXFR		251		/* incremental transfer [RFC1995] */
 #define T_AXFR		252		/* transfer zone of authority */
 #define T_MAILB		253		/* transfer mailbox records */
 #define T_MAILA		254		/* transfer mail agent records */

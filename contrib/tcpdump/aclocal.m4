@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.73 2001/01/02 22:18:27 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.80 2001/12/10 08:41:15 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996, 1997, 1998
 dnl	The Regents of the University of California.  All rights reserved.
@@ -57,7 +57,7 @@ AC_DEFUN(AC_LBL_C_INIT,
 	    LBL_CFLAGS="$CFLAGS"
     fi
     if test -z "$CC" ; then
-	    case "$target_os" in
+	    case "$host_os" in
 
 	    bsdi*)
 		    AC_CHECK_PROG(SHLICC2, shlicc2, yes, no)
@@ -100,7 +100,7 @@ AC_DEFUN(AC_LBL_C_INIT,
 		    ac_cv_lbl_cc_ansi_prototypes=no))
 	    AC_MSG_RESULT($ac_cv_lbl_cc_ansi_prototypes)
 	    if test $ac_cv_lbl_cc_ansi_prototypes = no ; then
-		    case "$target_os" in
+		    case "$host_os" in
 
 		    hpux*)
 			    AC_MSG_CHECKING(for HP-UX ansi compiler ($CC -Aa -D_HPUX_SOURCE))
@@ -129,14 +129,14 @@ AC_DEFUN(AC_LBL_C_INIT,
 	    $2="$$2 -I/usr/local/include"
 	    LDFLAGS="$LDFLAGS -L/usr/local/lib"
 
-	    case "$target_os" in
+	    case "$host_os" in
 
 	    irix*)
-		    V_CCOPT="$V_CCOPT -xansi -signed -g3"
+		    V_CCOPT="$V_CCOPT -xansi -signed -O"
 		    ;;
 
 	    osf*)
-		    V_CCOPT="$V_CCOPT -std1 -g3"
+		    V_CCOPT="$V_CCOPT -std1 -O"
 		    ;;
 
 	    ultrix*)
@@ -214,17 +214,19 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 	    fi
     else
 	    $1=$libpcap
+	    places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
+    	 		egrep '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
 	    if test -r $d/pcap.h; then
 		    $2="-I$d $$2"
-	    elif test -r $srcdir/../libpcap/pcap.h; then
-		    $2="-I$d -I$srcdir/../libpcap $$2"
+	    elif test -r $places/pcap.h; then
+		    $2="-I$places $$2"
 	    else
                     AC_MSG_ERROR(cannot find pcap.h, see INSTALL)
  	    fi
 	    AC_MSG_RESULT($libpcap)
     fi
     LIBS="$libpcap $LIBS"
-    case "$target_os" in
+    case "$host_os" in
 
     aix*)
 	    pseexe="/lib/pse.exp"
@@ -256,7 +258,7 @@ AC_DEFUN(AC_LBL_TYPE_SIGNAL,
     else
 	    AC_DEFINE(RETSIGVAL,(0))
     fi
-    case "$target_os" in
+    case "$host_os" in
 
     irix*)
 	    AC_DEFINE(_BSD_SIGNALS)
@@ -489,10 +491,10 @@ dnl
 AC_DEFUN(AC_LBL_UNALIGNED_ACCESS,
     [AC_MSG_CHECKING(if unaligned accesses fail)
     AC_CACHE_VAL(ac_cv_lbl_unaligned_fail,
-	[case "$target_cpu" in
+	[case "$host_cpu" in
 
 	# XXX: should also check that they don't do weird things (like on arm)
-	alpha*|arm*|hp*|mips|sparc)
+	alpha*|arm*|hp*|mips*|sparc*|ia64)
 		ac_cv_lbl_unaligned_fail=yes
 		;;
 
@@ -577,7 +579,7 @@ AC_DEFUN(AC_LBL_DEVEL,
 			    fi
 		    fi
 	    else
-		    case "$target_os" in
+		    case "$host_os" in
 
 		    irix6*)
 			    V_CCOPT="$V_CCOPT -n32"
@@ -587,7 +589,7 @@ AC_DEFUN(AC_LBL_DEVEL,
 			    ;;
 		    esac
 	    fi
-	    os=`echo $target_os | sed -e 's/\([[0-9]][[0-9]]*\)[[^0-9]].*$/\1/'`
+	    os=`echo $host_os | sed -e 's/\([[0-9]][[0-9]]*\)[[^0-9]].*$/\1/'`
 	    name="lbl/os-$os.h"
 	    if test -f $name ; then
 		    ln -s $name os-proto.h
@@ -614,10 +616,11 @@ dnl
 
 define(AC_LBL_CHECK_LIB,
 [AC_MSG_CHECKING([for $2 in -l$1])
-dnl Use a cache variable name containing both the library and function name,
-dnl because the test really is for library $1 defining function $2, not
-dnl just for library $1.  Separate tests with the same $1 and different $2's
-dnl may have different results.
+dnl Use a cache variable name containing the library, function
+dnl name, and extra libraries to link with, because the test really is
+dnl for library $1 defining function $2, when linked with potinal
+dnl library $5, not just for library $1.  Separate tests with the same
+dnl $1 and different $2's or $5's may have different results.
 ac_lib_var=`echo $1['_']$2['_']$5 | sed 'y%./+- %__p__%'`
 AC_CACHE_VAL(ac_cv_lbl_lib_$ac_lib_var,
 [ac_save_LIBS="$LIBS"
@@ -693,23 +696,20 @@ dnl
 AC_DEFUN(AC_LBL_LIBRARY_NET, [
     # Most operating systems have gethostbyname() in the default searched
     # libraries (i.e. libc):
-    AC_CHECK_FUNC(gethostbyname, ,
-	# Some OSes (eg. Solaris) place it in libnsl:
-	AC_LBL_CHECK_LIB(nsl, gethostbyname, , 
-	    # Some strange OSes (SINIX) have it in libsocket:
-	    AC_LBL_CHECK_LIB(socket, gethostbyname, ,
-		# Unfortunately libsocket sometimes depends on libnsl.
-		# AC_CHECK_LIB's API is essentially broken so the
-		# following ugliness is necessary:
-		AC_LBL_CHECK_LIB(socket, gethostbyname,
-		    LIBS="-lsocket -lnsl $LIBS",
-		    AC_CHECK_LIB(resolv, gethostbyname),
-		    -lnsl))))
-    AC_CHECK_FUNC(socket, , AC_CHECK_LIB(socket, socket, ,
-	AC_LBL_CHECK_LIB(socket, socket, LIBS="-lsocket -lnsl $LIBS", ,
-	    -lnsl)))
+    # Some OSes (eg. Solaris) place it in libnsl
+    # Some strange OSes (SINIX) have it in libsocket:
+    AC_SEARCH_LIBS(gethostbyname, nsl socket resolv)
+    # Unfortunately libsocket sometimes depends on libnsl and
+    # AC_SEARCH_LIBS isn't up to the task of handling dependencies like this.
+    if test "$ac_cv_search_gethostbyname" = "no"
+    then
+	AC_CHECK_LIB(socket, gethostbyname,
+                     LIBS="-lsocket -lnsl $LIBS", , -lnsl)
+    fi
+    AC_SEARCH_LIBS(socket, socket, ,
+	AC_CHECK_LIB(socket, socket, LIBS="-lsocket -lnsl $LIBS", , -lnsl))
     # DLPI needs putmsg under HPUX so test for -lstr while we're at it
-    AC_CHECK_LIB(str, putmsg)
+    AC_SEARCH_LIBS(putmsg, str)
     ])
 
 dnl Copyright (c) 1999 WIDE Project. All rights reserved.

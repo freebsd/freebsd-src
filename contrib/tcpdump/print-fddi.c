@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.50 2000/12/23 20:48:13 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.53 2001/11/14 16:46:34 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -52,7 +52,7 @@ static const char rcsid[] =
 /*
  * Some FDDI interfaces use bit-swapped addresses.
  */
-#if defined(ultrix) || defined(__alpha) || defined(__bsdi) || defined(__NetBSD__)
+#if defined(ultrix) || defined(__alpha) || defined(__bsdi) || defined(__NetBSD__) || defined(__linux__)
 int	fddi_bitswap = 0;
 #else
 int	fddi_bitswap = 1;
@@ -210,8 +210,8 @@ extract_fddi_addrs(const struct fddi_header *fddip, char *fsrc, char *fdst)
 			fsrc[i] = fddi_bit_swap[fddip->fddi_shost[i]];
 	}
 	else {
-		memcpy(fdst, (char *)fddip->fddi_dhost, 6);
-		memcpy(fsrc, (char *)fddip->fddi_shost, 6);
+		memcpy(fdst, (const char *)fddip->fddi_dhost, 6);
+		memcpy(fsrc, (const char *)fddip->fddi_shost, 6);
 	}
 }
 
@@ -222,7 +222,7 @@ static inline void
 fddi_print(register const struct fddi_header *fddip, register u_int length,
 	   register const u_char *fsrc, register const u_char *fdst)
 {
-	char *srcname, *dstname;
+	const char *srcname, *dstname;
 
 	srcname = etheraddr_string(fsrc);
 	dstname = etheraddr_string(fdst);
@@ -258,10 +258,11 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
-	const struct fddi_header *fddip = (struct fddi_header *)p;
+	const struct fddi_header *fddip = (const struct fddi_header *)p;
 	struct ether_header ehdr;
 	u_short extracted_ethertype;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	if (caplen < FDDI_HDRLEN) {
@@ -328,4 +329,7 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 		default_print(p, caplen);
 out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }

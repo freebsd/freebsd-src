@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-cnfp.c,v 1.6 2000/09/23 08:26:32 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-cnfp.c,v 1.8 2001/09/17 21:57:58 fenner Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -78,8 +78,8 @@ struct nfrec {
 	u_int32_t	ports;		/* src,dst ports */
 	u_int32_t	proto_tos;	/* proto, tos, pad, flags(v5) */
 	u_int32_t	asses;		/* v1: flags; v5: src,dst AS */
-	u_int32_t	masks;		/* src,dst addr prefix */
-
+	u_int32_t	masks;		/* src,dst addr prefix; v6: encaps */
+	struct in_addr	peer_nexthop;	/* v6: IP address of the nexthop within the peer (FIB)*/
 };
 
 void
@@ -92,10 +92,10 @@ cnfp_print(const u_char *cp, u_int len, const u_char *bp)
 	int nrecs, ver;
 	time_t t;
 
-	ip = (struct ip *)bp;
-	nh = (struct nfhdr *)cp;
+	ip = (const struct ip *)bp;
+	nh = (const struct nfhdr *)cp;
 
-	if ((u_char *)(nh + 1) > snapend)
+	if ((const u_char *)(nh + 1) > snapend)
 		return;
 
 	nrecs = ntohl(nh->ver_cnt) & 0xffff;
@@ -108,18 +108,18 @@ cnfp_print(const u_char *cp, u_int len, const u_char *bp)
 	       (unsigned)ntohl(nh->msys_uptime)%1000,
 	       (unsigned)ntohl(nh->utc_sec), (unsigned)ntohl(nh->utc_nsec));
 
-	if (ver == 5) {
+	if (ver == 5 || ver == 6) {
 		printf("#%u, ", (unsigned)htonl(nh->sequence));
-		nr = (struct nfrec *)&nh[1];
+		nr = (const struct nfrec *)&nh[1];
 		snaplen -= 24;
 	} else {
-		nr = (struct nfrec *)&nh->sequence;
+		nr = (const struct nfrec *)&nh->sequence;
 		snaplen -= 16;
 	}
 
 	printf("%2u recs", nrecs);
 
-	for (; nrecs-- && (u_char *)(nr + 1) <= snapend; nr++) {
+	for (; nrecs-- && (const u_char *)(nr + 1) <= snapend; nr++) {
 		char buf[20];
 		char asbuf[20];
 
@@ -130,19 +130,19 @@ cnfp_print(const u_char *cp, u_int len, const u_char *bp)
 		       (unsigned)ntohl(nr->last_time)%1000);
 
 		asbuf[0] = buf[0] = '\0';
-		if (ver == 5) {
+		if (ver == 5 || ver == 6) {
 			snprintf(buf, sizeof(buf), "/%u",
 				 (unsigned)(ntohl(nr->masks) >> 24) & 0xff);
-			snprintf(asbuf, sizeof(asbuf), "%u:",
+			snprintf(asbuf, sizeof(asbuf), ":%u",
 				 (unsigned)(ntohl(nr->asses) >> 16) & 0xffff);
 		}
 		printf("\n    %s%s%s:%u ", inet_ntoa(nr->src_ina), buf, asbuf,
 			(unsigned)ntohl(nr->ports) >> 16);
 
-		if (ver == 5) {
+		if (ver == 5 || ver ==6) {
 			snprintf(buf, sizeof(buf), "/%d",
 				 (unsigned)(ntohl(nr->masks) >> 16) & 0xff);
-			snprintf(asbuf, sizeof(asbuf), "%u:",
+			snprintf(asbuf, sizeof(asbuf), ":%u",
 				 (unsigned)ntohl(nr->asses) & 0xffff);
 		}
 		printf("> %s%s%s:%u ", inet_ntoa(nr->dst_ina), buf, asbuf,
@@ -173,9 +173,16 @@ cnfp_print(const u_char *cp, u_int len, const u_char *bp)
 			if (flags)
 				putchar(' ');
 		}
-		printf("tos %u, %u (%u octets)",
+
+		buf[0]='\0';
+		if (ver == 6) {
+			snprintf(buf, sizeof(buf), "(%u<>%u encaps)",
+				 (unsigned)(ntohl(nr->masks) >> 8) & 0xff,
+				 (unsigned)(ntohl(nr->masks)) & 0xff);
+		}
+		printf("tos %u, %u (%u octets) %s",
 		       (unsigned)ntohl(nr->proto_tos) & 0xff,
 		       (unsigned)ntohl(nr->packets),
-		       (unsigned)ntohl(nr->octets));
+		       (unsigned)ntohl(nr->octets), buf);
 	}
 }
