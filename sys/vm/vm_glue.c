@@ -511,12 +511,12 @@ faultin(p)
 
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
+		p->p_sflag &= ~PS_SWAPPINGIN;
+		p->p_sflag |= PS_INMEM;
 		FOREACH_THREAD_IN_PROC (p, td)
 			if (td->td_state == TDS_SWAPPED)
 				setrunqueue(td);
 
-		p->p_sflag &= ~PS_SWAPPINGIN;
-		p->p_sflag |= PS_INMEM;
 		wakeup(&p->p_sflag);
 
 		/* undo the effect of setting SLOCK above */
@@ -671,32 +671,42 @@ retry:
 		struct vmspace *vm;
 		int minslptime = 100000;
 		
+		/*
+		 * Do not swapout a process that
+		 * is waiting for VM data
+		 * structures there is a possible
+		 * deadlock.  Test this first as
+		 * this may block.
+		 *
+		 * Lock the map until swapout
+		 * finishes, or a thread of this
+		 * process may attempt to alter
+		 * the map.
+		 */
+		vm = p->p_vmspace;
+		++vm->vm_refcnt;
+		if (!vm_map_trylock(&vm->vm_map))
+			goto nextproc1;
+
 		PROC_LOCK(p);
 		if (p->p_lock != 0 ||
 		    (p->p_flag & (P_STOPPED_SNGL|P_TRACED|P_SYSTEM|P_WEXIT)) != 0) {
-			PROC_UNLOCK(p);
-			continue;
+			goto nextproc2;
 		}
 		/*
 		 * only aiod changes vmspace, however it will be
 		 * skipped because of the if statement above checking 
 		 * for P_SYSTEM
 		 */
-		vm = p->p_vmspace;
 		mtx_lock_spin(&sched_lock);
-		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING|PS_SWAPPINGIN)) != PS_INMEM) {
-			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			continue;
-		}
+		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING|PS_SWAPPINGIN)) != PS_INMEM)
+			goto nextproc;
 
 		switch (p->p_state) {
 		default:
 			/* Don't swap out processes in any sort
 			 * of 'special' state. */
-			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			continue;
+			goto nextproc;
 
 		case PRS_NORMAL:
 			/*
@@ -704,39 +714,29 @@ retry:
 			 * Check all the thread groups..
 			 */
 			FOREACH_KSEGRP_IN_PROC(p, kg) {
-				if (PRI_IS_REALTIME(kg->kg_pri_class)) {
-					mtx_unlock_spin(&sched_lock);
-					PROC_UNLOCK(p);
+				if (PRI_IS_REALTIME(kg->kg_pri_class))
 					goto nextproc;
-				}
 
 				/*
-				 * Do not swapout a process waiting
-				 * on a critical event of some kind. 
-				 * Also guarantee swap_idle_threshold1
+				 * Guarantee swap_idle_threshold1
 				 * time in memory.
 				 */
-				if (kg->kg_slptime < swap_idle_threshold1) {
-					mtx_unlock_spin(&sched_lock);
-					PROC_UNLOCK(p);
+				if (kg->kg_slptime < swap_idle_threshold1)
 					goto nextproc;
-				}
+
 				/*
-				 * Do not swapout a process if there is
-				 * a thread whose pageable memory may
-				 * be accessed.
+				 * Do not swapout a process if it is
+				 * waiting on a critical event of some
+				 * kind or there is a thread whose
+				 * pageable memory may be accessed.
 				 *
 				 * This could be refined to support
 				 * swapping out a thread.
 				 */
-				FOREACH_THREAD_IN_PROC(p, td) {
+				FOREACH_THREAD_IN_GROUP(kg, td) {
 					if ((td->td_priority) < PSOCK ||
-					    !(td->td_state == TDS_SLP ||
-					     td->td_state == TDS_RUNQ)) {
-						mtx_unlock_spin(&sched_lock);
-						PROC_UNLOCK(p);
+					    !thread_safetoswapout(td))
 						goto nextproc;
-					}
 				}
 				/*
 				 * If the system is under memory stress,
@@ -746,29 +746,13 @@ retry:
 				 */
 				if (((action & VM_SWAP_NORMAL) == 0) &&
 				    (((action & VM_SWAP_IDLE) == 0) ||
-				    (kg->kg_slptime < swap_idle_threshold2))) {
-					mtx_unlock_spin(&sched_lock);
-					PROC_UNLOCK(p);
+				    (kg->kg_slptime < swap_idle_threshold2)))
 					goto nextproc;
-				}
+
 				if (minslptime > kg->kg_slptime)
 					minslptime = kg->kg_slptime;
 			}
 
-			mtx_unlock_spin(&sched_lock);
-			++vm->vm_refcnt;
-			/*
-			 * do not swapout a process that
-			 * is waiting for VM
-			 * data structures there is a
-			 * possible deadlock.
-			 */
-			if (!vm_map_trylock(&vm->vm_map)) {
-				vmspace_free(vm);
-				PROC_UNLOCK(p);
-				goto nextproc;
-			}
-			vm_map_unlock(&vm->vm_map);
 			/*
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
@@ -776,16 +760,27 @@ retry:
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
 				 (minslptime > swap_idle_threshold2))) {
-				sx_sunlock(&allproc_lock);
 				swapout(p);
-				vmspace_free(vm);
 				didswap++;
+
+				/*
+				 * swapout() unlocks a proc lock. This is
+				 * ugly, but avoids superfluous lock.
+				 */
+				mtx_unlock_spin(&sched_lock);
+				vm_map_unlock(&vm->vm_map);
+				vmspace_free(vm);
+				sx_sunlock(&allproc_lock);
 				goto retry;
 			}
-			PROC_UNLOCK(p);
-			vmspace_free(vm);
 		}
 nextproc:
+		mtx_unlock_spin(&sched_lock);
+nextproc2:
+		PROC_UNLOCK(p);
+		vm_map_unlock(&vm->vm_map);
+nextproc1:
+		vmspace_free(vm);
 		continue;
 	}
 	sx_sunlock(&allproc_lock);
@@ -804,23 +799,30 @@ swapout(p)
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 #if defined(SWAP_DEBUG)
 	printf("swapping out %d\n", p->p_pid);
 #endif
-	mtx_lock_spin(&sched_lock);
 
+	/*
+	 * The states of this process and its threads may have changed
+	 * by now.  Assuming that there is only one pageout daemon thread,
+	 * this process should still be in memory.
+	 */
+	KASSERT((p->p_sflag & (PS_INMEM|PS_SWAPPING|PS_SWAPPINGIN)) == PS_INMEM,
+		("swapout: lost a swapout race?"));
+
+#if defined(INVARIANTS)
 	/*
 	 * Make sure that all threads are safe to be swapped out.
 	 *
 	 * Alternatively, we could swap out only safe threads.
 	 */
 	FOREACH_THREAD_IN_PROC(p, td) {
-		if (!(td->td_state == TDS_SLP ||
-		     td->td_state == TDS_RUNQ)) {
-			mtx_unlock_spin(&sched_lock);
-			return;
-		}
+		KASSERT(thread_safetoswapout(td),
+			("swapout: there is a thread not safe for swapout"));
 	}
+#endif /* INVARIANTS */
 
 	++p->p_stats->p_ru.ru_nswap;
 	/*
@@ -828,14 +830,14 @@ swapout(p)
 	 */
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
-	p->p_sflag &= ~PS_INMEM;
-	p->p_sflag |= PS_SWAPPING;
 	PROC_UNLOCK(p);
 	FOREACH_THREAD_IN_PROC (p, td)
 		if (td->td_state == TDS_RUNQ) {	/* XXXKSE */
 			remrunqueue(td);	/* XXXKSE */
 			td->td_state = TDS_SWAPPED;
 		}
+	p->p_sflag &= ~PS_INMEM;
+	p->p_sflag |= PS_SWAPPING;
 	mtx_unlock_spin(&sched_lock);
 
 	vm_proc_swapout(p);
@@ -844,6 +846,5 @@ swapout(p)
 	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_SWAPPING;
 	p->p_swtime = 0;
-	mtx_unlock_spin(&sched_lock);
 }
 #endif /* !NO_SWAPPING */
