@@ -19,9 +19,11 @@ SIZE?=		size
 .if ${CC} == "icc"
 COPTFLAGS?=-O
 .else
-. if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "sparc64"
+. if ${MACHINE_ARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
 . elif ${MACHINE_ARCH} == "ia64"
+COPTFLAGS?=-O2 -pipe
+. elif ${MACHINE_ARCH} == "sparc64"
 COPTFLAGS?=-O2 -pipe
 . else
 COPTFLAGS?=-O -pipe
