@@ -142,6 +142,8 @@ mode_t	 getmode __P((const void *, mode_t));
 int	 getpagesize __P((void)) __pure2;
 char	*getpass __P((const char *));
 int	 getpgid __P((pid_t _pid));
+int	 getresgid __P((gid_t *, gid_t *, gid_t *));
+int	 getresuid __P((uid_t *, uid_t *, uid_t *));
 int	 getsid __P((pid_t _pid));
 char	*getusershell __P((void));
 char	*getwd __P((char *));			/* obsoleted by getcwd() */
@@ -186,6 +188,8 @@ int	 setlogin __P((const char *));
 void	*setmode __P((const char *));
 int	 setpgrp __P((pid_t _pid, pid_t _pgrp)); /* obsoleted by setpgid() */
 int	 setregid __P((gid_t, gid_t));
+int	 setresgid __P((gid_t, gid_t, gid_t));
+int	 setresuid __P((uid_t, uid_t, uid_t));
 int	 setreuid __P((uid_t, uid_t));
 int	 setrgid __P((gid_t));
 int	 setruid __P((uid_t));
