@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pw_copy.c	8.4 (Berkeley) 4/2/94";
+static const char sccsid[] = "@(#)pw_copy.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 /*
@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)pw_copy.c	8.4 (Berkeley) 4/2/94";
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <pw_util.h>
 #include "pw_copy.h"
