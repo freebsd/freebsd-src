@@ -1,6 +1,6 @@
-<!-- $Id: policies.sgml,v 1.7 1997/02/22 13:01:34 peter Exp $ -->
+<!-- $Id: policies.sgml,v 1.8 1997/02/25 04:57:30 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.11 -->
+<!-- Original revision: 1.12 -->
 
 <chapt><heading>ソースツリーのガイドラインおよび方針
 <label id="policies">
@@ -151,6 +151,57 @@ CVS に寄贈ソフトウェアを取り込む際には, 事故があってはいけません.
  <item> オリジナルの作者にパッチを送り返すためには, どこに送ればよいか
  <item> FreeBSD に特化した変更点の概要
 </itemize>
+
+<p>しかしながら, 寄贈ソースと一緒に README.FreeBSD ファイルを
+取り込まないでください.
+それよりむしろ, (訳注:このファイルを)初回に取り込んだ後は,
+コマンド ``cvs add README.FreeBSD ; cvs ci'' を実行してください.
+``src/contrib/cpio'' を例にすると, 次のようになります:
+
+<verb>このディレクトリは「ベンダ」ブランチ上のオリジナル配布ファイル
+の初期ソースが含まれています. いかなる事情があっても, 
+パッチや cvs コミットによってこのディレクトリ上のファイルを
+アップグレードしてはいけません.
+(訳注:ベンダから配布された)新しいバージョンや公式パッチだけが
+(訳注:このディレクトリに)取り込まれなくてはいけません.
+
+GNU cpio 2.4.2 を取り込むためには, 以下のファイルが削除されました:
+
+        INSTALL         cpio.info       mkdir.c
+        Makefile.in     cpio.texi       mkinstalldirs
+
+cpio を新しいバージョンにアップデートするためには, 次の作業を
+おこないます:
+
+        1. 空のディレクトリに新しいバージョンを取り出します.
+           [ファイルに「いかなる変更」も加えてはいけません]
+
+        2. 上記にリストされたファイルと, FreeBSD には無意味な
+           ファイルを削除します.
+
+        3. 次のコマンドを実行します:
+                cvs import -m 'Virgin import of GNU cpio v<version>' \
+                        src/contrib/cpio GNU v<version>
+
+           例えば, バージョン 2.4.2 を取り込むためには, 次のように
+           タイプします:
+                cvs import -m 'Virgin import of GNU v2.4.2' \
+                        src/contrib/cpio GNU v2.4.2
+
+        4. FreeBSD に対するローカルな変更と, 新しいバージョンとの間での
+           矛盾を解消するために, ステップ 3 で出力された命令を実行します.
+
+いかなる事情があっても, この手順から外れてはいけません.
+
+cpio にローカルな変更を加えたい場合には, メインブランチ(別名 HEAD)に対して
+パッチを実行し, コミットしてください.
+決して GNU のブランチにローカルな変更を加えないでください.
+
+ローカルにおこなわれたすべての変更を次のリリースに含めるために,
+"cpio@gnu.ai.mit.edu" に提出してください.
+
+obrien@freebsd.org - 30 March 1997</verb>
+
 
 <sect><heading>共有ライブラリ
 <label id="policies:shlib">
