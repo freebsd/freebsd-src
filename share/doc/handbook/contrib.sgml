@@ -65,20 +65,21 @@
     <p>(in alphabetical order by last name):
 
       <itemize>
-	<item>&a.asami
-	<item>&a.ache
-	<item>&a.dyson
-	<item>&a.bde
-	<item>&a.gibbs
-	<item>&a.davidg
-	<item>&a.jkh
-	<item>&a.phk
-	<item>&a.rich
-	<item>&a.gpalmer
-	<item>&a.sos
-	<item>&a.peter
-	<item>&a.wollman
-	<item>&a.joerg
+	<item>&a.asami;
+	<item>&a.ache;
+	<item>&a.dyson;
+	<item>&a.bde;
+	<item>&a.gibbs;
+	<item>&a.davidg;
+	<item>&a.jkh;
+	<item>&a.phk;
+	<item>&a.rich;
+	<item>&a.gpalmer;
+	<item>&a.jdp;
+	<item>&a.sos;
+	<item>&a.peter;
+	<item>&a.wollman;
+	<item>&a.joerg;
       </itemize>
 
   <sect><heading>The FreeBSD Developers<label id="contrib:committers"></heading>
@@ -126,7 +127,6 @@
 	<item>&a.smpatel;
         <item>&a.wpaul; 
         <item>&a.jmacd; 
-        <item>&a.jdp;
         <item>&a.steve; 
         <item>&a.mpp;
         <item>&a.dfr;  
