@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.40 1995/05/18 02:59:20 davidg Exp $
+ * $Id: swap_pager.c,v 1.41 1995/05/30 08:15:55 rgrimes Exp $
  */
 
 /*
@@ -1077,7 +1077,6 @@ swap_pager_input(swp, m, count, reqpage)
 	bp->b_bufsize = PAGE_SIZE * count;
 
 	pbgetvp(swapdev_vp, bp);
-	swp->sw_piip++;
 
 	cnt.v_swapin++;
 	cnt.v_swappgsin += count;
@@ -1101,11 +1100,6 @@ swap_pager_input(swp, m, count, reqpage)
 	} else {
 		rv = VM_PAGER_OK;
 	}
-
-	--swp->sw_piip;
-	if (swp->sw_piip == 0)
-		wakeup((caddr_t) swp);
-
 
 	/*
 	 * relpbuf does this, but we maintain our own buffer list also...
