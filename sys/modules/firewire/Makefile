@@ -3,6 +3,6 @@
 SUBDIR =
 SUBDIR += firewire
 SUBDIR += sbp
-#SUBDIR += fwe
+SUBDIR += fwe
 
 .include <bsd.subdir.mk>
