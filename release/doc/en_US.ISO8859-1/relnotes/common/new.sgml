@@ -129,7 +129,7 @@
     <para>The kernel message buffer is now accessible by the
     (machine-independent) <varname>kern.msgbuf</varname> sysctl
     variable; &man.dmesg.8; no longer needs to be SGID
-    <groupname>kmem</groupname>.</para>
+    <groupname>kmem</groupname>. &merged;</para>
 
     <para>The &man.kqueue.2; event notification facility was added to
     the &os; kernel.  This is a new interface which is able to
@@ -260,13 +260,13 @@
 
     <para arch="i386">The umodem driver for USB modems has been added.
     Support is provided for the 3Com 5605 and Metricom Ricochet GS
-    wireless USB modems.</para>
+    wireless USB modems. &merged;</para>
 
     <para arch="i386">The &man.uscanner.4; driver for basic USB scanner support
     using SANE has been added. See <ulink
     url="http://www.mostang.com/sane/">the SANE home page</ulink> for
     supported scanners. The HP ScanJet 4100C, 5200C and 6300C are
-    known to be working.</para>
+    known to be working. &merged;</para>
 
     <para>The <literal>USER_LDT</literal> kernel option is now
     activated by default.</para>
@@ -285,9 +285,6 @@
 
     <para arch="alpha">Support for threads under Linux emulation has been
     added.</para>
-
-    <para>A number of cleanups and enhancements have been applied to
-    the PCI subsystem.</para>
 
     <para>The <maketarget>buildkernel</maketarget> target now gets the
     name of the configuration(s) to build from the
@@ -560,7 +557,7 @@
       PC-Cards has been added back in the &man.fe.4; driver. &merged;</para>
 
       <para arch="alpha">The &man.fpa.4; driver now supports Digital's
-      DEFPA FDDI adaptors on the Alpha.</para>
+      DEFPA FDDI adaptors on the Alpha. &merged;</para>
 
       <para>The &man.fxp.4; driver now requires a <literal>device
       miibus</literal> entry in the kernel configuration file. &merged;</para>
@@ -713,7 +710,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-s</option> option.  The <literal>only</literal> keyword
       has been added to the <option>-s</option> and
       <option>-S</option> flags, to be used in creating
-      <quote>proxy-only</quote> published entries.</para>
+      <quote>proxy-only</quote> published entries. &merged;</para>
 
       <para>The read timeout feature of &man.bpf.4; now works more
       correctly with &man.select.2;/&man.poll.2;, and therefore with
@@ -744,8 +741,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.ipfw.4; now filters correctly in the presence of ECN bits in TCP
       segments. &merged;</para>
-
-      <para>&man.netgraph.4; has received some updates and bugfixes.</para>
 
       <para>A new &man.ng.eth.4; netgraph node allows Ethernet type
       packets to be filtered to different hooks depending on
@@ -800,7 +795,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       faster. &merged;</para>
 
       <para>The <literal>TCP_COMPAT_42</literal> kernel option has
-      been removed.</para>
+      been removed. &merged;</para>
 
       <para>The <literal>TCP_RESTRICT_RST</literal> kernel option has
       been removed.  Similar functionality can be achieved with the
@@ -1168,11 +1163,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       memory allocation have been made.  Bugs in &man.devfs.5; when
       unloading and reloading have been fixed.
       Support for new Hauppauge Model 44xxx WinTV Cards (the ones with
-      no audio mux) has been added.</para>
+      no audio mux) has been added. &merged;</para>
 
       <para>When sound modules are built, one can now load all the
       drivers and infrastructure by <command>kldload
-      snd</command>.</para>
+      snd</command>. &merged;</para>
 
       <para>A new API has been added for sound cards with hardware
       volume control.</para>
@@ -1598,7 +1593,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     changing the mode of a symbolic link.</para>
 
     <para>&man.chown.8; now correctly follows symbolic links named as
-    command line arguments if run without <option>-R</option>.</para>
+    command line arguments if run without <option>-R</option>. &merged;</para>
 
     <para>&man.chown.8; no longer takes <literal>.</literal> as a
     user/group delimeter.  This change was made to support usernames
@@ -1866,7 +1861,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     &man.perl.1;. &merged;</para>
 
     <para>&man.killall.1; now allows non-root users to kill SUID root
-    processes that they started, the same as the Perl version did.</para>
+    processes that they started, the same as the Perl version did. &merged;</para>
 
     <para>The &man.kldconfig.8; utility has been added to make it easier to
     manipulate the kernel module search path. &merged;</para>
@@ -2265,7 +2260,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     moved to <filename>&lt;sys/selinfo.h&gt;</filename>.</para>
 
     <para>The &man.strnstr.3; and &man.strcasestr.3; variants of
-    &man.strstr.3; have been implemented.</para>
+    &man.strstr.3; have been implemented. &merged;</para>
 
     <para>&man.stty.1; now has support for an
     <literal>erase2</literal> control character, so that, for example,
@@ -2273,7 +2268,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     keys can be used to erase characters. &merged;</para>
 
     <para>&man.style.perl.7;, a style guide for Perl code in the &os;
-    base system, has been added.</para>
+    base system, has been added. &merged;</para>
 
     <para>&man.su.1; now uses <application>PAM</application> for
     authentication.</para>
