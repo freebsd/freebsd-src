@@ -1325,7 +1325,6 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_fsync_desc,		(vop_t *) devfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
-	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_ioctl_desc,		(vop_t *) devfs_ioctl },
 	{ &vop_kqfilter_desc,		(vop_t *) devfs_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
