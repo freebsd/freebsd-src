@@ -52,7 +52,6 @@ DUMMY(bdflush);
 DUMMY(sysfs);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
-DUMMY(getsid);
 DUMMY(query_module);
 DUMMY(nfsservctl);
 DUMMY(prctl);
