@@ -642,10 +642,9 @@
 
     &hwlist.ie;
 
-    <para arch="i386,pc98,amd64">3Com 3C5x9 Etherlink III NICs (&man.ep.4; driver)</para>
+    &hwlist.ep;
 
-    <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
-    (&man.el.4; driver)</para>
+    &hwlist.el;
 
     &hwlist.xl;
 
@@ -655,8 +654,7 @@
     (&man.cs.4; driver)
     </para>
 
-    <para arch="i386,amd64">Megahertz X-Jack Ethernet PC-Card CC-10BT (&man.sn.4;
-    driver)</para>
+    &hwlist.sn;
 
     &hwlist.xe;
 
