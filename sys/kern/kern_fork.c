@@ -236,6 +236,7 @@ fork1(td, flags, pages, procp)
 	struct ksegrp *kg2;
 	struct sigacts *newsigacts;
 	struct procsig *newprocsig;
+	int error;
 
 	GIANT_REQUIRED;
 
@@ -319,16 +320,10 @@ fork1(td, flags, pages, procp)
 	sx_xlock(&allproc_lock);
 	uid = td->td_ucred->cr_ruid;
 	if ((nprocs >= maxproc - 10 && uid != 0) || nprocs >= maxproc) {
-		sx_xunlock(&allproc_lock);
-		uma_zfree(proc_zone, newproc);
-		if (p1->p_flag & P_KSES) {
-			PROC_LOCK(p1);
-			thread_single_end();
-			PROC_UNLOCK(p1);
-		}
-		tsleep(&forksleep, PUSER, "fork", hz / 2);
-		return (EAGAIN);
+		error = EAGAIN;
+		goto fail;
 	}
+
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
@@ -338,15 +333,8 @@ fork1(td, flags, pages, procp)
 		(uid != 0) ? p1->p_rlimit[RLIMIT_NPROC].rlim_cur : 0);
 	PROC_UNLOCK(p1);
 	if (!ok) {
-		sx_xunlock(&allproc_lock);
-		uma_zfree(proc_zone, newproc);
-		if (p1->p_flag & P_KSES) {
-			PROC_LOCK(p1);
-			thread_single_end();
-			PROC_UNLOCK(p1);
-		}
-		tsleep(&forksleep, PUSER, "fork", hz / 2);
-		return (EAGAIN);
+		error = EAGAIN;
+		goto fail;
 	}
 
 	/*
@@ -526,26 +514,6 @@ again:
 	p2->p_ucred = crhold(td->td_ucred);
 	td2->td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
 
-	/*
-	 * Setup linkage for kernel based threading
-	 */
-	if((flags & RFTHREAD) != 0) {
-		/*
-		 * XXX: This assumes a leader is a parent or grandparent of
-		 * all processes in a task.
-		 */
-		if (p1->p_leader != p1)
-			PROC_LOCK(p1->p_leader);
-		p2->p_peers = p1->p_peers;
-		p1->p_peers = p2;
-		p2->p_leader = p1->p_leader;
-		if (p1->p_leader != p1)
-			PROC_UNLOCK(p1->p_leader);
-	} else {
-		p2->p_peers = NULL;
-		p2->p_leader = p2;
-	}
-
 	pargs_hold(p2->p_args);
 
 	if (flags & RFSIGSHARE) {
@@ -593,6 +561,40 @@ again:
 	else {
 		p2->p_limit = p1->p_limit;
 		p2->p_limit->p_refcnt++;
+	}
+
+	/*
+	 * Setup linkage for kernel based threading
+	 */
+	if((flags & RFTHREAD) != 0) {
+		mtx_lock(&ppeers_lock);
+		p2->p_peers = p1->p_peers;
+		p1->p_peers = p2;
+		p2->p_leader = p1->p_leader;
+		mtx_unlock(&ppeers_lock);
+		PROC_LOCK(p1->p_leader);
+		if ((p1->p_leader->p_flag & P_WEXIT) != 0) {
+			PROC_UNLOCK(p1->p_leader);
+			/*
+			 * The task leader is exiting, so process p1 is
+			 * going to be killed shortly.  Since p1 obviously
+			 * isn't dead yet, we know that the leader is either
+			 * sending SIGKILL's to all the processes in this
+			 * task or is sleeping waiting for all the peers to
+			 * exit.  We let p1 complete the fork, but we need
+			 * to go ahead and kill the new process p2 since
+			 * the task leader may not get a chance to send
+			 * SIGKILL to it.  We leave it on the list so that
+			 * the task leader will wait for this new process
+			 * to commit suicide.
+			 */
+			PROC_LOCK(p2);
+			psignal(p2, SIGKILL);
+			PROC_UNLOCK(p2);
+		}
+	} else {
+		p2->p_peers = NULL;
+		p2->p_leader = p2;
 	}
 
 	sx_xlock(&proctree_lock);
@@ -752,6 +754,16 @@ again:
 	 */
 	*procp = p2;
 	return (0);
+fail:
+	sx_xunlock(&allproc_lock);
+	uma_zfree(proc_zone, newproc);
+	if (p1->p_flag & P_KSES) {
+		PROC_LOCK(p1);
+		thread_single_end();
+		PROC_UNLOCK(p1);
+	}
+	tsleep(&forksleep, PUSER, "fork", hz / 2);
+	return (error);
 }
 
 /*
