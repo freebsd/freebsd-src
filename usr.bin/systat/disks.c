@@ -110,7 +110,7 @@ dkinit()
 		error("dk_ndrive undefined in kernel");
 		return(0);
 	}
-	NREAD(X_DK_NDRIVE, &dk_ndrive, LONG);
+	NREAD(X_DK_NDRIVE, &dk_ndrive, sizeof(dk_ndrive));
 	if (dk_ndrive <= 0) {
 		error("dk_ndrive=%d according to %s", dk_ndrive, getbootfile());
 		return(0);

@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.7 1997/08/26 10:59:26 charnier Exp $";
+	"$Id: main.c,v 1.8 1998/06/09 04:17:19 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -142,8 +142,8 @@ main(argc, argv)
 	if (namelist[X_FIRST].n_type == 0)
 		errx(1, "couldn't read namelist");
 	gethostname(hostname, sizeof (hostname));
-	NREAD(X_HZ, &hz, LONG);
-	NREAD(X_STATHZ, &stathz, LONG);
+	NREAD(X_HZ, &hz, sizeof(hz));
+	NREAD(X_STATHZ, &stathz, sizeof(stathz));
 	hertz = stathz ? stathz : hz;
 	(*curcmd->c_init)();
 	curcmd->c_flags |= CF_INIT;
