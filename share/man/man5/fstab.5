@@ -89,23 +89,6 @@ everything else will be automatically loaded at mount
 time.  (Exception: the UFS family - FFS and LFS cannot
 currently be demand-loaded.)  Some people still prefer to statically
 compile other filesystems as well.
-.Bl -tag -width indent -offset indent
-.It Em ufs
-a local
-.Tn UNIX
-filesystem
-.It Em nfs
-a Sun Microsystems compatible ``Network File System''
-.It Em swap
-a disk partition to be used for swapping
-.It Em msdos
-a DOS compatible filesystem
-.It Em cd9660
-a CD-ROM filesystem (as per ISO 9660)
-.\" maybe also say Rock Ridge extensions are handled ?
-.It Em procfs
-a file system for accessing process data
-.El
 .Pp
 The fourth field,
 .Pq Fa fs_mntops ,
