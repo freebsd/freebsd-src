@@ -1,5 +1,5 @@
-/* lib/des/cfb_enc.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/cfb_enc.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -62,11 +62,11 @@ des_key_schedule schedule;
 des_cblock (*ivec);
 int encrypt;
 	{
-	register unsigned long d0,d1,v0,v1,n=(numbits+7)/8;
-	register unsigned long mask0,mask1;
+	register DES_LONG d0,d1,v0,v1,n=(numbits+7)/8;
+	register DES_LONG mask0,mask1;
 	register unsigned long l=length;
 	register int num=numbits;
-	unsigned long ti[2];
+	DES_LONG ti[2];
 	unsigned char *iv;
 
 	if (num > 64) return;
@@ -95,7 +95,7 @@ int encrypt;
 			l-=n;
 			ti[0]=v0;
 			ti[1]=v1;
-			des_encrypt((unsigned long *)ti,schedule,DES_ENCRYPT);
+			des_encrypt((DES_LONG *)ti,schedule,DES_ENCRYPT);
 			c2ln(in,d0,d1,n);
 			in+=n;
 			d0=(d0^ti[0])&mask0;
@@ -127,7 +127,7 @@ int encrypt;
 			l-=n;
 			ti[0]=v0;
 			ti[1]=v1;
-			des_encrypt((unsigned long *)ti,schedule,DES_ENCRYPT);
+			des_encrypt((DES_LONG *)ti,schedule,DES_ENCRYPT);
 			c2ln(in,d0,d1,n);
 			in+=n;
 			/* 30-08-94 - eay - changed because l>>32 and

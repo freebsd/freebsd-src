@@ -1,5 +1,5 @@
-/* lib/des/rand_key.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/rand_key.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -62,12 +62,12 @@ void des_random_key(ret)
 unsigned char *ret;
 	{
 	des_key_schedule ks;
-	static unsigned long c=0;
+	static DES_LONG c=0;
 	static unsigned short pid=0;
 	static des_cblock data={0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef};
 	des_cblock key;
 	unsigned char *p;
-	unsigned long t;
+	DES_LONG t;
 	int i;
 
 #ifdef MSDOS
@@ -85,9 +85,9 @@ unsigned char *ret;
 			}
 		seed=0;
 		}
-	t=(unsigned long)time(NULL);
+	t=(DES_LONG)time(NULL);
 	l2c(t,p);
-	t=(unsigned long)((pid)|((c++)<<16));
+	t=(DES_LONG)((pid)|((c++)<<16));
 	l2c(t,p);
 
 	des_set_odd_parity((des_cblock *)data);

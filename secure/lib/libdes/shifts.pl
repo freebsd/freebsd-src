@@ -1,4 +1,4 @@
-sub lab_shift
+#!/usr/bin/perl
 	{
 	local(*a,$n)=@_;
 	local(@r,$i,$j,$k,$d,@z);

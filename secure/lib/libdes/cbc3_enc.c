@@ -1,5 +1,5 @@
-/* lib/des/cbc3_enc.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/cbc3_enc.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -58,7 +58,7 @@ des_cblock (*iv1);
 des_cblock (*iv2);
 int encrypt;
 	{
-	int off=(length-1)/8;
+	int off=((int)length-1)/8;
 	long l8=((length+7)/8)*8;
 	des_cblock niv1,niv2;
 
