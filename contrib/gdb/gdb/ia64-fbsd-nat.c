@@ -49,10 +49,6 @@ typedef struct fpreg fpregset_t;
 #define	FPREG_SUPPLIES(r)  ((r) >= IA64_FR0_REGNUM && (r) <= IA64_FR127_REGNUM)
 #define	GREG_SUPPLIES(r)   (!FPREG_SUPPLIES(r))
 
-/* XXX need to go away. */
-void ia64_fbsd_supply_fpregs (void *, int);
-void ia64_fbsd_supply_gregs (void *, int);
-
 void
 fetch_inferior_registers (int regno)
 {
@@ -66,9 +62,7 @@ fetch_inferior_registers (int regno)
       if (ptrace (PT_GETREGS, PIDGET(inferior_ptid),
 		  (PTRACE_ARG3_TYPE)&regs.r, 0) == -1)
 	perror_with_name ("Couldn't get registers");
-      ia64_fbsd_supply_gregs (&regs.r, regno);
-      if (regno != -1)
-	return;
+      supply_gregset (&regs.r);
     }
 
   if (regno == -1 || FPREG_SUPPLIES(regno))
@@ -76,9 +70,7 @@ fetch_inferior_registers (int regno)
       if (ptrace (PT_GETFPREGS, PIDGET(inferior_ptid),
 		  (PTRACE_ARG3_TYPE)&regs.fpr, 0) == -1)
 	perror_with_name ("Couldn't get FP registers");
-      ia64_fbsd_supply_fpregs (&regs.fpr, regno);
-      if (regno != -1)
-	return;
+      supply_fpregset (&regs.fpr);
     }
 }
 
