@@ -50,8 +50,6 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>

@@ -43,8 +43,6 @@
 #include <sys/namei.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>

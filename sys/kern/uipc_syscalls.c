@@ -58,7 +58,6 @@
 #include <sys/uio.h>
 #include <sys/vnode.h>
 #include <sys/lock.h>
-#include <net/radix.h>
 #include <sys/mount.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
