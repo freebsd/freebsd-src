@@ -184,7 +184,7 @@ will use as many columns as necessary without regard for your window size.
 .It Fl x
 Display information about processes without controlling terminals.
 .It Fl Z
-Add lvl to the list of keywords for which
+Add label to the list of keywords for which
 .Nm
 will display information.
 .El
@@ -224,14 +224,14 @@ the include file
 .It Dv "P_OWEUPC" Ta No "0x20000	Owe process an addupc() call at next ast"
 .It Dv "P_SWAPPING" Ta No "0x40000	Process is being swapped"
 .El
+.It label
+The MAC label of the process.
 .It lim
 The soft limit on memory used, specified via a call to
 .Xr setrlimit 2 .
 .It lstart
 The exact time the command started, using the ``%c'' format described in
 .Xr strftime 3 .
-.It lvl
-The LOMAC level of the process.
 .It lockname
 The name of the lock that the process is currently blocked on.
 If the name is invalid or unknown, then
@@ -390,14 +390,14 @@ total blocks read (alias inblock)
 job control count
 .It ktrace
 tracing flags
+.It label
+MAC label
 .It lim
 memoryuse limit
 .It logname
 login name of user who started the process
 .It lstart
 time started
-.It lvl
-LOMAC level
 .It majflt
 total page faults
 .It minflt
