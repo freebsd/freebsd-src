@@ -44,8 +44,11 @@ struct ia32_ps_strings {
 	int	ps_nenvstr;	/* the number of environment strings */
 };
 
-#define IA32_USRSTACK	(4L*1024*1024*1024 - PAGE_SIZE)
-#define IA32_PS_STRINGS	(IA32_USRSTACK - sizeof(struct ia32_ps_strings))
+#define	IA32_MINSIGSTKSZ	2048
+#define	IA32_PAGE_SIZE		4096
+#define	IA32_USRSTACK	(2L*1024*1024*1024 - IA32_PAGE_SIZE*2)
+#define	IA32_PS_STRINGS	(IA32_USRSTACK - sizeof(struct ia32_ps_strings))
+#define	IA32_USRSPACE		IA32_PAGE_SIZE
 
 static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
@@ -54,7 +57,7 @@ static __inline caddr_t
 stackgap_init()
 {
 #define	szsigcode (*(curproc->p_sysent->sv_szsigcode))
-	return (caddr_t)(((caddr_t)IA32_PS_STRINGS) - szsigcode - SPARE_USRSPACE);
+	return (((caddr_t)IA32_PS_STRINGS) - szsigcode - IA32_USRSPACE);
 #undef szsigcode
 }
 

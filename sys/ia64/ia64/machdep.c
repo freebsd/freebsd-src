@@ -73,6 +73,9 @@
 #include <machine/mca.h>
 #include <machine/pal.h>
 #include <machine/sal.h>
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 #include <machine/bootinfo.h>
 #include <machine/mutex.h>
 #include <machine/vmparam.h>
@@ -83,7 +86,6 @@
 #include <machine/sigframe.h>
 #include <machine/efi.h>
 #include <machine/inst.h>
-#include <machine/rse.h>
 #include <machine/unwind.h>
 #include <i386/include/specialreg.h>
 
@@ -101,6 +103,10 @@ struct user *proc0uarea;
 vm_offset_t proc0kstack;
 
 extern u_int64_t kernel_text[], _end[];
+
+extern u_int64_t ia64_gateway_page[];
+extern u_int64_t break_sigtramp[];
+extern u_int64_t epc_sigtramp[];
 
 FPSWA_INTERFACE *fpswa_interface;
 
@@ -206,6 +212,44 @@ cpu_startup(dummy)
 }
 
 void
+cpu_switch(struct thread *old, struct thread *new)
+{
+	struct pcb *oldpcb, *newpcb;
+
+	oldpcb = old->td_pcb;
+	oldpcb->pcb_current_pmap = PCPU_GET(current_pmap);
+#if IA32
+	ia32_savectx(oldpcb);
+#endif
+	if (!savectx(oldpcb)) {
+		newpcb = new->td_pcb;
+		pmap_install(newpcb->pcb_current_pmap);
+		PCPU_SET(curthread, new);
+#if IA32
+		ia32_restorectx(newpcb);
+#endif
+		restorectx(newpcb);
+	}
+}
+
+void
+cpu_throw(struct thread *old __unused, struct thread *new)
+{
+	struct pcb *newpcb;
+
+	newpcb = new->td_pcb;
+	pmap_install(newpcb->pcb_current_pmap);
+	PCPU_SET(curthread, new);
+#if IA32
+	ia32_restorectx(newpcb);
+#endif
+	restorectx(newpcb);
+	/* We should not get here. */
+	panic("cpu_throw: restorectx() returned");
+	/* NOTREACHED */
+}
+
+void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 	KASSERT(size >= sizeof(struct pcpu) + sizeof(struct pcb),
@@ -278,16 +322,20 @@ map_pal_code(void)
 	pte.pte_ar = PTE_AR_RWX;
 	pte.pte_ppn = ia64_pal_base >> 12;
 
-	__asm __volatile("mov %0=psr;;" : "=r" (psr));
-	__asm __volatile("rsm psr.ic|psr.i;; srlz.i;;");
-	__asm __volatile("mov cr.ifa=%0" ::
+	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
+	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)), "r"(28 << 2));
+
+	__asm __volatile("mov	%0=psr" : "=r"(psr));
+	__asm __volatile("rsm	psr.ic|psr.i");
+	__asm __volatile("srlz.i");
+	__asm __volatile("mov	cr.ifa=%0" ::
 	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)));
-	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.i itr[%0]=%1;;" ::
-	    "r"(2), "r"(*(u_int64_t*)&pte));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("mov psr.l=%0;; srlz.i;;" :: "r" (psr));
+	__asm __volatile("mov	cr.itir=%0" :: "r"(28 << 2));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(1), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("srlz.d");		/* XXX not needed. */
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(1), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
+	__asm __volatile("srlz.i");
 }
 
 void
@@ -306,20 +354,53 @@ map_port_space(void)
 	pte.pte_a = 1;
 	pte.pte_d = 1;
 	pte.pte_pl = PTE_PL_KERN;
-	pte.pte_ar = PTE_AR_RWX;
+	pte.pte_ar = PTE_AR_RW;
 	pte.pte_ppn = ia64_port_base >> 12;
 
-	__asm __volatile("mov %0=psr;;" : "=r" (psr));
-	__asm __volatile("rsm psr.ic|psr.i;; srlz.i;;");
-	__asm __volatile("mov cr.ifa=%0" ::
-	    "r"(IA64_PHYS_TO_RR6(ia64_port_base)));
+	__asm __volatile("ptr.d %0,%1" :: "r"(ia64_port_base), "r"(24 << 2));
+
+	__asm __volatile("mov	%0=psr" : "=r" (psr));
+	__asm __volatile("rsm	psr.ic|psr.i");
+	__asm __volatile("srlz.d");
+	__asm __volatile("mov	cr.ifa=%0" :: "r"(ia64_port_base));
 	/* XXX We should use the size from the memory descriptor. */
-	__asm __volatile("mov cr.itir=%0" :: "r"(24 << 2));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.i itr[%0]=%1;;" ::
-	    "r"(1), "r"(*(u_int64_t*)&pte));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("mov psr.l=%0;; srlz.i;;" :: "r" (psr));
+	__asm __volatile("mov	cr.itir=%0" :: "r"(24 << 2));
+	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
+	__asm __volatile("srlz.d");
+}
+
+void
+map_gateway_page(void)
+{
+	struct ia64_pte pte;
+	u_int64_t psr;
+
+	bzero(&pte, sizeof(pte));
+	pte.pte_p = 1;
+	pte.pte_ma = PTE_MA_WB;
+	pte.pte_a = 1;
+	pte.pte_d = 1;
+	pte.pte_pl = PTE_PL_KERN;
+	pte.pte_ar = PTE_AR_X_RX;
+	pte.pte_ppn = IA64_RR_MASK((u_int64_t)ia64_gateway_page) >> 12;
+
+	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
+	    "r"(VM_MAX_ADDRESS), "r"(PAGE_SHIFT << 2));
+
+	__asm __volatile("mov	%0=psr" : "=r"(psr));
+	__asm __volatile("rsm	psr.ic|psr.i");
+	__asm __volatile("srlz.i");
+	__asm __volatile("mov	cr.ifa=%0" :: "r"(VM_MAX_ADDRESS));
+	__asm __volatile("mov	cr.itir=%0" :: "r"(PAGE_SHIFT << 2));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("srlz.d");		/* XXX not needed. */
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
+	__asm __volatile("srlz.i");
+
+	/* Expose the mapping to userland in ar.k5 */
+	ia64_set_k5(VM_MAX_ADDRESS);
 }
 
 static void
@@ -639,19 +720,10 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	/*
 	 * Setup the global data for the bootstrap cpu.
 	 */
-	pcpup = (struct pcpu *) pmap_steal_memory(PAGE_SIZE);
+	pcpup = (struct pcpu *)pmap_steal_memory(PAGE_SIZE);
+	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, PAGE_SIZE);
-	ia64_set_k4((u_int64_t) pcpup);
 	PCPU_SET(curthread, &thread0);
-
-	/*
-	 * Set ia32 control registers.
-	 */
-	ia64_set_cflg((CR0_PE | CR0_PG)
-		      | ((long)(CR4_XMM | CR4_FXSR) << 32));
-
-	/* We pretend to own FP state so that ia64_fpstate_check() works */
-	PCPU_SET(fpcurthread, &thread0);
 
 	/*
 	 * Initialize the rest of proc 0's PCB.
@@ -663,8 +735,11 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 * XXX what is all this +/- 16 stuff?
 	 */
 	thread0.td_frame = (struct trapframe *)thread0.td_pcb - 1;
-	thread0.td_pcb->pcb_sp = (u_int64_t)thread0.td_frame - 16;
-	thread0.td_pcb->pcb_ar_bsp = (u_int64_t)proc0kstack;
+	thread0.td_frame->tf_length = sizeof(struct trapframe);
+	thread0.td_frame->tf_flags = FRAME_SYSCALL;
+	thread0.td_pcb->pcb_special.sp =
+	    (u_int64_t)thread0.td_frame - 16;
+	thread0.td_pcb->pcb_special.bspstore = (u_int64_t)proc0kstack;
 
 	mutex_init();
 
@@ -732,40 +807,29 @@ DELAY(int n)
 }
 
 /*
- * Send an interrupt to process.
- *
- * Stack is set up to allow sigcode stored
- * at top to call routine, followed by kcall
- * to sigreturn routine below.  After sigreturn
- * resets the signal mask, the stack, and the
- * frame pointer, it returns to the user
- * specified pc, psl.
+ * Send an interrupt (signal) to a process.
  */
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	struct proc *p;
 	struct thread *td;
-	struct trapframe *frame;
+	struct trapframe *tf;
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
-	u_int64_t sbs = 0;
-	int oonstack, rndfsize;
+	mcontext_t *mc;
+	u_int64_t sbs, sp;
+	int oonstack;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
-	frame = td->td_frame;
-	oonstack = sigonstack(frame->tf_r[FRAME_SP]);
-	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
-
-	/*
-	 * Make sure that we restore the entire trapframe after a
-	 * signal.
-	 */
-	frame->tf_flags &= ~FRAME_SYSCALL;
+	tf = td->td_frame;
+	sp = tf->tf_special.sp;
+	oonstack = sigonstack(sp);
+	sbs = 0;
 
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
@@ -773,33 +837,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	sf.sf_uc.uc_stack = p->p_sigstk;
 	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
-	sf.sf_uc.uc_mcontext.mc_flags = IA64_MC_FLAG_ONSTACK;
-	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-
-	sf.sf_uc.uc_mcontext.mc_nat     = 0; /* XXX */
-	sf.sf_uc.uc_mcontext.mc_sp	= frame->tf_r[FRAME_SP];
-	sf.sf_uc.uc_mcontext.mc_ip	= (frame->tf_cr_iip
-					   | ((frame->tf_cr_ipsr >> 41) & 3));
-	sf.sf_uc.uc_mcontext.mc_cfm     = frame->tf_cr_ifs & ~(1<<31);
-	sf.sf_uc.uc_mcontext.mc_um      = frame->tf_cr_ipsr & 0x1fff;
-	sf.sf_uc.uc_mcontext.mc_ar_rsc  = frame->tf_ar_rsc;
-	sf.sf_uc.uc_mcontext.mc_ar_bsp  = frame->tf_ar_bspstore;
-	sf.sf_uc.uc_mcontext.mc_ar_rnat = frame->tf_ar_rnat;
-	sf.sf_uc.uc_mcontext.mc_ar_ccv  = frame->tf_ar_ccv;
-	sf.sf_uc.uc_mcontext.mc_ar_unat = frame->tf_ar_unat;
-	sf.sf_uc.uc_mcontext.mc_ar_fpsr = frame->tf_ar_fpsr;
-	sf.sf_uc.uc_mcontext.mc_ar_pfs  = frame->tf_ar_pfs;
-	sf.sf_uc.uc_mcontext.mc_pr      = frame->tf_pr;
-
-	bcopy(&frame->tf_b[0],
-	      &sf.sf_uc.uc_mcontext.mc_br[0],
-	      8 * sizeof(unsigned long));
-	sf.sf_uc.uc_mcontext.mc_gr[0] = 0;
-	bcopy(&frame->tf_r[0],
-	      &sf.sf_uc.uc_mcontext.mc_gr[1],
-	      31 * sizeof(unsigned long));
-
-	/* XXX mc_fr[] */
 
 	/*
 	 * Allocate and validate space for the signal handler
@@ -810,47 +847,46 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sbs = (u_int64_t) p->p_sigstk.ss_sp;
-		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - rndfsize);
-		/*
-		 * Align sp and bsp.
-		 */
+		sbs = (u_int64_t)p->p_sigstk.ss_sp;
 		sbs = (sbs + 15) & ~15;
-		sfp = (struct sigframe *)((u_int64_t)sfp & ~15);
+		sfp = (struct sigframe *)(sbs + p->p_sigstk.ss_size);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
-		sfp = (struct sigframe *)(frame->tf_r[FRAME_SP] - rndfsize);
+		sfp = (struct sigframe *)sp;
+	sfp = (struct sigframe *)((u_int64_t)(sfp - 1) & ~15);
+
+	/* Fill in the siginfo structure for POSIX handlers. */
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
+		sf.sf_si.si_signo = sig;
+		sf.sf_si.si_code = code;
+		sf.sf_si.si_addr = (void*)tf->tf_special.ifa;
+		code = (u_int64_t)&sfp->sf_si;
+	}
+
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
-#ifdef DEBUG
-	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
-		printf("sendsig(%d): sig %d ssp %p usp %p\n", p->p_pid,
-		       sig, &sf, sfp);
-#endif
+	mc = &sf.sf_uc.uc_mcontext;
+	mc->mc_special = tf->tf_special;
+	mc->mc_scratch = tf->tf_scratch;
+	if ((tf->tf_flags & FRAME_SYSCALL) == 0) {
+		mc->mc_flags |= IA64_MC_FLAGS_SCRATCH_VALID;
+		mc->mc_scratch_fp = tf->tf_scratch_fp;
+		/*
+		 * XXX High FP. If the process has never used the high FP,
+		 * mark the high FP as valid (zero defaults). If the process
+		 * did use the high FP, then store them in the PCB if not
+		 * already there (ie get them from the CPU that has them)
+		 * and write them in the context.
+		 */
+	}
+	save_callee_saved(&mc->mc_preserved);
+	save_callee_saved_fp(&mc->mc_preserved_fp);
 
-#if 0
-	/* save the floating-point state, if necessary, then copy it. */
-	ia64_fpstate_save(td, 1);
-	sf.sf_uc.uc_mcontext.mc_ownedfp = td->td_md.md_flags & MDP_FPUSED;
-	bcopy(&td->td_pcb->pcb_fp,
-	      (struct fpreg *)sf.sf_uc.uc_mcontext.mc_fpregs,
-	      sizeof(struct fpreg));
-	sf.sf_uc.uc_mcontext.mc_fp_control = td->td_pcb.pcb_fp_control;
-#endif
-
-	/*
-	 * copy the frame out to userland.
-	 */
-	if (copyout((caddr_t)&sf, (caddr_t)sfp, sizeof(sf)) != 0) {
-#ifdef DEBUG
-		if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
-			printf("sendsig(%d): copyout failed on sig %d\n",
-			       p->p_pid, sig);
-#endif
+	/* Copy the frame out to userland. */
+	if (copyout(&sf, sfp, sizeof(sf)) != 0) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -859,46 +895,32 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sigexit(td, SIGILL);
 		return;
 	}
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-		printf("sendsig(%d): sig %d sfp %p code %lx\n", p->p_pid, sig,
-		    sfp, code);
-#endif
+
+	if ((tf->tf_flags & FRAME_SYSCALL) == 0) {
+		tf->tf_special.psr &= ~IA64_PSR_RI;
+		tf->tf_special.iip = ia64_get_k5() +
+		    ((uint64_t)break_sigtramp - (uint64_t)ia64_gateway_page);
+	} else
+		tf->tf_special.rp = ia64_get_k5() +
+		    ((uint64_t)epc_sigtramp - (uint64_t)ia64_gateway_page);
 
 	/*
-	 * Set up the registers to return to sigcode.
+	 * Setup the trapframe to return to the signal trampoline. We pass
+	 * information to the trampoline in the following registers:
+	 *
+	 *	gp	new backing store or NULL
+	 *	r8	signal number
+	 *	r9	signal code or siginfo pointer
+	 *	r10	signal handler (function descriptor)
 	 */
-	frame->tf_cr_ipsr &= ~IA64_PSR_RI;
-	frame->tf_cr_iip = PS_STRINGS - (esigcode - sigcode);
-	frame->tf_r[FRAME_R1] = sig;
+	tf->tf_special.sp = (u_int64_t)sfp - 16;
+	tf->tf_special.gp = sbs;
+	tf->tf_scratch.gr8 = sig;
+	tf->tf_scratch.gr9 = code;
+	tf->tf_scratch.gr10 = (u_int64_t)catcher;
+
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
-	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
-		frame->tf_r[FRAME_R15] = (u_int64_t)&(sfp->sf_si);
-
-		/* Fill in POSIX parts */
-		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void*)frame->tf_cr_ifa;
-	}
-	else
-		frame->tf_r[FRAME_R15] = code;
-
-	frame->tf_r[FRAME_SP] = (u_int64_t)sfp - 16;
-	frame->tf_r[FRAME_R14] = sig;
-	frame->tf_r[FRAME_R15] = (u_int64_t) &sfp->sf_si;
-	frame->tf_r[FRAME_R16] = (u_int64_t) &sfp->sf_uc;
-	frame->tf_r[FRAME_R17] = (u_int64_t)catcher;
-	frame->tf_r[FRAME_R18] = sbs;
-
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-		printf("sendsig(%d): pc %lx, catcher %lx\n", p->p_pid,
-		    frame->tf_cr_iip, frame->tf_regs[FRAME_R4]);
-	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
-		printf("sendsig(%d): sig %d returns\n",
-		    p->p_pid, sig);
-#endif
 }
 
 /*
@@ -919,92 +941,54 @@ sigreturn(struct thread *td,
 	} */ *uap)
 {
 	ucontext_t uc;
-	const ucontext_t *ucp;
-	struct pcb *pcb;
-	struct trapframe *frame = td->td_frame;
-	struct __mcontext *mcp;
+	struct trapframe *tf;
+	struct __mcontext *mc;
 	struct proc *p;
+	struct pcb *pcb;
 
-	ucp = uap->sigcntxp;
-	pcb = td->td_pcb;
+	tf = td->td_frame;
 	p = td->td_proc;
-
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-	    printf("sigreturn: pid %d, scp %p\n", p->p_pid, ucp);
-#endif
+	pcb = td->td_pcb;
 
 	/*
 	 * Fetch the entire context structure at once for speed.
 	 * We don't use a normal argument to simplify RSE handling.
 	 */
-	if (copyin((caddr_t)frame->tf_r[FRAME_R4],
-		   (caddr_t)&uc, sizeof(ucontext_t)))
+	if (copyin(uap->sigcntxp, (caddr_t)&uc, sizeof(uc)))
 		return (EFAULT);
 
-	if (frame->tf_ndirty != 0) {
-	    printf("sigreturn: dirty user stacked registers\n");
-	}
+	/*
+	 * XXX make sure ndirty in the current trapframe is less than
+	 * 0x1f8 so that if we throw away the current register stack,
+	 * we have reached the bottom of the kernel register stack.
+	 * See also exec_setregs.
+	 */
 
 	/*
 	 * Restore the user-supplied information
 	 */
-	mcp = &uc.uc_mcontext;
-	bcopy(&mcp->mc_br[0], &frame->tf_b[0], 8*sizeof(u_int64_t));
-	bcopy(&mcp->mc_gr[1], &frame->tf_r[0], 31*sizeof(u_int64_t));
-	/* XXX mc_fr */
-
-	frame->tf_flags &= ~FRAME_SYSCALL;
-	frame->tf_cr_iip = mcp->mc_ip & ~15;
-	frame->tf_cr_ipsr &= ~IA64_PSR_RI;
-	switch (mcp->mc_ip & 15) {
-	case 1:
-		frame->tf_cr_ipsr |= IA64_PSR_RI_1;
-		break;
-	case 2:
-		frame->tf_cr_ipsr |= IA64_PSR_RI_2;
-		break;
+	mc = &uc.uc_mcontext;
+	tf->tf_special = mc->mc_special;
+	tf->tf_scratch = mc->mc_scratch;
+	if ((mc->mc_flags & IA64_MC_FLAGS_SCRATCH_VALID) != 0) {
+		tf->tf_scratch_fp = mc->mc_scratch_fp;
+		/* XXX high FP. */
 	}
-	frame->tf_cr_ipsr     = ((frame->tf_cr_ipsr & ~0x1fff)
-				 | (mcp->mc_um & 0x1fff));
-	frame->tf_pr          = mcp->mc_pr;
-	frame->tf_ar_rsc      = (mcp->mc_ar_rsc & 3) | 12; /* user, loadrs=0 */
-	frame->tf_ar_pfs      = mcp->mc_ar_pfs;
-	frame->tf_cr_ifs      = mcp->mc_cfm | (1UL<<63);
-	frame->tf_ar_bspstore = mcp->mc_ar_bsp;
-	frame->tf_ar_rnat     = mcp->mc_ar_rnat;
-	frame->tf_ndirty      = 0; /* assumes flushrs in sigcode */
-	frame->tf_ar_unat     = mcp->mc_ar_unat;
-	frame->tf_ar_ccv      = mcp->mc_ar_ccv;
-	frame->tf_ar_fpsr     = mcp->mc_ar_fpsr;
-
-	frame->tf_r[FRAME_SP] = mcp->mc_sp;
+	restore_callee_saved(&mc->mc_preserved);
+	restore_callee_saved_fp(&mc->mc_preserved_fp);
 
 	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	if (uc.uc_mcontext.mc_onstack & 1)
+	if (sigonstack(tf->tf_special.sp))
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-
 	td->td_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(td->td_sigmask);
 	signotify(td);
 	PROC_UNLOCK(p);
 
-	/* XXX ksc.sc_ownedfp ? */
-	ia64_fpstate_drop(td);
-#if 0
-	bcopy((struct fpreg *)uc.uc_mcontext.mc_fpregs,
-	      &td->td_pcb->pcb_fp, sizeof(struct fpreg));
-	td->td_pcb->pcb_fp_control = uc.uc_mcontext.mc_fp_control;
-#endif
-
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-		printf("sigreturn(%d): returns\n", p->p_pid);
-#endif
 	return (EJUSTRETURN);
 }
 
@@ -1052,56 +1036,84 @@ cpu_halt(void)
 }
 
 /*
- * Clear registers on exec
+ * Clear registers on exec.
  */
 void
 exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
-	struct trapframe *frame;
+	struct trapframe *tf;
+	uint64_t bspst, kstack, ndirty;
+	size_t rssz;
 
-	frame = td->td_frame;
-
-	/*
-	 * Make sure that we restore the entire trapframe after an
-	 * execve.
-	 */
-	frame->tf_flags &= ~FRAME_SYSCALL;
-
-	bzero(frame->tf_r, sizeof(frame->tf_r));
-	bzero(frame->tf_f, sizeof(frame->tf_f));
-	frame->tf_cr_iip = entry;
-	frame->tf_cr_ipsr = (IA64_PSR_IC
-			     | IA64_PSR_I
-			     | IA64_PSR_IT
-			     | IA64_PSR_DT
-			     | IA64_PSR_RT
-			     | IA64_PSR_DFH
-			     | IA64_PSR_BN
-			     | IA64_PSR_CPL_USER);
-	/*
-	 * Make sure that sp is aligned to a 16 byte boundary and
-	 * reserve 16 bytes of scratch space for _start.
-	 */
-	frame->tf_r[FRAME_SP] = (stack & ~15) - 16;
+	tf = td->td_frame;
+	kstack = td->td_kstack;
 
 	/*
-	 * Write values for out0, out1 and out2 to the user's backing
-	 * store and arrange for them to be restored into the user's
-	 * initial register frame. Assumes that (bspstore & 0x1f8) <
-	 * 0x1e0.
+	 * RSE magic: We have ndirty registers of the process on the kernel
+	 * stack which don't belong to the new image. Discard them. Note
+	 * that for the "legacy" syscall support we need to keep 3 registers
+	 * worth of dirty bytes. These 3 registers are the initial arguments
+	 * to the newly executing program.
+	 * However, we cannot discard all the ndirty registers by simply
+	 * moving the kernel related registers to the bottom of the kernel
+	 * stack and lowering the current bspstore, because we get into
+	 * trouble with the NaT collections. We need to keep that in sync
+	 * with the registers. Hence, we can only copy a multiple of 512
+	 * bytes. Consequently, we may end up with some registers of the
+	 * previous image on the kernel stack. This we ignore by making
+	 * sure we mask-off the lower 9 bits of the bspstore value just
+	 * prior to saving it in ar.k6.
 	 */
-	frame->tf_ar_bspstore = td->td_md.md_bspstore + 24;
-	suword((caddr_t) frame->tf_ar_bspstore - 24, stack);
-	suword((caddr_t) frame->tf_ar_bspstore - 16, ps_strings);
-	suword((caddr_t) frame->tf_ar_bspstore -  8, 0);
-	frame->tf_ndirty = 0;
-	frame->tf_cr_ifs = (1L<<63) | 3; /* sof=3, v=1 */
+	ndirty = tf->tf_special.ndirty & ~0x1ff;
+	if (ndirty > 0) {
+		__asm __volatile("mov	ar.rsc=0;;");
+		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
+		rssz = bspst - kstack - ndirty;
+		bcopy((void*)(kstack + ndirty), (void*)kstack, rssz);
+		bspst -= ndirty;
+		__asm __volatile("mov	ar.bspstore=%0;;" :: "r"(bspst));
+		__asm __volatile("mov	ar.rsc=3");
+		tf->tf_special.ndirty -= ndirty;
+	}
+	ndirty = tf->tf_special.ndirty;
 
-	frame->tf_ar_rsc = 0xf;	/* user mode rsc */
-	frame->tf_ar_fpsr = IA64_FPSR_DEFAULT;
+	bzero(&tf->tf_special, sizeof(tf->tf_special));
 
-	td->td_md.md_flags &= ~MDP_FPUSED;
-	ia64_fpstate_drop(td);
+	if ((tf->tf_flags & FRAME_SYSCALL) == 0) {	/* break syscalls. */
+		bzero(&tf->tf_scratch, sizeof(tf->tf_scratch));
+		bzero(&tf->tf_scratch_fp, sizeof(tf->tf_scratch_fp));
+		tf->tf_special.iip = entry;
+		tf->tf_special.cfm = (1UL<<63) | (3UL<<7) | 3UL;
+		tf->tf_special.bspstore = td->td_md.md_bspstore;
+		tf->tf_special.ndirty = 24;
+		/*
+		 * Copy the arguments onto the kernel register stack so that
+		 * they get loaded by the loadrs instruction.
+		 */
+		*(uint64_t*)(kstack + ndirty - 24) = stack;
+		*(uint64_t*)(kstack + ndirty - 16) = ps_strings;
+		*(uint64_t*)(kstack + ndirty - 8) = 0;
+	} else {				/* epc syscalls (default). */
+		tf->tf_special.rp = entry;
+		tf->tf_special.pfs = (3UL<<62) | (3UL<<7) | 3UL;
+		tf->tf_special.bspstore = td->td_md.md_bspstore + 24;
+		/*
+		 * Write values for out0, out1 and out2 to the user's backing
+		 * store and arrange for them to be restored into the user's
+		 * initial register frame.
+		 * Assumes that (bspstore & 0x1f8) < 0x1e0.
+		 */
+		suword((caddr_t)tf->tf_special.bspstore - 24, stack);
+		suword((caddr_t)tf->tf_special.bspstore - 16, ps_strings);
+		suword((caddr_t)tf->tf_special.bspstore -  8, 0);
+	}
+
+	tf->tf_special.sp = (stack & ~15) - 16;
+	tf->tf_special.rsc = 0xf;
+	tf->tf_special.fpsr = IA64_FPSR_DEFAULT;
+	tf->tf_special.psr = IA64_PSR_IC | IA64_PSR_I | IA64_PSR_IT |
+	    IA64_PSR_DT | IA64_PSR_RT | IA64_PSR_DFH | IA64_PSR_BN |
+	    IA64_PSR_CPL_USER;
 }
 
 int
@@ -1124,16 +1136,17 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 		return (EINVAL);
 	}
 
-	td->td_frame->tf_cr_iip = addr & ~0x0FULL;
-	td->td_frame->tf_cr_ipsr = (td->td_frame->tf_cr_ipsr & ~IA64_PSR_RI) |
-	    slot;
+	td->td_frame->tf_special.iip = addr & ~0x0FULL;
+	td->td_frame->tf_special.psr =
+	    (td->td_frame->tf_special.psr & ~IA64_PSR_RI) | slot;
 	return (0);
 }
 
 int
 ptrace_single_step(struct thread *td)
 {
-	td->td_frame->tf_cr_ipsr |= IA64_PSR_SS;
+
+	td->td_frame->tf_special.psr |= IA64_PSR_SS;
 	return (0);
 }
 
@@ -1144,66 +1157,26 @@ ia64_pa_access(vm_offset_t pa)
 }
 
 int
-fill_regs(td, regs)
-	struct thread *td;
-	struct reg *regs;
+fill_regs(struct thread *td, struct reg *regs)
 {
-	bcopy(td->td_frame->tf_b, regs->r_br, sizeof(regs->r_br));
-	bcopy(td->td_frame->tf_r, regs->r_gr+1, sizeof(td->td_frame->tf_r));
-	/* TODO copy registers from the register stack. */
+	struct trapframe *tf;
 
-	regs->r_cfm = td->td_frame->tf_cr_ifs;
-	regs->r_ip = td->td_frame->tf_cr_iip;
-	regs->r_ip |= (td->td_frame->tf_cr_ipsr & IA64_PSR_RI) >> 41;
-	regs->r_pr = td->td_frame->tf_pr;
-	regs->r_psr = td->td_frame->tf_cr_ipsr;
-	regs->r_ar_rsc = td->td_frame->tf_ar_rsc;
-	regs->r_ar_bsp = 0;		/* XXX */
-	regs->r_ar_bspstore = td->td_frame->tf_ar_bspstore;
-	regs->r_ar_rnat = td->td_frame->tf_ar_rnat;
-	regs->r_ar_ccv = td->td_frame->tf_ar_ccv;
-	regs->r_ar_unat = td->td_frame->tf_ar_unat;
-	regs->r_ar_fpsr = td->td_frame->tf_ar_fpsr;
-	regs->r_ar_pfs = td->td_frame->tf_ar_pfs;
-	regs->r_ar_lc = td->td_frame->tf_ar_lc;
-	regs->r_ar_ec = td->td_frame->tf_ar_ec;
-
+	tf = td->td_frame;
+	regs->r_special = tf->tf_special;
+	regs->r_scratch = tf->tf_scratch;
+	/* XXX preserved */
 	return (0);
 }
 
 int
-set_regs(td, regs)
-	struct thread *td;
-	struct reg *regs;
+set_regs(struct thread *td, struct reg *regs)
 {
-	int error;
+	struct trapframe *tf;
 
-	error = ptrace_set_pc(td, regs->r_ip);
-	if (error)
-		return (error);
-
-	td->td_frame->tf_cr_ipsr &= ~0x1FUL;	/* clear user mask */
-	td->td_frame->tf_cr_ipsr |= regs->r_psr & 0x1FUL;
-
-	td->td_frame->tf_pr = regs->r_pr;
-
-	/* XXX r_ar_bsp */
-
-	td->td_frame->tf_ar_rsc = regs->r_ar_rsc;
-	td->td_frame->tf_ar_pfs = regs->r_ar_pfs;
-	td->td_frame->tf_cr_ifs = regs->r_cfm;
-	td->td_frame->tf_ar_bspstore = regs->r_ar_bspstore;
-	td->td_frame->tf_ar_rnat = regs->r_ar_rnat;
-	td->td_frame->tf_ar_unat = regs->r_ar_unat;
-	td->td_frame->tf_ar_ccv = regs->r_ar_ccv;
-	td->td_frame->tf_ar_fpsr = regs->r_ar_fpsr;
-	td->td_frame->tf_ar_lc = regs->r_ar_lc;
-	td->td_frame->tf_ar_ec = regs->r_ar_ec;
-
-	bcopy(regs->r_br, td->td_frame->tf_b, sizeof(td->td_frame->tf_b));
-	bcopy(regs->r_gr+1, td->td_frame->tf_r, sizeof(td->td_frame->tf_r));
-	/* TODO copy registers to the register stack. */
-
+	tf = td->td_frame;
+	tf->tf_special = regs->r_special;
+	tf->tf_scratch = regs->r_scratch;
+	/* XXX preserved */
 	return (0);
 }
 
@@ -1222,67 +1195,105 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 }
 
 int
-fill_fpregs(td, fpregs)
-	struct thread *td;
-	struct fpreg *fpregs;
+fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	struct trapframe *frame = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
-	/*
-	 * XXX - The PCB pointer should not point to the actual PCB,
-	 * because it will not contain the preserved registers of
-	 * the program being debugged. Instead, it should point to
-	 * a PCB constructed by unwinding all the way up to the
-	 * IVT handler.
-	 */
-	bcopy(pcb->pcb_f + PCB_F2, fpregs->fpr_regs + 2,
-	    sizeof(pcb->pcb_f[0]) * 4);
+	/* Save the high FP registers. */
+	ia64_highfp_save(td);
 
-	bcopy(td->td_frame->tf_f, fpregs->fpr_regs + 6,
-	    sizeof(td->td_frame->tf_f));
-
-	bcopy(pcb->pcb_f + PCB_F16, fpregs->fpr_regs + 16,
-	    sizeof(pcb->pcb_f[0]) * 16);
-
-	ia64_fpstate_save(td, 0);
-	bcopy(pcb->pcb_highfp, fpregs->fpr_regs + 32,
-	    sizeof(td->td_pcb->pcb_highfp));
-
+	fpregs->fpr_scratch = frame->tf_scratch_fp;
+	/* XXX preserved_fp */
+	fpregs->fpr_high = pcb->pcb_high_fp;
 	return (0);
 }
 
 int
-set_fpregs(td, fpregs)
-	struct thread *td;
-	struct fpreg *fpregs;
+set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	struct trapframe *frame = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
-	/*
-	 * XXX - The PCB pointer should not point to the actual PCB,
-	 * because it will not contain the preserved registers of
-	 * the program being debugged. Instead, it should point to
-	 * a PCB constructed by unwinding all the way up to the
-	 * IVT handler.
-	 * XXX - An additional complication here is that we need to
-	 * have the actual location of where the values should be
-	 * stored as well. Some values may still reside in registers,
-	 * while other may have been saved somewhere.
-	 */
-	bcopy(fpregs->fpr_regs + 2, pcb->pcb_f + PCB_F2,
-	    sizeof(pcb->pcb_f[0]) * 4);
+	/* Throw away the high FP registers (should be redundant). */
+	ia64_highfp_drop(td);
 
-	bcopy(fpregs->fpr_regs + 6, td->td_frame->tf_f,
-	    sizeof(td->td_frame->tf_f));
-
-	bcopy(fpregs->fpr_regs + 16, pcb->pcb_f + PCB_F16,
-	    sizeof(pcb->pcb_f[0]) * 16);
-
-	ia64_fpstate_drop(td);
-	bcopy(fpregs->fpr_regs + 32, pcb->pcb_highfp,
-	    sizeof(td->td_pcb->pcb_highfp));
-
+	frame->tf_scratch_fp = fpregs->fpr_scratch;
+	/* XXX preserved_fp */
+	pcb->pcb_high_fp = fpregs->fpr_high;
 	return (0);
+}
+
+/*
+ * High FP register functions.
+ * XXX no synchronization yet.
+ */
+
+int
+ia64_highfp_drop(struct thread *td)
+{
+	struct pcb *pcb;
+	struct pcpu *cpu;
+	struct thread *thr;
+
+	pcb = td->td_pcb;
+	cpu = pcb->pcb_fpcpu;
+	if (cpu == NULL)
+		return (0);
+	pcb->pcb_fpcpu = NULL;
+	thr = cpu->pc_fpcurthread;
+	cpu->pc_fpcurthread = NULL;
+
+	/* Post-mortem sanity checking. */
+	KASSERT(thr == td, ("Inconsistent high FP state"));
+	return (1);
+}
+
+int
+ia64_highfp_load(struct thread *td)
+{
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+	KASSERT(pcb->pcb_fpcpu == NULL, ("FP race on thread"));
+	KASSERT(PCPU_GET(fpcurthread) == NULL, ("FP race on pcpu"));
+	restore_high_fp(&pcb->pcb_high_fp);
+	PCPU_SET(fpcurthread, td);
+	pcb->pcb_fpcpu = pcpup;
+	return (1);
+}
+
+int
+ia64_highfp_save(struct thread *td)
+{
+	struct pcb *pcb;
+	struct pcpu *cpu;
+	struct thread *thr;
+
+	/* Don't save if the high FP registers weren't modified. */
+	if ((td->td_frame->tf_special.psr & IA64_PSR_MFH) == 0)
+		return (ia64_highfp_drop(td));
+
+	pcb = td->td_pcb;
+	cpu = pcb->pcb_fpcpu;
+	if (cpu == NULL)
+		return (0);
+#ifdef SMP
+	if (cpu != pcpup) {
+		ipi_send(cpu->pc_lid, IPI_HIGH_FP);
+		while (pcb->pcb_fpcpu != cpu)
+			DELAY(100);
+		return (1);
+	}
+#endif
+	save_high_fp(&pcb->pcb_high_fp);
+	pcb->pcb_fpcpu = NULL;
+	thr = cpu->pc_fpcurthread;
+	cpu->pc_fpcurthread = NULL;
+
+	/* Post-mortem sanity cxhecking. */
+	KASSERT(thr == td, ("Inconsistent high FP state"));
+	return (1);
 }
 
 #ifndef DDB
@@ -1313,76 +1324,6 @@ SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
 SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
-void
-ia64_fpstate_check(struct thread *td)
-{
-	if ((td->td_frame->tf_cr_ipsr & IA64_PSR_DFH) == 0)
-		if (td != PCPU_GET(fpcurthread))
-			panic("ia64_fpstate_check: bogus");
-}
-
-/*
- * Save the high floating point state in the pcb. Use this to get
- * read-only access to the floating point state. If write is true, the
- * current fp process is cleared so that fp state can safely be
- * modified. The process will automatically reload the changed state
- * by generating a disabled fp trap.
- */
-void
-ia64_fpstate_save(struct thread *td, int write)
-{
-	if (td == PCPU_GET(fpcurthread)) {
-		/*
-		 * Save the state in the pcb.
-		 */
-		savehighfp(td->td_pcb->pcb_highfp);
-
-		if (write) {
-			td->td_frame->tf_cr_ipsr |= IA64_PSR_DFH;
-			PCPU_SET(fpcurthread, NULL);
-		}
-	}
-}
-
-/*
- * Relinquish ownership of the FP state. This is called instead of
- * ia64_save_fpstate() if the entire FP state is being changed
- * (e.g. on sigreturn).
- */
-void
-ia64_fpstate_drop(struct thread *td)
-{
-	if (td == PCPU_GET(fpcurthread)) {
-		td->td_frame->tf_cr_ipsr |= IA64_PSR_DFH;
-		PCPU_SET(fpcurthread, NULL);
-	}
-}
-
-/*
- * Switch the current owner of the fp state to p, reloading the state
- * from the pcb.
- */
-void
-ia64_fpstate_switch(struct thread *td)
-{
-	if (PCPU_GET(fpcurthread)) {
-		/*
-		 * Dump the old fp state if its valid.
-		 */
-		savehighfp(PCPU_GET(fpcurthread)->td_pcb->pcb_highfp);
-		PCPU_GET(fpcurthread)->td_frame->tf_cr_ipsr |= IA64_PSR_DFH;
-	}
-
-	/*
-	 * Remember the new FP owner and reload its state.
-	 */
-	PCPU_SET(fpcurthread, td);
-	restorehighfp(td->td_pcb->pcb_highfp);
-	td->td_frame->tf_cr_ipsr &= ~IA64_PSR_DFH;
-
-	td->td_md.md_flags |= MDP_FPUSED;
-}
-
 /*
  * Utility functions for manipulating instruction bundles.
  */
@@ -1407,47 +1348,8 @@ ia64_pack_bundle(u_int64_t *lowp, u_int64_t *highp,
 	*highp = high;
 }
 
-static int
-rse_slot(u_int64_t *bsp)
-{
-	return ((u_int64_t) bsp >> 3) & 0x3f;
-}
-
-/*
- * Return the address of register regno (regno >= 32) given that bsp
- * points at the base of the register stack frame.
- */
-u_int64_t *
-ia64_rse_register_address(u_int64_t *bsp, int regno)
-{
-	int off = regno - 32;
-	u_int64_t rnats = (rse_slot(bsp) + off) / 63;
-	return bsp + off + rnats;
-}
-
-/*
- * Calculate the base address of the previous frame given that the
- * current frame's locals area is 'size'.
- */
-u_int64_t *
-ia64_rse_previous_frame(u_int64_t *bsp, int size)
-{
-	int slot = rse_slot(bsp);
-	int rnats = 0;
-	int count = size;
-
-	while (count > slot) {
-		count -= 63;
-		rnats++;
-		slot = 63;
-	}
-	return bsp - size - rnats;
-}
-
-
 intptr_t
 casuptr(intptr_t *p, intptr_t old, intptr_t new)
 {
 	return (-1);
 }
-

@@ -69,7 +69,6 @@
  *	ar.bsp	tranlated to new mode
  */
 ENTRY(ia64_change_mode, 0)
-
 	rsm	psr.i | psr.ic
 	mov	r19=ar.rsc		// save rsc while we change mode
 	tbit.nz	p6,p7=r14,17		// physical or virtual ?
@@ -106,7 +105,6 @@ ENTRY(ia64_change_mode, 0)
 	
 2:	mov	ar.rsc=r19		// restore ar.rsc
 	br.ret.sptk.few rp		// now in new mode
-	
 END(ia64_change_mode)
 
 /*
@@ -121,7 +119,6 @@ END(ia64_change_mode)
  *	psr.i	cleared
  */
 ENTRY(ia64_physical_mode, 0)
-
 	mov	r14=psr
 	mov	ret0=psr
 	movl	r15=(IA64_PSR_I|IA64_PSR_IT|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_DFL|IA64_PSR_DFH)
@@ -133,7 +130,6 @@ ENTRY(ia64_physical_mode, 0)
 	or	ret0=ret0,r16		// make sure BN=1
 
 	br.cond.sptk.many ia64_change_mode
-
 END(ia64_physical_mode)
 
 /*
@@ -148,7 +144,6 @@ END(ia64_physical_mode)
  *
  */
 ENTRY(ia64_call_efi_physical, 6)
-
 	.prologue
 	.regstk	6,4,5,0
 	.save	ar.pfs,loc0
@@ -183,7 +178,6 @@ ENTRY(ia64_call_efi_physical, 6)
 	mov	ar.pfs=loc0
 	;;
 	br.ret.sptk.many rp
-
 END(ia64_call_efi_physical)
 	
 /**************************************************************************/
@@ -194,8 +188,7 @@ END(ia64_call_efi_physical)
 	
 ENTRY(suword64, 2)
 XENTRY(suword)
-
-	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	movl	r14=VM_MAX_ADDRESS;;		// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
 (p6)	br.dpnt.few fusufault
 
@@ -218,12 +211,10 @@ XENTRY(suword)
 
 	mov	ret0=r0
 	br.ret.sptk.few rp
-
 END(suword64)
 	
 ENTRY(suword32, 2)
-
-	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	movl	r14=VM_MAX_ADDRESS;;		// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
 (p6)	br.dpnt.few fusufault
 
@@ -246,12 +237,10 @@ ENTRY(suword32, 2)
 
 	mov	ret0=r0
 	br.ret.sptk.few rp
-
 END(suword32)
 	
 ENTRY(subyte, 2)
-
-	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	movl	r14=VM_MAX_ADDRESS;;		// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
 (p6)	br.dpnt.few fusufault
 
@@ -274,13 +263,11 @@ ENTRY(subyte, 2)
 
 	mov	ret0=r0
 	br.ret.sptk.few rp
-
 END(subyte)
 
 ENTRY(fuword64, 1)
 XENTRY(fuword)
-
-	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	movl	r14=VM_MAX_ADDRESS;;		// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
 (p6)	br.dpnt.few fusufault
 
@@ -302,12 +289,10 @@ XENTRY(fuword)
 	st8	[r15]=r0			// clean up
 
 	br.ret.sptk.few rp
-
 END(fuword64)
 
 ENTRY(fuword32, 1)
-
-	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	movl	r14=VM_MAX_ADDRESS;;		// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
 (p6)	br.dpnt.few fusufault
 
@@ -329,12 +314,10 @@ ENTRY(fuword32, 1)
 	st8	[r15]=r0			// clean up
 
 	br.ret.sptk.few rp
-
 END(fuword32)
 
 ENTRY(fubyte, 1)
-
-	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	movl	r14=VM_MAX_ADDRESS;;		// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
 (p6)	br.dpnt.few fusufault
 
@@ -356,7 +339,6 @@ ENTRY(fubyte, 1)
 	st8	[r15]=r0			// clean up
 
 	br.ret.sptk.few rp
-
 END(fubyte)
 	
 ENTRY(fusufault, 0)
@@ -410,7 +392,6 @@ ENTRY(copystr, 4)
 
 4:	mov	ret0=0			// return 0.
 	br.ret.sptk.few rp
-	
 END(copystr)
 
 ENTRY(copyinstr, 4)
@@ -422,7 +403,7 @@ ENTRY(copyinstr, 4)
 	mov	loc1=rp
 	.body
 
-	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
+	movl	loc2=VM_MAX_ADDRESS		// make sure that src addr
 	;; 
 	cmp.geu	p6,p0=in0,loc2			// is in user space.
 	;; 
@@ -450,54 +431,12 @@ ENTRY(copyinstr, 4)
 	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
 	br.ret.sptk.few rp			// ret0 left over from copystr
-
 END(copyinstr)
-
-ENTRY(copyoutstr, 4)
-	.prologue
-	.regstk	4, 3, 4, 0
-	.save	ar.pfs,loc0
-	alloc	loc0=ar.pfs,4,3,4,0
-	.save	rp,loc1
-	mov	loc1=rp
-	.body
-
-	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
-	;; 
-	cmp.geu	p6,p0=in1,loc2			// is in user space.
-	;; 
-(p6)	br.cond.spnt.few copyerr		// if it's not, error out.
-	movl	r14=copyerr			// set up fault handler.
-	add	r15=PC_CURTHREAD,r13		// find curthread
-	;;
-	ld8	r15=[r15]
-	;;
-	add	r15=TD_PCB,r15			// find pcb
-	;;
-	ld8	r15=[r15]
-	;;
-	add	loc2=PCB_ONFAULT,r15
-	;;
-	st8	[loc2]=r14
-	;;
-	mov	out0=in0
-	mov	out1=in1
-	mov	out2=in2
-	mov	out3=in3
-	;;
-	br.call.sptk.few rp=copystr		// do the copy.
-	st8	[loc2]=r0			// kill the fault handler.
-	mov	ar.pfs=loc0			// restore ar.pfs
-	mov	rp=loc1				// restore ra.
-	br.ret.sptk.few rp			// ret0 left over from copystr
-
-END(copyoutstr)
 
 /*
  * Not the fastest bcopy in the world.
  */
 ENTRY(bcopy, 3)
-
 	mov	ret0=r0				// return zero for copy{in,out}
 	;; 
 	cmp.le	p6,p0=in2,r0			// bail if len <= 0
@@ -559,29 +498,25 @@ ENTRY(bcopy, 3)
 (p6)	br.cond.spnt.few 6b
 
 	br.ret.sptk.few rp
-
 END(bcopy)
 
 ENTRY(memcpy,3)
-	
 	mov	r14=in0 ;;
 	mov	in0=in1 ;;
 	mov	in1=r14
 	br.cond.sptk.few bcopy
-	
 END(memcpy)
 	
 ENTRY(copyin, 3)
-	
 	.prologue
-	.regstk	4, 3, 4, 0
+	.regstk	3, 3, 3, 0
 	.save	ar.pfs,loc0
-	alloc	loc0=ar.pfs,4,3,4,0
+	alloc	loc0=ar.pfs,3,3,3,0
 	.save	rp,loc1
 	mov	loc1=rp
 	.body
 
-	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
+	movl	loc2=VM_MAX_ADDRESS		// make sure that src addr
 	;; 
 	cmp.geu	p6,p0=in0,loc2			// is in user space.
 	;; 
@@ -608,20 +543,18 @@ ENTRY(copyin, 3)
 	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
 	br.ret.sptk.few rp			// ret0 left over from bcopy
-	
 END(copyin)
 
 ENTRY(copyout, 3)
-	
 	.prologue
-	.regstk	4, 3, 4, 0
+	.regstk	3, 3, 3, 0
 	.save	ar.pfs,loc0
-	alloc	loc0=ar.pfs,4,3,4,0
+	alloc	loc0=ar.pfs,3,3,3,0
 	.save	rp,loc1
 	mov	loc1=rp
 	.body
 
-	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
+	movl	loc2=VM_MAX_ADDRESS		// make sure that dest addr
 	;; 
 	cmp.geu	p6,p0=in1,loc2			// is in user space.
 	;; 
@@ -648,11 +581,9 @@ ENTRY(copyout, 3)
 	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
 	br.ret.sptk.few rp			// ret0 left over from bcopy
-	
 END(copyout)
 
 ENTRY(copyerr, 0)
-
 	add	r14=PC_CURTHREAD,r13 ;;		// find curthread
 	ld8	r14=[r14] ;;
 	add	r14=TD_PCB,r14 ;;		// curthread->td_addr
@@ -662,5 +593,4 @@ ENTRY(copyerr, 0)
 	
 	mov	ret0=EFAULT			// return EFAULT
 	br.ret.sptk.few rp
-
 END(copyerr)

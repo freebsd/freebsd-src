@@ -43,18 +43,21 @@ ENTRY(sbrk, 1)
 	add	r14 = @ltoff(curbrk), gp
 	;;
 	ld8	r14 = [r14]
-	cmp.eq	p6, p0 = in0, r0
+	cmp.eq	p6, p0 = r32, r0
 	;;
 	ld8	ret0 = [r14]
 (p6)	br.ret.sptk.few	rp
 	;;
-	add	in0 = ret0, in0
+	add	r32 = ret0, r32
+	;;
+	st8	[sp] = r32
 	CALLSYS_ERROR(break)
+	ld8	r15 = [sp]
 	add	r14 = @ltoff(curbrk), gp
 	;;
 	ld8	r14 = [r14]
 	;;
 	ld8	ret0 = [r14]
-	st8	[r14] = in0
+	st8	[r14] = r15
 	br.ret.sptk.few	rp
 END(sbrk)

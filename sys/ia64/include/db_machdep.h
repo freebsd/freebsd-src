@@ -50,8 +50,8 @@ typedef struct trapframe db_regs_t;
 extern db_regs_t	ddb_regs;	/* register state */
 #define	DDB_REGS	(&ddb_regs)
 
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_cr_iip \
-			 + (((regs)->tf_cr_ipsr >> 41) & 3))
+#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_special.iip + \
+	(((regs)->tf_special.psr >> 41) & 3))
 
 #define BKPT_WRITE(addr, storage)	db_write_breakpoint(addr, storage)
 #define BKPT_CLEAR(addr, storage)	db_clear_breakpoint(addr, storage)
@@ -59,8 +59,8 @@ extern db_regs_t	ddb_regs;	/* register state */
 
 #define BKPT_SKIP			db_skip_breakpoint()
 
-#define db_clear_single_step(regs)	ddb_regs.tf_cr_ipsr &= ~IA64_PSR_SS
-#define db_set_single_step(regs)	ddb_regs.tf_cr_ipsr |= IA64_PSR_SS
+#define db_clear_single_step(regs)	ddb_regs.tf_special.psr &= ~IA64_PSR_SS
+#define db_set_single_step(regs)	ddb_regs.tf_special.psr |= IA64_PSR_SS
 
 #define	IS_BREAKPOINT_TRAP(type, code)	(type == IA64_VEC_BREAK)
 #define	IS_WATCHPOINT_TRAP(type, code)	0

@@ -44,12 +44,14 @@ ENTRY(brk, 1)
 	add	r14=@ltoff(minbrk),gp ;;
 	ld8	r14=[r14] ;;
 	ld8	r14=[r14] ;;
-	cmp.ltu	p6,p0=in0,r14 ;;
-(p6)	mov	in0=r14
+	cmp.ltu	p6,p0=r32,r14 ;;
+(p6)	mov	r32=r14 ;;
+	st8	[sp]=r32
 	CALLSYS_ERROR(break)
+	ld8	r15=[sp]
 	add	r14=@ltoff(curbrk),gp ;;
 	ld8	r14=[r14] ;;
-	st8	[r14]=in0
+	st8	[r14]=r15
 	mov	ret0=0
 	br.ret.sptk.few rp
 END(brk)

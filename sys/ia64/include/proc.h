@@ -37,7 +37,6 @@
 
 struct mdthread {
 	u_long		md_flags;
-	void		*md_kstackvirt;	/* virtual address of td_kstack */
 	vm_offset_t	md_bspstore;	/* initial ar.bspstore */
 	register_t	md_savecrit;
 };
@@ -50,7 +49,7 @@ struct mdthread {
 #define MDP_UAC_MASK	(MDP_UAC_NOPRINT | MDP_UAC_NOFIX | MDP_UAC_SIGBUS)
 
 struct mdproc {
-	struct user	*md_uservirt;	/* virtual address of p_addr */
+	int		__dummy;	/* Avoid having an empty struct. */
 };
 
 #endif /* !_MACHINE_PROC_H_ */
