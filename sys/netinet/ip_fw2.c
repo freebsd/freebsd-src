@@ -1730,17 +1730,30 @@ check_body:
 				match = (hlen > 0 && cmd->arg1 == ip->ip_v);
 				break;
 
-			case O_IPTTL:
-				match = (hlen > 0 && cmd->arg1 == ip->ip_ttl);
-				break;
-
 			case O_IPID:
-				match = (hlen > 0 &&
-				    cmd->arg1 == ntohs(ip->ip_id));
-				break;
-
 			case O_IPLEN:
-				match = (hlen > 0 && cmd->arg1 == ip_len);
+			case O_IPTTL:
+				if (hlen > 0) {	/* only for IP packets */
+				    uint16_t x;
+				    uint16_t *p;
+				    int i;
+
+				    if (cmd->opcode == O_IPLEN)
+					x = ip_len;
+				    else if (cmd->opcode == O_IPTTL)
+					x = ip->ip_ttl;
+				    else /* must be IPID */
+					x = ntohs(ip->ip_id);
+				    if (cmdlen == 1) {
+					match = (cmd->arg1 == x);
+					break;
+				    }
+				    /* otherwise we have ranges */
+				    p = ((ipfw_insn_u16 *)cmd)->ports;
+				    i = cmdlen - 1;
+				    for (; !match && i>0; i--, p += 2)
+					match = (x >= p[0] && x <= p[1]);
+				}
 				break;
 
 			case O_IPPRECEDENCE:
@@ -2371,11 +2384,8 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IN:
 		case O_FRAG:
 		case O_IPOPT:
-		case O_IPLEN:
-		case O_IPID:
 		case O_IPTOS:
 		case O_IPPRECEDENCE:
-		case O_IPTTL:
 		case O_IPVER:
 		case O_TCPWIN:
 		case O_TCPFLAGS:
@@ -2437,6 +2447,13 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_MACADDR2:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_mac))
+				goto bad_size;
+			break;
+
+		case O_IPID:
+		case O_IPTTL:
+		case O_IPLEN:
+			if (cmdlen < 1 || cmdlen > 31)
 				goto bad_size;
 			break;
 
