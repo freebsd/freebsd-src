@@ -59,270 +59,45 @@
 #include "ep.h"
 #if NEP > 0
 
-#include "opt_inet.h"
-#include "opt_ipx.h"
-
 #include <sys/param.h>
-#if defined(__FreeBSD__)
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#endif
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#if defined(__NetBSD__)
-#include <sys/select.h>
-#endif
 
 #include <net/ethernet.h>
 #include <net/if.h>
-
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-
 #include <net/bpf.h>
 
-#if defined(__FreeBSD__)
 #include <machine/clock.h>
-#endif
 
-#include <i386/isa/isa_device.h>
-#include <i386/isa/if_epreg.h>
 #include <i386/isa/elink.h>
-
-/* DELAY_MULTIPLE: How much to boost "base" delays, except
- * for the inter-bit delays in get_eeprom_data.  A cyrix Media GX needed this.
- */
-#define DELAY_MULTIPLE 10
-#define BIT_DELAY_MULTIPLE 10
+#include <dev/ep/if_epreg.h>
+#include <dev/ep/if_epvar.h>
 
 /* Exported variables */
-u_long	ep_unit;
+struct	ep_softc *	ep_softc[NEP];
+struct	ep_board	ep_board[EP_MAX_BOARDS + 1];
 int	ep_boards;
-struct	ep_board ep_board[EP_MAX_BOARDS + 1];
+u_long	ep_unit;
 
-static	int eeprom_rdy __P((struct ep_softc *sc));
+static	char *		ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
 
-static	int ep_isa_probe __P((struct isa_device *));
-static struct ep_board * ep_look_for_board_at __P((struct isa_device *is));
-static	int ep_isa_attach __P((struct isa_device *));
-static	int epioctl __P((struct ifnet * ifp, u_long, caddr_t));
+static	int		eeprom_rdy	__P((struct ep_softc *sc));
+static	int		epioctl		__P((struct ifnet * ifp, u_long, caddr_t));
+static	void		epinit		__P((void *));
+static	void		epread		__P((struct ep_softc *));
+static	void		epstart		__P((struct ifnet *));
+static	void		epstop		__P((struct ep_softc *));
+static	void		epwatchdog	__P((struct ifnet *));
 
-static	void epinit __P((void *));
-static	ointhand2_t epintr;
-static	void epread __P((struct ep_softc *));
-void	epreset __P((int));
-static	void epstart __P((struct ifnet *));
-static	void epstop __P((struct ep_softc *));
-static	void epwatchdog __P((struct ifnet *));
-
-#if 0
-static	int send_ID_sequence __P((int));
-#endif
-static	int get_eeprom_data __P((int, int));
-
-static	struct ep_softc* ep_softc[NEP];
-static	int ep_current_tag = EP_LAST_TAG + 1;
-static	char *ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
-
-#define ep_ftst(f) (sc->stat&(f))
-#define ep_fset(f) (sc->stat|=(f))
-#define ep_frst(f) (sc->stat&=~(f))
-
-struct isa_driver epdriver = {
-    ep_isa_probe,
-    ep_isa_attach,
-    "ep",
-    0
-};
-
-#include "card.h"
-
-#if NCARD > 0
-#include <sys/select.h>
-#include <sys/module.h>
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-
-/*
- * PC-Card (PCMCIA) specific code.
- */
-static int ep_pccard_init __P((struct pccard_devinfo *));
-static int ep_pccard_attach  __P((struct pccard_devinfo *));
-static void ep_unload __P((struct pccard_devinfo *));
-static int card_intr __P((struct pccard_devinfo *));
-static int ep_pccard_identify (struct ep_board *epb, int unit); 
-
-PCCARD_MODULE(ep, ep_pccard_init, ep_unload, card_intr, 0, net_imask);
-
-/*
- * Initialize the device - called from Slot manager.
- */
-static int
-ep_pccard_init(devi)
-    struct pccard_devinfo *devi;
-{
-    struct isa_device *is = &devi->isahd;
-    struct ep_softc *sc = ep_softc[is->id_unit];
-    struct ep_board *epb;
-    int i;
-
-    epb = &ep_board[is->id_unit];
-
-    if (sc == 0) {
-	if ((sc = ep_alloc(is->id_unit, epb)) == 0) {
-	    return (ENXIO);
-	}
-	ep_unit++;
-    }
-
-    /* get_e() requires these. */
-    sc->ep_io_addr = is->id_iobase;
-    sc->unit = is->id_unit;
-    epb->epb_addr = is->id_iobase;
-    epb->epb_used = 1;
-
-    /*
-     * XXX - Certain (newer?) 3Com cards need epb->cmd_off == 2. Sadly,
-     * you need to have a correct cmd_off in order to identify the card. 
-     * So we have to hit it with both and cross our virtual fingers. There's
-     * got to be a better way to do this. jyoung@accessus.net 09/11/1999
-     */
-
-    epb->cmd_off = 0;
-    epb->prod_id = get_e(sc, EEPROM_PROD_ID);
-    if (!ep_pccard_identify(epb, is->id_unit)) {
-	if (bootverbose) printf("ep%d: Pass 1 of 2 detection failed (nonfatal)\n", is->id_unit);
-	epb->cmd_off = 2;
-	epb->prod_id = get_e(sc, EEPROM_PROD_ID);
-	if (!ep_pccard_identify(epb, is->id_unit)) {
-	    if (bootverbose) printf("ep%d: Pass 2 of 2 detection failed (fatal!)\n", is->id_unit);
-	    printf("ep%d: Unit failed to come ready or product ID unknown! (id 0x%x)\n", is->id_unit, epb->prod_id);
-	    return (ENXIO);
-	}
-    }
-
-    epb->res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
-    for (i = 0; i < 3; i++)
-	sc->epb->eth_addr[i] = get_e(sc, EEPROM_NODE_ADDR_0 + i);
-
-    if (ep_pccard_attach(devi) == 0)
-	return (ENXIO);
-
-    sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
-    return (0);
-}
-
-static int
-ep_pccard_identify(epb, unit)
-    struct ep_board *epb;
-    int unit;
-{
-    /* Determine device type and associated MII capabilities  */
-    switch (epb->prod_id) {
-	case 0x6055: /* 3C556 */
-	    if (bootverbose) printf("ep%d: 3Com 3C556\n", unit);
-	    epb->mii_trans = 1;
-	    return (1);
-	    break; /* NOTREACHED */
-	case 0x4057: /* 3C574 */
-	    if (bootverbose) printf("ep%d: 3Com 3C574\n", unit);
-	    epb->mii_trans = 1;
-	    return (1);
-	    break; /* NOTREACHED */
-	case 0x4b57: /* 3C574B */
-	    if (bootverbose) printf("ep%d: 3Com 3C574B, Megahertz 3CCFE574BT or Fast Etherlink 3C574-TX\n", unit);
-	    epb->mii_trans = 1;
-	    return (1);
-	    break; /* NOTREACHED */
-	case 0x9058: /* 3C589 */
-	    if (bootverbose) printf("ep%d: 3Com Etherlink III 3C589[B/C/D]\n", unit);
-	    epb->mii_trans = 0;
-	    return (1);
-	    break; /* NOTREACHED */
-    }
-    return (0);
-}
-
-static int
-ep_pccard_attach(devi)
-    struct pccard_devinfo *devi;
-{
-    struct isa_device *is = &devi->isahd;
-    struct ep_softc *sc = ep_softc[is->id_unit];
-    u_short config;
-
-    sc->ep_connectors = 0;
-    config = inw(IS_BASE + EP_W0_CONFIG_CTRL);
-    if (config & IS_BNC) {
-	sc->ep_connectors |= BNC;
-    }
-    if (config & IS_UTP) {
-	sc->ep_connectors |= UTP;
-    }
-    if (!(sc->ep_connectors & 7))
-	/* (Apparently) non-fatal */
-	if(bootverbose) printf("ep%d: No connectors or MII.\n", is->id_unit);
-
-    sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
-
-    /* ROM size = 0, ROM base = 0 */
-    /* For now, ignore AUTO SELECT feature of 3C589B and later. */
-    outw(BASE + EP_W0_ADDRESS_CFG, get_e(sc, EEPROM_ADDR_CFG) & 0xc000);
-
-    /* Fake IRQ must be 3 */
-    outw(BASE + EP_W0_RESOURCE_CFG, (sc->epb->res_cfg & 0x0fff) | 0x3000);
-
-    outw(BASE + EP_W0_PRODUCT_ID, sc->epb->prod_id);
-
-    if (sc->epb->mii_trans) {
-	/*
-	 * turn on the MII transciever
-	 */
-	GO_WINDOW(3);
-	outw(BASE + EP_W3_OPTIONS, 0x8040);
-	DELAY(1000);
-	outw(BASE + EP_W3_OPTIONS, 0xc040);
-	outw(BASE + EP_COMMAND, RX_RESET);
-	outw(BASE + EP_COMMAND, TX_RESET);
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	DELAY(1000);
-	outw(BASE + EP_W3_OPTIONS, 0x8040);
-    }
-
-    ep_attach(sc);
-
-    return 1;
-}
-
-static void
-ep_unload(devi)
-    struct pccard_devinfo *devi;
-{
-    struct ep_softc *sc = ep_softc[devi->isahd.id_unit];
-
-    if (sc->gone) {
-        printf("ep%d: already unloaded\n", devi->isahd.id_unit);
-	return;
-    }
-    sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING;
-    sc->gone = 1;
-    printf("ep%d: unload\n", devi->isahd.id_unit);
-}
-
-/*
- * card_intr - Shared interrupt called from
- * front end of PC-Card handler.
- */
-static int
-card_intr(devi)
-    struct pccard_devinfo *devi;
-{
-    epintr(devi->isahd.id_unit);
-    return(1);
-}
-#endif /* NCARD > 0 */
+#define EP_FTST(sc, f)	(sc->stat&(f))
+#define EP_FSET(sc, f)	(sc->stat|=(f))
+#define EP_FRST(sc, f)	(sc->stat&=~(f))
 
 static int
 eeprom_rdy(sc)
@@ -337,120 +112,6 @@ eeprom_rdy(sc)
 	return (0);
     }
     return (1);
-}
-
-static struct ep_board *
-ep_look_for_board_at(is)
-    struct isa_device *is;
-{
-    int data, i, j, id_port = ELINK_ID_PORT;
-    int count = 0;
-
-    if (ep_current_tag == (EP_LAST_TAG + 1)) {
-	/* Come here just one time */
-
-	ep_current_tag--;
-
-        /* Look for the ISA boards. Init and leave them actived */
-	outb(id_port, 0);
-	outb(id_port, 0);
-
-	elink_idseq(0xCF);
-
-	elink_reset();
-	DELAY(DELAY_MULTIPLE * 10000);
-	for (i = 0; i < EP_MAX_BOARDS; i++) {
-	    outb(id_port, 0);
-	    outb(id_port, 0);
-	    elink_idseq(0xCF);
-
-	    data = get_eeprom_data(id_port, EEPROM_MFG_ID);
-	    if (data != MFG_ID)
-		break;
-
-	    /* resolve contention using the Ethernet address */
-
-	    for (j = 0; j < 3; j++)
-		 get_eeprom_data(id_port, j);
-
-	    /* and save this address for later use */
-
-	    for (j = 0; j < 3; j++)
-		 ep_board[ep_boards].eth_addr[j] = get_eeprom_data(id_port, j);
-
-	    ep_board[ep_boards].res_cfg =
-		get_eeprom_data(id_port, EEPROM_RESOURCE_CFG);
-
-	    ep_board[ep_boards].prod_id =
-		get_eeprom_data(id_port, EEPROM_PROD_ID);
-
-	    ep_board[ep_boards].epb_used = 0;
-#ifdef PC98
-	    ep_board[ep_boards].epb_addr =
-			(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x100 + 0x40d0;
-#else
-	    ep_board[ep_boards].epb_addr =
-			(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x10 + 0x200;
-
-	    if (ep_board[ep_boards].epb_addr > 0x3E0)
-		/* Board in EISA configuration mode */
-		continue;
-#endif /* PC98 */
-
-	    outb(id_port, ep_current_tag);	/* tags board */
-	    outb(id_port, ACTIVATE_ADAPTER_TO_CONFIG);
-	    ep_boards++;
-	    count++;
-	    ep_current_tag--;
-	}
-
-	ep_board[ep_boards].epb_addr = 0;
-	if (count) {
-	    printf("%d 3C5x9 board(s) on ISA found at", count);
-	    for (j = 0; ep_board[j].epb_addr; j++)
-		if (ep_board[j].epb_addr <= 0x3E0)
-		    printf(" 0x%x", ep_board[j].epb_addr);
-	    printf("\n");
-	}
-    }
-
-    /* we have two cases:
-     *
-     *  1. Device was configured with 'port ?'
-     *      In this case we search for the first unused card in list
-     *
-     *  2. Device was configured with 'port xxx'
-     *      In this case we search for the unused card with that address
-     *
-     */
-
-    if (IS_BASE == -1) { /* port? */
-	for (i = 0; ep_board[i].epb_addr && ep_board[i].epb_used; i++)
-	    ;
-	if (ep_board[i].epb_addr == 0)
-	    return 0;
-
-	IS_BASE = ep_board[i].epb_addr;
-	ep_board[i].epb_used = 1;
-
-	return &ep_board[i];
-    } else {
-	for (i = 0;
-	     ep_board[i].epb_addr && ep_board[i].epb_addr != IS_BASE;
-	     i++)
-	    ;
-
-	if (ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE)
-	    return 0;
-
-	if (inw(IS_BASE + EP_W0_EEPROM_COMMAND) & EEPROM_TST_MODE) {
-	    printf("ep%d: 3c5x9 at 0x%x in PnP mode. Disable PnP mode!\n",
-		   is->id_unit, IS_BASE);
-	}
-	ep_board[i].epb_used = 1;
-
-	return &ep_board[i];
-    }
 }
 
 /*
@@ -472,8 +133,8 @@ get_e(sc, offset)
 
 struct ep_softc *
 ep_alloc(unit, epb)
-    int	unit;
-    struct	ep_board *epb;
+    int unit;
+    struct ep_board *epb;
 {
     struct	ep_softc *sc;
 
@@ -512,108 +173,6 @@ ep_free(sc)
     ep_softc[sc->unit] = NULL;
     free(sc, M_DEVBUF);
     return;
-}
-
-int
-ep_isa_probe(is)
-    struct isa_device *is;
-{
-    struct ep_softc *sc;
-    struct ep_board *epb;
-    u_short k;
-
-    if ((epb = ep_look_for_board_at(is)) == 0)
-	return (0);
-
-    /*
-     * Allocate a storage area for us
-     */
-    sc = ep_alloc(ep_unit, epb); 
-    if (!sc)
-	return (0);
-
-    is->id_unit = ep_unit++;
-
-    /*
-     * The iobase was found and MFG_ID was 0x6d50. PROD_ID should be
-     * 0x9[0-f]50	(IBM-PC)
-     * 0x9[0-f]5[0-f]	(PC-98)
-     */
-    GO_WINDOW(0);
-    k = sc->epb->prod_id;
-#ifdef PC98
-    if ((k & 0xf0f0) != (PROD_ID & 0xf0f0)) {
-#else
-    if ((k & 0xf0ff) != (PROD_ID & 0xf0ff)) {
-#endif
-	printf("ep_isa_probe: ignoring model %04x\n", k);
-	ep_free(sc);
-	return (0);
-    }
-
-    k = sc->epb->res_cfg;
-
-    k >>= 12;
-
-    /* Now we have two cases again:
-     *
-     *  1. Device was configured with 'irq?'
-     *      In this case we use irq read from the board
-     *
-     *  2. Device was configured with 'irq xxx'
-     *      In this case we set up the board to use specified interrupt
-     *
-     */
-
-    if (is->id_irq == 0) { /* irq? */
-	is->id_irq = 1 << ((k == 2) ? 9 : k);
-    }
-
-    sc->stat = 0;	/* 16 bit access */
-
-    /* By now, the adapter is already activated */
-
-    return (EP_IOSIZE);		/* 16 bytes of I/O space used. */
-}
-
-static int
-ep_isa_attach(is)
-    struct isa_device *is;
-{
-    struct ep_softc *sc = ep_softc[is->id_unit];
-    u_short config;
-    int irq;
-
-    is->id_ointr = epintr;
-    sc->ep_connectors = 0;
-    config = inw(IS_BASE + EP_W0_CONFIG_CTRL);
-    if (config & IS_AUI) {
-	sc->ep_connectors |= AUI;
-    }
-    if (config & IS_BNC) {
-	sc->ep_connectors |= BNC;
-    }
-    if (config & IS_UTP) {
-	sc->ep_connectors |= UTP;
-    }
-    if (!(sc->ep_connectors & 7))
-	printf("no connectors!");
-    sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
-    /*
-     * Write IRQ value to board
-     */
-
-    irq = ffs(is->id_irq) - 1;
-    if (irq == -1) {
-	printf(" invalid irq... cannot attach\n");
-	return 0;
-    }
-
-    GO_WINDOW(0);
-    SET_IRQ(BASE, irq);
-
-    ep_attach(sc);
-    return 1;
 }
 
 int
@@ -680,7 +239,7 @@ ep_attach(sc)
 	sc->rx_bpf_disc = sc->rx_overrunf = sc->rx_overrunl =
 	sc->tx_underrun = 0;
 #endif
-    ep_fset(F_RX_FIRST);
+    EP_FSET(sc, F_RX_FIRST);
     sc->top = sc->mcur = 0;
 
     if (!attached) {
@@ -819,7 +378,7 @@ epinit(xsc)
 	sc->rx_bpf_disc = sc->rx_overrunf = sc->rx_overrunl =
 	sc->tx_underrun = 0;
 #endif
-    ep_fset(F_RX_FIRST);
+    EP_FSET(sc, F_RX_FIRST);
     if (sc->top) {
 	m_freem(sc->top);
 	sc->top = sc->mcur = 0;
@@ -901,7 +460,7 @@ startagain:
     outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
 
     for (top = m; m != 0; m = m->m_next)
-	if (ep_ftst(F_ACCESS_32_BITS)) {
+	if (EP_FTST(sc, F_ACCESS_32_BITS)) {
 	    outsl(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
 		  m->m_len / 4);
 	    if (m->m_len & 3)
@@ -943,19 +502,6 @@ readcheck:
 	return;
     }
     goto startagain;
-}
-
-static void
-epintr(unit)
-    int unit;
-{
-    register struct ep_softc *sc = ep_softc[unit];
-
-    if (sc->gone) {
-	return;
-    }
-
-    ep_intr(sc);
 }
 
 void
@@ -1095,7 +641,7 @@ read_again:
 	     * expect
 	     */
 #ifdef EP_LOCAL_STATS
-	    if (ep_ftst(F_RX_FIRST))
+	    if (EP_FTST(sc, F_RX_FIRST))
 		sc->rx_overrunf++;
 	    else
 		sc->rx_overrunl++;
@@ -1105,7 +651,7 @@ read_again:
     }
     rx_fifo = rx_fifo2 = status & RX_BYTES_MASK;
 
-    if (ep_ftst(F_RX_FIRST)) {
+    if (EP_FTST(sc, F_RX_FIRST)) {
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (!m)
 	    goto out;
@@ -1143,7 +689,7 @@ read_again:
 	    mcur->m_next = m;
 	    lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
 	}
-	if (ep_ftst(F_ACCESS_32_BITS)) { /* default for EISA configured cards*/
+	if (EP_FTST(sc, F_ACCESS_32_BITS)) { /* default for EISA configured cards*/
 	    insl(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
 		 lenthisone / 4);
 	    m->m_len += (lenthisone & ~3);
@@ -1168,7 +714,7 @@ read_again:
 #ifdef EP_LOCAL_STATS
 	sc->rx_no_first++;	/* to know how often we come here */
 #endif
-	ep_frst(F_RX_FIRST);
+	EP_FRST(sc, F_RX_FIRST);
 	if (!((status = inw(BASE + EP_W1_RX_STATUS)) & ERR_RX_INCOMPLETE)) {
 	    /* we see if by now, the packet has completly arrived */
 	    goto read_again;
@@ -1178,7 +724,7 @@ read_again:
     }
     outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
     ++ifp->if_ipackets;
-    ep_fset(F_RX_FIRST);
+    EP_FSET(sc, F_RX_FIRST);
     top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
     top->m_pkthdr.len = sc->cur_len;
 
@@ -1201,7 +747,7 @@ read_again:
 		m_freem(sc->top);
 		sc->top = 0;
 	    }
-	    ep_fset(F_RX_FIRST);
+	    EP_FSET(sc, F_RX_FIRST);
 #ifdef EP_LOCAL_STATS
 	    sc->rx_bpf_disc++;
 #endif
@@ -1228,7 +774,7 @@ out:
 	sc->rx_no_mbuf++;
 #endif
     }
-    ep_fset(F_RX_FIRST);
+    EP_FSET(sc, F_RX_FIRST);
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
     outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 }
@@ -1336,52 +882,6 @@ epstop(sc)
     outw(BASE + EP_COMMAND, SET_RD_0_MASK);
     outw(BASE + EP_COMMAND, SET_INTR_MASK);
     outw(BASE + EP_COMMAND, SET_RX_FILTER);
-}
-
-
-#if 0
-static int
-send_ID_sequence(port)
-    int port;
-{
-    int cx, al;
-
-    for (al = 0xff, cx = 0; cx < 255; cx++) {
-	outb(port, al);
-	al <<= 1;
-	if (al & 0x100)
-	    al ^= 0xcf;
-    }
-    return (1);
-}
-#endif
-
-
-/*
- * We get eeprom data from the id_port given an offset into the eeprom.
- * Basically; after the ID_sequence is sent to all of the cards; they enter
- * the ID_CMD state where they will accept command requests. 0x80-0xbf loads
- * the eeprom data.  We then read the port 16 times and with every read; the
- * cards check for contention (ie: if one card writes a 0 bit and another
- * writes a 1 bit then the host sees a 0. At the end of the cycle; each card
- * compares the data on the bus; if there is a difference then that card goes
- * into ID_WAIT state again). In the meantime; one bit of data is returned in
- * the AX register which is conveniently returned to us by inb().  Hence; we
- * read 16 times getting one bit of data with each read.
- */
-
-static int
-get_eeprom_data(id_port, offset)
-    int id_port;
-    int offset;
-{
-    int i, data = 0;
-    outb(id_port, 0x80 + offset);
-    for (i = 0; i < 16; i++) {
-    	DELAY(BIT_DELAY_MULTIPLE * 1000);
-	data = (data << 1) | (inw(id_port) & 1);
-    }
-    return (data);
 }
 
 #endif				/* NEP > 0 */
