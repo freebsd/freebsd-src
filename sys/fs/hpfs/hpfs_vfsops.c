@@ -95,7 +95,7 @@ hpfs_mount (
 	struct nameidata *ndp,
 	struct thread *td )
 {
-	u_int		size;
+	size_t		size;
 	int		err = 0;
 	struct vnode	*devvp;
 	struct hpfs_args args;
