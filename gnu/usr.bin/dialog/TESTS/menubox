@@ -2,6 +2,7 @@
 DIALOG=${DIALOG=/usr/bin/dialog}
 
 $DIALOG --clear --title "MENU BOX" \
+	--hline "Press 1-9, Up/Down, first letter or Enter" \
         --menu "Hi, this is a menu box. You can use this to \n\
 present a list of choices for the user to \n\
 choose. If there are more items than can fit \n\
