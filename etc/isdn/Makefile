@@ -25,3 +25,5 @@ install:
 		  ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 $$i \
 		  ${DESTDIR}/etc/isdn ; \
 		done
+
+.include <bsd.own.mk>
