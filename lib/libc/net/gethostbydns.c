@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.7 1995/10/22 14:39:02 phk Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.8 1996/01/13 09:03:40 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -73,6 +73,8 @@ static char rcsid[] = "$Id: gethostbydns.c,v 1.7 1995/10/22 14:39:02 phk Exp $";
 
 #include "res_config.h"
 
+extern void _res_close __P((void));
+
 #define	MAXALIASES	35
 #define	MAXADDRS	35
 
@@ -85,8 +87,6 @@ static struct hostent host;
 static char *host_aliases[MAXALIASES];
 static char hostbuf[8*1024];
 static struct in_addr host_addr;
-static FILE *hostf = NULL;
-static int stayopen = 0;
 
 #ifdef RESOLVSORT
 static void addrsort __P((char **, int));

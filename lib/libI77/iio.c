@@ -6,6 +6,8 @@ char *f__icend;
 extern icilist *f__svic;
 int f__icnum;
 extern int f__hiwater;
+
+int
 z_getc(Void)
 {
 	if(f__recpos++ < f__svic->icirlen) {
@@ -15,9 +17,9 @@ z_getc(Void)
 	return '\n';
 }
 #ifdef KR_headers
-z_putc(c)
+int z_putc(c)
 #else
-z_putc(int c)
+int z_putc(int c)
 #endif
 {
 	if(f__icptr >= f__icend) err(f__svic->icierr,110,"inwrite");
@@ -26,6 +28,8 @@ z_putc(int c)
 	else	err(f__svic->icierr,110,"recend");
 	return 0;
 }
+
+int
 z_rnew(Void)
 {
 	f__icptr = f__svic->iciunit + (++f__icnum)*f__svic->icirlen;
@@ -43,9 +47,9 @@ z_endp(Void)
 	}
 
 #ifdef KR_headers
-c_si(a) icilist *a;
+int c_si(a) icilist *a;
 #else
-c_si(icilist *a)
+int c_si(icilist *a)
 #endif
 {
 	f__elist = (cilist *)a;
@@ -82,7 +86,7 @@ integer s_rsfi(a) icilist *a;
 integer s_rsfi(icilist *a)
 #endif
 {	int n;
-	if(n=c_si(a)) return(n);
+	if( (n=c_si(a)) ) return(n);
 	f__reading=1;
 	f__doed=rd_ed;
 	f__doned=rd_ned;
@@ -93,6 +97,7 @@ integer s_rsfi(icilist *a)
 	return(0);
 }
 
+int
 z_wnew(Void)
 {
 	if (f__recpos < f__hiwater) {
@@ -113,7 +118,7 @@ integer s_wsfi(a) icilist *a;
 integer s_wsfi(icilist *a)
 #endif
 {	int n;
-	if(n=c_si(a)) return(n);
+	if( (n=c_si(a)) ) return(n);
 	f__reading=0;
 	f__doed=w_ed;
 	f__doned=w_ned;

@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)tgoto.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
+#include <string.h>
 #include "termcap.h"
 
 #define	CTRL(c)	((c) & 037)
@@ -87,7 +88,7 @@ toohard:
 		return ("OOPS");
 	}
 	added[0] = 0;
-	while (c = *cp++) {
+	while ( (c = *cp++) ) {
 		if (c != '%') {
 			*dp++ = c;
 			continue;

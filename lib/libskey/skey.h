@@ -25,9 +25,14 @@ void f __P((char *x));
 int keycrunch __P((char *result,char *seed,char *passwd));
 char *btoe __P((char *engout,char *c));
 char *put8 __P((char *out,char *s));
+int atob8 __P((char *out, char *in));
+int btoa8 __P((char *out, char *in));
+int htoi __P((char c));
 int etob __P((char *out,char *e));
+void sevenbit __P((char *s));
 void rip __P((char *buf));
 int skeychallenge __P((struct skey *mp,char *name, char *challenge));
+int skeyinfo __P((struct skey *mp, char* name, char *ss));
 int skeylookup __P((struct skey *mp,char *name));
 int skeyverify __P((struct skey *mp,char *response));
 

@@ -141,7 +141,7 @@ _getnetbyhtname(name)
 	register char **cp;
 
 	setnetent(_net_stayopen);
-	while (p = getnetent()) {
+	while ( (p = getnetent()) ) {
 		if (strcasecmp(p->n_name, name) == 0)
 			break;
 		for (cp = p->n_aliases; *cp != 0; cp++)
@@ -162,7 +162,7 @@ _getnetbyhtaddr(net, type)
 	register struct netent *p;
 
 	setnetent(_net_stayopen);
-	while (p = getnetent())
+	while ( (p = getnetent()) )
 		if (p->n_addrtype == type && p->n_net == net)
 			break;
 	if (!_net_stayopen)

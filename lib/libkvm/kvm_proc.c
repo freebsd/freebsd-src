@@ -54,6 +54,8 @@ static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/file.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <nlist.h>
 #include <kvm.h>
@@ -71,6 +73,7 @@ static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
 
 #include "kvm_private.h"
 
+#if used
 static char *
 kvm_readswap(kd, p, va, cnt)
 	kvm_t *kd;
@@ -84,6 +87,7 @@ kvm_readswap(kd, p, va, cnt)
 	return(0);
 #endif	/* __FreeBSD__ */
 }
+#endif
 
 #define KREAD(kd, addr, obj) \
 	(kvm_read(kd, addr, (char *)(obj), sizeof(*obj)) != sizeof(*obj))
@@ -113,8 +117,8 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			return (-1);
 		}
 		if (KREAD(kd, (u_long)proc.p_cred, &eproc.e_pcred) == 0)
-			KREAD(kd, (u_long)eproc.e_pcred.pc_ucred,
-			      &eproc.e_ucred);
+			(void)(KREAD(kd, (u_long)eproc.e_pcred.pc_ucred,
+			             &eproc.e_ucred));
 
 		switch(what) {
 
@@ -659,7 +663,7 @@ kvm_getenvv(kd, kp, nchr)
 ssize_t
 kvm_uread(kd, p, uva, buf, len)
 	kvm_t *kd;
-	register struct proc *p;
+	register const struct proc *p;
 	register u_long uva;
 	register char *buf;
 	register size_t len;

@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)pwcache.c	8.1 (Berkeley) 6/4/93";
 #include <utmp.h>
 
 #define	NCACHE	64			/* power of 2 */
-#define	MASK	NCACHE - 1		/* bits to store with */
+#define	MASK	(NCACHE - 1)		/* bits to store with */
 
 char *
 user_from_uid(uid, nouser)

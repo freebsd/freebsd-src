@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.6 1995/03/24 15:38:54 ache Exp $";
-static char rcsid[] = "$Id: gethostnamadr.c,v 1.6 1995/03/24 15:38:54 ache Exp $";
+static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.7 1995/05/30 05:40:45 rgrimes Exp $";
+static char rcsid[] = "$Id: gethostnamadr.c,v 1.7 1995/05/30 05:40:45 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -37,6 +37,11 @@ static char rcsid[] = "$Id: gethostnamadr.c,v 1.6 1995/03/24 15:38:54 ache Exp $
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+
+extern void _sethosthtent __P(( int ));
+extern void _endhosthtent __P(( void ));
+extern void _sethostdnsent __P(( int ));
+extern void _endhostdnsent __P(( void ));
 
 extern struct hostent * _gethostbyhtname  __P((const char *));
 extern struct hostent * _gethostbydnsname __P((const char *));

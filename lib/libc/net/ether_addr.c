@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: ether_addr.c,v 1.2 1995/08/07 03:42:14 wpaul Exp $
+ *	$Id: ether_addr.c,v 1.3 1996/03/16 21:25:59 wpaul Exp $
  */
 
 
@@ -90,11 +90,20 @@ struct ether_addr *ether_aton(a)
 {
         int i;
 	static struct ether_addr o;
+	unsigned int o0, o1, o2, o3, o4, o5;
 
-        i = sscanf(a, "%x:%x:%x:%x:%x:%x", o.octet[0], o.octet[1], o.octet[2],
-                                           o.octet[3], o.octet[4], o.octet[5]);
+        i = sscanf(a, "%x:%x:%x:%x:%x:%x", &o0, &o1, &o2, &o3, &o4, &o5);
+
         if (i != 6)
                 return (NULL);
+
+        o.octet[0]=o0;
+	o.octet[1]=o1;
+	o.octet[2]=o2;
+	o.octet[3]=o3;
+	o.octet[4]=o4;
+	o.octet[5]=o5;
+
         return ((struct ether_addr *)&o);
 }
 

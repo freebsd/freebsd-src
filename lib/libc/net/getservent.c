@@ -48,6 +48,8 @@ static char sccsid[] = "@(#)getservent.c	8.1 (Berkeley) 6/4/93";
 static int serv_stepping_yp = 0;
 #endif
 
+extern int _yp_check __P(( char ** ));
+
 #define	MAXALIASES	35
 
 static FILE *servf = NULL;

@@ -46,6 +46,8 @@ static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 #include <unistd.h>
 
+int __fdnlist __P(( int, struct nlist * ));
+
 int
 nlist(name, list)
 	const char *name;

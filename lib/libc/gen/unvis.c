@@ -224,7 +224,7 @@ strunvis(dst, src)
 	char *start = dst;
 	int state = 0;
 
-	while (c = *src++) {
+	while ( (c = *src++) ) {
 	again:
 		switch (unvis(dst, c, &state, 0)) {
 		case UNVIS_VALID:

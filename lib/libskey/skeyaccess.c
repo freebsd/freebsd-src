@@ -80,6 +80,8 @@ struct login_info {
     char   *port;			/* login port */
 };
 
+static int _skeyaccess __P(( FILE *, struct login_info * ));
+
 /* skeyaccess - find out if UNIX passwords are permitted */
 
 int     skeyaccess(user, port, host, addr)
@@ -157,14 +159,14 @@ char   *addr;
 
 /* _skeyaccess - find out if UNIX passwords are permitted */
 
-int     _skeyaccess(fp, login_info)
+static int _skeyaccess(fp, login_info)
 FILE   *fp;
 struct login_info *login_info;
 {
     char    buf[BUFSIZ];
     char   *tok;
     int     match;
-    int     permission;
+    int     permission=DENY;
 
 #ifdef PERMIT_CONSOLE
     if (login_info->port != 0 && strcasecmp(login_info->port, CONSOLE) == 0)
@@ -313,7 +315,7 @@ static char *get_token()
 {
     char   *cp;
 
-    if (cp = prev_token) {
+    if ( (cp = prev_token) ) {
 	prev_token = 0;
     } else {
 	while ((cp = strsep(&line_pointer, " \t")) != NULL && *cp == '\0')

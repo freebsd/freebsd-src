@@ -105,7 +105,7 @@ execl(name, arg, va_alist)
 #else
 	va_start(ap);
 #endif
-	if (argv = buildargv(ap, arg, NULL))
+	if ( (argv = buildargv(ap, arg, NULL)) )
 		(void)execve(name, argv, environ);
 	va_end(ap);
 	sverrno = errno;
@@ -133,7 +133,7 @@ execle(name, arg, va_alist)
 #else
 	va_start(ap);
 #endif
-	if (argv = buildargv(ap, arg, &envp))
+	if ( (argv = buildargv(ap, arg, &envp)) )
 		(void)execve(name, argv, envp);
 	va_end(ap);
 	sverrno = errno;
@@ -161,7 +161,7 @@ execlp(name, arg, va_alist)
 #else
 	va_start(ap);
 #endif
-	if (argv = buildargv(ap, arg, NULL))
+	if ( (argv = buildargv(ap, arg, NULL)) )
 		(void)execvp(name, argv);
 	va_end(ap);
 	sverrno = errno;
@@ -204,7 +204,7 @@ execvp(name, argv)
 	cur = path = strdup(path);
 
 	eacces = etxtbsy = 0;
-	while (p = strsep(&cur, ":")) {
+	while ( (p = strsep(&cur, ":")) ) {
 		/*
 		 * It's a SHELL path -- double, leading and trailing colons
 		 * mean the current directory.

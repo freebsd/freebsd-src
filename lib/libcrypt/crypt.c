@@ -6,16 +6,17 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: crypt.c,v 1.2 1994/11/07 21:07:09 phk Exp $
+ * $Id: crypt.c,v 1.3 1995/05/30 05:42:22 rgrimes Exp $
  *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Header: /home/ncvs/src/lib/libcrypt/crypt.c,v 1.2 1994/11/07 21:07:09 phk Exp $";
+static char rcsid[] = "$Header: /home/ncvs/src/lib/libcrypt/crypt.c,v 1.3 1995/05/30 05:42:22 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <md5.h>
 
 static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */

@@ -2,6 +2,7 @@
 #include "fio.h"
 #include "fmt.h"
 
+int
 y_rsk(Void)
 {
 	if(f__curunit->uend || f__curunit->url <= f__recpos
@@ -11,6 +12,8 @@ y_rsk(Void)
 	} while(++f__recpos < f__curunit->url);
 	return 0;
 }
+
+int
 y_getc(Void)
 {
 	int ch;
@@ -30,10 +33,10 @@ y_getc(Void)
 		return(-1);
 	}
 	err(f__elist->cierr,errno,"readingd");
-#ifdef __cplusplus
 	return 0;
-#endif
 }
+
+int
 #ifdef KR_headers
 y_putc(c)
 #else
@@ -47,6 +50,8 @@ y_putc(int c)
 		err(f__elist->cierr,110,"dout");
 	return(0);
 }
+
+int
 y_rev(Void)
 {	/*what about work done?*/
 	if(f__curunit->url==1 || f__recpos==f__curunit->url)
@@ -56,6 +61,8 @@ y_rev(Void)
 	f__recpos=0;
 	return(0);
 }
+
+int
 y_err(Void)
 {
 	err(f__elist->cierr, 110, "dfe");
@@ -64,6 +71,7 @@ y_err(Void)
 #endif
 }
 
+int
 y_newrec(Void)
 {
 	if(f__curunit->url == 1 || f__recpos == f__curunit->url) {
@@ -77,6 +85,7 @@ y_newrec(Void)
 	return(1);
 }
 
+int
 #ifdef KR_headers
 c_dfe(a) cilist *a;
 #else
@@ -108,7 +117,7 @@ integer s_rdfe(cilist *a)
 {
 	int n;
 	if(!f__init) f_init();
-	if(n=c_dfe(a))return(n);
+	if( (n=c_dfe(a)) )return(n);
 	f__reading=1;
 	if(f__curunit->uwrt && f__nowreading(f__curunit))
 		err(a->cierr,errno,"read start");
@@ -130,7 +139,7 @@ integer s_wdfe(cilist *a)
 {
 	int n;
 	if(!f__init) f_init();
-	if(n=c_dfe(a)) return(n);
+	if( (n=c_dfe(a)) ) return(n);
 	f__reading=0;
 	if(f__curunit->uwrt != 1 && f__nowwriting(f__curunit))
 		err(a->cierr,errno,"startwrt");

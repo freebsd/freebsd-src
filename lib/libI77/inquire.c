@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "f2c.h"
 #include "fio.h"
 #ifdef KR_headers
@@ -53,7 +54,7 @@ integer f_inqu(inlist *a)
 		}
 	}
 	if(a->inex!=NULL)
-		if(byfile && x != -1 || !byfile && p!=NULL)
+		if((byfile && x != -1) || (!byfile && p!=NULL))
 			*a->inex=1;
 		else *a->inex=0;
 	if(a->inopen!=NULL)
@@ -61,7 +62,7 @@ integer f_inqu(inlist *a)
 		else *a->inopen=(p!=NULL && p->ufd!=NULL);
 	if(a->innum!=NULL) *a->innum= p-f__units;
 	if(a->innamed!=NULL)
-		if(byfile || p!=NULL && p->ufnm!=NULL)
+		if(byfile || (p!=NULL && p->ufnm!=NULL))
 			*a->innamed=1;
 		else	*a->innamed=0;
 	if(a->inname!=NULL)

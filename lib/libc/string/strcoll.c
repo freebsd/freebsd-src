@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strcoll.c,v 1.4 1995/04/16 22:43:45 ache Exp $
+ * $Id: strcoll.c,v 1.5 1996/06/09 14:56:06 ache Exp $
  */
 
 #include <stdlib.h>
@@ -51,8 +51,8 @@ strcoll(s, s2)
 				return (-1);
 			else if (islower(*us1) && isupper(*us2))
 				return (1);
-			*us1++;
-			*us2++;
+			us1++;
+			us2++;
 		}
 		return (tolower(*us1) - tolower(*us2));
 	}

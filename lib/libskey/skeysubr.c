@@ -118,6 +118,7 @@ int n;
 	return buf;
 }
 
+void
 sevenbit(s)
 char *s;
 {

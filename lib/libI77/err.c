@@ -78,9 +78,9 @@ char *F_err[] =
 #define MAXERR (sizeof(F_err)/sizeof(char *)+100)
 
 #ifdef KR_headers
-f__canseek(f) FILE *f; /*SYSDEP*/
+int f__canseek(f) FILE *f; /*SYSDEP*/
 #else
-f__canseek(FILE *f) /*SYSDEP*/
+int f__canseek(FILE *f) /*SYSDEP*/
 #endif
 {
 #ifdef NON_UNIX_STDIO
@@ -187,9 +187,9 @@ f_init(Void)
 	p->uwrt=1;
 }
 #ifdef KR_headers
-f__nowreading(x) unit *x;
+int f__nowreading(x) unit *x;
 #else
-f__nowreading(unit *x)
+int f__nowreading(unit *x)
 #endif
 {
 	long loc;
@@ -210,9 +210,9 @@ f__nowreading(unit *x)
 	return(0);
 }
 #ifdef KR_headers
-f__nowwriting(x) unit *x;
+int f__nowwriting(x) unit *x;
 #else
-f__nowwriting(unit *x)
+int f__nowwriting(unit *x)
 #endif
 {
 	long loc;

@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $Id: setproctitle.c,v 1.1 1995/12/26 22:50:08 peter Exp $
+ * $Id: setproctitle.c,v 1.2 1996/02/24 14:37:29 peter Exp $
  */
 
 #include <sys/types.h>
@@ -67,7 +67,6 @@ setproctitle(fmt, va_alist)
 	va_dcl
 #endif
 {
-	char *p;
 	static char buf[SPT_BUFSIZE];
 	static char *ps_argv[2];
 	va_list ap;
