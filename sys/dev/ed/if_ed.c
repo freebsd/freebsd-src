@@ -329,6 +329,7 @@ ed_attach(device_t dev)
 			   (ifp->if_flags & IFF_ALTPHYS)) ?
 		    " tranceiver disabled" : "");
 #endif
+		printf("\n");
 	}
 	return (0);
 }
