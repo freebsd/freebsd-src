@@ -142,7 +142,8 @@ donice(int which, int who, int prio, int incr)
 		warn("%d: setpriority", who);
 		return (1);
 	}
-	printf("%d: old priority %d, new priority %d\n", who, oldprio, prio);
+	fprintf(stderr, "%d: old priority %d, new priority %d\n", who,
+	    oldprio, prio);
 	return (0);
 }
 
