@@ -1169,6 +1169,8 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 #endif
 	switch (cmd) {
 	case APMIO_SUSPEND:
+		if (!(flag & FWRITE))
+			return (EPERM);
 		if (sc->active)
 			apm_suspend(PMST_SUSPEND);
 		else
@@ -1176,6 +1178,8 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		break;
 
 	case APMIO_STANDBY:
+		if (!(flag & FWRITE))
+			return (EPERM);
 		if (sc->active)
 			apm_suspend(PMST_STANDBY);
 		else
@@ -1203,23 +1207,35 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			error = ENXIO;
 		break;
 	case APMIO_ENABLE:
+		if (!(flag & FWRITE))
+			return (EPERM);
 		apm_event_enable();
 		break;
 	case APMIO_DISABLE:
+		if (!(flag & FWRITE))
+			return (EPERM);
 		apm_event_disable();
 		break;
 	case APMIO_HALTCPU:
+		if (!(flag & FWRITE))
+			return (EPERM);
 		apm_halt_cpu();
 		break;
 	case APMIO_NOTHALTCPU:
+		if (!(flag & FWRITE))
+			return (EPERM);
 		apm_not_halt_cpu();
 		break;
 	case APMIO_DISPLAY:
+		if (!(flag & FWRITE))
+			return (EPERM);
 		newstate = *(int *)addr;
 		if (apm_display(newstate))
 			error = ENXIO;
 		break;
 	case APMIO_BIOS:
+		if (!(flag & FWRITE))
+			return (EPERM);
 		/* XXX compatibility with the old interface */
 		args = (struct apm_bios_arg *)addr;
 		sc->bios.r.eax = args->eax;
