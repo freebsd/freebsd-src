@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -58,20 +62,20 @@ char	topqhelp[] =	"put job at top of printer queue";
 char	uphelp[] =	"enable everything and restart spooling daemon";
 
 struct cmd cmdtab[] = {
-	{ "abort",	aborthelp,	doabort,	1 },
-	{ "clean",	cleanhelp,	clean,		1 },
-	{ "enable",	enablehelp,	enable,		1 },
+	{ "abort",	aborthelp,	0,		1,	doabort },
+	{ "clean",	cleanhelp,	0,		1,	clean },
+	{ "enable",	enablehelp,	0,		1,	enable },
 	{ "exit",	quithelp,	quit,		0 },
-	{ "disable",	disablehelp,	disable,	1 },
+	{ "disable",	disablehelp,	0,		1,	disable },
 	{ "down",	downhelp,	down,		1 },
 	{ "help",	helphelp,	help,		0 },
 	{ "quit",	quithelp,	quit,		0 },
-	{ "restart",	restarthelp,	restart,	0 },
-	{ "start",	starthelp,	startcmd,	1 },
-	{ "status",	statushelp,	status,		0 },
-	{ "stop",	stophelp,	stop,		1 },
+	{ "restart",	restarthelp,	0,		0,	restart },
+	{ "start",	starthelp,	0,		1,	startcmd },
+	{ "status",	statushelp,	0,		0,	status },
+	{ "stop",	stophelp,	0,		1,	stop },
 	{ "topq",	topqhelp,	topq,		1 },
-	{ "up",		uphelp,		up,		1 },
+	{ "up",		uphelp,		0,		1,	up },
 	{ "?",		helphelp,	help,		0 },
 	{ 0 },
 };

@@ -36,12 +36,13 @@
 static char sccsid[] = "@(#)startdaemon.c	8.2 (Berkeley) 4/17/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: startdaemon.c,v 1.6 1997/09/24 06:47:32 charnier Exp $";
 #endif /* not lint */
 
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <sys/un.h>
 
 #include <dirent.h>
@@ -59,20 +60,20 @@ extern uid_t	uid, euid;
  */
 
 int
-startdaemon(printer)
-	char *printer;
+startdaemon(pp)
+	const struct printer *pp;
 {
 	struct sockaddr_un un;
 	register int s, n;
-	char buf[BUFSIZ];
+	char c;
 
-	s = socket(AF_UNIX, SOCK_STREAM, 0);
+	s = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (s < 0) {
 		warn("socket");
 		return(0);
 	}
 	memset(&un, 0, sizeof(un));
-	un.sun_family = AF_UNIX;
+	un.sun_family = AF_LOCAL;
 	strcpy(un.sun_path, _PATH_SOCKETNAME);
 #ifndef SUN_LEN
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
@@ -85,25 +86,25 @@ startdaemon(printer)
 		return(0);
 	}
 	seteuid(uid);
-	if (snprintf(buf, sizeof(buf), "\1%s\n", printer) > sizeof(buf) - 1) {
-		close(s);
-		return (0);
-	}
-	n = strlen(buf);
-	if (write(s, buf, n) != n) {
+
+	/*
+	 * Avoid overruns without putting artificial limitations on 
+	 * the length.
+	 */
+	if (writel(s, "\1", pp->printer, "\n", (char *)0) <= 0) {
 		warn("write");
 		(void) close(s);
 		return(0);
 	}
-	if (read(s, buf, 1) == 1) {
-		if (buf[0] == '\0') {		/* everything is OK */
+	if (read(s, &c, 1) == 1) {
+		if (c == '\0') {		/* everything is OK */
 			(void) close(s);
 			return(1);
 		}
-		putchar(buf[0]);
+		putchar(c);
 	}
-	while ((n = read(s, buf, sizeof(buf))) > 0)
-		fwrite(buf, 1, n, stdout);
+	while ((n = read(s, &c, 1)) > 0)
+		putchar(c);
 	(void) close(s);
 	return(0);
 }

@@ -36,19 +36,25 @@
 static char sccsid[] = "@(#)rmjob.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: rmjob.c,v 1.9 1997/09/24 06:47:31 charnier Exp $";
+	"$Id: rmjob.c,v 1.10 1997/10/14 16:00:37 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/uio.h>
 
-#include <signal.h>
-#include <errno.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define psignal foil_gcc_psignal
+#define	sys_siglist foil_gcc_siglist
+#include <unistd.h>
+#undef psignal
+#undef sys_siglist
+
 #include "lp.h"
 #include "lp.local.h"
 #include "pathnames.h"
@@ -71,32 +77,22 @@ static	void	alarmhandler __P((int));
 static	void	do_unlink __P((char *));
 
 void
-rmjob()
+rmjob(printer)
+	const char *printer;
 {
 	register int i, nitems;
 	int assasinated = 0;
 	struct dirent **files;
 	char *cp;
+	struct printer myprinter, *pp = &myprinter;
 
-	if ((i = cgetent(&bp, printcapdb, printer)) == -2)
-		fatal("can't open printer description file");
-	else if (i == -1)
-		fatal("unknown printer");
-	else if (i == -3)
-		fatal("potential reference loop detected in printcap file");
-	if (cgetstr(bp, "lp", &LP) < 0)
-		LP = _PATH_DEFDEVLP;
-	if (cgetstr(bp, "rp", &RP) < 0)
-		RP = DEFLP;
-	if (cgetstr(bp, "sd", &SD) < 0)
-		SD = _PATH_DEFSPOOL;
-	if (cgetstr(bp,"lo", &LO) < 0)
-		LO = DEFLOCK;
-	if (cgetnum(bp, "ct", &CT) < 0)
-		CT = DEFTIMEOUT;
-	cgetstr(bp, "rm", &RM);
-	if ((cp = checkremote()))
+	init_printer(pp);
+	if ((i = getprintcap(printer, pp)) < 0)
+		fatal(pp, "getprintcap: %s", pcaperr(i));
+	if ((cp = checkremote(pp))) {
 		printf("Warning: %s\n", cp);
+		free(cp);
+	}
 
 	/*
 	 * If the format was `lprm -' and the user isn't the super-user,
@@ -112,16 +108,16 @@ rmjob()
 	}
 	if (!strcmp(person, "-all")) {
 		if (from == host)
-			fatal("The login name \"-all\" is reserved");
+			fatal(pp, "The login name \"-all\" is reserved");
 		all = 1;	/* all those from 'from' */
 		person = root;
 	}
 
 	seteuid(euid);
-	if (chdir(SD) < 0)
-		fatal("cannot chdir to spool directory");
+	if (chdir(pp->spool_dir) < 0)
+		fatal(pp, "cannot chdir to spool directory");
 	if ((nitems = scandir(".", &files, iscf, NULL)) < 0)
-		fatal("cannot access spool directory");
+		fatal(pp, "cannot access spool directory");
 	seteuid(uid);
 
 	if (nitems) {
@@ -130,25 +126,25 @@ rmjob()
 		 *  kill it if it is reading our file) then remove stuff
 		 *  (after which we have to restart the daemon).
 		 */
-		if (lockchk(LO) && chk(current)) {
+		if (lockchk(pp, pp->lock_file) && chk(current)) {
 			seteuid(euid);
 			assasinated = kill(cur_daemon, SIGINT) == 0;
 			seteuid(uid);
 			if (!assasinated)
-				fatal("cannot kill printer daemon");
+				fatal(pp, "cannot kill printer daemon");
 		}
 		/*
 		 * process the files
 		 */
 		for (i = 0; i < nitems; i++)
-			process(files[i]->d_name);
+			process(pp, files[i]->d_name);
 	}
-	rmremote();
+	rmremote(pp);
 	/*
 	 * Restart the printer daemon if it was killed
 	 */
-	if (assasinated && !startdaemon(printer))
-		fatal("cannot restart printer daemon\n");
+	if (assasinated && !startdaemon(pp))
+		fatal(pp, "cannot restart printer daemon\n");
 	exit(0);
 }
 
@@ -158,7 +154,8 @@ rmjob()
  * Return boolean indicating existence of a lock file.
  */
 int
-lockchk(s)
+lockchk(pp, s)
+	struct printer *pp;
 	char *s;
 {
 	register FILE *fp;
@@ -167,7 +164,7 @@ lockchk(s)
 	seteuid(euid);
 	if ((fp = fopen(s, "r")) == NULL) {
 		if (errno == EACCES)
-			fatal("can't access lock file");
+			fatal(pp, "%s: %s", s, strerror(errno));
 		else
 			return(0);
 	}
@@ -197,7 +194,8 @@ lockchk(s)
  * Process a control file.
  */
 void
-process(file)
+process(pp, file)
+	const struct printer *pp;
 	char *file;
 {
 	FILE *cfp;
@@ -206,7 +204,7 @@ process(file)
 		return;
 	seteuid(euid);
 	if ((cfp = fopen(file, "r")) == NULL)
-		fatal("cannot open %s", file);
+		fatal(pp, "cannot open %s", file);
 	seteuid(uid);
 	while (getline(cfp)) {
 		switch (line[0]) {
@@ -315,14 +313,15 @@ isowner(owner, file)
  * then try removing files on the remote machine.
  */
 void
-rmremote()
+rmremote(pp)
+	const struct printer *pp;
 {
-	register char *cp;
-	register int i, rem;
+	int i, rem, niov, totlen;
 	char buf[BUFSIZ];
 	void (*savealrm)(int);
+	struct iovec *iov;
 
-	if (!remote)
+	if (!pp->remote)
 		return;	/* not sending to a remote machine */
 
 	/*
@@ -331,34 +330,55 @@ rmremote()
 	 */
 	fflush(stdout);
 
-	(void)snprintf(buf, sizeof(buf), "\5%s %s", RP, all ? "-all" : person);
-	cp = buf;
-	for (i = 0; i < users && cp-buf+1+strlen(user[i]) < sizeof(buf); i++) {
-		cp += strlen(cp);
-		*cp++ = ' ';
-		strcpy(cp, user[i]);
+	/*
+	 * Counting:
+	 *	4 == "\5" + remote_queue + " " + person
+	 *	2 * users == " " + user[i] for each user
+	 *	requests == asprintf results for each request
+	 *	1 == "\n"
+	 * Although laborious, doing it this way makes it possible for
+	 * us to process requests of indeterminate length without
+	 * applying an arbitrary limit.  Arbitrary Limits Are Bad (tm).
+	 */
+	niov = 4 + 2 * users + requests + 1;
+	iov = malloc(niov * sizeof *iov);
+	if (iov == 0)
+		fatal(pp, "out of memory");
+	iov[0].iov_base = "\5";
+	iov[1].iov_base = pp->remote_queue;
+	iov[2].iov_base = " ";
+	iov[3].iov_base = all ? "-all" : person;
+	for (i = 0; i < users; i++) {
+		iov[4 + 2 * i].iov_base = " ";
+		iov[4 + 2 * i + 1].iov_base = user[i];
 	}
-	for (i = 0; i < requests && cp-buf+10 < sizeof(buf) - 1; i++) {
-		cp += strlen(cp);
-		(void) sprintf(cp, " %d", requ[i]);
+	for (i = 0; i < requests; i++) {
+		asprintf(&iov[4 + 2 * users + i].iov_base, " %d", requ[i]);
+		if (iov[4 + 2 * users + i].iov_base == 0)
+			fatal(pp, "out of memory");
 	}
-	strcat(cp, "\n");
+	iov[4 + 2 * users + requests].iov_base = "\n";
+	for (totlen = i = 0; i < niov; i++)
+		totlen += (iov[i].iov_len = strlen(iov[i].iov_base));
+
 	savealrm = signal(SIGALRM, alarmhandler);
-	alarm(CT);
-	rem = getport(RM, 0);
+	alarm(pp->conn_timeout);
+	rem = getport(pp, pp->remote_host, 0);
 	(void)signal(SIGALRM, savealrm);
 	if (rem < 0) {
 		if (from != host)
 			printf("%s: ", host);
-		printf("connection to %s is down\n", RM);
+		printf("connection to %s is down\n", pp->remote_host);
 	} else {
-		i = strlen(buf);
-		if (write(rem, buf, i) != i)
-			fatal("Lost connection");
+		if (writev(rem, iov, niov) != totlen)
+			fatal(pp, "Lost connection");
 		while ((i = read(rem, buf, sizeof(buf))) > 0)
 			(void) fwrite(buf, 1, i, stdout);
 		(void) close(rem);
 	}
+	for (i = 0; i < requests; i++)
+		free(iov[4 + 2 * users + i].iov_base);
+	free(iov);
 }
 
 /*
@@ -373,6 +393,7 @@ iscf(d)
 
 void
 alarmhandler(signo)
+	int signo;
 {
 	/* ignored */
 }

@@ -39,19 +39,20 @@
 
 
 __BEGIN_DECLS
-void	clean __P((int, char **));
-void	disable __P((int, char **));
-void	doabort __P((int, char **));
+void	clean __P((struct printer *));
+void	disable __P((struct printer *));
+void	doabort __P((struct printer *));
 void	down __P((int, char **));
-void	enable __P((int, char **));
+void	enable __P((struct printer *));
+void	generic __P((void (*) __P((struct printer *)), int, char **));
 void	help __P((int, char **));
 void	quit __P((int, char **));
-void	restart __P((int, char **));
-void	startcmd __P((int, char **));
-void	status __P((int, char **));
-void	stop __P((int, char **));
+void	restart __P((struct printer *));
+void	startcmd __P((struct printer *));
+void	status __P((struct printer *));
+void	stop __P((struct printer *));
 void	topq __P((int, char **));
-void	up __P((int, char **));
+void	up __P((struct printer *));
 __END_DECLS
 
 extern int NCMDS;

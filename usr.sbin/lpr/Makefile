@@ -1,6 +1,7 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+#	$Id$
 
-SUBDIR=	lp lpc lpd lpq lpr lprm lptest pac filters
+SUBDIR=	common_source chkprintcap lp lpc lpd lpq lpr lprm lptest pac \
+	filters SMM.doc
 
 .include <bsd.subdir.mk>
 
