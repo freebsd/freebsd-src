@@ -70,9 +70,6 @@ static u_int32_t	r_eax, r_ebx, r_ecx, r_edx, r_ebp, r_esi, r_edi,
 static u_int16_t	r_cs, r_ds, r_es, r_fs, r_gs, r_ss, r_tr;
 static u_int32_t	r_esp = 0;
 
-static int		debug_wakeup = 1;
-SYSCTL_INT(_debug, OID_AUTO, acpi_wakeup, CTLFLAG_RW, &debug_wakeup, 0, "")
-
 static void		acpi_printcpu(void);
 static void		acpi_realmodeinst(void *arg, bus_dma_segment_t *segs,
 					  int nsegs, int error);
@@ -240,7 +237,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(previous_gs,  u_int16_t, r_gs);
 		WAKECODE_FIXUP(previous_ss,  u_int16_t, r_ss);
 
-		if (debug_wakeup) {
+		if (acpi_get_verbose(sc)) {
 			acpi_printcpu();
 		}
 
@@ -267,7 +264,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #endif
 		icu_reinit();
 
-		if (debug_wakeup) {
+		if (acpi_get_verbose(sc)) {
 			acpi_savecpu();
 			acpi_printcpu();
 		}
