@@ -1085,6 +1085,7 @@ setstate_by_force(struct vinum_ioctl_msg *msg)
 	break;
 
     default:
+	break;
     }
     ioctl_reply->error = 0;
 }
