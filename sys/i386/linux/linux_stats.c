@@ -175,21 +175,7 @@ linux_newfstat(struct proc *p, struct linux_newfstat_args *args)
 	    (fp = fdp->fd_ofiles[args->fd]) == NULL)
 		return (EBADF);
 
-	switch (fp->f_type) {
-	case DTYPE_FIFO:
-	case DTYPE_VNODE:
-		error = vn_stat((struct vnode *)fp->f_data, &buf, p);
-		break;
-	case DTYPE_SOCKET:
-		error = soo_stat((struct socket *)fp->f_data, &buf);
-		break;
-	case DTYPE_PIPE:
-		error = pipe_stat((struct pipe *)fp->f_data, &buf);
-		break;
-	default:
-		panic("LINUX newfstat");
-	}
-
+	error = fo_stat(fp, &buf, p);
 	if (!error)
 		error = newstat_copyout(&buf, args->buf);
 
