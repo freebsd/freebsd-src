@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mset.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -75,6 +79,8 @@ static struct regstate regstates[500], *rptr= 0;	/* for sorting states */
 static char array[5000];		/* lot's of room */
 static int toshell = 0;			/* export to shell */
 static int numbchars = 0;		/* number of chars in envir. var */
+
+static void usage __P((void));
 
 static int
 MyStrcmp(str1, str2)
@@ -348,7 +354,6 @@ char *argv[];
 {
     state *head;
     char *keybdPointer = (char *) 0;
-    char *commandName = argv[0];
     extern char *getenv();
     int picky = 0;
 
@@ -358,9 +363,7 @@ char *argv[];
 	} else if (!strcmp(argv[1], "-shell")) {
 	    toshell++;
 	} else {
-	    fprintf(stderr, "usage: %s [-picky] [-shell] [keyboardname]\n",
-		commandName);
-	    exit(1);
+	    usage();
 	    /*NOTREACHED*/
 	}
 	argv++;
@@ -369,10 +372,8 @@ char *argv[];
     if (argc == 2) {
         keybdPointer = argv[1];
     } else if (argc > 2) {
-	fprintf(stderr, "usage: %s [-picky] [-shell] [keyboardname]\n",
-		commandName);
-	exit(1);
-	/*NOTREACHED*/
+		usage();
+		/*NOTREACHED*/
     }
     head = InitControl(keybdPointer, picky, ascii_to_index);
     if (!head) {
@@ -407,4 +408,11 @@ char *argv[];
       printf(";}\n");
     }
     return(0);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: mset [-picky] [-shell] [keyboardname]");
+	exit(1);
 }
