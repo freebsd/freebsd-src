@@ -1,5 +1,3 @@
-# Makefile for less
-#
 # $FreeBSD$
 
 PROG=	less
@@ -9,14 +7,9 @@ SRCS=	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c decode.c \
 	position.c prompt.c search.c signal.c tags.c ttyin.c version.c
 DPADD=	${LIBNCURSES}
 LDADD=	-lncurses
-
 LINKS=	${BINDIR}/less /usr/bin/more
-
-MAN1=	less.1
-MANDEPEND=	less.1
-CLEANFILES+=	${MANDEPEND}
-
-MLINKS= less.1 more.1
+MLINKS=	less.1 more.1
+CLEANFILES= ${MAN1}
 
 .include "Makefile.common"
 .include <bsd.prog.mk>
