@@ -10,7 +10,12 @@ MLINKS=	skey.3 skeylookup.3 skey.3 skeyverify.3 skey.3 skeychallenge.3 \
 MAN5=	skey.access.5
 
 CFLAGS+=-DPERMIT_CONSOLE -D_SKEY_INTERNAL -I${.CURDIR}
-CFLAGS+=-W -Wall -Werror
+CFLAGS+=-W -Wall
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+=-Werror
+.else
+CFLAGS+=-DMD5
+.endif
 
 .if ${BINFORMAT} == elf
 DPADD+= ${LIBCRYPT} ${LIBMD}
