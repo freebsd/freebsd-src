@@ -7,7 +7,7 @@
 #
 
 # PROVIDE: isdnd
-# REQUIRE: network1 mountcritlocal
+# REQUIRE: netif mountcritlocal
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr

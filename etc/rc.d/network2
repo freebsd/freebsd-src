@@ -6,7 +6,7 @@
 #
 
 # PROVIDE: network2
-# REQUIRE: network1 ppp-user
+# REQUIRE: netif ppp-user
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr

@@ -5,7 +5,7 @@
 
 # PROVIDE: cleanvar
 # REQUIRE: adjkerntz mountcritlocal
-# BEFORE: network1
+# BEFORE: netif
 # KEYWORD: FreeBSD
 
 purgedir()

@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: atm2
-# REQUIRE: atm1 network1
+# REQUIRE: atm1 netif
 # BEFORE: network2
 # KEYWORD: FreeBSD
 
