@@ -9,6 +9,7 @@ SRCS+=	probe_keyboard.c io.c disk.c sys.c
 BINMODE=	444
 CFLAGS=		-Os -mrtd \
 		-fno-guess-branch-probability \
+		-fno-unit-at-a-time \
 		-D_KERNEL -DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
