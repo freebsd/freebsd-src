@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.32 1996/01/24 21:11:26 phk Exp $
+ * $Id: nfs_vnops.c,v 1.33 1996/01/25 00:45:37 bde Exp $
  */
 
 /*
@@ -757,7 +757,7 @@ nfs_setattrrpc(vp, vap, cred, procp)
 			if (vap->va_mtime.ts_sec != time.tv_sec) {
 				nfsm_build(tl, u_long *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
-				txdr_nfsv3time(&vap->va_atime, tl);
+				txdr_nfsv3time(&vap->va_mtime, tl);
 			} else {
 				nfsm_build(tl, u_long *, NFSX_UNSIGNED);
 				*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
