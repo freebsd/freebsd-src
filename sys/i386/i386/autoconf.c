@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.90 1998/03/16 11:50:39 msmith Exp $
+ *	$Id: autoconf.c,v 1.91 1998/03/16 12:07:54 msmith Exp $
  */
 
 /*
@@ -429,7 +429,9 @@ static char *devname[] = {
 #define FDMAJOR 2
   "fd",
   "wt",
+  "sd",
   "st",
+  "cd",
 };
 
 #define	PARTITIONMASK	0x7
