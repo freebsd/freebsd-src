@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <stddef.h>
@@ -48,26 +49,46 @@ wcstombs(s, pwcs, n)
 	const wchar_t *pwcs;
 	size_t n;
 {
+	char buf[MB_LEN_MAX];
 	char *e;
 	int cnt, nb;
 
-	if (!pwcs || !s || n > INT_MAX)
+	if (!pwcs || n > INT_MAX) {
+		errno = EINVAL;
 		return (-1);
+	}
 
-	nb = n;
 	cnt = 0;
+
+	if (s == NULL) {
+		/* Convert and count only, do not store. */
+		while (*pwcs != L'\0') {
+			if (!sputrune(*pwcs++, buf, MB_LEN_MAX, &e)) {
+				errno = EILSEQ;
+				return (-1);
+			}
+			cnt += e - buf;
+		}
+		return (cnt);
+	}
+
+	/* Convert, store and count characters. */
+	nb = n;
 	while (nb > 0) {
 		if (*pwcs == 0) {
 			*s = 0;
 			break;
 		}
-		if (!sputrune(*pwcs++, s, nb, &e))
-			return (-1);		/* encoding error */
+		if (!sputrune(*pwcs++, s, nb, &e)) {
+			errno = EILSEQ;
+			return (-1);
+		}
 		if (!e)			/* too long */
 			return (cnt);
 		cnt += e - s;
 		nb -= e - s;
 		s = e;
 	}
+
 	return (cnt);
 }
