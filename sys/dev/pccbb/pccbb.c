@@ -103,6 +103,8 @@
 #define	PCIC_MASK2(SC,REG,MASK,MASK2)					\
 	PCIC_WRITE(SC,REG,(PCIC_READ(SC,REG) MASK) MASK2)
 
+#define PCCBB_START_MEM	0x84000000
+
 struct pccbb_sclist {
 	struct	pccbb_softc *sc;
 	STAILQ_ENTRY(pccbb_sclist) entries;
@@ -438,7 +440,7 @@ pccbb_attach(device_t brdev)
 			    -(sockbase & 0xfffffff0);
 			sc->sc_base_res = bus_generic_alloc_resource(
 			    device_get_parent(brdev), brdev, SYS_RES_MEMORY,
-			    &rid, 0x10000000, ~0, sockbase,
+			    &rid, PCCBB_START_MEM, ~0, sockbase,
 			    RF_ACTIVE|rman_make_alignment_flags(sockbase));
 			if (!sc->sc_base_res){
 				device_printf(brdev,
@@ -1267,8 +1269,8 @@ pccbb_cardbus_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 			end = start;
 		break;
 	case SYS_RES_MEMORY:
-		if (start <= 0x44000000)
-			start = 0x44000000;
+		if (start <= PCCBB_START_MEM)
+			start = PCCBB_START_MEM;
 		if (end < start)
 			end = start;
 		break;
