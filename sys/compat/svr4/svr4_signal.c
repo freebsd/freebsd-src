@@ -480,7 +480,9 @@ sighold:
 			sigset_t *set;
 
 			set = stackgap_alloc(&sg, sizeof(sigset_t));
+			PROC_LOCK(p);
 			*set = p->p_sigmask;
+			PROC_UNLOCK(p);
 			SIGDELSET(*set, signum);
 			SCARG(&sa, sigmask) = set;
 			return sigsuspend(p, &sa);
@@ -504,7 +506,9 @@ svr4_sys_sigprocmask(p, uap)
 	retval = p->p_retval;
 	if (SCARG(uap, oset) != NULL) {
 		/* Fix the return value first if needed */
+		PROC_LOCK(p);
 		bsd_to_svr4_sigset(&p->p_sigmask, &sss);
+		PROC_UNLOCK(p);
 		if ((error = copyout(&sss, SCARG(uap, oset), sizeof(sss))) != 0)
 			return error;
 	}
@@ -518,8 +522,7 @@ svr4_sys_sigprocmask(p, uap)
 
 	svr4_to_bsd_sigset(&sss, &bss);
 
-	(void) splhigh();
-
+	PROC_LOCK(p);
 	switch (SCARG(uap, how)) {
 	case SVR4_SIG_BLOCK:
 		SIGSETOR(p->p_sigmask, bss);
@@ -539,8 +542,7 @@ svr4_sys_sigprocmask(p, uap)
 		error = EINVAL;
 		break;
 	}
-
-	(void) spl0();
+	PROC_UNLOCK(p);
 
 	return error;
 }
@@ -560,8 +562,10 @@ svr4_sys_sigpending(p, uap)
 	case 1:	/* sigpending */
 		if (SCARG(uap, mask) == NULL)
 			return 0;
+		PROC_LOCK(p);
 		bss = p->p_siglist;
 		SIGSETAND(bss, p->p_sigmask);
+		PROC_UNLOCK(p);
 		bsd_to_svr4_sigset(&bss, &sss);
 		break;
 
@@ -628,9 +632,11 @@ svr4_sys_context(p, uap)
 
 	switch (uap->func) {
 	case 0:
+		PROC_LOCK(p);
 		DPRINTF(("getcontext(%p)\n", uap->uc));
 		svr4_getcontext(p, &uc, &p->p_sigmask,
 		    sigonstack(cpu_getstack(p)));
+		PROC_UNLOCK(p);
 		return copyout(&uc, uap->uc, sizeof(uc));
 
 	case 1: 
