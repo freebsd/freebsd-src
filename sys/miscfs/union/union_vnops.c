@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.27 1997/04/21 15:32:24 kato Exp $
+ * $Id: union_vnops.c,v 1.28 1997/04/26 04:09:40 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1479,21 +1479,13 @@ start:
 		    (vp->v_usecount != 0)) {
 			if (VOP_ISLOCKED(un->un_uppervp)) {
 				/*
-				 * XXX - Dirty!
-				 * Though UN_ULOCK is not set, upper vnode is locked.  This
-				 * indicates a locking violation.  If this case happens,
-				 * we will get `lock against myself' panic.
-				 *
-				 * SHOULD BE FIXED!  But I couldn't find a fix.  If you are
-				 * a kernel hacker, pleas try DIAGNOSTIC kernel, that causes
-				 * panic here.
+				 * Erm, we find race!
+				 * Do nothing here.
 				 */
 #ifdef DIAGNOSTIC
 				panic("union_link: upper vnode is locked, "
 					  "but UN_UNLOCK is not set.");
 #endif
-				printf("union_lock: adjust un_flags\n");
-				un->un_flags |= UN_ULOCK;	/* Adjust -- dirty */
 			} else {
 				error = vn_lock(un->un_uppervp, flags, p);
 				if (error)
