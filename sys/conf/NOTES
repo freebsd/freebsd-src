@@ -555,6 +555,7 @@ options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	SMBFS			#SMB/CIFS filesystem
+options		UDF			#Universal Disk Format
 options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
 # options 	NODEVFS			#disable devices filesystem

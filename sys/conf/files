@@ -686,6 +686,9 @@ fs/pseudofs/pseudofs_fileno.c	optional pseudofs
 fs/pseudofs/pseudofs_vncache.c	optional pseudofs
 fs/pseudofs/pseudofs_vnops.c	optional pseudofs
 fs/specfs/spec_vnops.c	standard
+fs/udf/udf_vfsops.c	optional udf
+fs/udf/udf_vnops.c	optional udf
+fs/udf/osta.c		optional udf
 fs/umapfs/umap_subr.c	optional umapfs
 fs/umapfs/umap_vfsops.c	optional umapfs
 fs/umapfs/umap_vnops.c	optional umapfs
