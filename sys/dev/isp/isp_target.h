@@ -7,7 +7,7 @@
  * pms@psconsult.com
  * All rights reserved.
  *
- * Additional Copyright (c) 1999< 2000
+ * Additional Copyright (c) 1999, 2000, 2001
  * Matthew Jacob
  * mjacob@feral.com
  * All rights reserved.
@@ -212,7 +212,8 @@ typedef struct {
 
 typedef struct {
 	isphdr_t	at_header;
-	u_int32_t	at_reserved;
+	u_int16_t	at_reserved;
+	u_int16_t	at_handle;
 	u_int8_t	at_lun;		/* lun */
 	u_int8_t	at_iid;		/* initiator */
 	u_int8_t	at_cdblen; 	/* cdb length */
@@ -262,9 +263,8 @@ typedef struct {
 	u_int8_t	at_cdb[ATIO2_CDBLEN];	/* received CDB */
 	u_int32_t	at_datalen;		/* allocated data len */
 	u_int16_t	at_scclun;	/* SCC Lun or reserved */
-	u_int16_t	at_reserved2;
-	u_int16_t	at_scsi_status;
-	u_int8_t	at_sense[QLTM_SENSELEN];
+	u_int16_t	at_reserved2[10];
+	u_int16_t	at_oxid;
 } at2_entry_t;
 
 #define	ATIO2_WWPN_OFFSET	0x2A
@@ -286,7 +286,9 @@ typedef struct {
  */
 typedef struct {
 	isphdr_t	ct_header;
-	u_int32_t	ct_reserved;
+	u_int16_t	ct_reserved;
+#define	ct_syshandle	ct_reserved	/* we use this */
+	u_int16_t	ct_fwhandle;	/* required by f/w */
 	u_int8_t	ct_lun;	/* lun */
 	u_int8_t	ct_iid;	/* initiator id */
 	u_int8_t	ct_reserved2;
@@ -376,7 +378,8 @@ typedef struct {
 #define	MAXRESPLEN	26
 typedef struct {
 	isphdr_t	ct_header;
-	u_int32_t	ct_reserved;
+	u_int16_t	ct_reserved;
+	u_int16_t	ct_fwhandle;	/* just to match CTIO */
 	u_int8_t	ct_lun;	/* lun */
 	u_int8_t	ct_iid;	/* initiator id */
 	u_int16_t	ct_rxid; /* response ID */
@@ -496,7 +499,7 @@ typedef struct {
 		vdst = dest;						\
 	}								\
 	vdst->at_header = source->at_header;				\
-	vdst->at_reserved2 = source->at_reserved2;			\
+	vdst->at_reserved = source->at_reserved;			\
 	ISP_SBUS_SWOZZLE(isp, source, vdst, at_lun, at_iid);		\
 	ISP_SBUS_SWOZZLE(isp, source, vdst, at_cdblen, at_tgt);		\
 	vdst->at_flags = source->at_flags;				\
@@ -518,6 +521,7 @@ typedef struct {
 	}								\
 	vdst->ct_header = source->ct_header;				\
 	vdst->ct_reserved = source->ct_reserved;			\
+	vdst->ct_fwhandle = source->ct_fwhandle;			\
 	ISP_SBUS_SWOZZLE(isp, source, vdst, ct_lun, ct_iid);		\
 	ISP_SBUS_SWOZZLE(isp, source, vdst, ct_rsvd, ct_tgt);		\
 	vdst->ct_flags = source->ct_flags;				\
@@ -648,7 +652,7 @@ isp_target_put_atio __P((struct ispsoftc *, int, int, int, int, int));
  * local responses.
  */
 int
-isp_endcmd __P((struct ispsoftc *, void *, u_int32_t, u_int32_t));
+isp_endcmd __P((struct ispsoftc *, void *, u_int32_t, u_int16_t));
 #define	ECMD_SVALID	0x100
 
 /*
