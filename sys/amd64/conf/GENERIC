@@ -188,13 +188,12 @@ device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 device		ex		# Intel EtherExpress Pro/10 and Pro/10+
 device		ep		# Etherlink III based cards
 device		fe		# Fujitsu MB8696x based cards
+device		lnc		# NE2100, NE32-VL Lance Ethernet cards
 device		sn		# SMC's 9000 series of ethernet chips
 device		xe		# Xircom pccard ethernet
 
-# The probe order of these is presently determined by i386/isa/isa_compat.c.
-#device		ie
+# ISA deivces that use the old ISA shims
 #device		le
-device		lnc
 
 # Wireless NIC cards
 device		an		# Aironet 4500/4800 802.11 wireless NICs. 
