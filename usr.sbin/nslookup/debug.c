@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)debug.c	5.26 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: debug.c,v 4.9.1.9 1994/06/06 09:08:43 vixie Exp $";
+static char rcsid[] = "$Id: debug.c,v 1.1.1.1 1994/09/22 21:36:01 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -72,13 +72,13 @@ static char rcsid[] = "$Id: debug.c,v 4.9.1.9 1994/06/06 09:08:43 vixie Exp $";
 
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netiso/iso.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <resolv.h>
 #include <netdb.h>
 #include <stdio.h>
 #include "res.h"
-#include "../../conf/portability.h"
 
 /*
  *  Imported from res_debug.c
@@ -256,6 +256,7 @@ Print_rr(cp, msg, eom, file)
 	int type, class, dlen, n, c;
 	u_int32_t rrttl, ttl;
 	struct in_addr inaddr;
+	struct iso_addr isoa;
 	u_char *cp1, *cp2;
 	int debug;
 
@@ -453,7 +454,11 @@ doname:
   		break;
 
 	case T_NSAP:
-		fprintf(file, "\tnsap = %s\n", inet_nsap_ntoa(dlen, cp, NULL));
+		isoa.isoa_len = dlen;
+		if (isoa.isoa_len > sizeof(isoa.isoa_genaddr))
+			isoa.isoa_len = sizeof(isoa.isoa_genaddr);
+		bcopy(cp, isoa.isoa_genaddr, isoa.isoa_len);
+		fprintf(file, "\tnsap = %s\n", iso_ntoa(&isoa));
 		cp += dlen;
   		break;
 

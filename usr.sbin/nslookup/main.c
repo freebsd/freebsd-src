@@ -61,7 +61,7 @@ char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: main.c,v 4.9.1.3 1993/09/16 09:02:07 vixie Exp $";
+static char rcsid[] = "$Id: main.c,v 1.1.1.1 1994/09/22 21:36:01 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -92,10 +92,10 @@ static char rcsid[] = "$Id: main.c,v 4.9.1.3 1993/09/16 09:02:07 vixie Exp $";
 #include <stdio.h>
 #include <errno.h>
 #include <limits.h>
+#include <string.h>
+#include <stdlib.h>
 #include "res.h"
 #include "pathnames.h"
-#include "../../conf/portability.h"
-
 
 /*
  * Name of a top-level name server. Can be changed with 
@@ -143,7 +143,7 @@ int		queryClass = C_IN;
  * Stuff for Interrupt (control-C) signal handler.
  */
 
-extern SIG_FN	IntrHandler();
+extern void	IntrHandler();
 FILE		*filePtr;
 jmp_buf		env;
 

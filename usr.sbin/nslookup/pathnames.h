@@ -62,10 +62,5 @@
 #define _PATH_PAGERCMD		"more"
 
 #ifndef _PATH_HELPFILE
-#if defined(BSD) && BSD >= 198810
 #define	_PATH_HELPFILE		"/usr/share/misc/nslookup.help"
-#else
-#define _PATH_HELPFILE		"/usr/lib/nslookup.help"
 #endif
-#endif
-

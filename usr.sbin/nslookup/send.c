@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: send.c,v 4.9.1.5 1994/06/06 09:08:43 vixie Exp $";
+static char rcsid[] = "$Id: send.c,v 1.1.1.1 1994/09/22 21:36:02 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -86,7 +86,6 @@ static char rcsid[] = "$Id: send.c,v 4.9.1.5 1994/06/06 09:08:43 vixie Exp $";
 #include <arpa/inet.h>
 #include <resolv.h>
 #include "res.h"
-#include "../../conf/portability.h"
 
 static int s = -1;	/* socket used for communications */
 
