@@ -767,9 +767,7 @@ RestartScan:
 			 * it can provide info as to whether we are the
 			 * one referencing or modifying the page.
 			 */
-			mtx_lock(&Giant);
 			mincoreinfo = pmap_mincore(pmap, addr);
-			mtx_unlock(&Giant);
 			if (!mincoreinfo) {
 				vm_pindex_t pindex;
 				vm_ooffset_t offset;
