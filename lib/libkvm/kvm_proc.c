@@ -973,7 +973,6 @@ kvm_uread(kd, kp, uva, buf, len)
 	fd = open(procfile, O_RDONLY, 0);
 	if (fd < 0) {
 		_kvm_err(kd, kd->program, "cannot open %s", procfile);
-		close(fd);
 		return (0);
 	}
 
