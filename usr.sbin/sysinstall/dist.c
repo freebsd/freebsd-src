@@ -36,6 +36,7 @@
 
 #include "sysinstall.h"
 #include <sys/time.h>
+#include <signal.h>
 
 unsigned int Dists;
 unsigned int DESDists;
@@ -339,6 +340,13 @@ distSetXF86(dialogMenuItem *self)
     return i | DITEM_RECREATE;
 }
 
+/* timeout handler */
+static void
+media_timeout(int sig)
+{
+    AlarmWentOff = TRUE;
+}
+
 static Boolean
 distExtract(char *parent, Distribution *me)
 {
@@ -350,6 +358,7 @@ distExtract(char *parent, Distribution *me)
     Attribs *dist_attr;
     WINDOW *w = savescr();
     struct timeval start, stop;
+    struct sigaction old, new;
 
     status = TRUE;
     dialog_clear_norefresh();
@@ -388,15 +397,26 @@ distExtract(char *parent, Distribution *me)
 	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
 	fp = mediaDevice->get(mediaDevice, buf, TRUE);
 	if (fp > 0) {
+	    int status;
+
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (DITEM_STATUS(attr_parse(dist_attr, fp)) == DITEM_FAILURE)
+
+	    /* Make ^C fake a sudden timeout */
+	    new.sa_handler = media_timeout;
+	    new.sa_flags = 0;
+	    new.sa_mask = 0;
+	    sigaction(SIGINT, &new, &old);
+
+	    alarm_set(MEDIA_TIMEOUT, media_timeout);
+	    status = attr_parse(dist_attr, fp);
+	    alarm_clear();
+	    sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
+	    if (DITEM_STATUS(status) == DITEM_FAILURE)
 		msgConfirm("Cannot parse information file for the %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 	    else {
-		if (isDebug())
-		    msgDebug("Looking for attribute `pieces'\n");
 		tmp = attr_match(dist_attr, "pieces");
 		if (tmp)
 		    numchunks = strtol(tmp, 0, 0);
@@ -464,11 +484,20 @@ distExtract(char *parent, Distribution *me)
 	    }
 	    snprintf(prompt, sizeof prompt, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
+
+	    /* Make ^C fake a sudden timeout */
+	    new.sa_handler = media_timeout;
+	    new.sa_flags = 0;
+	    new.sa_mask = 0;
+	    sigaction(SIGINT, &new, &old);
+
 	    while (1) {
 		int seconds;
 
+		alarm_set(MEDIA_TIMEOUT, media_timeout);
 		n = fread(buf, 1, BUFSIZ, fp);
-		if (n <= 0)
+		alarm_clear();
+		if (n <= 0 || AlarmWentOff)
 		    break;
 		total += n;
 
@@ -495,6 +524,7 @@ distExtract(char *parent, Distribution *me)
 		    goto punt;
 		}
 	    }
+	    sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
 	    fclose(fp);
 	}
 	close(fd2);

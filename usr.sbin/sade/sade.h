@@ -68,6 +68,9 @@
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
 #define IO_ERROR		-2	/* Status code for I/O error rather than normal EOF */
 
+/* Number of seconds to wait for data to come off even the slowest media */
+#define MEDIA_TIMEOUT		300
+
 /*
  * I make some pretty gross assumptions about having a max of 50 chunks
  * total - 8 slices and 42 partitions.  I can't easily display many more
@@ -301,6 +304,7 @@ typedef struct _devPriv {
 
 
 /*** Externs ***/
+extern Boolean		AlarmWentOff;		/* Convenience variable for alarm_foo() stuff	*/
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
@@ -627,6 +631,8 @@ extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
 
 /* system.c */
+extern void	alarm_clear(void);
+extern void	alarm_set(int delay, void (*handler)(int sig));
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(int status);
 extern int	execExecute(char *cmd, char *name);
