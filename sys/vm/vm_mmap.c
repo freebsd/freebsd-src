@@ -1137,12 +1137,10 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	if ((flags & MAP_FIXED) == 0) {
 		fitit = TRUE;
 		*addr = round_page(*addr);
-		mtx_lock(&Giant);
 	} else {
 		if (*addr != trunc_page(*addr))
 			return (EINVAL);
 		fitit = FALSE;
-		mtx_lock(&Giant);
 		(void) vm_map_remove(map, *addr, *addr + size);
 	}
 
@@ -1158,6 +1156,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			foff = 0;
 	} else {
 		vp = (struct vnode *) handle;
+		mtx_lock(&Giant);
 		if (vp->v_type == VCHR) {
 			type = OBJT_DEVICE;
 			handle = (void *)(intptr_t)vp->v_rdev;
@@ -1180,6 +1179,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 				flags |= MAP_NOSYNC;
 			}
 		}
+		mtx_unlock(&Giant);
 	}
 
 	if (handle == NULL) {
@@ -1189,7 +1189,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		object = vm_pager_allocate(type,
 			handle, objsize, prot, foff);
 		if (object == NULL) {
-			mtx_unlock(&Giant);
 			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 		}
 		docow = MAP_PREFAULT_PARTIAL;
@@ -1243,7 +1242,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if (rv != KERN_SUCCESS)
 			(void) vm_map_remove(map, *addr, *addr + size);
 	}
-	mtx_unlock(&Giant);
 	switch (rv) {
 	case KERN_SUCCESS:
 		return (0);
