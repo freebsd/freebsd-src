@@ -48,6 +48,7 @@ static const char sccsid[] = "@(#)cut.c	8.3 (Berkeley) 5/4/95";
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,10 +74,15 @@ main(argc, argv)
 	void (*fcn) __P((FILE *, char *)) = NULL;
 	int ch;
 
+	setlocale (LC_ALL, "");
+
 	dchar = '\t';			/* default delimiter is \t */
 
-	while ((ch = getopt(argc, argv, "c:d:f:s")) != -1)
+	/* Since we don't support multi-byte characters, the -c and -b 
+	   options are equivalent, and the -n option is meaningless. */
+	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != EOF)
 		switch(ch) {
+		case 'b':
 		case 'c':
 			fcn = c_cut;
 			get_list(optarg);
@@ -93,6 +99,8 @@ main(argc, argv)
 			break;
 		case 's':
 			sflag = 1;
+			break;
+		case 'n':
 			break;
 		case '?':
 		default:
@@ -263,8 +271,9 @@ f_cut(fp, fname)
 static void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: cut -c list [file1 ...]",
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+		"usage: cut -b list [-n] [file ...]",
+		"       cut -c list [file ...]",
 		"       cut -f list [-s] [-d delim] [file ...]");
 	exit(1);
 }

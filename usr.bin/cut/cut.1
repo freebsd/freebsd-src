@@ -42,13 +42,17 @@
 .Nd select portions of each line of a file
 .Sh SYNOPSIS
 .Nm cut
+.Fl b Ar list
+.Op Fl n
+.Op Ar
+.Nm cut
 .Fl c Ar list
-.Ar
+.Op Ar
 .Nm cut
 .Fl f Ar list
 .Op Fl d Ar delim
 .Op Fl s
-.Ar
+.Op Ar
 .Sh DESCRIPTION
 The
 .Nm cut
@@ -81,6 +85,10 @@ input line.
 .Pp
 The options are as follows:
 .Bl -tag -width Fl
+.It Fl b Ar list
+The 
+.Ar list
+specifies byte positions.
 .It Fl c Ar list
 The
 .Ar list
@@ -94,6 +102,8 @@ The
 .Ar list
 specifies fields, delimited in the input by a single tab character.
 Output fields are separated by a single tab character.
+.It Fl n
+Do not split multi-byte characters.
 .It Fl s
 Suppresses lines with no field delimiter characters.
 Unless specified, lines with no delimiters are passed through unmodified.
@@ -106,5 +116,5 @@ exits 0 on success, 1 if an error occurred.
 .Sh STANDARDS
 The
 .Nm cut
-utility is expected to conform to
-.St -p1003.2 .
+utility conforms to
+.St -p1003.2-92 .
