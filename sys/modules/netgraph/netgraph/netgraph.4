@@ -298,7 +298,7 @@ This is the entry point called when a data message is being handed to
 the node after having been queued in the NETISR system.
 This allows a node to decide in the 
 .Em Receive data message
-method that a message should be defered and queued,
+method that a message should be deferred and queued,
 and be sure that when it is processed from the queue,
 it will not be queued again.
 .It Receive control message
@@ -347,7 +347,7 @@ A relative address includes only the sequence of hook names, implicitly
 starting hook traversal at the local node.
 .Pp
 There are a couple of special possibilities for the node name.
-The name ``.'' (refered to as ``.:'') always refers to the local node.
+The name ``.'' (referred to as ``.:'') always refers to the local node.
 Also, nodes that have no global name may be addressed by their ID numbers,
 by enclosing the hex representation of the ID number within square brackets.
 Here are some examples of valid netgraph addresses:
@@ -569,7 +569,7 @@ supplied hook names.
 .It Dv NGM_SHUTDOWN
 The target node should disconnect from all its neighbours and shut down.
 Persistent nodes such as those representing physical hardware
-might not dissappear from the node namespace, but only reset themselves.
+might not disappear from the node namespace, but only reset themselves.
 The node must disconnect all of its hooks.
 This may result in neighbors shutting themselves down, and possibly a
 cascading shutdown of the entire connected graph.
@@ -590,7 +590,7 @@ number of hooks attached. The ID is an internal number unique to that node.
 This returns the information given by
 .Dv NGM_NODEINFO ,
 but in addition 
-includes an array of fields describing each link, and the desription for
+includes an array of fields describing each link, and the description for
 the node at the far end of that link.
 .It Dv NGM_LISTNAMES
 This returns an array of node descriptions (as for
@@ -619,7 +619,7 @@ Data moving through the
 system can be accompanied by meta-data that describes some
 aspect of that data. The form of the meta-data is a fixed header,
 which contains enough information for most uses, and can optionally 
-be suplemented by trailing
+be supplemented by trailing
 .Em option
 structures, which contain a 
 .Em cookie
@@ -747,7 +747,7 @@ for each DLCI.
 .It FRAME RELAY LMI
 Automatically handles frame relay
 ``LMI'' (link management interface) operations and packets.
-Automatically probes and detects whch of several LMI standards
+Automatically probes and detects which of several LMI standards
 is in use at the exchange.
 .Pp
 .It TTY
@@ -770,7 +770,7 @@ The interfaces are named
 etc.
 .El
 .Sh NOTES
-Whether a named node exists can be checked by trying to send a control mesage
+Whether a named node exists can be checked by trying to send a control message
 to it (e.g.,
 .Dv NGM_NODEINFO
 ).
@@ -786,7 +786,7 @@ There are three exceptions:
 .It 1
 Mbufs sent across a data link are never to be freed by the sender. 
 .It 2
-Any meta-data information travelling with the data has the same restriction.
+Any meta-data information traveling with the data has the same restriction.
 It might be freed by any node the data passes through, and a
 .Dv NULL
 passed onwards, but the caller will never free it.
@@ -806,7 +806,7 @@ recipient should copy them if it wants to keep that information.
 .Sh FILES
 .Bl -tag -width xxxxx -compact
 .It Pa /sys/netgraph/netgraph.h
-Definitions for use soley within the kernel by
+Definitions for use solely within the kernel by
 .Nm
 nodes.
 .It Pa /sys/netgraph/ng_message.h

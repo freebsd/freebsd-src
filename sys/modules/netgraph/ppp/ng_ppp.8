@@ -97,7 +97,7 @@ hook and expects to receive back the compressed frame on the same hook.
 Similarly, the
 .Dv decompress
 hook is used to uncompress incoming frames when decompression is
-negotiated (compression and decompression are independenly negotiable).
+negotiated (compression and decompression are independently negotiable).
 The type of node attached to these hooks should correspond
 to the type of compression negotiated, e.g., Deflate, Predictor-1, etc.
 .Pp
@@ -170,7 +170,7 @@ the link via the
 control message.
 .Pp
 Each link has configuration parameters for latency (specified in
-miliseconds) and bandwidth (specified in tens of bytes per second).
+milliseconds) and bandwidth (specified in tens of bytes per second).
 The PPP node can be configured for
 .Em round-robin
 or
@@ -189,7 +189,7 @@ when links with different bandwidths exist in the same bundle.
 When configured for optimal delivery, the PPP node distributes the
 packet across the links in a way that minimizes the time it takes
 for the completed packet to be received by the far end.  This
-involves taking into account each link's latency, bandwith, and
+involves taking into account each link's latency, bandwidth, and
 current queue length.  Therefore these numbers should be
 configured as accurately as possible.  The algorithm does require
 some computation, so may not be appropriate for very slow machines
