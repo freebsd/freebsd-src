@@ -160,12 +160,13 @@ sb_attach(struct isa_device *dev)
  *
  */
 static int
-sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
+sb_dsp_open(dev_t i_dev, int flags, int mode, struct proc * p)
 {
     snddev_info *d;
     int unit ;
+    int dev;
 
-    dev = minor(dev);
+    dev = minor(i_dev);
     unit = dev >> 4 ;
     d = &pcm_info[unit] ;
 
@@ -235,13 +236,14 @@ sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
 }
 
 static int
-sb_dsp_close(dev_t dev, int flags, int mode, struct proc * p)
+sb_dsp_close(dev_t i_dev, int flags, int mode, struct proc * p)
 {
     int unit;
+    int dev;
     snddev_info *d;
     u_long s;
 
-    dev = minor(dev);
+    dev = minor(i_dev);
     unit = dev >> 4 ;
     d = &pcm_info[unit] ;
 
@@ -257,12 +259,13 @@ sb_dsp_close(dev_t dev, int flags, int mode, struct proc * p)
 }
 
 static int
-sb_dsp_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
+sb_dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 {
     int unit;
+    int dev;
     snddev_info *d;
 
-    dev = minor(dev);
+    dev = minor(i_dev);
     unit = dev >> 4 ;
     d = &pcm_info[unit] ;
 

@@ -445,12 +445,13 @@ generic_snd_probe(struct isa_device * dev, snddev_info **p[], char *s)
  * number.
  */
 static snddev_info *
-get_snddev_info(dev_t dev, int *unit)
+get_snddev_info(dev_t i_dev, int *unit)
 {
     int u;
     snddev_info *d = NULL ;
+    int dev;
 
-    dev = minor(dev);
+    dev = minor(i_dev);
     u = dev >> 4 ;
     if (unit)
 	*unit = u ;
@@ -502,7 +503,7 @@ sndopen(dev_t i_dev, int flags, int mode, struct proc * p)
     snddev_info *d;
 
     dev = minor(i_dev);
-    d = get_snddev_info(dev, &unit);
+    d = get_snddev_info(i_dev, &unit);
 
     DEB(printf("open snd%d subdev %d flags 0x%08x mode 0x%08x\n",
 	unit, dev & 0xf, flags, mode));
@@ -545,7 +546,7 @@ sndclose(dev_t i_dev, int flags, int mode, struct proc * p)
     snddev_info *d;
 
     dev = minor(i_dev);
-    d = get_snddev_info(dev, &unit);
+    d = get_snddev_info(i_dev, &unit);
 
     DEB(printf("close snd%d subdev %d\n", unit, dev & 0xf));
 
@@ -579,7 +580,7 @@ sndread(dev_t i_dev, struct uio * buf, int flag)
 
     dev = minor(i_dev);
 
-    d = get_snddev_info(dev, &unit);
+    d = get_snddev_info(i_dev, &unit);
     DEB(printf("read snd%d subdev %d flag 0x%08x\n", unit, dev & 0xf, flag));
 
     if (d == NULL)
@@ -666,7 +667,7 @@ sndwrite(dev_t i_dev, struct uio * buf, int flag)
     u_long s;
 
     dev = minor(i_dev);
-    d = get_snddev_info(dev, &unit);
+    d = get_snddev_info(i_dev, &unit);
 
     DEB(printf("write snd%d subdev %d flag 0x%08x\n", unit, dev & 0xf, flag));
 
@@ -752,7 +753,7 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
     u_long s;
 
     dev = minor(i_dev);
-    d = get_snddev_info(dev, &unit);
+    d = get_snddev_info(i_dev, &unit);
 
     if (d == NULL)
 	return (ENXIO) ;
@@ -767,7 +768,7 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	    return ENXIO ;
     }
     if (d->ioctl)
-	ret = d->ioctl(dev, cmd, arg, mode, p);
+	ret = d->ioctl(i_dev, cmd, arg, mode, p);
     if (ret != ENOSYS)
 	return ret ;
 
@@ -1189,7 +1190,7 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
     u_long flags;
 
     dev = minor(i_dev);
-    d = get_snddev_info(dev, &unit);
+    d = get_snddev_info(i_dev, &unit);
     DEB(printf("sndselect dev 0x%04x rw 0x%08x\n",i_dev, rw));
     if (d == NULL ) /* should not happen! */
 	return (ENXIO) ;
