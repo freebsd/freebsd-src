@@ -77,6 +77,7 @@ setfile(name)
 	char tempname[PATHSIZE];
 	static int shudclob;
 
+	checkmode = value("checkmode") != NULL;
 	if ((name = expand(name)) == NULL)
 		return (-1);
 
@@ -151,7 +152,6 @@ setfile(name)
 	(void)Fclose(ibuf);
 	relsesigs();
 	sawcom = 0;
-	checkmode = value("checkmode") != NULL;
 
 	if ((checkmode || !edit) && msgCount == 0) {
 nomail:
