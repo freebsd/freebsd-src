@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -711,7 +712,7 @@ arstrategy(struct bio *bp)
 	    return;
 	}
 
-	buf1 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT | M_ZERO);
+	buf1 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT | M_ZERO); /* XXX */
 	buf1->bp.bio_pblkno = lba;
 	if ((buf1->drive = drv) > 0)
 	    buf1->bp.bio_pblkno += rdp->offset;
@@ -819,7 +820,7 @@ arstrategy(struct bio *bp)
 			((rdp->flags & AR_F_REBUILDING) &&
 			 (rdp->disks[buf1->drive].flags & AR_DF_SPARE) &&
 			 buf1->bp.bio_pblkno < rdp->lock_start)) {
-			buf2 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
+			buf2 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT); /* XXX */
 			bcopy(buf1, buf2, sizeof(struct ar_buf));
 			buf1->mirror = buf2;
 			buf2->mirror = buf1;
@@ -1020,7 +1021,7 @@ ar_rebuild(void *arg)
     rdp->lock_end = rdp->lock_start + AR_REBUILD_SIZE;
     rdp->flags |= AR_F_REBUILDING;
     splx(s);
-    buffer = malloc(AR_REBUILD_SIZE * DEV_BSIZE, M_AR, M_NOWAIT | M_ZERO);
+    buffer = malloc(AR_REBUILD_SIZE * DEV_BSIZE, M_AR, M_NOWAIT | M_ZERO); /* XXX */
 
     /* now go copy entire disk(s) */
     while (rdp->lock_end < (rdp->total_sectors / rdp->width)) {
