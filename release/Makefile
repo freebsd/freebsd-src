@@ -232,6 +232,8 @@ rerelease release:
 .endif
 .if defined(ALLLANG)
 	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
+.else
+	echo "export DOC_LANG=en_US.ISO_8859-1"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
@@ -259,7 +261,6 @@ rerelease release:
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
-	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
@@ -299,7 +300,7 @@ release.1:
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../kerberosIV) && !defined(NOKERBEROS)
+.if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/../kerberosIV && ( \
 		make bootstrap &&\
 		make obj all help-distribute DISTDIR=${RD}/trees &&\
@@ -428,10 +429,12 @@ release.7:
 		fi && shift && shift ; \
 	done
 .endif
+.if exists(${RD}/dists/des)
 	( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
 		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi ; )
+.endif
 	@echo "src distribution is finished."
 .endif
 	touch release.7
@@ -459,9 +462,11 @@ release.8: write_mfs_in_kernel
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
-		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero ${CARDDEV} | \
+		ls console tty bpf0 ttyv0 ttyv1 ttyv2 ttyv3 null zero ${CARDDEV} | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
+	( cd ${RD}/mfsfd && mkdir -p bin sbin && ln -s /stand/sh bin/sh )
+	cp /sbin/dhclient-script ${RD}/mfsfd/sbin
 .if ${PCCARD} == "YES"
 	cp ${.CURDIR}/../etc/pccard.conf.sample ${RD}/mfsfd/etc/pccard.conf
 .endif
@@ -536,7 +541,13 @@ ftp.1:
 	@mkdir -p ${FD}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	@for i in ${DIST_DOCS}; do if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$$i ]; then cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${FD}; else cp ${.CURDIR}/texts/$${i} ${FD}; fi; done
+	@for i in ${DIST_DOCS}; do \
+	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
+	     cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${FD}; \
+          else \
+	     cp ${.CURDIR}/texts/$${i} ${FD}; \
+	  fi; \
+        done
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
@@ -563,7 +574,13 @@ cdrom.1:
 	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-	@for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; done
+	@for i in ${DIST_DOCS}; do \
+	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
+	     cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${CD_DISC1}; \
+          else \
+	     cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; \
+	  fi; \
+        done
 .if !defined(NOPORTS)
 	@-rm -rf /usr/ports/distfiles/*
 	@mkdir -p ${CD_DISC1}/ports && \
@@ -577,7 +594,7 @@ doc.1:
 	@for i in ${DOCPORTS}; do \
 	  cd /usr/ports/$$i && make all install clean JADETEX=no FORCE_PKG_REGISTER=yes; \
 	done
-	@cd /usr/doc && make all distribute DISTDIR=${RD}/trees
+	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc
 	touch doc.1
 
 # Various "subroutine" and other supporting targets.
@@ -679,8 +696,8 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
-			make  kernel && \
-			cp kernel ${RD}/kernels/${KERNEL}
+			make  ${KERNEL} && \
+			cp ${KERNEL} ${RD}/kernels/${KERNEL}
 
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--

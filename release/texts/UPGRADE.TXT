@@ -52,8 +52,18 @@ the component over the top of the previous version.  Files belonging to
 the old distribution are not deleted.
 
 System configuration is preserved by retaining and restoring the
-previous version of a number of files in /etc, some of which
-are simply copied back and others of which are merged.
+previous version of the following files:
+
+   Xaccel.ini, adduser.conf, aliases, aliases.db, amd.map, crontab,
+   csh.cshrc, csh.login, csh.logout, daily, disktab, dm.conf, exports, 
+   fbtab, fstab, ftpusers, gettytab, gnats, group, host.conf, hosts, 
+   hosts.equiv, hosts.lpd, inetd.conf, kerberosIV, localtime, login.access,
+   mail.rc, make.conf, manpath.config, master.passwd, mib.txt, modems,
+   monthly, motd, namedb, networks, passwd, phones, ppp, printcap, 
+   profile, protocols, pwd.db, rc, rc.firewall, rc.i386, rc.local, 
+   rc.network, rc.conf, remote, resolv.conf, rmt, security, sendmail.cf, 
+   services, shells, skeykeys, spwd.db, supfile, syslog.conf, termcap, 
+   ttys, uucp, weekly
 
 The versions of these files which correspond to the new version are
 moved to /etc/upgrade/.  The system administrator may peruse these new
