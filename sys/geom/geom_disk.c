@@ -340,8 +340,7 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
 	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));
 	KASSERT(strlen(dp->d_name) < SPECNAMELEN - 4, ("disk name too long"));
-	dp->d_devstat = g_malloc(sizeof *dp->d_devstat, M_WAITOK | M_ZERO);
-	devstat_add_entry(dp->d_devstat, dp->d_name, dp->d_unit,
+	dp->d_devstat = devstat_new_entry(dp->d_name, dp->d_unit,
 	    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	g_call_me(g_disk_create, dp);
