@@ -747,10 +747,21 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 		}
 	}
 
-	while (vp->v_numoutput > 0) {
-		vp->v_flag |= VBWAIT;
-		tsleep(&vp->v_numoutput, PVM, "vnvlbv", 0);
-	}
+	/*
+	 * Wait for I/O to complete.  XXX needs cleaning up.  The vnode can
+	 * have write I/O in-progress but if there is a VM object then the
+	 * VM object can also have read-I/O in-progress.
+	 */
+	do {
+		while (vp->v_numoutput > 0) {
+			vp->v_flag |= VBWAIT;
+			tsleep(&vp->v_numoutput, PVM, "vnvlbv", 0);
+		}
+		if (VOP_GETVOBJECT(vp, &object) == 0) {
+			while (object->paging_in_progress)
+				vm_object_pip_sleep(object, "vnvlbx");
+		}
+	} while (vp->v_numoutput > 0);
 
 	splx(s);
 
