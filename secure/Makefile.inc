@@ -1,3 +1,3 @@
-#	$Id: Makefile.inc,v 1.3 1994/11/22 08:03:26 phk Exp $
+#	$Id: Makefile.inc,v 1.4 1995/01/14 11:32:41 jkh Exp $
 
-DISTRIBUTION=secure
+DISTRIBUTION=DES
