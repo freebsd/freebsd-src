@@ -53,7 +53,7 @@ or redundant data, usually numbers, one per line.
 The following options are available:
 .Bl -tag -width indent
 .It Fl r
-Generate random data instead of sequential data, the default.
+Generate random data instead of the default sequential data.
 .It Fl b Ar word
 Just print
 .Ar word
@@ -120,8 +120,9 @@ are given.
 .Pp
 Defaults for the four arguments are, respectively,
 100, 1, 100, and 1, except that when random data are requested,
-.Ar s
-defaults to a seed depending upon the time of day.
+the seed,
+.Ar s ,
+is picked randomly.
 .Ar Reps
 is expected to be an unsigned integer,
 and if given as zero is taken to be infinite.
