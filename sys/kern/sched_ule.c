@@ -1,0 +1,697 @@
+/*-
+ * Copyright (c) 2003, Jeffrey Roberson <jeff@freebsd.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
+#include <sys/smp.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/sysproto.h>
+#include <sys/vmmeter.h>
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+#ifdef KTRACE
+#include <sys/uio.h>
+#include <sys/ktrace.h>
+#endif
+
+#include <machine/cpu.h>
+
+/* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
+/* XXX This is bogus compatability crap for ps */
+static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
+SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
+
+static void sched_setup(void *dummy);
+SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
+
+/*
+ * These datastructures are allocated within their parent datastructure but
+ * are scheduler specific.
+ */
+
+struct ke_sched {
+	int		ske_slice;
+	struct runq	*ske_runq;
+	/* The following variables are only used for pctcpu calculation */
+	int		ske_ltick;	/* Last tick that we were running on */
+	int		ske_ftick;	/* First tick that we were running on */
+	int		ske_ticks;	/* Tick count */
+};
+#define	ke_slice	ke_sched->ske_slice
+#define	ke_runq		ke_sched->ske_runq
+#define	ke_ltick	ke_sched->ske_ltick
+#define	ke_ftick	ke_sched->ske_ftick
+#define	ke_ticks	ke_sched->ske_ticks
+
+struct kg_sched {
+	int	skg_slptime;
+};
+#define	kg_slptime	kg_sched->skg_slptime
+
+struct td_sched {
+	int	std_slptime;
+};
+#define	td_slptime	td_sched->std_slptime
+
+struct ke_sched ke_sched;
+struct kg_sched kg_sched;
+struct td_sched td_sched;
+
+struct ke_sched *kse0_sched = &ke_sched;
+struct kg_sched *ksegrp0_sched = &kg_sched;
+struct p_sched *proc0_sched = NULL;
+struct td_sched *thread0_sched = &td_sched;
+
+/*
+ * This priority range has 20 priorities on either end that are reachable
+ * only through nice values.
+ */
+#define	SCHED_PRI_NRESV	40
+#define	SCHED_PRI_RANGE	((PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1) - \
+    SCHED_PRI_NRESV)
+
+/*
+ * These determine how sleep time effects the priority of a process.
+ *
+ * SLP_MAX:	Maximum amount of accrued sleep time.
+ * SLP_SCALE:	Scale the number of ticks slept across the dynamic priority
+ *		range.
+ * SLP_TOPRI:	Convert a number of ticks slept into a priority value.
+ * SLP_DECAY:	Reduce the sleep time to 50% for every granted slice.
+ */
+#define	SCHED_SLP_MAX	(hz * 2)
+#define	SCHED_SLP_SCALE(slp)	(((slp) * SCHED_PRI_RANGE) / SCHED_SLP_MAX)
+#define	SCHED_SLP_TOPRI(slp)	(SCHED_PRI_RANGE - SCHED_SLP_SCALE((slp)) + \
+    SCHED_PRI_NRESV / 2)
+#define	SCHED_SLP_DECAY(slp)	((slp) / 2)	/* XXX Multiple kses break */
+
+/*
+ * These parameters and macros determine the size of the time slice that is
+ * granted to each thread.
+ *
+ * SLICE_MIN:	Minimum time slice granted, in units of ticks.
+ * SLICE_MAX:	Maximum time slice granted.
+ * SLICE_RANGE:	Range of available time slices scaled by hz.
+ * SLICE_SCALE:	The number slices granted per unit of pri or slp.
+ * PRI_TOSLICE:	Compute a slice size that is proportional to the priority.
+ * SLP_TOSLICE:	Compute a slice size that is inversely proportional to the
+ *		amount of time slept. (smaller slices for interactive ksegs)
+ * PRI_COMP:	This determines what fraction of the actual slice comes from 
+ *		the slice size computed from the priority.
+ * SLP_COMP:	This determines what component of the actual slice comes from
+ *		the slize size computed from the sleep time.
+ */
+#define	SCHED_SLICE_MIN		(hz / 100)
+#define	SCHED_SLICE_MAX		(hz / 10)
+#define	SCHED_SLICE_RANGE	(SCHED_SLICE_MAX - SCHED_SLICE_MIN + 1)
+#define	SCHED_SLICE_SCALE(val, max)	(((val) * SCHED_SLICE_RANGE) / (max))
+#define	SCHED_PRI_TOSLICE(pri)						\
+    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((pri), SCHED_PRI_RANGE))
+#define	SCHED_SLP_TOSLICE(slp)						\
+    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((slp), SCHED_SLP_MAX))
+#define	SCHED_SLP_COMP(slice)	(((slice) / 5) * 3)	/* 60% */
+#define	SCHED_PRI_COMP(slice)	(((slice) / 5) * 2)	/* 40% */
+
+/*
+ * This macro determines whether or not the kse belongs on the current or
+ * next run queue.
+ */
+#define	SCHED_CURR(kg)	((kg)->kg_slptime > (hz / 4) || \
+    (kg)->kg_pri_class != PRI_TIMESHARE)
+
+/*
+ * Cpu percentage computation macros and defines.
+ *
+ * SCHED_CPU_TIME:	Number of seconds to average the cpu usage across.
+ * SCHED_CPU_TICKS:	Number of hz ticks to average the cpu usage across.
+ */
+
+#define	SCHED_CPU_TIME	60
+#define	SCHED_CPU_TICKS	(hz * SCHED_CPU_TIME)
+
+/*
+ * kseq - pair of runqs per processor
+ */
+
+struct kseq {
+	struct runq	ksq_runqs[2];
+	struct runq	*ksq_curr;
+	struct runq	*ksq_next;
+	int		ksq_load;	/* Total runnable */
+};
+
+/*
+ * One kse queue per processor.
+ */
+struct kseq	kseq_cpu[MAXCPU];
+
+static int sched_slice(struct ksegrp *kg);
+static int sched_priority(struct ksegrp *kg);
+void sched_pctcpu_update(struct kse *ke);
+int sched_pickcpu(void);
+
+static void
+sched_setup(void *dummy)
+{
+	int i;
+
+	mtx_lock_spin(&sched_lock);
+	/* init kseqs */
+	for (i = 0; i < MAXCPU; i++) {
+		kseq_cpu[i].ksq_load = 0;
+		kseq_cpu[i].ksq_curr = &kseq_cpu[i].ksq_runqs[0];
+		kseq_cpu[i].ksq_next = &kseq_cpu[i].ksq_runqs[1];
+		runq_init(kseq_cpu[i].ksq_curr);
+		runq_init(kseq_cpu[i].ksq_next);
+	}
+	/* CPU0 has proc0 */
+	kseq_cpu[0].ksq_load++;
+	mtx_unlock_spin(&sched_lock);
+}
+
+/*
+ * Scale the scheduling priority according to the "interactivity" of this
+ * process.
+ */
+static int
+sched_priority(struct ksegrp *kg)
+{
+	int pri;
+
+	if (kg->kg_pri_class != PRI_TIMESHARE)
+		return (kg->kg_user_pri);
+
+	pri = SCHED_SLP_TOPRI(kg->kg_slptime);
+	CTR2(KTR_RUNQ, "sched_priority: slptime: %d\tpri: %d",
+	    kg->kg_slptime, pri);
+
+	pri += PRI_MIN_TIMESHARE;
+	pri += kg->kg_nice;
+
+	if (pri > PRI_MAX_TIMESHARE)
+		pri = PRI_MAX_TIMESHARE;
+	else if (pri < PRI_MIN_TIMESHARE)
+		pri = PRI_MIN_TIMESHARE;
+
+	kg->kg_user_pri = pri;
+
+	return (kg->kg_user_pri);
+}
+
+/*
+ * Calculate a time slice based on the process priority.
+ */
+static int
+sched_slice(struct ksegrp *kg)
+{
+	int pslice;
+	int sslice;
+	int slice;
+	int pri;
+
+	pri = kg->kg_user_pri;
+	pri -= PRI_MIN_TIMESHARE;
+	pslice = SCHED_PRI_TOSLICE(pri);
+	sslice = SCHED_SLP_TOSLICE(kg->kg_slptime);	
+	slice = SCHED_SLP_COMP(sslice) + SCHED_PRI_COMP(pslice);
+	kg->kg_slptime = SCHED_SLP_DECAY(kg->kg_slptime);
+
+	CTR4(KTR_RUNQ,
+	    "sched_slice: pri: %d\tsslice: %d\tpslice: %d\tslice: %d",
+	    pri, sslice, pslice, slice);
+
+	if (slice < SCHED_SLICE_MIN)
+		slice = SCHED_SLICE_MIN;
+	else if (slice > SCHED_SLICE_MAX)
+		slice = SCHED_SLICE_MAX;
+
+	return (slice);
+}
+
+int
+sched_rr_interval(void)
+{
+	return (SCHED_SLICE_MAX);
+}
+
+void
+sched_pctcpu_update(struct kse *ke)
+{
+	/*
+	 * Adjust counters and watermark for pctcpu calc.
+	 */
+	ke->ke_ticks = (ke->ke_ticks / (ke->ke_ltick - ke->ke_ftick)) *
+		    SCHED_CPU_TICKS;
+	ke->ke_ltick = ticks;
+	ke->ke_ftick = ke->ke_ltick - SCHED_CPU_TICKS;
+}
+
+#ifdef SMP
+int
+sched_pickcpu(void)
+{
+	int cpu;
+	int load;
+	int i;
+
+	if (!smp_started)
+		return (0);
+
+	cpu = PCPU_GET(cpuid);
+	load = kseq_cpu[cpu].ksq_load;
+
+	for (i = 0; i < mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		if (kseq_cpu[i].ksq_load < load) {
+			cpu = i;
+			load = kseq_cpu[i].ksq_load;
+		}
+	}
+
+	CTR1(KTR_RUNQ, "sched_pickcpu: %d", cpu);
+	return (cpu);
+}
+#else
+int
+sched_pickcpu(void)
+{
+	return (0);
+}
+#endif
+
+void
+sched_prio(struct thread *td, u_char prio)
+{
+	struct kse *ke;
+	struct runq *rq;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	ke = td->td_kse;
+	td->td_priority = prio;
+
+	if (TD_ON_RUNQ(td)) {
+		rq = ke->ke_runq;
+
+		runq_remove(rq, ke);
+		runq_add(rq, ke);
+	}
+}
+
+void
+sched_switchout(struct thread *td)
+{
+	struct kse *ke;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	ke = td->td_kse;
+
+	td->td_last_kse = ke;
+        td->td_lastcpu = ke->ke_oncpu;
+        ke->ke_flags &= ~KEF_NEEDRESCHED;
+
+	if (TD_IS_RUNNING(td)) {
+		setrunqueue(td);
+		return;
+	} else
+		td->td_kse->ke_runq = NULL;
+
+	/*
+	 * We will not be on the run queue. So we must be
+	 * sleeping or similar.
+	 */
+	if (td->td_proc->p_flag & P_KSES)
+		kse_reassign(ke);
+}
+
+void
+sched_switchin(struct thread *td)
+{
+	/* struct kse *ke = td->td_kse; */
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	td->td_kse->ke_oncpu = PCPU_GET(cpuid); /* XXX */
+	if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
+	    td->td_priority != td->td_ksegrp->kg_user_pri)
+		curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
+
+}
+
+void
+sched_nice(struct ksegrp *kg, int nice)
+{
+	struct thread *td;
+
+	kg->kg_nice = nice;
+	sched_priority(kg);
+	FOREACH_THREAD_IN_GROUP(kg, td) {
+		td->td_kse->ke_flags |= KEF_NEEDRESCHED;
+	}
+}
+
+void
+sched_sleep(struct thread *td, u_char prio)
+{
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	td->td_slptime = ticks;
+	td->td_priority = prio;
+
+	/*
+	 * If this is an interactive task clear its queue so it moves back
+	 * on to curr when it wakes up.  Otherwise let it stay on the queue
+	 * that it was assigned to.
+	 */
+	if (SCHED_CURR(td->td_kse->ke_ksegrp))
+		td->td_kse->ke_runq = NULL;
+}
+
+void
+sched_wakeup(struct thread *td)
+{
+	struct ksegrp *kg;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	/*
+	 * Let the kseg know how long we slept for.  This is because process
+	 * interactivity behavior is modeled in the kseg.
+	 */
+	kg = td->td_ksegrp;
+
+	if (td->td_slptime) {
+		kg->kg_slptime += ticks - td->td_slptime;
+		if (kg->kg_slptime > SCHED_SLP_MAX)
+			kg->kg_slptime = SCHED_SLP_MAX;
+		td->td_priority = sched_priority(kg);
+	}
+	td->td_slptime = 0;
+	setrunqueue(td);
+        if (td->td_priority < curthread->td_priority)
+                curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
+}
+
+/*
+ * Penalize the parent for creating a new child and initialize the child's
+ * priority.
+ */
+void
+sched_fork(struct ksegrp *kg, struct ksegrp *child)
+{
+	struct kse *ckse;
+	struct kse *pkse;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	ckse = FIRST_KSE_IN_KSEGRP(child);
+	pkse = FIRST_KSE_IN_KSEGRP(kg);
+
+	/* XXX Need something better here */
+	child->kg_slptime = kg->kg_slptime;
+	child->kg_user_pri = kg->kg_user_pri;
+
+	ckse->ke_slice = pkse->ke_slice;
+	ckse->ke_oncpu = sched_pickcpu();
+	ckse->ke_runq = NULL;
+	/*
+	 * Claim that we've been running for one second for statistical
+	 * purposes.
+	 */
+	ckse->ke_ticks = 0;
+	ckse->ke_ltick = ticks;
+	ckse->ke_ftick = ticks - hz;
+}
+
+/*
+ * Return some of the child's priority and interactivity to the parent.
+ */
+void
+sched_exit(struct ksegrp *kg, struct ksegrp *child)
+{
+	struct kseq *kseq;
+	struct kse *ke;
+
+	/* XXX Need something better here */
+	mtx_assert(&sched_lock, MA_OWNED);
+	kg->kg_slptime = child->kg_slptime;
+	sched_priority(kg);
+
+	/*
+	 * We drop the load here so that the running process leaves us with a
+	 * load of at least one.
+	 */
+	ke = FIRST_KSE_IN_KSEGRP(kg);
+	kseq = &kseq_cpu[ke->ke_oncpu];
+	kseq->ksq_load--;
+}
+
+int sched_clock_switches;
+
+void
+sched_clock(struct thread *td)
+{
+	struct kse *ke;
+	struct kse *nke;
+	struct ksegrp *kg;
+	struct kseq *kseq;
+	int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	kseq = &kseq_cpu[cpu];
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT((td != NULL), ("schedclock: null thread pointer"));
+	ke = td->td_kse;
+	kg = td->td_ksegrp;
+
+	nke = runq_choose(kseq->ksq_curr);
+
+	if (td->td_kse->ke_flags & KEF_IDLEKSE) {
+#if 0
+		if (nke && nke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE) {
+			printf("Idle running with %s on the runq!\n",
+			    nke->ke_proc->p_comm);
+			Debugger("stop");
+		}
+#endif
+		return;
+	}
+	if (nke && nke->ke_thread &&
+	    nke->ke_thread->td_priority < td->td_priority) {
+		sched_clock_switches++;
+		ke->ke_flags |= KEF_NEEDRESCHED;
+	}
+
+	/*
+	 * We used a tick, decrease our total sleep time.  This decreases our
+	 * "interactivity".
+	 */
+	if (kg->kg_slptime)
+		kg->kg_slptime--;
+	/*
+	 * We used up one time slice.
+	 */
+	ke->ke_slice--;
+	/*
+	 * We're out of time, recompute priorities and requeue
+	 */
+	if (ke->ke_slice == 0) {
+		struct kseq *kseq;
+
+		kseq = &kseq_cpu[ke->ke_oncpu];
+
+		td->td_priority = sched_priority(kg);
+		ke->ke_slice = sched_slice(kg);
+		ke->ke_flags |= KEF_NEEDRESCHED;
+		ke->ke_runq = NULL;
+	}
+	ke->ke_ticks += 10000;
+	ke->ke_ltick = ticks;
+	/* Go up to one second beyond our max and then trim back down */
+	if (ke->ke_ftick + SCHED_CPU_TICKS + hz < ke->ke_ltick)
+		sched_pctcpu_update(ke);
+}
+
+int
+sched_runnable(void)
+{
+	struct kseq *kseq;
+	int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	kseq = &kseq_cpu[cpu];
+
+	if (runq_check(kseq->ksq_curr) == 0)
+		return (runq_check(kseq->ksq_next));
+	return (1);
+}
+
+void
+sched_userret(struct thread *td)
+{
+	struct ksegrp *kg;
+	
+	kg = td->td_ksegrp;
+
+	if (td->td_priority != kg->kg_user_pri) {
+		mtx_lock_spin(&sched_lock);
+		td->td_priority = kg->kg_user_pri;
+		mtx_unlock_spin(&sched_lock);
+	}
+}
+
+struct kse *
+sched_choose(void)
+{
+	struct kseq *kseq;
+	struct kse *ke;
+	struct runq *swap;
+	int cpu;
+	
+	cpu = PCPU_GET(cpuid);
+	kseq = &kseq_cpu[cpu];
+
+	if ((ke = runq_choose(kseq->ksq_curr)) == NULL) {
+		swap = kseq->ksq_curr;
+		kseq->ksq_curr = kseq->ksq_next;
+		kseq->ksq_next = swap;
+		ke = runq_choose(kseq->ksq_curr);
+	}
+	if (ke) {
+		runq_remove(ke->ke_runq, ke);
+		ke->ke_state = KES_THREAD;
+	}
+
+	return (ke);
+}
+
+void
+sched_add(struct kse *ke)
+{
+	struct kseq *kseq;
+	int cpu;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT((ke->ke_thread != NULL), ("runq_add: No thread on KSE"));
+	KASSERT((ke->ke_thread->td_kse != NULL),
+	    ("runq_add: No KSE on thread"));
+	KASSERT(ke->ke_state != KES_ONRUNQ,
+	    ("runq_add: kse %p (%s) already in run queue", ke,
+	    ke->ke_proc->p_comm));
+	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+	    ("runq_add: process swapped out"));
+
+	/* cpu = PCPU_GET(cpuid); */
+	cpu = ke->ke_oncpu;
+	kseq = &kseq_cpu[cpu];
+	kseq->ksq_load++;
+
+	if (ke->ke_runq == NULL) {
+		if (SCHED_CURR(ke->ke_ksegrp))
+			ke->ke_runq = kseq->ksq_curr;
+		else
+			ke->ke_runq = kseq->ksq_next;
+	}
+	ke->ke_ksegrp->kg_runq_kses++;
+	ke->ke_state = KES_ONRUNQ;
+
+	runq_add(ke->ke_runq, ke);
+}
+
+void
+sched_rem(struct kse *ke)
+{
+	struct kseq *kseq;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	/* KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue")); */
+
+	kseq = &kseq_cpu[ke->ke_oncpu];
+	kseq->ksq_load--;
+
+	runq_remove(ke->ke_runq, ke);
+	ke->ke_runq = NULL;
+	ke->ke_state = KES_THREAD;
+	ke->ke_ksegrp->kg_runq_kses--;
+}
+
+fixpt_t
+sched_pctcpu(struct kse *ke)
+{
+	fixpt_t pctcpu;
+
+	pctcpu = 0;
+
+	if (ke->ke_ticks) {
+		int rtick;
+
+		/* Update to account for time potentially spent sleeping */
+		ke->ke_ltick = ticks;
+		sched_pctcpu_update(ke);
+
+		/* How many rtick per second ? */
+		rtick = ke->ke_ticks / (SCHED_CPU_TIME * 10000);
+		pctcpu = (FSCALE * ((FSCALE * rtick)/stathz)) >> FSHIFT;
+	}
+
+	ke->ke_proc->p_swtime = ke->ke_ltick - ke->ke_ftick;
+
+	return (pctcpu);
+}
+
+int
+sched_sizeof_kse(void)
+{
+	return (sizeof(struct kse) + sizeof(struct ke_sched));
+}
+
+int
+sched_sizeof_ksegrp(void)
+{
+	return (sizeof(struct ksegrp) + sizeof(struct kg_sched));
+}
+
+int
+sched_sizeof_proc(void)
+{
+	return (sizeof(struct proc));
+}
+
+int
+sched_sizeof_thread(void)
+{
+	return (sizeof(struct thread) + sizeof(struct td_sched));
+}
