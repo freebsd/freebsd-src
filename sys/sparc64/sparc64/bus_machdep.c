@@ -612,23 +612,27 @@ static int
 nexus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
     bus_dmamap_t *mapp)
 {
+	int mflags;
+
+	if (flags & BUS_DMA_NOWAIT)
+		mflags = M_NOWAIT;
+	else
+		mflags = M_WAITOK;
+	if (flags & BUS_DMA_ZERO)
+		mflags |= M_ZERO;
 
 	if ((dmat->dt_maxsize <= PAGE_SIZE)) {
-		*vaddr = malloc(dmat->dt_maxsize, M_DEVBUF,
-		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
+		*vaddr = malloc(dmat->dt_maxsize, M_DEVBUF, mflags);
 	} else {
 		/*
 		 * XXX: Use contigmalloc until it is merged into this facility
 		 * and handles multi-seg allocations.  Nobody is doing multi-seg
 		 * allocations yet though.
 		 */
-		mtx_lock(&Giant);
-		*vaddr = contigmalloc(dmat->dt_maxsize, M_DEVBUF,
-		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
+		*vaddr = contigmalloc(dmat->dt_maxsize, M_DEVBUF, mflags,
 		    0ul, dmat->dt_lowaddr,
 		    dmat->dt_alignment ? dmat->dt_alignment : 1UL,
 		    dmat->dt_boundary);
-		mtx_unlock(&Giant);
 	}
 	if (*vaddr == NULL)
 		return (ENOMEM);
