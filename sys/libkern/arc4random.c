@@ -41,8 +41,12 @@ arc4_randomstir (void)
 	int r, n;
 
 	r = read_random(key, sizeof(key));
-	for (n = r; n < sizeof(key); n++)
-		key[n] = key[n % r];
+	/* if r == 0 || -1, just use what was on the stack */
+	if (r > 0)
+	{
+		for (n = r; n < sizeof(key); n++)
+			key[n] = key[n % r];
+	}
 
 	for (n = 0; n < 256; n++)
 	{
