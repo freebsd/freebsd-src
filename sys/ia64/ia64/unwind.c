@@ -174,13 +174,13 @@ unw_cb_copyin(int req, char *to, uint64_t from, int len, intptr_t tok)
 		*((uint64_t*)to) = *((uint64_t*)from);
 		return (8);
 	case UWX_COPYIN_REG:
-		if (from == UWX_REG_PFS)
+		if (from == UWX_REG_AR_PFS)
 			from = rs->frame->tf_special.pfs;
 		else if (from == UWX_REG_PREDS)
 			from = rs->frame->tf_special.pr;
-		else if (from == UWX_REG_RNAT)
+		else if (from == UWX_REG_AR_RNAT)
 			from = rs->frame->tf_special.rnat;
-		else if (from == UWX_REG_UNAT)
+		else if (from == UWX_REG_AR_UNAT)
 			from = rs->frame->tf_special.unat;
 		else if (from >= UWX_REG_GR(0) && from <= UWX_REG_GR(127)) {
 			reg = from - UWX_REG_GR(0);
