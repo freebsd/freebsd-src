@@ -60,6 +60,7 @@ c_special(fd1, file1, skip1, fd2, file2, skip2)
 	if ((fp2 = fdopen(fd2, "r")) == NULL)
 		err(ERR_EXIT, "%s", file2);
 
+	dfound = 0;
 	while (skip1--)
 		if (getc(fp1) == EOF)
 			goto eof;
@@ -67,7 +68,6 @@ c_special(fd1, file1, skip1, fd2, file2, skip2)
 		if (getc(fp2) == EOF)
 			goto eof;
 
-	dfound = 0;
 	for (byte = line = 1;; ++byte) {
 		ch1 = getc(fp1);
 		ch2 = getc(fp2);
