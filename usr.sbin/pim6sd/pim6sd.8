@@ -26,11 +26,11 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	$Id: pim6sd.8,v 1.4 1999/12/16 05:38:06 jinmei Exp $
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd June 10, 1999
 .Dt PIM6SD 8
-.Os KAME
+.Os
 .Sh NAME
 .Nm pim6sd
 .Nd PIM for IPv6 sparse mode daemon
@@ -46,7 +46,7 @@ PIMv2(Protocol Independent Multicast Version 2) sparse mode
 for IPv6.
 .Pp
 Options supported by
-.Nm pim6sd :
+.Nm Ns :
 .Bl -tag -width Ds
 .It Fl c Ar configfile
 Specify alternate location,
@@ -84,12 +84,18 @@ the "loopback interface").
 To override the default configuration,
 configuration commands may be placed in
 .Pa /etc/pim6sd.conf
-(or an alternative file, specified by the "\-c" option).
+.Po
+or an alternative file, specified by the
+.Sq Fl c
+option
+.Pc .
 .Pp
 The
 .Nm
 program dumps its current routing information to a dump file when
-it receives a SIGUSR1 signal.
+it receives a
+.Dv SIGUSR1
+signal.
 The information includes a list of PIM neighbors,
 .Nm
 internal multicast routing table, and
@@ -105,7 +111,7 @@ reset its debug level.
 The
 .Nm
 program puts its logs to a separate file
-.Pa (/var/log/pim6sd.log).
+.Pa Pq /var/log/pim6sd.log .
 The log level can be configured by the
 .Fl d
 command line option or the configuration file.
@@ -140,6 +146,10 @@ which has also been derived from
 .Nm Mrouted
 is COPYRIGHT 1989 by The Board of Trustees of
 Leland Stanford Junior University.
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initialy integrated into
+.Fx 4.0
 .\"
 .Sh BUGS
 .Nm Pim6sd
