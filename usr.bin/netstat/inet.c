@@ -72,6 +72,7 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -219,7 +220,7 @@ protopr(proto, name, af)
 				printf("%-14.14s %-22.22s\n",
 					"Listen", "Local Address");
 			else
-				printf(Aflag ?
+				printf((Aflag && !Wflag) ?
 		"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
 		"%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s %s\n",
 					"Proto", "Recv-Q", "Send-Q",
@@ -243,7 +244,7 @@ protopr(proto, name, af)
 			} else
 				continue;
 		else {
-			const u_char *vchar;
+			const char *vchar;
 
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV6) != 0)
@@ -476,6 +477,7 @@ udp_stats(off, name)
 	p1a(udps_hdrops, "\t%lu with incomplete header\n");
 	p1a(udps_badlen, "\t%lu with bad data length field\n");
 	p1a(udps_badsum, "\t%lu with bad checksum\n");
+	p1a(udps_nosum, "\t%lu with no checksum\n");
 	p1a(udps_noport, "\t%lu dropped due to no socket\n");
 	p(udps_noportbcast,
 	    "\t%lu broadcast/multicast datagram%s dropped due to no socket\n");
@@ -693,16 +695,22 @@ inetprint(in, port, proto,numeric)
 	char line[80], *cp;
 	int width;
 
-	sprintf(line, "%.*s.", (Aflag && !numeric) ? 12 : 16, inetname(in));
+	if (Wflag)
+	    sprintf(line, "%s.", inetname(in));
+	else
+	    sprintf(line, "%.*s.", (Aflag && !numeric) ? 12 : 16, inetname(in));
 	cp = index(line, '\0');
 	if (!numeric && port)
 		sp = getservbyport((int)port, proto);
 	if (sp || port == 0)
-		sprintf(cp, "%.15s", sp ? sp->s_name : "*");
+		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
 	else
-		sprintf(cp, "%d", ntohs((u_short)port));
-	width = Aflag ? 18 : 22;
-	printf("%-*.*s ", width, width, line);
+		sprintf(cp, "%d ", ntohs((u_short)port));
+	width = (Aflag && !Wflag) ? 18 : 22;
+	if (Wflag)
+	    printf("%-*s ", width, line);
+	else
+	    printf("%-*.*s ", width, width, line);
 }
 
 /*
@@ -715,7 +723,7 @@ inetname(inp)
 	struct in_addr *inp;
 {
 	register char *cp;
-	static char line[MAXHOSTNAMELEN + 1];
+	static char line[MAXHOSTNAMELEN];
 	struct hostent *hp;
 	struct netent *np;
 
@@ -733,7 +741,7 @@ inetname(inp)
 			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
 			if (hp) {
 				cp = hp->h_name;
-				trimdomain(cp);
+				trimdomain(cp, strlen(cp));
 			}
 		}
 	}

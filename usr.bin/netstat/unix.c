@@ -152,7 +152,7 @@ unixdomainpr(xunp, so)
 	       (long)so->so_pcb, socktype[so->so_type], so->so_rcv.sb_cc,
 	       so->so_snd.sb_cc,
 	       (long)unp->unp_vnode, (long)unp->unp_conn,
-	       (long)unp->unp_refs.lh_first, (long)unp->unp_reflink.le_next);
+	       (long)LIST_FIRST(&unp->unp_refs), (long)LIST_NEXT(unp, unp_reflink));
 	if (sa)
 		printf(" %.*s",
 		    (int)(sa->sun_len - offsetof(struct sockaddr_un, sun_path)),

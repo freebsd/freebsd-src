@@ -1016,7 +1016,7 @@ inet6name(in6p)
 	register char *cp;
 	static char line[50];
 	struct hostent *hp;
-	static char domain[MAXHOSTNAMELEN + 1];
+	static char domain[MAXHOSTNAMELEN];
 	static int first = 1;
 
 	if (first && !nflag) {

@@ -134,7 +134,7 @@ netgraphprotopr(u_long off, char *name)
 
 		/* Read in ngpcb structure */
 		kread((u_long)this, (char *)&ngpcb, sizeof(ngpcb));
-		next = ngpcb.socks.le_next;
+		next = LIST_NEXT(&ngpcb, socks);
 
 		/* Read in socket structure */
 		kread((u_long)ngpcb.ng_socket, (char *)&sockb, sizeof(sockb));
