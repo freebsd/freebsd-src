@@ -2,9 +2,6 @@
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
  *              
- * Modifications to support NetBSD:
- * Copyright (c) 1997 Jason R. Thorpe.  All rights reserved.
- *                  
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:             
@@ -39,17 +36,11 @@
  *	 for functional grouping.
  */
 struct fxp_softc {
-#if defined(__NetBSD__)
-	struct device sc_dev;		/* generic device structures */
-	void *sc_ih;			/* interrupt handler cookie */
-	struct ethercom sc_ethercom;	/* ethernet common part */
-#else
 	struct arpcom arpcom;		/* per-interface network data */
 	struct resource *mem;		/* resource descriptor for registers */
 	struct resource *irq;		/* resource descriptor for interrupt */
 	void *ih;			/* interrupt handler cookie */
 	struct mtx sc_mtx;
-#endif /* __NetBSD__ */
 	bus_space_tag_t sc_st;		/* bus space tag */
 	bus_space_handle_t sc_sh;	/* bus space handle */
 	struct mbuf *rfa_headm;		/* first mbuf in receive frame area */
@@ -91,25 +82,7 @@ struct fxp_softc {
 #define	CSR_WRITE_4(sc, reg, val)					\
 	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
 
-/* Deal with slight differences in software interfaces. */
-#if defined(__NetBSD__)
-#define	sc_if			sc_ethercom.ec_if
-#define	FXP_FORMAT		"%s"
-#define	FXP_ARGS(sc)		(sc)->sc_dev.dv_xname
-#define	FXP_INTR_TYPE		int
-#define	FXP_IOCTLCMD_TYPE	u_long
-#define	FXP_BPFTAP_ARG(ifp)	(ifp)->if_bpf
-#define	FXP_SPLVAR(x)		int x;
-#define	FXP_LOCK(sc, x)		x = splimp()
-#define	FXP_UNLOCK(sc, x)	splx(x)
-#else /* __FreeBSD__ */
 #define	sc_if			arpcom.ac_if
-#define	FXP_FORMAT		"fxp%d"
-#define	FXP_ARGS(sc)		(sc)->arpcom.ac_if.if_unit
-#define	FXP_INTR_TYPE		void
-#define	FXP_IOCTLCMD_TYPE	u_long
-#define	FXP_BPFTAP_ARG(ifp)	ifp
-#define	FXP_SPLVAR(s)
-#define	FXP_LOCK(_sc, x)	mtx_enter(&(_sc)->sc_mtx, MTX_DEF)
-#define	FXP_UNLOCK(_sc, x)	mtx_exit(&(_sc)->sc_mtx, MTX_DEF)
-#endif /* __NetBSD__ */
+#define	FXP_UNIT(_sc)		(_sc)->arpcom.ac_if.if_unit
+#define	FXP_LOCK(_sc)		mtx_enter(&(_sc)->sc_mtx, MTX_DEF)
+#define	FXP_UNLOCK(_sc)		mtx_exit(&(_sc)->sc_mtx, MTX_DEF)
