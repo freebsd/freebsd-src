@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	FSM for isdnd
  *	-------------
  *
- *	$Id: fsm.c,v 1.19 2000/08/20 08:08:51 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:46:07 1999]
+ *      last edit-date: [Sat Jul 21 18:25:48 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -368,7 +366,7 @@ struct state_tab {
 
 /* local requests */
 /* EV_TIMO  */{{F_ill, ST_ILL},		{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_TIMO,ST_IDLE},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},        {F_ill, ST_ILL}},
-/* EV_DRQ   */{{F_ill, ST_ILL},		{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_DRQ, ST_WAITDISCI},	{F_NcNa,ST_WAITDISCI},	{F_ill, ST_ILL},	{F_ill, ST_ILL},        {F_ill, ST_ILL}},
+/* EV_DRQ   */{{F_NcNa, ST_IDLE},		{F_DRQ, ST_WAITDISCI},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_DRQ, ST_WAITDISCI},	{F_NcNa,ST_WAITDISCI},	{F_NcNa, ST_DOWN},	{F_ill, ST_ILL},        {F_ill, ST_ILL}},
 /* EV_CBRQ  */{{F_NcNa,ST_ACB_WAITDIAL},{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},       {F_NcNa,ST_ACB_WAITDIAL},{F_NcNa, ST_ACB_DIAL}, {F_NcNa,ST_ACB_DIALFAIL},{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},        {F_ill, ST_ILL}},
 /* EV_ALRT  */{{F_ALRT,ST_ALERT},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},	{F_ill, ST_ILL},        {F_ill, ST_ILL}},
 
