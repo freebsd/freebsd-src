@@ -103,11 +103,12 @@ The
 .Fa flags
 argument may include one or more of the following:
 .Bd -literal
-#define	MSG_OOB		0x1   /* process out-of-band data */
-#define	MSG_PEEK	0x2   /* peek at incoming message */
-#define	MSG_DONTROUTE	0x4   /* bypass routing, use direct interface */
-#define MSG_EOR		0x8   /* data completes record */
-#define	MSG_EOF		0x100 /* data completes transaction */
+#define	MSG_OOB		0x00001 /* process out-of-band data */
+#define	MSG_PEEK	0x00002 /* peek at incoming message */
+#define	MSG_DONTROUTE	0x00004 /* bypass routing, use direct interface */
+#define MSG_EOR		0x00008 /* data completes record */
+#define	MSG_EOF		0x00100 /* data completes transaction */
+#define	MSG_NOSIGNAL	0x20000 /* do not generate SIGPIPE on EOF */
 .Ed
 .Pp
 The flag
@@ -135,6 +136,9 @@ protocol family, and is used to implement Transaction
 .Xr ttcp 4 ) .
 .Dv MSG_DONTROUTE
 is usually used only by diagnostic or routing programs.
+.Dv MSG_NOSIGNAL
+is used to prevent SIGPIPE generation when writing a socket that
+may be closed.
 .Pp
 See
 .Xr recv 2
