@@ -22,10 +22,10 @@
 	^^^ "You need to use an ANSI C compiler.  Try using gcc or acc." ^^^
 #	endif
 #	ifdef Solaris	/* not predefined. */
-#		define SYSV 1
+#		ifndef SYSV
+#			define SYSV 1
+#		endif
 #		define System "Solaris"
-#		undef __STDC__
-#		define __STDC__ 0
 #	else
 #		define System "SunOS"
 #		ifndef RINDEX
@@ -308,7 +308,6 @@ extern int errno;
 #	ifndef BSD
 #		define BSD 43
 #	endif
-#	define SIG_PARAMS (int sig, ...)
 #	define NO_UTIMEH 1
 #	define System "Apollo"
 #endif
