@@ -5,15 +5,15 @@
 #
 
 # auth
-other	auth	required	pam_nologin.so	no_warn
-#other	auth	required	pam_opie.so	no_warn
-other	auth	required	pam_unix.so	no_warn try_first_pass
+auth		required	pam_nologin.so	no_warn
+#auth		required	pam_opie.so	no_warn
+auth		required	pam_unix.so	no_warn try_first_pass
 
 # account
-other	account	required	pam_unix.so
+account		required	pam_unix.so
 
 # session
-other	session	required	pam_unix.so
+session		required	pam_unix.so
 
 # password
-other	password required	pam_deny.so
+password	required	pam_deny.so
