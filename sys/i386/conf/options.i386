@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.4 1996/12/14 14:32:30 joerg Exp $
+#	$Id: options.i386,v 1.26.2.5 1997/01/30 11:38:57 yokota Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -52,6 +52,7 @@ PSM_CHECKSYNC		opt_psm.h
 PSM_DEBUG		opt_psm.h
 
 KBD_RESETDELAY		opt_kbdio.h
+KBD_MAXRETRY		opt_kbdio.h
 KBD_MAXWAIT		opt_kbdio.h
 KBDIO_DEBUG		opt_kbdio.h
 
