@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.107 1995/02/11 05:35:37 phk Exp $
+#	$Id: Makefile,v 1.108 1995/02/25 22:08:43 phk Exp $
 #
 # How to roll a release:
 #
@@ -32,13 +32,13 @@ RD=			${RELEASEDIR}/stage
 
 release:
 .if !defined(CHROOTDIR)
-	@echo "To make a release you must set CHROOTDIR"
-.else
+	@echo "To make a release you must set CHROOTDIR" && false
+.endif
 	-mkdir ${CHROOTDIR}
 	chflags -R noschg ${CHROOTDIR}/.
 	rm -rf ${CHROOTDIR}/*
+	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirst DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/.. ; ${MAKE} install DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
@@ -52,19 +52,9 @@ release:
 .endif
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
-.endif
-
-doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9
-	@echo "Release done"
 
 clean:
 	rm -rf cpio_crunch boot_crunch release.[1-9]
-
-ckRELEASEDIR:
-.if !defined(RELEASEDIR)
-	@echo "To make a release RELEASEDIR must be defined" ; @exit 1
-.endif               
 
 # Clean out ${RELEASEDIR} and make the directory structure.
 release.1:
@@ -277,6 +267,8 @@ release.9:
 	echo "src distribution is finished."; \
 	#touch release.9
 
+# Various "subroutine" and other supporting targets.
+
 doTARBALL:
 .if !defined(SD)
 	@echo "SD undefined in doTARBALL" ; exit 1
@@ -293,3 +285,13 @@ doTARBALL:
 		echo rolling ${TD} tarball ;\
 		tar --exclude CVS -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/tarballs/${TD}/`basename ${TD}`. )
+
+doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
+		release.7 release.8 release.9
+	@echo "Release done"
+
+ckRELEASEDIR:
+.if !defined(RELEASEDIR)
+	@echo "To make a release RELEASEDIR must be defined" && false
+.endif               
+
