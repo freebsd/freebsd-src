@@ -196,7 +196,7 @@ ndis_attach_pci(dev)
 
 	rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
 	if (rl != NULL) {
-		SLIST_FOREACH(rle, rl, link) {
+		STAILQ_FOREACH(rle, rl, link) {
 			switch (rle->type) {
 			case SYS_RES_IOPORT:
 				sc->ndis_io_rid = rle->rid;
