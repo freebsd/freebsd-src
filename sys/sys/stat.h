@@ -115,9 +115,9 @@ struct stat {
 	u_int32_t st_gen;		/* file generation number */
 	int32_t	  st_lspare;
 #ifndef _POSIX_SOURCE
-	struct timespec st_createtimespec; /* time of file creation */
+	struct timespec st_birthtimespec; /* time of file creation */
 	/*
-	 * Explicitly pad st_createtimespec to 16 bytes so that the size of
+	 * Explicitly pad st_birthtimespec to 16 bytes so that the size of
 	 * struct stat is backwards compatible.  We use bitfields instead
 	 * of an array of chars so that this doesn't require a C99 compiler
 	 * to compile if the size of the padding is 0.  We use 2 bitfields
@@ -127,8 +127,8 @@ struct stat {
 	int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
 	int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
 #else
-	time_t	  st_createtime;	/* time of file creation */
-	long	  st_createtimensec;	/* nsec of file creation */
+	time_t	  st_birthtime;		/* time of file creation */
+	long	  st_birthtimensec;	/* nsec of file creation */
 	int	:(8 / 2) * (16 - (int)sizeof(struct __timespec));
 	int	:(8 / 2) * (16 - (int)sizeof(struct __timespec));
 #endif
@@ -151,7 +151,7 @@ struct nstat {
 	u_int32_t st_blksize;		/* optimal blocksize for I/O */
 	fflags_t  st_flags;		/* user defined flags for file */
 	u_int32_t st_gen;		/* file generation number */
-	struct timespec st_createtimespec; /* time of file creation */
+	struct timespec st_birthtimespec; /* time of file creation */
 	/*
 	 * See above about the following padding.
 	 */
@@ -166,7 +166,7 @@ struct nstat {
 #define st_atime st_atimespec.tv_sec
 #define st_mtime st_mtimespec.tv_sec
 #define st_ctime st_ctimespec.tv_sec
-#define st_createtime st_createtimespec.tv_sec
+#define st_birthtime st_birthtimespec.tv_sec
 #endif
 
 #define	S_ISUID	0004000			/* set user id on execution */

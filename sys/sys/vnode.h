@@ -205,7 +205,7 @@ struct vattr {
 	struct timespec	va_atime;	/* time of last access */
 	struct timespec	va_mtime;	/* time of last modification */
 	struct timespec	va_ctime;	/* time file changed */
-	struct timespec	va_createtime;	/* time file created */
+	struct timespec	va_birthtime;	/* time file created */
 	u_long		va_gen;		/* generation number of file */
 	u_long		va_flags;	/* flags defined for file */
 	udev_t		va_rdev;	/* device the special file represents */
