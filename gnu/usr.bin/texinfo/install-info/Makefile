@@ -2,10 +2,11 @@
 # $Id$
 #
 
-INSTALLINFODIR= ${.CURDIR}/../../../../contrib/texinfo/util
-TXIDIR= ${.CURDIR}/../../../../contrib/texinfo/libtxi
+TEXIDIR=	${.CURDIR}/../../../../contrib/texinfo
+INSTALLINFODIR=	${TEXIDIR}/util
+TXIDIR=	${TEXIDIR}/libtxi
 LIBTXI=	${.CURDIR}/../libtxi/libtxi.a
-BINDIR= /usr/bin
+BINDIR=	/usr/bin
 
 PROG= install-info
 NOMAN=yes
@@ -22,5 +23,11 @@ LDADD+= -L../libtxi -ltxi
 DPADD+= ${LIBTXI}
 
 .PATH: $(INSTALLINFODIR)
+
+afterinstall:
+	@if [ ! -f ${DESTDIR}/usr/share/info/dir ]; then \
+		${INSTALL} ${COPY} -o ${BINOWN} -m ${BINMODE} ${TEXIDIR}/dir \
+		  ${DESTDIR}/usr/share/info/dir; \
+	fi
 
 .include <bsd.prog.mk>
