@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.23 1995/12/05 17:46:43 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.24 1995/12/16 02:14:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -513,7 +513,25 @@ tcp_mtudisc(inp, errno)
 		taop = rmx_taop(rt->rt_rmx);
 		offered = taop->tao_mssopt;
 		mss = rt->rt_rmx.rmx_mtu - sizeof(struct tcpiphdr);
-		mss = min(mss, offered);
+		if (offered)
+			mss = min(mss, offered);
+		/*
+		 * XXX - The above conditional probably violates the TCP
+		 * spec.  The problem is that, since we don't know the
+		 * other end's MSS, we are supposed to use a conservative
+		 * default.  But, if we do that, then MTU discovery will
+		 * never actually take place, because the conservative
+		 * default is much less than the MTUs typically seen
+		 * on the Internet today.  For the moment, we'll sweep
+		 * this under the carpet.
+		 *
+		 * The conservative default might not actually be a problem
+		 * if the only case this occurs is when sending an initial
+		 * SYN with options and data to a host we've never talked
+		 * to before.  Then, they will reply with an MSS value which
+		 * will get recorded and the new parameters should get
+		 * recomputed.  For Further Study.
+		 */
 		if (tp->t_maxopd <= mss)
 			return;
 		tp->t_maxopd = mss;
