@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.2 (Berkeley) 1/21/94
- * $Id$
+ * $Id: signal.h,v 1.2 1994/08/02 07:53:32 davidg Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
@@ -145,7 +145,7 @@ typedef	void (*sig_t) __P((int));	/* type of signal function */
  * Structure used in sigaltstack call.
  */
 struct	sigaltstack {
-	char	*ss_base;		/* signal stack base */
+	char	*ss_sp;			/* signal stack base */
 	int	ss_size;		/* signal stack length */
 	int	ss_flags;		/* SA_DISABLE and/or SA_ONSTACK */
 };

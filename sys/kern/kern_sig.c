@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.7 1994/10/10 01:00:47 phk Exp $
+ * $Id: kern_sig.c,v 1.8 1994/11/06 11:13:02 ache Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -230,7 +230,7 @@ execsigs(p)
 	 */
 	ps->ps_sigstk.ss_flags = SA_DISABLE;
 	ps->ps_sigstk.ss_size = 0;
-	ps->ps_sigstk.ss_base = 0;
+	ps->ps_sigstk.ss_sp = 0;
 	ps->ps_flags = 0;
 }
 
@@ -440,14 +440,14 @@ osigstack(p, uap, retval)
 	int error = 0;
 
 	psp = p->p_sigacts;
-	ss.ss_sp = psp->ps_sigstk.ss_base;
+	ss.ss_sp = psp->ps_sigstk.ss_sp;
 	ss.ss_onstack = psp->ps_sigstk.ss_flags & SA_ONSTACK;
 	if (uap->oss && (error = copyout((caddr_t)&ss, (caddr_t)uap->oss,
 	    sizeof (struct sigstack))))
 		return (error);
 	if (uap->nss && (error = copyin((caddr_t)uap->nss, (caddr_t)&ss,
 	    sizeof (ss))) == 0) {
-		psp->ps_sigstk.ss_base = ss.ss_sp;
+		psp->ps_sigstk.ss_sp = ss.ss_sp;
 		psp->ps_sigstk.ss_size = 0;
 		psp->ps_sigstk.ss_flags |= ss.ss_onstack & SA_ONSTACK;
 		psp->ps_flags |= SAS_ALTSTACK;
