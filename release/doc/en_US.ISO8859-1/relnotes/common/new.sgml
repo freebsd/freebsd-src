@@ -399,7 +399,7 @@
       3.6.1p1 to 3.7.1p2.</para>
 
     <para><application>sendmail</application> has been updated from
-      version 8.12.10 to version 8.12.11.</para>
+      version 8.12.10 to version 8.12.11. &merged;</para>
 
   </sect2>
 
