@@ -58,17 +58,15 @@ static const char rcsid[] =
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
-int 		lineno = -1;
-
-int 		s;				/* main RAW socket 	   */
-int 		do_resolv=0;			/* Would try to resolve all */
-int		do_acct=0;			/* Show packet/byte count  */
-int		do_time=0;			/* Show time stamps        */
-int		do_quiet=0;			/* Be quiet in add and flush  */
-int		do_force=0;			/* Don't ask for confirmation */
-int		do_pipe=0;                      /* this cmd refers to a pipe */
-int		do_sort=0;                      /* field to sort results (0=no) */
-int	verbose=0;
+int 		s,				/* main RAW socket 	   */
+ 		do_resolv,			/* Would try to resolve all */
+		do_acct,			/* Show packet/byte count  */
+		do_time,			/* Show time stamps        */
+		do_quiet,			/* Be quiet in add and flush  */
+		do_force,			/* Don't ask for confirmation */
+		do_pipe,			/* this cmd refers to a pipe */
+		do_sort,			/* field to sort results (0=no) */
+		verbose;
 
 struct icmpcode {
 	int	code;
@@ -2230,6 +2228,10 @@ ipfw_main(ac,av)
 		show_usage(NULL);
 	}
 
+	/* Initialize globals. */
+	do_resolv = do_acct = do_time = do_quiet =
+	do_pipe = do_sort = verbose = 0;
+
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
@@ -2347,7 +2349,7 @@ main(ac, av)
 	char	buf[BUFSIZ];
 	char	*a, *p, *args[MAX_ARGS], *cmd = NULL;
 	char	linename[10];
-	int 	i, c, qflag, pflag, status;
+	int 	i, c, lineno, qflag, pflag, status;
 	FILE	*f = NULL;
 	pid_t	preproc = 0;
 
