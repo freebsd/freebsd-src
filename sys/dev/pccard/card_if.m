@@ -62,8 +62,6 @@ METHOD int set_memory_offset {
         u_int32_t offset;
 }
 
-# These might be better static
-
 METHOD int attach_card {
 	device_t  dev;
 }
