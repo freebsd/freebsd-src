@@ -29,15 +29,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yp_extern.h,v 1.11 1997/02/22 16:15:11 peter Exp $
  */
+
+#include <db.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <limits.h>
-#include <db.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
 
