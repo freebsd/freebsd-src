@@ -1000,7 +1000,8 @@ ugen*)
 		echo $i - Invalid unit number
 	fi
 	if [ -z "${endpoint}" ]; then		# ugen0 & ugen0.1 - ugen0.15
-		mknod ugen$unit c 114 `unit2minor $(($unit * 16))` root:operator
+		mknod ugen$unit c 114 \
+				`unit2minor $(($unit * 16))` root:operator
 		i=1
 		while [ $i -lt 16 ]; do
 			mknod ugen$unit.$i c 114 \
@@ -1008,7 +1009,7 @@ ugen*)
 			i=$(($i + 1))
 		done
 	else
-		minor=`minor2unit $(($unit * 16 + $endpoint))`
+		minor=`unit2minor $(($unit * 16 + $endpoint))`
 		mknod ugen$unit.$endpoint c 114 $minor root:operator
 	fi
 	umask 77
@@ -1017,7 +1018,7 @@ ugen*)
 urio*)
 	umask 7
 	unit=`expr $i : 'urio\(.*\)'`
-	mknod urio$unit c 143 `minor2unit $unit` root:operator
+	mknod urio$unit c 143 `unit2minor $unit` root:operator
 	umask 77
 	;;
 
@@ -1025,21 +1026,22 @@ usio*)
 	umask 7
 	unit=`expr $i : 'usio\(.*\)'`
 	minor=$(($unit + 128))
-	minor=`unit2minor $(($unit + 128))` uucp:dialer
+	minor=`unit2minor $(($unit + 128))`
+	mknod usio$unit c 138 $minor uucp:dialer
 	umask 77
 	;;
 
 uscanner*)
 	umask 7
 	unit=`expr $i : 'uscanner\(.*\)'`
-	mknod uscanner$unit c 156 $unit root:operator
+	mknod uscanner$unit c 156 `unit2minor $unit` root:operator
 	umask 77
 	;;
 
 umodem*)
 	umask 7
 	unit=`expr $i : 'umodem\(.*\)'`
-	mknod umodem$unit c 124 $unit uucp:dialer
+	mknod umodem$unit c 124 `unit2minor $unit` uucp:dialer
 	umask 77
 	;;
 
@@ -1415,7 +1417,6 @@ snd*)
 	ln -fs music$unit music
 	ln -fs pss$unit pss
 
-	mknod mixer$unit	c $chr `expr $unit '*' 16 + 0`
 	mknod mixer$unit	c $chr `unit2minor \`expr $unit '*' 16 + 0\``
 	mknod sequencer$unit	c $chr `unit2minor \`expr $unit '*' 16 + 1\``
 	mknod midi$unit		c $chr `unit2minor \`expr $unit '*' 16 + 2\``
@@ -1514,7 +1515,7 @@ tun*)
 	ntun=`expr $i : 'tun\(.*\)$'`
 	unit=0
 	while [ $unit -le $ntun ]; do
-		mknod tun$unit c 52 `unit2minor $unit` uucp:dialer
+		mknod tun$unit c 52 `unit2minor $unit`
 		unit=$(($unit + 1))
 	done
 	;;
@@ -1632,7 +1633,7 @@ i4btrc*)
 
 aac*)
 	unit=`expr $i : 'aac\(.*\)'`
-	mknod aac$unit c 150 $unit
+	mknod aac$unit c 150 `unit2minor $unit`
 	;;
 
 mlx*)
@@ -1642,7 +1643,7 @@ mlx*)
 
 amr*)
 	unit=`expr $i : 'amr\(.*\)'`
-	mknod amr$unit c 132 $unit
+	mknod amr$unit c 132 `unit2minor $unit`
 	;;
 
 agpgart)
