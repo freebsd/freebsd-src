@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.44 1996/07/09 20:49:38 nate Exp $
+ *	$Id: ip_fw.c,v 1.45 1996/07/10 19:44:23 julian Exp $
  */
 
 /*
@@ -453,7 +453,7 @@ got_match:
 		f->timestamp = time.tv_sec;
 		if (f->fw_flg & IP_FW_F_PRN) {
 			if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_ACCEPT) {
-				ipfw_report("Accept",
+				ipfw_report("Allow",
 					f->fw_number, ip, f->fw_pcnt);
 			} else if ((f->fw_flg & IP_FW_F_COMMAND)
 			    == IP_FW_F_DIVERT) {
