@@ -91,6 +91,10 @@ SCSI changer devices
 SCSI SES/SAF-TE environmental devices
 .It vty#
 set of 12 virtual console devices for syscons/pcvt/codrv
+.It wd#
+(pc98 only)
+.Dq winchester
+disk drives (ST506, IDE, ESDI, RLL etc.)
 .It ad#
 .Dq ATAPI
 disk drives (IDE).
@@ -107,7 +111,7 @@ CDROM drives.
 The special file directory.
 .El
 .Sh SEE ALSO
-.Xr intro 4 ,
 .Xr ata 4 ,
+.Xr intro 4 ,
 .Xr config 8 ,
 .Xr mknod 8
