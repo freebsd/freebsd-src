@@ -143,6 +143,12 @@ int	ch;
 		ch = fifo_pull();
 	}
 
+	/* This should be eliminated */
+	/* handle 8-bit input */
+	if (ch & 0x80)
+		if (!win->_use_meta)
+			ch &= 0x7f;
+
 	/* there must be a simpler way of doing this */
 	if (!(win->_flags & _ISPAD) &&
 	     SP->_echo  &&  ch < 0400) {   /* ch < 0400 => not a keypad key */

@@ -149,7 +149,12 @@ WINDOW	*win;
 	win->_scroll     = FALSE;
 	win->_leave      = FALSE;
 	win->_use_keypad = FALSE;
+#ifdef TERMIOS
+	win->_use_meta   = ((cur_term->Ottyb.c_cflag & CSIZE) == CS8 &&
+			    !(cur_term->Ottyb.c_iflag & ISTRIP));
+#else
 	win->_use_meta   = FALSE;
+#endif
 	win->_delay    	 = -1;   
 	win->_immed	 = FALSE;
 	win->_sync	 = 0;
