@@ -302,6 +302,10 @@ console devices, Ethernet and point-to-point network interfaces, and
 mass-storage devices.  Entropy from the random(4) device is now
 periodically saved to files in /var/db/entropy.
 
+Kernel code has been added that allows older generation Alpha CPUs
+(EV4 and EV5) to emulate instructions of the newer Alpha CPU 
+generations. This enables the use of binary-only programs like Adobe
+Acrobat 4 on EV4 and EV5. 
 
 1.2. SECURITY FIXES
 -------------------
