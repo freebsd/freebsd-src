@@ -738,41 +738,25 @@ installFixupBin(dialogMenuItem *self)
 
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
-	/* Fix up kernel first */
-	if (!file_readable("/kernel")) {
-	    char *generic_kernel = "/kernel.GENERIC";
-	    if (file_readable(generic_kernel)) {
-		if (vsystem("cp -p %s /kernel", generic_kernel)) {
-		    msgConfirm("Unable to copy /kernel into place!");
-		    return DITEM_FAILURE;
-		}
-#ifndef __alpha__
-                /* Snapshot any boot -c changes back to the new kernel */
-		cp = variable_get(VAR_KGET);
-		if (cp && (*cp == 'Y' || *cp == 'y')) {
-		    if ((kstat = kget("/boot/kernel.conf")) != NULL) {
-			msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
-				   "to it.  See the debug screen (ALT-F2) for details.");
-		    }
-		}
-		if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
-		    fprintf(fp, "# -- sysinstall generated deltas -- #\n");
-		    if (!kstat)
-			fprintf(fp, "userconfig_script_load=\"YES\"\n");
-		    if (!OnVTY)
-			fprintf(fp, "console=\"comconsole\"\n");
-		    fclose(fp);
-		}
-#endif
-	    }
-	    else {
-		msgConfirm("Can't find a kernel image to link to on the root file system!\n"
-			   "You're going to have a hard time getting this system to\n"
-			   "boot from the hard disk, I'm afraid!");
-		return DITEM_FAILURE;
+#ifdef __i386__
+        /* Snapshot any boot -c changes back to the new kernel */
+	cp = variable_get(VAR_KGET);
+	if (cp && (*cp == 'Y' || *cp == 'y')) {
+	    if ((kstat = kget("/boot/kernel.conf")) != NULL) {
+		msgConfirm("Unable to save boot -c changes to new kernel,\n"
+			   "please see the debug screen (ALT-F2) for details.");
 	    }
 	}
-	
+	if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
+	    if (!kstat || !OnVTY)
+		fprintf(fp, "# -- sysinstall generated deltas -- #\n");
+	    if (!kstat)
+		fprintf(fp, "userconfig_script_load=\"YES\"\n");
+	    if (!OnVTY)
+		fprintf(fp, "console=\"comconsole\"\n");
+	    fclose(fp);
+	}
+#endif
 	/* BOGON #1: Resurrect /dev after bin distribution screws it up */
 	dialog_clear_norefresh();
 	msgNotify("Remaking all devices.. Please wait!");
