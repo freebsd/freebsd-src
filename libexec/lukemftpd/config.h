@@ -3,7 +3,7 @@
 
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
-/* $Id: config.h.in,v 1.15 2001/04/28 07:11:46 lukem Exp $ */
+/* $Id: config.h.in,v 1.16 2002/05/23 02:42:55 lukem Exp $ */
 
 
 /* Define if the closedir function returns void instead of int.  */
@@ -52,7 +52,7 @@
 #define HAVE_FLOCK 1
 
 /* Define if you have the fparseln function.  */
-#define HAVE_FPARSELN 1
+/* #undef HAVE_FPARSELN */
 
 /* Define if you have the fts_open function.  */
 #define HAVE_FTS_OPEN 1
@@ -225,6 +225,9 @@
 /* Define if fclose() is declared in <stdio.h> */
 #define HAVE_FCLOSE_D 1
 
+/* Define if FNM_CASEFOLD is declared in <fnmatch.h> */
+#define HAVE_FNM_CASEFOLD 1
+
 /* Define if optarg is declared in <stdlib.h> or <unistd.h> */
 #define HAVE_OPTARG_D 1
 
@@ -276,6 +279,3 @@
 /* #undef	sendto */
 /* #undef	shutdown */
 /* #undef	write */
-
-/* Define if you have the <arpa/ftp.h> header file.  */
-#define HAVE_FTP_NAMES 1
