@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.54 1994/02/27 21:53:53 phk Exp $
+#	$Id: LINT,v 1.55 1994/03/11 10:31:04 swallace Exp $
 #
 
 machine		"i386"
@@ -53,15 +53,10 @@ options		MACHVMCOMPAT		#support for Mach-style vm calls
 options		IPBROADCASTECHO=1	#send reply to broadcast pings
 options		IPMASKAGENT=1		#send reply to icmp mask requests
 options		TPCONS			#support X.25 network-layer service
-
-options		EXCLUDE_CHIP_MIDI	# \  sound driver options
-options		"EXCLUDE_MPU401"	#  \ exclude specified
-options		EXCLUDE_GUS		#  / device or chip
-options		EXCLUDE_SBPRO		# /  from driver
-options		EXCLUDE_SB16		# |
-options		EXCLUDE_PAS		# |
-
 options		USER_LDT		#allow user-level control of i386 ldt
+
+# See /sys/i386/doc/sound.doc for information about EXCLUDE options for
+#  the sound drivers.
 
 #
 # options that are in sys/conf/files
