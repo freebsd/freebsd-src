@@ -1353,12 +1353,14 @@ gdc_blank_display(video_adapter_t *adp, int mode)
  * Mmap frame buffer.
  */
 static int
-gdc_mmap_buf(video_adapter_t *adp, vm_offset_t offset, int prot)
+gdc_mmap_buf(video_adapter_t *adp, vm_offset_t offset, vm_offset_t *paddr,
+	     int prot)
 {
     /* FIXME: is this correct? XXX */
     if (offset > VIDEO_BUF_SIZE - PAGE_SIZE)
 	return -1;
-    return i386_btop(adp->va_info.vi_window + offset);
+    *paddr = adp->va_info.vi_window + offset;
+    return 0;
 }
 
 static int
