@@ -64,8 +64,9 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
     if (Function == NULL)
 	return(AE_BAD_PARAMETER);
 
-    /* XXX is it OK to block here? */
-    at = malloc(sizeof(*at), M_ACPITASK, M_WAITOK);
+    at = malloc(sizeof(*at), M_ACPITASK, M_NOWAIT);	/* Interrupt Context */
+    if (at == NULL)
+	return(AE_NO_MEMORY);
     bzero(at, sizeof(*at));
 
     at->at_function = Function;
