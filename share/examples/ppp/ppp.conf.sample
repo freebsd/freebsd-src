@@ -187,8 +187,8 @@ examples:
 # If we're using the -nat switch, redirect ftp and http to an internal
 # machine:
 #
-    nat port 10.0.0.2:ftp ftp
-    nat port 10.0.0.2:http http
+    nat port tcp 10.0.0.2:ftp ftp
+    nat port tcp 10.0.0.2:http http
 #
 # or don't trust the outside at all
 #
