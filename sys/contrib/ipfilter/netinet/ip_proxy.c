@@ -93,8 +93,8 @@ static int appr_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
 
 #define	AP_SESS_SIZE	53
 
-#if defined(_KERNEL)
 #include "netinet/ip_ftp_pxy.c"
+#if defined(_KERNEL)
 #include "netinet/ip_rcmd_pxy.c"
 #include "netinet/ip_raudio_pxy.c"
 #include "netinet/ip_netbios_pxy.c"

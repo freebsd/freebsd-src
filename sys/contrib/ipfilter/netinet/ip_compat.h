@@ -253,7 +253,7 @@ typedef u_int32_t       u_32_t;
 #   define USE_INET6     
 #  endif   
 # endif
-# if !defined(_KERNEL) && !defined(IPFILTER_LKM)
+# if !defined(_KERNEL) && !defined(IPFILTER_LKM) && !defined(USE_INET6)
 #  if (defined(__FreeBSD_version) && (__FreeBSD_version >= 400000)) || \
       (defined(OpenBSD) && (OpenBSD >= 200111)) || \
       (defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 105000000))
@@ -573,7 +573,8 @@ extern	void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 # endif
 # if (BSD >= 199306) || defined(__FreeBSD__)
 #  if (defined(__NetBSD_Version__) && (__NetBSD_Version__ < 105180000)) || \
-       defined(__FreeBSD__) || defined(__OpenBSD__) || defined(_BSDI_VERSION)
+       defined(__FreeBSD__) || (defined(OpenBSD) && (OpenBSD < 200206)) || \
+       defined(_BSDI_VERSION)
 #   include <vm/vm.h>
 #  endif
 #  if !defined(__FreeBSD__) || (defined (__FreeBSD_version) && \
