@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.16 1994/10/06 09:41:03 rgrimes Exp $
+ *	$Id: boot.c,v 1.17 1994/10/26 13:18:49 jkh Exp $
  */
 
 
@@ -218,27 +218,6 @@ loadprog(howto)
 
 	total = ((addr+sizeof(int)-1))&~(sizeof(int)-1);
 	printf("total=0x%x ", total);
-
-	/*
-	 * If we are booting from floppy prompt for a filesystem floppy
-	 * before we call the kernel
-	 */
-	switch(maj)
-	{
-	case 2:
-		printf("\n\nInsert file system floppy in drive A or B\n");
-		printf("Press 'A', 'B' or any other key for the default ");
-		printf("%c: ", unit+'A');
-		i = getchar();
-		if (i=='0' || i=='A' || i=='a')
-			unit = 0;
-		if (i=='1' || i=='B' || i=='b')
-			unit = 1;
-		printf("\n");
-		break;
-	case 4:
-		break;
-	}
 	bootdev = (MAKEBOOTDEV(maj, 0, 0, unit, part)) ;
 	/****************************************************************/
 	/* copy that first page and overwrite any BIOS variables	*/
@@ -259,7 +238,7 @@ getbootdev(howto)
      int *howto;
 {
 	char c, *ptr = namebuf;
-	printf("Boot: [[[%s(%d,%c)]%s][-s][-a][-d]] :- "
+	printf("Boot: [[[%s(%d,%c)]%s][-s][-a][-c][-d][-f]] :- "
 			, devs[maj]
 			, unit
 			, 'a'+part
