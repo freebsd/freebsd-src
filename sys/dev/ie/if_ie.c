@@ -2080,6 +2080,8 @@ ieinit(xsc)
 	}
 	sc->arpcom.ac_if.if_flags |= IFF_RUNNING;	/* tell higher levels
 							 * we're here */
+	sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+
 	start_receiver(sc);
 
 	return;
