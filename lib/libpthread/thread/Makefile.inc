@@ -7,6 +7,7 @@ SRCS+= \
 	thr_aio_suspend.c \
 	thr_attr_destroy.c \
 	thr_attr_init.c \
+	thr_attr_get_np.c \
 	thr_attr_getdetachstate.c \
 	thr_attr_getguardsize.c \
 	thr_attr_getinheritsched.c \
