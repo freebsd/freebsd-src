@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)hunt.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <libutil.h>
 #include "tipconf.h"
 #include "tip.h"
 
@@ -56,13 +57,17 @@ hunt(name)
 {
 	register char *cp;
 	sig_t f;
+	int res;
 
 	f = signal(SIGALRM, dead);
 	while (cp = getremote(name)) {
 		deadfl = 0;
 		uucplock = rindex(cp, '/')+1;
-		if (uu_lock(uucplock) < 0)
+		if ((res = uu_lock(uucplock)) != UU_LOCK_OK) {
+			if (res != UU_LOCK_INUSE)
+				fprintf(stderr, "uu_lock: %s\n", uu_lockerr(res));
 			continue;
+		}
 		/*
 		 * Straight through call units, such as the BIZCOMP,
 		 * VADIC and the DF, must indicate they're hardwired in

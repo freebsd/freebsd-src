@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id$
+.\" $Id: uucplock.3,v 1.1 1997/03/30 12:11:29 brian Exp $
 .\" "
 .Dd March 30, 1997
 .Os
@@ -38,6 +38,8 @@
 .Fn uu_lock "char *ttyname"
 .Ft int
 .Fn uu_unlock "char *ttyname"
+.Ft char *
+.Fn uu_lockerr "int uu_lockresult"
 .Pp
 Link with
 .Va -lutil
@@ -68,23 +70,70 @@ Care should be taken that
 .Fn uu_lock
 was successful before calling
 .Fn uu_unlock .
+.Pp
+.Fn uu_lockerr
+returns an error string representing the error
+.Fa uu_lockresult ,
+as returned from
+.Fn uu_lock .
 .Sh RETURN VALUES
-Both
+.Fn uu_unlock
+returns 0 on success and -1 on failure.
+.Pp
+.Fn uu_lock
+may return any of the following values:
+.Pp
+.Dv UU_LOCK_INUSE:
+The lock is in use by another process.
+.Pp
+.Dv UU_LOCK_OK:
+The lock was successfully created.
+.Pp
+.Dv UU_LOCK_OPEN_ERR:
+The lock file could not be opened via
+.Xr open 2 .
+.Pp
+.Dv UU_LOCK_READ_ERR:
+The lock file could not be read via
+.Xr read 2 .
+.Pp
+.Dv UU_LOCK_SEEK_ERR:
+The lock file was
+.Dq stale ,
+but the call to
+.Xr lseek 2
+necessary to write the current process id failed.
+.Pp
+.Dv UU_LOCK_WRITE_ERR:
+The current process id could not be written to the lock file via a call to
+.Xr write 2 .
+.Pp
+If a value of
+.Dv UU_LOCK_OK
+is passed to
+.Fn uu_lockerr ,
+a
+.Dv NULL
+pointer is returned.  If a value of
+.Dv UU_LOCK_INUSE
+is passed, an empty string is returned.  Otherwise, a string specifying
+the reason for failure is returned.
+.Fn uu_lockerr
+uses the current value of
+.Dv errno
+to determine the exact error.  Care should be made not to allow
+.Dv errno
+to be changed between calls to
 .Fn uu_lock
 and
-.Fn uu_unlock
-return 0 on success and -1 on failure.
+.Fn uu_lockerr .
 .Sh ERRORS
-On failure,
+If
 .Fn uu_lock
-will log any unexpected errors using
-.Xr syslog 2 .
-If the lock already exists and contains the process id of a running
-process,
-.Fn uu_lock
-will silently fail.  The value of
+returns one of the four error values above, the global value
 .Dv errno
-can not be used to determine the cause of failure.
+can be used to determine the cause.  Refer to the respective manual pages
+for further details.
 .Pp
 .Fn uu_unlock
 will set the global variable
@@ -93,9 +142,23 @@ to reflect the reason that the lock file could not be removed.
 Refer to the description of
 .Xr unlink 2
 for further details.
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr lseek 2 ,
+.Xr write 2
 .Sh BUGS
-Locking is not atomic.  Should a race condition occur, it's entirely
-possible that both processes obtain the lock.
+Locking is not atomic.  Should a race condition occur, it's
+possible that the
+.Dq losing
+process fails to identify the
+.Dq winning
+process.  If this happens,
+.Fn uu_lock
+returns
+.Dv UU_LOCK_READ_ERR
+and errno is set to
+.Dv EINVAL .
 .Pp
 It is possible that a stale lock is not recognised as such if a new
 processes is assigned the same processes id as the program that left

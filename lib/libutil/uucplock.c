@@ -47,12 +47,14 @@ static const char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <paths.h>
+#include <string.h>
+#include "libutil.h"
 
 #define LOCKFMT "LCK..%s"
 
 /* Forward declarations */
 static int put_pid (int fd, pid_t pid);
-static pid_t get_pid (int fd);
+static pid_t get_pid (int fd,int *err);
 
 /*
  * uucp style locking routines
@@ -65,6 +67,7 @@ int uu_lock (char *ttyname)
 	int fd;
 	pid_t pid;
 	char tbuf[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
+	int err;
 
 	(void)sprintf(tbuf, _PATH_UUCPLOCK LOCKFMT, ttyname);
 	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL, 0660);
@@ -74,56 +77,41 @@ int uu_lock (char *ttyname)
 		 * check to see if the process holding the lock still exists
 		 */
 		fd = open(tbuf, O_RDWR, 0);
-		if (fd < 0) {
-#ifndef USE_PERROR
-			syslog(LOG_ERR, "lock open: %m");
-#else
-			perror("lock open");
-#endif
-			return(-1);
-		}
-		if ((pid = get_pid (fd)) == -1) {
-#ifndef USE_PERROR
-			syslog(LOG_ERR, "lock read: %m");
-#else
-			perror("lock read");
-#endif
+		if (fd < 0)
+			return UU_LOCK_OPEN_ERR;
+
+		if ((pid = get_pid (fd, &err)) == -1) {
 			(void)close(fd);
-			return(-1);
+			errno = err;
+			return UU_LOCK_READ_ERR;
 		}
 
 		if (kill(pid, 0) == 0 || errno != ESRCH) {
 			(void)close(fd);	/* process is still running */
-			return(-1);
+			return UU_LOCK_INUSE;
 		}
 		/*
 		 * The process that locked the file isn't running, so
 		 * we'll lock it ourselves
 		 */
 		if (lseek(fd, (off_t) 0, L_SET) < 0) {
-#ifndef USE_PERROR
-			syslog(LOG_ERR, "lock lseek: %m");
-#else
-			perror("lock lseek");
-#endif
+			err = errno;
 			(void)close(fd);
-			return(-1);
+			errno = err;
+			return UU_LOCK_SEEK_ERR;
 		}
 		/* fall out and finish the locking process */
 	}
 	pid = getpid();
 	if (!put_pid (fd, pid)) {
-#ifndef USE_PERROR
-		syslog(LOG_ERR, "lock write: %m");
-#else
-		perror("lock write");
-#endif
+		err = errno;
 		(void)close(fd);
 		(void)unlink(tbuf);
-		return(-1);
+		errno = err;
+		return UU_LOCK_WRITE_ERR;
 	}
 	(void)close(fd);
-	return(0);
+	return UU_LOCK_OK;
 }
 
 int uu_unlock (char *ttyname)
@@ -131,7 +119,43 @@ int uu_unlock (char *ttyname)
 	char tbuf[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
 
 	(void)sprintf(tbuf, _PATH_UUCPLOCK LOCKFMT, ttyname);
-	return(unlink(tbuf));
+	return unlink(tbuf);
+}
+
+char *uu_lockerr (int uu_lockresult)
+{
+	static char errbuf[512];
+	int len;
+
+	switch (uu_lockresult) {
+		case UU_LOCK_INUSE:
+			return "";
+		case UU_LOCK_OK:
+			return 0;
+		case UU_LOCK_OPEN_ERR:
+			strcpy(errbuf,"open error: ");
+			len = 12;
+			break;
+		case UU_LOCK_READ_ERR:
+			strcpy(errbuf,"read error: ");
+			len = 12;
+			break;
+		case UU_LOCK_SEEK_ERR:
+			strcpy(errbuf,"seek error: ");
+			len = 12;
+			break;
+		case UU_LOCK_WRITE_ERR:
+			strcpy(errbuf,"write error: ");
+			len = 13;
+			break;
+		default:
+			strcpy(errbuf,"Undefined error: ");
+			len = 17;
+			break;
+	}
+
+	strncpy(errbuf+len,strerror(errno),sizeof(errbuf)-len-1);
+	return errbuf;
 }
 
 static int put_pid (int fd, pid_t pid)
@@ -143,7 +167,7 @@ static int put_pid (int fd, pid_t pid)
 	return write (fd, buf, len) == len;
 }
 
-static pid_t get_pid (int fd)
+static pid_t get_pid (int fd,int *err)
 {
 	int bytes_read;
 	char buf[32];
@@ -153,8 +177,10 @@ static pid_t get_pid (int fd)
 	if (bytes_read > 0) {
 		buf[bytes_read] = '\0';
 		pid = strtol (buf, (char **) NULL, 10);
-	} else
+	} else {
 		pid = -1;
+		*err = bytes_read ? errno : EINVAL;
+	}
 	return pid;
 }
 
