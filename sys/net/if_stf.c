@@ -76,11 +76,13 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
@@ -355,6 +357,15 @@ stf_output(ifp, m, dst, rt)
 	struct ip *ip;
 	struct ip6_hdr *ip6;
 	struct in6_ifaddr *ia6;
+#ifdef MAC
+	int error;
+
+	error = mac_check_ifnet_transmit(ifp, m);
+	if (error) {
+		m_freem(m);
+		return (error);
+	}
+#endif
 
 	sc = (struct stf_softc*)ifp;
 	dst6 = (struct sockaddr_in6 *)dst;
@@ -612,6 +623,10 @@ in_stf_input(m, off)
 	}
 
 	ifp = &sc->sc_if;
+
+#ifdef MAC
+	mac_create_mbuf_from_ifnet(ifp, m);
+#endif
 
 	/*
 	 * perform sanity check against outer src/dst.
