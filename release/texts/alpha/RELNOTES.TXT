@@ -122,6 +122,7 @@ achieve zero-copy receive.  This driver is also machine-independent,
 so it will work on both the i386 and alpha platforms.  The lnc driver
 is still needed to support non-PCI cards.
 
+The ed(4) driver is now also supported on the Alpha.
 
 1.2. SECURITY FIXES
 -------------------
