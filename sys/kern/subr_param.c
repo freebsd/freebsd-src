@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.11 1995/06/29 08:21:32 davidg Exp $
+ * $Id: param.c,v 1.12 1995/07/29 11:38:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -178,9 +178,7 @@ int	nswbuf = 0;
  * them here forces loader errors if this file is omitted
  * (if they've been externed everywhere else; hah!).
  */
-struct	cblock *cfree;
 struct	buf *swbuf;
-char	*buffers;
 
 /*
  * Proc/pgrp hashing.
