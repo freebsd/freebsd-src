@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.4 1998/12/07 21:58:17 archie Exp $
+ *	$Id: smb.c,v 1.5 1999/01/09 18:08:23 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -185,57 +185,57 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 
 	switch (cmd) {
 	case SMB_QUICK_WRITE:
-		smbus_quick(parent, s->slave, SMB_QWRITE);
+		error=smbus_quick(parent, s->slave, SMB_QWRITE);
 		goto end;
 
 	case SMB_QUICK_READ:
-		smbus_quick(parent, s->slave, SMB_QREAD);
+		error=smbus_quick(parent, s->slave, SMB_QREAD);
 		goto end;
 	};
 
 	switch (cmd) {
 	case SMB_SENDB:
-		smbus_sendb(parent, s->slave, s->cmd);
+		error=smbus_sendb(parent, s->slave, s->cmd);
 		break;
 
 	case SMB_RECVB:
-		smbus_recvb(parent, s->slave, &s->cmd);
+		error=smbus_recvb(parent, s->slave, &s->cmd);
 		break;
 
 	case SMB_WRITEB:
-		smbus_writeb(parent, s->slave, s->cmd, s->data.byte);
+		error=smbus_writeb(parent, s->slave, s->cmd, s->data.byte);
 		break;
 
 	case SMB_WRITEW:
-		smbus_writew(parent, s->slave, s->cmd, s->data.word);
+		error=smbus_writew(parent, s->slave, s->cmd, s->data.word);
 		break;
 
 	case SMB_READB:
 		if (s->data.byte_ptr)
-			smbus_readb(parent, s->slave, s->cmd,
+			error=smbus_readb(parent, s->slave, s->cmd,
 							s->data.byte_ptr);
 		break;
 
 	case SMB_READW:
 		if (s->data.word_ptr)
-			smbus_readw(parent, s->slave, s->cmd, s->data.word_ptr);
+			error=smbus_readw(parent, s->slave, s->cmd, s->data.word_ptr);
 		break;
 
 	case SMB_PCALL:
 		if (s->data.process.rdata)
-			smbus_pcall(parent, s->slave, s->cmd,
+			error=smbus_pcall(parent, s->slave, s->cmd,
 				s->data.process.sdata, s->data.process.rdata);
 		break;
 
 	case SMB_BWRITE:
 		if (s->count && s->data.byte_ptr)
-			smbus_bwrite(parent, s->slave, s->cmd, s->count,
+			error=smbus_bwrite(parent, s->slave, s->cmd, s->count,
 							s->data.byte_ptr);
 		break;
 
 	case SMB_BREAD:
 		if (s->count && s->data.byte_ptr)
-			smbus_bread(parent, s->slave, s->cmd, s->count,
+			error=smbus_bread(parent, s->slave, s->cmd, s->count,
 							s->data.byte_ptr);
 		break;
 		
