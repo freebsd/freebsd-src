@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.10 1994/02/17 03:52:28 rgrimes Exp $
+#	$Id: BSD.root.dist,v 1.11 1994/02/27 21:29:40 wollman Exp $
 #
 
 # top-level files are owned by root.wheel
@@ -20,7 +20,7 @@ etc	type=dir
 	..
 	namedb	type=dir
 	..
-	uucp	type=dir uname=root gname=wheel mode=0755
+	uucp    type=dir uname=uucp gname=uucp mode=0770
 	..
 	kerberosIV	type=dir
 	..
