@@ -188,9 +188,12 @@ static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
 
 static struct witness_order_list_entry order_lists[] = {
 	{ "Giant", &lock_class_mtx_sleep },
+	{ "pgrpsess", &lock_class_sx },
 	{ "proctree", &lock_class_sx },
 	{ "allproc", &lock_class_sx },
+	{ "process group", &lock_class_mtx_sleep },
 	{ "process lock", &lock_class_mtx_sleep },
+	{ "session", &lock_class_mtx_sleep },
 	{ "uidinfo hash", &lock_class_mtx_sleep },
 	{ "uidinfo struct", &lock_class_mtx_sleep },
 	{ NULL, NULL },
@@ -227,6 +230,7 @@ static struct witness_order_list_entry order_lists[] = {
 
 static const char *dup_list[] = {
 	"process lock",
+	"process group",
 	NULL
 };
 

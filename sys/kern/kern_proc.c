@@ -55,14 +55,18 @@
 #include <vm/vm_map.h>
 #include <vm/vm_zone.h>
 
-static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
+MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
 static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
+static struct proc *dopfind	__P((register pid_t));
+
+static void doenterpgrp	__P((struct proc *, struct pgrp *));
+
 static void pgdelete	__P((struct pgrp *));
 
-static void	orphanpg __P((struct pgrp *pg));
+static void orphanpg	__P((struct pgrp *pg));
 
 /*
  * Other process lists
@@ -75,6 +79,7 @@ struct proclist allproc;
 struct proclist zombproc;
 struct sx allproc_lock;
 struct sx proctree_lock;
+struct sx pgrpsess_lock;
 vm_zone_t proc_zone;
 vm_zone_t ithread_zone;
 
@@ -88,6 +93,7 @@ procinit()
 
 	sx_init(&allproc_lock, "allproc");
 	sx_init(&proctree_lock, "proctree");
+	sx_init(&pgrpsess_lock, "pgrpsess");
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
@@ -265,17 +271,30 @@ pfind(pid)
 	register struct proc *p;
 
 	sx_slock(&allproc_lock);
+	p = dopfind(pid);
+	sx_sunlock(&allproc_lock);
+	return (p);
+}
+
+static struct proc *
+dopfind(pid)
+	register pid_t pid;
+{
+	register struct proc *p;
+
+	sx_assert(&allproc_lock, SX_LOCKED);
+
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
 			break;
 		}
-	sx_sunlock(&allproc_lock);
 	return (p);
 }
 
 /*
- * Locate a process group by number
+ * Locate a process group by number.
+ * The caller must hold pgrpsess_lock.
  */
 struct pgrp *
 pgfind(pgid)
@@ -283,77 +302,132 @@ pgfind(pgid)
 {
 	register struct pgrp *pgrp;
 
-	LIST_FOREACH(pgrp, PGRPHASH(pgid), pg_hash)
-		if (pgrp->pg_id == pgid)
+	PGRPSESS_LOCK_ASSERT(SX_LOCKED);
+
+	LIST_FOREACH(pgrp, PGRPHASH(pgid), pg_hash) {
+		if (pgrp->pg_id == pgid) {
+			PGRP_LOCK(pgrp);
 			return (pgrp);
+		}
+	}
 	return (NULL);
 }
 
 /*
- * Move p to a new or existing process group (and session)
+ * Create a new process group.
+ * pgid must be equal to the pid of p.
+ * Begin a new session if required.
  */
 int
-enterpgrp(p, pgid, mksess)
+enterpgrp(p, pgid, pgrp, sess)
 	register struct proc *p;
 	pid_t pgid;
-	int mksess;
+	struct pgrp *pgrp;
+	struct session *sess;
 {
-	register struct pgrp *pgrp = pgfind(pgid);
-	struct pgrp *savegrp;
+	struct pgrp *pgrp2;
 
-	KASSERT(pgrp == NULL || !mksess,
-	    ("enterpgrp: setsid into non-empty pgrp"));
+	PGRPSESS_LOCK_ASSERT(SX_XLOCKED);
+
+	KASSERT(pgrp != NULL, ("enterpgrp: pgrp == NULL"));
+	KASSERT(p->p_pid == pgid,
+	    ("enterpgrp: new pgrp and pid != pgid"));
+
+	pgrp2 = pgfind(pgid);
+
+	KASSERT(pgrp2 == NULL,
+	    ("enterpgrp: pgrp with pgid exists"));
 	KASSERT(!SESS_LEADER(p),
 	    ("enterpgrp: session leader attempted setpgrp"));
 
-	if (pgrp == NULL) {
-		pid_t savepid = p->p_pid;
-		struct proc *np;
-		/*
-		 * new process group
-		 */
-		KASSERT(p->p_pid == pgid,
-		    ("enterpgrp: new pgrp and pid != pgid"));
-		if ((np = pfind(savepid)) == NULL || np != p) {
-			if (np != NULL)
-				PROC_UNLOCK(np);
-			return (ESRCH);
-		}
-		PROC_UNLOCK(np);
-		MALLOC(pgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
-		    M_WAITOK);
-		if (mksess) {
-			register struct session *sess;
+	mtx_init(&pgrp->pg_mtx, "process group", MTX_DEF);
 
-			/*
-			 * new session
-			 */
-			MALLOC(sess, struct session *, sizeof(struct session),
-			    M_SESSION, M_WAITOK);
-			sess->s_leader = p;
-			sess->s_sid = p->p_pid;
-			sess->s_count = 1;
-			sess->s_ttyvp = NULL;
-			sess->s_ttyp = NULL;
-			bcopy(p->p_session->s_login, sess->s_login,
+	if (sess != NULL) {
+		/*
+		 * new session
+		 */
+		mtx_init(&sess->s_mtx, "session", MTX_DEF);
+		PROC_LOCK(p);
+		p->p_flag &= ~P_CONTROLT;
+		PROC_UNLOCK(p);
+		PGRP_LOCK(pgrp);
+		sess->s_leader = p;
+		sess->s_sid = p->p_pid;
+		sess->s_count = 1;
+		sess->s_ttyvp = NULL;
+		sess->s_ttyp = NULL;
+		bcopy(p->p_session->s_login, sess->s_login,
 			    sizeof(sess->s_login));
-			PROC_LOCK(p);
-			p->p_flag &= ~P_CONTROLT;
-			PROC_UNLOCK(p);
-			pgrp->pg_session = sess;
-			KASSERT(p == curproc,
-			    ("enterpgrp: mksession and p != curproc"));
-		} else {
-			pgrp->pg_session = p->p_session;
-			pgrp->pg_session->s_count++;
-		}
-		pgrp->pg_id = pgid;
-		LIST_INIT(&pgrp->pg_members);
-		LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
-		pgrp->pg_jobc = 0;
-		SLIST_INIT(&pgrp->pg_sigiolst);
-	} else if (pgrp == p->p_pgrp)
-		return (0);
+		pgrp->pg_session = sess;
+		KASSERT(p == curproc,
+		    ("enterpgrp: mksession and p != curproc"));
+	} else {
+		pgrp->pg_session = p->p_session;
+		SESS_LOCK(pgrp->pg_session);
+		pgrp->pg_session->s_count++;
+		SESS_UNLOCK(pgrp->pg_session);
+		PGRP_LOCK(pgrp);
+	}
+	pgrp->pg_id = pgid;
+	LIST_INIT(&pgrp->pg_members);
+
+	/*
+	 * As we have an exclusive lock of pgrpsess_lock,
+	 * this should not deadlock.
+	 */
+	LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
+	pgrp->pg_jobc = 0;
+	SLIST_INIT(&pgrp->pg_sigiolst);
+	PGRP_UNLOCK(pgrp);
+
+	doenterpgrp(p, pgrp);
+
+	return (0);
+}
+
+/*
+ * Move p to an existing process group
+ */
+int
+enterthispgrp(p, pgrp)
+	register struct proc *p;
+	struct pgrp *pgrp;
+{
+	PGRPSESS_LOCK_ASSERT(SX_XLOCKED);
+	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
+	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
+	PGRP_LOCK_ASSERT(p->p_pgrp, MA_NOTOWNED);
+	SESS_LOCK_ASSERT(p->p_session, MA_NOTOWNED);
+	KASSERT(pgrp->pg_session == p->p_session,
+		("%s: pgrp's session %p, p->p_session %p.\n",
+		__func__,
+		pgrp->pg_session,
+		p->p_session));
+	KASSERT(pgrp != p->p_pgrp,
+		("%s: p belongs to pgrp.", __func__));
+
+	doenterpgrp(p, pgrp);
+
+	return (0);
+}
+
+/*
+ * Move p to a process group
+ */
+static void
+doenterpgrp(p, pgrp)
+	struct proc *p;
+	struct pgrp *pgrp;
+{
+	struct pgrp *savepgrp;
+
+	PGRPSESS_LOCK_ASSERT(SX_XLOCKED);
+	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
+	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
+	PGRP_LOCK_ASSERT(p->p_pgrp, MA_NOTOWNED);
+	SESS_LOCK_ASSERT(p->p_session, MA_NOTOWNED);
+
+	savepgrp = p->p_pgrp;
 
 	/*
 	 * Adjust eligibility of affected pgrps to participate in job control.
@@ -363,15 +437,17 @@ enterpgrp(p, pgid, mksess)
 	fixjobc(p, pgrp, 1);
 	fixjobc(p, p->p_pgrp, 0);
 
+	PGRP_LOCK(pgrp);
+	PGRP_LOCK(savepgrp);
 	PROC_LOCK(p);
 	LIST_REMOVE(p, p_pglist);
-	savegrp = p->p_pgrp;
 	p->p_pgrp = pgrp;
-	LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
 	PROC_UNLOCK(p);
-	if (LIST_EMPTY(&savegrp->pg_members))
-		pgdelete(savegrp);
-	return (0);
+	LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
+	PGRP_UNLOCK(savepgrp);
+	PGRP_UNLOCK(pgrp);
+	if (LIST_EMPTY(&savepgrp->pg_members))
+		pgdelete(savepgrp);
 }
 
 /*
@@ -381,15 +457,19 @@ int
 leavepgrp(p)
 	register struct proc *p;
 {
-	struct pgrp *savegrp;
+	struct pgrp *savepgrp;
 
+	PGRPSESS_XLOCK();
+	savepgrp = p->p_pgrp;
+	PGRP_LOCK(savepgrp);
 	PROC_LOCK(p);
 	LIST_REMOVE(p, p_pglist);
-	savegrp = p->p_pgrp;
 	p->p_pgrp = NULL;
 	PROC_UNLOCK(p);
-	if (LIST_EMPTY(&savegrp->pg_members))
-		pgdelete(savegrp);
+	PGRP_UNLOCK(savepgrp);
+	if (LIST_EMPTY(&savepgrp->pg_members))
+		pgdelete(savepgrp);
+	PGRPSESS_XUNLOCK();
 	return (0);
 }
 
@@ -400,6 +480,13 @@ static void
 pgdelete(pgrp)
 	register struct pgrp *pgrp;
 {
+	struct session *savesess;
+
+	PGRPSESS_LOCK_ASSERT(SX_XLOCKED);
+	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
+	SESS_LOCK_ASSERT(pgrp->pg_session, MA_NOTOWNED);
+
+	PGRP_LOCK(pgrp);
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
@@ -411,8 +498,16 @@ pgdelete(pgrp)
 	    pgrp->pg_session->s_ttyp->t_pgrp == pgrp)
 		pgrp->pg_session->s_ttyp->t_pgrp = NULL;
 	LIST_REMOVE(pgrp, pg_hash);
-	if (--pgrp->pg_session->s_count == 0)
+	savesess = pgrp->pg_session;
+	SESS_LOCK(savesess);
+	savesess->s_count--;
+	SESS_UNLOCK(savesess);
+	PGRP_UNLOCK(pgrp);
+	if (savesess->s_count == 0) {
+		mtx_destroy(&savesess->s_mtx);
 		FREE(pgrp->pg_session, M_SESSION);
+	}
+	mtx_destroy(&pgrp->pg_mtx);
 	FREE(pgrp, M_PGRP);
 }
 
@@ -433,19 +528,30 @@ fixjobc(p, pgrp, entering)
 	int entering;
 {
 	register struct pgrp *hispgrp;
-	register struct session *mysession = pgrp->pg_session;
+	register struct session *mysession;
+
+	PGRPSESS_LOCK_ASSERT(SX_LOCKED);
+	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
+	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
+	SESS_LOCK_ASSERT(pgrp->pg_session, MA_NOTOWNED);
 
 	/*
 	 * Check p's parent to see whether p qualifies its own process
 	 * group; if so, adjust count for p's process group.
 	 */
+	mysession = pgrp->pg_session;
 	sx_slock(&proctree_lock);
 	if ((hispgrp = p->p_pptr->p_pgrp) != pgrp &&
 	    hispgrp->pg_session == mysession) {
+		PGRP_LOCK(pgrp);
 		if (entering)
 			pgrp->pg_jobc++;
-		else if (--pgrp->pg_jobc == 0)
-			orphanpg(pgrp);
+		else {
+			--pgrp->pg_jobc;
+			if (pgrp->pg_jobc == 0)
+				orphanpg(pgrp);
+		}
+		PGRP_UNLOCK(pgrp);
 	}
 
 	/*
@@ -453,15 +559,21 @@ fixjobc(p, pgrp, entering)
 	 * their process groups; if so, adjust counts for children's
 	 * process groups.
 	 */
-	LIST_FOREACH(p, &p->p_children, p_sibling)
+	LIST_FOREACH(p, &p->p_children, p_sibling) {
 		if ((hispgrp = p->p_pgrp) != pgrp &&
 		    hispgrp->pg_session == mysession &&
 		    p->p_stat != SZOMB) {
+			PGRP_LOCK(hispgrp);
 			if (entering)
 				hispgrp->pg_jobc++;
-			else if (--hispgrp->pg_jobc == 0)
-				orphanpg(hispgrp);
+			else {
+				--hispgrp->pg_jobc;
+				if (hispgrp->pg_jobc == 0)
+					orphanpg(hispgrp);
+			}
+			PGRP_UNLOCK(hispgrp);
 		}
+	}
 	sx_sunlock(&proctree_lock);
 }
 
@@ -475,6 +587,8 @@ orphanpg(pg)
 	struct pgrp *pg;
 {
 	register struct proc *p;
+
+	PGRP_LOCK_ASSERT(pg, MA_OWNED);
 
 	mtx_lock_spin(&sched_lock);
 	LIST_FOREACH(p, &pg->pg_members, p_pglist) {
@@ -619,6 +733,7 @@ fill_kinfo_proc(p, kp)
 	/* ^^^ XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 	sp = NULL;
+	tp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
 		kp->ki_jobc = p->p_pgrp->pg_jobc;
@@ -626,15 +741,18 @@ fill_kinfo_proc(p, kp)
 
 		if (sp != NULL) {
 			kp->ki_sid = sp->s_sid;
+			SESS_LOCK(sp);
 			strncpy(kp->ki_login, sp->s_login,
 			    sizeof(kp->ki_login) - 1);
 			if (sp->s_ttyvp)
 				kp->ki_kiflag |= KI_CTTY;
 			if (SESS_LEADER(p))
 				kp->ki_kiflag |= KI_SLEADER;
+			tp = sp->s_ttyp;
+			SESS_UNLOCK(sp);
 		}
 	}
-	if ((p->p_flag & P_CONTROLT) && sp && ((tp = sp->s_ttyp) != NULL)) {
+	if ((p->p_flag & P_CONTROLT) && tp != NULL) {
 		kp->ki_tdev = dev2udev(tp->t_dev);
 		kp->ki_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
 		if (tp->t_session)
@@ -768,18 +886,32 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			case KERN_PROC_PGRP:
 				/* could do this by traversing pgrp */
+				PROC_LOCK(p);
 				if (p->p_pgrp == NULL || 
-				    p->p_pgrp->pg_id != (pid_t)name[0])
+				    p->p_pgrp->pg_id != (pid_t)name[0]) {
+					PROC_UNLOCK(p);
 					continue;
+				}
+				PROC_UNLOCK(p);
 				break;
 
 			case KERN_PROC_TTY:
+				PROC_LOCK(p);
 				if ((p->p_flag & P_CONTROLT) == 0 ||
-				    p->p_session == NULL ||
-				    p->p_session->s_ttyp == NULL ||
-				    dev2udev(p->p_session->s_ttyp->t_dev) != 
-					(udev_t)name[0])
+				    p->p_session == NULL) {
+					PROC_UNLOCK(p);
 					continue;
+				}
+				SESS_LOCK(p->p_session);
+				if (p->p_session->s_ttyp == NULL ||
+				    dev2udev(p->p_session->s_ttyp->t_dev) != 
+				    (udev_t)name[0]) {
+					SESS_UNLOCK(p->p_session);
+					PROC_UNLOCK(p);
+					continue;
+				}
+				SESS_UNLOCK(p->p_session);
+				PROC_UNLOCK(p);
 				break;
 
 			case KERN_PROC_UID:

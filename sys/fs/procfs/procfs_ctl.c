@@ -230,8 +230,10 @@ out:
 
 			pp = pfind(p->p_oppid);
 			PROC_LOCK(p);
-			if (pp)
+			if (pp) {
+				PROC_UNLOCK(pp);
 				proc_reparent(p, pp);
+			}
 		} else
 			PROC_LOCK(p);
 		p->p_oppid = 0;

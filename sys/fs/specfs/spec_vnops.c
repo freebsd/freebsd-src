@@ -35,6 +35,8 @@
  */
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -568,7 +570,7 @@ spec_close(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp, *oldvp;
 	struct thread *td = ap->a_td;
 	dev_t dev = vp->v_rdev;
 
@@ -581,11 +583,18 @@ spec_close(ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
+	oldvp = NULL;
+	PGRPSESS_XLOCK();
 	if (vcount(vp) == 2 && td && (vp->v_flag & VXLOCK) == 0 &&
 	    vp == td->td_proc->p_session->s_ttyvp) {
-		vrele(vp);
+		SESS_LOCK(td->td_proc->p_session);
 		td->td_proc->p_session->s_ttyvp = NULL;
+		SESS_UNLOCK(td->td_proc->p_session);
+		oldvp = vp;
 	}
+	PGRPSESS_XUNLOCK();
+	if (oldvp != NULL)
+		vrele(oldvp);
 	/*
 	 * We do not want to really close the device if it
 	 * is still in use unless we are trying to close it

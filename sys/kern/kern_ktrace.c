@@ -350,16 +350,24 @@ ktrace(td, uap)
 		/*
 		 * by process group
 		 */
+		PGRPSESS_SLOCK();
 		pg = pgfind(-uap->pid);
 		if (pg == NULL) {
+			PGRPSESS_SUNLOCK();
 			error = ESRCH;
 			goto done;
 		}
+		/*
+		 * ktrops() may call vrele(). Lock pg_members
+		 * by the pgrpsess_lock rather than pg_mtx.
+		 */
+		PGRP_UNLOCK(pg);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist)
 			if (descend)
 				ret |= ktrsetchildren(curp, p, ops, facs, vp);
 			else
 				ret |= ktrops(curp, p, ops, facs, vp);
+		PGRPSESS_SUNLOCK();
 	} else {
 		/*
 		 * by pid

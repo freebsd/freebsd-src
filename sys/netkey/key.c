@@ -7306,14 +7306,24 @@ key_getuserfqdn()
 	struct proc *p = curproc;
 	char *q;
 
-	if (!p || !p->p_pgrp || !p->p_pgrp->pg_session)
+	if (p == NULL)
 		return NULL;
-	if (!(host = key_getfqdn()))
+	bzero(userfqdn, sizeof(userfqdn));
+	if (!(host = key_getfqdn())) {
+		PROC_UNLOCK(p);
 		return NULL;
+	}
+	PROC_LOCK(p);
+	if (!p->p_pgrp || !p->p_pgrp->pg_session) {
+		PROC_UNLOCK(p);
+		return NULL;
+	}
 
 	/* NOTE: s_login may not be-NUL terminated. */
-	bzero(userfqdn, sizeof(userfqdn));
-	bcopy(p->p_pgrp->pg_session->s_login, userfqdn, MAXLOGNAME);
+	SESS_LOCK(p->p_session);
+	bcopy(p->p_session->s_login, userfqdn, MAXLOGNAME);
+	SESS_UNLOCK(p->p_session);
+	PROC_UNLOCK(p);
 	userfqdn[MAXLOGNAME] = '\0';	/* safeguard */
 	q = userfqdn + strlen(userfqdn);
 	*q++ = '@';

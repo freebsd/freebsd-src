@@ -48,6 +48,8 @@
 #include <sys/mutex.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
@@ -75,9 +77,9 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	pid = p->p_pid;
 	PROC_LOCK(p);
 	ppid = p->p_pptr ? p->p_pptr->p_pid : 0;
-	PROC_UNLOCK(p);
 	pgid = p->p_pgrp->pg_id;
 	sess = p->p_pgrp->pg_session;
+	SESS_LOCK(sess);
 	sid = sess->s_leader ? sess->s_leader->p_pid : 0;
 
 /* comm pid ppid pgid sid maj,min ctty,sldr start ut st wmsg 
@@ -106,6 +108,8 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		sbuf_printf(sb, "%ssldr", sep);
 		sep = ",";
 	}
+	SESS_UNLOCK(sess);
+	PROC_UNLOCK(p);
 	if (*sep != ',') {
 		sbuf_printf(sb, "noflags");
 	}

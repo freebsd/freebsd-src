@@ -619,6 +619,7 @@ vn_ioctl(fp, com, data, td)
 	struct thread *td;
 {
 	register struct vnode *vp = ((struct vnode *)fp->f_data);
+	struct vnode *vpold;
 	struct vattr vattr;
 	int error;
 
@@ -656,15 +657,23 @@ vn_ioctl(fp, com, data, td)
 		if (error == 0 && com == TIOCSCTTY) {
 
 			/* Do nothing if reassigning same control tty */
-			if (td->td_proc->p_session->s_ttyvp == vp)
+			PGRPSESS_XLOCK();
+			if (td->td_proc->p_session->s_ttyvp == vp) {
+				PGRPSESS_XUNLOCK();
 				return (0);
+			}
+
+			vpold = td->td_proc->p_session->s_ttyvp;
+			VREF(vp);
+			SESS_LOCK(td->td_proc->p_session);
+			td->td_proc->p_session->s_ttyvp = vp;
+			SESS_UNLOCK(td->td_proc->p_session);
+
+			PGRPSESS_XUNLOCK();
 
 			/* Get rid of reference to old control tty */
-			if (td->td_proc->p_session->s_ttyvp)
-				vrele(td->td_proc->p_session->s_ttyvp);
-
-			td->td_proc->p_session->s_ttyvp = vp;
-			VREF(vp);
+			if (vpold)
+				vrele(vpold);
 		}
 		return (error);
 	}

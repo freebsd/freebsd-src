@@ -75,6 +75,7 @@
 #include <sys/filio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 #include <sys/ioctl_compat.h>
 #endif
@@ -328,7 +329,11 @@ ttyinput(c, tp)
 				return (0);
 			if (ISSET(iflag, BRKINT)) {
 				ttyflush(tp, FREAD | FWRITE);
-				pgsignal(tp->t_pgrp, SIGINT, 1);
+				if (tp->t_pgrp != NULL) {
+					PGRP_LOCK(tp->t_pgrp);
+					pgsignal(tp->t_pgrp, SIGINT, 1);
+					PGRP_UNLOCK(tp->t_pgrp);
+				}
 				goto endcase;
 			}
 			if (ISSET(iflag, PARMRK))
@@ -406,15 +411,23 @@ parmrk:
 				if (!ISSET(lflag, NOFLSH))
 					ttyflush(tp, FREAD | FWRITE);
 				ttyecho(c, tp);
-				pgsignal(tp->t_pgrp,
-				    CCEQ(cc[VINTR], c) ? SIGINT : SIGQUIT, 1);
+				if (tp->t_pgrp != NULL) {
+					PGRP_LOCK(tp->t_pgrp);
+					pgsignal(tp->t_pgrp,
+					    CCEQ(cc[VINTR], c) ? SIGINT : SIGQUIT, 1);
+					PGRP_UNLOCK(tp->t_pgrp);
+				}
 				goto endcase;
 			}
 			if (CCEQ(cc[VSUSP], c)) {
 				if (!ISSET(lflag, NOFLSH))
 					ttyflush(tp, FREAD);
 				ttyecho(c, tp);
-				pgsignal(tp->t_pgrp, SIGTSTP, 1);
+				if (tp->t_pgrp != NULL) {
+					PGRP_LOCK(tp->t_pgrp);
+					pgsignal(tp->t_pgrp, SIGTSTP, 1);
+					PGRP_UNLOCK(tp->t_pgrp);
+				}
 				goto endcase;
 			}
 		}
@@ -532,8 +545,11 @@ parmrk:
 		 * ^T - kernel info and generate SIGINFO
 		 */
 		if (CCEQ(cc[VSTATUS], c) && ISSET(lflag, IEXTEN)) {
-			if (ISSET(lflag, ISIG))
+			if (ISSET(lflag, ISIG) && tp->t_pgrp != NULL) {
+				PGRP_LOCK(tp->t_pgrp);
 				pgsignal(tp->t_pgrp, SIGINFO, 1);
+				PGRP_UNLOCK(tp->t_pgrp);
+			}
 			if (!ISSET(lflag, NOKERNINFO))
 				ttyinfo(tp);
 			goto endcase;
@@ -752,17 +768,30 @@ ttioctl(tp, cmd, data, flag)
 	case  TIOCSETP:
 	case  TIOCSLTC:
 #endif
+		PGRPSESS_SLOCK();
+		PROC_LOCK(p);
 		while (isbackground(p, tp) && !(p->p_flag & P_PPWAIT) &&
 		    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
 		    !SIGISMEMBER(p->p_sigmask, SIGTTOU)) {
-			if (p->p_pgrp->pg_jobc == 0)
+			if (p->p_pgrp->pg_jobc == 0) {
+				PROC_UNLOCK(p);
+				PGRPSESS_SUNLOCK();
 				return (EIO);
+			}
+			PROC_UNLOCK(p);
+			PGRP_LOCK(p->p_pgrp);
 			pgsignal(p->p_pgrp, SIGTTOU, 1);
+			PGRP_UNLOCK(p->p_pgrp);
 			error = ttysleep(tp, &lbolt, TTOPRI | PCATCH, "ttybg1",
 					 0);
-			if (error)
+			if (error) {
+				PGRPSESS_SUNLOCK();
 				return (error);
+			}
+			PROC_LOCK(p);
 		}
+		PROC_UNLOCK(p);
+		PGRPSESS_SUNLOCK();
 		break;
 	}
 
@@ -1012,22 +1041,44 @@ ttioctl(tp, cmd, data, flag)
 		break;
 	case TIOCSCTTY:			/* become controlling tty */
 		/* Session ctty vnode pointer set in vnode layer. */
+		PGRPSESS_XLOCK();
 		if (!SESS_LEADER(p) ||
 		    ((p->p_session->s_ttyvp || tp->t_session) &&
-		    (tp->t_session != p->p_session)))
+		     (tp->t_session != p->p_session))) {
+			PGRPSESS_XUNLOCK();
 			return (EPERM);
+		}
 		tp->t_session = p->p_session;
 		tp->t_pgrp = p->p_pgrp;
+		SESS_LOCK(p->p_session);
 		p->p_session->s_ttyp = tp;
+		SESS_UNLOCK(p->p_session);
+		PROC_LOCK(p);
 		p->p_flag |= P_CONTROLT;
+		PROC_UNLOCK(p);
+		PGRPSESS_XUNLOCK();
 		break;
 	case TIOCSPGRP: {		/* set pgrp of tty */
-		register struct pgrp *pgrp = pgfind(*(int *)data);
+		register struct pgrp *pgrp;
 
-		if (!isctty(p, tp))
+		PGRPSESS_SLOCK();
+		pgrp = pgfind(*(int *)data);
+		if (!isctty(p, tp)) {
+			if (pgrp != NULL)
+				PGRP_UNLOCK(pgrp);
+			PGRPSESS_SUNLOCK();
 			return (ENOTTY);
-		else if (pgrp == NULL || pgrp->pg_session != p->p_session)
+		}
+		if (pgrp == NULL) {
+			PGRPSESS_SUNLOCK();
 			return (EPERM);
+		}
+		PGRP_UNLOCK(pgrp);
+		if (pgrp->pg_session != p->p_session) {
+			PGRPSESS_SUNLOCK();
+			return (EPERM);
+		}
+		PGRPSESS_SUNLOCK();
 		tp->t_pgrp = pgrp;
 		break;
 	}
@@ -1040,7 +1091,11 @@ ttioctl(tp, cmd, data, flag)
 		if (bcmp((caddr_t)&tp->t_winsize, data,
 		    sizeof (struct winsize))) {
 			tp->t_winsize = *(struct winsize *)data;
-			pgsignal(tp->t_pgrp, SIGWINCH, 1);
+			if (tp->t_pgrp != NULL) {
+				PGRP_LOCK(tp->t_pgrp);
+				pgsignal(tp->t_pgrp, SIGWINCH, 1);
+				PGRP_UNLOCK(tp->t_pgrp);
+			}
 		}
 		break;
 	case TIOCSDRAINWAIT:
@@ -1459,13 +1514,17 @@ ttymodem(tp, flag)
 		    !ISSET(tp->t_cflag, CLOCAL)) {
 			SET(tp->t_state, TS_ZOMBIE);
 			CLR(tp->t_state, TS_CONNECTED);
-			if (tp->t_session && tp->t_session->s_leader) {
-				struct proc *p;
+			if (tp->t_session) {
+				PGRPSESS_SLOCK();
+				if (tp->t_session->s_leader) {
+					struct proc *p;
 
-				p = tp->t_session->s_leader;
-				PROC_LOCK(p);
-				psignal(p, SIGHUP);
-				PROC_UNLOCK(p);
+					p = tp->t_session->s_leader;
+					PROC_LOCK(p);
+					psignal(p, SIGHUP);
+					PROC_UNLOCK(p);
+				}
+				PGRPSESS_SUNLOCK();
 			}
 			ttyflush(tp, FREAD | FWRITE);
 			return (0);
@@ -1549,11 +1608,20 @@ loop:
 	 */
 	if (isbackground(p, tp)) {
 		splx(s);
+		PGRPSESS_SLOCK();
+		PROC_LOCK(p);
 		if (SIGISMEMBER(p->p_sigignore, SIGTTIN) ||
 		    SIGISMEMBER(p->p_sigmask, SIGTTIN) ||
-		    (p->p_flag & P_PPWAIT) || p->p_pgrp->pg_jobc == 0)
+		    (p->p_flag & P_PPWAIT) || p->p_pgrp->pg_jobc == 0) {
+			PROC_UNLOCK(p);
+			PGRPSESS_SUNLOCK();
 			return (EIO);
+		}
+		PROC_UNLOCK(p);
+		PGRP_LOCK(p->p_pgrp);
+		PGRPSESS_SUNLOCK();
 		pgsignal(p->p_pgrp, SIGTTIN, 1);
+		PGRP_UNLOCK(p->p_pgrp);
 		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg2", 0);
 		if (error)
 			return (error);
@@ -1727,7 +1795,11 @@ slowcase:
 		 */
 		if (CCEQ(cc[VDSUSP], c) &&
 		    ISSET(lflag, IEXTEN | ISIG) == (IEXTEN | ISIG)) {
-			pgsignal(tp->t_pgrp, SIGTSTP, 1);
+			if (tp->t_pgrp != NULL) {
+				PGRP_LOCK(tp->t_pgrp);
+				pgsignal(tp->t_pgrp, SIGTSTP, 1);
+				PGRP_UNLOCK(tp->t_pgrp);
+			}
 			if (first) {
 				error = ttysleep(tp, &lbolt, TTIPRI | PCATCH,
 						 "ttybg3", 0);
@@ -1855,19 +1927,30 @@ loop:
 	 * Hang the process if it's in the background.
 	 */
 	p = curproc;
+	PGRPSESS_SLOCK();
+	PROC_LOCK(p);
 	if (isbackground(p, tp) &&
 	    ISSET(tp->t_lflag, TOSTOP) && !(p->p_flag & P_PPWAIT) &&
 	    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
 	    !SIGISMEMBER(p->p_sigmask, SIGTTOU)) {
 		if (p->p_pgrp->pg_jobc == 0) {
+			PROC_UNLOCK(p);
+			PGRPSESS_SUNLOCK();
 			error = EIO;
 			goto out;
 		}
+		PROC_UNLOCK(p);
+		PGRP_LOCK(p->p_pgrp);
+		PGRPSESS_SUNLOCK();
 		pgsignal(p->p_pgrp, SIGTTOU, 1);
+		PGRP_UNLOCK(p->p_pgrp);
 		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg4", 0);
 		if (error)
 			goto out;
 		goto loop;
+	} else {
+		PROC_UNLOCK(p);
+		PGRPSESS_SUNLOCK();
 	}
 	/*
 	 * Process the user's data in at most OBUFSIZ chunks.  Perform any
@@ -2328,38 +2411,44 @@ ttyinfo(tp)
 		ttyprintf(tp, "not a controlling terminal\n");
 	else if (tp->t_pgrp == NULL)
 		ttyprintf(tp, "no foreground process group\n");
-	else if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == 0)
-		ttyprintf(tp, "empty foreground process group\n");
 	else {
-		mtx_lock_spin(&sched_lock);
+		PGRP_LOCK(tp->t_pgrp);
+		if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == 0) {
+			PGRP_UNLOCK(tp->t_pgrp);
+			ttyprintf(tp, "empty foreground process group\n");
+		} else {
+			PGRP_UNLOCK(tp->t_pgrp);
+			mtx_lock_spin(&sched_lock);
 
-		/* Pick interesting process. */
-		for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
-			if (proc_compare(pick, p))
-				pick = p;
+			/* Pick interesting process. */
+			for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
+				if (proc_compare(pick, p))
+					pick = p;
 
-		td = FIRST_THREAD_IN_PROC(pick);
-		stmp = pick->p_stat == SRUN ? "running" :  /* XXXKSE */
-		    td->td_wmesg ? td->td_wmesg : "iowait";
-		calcru(pick, &utime, &stime, NULL);
-		ltmp = pick->p_stat == SIDL || pick->p_stat == SWAIT ||
-		    pick->p_stat == SZOMB ? 0 :
-		    pgtok(vmspace_resident_count(pick->p_vmspace));
-		mtx_unlock_spin(&sched_lock);
+			td = FIRST_THREAD_IN_PROC(pick);
+			stmp = pick->p_stat == SRUN ? "running" :  /* XXXKSE */
+			    td->td_wmesg ? td->td_wmesg : "iowait";
+			calcru(pick, &utime, &stime, NULL);
+			ltmp = pick->p_stat == SIDL || pick->p_stat == SWAIT ||
+			    pick->p_stat == SZOMB ? 0 :
+			    pgtok(vmspace_resident_count(pick->p_vmspace));
+			mtx_unlock_spin(&sched_lock);
 
-		ttyprintf(tp, " cmd: %s %d [%s] ", pick->p_comm, pick->p_pid,
-		    stmp);
+			ttyprintf(tp, " cmd: %s %d [%s] ", pick->p_comm, pick->p_pid,
+			    stmp);
 
-		/* Print user time. */
-		ttyprintf(tp, "%ld.%02ldu ",
-		    (long)utime.tv_sec, utime.tv_usec / 10000);
+			/* Print user time. */
+			ttyprintf(tp, "%lld.%02ldu ",
+			    utime.tv_sec, utime.tv_usec / 10000);
 
-		/* Print system time. */
-		ttyprintf(tp, "%ld.%02lds ",
-		    (long)stime.tv_sec, stime.tv_usec / 10000);
+			/* Print system time. */
+			ttyprintf(tp, "%ld.%02lds ",
+			    (long)stime.tv_sec, stime.tv_usec / 10000);
 
-		/* Print percentage cpu, resident set size. */
-		ttyprintf(tp, "%d%% %ldk\n", tmp / 100, ltmp);
+			/* Print percentage cpu, resident set size. */
+			ttyprintf(tp, "%d%% %ldk\n", tmp / 100, ltmp);
+
+		}
 	}
 	tp->t_rocount = 0;	/* so pending input will be retyped if BS */
 }
