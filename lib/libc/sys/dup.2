@@ -115,52 +115,6 @@ and
 is a valid descriptor, then
 .Fn dup2
 is successful, and does nothing.
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn dup
-is implemented as the
-.Va dup
-syscall.
-.Pp
-In the threaded library, the
-.Va dup
-syscall is assembled to
-.Fn _thread_sys_dup
-and
-.Fn dup
-is implemented as a function which locks
-.Fa oldd
-for read and write, then calls
-.Fn _thread_sys_dup .
-Before returning,
-.Fn dup
-unlocks
-.Fa oldd .
-.Pp
-In the non-threaded library
-.Fn dup2
-is implemented as the
-.Va dup2
-syscall.
-.Pp
-In the threaded library, the
-.Va dup2
-syscall is assembled to
-.Fn _thread_sys_dup2
-and
-.Fn dup2
-is implemented as a function which locks both
-.Fa oldd
-and
-.Fa newd
-for read and write, then calls
-.Fn _thread_sys_dup2 .
-Before returning,
-.Fn dup2
-unlocks
-.Fa oldd .
-and
-.Fa newd .
 .Sh RETURN VALUES
 The value -1 is returned if an error occurs in either call.
 The external variable

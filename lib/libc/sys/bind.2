@@ -68,27 +68,6 @@ Consult the manual entries in section 4 for detailed information.
 For maximum portability, you should always zero-out the socket structure
 before populating it, before passing it to
 .Fn bind .
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn bind
-is implemented as the
-.Va bind
-syscall.
-.Pp
-In the threaded library, the
-.Va bind
-syscall is assembled to
-.Fn _thread_sys_bind
-and
-.Fn bind
-is implemented as a function which locks
-.Fa s
-for read and write, then calls
-.Fn _thread_sys_bind .
-Before returning,
-.Fn bind
-unlocks
-.Fa s .
 .Sh RETURN VALUES
 .Rv -std bind
 .Sh ERRORS

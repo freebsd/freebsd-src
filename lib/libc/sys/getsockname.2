@@ -56,27 +56,6 @@ the amount of space pointed to by
 .Fa name .
 On return it contains the actual size of the name
 returned (in bytes).
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn getsockname
-is implemented as the
-.Va getsockname
-syscall.
-.Pp
-In the threaded library, the
-.Va getsockname
-syscall is assembled to
-.Fn _thread_sys_getsockname
-and
-.Fn getsockname
-is implemented as a function which locks
-.Fa fd
-for read and write, then calls
-.Fn _thread_sys_getsockname .
-Before returning,
-.Fn getsockname
-unlocks
-.Fa fd .
 .Sh RETURN VALUES
 .Rv -std getsockname
 .Sh ERRORS
