@@ -1351,9 +1351,13 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = suser(td);
 		if (error)
 			return (error);
+		if (ifp->if_ioctl == NULL)
+			return (EOPNOTSUPP);
 		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
 			return (EINVAL);
-		(void) (*ifp->if_ioctl)(ifp, cmd, data);
+		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		if (error == 0)
+			getmicrotime(&ifp->if_lastchange);
 		break;
 
 #ifdef MAC
