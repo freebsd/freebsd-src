@@ -116,7 +116,7 @@ main(argc, argv)
 
 	fts_options = FTS_PHYSICAL;
 	if (Rflag) {
-		if (hflag)
+		if (hflag && (Lflag || Hflag))
 			errx(1, "the -R and -h options may not be specified together");
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
