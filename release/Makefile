@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.146 1995/05/09 00:18:32 jkh Exp $
+#	$Id: Makefile,v 1.147 1995/05/09 00:30:00 jkh Exp $
 #
 # How to roll a release:
 #
@@ -72,7 +72,7 @@ release:
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
-	echo "cd ../../release"			>> ${CHROOTDIR}/mk
+	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
 	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/etc/make.conf
@@ -103,7 +103,7 @@ rerelease:
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make all install"			>> ${CHROOTDIR}/mk
-	echo "cd ../../release"			>> ${CHROOTDIR}/mk
+	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
 	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/etc/make.conf
