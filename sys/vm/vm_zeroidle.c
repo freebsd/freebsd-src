@@ -141,36 +141,26 @@ vm_page_zero_idle_wakeup(void)
 static void
 vm_pagezero(void __unused *arg)
 {
-	struct rtprio rtp;
 	struct thread *td;
-	int pages, pri;
 
 	td = curthread;
-	rtp.prio = RTP_PRIO_MAX;
-	rtp.type = RTP_PRIO_IDLE;
-	pages = 0;
-	mtx_lock_spin(&sched_lock);
-	rtp_to_pri(&rtp, td->td_ksegrp);
-	pri = td->td_priority;
-	mtx_unlock_spin(&sched_lock);
 	idlezero_enable = idlezero_enable_default;
 
 	for (;;) {
 		if (vm_page_zero_check()) {
-			pages += vm_page_zero_idle();
+			vm_page_zero_idle();
 #ifndef PREEMPTION
-			if (pages > idlezero_maxrun || sched_runnable()) {
+			if (sched_runnable()) {
 				mtx_lock_spin(&sched_lock);
 				mi_switch(SW_VOL, NULL);
 				mtx_unlock_spin(&sched_lock);
-				pages = 0;
 			}
 #endif
 		} else {
 			vm_page_lock_queues();
 			wakeup_needed = TRUE;
-			msleep(&zero_state, &vm_page_queue_mtx, PDROP | pri,
-			    "pgzero", hz * 300);
+			msleep(&zero_state, &vm_page_queue_mtx,
+			    PDROP | td->td_priority, "pgzero", hz * 300);
 			pages = 0;
 		}
 	}
@@ -194,6 +184,7 @@ pagezero_start(void __unused *arg)
 	pagezero_proc->p_flag |= P_NOLOAD;
 	PROC_UNLOCK(pagezero_proc);
 	mtx_lock_spin(&sched_lock);
+	sched_prio(FIRST_THREAD_IN_PROC(pagezero_proc), PRI_MAX_IDLE);
 	setrunqueue(FIRST_THREAD_IN_PROC(pagezero_proc), SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 }
