@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resource.h	8.4 (Berkeley) 1/9/95
- * $Id$
+ * $Id: resource.h,v 1.7 1997/02/22 09:45:46 peter Exp $
  */
 
 #ifndef _SYS_RESOURCE_H_
@@ -90,9 +90,7 @@ struct	rusage {
 
 #define	RLIM_NLIMITS	9		/* number of resource limits */
 
-#include <sys/types.h>			/* XXX for quad_t */
-
-#define	RLIM_INFINITY	(((u_quad_t)1 << 63) - 1)
+#define	RLIM_INFINITY	((rlim_t)(((u_quad_t)1 << 63) - 1))
 
 struct orlimit {
 	int32_t	rlim_cur;		/* current (soft) limit */
