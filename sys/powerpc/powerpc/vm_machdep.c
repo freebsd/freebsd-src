@@ -203,10 +203,10 @@ cpu_sched_exit(td)
 
 /* Temporary helper */
 void
-cpu_throw(void)
+cpu_throw(struct thread *old, struct thread *new)
 {
 
-	cpu_switch();
+	cpu_switch(old, new);
 	panic("cpu_throw() didn't");
 }
 
