@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.39 1994/11/12 20:36:28 jkh Exp $
+#	$Id: Makefile,v 1.40 1994/11/12 20:40:14 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -75,7 +75,7 @@ boot.flp:
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
 	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
 	install -m 400 -c ${.CURDIR}/../share/FAQ/README-2.0 ${MNT}/README
-	install -m 400 -c ${.CURDIR}/../share/FAQ/TROUBLE-2.0 \
+	install -m 400 -c ${.CURDIR}/../share/FAQ/TROUBLESHOOTING \
 		${MNT}/TROUBLESHOOTING
 	install -m 400 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
 		${MNT}/DISKSPACE.FAQ

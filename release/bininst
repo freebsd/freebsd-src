@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.32 1994/11/12 06:12:27 jkh Exp $
+# $Id: bininst,v 1.33 1994/11/12 06:22:25 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -149,19 +149,30 @@ one of the following options.  If none of the listed options works \n\
 for you then your best bet may be to simply hit ESC twice to get \n\
 a subshell and proceed manually on your own.  If you are already \n\
 finished with installation, select cancel to go on.\n\n\
-	Please choose one of the following:" 20 72 5 \
+	Please choose one of the following:" 20 72 7 \
+	"?Kern" "Please show me the kernel boot messages again!" \
 	"Tape" "Load distribution from SCSI, QIC or floppy tape" \
 	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
         "DOS" "Load from DOS floppies or a DOS hard disk partition" \
         "FTP" "Load distribution using FTP" \
+        "UFS" "Load the distribution from existing UFS partition" \
         "NFS" "Load the distribution over NFS" 2> ${TMP}/menu.tmp.$$
-
 	retval=$?
 	choice=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
 	if ! handle_rval $retval; then return 1; fi
 
 	case $choice in
+	?Kern)
+		if dmesg > ${TMP}/dmesg.out; then
+			dialog $clear \
+			--title "What do I have in this machine again?" \
+			--textbox ${TMP}/dmesg.out
+		else
+			error "Couldn't get dmesg information! :-("
+		fi
+	;;
+
 	Tape)
 		dialog $clear --title "Chose Tape Type" \
 --menu "Which type of tape drive do you have attached to your \n\
@@ -188,6 +199,7 @@ system?  FreeBSD supports the following types:\n\n\
 			;;
 		esac
 	;;
+
 	CDROM)
 		dialog $clear --title "Chose CDROM Type" \
 --menu "Which type of CDROM drive do you have attached to your \n\
@@ -210,9 +222,11 @@ system?  FreeBSD supports the following types:\n\n\
 			;;
 		esac
 	;;
+
 	DOS)
 		not_supported
 	;;
+
 	FTP)
 		if ! setup_network; then continue; fi
 		dialog --title "FTP Installation Information" $clear \
@@ -228,6 +242,7 @@ the files yourself.\n\n" \ 16 72 "$ftp_path" 2> ${TMP}/inputbox.tmp.$$
 		ftp_path=$media_device
 		rm -f ${TMP}/inputbox.tmp.$$
 	;;
+
 	NFS)
 		if ! setup_network; then continue; fi
 		dialog --title "NFS Installation Information" $clear \
@@ -246,6 +261,9 @@ work!\n\n" \ 14 72 "$nfs_path" 2> ${TMP}/inputbox.tmp.$$
 			message "$nfs_path mounted successfully"
 		fi
 	;;
+
+	UFS)
+		dialog --title "User Intervention Requested"
 	esac
 	done
 }
