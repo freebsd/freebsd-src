@@ -6,7 +6,7 @@
  *
  * This code is derived from software contributed to Berkeley by
  * Vern Paxson.
- *
+ * 
  * The United States Government has rights in this work pursuant
  * to contract no. DE-AC03-76SF00098 between the United States
  * Department of Energy and the University of California.
@@ -26,20 +26,49 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* @(#) $Header: /home/ncvs/src/usr.bin/lex/flexdef.h,v 1.1.1.1 1994/08/24 13:10:32 csgr Exp $ (LBL) */
+/* @(#) $Header: /home/ncvs/src/usr.bin/lex/flexdef.h,v 1.1.1.2 1996/06/19 20:26:08 nate Exp $ (LBL) */
 
 #include <stdio.h>
 #include <ctype.h>
 
-#if HAVE_STRING_H
+#include "config.h"
+
+#ifdef __TURBOC__
+#define HAVE_STRING_H 1
+#define MS_DOS 1
+#ifndef __STDC__
+#define __STDC__ 1
+#endif
+ #pragma warn -pro
+ #pragma warn -rch
+ #pragma warn -use
+ #pragma warn -aus
+ #pragma warn -par
+ #pragma warn -pia
+#endif
+
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 
-#if __STDC__
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
+#endif
+
+#ifdef STDC_HEADERS
 #include <stdlib.h>
 #endif
+
+/* As an aid for the internationalization patch to flex, which
+ * is maintained outside this distribution for copyright reasons.
+ */
+#define _(String) (String)
 
 /* Always be prepared to generate an 8-bit scanner. */
 #define CSIZE 256
@@ -51,7 +80,7 @@
 #endif
 
 #ifndef PROTO
-#ifdef __STDC__
+#if __STDC__
 #define PROTO(proto) proto
 #else
 #define PROTO(proto) ()
@@ -59,8 +88,10 @@
 #endif
 
 #ifdef VMS
-#define unlink delete
+#ifndef __VMS_POSIX
+#define unlink remove
 #define SHORT_FILE_NAMES
+#endif
 #endif
 
 #ifdef MS_DOS
@@ -90,6 +121,7 @@
 
 #define true 1
 #define false 0
+#define unspecified -1
 
 
 /* Special chk[] values marking the slots taking by end-of-buffer and action
@@ -106,8 +138,8 @@
  */
 #define NUMDATALINES 10
 
-/* Transition_struct_out() definitions. */
-#define TRANS_STRUCT_PRINT_LENGTH 15
+/* transition_struct_out() definitions. */
+#define TRANS_STRUCT_PRINT_LENGTH 14
 
 /* Returns true if an nfa state has an epsilon out-transition slot
  * that can be used.  This definition is currently not used.
@@ -180,11 +212,13 @@
 
 #define JAMSTATE -32766	/* marks a reference to the state that always jams */
 
+/* Maximum number of NFA states. */
+#define MAXIMUM_MNS 31999
+
 /* Enough so that if it's subtracted from an NFA state number, the result
  * is guaranteed to be negative.
  */
-#define MARKER_DIFFERENCE 32000
-#define MAXIMUM_MNS 31999
+#define MARKER_DIFFERENCE (MAXIMUM_MNS+2)
 
 /* Maximum number of nxt/chk pairs for non-templates. */
 #define INITIAL_MAX_XPAIRS 2000
@@ -212,7 +246,7 @@
 
 /* The percentage the number of homogeneous out-transitions of a state
  * must be of the number of total out-transitions of the state in order
- * that the state's transition table is first compared with a potential
+ * that the state's transition table is first compared with a potential 
  * template of the most common out-transition instead of with the first
  * proto in the proto queue.
  */
@@ -300,7 +334,7 @@ typedef struct hash_entry **hash_table;
 #define START_COND_HASH_SIZE 101
 #define CCL_HASH_SIZE 101
 
-extern struct hash_entry *ndtbl[NAME_TABLE_HASH_SIZE];
+extern struct hash_entry *ndtbl[NAME_TABLE_HASH_SIZE]; 
 extern struct hash_entry *sctbl[START_COND_HASH_SIZE];
 extern struct hash_entry *ccltab[CCL_HASH_SIZE];
 
@@ -316,6 +350,7 @@ extern struct hash_entry *ccltab[CCL_HASH_SIZE];
  * interactive - if true (-I), generate an interactive scanner
  * caseins - if true (-i), generate a case-insensitive scanner
  * lex_compat - if true (-l), maximize compatibility with AT&T lex
+ * do_yylineno - if true, generate code to maintain yylineno
  * useecs - if true (-Ce flag), use equivalence classes
  * fulltbl - if true (-Cf flag), don't compress the DFA state table
  * usemecs - if true (-Cm flag), use meta-equivalence classes
@@ -333,6 +368,8 @@ extern struct hash_entry *ccltab[CCL_HASH_SIZE];
  *   otherwise, use fread().
  * yytext_is_array - if true (i.e., %array directive), then declare
  *   yytext as a array instead of a character pointer.  Nice and inefficient.
+ * do_yywrap - do yywrap() processing on EOF.  If false, EOF treated as
+ *   "no more files".
  * csize - size of character set for the scanner we're generating;
  *   128 for 7-bit chars and 256 for 8-bit
  * yymore_used - if true, yymore() is used in input rules
@@ -341,20 +378,20 @@ extern struct hash_entry *ccltab[CCL_HASH_SIZE];
  *   having "reject" set for variable trailing context)
  * continued_action - true if this rule's action is to "fall through" to
  *   the next rule's action (i.e., the '|' action)
- * yymore_really_used - has a REALLY_xxx value indicating whether a
- *   %used or %notused was used with yymore()
+ * in_rule - true if we're inside an individual rule, false if not.
+ * yymore_really_used - whether to treat yymore() as really used, regardless
+ *   of what we think based on references to it in the user's actions.
  * reject_really_used - same for REJECT
  */
 
 extern int printstats, syntaxerror, eofseen, ddebug, trace, nowarn, spprdflt;
-extern int interactive, caseins, lex_compat, useecs, fulltbl, usemecs;
-extern int fullspd, gen_line_dirs, performance_report, backing_up_report;
-extern int C_plus_plus, long_align, use_read, yytext_is_array, csize;
-extern int yymore_used, reject, real_reject, continued_action;
+extern int interactive, caseins, lex_compat, do_yylineno;
+extern int useecs, fulltbl, usemecs, fullspd;
+extern int gen_line_dirs, performance_report, backing_up_report;
+extern int C_plus_plus, long_align, use_read, yytext_is_array, do_yywrap;
+extern int csize;
+extern int yymore_used, reject, real_reject, continued_action, in_rule;
 
-#define REALLY_NOT_DETERMINED 0
-#define REALLY_USED 1
-#define REALLY_NOT_USED 2
 extern int yymore_really_used, reject_really_used;
 
 
@@ -363,15 +400,22 @@ extern int yymore_really_used, reject_really_used;
  * dataline - number of contiguous lines of data in current data
  * 	statement.  Used to generate readable -f output
  * linenum - current input line number
+ * out_linenum - current output line number
  * skelfile - the skeleton file
  * skel - compiled-in skeleton array
  * skel_ind - index into "skel" array, if skelfile is nil
  * yyin - input file
  * backing_up_file - file to summarize backing-up states to
  * infilename - name of input file
+ * outfilename - name of output file
+ * did_outfilename - whether outfilename was explicitly set
+ * prefix - the prefix used for externally visible names ("yy" by default)
+ * yyclass - yyFlexLexer subclass to use for YY_DECL
+ * do_stdinit - whether to initialize yyin/yyout to stdin/stdout
+ * use_stdout - the -t flag
  * input_files - array holding names of input files
  * num_input_files - size of input_files array
- * program_name - name with which program was invoked
+ * program_name - name with which program was invoked 
  *
  * action_array - array to hold the rule actions
  * action_size - size of action_array
@@ -383,11 +427,14 @@ extern int yymore_really_used, reject_really_used;
  * 	to "action_array"
  */
 
-extern int datapos, dataline, linenum;
+extern int datapos, dataline, linenum, out_linenum;
 extern FILE *skelfile, *yyin, *backing_up_file;
-extern char *skel[];
+extern const char *skel[];
 extern int skel_ind;
-extern char *infilename;
+extern char *infilename, *outfilename;
+extern int did_outfilename;
+extern char *prefix, *yyclass;
+extern int do_stdinit, use_stdout;
 extern char **input_files;
 extern int num_input_files;
 extern char *program_name;
@@ -438,8 +485,8 @@ extern int onenext[ONE_STACK_SIZE], onedef[ONE_STACK_SIZE], onesp;
  * rule_useful - true if we've determined that the rule can be matched
  */
 
-extern int current_mns, num_rules, num_eof_rules, default_rule;
-extern int current_max_rules, lastnfa;
+extern int current_mns, current_max_rules;
+extern int num_rules, num_eof_rules, default_rule, lastnfa;
 extern int *firstst, *lastst, *finalst, *transchar, *trans1, *trans2;
 extern int *accptnum, *assoc_rule, *state_type;
 extern int *rule_type, *rule_linenum, *rule_useful;
@@ -513,16 +560,10 @@ extern int tecfwd[CSIZE + 1], tecbck[CSIZE + 1];
  * scxclu - true if start condition is exclusive
  * sceof - true if start condition has EOF rule
  * scname - start condition name
- * actvsc - stack of active start conditions for the current rule;
- * 	a negative entry means that the start condition is *not*
- *	active for the current rule.  Start conditions may appear
- *	multiple times on the stack; the entry for it closest
- *	to the top of the stack (i.e., actvsc[actvp]) is the
- *	one to use.  Others are present from "<sc>{" scoping
- *	constructs.
  */
 
-extern int lastsc, current_max_scs, *scset, *scbol, *scxclu, *sceof, *actvsc;
+extern int lastsc, *scset, *scbol, *scxclu, *sceof;
+extern int current_max_scs;
 extern char **scname;
 
 
@@ -581,8 +622,8 @@ extern int end_of_buffer_state;
  * ccltbl - holds the characters in each ccl - indexed by cclmap
  */
 
-extern int lastccl, current_maxccls, *cclmap, *ccllen, *cclng, cclreuse;
-extern int current_max_ccl_tbl_size;
+extern int lastccl, *cclmap, *ccllen, *cclng, cclreuse;
+extern int current_maxccls, current_max_ccl_tbl_size;
 extern Char *ccltbl;
 
 
@@ -611,11 +652,11 @@ extern int sectnum, nummt, hshcol, dfaeql, numeps, eps2, num_reallocs;
 extern int tmpuses, totnst, peakpairs, numuniq, numdup, hshsave;
 extern int num_backing_up, bol_needed;
 
-void *allocate_array PROTO((int, int));
-void *reallocate_array PROTO((void*, int, int));
+void *allocate_array PROTO((int, size_t));
+void *reallocate_array PROTO((void*, int, size_t));
 
-void *flex_alloc PROTO((unsigned int));
-void *flex_realloc PROTO((void*, unsigned int));
+void *flex_alloc PROTO((size_t));
+void *flex_realloc PROTO((void*, size_t));
 void flex_free PROTO((void*));
 
 #define allocate_integer_array(size) \
@@ -678,10 +719,22 @@ extern void list_character_set PROTO((FILE*, int[]));
 
 /* from file dfa.c */
 
+/* Check a DFA state for backing up. */
+extern void check_for_backing_up PROTO((int, int[]));
+
+/* Check to see if NFA state set constitutes "dangerous" trailing context. */
+extern void check_trailing_context PROTO((int*, int, int*, int));
+
+/* Construct the epsilon closure of a set of ndfa states. */
+extern int *epsclosure PROTO((int*, int*, int[], int*, int*));
+
 /* Increase the maximum number of dfas. */
 extern void increase_max_dfas PROTO((void));
 
 extern void ntod PROTO((void));	/* convert a ndfa to a dfa */
+
+/* Converts a set of ndfa states into a dfa state. */
+extern int snstods PROTO((int[], int, int[], int, int, int*));
 
 
 /* from file ecs.c */
@@ -701,16 +754,60 @@ extern void mkechar PROTO((int, int[], int[]));
 
 /* from file gen.c */
 
+extern void do_indent PROTO((void));	/* indent to the current level */
+
+/* Generate the code to keep backing-up information. */
+extern void gen_backing_up PROTO((void));
+
+/* Generate the code to perform the backing up. */
+extern void gen_bu_action PROTO((void));
+
+/* Generate full speed compressed transition table. */
+extern void genctbl PROTO((void));
+
+/* Generate the code to find the action number. */
+extern void gen_find_action PROTO((void));
+
+extern void genftbl PROTO((void));	/* generate full transition table */
+
+/* Generate the code to find the next compressed-table state. */
+extern void gen_next_compressed_state PROTO((char*));
+
+/* Generate the code to find the next match. */
+extern void gen_next_match PROTO((void));
+
+/* Generate the code to find the next state. */
+extern void gen_next_state PROTO((int));
+
+/* Generate the code to make a NUL transition. */
+extern void gen_NUL_trans PROTO((void));
+
+/* Generate the code to find the start state. */
+extern void gen_start_state PROTO((void));
+
+/* Generate data statements for the transition tables. */
+extern void gentabs PROTO((void));
+
+/* Write out a formatted string at the current indentation level. */
+extern void indent_put2s PROTO((char[], char[]));
+
+/* Write out a string + newline at the current indentation level. */
+extern void indent_puts PROTO((char[]));
+
 extern void make_tables PROTO((void));	/* generate transition tables */
 
 
 /* from file main.c */
 
+extern void check_options PROTO((void));
 extern void flexend PROTO((int));
 extern void usage PROTO((void));
 
 
 /* from file misc.c */
+
+/* Add a #define to the action file. */
+extern void action_define PROTO(( char *defname, int value ));
 
 /* Add the given text to the stored actions. */
 extern void add_action PROTO(( char *new_text ));
@@ -727,26 +824,41 @@ extern void bubble PROTO((int [], int));
 /* Check a character to make sure it's in the expected range. */
 extern void check_char PROTO((int c));
 
+/* Replace upper-case letter to lower-case. */
+extern Char clower PROTO((int));
+
+/* Returns a dynamically allocated copy of a string. */
+extern char *copy_string PROTO((register const char *));
+
+/* Returns a dynamically allocated copy of a (potentially) unsigned string. */
+extern Char *copy_unsigned_string PROTO((register Char *));
+
 /* Shell sort a character array. */
 extern void cshell PROTO((Char [], int, int));
 
 /* Finish up a block of data declarations. */
 extern void dataend PROTO((void));
 
+/* Flush generated data statements. */
+extern void dataflush PROTO((void));
+
 /* Report an error message and terminate. */
-extern void flexerror PROTO((char[]));
+extern void flexerror PROTO((const char[]));
 
 /* Report a fatal error message and terminate. */
-extern void flexfatal PROTO((char[]));
+extern void flexfatal PROTO((const char[]));
+
+/* Convert a hexadecimal digit string to an integer value. */
+extern int htoi PROTO((Char[]));
 
 /* Report an error message formatted with one integer argument. */
-extern void lerrif PROTO((char[], int));
+extern void lerrif PROTO((const char[], int));
 
 /* Report an error message formatted with one string argument. */
-extern void lerrsf PROTO((char[], char[]));
+extern void lerrsf PROTO((const char[], const char[]));
 
-/* Spit out a "# line" statement. */
-extern void line_directive_out PROTO((FILE*));
+/* Spit out a "#line" statement. */
+extern void line_directive_out PROTO((FILE*, int));
 
 /* Mark the current position in the action array as the end of the section 1
  * user defs.
@@ -764,6 +876,25 @@ extern void mkdata PROTO((int));	/* generate a data statement */
 /* Return the integer represented by a string of digits. */
 extern int myctoi PROTO((char []));
 
+/* Return character corresponding to escape sequence. */
+extern Char myesc PROTO((Char[]));
+
+/* Convert an octal digit string to an integer value. */
+extern int otoi PROTO((Char [] ));
+
+/* Output a (possibly-formatted) string to the generated scanner. */
+extern void out PROTO((const char []));
+extern void out_dec PROTO((const char [], int));
+extern void out_dec2 PROTO((const char [], int, int));
+extern void out_hex PROTO((const char [], unsigned int));
+extern void out_line_count PROTO((const char []));
+extern void out_str PROTO((const char [], const char []));
+extern void out_str3
+	PROTO((const char [], const char [], const char [], const char []));
+extern void out_str_dec PROTO((const char [], const char [], int));
+extern void outc PROTO((int));
+extern void outn PROTO((const char []));
+
 /* Return a printable version of the given character, which might be
  * 8-bit.
  */
@@ -779,7 +910,7 @@ extern void transition_struct_out PROTO((int, int));
 extern void *yy_flex_xmalloc PROTO(( int ));
 
 /* Set a region of memory to 0. */
-extern void zero_out PROTO((char *, int));
+extern void zero_out PROTO((char *, size_t));
 
 
 /* from file nfa.c */
@@ -826,6 +957,9 @@ extern void new_rule PROTO((void));	/* initialize for a new rule */
 
 /* from file parse.y */
 
+/* Build the "<<EOF>>" action for the active start conditions. */
+extern void build_eof_action PROTO((void));
+
 /* Write out a message formatted with one string, pinpointing its location. */
 extern void format_pinpoint_message PROTO((char[], char[]));
 
@@ -833,15 +967,17 @@ extern void format_pinpoint_message PROTO((char[], char[]));
 extern void pinpoint_message PROTO((char[]));
 
 /* Write out a warning, pinpointing it at the given line. */
-void line_warning PROTO(( char[], int ));
+extern void line_warning PROTO(( char[], int ));
 
 /* Write out a message, pinpointing it at the given line. */
-void line_pinpoint PROTO(( char[], int ));
+extern void line_pinpoint PROTO(( char[], int ));
 
 /* Report a formatted syntax error. */
 extern void format_synerr PROTO((char [], char[]));
 extern void synerr PROTO((char []));	/* report a syntax error */
+extern void format_warn PROTO((char [], char[]));
 extern void warn PROTO((char []));	/* report a warning */
+extern void yyerror PROTO((char []));	/* report a parse error */
 extern int yyparse PROTO((void));	/* the YACC parser */
 
 
@@ -859,13 +995,21 @@ extern int yywrap PROTO((void));
 
 /* from file sym.c */
 
+/* Add symbol and definitions to symbol table. */
+extern int addsym PROTO((register char[], char*, int, hash_table, int));
+
 /* Save the text of a character class. */
 extern void cclinstal PROTO ((Char [], int));
 
 /* Lookup the number associated with character class. */
 extern int ccllookup PROTO((Char []));
 
+/* Find symbol in symbol table. */
+extern struct hash_entry *findsym PROTO((register char[], hash_table, int ));
+
 extern void ndinstal PROTO((char[], Char[]));	/* install a name definition */
+extern Char *ndlookup PROTO((char[]));	/* lookup a name definition */
+
 /* Increase maximum number of SC's. */
 extern void scextend PROTO((void));
 extern void scinstal PROTO((char[], int));	/* make a start condition */
@@ -881,6 +1025,8 @@ extern void bldtbl PROTO((int[], int, int, int, int));
 
 extern void cmptmps PROTO((void));	/* compress template table entries */
 extern void expand_nxt_chk PROTO((void));	/* increase nxt/chk arrays */
+/* Finds a space in the table for a state to be placed. */
+extern int find_table_space PROTO((int*, int));
 extern void inittbl PROTO((void));	/* initialize transition tables */
 /* Make the default, "jam" table entries. */
 extern void mkdeftbl PROTO((void));
