@@ -314,19 +314,14 @@ label:
 		case 'A':
 		case 'a':
 			for (i = 0; i < asizeof(tptr->weekday); i++) {
-				if (c == 'A') {
-					len = strlen(tptr->weekday[i]);
-					if (strncasecmp(buf,
-							tptr->weekday[i],
-							len) == 0)
-						break;
-				} else {
-					len = strlen(tptr->wday[i]);
-					if (strncasecmp(buf,
-							tptr->wday[i],
-							len) == 0)
-						break;
-				}
+				len = strlen(tptr->weekday[i]);
+				if (strncasecmp(buf, tptr->weekday[i],
+						len) == 0)
+					break;
+				len = strlen(tptr->wday[i]);
+				if (strncasecmp(buf, tptr->wday[i],
+						len) == 0)
+					break;
 			}
 			if (i == asizeof(tptr->weekday))
 				return 0;
@@ -417,19 +412,14 @@ label:
 							break;
 					}
 				} else {
-					if (c == 'B') {
-						len = strlen(tptr->month[i]);
-						if (strncasecmp(buf,
-								tptr->month[i],
-								len) == 0)
-							break;
-					} else {
-						len = strlen(tptr->mon[i]);
-						if (strncasecmp(buf,
-								tptr->mon[i],
-								len) == 0)
-							break;
-					}
+					len = strlen(tptr->month[i]);
+					if (strncasecmp(buf, tptr->month[i],
+							len) == 0)
+						break;
+					len = strlen(tptr->mon[i]);
+					if (strncasecmp(buf, tptr->mon[i],
+							len) == 0)
+						break;
 				}
 			}
 			if (i == asizeof(tptr->month))
