@@ -549,7 +549,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 
 	/* Locate the node type */
 	if ((type = ng_findtype(typename)) == NULL) {
-		char filename[NG_TYPELEN + 4];
+		char filename[NG_TYPESIZ + 3];
 		linker_file_t lf;
 		int error;
 
@@ -816,7 +816,7 @@ ng_name_node(node_p node, const char *name)
 	node_p node2;
 
 	/* Check the name is valid */
-	for (i = 0; i < NG_NODELEN + 1; i++) {
+	for (i = 0; i < NG_NODESIZ; i++) {
 		if (name[i] == '\0' || name[i] == '.' || name[i] == ':')
 			break;
 	}
@@ -837,7 +837,7 @@ ng_name_node(node_p node, const char *name)
 	}
 
 	/* copy it */
-	strncpy(NG_NODE_NAME(node), name, NG_NODELEN);
+	strlcpy(NG_NODE_NAME(node), name, NG_NODESIZ);
 
 	return (0);
 }
@@ -986,7 +986,7 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	NG_NODE_REF(node);		/* each hook counts as a reference */
 
 	/* Set hook name */
-	strncpy(NG_HOOK_NAME(hook), name, NG_HOOKLEN);
+	strlcpy(NG_HOOK_NAME(hook), name, NG_HOOKSIZ);
 
 	/*
 	 * Check if the node type code has something to say about it
@@ -1145,7 +1145,7 @@ ng_newtype(struct ng_type *tp)
 	/* Check version and type name fields */
 	if ((tp->version != NG_ABI_VERSION)
 	|| (namelen == 0)
-	|| (namelen > NG_TYPELEN)) {
+	|| (namelen >= NG_TYPESIZ)) {
 		TRAP_ERROR();
 		return (EINVAL);
 	}
@@ -1349,7 +1349,7 @@ ng_con_nodes(node_p node, const char *name, node_p node2, const char *name2)
 	NG_HOOK_REF(hook);		/* Add a ref for the peer to each*/
 	NG_HOOK_REF(hook2);
 	hook2->hk_node = &ng_deadnode;  
-	strncpy(NG_HOOK_NAME(hook2), name2, NG_HOOKLEN);
+	strlcpy(NG_HOOK_NAME(hook2), name2, NG_HOOKSIZ);
 
 	/*
 	 * Queue the function above.
@@ -1569,7 +1569,7 @@ int
 ng_path2noderef(node_p here, const char *address,
 				node_p *destp, hook_p *lasthook)
 {
-	char    fullpath[NG_PATHLEN + 1];
+	char    fullpath[NG_PATHSIZ];
 	char   *nodename, *path, pbuf[2];
 	node_p  node, oldnode;
 	char   *cp;
@@ -2553,8 +2553,8 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		/* Fill in node info */
 		ni = (struct nodeinfo *) resp->data;
 		if (NG_NODE_HAS_NAME(here))
-			strncpy(ni->name, NG_NODE_NAME(here), NG_NODELEN);
-		strncpy(ni->type, here->nd_type->name, NG_TYPELEN);
+			strcpy(ni->name, NG_NODE_NAME(here));
+		strcpy(ni->type, here->nd_type->name);
 		ni->id = ng_node2ID(here);
 		ni->hooks = here->nd_numhooks;
 		break;
@@ -2578,8 +2578,8 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 		/* Fill in node info */
 		if (NG_NODE_HAS_NAME(here))
-			strncpy(ni->name, NG_NODE_NAME(here), NG_NODELEN);
-		strncpy(ni->type, here->nd_type->name, NG_TYPELEN);
+			strcpy(ni->name, NG_NODE_NAME(here));
+		strcpy(ni->type, here->nd_type->name);
 		ni->id = ng_node2ID(here);
 
 		/* Cycle through the linked list of hooks */
@@ -2594,14 +2594,13 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 			}
 			if (NG_HOOK_NOT_VALID(hook))
 				continue;
-			strncpy(link->ourhook, NG_HOOK_NAME(hook), NG_HOOKLEN);
-			strncpy(link->peerhook,
-				NG_PEER_HOOK_NAME(hook), NG_HOOKLEN);
+			strcpy(link->ourhook, NG_HOOK_NAME(hook));
+			strcpy(link->peerhook, NG_PEER_HOOK_NAME(hook));
 			if (NG_PEER_NODE_NAME(hook)[0] != '\0')
-				strncpy(link->nodeinfo.name,
-				    NG_PEER_NODE_NAME(hook), NG_NODELEN);
-			strncpy(link->nodeinfo.type,
-			   NG_PEER_NODE(hook)->nd_type->name, NG_TYPELEN);
+				strcpy(link->nodeinfo.name,
+				    NG_PEER_NODE_NAME(hook));
+			strcpy(link->nodeinfo.type,
+			   NG_PEER_NODE(hook)->nd_type->name);
 			link->nodeinfo.id = ng_node2ID(NG_PEER_NODE(hook));
 			link->nodeinfo.hooks = NG_PEER_NODE(hook)->nd_numhooks;
 			ni->hooks++;
@@ -2652,8 +2651,8 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 			if (!unnamed && (! NG_NODE_HAS_NAME(node)))
 				continue;
 			if (NG_NODE_HAS_NAME(node))
-				strncpy(np->name, NG_NODE_NAME(node), NG_NODELEN);
-			strncpy(np->type, node->nd_type->name, NG_TYPELEN);
+				strcpy(np->name, NG_NODE_NAME(node));
+			strcpy(np->type, node->nd_type->name);
 			np->id = ng_node2ID(node);
 			np->hooks = node->nd_numhooks;
 			nl->numnames++;
@@ -2695,7 +2694,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 				    __func__, "types");
 				break;
 			}
-			strncpy(tp->type_name, type->name, NG_TYPELEN);
+			strcpy(tp->type_name, type->name);
 			tp->numnodes = type->refs - 1; /* don't count list */
 			tl->numtypes++;
 		}
