@@ -182,8 +182,9 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 	error = suser_td(td);
 	if (error != 0)
 		return error;
-	if (securelevel > 0)
-		return EPERM;
+	error = securelevel_gt(p, 0);
+	if (error != 0)
+		return error;
 #endif
 
 	ss->flags |= OPEN;
@@ -238,8 +239,9 @@ struct	spigot_info	*info;
 		error = suser_td(td);
 		if (error != 0)
 			return error;
-		if (securelevel > 0)
-			return EPERM;
+		error = securelevel_gt(p->p_ucred, 0);
+		if (error)
+			return error;
 #endif
 		td->td_frame->tf_eflags |= PSL_IOPL;
 		break;
