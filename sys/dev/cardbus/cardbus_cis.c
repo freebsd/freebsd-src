@@ -554,7 +554,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 			    imagebase + CARDBUS_EXROM_SIGNATURE);
 			if (romsig != 0xaa55) {
 				device_printf(cbdev, "Bad header in rom %d: "
-				    "[%x] %04x\n", romnum, imagebase + 
+				    "[%x] %04x\n", romnum, imagebase +
 				    CARDBUS_EXROM_SIGNATURE, romsig);
 				bus_release_resource(cbdev, SYS_RES_MEMORY,
 				    *rid, res);
@@ -589,7 +589,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 			/* Image size is in 512 byte units */
 			imagesize <<= 9;
 
-			if ((bus_space_read_1(bt, bh, pcidata + 
+			if ((bus_space_read_1(bt, bh, pcidata +
 			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) != 0) {
 				device_printf(cbdev, "Cannot find CIS in "
 				    "Option ROM\n");
