@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.39 1995/12/17 21:11:12 phk Exp $
+ * $Id: sysctl.h,v 1.40 1996/02/24 14:32:53 peter Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -167,7 +167,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	CTL_UNSPEC	0		/* unused */
 #define	CTL_KERN	1		/* "high kernel": proc, limits */
 #define	CTL_VM		2		/* virtual memory */
-#define	CTL_FS		3		/* file system, mount type is next */
+#define	CTL_VFS		3		/* file system, mount type is next */
 #define	CTL_NET		4		/* network, see socket.h */
 #define	CTL_DEBUG	5		/* debugging parameters */
 #define	CTL_HW		6		/* generic cpu/io */
@@ -179,7 +179,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ 0, 0 }, \
 	{ "kern", CTLTYPE_NODE }, \
 	{ "vm", CTLTYPE_NODE }, \
-	{ "fs", CTLTYPE_NODE }, \
+	{ "vfs", CTLTYPE_NODE }, \
 	{ "net", CTLTYPE_NODE }, \
 	{ "debug", CTLTYPE_NODE }, \
 	{ "hw", CTLTYPE_NODE }, \
@@ -263,12 +263,12 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 }
 
 /*
- * CTL_FS identifiers
+ * CTL_VFS identifiers
  */
-#define FS_VFSCONF		0	/* get configured filesystems */
-#define FS_MAXID		1	/* number of items */
+#define VFS_VFSCONF		0	/* get configured filesystems */
+#define VFS_MAXID		1	/* number of items */
 
-#define CTL_FS_NAMES { \
+#define CTL_VFS_NAMES { \
 	{ "vfsconf", CTLTYPE_STRUCT }, \
 }
 
