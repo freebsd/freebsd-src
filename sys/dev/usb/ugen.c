@@ -1259,7 +1259,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 		uio.uio_offset = 0;
 		uio.uio_segflg = UIO_USERSPACE;
 		uio.uio_rw = UIO_READ;
-		uio.uio_td = p;
+		uio.uio_procp = p;
 		error = uiomove((void *)cdesc, len, &uio);
 		free(cdesc, M_TEMP);
 		return (error);
@@ -1305,7 +1305,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 			uio.uio_rw =
 				ur->request.bmRequestType & UT_READ ? 
 				UIO_READ : UIO_WRITE;
-			uio.uio_td = p;
+			uio.uio_procp = p;
 			ptr = malloc(len, M_TEMP, M_WAITOK);
 			if (uio.uio_rw == UIO_WRITE) {
 				error = uiomove(ptr, len, &uio);
