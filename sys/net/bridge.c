@@ -348,6 +348,10 @@ SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge, CTLTYPE_INT|CTLFLAG_RW,
 SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw, CTLFLAG_RW,
 	    &bdg_ipfw,0,"Pass bridged pkts through firewall");
 
+#define SY(parent, var, comment) \
+	int var ;                               \
+	SYSCTL_INT(parent, OID_AUTO, var, CTLFLAG_RW, &(var), 0, comment);
+
 int bdg_ipfw_drops;
 SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw_drop,
 	CTLFLAG_RW, &bdg_ipfw_drops,0,"");
@@ -360,11 +364,27 @@ SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_refresh, CTLTYPE_INT|CTLFLAG_WR,
 	    NULL, 0, &sysctl_refresh, "I", "iface refresh");
 
 #if 1 /* diagnostic vars */
-int bdg_in_count = 0 , bdg_in_ticks = 0 , bdg_fw_count = 0, bdg_fw_ticks = 0 ;
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdginc, CTLFLAG_RW, &bdg_in_count,0,"");
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdgint, CTLFLAG_RW, &bdg_in_ticks,0,"");
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdgfwc, CTLFLAG_RW, &bdg_fw_count,0,"");
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdgfwt, CTLFLAG_RW, &bdg_fw_ticks,0,"");
+
+static int bdg_split_pkts;
+SYSCTL_INT(_net_link_ether, OID_AUTO, bdg_split_pkts,
+	CTLFLAG_RW, &bdg_split_pkts,0,"Packets split in bdg_forward");
+
+static int bdg_thru;
+SYSCTL_INT(_net_link_ether, OID_AUTO, bdg_thru,
+	CTLFLAG_RW, &bdg_thru,0,"Packets through bridge");
+
+static int bdg_copied;
+SYSCTL_INT(_net_link_ether, OID_AUTO, bdg_copied,
+	CTLFLAG_RW, &bdg_copied,0,"Packets copied in bdg_forward");
+
+SY(_net_link_ether, bdg_copy, "Force copy in bdg_forward");
+SY(_net_link_ether, bdg_nopredict, "Disable predicted header location");
+SY(_net_link_ether, bdg_predict, "Correctly predicted header location");
+
+SY(_net_link_ether, bdg_null_eh, "bdg_forward called with null_eh");
+SY(_net_link_ether, bdg_fw_avg, "Cycle counter avg");
+SY(_net_link_ether, bdg_fw_ticks, "Cycle counter item");
+SY(_net_link_ether, bdg_fw_count, "Cycle counter count");
 #endif
 
 SYSCTL_STRUCT(_net_link_ether, PF_BDG, bdgstats,
@@ -614,12 +634,7 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
  * and get one in case. As it is now, bdg_forward() can sometimes make
  * a copy whereas it is not necessary.
  *
- * INPUT:
- *    *m0  -- ptr to pkt (not null at call time)
- *    *dst -- destination (special value or ifnet *)
- *    (*m0)->m_pkthdr.rcvif -- NULL only for output pkts.
- * OUTPUT:
- *    *m0  -- pointer to the packet (NULL if still existent)
+ * XXX be careful about eh, it can be a pointer into *m
  */
 int
 bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
@@ -627,9 +642,19 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
     struct ifnet *src = (*m0)->m_pkthdr.rcvif; /* could be NULL in output */
     struct ifnet *ifp, *last = NULL ;
     int error=0, s ;
-    int canfree = 0 ; /* can free the buf at the end if set */
+    int canfree = !bdg_copy ; /* can free the buf at the end if set */
     int once = 0;      /* loop only once */
-    struct mbuf *m ;
+
+    /*
+     * XXX eh might be a pointer within the mbuf (some ethernet drivers
+     * do that), so we better copy it before doing anything with the mbuf,
+     * or we might corrupt the header.
+     */
+    struct ether_header save_eh = *eh ;
+
+    quad_t ticks;
+    DDB(ticks = rdtsc();)
+    bdg_thru++;
 
     if (dst == BDG_DROP) { /* this should not happen */
 	printf("xx bdg_forward for BDG_DROP\n");
@@ -670,8 +695,9 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
      */
     if (ip_fw_chk_ptr) {
 	struct ip_fw_chain *rule = NULL ;
-	int off;
+	int i;
 	struct ip *ip ;
+	struct mbuf *m;
 
 	m = *m0 ;
 #ifdef DUMMYNET
@@ -685,6 +711,7 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 
 	    src = m->m_pkthdr.rcvif; /* could be NULL in output */
 	    canfree = 1 ; /* for sure, a copy is not needed later. */
+	    bdg_thru--; /* already accounted for once */
 	    goto forward; /* HACK! I should obey the fw_one_pass */
 	}
 #endif
@@ -692,33 +719,29 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	    goto forward ;
 	if (src == NULL)
 	    goto forward ; /* do not apply to packets from ether_output */
-	if (ntohs(eh->ether_type) != ETHERTYPE_IP)
+	if (ntohs(save_eh.ether_type) != ETHERTYPE_IP)
 	    goto forward ; /* not an IP packet, ipfw is not appropriate */
+	i = sizeof(struct ip) ; /* this is what i need to be contiguous */
+	if (m->m_pkthdr.len < i )
+	    goto forward ; /* header too short for an IP pkt, cannot filter */
 	/*
-	 * In this section, canfree=1 means m is the same as *m0.
-	 * canfree==0 means m is a copy. We need to make a copy here
-	 * (to be destroyed on exit from the firewall section) because
-	 * the firewall itself might destroy the packet.
-	 * (This is not very smart... i should really change ipfw to
-	 * leave the pkt alive!)
+	 * If canfree==0 we need to make a copy of the pkt because the firewall
+	 * might destroy the packet, and in any case we need to swap fields
+	 * same as IP does to put them in host order.
+	 * In all cases, make sure that the IP header is contiguous and,
+	 * in case of a copy, it resides in the mbuf and not in a cluster.
 	 */
 	if (canfree == 0 ) {
-	    /*
-	     * Need to make a copy. The original is still in *m0.
-	     * Make sure that, in the copy, the first mbuf contains
-	     * both the ethernet and the ip header. The reason is,
-	     * some code up in the stack treats the IP header as rw so
-	     * we do not want to share it into a cluster.
-	     */
-	    int needed = min(MHLEN, 14+max_protohdr) ;
-	    needed = min(needed, (*m0)->m_len ) ;
-
+	    bdg_copied++;
 	    m = m_copypacket( (*m0), M_DONTWAIT);
 	    if (m == NULL) {
 	        printf("-- bdg: m_copypacket failed.\n") ;
 		return ENOBUFS ;
 	    }
-	    m = m_pullup(m, needed) ;
+	} else if ( m->m_len >= i )
+	    i = 0 ; /* no need to pullup, header is already contiguous */
+	if (i > 0) {
+	    m = m_pullup(m, i) ;
 	    if (m == NULL) {
 		printf("-- bdg: pullup failed.\n") ;
 		return ENOBUFS ;
@@ -736,14 +759,16 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	/*
 	 * The third parameter to the firewall code is the dst.  interface.
 	 * Since we apply checks only on input pkts we use NULL.
+	 * The firewall knows this is a bridged packet as the cookie ptr
+	 * is NULL.
 	 */
-	off = (*ip_fw_chk_ptr)(&ip, 0, NULL, NULL, &m, &rule, NULL);
+	i = (*ip_fw_chk_ptr)(&ip, 0, NULL, NULL, &m, &rule, NULL);
 
 	if (m == NULL) { /* pkt discarded by firewall */
 	    /*
-	     * At this point, if canfree==1, m and *m0 were the same
-	     * thing, so just clear ptr. Otherwise, leave it alone, the
-	     * upper layer might still make use of it somewhere.
+	     * If canfree==1, m and *m0 were the same thing, so just clear
+	     * the pointer. Otherwise, leave it alone, the
+	     * upper layer might still use the packet somewhere.
 	     */
 	    if (canfree)
 		*m0 = NULL ;
@@ -760,26 +785,36 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	if (canfree) /* m was a reference to *m0, so update *m0 */
 	    *m0 = m ;
 
-	if (off == 0) { /* a PASS rule.  */
-	    if (canfree == 0) /* destroy the copy */
+	if (i == 0) { /* a PASS rule.  */
+	    if (canfree == 0) /* the packet was a copy, so destroy it */
 		m_freem(m);
 	    goto forward ;
 	}
 #ifdef DUMMYNET
-	if (off & 0x10000) {  
+	if (i & 0x10000) {  
 	    /*
 	     * pass the pkt to dummynet. Need to include m, dst, rule.
 	     * Dummynet consumes the packet in all cases.
 	     * Also need to prepend the ethernet header.
 	     */
-	    M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-	    if (m == NULL) {
-		if (canfree)
+	    /*
+	     * check the common case of eh pointing already into the mbuf
+	     */
+	    if ( bdg_nopredict == 0 && (void *)eh + ETHER_HDR_LEN == (void *)m->m_data) {
+		m->m_data -= ETHER_HDR_LEN ;
+		m->m_len += ETHER_HDR_LEN ;
+		m->m_pkthdr.len += ETHER_HDR_LEN ;
+		bdg_predict++;
+	    } else {
+		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+		if (m == NULL) {
+		    if (canfree)
 			*m0 = NULL;
-		return ENOBUFS;
+		    return ENOBUFS;
+		}
+		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    }
-	    bcopy(eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
-	    dummynet_io((off & 0xffff), DN_TO_BDG_FWD, m, dst, NULL, 0, rule, 0);
+	    dummynet_io((i & 0xffff), DN_TO_BDG_FWD, m, dst, NULL, 0, rule, 0);
 	    if (canfree) /* dummynet has consumed the original one */
 		*m0 = NULL ;
 	    return 0 ;
@@ -810,7 +845,7 @@ forward:
      * but better than having packets corrupt!
      */
     if (canfree == 0 ) {
-	int needed = min(MHLEN, 14+ max_protohdr) ;
+	int needed = min(MHLEN, ETHER_HDR_LEN+ max_protohdr) ;
 	needed = min(needed, (*m0)->m_len ) ;
 
 	*m0 = m_pullup(*m0, needed) ;
@@ -821,6 +856,7 @@ forward:
     }
     for (;;) {
 	if (last) { /* need to forward packet */
+	    struct mbuf *m ;
 	    if (canfree && once ) { /* no need to copy */
 		m = *m0 ;
 		*m0 = NULL ; /* original is gone */
@@ -834,10 +870,20 @@ forward:
 	     * Last part of ether_output: add header, queue pkt and start
 	     * output if interface not yet active.
 	     */
-	    M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-	    if (m == NULL)
+	    /*
+	     * check the common case of eh pointing already into the mbuf
+	     */
+	    if ( bdg_nopredict == 0 && (void *)eh + ETHER_HDR_LEN == (void *)m->m_data) {
+		m->m_data -= ETHER_HDR_LEN ;
+		m->m_len += ETHER_HDR_LEN ;
+		m->m_pkthdr.len += ETHER_HDR_LEN ;
+		bdg_predict++;
+	    } else {
+		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+		if (m == NULL)
 		    return ENOBUFS;
-	    bcopy(eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
+		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
+	    }
 	    if (! IF_HANDOFF(&last->if_snd, m, last)) {
 #if 0
 		MUTE(last); /* should I also mute ? */
@@ -862,6 +908,8 @@ forward:
 	if (ifp == NULL)
 	    once = 1 ;
     }
+    DDB(bdg_fw_ticks += (u_long)(rdtsc() - ticks) ; bdg_fw_count++ ;
+	if (bdg_fw_count != 0) bdg_fw_avg = bdg_fw_ticks/bdg_fw_count; )
 
     return error ;
 }
