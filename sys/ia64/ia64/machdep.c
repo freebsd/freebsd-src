@@ -1074,8 +1074,18 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	if (ndirty > 0) {
 		__asm __volatile("mov	ar.rsc=0;;");
 		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
-		rssz = bspst - kstack - ndirty;
-		bcopy((void*)(kstack + ndirty), (void*)kstack, rssz);
+		/*
+		 * Make sure we have all the user registers written out.
+		 * We're doing culculations with ndirty and ar.bspstore
+		 * and we better make sure ar.bspstore >= ndirty.
+		 */
+		rssz = bspst - kstack;
+		if (rssz < ndirty) {
+			__asm __volatile("flushrs;;");
+			__asm __volatile("mov   %0=ar.bspstore" : "=r"(bspst));
+			rssz = bspst - kstack;
+		}
+		bcopy((void*)(kstack + ndirty), (void*)kstack, rssz - ndirty);
 		bspst -= ndirty;
 		__asm __volatile("mov	ar.bspstore=%0;;" :: "r"(bspst));
 		__asm __volatile("mov	ar.rsc=3");
