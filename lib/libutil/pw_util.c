@@ -67,8 +67,10 @@ extern char *tempname;
 static pid_t editpid = -1;
 static int lockfd;
 static char _default_editor[] = _PATH_VI;
-char mppath[] = _PATH_PWD;
-char masterpasswd[] = _PATH_MASTERPASSWD;
+static char _default_mppath[] = _PATH_PWD;
+static char _default_masterpasswd[] = _PATH_MASTERPASSWD;
+char *mppath = _default_mppath;
+char *masterpasswd = _default_masterpasswd;
 
 void		 pw_cont(int);
 
