@@ -295,7 +295,7 @@ usage()
 
 	(void)fprintf(stderr,
 #ifdef YP
-		"usage: chpass [-l] [-y] [-d domain [-h host]] [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
+		"usage: chpass [-o] [-l] [-y] [-d domain] [-h host] [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
 #else
 		"usage: chpass [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
 #endif
