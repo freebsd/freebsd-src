@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.17 1995/03/16 17:41:20 se Exp $
+ * $Id: if_de.c,v 1.18 1995/03/17 04:27:16 davidg Exp $
  *
  */
 
@@ -35,7 +35,7 @@
  *   board which support DC21040.
  */
 
-#define IF_DE_C_PATCHLEVEL  "pl1 95/03/09"
+#define __IF_DE_C__  "pl2 95/03/21"
 #include "de.h"
 #if NDE > 0
 
@@ -664,17 +664,17 @@ tulip_intr(
     tulip_softc_t *sc)
 {
     tulip_uint32_t csr;
-    int active=0;
+    int progress=0;
 
     while ((csr = *sc->tulip_csrs.csr_status) & (TULIP_STS_NORMALINTR|TULIP_STS_ABNRMLINTR)) {
-	active=1;
+	progress = 1;
 	*sc->tulip_csrs.csr_status = csr & sc->tulip_intrmask;
 
 	if (csr & TULIP_STS_SYSERROR) {
 	    if ((csr & TULIP_STS_ERRORMASK) == TULIP_STS_ERR_PARITY) {
 		TULIP_RESET(sc);
 		tulip_init(sc->tulip_unit);
-		return 1;
+		break;
 	    }
 	}
 	if (csr & TULIP_STS_ABNRMLINTR) {
@@ -689,7 +689,7 @@ tulip_intr(
 	    tulip_start(&sc->tulip_if);
 	}
     }
-    return (active);
+    return (progress);
 }
 
 /*
