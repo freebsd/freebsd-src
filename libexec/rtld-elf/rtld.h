@@ -186,6 +186,11 @@ extern void *xmalloc(size_t);
 extern char *xstrdup(const char *);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 
+extern void dump_relocations (Obj_Entry *);
+extern void dump_obj_relocations (Obj_Entry *);
+extern void dump_Elf_Rel (Obj_Entry *, const Elf_Rel *, u_long);
+extern void dump_Elf_Rela (Obj_Entry *, const Elf_Rela *, u_long);
+
 /*
  * Function declarations.
  */
