@@ -653,15 +653,11 @@ mtx_destroy(struct mtx *m)
 #define WITNESS_COUNT 200
 #define	WITNESS_NCHILDREN 2
 
-#ifndef WITNESS
-#define	WITNESS		0	/* default off */
-#endif
-
 #ifndef SMP
 extern int witness_spin_check;
 #endif
 
-int witness_watch;
+int witness_watch = 1;
 
 struct witness {
 	struct witness	*w_next;
