@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.8 1995/12/05 07:29:15 julian Exp $";
+	"$Id: route.c,v 1.9 1996/01/14 23:33:13 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -662,8 +662,8 @@ netname(in, mask)
 		net = i & mask;
 		while ((mask & 1) == 0)
 			mask >>= 1, net >>= 1;
-		if (!(np = getnetbyaddr(net, AF_INET)))
-			np = getnetbyaddr(i, AF_INET);
+		if (!(np = getnetbyaddr(i, AF_INET)))
+			np = getnetbyaddr(net, AF_INET);
 		if (np)
 			cp = np->n_name;
 	}
