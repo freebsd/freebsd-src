@@ -414,7 +414,7 @@ ffs_reload(mp, cred, p)
 {
 	register struct vnode *vp, *nvp, *devvp;
 	struct inode *ip;
-	struct csum *space;
+	void *space;
 	struct buf *bp;
 	struct fs *fs, *newfs;
 	struct partinfo dpart;
@@ -468,7 +468,7 @@ ffs_reload(mp, cred, p)
 	 * new superblock. These should really be in the ufsmount.	XXX
 	 * Note that important parameters (eg fs_ncg) are unchanged.
 	 */
-	bcopy(&fs->fs_csp[0], &newfs->fs_csp[0], sizeof(fs->fs_csp));
+	newfs->fs_csp = fs->fs_csp;
 	newfs->fs_maxcluster = fs->fs_maxcluster;
 	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBSIZE)
@@ -481,7 +481,7 @@ ffs_reload(mp, cred, p)
 	 * Step 3: re-read summary information from disk.
 	 */
 	blks = howmany(fs->fs_cssize, fs->fs_fsize);
-	space = fs->fs_csp[0];
+	space = fs->fs_csp;
 	for (i = 0; i < blks; i += fs->fs_frag) {
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
@@ -490,7 +490,8 @@ ffs_reload(mp, cred, p)
 		    NOCRED, &bp);
 		if (error)
 			return (error);
-		bcopy(bp->b_data, fs->fs_csp[fragstoblks(fs, i)], (u_int)size);
+		bcopy(bp->b_data, space, (u_int)size);
+		space = (char *)space + size;
 		brelse(bp);
 	}
 	/*
@@ -562,7 +563,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	register struct fs *fs;
 	dev_t dev;
 	struct partinfo dpart;
-	caddr_t base, space;
+	void *space;
 	int error, i, blks, size, ronly;
 	int32_t *lp;
 	struct ucred *cred;
@@ -673,24 +674,24 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	blks = howmany(size, fs->fs_fsize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
-	base = space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
+	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
+	fs->fs_csp = space;
 	for (i = 0; i < blks; i += fs->fs_frag) {
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
 		if ((error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
 		    cred, &bp)) != 0) {
-			free(base, M_UFSMNT);
+			free(fs->fs_csp, M_UFSMNT);
 			goto out;
 		}
 		bcopy(bp->b_data, space, (u_int)size);
-		fs->fs_csp[fragstoblks(fs, i)] = (struct csum *)space;
-		space += size;
+		space = (char *)space + size;
 		brelse(bp);
 		bp = NULL;
 	}
 	if (fs->fs_contigsumsize > 0) {
-		fs->fs_maxcluster = lp = (int32_t *)space;
+		fs->fs_maxcluster = lp = space;
 		for (i = 0; i < fs->fs_ncg; i++)
 			*lp++ = fs->fs_contigsumsize;
 	}
@@ -738,7 +739,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	if (ronly == 0) {
 		if ((fs->fs_flags & FS_DOSOFTDEP) &&
 		    (error = softdep_mount(devvp, mp, fs, cred)) != 0) {
-			free(base, M_UFSMNT);
+			free(fs->fs_csp, M_UFSMNT);
 			goto out;
 		}
 		fs->fs_fmod = 1;
@@ -833,7 +834,7 @@ ffs_unmount(mp, mntflags, p)
 
 	vrele(ump->um_devvp);
 
-	free(fs->fs_csp[0], M_UFSMNT);
+	free(fs->fs_csp, M_UFSMNT);
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
 	mp->mnt_data = (qaddr_t)0;
@@ -1229,14 +1230,14 @@ ffs_sbupdate(mp, waitfor)
 	register struct fs *dfs, *fs = mp->um_fs;
 	register struct buf *bp;
 	int blks;
-	caddr_t space;
+	void *space;
 	int i, size, error, allerror = 0;
 
 	/*
 	 * First write back the summary information.
 	 */
 	blks = howmany(fs->fs_cssize, fs->fs_fsize);
-	space = (caddr_t)fs->fs_csp[0];
+	space = fs->fs_csp;
 	for (i = 0; i < blks; i += fs->fs_frag) {
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
@@ -1244,7 +1245,7 @@ ffs_sbupdate(mp, waitfor)
 		bp = getblk(mp->um_devvp, fsbtodb(fs, fs->fs_csaddr + i),
 		    size, 0, 0);
 		bcopy(space, bp->b_data, (u_int)size);
-		space += size;
+		space = (char *)space + size;
 		if (waitfor != MNT_WAIT)
 			bawrite(bp);
 		else if ((error = bwrite(bp)) != 0)

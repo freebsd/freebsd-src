@@ -633,6 +633,11 @@ next:
 	sblock.fs_csaddr = cgdmin(&sblock, 0);
 	sblock.fs_cssize =
 	    fragroundup(&sblock, sblock.fs_ncg * sizeof(struct csum));
+	/*
+	 * The superblock fields 'fs_csmask' and 'fs_csshift' are no
+	 * longer used. However, we still initialise them so that the
+	 * filesystem remains compatible with old kernels.
+	 */
 	i = sblock.fs_bsize / sizeof(struct csum);
 	sblock.fs_csmask = ~(i - 1);
 	for (sblock.fs_csshift = 0; i > 1; i >>= 1)
