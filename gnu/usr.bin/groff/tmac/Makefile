@@ -4,11 +4,11 @@ TMACOWN?=	bin
 TMACGRP?=	bin
 TMACMODE?=	444
 TMACDIR?=	/usr/share/tmac
-MDOCDIR?=	$(TMACDIR)/mdoc
+MDOCDIR?=	${TMACDIR}/mdoc
 
 MAN7=		groff_ms.7 me.7
 MLINKS=		groff_ms.7 ms.7
-LINKS=          $(TMACDIR}/tmac.andoc $(TMACDIR)/tmac.an
+LINKS=          ${TMACDIR}/tmac.andoc ${TMACDIR}/tmac.an
 
 MANDEPEND=	${MAN7}
 CLEANFILES+=    temp ${MANDEPEND} tmac.groff_an
