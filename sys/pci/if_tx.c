@@ -862,7 +862,6 @@ epic_ifstart(ifp)
 		if( NULL != m ){
 			EPIC_MGETCLUSTER(m);
 			if( NULL == m ){
-				printf(EPIC_FORMAT ": cannot allocate mbuf cluster\n",EPIC_ARGS(sc));
 				m_freem(m0);
 				ifp->if_oerrors++;
 				continue;
@@ -940,7 +939,6 @@ epic_rx_done(sc)
 		/* Try to get mbuf cluster */
 		EPIC_MGETCLUSTER( buf->mbuf );
 		if( NULL == buf->mbuf ) { 
-			printf(EPIC_FORMAT ": cannot allocate mbuf cluster\n",EPIC_ARGS(sc));
 			buf->mbuf = m;
 			desc->status = 0x8000;
 			sc->sc_if.if_ierrors++;
