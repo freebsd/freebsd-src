@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.20 1999/01/19 23:29:19 se Exp $
+ * $Id: pci_compat.c,v 1.20.2.1 1999/05/07 23:43:06 julian Exp $
  *
  */
 
@@ -396,7 +396,8 @@ pci_finddrv(pcicfgregs *cfg)
 	 */
 	if (drvname == NULL) {
 		dvp = &chipset_device;
-		drvname = pci_probedrv(cfg, dvp);
+		if ((drvname = pci_probedrv(cfg, dvp)) == NULL)
+			dvp = NULL;;
 	}
 	return (dvp);
 }
