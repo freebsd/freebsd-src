@@ -90,6 +90,12 @@
 #define	SIOCSIFMEDIA	_IOWR('i', 55, struct ifreq)	/* set net media */
 #define	SIOCGIFMEDIA	_IOWR('i', 56, struct ifmediareq) /* get net media */
 
+#define	SIOCSIFGENERIC	 _IOW('i', 57, struct ifreq)	/* generic IF set op */
+#define	SIOCGIFGENERIC	_IOWR('i', 58, struct ifreq)	/* generic IF get op */
+
+#define	SIOCGIFSTATUS	_IOWR('i', 59, struct ifstat)	/* get IF status */
+#define	SIOCSIFLLADDR	 _IOW('i', 60, struct ifreq)	/* set linklevel addr */
+
 #define	SIOCSIFPHYADDR   _IOW('i', 70, struct ifaliasreq) /* set gif addres */
 #define	SIOCGIFPSRCADDR	_IOWR('i', 71, struct ifreq)	/* get gif psrc addr */
 #define	SIOCGIFPDSTADDR	_IOWR('i', 72, struct ifreq)	/* get gif pdst addr */
@@ -97,11 +103,8 @@
 #define	SIOCSLIFPHYADDR	 _IOW('i', 74, struct if_laddrreq) /* set gif addrs */
 #define	SIOCGLIFPHYADDR	_IOWR('i', 75, struct if_laddrreq) /* get gif addrs */
 
-#define	SIOCSIFGENERIC	 _IOW('i', 57, struct ifreq)	/* generic IF set op */
-#define	SIOCGIFGENERIC	_IOWR('i', 58, struct ifreq)	/* generic IF get op */
-
-#define	SIOCGIFSTATUS	_IOWR('i', 59, struct ifstat)	/* get IF status */
-#define	SIOCSIFLLADDR	 _IOW('i', 60, struct ifreq)	/* set linklevel addr */
+#define SIOCGPRIVATE_0  _IOWR('i', 80, struct ifreq)    /* device private 0 */
+#define SIOCGPRIVATE_1  _IOWR('i', 81, struct ifreq)    /* device private 1 */
 
 #define SIOCIFCREATE	_IOWR('i', 122, struct ifreq)	/* create clone if */
 #define SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
