@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.66.2.1 1999/01/27 20:51:42 julian Exp $
+ * $Id: proc.h,v 1.66.2.2 1999/02/23 13:44:36 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -267,7 +267,7 @@ struct	proc {
 #define P_KTHREADP	0x200000 /* Process is really a kernel thread */
 
 #define	P_NOCLDWAIT	0x400000 /* No zombies if child dies */
-
+#define P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
 
 /*
  * MOVE TO ucred.h?
