@@ -1,12 +1,16 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+#	$Id: build,v 1.2 1998/09/03 10:40:27 abial Exp $
 #
 
 # You can set the SRC variable which points to your source tree. It's
 # /usr/src by default (most people shouldn't change it).
 SRC=/usr/src
+
+
+# Set this until the tools are fixed...
+OBJFORMAT=aout; export OBJFORMAT
 
 # Default MFS sizes for different types of the floppy. Again, most people
 # shouldn't change them unless they know what they are doing.
