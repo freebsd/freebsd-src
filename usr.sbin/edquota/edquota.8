@@ -104,6 +104,14 @@ will duplicate the quotas of the prototypical user
 specified for each user specified.
 This is the normal mechanism used to
 initialize quotas for groups of users.
+If the user given to assign quotas to is a numerical uid
+range (e.g. 1000-2000), then 
+.I edquota
+will duplicate the quotas of the prototypical user
+for each uid in the range specified.  This allows
+for easy setup of default quotas for a group of users.
+The uids in question do not have to be currently assigned in
+.IR /etc/passwd.
 .PP
 If the \fI-g\fP flag is specified,
 .I edquota
