@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.15 1994/10/23 21:27:32 wollman Exp $
+ *	$Id: npx.c,v 1.16 1994/11/06 00:58:06 bde Exp $
  */
 
 #include "npx.h"
@@ -45,10 +45,13 @@
 #include <sys/proc.h>
 #include <sys/devconf.h>
 #include <sys/ioctl.h>
+#include <sys/syslog.h>
+#include <sys/signalvar.h>
 
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/trap.h>
+#include <machine/clock.h>
 #include <machine/specialreg.h>
 
 #include <i386/isa/icu.h>
@@ -92,8 +95,6 @@ void	stop_emulating	__P((void));
 
 typedef u_char bool_t;
 
-extern	struct gate_descriptor idt[];
-
 static	int	npxattach	__P((struct isa_device *dvp));
 static	int	npxprobe	__P((struct isa_device *dvp));
 static	int	npxprobe1	__P((struct isa_device *dvp));
@@ -119,7 +120,7 @@ static	volatile u_int		npx_traps_while_probing;
  * interrupts.  We'll still need a special exception 16 handler.  The busy
  * latch stuff in probintr() can be moved to npxprobe().
  */
-void probeintr(void);
+inthand_t probeintr;
 asm
 ("
 	.text
@@ -136,7 +137,7 @@ _probeintr:
 	iret
 ");
 
-void probetrap(void);
+inthand_t probetrap;
 asm
 ("
 	.text
@@ -374,9 +375,21 @@ npxexit(p)
 	struct proc *p;
 {
 
-	if (p == npxproc) {
-		start_emulating();
-		npxproc = NULL;
+	if (p == npxproc)
+		npxsave(&curpcb->pcb_savefpu);
+	if (npx_exists) {
+		u_int	masked_exceptions;
+
+		masked_exceptions = curpcb->pcb_savefpu.sv_env.en_cw
+				    & curpcb->pcb_savefpu.sv_env.en_sw & 0x7f;
+		/*
+		 * Overflow, divde by 0, and invalid operand would have
+		 * caused a trap in 1.1.5.
+		 */
+		if (masked_exceptions & 0x0d)
+			log(LOG_ERR,
+	"pid %d (%s) exited with masked floating point exceptions 0x%02x\n",
+			    p->p_pid, p->p_comm, masked_exceptions);
 	}
 }
 
