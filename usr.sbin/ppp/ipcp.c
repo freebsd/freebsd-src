@@ -873,6 +873,10 @@ IpcpLayerDown(struct fsm *fp)
     radius_Account(&fp->bundle->radius, &fp->bundle->radacct,
                    fp->bundle->links, RAD_STOP, &ipcp->peer_ip, &ipcp->ifmask,
                    &ipcp->throughput);
+
+  if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
+    system_Select(fp->bundle, fp->bundle->radius.filterid, LINKDOWNFILE,
+                  NULL, NULL);
 #endif
 
     /*
@@ -936,6 +940,10 @@ IpcpLayerUp(struct fsm *fp)
 #ifndef NORADIUS
   radius_Account(&fp->bundle->radius, &fp->bundle->radacct, fp->bundle->links, 
                  RAD_START, &ipcp->peer_ip, &ipcp->ifmask, &ipcp->throughput);
+
+  if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
+    system_Select(fp->bundle, fp->bundle->radius.filterid, LINKUPFILE,
+                  NULL, NULL);
 #endif
 
   /*
