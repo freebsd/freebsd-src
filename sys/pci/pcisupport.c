@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.116 1999/05/27 12:26:50 yokota Exp $
+**  $Id: pcisupport.c,v 1.117 1999/06/04 02:38:18 mharo Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1498,6 +1498,24 @@ static const char* vga_match(device_t dev)
 			chip = "Delta"; break;
 		case 0x0004:
 			chip = "PerMedia"; break;
+		}
+		break;
+	case 0x10de:
+		vendor = "NVidia";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x0020:
+			chip = "Riva TNT"; break;	
+		case 0x0028:
+			chip = "Riva TNT2"; break;
+		}
+		break;
+	case 0x12d2:
+		vendor = "NVidia";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x0018:
+			chip = "Riva128"; break;	
 		}
 		break;
 	}
