@@ -40,8 +40,8 @@
 .Nd change data segment size
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
-.Ft char
-.Fn *brk "const char *addr"
+.Ft int
+.Fn brk "const char *addr"
 .Ft char *
 .Fn *sbrk "int incr"
 .Sh DESCRIPTION
@@ -103,7 +103,7 @@ for the definition of
 .Em etext ) .
 .Sh RETURN VALUES
 .Nm Brk
-returns a pointer to the new end of memory if successful;
+returns 0 if successful;
 otherwise -1 with
 .Va errno
 set to indicate why the allocation failed.
