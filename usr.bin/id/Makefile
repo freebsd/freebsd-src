@@ -3,7 +3,8 @@
 
 PROG=	id
 WARNS?=	2
-SCRIPTS=groups.sh whoami.sh
+LINKS=	${BINDIR}/id ${BINDIR}/groups
+LINKS+=	${BINDIR}/id ${BINDIR}/whoami
 MAN=	id.1 groups.1 whoami.1
 
 .include <bsd.prog.mk>
