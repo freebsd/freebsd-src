@@ -86,7 +86,7 @@ Waits for all activity on the lock to end, and then marks it decommissioned.
 This is used before freeing a lock that is part of a piece of memory that is about to
 be freed.
 (As documented in
-.Pa lockmgr.h . )
+.Pa sys/lockmgr.h . )
 .It Dv LK_SLEEPFAIL
 If we had to sleep for the lock then fail.
 .It Dv LK_NOWAIT
@@ -152,4 +152,4 @@ was set and we slept.
 .Xr mutex 9
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .
