@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.133 1997/05/22 00:17:10 jkh Exp $
+ * $Id: menus.c,v 1.134 1997/05/22 21:26:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -732,7 +732,10 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
-#ifndef USE_XIG_ENVIRONMENT
+#ifdef USE_XIG_ENVIRONMENT
+      { "Xaccel",	"The XiG AcceleratedX 3.1 distribution",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XIG_SERVER },
+#else
       { "XFree86",	"The XFree86 3.2 distribution",
 	x11FlagCheck,	distSetXF86 },
 #endif
