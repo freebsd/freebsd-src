@@ -164,6 +164,7 @@ ast(struct trapframe *framep)
 
 	if ((p->p_flag & P_SA) && (td->td_mailbox == NULL))
 		thread_user_enter(td);
+
 	/*
 	 * This updates the p_sflag's for the checks below in one
 	 * "atomic" operation with turning off the astpending flag.
@@ -183,6 +184,7 @@ ast(struct trapframe *framep)
 	    TDF_NEEDRESCHED | TDF_INTERRUPT);
 	cnt.v_soft++;
 	mtx_unlock_spin(&sched_lock);
+
 	/*
 	 * XXXKSE While the fact that we owe a user profiling
 	 * tick is stored per KSE in this code, the statistics
@@ -190,7 +192,6 @@ ast(struct trapframe *framep)
 	 * This should probably change, by which I mean that
 	 * possibly the location of both might change.
 	 */
-
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
 	if (td->td_pflags & TDP_OWEUPC && p->p_flag & P_PROFIL) {
