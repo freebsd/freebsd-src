@@ -1138,7 +1138,7 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 usbd_status
 usbd_reload_device_desc(usbd_device_handle dev)
 {
-	usbd_status err;
+	usbd_status err = USBD_NORMAL_COMPLETION;
 	int i;
 
 	/* Get the full device descriptor. */
