@@ -60,7 +60,10 @@ struct alias_link;
     PacketAliasPptp(struct in_addr);
 
     extern struct alias_link *
-    PacketAliasRedirectPptp(struct in_addr, struct in_addr, struct in_addr);
+    PacketAliasRedirectProto(struct in_addr,
+                             struct in_addr,
+                             struct in_addr,
+                             u_char);
 
     extern struct alias_link *
     PacketAliasRedirectAddr(struct in_addr,
@@ -156,10 +159,6 @@ struct alias_link;
 /* If PKT_ALIAS_REVERSE is set, the actions of PacketAliasIn()
       and PacketAliasOut() are reversed */
 #define PKT_ALIAS_REVERSE 0x80
-
-/* If PKT_ALIAS_DENY_PPTP is set, then PPTP sessions will be
-	prevented by the aliasing engine.  */
-#define PKT_ALIAS_DENY_PPTP 0x200
 
 /* Return Codes */
 #define PKT_ALIAS_ERROR -1
