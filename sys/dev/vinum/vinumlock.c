@@ -2,6 +2,10 @@
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
  *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
+ *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
  *
@@ -33,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumlock.c,v 1.9 1999/03/13 03:26:00 grog Exp grog $
+ * $Id: vinumlock.c,v 1.10 1999/05/15 03:47:45 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -176,6 +180,68 @@ unlockplex(struct plex *plex)
     }
 }
 
+#define LOCK_UNALLOC	-1				    /* mark unused lock entries */
+
+/* Lock an address range in a plex, wait if it's in use */
+int 
+lockrange(struct plex *plex, off_t first, off_t last)
+{
+    int lock;
+    int pos = -1;					    /* place to insert */
+
+    lockplex(plex);					    /* diddle one at a time */
+    if (plex->locks >= plex->alloclocks)
+	EXPAND(plex->lock, struct rangelock, plex->alloclocks, INITIAL_LOCKS)
+	  unlockplex(plex);
+    for (;;) {
+	lockplex(plex);
+	for (lock = 0; lock < plex->locks; lock++) {
+	    if (plex->lock[lock].first == LOCK_UNALLOC)	    /* empty place */
+		pos = lock;				    /* a place to put this one */
+	    else if ((plex->lock[lock].first < last)
+		&& (plex->lock[lock].last > first)) {	    /* overlap, */
+		unlockplex(plex);
+		tsleep(((caddr_t *) & lockrange) + plex->sdnos[0], PRIBIO | PCATCH, "vrlock", 0);
+		break;					    /* out of the inner level loop */
+	    }
+	}
+	if (lock == plex->locks)			    /* made it to the end, */
+	    break;
+    }
+
+    /*
+     * The address range is free, and the plex is locked.
+     * Add our lock entry
+     */
+    if (pos == -1) {					    /* no free space, */
+	pos = lock;					    /* put it at the end */
+	plex->locks++;
+    }
+    plex->lock[pos].first = first;
+    plex->lock[pos].last = last;
+    unlockplex(plex);
+    return 0;
+}
+
+/* Unlock a volume and let the next one at it */
+void 
+unlockrange(struct plex *plex, off_t first, off_t last)
+{
+    int lock;
+
+    lockplex(plex);
+    for (lock = 0; lock < plex->locks; lock++) {
+	if ((plex->lock[lock].first == first)
+	    && (plex->lock[lock].last == last)) {	    /* found our lock */
+	    plex->lock[lock].first = LOCK_UNALLOC;	    /* not used */
+	    break;					    /* out of the inner level loop */
+	}
+    }
+    if (lock == plex->locks)				    /* made it to the end, */
+	panic("vinum: unlock without lock");
+
+    unlockplex(plex);
+}
 
 /* Get a lock for the global config, wait if it's not available */
 int 
