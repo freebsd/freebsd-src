@@ -247,7 +247,8 @@ ConfigureNode(const char *prog, const char *iface, const char *provider,
 }
 
 static void
-Spawn(const char *prog, const char *acname, const char *exec,
+Spawn(const char *prog, const char *acname, const char *provider,
+	const char *exec,
       struct ngm_connect ngc, int cs, int ds, void *request, int sz,
       int debug)
 {
@@ -327,6 +328,22 @@ Spawn(const char *prog, const char *acname, const char *exec,
                     data, sizeof *data + slen) == -1) {
         syslog(LOG_INFO, "%s: Cannot OFFER on netgraph node: %m", path);
         _exit(EX_OSERR);
+      }
+      /* If we have a provider code, set it */
+      if (provider ) {
+        slen = strlen(provider);
+        data = (struct ngpppoe_init_data *)alloca(sizeof *data + slen);
+        snprintf(data->hook, sizeof data->hook, "%s", ngc.ourhook);
+        memcpy(data->data, provider, slen);
+        data->data_len = slen;
+
+        syslog(LOG_INFO, "adding to %s as offered service %s",
+             path, acname);
+        if (NgSendMsg(cs, path, NGM_PPPOE_COOKIE, NGM_PPPOE_SERVICE,
+                    data, sizeof *data + slen) == -1) {
+          syslog(LOG_INFO, "%s: Cannot add service on netgraph node: %m", path);
+          _exit(EX_OSERR);
+        }
       }
 
       /* And send our request data to the waiting node */
@@ -607,7 +624,7 @@ main(int argc, char **argv)
       ret = EX_UNAVAILABLE;
       break;
     }
-    Spawn(prog, acname, exec, ngc, cs, ds, response, sz, optd);
+    Spawn(prog, acname, provider, exec, ngc, cs, ds, response, sz, optd);
   }
 
   if (pidfile)
