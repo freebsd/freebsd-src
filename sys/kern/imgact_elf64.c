@@ -26,13 +26,5 @@
  * $FreeBSD$
  */
 
-/*
- * There ought to be a better way of deciding this.
- */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
-
 #define __ELF_WORD_SIZE 64
-
 #include <kern/imgact_elf.c>
-
-#endif

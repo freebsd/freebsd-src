@@ -361,3 +361,7 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, buf, CTLFLAG_RD,
 #include <sys/user.h>
 SYSCTL_INT(_debug_sizeof, OID_AUTO, kinfo_proc, CTLFLAG_RD,
     0, sizeof(struct kinfo_proc), "sizeof(struct kinfo_proc)");
+
+SYSCTL_STRING(_kern, OID_AUTO, fallback_elf_brand, CTLFLAG_RD,
+    "kern.fallback_elf_brand is deprecated, use kern.elf32.fallback_brand or "
+    "kern.elf64.fallback_brand" , 0, "");

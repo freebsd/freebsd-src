@@ -26,13 +26,5 @@
  * $FreeBSD$
  */
 
-/*
- * There ought to be a better way of deciding this.
- */
-#if defined(__i386__) || defined(__ia64__) || defined(__powerpc__)
-
 #define __ELF_WORD_SIZE 32
-
 #include <kern/imgact_elf.c>
-
-#endif
