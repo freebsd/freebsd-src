@@ -144,7 +144,7 @@ static int ip_stf_ttl = 40;
 extern  struct domain inetdomain;
 struct protosw in_stf_protosw =
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
-  in_stf_input, rip_output,	0,		rip_ctloutput,
+  in_stf_input,	(pr_output_t*)rip_output, 0,	rip_ctloutput,
   0,
   0,            0,              0,              0,
   &rip_usrreqs
@@ -311,7 +311,7 @@ stf_encapcheck(m, off, proto, arg)
 		return 0;
 
 	/* LINTED const cast */
-	m_copydata((struct mbuf *)m, 0, sizeof(ip), (caddr_t)&ip);
+	m_copydata((struct mbuf *)(uintptr_t)m, 0, sizeof(ip), (caddr_t)&ip);
 
 	if (ip.ip_v != 4)
 		return 0;
