@@ -289,17 +289,32 @@ __sem_wait(sem_t *sem)
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
- 	return (ksem_wait((*sem)->semid));
+	return (ksem_wait((*sem)->semid));
 }
 
 int
 __sem_trywait(sem_t *sem)
 {
+	int retval;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	return (ksem_trywait((*sem)->semid));
+	if ((*sem)->syssem != 0)
+ 		retval = ksem_trywait((*sem)->semid);
+	else {
+		_pthread_mutex_lock(&(*sem)->lock);
+		if ((*sem)->count != 0) {
+			(*sem)->count--;
+			retval = 0;
+		} else {
+			errno = EAGAIN;
+			retval = -1;
+		}
+		(*sem)->count--;
+		_pthread_mutex_unlock(&(*sem)->lock);
+	}
+	return (retval);
 }
 
 int
