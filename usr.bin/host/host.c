@@ -67,7 +67,7 @@ char copyright[] =
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 4.9.1.13 1994/07/19 22:51:24 vixie Exp $";
+static char rcsid[] = "$Id: host.c,v 8.5 1995/06/29 09:26:32 vixie Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -360,10 +360,10 @@ printanswer(hp)
 	printf("\n\n");
 }
 
-hperror(errno) 
-int errno;
+hperror(errnum) 
+int errnum;
 {
-switch(errno) {
+switch(errnum) {
 	case HOST_NOT_FOUND:
 		fprintf(stderr,"Host not found.\n");
 		break;
@@ -459,7 +459,7 @@ gethostinfo(name)
 	char *name;
 {
 	register char *cp, **domain;
-	int n;
+	u_int n;
 	int hp;
 	int nDomain;
 	int asis = 0;
@@ -765,15 +765,20 @@ pr_rr(cp, msg, file, filter)
 
 	case T_HINFO:
 	case T_ISDN:
-		if (n = *cp++) {
-			if (doprint)
-			  fprintf(file,"%c%.*s", punc, n, cp);
-			cp += n;
-		}
-		if (n = *cp++) {
-			if (doprint)
-			  fprintf(file,"%c%.*s", punc, n, cp);
-			cp += n;
+		{
+			u_char *cp2 = cp + dlen;
+			if (n = *cp++) {
+				if (doprint)
+				  fprintf(file,"%c%.*s", punc, n, cp);
+				cp += n;
+			}
+			if ((cp < cp2) && (n = *cp++)) {
+				if (doprint)
+				  fprintf(file,"%c%.*s", punc, n, cp);
+				cp += n;
+			} else if (type == T_HINFO)
+				if (doprint)
+				  fprintf(file,"\n; *** Warning *** OS-type missing");
 		}
 		break;
 
@@ -805,10 +810,13 @@ pr_rr(cp, msg, file, filter)
 	case T_AFSDB:
 	case T_RT:
 		if (doprint)
-		  if (verbose)
-		    fprintf(file,"\t%ld ",_getshort(cp));
+		  if (type == T_MX)
+		    fprintf(file," (pri=%d) by ", _getshort(cp));
 		  else
-		    fprintf(file," ");
+		    if (verbose)
+		      fprintf(file,"\t%d ", _getshort(cp));
+		    else
+		      fprintf(file," ");
 		cp += sizeof(u_short);
 		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
 		if (doprint)
@@ -842,7 +850,7 @@ pr_rr(cp, msg, file, filter)
 		  while (cp < end) {
 		    if (n = *cp++) {
 		      for (j = n; j > 0 && cp < end ; j --)
-			if (*cp == '\n') {
+			if ((*cp == '\n') || (*cp == '"')) {
 			  if (doprint){
 			    (void) putc('\\', file);
 			    (void) putc(*cp++, file);
@@ -947,7 +955,7 @@ pr_type(type)
 	case T_MG:		/* mail group member */
 		return("MG");
 	case T_MX:		/* mail routing info */
-		return(verbose? "MX" : "mail is handled by");
+		return(verbose? "MX" : "mail is handled");
 	case T_TXT:		/* TXT - descriptive info */
 		return(verbose? "TXT" : "descriptive text");
 	case T_AFSDB:		/* AFS/DCE info */
@@ -1447,7 +1455,9 @@ DecodeError(result)
 	    case NXDOMAIN:	return("Non-existent domain"); break;
 	    case NOTIMP:	return("Not implemented"); break;
 	    case REFUSED:	return("Query refused"); break;
+#ifdef NOCHANGE
 	    case NOCHANGE:	return("No change"); break;
+#endif
 	    case NO_INFO: 	return("No information"); break;
 	    case ERROR: 	return("Unspecified error"); break;
 	    case TIME_OUT: 	return("Timed out"); break;
