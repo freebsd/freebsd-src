@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.53 1996/02/12 23:22:33 ache Exp $
+ *      $Id: scsiconf.c,v 1.54 1996/02/17 23:59:24 se Exp $
  */
 
 #include <sys/types.h>
@@ -228,7 +228,7 @@ static st_modes mode_wangdat1300 =
 	};
 static st_modes mode_unktape =
 	{
-	    {512, ST_Q_FORCE_FIXED_MODE, 0},		/* minor 0,1,2,3 */
+	    {0, 0, 0},					/* minor 0,1,2,3 */
 	    {512, ST_Q_FORCE_FIXED_MODE, QIC_24},	/* minor 4,5,6,7 */
 	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_1600},	/* minor 8,9,10,11 */
 	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_6250}	/* minor 12,13,14,15 */
@@ -340,6 +340,10 @@ static struct scsidevs knowndevs[] =
 		T_READONLY, T_READONLY, T_REMOV, "NEC",  "CD-ROM DRIVE:210","*",
 		"cd", SC_ONE_LU
 	},
+	/*
+	 * Doobe-doo-be doooo
+	 * -Mary
+	 */
 #endif /* !UKTEST */
 #endif	/* NCD */
 #if NWORM > 0
