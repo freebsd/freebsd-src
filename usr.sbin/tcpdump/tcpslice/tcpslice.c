@@ -18,23 +18,27 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
-#if !defined(lint) && !defined(__GNUC__)
-char copyright[] =
-    "@(#) Copyright (c) 1987-1990 The Regents of the University of California.\nAll rights reserved.\n";
-static  char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/usr.sbin/tcpdump/tcpslice/tcpslice.c,v 1.3 1995/08/23 05:18:59 pst Exp $ (LBL)";
-#endif
+
+#ifndef lint
+static const char copyright[] =
+"@(#) Copyright (c) 1987-1990\n\
+	The Regents of the University of California. All rights reserved.\n";
+#endif /* not lint */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * tcpslice - extract pieces of and/or glue together tcpdump files
  */
 
+#include <err.h>
 #include "tcpslice.h"
 
 int tflag = 0;	/* global that util routines are sensitive to */
 int fddipad;	/* XXX: libpcap needs this global */
-
-char *program_name;
 
 /* Style in which to print timestamps; RAW is "secs.usecs"; READABLE is
  * ala the Unix "date" tool; and PARSEABLE is tcpslice's custom format,
@@ -58,7 +62,7 @@ void extract_slice(char filename[], char write_file_name[],
 			struct timeval *start_time, struct timeval *stop_time);
 char *timestamp_to_string(struct timeval *timestamp);
 void dump_times(pcap_t **p, char filename[]);
-void usage(void);
+static void usage(void);
 
 
 pcap_dumper_t *dumper = 0;
@@ -74,11 +78,6 @@ main(int argc, char **argv)
 	char *write_file_name = "-";	/* default is stdout */
 	struct timeval first_time, start_time, stop_time;
 	pcap_t *pcap;
-
-	extern char *optarg;
-	extern int optind, opterr;
-
-	program_name = argv[0];
 
 	opterr = 0;
 	while ((op = getopt(argc, argv, "dRrtw:")) != -1)
@@ -197,10 +196,8 @@ long local_time_zone(long timestamp)
 	struct timezone tz;
 	long localzone;
 
-	if (gettimeofday(&now, &tz) < 0) {
-		perror("tcpslice: gettimeofday");
-		exit(1);
-	}
+	if (gettimeofday(&now, &tz) < 0)
+		err(1, "gettimeofday");
 	localzone = tz.tz_minuteswest * -60;
 
 	if (localtime((time_t *) &timestamp)->tm_isdst)
@@ -605,14 +602,14 @@ dump_times(pcap_t **p, char filename[])
 		timestamp_to_string( &last_time ) );
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr, "tcpslice for tcpdump version %d.%d\n",
 		      VERSION_MAJOR, VERSION_MINOR);
 	(void)fprintf(stderr,
-"Usage: tcpslice [-dRrt] [-w file] [start-time [end-time]] file ... \n");
+"usage: tcpslice [-dRrt] [-w file] [start-time [end-time]] file ... \n");
 
-	exit(-1);
+	exit(1);
 }
 
