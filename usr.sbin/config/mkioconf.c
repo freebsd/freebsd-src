@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.51 1999/04/18 13:36:29 peter Exp $";
+	"$Id: mkioconf.c,v 1.52 1999/04/18 14:27:33 kato Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -190,10 +190,10 @@ newbus_ioconf()
 	fprintf(fp, "\n");
 	fprintf(fp, "#include <sys/queue.h>\n");
 	fprintf(fp, "#include <sys/sysctl.h>\n");
-	if (machine == MACHINE_I386)
-		fprintf(fp, "#include <isa/isareg.h>\n");
-	else
+	if (machine == MACHINE_PC98)
 		fprintf(fp, "#include <pc98/pc98/pc98.h>\n");
+	else
+		fprintf(fp, "#include <isa/isareg.h>\n");
 	fprintf(fp, "#include <sys/bus_private.h>\n");
 	fprintf(fp, "\n");
 
