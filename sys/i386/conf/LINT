@@ -471,6 +471,7 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  Ethernets; it is MANDATORY when a Ethernet device driver is
 #  configured or token-ring is enabled.
 #  The 'fddi' pseudo-device provides generic code to support FDDI.
+#  The `arcnet' pseudo-device provides generic code to support Arcnet.
 #  The `sppp' pseudo-device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
 #  The `sl' pseudo-device implements the Serial Line IP (SLIP) service.
@@ -502,6 +503,7 @@ pseudo-device	ether			#Generic Ethernet
 pseudo-device	vlan	1		#VLAN support
 pseudo-device	token			#Generic TokenRing
 pseudo-device	fddi			#Generic FDDI
+pseudo-device	arcnet			#Generic Arcnet
 pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
 pseudo-device	bpf			#Berkeley packet filter
@@ -1347,6 +1349,8 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 # Network interfaces: `cx', `ed', `el', `ep', `ie', `is', `le', `lnc'
 #
 # ar: Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver (requires sppp)
+# cm: Arcnet SMC COM90c26 / SMC COM90c56
+#     (and SMC COM90c66 in '56 compatibility mode) adapters.
 # cs: IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # cx: Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
@@ -1374,6 +1378,7 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 #       (no options needed)
 #
 device ar0 at isa? port 0x300 irq 10 iomem 0xd0000
+device cm0 at isa? port 0x2e0 irq 9 iomem 0xdc000
 device cs0 at isa? port 0x300
 device cx0 at isa? port 0x240 irq 15 drq 7
 device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
