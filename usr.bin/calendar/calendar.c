@@ -80,6 +80,7 @@ main(argc, argv)
 {
 	extern int optind;
 	int ch;
+	char *s;
 
 	while ((ch = getopt(argc, argv, "-a")) != EOF)
 		switch (ch) {
@@ -110,8 +111,11 @@ main(argc, argv)
 				cal();
 			(void)seteuid(0);
 		}
-	else
+	else {
+		if ((s = getenv("HOME")) != NULL)
+			chdir(s);
 		cal();
+	}
 	exit(0);
 }
 
@@ -301,7 +305,7 @@ opencal()
 			(void)close(pdes[1]);
 		}
 		(void)close(pdes[0]);
-		execl(_PATH_CPP, "cpp", "-I.", _PATH_INCLUDE, NULL);
+		execl(_PATH_CPP, "cpp", "-P", "-I.", _PATH_INCLUDE, NULL);
 		(void)fprintf(stderr,
 		    "calendar: execl: %s: %s.\n", _PATH_CPP, strerror(errno));
 		_exit(1);
