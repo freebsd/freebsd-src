@@ -29,6 +29,8 @@ main(int argc, char **argv)
 	i = chdir(argv[1]);
 	if (i)
 		err(1, "chdir %s", argv[1]);
+	memset(&j, 0, sizeof(j));
+	j.version = 0;
 	j.path = argv[1];
 	j.hostname = argv[2];
 	i = inet_aton(argv[3], &in);
