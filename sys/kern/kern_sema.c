@@ -55,14 +55,14 @@ sema_init(struct sema *sema, int value, const char *description)
 	cv_init(&sema->sema_cv, description);
 	sema->sema_value = value;
 
-	CTR3(KTR_LOCK, __func__ "(%p, %d, \"%s\")", sema, value, description);
+	CTR4(KTR_LOCK, "%s(%p, %d, \"%s\")", __func__, sema, value, description);
 }
 
 void
 sema_destroy(struct sema *sema)
 {
 
-	CTR2(KTR_LOCK, __func__ "(%p) \"%s\"", sema,
+	CTR3(KTR_LOCK, "%s(%p) \"%s\"", __func__, sema,
 	    cv_wmesg(&sema->sema_cv));
 
 	KASSERT((sema->sema_waiters == 0), ("%s(): waiters\n", __func__));
@@ -80,7 +80,7 @@ _sema_post(struct sema *sema, const char *file, int line)
 	if (sema->sema_waiters && sema->sema_value > 0)
 		cv_signal(&sema->sema_cv);
 
-	CTR5(KTR_LOCK, __func__ "(%p) \"%s\" v = %d at %s:%d", sema,
+	CTR6(KTR_LOCK, "%s(%p) \"%s\" v = %d at %s:%d", __func__, sema,
 	    cv_wmesg(&sema->sema_cv), sema->sema_value, file, line);
 
 	mtx_unlock(&sema->sema_mtx);
@@ -98,7 +98,7 @@ _sema_wait(struct sema *sema, const char *file, int line)
 	}
 	sema->sema_value--;
 
-	CTR5(KTR_LOCK, __func__ "(%p) \"%s\" v = %d at %s:%d", sema,
+	CTR6(KTR_LOCK, "%s(%p) \"%s\" v = %d at %s:%d", __func__, sema,
 	    cv_wmesg(&sema->sema_cv), sema->sema_value, file, line);
 
 	mtx_unlock(&sema->sema_mtx);
@@ -127,12 +127,12 @@ _sema_timedwait(struct sema *sema, int timo, const char *file, int line)
 		sema->sema_value--;
 		ret = 1;
 
-		CTR5(KTR_LOCK, __func__ "(%p) \"%s\" v = %d at %s:%d", sema,
+		CTR6(KTR_LOCK, "%s(%p) \"%s\" v = %d at %s:%d", __func__, sema,
 		    cv_wmesg(&sema->sema_cv), sema->sema_value, file, line);
 	} else {
 		ret = 0;
 		
-		CTR4(KTR_LOCK, __func__ "(%p) \"%s\" fail at %s:%d", sema,
+		CTR5(KTR_LOCK, "%s(%p) \"%s\" fail at %s:%d", __func__, sema,
 		    cv_wmesg(&sema->sema_cv), file, line);
 	}
 
@@ -152,12 +152,12 @@ _sema_trywait(struct sema *sema, const char *file, int line)
 		sema->sema_value--;
 		ret = 1;
 
-		CTR5(KTR_LOCK, __func__ "(%p) \"%s\" v = %d at %s:%d", sema,
+		CTR6(KTR_LOCK, "%s(%p) \"%s\" v = %d at %s:%d", __func__, sema,
 		    cv_wmesg(&sema->sema_cv), sema->sema_value, file, line);
 	} else {
 		ret = 0;
 
-		CTR4(KTR_LOCK, __func__ "(%p) \"%s\" fail at %s:%d", sema,
+		CTR5(KTR_LOCK, "%s(%p) \"%s\" fail at %s:%d", __func__, sema,
 		    cv_wmesg(&sema->sema_cv), file, line);
 	}
 

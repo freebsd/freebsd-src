@@ -160,7 +160,7 @@ ithread_update(struct ithd *ithd)
 	else
 		ithd->it_flags &= ~IT_ENTROPY;
 	
-	CTR1(KTR_INTR, __func__ ": updated %s\n", p->p_comm);
+	CTR2(KTR_INTR, "%s: updated %s\n", __func__, p->p_comm);
 }
 
 int
@@ -207,7 +207,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 		*ithread = ithd;
 	mtx_unlock(&ithd->it_lock);
 
-	CTR1(KTR_INTR, __func__ ": created %s", ithd->it_name);
+	CTR2(KTR_INTR, "%s: created %s", __func__, ithd->it_name);
 	return (0);
 }
 
@@ -235,7 +235,7 @@ ithread_destroy(struct ithd *ithread)
 	}
 	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&ithread->it_lock);
-	CTR1(KTR_INTR, __func__ ": killing %s", ithread->it_name);
+	CTR2(KTR_INTR, "%s: killing %s", __func__, ithread->it_name);
 	return (0);
 }
 
@@ -285,7 +285,7 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 
 	if (cookiep != NULL)
 		*cookiep = ih;
-	CTR2(KTR_INTR, __func__ ": added %s to %s", ih->ih_name,
+	CTR3(KTR_INTR, "%s: added %s to %s", __func__, ih->ih_name,
 	    ithread->it_name);
 	return (0);
 
@@ -310,7 +310,7 @@ ithread_remove_handler(void *cookie)
 	KASSERT(ithread != NULL,
 	    ("interrupt handler \"%s\" has a NULL interrupt thread",
 		handler->ih_name));
-	CTR2(KTR_INTR, __func__ ": removing %s from %s", handler->ih_name,
+	CTR3(KTR_INTR, "%s: removing %s from %s", __func__, handler->ih_name,
 	    ithread->it_name);
 	mtx_lock(&ithread->it_lock);
 #ifdef INVARIANTS
@@ -374,7 +374,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	td = ithread->it_td;
 	p = td->td_proc;
 	KASSERT(p != NULL, ("ithread %s has no process", ithread->it_name));
-	CTR3(KTR_INTR, __func__ ": pid %d: (%s) need = %d", p->p_pid, p->p_comm,
+	CTR4(KTR_INTR, "%s: pid %d: (%s) need = %d", __func__, p->p_pid, p->p_comm,
 	    ithread->it_need);
 
 	/*
@@ -388,7 +388,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	ithread->it_need = 1;
 	mtx_lock_spin(&sched_lock);
 	if (p->p_stat == SWAIT) {
-		CTR1(KTR_INTR, __func__ ": setrunqueue %d", p->p_pid);
+		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, p->p_pid);
 		p->p_stat = SRUN;
 		setrunqueue(td); /* XXXKSE */
 		if (do_switch && curthread->td_proc->p_stat == SRUN) {
@@ -399,8 +399,8 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		} else
 			curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
 	} else {
-		CTR3(KTR_INTR, __func__ ": pid %d: it_need %d, state %d",
-		    p->p_pid, ithread->it_need, p->p_stat);
+		CTR4(KTR_INTR, "%s: pid %d: it_need %d, state %d",
+		    __func__, p->p_pid, ithread->it_need, p->p_stat);
 	}
 	mtx_unlock_spin(&sched_lock);
 
@@ -478,7 +478,7 @@ ithread_loop(void *arg)
 	p = td->td_proc;
 	ithd = (struct ithd *)arg;	/* point to myself */
 	KASSERT(ithd->it_td == td && td->td_ithd == ithd,
-	    (__func__ ": ithread and proc linkage out of sync"));
+	    ("%s: ithread and proc linkage out of sync", __func__));
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -489,7 +489,7 @@ ithread_loop(void *arg)
 		 * If we are an orphaned thread, then just die.
 		 */
 		if (ithd->it_flags & IT_DEAD) {
-			CTR2(KTR_INTR, __func__ ": pid %d: (%s) exiting",
+			CTR3(KTR_INTR, "%s: pid %d: (%s) exiting", __func__,
 			    p->p_pid, p->p_comm);
 			td->td_ithd = NULL;
 			mtx_destroy(&ithd->it_lock);
@@ -498,7 +498,7 @@ ithread_loop(void *arg)
 			kthread_exit(0);
 		}
 
-		CTR3(KTR_INTR, __func__ ": pid %d: (%s) need=%d",
+		CTR4(KTR_INTR, "%s: pid %d: (%s) need=%d", __func__,
 		     p->p_pid, p->p_comm, ithd->it_need);
 		while (ithd->it_need) {
 			/*
@@ -513,8 +513,8 @@ restart:
 				if (ithd->it_flags & IT_SOFT && !ih->ih_need)
 					continue;
 				atomic_store_rel_int(&ih->ih_need, 0);
-				CTR5(KTR_INTR,
-				    __func__ ": pid %d ih=%p: %p(%p) flg=%x",
+				CTR6(KTR_INTR,
+				    "%s: pid %d ih=%p: %p(%p) flg=%x", __func__,
 				    p->p_pid, (void *)ih,
 				    (void *)ih->ih_handler, ih->ih_argument,
 				    ih->ih_flags);
@@ -550,9 +550,9 @@ restart:
 				ithd->it_enable(ithd->it_vector);
 			p->p_stat = SWAIT; /* we're idle */
 			p->p_stats->p_ru.ru_nvcsw++;
-			CTR1(KTR_INTR, __func__ ": pid %d: done", p->p_pid);
+			CTR2(KTR_INTR, "%s: pid %d: done", __func__, p->p_pid);
 			mi_switch();
-			CTR1(KTR_INTR, __func__ ": pid %d: resumed", p->p_pid);
+			CTR2(KTR_INTR, "%s: pid %d: resumed", __func__, p->p_pid);
 		}
 		mtx_unlock_spin(&sched_lock);
 	}

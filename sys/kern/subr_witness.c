@@ -286,7 +286,7 @@ witness_initialize(void *dummy __unused)
 	mtx_unlock(&Giant);
 	mtx_assert(&Giant, MA_NOTOWNED);
 
-	CTR0(KTR_WITNESS, __func__ ": initializing witness");
+	CTR1(KTR_WITNESS, "%s: initializing witness", __func__);
 	STAILQ_INSERT_HEAD(&all_locks, &all_mtx.mtx_object, lo_list);
 	mtx_init(&w_mtx, "witness lock", MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 	for (i = 0; i < WITNESS_COUNT; i++)
@@ -384,8 +384,8 @@ witness_destroy(struct lock_object *lock)
 		mtx_lock_spin(&w_mtx);
 		w->w_refcount--;
 		if (w->w_refcount == 0) {
-			CTR1(KTR_WITNESS,
-			    __func__ ": marking witness %s as dead", w->w_name);
+			CTR2(KTR_WITNESS,
+			    "%s: marking witness %s as dead", __func__, w->w_name);
 			w->w_name = "(dead)";
 			w->w_file = "(dead)";
 			w->w_line = 0;
@@ -544,7 +544,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			    lock1->li_line);
 			panic("recurse");
 		}
-		CTR3(KTR_WITNESS, __func__ ": pid %d recursed on %s r=%d",
+		CTR4(KTR_WITNESS, "%s: pid %d recursed on %s r=%d", __func__,
 		    td->td_proc->p_pid, lock->lo_name,
 		    lock1->li_flags & LI_RECURSEMASK);
 		lock1->li_file = file;
@@ -679,7 +679,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	if (lock == &Giant.mtx_object && (lock1->li_flags & LI_SLEPT) != 0)
 		mtx_unlock_spin(&w_mtx);
 	else {
-		CTR2(KTR_WITNESS, __func__ ": adding %s as a child of %s",
+		CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
 		    lock->lo_name, lock1->li_lock->lo_name);
 		if (!itismychild(lock1->li_lock->lo_witness, w))
 			mtx_unlock_spin(&w_mtx);
@@ -699,7 +699,7 @@ out:
 		if (lle == NULL)
 			return;
 		lle->ll_next = *lock_list;
-		CTR2(KTR_WITNESS, __func__ ": pid %d added lle %p",
+		CTR3(KTR_WITNESS, "%s: pid %d added lle %p", __func__,
 		    td->td_proc->p_pid, lle);
 		*lock_list = lle;
 	}
@@ -711,7 +711,7 @@ out:
 		lock1->li_flags = LI_EXCLUSIVE;
 	else
 		lock1->li_flags = 0;
-	CTR3(KTR_WITNESS, __func__ ": pid %d added %s as lle[%d]",
+	CTR4(KTR_WITNESS, "%s: pid %d added %s as lle[%d]", __func__,
 	    td->td_proc->p_pid, lock->lo_name, lle->ll_count - 1);
 }
 
@@ -828,8 +828,8 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				}
 				/* If we are recursed, unrecurse. */
 				if ((instance->li_flags & LI_RECURSEMASK) > 0) {
-					CTR3(KTR_WITNESS,
-				    __func__ ": pid %d unrecursed on %s r=%d",
+					CTR4(KTR_WITNESS,
+				    "%s: pid %d unrecursed on %s r=%d", __func__,
 					    td->td_proc->p_pid,
 					    instance->li_lock->lo_name,
 					    instance->li_flags);
@@ -837,8 +837,8 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 					goto out;
 				}
 				s = critical_enter();
-				CTR3(KTR_WITNESS,
-				    __func__ ": pid %d removed %s from lle[%d]",
+				CTR4(KTR_WITNESS,
+				    "%s: pid %d removed %s from lle[%d]", __func__,
 				    td->td_proc->p_pid,
 				    instance->li_lock->lo_name,
 				    (*lock_list)->ll_count - 1);
@@ -850,8 +850,8 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				if ((*lock_list)->ll_count == 0) {
 					lle = *lock_list;
 					*lock_list = lle->ll_next;
-					CTR2(KTR_WITNESS,
-					    __func__ ": pid %d removed lle %p",
+					CTR3(KTR_WITNESS,
+					    "%s: pid %d removed lle %p", __func__,
 					    td->td_proc->p_pid, lle);
 					witness_lock_list_free(lle);
 				}
