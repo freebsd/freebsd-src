@@ -968,7 +968,11 @@ typedef int		pid_t;
 #  if __FreeBSD__ >= 2
 #   include <osreldate.h>
 #   if __FreeBSD_version >= 199512	/* 2.2-current when it appeared */
-#    include <libutil.h>
+#    if __FreeBSD_version >= 500012	/* Moved to libc in 5.0-current */
+#     include <unistd.h>
+#    else
+#     include <libutil.h>
+#    endif
 #    define SPT_TYPE	SPT_BUILTIN
 #   endif /* __FreeBSD_version >= 199512 */
 #   if __FreeBSD_version >= 222000	/* 2.2.2-release and later */
