@@ -866,6 +866,19 @@ split(char *str, char *fields[], int maxfields, char *msg, size_t msglen)
 }
 
 int
+rad_get_vendor_attr(u_int32_t *vendor, const void **data, size_t *len)
+{
+	struct vendor_attribute *attr;
+
+	attr = (struct vendor_attribute *)*data;
+	*vendor = ntohl(attr->vendor_value);
+	*data = attr->attrib_data;
+	*len = attr->attrib_len - 2;
+
+	return (attr->attrib_type);
+}
+
+int
 rad_put_vendor_addr(struct rad_handle *h, int vendor, int type,
     struct in_addr addr)
 {
