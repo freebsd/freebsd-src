@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_compat.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -410,3 +412,82 @@ modfind(struct thread *td, struct modfind_args *uap)
 	MOD_SUNLOCK;
 	return (error);
 }
+
+#ifdef COMPAT_IA32
+#include <sys/mount.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+
+typedef union modspecific32 {
+	int		intval;
+	u_int32_t	uintval;
+	int		longval;
+	u_int32_t	ulongval;
+} modspecific32_t;
+
+struct module_stat32 {
+	int		version;
+	char		name[MAXMODNAME];
+	int		refs;
+	int		id;
+	modspecific32_t	data;
+};
+
+/*
+ * MPSAFE
+ */
+int
+freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
+{
+	module_t mod;
+	modspecific32_t data32;
+	int error = 0;
+	int id, namelen, refs, version;
+	struct module_stat32 *stat32;
+	char *name;
+
+	MOD_SLOCK;
+	mod = module_lookupbyid(uap->modid);
+	if (mod == NULL) {
+		MOD_SUNLOCK;
+		return (ENOENT);
+	}
+
+	id = mod->id;
+	refs = mod->refs;
+	name = mod->name;
+	CP(mod->data, data32, intval);
+	CP(mod->data, data32, uintval);
+	CP(mod->data, data32, longval);
+	CP(mod->data, data32, ulongval);
+	MOD_SUNLOCK;
+	stat32 = uap->stat;
+
+	if ((error = copyin(&stat32->version, &version, sizeof(version))) != 0)
+		return (error);
+	if (version != sizeof(struct module_stat_v1)
+	    && version != sizeof(struct module_stat32))
+		return (EINVAL);
+	namelen = strlen(mod->name) + 1;
+	if (namelen > MAXMODNAME)
+		namelen = MAXMODNAME;
+	if ((error = copyout(name, &stat32->name[0], namelen)) != 0)
+		return (error);
+
+	if ((error = copyout(&refs, &stat32->refs, sizeof(int))) != 0)
+		return (error);
+	if ((error = copyout(&id, &stat32->id, sizeof(int))) != 0)
+		return (error);
+
+	/*
+	 * >v1 stat includes module data.
+	 */
+	if (version == sizeof(struct module_stat32))
+		if ((error = copyout(&data32, &stat32->data,
+		    sizeof(data32))) != 0)
+			return (error);
+	td->td_retval[0] = 0;
+	return (error);
+}
+#endif
