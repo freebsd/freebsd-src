@@ -334,17 +334,18 @@ interpret:
 	 * (replaced) euid and egid as the source, which may or may not be
 	 * the right ones to use.
 	 */
-	if (oldcred->cr_svuid != oldcred->cr_uid ||
-	    oldcred->cr_svgid != oldcred->cr_gid) {
-		/*
-		 * Avoid allocating a newcred if we don't have one yet and
-		 * the saved uid/gid update would be a noop.
-		 */
-		if (newcred == NULL)
+	if (newcred == NULL) {
+		if (oldcred->cr_svuid != oldcred->cr_uid ||
+		    oldcred->cr_svgid != oldcred->cr_gid) {
 			newcred = crdup(oldcred);
+			change_svuid(newcred, newcred->cr_uid);
+			change_svgid(newcred, newcred->cr_gid);
+		}
+	} else {
 		change_svuid(newcred, newcred->cr_uid);
 		change_svgid(newcred, newcred->cr_gid);
 	}
+
 	if (newcred != NULL) {
 		PROC_LOCK(p);
 		p->p_ucred = newcred;
