@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030505:
+	Kerberos 5 (Heimdal) is now built by default. Setting
+	MAKE_KERBEROS5 no longer has any effect. If you do NOT
+	want the "base" Kerberos 5, you need to set NO_KERBEROS.
+
 20030502:
 	groff has been updated.  If you try to do a buildworld and
 	get an infinite loop in troff, update to May 4th or newer.  If you
