@@ -6,7 +6,7 @@
 
 # PROVIDE: mrouted
 # REQUIRE: netif routing
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

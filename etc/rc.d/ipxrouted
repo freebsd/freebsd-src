@@ -6,7 +6,7 @@
 # PROVIDE: ipxrouted
 # REQUIRE: SERVERS
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 # PROVIDE: ip6addrctl
 # REQUIRE: mountcritlocal netif
 # BEFORE: network_ipv6
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 . /etc/network.subr

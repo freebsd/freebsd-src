@@ -7,7 +7,7 @@
 # PROVIDE: ipfilter
 # REQUIRE: root mountcritlocal ipmon
 # BEFORE:  netif
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

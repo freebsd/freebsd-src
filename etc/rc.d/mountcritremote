@@ -6,7 +6,7 @@
 
 # PROVIDE: mountcritremote
 # REQUIRE: NETWORKING root mountcritlocal
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

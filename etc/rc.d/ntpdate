@@ -6,7 +6,7 @@
 
 # PROVIDE: ntpdate
 # REQUIRE: NETWORKING syslogd
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

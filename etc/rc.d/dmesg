@@ -7,7 +7,7 @@
 # PROVIDE: dmesg
 # REQUIRE: mountcritremote
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD Daemon
+# KEYWORD: FreeBSD Daemon nojail
 
 . /etc/rc.subr
 

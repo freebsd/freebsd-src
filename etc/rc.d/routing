@@ -7,7 +7,7 @@
 
 # PROVIDE: routing
 # REQUIRE: netif ppp-user
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

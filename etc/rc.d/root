@@ -6,7 +6,7 @@
 
 # PROVIDE: root
 # REQUIRE: fsck
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 
