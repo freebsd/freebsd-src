@@ -243,8 +243,7 @@ vlan_clone_create(struct if_clone *ifc, int *unit)
 			return (EEXIST);
 	}
 
-	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_WAITOK);
-	memset(ifv, 0, sizeof(struct ifvlan));
+	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_WAITOK | M_ZERO);
 	ifp = &ifv->ifv_if;
 	SLIST_INIT(&ifv->vlan_mc_listhead);
 
