@@ -34,14 +34,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rtc.h	7.1 (Berkeley) 5/12/91
- *	$Id$
+ *	$Id: rtc.h,v 1.10 1997/02/22 09:37:03 peter Exp $
  */
 
 #ifndef _I386_ISA_RTC_H_
 #define _I386_ISA_RTC_H_ 1
 
 /*
- * RTC Register locations
+ * MC146818 RTC Register locations
  */
 
 #define RTC_SEC		0x00	/* seconds */
@@ -57,8 +57,9 @@
 
 #define RTC_STATUSA	0x0a	/* status register A */
 #define  RTCSA_TUP	 0x80	/* time update, don't look now */
+#define  RTCSA_RESET	 0x70	/* reset divider */
 #define  RTCSA_DIVIDER   0x20   /* divider correct for 32768 Hz */
-#define  RTCSA_8192      0x03
+#define  RTCSA_8192      0x03	/* 8192 Hz interrupt */
 #define  RTCSA_4096      0x04
 #define  RTCSA_2048      0x05
 #define  RTCSA_1024      0x06	/* default for profiling */
@@ -70,10 +71,10 @@
 #define  RTCSA_NOPROF	 RTCSA_128
 #define  RTC_NOPROFRATE  128
 #define  RTCSA_64        0x0a
-#define  RTCSA_32        0x0b
+#define  RTCSA_32        0x0b	/* 32 Hz interrupt */
 
 #define RTC_STATUSB	0x0b	/* status register B */
-#define	 RTCSB_DST	 0x01	/* Daylight Savings Time enable	*/
+#define	 RTCSB_DST	 0x01	/* USA Daylight Savings Time enable */
 #define	 RTCSB_24HR	 0x02	/* 0 = 12 hours, 1 = 24	hours */
 #define	 RTCSB_BCD	 0x04	/* 0 = BCD, 1 =	Binary coded time */
 #define	 RTCSB_SQWE	 0x08	/* 1 = output sqare wave at SQW	pin */
@@ -89,7 +90,7 @@
 #define  RTCIR_INT	 0x80	/* interrupt output signal */
 
 #define RTC_STATUSD	0x0d	/* status register D (R) Lost Power */
-#define  RTCSD_PWR	 0x80	/* clock lost power */
+#define  RTCSD_PWR	 0x80	/* clock power OK */
 
 #define RTC_DIAG	0x0e	/* status register E - bios diagnostic */
 #define RTCDG_BITS	"\020\010clock_battery\007ROM_cksum\006config_unit\005memory_size\004fixed_disk\003invalid_time"
