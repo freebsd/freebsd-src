@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.7 (Berkeley) 3/27/94
-.\"	$Id$
+.\"	$Id: mount.8,v 1.10 1996/08/29 18:06:02 wosch Exp $
 .\"
 .Dd March 27, 1994
 .Dt MOUNT 8
@@ -114,6 +114,12 @@ The same as
 forces the revocation of write access when trying to downgrade
 a filesystem mount status from read-write to read-only. Also
 forces the R/W mount of an unclean filesystem (dangerous; use with caution).
+.It noatime
+Do not update the file access time when reading from a file. This option
+is useful on filesystems where there are large numbers of files and
+performance is more critical than updating the file access time (which is
+rarely ever important). This option is currently only supported on local
+filesystems.
 .It nodev
 Do not interpret character or block special devices on the file system.
 This option is useful for a server that has file systems containing
