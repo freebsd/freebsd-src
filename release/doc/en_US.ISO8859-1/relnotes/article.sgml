@@ -735,7 +735,7 @@
 
     <para>The format of the <filename>/etc/pwd.db</filename> and
       <filename>/etc/spwd.db</filename> password databases created by
-      &man.pwd.mkdb.8; is now byte-order dependent.  The pre-processed
+      &man.pwd.mkdb.8; is now byte-order independent.  The pre-processed
       password databases can now be moved between machines of
       different architectures.  The format includes version numbers on
       entries to ensure compatibility with old binaries.</para>
