@@ -7,7 +7,7 @@
 PROG=		as
 .if	${MACHINE_ARCH} != "alpha"
 NOMAN=		1
-BINDIR=		/usr/libexec/cross/alpha-freebsdelf
+BINDIR=		/usr/libexec/cross/alpha-freebsd
 .endif
 SRCS+=		obj-elf.c tc-alpha.c
 
