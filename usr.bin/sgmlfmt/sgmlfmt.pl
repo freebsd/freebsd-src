@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.12 1996/09/09 14:15:28 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.13 1996/09/29 17:34:05 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -615,7 +615,6 @@ sub extlink {
     $file = "$ref.html";
 
     if (!fileno(LINKFILE)) {
-	print "Opening $fileroot.ln\n";
 	open(LINKFILE, ">${fileroot}.ln");
     }
 
