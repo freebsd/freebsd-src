@@ -36,7 +36,7 @@
  *
  *	@(#)portald.h	8.1 (Berkeley) 6/5/93
  *
- * $Id$
+ * $Id: portald.h,v 1.3 1997/02/22 14:32:55 peter Exp $
  */
 
 #include <sys/cdefs.h>
@@ -72,6 +72,8 @@ extern int portal_exec __P((struct portal_cred *,
 extern int portal_file __P((struct portal_cred *,
 				char *key, char **v, int so, int *fdp));
 extern int portal_tcp __P((struct portal_cred *,
+				char *key, char **v, int so, int *fdp));
+extern int portal_tcplisten __P((struct portal_cred *,
 				char *key, char **v, int so, int *fdp));
 
 /*
