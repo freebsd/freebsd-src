@@ -10,10 +10,19 @@
 # parallism flag for make.
 MAKEJ?="-j12"
 
+.if defined(WITH_GEOM_VOL)
+# Do not hardcode device names, use FFS volume labels instead.
+# Requires 'options GEOM_VOL' in kernel.
+PRIROOTSLICE=	vol/sysflash1
+ALTROOTSLICE=	vol/sysflash2
+CFGSLICE=	vol/cfgflash
+.else
 # Some CF cards behave as slaves, (eg Lexar) and are assigned ad1.
 DEVICE?=	ad0
-ROOTSLICE=	${DEVICE}s1a
-CONFSLICE=	${DEVICE}s3
+PRIROOTSLICE=	${DEVICE}s1a
+ALTROOTSLICE=	${DEVICE}s2a
+CFGSLICE=	${DEVICE}s3
+.endif
 
 # Physical disk paramters.  Use diskinfo(8) on the target platform
 # to find the correct numbers.  We assume 512 bytes sectors.
@@ -23,7 +32,7 @@ SECTS?=501760
 
 # Number of sectors in the data slice (ad0s3).  The rest of the disk
 # will be split evenly between the two image slices (ad0s1/ad0s2)
-DATASLICE?=10240
+DATASIZE?=10240
 
 # You probably do not need to change these.
 WORLDDIR?= ${.CURDIR}/../../..
@@ -62,7 +71,6 @@ all:	buildworld installworld buildimage
 #
 Customize:	_.cs
 _.cs:	_.iw _.di _.ik _.di
-	echo "/dev/${ROOTSLICE} / ufs ro 1 1" >  ${WD}/etc/fstab
 .if empty(CUSTOMIZE_PATH)
 	# useful stuff for diskless boot
 	sed -i "" -e /beastie/d ${WD}/boot/loader.rc
@@ -144,7 +152,7 @@ _.md:	_.cs
 	mkdir -p ${WD}/conf/base/etc
 	( cd ${WD}/etc && find . -print | cpio -dumpl ../conf/base/etc )
 	mkdir -p ${WD}/conf/default/etc
-	echo "mount -o ro /dev/${CONFSLICE}" > ${WD}/conf/default/etc/remount
+	echo "mount -o ro /dev/${CFGSLICE}" > ${WD}/conf/default/etc/remount
 	ln -s var/tmp ${WD}/tmp
 	mtree -deU -f ${WD}/etc/mtree/BSD.root.dist -p ${WD}/
 	mtree -deU -f ${WD}/etc/mtree/BSD.usr.dist -p ${WD}/usr
@@ -157,7 +165,10 @@ _.md:	_.cs
 		${SECTS} \
 		${HD} \
 		${SC} \
-		${DATASLICE} \
+		${DATASIZE} \
+		${PRIROOTSLICE} \
+		${ALTROOTSLICE} \
+		${CFGSLICE} \
 		${WD} ${.OBJDIR}/_.i \
 		${CFGMASTER_PATH} \
 		> _.md.tmp 2>&1
