@@ -4,7 +4,7 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id$
+.Id $Id: cvs.1,v 1.15 1996/11/30 19:49:56 kingdon Exp $
 .TH CVS 1 "\*(Dt"
 .\" Full space in nroff; half space in troff
 .de SP
@@ -26,6 +26,11 @@ cvs \- Concurrent Versions System
 ] [
 .I command_args
 ]
+.SH "NOTE"
+This manpage is a summary of some of the features of
+.B cvs
+but for more in-depth documentation, consult cvs.texinfo (as
+described in the SEE ALSO section of this manpage).
 .SH "DESCRIPTION"
 .IX "revision control system" "\fLcvs\fR"
 .IX  cvs  ""  "\fLcvs\fP \- concurrent versions system"
@@ -241,6 +246,11 @@ Makes new working files read-write (default).
 Overrides the setting of the
 .SM CVSREAD
 environment variable.
+.TP
+.B \-x
+Encrypt all communication between the client and the server.  As of
+this writing, this is only implemented when using a Kerberos
+connection.
 .TP
 \fB\-z\fP \fIcompression\-level\fP
 When transferring files across the network use
@@ -1319,22 +1329,8 @@ names associated with
 administration, or with other common source control systems; common
 names for patch files, object files, archive files, and editor backup
 files; and other names that are usually artifacts of assorted utilities.
-Currently, the default list of ignored files includes files matching
-these names:
-.SP
-.in +1i
-.ft B
-.nf
-RCSLOG  RCS  SCCS
-CVS*  cvslog.*
-tags  TAGS
-\&.make.state  .nse_depinfo
-*~  #*  .#*  ,*
-*.old  *.bak  *.BAK  *.orig  *.rej  .del\-*
-*.a  *.o  *.so  *.Z  *.elc  *.ln  core
-.fi
-.ft P
-.in -1i
+For an up to date list of ignored file names, see cvs.texinfo (as
+described in the SEE ALSO section of this manpage).
 .SP
 The outside source is saved in a first-level
 .SM RCS
@@ -1893,21 +1889,9 @@ Use \fB\-I\fP \fIname\fP to ignore files whose names match \fIname\fP
 (in your working directory) during the update.  You can specify
 \fB\-I\fP more than once on the command line to specify several files
 to ignore.  By default,
-\fBupdate\fP ignores files whose names match any of the following:
-.SP
-.in +1i
-.ft B
-.nf
-RCSLOG  RCS  SCCS
-CVS*  cvslog.*
-tags  TAGS
-\&.make.state  .nse_depinfo
-*~  #*  .#*  ,*
-*.old  *.bak  *.BAK  *.orig  *.rej  .del\-*
-*.a  *.o  *.so  *.Z  *.elc  *.ln  core
-.fi
-.ft P
-.in -1i
+\fBupdate\fP ignores files whose names match certain patterns; for
+an up to date list of ignored file names, see cvs.texinfo (as
+described in the SEE ALSO section of this manpage).
 .SP
 Use
 .` "\-I !"
@@ -2170,6 +2154,12 @@ module and vendor branch support and author of the
 shell script (the ancestor of
 .` "cvs import").
 .SH "SEE ALSO"
+The most comprehensive manual for CVS is cvs.texinfo, also known as
+Version Management with CVS by Per Cederqvist et al.  For more
+information about the formats which this manual is in or can be
+converted to (info, postscript, etc.), see the README file in the CVS
+distribution.
+
 .BR ci ( 1 ),
 .BR co ( 1 ),
 .BR cvs ( 5 ),
