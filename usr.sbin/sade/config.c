@@ -532,7 +532,6 @@ configSecurityModerate(dialogMenuItem *self)
 {
     WINDOW *w = savescr();
 
-    variable_set2("nfs_reserved_port_only", "YES", 1);
     variable_set2("sendmail_enable", "YES", 1);
     variable_set2("sshd_enable", "YES", 1);
     variable_set2("kern_securelevel_enable", "NO", 1);
