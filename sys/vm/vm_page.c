@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id$
+ *	$Id: vm_page.c,v 1.76 1997/02/22 09:48:31 peter Exp $
  */
 
 /*
@@ -734,7 +734,7 @@ vm_page_alloc(object, pindex, page_req)
 {
 	register vm_page_t m;
 	struct vpgqueues *pq;
-	int queue;
+	int queue, qtype;
 	int s;
 
 #ifdef DIAGNOSTIC
@@ -835,15 +835,16 @@ vm_page_alloc(object, pindex, page_req)
 	}
 
 	queue = m->queue;
-	if (queue == PQ_ZERO)
+	qtype = queue - m->pc;
+	if (qtype == PQ_ZERO)
 		--vm_page_zero_count;
 	pq = &vm_page_queues[queue];
 	TAILQ_REMOVE(pq->pl, m, pageq);
 	--(*pq->cnt);
 	--(*pq->lcnt);
-	if ((m->queue - m->pc) == PQ_ZERO) {
+	if (qtype == PQ_ZERO) {
 		m->flags = PG_ZERO|PG_BUSY;
-	} else if ((m->queue - m->pc) == PQ_CACHE) {
+	} else if (qtype == PQ_CACHE) {
 		vm_page_remove(m);
 		m->flags = PG_BUSY;
 	} else {
