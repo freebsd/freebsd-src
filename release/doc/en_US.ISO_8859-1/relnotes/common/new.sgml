@@ -967,7 +967,7 @@
     faster. &merged;</para>
 
     <para>&man.newfs.8; now takes a <option>-U</option> option to
-    enable softupdates on a new filesystem.</para>
+    enable softupdates on a new filesystem. &merged;</para>
 
     <para>The default number of cylinders per group in &man.newfs.8;
     is now 22, up from 16.</para>
@@ -1271,14 +1271,14 @@
     of the &man.ata.4; driver.</para>
 
     <para><filename>libcrypt</filename> now has support for Blowfish
-    password hashing.</para>
+    password hashing. &merged;</para>
 
     <para>The functions from <filename>libposix1e</filename> have been 
     integrated into <filename>libc</filename>.</para>
 
     <para>&man.vidcontrol.1; now allows the user to omit the font size
     specification when loading a font, and has some better
-    error-handling.</para>
+    error-handling. &merged;</para>
 
     <para>&man.vidcontrol.1; now supports a <option>-p</option> to
     take a snapshot of a &man.syscons.4; video buffer.  These
@@ -1298,7 +1298,7 @@
     <para>&man.nl.1;, a line numbering filter program, has been added.</para>
 
     <para>&man.c89.1; has been converted from a shell script to a
-    binary executable, fixing some minor bugs.</para>
+    binary executable, fixing some minor bugs. &merged;</para>
 
     <para>&man.pax.1; has received a number of enhancements, including
     &man.cpio.1; functionality, &man.tar.1; compatability
@@ -1332,7 +1332,7 @@
 
     <para>&man.telnet.1; now supports a <option>-u</option> flag to
     allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
-    sockets.</para>
+    sockets. &merged;</para>
 
     <para>The default stripe size in &man.vinum.8; has been changed
     from 256KB to 279KB, to spread out superblocks more evenly between
