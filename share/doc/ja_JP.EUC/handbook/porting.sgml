@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: porting.sgml,v 1.3 1996/12/02 14:21:34 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.38 -->
+<!-- Original revision: 1.44 -->
 
 <sect1><heading>フリーソフトウェアの移植<label id="porting"></heading>
 
@@ -23,7 +23,7 @@
 
 <p>これから, FreeBSD 2.x用のportを作る際の, いくつかのガイドラインを
 説明します. 実際にportをコンパイルするときのほとんどの仕事は 
-<tt>/usr/share/mk/bsd.port.mk</tt>というファイルでおこないます。
+<tt>/usr/share/mk/bsd.port.mk</tt>というファイルでおこないます.
 Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 参照してください.
 
@@ -32,7 +32,7 @@ Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 
       <p>注意: ここでは, 変更可能な変数の一部についてのみ記述してい
 	ます. ほとんどの変数は<tt>bsd.port.mk</tt>の始めに記述があり
-	ます. また、このファイルは非標準のタブの設定になっていま
+	ます. また, このファイルは非標準のタブの設定になっていま
 	す. <tt>Emacs</tt>はファイルのロード時にこれを認識しますが,
 	<tt>vi</tt>や<tt>ex</tt>では, ファイルをロードしたら
 	`<tt>:set tabstop=4</tt>'のようにして正しい値を設定することがで
@@ -119,7 +119,7 @@ Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 2.1.5-RELEASE:                   199607
 2.2-current (1996年7月12日現在): 199608  (リリースが出る毎に変わります)
 </verb></tscreen>
-見ての通り、これは年・月というフォーマットになっています.
+見ての通り, これは年・月というフォーマットになっています.
 
       </itemize>
 
@@ -580,6 +580,22 @@ work/foozolix-1.0/
 	  に, 自動的に最も近いマスタサイトを検出して, そこから取って
 	  くるメカニズムの導入を計画しています.
 
+	<p>オリジナルのtar ファイルが, X-contrib, GNU, Perl CPAN, TeX CTAN 
+	  または Linux Sunsite などの有名なアーカイブにある場合には,
+	  MASTER_SITE_XCONTRIB, MASTER_SITE_GNU,
+	  MASTER_SITE_PERL_CPAN, MASTER_SITE_TEX_CTAN および 
+	  MASTER_SITE_SUNSITE を利用することで, 簡単にこれらのサイトを 
+	  指定することができます. あとは MASTER_SITE_SUBDIR にアーカイ
+	  ブ内でのパスを指定するだけです. 以下に例を示します.
+<tscreen><verb>
+MASTER_SITES=         ${MASTER_SITE_XCONTRIB}
+MASTER_SITE_SUBDIR=   applications
+</verb></tscreen>
+	<p>ユーザは<tt>/etc/make.conf</tt>中で MASTER_SITE_* 変数を設定
+	  することによって, デフォルトの FTP サイトではなく, これらの
+	  有名なアーカイブのミラーの中で好みのものを使用することが可能
+	  です.
+
       <sect3>
 	<heading>PATCHFILES<label id="porting:patchfiles"></heading>
 
@@ -907,23 +923,31 @@ FETCH_DEPENDS=  ncftp2:${PORTSDIR}/net/ncftp2
 	<heading>マニュアルの圧縮, バイナリのstrip</heading>
 
 	<p>マニュアルは圧縮し, バイナリはstripしてください. オリジナル
-	  のソースがやってくれる場合はそれでいいのですが, そうでない場
-	  合には<tt>post-install</tt>ターゲットを指定するのがいいでしょ
-	  う. マニュアルの圧縮を望まないユーザもいますので,
-	  <tt>/etc/make.conf</tt>で指定できる<tt>NOMANCOMPRESS</tt>と
-	  いう変数をチェックするようにしてください. 例えば, こんな風に
-	  なります:
+	  のソースがバイナリを stripしてくれる場合は良いですが,
+	  そうでない場合には <tt>post-install</tt>ターゲットを指定して 
+	  strip するようにするとよいでしょう. 例えば, こんな風になりま
+	  す:
 <tscreen><verb>
  post-install:
 	 strip ${PREFIX}/bin/xdl
- .if !defined(NOMANCOMPRESS)
-	 gzip -9nf ${PREFIX}/man/man1/xdl.1
- .endif
 </verb></tscreen>
-
 	<p>インストールされた実行形式がすでにstripされているかどうか
 	  は<tt>file</tt>コマンドで確認できます. これが`not stripped'
 	  と言わなければ, stripされているということです. 
+
+	<p>MAN[1-9LN] 変数を使用すると, マニュアルの圧縮を自動的に行う
+	  ことができます. この方法を使うと, ユーザが
+	  <tt>/etc/make.conf</tt>中で<tt>NOMANCOMPRESS</tt>を設定し,
+	  マニュアルの圧縮を無効にしているかどうかを確認できます.
+	  これらの変数の指定は, <tt>MAINTAINER</tt> の指定の後
+	  のセクションの一番最後で行ってください. こんな風に指定します:
+<tscreen><verb>
+MAN1=      foo.1 bar.1
+MAN5=      foo.conf.5
+MAN8=      baz.8
+</verb></tscreen>
+	<p>なお, 普通 Imake を使ってコンパイルされる X アプリケーショ
+	  ンの場合はこの指定は必要ありません.
 
       <sect3>
 	<heading>INSTALL_* マクロ</heading>
@@ -1079,20 +1103,21 @@ FETCH_DEPENDS=  ncftp2:${PORTSDIR}/net/ncftp2
       <sect3>
       <heading>ディレクトリ構成</heading>
 
-	<p>インストール時には<tt>&dollar;{PREFIX}</tt>の正しいサブ
-	  ディレクトリにファイルを置くように心がけてください. ソフトウェ
-	  アによっては新しいディレクトリを一つ作ってファイルを全部それ
-	  に入れてしまうものがありますが, それはよくありません. また, 
-	  バイナリ, ヘッダファイルとマニュアル以外のすべてを 
-	  `<tt>lib</tt>'というディレクトリに入れてしまうportもありま
-	  すが, これもBSD的なファイルシステム構成からいうと正しくあり
-	  ません. これは以下のように分散すべきです. `<tt>etc</tt>' に
-	  セットアップ/コンフィグレーションファイル,
-	  `<tt>libexec</tt>' に内部で使用されるプログラム (コマンドラ
-	  インから呼ばれることのないコマンド), `<tt>sbin</tt>' に管理
-	  者用のコマンド, そして `<tt>share</tt>' にアーキテクチャに依
-	  存しないファイルが入ります. 詳細については<tt>hier(7)</tt>
-	  を見てください. <tt>/usr</tt>の構成方針はほとんどそのまま 
+	<p>インストール時には<tt>&dollar;{PREFIX}</tt>の正しいサブディ
+	  レクトリにファイルを置くように心がけてください. ソフトウェア
+	  によっては新しいディレクトリを一つ作ってファイルを全部それに
+	  入れてしまうものがありますが, それはよくありません. また, バ
+	  イナリ, ヘッダファイルとマニュアル以外のすべてを 
+	  `<tt>lib</tt>'というディレクトリに入れてしまうportもあります
+	  が, これもBSD的なファイルシステム構成からいうと正しくありま
+	  せん. これは以下のように分散すべきです. `<tt>etc</tt>' にセッ
+	  トアップ/コンフィグレーションファイル, `<tt>libexec</tt>' に
+	  内部で使用されるプログラム (コマンドラインから呼ばれることの
+	  ないコマンド), `<tt>sbin</tt>' に管理者用のコマンド,
+	  `<tt>info</tt>' に GNU Info 用のドキュメント, そして 
+	  `<tt>share</tt>' にアーキテクチャに依存しないファイルが入り
+	  ます. 詳細については<tt>hier(7)</tt>を見てくださ
+	  い. <tt>/usr</tt>の構成方針はほとんどそのまま 
 	  <tt>/usr/local</tt>にもあてはまります.
 
       <sect3>
@@ -1183,11 +1208,14 @@ lib/libtcl.so.7.3
  
  [ここには標準のbsd.port.mkの変数で, 上のどれにもあてはまらないものを
   書きます]
- [${DISTNAME}以外のディレクトリにソースが展開されるなら...]
- WRKSRC=	${WRKDIR}/xdvi-new
  [コンフィグレーション, コンパイル, インストールなどの時に質問をする
   なら...]
  IS_INTERACTIVE=yes
+ [${DISTNAME}以外のディレクトリにソースが展開されるなら...]
+ WRKSRC=	${WRKDIR}/xdvi-new
+ [配布されているパッチが ${WRKSRC} に対する相対パスで作られてい
+ない場合にこの変数の指定が必要かも...]
+ PATCH_DIST_STRIP=	-p1
  [GNU autoconfによって生成された "configure" スクリプトを走らせたいなら...]
  GNU_CONFIGURE=	yes
  [/usr/bin/makeでなく, GNU makeを使わないといけないなら...]

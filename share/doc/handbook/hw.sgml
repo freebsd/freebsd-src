@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.47 1996/10/29 03:28:04 alex Exp $ -->
+<!-- $Id: hw.sgml,v 1.47.2.1 1996/11/28 08:20:56 phk Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -35,7 +35,7 @@
 <p>The following links have proven useful in selecting hardware.
 Though some of what you see won't necessarily be specific (or even
 applicable) to FreeBSD, most of the hardware information out there
-is OS independant.  Please check with the FreeBSD hardware guide
+is OS independent.  Please check with the FreeBSD hardware guide
 to make sure that your chosen configuration is supported before
 making any purchases.</p>
 
@@ -141,7 +141,7 @@ Slippery when wet.  Beware of dog.
     <p>Generally speaking, most SCSI CDROM drives I've seen have been of
     pretty solid construction and you probably won't go wrong with an HP or
     NEC SCSI CDROM drive either.  SCSI CDROM prices also appear to have
-    dropped considerably in the last few months and are now quite competetive
+    dropped considerably in the last few months and are now quite competitive
     with IDE CDROMs while remaining a technically superior solution.  I now see
     no reason whatsoever to settle for an IDE CDROM drive if given a choice
     between the two.
@@ -217,7 +217,7 @@ Slippery when wet.  Beware of dog.
     <p>Multiport card options are somewhat more numerous, though it has to be
     said that FreeBSD's support for <htmlurl url="http://www.cyclades.com/"
     name="Cyclades">'s products is probably the tightest, primarily as a result
-    of that company's committment to making sure that we are adequately supplied
+    of that company's commitment to making sure that we are adequately supplied
     with evaluation boards and technical specs.  I've heard that the Cyclom-16Ye
     offers the best price/performance, though I've not checked the prices lately.
     Other multiport cards I've heard good things about are the BOCA and AST
@@ -619,7 +619,7 @@ name="Exabyte EXB-8505"></Heading>
 	<p>The boot message identifier for this drive is "EXABYTE
 EXB-85058SQANXR1 05B0" "type 1 removable SCSI 2"
 	<p>This is an 8mm tape drive which supports compression, and is
-              upward compatable with the EXB-5200 and EXB-8500.
+              upward compatible with the EXB-5200 and EXB-8500.
 	<p>Native capacity is 5GB.  
 	<p>The drive supports hardware data compression.
 	<p>Data transfer rate is 300kB/s.
@@ -934,7 +934,7 @@ the benefits and drawbacks of helical-scan apply to both 4mm and
 	<p>8mm tapes are the most common SCSI tape drives; they
 are the best choice of exchanging tapes.  Nearly every site has
 an exabyte 2 GB 8mm tape drive.  8mm drives are reliable,
-convienent and quiet.  Cartidges are inexpensive and small (4.8 x
+convenient and quiet.  Cartridges are inexpensive and small (4.8 x
 3.3 x 0.6 inches; 122 x 84 x 15 mm).  One downside of 8mm tape is
 relatively short head and tape life due to the high rate of
 relative motion of the tape across the heads.

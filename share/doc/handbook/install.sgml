@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.39 1996/11/04 17:21:20 jhay Exp $ -->
+<!-- $Id: install.sgml,v 1.38.2.1 1996/11/06 08:46:38 phk Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -61,7 +61,13 @@ C:\> rawrite
 	    program will prompt you for the floppy drive
 	    containing the disk you want to write to (A: or
 	    B:) and the name of the file to put on disk (boot.flp).
-	  </item>
+
+            <p><bf>Note:</bf>  It has been widely reported that Windows95
+	    will only successfully support rawrite.exe in DOS mode
+	    and that Windows NT prevents it from working at all.  You
+	    will have to make your floppy images on a different machine
+	    if you're running Windows NT and boot first into DOS mode if
+	    you're running Windows95.</p></item>
 
 	  <item>If you are using a UNIX system:
 <tscreen>

@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: sections.sgml,v 1.2 1996/12/02 07:56:12 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.17 -->
+<!-- Original revision: 1.18 -->
 
 <!-- Entities containing all the pieces of the handbook are -->
 <!-- defined here -->
@@ -15,6 +15,7 @@
 <!ENTITY crypt SYSTEM "crypt.sgml">
 <!ENTITY development SYSTEM "development.sgml">
 <!ENTITY dialup SYSTEM "dialup.sgml">
+<!ENTITY dialout SYSTEM "dialout.sgml">
 <!ENTITY diskless SYSTEM "diskless.sgml">
 <!ENTITY dma SYSTEM "dma.sgml">
 <!ENTITY eresources SYSTEM "eresources.sgml">
@@ -32,6 +33,7 @@
 <!ENTITY kernelconfig SYSTEM "kernelconfig.sgml">
 <!ENTITY kerneldebug SYSTEM "kerneldebug.sgml">
 <!ENTITY linuxemu SYSTEM "linuxemu.sgml">
+<!ENTITY mail SYSTEM "mail.sgml">
 <!ENTITY memoryuse SYSTEM "memoryuse.sgml">
 <!ENTITY mirrors SYSTEM "mirrors.sgml">
 <!ENTITY nfs SYSTEM "nfs.sgml">
@@ -45,6 +47,7 @@
 <!ENTITY quotas SYSTEM "quotas.sgml">
 <!ENTITY relnotes SYSTEM "relnotes.sgml">
 <!ENTITY routing SYSTEM "routing.sgml">
+<!ENTITY serial SYSTEM "serial.sgml">
 <!ENTITY scsi SYSTEM "scsi.sgml">
 <!ENTITY sio SYSTEM "sio.sgml">
 <!ENTITY cy SYSTEM "cyclades.sgml">

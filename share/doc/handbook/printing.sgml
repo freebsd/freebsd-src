@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.10 1996/10/04 22:54:11 wosch Exp $
+     $Id: printing.sgml,v 1.11 1996/10/05 18:36:21 wosch Exp $
 
      The FreeBSD Documentation Project
 
@@ -2085,9 +2085,9 @@ lpr -#3 parser.c parser.h
 	    <tt/lprps/) to convert it to PostScript.  It then uses
 	    <tt/lprps/ to send the job to the printer.
 
-	    <tt/lprps/ should be part of the FreeBSD ports collection
-	    (see <ref id="ports" name="The Ports Collection">); if not,
-	    it should be shortly.  You can fetch, build and install it
+	    <tt/lprps/ is part of the FreeBSD ports collection
+	    (see <ref id="ports" name="The Ports Collection">).
+	    You can fetch, build and install it
 	    yourself, of course.  After installing <tt/lprps/, just
 	    specify the pathname to the <tt/psif/ program that is part
 	    of <tt/lprps/.  If you installed <tt/lprps/ from the ports

@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: development.sgml,v 1.2 1996/12/01 11:46:09 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.7 -->
+<!-- Original revision: 1.8 -->
 
 <sect><heading>FreeBSDの開発モデル<label id="development"></heading>
 

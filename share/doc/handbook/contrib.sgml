@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.145.2.3 1996/11/16 21:11:01 phk Exp $ -->
+<!-- $Id: contrib.sgml,v 1.145.2.4 1996/11/21 16:39:12 phk Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -260,6 +260,7 @@
 	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
 	  <item>Keith Moore &lt;?&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
+	  <item>Koichi Sato &lt;copan@ppp.fastnet.or.jp&gt;
 	  <item>Kostya Lukin &lt;lukin@okbmei.msk.su&gt;
 	  <item>Kurt Olsen &lt;kurto@tiny.mcs.usu.edu&gt;
 	  <item>Lars Koeller &lt;Lars_Koeller@odie.physik2.uni-rostock.de&gt;
@@ -268,7 +269,7 @@
 	  <item>Marc Frajola &lt;marc@dev.com&gt;
 	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
 	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
-	  <item>Mark Huizer &lt;xaa@stack.urc.tue.nl&gt;
+	  <item>Mark Huizer &lt;xaa@stack.nl&gt;
 	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
@@ -307,12 +308,14 @@
 	  <item>Robert Sanders &lt;rsanders@mindspring.com&gt;
 	  <item>Robert Withrow &lt;witr@rwwa.com&gt;
 	  <item>Ronald Kuehn &lt;kuehn@rz.tu-clausthal.de&gt;
+	  <item>Sander Vesik &lt;sander@haldjas.folklore.ee&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
 	  <item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
+	  <item>Suzuki Yoshiaki &lt;zensyo@ann.tama.kawasaki.jp&gt;
 	  <item>Taguchi Takeshi &lt;taguchi@tohoku.iij.ad.jp&gt;
 	  <item>Tatsumi Hosokawa &lt;hosokawa@mt.cs.keio.ac.jp&gt;
           <item>Terry Lambert &lt;terry@lambert.org&gt;
