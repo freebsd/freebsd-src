@@ -87,25 +87,6 @@
     <sect2>
       <title>目标用户</title>
 
-<![ %release.type.current; [
-
-      <para>&release.type; 主要是针对富于冒险精神，
-	以及那些希望参与下一步的 &os; 开发的用户。
-	尽管  &os; 开发团队尽最大努力来确保每一个
-	&release.type; 能够像所宣传的那样运行，
-	&release.branch; 仍然处于开发过程中。</para>
-
-      <para>使用这个 &release.type; 的基本要求是精通 &os;
-	并且理解正在进行的 &os; &release.branch; 开发进程
-	(在 &a.current;中讨论)。</para>
-
-      <para>对于那些对在商业中使用 &os; 而不是体验新的 &os;
-	技术感兴趣的人来说，正式的发行版
-	(比如 &release.prev.stable;) 往往更合适。
-	这些版本经历了一定时期的测试和质量保证检测来确保高可用性和可靠性。</para>
-
-]]>
-
 <![ %release.type.snapshot; [
 
       <para>&release.type; 主要目标是有冒险精神的，
