@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.33 1997/10/16 20:32:39 phk Exp $
+ * $Id: ufs_readwrite.c,v 1.34 1997/12/15 03:09:54 wollman Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -55,8 +55,8 @@
 #include <vm/vm.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
-#include <sys/poll.h>
 #endif
+#include <sys/poll.h>
 
 /*
  * Vnode op for reading.
