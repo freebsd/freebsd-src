@@ -115,8 +115,8 @@ bktr_store_address(int unit, int type, vm_offset_t addr)
 {
 
 	if (unit < 0 || unit >= BKTR_MEM_MAX_DEVICES) {
-		printf("bktr_mem: Unit number %d invalid for memory type %d, address 0x%x\n",
-		       unit, type, addr);
+		printf("bktr_mem: Unit number %d invalid for memory type %d, address %p\n",
+		       unit, type, (void *) addr);
 		return;
 	}
 
@@ -142,8 +142,8 @@ bktr_store_address(int unit, int type, vm_offset_t addr)
 		memory_list[unit].addresses_stored = 1;
 		break;
 	default:
-		printf("bktr_mem: Invalid memory type %d for bktr%d, address 0x%xn",
-			type, unit, addr);
+		printf("bktr_mem: Invalid memory type %d for bktr%d, address %p\n",
+			type, unit, (void *)addr);
 		break;
 	}
 }
