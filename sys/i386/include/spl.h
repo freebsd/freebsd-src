@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.11 1995/08/26 20:46:43 bde Exp $
+ *	$Id: spl.h,v 1.8.4.2 1995/12/20 17:29:53 nate Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -62,9 +62,13 @@
  * except SWI_AST_MASK includes SWI_CLOCK_MASK so that softclock() doesn't
  * run while other swi handlers are running and timeout routines can call
  * swi handlers.  Everything includes SWI_AST_MASK so that AST's are masked
- * until just before return to user mode.
+ * until just before return to user mode.  SWI_TTY_MASK includes SWI_NET_MASK
+ * in case tty interrupts are processed at splsofttty() for a tty that is in
+ * SLIP or PPP line discipline (this is weaker than merging net_imask with
+ * tty_imask in isa.c - splimp() must mask hard and soft tty interrupts, but
+ * spltty() apparently only needs to mask soft net interrupts).
  */
-#define	SWI_TTY_MASK	(SWI_TTY_PENDING | SWI_CLOCK_MASK)
+#define	SWI_TTY_MASK	(SWI_TTY_PENDING | SWI_CLOCK_MASK | SWI_NET_MASK)
 #define	SWI_NET_MASK	(SWI_NET_PENDING | SWI_CLOCK_MASK)
 #define	SWI_CLOCK_MASK	(SWI_CLOCK_PENDING | SWI_AST_MASK)
 #define	SWI_AST_MASK	SWI_AST_PENDING
