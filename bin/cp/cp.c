@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cp.c,v 1.2 1994/09/24 02:53:41 davidg Exp $
  */
 
 #ifndef lint
@@ -79,7 +79,7 @@ static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #include "extern.h"
 
 #define	STRIP_TRAILING_SLASH(p) {					\
-        while ((p).p_end > (p).p_path && (p).p_end[-1] == '/')		\
+        while ((p).p_end > (p).p_path + 1 && (p).p_end[-1] == '/')	\
                 *--(p).p_end = 0;					\
 }
 
@@ -253,7 +253,7 @@ copy(argv, type, fts_options)
 	FTS *ftsp;
 	FTSENT *curr;
 	int base, dne, nlen, rval;
-	char *p;
+	char *p, *target_mid;
 
 	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
 		err(1, NULL);
@@ -278,14 +278,6 @@ copy(argv, type, fts_options)
                  * source name to the target name.  
                  */
 		if (type != FILE_TO_FILE) {
-			if ((curr->fts_namelen +
-			    to.target_end - to.p_path + 1) > MAXPATHLEN) {
-				warnx("%s/%s: name too long (not copied)", 
-				    to.p_path, curr->fts_name);
-				rval = 1;
-				continue;
-			}
-
 			/*
 			 * Need to remember the roots of traversals to create
 			 * correct pathnames.  If there's a directory being
@@ -317,15 +309,20 @@ copy(argv, type, fts_options)
 				} else
 					base = curr->fts_pathlen;
 
-			if (to.target_end[-1] != '/') {
-				*to.target_end = '/';
-				*(to.target_end + 1) = 0;
-			}
 			p = &curr->fts_path[base];
 			nlen = curr->fts_pathlen - base;
-
-			(void)strncat(to.target_end + 1, p, nlen);
-			to.p_end = to.target_end + nlen + 1;
+			target_mid = to.target_end;
+			if (*p != '/' && target_mid[-1] != '/')
+				*target_mid++ = '/';
+			*target_mid = 0;
+			if (target_mid - to.p_path + nlen > MAXPATHLEN) {
+				warnx("%s%s: name too long (not copied)", 
+				    to.p_path, p);
+				rval = 1;
+				continue;
+			}
+			(void)strncat(target_mid, p, nlen);
+			to.p_end = target_mid + nlen;
 			*to.p_end = 0;
 			STRIP_TRAILING_SLASH(to);
 		}
