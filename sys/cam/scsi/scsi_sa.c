@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.5 1998/11/22 23:44:47 ken Exp $
+ *      $Id: scsi_sa.c,v 1.6 1998/11/26 10:47:52 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -140,12 +140,13 @@ struct sa_softc {
 	int		blk_shift;
 	u_int32_t	max_blk;
 	u_int32_t	min_blk;
-	u_int8_t	media_density;
-	u_int32_t	media_blksize;
-	u_int32_t	media_numblks;
 	u_int32_t	comp_algorithm;
 	u_int32_t	saved_comp_algorithm;
+	u_int32_t	media_blksize;
+	u_int32_t	media_numblks;
+	u_int8_t	media_density;
 	u_int8_t	speed;
+	u_int8_t	scsi_rev;
 	int		buffer_mode;
 	int		filemarks;
 	union		ccb saved_ccb;
@@ -523,7 +524,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			 ("saioctl: MTIOGET\n"));
 
 		bzero(g, sizeof(struct mtget));
-		g->mt_type = 0x7;	/* Ultrix compat *//*? */
+		g->mt_type = MT_ISAR;	/* Don't ask */
 		g->mt_density = softc->media_density;
 		g->mt_blksiz = softc->media_blksize;
 		if (softc->flags & SA_FLAG_COMP_UNSUPP) {
@@ -642,6 +643,32 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 
 			error = sasetparams(periph, SA_PARAM_BLOCKSIZE, count,
 					    0, 0);
+			if (error == 0) {
+				softc->media_blksize = count;
+				if (count) {
+					softc->flags |= SA_FLAG_FIXED;
+					if (powerof2(count)) {
+						softc->blk_shift =
+						    ffs(count) - 1;
+						softc->blk_mask = count - 1;
+					} else {
+						softc->blk_mask = ~0;
+						softc->blk_shift = 0;
+					}
+				} else {
+					softc->flags &= ~SA_FLAG_FIXED;
+					if (softc->max_blk == 0) {
+						softc->max_blk = ~0;
+					}
+					softc->blk_shift = 0;
+					if (softc->blk_gran != 0) {
+						softc->blk_mask =
+						    softc->blk_gran - 1;
+					} else {
+						softc->blk_mask = 0;
+					}
+				}
+			}
 			break;
 		case MTSETDNSTY:	/* Set density for device and mode */
 			if (count > UCHAR_MAX) {
@@ -866,6 +893,7 @@ saregister(struct cam_periph *periph, void *arg)
 	}
 
 	bzero(softc, sizeof(*softc));
+	softc->scsi_rev = SID_ANSI_REV(&cgd->inq_data);
 	softc->state = SA_STATE_NORMAL;
 	bufq_init(&softc->buf_queue);
 	periph->softc = softc;
@@ -969,8 +997,17 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 					length =
 					    bp->b_bcount >> softc->blk_shift;
 				} else {
+					if (softc->media_blksize == 0) {
+						bp->b_error = EIO;
+						xpt_print_path(periph->path);
+						printf("zero blocksize for "
+						    "FIXED length writes?\n");
+						splx(s);
+						biodone(bp);
+						break;
+					}
 					length =
-					    bp->b_bcount / softc->min_blk;
+					    bp->b_bcount / softc->media_blksize;
 				}
 			} else {
 				length = bp->b_bcount;
@@ -1093,6 +1130,13 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 				softc->filemarks = 0;
 			}
 		}
+#ifdef	CAMDEBUG
+		if (error || bp->b_resid) {
+			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			    	  ("error %d resid %ld count %ld\n", error,
+				  bp->b_resid, bp->b_bcount));
+		}
+#endif
 
 		devstat_end_transaction(&softc->device_stats,
 					bp->b_bcount - bp->b_resid,
@@ -1182,38 +1226,32 @@ samount(struct cam_periph *periph)
 
 		xpt_release_ccb(ccb);
 
-		if (error != 0)
-			goto exit;
-
-		softc->blk_gran = RBL_GRAN(rblim);
-		softc->max_blk = scsi_3btoul(rblim->maximum);
-		softc->min_blk = scsi_2btoul(rblim->minimum);
-		if (softc->max_blk == softc->min_blk) {
-			softc->flags |= SA_FLAG_FIXED;
-			if (powerof2(softc->min_blk)) {
-				softc->blk_mask = softc->min_blk - 1;
-				softc->blk_shift = 0;
-				softc->blk_shift = ffs(softc->min_blk) - 1;
-			} else {
-				softc->blk_mask = ~0;
-				softc->blk_shift = 0;
-			}
-		} else {
+		if (error != 0) {
 			/*
-			 * SCSI-III spec allows 0
-			 * to mean "unspecified"
+			 * If it's less than SCSI-2, READ BLOCK LIMITS is not
+			 * a MANDATORY command. Anyway- it doesn't matter-
+			 * we can proceed anyway.
 			 */
-			if (softc->max_blk == 0) {
-				softc->max_blk = ~0;
-			}
-			softc->blk_shift = 0;
-			if (softc->blk_gran != 0) {
-				softc->blk_mask = softc->blk_gran - 1;
+			softc->blk_gran = 0;
+			softc->max_blk = ~0;
+			softc->min_blk = 0;
+		} else {
+			if (softc->scsi_rev >= SCSI_REV_3) {
+				softc->blk_gran = RBL_GRAN(rblim);
 			} else {
-				softc->blk_mask = 0;
+				softc->blk_gran = 0;
 			}
-		}
+			/*
+			 * We take max_blk == min_blk to mean a default to
+			 * fixed mode- but note that whatever we get out of
+			 * sagetparams below will actually determine whether
+			 * we are actually *in* fixed mode.
+			 */
+			softc->max_blk = scsi_3btoul(rblim->maximum);
+			softc->min_blk = scsi_2btoul(rblim->minimum);
 
+
+		}
 		/*
 		 * Next, perform a mode sense to determine
 		 * current density, blocksize, compression etc.
@@ -1227,8 +1265,57 @@ samount(struct cam_periph *periph)
 				    &comp_enabled, &softc->comp_algorithm,
 				    NULL);
 
-		if (error != 0)
+		if (error != 0) {
+			/*
+			 * We could work a little harder here. We could
+			 * adjust our attempts to get information. It
+			 * might be an ancient tape drive. If someone
+			 * nudges us, we'll do that.
+			 */
 			goto exit;
+		}
+
+		if ((softc->max_blk < softc->media_blksize) ||
+		    (softc->min_blk > softc->media_blksize &&
+		    softc->media_blksize)) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("BLOCK LIMITS (%d..%d) could not match current "
+			    "block settings (%d)- adjusting\n", softc->min_blk,
+			    softc->max_blk, softc->media_blksize);
+			softc->max_blk = softc->min_blk =
+			    softc->media_blksize;
+		}
+		/*
+		 * Now that we have the current block size,
+		 * set up some parameters for sastart's usage.
+		 */
+		if (softc->media_blksize) {
+			softc->flags |= SA_FLAG_FIXED;
+			if (powerof2(softc->media_blksize)) {
+				softc->blk_shift =
+				    ffs(softc->media_blksize) - 1;
+				softc->blk_mask = softc->media_blksize - 1;
+			} else {
+				softc->blk_mask = ~0;
+				softc->blk_shift = 0;
+			}
+		} else {
+			/*
+			 * The SCSI-3 spec allows 0 to mean "unspecified".
+			 * The SCSI-1 spec allows 0 to mean 'infinite'.
+			 *
+			 * Either works here.
+			 */
+			if (softc->max_blk == 0) {
+				softc->max_blk = ~0;
+			}
+			softc->blk_shift = 0;
+			if (softc->blk_gran != 0) {
+				softc->blk_mask = softc->blk_gran - 1;
+			} else {
+				softc->blk_mask = 0;
+			}
+		}
 
 		if (write_protect) 
 			softc->flags |= SA_FLAG_TAPE_WP;
@@ -1331,8 +1418,10 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		} else {
 			resid = csio->dxfer_len;
 			info = resid;
-			if ((softc->flags & SA_FLAG_FIXED) != 0)
-				info /= softc->media_blksize;
+			if ((softc->flags & SA_FLAG_FIXED) != 0) {
+				if (softc->media_blksize)
+					info /= softc->media_blksize;
+			}
 		}
 		if ((resid > 0 && resid < csio->dxfer_len)
 		 && (softc->flags & SA_FLAG_FIXED) != 0)
@@ -1461,7 +1550,7 @@ retry:
 	 && (params_to_get & SA_PARAM_COMPRESSION) != 0) {
 		/*
 		 * Most likely doesn't support the compression
-		 * page.  Remeber this for the future and attempt
+		 * page.  Remember this for the future and attempt
 		 * the request without asking for compression info.
 		 */
 		softc->quirks |= SA_QUIRK_NOCOMP;
@@ -1654,12 +1743,17 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 		scsi_ulto3b(current_blocksize, mode_blk->blklen);
 
 	/*
-	 * 0x7f means "same as before"
+	 * Set density if requested, else preserve old density.
+	 * SCSI_SAME_DENSITY only applies to SCSI-2 or better
+	 * devices, else density we've latched up in our softc.
 	 */
-	if (params_to_set & SA_PARAM_DENSITY)
+	if (params_to_set & SA_PARAM_DENSITY) {
 		mode_blk->density = density;
-	else
-		mode_blk->density = 0x7f;
+	} else if (softc->scsi_rev > SCSI_REV_CCS) {
+		mode_blk->density = SCSI_SAME_DENSITY;
+	} else {
+		mode_blk->density = softc->media_density;
+	}
 
 	/*
 	 * For mode selects, these two fields must be zero.
@@ -1751,6 +1845,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 
 	ccb = cam_periph_getccb(periph, /*priority*/ 1);
 
+
 	scsi_mode_select(&ccb->csio,
 			/*retries*/1,
 			/*cbfcnp*/ sadone,
@@ -1762,6 +1857,15 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 			/*param_len*/ mode_buffer_len,
 			/*sense_len*/ SSD_FULL_SIZE,
 			/*timeout*/ 5000);
+
+	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
+		char *xyz = mode_buffer;
+		xpt_print_path(periph->path);
+		printf("Mode Select Data=");
+		for (error = 0; error < mode_buffer_len; error++)
+			printf(" 0x%02x", xyz[error]);
+		printf("\n");
+	}
 
 	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/ 0,
 				  /*sense_flags*/ 0, &softc->device_stats);
@@ -1783,12 +1887,17 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 		scsi_ulto3b(current_blocksize, mode_blk->blklen);
 
 		/*
-		 * 0x7f means "same as before".
+		 * Set density if requested, else preserve old density.
+		 * SCSI_SAME_DENSITY only applies to SCSI-2 or better
+		 * devices, else density we've latched up in our softc.
 		 */
-		if (params_to_set & SA_PARAM_DENSITY)
+		if (params_to_set & SA_PARAM_DENSITY) {
 			mode_blk->density = current_density;
-		else
-			mode_blk->density = 0x7f;
+		} else if (softc->scsi_rev > SCSI_REV_CCS) {
+			mode_blk->density = SCSI_SAME_DENSITY;
+		} else {
+			mode_blk->density = softc->media_density;
+		}
 
 		if (params_to_set & SA_PARAM_COMPRESSION)
 			bcopy(current_comp_page, comp_page,
@@ -2019,8 +2128,13 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 {
 	union ccb *ccb;
 	struct sa_softc *softc;
-	int error;
+	int error, sflags;
 
+	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO))
+		sflags = SF_RETRY_UA;
+	else
+		sflags = SF_RETRY_UA|SF_QUIET_IR;
+		
 	softc = (struct sa_softc *)periph->softc;
 
 	ccb = cam_periph_getccb(periph, /*priority*/ 1);
@@ -2041,7 +2155,7 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 	 * condition pending.
 	 */
 	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA,
+				  /*sense_flags*/sflags,
 				  &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -2052,6 +2166,13 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 				 /*getcount_only*/0);
 
 	xpt_release_ccb(ccb);
+
+	/*
+	 * If the error was Illegal Request, then the device doesn't support
+	 * RESERVE/RELEASE. This is not an error.
+	 */
+	if (error == EINVAL)
+		error = 0;
 
 	return (error);
 }
