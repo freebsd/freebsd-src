@@ -31,15 +31,12 @@ __FBSDID("$FreeBSD$");
 #ifndef PC98
 #define	HAVE_GEOM
 #endif
-#ifdef HAVE_GEOM
 #include <ctype.h>
 #include <errno.h>
 #include <assert.h>
-#endif /*HAVE_GEOM*/
 
 #ifndef PC98
 #define DOSPTYP_EXTENDED        5
-#define DOSPTYP_ONTRACK         84
 #endif
 
 #ifdef DEBUG
@@ -76,7 +73,6 @@ Read_Int32(u_int32_t *p)
 }
 #endif
 
-#ifdef HAVE_GEOM
 /*
  * XXX BEGIN HACK XXX
  * Scan/parse the XML geom data to retrieve what we need to
@@ -456,7 +452,6 @@ assignToPartition(void *arg, XMLToken t, u_int *part, u_int64_t v)
 	return 0;
 }
 #undef N
-#endif /*HAVE_GEOM*/
 
 struct disk *
 Int_Open_Disk(const char *name, u_long size)
@@ -473,15 +468,10 @@ Int_Open_Disk(const char *name, u_long size)
 	struct dos_partition *dp;
 	void *p;
 #endif
-#ifdef HAVE_GEOM
 	char *confxml = NULL;
 	size_t xmlsize;
 	u_int64_t mediasize;
 	int error;
-#else
-	u_long sector_size;
-	char *buf;
-#endif /*HAVE_GEOM*/
 
 	strlcpy(device, _PATH_DEV, sizeof(device));
 	strlcat(device, name, sizeof(device));
@@ -498,7 +488,6 @@ Int_Open_Disk(const char *name, u_long size)
 
 	memset(&dl, 0, sizeof dl);
 	memset(&ds, 0, sizeof ds);
-#ifdef HAVE_GEOM
 	/*
 	 * Read and hack-parse the XML that provides the info we need.
 	 */
@@ -555,51 +544,6 @@ Int_Open_Disk(const char *name, u_long size)
 	dl.d_ncylinders = size / (dl.d_ntracks * dl.d_nsectors);
 	/* "whole disk" slice maintained for compatibility */
 	ds.dss_slices[WHOLE_DISK_SLICE].ds_size = size;
-#else /* !HAVE_GEOM */
-	if (ioctl(fd, DIOCGDINFO, &dl) < 0) {
-		DPRINT(("DIOCGDINFO(%s) failed", device));
-		goto bad;
-	}
-	i = ioctl(fd, DIOCGSLICEINFO, &ds);
-	if (i < 0) {
-		DPRINT(("DIOCGSLICEINFO(%s) failed", device));
-		goto bad;
-	}
-
-#ifdef DEBUG
-	for(i = 0; i < ds.dss_nslices; i++)
-		if(ds.dss_slices[i].ds_openmask)
-			printf("  open(%d)=0x%2x",
-				i, ds.dss_slices[i].ds_openmask);
-	printf("\n");
-#endif
-
-/* XXX --- ds.dss_slice[WHOLE_DISK_SLICE].ds.size of MO disk is wrong!!! */
-#ifdef PC98
-	if (!size)
-		size = dl.d_ncylinders * dl.d_ntracks * dl.d_nsectors;
-#else
-	if (!size)
-		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
-#endif
-
-	/* determine media sector size */
-	if ((buf = malloc(MAX_SEC_SIZE)) == NULL)
-		return NULL;
-	for (sector_size = MIN_SEC_SIZE; sector_size <= MAX_SEC_SIZE; sector_size *= 2) {
-		if (read(fd, buf, sector_size) == sector_size) {
-			d->sector_size = sector_size;
-			break;
-		}
-	}
-	free (buf);
-	if (sector_size > MAX_SEC_SIZE) {
-		DPRINT(("Int_Open_Disk: could not determine sector size, "
-		     "calculated %u, max %u\n", sector_size, MAX_SEC_SIZE));
-		/* could not determine sector size */
-		goto bad;
-	}
-#endif /*HAVE_GEOM*/
 
 #ifdef PC98
 	p = (unsigned char*)read_block(fd, 1, d->sector_size);
@@ -707,32 +651,10 @@ Int_Open_Disk(const char *name, u_long size)
 		if (ds.dss_slices[i].ds_type != 0xa5)
 #endif
 			continue;
-#ifdef HAVE_GEOM
 		if (xmlparse(confxml, "BSD", sname, assignToPartition, &dl) != 0) {
 			DPRINTX(("Error parsing MBR geometry specification."));
 			goto bad;
 		}
-#else
-		{
-		struct disklabel dl;
-		int k;
-
-		strlcpy(pname, _PATH_DEV, sizeof(pname));
-		strlcat(pname, sname, sizeof(pname));
-		j = open(pname, O_RDONLY);
-		if (j < 0) {
-			DPRINT(("open(%s)", pname));
-			continue;
-		}
-		k = ioctl(j, DIOCGDINFO, &dl);
-		if (k < 0) {
-			DPRINT(("ioctl(%s, DIOCGDINFO)", pname));
-			close(j);
-			continue;
-		}
-		close(j);
-		}
-#endif /*HAVE_GEOM*/
 
 		for(j = 0; j <= dl.d_npartitions; j++) {
 			if (j == RAW_PART)
@@ -828,10 +750,8 @@ pc98_mo_done:
 	Fixup_Names(d);
 	return d;
 bad:
-#ifdef HAVE_GEOM
 	if (confxml != NULL)
 		free(confxml);
-#endif
 	if (fd >= 0)
 		close(fd);
 	return NULL;
