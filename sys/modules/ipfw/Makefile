@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../netinet
 
 KMOD=	ipfw
-SRCS=	ip_fw.c
+SRCS=	ip_fw2.c
 
 CFLAGS+= -DIPFIREWALL
 #
