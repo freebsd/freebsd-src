@@ -163,6 +163,8 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 	u_long ipackets;
 	u_long obytes;
 	u_long ibytes;
+	u_long omcasts;
+	u_long imcasts;
 	u_long oerrors;
 	u_long ierrors;
 	u_long collisions;
@@ -248,6 +250,8 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		ipackets = ifnet.if_ipackets;
 		obytes = ifnet.if_obytes;
 		ibytes = ifnet.if_ibytes;
+		omcasts = ifnet.if_omcasts;
+		imcasts = ifnet.if_imcasts;
 		oerrors = ifnet.if_oerrors;
 		ierrors = ifnet.if_ierrors;
 		collisions = ifnet.if_collisions;
@@ -465,9 +469,17 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 					}
 					break;
 				}
-				if (fmt)
-					printf("%*s %s\n",
+				if (fmt) {
+					printf("%*s %-17.17s",
 					    Wflag ? 27 : 25, "", fmt);
+					if (msa.sa.sa_family == AF_LINK) {
+						printf(" %8lu", imcasts);
+						printf("%*s",
+						    bflag ? 17 : 6, "");
+						printf(" %8lu", omcasts);
+					}
+					putchar('\n');
+				}
 			}
 		}
 	}
