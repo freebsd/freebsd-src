@@ -97,6 +97,7 @@ MAN=	aac.4 \
 	mlx.4 \
 	mly.4 \
 	mouse.4 \
+	mpt.4 \
 	mtio.4 \
 	multicast.4 \
 	my.4 \

@@ -69,6 +69,10 @@
 #define	PCI_PRODUCT_LSI_FC929		0x0622
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC929X
+#define	PCI_PRODUCT_LSI_FC929X		0x0626
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_1030
 #define	PCI_PRODUCT_LSI_1030		0x0030
 #endif
@@ -156,6 +160,9 @@ mpt_probe(device_t dev)
 		break;
 	case PCI_PRODUCT_LSI_FC929:
 		desc = "LSILogic FC929 FC Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC929X:
+		desc = "LSILogic FC929X FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_1030:
 		desc = "LSILogic 1030 Ultra4 Adapter";
