@@ -94,7 +94,7 @@ main(argc, argv)
 
 	tag = NULL;
 	host = NULL;
-	pri = LOG_NOTICE;
+	pri = LOG_USER | LOG_NOTICE;
 	logflags = 0;
 	unsetenv("TZ");
 	while ((ch = getopt(argc, argv, "46Af:h:ip:st:")) != -1)
