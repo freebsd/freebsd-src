@@ -37,6 +37,7 @@
 
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <unistd.h>
@@ -471,8 +472,8 @@ g_handleattr(struct bio *bp, char *attribute, void *val, int len)
 	if (strcmp(bp->bio_attribute, attribute))
 		return (0);
 	if (bp->bio_length != len) {
-		printf("bio_length %lld len %d -> EFAULT\n",
-		    (long long)bp->bio_length, len);
+		printf("bio_length %jd len %d -> EFAULT\n",
+		    (intmax_t)bp->bio_length, len);
 		error = EFAULT;
 	} else {
 		error = 0;

@@ -37,6 +37,7 @@
 
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <unistd.h>
@@ -210,19 +211,19 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 
 	gsp = gp->softc;
 	if (gp != NULL && (pp == NULL && cp == NULL)) {
-		sbuf_printf(sb, "%s<frontstuff>%llu</frontstuff>\n",
-		    indent, (unsigned long long)gsp->frontstuff);
+		sbuf_printf(sb, "%s<frontstuff>%ju</frontstuff>\n",
+		    indent, (intmax_t)gsp->frontstuff);
 	}
 	if (pp != NULL) {
 		sbuf_printf(sb, "%s<index>%u</index>\n", indent, pp->index);
-		sbuf_printf(sb, "%s<length>%llu</length>\n",
-		    indent, (unsigned long long)gsp->slices[pp->index].length);
-		sbuf_printf(sb, "%s<seclength>%llu</seclength>\n", indent,
-		    (unsigned long long)gsp->slices[pp->index].length / 512);
-		sbuf_printf(sb, "%s<offset>%llu</offset>\n", indent,
-		    (unsigned long long)gsp->slices[pp->index].offset);
-		sbuf_printf(sb, "%s<secoffset>%llu</secoffset>\n", indent,
-		    (unsigned long long)gsp->slices[pp->index].offset / 512);
+		sbuf_printf(sb, "%s<length>%ju</length>\n",
+		    indent, (uintmax_t)gsp->slices[pp->index].length);
+		sbuf_printf(sb, "%s<seclength>%ju</seclength>\n", indent,
+		    (uintmax_t)gsp->slices[pp->index].length / 512);
+		sbuf_printf(sb, "%s<offset>%ju</offset>\n", indent,
+		    (uintmax_t)gsp->slices[pp->index].offset);
+		sbuf_printf(sb, "%s<secoffset>%ju</secoffset>\n", indent,
+		    (uintmax_t)gsp->slices[pp->index].offset / 512);
 	}
 }
 

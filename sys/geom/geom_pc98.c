@@ -37,6 +37,7 @@
 
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <string.h>
@@ -121,8 +122,8 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		error = g_getattr("GEOM::mediasize", cp, &mediasize);
 		if (error) {
 			mediasize = 0;
-			printf("g_error %d Mediasize is %lld bytes\n",
-			    error, (long long)mediasize);
+			printf("g_error %d Mediasize is %jd bytes\n",
+			    error, (intmax_t)mediasize);
 		}
 		error = g_getattr("GEOM::fwsectors", cp, &fwsect);
 		if (error || fwsect == 0) {

@@ -36,6 +36,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -352,8 +353,8 @@ g_dev_done(struct bio *bp2)
 		    bp2, bp->bio_error);
 		bp->bio_flags |= BIO_ERROR;
 	} else {
-		g_trace(G_T_BIO, "g_dev_done(%p/%p) resid %ld completed %lld",
-		    bp2, bp, bp->bio_resid, bp2->bio_completed);
+		g_trace(G_T_BIO, "g_dev_done(%p/%p) resid %ld completed %jd",
+		    bp2, bp, bp->bio_resid, (intmax_t)bp2->bio_completed);
 	}
 	bp->bio_resid = bp->bio_bcount - bp2->bio_completed;
 	g_destroy_bio(bp2);
@@ -378,9 +379,9 @@ g_dev_strategy(struct bio *bp)
 	bp2->bio_length = (off_t)bp->bio_bcount;
 	bp2->bio_done = g_dev_done;
 	g_trace(G_T_BIO,
-	    "g_dev_strategy(%p/%p) offset %lld length %lld data %p cmd %d",
-	    bp, bp2, bp->bio_offset, bp2->bio_length, bp2->bio_data,
-	    bp2->bio_cmd);
+	    "g_dev_strategy(%p/%p) offset %jd length %jd data %p cmd %d",
+	    bp, bp2, (intmax_t)bp->bio_offset, (intmax_t)bp2->bio_length,
+	    bp2->bio_data, bp2->bio_cmd);
 	g_io_request(bp2, cp);
 }
 
