@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.32 1998/05/19 12:02:41 phk Exp $";
+	"$Id: syslogd.c,v 1.33 1998/06/10 04:34:56 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -130,6 +130,7 @@ const char	ctty[] = _PATH_CONSOLE;
 #define SYNC_FILE	0x002	/* do fsync on file after printing */
 #define ADDDATE		0x004	/* add a date to the message */
 #define MARK		0x008	/* this message is a mark */
+#define ISKERNEL	0x010	/* kernel generated message */
 
 /*
  * This structure represents the files that will have log
@@ -541,12 +542,10 @@ printsys(msg)
 	char *msg;
 {
 	int c, pri, flags;
-	char *lp, *p, *q, line[MAXLINE + 1];
+	char *p, *q;
 
 	for (p = msg; *p != '\0'; ) {
-
-		/* Get message priority, if any */
-		flags = SYNC_FILE | ADDDATE;	/* fsync file after write */
+		flags = ISKERNEL | SYNC_FILE | ADDDATE;	/* fsync after write */
 		pri = DEFSPRI;
 		if (*p == '<') {
 			pri = 0;
@@ -560,24 +559,11 @@ printsys(msg)
 		}
 		if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 			pri = DEFSPRI;
-
-		/* See if kernel provided a prefix; if not, use kernel name */
-		for (q = p; *q && isalnum(*q); q++);
-		if (*q == ':') {
-			lp = line;
-		} else {
-			(void)strcpy(line, bootfile);
-			(void)strcat(line, ": ");
-			lp = line + strlen(line);
-		}
-
-		/* Append message body to prefix */
-		q = lp;
-		while (*p != '\0' && (c = *p++) != '\n' &&
-		    q < &line[MAXLINE])
-			*q++ = c;
-		*q = '\0';
-		logmsg(pri, line, LocalHostName, flags);
+		for (q = p; *q != '\0' && *q != '\n'; q++);
+		if (*q != '\0')
+			*q++ = '\0';
+		logmsg(pri, p, LocalHostName, flags);
+		p = q;
 	}
 }
 
@@ -594,10 +580,10 @@ logmsg(pri, msg, from, flags)
 	int flags;
 {
 	struct filed *f;
-	int fac, msglen, omask, prilev;
+	int i, fac, msglen, omask, prilev;
 	char *timestamp;
  	char prog[NAME_MAX+1];
- 	int i;
+	char buf[MAXLINE+1];
 
 	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n",
 	    pri, flags, from, msg);
@@ -641,6 +627,13 @@ logmsg(pri, msg, from, flags)
 		prog[i] = msg[i];
 	}
 	prog[i] = 0;
+
+	/* add kernel prefix for kernel messages */
+	if (flags & ISKERNEL) {
+		snprintf(buf, sizeof(buf), "%s: %s", bootfile, msg);
+		msg = buf;
+		msglen = strlen(buf);
+	}
 
 	/* log the message to the particular outputs */
 	if (!Initialized) {
