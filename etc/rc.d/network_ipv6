@@ -151,7 +151,9 @@ network6_pass1() {
 		case ${rtadvd_enable} in
 		[Yy][Ee][Ss])
 			# default
-			rtadvd ${ipv6_network_interfaces}
+			rtadvd_interfaces=`echo ${ipv6_network_interfaces} | \
+				sed -e 's/ stf0//'`
+			rtadvd ${rtadvd_interfaces}
 			#
 			# Enable Router Renumbering, unicast case
 			# (use correct src/dst addr)
