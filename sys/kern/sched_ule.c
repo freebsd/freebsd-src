@@ -78,8 +78,9 @@ int realstathz;
 int tickincr = 1;
 
 #ifdef SMP
-/* Callout to handle load balancing SMP systems. */
+/* Callouts to handle load balancing SMP systems. */
 static struct callout kseq_lb_callout;
+static struct callout kseq_group_callout;
 #endif
 
 /*
@@ -234,6 +235,7 @@ struct kseq_group {
 	int	ksg_cpumask;		/* Mask of cpus in this group. */
 	int	ksg_idlemask;		/* Idle cpus in this group. */
 	int	ksg_mask;		/* Bit mask for first cpu. */
+	int	ksg_load;		/* Total load of this group. */
 	int	ksg_transferable;	/* Transferable load of this group. */
 	LIST_HEAD(, kseq)	ksg_members; /* Linked list of all members. */
 };
@@ -244,10 +246,13 @@ struct kseq_group {
  */
 #ifdef SMP
 static int kseq_idle;
+static int ksg_maxid;
 static struct kseq	kseq_cpu[MAXCPU];
 static struct kseq_group kseq_groups[MAXCPU];
 #define	KSEQ_SELF()	(&kseq_cpu[PCPU_GET(cpuid)])
 #define	KSEQ_CPU(x)	(&kseq_cpu[(x)])
+#define	KSEQ_ID(x)	((x) - kseq_cpu)
+#define	KSEQ_GROUP(x)	(&kseq_groups[(x)])
 #else	/* !SMP */
 static struct kseq	kseq_cpu;
 #define	KSEQ_SELF()	(&kseq_cpu)
@@ -275,6 +280,8 @@ void kseq_print(int cpu);
 static int kseq_transfer(struct kseq *ksq, struct kse *ke, int class);
 static struct kse *runq_steal(struct runq *rq);
 static void sched_balance(void *arg);
+static void sched_balance_group(struct kseq_group *ksg);
+static void sched_balance_pair(struct kseq *high, struct kseq *low);
 static void kseq_move(struct kseq *from, int cpu);
 static int kseq_idled(struct kseq *kseq);
 static void kseq_notify(struct kse *ke, int cpu);
@@ -340,6 +347,10 @@ kseq_load_add(struct kseq *kseq, struct kse *ke)
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare++;
 	kseq->ksq_load++;
+#ifdef SMP
+	if (class != PRI_ITHD)
+		kseq->ksq_group->ksg_load++;
+#endif
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 		CTR6(KTR_ULE,
 		    "Add kse %p to %p (slice: %d, pri: %d, nice: %d(%d))",
@@ -357,6 +368,10 @@ kseq_load_rem(struct kseq *kseq, struct kse *ke)
 	class = PRI_BASE(ke->ke_ksegrp->kg_pri_class);
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare--;
+#ifdef SMP
+	if (class != PRI_ITHD)
+		kseq->ksq_group->ksg_load--;
+#endif
 	kseq->ksq_load--;
 	ke->ke_runq = NULL;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
@@ -421,75 +436,128 @@ kseq_nice_rem(struct kseq *kseq, int nice)
 static void
 sched_balance(void *arg)
 {
-	struct kseq *kseq;
-	int transferable;
-	int high_load;
-	int low_load;
-	int high_cpu;
-	int low_cpu;
-	int move;
-	int diff;
+	struct kseq_group *high;
+	struct kseq_group *low;
+	struct kseq_group *ksg;
+	int timo;
+	int cnt;
 	int i;
-
-	high_cpu = 0;
-	low_cpu = 0;
-	high_load = 0;
-	low_load = -1;
 
 	mtx_lock_spin(&sched_lock);
 	if (smp_started == 0)
 		goto out;
-
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
-			continue;
-		kseq = KSEQ_CPU(i);
+	low = high = NULL;
+	i = random() % (ksg_maxid + 1);
+	for (cnt = 0; cnt <= ksg_maxid; cnt++) {
+		ksg = KSEQ_GROUP(i);
 		/*
-		 * Find the CPU with the highest load that has some threads
-		 * to transfer.
+		 * Find the CPU with the highest load that has some
+		 * threads to transfer.
 		 */
-		if (kseq->ksq_load > high_load &&
-		    kseq->ksq_group->ksg_transferable) {
-			high_load = kseq->ksq_load;
-			high_cpu = i;
-		}
-		if (low_load == -1 || kseq->ksq_load < low_load) {
-			low_load = kseq->ksq_load;
-			low_cpu = i;
-		}
+		if ((high == NULL || ksg->ksg_load > high->ksg_load)
+		    && ksg->ksg_transferable)
+			high = ksg;
+		if (low == NULL || ksg->ksg_load < low->ksg_load)
+			low = ksg;
+		if (++i > ksg_maxid)
+			i = 0;
 	}
-	kseq = KSEQ_CPU(high_cpu);
-	/*
-	 * Nothing to do.
-	 */
-	if (low_load >= high_load)
-		goto out;
+	if (low != NULL && high != NULL && high != low)
+		sched_balance_pair(LIST_FIRST(&high->ksg_members),
+		    LIST_FIRST(&low->ksg_members));
+out:
+	mtx_unlock_spin(&sched_lock);
+	timo = random() % (hz * 2);
+	callout_reset(&kseq_lb_callout, timo, sched_balance, NULL);
+}
+
+static void
+sched_balance_groups(void *arg)
+{
+	int timo;
+	int i;
+
+	mtx_lock_spin(&sched_lock);
+	if (smp_started)
+		for (i = 0; i <= ksg_maxid; i++)
+			sched_balance_group(KSEQ_GROUP(i));
+	mtx_unlock_spin(&sched_lock);
+	timo = random() % (hz * 2);
+	callout_reset(&kseq_group_callout, timo, sched_balance_groups, NULL);
+}
+
+static void
+sched_balance_group(struct kseq_group *ksg)
+{
+	struct kseq *kseq;
+	struct kseq *high;
+	struct kseq *low;
+	int load;
+
+	if (ksg->ksg_transferable == 0)
+		return;
+	low = NULL;
+	high = NULL;
+	LIST_FOREACH(kseq, &ksg->ksg_members, ksq_siblings) {
+		load = kseq->ksq_load;
+		if (kseq == KSEQ_CPU(0))
+			load--;
+		if (high == NULL || load > high->ksq_load)
+			high = kseq;
+		if (low == NULL || load < low->ksq_load)
+			low = kseq;
+	}
+	if (high != NULL && low != NULL && high != low)
+		sched_balance_pair(high, low);
+}
+
+static void
+sched_balance_pair(struct kseq *high, struct kseq *low)
+{
+	int transferable;
+	int high_load;
+	int low_load;
+	int move;
+	int diff;
+	int i;
+
 	/*
 	 * If we're transfering within a group we have to use this specific
 	 * kseq's transferable count, otherwise we can steal from other members
 	 * of the group.
 	 */
-	if (kseq->ksq_group == KSEQ_CPU(low_cpu)->ksq_group)
-		transferable = kseq->ksq_transferable;
-	else
-		transferable = kseq->ksq_group->ksg_transferable;
+	if (high->ksq_group == low->ksq_group) {
+		transferable = high->ksq_transferable;
+		high_load = high->ksq_load;
+		low_load = low->ksq_load;
+		/*
+		 * XXX If we encounter cpu 0 we must remember to reduce it's
+		 * load by 1 to reflect the swi that is running the callout.
+		 * At some point we should really fix load balancing of the
+		 * swi and then this wont matter.
+		 */
+		if (high == KSEQ_CPU(0))
+			high_load--;
+		if (low == KSEQ_CPU(0))
+			low_load--;
+	} else {
+		transferable = high->ksq_group->ksg_transferable;
+		high_load = high->ksq_group->ksg_load;
+		low_load = low->ksq_group->ksg_load;
+	}
 	if (transferable == 0)
-		goto out;
+		return;
 	/*
 	 * Determine what the imbalance is and then adjust that to how many
 	 * kses we actually have to give up (transferable).
 	 */
-	diff = kseq->ksq_load - low_load;
+	diff = high_load - low_load;
 	move = diff / 2;
 	if (diff & 0x1)
 		move++;
 	move = min(move, transferable);
 	for (i = 0; i < move; i++)
-		kseq_move(kseq, low_cpu);
-out:
-	mtx_unlock_spin(&sched_lock);
-	callout_reset(&kseq_lb_callout, hz, sched_balance, NULL);
-
+		kseq_move(high, KSEQ_ID(low));
 	return;
 }
 
@@ -763,6 +831,7 @@ static void
 sched_setup(void *dummy)
 {
 #ifdef SMP
+	int balance_groups;
 	int i;
 #endif
 
@@ -770,6 +839,7 @@ sched_setup(void *dummy)
 	slice_max = (hz/7);	/* ~140ms */
 
 #ifdef SMP
+	balance_groups = 0;
 	/*
 	 * Initialize the kseqs.
 	 */
@@ -795,6 +865,7 @@ sched_setup(void *dummy)
 			ksg->ksg_cpus = 1;
 			ksg->ksg_idlemask = 0;
 			ksg->ksg_cpumask = ksg->ksg_mask = 1 << i;
+			ksg->ksg_load = 0;
 			ksg->ksg_transferable = 0;
 			LIST_INIT(&ksg->ksg_members);
 			LIST_INSERT_HEAD(&ksg->ksg_members, ksq, ksq_siblings);
@@ -811,6 +882,7 @@ sched_setup(void *dummy)
 			 * Initialize the group.
 			 */
 			ksg->ksg_idlemask = 0;
+			ksg->ksg_load = 0;
 			ksg->ksg_transferable = 0;
 			ksg->ksg_cpus = cg->cg_count;
 			ksg->ksg_cpumask = cg->cg_mask;
@@ -828,10 +900,21 @@ sched_setup(void *dummy)
 					    &kseq_cpu[j], ksq_siblings);
 				}
 			}
+			if (ksg->ksg_cpus > 1)
+				balance_groups = 1;
 		}
+		ksg_maxid = smp_topology->ct_count - 1;
 	}
 	callout_init(&kseq_lb_callout, CALLOUT_MPSAFE);
+	callout_init(&kseq_group_callout, CALLOUT_MPSAFE);
 	sched_balance(NULL);
+	/*
+	 * Stagger the group and global load balancer so they do not
+	 * interfere with each other.
+	 */
+	if (balance_groups)
+		callout_reset(&kseq_group_callout, hz / 2,
+		    sched_balance_groups, NULL);
 #else
 	kseq_setup(KSEQ_SELF());
 #endif
