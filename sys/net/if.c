@@ -116,7 +116,8 @@ ifinit(dummy)
 			    ifp->if_name, ifp->if_unit);
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		}
-		if (ifp->if_snd.ifq_mtx.mtx_description == NULL) {
+		/* XXX This is an access violation of the mutex internals. */
+		if (ifp->if_snd.ifq_mtx.mtx_flags == 0) {
 			printf("%s%d XXX: driver didn't initialize queue mtx\n",
 			    ifp->if_name, ifp->if_unit);
 			mtx_init(&ifp->if_snd.ifq_mtx, "unknown", MTX_DEF);

@@ -68,6 +68,8 @@ extern char STR_SIEN[];
  *--------------------------------------------------------------------------
  */
 
+#ifdef _KERN_MUTEX_C_
+
 #define	_V(x)	__STRING(x)
 
 /*
@@ -83,6 +85,10 @@ extern char STR_SIEN[];
 		(mp)->mtx_saveintr = _ipl;				\
 	}								\
 } while (0)
+
+#undef _V
+
+#endif	/* _KERN_MUTEX_C_ */
 
 #endif	/* _KERNEL */
 
