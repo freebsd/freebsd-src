@@ -187,7 +187,10 @@ can be avoided for performance critical code paths.
 .Sh LOCKING
 Each asynchronous queue is protected by a spin mutex.
 .Pp
-Function
+Functions
+.Fn alq_flush ,
+.Fn alq_open
+and
 .Fn alq_post
 may attempt to acquire an internal sleep mutex, and should
 consequently not be used in contexts where sleeping is
