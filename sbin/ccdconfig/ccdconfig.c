@@ -487,8 +487,8 @@ do_io(path, cmd, cciop)
 
 #define KVM_ABORT(kd, str) {						\
 	(void)kvm_close((kd));						\
-	warnx((str));							\
-	warnx(kvm_geterr((kd)));					\
+	warnx("%s", (str));							\
+	warnx("%s", kvm_geterr((kd)));					\
 	return (1);							\
 }
 
@@ -622,7 +622,7 @@ print_ccd_info(cs, kd)
 	    readsize) != readsize) {
 		printf("\n");
 		warnx("can't read component info");
-		warnx(kvm_geterr(kd));
+		warnx("%s", kvm_geterr(kd));
 		goto done;
 	}
 
@@ -632,7 +632,7 @@ print_ccd_info(cs, kd)
 		    cip[i].ci_pathlen) != cip[i].ci_pathlen) {
 			printf("\n");
 			warnx("can't read component pathname");
-			warnx(kvm_geterr(kd));
+			warnx("%s", kvm_geterr(kd));
 			goto done;
 		}
 		printf((i + 1 < cs->sc_nccdisks) ? "%s " : "%s\n", path);
