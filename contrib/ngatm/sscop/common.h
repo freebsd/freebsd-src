@@ -33,6 +33,14 @@
 #ifndef _SAAL_COMMON_H_
 #define _SAAL_COMMON_H_
 
+#ifdef USE_LIBBEGEMOT
+#include <rpoll.h>
+#define evFileID int
+#define evTimerID int
+#else
+#include <isc/eventlib.h>
+#endif
+
 /*
  * Writes to a pipe must be in messages (if we don't use framing).
  * It is not clear, what is the maximum message size for this. It seems
@@ -49,7 +57,9 @@ extern int user_fd;		/* file descriptor for USER */
 extern int loose;		/* loose messages */
 extern int user_out_fd;		/* file descriptor for output to user */
 extern u_int verbose;		/* talk to me */
+#ifndef USE_LIBBEGEMOT
 extern evContext evctx;
+#endif
 extern evFileID sscop_h;
 extern evFileID user_h;
 

@@ -44,7 +44,6 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <err.h>
-#include <isc/eventlib.h>
 
 #include <netnatm/unimsg.h>
 #include <netnatm/saal/sscop.h>
@@ -64,7 +63,9 @@ int user_fd;
 int loose;
 int user_out_fd;
 u_int verbose;
+#ifndef USE_LIBBEGEMOT
 evContext evctx;
+#endif
 evFileID sscop_h;
 evFileID user_h;
 
@@ -153,7 +154,11 @@ proto_msgin(int fd __unused)
 
 	if (got == 0) {
   eof:
+#ifdef USE_LIBBEGEMOT
+		poll_unregister(sscop_h);
+#else
 		evDeselectFD(evctx, sscop_h);
+#endif
 		(void)close(sscop_fd);
 		sscop_fd = -1;
 		if (m != NULL)
@@ -212,7 +217,11 @@ user_msgin(int fd __unused)
 
 	if (size == 0) {
   eof:
+#ifdef USE_LIBBEGEMOT
+		poll_unregister(user_h);
+#else
 		evDeselectFD(evctx, user_h);
+#endif
 		if (m != NULL)
 			uni_msg_destroy(m);
 		VERBOSE(("EOF on user connection"));
@@ -384,9 +393,14 @@ parse_param(struct sscop_param *param, u_int *pmask, int opt, char *arg)
 	abort();
 }
 
+#ifdef USE_LIBBEGEMOT
+static void
+tfunc(int tid __unused, void *uap)
+#else
 static void
 tfunc(evContext ctx __unused, void *uap, struct timespec due __unused,
     struct timespec inter __unused)
+#endif
 {
 	struct timer *t = uap;
 
@@ -402,18 +416,25 @@ sscop_start_timer(struct sscop *sscop, void *arg __unused, u_int msec,
     void (*func)(void *))
 {
 	struct timer *t;
+#ifndef USE_LIBBEGEMOT
 	struct timespec due;
+#endif
 
 	if ((t = malloc(sizeof(*t))) == NULL)
 		err(1, NULL);
 	t->sscop = sscop;
 	t->func = func;
 
+#ifdef USE_LIBBEGEMOT
+	if ((t->id = poll_start_timer(msec, 0, tfunc, t)) == -1)
+		err(1, "cannot start timer");
+#else
 	due = evAddTime(evNowTime(),
 	    evConsTime((time_t)msec/1000, (long)(msec%1000)*1000));
 
 	if (evSetTimer(evctx, tfunc, t, due, evConsTime(0, 0), &t->id))
 		err(1, "cannot start timer");
+#endif
 
 	return (t);
 }
@@ -426,6 +447,10 @@ sscop_stop_timer(struct sscop *sscop __unused, void *arg __unused, void *tp)
 {
 	struct timer *t = tp;
 
+#ifdef USE_LIBBEGEMOT
+	poll_stop_timer(t->id);
+#else
 	evClearTimer(evctx, t->id);
+#endif
 	free(t);
 }
