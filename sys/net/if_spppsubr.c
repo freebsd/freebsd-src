@@ -681,6 +681,8 @@ badreq:
 			sp->ipcp.state = IPCP_STATE_CLOSED;
 			/* Initiate renegotiation. */
 			sppp_lcp_open (sp);
+			/* An ACK has already been sent. */
+			sp->lcp.state = LCP_STATE_ACK_SENT;
 			break;
 		}
 		break;
@@ -761,6 +763,8 @@ badreq:
 		/* Discard the packet. */
 		break;
 	case LCP_ECHO_REQ:
+		if (sp->lcp.state != LCP_STATE_OPENED)
+			break;
 		if (len < 8) {
 			if (ifp->if_flags & IFF_DEBUG)
 				printf ("%s%d: invalid lcp echo request packet length: %d bytes\n",
@@ -993,8 +997,6 @@ int sppp_ioctl (struct ifnet *ifp, int cmd, void *data)
 		/* fall through... */
 
 	case SIOCSIFFLAGS:
-		if (sp->pp_flags & PP_CISCO)
-			break;
 		s = splimp ();
 		going_up   = (ifp->if_flags & IFF_UP) &&
 			     ! (ifp->if_flags & IFF_RUNNING);
@@ -1010,7 +1012,8 @@ int sppp_ioctl (struct ifnet *ifp, int cmd, void *data)
 		if (going_up) {
 			/* Interface is starting -- initiate negotiation. */
 			ifp->if_flags |= IFF_RUNNING;
-			sppp_lcp_open (sp);
+			if (!(sp->pp_flags & PP_CISCO))
+				sppp_lcp_open (sp);
 		}
 		splx (s);
 		break;
