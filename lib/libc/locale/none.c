@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)none.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <rune.h>
@@ -82,8 +83,14 @@ _none_sputrune(c, string, n, result)
 	size_t n;
 {
 	if (n >= 1) {
-		if (string)
+		if (string) {
+			if (c < 0 || c > UCHAR_MAX) {
+				if (result)
+					*result = NULL;
+				return (0);
+			}
 			*string = c;
+		}
 		if (result)
 			*result = string + 1;
 	} else if (result)
