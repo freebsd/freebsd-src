@@ -21,10 +21,13 @@ sed	\
  	-e '/INVARIANTS/d' \
  	-e '/INVARIANT_SUPPORT/d' \
  	-e '/WITNESS/d' \
+ 	-e '/SMP/d' \
+	-e '/atapifd/d' \
 	-e '/atapist/d' \
 	-e '/	ncr/d' \
 	-e '/	sa/d' \
 	-e '/pass/d' \
+	-e '/ses/d' \
 	-e '/	amr/d' \
 	-e '/splash/d' \
 	-e '/	apm/d' \
