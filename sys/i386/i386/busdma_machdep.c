@@ -226,7 +226,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
 
-	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF, M_NOWAIT);
+	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF,
+	    M_ZERO | M_NOWAIT);
 	if (newtag == NULL) {
 		CTR3(KTR_BUSDMA, "bus_dma_tag_create returned tag %p tag "
 		    "flags 0x%x error %d", newtag, 0, error);
@@ -919,7 +920,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	bz->boundary = dmat->boundary;
 	snprintf(bz->zoneid, 8, "zone%d", busdma_zonecount);
 	busdma_zonecount++;
-	snprintf(bz->lowaddrid, 18, "%#jx", bz->lowaddr);
+	snprintf(bz->lowaddrid, 18, "%#jx", (uintmax_t)bz->lowaddr);
 	STAILQ_INSERT_TAIL(&bounce_zone_list, bz, links);
 
 	sysctl_ctx_init(&bz->sysctl_tree);
