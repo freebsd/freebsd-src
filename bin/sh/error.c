@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: error.c,v 1.11 1998/08/24 10:20:36 cracauer Exp $";
+	"$Id: error.c,v 1.12 1998/08/24 19:15:48 cracauer Exp $";
 #endif /* not lint */
 
 /*
@@ -91,7 +91,7 @@ exraise(e)
 /*
  * Called from trap.c when a SIGINT is received.  (If the user specifies
  * that SIGINT is to be trapped or ignored using the trap builtin, then
- * this routine is not called.)  Supressint is nonzero when interrupts
+ * this routine is not called.)  Suppressint is nonzero when interrupts
  * are held using the INTOFF macro.  If SIGINTs are not suppressed and
  * the shell is not a root shell, then we want to be terminated if we
  * get here, as if we were terminated directly by a SIGINT.  Arrange for
@@ -102,8 +102,9 @@ void
 onint() {
 	sigset_t sigset;
 
-	/* The !in_dotrap is save. The only way we can arrive here with
-	 * in_dotrap set is that a trap handler set SIGINT to default
+	/*
+	 * The !in_dotrap here is safe.  The only way we can arrive here
+	 * with in_dotrap set is that a trap handler set SIGINT to SIG_DFL
 	 * and killed itself.
 	 */
 
@@ -115,9 +116,9 @@ onint() {
 	sigemptyset(&sigset);
 	sigprocmask(SIG_SETMASK, &sigset, NULL);
 
-	/* This doesn't seem to be needed. Note that main emit a newline
-	 * as well.
-         */
+	/*
+	 * This doesn't seem to be needed, since main() emits a newline.
+	 */
 #if 0
 	if (tcgetpgrp(0) == getpid())	
 		write(STDERR_FILENO, "\n", 1);
