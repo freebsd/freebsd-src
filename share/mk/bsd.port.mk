@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.227.2.49 1998/08/28 18:43:20 dima Exp $
+#	$Id: bsd.port.mk,v 1.227.2.50 1998/08/30 21:23:11 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -36,6 +36,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  makefile is being used on.  Automatically set to
 #				  "FreeBSD," "NetBSD," or "OpenBSD" as appropriate.
 # OSREL			- The release version (numeric) of the operating system.
+# PORTOBJFORMAT	- The object format ("aout" or "elf").
 #
 # These variables are used to identify your port.
 #
@@ -224,7 +225,14 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  example, if your port has "man/man1/foo.1" and
 #				  "man/mann/bar.n", set "MAN1=foo.1" and "MANN=bar.n".
 #				  The available sections chars are "123456789LN".
-# MANPREFIX		- The directory prefix for ${MAN<sect>} (default: ${PREFIX}).
+# MLINKS		- A list of <target, source> tuples for creating links
+#				  for manpages.  For example, "MLINKS= a.1 b.1 c.3 d.3"
+#				  will do an "ln -sf a.1 b.1" and "ln -sf c.3 and d.3" in
+#				  appropriate directories.  (Use this even if the port
+#				  installs its own manpage links so they will show up
+#				  correctly in ${PLIST}.)
+# MANPREFIX		- The directory prefix for ${MAN<sect>} and ${MLINKS}
+#				  (default: ${PREFIX}).
 # MAN<sect>PREFIX - If manual pages of some sections install in different
 #				  locations than others, use these (default: ${MANPREFIX}).
 # MANCOMPRESSED - This variable can take values "yes", "no" or
@@ -378,6 +386,12 @@ OPSYS!=	uname -s
 OSREL!=	uname -r | sed -e 's/[-(].*//'
 PLIST_SUB+=	OSREL=${OSREL}
 
+# Get the object format.
+PORTOBJFORMAT!=	test -x /usr/bin/objformat && /usr/bin/objformat || echo aout
+CONFIGURE_ENV+=	PORTOBJFORMAT=${PORTOBJFORMAT}
+MAKE_ENV+=		PORTOBJFORMAT=${PORTOBJFORMAT}
+PLIST_SUB+=		PORTOBJFORMAT=${PORTOBJFORMAT}
+
 # If they exist, include Makefile.inc, then architecture/operating
 # system specific Makefiles, then local Makefile.local.
 
@@ -501,11 +515,15 @@ PERL_VERSION=	5.00502
 PERL_VER=		5.005
 PLIST_SUB+=		PERL_VERSION=${PERL_VERSION} \
 				PERL_VER=${PERL_VER}
-PERL5=			${PREFIX}/bin/perl${PERL_VERSION}
-			
+.if exists(/usr/bin/perl5)
+# 3.0-current after perl5 import
+PERL5=			/usr/bin/perl5
+.else
+PERL5=			${LOCALBASE}/bin/perl${PERL_VERSION}
 .if defined(USE_PERL5)
-BUILD_DEPENDS+=		perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
-RUN_DEPENDS+=		perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
+BUILD_DEPENDS+=	perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
+RUN_DEPENDS+=	perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
+.endif
 .endif
 
 .if defined(USE_XLIB)
@@ -872,6 +890,29 @@ MANNPREFIX?=	${MANPREFIX}
 
 MANLANG?=	""	# english only by default
 
+.if !defined(NOMANCOMPRESS)
+MANEXT=	.gz
+.endif
+
+.if defined(MLINKS)
+__pmlinks!=	${ECHO} '${MLINKS:S/	/ /}' | ${AWK} \
+ '{ if (NF % 2 != 0) { print "broken"; exit; } \
+	for (i=1; i<=NF; i++) { \
+		if ($$i ~ /^-$$/ && i != 1 && i % 2 != 0) \
+			{ $$i = $$(i-2); printf " " $$i " "; } \
+		else if ($$i ~ /^[^ ]+\.[1-9ln][^. ]*$$/ || $$i ~ /^\//) \
+			printf " " $$i " "; \
+		else \
+			{ print "broken"; exit; } \
+	} \
+  }' | ${SED} -e 's/ \/[^ ]*/ &x/g' -e 's/ [^/ ][^ ]*\.\(.\)[^. ]*/ &\1/g'
+.if ${__pmlinks:Mbroken} == "broken"
+.BEGIN:
+	@${ECHO_MSG} "Error: Unable to parse MLINKS."
+	@${FALSE}
+.endif
+.endif
+
 .for lang in ${MANLANG}
 
 .for sect in 1 2 3 4 5 6 7 8 9
@@ -888,7 +929,22 @@ _MANPAGES+=	${MANL:S%^%${MANLPREFIX}/man/${lang}/manl/%}
 _MANPAGES+=	${MANN:S%^%${MANNPREFIX}/man/${lang}/mann/%}
 .endif
 
+.if defined(MLINKS)
+.for __page in ${__pmlinks}
+__name=	${__page:S// /:N[1-9lnx]}
+__sect=	${__page:S// /:M[1-9lnx]}
+.if ${__name:M/*}x == x
+_MLINKS+=	${MAN${__sect:S/l/L/:S/n/N/}PREFIX}/man/${lang}/man${__sect}/${__name}${MANEXT}
+.else
+_MLINKS+=	${__name}${MANEXT}
+.endif
+_MLINKS:=	${_MLINKS}
 .endfor
+.endif
+
+.endfor lang in ${MANLANG}
+
+_TMLINKS!=	${ECHO} ${_MLINKS} | ${AWK} '{for (i=2; i<=NF; i+=2) print $$i}'
 
 .if defined(_MANPAGES) && defined(NOMANCOMPRESS)
 __MANPAGES:=	${_MANPAGES:S^${PREFIX}/^^:S/""//:S^//^/^g}
@@ -1038,10 +1094,6 @@ checksum: fetch
 .if defined(NO_EXTRACT) && !target(extract)
 extract: fetch
 	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
-checksum: fetch
-	@${DO_NADA}
-makesum: fetch
-	@${DO_NADA}
 .endif
 
 # Disable build
@@ -1372,7 +1424,7 @@ _PORT_USE: .USE
 		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} ${SH} \
 			${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
-.if make(real-install) && defined(_MANPAGES)
+.if make(real-install) && (defined(_MANPAGES) || defined(_MLINKS))
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} compress-man
 .endif
 .if make(real-install) && !defined(NO_PKG_REGISTER)
@@ -1930,13 +1982,31 @@ generate-plist:
 .for man in ${__MANPAGES}
 	@${ECHO} ${man} >> ${TMPPLIST}
 .endfor
+.for _PREFIX in ${PREFIX}
+.if ${_TMLINKS:M${_PREFIX}*}x != x
+	@for i in ${_TMLINKS:M${_PREFIX}*:S,^${_PREFIX}/,,}; do \
+		${ECHO} "$$i" >> ${TMPPLIST}; \
+	done
+.endif
+.if ${_TMLINKS:N${_PREFIX}*}x != x
+	@${ECHO} @cwd / >> ${TMPPLIST}
+	@for i in ${_TMLINKS:N${_PREFIX}*:S,^/,,}; do \
+		${ECHO} "$$i" >> ${TMPPLIST}; \
+	done
+	@${ECHO} '@cwd ${PREFIX}' >> ${TMPPLIST}
+.endif
+.endfor
 	@${SED} ${_sedsubplist} ${PLIST} >> ${TMPPLIST}
+.if (${PORTOBJFORMAT} == "aout")
+	@${SED} -e 's,\(/lib.*\.so\.[0-9]*\)$$,\1.0,' ${TMPPLIST} > ${TMPPLIST}.tmp
+	@${MV} -f ${TMPPLIST}.tmp ${TMPPLIST}
+.endif
 .endif
 
 ${TMPPLIST}:
 	@cd ${.CURDIR} && ${MAKE} generate-plist
 
-# Compress (or uncompress) manpages.
+# Compress (or uncompress) and symlink manpages.
 .if !target(compress-man)
 compress-man:
 .if ${MANCOMPRESSED} == yes && defined(NOMANCOMPRESS)
@@ -1949,6 +2019,19 @@ compress-man:
 .for manpage in ${_MANPAGES}
 	@${GZIP_CMD} ${manpage}
 .endfor
+.endif
+.if defined(_MLINKS)
+	@set ${_MLINKS:S,"",,g:S,//,/,g}; \
+	while :; do \
+		[ $$# -eq 0 ] && break || ${TRUE}; \
+		${RM} -f $${2%.gz}; ${RM} -f $$2.gz; \
+		${LN} -fs `${ECHO} $$1 $$2 | ${AWK} '{ \
+					z=split($$1, a, /\//); x=split($$2, b, /\//); \
+					while (a[i] == b[i]) i++; \
+					for (q=i; q<x; q++) printf "../"; \
+					for (; i<z; i++) printf a[i] "/"; printf a[z]; }'` $$2; \
+		shift; shift; \
+	done
 .endif
 .endif
 
@@ -1975,7 +2058,7 @@ fake-pkg:
 			${CP} ${PKGDIR}/DEINSTALL ${PKG_DBDIR}/${PKGNAME}/+DEINSTALL; \
 		fi; \
 		if [ -f ${PKGDIR}/REQ ]; then \
-			${CP} ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; \
+			${CP} ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQUIRE; \
 		fi; \
 		if [ -f ${PKGDIR}/MESSAGE ]; then \
 			${CP} ${PKGDIR}/MESSAGE ${PKG_DBDIR}/${PKGNAME}/+DISPLAY; \
