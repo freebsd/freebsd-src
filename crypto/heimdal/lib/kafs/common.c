@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: common.c,v 1.22 2001/09/10 16:08:17 assar Exp $");
+RCSID("$Id: common.c,v 1.24 2002/05/31 02:43:51 assar Exp $");
 
 #define AUTH_SUPERUSER "afs"
 
@@ -168,7 +168,7 @@ dns_find_cell(const char *cell, char *dbserver, size_t len)
  * Try to find the cells we should try to klog to in "file".
  */
 static void
-find_cells(char *file, char ***cells, int *index)
+find_cells(const char *file, char ***cells, int *index)
 {
     FILE *f;
     char cell[64];
@@ -362,8 +362,7 @@ _kafs_get_cred(kafs_data *data,
     /* comments on the ordering of these tests */
 
     /* If the user passes a realm, she probably knows something we don't
-     * know and we should try afs@realm_hint (otherwise we're talking with a
-     * blondino and she might as well have it.)
+     * know and we should try afs@realm_hint.
      */
   
     if (realm_hint) {

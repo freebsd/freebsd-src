@@ -33,7 +33,7 @@
  *	@(#)externs.h	8.3 (Berkeley) 5/30/95
  */
 
-/* $Id: externs.h,v 1.24 2001/12/20 20:39:52 joda Exp $ */
+/* $Id: externs.h,v 1.25 2002/08/28 20:58:23 joda Exp $ */
 
 #ifndef	BSD
 # define BSD 43
@@ -237,6 +237,7 @@ void command(int top, char *tbuf, int cnt);
 
 void tninit(void);
 void usage(void);
+void set_forward_options(void);
 
 /* network.c */
 
@@ -299,7 +300,6 @@ void     TerminalFlushOutput (void);
 void     TerminalNewMode (int);
 void     TerminalRestoreState (void);
 void     TerminalSaveState (void);
-void     tninit (void);
 void     willoption (int);
 void     wontoption (int);
 

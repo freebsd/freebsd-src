@@ -1,3 +1,7 @@
+2002-05-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* pam/Makefile.am: set SUFFIXES with +=
+
 2001-10-27  Assar Westerlund  <assar@sics.se>
 
 	* pam/Makefile.am: actually build the pam module

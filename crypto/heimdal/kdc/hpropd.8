@@ -1,4 +1,4 @@
-.\" $Id: hpropd.8,v 1.8 2002/01/24 15:30:49 assar Exp $
+.\" $Id: hpropd.8,v 1.9 2002/08/20 16:37:13 joda Exp $
 .\"
 .Dd August 27, 1997
 .Dt HPROPD 8
@@ -41,12 +41,12 @@ are accepted.
 Options supported:
 .Bl -tag -width Ds
 .It Xo
-.Fl d Ar file Ns ,
+.Fl d Ar file ,
 .Fl -database= Ns Ar file
 .Xc
 database
 .It Xo
-.Fl n Ns ,
+.Fl n ,
 .Fl -stdin
 .Xc
 read from stdin
@@ -55,17 +55,17 @@ read from stdin
 .Xc
 print dump to stdout
 .It Xo
-.Fl i Ns ,
+.Fl i ,
 .Fl -no-inetd
 .Xc
 Not started from inetd
 .It Xo
-.Fl k Ar keytab Ns ,
+.Fl k Ar keytab ,
 .Fl -keytab= Ns Ar keytab
 .Xc
 keytab to use for authentication
 .It Xo
-.Fl 4 Ns ,
+.Fl 4 ,
 .Fl -v4dump
 .Xc
 create v4 type DB

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: getarg.h,v 1.11 2001/04/25 12:06:37 assar Exp $ */
+/* $Id: getarg.h,v 1.12 2002/04/18 08:50:08 joda Exp $ */
 
 #ifndef __GETARG_H__
 #define __GETARG_H__
@@ -69,8 +69,8 @@ typedef struct getarg_strings {
 typedef int (*getarg_collect_func)(int short_opt,
 				   int argc,
 				   char **argv,
-				   int *optind,
-				   int *optarg,
+				   int *goptind,
+				   int *goptarg,
 				   void *data);
 
 typedef struct getarg_collect_info {
@@ -79,7 +79,7 @@ typedef struct getarg_collect_info {
 } getarg_collect_info;
 
 int getarg(struct getargs *args, size_t num_args, 
-	   int argc, char **argv, int *optind);
+	   int argc, char **argv, int *goptind);
 
 void arg_printusage (struct getargs *args,
 		     size_t num_args,

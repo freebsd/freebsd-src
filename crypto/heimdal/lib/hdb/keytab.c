@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,7 +35,7 @@
 
 /* keytab backend for HDB databases */
 
-RCSID("$Id: keytab.c,v 1.4 2001/07/13 06:30:41 assar Exp $");
+RCSID("$Id: keytab.c,v 1.5 2002/08/26 13:28:11 assar Exp $");
 
 struct hdb_data {
     char *dbname;
@@ -144,7 +144,7 @@ find_db (krb5_context context,
 	 const char **mkey,
 	 krb5_const_principal principal)
 {
-    krb5_config_binding *top_bind = NULL;
+    const krb5_config_binding *top_bind = NULL;
     krb5_config_binding *default_binding = NULL;
     krb5_config_binding *db;
     krb5_realm *prealm = krb5_princ_realm(context, (krb5_principal)principal);

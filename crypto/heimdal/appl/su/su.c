@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
 
 #include <config.h>
 
-RCSID("$Id: su.c,v 1.23 2002/01/09 19:40:12 nectar Exp $");
+RCSID("$Id: su.c,v 1.24 2002/02/19 13:01:15 joda Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,12 +55,16 @@ RCSID("$Id: su.c,v 1.23 2002/01/09 19:40:12 nectar Exp $");
 #else
 #include <des.h>
 #endif
+#ifdef KRB5
 #include <krb5.h>
+#endif
+#ifdef KRB4
+#include <krb.h>
 #include <kafs.h>
+#endif
 #include <err.h>
 #include <roken.h>
 #include <getarg.h>
-#include <kafs.h>
 
 #ifndef _PATH_DEFPATH
 #define _PATH_DEFPATH "/usr/bin:/bin"
@@ -78,6 +82,7 @@ char *kerberos_instance = "root";
 int help_flag;
 int version_flag;
 char *cmd;
+char tkfile[256];
 
 struct getargs args[] = {
     { "kerberos", 'K', arg_negative_flag, &kerberos_flag,
@@ -139,17 +144,35 @@ dup_info(const struct passwd *pwd)
     return info;
 }
 
+#if defined(KRB4) || defined(KRB5)
+static void
+set_tkfile()
+{
+#ifndef TKT_ROOT
+#define TKT_ROOT "/tmp/tkt"
+#endif
+    int fd;
+    if(*tkfile != '\0')
+	return;
+    snprintf(tkfile, sizeof(tkfile), "%s_XXXXXX", TKT_ROOT);
+    fd = mkstemp(tkfile);
+    if(fd >= 0)
+	close(fd);
+#ifdef KRB4
+    krb_set_tkt_string(tkfile);
+#endif
+}
+#endif
+
 #ifdef KRB5
 static krb5_context context;
 static krb5_ccache ccache;
-#endif
 
 static int
 krb5_verify(const struct passwd *login_info,
 	    const struct passwd *su_info,
 	    const char *kerberos_instance)
 {
-#ifdef KRB5
     krb5_error_code ret;
     krb5_principal p;
     char *login_name = NULL;
@@ -208,11 +231,9 @@ krb5_verify(const struct passwd *login_info,
 	return 0;
     }
     krb5_free_principal (context, p);
-#endif
     return 1;
 }
 
-#ifdef KRB5
 static int
 krb5_start_session(void)
 {
@@ -233,20 +254,8 @@ krb5_start_session(void)
     esetenv("KRB5CCNAME", cc_name, 1);
 
     /* we want to export this even if we don't directly support KRB4 */
-    {
-#ifndef TKT_ROOT
-#define TKT_ROOT "/tmp/tkt"
-#endif
-	int fd;
-	char tkfile[256];
-	strlcpy(tkfile, TKT_ROOT, sizeof(tkfile));
-	strlcat(tkfile, "_XXXXXX", sizeof(tkfile));
-	fd = mkstemp(tkfile);
-	if(fd >= 0) {
-	    close(fd);
-	    esetenv("KRBTKFILE", tkfile, 1);
-	}
-    }
+    set_tkfile();
+    esetenv("KRBTKFILE", tkfile, 1);
             
 #ifdef KRB4
     /* convert creds? */
@@ -258,6 +267,78 @@ krb5_start_session(void)
             
     krb5_cc_close(context, ccache2);
     krb5_cc_destroy(context, ccache);
+    return 0;
+}
+#endif
+
+#ifdef KRB4
+
+static int
+krb_verify(const struct passwd *login_info,
+	   const struct passwd *su_info,
+	   const char *kerberos_instance)
+{
+    int ret;
+    char *login_name = NULL;
+    char *name, *instance, realm[REALM_SZ];
+	
+#if defined(HAVE_GETLOGIN) && !defined(POSIX_GETLOGIN)
+    login_name = getlogin();
+#endif
+
+    ret = krb_get_lrealm(realm, 1);
+	
+    if (login_name == NULL || strcmp (login_name, "root") == 0) 
+	login_name = login_info->pw_name;
+    if (strcmp (su_info->pw_name, "root") == 0) {
+	name = login_name;
+	instance = (char*)kerberos_instance;
+    } else {
+	name = su_info->pw_name;
+	instance = "";
+    }
+
+    if(su_info->pw_uid != 0 || 
+       krb_kuserok(name, instance, realm, su_info->pw_name) == 0) {
+	char password[128];
+	char *prompt;
+	asprintf (&prompt, 
+		  "%s's Password: ",
+		  krb_unparse_name_long (name, instance, realm));
+	if (des_read_pw_string (password, sizeof (password), prompt, 0)) {
+	    memset (password, 0, sizeof (password));
+	    free(prompt);
+	    return (1);
+	}
+	free(prompt);
+	if (strlen(password) == 0)
+	    return (1);		/* Empty passwords are not allowed */
+	set_tkfile();
+	setuid(geteuid()); /* need to run as root here */
+	ret = krb_verify_user(name, instance, realm, password, 
+			      KRB_VERIFY_SECURE, NULL);
+	memset(password, 0, sizeof(password));
+	
+	if(ret) {
+	    warnx("%s", krb_get_err_text(ret));
+	    return 1;
+	}
+	chown (tkt_string(), su_info->pw_uid, su_info->pw_gid);
+	return 0;
+    }
+    return 1;
+}
+
+
+static int
+krb_start_session(void)
+{
+    esetenv("KRBTKFILE", tkfile, 1);
+            
+    /* convert creds? */
+    if(k_hasafs() && k_setpag() == 0)
+	krb_afslog(NULL, NULL);
+            
     return 0;
 }
 #endif
@@ -343,9 +424,17 @@ main(int argc, char **argv)
     if(shell == NULL || *shell == '\0')
 	shell = _PATH_BSHELL;
     
+
+#ifdef KRB5
     if(kerberos_flag && ok == 0 &&
       (kerberos_error=krb5_verify(login_info, su_info, kerberos_instance)) == 0)
-	ok++;
+	ok = 5;
+#endif
+#ifdef KRB4
+    if(kerberos_flag && ok == 0 &&
+       (kerberos_error = krb_verify(login_info, su_info, kerberos_instance)) == 0)
+	ok = 4;
+#endif
 
     if(ok == 0 && login_info->pw_uid && verify_unix(su_info) != 0) {
 	printf("Sorry!\n");
@@ -454,9 +543,19 @@ main(int argc, char **argv)
 	    err(1, "setuid");
 
 #ifdef KRB5
-        if (!kerberos_error)
+        if (ok == 5)
            krb5_start_session();
 #endif
+#ifdef KRB4
+	if (ok == 4)
+	    krb_start_session();
+#endif
+	{
+	    char **p;
+	    for(p = args; *p; p++)
+		printf("%s ", *p);
+	    printf("\n");
+	}
 	execv(shell, args);
     }
     

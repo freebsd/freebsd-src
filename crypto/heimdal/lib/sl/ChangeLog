@@ -1,3 +1,8 @@
+2002-05-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: just link mk_cmds against libsl; avoids libtool
+	problem
+
 2001-07-09  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: add getprogname.c libss.la:add libcom_err.la noted

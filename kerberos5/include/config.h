@@ -6,13 +6,15 @@
 #include <osreldate.h>
 
 #ifndef RCSID
-#define RCSID(msg) static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
+#define RCSID(msg) \
+static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #endif
 
 #define BINDIR "/usr/bin"
 #define LIBDIR "/usr/lib"
 #define LIBEXECDIR "/usr/libexec"
 #define SBINDIR "/usr/sbin"
+#define SYSCONFDIR "/etc"
 
 #define HAVE_INT8_T 1
 #define HAVE_INT16_T 1
@@ -22,6 +24,10 @@
 #define HAVE_U_INT16_T 1
 #define HAVE_U_INT32_T 1
 #define HAVE_U_INT64_T 1
+#define HAVE_UINT8_T 1
+#define HAVE_UINT16_T 1
+#define HAVE_UINT32_T 1
+#define HAVE_UINT64_T 1
 
 /* Maximum values on all known systems */
 #define MaxHostNameLen (64+4)
@@ -69,260 +75,278 @@
    struct sockaddr*, socklen_t*) */
 #define GETSOCKNAME_PROTO_COMPATIBLE 1
 
-/* Define if you have the <arpa/ftp.h> header file. */
+/* Define if you have the `altzone' variable. */
+/* #undef HAVE_ALTZONE */
+
+/* define if your system declares altzone */
+/* #undef HAVE_ALTZONE_DECLARATION */
+
+/* Define to 1 if you have the <arpa/ftp.h> header file. */
 #define HAVE_ARPA_FTP_H 1
 
-/* Define if you have the <arpa/inet.h> header file. */
+/* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1
 
-/* Define if you have the <arpa/nameser.h> header file. */
+/* Define to 1 if you have the <arpa/nameser.h> header file. */
 #define HAVE_ARPA_NAMESER_H 1
 
-/* Define if you have the <arpa/telnet.h> header file. */
+/* Define to 1 if you have the <arpa/telnet.h> header file. */
 #define HAVE_ARPA_TELNET_H 1
 
-/* Define if you have the `asnprintf' function. */
+/* Define to 1 if you have the `asnprintf' function. */
 /* #undef HAVE_ASNPRINTF */
 
-/* Define if you have the `asprintf' function. */
+/* Define to 1 if you have the `asprintf' function. */
 #define HAVE_ASPRINTF 1
 
-/* Define if you have the <bind/bitypes.h> header file. */
+/* Define to 1 if you have the `atexit' function. */
+#define HAVE_ATEXIT 1
+
+/* Define to 1 if you have the <bind/bitypes.h> header file. */
 /* #undef HAVE_BIND_BITYPES_H */
 
-/* Define if you have the <bsdsetjmp.h> header file. */
+/* Define to 1 if you have the <bsdsetjmp.h> header file. */
 /* #undef HAVE_BSDSETJMP_H */
 
-/* Define if you have the <capability.h> header file. */
+/* Define to 1 if you have the `bswap16' function. */
+/* #undef HAVE_BSWAP16 */
+
+/* Define to 1 if you have the `bswap32' function. */
+/* #undef HAVE_BSWAP32 */
+
+/* Define to 1 if you have the <capability.h> header file. */
 /* #undef HAVE_CAPABILITY_H */
 
-/* Define if you have the `cap_set_proc' function. */
-/* #undef HAVE_CAP_SET_PROC */
+/* Define to 1 if you have the `cap_set_proc' function. */
+#define HAVE_CAP_SET_PROC 1
 
-/* Define if you have the `cgetent' function. */
+/* Define to 1 if you have the `cgetent' function. */
 #define HAVE_CGETENT 1
 
-/* Define if you have the `chown' function. */
+/* Define if you have the function `chown'. */
 #define HAVE_CHOWN 1
 
-/* Define if you have the <config.h> header file. */
+/* Define to 1 if you have the <config.h> header file. */
 /* #undef HAVE_CONFIG_H */
 
-/* Define if you have the `copyhostent' function. */
+/* Define if you have the function `copyhostent'. */
 /* #undef HAVE_COPYHOSTENT */
 
-/* Define if you have the `crypt' function. */
+/* Define to 1 if you have the `crypt' function. */
 #define HAVE_CRYPT 1
 
-/* Define if you have the <crypt.h> header file. */
+/* Define to 1 if you have the <crypt.h> header file. */
 /* #undef HAVE_CRYPT_H */
 
-/* Define if you have the <curses.h> header file. */
+/* Define to 1 if you have the <curses.h> header file. */
 #define HAVE_CURSES_H 1
 
-/* Define if you have the `daemon' function. */
+/* Define if you have the function `daemon'. */
 #define HAVE_DAEMON 1
 
 /* define if you have a berkeley db1/2 library */
 #define HAVE_DB1 1
 
-/* define if you have a berkeley db3 library */
+/* define if you have a berkeley db3/4 library */
 /* #undef HAVE_DB3 */
 
-/* Define if you have the `dbm_firstkey' function. */
+/* Define to 1 if you have the <db3/db.h> header file. */
+/* #undef HAVE_DB3_DB_H */
+
+/* Define to 1 if you have the <db4/db.h> header file. */
+/* #undef HAVE_DB4_DB_H */
+
+/* Define to 1 if you have the `dbm_firstkey' function. */
 #define HAVE_DBM_FIRSTKEY 1
 
-/* Define if you have the <dbm.h> header file. */
+/* Define to 1 if you have the <dbm.h> header file. */
 /* #undef HAVE_DBM_H */
 
-/* Define if you have the `dbopen' function. */
+/* Define to 1 if you have the `dbopen' function. */
 #define HAVE_DBOPEN 1
 
-/* Define if you have the <db_185.h> header file. */
+/* Define to 1 if you have the <db_185.h> header file. */
 /* #undef HAVE_DB_185_H */
 
-/* Define if you have the `db_create' function. */
+/* Define to 1 if you have the `db_create' function. */
 /* #undef HAVE_DB_CREATE */
 
-/* Define if you have the <db.h> header file. */
+/* Define to 1 if you have the <db.h> header file. */
 #define HAVE_DB_H 1
 
 /* define if you have ndbm compat in db */
 /* #undef HAVE_DB_NDBM */
 
-/* Define if you have the <dirent.h> header file. */
+/* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
 
-/* Define if you have the <dlfcn.h> header file. */
+/* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
-/* Define if you have the `dlopen' function. */
+/* Define to 1 if you have the `dlopen' function. */
 #define HAVE_DLOPEN 1
 
-/* Define if you have the `dn_expand' function. */
+/* Define to 1 if you have the `dn_expand' function. */
 #define HAVE_DN_EXPAND 1
 
-/* Define if you have the `ecalloc' function. */
+/* Define if you have the function `ecalloc'. */
 /* #undef HAVE_ECALLOC */
 
-/* Define if you have the `el_init' function. */
+/* Define to 1 if you have the `el_init' function. */
 #define HAVE_EL_INIT 1
 
-/* Define if you have the `emalloc' function. */
+/* Define if you have the function `emalloc'. */
 /* #undef HAVE_EMALLOC */
 
 /* define if your system declares environ */
 /* #undef HAVE_ENVIRON_DECLARATION */
 
-/* Define if you have the `erealloc' function. */
+/* Define if you have the function `erealloc'. */
 /* #undef HAVE_EREALLOC */
 
-/* Define if you have the `err' function. */
+/* Define if you have the function `err'. */
 #define HAVE_ERR 1
 
-/* Define if you have the <errno.h> header file. */
+/* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
 
-/* Define if you have the `errx' function. */
+/* Define if you have the function `errx'. */
 #define HAVE_ERRX 1
 
-/* Define if you have the <err.h> header file. */
+/* Define to 1 if you have the <err.h> header file. */
 #define HAVE_ERR_H 1
 
-/* Define if you have the `estrdup' function. */
+/* Define if you have the function `estrdup'. */
 /* #undef HAVE_ESTRDUP */
 
-/* Define if you have the `fchown' function. */
+/* Define if you have the function `fchown'. */
 #define HAVE_FCHOWN 1
 
-/* Define if you have the `fcntl' function. */
+/* Define to 1 if you have the `fcntl' function. */
 #define HAVE_FCNTL 1
 
-/* Define if you have the <fcntl.h> header file. */
+/* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
-/* Define if you have the `flock' function. */
+/* Define if you have the function `flock'. */
 #define HAVE_FLOCK 1
 
-/* Define if you have the `fnmatch' function. */
+/* Define if you have the function `fnmatch'. */
 #define HAVE_FNMATCH 1
 
-/* Define if you have the <fnmatch.h> header file. */
+/* Define to 1 if you have the <fnmatch.h> header file. */
 #define HAVE_FNMATCH_H 1
 
 /* Define if el_init takes four arguments. */
-/* #undef HAVE_FOUR_VALUED_EL_INIT */
+#define HAVE_FOUR_VALUED_EL_INIT 1
 
 /* define if krb_put_int takes four arguments. */
 #define HAVE_FOUR_VALUED_KRB_PUT_INT 1
 
-/* Define if you have the `freeaddrinfo' function. */
+/* Define to 1 if you have the `freeaddrinfo' function. */
 #define HAVE_FREEADDRINFO 1
 
-/* Define if you have the `freehostent' function. */
+/* Define if you have the function `freehostent'. */
 #define HAVE_FREEHOSTENT 1
 
-/* Define if you have the `gai_strerror' function. */
+/* Define to 1 if you have the `gai_strerror' function. */
 #define HAVE_GAI_STRERROR 1
 
-/* Define if you have the <gdbm/ndbm.h> header file. */
+/* Define to 1 if you have the <gdbm/ndbm.h> header file. */
 /* #undef HAVE_GDBM_NDBM_H */
 
-/* Define if you have the `getaddrinfo' function. */
+/* Define to 1 if you have the `getaddrinfo' function. */
 #define HAVE_GETADDRINFO 1
 
-/* Define if you have the `getconfattr' function. */
+/* Define to 1 if you have the `getconfattr' function. */
 /* #undef HAVE_GETCONFATTR */
 
-/* Define if you have the `getcwd' function. */
+/* Define if you have the function `getcwd'. */
 #define HAVE_GETCWD 1
 
-/* Define if you have the `getdtablesize' function. */
+/* Define if you have the function `getdtablesize'. */
 #define HAVE_GETDTABLESIZE 1
 
-/* Define if you have the `getegid' function. */
+/* Define if you have the function `getegid'. */
 #define HAVE_GETEGID 1
 
-/* Define if you have the `geteuid' function. */
+/* Define if you have the function `geteuid'. */
 #define HAVE_GETEUID 1
 
-/* Define if you have the `getgid' function. */
+/* Define if you have the function `getgid'. */
 #define HAVE_GETGID 1
 
-/* Define if you have the `gethostbyname' function. */
+/* Define to 1 if you have the `gethostbyname' function. */
 #define HAVE_GETHOSTBYNAME 1
 
-/* Define if you have the `gethostbyname2' function. */
+/* Define to 1 if you have the `gethostbyname2' function. */
 #define HAVE_GETHOSTBYNAME2 1
 
-/* Define if you have the `gethostname' function. */
+/* Define if you have the function `gethostname'. */
 #define HAVE_GETHOSTNAME 1
 
-/* Define if you have the `getifaddrs' function. */
+/* Define if you have the function `getifaddrs'. */
 #define HAVE_GETIFADDRS 1
 
-/* Define if you have the in6addr_loopback variable */
-#define HAVE_IN6ADDR_LOOPBACK 1
-
-/* Define if you have the `getipnodebyaddr' function. */
+/* Define if you have the function `getipnodebyaddr'. */
 #define HAVE_GETIPNODEBYADDR 1
 
-/* Define if you have the `getipnodebyname' function. */
+/* Define if you have the function `getipnodebyname'. */
 #define HAVE_GETIPNODEBYNAME 1
 
-/* Define if you have the `getlogin' function. */
+/* Define to 1 if you have the `getlogin' function. */
 #define HAVE_GETLOGIN 1
 
 /* Define if you have a working getmsg. */
 /* #undef HAVE_GETMSG */
 
-/* Define if you have the `getnameinfo' function. */
+/* Define to 1 if you have the `getnameinfo' function. */
 #define HAVE_GETNAMEINFO 1
 
-/* Define if you have the `getopt' function. */
+/* Define if you have the function `getopt'. */
 #define HAVE_GETOPT 1
 
-/* Define if you have the `getprogname' function. */
+/* Define to 1 if you have the `getprogname' function. */
 #if (__FreeBSD_version >= 430002 && __FreeBSD_version < 500000) || \
     __FreeBSD_version >= 500019
 #define HAVE_GETPROGNAME 1
 #endif
 
-/* Define if you have the `getpwnam_r' function. */
+/* Define to 1 if you have the `getpwnam_r' function. */
 /* #undef HAVE_GETPWNAM_R */
 
-/* Define if you have the `getrlimit' function. */
+/* Define to 1 if you have the `getrlimit' function. */
 #define HAVE_GETRLIMIT 1
 
-/* Define if you have the `getsockopt' function. */
+/* Define to 1 if you have the `getsockopt' function. */
 #define HAVE_GETSOCKOPT 1
 
-/* Define if you have the `getspnam' function. */
+/* Define to 1 if you have the `getspnam' function. */
 /* #undef HAVE_GETSPNAM */
 
-/* Define if you have the `gettimeofday' function. */
+/* Define if you have the function `gettimeofday'. */
 #define HAVE_GETTIMEOFDAY 1
 
-/* Define if you have the `getudbnam' function. */
+/* Define to 1 if you have the `getudbnam' function. */
 /* #undef HAVE_GETUDBNAM */
 
-/* Define if you have the `getuid' function. */
+/* Define if you have the function `getuid'. */
 #define HAVE_GETUID 1
 
-/* Define if you have the `getusershell' function. */
+/* Define if you have the function `getusershell'. */
 #define HAVE_GETUSERSHELL 1
 
 /* define if you have a glob() that groks GLOB_BRACE, GLOB_NOCHECK,
-   GLOB_QUOTE, and GLOB_TILDE */
+   GLOB_QUOTE, GLOB_TILDE, and GLOB_LIMIT */
 #define HAVE_GLOB 1
 
-/* Define if you have the `grantpt' function. */
+/* Define to 1 if you have the `grantpt' function. */
 /* #undef HAVE_GRANTPT */
 
-/* Define if you have the <grp.h> header file. */
+/* Define to 1 if you have the <grp.h> header file. */
 #define HAVE_GRP_H 1
 
-/* Define if you have the `hstrerror' function. */
+/* Define to 1 if you have the `hstrerror' function. */
 #define HAVE_HSTRERROR 1
 
 /* Define if you have the `h_errlist' variable. */
@@ -343,127 +367,148 @@
 /* define if your system declares h_nerr */
 /* #undef HAVE_H_NERR_DECLARATION */
 
-/* Define if you have the <ifaddrs.h> header file. */
+/* Define to 1 if you have the <ifaddrs.h> header file. */
 #define HAVE_IFADDRS_H 1
 
-/* Define if you have the `inet_aton' function. */
+/* Define if you have the in6addr_loopback variable */
+#define HAVE_IN6ADDR_LOOPBACK 1
+
+/* define */
 #define HAVE_INET_ATON 1
 
-/* Define if you have the `inet_ntop' function. */
+/* define */
 #define HAVE_INET_NTOP 1
 
-/* Define if you have the `inet_pton' function. */
+/* define */
 #define HAVE_INET_PTON 1
 
-/* Define if you have the `initgroups' function. */
+/* Define if you have the function `initgroups'. */
 #define HAVE_INITGROUPS 1
 
-/* Define if you have the `innetgr' function. */
+/* Define to 1 if you have the `initstate' function. */
+#define HAVE_INITSTATE 1
+
+/* Define if you have the function `innetgr'. */
 #define HAVE_INNETGR 1
 
-/* Define if you have the <inttypes.h> header file. */
+/* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
-/* Define if you have the <io.h> header file. */
+/* Define to 1 if you have the <io.h> header file. */
 /* #undef HAVE_IO_H */
 
 /* Define if you have IPv6. */
 #define HAVE_IPV6 1
 
-/* Define if you have the `iruserok' function. */
+/* Define if you have the function `iruserok'. */
 #define HAVE_IRUSEROK 1
 
-/* Define if you have the `issetugid' function. */
+/* Define to 1 if you have the `issetugid' function. */
 #define HAVE_ISSETUGID 1
 
-/* Define if you have the `krb_disable_debug' function. */
+/* Define to 1 if you have the `krb_disable_debug' function. */
 #define HAVE_KRB_DISABLE_DEBUG 1
 
-/* Define if you have the `krb_enable_debug' function. */
+/* Define to 1 if you have the `krb_enable_debug' function. */
 #define HAVE_KRB_ENABLE_DEBUG 1
 
-/* Define if you have the `krb_get_our_ip_for_realm' function. */
+/* Define to 1 if you have the `krb_get_kdc_time_diff' function. */
+#define HAVE_KRB_GET_KDC_TIME_DIFF 1
+
+/* Define to 1 if you have the `krb_get_our_ip_for_realm' function. */
 #define HAVE_KRB_GET_OUR_IP_FOR_REALM 1
 
-/* Define if you have the <libutil.h> header file. */
+/* Define to 1 if you have the `krb_kdctimeofday' function. */
+#define HAVE_KRB_KDCTIMEOFDAY 1
+
+/* Define to 1 if you have the <libutil.h> header file. */
 #define HAVE_LIBUTIL_H 1
 
-/* Define if you have the <limits.h> header file. */
+/* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
-/* Define if you have the `logout' function. */
+/* Define to 1 if you have the `loadquery' function. */
+/* #undef HAVE_LOADQUERY */
+
+/* Define if you have the function `localtime_r'. */
+#define HAVE_LOCALTIME_R 1
+
+/* Define to 1 if you have the `logout' function. */
 #define HAVE_LOGOUT 1
 
-/* Define if you have the `logwtmp' function. */
+/* Define to 1 if you have the `logwtmp' function. */
 #define HAVE_LOGWTMP 1
 
-/* Define if the system has the type `long long'. */
+/* Define to 1 if the system has the type `long long'. */
 #define HAVE_LONG_LONG 1
 
-/* Define if you have the `lstat' function. */
+/* Define if you have the function `lstat'. */
 #define HAVE_LSTAT 1
 
-/* Define if you have the <maillock.h> header file. */
+/* Define to 1 if you have the <maillock.h> header file. */
 /* #undef HAVE_MAILLOCK_H */
 
-/* Define if you have the `memmove' function. */
+/* Define if you have the function `memmove'. */
 #define HAVE_MEMMOVE 1
 
-/* Define if you have the <memory.h> header file. */
+/* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
-/* Define if you have the `mkstemp' function. */
+/* Define if you have the function `mkstemp'. */
 #define HAVE_MKSTEMP 1
 
-/* Define if you have the `mktime' function. */
+/* Define to 1 if you have the `mktime' function. */
 #define HAVE_MKTIME 1
 
 /* define if you have a ndbm library */
 #define HAVE_NDBM 1
 
-/* Define if you have the <ndbm.h> header file. */
+/* Define to 1 if you have the <ndbm.h> header file. */
 #define HAVE_NDBM_H 1
 
-/* Define if you have the <netdb.h> header file. */
+/* Define to 1 if you have the <netdb.h> header file. */
 #define HAVE_NETDB_H 1
 
-/* Define if you have the <netinet6/in6.h> header file. */
+/* Define to 1 if you have the <netinet6/in6.h> header file. */
 /* #undef HAVE_NETINET6_IN6_H */
 
-/* Define if you have the <netinet6/in6_var.h> header file. */
+/* Define to 1 if you have the <netinet6/in6_var.h> header file. */
 #define HAVE_NETINET6_IN6_VAR_H 1
 
-/* Define if you have the <netinet/in6.h> header file. */
+/* Define to 1 if you have the <netinet/in6.h> header file. */
 /* #undef HAVE_NETINET_IN6_H */
 
-/* Define if you have the <netinet/in6_machtypes.h> header file. */
+/* Define to 1 if you have the <netinet/in6_machtypes.h> header file. */
 /* #undef HAVE_NETINET_IN6_MACHTYPES_H */
 
-/* Define if you have the <netinet/in6_var.h> header file. */
-/* #undef HAVE_NETINET_IN6_VAR_H */
-
-/* Define if you have the <netinet/in.h> header file. */
+/* Define to 1 if you have the <netinet/in.h> header file. */
 #define HAVE_NETINET_IN_H 1
 
-/* Define if you have the <netinet/in_systm.h> header file. */
+/* Define to 1 if you have the <netinet/in_systm.h> header file. */
 #define HAVE_NETINET_IN_SYSTM_H 1
 
-/* Define if you have the <netinet/ip.h> header file. */
+/* Define to 1 if you have the <netinet/ip.h> header file. */
 #define HAVE_NETINET_IP_H 1
 
-/* Define if you have the <netinet/tcp.h> header file. */
+/* Define to 1 if you have the <netinet/tcp.h> header file. */
 #define HAVE_NETINET_TCP_H 1
 
 /* Define if you want to use Netinfo instead of krb5.conf. */
 /* #undef HAVE_NETINFO */
 
-/* Define if you have the <netinfo/ni.h> header file. */
+/* Define to 1 if you have the <netinfo/ni.h> header file. */
 /* #undef HAVE_NETINFO_NI_H */
 
-/* Define if you have the <net/if.h> header file. */
+/* Define to 1 if you have the <net/if.h> header file. */
 #define HAVE_NET_IF_H 1
 
-/* Define if you have the `openpty' function. */
+/* Define if NDBM really is DB (creates files *.db) */
+#define HAVE_NEW_DB 1
+
+/* Define to 1 if you have the `on_exit' function. */
+/* #undef HAVE_ON_EXIT */
+
+/* Define to 1 if you have the `openpty' function. */
 #define HAVE_OPENPTY 1
 
 /* define to use openssl's libcrypto */
@@ -484,232 +529,244 @@
 /* Define to enable basic OSF C2 support. */
 /* #undef HAVE_OSFC2 */
 
-/* Define if you have the <paths.h> header file. */
+/* Define to 1 if you have the <paths.h> header file. */
 #define HAVE_PATHS_H 1
 
-/* Define if you have the `pidfile' function. */
+/* Define to 1 if you have the `pidfile' function. */
 /* #undef HAVE_PIDFILE */
 
-/* Define if you have the <pthread.h> header file. */
+/* Define to 1 if you have the <pthread.h> header file. */
 #define HAVE_PTHREAD_H 1
 
-/* Define if you have the `ptsname' function. */
+/* Define to 1 if you have the `ptsname' function. */
 /* #undef HAVE_PTSNAME */
 
-/* Define if you have the <pty.h> header file. */
+/* Define to 1 if you have the <pty.h> header file. */
 /* #undef HAVE_PTY_H */
 
-/* Define if you have the `putenv' function. */
+/* Define if you have the function `putenv'. */
 #define HAVE_PUTENV 1
 
-/* Define if you have the <pwd.h> header file. */
+/* Define to 1 if you have the <pwd.h> header file. */
 #define HAVE_PWD_H 1
 
-/* Define if you have the `rand' function. */
+/* Define to 1 if you have the `rand' function. */
 #define HAVE_RAND 1
 
-/* Define if you have the `random' function. */
+/* Define to 1 if you have the `random' function. */
 #define HAVE_RANDOM 1
 
-/* Define if you have the `rcmd' function. */
+/* Define if you have the function `rcmd'. */
 #define HAVE_RCMD 1
 
 /* Define if you have a readline compatible library. */
 #define HAVE_READLINE 1
 
-/* Define if you have the `readv' function. */
+/* Define if you have the function `readv'. */
 #define HAVE_READV 1
 
-/* Define if you have the `recvmsg' function. */
+/* Define if you have the function `recvmsg'. */
 #define HAVE_RECVMSG 1
 
-/* Define if you have the <resolv.h> header file. */
+/* Define to 1 if you have the <resolv.h> header file. */
 #define HAVE_RESOLV_H 1
 
-/* Define if you have the `res_search' function. */
+/* Define to 1 if you have the `res_search' function. */
 #define HAVE_RES_SEARCH 1
 
-/* Define if you have the `revoke' function. */
+/* Define to 1 if you have the `revoke' function. */
 #define HAVE_REVOKE 1
 
-/* Define if you have the <rpcsvc/ypclnt.h> header file. */
+/* Define to 1 if you have the <rpcsvc/ypclnt.h> header file. */
 #define HAVE_RPCSVC_YPCLNT_H 1
 
-/* Define if you have the <sac.h> header file. */
+/* Define to 1 if you have the <sac.h> header file. */
 /* #undef HAVE_SAC_H */
 
-/* Define if the system has the type `sa_family_t'. */
+/* Define to 1 if the system has the type `sa_family_t'. */
 #define HAVE_SA_FAMILY_T 1
 
-/* Define if you have the <security/pam_modules.h> header file. */
+/* Define to 1 if you have the <security/pam_modules.h> header file. */
 #define HAVE_SECURITY_PAM_MODULES_H 1
 
-/* Define if you have the `select' function. */
+/* Define to 1 if you have the `select' function. */
 #define HAVE_SELECT 1
 
-/* Define if you have the `sendmsg' function. */
+/* Define if you have the function `sendmsg'. */
 #define HAVE_SENDMSG 1
 
-/* Define if you have the `setegid' function. */
+/* Define if you have the function `setegid'. */
 #define HAVE_SETEGID 1
 
-/* Define if you have the `setenv' function. */
+/* Define if you have the function `setenv'. */
 #define HAVE_SETENV 1
 
-/* Define if you have the `seteuid' function. */
+/* Define if you have the function `seteuid'. */
 #define HAVE_SETEUID 1
 
-/* Define if you have the `setitimer' function. */
+/* Define to 1 if you have the `setitimer' function. */
 #define HAVE_SETITIMER 1
 
-/* Define if you have the `setlim' function. */
+/* Define to 1 if you have the `setlim' function. */
 /* #undef HAVE_SETLIM */
 
-/* Define if you have the `setlogin' function. */
+/* Define to 1 if you have the `setlogin' function. */
 #define HAVE_SETLOGIN 1
 
-/* Define if you have the `setpcred' function. */
+/* Define to 1 if you have the `setpcred' function. */
 /* #undef HAVE_SETPCRED */
 
-/* Define if you have the `setpgid' function. */
+/* Define to 1 if you have the `setpgid' function. */
 #define HAVE_SETPGID 1
 
-/* Define if you have the `setproctitle' function. */
+/* Define to 1 if you have the `setproctitle' function. */
 #define HAVE_SETPROCTITLE 1
 
-/* Define if you have the `setprogname' function. */
+/* Define to 1 if you have the `setprogname' function. */
 #if (__FreeBSD_version >= 430002 && __FreeBSD_version < 500000) || \
     __FreeBSD_version >= 500019
 #define HAVE_SETPROGNAME 1
 #endif
 
-/* Define if you have the `setregid' function. */
+/* Define to 1 if you have the `setregid' function. */
 #define HAVE_SETREGID 1
 
-/* Define if you have the `setresgid' function. */
+/* Define to 1 if you have the `setresgid' function. */
 #define HAVE_SETRESGID 1
 
-/* Define if you have the `setresuid' function. */
+/* Define to 1 if you have the `setresuid' function. */
 #define HAVE_SETRESUID 1
 
-/* Define if you have the `setreuid' function. */
+/* Define to 1 if you have the `setreuid' function. */
 #define HAVE_SETREUID 1
 
-/* Define if you have the `setsid' function. */
+/* Define to 1 if you have the `setsid' function. */
 #define HAVE_SETSID 1
 
-/* Define if you have the `setsockopt' function. */
+/* Define to 1 if you have the `setsockopt' function. */
 #define HAVE_SETSOCKOPT 1
 
-/* Define if you have the `setutent' function. */
+/* Define to 1 if you have the `setstate' function. */
+#define HAVE_SETSTATE 1
+
+/* Define to 1 if you have the `setutent' function. */
 /* #undef HAVE_SETUTENT */
 
-/* Define if you have the `sgi_getcapabilitybyname' function. */
+/* Define to 1 if you have the `sgi_getcapabilitybyname' function. */
 /* #undef HAVE_SGI_GETCAPABILITYBYNAME */
 
-/* Define if you have the <sgtty.h> header file. */
+/* Define to 1 if you have the <sgtty.h> header file. */
 #define HAVE_SGTTY_H 1
 
-/* Define if you have the <shadow.h> header file. */
+/* Define to 1 if you have the <shadow.h> header file. */
 /* #undef HAVE_SHADOW_H */
 
-/* Define if you have the <siad.h> header file. */
+/* Define to 1 if you have the <siad.h> header file. */
 /* #undef HAVE_SIAD_H */
 
-/* Define if you have the `sigaction' function. */
+/* Define to 1 if you have the `sigaction' function. */
 #define HAVE_SIGACTION 1
 
-/* Define if you have the <signal.h> header file. */
+/* Define to 1 if you have the <signal.h> header file. */
 #define HAVE_SIGNAL_H 1
 
 /* define if you have a working snprintf */
 #define HAVE_SNPRINTF 1
 
-/* Define if you have the `socket' function. */
+/* Define to 1 if you have the `socket' function. */
 #define HAVE_SOCKET 1
 
-/* Define if the system has the type `socklen_t'. */
+/* Define to 1 if the system has the type `socklen_t'. */
 #define HAVE_SOCKLEN_T 1
 
-/* Define if you have the <standards.h> header file. */
+/* Define to 1 if the system has the type `ssize_t'. */
+#define HAVE_SSIZE_T 1
+
+/* Define to 1 if you have the <standards.h> header file. */
 /* #undef HAVE_STANDARDS_H */
 
-/* Define if you have the <stdint.h> header file. */
+/* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
 
-/* Define if you have the <stdlib.h> header file. */
+/* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
-/* Define if you have the `strcasecmp' function. */
+/* Define if you have the function `strcasecmp'. */
 #define HAVE_STRCASECMP 1
 
-/* Define if you have the `strdup' function. */
+/* Define if you have the function `strdup'. */
 #define HAVE_STRDUP 1
 
-/* Define if you have the `strerror' function. */
+/* Define if you have the function `strerror'. */
 #define HAVE_STRERROR 1
 
-/* Define if you have the `strftime' function. */
+/* Define if you have the function `strftime'. */
 #define HAVE_STRFTIME 1
 
-/* Define if you have the <strings.h> header file. */
+/* Define to 1 if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H 1
 
-/* Define if you have the <string.h> header file. */
+/* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
-/* Define if you have the `strlcat' function. */
+/* Define if you have the function `strlcat'. */
 #define HAVE_STRLCAT 1
 
-/* Define if you have the `strlcpy' function. */
+/* Define if you have the function `strlcpy'. */
 #define HAVE_STRLCPY 1
 
-/* Define if you have the `strlwr' function. */
+/* Define if you have the function `strlwr'. */
 /* #undef HAVE_STRLWR */
 
-/* Define if you have the `strncasecmp' function. */
+/* Define if you have the function `strncasecmp'. */
 #define HAVE_STRNCASECMP 1
 
-/* Define if you have the `strndup' function. */
+/* Define if you have the function `strndup'. */
 /* #undef HAVE_STRNDUP */
 
-/* Define if you have the `strnlen' function. */
+/* Define if you have the function `strnlen'. */
 /* #undef HAVE_STRNLEN */
 
-/* Define if you have the <stropts.h> header file. */
+/* Define to 1 if you have the <stropts.h> header file. */
 /* #undef HAVE_STROPTS_H */
 
-/* Define if you have the `strptime' function. */
+/* Define if you have the function `strptime'. */
 #define HAVE_STRPTIME 1
 
-/* Define if you have the `strsep' function. */
+/* Define if you have the function `strsep'. */
 #define HAVE_STRSEP 1
 
-/* Define if you have the `strsep_copy' function. */
+/* Define if you have the function `strsep_copy'. */
 /* #undef HAVE_STRSEP_COPY */
 
-/* Define if you have the `strstr' function. */
+/* Define to 1 if you have the `strstr' function. */
 #define HAVE_STRSTR 1
 
-/* Define if you have the `strsvis' function. */
+/* Define to 1 if you have the `strsvis' function. */
 /* #undef HAVE_STRSVIS */
 
-/* Define if you have the `strtok_r' function. */
+/* Define if you have the function `strtok_r'. */
 #define HAVE_STRTOK_R 1
 
-/* Define if the system has the type `struct addrinfo'. */
+/* Define to 1 if the system has the type `struct addrinfo'. */
 #define HAVE_STRUCT_ADDRINFO 1
 
-/* Define if the system has the type `struct ifaddrs'. */
+/* Define to 1 if the system has the type `struct ifaddrs'. */
 #define HAVE_STRUCT_IFADDRS 1
 
-/* Define if the system has the type `struct sockaddr'. */
+/* Define to 1 if the system has the type `struct iovec'. */
+#define HAVE_STRUCT_IOVEC 1
+
+/* Define to 1 if the system has the type `struct msghdr'. */
+#define HAVE_STRUCT_MSGHDR 1
+
+/* Define to 1 if the system has the type `struct sockaddr'. */
 #define HAVE_STRUCT_SOCKADDR 1
 
 /* Define if struct sockaddr has field sa_len. */
 #define HAVE_STRUCT_SOCKADDR_SA_LEN 1
 
-/* Define if the system has the type `struct sockaddr_storage'. */
+/* Define to 1 if the system has the type `struct sockaddr_storage'. */
 #define HAVE_STRUCT_SOCKADDR_STORAGE 1
 
 /* define if you have struct spwd */
@@ -748,148 +805,154 @@
 /* define if struct winsize is declared in sys/termios.h */
 #define HAVE_STRUCT_WINSIZE 1
 
-/* Define if you have the `strunvis' function. */
+/* Define to 1 if you have the `strunvis' function. */
 #define HAVE_STRUNVIS 1
 
-/* Define if you have the `strupr' function. */
+/* Define if you have the function `strupr'. */
 /* #undef HAVE_STRUPR */
 
-/* Define if you have the `strvis' function. */
+/* Define to 1 if you have the `strvis' function. */
 #define HAVE_STRVIS 1
 
-/* Define if you have the `strvisx' function. */
+/* Define to 1 if you have the `strvisx' function. */
 #define HAVE_STRVISX 1
 
-/* Define if you have the `svis' function. */
+/* Define to 1 if you have the `svis' function. */
 /* #undef HAVE_SVIS */
 
-/* Define if you have the `swab' function. */
+/* Define if you have the function `swab'. */
 #define HAVE_SWAB 1
 
-/* Define if you have the `sysconf' function. */
+/* Define to 1 if you have the `sysconf' function. */
 #define HAVE_SYSCONF 1
 
-/* Define if you have the `sysctl' function. */
+/* Define to 1 if you have the `sysctl' function. */
 #define HAVE_SYSCTL 1
 
-/* Define if you have the `syslog' function. */
+/* Define to 1 if you have the `syslog' function. */
 #define HAVE_SYSLOG 1
 
-/* Define if you have the <syslog.h> header file. */
+/* Define to 1 if you have the <syslog.h> header file. */
 #define HAVE_SYSLOG_H 1
 
-/* Define if you have the <sys/bitypes.h> header file. */
+/* Define to 1 if you have the <sys/bitypes.h> header file. */
 /* #undef HAVE_SYS_BITYPES_H */
 
-/* Define if you have the <sys/capability.h> header file. */
+/* Define to 1 if you have the <sys/bswap.h> header file. */
+/* #undef HAVE_SYS_BSWAP_H */
+
+/* Define to 1 if you have the <sys/capability.h> header file. */
 #define HAVE_SYS_CAPABILITY_H 1
 
-/* Define if you have the <sys/category.h> header file. */
+/* Define to 1 if you have the <sys/category.h> header file. */
 /* #undef HAVE_SYS_CATEGORY_H */
 
-/* Define if you have the <sys/file.h> header file. */
+/* Define to 1 if you have the <sys/file.h> header file. */
 #define HAVE_SYS_FILE_H 1
 
-/* Define if you have the <sys/filio.h> header file. */
+/* Define to 1 if you have the <sys/filio.h> header file. */
 #define HAVE_SYS_FILIO_H 1
 
-/* Define if you have the <sys/ioccom.h> header file. */
+/* Define to 1 if you have the <sys/ioccom.h> header file. */
 #define HAVE_SYS_IOCCOM_H 1
 
-/* Define if you have the <sys/ioctl.h> header file. */
+/* Define to 1 if you have the <sys/ioctl.h> header file. */
 #define HAVE_SYS_IOCTL_H 1
 
-/* Define if you have the <sys/param.h> header file. */
+/* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
 
-/* Define if you have the <sys/proc.h> header file. */
+/* Define to 1 if you have the <sys/proc.h> header file. */
 #define HAVE_SYS_PROC_H 1
 
-/* Define if you have the <sys/ptyio.h> header file. */
+/* Define to 1 if you have the <sys/ptyio.h> header file. */
 /* #undef HAVE_SYS_PTYIO_H */
 
-/* Define if you have the <sys/ptyvar.h> header file. */
+/* Define to 1 if you have the <sys/ptyvar.h> header file. */
 /* #undef HAVE_SYS_PTYVAR_H */
 
-/* Define if you have the <sys/pty.h> header file. */
+/* Define to 1 if you have the <sys/pty.h> header file. */
 /* #undef HAVE_SYS_PTY_H */
 
-/* Define if you have the <sys/resource.h> header file. */
+/* Define to 1 if you have the <sys/resource.h> header file. */
 #define HAVE_SYS_RESOURCE_H 1
 
-/* Define if you have the <sys/select.h> header file. */
+/* Define to 1 if you have the <sys/select.h> header file. */
 #define HAVE_SYS_SELECT_H 1
 
-/* Define if you have the <sys/socket.h> header file. */
+/* Define to 1 if you have the <sys/socket.h> header file. */
 #define HAVE_SYS_SOCKET_H 1
 
-/* Define if you have the <sys/sockio.h> header file. */
+/* Define to 1 if you have the <sys/sockio.h> header file. */
 #define HAVE_SYS_SOCKIO_H 1
 
-/* Define if you have the <sys/stat.h> header file. */
+/* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
-/* Define if you have the <sys/stream.h> header file. */
+/* Define to 1 if you have the <sys/stream.h> header file. */
 /* #undef HAVE_SYS_STREAM_H */
 
-/* Define if you have the <sys/stropts.h> header file. */
+/* Define to 1 if you have the <sys/stropts.h> header file. */
 /* #undef HAVE_SYS_STROPTS_H */
 
-/* Define if you have the <sys/strtty.h> header file. */
+/* Define to 1 if you have the <sys/strtty.h> header file. */
 /* #undef HAVE_SYS_STRTTY_H */
 
-/* Define if you have the <sys/str_tty.h> header file. */
+/* Define to 1 if you have the <sys/str_tty.h> header file. */
 /* #undef HAVE_SYS_STR_TTY_H */
 
-/* Define if you have the <sys/syscall.h> header file. */
+/* Define to 1 if you have the <sys/syscall.h> header file. */
 #define HAVE_SYS_SYSCALL_H 1
 
-/* Define if you have the <sys/sysctl.h> header file. */
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
 #define HAVE_SYS_SYSCTL_H 1
 
-/* Define if you have the <sys/termio.h> header file. */
+/* Define to 1 if you have the <sys/termio.h> header file. */
 /* #undef HAVE_SYS_TERMIO_H */
 
-/* Define if you have the <sys/timeb.h> header file. */
+/* Define to 1 if you have the <sys/timeb.h> header file. */
 #define HAVE_SYS_TIMEB_H 1
 
-/* Define if you have the <sys/times.h> header file. */
+/* Define to 1 if you have the <sys/times.h> header file. */
 #define HAVE_SYS_TIMES_H 1
 
-/* Define if you have the <sys/time.h> header file. */
+/* Define to 1 if you have the <sys/time.h> header file. */
 #define HAVE_SYS_TIME_H 1
 
-/* Define if you have the <sys/tty.h> header file. */
+/* Define to 1 if you have the <sys/tty.h> header file. */
 #define HAVE_SYS_TTY_H 1
 
-/* Define if you have the <sys/types.h> header file. */
+/* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
-/* Define if you have the <sys/uio.h> header file. */
+/* Define to 1 if you have the <sys/uio.h> header file. */
 #define HAVE_SYS_UIO_H 1
 
-/* Define if you have the <sys/un.h> header file. */
+/* Define to 1 if you have the <sys/un.h> header file. */
 #define HAVE_SYS_UN_H 1
 
-/* Define if you have the <sys/utsname.h> header file. */
+/* Define to 1 if you have the <sys/utsname.h> header file. */
 #define HAVE_SYS_UTSNAME_H 1
 
-/* Define if you have the <sys/wait.h> header file. */
+/* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
 
-/* Define if you have the <termios.h> header file. */
+/* Define to 1 if you have the <termcap.h> header file. */
+#define HAVE_TERMCAP_H 1
+
+/* Define to 1 if you have the <termios.h> header file. */
 #define HAVE_TERMIOS_H 1
 
-/* Define if you have the <termio.h> header file. */
+/* Define to 1 if you have the <termio.h> header file. */
 /* #undef HAVE_TERMIO_H */
 
-/* Define if you have the <term.h> header file. */
+/* Define to 1 if you have the <term.h> header file. */
 #define HAVE_TERM_H 1
 
-/* Define if you have the `tgetent' function. */
+/* Define to 1 if you have the `tgetent' function. */
 #define HAVE_TGETENT 1
 
-/* Define if you have the `timegm' function. */
+/* Define to 1 if you have the `timegm' function. */
 #define HAVE_TIMEGM 1
 
 /* Define if you have the `timezone' variable. */
@@ -898,94 +961,94 @@
 /* define if your system declares timezone */
 #define HAVE_TIMEZONE_DECLARATION 1
 
-/* Define if you have the <time.h> header file. */
+/* Define to 1 if you have the <time.h> header file. */
 #define HAVE_TIME_H 1
 
-/* Define if you have the <tmpdir.h> header file. */
+/* Define to 1 if you have the <tmpdir.h> header file. */
 /* #undef HAVE_TMPDIR_H */
 
-/* Define if you have the `ttyname' function. */
+/* Define to 1 if you have the `ttyname' function. */
 #define HAVE_TTYNAME 1
 
-/* Define if you have the `ttyslot' function. */
+/* Define to 1 if you have the `ttyslot' function. */
 #define HAVE_TTYSLOT 1
 
-/* Define if you have the <udb.h> header file. */
+/* Define to 1 if you have the <udb.h> header file. */
 /* #undef HAVE_UDB_H */
 
-/* Define if you have the `umask' function. */
+/* Define to 1 if you have the `umask' function. */
 #define HAVE_UMASK 1
 
-/* Define if you have the `uname' function. */
+/* Define to 1 if you have the `uname' function. */
 #define HAVE_UNAME 1
 
-/* Define if you have the <unistd.h> header file. */
+/* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-/* Define if you have the `unlockpt' function. */
+/* Define to 1 if you have the `unlockpt' function. */
 /* #undef HAVE_UNLOCKPT */
 
-/* Define if you have the `unsetenv' function. */
+/* Define if you have the function `unsetenv'. */
 #define HAVE_UNSETENV 1
 
-/* Define if you have the `unvis' function. */
+/* Define to 1 if you have the `unvis' function. */
 #define HAVE_UNVIS 1
 
-/* Define if you have the <userconf.h> header file. */
+/* Define to 1 if you have the <userconf.h> header file. */
 /* #undef HAVE_USERCONF_H */
 
-/* Define if you have the <usersec.h> header file. */
+/* Define to 1 if you have the <usersec.h> header file. */
 /* #undef HAVE_USERSEC_H */
 
-/* Define if you have the <util.h> header file. */
+/* Define to 1 if you have the <util.h> header file. */
 /* #undef HAVE_UTIL_H */
 
-/* Define if you have the <utmpx.h> header file. */
+/* Define to 1 if you have the <utmpx.h> header file. */
 /* #undef HAVE_UTMPX_H */
 
-/* Define if you have the <utmp.h> header file. */
+/* Define to 1 if you have the <utmp.h> header file. */
 #define HAVE_UTMP_H 1
 
-/* Define if you have the `vasnprintf' function. */
+/* Define to 1 if you have the `vasnprintf' function. */
 /* #undef HAVE_VASNPRINTF */
 
-/* Define if you have the `vasprintf' function. */
+/* Define to 1 if you have the `vasprintf' function. */
 #define HAVE_VASPRINTF 1
 
-/* Define if you have the `verr' function. */
+/* Define if you have the function `verr'. */
 #define HAVE_VERR 1
 
-/* Define if you have the `verrx' function. */
+/* Define if you have the function `verrx'. */
 #define HAVE_VERRX 1
 
-/* Define if you have the `vhangup' function. */
+/* Define to 1 if you have the `vhangup' function. */
 /* #undef HAVE_VHANGUP */
 
-/* Define if you have the `vis' function. */
+/* Define to 1 if you have the `vis' function. */
 #define HAVE_VIS 1
 
-/* Define if you have the <vis.h> header file. */
+/* Define to 1 if you have the <vis.h> header file. */
 #define HAVE_VIS_H 1
 
 /* define if you have a working vsnprintf */
 #define HAVE_VSNPRINTF 1
 
-/* Define if you have the `vsyslog' function. */
+/* Define if you have the function `vsyslog'. */
 #define HAVE_VSYSLOG 1
 
-/* Define if you have the `vwarn' function. */
+/* Define if you have the function `vwarn'. */
 #define HAVE_VWARN 1
 
-/* Define if you have the `vwarnx' function. */
+/* Define if you have the function `vwarnx'. */
 #define HAVE_VWARNX 1
 
-/* Define if you have the `warn' function. */
+/* Define if you have the function `warn'. */
 #define HAVE_WARN 1
 
-/* Define if you have the `warnx' function. */
+/* Define if you have the function `warnx'. */
 #define HAVE_WARNX 1
 
-/* Define if you have the `writev' function. */
+/* Define if you have the function `writev'. */
 #define HAVE_WRITEV 1
 
 /* define if struct winsize has ws_xpixel */
@@ -994,22 +1057,28 @@
 /* define if struct winsize has ws_ypixel */
 #define HAVE_WS_YPIXEL 1
 
-/* Define if you have the `XauFileName' function. */
+/* Define to 1 if you have the `XauFileName' function. */
 #define HAVE_XAUFILENAME 1
 
-/* Define if you have the `XauReadAuth' function. */
+/* Define to 1 if you have the `XauReadAuth' function. */
 #define HAVE_XAUREADAUTH 1
 
-/* Define if you have the `XauWriteAuth' function. */
+/* Define to 1 if you have the `XauWriteAuth' function. */
 #define HAVE_XAUWRITEAUTH 1
 
-/* Define if you have the `yp_get_default_domain' function. */
+/* Define to 1 if you have the `yp_get_default_domain' function. */
 #define HAVE_YP_GET_DEFAULT_DOMAIN 1
 
-/* Define if you have the `_getpty' function. */
+/* Define to 1 if you have the `_getpty' function. */
 /* #undef HAVE__GETPTY */
 
-/* Define if you have the `_scrsize' function. */
+/* Define if you have the `_res' variable. */
+#define HAVE__RES 1
+
+/* define if your system declares _res */
+#define HAVE__RES_DECLARATION 1
+
+/* Define to 1 if you have the `_scrsize' function. */
 /* #undef HAVE__SCRSIZE */
 
 /* define if your compiler has __attribute__ */
@@ -1024,11 +1093,20 @@
 /* Define if you have the hesiod package. */
 /* #undef HESIOD */
 
+/* Define if you are running IRIX 4. */
+/* #undef IRIX4 */
+
+/* Define if you have the krb4 package. */
+/* #undef KRB4 */
+
 /* Enable Kerberos 5 support in applications. */
 #define KRB5 1
 
-/* Define if krb_mk_req takes cons char * */
+/* Define if krb_mk_req takes const char * */
 /* #undef KRB_MK_REQ_CONST */
+
+/* This is the krb4 sendauth version. */
+/* #undef KRB_SENDAUTH_VERS */
 
 /* Define to zero if your krb.h doesn't */
 /* #undef KRB_VERIFY_NOT_SECURE */
@@ -1040,7 +1118,7 @@
 /* #undef KRB_VERIFY_SECURE_FAIL */
 
 /* define if the system is missing a prototype for asnprintf() */
-/* #undef NEED_ASNPRINTF_PROTO */
+#define NEED_ASNPRINTF_PROTO 1
 
 /* define if the system is missing a prototype for asprintf() */
 /* #undef NEED_ASPRINTF_PROTO */
@@ -1072,20 +1150,44 @@
 /* define if the system is missing a prototype for snprintf() */
 /* #undef NEED_SNPRINTF_PROTO */
 
+/* define if the system is missing a prototype for strndup() */
+#define NEED_STRNDUP_PROTO 1
+
 /* define if the system is missing a prototype for strsep() */
 /* #undef NEED_STRSEP_PROTO */
+
+/* define if the system is missing a prototype for strsvis() */
+#define NEED_STRSVIS_PROTO 1
 
 /* define if the system is missing a prototype for strtok_r() */
 /* #undef NEED_STRTOK_R_PROTO */
 
+/* define if the system is missing a prototype for strunvis() */
+/* #undef NEED_STRUNVIS_PROTO */
+
+/* define if the system is missing a prototype for strvisx() */
+/* #undef NEED_STRVISX_PROTO */
+
+/* define if the system is missing a prototype for strvis() */
+/* #undef NEED_STRVIS_PROTO */
+
+/* define if the system is missing a prototype for svis() */
+#define NEED_SVIS_PROTO 1
+
 /* define if the system is missing a prototype for unsetenv() */
 /* #undef NEED_UNSETENV_PROTO */
 
+/* define if the system is missing a prototype for unvis() */
+/* #undef NEED_UNVIS_PROTO */
+
 /* define if the system is missing a prototype for vasnprintf() */
-/* #undef NEED_VASNPRINTF_PROTO */
+#define NEED_VASNPRINTF_PROTO 1
 
 /* define if the system is missing a prototype for vasprintf() */
 /* #undef NEED_VASPRINTF_PROTO */
+
+/* define if the system is missing a prototype for vis() */
+/* #undef NEED_VIS_PROTO */
 
 /* define if the system is missing a prototype for vsnprintf() */
 /* #undef NEED_VSNPRINTF_PROTO */
@@ -1101,10 +1203,25 @@
 #define OPENLOG_PROTO_COMPATIBLE 1
 
 /* Define if you want OTP support in applications. */
-#define OTP 1
+/* #undef OTP */
 
 /* Name of package */
 #define PACKAGE "heimdal"
+
+/* Define to the address where bug reports for this package should be sent. */
+#define PACKAGE_BUGREPORT "heimdal-bugs@pdc.kth.se"
+
+/* Define to the full name of this package. */
+#define PACKAGE_NAME "Heimdal"
+
+/* Define to the full name and version of this package. */
+#define PACKAGE_STRING "Heimdal 0.4f"
+
+/* Define to the one symbol short name of this package. */
+#define PACKAGE_TARNAME "heimdal"
+
+/* Define to the version of this package. */
+#define PACKAGE_VERSION "0.4f"
 
 /* Define if getlogin has POSIX flavour (and not BSD). */
 /* #undef POSIX_GETLOGIN */
@@ -1118,7 +1235,7 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
-/* Define if you have the ANSI C header files. */
+/* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Define if you have streams ptys. */
@@ -1127,14 +1244,14 @@
 /* Define to what version of SunOS you are running. */
 /* #undef SunOS */
 
-/* Define if you can safely include both <sys/time.h> and <time.h>. */
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define TIME_WITH_SYS_TIME 1
 
-/* Define if your <sys/time.h> declares `struct tm'. */
+/* Define to 1 if your <sys/time.h> declares `struct tm'. */
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "0.4e"
+#define VERSION "0.4f"
 
 /* Define if signal handlers return void. */
 #define VOID_RETSIGTYPE 1
@@ -1142,12 +1259,15 @@
 /* define if target is big endian */
 /* #undef WORDS_BIGENDIAN */
 
-/* Define if the X Window System is missing or not being used. */
+/* Define to 1 if the X Window System is missing or not being used. */
 /* #undef X_DISPLAY_MISSING */
 
-/* Define if `lex' declares `yytext' as a `char *' by default, not a `char[]'.
-   */
+/* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
+   `char[]'. */
 #define YYTEXT_POINTER 1
+
+/* Define to enable extensions on glibc-based systems such as Linux. */
+#define _GNU_SOURCE 1
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
@@ -1174,95 +1294,9 @@
 /* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef size_t */
 
-/* Define this to what the type ssize_t should be. */
-/* #undef ssize_t */
-
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
 
-#ifdef VOID_RETSIGTYPE
-#define SIGRETURN(x) return
-#else
-#define SIGRETURN(x) return (RETSIGTYPE)(x)
-#endif
-
-#ifdef BROKEN_REALLOC
-#define realloc(X, Y) isoc_realloc((X), (Y))
-#define isoc_realloc(X, Y) ((X) ? realloc((X), (Y)) : malloc(Y))
-#endif
-
-#if defined(HAVE_FOUR_VALUED_KRB_PUT_INT) || !defined(KRB4)
-#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (L), (S))
-#else
-#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (S))
-#endif
-
-
-#ifdef VOID_RETSIGTYPE
-#define SIGRETURN(x) return
-#else
-#define SIGRETURN(x) return (RETSIGTYPE)(x)
-#endif
-
-#ifdef BROKEN_REALLOC
-#define realloc(X, Y) isoc_realloc((X), (Y))
-#define isoc_realloc(X, Y) ((X) ? realloc((X), (Y)) : malloc(Y))
-#endif
-
-#define BINDIR "/usr/bin"
-#define LIBDIR "/usr/lib"
-#define LIBEXECDIR "/usr/libexec"
-#define SBINDIR "/usr/sbin"
-
-#define BINDIR "/usr/bin"
-#define LIBDIR "/usr/lib"
-#define LIBEXECDIR "/usr/libexec"
-#define SBINDIR "/usr/sbin"
-
-#define HAVE_INT8_T 1
-#define HAVE_INT16_T 1
-#define HAVE_INT32_T 1
-#define HAVE_INT64_T 1
-#define HAVE_U_INT8_T 1
-#define HAVE_U_INT16_T 1
-#define HAVE_U_INT32_T 1
-#define HAVE_U_INT64_T 1
-#define HAVE_UINT8_T 1
-#define HAVE_UINT16_T 1
-#define HAVE_UINT32_T 1
-#define HAVE_UINT64_T 1
-
-#if defined(HAVE_FOUR_VALUED_KRB_PUT_INT) || !defined(KRB4)
-#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (L), (S))
-#else
-#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (S))
-#endif
-
-#ifdef BROKEN_REALLOC
-#define realloc(X, Y) isoc_realloc((X), (Y))
-#define isoc_realloc(X, Y) ((X) ? realloc((X), (Y)) : malloc(Y))
-#endif
-
-#ifdef VOID_RETSIGTYPE
-#define SIGRETURN(x) return
-#else
-#define SIGRETURN(x) return (RETSIGTYPE)(x)
-#endif
-
-#define RCSID(msg) \
-static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
-
-/* #undef PROTOTYPES */
-
-/* Maximum values on all known systems */
-#define MaxHostNameLen (64+4)
-#define MaxPathLen (1024+4)
-
-#if defined(HAVE_SGTTY_H) && defined(__NeXT__)
-#define SGTTY
-#endif
-
-/* telnet stuff ----------------------------------------------- */
 
 #if defined(ENCRYPTION) && !defined(AUTHENTICATION)
 #define AUTHENTICATION 1
@@ -1282,20 +1316,37 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 #define LOGIN_PATH BINDIR "/login"
 #endif
 
-/* random defines */
 
-/*
- * Defining this enables lots of useful (and used) extensions on
- * glibc-based systems such as Linux
- */
+#ifdef ROKEN_RENAME
+#include "roken_rename.h"
+#endif
 
-#define _GNU_SOURCE
+#ifdef VOID_RETSIGTYPE
+#define SIGRETURN(x) return
+#else
+#define SIGRETURN(x) return (RETSIGTYPE)(x)
+#endif
 
-/*
- * this assumes that KRB_C_BIGENDIAN is used.
- * if we can find out endianess at compile-time, do so,
- * otherwise WORDS_BIGENDIAN should already have been defined
- */
+#ifdef BROKEN_REALLOC
+#define realloc(X, Y) isoc_realloc((X), (Y))
+#define isoc_realloc(X, Y) ((X) ? realloc((X), (Y)) : malloc(Y))
+#endif
+
+#if defined(HAVE_FOUR_VALUED_KRB_PUT_INT) || !defined(KRB4)
+#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (L), (S))
+#else
+#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (S))
+#endif
+
+
+#ifndef HAVE_KRB_KDCTIMEOFDAY
+#define krb_kdctimeofday(X) gettimeofday((X), NULL)
+#endif
+
+#ifndef HAVE_KRB_GET_KDC_TIME_DIFF
+#define krb_get_kdc_time_diff() (0)
+#endif
+
 
 #if ENDIANESS_IN_SYS_PARAM_H
 #  include <sys/types.h>
@@ -1305,6 +1356,19 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 #  endif
 #endif
 
-#ifdef ROKEN_RENAME
-#include "roken_rename.h"
+
+#if _AIX
+#define _ALL_SOURCE
+/* XXX this is gross, but kills about a gazillion warnings */
+struct ether_addr;
+struct sockaddr;
+struct sockaddr_dl;
+struct sockaddr_in;
 #endif
+
+
+/* IRIX 4 braindamage */
+#if IRIX == 4 && !defined(__STDC__)
+#define __STDC__ 0
+#endif
+

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken-common.h,v 1.48 2001/09/03 12:04:34 joda Exp $ */
+/* $Id: roken-common.h,v 1.49 2002/08/20 11:55:04 joda Exp $ */
 
 #ifndef __ROKEN_COMMON_H__
 #define __ROKEN_COMMON_H__
@@ -191,12 +191,13 @@
 /* flags for getaddrinfo() */
 
 #ifndef AI_PASSIVE
-
 #define AI_PASSIVE	0x01
 #define AI_CANONNAME	0x02
-#define AI_NUMERICHOST	0x04
-
 #endif /* AI_PASSIVE */
+
+#ifndef AI_NUMERICHOST
+#define AI_NUMERICHOST	0x04
+#endif
 
 /* flags for getnameinfo() */
 

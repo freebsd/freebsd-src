@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,14 +35,17 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 #include <err.h>
-RCSID("$Id: verify_krb5_conf.c,v 1.7 2001/09/03 05:42:35 assar Exp $");
+RCSID("$Id: verify_krb5_conf.c,v 1.14 2002/08/28 15:27:19 nectar Exp $");
 
 /* verify krb5.conf */
 
+static int dumpconfig_flag = 0;
 static int version_flag = 0;
 static int help_flag	= 0;
 
 static struct getargs args[] = {
+    {"dumpconfig", 0,      arg_flag,       &dumpconfig_flag, 
+     "show the parsed config files", NULL },
     {"version",	0,	arg_flag,	&version_flag,
      "print version", NULL },
     {"help",	0,	arg_flag,	&help_flag,
@@ -109,6 +112,9 @@ check_boolean(krb5_context context, const char *path, char *data)
 		   path, data);
 	return 1;
     }
+    if(v != 0 && v != 1)
+	krb5_warnx(context, "%s: numeric value \"%s\" is treated as \"true\"", 
+		   path, data);
     return 0;
 }
 
@@ -145,6 +151,135 @@ check_host(krb5_context context, const char *path, char *data)
     return 0;
 }
 
+#if 0
+static int
+mit_entry(krb5_context context, const char *path, char *data)
+{
+    krb5_warnx(context, "%s is only used by MIT Kerberos", path);
+    return 0;
+}
+#endif
+
+struct s2i {
+    char *s;
+    int val;
+};
+
+#define L(X) { #X, LOG_ ## X }
+
+static struct s2i syslogvals[] = {
+    L(EMERG),
+    L(ALERT),
+    L(CRIT),
+    L(ERR),
+    L(WARNING),
+    L(NOTICE),
+    L(INFO),
+    L(DEBUG),
+
+    L(AUTH),
+#ifdef LOG_AUTHPRIV
+    L(AUTHPRIV),
+#endif
+#ifdef LOG_CRON
+    L(CRON),
+#endif
+    L(DAEMON),
+#ifdef LOG_FTP
+    L(FTP),
+#endif
+    L(KERN),
+    L(LPR),
+    L(MAIL),
+#ifdef LOG_NEWS
+    L(NEWS),
+#endif
+    L(SYSLOG),
+    L(USER),
+#ifdef LOG_UUCP
+    L(UUCP),
+#endif
+    L(LOCAL0),
+    L(LOCAL1),
+    L(LOCAL2),
+    L(LOCAL3),
+    L(LOCAL4),
+    L(LOCAL5),
+    L(LOCAL6),
+    L(LOCAL7),
+    { NULL, -1 }
+};
+
+static int
+find_value(const char *s, struct s2i *table)
+{
+    while(table->s && strcasecmp(table->s, s))
+	table++;
+    return table->val;
+}
+
+static int
+check_log(krb5_context context, const char *path, char *data)
+{
+    /* XXX sync with log.c */
+    int min = 0, max = -1, n;
+    char c;
+    const char *p = data;
+
+    n = sscanf(p, "%d%c%d/", &min, &c, &max);
+    if(n == 2){
+	if(c == '/') {
+	    if(min < 0){
+		max = -min;
+		min = 0;
+	    }else{
+		max = min;
+	    }
+	}
+    }
+    if(n){
+	p = strchr(p, '/');
+	if(p == NULL) {
+	    krb5_warnx(context, "%s: failed to parse \"%s\"", path, data);
+	    return 1;
+	}
+	p++;
+    }
+    if(strcmp(p, "STDERR") == 0 || 
+       strcmp(p, "CONSOLE") == 0 ||
+       (strncmp(p, "FILE", 4) == 0 && (p[4] == ':' || p[4] == '=')) ||
+       (strncmp(p, "DEVICE", 6) == 0 && p[6] == '='))
+	return 0;
+    if(strncmp(p, "SYSLOG", 6) == 0){
+	int ret = 0;
+	char severity[128] = "";
+	char facility[128] = "";
+	p += 6;
+	if(*p != '\0')
+	    p++;
+	if(strsep_copy(&p, ":", severity, sizeof(severity)) != -1)
+	    strsep_copy(&p, ":", facility, sizeof(facility));
+	if(*severity == '\0')
+	    strlcpy(severity, "ERR", sizeof(severity));
+ 	if(*facility == '\0')
+	    strlcpy(facility, "AUTH", sizeof(facility));
+	if(find_value(severity, syslogvals) == NULL) {
+	    krb5_warnx(context, "%s: unknown syslog facility \"%s\"", 
+		       path, facility);
+	    ret++;
+	}
+	if(find_value(severity, syslogvals) == NULL) {
+	    krb5_warnx(context, "%s: unknown syslog severity \"%s\"", 
+		       path, severity);
+	    ret++;
+	}
+	return ret;
+    }else{
+	krb5_warnx(context, "%s: unknown log type: \"%s\"", path, data);
+	return 1;
+    }
+}
+
 typedef int (*check_func_t)(krb5_context, const char*, char*);
 struct entry {
     const char *name;
@@ -174,6 +309,9 @@ struct entry libdefaults_entries[] = {
     { "default_keytab_name", krb5_config_string, NULL },
     { "default_realm", krb5_config_string, NULL },
     { "dns_proxy", krb5_config_string, NULL },
+    { "dns_lookup_kdc", krb5_config_string, check_boolean },
+    { "dns_lookup_realm", krb5_config_string, check_boolean },
+    { "dns_lookup_realm_labels", krb5_config_string, NULL },
     { "egd_socket", krb5_config_string, NULL },
     { "encrypt", krb5_config_string, check_boolean },
     { "extra_addresses", krb5_config_string, NULL },
@@ -184,7 +322,6 @@ struct entry libdefaults_entries[] = {
     { "ignore_addresses", krb5_config_string, NULL },
     { "kdc_timeout", krb5_config_string, check_time },
     { "kdc_timesync", krb5_config_string, check_boolean },
-    { "krb4_get_tickets", krb5_config_string, check_boolean },
     { "log_utc", krb5_config_string, check_boolean },
     { "maxretries", krb5_config_string, check_numeric },
     { "scan_interfaces", krb5_config_string, check_boolean },
@@ -205,6 +342,7 @@ struct entry appdefaults_entries[] = {
     { "ticket_lifetime", krb5_config_string, check_time },
     { "renew_lifetime", krb5_config_string, check_time },
     { "no-addresses", krb5_config_string, check_boolean },
+    { "krb4_get_tickets", krb5_config_string, check_boolean },
 #if 0
     { "anonymous", krb5_config_string, check_boolean },
 #endif
@@ -226,6 +364,23 @@ struct entry realms_entries[] = {
     { "v4_instance_convert", krb5_config_list, all_strings },
     { "v4_domains", krb5_config_string, NULL },
     { "default_domain", krb5_config_string, NULL },
+#if 0
+    /* MIT stuff */
+    { "admin_keytab", krb5_config_string, mit_entry },
+    { "acl_file", krb5_config_string, mit_entry },
+    { "dict_file", krb5_config_string, mit_entry },
+    { "kadmind_port", krb5_config_string, mit_entry },
+    { "kpasswd_port", krb5_config_string, mit_entry },
+    { "master_key_name", krb5_config_string, mit_entry },
+    { "master_key_type", krb5_config_string, mit_entry },
+    { "key_stash_file", krb5_config_string, mit_entry },
+    { "max_life", krb5_config_string, mit_entry },
+    { "max_renewable_life", krb5_config_string, mit_entry },
+    { "default_principal_expiration", krb5_config_string, mit_entry },
+    { "default_principal_flags", krb5_config_string, mit_entry },
+    { "supported_enctypes", krb5_config_string, mit_entry },
+    { "database_name", krb5_config_string, mit_entry },
+#endif
     { NULL }
 };
 
@@ -245,7 +400,7 @@ struct entry kdc_database_entries[] = {
 struct entry kdc_entries[] = {
     { "database", krb5_config_list, kdc_database_entries },
     { "key-file", krb5_config_string, NULL },
-    { "logging", krb5_config_string, NULL },
+    { "logging", krb5_config_string, check_log },
     { "max-request", krb5_config_string, check_bytes },
     { "require-preauth", krb5_config_string, check_boolean },
     { "ports", krb5_config_string, NULL },
@@ -269,14 +424,32 @@ struct entry kadmin_entries[] = {
     { "use_v4_salt", krb5_config_string, NULL },
     { NULL }
 };
+struct entry log_strings[] = {
+    { "", krb5_config_string, check_log },
+    { NULL }
+};
+
+
+#if 0
+struct entry kdcdefaults_entries[] = {
+    { "kdc_ports, krb5_config_string, mit_entry },
+    { "v4_mode, krb5_config_string, mit_entry },
+    { NULL }
+};
+#endif
+
 struct entry toplevel_sections[] = {
     { "libdefaults" , krb5_config_list, libdefaults_entries },
     { "realms", krb5_config_list, realms_foobar },
     { "domain_realm", krb5_config_list, all_strings },
-    { "logging", krb5_config_list, all_strings },
+    { "logging", krb5_config_list, log_strings },
     { "kdc", krb5_config_list, kdc_entries },
     { "kadmin", krb5_config_list, kadmin_entries },
     { "appdefaults", krb5_config_list, appdefaults_entries },
+#if 0
+    /* MIT stuff */
+    { "kdcdefaults", krb5_config_list, kdcdefaults_entries },
+#endif
     { NULL }
 };
 
@@ -308,6 +481,8 @@ check_section(krb5_context context, const char *path, krb5_config_section *cf,
 	}
 	if(e->name == NULL) {
 	    krb5_warnx(context, "%s: unknown entry", local);
+	    for(e = entries; e->name != NULL; e++)
+		krb5_warnx(context, "  %s", e->name);
 	    error |= 1;
 	}
 	free(local);
@@ -316,11 +491,33 @@ check_section(krb5_context context, const char *path, krb5_config_section *cf,
 }
 
 
+static void
+dumpconfig(int level, krb5_config_section *top)
+{
+    krb5_config_section *x;
+    for(x = top; x; x = x->next) {
+	switch(x->type) {
+	case krb5_config_list:
+	    if(level == 0) {
+		printf("[%s]\n", x->name);
+	    } else {
+		printf("%*s%s = {\n", 4 * level, " ", x->name);
+	    }
+	    dumpconfig(level + 1, x->u.list);
+	    if(level > 0)
+		printf("%*s}\n", 4 * level, " ");
+	    break;
+	case krb5_config_string:
+	    printf("%*s%s = %s\n", 4 * level, " ", x->name, x->u.string);
+	    break;
+	}
+    }
+}
+
 int
 main(int argc, char **argv)
 {
     krb5_context context;
-    const char *config_file = NULL;
     krb5_error_code ret;
     krb5_config_section *tmp_cf;
     int optind = 0;
@@ -345,21 +542,19 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    if (argc == 0) {
-	config_file = getenv("KRB5_CONFIG");
-	if (config_file == NULL)
-	    config_file = krb5_config_file;
-    } else if (argc == 1) {
-	config_file = argv[0];
-    } else {
-	usage (1);
-    }
-    
-    ret = krb5_config_parse_file (context, config_file, &tmp_cf);
-    if (ret != 0) {
-	krb5_warn (context, ret, "krb5_config_parse_file");
-	return 1;
+    tmp_cf = NULL;
+    if(argc == 0)
+	krb5_get_default_config_files(&argv);
+
+    while(*argv) {
+	ret = krb5_config_parse_file_multi(context, *argv, &tmp_cf);
+	if (ret != 0)
+	    krb5_warn (context, ret, "krb5_config_parse_file");
+	argv++;
     }
 
+    if(dumpconfig_flag)
+	dumpconfig(0, tmp_cf);
+    
     return check_section(context, "", tmp_cf, toplevel_sections);
 }
