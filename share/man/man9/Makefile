@@ -2,7 +2,7 @@
 
 MAN9=	at_shutdown.9 at_fork.9 at_exit.9 copy.9 devfs_add_devswf.9 \
 	devfs_link.9 fetch.9 ifnet.9 intro.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
-	store.9 style.9 timeout.9
+	store.9 style.9 timeout.9 uio.9
 
 MLINKS+= copy.9 copyin.9 copy.9 copyout.9 copy.9 copystr.9 copy.9 copyinstr.9
 MLINKS+= fetch.9 fubyte.9 fetch.9 fusword.9 fetch.9 fuswintr.9 fetch.9 fuword.9
@@ -18,5 +18,6 @@ MLINKS+= spl.9 splstatclock.9 spl.9 spltty.9 spl.9 splvm.9
 MLINKS+= spl.9 spl0.9 spl.9 splx.9
 MLINKS+= store.9 subyte.9 store.9 susword.9 store.9 suswintr.9 store.9 suword.9
 MLINKS+= timeout.9 untimeout.9
+MLINKS+= uio.9 uiomove.9
 
 .include <bsd.prog.mk>
