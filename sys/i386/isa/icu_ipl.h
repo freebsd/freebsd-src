@@ -23,13 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: icu_ipl.h,v 1.1 1997/05/31 08:50:34 peter Exp $
  */
 
-#ifndef _ISA_ICU_IPL_H_
-#define _ISA_ICU_IPL_H_
+#ifndef _I386_ISA_ICU_IPL_H_
+#define	_I386_ISA_ICU_IPL_H_
 
 #define	NHWI		16	/* number of h/w interrupts */
 #define	HWI_MASK	0xffff	/* bits corresponding to h/w interrupts */
 
-#endif /* _ISA_ICU_IPL_H_ */
+#endif /* !_I386_ISA_ICU_IPL_H_ */
