@@ -46,6 +46,8 @@ static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #include <sys/file.h>
 #include <protocols/rwhod.h>
 #include <stdio.h>
+#include <time.h>
+#include <string.h>
 
 DIR	*dirp;
 
@@ -65,7 +67,6 @@ int	nusers;
  */
 #define	down(w,now)	((now) - (w)->wd_recvtime > 11 * 60)
 
-char	*ctime(), *strcpy();
 time_t	now;
 int	aflg;
 
@@ -144,13 +145,14 @@ main(argc, argv)
 	}
 	mp = myutmp;
 	for (i = 0; i < nusers; i++) {
-		char buf[BUFSIZ];
+		char buf[BUFSIZ], cbuf[80];
+		strftime(cbuf, sizeof(cbuf), "%c", localtime((time_t *)&mp->myutmp.out_time));
 		(void)sprintf(buf, "%s:%-.8s", mp->myhost, mp->myutmp.out_line);
 		printf("%-8.8s %-*s %.12s",
 		   mp->myutmp.out_name,
 		   width,
 		   buf,
-		   ctime((time_t *)&mp->myutmp.out_time)+4);
+		   cbuf + 4);
 		mp->myidle /= 60;
 		if (mp->myidle) {
 			if (aflg) {
