@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.12.2.5 1998/04/07 00:53:12 brian Exp $
+ *	$Id: alias_cmd.c,v 1.12.2.6 1998/04/07 23:45:39 brian Exp $
  */
 
 #include <sys/types.h>
@@ -34,7 +34,7 @@ AliasRedirectPort(struct cmdargs const *arg)
   if (!AliasEnabled()) {
     prompt_Printf(arg->prompt, "Alias not enabled\n");
     return 1;
-  } else if (arg->argc == 3) {
+  } else if (arg->argc == arg->argn+3) {
     char proto_constant;
     const char *proto;
     u_short local_port;
@@ -44,7 +44,7 @@ AliasRedirectPort(struct cmdargs const *arg)
     struct in_addr null_addr;
     struct alias_link *link;
 
-    proto = arg->argv[0];
+    proto = arg->argv[arg->argn];
     if (strcmp(proto, "tcp") == 0) {
       proto_constant = IPPROTO_TCP;
     } else if (strcmp(proto, "udp") == 0) {
@@ -57,7 +57,8 @@ AliasRedirectPort(struct cmdargs const *arg)
       return 1;
     }
 
-    error = StrToAddrAndPort(arg->argv[1], &local_addr, &local_port, proto);
+    error = StrToAddrAndPort(arg->argv[arg->argn+1], &local_addr, &local_port,
+                             proto);
     if (error) {
       prompt_Printf(arg->prompt, "port redirect: error reading"
                     " local addr:port\n");
@@ -65,7 +66,7 @@ AliasRedirectPort(struct cmdargs const *arg)
                     arg->cmd->syntax);
       return 1;
     }
-    error = StrToPort(arg->argv[2], &alias_port, proto);
+    error = StrToPort(arg->argv[arg->argn+2], &alias_port, proto);
     if (error) {
       prompt_Printf(arg->prompt, "port redirect: error reading alias port\n");
       prompt_Printf(arg->prompt, "Usage: alias %s %s\n", arg->cmd->name,
@@ -95,18 +96,18 @@ AliasRedirectAddr(struct cmdargs const *arg)
   if (!AliasEnabled()) {
     prompt_Printf(arg->prompt, "alias not enabled\n");
     return 1;
-  } else if (arg->argc == 2) {
+  } else if (arg->argc == arg->argn+2) {
     int error;
     struct in_addr local_addr;
     struct in_addr alias_addr;
     struct alias_link *link;
 
-    error = StrToAddr(arg->argv[0], &local_addr);
+    error = StrToAddr(arg->argv[arg->argn], &local_addr);
     if (error) {
       prompt_Printf(arg->prompt, "address redirect: invalid local address\n");
       return 1;
     }
-    error = StrToAddr(arg->argv[1], &alias_addr);
+    error = StrToAddr(arg->argv[arg->argn+1], &alias_addr);
     if (error) {
       prompt_Printf(arg->prompt, "address redirect: invalid alias address\n");
       prompt_Printf(arg->prompt, "Usage: alias %s %s\n", arg->cmd->name,

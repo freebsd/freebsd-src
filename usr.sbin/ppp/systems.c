@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.5 1998/04/06 09:12:37 brian Exp $
+ * $Id: systems.c,v 1.35.2.6 1998/04/10 13:19:21 brian Exp $
  *
  *  TODO:
  */
@@ -172,7 +172,7 @@ AllowUsers(struct cmdargs const *arg)
   userok = 0;
   user = getlogin();
   if (user && *user)
-    for (f = 0; f < arg->argc; f++)
+    for (f = arg->argn; f < arg->argc; f++)
       if (!strcmp("*", arg->argv[f]) || !strcmp(user, arg->argv[f])) {
         userok = 1;
         break;
@@ -216,7 +216,7 @@ AllowModes(struct cmdargs const *arg)
   int allowed;
 
   allowed = 0;
-  for (f = 0; f < arg->argc; f++) {
+  for (f = arg->argn; f < arg->argc; f++) {
     for (m = 0; modes[m].mode; m++)
       if (!strcasecmp(modes[m].name, arg->argv[f])) {
         allowed |= modes[m].mode;

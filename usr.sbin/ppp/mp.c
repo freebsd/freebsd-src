@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.1 1998/04/03 19:21:44 brian Exp $
+ *	$Id: mp.c,v 1.1.2.2 1998/04/06 09:12:34 brian Exp $
  */
 
 #include <sys/types.h>
@@ -441,10 +441,10 @@ mp_SetDatalinkWeight(struct cmdargs const *arg)
 {
   int val;
 
-  if (arg->argc != 1)
+  if (arg->argc != arg->argn+1)
     return -1;
   
-  val = atoi(arg->argv[0]);
+  val = atoi(arg->argv[arg->argn]);
   if (val < LINK_MINWEIGHT) {
     LogPrintf(LogWARN, "Link weights must not be less than %d\n",
               LINK_MINWEIGHT);

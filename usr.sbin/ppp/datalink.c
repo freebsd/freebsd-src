@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.35 1998/04/07 00:53:35 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.36 1998/04/10 13:19:05 brian Exp $
  */
 
 #include <sys/types.h>
@@ -748,9 +748,9 @@ datalink_Show(struct datalink *dl, struct prompt *prompt)
 int
 datalink_SetReconnect(struct cmdargs const *arg)
 {
-  if (arg->argc == 2) {
-    arg->cx->cfg.reconnect.timeout = atoi(arg->argv[0]);
-    arg->cx->cfg.reconnect.max = atoi(arg->argv[1]);
+  if (arg->argc == arg->argn+2) {
+    arg->cx->cfg.reconnect.timeout = atoi(arg->argv[arg->argn]);
+    arg->cx->cfg.reconnect.max = atoi(arg->argv[arg->argn+1]);
     return 0;
   }
   return -1;
@@ -763,13 +763,13 @@ datalink_SetRedial(struct cmdargs const *arg)
   int tries;
   char *dot;
 
-  if (arg->argc == 1 || arg->argc == 2) {
-    if (strncasecmp(arg->argv[0], "random", 6) == 0 &&
-	(arg->argv[0][6] == '\0' || arg->argv[0][6] == '.')) {
+  if (arg->argc == arg->argn+1 || arg->argc == arg->argn+2) {
+    if (strncasecmp(arg->argv[arg->argn], "random", 6) == 0 &&
+	(arg->argv[arg->argn][6] == '\0' || arg->argv[arg->argn][6] == '.')) {
       arg->cx->cfg.dial.timeout = -1;
       randinit();
     } else {
-      timeout = atoi(arg->argv[0]);
+      timeout = atoi(arg->argv[arg->argn]);
 
       if (timeout >= 0)
 	arg->cx->cfg.dial.timeout = timeout;
@@ -779,7 +779,7 @@ datalink_SetRedial(struct cmdargs const *arg)
       }
     }
 
-    dot = strchr(arg->argv[0], '.');
+    dot = strchr(arg->argv[arg->argn], '.');
     if (dot) {
       if (strcasecmp(++dot, "random") == 0) {
 	arg->cx->cfg.dial.next_timeout = -1;
@@ -797,8 +797,8 @@ datalink_SetRedial(struct cmdargs const *arg)
       /* Default next timeout */
       arg->cx->cfg.dial.next_timeout = DIAL_NEXT_TIMEOUT;
 
-    if (arg->argc == 2) {
-      tries = atoi(arg->argv[1]);
+    if (arg->argc == arg->argn+2) {
+      tries = atoi(arg->argv[arg->argn+1]);
 
       if (tries >= 0) {
 	arg->cx->cfg.dial.max = tries;

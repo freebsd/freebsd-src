@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.34 1998/04/07 23:45:55 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.35 1998/04/10 13:19:08 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -180,20 +180,20 @@ ReportIpcpStatus(struct cmdargs const *arg)
 int
 SetInitVJ(struct cmdargs const *arg)
 {
-  if (arg->argc != 2)
+  if (arg->argc != arg->argn+2)
     return -1;
-  if (!strcasecmp(arg->argv[0], "slots")) {
+  if (!strcasecmp(arg->argv[arg->argn], "slots")) {
     int slots;
 
-    slots = atoi(arg->argv[1]);
+    slots = atoi(arg->argv[arg->argn+1]);
     if (slots < 4 || slots > 16)
       return 1;
     arg->bundle->ncp.ipcp.cfg.VJInitSlots = slots;
     return 0;
-  } else if (!strcasecmp(arg->argv[0], "slotcomp")) {
-    if (!strcasecmp(arg->argv[1], "on"))
+  } else if (!strcasecmp(arg->argv[arg->argn], "slotcomp")) {
+    if (!strcasecmp(arg->argv[arg->argn+1], "on"))
       arg->bundle->ncp.ipcp.cfg.VJInitComp = 1;
-    else if (!strcasecmp(arg->argv[1], "off"))
+    else if (!strcasecmp(arg->argv[arg->argn+1], "off"))
       arg->bundle->ncp.ipcp.cfg.VJInitComp = 0;
     else
       return 2;

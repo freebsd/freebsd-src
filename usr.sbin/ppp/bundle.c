@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.44 1998/04/10 13:19:01 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.45 1998/04/11 21:50:37 brian Exp $
  */
 
 #include <sys/types.h>
@@ -235,7 +235,6 @@ bundle_LayerDown(void *v, struct fsm *fp)
 
   if (fp->proto == PROTO_IPCP) {
     bundle_StopIdleTimer(bundle);
-    bundle_NewPhase(bundle, PHASE_TERMINATE);
   } else if (fp->proto == PROTO_LCP) {
     int speed, others_active;
     struct datalink *dl;
@@ -268,6 +267,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
   struct datalink *dl;
 
   if (fp->proto == PROTO_IPCP) {
+    bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, 0);
     FsmDown(fp);

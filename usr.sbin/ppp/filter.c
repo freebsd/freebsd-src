@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.13 1998/04/06 09:12:27 brian Exp $
+ * $Id: filter.c,v 1.22.2.14 1998/04/07 00:53:39 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -374,21 +374,22 @@ SetFilter(struct cmdargs const *arg)
 {
   struct filter *filter;
 
-  if (arg->argc < 2)
+  if (arg->argc < arg->argn+2)
     return -1;
 
-  if (!strcmp(arg->argv[0], "in"))
+  if (!strcmp(arg->argv[arg->argn], "in"))
     filter = &arg->bundle->filter.in;
-  else if (!strcmp(arg->argv[0], "out"))
+  else if (!strcmp(arg->argv[arg->argn], "out"))
     filter = &arg->bundle->filter.out;
-  else if (!strcmp(arg->argv[0], "dial"))
+  else if (!strcmp(arg->argv[arg->argn], "dial"))
     filter = &arg->bundle->filter.dial;
-  else if (!strcmp(arg->argv[0], "alive"))
+  else if (!strcmp(arg->argv[arg->argn], "alive"))
     filter = &arg->bundle->filter.alive;
   else
     return -1;
 
-  Parse(&arg->bundle->ncp.ipcp, arg->argc - 1, arg->argv + 1, filter->rule);
+  Parse(&arg->bundle->ncp.ipcp, arg->argc - arg->argn - 1,
+        arg->argv + arg->argn + 1, filter->rule);
   return 0;
 }
 
@@ -436,19 +437,19 @@ doShowFilter(struct filterent *fp, struct prompt *prompt)
 int
 ShowFilter(struct cmdargs const *arg)
 {
-  if (arg->argc > 1)
+  if (arg->argc > arg->argn+1)
     return -1;
 
-  if (arg->argc == 1) {
+  if (arg->argc == arg->argn+1) {
     struct filter *filter;
 
-    if (!strcmp(arg->argv[0], "in"))
+    if (!strcmp(arg->argv[arg->argn], "in"))
       filter = &arg->bundle->filter.in;
-    else if (!strcmp(arg->argv[0], "out"))
+    else if (!strcmp(arg->argv[arg->argn], "out"))
       filter = &arg->bundle->filter.out;
-    else if (!strcmp(arg->argv[0], "dial"))
+    else if (!strcmp(arg->argv[arg->argn], "dial"))
       filter = &arg->bundle->filter.dial;
-    else if (!strcmp(arg->argv[0], "alive"))
+    else if (!strcmp(arg->argv[arg->argn], "alive"))
       filter = &arg->bundle->filter.alive;
     else
       return -1;

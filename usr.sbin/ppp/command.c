@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.58 1998/04/10 23:51:27 brian Exp $
+ * $Id: command.c,v 1.131.2.59 1998/04/11 21:50:44 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -108,11 +108,11 @@ HelpCommand(struct cmdargs const *arg)
     return 0;
   }
 
-  if (arg->argc > 0) {
+  if (arg->argc > arg->argn) {
     for (cmd = arg->cmdtab; cmd->name || cmd->alias; cmd++)
       if ((cmd->lauth & arg->prompt->auth) &&
-          ((cmd->name && !strcasecmp(cmd->name, *arg->argv)) ||
-           (cmd->alias && !strcasecmp(cmd->alias, *arg->argv)))) {
+          ((cmd->name && !strcasecmp(cmd->name, arg->argv[arg->argn])) ||
+           (cmd->alias && !strcasecmp(cmd->alias, arg->argv[arg->argn])))) {
 	prompt_Printf(arg->prompt, "%s\n", cmd->syntax);
 	return 0;
       }
@@ -148,7 +148,7 @@ CloneCommand(struct cmdargs const *arg)
 {
   int f;
 
-  if (arg->argc == 0)
+  if (arg->argc == arg->argn)
     return -1;
 
   if (!arg->bundle->ncp.mp.active) {
@@ -156,7 +156,7 @@ CloneCommand(struct cmdargs const *arg)
     return 1;
   }
 
-  for (f = 0; f < arg->argc; f++)
+  for (f = arg->argn; f < arg->argc; f++)
     bundle_DatalinkClone(arg->bundle, arg->cx, arg->argv[f]);
   return 0;
 }
@@ -164,7 +164,7 @@ CloneCommand(struct cmdargs const *arg)
 static int
 RemoveCommand(struct cmdargs const *arg)
 {
-  if (arg->argc != 0)
+  if (arg->argc != arg->argn)
     return -1;
 
   if (!arg->bundle->ncp.mp.active) {
@@ -186,8 +186,8 @@ LoadCommand(struct cmdargs const *arg)
 {
   const char *name;
 
-  if (arg->argc > 0)
-    name = *arg->argv;
+  if (arg->argc > arg->argn)
+    name = arg->argv[arg->argn];
   else
     name = "default";
 
@@ -198,7 +198,7 @@ LoadCommand(struct cmdargs const *arg)
     LogPrintf(LogWARN, "%s: label not found.\n", name);
     return -1;
   } else
-    SetLabel(arg->argc ? name : NULL);
+    SetLabel(arg->argc > arg->argn ? name : NULL);
   return 0;
 }
 
@@ -221,7 +221,7 @@ DialCommand(struct cmdargs const *arg)
     return 1;
   }
 
-  if (arg->argc > 0 && (res = LoadCommand(arg)) != 0)
+  if (arg->argc > arg->argn && (res = LoadCommand(arg)) != 0)
     return res;
 
   bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL);
@@ -245,7 +245,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
   }
 #endif
 
-  if (arg->argc == 0)
+  if (arg->argc == arg->argn)
     if (!arg->prompt) {
       LogPrintf(LogWARN, "Can't start an interactive shell from"
                 " a config file\n");
@@ -286,10 +286,10 @@ ShellCommand(struct cmdargs const *arg, int bg)
       close(i);
 
     setuid(geteuid());
-    if (arg->argc > 0) {
+    if (arg->argc > arg->argn) {
       /* substitute pseudo args */
-      argv[0] = strdup(arg->argv[0]);
-      for (argc = 1; argc < arg->argc; argc++) {
+      argv[0] = strdup(arg->argv[arg->argn]);
+      for (argc = arg->argn+1; argc < arg->argc; argc++) {
 	if (strcasecmp(arg->argv[argc], "HISADDR") == 0)
 	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.peer_ip));
 	else if (strcasecmp(arg->argv[argc], "INTERFACE") == 0)
@@ -309,7 +309,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 	  exit(1);
 	}
       } else if (arg->prompt)
-        printf("ppp: Pausing until %s finishes\n", arg->argv[0]);
+        printf("ppp: Pausing until %s finishes\n", arg->argv[arg->argn]);
       execvp(argv[0], argv);
     } else {
       if (arg->prompt)
@@ -319,7 +319,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     }
 
     LogPrintf(LogWARN, "exec() of %s failed\n",
-              arg->argc > 0 ? arg->argv[0] : shell);
+              arg->argc > arg->argn ? arg->argv[arg->argn] : shell);
     exit(255);
   }
 
@@ -339,7 +339,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 static int
 BgShellCommand(struct cmdargs const *arg)
 {
-  if (arg->argc == 0)
+  if (arg->argc == arg->argn)
     return -1;
   return ShellCommand(arg, 1);
 }
@@ -462,7 +462,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/10 23:51:27 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/11 21:50:44 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -576,49 +576,72 @@ FindCommand(struct cmdtab const *cmds, const char *str, int *pmatch)
   return found;
 }
 
+static const char *
+mkPrefix(int argc, char const *const *argv, char *tgt, int sz)
+{
+  int f, tlen, len;
+
+  tlen = 0;
+  for (f = 0; f < argc && tlen < sz - 2; f++) {
+    if (f)
+      tgt[tlen++] = ' ';
+    len = strlen(argv[f]);
+    if (len > sz - tlen - 1)
+      len = sz - tlen - 1;
+    strncpy(tgt+tlen, argv[f], len);
+    tlen += len;
+  }
+  tgt[tlen] = '\0';
+  return tgt;
+}
+
 static int
-FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
-         char const *const *argv, const char *prefix, struct prompt *prompt,
-         struct datalink *cx)
+FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc, int argn,
+         char const *const *argv, struct prompt *prompt, struct datalink *cx)
 {
   struct cmdtab const *cmd;
   int val = 1;
   int nmatch;
   struct cmdargs arg;
+  char prefix[100];
 
-  cmd = FindCommand(cmds, *argv, &nmatch);
+  cmd = FindCommand(cmds, argv[argn], &nmatch);
   if (nmatch > 1)
-    LogPrintf(LogWARN, "%s%s: Ambiguous command\n", prefix, *argv);
+    LogPrintf(LogWARN, "%s: Ambiguous command\n",
+              mkPrefix(argn+1, argv, prefix, sizeof prefix));
   else if (cmd && (!prompt || (cmd->lauth & prompt->auth))) {
     if ((cmd->lauth & LOCAL_CX) && !cx)
       /* We've got no context, but we require it */
       cx = bundle2datalink(bundle, NULL);
 
     if ((cmd->lauth & LOCAL_CX) && !cx)
-      LogPrintf(LogWARN, "%s%s: No context (use the `link' command)\n",
-                prefix, *argv);
+      LogPrintf(LogWARN, "%s: No context (use the `link' command)\n",
+                mkPrefix(argn+1, argv, prefix, sizeof prefix));
     else {
       if (cx && !(cmd->lauth & (LOCAL_CX|LOCAL_CX_OPT))) {
-        LogPrintf(LogWARN, "%s%s: Redundant context (%s) ignored\n",
-                  prefix, *argv, cx->name);
+        LogPrintf(LogWARN, "%s: Redundant context (%s) ignored\n",
+                  mkPrefix(argn+1, argv, prefix, sizeof prefix), cx->name);
         cx = NULL;
       }
       arg.cmdtab = cmds;
       arg.cmd = cmd;
-      arg.argc = argc-1;
-      arg.argv = argv+1;
+      arg.argc = argc;
+      arg.argn = argn+1;
+      arg.argv = argv;
       arg.bundle = bundle;
       arg.cx = cx;
       arg.prompt = prompt;
-      val = (cmd->func) (&arg);
+      val = (*cmd->func) (&arg);
     }
   } else
-    LogPrintf(LogWARN, "%s%s: Invalid command\n", prefix, *argv);
+    LogPrintf(LogWARN, "%s: Invalid command\n",
+              mkPrefix(argn+1, argv, prefix, sizeof prefix));
 
   if (val == -1)
     LogPrintf(LogWARN, "Usage: %s\n", cmd->syntax);
   else if (val)
-    LogPrintf(LogWARN, "%s%s: Failed %d\n", prefix, *argv, val);
+    LogPrintf(LogWARN, "%s: Failed %d\n",
+              mkPrefix(argn+1, argv, prefix, sizeof prefix), val);
 
   return val;
 }
@@ -684,7 +707,7 @@ RunCommand(struct bundle *bundle, int argc, char const *const *argv,
       }
       LogPrintf(LogCOMMAND, "%s\n", buf);
     }
-    FindExec(bundle, Commands, argc, argv, "", prompt, NULL);
+    FindExec(bundle, Commands, argc, 0, argv, prompt, NULL);
   }
 }
 
@@ -704,8 +727,8 @@ ShowCommand(struct cmdargs const *arg)
 {
   if (!arg->prompt)
     LogPrintf(LogWARN, "show: Cannot show without a prompt\n");
-  else if (arg->argc > 0)
-    FindExec(arg->bundle, ShowCommands, arg->argc, arg->argv, "show ",
+  else if (arg->argc > arg->argn)
+    FindExec(arg->bundle, ShowCommands, arg->argc, arg->argn, arg->argv,
              arg->prompt, arg->cx);
   else
     prompt_Printf(arg->prompt, "Use ``show ?'' to get a list.\n");
@@ -736,7 +759,7 @@ static int
 QuitCommand(struct cmdargs const *arg)
 {
   if (!arg->prompt || prompt_IsController(arg->prompt) ||
-      (arg->argc > 0 && !strcasecmp(*arg->argv, "all") &&
+      (arg->argc > arg->argn && !strcasecmp(arg->argv[arg->argn], "all") &&
        (arg->prompt->auth & LOCAL_AUTH)))
     Cleanup(EX_NORMAL);
   if (arg->prompt)
@@ -765,24 +788,25 @@ SetModemSpeed(struct cmdargs const *arg)
   long speed;
   char *end;
 
-  if (arg->argc > 0 && **arg->argv) {
-    if (arg->argc > 1) {
+  if (arg->argc > arg->argn && *arg->argv[arg->argn]) {
+    if (arg->argc > arg->argn+1) {
       LogPrintf(LogWARN, "SetModemSpeed: Too many arguments");
       return -1;
     }
-    if (strcasecmp(*arg->argv, "sync") == 0) {
+    if (strcasecmp(arg->argv[arg->argn], "sync") == 0) {
       Physical_SetSync(arg->cx->physical);
       return 0;
     }
     end = NULL;
-    speed = strtol(*arg->argv, &end, 10);
+    speed = strtol(arg->argv[arg->argn], &end, 10);
     if (*end) {
-      LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"", *arg->argv);
+      LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"",
+                arg->argv[arg->argn]);
       return -1;
     }
     if (Physical_SetSpeed(arg->cx->physical, speed))
       return 0;
-    LogPrintf(LogWARN, "%s: Invalid speed\n", *arg->argv);
+    LogPrintf(LogWARN, "%s: Invalid speed\n", arg->argv[arg->argn]);
   } else
     LogPrintf(LogWARN, "SetModemSpeed: No speed specified\n");
 
@@ -796,11 +820,11 @@ SetStoppedTimeout(struct cmdargs const *arg)
 
   l->lcp.fsm.StoppedTimer.load = 0;
   l->ccp.fsm.StoppedTimer.load = 0;
-  if (arg->argc <= 2) {
-    if (arg->argc > 0) {
-      l->lcp.fsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
-      if (arg->argc > 1)
-        l->ccp.fsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
+  if (arg->argc <= arg->argn+2) {
+    if (arg->argc > arg->argn) {
+      l->lcp.fsm.StoppedTimer.load = atoi(arg->argv[arg->argn]) * SECTICKS;
+      if (arg->argc > arg->argn+1)
+        l->ccp.fsm.StoppedTimer.load = atoi(arg->argv[arg->argn+1]) * SECTICKS;
     }
     return 0;
   }
@@ -815,17 +839,17 @@ SetServer(struct cmdargs const *arg)
 {
   int res = -1;
 
-  if (arg->argc > 0 && arg->argc < 4) {
+  if (arg->argc > arg->argn && arg->argc < arg->argn+4) {
     const char *port, *passwd, *mask;
 
     /* What's what ? */
-    port = arg->argv[0];
-    if (arg->argc == 2) {
-      passwd = arg->argv[1];
+    port = arg->argv[arg->argn];
+    if (arg->argc == arg->argn + 2) {
+      passwd = arg->argv[arg->argn+1];
       mask = NULL;
-    } else if (arg->argc == 3) {
-      passwd = arg->argv[1];
-      mask = arg->argv[2];
+    } else if (arg->argc == arg->argn + 3) {
+      passwd = arg->argv[arg->argn+1];
+      mask = arg->argv[arg->argn+2];
       if (!ismask(mask))
         return -1;
     } else if (strcasecmp(port, "none") == 0) {
@@ -877,15 +901,16 @@ SetServer(struct cmdargs const *arg)
 static int
 SetModemParity(struct cmdargs const *arg)
 {
-  return arg->argc > 0 ? modem_SetParity(arg->cx->physical, *arg->argv) : -1;
+  return arg->argc > arg->argn ? modem_SetParity(arg->cx->physical,
+                                                 arg->argv[arg->argn]) : -1;
 }
 
 static int
 SetEscape(struct cmdargs const *arg)
 {
   int code;
-  int argc = arg->argc;
-  char const *const *argv = arg->argv;
+  int argc = arg->argc - arg->argn;
+  char const *const *argv = arg->argv + arg->argn;
 
   for (code = 0; code < 33; code++)
     arg->cx->physical->async.cfg.EscMap[code] = 0;
@@ -925,23 +950,24 @@ SetInterfaceAddr(struct cmdargs const *arg)
   ipcp->cfg.my_range.ipaddr.s_addr = INADDR_ANY;
   ipcp->cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
 
-  if (arg->argc > 4)
+  if (arg->argc > arg->argn + 4)
     return -1;
 
   ipcp->cfg.HaveTriggerAddress = 0;
   ipcp->cfg.netmask.s_addr = INADDR_ANY;
   iplist_reset(&ipcp->cfg.peer_list);
 
-  if (arg->argc > 0) {
-    if (!ParseAddr(ipcp, arg->argc, arg->argv, &ipcp->cfg.my_range.ipaddr,
-		   &ipcp->cfg.my_range.mask, &ipcp->cfg.my_range.width))
+  if (arg->argc > arg->argn) {
+    if (!ParseAddr(ipcp, arg->argc - arg->argn, arg->argv + arg->argn,
+                   &ipcp->cfg.my_range.ipaddr, &ipcp->cfg.my_range.mask,
+                   &ipcp->cfg.my_range.width))
       return 1;
-    if (arg->argc > 1) {
-      hisaddr = arg->argv[1];
-      if (arg->argc > 2) {
-        ipcp->cfg.netmask = GetIpAddr(arg->argv[2]);
-	if (arg->argc > 3) {
-	  ipcp->cfg.TriggerAddress = GetIpAddr(arg->argv[3]);
+    if (arg->argc > arg->argn+1) {
+      hisaddr = arg->argv[arg->argn+1];
+      if (arg->argc > arg->argn+2) {
+        ipcp->cfg.netmask = GetIpAddr(arg->argv[arg->argn+2]);
+	if (arg->argc > arg->argn+3) {
+	  ipcp->cfg.TriggerAddress = GetIpAddr(arg->argv[arg->argn+3]);
 	  ipcp->cfg.HaveTriggerAddress = 1;
 	}
       }
@@ -1001,7 +1027,8 @@ static int
 SetNS(struct cmdargs const *arg)
 {
   SetMSEXT(&arg->bundle->ncp.ipcp, &arg->bundle->ncp.ipcp.cfg.ns_entries[0],
-           &arg->bundle->ncp.ipcp.cfg.ns_entries[1], arg->argc, arg->argv);
+           &arg->bundle->ncp.ipcp.cfg.ns_entries[1], arg->argc - arg->argn,
+           arg->argv + arg->argn);
   return 0;
 }
 
@@ -1009,7 +1036,8 @@ static int
 SetNBNS(struct cmdargs const *arg)
 {
   SetMSEXT(&arg->bundle->ncp.ipcp, &arg->bundle->ncp.ipcp.cfg.nbns_entries[0],
-           &arg->bundle->ncp.ipcp.cfg.nbns_entries[1], arg->argc, arg->argv);
+           &arg->bundle->ncp.ipcp.cfg.nbns_entries[1], arg->argc - arg->argn,
+           arg->argv + arg->argn);
   return 0;
 }
 
@@ -1025,8 +1053,8 @@ SetVariable(struct cmdargs const *arg)
   const char *err = NULL;
   struct link *l = ChooseLink(arg);	/* AUTH_CX_OPT uses this */
 
-  if (arg->argc > 0)
-    argp = *arg->argv;
+  if (arg->argc > arg->argn)
+    argp = arg->argv[arg->argn];
   else
     argp = "";
 
@@ -1070,16 +1098,16 @@ SetVariable(struct cmdargs const *arg)
     cx->cfg.script.login[sizeof cx->cfg.script.login - 1] = '\0';
     break;
   case VAR_WINSIZE:
-    if (arg->argc > 0) {
-      l->ccp.cfg.deflate.out.winsize = atoi(arg->argv[0]);
+    if (arg->argc > arg->argn) {
+      l->ccp.cfg.deflate.out.winsize = atoi(arg->argv[arg->argn]);
       if (l->ccp.cfg.deflate.out.winsize < 8 ||
           l->ccp.cfg.deflate.out.winsize > 15) {
           LogPrintf(LogWARN, "%d: Invalid outgoing window size\n",
                     l->ccp.cfg.deflate.out.winsize);
           l->ccp.cfg.deflate.out.winsize = 15;
       }
-      if (arg->argc > 1) {
-        l->ccp.cfg.deflate.in.winsize = atoi(arg->argv[1]);
+      if (arg->argc > arg->argn+1) {
+        l->ccp.cfg.deflate.in.winsize = atoi(arg->argv[arg->argn+1]);
         if (l->ccp.cfg.deflate.in.winsize < 8 ||
             l->ccp.cfg.deflate.in.winsize > 15) {
             LogPrintf(LogWARN, "%d: Invalid incoming window size\n",
@@ -1094,10 +1122,11 @@ SetVariable(struct cmdargs const *arg)
     }
     break;
   case VAR_DEVICE:
-    Physical_SetDeviceList(cx->physical, arg->argc, arg->argv);
+    Physical_SetDeviceList(cx->physical, arg->argc - arg->argn,
+                           arg->argv + arg->argn);
     break;
   case VAR_ACCMAP:
-    if (arg->argc > 0) {
+    if (arg->argc > arg->argn) {
       sscanf(argp, "%lx", &ulong_val);
       cx->physical->link.lcp.cfg.accmap = ulong_val;
     } else {
@@ -1131,8 +1160,8 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_OPENMODE:
     if (strcasecmp(argp, "active") == 0)
-      cx->physical->link.lcp.cfg.openmode = arg->argc > 1 ?
-        atoi(arg->argv[1]) : 1;
+      cx->physical->link.lcp.cfg.openmode = arg->argc > arg->argn+1 ?
+        atoi(arg->argv[arg->argn+1]) : 1;
     else if (strcasecmp(argp, "passive") == 0)
       cx->physical->link.lcp.cfg.openmode = OPEN_PASSIVE;
     else {
@@ -1149,9 +1178,9 @@ SetVariable(struct cmdargs const *arg)
     cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     break;
   case VAR_IDLETIMEOUT:
-    if (arg->argc > 1)
+    if (arg->argc > arg->argn+1)
       err = "Too many idle timeout values\n";
-    else if (arg->argc == 1)
+    else if (arg->argc == arg->argn+1)
       bundle_SetIdleTimer(arg->bundle, atoi(argp));
     if (err)
       LogPrintf(LogWARN, err);
@@ -1212,10 +1241,10 @@ SetVariable(struct cmdargs const *arg)
 static int 
 SetCtsRts(struct cmdargs const *arg)
 {
-  if (arg->argc == 1) {
-    if (strcmp(*arg->argv, "on") == 0)
+  if (arg->argc == arg->argn+1) {
+    if (strcmp(arg->argv[arg->argn], "on") == 0)
       Physical_SetRtsCts(arg->cx->physical, 1);
-    else if (strcmp(*arg->argv, "off") == 0)
+    else if (strcmp(arg->argv[arg->argn], "off") == 0)
       Physical_SetRtsCts(arg->cx->physical, 0);
     else
       return -1;
@@ -1308,8 +1337,8 @@ static struct cmdtab const SetCommands[] = {
 static int
 SetCommand(struct cmdargs const *arg)
 {
-  if (arg->argc > 0)
-    FindExec(arg->bundle, SetCommands, arg->argc, arg->argv, "set ",
+  if (arg->argc > arg->argn)
+    FindExec(arg->bundle, SetCommands, arg->argc, arg->argn, arg->argv,
              arg->prompt, arg->cx);
   else if (arg->prompt)
     prompt_Printf(arg->prompt, "Use `set ?' to get a list or `set ? <var>' for"
@@ -1327,32 +1356,32 @@ AddCommand(struct cmdargs const *arg)
   struct in_addr dest, gateway, netmask;
   int gw;
 
-  if (arg->argc != 3 && arg->argc != 2)
+  if (arg->argc != arg->argn+3 && arg->argc != arg->argn+2)
     return -1;
 
-  if (arg->argc == 2)
-    if (strcasecmp(arg->argv[0], "default"))
+  if (arg->argc == arg->argn+2)
+    if (strcasecmp(arg->argv[arg->argn], "default"))
       return -1;
     else {
       dest.s_addr = netmask.s_addr = INADDR_ANY;
       gw = 1;
     }
   else {
-    if (strcasecmp(arg->argv[0], "MYADDR") == 0)
+    if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0)
       dest = arg->bundle->ncp.ipcp.my_ip;
-    else if (strcasecmp(arg->argv[0], "HISADDR") == 0)
+    else if (strcasecmp(arg->argv[arg->argn], "HISADDR") == 0)
       dest = arg->bundle->ncp.ipcp.peer_ip;
     else
-      dest = GetIpAddr(arg->argv[0]);
-    netmask = GetIpAddr(arg->argv[1]);
+      dest = GetIpAddr(arg->argv[arg->argn]);
+    netmask = GetIpAddr(arg->argv[arg->argn+1]);
     gw = 2;
   }
-  if (strcasecmp(arg->argv[gw], "HISADDR") == 0)
+  if (strcasecmp(arg->argv[arg->argn+gw], "HISADDR") == 0)
     gateway = arg->bundle->ncp.ipcp.peer_ip;
-  else if (strcasecmp(arg->argv[gw], "INTERFACE") == 0)
+  else if (strcasecmp(arg->argv[arg->argn+gw], "INTERFACE") == 0)
     gateway.s_addr = INADDR_ANY;
   else
-    gateway = GetIpAddr(arg->argv[gw]);
+    gateway = GetIpAddr(arg->argv[arg->argn+gw]);
   bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
                   arg->cmd->args ? 1 : 0);
   return 0;
@@ -1363,16 +1392,16 @@ DeleteCommand(struct cmdargs const *arg)
 {
   struct in_addr dest, none;
 
-  if (arg->argc == 1)
-    if(strcasecmp(arg->argv[0], "all") == 0)
+  if (arg->argc == arg->argn+1)
+    if(strcasecmp(arg->argv[arg->argn], "all") == 0)
       DeleteIfRoutes(arg->bundle, 0);
     else {
-      if (strcasecmp(arg->argv[0], "MYADDR") == 0)
+      if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0)
         dest = arg->bundle->ncp.ipcp.my_ip;
-      else if (strcasecmp(arg->argv[0], "default") == 0)
+      else if (strcasecmp(arg->argv[arg->argn], "default") == 0)
         dest.s_addr = INADDR_ANY;
       else
-        dest = GetIpAddr(arg->argv[0]);
+        dest = GetIpAddr(arg->argv[arg->argn]);
       none.s_addr = INADDR_ANY;
       bundle_SetRoute(arg->bundle, RTM_DELETE, dest, none, none,
                       arg->cmd->args ? 1 : 0);
@@ -1417,8 +1446,8 @@ static struct cmdtab const AliasCommands[] =
 static int
 AliasCommand(struct cmdargs const *arg)
 {
-  if (arg->argc > 0)
-    FindExec(arg->bundle, AliasCommands, arg->argc, arg->argv, "alias ",
+  if (arg->argc > arg->argn)
+    FindExec(arg->bundle, AliasCommands, arg->argc, arg->argn, arg->argv,
              arg->prompt, arg->cx);
   else if (arg->prompt)
     prompt_Printf(arg->prompt, "Use `alias help' to get a list or `alias help"
@@ -1432,13 +1461,13 @@ AliasCommand(struct cmdargs const *arg)
 static int
 AliasEnable(struct cmdargs const *arg)
 {
-  if (arg->argc == 1)
-    if (strcasecmp(arg->argv[0], "yes") == 0) {
+  if (arg->argc == arg->argn+1)
+    if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
       if (loadAliasHandlers() == 0)
 	return 0;
       LogPrintf(LogWARN, "Cannot load alias library\n");
       return 1;
-    } else if (strcasecmp(arg->argv[0], "no") == 0) {
+    } else if (strcasecmp(arg->argv[arg->argn], "no") == 0) {
       unloadAliasHandlers();
       return 0;
     }
@@ -1450,14 +1479,14 @@ static int
 AliasOption(struct cmdargs const *arg)
 {
   unsigned param = (unsigned)arg->cmd->args;
-  if (arg->argc == 1)
-    if (strcasecmp(arg->argv[0], "yes") == 0) {
+  if (arg->argc == arg->argn+1)
+    if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
       if (AliasEnabled()) {
 	(*PacketAlias.SetMode)(param, param);
 	return 0;
       }
       LogPrintf(LogWARN, "alias not enabled\n");
-    } else if (strcmp(arg->argv[0], "no") == 0) {
+    } else if (strcmp(arg->argv[arg->argn], "no") == 0) {
       if (AliasEnabled()) {
 	(*PacketAlias.SetMode)(0, param);
 	return 0;
@@ -1482,8 +1511,8 @@ static int
 AllowCommand(struct cmdargs const *arg)
 {
   /* arg->bundle may be NULL (see ValidSystem()) ! */
-  if (arg->argc > 0)
-    FindExec(arg->bundle, AllowCommands, arg->argc, arg->argv, "allow ",
+  if (arg->argc > arg->argn)
+    FindExec(arg->bundle, AllowCommands, arg->argc, arg->argn, arg->argv,
              arg->prompt, arg->cx);
   else if (arg->prompt)
     prompt_Printf(arg->prompt, "Use `allow ?' to get a list or `allow ? <cmd>'"
@@ -1497,13 +1526,13 @@ AllowCommand(struct cmdargs const *arg)
 static int
 LinkCommand(struct cmdargs const *arg)
 {
-  if (arg->argc > 1) {
-    struct datalink *cx = bundle2datalink(arg->bundle, arg->argv[0]);
+  if (arg->argc > arg->argn+1) {
+    struct datalink *cx = bundle2datalink(arg->bundle, arg->argv[arg->argn]);
     if (cx)
-      FindExec(arg->bundle, Commands, arg->argc - 1, arg->argv + 1, "",
+      FindExec(arg->bundle, Commands, arg->argc, arg->argn+1, arg->argv,
                arg->prompt, cx);
     else {
-      LogPrintf(LogWARN, "link: %s: Invalid link name\n", arg->argv[0]);
+      LogPrintf(LogWARN, "link: %s: Invalid link name\n", arg->argv[arg->argn]);
       return 1;
     }
   } else {

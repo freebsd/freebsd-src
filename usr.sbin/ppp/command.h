@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.12.2.8 1998/04/03 19:25:26 brian Exp $
+ * $Id: command.h,v 1.12.2.9 1998/04/07 00:53:34 brian Exp $
  *
  *	TODO:
  */
@@ -29,6 +29,7 @@ struct cmdargs {
   struct cmdtab const *cmdtab;		/* The entire command table */
   struct cmdtab const *cmd;		/* This command entry */
   int argc;				/* Number of arguments (excluding cmd */
+  int argn;				/* Argument to start processing from */
   char const *const *argv;		/* Arguments */
   struct bundle *bundle;		/* Our bundle */
   struct datalink *cx;			/* Our context */

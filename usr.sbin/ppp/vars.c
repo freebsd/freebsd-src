@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.45.2.25 1998/04/06 09:12:38 brian Exp $
+ * $Id: vars.c,v 1.45.2.26 1998/04/07 00:54:24 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -78,9 +78,9 @@ ConfigCommand(struct cmdargs const *arg, int mine, int val)
 {
   int f;
   int err;
-  int narg = 0;
+  int narg = arg->argn;
 
-  if (arg->argc < 1)
+  if (arg->argc < narg+1)
     return -1;
 
   err = 0;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.6 1998/04/07 00:54:00 brian Exp $
+ *	$Id: log.c,v 1.25.2.7 1998/04/10 13:19:10 brian Exp $
  */
 
 #include <sys/types.h>
@@ -327,8 +327,8 @@ log_SetLevel(struct cmdargs const *arg)
   int i, res, argc, local;
   char const *const *argv, *argp;
 
-  argc = arg->argc;
-  argv = arg->argv;
+  argc = arg->argc - arg->argn;
+  argv = arg->argv + arg->argn;
   res = 0;
 
   if (argc == 0 || strcasecmp(argv[0], "local"))

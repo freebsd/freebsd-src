@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.24 1998/04/08 18:27:29 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.25 1998/04/10 13:19:18 brian Exp $
  */
 
 #include <sys/param.h>
@@ -469,12 +469,12 @@ PasswdCommand(struct cmdargs const *arg)
     return 0;
   }
 
-  if (arg->argc == 0)
+  if (arg->argc == arg->argn)
     pass = "";
-  else if (arg->argc > 1)
+  else if (arg->argc > arg->argn+1)
     return -1;
   else
-    pass = *arg->argv;
+    pass = arg->argv[arg->argn];
 
   if (!strcmp(arg->prompt->owner->passwd, pass))
     arg->prompt->auth = LOCAL_AUTH;
