@@ -111,7 +111,10 @@ static __inline__ void
 biodone(struct bio *bp)
 {
 	bp->bio_flags |= BIO_DONE;
-	bp->bio_done(bp);
+	if (bp->bio_done != NULL)
+		bp->bio_done(bp);
+	else
+		wakeup(bp);
 }
 
 #ifndef _DEVICESTAT_H
