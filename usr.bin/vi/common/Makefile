@@ -48,7 +48,7 @@ DPADD+= ${LIBCURSES} ${LIBTERM} ${LIBUTIL}
 LDADD+=	-lcurses -ltermlib -lutil
 SPECHDR=compat.h excmd.h options.h
 CLEANFILES+=${SPECHDR}
-LINKS=	${BINDIR}/nvi ${BINDIR}/nex
+LINKS=	${BINDIR}/nvi ${BINDIR}/nex ${BINDIR}/vi ${BINDIR}/ex ${BINDIR}/view
 
 all: nvi nex vi.0
 nex: nvi
@@ -93,6 +93,7 @@ warn:: ${SRCS}
 MAN=	${.CURDIR}/../USD.doc/vi.man
 REF=	${.CURDIR}/../USD.doc/vi.ref
 
+.include "../../Makefile.inc"
 .include <bsd.prog.mk>
 
 .depend: ${SPECHDR}
