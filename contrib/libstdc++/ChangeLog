@@ -1,5 +1,52 @@
+2003-08-04  Release Manager
+
+	* GCC 3.3.1 Released.
+
+2003-08-04  Release Manager
+
+	* GCC 3.3.1 Released.
+
+2003-07-24  Nathan Myers  <ncm-nospam@cantrip.org>
+
+        * testsuite/23_containers/map_operators.cc: Conform to 
+        container requirement as value must be Assignable.
+
+2003-07-18  Andreas Jaeger  <aj@suse.de>
+
+	* config/abi/sparc-linux-gnu/baseline_symbols.txt: New file.
+	* config/abi/mips-linux-gnu/baseline_symbols.txt: New file.
+	* config/abi/hppa-linux-gnu/baseline_symbols.txt: New file.
+	* config/abi/x86_64-linux-gnu/baseline_symbols.txt: Regenerated.
+
+2003-07-17  Greg Schafer  <gschafer@zip.com.au>
+
+	* configure.in: Use 'true' and 'false' for
+	GLIBCPP_IS_CROSS_COMPILING, otherwise memory limits are
+	not checked when not cross compiling.
+	* configure: Regenerate.
+
+2003-07-17  Paolo Carlini  <pcarlini@unitus.it>
+
+	PR libstdc++/11528
+	* include/bits/locale_facets.tcc (money_get::do_get):
+	Strip only _leading_ zeros.
+
+2003-07-15  Loren J. Rittle  <ljrittle@acm.org>
+
+        * testsuite/thread/pthread4.cc: Further tweak to avoid fini race.
+
+2003-07-15  Petur Runolfsson  <peturr02@ru.is>
+
+	* Revert previous commit: not safe on platforms with
+	wint_t != size_t.
+
+2003-07-15  Petur Runolfsson  <peturr02@ru.is>
+
+	* include/bits/char_traits.h (char_traits<wchar_t>::move):
+	Change last parameter from int_type to size_t.
+
 2003-07-08  Benjamin Kosnik  <bkoz@redhat.com>
-	      Jerry Quinn  <jlquinn@optonline.net>
+            Jerry Quinn  <jlquinn@optonline.net>
 
 	* include/bits/ios_base.h (ios_base::_M_getloc): Return reference
 	to the imbued locale.
