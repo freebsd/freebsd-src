@@ -23,13 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.6 1998/10/09 01:44:09 msmith Exp $
+ *	$Id: linker.h,v 1.7 1998/10/09 07:06:43 msmith Exp $
  */
 
 #ifndef _SYS_LINKER_H_
 #define _SYS_LINKER_H_
 
 #ifdef KERNEL
+
+#include <machine/elf.h>
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINKER);
@@ -63,7 +65,7 @@ struct linker_file_ops {
     int			(*lookup_symbol)(linker_file_t, const char* name,
 					 linker_sym_t* sym);
 
-    void		(*symbol_values)(linker_file_t, linker_sym_t,
+    int			(*symbol_values)(linker_file_t, linker_sym_t,
 					 linker_symval_t*);
 
     int			(*search_symbol)(linker_file_t, caddr_t value,
@@ -83,7 +85,7 @@ struct common_symbol {
 
 struct linker_file {
     int			refs;		/* reference count */
-    int			userrefs;	/* modload(2) count */
+    int			userrefs;	/* kldload(2) count */
     TAILQ_ENTRY(linker_file) link;	/* list of all loaded files */
     char*		filename;	/* file which was loaded */
     int			id;		/* unique id */
@@ -175,31 +177,53 @@ caddr_t linker_file_lookup_symbol(linker_file_t file, const char* name,
 				  int deps);
 
 /*
+ * Search the linker path for the module.  Return the full pathname in
+ * a malloc'ed buffer.
+ */
+char *linker_search_path(const char *filename);
+
+/*
+ * DDB Helpers, tuned specifically for ddb/db_kld.c
+ */
+int linker_ddb_lookup(char *symstr, linker_sym_t *sym);
+int linker_ddb_search_symbol(caddr_t value, linker_sym_t *sym, long *diffp);
+int linker_ddb_symbol_values(linker_sym_t sym, linker_symval_t *symval);
+
+
+#endif	/* KERNEL */
+
+/*
  * Module information subtypes
  */
-#define MODINFO_END		0x0000
-#define MODINFO_NAME		0x0001
-#define MODINFO_TYPE		0x0002
-#define MODINFO_ADDR		0x0003
-#define MODINFO_SIZE		0x0004
-#define MODINFO_METADATA	0x8000
+#define MODINFO_END		0x0000		/* End of list */
+#define MODINFO_NAME		0x0001		/* Name of module (string) */
+#define MODINFO_TYPE		0x0002		/* Type of module (string) */
+#define MODINFO_ADDR		0x0003		/* Loaded address */
+#define MODINFO_SIZE		0x0004		/* Size of module */
+#define MODINFO_EMPTY		0x0005		/* Has been deleted */
+#define MODINFO_METADATA	0x8000		/* Module-specfic */
 
 #define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */
 #define MODINFOMD_ELFHDR	0x0002		/* ELF header */
+#define MODINFOMD_SSYM		0x0003		/* start of symbols */
+#define MODINFOMD_ESYM		0x0004		/* end of symbols */
+#define MODINFOMD_DYNAMIC	0x0005		/* _DYNAMIC pointer */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
-#define KLD_IDENT_SYMNAME	"kld_identifier_"
-#define MODINFOMD_KLDIDENT	(MODINFOMD_NOCOPY | 0x4000)
-#define MODINFOMD_KLDDEP	(MODINFOMD_NOCOPY | 0x4001)
+#define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */
+
+#ifdef KERNEL
 
 /*
  * Module lookup
  */
-extern caddr_t		module_metadata;
-extern caddr_t		module_search_by_name(const char *name);
-extern caddr_t		module_search_by_type(const char *type);
-extern caddr_t		module_search_info(caddr_t mod, int inf);
-
+extern caddr_t		preload_metadata;
+extern caddr_t		preload_search_by_name(const char *name);
+extern caddr_t		preload_search_by_type(const char *type);
+extern caddr_t		preload_search_next_name(caddr_t base);
+extern caddr_t		preload_search_info(caddr_t mod, int inf);
+extern void		preload_delete_name(const char *name);
+extern void		preload_bootstrap_relocate(vm_offset_t offset);
 
 #ifdef KLD_DEBUG
 
@@ -209,7 +233,7 @@ extern int kld_debug;
 
 #define KLD_DPF(cat, args)					\
 	do {							\
-		if (KLD_debug & KLD_DEBUG_##cat) printf args;	\
+		if (kld_debug & KLD_DEBUG_##cat) printf args;	\
 	} while (0)
 
 #else
@@ -217,6 +241,10 @@ extern int kld_debug;
 #define KLD_DPF(cat, args)
 
 #endif
+
+/* Support functions */
+int	elf_reloc(linker_file_t lf, const Elf_Rela *rela, const char *sym);
+
 
 #endif /* KERNEL */
 
