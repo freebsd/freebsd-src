@@ -308,13 +308,34 @@ pcic_do_mgt_irq(struct pcic_slot *sp, int irq)
 	u_int32_t	reg;
 
 	if (sp->sc->csc_route == pci_parallel) {
+		/* Do the PCI side of things: Enable the Card Change int */
 		reg = CB_SM_CD;
 		bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_MASK, reg);
+		/*
+		 * TI Chips need us to set the following.  We tell the
+		 * controller to route things via PCI interrupts.  Also
+		 * we clear the interrupt number in the STAT_INT register
+		 * as well.  The TI-12xx and newer chips require one or the
+		 * other of these to happen, depending on what is set in the
+		 * diagnostic register.  I do both on the theory that other
+		 * chips might need one or the other and that no harm will
+		 * come from it.  If there is harm, then I'll make it a bit
+		 * in the tables.
+		 */
+		pcic_setb(sp, PCIC_INT_GEN, PCIC_INTR_ENA);
+		pcic_clrb(sp, PCIC_STAT_INT, PCIC_CSCSELECT);
 	} else {
 		/* Management IRQ changes */
+		/*
+		 * The PCIC_INTR_ENA bit means either "tie the function
+		 * and csc interrupts together" or "Route csc interrupts
+		 * via PCI" or "Reserved".  In any case, we want to clear
+		 * it since we're using ISA interrupts.
+		 */
 		pcic_clrb(sp, PCIC_INT_GEN, PCIC_INTR_ENA);
 		irq = host_irq_to_pcic(irq);
-		sp->putb(sp, PCIC_STAT_INT, (irq << 4) | 0x8);
+		sp->putb(sp, PCIC_STAT_INT, (irq << PCIC_SI_IRQ_SHIFT) | 
+		    PCIC_CDEN);
 	}
 }
 
@@ -629,7 +650,7 @@ pcic_disable(struct slot *slt)
 	struct pcic_slot *sp = slt->cdata;
 
 	sp->putb(sp, PCIC_INT_GEN, 0);
-	sp->putb(sp, PCIC_POWER, 0);
+/*	sp->putb(sp, PCIC_POWER, 0); */
 }
 
 /*
