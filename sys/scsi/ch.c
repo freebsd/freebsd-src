@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.28 1995/12/14 09:54:21 phk Exp $
+ *      $Id: ch.c,v 1.29 1995/12/14 19:51:12 bde Exp $
  */
 
 #include	<sys/types.h>
@@ -37,31 +37,31 @@
 #define ESUCCESS 0
 
 struct scsi_data {
-	u_int32 flags;
-	u_int16 chmo;			/* Offset of first CHM */
-	u_int16 chms;			/* No. of CHM */
-	u_int16 slots;			/* No. of Storage Elements */
-	u_int16 sloto;			/* Offset of first SE */
-	u_int16 imexs;			/* No. of Import/Export Slots */
-	u_int16 imexo;			/* Offset of first IM/EX */
-	u_int16 drives;			/* No. of CTS */
-	u_int16 driveo;			/* Offset of first CTS */
-	u_int16 rot;			/* CHM can rotate */
-	u_long  op_matrix;		/* possible opertaions */
-	u_int16 lsterr;			/* details of lasterror */
-	u_char  stor;			/* posible Storage locations */
+	u_int32_t flags;
+	u_int16_t chmo;			/* Offset of first CHM */
+	u_int16_t chms;			/* No. of CHM */
+	u_int16_t slots;			/* No. of Storage Elements */
+	u_int16_t sloto;			/* Offset of first SE */
+	u_int16_t imexs;			/* No. of Import/Export Slots */
+	u_int16_t imexo;			/* Offset of first IM/EX */
+	u_int16_t drives;			/* No. of CTS */
+	u_int16_t driveo;			/* Offset of first CTS */
+	u_int16_t rot;			/* CHM can rotate */
+	u_long    op_matrix;		/* possible opertaions */
+	u_int16_t lsterr;			/* details of lasterror */
+	u_char    stor;			/* posible Storage locations */
 #ifdef	DEVFS
-	void	*devfs_token;
+	void	  *devfs_token;
 #endif
 };
 
-static errval ch_getelem __P((u_int32 unit, short *stat, int type, u_int32 from,
-			      void *data, u_int32 flags));
-static errval ch_move __P((u_int32 unit, short *stat, u_int32 chm, u_int32 from,
-			   u_int32 to, u_int32 flags));
-static errval ch_mode_sense __P((u_int32 unit, u_int32 flags));
-static errval ch_position __P((u_int32 unit, short *stat, u_int32 chm,
-			       u_int32 to, u_int32 flags));
+static errval ch_getelem __P((u_int32_t unit, short *stat, int type, u_int32_t from,
+			      void *data, u_int32_t flags));
+static errval ch_move __P((u_int32_t unit, short *stat, u_int32_t chm, u_int32_t from,
+			   u_int32_t to, u_int32_t flags));
+static errval ch_mode_sense __P((u_int32_t unit, u_int32_t flags));
+static errval ch_position __P((u_int32_t unit, short *stat, u_int32_t chm,
+			       u_int32_t to, u_int32_t flags));
 
 static int chunit(dev_t dev) { return CHUNIT(dev); }
 static dev_t chsetunit(dev_t dev, int unit) { return CHSETUNIT(dev, unit); }
@@ -145,7 +145,7 @@ ch_registerdev(int unit)
 static errval
 chattach(struct scsi_link *sc_link)
 {
-	u_int32 unit;
+	u_int32_t unit;
 	char	name[32];
 
 	struct scsi_data *ch = sc_link->sd;
@@ -181,7 +181,7 @@ ch_open(dev_t dev, int flags, int fmt, struct proc *p,
 	struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
-	u_int32 unit, mode;
+	u_int32_t unit, mode;
 	struct scsi_data *cd;
 
 	unit = CHUNIT(dev);
@@ -244,7 +244,7 @@ ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc *p,
 {
 	/* struct ch_cmd_buf *args; */
 	unsigned char unit;
-	u_int32 flags;
+	u_int32_t flags;
 	errval  ret;
 	struct scsi_data *cd;
 
@@ -299,7 +299,7 @@ ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc *p,
 
 static errval
 ch_getelem(unit, stat, type, from, data, flags)
-	u_int32 unit, from, flags;
+	u_int32_t unit, from, flags;
 	int type;
 	short  *stat;
 	void   *data;		/* XXX `struct untagged *' - see chio.h */
@@ -339,7 +339,7 @@ ch_getelem(unit, stat, type, from, data, flags)
 
 static errval
 ch_move(unit, stat, chm, from, to, flags)
-	u_int32 unit, chm, from, to, flags;
+	u_int32_t unit, chm, from, to, flags;
 	short  *stat;
 {
 	struct scsi_move_medium scsi_cmd;
@@ -375,7 +375,7 @@ ch_move(unit, stat, chm, from, to, flags)
 
 static errval
 ch_position(unit, stat, chm, to, flags)
-	u_int32 unit, chm, to, flags;
+	u_int32_t unit, chm, to, flags;
 	short  *stat;
 {
 	struct scsi_position_to_element scsi_cmd;
@@ -420,7 +420,7 @@ ch_position(unit, stat, chm, to, flags)
  */
 static errval
 ch_mode_sense(unit, flags)
-	u_int32 unit, flags;
+	u_int32_t unit, flags;
 {
 	struct scsi_mode_sense scsi_cmd;
 	u_char  scsi_sense[128];	/* Can't use scsi_mode_sense_data because of
@@ -486,8 +486,8 @@ ch_mode_sense(unit, flags)
 	} printf("\n");
 #endif
 	for (i = 0; i < l;) {
-		u_int32 pc = (*b++) & 0x3f;
-		u_int32 pl = *b++;
+		u_int32_t pc = (*b++) & 0x3f;
+		u_int32_t pl = *b++;
 		u_char *bb = b;
 		switch ((int)pc) {
 		case 0x1d:
