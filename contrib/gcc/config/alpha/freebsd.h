@@ -542,3 +542,15 @@ dtors_section ()							\
 #ifndef ASM_DECLARE_RESULT
 #define ASM_DECLARE_RESULT(FILE, RESULT)
 #endif
+
+/* Handle cross-compilation on 32-bits machines (such as i386) for 64-bits
+   machines (Alpha in this case).  */
+
+#if defined(__i386__)
+#undef HOST_BITS_PER_LONG
+#define	HOST_BITS_PER_LONG 32
+#undef HOST_WIDE_INT
+#define	HOST_WIDE_INT long long
+#undef HOST_BITS_PER_WIDE_INT
+#define	HOST_BITS_PER_WIDE_INT 64
+#endif
