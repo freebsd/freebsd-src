@@ -139,6 +139,20 @@
 #endif
 
 /*
+ * GCC 2.95 provides `__restrict' as an extention to C90 to support the
+ * C99-specific `restrict' type qualifier.  We happen to use `__restrict' as a
+ * way to define the `restrict' type qualifier without disturbing older software
+ * that is unaware of C99 keywords.
+ */
+#if !(__GNUC__ == 2 && __GNUC_MINOR__ == 95)
+#if __STDC_VERSION__ < 199901
+#define	__restrict
+#else
+#define	__restrict	restrict
+#endif
+#endif
+
+/*
  * Compiler-dependent macros to declare that functions take printf-like
  * or scanf-like arguments.  They are null except for versions of gcc
  * that are known to support the features properly (old versions of gcc-2
