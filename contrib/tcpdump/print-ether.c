@@ -158,6 +158,13 @@ int
 ether_encap_print(u_short ethertype, const u_char *p,
     u_int length, u_int caplen)
 {
+	if (ethertype == 0x8100) { /* IEEE 802.1Q vlan tagging encapsulation */
+		printf ("[vlan %d] ", ntohs(*(u_short *)p) & 0x17ff);
+		ethertype = ntohs(((u_short *)p)[1]);
+		p += 4;
+		length -= 4;
+		caplen -= 4;
+	}
 	extracted_ethertype = ethertype;
 
 	switch (ethertype) {
