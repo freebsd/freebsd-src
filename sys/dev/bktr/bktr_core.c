@@ -1,4 +1,4 @@
-/* BT848 1.33 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.35 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -247,6 +247,19 @@
                            tuner takes a value from 0 to bt848_max_tuner
                            reverse_mute : 0 no effect, 1 reverse tuner
                            mute function some tuners are wired reversed :(
+1.34                       reverse mute function for ims turbo card
+
+1.35                       Roger Hardiman <roger@cs.strath.ac.uk>
+                           options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+                           in the kernel config file makes the driver's
+                           video_open() function select PAL rather than NTSC.
+                           This fixed all the hangs on my Dual Crystal card
+                           when using a PAL video signal. As a result, you
+                           can loose the tsleep (of 2 seconds - now 0.25!!)
+                           which I previously added. (Unless someone else
+                           wanted the 0.25 second tsleep).
+
+
 */
 
 #define DDB(x) x
@@ -931,7 +944,7 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-	   { 0x00, 0x02, 0x01, 0x01, 1 } }	/* audio MUX values */
+	   { 0x01, 0x02, 0x01, 0x00, 1 } }	/* audio MUX values */
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {
@@ -1533,6 +1546,7 @@ static int
 video_open( bktr_ptr_t bktr )
 {
 	bt848_ptr_t bt848;
+	int frame_rate;
 
 	if (bktr->flags & METEOR_OPEN)		/* device is busy */
 		return( EBUSY );
@@ -1550,6 +1564,24 @@ video_open( bktr_ptr_t bktr )
 	bt848->dstatus = 0x00;			/* clear device status reg. */
 
 	bt848->adc = SYNC_LEVEL;
+
+#if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
+	bt848->iform = BT848_IFORM_M_MUX1 |
+		       BT848_IFORM_X_XT1  |
+		       BT848_IFORM_F_PALBDGHI;
+	bt848->adelay = format_params[BT848_IFORM_F_PALBDGHI].adelay;
+	bt848->bdelay = format_params[BT848_IFORM_F_PALBDGHI].bdelay;
+	bktr->format_params = BT848_IFORM_F_PALBDGHI;
+	frame_rate = 25;
+#else
+	bt848->iform = BT848_IFORM_M_MUX1 |
+		       BT848_IFORM_X_XT0  |
+		       BT848_IFORM_F_NTSCM;
+	bktr->format_params = BT848_IFORM_F_NTSCM;
+	frame_rate = 30;
+#endif
+
+
 	bt848->iform = BT848_IFORM_M_MUX1 |
 		       BT848_IFORM_X_XT0  |
 		       BT848_IFORM_F_NTSCM;
@@ -1581,7 +1613,7 @@ video_open( bktr_ptr_t bktr )
 	bktr->even_fields_captured = 0;
 	bktr->odd_fields_captured = 0;
 	bktr->proc = (struct proc *)0;
-	set_fps(bktr, 30);
+	set_fps(bktr, frame_rate);
 	bktr->video.addr = 0;
 	bktr->video.width = 0;
 	bktr->video.banksize = 0;
@@ -1592,9 +1624,6 @@ video_open( bktr_ptr_t bktr )
 
 
 	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* what does this bit do ??? */
-
-	/* wait .25 seconds while bt848 initialises */
-	tsleep( (caddr_t)bktr, PZERO, "btinit", hz/4 );
 
 	return( 0 );
 }
