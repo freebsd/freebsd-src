@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.10 1996/04/30 12:54:27 phk Exp $
+ * $Id: types.h,v 1.11 1996/04/30 23:35:57 bde Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -73,6 +73,8 @@ typedef	_BSD_PID_T_	pid_t;		/* process id */
 typedef	int32_t		segsz_t;	/* segment size */
 typedef	int32_t		swblk_t;	/* swap offset */
 typedef	u_int32_t	uid_t;		/* user id */
+
+typedef	quad_t		rlim_t; 	/* resource limits */
 
 #ifdef KERNEL
 typedef	int		boolean_t;
