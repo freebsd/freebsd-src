@@ -415,6 +415,10 @@ extern int warn_sequence_point;
 
 extern int warn_missing_format_attribute;
 
+/* Nonzero means do not warn that K&R style main() is not a function prototype.  */
+
+extern int flag_bsd_no_warn_kr_main;
+
 /* Nonzero means warn about sizeof (function) or addition/subtraction
    of function pointers.  */
 

@@ -379,6 +379,11 @@ int warn_traditional;
 
 int warn_pointer_arith;
 
+
+/* Nonzero means do not warn that K&R style main() is not a function prototype.  */
+
+int flag_bsd_no_warn_kr_main;
+
 /* Nonzero means warn for non-prototype function decls
    or non-prototyped defs without previous prototype.  */
 
@@ -531,6 +536,7 @@ c_decode_option (argc, argv)
 	  flag_noniso_default_format_attributes = 0;
 	  flag_isoc99 = 0;
 	  flag_bsd_format = 0;
+	  flag_bsd_no_warn_kr_main = 0;
 	}
       else if (!strcmp (argstart, "iso9899:199409"))
 	{
@@ -550,6 +556,7 @@ c_decode_option (argc, argv)
 	  flag_isoc99 = 1;
 	  flag_isoc94 = 1;
 	  flag_bsd_format = 0;
+	  flag_bsd_no_warn_kr_main = 0;
 	}
       else if (!strcmp (argstart, "gnu89"))
 	{
@@ -561,6 +568,7 @@ c_decode_option (argc, argv)
 	  flag_isoc99 = 0;
 	  flag_isoc94 = 0;
 	  flag_bsd_format = 0;
+	  flag_bsd_no_warn_kr_main = 0;
 	}
       else if (!strcmp (argstart, "gnu9x") || !strcmp (argstart, "gnu99"))
 	{
@@ -572,6 +580,7 @@ c_decode_option (argc, argv)
 	  flag_isoc99 = 1;
 	  flag_isoc94 = 1;
 	  flag_bsd_format = 0;
+	  flag_bsd_no_warn_kr_main = 0;
 	}
       else if (!strcmp (argstart, "bsd"))
 	{
@@ -584,6 +593,7 @@ c_decode_option (argc, argv)
 	  flag_isoc94 = 0;
 	  flag_isoc94 = 0;
 	  flag_bsd_format = 1;
+	  flag_bsd_no_warn_kr_main = 1;
 	}
       else
 	error ("unknown C standard `%s'", argstart);
@@ -6313,7 +6323,9 @@ start_function (declspecs, declarator, attributes)
       && !(old_decl != 0
 	   && (TYPE_ARG_TYPES (TREE_TYPE (old_decl)) != 0
 	       || (DECL_BUILT_IN (old_decl)
-		   && ! C_DECL_ANTICIPATED (old_decl)))))
+		   && ! C_DECL_ANTICIPATED (old_decl))))
+		     && !(flag_bsd_no_warn_kr_main && 0 ==
+			strcmp ("main", IDENTIFIER_POINTER (DECL_NAME (decl1)))))
     warning ("function declaration isn't a prototype");
   /* Optionally warn of any global def with no previous prototype.  */
   else if (warn_missing_prototypes
