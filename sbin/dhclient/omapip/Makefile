@@ -7,7 +7,6 @@ DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 
 LIB=	 omapi
 INTERNALLIB=		true
-INTERNALSTATICLIB=	true
 
 SRCS=	alloc.c array.c auth.c buffer.c connection.c convert.c dispatch.c \
 	errwarn.c generic.c handle.c hash.c inet_addr.c listener.c \
