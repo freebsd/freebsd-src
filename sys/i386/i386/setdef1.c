@@ -23,23 +23,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: setdef1.c,v 1.1 1997/04/22 06:55:28 jdp Exp $
  */
 
 #ifdef __ELF__
 
 /*
- * END_SET emits the NULL terminator for a set.
+ * DEFINE_SET emits the NULL terminator for a set.
  */
-#define END_SET(set)					\
+#define DEFINE_SET(set, count)				\
 	__asm__(".section .set." #set ",\"aw\"");	\
 	__asm__(".long 0");				\
 	__asm__(".previous")
 
-#define DEFINE_SET(set)	END_SET(set)
+#include "setdefs.h"		/* Contains a `DEFINE_SET' for each set */
 
-#include <i386/i386/setdefs.h>	/* Contains a `DEFINE_SET' for each set */
-
-END_SET(set_of_sets);		/* Terminate the mother of all sets */
-
-#endif
+#endif /* __ELF__ */
