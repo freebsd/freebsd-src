@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.14 2000/07/18 13:57:55 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.15 2000/08/05 14:49:08 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -1139,8 +1139,10 @@ int dst;
 			return ENOBUFS;
 
 		MCLGET(m, M_DONTWAIT);
-		if (!m)
+		if ((m->m_flags & M_EXT) == 0) {
+			m_freem(m);
 			return ENOBUFS;
+		}
 		avail = (m->m_flags & M_EXT) ? MCLBYTES : MHLEN;
 		xtra = MIN(ntohs(oip6->ip6_plen) + sizeof(ip6_t),
 			   avail - hlen - sizeof(*icmp) - max_linkhdr);
