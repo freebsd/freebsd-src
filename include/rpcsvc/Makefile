@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.7 1995/08/15 20:06:50 joerg Exp $
+#	$Id: Makefile,v 1.8 1996/06/05 03:47:18 wpaul Exp $
 
 .SUFFIXES: .x
 
@@ -15,31 +15,20 @@ XFILES= bootparam_prot.x klm_prot.x mount.x nfs_prot.x nlm_prot.x \
 HFILES= yp_prot.h ypclnt.h
 
 CLEANFILES+= ${HDRS}
-RPCDIR= ${DESTDIR}/usr/include/rpcsvc
-EVERYTHING= $(XFILES) $(HFILES)
 
 all: ${HDRS}
 
-install: all
-	@${ECHO} "Installing RPC service header and definition files"
-.for i in $(EVERYTHING)
-	@cd ${.CURDIR}; cmp -s $i $(RPCDIR)/$i || \
-		(${INSTALL} -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
-			$i ${RPCDIR}; \
-			$(ECHO) $i)
-.endfor
-.for i in $(HDRS)
-	@cmp -s $i $(RPCDIR)/$i || \
-		(${INSTALL} -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
-			$i ${RPCDIR}; \
-			$(ECHO) $i)
-.endfor
+install: ${HDRS}
+	cd ${.CURDIR} && \
+		${INSTALL} -C -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
+		${HFILES} ${DESTDIR}/usr/include/rpcsvc
+	cd ${.CURDIR} && \
+		${INSTALL} -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
+		${XFILES} ${DESTDIR}/usr/include/rpcsvc
+	${INSTALL} -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} ${HDRS} \
+		${DESTDIR}/usr/include/rpcsvc
 
 .x.h:
 	cd ${.CURDIR} ; ${RPCCOM} -h $*.x -o ${.OBJDIR}/$@
 
 .include <bsd.prog.mk>
-
-
-
-
