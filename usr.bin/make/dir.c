@@ -472,9 +472,9 @@ DirExpandCurly(word, brace, path, expansions)
 	    case '[':
 		Dir_Expand(file, path, expansions);
 		goto next;
-	    }
 	    default:
 		break;
+	    }
 	}
 	if (*cp2 == '\0') {
 	    /*
