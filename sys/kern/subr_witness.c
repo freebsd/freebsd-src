@@ -415,20 +415,20 @@ witness_display(void(*prnt)(const char *fmt, ...))
 	witness_levelall();
 
 	/*
-	 * First, handle sleep mutexes which have been acquired at least
+	 * First, handle sleep locks which have been acquired at least
 	 * once.
 	 */
 	prnt("Sleep locks:\n");
 	witness_display_list(prnt, &w_sleep);
 	
 	/*
-	 * Now do spin mutexes which have been acquired at least once.
+	 * Now do spin locks which have been acquired at least once.
 	 */
 	prnt("\nSpin locks:\n");
 	witness_display_list(prnt, &w_spin);
 	
 	/*
-	 * Finally, any mutexes which have not been acquired yet.
+	 * Finally, any locks which have not been acquired yet.
 	 */
 	prnt("\nLocks which were never acquired:\n");
 	STAILQ_FOREACH(w, &w_all, w_list) {
@@ -1139,7 +1139,7 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 
 #ifdef DDB
 
-DB_SHOW_COMMAND(mutexes, db_witness_list)
+DB_SHOW_COMMAND(locks, db_witness_list)
 {
 
 	witness_list(curproc);
