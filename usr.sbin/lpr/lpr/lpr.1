@@ -50,7 +50,7 @@
 .Op Fl Z Ar daemon-options
 .Op Fl i Ar numcols
 .Op Fl 1234 Ar font
-.Op Fl w Ns Ar num
+.Op Fl w Ar num
 .Op Fl cdfghlnmprstv
 .Op Ar name ...
 .Sh DESCRIPTION
@@ -62,41 +62,52 @@ The following single letter options are used to notify the line printer
 spooler that the files are not standard text files.
 The spooling daemon will
 use the appropriate filters to print the data accordingly.
+Note that not all spoolers implement filters for all data types,
+and some sites may use these types for other purposes than the ones
+described here.
 .Bl -tag -width indent
-.It Fl c
-The files are assumed to contain data produced by
-.Xr cifplot 1
 .It Fl d
-The files are assumed to contain data from
-.Em tex
-.Pf ( Tn DVI
-format from Stanford).
+The files are assumed to contain data in
+.Tn DVI
+format from the
+.Tn TeX
+typesetting system.
 .It Fl f
 Use a filter which interprets the first character of each line as a
 standard
 .Tn FORTRAN
 carriage control character.
-.It Fl g
-The files are assumed to contain standard plot data as produced by the
-.Xr plot
-routines (see also
-.Xr plot
-for the filters used by the printer spooler).
 .It Fl l
 Use a filter which allows control characters to be printed and suppresses
 page breaks.
+.It Fl p
+Use
+.Xr pr 1
+to format the files.
+.El
+.Pp
+The following options are historical and not directly supported by any
+software included in
+.Fx .
+.Bl -tag -width indent
+.It Fl c
+The files are assumed to contain data produced by
+.Xr cifplot 1 .
+.It Fl g
+The files are assumed to contain standard plot data as produced by the
+.Ux
+.Xr plot 3
+routines.
 .It Fl n
 The files are assumed to contain data from
 .Em ditroff
 (device independent troff).
-.It Fl p
-Use
-.Xr pr  1
-to format the files.
 .It Fl t
-The files are assumed to contain data from
-.Xr troff  1
-(cat phototypesetter commands).
+The files are assumed to contain
+.Tn C/A/T
+phototypesetter commands from ancient versions of
+.Ux
+.Xr troff 1 .
 .It Fl v
 The files are assumed to contain a raster image for devices like the
 Benson Varian.
@@ -212,10 +223,10 @@ is not requested, the specified
 will be passed to the remote
 .Tn LPRng
 spooler.
-.It Fl i numcols
+.It Fl i Ar numcols
 The output is indented by
 .Pq Ar numcols .
-.It Fl w Ns Ar num
+.It Fl w Ar num
 Uses
 .Ar num
 as the page width for
