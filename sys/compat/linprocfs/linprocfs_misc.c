@@ -48,6 +48,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
@@ -57,6 +58,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
+#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 
 #include <sys/exec.h>
@@ -67,6 +69,7 @@
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 
+#include <compat/linux/linux_mib.h>
 #include <compat/linprocfs/linprocfs.h>
 
 /*
@@ -86,9 +89,9 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	struct sbuf sb;
 	char *ps;
-	int xlen;
-	char psbuf[512];		/* XXX - conservative */
+	int r, xlen;
 	unsigned long memtotal;		/* total memory in bytes */
 	unsigned long memused;		/* used memory in bytes */
 	unsigned long memfree;		/* free memory in bytes */
@@ -140,8 +143,8 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	buffers = 0;
 	cached = cnt.v_cache_count * PAGE_SIZE;
 
-	ps = psbuf;
-	ps += sprintf(ps,
+	sbuf_new(&sb, NULL, 512, 0);
+	sbuf_printf(&sb,
 	    "        total:    used:    free:  shared: buffers:  cached:\n"
 	    "Mem:  %lu %lu %lu %lu %lu %lu\n"
 	    "Swap: %lu %lu %lu\n"
@@ -158,11 +161,13 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	    B2K(memshared), B2K(buffers), B2K(cached),
 	    B2K(swaptotal), B2K(swapfree));
 
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
+	sbuf_finish(&sb);
+	ps = sbuf_data(&sb) + uio->uio_offset;
+	xlen = sbuf_len(&sb) -  uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	sbuf_delete(&sb);
+	return r;
 }
 
 int
@@ -172,9 +177,9 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	struct sbuf sb;
 	char *ps;
-	int xlen;
-	char psbuf[512];		/* XXX - conservative */
+	int r, xlen;
 	int class, i, fqmhz, fqkhz;
 
 	/*
@@ -215,8 +220,8 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 		break;
 	}
 
-	ps = psbuf;
-	ps += sprintf(ps,
+	sbuf_new(&sb, NULL, 512, 0);
+	sbuf_printf(&sb,
             "processor\t: %d\n"
 	    "vendor_id\t: %.20s\n"
 	    "cpu family\t: %d\n"
@@ -224,7 +229,7 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	    "stepping\t: %d\n",
 	    0, cpu_vendor, class, cpu, cpu_id & 0xf);
 
-        ps += sprintf(ps,
+        sbuf_cat(&sb,
             "flags\t\t:");
 
         if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
@@ -235,22 +240,24 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
         
         for (i = 0; i < 32; i++)
 		if (cpu_feature & (1 << i))
-			ps += sprintf(ps, " %s", flags[i]);
-	ps += sprintf(ps, "\n");
+			sbuf_printf(&sb, " %s", flags[i]);
+	sbuf_cat(&sb, "\n");
         if (class >= 5) {
 		fqmhz = (tsc_freq + 4999) / 1000000;
 		fqkhz = ((tsc_freq + 4999) / 10000) % 100;
-		ps += sprintf(ps,
+		sbuf_printf(&sb,
 		    "cpu MHz\t\t: %d.%02d\n"
 		    "bogomips\t: %d.%02d\n",
 		    fqmhz, fqkhz, fqmhz, fqkhz);
         }
-        
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
+
+	sbuf_finish(&sb);
+	ps = sbuf_data(&sb) + uio->uio_offset;
+	xlen = sbuf_len(&sb) - uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	sbuf_delete(&sb);
+	return r;
 }
 
 int
@@ -260,12 +267,12 @@ linprocfs_dostat(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	struct sbuf sb;
         char *ps;
-	char psbuf[512];
-	int xlen;
+	int r, xlen;
 
-	ps = psbuf;
-	ps += sprintf(ps,
+	sbuf_new(&sb, NULL, 512, 0);
+	sbuf_printf(&sb,
 	    "cpu %ld %ld %ld %ld\n"
 	    "disk 0 0 0 0\n"
 	    "page %u %u\n"
@@ -284,11 +291,14 @@ linprocfs_dostat(curp, p, pfs, uio)
 	    cnt.v_intr,
 	    cnt.v_swtch,
 	    boottime.tv_sec);
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
+	
+	sbuf_finish(&sb);
+	ps = sbuf_data(&sb) + uio->uio_offset;
+	xlen = sbuf_len(&sb) -  uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	sbuf_delete(&sb);
+	return r;
 }
 
 int
@@ -298,21 +308,23 @@ linprocfs_douptime(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	struct sbuf sb;
 	char *ps;
-	int xlen;
-	char psbuf[64];
+	int r, xlen;
 	struct timeval tv;
 
 	getmicrouptime(&tv);
-	ps = psbuf;
-	ps += sprintf(ps, "%ld.%02ld %ld.%02ld\n",
+	sbuf_new(&sb, NULL, 64, 0);
+	sbuf_printf(&sb, "%ld.%02ld %ld.%02ld\n",
 	    tv.tv_sec, tv.tv_usec / 10000,
 	    T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
+	sbuf_finish(&sb);
+	ps = sbuf_data(&sb) + uio->uio_offset;
+	xlen = sbuf_len(&sb) -  uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	sbuf_delete(&sb);
+	return r;
 }
 
 int
@@ -322,17 +334,23 @@ linprocfs_doversion(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	struct sbuf sb;
         char *ps;
-	int xlen;
+	int r, xlen;
 
-	ps = version; /* XXX not entirely correct */
-	for (xlen = 0; ps[xlen] != '\n'; ++xlen)
-		/* nothing */ ;
-	++xlen;
-	xlen -= uio->uio_offset;
-	ps += uio->uio_offset;
+	sbuf_new(&sb, NULL, 128, 0);
+	sbuf_printf(&sb,
+	    "%s version %s (des@freebsd.org) (gcc version " __VERSION__ ")"
+	    " #4 Sun Dec 18 04:30:00 CET 1977\n",
+	    linux_get_osname(curp),
+	    linux_get_osrelease(curp));
+	sbuf_finish(&sb);
+	ps = sbuf_data(&sb) + uio->uio_offset;
+	xlen = sbuf_len(&sb) -  uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	sbuf_delete(&sb);
+	return r;
 }
 
 int
@@ -342,14 +360,15 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-	struct eproc ep;
-	char *ps, psbuf[1024];
-	int xlen;
+	struct kinfo_proc kp;
+	struct sbuf sb;
+	char *ps;
+	int r, xlen;
 
-	fill_eproc(p, &ep);
-	ps = psbuf;
-	ps += sprintf(ps, "%d", p->p_pid);
-#define PS_ADD(name, fmt, arg) ps += sprintf(ps, " " fmt, arg)
+	fill_kinfo_proc(p, &kp);
+	sbuf_new(&sb, NULL, 1024, 0);
+	sbuf_printf(&sb, "%d", p->p_pid);
+#define PS_ADD(name, fmt, arg) sbuf_printf(&sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
 	PS_ADD("statr",		"%c",	'0'); /* XXX */
 	PS_ADD("ppid",		"%d",	p->p_pptr ? p->p_pptr->p_pid : 0);
@@ -371,10 +390,10 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 	PS_ADD("timeout",	"%u",	0); /* XXX */
 	PS_ADD("itrealvalue",	"%u",	0); /* XXX */
 	PS_ADD("starttime",	"%d",	0); /* XXX */
-	PS_ADD("vsize",		"%u",	ep.e_vm.vm_map.size);
-	PS_ADD("rss",		"%u",	P2K(ep.e_vm.vm_rssize));
+	PS_ADD("vsize",		"%u",	kp.ki_size);
+	PS_ADD("rss",		"%u",	P2K(kp.ki_rssize));
 	PS_ADD("rlim",		"%u",	0); /* XXX */
-	PS_ADD("startcode",	"%u",	(unsigned)ep.e_vm.vm_taddr);
+	PS_ADD("startcode",	"%u",	(unsigned)0);
 	PS_ADD("endcode",	"%u",	0); /* XXX */
 	PS_ADD("startstack",	"%u",	0); /* XXX */
 	PS_ADD("esp",		"%u",	0); /* XXX */
@@ -389,13 +408,15 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 	PS_ADD("exitsignal",	"%d",	0); /* XXX */
 	PS_ADD("processor",	"%d",	0); /* XXX */
 #undef PS_ADD
-	ps += sprintf(ps, "\n");
+	sbuf_putc(&sb, '\n');
 	
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
+	sbuf_finish(&sb);
+	ps = sbuf_data(&sb) + uio->uio_offset;
+	xlen = sbuf_len(&sb) -  uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	sbuf_delete(&sb);
+	return r;
 }
 
 /*
@@ -420,14 +441,15 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-	struct eproc ep;
-	char *ps, psbuf[1024];
+	struct kinfo_proc kp;
+	struct sbuf sb;
+	char *ps;
 	char *state;
-	int i, xlen;
+	int i, r, xlen;
 	segsz_t lsize;
 
-	ps = psbuf;
-
+	sbuf_new(&sb, NULL, 1024, 0);
+	
 	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_stat > sizeof state_str / sizeof *state_str)
 		state = state_str[0];
@@ -435,30 +457,29 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 		state = state_str[(int)p->p_stat];
 	mtx_exit(&sched_lock, MTX_SPIN);
 
-	fill_eproc(p, &ep);
-#define PS_ADD ps += sprintf
-	PS_ADD(ps, "Name:\t%s\n",	  p->p_comm); /* XXX escape */
-	PS_ADD(ps, "State:\t%s\n",	  state);
+	fill_kinfo_proc(p, &kp);
+	sbuf_printf(&sb, "Name:\t%s\n",		p->p_comm); /* XXX escape */
+	sbuf_printf(&sb, "State:\t%s\n",	state);
 
 	/*
 	 * Credentials
 	 */
-	PS_ADD(ps, "Pid:\t%d\n",	  p->p_pid);
-	PS_ADD(ps, "PPid:\t%d\n",	  p->p_pptr ? p->p_pptr->p_pid : 0);
-	PS_ADD(ps, "Uid:\t%d %d %d %d\n", p->p_cred->p_ruid,
-		                          p->p_ucred->cr_uid,
-		                          p->p_cred->p_svuid,
-		                          /* FreeBSD doesn't have fsuid */
-		                          p->p_ucred->cr_uid);
-	PS_ADD(ps, "Gid:\t%d %d %d %d\n", p->p_cred->p_rgid,
-		                          p->p_ucred->cr_gid,
-		                          p->p_cred->p_svgid,
-		                          /* FreeBSD doesn't have fsgid */
-		                          p->p_ucred->cr_gid);
-	PS_ADD(ps, "Groups:\t");
+	sbuf_printf(&sb, "Pid:\t%d\n",		p->p_pid);
+	sbuf_printf(&sb, "PPid:\t%d\n",		p->p_pptr ? p->p_pptr->p_pid : 0);
+	sbuf_printf(&sb, "Uid:\t%d %d %d %d\n", p->p_cred->p_ruid,
+			                        p->p_ucred->cr_uid,
+			                        p->p_cred->p_svuid,
+			                        /* FreeBSD doesn't have fsuid */
+				                p->p_ucred->cr_uid);
+	sbuf_printf(&sb, "Gid:\t%d %d %d %d\n", p->p_cred->p_rgid,
+			                        p->p_ucred->cr_gid,
+			                        p->p_cred->p_svgid,
+			                        /* FreeBSD doesn't have fsgid */
+				                p->p_ucred->cr_gid);
+	sbuf_cat(&sb, "Groups:\t");
 	for (i = 0; i < p->p_ucred->cr_ngroups; i++)
-		PS_ADD(ps, "%d ", p->p_ucred->cr_groups[i]);
-	PS_ADD(ps, "\n");
+		sbuf_printf(&sb, "%d ", p->p_ucred->cr_groups[i]);
+	sbuf_putc(&sb, '\n');
 	
 	/*
 	 * Memory
@@ -471,15 +492,15 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	 * could also compute VmLck, but I don't really care enough to
 	 * implement it. Submissions are welcome.
 	 */
-	PS_ADD(ps, "VmSize:\t%8u kB\n",	  B2K(ep.e_vm.vm_map.size));
-	PS_ADD(ps, "VmLck:\t%8u kB\n",    P2K(0)); /* XXX */
-	PS_ADD(ps, "VmRss:\t%8u kB\n",    P2K(ep.e_vm.vm_rssize));
-	PS_ADD(ps, "VmData:\t%8u kB\n",   P2K(ep.e_vm.vm_dsize));
-	PS_ADD(ps, "VmStk:\t%8u kB\n",    P2K(ep.e_vm.vm_ssize));
-	PS_ADD(ps, "VmExe:\t%8u kB\n",    P2K(ep.e_vm.vm_tsize));
-	lsize = B2P(ep.e_vm.vm_map.size) - ep.e_vm.vm_dsize -
-	    ep.e_vm.vm_ssize - ep.e_vm.vm_tsize - 1;
-	PS_ADD(ps, "VmLib:\t%8u kB\n",    P2K(lsize));
+	sbuf_printf(&sb, "VmSize:\t%8u kB\n",	B2K(kp.ki_size));
+	sbuf_printf(&sb, "VmLck:\t%8u kB\n",	P2K(0)); /* XXX */
+	sbuf_printf(&sb, "VmRss:\t%8u kB\n",	P2K(kp.ki_rssize));
+	sbuf_printf(&sb, "VmData:\t%8u kB\n",	P2K(kp.ki_dsize));
+	sbuf_printf(&sb, "VmStk:\t%8u kB\n",	P2K(kp.ki_ssize));
+	sbuf_printf(&sb, "VmExe:\t%8u kB\n",	P2K(kp.ki_tsize));
+	lsize = B2P(kp.ki_size) - kp.ki_dsize -
+	    kp.ki_ssize - kp.ki_tsize - 1;
+	sbuf_printf(&sb, "VmLib:\t%8u kB\n",	P2K(lsize));
 
 	/*
 	 * Signal masks
@@ -492,28 +513,29 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	 * supports 64 signals, but this code is a long way from
 	 * running on anything but i386, so ignore that for now.
 	 */
-	PS_ADD(ps, "SigPnd:\t%08x\n",	  p->p_siglist.__bits[0]);
+	sbuf_printf(&sb, "SigPnd:\t%08x\n",	p->p_siglist.__bits[0]);
 	/*
 	 * I can't seem to find out where the signal mask is in
 	 * relation to struct proc, so SigBlk is left unimplemented.
 	 */
-	PS_ADD(ps, "SigBlk:\t%08x\n",	  0); /* XXX */
-	PS_ADD(ps, "SigIgn:\t%08x\n",	  p->p_sigignore.__bits[0]);
-	PS_ADD(ps, "SigCgt:\t%08x\n",	  p->p_sigcatch.__bits[0]);
+	sbuf_printf(&sb, "SigBlk:\t%08x\n",	0); /* XXX */
+	sbuf_printf(&sb, "SigIgn:\t%08x\n",	p->p_sigignore.__bits[0]);
+	sbuf_printf(&sb, "SigCgt:\t%08x\n",	p->p_sigcatch.__bits[0]);
 	
 	/*
 	 * Linux also prints the capability masks, but we don't have
 	 * capabilities yet, and when we do get them they're likely to
 	 * be meaningless to Linux programs, so we lie. XXX
 	 */
-	PS_ADD(ps, "CapInh:\t%016x\n",	  0);
-	PS_ADD(ps, "CapPrm:\t%016x\n",	  0);
-	PS_ADD(ps, "CapEff:\t%016x\n",	  0);
-#undef PS_ADD
-	
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
+	sbuf_printf(&sb, "CapInh:\t%016x\n",	0);
+	sbuf_printf(&sb, "CapPrm:\t%016x\n",	0);
+	sbuf_printf(&sb, "CapEff:\t%016x\n",	0);
+
+	sbuf_finish(&sb);
+	ps = sbuf_data(&sb) + uio->uio_offset;
+	xlen = sbuf_len(&sb) -  uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	sbuf_delete(&sb);
+	return r;
 }
