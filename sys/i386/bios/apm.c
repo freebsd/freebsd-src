@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.63 1997/11/04 17:37:52 nate Exp $
+ *	$Id: apm.c,v 1.64 1997/11/10 14:38:08 nate Exp $
  */
 
 #include <sys/param.h>
@@ -37,7 +37,7 @@
 #include <i386/apm/apm_setup.h>
 
 static int apm_display __P((int newstate));
-static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx));
+static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx, u_long *edx));
 static void apm_resume __P((void));
 
 /* static data */
@@ -109,8 +109,8 @@ struct addr48 {
 
 static int apm_errno;
 
-int
-apm_int(u_long *eax, u_long *ebx, u_long *ecx)
+static int
+apm_int(u_long *eax, u_long *ebx, u_long *ecx, u_long *edx)
 {
 	struct apm_bios_arg apa;
 	int cf;
@@ -118,10 +118,12 @@ apm_int(u_long *eax, u_long *ebx, u_long *ecx)
 	apa.eax = *eax;
 	apa.ebx = *ebx;
 	apa.ecx = *ecx;
+	apa.edx = *edx;
 	cf = apm_bios_call(&apa);
 	*eax = apa.eax;
 	*ebx = apa.ebx;
 	*ecx = apa.ecx;
+	*edx = apa.edx;
 	apm_errno = ((*eax) >> 8) & 0xff;
 	return cf;
 }
@@ -133,7 +135,7 @@ apm_enable_disable_pm(int enable)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	u_long eax, ebx, ecx;
+	u_long eax, ebx, ecx, edx;
 
 	eax = (APM_BIOS << 8) | APM_ENABLEDISABLEPM;
 
@@ -142,19 +144,19 @@ apm_enable_disable_pm(int enable)
 	else
 		ebx  = 0xffff;	/* APM version 1.0 only */
 	ecx  = enable;
-	return apm_int(&eax, &ebx, &ecx);
+	return apm_int(&eax, &ebx, &ecx, &edx);
 }
 
 static void
 apm_driver_version(int version)
 {
-	u_long eax, ebx, ecx;
+	u_long eax, ebx, ecx, edx;
 
 	/* First try APM 1.2 */
 	eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	ebx  = 0x0;
 	ecx  = version;
-	if(!apm_int(&eax, &ebx, &ecx)) 
+	if(!apm_int(&eax, &ebx, &ecx, &edx)) 
 		apm_version = eax & 0xffff;
 }
 
@@ -162,25 +164,25 @@ apm_driver_version(int version)
 static int
 apm_engage_disengage_pm(int engage)
 {
-	u_long eax, ebx, ecx;
+	u_long eax, ebx, ecx, edx;
 
 	eax = (APM_BIOS << 8) | APM_ENGAGEDISENGAGEPM;
 	ebx = PMDV_ALLDEV;
 	ecx = engage;
-	return(apm_int(&eax, &ebx, &ecx));
+	return(apm_int(&eax, &ebx, &ecx, &edx));
 }
 
 /* get PM event */
 static u_int
 apm_getevent(void)
 {
-	u_long eax, ebx, ecx;
+	u_long eax, ebx, ecx, edx;
 
 	eax = (APM_BIOS << 8) | APM_GETPMEVENT;
 
 	ebx = 0;
 	ecx = 0;
-	if (apm_int(&eax, &ebx, &ecx))
+	if (apm_int(&eax, &ebx, &ecx, &edx))
 		return PMEV_NOEVENT;
 
 	return ebx & 0xffff;
@@ -190,13 +192,13 @@ apm_getevent(void)
 static int
 apm_suspend_system(void)
 {
-	u_long eax, ebx, ecx;
+	u_long eax, ebx, ecx, edx;
 
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
 	ecx = PMST_SUSPEND;
 
-	if (apm_int(&eax, &ebx, &ecx)) {
+	if (apm_int(&eax, &ebx, &ecx, &edx)) {
 		printf("Entire system suspend failure: errcode = %ld\n",
 			0xff & (eax >> 8));
 		return 1;
@@ -213,12 +215,12 @@ apm_suspend_system(void)
 static int
 apm_display(int newstate)
 {
-	u_long eax, ebx, ecx;
+	u_long eax, ebx, ecx, edx;
 
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_DISP0;
 	ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
-	if (apm_int(&eax, &ebx, &ecx)) {
+	if (apm_int(&eax, &ebx, &ecx, &edx)) {
 		printf("Display off failure: errcode = %ld\n",
 			0xff & (eax >> 8));
 		return 1;
@@ -232,14 +234,14 @@ apm_display(int newstate)
 void
 apm_power_off(void)
 {
-	u_long eax, ebx, ecx;
+	u_long eax, ebx, ecx, edx;
 
 	if (!apm_softc.active)
 		return;
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
 	ecx = PMST_OFF;
-	apm_int(&eax, &ebx, &ecx);
+	apm_int(&eax, &ebx, &ecx, &edx);
 }
 
 /* APM Battery low handler */
@@ -426,21 +428,30 @@ static int
 apm_get_info(apm_info_t aip)
 {
 	struct apm_softc *sc = &apm_softc;
-	u_long eax, ebx, ecx;
+	u_long eax, ebx, ecx, edx;
 
 	eax = (APM_BIOS << 8) | APM_GETPWSTATUS;
 	ebx = PMDV_ALLDEV;
 	ecx = 0;
 
-	if (apm_int(&eax, &ebx, &ecx))
+	if (apm_int(&eax, &ebx, &ecx, &edx))
 		return 1;
 
-	aip->ai_acline    = (ebx >> 8) & 0xff;
-	aip->ai_batt_stat = ebx & 0xff;
-	aip->ai_batt_life = ecx & 0xff;
-	aip->ai_major     = (u_int)sc->majorversion;
-	aip->ai_minor     = (u_int)sc->minorversion;
-	aip->ai_status    = (u_int)sc->active;
+	aip->ai_infoversion = 0;
+	aip->ai_acline      = (ebx >> 8) & 0xff;
+	aip->ai_batt_stat   = ebx & 0xff;
+	aip->ai_batt_life   = ecx & 0xff;
+	aip->ai_major       = (u_int)sc->majorversion;
+	aip->ai_minor       = (u_int)sc->minorversion;
+	aip->ai_status      = (u_int)sc->active;
+	edx &= 0xffff;
+	if (edx == 0xffff)	/* Time is unknown */
+		aip->ai_batt_time = -1;
+	else if (edx & 0x8000)	/* Time is in minutes */
+		aip->ai_batt_time = (edx & 0x7fff) * 60;
+	else			/* Time is in seconds */
+		aip->ai_batt_time = edx;
+	bzero(aip->ai_spare, sizeof aip->ai_spare);
 
 	return 0;
 }
@@ -453,11 +464,11 @@ apm_cpu_idle(void)
 	struct apm_softc *sc = &apm_softc;
 
 	if (sc->active) {
-		u_long eax, ebx, ecx;
+		u_long eax, ebx, ecx, edx;
 
 		eax = (APM_BIOS <<8) | APM_CPUIDLE;
 		ecx = ebx = 0;
-		apm_int(&eax, &ebx, &ecx);
+		apm_int(&eax, &ebx, &ecx, &edx);
 	}
 	/*
 	 * Some APM implementation halts CPU in BIOS, whenever
@@ -485,11 +496,11 @@ apm_cpu_busy(void)
 	 * necessary.
 	 */
 	if (sc->slow_idle_cpu && sc->active) {
-		u_long eax, ebx, ecx;
+		u_long eax, ebx, ecx, edx;
 
 		eax = (APM_BIOS <<8) | APM_CPUBUSY;
 		ecx = ebx = 0;
-		apm_int(&eax, &ebx, &ecx);
+		apm_int(&eax, &ebx, &ecx, &edx);
 	}
 }
 
@@ -829,6 +840,22 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 			apm_suspend();
 		else
 			error = EINVAL;
+		break;
+	case APMIO_GETINFO_OLD:
+		{
+			struct apm_info info;
+			apm_info_old_t aiop;
+
+			if (apm_get_info(&info))
+				error = ENXIO;
+			aiop = (apm_info_old_t)addr;
+			aiop->ai_major = info.ai_major;
+			aiop->ai_minor = info.ai_minor;
+			aiop->ai_acline = info.ai_acline;
+			aiop->ai_batt_stat = info.ai_batt_stat;
+			aiop->ai_batt_life = info.ai_batt_life;
+			aiop->ai_status = info.ai_status;
+		}
 		break;
 	case APMIO_GETINFO:
 		if (apm_get_info((apm_info_t)addr))
