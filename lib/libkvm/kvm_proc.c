@@ -107,7 +107,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct tty tty;
 	struct proc proc;
 
-	for (; cnt < maxcnt && p != NULL; p = proc.p_next) {
+	for (; cnt < maxcnt && p != NULL; p = proc.p_list.le_next) {
 		if (KREAD(kd, (u_long)p, &proc)) {
 			_kvm_err(kd, kd->program, "can't read proc at %x", p);
 			return (-1);
