@@ -45,14 +45,6 @@ _pthread_attr_setguardsize(pthread_attr_t *attr, size_t guardsize)
 	if (attr == NULL || *attr == NULL)
 		ret = EINVAL;
 	else {
-		/*
-		 * Round guardsize up to the nearest multiple of
-		 * _thr_page_size.
-		 */
-		if (guardsize % _thr_page_size != 0)
-			guardsize = ((guardsize / _thr_page_size) + 1) *
-			    _thr_page_size;
-
 		/* Save the stack size. */
 		(*attr)->guardsize_attr = guardsize;
 		ret = 0;
