@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.10 1995/12/02 16:32:03 bde Exp $
+ *	$Id: imgact_shell.c,v 1.11 1996/04/08 01:21:58 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@ exec_shell_imgact(imgp)
 	char *interp;
 
 	/* a shell script? */
-	if (((short *) image_header)[0] != SHELLMAGIC)
+	if (((const short *) image_header)[0] != SHELLMAGIC)
 		return(-1);
 
 	/*

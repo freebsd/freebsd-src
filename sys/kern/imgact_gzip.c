@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.22 1996/05/02 10:43:16 phk Exp $
+ * $Id: imgact_gzip.c,v 1.23 1996/08/01 22:00:14 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -66,7 +66,7 @@ exec_gzip_imgact(imgp)
 	struct image_params *imgp;
 {
 	int             error, error2 = 0;
-	u_char         *p = (u_char *) imgp->image_header;
+	const u_char   *p = (const u_char *) imgp->image_header;
 	struct imgact_gzip igz;
 	struct inflate  infl;
 	struct vmspace *vmspace;

@@ -48,7 +48,8 @@ strncmp(s1, s2, n)
 		return (0);
 	do {
 		if (*s1 != *s2++)
-			return (*(unsigned char *)s1 - *(unsigned char *)--s2);
+			return (*(const unsigned char *)s1 -
+				*(const unsigned char *)(s2 - 1));
 		if (*s1++ == 0)
 			break;
 	} while (--n != 0);

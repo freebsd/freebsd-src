@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: strcmp.c,v 1.2 1994/08/02 07:44:33 davidg Exp $
  */
 
 #include <sys/cdefs.h>
@@ -49,5 +49,5 @@ strcmp(s1, s2)
 	while (*s1 == *s2++)
 		if (*s1++ == 0)
 			return (0);
-	return (*(unsigned char *)s1 - *(unsigned char *)--s2);
+	return (*(const unsigned char *)s1 - *(const unsigned char *)(s2 - 1));
 }

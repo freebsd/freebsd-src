@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: strncmp.c,v 1.2 1996/08/28 20:32:21 bde Exp $
  */
 
 #include <sys/cdefs.h>
@@ -46,7 +46,8 @@ strncmp(s1, s2, n)
 		return (0);
 	do {
 		if (*s1 != *s2++)
-			return (*(unsigned char *)s1 - *(unsigned char *)--s2);
+			return (*(const unsigned char *)s1 -
+				*(const unsigned char *)(s2 - 1));
 		if (*s1++ == 0)
 			break;
 	} while (--n != 0);
