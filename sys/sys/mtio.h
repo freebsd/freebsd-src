@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.11 1998/09/15 10:07:26 gibbs Exp $
+ * $Id: mtio.h,v 1.12 1998/12/17 19:26:49 mjacob Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -86,7 +86,7 @@ struct mtop {
 #define MT_COMP_ENABLE		0xffffffff
 #define MT_COMP_DISABLED	0xfffffffe
 #define MT_COMP_UNSUPP		0xfffffffd
-#endif
+#endif	/* __FreeBSD__ */
 
 /* structure for MTIOCGET - mag tape get status command */
 
@@ -120,6 +120,37 @@ struct mtget {
 /* end not yet implemented */
 };
 
+/* structure for MTIOCERRSTAT - tape get error status command */
+/* really only supported for SCSI tapes right now */
+struct scsi_tape_errors {
+	/*
+	 * These are latched from the last command that had a SCSI
+	 * Check Condition noted for these operations. The act
+	 * of issuing an MTIOCERRSTAT unlatches and clears them.
+	 */
+	u_int8_t io_sense[32];	/* Last Sense Data For Data I/O */
+	u_int32_t io_resid;	/* residual count from last Data I/O */
+	u_int8_t ctl_sense[32];	/* Last Sense Data For Control I/O */
+	u_int32_t ctl_resid;	/* residual count from last Control I/O */
+	/*
+	 * These are the read and write cumulative error counters.
+	 * (how to reset cumulative error counters is not yet defined).
+	 * (not implemented as yet but space is being reserved for them)
+	 */
+	struct {
+		u_int32_t retries;	/* total # retries performed */
+		u_int32_t corrected;	/* total # corrections performed */
+		u_int32_t processed;	/* total # corrections succssful */
+		u_int32_t failures;	/* total # corrections/retries failed */
+		u_int64_t nbytes;	/* total # bytes processed */
+	} werr, rderr;
+};
+	
+union mterrstat {
+	struct scsi_tape_errors scsi_errstat;
+	char _reserved_padding[256];
+};
+
 /*
  * Constants for mt_type byte.  These are the same
  * for controllers compatible with the types listed.
@@ -148,6 +179,7 @@ struct mtget {
 /* mag tape io control commands */
 #define	MTIOCTOP	_IOW('m', 1, struct mtop)	/* do a mag tape op */
 #define	MTIOCGET	_IOR('m', 2, struct mtget)	/* get tape status */
+/* these two do not appear to be used anywhere */
 #define MTIOCIEOT	_IO('m', 3)			/* ignore EOT error */
 #define MTIOCEEOT	_IO('m', 4)			/* enable EOT error */
 /*
@@ -160,6 +192,7 @@ struct mtget {
 #define	MTIOCRDHPOS	_IOR('m', 6, u_int32_t)	/* get hardware blk addr */
 #define	MTIOCSLOCATE	_IOW('m', 5, u_int32_t)	/* seek to logical blk addr */
 #define	MTIOCHLOCATE	_IOW('m', 6, u_int32_t)	/* seek to hardware blk addr */
+#define	MTIOCERRSTAT	_IOR('m', 7, union mterrstat)	/* get tape errors */
 
 #ifndef KERNEL
 #define	DEFTAPE	"/dev/nrsa0"
