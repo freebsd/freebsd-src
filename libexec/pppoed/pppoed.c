@@ -63,6 +63,8 @@
 
 #define DEFAULT_EXEC_PREFIX "exec /usr/sbin/ppp -direct "
 
+static int ReceivedSignal;
+
 static int
 usage(const char *prog)
 {
@@ -71,24 +73,11 @@ usage(const char *prog)
   return EX_USAGE;
 }
 
-const char *pidfile;
-
 static void
-Fairwell(int sig)
+Farewell(int sig)
 {
-  char buf[] = "Received signal XX, exiting";
-
-  /* No stdio in a signal handler */
-  buf[16] = '0' + ((sig / 10) % 10);
-  buf[17] = '0' + (sig % 10);
-
-  syslog(LOG_INFO, "%s", buf);
-
-  if (pidfile)
-    remove(pidfile);
-
-  signal(sig, SIG_DFL);
-  raise(sig);
+  ReceivedSignal = sig;
+  signal(sig, SIG_DFL);		/* If something makes us block... */
 }
 
 static int
@@ -258,7 +247,8 @@ ConfigureNode(const char *prog, const char *iface, const char *provider,
 }
 
 static void
-Spawn(const char *prog, const char *acname, const char *exec,
+Spawn(const char *prog, const char *acname, const char *provider,
+	const char *exec,
       struct ngm_connect ngc, int cs, int ds, void *request, int sz,
       int debug)
 {
@@ -339,6 +329,22 @@ Spawn(const char *prog, const char *acname, const char *exec,
         syslog(LOG_INFO, "%s: Cannot OFFER on netgraph node: %m", path);
         _exit(EX_OSERR);
       }
+      /* If we have a provider code, set it */
+      if (provider) {
+        slen = strlen(provider);
+        data = (struct ngpppoe_init_data *)alloca(sizeof *data + slen);
+        snprintf(data->hook, sizeof data->hook, "%s", ngc.ourhook);
+        memcpy(data->data, provider, slen);
+        data->data_len = slen;
+
+        syslog(LOG_INFO, "adding to %s as offered service %s",
+             path, acname);
+        if (NgSendMsg(cs, path, NGM_PPPOE_COOKIE, NGM_PPPOE_SERVICE,
+                    data, sizeof *data + slen) == -1) {
+          syslog(LOG_INFO, "%s: Cannot add service on netgraph node: %m", path);
+          _exit(EX_OSERR);
+        }
+      }
 
       /* And send our request data to the waiting node */
       if (debug)
@@ -404,7 +410,7 @@ Spawn(const char *prog, const char *acname, const char *exec,
 
       setsid();
       syslog(LOG_INFO, "Executing: %s", exec);
-      execlp(_PATH_BSHELL, _PATH_BSHELL, "-c", exec, NULL);
+      execlp(_PATH_BSHELL, _PATH_BSHELL, "-c", exec, (char *)NULL);
       syslog(LOG_ERR, "execlp failed: %m");
       _exit(EX_OSFILE);
 
@@ -418,7 +424,7 @@ Spawn(const char *prog, const char *acname, const char *exec,
 }
 
 #ifndef NOKLDLOAD
-int
+static int
 LoadModules(void)
 {
   const char *module[] = { "netgraph", "ng_socket", "ng_ether", "ng_pppoe" };
@@ -434,7 +440,7 @@ LoadModules(void)
 }
 #endif
 
-void
+static void
 nglog(const char *fmt, ...)
 {
   char nfmt[256];
@@ -446,7 +452,7 @@ nglog(const char *fmt, ...)
   va_end(ap);
 }
 
-void
+static void
 nglogx(const char *fmt, ...)
 {
   va_list ap;
@@ -464,6 +470,7 @@ main(int argc, char **argv)
   const char *prog, *provider, *acname;
   struct ngm_connect ngc;
   int ch, cs, ds, ret, optF, optd, optn, sz, f;
+  const char *pidfile;
 
   prog = strrchr(argv[0], '/');
   prog = prog ? prog + 1 : argv[0];
@@ -584,12 +591,12 @@ main(int argc, char **argv)
   if (!optF && optn)
     NgSetErrLog(nglog, nglogx);
 
-  signal(SIGHUP, Fairwell);
-  signal(SIGINT, Fairwell);
-  signal(SIGQUIT, Fairwell);
-  signal(SIGTERM, Fairwell);
+  signal(SIGHUP, Farewell);
+  signal(SIGINT, Farewell);
+  signal(SIGQUIT, Farewell);
+  signal(SIGTERM, Farewell);
 
-  while (1) {
+  while (!ReceivedSignal) {
     if (*provider)
       syslog(LOG_INFO, "Listening as provider %s", provider);
     else
@@ -617,7 +624,21 @@ main(int argc, char **argv)
       ret = EX_UNAVAILABLE;
       break;
     }
-    Spawn(prog, acname, exec, ngc, cs, ds, response, sz, optd);
+    Spawn(prog, acname, provider, exec, ngc, cs, ds, response, sz, optd);
+  }
+
+  if (pidfile)
+    remove(pidfile);
+
+  if (ReceivedSignal) {
+    syslog(LOG_INFO, "Received signal %d, exiting", ReceivedSignal);
+
+    signal(ReceivedSignal, SIG_DFL);
+    raise(ReceivedSignal);
+
+    /* NOTREACHED */
+
+    ret = -ReceivedSignal;
   }
 
   return ret;
