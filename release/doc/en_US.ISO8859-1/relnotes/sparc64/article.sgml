@@ -17,7 +17,7 @@
 <!-- Architecture-specific customization -->
 
 <!ENTITY arch "sparc64">
-<!ENTITY arch.print "UltraSparc">
+<!ENTITY arch.print "UltraSPARC">
 
 ]>
 
