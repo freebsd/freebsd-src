@@ -40,7 +40,6 @@
 #include <sys/sysctl.h>
 #include <sys/rman.h>
 
-#include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <machine/chipset.h>
 #include <machine/cpuconf.h>
@@ -81,8 +80,6 @@ SYSCTL_LONG(_hw_chipset, OID_AUTO, hae_mask, CTLFLAG_RD, &chipset_hae_mask, 0,
 int
 alpha_pci_route_interrupt(device_t bus, device_t dev, int pin)
 {
-	int intline = 255;
-
 	/*
 	 * Validate requested pin number.
 	 */
@@ -90,10 +87,8 @@ alpha_pci_route_interrupt(device_t bus, device_t dev, int pin)
 		return(255);
 	
 	if (platform.pci_intr_route)
-		intline = platform.pci_intr_route(bus, dev, pin);
-	if (intline == 255)
-		intline = pci_read_config(dev, PCIR_INTLINE, 1);
-	return intline;
+		return(platform.pci_intr_route(bus, dev, pin));
+	return(255);
 }
 
 #ifdef DEV_ISA
