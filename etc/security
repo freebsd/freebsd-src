@@ -11,10 +11,20 @@ separator () {
 	echo ''
 }
 
+sflag=FALSE ignore=
+while getopts ams c
+do
+  case "$c" in
+    a) ignore="$ignore|^amd:";;
+    m) ignore="$ignore|^mfs:";;
+    s) sflag=TRUE;;
+  esac
+done
+
 yesterday=`date -v-1d "+%b %e "`
 
 host=`hostname`
-echo "Subject: ${host} security check output"
+[ $sflag = FALSE ] && echo "Subject: ${host} security check output"
 
 LOG=/var/log
 TMP=/var/run/_secure.$$
@@ -43,7 +53,7 @@ if [ ! -f ${LOG}/setuid.today ]; then
 	cp ${TMP} ${LOG}/setuid.today
 fi
 
-if cmp ${LOG}/setuid.today ${TMP} >/dev/null; then :; else
+if ! cmp ${LOG}/setuid.today ${TMP} >/dev/null; then
 	separator
 	echo "${host} setuid diffs:"
 	diff -b ${LOG}/setuid.today ${TMP}
@@ -53,13 +63,14 @@ fi
 
 # Show changes in the way filesystems are mounted
 #
-if mount -p > $TMP; then
+[ -n "$ignore" ] && cmd="egrep -v ${ignore#|}" || cmd=cat
+if mount -p | $cmd > $TMP; then
 	if [ ! -f $LOG/mount.today ]; then
 		separator
 		echo "no $LOG/mount.today"
 		cp $TMP $LOG/mount.today
 	fi
-	if cmp $LOG/mount.today $TMP >/dev/null 2>&1; then :; else
+	if ! cmp $LOG/mount.today $TMP >/dev/null 2>&1; then
 		separator
 		echo "$host changes in mounted filesystems:"
 		diff -b $LOG/mount.today $TMP
@@ -85,7 +96,7 @@ if ipfw -a l 2>/dev/null | egrep "deny|reset|unreach" > ${TMP}; then
 		cp ${TMP} ${LOG}/ipfw.today
 	fi
 
-	if cmp ${LOG}/ipfw.today ${TMP} >/dev/null; then :; else
+	if ! cmp ${LOG}/ipfw.today ${TMP} >/dev/null; then
 		separator
 		echo "${host} denied packets:"
 		diff -b ${LOG}/ipfw.today ${TMP} | egrep "^>"
@@ -116,7 +127,7 @@ if dmesg 2>/dev/null > ${TMP}; then
 		cp ${TMP} ${LOG}/dmesg.today
 	fi
 
-	if cmp ${LOG}/dmesg.today ${TMP} >/dev/null 2>&1; then :; else
+	if ! cmp ${LOG}/dmesg.today ${TMP} >/dev/null 2>&1; then
 		separator
 		echo "${host} kernel log messages:"
 		diff -b ${LOG}/dmesg.today ${TMP} | egrep "^>"
