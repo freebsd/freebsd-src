@@ -6,10 +6,7 @@ SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
 CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../../libc/include
-NOMAN=		true
-NOPIC=		true
-NOPROFILE=	true
-INTERNALLIB=	true
+NOLIB=		true
 
 all: ${OBJS} ${SOBJS}
 
