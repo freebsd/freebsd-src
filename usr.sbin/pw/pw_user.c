@@ -86,6 +86,7 @@ static void     rmopie(char const * name);
  * -L class       user class
  * -l name        new login name
  * -h fd          password filehandle
+ * -H fd          encrypted password filehandle
  * -F             force print or add
  *   Setting defaults:
  * -D             set user defaults
@@ -544,7 +545,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				warnx("WARNING: home `%s' is not a directory", pwd->pw_dir);
 		}
 
-		if ((arg = getarg(args, 'w')) != NULL && getarg(args, 'h') == NULL) {
+		if ((arg = getarg(args, 'w')) != NULL &&
+		    getarg(args, 'h') == NULL && getarg(args, 'H') == NULL) {
 			login_cap_t *lc;
 
 			lc = login_getpwclass(pwd);
@@ -602,7 +604,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		}
 	}
 
-	if ((arg = getarg(args, 'h')) != NULL) {
+	if ((arg = getarg(args, 'h')) != NULL ||
+	    (arg = getarg(args, 'H')) != NULL) {
 		if (strcmp(arg->val, "-") == 0) {
 			if (!pwd->pw_passwd || *pwd->pw_passwd != '*') {
 				pwd->pw_passwd = "*";	/* No access */
@@ -610,6 +613,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			}
 		} else {
 			int             fd = atoi(arg->val);
+			int		precrypt = (arg->ch == 'H');
 			int             b;
 			int             istty = isatty(fd);
 			struct termios  t;
@@ -624,7 +628,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 					/* Disable echo */
 					n.c_lflag &= ~(ECHO);
 					tcsetattr(fd, TCSANOW, &n);
-					printf("%sassword for user %s:", (mode == M_UPDATE) ? "New p" : "P", pwd->pw_name);
+					printf("%s%spassword for user %s:",
+					     (mode == M_UPDATE) ? "new " : "",
+					     precrypt ? "encrypted " : "",
+					     pwd->pw_name);
 					fflush(stdout);
 				}
 			}
@@ -635,7 +642,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				fflush(stdout);
 			}
 			if (b < 0) {
-				warn("-h file descriptor");
+				warn("-%c file descriptor", precrypt ? 'H' :
+				    'h');
 				return EX_IOERR;
 			}
 			line[b] = '\0';
@@ -643,12 +651,18 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				*p = '\0';
 			if (!*line)
 				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
-			lc = login_getpwclass(pwd);
-			if (lc == NULL ||
-			    login_setcryptfmt(lc, "md5", NULL) == NULL)
-				warn("setting crypt(3) format");
-			login_close(lc);
-			pwd->pw_passwd = pw_pwcrypt(line);
+			if (precrypt) {
+				if (strchr(line, ':') != NULL)
+					return EX_DATAERR;
+				pwd->pw_passwd = line;
+			} else {
+				lc = login_getpwclass(pwd);
+				if (lc == NULL ||
+				    login_setcryptfmt(lc, "md5", NULL) == NULL)
+					warn("setting crypt(3) format");
+				login_close(lc);
+				pwd->pw_passwd = pw_pwcrypt(line);
+			}
 			edited = 1;
 		}
 	}
@@ -1086,7 +1100,8 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		/*
 		 * We give this information back to the user
 		 */
-		if (getarg(args, 'h') == NULL && getarg(args, 'N') == NULL) {
+		if (getarg(args, 'h') == NULL && getarg(args, 'H') == NULL &&
+		    getarg(args, 'N') == NULL) {
 			if (isatty(STDOUT_FILENO))
 				printf("Password for '%s' is: ", user);
 			printf("%s\n", pwbuf);
