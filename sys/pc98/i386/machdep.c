@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.16 1998/01/15 11:09:39 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.17 1998/01/17 15:59:42 kato Exp $
  */
 
 #include "npx.h"
@@ -755,7 +755,7 @@ union descriptor gdt[NGDT];		/* global descriptor table */
 struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 struct gate_descriptor *t_idt;
 extern int has_f00f_bug;
 #endif
@@ -1425,7 +1425,7 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_cr3 = IdlePTD;
 }
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 void f00f_hack(void);
 SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
 
@@ -1456,7 +1456,7 @@ f00f_hack(void) {
 		panic("vm_map_protect failed");
 	return;
 }
-#endif /* NO_F00F_HACK */
+#endif /* defined(I586_CPU) && !NO_F00F_HACK */
 
 /*
  * The registers are in the frame; the frame is in the user area of
