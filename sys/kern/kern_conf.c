@@ -325,15 +325,10 @@ makeudev(int x, int y)
         return ((x << 8) | y);
 }
 
-dev_t
-make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...)
+static void
+prep_cdevsw(struct cdevsw *devsw)
 {
-	dev_t	dev;
-	va_list ap;
 	int i;
-
-	KASSERT((minor & ~0xffff00ff) == 0,
-	    ("Invalid minor (0x%x) in make_dev", minor));
 
 	if (devsw->d_open == NULL)	devsw->d_open = null_open;
 	if (devsw->d_close == NULL)	devsw->d_close = null_close;
@@ -365,7 +360,19 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 			reserved_majors[devsw->d_maj] = devsw->d_maj;
 		}
 	}
+}
 
+dev_t
+make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...)
+{
+	dev_t	dev;
+	va_list ap;
+	int i;
+
+	KASSERT((minor & ~0xffff00ff) == 0,
+	    ("Invalid minor (0x%x) in make_dev", minor));
+
+	prep_cdevsw(devsw);
 	dev = makedev(devsw->d_maj, minor);
 	if (dev->si_flags & SI_CHEAPCLONE &&
 	    dev->si_flags & SI_NAMED &&
