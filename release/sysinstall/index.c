@@ -128,6 +128,7 @@ static char *descrs[] = {
     "printing", "Utilities for dealing with printing.",
     "programming", "Software development utilities and libraries.",
     "python", "Software related to the Python language.",
+    "ruby", "Software related to the Ruby language.",
     "russian", "Ported software for the Russian market.",
     "security", "System security software.",
     "shells", "Various shells (tcsh, bash, etc).",
