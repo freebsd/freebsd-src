@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: mtio.h,v 1.10 1997/02/22 09:45:37 peter Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -83,6 +83,9 @@ struct mtop {
 #define MTCOMP		14	/* select compression mode 0=off, 1=def */
 #define MTRETENS	15	/* re-tension tape */
 
+#define MT_COMP_ENABLE		0xffffffff
+#define MT_COMP_DISABLED	0xfffffffe
+#define MT_COMP_UNSUPP		0xfffffffd
 #endif
 
 /* structure for MTIOCGET - mag tape get status command */
@@ -97,7 +100,7 @@ struct mtget {
 #if defined (__FreeBSD__)
 	daddr_t mt_blksiz;	/* presently operating blocksize */
 	daddr_t mt_density;	/* presently operating density */
-	daddr_t mt_comp;	/* presently operating compression */
+	u_int32_t mt_comp;	/* presently operating compression */
 	daddr_t mt_blksiz0;	/* blocksize for mode 0 */
 	daddr_t mt_blksiz1;	/* blocksize for mode 1 */
 	daddr_t mt_blksiz2;	/* blocksize for mode 2 */
@@ -107,10 +110,10 @@ struct mtget {
 	daddr_t mt_density2;	/* density for mode 2 */
 	daddr_t mt_density3;	/* density for mode 3 */
 /* the following are not yet implemented */
-	u_char	mt_comp0;	/* compression type for mode 0 */
-	u_char	mt_comp1;	/* compression type for mode 1 */
-	u_char	mt_comp2;	/* compression type for mode 2 */
-	u_char	mt_comp3;	/* compression type for mode 3 */
+	u_int32_t mt_comp0;	/* compression type for mode 0 */
+	u_int32_t mt_comp1;	/* compression type for mode 1 */
+	u_int32_t mt_comp2;	/* compression type for mode 2 */
+	u_int32_t mt_comp3;	/* compression type for mode 3 */
 #endif
 	daddr_t	mt_fileno;	/* file number of current position */
 	daddr_t	mt_blkno;	/* block number of current position */
@@ -149,7 +152,7 @@ struct mtget {
 #define MTIOCEEOT	_IO('m', 4)			/* enable EOT error */
 
 #ifndef KERNEL
-#define	DEFTAPE	"/dev/nrst0"
+#define	DEFTAPE	"/dev/nrsa0"
 #endif
 
 #ifdef	KERNEL

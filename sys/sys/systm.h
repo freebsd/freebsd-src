@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.74 1998/08/05 18:18:06 bde Exp $
+ * $Id: systm.h,v 1.75 1998/09/06 06:25:18 ache Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -263,6 +263,7 @@ int	rm_at_fork __P((forklist_fn function));
 /* Shutdown callout list definitions and declarations. */
 #define	SHUTDOWN_PRE_SYNC	0
 #define	SHUTDOWN_POST_SYNC	1
+#define	SHUTDOWN_FINAL		2
 
 typedef void (*bootlist_fn) __P((int, void *));
 
