@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_sa.h,v 1.2 1998/12/17 19:04:18 mjacob Exp $
  */
 
 #ifndef	_SCSI_SCSI_SA_H
@@ -184,6 +184,43 @@ struct scsi_data_compression_page {
 	u_int8_t reserved[4];
 };
 
+struct scsi_tape_read_position {
+	u_int8_t opcode;		/* READ_POSITION */
+	u_int8_t byte1;			/* set LSB to read hardware block pos */
+	u_int8_t reserved[8];
+};
+
+struct scsi_tape_position_data	{	/* Short Form */
+	u_int8_t flags;
+#define	SA_RPOS_BOP		0x80	/* Beginning of Partition */
+#define	SA_RPOS_EOP		0x40	/* End of Partition */
+#define	SA_RPOS_BCU		0x20	/* Block Count Unknown (SCSI3) */
+#define	SA_RPOS_BYCU		0x10	/* Byte Count Unknown (SCSI3) */
+#define	SA_RPOS_BPU		0x04	/* Block Position Unknown */
+#define	SA_RPOS_PERR		0x02	/* Position Error (SCSI3) */
+#define	SA_RPOS_UNCERTAIN	SA_RPOS_BPU
+	u_int8_t partition;
+	u_int8_t reserved[2];
+	u_int8_t firstblk[4];
+	u_int8_t lastblk[4];
+	u_int8_t reserved2;
+	u_int8_t nbufblk[3];
+	u_int8_t nbufbyte[4];
+};
+
+struct scsi_tape_locate {
+	u_int8_t opcode;
+	u_int8_t byte1;
+#define	SA_SPOS_IMMED		0x01
+#define	SA_SPOS_CP		0x02
+#define	SA_SPOS_BT		0x04
+	u_int8_t reserved1;
+	u_int8_t blkaddr[4];
+	u_int8_t reserved2;
+	u_int8_t partition;
+	u_int8_t control;
+};
+
 /*
  * Opcodes
  */
@@ -197,6 +234,8 @@ struct scsi_data_compression_page {
 #define RELEASE_UNIT		0x17
 #define ERASE			0x19
 #define LOAD_UNLOAD		0x1B
+#define	LOCATE			0x2B
+#define	READ_POSITION		0x34
 
 /*
  * Tape specific density codes- only enough of them here to recognize
@@ -265,6 +304,17 @@ void	scsi_data_comp_page(struct scsi_data_compression_page *page,
 			    u_int8_t dce, u_int8_t dde, u_int8_t red,
 			    u_int32_t comp_algorithm,
 			    u_int32_t decomp_algorithm);
+
+void	scsi_read_position(struct ccb_scsiio *csio, u_int32_t retries,
+                           void (*cbfcnp)(struct cam_periph *, union ccb *),
+                           u_int8_t tag_action, int hardsoft,
+                           struct scsi_tape_position_data *sbp,
+                           u_int8_t sense_len, u_int32_t timeout);
+
+void	scsi_set_position(struct ccb_scsiio *csio, u_int32_t retries,
+                         void (*cbfcnp)(struct cam_periph *, union ccb *),
+                         u_int8_t tag_action, int hardsoft, u_int32_t blkno,
+                         u_int8_t sense_len, u_int32_t timeout);
 __END_DECLS
 
 #endif /* _SCSI_SCSI_SA_H */
