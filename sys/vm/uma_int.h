@@ -260,7 +260,7 @@ struct uma_zone {
 #define UMA_ZFLAG_MALLOC	0x0008	/* Zone created by malloc */
 #define UMA_ZFLAG_NOFREE	0x0010	/* Don't free data from this zone */
 #define UMA_ZFLAG_FULL		0x0020	/* This zone reached uz_maxpages */
-#define UMA_ZFLAG_BUCKETCACHE	0x0040	/* Only allocate buckets from cache */
+#define UMA_ZFLAG_CACHEONLY	0x0040	/* Don't go to VM to allocate internal objs */
 #define	UMA_ZFLAG_HASH		0x0080	/* Look up slab via hash */
 
 /* This lives in uflags */
