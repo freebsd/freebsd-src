@@ -18,13 +18,6 @@
 #		Each of the targets will execute the same target in the
 #		subdirectories.
 #
-# SUBDIR_CHANGE A directory-tree that contains overrides for
-#               corresponding build subdirs.
-#		Each override is a file containing one subdirname per line:
-#                  'subdirlist'  is a pure override
-#		   'subdirdrop'  drops directories from the build
-#		   'subdiradd'   adds directories to the build
-#
 # +++ targets +++
 #
 #	distribute:
@@ -45,37 +38,19 @@ __initialized__:
 
 .MAIN: all
 
-.if defined(SUBDIR_CHANGE) && !empty(SUBDIR_CHANGE) && \
-	exists(${SUBDIR_CHANGE}/${DIRPRFX}/subdirlist)
-SUBDIR!=cat ${SUBDIR_CHANGE}/${DIRPRFX}/subdirlist
-.endif
-
-.if defined(SUBDIR_CHANGE) && !empty(SUBDIR_CHANGE) && \
-	exists(${SUBDIR_CHANGE}/${DIRPRFX}/subdiradd)
-_SUBDIR_EXTRA!=cat ${SUBDIR_CHANGE}/${DIRPRFX}/subdiradd
-.endif
-
 _SUBDIRUSE: .USE
-	@for entry in ${SUBDIR} ${_SUBDIR_EXTRA}; do \
-		(if ! (test -f ${SUBDIR_CHANGE}/${DIRPRFX}/subdirdrop && \
-			grep -w $${entry} \
-			    ${SUBDIR_CHANGE}/${DIRPRFX}/subdirdrop \
-				> /dev/null); then \
-			if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
-				${ECHODIR} \
-				    "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
-				edir=$${entry}.${MACHINE_ARCH}; \
-				cd ${.CURDIR}/$${edir}; \
-			else \
-				${ECHODIR} "===> ${DIRPRFX}$$entry"; \
-				edir=$${entry}; \
-				cd ${.CURDIR}/$${edir}; \
-			fi; \
-			${MAKE} ${.TARGET:realinstall=install} \
-				SUBDIR_CHANGE=${SUBDIR_CHANGE} \
-				DIRPRFX=${DIRPRFX}$$edir/; \
-			fi; \
-		); \
+	@for entry in ${SUBDIR}; do \
+		(if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
+			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
+			edir=$${entry}.${MACHINE_ARCH}; \
+			cd ${.CURDIR}/$${edir}; \
+		else \
+			${ECHODIR} "===> ${DIRPRFX}$$entry"; \
+			edir=$${entry}; \
+			cd ${.CURDIR}/$${edir}; \
+		fi; \
+		${MAKE} ${.TARGET:realinstall=install} \
+		    DIRPRFX=${DIRPRFX}$$edir/); \
 	done
 
 ${SUBDIR}::
