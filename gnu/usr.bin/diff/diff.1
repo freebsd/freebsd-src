@@ -463,6 +463,20 @@ match any pattern contained in
 .TP
 .B \-y
 Use the side by side output format.
+.SH EXAMPLES
+To save to a file some changes that you have made to your local source
+tree (possibly including new files), which you would like to show to others
+(perhaps using the
+.B send-pr(1)
+program), you could type
+.sp
+diff -crN foo.orig foo >foo.diff
+.sp
+where
+.I foo.orig
+and
+.I foo
+might be directory hierarchies or single files.
 .SH SEE ALSO
 cmp(1), comm(1), diff3(1), ed(1), patch(1), pr(1), sdiff(1).
 .SH DIAGNOSTICS
