@@ -1616,7 +1616,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>An <quote>off-by-one</quote> bug has been fixed in
       <application>OpenSSH</application>'s multiplexing code.  This bug
-      could have allowed a connecting SSH client to execute arbitrary
+      could have allowed an authenticated remote user to cause
+      &man.sshd.8; to execute arbitrary code with superuser
+      privileges, or allowed a connecting SSH client to execute arbitrary
       code with the privileges of the client user.  (See security
       advisory <ulink
         url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)
