@@ -29,7 +29,7 @@
 <!ENTITY release.branch "5-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://snapshots.jp.FreeBSD.org/">
+<!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
