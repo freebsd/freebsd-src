@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.32 1999/01/17 20:30:13 peter Exp $
+ *	$Id: math_emulate.c,v 1.33 1999/01/28 01:59:50 dillon Exp $
  */
 
 /*
@@ -1570,7 +1570,7 @@ fpu_modevent(module_t mod, int type, void *unused)
 	}
 	return 0;
 }
-moduledata_t fpumod = {
+static moduledata_t fpumod = {
 	"fpu",
 	fpu_modevent,
 	0
