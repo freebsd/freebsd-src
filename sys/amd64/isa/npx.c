@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.11 1994/09/09 23:12:32 wollman Exp $
+ *	$Id: npx.c,v 1.12 1994/09/15 16:32:07 paul Exp $
  */
 
 #include "npx.h"
@@ -104,7 +104,7 @@ struct	isa_driver npxdriver = {
 	npxprobe, npxattach, "npx",
 };
 
-u_int	npx0_imask;
+u_int	npx0_imask = SWI_CLOCK_MASK;
 struct proc	*npxproc;
 
 static	bool_t			npx_ex16;
