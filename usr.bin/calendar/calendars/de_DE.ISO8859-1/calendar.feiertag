@@ -1,11 +1,11 @@
 /*
  * Feiertage
  *
- * $Id: feiertag,v 1.1 1996/01/28 19:12:45 wosch Exp $
+ * $Id: calendar.feiertag,v 1.1 1996/01/29 00:34:12 wosch Exp $
  */
 
-#ifndef _de_DE_ISO8859_1_feiertag_
-#define _de_DE_ISO8859_1_feiertag_
+#ifndef _de_DE_ISO_8859_1_feiertag_
+#define _de_DE_ISO_8859_1_feiertag_
 
 /* arbeitsfreie staatliche Feiertage */
 01/01	Neujahr
@@ -34,4 +34,7 @@ Easter+39	Christi Himmelfahrt
 03/SundayLast	Anfang der Sommerzeit
 10/SundayLast	Ende der Sommerzeit
 
-#endif /*! _de_DE_ISO8859_1_feiertag_ */
+/* Blumenverkäufer */
+May Sun+2 	Muttertag
+
+#endif /*! _de_DE_ISO_8859_1_feiertag_ */
