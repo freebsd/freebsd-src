@@ -49,6 +49,7 @@ int	 queryuser __P((char **));
 
 PLAN	*c_atime __P((char *));
 PLAN	*c_ctime __P((char *));
+PLAN	*c_delete __P((void));
 PLAN	*c_depth __P((void));
 PLAN	*c_exec __P((char ***, int));
 PLAN	*c_follow __P((void));
