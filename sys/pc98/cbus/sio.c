@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.81 1999/02/05 11:37:40 kato Exp $
+ *	$Id: sio.c,v 1.82 1999/03/04 10:37:30 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -4135,6 +4135,8 @@ static pnpid_t siopnp_ids[] = {
 	{ 0x11007256, "USR0011"},
 	{ 0x30207256, "USR2030"},
 	{ 0x31307256, "USR3031"},
+	{ 0x90307256, "USR3090"},
+	{ 0x0100440e, "Cardinal MVP288IV"},
 	{ 0 }
 };
 
