@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id$
+ * $Id: vfs_syscalls.c,v 1.3 1994/08/02 07:43:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -238,6 +238,13 @@ unmount(p, uap, retval)
 	}
 	mp = vp->v_mount;
 	vput(vp);
+
+	/*
+	 * Don't allow unmount of the root filesystem
+	 */
+	if (mp->mnt_flag & MNT_ROOTFS)
+		return (EINVAL);
+
 	return (dounmount(mp, uap->flags, p));
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id$
+ * $Id: mount.h,v 1.2 1994/08/02 07:53:15 davidg Exp $
  */
 
 #ifndef KERNEL
@@ -407,6 +407,7 @@ extern	struct vfsops *vfssw[];			/* filesystem type table */
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+int	dounmount __P((struct mount *, int, struct proc *));
 int	fstatfs __P((int, struct statfs *));
 int	getfh __P((const char *, fhandle_t *));
 int	getfsstat __P((struct statfs *, long, int));
