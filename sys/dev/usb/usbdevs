@@ -1050,6 +1050,7 @@ product STSN STSN0001		0x0001	Internet Access Device
 
 /* SUN Corporation products */
 product	SUNTAC DS96L		0x0003	SUNTAC U-Cable type D2
+product	SUNTAC IS96U		0x000a	SUNTAC Ir-Trinity
 product SUNTAC PS64P1		0x0005	SUNTAC U-Cable type P1
 product SUNTAC VS10U		0x0009	SUNTAC Slipper U
 
