@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.43 1995/11/04 17:07:08 bde Exp $
+ *      $Id: bt5xx-445.c,v 1.1 1995/12/12 08:50:54 gibbs Exp $
  */
 
 /*
@@ -143,5 +143,5 @@ bt_isa_intr(unit)
 	int	unit;
 {
 	struct bt_data* arg = btdata[unit];
-	btintr((void *)arg);
+	bt_intr((void *)arg);
 }
