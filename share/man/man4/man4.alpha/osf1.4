@@ -1,0 +1,96 @@
+.\" Copyright (c) 2000 Sheldon Hearn
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 13, 2000
+.Dt OSF/1 4 alpha
+.Os
+.Sh NAME
+.Nm osf1
+.Nd OSF/1 ABI support
+.Sh SYNOPSIS
+To load the OSF/1 ABI support kernel module:
+.Dl kldload osf1
+.Sh DESCRIPTION
+The
+.Nm
+module provides limited
+alpha OSF/1 (also known as Digital UNIX, later known as Tru64 UNIX) 
+ABI (application binary interface) 
+compatibility for userland applications.
+The module provides the following significant facilities:
+.Bl -bullet
+.It
+An image activator
+for ecoff executable images
+.It
+Special signal handling for activated images
+.It
+OSF/1 to native system call translation
+.El
+.Pp
+It is important to note that the OSF/1 ABI support
+it not provided through an emulator.
+Rather, a true (albeit limited) ABI implementation is provided.
+.Pp
+The
+.Nm
+module can be loaded as required.
+The following command will load the module
+if it is not already loaded as a module:
+.Bd -literal -offset indent
+if ! kldstat -v | grep -E osf1_ecoff > /dev/null; then
+	kldload osf1 > /dev/null 2>&1
+fi
+.Ed
+.Pp
+Note that dynamically linked OSF/1 executables
+will require a suitable environment in
+.Pa /compat/osf1 .
+.Pp
+For information on loading the
+.Nm
+kernel loadable module automatically on system startup,
+see
+.Xr rc.conf 5 .
+.Sh FILES
+.Bl -tag -width /compat/osf1 -compact
+.It Pa /compat/osf1
+minimal OSF1 run-time environment
+.El
+.Sh BUGS
+We cannot run OSF/1 applications which rely on the
+.Xr pthread 3
+API, such as the JDK.
+OSF/1's pthreads library uses Mach system calls.  
+Mach system calls would be very difficult to support in
+.Fx .
+.Pp
+Linking the 
+.Nm
+module into the kernel statically is not supported.
+.Sh HISTORY
+OSF/1 ABI support first appeared in
+.Fx 4.0 .
