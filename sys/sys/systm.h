@@ -123,6 +123,7 @@ int	nullop(void);
 int	eopnotsupp(void);
 int	seltrue(dev_t dev, int which, struct thread *td);
 int	ureadc(int, struct uio *);
+void	hashdestroy(void *, struct malloc_type *, u_long);
 void	*hashinit(int count, struct malloc_type *type, u_long *hashmask);
 void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
 

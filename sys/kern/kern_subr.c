@@ -495,6 +495,21 @@ hashinit(elements, type, hashmask)
 	return (hashtbl);
 }
 
+void
+hashdestroy(vhashtbl, type, hashmask)
+	void *vhashtbl;
+	struct malloc_type *type;
+	u_long hashmask;
+{
+	LIST_HEAD(generic, generic) *hashtbl, *hp;
+
+	hashtbl = vhashtbl;
+	for (hp = hashtbl; hp <= &hashtbl[hashmask]; hp++)
+		if (!LIST_EMPTY(hp))
+			panic("hashdestroy: hash not empty");
+	free(hashtbl, type);
+}
+
 static int primes[] = { 1, 13, 31, 61, 127, 251, 509, 761, 1021, 1531, 2039,
 			2557, 3067, 3583, 4093, 4603, 5119, 5623, 6143, 6653,
 			7159, 7673, 8191, 12281, 16381, 24571, 32749 };
