@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 INFO = gperf
 INFOSECTION= "Programming & development tools."

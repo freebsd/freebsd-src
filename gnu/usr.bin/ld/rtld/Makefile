@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c md.c support.c sbrk.c

@@ -31,7 +31,7 @@
 
 /*
  * symbol table routines
- * $FreeBSD$
+ * $Id$
  */
 
 /* Create the symbol table entries for `etext', `edata' and `end'.  */

@@ -1,5 +1,5 @@
 /*
- *	$FreeBSD$
+ *	$Id$
  */
 /*-
  * This code is derived from software copyrighted by the Free Software

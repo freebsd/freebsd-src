@@ -26,7 +26,7 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# $FreeBSD$
+# $Id$
 
 
 sub usage {

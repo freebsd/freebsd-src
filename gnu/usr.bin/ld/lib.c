@@ -30,7 +30,7 @@
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- * $FreeBSD$	- library routines
+ * $Id$	- library routines
  */
 
 #include <sys/param.h>

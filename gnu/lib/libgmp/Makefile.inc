@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 SHLIB_MAJOR=	3

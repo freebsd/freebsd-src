@@ -20,7 +20,7 @@ along with GAS or GDB; see the file COPYING.	If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.	*/
 
 /*
- * $FreeBSD$
+ * $Id$
  */
 
  /* FIXME-someday: perhaps the ,a's and such should be embedded in the

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$FreeBSD$
+#	$Id$
 
 .include "config/Makefile.$(MACHINE)"
 

@@ -102,7 +102,7 @@ static int match P((FILE*));
 static int scanfile P((FILE*,char const*,int));
 static void reportError P((char const*));
 
-mainProg(identId, "ident", "$FreeBSD$")
+mainProg(identId, "ident", "$Id$")
 /*  Ident searches the named files for all occurrences
  *  of the pattern $@: text $ where @ is a keyword.
  */
