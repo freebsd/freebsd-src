@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Andrew J. Korty
+ * Copyright (c) 1999, 2000 Andrew J. Korty
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/stat.h>
 
 #include <fcntl.h>
 #include <paths.h>
@@ -120,7 +121,7 @@ env_new(void)
 
 
 static int
-env_put(ENV *self, char *s)
+env_put(ENV *self, const char *s)
 {
 	struct env_entry	*env;
 
@@ -136,7 +137,7 @@ env_put(ENV *self, char *s)
 
 
 static void
-env_swap(ENV *self, int which)
+env_swap(const ENV *self, int which)
 {
 	environ = which ? self->e_environ_new : self->e_environ_orig;
 }
@@ -173,9 +174,10 @@ env_destroy(ENV *self)
 	struct env_entry	 *p;
 
 	env_swap(self, 0);
-	SLIST_FOREACH(p, &self->e_head, ee_entries) {
+	while ((p = SLIST_FIRST(&self->e_head))) {
 		free(p->ee_env);
 		free(p);
+		SLIST_REMOVE_HEAD(&self->e_head, ee_entries);
 	}
 	if (self->e_committed)
 		free(self->e_environ_new);
@@ -365,7 +367,8 @@ pam_sm_open_session(
 	/* start the agent as the user */
 	saved_uid = geteuid();
 	(void)seteuid(pwent->pw_uid);
-	env_fp = fopen(env_file, "w");
+	if ((env_fp = fopen(env_file, "w")))
+		(void)chmod(env_file, S_IRUSR);
 	pipe = popen(PATH_SSH_AGENT, "r");
 	(void)seteuid(saved_uid);
 	if (!pipe) {
