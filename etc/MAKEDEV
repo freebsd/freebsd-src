@@ -686,7 +686,7 @@ xpt*)
 		rm -rf $dname r$dname
 		mknod $dname c $chr `unit2minor $i` root:operator
 		i=$(($i + 1))
-	done	
+	done
 	;;
 
 # CAM passthrough device
@@ -704,7 +704,7 @@ pass*)
 		rm -rf $dname r$dname
 		mknod $dname c $chr `unit2minor $i` root:operator
 		i=$(($i + 1))
-	done	
+	done
 	;;
 pty*)
 	class=`expr $i : 'pty\(.*\)'`
@@ -1423,13 +1423,22 @@ snd*)
 	ln -fs dspW$unit dspW
 	ln -fs music$unit music
 	ln -fs pss$unit pss
+	ln -fs dsp$unit.0 dsp$unit
+	ln -fs audio$unit.0 audio$unit
+	ln -fs dspW$unit.0 dspW$unit
 
 	mknod mixer$unit	c $chr `unit2minor \`expr $unit '*' 16 + 0\``
 	mknod sequencer$unit	c $chr `unit2minor \`expr $unit '*' 16 + 1\``
 	mknod midi$unit		c $chr `unit2minor \`expr $unit '*' 16 + 2\``
-	mknod dsp$unit		c $chr `unit2minor \`expr $unit '*' 16 + 3\``
-	mknod audio$unit	c $chr `unit2minor \`expr $unit '*' 16 + 4\``
-	mknod dspW$unit		c $chr `unit2minor \`expr $unit '*' 16 + 5\``
+
+	for chn in 0 1 2 3
+	do
+		minor=`expr $chn '*' 65536 + $unit '*' 16`
+		mknod dsp$unit.$chn	c $chr $(($minor + 3))
+		mknod audio$unit.$chn	c $chr $(($minor + 4))
+		mknod dspW$unit.$chn	c $chr $(($minor + 5))
+	done
+
 	mknod sndstat		c $chr 6
 				# minor number 7 is unused
 	mknod music$unit	c $chr `unit2minor \`expr $unit '*' 16 + 8\``
