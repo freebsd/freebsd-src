@@ -107,8 +107,10 @@ softclock(void *dummy)
 				if (steps >= MAX_SOFTCLOCK_STEPS) {
 					nextsoftcheck = c;
 					/* Give interrupts a chance. */
+					mtx_exit(&sched_lock, MTX_SPIN);
 					splx(s);
 					s = splhigh();
+					mtx_enter(&sched_lock, MTX_SPIN);
 					c = nextsoftcheck;
 					steps = 0;
 				}
