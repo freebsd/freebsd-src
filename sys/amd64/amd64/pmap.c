@@ -1978,7 +1978,7 @@ validate:
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
 		pte_store(pte, newpte | PG_A);
-		/*if (origpte)*/ {
+		if (origpte) {
 			pmap_invalidate_page(pmap, va);
 		}
 	}
