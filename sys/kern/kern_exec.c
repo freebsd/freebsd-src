@@ -102,20 +102,38 @@ static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 {
 	struct proc *p;
+	int error;
 
 	p = curproc;
-	return (SYSCTL_OUT(req, &p->p_sysent->sv_psstrings,
-	   sizeof(p->p_sysent->sv_psstrings)));
+#if defined(__amd64__) || defined(__ia64__)
+	if (req->oldlen == sizeof(unsigned int)) {
+		unsigned int val;
+		val = (unsigned int)p->p_sysent->sv_psstrings;
+		error = SYSCTL_OUT(req, &val, sizeof(val));
+	} else
+#endif
+		error = SYSCTL_OUT(req, &p->p_sysent->sv_psstrings,
+		   sizeof(p->p_sysent->sv_psstrings));
+	return error;
 }
 
 static int
 sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
 {
 	struct proc *p;
+	int error;
 
 	p = curproc;
-	return (SYSCTL_OUT(req, &p->p_sysent->sv_usrstack,
-	    sizeof(p->p_sysent->sv_usrstack)));
+#if defined(__amd64__) || defined(__ia64__)
+	if (req->oldlen == sizeof(unsigned int)) {
+		unsigned int val;
+		val = (unsigned int)p->p_sysent->sv_usrstack;
+		error = SYSCTL_OUT(req, &val, sizeof(val));
+	} else
+#endif
+		error = SYSCTL_OUT(req, &p->p_sysent->sv_usrstack,
+		    sizeof(p->p_sysent->sv_usrstack));
+	return error;
 }
 
 static int
