@@ -11,8 +11,11 @@ BINDIR?=	/boot
 SRCS=		main.c conf.c
 
 # Enable PXE TFTP or NFS support, not both.
+.if defined(LOADER_TFTP_SUPPORT)
+CFLAGS+=	-DLOADER_TFTP_SUPPORT
+.else
 CFLAGS+=	-DLOADER_NFS_SUPPORT
-#CFLAGS+=	-DLOADER_TFTP_SUPPORT
+.endif
 
 # Enable PnP and ISA-PnP code.
 HAVE_PNP=	yes
