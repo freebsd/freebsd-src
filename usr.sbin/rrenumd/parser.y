@@ -1,3 +1,5 @@
+/*	$KAME$	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -36,7 +38,9 @@
 #include <sys/uio.h>
 
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -48,40 +52,40 @@
 #include "rrenumd.h"
 
 struct config_is_set {
-	u_short	cis_dest : 1;
+	u_short cis_dest : 1;
 } cis;
 
-struct	dst_list *dl_head;
-struct	payload_list *pl_head, ple_cur;
-u_int	retry;
-char	errbuf[LINE_MAX];
+struct dst_list *dl_head;
+struct payload_list *pl_head, ple_cur;
+u_int retry;
+char errbuf[LINE_MAX];
 
-extern int	lineno;
-extern void	yyerror __P((const char *s));
-static struct	payload_list * pllist_lookup __P((int seqnum));
-static void	pllist_enqueue __P((struct payload_list *pl_entry));
+extern int lineno;
+extern void yyerror __P((const char *s));
+static struct payload_list * pllist_lookup __P((int seqnum));
+static void pllist_enqueue __P((struct payload_list *pl_entry));
 
-#define	MAX_RETRYNUM 10 /* upper limit of retry in this rrenumd program */
-#define	MAX_SEQNUM 256 /* upper limit of seqnum in this rrenumd program */
-#define	NOSPEC	-1
+#define MAX_RETRYNUM 10 /* upper limit of retry in this rrenumd program */
+#define MAX_SEQNUM 256 /* upper limit of seqnum in this rrenumd program */
+#define NOSPEC	-1
 
 %}
 
 %union {
-	u_long	num;
+	u_long num;
 	struct {
-		char 	*cp;
-		int	len;
+		char *cp;
+		int len;
 	} cs;
-	struct	in_addr addr4;
-	struct	in6_addr addr6;
+	struct in_addr addr4;
+	struct in6_addr addr6;
 	struct {
-		struct	in6_addr addr;
-		u_char	plen;
+		struct in6_addr addr;
+		u_char plen;
 	} prefix;
-	struct	dst_list *dl;
-	struct	payload_list *pl;
-	struct	sockaddr *sa;
+	struct dst_list *dl;
+	struct payload_list *pl;
+	struct sockaddr *sa;
 }
 
 %token <num> ADD CHANGE SETGLOBAL
@@ -103,7 +107,7 @@ static void	pllist_enqueue __P((struct payload_list *pl_entry));
 %type <num> lifetime days hours minutes seconds
 %type <num> decstring
 %type <num> raf_onlink raf_auto raf_decrvalid raf_decrprefd flag
-%type <dl> dest_addrs dest_addr sin6
+%type <dl> dest_addrs dest_addr sin sin6
 %type <pl> rrenum_statement
 %type <cs> ifname
 %type <prefix> prefixval
@@ -158,7 +162,11 @@ dest_addrs:
 	;
 
 dest_addr :
-		sin6
+		sin
+		{
+			with_v4dest = 1;
+		}
+	|	sin6
 		{
 			with_v6dest = 1;
 		}
@@ -179,7 +187,7 @@ dest_addr :
 
 			memset(&hints, 0, sizeof(hints));
 			hints.ai_flags = AI_CANONNAME;
-			hints.ai_family = AF_INET6;
+			hints.ai_family = AF_UNSPEC;
 			hints.ai_socktype = SOCK_RAW;
 			hints.ai_protocol = 0;
 			error = getaddrinfo($1.cp, 0, &hints, &res);
@@ -197,6 +205,24 @@ dest_addr :
 			     malloc(sizeof(struct dst_list));
 			memset($$, 0, sizeof(struct dst_list));
 			$$->dl_dst = (struct sockaddr *)ss;
+		}
+	;
+
+sin:
+		IPV4ADDR
+		{
+			struct sockaddr_in *sin;
+
+			sin = (struct sockaddr_in *)malloc(sizeof(*sin));
+			memset(sin, 0, sizeof(*sin));
+			sin->sin_len = sizeof(*sin);
+			sin->sin_family = AF_INET;
+			sin->sin_addr = $1;
+
+			$$ = (struct dst_list *)
+			     malloc(sizeof(struct dst_list));
+			memset($$, 0, sizeof(struct dst_list));
+			$$->dl_dst = (struct sockaddr *)sin;
 		}
 	;
 
@@ -427,39 +453,43 @@ use_prefix_values:
 
 			rpu->rpu_vltime = $2;
 			rpu->rpu_pltime = $3;
-			if ($4 == NOSPEC)
+			if ($4 == NOSPEC) {
 				rpu->rpu_ramask &=
-					~ICMP6_RR_PCOUSE_RAFLAGS_ONLINK;
-			else {
+				    ~ICMP6_RR_PCOUSE_RAFLAGS_ONLINK;
+			} else {
 				rpu->rpu_ramask |=
-					ICMP6_RR_PCOUSE_RAFLAGS_ONLINK;
-				if ($4 == ON)
+				    ICMP6_RR_PCOUSE_RAFLAGS_ONLINK;
+				if ($4 == ON) {
 					rpu->rpu_raflags |=
-						ICMP6_RR_PCOUSE_RAFLAGS_ONLINK;
-				else
+					    ICMP6_RR_PCOUSE_RAFLAGS_ONLINK;
+				} else {
 					rpu->rpu_raflags &=
-						~ICMP6_RR_PCOUSE_RAFLAGS_ONLINK;
+					    ~ICMP6_RR_PCOUSE_RAFLAGS_ONLINK;
+				}
 			}
-			if ($5 == NOSPEC)
+			if ($5 == NOSPEC) {
 				rpu->rpu_ramask &=
-					ICMP6_RR_PCOUSE_RAFLAGS_AUTO;
-			else {
+				    ICMP6_RR_PCOUSE_RAFLAGS_AUTO;
+			} else {
 				rpu->rpu_ramask |=
-					ICMP6_RR_PCOUSE_RAFLAGS_AUTO;
-				if ($5 == ON)
+				    ICMP6_RR_PCOUSE_RAFLAGS_AUTO;
+				if ($5 == ON) {
 					rpu->rpu_raflags |=
-						ICMP6_RR_PCOUSE_RAFLAGS_AUTO;
-				else
+					    ICMP6_RR_PCOUSE_RAFLAGS_AUTO;
+				} else {
 					rpu->rpu_raflags &=
-						~ICMP6_RR_PCOUSE_RAFLAGS_AUTO;
+					    ~ICMP6_RR_PCOUSE_RAFLAGS_AUTO;
+				}
 			}
 			rpu->rpu_flags = 0;
-			if ($6 == ON)
+			if ($6 == ON) {
 				rpu->rpu_flags |=
-					ICMP6_RR_PCOUSE_FLAGS_DECRVLTIME;
-			if ($7 == ON)
+				    ICMP6_RR_PCOUSE_FLAGS_DECRVLTIME;
+			}
+			if ($7 == ON) {
 				rpu->rpu_flags |=
-					ICMP6_RR_PCOUSE_FLAGS_DECRPLTIME;
+				    ICMP6_RR_PCOUSE_FLAGS_DECRPLTIME;
+			}
 		}
 	;
 

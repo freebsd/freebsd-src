@@ -1,3 +1,5 @@
+/*	$KAME$	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -37,16 +39,21 @@
 #include <string.h>
 
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/icmp6.h>
+
+#include <arpa/inet.h>
+
 #include "y.tab.h"
 
 int lineno = 1;
 
-#define	LINEBUF_SIZE 1000
+#define LINEBUF_SIZE 1000
 char linebuf[LINEBUF_SIZE];
 %}
 
@@ -208,6 +215,15 @@ off		{
 			yylval.cs.cp = yytext;
 			yylval.cs.len = yyleng;
 			return NAME;
+		}
+{ipv4addr}	{
+			memset(&yylval.addr4, 0, sizeof(struct in_addr));
+			if (inet_pton(AF_INET, yytext,
+				      &yylval.addr4) == 1) {
+				return IPV4ADDR;
+			} else {
+				return ERROR;
+			}
 		}
 {ipv6addr}	{
 			memset(&yylval.addr6, 0, sizeof(struct in6_addr));

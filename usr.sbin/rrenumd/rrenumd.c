@@ -1,3 +1,5 @@
+/*	$KAME$	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -44,11 +46,14 @@
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 
+#include <arpa/inet.h>
+
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif
 
 #include <stdio.h>
+#include <err.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -56,36 +61,39 @@
 
 #include "rrenumd.h"
 
-#define	LL_ALLROUTERS "ff02::2"
-#define	SL_ALLROUTERS "ff05::2"
+#define LL_ALLROUTERS "ff02::2"
+#define SL_ALLROUTERS "ff05::2"
 
 #ifndef IN6_IS_SCOPE_LINKLOCAL
-#define	IN6_IS_SCOPE_LINKLOCAL(a)	\
+#define IN6_IS_SCOPE_LINKLOCAL(a)	\
 	((IN6_IS_ADDR_LINKLOCAL(a)) ||	\
 	 (IN6_IS_ADDR_MC_LINKLOCAL(a)))
 #endif /* IN6_IS_SCOPE_LINKLOCAL */
 
 struct flags {
-	u_long	debug : 1;
-	u_long	fg : 1;
+	u_long debug : 1;
+	u_long fg : 1;
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
-	u_long	policy : 1;
+	u_long policy : 1;
+#else /* IPSEC_POLICY_IPSEC */
+	u_long auth : 1;
+	u_long encrypt : 1;
 #endif /* IPSEC_POLICY_IPSEC */
 #endif /*IPSEC*/
 };
 
-struct	msghdr sndmhdr;
-struct	msghdr rcvmhdr;
-struct	sockaddr_in6 from;
-struct	sockaddr_in6 sin6_ll_allrouters;
+struct msghdr sndmhdr;
+struct msghdr rcvmhdr;
+struct sockaddr_in6 from;
+struct sockaddr_in6 sin6_ll_allrouters;
 
-int	s6;
-int	with_v6dest;
-struct	in6_addr prefix; /* ADHOC */
-int	prefixlen = 64; /* ADHOC */
+int s4, s6;
+int with_v4dest, with_v6dest;
+struct in6_addr prefix; /* ADHOC */
+int prefixlen = 64; /* ADHOC */
 
-extern int	parse(FILE **fp);
+extern int parse(FILE **fp);
 
 /* Print usage. Don't call this after daemonized. */
 static void
@@ -95,6 +103,8 @@ show_usage()
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"] [-P policy"
+#else /* IPSEC_POLICY_IPSEC */
+		"AE"
 #endif /* IPSEC_POLICY_IPSEC */
 #endif /* IPSEC */
 		"]\n");
@@ -111,15 +121,44 @@ init_sin6(struct sockaddr_in6 *sin6, const char *addr_ascii)
 		; /* XXX do something */
 }
 
+#if 0  /* XXX: not necessary ?? */
+void
+join_multi(const char *addrname)
+{
+	struct ipv6_mreq mreq;
+
+	if (inet_pton(AF_INET6, addrname, &mreq.ipv6mr_multiaddr.s6_addr)
+	    != 1) {
+		syslog(LOG_ERR, "<%s> inet_pton failed(library bug?)",
+		       __FUNCTION__);
+		exit(1);
+	}
+	/* ADHOC: currently join only one */
+	{
+		if ((mreq.ipv6mr_interface = if_nametoindex(ifname)) == 0) {
+			syslog(LOG_ERR, "<%s> ifname %s should be invalid: %s",
+			       __FUNCTION__, ifname, strerror(errno));
+			exit(1);
+		}
+		if (setsockopt(s, IPPROTO_IPV6, IPV6_JOIN_GROUP,
+			       &mreq,
+			       sizeof(mreq)) < 0) {
+			syslog(LOG_ERR, "<%s> IPV6_JOIN_GROUP on %s: %s",
+			       __FUNCTION__, ifname, strerror(errno));
+			exit(1);
+		}
+	}
+}
+#endif
+
 void
 init_globals()
 {
 	static struct iovec rcviov;
 	static u_char rprdata[4500]; /* maximal MTU of connected links */
-	static u_char rcvcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo)) +
-				 CMSG_SPACE(sizeof(int))];
-	static u_char sndcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo)) +
-				 CMSG_SPACE(sizeof(int))];
+	static u_char *rcvcmsgbuf = NULL;
+	static u_char *sndcmsgbuf = NULL;
+	int sndcmsglen, rcvcmsglen;
 
 	/* init ll_allrouters */
 	init_sin6(&sin6_ll_allrouters, LL_ALLROUTERS);
@@ -130,14 +169,28 @@ init_globals()
 	rcvmhdr.msg_namelen = sizeof(struct sockaddr_in6);
 	rcvmhdr.msg_iov = &rcviov;
 	rcvmhdr.msg_iovlen = 1;
+	rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
+		CMSG_SPACE(sizeof(int));
+	if (rcvcmsgbuf == NULL &&
+	    (rcvcmsgbuf = (u_char *)malloc(rcvcmsglen)) == NULL) {
+		syslog(LOG_ERR, "<%s>: malloc failed", __FUNCTION__);
+		exit(1);
+	}
 	rcvmhdr.msg_control = (caddr_t)rcvcmsgbuf;
-	rcvmhdr.msg_controllen = sizeof(rcvcmsgbuf);
+	rcvmhdr.msg_controllen = rcvcmsglen;
 
 	/* initialize msghdr for sending packets */
 	sndmhdr.msg_namelen = sizeof(struct sockaddr_in6);
 	sndmhdr.msg_iovlen = 1;
+	sndcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
+		CMSG_SPACE(sizeof(int));
+	if (sndcmsgbuf == NULL &&
+	    (sndcmsgbuf = (u_char *)malloc(sndcmsglen)) == NULL) {
+		syslog(LOG_ERR, "<%s>: malloc failed", __FUNCTION__);
+		exit(1);
+	}
 	sndmhdr.msg_control = (caddr_t)sndcmsgbuf;
-	sndmhdr.msg_controllen = sizeof(sndcmsgbuf);
+	sndmhdr.msg_controllen = sndcmsglen;
 }
 
 void
@@ -191,7 +244,12 @@ sock6_open(struct flags *flags
 	   )
 {
 	struct icmp6_filter filt;
-	int on, optval;
+	int on;
+#ifdef IPSEC
+#ifndef IPSEC_POLICY_IPSEC
+	int optval;
+#endif
+#endif
 
 	if (with_v6dest == 0)
 		return;
@@ -202,7 +260,13 @@ sock6_open(struct flags *flags
 		exit(1);
 	}
 
-	/* join all routers multicast addresses, not necessary? */
+	/*
+	 * join all routers multicast addresses.
+	 */
+#if 0 /* XXX: not necessary ?? */
+	join_multi(LL_ALLROUTERS);
+	join_multi(SL_ALLROUTERS);
+#endif
 
 	/* set icmpv6 filter */
 	ICMP6_FILTER_SETBLOCKALL(&filt);
@@ -236,6 +300,91 @@ sock6_open(struct flags *flags
 			err(1, NULL);
 		free(buf);
 	}
+#else /* IPSEC_POLICY_IPSEC */
+	if (flags->auth) {
+		optval = IPSEC_LEVEL_REQUIRE;
+		if (setsockopt(s6, IPPROTO_IPV6, IPV6_AUTH_TRANS_LEVEL,
+			       &optval, sizeof(optval)) == -1) {
+			syslog(LOG_ERR, "<%s> IPV6_AUTH_TRANS_LEVEL: %s",
+			       __FUNCTION__, strerror(errno));
+			exit(1);
+		}
+	}
+	if (flags->encrypt) {
+		optval = IPSEC_LEVEL_REQUIRE;
+		if (setsockopt(s6, IPPROTO_IPV6, IPV6_ESP_TRANS_LEVEL,
+				&optval, sizeof(optval)) == -1) {
+			syslog(LOG_ERR, "<%s> IPV6_ESP_TRANS_LEVEL: %s",
+			       __FUNCTION__, strerror(errno));
+			exit(1);
+		}
+	}
+#endif /* IPSEC_POLICY_IPSEC */
+#endif /* IPSEC */
+
+	return;
+}
+
+void
+sock4_open(struct flags *flags
+#ifdef IPSEC_POLICY_IPSEC
+	   , char *policy
+#endif /* IPSEC_POLICY_IPSEC */
+	   )
+{
+#ifdef IPSEC
+#ifndef IPSEC_POLICY_IPSEC
+	int optval;
+#endif
+#endif
+
+	if (with_v4dest == 0)
+		return;
+	if ((s4 = socket(AF_INET, SOCK_RAW, IPPROTO_ICMPV6)) < 0) {
+		syslog(LOG_ERR, "<%s> socket(v4): %s", __FUNCTION__,
+		       strerror(errno));
+		exit(1);
+	}
+
+#if 0 /* XXX: not necessary ?? */
+	/*
+	 * join all routers multicast addresses.
+	 */
+	some_join_function();
+#endif
+
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
+	if (flags->policy) {
+		char *buf;
+		buf = ipsec_set_policy(policy, strlen(policy));
+		if (buf == NULL)
+			errx(1, ipsec_strerror());
+		/* XXX should handle in/out bound policy. */
+		if (setsockopt(s4, IPPROTO_IP, IP_IPSEC_POLICY,
+				buf, ipsec_get_policylen(buf)) < 0)
+			err(1, NULL);
+		free(buf);
+	}
+#else /* IPSEC_POLICY_IPSEC */
+	if (flags->auth) {
+		optval = IPSEC_LEVEL_REQUIRE;
+		if (setsockopt(s4, IPPROTO_IP, IP_AUTH_TRANS_LEVEL,
+			       &optval, sizeof(optval)) == -1) {
+			syslog(LOG_ERR, "<%s> IP_AUTH_TRANS_LEVEL: %s",
+			       __FUNCTION__, strerror(errno));
+			exit(1);
+		}
+	}
+	if (flags->encrypt) {
+		optval = IPSEC_LEVEL_REQUIRE;
+		if (setsockopt(s4, IPPROTO_IP, IP_ESP_TRANS_LEVEL,
+				&optval, sizeof(optval)) == -1) {
+			syslog(LOG_ERR, "<%s> IP_ESP_TRANS_LEVEL: %s",
+			       __FUNCTION__, strerror(errno));
+			exit(1);
+		}
+	}
 #endif /* IPSEC_POLICY_IPSEC */
 #endif /* IPSEC */
 
@@ -248,7 +397,6 @@ rrenum_output(struct payload_list *pl, struct dst_list *dl)
 	int i, msglen = 0;
 	struct cmsghdr *cm;
 	struct in6_pktinfo *pi;
-	struct icmp6_router_renum *rr;
 	struct sockaddr_in6 *sin6 = NULL;
 
 	sndmhdr.msg_name = (caddr_t)dl->dl_dst;
@@ -267,7 +415,7 @@ rrenum_output(struct payload_list *pl, struct dst_list *dl)
 		pi = (struct in6_pktinfo *)CMSG_DATA(cm);
 		memset(&pi->ipi6_addr, 0, sizeof(pi->ipi6_addr));	/*XXX*/
 		pi->ipi6_ifindex = sin6->sin6_scope_id;
-		msglen += CMSG_SPACE(sizeof(struct in6_pktinfo));
+		msglen += CMSG_LEN(sizeof(struct in6_pktinfo));
 
 		/* specify the hop limit of the packet if dest is link local */
 		/* not defined by router-renum-05.txt, but maybe its OK */
@@ -276,14 +424,14 @@ rrenum_output(struct payload_list *pl, struct dst_list *dl)
 		cm->cmsg_type = IPV6_HOPLIMIT;
 		cm->cmsg_len = CMSG_LEN(sizeof(int));
 		memcpy(CMSG_DATA(cm), &hoplimit, sizeof(int));
-		msglen += CMSG_SPACE(sizeof(int));
+		msglen += CMSG_LEN(sizeof(int));
 	}
 	sndmhdr.msg_controllen = msglen;
 	if (sndmhdr.msg_controllen == 0)
 		sndmhdr.msg_control = 0;
 
 	sndmhdr.msg_iov = &pl->pl_sndiov;
-	i = sendmsg(s6, &sndmhdr, 0);
+	i = sendmsg(dl->dl_dst->sa_family == AF_INET ? s4 : s6, &sndmhdr, 0);
 
 	if (i < 0 || i != sndmhdr.msg_iov->iov_len)
 		syslog(LOG_ERR, "<%s> sendmsg: %s", __FUNCTION__,
@@ -322,12 +470,19 @@ rrenum_input(int s)
 		       strerror(errno));
 		return;
 	}
+	if (s == s4)
+		i -= sizeof(struct ip);
 	if (i < sizeof(struct icmp6_router_renum)) {
 		syslog(LOG_ERR, "<%s> packet size(%d) is too short",
 		       __FUNCTION__, i);
 		return;
 	}
-	rr = (struct icmp6_router_renum *)rcvmhdr.msg_iov->iov_base;
+	if (s == s4) {
+		struct ip *ip = (struct ip *)rcvmhdr.msg_iov->iov_base;
+
+		rr = (struct icmp6_router_renum *)(ip + 1);
+	} else /* s == s6 */
+		rr = (struct icmp6_router_renum *)rcvmhdr.msg_iov->iov_base;
 
 	switch(rr->rr_code) {
 	case ICMP6_ROUTER_RENUMBERING_COMMAND:
@@ -337,7 +492,7 @@ rrenum_input(int s)
 		/* TODO: receiving result message */
 		break;
 	default:
-		syslog(LOG_ERR,	"<%s> received unknown code %d"
+		syslog(LOG_ERR,	"<%s> received unknown code %d",
 		       __FUNCTION__, rr->rr_code);
 		break;
 	}
@@ -346,7 +501,6 @@ rrenum_input(int s)
 int
 main(int argc, char *argv[])
 {
-	char *cfile = NULL;
 	FILE *fp = stdin;
 	fd_set fdset;
 	struct timeval timeout;
@@ -358,13 +512,15 @@ main(int argc, char *argv[])
 #endif
 
 	memset(&flags, 0, sizeof(flags));
-	openlog(*argv, LOG_PID, LOG_DAEMON);
+	openlog("rrenumd", LOG_PID, LOG_DAEMON);
 
 	/* get options */
 	while ((ch = getopt(argc, argv, "c:sdf"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
-			    "P:"
+			    "P"
+#else /* IPSEC_POLICY_IPSEC */
+			    "AE"
 #endif /* IPSEC_POLICY_IPSEC */
 #endif /* IPSEC */
 			    )) != -1){
@@ -392,6 +548,13 @@ main(int argc, char *argv[])
 			flags.policy = 1;
 			policy = strdup(optarg);
 			break;
+#else /* IPSEC_POLICY_IPSEC */
+		case 'A':
+			flags.auth = 1;
+			break;
+		case 'E':
+			flags.encrypt = 1;
+			break;
 #endif /* IPSEC_POLICY_IPSEC */
 #endif /*IPSEC*/
 		default:
@@ -417,6 +580,11 @@ main(int argc, char *argv[])
 		   , policy
 #endif /* IPSEC_POLICY_IPSEC */
 		   );
+	sock4_open(&flags
+#ifdef IPSEC_POLICY_IPSEC
+		   , policy
+#endif /* IPSEC_POLICY_IPSEC */
+		   );
 
 	if (!flags.fg)
 		daemon(0, 0);
@@ -426,6 +594,11 @@ main(int argc, char *argv[])
 		FD_SET(s6, &fdset);
 		if (s6 > maxfd)
 			maxfd = s6;
+	}
+	if (with_v4dest) {
+		FD_SET(s4, &fdset);
+		if (s4 > maxfd)
+			maxfd = s4;
 	}
 
 	/* ADHOC: timeout each 30seconds */
@@ -454,6 +627,8 @@ main(int argc, char *argv[])
 				send_counter = retry + 1;
 			}
 		}
+		if (FD_ISSET(s4, &select_fd))
+			rrenum_input(s4);
 		if (FD_ISSET(s6, &select_fd))
 			rrenum_input(s6);
 	}
