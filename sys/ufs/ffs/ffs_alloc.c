@@ -71,7 +71,7 @@ static ufs_daddr_t ffs_clusteralloc __P((struct inode *, int, ufs_daddr_t,
 	    int));
 static ino_t	ffs_dirpref __P((struct inode *));
 static ufs_daddr_t ffs_fragextend __P((struct inode *, int, long, int, int));
-static void	ffs_fserr __P((struct fs *, u_int, char *));
+static void	ffs_fserr __P((struct fs *, ino_t, char *));
 static u_long	ffs_hashalloc
 		    __P((struct inode *, int, long, int, allocfcn_t *));
 static ino_t	ffs_nodealloccg __P((struct inode *, int, ufs_daddr_t, int));
@@ -162,7 +162,7 @@ nospace:
 		softdep_request_cleanup(fs, ITOV(ip));
 		goto retry;
 	}
-	ffs_fserr(fs, cred->cr_uid, "file system full");
+	ffs_fserr(fs, ip->i_number, "file system full");
 	uprintf("\n%s: write failed, file system is full\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
@@ -309,10 +309,11 @@ retry:
 	if (bno > 0) {
 		bp->b_blkno = fsbtodb(fs, bno);
 		if (!DOINGSOFTDEP(vp))
-			ffs_blkfree(ip, bprev, (long)osize);
+			ffs_blkfree(fs, ip->i_devvp, bprev, (long)osize,
+			    ip->i_number);
 		if (nsize < request)
-			ffs_blkfree(ip, bno + numfrags(fs, nsize),
-			    (long)(request - nsize));
+			ffs_blkfree(fs, ip->i_devvp, bno + numfrags(fs, nsize),
+			    (long)(request - nsize), ip->i_number);
 		ip->i_blocks += btodb(nsize - osize);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
@@ -337,7 +338,7 @@ nospace:
 		softdep_request_cleanup(fs, vp);
 		goto retry;
 	}
-	ffs_fserr(fs, cred->cr_uid, "file system full");
+	ffs_fserr(fs, ip->i_number, "file system full");
 	uprintf("\n%s: write failed, file system is full\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
@@ -542,9 +543,9 @@ ffs_reallocblks(ap)
 #endif
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->fs_frag) {
 		if (!DOINGSOFTDEP(vp))
-			ffs_blkfree(ip,
+			ffs_blkfree(fs, ip->i_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize);
+			    fs->fs_bsize, ip->i_number);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
 #ifdef DIAGNOSTIC
 		if (!ffs_checkblk(ip,
@@ -652,7 +653,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 		ip->i_gen = random() / 2 + 1;
 	return (0);
 noinodes:
-	ffs_fserr(fs, cred->cr_uid, "out of inodes");
+	ffs_fserr(fs, pip->i_number, "out of inodes");
 	uprintf("\n%s: create/symlink failed, no inodes free\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
@@ -1427,48 +1428,52 @@ gotit:
  * block reassembly is checked.
  */
 void
-ffs_blkfree(ip, bno, size)
-	register struct inode *ip;
+ffs_blkfree(fs, devvp, bno, size, inum)
+	struct fs *fs;
+	struct vnode *devvp;
 	ufs_daddr_t bno;
 	long size;
+	ino_t inum;
 {
-	register struct fs *fs;
-	register struct cg *cgp;
+	struct cg *cgp;
 	struct buf *bp;
 	ufs_daddr_t fragno, cgbno;
 	int i, error, cg, blk, frags, bbase;
 	u_int8_t *blksfree;
-#ifdef DIAGNOSTIC
-	struct vnode *vp;
-#endif
+	dev_t dev;
 
-	fs = ip->i_fs;
+	cg = dtog(fs, bno);
+	if (devvp->v_type != VCHR) {
+		/* devvp is a snapshot */
+		dev = VTOI(devvp)->i_devvp->v_rdev;
+		cgbno = fragstoblks(fs, cgtod(fs, cg));
+	} else {
+		/* devvp is a normal disk device */
+		dev = devvp->v_rdev;
+		cgbno = fsbtodb(fs, cgtod(fs, cg));
+		if ((devvp->v_flag & VCOPYONWRITE) &&
+		    ffs_snapblkfree(fs, devvp, bno, size, inum))
+			return;
+		VOP_FREEBLKS(devvp, fsbtodb(fs, bno), size);
+	}
 #ifdef DIAGNOSTIC
-	if ((vp = ITOV(ip)) != NULL && vp->v_mount != NULL &&
-	    (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED))
+	if (dev->si_mountpoint &&
+	    (dev->si_mountpoint->mnt_kern_flag & MNTK_SUSPENDED))
 		panic("ffs_blkfree: deallocation on suspended filesystem");
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
 		printf("dev=%s, bno = %ld, bsize = %ld, size = %ld, fs = %s\n",
-		    devtoname(ip->i_dev), (long)bno, (long)fs->fs_bsize, size,
-		    fs->fs_fsmnt);
+		    devtoname(dev), (long)bno, (long)fs->fs_bsize,
+		    size, fs->fs_fsmnt);
 		panic("ffs_blkfree: bad size");
 	}
 #endif
-	if ((ip->i_devvp->v_flag & VCOPYONWRITE) &&
-	    ffs_snapblkfree(ip, bno, size))
-		return;
-	VOP_FREEBLKS(ip->i_devvp, fsbtodb(fs, bno), size);
-	cg = dtog(fs, bno);
 	if ((u_int)bno >= fs->fs_size) {
-		printf("bad block %ld, ino %lu\n",
-		    (long)bno, (u_long)ip->i_number);
-		ffs_fserr(fs, ip->i_uid, "bad block");
+		printf("bad block %ld, ino %lu\n", (long)bno, (u_long)inum);
+		ffs_fserr(fs, inum, "bad block");
 		return;
 	}
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
-		(int)fs->fs_cgsize, NOCRED, &bp);
-	if (error) {
+	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
 		brelse(bp);
 		return;
 	}
@@ -1484,8 +1489,13 @@ ffs_blkfree(ip, bno, size)
 	if (size == fs->fs_bsize) {
 		fragno = fragstoblks(fs, cgbno);
 		if (!ffs_isfreeblock(fs, blksfree, fragno)) {
+			if (devvp->v_type != VCHR) {
+				/* devvp is a snapshot */
+				brelse(bp);
+				return;
+			}
 			printf("dev = %s, block = %ld, fs = %s\n",
-			    devtoname(ip->i_dev), (long)bno, fs->fs_fsmnt);
+			    devtoname(dev), (long)bno, fs->fs_fsmnt);
 			panic("ffs_blkfree: freeing free block");
 		}
 		ffs_setblock(fs, blksfree, fragno);
@@ -1510,7 +1520,7 @@ ffs_blkfree(ip, bno, size)
 		for (i = 0; i < frags; i++) {
 			if (isset(blksfree, cgbno + i)) {
 				printf("dev = %s, block = %ld, fs = %s\n",
-				    devtoname(ip->i_dev), (long)(bno + i),
+				    devtoname(dev), (long)(bno + i),
 				    fs->fs_fsmnt);
 				panic("ffs_blkfree: freeing free frag");
 			}
@@ -1610,7 +1620,7 @@ ffs_vfree(pvp, ino, mode)
 		softdep_freefile(pvp, ino, mode);
 		return (0);
 	}
-	return (ffs_freefile(VTOI(pvp), ino, mode));
+	return (ffs_freefile(VTOI(pvp)->i_fs, VTOI(pvp)->i_devvp, ino, mode));
 }
 
 /*
@@ -1618,25 +1628,32 @@ ffs_vfree(pvp, ino, mode)
  * The specified inode is placed back in the free map.
  */
 int
-ffs_freefile(pip, ino, mode)
-	struct inode *pip;
+ffs_freefile(fs, devvp, ino, mode)
+	struct fs *fs;
+	struct vnode *devvp;
 	ino_t ino;
 	int mode;
 {
-	register struct fs *fs;
-	register struct cg *cgp;
+	struct cg *cgp;
 	struct buf *bp;
-	int error, cg;
+	int error, cgbno, cg;
 	u_int8_t *inosused;
+	dev_t dev;
 
-	fs = pip->i_fs;
-	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
-		panic("ffs_vfree: range: dev = (%d,%d), ino = %d, fs = %s",
-		    major(pip->i_dev), minor(pip->i_dev), ino, fs->fs_fsmnt);
 	cg = ino_to_cg(fs, ino);
-	error = bread(pip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
-		(int)fs->fs_cgsize, NOCRED, &bp);
-	if (error) {
+	if (devvp->v_type != VCHR) {
+		/* devvp is a snapshot */
+		dev = VTOI(devvp)->i_devvp->v_rdev;
+		cgbno = fragstoblks(fs, cgtod(fs, cg));
+	} else {
+		/* devvp is a normal disk device */
+		dev = devvp->v_rdev;
+		cgbno = fsbtodb(fs, cgtod(fs, cg));
+	}
+	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
+		panic("ffs_vfree: range: dev = %s, ino = %d, fs = %s",
+		    devtoname(dev), ino, fs->fs_fsmnt);
+	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
 		brelse(bp);
 		return (error);
 	}
@@ -1650,7 +1667,7 @@ ffs_freefile(pip, ino, mode)
 	inosused = cg_inosused(cgp);
 	ino %= fs->fs_ipg;
 	if (isclr(inosused, ino)) {
-		printf("dev = %s, ino = %lu, fs = %s\n", devtoname(pip->i_dev),
+		printf("dev = %s, ino = %lu, fs = %s\n", devtoname(dev),
 		    (u_long)ino + cg * fs->fs_ipg, fs->fs_fsmnt);
 		if (fs->fs_ronly == 0)
 			panic("ffs_vfree: freeing free inode");
@@ -1837,15 +1854,16 @@ ffs_clusteracct(fs, cgp, blkno, cnt)
  *	fs: error message
  */
 static void
-ffs_fserr(fs, uid, cp)
+ffs_fserr(fs, inum, cp)
 	struct fs *fs;
-	u_int uid;
+	ino_t inum;
 	char *cp;
 {
 	struct proc *p = curproc;	/* XXX */
 
-	log(LOG_ERR, "pid %d (%s), uid %d on %s: %s\n", p ? p->p_pid : -1,
-			p ? p->p_comm : "-", uid, fs->fs_fsmnt, cp);
+	log(LOG_ERR, "pid %d (%s), uid %d inumber %d on %s: %s\n",
+	    p ? p->p_pid : -1, p ? p->p_comm : "-",
+	    p ? p->p_ucred->cr_uid : 0, inum, fs->fs_fsmnt, cp);
 }
 
 /*
@@ -1900,7 +1918,6 @@ static int
 sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 {
 	struct fsck_cmd cmd;
-	struct inode tip;
 	struct ufsmount *ump;
 	struct vnode *vp;
 	struct inode *ip;
@@ -2003,11 +2020,9 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 				    (ino_t)(cmd.value + cmd.size - 1));
 		}
 #endif /* DEBUG */
-		tip.i_devvp = ump->um_devvp;
-		tip.i_dev = ump->um_dev;
-		tip.i_fs = fs;
 		while (cmd.size > 0) {
-			if ((error = ffs_freefile(&tip, cmd.value, filetype)))
+			if ((error = ffs_freefile(fs, ump->um_devvp, cmd.value,
+			    filetype)))
 				break;
 			cmd.size -= 1;
 			cmd.value += 1;
@@ -2028,20 +2043,14 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 				    (ufs_daddr_t)cmd.value + cmd.size - 1);
 		}
 #endif /* DEBUG */
-		tip.i_number = ROOTINO;
-		tip.i_devvp = ump->um_devvp;
-		tip.i_dev = ump->um_dev;
-		tip.i_fs = fs;
-		tip.i_size = cmd.size * fs->fs_fsize;
-		tip.i_uid = 0;
-		tip.i_vnode = NULL;
 		blkno = (ufs_daddr_t)cmd.value;
 		blkcnt = cmd.size;
 		blksize = fs->fs_frag - (blkno % fs->fs_frag);
 		while (blkcnt > 0) {
 			if (blksize > blkcnt)
 				blksize = blkcnt;
-			ffs_blkfree(&tip, blkno, blksize * fs->fs_fsize);
+			ffs_blkfree(fs, ump->um_devvp, blkno,
+			    blksize * fs->fs_fsize, ROOTINO);
 			blkno += blksize;
 			blkcnt -= blksize;
 			blksize = fs->fs_frag;

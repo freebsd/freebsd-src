@@ -336,7 +336,8 @@ ffs_truncate(vp, length, flags, cred, td)
 			blocksreleased += count;
 			if (lastiblock[level] < 0) {
 				oip->i_ib[level] = 0;
-				ffs_blkfree(oip, bn, fs->fs_bsize);
+				ffs_blkfree(fs, oip->i_devvp, bn, fs->fs_bsize,
+				    oip->i_number);
 				blocksreleased += nblocks;
 			}
 		}
@@ -355,7 +356,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			continue;
 		oip->i_db[i] = 0;
 		bsize = blksize(fs, oip, i);
-		ffs_blkfree(oip, bn, bsize);
+		ffs_blkfree(fs, oip->i_devvp, bn, bsize, oip->i_number);
 		blocksreleased += btodb(bsize);
 	}
 	if (lastblock < 0)
@@ -385,7 +386,8 @@ ffs_truncate(vp, length, flags, cred, td)
 			 * required for the storage we're keeping.
 			 */
 			bn += numfrags(fs, newspace);
-			ffs_blkfree(oip, bn, oldspace - newspace);
+			ffs_blkfree(fs, oip->i_devvp, bn, oldspace - newspace,
+			    oip->i_number);
 			blocksreleased += btodb(oldspace - newspace);
 		}
 	}
@@ -514,7 +516,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 				allerror = error;
 			blocksreleased += blkcount;
 		}
-		ffs_blkfree(ip, nb, fs->fs_bsize);
+		ffs_blkfree(fs, ip->i_devvp, nb, fs->fs_bsize, ip->i_number);
 		blocksreleased += nblocks;
 	}
 
