@@ -248,7 +248,8 @@ PCIB_ACCESSOR(bus,		BUS,		u_int32_t)
 /*
  * PCI interrupt validation.
  */
-#define PCI_INTERRUPT_VALID(x)	(((x) != 0) && ((x) != 255))
+#define PCI_INVALID_IRQ		255
+#define PCI_INTERRUPT_VALID(x)	(((x) != 0) && ((x) != PCI_INVALID_IRQ))
 
 /*
  * Convenience functions.
