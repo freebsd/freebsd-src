@@ -698,11 +698,13 @@ devfs_setattr(ap)
 		c = 1;
 	}
 
-	/* see comment in ufs_vnops::ufs_setattr() */
-	if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)) &&
-	    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-	    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))
-		return (error);
+	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
+		/* see comment in ufs_vnops::ufs_setattr() */
+		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)) &&
+		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
+		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))
+			return (error);
+	}
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if ((ap->a_cred->cr_uid != de->de_uid) &&
