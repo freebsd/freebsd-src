@@ -22,8 +22,6 @@
 #  endif
 # else
 #  ifdef KLD_MODULE
-#   include <sys/osreldate.h>
-#  else
 #   include <osreldate.h>
 #  endif
 # endif

@@ -820,18 +820,6 @@ int out;
 	fin->fin_qfm = m;
 	fin->fin_qif = qif;
 # endif
-# ifdef	USE_INET6
-	if (v == 6) {
-		ATOMIC_INCL(frstats[0].fr_ipv6[out]);
-	} else
-# endif
-		if (!out && fr_chksrc && !fr_verifysrc(ip->ip_src, ifp)) {
-			ATOMIC_INCL(frstats[0].fr_badsrc);
-#  if !SOLARIS
-			m_freem(m);
-#  endif
-			return error;
-		}
 #endif /* _KERNEL */
 	
 	/*
@@ -847,8 +835,29 @@ int out;
 	fin->fin_out = out;
 	fin->fin_mp = mp;
 	fr_makefrip(hlen, ip, fin);
-	pass = fr_pass;
 
+#ifdef _KERNEL
+# ifdef	USE_INET6
+	if (v == 6) {
+		ATOMIC_INCL(frstats[0].fr_ipv6[out]);
+	} else
+# endif
+		if (!out && fr_chksrc && !fr_verifysrc(ip->ip_src, ifp)) {
+			ATOMIC_INCL(frstats[0].fr_badsrc);
+# ifdef	IPFILTER_LOG
+			if (fr_chksrc == 2) {
+				fin->fin_group = -2;
+				pass = FR_INQUE|FR_NOMATCH|FR_LOGB;
+				(void) IPLLOG(pass, ip, fin, m);
+			}
+# endif
+# if !SOLARIS
+			m_freem(m);
+# endif
+			return error;
+		}
+#endif
+	pass = fr_pass;
 	if (fin->fin_fi.fi_fl & FI_SHORT) {
 		ATOMIC_INCL(frstats[out].fr_short);
 	}
@@ -1367,7 +1376,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.18 2000/07/19 13:13:40 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.20 2000/08/13 04:15:43 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1846,11 +1855,14 @@ size_t c;
 	int err;
 
 #if SOLARIS
-	copyin(a, &ca, sizeof(ca));
+	if (copyin(a, &ca, sizeof(ca)))
+		return EFAULT;
 #else
 	bcopy(a, &ca, sizeof(ca));
 #endif
 	err = copyin(ca, b, c);
+	if (err)
+		err = EFAULT;
 	return err;
 }
 
@@ -1863,11 +1875,14 @@ size_t c;
 	int err;
 
 #if SOLARIS
-	copyin(b, &ca, sizeof(ca));
+	if (copyin(b, &ca, sizeof(ca)))
+		return EFAULT;
 #else
 	bcopy(b, &ca, sizeof(ca));
 #endif
 	err = copyout(a, ca, c);
+	if (err)
+		err = EFAULT;
 	return err;
 }
 
