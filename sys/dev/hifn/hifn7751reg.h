@@ -373,9 +373,39 @@ typedef struct hifn_desc {
 #define	HIFN_UNLOCK_SECRET2	0xfc
 
 /*
- * PLL config register 
+ * PLL config register
+ *
+ * This register is present only on 7954/7955/7956 parts. It must be
+ * programmed according to the bus interface method used by the h/w.
+ * Note that the parts require a stable clock.  Since the PCI clock
+ * may vary the reference clock must usually be used.  To avoid
+ * overclocking the core logic, setup must be done carefully, refer
+ * to the driver for details.  The exact multiplier required varies
+ * by part and system configuration; refer to the Hifn documentation.
  */
-#define	HIFN_PLL_7956		0x00001d19	/* 7956 PLL config value */ 
+#define	HIFN_PLL_REF_SEL	0x00000001	/* REF/HBI clk selection */
+#define	HIFN_PLL_BP		0x00000002	/* bypass (used during setup) */
+/* bit 2 reserved */
+#define	HIFN_PLL_PK_CLK_SEL	0x00000008	/* public key clk select */
+#define	HIFN_PLL_PE_CLK_SEL	0x00000010	/* packet engine clk select */
+/* bits 5-9 reserved */
+#define	HIFN_PLL_MBSET		0x00000400	/* must be set to 1 */
+#define	HIFN_PLL_ND		0x00003800	/* Fpll_ref multiplier select */
+#define	HIFN_PLL_ND_SHIFT	11
+#define	HIFN_PLL_ND_2		0x00000000	/* 2x */
+#define	HIFN_PLL_ND_4		0x00000800	/* 4x */
+#define	HIFN_PLL_ND_6		0x00001000	/* 6x */
+#define	HIFN_PLL_ND_8		0x00001800	/* 8x */
+#define	HIFN_PLL_ND_10		0x00002000	/* 10x */
+#define	HIFN_PLL_ND_12		0x00002800	/* 12x */
+/* bits 14-15 reserved */
+#define	HIFN_PLL_IS		0x00010000	/* charge pump current select */
+/* bits 17-31 reserved */
+
+/*
+ * Board configuration specifies only these bits.
+ */
+#define	HIFN_PLL_CONFIG		(HIFN_PLL_IS|HIFN_PLL_ND|HIFN_PLL_REF_SEL)
 
 /*********************************************************************
  * Structs for board commands 
