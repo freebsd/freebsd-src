@@ -1,11 +1,5 @@
 #	$FreeBSD$
 
- 1) should understand "older", original High Sierra ("CDROM001") type
-
-   Not yet. ( I don't have this technical information, yet. )
-   Done. (16-Jan-95, Joerg Wunsch joerg@freebsd.org)
-
-
  2) should understand Rock Ridge
 
    Yes, we have follows function.
