@@ -83,7 +83,6 @@ struct diskslices {
 
 #define	dsgetlabel(dev, ssp)	(ssp->dss_slices[dkslice(dev)].ds_label)
 
-struct buf;
 struct bio;
 struct disklabel;
 
