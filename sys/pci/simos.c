@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: simos.c,v 1.1 1998/06/10 10:57:14 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -32,8 +32,14 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 
-#include <scsi/scsiconf.h>
-#include <scsi/scsi_debug.h>
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_debug.h>
+
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
 
 #include <machine/clock.h>
 #include <vm/vm.h>
@@ -48,15 +54,16 @@
 
 #include <machine/alpha_cpu.h>
 
-#define MAX_SIZE	(64*1024)
-
 struct simos_softc {
 	int			sc_unit;
-	struct scsi_link	sc_link;
 	SimOS_SCSI*		sc_regs;
-	int			sc_busy;
-	struct scsi_xfer*	sc_head;
-	struct scsi_xfer*	sc_tail;
+
+	/*
+	 * SimOS only supports one pending command.
+	 */
+	struct cam_sim	       *sc_sim;
+	struct cam_path	       *sc_path;
+	struct ccb_scsiio      *sc_pending;
 };
 
 struct simos_softc* simosp[10];
@@ -65,6 +72,8 @@ static u_long simos_unit;
 
 static char *simos_probe __P((pcici_t tag, pcidi_t type));
 static void simos_attach __P((pcici_t config_d, int unit));
+static void simos_action __P((struct cam_sim *sim, union ccb *ccb));
+static void simos_poll __P((struct cam_sim *sim));
 
 struct pci_device simos_driver = {
 	"simos",
@@ -74,29 +83,6 @@ struct pci_device simos_driver = {
 	NULL
 };
 DATA_SET (pcidevice_set, simos_driver);
-
-static int32_t simos_start(struct scsi_xfer * xp);
-static void simos_min_phys (struct  buf *bp);
-static u_int32_t simos_info(int unit);
-
-static struct scsi_adapter simos_switch =
-{
-	simos_start,
-	simos_min_phys,
-	0,
-	0,
-	simos_info,
-	"simos"
-};
-
-static struct scsi_device simos_dev =
-{
-	NULL,			/* Use default error handler */
-	NULL,			/* have a queue, served by this */
-	NULL,			/* have no async handler */
-	NULL,			/* Use default 'done' routine */
-	"simos",
-};
 
 static char *
 simos_probe(pcici_t tag, pcidi_t type)
@@ -114,7 +100,7 @@ static void
 simos_attach(pcici_t config_id, int unit)
 {
 	struct simos_softc* sc;
-	struct scsibus_data* scbus;
+	struct cam_devq *devq;
 
 	sc = malloc(sizeof(struct simos_softc), M_DEVBUF, M_WAITOK);
 	simosp[unit] = sc;
@@ -122,69 +108,98 @@ simos_attach(pcici_t config_id, int unit)
 
 	sc->sc_unit = unit;
 	sc->sc_regs = (SimOS_SCSI*) SIMOS_SCSI_ADDR;
-	sc->sc_busy = 0;
-	sc->sc_head = 0;
-	sc->sc_tail = 0;
+	sc->sc_pending = 0;
 
-	sc->sc_link.adapter_unit = unit;
-	sc->sc_link.adapter_softc = sc;
-	sc->sc_link.adapter_targ = SIMOS_SCSI_MAXTARG-1;
-	sc->sc_link.fordriver = 0;
-	sc->sc_link.adapter = &simos_switch;
-	sc->sc_link.device = &simos_dev;
-	sc->sc_link.flags = 0;
+	devq = cam_simq_alloc(/*maxopenings*/1);
+	if (devq == NULL)
+		return;
 
-	scbus = scsi_alloc_bus();
-	scbus->adapter_link = &sc->sc_link;
-	scbus->maxtarg = 1;
-	scbus->maxlun = 0;
-	scsi_attachdevs(scbus);
-	scbus = 0;
-}
-
-static void
-simos_enqueue(struct simos_softc* sc, struct scsi_xfer* xp)
-{
-	if (sc->sc_tail) {
-		sc->sc_tail->next = xp;
-	} else {
-		sc->sc_head = sc->sc_tail = xp;
+	sc->sc_sim = cam_sim_alloc(simos_action, simos_poll, "simos", sc, unit,
+				   /*untagged*/1, /*tagged*/0, devq);
+	if (sc->sc_sim == NULL) {
+		cam_simq_free(devq);
+		return;
 	}
-	xp->next = 0;
+
+	if (xpt_bus_register(sc->sc_sim, /*bus*/0) != CAM_SUCCESS) {
+		cam_sim_free(sc->sc_sim, /*free_devq*/TRUE);
+		return;
+	}
+
+	if (xpt_create_path(&sc->sc_path, /*periph*/NULL,
+			    cam_sim_path(sc->sc_sim), CAM_TARGET_WILDCARD,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_bus_deregister(cam_sim_path(sc->sc_sim));
+		cam_sim_free(sc->sc_sim, /*free_devq*/TRUE);
+		return;
+	}
+
+	alpha_register_pci_scsi(config_id->bus, config_id->slot, sc->sc_sim);
+
+	return;
 }
 
 static void
-simos_start_transfer(struct simos_softc* sc)
+simos_start(struct simos_softc* sc, struct ccb_scsiio *csio)
 {
-	struct scsi_xfer* xp = sc->sc_head;
+	struct scsi_generic *cmd;
+	int cmdlen;
+	caddr_t data;
+	int datalen;
+	int s;
 	u_int8_t* p;
 	int i, count, target;
 	vm_offset_t va;
 	vm_size_t size;
 
-	if (sc->sc_busy || !xp)
+	cmd = (struct scsi_generic *) &csio->cdb_io.cdb_bytes;
+	cmdlen = csio->cdb_len;
+	data = csio->data_ptr;
+	datalen = csio->dxfer_len;
+
+	/*
+	 * Simos doesn't understand some commands
+	 */
+	if (cmd->opcode == START_STOP || cmd->opcode == PREVENT_ALLOW
+	    || cmd->opcode == SYNCHRONIZE_CACHE) {
+		csio->ccb_h.status = CAM_REQ_CMP;
+		xpt_done((union ccb *) csio);
 		return;
+	}
 
-	sc->sc_busy = TRUE;
+	if (sc->sc_pending) {
+		/*
+		 * Don't think this can happen.
+		 */
+		printf("simos_start: can't start command while one is pending\n");
+		csio->ccb_h.status = CAM_BUSY;
+		xpt_done((union ccb *) csio);
+		return;
+	}
 
-	target = xp->sc_link->target;
+	s = splcam();
+	
+	csio->ccb_h.status |= CAM_SIM_QUEUED;
+	sc->sc_pending = csio;
+
+	target = csio->ccb_h.target_id;
 
 	/*
 	 * Copy the command into SimOS' buffer
 	 */
-	p = (u_int8_t*) xp->cmd;
-	count = xp->cmdlen;
+	p = (u_int8_t*) cmd;
+	count = cmdlen;
 	for (i = 0; i < count; i++)
 		sc->sc_regs->cmd[i] = *p++;
 	sc->sc_regs->length = count;
 	sc->sc_regs->target = target;
-	sc->sc_regs->lun = xp->sc_link->lun;
+	sc->sc_regs->lun = csio->ccb_h.target_lun;
 
 	/*
 	 * Setup the segment descriptors.
 	 */
-	va = (vm_offset_t) xp->data;
-	size = xp->datalen;
+	va = (vm_offset_t) data;
+	size = datalen;
 	i = 0;
 	while (size > 0) {
 		vm_size_t len = PAGE_SIZE - (va & PAGE_MASK);
@@ -204,102 +219,120 @@ simos_start_transfer(struct simos_softc* sc)
 	alpha_wmb();
 	sc->sc_regs->startIO = 1;
 	alpha_wmb();
+
+	splx(s);
 }
 
 static void
 simos_done(struct simos_softc* sc)
 {
-	struct scsi_xfer* xp;
-	int done;
-
-	if (!sc->sc_busy)
-		return;
-
-	xp = sc->sc_head;
+	struct ccb_scsiio* csio = sc->sc_pending;
+	int s, done;
 
 	/*
 	 * Spurious interrupt caused by my bogus interrupt broadcasting.
 	 */
-	if (!sc->sc_regs->done[xp->sc_link->target])
-	    return;
+	if (!csio)
+		return;
 
-	sc->sc_head = xp->next;
-	if (!sc->sc_head)
-		sc->sc_tail = 0;
+	sc->sc_pending = 0;
 
-	sc->sc_busy = FALSE;
+	done = sc->sc_regs->done[csio->ccb_h.target_id];
+	if (!done)
+		return;
 
-	done = sc->sc_regs->done[xp->sc_link->target];
-	if (done >> 16) {
-	    /* Error detected */
-	    xp->error = XS_TIMEOUT;
-	}
-	xp->flags |= ITSDONE;
+	s = splcam();
 
-	sc->sc_regs->done[xp->sc_link->target] = 1;
+	if (done >> 16)
+		/* Error detected */
+		csio->ccb_h.status = CAM_CMD_TIMEOUT;
+	else
+		csio->ccb_h.status = CAM_REQ_CMP;
+
+	/*
+	 * Ack the interrupt to clear it.
+	 */
+	sc->sc_regs->done[csio->ccb_h.target_id] = 1;
 	alpha_wmb();
 	
-	if (!(xp->flags & SCSI_NOMASK))
-		scsi_done(xp);
+	xpt_done((union ccb *) csio);
 
-	if (sc->sc_head)
-		simos_start_transfer(sc);
-}
-
-static int32_t
-simos_start(struct scsi_xfer * xp)
-{
-	struct simos_softc* sc;
-	int flags = xp->flags;
-	int retval = 0;
-	int s;
-
-	sc = xp->sc_link->adapter_softc;
-
-	/*
-	 * Reset (chortle) the adapter.
-	 */
-	if (flags & SCSI_RESET)
-		return COMPLETE;
-
-	/*
-	 * Simos doesn't understand some commands
-	 */
-	if (xp->cmd->opcode == START_STOP || xp->cmd->opcode == PREVENT_ALLOW)
-		return COMPLETE;
-
-	s = splbio();
-	
-	simos_enqueue(sc, xp);
-	simos_start_transfer(sc);
-
-	if (flags & SCSI_NOMASK) {
-		/*
-		 * Poll for result
-		 */
-		while (!sc->sc_regs->done[xp->sc_link->target])
-			;
-
-		simos_done(sc);
-		retval = COMPLETE;
-	} else
-		retval = SUCCESSFULLY_QUEUED;
-		
 	splx(s);
-
-	return retval;
 }
 
 static void
-simos_min_phys (struct  buf *bp)
+simos_action(struct cam_sim *sim, union ccb *ccb)
 {
-	if ((unsigned long)bp->b_bcount > MAX_SIZE) bp->b_bcount = MAX_SIZE;
+	struct simos_softc* sc = (struct simos_softc *)sim->softc;
+
+	switch (ccb->ccb_h.func_code) {
+	case XPT_SCSI_IO:
+	{
+		struct ccb_scsiio *csio;
+
+		csio = &ccb->csio;
+		simos_start(sc, csio);
+		break;
+	}
+
+	case XPT_CALC_GEOMETRY:
+	{
+		struct	  ccb_calc_geometry *ccg;
+		u_int32_t size_mb;
+		u_int32_t secs_per_cylinder;
+
+		ccg = &ccb->ccg;
+		size_mb = ccg->volume_size
+			/ ((1024L * 1024L) / ccg->block_size);
+
+		ccg->heads = 64;
+		ccg->secs_per_track = 32;
+
+		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
+		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+
+	case XPT_RESET_BUS:
+	{
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+
+	case XPT_PATH_INQ:
+	{
+		struct ccb_pathinq *cpi = &ccb->cpi;
+		
+		cpi->version_num = 1; /* XXX??? */
+		cpi->max_target = 2;
+		cpi->max_lun = 0;
+		cpi->initiator_id = 7;
+		cpi->bus_id = sim->bus_id;
+		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strncpy(cpi->hba_vid, "SimOS", HBA_IDLEN);
+		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
+		cpi->unit_number = sim->unit_number;
+
+		cpi->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+
+	default:
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
+	}
 }
 
-static u_int32_t
-simos_info(int unit)
-{
-	return 1;
+static void
+simos_poll(struct cam_sim *sim)
+{       
+	simos_done(cam_sim_softc(sim));
 }
 
 void
