@@ -9,6 +9,9 @@ CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../usr.sbin/vipw
 LINKS=	${BINDIR}/chpass ${BINDIR}/chfn ${BINDIR}/chpass ${BINDIR}/chsh
 MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
 
+beforeinstall:
+	chflags noschg /usr/bin/chpass
+
 afterinstall:
 	chflags schg /usr/bin/chpass
 
