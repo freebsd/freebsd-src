@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	sbuf
-SHLIBDIR?=	/lib
+SHLIBDIR?= /lib
 SRCS=	subr_sbuf.c 
 WARNS?= 2
 

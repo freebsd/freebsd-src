@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	geom
-SHLIBDIR?=	/lib
+SHLIBDIR?= /lib
 SRCS+=	geom_getxml.c
 SRCS+=	geom_stats.c
 SRCS+=	geom_xml2tree.c

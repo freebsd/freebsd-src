@@ -1,9 +1,6 @@
-#
-#
 # ===================================
 # HARP  |  Host ATM Research Platform
 # ===================================
-#
 #
 # This Host ATM Research Platform ("HARP") file (the "Software") is
 # made available by Network Computing Services, Inc. ("NetworkCS")
@@ -23,12 +20,11 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
-#
-#
+#	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
+# $FreeBSD$
 
 LIB=	atm
-SHLIBDIR?=	/lib
+SHLIBDIR?= /lib
 SRCS=	atm_addr.c cache_key.c ioctl_subr.c ip_addr.c ip_checksum.c timer.c
 INCS=	libatm.h
 

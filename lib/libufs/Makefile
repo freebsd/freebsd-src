@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	ufs
-SHLIBDIR?=	/lib
+SHLIBDIR?= /lib
 SRCS=	block.c cgroup.c inode.c sblock.c type.c
 INCS=	libufs.h
 MAN=	bread.3 cgread.3 libufs.3 sbread.3 ufs_disk_close.3
