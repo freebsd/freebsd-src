@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exec.c,v 1.5 1996/09/01 10:20:02 peter Exp $
+ *	$Id: exec.c,v 1.6 1996/09/03 14:15:49 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
+static char const sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -93,10 +93,13 @@ struct tblentry {
 
 STATIC struct tblentry *cmdtable[CMDTABLESIZE];
 STATIC int builtinloc = -1;		/* index in path of %builtin, or -1 */
+int exerrno = 0;			/* Last exec error */
 
 
 STATIC void tryexec __P((char *, char **, char **));
+#ifndef BSD
 STATIC void execinterp __P((char **, char **));
+#endif
 STATIC void printentry __P((struct tblentry *, int));
 STATIC void clearcmdentry __P((int));
 STATIC struct tblentry *cmdlookup __P((char *, int));
@@ -132,7 +135,20 @@ shellexec(argv, envp, path, index)
 			stunalloc(cmdname);
 		}
 	}
-	error("%s: %s", argv[0], errmsg(e, E_EXEC));
+
+	/* Map to POSIX errors */
+	switch (e) {
+	case EACCES:
+		exerrno = 126;
+		break;
+	case ENOENT:
+		exerrno = 127;
+		break;
+	default:
+		exerrno = 2;
+		break;
+	}
+	exerror(EXEXEC, "%s: %s", argv[0], errmsg(e, E_EXEC));
 }
 
 
@@ -309,7 +325,7 @@ padvance(path, name)
 int
 hashcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	struct tblentry **pp;
 	struct tblentry *cmdp;
@@ -578,9 +594,9 @@ hashcd() {
 
 void
 changepath(newval)
-	char *newval;
+	const char *newval;
 {
-	char *old, *new;
+	const char *old, *new;
 	int index;
 	int firstchange;
 	int bltin;

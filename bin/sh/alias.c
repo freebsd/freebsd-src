@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alias.c,v 1.3 1995/05/30 00:07:10 rgrimes Exp $
+ *	$Id: alias.c,v 1.4 1996/09/01 10:19:26 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)alias.c	8.3 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)alias.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <stdlib.h>
