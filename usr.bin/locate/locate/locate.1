@@ -57,11 +57,11 @@ of all files which are publicly accessible.
 Shell globbing and quoting characters
 .Po
 .Dq * ,
-.Dq ? ,
+.Dq \&? ,
 .Dq \e ,
-.Dq [
+.Dq \&[
 and
-.Dq \]
+.Dq \&]
 .Pc
 may be used in
 .Ar pattern  ,
@@ -78,7 +78,7 @@ As a special case, a pattern containing no globbing characters
 .Pq Dq foo
 is matched as though it were
 .Dq *foo* .
-
+.Pp
 Historically, locate store only characters between 32 and 127.  The
 current implementation store any character except newline
 .Pq Sq \en
@@ -88,9 +88,9 @@ The 8-bit character support doesn't waste extra space for
 plain ASCII file names.
 Characters less than 32 or greater than 127
 are stored in 2 bytes.
-
+.Pp
 The following options are available:
-.Bl -tag -width 10n indent
+.Bl -tag -width 10n
 .It Fl S
 Print some statistic about the database and exit.
 .It Fl c
@@ -105,24 +105,26 @@ options are allowed.  Each additional
 .Fl d
 option adds the specified database to the list
 of databases to be searched.
-
+.Pp
 The option
 .Ar database
 may be a colon-separated list of databases.
 A single colon is a reference
 to the default database.
-
+.Bd -literal
 $ locate -d $HOME/lib/mydb: foo
-
+.Ed
+.Pp
 will first search string
 .Dq foo
 in 
 .Pa $HOME/lib/mydb
 and then in 
 .Pa /var/db/locate.database .
-
+.Bd -literal
 $ locate -d $HOME/lib/mydb::/cdrom/locate.database foo
-
+.Ed
+.Pp
 will first search string
 .Dq foo
 in 
@@ -131,26 +133,29 @@ and then in
 .Pa /var/db/locate.database
 and then in 
 .Pa /cdrom/locate.database .
-
-
-.Do
+.Bd -literal
 $ locate -d db1 -d db2 -d db3 pattern
-.Dc
+.Ed
+.Pp
 is the same as
-
-.Dq $ locate -d db1:db2:db3 pattern
+.Bd -literal
+$ locate -d db1:db2:db3 pattern
+.Ed
+.Pp
 or 
-
+.Bd -literal
 .Dq $ locate -d db1:db2 -d db3 pattern . 
-
+.Ed
+.Pp
 If
 .Ar - 
 is given as the database name, standard input will be read instead.
 For example, you can compress your database 
 and use: 
-
+.Bd -literal
 $ zcat database.gz | locate -d - pattern
-
+.Ed
+.Pp
 This might be useful on machines with a fast CPU and little RAM and slow
 I/O. Note: you can only use 
 .Ar one
@@ -174,6 +179,7 @@ Use the
 .Xr stdio 3
 library instead of
 .Xr mmap 2 .
+.El
 .Sh FILES
 .Bl -tag -width /etc/periodic/weekly/310.locate -compact
 .It Pa /var/db/locate.database
@@ -215,7 +221,7 @@ typically only regenerated once a week by the
 script.  Use
 .Xr find 1
 to locate files that are of a more transitory nature.
-
+.Pp
 The
 .Nm
 database was built by user 
@@ -232,7 +238,7 @@ E.g. if your HOME directory is not world-readable, all your
 files are 
 .Ar not
 in the database.
-
+.Pp
 The
 .Nm
 database is not byte order independent.
@@ -248,7 +254,6 @@ machine
 (little endian)
 a locate database which was built on SunOS/sparc machine
 (big endian, net).
-
 .Sh HISTORY
 The
 .Nm

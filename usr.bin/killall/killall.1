@@ -32,8 +32,8 @@
 .Nd kill processes by name
 .Sh SYNOPSIS
 .Nm
-.Op Fl d \&| Ns Fl v
-.Op Fl h \&| Ns Fl \&?
+.Op Fl d | v
+.Op Fl h | ?\&
 .Op Fl help
 .Op Fl l
 .Op Fl m
@@ -59,13 +59,13 @@ The super-user is allowed to kill any process.
 .Pp
 The options are as follows:
 .Bl -tag -width 10n -offset indent
-.It Fl d \&| Ns Fl v
+.It Fl d | v
 Be more verbose about what will be done.  For a single
 .Fl d
 option, a list of the processes that will be sent the signal will be
 printed, or a message indicating that no matching processes have been
 found.
-.It Fl h \&| Ns Fl \&?
+.It Fl h | ?\&
 .It Fl help
 Give a help on the command usage and exit.
 .It Fl l

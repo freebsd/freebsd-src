@@ -229,7 +229,7 @@ escape is changed to some other character, that
 character takes the place of
 .Ic ^P
 here.
-.It Ic ?
+.It Ic \&?
 List a short summary of commands.
 .It Ic ^L
 Refresh the screen.
@@ -423,7 +423,7 @@ Returns the value of
 .Aq Va expr2 . 
 .It Xo
 .Aq Va expr1
-.Ic ?
+.Ic \&?
 .Aq Va expr2
 .Ic :
 .Aq Va expr3
@@ -924,6 +924,7 @@ The terminal type.  The standard name, found in the second name
 field of the terminal's
 .Ev TERMCAP
 entry, is used.
+.El
 .Sh ENVIRONMENT
 .Nm Window
 utilizes these environment variables:

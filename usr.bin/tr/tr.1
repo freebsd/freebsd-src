@@ -145,13 +145,13 @@ A backslash followed by certain special characters maps to special
 values.
 .Pp
 .Bl -column
-.It \ea	<alert character>
-.It \eb	<backspace>
-.It \ef	<form-feed>
-.It \en	<newline>
-.It \er	<carriage return>
-.It \et	<tab>
-.It \ev	<vertical tab>
+.It "\ea	<alert character>
+.It "\eb	<backspace>
+.It "\ef	<form-feed>
+.It "\en	<newline>
+.It "\er	<carriage return>
+.It "\et	<tab>
+.It "\ev	<vertical tab>
 .El
 .Pp
 A backslash followed by any other character maps to that character.
@@ -162,34 +162,34 @@ Represents all characters belonging to the defined character class.
 Class names are:
 .Pp
 .Bl -column
-.It alnum	<alphanumeric characters>
-.It alpha	<alphabetic characters>
-.It cntrl	<control characters>
-.It digit	<numeric characters>
-.It graph	<graphic characters>
-.It lower	<lower-case alphabetic characters>
-.It print	<printable characters>
-.It punct	<punctuation characters>
-.It space	<space characters>
-.It upper	<upper-case characters>
-.It xdigit	<hexadecimal characters>
+.It "alnum	<alphanumeric characters>
+.It "alpha	<alphabetic characters>
+.It "cntrl	<control characters>
+.It "digit	<numeric characters>
+.It "graph	<graphic characters>
+.It "lower	<lower-case alphabetic characters>
+.It "print	<printable characters>
+.It "punct	<punctuation characters>
+.It "space	<space characters>
+.It "upper	<upper-case characters>
+.It "xdigit	<hexadecimal characters>
 .El
 .Pp
-\." All classes may be used in
-\." .Ar string1 ,
-\." and in
-\." .Ar string2
-\." when both the
-\." .Fl d
-\." and
-\." .Fl s
-\." options are specified.
-\." Otherwise, only the classes ``upper'' and ``lower'' may be used in
-\." .Ar string2
-\." and then only when the corresponding class (``upper'' for ``lower''
-\." and vice-versa) is specified in the same relative position in
-\." .Ar string1 .
-\." .Pp
+.\" All classes may be used in
+.\" .Ar string1 ,
+.\" and in
+.\" .Ar string2
+.\" when both the
+.\" .Fl d
+.\" and
+.\" .Fl s
+.\" options are specified.
+.\" Otherwise, only the classes ``upper'' and ``lower'' may be used in
+.\" .Ar string2
+.\" and then only when the corresponding class (``upper'' for ``lower''
+.\" and vice-versa) is specified in the same relative position in
+.\" .Ar string1 .
+.\" .Pp
 With the exception of the ``upper'' and ``lower'' classes, characters
 in the classes are in unspecified order.
 In the ``upper'' and ``lower'' classes, characters are entered in

@@ -45,12 +45,12 @@
 .Op Fl f Ar distfile
 .Op Fl d Ar var=value
 .Op Fl m Ar host
-.Op Ar name ...
+.Op Ar name ...\&
 .Nm
 .Op Fl nqbRhivwyD
 .Op Fl P Ar rshcmd
 .Fl c
-.Ar name ...
+.Ar name ...\&
 .Oo login@ Oc Ns Ar host Ns Op :dest
 .Sh DESCRIPTION
 .Nm Rdist
@@ -98,7 +98,7 @@ using specific commands.
 .Pp
 Options specific to the second SYNOPSIS form:
 .Pp
-.Bl -tag -width Fl c
+.Bl -tag -width Fl
 .It Fl c
 Forces
 .Nm
@@ -108,7 +108,7 @@ to interpret the remaining arguments as a small
 The equivalent distfile is as follows.
 .Pp
 .Bd -filled -offset indent -compact
-.Pq Ar name ...
+.Pq Ar name ...\&
 .Li ->
 .Op Ar login@
 .Ar host
@@ -274,11 +274,11 @@ The command list consists of zero or more commands of the following
 format.
 .Bd -ragged -offset indent -compact
 .Bl -column except_patx pattern\ listx
-.It `install'	<options>	opt_dest_name `;'
-.It `notify'	<name list>	`;'
-.It `except'	<name list>	`;'
-.It `except_pat'	<pattern list>	`;'
-.It `special'	<name list>	string `;'
+.It "`install'	<options>	opt_dest_name `;'
+.It "`notify'	<name list>	`;'
+.It "`except'	<name list>	`;'
+.It "`except_pat'	<pattern list>	`;'
+.It "`special'	<name list>	string `;'
 .El
 .Ed
 .Pp

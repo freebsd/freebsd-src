@@ -46,18 +46,16 @@ signal.
 However, doing so does slow down the
 execution of the faulting process.
 At bootup, the DEC Alpha CPU defaults to printing 
-.Bl -tag -width indent
-.It pid Ar nnn Pq Ar <progname> Ns Xo
-.No : unaligned access: Xo
-.Va va Ns = Ns Ar 0xADDR Xo
-.Va pc Ns = Ns Ar 0xADDR Xo
-.Va ra Ns = Ns Ar 0xADDR Xo
-.Xc Va op Ns = Ns Ar ldl
-.Xc
-.Xc
-.Xc
-.Xc
-.El
+.Bd -ragged
+.Em pid
+.Ar nnn Pq Ar <progname> :
+unaligned access:
+.Em va Ns = Ns Ar 0xADDR
+.Em pc Ns = Ns Ar 0xADDR
+.Em ra Ns = Ns Ar 0xADDR
+.Em op Ns = Ns Ar ldl
+.Ed
+.Pp
 when a UA happens along with fixing it,
 so the faulting instruction can continue.
 UA handling settings are inherited by child process.
