@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.55 1997/05/12 09:50:19 peter Exp $
+#	$Id: Makefile,v 1.56 1997/05/21 23:07:27 jdp Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -27,7 +27,8 @@ ARPAFILES=	ftp.h inet.h nameser.h telnet.h tftp.h
 PROTOFILES=	dumprestore.h routed.h rwhod.h talkd.h timed.h
 
 RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
-		rpc.h rpc_msg.h svc.h svc_auth.h types.h xdr.h
+		rpc.h rpc_com.h rpc_msg.h svc.h svc_auth.h types.h xdr.h \
+		auth_des.h des.h des_crypt.h key_prot.h
 
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
