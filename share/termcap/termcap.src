@@ -2474,7 +2474,7 @@ xterm|vs100|xterm terminal emulator (X window system):\
 	:hs:ts=\E[?E\E[?%i%dT:fs=\E[?F:es:ds=\E[?E:\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;65r\E[65;1H:\
 	:rs=\E>\E[?1;3;4;5l\E[?7;8h:\
-	:as@:ae@:ac@:tc=vt220:
+	:tc=vt220:
 xterms|vs100s|xterm terminal emulator (small)(X window system):\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
 	:li#24:tc=xterm:
