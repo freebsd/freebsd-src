@@ -242,6 +242,16 @@ promtimeout(v)
 	promtimeouthandle = timeout(promtimeout, tp, polltime);
 }
 
-DEV_MODULE(prom, CDEV_MAJOR, NOMAJ, prom_cdevsw, 0, 0);
+static int
+prom_modevent(module_t mod, int type, void *data)
+{
+	if (type == MOD_LOAD) {
+		cdevsw_add(&prom_cdevsw);
+		return(0);
+	}
+	return(EOPNOTSUPP);
+}
+
+DEV_MODULE(prom, prom_modevent, 0);
 
 #endif /* _PMAP_MAY_USE_PROM_CONSOLE */
