@@ -95,7 +95,9 @@ SUBDIR+=fdisk
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
-SUBDIR+=fdisk
+SUBDIR+=fdisk \
+	gpt \
+	mca
 .endif
 
 .include <bsd.subdir.mk>
