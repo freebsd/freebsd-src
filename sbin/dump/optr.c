@@ -233,20 +233,19 @@ void
 msg(const char *fmt, ...)
 {
 	va_list ap;
-	va_list ap2;
 
 	(void) fprintf(stderr,"  DUMP: ");
 #ifdef TDEBUG
 	(void) fprintf(stderr, "pid=%d ", getpid());
 #endif
 	va_start(ap, fmt);
-	va_copy(ap2, ap);
 	(void) vfprintf(stderr, fmt, ap);
 	(void) fflush(stdout);
 	(void) fflush(stderr);
-	(void) vsnprintf(lastmsg, sizeof(lastmsg), fmt, ap2);
 	va_end(ap);
-	va_end(ap2);
+	va_start(ap, fmt);
+	(void) vsnprintf(lastmsg, sizeof(lastmsg), fmt, ap);
+	va_end(ap);
 }
 
 void
