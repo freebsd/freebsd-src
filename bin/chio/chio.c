@@ -389,7 +389,7 @@ do_params(char *cname, int argc, char **argv)
 	++argv; --argc;
 
 	if (argc) {
-		warnx("%s: no arguements expected", cname);
+		warnx("%s: no arguments expected", cname);
 		goto usage;
 	}
 
@@ -520,7 +520,7 @@ do_status(char *cname, int argc, char **argv)
 			pvoltag = avoltag = source = sense = scsi = intaddr = 1;
 			break;
 		default:
-			warnx("bad option", cname);
+			warnx("%s: bad option", cname);
 			goto usage;
 		}
 	}
@@ -741,7 +741,7 @@ do_voltag(char *cname, int argc, char **argv)
 			alternate = 1;
 			break;
 		default:
-			warnx("bad option", cname);
+			warnx("%s: bad option", cname);
 			goto usage;
 		}
 	}
@@ -750,7 +750,7 @@ do_voltag(char *cname, int argc, char **argv)
 	argv += optind;
 
 	if (argc < 2) {
-		warnx("missing element specification", cname);
+		warnx("%s: missing element specification", cname);
 		goto usage;
 	}
 
@@ -759,7 +759,7 @@ do_voltag(char *cname, int argc, char **argv)
 
 	if (!clear) {
 		if (argc < 3 || argc > 4) {
-			warnx("missing argument", cname);
+			warnx("%s: missing argument", cname);
 			goto usage;
 		}
 
@@ -769,7 +769,7 @@ do_voltag(char *cname, int argc, char **argv)
 			csvr.csvr_flags = CSVR_MODE_SET;
 
 		if (strlen(argv[2]) > sizeof(csvr.csvr_voltag.cv_volid)) {
-			warnx("volume label too long", cname);
+			warnx("%s: volume label too long", cname);
 			goto usage;
 		}
 
@@ -781,7 +781,7 @@ do_voltag(char *cname, int argc, char **argv)
 		}
 	} else {
 		if (argc != 2) {
-			warnx("unexpected argument", cname);
+			warnx("%s: unexpected argument", cname);
 			goto usage;
 		}
 		csvr.csvr_flags = CSVR_MODE_CLEAR;
