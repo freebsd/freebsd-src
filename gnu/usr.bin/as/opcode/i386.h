@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with GAS; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $Id: i386.h,v 1.7 1997/02/22 15:44:29 peter Exp $ */
+/* $Id: i386.h,v 1.8 1997/07/15 07:56:53 dyson Exp $ */
 
 static const template i386_optab[] = {
 
@@ -472,6 +472,7 @@ static const template i386_optab[] = {
 {"fldl", 1, 0xdd, 0, Modrm, Mem, 0, 0},           /* %st0 <-- mem double */
 {"fldl", 1, 0xd9c0, _, ShortForm, FloatReg, 0, 0}, /* register */
 {"filds", 1, 0xdf, 0, Modrm, Mem, 0, 0},           /* %st0 <-- mem dword */
+{"fildll", 1, 0xdf, 5, Modrm, Mem, 0, 0},           /* %st0 <-- mem qword */
 {"fildq", 1, 0xdf, 5, Modrm, Mem, 0, 0},           /* %st0 <-- mem qword */
 {"fldt", 1, 0xdb, 5, Modrm, Mem, 0, 0},           /* %st0 <-- mem efloat */
 {"fbld", 1, 0xdf, 4, Modrm, Mem, 0, 0},           /* %st0 <-- mem bcd */
@@ -491,6 +492,7 @@ static const template i386_optab[] = {
 {"fstpl", 1, 0xdd, 3, Modrm, Mem, 0, 0},           /* %st0 --> mem double */
 {"fstpl", 1, 0xddd8, _, ShortForm, FloatReg, 0, 0}, /* register */
 {"fistps", 1, 0xdf, 3, Modrm, Mem, 0, 0},           /* %st0 --> mem dword */
+{"fistpll", 1, 0xdf, 7, Modrm, Mem, 0, 0},           /* %st0 --> mem qword */
 {"fistpq", 1, 0xdf, 7, Modrm, Mem, 0, 0},           /* %st0 --> mem qword */
 {"fstpt", 1, 0xdb, 7, Modrm, Mem, 0, 0},           /* %st0 --> mem efloat */
 {"fbstp", 1, 0xdf, 6, Modrm, Mem, 0, 0},           /* %st0 --> mem bcd */
