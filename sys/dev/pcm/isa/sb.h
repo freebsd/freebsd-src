@@ -264,15 +264,15 @@ static u_char sb16_recmasks_L[SOUND_MIXER_NRDEVICES];
 static u_char sb16_recmasks_R[SOUND_MIXER_NRDEVICES];
 #else /* __SB_MIXER_C__ defined */
 mixer_tab       sbpro_mix = {
-    PMIX_ENT(SOUND_MIXER_VOLUME,  0x22, 7, 4, 0x22, 3, 4),
+    PMIX_ENT(SOUND_MIXER_VOLUME,  0x22, 4, 4, 0x22, 0, 4),
     PMIX_ENT(SOUND_MIXER_BASS,    0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_TREBLE,  0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_SYNTH,   0x26, 7, 4, 0x26, 3, 4),
-    PMIX_ENT(SOUND_MIXER_PCM,     0x04, 7, 4, 0x04, 3, 4),
+    PMIX_ENT(SOUND_MIXER_SYNTH,   0x26, 4, 4, 0x26, 0, 4),
+    PMIX_ENT(SOUND_MIXER_PCM,     0x04, 4, 4, 0x04, 0, 4),
     PMIX_ENT(SOUND_MIXER_SPEAKER, 0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_LINE,    0x2e, 7, 4, 0x2e, 3, 4),
-    PMIX_ENT(SOUND_MIXER_MIC,     0x0a, 2, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_CD,      0x28, 7, 4, 0x28, 3, 4),
+    PMIX_ENT(SOUND_MIXER_LINE,    0x2e, 4, 4, 0x2e, 0, 4),
+    PMIX_ENT(SOUND_MIXER_MIC,     0x0a, 0, 3, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_CD,      0x28, 4, 4, 0x28, 0, 4),
     PMIX_ENT(SOUND_MIXER_IMIX,    0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_ALTPCM,  0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_RECLEV,  0x00, 0, 0, 0x00, 0, 0)
@@ -280,15 +280,15 @@ mixer_tab       sbpro_mix = {
 
 #ifdef	__SGNXPRO__
 mixer_tab       sgnxpro_mix = {
-    PMIX_ENT(SOUND_MIXER_VOLUME,  0x22, 7, 4, 0x22, 3, 4),
-    PMIX_ENT(SOUND_MIXER_BASS,    0x46, 2, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_TREBLE,  0x44, 2, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_SYNTH,   0x26, 7, 4, 0x26, 3, 4),
-    PMIX_ENT(SOUND_MIXER_PCM,     0x04, 7, 4, 0x04, 3, 4),
-    PMIX_ENT(SOUND_MIXER_SPEAKER, 0x42, 2, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_LINE,    0x2e, 7, 4, 0x2e, 3, 4),
-    PMIX_ENT(SOUND_MIXER_MIC,     0x0a, 2, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_CD,      0x28, 7, 4, 0x28, 3, 4),
+    PMIX_ENT(SOUND_MIXER_VOLUME,  0x22, 4, 4, 0x22, 0, 4),
+    PMIX_ENT(SOUND_MIXER_BASS,    0x46, 0, 3, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_TREBLE,  0x44, 0, 3, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_SYNTH,   0x26, 4, 4, 0x26, 0, 4),
+    PMIX_ENT(SOUND_MIXER_PCM,     0x04, 4, 4, 0x04, 0, 4),
+    PMIX_ENT(SOUND_MIXER_SPEAKER, 0x42, 0, 3, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_LINE,    0x2e, 4, 4, 0x2e, 0, 4),
+    PMIX_ENT(SOUND_MIXER_MIC,     0x0a, 0, 3, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_CD,      0x28, 4, 4, 0x28, 0, 4),
     PMIX_ENT(SOUND_MIXER_IMIX,    0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_ALTPCM,  0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_RECLEV,  0x00, 0, 0, 0x00, 0, 0),
