@@ -66,7 +66,8 @@ static struct {
 	{ "Vadem 465",		PCIC_VG_POWER},
 	{ "Vadem 468",		PCIC_VG_POWER},
 	{ "Vadem 469",		PCIC_VG_POWER},
-	{ "Ricoh RF5C396",	PCIC_AB_POWER},
+	{ "Ricoh RF5C296",	PCIC_RICOH_POWER},
+	{ "Ricoh RF5C396",	PCIC_RICOH_POWER},
 	{ "IBM KING",		PCIC_KING_POWER},
 	{ "Intel i82365SL-DF",	PCIC_DF_POWER}
 };
@@ -214,16 +215,17 @@ pcic_isa_probe(device_t dev)
 			}
 
 			/*
-			 * Check for RICOH RF5C396 PCMCIA Controller
+			 * Check for RICOH RF5C[23]96 PCMCIA Controller
 			 */
-			c = sp->getb(sp, 0x3a);
-			if (c == 0xb2) {
+			c = sp->getb(sp, PCIC_RICOH_ID);
+			if (c == PCIC_RID_396)
 				sp->controller = PCIC_RF5C396;
-			}
+			else if (c == PCIC_RID_296)
+				sp->controller = PCIC_RF5C296;
 
 			break;
 		/*
-		 *	Intel i82365D or maybe a vlsi 82c146
+		 *	Intel i82365sl-DF step or maybe a vlsi 82c146
 		 * we detected the vlsi case earlier, so if the controller
 		 * isn't set, we know it is a i82365sl step D.
 		 */
