@@ -599,16 +599,9 @@ pipe_build_write_buffer(wpipe, uio)
 	struct pipe *wpipe;
 	struct uio *uio;
 {
-	vm_map_t map;
-	vm_map_entry_t me;
-	vm_object_t obj;
-	vm_pindex_t pidx;
-	vm_prot_t prot;
-	vm_page_t m;
-	boolean_t wired;
 	u_int size;
-	int i, rv;
-	vm_offset_t addr, endaddr;
+	int i;
+	vm_offset_t addr, endaddr, paddr;
 
 	GIANT_REQUIRED;
 	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
@@ -620,23 +613,19 @@ pipe_build_write_buffer(wpipe, uio)
 	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
 	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
 	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
-		map = &curproc->p_vmspace->vm_map;
-		rv = KERN_FAILURE;
+		vm_page_t m;
+
 		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0 ||
-		    (rv = vm_map_lookup(&map, addr, VM_PROT_READ, &me, &obj,
-		     &pidx, &prot, &wired)) != KERN_SUCCESS ||
-		    (m = vm_page_lookup(obj, pidx)) == NULL) {
+		    (paddr = pmap_kextract(addr)) == 0) {
 			int j;
 
-			if (rv == KERN_SUCCESS)
-				vm_map_lookup_done(map, me);
 			for (j = 0; j < i; j++)
 				vm_page_unwire(wpipe->pipe_map.ms[j], 1);
 			return (EFAULT);
 		}
 
+		m = PHYS_TO_VM_PAGE(paddr);
 		vm_page_wire(m);
-		vm_map_lookup_done(map, me);
 		wpipe->pipe_map.ms[i] = m;
 	}
 
