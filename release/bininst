@@ -200,7 +200,7 @@ should also, of course, be exported!\n\n" \
 		if ! handle_rval $?; then continue; fi
 		media_type=nfs
 		nfs_path=`cat ${TMP}/inputbox.tmp.$$`
-		if ! mount $nfs_path /mnt > /dev/ttyv1 2>&1; then
+		if ! mount_nfs $nfs_path /mnt > /dev/ttyv1 2>&1; then
 			error "Unable to mount $nfs_path"
 		else
 			media_device=$nfs_path
