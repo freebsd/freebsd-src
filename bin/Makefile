@@ -14,6 +14,7 @@ SUBDIR= cat \
 	expr \
 	getfacl \
 	hostname \
+	kenv \
 	kill \
 	ln \
 	ls \
