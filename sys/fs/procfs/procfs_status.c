@@ -85,8 +85,8 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	SESS_LOCK(sess);
 	sid = sess->s_leader ? sess->s_leader->p_pid : 0;
 
-/* comm pid ppid pgid sid maj,min ctty,sldr start ut st wmsg 
-                                euid ruid rgid,egid,groups[1 .. NGROUPS]
+/* comm pid ppid pgid sid maj,min ctty,sldr start ut st wmsg
+				euid ruid rgid,egid,groups[1 .. NGROUPS]
 */
 
 	pc = p->p_comm;
@@ -154,7 +154,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		(u_long)cr->cr_ruid,
 		(u_long)cr->cr_rgid);
 
-	/* egid (cr->cr_svgid) is equal to cr_ngroups[0] 
+	/* egid (cr->cr_svgid) is equal to cr_ngroups[0]
 	   see also getegid(2) in /sys/kern/kern_prot.c */
 
 	for (i = 0; i < cr->cr_ngroups; i++) {

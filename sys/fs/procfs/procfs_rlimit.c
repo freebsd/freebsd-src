@@ -69,7 +69,7 @@ procfs_doprocrlimit(PFS_FILL_ARGS)
 
 		sbuf_printf(sb, "%s ", rlimit_ident[i]);
 
-		/* 
+		/*
 		 * Replace RLIM_INFINITY with -1 in the string
 		 */
 
@@ -98,4 +98,3 @@ procfs_doprocrlimit(PFS_FILL_ARGS)
 
 	return (0);
 }
-
