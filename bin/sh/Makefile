@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.26 1998/05/05 07:36:55 bde Exp $
+#	$Id: Makefile,v 1.27 1998/05/06 15:33:59 bde Exp $
 
 PROG=	sh
 SHSRCS=	alias.c arith.y arith_lex.l cd.c echo.c error.c eval.c exec.c expand.c \
@@ -24,6 +24,8 @@ CLEANFILES+= mkinit mkinit.o mknodes mknodes.o \
 	mksyntax mksyntax.o
 CLEANFILES+= ${GENSRCS} ${GENHDRS}
 
+build-tools: mkinit mknodes mksyntax
+
 .ORDER: builtins.c builtins.h
 builtins.c builtins.h: mkbuiltins builtins.def
 	cd ${.CURDIR}; sh mkbuiltins ${.OBJDIR}
@@ -38,11 +40,8 @@ init.c: mkinit alias.c eval.c exec.c input.c jobs.c options.c parser.c \
 .o:
 	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 mkinit: mkinit.o
-mkinit.o: mkinit.c		# XXX and many headers
 mknodes: mknodes.o
-mknodes.o: mknodes.c		# XXX and many headers
 mksyntax: mksyntax.o
-mksyntax.o: mksyntax.c		# XXX and many headers
 
 .ORDER: nodes.c nodes.h
 nodes.c nodes.h: mknodes nodetypes nodes.c.pat
