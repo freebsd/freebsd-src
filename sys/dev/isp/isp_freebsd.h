@@ -103,10 +103,12 @@ struct isposinfo {
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x80
 #define	TM_BUSY			0x40
-#define	TM_WILDCARD_ENABLED	0x20
-#define	TM_TMODE_ENABLED	0x03
-	u_int8_t		tmflags;
-	u_int8_t		rstatus;
+#define	TM_WILDCARD_ENABLED	0x02
+#define	TM_TMODE_ENABLED	0x01
+	struct cv		tgtcv0[2];	/* two busses */
+	struct cv		tgtcv1[2];	/* two busses */
+	u_int8_t		tmflags[2];	/* two busses */
+	u_int8_t		rstatus[2];	/* two bussed */
 	u_int16_t		rollinfo;
 	tstate_t		tsdflt[2];	/* two busses */
 	tstate_t		*lun_hash[LUN_HASH_SIZE];
