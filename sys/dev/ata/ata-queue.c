@@ -386,10 +386,8 @@ ata_completed(void *context, int dummy)
 		       request->u.atapi.sense_data.sk_specific,
 		       request->u.atapi.sense_data.sk_specific1,
 		       request->u.atapi.sense_data.sk_specific2);
-	    printf("status=%b error=%b\n",
-		   request->status, "\20\10BUSY\7READY\6DMA"
-		   "\5DSC\4DRQ\3CORRECTABLE\2INDEX\1ERROR",
-		   (request->error & ATA_E_MASK),
+	    printf("error=%b\n",
+		   (request->u.atapi.sense_key & ATA_E_MASK),
 		   "\20\4MEDIA_CHANGE_REQUEST\3ABORTED"
 		   "\2NO_MEDIA\1ILLEGAL_LENGTH");
 	}
