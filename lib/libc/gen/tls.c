@@ -109,6 +109,8 @@ _rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 	Elf_Addr *dtv;
 
 	size = tls_static_space;
+	if (size < tcbsize)
+		size = tcbsize;
 
 	tls = malloc(size);
 	dtv = malloc(3 * sizeof(Elf_Addr));
