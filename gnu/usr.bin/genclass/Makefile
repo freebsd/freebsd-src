@@ -1,8 +1,9 @@
 #
-# $Id$
+# $Id: Makefile,v 1.4 1997/02/22 15:45:31 peter Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
+MAN1=	genclass.1
 
 .PATH:	${GPPDIR}/libg++/src ${GPPDIR}/libg++/genclass
 
