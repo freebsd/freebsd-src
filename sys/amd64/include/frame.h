@@ -33,8 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)frame.h	5.2 (Berkeley) 1/18/91
+ *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
+ *	$Id$
  */
+
+#include <sys/signal.h>
 
 /*
  * System stack frames.
@@ -91,6 +94,20 @@ struct intrframe {
 	int	if_esp;
 	int	if_ss;
 };
+
+/*
+ * Signal frame
+ */
+struct sigframe {
+	int	sf_signum;
+	int	sf_code;
+	struct	sigcontext *sf_scp;
+	sig_t	sf_handler;
+	int	sf_eax;	
+	int	sf_edx;	
+	int	sf_ecx;	
+	struct	sigcontext sf_sc;
+} ;
 
 /*
  * Call Gate/System Call Stack Frame

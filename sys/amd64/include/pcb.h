@@ -33,16 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pcb.h	5.10 (Berkeley) 5/12/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00154
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	Bruce Evans		New npx-0.5 code
- *
+ *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
+ *	$Id$
  */
+
+#ifndef _I386_PCB_H_
+#define _I386_PCB_H_
 
 /*
  * Intel 386 process control block
@@ -62,6 +58,8 @@ struct pcb {
 #ifdef	notyet
 	u_char	pcb_iomap[NPORT/sizeof(u_char)]; /* i/o port bitmap */
 #endif
+	caddr_t	pcb_ldt;		/* per process (user) LDT */
+	int	pcb_ldt_len;		/* number of LDT entries */
 	struct	save87	pcb_savefpu;	/* floating point state for 287/387 */
 	struct	emcsts	pcb_saveemc;	/* Cyrix EMC state */
 /*
@@ -85,3 +83,5 @@ struct pcb {
 #ifdef KERNEL
 struct pcb *curpcb;		/* our current running pcb */
 #endif
+
+#endif /* _I386_PCB_H_ */
