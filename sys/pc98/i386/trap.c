@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.27 1997/08/09 01:57:04 kato Exp $
+ *	$Id: trap.c,v 1.28 1997/08/10 10:53:49 kato Exp $
  */
 
 /*
@@ -149,7 +149,7 @@ userret(p, frame, oticks)
 	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
 
-#if !defined(NO_SCHEDULE_MODS)
+#if 0
 	if (!want_resched &&
 		(p->p_priority <= p->p_usrpri) &&
 		(p->p_rtprio.type == RTP_PRIO_NORMAL)) {
