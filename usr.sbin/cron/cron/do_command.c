@@ -91,12 +91,7 @@ child_process(e, u)
 	/* mark ourselves as different to PS command watchers by upshifting
 	 * our program name.  This has no effect on some kernels.
 	 */
-	/*local*/{
-		register char	*pch;
-
-		for (pch = ProgramName;  *pch;  pch++)
-			*pch = MkUpper(*pch);
-	}
+	setproctitle("running job");
 
 	/* discover some useful and important environment settings
 	 */
