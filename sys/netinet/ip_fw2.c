@@ -426,27 +426,24 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 static int
 verify_rev_path(struct in_addr src, struct ifnet *ifp)
 {
-	static struct route ro;
+	struct route ro;
 	struct sockaddr_in *dst;
 
+	bzero(&ro, sizeof(ro));
+
 	dst = (struct sockaddr_in *)&(ro.ro_dst);
+	dst->sin_family = AF_INET;
+	dst->sin_len = sizeof(*dst);
+	dst->sin_addr = src;
+	rtalloc_ign(&ro, RTF_CLONING|RTF_PRCLONING);
 
-	/* Check if we've cached the route from the previous call. */
-	if (src.s_addr != dst->sin_addr.s_addr) {
-		ro.ro_rt = NULL;
-
-		bzero(dst, sizeof(*dst));
-		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = src;
-
-		rtalloc_ign(&ro, RTF_CLONING|RTF_PRCLONING);
-	}
-
-	if ((ro.ro_rt == NULL) || (ifp == NULL) ||
-	    (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
+	if (ro.ro_rt == NULL)
 		return 0;
-
+	if ((ifp == NULL) || (ro.ro_rt->rt_ifp->if_index != ifp->if_index)) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
+	RTFREE(ro.ro_rt);
 	return 1;
 }
 
