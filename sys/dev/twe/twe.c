@@ -393,14 +393,14 @@ twe_startio(struct twe_softc *sc)
 
 	/* build a command from an outstanding bio */
 	if (tr == NULL) {
-	    
-	    /* see if there's work to be done */
-	    if ((bp = twe_dequeue_bio(sc)) == NULL)
-		break;
 
 	    /* get a command to handle the bio with */
-	    if (twe_get_request(sc, &tr)) {
-		twe_enqueue_bio(sc, bp);	/* failed, put the bio back */
+	    if (twe_get_request(sc, &tr))
+		break;
+
+	    /* see if there's work to be done */
+	    if ((bp = twe_dequeue_bio(sc)) == NULL) {
+		twe_release_request(tr);
 		break;
 	    }
 
@@ -1053,10 +1053,10 @@ twe_start(struct twe_request *tr)
 	twe_check_bits(sc, status_reg);
 
 	if (!(status_reg & TWE_STATUS_COMMAND_QUEUE_FULL)) {
-	    TWE_COMMAND_QUEUE(sc, tr->tr_cmdphys);
-	    done = 1;
 	    /* move command to work queue */
 	    twe_enqueue_busy(tr);
+	    TWE_COMMAND_QUEUE(sc, tr->tr_cmdphys);
+	    done = 1;
 #ifdef TWE_DEBUG
 	    if (tr->tr_complete != NULL) {
 		debug(3, "queued request %d with callback %p", tr->tr_command.generic.request_id, tr->tr_complete);
