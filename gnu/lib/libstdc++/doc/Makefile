@@ -1,13 +1,13 @@
-# $Id: Makefile,v 1.7 1997/12/17 19:57:35 bde Exp $
+#	$Id: Makefile,v 1.2 1999/04/05 10:21:30 obrien Exp $
 
-EGCSDIR= ${.CURDIR}/../../../../contrib/egcs
+SRCDIR= ${.CURDIR}/../../../../contrib/egcs/libstdc++
 
-.PATH: ${EGCSDIR}/libio
+.PATH: ${SRCDIR}/../libio
 
 INFO = iostream
 
-INFOENTRY_iostream= "* iostream: (iostream).	The EGCS GNU C++ I/O library."
+INFOENTRY_iostream= "* iostream: (iostream).	The GNU C++ I/O library."
 
-MAKEINFOFLAGS+= -I ${EGCSDIR}/libio 
+MAKEINFOFLAGS+= -I ${SRCDIR}/../libio 
 
 .include <bsd.info.mk>
