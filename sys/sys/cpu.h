@@ -53,6 +53,7 @@ struct cf_setting {
 	int	power;	/* Power consumed in mW. */
 	int	lat;	/* Transition latency in us. */
 	device_t dev;	/* Driver providing this setting. */
+	int	spec[4];/* Driver-specific storage for non-standard info. */
 };
 
 /* Maximum number of settings a given driver can have. */

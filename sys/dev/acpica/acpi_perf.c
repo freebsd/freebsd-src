@@ -64,7 +64,11 @@ struct acpi_px {
 	uint32_t	 sts_val;
 };
 
-#define MAX_PX_STATES	 16
+/* Offsets in struct cf_setting array for storing driver-specific values. */
+#define PX_SPEC_CONTROL	0
+#define PX_SPEC_STATUS	1
+
+#define MAX_PX_STATES	16
 
 struct acpi_perf_softc {
 	device_t	 dev;
@@ -389,6 +393,8 @@ acpi_px_to_set(device_t dev, struct acpi_px *px, struct cf_setting *set)
 	set->lat = px->trans_lat;
 	set->volts = CPUFREQ_VAL_UNKNOWN;
 	set->dev = dev;
+	set->spec[PX_SPEC_CONTROL] = px->ctrl_val;
+	set->spec[PX_SPEC_STATUS] = px->sts_val;
 
 	return (0);
 }
