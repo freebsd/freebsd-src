@@ -4,12 +4,12 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.1.1.1 1996/06/14 10:04:46 asami Exp $
+ *    $Id: spkr.c,v 1.2 1996/07/23 07:46:39 asami Exp $
  */
 
 /*
  * modified for PC98
- *    $Id: spkr.c,v 1.1.1.1 1996/06/14 10:04:46 asami Exp $
+ *    $Id: spkr.c,v 1.2 1996/07/23 07:46:39 asami Exp $
  */
 
 #include "speaker.h"
@@ -568,7 +568,7 @@ spkrwrite(dev, uio, ioflag)
 
     if (minor(dev) != 0)
 	return(ENXIO);
-    else if (uio->uio_resid > DEV_BSIZE)     /* prevent system crashes */
+    else if (uio->uio_resid > (DEV_BSIZE - 1))     /* prevent system crashes */
 	return(E2BIG);
     else
     {
@@ -578,8 +578,11 @@ spkrwrite(dev, uio, ioflag)
 
 	n = uio->uio_resid;
 	cp = spkr_inbuf->b_un.b_addr;
-	if (!(error = uiomove(cp, n, uio)))
+	error = uiomove(cp, n, uio);
+	if (!error) {
+		cp[n] = '\0';
 		playstring(cp, n);
+	}
 	return(error);
     }
 }

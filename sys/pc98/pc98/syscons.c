@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.1.1.1 1996/06/14 10:04:47 asami Exp $
+ *  $Id: syscons.c,v 1.2 1996/07/23 07:46:41 asami Exp $
  */
 
 #include "sc.h"
@@ -168,6 +168,7 @@ struct  tty         	*sccons[MAXCONS+1];
 #define VIRTUAL_TTY(x)  &sccons[x]
 #define CONSOLE_TTY 	&sccons[MAXCONS]
 static struct tty     	sccons[MAXCONS+1];
+static int		nsccons = MAXCONS;	/* for pstat only */
 #endif
 
 #ifdef PC98
@@ -826,7 +827,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     switch (cmd) {  		/* process console hardware related ioctl's */
 
     case GIO_ATTR:      	/* get current attributes */
-	*(int*)data = scp->term.cur_attr;
+	*(int*)data = (scp->term.cur_attr >> 8) & 0xFF;
 	return 0;
 
     case GIO_COLOR:     	/* is this a color console ? */
