@@ -116,7 +116,7 @@ _pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 				 * structure:
 				 */
 				TAILQ_INIT(&pcond->c_queue);
-				pcond->c_flags |= COND_FLAGS_INITED;
+				pcond->c_flags = COND_FLAGS_INITED;
 				pcond->c_type = type;
 				pcond->c_mutex = NULL;
 				pcond->c_seqno = 0;
