@@ -469,6 +469,11 @@ fail:
 		error("Logins currently disabled.\n");
 		exit(1);
 	}
+#if	BSD > 43
+	/* before fork, while we're session leader */
+	if (setlogin(pwd->pw_name) < 0)
+		syslog(LOG_ERR, "setlogin() failed: %m");
+#endif
 
 	(void) write(STDERR_FILENO, "\0", 1);
 	sent_null = 1;
@@ -643,10 +648,6 @@ fail:
 	}
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
-#if	BSD > 43
-	if (setlogin(pwd->pw_name) < 0)
-		syslog(LOG_ERR, "setlogin() failed: %m");
-#endif
 	(void) setgid((gid_t)pwd->pw_gid);
 	initgroups(pwd->pw_name, pwd->pw_gid);
 	(void) setuid((uid_t)pwd->pw_uid);
