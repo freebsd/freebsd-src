@@ -9,10 +9,10 @@ http://gcc.gnu.org/gcc-2.95/gcc-2.95.3.html
 
                                  GCC 2.95.3
 
-   January 11, 2001
+   March 16, 2001
 
    The GNU project and the GCC developers are pleased to announce the
-   prerelease of GCC version 2.95.3. GCC used to stand for the GNU C
+   release of GCC version 2.95.3. GCC used to stand for the GNU C
    Compiler, but since the compiler supports several other languages
    aside from C, it now stands for the GNU Compiler Collection.
 
@@ -24,7 +24,6 @@ http://gcc.gnu.org/gcc-2.95/gcc-2.95.3.html
             the register reloading code.
           + Fix numerous problems that caused incorrect optimization in
             the loop optimizer.
-          + Fix setjmp/longjmp based exception handling.
           + Fix aborts in the functions build_insn_chain and scan_loops
             under some circumstances.
           + Fix an alias analysis bug.
@@ -77,7 +76,7 @@ http://gcc.gnu.org/gcc-2.95/gcc-2.95.3.html
 
 
     [15]The GCC team
-    Last modified 2001-01-11
+    Last modified 2001-03-16
 
 References
 
@@ -225,7 +224,7 @@ http://gcc.gnu.org/gcc-2.95/gcc-2.95.2.html
 
 
     [14]The GCC team
-    Last modified 2000-11-10
+    Last modified 2001-02-12
 
 References
 
@@ -347,7 +346,7 @@ http://gcc.gnu.org/gcc-2.95/gcc-2.95.1.html
 
 
     [14]The GCC team
-    Last modified 2000-11-10
+    Last modified 2001-02-12
 
 References
 
@@ -414,7 +413,7 @@ http://gcc.gnu.org/gcc-2.95/gcc-2.95.html
 
 
     [14]The GCC team
-    Last modified 2000-11-10
+    Last modified 2001-02-12
 
 References
 
@@ -503,7 +502,7 @@ http://gcc.gnu.org/gcc-2.95/features.html
 
 
     [18]The GCC team
-    Last modified 2000-12-04
+    Last modified 2001-02-12
 
 References
 
@@ -573,7 +572,7 @@ http://gcc.gnu.org/gcc-2.95/caveats.html
 
 
     [4]The GCC team
-    Last modified 2000-11-10
+    Last modified 2001-02-12
 
 References
 
