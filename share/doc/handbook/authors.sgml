@@ -212,6 +212,10 @@ Please keep this list in alphabetical order by entity names.
   <tt><htmlurl url='mailto:jmb@FreeBSD.ORG'
   name='&lt;jmb@FreeBSD.ORG&gt;'></tt>">
 
+<!ENTITY a.jmg  "John-Mark Gurney
+  <tt><htmlurl url='mailto:jmg@FreeBSD.ORG'
+  name='&lt;jmg@FreeBSD.ORG&gt;'></tt>">
+
 <!ENTITY a.jmz  "Jean-Marc Zucconi
   <tt><htmlurl url='mailto:jmz@FreeBSD.ORG'
   name='&lt;jmz@FreeBSD.ORG&gt;'></tt>">
