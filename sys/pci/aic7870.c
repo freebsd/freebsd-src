@@ -1,8 +1,8 @@
 /*
  * Product specific probe and attach routines for:
- *      3940, 2940, aic7870, and aic7850 SCSI controllers
+ *      3940, 2940, aic7880, aic7870, aic7860 and aic7850 SCSI controllers
  *
- * Copyright (c) 1995, 1996 Justin T. Gibbs
+ * Copyright (c) 1995, 1996 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,12 +14,22 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Absolutely no warranty of function or purpose is made by the author
- *    Justin T. Gibbs.
- * 4. Modifications may be freely made to this file if the above conditions
- *    are met.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
  *
- *	$Id: aic7870.c,v 1.27 1996/03/11 02:49:48 gibbs Exp $
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	$Id: aic7870.c,v 1.28 1996/03/31 03:17:46 gibbs Exp $
  */
 
 #include <pci.h>
@@ -52,6 +62,8 @@
 #define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7880	0x80789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7870	0x70789004ul
+#define PCI_DEVICE_ID_ADAPTEC_AIC7860	0x60789004ul
+#define PCI_DEVICE_ID_ADAPTEC_AIC7855	0x55789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x50789004ul
 
 #define	DEVCONFIG		0x40
@@ -188,6 +200,12 @@ aic7870_probe (pcici_t tag, pcidi_t type)
 		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
 			return ("Adaptec aic7870 SCSI host adapter");
 			break;
+		case PCI_DEVICE_ID_ADAPTEC_AIC7860:
+			return ("Adaptec aic7860 SCSI host adapter");
+			break;
+		case PCI_DEVICE_ID_ADAPTEC_AIC7855:
+			return ("Adaptec aic7855 SCSI host adapter");
+			break;
 		case PCI_DEVICE_ID_ADAPTEC_AIC7850:
 			return ("Adaptec aic7850 SCSI host adapter");
 			break;
@@ -244,12 +262,19 @@ aic7870_attach(config_id, unit)
 		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
 			ahc_t = AHC_AIC7870;
 			break;
+		case PCI_DEVICE_ID_ADAPTEC_AIC7860:
+			ahc_t = AHC_AIC7860;
+			break;
+		case PCI_DEVICE_ID_ADAPTEC_AIC7855:
 		case PCI_DEVICE_ID_ADAPTEC_AIC7850:
 			ahc_t = AHC_AIC7850;
 			break;
 		default:
 			break;
 	}
+
+	/* On all PCI adapters, we allow SCB paging */
+	ahc_f |= AHC_PAGESCBS;
 
 	ahc_reset(io_port);
 
@@ -296,8 +321,8 @@ aic7870_attach(config_id, unit)
 			csize_lattime |= (64 << 8);
 		}
 		if(bootverbose)
-			printf("ahc%d: BurstLen = %dDWDs, "
-			       "Latency Timer = %dPCLKS\n",
+			printf("ahc%d: BurstLen = %ldDWDs, "
+			       "Latency Timer = %ldPCLKS\n",
 				unit,
 				csize_lattime & CACHESIZE,
 				(csize_lattime >> 8) & 0xff);
@@ -341,6 +366,13 @@ aic7870_attach(config_id, unit)
 		   {
 			id_string = "aic7870 ";
 			load_seeprom(ahc);
+			break;
+		   }
+		   case AHC_AIC7860:
+		   {
+			id_string = "aic7860 ";
+			/* Assume there is no BIOS for these cards? */
+			ahc->flags |= AHC_USEDEFAULTS;
 			break;
 		   }
 		   case AHC_AIC7850:
@@ -489,7 +521,7 @@ load_seeprom(ahc)
 	/* Set the host ID */
 	outb(SCSICONF + iobase, scsi_conf);
 	/* In case we are a wide card */
-	outb(SCSICONF + 1 + iobase, scsi_conf);
+	outb(SCSICONF + 1 + iobase, host_id);
 
 	return(retval);
 }
