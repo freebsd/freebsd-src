@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.72 1994/11/17 15:46:27 jkh Exp $
+# $Id: bsd.port.mk,v 1.73 1994/11/21 10:30:37 ats Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -69,7 +69,7 @@
 # EXTRACT_ARGS	- Arguments to ${EXTRACT_CMD} (default: -C ${WRKDIR} -xzf).
 #
 # NCFTP			- Full path to ncftp command if not in $PATH (default: ncftp).
-# NCFTP_ARGS	- Arguments to ${NCFTP} (default: -N).
+# NCFTPFLAGS    - Arguments to ${NCFTP} (default: -N).
 #
 #
 # Default targets and their behaviors:
