@@ -7,6 +7,6 @@
 .
 # thousands_sep
 ,
-# grouping
-3;3
+# grouping, separated by ;
+3
 # EOF
