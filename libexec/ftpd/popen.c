@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: popen.c,v 1.10 1998/02/25 07:10:57 danny Exp $";
+	"$Id: popen.c,v 1.11 1998/04/27 10:51:26 dg Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -145,6 +145,8 @@ ftpd_popen(program, type)
 			}
 			(void)close(pdes[1]);
 		}
+		/* since FTP protocol have no way to tell zone offset */
+		setenv("TZ", "", 1);
 #ifdef	INTERNAL_LS
 		if (strcmp(gargv[0], _PATH_LS) == 0) {
 			extern	int optreset;
