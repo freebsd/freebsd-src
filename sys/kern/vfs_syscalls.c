@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.129 1999/08/04 18:53:48 green Exp $
+ * $Id: vfs_syscalls.c,v 1.130 1999/08/12 20:38:32 alfred Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -72,10 +72,12 @@
 static int change_dir __P((struct nameidata *ndp, struct proc *p));
 static void checkdirs __P((struct vnode *olddp));
 static int chroot_refuse_vdir_fds __P((struct filedesc *fdp));
+static int getutimes __P((const struct timeval *, struct timespec *));
 static int setfown __P((struct proc *, struct vnode *, uid_t, gid_t));
 static int setfmode __P((struct proc *, struct vnode *, int));
 static int setfflags __P((struct proc *, struct vnode *, int));
-static int setutimes __P((struct proc *, struct vnode *, struct timeval *, int));
+static int setutimes __P((struct proc *, struct vnode *,
+    const struct timespec *, int));
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
 
 int (*union_dircheckp) __P((struct proc *, struct vnode **, struct file *));
@@ -2182,10 +2184,30 @@ fchown(p, uap)
 }
 
 static int
-setutimes(p, vp, tv, nullflag)
+getutimes(usrtvp, tsp)
+	const struct timeval *usrtvp;
+	struct timespec *tsp;
+{
+	struct timeval tv[2];
+	int error;
+
+	if (usrtvp == NULL) {
+		vfs_timestamp(&tsp[0]);
+		tsp[1] = tsp[0];
+	} else {
+		if ((error = copyin(usrtvp, tv, sizeof (tv))) != 0)
+			return (error);
+		TIMEVAL_TO_TIMESPEC(&tv[0], &tsp[0]);
+		TIMEVAL_TO_TIMESPEC(&tv[1], &tsp[1]);
+	}
+	return 0;
+}
+
+static int
+setutimes(p, vp, ts, nullflag)
 	struct proc *p;
 	struct vnode *vp;
-	struct timeval *tv;
+	const struct timespec *ts;
 	int nullflag;
 {
 	int error;
@@ -2194,10 +2216,8 @@ setutimes(p, vp, tv, nullflag)
 	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	VATTR_NULL(&vattr);
-	vattr.va_atime.tv_sec = tv[0].tv_sec;
-	vattr.va_atime.tv_nsec = tv[0].tv_usec * 1000;
-	vattr.va_mtime.tv_sec = tv[1].tv_sec;
-	vattr.va_mtime.tv_nsec = tv[1].tv_usec * 1000;
+	vattr.va_atime = ts[0];
+	vattr.va_mtime = ts[1];
 	if (nullflag)
 		vattr.va_vaflags |= VA_UTIMES_NULL;
 	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
@@ -2223,23 +2243,18 @@ utimes(p, uap)
 		syscallarg(struct timeval *) tptr;
 	} */ *uap;
 {
-	struct timeval tv[2];
+	struct timespec ts[2];
+	struct timeval *usrtvp;
 	int error;
 	struct nameidata nd;
-	int nullflag;
 
-	nullflag = 0;
-	if (SCARG(uap, tptr) == NULL) {
-		microtime(&tv[0]);
-		tv[1] = tv[0];
-		nullflag = 1;
-	} else if ((error = copyin((caddr_t)SCARG(uap, tptr), (caddr_t)tv,
-	    sizeof (tv))) != 0)
-  		return (error);
+	usrtvp = SCARG(uap, tptr);
+	if ((error = getutimes(usrtvp, ts)) != 0)
+		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
-	error = setutimes(p, nd.ni_vp, tv, nullflag);
+	error = setutimes(p, nd.ni_vp, ts, usrtvp == NULL);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2262,24 +2277,18 @@ lutimes(p, uap)
 		syscallarg(struct timeval *) tptr;
 	} */ *uap;
 {
-	struct timeval tv[2];
+	struct timespec ts[2];
+	struct timeval *usrtvp;
 	int error;
 	struct nameidata nd;
-	int nullflag;
 
-	nullflag = 0;
-	if (SCARG(uap, tptr) == NULL) {
-		microtime(&tv[0]);
-		tv[1] = tv[0];
-		nullflag = 1;
-	} else if ((error = copyin((caddr_t)SCARG(uap, tptr), (caddr_t)tv,
-	    sizeof (tv))) != 0)
-  		return (error);
+	usrtvp = SCARG(uap, tptr);
+	if ((error = getutimes(usrtvp, ts)) != 0)
+		return (error);
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
-
-	error = setutimes(p, nd.ni_vp, tv, nullflag);
+	error = setutimes(p, nd.ni_vp, ts, usrtvp == NULL);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2302,23 +2311,17 @@ futimes(p, uap)
 		syscallarg(struct timeval *) tptr;
 	} */ *uap;
 {
-	struct timeval tv[2];
+	struct timespec ts[2];
 	struct file *fp;
+	struct timeval *usrtvp;
 	int error;
-	int nullflag;
 
-	nullflag = 0;
-	if (SCARG(uap, tptr) == NULL) {
-		microtime(&tv[0]);
-		tv[1] = tv[0];
-		nullflag = 1;
-	} else if ((error = copyin((caddr_t)SCARG(uap, tptr), (caddr_t)tv,
-	    sizeof (tv))) != 0)
-  		return (error);
-
+	usrtvp = SCARG(uap, tptr);
+	if ((error = getutimes(usrtvp, ts)) != 0)
+		return (error);
 	if ((error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	return setutimes(p, (struct vnode *)fp->f_data, tv, nullflag);
+	return setutimes(p, (struct vnode *)fp->f_data, ts, usrtvp == NULL);
 }
 
 /*
