@@ -321,7 +321,6 @@ ndis_return_packet(packet, arg)
 	ndis_handle		adapter;
 	ndis_packet		*p;
 	__stdcall ndis_return_handler	returnfunc;
-	uint32_t		t;
 
 	if (arg == NULL || packet == NULL)
 		return;
@@ -334,9 +333,7 @@ ndis_return_packet(packet, arg)
 	/* Release packet when refcount hits zero, otherwise return. */
 	if (p->np_private.npp_count)
 		return;
-	t = *(uint32_t *)&p->u.np_clrsvd.np_miniport_rsvd[0];
-if (t == 0)
-printf ("returning %p %x\n", p, t);
+
 	sc = arg;
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
