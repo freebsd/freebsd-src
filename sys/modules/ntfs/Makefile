@@ -7,4 +7,4 @@ SRCS=	vnode_if.h \
 	ntfs_compr.c
 NOMAN=
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

@@ -6,4 +6,4 @@ SRCS= 	logo_saver.c
 NOMAN=
 CFLAGS+= -I${.CURDIR}/.. -I${.CURDIR}
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

@@ -9,4 +9,4 @@ NOMAN=
 CFLAGS+= -DPC98
 .endif
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

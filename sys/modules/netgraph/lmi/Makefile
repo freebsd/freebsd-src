@@ -5,4 +5,4 @@ KMOD=		ng_lmi
 SRCS= 		ng_lmi.c
 MAN8=		ng_lmi.8
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

@@ -15,4 +15,4 @@ NOMAN=
 # Otherwise a number of ioctls will fail.
 CFLAGS+=	-DVINUMDEBUG -g -O
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

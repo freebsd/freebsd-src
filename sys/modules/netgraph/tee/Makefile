@@ -5,4 +5,4 @@ KMOD=		ng_tee
 SRCS= 		ng_tee.c
 MAN8=		ng_tee.8
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"
