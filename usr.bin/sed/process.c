@@ -471,7 +471,8 @@ lputs(s)
 	char *s;
 {
 	int count;
-	char *escapes, *p;
+	const char *escapes;
+	char *p;
 	struct winsize win;
 	static int termwidth = -1;
 
@@ -601,7 +602,7 @@ regsub(sp, string, src)
 void
 cspace(sp, p, len, spflag)
 	SPACE *sp;
-	char *p;
+	const char *p;
 	size_t len;
 	enum e_spflag spflag;
 {
