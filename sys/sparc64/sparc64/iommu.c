@@ -744,7 +744,7 @@ iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	vm_offset_t va;
 	vm_size_t len;
 
-	va = (vm_offset_t)map->buf;
+	va = (vm_offset_t)map->start;
 	len = map->buflen;
 	if ((op & BUS_DMASYNC_PREREAD) != 0)
 		membar(Sync);
