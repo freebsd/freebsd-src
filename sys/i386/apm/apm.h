@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- * $FreeBSD$
+ *	$FreeBSD$
  */
 
 #define APM_NEVENTS 16
@@ -26,11 +26,13 @@ struct apm_softc {
 	int	initialized, active, bios_busy;
 	int	always_halt_cpu, slow_idle_cpu;
 	int	disabled, disengaged;
-	int	standby_countdown, suspend_countdown;
+ 	int	standby_countdown, suspend_countdown;
 	u_int	minorversion, majorversion;
-	u_int	intversion, connectmode;
-	u_int	standbys, suspends;
-	struct bios_args bios;
+	u_int	cs32_base, cs16_base, ds_base;
+	u_int	cs16_limit, cs32_limit, ds_limit;
+	u_int	cs_entry;
+	u_int	intversion;
+ 	u_int	standbys, suspends;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
 	struct selinfo sc_rsel;
@@ -39,5 +41,7 @@ struct apm_softc {
 	int	event_ptr;
 	struct	apm_event_info event_list[APM_NEVENTS];
 	u_char	event_filter[APM_NPMEV];
+#ifdef DEVFS
+	void 	*sc_devfs_token;
+#endif
 };
-
