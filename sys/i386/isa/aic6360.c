@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.32 1997/10/21 17:57:31 nate Exp $
+ * $Id: aic6360.c,v 1.34 1997/10/26 04:53:49 nate Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -718,6 +718,8 @@ static struct pccard_device aic_info = {
 	&bio_imask		/* Interrupt mask for device */
 };
 
+DATA_SET(pccarddrv_set, aic_info);
+
 /*
  * Initialize the device - called from Slot manager.
  */
@@ -796,7 +798,6 @@ aicprobe(dev)
 #if NCARD > 0
 	int     unit = dev->id_unit;
 	int     aic_reg_drv[NAIC];
-	static int aic_already_init;
 #else
 	int	unit = aicunit;
 #endif
@@ -810,12 +811,6 @@ aicprobe(dev)
 #if NCARD > 0
 	if (!aic_reg_drv[unit])
 		aic_reg_drv[unit] = 1;
-
-	/* If PC-Card probe required, then register with  slot manager. */
-	if (!aic_already_init) {
-		pccard_add_driver(&aic_info);
-		aic_already_init = 1;
-	}
 #endif
 
 	/*

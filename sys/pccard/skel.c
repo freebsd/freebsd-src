@@ -63,6 +63,8 @@ static struct pccard_device skel_info = {
 	&net_imask		/* Interrupt mask for device */
 };
 
+DATA_SET(pccarddrv_set, skel_info);
+
 static int opened;	/* Rather minimal device state... */
 	
 /*
