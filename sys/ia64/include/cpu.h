@@ -70,22 +70,16 @@ struct clockframe {
  */
 #define	CPU_CONSDEV		1	/* dev_t: console terminal device */
 #define	CPU_ROOT_DEVICE		2	/* string: root device name */
-#define	CPU_UNALIGNED_PRINT	3	/* int: print unaligned accesses */
-#define	CPU_UNALIGNED_FIX	4	/* int: fix unaligned accesses */
-#define	CPU_UNALIGNED_SIGBUS	5	/* int: SIGBUS unaligned accesses */
-#define	CPU_BOOTED_KERNEL	6	/* string: booted kernel name */
-#define	CPU_ADJKERNTZ		7	/* int:	timezone offset	(seconds) */
-#define	CPU_DISRTCSET		8	/* int: disable resettodr() call */
-#define	CPU_WALLCLOCK		9	/* int:	indicates wall CMOS clock */
-#define	CPU_MAXID		10	/* valid machdep IDs */
+#define	CPU_BOOTED_KERNEL	3	/* string: booted kernel name */
+#define	CPU_ADJKERNTZ		4	/* int:	timezone offset	(seconds) */
+#define	CPU_DISRTCSET		5	/* int: disable resettodr() call */
+#define	CPU_WALLCLOCK		6	/* int:	indicates wall CMOS clock */
+#define	CPU_MAXID		7	/* valid machdep IDs */
 
 #define	CTL_MACHDEP_NAMES { \
 	{ 0, 0 }, \
 	{ "console_device", CTLTYPE_STRUCT }, \
 	{ "root_device", CTLTYPE_STRING }, \
-	{ "unaligned_print", CTLTYPE_INT }, \
-	{ "unaligned_fix", CTLTYPE_INT }, \
-	{ "unaligned_sigbus", CTLTYPE_INT }, \
 	{ "booted_kernel", CTLTYPE_STRING }, \
 	{ "adjkerntz", CTLTYPE_INT }, \
 	{ "disable_rtc_set", CTLTYPE_INT }, \
