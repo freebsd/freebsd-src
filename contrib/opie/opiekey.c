@@ -116,7 +116,7 @@ static void getsecret FUNCTION((secret, promptextra, retype), char *secret AND c
     }
     memset(verify, 0, sizeof(verify));
   }
-  if (!(flags & 2) && opiepasscheck(secret)) {
+  if (!(flags & 2) && !aflag && opiepasscheck(secret)) {
     memset(secret, 0, sizeof(secret));
     fprintf(stderr, "Secret pass phrases must be between %d and %d characters long.\n", OPIE_SECRET_MIN, OPIE_SECRET_MAX);
     exit(1);
