@@ -771,3 +771,11 @@ the options currently available for use in
 Please check the
 .Pa /usr/share/examples/etc/make.conf
 file for the latest options which are available.
+.Sh CAVEATS
+Note, that
+.Ev MAKEOBJDIRPREFIX
+and
+.Ev MAKEOBJDIR
+are environment variables and should not be set in
+.Nm
+but in make's environment.
