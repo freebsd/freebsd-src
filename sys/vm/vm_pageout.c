@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.42 1995/03/16 18:17:28 bde Exp $
+ * $Id: vm_pageout.c,v 1.43 1995/03/28 05:35:29 davidg Exp $
  */
 
 /*
@@ -618,7 +618,7 @@ rescan1:
 	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
 	if (page_shortage <= 0) {
 		if (pages_freed == 0) {
-			page_shortage = cnt.v_free_min - cnt.v_inactive_count;
+			page_shortage = cnt.v_free_min - cnt.v_free_count;
 		}
 	}
 	maxscan = min(cnt.v_active_count, MAXSCAN);
