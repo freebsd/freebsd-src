@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_ioctl.c,v 1.1 1994/10/14 08:53:02 sos Exp $
+ *	$Id: ibcs2_ioctl.c,v 1.2 1994/10/17 22:13:07 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -747,8 +747,9 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 		switch (num) {
 		case 0:
 			args->cmd = GIO_ATTR;
-			ioctl(p, args, retval);
-			IBCS2_MAGIC_RETURN(args);
+			error = ioctl(p, args, retval);
+			*retval = (int)args->arg;
+			return error;
 		}
 		break;
 
@@ -757,15 +758,18 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 		case 0:
 			args->cmd = GIO_COLOR;
 			ioctl(p, args, retval);
-			IBCS2_MAGIC_RETURN(args);
+			*retval = (int)args->arg;
+			return error;
 		case 1:
 			args->cmd = CONS_CURRENT;
 			ioctl(p, args, retval);
-			IBCS2_MAGIC_RETURN(args);
+			*retval = (int)args->arg;
+			return error;
 		case 2:
 			args->cmd = CONS_GET;
 			ioctl(p, args, retval);
-			IBCS2_MAGIC_RETURN(args);
+			*retval = (int)args->arg;
+			return error;
 		case 4:
 			args->cmd = CONS_BLANKTIME;
 			return ioctl(p, args, retval);
