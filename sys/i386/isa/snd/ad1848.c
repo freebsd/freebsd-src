@@ -94,7 +94,7 @@ snddev_info mss_op_desc = {
     NULL /* mss_read */,
     NULL /* mss_write */,
     mss_ioctl,
-    sndpoll /* mss_poll */,
+    sndselect /* mss_select */,
 
     mss_intr,
     mss_callback ,

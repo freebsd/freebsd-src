@@ -62,7 +62,6 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/poll.h>
 #include <i386/isa/isa_device.h>
 #include <machine/clock.h>	/* for DELAY */
 
@@ -74,7 +73,7 @@ struct isa_device { int dummy ; } ;
 #define d_read_t void
 #define d_write_t void
 #define d_ioctl_t void
-#define d_poll_t void
+#define d_select_t void
 #endif /* KERNEL */
 typedef void    (irq_proc_t) (int irq);
 
@@ -125,7 +124,7 @@ struct _snddev_info {
     d_read_t *read ;
     d_write_t *write ;
     d_ioctl_t *ioctl ;
-    d_poll_t *poll ;
+    d_select_t *select ;
     irq_proc_t  *isr ;
     snd_callback_t *callback;
 
@@ -483,7 +482,7 @@ int dsp_rdabort(snddev_info *d, int restart);
 void dsp_wr_dmaupdate(snd_dbuf *b);
 void dsp_rd_dmaupdate(snd_dbuf *b);
 
-d_poll_t sndpoll;
+d_select_t sndselect;
 
 /*
  * library functions (in sound.c)

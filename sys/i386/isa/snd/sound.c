@@ -50,13 +50,7 @@
  *
  */
 
-#include "opt_devfs.h"
-
 #include <i386/isa/snd/sound.h>
-#ifdef	DEVFS
-#include <sys/devfsext.h>
-#endif	/* DEVFS */
-
 
 #if NPCM > 0	/* from "snd.h" */
 
@@ -76,7 +70,7 @@ static d_mmap_t sndmmap;
 static struct cdevsw snd_cdevsw = {
 	sndopen, sndclose, sndread, sndwrite,
 	sndioctl, nxstop, nxreset, nxdevtotty,
-	sndpoll, sndmmap, nxstrategy, "snd",
+	sndselect, sndmmap, nxstrategy, "snd",
 	NULL, -1,
 };
 
@@ -998,10 +992,10 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 }
 
 /*
- * function to poll what is currently available.  Used to be select.
+ * select
  */
 int
-sndpoll(dev_t i_dev, int events, struct proc *p)
+sndselect(dev_t i_dev, int rw, struct proc *p)
 {
     int dev, unit, c = 1 /* default: success */ ;
     snddev_info *d ;
@@ -1009,15 +1003,15 @@ sndpoll(dev_t i_dev, int events, struct proc *p)
 
     dev = minor(i_dev);
     d = get_snddev_info(dev, &unit);
-    DEB(printf("sndpoll dev 0x%04x events 0x%08x\n",i_dev, events));
+    DEB(printf("sndselect dev 0x%04x rw 0x%08x\n",i_dev, rw));
     if (d == NULL ) {
-	printf("poll: unit %d not configured\n", unit );
-        return ( (events & (POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM)) | POLLHUP);
+	printf("sndselect: unit %d not configured\n", unit );
+        return (ENXIO);
     }
-    if (d->poll == NULL)
-        return ( (events & (POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM)) | POLLHUP);
-    else if (d->poll != sndpoll )
-	return d->poll(i_dev, events, p);
+    if (d->select == NULL)
+        return 1; /* always success ? */
+    else if (d->select != sndselect )
+	return d->select(i_dev, rw, p);
     else {
 	/* handle it here with the generic code */
 
@@ -1031,7 +1025,7 @@ sndpoll(dev_t i_dev, int events, struct proc *p)
 	 * In all other cases, select will return when 1 byte is ready.
 	 */
 	lim = 1;
-	if (events & (POLLOUT | POLLWRNORM) ) {
+	if (rw == FWRITE) {
 	    if ( d->flags & SND_F_HAS_SIZE )
 		lim = d->play_blocksize ;
 	    /* XXX fix the test here for half duplex devices */
@@ -1042,12 +1036,10 @@ sndpoll(dev_t i_dev, int events, struct proc *p)
 		c = d->dbuf_out.fl ;
 		if (c < lim) /* no space available */
 		    selrecord(p, & (d->wsel));
-		else
-		    revents |= events & (POLLOUT | POLLWRNORM);
 		splx(flags);
 	    }
-        }
-        if (events & (POLLIN | POLLRDNORM)) {
+	    return c < lim ? 0 : 1;
+        } else if (rw == FREAD) {
 	    if ( d->flags & SND_F_HAS_SIZE )
 		lim = d->rec_blocksize ;
 	    /* XXX fix the test here */
@@ -1060,15 +1052,15 @@ sndpoll(dev_t i_dev, int events, struct proc *p)
 		c = d->dbuf_in.rl ;
 		if (c < lim) /* no data available */
 		    selrecord(p, & (d->rsel));
-		else
-		    revents |= events & (POLLIN | POLLRDNORM);
 		splx(flags);
 	    }
-	    DEB(printf("sndpoll on read: %d >= %d flags 0x%08x\n",
+	    DEB(printf("sndselect on read: %d >= %d flags 0x%08x\n",
 		c, lim, d->flags));
 	    return c < lim ? 0 : 1 ;
+	} else {
+	    DDB(printf("select on exceptions, unimplemented\n"));
+	    return 1;
 	}
-	return revents;
     }
     return ENXIO ; /* notreached */
 }
