@@ -28,7 +28,6 @@
 
 #include <machine/asm.h>
 #include <machine/ia64_cpu.h>
-#include <machine/fpu.h>
 #include <machine/pte.h>
 #include <sys/syscall.h>
 #include <assym.s>
