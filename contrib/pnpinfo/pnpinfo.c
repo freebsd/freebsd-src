@@ -22,12 +22,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/time.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -588,10 +590,8 @@ main(int argc, char **argv)
 
 #ifdef __i386__
     /* Hey what about a i386_iopl() call :) */
-    if (open("/dev/io", O_RDONLY) < 0) {
-	fprintf (stderr, "pnpinfo: Can't get I/O privilege.\n");
-	exit (1);
-    }
+    if (open("/dev/io", O_RDONLY) < 0)
+	errx(1, "can't get I/O privilege");
 #endif
 #ifdef __alpha__
     ioperm(0x203, 0x400 - 0x203, 1);
@@ -608,6 +608,7 @@ main(int argc, char **argv)
     }
     if (!num_pnp_devs) {
 	printf("No Plug-n-Play devices were found\n");
-	return 0;
+	return (0);
     }
+    return (0);
 }
