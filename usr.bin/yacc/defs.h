@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	5.6 (Berkeley) 5/24/93
+ *	$Id$
  */
 
 #include <sys/cdefs.h>	/* for __P macro */
