@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
+#undef getwchar
+
 /*
  * Synonym for fgetwc(stdin).
  */

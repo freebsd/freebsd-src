@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
+#undef putwc
+
 /*
  * Synonym for fputwc(). The only difference is that putwc(), if it is a
  * macro, may evaluate `fp' more than once.
