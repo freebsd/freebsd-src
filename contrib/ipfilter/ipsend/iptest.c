@@ -8,6 +8,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -34,7 +37,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptest.c,v 2.2.2.2 2001/07/15 22:00:14 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: iptest.c,v 2.2.2.3 2002/02/22 15:32:58 darrenr Exp $";
 #endif
 
 

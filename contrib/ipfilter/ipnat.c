@@ -1,10 +1,13 @@
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 1993-2002 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * Added redirect stuff and a variety of bug fixes. (mcn@EnGarde.com)
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -39,10 +42,12 @@
 #include <arpa/inet.h>
 #include <resolv.h>
 #include <ctype.h>
+#include <nlist.h>
 #include "netinet/ip_compat.h"
 #include "netinet/ip_fil.h"
-#include "netinet/ip_proxy.h"
 #include "netinet/ip_nat.h"
+#include "netinet/ip_state.h"
+#include "netinet/ip_proxy.h"
 #include "ipf.h"
 #include "kmem.h"
 
@@ -55,32 +60,32 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.9 2001/07/18 15:06:33 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.20 2002/02/22 15:32:55 darrenr Exp $";
 #endif
 
 
 #if	SOLARIS
 #define	bzero(a,b)	memset(a,0,b)
 #endif
-#ifdef	USE_INET6
 int	use_inet6 = 0;
-#endif
-
-static	char	thishost[MAXHOSTNAMELEN];
-
+char	thishost[MAXHOSTNAMELEN];
 
 extern	char	*optarg;
 extern	ipnat_t	*natparse __P((char *, int));
 extern	void	natparsefile __P((int, char *, int));
-extern	void	printnat __P((ipnat_t *, int, void *));
+extern	void	printnat __P((ipnat_t *, int));
+extern	void	printactivenat __P((nat_t *, int));
+extern	void	printhostmap __P((hostmap_t *, u_int));
+extern	char	*getsumd __P((u_32_t));
 
-void	dostats __P((int, int)), flushtable __P((int, int));
+void	dostats __P((natstat_t *, int)), flushtable __P((int, int));
 void	usage __P((char *));
 int	countbits __P((u_32_t));
 char	*getnattype __P((ipnat_t *));
 int	main __P((int, char*[]));
 void	printaps __P((ap_session_t *, int));
-char	*getsumd __P((u_32_t));
+void	showhostmap __P((natstat_t *nsp));
+void	natstat_dead __P((natstat_t *, char *));
 
 
 void usage(name)
@@ -91,27 +96,22 @@ char *name;
 }
 
 
-char *getsumd(sum)
-u_32_t sum;
-{
-	static char sumdbuf[17];
-
-	if (sum & NAT_HW_CKSUM)
-		sprintf(sumdbuf, "hw(%#0x)", sum & 0xffff);
-	else
-		sprintf(sumdbuf, "%#0x", sum);
-	return sumdbuf;
-}
-
-
 int main(argc, argv)
 int argc;
 char *argv[];
 {
-	int	fd = -1, opts = 0, c, mode = O_RDWR;
-	char	*file = NULL, *core = NULL;
+	natstat_t ns, *nsp = &ns;
+	char	*file, *core, *kernel;
+	int	fd, opts, c, mode;
 
-	while ((c = getopt(argc, argv, "CdFf:hlM:nrsv")) != -1)
+	fd = -1;
+	opts = 0;
+	file = NULL;
+	core = NULL;
+	kernel = NULL;
+	mode = O_RDWR;
+
+	while ((c = getopt(argc, argv, "CdFf:hlM:N:nrsv")) != -1)
 		switch (c)
 		{
 		case 'C' :
@@ -136,6 +136,9 @@ char *argv[];
 		case 'M' :
 			core = optarg;
 			break;
+		case 'N' :
+			kernel = optarg;
+			break;
 		case 'n' :
 			opts |= OPT_NODO;
 			mode = O_RDONLY;
@@ -154,21 +157,40 @@ char *argv[];
 			usage(argv[0]);
 		}
 
-	if (core != NULL) {
-		if (openkmem(core) == -1)
-			exit(1);
+	if ((kernel != NULL) || (core != NULL)) {
 		(void) setgid(getgid());
 		(void) setuid(getuid());
 	}
 
+	bzero((char *)&ns, sizeof(ns));
+
 	gethostname(thishost, sizeof(thishost));
 	thishost[sizeof(thishost) - 1] = '\0';
 
-	if (!(opts & OPT_NODO) && ((fd = open(IPL_NAT, mode)) == -1) &&
-	    ((fd = open(IPL_NAT, O_RDONLY)) == -1)) {
-		(void) fprintf(stderr, "%s: open: %s\n", IPL_NAT,
-			STRERROR(errno));
-		exit(-1);
+	if (!(opts & OPT_NODO) && (kernel == NULL) && (core == NULL)) {
+		if (openkmem(kernel, core) == -1)
+			exit(1);
+
+		if (((fd = open(IPL_NAT, mode)) == -1) &&
+		    ((fd = open(IPL_NAT, O_RDONLY)) == -1)) {
+			(void) fprintf(stderr, "%s: open: %s\n", IPL_NAT,
+				STRERROR(errno));
+			exit(1);
+		}
+		if (ioctl(fd, SIOCGNATS, &nsp) == -1) {
+			perror("ioctl(SIOCGNATS)");
+			exit(1);
+		}
+		(void) setgid(getgid());
+		(void) setuid(getuid());
+	} else if ((kernel != NULL) || (core != NULL)) {
+		if (openkmem(kernel, core) == -1)
+			exit(1);
+
+		natstat_dead(nsp, kernel);
+		if (opts & (OPT_LIST|OPT_STAT))
+			dostats(nsp, opts);
+		exit(0);
 	}
 
 	if (opts & (OPT_FLUSH|OPT_CLEAR))
@@ -176,172 +198,113 @@ char *argv[];
 	if (file)
 		natparsefile(fd, file, opts);
 	if (opts & (OPT_LIST|OPT_STAT))
-		dostats(fd, opts);
+		dostats(nsp, opts);
 	return 0;
 }
 
 
-void printaps(aps, opts)
-ap_session_t *aps;
-int opts;
+/*
+ * Read nat statistic information in using a symbol table and memory file
+ * rather than doing ioctl's.
+ */
+void natstat_dead(nsp, kernel)
+natstat_t *nsp;
+char *kernel;
 {
-	ap_session_t ap;
-	ftpinfo_t ftp;
-	aproxy_t apr;
-	raudio_t ra;
+	struct nlist nat_nlist[10] = {
+		{ "nat_table" },		/* 0 */
+		{ "nat_list" },
+		{ "maptable" },
+		{ "ipf_nattable_sz" },
+		{ "ipf_natrules_sz" },
+		{ "ipf_rdrrules_sz" },		/* 5 */
+		{ "ipf_hostmap_sz" },
+		{ "nat_instances" },
+		{ "ap_sess_list" },
+		{ NULL }
+	};
+	void *tables[2];
 
-	if (kmemcpy((char *)&ap, (long)aps, sizeof(ap)))
+	if (nlist(kernel, nat_nlist) == -1) {
+		fprintf(stderr, "nlist error\n");
 		return;
-	if (kmemcpy((char *)&apr, (long)ap.aps_apr, sizeof(apr)))
-		return;
-	printf("\tproxy %s/%d use %d flags %x\n", apr.apr_label,
-		apr.apr_p, apr.apr_ref, apr.apr_flags);
-	printf("\t\tproto %d flags %#x bytes ", ap.aps_p, ap.aps_flags);
-#ifdef	USE_QUAD_T
-	printf("%qu pkts %qu", (unsigned long long)ap.aps_bytes,
-		(unsigned long long)ap.aps_pkts);
-#else
-	printf("%lu pkts %lu", ap.aps_bytes, ap.aps_pkts);
-#endif
-	printf(" data %p psiz %d\n", ap.aps_data, ap.aps_psiz);
-	if ((ap.aps_p == IPPROTO_TCP) && (opts & OPT_VERBOSE)) {
-		printf("\t\tstate[%u,%u], sel[%d,%d]\n",
-			ap.aps_state[0], ap.aps_state[1],
-			ap.aps_sel[0], ap.aps_sel[1]);
-#if (defined(NetBSD) && (NetBSD >= 199905) && (NetBSD < 1991011)) || \
-    (__FreeBSD_version >= 300000) || defined(OpenBSD)
-		printf("\t\tseq: off %hd/%hd min %x/%x\n",
-			ap.aps_seqoff[0], ap.aps_seqoff[1],
-			ap.aps_seqmin[0], ap.aps_seqmin[1]);
-		printf("\t\tack: off %hd/%hd min %x/%x\n",
-			ap.aps_ackoff[0], ap.aps_ackoff[1],
-			ap.aps_ackmin[0], ap.aps_ackmin[1]);
-#else
-		printf("\t\tseq: off %hd/%hd min %lx/%lx\n",
-			ap.aps_seqoff[0], ap.aps_seqoff[1],
-			ap.aps_seqmin[0], ap.aps_seqmin[1]);
-		printf("\t\tack: off %hd/%hd min %lx/%lx\n",
-			ap.aps_ackoff[0], ap.aps_ackoff[1],
-			ap.aps_ackmin[0], ap.aps_ackmin[1]);
-#endif
 	}
 
-	if (!strcmp(apr.apr_label, "raudio") && ap.aps_psiz == sizeof(ra)) {
-		if (kmemcpy((char *)&ra, (long)ap.aps_data, sizeof(ra)))
-			return;
-		printf("\tReal Audio Proxy:\n");
-		printf("\t\tSeen PNA: %d\tVersion: %d\tEOS: %d\n",
-			ra.rap_seenpna, ra.rap_version, ra.rap_eos);
-		printf("\t\tMode: %#x\tSBF: %#x\n", ra.rap_mode, ra.rap_sbf);
-		printf("\t\tPorts:pl %hu, pr %hu, sr %hu\n",
-			ra.rap_plport, ra.rap_prport, ra.rap_srport);
-	} else if (!strcmp(apr.apr_label, "ftp") &&
-		   (ap.aps_psiz == sizeof(ftp))) {
-		if (kmemcpy((char *)&ftp, (long)ap.aps_data, sizeof(ftp)))
-			return;
-		printf("\tFTP Proxy:\n");
-		printf("\t\tpassok: %d\n", ftp.ftp_passok);
-		ftp.ftp_side[0].ftps_buf[FTP_BUFSZ - 1] = '\0';
-		ftp.ftp_side[1].ftps_buf[FTP_BUFSZ - 1] = '\0';
-		printf("\tClient:\n");
-		printf("\t\trptr %p wptr %p seq %x len %d junk %d\n",
-			ftp.ftp_side[0].ftps_rptr, ftp.ftp_side[0].ftps_wptr,
-			ftp.ftp_side[0].ftps_seq, ftp.ftp_side[0].ftps_len,
-			ftp.ftp_side[0].ftps_junk);
-		printf("\t\tbuf [");
-		printbuf(ftp.ftp_side[0].ftps_buf, FTP_BUFSZ, 1);
-		printf("]\n\tServer:\n");
-		printf("\t\trptr %p wptr %p seq %x len %d junk %d\n",
-			ftp.ftp_side[1].ftps_rptr, ftp.ftp_side[1].ftps_wptr,
-			ftp.ftp_side[1].ftps_seq, ftp.ftp_side[1].ftps_len,
-			ftp.ftp_side[1].ftps_junk);
-		printf("\t\tbuf [");
-		printbuf(ftp.ftp_side[1].ftps_buf, FTP_BUFSZ, 1);
-		printf("]\n");
-	}
+	/*
+	 * Normally the ioctl copies all of these values into the structure
+	 * for us, before returning it to useland, so here we must copy each
+	 * one in individually.
+	 */
+	kmemcpy((char *)&tables, nat_nlist[0].n_value, sizeof(tables));
+	nsp->ns_table[0] = tables[0];
+	nsp->ns_table[1] = tables[1];
+
+	kmemcpy((char *)&nsp->ns_list, nat_nlist[1].n_value,
+		sizeof(nsp->ns_list));
+	kmemcpy((char *)&nsp->ns_maptable, nat_nlist[2].n_value,
+		sizeof(nsp->ns_maptable));
+	kmemcpy((char *)&nsp->ns_nattab_sz, nat_nlist[3].n_value,
+		sizeof(nsp->ns_nattab_sz));
+	kmemcpy((char *)&nsp->ns_rultab_sz, nat_nlist[4].n_value,
+		sizeof(nsp->ns_rultab_sz));
+	kmemcpy((char *)&nsp->ns_rdrtab_sz, nat_nlist[5].n_value,
+		sizeof(nsp->ns_rdrtab_sz));
+	kmemcpy((char *)&nsp->ns_hostmap_sz, nat_nlist[6].n_value,
+		sizeof(nsp->ns_hostmap_sz));
+	kmemcpy((char *)&nsp->ns_instances, nat_nlist[7].n_value,
+		sizeof(nsp->ns_instances));
+	kmemcpy((char *)&nsp->ns_apslist, nat_nlist[8].n_value,
+		sizeof(nsp->ns_apslist));
 }
 
 
 /*
- * Get a nat filter type given its kernel address.
+ * Display NAT statistics.
  */
-char *getnattype(ipnat)
-ipnat_t *ipnat;
+void dostats(nsp, opts)
+natstat_t *nsp;
+int opts;
 {
-	char *which;
-	ipnat_t ipnatbuff;
-
-	if (!ipnat || (ipnat && kmemcpy((char *)&ipnatbuff, (long)ipnat,
-					sizeof(ipnatbuff))))
-		return "???";
-
-	switch (ipnatbuff.in_redir)
-	{
-	case NAT_MAP :
-		which = "MAP";
-		break;
-	case NAT_MAPBLK :
-		which = "MAP-BLOCK";
-		break;
-	case NAT_REDIRECT :
-		which = "RDR";
-		break;
-	case NAT_BIMAP :
-		which = "BIMAP";
-		break;
-	default :
-		which = "unknown";
-		break;
-	}
-	return which;
-}
-
-
-void dostats(fd, opts)
-int fd, opts;
-{
-	hostmap_t hm, *hmp, **maptable;
-	natstat_t ns, *nsp = &ns;
 	nat_t **nt[2], *np, nat;
-	u_int hv, hv1, hv2;
 	ipnat_t	ipn;
 
-	bzero((char *)&ns, sizeof(ns));
-
-	if (!(opts & OPT_NODO) && ioctl(fd, SIOCGNATS, &nsp) == -1) {
-		perror("ioctl(SIOCGNATS)");
-		return;
-	}
-
+	/*
+	 * Show statistics ?
+	 */
 	if (opts & OPT_STAT) {
 		printf("mapped\tin\t%lu\tout\t%lu\n",
-			ns.ns_mapped[0], ns.ns_mapped[1]);
+			nsp->ns_mapped[0], nsp->ns_mapped[1]);
 		printf("added\t%lu\texpired\t%lu\n",
-			ns.ns_added, ns.ns_expire);
+			nsp->ns_added, nsp->ns_expire);
 		printf("no memory\t%lu\tbad nat\t%lu\n",
-			ns.ns_memfail, ns.ns_badnat);
-		printf("inuse\t%lu\nrules\t%lu\n", ns.ns_inuse, ns.ns_rules);
-		printf("wilds\t%u\n", ns.ns_wilds);
+			nsp->ns_memfail, nsp->ns_badnat);
+		printf("inuse\t%lu\nrules\t%lu\n",
+			nsp->ns_inuse, nsp->ns_rules);
+		printf("wilds\t%u\n", nsp->ns_wilds);
 		if (opts & OPT_VERBOSE)
-			printf("table %p list %p\n", ns.ns_table, ns.ns_list);
+			printf("table %p list %p\n",
+				nsp->ns_table, nsp->ns_list);
 	}
+
+	/*
+	 * Show list of NAT rules and NAT sessions ?
+	 */
 	if (opts & OPT_LIST) {
 		printf("List of active MAP/Redirect filters:\n");
-		while (ns.ns_list) {
-			if (kmemcpy((char *)&ipn, (long)ns.ns_list,
+		while (nsp->ns_list) {
+			if (kmemcpy((char *)&ipn, (long)nsp->ns_list,
 				    sizeof(ipn))) {
 				perror("kmemcpy");
 				break;
 			}
 			if (opts & OPT_HITS)
 				printf("%d ", ipn.in_hits);
-			printnat(&ipn, opts & (OPT_DEBUG|OPT_VERBOSE),
-				 (void *)ns.ns_list);
-			ns.ns_list = ipn.in_next;
+			printnat(&ipn, opts & (OPT_DEBUG|OPT_VERBOSE));
+			nsp->ns_list = ipn.in_next;
 		}
 
 		nt[0] = (nat_t **)malloc(sizeof(*nt) * NAT_SIZE);
-		if (kmemcpy((char *)nt[0], (long)ns.ns_table[0],
+		if (kmemcpy((char *)nt[0], (long)nsp->ns_table[0],
 			    sizeof(**nt) * NAT_SIZE)) {
 			perror("kmemcpy");
 			return;
@@ -349,89 +312,59 @@ int fd, opts;
 
 		printf("\nList of active sessions:\n");
 
-		for (np = ns.ns_instances; np; np = nat.nat_next) {
+		for (np = nsp->ns_instances; np; np = nat.nat_next) {
 			if (kmemcpy((char *)&nat, (long)np, sizeof(nat)))
 				break;
-
-			printf("%s %-15s %-5hu <- ->", getnattype(nat.nat_ptr),
-			       inet_ntoa(nat.nat_inip), ntohs(nat.nat_inport));
-			printf(" %-15s %-5hu", inet_ntoa(nat.nat_outip),
-				ntohs(nat.nat_outport));
-			printf(" [%s %hu]", inet_ntoa(nat.nat_oip),
-				ntohs(nat.nat_oport));
-			if (opts & OPT_VERBOSE) {
-				printf("\n\tage %lu use %hu sumd %s/",
-					nat.nat_age, nat.nat_use,
-					getsumd(nat.nat_sumd[0]));
-				hv1 = NAT_HASH_FN(nat.nat_inip.s_addr,
-						  nat.nat_inport,
-						  0xffffffff),
-				hv1 = NAT_HASH_FN(nat.nat_oip.s_addr,
-						  hv1 + nat.nat_oport,
-						  NAT_TABLE_SZ),
-				hv2 = NAT_HASH_FN(nat.nat_outip.s_addr,
-						  nat.nat_outport,
-						  0xffffffff),
-				hv2 = NAT_HASH_FN(nat.nat_oip.s_addr,
-						  hv2 + nat.nat_oport,
-						  NAT_TABLE_SZ),
-				printf("%s pr %u bkt %d/%d flags %x ",
-					getsumd(nat.nat_sumd[1]), nat.nat_p,
-					hv1, hv2, nat.nat_flags);
-#ifdef	USE_QUAD_T
-				printf("bytes %qu pkts %qu",
-					(unsigned long long)nat.nat_bytes,
-					(unsigned long long)nat.nat_pkts);
-#else
-				printf("bytes %lu pkts %lu",
-					nat.nat_bytes, nat.nat_pkts);
-#endif
-#if SOLARIS
-				printf(" %lx", nat.nat_ipsumd);
-#endif
-			}
-			putchar('\n');
-			if (nat.nat_aps)
-				printaps(nat.nat_aps, opts);
+			printactivenat(&nat, opts);
 		}
 
-		if (opts & OPT_VERBOSE) {
-			printf("\nList of active host mappings:\n");
-		
-			maptable = (hostmap_t **)malloc(sizeof(hostmap_t *) *
-							ns.ns_hostmap_sz);
-			if (kmemcpy((char *)maptable, (u_long)ns.ns_maptable,
-				    sizeof(hostmap_t *) * ns.ns_hostmap_sz)) {
-				perror("kmemcpy (maptable)");
-				return;
-			}
-
-			for (hv = 0; hv < ns.ns_hostmap_sz; hv++) {
-				hmp = maptable[hv];
-
-				while(hmp) {
-
-					if (kmemcpy((char *)&hm, (u_long)hmp,
-						    sizeof(hostmap_t))) {
-						perror("kmemcpy (hostmap)");
-						return;
-					}
-	
-					printf("%s -> ",
-					       inet_ntoa(hm.hm_realip));
-					printf("%s ", inet_ntoa(hm.hm_mapip));
-					printf("(use = %d hv = %u)\n",
-					       hm.hm_ref, hv);
-					hmp = hm.hm_next;
-				}
-			}
-			free(maptable);
-		}
+		if (opts & OPT_VERBOSE)
+			showhostmap(nsp);
 		free(nt[0]);
 	}
 }
 
 
+/*
+ * display the active host mapping table.
+ */
+void showhostmap(nsp)
+natstat_t *nsp;
+{
+	hostmap_t hm, *hmp, **maptable;
+	u_int hv;
+
+	printf("\nList of active host mappings:\n");
+
+	maptable = (hostmap_t **)malloc(sizeof(hostmap_t *) *
+					nsp->ns_hostmap_sz);
+	if (kmemcpy((char *)maptable, (u_long)nsp->ns_maptable,
+		    sizeof(hostmap_t *) * nsp->ns_hostmap_sz)) {
+		perror("kmemcpy (maptable)");
+		return;
+	}
+
+	for (hv = 0; hv < nsp->ns_hostmap_sz; hv++) {
+		hmp = maptable[hv];
+
+		while (hmp) {
+			if (kmemcpy((char *)&hm, (u_long)hmp, sizeof(hm))) {
+				perror("kmemcpy (hostmap)");
+				return;
+			}
+
+			printhostmap(&hm, hv);
+			hmp = hm.hm_next;
+		}
+	}
+	free(maptable);
+}
+
+
+/*
+ * Issue an ioctl to flush either the NAT rules table or the active mapping
+ * table or both.
+ */
 void flushtable(fd, opts)
 int fd, opts;
 {
