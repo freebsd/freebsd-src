@@ -36,13 +36,6 @@ Install menu or use the (W)rite option here!  You're working with what
 is essentially a copy of the disk label(s), both here and in the Label
 Editor.
 
-NOTE:  The (W)rite option is HIGHLY DANGEROUS and should NOT BE USED if
-you're installing a new system!  It's only for use in resurrecting
-or changing an existing system, and will cause unpredictable things to
-happen if you use it in any other circumstances.  Don't do it!  Wait
-for the final commit dialog if you're express/novice installing, or
-use the "Commit" menu item if you're custom installing, and do it there.  
-
 If you want to use the entire disk for FreeBSD, type `A'.  You'll be
 asked whether or not you wish to keep the disk (potentially) compatible
 with other operating systems, i.e. the information in the FDISK table

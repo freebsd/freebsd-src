@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.7 1996/07/10 09:41:18 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.8 1996/08/23 07:56:04 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -181,10 +181,10 @@ setting special device flags, etc.
 
 Since people's tastes in user interface design vary widely, we have
 provided two different interfaces to the UserConfig utility.  If you
-type `visual' you will be placed in the "GUI" oriented device
+type `visual' (or just `v') you will be placed in the "GUI" oriented device
 attributes editor.  If you're someone who's more at home with
-command-line flavored interfaces then simply don't type `visual' at
-any point! :)
+command-line flavored interfaces then simply don't do that and use
+the CLI commands directly. :-)
 
 Since the visual interface pretty much describes itself, we'll use the
 more verbose command line interface while describing UserConfig in the
@@ -244,14 +244,6 @@ custom kernel that contains only the device drivers which your system
 really needs (see section 6.0 of the FreeBSD.FAQ).  If your system has
 sufficient free disk space to store and compile the kernel sources,
 this is the option we most highly recommend.
-
-IMPORTANT NOTE:  Because dset only runs when the system has been fully
-installed onto the hard disk, any changes you make when initially booting
-off the floppy will NOT BE SAVED.  If you had to change your settings
-in order to install the system then you will have to make them again
-the first time you boot from the hard disk, after that you will not need
-to do so again as dset will have run and saved them to your installed kernel
-image.
 
 
 3.      LINT - other possible configurations
