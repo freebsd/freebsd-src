@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-krb4.c,v 1.25 2001/12/19 07:18:56 deraadt Exp $");
+RCSID("$OpenBSD: auth-krb4.c,v 1.27 2002/06/11 05:46:20 mpech Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -58,8 +58,8 @@ krb4_init(void *context)
 		if (lstat("/ticket", &st) != -1)
 			tkt_root = "/ticket/";
 #endif /* AFS */
-		snprintf(authctxt->krb4_ticket_file, MAXPATHLEN, "%s%u_%d",
-		    tkt_root, authctxt->pw->pw_uid, getpid());
+		snprintf(authctxt->krb4_ticket_file, MAXPATHLEN, "%s%u_%ld",
+		    tkt_root, authctxt->pw->pw_uid, (long)getpid());
 		krb_set_tkt_string(authctxt->krb4_ticket_file);
 	}
 	/* Register ticket cleanup in case of fatal error. */
@@ -254,6 +254,7 @@ auth_krb4(Authctxt *authctxt, KTEXT auth, char **client)
 		log("Kerberos v4 .klogin authorization failed for %s to "
 		    "account %s", *client, authctxt->user);
 		xfree(*client);
+		*client = NULL;
 		return (0);
 	}
 	/* Increment the checksum, and return it encrypted with the

@@ -26,11 +26,12 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: monitor.c,v 1.16 2002/06/21 05:50:51 djm Exp $");
+RCSID("$FreeBSD$");
 
 #include <openssl/dh.h>
 
 #ifdef SKEY
-#include <skey.h>
+#include <opie.h>
 #endif
 
 #include "ssh.h"
@@ -656,11 +657,11 @@ mm_answer_bsdauthrespond(int socket, Buffer *m)
 int
 mm_answer_skeyquery(int socket, Buffer *m)
 {
-	struct skey skey;
+	struct opie opie;
 	char challenge[1024];
 	int res;
 
-	res = skeychallenge(&skey, authctxt->user, challenge);
+	res = opiechallenge(&opie, authctxt->user, challenge);
 
 	buffer_clear(m);
 	buffer_put_int(m, res);
@@ -683,8 +684,8 @@ mm_answer_skeyrespond(int socket, Buffer *m)
 
 	authok = (options.challenge_response_authentication &&
 	    authctxt->valid &&
-	    skey_haskey(authctxt->pw->pw_name) == 0 &&
-	    skey_passcheck(authctxt->pw->pw_name, response) != -1);
+	    opie_haskey(authctxt->pw->pw_name) == 0 &&
+	    opie_passverify(authctxt->pw->pw_name, response) != -1);
 
 	xfree(response);
 

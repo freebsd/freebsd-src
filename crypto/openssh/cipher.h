@@ -1,4 +1,4 @@
-/*	$OpenBSD: cipher.h,v 1.32 2002/03/04 17:27:39 stevesk Exp $	*/
+/*	$OpenBSD: cipher.h,v 1.33 2002/03/18 17:13:15 markus Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -82,4 +82,11 @@ void	 cipher_cleanup(CipherContext *);
 void	 cipher_set_key_string(CipherContext *, Cipher *, const char *, int);
 u_int	 cipher_blocksize(Cipher *);
 u_int	 cipher_keylen(Cipher *);
+
+u_int	 cipher_get_number(Cipher *);
+void	 cipher_get_keyiv(CipherContext *, u_char *, u_int);
+void	 cipher_set_keyiv(CipherContext *, u_char *);
+int	 cipher_get_keyiv_len(CipherContext *);
+int	 cipher_get_keycontext(CipherContext *, u_char *);
+void	 cipher_set_keycontext(CipherContext *, u_char *);
 #endif				/* CIPHER_H */

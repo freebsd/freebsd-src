@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: serverloop.c,v 1.98 2002/02/06 14:55:16 markus Exp $");
+RCSID("$OpenBSD: serverloop.c,v 1.102 2002/06/11 05:46:20 mpech Exp $");
 RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
@@ -319,9 +319,6 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 		tv.tv_usec = 1000 * (max_time_milliseconds % 1000);
 		tvp = &tv;
 	}
-	if (tvp!=NULL)
-		debug3("tvp!=NULL kid %d mili %d", (int) child_terminated,
-		    max_time_milliseconds);
 
 	/* Wait for something to happen, or the timeout to expire. */
 	ret = select((*maxfdp)+1, *readsetp, *writesetp, NULL, tvp);
@@ -674,12 +671,12 @@ server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 	/* We no longer want our SIGCHLD handler to be called. */
 	signal(SIGCHLD, SIG_DFL);
 
-	wait_pid = waitpid(-1, &wait_status, 0);
-	if (wait_pid == -1)
-		packet_disconnect("wait: %.100s", strerror(errno));
-	else if (wait_pid != pid)
-		error("Strange, wait returned pid %d, expected %d",
-		    wait_pid, pid);
+	while ((wait_pid = waitpid(-1, &wait_status, 0)) < 0)
+		if (errno != EINTR)
+			packet_disconnect("wait: %.100s", strerror(errno));
+	if (wait_pid != pid)
+		error("Strange, wait returned pid %ld, expected %ld",
+		    (long)wait_pid, (long)pid);
 
 	/* Check if it exited normally. */
 	if (WIFEXITED(wait_status)) {
@@ -727,8 +724,10 @@ collect_children(void)
 	sigaddset(&nset, SIGCHLD);
 	sigprocmask(SIG_BLOCK, &nset, &oset);
 	if (child_terminated) {
-		while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-			session_close_by_pid(pid, status);
+		while ((pid = waitpid(-1, &status, WNOHANG)) > 0 ||
+		    (pid < 0 && errno == EINTR))
+			if (pid > 0)
+				session_close_by_pid(pid, status);
 		child_terminated = 0;
 	}
 	sigprocmask(SIG_SETMASK, &oset, NULL);
@@ -785,7 +784,7 @@ server_loop2(Authctxt *authctxt)
 	channel_free_all();
 
 	/* free remaining sessions, e.g. remove wtmp entries */
-	session_destroy_all();
+	session_destroy_all(NULL);
 }
 
 static void
