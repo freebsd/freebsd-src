@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.2 1994/08/28 17:44:10 bde Exp $
+#	$Id: Makefile,v 1.3 1995/03/18 07:04:23 rgrimes Exp $
 
 .SUFFIXES: .x
 
@@ -13,25 +13,31 @@ XFILES= bootparam_prot.x klm_prot.x mount.x nfs_prot.x nlm_prot.x \
 HFILES= yp_prot.h ypclnt.h
 
 CLEANFILES+= ${HDRS}
+RPCDIR= ${DESTDIR}/usr/include/rpcsvc
+EVERYTHING= $(XFILES) $(HFILES)
 
 all: ${HDRS}
 
 install: all
-	@${ECHO} "Creating RPC service headers directory"
-	@/bin/rm -rf ${DESTDIR}/usr/include/rpcsvc
-	@-mkdir ${DESTDIR}/usr/include/rpcsvc
 	@${ECHO} "Installing RPC service header and definition files"
-	@for i in $(XFILES); do \
-		(install -c -m 644 ${.CURDIR}/$$i ${DESTDIR}/usr/include/rpcsvc) done
-	@for i in $(HDRS); do \
-		(install ${COPY} -m 644 $$i ${DESTDIR}/usr/include/rpcsvc) done
-	@for i in $(HFILES); do \
-		(install -c -m 644 ${.CURDIR}/$$i ${DESTDIR}/usr/include/rpcsvc) done
-	@chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/rpcsvc
-	@chmod -R 755 ${DESTDIR}/usr/include/rpcsvc
+.for i in $(EVERYTHING)
+	@cd ${.CURDIR}; cmp -s $i $(RPCDIR)/$i || \
+		(install -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
+			${.CURDIR}/$i ${RPCDIR}; \
+			$(ECHO) $i)
+.endfor
+.for i in $(HDRS)
+	@cmp -s $i $(RPCDIR)/$i || \
+		(install -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
+			${.CURDIR}/$i ${RPCDIR}; \
+			$(ECHO) $i)
+.endfor
 
 .x.h:
-	@${ECHO} generating $@...
-	@CURPWD=`pwd` ; cd ${.CURDIR} ; ${RPCCOM} -h $*.x -o $$CURPWD/$@
+	cd ${.CURDIR} ; ${RPCCOM} -h $*.x -o ${.OBJDIR}/$@
 
 .include <bsd.prog.mk>
+
+
+
+
