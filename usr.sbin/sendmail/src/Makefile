@@ -1,4 +1,9 @@
-#	@(#)Makefile	8.4 (Berkeley) 2/3/94
+#	@(#)Makefile	8.7 (Berkeley) 10/31/95
+
+#########################################################################
+#  This Makefile is for 4.4BSD only!!!  For all other systems, use	#
+#  the "makesendmail" script.						#
+#########################################################################
 
 PROG=	sendmail
 
@@ -10,14 +15,14 @@ PROG=	sendmail
 # databases are read, but the new format will be used on any rebuilds.  On
 # really gnarly systems, you can set this to null; it will crawl like a high
 # spiral snail, but it will work.
-DBMDEF=	-DNEWDB -DNDBM
+DBMDEF=	-DNEWDB
 
 CFLAGS+=-I${.CURDIR} ${DBMDEF} -DNETISO
 
 SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
 	deliver.c domain.c envelope.c err.c headers.c macro.c main.c map.c \
-	mci.c parseaddr.c queue.c readcf.c recipient.c savemail.c srvrsmtp.c \
-	stab.c stats.c sysexits.c trace.c udb.c usersmtp.c \
+	mci.c mime.c parseaddr.c queue.c readcf.c recipient.c savemail.c \
+	srvrsmtp.c stab.c stats.c sysexits.c trace.c udb.c usersmtp.c \
 	util.c version.c
 DPADD=
 LDADD=
