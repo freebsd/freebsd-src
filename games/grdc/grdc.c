@@ -56,10 +56,6 @@ int n = 0;
 
 	initscr();
 
-	/* revoke privs */
-	setegid(getgid());
-	setgid(getgid());
-
 	signal(SIGINT,sighndl);
 	signal(SIGTERM,sighndl);
 	signal(SIGHUP,sighndl);
