@@ -36,8 +36,6 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#if NPCI != 0
-
 /* -------------------------------------------------------------------- */
 
 struct tr_info;
@@ -684,5 +682,3 @@ static driver_t tr_driver = {
 static devclass_t pcm_devclass;
 
 DRIVER_MODULE(tr, pci, tr_driver, pcm_devclass, 0, 0);
-
-#endif /* NPCI != 0 */

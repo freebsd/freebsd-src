@@ -29,7 +29,6 @@
 
 #include "gusc.h"
 #include "isa.h"
-#include "pnp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,8 +53,6 @@
 #include <alpha/isa/isavar.h>
 #endif
 #endif /* NISA > 0 */
-
-#if NGUSC > 0
 
 #define LOGICALID_NOPNP 0
 #define LOGICALID_PCM   0x0000561e
@@ -121,7 +118,6 @@ gusc_probe(device_t dev)
 	if (vend_id == 0)
 		return gusisa_probe(dev);
 
-#if NPNP > 0
 	logical_id = isa_get_logicalid(dev);
 	s = NULL;
 
@@ -166,7 +162,6 @@ gusc_probe(device_t dev)
 		device_set_desc(dev, s);
 		return (0);
 	}
-#endif /* NPNP > 0 */
 
 	return (ENXIO);
 }
@@ -682,5 +677,3 @@ static driver_t gusc_driver = {
  */
 DRIVER_MODULE(gusc, isa, gusc_driver, gusc_devclass, 0, 0);
 #endif /* NISA > 0 */
-
-#endif /* NGUSC > 0 */

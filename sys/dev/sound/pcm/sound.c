@@ -27,16 +27,7 @@
  * $FreeBSD$
  */
 
-#include "opt_devfs.h"
-
 #include <dev/sound/pcm/sound.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
-
-#if NPCM > 0	/* from "pcm.h" via disgusting #include in snd/sound.h */
-
-extern struct isa_driver pcmdriver;
 
 static int 	status_isopen = 0;
 static int 	status_init(char *buf, int size);
@@ -444,5 +435,3 @@ status_read(struct uio *buf)
     	bufptr += l;
     	return (l > 0)? uiomove(status_buf + bufptr - l, l, buf) : 0;
 }
-
-#endif	/* NPCM > 0 */
