@@ -36,7 +36,7 @@
  * $FreeBSD$
  */
 
-#include "npx.h"
+#include "opt_npx.h"
 #include "opt_user_ldt.h"
 
 #include <sys/rtprio.h>
@@ -140,7 +140,7 @@ ENTRY(cpu_switch)
 	/* XXX FIXME: we should be saving the local APIC TPR */
 #endif /* SMP */
 
-#if NNPX > 0
+#ifdef DEV_NPX
 	/* have we used fp, and need a save? */
 	cmpl	%ecx,PCPU(NPXPROC)
 	jne	1f
@@ -149,7 +149,7 @@ ENTRY(cpu_switch)
 	call	_npxsave			/* do it in a big C function */
 	popl	%eax
 1:
-#endif	/* NNPX > 0 */
+#endif	/* DEV_NPX */
 
 	/* save is done, now choose a new process */
 sw1:
@@ -358,7 +358,7 @@ ENTRY(savectx)
 	movl	%edi,PCB_EDI(%ecx)
 	movl	%gs,PCB_GS(%ecx)
 
-#if NNPX > 0
+#ifdef DEV_NPX
 	/*
 	 * If npxproc == NULL, then the npx h/w state is irrelevant and the
 	 * state had better already be in the pcb.  This is true for forks
@@ -391,7 +391,7 @@ ENTRY(savectx)
 	pushl	%eax
 	call	_bcopy
 	addl	$12,%esp
-#endif	/* NNPX > 0 */
+#endif	/* DEV_NPX */
 
 1:
 	ret

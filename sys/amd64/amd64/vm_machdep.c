@@ -41,7 +41,7 @@
  * $FreeBSD$
  */
 
-#include "npx.h"
+#include "opt_npx.h"
 #include "opt_user_ldt.h"
 #ifdef PC98
 #include "opt_pc98.h"
@@ -141,7 +141,7 @@ cpu_fork(p1, p2, flags)
 		return;
 	}
 
-#if NNPX > 0
+#ifdef DEV_NPX
 	/* Ensure that p1's pcb is up to date. */
 	if (PCPU_GET(npxproc) == p1)
 		npxsave(&p1->p_addr->u_pcb.pcb_savefpu);
@@ -234,9 +234,9 @@ cpu_exit(p)
 {
 	struct pcb *pcb = &p->p_addr->u_pcb; 
 
-#if NNPX > 0
+#ifdef DEV_NPX
 	npxexit(p);
-#endif	/* NNPX */
+#endif
 	if (pcb->pcb_ext != 0) {
 	        /* 
 		 * XXX do we need to move the TSS off the allocated pages 

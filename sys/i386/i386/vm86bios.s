@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include "npx.h"
+#include "opt_npx.h"
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/trap.h>
@@ -64,7 +64,7 @@ ENTRY(vm86_bioscall)
 	pushl	%edi
 	pushl	%gs
 
-#if NNPX > 0
+#ifdef DEV_NPX
 	movl	PCPU(CURPROC),%ecx
 	cmpl	%ecx,PCPU(NPXPROC)	/* do we need to save fp? */
 	jne	1f

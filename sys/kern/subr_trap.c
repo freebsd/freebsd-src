@@ -42,10 +42,11 @@
  * 386 Trap and System call handling
  */
 
+#include "opt_clock.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
-#include "opt_clock.h"
+#include "opt_npx.h"
 #include "opt_trap.h"
 
 #include <sys/param.h>
@@ -98,7 +99,6 @@
 #include <ddb/ddb.h>
 
 #include "isa.h"
-#include "npx.h"
 
 #include <sys/sysctl.h>
 
@@ -409,7 +409,7 @@ restart:
 			break;
 
 		case T_DNA:
-#if NNPX > 0
+#ifdef DEV_NPX
 			/* transparent fault (due to context switch "late") */
 			if (npxdna())
 				goto out;
@@ -443,7 +443,7 @@ restart:
 			goto out;
 
 		case T_DNA:
-#if NNPX > 0
+#ifdef DEV_NPX
 			/*
 			 * The kernel is apparently using npx for copying.
 			 * XXX this should be fatal unless the kernel has
