@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.1 1997/08/14 13:57:44 msmith Exp $
+ *	$Id: vpo.c,v 1.2 1997/08/16 14:05:37 msmith Exp $
  *
  */
 #include <sys/types.h>
@@ -40,7 +40,6 @@
 #include <machine/stdarg.h>
 #include <machine/clock.h>
 
-#include <i386/isa/isa_device.h>
 #endif	/* KERNEL */
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
