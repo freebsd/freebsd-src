@@ -1,9 +1,7 @@
-/*	$FreeBSD$ */
-/* $Id: if_lmc_fbsd.c,v 1.3 1999/01/12 13:27:42 explorer Exp $ */
-
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
  * Copyright (c) LAN Media Corporation 1998, 1999.
+ * Copyright (c) 2000 Stephen Kiernan (sk-ports@vegamuse.org)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,6 +22,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *	$Id: if_lmc_fbsd.c,v 1.3 1999/01/12 13:27:42 explorer Exp $
  */
 
 /*
@@ -35,7 +36,9 @@
 #define	PCI_GETBUSDEVINFO(sc) (sc)->lmc_pci_busno = (config_id->bus), \
 			      (sc)->lmc_pci_devno = (config_id->slot) 
 
+#if 0
 static void lmc_shutdown(int howto, void * arg);
+#endif
 
 #if defined(LMC_DEVCONF)
 static int
@@ -51,7 +54,7 @@ lmc_pci_shutdown(struct kern_devconf * const kdc, int force)
 }
 #endif
 
-static char*
+static const char*
 lmc_pci_probe(pcici_t config_id, pcidi_t device_id)
 {
 	u_int32_t id;
@@ -104,13 +107,17 @@ struct pci_device lmcdevice = {
 #endif
 };
 
-DATA_SET (pcidevice_set, lmcdevice);
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER(ti, lmcdevice);
+#else
+DATA_SET(pcidevice_set, lmcdevice);
+#endif /* COMPAT_PCI_DRIVER */
 
 static void
 lmc_pci_attach(pcici_t config_id, int unit)
 {
 	lmc_softc_t *sc;
-	int retval, idx;
+	int retval;
 	u_int32_t revinfo, cfdainfo, id, ssid;
 #if !defined(LMC_IOMAPPED)
 	vm_offset_t pa_csrs;
@@ -119,7 +126,6 @@ lmc_pci_attach(pcici_t config_id, int unit)
 	unsigned csrsize = LMC_PCI_CSRSIZE;
 	lmc_csrptr_t csr_base;
 	lmc_spl_t s;
-	lmc_intrfunc_t (*intr_rtn)(void *) = lmc_intr_normal;
 
 	if (unit >= LMC_MAX_DEVICES) {
 		printf("lmc%d", unit);
@@ -185,9 +191,6 @@ lmc_pci_attach(pcici_t config_id, int unit)
 	sc->lmc_unit = unit;
 	sc->lmc_name = "lmc";
 	sc->lmc_revinfo = revinfo;
-#if BSD >= 199506
-	sc->lmc_if.if_softc = sc;
-#endif
 #if defined(LMC_IOMAPPED)
 	retval = pci_map_port(config_id, PCI_CBIO, &csr_base);
 #else
@@ -240,18 +243,20 @@ lmc_pci_attach(pcici_t config_id, int unit)
 	}
 
 	lmc_read_macaddr(sc);
-	printf("pass %d.%d, serial " LMC_EADDR_FMT "\n",
+	printf("lmc%d: pass %d.%d, serial " LMC_EADDR_FMT "\n", unit,
 	       (sc->lmc_revinfo & 0xF0) >> 4, sc->lmc_revinfo & 0x0F,
 	       LMC_EADDR_ARGS(sc->lmc_enaddr));
 
-	if (!pci_map_int (config_id, intr_rtn, (void*) sc, &net_imask)) {
+	if (!pci_map_int (config_id, lmc_intr_normal, (void*) sc, &net_imask)) {
 		printf(LMC_PRINTF_FMT ": couldn't map interrupt\n",
 		       LMC_PRINTF_ARGS);
 		return;
 	}
 
+#if 0
 #if !defined(LMC_DEVCONF)
 	at_shutdown(lmc_shutdown, sc, SHUTDOWN_POST_SYNC);
+#endif
 #endif
 
 	s = LMC_RAISESPL();
@@ -261,6 +266,7 @@ lmc_pci_attach(pcici_t config_id, int unit)
 	LMC_RESTORESPL(s);
 }
 
+#if 0
 static void
 lmc_shutdown(int howto, void * arg)
 {
@@ -272,3 +278,4 @@ lmc_shutdown(int howto, void * arg)
 printf("lmc: 5\n");
 	lmc_led_on(sc, LMC_MII16_LED_ALL);
 }
+#endif

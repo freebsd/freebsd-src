@@ -1,10 +1,7 @@
-/*	$FreeBSD$ */
-/*      From NetBSD: if_de.c,v 1.56.2.1 1997/10/27 02:13:25 thorpej Exp    */
-/*	$Id: if_lmc.c,v 1.9 1999/02/19 15:08:42 explorer Exp $	*/
-
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
  * Copyright (c) LAN Media Corporation 1998, 1999.
+ * Copyright (c) 2000 Stephen Kiernan (sk-ports@vegamuse.org)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,103 +22,40 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *      From NetBSD: if_de.c,v 1.56.2.1 1997/10/27 02:13:25 thorpej Exp
+ *	$Id: if_lmc.c,v 1.9 1999/02/19 15:08:42 explorer Exp $
  */
 
 char lmc_version[] = "BSD 1.1";
 
+#include "opt_netgraph.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>	/* only for declaration of wakeup() used by vm.h */
-#if defined(__FreeBSD__)
 #include <machine/clock.h>
-#elif defined(__bsdi__) || defined(__NetBSD__)
-#include <sys/device.h>
-#endif
-
-#if defined(__NetBSD__)
-#include <dev/pci/pcidevs.h>
-#include "rnd.h"
-#if NRND > 0
-#include <sys/rnd.h>
-#endif
-#endif
 
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_dl.h>
-#include <net/netisr.h>
-
-#include "bpfilter.h"
-#if NBPFILTER > 0
-#include <net/bpf.h>
-#include <net/bpfdesc.h>
-#endif
+#include <sys/syslog.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_kern.h>
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-#include <net/if_sppp.h>
-#endif
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
+#include <netgraph/netgraph.h>
 
-#if defined(__bsdi__)
-#if INET
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#endif
-
-#include <net/netisr.h>
-#include <net/if.h>
-#include <net/netisr.h>
-#include <net/if_types.h>
-#include <net/if_p2p.h>
-#include <net/if_c_hdlc.h>
-#endif
-
-#if defined(__FreeBSD__)
 #include <vm/pmap.h>
 #include <pci.h>
-#if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/dc21040reg.h>
-#define INCLUDE_PATH_PREFIX "pci/"
-#endif
-#endif /* __FreeBSD__ */
+#define INCLUDE_PATH_PREFIX "dev/lmc/"
 
-#if defined(__bsdi__)
-#include <i386/pci/ic/dc21040.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/dma.h>
-#include <i386/isa/isavar.h>
-#include <i386/pci/pci.h>
-
-#define	INCLUDE_PATH_PREFIX	"i386/pci/"
-#endif /* __bsdi__ */
-
-#if defined(__NetBSD__)
-#include <machine/bus.h>
-#if defined(__alpha__)
-#include <machine/intr.h>
-#endif
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-#include <dev/ic/dc21040reg.h>
-#define	INCLUDE_PATH_PREFIX	"dev/pci/"
-#endif /* __NetBSD__ */
-
-/*
- * Intel CPUs should use I/O mapped access.  XXXMLG Is this true on NetBSD
- * too?
- */
+/* Intel CPUs should use I/O mapped access.  */
 #if defined(__i386__)
 #define	LMC_IOMAPPED
 #endif
@@ -130,8 +64,7 @@ char lmc_version[] = "BSD 1.1";
  * This turns on all sort of debugging stuff and make the
  * driver much larger.
  */
-#if 0
-#define LMC_DEBUG
+#ifdef LMC_DEBUG
 #define DP(x)	printf x
 #else
 #define DP(x)
@@ -153,40 +86,111 @@ typedef struct lmc___softc lmc_softc_t;
 typedef struct lmc___media lmc_media_t;
 typedef struct lmc___ctl lmc_ctl_t;
 
-/*
- * Sigh.  Every OS puts these in different places.  NetBSD and FreeBSD use
- * a C preprocessor that allows this hack, but BSDI does not.
- */
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-#include INCLUDE_PATH_PREFIX "if_lmcioctl.h"
-#include INCLUDE_PATH_PREFIX "if_lmcvar.h"
-#include INCLUDE_PATH_PREFIX "if_lmc_common.c"
-#include INCLUDE_PATH_PREFIX "if_lmc_media.c"
-#else /* BSDI */
-#include "i386/pci/if_lmcioctl.h"
-#include "i386/pci/if_lmcvar.h"
-#include "i386/pci/if_lmc_common.c"
-#include "i386/pci/if_lmc_media.c"
-#endif
+#include "dev/lmc/if_lmcioctl.h"
+#include "dev/lmc/if_lmcvar.h"
+#include "dev/lmc/if_lmc_common.c"
+#include "dev/lmc/if_lmc_media.c"
 
 /*
  * This module supports
  *	the DEC 21140A pass 2.2 PCI Fast Ethernet Controller.
  */
 static lmc_intrfunc_t lmc_intr_normal(void *);
-static ifnet_ret_t lmc_ifstart_one(struct ifnet *ifp);
-static ifnet_ret_t lmc_ifstart(struct ifnet *ifp);
+static ifnet_ret_t lmc_ifstart(lmc_softc_t * const sc );
+static ifnet_ret_t lmc_ifstart_one(lmc_softc_t * const sc);
 static struct mbuf *lmc_txput(lmc_softc_t * const sc, struct mbuf *m);
 static void lmc_rx_intr(lmc_softc_t * const sc);
 
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-static void lmc_watchdog(struct ifnet *ifp);
-#endif
-#if defined(__bsdi__)
-static int lmc_watchdog(int);
-#endif
+static void lmc_watchdog(lmc_softc_t * const sc);
 static void lmc_ifup(lmc_softc_t * const sc);
 static void lmc_ifdown(lmc_softc_t * const sc);
+
+#ifdef LMC_DEBUG
+static void ng_lmc_dump_packet(struct mbuf *m);
+#endif /* LMC_DEBUG */
+static void ng_lmc_watchdog_frame(void *arg);
+static void ng_lmc_init(void *ignored);
+
+static ng_constructor_t ng_lmc_constructor;
+static ng_rcvmsg_t      ng_lmc_rcvmsg;
+static ng_shutdown_t    ng_lmc_rmnode;
+static ng_newhook_t     ng_lmc_newhook;
+/*static ng_findhook_t  ng_lmc_findhook; */
+static ng_connect_t     ng_lmc_connect;
+static ng_rcvdata_t     ng_lmc_rcvdata;
+static ng_disconnect_t  ng_lmc_disconnect;
+
+/* Parse type for struct lmc_ctl */
+static const struct ng_parse_fixedarray_info ng_lmc_ctl_cardspec_info = {
+	&ng_parse_int32_type,
+	7,
+	NULL
+};
+
+static const struct ng_parse_type ng_lmc_ctl_cardspec_type = {
+	&ng_parse_fixedarray_type,
+	&ng_lmc_ctl_cardspec_info
+};
+
+static const struct ng_parse_struct_info ng_lmc_ctl_type_info = {
+	{
+		{ "cardtype",		&ng_parse_int32_type		},
+		{ "clock_source",	&ng_parse_int32_type		},
+		{ "clock_rate",		&ng_parse_int32_type		},
+		{ "crc_length",		&ng_parse_int32_type		},
+		{ "cable_length",	&ng_parse_int32_type		},
+		{ "scrambler_onoff",	&ng_parse_int32_type		},
+		{ "cable_type",		&ng_parse_int32_type		},
+		{ "keepalive_onoff",	&ng_parse_int32_type		},
+		{ "ticks",		&ng_parse_int32_type		},
+		{ "cardspec",		&ng_lmc_ctl_cardspec_type	},
+		{ "circuit_type",	&ng_parse_int32_type		},
+		{ NULL },
+	}
+};
+
+static const struct ng_parse_type ng_lmc_ctl_type = {
+        &ng_parse_struct_type,
+        &ng_lmc_ctl_type_info
+};
+
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist ng_lmc_cmdlist[] = {
+        {
+          NG_LMC_COOKIE,
+          NGM_LMC_GET_CTL,
+          "getctl",
+          NULL,
+          &ng_lmc_ctl_type,
+        },
+        {
+          NG_LMC_COOKIE,
+          NGM_LMC_SET_CTL,
+          "setctl",
+          &ng_lmc_ctl_type,
+          NULL
+        },
+        { 0 }
+};
+
+static struct ng_type typestruct = {
+        NG_VERSION,
+        NG_LMC_NODE_TYPE,
+        NULL,
+        ng_lmc_constructor,
+        ng_lmc_rcvmsg,
+        ng_lmc_rmnode,
+        ng_lmc_newhook,
+        NULL,
+        ng_lmc_connect,
+        ng_lmc_rcvdata,
+        ng_lmc_rcvdata,
+        ng_lmc_disconnect,
+        ng_lmc_cmdlist
+};
+
+static int ng_lmc_done_init = 0;
 
 
 /*
@@ -381,22 +385,9 @@ lmc_read_macaddr(lmc_softc_t * const sc)
  * Check to make certain there is a signal from the modem, and flicker
  * lights as needed.
  */
-#if defined(__NetBSD__) || defined(__FreeBSD__)
 static void
-lmc_watchdog(struct ifnet *ifp)
-#endif
-#if defined(__bsdi__)
-static int
-lmc_watchdog(int unit)
-#endif
+lmc_watchdog(lmc_softc_t * const sc)
 {
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	lmc_softc_t * const sc = LMC_IFP_TO_SOFTC(ifp);
-#endif
-#if defined(__bsdi__)
-	lmc_softc_t * const sc = LMC_UNIT_TO_SOFTC(unit);
-	struct ifnet *ifp = &sc->lmc_if;
-#endif
 	int state;
 	u_int32_t ostatus;
 	u_int32_t link_status;
@@ -439,7 +430,7 @@ lmc_watchdog(int unit)
 	LMC_CSR_WRITE(sc, csr_gp_timer, 0xffffffffUL);
 	sc->ictl.ticks = 0x0000ffff - (ticks & 0x0000ffff);
 
-	ifp->if_timer = 1;
+	sc->lmc_out_dog = LMC_DOG_HOLDOFF;
 }
 
 /*
@@ -449,7 +440,8 @@ lmc_watchdog(int unit)
 static void
 lmc_ifup(lmc_softc_t * const sc)
 {
-	sc->lmc_if.if_timer = 0;
+	untimeout(ng_lmc_watchdog_frame, sc, sc->lmc_handle);
+	sc->lmc_running = 0;
 
 	lmc_dec_reset(sc);
 	lmc_reset(sc);
@@ -478,7 +470,9 @@ lmc_ifup(lmc_softc_t * const sc)
 	sc->lmc_cmdmode |= TULIP_CMD_RXRUN;
 	LMC_CSR_WRITE(sc, csr_command, sc->lmc_cmdmode);
 
-	sc->lmc_if.if_timer = 1;
+	untimeout(ng_lmc_watchdog_frame, sc, sc->lmc_handle);
+	sc->lmc_handle = timeout(ng_lmc_watchdog_frame, sc, hz);
+	sc->lmc_running = 1;
 }
 
 /*
@@ -488,7 +482,8 @@ lmc_ifup(lmc_softc_t * const sc)
 static void
 lmc_ifdown(lmc_softc_t * const sc)
 {
-	sc->lmc_if.if_timer = 0;
+	untimeout(ng_lmc_watchdog_frame, sc, sc->lmc_handle);
+	sc->lmc_running = 0;
 	sc->lmc_flags &= ~LMC_IFUP;
 
 	sc->lmc_media->set_link_status(sc, 0);
@@ -503,7 +498,6 @@ static void
 lmc_rx_intr(lmc_softc_t * const sc)
 {
 	lmc_ringinfo_t * const ri = &sc->lmc_rxinfo;
-	struct ifnet * const ifp = &sc->lmc_if;
 	int fillok = 1;
 
 	sc->lmc_rxtick++;
@@ -584,32 +578,23 @@ lmc_rx_intr(lmc_softc_t * const sc)
 		else
 			total_len -= 4;
 
+		sc->lmc_inbytes += total_len;
+		sc->lmc_inlast = 0;
+
 		if ((sc->lmc_flags & LMC_RXIGNORE) == 0
 		    && ((eop->d_status & LMC_DSTS_ERRSUM) == 0
-#ifdef BIG_PACKET
-			|| (total_len <= sc->lmc_if.if_mtu + PPP_HEADER_LEN
-			    && (eop->d_status & TULIP_DSTS_RxOVERFLOW) == 0)
-#endif
 			)) {
 			me->m_len = total_len - last_offset;
-#if NBPFILTER > 0
-			if (sc->lmc_bpf != NULL) {
-				if (me == ms)
-					LMC_BPF_TAP(sc, mtod(ms, caddr_t), total_len);
-				else
-					LMC_BPF_MTAP(sc, ms);
-			}
-#endif
 			sc->lmc_flags |= LMC_RXACT;
 			accept = 1;
 		} else {
-			ifp->if_ierrors++;
+			sc->lmc_ierrors++;
 			if (eop->d_status & TULIP_DSTS_RxOVERFLOW) {
 				sc->lmc_dot3stats.dot3StatsInternalMacReceiveErrors++;
 			}
 		}
 
-		ifp->if_ipackets++;
+		sc->lmc_ipackets++;
 		if (++eop == ri->ri_last)
 			eop = ri->ri_first;
 		ri->ri_nextin = eop;
@@ -640,13 +625,8 @@ lmc_rx_intr(lmc_softc_t * const sc)
 			}
 			if (accept) {
 				ms->m_pkthdr.len = total_len;
-				ms->m_pkthdr.rcvif = ifp;
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-				sppp_input(ifp, ms);
-#endif
-#if defined(__bsdi__)
-				sc->lmc_p2pcom.p2p_input(&sc->lmc_p2pcom, ms);
-#endif
+				ms->m_pkthdr.rcvif = NULL;
+				ng_send_data(sc->lmc_hook, ms, NULL);
 			}
 			ms = m0;
 		}
@@ -711,7 +691,7 @@ lmc_tx_intr(lmc_softc_t * const sc)
 		}
 		    xmits++;
 		    if (d_status & LMC_DSTS_ERRSUM) {
-			sc->lmc_if.if_oerrors++;
+			sc->lmc_oerrors++;
 			if (d_status & TULIP_DSTS_TxUNDERFLOW)
 			    sc->lmc_dot3stats.dot3StatsInternalTransmitUnderflows++;
 		    } else {
@@ -725,13 +705,14 @@ lmc_tx_intr(lmc_softc_t * const sc)
 
 	ri->ri_free++;
 	descs++;
-	sc->lmc_if.if_flags &= ~IFF_OACTIVE;
+	/*sc->lmc_if.if_flags &= ~IFF_OACTIVE;*/
+	sc->lmc_out_deficit++;
     }
     /*
      * If nothing left to transmit, disable the timer.
      * Else if progress, reset the timer back to 2 ticks.
      */
-    sc->lmc_if.if_opackets += xmits;
+    sc->lmc_opackets += xmits;
 
     return descs;
 }
@@ -748,12 +729,6 @@ lmc_intr_handler(lmc_softc_t * const sc, int *progress_p)
     u_int32_t csr;
 
     while ((csr = LMC_CSR_READ(sc, csr_status)) & sc->lmc_intrmask) {
-
-#if defined(__NetBSD__)
-#if NRND > 0
-	    rnd_add_uint32(&sc->lmc_rndsource, csr);
-#endif
-#endif
 
 	*progress_p = 1;
 	LMC_CSR_WRITE(sc, csr_status, csr);
@@ -825,7 +800,7 @@ lmc_intr_handler(lmc_softc_t * const sc, int *progress_p)
 		lmc_tx_intr(sc);
 
 	if (sc->lmc_flags & LMC_WANTTXSTART)
-	    lmc_ifstart(&sc->lmc_if);
+		lmc_ifstart(sc);
     }
 }
 
@@ -1065,7 +1040,8 @@ lmc_txput(lmc_softc_t * const sc, struct mbuf *m)
 	 * switch back to the single queueing ifstart.
 	 */
 	sc->lmc_flags &= ~LMC_WANTTXSTART;
-	sc->lmc_if.if_start = lmc_ifstart_one;
+	sc->lmc_xmit_busy = 0;
+	sc->lmc_out_dog = 0;
 
 	/*
 	 * If we want a txstart, there must be not enough space in the
@@ -1077,286 +1053,102 @@ lmc_txput(lmc_softc_t * const sc, struct mbuf *m)
 	 * WANTTXSTART thereby causing TXINTR to be cleared.
 	 */
  finish:
-	if (sc->lmc_flags & LMC_WANTTXSTART) {
-		sc->lmc_if.if_flags |= IFF_OACTIVE;
-		sc->lmc_if.if_start = lmc_ifstart;
-	}
 
 	return m;
 }
 
 
 /*
- * This routine is entered at splnet() (splsoftnet() on NetBSD)
- */
-static int
-lmc_ifioctl(struct ifnet * ifp, ioctl_cmd_t cmd, caddr_t data)
-{
-	lmc_softc_t * const sc = LMC_IFP_TO_SOFTC(ifp);
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	lmc_spl_t s;
-#endif
-	int error = 0;
-	struct ifreq *ifr = (struct ifreq *)data;
-	u_int32_t new_state;
-	u_int32_t old_state;
-	lmc_ctl_t ctl;
-
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	s = LMC_RAISESPL();
-#endif
-
-	switch (cmd) {
-	case LMCIOCGINFO:
-		error = copyout(&sc->ictl, ifr->ifr_data, sizeof(lmc_ctl_t));
-
-		goto out;
-		break;
-
-	case LMCIOCSINFO:
-#if 0 /* XXX */
-		error = suser(p->p_ucred, &p->p_acflag);
-		if (error)
-			goto out;
-#endif
-
-		error = copyin(ifr->ifr_data, &ctl, sizeof(lmc_ctl_t));
-		if (error != 0)
-			goto out;
-
-		sc->lmc_media->set_status(sc, &ctl);
-
-		goto out;
-		break;
-
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	case SIOCSIFMTU:
-		/*
-		 * Don't allow the MTU to get larger than we can handle
-		 */
-		if (ifr->ifr_mtu > LMC_MTU) {
-			error = EINVAL;
-			goto out;
-		}
-#endif
-	}
-
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	/*
-	 * call the sppp ioctl layer
-	 */
-	error = sppp_ioctl(ifp, cmd, data);
-	if (error != 0)
-		goto out;
-#endif
-
-#if defined(__bsdi__)
-	error = p2p_ioctl(ifp, cmd, data);
-#endif
-
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	/*
-	 * If we are transitioning from up to down or down to up, call
-	 * our init routine.
-	 */
-	new_state = ifp->if_flags & IFF_UP;
-	old_state = sc->lmc_flags & LMC_IFUP;
-
-	if (new_state && !old_state)
-		lmc_ifup(sc);
-	else if (!new_state && old_state)
-		lmc_ifdown(sc);
-#endif
-
- out:
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	LMC_RESTORESPL(s);
-#endif
-
-	return error;
-}
-
-/*
- * These routines gets called at device spl (from sppp_output).
+ * These routines gets called at device spl
  */
 
-#if defined(__NetBSD__) || defined(__FreeBSD__)
 static ifnet_ret_t
-lmc_ifstart(struct ifnet * const ifp)
+lmc_ifstart(lmc_softc_t * const sc)
 {
-	lmc_softc_t * const sc = LMC_IFP_TO_SOFTC(ifp);
 	struct mbuf *m;
 
 	if (sc->lmc_flags & LMC_IFUP) {
-		while (sppp_isempty(ifp) == 0) {
-			m = sppp_dequeue(ifp);
-			if ((m = lmc_txput(sc, m)) != NULL) {
-				IF_PREPEND(&((struct sppp *)ifp)->pp_fastq, m);
-				break;
+		sc->lmc_xmit_busy = 1;
+		for(;;) {
+			struct ifqueue *q = &sc->lmc_xmitq_hipri;
+			IF_DEQUEUE(q, m);
+			if (m == NULL) {
+				q = &sc->lmc_xmitq;
+				IF_DEQUEUE(q, m);
 			}
+			if (m) {
+				sc->lmc_outbytes = m->m_pkthdr.len;
+				sc->lmc_opackets++;
+				if ((m = lmc_txput(sc, m)) != NULL) {
+					IF_PREPEND(q, m);
+					printf(LMC_PRINTF_FMT
+					       ": lmc_txput failed\n",
+					       LMC_PRINTF_ARGS);
+					break;
+				}
+				LMC_CSR_WRITE(sc, csr_txpoll, 1);
+			}
+			else
+				break;
 		}
-		LMC_CSR_WRITE(sc, csr_txpoll, 1);
 	}
 }
 
 static ifnet_ret_t
-lmc_ifstart_one(struct ifnet * const ifp)
+lmc_ifstart_one(lmc_softc_t * const sc)
 {
-	lmc_softc_t * const sc = LMC_IFP_TO_SOFTC(ifp);
 	struct mbuf *m;
 
-	if ((sc->lmc_flags & LMC_IFUP) && (sppp_isempty(ifp) == 0)) {
-		m = sppp_dequeue(ifp);
-		if ((m = lmc_txput(sc, m)) != NULL) {
-			IF_PREPEND(&((struct sppp *)ifp)->pp_fastq, m);
-		}
-		LMC_CSR_WRITE(sc, csr_txpoll, 1);
-	}
-}
-#endif
-
-#if defined(__bsdi__)
-static ifnet_ret_t
-lmc_ifstart(struct ifnet * const ifp)
-{
-	lmc_softc_t * const sc = LMC_IFP_TO_SOFTC(ifp);
-	struct mbuf *m;
-	struct ifqueue *ifq;
-
-	if ((sc->lmc_flags & LMC_IFUP) == 0)
-		return;
-
-	for (;;) {
-		ifq = &sc->lmc_p2pcom.p2p_isnd;
-
-		m = ifq->ifq_head;
+	if ((sc->lmc_flags & LMC_IFUP)) {
+		struct ifqueue *q = &sc->lmc_xmitq_hipri;
+		IF_DEQUEUE(q, m);
 		if (m == NULL) {
-			ifq = &sc->lmc_if.if_snd;
-			m = ifq->ifq_head;
+			q = &sc->lmc_xmitq;
+			IF_DEQUEUE(q, m);
 		}
-		if (m == NULL)
-			break;
-		IF_DEQUEUE(ifq, m);
-
-		m = lmc_txput(sc, m);
-		if (m != NULL) {
-			IF_PREPEND(ifq, m);
-			break;
+		if (m) {
+			sc->lmc_outbytes += m->m_pkthdr.len;
+			sc->lmc_opackets++;
+			if ((m = lmc_txput(sc, m)) != NULL) {
+				IF_PREPEND(q, m);
+			}
+			LMC_CSR_WRITE(sc, csr_txpoll, 1);
 		}
 	}
-
-	LMC_CSR_WRITE(sc, csr_txpoll, 1);
 }
-
-static ifnet_ret_t
-lmc_ifstart_one(struct ifnet * const ifp)
-{
-	lmc_softc_t * const sc = LMC_IFP_TO_SOFTC(ifp);
-	struct mbuf *m;
-	struct ifqueue *ifq;
-
-	if ((sc->lmc_flags & LMC_IFUP) == 0)
-		return;
-
-	ifq = &sc->lmc_p2pcom.p2p_isnd;
-
-	m = ifq->ifq_head;
-	if (m == NULL) {
-		ifq = &sc->lmc_if.if_snd;
-		m = ifq->ifq_head;
-	}
-	if (m == NULL)
-		return 0;
-	IF_DEQUEUE(ifq, m);
-
-	m = lmc_txput(sc, m);
-	if (m != NULL)
-		IF_PREPEND(ifq, m);
-
-	LMC_CSR_WRITE(sc, csr_txpoll, 1);
-}
-#endif
-
-#if defined(__bsdi__)
-int
-lmc_getmdm(struct p2pcom *pp, caddr_t b)
-{
-	lmc_softc_t *sc = LMC_UNIT_TO_SOFTC(pp->p2p_if.if_unit);
-
-	if (sc->lmc_media->get_link_status(sc)) {
-		*(int *)b = TIOCM_CAR;
-	} else {
-		*(int *)b = 0;
-	}
-
-	return (0);
-}
-
-int
-lmc_mdmctl(struct p2pcom *pp, int flag)
-{
-	lmc_softc_t *sc = LMC_UNIT_TO_SOFTC(pp->p2p_if.if_unit);
-
-	sc->lmc_media->set_link_status(sc, flag);
-
-	if (flag)
-		if ((sc->lmc_flags & LMC_IFUP) == 0)
-			lmc_ifup(sc);
-	else
-		if ((sc->lmc_flags & LMC_IFUP) == LMC_IFUP)
-			lmc_ifdown(sc);
-
-	return (0);
-}
-#endif
 
 /*
  * Set up the OS interface magic and attach to the operating system
  * network services.
  */
-static void
+static int
 lmc_attach(lmc_softc_t * const sc)
 {
-	struct ifnet * const ifp = &sc->lmc_if;
-
-	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
-	ifp->if_ioctl = lmc_ifioctl;
-	ifp->if_start = lmc_ifstart;
-	ifp->if_watchdog = lmc_watchdog;
-	ifp->if_timer = 1;
-	ifp->if_mtu = LMC_MTU;
-
-#if defined(__bsdi__)
-	ifp->if_type = IFT_NONE;
-	ifp->if_unit = (sc->lmc_dev.dv_unit);
-#endif
-  
-	if_attach(ifp);
-
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	sppp_attach((struct ifnet *)&sc->lmc_sppp);
-	sc->lmc_sppp.pp_flags = PP_CISCO | PP_KEEPALIVE;
-#endif
-#if defined(__bsdi__)
-	sc->lmc_p2pcom.p2p_mdmctl = lmc_mdmctl;
-	sc->lmc_p2pcom.p2p_getmdm = lmc_getmdm;
-	p2p_attach(&sc->lmc_p2pcom);
-#endif
-
-#if NBPFILTER > 0
-	LMC_BPF_ATTACH(sc);
-#endif
-
-#if defined(__NetBSD__) && NRND > 0
-	rnd_attach_source(&sc->lmc_rndsource, sc->lmc_dev.dv_xname,
-			  RND_TYPE_NET);
-#endif
+	/*
+	 * we have found a node, make sure our 'type' is availabe.
+	 */
+	if (ng_lmc_done_init == 0) ng_lmc_init(NULL);
+	if (ng_make_node_common(&typestruct, &sc->lmc_node) != 0)
+		return (0);
+	sc->lmc_node->private = sc;
+	callout_handle_init(&sc->lmc_handle);
+	sc->lmc_xmitq.ifq_maxlen = IFQ_MAXLEN;
+	sc->lmc_xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+	sprintf(sc->lmc_nodename, "%s%d", NG_LMC_NODE_TYPE, sc->lmc_unit);
+	if (ng_name_node(sc->lmc_node, sc->lmc_nodename)) {
+		ng_rmnode(sc->lmc_node);
+		ng_unref(sc->lmc_node);
+		return (0);
+	}
+	sc->lmc_running = 0;
 
 	/*
 	 * turn off those LEDs...
 	 */
 	sc->lmc_miireg16 |= LMC_MII16_LED_ALL;
 	lmc_led_on(sc, LMC_MII16_LED0);
+
+	return 1;
 }
 
 static void
@@ -1368,6 +1160,348 @@ lmc_initring(lmc_softc_t * const sc, lmc_ringinfo_t * const ri,
 	ri->ri_last = ri->ri_first + ri->ri_max;
 	bzero((caddr_t) ri->ri_first, sizeof(ri->ri_first[0]) * ri->ri_max);
 	ri->ri_last[-1].d_flag = TULIP_DFLAG_ENDRING;
+}
+
+
+
+#ifdef LMC_DEBUG
+static void
+ng_lmc_dump_packet(struct mbuf *m)
+{
+	int i;
+
+	printf("mbuf: %d bytes, %s packet\n", m->m_len,
+	       (m->m_type == MT_DATA)?"data":"other");
+
+	for (i=0; i < m->m_len; i++) {
+		if( (i % 8) == 0 ) {
+			if( i ) printf("\n");
+			printf("\t");
+		}
+		else
+			printf(" ");
+		printf( "0x%02x", m->m_dat[i] );
+	}
+	printf("\n");
+}
+#endif /* LMC_DEBUG */
+
+/* Device timeout/watchdog routine */
+static void
+ng_lmc_watchdog_frame(void *arg)
+{
+        lmc_softc_t * sc = (lmc_softc_t *) arg;
+        int s;
+        int     speed;
+
+        if(sc->lmc_running == 0)
+                return; /* if we are not running let timeouts die */
+        /* 
+         * calculate the apparent throughputs
+         *  XXX a real hack
+         */
+        s = splimp();
+        speed = sc->lmc_inbytes - sc->lmc_lastinbytes;
+        sc->lmc_lastinbytes = sc->lmc_inbytes;
+        if ( sc->lmc_inrate < speed )
+                sc->lmc_inrate = speed;
+        speed = sc->lmc_outbytes - sc->lmc_lastoutbytes;
+        sc->lmc_lastoutbytes = sc->lmc_outbytes;
+        if ( sc->lmc_outrate < speed )
+                sc->lmc_outrate = speed;
+        sc->lmc_inlast++;
+        splx(s);
+
+        if ((sc->lmc_inlast > LMC_QUITE_A_WHILE)
+        && (sc->lmc_out_deficit > LMC_LOTS_OF_PACKETS)) {
+                log(LOG_ERR, "%s%d: No response from remote end\n",
+		    sc->lmc_name, sc->lmc_unit);
+                s = splimp();
+                lmc_ifdown(sc);
+                lmc_ifup(sc);
+                sc->lmc_inlast = sc->lmc_out_deficit = 0;
+                splx(s);
+        } else if (sc->lmc_xmit_busy) {
+		if (sc->lmc_out_dog == 0) {
+                        log(LOG_ERR, "ar%d: Transmit failure.. no clock?\n",
+                                        sc->lmc_unit);
+                        s = splimp();
+                        lmc_watchdog(sc);
+#if 0                 
+                        lmc_ifdown(sc);
+                        lmc_ifup(sc);
+#endif
+                        splx(s);
+                        sc->lmc_inlast = sc->lmc_out_deficit = 0;
+                } else {
+                        sc->lmc_out_dog--;
+                }
+	}
+	lmc_watchdog(sc);
+        sc->lmc_handle = timeout(ng_lmc_watchdog_frame, sc, hz);
+}
+
+/***********************************************************************
+ * This section contains the methods for the Netgraph interface
+ ***********************************************************************/
+/*
+ * It is not possible or allowable to create a node of this type.
+ * If the hardware exists, it will already have created it.
+ */
+static  int
+ng_lmc_constructor(node_p *nodep)
+{
+        return (EINVAL);
+}
+
+/*
+ * give our ok for a hook to be added...
+ * If we are not running this should kick the device into life.
+ * We allow hooks called "control", "rawdata", and "debug".
+ * The hook's private info points to our stash of info about that
+ * device.
+ */
+static  int
+ng_lmc_newhook(node_p node, hook_p hook, const char *name)
+{
+        lmc_softc_t *       sc = (lmc_softc_t *) node->private;
+
+        /*
+         * check if it's our friend the debug hook
+         */
+        if (strcmp(name, NG_LMC_HOOK_DEBUG) == 0) {
+                hook->private = NULL; /* paranoid */
+                sc->lmc_debug_hook = hook;
+                return (0);
+        }
+
+        /*
+         * Check for raw mode hook.
+         */
+        if (strcmp(name, NG_LMC_HOOK_RAW) != 0) {
+                return (EINVAL);
+        }
+        hook->private = sc;
+        sc->lmc_hook = hook;
+        sc->lmc_datahooks++;
+        lmc_ifup(sc);
+        return (0);
+}
+
+/*
+ * incoming messages.
+ * Just respond to the generic TEXT_STATUS message
+ */
+static  int
+ng_lmc_rcvmsg(node_p node,
+        struct ng_mesg *msg, const char *retaddr, struct ng_mesg **rptr)
+{
+	lmc_softc_t *sc = (lmc_softc_t *) node->private;
+	struct ng_mesg *resp = NULL;
+	int error = 0;
+
+	switch (msg->header.typecookie) {
+	case NG_LMC_COOKIE:
+		switch (msg->header.cmd) {
+		case NGM_LMC_GET_CTL:
+		    {
+			lmc_ctl_t *ctl;
+
+			NG_MKRESPONSE(resp, msg, sizeof(*ctl), M_NOWAIT);
+			if (!resp) {
+				error = ENOMEM;
+				break;
+			}
+			ctl = (lmc_ctl_t *) resp->data;
+			memcpy( ctl, &sc->ictl, sizeof(*ctl) );
+			break;
+		    }
+		case NGM_LMC_SET_CTL:
+		    {
+			lmc_ctl_t *ctl;
+
+			if (msg->header.arglen != sizeof(*ctl)) {
+				error = EINVAL;
+				break;
+			}
+
+			ctl = (lmc_ctl_t *) msg->data;
+			sc->lmc_media->set_status(sc, ctl);
+			break;
+		    }
+		default:
+			error = EINVAL;		/* unknown command */
+			break;
+		}
+		break;
+	case NGM_GENERIC_COOKIE:
+		switch(msg->header.cmd) {
+		case NGM_TEXT_STATUS: {
+			char        *arg;
+			int pos = 0;
+			int resplen = sizeof(struct ng_mesg) + 512;
+			MALLOC(resp, struct ng_mesg *, resplen, M_NETGRAPH,
+			       M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			bzero(resp, resplen);
+			arg = (resp)->data;
+
+			/*
+			 * Put in the throughput information.
+			 */
+			pos = sprintf(arg, "%ld bytes in, %ld bytes out\n"
+			              "highest rate seen: %ld B/S in, "
+			              "%ld B/S out\n",
+			              sc->lmc_inbytes, sc->lmc_outbytes,
+			              sc->lmc_inrate, sc->lmc_outrate);
+			pos += sprintf(arg + pos, "%ld output errors\n",
+			               sc->lmc_oerrors);
+			pos += sprintf(arg + pos, "%ld input errors\n",
+			               sc->lmc_ierrors);
+
+			resp->header.version = NG_VERSION;
+			resp->header.arglen = strlen(arg) + 1;
+			resp->header.token = msg->header.token;
+			resp->header.typecookie = NG_LMC_COOKIE;
+			resp->header.cmd = msg->header.cmd;
+			strncpy(resp->header.cmdstr, "status",
+			        NG_CMDSTRLEN);
+			}
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	/* Take care of synchronous response, if any */
+	if (rptr)
+		*rptr = resp;
+	else if (resp)
+		FREE(resp, M_NETGRAPH);
+
+	free(msg, M_NETGRAPH);
+	return (error);
+}
+
+/*
+ * get data from another node and transmit it to the line
+ */
+static  int
+ng_lmc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+{
+        int s;
+        int error = 0;
+        lmc_softc_t * sc = (lmc_softc_t *) hook->node->private;
+        struct ifqueue  *xmitq_p;
+
+        /*
+         * data doesn't come in from just anywhere (e.g control hook)
+         */
+        if ( hook->private == NULL) {
+                error = ENETDOWN;
+                goto bad;
+        }
+
+        /*
+         * Now queue the data for when it can be sent
+         */
+        if (meta && meta->priority > 0) {
+                xmitq_p = (&sc->lmc_xmitq_hipri);
+        } else {
+                xmitq_p = (&sc->lmc_xmitq);
+        }
+        s = splimp();
+        if (IF_QFULL(xmitq_p)) {
+                IF_DROP(xmitq_p);
+                splx(s);
+                error = ENOBUFS;
+                goto bad;
+        }
+        IF_ENQUEUE(xmitq_p, m);
+        lmc_ifstart_one(sc);
+        splx(s);
+        return (0);
+
+bad:
+        /*
+         * It was an error case.
+         * check if we need to free the mbuf, and then return the error
+         */
+        NG_FREE_DATA(m, meta);
+        return (error);
+}
+
+/*
+ * do local shutdown processing..
+ * this node will refuse to go away, unless the hardware says to..
+ * don't unref the node, or remove our name. just clear our links up.
+ */
+static  int
+ng_lmc_rmnode(node_p node)
+{
+        lmc_softc_t * sc = (lmc_softc_t *) node->private;
+
+        lmc_ifdown(sc);
+        ng_cutlinks(node);
+        node->flags &= ~NG_INVALID; /* bounce back to life */
+        return (0);
+}
+/* already linked */
+static  int
+ng_lmc_connect(hook_p hook)
+{
+        /* be really amiable and just say "YUP that's OK by me! " */
+        return (0);
+}
+
+/*
+ * notify on hook disconnection (destruction)
+ *
+ * For this type, removal of the last link resets tries to destroy the node.
+ * As the device still exists, the shutdown method will not actually
+ * destroy the node, but reset the device and leave it 'fresh' :)
+ *
+ * The node removal code will remove all references except that owned by the
+ * driver.
+ */
+static  int
+ng_lmc_disconnect(hook_p hook)
+{
+        lmc_softc_t * sc = (lmc_softc_t *) hook->node->private;
+        int     s;
+        /*
+         * If it's the data hook, then free resources etc.
+         */
+        if (hook->private) {
+                s = splimp();
+                sc->lmc_datahooks--;
+                if (sc->lmc_datahooks == 0)
+                        lmc_ifdown(sc);
+                splx(s);
+        } else {
+                sc->lmc_debug_hook = NULL;
+        }
+        return (0);
+}
+
+/*
+ * called during bootup
+ * or LKM loading to put this type into the list of known modules
+ */
+static void
+ng_lmc_init(void *ignored)
+{
+        if (ng_newtype(&typestruct))
+                printf("ng_lmc install failed\n");
+        ng_lmc_done_init = 1;
 }
 
 /*
@@ -1385,12 +1519,4 @@ lmc_initring(lmc_softc_t * const sc, lmc_ringinfo_t * const ri,
 
 
 
-#if defined(__NetBSD__)
-#include "dev/pci/if_lmc_nbsd.c"
-#elif defined(__FreeBSD__)
-#include "pci/if_lmc_fbsd.c"
-#elif defined(__bsdi__)
-#include "i386/pci/if_lmc_bsdi.c"
-#else
-#error "This driver only works on NetBSD, FreeBSD, or BSDi"
-#endif
+#include "dev/lmc/if_lmc_fbsd3.c"
