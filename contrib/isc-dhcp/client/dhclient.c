@@ -3442,11 +3442,16 @@ void state_polling (cpp)
 				 */
 				for (client = ip -> client;
 				     client; client = client -> next) {
-						cancel_timeout (state_init, client);
-						cancel_timeout (state_reboot, client);
-						cancel_timeout (state_selecting, client);
+					cancel_timeout (state_init, client);
+					cancel_timeout (state_reboot, client);
+					cancel_timeout (state_selecting, client);
+					if (client -> active) {
 						add_timeout (cur_time + random () % 5,
-					    		    state_bound, client, 0, 0);
+						   state_bound, client, 0, 0);
+					} else {
+						add_timeout (cur_time + random () % 5,
+						   state_reboot, client, 0, 0);
+					}
 				}
 				ip -> linkstate = HAVELINK;
 			} else {
