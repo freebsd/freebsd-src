@@ -95,10 +95,10 @@ int
 ftree_start(void)
 {
 	/*
-	 * set up the operation mode of fts, open the first file arg. We must
+	 * Set up the operation mode of fts, open the first file arg. We must
 	 * use FTS_NOCHDIR, as the user may have to open multiple archives and
 	 * if fts did a chdir off into the boondocks, we may create an archive
-	 * volume in an place where the user did not expect to.
+	 * volume in a place where the user did not expect to.
 	 */
 	ftsopts = FTS_NOCHDIR;
 
