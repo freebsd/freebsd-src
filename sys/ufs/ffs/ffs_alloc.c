@@ -523,10 +523,12 @@ ffs_reallocblks(ap)
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
 			    fs->fs_bsize);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
-#ifdef DEBUG
+#ifdef DIAGNOSTIC
 		if (!ffs_checkblk(ip,
 		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 3");
+#endif
+#ifdef DEBUG
 		if (prtrealloc)
 			printf(" %d,", blkno);
 #endif
