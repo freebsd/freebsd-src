@@ -877,16 +877,13 @@ nd6_is_addr_neighbor(addr, ifp)
 	struct sockaddr_in6 *addr;
 	struct ifnet *ifp;
 {
-	struct ifaddr *ifa;
-	int i;
-
-#define IFADDR6(a) ((((struct in6_ifaddr *)(a))->ia_addr).sin6_addr)
-#define IFMASK6(a) ((((struct in6_ifaddr *)(a))->ia_prefixmask).sin6_addr)
+	struct nd_prefix *pr;
 
 	/*
 	 * A link-local address is always a neighbor.
 	 * XXX: we should use the sin6_scope_id field rather than the embedded
 	 * interface index.
+	 * XXX: a link does not necessarily specify a single interface.
 	 */
 	if (IN6_IS_ADDR_LINKLOCAL(&addr->sin6_addr) &&
 	    ntohs(*(u_int16_t *)&addr->sin6_addr.s6_addr[2]) == ifp->if_index)
@@ -895,18 +892,29 @@ nd6_is_addr_neighbor(addr, ifp)
 	/*
 	 * If the address matches one of our addresses,
 	 * it should be a neighbor.
+	 * If the address matches one of our on-link prefixes, it should be a
+	 * neighbor.
 	 */
-	for (ifa = ifp->if_addrlist.tqh_first; ifa;
-	     ifa = ifa->ifa_list.tqe_next) {
-		if (ifa->ifa_addr->sa_family != AF_INET6)
-			next: continue;
+	for (pr = nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+		if (pr->ndpr_ifp != ifp)
+			continue;
 
-		for (i = 0; i < 4; i++) {
-			if ((IFADDR6(ifa).s6_addr32[i] ^
-			     addr->sin6_addr.s6_addr32[i]) &
-			    IFMASK6(ifa).s6_addr32[i])
-				goto next;
-		}
+		if (!(pr->ndpr_stateflags & NDPRF_ONLINK))
+			continue;
+
+		if (IN6_ARE_MASKED_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
+		    &addr->sin6_addr, &pr->ndpr_mask))
+			return (1);
+	}
+
+	/*
+	 * If the default router list is empty, all addresses are regarded
+	 * as on-link, and thus, as a neighbor.
+	 * XXX: we restrict the condition to hosts, because routers usually do
+	 * not have the "default router list".
+	 */
+	if (!ip6_forwarding && TAILQ_FIRST(&nd_defrouter) == NULL &&
+	    nd6_defifindex == ifp->if_index) {
 		return (1);
 	}
 
@@ -918,8 +926,6 @@ nd6_is_addr_neighbor(addr, ifp)
 		return (1);
 
 	return (0);
-#undef IFADDR6
-#undef IFMASK6
 }
 
 /*
