@@ -108,12 +108,12 @@ main(argc, argv)
 
 	if (memf == NULL && nlistf == NULL) {
 		/* Running kernel. Use sysctl. */
-		if (sysctlbyname("machdep.msgbuf", NULL, &buflen, NULL, 0) == -1)
-			err(1, "sysctl machdep.msgbuf");
+		if (sysctlbyname("kern.msgbuf", NULL, &buflen, NULL, 0) == -1)
+			err(1, "sysctl kern.msgbuf");
 		if ((bp = malloc(buflen)) == NULL)
 			errx(1, "malloc failed");
-		if (sysctlbyname("machdep.msgbuf", bp, &buflen, NULL, 0) == -1)
-			err(1, "sysctl machdep.msgbuf");
+		if (sysctlbyname("kern.msgbuf", bp, &buflen, NULL, 0) == -1)
+			err(1, "sysctl kern.msgbuf");
 		/* We get a dewrapped buffer using sysctl. */
 		bufpos = 0;
 	} else {
