@@ -57,14 +57,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
-#include <sys/namei.h>
-#include <sys/conf.h>
-#include <sys/stat.h>
-#include <sys/disk.h>
-#include <sys/fcntl.h>
 #include <geom/geom.h>
 
 /*
@@ -121,7 +115,6 @@ struct ccdiinfo {
  * Describes a single component of a concatenated disk.
  */
 struct ccdcinfo {
-	struct vnode	*ci_vp;			/* device's vnode */
 	size_t		ci_size; 		/* size */
 	struct g_provider *ci_provider;		/* provider */
 	struct g_consumer *ci_consumer;		/* consumer */
@@ -135,7 +128,6 @@ struct ccd_s {
 	LIST_ENTRY(ccd_s) list;
 
 	int		 sc_unit;		/* logical unit number */
-	struct vnode	 **sc_vpp;		/* array of component vnodes */
 	int		 sc_flags;		/* flags */
 	size_t		 sc_size;		/* size of ccd */
 	int		 sc_ileave;		/* interleave */
@@ -157,6 +149,11 @@ static int ccdbuffer(struct bio **ret, struct ccd_s *,
 static void
 g_ccd_orphan(struct g_consumer *cp)
 {
+	/*
+	 * XXX: We don't do anything here.  It is not obvious
+	 * XXX: what DTRT would be, so we do what the previous
+	 * XXX: code did: ignore it and let the user cope.
+	 */
 }
 
 static int
@@ -609,6 +606,7 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 	 * Fill in the component buf structure.
 	 */
 	cbp = g_clone_bio(bp);
+	/* XXX: check for NULL */
 	cbp->bio_done = g_std_done;
 	cbp->bio_offset = dbtob(cbn + cboff + CCD_OFFSET);
 	cbp->bio_data = addr;
@@ -623,6 +621,7 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 
 	if (cs->sc_flags & CCDF_MIRROR) {
 		cbp = g_clone_bio(bp);
+		/* XXX: check for NULL */
 		cbp->bio_done = cb[0]->bio_done = ccdiodone;
 		cbp->bio_offset = cb[0]->bio_offset;
 		cbp->bio_data = cb[0]->bio_data;
@@ -636,7 +635,7 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 }
 
 /*
- * Called only for mirrored reads.
+ * Called only for mirrored operations.
  */
 static void
 ccdiodone(struct bio *cbp)
@@ -648,20 +647,24 @@ ccdiodone(struct bio *cbp)
 
 	if (pbp->bio_cmd == BIO_READ) {
 		if (cbp->bio_error == 0) {
+			/* We will not be needing the partner bio */
+			if (mbp != NULL) {
+				pbp->bio_inbed++;
+				g_destroy_bio(mbp);
+			}
 			g_std_done(cbp);
-			if (mbp == NULL)
-				return;
-			pbp->bio_inbed++;
-			g_destroy_bio(mbp);
-			if (pbp->bio_children == pbp->bio_inbed)
-				g_io_deliver(pbp, pbp->bio_error);
 			return;
 		}
 		if (mbp != NULL) {
+			/* Try partner the bio instead */
 			mbp->bio_caller1 = NULL;
 			pbp->bio_inbed++;
 			g_destroy_bio(cbp);
 			g_io_request(mbp, mbp->bio_from);
+			/*
+			 * XXX: If this comes back OK, we should actually
+			 * try to write the good data on the failed mirror
+			 */
 			return;
 		}
 		g_std_done(cbp);
@@ -669,7 +672,7 @@ ccdiodone(struct bio *cbp)
 	if (mbp != NULL) {
 		mbp->bio_caller1 = NULL;
 		pbp->bio_inbed++;
-		if (cbp->bio_error != 0 && pbp->bio_error != 0)
+		if (cbp->bio_error != 0 && pbp->bio_error == 0)
 			pbp->bio_error = cbp->bio_error;
 		return;
 	}
