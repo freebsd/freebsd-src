@@ -160,7 +160,6 @@
 92	MSTD	POSIX	{ int fcntl(int fd, int cmd, long arg); }
 ; XXX should be		{ int fcntl(int fd, int cmd, ...); }
 ; but we're not ready for varargs.
-; XXX man page says `int arg' too.
 93	MSTD	BSD	{ int select(int nd, fd_set *in, fd_set *ou, \
 			    fd_set *ex, struct timeval *tv); }
 94	UNIMPL	BSD	setdopt
