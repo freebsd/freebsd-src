@@ -221,7 +221,7 @@ struct buf {
 #define	B_DIRTY		0x00200000	/* Needs writing later (in EXT2FS). */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_00800000	0x00800000	/* Available flag. */
-#define	B_WRITEINPROG	0x01000000	/* Write in progress. */
+#define	B_01000000	0x01000000	/* Available flag. */
 #define	B_02000000	0x02000000	/* Available flag. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
 #define	B_08000000	0x08000000	/* Available flag. */
@@ -231,7 +231,7 @@ struct buf {
 #define B_80000000	0x80000000	/* Available flag. */
 
 #define PRINT_BUF_FLAGS "\20\40b31\37cluster\36vmio\35ram\34b27" \
-	"\33paging\32b25\31writeinprog\30b23\27relbuf\26dirty\25b20" \
+	"\33paging\32b25\31b24\30b23\27relbuf\26dirty\25b20" \
 	"\24b19\23phys\22clusterok\21malloc\20nocache\17locked\16inval" \
 	"\15scanned\14nowdrain\13eintr\12done\11b8\10delwri\7validsuspwrt" \
 	"\6cache\5deferred\4direct\3async\2needcommit\1age"

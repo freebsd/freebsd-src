@@ -2715,7 +2715,6 @@ again:
 				wcred = bp->b_wcred;
 			else if (wcred != bp->b_wcred)
 				wcred = NOCRED;
-			bp->b_flags |= B_WRITEINPROG;
 			vfs_busy_pages(bp, 1);
 
 			VI_LOCK(vp);
@@ -2780,7 +2779,7 @@ again:
 		 */
 		for (i = 0; i < bvecpos; i++) {
 			bp = bvec[i];
-			bp->b_flags &= ~(B_NEEDCOMMIT | B_WRITEINPROG | B_CLUSTEROK);
+			bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 			if (retv) {
 				/*
 				 * Error, leave B_DELWRI intact
@@ -2851,7 +2850,7 @@ loop:
 		if (passone || !commit)
 		    bp->b_flags |= B_ASYNC;
 		else
-		    bp->b_flags |= B_ASYNC | B_WRITEINPROG;
+		    bp->b_flags |= B_ASYNC;
 		splx(s);
 		bwrite(bp);
 		goto loop;
@@ -2931,12 +2930,10 @@ nfs4_print(struct vop_print_args *ap)
 
 /*
  * This is the "real" nfs::bwrite(struct buf*).
- * B_WRITEINPROG isn't set unless the force flag is one and it
- * handles the B_NEEDCOMMIT flag.
  * We set B_CACHE if this is a VMIO buffer.
  */
 int
-nfs4_writebp(struct buf *bp, int force, struct thread *td)
+nfs4_writebp(struct buf *bp, int force __unused, struct thread *td)
 {
 	int s;
 	int oldflags = bp->b_flags;
@@ -2977,8 +2974,6 @@ nfs4_writebp(struct buf *bp, int force, struct thread *td)
 	 */
 	vfs_busy_pages(bp, 1);
 
-	if (force)
-		bp->b_flags |= B_WRITEINPROG;
 	BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	VOP_STRATEGY(bp->b_vp, bp);
