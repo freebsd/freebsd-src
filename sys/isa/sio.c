@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.110 1995/08/13 07:49:35 bde Exp $
+ *	$Id: sio.c,v 1.111 1995/08/24 08:55:57 phk Exp $
  */
 
 #include "sio.h"
@@ -178,6 +178,7 @@ struct com_s {
 	bool_t	multiport;	/* is this unit part of a multiport device? */
 #endif /* COM_MULTIPORT */
 	bool_t	no_irq;		/* nonzero if irq is not attached */
+	bool_t  gone;		/* hardware disappeared */
 	bool_t	poll;		/* nonzero if polling is required */
 	bool_t	poll_output;	/* nonzero if polling for output is required */
 	int	unit;		/* unit	number */
@@ -443,7 +444,24 @@ sioinit(struct pccard_dev *dp, int first)
 void
 siounload(struct pccard_dev *dp)
 {
-	printf("sio%d: unload\n", dp->isahd.id_unit);
+	struct com_s	*com;
+	struct tty	*tp;
+	int	s,unit,nowhere;
+
+	com = com_addr(dp->isahd.id_unit);
+	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
+		com->gone = 1;
+		printf("sio%d: unload\n", dp->isahd.id_unit);
+		com->tp->t_gen++;
+		ttyclose(com->tp);
+		ttwakeup(com->tp);
+		ttwwakeup(com->tp);
+	} else {
+		com_addr(com->unit) = NULL;
+		bzero(com, sizeof *com);
+		free(com,M_TTYS);
+		printf("sio%d: unload,gone\n", dp->isahd.id_unit);
+	}
 }
 
 /*
@@ -453,7 +471,10 @@ siounload(struct pccard_dev *dp)
 static int
 card_intr(struct pccard_dev *dp)
 {
-	siointr1(com_addr(dp->isahd.id_unit));
+	struct com_s	*com;
+	com = com_addr(dp->isahd.id_unit);
+	if (com && !com_addr(dp->isahd.id_unit)->gone)
+		siointr1(com_addr(dp->isahd.id_unit));
 	return(1);
 }
 #endif /* NCRD > 0 */
@@ -889,6 +910,8 @@ sioopen(dev, flag, mode, p)
 	unit = MINOR_TO_UNIT(mynor);
 	if ((u_int) unit >= NSIO || (com = com_addr(unit)) == NULL)
 		return (ENXIO);
+	if (com->gone)
+		return (ENXIO);
 	if (mynor & CONTROL_MASK)
 		return (0);
 #if 0 /* XXX */
@@ -904,7 +927,9 @@ sioopen(dev, flag, mode, p)
 open_top:
 	while (com->state & CS_DTR_OFF) {
 		error = tsleep(&com->dtr_wait, TTIPRI | PCATCH, "siodtr", 0);
-		if (error != 0)
+		if (com_addr(unit) == NULL)
+			return (ENXIO);
+		if (error != 0 || com->gone)
 			goto out;
 	}
 	kdc_sio[unit].kdc_state = DC_BUSY;
@@ -926,7 +951,9 @@ open_top:
 				}
 				error =	tsleep(&com->active_out,
 					       TTIPRI | PCATCH, "siobi", 0);
-				if (error != 0)
+				if (com_addr(unit) == NULL)
+					return (ENXIO);
+				if (error != 0 || com->gone)
 					goto out;
 				goto open_top;
 			}
@@ -1017,8 +1044,10 @@ open_top:
 	    && !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
 		++com->wopeners;
 		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "siodcd", 0);
+		if (com_addr(unit) == NULL)
+			return (ENXIO);
 		--com->wopeners;
-		if (error != 0)
+		if (error != 0 || com->gone)
 			goto out;
 		goto open_top;
 	}
@@ -1059,6 +1088,15 @@ sioclose(dev, flag, mode, p)
 	ttyclose(tp);
 	siosettimeout();
 	splx(s);
+	if (com->gone) {
+		printf("sio%d: gone\n", com->unit);
+		s = spltty();
+		com_addr(com->unit) = 0;
+		bzero(tp,sizeof *tp);
+		bzero(com,sizeof *com);
+		free(com,M_TTYS);
+		splx(s);
+	}
 	return (0);
 }
 
@@ -1128,12 +1166,16 @@ sioread(dev, uio, flag)
 	int		flag;
 {
 	int		mynor;
+	int		unit;
 	struct tty	*tp;
 
 	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
 		return (ENODEV);
-	tp = com_addr(MINOR_TO_UNIT(mynor))->tp;
+	unit = MINOR_TO_UNIT(mynor);
+	if (com_addr(unit)->gone)
+		return (ENODEV);
+	tp = com_addr(unit)->tp;
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
@@ -1152,6 +1194,8 @@ siowrite(dev, uio, flag)
 		return (ENODEV);
 
 	unit = MINOR_TO_UNIT(mynor);
+	if (com_addr(unit)->gone)
+		return (ENODEV);
 	tp = com_addr(unit)->tp;
 	/*
 	 * (XXX) We disallow virtual consoles if the physical console is
@@ -1217,7 +1261,8 @@ siointr(unit)
 		possibly_more_intrs = FALSE;
 		for (unit = 0; unit < NSIO; ++unit) {
 			com = com_addr(unit);
-			if (com != NULL
+			if (com != NULL 
+			    && !com->gone
 			    && (inb(com->int_id_port) & IIR_IMASK)
 			       != IIR_NOPEND) {
 				siointr1(com);
@@ -1416,6 +1461,8 @@ sioioctl(dev, cmd, data, flag, p)
 
 	mynor = minor(dev);
 	com = com_addr(MINOR_TO_UNIT(mynor));
+	if (com->gone)
+		return (ENODEV);
 	iobase = com->iobase;
 	if (mynor & CONTROL_MASK) {
 		struct termios	*ct;
@@ -1586,6 +1633,8 @@ repeat:
 
 		com = com_addr(unit);
 		if (com == NULL)
+			continue;
+		if (com->gone)
 			continue;
 		tp = com->tp;
 		if (tp == NULL) {
@@ -1822,6 +1871,8 @@ retry:
 		    && (txtimeout -= hz	/ 100) <= 0
 		   )
 			error = EIO;
+		if (com->gone)
+			error = ENODEV;
 		if (error != 0 && error != EAGAIN) {
 			if (!(tp->t_state & TS_TTSTOP)) {
 				disable_intr();
@@ -1980,6 +2031,8 @@ siostop(tp, rw)
 	struct com_s	*com;
 
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
+	if (com->gone)
+		return 0;
 	disable_intr();
 	if (rw & FWRITE) {
 		com->obufs[0].l_queued = FALSE;
@@ -1995,6 +2048,7 @@ siostop(tp, rw)
 	}
 	enable_intr();
 	comstart(tp);
+	return 0;
 
 	/* XXX should clear h/w fifos too. */
 }
@@ -2052,6 +2106,8 @@ commctl(com, bits, how)
 		mcr |= MCR_DTR;
 	if (bits & TIOCM_RTS)
 		mcr |= MCR_RTS;
+	if (com->gone)
+		return(0);
 	disable_intr();
 	switch (how) {
 	case DMSET:
@@ -2087,7 +2143,7 @@ siosettimeout()
 	for (unit = 0; unit < NSIO; ++unit) {
 		com = com_addr(unit);
 		if (com != NULL && com->tp != NULL
-		    && com->tp->t_state & TS_ISOPEN) {
+		    && com->tp->t_state & TS_ISOPEN && !com->gone) {
 			someopen = TRUE;
 			if (com->poll || com->poll_output) {
 				sio_timeout = hz > 200 ? hz / 200 : 1;
@@ -2121,7 +2177,7 @@ comwakeup(chan)
 	 */
 	for (unit = 0; unit < NSIO; ++unit) {
 		com = com_addr(unit);
-		if (com != NULL
+		if (com != NULL && !com->gone
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
 			disable_intr();
 			siointr1(com);
@@ -2140,6 +2196,8 @@ comwakeup(chan)
 
 		com = com_addr(unit);
 		if (com == NULL)
+			continue;
+		if (com->gone)
 			continue;
 		for (errnum = 0; errnum < CE_NTYPES; ++errnum) {
 			u_int	delta;
