@@ -252,7 +252,7 @@ minor(struct cdev *x)
 {
 	if (x == NULL)
 		return NODEV;
-	return(x->si_udev & 0xffff00ff);
+	return(x->si_udev & MAXMINOR);
 }
 
 int
@@ -268,7 +268,7 @@ int
 minor2unit(int _minor)
 {
 
-	KASSERT((_minor & 0xff00) == 0, ("Illegal minor %x", _minor));
+	KASSERT((_minor & ~MAXMINOR) == 0, ("Illegal minor %x", _minor));
 	return ((_minor & 0xff) | (_minor >> 8));
 }
 
@@ -351,13 +351,13 @@ findcdev(dev_t udev)
 int
 uminor(dev_t dev)
 {
-	return (dev & 0xffff00ff);
+	return (dev & MAXMINOR);
 }
 
 int
 umajor(dev_t dev)
 {
-	return ((dev & 0xff00) >> 8);
+	return ((dev & ~MAXMINOR) >> 8);
 }
 
 static void
@@ -455,7 +455,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 	va_list ap;
 	int i;
 
-	KASSERT((minornr & ~0xffff00ff) == 0,
+	KASSERT((minornr & ~MAXMINOR) == 0,
 	    ("Invalid minor (0x%x) in make_dev", minornr));
 
 	if (!(devsw->d_flags & D_INIT))
