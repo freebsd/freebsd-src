@@ -60,6 +60,7 @@ struct sigacts {
 	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX */
 };
 
+#ifdef _KERNEL
 /*
  * Compatibility.
  */
@@ -80,6 +81,7 @@ struct osigaction {
 };
 
 typedef void __osiginfohandler_t __P((int, osiginfo_t *, void *));
+#endif /* _KERNEL */
 
 /* additional signal action values, used only temporarily/internally */
 #define	SIG_CATCH	((__sighandler_t *)2)
