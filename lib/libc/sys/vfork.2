@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)vfork.2	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
 .Dd June 4, 1993
 .Dt VFORK 2
@@ -89,10 +90,10 @@ it is wrong to call
 .Xr exit 3
 since buffered data would then be flushed twice.)
 .Sh SEE ALSO
-.Xr fork 2 ,
 .Xr execve 2 ,
+.Xr fork 2 ,
 .Xr sigvec 2 ,
-.Xr wait 2 ,
+.Xr wait 2
 .Sh DIAGNOSTICS
 Same as for
 .Xr fork 2 .
