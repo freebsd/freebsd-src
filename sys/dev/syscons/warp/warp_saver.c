@@ -40,98 +40,99 @@
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
-static u_char *vid;
-static int blanked;
+#define SAVER_NAME	 "warp_saver"
+#define SCRW		 320
+#define SCRH		 200
+#define SPP		 15
+#define STARS		 (SPP * (1 + 2 + 4 + 8))
 
-#define SCRW 320
-#define SCRH 200
-#define SPP 15
-#define STARS (SPP*(1+2+4+8))
-
-static int star[STARS];
-static u_char warp_pal[768] = {
-    0x00, 0x00, 0x00,
-    0x66, 0x66, 0x66,
-    0x99, 0x99, 0x99,
-    0xcc, 0xcc, 0xcc,
-    0xff, 0xff, 0xff
-    /* the rest is zero-filled by the compiler */
+static u_char		*vid;
+static int		 blanked;
+static int		 star[STARS];
+static u_char		 warp_pal[768] = {
+	0x00, 0x00, 0x00,
+	0x66, 0x66, 0x66,
+	0x99, 0x99, 0x99,
+	0xcc, 0xcc, 0xcc,
+	0xff, 0xff, 0xff
+	/* the rest is zero-filled by the compiler */
 };
 
 static void
 warp_update(void)
 {
-    int i, j, k, n;
-
-    for (i = 1, k = 0, n = SPP*8; i < 5; i++, n /= 2)
-	for (j = 0; j < n; j++, k++) {
-	    vid[star[k]] = 0;
-	    star[k] += i;
-	    if (star[k] > SCRW*SCRH)
-		star[k] -= SCRW*SCRH;
-	    vid[star[k]] = i;
+	int i, j, k, n;
+	
+	for (i = 1, k = 0, n = SPP*8; i < 5; i++, n /= 2) {
+		for (j = 0; j < n; j++, k++) {
+			vid[star[k]] = 0;
+			star[k] += i;
+			if (star[k] > SCRW*SCRH)
+				star[k] -= SCRW*SCRH;
+			vid[star[k]] = i;
+		}
 	}
 }
 
 static int
 warp_saver(video_adapter_t *adp, int blank)
 {
-    int pl;
-
-    if (blank) {
-	/* switch to graphics mode */
-	if (blanked <= 0) {
-	    pl = splhigh();
-	    set_video_mode(adp, M_VGA_CG320);
-	    load_palette(adp, warp_pal);
-#if 0 /* XXX conflict */
-	    set_border(adp, 0);
-#endif
-	    blanked++;
-	    vid = (u_char *)adp->va_window;
-	    splx(pl);
-	    bzero(vid, SCRW*SCRH);
-	}
-
-	/* update display */
-	warp_update();
+	int pl;
 	
-    } else {
-	blanked = 0;
-    }
-    return 0;
+	if (blank) {
+		/* switch to graphics mode */
+		if (blanked <= 0) {
+			pl = splhigh();
+			set_video_mode(adp, M_VGA_CG320);
+			load_palette(adp, warp_pal);
+			set_border(adp, 0);
+			blanked++;
+			vid = (u_char *)adp->va_window;
+			splx(pl);
+			bzero(vid, SCRW*SCRH);
+		}
+		
+		/* update display */
+		warp_update();
+	} else {
+		blanked = 0;
+	}
+	return (0);
 }
 
 static int
 warp_init(video_adapter_t *adp)
 {
-    video_info_t info;
-    int i;
-
-    /* check that the console is capable of running in 320x200x256 */
-    if (get_mode_info(adp, M_VGA_CG320, &info)) {
-        log(LOG_NOTICE, "warp_saver: the console does not support M_VGA_CG320\n");
-	return ENODEV;
-    }
-
-    /* randomize the star field */
-    for (i = 0; i < STARS; i++) {
-	star[i] = random() % (SCRW*SCRH);
-    }
-    
-    blanked = 0;
-
-    return 0;
+	video_info_t info;
+	int i;
+	
+	/* check that the console is capable of running in 320x200x256 */
+	if (get_mode_info(adp, M_VGA_CG320, &info)) {
+		log(LOG_NOTICE,
+		    "%s: the console does not support M_VGA_CG320\n",
+		    SAVER_NAME);
+		return (ENODEV);
+	}
+	
+	/* randomize the star field */
+	for (i = 0; i < STARS; i++)
+		star[i] = random() % (SCRW*SCRH);
+	
+	return (0);
 }
 
 static int
 warp_term(video_adapter_t *adp)
 {
-    return 0;
+	return (0);
 }
 
 static scrn_saver_t warp_module = {
-    "warp_saver", warp_init, warp_term, warp_saver, NULL,
+	SAVER_NAME,
+	warp_init,
+	warp_term,
+	warp_saver,
+	NULL
 };
 
 SAVER_MODULE(warp_saver, warp_module);
