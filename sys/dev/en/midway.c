@@ -108,7 +108,6 @@
 #endif /* EN_DEBUG */
 
 #ifdef __FreeBSD__
-#include "en.h"			/* XXX for midwayvar.h's NEN */
 #include "opt_inet.h"
 #include "opt_natm.h"
 #include "opt_ddb.h"
@@ -143,19 +142,15 @@
 #include <netnatm/natm.h>
 #endif
 
-#ifndef sparc
-#include <machine/bus.h>
-#endif
-
 #if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <machine/bus.h>
 #include <dev/ic/midwayreg.h>
 #include <dev/ic/midwayvar.h>
-#if defined(__alpha__)
-/* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
-#undef vtophys
-#define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
-#endif
 #elif defined(__FreeBSD__)
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 #include <dev/en/midwayreg.h>
 #include <dev/en/midwayvar.h>
 #include <vm/pmap.h>			/* for vtophys proto */
@@ -165,6 +160,12 @@
 #endif
 
 #endif	/* __FreeBSD__ */
+
+#if defined(__alpha__)
+/* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
+#undef vtophys
+#define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
+#endif
 
 #include "bpf.h"
 #if NBPF > 0
@@ -202,6 +203,7 @@
 
 static int en_dma = EN_DMA;		/* use DMA (switch off for dbg) */
 
+#ifndef __FreeBSD__
 /*
  * autoconfig attachments
  */
@@ -209,6 +211,7 @@ static int en_dma = EN_DMA;		/* use DMA (switch off for dbg) */
 struct cfdriver en_cd = {
     0, "en", DV_IFNET,
 };
+#endif
 
 /*
  * local structures
@@ -308,7 +311,7 @@ STATIC INLINE	void en_write __P((struct en_softc *, u_int32_t,
  * cooked read/write macros
  */
 
-#define EN_READ(SC,R) ntohl(en_read(SC,R))
+#define EN_READ(SC,R) (u_int32_t)ntohl(en_read(SC,R))
 #define EN_WRITE(SC,R,V) en_write(SC,R, htonl(V))
 
 #define EN_WRAPADD(START,STOP,CUR,VAL) { \
@@ -545,7 +548,7 @@ u_int len, tx;
     }
 
     if (tx) {			/* byte burst? */
-      needalign = (((uintptr_t) (void *) data) % sizeof(u_int32_t));
+      needalign = (((unsigned long) data) % sizeof(u_int32_t));
       if (needalign) {
         result++;
         sz = min(len, sizeof(u_int32_t) - needalign);
@@ -555,7 +558,7 @@ u_int len, tx;
     }
 
     if (sc->alburst && len) {
-      needalign = (((uintptr_t) (void *) data) & sc->bestburstmask);
+      needalign = (((unsigned long) data) & sc->bestburstmask);
       if (needalign) {
 	result++;		/* alburst */
         sz = min(len, sc->bestburstlen - needalign);
@@ -698,7 +701,7 @@ done_probe:
 	(MID_IS_SABRE(reg)) ? "sabre controller, " : "",
 	(MID_IS_SUNI(reg)) ? "SUNI" : "Utopia",
 	(!MID_IS_SUNI(reg) && MID_IS_UPIPE(reg)) ? " (pipelined)" : "",
-	(long)(sc->en_obmemsz / 1024));
+	(u_long)sc->en_obmemsz / 1024);
 
   if (sc->is_adaptec) {
     if (sc->bestburstlen == 64 && sc->alburst == 0)
@@ -837,7 +840,7 @@ done_probe:
  * p166:   bestburstlen=64, alburst=0 
  */
 
-#if 1 /* __FreeBSD__ */
+#if defined(__FreeBSD__) && defined(__i386__)
 #define NBURSTS	3	/* number of bursts to use for dmaprobe */
 #define BOUNDARY 1024	/* test misaligned dma crossing the bounday.
 			   should be n * 64.  at least 64*(NBURSTS+1).
@@ -862,8 +865,8 @@ struct en_softc *sc;
 
 #ifdef NBURSTS
   /* setup src and dst buf at the end of the boundary */
-  sp = (u_int8_t *)roundup((uintptr_t)(void *)buffer, 64);
-  while (((uintptr_t)(void *)sp & (BOUNDARY - 1)) != (BOUNDARY - 64))
+  sp = (u_int8_t *)roundup((unsigned long)buffer, 64);
+  while (((unsigned long)sp & (BOUNDARY - 1)) != (BOUNDARY - 64))
       sp += 64;
   dp = sp + BOUNDARY;
 
@@ -872,9 +875,9 @@ struct en_softc *sc;
    * boundary, move it to the next page.  but still either src or dst
    * will be at the boundary, which should be ok.
    */
-  if ((((uintptr_t)(void *)sp + 64) & PAGE_MASK) == 0)
+  if ((((unsigned long)sp + 64) & PAGE_MASK) == 0)
       sp += 64;
-  if ((((uintptr_t)(void *)dp + 64) & PAGE_MASK) == 0)
+  if ((((unsigned long)dp + 64) & PAGE_MASK) == 0)
       dp += 64;
 #else /* !NBURSTS */
   sp = (u_int8_t *) srcbuf;
@@ -930,7 +933,7 @@ struct en_softc *sc;
  * en_dmaprobe_doit: do actual testing
  */
 
-static int
+STATIC int
 en_dmaprobe_doit(sc, sp, dp, wmtry)
 
 struct en_softc *sc;
@@ -983,8 +986,8 @@ int wmtry;
   for (lcv = 8 ; lcv <= MIDDMA_MAXBURST ; lcv = lcv * 2) {
 
 #ifdef EN_DEBUG
-    printf("DMA test lcv=%d, sp=0x%x, dp=0x%x, wmtry=%d\n",
-	   lcv, sp, dp, wmtry);
+    printf("DMA test lcv=%d, sp=0x%lx, dp=0x%lx, wmtry=%d\n",
+	   lcv, (unsigned long)sp, (unsigned long)dp, wmtry);
 #endif
 
     /* zero SRAM and dest buffer */
@@ -1490,7 +1493,7 @@ struct en_softc *sc;
     EN_WRITE(sc, MIDX_PLACE(slot), MIDX_MKPLACE(en_k2sz(EN_TXSZ), loc));
 #ifdef EN_DEBUG
     printf("%s: tx%d: place 0x%x\n", sc->sc_dev.dv_xname,  slot,
-	EN_READ(sc, MIDX_PLACE(slot)));
+	(u_int)EN_READ(sc, MIDX_PLACE(slot)));
 #endif
   }
 
@@ -1587,7 +1590,7 @@ struct ifnet *ifp;
       while (1) {
 	/* no DMA? */
         if ((!sc->is_adaptec && EN_ENIDMAFIX) || EN_NOTXDMA || !en_dma) {
-	  if ( ((uintptr_t)mtod(lastm, void *) % sizeof(u_int32_t)) != 0 ||
+	  if ( (mtod(lastm, unsigned long) % sizeof(u_int32_t)) != 0 ||
 	    ((lastm->m_len % sizeof(u_int32_t)) != 0 && lastm->m_next)) {
 	    first = (lastm == m);
 	    if (en_mfix(sc, &lastm, prev) == 0) {	/* failed? */
@@ -1642,7 +1645,7 @@ struct ifnet *ifp;
        *	[including AAL5 PDU, if AAL5]
        */
 
-      got = mlen - sizeof(struct atm_pseudohdr *);
+      got = mlen - sizeof(struct atm_pseudohdr);
       toadd = (aal == MID_TBD_AAL5) ? MID_PDU_SIZE : 0;	/* PDU */
       cellcnt = (got + toadd + (MID_ATMDATASZ - 1)) / MID_ATMDATASZ;
       need = cellcnt * MID_ATMDATASZ;
@@ -1652,7 +1655,7 @@ struct ifnet *ifp;
       printf("%s: txvci%d: mlen=%d, got=%d, need=%d, toadd=%d, cell#=%d\n",
 	sc->sc_dev.dv_xname, atm_vci, mlen, got, need, toadd, cellcnt);
       printf("     leading_space=%d, trailing_space=%d\n", 
-	M_LEADINGSPACE(m), M_TRAILINGSPACE(lastm));
+	(int)M_LEADINGSPACE(m), (int)M_TRAILINGSPACE(lastm));
 #endif
 
 #ifdef EN_MBUF_OPT
@@ -1858,7 +1861,7 @@ STATIC int en_makeexclusive(sc, mm, prev)
 	    /* the buffer is not shared, align the data offset using
 	       this buffer. */
 	    u_char *d = mtod(m, u_char *);
-	    int off = ((uintptr_t)(void *)d) % sizeof(u_int32_t);
+	    int off = ((u_long)d) % sizeof(u_int32_t);
 
 	    if (off > 0) {
 		bcopy(d, d - off, m->m_len);
@@ -1884,12 +1887,12 @@ struct mbuf **mm, *prev;
 
   EN_COUNT(sc->mfix);			/* count # of calls */
 #ifdef EN_DEBUG
-  printf("%s: mfix mbuf m_data=0x%x, m_len=%d\n", sc->sc_dev.dv_xname,
+  printf("%s: mfix mbuf m_data=%p, m_len=%d\n", sc->sc_dev.dv_xname,
 	m->m_data, m->m_len);
 #endif
 
   d = mtod(m, u_char *);
-  off = ((uintptr_t) (void *) d) % sizeof(u_int32_t);
+  off = ((unsigned long) d) % sizeof(u_int32_t);
 
   if (off) {
     if ((m->m_flags & M_EXT) == 0) {
@@ -2215,8 +2218,9 @@ struct en_launch *l;
 	sc->sc_dev.dv_xname, chan, l->t, cur, (cur-start)/4, need, addtail);
   count = EN_READ(sc, MIDX_PLACE(chan));
   printf("     HW: base_address=0x%x, size=%d, read=%d, descstart=%d\n",
-	MIDX_BASE(count), MIDX_SZ(count), EN_READ(sc, MIDX_READPTR(chan)), 
-	EN_READ(sc, MIDX_DESCSTART(chan)));
+	 (u_int)MIDX_BASE(count), MIDX_SZ(count),
+	 (int)EN_READ(sc, MIDX_READPTR(chan)),
+	 (int)EN_READ(sc, MIDX_DESCSTART(chan)));
 #endif
 
  /*
@@ -2252,8 +2256,7 @@ struct en_launch *l;
 
     /* now, determine if we should copy it */
     if (l->nodma || (len < EN_MINDMA &&
-       (len % 4) == 0 && ((uintptr_t) (void *) data % 4) == 0 &&
-       (cur % 4) == 0)) {
+       (len % 4) == 0 && ((unsigned long) data % 4) == 0 && (cur % 4) == 0)) {
 
       /* 
        * roundup len: the only time this will change the value of len
@@ -2330,7 +2333,7 @@ struct en_launch *l;
      */
 
     /* do we need to do a DMA op to align to word boundary? */
-    needalign = (uintptr_t) (void *) data % sizeof(u_int32_t);
+    needalign = (unsigned long) data % sizeof(u_int32_t);
     if (needalign) {
       EN_COUNT(sc->headbyte);
       cnt = sizeof(u_int32_t) - needalign;
@@ -2358,7 +2361,7 @@ struct en_launch *l;
 
     /* do we need to do a DMA op to align? */
     if (sc->alburst && 
-	(needalign = (((uintptr_t) (void *) data) & sc->bestburstmask)) != 0
+	(needalign = (((unsigned long) data) & sc->bestburstmask)) != 0
 	&& len >= sizeof(u_int32_t)) {
       cnt = sc->bestburstlen - needalign;
       mx = len & ~(sizeof(u_int32_t)-1);	/* don't go past end */
@@ -2490,7 +2493,7 @@ struct en_launch *l;
       pad -= 2;
 #ifdef EN_DEBUG
       printf("%s: tx%d: padding %d bytes (cur now 0x%x)\n", 
-		sc->sc_dev.dv_xname, chan, pad * sizeof(u_int32_t), cur);
+	     sc->sc_dev.dv_xname, chan, (int)(pad * sizeof(u_int32_t)), cur);
 #endif
     while (pad--) {
       EN_WRITEDAT(sc, cur, 0);	/* no byte order issues with zero */
@@ -3115,7 +3118,7 @@ defer:					/* defer processing */
 
     /* do we need to do a DMA op to align? */
     if (sc->alburst &&
-      (needalign = (((uintptr_t) (void *) data) & sc->bestburstmask)) != 0) {
+      (needalign = (((unsigned long) data) & sc->bestburstmask)) != 0) {
       cnt = sc->bestburstlen - needalign;
       if (cnt > tlen) {
         cnt = tlen;
@@ -3255,9 +3258,22 @@ int unit, level;
   struct en_softc *sc;
   int lcv, cnt, slot;
   u_int32_t ptr, reg;
+#ifdef __FreeBSD__
+  devclass_t dc;
+  int maxunit;
 
+  dc = devclass_find("en");
+  if (dc == NULL) {
+    printf("en_dump: can't find devclass!\n");
+    return 0;
+  }
+  maxunit = devclass_get_maxunit(dc);
+  for (lcv = 0 ; lcv < maxunit ; lcv++) {
+    sc = devclass_get_softc(dc, lcv);
+#else
   for (lcv = 0 ; lcv < en_cd.cd_ndevs ; lcv++) {
     sc = (struct en_softc *) en_cd.cd_devs[lcv];
+#endif
     if (sc == NULL) continue;
     if (unit != -1 && unit != lcv)
       continue;
@@ -3306,24 +3322,21 @@ int unit, level;
 
     if (level & END_MREGS) {
       printf("mregs:\n");
-      printf("resid = 0x%lx\n", (u_long)EN_READ(sc, MID_RESID));
+      printf("resid = 0x%x\n", EN_READ(sc, MID_RESID));
       printf("interrupt status = 0x%b\n", 
-				(int)EN_READ(sc, MID_INTSTAT), MID_INTBITS);
+	     (int)EN_READ(sc, MID_INTSTAT), MID_INTBITS);
       printf("interrupt enable = 0x%b\n", 
-				(int)EN_READ(sc, MID_INTENA), MID_INTBITS);
+	     (int)EN_READ(sc, MID_INTENA), MID_INTBITS);
       printf("mcsr = 0x%b\n", (int)EN_READ(sc, MID_MAST_CSR), MID_MCSRBITS);
-      printf("serv_write = [chip=%ld] [us=%d]\n",
-			(long)EN_READ(sc, MID_SERV_WRITE),
-			MID_SL_A2REG(sc->hwslistp));
-      printf("dma addr = 0x%lx\n", (u_long)EN_READ(sc, MID_DMA_ADDR));
-      printf("DRQ: chip[rd=0x%lx,wr=0x%lx], sc[chip=0x%x,us=0x%x]\n",
-	(u_long)MID_DRQ_REG2A(EN_READ(sc, MID_DMA_RDRX)), 
-	(u_long)MID_DRQ_REG2A(EN_READ(sc, MID_DMA_WRRX)),
-	sc->drq_chip, sc->drq_us);
-      printf("DTQ: chip[rd=0x%lx,wr=0x%lx], sc[chip=0x%x,us=0x%x]\n",
-	(u_long)MID_DTQ_REG2A(EN_READ(sc, MID_DMA_RDTX)), 
-	(u_long)MID_DTQ_REG2A(EN_READ(sc, MID_DMA_WRTX)),
-	sc->dtq_chip, sc->dtq_us);
+      printf("serv_write = [chip=%u] [us=%u]\n", EN_READ(sc, MID_SERV_WRITE),
+	     MID_SL_A2REG(sc->hwslistp));
+      printf("dma addr = 0x%x\n", EN_READ(sc, MID_DMA_ADDR));
+      printf("DRQ: chip[rd=0x%x,wr=0x%x], sc[chip=0x%x,us=0x%x]\n",
+	MID_DRQ_REG2A(EN_READ(sc, MID_DMA_RDRX)), 
+	MID_DRQ_REG2A(EN_READ(sc, MID_DMA_WRRX)), sc->drq_chip, sc->drq_us);
+      printf("DTQ: chip[rd=0x%x,wr=0x%x], sc[chip=0x%x,us=0x%x]\n",
+	MID_DTQ_REG2A(EN_READ(sc, MID_DMA_RDTX)), 
+	MID_DTQ_REG2A(EN_READ(sc, MID_DMA_WRTX)), sc->dtq_chip, sc->dtq_us);
 
       printf("  unusal txspeeds: ");
       for (cnt = 0 ; cnt < MID_N_VC ; cnt++)
@@ -3347,11 +3360,10 @@ int unit, level;
 		(sc->txslot[slot].cur - sc->txslot[slot].start)/4);
 	printf("mbsize=%d, bfree=%d\n", sc->txslot[slot].mbsize,
 		sc->txslot[slot].bfree);
-        printf("txhw: base_address=0x%lx, size=%ld, read=%ld, descstart=%ld\n",
-	  (u_long)MIDX_BASE(EN_READ(sc, MIDX_PLACE(slot))), 
-	  (u_long)MIDX_SZ(EN_READ(sc, MIDX_PLACE(slot))),
-	  (long)EN_READ(sc, MIDX_READPTR(slot)),
-	  (long)EN_READ(sc, MIDX_DESCSTART(slot)));
+        printf("txhw: base_address=0x%x, size=%u, read=%u, descstart=%u\n",
+	  (u_int)MIDX_BASE(EN_READ(sc, MIDX_PLACE(slot))), 
+	  MIDX_SZ(EN_READ(sc, MIDX_PLACE(slot))),
+	  EN_READ(sc, MIDX_READPTR(slot)), EN_READ(sc, MIDX_DESCSTART(slot)));
       }
     }
 
@@ -3364,10 +3376,10 @@ int unit, level;
 	printf("mode=0x%x, atm_flags=0x%x, oth_flags=0x%x\n", 
 	sc->rxslot[slot].mode, sc->rxslot[slot].atm_flags, 
 		sc->rxslot[slot].oth_flags);
-        printf("RXHW: mode=0x%lx, DST_RP=0x%lx, WP_ST_CNT=0x%lx\n",
-	  (u_long)EN_READ(sc, MID_VC(sc->rxslot[slot].atm_vci)),
-	  (u_long)EN_READ(sc, MID_DST_RP(sc->rxslot[slot].atm_vci)),
-	  (u_long)EN_READ(sc, MID_WP_ST_CNT(sc->rxslot[slot].atm_vci)));
+        printf("RXHW: mode=0x%x, DST_RP=0x%x, WP_ST_CNT=0x%x\n",
+	  EN_READ(sc, MID_VC(sc->rxslot[slot].atm_vci)),
+	  EN_READ(sc, MID_DST_RP(sc->rxslot[slot].atm_vci)),
+	  EN_READ(sc, MID_WP_ST_CNT(sc->rxslot[slot].atm_vci)));
       }
     }
 
@@ -3377,10 +3389,9 @@ int unit, level;
       ptr = sc->dtq_chip;
       while (ptr != sc->dtq_us) {
         reg = EN_READ(sc, ptr);
-        printf("\t0x%x=[cnt=%d, chan=%d, end=%d, type=%d @ 0x%lx]\n", 
+        printf("\t0x%x=[cnt=%d, chan=%d, end=%d, type=%d @ 0x%x]\n", 
 	    sc->dtq[MID_DTQ_A2REG(ptr)], MID_DMA_CNT(reg), MID_DMA_TXCHAN(reg),
-	    (reg & MID_DMA_END) != 0, MID_DMA_TYPE(reg),
-	    (u_long)EN_READ(sc, ptr+4));
+	    (reg & MID_DMA_END) != 0, MID_DMA_TYPE(reg), EN_READ(sc, ptr+4));
         EN_WRAPADD(MID_DTQOFF, MID_DTQEND, ptr, 8);
       }
     }
@@ -3391,10 +3402,9 @@ int unit, level;
       ptr = sc->drq_chip;
       while (ptr != sc->drq_us) {
         reg = EN_READ(sc, ptr);
-	printf("\t0x%x=[cnt=%d, chan=%d, end=%d, type=%d @ 0x%lx]\n", 
+	printf("\t0x%x=[cnt=%d, chan=%d, end=%d, type=%d @ 0x%x]\n", 
 	  sc->drq[MID_DRQ_A2REG(ptr)], MID_DMA_CNT(reg), MID_DMA_RXVCI(reg),
-	  (reg & MID_DMA_END) != 0, MID_DMA_TYPE(reg),
-	  (u_long)EN_READ(sc, ptr+4));
+	  (reg & MID_DMA_END) != 0, MID_DMA_TYPE(reg), EN_READ(sc, ptr+4));
 	EN_WRAPADD(MID_DRQOFF, MID_DRQEND, ptr, 8);
       }
     }
@@ -3422,12 +3432,23 @@ int unit, addr, len;
 {
   struct en_softc *sc;
   u_int32_t reg;
+#ifdef __FreeBSD__
+  devclass_t dc;
 
+  dc = devclass_find("en");
+  if (dc == NULL) {
+    printf("en_dumpmem: can't find devclass!\n");
+    return 0;
+  }
+  sc = devclass_get_softc(dc, unit);
+#else
   if (unit < 0 || unit > en_cd.cd_ndevs ||
 	(sc = (struct en_softc *) en_cd.cd_devs[unit]) == NULL) {
     printf("invalid unit number: %d\n", unit);
     return(0);
   }
+#endif
+
   addr = addr & ~3;
   if (addr < MID_RAMOFF || addr + len*4 > MID_MAXOFF || len <= 0) {
     printf("invalid addr/len number: %d, %d\n", addr, len);
