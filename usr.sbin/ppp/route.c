@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.25 1998/05/16 21:19:00 brian Exp $
+ * $Id: route.c,v 1.45 1998/05/21 21:48:10 brian Exp $
  *
  */
 
@@ -291,8 +291,6 @@ route_Show(struct cmdargs const *arg)
     log_Printf(LogERROR, "route_Show: sysctl: estimate: %s\n", strerror(errno));
     return (1);
   }
-  if (needed < 0)
-    return (1);
   sp = malloc(needed);
   if (sp == NULL)
     return (1);
@@ -365,8 +363,6 @@ route_IfDelete(struct bundle *bundle, int all)
 	      strerror(errno));
     return;
   }
-  if (needed < 0)
-    return;
 
   sp = malloc(needed);
   if (sp == NULL)
