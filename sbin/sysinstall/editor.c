@@ -8,13 +8,16 @@ int
 disp_fields(WINDOW *window, struct field field[], int no_fields)
 {
 	int i, j;
+	int len;
 
 	wattrset(window, dialog_attr);
 	for (i=0; i < no_fields; i++) {
-		mvwprintw(window, field[i].y, field[i].x, "%s", field[i].field);
-		j=strlen(field[i].field);
-		if (j < field[i].width)
-			for (; j < field[i].width; j++)
+		len=strlen(field[i].field);
+		wmove(window, field[i].y, field[i].x);
+		for (j=0; j < field[i].width; j++)
+			if (j < len)
+				waddch(window, field[i].field[j]);
+			else
 				waddch(window, ' ');
 	}
 	wrefresh(window);
