@@ -220,6 +220,7 @@ static vm_object_t
 				      vm_prot_t prot, vm_ooffset_t offset);
 static void	swap_pager_dealloc(vm_object_t object);
 static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 static boolean_t
 		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
 static void	swap_pager_init(void);
@@ -243,7 +244,7 @@ struct pagerops swappagerops = {
  * swap_*() routines are externally accessible.  swp_*() routines are
  * internal.
  */
-static int dmmax, dmmax_mask;
+static int dmmax;
 static int nswap_lowat = 128;	/* in pages, swap_pager_almost_full warn */
 static int nswap_hiwat = 512;	/* in pages, swap_pager_almost_full warn */
 
@@ -351,7 +352,6 @@ swap_pager_init()
 	 * Device Stripe, in PAGE_SIZE'd blocks
 	 */
 	dmmax = SWB_NPAGES * 2;
-	dmmax_mask = ~(dmmax - 1);
 }
 
 /*
@@ -971,7 +971,6 @@ swap_pager_getpages(object, m, count, reqpage)
 	int i;
 	int j;
 	daddr_t blk;
-	vm_pindex_t lastpindex;
 
 	mreq = m[reqpage];
 
@@ -981,8 +980,8 @@ swap_pager_getpages(object, m, count, reqpage)
 
 	/*
 	 * Calculate range to retrieve.  The pages have already been assigned
-	 * their swapblks.  We require a *contiguous* range that falls entirely
-	 * within a single device stripe.   If we do not supply it, bad things
+	 * their swapblks.  We require a *contiguous* range but we know it to
+	 * not span devices.   If we do not supply it, bad things
 	 * happen.  Note that blk, iblk & jblk can be SWAPBLK_NONE, but the 
 	 * loops are set up such that the case(s) are handled implicitly.
 	 *
@@ -998,8 +997,6 @@ swap_pager_getpages(object, m, count, reqpage)
 		iblk = swp_pager_meta_ctl(m[i]->object, m[i]->pindex, 0);
 		if (blk != iblk + (reqpage - i))
 			break;
-		if ((blk ^ iblk) & dmmax_mask)
-			break;
 	}
 	++i;
 
@@ -1008,8 +1005,6 @@ swap_pager_getpages(object, m, count, reqpage)
 
 		jblk = swp_pager_meta_ctl(m[j]->object, m[j]->pindex, 0);
 		if (blk != jblk - (j - reqpage))
-			break;
-		if ((blk ^ jblk) & dmmax_mask)
 			break;
 	}
 
@@ -1085,7 +1080,6 @@ swap_pager_getpages(object, m, count, reqpage)
 	VM_OBJECT_LOCK(mreq->object);
 	vm_object_pip_add(mreq->object, bp->b_npages);
 	VM_OBJECT_UNLOCK(mreq->object);
-	lastpindex = m[j-1]->pindex;
 
 	/*
 	 * perform the I/O.  NOTE!!!  bp cannot be considered valid after
@@ -1270,17 +1264,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 				rtvals[i+j] = VM_PAGER_FAIL;
 			splx(s);
 			continue;
-		}
-
-		/*
-		 * The I/O we are constructing cannot cross a physical
-		 * disk boundry in the swap stripe.  Note: we are still
-		 * at splvm().
-		 */
-		if ((blk ^ (blk + n)) & dmmax_mask) {
-			j = ((blk + dmmax) & dmmax_mask) - blk;
-			swp_pager_freeswapspace(blk + j, n - j);
-			n = j;
 		}
 
 		/*
@@ -2159,15 +2142,6 @@ done2:
 	return (error);
 }
 
-/*
- * Swfree(index) frees the index'th portion of the swap map.
- * Each of the NSWAPDEV devices provides 1/NSWAPDEV'th of the swap
- * space, which is laid out with blocks of dmmax pages circularly
- * among the devices.
- *
- * The new swap code uses page-sized blocks.  The old swap code used
- * DEV_BSIZE'd chunks.
- */
 int
 swaponvp(td, vp, dev, nblks)
 	struct thread *td;
