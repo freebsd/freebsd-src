@@ -424,8 +424,7 @@ drop:
 	}
 discard:
 	SOCK_LOCK(so);
-	if (so->so_state & SS_NOFDREF)
-		panic("soclose: NOFDREF");
+	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;
 	sorele(so);
 	splx(s);
