@@ -194,6 +194,12 @@
     account the swap space used by processes when computing the
     process sizes. &merged;</para>
 
+    <para>Linker sets are now self-contained; &man.gensetdefs.8; is
+    unnecessary and has been removed.</para>
+
+    <para>Numerous SMP-friendly changes have been made to the kernel's
+    mbuf allocator.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -385,6 +391,11 @@
 
       <para>The <literal>TCP_COMPAT_42</literal> kernel option has
       been removed.</para>
+
+      <para>The <literal>TCP_RESTRICT_RST</literal> kernel option has
+      been removed.  Similar functionality can be achieved with the
+      <varname>net.inet.tcp.blackhole</varname> sysctl
+      variable. &merged;</para>
 
       <para>TCP now has RFC 1323 extensions enabled by default in
       &man.rc.conf.5;. &merged;</para>
@@ -1305,7 +1316,7 @@
     <literal>nodump</literal> flag down a hierarchy. &merged;</para>
 
     <para>The <option>-T</option> to &man.dump.8; no longer swallows
-    an extra argument.</para>
+    an extra argument. &merged;</para>
 
     <para>&man.split.1; now has the ability to split a file longer
     than 2GB. &merged;</para>
@@ -1457,7 +1468,7 @@
     only) are used together.</para>
 
     <para>&man.whois.1; now directs queries for IP addresses to
-    ARIN.</para>
+    ARIN. &merged;</para>
 
     <para>A new utility &man.diskcheckd.8; has been added; it is a
     daemon which runs in the background, reading entire disks to find
@@ -1496,6 +1507,11 @@
     &man.mount.8; that mimics the command line option set of the
     deprecated &man.mount.mfs.8;.</para>
 
+    <para>The &man.getprogname.3; and &man.setprogname.3; library
+    functions have been added to manipulate the name of the current
+    program.  They are used by error-reporting routines to produce
+    consistent output. &merged;</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1517,7 +1533,7 @@
       1.11. &merged;</para>
 
       <para>The &man.ee.1; <application>Easy Editor</application> has
-      been updated to 1.4.2.</para>
+      been updated to 1.4.2. &merged;</para>
 
       <para>&man.file.1; has been contribify-ed, and updated to version
       3.35.</para>
