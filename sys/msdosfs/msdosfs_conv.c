@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.17 1998/02/22 12:22:23 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.18 1998/02/22 15:09:39 ache Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -645,19 +645,35 @@ done:
 	return 0;
 }
 
+static inline u_int8_t
+find_lcode(code, u2w)
+	u_int16_t code;
+	u_int16_t *u2w;
+{
+	int i;
+
+	for (i = 0; i < 128; i++)
+		if (u2w[i] == code)
+			return (i | 0x80);
+	return '?';
+}
+
 /*
  * Compare our filename to the one in the Win95 entry
  * Returns the checksum or -1 if no match
  */
 int
-winChkName(un, unlen, wep, chksum)
+winChkName(un, unlen, wep, chksum, table_loaded, u2w)
 	const u_char *un;
 	int unlen;
 	struct winentry *wep;
 	int chksum;
+	int table_loaded;
+	u_int16_t *u2w;
 {
 	u_int8_t *cp;
 	int i;
+	u_int16_t code;
 
 	/*
 	 * First compare checksums
@@ -688,8 +704,16 @@ winChkName(un, unlen, wep, chksum)
 				return chksum;
 			return -1;
 		}
-		if (u2l[*cp++] != u2l[*un++] || *cp++)
+		code = (cp[1] << 8) | cp[0];
+		if (code & 0xff80) {
+			if (table_loaded)
+				code = find_lcode(code, u2w);
+			else if (code & 0xff00)
+				code = '?';
+		}
+		if (u2l[code] != u2l[*un++])
 			return -1;
+		cp += 2;
 	}
 	for (cp = wep->wePart2, i = sizeof(wep->wePart2)/2; --i >= 0;) {
 		if (--unlen < 0) {
@@ -697,8 +721,16 @@ winChkName(un, unlen, wep, chksum)
 				return chksum;
 			return -1;
 		}
-		if (u2l[*cp++] != u2l[*un++] || *cp++)
+		code = (cp[1] << 8) | cp[0];
+		if (code & 0xff80) {
+			if (table_loaded)
+				code = find_lcode(code, u2w);
+			else if (code & 0xff00)
+				code = '?';
+		}
+		if (u2l[code] != u2l[*un++])
 			return -1;
+		cp += 2;
 	}
 	for (cp = wep->wePart3, i = sizeof(wep->wePart3)/2; --i >= 0;) {
 		if (--unlen < 0) {
@@ -706,23 +738,18 @@ winChkName(un, unlen, wep, chksum)
 				return chksum;
 			return -1;
 		}
-		if (u2l[*cp++] != u2l[*un++] || *cp++)
+		code = (cp[1] << 8) | cp[0];
+		if (code & 0xff80) {
+			if (table_loaded)
+				code = find_lcode(code, u2w);
+			else if (code & 0xff00)
+				code = '?';
+		}
+		if (u2l[code] != u2l[*un++])
 			return -1;
+		cp += 2;
 	}
 	return chksum;
-}
-
-static inline u_int8_t
-find_lcode(code, u2w)
-	u_int16_t code;
-	u_int16_t *u2w;
-{
-	int i;
-
-	for (i = 0; i < 128; i++)
-		if (u2w[i] == code)
-			return (i | 0x80);
-	return '?';
 }
 
 /*
