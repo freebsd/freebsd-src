@@ -625,7 +625,7 @@ null_lock(ap)
 		if (lvp == NULL)
 			return (lockmgr(&vp->v_lock, flags, &vp->v_interlock, p));
 		if (flags & LK_INTERLOCK) {
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 			flags &= ~LK_INTERLOCK;
 		}
 		if ((flags & LK_TYPE_MASK) == LK_DRAIN) {
@@ -671,8 +671,10 @@ null_unlock(ap)
 	if (lvp == NULL)
 		return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, p));
 	if ((flags & LK_THISLAYER) == 0) {
-		if (flags & LK_INTERLOCK)
-			simple_unlock(&vp->v_interlock);
+		if (flags & LK_INTERLOCK) {
+			mtx_exit(&vp->v_interlock, MTX_DEF);
+			flags &= ~LK_INTERLOCK;
+		}
 		VOP_UNLOCK(lvp, flags & ~LK_INTERLOCK, p);
 	} else
 		flags &= ~LK_THISLAYER;
