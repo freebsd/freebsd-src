@@ -83,6 +83,8 @@ static	void rmtgetconn __P((void));
 static	void rmtgets __P((char *, int));
 static	int rmtreply __P((char *));
 
+static	int errfd = -1;
+
 extern	int ntrec;		/* blocking factor on tape */
 
 int
@@ -105,9 +107,28 @@ rmthost(host)
 static void
 rmtconnaborted()
 {
+	msg("Lost connection to remote host.\n");
+	if (errfd != -1) {
+		fd_set r;
+		struct timeval t;
 
-	(void) fprintf(stderr, "rdump: Lost connection to remote host.\n");
-	exit(1);
+		FD_ZERO(&r);
+		FD_SET(errfd, &r);
+		t.tv_sec = 0;
+		t.tv_usec = 0;
+		if (select(errfd + 1, &r, NULL, NULL, &t)) {
+			int i;
+			char buf[2048];
+
+			if ((i = read(errfd, buf, sizeof(buf) - 1)) > 0) {
+				buf[i] = '\0';
+				msg("on %s: %s%s", rmtpeer, buf,
+					buf[i - 1] == '\n' ? "" : "\n");
+			}
+		}
+	}
+
+	exit(X_ABORT);
 }
 
 void
@@ -127,30 +148,33 @@ rmtgetconn()
 	if (sp == NULL) {
 		sp = getservbyname("shell", "tcp");
 		if (sp == NULL) {
-			(void) fprintf(stderr,
-			    "rdump: shell/tcp: unknown service\n");
-			exit(1);
+			msg("shell/tcp: unknown service\n");
+			exit(X_ABORT);
 		}
 		pwd = getpwuid(getuid());
 		if (pwd == NULL) {
-			(void) fprintf(stderr, "rdump: who are you?\n");
-			exit(1);
+			msg("who are you?\n");
+			exit(X_ABORT);
 		}
 	}
 	if ((cp = index(rmtpeer, '@')) != NULL) {
 		tuser = rmtpeer;
 		*cp = '\0';
 		if (!okname(tuser))
-			exit(1);
+			exit(X_ABORT);
 		rmtpeer = ++cp;
 	} else
 		tuser = pwd->pw_name;
 	if ((rmt = getenv("RMT")) == NULL)
 		rmt = _PATH_RMT;
+	msg("");
 	rmtape = rcmd(&rmtpeer, (u_short)sp->s_port, pwd->pw_name, tuser,
-	    rmt, (int *)0);
-	if (rmtape < 0)
+	    rmt, &errfd);
+	if (rmtape < 0) {
+		msg("login to %s as %s failed.\n", rmtpeer, tuser);
 		return;
+	}
+	msgtail("Connection to %s established.\n", rmtpeer);
 	size = ntrec * TP_BSIZE;
 	if (size > 60 * 1024)		/* XXX */
 		size = 60 * 1024;
@@ -181,8 +205,7 @@ okname(cp0)
 	for (cp = cp0; *cp; cp++) {
 		c = *cp;
 		if (!isascii(c) || !(isalnum(c) || c == '_' || c == '-')) {
-			(void) fprintf(stderr, "rdump: invalid user name %s\n",
-			    cp0);
+			msg("invalid user name %s\n", cp0);
 			return (0);
 		}
 	}
