@@ -1708,13 +1708,15 @@ ENTRY(tl1_spill_topcb)
 	stx	%g1, [PCB_REG + PCB_NSAVED]
 
 #if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_spill_topcb: pc=%lx sp=%#lx nsaved=%d"
+	CATR(KTR_TRAP, "tl1_spill_topcb: pc=%#lx npc=%#lx sp=%#lx nsaved=%d"
 	   , %g1, %g2, %g3, 7, 8, 9)
 	rdpr	%tpc, %g2
 	stx	%g2, [%g1 + KTR_PARM1]
-	stx	%sp, [%g1 + KTR_PARM2]
+	rdpr	%tnpc, %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+	stx	%sp, [%g1 + KTR_PARM3]
 	ldx	[PCB_REG + PCB_NSAVED], %g2
-	stx	%g2, [%g1 + KTR_PARM3]
+	stx	%g2, [%g1 + KTR_PARM4]
 9:
 #endif
 
@@ -2332,18 +2334,6 @@ ENTRY(tl0_ret)
 	ldub	[%sp + SPOFF + CCFSZ + TF_FPRS], %l4
 	ldub	[%sp + SPOFF + CCFSZ + TF_WSTATE], %l5
 
-	set	TSTATE_IE, %o0
-	andcc	%l0, %o0, %g0
-	bnz	%xcc, 1f
-	 nop
-	ta	%xcc, 1
-1:	set	TSTATE_PEF, %o0
-	andcc	%l0, %o0, %g0
-	bnz	%xcc, 1f
-	 nop
-	ta	%xcc, 1
-1:
-
 	wrpr	%g0, PSTATE_ALT, %pstate
 
 	wrpr	%g0, 0, %pil
@@ -2393,10 +2383,12 @@ tl0_ret_fill:
 tl0_ret_fill_end:
 
 #if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_ret: fill magic wstate=%#lx sp=%#lx"
+	CATR(KTR_TRAP, "tl0_ret: fill magic ps=%#lx ws=%#lx sp=%#lx"
 	    , %l0, %l1, %l2, 7, 8, 9)
-	stx	%l5, [%l0 + KTR_PARM1]
-	stx	%sp, [%l0 + KTR_PARM2]
+	rdpr	%pstate, %l1
+	stx	%l1, [%l0 + KTR_PARM1]
+	stx	%l5, [%l0 + KTR_PARM2]
+	stx	%sp, [%l0 + KTR_PARM3]
 9:
 #endif
 
@@ -2405,9 +2397,11 @@ tl0_ret_fill_end:
 	 * which will copyin the window on the user's behalf.
 	 */
 	wrpr	%l5, 0, %wstate
+	wrpr	%g0, PSTATE_ALT, %pstate
 	mov	PCPU_REG, %o0
-	wrpr	%g0, PSTATE_KERNEL, %pstate
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 	mov	%o0, PCPU_REG
+	wrpr	%g0, PSTATE_KERNEL, %pstate
 	mov	T_FILL, %o0
 	b	%xcc, .Ltl0_trap_reenter
 	 stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
