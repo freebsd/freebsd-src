@@ -660,6 +660,7 @@ Logitech PS/2 / USB mouse (3 buttons).
 
 MacAlly mouse (3 buttons).
 MacAlly self powered hub (4 ports).
+MacAlly iKey keyboard.
 
 Microsoft IntelliMouse (3 buttons).
 Microsoft keyboard.
