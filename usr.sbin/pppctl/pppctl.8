@@ -1,0 +1,76 @@
+.\" $Id:$
+.Dd 26 June 1997
+.Os FreeBSD
+.Dt PPPCTL 8
+.Sh NAME
+.Nm pppctl
+.Nd
+PPP control program
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Op Fl t Ar n
+.Op Fl p Ar passwd
+.Ar Port | LocalSocket
+.Ar command
+.Op Ar ;command
+.Ar ...
+.Sh DESCRIPTION
+This program provides command line control of the
+.Nm ppp
+daemon.  Its primary use is to facilitate simple scripts that
+control a running daemon.
+
+.Nm Pppctl
+expects at least two arguments.  The first is interpreted as the
+socket on which the
+.Nm ppp
+daemon is listening.  If the socket contains a leading '/', it
+is taken as an AF_LOCAL socket.  If it consists entirely of numbers,
+it is interpreted as a TCP port number on localhost.  If it contains
+any characters, the first of which is not a '/' character, it is
+interpreted as an entry of type "tcp" from
+.Pa /etc/services .
+All remaining arguments are concatenated to form the command(s) that
+will be sent to the
+.Nm ppp
+daemon.  If any semi-colon characters are found, they are treated
+as command delimiters, allowing more than one command in a given
+"session".  For example;
+
+  pppctl 3000 set timeout 300\\; show timeout
+
+Don't forget to escape or quote the ';' as it is a special character
+for most shells.
+
+The following command line options are available:
+.Bl -tag -width Ds
+.It Fl v
+Display all data sent to and received from the
+.Nm ppp
+daemon.  Normally,
+.Nm pppctl
+displays only non-prompt lines received.
+.It Fl t Ar n
+Use a timeout of
+.Ar n
+instead of the default 2 seconds.  This may be required if you
+wish to control a daemon over a slow (or even a dialup) link.
+.It Fl p Ar passwd
+Specify the password required by the
+.Nm ppp
+daemon.  If this switch is not used,
+.Nm
+will prompt for a password once it has successfully connected to
+.Nm ppp
+(assuming, of course, that one is required).
+.El
+
+.Sh SEE ALSO
+.Xr ppp 8 ,
+.Xr services 5
+
+.Sh HISTORY
+The
+.Nm
+command first appeared in FreeBSD 2.2.5.
