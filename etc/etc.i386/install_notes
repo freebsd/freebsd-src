@@ -249,6 +249,7 @@ Installation is supported from several media types, including:
 	Tape
 	NFS partitions
 	FTP
+	Kermit
 
 No matter what you do, however, you'll need at least three disks (1.2M
 or 1.44M) handy, on which you will put the kernel-copy image and the
@@ -403,6 +404,20 @@ To prepare for installing via FTP:
 
 	Once you have done this, you can proceed to the next
 	step in the installation process, preparing your hard disk.
+
+To prepare for installing via Kermit:
+
+	The preparations for this method of installation
+	require that the kermit program be put on the
+	dos-floppy installation disk.  This will be
+	loaded as part of the minimum base installation.
+	Kermit is available from tools directory of the
+	FreeBSD FTP site.  This is a FreeBSD binary and
+	only executes under the FreeBSD operating system.
+
+	Once you have done this, you can proceed to the next
+	step in the installation process, preparing your hard disk.
+
 
 To upgrade:
 
@@ -578,10 +593,18 @@ may hit Control-C at any prompt and then type `halt'.
 	will begin installing still more files on your hard disk.
 	This should take no more than 3 minutes.
 
-	You will be given (more) instructions, (e.g., to halt the
-	system) and you should reboot the machine again, from the
-	hard drive and probably with a hardware reset to kick your
-	ethernet card back into life.
+	You are given the option to load the dos-floppy disk.
+	In particular, if you want to use kermit for downloading
+	the distribution, the dos-floppy should have the kermit
+	binary.  If loading it, remove the cpio-floppy from the
+	drive,  insert the dos-floppy and enter a "yes" response
+	at the prompt.  Otherwise, enter "no" at the prompt.
+
+	After the dos-floppy has been loaded, you are given (more)
+	instructions, (e.g., to halt the system) and you should
+	reboot the machine again, from the hard drive and probably
+	with a hardware reset to kick your ethernet card back into
+	life.
 
 	CONGRATULATIONS: You now have the minimum base of FreeBSD
 	files on your hard disk!  Now you get to install the
@@ -750,6 +773,86 @@ may hit Control-C at any prompt and then type `halt'.
 		instructions above as if you had installed the files
 		from a floppy.
 
+	To install via Kermit:
+
+		First you must decide on a temporary directory to hold
+		the <set>.tar.gz.xx files. The directory /usr/distrib
+		is suggested. You should cd to it, if necessary do
+		a mkdir first. Use set_tmp_dir to identify this 
+		directory to the install process.
+
+		Invoke kermit and dial the remote kermit server.
+		A typical session might be:
+		# stty -f /dev/sio01 clocal
+		# kermit
+		C-Kermit> set line /dev/sio01
+		C-Kermit> set baud 9600
+		C-Kermit> set receive packet 740
+		C-Kermit> set window 4
+		C-Kermit> set block 2
+		C-Kermit> connect
+		Connecting to /dev/sio01, speed 9600.
+		The escape character is Ctrl-\ (ASCII 28, FS)
+		Type the escape character followed by C to get back,
+		or followed by ? to see other options.
+		atdt 1234567		<-- dial the remote
+		Connect 9600 
+		login: mylogin		<-- login to the remote
+		remote$ kermit -x	<-- invoke remote kermit as server
+		C-Kermit server starting.  Return to your local machine by typing
+		its escape sequence for closing the connection, and issue further
+		commands from there.  To shut down the C-Kermit server, issue the
+		BYE command to logout, or the FINISH command and then reconnect.
+		^\C			<-- return to local kermit
+		C-Kermit> get bin_tgz*	<-- request files from remote
+		...			(wait long for transfer to complete)
+		C-Kermit> finish	<-- terminate remote server
+		C-Kermit> connect
+		C-Kermit> exit		<-- exit remote kermit
+		remote$ exit		<-- exit remote host
+		^\C			<-- return to local kermit
+		C-Kermit> exit		<-- exit local kermit
+
+		At this point the binary distribution should be
+		downloaded to the FreeBSD system.  Run the "extract"
+		command, giving it as its sole argument the name
+		of the distribution set you wish to extract.  For
+		example, to extract the binary distribution, use
+		the command:
+
+			extract bin
+
+		and to extract the source distribution:
+
+			extract src
+
+		After the extraction is complete, go to the location
+		of the next set you want to extract, "set_tmp_dir"
+		again, and once again issue the appropriate
+		extract command.  Continue this process until
+		you've finished installing all of the sets which you
+		desire to have on your hard disk.
+
+		After each set is finished, if you know that you
+		are running low on space you can remove the
+		distribution files for that set by saying:
+
+			rm <set>*
+
+		For example, if you wish to remove the distribution
+		files for the binarydist set, after the "extract bin"
+		command has completed, issue the command:
+
+			rm bin*
+
+		Once you have extracted all sets and are at the "#" prompt
+		again, proceed to the section "Configuring Your System,"
+		below.
+
+
+Further Tips on Installing FreeBSD
+------- ---- -- ---------- -------
+
 	You might wish to install the binarydist first, get that
 	working, and then at a later point in time have a go at
 	installing the sourcedist. BEFORE YOU REBOOT AFTER INSTALLING
@@ -836,4 +939,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.1 1993/09/08 22:27:59 rgrimes Exp $
+This is $Id: install_notes,v 1.3 1993/09/13 13:37:21 alm Exp $
