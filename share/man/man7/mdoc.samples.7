@@ -550,6 +550,8 @@ The name of the operating system
 should be the common acronym, e.g.
 .Tn BSD
 or
+.Tn FreeBSD
+or
 .Tn ATT .
 The release should be the standard release
 nomenclature for the system specified, e.g. 4.3, 4.3+Tahoe, V.3,
@@ -559,6 +561,9 @@ For instance, a typical footer might be:
 .Pp
 .Dl \&.Os BSD 4.3
 .Pp
+or
+.Dl \&.Os FreeBSD 2.2
+.Pp
 or for a locally produced set
 .Pp
 .Dl \&.Os CS Department
@@ -567,9 +572,9 @@ The Berkeley default,
 .Ql \&.Os
 without an argument, has been defined as
 .Tn BSD
-Experimental in the
+in the
 site specific file
-.Pa /usr/src/share/tmac/doc-common .
+.Pa /usr/src/gnu/usr.bin/groff/tmac/doc-common .
 It really should default to
 .Tn LOCAL .
 Note, if the
@@ -1393,6 +1398,22 @@ callable. It accepts at most two arguments.
 The
 .Ql \&.Bx
 macro is parsed and is callable.
+.Ss FreeBSD Macro
+.Bd -literal -offset indent -compact
+Usage: .Fx Version.release ... \*(Pu
+.Ed
+.Bl -tag -width ".Fx 2.2 ) ," -compact -offset 14n
+.It Li ".Fx 2.2 ."
+.Fx 2.2 .
+.El
+.Pp
+The
+.Ql \&.Fx
+macro is
+.Em not
+parsed and
+.Em not
+callable. It accepts at most two arguments.
 .Ss UNIX Macro
 .Dl Usage: .Ux ... \*(Pu
 .Bl -tag -width ".Ux 4.3 ) ," -compact -offset 14n

@@ -47,8 +47,9 @@ kernel process helps protect the integrity of disk volumes
 by flushing
 volatile cached filesystem data
 to disk at thirty second intervals.
-.Nm Update
-does the equivalent of the 
+The 
+.Nm update
+process does the equivalent of the 
 .Xr sync 2
 function call to do the task.
 .Sh SEE ALSO
@@ -69,5 +70,7 @@ An
 command appeared in
 .At v6 ,
 and was usually started by /etc/rc when the system went multi-user.
-.Nm Update
-was turned into a kernel initiated process in FreeBSD 2.0.
+A kernel initiated
+.Nm update
+process first appeared in
+.Fx 2.0 .
