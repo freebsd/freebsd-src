@@ -240,7 +240,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 		RTFREE(ro->ro_rt);
 		ro->ro_rt = (struct rtentry *)0;
 	}
-	if (ro->ro_rt == 0) {
+	if (ro->ro_rt == NULL) {
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
@@ -251,8 +251,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	 * short circuit routing lookup.
 	 */
 	if (flags & IP_ROUTETOIF) {
-		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == 0 &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst)))) == 0) {
+		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst)))) == NULL) {
 			ipstat.ips_noroute++;
 			error = ENETUNREACH;
 			goto bad;
@@ -275,9 +275,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 		 * as this is probably required in all cases for correct
 		 * operation (as it is for ARP).
 		 */
-		if (ro->ro_rt == 0)
+		if (ro->ro_rt == NULL)
 			rtalloc_ign(ro, 0);
-		if (ro->ro_rt == 0) {
+		if (ro->ro_rt == NULL) {
 			ipstat.ips_noroute++;
 			error = EHOSTUNREACH;
 			goto bad;
@@ -899,7 +899,7 @@ spd_done:
 			ro_fwd->ro_rt = 0;
 			rtalloc_ign(ro_fwd, RTF_CLONING);
 
-			if (ro_fwd->ro_rt == 0) {
+			if (ro_fwd->ro_rt == NULL) {
 				ipstat.ips_noroute++;
 				error = EHOSTUNREACH;
 				goto bad;
@@ -1163,7 +1163,7 @@ smart_frag_failure:
 		int mhlen = sizeof (struct ip);
 
 		MGETHDR(m, M_DONTWAIT, MT_HEADER);
-		if (m == 0) {
+		if (m == NULL) {
 			error = ENOBUFS;
 			ipstat.ips_odropped++;
 			goto done;
@@ -1192,7 +1192,7 @@ smart_frag_failure:
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
 		m->m_next = m_copy(m0, off, len);
-		if (m->m_next == 0) {		/* copy failed */
+		if (m->m_next == NULL) {	/* copy failed */
 			m_free(m);
 			error = ENOBUFS;	/* ??? */
 			ipstat.ips_odropped++;
@@ -1289,7 +1289,7 @@ ip_insertoptions(m, opt, phlen)
 		ip->ip_dst = p->ipopt_dst;
 	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
 		MGETHDR(n, M_DONTWAIT, MT_HEADER);
-		if (n == 0) {
+		if (n == NULL) {
 			*phlen = 0;
 			return (m);
 		}
@@ -1394,7 +1394,7 @@ ip_ctloutput(so, sopt)
 				break;
 			}
 			MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
-			if (m == 0) {
+			if (m == NULL) {
 				error = ENOBUFS;
 				break;
 			}
