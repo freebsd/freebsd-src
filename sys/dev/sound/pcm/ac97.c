@@ -341,7 +341,8 @@ ac97_initmixer(struct ac97_info *codec)
 	}
 
 	for (i = 0; i < 32; i++) {
-		if (codec->mix[i].reg > 0) {
+		k = codec->noext? codec->mix[i].enable : 1;
+		if (k && (codec->mix[i].reg > 0)) {
 			old = rdcd(codec, codec->mix[i].reg);
 			wrcd(codec, codec->mix[i].reg, 0x3f);
 			j = rdcd(codec, codec->mix[i].reg);
