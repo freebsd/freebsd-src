@@ -2205,6 +2205,7 @@ comparam(tp, t)
 	u_int		divisor;
 	u_char		dlbh;
 	u_char		dlbl;
+	u_char		efr_flowbits;
 	int		s;
 	int		unit;
 
@@ -2309,18 +2310,13 @@ comparam(tp, t)
 			sio_setreg(com, com_dlbh, dlbh);
 	}
 
-	sio_setreg(com, com_cfcr, com->cfcr_image = cfcr);
-
 	if (!(tp->t_state & TS_TTSTOP))
 		com->state |= CS_TTGO;
+	efr_flowbits = 0;
 
 	if (cflag & CRTS_IFLOW) {
-		if (com->st16650a) {
-			sio_setreg(com, com_cfcr, 0xbf);
-			sio_setreg(com, com_fifo,
-				   sio_getreg(com, com_fifo) | 0x40);
-		}
 		com->state |= CS_RTS_IFLOW;
+		efr_flowbits |= EFR_AUTORTS;
 		/*
 		 * If CS_RTS_IFLOW just changed from off to on, the change
 		 * needs to be propagated to MCR_RTS.  This isn't urgent,
@@ -2334,13 +2330,7 @@ comparam(tp, t)
 		 * on here, since comstart() won't do it later.
 		 */
 		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
-		if (com->st16650a) {
-			sio_setreg(com, com_cfcr, 0xbf);
-			sio_setreg(com, com_fifo,
-				   sio_getreg(com, com_fifo) & ~0x40);
-		}
 	}
-
 
 	/*
 	 * Set up state to handle output flow control.
@@ -2351,22 +2341,18 @@ comparam(tp, t)
 	com->state &= ~CS_CTS_OFLOW;
 	if (cflag & CCTS_OFLOW) {
 		com->state |= CS_CTS_OFLOW;
+		efr_flowbits |= EFR_AUTOCTS;
 		if (!(com->last_modem_status & MSR_CTS))
 			com->state &= ~CS_ODEVREADY;
-		if (com->st16650a) {
-			sio_setreg(com, com_cfcr, 0xbf);
-			sio_setreg(com, com_fifo,
-				   sio_getreg(com, com_fifo) | 0x80);
-		}
-	} else {
-		if (com->st16650a) {
-			sio_setreg(com, com_cfcr, 0xbf);
-			sio_setreg(com, com_fifo,
-				   sio_getreg(com, com_fifo) & ~0x80);
-		}
 	}
 
-	sio_setreg(com, com_cfcr, com->cfcr_image);
+	if (com->st16650a) {
+		sio_setreg(com, com_lcr, LCR_EFR_ENABLE);
+		sio_setreg(com, com_efr,
+			   (sio_getreg(com, com_efr)
+			    & ~(EFR_AUTOCTS | EFR_AUTORTS)) | efr_flowbits);
+	}
+	sio_setreg(com, com_cfcr, com->cfcr_image = cfcr);
 
 	/* XXX shouldn't call functions while intrs are disabled. */
 	disc_optim(tp, t, com);
