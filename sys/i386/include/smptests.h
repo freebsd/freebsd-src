@@ -60,8 +60,6 @@
  */
 #define PUSHDOWN_LEVEL_1
 #define PUSHDOWN_LEVEL_2
-#define PUSHDOWN_LEVEL_3_NOT
-#define PUSHDOWN_LEVEL_4_NOT
 
 /*
  * Debug version of simple_lock.  This will store the CPU id of the
@@ -97,74 +95,6 @@
 
 
 /*
- * INTR_SIMPLELOCK has been removed, as the interrupt mechanism will likely
- * not use this sort of optimization if we move to interrupt threads.
- */
-#ifdef PUSHDOWN_LEVEL_4
-#endif
-
-
-/*
- * CPL_AND_CML has been removed.  Interrupt threads will eventually not
- * use either mechanism so there is no point trying to optimize it.
- */
-#ifdef PUSHDOWN_LEVEL_3
-#endif
-
-
-/*
- * SPL_DEBUG_POSTCODE/INTR_SPL/SPL_DEBUG - removed
- *
- * These functions were too expensive for the standard case but, more 
- * importantly, we should be able to come up with a much cleaner way
- * to handle the cpl.  Having to do any locking at all is a mistake
- * for something that is modified as often as cpl is.
- */
-
-/*
- * FAST_WITHOUTCPL - now made the default (define removed).  Text below 
- * contains the current discussion.  I am confident we can find a solution
- * that does not require us to process softints from a hard int, which can
- * kill serial performance due to the lack of true hardware ipl's.
- *
- ****
- *
- * Ignore the ipending bits when exiting FAST_INTR() routines.
- *
- * according to Bruce:
- *
- * setsoft*() may set ipending.  setsofttty() is actually used in the
- * FAST_INTR handler in some serial drivers.  This is necessary to get
- * output completions and other urgent events handled as soon as possible.
- * The flag(s) could be set in a variable other than ipending, but they
- * needs to be checked against cpl to decide whether the software interrupt
- * handler can/should run.
- *
- *  (FAST_INTR used to just return
- * in all cases until rev.1.7 of vector.s.  This worked OK provided there
- * were no user-mode CPU hogs.  CPU hogs caused an average latency of 1/2
- * clock tick for output completions...)
- ***
- *
- * So I need to restore cpl handling someday, but AFTER
- *  I finish making spl/cpl MP-safe.
- */
-#ifdef PUSHDOWN_LEVEL_1
-#endif
-
-
-/*
- * FAST_SIMPLELOCK no longer exists, because it doesn't help us.  The cpu
- * is likely to already hold the MP lock and recursive MP locks are now
- * very cheap, so we do not need this optimization.  Eventually *ALL* 
- * interrupts will run in their own thread, so there is no sense complicating
- * matters now.
- */
-#ifdef PUSHDOWN_LEVEL_1
-#endif
-
-
-/*
  * Portions of the old TEST_LOPRIO code, back from the grave!
  */
 #define GRAB_LOPRIO
@@ -185,22 +115,6 @@
 #define GIANT_LOCK
 
 #ifdef APIC_IO
-/*
- * Enable extra counters for some selected locations in the interrupt handlers.
- * Look in apic_vector.s, apic_ipl.s and ipl.s for APIC_ITRACE or 
- * APIC_INTR_DIAGNOSTIC.
- */
-#undef APIC_INTR_DIAGNOSTIC
-
-/*
- * Add extra tracking of a specific interrupt. Look in apic_vector.s, 
- * apic_ipl.s and ipl.s for APIC_ITRACE and log_intr_event.
- * APIC_INTR_DIAGNOSTIC must be defined for this to work.
- */
-#ifdef APIC_INTR_DIAGNOSTIC
-#define APIC_INTR_DIAGNOSTIC_IRQ 17
-#endif
-
 /*
  * Don't assume that slow interrupt handler X is called from vector
  * X + ICU_OFFSET.
