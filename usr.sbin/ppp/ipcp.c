@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.4 1995/05/30 03:50:38 rgrimes Exp $
+ * $Id: ipcp.c,v 1.5 1995/07/04 02:57:11 davidg Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -41,7 +41,7 @@ extern void Prompt();
 extern struct in_addr ifnetmask;
 
 struct ipcpstate IpcpInfo;
-struct in_range DefMyAddress, DefHisAddress;
+struct in_range DefMyAddress, DefHisAddress, DefTriggerAddress;
 
 static void IpcpSendConfigReq __P((struct fsm *));
 static void IpcpSendTerminateAck __P((struct fsm *));
@@ -125,10 +125,13 @@ ReportIpcpStatus()
   printf(" my  side: %s, %x\n",
      inet_ntoa(icp->want_ipaddr), icp->want_compproto);
   printf("connected: %d secs, idle: %d secs\n\n", ipConnectSecs, ipIdleSecs);
-  printf("Defaults:  My Address: %s/%d  ",
+  printf("Defaults:\n");
+  printf(" My Address:  %s/%d\n",
      inet_ntoa(DefMyAddress.ipaddr), DefMyAddress.width);
-  printf("His Address: %s/%d\n",
+  printf(" His Address: %s/%d\n",
      inet_ntoa(DefHisAddress.ipaddr), DefHisAddress.width);
+  printf(" Negotiation: %s/%d\n",
+     inet_ntoa(DefTriggerAddress.ipaddr), DefTriggerAddress.width);
 }
 
 void
@@ -139,6 +142,7 @@ IpcpDefAddress()
 
   bzero(&DefMyAddress, sizeof(DefMyAddress));
   bzero(&DefHisAddress, sizeof(DefHisAddress));
+  bzero(&DefTriggerAddress, sizeof(DefTriggerAddress));
   if (gethostname(name, sizeof(name)) == 0) {
       hp = gethostbyname(name);
       if (hp && hp->h_addrtype == AF_INET) {
@@ -160,6 +164,17 @@ IpcpInit()
     icp->want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
     icp->his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
   }
+
+  /*
+   * Some implementation of PPP are:
+   *  Starting a negotiaion by require sending *special* value as my address,
+   *  even though standard of PPP is defined full negotiation based.
+   *  (e.g. "0.0.0.0" or Not "0.0.0.0")
+   */
+  if ( icp->want_ipaddr.s_addr == 0 ) {
+    icp->want_ipaddr.s_addr = DefTriggerAddress.ipaddr.s_addr;
+  }
+
   if (Enabled(ConfVjcomp))
     icp->want_compproto = (PROTO_VJCOMP << 16) | ((MAX_STATES - 1) << 8);
   else
