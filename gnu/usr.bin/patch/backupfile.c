@@ -76,7 +76,7 @@ enum backup_type backup_type = none;
    to numbered) backup file name. */
 char *simple_backup_suffix = "~";
 
-int		 argmatch(char *_arg, char **_optlist);
+int		 argmatch(char *_arg, const char **_optlist);
 const char	*basename(const char *_name);
 char		*dirname(const char *_path);
 static char	*concat(const char *_str1, const char *_str2);
@@ -264,7 +264,7 @@ dirname(const char *path)
    or -2 if it is ambiguous (is a prefix of more than one element). */
 
 int
-argmatch(char *arg, char **optlist)
+argmatch(char *arg, const char **optlist)
 {
   int i;			/* Temporary index in OPTLIST. */
   int arglen;			/* Length of ARG. */
@@ -345,7 +345,7 @@ get_version(char *version)
 void
 addext(char *filename, char *ext, int e)
 {
-  char *s = basename (filename);
+  char *s = (char *)(uintptr_t)(const void *)basename (filename);
   int slen = strlen (s), extlen = strlen (ext);
   long slen_max = -1;
 
