@@ -2,7 +2,8 @@
 #
 # List of (dependent) ports that are minimally required to be
 # checked out from CVS in order to get ${DOCPORTS} built and
-# installed.
+# installed.  It should follow the dependency list in
+# ports/textproc/docproj/Makefile as much as feasible.
 #
 # Note that these names are /not/ CVS module names but path
 # names, so the required part of the ports infrastructure will
@@ -11,14 +12,19 @@
 MINIMALDOCPORTS= \
 	ports/Mk \
 	ports/archivers/unzip \
+	ports/converters/libiconv \
 	ports/devel/gettext \
 	ports/devel/gmake \
 	ports/devel/libtool \
-	ports/graphics/eps2png \
+	ports/devel/pkgconfig \
+	ports/graphics/gd \
+	ports/graphics/peps \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
 	ports/graphics/png \
+	ports/graphics/scr2png \
 	ports/graphics/tiff \
+	ports/print/freetype2 \
 	ports/print/ghostscript6 \
 	ports/textproc/docbook \
 	ports/textproc/docbook-241 \
@@ -31,6 +37,8 @@ MINIMALDOCPORTS= \
 	ports/textproc/html \
 	ports/textproc/iso8879 \
 	ports/textproc/jade \
+	ports/textproc/libxml2 \
+	ports/textproc/libxslt \
 	ports/textproc/linuxdoc \
 	ports/textproc/mkcatalog \
 	ports/textproc/sgmlformat \
