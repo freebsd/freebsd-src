@@ -55,7 +55,6 @@ SUBDIR=	apply \
 	gensetdefs \
 	getconf \
 	getopt \
-	global \
 	gprof \
 	head \
 	hexdump \
