@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.150 1999/07/29 01:02:55 mdodd Exp $
+ *	$Id: fd.c,v 1.151 1999/07/29 11:27:33 joerg Exp $
  *
  */
 
@@ -2217,7 +2217,7 @@ fdformat(dev, finfo, p)
 
 	/* now do the format */
 	bp->b_dev = dev;
-	fdstrategy(bp);
+	BUF_STRATEGY(bp, 0);
 
 	/* ...and wait for it to complete */
 	s = splbio();
@@ -2277,7 +2277,7 @@ fdioctl(dev, cmd, addr, flag, p)
 		dl->d_secpercyl = fdt->size / fdt->tracks;
 		dl->d_type = DTYPE_FLOPPY;
 
-		if (readdisklabel(dkmodpart(dev, RAW_PART), fdstrategy, dl)
+		if (readdisklabel(dkmodpart(dev, RAW_PART), dl)
 		    == NULL)
 			error = 0;
 		else
@@ -2308,8 +2308,7 @@ fdioctl(dev, cmd, addr, flag, p)
 					  (u_long)0)) != 0)
 			break;
 
-		error = writedisklabel(dev, fdstrategy,
-				       (struct disklabel *)buffer);
+		error = writedisklabel(dev, (struct disklabel *)buffer);
 		break;
 	case FD_FORM:
 		if ((flag & FWRITE) == 0)

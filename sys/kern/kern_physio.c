@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.34 1999/05/08 06:39:37 phk Exp $
+ * $Id: kern_physio.c,v 1.35 1999/06/26 02:46:02 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -35,18 +35,17 @@ static struct buf * phygetvpbuf(dev_t dev, int resid);
 int
 physread(dev_t dev, struct uio *uio, int ioflag)
 {
-	return(physio(devsw(dev)->d_strategy, NULL, dev, 1, minphys, uio));
+	return(physio(NULL, dev, 1, minphys, uio));
 }
 
 int
 physwrite(dev_t dev, struct uio *uio, int ioflag)
 {
-	return(physio(devsw(dev)->d_strategy, NULL, dev, 0, minphys, uio));
+	return(physio(NULL, dev, 0, minphys, uio));
 }
 
 int
-physio(strategy, bp, dev, rw, minp, uio)
-	d_strategy_t *strategy;
+physio(bp, dev, rw, minp, uio)
 	struct buf *bp;
 	dev_t dev;
 	int rw;
@@ -114,7 +113,7 @@ physio(strategy, bp, dev, rw, minp, uio)
 			}
 
 			/* perform transfer */
-			(*strategy)(bp);
+			BUF_STRATEGY(bp, 0);
 
 			spl = splbio();
 			while ((bp->b_flags & B_DONE) == 0)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.199 1999/05/31 11:26:36 phk Exp $
+ *	$Id: wd.c,v 1.200 1999/08/09 10:34:52 phk Exp $
  */
 
 /* TODO:
@@ -223,7 +223,6 @@ static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
-static void wdstrategy1(struct buf *bp);
 static timeout_t wdtimeout;
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
@@ -657,16 +656,6 @@ wdstrategy(register struct buf *bp)
 done:
 	/* toss transfer, we're done early */
 	biodone(bp);
-}
-
-static void
-wdstrategy1(struct buf *bp)
-{
-	/*
-	 * XXX - do something to make wdstrategy() but not this block while
-	 * we're doing dsinit() and dsioctl().
-	 */
-	wdstrategy(bp);
 }
 
 /*
@@ -1263,8 +1252,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_ncylinders = du->dk_dd.d_ncylinders;
 	label.d_secpercyl = du->dk_dd.d_secpercyl;
 	label.d_secperunit = du->dk_dd.d_secperunit;
-	error = dsopen("wd", dev, fmt, 0, &du->dk_slices, &label, wdstrategy1,
-		       (ds_setgeom_t *)NULL, &wd_cdevsw);
+	error = dsopen("wd", dev, fmt, 0, &du->dk_slices, &label);
 	}
 	du->dk_flags &= ~DKFL_LABELLING;
 	wdsleep(du->dk_ctrlr, "wdopn2");
@@ -1283,7 +1271,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		du->dk_flags |= DKFL_LABELLING;
 		du->dk_state = WANTOPEN;
 
-		error = dsinit(dkmodpart(dev, RAW_PART), wdstrategy,
+		error = dsinit(dkmodpart(dev, RAW_PART), 
 			       &du->dk_dd, &du->dk_slices);
 		if (error != 0) {
 			du->dk_flags &= ~DKFL_LABELLING;
@@ -1312,13 +1300,13 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		 * XXX can now handle changes directly since dsinit() doesn't
 		 * do too much.
 		 */
-		msg = correct_readdisklabel(dkmodpart(dev, RAW_PART), wdstrategy,
-					    &du->dk_dd);
+		msg = correct_readdisklabel(dkmodpart(dev, RAW_PART), 
+		    &du->dk_dd);
 		/* XXX check value returned by wdwsetctlr(). */
 		wdwsetctlr(du);
 		if (msg == NULL && du->dk_dd.d_flags & D_BADSECT)
-			msg = readbad144(dkmodpart(dev, RAW_PART), wdstrategy,
-					 &du->dk_dd, &du->dk_bad);
+			msg = readbad144(dkmodpart(dev, RAW_PART), 
+			    &du->dk_dd, &du->dk_bad);
 		du->dk_flags &= ~DKFL_LABELLING;
 		if (msg != NULL) {
 			log(LOG_WARNING, "wd%d: cannot find label (%s)\n",
@@ -1909,8 +1897,7 @@ wdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 	du = wddrives[lunit];
 	wdsleep(du->dk_ctrlr, "wdioct");
-	error = dsioctl("wd", dev, cmd, addr, flags, &du->dk_slices,
-			wdstrategy1, (ds_setgeom_t *)NULL);
+	error = dsioctl("wd", dev, cmd, addr, flags, &du->dk_slices);
 	if (error != ENOIOCTL)
 		return (error);
 	switch (cmd) {
@@ -1952,7 +1939,7 @@ wdformat(struct buf *bp)
 {
 
 	bp->b_flags |= B_FORMAT;
-	wdstrategy(bp);
+	BUF_STRATEGY(bp, 0);
 	/*
 	 * phk put this here, better that return(wdstrategy(bp));
 	 * XXX
@@ -1973,7 +1960,7 @@ wdsize(dev_t dev)
 	du = wddrives[lunit];
 	if (du == NULL)
 		return (-1);
-	return (dssize(dev, &du->dk_slices, wdopen, wdclose));
+	return (dssize(dev, &du->dk_slices));
 }
  
 int

@@ -36,7 +36,7 @@
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
  *	from: i386/isa Id: diskslice_machdep.c,v 1.31 1998/08/10 07:22:14 phk Exp
- *	$Id: diskslice_machdep.c,v 1.8 1999/05/14 00:41:02 msmith Exp $
+ *	$Id: diskslice_machdep.c,v 1.9 1999/06/26 02:47:12 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -65,11 +65,10 @@ static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
 static int check_part __P((char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
 			   u_long mbr_offset));
-static void extended __P((char *dname, dev_t dev, d_strategy_t *strat,
-			  struct disklabel *lp, struct diskslices *ssp,
-			  u_long ext_offset, u_long ext_size,
-			  u_long base_ext_offset, int nsectors, int ntracks,
-			  u_long mbr_offset));
+static void extended __P((char *dname, dev_t dev, struct disklabel *lp,
+			  struct diskslices *ssp, u_long ext_offset,
+			  u_long ext_size, u_long base_ext_offset,
+			  int nsectors, int ntracks, u_long mbr_offset));
 
 static int
 check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
@@ -152,10 +151,9 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 }
 
 int
-dsinit(dname, dev, strat, lp, sspp)
+dsinit(dname, dev, lp, sspp)
 	char	*dname;
 	dev_t	dev;
-	d_strategy_t *strat;
 	struct disklabel *lp;
 	struct diskslices **sspp;
 {
@@ -184,7 +182,7 @@ reread_mbr:
 	bp->b_blkno = mbr_offset;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags |= B_READ;
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading primary partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
@@ -336,7 +334,7 @@ reread_mbr:
 	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
 		if (sp->ds_type == DOSPTYP_EXTENDED || 
                     sp->ds_type == DOSPTYP_EXTENDEDX)
-			extended(dname, bp->b_dev, strat, lp, ssp,
+			extended(dname, bp->b_dev, lp, ssp,
 				 sp->ds_offset, sp->ds_size, sp->ds_offset,
 				 max_nsectors, max_ntracks, mbr_offset);
 
@@ -349,12 +347,11 @@ done:
 }
 
 void
-extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
+extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	 nsectors, ntracks, mbr_offset)
 	char	*dname;
 	dev_t	dev;
 	struct disklabel *lp;
-	d_strategy_t *strat;
 	struct diskslices *ssp;
 	u_long	ext_offset;
 	u_long	ext_size;
@@ -382,7 +379,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	bp->b_blkno = ext_offset;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags |= B_READ;
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading extended partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
@@ -450,7 +447,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* If we found any more slices, recursively find all the subslices. */
 	for (dospart = 0; dospart < NDOSPART; dospart++)
 		if (ext_sizes[dospart] != 0)
-			extended(dname, dev, strat, lp, ssp,
+			extended(dname, dev, lp, ssp,
 				 ext_offsets[dospart], ext_sizes[dospart],
 				 base_ext_offset, nsectors, ntracks,
 				 mbr_offset);

@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.64 1999/05/11 19:54:30 phk Exp $
+ *	$Id: subr_diskslice.c,v 1.65 1999/06/21 03:48:16 grog Exp $
  */
 
 #include "opt_devfs.h"
@@ -375,15 +375,13 @@ dsgone(sspp)
  * is subject to the same restriction as dsopen().
  */
 int
-dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
+dsioctl(dname, dev, cmd, data, flags, sspp)
 	char	*dname;
 	dev_t	dev;
 	u_long	cmd;
 	caddr_t	data;
 	int	flags;
 	struct diskslices **sspp;
-	d_strategy_t *strat;
-	ds_setgeom_t *setgeom;
 {
 	int	error;
 	struct disklabel *lp;
@@ -472,10 +470,6 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 				if (lp->d_partitions[part].p_size > sp->ds_size)
 					error = ENOSPC;
 		}
-#if 0 /* XXX */
-		if (error != 0 && setgeom != NULL)
-			error = setgeom(lp);
-#endif
 		if (error != 0) {
 			free(lp, M_DEVBUF);
 			return (error);
@@ -511,8 +505,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		error = dsopen(dname, dev,
 			       ssp->dss_slices[WHOLE_DISK_SLICE].ds_copenmask
 			       & (1 << RAW_PART) ? S_IFCHR : S_IFBLK,
-			       ssp->dss_oflags, sspp, lp, strat, setgeom,
-			       ssp->dss_cdevsw);
+			       ssp->dss_oflags, sspp, lp);
 		if (error != 0) {
 			free(lp, M_DEVBUF);
 			*sspp = ssp;
@@ -533,8 +526,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 					       dkmodslice(dkmodpart(dev, part),
 							  slice),
 					       S_IFBLK, ssp->dss_oflags, sspp,
-					       lp, strat, setgeom,
-					       ssp->dss_cdevsw);
+					       lp);
 				if (error != 0) {
 					/* XXX should free devfs toks. */
 					free(lp, M_DEVBUF);
@@ -551,8 +543,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 					       dkmodslice(dkmodpart(dev, part),
 							  slice),
 					       S_IFCHR, ssp->dss_oflags, sspp,
-					       lp, strat, setgeom,
-					       ssp->dss_cdevsw);
+					       lp);
 				if (error != 0) {
 					/* XXX should free devfs toks. */
 					free(lp, M_DEVBUF);
@@ -569,8 +560,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		return (0);
 
 	case DIOCWDINFO:
-		error = dsioctl(dname, dev, DIOCSDINFO, data, flags, &ssp,
-				strat, setgeom);
+		error = dsioctl(dname, dev, DIOCSDINFO, data, flags, &ssp);
 		if (error != 0)
 			return (error);
 		/*
@@ -579,7 +569,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		 */
 		old_wlabel = sp->ds_wlabel;
 		set_ds_wlabel(ssp, slice, TRUE);
-		error = writedisklabel(dev, strat, sp->ds_label);
+		error = writedisklabel(dev, sp->ds_label);
 		/* XXX should invalidate in-core label if write failed. */
 		set_ds_wlabel(ssp, slice, old_wlabel);
 		return (error);
@@ -654,7 +644,6 @@ dsmakeslicestruct(nslices, lp)
 
 	ssp = malloc(offsetof(struct diskslices, dss_slices) +
 		     nslices * sizeof *sp, M_DEVBUF, M_WAITOK);
-	ssp->dss_cdevsw = NULL;
 	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
 	ssp->dss_nslices = nslices;
 	ssp->dss_oflags = 0;
@@ -700,16 +689,13 @@ dsname(dname, unit, slice, part, partname)
  * strategy routine must be special to allow activity.
  */
 int
-dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
+dsopen(dname, dev, mode, flags, sspp, lp)
 	char	*dname;
 	dev_t	dev;
 	int	mode;
 	u_int	flags;
 	struct diskslices **sspp;
 	struct disklabel *lp;
-	d_strategy_t *strat;
-	ds_setgeom_t *setgeom;
-	struct cdevsw *cdevsw;
 {
 	struct dkbad *btp;
 	dev_t	dev1;
@@ -754,7 +740,7 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 
 		if (!(flags & DSO_ONESLICE)) {
 			TRACE(("dsinit\n"));
-			error = dsinit(dname, dev, strat, lp, sspp);
+			error = dsinit(dname, dev, lp, sspp);
 			if (error != 0) {
 				dsgone(sspp);
 				return (error);
@@ -762,9 +748,6 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 		}
 		ssp = *sspp;
 		ssp->dss_oflags = flags;
-#ifdef DEVFS
-		ssp->dss_cdevsw = cdevsw;
-#endif
 
 		/*
 		 * If there are no real slices, then make the compatiblity
@@ -791,13 +774,6 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 
 		ssp->dss_slices[WHOLE_DISK_SLICE].ds_label = clone_label(lp);
 		ssp->dss_slices[WHOLE_DISK_SLICE].ds_wlabel = TRUE;
-		if (setgeom != NULL) {
-			error = setgeom(lp);
-			if (error != 0) {
-				dsgone(sspp);
-				return (error);
-			}
-		}
 	}
 
 	/*
@@ -819,11 +795,11 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 		    && sp->ds_size != 0) {
 			mynor = minor(dev1);
 			sp->ds_bdev =
-				devfs_add_devswf(cdevsw, mynor, DV_BLK,
+				devfs_add_devswf(devsw(dev1), mynor, DV_BLK,
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "%s", sname);
 			sp->ds_cdev =
-				devfs_add_devswf(cdevsw, mynor, DV_CHR,
+				devfs_add_devswf(devsw(dev1), mynor, DV_CHR,
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "r%s", sname);
 		}
@@ -838,11 +814,7 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 		if (flags & DSO_NOLABELS)
 			msg = NULL;
 		else
-			msg = readdisklabel(dev1, strat, lp1);
-#if 0 /* XXX */
-		if (msg == NULL && setgeom != NULL && setgeom(lp1) != 0)
-			msg = "setgeom failed";
-#endif
+			msg = readdisklabel(dev1, lp1);
 		if (msg == NULL)
 			msg = fixlabel(sname, sp, lp1, FALSE);
 		if (msg == NULL && lp1->d_secsize != ssp->dss_secsize)
@@ -857,7 +829,7 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 		if (lp1->d_flags & D_BADSECT) {
 			btp = malloc(sizeof *btp, M_DEVBUF, M_WAITOK);
 			TRACE(("readbad144\n"));
-			msg = readbad144(dev1, strat, lp1, btp);
+			msg = readbad144(dev1, lp1, btp);
 			if (msg != NULL) {
 				log(LOG_WARNING,
 				    "%s: cannot find bad sector table (%s)\n",
@@ -902,11 +874,9 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 }
 
 int
-dssize(dev, sspp, dopen, dclose)
+dssize(dev, sspp)
 	dev_t	dev;
 	struct diskslices **sspp;
-	d_open_t dopen;
-	d_close_t dclose;
 {
 	struct disklabel *lp;
 	int	part;
@@ -918,9 +888,9 @@ dssize(dev, sspp, dopen, dclose)
 	ssp = *sspp;
 	if (ssp == NULL || slice >= ssp->dss_nslices
 	    || !(ssp->dss_slices[slice].ds_bopenmask & (1 << part))) {
-		if (dopen(dev, FREAD, S_IFBLK, (struct proc *)NULL) != 0)
+		if (devsw(dev)->d_open(dev, FREAD, S_IFBLK, (struct proc *)NULL) != 0)
 			return (-1);
-		dclose(dev, FREAD, S_IFBLK, (struct proc *)NULL);
+		devsw(dev)->d_close(dev, FREAD, S_IFBLK, (struct proc *)NULL);
 		ssp = *sspp;
 	}
 	lp = ssp->dss_slices[slice].ds_label;
@@ -1174,11 +1144,11 @@ set_ds_labeldevs_unaliased(dname, dev, ssp)
 		} else {
 			mynor = minor(dkmodpart(dev, part));
 			sp->ds_bdevs[part] =
-				devfs_add_devswf(ssp->dss_cdevsw, mynor, DV_BLK,
+				devfs_add_devswf(devsw(dev), mynor, DV_BLK,
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "%s%s", sname, partname);
 			sp->ds_cdevs[part] =
-				devfs_add_devswf(ssp->dss_cdevsw, mynor, DV_CHR,
+				devfs_add_devswf(devsw(dev), mynor, DV_CHR,
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "r%s%s", sname, partname);
 		}

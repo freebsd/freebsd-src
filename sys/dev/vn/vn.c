@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.82 1999/08/08 18:42:42 phk Exp $
+ *	$Id: vn.c,v 1.83 1999/08/08 22:01:50 phk Exp $
  */
 
 /*
@@ -210,8 +210,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 			label.d_partitions[RAW_PART].p_size = vn->sc_size;
 
 			return (dsopen("vn", dev, mode, 0, &vn->sc_slices,
-				       &label, vnstrategy, (ds_setgeom_t *)NULL,
-				       &vn_cdevsw));
+			    &label));
 		}
 		if (dkslice(dev) != WHOLE_DISK_SLICE ||
 		    dkpart(dev) != RAW_PART ||
@@ -362,8 +361,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	IFOPT(vn,VN_LABELS) {
 		if (vn->sc_slices != NULL) {
 			error = dsioctl("vn", dev, cmd, data, flag,
-					&vn->sc_slices, vnstrategy,
-					(ds_setgeom_t *)NULL);
+					&vn->sc_slices);
 			if (error != ENOIOCTL)
 				return (error);
 		}
