@@ -1324,6 +1324,7 @@ nfs/nfs_common.c		optional nfsserver
 nfsclient/bootp_subr.c		optional bootp nfsclient
 nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
+nfsclient/nfs_diskless.c	optional nfsclient nfs_root
 nfsclient/nfs_node.c		optional nfsclient
 nfsclient/nfs_socket.c		optional nfsclient
 nfsclient/nfs_subs.c		optional nfsclient

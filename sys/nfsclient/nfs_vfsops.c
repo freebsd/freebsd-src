@@ -40,6 +40,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bootp.h"
+#include "opt_nfsroot.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -384,9 +385,13 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 
 #if defined(BOOTP_NFSROOT) && defined(BOOTP)
 	bootpc_init();		/* use bootp to get nfs_diskless filled in */
+#elif defined(NFS_ROOT)
+	nfs_setup_diskless();
 #endif
 
-	if (nfs_diskless_valid==1)
+	if (nfs_diskless_valid == 0)
+		return (-1);
+	if (nfs_diskless_valid == 1)
 		nfs_convert_diskless();
 
 	/*
@@ -725,10 +730,8 @@ nfs_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp,
 	size_t len;
 	u_char nfh[NFSX_V3FHMAX];
 
-	if (path == NULL) {
-		nfs_mountroot(mp, td);
-		return (0);
-	}
+	if (path == NULL)
+		return (nfs_mountroot(mp, td));
 	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
 	if (error)
 		return (error);
