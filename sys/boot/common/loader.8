@@ -429,6 +429,15 @@ are also accepted and indicate kilobytes, megabytes and gigabytes
 respectively.
 An invalid suffix will result in the variable being ignored by the
 kernel.
+.It Va hw.pci.host_start_mem, hw.acpi.host_start_mem
+When not otherwise constrained, this limits the memory start
+address.
+The default is 0x80000000 and should be set to at least size of the
+memory and not conflict with other resources.
+Typically, only systems without pci bridges need to set this variable
+since pci bridges typically constrain the memory starting address
+(and the variable is only used when bridges don't constrain this
+address).
 .It Va hw.pci.enable_io_modes
 Enable PCI resources which are left off by some BIOSes or are not
 enabled correctly by the device driver.
