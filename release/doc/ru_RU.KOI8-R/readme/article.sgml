@@ -2,7 +2,7 @@
    The FreeBSD Russian Documentation Project
 
    $FreeBSD$
-   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.1 2004/06/24 13:32:02 den Exp $
+   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.2 2004/08/03 12:53:40 den Exp $
 
    Original revision: 1.30
 -->
@@ -14,7 +14,7 @@
 %authors;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//RU">
 %mlists;
-<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//RU">
 %trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
@@ -432,7 +432,7 @@
     <para>&os; представляет собой результат работы многих сотен, если не тысяч
       людей по всему миру, работавших бесчисленное количество времени
       для создания этого дистрибутива.  За полным списком разработчиков и
-      участников Проекта &os; обращайтесь к статье <ulink
+      участников Проекта &os; обращайтесь к <ulink
       url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/contributors/"><quote>Списку
       контрибьюторов Проекта FreeBSD</quote></ulink> на веб сайте &os; или
       любом из его зеркал.</para>
