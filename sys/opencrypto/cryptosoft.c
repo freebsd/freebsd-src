@@ -453,7 +453,7 @@ swcr_authcompute(struct cryptop *crp, struct cryptodesc *crd,
 		break;
 	case CRYPTO_BUF_MBUF:
 		err = m_apply((struct mbuf *) buf, crd->crd_skip, crd->crd_len,
-		    (int (*)(void *, caddr_t, unsigned int)) axf->Update,
+		    (int (*)(void *, void *, unsigned int)) axf->Update,
 		    (caddr_t) &ctx);
 		if (err)
 			return err;
