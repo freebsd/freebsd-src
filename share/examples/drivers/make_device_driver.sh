@@ -151,7 +151,6 @@ __FBSDID("\$${RCS_KEYWORD}$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/proc.h>
-#include <sys/rman.h>
 #include <sys/time.h>
 #include <sys/${1}io.h>		/* ${1} IOCTL definitions */
 
@@ -159,9 +158,10 @@ __FBSDID("\$${RCS_KEYWORD}$");
 #include <machine/resource.h>
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
+#include <sys/rman.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <isa/isavar.h>
 
@@ -225,20 +225,15 @@ static	void		${1}intr(void *arg);
 
 #define CDEV_MAJOR 20
 static struct cdevsw ${1}_cdevsw = {
-	/* open */	${1}open,
-	/* close */	${1}close,
-	/* read */	${1}read,
-	/* write */	${1}write,
-	/* ioctl */	${1}ioctl,
-	/* poll */	${1}poll,
-	/* mmap */	${1}mmap,
-	/* strategy */	nostrategy,	/* not a block type device */
-	/* name */	"${1}",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,		/* not a block type device */
-	/* psize */	nopsize,	/* not a block type device */
-	/* flags */	0,
-	/* bmaj */	-1
+	.d_open =	${1}open,
+	.d_close =	${1}close,
+	.d_read =	${1}read,
+	.d_write =	${1}write,
+	.d_ioctl =	${1}ioctl,
+	.d_poll =	${1}poll,
+	.d_mmap =	${1}mmap,
+	.d_name =	"${1}",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static devclass_t ${1}_devclass;
@@ -822,6 +817,7 @@ ${1}intr(void *arg)
 	 * Make sure that the interrupt routine will always terminate,
 	 * even in the face of "bogus" data from the card.
 	 */
+	(void)scp;	/* Delete this line after using scp. */
 	return;
 }
 
@@ -830,6 +826,7 @@ ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
+	(void)scp;	/* Delete this line after using scp. */
 	switch (cmd) {
 	case DHIOCRESET:
 		/* whatever resets it */
@@ -854,6 +851,7 @@ ${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
 	/*
 	 * Do processing
 	 */
+	(void)scp;	/* Delete this line after using scp. */
 	return (0);
 }
 
@@ -865,6 +863,7 @@ ${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
 	/*
 	 * Do processing
 	 */
+	(void)scp;	/* Delete this line after using scp. */
 	return (0);
 }
 
@@ -878,6 +877,7 @@ ${1}read(dev_t dev, struct uio *uio, int ioflag)
 	 * Do processing
 	 * read from buffer
 	 */
+	(void)scp;	/* Delete this line after using scp. */
 	toread = (min(uio->uio_resid, sizeof(scp->buffer)));
 	return(uiomove(scp->buffer, toread, uio));
 }
@@ -892,12 +892,13 @@ ${1}write(dev_t dev, struct uio *uio, int ioflag)
 	 * Do processing
 	 * write to buffer
 	 */
+	(void)scp;	/* Delete this line after using scp. */
 	towrite = (min(uio->uio_resid, sizeof(scp->buffer)));
 	return(uiomove(scp->buffer, towrite, uio));
 }
 
 static int
-${1}mmap(dev_t dev, vm_offset_t offset, int nprot)
+${1}mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -905,6 +906,7 @@ ${1}mmap(dev_t dev, vm_offset_t offset, int nprot)
 	 * Given a byte offset into your device, return the PHYSICAL
 	 * page number that it would map to.
 	 */
+	(void)scp;	/* Delete this line after using scp. */
 #if 0	/* if we had a frame buffer or whatever.. do this */
 	if (offset > FRAMEBUFFERSIZE - PAGE_SIZE)
 		return (-1);
@@ -922,6 +924,7 @@ ${1}poll(dev_t dev, int which, struct thread *td)
 	/*
 	 * Do processing
 	 */
+	(void)scp;	/* Delete this line after using scp. */
 	return (0); /* this is the wrong value I'm sure */
 }
 
