@@ -26,7 +26,7 @@
 .\"
 .Dd Feb 20, 1999
 .Dt KGET 8
-.Os BSD 3
+.Os FreeBSD
 .Sh NAME
 .Nm kget
 .Nd print kernel change information.
@@ -44,7 +44,7 @@ from having to re-enter it each time the system is booted.
 .Pp
 .Nm
 uses the
-.Xt sysctl 3
+.Xr sysctl 3
 interface to retrieve data from the kernel and requires that at least
 the
 .Ar machdep.uc_devlist
@@ -66,5 +66,7 @@ Sure to be some.
 .Sh HISTORY
 The
 .Nm
-command appeared in FreeBSD 3.1, as part of the PicoBSD distribution by
+command appeared in
+.Fx 3.1 ,
+as part of the PicoBSD distribution by
 .An Andrzej Bialecki
