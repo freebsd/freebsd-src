@@ -12,9 +12,6 @@ TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 PROG=	csh
 SUBDIR= nls
 DFLAGS=	-D_PATH_TCSHELL='"${DESTDIR}/bin/${PROG}"'  
-.if defined(WANT_KANJI)
-DFLAGS+= -DWANT_KANJI
-.endif
 CFLAGS+= -I${TCSHDIR} -I${.CURDIR} -I. ${DFLAGS}
 SRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \
 	sh.exp.c sh.file.c sh.func.c sh.glob.c sh.hist.c sh.init.c \
