@@ -69,6 +69,8 @@ struct lapic_info {
 	u_int la_apic_id:8;
 } lapics[NLAPICS + 1];
 
+static int force_sci_lo;
+TUNABLE_INT("hw.acpi.force_sci_lo", &force_sci_lo);
 static MULTIPLE_APIC_TABLE *madt;
 static vm_paddr_t madt_physaddr;
 static vm_offset_t madt_length;
@@ -545,14 +547,13 @@ madt_parse_interrupt_override(MADT_INTERRUPT_OVERRIDE *intr)
 	}
 
 	/*
-	 * If the SCI is remapped to a non-ISA global interrupt,
-	 * force it to level trigger and active-lo polarity.
 	 * If the SCI is identity mapped but has edge trigger and
-	 * active-hi polarity, also force it to use level/lo. 
+	 * active-hi polarity or the force_sci_lo tunable is set,
+	 * force it to use level/lo.
 	 */
 	force_lo = 0;
 	if (intr->Source == AcpiGbl_FADT->SciInt)
-		if (intr->Interrupt > 15 || (intr->Interrupt == intr->Source &&
+		if (force_sci_lo || (intr->Interrupt == intr->Source &&
 		    intr->TriggerMode == TRIGGER_EDGE &&
 		    intr->Polarity == POLARITY_ACTIVE_HIGH))
 			force_lo = 1;
