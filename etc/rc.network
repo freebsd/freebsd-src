@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.1.2.12 1997/12/01 06:06:35 obrien Exp $
+#	$Id: rc.network,v 1.1.2.13 1998/02/01 00:24:02 wollman Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -58,10 +58,10 @@ network_pass1() {
     # Initialize IP filtering using ipfw
     echo ""
     /sbin/ipfw -q flush > /dev/null 2>&1
-    if [ $? = 1 ] ; then
-	firewall_in_kernel=0
-    else 
+    if [ $? = 0 ] ; then
 	firewall_in_kernel=1
+    else 
+	firewall_in_kernel=0
     fi
 
     if [ $firewall_in_kernel = 0 -a "x$firewall_enable"  = "xYES" ] ; then
@@ -81,8 +81,12 @@ network_pass1() {
 	    . /etc/rc.firewall
 	    echo "Firewall rules loaded."
 	else
-	    echo "Warning: kernel has firewall functionality, but firewall rules are not enabled."
-	    echo "         All ip services are disabled."
+	    IPFW_DEFAULT=`ipfw l 65535`
+	    if [ "$IPFW_DEFAULT" = "65535 deny ip from any to any" ]; then
+		echo -n "Warning: kernel has firewall functionality, "
+		echo "but firewall rules are not enabled."
+		echo "         All ip services are disabled."
+	    fi
 	fi
     fi
 

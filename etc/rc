@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.31 1998/01/29 11:01:28 obrien Exp $
+#	$Id: rc,v 1.104.2.32 1998/01/29 11:17:44 obrien Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -10,9 +10,6 @@
 # Note that almost all the user-configurable behavior is no longer in
 # this file, but rather in /etc/rc.conf.  Please check this file
 # first before contemplating any changes here.
-
-# Note that /sbin/init runs items from /etc/rc under the user class daemon.
-# See login.conf(5) for more details.
 
 stty status '^T'
 
@@ -157,15 +154,6 @@ if [ "X${clear_tmp_enable}" = X"YES" ]; then
 	rm -f /tmp/.X*-lock /tmp/.X11-unix/*
 fi
 
-# enable dumpdev so that savecore can see it
-# /var/crash should be a directory or a symbolic link
-# to the crash directory if core dumps are to be saved.
-if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} -a -d /var/crash ]; then
-	dumpon ${dumpdev}
-	echo -n checking for core dump...
-	savecore /var/crash
-fi
-
 # snapshot any kernel -c changes back to disk
 echo 'recording kernel -c changes'
 dset -q
@@ -190,6 +178,15 @@ if [ "X${tickadj_enable}" = X"YES" ]; then
 	echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
 fi
 echo '.'
+
+# enable dumpdev so that savecore can see it
+# /var/crash should be a directory or a symbolic link
+# to the crash directory if core dumps are to be saved.
+if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} -a -d /var/crash ]; then
+	dumpon ${dumpdev}
+	echo -n checking for core dump...
+	savecore /var/crash
+fi
 
 if [ -n "$network_pass1_done" ]; then
     network_pass2
@@ -230,14 +227,11 @@ fi
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
 _LDC=/usr/lib
-if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
-if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
-if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
-if [ "X${ldconfig_paths}" != X ]; then
-	for LDIR in $ldconfig_paths; do
-		if [ -d ${LDIR} ]; then _LDC="${_LDC} ${LDIR} " ; fi
-	done
-fi
+for i in $ldconfig_paths; do
+	if test -d $i; then
+		_LDC="${_LDC} $i"
+	fi
+done
 echo 'setting ldconfig path:' ${_LDC}
 ldconfig ${_LDC}
 
