@@ -617,9 +617,10 @@ ubsa_param(void *addr, int portno, struct termios *ti)
 {
 	struct ubsa_softc *sc;
 
+	sc = addr;
+
 	DPRINTF(("ubsa_param: sc = %p\n", sc));
 
-	sc = addr;
 	ubsa_baudrate(sc, ti->c_ospeed);
 	ubsa_parity(sc, ti->c_cflag);
 	ubsa_databits(sc, ti->c_cflag);
