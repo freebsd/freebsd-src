@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.55 (McKusick) 1/17/00
+ *	from: @(#)ffs_softdep.c	9.56 (McKusick) 1/17/00
  * $FreeBSD$
  */
 
@@ -183,6 +183,7 @@ static	int indir_trunc __P((struct inode *, ufs_daddr_t, int, ufs_lbn_t,
 static	void deallocate_dependencies __P((struct buf *, struct inodedep *));
 static	void free_allocdirect __P((struct allocdirectlst *,
 	    struct allocdirect *, int));
+static	int check_inode_unwritten __P((struct inodedep *));
 static	int free_inodedep __P((struct inodedep *));
 static	void handle_workitem_freeblocks __P((struct freeblks *));
 static	void merge_inode_lists __P((struct inodedep *));
@@ -1861,39 +1862,60 @@ softdep_freefile(pvp, ino, mode)
 
 	/*
 	 * If the inodedep does not exist, then the zero'ed inode has
-	 * been written to disk and we can free the file immediately.
+	 * been written to disk. If the allocated inode has never been
+	 * written to disk, then the on-disk inode is zero'ed. In either
+	 * case we can free the file immediately.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if (inodedep_lookup(ip->i_fs, ino, 0, &inodedep) == 0) {
+	if (inodedep_lookup(ip->i_fs, ino, 0, &inodedep) == 0 ||
+	    check_inode_unwritten(inodedep)) {
 		FREE_LOCK(&lk);
 		handle_workitem_freefile(freefile);
 		return;
 	}
+	WORKLIST_INSERT(&inodedep->id_inowait, &freefile->fx_list);
+	FREE_LOCK(&lk);
+}
 
-	/*
-	 * If we still have a bitmap dependency, then the inode has never
-	 * been written to disk. Drop the dependency as it is no longer
-	 * necessary since the inode is being deallocated. We set the
-	 * ALLCOMPLETE flags since the bitmap now properly shows that the
-	 * inode is not allocated. Even if the inode is actively being
-	 * written, it has been rolled back to its zero'ed state, so we
-	 * are ensured that a zero inode is what is on the disk. For short
-	 * lived files, this change will usually result in removing all the
-	 * dependencies from the inode so that it can be freed immediately.
-	 */
-	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
-		inodedep->id_state |= ALLCOMPLETE;
-		LIST_REMOVE(inodedep, id_deps);
-		inodedep->id_buf = NULL;
-		WORKLIST_REMOVE(&inodedep->id_list);
+/*
+ * Check to see if an inode has never been written to disk. If
+ * so free the inodedep and return success, otherwise return failure.
+ * This routine must be called with splbio interrupts blocked.
+ *
+ * If we still have a bitmap dependency, then the inode has never
+ * been written to disk. Drop the dependency as it is no longer
+ * necessary since the inode is being deallocated. We set the
+ * ALLCOMPLETE flags since the bitmap now properly shows that the
+ * inode is not allocated. Even if the inode is actively being
+ * written, it has been rolled back to its zero'ed state, so we
+ * are ensured that a zero inode is what is on the disk. For short
+ * lived files, this change will usually result in removing all the
+ * dependencies from the inode so that it can be freed immediately.
+ */
+static int
+check_inode_unwritten(inodedep)
+	struct inodedep *inodedep;
+{
+
+	if ((inodedep->id_state & DEPCOMPLETE) != 0 ||
+	    LIST_FIRST(&inodedep->id_pendinghd) != NULL ||
+	    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
+	    LIST_FIRST(&inodedep->id_inowait) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL ||
+	    inodedep->id_nlinkdelta != 0)
+		return (0);
+	inodedep->id_state |= ALLCOMPLETE;
+	LIST_REMOVE(inodedep, id_deps);
+	inodedep->id_buf = NULL;
+	WORKLIST_REMOVE(&inodedep->id_list);
+	if (inodedep->id_savedino != NULL) {
+		FREE(inodedep->id_savedino, M_INODEDEP);
+		inodedep->id_savedino = NULL;
 	}
-	if (free_inodedep(inodedep) == 0) {
-		WORKLIST_INSERT(&inodedep->id_inowait, &freefile->fx_list);
-		FREE_LOCK(&lk);
-	} else {
-		FREE_LOCK(&lk);
-		handle_workitem_freefile(freefile);
-	}
+	if (free_inodedep(inodedep) == 0)
+		panic("check_inode_unwritten: busy inode");
+	return (1);
 }
 
 /*
@@ -2666,39 +2688,25 @@ handle_workitem_remove(dirrem)
 		return;
 	}
 	/*
-	 * If there is no inode dependency then we can free immediately.
-	 * If we still have a bitmap dependency, then the inode has never
-	 * been written to disk. Drop the dependency as it is no longer
-	 * necessary since the inode is being deallocated. We set the
-	 * ALLCOMPLETE flags since the bitmap now properly shows that the
-	 * inode is not allocated. Even if the inode is actively being
-	 * written, it has been rolled back to its zero'ed state, so we
-	 * are ensured that a zero inode is what is on the disk. For short
-	 * lived files, this change will usually result in removing all the
-	 * dependencies from the inode so that it can be freed immediately.
+	 * If the inodedep does not exist, then the zero'ed inode has
+	 * been written to disk. If the allocated inode has never been
+	 * written to disk, then the on-disk inode is zero'ed. In either
+	 * case we can remove the file immediately.
 	 */
 	ACQUIRE_LOCK(&lk);
 	dirrem->dm_state = 0;
 	oldinum = dirrem->dm_oldinum;
 	dirrem->dm_oldinum = dirrem->dm_dirinum;
-	if ((inodedep_lookup(ip->i_fs, oldinum, 0, &inodedep)) == 0)
-		goto out;
-	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
-		inodedep->id_state |= ALLCOMPLETE;
-		LIST_REMOVE(inodedep, id_deps);
-		inodedep->id_buf = NULL;
-		WORKLIST_REMOVE(&inodedep->id_list);
-	}
-	if (free_inodedep(inodedep) == 0) {
-		WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
+	if (inodedep_lookup(ip->i_fs, oldinum, 0, &inodedep) == 0 ||
+	    check_inode_unwritten(inodedep)) {
 		FREE_LOCK(&lk);
 		vput(vp);
+		handle_workitem_remove(dirrem);
 		return;
 	}
-out:
+	WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
 	FREE_LOCK(&lk);
 	vput(vp);
-	handle_workitem_remove(dirrem);
 }
 
 /*
