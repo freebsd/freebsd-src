@@ -1,19 +1,20 @@
 
-The OpenPAM library was developed for the FreeBSD Project by ThinkSec
-AS and NAI Labs, the Security Research Division of Network Associates,
-Inc.  under DARPA/SPAWAR contract N66001-01-C-8035 (``CBOSS''), as
-part of the DARPA CHATS research program.
+The OpenPAM library was developed for the FreeBSD Project by ThinkSec AS
+and Network Associates Laboratories, the Security Research Division of
+Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+("CBOSS"), as part of the DARPA CHATS research program.
 
 Principal design and development by:
 
 	 Dag-Erling Smørgrav <des@freebsd.org>
 
-The following persons (in no particular order) have contributed,
-directly or indirectly, with patches, criticism, suggestions, or
-ideas:
+The following persons (in no particular order) have contributed, directly
+or indirectly, with patches, criticism, suggestions, or ideas:
 
 	Andrew Morgan <morgan@transmeta.com>
 	Brian Fundakowski Feldman <green@freebsd.org>
+	Darren J. Moffat <Darren.Moffat@sun.com>
+	Gary Winiger <Gary.Winiger@sun.com>
 	Joe Marcus Clarke <marcus@marcuscom.com>
 	Mark Murray <markm@freebsd.org>
 	Robert Watson <rwatson@freebsd.org>
@@ -21,4 +22,4 @@ ideas:
 	Solar Designer <solar@openwall.com>
 	Takanori Saneto <sanewo@ba2.so-net.ne.jp>
 
-$P4: //depot/projects/openpam/CREDITS#1 $
+$P4: //depot/projects/openpam/CREDITS#3 $
