@@ -174,8 +174,6 @@ METHOD int compat_attach {
 }
 
 CODE {
-	static int null_do_probe(device_t bus, device_t dev) __unused;
-
 	static int null_do_probe(device_t bus, device_t dev)
 	{
 		return (CARD_COMPAT_DO_PROBE(device_get_parent(bus), dev));
@@ -190,13 +188,16 @@ CODE {
 METHOD int compat_do_probe {
 	device_t bus;
 	device_t dev;
-} DEFAULT null_do_attach;
+} DEFAULT null_do_probe;
 
 METHOD int compat_do_attach {
 	device_t bus;
 	device_t dev;
 } DEFAULT null_do_attach;
 
+#
+# Find "dev" in the passed table of devices.  Return it or NULL.
+#
 METHOD struct pccard_product * do_product_lookup {
 	device_t bus;
 	device_t dev;
@@ -204,6 +205,7 @@ METHOD struct pccard_product * do_product_lookup {
 	size_t ent_size;
 	pccard_product_match_fn matchfn;
 }
+
 #
 # Helper method for the above.  When a compatibility driver is converted,
 # one must write a match routine.  This routine is unused on OLDCARD but
@@ -239,13 +241,13 @@ CODE  {
 		*buff = NULL;
 		return ENXIO;
 	}
+
 	static void
 	null_cis_free(device_t dev, struct cis_tupleinfo *buff, int *nret)
 	{
 		return;
 	}
 };
-
 
 METHOD int cis_read {
 	device_t dev;
@@ -260,5 +262,4 @@ METHOD int cis_free {
 	struct	 cis_tupleinfo *buff;
 	int	 nret;
 } DEFAULT null_cis_free;
-
 
