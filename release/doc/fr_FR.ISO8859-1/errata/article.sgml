@@ -22,8 +22,8 @@
 %man;
 <!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
 %authors;
-<!--  <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN"> -->
-<!--  %mlists; -->
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//FR">
+ %mlists;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 ]>
@@ -187,11 +187,10 @@ suivantes.</para>
     collection des ports, si possible avant d'installer <filename
     role="package">net/gnomeicu</filename>.</para>
     
-    <para>Les notes de version de &os;&amp;release.prev;  affiche que l'option
-    <option>-J</option> de &amp;man.xargs.1; est d&eacute;pr&eacute;ci&eacute;e.
-    En fait, il n'y a aucune raison pour qu'elle soit retir&eacute; dans une
-	prochaine version.</para>
-    
+    <para>Les notes de version de &os;&release.prev;  affiche que
+    l'option<option>-J</option> de &man.xargs.1; est
+    d&eacute;pr&eacute;ci&eacute;e. En fait, il n'y a aucune raison
+    pour qu'elle soit retir&eacute;e dans une prochaine version.</para>    
 
 ]]>
 
