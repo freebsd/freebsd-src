@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.54 1997/06/09 03:27:16 brian Exp $
+ * $Id: command.c,v 1.55 1997/06/11 03:57:46 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -101,7 +101,7 @@ struct cmdtab *plist;
   n = 0;
   for (cmd = plist; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & VarLocalAuth)) {
-      fprintf(VarTerm, "  %-8s: %-20s\n", cmd->name, cmd->helpmes);
+      fprintf(VarTerm, "  %-9s: %-20s\n", cmd->name, cmd->helpmes);
       n++;
     }
 
