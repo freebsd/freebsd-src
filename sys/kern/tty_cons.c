@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.13 1994/08/13 03:49:34 wollman Exp $
+ *	$Id: cons.c,v 1.14 1994/08/30 19:36:35 davidg Exp $
  */
 
 
@@ -55,7 +55,10 @@
 #include <machine/cons.h>
 
 /* XXX - all this could be autoconfig()ed */
+#include "sc.h"
+#if NSC > 0
 int pccnprobe(), pccninit(), pccngetc(), pccnputc();
+#endif
 
 #include "sio.h"
 #if NSIO > 0
@@ -63,7 +66,9 @@ int siocnprobe(), siocninit(), siocngetc(), siocnputc();
 #endif
 
 struct	consdev constab[] = {
+#if NSC > 0
 	{ pccnprobe,	pccninit,	pccngetc,	pccnputc },
+#endif
 #if NSIO > 0
 	{ siocnprobe,	siocninit,	siocngetc,	siocnputc },
 #endif
