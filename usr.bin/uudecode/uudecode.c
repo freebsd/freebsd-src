@@ -252,16 +252,13 @@ decode2(void)
 		}
 
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
-#define IS_DEC(c) ( (((c) - ' ') >= 0) &&  (((c) - ' ') <= 077 + 1) )
-/* #define IS_DEC(c) (1) */
+#define IS_DEC(c) ( (((c) - ' ') >= 0) && (((c) - ' ') <= 077 + 1) )
 
-#define OUT_OF_RANGE \
-{	\
-    warnx( \
-"\n\tinput file: %s\n\tencoded file: %s\n\tcharacter out of range: [%d-%d]", \
- 	filename, buffn, 1 + ' ', 077 + ' ' + 1); \
-        return (1); \
-}
+#define OUT_OF_RANGE do {						\
+	warnx("%s: %s: character out of range: [%d-%d]",		\
+	    filename, buffn, 1 + ' ', 077 + ' ' + 1);			\
+        return (1);							\
+} while (0)
 
 		/*
 		 * `n' is used to avoid writing out all the characters
