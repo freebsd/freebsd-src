@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.44 1994/11/06 22:18:45 phk Exp $
+ *	$Id: locore.s,v 1.45 1994/11/18 05:27:34 phk Exp $
  */
 
 /*
@@ -176,7 +176,7 @@ NON_GPROF_ENTRY(btext)
 	movl	%esp, %ebp
 
 	/* Don't trust what the BIOS gives for eflags. */
-	pushl	$PSL_MBO
+	pushl	$PSL_KERNEL
 	popfl
 
 	/* Don't trust what the BIOS gives for %fs and %gs. */
@@ -764,7 +764,7 @@ reloc_gdt:
 	pushl	$0				/* unused */
 	pushl	__udatasel			/* ss */
 	pushl	$0				/* esp - filled in by execve() */
-	pushl	$PSL_USERSET			/* eflags (ring 0, int enab) */
+	pushl	$PSL_USER			/* eflags (IOPL 0, int enab) */
 	pushl	__ucodesel			/* cs */
 	pushl	$0				/* eip - filled in by execve() */
 	subl	$(12*4),%esp			/* space for rest of registers */
@@ -776,13 +776,14 @@ reloc_gdt:
 
 	/*
 	 * now we've run main() and determined what cpu-type we are, we can
-	 * enable WP mode on i486 cpus and above.
+	 * enable write protection and alignment checking on i486 cpus and
+	 * above.
 	 */
 #if defined(I486_CPU) || defined(I586_CPU)
 	cmpl    $CPUCLASS_386,_cpu_class
 	je	1f
 	movl	%cr0,%eax			/* get control word */
-	orl	$CR0_WP,%eax			/* enable write protect for all modes */
+	orl	$CR0_WP|CR0_AM,%eax		/* enable i486 features */
 	movl	%eax,%cr0			/* and do it */
 #endif
 	/*

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.99 1995/01/05 19:51:14 se Exp $
+ *	$Id: machdep.c,v 1.100 1995/01/09 16:04:37 davidg Exp $
  */
 
 #include "npx.h"
@@ -459,7 +459,7 @@ vmtime(otime, olbolt, oicr)
 }
 #endif
 
-extern int kstack[];
+extern char kstack[];
 
 /*
  * Send an interrupt to process.
@@ -607,47 +607,33 @@ sigreturn(p, uap, retval)
 	if (useracc((caddr_t)fp, sizeof (*fp), 0) == 0)
 		return(EINVAL);
 
+	/*
+	 * Don't allow users to change privileged or reserved flags.  Let
+	 * the hardware check for changing to excess I/O privilege.
+	 */
+#define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
+
 	eflags = scp->sc_ps;
-	if ((eflags & PSL_USERCLR) != 0 ||
-	    (eflags & PSL_USERSET) != PSL_USERSET ||
-	    (eflags & PSL_IOPL) < (regs[tEFLAGS] & PSL_IOPL)) {
+	if (!EFLAGS_SECURE(eflags, regs[tEFLAGS])) {
 #ifdef DEBUG
-    		printf("sigreturn:  eflags=0x%x\n", eflags);
+    		printf("sigreturn: eflags = 0x%x\n", eflags);
 #endif
     		return(EINVAL);
 	}
 
 	/*
-	 * Sanity check the user's selectors and error if they
-	 * are suspect.
+	 * Don't allow users to load a valid privileged %cs.  Let the
+	 * hardware check for invalid selectors, excess privilege in
+	 * other selectors, invalid %eip's and invalid %esp's.
 	 */
-#define max_ldt_sel(pcb) \
-	((pcb)->pcb_ldt ? (pcb)->pcb_ldt_len : (sizeof(ldt) / sizeof(ldt[0])))
-
-#define valid_ldt_sel(sel) \
-	(ISLDT(sel) && ISPL(sel) == SEL_UPL && \
-	 IDXSEL(sel) < max_ldt_sel(&p->p_addr->u_pcb))
-
-#define null_sel(sel) \
-	(!ISLDT(sel) && IDXSEL(sel) == 0)
-
-	if (((scp->sc_cs&0xffff) != _ucodesel && !valid_ldt_sel(scp->sc_cs)) ||
-	    ((scp->sc_ss&0xffff) != _udatasel && !valid_ldt_sel(scp->sc_ss)) ||
-	    ((scp->sc_ds&0xffff) != _udatasel && !valid_ldt_sel(scp->sc_ds) &&
-	     !null_sel(scp->sc_ds)) ||
-	    ((scp->sc_es&0xffff) != _udatasel && !valid_ldt_sel(scp->sc_es) &&
-	     !null_sel(scp->sc_es))) {
+#define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
+	if (!CS_SECURE(scp->sc_cs)) {
 #ifdef DEBUG
-    		printf("sigreturn:  cs=0x%x ss=0x%x ds=0x%x es=0x%x\n",
-			scp->sc_cs, scp->sc_ss, scp->sc_ds, scp->sc_es);
+    		printf("sigreturn: cs = 0x%x\n", scp->sc_cs);
 #endif
 		trapsignal(p, SIGBUS, T_PROTFLT);
 		return(EINVAL);
 	}
-
-#undef max_ldt_sel
-#undef valid_ldt_sel
-#undef null_sel
 
 	/* restore scratch registers */
 	regs[tEAX] = scp->sc_eax;
@@ -863,7 +849,7 @@ setregs(p, entry, stack)
 	bzero(regs, sizeof(struct trapframe));
 	regs[tEIP] = entry;
 	regs[tESP] = stack;
-	regs[tEFLAGS] = PSL_USERSET | (regs[tEFLAGS] & PSL_T);
+	regs[tEFLAGS] = PSL_USER | (regs[tEFLAGS] & PSL_T);
 	regs[tSS] = _udatasel;
 	regs[tDS] = _udatasel;
 	regs[tES] = _udatasel;
@@ -1106,11 +1092,8 @@ extern inthand_t
 	IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(dble), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
-	IDTVEC(page), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(rsvd0),
-	IDTVEC(rsvd1), IDTVEC(rsvd2), IDTVEC(rsvd3), IDTVEC(rsvd4),
-	IDTVEC(rsvd5), IDTVEC(rsvd6), IDTVEC(rsvd7), IDTVEC(rsvd8),
-	IDTVEC(rsvd9), IDTVEC(rsvd10), IDTVEC(rsvd11), IDTVEC(rsvd12),
-	IDTVEC(rsvd13), IDTVEC(rsvd14), IDTVEC(syscall);
+	IDTVEC(page), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
+	IDTVEC(syscall);
 
 void
 sdtossd(sd, ssd)
@@ -1191,6 +1174,8 @@ init386(first)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
 
 	/* exceptions */
+	for (x = 0; x < NIDT; x++)
+		setidt(x, &IDTVEC(rsvd), SDT_SYS386TGT, SEL_KPL);
 	setidt(0, &IDTVEC(div),  SDT_SYS386TGT, SEL_KPL);
 	setidt(1, &IDTVEC(dbg),  SDT_SYS386TGT, SEL_KPL);
 	setidt(2, &IDTVEC(nmi),  SDT_SYS386TGT, SEL_KPL);
@@ -1208,21 +1193,7 @@ init386(first)
 	setidt(14, &IDTVEC(page),  SDT_SYS386TGT, SEL_KPL);
 	setidt(15, &IDTVEC(rsvd),  SDT_SYS386TGT, SEL_KPL);
 	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL);
-	setidt(17, &IDTVEC(rsvd0),  SDT_SYS386TGT, SEL_KPL);
-	setidt(18, &IDTVEC(rsvd1),  SDT_SYS386TGT, SEL_KPL);
-	setidt(19, &IDTVEC(rsvd2),  SDT_SYS386TGT, SEL_KPL);
-	setidt(20, &IDTVEC(rsvd3),  SDT_SYS386TGT, SEL_KPL);
-	setidt(21, &IDTVEC(rsvd4),  SDT_SYS386TGT, SEL_KPL);
-	setidt(22, &IDTVEC(rsvd5),  SDT_SYS386TGT, SEL_KPL);
-	setidt(23, &IDTVEC(rsvd6),  SDT_SYS386TGT, SEL_KPL);
-	setidt(24, &IDTVEC(rsvd7),  SDT_SYS386TGT, SEL_KPL);
-	setidt(25, &IDTVEC(rsvd8),  SDT_SYS386TGT, SEL_KPL);
-	setidt(26, &IDTVEC(rsvd9),  SDT_SYS386TGT, SEL_KPL);
-	setidt(27, &IDTVEC(rsvd10),  SDT_SYS386TGT, SEL_KPL);
-	setidt(28, &IDTVEC(rsvd11),  SDT_SYS386TGT, SEL_KPL);
-	setidt(29, &IDTVEC(rsvd12),  SDT_SYS386TGT, SEL_KPL);
-	setidt(30, &IDTVEC(rsvd13),  SDT_SYS386TGT, SEL_KPL);
-	setidt(31, &IDTVEC(rsvd14),  SDT_SYS386TGT, SEL_KPL);
+	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL);
 
 #include	"isa.h"
 #if	NISA >0
@@ -1445,60 +1416,95 @@ test_page(address, pattern)
  * index into the user block.  Don't you just *love* virtual memory?
  * (I'm starting to think seymour is right...)
  */
+#define	TF_REGP(p)	((struct trapframe *) \
+			 ((char *)(p)->p_addr \
+			  + ((char *)(p)->p_md.md_regs - kstack)))
 
 int
-ptrace_set_pc (struct proc *p, unsigned int addr) {
-	void *regs = (char*)p->p_addr +
-		((char*) p->p_md.md_regs - (char*) kstack);
-
-	((struct trapframe *)regs)->tf_eip = addr;
-	return 0;
+ptrace_set_pc(p, addr)
+	struct proc *p;
+	unsigned int addr;
+{
+	TF_REGP(p)->tf_eip = addr;
+	return (0);
 }
 
 int
-ptrace_single_step (struct proc *p) {
-	void *regs = (char*)p->p_addr +
-		((char*) p->p_md.md_regs - (char*) kstack);
-
-	((struct trapframe *)regs)->tf_eflags |= PSL_T;
-	return 0;
+ptrace_single_step(p)
+	struct proc *p;
+{
+	TF_REGP(p)->tf_eflags |= PSL_T;
+	return (0);
 }
 
-/*
- * Copy the registers to user-space.
- */
-
 int
-ptrace_getregs (struct proc *p, unsigned int *addr) {
+ptrace_getregs(p, addr)
+	struct proc *p;
+	unsigned int *addr;
+{
 	int error;
-	struct reg regs = {0};
+	struct reg regs;
 
-	error = fill_regs (p, &regs);
+	error = fill_regs(p, &regs);
 	if (error)
-		return error;
-	  
-	return copyout (&regs, addr, sizeof (regs));
+		return (error);
+	return (copyout(&regs, addr, sizeof regs));
 }
 
 int
-ptrace_setregs (struct proc *p, unsigned int *addr) {
+ptrace_setregs(p, addr)
+	struct proc *p;
+	unsigned int *addr;
+{
 	int error;
-	struct reg regs = {0};
+	struct reg regs;
 
-	error = copyin (addr, &regs, sizeof(regs));
+	error = copyin(addr, &regs, sizeof regs);
 	if (error)
-		return error;
-
-	return set_regs (p, &regs);
+		return (error);
+	return (set_regs(p, &regs));
 }
 
-int
-fill_regs(struct proc *p, struct reg *regs) {
+int ptrace_write_u(p, off, data)
+	struct proc *p;
+	vm_offset_t off;
+	int data;
+{
+	struct trapframe frame_copy;
+	vm_offset_t min;
 	struct trapframe *tp;
-	void *ptr = (char*)p->p_addr +
-		((char*) p->p_md.md_regs - (char*) kstack);
 
-	tp = ptr;
+	/*
+	 * Privileged kernel state is scattered all over the user area.
+	 * Only allow write access to parts of regs and to fpregs.
+	 */
+	min = (char *)p->p_md.md_regs - kstack;
+	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
+		tp = TF_REGP(p);
+		frame_copy = *tp;
+		*(int *)((char *)&frame_copy + (off - min)) = data;
+		if (!EFLAGS_SECURE(frame_copy.tf_eflags, tp->tf_eflags) ||
+		    !CS_SECURE(frame_copy.tf_cs))
+			return (EINVAL);
+		*(int*)((char *)p->p_addr + off) = data;
+		return (0);
+	}
+	min = offsetof(struct user, u_pcb) + offsetof(struct pcb, pcb_savefpu);
+	if (off >= min && off <= min + sizeof(struct save87) - sizeof(int)) {
+		*(int*)((char *)p->p_addr + off) = data;
+		return (0);
+	}
+	return (EFAULT);
+}
+
+int
+fill_regs(p, regs)
+	struct proc *p;
+	struct reg *regs;
+{
+	struct trapframe *tp;
+
+	tp = TF_REGP(p);
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
 	regs->r_edi = tp->tf_edi;
@@ -1513,16 +1519,20 @@ fill_regs(struct proc *p, struct reg *regs) {
 	regs->r_eflags = tp->tf_eflags;
 	regs->r_esp = tp->tf_esp;
 	regs->r_ss = tp->tf_ss;
-	return 0;
+	return (0);
 }
 
 int
-set_regs (struct proc *p, struct reg *regs) {
+set_regs(p, regs)
+	struct proc *p;
+	struct reg *regs;
+{
 	struct trapframe *tp;
-	void *ptr = (char*)p->p_addr +
-		((char*) p->p_md.md_regs - (char*) kstack);
 
-	tp = ptr;
+	tp = TF_REGP(p);
+	if (!EFLAGS_SECURE(regs->r_eflags, tp->tf_eflags) ||
+	    !CS_SECURE(regs->r_cs))
+		return (EINVAL);
 	tp->tf_es = regs->r_es;
 	tp->tf_ds = regs->r_ds;
 	tp->tf_edi = regs->r_edi;
@@ -1537,7 +1547,7 @@ set_regs (struct proc *p, struct reg *regs) {
 	tp->tf_eflags = regs->r_eflags;
 	tp->tf_esp = regs->r_esp;
 	tp->tf_ss = regs->r_ss;
-	return 0;
+	return (0);
 }
 
 #ifndef DDB
