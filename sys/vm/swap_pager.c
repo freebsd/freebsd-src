@@ -1107,6 +1107,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	bp->b_bufsize = PAGE_SIZE * (j - i);
 	bp->b_pager.pg_reqpage = reqpage - i;
 
+	vm_page_lock_queues();
 	{
 		int k;
 
@@ -1115,6 +1116,7 @@ swap_pager_getpages(object, m, count, reqpage)
 			vm_page_flag_set(m[k], PG_SWAPINPROG);
 		}
 	}
+	vm_page_unlock_queues();
 	bp->b_npages = j - i;
 
 	pbgetvp(swapdev_vp, bp);
@@ -1149,10 +1151,11 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * is set in the meta-data.
 	 */
 	s = splvm();
+	vm_page_lock_queues();
 	while ((mreq->flags & PG_SWAPINPROG) != 0) {
 		vm_page_flag_set(mreq, PG_WANTED | PG_REFERENCED);
 		cnt.v_intrans++;
-		if (tsleep(mreq, PSWP, "swread", hz*20)) {
+		if (msleep(mreq, &vm_page_queue_mtx, PSWP, "swread", hz*20)) {
 			printf(
 			    "swap_pager: indefinite wait buffer: device:"
 				" %s, blkno: %ld, size: %ld\n",
@@ -1161,6 +1164,7 @@ swap_pager_getpages(object, m, count, reqpage)
 			);
 		}
 	}
+	vm_page_unlock_queues();
 	splx(s);
 
 	/*
@@ -1358,7 +1362,9 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			vm_page_dirty(mreq);
 			rtvals[i+j] = VM_PAGER_OK;
 
+			vm_page_lock_queues();
 			vm_page_flag_set(mreq, PG_SWAPINPROG);
+			vm_page_unlock_queues();
 			bp->b_pages[j] = mreq;
 		}
 		bp->b_npages = n;

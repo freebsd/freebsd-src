@@ -857,8 +857,10 @@ rescan0:
 			 * before being freed.  This significantly extends
 			 * the thrash point for a heavily loaded machine.
 			 */
+			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_WINATCFLS);
 			vm_pageq_requeue(m);
+			vm_page_unlock_queues();
 		} else if (maxlaunder > 0) {
 			/*
 			 * We always want to try to flush some dirty pages if
