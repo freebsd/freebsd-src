@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.36
+    Original revision: 1.38
 -->
 
 <!-- 
@@ -375,6 +375,14 @@
       に対応したことを記載したリリースノートには、
       従来のリゾルバの設定ファイル名に誤りがありました。
       正しくは <filename>/etc/host.conf</filename> です。</para>
+
+    <bridgehead renderas="sect3">Mailman</bridgehead>
+
+    <para>最近になって、メーリングリストが majordomo から変更され、
+      Mailman リストサーバを使うようになりました。
+      この新しいメーリングリストに関する詳細は、
+      <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
+      Mailman Info Page</ulink> をご覧ください。</para>
 
   </sect1>
 </article>
