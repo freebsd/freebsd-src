@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.17 1997/10/29 21:49:02 dima Exp $
+.\"	$Id: inetd.8,v 1.18 1998/02/24 21:55:12 pst Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -147,6 +147,9 @@ when a program connects to the
 well-known port and specifies
 the service name.  
 This feature is useful for adding locally-developed servers.
+TCPMUX requests are only accepted when the multiplexor service itself
+is enabled, above and beyond and specific TCPMUX-based servers; see the
+discussion of internal services below.
 .Pp
 The
 .Em service-name
@@ -346,6 +349,14 @@ For details of these services, consult the
 appropriate
 .Tn RFC
 document.
+.Pp
+The TCPMUX-demultiplexing service is also implemented as an internal service.
+For any TCPMUX-based service to function, the following line must be included
+in
+.Pa inetd.conf :
+.Bd -literal -offset indent
+tcpmux	stream	tcp	nowait	root	internal
+.Ed
 .Pp
 When given the
 .Fl l
