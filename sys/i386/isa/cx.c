@@ -785,7 +785,7 @@ int cxrinta (cx_chan_t *c)
 	if (risr & (RIS_OVERRUN | RISA_PARERR | RISA_FRERR | RISA_BREAK)) {
 		int err = 0;
 
-		if (risr & RISA_OVERRUN)
+		if (risr & RIS_OVERRUN)
 			err |= TTY_OE;
 		if (risr & RISA_PARERR)
 			err |= TTY_PE;
