@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SCRIPTS=cd.sh
+SCRIPTS=command.sh
 NOMAN=
 
 .include <bsd.prog.mk>
