@@ -41,22 +41,29 @@ The
 .Nm
 file is the configuration file for the
 .Xr usbd 8
-daemon. It provides information to allow execution of userland commands
+daemon.
+It provides information to allow execution of userland commands
 on events reported by the
 .Xr usb 4
-subsystem in the kernel. Currently the only events are device attach and
+subsystem in the kernel.
+Currently the only events are device attach and
 detach, but could in the future be extended to include power management
 functions.
 .Pp
-The configuration file consists of a sorted list of entries. Each entry
-describes a set of criteria commands. When an event occurs, the criteria
+The configuration file consists of a sorted list of entries.
+Each entry
+describes a set of criteria commands.
+When an event occurs, the criteria
 are checked and if met, the commands for that event are executed through
-a shell. The list is sorted and scanned from top to bottom. The first
+a shell. The list is sorted and scanned from top to bottom.
+The first
 matching entry is used for an event.
 .Pp
-Each entry contains a number of fields. There are 3 types of fields:
+Each entry contains a number of fields.
+There are 3 types of fields:
 descriptive fields, selection criteria and commands to execute on
-events. The field name is case sensitive and should be all lower case.
+events.
+The field name is case sensitive and should be all lower case.
 Each field can have one or more arguments.
 .Pp
 The following fields are available:
@@ -79,7 +86,8 @@ Device Subclass
 Device Protocol
 .It devname Ar string
 Device name, for example umass2, or ums0. These device names can contain
-regular expressions. See
+regular expressions.
+See
 .Xr regex 3
 and
 .Xr re_format 7 .
@@ -87,10 +95,13 @@ The device name that is matched can be used in the commands below
 through adding ${DEVNAME} somewhere in that string.
 .El
 .Pp
-String arguments may be quoted. If a string argument contains a space or
-tab character it needs to be enclosed in single or double quotes. If an
+String arguments may be quoted.
+If a string argument contains a space or
+tab character it needs to be enclosed in single or double quotes.
+If an
 argument contains a single or double quote, that quote needs to be
-enclosed in double or single quotes respectively. See below for
+enclosed in double or single quotes respectively.
+See below for
 examples.
 .Pp
 Numeric arguments can either be specified in decimal (42), octal (052) or

@@ -23,12 +23,15 @@ datagram forwarding algorithm called Reverse Path Multicasting.
 .Pp
 .Nm Mrouted 
 forwards a multicast datagram along a shortest (reverse) path tree
-rooted at the subnet on which the datagram originates. The multicast
+rooted at the subnet on which the datagram originates.
+The multicast
 delivery tree may be thought of as a broadcast delivery tree that has
 been pruned back so that it does not extend beyond those subnetworks
-that have members of the destination group. Hence, datagrams
+that have members of the destination group.
+Hence, datagrams
 are not forwarded along those branches which have no listeners of the
-multicast group. The IP time-to-live of a multicast datagram can be
+multicast group.
+The IP time-to-live of a multicast datagram can be
 used to limit the range of multicast datagrams.
 .Pp
 In order to support multicasting among subnets that are separated by (unicast)
@@ -74,7 +77,8 @@ in order to perform multicast forwarding.
 The following options are available:
 .Bl -tag -width indent
 .It Fl c Ar config_file
-Specify an alternative file for configuration commands. Default is
+Specify an alternative file for configuration commands.
+Default is
 .Pa /etc/mrouted.conf .
 .It Fl d Op Ar debug_level
 If no
@@ -291,7 +295,8 @@ traffic.  It defaults 0 (unlimited).
 .It boundary Ar "boundary-name|scoped-addr/mask-len"
 The boundary option allows an interface
 to be configured as an administrative boundary for the specified
-scoped address. Packets belonging to this address will not
+scoped address.
+Packets belonging to this address will not
 be forwarded on a scoped interface.  The boundary option accepts either
 a name or a boundary spec.  This command may be specified several times
 on an interface in order to describe multiple boundaries.
@@ -493,8 +498,10 @@ instance of
 .Nm
 is the one responsible for sending periodic group
 membership queries on the vif 0 and vif 1 subnets, as indicated by the
-"querier" flags. The list of boundaries indicate the scoped addresses on that
-interface. A count of the no. of incoming and outgoing packets is also
+"querier" flags.
+The list of boundaries indicate the scoped addresses on that
+interface.
+A count of the no. of incoming and outgoing packets is also
 shown at each interface.
 .Pp
 Associated with each subnet from which a multicast datagram can originate
@@ -507,7 +514,8 @@ origin, and a multicast datagram from that origin will be forwarded on that
 outgoing vif only if there are members of the destination group on that leaf.
 .Pp
 .Nm Mrouted 
-also maintains a copy of the kernel forwarding cache table. Entries
+also maintains a copy of the kernel forwarding cache table.
+Entries
 are created and deleted by 
 .Nm mrouted .
 .Pp
@@ -545,16 +553,21 @@ amount of time until the upstream prune will time out.
 The 'Ivif' field indicates the
 incoming vif for multicast packets from that origin.  Each router also
 maintains a record of the number of prunes received from neighboring
-routers for a particular source and group. If there are no members of
+routers for a particular source and group.
+If there are no members of
 a multicast group on any downward link of the multicast tree for a
-subnet, a prune message is sent to the upstream router. They are
+subnet, a prune message is sent to the upstream router.
+They are
 indicated by a "P" after the vif number.
 .Pp
 The Forwvifs field shows the
 interfaces along which datagrams belonging to the source-group are
-forwarded. A "p" indicates that no datagrams are being forwarded along
-that interface. An unlisted interface is a leaf subnet with no
-members of the particular group on that subnet. A "b" on an interface
+forwarded.
+A "p" indicates that no datagrams are being forwarded along
+that interface.
+An unlisted interface is a leaf subnet with no
+members of the particular group on that subnet.
+A "b" on an interface
 indicates that it is a boundary interface, i.e. traffic will not be
 forwarded on the scoped address on that interface.
 .Pp

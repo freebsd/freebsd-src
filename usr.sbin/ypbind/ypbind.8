@@ -46,7 +46,8 @@
 .Op Fl S Ar domainname,server1,server2,...
 .Sh DESCRIPTION
 .Nm Ypbind
-is the process that maintains NIS binding information. At startup,
+is the process that maintains NIS binding information.
+At startup,
 it searches for an NIS server responsible for serving the system's
 default domain (as set by the
 .Xr domainname 1
@@ -56,14 +57,16 @@ it will store the address of the server and other
 information in a special file located in
 .Pa /var/yp/binding .
 The NIS routines in the standard C library can then use this file
-when processing NIS requests. There may be several such files
+when processing NIS requests.
+There may be several such files
 since it is possible for an NIS client to be bound to more than
 one domain.
 .Pp
 After a binding has been established,
 .Nm
 will send DOMAIN_NONACK requests to the NIS server at one minute
-intervals. If it fails to receive a reply to one of these requests,
+intervals.
+If it fails to receive a reply to one of these requests,
 .Nm
 assumes that the server is no longer running and resumes its network
 broadcasts until another binding is established.
@@ -80,14 +83,17 @@ It is possible to force
 .Nm
 to bind to a particular NIS server host for a given domain by using the
 .Xr ypset 8
-command. However,
+command.
+However,
 .Nm
 refuses YPBINDPROC_SETDOM requests by default since it has no way of
-knowing exactly who is sending them. Using the
+knowing exactly who is sending them.
+Using the
 .Fl ypset
 flag causes
 .Nm
-to accept YPBINDPROC_SETDOM requests from any host. This option should only
+to accept YPBINDPROC_SETDOM requests from any host.
+This option should only
 be used for diagnostic purposes and only for limited periods since allowing
 arbitrary users to reset the binding of an NIS client poses a severe
 security risk.
@@ -106,9 +112,11 @@ TCP ports).
 Allow the system administrator to lock
 .Nm
 to a particular
-domain and group of NIS servers. Up to ten servers can be specified.
+domain and group of NIS servers.
+Up to ten servers can be specified.
 There must not be any spaces between the commas in the domain/server
-specification. This option is used to insure that the system binds
+specification.
+This option is used to insure that the system binds
 only to one domain and only to one of the specified servers, which 
 is useful for systems that are both NIS servers and NIS
 clients: it provides a way to restrict what machines the system can
@@ -116,10 +124,12 @@ bind to without the need for specifying the
 .Fl ypset
 or
 .Fl ypsetme
-options, which are often considered to be security holes. The specified
+options, which are often considered to be security holes.
+The specified
 servers must have valid entries in the local
 .Pa /etc/hosts
-file. IP addresses may be specified in place of hostnames. If
+file. IP addresses may be specified in place of hostnames.
+If
 .Nm
 can't make sense ouf of the arguments, it will ignore
 the
@@ -135,13 +145,15 @@ flag to be the system default domain.
 Cause
 .Nm
 to use a 'many-cast' rather than a broadcast for choosing a server
-from the restricted mode server list. In many-cast mode,
+from the restricted mode server list.
+In many-cast mode,
 .Nm
 will transmit directly to the YPPROC_DOMAIN_NONACK procedure of the
 servers specified in the restricted list and bind to the server that
 responds the fastest.
 This mode of operation is useful for NIS clients on remote subnets
-where no local NIS servers are available. The
+where no local NIS servers are available.
+The
 .Fl m
 flag can only be used in conjunction with the
 .Fl S
@@ -155,10 +167,12 @@ The
 program will not make continuous attempts to keep secondary domains bound.
 If a server for a secondary domain fails to respond to a ping,
 .Nm
-will broadcast for a new server only once before giving up. If a
+will broadcast for a new server only once before giving up.
+If a
 client program attempts to reference the unbound domain,
 .Nm
-will try broadcasting again. By contrast,
+will try broadcasting again.
+By contrast,
 .Nm
 will automatically maintain a binding for the default domain whether
 client programs reference it ot not.

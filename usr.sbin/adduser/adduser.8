@@ -59,14 +59,17 @@
 .Op Fl v | verbose
 .Sh DESCRIPTION
 .Nm Adduser 
-is a simple program for adding new users. Adduser checks
-the passwd, group and shell databases. It creates passwd/group entries,
+is a simple program for adding new users.
+Adduser checks
+the passwd, group and shell databases.
+It creates passwd/group entries,
 .Ev HOME
 directory, dotfiles and sends the new user a welcome message.
 .Sh RESTRICTIONS
 .Bl -tag -width Ds -compact
 .It Sy username
-Login name. May contain only  lowercase characters or digits. Maximum length
+Login name. May contain only  lowercase characters or digits.
+Maximum length
 is 16 characters (see 
 .Xr setlogin 2
 BUGS section). 
@@ -81,7 +84,8 @@ in
 and recompile the
 world; people have done this and it works, but you will have problems
 with any precompiled programs, or source that assumes the 8-character
-name limit and NIS. The NIS protocol mandates an 8-character username.
+name limit and NIS.
+The NIS protocol mandates an 8-character username.
 If you need a longer login name for e-mail addresses,
 you can define an alias in
 .Pa /etc/aliases .
@@ -186,7 +190,8 @@ Use uid's from
 .Ar uid
 on up.
 .It Sy -verbose,-v
-Many warnings, questions. Recommended for novice users.
+Many warnings, questions.
+Recommended for novice users.
 .Sh FORMATS
 .Bl -tag -width Ds -compact
 .Ql Pa #
@@ -198,7 +203,8 @@ See
 .Pa /etc/adduser.conf
 for more details.
 .It Sy message file
-Eval variables in this file. See
+Eval variables in this file.
+See
 .Pa /etc/adduser.message
 for more
 details.

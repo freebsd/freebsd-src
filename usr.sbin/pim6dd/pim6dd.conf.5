@@ -61,7 +61,8 @@ unicast routing protocols, so a default value may be configured.
 .It Ic default_source_metric Ar metric
 Specifies a default metric value when sending a PIM assert message.
 It is recommended that preferences be set such that metrics are never
-consulted. However, default metrics may also be set and will default to
+consulted.
+However, default metrics may also be set and will default to
 1024.
 .\"
 .It Xo
@@ -87,7 +88,8 @@ assert message on the interface.
 .It Xo
 .Ic filter Ar groupaddrs Ar interfaces...
 .Xc
-Specifies an output filter. If an incoming multicast packet's destination
+Specifies an output filter.
+If an incoming multicast packet's destination
 matches the specified
 .Ar groupaddrs,
 the packet is not sent on the
@@ -121,7 +123,8 @@ is omitted, it means the exact match for
 .Ar multicastaddr.
 .El
 .Ar interfaces
-are specified as a blank separated list of interfaces. Each interface is
+are specified as a blank separated list of interfaces.
+Each interface is
 specified in the form of "name unit".
 .El
 .\"

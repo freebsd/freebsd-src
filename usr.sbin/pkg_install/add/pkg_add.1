@@ -71,7 +71,8 @@ The following command line arguments are supported:
 .It Ar pkg-name [... pkg-name]
 The named packages are installed.  A package name of - will cause
 .Nm
-to read from stdin. If the packages are not found in the current
+to read from stdin.
+If the packages are not found in the current
 working directory, 
 .Nm
 will search them in each directory named by
@@ -89,7 +90,8 @@ Do not record the installation of a package.  This means
 that you cannot deinstall it later, so only use this option if
 you know what you are doing!
 .It Fl r
-Use the remote fetching feature. This will determine the appropriate
+Use the remote fetching feature.
+This will determine the appropriate
 objformat and release and then fetch and install the package. 
 .It Fl f
 Force installation to proceed even if prerequisite packages are not
@@ -344,7 +346,8 @@ is that this allows you to write a single
 .Ar install
 script that does both
 .Dq before and after
-actions. But, separating the
+actions.
+But, separating the
 functionality is more advantageous and easier from a maintainence viewpoint.
 .It
 After installation is complete, a copy of the packing list,
@@ -378,7 +381,8 @@ The value of the
 .Ev PKG_PATH
 is used if a given package can't be found.  The environment variable
 should be a series of entries seperated by colons.  Each entry
-consists of a directory name. The current directory may be indicated
+consists of a directory name.
+The current directory may be indicated
 implicitly by an empty directory name, or explicitly by a single
 period.
 .Pp
@@ -407,7 +411,8 @@ The environment variable
 .Ev PACKAGESITE
 specifies an alternate location for 
 .Nm
-to fetch from. This variable subverts the automatic directory logic
+to fetch from.
+This variable subverts the automatic directory logic
 that
 .Nm
 uses when the 

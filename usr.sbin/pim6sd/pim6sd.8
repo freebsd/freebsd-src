@@ -56,7 +56,8 @@ By default,
 .Pa /etc/pim6sd.conf
 is used.
 .It Fl d
-Specify debug levels. If this option is specified without any arguments,
+Specify debug levels.
+If this option is specified without any arguments,
 all debug messages will be printed out.
 A subset of the messages to be printed out can be specified
 as arguments of the option.
@@ -71,7 +72,8 @@ Valid debug levels are
 and
 .Ic asserts.
 .It Fl f
-Do not become daemon, run in foreground. This option is for debugging
+Do not become daemon, run in foreground.
+This option is for debugging
 use.
 .El
 .Pp
@@ -91,7 +93,8 @@ it receives a SIGUSR1 signal.
 The information includes a list of PIM neighbors,
 .Nm
 internal multicast routing table, and
-BSR and RP related information. Also, the program dumps its internal
+BSR and RP related information.
+Also, the program dumps its internal
 statistics to a file when it receives a SIGINFO signal.
 .Pp
 When

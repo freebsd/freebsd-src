@@ -50,7 +50,8 @@ a receiver
 .Sh DESCRIPTION
 .Nm
 utilizes a tracing feature implemented in multicast routers that is
-accessed via an extension to the MLD protocol. A trace query is
+accessed via an extension to the MLD protocol.
+A trace query is
 passed hop-by-hop along the reverse path from the
 .Ar destination
 to the
@@ -74,7 +75,8 @@ can also be a multicast address that the last hop router joins.
 .It Fl h Ar hops
 Set
 .Ar hops
-to the IPv6 hop limit field of query packets. The default is 64.
+to the IPv6 hop limit field of query packets.
+The default is 64.
 .It Fl i Ar interface
 Specifies the local interface (on a multi-homed host) for sending
 the trace query and as the default for the receiver and the response
@@ -83,7 +85,8 @@ destination.
 Set to
 .Ar maxhops
 to the maximum number of hops that will be traced from the receiver
-back toward the source. The default is 127 hops.
+back toward the source.
+The default is 127 hops.
 .It Fl n
 Print hop addresses numerically rather than symbolically and numerically
 (saves a nameserver address-to-name lookup for each router found on
@@ -95,14 +98,16 @@ By default, the response will send to the host running
 .It Fl w Ar waittime
 Set the time to wait for a trace response to
 .Ar waittime
-seconds. The default is 3 seconds.
+seconds.
+The default is 3 seconds.
 .El
 .Sh SEE ALSO
 .Xr pim6dd 8 ,
 .Xr pim6sd 8 ,
 .Xr mtrace 8
 .Sh BUGS
-Multicast trace for IPv6 is experimental. MLD types for query and
+Multicast trace for IPv6 is experimental.
+MLD types for query and
 response, and packet format are not officially defined.
 .Pp
 .Ar waittime
