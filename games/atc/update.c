@@ -47,6 +47,7 @@
 static char sccsid[] = "@(#)update.c	8.1 (Berkeley) 5/31/93";
 #endif not lint
 
+#include <string.h>
 #include "include.h"
 
 update()

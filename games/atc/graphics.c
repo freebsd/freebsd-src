@@ -47,6 +47,7 @@
 static char sccsid[] = "@(#)graphics.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <string.h>
 #include "include.h"
 #ifdef SYSV
 #include <errno.h>
