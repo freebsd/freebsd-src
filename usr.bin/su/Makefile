@@ -1,12 +1,12 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.21 1998/09/19 22:42:05 obrien Exp $
+#	$Id: Makefile,v 1.22 1999/08/13 16:51:40 sheldonh Exp $
 
 PROG=	su
 SRCS=	su.c
 
-COPTS+= -DLOGIN_CAP -DSKEY
-LDADD+= -lutil -lskey -md -lcrypt
-DPADD+= ${LIBUTIL} ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
+COPTS+=	-DLOGIN_CAP -DSKEY
+DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
+LDADD=	-lutil -lskey -lmd -lcrypt
 
 .if defined(WHEELSU)
 COPTS+=	-DWHEELSU
