@@ -671,11 +671,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	ia64_set_k4((u_int64_t) pcpup);
 
 	/*
-	 * Initialize the virtual memory system.
-	 */
-	pmap_bootstrap();
-
-	/*
 	 * Initialize the rest of proc 0's PCB.
 	 *
 	 * Set the kernel sp, reserving space for an (empty) trapframe,
@@ -691,6 +686,9 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	/* Setup curproc so that mutexes work */
 	PCPU_SET(curthread, &thread0);
 
+	/* We pretend to own FP state so that ia64_fpstate_check() works */
+	PCPU_SET(fpcurthread, &thread0);
+
 	LIST_INIT(&thread0.td_contested);
 
 	/*
@@ -700,6 +698,11 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
 	mtx_lock(&Giant);
+
+	/*
+	 * Initialize the virtual memory system.
+	 */
+	pmap_bootstrap();
 
 	/*
 	 * Initialize debuggers, and break into them if appropriate.
@@ -1301,7 +1304,7 @@ ia64_fpstate_check(struct thread *td)
 {
 	if ((td->td_frame->tf_cr_ipsr & IA64_PSR_DFH) == 0)
 		if (td != PCPU_GET(fpcurthread))
-			panic("ia64_check_fpcurthread: bogus");
+			panic("ia64_fpstate_check: bogus");
 }
 
 /*
