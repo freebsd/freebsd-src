@@ -78,6 +78,8 @@ pcic_pci_probe(pcici_t tag, pcidi_t type)
 		return ("TI PCI-1250 PCI-CardBus Bridge");
 	case PCI_DEVICE_ID_PCIC_TI1251:
 		return ("TI PCI-1251 PCI-CardBus Bridge");
+	case PCI_DEVICE_ID_PCIC_TI1251B:
+		return ("TI PCI-1251B PCI-CardBus Bridge");
 	case PCI_DEVICE_ID_TOSHIBA_TOPIC95:
 		return ("Toshiba ToPIC95 PCI-CardBus Bridge");
 	case PCI_DEVICE_ID_TOSHIBA_TOPIC97:
