@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.55 1999/03/04 04:03:57 wpaul Exp $
+ * $Id: if_ether.c,v 1.56 1999/03/10 10:11:43 julian Exp $
  */
 
 /*
@@ -560,12 +560,18 @@ in_arpinput(m)
 		(void)memcpy(LLADDR(sdl), ea->arp_sha, sizeof(ea->arp_sha));
 		sdl->sdl_alen = sizeof(ea->arp_sha);
                 sdl->sdl_rcf = NULL;
-		/* Save source routing information for Token-ring interfaces, if available */
-		if (ea->arp_hrd == htons(ARPHRD_IEEE802)) {
+		/*
+		 * If we receive an arp from a token-ring station over
+		 * a token-ring nic then try to save the source
+		 * routing info.
+		 */
+		if (ac->ac_if.if_type == IFT_ISO88025) {
 			th = (struct iso88025_header *)m->m_pkthdr.header;
-                	if ((th->iso88025_shost[0] & 0x80) && (((ntohs(th->rcf) & 0x1f00) >> 8) > 2)) {
+                	if ((th->iso88025_shost[0] & 0x80) &&
+			    (((ntohs(th->rcf) & 0x1f00) >> 8) > 2)) {
 				sdl->sdl_rcf = ntohs(th->rcf) & 0x0080 ? 
-				htons(ntohs(th->rcf) & 0xff7f) : htons(ntohs(th->rcf) | 0x0080);
+				    htons(ntohs(th->rcf) & 0xff7f) :
+				    htons(ntohs(th->rcf) | 0x0080);
 				memcpy(sdl->sdl_route, th->rseg, ((ntohs(th->rcf) & 0x1f00) >> 8)  - 2);
 				sdl->sdl_rcf = htons(ntohs(sdl->sdl_rcf) & 0x1fff);
 				/* Set up source routing information for reply packet (XXX)*/
@@ -578,6 +584,8 @@ in_arpinput(m)
 			}
 			th->rcf = sdl->sdl_rcf;
 			
+		} else {
+			sdl->sdl_rcf = NULL;
 		}
 		if (rt->rt_expire)
 			rt->rt_expire = time_second + arpt_keep;
@@ -647,8 +655,8 @@ reply:
 	(void)memcpy(ea->arp_spa, &itaddr, sizeof(ea->arp_spa));
 	ea->arp_op = htons(ARPOP_REPLY);
 	ea->arp_pro = htons(ETHERTYPE_IP); /* let's be sure! */
-	switch (ntohs(ea->arp_hrd)) {
-	case ARPHRD_IEEE802:
+	switch (ac->ac_if.if_type) {
+	case IFT_ISO88025:
 		/* Re-arrange the source/dest address */
 		memcpy(th->iso88025_dhost, th->iso88025_shost, sizeof(th->iso88025_dhost));
 		memcpy(th->iso88025_shost, ac->ac_enaddr, sizeof(th->iso88025_shost));
@@ -663,7 +671,7 @@ reply:
 		sa.sa_data[(sizeof(th->iso88025_dhost) * 2)] = 0x10;
 		sa.sa_data[(sizeof(th->iso88025_dhost) * 2) + 1] = 0x40;
 		break;
-	case ARPHRD_ETHER:
+	case IFT_ETHER:
 		eh = (struct ether_header *)sa.sa_data;
 		(void)memcpy(eh->ether_dhost, ea->arp_tha, sizeof(eh->ether_dhost));
 		eh->ether_type = htons(ETHERTYPE_ARP);
