@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# $NetBSD: root,v 1.1.1.1 2000/03/10 11:53:24 lukem Exp $
+#
+
+# PROVIDE: root
+# REQUIRE: fsck
+
+. /etc/rc.subr
+
+name="root"
+start_cmd="root_start"
+stop_cmd=":"
+
+root_start()
+{
+	umount -a >/dev/null 2>&1
+	mount /
+	rm -f /fastboot
+}
+
+load_rc_config $name
+run_rc_command "$1"

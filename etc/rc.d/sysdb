@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $NetBSD: sysdb,v 1.6 2000/10/09 05:02:14 nisimura Exp $
+#
+
+# PROVIDE: sysdb
+# REQUIRE: mountcritremote
+
+. /etc/rc.subr
+
+name="sysdb"
+start_cmd="sysdb_start"
+stop_cmd=":"
+
+sysdb_start()
+{
+	#	Build ps databases. If this kernel supports
+	#	machdep.booted_kernel, use that to build the KVM db so dmesg
+	#	will run work when we boot /netbsd.new, etc.
+	#
+	echo "Building databases..."
+	booted_kernel=`sysctl -n machdep.booted_kernel 2>/dev/null`
+	kvm_mkdb ${booted_kernel:-/netbsd}
+	dev_mkdb
+
+	#	Re-create /var/run/utmp, which is deleted by mountcritlocal
+	#	but can't be recreated by it because install and chown may
+	#	not be available then (possibly no /usr).
+	#
+	install -c -m 664 -g utmp /dev/null /var/run/utmp
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $NetBSD: ntpd,v 1.2 2000/05/13 08:45:07 lukem Exp $
+#
+
+# PROVIDE: ntpd
+# REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="ntpd"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/ntp.conf"
+
+load_rc_config $name
+run_rc_command "$1"

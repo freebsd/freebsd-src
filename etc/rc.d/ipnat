@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# $NetBSD: ipnat,v 1.5 2000/08/21 23:33:50 lukem Exp $
+#
+
+# PROVIDE: ipnat
+# REQUIRE: ipfilter mountcritremote
+
+. /etc/rc.subr
+
+name="ipnat"
+rcvar=$name
+config="/etc/ipnat.conf"
+start_cmd="ipnat_start"
+stop_cmd="/usr/sbin/ipnat -F -C"
+reload_cmd="/usr/sbin/ipnat -F -C -f ${config}"
+extra_commands="reload"
+
+ipnat_start()
+{
+	if [ ! -f ${config} ]; then
+		return 0
+	fi
+	if ! checkyesno ipfilter || [ ! -f /etc/ipf.conf ]; then
+		echo "Enabling ipfilter for NAT."
+		/sbin/ipf -E -Fa
+	fi
+	echo -n "Installing NAT rules ... "
+	/usr/sbin/ipnat -F -f ${config}
+}
+
+load_rc_config $name
+run_rc_command "$1"
