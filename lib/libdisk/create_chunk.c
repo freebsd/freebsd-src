@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.35 1999/05/04 22:44:47 msmith Exp $
+ * $Id: create_chunk.c,v 1.36 1999/05/12 23:50:50 msmith Exp $
  *
  */
 
@@ -267,7 +267,9 @@ MakeDev(struct chunk *c1, const char *path)
     else if (!strncmp(p, "wfd", 3))
 	bmaj = 1, cmaj = 87, p += 3;
     else if (!strncmp(p, "fla", 3))
-	bmaj = 28, cmaj = 101, p += 3;
+	bmaj = 28, cmaj = 102, p += 3;
+    else if (!strncmp(p, "ida", 3))
+	bmaj = 29, cmaj = 109, p += 3;
     else if (!strncmp(p, "da", 2))	/* CAM support */
 	bmaj = 4, cmaj = 13, p += 2;
     else {
