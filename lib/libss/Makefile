@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.17 1997/02/22 15:08:00 peter Exp $
+#	$Id: Makefile,v 1.18 1998/03/06 08:26:00 bde Exp $
 
 LIB=	ss
 SRCS=	data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -14,9 +14,8 @@ LIBDESTDIR=	${.CURDIR}/../libcom_err
 DPADD=	${LIBDESTDIR}/libcom_err.a
 LDADD=	-L${LIBDESTDIR} -lcom_err
 
-ss_err.c:	ss_err.h
-
-ss_err.h:	${.CURDIR}/ss_err.et
+.ORDER: ss_err.c ss_err.h
+ss_err.c ss_err.h:	${.CURDIR}/ss_err.et
 	test -e ss_err.et || ln -s ${.CURDIR}/ss_err.et .
 	compile_et ss_err.et
 	-test -h ss_err.et && rm -f ss_err.et
