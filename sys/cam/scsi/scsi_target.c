@@ -78,7 +78,7 @@ typedef enum {
 #define MAX_ACCEPT	16
 #define MAX_IMMEDIATE	16
 #define MAX_BUF_SIZE	256	/* Max inquiry/sense/mode page transfer */
-#define MAX_INITIATORS	16	/* XXX More for Fibre-Channel */
+#define MAX_INITIATORS	256	/* includes widest fibre channel for now */
 
 #define MIN(a, b) ((a > b) ? b : a)
 
@@ -213,11 +213,12 @@ static void		fill_sense(struct targ_softc *softc,
 				   u_int initiator_id, u_int error_code,
 				   u_int sense_key, u_int asc, u_int ascq);
 static void		copy_sense(struct targ_softc *softc,
-				   struct ccb_scsiio *csio);
+				   struct initiator_state *istate,
+				   u_int8_t *sense_buffer, size_t sense_len);
 static void	set_unit_attention_cond(struct cam_periph *periph,
 					u_int initiator_id, ua_types ua);
-static void	set_contingent_allegiance_cond(struct cam_periph *periph,
-					       u_int initiator_id, ca_types ca);
+static void	set_ca_condition(struct cam_periph *periph,
+				 u_int initiator_id, ca_types ca);
 static void	abort_pending_transactions(struct cam_periph *periph,
 					   u_int initiator_id, u_int tag_id,
 					   int errno, int to_held_queue);
@@ -1260,6 +1261,8 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			desc->data = &bp->b_data[bp->b_bcount - bp->b_resid];
 			desc->data_increment =
 			    MIN(desc->data_resid, bp->b_resid);
+			desc->data_increment =
+			    MIN(desc->data_increment, 32);
 		}
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Buffer command: data %x: datacnt %d\n",
@@ -1329,6 +1332,22 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 			      /*dxfer_len*/desc->data_increment,
 			      /*timeout*/desc->timeout);
 
+		if ((flags & CAM_SEND_STATUS) != 0
+		 && (desc->status == SCSI_STATUS_CHECK_COND
+		  || desc->status == SCSI_STATUS_CMD_TERMINATED)) {
+			struct initiator_state *istate;
+
+			istate = &softc->istate[atio->init_id];
+			csio->sense_len = istate->sense_data.extra_len
+					+ offsetof(struct scsi_sense_data,
+						   extra_len);
+			bcopy(&istate->sense_data, &csio->sense_data,
+			      csio->sense_len);
+			csio->ccb_h.flags |= CAM_SEND_SENSE;
+		} else {
+			csio->sense_len = 0;
+		}
+
 		start_ccb->ccb_h.ccb_flags = TARG_CCB_NONE;
 		start_ccb->ccb_h.ccb_atio = atio;
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
@@ -1376,19 +1395,38 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			return;
 		}
 
-		if (istate->pending_ca == 0
-		 && istate->pending_ua != 0
-		 && cdb[0] != INQUIRY) {
+		if (atio->sense_len != 0) {
+
+			/*
+			 * We had an error in the reception of
+			 * this command.  Immediately issue a CA.
+			 */
+			atio->ccb_h.flags &= ~CAM_DIR_MASK;
+			atio->ccb_h.flags |= CAM_DIR_NONE;
+			descr->data_resid = 0;
+			descr->data_increment = 0;
+			descr->status = SCSI_STATUS_CHECK_COND;
+			copy_sense(softc, istate, (u_int8_t *)&atio->sense_data,
+				   atio->sense_len);
+			set_ca_condition(periph, atio->init_id, CA_CMD_SENSE);
+		} else if (istate->pending_ca == 0
+			&& istate->pending_ua != 0
+			&& cdb[0] != INQUIRY) {
+
 			/* Pending UA, tell initiator */
 			/* Direction is always relative to the initator */
-			istate->pending_ca = CA_UNIT_ATTN;
 			atio->ccb_h.flags &= ~CAM_DIR_MASK;
 			atio->ccb_h.flags |= CAM_DIR_NONE;
 			descr->data_resid = 0;
 			descr->data_increment = 0;
 			descr->timeout = 5 * 1000;
 			descr->status = SCSI_STATUS_CHECK_COND;
-		} else { 
+			fill_sense(softc, atio->init_id,
+				   SSD_CURRENT_ERROR, SSD_KEY_UNIT_ATTENTION,
+				   0x29,
+				   istate->pending_ua == UA_POWER_ON ? 1 : 2);
+			set_ca_condition(periph, atio->init_id, CA_UNIT_ATTN);
+		} else {
 			/*
 			 * Save the current CA and UA status so
 			 * they can be used by this command.
@@ -1401,16 +1439,13 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 
 			/*
 			 * As per the SCSI2 spec, any command that occurs
-			 * after a CA is reported, clears the CA.  If the
-			 * command is not an inquiry, we are also supposed
-			 * to clear the UA condition, if any, that caused
-			 * the CA to occur assuming the UA is not a
-			 * persistant state.
+			 * after a CA is reported, clears the CA.  We must
+			 * also clear the UA condition, if any, that caused
+			 * the CA to occur assuming the UA is not for a
+			 * persistant condition.
 			 */
 			istate->pending_ca = CA_NONE;
-			if ((pending_ca
-			   & (CA_CMD_SENSE|CA_UNIT_ATTN)) == CA_UNIT_ATTN
-			 && cdb[0] != INQUIRY)
+			if (pending_ca == CA_UNIT_ATTN)
 				istate->pending_ua = UA_NONE;
 
 			/*
@@ -1434,7 +1469,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				if ((inq->byte2 & SI_EVPD) != 0
 				 || inq->page_code != 0) {
-					istate->pending_ca = CA_CMD_SENSE;
 					atio->ccb_h.flags &= ~CAM_DIR_MASK;
 					atio->ccb_h.flags |= CAM_DIR_NONE;
 					descr->data_resid = 0;
@@ -1449,6 +1483,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 							 extra_bytes)
 					      - offsetof(struct scsi_sense_data,
 							 extra_len);
+					set_ca_condition(periph, atio->init_id,
+							 CA_CMD_SENSE);
 				}
 
 				if ((inq->byte2 & SI_EVPD) != 0) {
@@ -1459,7 +1495,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					sense->sense_key_spec[2] = 
 					    offsetof(struct scsi_inquiry,
 						     byte2);
-					break;
 				} else if (inq->page_code != 0) {
 					sense->sense_key_spec[0] = 
 					    SSD_SCS_VALID|SSD_FIELDPTR_CMD;
@@ -1467,8 +1502,10 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					sense->sense_key_spec[2] = 
 					    offsetof(struct scsi_inquiry,
 						     page_code);
-					break;
 				}
+				if (descr->status == SCSI_STATUS_CHECK_COND)
+					break;
+
 				/*
 				 * Direction is always relative
 				 * to the initator.
@@ -1506,20 +1543,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					CAM_DEBUG(periph->path,
 						  CAM_DEBUG_PERIPH,
 						  ("No pending CA!\n"));
-				} else if (pending_ca == CA_UNIT_ATTN) {
-					u_int ascq;
-
-					if (pending_ua == UA_POWER_ON)
-						ascq = 0x1;
-					else
-						ascq = 0x2;
-					fill_sense(softc, atio->init_id,
-						   SSD_CURRENT_ERROR,
-						   SSD_KEY_UNIT_ATTENTION,
-						   0x29, ascq);
-					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_PERIPH,
-						  ("Pending UA!\n"));
 				}
 				/*
 				 * Direction is always relative
@@ -1638,6 +1661,23 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		} else
 			error = 0;
+
+		/*
+		 * If we shipped back sense data when completing
+		 * this command, clear the pending CA for it.
+		 */
+		if (done_ccb->ccb_h.status & CAM_SENT_SENSE) {
+			struct initiator_state *istate;
+
+			istate = &softc->istate[csio->init_id];
+			if (istate->pending_ca == CA_UNIT_ATTN)
+				istate->pending_ua = UA_NONE;
+			istate->pending_ca = CA_NONE;
+			softc->istate[csio->init_id].pending_ca = CA_NONE;
+			done_ccb->ccb_h.status &= ~CAM_SENT_SENSE;
+		}
+		done_ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
+
 		desc->data_increment -= csio->resid;
 		desc->data_resid -= desc->data_increment;
 		if ((bp = desc->bp) != NULL) {
@@ -1846,6 +1886,7 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	struct cam_periph *periph;
 	struct targ_softc *softc;
 	struct ccb_scsiio *csio;
+	struct initiator_state *istate;
 	cam_status status;
 	int frozen;
 	int sense;
@@ -1860,18 +1901,17 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	status &= CAM_STATUS_MASK;
 	on_held_queue = FALSE;
 	csio = &ccb->csio;
+	istate = &softc->istate[csio->init_id];
 	switch (status) {
 	case CAM_REQ_ABORTED:
 		printf("Request Aborted!\n");
 		if ((ccb->ccb_h.ccb_flags & TARG_CCB_ABORT_TO_HELDQ) != 0) {
-			struct initiator_state *istate;
 
 			/*
 			 * Place this CCB into the initiators
 			 * 'held' queue until the pending CA is cleared.
 			 * If there is no CA pending, reissue immediately.
 			 */
-			istate = &softc->istate[ccb->csio.init_id];
 			if (istate->pending_ca == 0) {
 				ccb->ccb_h.ccb_flags = TARG_CCB_NONE;
 				xpt_action(ccb);
@@ -1904,9 +1944,7 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 			csio->resid = csio->dxfer_len;
 			fill_sense(softc, csio->init_id, SSD_CURRENT_ERROR,
 				   SSD_KEY_HARDWARE_ERROR, 0x45, 0x00);
-			set_contingent_allegiance_cond(periph,
-						       csio->init_id,
-						       CA_CMD_SENSE);
+			set_ca_condition(periph, csio->init_id, CA_CMD_SENSE);
 			error = EIO;
 		}
 		break;
@@ -1914,7 +1952,7 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		/* "SCSI parity error" */
 		fill_sense(softc, csio->init_id, SSD_CURRENT_ERROR,
 			   SSD_KEY_HARDWARE_ERROR, 0x47, 0x00);
-		set_contingent_allegiance_cond(periph, csio->init_id,
+		set_ca_condition(periph, csio->init_id,
 					       CA_CMD_SENSE);
 		csio->resid = csio->dxfer_len;
 		error = EIO;
@@ -1925,8 +1963,9 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		break;
 	case CAM_SEQUENCE_FAIL:
 		if (sense != 0) {
-			copy_sense(softc, csio);
-			set_contingent_allegiance_cond(periph,
+			copy_sense(softc, istate, (u_int8_t *)&csio->sense_data,
+				   csio->sense_len);
+			set_ca_condition(periph,
 						       csio->init_id,
 						       CA_CMD_SENSE);
 		}
@@ -1937,7 +1976,7 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		/* "Initiator detected error message received" */
 		fill_sense(softc, csio->init_id, SSD_CURRENT_ERROR,
 			   SSD_KEY_HARDWARE_ERROR, 0x48, 0x00);
-		set_contingent_allegiance_cond(periph, csio->init_id,
+		set_ca_condition(periph, csio->init_id,
 					       CA_CMD_SENSE);
 		csio->resid = csio->dxfer_len;
 		error = EIO;
@@ -2021,18 +2060,17 @@ fill_sense(struct targ_softc *softc, u_int initiator_id, u_int error_code,
 }
 
 static void
-copy_sense(struct targ_softc *softc, struct ccb_scsiio *csio)
+copy_sense(struct targ_softc *softc, struct initiator_state *istate,
+	   u_int8_t *sense_buffer, size_t sense_len)
 {
-	struct initiator_state *istate;
 	struct scsi_sense_data *sense;
 	size_t copylen;
 
-	istate = &softc->istate[csio->init_id];
 	sense = &istate->sense_data;
 	copylen = sizeof(*sense);
-	if (copylen > csio->sense_len)
-		copylen = csio->sense_len;
-	bcopy(&csio->sense_data, sense, copylen);
+	if (copylen > sense_len)
+		copylen = sense_len;
+	bcopy(sense_buffer, sense, copylen);
 }
 
 static void
@@ -2057,8 +2095,7 @@ set_unit_attention_cond(struct cam_periph *periph,
 }
 
 static void
-set_contingent_allegiance_cond(struct cam_periph *periph,
-			       u_int initiator_id, ca_types ca)
+set_ca_condition(struct cam_periph *periph, u_int initiator_id, ca_types ca)
 {
 	struct targ_softc *softc;
 
