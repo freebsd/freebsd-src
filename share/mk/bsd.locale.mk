@@ -2,6 +2,11 @@
 #
 # location-specific settings
 #
+#	$Id: bsd.locale.mk,v 1.3 1998/05/20 05:43:01 mph Exp $
+
+.if !defined(LOCALE)
+LOCALE=			USA
+.endif
 
 .if ${LOCALE} == "Argentina"
 NEAR_SITE_LIST?=	${LOCAL_SITE_LIST} \
