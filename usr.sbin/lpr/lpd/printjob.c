@@ -602,8 +602,7 @@ print(struct printer *pp, int format, char *file)
 	int fi, fo;
 	FILE *fp;
 	char *av[15], buf[BUFSIZ];
-	int pid, p[2], stopped;
-	union wait status;
+	int pid, p[2], retcode, stopped, wstatus, wstatus_set;
 	struct stat stb;
 
 	if (lstat(file, &stb) < 0 || (fi = open(file, O_RDONLY)) < 0) {
@@ -779,18 +778,17 @@ print(struct printer *pp, int format, char *file)
 	if (ofilter > 0) {		/* stop output filter */
 		write(ofd, "\031\1", 2);
 		while ((pid =
-		    wait3((int *)&status, WUNTRACED, 0)) > 0 && pid != ofilter)
+		    wait3(&wstatus, WUNTRACED, 0)) > 0 && pid != ofilter)
 			;
 		if (pid < 0)
 			syslog(LOG_WARNING, "%s: after stopping 'of', wait3() returned: %m",
 			    pp->printer);
-		else if (status.w_stopval != WSTOPPED) {
+		else if (!WIFSTOPPED(wstatus)) {
 			(void) close(fi);
-			syslog(LOG_WARNING,
-			       "%s: output filter died "
-			       "(pid=%d retcode=%d termsig=%d)",
-				pp->printer, ofilter, status.w_retcode,
-			       status.w_termsig);
+			syslog(LOG_WARNING, "%s: output filter died "
+			    "(pid=%d retcode=%d termsig=%d)",
+			    pp->printer, ofilter, WEXITSTATUS(wstatus),
+			    WTERMSIG(wstatus));
 			return(REPRINT);
 		}
 		stopped++;
@@ -812,15 +810,19 @@ start:
 		exit(2);
 	}
 	(void) close(fi);
+	wstatus_set = 0;
 	if (child < 0)
-		status.w_retcode = 100;
+		retcode = 100;
 	else {
-		while ((pid = wait((int *)&status)) > 0 && pid != child)
+		while ((pid = wait(&wstatus)) > 0 && pid != child)
 			;
 		if (pid < 0) {
-			status.w_retcode = 100;
+			retcode = 100;
 			syslog(LOG_WARNING, "%s: after execv(%s), wait() returned: %m",
 			    pp->printer, prog);
+		} else {
+			wstatus_set = 1;
+			retcode = WEXITSTATUS(wstatus);
 		}
 	}
 	child = 0;
@@ -840,12 +842,12 @@ start:
 		fclose(fp);
 	}
 
-	if (!WIFEXITED(status)) {
+	if (wstatus_set && !WIFEXITED(wstatus)) {
 		syslog(LOG_WARNING, "%s: filter '%c' terminated (termsig=%d)",
-			pp->printer, format, status.w_termsig);
+		    pp->printer, format, WTERMSIG(wstatus));
 		return(ERROR);
 	}
-	switch (status.w_retcode) {
+	switch (retcode) {
 	case 0:
 		pp->tof = 1;
 		return(OK);
@@ -855,7 +857,7 @@ start:
 		return(ERROR);
 	default:
 		syslog(LOG_WARNING, "%s: filter '%c' exited (retcode=%d)",
-			pp->printer, format, status.w_retcode);
+			pp->printer, format, retcode);
 		return(FILTERERR);
 	}
 }
@@ -1211,9 +1213,8 @@ return_sfres:
 static int
 execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 {
-	int errfd, fpid, wpid;
+	int errfd, fpid, retcode, wpid, wstatus;
 	FILE *errfp;
-	union wait status; /* XXX */
 	char buf[BUFSIZ], *slash;
 
 	fpid = dofork(pp, DORETURN);
@@ -1224,17 +1225,18 @@ execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 		 * the child process which reads the input stream.
 		 */
 		if (fpid < 0)
-			status.w_retcode = 100;
+			retcode = 100;
 		else {
-			while ((wpid = wait((int *)&status)) > 0 &&
+			while ((wpid = wait(&wstatus)) > 0 &&
 			    wpid != fpid)
 				;
 			if (wpid < 0) {
-				status.w_retcode = 100;
+				retcode = 100;
 				syslog(LOG_WARNING,
 				    "%s: after execv(%s), wait() returned: %m",
 				    pp->printer, f_cmd);
-			}
+			} else
+				retcode = WEXITSTATUS(wstatus);
 		}
 
 		/*
@@ -1248,7 +1250,7 @@ execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 			fclose(errfp);
 		}
 
-		return (status.w_retcode);
+		return (retcode);
 	}
 
 	/*
