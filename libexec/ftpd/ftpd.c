@@ -1962,7 +1962,8 @@ pdata_err:
 		}
 	} while (retry <= swaitmax);
 	if (conerrno != 0) {
-		perror_reply(425, "Can't build data connection");
+		reply(425, "Can't build data connection: %s.",
+			   strerror(conerrno));
 		return (NULL);
 	}
 	reply(150, "Opening %s mode data connection for '%s'%s.",
