@@ -37,6 +37,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ia32.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
@@ -62,6 +64,10 @@
 #include <sys/user.h>
 #include <net/if.h>
 #include <netinet/in.h>
+
+#ifdef IA32
+ASSYM(IA32, IA32);
+#endif
 
 ASSYM(PC_CURTHREAD,	offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_IDLETHREAD,	offsetof(struct pcpu, pc_idlethread));
