@@ -30,12 +30,11 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added code to support the Sound Galaxy NX Pro mixer.
  *
- * $Id: sb_mixer.c,v 1.3 1994/08/02 07:40:46 davidg Exp $
  */
 
 #include "sound_config.h"
 
-#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB) && !defined(EXCLUDE_SBPRO)
+#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB)
 #define __SB_MIXER_C__
 
 #include "sb.h"

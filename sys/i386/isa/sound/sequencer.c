@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sequencer.c,v 1.6 1994/08/02 07:40:49 davidg Exp $
  */
 
 #define SEQUENCER_C
@@ -50,7 +49,7 @@ static int      max_synthdev = 0;
 /*
  * The seq_mode gives the operating mode of the sequencer:
  *      1 = level1 (the default)
- *      2 = level2 (extended capabilites)
+ *      2 = level2 (extended capabilities)
  */
 
 #define SEQ_1	1
@@ -484,19 +483,21 @@ seq_chn_voice_event (unsigned char *event)
     return;
 
   if (seq_mode == SEQ_2)
-    if (synth_devs[dev]->alloc_voice)
-      voice = find_voice (dev, chn, note);
-
-  if (cmd == MIDI_NOTEON && parm == 0)
     {
-      cmd = MIDI_NOTEOFF;
-      parm = 64;
+      if (synth_devs[dev]->alloc_voice)
+        voice = find_voice (dev, chn, note);
+
+      if (cmd == MIDI_NOTEON && parm == 0)
+        {
+          cmd = MIDI_NOTEOFF;
+          parm = 64;
+        }
     }
 
   switch (cmd)
     {
     case MIDI_NOTEON:
-      if (note > 127)
+      if (note > 127 && note != 255)
 	return;
 
       if (voice == -1 && seq_mode == SEQ_2 && synth_devs[dev]->alloc_voice)
@@ -1852,7 +1853,8 @@ sequencer_init (long mem_start)
 }
 
 int
-sequencer_select (int dev, struct fileinfo *file, int sel_type, select_table * wait)
+/* sequencer_select (int dev, struct fileinfo *file, int sel_type, select_table * wait) -SMP */
+sequencer_select (int dev, struct fileinfo *file, int sel_type, void * wait)
 {
   return RET_ERROR (EIO);
 }

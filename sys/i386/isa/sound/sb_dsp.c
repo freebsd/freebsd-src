@@ -29,7 +29,6 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added code to support Sound Galaxy NX Pro
  *
- * $Id: sb_dsp.c,v 1.21 1994/10/01 02:17:04 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -91,6 +90,7 @@ volatile int    sb_intr_active = 0;
 
 static int      dsp_speed (int);
 static int      dsp_set_stereo (int mode);
+int             sb_dsp_command (unsigned char val);
 
 #if !defined(EXCLUDE_MIDI) || !defined(EXCLUDE_AUDIO)
 
@@ -105,7 +105,7 @@ sb_dsp_command (unsigned char val)
   unsigned long   limit;
 
   limit = GET_TIME () + HZ / 10;/*
-					   * The timeout is 0.1 secods
+					   * The timeout is 0.1 seconds
 					 */
 
   /*
@@ -160,7 +160,7 @@ sbintr (int unit)
 
       if (!(src & 1))
 	return;			/*
-				 * Not a DSP interupt
+				 * Not a DSP interrupt
 				 */
     }
 #endif
@@ -737,7 +737,7 @@ sb_dsp_detect (struct address_info *hw_config)
 #ifndef EXCLUDE_AUDIO
 static struct audio_operations sb_dsp_operations =
 {
-  "SoundBlaster                    ",
+  "SoundBlaster",
   NOTHING_SPECIAL,
   AFMT_U8,			/* Just 8 bits. Poor old SB */
   NULL,
@@ -803,7 +803,7 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 
   if (sbc_major >= 3)
     {
-#ifndef SCO
+#if !defined(SCO) && !defined(EXCLUDE_AUDIO)
 #  ifdef __SGNXPRO__
       if (mixer_type == 2)
 	{
@@ -823,11 +823,7 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 #endif
     }
 
-#ifdef __FreeBSD__
-  printk ("snd2: <%s>", sb_dsp_operations.name);
-#else
   printk (" <%s>", sb_dsp_operations.name);
-#endif
 
 #ifndef EXCLUDE_AUDIO
 #if !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SBPRO)

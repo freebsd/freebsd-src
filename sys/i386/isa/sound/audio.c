@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: audio.c,v 1.5 1994/08/02 07:39:44 davidg Exp $
  */
 
 #include "sound_config.h"

@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sb16_midi.c,v 1.3 1994/08/02 07:40:38 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -225,11 +224,7 @@ attach_sb16midi (long mem_start, struct address_info *hw_config)
       return mem_start;
     }
 
-#ifdef __FreeBSD__
-  printk ("snd7: <SoundBlaster MPU-401>");
-#else
   printk (" <SoundBlaster MPU-401>");
-#endif
 
   std_midi_synth.midi_dev = my_dev = num_midis;
   midi_devs[num_midis++] = &sb16midi_operations;
@@ -287,7 +282,6 @@ int
 probe_sb16midi (struct address_info *hw_config)
 {
   int             ok = 0;
-  int             i;
   extern int      sbc_major;
 
   if (sbc_major < 4)

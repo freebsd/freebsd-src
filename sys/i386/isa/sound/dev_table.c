@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dev_table.c,v 1.5 1994/08/02 07:39:46 davidg Exp $
  */
 
 #define _DEV_TABLE_C_

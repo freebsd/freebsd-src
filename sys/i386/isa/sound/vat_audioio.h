@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Header: audioio.h,v 1.3 93/07/18 14:07:07 mccanne Exp $ (LBL)
+ *	/home/ncvs/src/sys/i386/isa/sound/vat_audioio.h,v 1.1 1994/12/16 04:59:18 pst Exp (LBL)
  */
 
 #ifndef _BSD_AUDIOIO_H_

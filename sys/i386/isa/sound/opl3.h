@@ -35,7 +35,7 @@
  *
  *	The percussive mode is implemented in the left side only.
  *
- *	With the above exeptions the both sides can be operated independently.
+ *	With the above exceptions the both sides can be operated independently.
  *	
  *	A 4 OP voice can be created by setting the corresponding
  *	bit at offset 4 of the right side.
