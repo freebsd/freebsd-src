@@ -389,7 +389,7 @@ dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/ciss/ciss.c			optional ciss
 dev/cm/smc90cx6.c		optional cm
-#dev/cnw/if_cnw.c		optional cnw pccard
+dev/cnw/if_cnw.c		optional cnw pccard
 dev/cs/if_cs.c			optional cs
 dev/cs/if_cs_isa.c		optional cs isa
 dev/cs/if_cs_pccard.c		optional cs pccard
