@@ -148,6 +148,10 @@ static void sis_read_mac	(struct sis_softc *, device_t, caddr_t);
 static device_t sis_find_bridge	(device_t);
 #endif
 
+static void sis_mii_sync	(struct sis_softc *);
+static void sis_mii_send	(struct sis_softc *, u_int32_t, int);
+static int sis_mii_readreg	(struct sis_softc *, struct sis_mii_frame *);
+static int sis_mii_writereg	(struct sis_softc *, struct sis_mii_frame *);
 static int sis_miibus_readreg	(device_t, int, int);
 static int sis_miibus_writereg	(device_t, int, int, int);
 static void sis_miibus_statchg	(device_t);
@@ -514,13 +518,198 @@ sis_read_mac(sc, dev, dest)
 }
 #endif
 
+/*
+ * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ */
+static void sis_mii_sync(sc)
+	struct sis_softc	*sc;
+{
+	register int		i;
+ 
+ 	SIO_SET(SIS_MII_DIR|SIS_MII_DATA);
+ 
+ 	for (i = 0; i < 32; i++) {
+ 		SIO_SET(SIS_MII_CLK);
+ 		DELAY(1);
+ 		SIO_CLR(SIS_MII_CLK);
+ 		DELAY(1);
+ 	}
+ 
+ 	return;
+}
+ 
+/*
+ * Clock a series of bits through the MII.
+ */
+static void sis_mii_send(sc, bits, cnt)
+	struct sis_softc	*sc;
+	u_int32_t		bits;
+	int			cnt;
+{
+	int			i;
+ 
+	SIO_CLR(SIS_MII_CLK);
+ 
+	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
+		if (bits & i) {
+			SIO_SET(SIS_MII_DATA);
+		} else {
+			SIO_CLR(SIS_MII_DATA);
+		}
+		DELAY(1);
+		SIO_CLR(SIS_MII_CLK);
+		DELAY(1);
+		SIO_SET(SIS_MII_CLK);
+	}
+}
+ 
+/*
+ * Read an PHY register through the MII.
+ */
+static int sis_mii_readreg(sc, frame)
+	struct sis_softc	*sc;
+	struct sis_mii_frame	*frame;
+ 	
+{
+	int			i, ack, s;
+ 
+	s = splimp();
+ 
+	/*
+	 * Set up frame for RX.
+	 */
+	frame->mii_stdelim = SIS_MII_STARTDELIM;
+	frame->mii_opcode = SIS_MII_READOP;
+	frame->mii_turnaround = 0;
+	frame->mii_data = 0;
+ 	
+	/*
+ 	 * Turn on data xmit.
+	 */
+	SIO_SET(SIS_MII_DIR);
+
+	sis_mii_sync(sc);
+ 
+	/*
+	 * Send command/address info.
+	 */
+	sis_mii_send(sc, frame->mii_stdelim, 2);
+	sis_mii_send(sc, frame->mii_opcode, 2);
+	sis_mii_send(sc, frame->mii_phyaddr, 5);
+	sis_mii_send(sc, frame->mii_regaddr, 5);
+ 
+	/* Idle bit */
+	SIO_CLR((SIS_MII_CLK|SIS_MII_DATA));
+	DELAY(1);
+	SIO_SET(SIS_MII_CLK);
+	DELAY(1);
+ 
+	/* Turn off xmit. */
+	SIO_CLR(SIS_MII_DIR);
+ 
+	/* Check for ack */
+	SIO_CLR(SIS_MII_CLK);
+	DELAY(1);
+	ack = CSR_READ_4(sc, SIS_EECTL) & SIS_MII_DATA;
+	SIO_SET(SIS_MII_CLK);
+	DELAY(1);
+ 
+	/*
+	 * Now try reading data bits. If the ack failed, we still
+	 * need to clock through 16 cycles to keep the PHY(s) in sync.
+	 */
+	if (ack) {
+		for(i = 0; i < 16; i++) {
+			SIO_CLR(SIS_MII_CLK);
+			DELAY(1);
+			SIO_SET(SIS_MII_CLK);
+			DELAY(1);
+		}
+		goto fail;
+	}
+ 
+	for (i = 0x8000; i; i >>= 1) {
+		SIO_CLR(SIS_MII_CLK);
+		DELAY(1);
+		if (!ack) {
+			if (CSR_READ_4(sc, SIS_EECTL) & SIS_MII_DATA)
+				frame->mii_data |= i;
+			DELAY(1);
+		}
+		SIO_SET(SIS_MII_CLK);
+		DELAY(1);
+	}
+
+fail:
+
+	SIO_CLR(SIS_MII_CLK);
+	DELAY(1);
+	SIO_SET(SIS_MII_CLK);
+	DELAY(1);
+
+	splx(s);
+
+	if (ack)
+		return(1);
+	return(0);
+}
+ 
+/*
+ * Write to a PHY register through the MII.
+ */
+static int sis_mii_writereg(sc, frame)
+	struct sis_softc	*sc;
+	struct sis_mii_frame	*frame;
+	
+{
+	int			s;
+ 
+	 s = splimp();
+ 	/*
+ 	 * Set up frame for TX.
+ 	 */
+ 
+ 	frame->mii_stdelim = SIS_MII_STARTDELIM;
+ 	frame->mii_opcode = SIS_MII_WRITEOP;
+ 	frame->mii_turnaround = SIS_MII_TURNAROUND;
+ 	
+ 	/*
+  	 * Turn on data output.
+ 	 */
+ 	SIO_SET(SIS_MII_DIR);
+ 
+ 	sis_mii_sync(sc);
+ 
+ 	sis_mii_send(sc, frame->mii_stdelim, 2);
+ 	sis_mii_send(sc, frame->mii_opcode, 2);
+ 	sis_mii_send(sc, frame->mii_phyaddr, 5);
+ 	sis_mii_send(sc, frame->mii_regaddr, 5);
+ 	sis_mii_send(sc, frame->mii_turnaround, 2);
+ 	sis_mii_send(sc, frame->mii_data, 16);
+ 
+ 	/* Idle bit. */
+ 	SIO_SET(SIS_MII_CLK);
+ 	DELAY(1);
+ 	SIO_CLR(SIS_MII_CLK);
+ 	DELAY(1);
+ 
+ 	/*
+ 	 * Turn off xmit.
+ 	 */
+ 	SIO_CLR(SIS_MII_DIR);
+ 
+ 	splx(s);
+ 
+ 	return(0);
+}
+
 static int
 sis_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
 	struct sis_softc	*sc;
-	int			i, val = 0;
+	struct sis_mii_frame    frame;
 
 	sc = device_get_softc(dev);
 
@@ -539,33 +728,20 @@ sis_miibus_readreg(dev, phy, reg)
 		 */
 		if (!CSR_READ_4(sc, NS_BMSR))
 			DELAY(1000);
-		val = CSR_READ_4(sc, NS_BMCR + (reg * 4));
-		return(val);
+		return CSR_READ_4(sc, NS_BMCR + (reg * 4));
 	}
 
 	if (sc->sis_type == SIS_TYPE_900 &&
 	    sc->sis_rev < SIS_REV_635 && phy != 0)
 		return(0);
 
-	CSR_WRITE_4(sc, SIS_PHYCTL, (phy << 11) | (reg << 6) | SIS_PHYOP_READ);
-	SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
+	bzero((char *)&frame, sizeof(frame));
 
-	for (i = 0; i < SIS_TIMEOUT; i++) {
-		if (!(CSR_READ_4(sc, SIS_PHYCTL) & SIS_PHYCTL_ACCESS))
-			break;
-	}
+	frame.mii_phyaddr = phy;
+	frame.mii_regaddr = reg;
+	sis_mii_readreg(sc, &frame);
 
-	if (i == SIS_TIMEOUT) {
-		printf("sis%d: PHY failed to come ready\n", sc->sis_unit);
-		return(0);
-	}
-
-	val = (CSR_READ_4(sc, SIS_PHYCTL) >> 16) & 0xFFFF;
-
-	if (val == 0xFFFF)
-		return(0);
-
-	return(val);
+	return(frame.mii_data);
 }
 
 static int
@@ -574,7 +750,7 @@ sis_miibus_writereg(dev, phy, reg, data)
 	int			phy, reg, data;
 {
 	struct sis_softc	*sc;
-	int			i;
+	struct sis_mii_frame	frame;
 
 	sc = device_get_softc(dev);
 
@@ -588,17 +764,13 @@ sis_miibus_writereg(dev, phy, reg, data)
 	if (sc->sis_type == SIS_TYPE_900 && phy != 0)
 		return(0);
 
-	CSR_WRITE_4(sc, SIS_PHYCTL, (data << 16) | (phy << 11) |
-	    (reg << 6) | SIS_PHYOP_WRITE);
-	SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
+	bzero((char *)&frame, sizeof(frame));
 
-	for (i = 0; i < SIS_TIMEOUT; i++) {
-		if (!(CSR_READ_4(sc, SIS_PHYCTL) & SIS_PHYCTL_ACCESS))
-			break;
-	}
+	frame.mii_phyaddr = phy;
+	frame.mii_regaddr = reg;
+	frame.mii_data = data;
 
-	if (i == SIS_TIMEOUT)
-		printf("sis%d: PHY failed to come ready\n", sc->sis_unit);
+	sis_mii_writereg(sc, &frame);
 
 	return(0);
 }
@@ -645,9 +817,12 @@ sis_crc(sc, addr)
 	 * different than the SiS, so we special-case it.
 	 */
 	if (sc->sis_type == SIS_TYPE_83815)
-		return((crc >> 23) & 0x1FF);
+		return (crc >> 23);
 
-	return((crc >> 25) & 0x0000007F);
+	if (sc->sis_rev >= SIS_REV_635)
+		return (crc >> 24);
+
+	return (crc >> 25);
 }
 
 static void
@@ -705,37 +880,50 @@ sis_setmulti_sis(sc)
 {
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
-	u_int32_t		h = 0, i, filtsave;
+	u_int32_t		h, i, n, ctl;
+	u_int16_t		hashes[16];
 
 	ifp = &sc->arpcom.ac_if;
 
+	/* hash table size */
+	n = sc->sis_rev >= SIS_REV_635 ? 16 : 8;
+
+	ctl = CSR_READ_4(sc, SIS_RXFILT_CTL) & SIS_RXFILTCTL_ENABLE;
+
+	if (ifp->if_flags & IFF_BROADCAST)
+		ctl |= SIS_RXFILTCTL_BROAD;
+
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		SIS_SETBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ALLMULTI);
-		return;
-	}
-
-	SIS_CLRBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ALLMULTI);
-
-	filtsave = CSR_READ_4(sc, SIS_RXFILT_CTL);
-
-	/* first, zot all the existing hash bits */
-	for (i = 0; i < 8; i++) {
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, (4 + ((i * 16) >> 4)) << 16);
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA, 0);
-	}
-
-	/* now program new ones */
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
+		ctl |= SIS_RXFILTCTL_ALLMULTI;
+		if (ifp->if_flags & IFF_PROMISC)
+			ctl |= SIS_RXFILTCTL_BROAD|SIS_RXFILTCTL_ALLPHYS;
+		for (i = 0; i < n; i++)
+			hashes[i] = ~0;
+	} else {
+		for (i = 0; i < n; i++)
+			hashes[i] = 0;
+		i = 0;
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = sis_crc(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, (4 + (h >> 4)) << 16);
-		SIS_SETBIT(sc, SIS_RXFILT_DATA, (1 << (h & 0xF)));
+			h = sis_crc(sc,
+			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+			hashes[h >> 4] |= 1 << (h & 0xf);
+			i++;
+		}
+		if (i > n) {
+			ctl |= SIS_RXFILTCTL_ALLMULTI;
+			for (i = 0; i < n; i++)
+				hashes[i] = ~0;
+		}
 	}
 
-	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave);
+	for (i = 0; i < n; i++) {
+		CSR_WRITE_4(sc, SIS_RXFILT_CTL, (4 + i) << 16);
+		CSR_WRITE_4(sc, SIS_RXFILT_DATA, hashes[i]);
+	}
 
-	return;
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, ctl);
 }
 
 static void
