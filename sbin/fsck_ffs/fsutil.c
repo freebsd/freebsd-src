@@ -478,10 +478,9 @@ void
 slowio_start()
 {
 
-	/* Delay one in every 8 operations by 16 times the average IO delay */
+	/* Delay one in every 8 operations */
 	slowio_pollcnt = (slowio_pollcnt + 1) & 7;
 	if (slowio_pollcnt == 0) {
-		usleep(slowio_delay_usec * 16);
 		gettimeofday(&slowio_starttime, NULL);
 	}
 }
@@ -501,9 +500,12 @@ slowio_end()
 	    (tv.tv_usec - slowio_starttime.tv_usec);
 	if (delay_usec < 64)
 		delay_usec = 64;
-	if (delay_usec > 1000000)
-		delay_usec = 1000000;
+	if (delay_usec > 2500000)
+		delay_usec = 2500000;
 	slowio_delay_usec = (slowio_delay_usec * 63 + delay_usec) >> 6;
+	/* delay by 8 times the average IO delay */
+	if (slowio_delay_usec > 64)
+		usleep(slowio_delay_usec * 8);
 }
 
 /*
