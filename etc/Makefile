@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.103 1995/02/04 11:16:47 amurai Exp $
+#	$Id: Makefile,v 1.104 1995/02/25 21:01:48 phk Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -128,6 +128,11 @@ CRYPT_SRCS+=	sbin/init
 CRYPT_SRCS+=	secure
 .endif
 CRYPT_DIRS=	bin sbin usr usr/bin usr/lib
+
+LATIN1LINKS = \
+	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_US es_ES fi_FI \
+	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
+	pt_PT sv_SE
 
 all depend etc install lint:
 
@@ -445,6 +450,13 @@ distrib-dirs:
 	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
 	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
+	cd ${DESTDIR}/usr/share/locale; \
+	for l in ${LATIN1LINKS} ; do \
+		rm -f $$l.ISO8859-1; \
+		ln -s lt_LN.ISO8859-1 $$l.ISO8859-1; \
+		chown ${BINOWN}.${BINGRP} $$l.ISO8859-1; \
+		chmod 755 $$l.ISO8859-1; \
+	done
 .if defined(MAKE_LOCAL)
 	mtree -deU -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
 .endif
