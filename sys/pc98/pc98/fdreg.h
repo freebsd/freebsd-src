@@ -44,24 +44,15 @@
 #ifdef PC98
 /* registers */
 #define	FDSTS	0	/* NEC 765 Main Status Register (R) */
-#define	FDDATA	2	/* NEC 765 Data Register (R/W) */
-#define	FDOUT	4	/* Digital Output Register (W) */
-#define	FDO_RST		0x80	/*  FDC RESET */
-#define	FDO_FRY		0x40	/*  force READY */
-#define	FDO_AIE		0x20	/*  Attention Interrupt Enable */
-#define	FDO_DD		0x20	/*  FDD Mode Exchange 0:1M 1:640K */
-#define	FDO_DMAE	0x10	/*  enable floppy DMA */
-#define	FDO_MTON	0x08	/*  MOTOR ON (when EMTON=1)*/
-#define	FDO_TMSK	0x04	/*  TIMER MASK */
-#define	FDO_TTRG	0x01	/*  TIMER TRIGER */
-
-#define	FDIN	4	/* Digital Input Register (R) */
-#define	FDI_TYP0	0x04	/* FDD #1/#2 TYPE */
-#define	FDI_TYP1	0x08	/* FDD #3/#4 TYPE */
-#define	FDI_RDY		0x10	/* Ready */
-#define	FDI_DMACH	0x20	/* DMA Channel */
-#define	FDI_FINT0	0x40	/* Interrupt */
-#define	FDI_FINT1	0x80	/* Interrupt */
+#define	FDDATA	1	/* NEC 765 Data Register (R/W) */
+#define	FDCTL	2	/* FD Control Register */
+#define	FDC_RST		0x80	/*  FDC RESET */
+#define	FDC_RDY		0x40	/*  force READY */
+#define	FDC_DD		0x20	/*  FDD Mode Exchange 0:1M 1:640K */
+#define	FDC_DMAE	0x10	/*  enable floppy DMA */
+#define	FDC_MTON	0x08	/*  MOTOR ON (when EMTON=1)*/
+#define	FDC_TMSK	0x04	/*  TIMER MASK */
+#define	FDC_TTRG	0x01	/*  TIMER TRIGER */
 
 #define	FDP_EMTON	0x04	/*  enable MTON */
 #define	FDP_FDDEXC	0x02	/*  FDD Mode Exchange 1:1M 0:640K */
@@ -81,6 +72,7 @@
 #define	FDSTS	4	/* NEC 765 Main Status Register (R) */
 #define	FDDATA	5	/* NEC 765 Data Register (R/W) */
 #define	FDCTL	7	/* Control Register (W) */
+#endif /* PC98 */
 
 #ifndef FDC_500KBPS
 #  define	FDC_500KBPS	0x00	/* 500KBPS MFM drive transfer rate */
@@ -89,7 +81,6 @@
 #  define	FDC_125KBPS	0x03	/* 125KBPS FM drive transfer rate */
 				/* for some controllers 1MPBS instead */
 #endif /* FDC_500KBPS */
-#endif /* PC98 */
 
 /*
  * this is the secret PIO data port (offset from base)
