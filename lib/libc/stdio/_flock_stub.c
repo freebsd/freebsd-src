@@ -47,6 +47,9 @@
 #include <pthread.h>
 #include "un-namespace.h"
 
+#include "local.h"
+
+
 /*
  * Weak symbols for externally visible functions in this file:
  */
@@ -54,18 +57,6 @@
 #pragma weak	_flockfile_debug=_flockfile_debug_stub
 #pragma weak	ftrylockfile=_ftrylockfile
 #pragma weak	funlockfile=_funlockfile
-
-static int	init_lock(FILE *);
-
-/*
- * The FILE lock structure. The FILE *fp is locked when the mutex
- * is locked.
- */
-struct	__file_lock {
-	pthread_mutex_t	fl_mutex;
-	pthread_t	fl_owner;	/* current owner */
-	int		fl_count;	/* recursive lock count */
-};
 
 /*
  * We need to retain binary compatibility for a while.  So pretend
@@ -75,62 +66,23 @@ struct	__file_lock {
  * code that has to change in the future (just remove this comment
  * and #define).
  */
-#define _lock _extra->_mtlock
-
-/*
- * Allocate and initialize a file lock.
- */
-static int
-init_lock(FILE *fp)
-{
-	static pthread_mutex_t init_lock_mutex = PTHREAD_MUTEX_INITIALIZER;
-	struct __file_lock *p;
-	int	ret;
-
-	if ((p = malloc(sizeof(struct __file_lock))) == NULL)
-		ret = -1;
-	else {
-		p->fl_mutex = PTHREAD_MUTEX_INITIALIZER;
-		p->fl_owner = NULL;
-		p->fl_count = 0;
-		if (_pthread_mutex_lock(&init_lock_mutex) != 0) {
-			free(p);
-			return (-1);
-		}
-		if (fp->_lock != NULL) {	/* lost the race */
-			free(p);
-			_pthread_mutex_unlock(&init_lock_mutex);
-			return (0);
-		}
-		fp->_lock = p;
-		_pthread_mutex_unlock(&init_lock_mutex);
-		ret = 0;
-	}
-	return (ret);
-}
+#define _lock _extra
 
 void
 _flockfile(FILE *fp)
 {
 	pthread_t curthread = _pthread_self();
 
-	/*
-	 * Check if this is a real file with a valid lock, creating
-	 * the lock if needed:
-	 */
-	if ((fp->_file >= 0) &&
-	    ((fp->_lock != NULL) || (init_lock(fp) == 0))) {
-		if (fp->_lock->fl_owner == curthread)
-			fp->_lock->fl_count++;
-		else {
-			/*
-			 * Make sure this mutex is treated as a private
-			 * internal mutex:
-			 */
-			_pthread_mutex_lock(&fp->_lock->fl_mutex);
-			fp->_lock->fl_owner = curthread;
-			fp->_lock->fl_count = 1;
-		}
+	if (fp->_lock->fl_owner == curthread)
+		fp->_lock->fl_count++;
+	else {
+		/*
+		 * Make sure this mutex is treated as a private
+		 * internal mutex:
+		 */
+		_pthread_mutex_lock(&fp->_lock->fl_mutex);
+		fp->_lock->fl_owner = curthread;
+		fp->_lock->fl_count = 1;
 	}
 }
 
@@ -149,23 +101,15 @@ _ftrylockfile(FILE *fp)
 	pthread_t curthread = _pthread_self();
 	int	ret = 0;
 
+	if (fp->_lock->fl_owner == curthread)
+		fp->_lock->fl_count++;
 	/*
-	 * Check if this is a real file with a valid lock, creating
-	 * the lock if needed:
+	 * Make sure this mutex is treated as a private
+	 * internal mutex:
 	 */
-	if (((fp->_lock != NULL) || (init_lock(fp) == 0))) {
-		if (fp->_lock->fl_owner == curthread)
-			fp->_lock->fl_count++;
-		/*
-		 * Make sure this mutex is treated as a private
-		 * internal mutex:
-		 */
-		else if (_pthread_mutex_trylock(&fp->_lock->fl_mutex) == 0) {
-			fp->_lock->fl_owner = curthread;
-			fp->_lock->fl_count = 1;
-		}
-		else
-			ret = -1;
+	else if (_pthread_mutex_trylock(&fp->_lock->fl_mutex) == 0) {
+		fp->_lock->fl_owner = curthread;
+		fp->_lock->fl_count = 1;
 	}
 	else
 		ret = -1;
@@ -178,11 +122,9 @@ _funlockfile(FILE *fp)
 	pthread_t	curthread = _pthread_self();
 
 	/*
-	 * Check if this is a real file with a valid lock owned
-	 * by the current thread:
+	 * Check if this file is owned by the current thread:
 	 */
-	if ((fp->_lock != NULL) &&
-	    (fp->_lock->fl_owner == curthread)) {
+	if (fp->_lock->fl_owner == curthread) {
 		/*
 		 * Check if this thread has locked the FILE
 		 * more than once:
