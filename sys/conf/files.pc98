@@ -103,8 +103,6 @@ dev/ct/bshw_machdep.c		optional	ct
 dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa
 dev/ed/if_ed_cbus.c		optional	ed isa
-dev/em/if_em.c			optional	em
-dev/em/if_em_hw.c		optional	em
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	gdc
 dev/fb/splash.c			optional	splash
