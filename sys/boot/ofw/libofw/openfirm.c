@@ -898,7 +898,7 @@ OF_exit()
 }
 
 /* Free <size> bytes starting at <virt>, then call <entry> with <arg>. */
-#ifdef	__notyet__
+#if 0
 void
 OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 {
@@ -936,8 +936,10 @@ OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 	/*
 	 * This is a REALLY dirty hack till the firmware gets this going
 	 */
+#if 0
 	if (size > 0)
 		OF_release(virt, size);
+#endif
 
 	entry(0, 0, openfirmware, arg, len);
 }
