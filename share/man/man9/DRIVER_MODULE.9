@@ -35,9 +35,10 @@
 .Nm DRIVER_MODULE
 .Nd kernel driver declaration macro
 .Sh SYNOPSIS
-.Fd #include <sys/module.h>
+.Fd #include <sys/types.h>
 .Fd #include <sys/bus.h>
-.Fn DRIVER_MODULE "name" "busname" "driver_t driver" "devclass_t devclass" "modeventhand_t evh" "void *arg"
+.Fd #include <sys/module.h>
+.Fn DRIVER_MODULE name busname "driver_t driver" "devclass_t devclass" "modeventhand_t evh" "void *arg"
 .Sh DESCRIPTION
 The
 .Fn DRIVER_MODULE
@@ -66,9 +67,9 @@ which is a pretty clean way of making front ends for different cards
 using the same driver on the same or different busses.
 For example, the following is allowed:
 .Pp
-.Fn DRIVER_MODULE "foo" "isa" "foo_driver" "foo_devclass" "0" "0" ;
+.Fn DRIVER_MODULE foo isa foo_driver foo_devclass 0 0 ;
 .Pp
-.Fn DRIVER_MODULE "foo" "pci" "foo_driver" "foo_devclass" "0" "0" ;
+.Fn DRIVER_MODULE foo pci foo_driver foo_devclass 0 0 ;
 .Pp
 .Fa driver
 is the driver of type
