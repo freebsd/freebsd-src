@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
- * /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v 3.41 1993/11/27 18:44:37 kardel Exp
+ * /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp
  *
- * refclock_parse.c,v 3.41 1993/11/27 18:44:37 kardel Exp
+ * refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp
  *
  * generic reference clock driver for receivers
  *
@@ -10,7 +10,7 @@
  * available and configured. Currently the STREAMS module
  * is only available for Suns running SunOS 4.x and SunOS5.x (new - careful!)
  *
- * Copyright (c) 1989,1990,1991,1992,1993
+ * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *
  * This program is distributed in the hope that it will be useful,
@@ -29,6 +29,12 @@
  *                      backward compatibilty only)
  *  PPS		      - supply loopfilter with PPS samples (if configured)
  *  PPSPPS            - notify loopfilter of PPS file descriptor
+ *
+ * TTY defines:
+ *  HAVE_BSD_TTYS     - currently unsupported
+ *  HAVE_SYSV_TTYS    - will use termio.h
+ *  HAVE_TERMIOS      - will use termios.h
+ *  STREAM            - will use streams and implies HAVE_TERMIOS
  */
 
 /*
@@ -78,22 +84,28 @@
 #include <sys/errno.h>
 extern int errno;
 
-#if !defined(STREAM) && !defined(HAVE_SYSV_TTYS) && !defined(HAVE_BSD_TTYS)
+#if !defined(STREAM) && !defined(HAVE_SYSV_TTYS) && !defined(HAVE_BSD_TTYS) && !defined(HAVE_TERMIOS)
 /* #error NEED TO DEFINE ONE OF "STREAM" or "HAVE_SYSV_TTYS" */
-NEED TO DEFINE ONE OF "STREAM" or "HAVE_SYSV_TTYS"
+NEED TO DEFINE ONE OF "STREAM", "HAVE_SYSV_TTYS" or "HAVE_TERMIOS"
 #endif
 
 #ifdef STREAM
 #include <sys/stream.h>
 #include <sys/stropts.h>
-#include <sys/termios.h>
+#ifndef HAVE_TERMIOS
+#define HAVE_TERMIOS
+#endif
+#endif
+
+#ifdef HAVE_TERMIOS
+#include <termios.h>
 #define TTY_GETATTR(_FD_, _ARG_) tcgetattr((_FD_), (_ARG_))
 #define TTY_SETATTR(_FD_, _ARG_) tcsetattr((_FD_), TCSANOW, (_ARG_))
 #undef HAVE_SYSV_TTYS
 #endif
 
 #ifdef HAVE_SYSV_TTYS
-#include <sys/termio.h>
+#include <termio.h>
 #define TTY_GETATTR(_FD_, _ARG_) ioctl((_FD_), TCGETA, (_ARG_))
 #define TTY_SETATTR(_FD_, _ARG_) ioctl((_FD_), TCSETAW, (_ARG_))
 #endif
@@ -117,7 +129,7 @@ CURRENTLY NO BSD TTY SUPPORT
 #include "parse.h"
 
 #if !defined(NO_SCCSID) && !defined(lint) && !defined(__GNUC__)
-static char rcsid[]="refclock_parse.c,v 3.41 1993/11/27 18:44:37 kardel Exp";
+static char rcsid[]="refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp";
 #endif
 
 /**===========================================================================
@@ -231,6 +243,7 @@ struct parseunit
    * clock specific configuration
    */
   l_fp                basedelay;        /* clock local phase offset */
+  l_fp                ppsdelay;         /* clock local pps phase offset */
 
   /*
    * clock state handling/reporting
@@ -283,6 +296,7 @@ typedef struct poll_info
 #define NO_END		(void (*)())0
 #define NO_DATA		(void *)0
 #define NO_FORMAT	""
+#define NO_PPSDELAY     0
 
 #define DCF_ID		"DCF"	/* generic DCF */
 #define DCF_A_ID	"DCFa"	/* AM demodulation */
@@ -485,6 +499,7 @@ static struct clockinfo
   void   *cl_data;		/* local data area for "poll" mechanism */
   u_fp    cl_rootdelay;		/* rootdelay */
   U_LONG  cl_basedelay;		/* current offset - unsigned l_fp fractional part */
+  U_LONG  cl_ppsdelay;		/* current PPS offset - unsigned l_fp fractional part */
   char   *cl_id;		/* ID code (usually "DCF") */
   char   *cl_description;	/* device name */
   char   *cl_format;		/* fixed format */
@@ -504,6 +519,7 @@ static struct clockinfo
     NO_DATA,
     DCFPZF535_ROOTDELAY,
     DCFPZF535_BASEDELAY,
+    NO_PPSDELAY,
     DCF_P_ID,
     DCFPZF535_DESCRIPTION,
     NO_FORMAT,
@@ -522,6 +538,7 @@ static struct clockinfo
     NO_DATA,
     DCFPZF535OCXO_ROOTDELAY,
     DCFPZF535OCXO_BASEDELAY,
+    NO_PPSDELAY,
     DCF_P_ID,
     DCFPZF535OCXO_DESCRIPTION,
     NO_FORMAT,
@@ -540,6 +557,7 @@ static struct clockinfo
     NO_DATA,
     DCFUA31_ROOTDELAY,
     DCFUA31_BASEDELAY,
+    NO_PPSDELAY,
     DCF_A_ID,
     DCFUA31_DESCRIPTION,
     NO_FORMAT,
@@ -558,6 +576,7 @@ static struct clockinfo
     NO_DATA,
     DCF7000_ROOTDELAY,
     DCF7000_BASEDELAY,
+    NO_PPSDELAY,
     DCF_A_ID,
     DCF7000_DESCRIPTION,
     NO_FORMAT,
@@ -576,6 +595,7 @@ static struct clockinfo
     WSDCF_DATA,
     WSDCF_ROOTDELAY,
     WSDCF_BASEDELAY,
+    NO_PPSDELAY,
     DCF_A_ID,
     WSDCF_DESCRIPTION,
     WSDCF_FORMAT,
@@ -594,6 +614,7 @@ static struct clockinfo
     NO_DATA,
     RAWDCF_ROOTDELAY,
     CONRAD_BASEDELAY,
+    NO_PPSDELAY,
     DCF_A_ID,
     CONRAD_DESCRIPTION,
     RAWDCF_FORMAT,
@@ -612,6 +633,7 @@ static struct clockinfo
     NO_DATA,
     RAWDCF_ROOTDELAY,
     TIMEBRICK_BASEDELAY,
+    NO_PPSDELAY,
     DCF_A_ID,
     TIMEBRICK_DESCRIPTION,
     RAWDCF_FORMAT,
@@ -630,6 +652,7 @@ static struct clockinfo
     GPS166_DATA,
     GPS166_ROOTDELAY,
     GPS166_BASEDELAY,
+    NO_PPSDELAY,
     GPS166_ID,
     GPS166_DESCRIPTION,
     GPS166_FORMAT,
@@ -648,6 +671,7 @@ static struct clockinfo
     TRIMBLESV6_DATA,
     TRIMBLESV6_ROOTDELAY,
     TRIMBLESV6_BASEDELAY,
+    NO_PPSDELAY,
     TRIMBLESV6_ID,
     TRIMBLESV6_DESCRIPTION,
     TRIMBLESV6_FORMAT,
@@ -1055,7 +1079,9 @@ stream_receive(rbufp)
       parse_event(parse, CEVNT_BADREPLY);
       return;
     }
-  bcopy((caddr_t)&rbufp->recv_space, (caddr_t)&parsetime, sizeof(parsetime_t));
+  memmove((caddr_t)&parsetime,
+	  (caddr_t)&rbufp->recv_space,
+	  sizeof(parsetime_t));
 
   /*
    * switch time stamp world - be sure to normalize small usec field
@@ -1996,7 +2022,7 @@ cparse_statistics(peer)
 static void
 parse_init()
 {
-  bzero((caddr_t)parseunits, sizeof parseunits);
+  memset((caddr_t)parseunits, 0, sizeof parseunits);
 }
 
 
@@ -2075,7 +2101,7 @@ parse_start(sysunit, peer)
 {
   u_int unit;
   int fd232, i;
-#ifdef STREAM
+#ifdef HAVE_TERMIOS
   struct termios tm;		/* NEEDED FOR A LONG TIME ! */
 #endif
 #ifdef HAVE_SYSV_TTYS
@@ -2156,7 +2182,7 @@ parse_start(sysunit, peer)
 	}
     }
 
-  bzero((char *)parse, sizeof(struct parseunit));
+  memset((char *)parse, 0, sizeof(struct parseunit));
   parseunits[unit] = parse;
 
   /*
@@ -2186,12 +2212,15 @@ parse_start(sysunit, peer)
   parse->basedelay.l_ui = 0;	/* we can only pre-configure delays less than 1 second */
   parse->basedelay.l_uf = parse->parse_type->cl_basedelay;
 
+  parse->ppsdelay.l_ui  = 0;	/* we can only pre-configure delays less than 1 second */
+  parse->ppsdelay.l_uf  = parse->parse_type->cl_ppsdelay;
+
   peer->rootdelay       = parse->parse_type->cl_rootdelay;
   peer->sstclktype      = parse->parse_type->cl_type;
   peer->precision       = sys_precision;
   peer->stratum         = STRATUM_REFCLOCK;
   if (peer->stratum <= 1)
-    bcopy(parse->parse_type->cl_id, (char *)&peer->refid, 4);
+    memmove((char *)&peer->refid, parse->parse_type->cl_id, 4);
   else
     peer->refid = htonl(PARSEHSREFID);
 	
@@ -2220,7 +2249,7 @@ parse_start(sysunit, peer)
   else
     {
 #ifndef _PC_VDISABLE
-      bzero((char *)tm.c_cc, sizeof(tm.c_cc));
+      memset((char *)tm.c_cc, 0, sizeof(tm.c_cc));
 #else
       int disablec;
       errno = 0;	/* pathconf can deliver -1 without changing errno ! */
@@ -2542,6 +2571,7 @@ parse_control(unit, in, out)
       out->badformat     = out->baddata    = 0;
       out->timereset     = 0;
       out->currentstatus = out->lastevent = CEVNT_NOMINAL;
+      out->kv_list       = (struct ctl_var *)0;
     }
 
   if (unit >= MAXUNITS)
@@ -2567,14 +2597,16 @@ parse_control(unit, in, out)
 
       if (in->haveflags & CLK_HAVETIME2)
 	{
-	  /* not USED */
+	  parse->ppsdelay = in->fudgetime2;
 	}
 
       if (in->haveflags & CLK_HAVEVAL1)
 	{
 	  parse->peer->stratum = (u_char)(in->fudgeval1 & 0xf);
 	  if (parse->peer->stratum <= 1)
-		bcopy(parse->parse_type->cl_id, (char *)&parse->peer->refid, 4);
+		memmove((char *)&parse->peer->refid,
+			parse->parse_type->cl_id, 
+			4);
 	      else
 		parse->peer->refid = htonl(PARSEHSREFID);
 	}
@@ -2607,19 +2639,21 @@ parse_control(unit, in, out)
   if (out)
     {
       register unsigned LONG sum = 0;
-      register char *t;
+      register char *t, *tt;
       register struct tm *tm;
       register short utcoff;
       register char sign;
       register int i;
       time_t tim;
 
-      out->haveflags = CLK_HAVETIME1|CLK_HAVEVAL1|CLK_HAVEFLAG1|CLK_HAVEFLAG2|CLK_HAVEFLAG3;
+      outstatus[0] = '\0';
+
+      out->haveflags = CLK_HAVETIME1|CLK_HAVETIME2|CLK_HAVEVAL1|CLK_HAVEFLAG1|CLK_HAVEFLAG2|CLK_HAVEFLAG3;
       out->clockdesc = parse->parse_type->cl_description;
 
       out->fudgetime1 = parse->basedelay;
 
-      L_CLR(&out->fudgetime2);
+      out->fudgetime2 = parse->ppsdelay;
 
       out->fudgeval1 = (LONG)parse->peer->stratum;
 
@@ -2645,10 +2679,16 @@ parse_control(unit, in, out)
 		*/
 	       off = parse->time.parse_stime.fp;
 	       L_SUB(&off, &parse->time.parse_ptime.fp); /* true offset */
-	       out->fudgetime2 = off;
-	       out->haveflags |= CLK_HAVETIME2;
+	       tt = add_var(&out->kv_list, 40, RO);
+	       sprintf(tt, "refclock_ppsskew=%s", lfptoms(&off, 6));
 	     }
 	 }
+
+      if (PARSE_PPS(parse->time.parse_state))
+	{
+	  tt = add_var(&out->kv_list, 80, RO|DEF);
+	  sprintf(tt, "refclock_ppstime=\"%s\"", prettydate(&parse->time.parse_ptime.fp));
+	}
 
       /*
        * all this for just finding out the +-xxxx part (there are always
@@ -2674,17 +2714,20 @@ parse_control(unit, in, out)
 	  sign = '+';
 	}
 
-      tim = parse->time.parse_time.fp.l_ui - JAN_1970;
-      strcpy(outstatus, ctime(&tim));
-      t = strrchr(outstatus, '\n');
-      if (!t)
+      tt = add_var(&out->kv_list, 128, RO|DEF);
+      sprintf(tt, "refclock_time=\"");
+      tt += strlen(tt);
+
+      if (parse->time.parse_time.fp.l_ui == 0)
 	{
-	  t = outstatus + strlen(outstatus);
-    	}
+	  strcpy(tt, "<UNDEFINED>\"");
+	}
       else
 	{
-	  sprintf(t, " %c%02d%02d", sign, utcoff / 60, utcoff % 60);
-	  t += strlen(t);
+	  strcpy(tt, prettydate(&parse->time.parse_time.fp));
+	  t = tt + strlen(tt);
+	  
+	  sprintf(t, " (%c%02d%02d)\"", sign, utcoff / 60, utcoff % 60);
 	}
 
       if (!PARSE_GETTIMECODE(parse, &tmpctl))
@@ -2693,27 +2736,24 @@ parse_control(unit, in, out)
 	}
       else
 	{
+	  tt = add_var(&out->kv_list, 128, RO|DEF);
+	  sprintf(tt, "refclock_status=\"");
+	  tt += strlen(tt);
+
 	  /*
 	   * copy PPS flags from last read transaction (informational only)
 	   */
 	  tmpctl.parsegettc.parse_state |= parse->time.parse_state &
 					   (PARSEB_PPS|PARSEB_S_PPS);
 
-	  if (t)
-	    {
-	      *t = ' ';
-	      (void) parsestate(tmpctl.parsegettc.parse_state, t+1);
-	    }
-	  else
-	    {
-	      strcat(outstatus, " ");
-	      (void) parsestate(tmpctl.parsegettc.parse_state, outstatus + strlen(outstatus));
-	    }
-	  strcat(outstatus," <");
+	  (void) parsestate(tmpctl.parsegettc.parse_state, tt);
+
+	  strcat(tt, "\"");
+
 	  if (tmpctl.parsegettc.parse_count)
-	    mkascii(outstatus+strlen(outstatus), sizeof(outstatus) - strlen(outstatus) - 1,
+	    mkascii(outstatus+strlen(outstatus), sizeof(outstatus)- strlen(outstatus) - 1,
 		    tmpctl.parsegettc.parse_buffer, tmpctl.parsegettc.parse_count - 1);
-	  strcat(outstatus,">");
+
 	  parse->badformat += tmpctl.parsegettc.parse_badformat;
 	}
 	
@@ -2725,16 +2765,20 @@ parse_control(unit, in, out)
 	}
       else
 	{
-	  strcat(outstatus," (");
-	  strncat(outstatus, tmpctl.parseformat.parse_buffer, tmpctl.parseformat.parse_count);
-	  strcat(outstatus,")");
+	  tt = add_var(&out->kv_list, 80, RO|DEF);
+	  sprintf(tt, "refclock_format=\"");
+
+	  strncat(tt, tmpctl.parseformat.parse_buffer, tmpctl.parseformat.parse_count);
+	  strcat(tt,"\"");
 	}
 
       /*
        * gather state statistics
        */
 
-      t = outstatus + strlen(outstatus);
+      tt = add_var(&out->kv_list, 200, RO|DEF);
+      strcpy(tt, "refclock_states=\"");
+      tt += strlen(tt);
 
       for (i = 0; i <= CEVNT_MAX; i++)
 	{
@@ -2757,18 +2801,27 @@ parse_control(unit, in, out)
 
 	  if (stime)
 	    {
-	      sprintf(t, "%s%s%s: %s (%d.%02d%%)",
-		      sum ? "; " : " [",
+	      sprintf(tt, "%s%s%s: %s (%d.%02d%%)",
+		      sum ? "; " : "",
                       (parse->status == i) ? "*" : "",
 		      clockstatus(i),
 		      l_mktime(stime),
 		      percent / 100, percent % 100);
 	      sum += stime;
-	      t   += strlen(t);
+	      tt  += strlen(tt);
 	    }
 	}
 
-      sprintf(t, "; running time: %s]", l_mktime(sum));
+      sprintf(tt, "; running time: %s\"", l_mktime(sum));
+
+      tt = add_var(&out->kv_list, 32, RO);
+      sprintf(tt, "refclock_id=\"%s\"", parse->parse_type->cl_id);
+
+      tt = add_var(&out->kv_list, 80, RO);
+      sprintf(tt, "refclock_iomode=\"%s\"", parse->binding->bd_description);
+
+      tt = add_var(&out->kv_list, 128, RO);
+      sprintf(tt, "refclock_driver_version=\"refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp\"");
 
       out->lencode       = strlen(outstatus);
       out->lastcode      = outstatus;
@@ -3074,6 +3127,8 @@ parse_process(parse, parsetime)
        */
       offset = parsetime->parse_ptime.fp;
 
+      L_ADD(&offset, &parse->ppsdelay);
+
       if (PARSE_TIMECODE(parsetime->parse_state))
 	{
 	  if (M_ISGEQ(off.l_i, off.l_f, -1, 0x80000000) &&
@@ -3136,7 +3191,7 @@ parse_process(parse, parsetime)
     }
 
 
-#if defined(PPS) || defined(PPSCLK) || defined(PPSPPS)
+#if defined(PPS) || defined(PPSCLK) || defined(PPSPPS) || defined(PARSEPPS)
   if (CL_PPS(parse->unit) && !parse->pollonly && PARSE_SYNC(parsetime->parse_state))
     {
       /*
@@ -3150,7 +3205,7 @@ parse_process(parse, parsetime)
 #endif
 	(void) pps_sample(&off);
     }
-#endif /* PPS || PPSCLK || PPSPPS */
+#endif /* PPS || PPSCLK || PPSPPS || PARSEPPS */
 
   /*
    * ready, unless the machine wants a sample
@@ -3267,7 +3322,7 @@ poll_init(parse)
   if (((poll_info_t *)parse->parse_type->cl_data)->rate)
     {
       parse->localdata = (void *)malloc(sizeof(poll_timer_t));
-      bzero((char *)parse->localdata, sizeof(poll_timer_t));
+      memset((char *)parse->localdata, 0, sizeof(poll_timer_t));
   
       pt = (poll_timer_t *)parse->localdata;
       
@@ -3309,7 +3364,7 @@ static int
 trimble_init(parse)
   struct parseunit *parse;
 {
-#ifdef STREAM
+#ifdef HAVE_TERMIOS
   struct termios tm;
 #endif
 #ifdef HAVE_SYSV_TTYS
@@ -3341,6 +3396,18 @@ trimble_init(parse)
  * History:
  *
  * refclock_parse.c,v
+ * Revision 3.45  1994/01/25  19:06:27  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.44  1994/01/25  17:32:23  kardel
+ * settable extended variables
+ *
+ * Revision 3.43  1994/01/23  16:28:39  kardel
+ * HAVE_TERMIOS introduced
+ *
+ * Revision 3.42  1994/01/22  11:35:04  kardel
+ * added HAVE_TERMIOS
+ *
  * Revision 3.41  1993/11/27  18:44:37  kardel
  * can't trust GPS166 on unsync
  *

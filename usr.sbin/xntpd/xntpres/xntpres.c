@@ -148,7 +148,7 @@ main(argc, argv)
 	int errflg = 0;
 	char *cp;
 	FILE *in;
-	extern int optind;
+	extern int ntp_optind;
 
 	progname = argv[0];
 
@@ -180,7 +180,7 @@ main(argc, argv)
 
 	syslog(LOG_NOTICE, Version);
 
-	while ((c = getopt_l(argc, argv, "dr")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "dr")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
@@ -192,20 +192,20 @@ main(argc, argv)
 			errflg++;
 			break;
 		}
-	if (errflg || (optind + 3) != argc) {
+	if (errflg || (ntp_optind + 3) != argc) {
 		(void) fprintf(stderr,
 		    "usage: %s [-d] [-r] keyid keyfile conffile\n", progname);
 		syslog(LOG_ERR, "exiting due to usage error");
 		exit(2);
 	}
 
-	if (!atouint(argv[optind], &req_keyid)) {
-		syslog(LOG_ERR, "undecodeable keyid %s", argv[optind]);
+	if (!atouint(argv[ntp_optind], &req_keyid)) {
+		syslog(LOG_ERR, "undecodeable keyid %s", argv[ntp_optind]);
 		exit(1);
 	}
 
-	keyfile = argv[optind+1];
-	conffile = argv[optind+2];
+	keyfile = argv[ntp_optind+1];
+	conffile = argv[ntp_optind+2];
 
 	/*
 	 * Make sure we have the key we need
@@ -353,7 +353,7 @@ addentry(name, mode, version, minpoll, maxpoll, flags, keyid)
 
 	len = strlen(name) + 1;
 	cp = emalloc((unsigned)len);
-	bcopy(name, cp, len);
+	memmove(cp, name, len);
 
 	ce = (struct conf_entry *)emalloc(sizeof(struct conf_entry));
 	ce->ce_name = cp;
@@ -408,7 +408,7 @@ findhostaddr(entry)
 		if (h_errno == TRY_AGAIN)
 			return 1;
 #endif
-		return 0;
+		return (0);
 	}
 
 	/*
@@ -416,9 +416,10 @@ findhostaddr(entry)
 	 * tell preferences and older gethostbyname() implementations
 	 * only return one.
 	 */
-	(void) bcopy(hp->h_addr, (char *)&(entry->ce_peeraddr),
-	    sizeof(struct in_addr));
-	return 1;
+	memmove((char *)&(entry->ce_peeraddr),
+		hp->h_addr,
+		sizeof(struct in_addr));
+	return (1);
 }
 
 
@@ -439,7 +440,7 @@ openntp()
 		exit(1);
 	}
 
-	bzero((char *)&saddr, sizeof(saddr));
+	memset((char *)&saddr, 0, sizeof(saddr));
 	saddr.sin_family = AF_INET;
 	saddr.sin_port = htons(NTP_PORT);		/* trash */
 	saddr.sin_addr.s_addr = htonl(LOCALHOST);	/* garbage */
@@ -499,7 +500,7 @@ request(conf)
 	/*
 	 * Make up a request packet with the configuration info
 	 */
-	bzero((char *)&reqpkt, sizeof(reqpkt));
+	memset((char *)&reqpkt, 0, sizeof(reqpkt));
 
 	reqpkt.rm_vn_mode = RM_VN_MODE(0, 0);
 	reqpkt.auth_seq = AUTH_SEQ(1, 0);	/* authenticated, no seq */
@@ -507,7 +508,7 @@ request(conf)
 	reqpkt.request = REQ_CONFIG;		/* configure a new peer */
 	reqpkt.err_nitems = ERR_NITEMS(0, 1);	/* one item */
 	reqpkt.mbz_itemsize = MBZ_ITEMSIZE(sizeof(struct conf_peer));
-	bcopy((char *)conf, reqpkt.data, sizeof(struct conf_peer));
+	memmove(reqpkt.data, (char *)conf, sizeof(struct conf_peer));
 	reqpkt.keyid = htonl(req_keyid);
 
 	auth1crypt(req_keyid, (U_LONG *)&reqpkt, REQ_LEN_NOMAC);

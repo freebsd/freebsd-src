@@ -1,18 +1,21 @@
-/* tty_chu_STREAMS.c,v 3.1 1993/07/06 01:07:32 jbj Exp
- * CHU STREAMS module for SunOS 4.1.x
+/*
+ * CHU STREAMS module for SunOS
  *
- * Version 2.1
+ * Version 2.3
  *
- * Copyright 1991-1993, Nick Sayer
+ * Copyright 1991-1994, Nick Sayer
  *
  * Special thanks to Greg Onufer for his debug assists.
- * Special thanks to Matthias Urlichs for the loadable driver support
+ * Special thanks to Matthias Urlichs for the 4.1.x loadable driver support
  *   code.
+ * Special wet-noodle whippings to Sun for not properly documenting
+ *   ANYTHING that makes this stuff at all possible.
  *
  * Should be PUSHed directly on top of a serial I/O channel.
  * Provides complete chucode structures to user space.
  *
  * COMPILATION:
+ *
  *
  * To make a SunOS 4.1.x compatable loadable module (from the ntp kernel
  * directory):
@@ -20,18 +23,32 @@
  * % cc -c -I../include -DLOADABLE tty_chu_STREAMS.c
  *
  * The resulting .o file is the loadable module. Modload it
- * with -entry _chuinit.
+ * thusly:
  *
- * You can also add it into the kernel by hacking it into the streams
- * table in the kernel, then adding it to config:
+ * % modload tty_chu_STREAMS.o -entry _chuinit
  *
- * pseudo-device    chuN
+ * When none of the instances are pushed in a STREAM, you can
+ * modunload the driver in the usual manner if you wish.
  *
- * where N is the maximum number of concurent chu sessions you expect
- * to have.
+ * As an alternative to loading it dynamically you can compile it
+ * directly into the kernel by hacking str_conf.c. See the README
+ * file for more details on doing it the old fashioned way.
+ *
+ *
+ * To make a Solaris 2.x compatable module (from the ntp kernel
+ * directory):
+ *
+ * % {gcc,cc} -c -I../include -DSOLARIS2 tty_chu_STREAMS.c
+ * % ld -r -o /usr/kernel/strmod/chu tty_chu_STREAMS.o
+ * % chmod 755 /usr/kernel/strmod/chu
+ *
+ * The OS will load it for you automagically when it is first pushed.
+ *
  *
  * HISTORY:
  *
+ * v2.3 - Added support for Solaris 2.x.
+ * v2.2 - Added SERVICE IMMEDIATE hack.
  * v2.1 - Added 'sixth byte' heuristics.
  * v2.0 - first version with an actual version number.
  *        Added support for new CHU 'second 31' data format.
@@ -39,13 +56,18 @@
  *
  */
 
-#ifndef LOADABLE
-# include "chu.h"
-#else
+#ifdef SOLARIS2
+# ifndef NCHU
+#  define NCHU 3
+#  define _KERNEL
+#  endif
+#elif defined(LOADABLE)
 # ifndef NCHU
 #  define NCHU 3
 #  define KERNEL
 # endif
+#else
+# include "chu.h"
 #endif
 
 #if NCHU > 0
@@ -61,11 +83,34 @@
 #include <sys/stream.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/errno.h>
 #include <sys/user.h>
+#include <syslog.h>
+#include <sys/tty.h>
 
 #include <sys/chudefs.h>
+
+#ifdef SOLARIS2
+
+#include <sys/conf.h>
+#include <sys/strtty.h>
+#include <sys/modctl.h>
+#include <sys/ddi.h>
+#include <sys/sunddi.h>
+
+#endif
+
+#ifdef LOADABLE
+
+#include <sys/kernel.h>
+#include <sys/conf.h>
+#include <sys/buf.h>
+#include <sundev/mbvar.h>
+#include <sun/autoconf.h>
+#include <sun/vddrv.h>
+
+#endif
+
 
 static struct module_info rminfo = { 0, "chu", 0, INFPSZ, 0, 0 };
 static struct module_info wminfo = { 0, "chu", 0, INFPSZ, 0, 0 };
@@ -88,14 +133,67 @@ struct priv_data
   struct chucode chu_struct;
 } our_priv_data[NCHU];
 
+#ifdef SOLARIS2
+
+static struct fmodsw fsw =
+{
+  "chu",
+  &chuinfo,
+  D_NEW
+};
+
+extern struct mod_ops mod_strmodops;
+
+static struct modlstrmod modlstrmod =
+{
+  &mod_strmodops,
+  "CHU timecode decoder v2.3",
+  &fsw
+};
+
+static struct modlinkage modlinkage =
+{
+  MODREV_1,
+  (void*) &modlstrmod,
+  NULL
+};
+
+int _init()
+{
+  int i;
+
+  for (i=0; i<NCHU; i++)
+    our_priv_data[i].in_use=0;
+
+  return mod_install(&modlinkage);
+}
+
+int _info(foo)
+struct modinfo *foo;
+{
+  return mod_info(&modlinkage,foo);
+}
+
+int _fini()
+{
+  int dev;
+
+  for (dev = 0; dev < NCHU; dev++)
+    if (our_priv_data[dev].in_use)
+    {
+      /* One of the modules is still open */
+      /* This is likely supposed to be impossible under Solaris 2.x */
+      return (EBUSY);
+    }
+  
+  return mod_remove(&modlinkage);
+}
+
+#endif /* SOLARIS2 */
+
 #ifdef LOADABLE
 
-#ifdef sun
-#include <sys/conf.h>
-#include <sys/buf.h>
-#include <sundev/mbvar.h>
-#include <sun/autoconf.h>
-#include <sun/vddrv.h>
+# ifdef sun
 
 static struct vdldrv vd =
 {
@@ -163,9 +261,11 @@ chuinit (fc, vdp, vdi, vds)
     }
 }
 
-#endif
+# endif /* sun */
 
-#else
+#endif /* LOADABLE */
+
+#if !defined(LOADABLE) && !defined(SOLARIS2)
 
 char chu_first_open=1;
 
@@ -180,7 +280,7 @@ int sflag;
 {
   int i;
 
-#ifndef LOADABLE
+#if !defined(LOADABLE) && !defined(SOLARIS2)
   if (chu_first_open)
   {
     chu_first_open=0;
@@ -196,11 +296,25 @@ int sflag;
       ((struct priv_data *) (q->q_ptr))=&(our_priv_data[i]);
       our_priv_data[i].in_use++;
       our_priv_data[i].chu_struct.ncodechars = 0;
+      if (!putctl1(WR(q)->q_next, M_CTL, MC_SERVICEIMM))
+      {
+        our_priv_data[i].in_use=0;
+#ifdef SOLARIS2
+	return (EFAULT);
+#else
+        u.u_error = EFAULT;
+	return (OPENFAIL);
+#endif
+      }
       return 0;
     }
 
+#ifdef SOLARIS2
+  return (EBUSY);
+#else
   u.u_error = EBUSY;
   return (OPENFAIL);
+#endif
 
 }
 
@@ -282,7 +396,12 @@ queue_t *q;
 
   if (mp==NULL)
   {
+#ifdef SOLARIS2
+  /* XXX we can't log it because strlog() is too complicated. This isn't
+  supposed to happen anyway. The hell with it. */
+#else
     log(LOG_ERR,"chu: cannot allocate message");
+#endif
     return;
   }
 
@@ -441,4 +560,4 @@ queue_t *q;
   }
 }
 
-#endif
+#endif /* NCHU > 0 */

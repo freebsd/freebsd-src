@@ -379,8 +379,8 @@ static void msfees_init()
 {
 	register int i;
 	/* Just zero the data arrays */
-	bzero((char *)eesunits, sizeof eesunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)eesunits, 0, sizeof eesunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	acceptable_slop.l_ui = 0;
 	acceptable_slop.l_uf = 1 << (FRACTION_PREC -2);
@@ -506,7 +506,7 @@ static int msfees_start(unit, peer)
 		}			/* no spare -- make a new one */
 		else ees = (struct eesunit *) emalloc(sizeof(struct eesunit));
 	}
-	bzero((char *)ees, sizeof(struct eesunit));
+	memset((char *)ees, 0, sizeof(struct eesunit));
 	eesunits[unit] = ees;
 
 	/* Set up the structures */
@@ -547,8 +547,7 @@ static int msfees_start(unit, peer)
 	/* Add the clock */
 	if (!io_addclock(&ees->io)) {
 		/* Oh shit.  Just close and return. */
-		syslog(LOG_ERR, "ees clock: io_addclock(%s): %m",
-			eesdev);
+		syslog(LOG_ERR, "ees clock: io_addclock(%s): %m", eesdev);
 		goto screwed;
 	}
 
@@ -559,18 +558,21 @@ static int msfees_start(unit, peer)
 	peer->stratum	= stratumtouse[unit];
 	peer->rootdelay	= 0;	/* ++++ */
 	peer->rootdispersion = 0;	/* ++++ */
-	if (stratumtouse[unit] <= 1)
-	{	bcopy(EESREFID, (char *)&peer->refid, 4);
-		if (unit>0 && unit<10) ((char *)&peer->refid)[3] = '0' + unit;
+	if (stratumtouse[unit] <= 1) {
+		memmove((char *)&peer->refid, EESREFID, 4);
+		if (unit > 0 && unit < 10)
+			((char *)&peer->refid)[3] = '0' + unit;
+	} else {
+		peer->refid = htonl(EESHSREFID);
 	}
-	else	peer->refid = htonl(EESHSREFID);
 	unitinuse[unit] = 1;
 	syslog(LOG_ERR, "ees clock: %s OK on %d", eesdev, unit);
-	return 1;
+	return (1);
 
 screwed:
-	if (fd232 != -1) (void) close(fd232);
-	return 0;
+	if (fd232 != -1)
+		(void) close(fd232);
+	return (0);
 }
 
 
@@ -859,7 +861,7 @@ static void ees_receive(rbufp)
 	/* Number of seconds since the last step */
 	sincelast = this_uisec - ees->last_step;
 
-	bzero(&ppsclockev, sizeof ppsclockev);
+	memset(&ppsclockev, 0, sizeof ppsclockev);
 
 	rc = ioctl(ees->io.fd, CIOGETEV, (char *) &ppsclockev);
 	if (debug & DB_PRINT_EV) fprintf(stderr,
@@ -1443,8 +1445,8 @@ static void msfees_control(unit, in, out)
 				struct peer *peer = ees->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1) {
-					bcopy(EESREFID, (char *)&peer->refid,
-					    4);
+					memmove((char *)&peer->refid,
+						EESREFID, 4);
 					if (unit>0 && unit<10)
 						((char *)&peer->refid)[3] =
 							'0' + unit;

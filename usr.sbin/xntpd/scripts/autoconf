@@ -323,8 +323,8 @@ err=`eval "($CPP \$DEFS conftest.c >/dev/null) 2>&1"`
 if test -z "$err"; then
   {
 test -n "$verbose" && \
-echo '	defining' HAVE_UNISTD_H
-DEFS="$DEFS -DHAVE_UNISTD_H=1"
+echo '	defining' NTP_POSIX_SOURCE
+DEFS="$DEFS -DNTP_POSIX_SOURCE=1"
 }
 
 fi

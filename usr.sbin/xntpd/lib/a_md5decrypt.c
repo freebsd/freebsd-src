@@ -54,5 +54,7 @@ MD5authdecrypt(keyno, pkt, length)
     MD5Update(&ctx, (char *)pkt, length);
     MD5Final(&ctx);
 
-    return (0 == bcmp((char *)ctx.digest, (char *)pkt + length + 4, BLOCK_OCTETS));
+    return (!memcmp((char *)ctx.digest,
+		    (char *)pkt + length + 4,
+		    BLOCK_OCTETS));
 }

@@ -169,8 +169,8 @@ irig_init()
 	/*
          * Just zero the data arrays
          */
-	bzero((char *) irigunits, sizeof irigunits);
-	bzero((char *) unitinuse, sizeof unitinuse);
+	memset((char *) irigunits, 0, sizeof irigunits);
+	memset((char *) unitinuse, 0, sizeof unitinuse);
 
 	/*
          * Initialize fudge factors to default.
@@ -250,7 +250,7 @@ struct peer *peer;
 			    emalloc(sizeof(struct irigunit));
 		}
 	}
-	bzero((char *) irig, sizeof(struct irigunit));
+	memset((char *) irig, 0, sizeof(struct irigunit));
 
 	irigunits[unit] = irig;
 
@@ -276,7 +276,7 @@ struct peer *peer;
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-		bcopy(IRIGREFID, (char *) &peer->refid, 4);
+		memmove((char *) &peer->refid, IRIGREFID, 4);
 	else
 		peer->refid = htonl(IRIGHSREFID);
 	unitinuse[unit] = 1;
@@ -485,8 +485,8 @@ irig_control(unit, in, out)
 				peer = irig->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1)
-					bcopy(IRIGREFID, (char *) &peer->refid,
-					    4);
+					memmove((char *) &peer->refid,
+						IRIGREFID, 4);
 				else
 					peer->refid = htonl(IRIGHSREFID);
 			}

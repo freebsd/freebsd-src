@@ -294,7 +294,7 @@ addentry(name, mode, version, minpoll, maxpoll, flags, keyid)
 
 	len = strlen(name) + 1;
 	cp = emalloc((unsigned)len);
-	bcopy(name, cp, len);
+	memmove(cp, name, len);
 
 	ce = (struct conf_entry *)emalloc(sizeof(struct conf_entry));
 	ce->ce_name = cp;
@@ -347,9 +347,9 @@ findhostaddr(entry)
 		extern int h_errno;
 
 		if (h_errno == TRY_AGAIN)
-			return 1;
+			return (1);
 #endif
-		return 0;
+		return (0);
 	}
 
 	/*
@@ -357,9 +357,10 @@ findhostaddr(entry)
 	 * tell preferences and older gethostbyname() implementations
 	 * only return one.
 	 */
-	(void) bcopy(hp->h_addr, (char *)&(entry->ce_peeraddr),
-	    sizeof(struct in_addr));
-	return 1;
+	memmove((char *)&(entry->ce_peeraddr),
+		(char *)hp->h_addr,
+		sizeof(struct in_addr));
+	return (1);
 }
 
 
@@ -380,7 +381,7 @@ openntp()
 		exit(1);
 	}
 
-	bzero((char *)&saddr, sizeof(saddr));
+	memset((char *)&saddr, 0, sizeof(saddr));
 	saddr.sin_family = AF_INET;
 	saddr.sin_port = htons(NTP_PORT);		/* trash */
 	saddr.sin_addr.s_addr = htonl(LOCALHOST);	/* garbage */
@@ -448,7 +449,7 @@ request(conf)
 	/*
 	 * Make up a request packet with the configuration info
 	 */
-	bzero((char *)&reqpkt, sizeof(reqpkt));
+	memset((char *)&reqpkt, 0, sizeof(reqpkt));
 
 	reqpkt.rm_vn_mode = RM_VN_MODE(0, 0);
 	reqpkt.auth_seq = AUTH_SEQ(1, 0);	/* authenticated, no seq */
@@ -456,7 +457,7 @@ request(conf)
 	reqpkt.request = REQ_CONFIG;		/* configure a new peer */
 	reqpkt.err_nitems = ERR_NITEMS(0, 1);	/* one item */
 	reqpkt.mbz_itemsize = MBZ_ITEMSIZE(sizeof(struct conf_peer));
-	bcopy((char *)conf, reqpkt.data, sizeof(struct conf_peer));
+	memmove(reqpkt.data, (char *)conf, sizeof(struct conf_peer));
 	reqpkt.keyid = htonl(req_keyid);
 
 	auth1crypt(req_keyid, (U_LONG *)&reqpkt, REQ_LEN_NOMAC);

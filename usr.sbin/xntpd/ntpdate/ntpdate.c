@@ -167,8 +167,8 @@ main(argc, argv)
 	l_fp tmp;
 	int errflg;
 	int c;
-	extern char *optarg;
-	extern int optind;
+	extern char *ntp_optarg;
+	extern int ntp_optind;
 	extern char *Version;
 
 	errflg = 0;
@@ -178,10 +178,10 @@ main(argc, argv)
 	/*
 	 * Decode argument list
 	 */
-	while ((c = getopt_l(argc, argv, "a:bde:k:o:p:qst:v")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "a:bde:k:o:p:qst:v")) != EOF)
 		switch (c) {
 		case 'a':
-			c = atoi(optarg);
+			c = atoi(ntp_optarg);
 			sys_authenticate = 1;
 			sys_authkey = (U_LONG)c;
 			break;
@@ -192,24 +192,24 @@ main(argc, argv)
 			++debug;
 			break;
 		case 'e':
-			if (!atolfp(optarg, &tmp)
+			if (!atolfp(ntp_optarg, &tmp)
 			    || tmp.l_ui != 0) {
 				(void) fprintf(stderr,
 				    "%s: encryption delay %s is unlikely\n",
-				    progname, optarg);
+				    progname, ntp_optarg);
 				errflg++;
 			} else {
 				sys_authdelay = tmp.l_uf;
 			}
 			break;
 		case 'k':
-			key_file = optarg;
+			key_file = ntp_optarg;
 			break;
 		case 'o':
-			sys_version = atoi(optarg);
+			sys_version = atoi(ntp_optarg);
 			break;
 		case 'p':
-			c = atoi(optarg);
+			c = atoi(ntp_optarg);
 			if (c <= 0 || c > NTP_SHIFT) {
 				(void) fprintf(stderr,
 				    "%s: number of samples (%d) is invalid\n",
@@ -226,10 +226,10 @@ main(argc, argv)
 			syslogit = 1;
 			break;
 		case 't':
-			if (!atolfp(optarg, &tmp)) {
+			if (!atolfp(ntp_optarg, &tmp)) {
 				(void) fprintf(stderr,
 				    "%s: timeout %s is undecodeable\n",
-				    progname, optarg);
+				    progname, ntp_optarg);
 				errflg++;
 			} else {
 				sys_timeout = ((LFPTOFP(&tmp) * TIMER_HZ)
@@ -248,7 +248,7 @@ main(argc, argv)
 			break;
 		}
 	
-	sys_maxservers = argc - optind;
+	sys_maxservers = argc - ntp_optind;
 	if (errflg || sys_maxservers == 0) {
 		(void) fprintf(stderr,
 "usage: %s [-bqs] [-a key#] [-k file] [-p samples] [-t timeo] server ...\n",
@@ -293,8 +293,8 @@ main(argc, argv)
 	/*
 	 * Add servers we are going to be polling
 	 */
-	for ( ; optind < argc; optind++)
-		addserver(argv[optind]);
+	for ( ; ntp_optind < argc; ntp_optind++)
+		addserver(argv[ntp_optind]);
 
 	if (sys_numservers == 0) {
 		syslog(LOG_ERR, "no servers can be used, exiting");
@@ -520,16 +520,8 @@ receive(rbufp)
 	}
 
 	rpkt = &(rbufp->recv_pkt);
-	if (PKT_VERSION(rpkt->li_vn_mode) == NTP_OLDVERSION) {
-#ifdef notdef
-		/*
-		 * Fuzzballs do encryption but still claim
-		 * to be version 1.
-		 */
-		if (has_mac)
-			return;
-#endif
-	} else if (PKT_VERSION(rpkt->li_vn_mode) != NTP_VERSION) {
+	if (PKT_VERSION(rpkt->li_vn_mode) < NTP_OLDVERSION ||
+	    PKT_VERSION(rpkt->li_vn_mode) > NTP_VERSION) {
 		return;
 	}
 
@@ -1038,7 +1030,7 @@ addserver(serv)
 	}
 
 	server = (struct server *)emalloc(sizeof(struct server));
-	bzero((char *)server, sizeof(struct server));
+	memset((char *)server, 0, sizeof(struct server));
 
 	server->srcadr.sin_family = AF_INET;
 	server->srcadr.sin_addr.s_addr = netnum;
@@ -1196,7 +1188,7 @@ init_io()
 	if (!debug && !simple_query) {
 		struct sockaddr_in addr;
 
-		bzero((char *)&addr, sizeof addr);
+		memset((char *)&addr, 0, sizeof addr);
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(NTP_PORT);
 		addr.sin_addr.s_addr = INADDR_ANY;
@@ -1490,10 +1482,10 @@ getnetnum(host, num)
 	if (decodenetnum(host, num)) {
 		return 1;
 	} else if ((hp = gethostbyname(host)) != 0) {
-		bcopy(hp->h_addr, (char *)num, sizeof(U_LONG));
-		return 1;
+		memmove((char *)num, hp->h_addr, sizeof(U_LONG));
+		return (1);
 	}
-	return 0;
+	return (0);
 }
 
 /* XXX ELIMINATE printserver similar in ntptrace.c, ntpdate.c */
@@ -1527,7 +1519,7 @@ printserver(pp, fp)
 	
 	if (pp->stratum == 1) {
 		junk[4] = 0;
-		bcopy((char *)&pp->refid, junk, 4);
+		memmove(junk, (char *)&pp->refid, 4);
 		str = junk;
 	} else {
 		str = numtoa(pp->refid);

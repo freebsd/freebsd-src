@@ -312,7 +312,7 @@ more_pkt()
 		/*
 		 * Copy data out of exbuf into the packet.
 		 */
-		bcopy(exbuf, &rpkt.data[0], itemsize);
+		memmove(&rpkt.data[0], exbuf, itemsize);
 		seqno++;
 		databytes = 0;
 		nitems = 0;
@@ -682,7 +682,7 @@ peer_info (srcadr, inter, inpkt)
 	struct sockaddr_in addr;
 	extern struct peer *sys_peer;
 
-	bzero((char *)&addr, sizeof addr);
+	memset((char *)&addr, 0, sizeof addr);
 	addr.sin_family = AF_INET;
 	items = INFO_NITEMS(inpkt->err_nitems);
 	ipl = (struct info_peer_list *) inpkt->data;
@@ -773,7 +773,7 @@ peer_stats (srcadr, inter, inpkt)
 	struct sockaddr_in addr;
 	extern struct peer *sys_peer;
 
-	bzero((char *)&addr, sizeof addr);
+	memset((char *)&addr, 0, sizeof addr);
 	addr.sin_family = AF_INET;
 	items = INFO_NITEMS(inpkt->err_nitems);
 	ipl = (struct info_peer_list *) inpkt->data;
@@ -1141,7 +1141,7 @@ do_conf(srcadr, inter, inpkt)
 	 */
 	items = INFO_NITEMS(inpkt->err_nitems);
 	cp = (struct conf_peer *)inpkt->data;
-	bzero((char *)&peeraddr, sizeof(struct sockaddr_in));
+	memset((char *)&peeraddr, 0, sizeof(struct sockaddr_in));
 	peeraddr.sin_family = AF_INET;
 	peeraddr.sin_port = htons(NTP_PORT);
 
@@ -1451,8 +1451,8 @@ do_restrict(srcadr, inter, inpkt, op)
 	 */
 	items = INFO_NITEMS(inpkt->err_nitems);
 	cr = (struct conf_restrict *)inpkt->data;
-	bzero((char *)&matchaddr, sizeof(struct sockaddr_in));
-	bzero((char *)&matchmask, sizeof(struct sockaddr_in));
+	memset((char *)&matchaddr, 0, sizeof(struct sockaddr_in));
+	memset((char *)&matchmask, 0, sizeof(struct sockaddr_in));
 	matchaddr.sin_family = AF_INET;
 	matchmask.sin_family = AF_INET;
 
@@ -1869,7 +1869,7 @@ do_setclr_trap(srcadr, inter, inpkt, set)
 	/*
 	 * Prepare sockaddr_in structure
 	 */
-	bzero((char *)&laddr, sizeof laddr);
+	memset((char *)&laddr, 0, sizeof laddr);
 	laddr.sin_family = AF_INET;
 	laddr.sin_port = ntohs(NTP_PORT);
 
@@ -2095,7 +2095,7 @@ get_clock_info(srcadr, inter, inpkt)
 	struct refclockstat clock;
 	struct sockaddr_in addr;
 
-	bzero((char *)&addr, sizeof addr);
+	memset((char *)&addr, 0, sizeof addr);
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(NTP_PORT);
 	items = INFO_NITEMS(inpkt->err_nitems);
@@ -2111,6 +2111,9 @@ get_clock_info(srcadr, inter, inpkt)
 			req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
 			return;
 		}
+
+		clock.kv_list = (struct ctl_var *)0;
+
 		refclock_control(&addr, (struct refclockstat *)0, &clock);
 
 		ic->clockadr = addr.sin_addr.s_addr;
@@ -2127,6 +2130,8 @@ get_clock_info(srcadr, inter, inpkt)
 		HTONL_FP(&clock.fudgetime2, &ic->fudgetime2);
 		ic->fudgeval1 = htonl(clock.fudgeval1);
 		ic->fudgeval2 = htonl(clock.fudgeval2);
+
+		free_varlist(clock.kv_list);
 
 		ic = (struct info_clock *)more_pkt();
 	}
@@ -2149,8 +2154,8 @@ set_clock_fudge(srcadr, inter, inpkt)
 	struct refclockstat clock;
 	struct sockaddr_in addr;
 
-	bzero((char *)&addr, sizeof addr);
-	bzero((char *)&clock, sizeof clock);
+	memset((char *)&addr, 0, sizeof addr);
+	memset((char *)&clock, 0, sizeof clock);
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(NTP_PORT);
 	items = INFO_NITEMS(inpkt->err_nitems);
@@ -2286,7 +2291,7 @@ get_clkbug_info(srcadr, inter, inpkt)
 	struct refclockbug bug;
 	struct sockaddr_in addr;
 
-	bzero((char *)&addr, sizeof addr);
+	memset((char *)&addr, 0, sizeof addr);
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(NTP_PORT);
 	items = INFO_NITEMS(inpkt->err_nitems);
@@ -2303,7 +2308,7 @@ get_clkbug_info(srcadr, inter, inpkt)
 			return;
 		}
 
-		bzero((char *)&bug, sizeof bug);
+		memset((char *)&bug, 0, sizeof bug);
 		refclock_buginfo(&addr, &bug);
 		if (bug.nvalues == 0 && bug.ntimes == 0) {
 			req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);

@@ -1,0 +1,33 @@
+#!/bin/sh -
+CMD="$1"
+shift;
+
+. refclocks/setup
+
+case "$CMD" in
+  info)
+	echo "	GPSTM		- Kinemetrics/TrueTime GPS-TM/TMD receiver"
+	;;
+  check)
+	if check "$RCONFIG" '$0 ~ /GPSTM/'; then
+	  echo "GPSTM		- Kinemetrics/TrueTime GPS-TM/TMD receiver"
+	fi
+	;;
+  config)
+	if check "$REFCONF" '$0 ~ /GPSTM/' ||
+	   ( [ ! "$REFCONF" ] &&
+		query "Include Kinemetrics/TrueTime GPS-TM/TMD receiver (GPSTM)" n); then
+          if check "$PPSFEATURES" '$0 ~ /CD/'; then
+	    if [ "$PPSOK" -eq 1 ] &&
+	       (check "$REFCONF" '$0 ~ /GPSTMPPS/' ||
+	       ( [ ! "$REFCONF" ] && query "	Use GPSTM for PPS" n)); then
+		  echo "-DGPSTMPPS" >> $RCONFIG
+	    else
+	      echo "-DGPSTM" >> $RCONFIG
+	    fi
+          else
+	    echo "-DGPSTM" >> $RCONFIG
+          fi
+	fi
+	;;
+esac

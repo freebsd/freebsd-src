@@ -1,4 +1,4 @@
-/* ntp_compat.h,v 3.1 1993/07/06 01:06:49 jbj Exp
+/* ntp_machine.h,v 3.1 1993/07/06 01:06:49 jbj Exp
  * Collect all machine dependent idiosyncrasies in one place.
  */
 
@@ -41,21 +41,21 @@ Signaled IO -  Signled IO defines.
   UDP_BACKWARDS_SETOWN - SunOS 3.5 or Ultirx 2.0 system.
 	      
 
-WHICH TERMINAL MODEL TO USE - I would assume HAVE_POSIX_TTYS if 
-		      NTP_POSIX_SOURCE was set but cann't.  The 
+WHICH TERMINAL MODEL TO USE - I would assume HAVE_TERMIOS if 
+		      NTP_POSIX_SOURCE was set but can't.  The 
 		      posix tty driver is too restrictive on most systems.
 		      It defined if you define STREAMS.
 
   HAVE_SYSV_TTYS    - Use SYSV termio.h
   HAVE_BSD_TTYS     - Use BSD stty.h
-  HAVE_POSIX_TTYS   - "struct termios" has c_line defined
+  HAVE_TERMIOS      - Use POSIX termios.h
 
 THIS MAKES PORTS TO NEW SYSTEMS EASY - You only have to wory about
-		                       kernal mucking.
+		                       kernel mucking.
 
   NTP_POSIX_SOURCE  - Use POSIX functions over bsd functions and att functions.
 		      This is NOT the same as _POSIX_SOURCE.
-		      It is much weeker!
+		      It is much weaker!
 
 
 STEP SLEW OR TWO STEP - The Default is to step.
@@ -80,11 +80,20 @@ INFO ON NEW KERNEL PLL SYS CALLS
   NTP_SYSCALL_GET   - SYS_ntp_gettime id
   NTP_SYSCALL_ADJ   - SYS_ntp_adjtime id
 
+HOW TO GET IP INTERFACE INFORMATION
+
+  Some UNIX V.4 machines implement a sockets library on top of
+  streams. For these systems, you must use send the SIOCGIFCONF down
+  the stream in an I_STR ioctl. This ususally also implies
+  USE_STREAMS_DEVICE FOR IF_CONFIG. Dell UNIX is a notable exception.
+
+  STREAMS_TLI - use ioctl(I_STR) to implement ioctl(SIOCGIFCONF)
+
 WHAT DOES IOCTL(SIOCGIFCONF) RETURN IN THE BUFFER
 
   UNIX V.4 machines implement a sockets library on top of streams.
   When requesting the IP interface configuration with an ioctl(2) calll,
-  an arrat of ifreq structures are placed in the provided buffer.  Some
+  an array of ifreq structures are placed in the provided buffer.  Some
   implementations also place the length of the buffer information in
   the first integer position of the buffer.  
   
@@ -104,22 +113,28 @@ MISC
   DOSYNCTODR        - Resync TODR clock  every hour.
   RETSIGTYPE        - Define signal function type.
   NO_SIGNED_CHAR_DECL - No "signed char" see include/ntp.h
-  LOCK_PROCESS      -  Have plock.
+  LOCK_PROCESS      - Have plock.
   UDP_WILDCARD_DELIVERY
-		    - these systems deliver broadcast pakets to the wildcard
+		    - these systems deliver broadcast packets to the wildcard
 		      port instead to a port bound to the interface bound
 		      to the correct broadcast address - are these
 		      implementations broken or did the spec change ?
 
-  HAVE_UNISTD_H     - Maybe should be part of NTP_POSIX_SOURCE ?
+DEFINITIONS FOR SYSTEM && PROCESSOR
+  STR_SYSTEM        - value of system variable
+  STR_PROCESSOR     - value of processor variable
 
 You could just put the defines on the DEFS line in machines/<os> file.
-I don't since there are lost of different types compiler that a systemm might
-have, some that can do proto typing and others that cannot on the saem system.
-I get a chanse to twiddle some of the configuration paramasters at compile
-time based on compler/machine combinatsions by using this include file.
+I don't since there are lots of different types of compilers that a system might
+have, some that can do proto typing and others that cannot on the same system.
+I get a chance to twiddle some of the configuration parameters at compile
+time based on compiler/machine combinations by using this include file.
 See convex, aix and sun configurations see how complex it get.
-
+  
+Note that it _is_ considered reasonable to add some system-specific defines
+to the machine/<os> file if it would be too inconvenient to puzzle them out
+in this file.
+  
 */
   
 
@@ -134,14 +149,17 @@ See convex, aix and sun configurations see how complex it get.
 /*
  * Keep USE_PROTOTYPES and _NO_PROTO in step.
  */
-#if  defined(_NO_PROTO)&&defined(USE_PROTOTYPES)
+#if defined(_NO_PROTO) && defined(USE_PROTOTYPES)
 #undef USE_PROTOTYPES
 #endif
-#if  !defined(_NO_PROTO)&&!defined(USE_PROTOTYPES)
+#if !defined(_NO_PROTO) && !defined(USE_PROTOTYPES)
 #define USE_PROTOTYPES
 #endif
 #endif /*_BSD */
 #define	HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/AIX"
+#endif
 #endif /* RS6000 */
 
 /*
@@ -149,6 +167,7 @@ See convex, aix and sun configurations see how complex it get.
  * Note: posix version has NTP_POSIX_SOURCE and HAVE_SIGNALED_IO
  */
 #if defined(SYS_SUNOS4)
+#define NTP_NEED_BOPS
 #define NO_SIGNED_CHAR_DECL
 #define HAVE_LIBKVM 
 #define HAVE_MALLOC_H
@@ -156,6 +175,9 @@ See convex, aix and sun configurations see how complex it get.
 #define	RETSIGTYPE	void
 #define	NTP_SYSCALL_GET	132
 #define	NTP_SYSCALL_ADJ	147
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/SunOS 4.x"
+#endif
 #endif
 
 /*
@@ -165,12 +187,16 @@ See convex, aix and sun configurations see how complex it get.
 #undef HAVE_SIGNALED_IO
 #undef USE_TTY_SIGPOLL
 #undef USE_UDP_SIGPOLL
+#define STREAMS_TLI
 #define NO_SIGNED_CHAR_DECL 
 #define STEP_SLEW 		/* TWO step */
 #define	RETSIGTYPE void
 #define NTP_POSIX_SOURCE
 #define HAVE_ATT_SETPGRP
 #define HAVE_ATT_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/SINIX-M"
+#endif
 #endif
 
 /*
@@ -187,12 +213,15 @@ See convex, aix and sun configurations see how complex it get.
 #define HAVE_ATT_SETPGRP
 #define HAVE_ATT_NICE
 #define UDP_WILDCARD_DELIVERY
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Solaris 2.x"
+#endif
 #endif
 
 /*
  * Convex
  */
-#if  defined(SYS_CONVEXOS10)||defined(SYS_CONVEXOS9)
+#if defined(SYS_CONVEXOS10) || defined(SYS_CONVEXOS9)
 #define HAVE_SIGNALED_IO
 #define HAVE_N_UN
 #define HAVE_READKMEM 
@@ -201,14 +230,17 @@ See convex, aix and sun configurations see how complex it get.
 #define	RETSIGTYPE int
 #define NO_SIGNED_CHAR_DECL
 #else
-#if defined(__stdc__)&&!defined(USE_PROTOTYPES)
+#if defined(__stdc__) && !defined(USE_PROTOTYPES)
 #define USE_PROTOTYPES
 #endif
-#if !defined(__stdc__)&&defined(USE_PROTOTYPES)
-#undef  USE_PROTOTYPES
+#if !defined(__stdc__) && defined(USE_PROTOTYPES)
+#undef USE_PROTOTYPES
 #endif
 #define NTP_POSIX_SOURCE
 #define HAVE_ATT_SETPGRP
+#endif
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/ConvexOS"
 #endif
 #endif
 
@@ -224,6 +256,9 @@ See convex, aix and sun configurations see how complex it get.
 #define HAVE_ATT_SETPGRP
 #define HAVE_BSD_NICE
 #define NTP_POSIX_SOURCE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/IRIX"
+#endif
 #endif
 
 /*
@@ -236,12 +271,16 @@ See convex, aix and sun configurations see how complex it get.
 #define HAVE_BSD_NICE
 #define	RETSIGTYPE	void
 #define	NTP_SYSCALLS_STD
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Ultrix"
+#endif
+#define HAVE_TERMIOS
 #endif
 
 /*
  * AUX
  */
-#if defined(SYS_AUX2)||defined(SYS_AUX3)
+#if defined(SYS_AUX2) || defined(SYS_AUX3)
 #define NO_SIGNED_CHAR_DECL
 #define HAVE_READKMEM
 #define HAVE_ATT_NICE
@@ -261,6 +300,9 @@ See convex, aix and sun configurations see how complex it get.
 #define HAVE_BSD_TTYS
 #define LOG_NTP LOG_LOCAL1
 #define HAVE_SIGNALED_IO
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/AUX"
+#endif
 #endif
 
 /*
@@ -272,6 +314,9 @@ See convex, aix and sun configurations see how complex it get.
 #define HAVE_BSD_NICE
 #define HAVE_N_UN
 #undef NTP_POSIX_SOURCE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Next"
+#endif
 #endif
 
 /*
@@ -280,7 +325,8 @@ See convex, aix and sun configurations see how complex it get.
 #if defined(SYS_HPUX)
 #define NTP_POSIX_SOURCE
 #define HAVE_SIGNALED_IO
-#define HAVE_UNISTD_H
+#define getdtablesize() sysconf(_SC_OPEN_MAX)
+#define setlinebuf(f) setvbuf(f, NULL, _IOLBF, 0)
 #define NO_SIGNED_CHAR_DECL
 #define LOCK_PROCESS
 #define	HAVE_NO_NICE	/* HPUX uses rtprio instead */
@@ -289,6 +335,9 @@ See convex, aix and sun configurations see how complex it get.
 #define NOKMEM
 #else
 #define HAVE_READKMEM
+#endif
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/HPUX"
 #endif
 #endif
 
@@ -300,6 +349,11 @@ See convex, aix and sun configurations see how complex it get.
 #define HAVE_LIBKVM
 #define NTP_POSIX_SOURCE
 #define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/BSDI"
+#endif
+#define HAVE_BSD_TTYS
+#define HAVE_TERMIOS
 #endif
 
 /*
@@ -311,8 +365,13 @@ See convex, aix and sun configurations see how complex it get.
 #define NTP_POSIX_SOURCE
 #define ADJTIME_IS_ACCURATE
 #define HAVE_SYS_TIMEX_H
-#define ntp_adjtime adjtimex
+/* hope there will be a standard interface 
+ * along with a standard name one day ! */
+#define ntp_adjtime __adjtimex
 #define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Linux"
+#endif
 #endif
 
 /*
@@ -324,10 +383,13 @@ See convex, aix and sun configurations see how complex it get.
 #define HAVE_READKMEM
 #define NTP_POSIX_SOURCE
 #define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/*BSD"
+#endif
 #endif
 
 /*
- * DECOSF1
+ * DEC AXP OSF/1
  */
 #if defined(SYS_DECOSF1)
 #define HAVE_SIGNALED_IO
@@ -335,15 +397,22 @@ See convex, aix and sun configurations see how complex it get.
 #define NTP_POSIX_SOURCE
 #define	NTP_SYSCALLS_STD
 #define	HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/DECOSF1"
+#endif
 #endif
 
 /*
  * I386
+ * XXX - what OS?
  */
 #if defined(SYS_I386)
 #define HAVE_READKMEM 
 #define S_CHAR_DEFINED 
 #define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/I386"
+#endif
 #endif
 
 /*
@@ -352,6 +421,9 @@ See convex, aix and sun configurations see how complex it get.
 #if defined(SYS_MIPS)
 #define NOKMEM 
 #define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Mips"
+#endif
 #endif
 
 /*
@@ -359,6 +431,9 @@ See convex, aix and sun configurations see how complex it get.
  */
 #if defined(SYS_SEQUENT)
 #define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Sequent Dynix 3"
+#endif
 #endif
 
 /*
@@ -369,6 +444,7 @@ See convex, aix and sun configurations see how complex it get.
 #ifndef HAVE_SYSV_TTYS
 #define HAVE_SYSV_TTYS
 #endif
+#define STREAMS_TLI
 #define HAVE_ATT_SETPGRP 
 #define HAVE_SIGNALED_IO
 #define USE_UDP_SIGPOLL
@@ -392,25 +468,35 @@ typedef unsigned char u_char;
 typedef unsigned short u_short;
 typedef unsigned long u_long;
 #endif
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Sequent PTX"
+#endif
 #endif
 
 
 /*
- * Sony
+ * Sony NEWS
  */
 #if defined(SYS_SONY)
 #define NO_SIGNED_CHAR_DECL 
 #define HAVE_READKMEM
 #define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Sony"
+#endif
 #endif
 
 /*
  * VAX
+ * XXX - VMS?
  */
 #if defined(SYS_VAX)
 #define NO_SIGNED_CHAR_DECL 
 #define HAVE_READKMEM 
 #define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/VAX"
+#endif
 #endif
 
 /* 
@@ -419,11 +505,9 @@ typedef unsigned long u_long;
 #if defined(SYS_SVR4)
 #define HAVE_ATT_SETPGRP
 #define USE_PROTOTYPES
-#define HAVE_UNISTD_H
 #define NTP_POSIX_SOURCE
 #define HAVE_ATT_NICE
 #define HAVE_READKMEM 
-#define HAVE_SIGNALED_IO
 #define USE_TTY_SIGPOLL
 #define USE_UDP_SIGPOLL
 #define STREAM
@@ -431,6 +515,31 @@ typedef unsigned long u_long;
 #define LOCK_PROCESS
 #define SYSV_TIMEOFDAY
 #define SIZE_RETURNED_IN_BUFFER
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/SysVR4"
+#endif
+#endif
+
+/*
+ * DomainOS
+ */
+#if defined(SYS_DOMAINOS)
+#define HAVE_BSD_NICE
+#define NOKMEM
+#define HAVE_SIGNALED_IO
+#define HAVE_BSD_TTYS
+#define NTP_SYSCALLS_STD
+#define USE_PROTOTYPES
+#define UDP_WILDCARD_DELIVERY
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/DOMAINOS"
+#endif
+#endif
+
+#ifdef STREAM			/* STREAM implies TERMIOS */
+#ifndef HAVE_TERMIOS
+#define HAVE_TERMIOS
+#endif
 #endif
 
 #ifndef	RETSIGTYPE
@@ -450,8 +559,64 @@ typedef unsigned long u_long;
 #endif
 #endif	/* NTP_SYSCALLS_STD */
 
-#if	!defined(HAVE_ATT_NICE) && !defined(HAVE_BSD_NICE) && !defined(HAVE_NO_NICE)
+#if	!defined(HAVE_ATT_NICE) \
+	&& !defined(HAVE_BSD_NICE) \
+	&& !defined(HAVE_NO_NICE)
 	ERROR You_must_define_one_of_the_HAVE_xx_NICE_defines
 #endif
+
+#if	!defined(HAVE_SYSV_TTYS) \
+	&& !defined(HAVE_BSD_TTYS) \
+	&& !defined(HAVE_TERMIOS)
+   	ERROR no_tty_type_defined
+#endif
+
+
+#if !defined(XNTP_BIG_ENDIAN) && !defined(XNTP_LITTLE_ENDIAN)
+
+# if defined(XNTP_AUTO_ENDIAN)
+#  include <netinet/in.h>
+
+#  if BYTE_ORDER == BIG_ENDIAN
+#   define XNTP_BIG_ENDIAN
+#  endif
+#  if BYTE_ORDER == LITTLE_ENDIAN
+#   define XNTP_LITTLE_ENDIAN
+#  endif
+
+# else	/* AUTO */
+
+#  ifdef	WORDS_BIGENDIAN
+#   define	XNTP_BIG_ENDIAN	1
+#  else
+#   define	XNTP_LITTLE_ENDIAN	1
+#  endif
+
+# endif	/* AUTO */
+
+#endif	/* !BIG && !LITTLE */
+
+/*
+ * Byte order woes.  The DES code is sensitive to byte order.  This
+ * used to be resolved by calling ntohl() and htonl() to swap things
+ * around, but this turned out to be quite costly on Vaxes where those
+ * things are actual functions.  The code now straightens out byte
+ * order troubles on its own, with no performance penalty for little
+ * end first machines, but at great expense to cleanliness.
+ */
+#if !defined(XNTP_BIG_ENDIAN) && !defined(XNTP_LITTLE_ENDIAN)
+	/*
+	 * Pick one or the other.
+	 */
+	BYTE_ORDER_NOT_DEFINED_FOR_AUTHENTICATION
+#endif
+
+#if defined(XNTP_BIG_ENDIAN) && defined(XNTP_LITTLE_ENDIAN)
+	/*
+	 * Pick one or the other.
+	 */
+	BYTE_ORDER_NOT_DEFINED_FOR_AUTHENTICATION
+#endif
+
 
 #endif /* __ntp_machine */

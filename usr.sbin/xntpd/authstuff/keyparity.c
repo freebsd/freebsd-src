@@ -49,11 +49,11 @@ char *argv[];
 	int errflg = 0;
 	int keytype;
 	U_LONG key[2];
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 
 	progname = argv[0];
-	while ((c = getopt_l(argc, argv, "adno:s")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "adno:s")) != EOF)
 		switch (c) {
 		case 'a':
 			asciiflag = 1;
@@ -68,10 +68,10 @@ char *argv[];
 			stdflag = 1;
 			break;
 		case 'o':
-			if (*optarg == 'n') {
+			if (*ntp_optarg == 'n') {
 				ntpoutflag = 1;
 				gotoopt = 1;
-			} else if (*optarg == 's') {
+			} else if (*ntp_optarg == 's') {
 				ntpoutflag = 0;
 				gotoopt = 1;
 			} else {
@@ -85,7 +85,7 @@ char *argv[];
 			errflg++;
 			break;
 		}
-	if (errflg || optind == argc) {
+	if (errflg || ntp_optind == argc) {
 		(void) fprintf(stderr,
 		    "usage: %s -n|-s [-a] [-o n|s] key [...]\n",
 		    progname);
@@ -118,11 +118,11 @@ char *argv[];
 	else
 		keytype = KEY_TYPE_STD;
 
-	for (; optind < argc; optind++) {
-		if (!decodekey(keytype, argv[optind], key)) {
+	for (; ntp_optind < argc; ntp_optind++) {
+		if (!decodekey(keytype, argv[ntp_optind], key)) {
 			(void) fprintf(stderr,
 			    "%s: format of key %s invalid\n",
-			    progname, argv[optind]);
+			    progname, argv[ntp_optind]);
 			exit(1);
 		}
 		(void) parity(key);
@@ -242,7 +242,7 @@ decodekey(keytype, str, key)
 		/*
 		 * Make up key from ascii representation
 		 */
-		bzero(keybytes, sizeof(keybytes));
+		memset(keybytes, 0, sizeof(keybytes));
 		for (i = 0; i < 8 && i < len; i++)
 			keybytes[i] = *cp++ << 1;
 		key[0] = keybytes[0] << 24 | keybytes[1] << 16

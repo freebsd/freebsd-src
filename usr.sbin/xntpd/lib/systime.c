@@ -3,7 +3,7 @@
  */
 #include <sys/types.h>
 #include <sys/time.h>
-#if defined(SYS_HPUX) || defined(sgi) || defined(__bsdi__)
+#if defined(SYS_HPUX) || defined(sgi) || defined(SYS_BSDI)
 #include <sys/param.h>
 #include <utmp.h>
 #endif
@@ -238,36 +238,40 @@ adj_systime(ts)
 #endif
 	}
 
-	sys_clock_offset.l_ui = offset_i;
-	sys_clock_offset.l_uf = offset_f;
-
 	if (adjtime(&adjtv, &oadjtv) < 0) {
 		syslog(LOG_ERR, "Can't do time adjustment: %m");
 		rval = 0;
-	} else
+	} else {
+		sys_clock_offset.l_ui = offset_i;
+		sys_clock_offset.l_uf = offset_f;
 		rval = 1;
 
 #ifdef DEBUGRS6000
-	syslog(LOG_ERR, "adj_systime(%s): offset = %s%s\n",
-		    mfptoa((adj<0?-1:0), adj, 9), isneg?"-":"",
-		    umfptoa(offset_i, offset_f, 9));
-	syslog(LOG_ERR, "%d %d %d %d\n", (int) adjtv.tv_sec,
-		(int) adjtv.tv_usec, (int) oadjtv.tv_sec, (int)
-		oadjtv.tv_usec);
+		syslog(LOG_ERR, "adj_systime(%s): offset = %s%s\n",
+			mfptoa((adj<0?-1:0), adj, 9), isneg?"-":"",
+			umfptoa(offset_i, offset_f, 9));
+		syslog(LOG_ERR, "%d %d %d %d\n", (int) adjtv.tv_sec,
+			(int) adjtv.tv_usec, (int) oadjtv.tv_sec, (int)
+			oadjtv.tv_usec);
 #endif /* DEBUGRS6000 */
 
-	if ((oadjtv.tv_sec != 0 || oadjtv.tv_usec != 0) && (max_no_complete > 0)) {
-		sTVTOTS(&oadjtv, &oadjts);
-		L_ADD(&sys_clock_offset, &oadjts);
-		syslog(LOG_WARNING, "Previous time adjustment didn't complete");
+		if (oadjtv.tv_sec != 0 || oadjtv.tv_usec != 0) {
+			sTVTOTS(&oadjtv, &oadjts);
+			L_ADD(&sys_clock_offset, &oadjts);
+			if (max_no_complete > 0) {
+				syslog(LOG_WARNING,
+				    "Previous time adjustment didn't complete");
 #ifdef DEBUG
-		if (debug > 4)
-			syslog(LOG_DEBUG,
-			    "Previous adjtime() incomplete, residual = %s\n",
-			    tvtoa(&oadjtv));
+				if (debug > 4)
+					syslog(LOG_DEBUG,
+					    "Previous adjtime() incomplete, residual = %s\n",
+					    tvtoa(&oadjtv));
 #endif
-		if (--max_no_complete == 0) syslog(LOG_WARNING,
-			"*** No more 'Prev time adj didn't complete'");
+				if (--max_no_complete == 0)
+					syslog(LOG_WARNING,
+					    "*** No more 'Prev time adj didn't complete'");
+			}
+		}
 	}
 	return(rval);
 }
@@ -345,7 +349,7 @@ step_systime_real(ts)
 	 * is greater than one second.
 	 */
 	if (oldtime != timetv.tv_sec) {
-		bzero((char *)&ut, sizeof(ut));
+		memset((char *)&ut, 0, sizeof(ut));
 		ut.ut_type = OLD_TIME;
 		ut.ut_time = oldtime;
 		(void)strcpy(ut.ut_line, OTIME_MSG);

@@ -130,8 +130,8 @@ tpro_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)tprounits, sizeof tprounits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)tprounits, 0, sizeof tprounits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -200,7 +200,7 @@ tpro_start(unit, peer)
 			    emalloc(sizeof(struct tprounit));
 		}
 	}
-	bzero((char *)tpro, sizeof(struct tprounit));
+	memset((char *)tpro, 0, sizeof(struct tprounit));
 	tprounits[unit] = tpro;
 
 	/*
@@ -225,7 +225,7 @@ tpro_start(unit, peer)
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-	    bcopy(TPROREFID, (char *)&peer->refid, 4);
+	    memmove((char *)&peer->refid, TPROREFID, 4);
 	else
 	    peer->refid = htonl(TPROHSREFID);
 	unitinuse[unit] = 1;
@@ -415,8 +415,8 @@ tpro_control(unit, in, out)
 				peer = tpro->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1)
-					bcopy(TPROREFID, (char *)&peer->refid,
-					    4);
+					memmove((char *)&peer->refid,
+						TPROREFID, 4);
 				else
 					peer->refid = htonl(TPROHSREFID);
 			}

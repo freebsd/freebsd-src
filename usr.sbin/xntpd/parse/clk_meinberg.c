@@ -1,12 +1,12 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_MEINBERG)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v 3.9 1993/10/30 09:44:38 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v 3.11 1994/01/25 19:05:10 kardel Exp
  *  
- * clk_meinberg.c,v 3.9 1993/10/30 09:44:38 kardel Exp
+ * clk_meinberg.c,v 3.11 1994/01/25 19:05:10 kardel Exp
  *
  * Meinberg clock support
  *
- * Copyright (c) 1992,1993
+ * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -414,6 +414,12 @@ cvt_mgps(buffer, size, format, clock)
  * History:
  *
  * clk_meinberg.c,v
+ * Revision 3.11  1994/01/25  19:05:10  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.10  1994/01/23  17:21:54  kardel
+ * 1994 reconcilation
+ *
  * Revision 3.9  1993/10/30  09:44:38  kardel
  * conditional compilation flag cleanup
  *

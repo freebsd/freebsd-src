@@ -3,57 +3,11 @@
  */
 #include "ntp_stdlib.h"
 
-#if !defined(XNTP_BIG_ENDIAN) && !defined(XNTP_LITTLE_ENDIAN)
-
-#if defined(XNTP_AUTO_ENDIAN)
-#include <netinet/in.h>
-
-#if BYTE_ORDER == BIG_ENDIAN
-#define XNTP_BIG_ENDIAN
-#endif
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define XNTP_LITTLE_ENDIAN
-#endif
-
-#else	/* AUTO */
-
-#ifdef	WORDS_BIGENDIAN
-#define	XNTP_BIG_ENDIAN	1
-#else
-#define	XNTP_LITTLE_ENDIAN	1
-#endif
-
-#endif	/* AUTO */
-
-#endif	/* !BIG && !LITTLE */
-
 /*
  * There are two entries in here.  auth_subkeys() called to
  * compute the encryption and decryption key schedules, while
  * auth_des() is called to do the actual encryption/decryption
  */
-
-/*
- * Byte order woes.  The DES code is sensitive to byte order.  This
- * used to be resolved by calling ntohl() and htonl() to swap things
- * around, but this turned out to be quite costly on Vaxes where those
- * things are actual functions.  The code now straightens out byte
- * order troubles on its own, with no performance penalty for little
- * end first machines, but at great expense to cleanliness.
- */
-#if !defined(XNTP_BIG_ENDIAN) && !defined(XNTP_LITTLE_ENDIAN)
-	/*
-	 * Pick one or the other.
-	 */
-	BYTE_ORDER_NOT_DEFINED_FOR_AUTHENTICATION
-#endif
-
-#if defined(XNTP_BIG_ENDIAN) && defined(XNTP_LITTLE_ENDIAN)
-	/*
-	 * Pick one or the other.
-	 */
-	BYTE_ORDER_NOT_DEFINED_FOR_AUTHENTICATION
-#endif
 
 /*
  * Key setup.  Here we entirely permute a key, saving the results

@@ -107,7 +107,7 @@ BEGIN {
 	# select ITF records
 	# see summary for decode
 	#
-	else if (NF >= 13 && $5 == "ITF" && $12 >= 500) {
+	else if (NF >= 13 && $5 == "ITF" && $12 >= 100) {
 		itf_count++
 		if ($9 > 200e-9 || $9 < -200e-9)
 			itf_200++
@@ -122,7 +122,7 @@ BEGIN {
 	# select ETF records
 	# see summary for decode
 	#
-	else if (NF >= 13 && $5 == "ETF" && $13 >= 500) {
+	else if (NF >= 13 && $5 == "ETF" && $13 >= 100) {
 		etf_count++
 		if ($6 > etf_max)
 			etf_max = $6
