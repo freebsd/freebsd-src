@@ -1,4 +1,4 @@
-PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/contrib/bin:.:
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:.:
 export PATH
 HOME=/root
 export HOME
