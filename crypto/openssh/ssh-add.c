@@ -134,7 +134,7 @@ add_file(AuthenticationConnection *ac, const char *filename)
 			if (private != NULL)
 				break;
 			clear_pass();
-			strlcpy(msg, "Bad passphrase, try again ", sizeof msg);
+			strlcpy(msg, "Bad passphrase, try again: ", sizeof msg);
 		}
 	}
 	if (ssh_add_identity(ac, private, comment))
