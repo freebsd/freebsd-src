@@ -968,7 +968,7 @@ diskLabel(Device *dev)
 
 #ifdef __alpha__
 		/*
-		 * The boot blocks require that the root partition is at the
+		 * SRM requires that the root partition is at the
 		 * begining of the disk and cannot boot otherwise. 
 		 * Warn Alpha users if they are about to shoot themselves in
 		 * the foot in this way.
@@ -977,10 +977,10 @@ diskLabel(Device *dev)
 		 * check for a "close to 0" instead. :-(
 		 */
 		if ((flags & CHUNK_IS_ROOT) && (tmp->offset > 1024)) {
-		    msgConfirm("Your root partition (a) does not seem to be the first\n"
-			       "partition. The Alpha can only boot from the first partition,\n"
-			       "so it is unlikely that your current disk layout will\n"
-			       "be bootable boot after installation.\n"
+		    msgConfirm("Your root partition `a' does not seem to be the first\n"
+			       "partition.  The Alpha's firmware can only boot from the\n"
+			       "first partition.  So it is unlikely that your current\n"
+			       "disk layout will be bootable boot after installation.\n"
 			       "\n"
 			       "Please allocate the root partition before allocating\n"
 			       "any others.\n");
