@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.7 1996/01/03 05:22:32 davidg Exp $
+ *	$Id: if_fxp.c,v 1.8 1996/01/15 10:12:41 davidg Exp $
  */
 
 /*
@@ -138,7 +138,7 @@ static inline int fxp_scb_wait	__P((struct fxp_csr *));
 static char *fxp_probe		__P((pcici_t, pcidi_t));
 static void fxp_attach		__P((pcici_t, int));
 static int fxp_shutdown		__P((struct kern_devconf *, int));
-static int fxp_intr		__P((void *));
+static void fxp_intr		__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *, int, caddr_t));
 static void fxp_init		__P((struct ifnet *));
@@ -545,18 +545,16 @@ tbdinit:
  * Process interface interrupts. Returns 1 if the interrupt
  * was handled, 0 if it wasn't.
  */
-static int
+static void
 fxp_intr(arg)
 	void *arg;
 {
 	struct fxp_softc *sc = arg;
 	struct fxp_csr *csr = sc->csr;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int found = 0;
 	u_char statack;
 
 	while ((statack = csr->scb_statack) != 0) {
-		found = 1;
 		/*
 		 * First ACK all the interrupts in this pass.
 		 */
@@ -653,8 +651,6 @@ rcvloop:
 			}
 		}
 	}
-
-	return found;
 }
 
 /*

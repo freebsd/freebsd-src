@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.39 1995/12/07 12:47:34 davidg Exp $
+ * $Id: if_de.c,v 1.40 1995/12/14 09:53:58 phk Exp $
  *
  */
 
@@ -1423,7 +1423,7 @@ tulip_start(
     }
 }
 
-static int
+static void
 tulip_intr(
     void *arg)
 {
@@ -1467,7 +1467,6 @@ tulip_intr(
 	    }
 	}
     } while ((sc = sc->tulip_slaves) != NULL);
-    return progress;
 }
 
 /*

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.22 1996/01/07 19:26:11 gibbs Exp $
+ *	$Id: aic7870.c,v 1.23 1996/01/09 16:14:53 gibbs Exp $
  */
 
 #include <pci.h>
@@ -311,7 +311,7 @@ aic7870_attach(config_id, unit)
 	if(!(ahc = ahc_alloc(unit, io_port, ahc_t, ahc_f)))
 		return;  /* XXX PCI code should take return status */
 
-	if(!(pci_map_int(config_id, ahcintr, (void *)ahc, &bio_imask))) {
+	if(!(pci_map_int(config_id, ahc_intr, (void *)ahc, &bio_imask))) {
 		ahc_free(ahc);
 		return;
 	}

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.11 1995/12/07 12:47:37 davidg Exp $
+ * $Id: if_pdq.c,v 1.12 1995/12/16 00:27:42 bde Exp $
  *
  */
 
@@ -473,13 +473,21 @@ pdq_pci_ifwatchdog(struct ifnet *ifp)
     pdq_ifwatchdog(PDQ_PCI_UNIT_TO_SOFTC(ifp->if_unit));
 }
 
-static int
+static
+#ifdef __FreeBSD__
+void
+#else
+int
+#endif
 pdq_pci_ifintr(
     void *vsc)
 {
     pdq_softc_t *sc = vsc;
 
-    return pdq_interrupt(sc->sc_pdq);
+#ifndef __FreeBSD__
+    return 
+#endif
+      pdq_interrupt(sc->sc_pdq);
 }
 
 static char *
