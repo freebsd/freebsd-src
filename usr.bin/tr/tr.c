@@ -332,14 +332,10 @@ int
 charcoll(const void *a, const void *b)
 {
 	static char sa[2], sb[2];
-	int r;
 
 	sa[0] = *(const int *)a;
 	sb[0] = *(const int *)b;
-	r = strcoll(sa, sb);
-	if (r == 0)
-		r = *(const int *)a - *(const int *)b;
-	return (r);
+	return (strcoll(sa, sb));
 }
 
 static void
