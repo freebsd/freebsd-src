@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: df.c,v 1.16 1997/03/28 15:24:17 imp Exp $";
+	"$Id: df.c,v 1.17 1997/08/07 21:31:00 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -70,7 +70,7 @@ long	  regetmntinfo __P((struct statfs **, long, char **));
 int	  bread __P((off_t, void *, int));
 char	 *getmntpt __P((char *));
 void	  prtstat __P((struct statfs *, int));
-void	  ufs_df __P((char *, int));
+int	  ufs_df __P((char *, int));
 void	  usage __P((void));
 
 int	iflag, nflag;
@@ -84,7 +84,7 @@ main(argc, argv)
 	struct stat stbuf;
 	struct statfs statfsbuf, *mntbuf;
 	long mntsize;
-	int ch, err, i, maxwidth, width;
+	int ch, err, i, maxwidth, width, rv;
 	char *mntpt, **vfslist;
 
 	vfslist = NULL;
@@ -119,6 +119,7 @@ main(argc, argv)
 			maxwidth = width;
 	}
 
+	rv = 0;
 	if (!*argv) {
 		mntsize = regetmntinfo(&mntbuf, mntsize, vfslist);
 		if (vfslist != NULL) {
@@ -131,7 +132,7 @@ main(argc, argv)
 		}
 		for (i = 0; i < mntsize; i++)
 			prtstat(&mntbuf[i], maxwidth);
-		exit(0);
+		exit(rv);
 	}
 
 	for (; *argv; argv++) {
@@ -139,10 +140,11 @@ main(argc, argv)
 			err = errno;
 			if ((mntpt = getmntpt(*argv)) == 0) {
 				warn("%s", *argv);
+				rv = 1;
 				continue;
 			}
 		} else if ((stbuf.st_mode & S_IFMT) == S_IFCHR) {
-			ufs_df(*argv, maxwidth);
+			rv = ufs_df(*argv, maxwidth) || rv;
 			continue;
 		} else if ((stbuf.st_mode & S_IFMT) == S_IFBLK) {
 			if ((mntpt = getmntpt(*argv)) == 0) {
@@ -150,18 +152,21 @@ main(argc, argv)
 				mdev.fspec = *argv;
 				if (mkdir(mntpt, DEFFILEMODE) != 0) {
 					warn("%s", mntpt);
+					rv = 1;
 					continue;
 				}
 				if (mount("ufs", mntpt, MNT_RDONLY,
 				    &mdev) != 0) {
-					ufs_df(*argv, maxwidth);
+					rv = ufs_df(*argv, maxwidth) || rv;
 					(void)rmdir(mntpt);
 					continue;
 				} else if (statfs(mntpt, &statfsbuf) == 0) {
 					statfsbuf.f_mntonname[0] = '\0';
 					prtstat(&statfsbuf, maxwidth);
-				} else
+				} else {
 					warn("%s", *argv);
+					rv = 1;
+				}
 				(void)unmount(mntpt, 0);
 				(void)rmdir(mntpt);
 				continue;
@@ -174,13 +179,14 @@ main(argc, argv)
 		 */
 		if (statfs(mntpt, &statfsbuf) < 0) {
 			warn("%s", mntpt);
+			rv = 1;
 			continue;
 		}
 		if (argc == 1)
 			maxwidth = strlen(statfsbuf.f_mntfromname) + 1;
 		prtstat(&statfsbuf, maxwidth);
 	}
-	return (0);
+	return (rv);
 }
 
 char *
@@ -295,7 +301,7 @@ union {
 
 int	rfd;
 
-void
+int
 ufs_df(file, maxwidth)
 	char *file;
 	int maxwidth;
@@ -310,11 +316,11 @@ ufs_df(file, maxwidth)
 
 	if ((rfd = open(file, O_RDONLY)) < 0) {
 		warn("%s", file);
-		return;
+		return 1;
 	}
 	if (bread((off_t)SBOFF, &sblock, SBSIZE) == 0) {
 		(void)close(rfd);
-		return;
+		return 1;
 	}
 	sfsp = &statfsbuf;
 	sfsp->f_type = 1;
@@ -336,6 +342,7 @@ ufs_df(file, maxwidth)
 	memmove(&sfsp->f_mntfromname[0], file, MNAMELEN);
 	prtstat(sfsp, maxwidth);
 	(void)close(rfd);
+	return 0;
 }
 
 int
