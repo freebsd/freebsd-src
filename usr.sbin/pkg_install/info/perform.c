@@ -42,9 +42,7 @@ pkg_perform(char **pkgs)
 
     signal(SIGINT, cleanup);
 
-    tmp = getenv(PKG_DBDIR);
-    if (!tmp)
-	tmp = DEF_LOG_DIR;
+    tmp = LOG_DIR;
 
     /* Overriding action? */
     if (CheckPkg) {
@@ -147,8 +145,7 @@ pkg_do(char *pkg)
     else {
 	char *tmp;
 
-	sprintf(log_dir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
-		pkg);
+	sprintf(log_dir, "%s/%s", LOG_DIR, pkg);
 	if (!fexists(log_dir)) {
 	    warnx("can't find package `%s' installed or in a file!", pkg);
 	    return 1;

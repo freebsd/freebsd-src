@@ -234,7 +234,7 @@ pkg_do(char *pkg)
     PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
 
     /* See if we're already registered */
-    sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR, PkgName);
+    sprintf(LogDir, "%s/%s", LOG_DIR, PkgName);
     if (isdir(LogDir) && !Force) {
 	warnx("package `%s' already recorded as installed", PkgName);
 	code = 1;
@@ -402,7 +402,7 @@ pkg_do(char *pkg)
 	    code = 1;
 	    goto success;	/* well, partial anyway */
 	}
-	sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR, PkgName);
+	sprintf(LogDir, "%s/%s", LOG_DIR, PkgName);
 	zapLogDir = 1;
 	if (Verbose)
 	    printf("Attempting to record package into %s..\n", LogDir);
@@ -438,9 +438,9 @@ pkg_do(char *pkg)
 	    if (p->type != PLIST_PKGDEP)
 		continue;
 	    if (Verbose)
-		printf("Attempting to record dependency on package `%s'\n", p->name);
-	    sprintf(contents, "%s/%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
-	    	    basename_of(p->name), REQUIRED_BY_FNAME);
+		printf("Attempting to record dependency on package '%s'\n", p->name);
+	    sprintf(contents, "%s/%s/%s", LOG_DIR, basename_of(p->name),
+	    	    REQUIRED_BY_FNAME);
 	    cfile = fopen(contents, "a");
 	    if (!cfile)
 		warnx("can't open dependency file '%s'!\n"
