@@ -88,7 +88,6 @@ void	map_gateway_page(void);
 void	map_pal_code(void);
 void	os_boot_rendez(void);
 void	os_mca(void);
-void	spillfd(void *src, void *dst);
 int	syscall(struct trapframe *);
 void	trap(int, struct trapframe *);
 void	trap_panic(int, struct trapframe *);
