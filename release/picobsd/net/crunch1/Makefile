@@ -1,24 +1,24 @@
 #
-# $Id: Makefile,v 1.2 1998/10/15 21:40:03 abial Exp $
+# $Id: Makefile,v 1.3 1999/01/19 23:12:50 abial Exp $
 #
 SRC?=/usr/src
 
 all: crunch
 
 crunch:
-	@if [ ! -f .patched ]; then \
+	@if [ ! -f /usr/src/usr.bin/passwd/.picobsd.patched ]; then \
 		cat passwd.diff|(cd /usr/src/usr.bin/passwd; patch -p0); \
-		touch .patched; \
+		touch /usr/src/usr.bin/passwd/.picobsd.patched; \
 	fi
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
 	@crunchgen ./crunch1.conf
 	@${MAKE} -f crunch1.mk -DNOPAM all \
-	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
+	    "CFLAGS=${CFLAGS} -DRELEASE_CRUNCH -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
 
 clean:
-	@if [ -f .patched ]; then \
+	@if [ -f /usr/src/usr.bin/passwd/.picobsd.patched ]; then \
 		cat passwd.diff|(cd /usr/src/usr.bin/passwd; patch -R -p0); \
-		rm .patched; \
+		rm /usr/src/usr.bin/passwd/.picobsd.patched; \
 	fi
 	rm  -f *.o *.stub *.lo *_stub.c *.mk \
 		crunch.cache \

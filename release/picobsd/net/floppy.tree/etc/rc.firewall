@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.1.1.1 1998/07/14 07:30:49 abial Exp $
+# $Id: rc.firewall,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 
 ############
 # Define the firewall type in /etc/rc.conf.  Valid values are:
