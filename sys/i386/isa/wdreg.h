@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.23 1998/10/22 05:58:41 bde Exp $
+ *	$Id: wdreg.h,v 1.24 1999/01/12 01:04:38 eivind Exp $
  */
 
 /*
@@ -262,7 +262,7 @@ int wdformat(struct buf *bp);
  */
 struct wddma {
 	void	*(*wdd_candma)		/* returns a cookie if PCI */
-		__P((int ctlr, int drive));
+		__P((int iobase_wd, int ctlr, int unit));
 	int	(*wdd_dmaverify)	/* verify that request is DMA-able */
 		__P((void *cookie, char *vaddr, u_long len, int direction));
 	int	(*wdd_dmaprep)		/* prepare DMA hardware */
