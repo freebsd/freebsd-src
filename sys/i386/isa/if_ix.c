@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.11 1995/10/26 20:29:45 julian Exp $
+ *	$Id: if_ix.c,v 1.12 1995/10/28 15:39:06 phk Exp $
  */
 
 #include "ix.h"
@@ -145,30 +145,30 @@ int	ixdebug=IXDEBUG;
 static inline void ixinterrupt_enable(int);
 static inline void ixinterrupt_disable(int);
 static inline void ixchannel_attention(int);
-u_short ixacknowledge(int);
-int ix_cb_wait(cb_t *, char *);
-int ix_scb_wait(scb_t *, u_short, char *);
-int ixprobe(struct isa_device *);
-int ixattach(struct isa_device *);
-void ixinit(int);
-void ixinit_rfa(int);
-void ixinit_tfa(int);
+static u_short ixacknowledge(int);
+static int ix_cb_wait(cb_t *, char *);
+static int ix_scb_wait(scb_t *, u_short, char *);
+static int ixprobe(struct isa_device *);
+static int ixattach(struct isa_device *);
+static void ixinit(int);
+static void ixinit_rfa(int);
+static void ixinit_tfa(int);
 inthand2_t ixintr;
 static inline void ixintr_cx(int);
 static inline void ixintr_cx_free(int, cb_t *);
 static inline void ixintr_fr(int);
 static inline void ixintr_fr_copy(int, rfd_t *);
 static inline void ixintr_fr_free(int, rfd_t *);
-void ixstart(struct ifnet *);
-int ixstop(struct ifnet *);
-int ixdone(struct ifnet *);
-int ixioctl(struct ifnet *, int, caddr_t);
-void ixreset(int);
-void ixwatchdog(int);
-u_short ixeeprom_read(int, int);
-void ixeeprom_outbits(int, int, int);
-int ixeeprom_inbits(int);
-void ixeeprom_clock(int, int);
+static void ixstart(struct ifnet *);
+static int ixstop(struct ifnet *);
+static int ixdone(struct ifnet *);
+static int ixioctl(struct ifnet *, int, caddr_t);
+static void ixreset(int);
+static void ixwatchdog(int);
+static u_short ixeeprom_read(int, int);
+static void ixeeprom_outbits(int, int, int);
+static int ixeeprom_inbits(int);
+static void ixeeprom_clock(int, int);
 /*
 RRR */
 
@@ -515,7 +515,7 @@ ixprobe(struct isa_device *dvp) {
 	}
 	sc->irq_encoded = irq_encode[ffs(irq) - 1];
 	if (sc->irq_encoded == 0) {
-		printf("ix%d: invalid irq (%d)\n", ffs(irq) - 1);
+		printf("ix%d: invalid irq (%d)\n", unit, ffs(irq) - 1);
 		goto ixprobe_exit;
 	}
 
