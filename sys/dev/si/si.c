@@ -553,7 +553,7 @@ try_next:
 
 		for (x = 0; x < nport; x++, pp++, ccbp++) {
 			pp->sp_ccb = ccbp;	/* save the address */
-			pp->sp_tty = ttymalloc(NULL);
+			pp->sp_tty = ttyalloc();
 			pp->sp_pend = IDLE_CLOSE;
 			pp->sp_state = 0;	/* internal flag */
 			pp->sp_iin.c_iflag = TTYDEF_IFLAG;
