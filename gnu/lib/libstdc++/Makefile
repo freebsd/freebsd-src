@@ -6,7 +6,7 @@ SUPDIR=	${SRCDIR}/libsupc++
 
 .PATH: ${SRCDIR}/src ${SRCDIR}/libmath ${SRCDIR}/config/io \
        ${SRCDIR}/config/locale/generic ${SRCDIR} ${SRCDIR}/std \
-       ${SUPDIR}
+       ${SUPDIR} ${GCCDIR}
 
 SUBDIR=	doc
 
@@ -42,7 +42,7 @@ SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc \
 	pure.cc tinfo.cc tinfo2.cc vec.cc
 
 # from libiberty:
-SRCS+=	${GCCDIR}/cp-demangle.c ${GCCDIR}/dyn-string.c
+SRCS+=	cp-demangle.c dyn-string.c
 
 strstream-fixed.cc:	${SRCDIR}/src/strstream.cc
 	sed -e 's,^#include <strstream.h>,#include <backward/strstream.h>,g' \
