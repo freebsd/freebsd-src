@@ -84,7 +84,8 @@ STRING		[a-zA-Z][a-zA-Z0-9_]*
 			int i;
 
 			if ((p = strdup(yytext)) == NULL)
-				err(1, "nsdispatch: memory allocation failure");
+				_err(1,
+				    "nsdispatch: memory allocation failure");
 
 			for (i = 0; i < strlen(p); i++) {
 				if (isupper((unsigned char)p[i]))
