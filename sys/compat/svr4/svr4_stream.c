@@ -2252,24 +2252,30 @@ int svr4_sys_send(td, uap)
 	struct thread *td;
 	struct svr4_sys_send_args *uap;
 {
-	struct osend_args osa;
+	struct sendto_args osa;
+
 	SCARG(&osa, s) = SCARG(uap, s);
 	SCARG(&osa, buf) = SCARG(uap, buf);
 	SCARG(&osa, len) = SCARG(uap, len);
 	SCARG(&osa, flags) = SCARG(uap, flags);
-	return osend(td, &osa);
+	SCARG(&osa, to) = NULL;
+	SCARG(&osa, tolen) = 0;
+	return sendto(td, &osa);
 }
 
 int svr4_sys_recv(td, uap)
 	struct thread *td;
 	struct svr4_sys_recv_args *uap;
 {
-	struct orecv_args ora;
+	struct recvfrom_args ora;
+
 	SCARG(&ora, s) = SCARG(uap, s);
 	SCARG(&ora, buf) = SCARG(uap, buf);
 	SCARG(&ora, len) = SCARG(uap, len);
 	SCARG(&ora, flags) = SCARG(uap, flags);
-	return orecv(td, &ora);
+	SCARG(&osa, from) = NULL;
+	SCARG(&osa, fromlen) = 0;
+	return recvfrom(td, &ora);
 }
 
 /* 
