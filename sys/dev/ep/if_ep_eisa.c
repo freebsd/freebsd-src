@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.5 1996/09/06 23:06:53 phk Exp $
+ *	$Id: 3c5x9.c,v 1.6 1996/10/12 17:34:25 bde Exp $
  */
 
 #include "eisa.h"
@@ -28,6 +28,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/socket.h>
 
 #include <machine/clock.h>
 

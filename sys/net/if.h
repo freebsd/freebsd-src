@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.33 1996/08/04 10:54:12 phk Exp $
+ * $Id: if.h,v 1.34 1996/08/26 23:17:17 julian Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -61,8 +61,6 @@
  * routing and gateway routines maintaining information used to locate
  * interfaces.  These routines live in the files if.c and route.c
  */
-
-#include <sys/socket.h>			/* for struct sockaddr */
 
 #ifndef _TIME_ /*  XXX fast fix for SNMP, going away soon */
 #include <sys/time.h>

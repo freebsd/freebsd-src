@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.32 1996/06/20 22:53:08 fenner Exp $
+ * $Id: if_ether.c,v 1.33 1996/06/21 21:45:58 peter Exp $
  */
 
 /*
@@ -47,6 +47,7 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/socket.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.37 1996/07/31 09:25:51 davidg Exp $
+ *	$Id: genassym.c,v 1.38 1996/07/31 12:36:10 bde Exp $
  */
 
 #include <stdio.h>
@@ -50,6 +50,7 @@
 #include <sys/mount.h>
 #endif
 #include <sys/mbuf.h>
+#include <sys/socket.h>
 #include <sys/msgbuf.h>
 #include <machine/cpu.h>
 #include <machine/trap.h>

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_mib.c,v 1.1 1996/07/30 19:17:00 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
