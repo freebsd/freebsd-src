@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: profile.h,v 1.11 1997/02/22 09:35:01 peter Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
@@ -63,7 +63,11 @@
 #else
 #define	MCOUNT_DECL(s)	u_long s;
 #define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
+#ifdef SMP
+#define	MCOUNT_EXIT(s)	{ MPINTR_UNLOCK(); write_eflags(s); }
+#else
 #define	MCOUNT_EXIT(s)	(write_eflags(s))
+#endif
 #endif /* GUPROF */
 
 #else /* !KERNEL */
