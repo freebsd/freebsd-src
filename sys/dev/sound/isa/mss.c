@@ -30,8 +30,6 @@
 
 #include <dev/sound/pcm/sound.h>
 
-#if NPCM > 0
-
 /* board-specific include files */
 #include <dev/sound/isa/mss.h>
 #include <dev/sound/chip.h>
@@ -98,12 +96,10 @@ static void 		ad_write_cnt(struct mss_info *mss, int reg, u_short data);
 static void 		conf_wr(struct mss_info *mss, u_char reg, u_char data);
 static u_char 		conf_rd(struct mss_info *mss, u_char reg);
 
-#if NPNP > 0
 static int 		pnpmss_probe(device_t dev);
 static int 		pnpmss_attach(device_t dev);
 
 static driver_intr_t 	opti931_intr;
-#endif
 
 static int mssmix_init(snd_mixer *m);
 static int mssmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
@@ -248,7 +244,6 @@ opti_rd(struct mss_info *mss, u_char reg)
     	return port_rd(mss->conf_base, mss->opti_offset + 1);
 }
 
-#if NPNP > 0 || NGUSC > 0
 static void
 gus_wr(struct mss_info *mss, u_char reg, u_char value)
 {
@@ -262,7 +257,6 @@ gus_rd(struct mss_info *mss, u_char reg)
     	port_wr(mss->conf_base, 3, reg);
     	return port_rd(mss->conf_base, 5);
 }
-#endif	/* NPNP > 0 || NGUSC > 0 */
 
 static void
 mss_release_resources(struct mss_info *mss, device_t dev)
@@ -403,7 +397,6 @@ mss_init(struct mss_info *mss, device_t dev)
 
 	mss->bd_flags |= BD_F_MCE_BIT;
 	switch(mss->bd_id) {
-#if NPNP > 0
 	case MD_OPTI931:
 		/*
 		 * The MED3931 v.1.0 allocates 3 bytes for the config
@@ -421,9 +414,7 @@ mss_init(struct mss_info *mss, device_t dev)
     		opti_wr(mss, 6, 2);  /* MCIR6: mss enable, sb disable */
     		opti_wr(mss, 5, 0x28);  /* MCIR5: codec in exp. mode,fifo */
 		break;
-#endif	/* NPNP > 0 */
 
-#if NPNP > 0 || NGUSC > 0
 	case MD_GUSPNP:
 	case MD_GUSMAX:
 		gus_wr(mss, 0x4c /* _URSTI */, 0);/* Pull reset */
@@ -465,7 +456,6 @@ mss_init(struct mss_info *mss, device_t dev)
     		gus_wr(mss, 0x5b, tmp | 1);
     		BVDDB(printf("GUS: silicon rev %c\n", 'A' + ((tmp & 0xf) >> 4)));
 		break;
-#endif	/* NPNP > 0 || NGUSC > 0 */
 
     	case MD_YM0020:
          	conf_wr(mss, OPL3SAx_DMACONF, 0xa9); /* dma-b rec, dma-a play */
@@ -893,11 +883,9 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	}
     	mixer_init(d, (mss->bd_id == MD_YM0020)? &yamaha_mixer : &mss_mixer, mss);
     	switch (mss->bd_id) {
-	#if NPNP > 0
     	case MD_OPTI931:
 		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, opti931_intr, mss, &ih);
 		break;
-	#endif
     	default:
 		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, mss_intr, mss, &ih);
     	}
@@ -1345,7 +1333,6 @@ mss_trigger(struct mss_chinfo *ch, int go)
     	return 0;
 }
 
-#if NPNP > 0
 static int
 pnpmss_probe(device_t dev)
 {
@@ -1547,8 +1534,6 @@ opti931_intr(void *arg)
     	if (--loops) goto again;
     	DEB(printf("xxx too many loops\n");)
 }
-
-#endif	/* NPNP > 0 */
 
 #if NGUSC > 0
 
@@ -1823,5 +1808,3 @@ msschan_getcaps(void *data)
 		break;
 	}
 }
-
-#endif /* NPCM > 0 */
