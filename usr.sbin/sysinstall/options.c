@@ -36,6 +36,8 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <curses.h>
+#include <term.h>
 
 int fixitTtyWhich(dialogMenuItem *);
 int termSetType(dialogMenuItem *);
@@ -174,7 +176,7 @@ value_of(Option opt)
 	return (char *)opt.data;
 
     case OPT_IS_INT:
-	sprintf(ival, "%d", (int)opt.data);
+	sprintf(ival, "%lu", (long)opt.data);
 	return ival;
 
     case OPT_IS_FUNC:
