@@ -24,12 +24,23 @@ struct md_ioctl mdio;
 
 enum {UNSET, ATTACH, DETACH} action = UNSET;
 
+void
+usage()
+{
+	fprintf(stderr, "Usage:\n\t");
+	fprintf(stderr, "mdconfig {-a|-d} -t type [-o [no]option]... [ -f file] [-s size] [-u unit]\n");
+	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
+	fprintf(stderr, "\t\toption = {cluster, compress, reserve, autounit}\n");
+	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%dk (kB), %%dm (MB) or %%dg (GB)\n");
+	exit(1);
+}
+
 int
 main(int argc, char **argv)
 {
 	int ch, fd, i;
-
-	mdio.md_options = MD_CLUSTER | MD_AUTOUNIT;
+	char *p;
+	int cmdline = 0;
 
 	for (;;) {
 		ch = getopt(argc, argv, "adf:o:s:t:u:");
@@ -37,19 +48,53 @@ main(int argc, char **argv)
 			break;
 		switch (ch) {
 		case 'a':
+			if (cmdline != 0)
+				usage();
 			action = ATTACH;
+			cmdline = 1;
 			break;
 		case 'd':
+			if (cmdline != 0)
+				usage();
 			action = DETACH;
+			cmdline = 1;
+			break;
+		case 't':
+			if (cmdline != 1)
+				usage();
+			if (!strcmp(optarg, "malloc")) {
+				mdio.md_type = MD_MALLOC;
+				mdio.md_options = MD_AUTOUNIT | MD_COMPRESS;
+			} else if (!strcmp(optarg, "preload")) {
+				mdio.md_type = MD_PRELOAD;
+				mdio.md_options = 0;
+			} else if (!strcmp(optarg, "vnode")) {
+				mdio.md_type = MD_VNODE;
+				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
+			} else if (!strcmp(optarg, "swap")) {
+				mdio.md_type = MD_SWAP;
+				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
+			} else {
+				usage();
+			}
+			cmdline=2;
 			break;
 		case 'f':
+			if (cmdline != 2)
+				usage();
 			strncpy(mdio.md_file, optarg, sizeof(mdio.md_file) - 1);
 			break;
 		case 'o':
+			if (cmdline != 2)
+				usage();
 			if (!strcmp(optarg, "cluster"))
 				mdio.md_options |= MD_CLUSTER;
 			else if (!strcmp(optarg, "nocluster"))
 				mdio.md_options &= ~MD_CLUSTER;
+			else if (!strcmp(optarg, "compress"))
+				mdio.md_options |= MD_COMPRESS;
+			else if (!strcmp(optarg, "nocompress"))
+				mdio.md_options &= ~MD_COMPRESS;
 			else if (!strcmp(optarg, "reserve"))
 				mdio.md_options |= MD_RESERVE;
 			else if (!strcmp(optarg, "noreserve"))
@@ -62,38 +107,38 @@ main(int argc, char **argv)
 				errx(1, "Unknown option.");
 			break;
 		case 's':
-			mdio.md_size = strtoul(optarg, NULL, 0);
-			break;
-		case 't':
-			if (!strcmp(optarg, "malloc"))
-				mdio.md_type = MD_MALLOC;
-			else if (!strcmp(optarg, "preload"))
-				mdio.md_type = MD_PRELOAD;
-			else if (!strcmp(optarg, "vnode"))
-				mdio.md_type = MD_VNODE;
-			else if (!strcmp(optarg, "swap"))
-				mdio.md_type = MD_SWAP;
+			if (cmdline != 2)
+				usage();
+			mdio.md_size = strtoul(optarg, &p, 0);
+			if (p == NULL || *p == '\0')
+				;
+			else if (*p == 'k' || *p == 'K')
+				mdio.md_size *= (1024 / DEV_BSIZE);
+			else if (*p == 'm' || *p == 'M')
+				mdio.md_size *= (1024 * 1024 / DEV_BSIZE);
+			else if (*p == 'g' || *p == 'G')
+				mdio.md_size *= (1024 * 1024 * 1024 / DEV_BSIZE);
 			else
-				errx(1, "Unknown type.");
+				errx(1, "Unknown suffix on -s argument");
 			break;
 		case 'u':
+			if (cmdline != 2)
+				usage();
 			mdio.md_unit = strtoul(optarg, NULL, 0);
 			mdio.md_options &= ~MD_AUTOUNIT;
 			break;
 		default:
-			errx(1, "Usage: %s [-ad] [-f file] [-o option] [-s size] [-t type ] [-u unit].", argv[0]);
+			usage();
 		}
 	}
 
 	fd = open("/dev/mdctl", O_RDWR, 0);
 	if (fd < 0)
-		err(1, "/dev/mdctl");
+		err(1, "open(/dev/mdctl)");
 	if (action == ATTACH)
 		i = ioctl(fd, MDIOCATTACH, &mdio);
-	else if (action == DETACH)
+	else 
 		i = ioctl(fd, MDIOCDETACH, &mdio);
-	else
-		errx(1, "Neither -a(ttach) nor -d(etach) options present.");
 	if (i < 0)
 		err(1, "ioctl(/dev/mdctl)");
 	return (0);
