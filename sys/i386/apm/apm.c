@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.74 1998/09/28 03:41:12 jlemon Exp $
+ *	$Id: apm.c,v 1.75 1998/10/30 05:41:13 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -795,7 +795,7 @@ apmattach(struct isa_device *dvp)
 	sc->ds_base = (apm_ds_base << 4) + APM_KERNBASE;
 	sc->cs32_limit = apm_cs32_limit - 1;
 	if (apm_cs16_limit == 0)
-	    apm_cs16_limit == apm_cs32_limit;
+	    apm_cs16_limit = apm_cs32_limit;
 	sc->cs16_limit = apm_cs16_limit - 1;
 	sc->ds_limit = apm_ds_limit - 1;
 	sc->cs_entry = apm_cs_entry;
