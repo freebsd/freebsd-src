@@ -17,6 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20021222:
+ 	For a period after the GCC 3.2.1 import (from 12/04 to 12/22), GCC
+ 	used an incompatible form of ABI for returning structures and unions
+ 	which FreeBSD's GCC maintainers were not aware of relative to previous
+ 	versions of FreeBSD.  We have gone back to the ABI for now, and any
+ 	code compiled which is required to interoperate with other code (not
+ 	built at the same time) returning structs or unions should be 
+
 20021216:
 	A name change in /etc/netconfig has been reverted to stay
 	compatible with with suns TIRPC and also with NetBSD. You need
