@@ -1076,7 +1076,7 @@ smbfs_lookup(ap)
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	int nmlen = cnp->cn_namelen;
-	int wantparent, error, islastcn, isdot;
+	int error, islastcn, isdot;
 	int killit;
 	
 	SMBVDEBUG("\n");
@@ -1103,7 +1103,6 @@ smbfs_lookup(ap)
 		return EROFS;
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0)
 		return error;
-	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	smp = VFSTOSMBFS(mp);
 	dnp = VTOSMB(dvp);
 	isdot = (nmlen == 1 && name[0] == '.');
@@ -1183,7 +1182,7 @@ smbfs_lookup(ap)
 		/*
 		 * Handle RENAME or CREATE case...
 		 */
-		if ((nameiop == CREATE || nameiop == RENAME) && wantparent && islastcn) {
+		if ((nameiop == CREATE || nameiop == RENAME) && islastcn) {
 			error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
 			if (error)
 				return error;
@@ -1213,7 +1212,7 @@ smbfs_lookup(ap)
 		cnp->cn_flags |= SAVENAME;
 		return 0;
 	}
-	if (nameiop == RENAME && islastcn && wantparent) {
+	if (nameiop == RENAME && islastcn) {
 		error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
 		if (error)
 			return error;
