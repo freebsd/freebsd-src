@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.5 1994/09/02 15:06:50 davidg Exp $
+ * $Id: vm_extern.h,v 1.6 1994/09/27 18:00:26 davidg Exp $
  */
 
-#ifndef _VM_VM_EXTERN_H_
-#define _VM_VM_EXTERN_H_
+#ifndef _VM_EXTERN_H_
+#define	_VM_EXTERN_H_
 
 struct buf;
 struct loadavg;
@@ -52,7 +52,7 @@ void		 chgkprot __P((caddr_t, int, int));
 /*
  * Try to get semi-meaningful wait messages into thread_sleep...
  */
-extern void thread_sleep_(int, simple_lock_t, char *);
+void thread_sleep_ __P((int, simple_lock_t, char *));
 #if __GNUC__ >= 2
 #define thread_sleep(a,b,c) thread_sleep_((a), (b), __FUNCTION__)
 #else
@@ -123,7 +123,8 @@ void		 vm_init_limits __P((struct proc *));
 void		 vm_mem_init __P((void));
 int		 vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t,
 		    vm_prot_t, vm_prot_t, int, caddr_t, vm_offset_t));
-vm_offset_t	 vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));
+vm_offset_t	 vm_page_alloc_contig __P((vm_offset_t, vm_offset_t,
+		    vm_offset_t, vm_offset_t));
 int		 vm_protect __P((vm_map_t,
 		    vm_offset_t, vm_size_t, boolean_t, vm_prot_t));
 void		 vm_set_page_size __P((void));
@@ -137,6 +138,6 @@ void		 vnode_pager_umount __P((struct mount *));
 boolean_t	 vnode_pager_uncache __P((struct vnode *));
 void		 vslock __P((caddr_t, u_int));
 void		 vsunlock __P((caddr_t, u_int, int));
-#endif
+#endif /* KERNEL */
 
-#endif
+#endif /* !_VM_EXTERN_H_ */
