@@ -92,7 +92,7 @@ snddev_info sb_op_desc = {
     NULL /* use generic sndread */,
     NULL /* use generic sndwrite */,
     sb_dsp_ioctl,
-    sndpoll,
+    sndselect,
 
     sbintr,
     sb_callback,
