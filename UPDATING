@@ -175,6 +175,7 @@ COMMON ITEMS:
 	make installkernel KERNEL=YOUR_KERNEL_HERE
 	reboot	(in single user) [1]
 	make installworld
+	mergemaster
 	reboot
 
 	[1] You can often get away without doing this step as the
