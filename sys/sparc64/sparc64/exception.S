@@ -457,6 +457,31 @@ END(rsf_fatal)
 	.endr
 	.endm
 
+	.macro	tl1_split
+	rdpr	%wstate, %g1
+	wrpr	%g1, WSTATE_NESTED, %wstate
+	save	%sp, -(CCFSZ + TF_SIZEOF), %sp
+	.endm
+
+	.macro	tl1_setup	type
+	tl1_split
+	clr	%o1
+	set	trap, %o2
+	b	%xcc, tl1_trap
+	 mov	\type | T_KERNEL, %o0
+	.endm
+
+	.macro	tl1_gen		type
+	tl1_setup \type
+	.align	32
+	.endm
+
+	.macro	tl1_reserved	count
+	.rept	\count
+	tl1_gen	T_RESERVED
+	.endr
+	.endm
+
 	.macro	tl0_fp_restore
 	wr	%g0, FPRS_FEF, %fprs
 	wr	%g0, ASI_BLK_S, %asi
@@ -1124,31 +1149,6 @@ END(tl0_sftrap)
 	ba	%xcc, tl0_trap
 	 mov	T_SYSCALL, %o0
 	.align	32
-	.endm
-
-	.macro	tl1_split
-	rdpr	%wstate, %g1
-	wrpr	%g1, WSTATE_NESTED, %wstate
-	save	%sp, -(CCFSZ + TF_SIZEOF), %sp
-	.endm
-
-	.macro	tl1_setup	type
-	tl1_split
-	clr	%o1
-	set	trap, %o2
-	b	%xcc, tl1_trap
-	 mov	\type | T_KERNEL, %o0
-	.endm
-
-	.macro	tl1_gen		type
-	tl1_setup \type
-	.align	32
-	.endm
-
-	.macro	tl1_reserved	count
-	.rept	\count
-	tl1_gen	T_RESERVED
-	.endr
 	.endm
 
 	.macro	tl1_insn_excptn
