@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.13 1995/12/07 10:34:07 peter Exp $
+ * $Id: misc.c,v 1.14 1996/01/14 21:48:57 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -130,7 +130,7 @@ string_copy(char *s1, char *s2)
 }
 
 Boolean
-directoryExists(const char *dirname)
+directory_exists(const char *dirname)
 {
     DIR *tptr;
 

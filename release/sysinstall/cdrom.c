@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.9 1995/12/07 10:33:32 peter Exp $
+ * $Id: cdrom.c,v 1.10 1996/03/02 07:31:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,9 +58,15 @@
 #include <sys/mount.h>
 #undef CD9660
 
-/* This isn't static, like the others, since it's often useful to know whether or not we have a CDROM
-   available in some of the other installation screens. */
-Boolean cdromMounted;
+/*
+ * This isn't static, like the others, since it's often useful to know whether
+ * or not we have a CDROM available in some of the other installation screens.
+ * This also isn't a boolean like the others since we have 3 states for it:
+ * 0 = cdrom isn't mounted, 1 = cdrom is mounted and we mounted it, 2 = cdrom
+ * was already mounted when we came in and we should leave it that way when
+ * we leave.
+ */
+int cdromMounted;
 
 Boolean
 mediaInitCDROM(Device *dev)
@@ -79,7 +85,9 @@ mediaInitCDROM(Device *dev)
     args.fspec = dev->devname;
     args.flags = 0;
 
-    if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
+    if (directory_exists("/cdrom/dists"))
+	cdromMounted = 2;
+    else if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
 	dialog_clear();
 	msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
 	return FALSE;
@@ -104,7 +112,7 @@ mediaInitCDROM(Device *dev)
 	    return FALSE;
 	}
     }
-    cdromMounted = TRUE;
+    cdromMounted = 1;
     msgDebug("Mounted CDROM device %s on /cdrom\n", dev->devname);
     return TRUE;
 }
@@ -131,7 +139,7 @@ mediaGetCDROM(Device *dev, char *file, Boolean probe)
 void
 mediaShutdownCDROM(Device *dev)
 {
-    if (!RunningAsInit || !cdromMounted)
+    if (!RunningAsInit || !cdromMounted || cdromMounted == 2)
 	return;
     msgDebug("Unmounting %s from /cdrom\n", dev->devname);
     if (unmount("/cdrom", MNT_FORCE) != 0) {
@@ -139,6 +147,6 @@ mediaShutdownCDROM(Device *dev)
 	msgConfirm("Could not unmount the CDROM from /cdrom: %s", strerror(errno));
     }
     msgDebug("Unmount successful\n");
-    cdromMounted = FALSE;
+    cdromMounted = 0;
     return;
 }

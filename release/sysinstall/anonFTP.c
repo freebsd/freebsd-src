@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.6 1995/11/12 07:27:55 jkh Exp $
+ * $Id: anonFTP.c,v 1.7 1996/03/02 07:31:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -153,7 +153,7 @@ static Layout layout[] = {
 };
 
 int
-createFtpUser()
+createFtpUser(void)
 {
     struct passwd *tpw;
     struct group  *tgrp;
@@ -219,7 +219,7 @@ createFtpUser()
 
 /* This is it - how to get the setup values */
 int
-anonftpOpenDialog()
+anonftpOpenDialog(void)
 {
     WINDOW              *ds_win;
     ComposeObj          *obj = NULL;
@@ -231,12 +231,11 @@ anonftpOpenDialog()
     
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
-    if (ds_win == 0)
-      {
-	  beep();
-	  msgConfirm("Cannot open anonymous ftp dialog window!!");
-	  return(RET_SUCCESS);
-      }
+    if (ds_win == 0) {
+	beep();
+	msgConfirm("Cannot open anonymous ftp dialog window!!");
+	return(RET_FAIL);
+    }
     
     /* Say where our help comes from */
     systemHelpFile(ANONFTP_HELPFILE, help);
@@ -325,72 +324,71 @@ anonftpOpenDialog()
 	    switch (ret) {
 		/* Bail out */
 	    case SEL_ESC:
-	      quit = TRUE, cancel=TRUE;
-	      break;
+		quit = TRUE, cancel=TRUE;
+		break;
 	      
-	      /* This doesn't work for list dialogs. Oh well. Perhaps
-		 should special case the move from the OK button ``up''
-		 to make it go to the interface list, but then it gets
-		 awkward for the user to go back and correct screw up's
-		 in the per-interface section */
+		/* This doesn't work for list dialogs. Oh well. Perhaps
+		   should special case the move from the OK button ``up''
+		   to make it go to the interface list, but then it gets
+		   awkward for the user to go back and correct screw up's
+		   in the per-interface section */
 	      
 	    case KEY_UP:
-	      if (obj->prev !=NULL ) {
-		  obj = obj->prev;
-		  --n;
-	      } else {
-		  obj = last;
-		  n = max;
-	      }
-	      break;
+		if (obj->prev !=NULL ) {
+		    obj = obj->prev;
+		    --n;
+		} else {
+		    obj = last;
+		    n = max;
+		}
+		break;
 	      
 	    case KEY_DOWN:
-	      if (obj->next != NULL) {
-		  obj = obj->next;
-		  ++n;
-	      } else {
-		  obj = first;
-		  n = 0;
-	      }
-	      break;
-	      
+		if (obj->next != NULL) {
+		    obj = obj->next;
+		    ++n;
+		} else {
+		    obj = first;
+		    n = 0;
+		}
+		break;
+		
 	    case SEL_TAB:
-	      if (n < max)
-		  ++n;
-	      else
-		  n = 0;
-	      break;
+		if (n < max)
+		    ++n;
+		else
+		    n = 0;
+		break;
 	      
-	      /* The user has pressed enter over a button object */
+		/* The user has pressed enter over a button object */
 	    case SEL_BUTTON:
-	      quit = TRUE;
-	      if (cancelbutton)
-		  cancel = TRUE;
-	      break;
+		quit = TRUE;
+		if (cancelbutton)
+		    cancel = TRUE;
+		break;
 	      
-	      /* Generic CR handler */
+		/* Generic CR handler */
 	    case SEL_CR:
-	      if (n < max)
-		  ++n;
-	      else
-		  n = 0;
-	      break;
+		if (n < max)
+		    ++n;
+		else
+		    n = 0;
+		break;
 	      
 	    case SEL_BACKTAB:
-	      if (n)
-		  --n;
-	      else
-		  n = max;
-	      break;
+		if (n)
+		    --n;
+		else
+		    n = max;
+		break;
 	      
 	    case KEY_F(1):
-	      display_helpfile();
+		display_helpfile();
 	    
 	    /* They tried some key combination we don't support - tell them! */
 	    default:
-	      beep();
+		beep();
 	    }
-	    
     }
     
     /* Clear this crap off the screen */
@@ -439,11 +437,11 @@ configAnonFTP(char *unused)
     
     /*** If HomeDir does not exist, create it ***/
     
-    if (!directoryExists(tconf.homedir)) {
+    if (!directory_exists(tconf.homedir)) {
 	vsystem("mkdir -p %s" ,tconf.homedir);
     }
     
-    if (directoryExists(tconf.homedir)) {
+    if (directory_exists(tconf.homedir)) {
 	msgNotify("Configuring %s for use by anon FTP.", tconf.homedir);
 	vsystem("chmod 555 %s && chown root.%s %s", tconf.homedir, tconf.group, tconf.homedir);
 	vsystem("mkdir %s/bin && chmod 555 %s/bin", tconf.homedir, tconf.homedir);

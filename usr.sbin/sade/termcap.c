@@ -29,15 +29,13 @@ set_termcap(void)
     char           *term;
     int		   stat;
 
-    OnVTY = RunningAsInit = FALSE;
+    OnVTY = FALSE;
 
     term = getenv("TERM");
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
 
     if (getpid() != 1)
 	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
-    else
-	RunningAsInit = TRUE;
 
     if (stat < 0) {
 	if (!term) {
