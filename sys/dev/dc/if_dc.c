@@ -1901,6 +1901,7 @@ dc_attach(dev)
 	struct ifnet		*ifp;
 	u_int32_t		revision;
 	int			unit, error = 0, rid, mac_offset;
+	u_int8_t		*mac;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -2078,7 +2079,6 @@ dc_attach(dev)
 		 * The DC_TX_COALESCE flag is required.
 		 */
 		sc->dc_pmode = DC_PMODE_MII;
-		/* XXX Call the cardbus function to get nic from the CIS */
 		break;
 	case DC_DEVICEID_RS7112:
 		sc->dc_type = DC_TYPE_CONEXANT;
@@ -2158,7 +2158,13 @@ dc_attach(dev)
 		bcopy(sc->dc_srom + DC_CONEXANT_EE_NODEADDR, &eaddr, 6);
 		break;
 	case DC_TYPE_XIRCOM:
-
+		/* The MAC comes from the CIS */
+		mac = pci_get_ether(dev);
+		if (!mac) {
+			device_printf(dev, "No station address in CIS!\n");
+			goto fail;
+		}
+		bcopy(mac, eaddr, ETHER_ADDR_LEN);
 		break;
 	default:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
