@@ -96,6 +96,14 @@ pw_copy(ffd, tfd, pw)
 			goto err;
 	}
 	if (!done)
+#ifdef YP
+	/* Ultra paranoid: shouldn't happen. */
+		if (getuid())  {
+			warnx("%s: not found in %s -- permission denied",
+					pw->pw_name, _PATH_MASTERPASSWD);
+			pw_error(NULL, 0, 1);
+		} else
+#endif /* YP */
 		(void)fprintf(to, "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s\n",
 		    pw->pw_name, pw->pw_passwd, pw->pw_uid, pw->pw_gid,
 		    pw->pw_class, pw->pw_change, pw->pw_expire, pw->pw_gecos,
