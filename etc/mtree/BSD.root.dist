@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 #
 
 /set type=dir uname=root gname=wheel mode=0755

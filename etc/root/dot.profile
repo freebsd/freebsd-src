@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 #
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
 echo 'erase ^H, kill ^U, intr ^C'

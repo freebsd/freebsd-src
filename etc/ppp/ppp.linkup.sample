@@ -14,7 +14,7 @@
 #
 #  3) If given label name is not found, then label MYADDR is searched.
 #
-# $FreeBSD$
+# $Id$
 #
 #########################################################################
 #

@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef _LOGIN_CAP_H_
