@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.9 1995/11/03 09:30:13 peter Exp $";
+	"$Id: inetd.c,v 1.10 1996/01/01 08:42:23 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -739,6 +739,8 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		syslog(LOG_ERR, "setsockopt (SO_DEBUG): %m");
 	if (turnon(sep->se_fd, SO_REUSEADDR) < 0)
 		syslog(LOG_ERR, "setsockopt (SO_REUSEADDR): %m");
+	if (turnon(sep->se_fd, SO_PRIVSTATE) < 0)
+		syslog(LOG_ERR, "setsockopt (SO_PRIVSTATE): %m");
 #undef turnon
 	if (bind(sep->se_fd, (struct sockaddr *)&sep->se_ctrladdr,
 	    sizeof (sep->se_ctrladdr)) < 0) {
