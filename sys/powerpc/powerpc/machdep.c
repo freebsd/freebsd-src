@@ -309,6 +309,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 *      hasn't been mapped (G5)
 	 */
 	mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
+	isync();
 	bcopy(&trapcode, (void *)EXC_RST,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_MCHK, (size_t)&trapsize);
 	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
@@ -336,6 +337,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 * Make sure translation has been enabled
 	 */
 	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);
+	isync();
 
 	/*
 	 * Initialise virtual memory.
