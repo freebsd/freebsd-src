@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.5 1997/07/06 23:56:12 smp Exp smp $
+ *	$Id: mpapic.c,v 1.8 1997/07/06 23:59:31 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -641,9 +641,9 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 			icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
 			icr_hi |= (CPU_TO_ID(x) << 24);
 			lapic.icr_hi = icr_hi;
-#if 1
+#if defined(DEBUG_CPUSTOP)
 			db_printf( "icr_hi: 0x%08x\n", lapic.icr_hi );
-#endif
+#endif /* DEBUG_CPUSTOP */
 			/* send the IPI */
 			if (apic_ipi(APIC_DEST_DESTFLD, vector,
 				     delivery_mode) == -1)
