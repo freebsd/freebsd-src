@@ -7,12 +7,16 @@
 
 PROG=	cpp
 SRCS=	gcc.c cppspec.c
-NOMAN=	1
 
 CFLAGS+= -DDEFAULT_TARGET_VERSION=\"$(version)\"
 CFLAGS+= -DDEFAULT_TARGET_MACHINE=\"$(target)\"
 
 DPADD+=	${LIBCC_INT}
 LDADD+=	${LIBCC_INT}
+
+CLEANFILES= cpp.1
+
+cpp.1: cccp.1
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

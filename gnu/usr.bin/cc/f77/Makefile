@@ -7,7 +7,6 @@
 
 PROG=	f77
 SRCS=	gcc.c g77spec.c version.c
-NOMAN=	# not while compile from GCC repo checkout
 
 CFLAGS+= -DDEFAULT_TARGET_VERSION=\"$(version)\"
 CFLAGS+= -DDEFAULT_TARGET_MACHINE=\"$(target)\"
