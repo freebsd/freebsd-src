@@ -769,7 +769,6 @@ Static int
 ng_udbp_rmnode(node_p node)
 {
 	const udbp_p sc = node->private;
-	struct mbuf *m;
 
 	node->flags |= NG_INVALID;
 	ng_cutlinks(node);
