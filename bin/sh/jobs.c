@@ -617,7 +617,8 @@ makejob(union node *node __unused, int nprocs)
 				memcpy(jp, jobtab, njobs * sizeof jp[0]);
 #if JOBS
 				/* Relocate `next' pointers and list head */
-				jobmru = &jp[jobmru - jobtab];
+				if (jobmru != NULL)
+					jobmru = &jp[jobmru - jobtab];
 				for (i = 0; i < njobs; i++)
 					if (jp[i].next != NULL)
 						jp[i].next = &jp[jp[i].next -
