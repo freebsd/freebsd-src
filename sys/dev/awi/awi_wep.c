@@ -352,12 +352,12 @@ awi_wep_encrypt(sc, m0, txflag)
 		ivp[0] = (iv >> 16) & 0xff;
 		ivp[1] = (iv >> 8) & 0xff;
 		ivp[2] = iv & 0xff;
-		ivp[3] = kid & 0x03;	/* clear pad and keyid */
+		ivp[IEEE80211_WEP_IVLEN] = kid << 6;	/* pad and keyid */
 		noff += IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN;
 	} else {
 		ivp = mtod(m, u_int8_t *) + moff;
+		kid = ivp[IEEE80211_WEP_IVLEN] >> 6;
 		moff += IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN;
-		kid = ivp[IEEE80211_WEP_IVLEN] & 0x03;
 	}
 	key = sc->sc_wep_key[kid];
 	keylen = sc->sc_wep_keylen[kid];
