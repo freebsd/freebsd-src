@@ -56,13 +56,18 @@ if [ -f /etc/news.expire ]; then
 	/etc/news.expire
 fi
 
-#echo ""
-#echo "Purging accounting records:"
-#mv /var/account/acct.2 /var/account/acct.3
-#mv /var/account/acct.1 /var/account/acct.2
-#mv /var/account/acct.0 /var/account/acct.1
-#cp /var/account/acct /var/account/acct.0
-#sa -s > /dev/null
+if [ -d /var/account ] ; then
+	echo ""
+	echo "Purging accounting records:"
+	cd /var/account
+	if [ -f acct.2 ] ; then mv -f acct.2 acct.3 ; fi
+	if [ -f acct.1 ] ; then mv -f acct.1 acct.2 ; fi
+	if [ -f acct.0 ] ; then mv -f acct.0 acct.1 ; fi
+	if [ -f acct ] ; then
+		cp -pf acct acct.0
+		sa -s > /dev/null
+	fi
+fi
 
 echo ""
 echo "Backup passwd and group files:"
