@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -44,9 +44,9 @@
 
 #define	MAC_BIBA_LABEL_NAME		"biba"
 
-#define	MAC_BIBA_FLAG_SINGLE	0x00000001	/* mb_single initialized */
+#define	MAC_BIBA_FLAG_EFFECTIVE	0x00000001	/* mb_effective initialized */
 #define	MAC_BIBA_FLAG_RANGE	0x00000002	/* mb_range* initialized */
-#define	MAC_BIBA_FLAGS_BOTH	(MAC_BIBA_FLAG_SINGLE | MAC_BIBA_FLAG_RANGE)
+#define	MAC_BIBA_FLAGS_BOTH	(MAC_BIBA_FLAG_EFFECTIVE | MAC_BIBA_FLAG_RANGE)
 
 #define	MAC_BIBA_TYPE_UNDEF	0	/* Undefined */
 #define	MAC_BIBA_TYPE_GRADE	1	/* Hierarchal grade with mb_grade. */
@@ -73,14 +73,14 @@ struct mac_biba_element {
 };
 
 /*
- * Biba labels consist of two components: a single label, and a label
+ * Biba labels consist of two components: an effective label, and a label
  * range.  Depending on the context, one or both may be used; the mb_flags
  * field permits the provider to indicate what fields are intended for
  * use.
  */
 struct mac_biba {
 	int			mb_flags;
-	struct mac_biba_element	mb_single;
+	struct mac_biba_element	mb_effective;
 	struct mac_biba_element	mb_rangelow, mb_rangehigh;
 };
 
