@@ -302,11 +302,13 @@ fdctl_wr_isa(fdc_p fdc, u_int8_t v)
 	bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
 }
 
+#if NCARD > 0
 static void
 fdctl_wr_pcmcia(fdc_p fdc, u_int8_t v)
 {
 	bus_space_write_1(fdc->portt, fdc->porth, FDCTL+fdc->port_off, v);
 }
+#endif
 
 #if 0
 
