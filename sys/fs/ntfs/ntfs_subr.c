@@ -399,6 +399,7 @@ ntfs_ntlookup(
 
 	/* Generic initialization */
 	ip->i_devvp = ntmp->ntm_devvp;
+	ip->i_dev = ntmp->ntm_devvp->v_rdev;
 	ip->i_number = ino;
 	ip->i_mp = ntmp;
 
