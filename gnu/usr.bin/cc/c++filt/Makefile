@@ -1,10 +1,10 @@
 #
-# $Id: Makefile,v 1.3 1997/02/22 15:44:50 peter Exp $
+# $Id: Makefile,v 1.4 1998/07/08 00:14:15 bde Exp $
 #
 
 PROG =	c++filt
 SRCS =	cplus-dem.c getopt.c getopt1.c underscore.c
-BINDIR=	/usr/bin
+BINDIR=	/usr/libexec/${OBJFORMAT}
 NOMAN=	1
 CFLAGS+= -DMAIN -DIN_GCC -DVERSION=\"$(version)\"
 
