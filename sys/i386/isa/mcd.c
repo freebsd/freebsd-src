@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.26 1994/10/23 21:27:29 wollman Exp $
+ *	$Id: mcd.c,v 1.27 1994/10/27 20:44:50 jkh Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -187,9 +187,6 @@ struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 
 #define MCD_RETRYS	5
 #define MCD_RDRETRYS	8
-
-#define MCDBLK	2048	/* for cooked mode */
-#define MCDRBLK	2352	/* for raw mode */
 
 /* several delays */
 #define RDELAY_WAITSTAT 300
@@ -908,12 +905,10 @@ loop:
 
 			/* to check for raw/cooked mode */
 			if (cd->flags & MCDREADRAW) {
-				rm = (cd->flags & MCDNEWMODEL) ?
-					MCD_MD_BIN_RAW : MCD_MD_RAW;
+				rm = MCD_MD_RAW;
 				mbx->sz = MCDRBLK;
 			} else {
-				rm = (cd->flags & MCDNEWMODEL) ?
-					MCD_MD_BIN_COOKED : MCD_MD_COOKED;
+				rm = MCD_MD_COOKED;
 				mbx->sz = cd->blksize;
 			}
 
