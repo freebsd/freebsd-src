@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
+#include <sys/eui64.h>
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/fwphyreg.h>
@@ -76,6 +77,13 @@ usage(void)
 	exit(0);
 }
 
+static void
+fweui2eui64(const struct fw_eui64 *fweui, struct eui64 *eui)
+{
+	*(u_int32_t*)&(eui->octet[0]) = htonl(fweui->hi);
+	*(u_int32_t*)&(eui->octet[4]) = htonl(fweui->lo);
+}
+
 static struct fw_devlstreq *
 get_dev(int fd)
 {
@@ -90,22 +98,68 @@ get_dev(int fd)
 	return data;
 }
 
+static int
+str2node(int fd, const char *nodestr)
+{
+	struct eui64 eui, tmpeui;
+	struct fw_devlstreq *data;
+	char *endptr;
+	int i, node;
+
+	if (nodestr == '\0')
+		return (-1);
+
+	/*
+	 * Deal with classic node specifications.
+	 */
+	node = strtol(nodestr, &endptr, 0);
+	if (*endptr == '\0')
+		goto gotnode;
+
+	/*
+	 * Try to get an eui and match it against available nodes.
+	 */
+	if (eui64_hostton(nodestr, &eui) != 0 && eui64_aton(nodestr, &eui) != 0)
+		return (-1);
+
+	data = get_dev(fd);
+
+	for (i = 0; i < data->info_len; i++) {
+		fweui2eui64(&data->dev[i].eui, &tmpeui);
+		if (memcmp(&eui, &tmpeui, sizeof(struct eui64)) == 0) {
+			node = data->dev[i].dst;
+			goto gotnode;
+		}
+	}
+	if (i >= data->info_len)
+		return (-1);
+
+gotnode:
+	if (node < 0 || node > 63)
+		return (-1);
+	else
+		return (node);
+}
+
 static void
 list_dev(int fd)
 {
 	struct fw_devlstreq *data;
 	struct fw_devinfo *devinfo;
+	struct eui64 eui;
+	char addr[EUI64_SIZ];
 	int i;
 
 	data = get_dev(fd);
 	printf("%d devices (info_len=%d)\n", data->n, data->info_len);
-	printf("node        EUI64        status\n");
+	printf("node           EUI64          status\n");
 	for (i = 0; i < data->info_len; i++) {
 		devinfo = &data->dev[i];
-		printf("%4d  0x%08x%08x %6d\n",
+		fweui2eui64(&devinfo->eui, &eui);
+		eui64_ntoa(&eui, addr, sizeof(addr));
+		printf("%4d  %s %6d\n",
 			(devinfo->status || i == 0) ? devinfo->dst : -1,
-			devinfo->eui.hi,
-			devinfo->eui.lo,
+			addr,
 			devinfo->status
 		);
 	}
@@ -220,6 +274,8 @@ set_pri_req(int fd, int pri_req)
 {
 	struct fw_devlstreq *data;
 	struct fw_devinfo *devinfo;
+	struct eui64 eui;
+	char addr[EUI64_SIZ];
 	u_int32_t max, reg, old;
 	int i;
 
@@ -230,8 +286,10 @@ set_pri_req(int fd, int pri_req)
 		if (!devinfo->status)
 			continue;
 		reg = read_write_quad(fd, devinfo->eui, BUGET_REG, 1, 0);
-		printf("%d %08x:%08x, %08x",
-			devinfo->dst, devinfo->eui.hi, devinfo->eui.lo, reg);
+		fweui2eui64(&devinfo->eui, &eui);
+		eui64_ntoa(&eui, addr, sizeof(addr));
+		printf("%d %s, %08x",
+			devinfo->dst, addr, reg);
 		if (reg > 0 && pri_req >= 0) {
 			old = (reg & 0x3f);
 			max = (reg & 0x3f00) >> 8;
@@ -250,19 +308,23 @@ static void
 parse_bus_info_block(u_int32_t *p, int info_len)
 {
 	int i;
+	char addr[EUI64_SIZ];
 	struct bus_info *bi;
+	struct eui64 eui;
 
 	bi = (struct bus_info *)p;
+	fweui2eui64(&bi->eui64, &eui);
+	eui64_ntoa(&eui, addr, sizeof(addr));
 	printf("bus_name: 0x%04x\n"
 		"irmc:%d cmc:%d isc:%d bmc:%d pmc:%d\n"
 		"cyc_clk_acc:%d max_rec:%d max_rom:%d\n"
 		"generation:%d link_spd:%d\n"
-		"EUI64: 0x%08x 0x%08x\n",
+		"EUI64: %s\n",
 		bi->bus_name,
 		bi->irmc, bi->cmc, bi->isc, bi->bmc, bi->pmc,
 		bi->cyc_clk_acc, bi->max_rec, bi->max_rom,
 		bi->generation, bi->link_spd,
-		bi->eui64.hi, bi->eui64.lo);
+		addr);
 }
 
 static int
@@ -307,6 +369,10 @@ show_crom(u_int32_t *crom_buf)
 	u_int16_t crc;
 
 	printf("first quad: 0x%08x ", *crom_buf);
+	if (crom_buf[0] == 0) {
+		printf("(Invalid Configuration ROM)\n");
+		return;
+	}
 	hdr = (struct csrhdr *)crom_buf;
 	if (hdr->info_len == 1) {
 		/* minimum ROM */
@@ -326,6 +392,10 @@ show_crom(u_int32_t *crom_buf)
 
 	crom_init_context(&cc, crom_buf);
 	dir = cc.stack[0].dir;
+	if (!dir) {
+		printf("no root directory - giving up\n");
+		return;
+	}
 	printf("root_directory: len=0x%04x(%d) crc=0x%04x",
 			dir->crc_len, dir->crc_len, dir->crc);
 	crc = crom_crc((u_int32_t *)&dir->entry[0], dir->crc_len);
@@ -530,11 +600,20 @@ open_dev(int *fd, char *devbase)
 }
 
 int
+sysctl_set_int(char *name, int val)
+{
+	if (sysctlbyname(name, NULL, NULL, &val, sizeof(int)) < 0)
+		err(1, "sysctl %s failed.", name);
+}
+
+int
 main(int argc, char **argv)
 {
 	u_int32_t crom_buf[1024/4];
 	char devbase[1024] = "/dev/fw0";
 	int fd, i, tmp, ch, len=1024;
+	struct fw_eui64 eui;
+	struct eui64 target;
 
 	fd = -1;
 
@@ -543,7 +622,7 @@ main(int argc, char **argv)
 		list_dev(fd);
 	}
 
-	while ((ch = getopt(argc, argv, "g:o:s:b:prtc:d:l:u:R:S:")) != -1)
+	while ((ch = getopt(argc, argv, "g:m:o:s:b:prtc:d:l:u:R:S:")) != -1)
 		switch(ch) {
 		case 'b':
 			tmp = strtol(optarg, NULL, 0);
@@ -551,14 +630,14 @@ main(int argc, char **argv)
 			set_pri_req(fd, tmp);
 			break;
 		case 'c':
-			tmp = strtol(optarg, NULL, 0);
 			open_dev(&fd, devbase);
+			tmp = str2node(fd, optarg);
 			get_crom(fd, tmp, crom_buf, len);
 			show_crom(crom_buf);
 			break;
 		case 'd':
-			tmp = strtol(optarg, NULL, 0);
 			open_dev(&fd, devbase);
+			tmp = str2node(fd, optarg);
 			get_crom(fd, tmp, crom_buf, len);
 			dump_crom(crom_buf);
 			break;
@@ -571,9 +650,18 @@ main(int argc, char **argv)
 			load_crom(optarg, crom_buf);
 			show_crom(crom_buf);
 			break;
+		case 'm':
+		       if (eui64_hostton(optarg, &target) != 0 &&
+			   eui64_aton(optarg, &target) != 0)
+				errx(1, "invalid target: %s", optarg);
+			eui.hi = ntohl(*(u_int32_t*)&(target.octet[0]));
+			eui.lo = ntohl(*(u_int32_t*)&(target.octet[4]));
+			sysctl_set_int("hw.firewire.fwmem.eui64_hi", eui.hi);
+			sysctl_set_int("hw.firewire.fwmem.eui64_lo", eui.lo);
+			break;
 		case 'o':
-			tmp = strtol(optarg, NULL, 0);
 			open_dev(&fd, devbase);
+			tmp = str2node(fd, optarg);
 			send_link_on(fd, tmp);
 			break;
 		case 'p':
@@ -586,8 +674,8 @@ main(int argc, char **argv)
                        		err(1, "ioctl");
 			break;
 		case 's':
-			tmp = strtol(optarg, NULL, 0);
 			open_dev(&fd, devbase);
+			tmp = str2node(fd, optarg);
 			reset_start(fd, tmp);
 			break;
 		case 't':
