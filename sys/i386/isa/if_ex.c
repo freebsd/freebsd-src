@@ -317,7 +317,7 @@ void ex_init(void *xsc)
 	 */
 	outb(iobase + REG1, inb(iobase + REG1) | Tx_Chn_Int_Md | Tx_Chn_ErStp | Disc_Bad_Fr);
 	outb(iobase + REG2, inb(iobase + REG2) | No_SA_Ins | RX_CRC_InMem);
-	outb(iobase + REG3, inb(iobase + REG3) | 0x3f /* XXX constants. */ );
+	outb(iobase + REG3, inb(iobase + REG3) & 0x3f /* XXX constants. */ );
 	outb(iobase + CMD_REG, Bank1_Sel);
 	outb(iobase + INT_NO_REG, (inb(iobase + INT_NO_REG) & 0xf8) | irq2eemap[sc->irq_no]);
 
@@ -350,7 +350,7 @@ void ex_init(void *xsc)
 	 */
 	outw(iobase + RCV_BAR, sc->rx_lower_limit);
 	sc->rx_head = sc->rx_lower_limit;
-	outw(iobase + RCV_STOP_REG, sc->rx_upper_limit & 0xfe);
+	outw(iobase + RCV_STOP_REG, sc->rx_upper_limit | 0xfe);
 	outw(iobase + XMT_BAR, sc->tx_lower_limit);
 	sc->tx_head = sc->tx_tail = sc->tx_lower_limit;
 
