@@ -333,7 +333,7 @@ mac_copy_mbuf_tag(struct m_tag *src, struct m_tag *dest)
 
 static int
 mac_externalize_ifnet_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen, int flags)
+    char *outbuf, size_t outbuflen)
 {
 	int error;
 
@@ -344,7 +344,7 @@ mac_externalize_ifnet_label(struct label *label, char *elements,
 
 static int
 mac_externalize_socket_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen, int flags)
+    char *outbuf, size_t outbuflen)
 {
 	int error;
 
@@ -355,7 +355,7 @@ mac_externalize_socket_label(struct label *label, char *elements,
 
 static int
 mac_externalize_socket_peer_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen, int flags)
+    char *outbuf, size_t outbuflen)
 {
 	int error;
 
@@ -768,7 +768,7 @@ mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = mac_externalize_ifnet_label(&ifnet->if_label, elements,
-	    buffer, mac.m_buflen, M_WAITOK);
+	    buffer, mac.m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
@@ -893,7 +893,7 @@ mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = mac_externalize_socket_label(&so->so_label, elements,
-	    buffer, mac->m_buflen, M_WAITOK);
+	    buffer, mac->m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
 
@@ -923,7 +923,7 @@ mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = mac_externalize_socket_peer_label(&so->so_peerlabel,
-	    elements, buffer, mac->m_buflen, M_WAITOK);
+	    elements, buffer, mac->m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
 
