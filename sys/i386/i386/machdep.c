@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.71 1994/10/09 07:34:29 davidg Exp $
+ *	$Id: machdep.c,v 1.72 1994/10/10 01:10:22 phk Exp $
  */
 
 #include "npx.h"
@@ -165,6 +165,9 @@ cpu_startup()
 	vm_offset_t maxaddr;
 	vm_size_t size = 0;
 	int firstaddr;
+#ifdef BOUNCE_BUFFERS
+	vm_offset_t minaddr;
+#endif /* BOUNCE_BUFFERS */
 
 	/*
 	 * Initialize error message buffer (at end of core).
