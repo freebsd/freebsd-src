@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.19 1999/02/14 17:09:59 nsouch Exp $
+ *	$Id: ppc.c,v 1.20 1999/02/14 22:02:47 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -43,6 +43,7 @@
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
+#include <i386/isa/isa.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
@@ -1745,7 +1746,7 @@ ppcprobe(struct isa_device *dvp)
 	if (ppc_detect(ppc, dvp->id_flags & 0xf))
 		goto error;
 
-	return (1);
+	return (IO_LPTSIZE);
 
 error:
 	return (0);
