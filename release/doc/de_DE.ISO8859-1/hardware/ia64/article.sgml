@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/ia64/article.sgml,v 1.5 2002/11/09 18:08:33 ue Exp $
-  basiert auf: 1.2
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/ia64/article.sgml,v 1.6 2003/05/24 21:52:46 ue Exp $
+  basiert auf: 1.3
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -27,9 +27,11 @@
 
   <abstract>
     <para>Dieses Dokument befindet sich noch in einem sehr fr&uuml;hen
-      Stadium.  Die Angaben sind unvollst&auml;ndig und entsprechen
-      mit gr&ouml;&szlig;ter Wahrscheinlichkeit in einigen Punkten
-      nicht ganz der Realit&auml;t.</para>
+      Stadium.  Die Angaben sind unvollst&auml;ndig und m&uuml;ssen
+      dringend erweitert werden.  Wenn Sie Informationen &uuml;ber
+      &os; &arch.print; Prozessoren, Mainboards und andere Ger&auml;te
+      haben, die mit &os; funktionieren, senden Sie sie bitte an die
+      &a.ia64; Mailingliste.</para>
   </abstract>
 
   &sect.intro;

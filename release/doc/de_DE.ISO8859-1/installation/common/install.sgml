@@ -1,8 +1,8 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.16 2003/01/13 20:30:50 ue Exp $
-basiert auf: 1.19
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.18 2003/05/24 19:11:45 ue Exp $
+basiert auf: 1.20
 
 install.sgml
 
@@ -600,8 +600,8 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <important>
         <para>Neue Disketten sind in der Regel
           <quote>vorformatiert</quote>.  Das ist zwar eine sehr
-          angenehme Variante, allerdings haben &uuml;ber Jahre viele
-          F&auml;lle erlebt, in denen es Probleme mit diesen
+          angenehme Variante, allerdings haben uns viele Anwender von
+          F&auml;llen berichtet, in denen es Probleme mit diesen
           vorformatierten Disketten gab.  Im Zweifelsfalle sollten Sie
           auch diese Disketten selbst formatieren, um wirklich sicher
           zu gehen.</para>
@@ -671,10 +671,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	sollten Sie wie folgt vorgehen:</para>
 
       <screen arch="i386"><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
-<prompt>C:\></prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
+<prompt>C:\></prompt> <userinput>XCOPY /S E:\BASE C:\FREEBSD\BASE</userinput></screen>
 
       <screen arch="pc98"><prompt>C:\></prompt> <userinput>MD A:\FREEBSD</userinput>
-<prompt>A:\></prompt> <userinput>XCOPY /S E:\BIN A:\FREEBSD\BIN</userinput></screen>
+<prompt>A:\></prompt> <userinput>XCOPY /S E:\BASE A:\FREEBSD\BASE</userinput></screen>
 
       <para>Wobei <devicename>E:</devicename> f&uuml;r den
         Laufwerksbuchstaben f&uuml;r das CDROM mit der &os;-CD
@@ -837,7 +837,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
           ausprobieren.  Wenn Sie in einem aktiven Netzwerk einfach
           irgendeine IP-Adresse oder Netzmaske nutzen, ist ein
           Fehlschlag so gut wie sicher; au&szlig;erdem k&ouml;nnen Sie
-          sich schonmal auf einem Anschi&szlig; durch Ihren
+          sich schon mal auf einem Anschi&szlig; durch Ihren
           Systemadministrator einstellen.</para>
 
         <para>Wenn die Netzwerkverbindung erst einmal steht,
@@ -1040,7 +1040,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
             Danach k&ouml;nnen Sie Ihren Rechner neu starten und &os;
             auf der neuen Partition installieren.  Beachten Sie bitte,
             da&szlig; die zweite Partition aus der ersten
-            <quote>clont</quote>, Sie werden also zwei prim&auml;re
+            <quote>klont</quote>, Sie werden also zwei prim&auml;re
             DOS Partitionen vorfinden, obwohl Sie vorher nur eine
             hatten.  Keine Panik, Sie k&ouml;nnen die zus&auml;tzliche
             prim&auml;re DOS Partition einfach l&ouml;schen (aber

@@ -2,8 +2,8 @@
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.15 2003/01/18 16:44:09 ue Exp $
-  basiert auf: 1.12
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.24 2003/05/25 12:44:41 mheinen Exp $
+  basiert auf: 1.15
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -24,11 +24,16 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+
+<!ENTITY release.4x "4.<replaceable>X</replaceable>">
+<!ENTITY release.5x "5.<replaceable>X</replaceable>">
+
 ]>
 
 <article lang="de">
   <articleinfo>
-    <title>Hinweise f&uuml;r die ersten Anwender von &os; 5.0-RELEASE</title>
+    <title>Hinweise f&uuml;r die ersten Anwender von &os;
+      &release.current;</title>
 
     <authorgroup>
       <corpauthor>The &os; Release Engineering Team</corpauthor>
@@ -42,37 +47,52 @@
       <holder role="mailto:re@FreeBSD.org">The &os; Release
         Engineering Team</holder>
     </copyright>
+
+    <abstract>
+      <para>Dieser Artikel enth&auml;lt Informationen &uuml;ber den
+	Status von &os; &release.current; f&uuml;r die Anwender, die
+	bisher noch keine Erfahrung mit den &release.5x; Versionen
+	oder &os; sammeln konnten.  Er enth&auml;lt einige
+	Hintergrundinformationen &uuml;ber die vor und w&auml;hrend
+	einer Ver&ouml;ffentlichung ablaufende Prozesse, nennt die
+	wichtigsten Neuerungen und die Stellen, an denen die ersten
+	Anwender Probleme haben k&ouml;nnten.  Weiterhin gibt es
+	Informationen &uuml;ber die Pl&auml;ne f&uuml;r weitere
+	Ver&ouml;ffentlichungen im Entwicklungszweig 4-STABLE und
+	ein paar Hinweise f&uuml;r die Aktualisierung bestehender
+	Systeme.</para>
+    </abstract>
   </articleinfo>
 
   <sect1 id="intro">
     <title>Einf&uuml;hrung</title>
 
-    <para>Nach &uuml;ber zwei Jahren steht mit &os; 5.0 wieder eine
-      komplett neue &os;-Version zur Verf&uuml;gung.  Sie bietet nicht
-      nur diverse neue M&ouml;glichkeiten, auch und gerade
-      <quote>unter der Haube</quote> hat sich einiges verbessert.  Der
-      Nachteil dieser Neuerungen ist, da&szlig; gro&szlig;e Teile des
-      Systems neu und nicht ausreichend getestet sind.  Im Vergleich
-      zu den existierenden 4.<replaceable>X</replaceable> Versionen
-      kann der Schritt zu 5.0 zu Verschlechterungen in den Bereichen
-      Stabilit&auml;t, Leistung und teilweise auch Funktionalit&auml;t
-      f&uuml;hren.</para>
+    <para>Nach &uuml;ber zwei Jahren steht mit &os; &release.5x;
+      wieder eine komplett neue &os;-Version zur Verf&uuml;gung.  Sie
+      bietet nicht nur diverse neue M&ouml;glichkeiten, auch und
+      gerade <quote>unter der Haube</quote> hat sich einiges
+      verbessert.  Der Nachteil dieser Neuerungen ist, da&szlig;
+      gro&szlig;e Teile des Systems neu und nicht ausreichend getestet
+      sind.  Im Vergleich zu den existierenden &release.4x; Versionen
+      kann der Schritt zu den ersten &release.5x; Versionen zu
+      Verschlechterungen in den Bereichen Stabilit&auml;t, Leistung
+      und teilweise auch Funktionalit&auml;t f&uuml;hren.</para>
 
     <para>Aus diesen Gr&uuml;nden warnen wir alle Anwender, ihre
-      Systeme <emphasis>nicht</emphasis> blind von &auml;lteren
-      &os;-Versionen auf 5.0 zu aktualisieren.  Gerade konservative
-      Anwender sollten in der nahen Zukunft
-      4.<replaceable>X</replaceable>-Versionen (wie 4.7-RELEASE oder
-      das demn&auml;chst erscheinende 4.8-RELEASE) benutzen.  Wir
-      meinen, da&szlig; diese Anwender erst zu
-      5.<replaceable>X</replaceable> wechseln sollten, nachdem der
-      Entwicklungszweig 5-STABLE existiert, der wahrscheinlich nach
-      der Ver&ouml;ffentlichung von 5.1-RELEASE oder 5.2-RELEASE
-      eingerichtet werden wird.</para>
+      Systeme nicht von &auml;lteren &os;-Versionen auf 5.0 zu
+      aktualisieren, wenn sie die &quot;Problemzonen&quot; nicht kennen
+      oder nicht bereit sind, die Einschr&auml;nkungen in den neuesten
+      Versionen in Kauf zu nehmen.  Gerade konservative Anwender
+      sollten in der nahen Zukunft &release.4x;-Versionen (wie
+      4.8-RELEASE) benutzen.  Wir meinen, da&szlig; diese Anwender
+      erst zu &release.5x; wechseln sollten, nachdem der
+      Entwicklungszweig 5-STABLE existiert; dies wird wahrscheinlich
+      nach der Ver&ouml;ffentlichung von 5.2-RELEASE
+      passieren.</para>
 
     <para>Hier zeigt sich das <quote>Henne und Ei</quote> Problem bei
-      der Ver&ouml;ffentlichung von &os; 5.0.  Alle am &os;  Project
-      beteiligten Personen wollen ein 5.0-RELEASE, das m&ouml;glichst
+      der Ver&ouml;ffentlichung von &os; &release.5x;.  Alle am &os;
+      Project beteiligten Personen wollen ein &os;, das m&ouml;glichst
       stabil und zuverl&auml;ssig ist.  Um dieses Ziel zu erreichen,
       m&uuml;ssen die neue Version und speziell die neuen Komponenten
       von m&ouml;glichst vielen Anwendern getestet werden.
@@ -82,18 +102,17 @@
       zu testenden Version!</para>
 
     <para>Dieser Artikel beschreibt einige der Probleme, die bei der
-      Installation und Benutzung von &os; 5.0-RELEASE auftreten
+      Installation und Benutzung von &os; &release.current; auftreten
       k&ouml;nnen.  Zuerst wird beschrieben, wie eine neue FreeBSD
       Version ver&ouml;ffentlicht wird.  Dann werden die
-      interessanteren Neuerungen in FreeBSD 5.0 und die Bereiche, in
-      denen (gerade f&uuml;r unvorsichtige Anwender) Probleme
-      auftreten k&ouml;nnen, vorgestellt.  Anwender, die erst einmal
-      bei Systemen auf Basis von 4-STABLE bleiben m&ouml;chten,
+      interessanteren Neuerungen in FreeBSD &release.current; und die
+      Bereiche, in denen (gerade f&uuml;r unvorsichtige Anwender)
+      Probleme auftreten k&ouml;nnen, vorgestellt.  Anwender, die erst
+      einmal bei Systemen auf Basis von 4-STABLE bleiben m&ouml;chten,
       erhalten einen kurzen Ausblick auf die kurz- und mittelfristigen
       Planungen f&uuml;r diesen Entwicklungszweig.  Zuletzt wird
       besprochen, was bei einer Aktualisierung eines existierenden
-      4.<replaceable>X</replaceable> Systems auf 5.0 beachtet werden
-      mu&szlig;.</para>
+      &release.4x; Systems auf 5.0 beachtet werden mu&szlig;.</para>
   </sect1>
 
   <sect1 id="release-overview">
@@ -116,16 +135,16 @@
       (stabil) genannten Entwicklungszweige.  Neuerungen werden nur in
       diese Entwicklungszweige &uuml;bernommen, nachdem sie in CURRENT
       getestet wurden.  Zur Zeit gibt es nur einen aktiven STABLE
-      Entwicklungszweig: <quote>4-STABLE</quote>;  dieser Zweig war
-      die Grundlage f&uuml;r alle 4.<replaceable>X</replaceable>
-      Versionen.  Dieser Zweig wird innerhalb des CVS Repository durch
-      den symbolischen Namen <literal>RELENG_4</literal>
-      gekennzeichnet.</para>
+      Entwicklungszweig: <quote>4-STABLE</quote>; dieser Zweig war
+      die Grundlage f&uuml;r alle &release.4x; Versionen.  Dieser
+      Zweig wird innerhalb des CVS Repository durch den symbolischen
+      Namen <literal>RELENG_4</literal> gekennzeichnet.</para>
 
-    <para>Die Basis f&uuml;r &os; 5.0 wird der Entwicklungszweig
-      CURRENT sein.  Damit wird zum ersten Mal nach &uuml;ber zwei
-      Jahren eine neue Version auf Basis dieses Entwicklungszweiges
-      erscheinen (die letzte war &os; 4.0, im M&auml;rz 2000).</para>
+    <para>Die Basis f&uuml;r &os; 5.0 und 5.1 ist der
+      Entwicklungszweig CURRENT.  Damit wird zum ersten Mal nach
+      &uuml;ber zwei Jahren eine neue Version auf Basis dieses
+      Entwicklungszweiges erscheinen (die letzte war &os; 4.0, im
+      M&auml;rz 2000).</para>
 
     <para>Einige Zeit nach der Ver&ouml;ffentlichung von &os; 5.0 wird
       im &os; CVS Repository der Zweig <quote>5-STABLE</quote> mit dem
@@ -134,31 +153,38 @@
       4-STABLE) wurden unmittelbar nach der Ver&ouml;ffentlichung der
       jeweiligen <quote>Punkt Null</quote> Versionen (3.0 bzw. 4.0)
       erzeugt.  R&uuml;ckblickend m&uuml;ssen wir feststellen,
-      da&szlig; dadurch weder CURRENT noch der neue Entwicklungszweig
-      gen&uuml;gend Zeit hatten, um einen stabilen Zustand zu
-      erreichen.</para>
+      da&szlig; dadurch in beiden F&auml;llen nicht genug Zeit war, um
+      CURRENT zu stabilisieren, bevor der neue Entwicklungszweig
+      eingerichtet wurde.  Dies f&uuml;hrte zu unn&ouml;tiger
+      Mehrarbeit, da Fehlerkorrekturen von einem Zweig in den anderen
+      Zweig &uuml;bertragen werden mu&szlig;ten;  au&szlig;erdem kam
+      es zu einigen &Auml;nderungen in der Architektur, die nicht in
+      den jeweils anderen Zweig &uuml;bernommen werden konnten.</para>
 
     <para>Aus diesem Grund wird das Release Engineering Team den neuen
       5-STABLE Entwicklungszweig erst dann im CVS Repository
       einrichten, wenn eine solide Grundlage zur Verf&uuml;gung steht.
       Es ist sehr wahrscheinlich, da&szlig; vorher mehrere
-      5.<replaceable>X</replaceable> Versionen erscheinen werden; zur
-      Zeit rechnen wir damit, da&szlig; 5-STABLE nach dem Erscheinen
-      von 5.1-RELEASE oder 5.2-RELEASE erzeugt werden wird.</para>
+      &release.5x; Versionen erscheinen werden; zur Zeit rechnen wir
+      damit, da&szlig; 5-STABLE nach dem Erscheinen von 5.2-RELEASE
+      erzeugt werden wird.</para>
 
     <para>Weitere Informationen &uuml;ber den Ablauf bei der
       Ver&ouml;ffentlichung einer neuen &os; Version finden Sie auf
       den <ulink
       url="http://www.FreeBSD.org/releng/index.html">Release
       Engineering Web pages</ulink> und im Artikel <ulink
-      url="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">Release
-      Engineering</ulink>.</para>
+      url="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">&os;
+      Release Engineering</ulink>.  Informationen &uuml;ber den
+      geplanten Entwicklungszweig 5-STABLE finden Sie auf der <ulink
+      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/5-roadmap/index.html"><quote>The
+      Roadmap for 5-STABLE</quote></ulink>.</para>
   </sect1>
 
   <sect1 id="new">
     <title>Neuerungen</title>
 
-    <para>Die Glanzpunkte von &os; 5.0 sind die vielen Neuerungen.
+    <para>Die Glanzpunkte von &os; &release.5x; sind die vielen Neuerungen.
       Diese Neuerungen und die neue Funktionalit&auml;t basieren zum
       gr&ouml;&szlig;ten Teil auf massiven &Auml;nderungen der
       Systemarchitektur, die nicht in den Entwicklungszweig 4-STABLE
@@ -181,7 +207,11 @@
       <listitem>
 	<para>KSE:  Die <quote>Kernel Scheduled Entities</quote>
 	  erlauben es einem Prozess, mehrere Threads auf Kernel-Ebene
-	  zu nutzen, analog zur Aktivierung via Scheduler.</para>
+	  zu nutzen, analog zur Aktivierung via Scheduler.  Die
+	  (experimentellen) Bibliotheken <filename>libkse</filename>
+	  und <filename>libthr</filename> erlauben auch normalen
+	  Programmen mit mehreren Threads, diese Erweiterung zu
+	  nutzen.</para>
       </listitem>
 
       <listitem>
@@ -192,7 +222,7 @@
 
       <listitem>
 	<para>GCC:  Der Compiler und die dazugeh&ouml;rigen Werkzeuge
-	  basieren jetzt auf GCC 3.2.1 und nicht mehr auf GCC
+	  basieren jetzt auf GCC 3.2.2 und nicht mehr auf GCC
 	  2.95.<replaceable>X</replaceable>.</para>
       </listitem>
 
@@ -219,7 +249,11 @@
       <listitem>
 	<para>UFS2:  Dieses neue Dateisystem unterst&uuml;tzt
 	  gr&ouml;&szlig;ere Dateien und zus&auml;tzliche
-	  Dateiberechtigungen.</para>
+	  Dateiberechtigungen.  &man.newfs.8; erzeugt jetzt
+	  standardm&auml;&szlig;ig UFS2 Dateisysteme und auf allen
+	  Plattformen au&szlig;er PC98 gilt dies auch f&uuml;r
+	  Dateisysteme, die mit &man.sysinstall.8; erzeugt
+	  werden.</para>
       </listitem>
 
       <listitem>
@@ -229,23 +263,26 @@
 
     <para>Eine ausf&uuml;hrlichere &Uuml;bersicht &uuml;ber die
       Neuerungen finden Sie in den <quote>Release Notes</quote>
-      f&uuml;r &os; 5.0.</para>
+      f&uuml;r &os; &release.prev; und &release.current;.</para>
   </sect1>
 
   <sect1 id="drawbacks">
-    <title>Nachteile f&uuml;r fr&uuml;hre Anwender</title>
+    <title>Nachteile f&uuml;r fr&uuml;he Anwender</title>
 
-    <para>Ein Nachteil der Neuerungen in &os; 5.0 ist, da&szlig; es in
-      einigen Bereichen auf Grund der noch nicht abgeschlossenen
-      Entwicklung zu Problemen oder zu unerwarteten Effekten kommen
-      kann.  Einige (aber nicht alle) der Problemzonen sind in der
-      folgenden Liste zusammengefa&szlig;t:</para>
+    <para>Ein Nachteil der Neuerungen in &os; &release.5x; ist,
+      da&szlig; es in einigen Bereichen auf Grund der noch nicht
+      abgeschlossenen Entwicklung zu Problemen oder zu unerwarteten
+      Effekten kommen kann.  Einige (aber nicht alle) der Problemzonen
+      sind in der folgenden Liste zusammengefa&szlig;t:</para>
 
     <itemizedlist>
       <listitem>
 	<para>Die Arbeit an diversen Neuerungen ist noch nicht
 	  abgeschlossen, dazu geh&ouml;ren unter anderem SMPng und
-	  KSE.</para>
+	  KSE.  Diese Erweiterungen sind zwar f&uuml;r Test- und
+	  Experimentalzwecke ausreichend stabil, aber unter
+	  Umst&auml;nden nicht stabil genug f&uuml;r den
+	  Produktionsbetrieb.</para>
       </listitem>
 
       <listitem>
@@ -270,20 +307,27 @@
       </listitem>
 
       <listitem>
+	<para>Einige Teile des &os;-Basissystems wurden nicht mehr
+	  gepflegt, weil es nicht gen&uuml;gend Anwender und/oder
+	  Entwickler gab.  Diese Teile mu&szlig;ten entfernt werden,
+	  dazu z&auml;hlen unter anderem die Erzeugung von Programmen
+	  im Format a.out;, die XNS-Netzwerkprotokolle und der Treiber
+	  f&uuml;r den X-10 Controller.</para>
+      </listitem>
+
+      <listitem>
 	<para>Viele Ports und Packages, die mit &os; 4-STABLE noch
-	  korrekt liefen, k&ouml;nen mit &os; 5.0 nicht genutzt
-	  oder nicht compiliert werden.  Der Grund ist in der Regel
-	  der neue Compiler oder die Aufr&auml;umarbeiten in den
+	  korrekt liefen, k&ouml;nnen mit &os; 5.0 nicht genutzt oder
+	  nicht kompiliert werden.  Der Grund ist in der Regel der
+	  neue Compiler oder die Aufr&auml;umarbeiten in den
 	  Header-Dateien.</para>
       </listitem>
 
       <listitem>
-	<para>Da &os; 5.0 nach &uuml;ber zwei Jahren Entwicklung
-	  die erste Version auf Basis des Entwicklungszweiges CURRENT
-	  ist, wurden viele Neuerungen bisher nur auf relativ wenigen
-	  Systemen getestet.  Viele dieser Neuerungen (wie SMPng)
-	  haben Auswirkungen auf gro&szlig;e Bereiche des
-	  Kernels.</para>
+	<para>Viele der Neuerungen in &os; &release.5x; wurden bisher
+	  nur auf relativ wenigen Systemen getestet.  Viele dieser
+	  Neuerungen (wie SMPng) haben Auswirkungen auf gro&szlig;e
+	  Bereiche des Kernels.</para>
       </listitem>
 
       <listitem>
@@ -299,17 +343,17 @@
 	  <quote>gereift</quote> sind.  Bei &os; 5.0 fehlt dieser
 	  stabilisierende Effekt eines -STABLE Entwicklungszweiges.
 	  Der Entwicklungszweig 5-STABLE wird wahrscheinlich erst
-	  einige Zeit nach der Ver&ouml;ffentlichung von 5.1-RELEASE
-	  oder 5.2-RELEASE eingerichtet werden.</para>
+	  einige Zeit nach der Ver&ouml;ffentlichung von 5.2-RELEASE
+	  eingerichtet werden.</para>
       </listitem>
 
       <listitem>
 	<para>Die Dokumentation (wie z.B. das &os; <ulink
-	  url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/index.
-	  html">Handbuch</ulink> und der <ulink
-	  url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/faq/index.html"
-	  >FAQ</ulink>) sind teilweise noch nicht auf dem Stand von
-	  &os; 5.0.</para>
+	  url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/index.html">Handbuch</ulink>
+	  und der <ulink
+	  url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/faq/index.html">FAQ</ulink>)
+	  ist teilweise noch nicht auf dem Stand von
+	  &os; &release.5x;.</para>
       </listitem>
     </itemizedlist>
 
@@ -317,40 +361,35 @@
       Stabilit&auml;t des Systems haben, r&auml;t das Release
       Engineering Team konservativen Anwendern und Firmen, Versionen
       aus dem Entwicklungszweig 4-STABLE zu verwenden, bis die
-      5.<replaceable>X</replaceable> Versionen zuverl&auml;ssiger
+      &release.5x; Versionen zuverl&auml;ssiger
       geworden sind.</para>
   </sect1>
 
   <sect1 id="plans-stable">
     <title>Die Zukunft des Entwicklungszweiges 4-STABLE</title>
 
-    <para>Die Ver&ouml;ffentlichung von &os; 5.0 bedeutet nicht das
-      Ende der Entwicklungszweiges 4-STABLE.  Es wird auf jeden Fall
-      noch eine weitere Version auf der Basis dieses
-      Entwicklungszweiges geben:  Das voraussichtlich im M&auml;rz
-      2003 erscheinende 4.8-RELEASE.</para>
+    <para>Die Ver&ouml;ffentlichung von &os; 5.0 bedeutete nicht das
+      Ende des Entwicklungszweiges 4-STABLE:  &os; 4.8 erschien im
+      April 2003, zwei Monate nach der Ver&ouml;ffentlichung von &os;
+      5.0.  Es wird wahrscheinlich noch eine weitere Version auf der
+      Basis dieses Entwicklungszweiges geben:  Das f&uuml;r den Sommer
+      2003 geplante 4.9-RELEASE.  Auch eine Version 4.10 liegt im
+      Bereich des M&ouml;glichen.  Dies h&auml;ngt von mehreren
+      Faktoren ab, der wichtigste davon ist die Existenz und
+      Stabilit&auml;t des Entwicklungszweiges 5-STABLE.  Wenn CURRENT
+      nicht stabil genug ist, um einen Entwicklungszweig 5-STABLE zu
+      rechtfertigen, werden weitere Versionen auf Basis des
+      Entwicklungszweiges 4-STABLE m&ouml;glich und notwendig sein.
+      Bis zum Erscheinen der offiziell letzten Version auf Basis von
+      4-STABLE bleibt es den Entwicklern &uuml;berlassen, ob sie
+      Neuerungen aus <literal>HEAD</literal> in 4-STABLE einpflegen
+      (im Rahmen der schon bestehenden Regelungen).</para>
 
-    <para>Zum gegenw&auml;rtigen Zeitpunkt hat das Release Engineering
-      Team noch keine Entscheidung &uuml;ber weitere Versionen
-      (jenseits von 4.8) auf Basis des Entwicklungszweiges 4-STABLE
-      getroffen.  Allerdings ist es sehr wahrscheinlich, da&szlig; es
-      ein 4.9-RELEASE oder sogar ein 4.10-RELEASE geben wird.  Dies
-      h&auml;ngt von mehreren Faktoren ab, der wichtigste davon ist
-      die Existenz und Stabilit&auml;t des Entwicklungszweiges
-      5-STABLE.  Wenn CURRENT nicht stabil genug ist, um einen
-      Entwicklungszweiges 5-STABLE zu rechtfertigen, werden weitere
-      Versionen auf Basis des Entwicklungszweiges 4-STABLE
-      m&ouml;glich und notwendig sein.  Bis zum Erscheinen der
-      offiziell letzten Version auf Basis von 4-STABLE bleibt es den
-      Entwicklern &uuml;berlassen, ob sie Neuerungen aus HEAD in
-      4-STABLE einpflegen (im Rahmen der schon bestehenden
-      Regelungen).</para>
-
-    <para>Bis zu einem gewissen Grad wird das Release Engineering Team
-      auch die W&uuml;nsche der Benutzer nach weiteren Versionen auf
-      Basis von 4-STABLE beachten.  Allerdings nur, so weit dies im
-      Rahmen der beschr&auml;nkten Ressourcen m&ouml;glich
-      ist.</para>
+    <para>Bis zu einem gewissen Grad werden das Release Engineering
+      Team und die Entwickler auch die W&uuml;nsche der Benutzer nach
+      weiteren Versionen auf Basis von 4-STABLE beachten.  Allerdings
+      nur, so weit dies im Rahmen der beschr&auml;nkten Ressourcen
+      m&ouml;glich ist.</para>
 
     <para>Neue Versionen auf Basis des Entwicklungszweiges 4-STABLE
       werden vom &a.security-officer; im &uuml;blichen Rahmen
@@ -361,28 +400,31 @@
       letzten beiden Versionen jedes Entwicklungszweiges durch die
       Ver&ouml;ffentlichung von Sicherheitshinweisen und Patches
       unterst&uuml;tzt; dem Team ist es allerdings freigestellt, diese
-      Unterst&uuml;tzung auf weitere Versionen auszudehnen.</para>
+      Unterst&uuml;tzung auf weitere Versionen oder spezielle Probleme
+      auszudehnen.</para>
   </sect1>
 
   <sect1 id="upgrade">
-    <title>Hinweise f&uuml;r die Aktualisierung</title>
+    <title>Hinweise f&uuml;r die Aktualisierung von &os; &release.4x;</title>
 
     <para>Dieses Kapitel enth&auml;lt Hinweise f&uuml;r Anwender, die
-      ihr bestehendes &os; 4.<replaceable>X</replaceable> System auf
-      &os; 5.<replaceable>X</replaceable> aktualisieren wollen.  Wie
-      bei jeder Aktualisierung ist es auf jeden Fall notwendig, voher
-      die Release Notes und die Errata der neuen Version zu lesen; bei
-      Aktualisierung &uuml;ber den Quellcode ist
-      <filename>src/UPDATING</filename> Pflichtlekt&uuml;re.</para>
+      ihr bestehendes &os; &release.4x; System auf &os; &release.5x;
+      aktualisieren wollen.  Wie bei jeder Aktualisierung ist es auf
+      jeden Fall notwendig, vorher die Release Notes und die Errata der
+      neuen Version zu lesen; bei Aktualisierung &uuml;ber den
+      Quellcode ist <filename>src/UPDATING</filename>
+      Pflichtlekt&uuml;re.</para>
 
     <sect2>
       <title>Aktualisierung ohne Quellcode</title>
 
       <para>Der einfachste Ansatz ist immer noch
-        <quote>Sicherheitskopien erstellen, Platte formatieren, neues
+	<quote>Sicherheitskopien erstellen, Platte formatieren, neues
 	System installieren, Daten wieder einspielen</quote>.  Dadurch
 	werden alle Probleme mit veralteten und nicht kompatiblen
-	Programmen und Konfigurationsdateien umgangen.</para>
+	Programmen und Konfigurationsdateien umgangen.  Die neuen
+	Dateisysteme k&ouml;nnen maximalen Nutzen aus den diversen
+	Neuerungen (speziell UFS2) ziehen.</para>
 
       <para>Zum gegenw&auml;rtigen Zeitpunkt hat noch niemand
 	ausf&uuml;hrlich getestet, ob und wie gut die
@@ -390,10 +432,10 @@
 	Update von 4.0 zu 5.0 funktioniert.  Wir raten daher dringend
 	von der Verwendung dieser Funktion ab.  Eines der
 	Hauptprobleme ist, da&szlig; bei dieser Variante diverse
-	Dateien nicht gel&ouml;scht werden, die zwar von
-	4.<replaceable>X</replaceable> genutzt wurden, aber in 5.0
-	nicht mehr vorhanden sind.  Diese Altlasten k&ouml;nnen zu
-	Problemen f&uuml;hren.</para>
+	Dateien nicht gel&ouml;scht werden, die zwar von &release.4x;
+	genutzt wurden, aber in &release.5x; nicht mehr vorhanden
+	sind.  Diese Altlasten k&ouml;nnen zu Problemen
+	f&uuml;hren.</para>
 
       <para>Auf i386 und pc98 Systemen kann die Konfiguration von ISA
 	Ger&auml;ten beim Systemstart mit dem Werkzeug UserConfig
@@ -417,7 +459,7 @@
 	(<literal>GENERIC</literal>) statt des auf den Disketten
 	verwendeten Mini-Kernels zu nutzen.  Jedes System, das von den
 	Installations-CDs f&uuml;r Windows NT 4.0 booten kann, sollte
-	auch mit der &os; 5.0 CD-ROM zurechtkommen.</para>
+	auch mit den &os; &release.5x; CD-ROMs zurechtkommen.</para>
     </sect2>
 
     <sect2>
@@ -436,17 +478,17 @@
       <title>Allgemeine Hinweise</title>
 
       <para><application>Perl</application> wurde aus dem Basissystem
-	entfernt und sollte entweder via Package oder &uuml;ber die
+	entfernt und sollte entweder als Package oder &uuml;ber die
 	Ports Collection installiert werden.  Die bisher &uuml;bliche
-	Praxis, Perl als Teil des Basissystem zu behandeln und mit ihm
-	zusammen zu compilieren, f&uuml;hrte zu diversen Problemen,
+	Praxis, Perl als Teil des Basissystems zu behandeln und mit ihm
+	zusammen zu kompilieren, f&uuml;hrte zu diversen Problemen,
 	die eine Aktualisierung von Perl erschwerten.  Die im
 	Standardsystem vorhandenen Programme, die Perl
 	ben&ouml;tigten, wurden entweder in einer anderen Sprache neu
 	geschrieben (wenn sie noch ben&ouml;tigt wurden) oder
 	ersatzlos entfernt (wenn sie &uuml;berfl&uuml;ssig waren).  Da
 	&man.sysinstall.8; das Perl Package bei den meisten
-	Distributionen automatisch mit instaliert, sollte diese
+	Distributionen automatisch mit installiert, sollte diese
 	&Auml;nderung kaum Auswirkungen auf die Anwender
 	haben.</para>
 
@@ -458,12 +500,12 @@
 	Nach dem Aufruf von <command>use.perl port</command> sollte
 	alles wie erwartet funktionieren.</para>
 
-      <para>Es ist zwar m&ouml;glich, Programme aus
-	4.<replaceable>X</replaceable> mit
-	5.<replaceable>X</replaceable> zu betreiben, allerdings
-	mu&szlig; dazu die Distribution <filename>compat4x</filename>
-	installiert sein.  Damit <emphasis>k&ouml;nnte</emphasis> es
-	auch m&ouml;glich sein, alte Ports zu benutzen.</para>
+      <para>Es ist zwar m&ouml;glich, f&uuml;r &release.4x;
+	geschriebene Programme unter &release.5x; zu nutzen,
+	allerdings mu&szlig; dazu die Distribution
+	<filename>compat4x</filename> installiert sein.  Damit
+	<emphasis>k&ouml;nnte</emphasis> es auch m&ouml;glich sein,
+	alte Ports zu benutzen.</para>
 
       <para>Bei der Aktualisierung eines bestehenden Systems auf Basis
 	von 4-STABLE, ist es unbedingt notwendig, die alten Dateien in
@@ -474,21 +516,42 @@
 	Verzeichnis nicht entfernt, kann es zu Problemen kommen
 	(speziell mit C++-Programmen), da der Compiler dann einen Mix
 	aus alten und neuen Headerdateien verwendet.</para>
+
+      <para>Es gibt kein <filename>MAKEDEV</filename> mehr, weil es
+	nicht mehr ben&ouml;tigt wird.  &os; &release.5x; benutzt ein
+	spezielles Dateisystem f&uuml;r Ger&auml;te, das die
+	entsprechenden Device Nodes bei Bedarf automatisch erzeugt.
+	Weitere Informationen finden Sie in &man.devfs.5;.</para>
+
+      <para>Alle mit &man.newfs.8; erzeugten Dateisysteme werden
+	standardm&auml;&szlig;ig im Format UFS2 angelegt.  Diese gilt
+	auf allen Plattformen au&szlig;er PC98 auch f&uuml;r
+	Dateisysteme, die mit &man.sysinstall.8; erzeugt werden.  Da
+	&os; &release.4x; nur UFS1 lesen kann, m&uuml;ssen alle
+	Dateisysteme, die sowohl mit &release.4x; als auch mit
+	&release.5x; nutzbar sein sollen, im Format UFS1 erzeugt
+	werden.  Dieser Fall tritt typischerweise auf Systemen auf,
+	auf denen &release.4x; und &release.5x; installiert und
+	abwechselnd betrieben werden.  In &man.newfs.8; steht dazu die
+	Option <option>-O1</option> zur Verf&uuml;gung, auch
+	&man.sysinstall.8; enth&auml;lt eine entsprechende Option.
+	Bitte beachten Sie, da&szlig; es kein Konvertierungsprogramm
+	zur Umwandlung von UFS1 nach UFS2 (oder umgekehrt) gibt, nur
+	die Variante Backup, Formatieren, Restore.</para>
     </sect2>
   </sect1>
 
   <sect1 id="summary">
     <title>Zusammenfassung</title>
 
-    <para>&os; 5.0 enth&auml;lt zwar viele interessante Neuerungen,
-      aber es ist noch nicht f&uuml;r alle Anwender geeignet.  Aus
-      diesem Grund haben wir in diesem Dokument Informationen
-      &uuml;ber die Abl&auml;ufe bei der Ver&ouml;ffentlichung einer
-      neuen Version, die interessantesten Neuerungen in den
-      5.<replaceable>X</replaceable> Versionen und
-      wahrscheinliche Probleme gegeben.  Weiterhin enthielt er einen
-      Ausblick auf die Zukunft des Entwicklungszweiges 4-STABLE und
-      Informationen f&uuml;r Anwender, die schon jetzt auf 5.0
-      umsteigen wollen.</para>
+    <para>&os; &release.current; enth&auml;lt zwar viele interessante
+      Neuerungen, aber es ist noch nicht f&uuml;r alle Anwender
+      geeignet.  Aus diesem Grund haben wir in diesem Dokument
+      Informationen &uuml;ber die Abl&auml;ufe bei der
+      Ver&ouml;ffentlichung einer neuen Version, die interessantesten
+      Neuerungen in den &release.5x; Versionen und wahrscheinliche
+      Probleme gegeben.  Weiterhin enthielt er einen Ausblick auf die
+      Zukunft des Entwicklungszweiges 4-STABLE und Informationen
+      f&uuml;r Anwender, die schon jetzt umsteigen wollen.</para>
   </sect1>
 </article>
