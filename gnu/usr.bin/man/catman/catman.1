@@ -72,6 +72,7 @@ a compressed catpage exist, filenames with non-alphanumeric
 characters, uncompressed manpage but a compressed manpage exist.
 .It Fl v , Fl verbose
 More warnings.
+.El
 .Sh EXAMPLES
 .Pp
 .Dl $ catman
@@ -95,7 +96,8 @@ and
 .Pp
 Show only.
 .Sh FILES
-.Pa /etc/periodic/weekly/330.catman
+.Bl -tag -width /etc/periodic/weekly/330.catman
+.It Pa /etc/periodic/weekly/330.catman
 Starts this program
 .El
 .Sh FEATURES
