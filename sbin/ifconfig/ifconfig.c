@@ -94,6 +94,11 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define	NI_WITHSCOPEID	0
+#endif
+
 struct	ifreq		ifr, ridreq;
 struct	ifaliasreq	addreq;
 #ifdef INET6
@@ -119,7 +124,7 @@ static	int ip6lifetime;
 struct	afswtch;
 
 #ifdef INET6
-char	ntop_buf[INET6_ADDRSTRLEN];	/*inet_ntop()*/
+char	addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
 #endif
 
 void	Perror __P((const char *cmd));
@@ -969,6 +974,7 @@ in6_status(s, info)
 	u_int32_t flags6;
 	struct in6_addrlifetime lifetime;
 	time_t t = time(NULL);
+	int error;
 
 	memset(&null_sin, 0, sizeof(null_sin));
 
@@ -995,9 +1001,24 @@ in6_status(s, info)
 	lifetime = ifr6.ifr_ifru.ifru_lifetime;
 	close(s6);
 
-	printf("\tinet6 %s ", inet_ntop(AF_INET6, &sin->sin6_addr,
-				ntop_buf, sizeof(ntop_buf)));
+	/* XXX: embedded link local addr check */
+	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr) &&
+	    *(u_short *)&sin->sin6_addr.s6_addr[2] != 0) {
+		u_short index;
 
+		index = *(u_short *)&sin->sin6_addr.s6_addr[2];
+		*(u_short *)&sin->sin6_addr.s6_addr[2] = 0;
+		if (sin->sin6_scope_id == 0)
+			sin->sin6_scope_id = ntohs(index);
+	}
+
+	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len, addr_buf,
+			    sizeof(addr_buf), NULL, 0,
+			    NI_NUMERICHOST|NI_WITHSCOPEID);
+	if (error != 0)
+		inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
+			  sizeof(addr_buf));
+	printf("\tinet6 %s ", addr_buf);
 
 	if (flags & IFF_POINTOPOINT) {
 		/* note RTAX_BRD overlap with IFF_BROADCAST */
@@ -1007,8 +1028,27 @@ in6_status(s, info)
 		 * address.
 		 */
 		if (sin && sin->sin6_family == AF_INET6) {
-			printf("--> %s ", inet_ntop(AF_INET6, &sin->sin6_addr,
-						ntop_buf, sizeof(ntop_buf)));
+			int error;
+
+			/* XXX: embedded link local addr check */
+			if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr) &&
+			    *(u_short *)&sin->sin6_addr.s6_addr[2] != 0) {
+				u_short index;
+
+				index = *(u_short *)&sin->sin6_addr.s6_addr[2];
+				*(u_short *)&sin->sin6_addr.s6_addr[2] = 0;
+				if (sin->sin6_scope_id == 0)
+					sin->sin6_scope_id = ntohs(index);
+			}
+
+			error = getnameinfo((struct sockaddr *)sin,
+					    sin->sin6_len, addr_buf,
+					    sizeof(addr_buf), NULL, 0,
+					    NI_NUMERICHOST|NI_WITHSCOPEID);
+			if (error != 0)
+				inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
+					  sizeof(addr_buf));
+			printf("--> %s ", addr_buf);
 		}
 	}
 
@@ -1213,6 +1253,8 @@ in6_getaddr(s, which)
 	int which;
 {
 	register struct sockaddr_in6 *sin = sin6tab[which];
+	struct addrinfo hints, *res;
+	int error = -1;
 
 	newaddr &= 1;
 
@@ -1220,8 +1262,16 @@ in6_getaddr(s, which)
 	if (which != MASK)
 		sin->sin6_family = AF_INET6;
 
-        if (inet_pton(AF_INET6, s, &sin->sin6_addr) != 1)
-		errx(1, "%s: bad value", s);
+	if (sin->sin6_family == AF_INET6) {
+		bzero(&hints, sizeof(struct addrinfo));
+		hints.ai_family = AF_INET6;
+		error = getaddrinfo(s, NULL, &hints, &res);
+	}
+	if (error != 0) {
+		if (inet_pton(AF_INET6, s, &sin->sin6_addr) != 1)
+			errx(1, "%s: bad value", s);
+	} else
+		bcopy(res->ai_addr, sin, res->ai_addrlen);
 }
 
 void
