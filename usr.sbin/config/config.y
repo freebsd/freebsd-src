@@ -358,28 +358,29 @@ device_name:
 		= {
 			char buf[80];
 
-			(void) sprintf(buf, "%s%d", $1, $2);
+			(void) snprintf(buf, 80, "%s%d", $1, $2);
 			$$ = ns(buf); free($1);
 		}
 	| Save_id NUMBER ID
 		= {
 			char buf[80];
 
-			(void) sprintf(buf, "%s%d%s", $1, $2, $3);
+			(void) snprintf(buf, 80, "%s%d%s", $1, $2, $3);
 			$$ = ns(buf); free($1);
 		}
 	| Save_id NUMBER ID NUMBER
 		= {
 			char buf[80];
 
-			(void) sprintf(buf, "%s%d%s%d", $1, $2, $3, $4);
+			(void) snprintf(buf, 80, "%s%d%s%d", $1, $2, $3, $4);
 			$$ = ns(buf); free($1);
 		}
 	| Save_id NUMBER ID NUMBER ID
 		= {
 			char buf[80];
 
-			(void) sprintf(buf, "%s%d%s%d%s", $1, $2, $3, $4, $5);
+			(void) snprintf(buf, 80, "%s%d%s%d%s",
+			     $1, $2, $3, $4, $5);
 			$$ = ns(buf); free($1);
 		}
 	;
