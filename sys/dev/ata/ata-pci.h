@@ -160,6 +160,7 @@ struct ata_pci_controller {
 
 #define ATA_SILICON_IMAGE_ID	0x1095
 #define ATA_SII3114		0x31141095
+#define ATA_SII3512		0x35121095
 #define ATA_SII3112		0x31121095
 #define ATA_SII3112_1		0x02401095
 #define ATA_SII0680		0x06801095
