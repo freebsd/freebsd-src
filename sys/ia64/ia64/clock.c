@@ -89,7 +89,7 @@ static struct timecounter ia64_timecounter = {
 	0,			/* no poll_pps */
  	~0u,			/* counter_mask */
 	0,			/* frequency */
-	"IA64 ITC"		/* name */
+	"ITC"			/* name */
 };
 
 #endif
