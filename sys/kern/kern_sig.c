@@ -1623,7 +1623,7 @@ coredump(p)
 	 */
 	limit = p->p_rlimit[RLIMIT_CORE].rlim_cur;
 	if (limit == 0)
-		return 0;
+		return EFBIG;
 
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
 	if (name == NULL)
