@@ -1,5 +1,9 @@
-<!-- $Id: contrib.sgml,v 1.113 1996/07/30 23:56:45 chuckr Exp $ -->
+<!-- $Id: contrib.sgml,v 1.114 1996/08/03 19:51:06 chuckr Exp $ -->
 <!-- The FreeBSD Documentation Project -->
+
+<!-- Please try to keep the file 'avail' (from CVSROOT) 
+     in sync with the list of FreeBSD Developers -->
+
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
 
