@@ -32,12 +32,13 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <machine/sapicvar.h>
-#include <machine/sapicreg.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
+
 #include <machine/intr.h>
 #include <machine/pal.h>
-#include <sys/sysctl.h>
+#include <machine/sapicreg.h>
+#include <machine/sapicvar.h>
 
 static MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
 
@@ -100,8 +101,7 @@ sapic_read_rte(struct sapic *sa, int which, struct sapic_rte *rte)
 }
 
 static void
-sapic_write_rte(struct sapic *sa, int which,
-		struct sapic_rte *rte)
+sapic_write_rte(struct sapic *sa, int which, struct sapic_rte *rte)
 {
 	u_int32_t *p = (u_int32_t *) rte;
 	register_t c;
@@ -112,11 +112,44 @@ sapic_write_rte(struct sapic *sa, int which,
 	intr_restore(c);
 }
 
+int
+sapic_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)
+{
+	struct sapic_rte rte;
+	struct sapic *sa;
+	int i;
+
+	for (i = 0; i < ia64_sapic_count; i++) {
+		sa = ia64_sapics[i];
+		if (irq < sa->sa_base || irq > sa->sa_limit)
+			continue;
+
+		sapic_read_rte(sa, irq - sa->sa_base, &rte);
+		if (trig != INTR_TRIGGER_CONFORM)
+			rte.rte_trigger_mode = (trig == INTR_TRIGGER_EDGE) ?
+			    SAPIC_TRIGGER_EDGE : SAPIC_TRIGGER_LEVEL;
+		else
+			rte.rte_trigger_mode = (irq < 16) ?
+			    SAPIC_TRIGGER_EDGE : SAPIC_TRIGGER_LEVEL;
+		if (pol != INTR_POLARITY_CONFORM)
+			rte.rte_polarity = (pol == INTR_POLARITY_HIGH) ?
+			    SAPIC_POLARITY_HIGH : SAPIC_POLARITY_LOW;
+		else
+			rte.rte_polarity = (irq < 16) ? SAPIC_POLARITY_HIGH :
+			    SAPIC_POLARITY_LOW;
+		sapic_write_rte(sa, irq - sa->sa_base, &rte);
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
 struct sapic *
 sapic_create(int id, int base, u_int64_t address)
 {
+	struct sapic_rte rte;
 	struct sapic *sa;
-	int max;
+	int i, max;
 
 	sa = malloc(sizeof(struct sapic), M_SAPIC, M_NOWAIT);
 	if (!sa)
@@ -131,24 +164,47 @@ sapic_create(int id, int base, u_int64_t address)
 
 	ia64_sapics[ia64_sapic_count++] = sa;
 
-	return sa;
+	/*
+	 * Initialize all RTEs with a default trigger mode and polarity.
+	 * This may be changed later by calling sapic_config_intr(). We
+	 * mask all interrupts by default.
+	 */
+	bzero(&rte, sizeof(rte));
+	rte.rte_mask = 1;
+	for (i = base; i <= sa->sa_limit; i++) {
+		rte.rte_trigger_mode = (i < 16) ? SAPIC_TRIGGER_EDGE :
+		    SAPIC_TRIGGER_LEVEL;
+		rte.rte_polarity = (i < 16) ? SAPIC_POLARITY_HIGH :
+		    SAPIC_POLARITY_LOW;
+		sapic_write_rte(sa, i - base, &rte);
+	}
+
+	return (sa);
 }
 
-void
-sapic_enable(struct sapic *sa, int input, int vector,
-	     int trigger_mode, int polarity)
+int
+sapic_enable(int irq, int vector)
 {
 	struct sapic_rte rte;
-	u_int64_t lid = ia64_get_lid();
+	struct sapic *sa;
+	uint64_t lid = ia64_get_lid();
+	int i;
 
-	bzero(&rte, sizeof(rte));
-	rte.rte_destination_id = (lid >> 24) & 255;
-	rte.rte_destination_eid = (lid >> 16) & 255;
-	rte.rte_trigger_mode = trigger_mode;
-	rte.rte_polarity = polarity;
-	rte.rte_delivery_mode = SAPIC_DELMODE_LOWPRI;
-	rte.rte_vector = vector;
-	sapic_write_rte(sa, input, &rte);
+	for (i = 0; i < ia64_sapic_count; i++) {
+		sa = ia64_sapics[i];
+		if (irq < sa->sa_base || irq > sa->sa_limit)
+			continue;
+
+		sapic_read_rte(sa, irq - sa->sa_base, &rte);
+		rte.rte_destination_id = (lid >> 24) & 255;
+		rte.rte_destination_eid = (lid >> 16) & 255;
+		rte.rte_delivery_mode = SAPIC_DELMODE_LOWPRI;
+		rte.rte_vector = vector;
+		rte.rte_mask = 0;
+		sapic_write_rte(sa, irq - sa->sa_base, &rte);
+		return (0);
+	}
+	return (ENOENT);
 }
 
 void
