@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.17 1996/04/13 13:31:51 jkh Exp $
+ * $Id: main.c,v 1.18 1996/04/28 20:54:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,6 +72,7 @@ main(int argc, char **argv)
 	variable_set2(VAR_DEBUG, "YES");
 	Fake = TRUE;
 	msgConfirm("I'll be just faking it from here on out, OK?");
+	--argc, ++argv;
     }
 
     /* Try to preserve our scroll-back buffer */
@@ -81,6 +82,16 @@ main(int argc, char **argv)
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
+
+    if (argc > 1) {
+	int i;
+
+	for (i = 1; i < argc; i++) {
+	    if (DITEM_STATUS(dispatchCommand(argv[i])) != DITEM_SUCCESS)
+		systemShutdown(1);
+        }
+	systemShutdown(0);
+    }
 
     /* Begin user dialog at outer menu */
     while (1) {
@@ -92,8 +103,7 @@ main(int argc, char **argv)
     }
 
     /* Say goodnight, Gracie */
-    systemShutdown();
+    systemShutdown(0);
 
-    /* If we're running as init, we should never get here */
-    return 0;
+    return 0; /* We should never get here */
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.54 1996/04/28 01:07:26 jkh Exp $
+ * $Id: sysinstall.h,v 1.55 1996/04/28 20:54:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -71,12 +71,12 @@
 #define MAX_CHUNKS	40
 
 /* Internal environment variable names */
-#define DISK_PARTITIONED	"_diskPartitioned"
-#define DISK_LABELLED		"_diskLabelled"
-#define DISK_SELECTED		"_diskSelected"
-#define SYSTEM_STATE		"_systemState"
-#define RUNNING_ON_ROOT		"_runningOnRoot"
-#define TCP_CONFIGURED		"_tcpConfigured"
+#define DISK_PARTITIONED		"_diskPartitioned"
+#define DISK_LABELLED			"_diskLabelled"
+#define DISK_SELECTED			"_diskSelected"
+#define SYSTEM_STATE			"_systemState"
+#define RUNNING_ON_ROOT			"_runningOnRoot"
+#define TCP_CONFIGURED			"_tcpConfigured"
 
 /* Ones that can be tweaked from config files */
 #define VAR_BLANKTIME			"blanktime"
@@ -377,6 +377,9 @@ extern int	diskPartitionEditor(dialogMenuItem *self);
 extern int	diskPartitionWrite(dialogMenuItem *self);
 extern void	diskPartition(Device *dev, Disk *d);
 
+/* dispatch.c */
+extern int	dispatchCommand(char *command);
+
 /* dist.c */
 extern int	distReset(dialogMenuItem *self);
 extern int	distSetCustom(char *str);
@@ -443,6 +446,7 @@ int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist);
 
 /* install.c */
 extern int	installCommit(dialogMenuItem *self);
+extern int	installCustomCommit(dialogMenuItem *self);
 extern int	installExpress(dialogMenuItem *self);
 extern int	installNovice(dialogMenuItem *self);
 extern int	installFixitCDROM(dialogMenuItem *self);
@@ -556,10 +560,11 @@ extern int	optionsEditor(dialogMenuItem *self);
 /* package.c */
 extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name, Boolean depended);
+extern Boolean	package_exists(char *name);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
-extern void	systemShutdown(void);
+extern void	systemShutdown(int status);
 extern int	execExecute(char *cmd, char *name);
 extern int	systemExecute(char *cmd);
 extern int	systemDisplayHelp(char *file);
