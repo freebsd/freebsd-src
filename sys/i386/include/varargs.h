@@ -44,7 +44,12 @@
 
 typedef char *va_list;
 
-#define	va_dcl	int va_alist;
+#ifdef __GNUC__
+#define va_alist	__builtin_va_alist
+#define	va_dcl	int va_alist; ...
+#else /* !__GNUC__ */
+#define	va_dcl	int va_alist; 
+#endif
 
 #define	va_start(ap) \
 	ap = (char *)&va_alist
