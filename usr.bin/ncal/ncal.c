@@ -194,6 +194,7 @@ main(int argc, char *argv[])
 	int	flag_orthodox = 0;	/* use wants Orthodox easter */
 	int	flag_easter = 0;	/* use wants easter date */
 	char	*cp;			/* character pointer */
+	char	*flag_month = NULL;	/* requested month as string */
 	const char    *locale;		/* locale to get country code */
 
 	/*
@@ -226,18 +227,16 @@ main(int argc, char *argv[])
 	 * Get the filename portion of argv[0] and set flag_backward if
 	 * this program is called "cal".
 	 */
-	for (cp = argv[0]; *cp; cp++)
-		;
-	while (cp >= argv[0] && *cp != '/')
-		cp--;
-	if (strcmp("cal", ++cp) == 0)
+	cp = strrchr(argv[0], '/');
+	cp = (cp == NULL) ? argv[0] : cp + 1;
+	if (strcmp("cal", cp) == 0)
 		flag_backward = 1;
 
 	/* Set the switch date to United Kingdom if backwards compatible */
 	if (flag_backward)
 		nswitchb = ndaysj(&ukswitch);
 
-	while ((ch = getopt(argc, argv, "Jejops:wy")) != -1)
+	while ((ch = getopt(argc, argv, "Jejm:ops:wy")) != -1)
 		switch (ch) {
 		case 'J':
 			if (flag_backward)
@@ -252,6 +251,9 @@ main(int argc, char *argv[])
 			break;
 		case 'j':
 			flag_julian_day = 1;
+			break;
+		case 'm':
+			flag_month = optarg;
 			break;
 		case 'o':
 			if (flag_backward)
@@ -293,25 +295,11 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc == 0) {
-		time_t t;
-		struct tm *tm;
-
-		t = time(NULL);
-		tm = localtime(&t);
-		y = tm->tm_year + 1900;
-		m = tm->tm_mon + 1;
-	}
-
 	switch (argc) {
 	case 2:
 		if (flag_easter)
 			usage();
-		m = parsemonth(*argv++);
-		if (m < 1 || m > 12)
-			errx(EX_USAGE,
-			    "%s is neither a month number (1..12) nor a name",
-			    argv[-1]);
+		flag_month = *argv++;
 		/* FALLTHROUGH */
 	case 1:
 		y = atoi(*argv++);
@@ -319,9 +307,26 @@ main(int argc, char *argv[])
 			errx(EX_USAGE, "year %d not in range 1..9999", y);
 		break;
 	case 0:
+		{
+			time_t t;
+			struct tm *tm;
+
+			t = time(NULL);
+			tm = localtime(&t);
+			y = tm->tm_year + 1900;
+			m = tm->tm_mon + 1;
+		}
 		break;
 	default:
 		usage();
+	}
+
+	if (flag_month != NULL) {
+		m = parsemonth(flag_month);
+		if (m < 1 || m > 12)
+			errx(EX_USAGE,
+			    "%s is neither a month number (1..12) nor a name",
+			    flag_month);
 	}
 
 	if (flag_easter)
@@ -344,10 +349,11 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: cal [-jy] [[month] year]",
-	    "       ncal [-Jjpwy] [-s country_code] [[month] year]",
-	    "       ncal [-Jeo] [year]");
+	fputs(
+	    "usage: cal [-jy] [[month] year]\n"
+	    "       cal [-j] [-m month] [year]\n"
+	    "       ncal [-Jjpwy] [-s country_code] [[month] year]\n"
+	    "       ncal [-Jeo] [year]\n", stderr);
 	exit(EX_USAGE);
 }
 
