@@ -1,0 +1,196 @@
+.\"	$Id$
+.\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
+.\"
+.\" This file is in the public domain.
+.Dd January 20, 1996
+.Dt PTRACE 2
+.Os FreeBSD 2
+.Sh NAME
+.Nm ptrace
+.Nd process tracing and debugging
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/ptrace.h>
+.Ft int
+.Fn ptrace "int request" "pid_t pid" "caddr_t addr" "int data"
+.Sh DESCRIPTION
+.Fn ptrace
+provides tracing and debugging facilities.  It allows one process (the
+.Em tracing
+process) to control another (the
+.Em traced
+process).  Most of the time, the traced process runs normally, but when
+it receives a signal
+.Po
+see
+.Xr sigaction 2
+.Pc ,
+it stops.  The tracing process is expected to notice this via
+.Xr wait 2
+or the delivery of a
+.Dv SIGCHLD
+signal, examine the state of the stopped process, and cause it to
+terminate or continue as appropriate.
+.Fn ptrace
+is the mechanism by which all this happens.
+.Pp
+The
+.Fa request
+argument specifies what operation is being performed; the meaning of
+the rest of the arguments depends on the operation, but except for one
+special case noted below, all
+.Fn ptrace
+calls are made by the tracing process, and the
+.Fa pid
+argument specifies the process ID of the traced process.
+.Fa request
+can be:
+.Bl -tag -width 12n
+.It Dv PT_TRACE_ME
+This request is the only one used by the traced process; it declares
+that the process expects to be traced by its parent.  All the other
+arguments are ignored.  (If the parent process does not expect to trace
+the child, it will probably be rather confused by the results; once the
+traced process stops, it cannot be made to continue except via
+.Eo \&
+.Fn ptrace
+.Ec \&.)
+When a process has used this request and calls
+.Xr execve 2
+or any of the routines built on it
+.Po
+such as
+.Xr execv 3
+.Pc ,
+it will stop before executing the first instruction of the new image.
+Also, any setuid or setgid bits on the executable being executed will
+be ignored.
+.It Dv PT_READ_I , Dv PT_READ_D
+These requests read a single
+.Li int
+of data from the traced process' address space.  Traditionally,
+.Fn ptrace
+has allowed for machines with distinct address spaces for instruction
+and data, which is why there are two requests: conceptually,
+.Dv PT_READ_I
+reads from the instruction space and
+.Dv PT_READ_D
+reads from the data space.  In the current NetBSD implementation, these
+two requests are completely identical.  The
+.Fa addr
+argument specifies the address (in the traced process' virtual address
+space) at which the read is to be done.  This address does not have to
+meet any alignment constraints.  The value read is returned as the
+return value from
+.Eo \&
+.Fn ptrace
+.Ec .
+.It Dv PT_WRITE_I , Dv PT_WRITE_D
+These requests parallel
+.Dv PT_READ_I
+and
+.Dv PT_READ_D ,
+except that they write rather than read.  The
+.Fa data
+argument supplies the value to be written.
+.It Dv PT_READ_U
+This request reads an
+.Li int
+from the traced process' user structure.  The
+.Fa addr
+argument specifies the location of the int relative to the base of the
+user structure; it will usually be an integer value cast to
+.Li caddr_t
+either explicitly or via the presence of a prototype for
+.Eo \&
+.Fn ptrace
+.Ec .
+Unlike
+.Dv PT_READ_I
+and
+.Dv PT_READ_D ,
+.Fa addr
+must be aligned on an
+.Li int
+boundary.  The value read is returned as the return value from
+.Eo \&
+.Fn ptrace
+.Ec .
+.It Dv PT_WRITE_U
+This request writes an
+.Li int
+into the traced process' user structure.
+.Fa addr
+specifies the offset, just as for
+.Dv PT_READ_U ,
+and
+.Fa data
+specifies the value to be written, just as for
+.Dv PT_WRITE_I
+and
+.Dv PT_WRITE_D .
+.It Dv PT_CONTINUE
+The traced process continues execution.
+.Fa addr
+is an address specifying the place where execution is to be resumed (a
+new value for the program counter), or
+.Li (caddr_t)1
+to indicate that execution is to pick up where it left off.
+.Fa data
+provides a signal number to be delivered to the traced process as it
+resumes execution, or 0 if no signal is to be sent.
+.It Dv PT_KILL
+The traced process terminates, as if
+.Dv PT_CONTINUE
+had been used with
+.Dv SIGKILL
+given as the signal to be delivered.
+.El
+.Sh ERRORS
+Some requests can cause
+.Fn ptrace
+to return
+.Li -1
+as a non-error value; to disambiguate,
+.Va errno
+can be set to 0 before the call and checked afterwards.  The possible
+errors are:
+.Bl -tag -width 4n
+.It Bq Er ESRCH
+.Bl -bullet -compact
+.It
+No process having the specified process ID exists.
+.El
+.It Bq Er EINVAL
+.Bl -bullet -compact
+.It
+The
+.Fa request
+was not one of the legal requests.
+.It
+The
+.Fa addr
+to
+.Dv PT_READ_U
+or
+.Dv PT_WRITE_U
+was not
+.Li int Ns \&-aligned.
+.It
+The signal number (in
+.Fa data )
+to
+.Dv PT_CONTINUE
+was neither 0 nor a legal signal number.
+.El
+.It Bq Er EPERM
+.Bl -bullet -compact
+.It
+A request
+attempted to manipulate a process that wasn't being traced at all.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2
+.Xr wait 2
+.Xr execve 2
+.Xr execv 3

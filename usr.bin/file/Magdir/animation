@@ -1,0 +1,54 @@
+
+#------------------------------------------------------------------------------
+# animation:  file(1) magic for animation/movie formats
+#
+# animation formats
+# MPEG, FLI, DL originally from vax@ccwf.cc.utexas.edu (VaX#n8)
+# FLC, SGI, Apple originally from Daniel Quinlan (quinlan@yggdrasil.com)
+
+# MPEG animation format
+0	string		\000\000\001\263	MPEG file
+
+# FLI animation format
+4	leshort		0xAF11			FLI file
+>6	leshort		x			- %d frames,
+>8	leshort		x			width=%d pixels,
+>10	leshort		x			height=%d pixels,
+>12	leshort		x			depth=%d,
+>16	leshort		x			ticks/frame=%d
+# FLC animation format
+4	leshort		0xAF12			FLC file
+>6	leshort		x			- %d frames
+>8	leshort		x			width=%d pixels,
+>10	leshort		x			height=%d pixels,
+>12	leshort		x			depth=%d,
+>16	leshort		x			ticks/frame=%d
+
+# DL animation format
+# XXX - collision with most `mips' magic
+#
+# I couldn't find a real magic number for these, however, this
+# -appears- to work.  Note that it might catch other files, too, so be
+# careful!
+#
+# Note that title and author appear in the two 20-byte chunks
+# at decimal offsets 2 and 22, respectively, but they are XOR'ed with
+# 255 (hex FF)!  The DL format is really bad.
+#
+#0	byte	1	DL version 1, medium format (160x100, 4 images/screen)
+#>42	byte	x	- %d screens,
+#>43	byte	x	%d commands
+#0	byte	2	DL version 2
+#>1	byte	1	- large format (320x200,1 image/screen),
+#>1	byte	2	- medium format (160x100,4 images/screen),
+#>1	byte	>2	- unknown format,
+#>42	byte	x	%d screens,
+#>43	byte	x	%d commands
+# Based on empirical evidence, DL version 3 have several nulls following the
+# \003.  Most of them start with non-null values at hex offset 0x34 or so.
+#0	string	\3\0\0\0\0\0\0\0\0\0\0\0	DL version 3
+
+# SGI and Apple formats
+0	string		MOVI		Silicon Graphics movie file
+4	string		moov		Apple QuickTime movie file (moov)
+4	string		mdat		Apple QuickTime movie file (mdat)
