@@ -1011,11 +1011,11 @@ doMFSKERN:
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 .if ${TARGET} == "i386"
-	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader /boot/loader
+	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/base/boot/loader
 .elif ${TARGET} == "ia64"
-	@cp /boot/loader.efi ${RD}/image.${FSIMAGE}/boot
+	@cp ${RD}/trees/base/boot/loader.efi ${RD}/image.${FSIMAGE}/boot
 .else
-	@cp /boot/loader ${RD}/image.${FSIMAGE}/boot
+	@cp ${RD}/trees/base/boot/loader ${RD}/image.${FSIMAGE}/boot
 .endif
 	@[ -r ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints ] && \
 	  sed -e '/^hint/s/^/set /' -e '/^#/d' \
