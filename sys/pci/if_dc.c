@@ -177,6 +177,8 @@ static struct dc_type dc_devs[] = {
 		"82c169 PNIC 10/100BaseTX" },
 	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN1217,
 		"Accton EN1217 10/100BaseTX" },
+	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN2242,
+		"Accton EN2242 MiniPCI 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1743,6 +1745,7 @@ static int dc_attach(dev)
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
 	case DC_DEVICEID_AN985:
+	case DC_DEVICEID_EN2242:
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
