@@ -1,4 +1,4 @@
-/* $Id: cpu.h,v 1.3 1998/07/12 16:32:06 dfr Exp $ */
+/* $Id: cpu.h,v 1.4 1998/10/06 08:40:17 dfr Exp $ */
 /* From: NetBSD: cpu.h,v 1.18 1997/09/23 23:17:49 mjacob Exp */
 
 /*
@@ -76,6 +76,8 @@ struct clockframe {
  * or after the current trap/syscall if in system mode.
  */
 #define	need_resched()	{ want_resched = 1; aston(); }
+
+#define	resched_wanted()	want_resched
 
 /*
  * Give a profiling tick to the current process when the user profiling
