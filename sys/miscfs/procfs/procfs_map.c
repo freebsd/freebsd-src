@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.1 1996/06/17 22:53:27 dyson Exp $
+ *	$Id: procfs_map.c,v 1.2 1996/06/18 05:15:59 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -128,7 +128,7 @@ procfs_domap(curp, p, pfs, uio)
 		for( lobj = tobj = obj; tobj; tobj = tobj->backing_object)
 			lobj = tobj;
 
-		switch(lobj->type) {
+		if (lobj) switch(lobj->type) {
 
 default:
 case OBJT_DEFAULT:
@@ -143,7 +143,10 @@ case OBJT_SWAP:
 case OBJT_DEVICE:
 			type = "device";
 			break;
+		} else {
+			type = "none";
 		}
+			
 
 		/*
 		 * format:
