@@ -22,7 +22,7 @@
 
 <!ENTITY release.4x "4.<replaceable>X</replaceable>">
 <!ENTITY release.5x "5.<replaceable>X</replaceable>">
-<!ENTITY release.4last "4.9-RELEASE">
+<!ENTITY release.4last "4.10-RELEASE">
 <!ENTITY release.5branchpoint "5.3-RELEASE">
 
 ]>
@@ -40,6 +40,7 @@
     <copyright>
       <year>2002</year>
       <year>2003</year>
+      <year>2004</year>
       <holder role="mailto:re@FreeBSD.org">The &os; Release
         Engineering Team</holder>
     </copyright>
@@ -365,7 +366,8 @@
       made in the &release.5x; series, support for &release.4x;
       releases will continue for some time.
       Indeed, &os; 4.8 was released two months after
-      5.0, in April 2003, followed by 4.9, in October 2003.
+      5.0, in April 2003, followed by 4.9, in October 2003,
+      and 4.10 in May 2004.
       Future releases from the 4-STABLE branch (if any) will
       depend on several factors.  The most important of these
       is the existence and stability of the 5-STABLE branch.  If
@@ -398,19 +400,19 @@
       the team may support other releases for specific issues.</para>
 
     <para>At this point, the release engineering team has no specific
-      plans for future releases from the 4-STABLE development branch.
-      It seems likely that any future releases (if
-      any) from this branch will be lightweight,
-      <quote>point</quote> releases.  These will probably carry
-      4.9.<replaceable>X</replaceable> version numbers, to indicate
-      that they are not intended to provide large amount of new
-      functionality compared to &release.4last;.  In general, these
-      releases will emphasize security fixes, bug fixes, and device
-      driver updates (particularly to accommodate new hardware easily
-      supported by existing drivers).  Major new features (especially those
-      requiring infrastructure support added in &release.5x;) will
-      probably not be added in these releases.</para>
-
+      plans for future releases from the 4-STABLE development branch,
+      and we decided to maintain 4.10-RELEASE as <quote>Errata Branch</quote>.
+      Previously a branch where a release is made has been maintained
+      as <quote>Security Branch</quote> by the &a.security-officer;
+      for a certain period, and they would only have critical
+      security fixes applied.  With FreeBSD 4.10-RELEASE
+      the scope of fixes will be expanded to include local
+      Denial of Service fixes as well as other significant
+      and well-tested fixes that may not represent security issues.
+      While those fixes will not likely to be published
+      as a <quote>release</quote> from the branch,
+      the &os; Errata Notice will cover them in the same manner
+      as the &os; Security Advisory.</para>
   </sect1>
 
   <sect1 id="upgrade">
