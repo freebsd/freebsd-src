@@ -895,7 +895,8 @@ ip_reass(struct mbuf *m)
 	if (maxnipq == 0) {
 		ipstat.ips_fragments++;
 		ipstat.ips_fragdropped++;
-		goto dropfrag;
+		m_freem(m);
+		return (NULL);
 	}
 
 	ip = mtod(m, struct ip *);
@@ -959,7 +960,6 @@ found:
 		 * that's a non-zero multiple of 8 bytes.
 		 */
 		if (ip->ip_len == 0 || (ip->ip_len & 0x7) != 0) {
-			IPQ_UNLOCK();
 			ipstat.ips_toosmall++; /* XXX */
 			goto dropfrag;
 		}
