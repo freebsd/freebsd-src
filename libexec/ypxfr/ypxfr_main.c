@@ -64,9 +64,8 @@ struct sockaddr_in ypxfr_callback_addr;
 struct yppushresp_xfr ypxfr_resp;
 DB *dbp;
 
-static void ypxfr_exit(retval, temp)
-	ypxfrstat retval;
-	char *temp;
+static void
+ypxfr_exit(ypxfrstat retval, char *temp)
 {
 	CLIENT *clnt;
 	int sock = RPC_ANYSOCK;
@@ -107,7 +106,8 @@ static void ypxfr_exit(retval, temp)
 	exit(0);
 }
 
-static void usage()
+static void
+usage(void)
 {
 	if (_rpcpmstart) {
 		ypxfr_exit(YPXFR_BADARGS,NULL);
@@ -120,13 +120,9 @@ static void usage()
 	}
 }
 
-int ypxfr_foreach(status, key, keylen, val, vallen, data)
-	int status;
-	char *key;
-	int keylen;
-	char *val;
-	int vallen;
-	char *data;
+int
+ypxfr_foreach(int status, char *key, int keylen, char *val, int vallen,
+    char *data)
 {
 	DBT dbkey, dbval;
 
@@ -161,9 +157,7 @@ int ypxfr_foreach(status, key, keylen, val, vallen, data)
 }
 
 int
-main(argc,argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	int ypxfr_force = 0;

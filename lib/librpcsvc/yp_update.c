@@ -55,14 +55,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int
-yp_update(domain, map, ypop, key, keylen, data, datalen)
-	char		*domain;
-	char		*map;
-	unsigned int	ypop;
-	char		*key;
-	int		keylen;
-	char		*data;
-	int		datalen;
+yp_update(char *domain, char *map, unsigned int ypop, char *key, int keylen,
+    char *data, int datalen)
 {
 	char *master;
 	int rval;

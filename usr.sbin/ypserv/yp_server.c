@@ -56,7 +56,8 @@ int children = 0;
 #define	ORDER_STRING	"YP_LAST_MODIFIED"
 #define	ORDER_SZ	sizeof(ORDER_STRING) - 1
 
-static pid_t yp_fork()
+static pid_t
+yp_fork(void)
 {
 	if (yp_pid != getpid()) {
 		yp_error("child %d trying to fork!", getpid());
@@ -259,12 +260,9 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	return (&result);
 }
 
-static void ypxfr_callback(rval,addr,transid,prognum,port)
-	ypxfrstat rval;
-	struct sockaddr_in *addr;
-	unsigned int transid;
-	unsigned int prognum;
-	unsigned long port;
+static void
+ypxfr_callback(ypxfrstat rval, struct sockaddr_in *addr, unsigned int transid,
+    unsigned int prognum, unsigned long port)
 {
 	CLIENT *clnt;
 	int sock = RPC_ANYSOCK;
@@ -655,8 +653,7 @@ ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	return (&result);
 }
 
-static void yp_maplist_free(yp_maplist)
-	struct ypmaplist *yp_maplist;
+static void yp_maplist_free(struct ypmaplist *yp_maplist)
 {
 	register struct ypmaplist *next;
 
@@ -669,8 +666,8 @@ static void yp_maplist_free(yp_maplist)
 	return;
 }
 
-static struct ypmaplist *yp_maplist_create(domain)
-	const char *domain;
+static struct ypmaplist *
+yp_maplist_create(const char *domain)
 {
 	char yp_mapdir[MAXPATHLEN + 2];
 	char yp_mapname[MAXPATHLEN + 2];

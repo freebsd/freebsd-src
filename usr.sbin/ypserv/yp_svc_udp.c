@@ -48,8 +48,7 @@ static const char rcsid[] =
  */
 
 unsigned long
-svcudp_get_xid(xprt)
-	SVCXPRT *xprt;
+svcudp_get_xid(SVCXPRT *xprt)
 {
 	struct svc_dg_data *su;
 
@@ -60,9 +59,7 @@ svcudp_get_xid(xprt)
 }
 
 unsigned long
-svcudp_set_xid(xprt, xid)
-	SVCXPRT *xprt;
-	unsigned long xid;
+svcudp_set_xid(SVCXPRT *xprt, unsigned long xid)
 {
 	struct svc_dg_data *su;
 	unsigned long old_xid;

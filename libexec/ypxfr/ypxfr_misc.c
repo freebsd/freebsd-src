@@ -46,8 +46,8 @@ struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include "ypxfr_extern.h"
 
-char *ypxfrerr_string(code)
-	ypxfrstat code;
+char *
+ypxfrerr_string(ypxfrstat code)
 {
 	switch (code) {
 	case YPXFR_SUCC:
@@ -120,11 +120,8 @@ char *ypxfrerr_string(code)
  * allocated by the XDR routines. We have to rememver to free() or
  * xdr_free() the memory as required to avoid leaking memory.
  */
-char *ypxfr_get_master(domain,map,source,yplib)
-	char *domain;
-	char *map;
-	char *source;
-	const int yplib;
+char *
+ypxfr_get_master(char *domain, char *map, char *source, const int yplib)
 {
 	static char mastername[MAXPATHLEN + 2];
 
@@ -195,11 +192,8 @@ failed"));
 	}
 }
 
-unsigned long ypxfr_get_order(domain, map, source, yplib)
-	char *domain;
-	char *map;
-	char *source;
-	const int yplib;
+unsigned long
+ypxfr_get_order(char *domain, char *map, char *source, const int yplib)
 {
 	if (yplib) {
 		unsigned long order;
@@ -260,12 +254,9 @@ failed"));
 	}
 }
 
-int ypxfr_match(server, domain, map, key, keylen)
-	char *server;
-	char *domain;
-	char *map;
-	char *key;
-	unsigned long keylen;
+int
+ypxfr_match(char *server, char *domain, char *map, char *key,
+    unsigned long keylen)
 {
 	ypreq_key ypkey;
 	ypresp_val *ypval;

@@ -97,8 +97,8 @@ int resvport = 1;
 int inplace = 0;
 char *sockname = YP_SOCKNAME;
 
-static void terminate(sig)
-	int sig;
+static void
+terminate(int sig)
 {
 	rpcb_unset(YPPASSWDPROG, YPPASSWDVERS, NULL);
 	rpcb_unset(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, NULL);
@@ -106,8 +106,8 @@ static void terminate(sig)
 	exit(0);
 }
 
-static void reload(sig)
-	int sig;
+static void
+reload(int sig)
 {
 	load_securenets();
 }
@@ -142,7 +142,8 @@ closedown(int sig)
 	(void) alarm(_RPCSVC_CLOSEDOWN/2);
 }
 
-static void usage()
+static void
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 "usage: rpc.yppasswdd [-t master.passwd file] [-d domain] [-p path] [-s]",
@@ -151,9 +152,7 @@ static void usage()
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register SVCXPRT *transp = NULL;
 	struct sockaddr_in saddr;

@@ -51,9 +51,7 @@ typedef struct {
 } datum;
 
 bool_t
-xdr_datum(xdrs, objp)
-XDR *xdrs;
-datum *objp;
+xdr_datum(XDR *xdrs, datum *objp)
 {
 	if (!xdr_bytes(xdrs, (char **)&objp->dptr, (u_int *)&objp->dsize, YPMAXRECORD)) {
 		return (FALSE);
@@ -62,9 +60,7 @@ datum *objp;
 }
 
 bool_t
-xdr_ypresp_all_seq(xdrs, objp)
-XDR *xdrs;
-u_long *objp;
+xdr_ypresp_all_seq(XDR *xdrs, u_long *objp)
 {
 	struct ypresp_all out;
 	u_long status;

@@ -51,7 +51,8 @@ static const char rcsid[] =
 
 int fp = 0;
 
-static bool_t xdr_my_xfr(register XDR *xdrs, xfr *objp)
+static bool_t
+xdr_my_xfr(register XDR *xdrs, xfr *objp)
 {
 	while (1) {
 		if (!xdr_xfr(xdrs, objp))
@@ -100,11 +101,8 @@ static bool_t xdr_my_xfr(register XDR *xdrs, xfr *objp)
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
 
-int ypxfrd_get_map(host, map, domain, tmpname)
-	char *host;
-	char *map;
-	char *domain;
-	char *tmpname;
+int
+ypxfrd_get_map(char *host, char *map, char *domain, char *tmpname)
 {
 	CLIENT *clnt;
 	struct ypxfr_mapname req;

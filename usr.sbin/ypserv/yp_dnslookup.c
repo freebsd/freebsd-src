@@ -66,8 +66,8 @@ static const char rcsid[] =
 #include <rpcsvc/yp.h>
 #include "yp_extern.h"
 
-static char *parse(hp)
-	struct hostent *hp;
+static char *
+parse(struct hostent *hp)
 {
 	static char result[MAXHOSTNAMELEN * 2];
 	int len,i;
@@ -124,7 +124,8 @@ struct circleq_dnsentry {
 
 static int pending = 0;
 
-int yp_init_resolver()
+int
+yp_init_resolver(void)
 {
 	TAILQ_INIT(&qhead);
 	if (!(_res.options & RES_INIT) && res_init() == -1) {
@@ -142,7 +143,8 @@ int yp_init_resolver()
 	return(0);
 }
 
-static struct circleq_dnsentry *yp_malloc_dnsent()
+static struct
+circleq_dnsentry *yp_malloc_dnsent(void)
 {
 	register struct circleq_dnsentry *q;
 
@@ -159,9 +161,8 @@ static struct circleq_dnsentry *yp_malloc_dnsent()
 /*
  * Transmit a query.
  */
-static unsigned long yp_send_dns_query(name, type)
-	char *name;
-	int type;
+static unsigned long
+yp_send_dns_query(char *name, int type)
 {
 	char buf[MAXPACKET];
 	int n;
@@ -195,9 +196,8 @@ static unsigned long yp_send_dns_query(name, type)
 	return(id);
 }
 
-static struct circleq_dnsentry *yp_find_dnsqent(id, type)
-	unsigned long id;
-	int type;
+static struct circleq_dnsentry *
+yp_find_dnsqent(unsigned long id, int type)
 {
 	register struct circleq_dnsentry *q;
 
@@ -217,9 +217,8 @@ static struct circleq_dnsentry *yp_find_dnsqent(id, type)
 	return (NULL);
 }
 
-static void yp_send_dns_reply(q, buf)
-	struct circleq_dnsentry *q;
-	char *buf;
+static void
+yp_send_dns_reply(struct circleq_dnsentry *q, char *buf)
 {
 	ypresponse result_v1;
 	ypresp_val result_v2;
@@ -254,8 +253,8 @@ static void yp_send_dns_reply(q, buf)
 		 */
 		bzero((char *)&result_v1, sizeof(result_v1));
 		result_v1.yp_resptype = YPRESP_VAL;
-#		define YPVAL ypresponse_u.yp_resp_valtype
 
+#define YPVAL ypresponse_u.yp_resp_valtype
 		if (buf == NULL)
 			result_v1.YPVAL.stat = YP_NOKEY;
 		else {
@@ -314,7 +313,8 @@ static void yp_send_dns_reply(q, buf)
  * Decrement TTL on all queue entries, possibly nuking
  * any that have been around too long without being serviced.
  */
-void yp_prune_dnsq()
+void
+yp_prune_dnsq(void)
 {
 	register struct circleq_dnsentry *q, *n;
 
@@ -341,7 +341,8 @@ void yp_prune_dnsq()
  * Data is pending on the DNS socket; check for valid replies
  * to our queries and dispatch them to waiting clients.
  */
-void yp_run_dnsq()
+void
+yp_run_dnsq(void)
 {
 	register struct circleq_dnsentry *q;
 	char buf[sizeof(HEADER) + MAXPACKET];
@@ -425,9 +426,8 @@ void yp_run_dnsq()
 /*
  * Queue and transmit an asynchronous DNS hostname lookup.
  */
-ypstat yp_async_lookup_name(rqstp, name)
-	struct svc_req *rqstp;
-	char *name;
+ypstat
+yp_async_lookup_name(struct svc_req *rqstp, char *name)
 {
 	register struct circleq_dnsentry *q;
 	int type, len;
@@ -479,9 +479,8 @@ ypstat yp_async_lookup_name(rqstp, name)
 /*
  * Queue and transmit an asynchronous DNS IP address lookup.
  */
-ypstat yp_async_lookup_addr(rqstp, addr)
-	struct svc_req *rqstp;
-	char *addr;
+ypstat
+yp_async_lookup_addr(struct svc_req *rqstp, char *addr)
 {
 	register struct circleq_dnsentry *q;
 	char buf[MAXHOSTNAMELEN];

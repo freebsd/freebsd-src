@@ -41,8 +41,9 @@ static const char rcsid[] =
  * stolen from /usr/libexec/mail.local via ypserv
  */
 
-#include <stdio.h>
 #include <sys/types.h>
+#include <stdio.h>
+#include <stdarg.h>
 #include <syslog.h>
 #include "yp_extern.h"
 
@@ -51,18 +52,9 @@ extern int _rpcpmstart;
 
 extern char *progname;
 
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
+static void __verr(const char *fmt, va_list ap) __printflike(1, 0);
 
-static void __verr(const char *fmt, _BSD_VA_LIST_ ap) __printflike(1, 0);
-
-static void __verr(fmt, ap)
-	const char *fmt;
-	_BSD_VA_LIST_ ap;
-
+static void __verr(const char *fmt, va_list ap)
 {
 	if (debug && !_rpcpmstart) {
 		fprintf(stderr,"%s: ",progname);
@@ -74,20 +66,10 @@ static void __verr(fmt, ap)
 }
 
 void
-#ifdef __STDC__
 yp_error(const char *fmt, ...)
-#else
-yp_error(fmt, va_list)
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#ifdef __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	__verr(fmt,ap);
 	va_end(ap);
 }
