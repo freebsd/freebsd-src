@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.47 1996/09/19 08:32:37 phk Exp $
+ **      $Id: userconfig.c,v 1.48 1996/09/30 11:25:19 bde Exp $
  **/
 
 /**
@@ -79,10 +79,15 @@
  ** - That the only tunable parameter for PCI devices are their flags.
  ** - That flags are _always_ editable.
  **
- ** Devices marked as disabled are imported as such.  It is possible to move
- ** a PCI device onto the inactive list, but it is not possible to actually
- ** prevent the device from being probed.  The ability to move is considered
- ** desirable in that people will complain otherwise 8)
+ ** Devices marked as disabled are imported as such.  PCI devices are 
+ ** listed under a seperate heading for informational purposes only.
+ ** To date, there is no means for changing the behaviour of PCI drivers
+ ** from UserConfig.
+ **
+ ** Note that some EISA devices probably fall into this category as well,
+ ** and in fact the actual bus supported by some drivers is less than clear.
+ ** A longer-term goal might be to list drivers by instance rather than
+ ** per bus-presence.
  ** 
  ** For this tool to be useful, the list of devices below _MUST_ be updated 
  ** when a new driver is brought into the kernel.  It is not possible to 
@@ -90,15 +95,11 @@
  **
  ** XXX - TODO:
  ** 
- ** - FIX OPERATION WITH PCVT!
- ** 
  ** - Display _what_ a device conflicts with.
  ** - Implement page up/down (as what?)
  ** - Wizard mode (no restrictions)
  ** - Find out how to put syscons back into low-intensity mode so that the
  **   !b escape is useful on the console.
- ** - The min and max values used for editing parameters are probably 
- **   very bogus - fix?
  **
  ** - Only display headings with devices under them. (difficult)
  **/
@@ -159,6 +160,7 @@ typedef struct
 #define CLS_COMMS	3		/* serial, parallel ports */
 #define CLS_INPUT	4		/* user input : mice, keyboards, joysticks etc */
 #define CLS_MMEDIA	5		/* "multimedia" devices (sound, video, etc) */
+#define CLS_PCI		254		/* PCI devices */
 #define CLS_MISC	255		/* none of the above */
 
 
@@ -174,6 +176,7 @@ static DEVCLASS_INFO devclass_names[] = {
 {	"Communications : ",	CLS_COMMS},
 {	"Input :          ",	CLS_INPUT},
 {	"Multimedia :     ",	CLS_MMEDIA},
+{	"PCI :            ",	CLS_PCI},
 {	"Miscellaneous :  ",	CLS_MISC},
 {	"",0}};
 
@@ -182,9 +185,10 @@ static DEVCLASS_INFO devclass_names[] = {
 
 /** Notes :
  ** 
- ** - PCI devices should be marked FLG_FIXED, not FLG_IMMUTABLE.  Whilst
- **   it's impossible to disable them, it should be possible to move them
- **   from one list to another for peace of mind.
+ ** - PCI devices should be marked FLG_IMMUTABLE.  They should not be movable
+ **   or editable, and have no attributes.  This is handled in getdevs() and
+ **   devinfo(), so drivers that have a presence on busses other than PCI
+ **   should have appropriate flags set below.
  ** - Devices that shouldn't be seen or removed should be marked FLG_INVISIBLE.
  ** - XXX The list below should be reviewed by the driver authors to verify
  **   that the correct flags have been set for each driver, and that the
@@ -330,7 +334,7 @@ static char spaces[] = "                                                        
 static void 
 setdev(DEV_LIST *dev, int enabled)
 {
-    if (!dev->device)							/* PCI device */
+    if (dev->iobase == -2)						/* PCI device */
 	return;
     dev->device->id_iobase = dev->iobase;				/* copy happy */
     dev->device->id_irq = (u_short)(dev->irq < 16 ? 1<<dev->irq : 0);	/* IRQ is bitfield */
@@ -390,14 +394,14 @@ getdevs(void)
 		scratch.maddr = -2;
 		scratch.msize = -2;
 		scratch.flags = 0;
-		scratch.conflict_ok = 0;			/* shouldn't conflict */
-		scratch.comment = DEV_DEVICE;			/* is a device */
-		scratch.unit = 0;				/* arbitrary number of them */
+		scratch.conflict_ok = 0;		/* shouldn't conflict */
+		scratch.comment = DEV_DEVICE;		/* is a device */
+		scratch.unit = 0;			/* arbitrary number of them */
 		scratch.conflicts = 0;
 		scratch.device = NULL;	
 		scratch.changed = 0;
 
-		if (!devinfo(&scratch))
+		if (!devinfo(&scratch))			/* look up name, set class and flags */
 		    insdev(&scratch,active);		/* always active */
 	    }
 	}
@@ -414,6 +418,9 @@ getdevs(void)
  **
  ** If the device is marked "invisible", return nonzero; the caller should
  ** not insert any such device into either list.
+ **
+ ** PCI devices are always inserted into CLS_PCI, regardless of the class associated
+ ** with the driver type.
  **/
 static int
 devinfo(DEV_LIST *dev)
@@ -424,11 +431,16 @@ devinfo(DEV_LIST *dev)
     {
 	if (!strcmp(dev->dev,device_info[i].dev))
 	{
-	    if (device_info[i].attrib & FLG_INVISIBLE)
+	    if (device_info[i].attrib & FLG_INVISIBLE)	/* forget we ever saw this one */
 		return(1);
-	    strcpy(dev->name,device_info[i].name);
-	    dev->attrib = device_info[i].attrib;
-	    dev->class = device_info[i].class;
+	    strcpy(dev->name,device_info[i].name);	/* get the name */
+	    if (dev->iobase == -2) {			/* is this a PCI device? */
+		dev->attrib = FLG_IMMUTABLE;		/* dark green ones up the back... */
+		dev->class = CLS_PCI;
+	    } else {
+		dev->attrib = device_info[i].attrib;	/* light green ones up the front */
+		dev->class = device_info[i].class;
+	    }
 	    return(0);
 	}
     }
@@ -491,37 +503,42 @@ addev(DEV_LIST *dev, DEV_LIST **list)
 static DEV_LIST	*
 findspot(DEV_LIST *dev, DEV_LIST *list)
 {
-    DEV_LIST	*ap;
+    DEV_LIST	*ap = NULL;
 
-    for (ap = list; ap; ap = ap->next)
+    /* search for a previous instance of the same device */
+    if (dev->iobase != -2)	/* avoid PCI devices grouping with non-PCI devices */
     {
-	if (ap->comment != DEV_DEVICE)			/* ignore comments */
-	    continue;
-	if (!strcmp(dev->dev,ap->dev))			/* same base device */
+	for (ap = list; ap; ap = ap->next)
 	{
-	    if ((dev->unit <= ap->unit)			/* belongs before (equal is bad) */
-		|| !ap->next)				/* or end of list */
+	    if (ap->comment != DEV_DEVICE)			/* ignore comments */
+		continue;
+	    if (!strcmp(dev->dev,ap->dev))			/* same base device */
 	    {
-		ap = ap->prev;				/* back up one */
-		break;					/* done here */
-	    }
-	    if (ap->next)				/* if the next item exists */
-	    {
-		if (ap->next->comment != DEV_DEVICE)	/* next is a comment */
-		    break;
-		if (strcmp(dev->dev,ap->next->dev))		/* next is a different device */
-		    break;
+		if ((dev->unit <= ap->unit)			/* belongs before (equal is bad) */
+		    || !ap->next)				/* or end of list */
+		{
+		    ap = ap->prev;				/* back up one */
+		    break;					/* done here */
+		}
+		if (ap->next)					/* if the next item exists */
+		{
+		    if (ap->next->comment != DEV_DEVICE)	/* next is a comment */
+			break;
+		    if (strcmp(dev->dev,ap->next->dev))		/* next is a different device */
+			break;
+		}
 	    }
 	}
     }
 
-    if (!ap)
+    if (!ap)						/* not sure yet */
     {
+	/* search for a class that the device might belong to */
 	for (ap = list; ap; ap = ap->next)
 	{
 	    if (ap->comment != DEV_DEVICE)		/* look for simlar devices */
 		continue;
-	    if (dev->class != ap->class)			/* of same class too 8) */
+	    if (dev->class != ap->class)		/* of same class too 8) */
 		continue;
 	    if (strcmp(dev->dev,ap->dev) < 0)		/* belongs before the current entry */
 	    {
@@ -766,12 +783,17 @@ findconflict(DEV_LIST *list)
     {
 	if (dp->comment != DEV_DEVICE)		/* comments don't usually conflict */
 	    continue;
+	if (dp->iobase == -2)			/* it's a PCI device, not interested */
+	    continue;
 
 	dp->conflicts = 0;			/* assume the best */
 	for (sp = list; sp; sp = sp->next)	/* scan the entire list for conflicts */
 	{
 	    if (sp->comment != DEV_DEVICE)	/* likewise */
 		continue;
+	    if (dp->iobase == -2)		/* it's a PCI device, not interested */
+		continue;
+
 	    if (sp == dp)			/* always conflict with itself */
 		continue;
 	    if (sp->conflict_ok && dp->conflict_ok)
@@ -1356,7 +1378,11 @@ showparams(DEV_LIST *dev)
     {
 	sprintf(buf,"Port address : 0x%x",dev->iobase);
 	putxy(1,18,buf);
+    } else {
+	if (dev->iobase == -2)			/* a PCI device */
+	    putmsg(" PCI devices are automatically configured.");
     }
+	    
     if (dev->irq > 0)
     {
 	sprintf(buf,"IRQ number   : %d",dev->irq);
@@ -1984,12 +2010,14 @@ visuserconfig(void)
 		{
 		    if (dp->comment == DEV_DEVICE)	/* can't edit comments, zoom? */
 		    {
-			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
-			editparams(dp);
-			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
-			putxy(0,17,lines);
-			conflicts = findconflict(active);	/* update conflict tags */
-
+			if (dp->iobase != -2)		/* can't edit PCI devices */
+			{
+			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
+			    editparams(dp);
+			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
+			    putxy(0,17,lines);
+			    conflicts = findconflict(active);	/* update conflict tags */
+			}
 		    }else{				/* DO on comment = zoom */
 			switch(dp->comment)		/* Depends on current state */
 			{
@@ -2155,7 +2183,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.47 1996/09/19 08:32:37 phk Exp $
+ *      $Id: userconfig.c,v 1.48 1996/09/30 11:25:19 bde Exp $
  */
 
 #include "scbus.h"
