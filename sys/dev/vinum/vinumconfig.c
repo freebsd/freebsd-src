@@ -590,7 +590,7 @@ void
 free_drive(struct drive *drive)
 {
     if (drive->state > drive_referenced) {		    /* real drive */
-	lockdrive(drive);
+	LOCKDRIVE(drive);
 	if (drive->vp != NULL)				    /* device open */
 	    vn_close(drive->vp, FREAD | FWRITE, FSCRED, drive->p);
 	if (drive->freelist)
@@ -1826,19 +1826,26 @@ update_plex_config(int plexno, int diskconfig)
 	 * the stripe size.  If not, trim off the end
 	 * of each subdisk and return it to the drive.
 	 */
-	remainder = (int) (plex->length % ((u_int64_t) plex->stripesize * data_sds)); /* are we exact? */
-	if (remainder) {				    /* no */
-	    log(LOG_INFO, "vinum: removing %d blocks of partial stripe at the end of %s\n",
-		remainder,
-		plex->name);
-	    plex->length -= remainder;			    /* shorten the plex */
-	    remainder /= data_sds;			    /* spread the remainder amongst the sds */
-	    for (sdno = 0; sdno < plex->subdisks; sdno++) {
-		sd = &SD[plex->sdnos[sdno]];		    /* point to the subdisk */
-		return_drive_space(sd->driveno,		    /* return the space */
-		    sd->driveoffset + sd->sectors - remainder,
-		    remainder);
-		sd->sectors -= remainder;		    /* and shorten it */
+	if (plex->length > 0) {
+	    if (data_sds > 0) {
+		if (plex->stripesize > 0) {
+		    remainder = (int) (plex->length % ((u_int64_t) plex->stripesize * data_sds)); /* are we exact? */
+		    if (remainder) {			    /* no */
+			log(LOG_INFO, "vinum: removing %d blocks of partial stripe at the end of %s\n",
+			    remainder,
+			    plex->name);
+			plex->length -= remainder;	    /* shorten the plex */
+			remainder /= data_sds;		    /* spread the remainder amongst the sds */
+			for (sdno = 0; sdno < plex->subdisks; sdno++) {
+			    sd = &SD[plex->sdnos[sdno]];    /* point to the subdisk */
+			    return_drive_space(sd->driveno, /* return the space */
+				sd->driveoffset + sd->sectors - remainder,
+				remainder);
+			    sd->sectors -= remainder;	    /* and shorten it */
+			}
+		    }
+		} else					    /* no data sds, */
+		    plex->length = 0;			    /* reset length */
 	    }
 	}
     }
