@@ -28,14 +28,12 @@
 .Dt BYTEORDER 9
 .Os
 .Sh NAME
+.Nm bswap16 , bswap32 , bswap64 ,
 .Nm be16toh , be32toh , be64toh , htobe16 , htobe32 , htobe64 ,
-.Nm htole16 , htole32 , htole64 , le16toh , le32toh , le64toh
-.Nd convert values between big endian, little endian, and host byte order
-.\" XXX the following breaks whatis(1)
-.Pp
+.Nm htole16 , htole32 , htole64 , le16toh , le32toh , le64toh ,
 .Nm be16enc , be16dec , be32enc , be32dec , be64enc , be64dec ,
 .Nm le16enc , le16dec , le32enc , le32dec , le64enc , le64dec
-.Nd encode and decode big or little endian values to and from byte strings
+.Nd byte order operations
 .Sh SYNOPSIS
 .In sys/endian.h
 .Ft uint16_t
