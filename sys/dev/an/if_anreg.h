@@ -92,6 +92,7 @@
 #define AN_CMD_HOST_SLEEP	0x0005
 #define AN_CMD_MAGIC_PKT	0x0006
 #define AN_CMD_READCFG		0x0008
+#define AN_CMD_SET_MODE		0x0009
 #define AN_CMD_ALLOC_MEM	0x000A /* allocate NIC memory */
 #define AN_CMD_TX		0x000B /* transmit */
 #define AN_CMD_DEALLOC_MEM	0x000C
@@ -343,6 +344,9 @@ struct an_ltv_genconfig {
 #define AN_TXPOWER_100MW			100
 #define AN_TXPOWER_250MW			250
 
+#define AN_HOME_NETWORK				0x0001
+#define AN_HOME_INSTALL_AP			0x0002
+
 /*
  * Valid SSID list. You can specify up to three SSIDs denoting
  * the service sets that you want to join. The first SSID always
@@ -528,7 +532,7 @@ struct an_ltv_status {
 	u_int16_t		an_max_noise_prev_sec;	/* 0x7A */
 	u_int16_t		an_avg_noise_prev_min;	/* 0x7C */
 	u_int16_t		an_max_noise_prev_min;	/* 0x7E */
-	u_int16_t		an_spare[2];
+	u_int16_t		an_spare[3];
 };
 
 #define AN_STATUS_OPMODE_CONFIGURED		0x0001

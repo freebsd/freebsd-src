@@ -556,12 +556,6 @@ void an_intr(xsc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP)) {
-		CSR_WRITE_2(sc, AN_EVENT_ACK, 0xFFFF);
-		CSR_WRITE_2(sc, AN_INT_EN, 0);
-		return;
-	}
-
 	/* Disable interrupts. */
 	CSR_WRITE_2(sc, AN_INT_EN, 0);
 
@@ -601,7 +595,7 @@ void an_intr(xsc)
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, AN_INT_EN, AN_INTRS);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if ((ifp->if_flags & IFF_UP) && (ifp->if_snd.ifq_head != NULL))
 		an_start(ifp);
 
 	return;
@@ -945,7 +939,7 @@ static void an_setdef(sc, areq)
 
 
 	/* Reinitialize the card. */
-	if (ifp->if_flags & IFF_UP)
+	if (ifp->if_flags)
 		an_init(sc);
 
 	return;
@@ -960,31 +954,7 @@ static void an_promisc(sc, promisc)
 	struct an_softc		*sc;
 	int			promisc;
 {
-	/* Disable the MAC. */
-	an_cmd(sc, AN_CMD_DISABLE, 0);
-
-	/* Set RX mode. */
-	if (promisc && 
-	    !(sc->an_config.an_rxmode & AN_RXMODE_LAN_MONITOR_CURBSS)
-	    ) {
-		sc->an_rxmode = sc->an_config.an_rxmode;
-		/* kills card DJA, if in sniff mode can't TX packets
-		sc->an_config.an_rxmode |=
-		    AN_RXMODE_LAN_MONITOR_CURBSS;
-		*/
-	} else {
-		sc->an_config.an_rxmode = sc->an_rxmode;
-	}
- 
-	/* Transfer the configuration to the NIC */
-	sc->an_config.an_len = sizeof(struct an_ltv_genconfig);
-	sc->an_config.an_type = AN_RID_GENCONFIG;
-	if (an_write_record(sc, (struct an_ltv_gen *)&sc->an_config)) {
-		printf("an%d: failed to set configuration\n", sc->an_unit);
-		return;
-	}
-	/* Turn the MAC back on. */
-	an_cmd(sc, AN_CMD_ENABLE, 0);
+	an_cmd(sc, AN_CMD_SET_MODE, promisc ? 0xffff : 0);
 
 	return;
 }
@@ -1191,6 +1161,9 @@ static void an_init(xsc)
 		return;
 	}
 
+	if (ifp->if_flags & IFF_PROMISC)
+		an_cmd(sc, AN_CMD_SET_MODE, 0xffff);
+
 	/* enable interrupts */
 	CSR_WRITE_2(sc, AN_INT_EN, AN_INTRS);
 
@@ -1271,9 +1244,6 @@ static void an_start(ifp)
 		m_freem(m0);
 		m0 = NULL;
 
-		/* TX START disable lan monitor ? DJA 
-		   an_disable_sniff():
-		 */
 		sc->an_rdata.an_tx_ring[idx] = id;
 		if (an_cmd(sc, AN_CMD_TX, id))
 			printf("an%d: xmit failed\n", sc->an_unit);
