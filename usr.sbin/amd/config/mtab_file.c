@@ -37,7 +37,7 @@
  *
  *	@(#)mtab_file.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: mtab_file.c,v 1.4 1997/02/22 16:02:27 peter Exp $
+ * $Id: mtab_file.c,v 1.5 1998/07/29 03:23:18 imp Exp $
  *
  */
 
@@ -285,7 +285,7 @@ mntlist *mp;
 		tmpname[0] = '.'; tmpname[1] = '\0';
 	}
 	strcat(tmpname, "/mtabXXXXXX");
-	tmpfd = mktemp(tmpname);
+	tmpfd = mkstemp(tmpname);
 	if (close(tmpfd) < 0)
 		plog(XLOG_ERROR, "Couldn't close tmp file descriptor: %m");
 
