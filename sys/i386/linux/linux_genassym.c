@@ -2,6 +2,7 @@
 
 #include <sys/param.h>
 #include <sys/assym.h>
+#include <sys/systm.h>
 
 #include <i386/linux/linux.h>
 
