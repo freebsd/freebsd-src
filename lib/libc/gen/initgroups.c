@@ -32,13 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)initgroups.c	8.1 (Berkeley) 6/4/93";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
@@ -51,9 +48,14 @@ initgroups(uname, agroup)
 	const char *uname;
 	int agroup;
 {
-	int groups[NGROUPS], ngroups;
+	int ngroups;
+	/*
+	 * Provide space for one group more than NGROUPS to allow
+	 * setgroups to fail and set errno.
+	 */
+	gid_t groups[NGROUPS + 1];
 
-	ngroups = NGROUPS;
+	ngroups = NGROUPS + 1;
 	getgrouplist(uname, agroup, groups, &ngroups);
 	return (setgroups(ngroups, groups));
 }
