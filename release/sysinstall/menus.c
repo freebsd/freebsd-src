@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.81 1998/11/24 00:20:45 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

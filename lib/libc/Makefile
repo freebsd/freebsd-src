@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
-#	$Id: Makefile,v 1.16.2.4 1998/02/12 01:45:58 nate Exp $
+# $FreeBSD$
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does

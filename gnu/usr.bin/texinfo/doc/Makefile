@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 INFO=	texinfo info info-stnd makeinfo
 

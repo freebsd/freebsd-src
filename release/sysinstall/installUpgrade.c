@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.24 1998/11/15 09:07:37 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

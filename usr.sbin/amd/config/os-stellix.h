@@ -40,7 +40,7 @@
  * Amd (automounter) definitions for Stellix.
  * From Stephen C. Pope <scp@acl.lanl.gov>
  *
- * $Id: os-stellix.h,v 5.2.2.1 1992/02/09 15:10:43 jsp beta $
+ * $FreeBSD$
  */
 
 #define RPC_3

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chmod.c,v 1.5.2.1 1997/08/24 10:30:25 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

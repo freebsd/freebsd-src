@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.3 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.6 1997/02/22 13:04:05 peter Exp $
+# $FreeBSD$
 
 VOLUME=	papers
 DOC=	px

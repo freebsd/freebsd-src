@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: gen_subs.c,v 1.6.2.1 1997/08/25 08:37:00 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

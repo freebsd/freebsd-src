@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1997/06/29 21:40:54 bde Exp $
+# $FreeBSD$
 
 PROG=	ldconfig
 SRCS=	ldconfig.c shlib.c support.c

@@ -1,4 +1,4 @@
-/*	$Id: catgets.c,v 1.4 1998/04/30 10:14:54 ache Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Written by J.T. Conklin, 10/05/94

@@ -5,9 +5,20 @@ eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
 
 $bin = '/usr/bin';
 
-# $RCSfile: s2p,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:54 $
+# $RCSfile: s2p,v $$Revision: 1.2 $$Date: 1994/10/29 07:14:55 $
 #
 # $Log: s2p,v $
+# Revision 1.2  1994/10/29 07:14:55  pst
+# Test test test!  sigh!
+#
+# Perl's scripts are still trying to execute perl out of /usr/gnu/bin/perl.
+#
+# The hack Larry was using for h2ph.1 doesn't work with the new macros, so
+# make it a real man page.
+#
+# Also, we weren't building the .ph files, add them as an afterinstall rule
+# in the x2p subdirectory.
+#
 # Revision 1.1.1.1  1994/09/10  06:27:54  gclarkii
 # Initial import of Perl 4.046 bmaked
 #

@@ -37,7 +37,7 @@
  *
  *	@(#)trace.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: trace.h,v 1.3 1996/04/13 15:13:30 jhay Exp $
+ * $FreeBSD$
  */
 
 /*

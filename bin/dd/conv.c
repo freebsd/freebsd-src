@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conv.c,v 1.3.8.1 1996/11/21 16:30:30 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

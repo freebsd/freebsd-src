@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SRCS=	rcs_func.ms
 DOC=	rcs_func

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.7 1996/09/23 16:12:38 bde Exp $
+# $FreeBSD$
 #
 
 PROG =	cpp

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.17 1998/03/13 11:08:06 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

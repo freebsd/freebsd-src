@@ -1,4 +1,4 @@
-// $Id$
+// $FreeBSD$
 // standard setups for DoC tsuns.
 // note that no /var/spool/rwho is mounted as we now expect amd to do this as /vol/rwho
 

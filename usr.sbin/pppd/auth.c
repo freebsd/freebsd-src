@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.23 1998/06/20 18:02:08 peter Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <stdio.h>

@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.21 1998/12/07 05:59:57 archie Exp $
+ * $FreeBSD$
  *
  */
 

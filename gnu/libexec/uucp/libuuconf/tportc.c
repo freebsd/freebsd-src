@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tportc_rcsid[] = "$Id: tportc.c,v 1.14 1995/06/21 19:24:52 ian Rel $";
+const char _uuconf_tportc_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_prot.h,v 1.2 1995/05/30 04:55:47 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef _YP_PROT_H_

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SRCS=	vi.in vi.chars
 #DOC=	tutorial

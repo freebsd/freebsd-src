@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: register.c,v 1.1.2.7 1997/08/18 21:48:07 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.

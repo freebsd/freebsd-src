@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.18.2.10 1998/03/07 09:06:19 jkh Exp $
+# $FreeBSD$
 #	Do i386 specific processing
 #
 

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tsnams_rcsid[] = "$Id: tsnams.c,v 1.5 1995/06/21 19:24:59 ian Rel $";
+const char _uuconf_tsnams_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get all the system names from the Taylor UUCP configuration files.

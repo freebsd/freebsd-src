@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 TXIDIR=	${.CURDIR}/../../../../contrib/texinfo
 

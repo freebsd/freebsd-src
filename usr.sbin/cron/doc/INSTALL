@@ -15,7 +15,7 @@
  * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
  */
 
-$Id: INSTALL,v 2.5 1994/01/15 20:43:43 vixie Exp $
+$FreeBSD$
 
 Read the comments at the top of the Makefile, then edit the area marked
 'configurable stuff'.

@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: atof-ieee.c,v 1.5 1996/10/01 00:12:30 peter Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include "as.h"

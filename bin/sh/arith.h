@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)arith.h	1.1 (Berkeley) 5/4/95
- *	$Id: arith.h,v 1.4 1997/02/22 13:58:20 peter Exp $
+ * $FreeBSD$
  */
 
 int arith __P((char *));

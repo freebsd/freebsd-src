@@ -37,7 +37,7 @@
  *
  *	@(#)rpc_fwd.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: rpc_fwd.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

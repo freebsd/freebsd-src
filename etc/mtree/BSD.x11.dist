@@ -1,4 +1,4 @@
-#     $Id: BSD.x11.dist,v 1.1.2.2 1997/06/10 07:56:30 asami Exp $
+# $FreeBSD$
 #
 
 /set type=dir uname=root gname=wheel mode=0755

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *-
- * $Id: support.c,v 1.1 1996/10/01 01:22:42 peter Exp $
+ * $FreeBSD$
  */
 #include <sys/types.h>
 #include <string.h>

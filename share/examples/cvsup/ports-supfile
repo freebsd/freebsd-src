@@ -1,4 +1,4 @@
-# $Id: ports-supfile,v 1.3.2.7 1998/03/06 13:36:33 jkh Exp $
+# $FreeBSD$
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-current ports collection.

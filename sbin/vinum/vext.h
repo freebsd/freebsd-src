@@ -35,7 +35,7 @@
  *
  */
 
-/* $Id: vext.h,v 1.3 1999/01/21 00:45:11 grog Exp $ */
+/* $FreeBSD$ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE 61440				    /* this is what the system does somewhere */

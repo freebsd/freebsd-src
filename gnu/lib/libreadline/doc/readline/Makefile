@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 SRCDIR= ${.CURDIR}/../../../../../contrib/libreadline/doc
 

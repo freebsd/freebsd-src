@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith_lex.l,v 1.12 1998/08/25 09:33:34 cracauer Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -42,7 +42,7 @@
 static char sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: arith_lex.l,v 1.12 1998/08/25 09:33:34 cracauer Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <unistd.h>

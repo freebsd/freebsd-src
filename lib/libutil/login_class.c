@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$Id: login_class.c,v 1.6 1997/05/10 18:55:38 davidn Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

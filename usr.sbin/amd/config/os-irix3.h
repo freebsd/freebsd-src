@@ -37,7 +37,7 @@
  *
  *	@(#)os-irix3.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-irix3.h,v 5.2 1992/05/31 16:40:22 jsp Exp $
+ * $FreeBSD$
  *
  * IRIX 3.3 definitions for Amd (automounter)
  * Contributed by Scott R. Presnell <srp@cgl.ucsf.edu>

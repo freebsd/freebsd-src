@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kerberos
 MAN1=		${KRB4DIR}/man/kerberos.1

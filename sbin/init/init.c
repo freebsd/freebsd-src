@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.12.2.3 1997/08/18 03:30:04 davidn Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumlock.c,v 1.8 1999/01/14 02:52:13 grog Exp grog $
+ * $FreeBSD$
  */
 
 #define REALLYKERNEL

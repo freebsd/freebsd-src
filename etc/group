@@ -1,4 +1,4 @@
-#	$Id:$
+# $FreeBSD$
 #
 wheel:*:0:root
 daemon:*:1:daemon

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/10/06 22:17:02 wosch Exp $
+# $FreeBSD$
 
 KMOD=	green_saver_mod
 SRCS= 	green_saver.c

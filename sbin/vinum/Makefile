@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1999/01/13 23:05:26 grog Exp $
+# $FreeBSD$
 
 PROG=	vinum
 SRCS=	v.c list.c vinumparser.c vinumutil.c vext.h commands.c

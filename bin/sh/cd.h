@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: cd.h,v 1.4 1998/09/06 21:01:57 tegge Exp $
+ * $FreeBSD$
  */
 
 char	*getpwd __P((void));

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-#	$Id: Makefile,v 1.4 1998/01/21 17:41:39 ShimonR Exp $
+# $FreeBSD$
 
 PROG=	dpt_sig
 SRCS=	dpt_sig.c

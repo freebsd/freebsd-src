@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: termcap.h,v 1.11 1997/04/13 11:41:59 bde Exp $ */
+/* $FreeBSD$ */
 
 #ifndef _TERMCAP_H_
 #define _TERMCAP_H_

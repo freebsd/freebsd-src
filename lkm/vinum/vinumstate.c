@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.10 1999/01/17 06:19:23 grog Exp grog $
+ * $FreeBSD$
  */
 
 #define REALLYKERNEL

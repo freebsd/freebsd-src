@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: csh.c,v 1.6.2.2 1998/01/31 17:06:13 joerg Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

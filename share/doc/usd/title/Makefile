@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1997/03/02 14:04:13 wosch Exp $
+# $FreeBSD$
 
 VOLUME=	usd
 SRCS=	Title

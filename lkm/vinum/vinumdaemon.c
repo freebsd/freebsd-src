@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.3 1999/01/18 04:32:50 grog Exp grog $
+ * $FreeBSD$
  */
 
 #define REALLYKERNEL

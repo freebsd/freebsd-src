@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: lcp.c,v 1.8 1998/03/22 05:32:53 peter Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 /*

@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.10 1997/05/03 03:50:05 jb Exp $
+# $FreeBSD$
 
 .PATH: ${.CURDIR}/../libc/${MACHINE}/string ${.CURDIR}/../libc/string
 

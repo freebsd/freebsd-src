@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.22 1997/06/29 21:36:33 bde Exp $
+# $FreeBSD$
 #
 
 PROG=	ld

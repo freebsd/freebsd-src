@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: res_stubs.c,v 1.6 1997/06/27 08:35:13 peter Exp $
+ * $FreeBSD$
  */
 
 /*

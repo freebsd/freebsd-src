@@ -1,4 +1,4 @@
-/* $RCSfile: util.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:28 $
+/* $RCSfile: util.c,v $$Revision: 1.2.6.1 $$Date: 1997/09/16 08:34:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: util.c,v $
+ * Revision 1.2.6.1  1997/09/16 08:34:32  joerg
+ * MFC: buffer overflow fix from rev 1.3.
+ *
  * Revision 1.2  1995/05/30 05:03:28  rgrimes
  * Remove trailing whitespace.
  *

@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: lockd.c,v 1.2.2.1 1997/11/05 07:33:36 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /* main() function for NFS lock daemon.  Most of the code in this	*/

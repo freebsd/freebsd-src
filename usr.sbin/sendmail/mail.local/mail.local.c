@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mail.local.c,v 1.3.2.5 1997/06/28 08:08:05 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mkdir.c,v 1.5.8.1 1997/08/17 13:36:49 joerg Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

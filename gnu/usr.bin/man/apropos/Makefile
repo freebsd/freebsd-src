@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/03/09 17:31:08 wosch Exp wosch $
+# $FreeBSD$
 
 SHPROG=	apropos
 

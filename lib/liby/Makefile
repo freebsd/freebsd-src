@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/11/20 20:55:11 wollman Exp $
+# $FreeBSD$
 
 LIB=		y
 SHLIB_MAJOR=	2

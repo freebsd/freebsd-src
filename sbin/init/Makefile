@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.8.2.1 1997/08/18 03:30:04 davidn Exp $
+# $FreeBSD$
 
 PROG=	init
 MAN8=	init.8

@@ -1,5 +1,5 @@
 /*
- *	$Id: ld.h,v 1.20 1997/02/22 15:46:21 peter Exp $
+ * $FreeBSD$
  */
 /*-
  * This code is derived from software copyrighted by the Free Software

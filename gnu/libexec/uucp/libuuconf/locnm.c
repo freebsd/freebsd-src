@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_locnm_rcsid[] = "$Id: locnm.c,v 1.6 1995/06/21 19:23:31 ian Rel $";
+const char _uuconf_locnm_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get the local node name.  */

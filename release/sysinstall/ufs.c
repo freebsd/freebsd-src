@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ufs.c,v 1.9.2.1 1996/12/12 11:18:29 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

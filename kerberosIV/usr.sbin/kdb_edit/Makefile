@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kdb_edit
 MAN8=		${KRB4DIR}/man/kdb_edit.8

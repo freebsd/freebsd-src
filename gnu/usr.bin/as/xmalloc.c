@@ -42,7 +42,7 @@
   */
 
 #ifndef lint
-static char rcsid[] = "$Id: xmalloc.c,v 1.2 1993/11/03 00:52:32 paul Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <stdio.h>

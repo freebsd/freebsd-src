@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG= pkg_delete
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib

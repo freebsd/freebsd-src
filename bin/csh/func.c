@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: func.c,v 1.5.2.1 1997/08/24 21:41:33 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.94 1998/11/05 17:47:41 jkh Exp $
+# $FreeBSD$
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #

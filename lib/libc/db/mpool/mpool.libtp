@@ -1,6 +1,6 @@
 /******************************************************************************
 
-VERSION $Id: buf.c,v 1.26 92/01/09 09:15:26 margo Exp $
+VERSION $FreeBSD$
 PACKAGE: 	User Level Shared Memory Manager
 
 DESCRIPTION: 	

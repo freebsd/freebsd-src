@@ -36,7 +36,7 @@
  */
 
 /* Header files used by all modules */
-/* $Id: vinumhdr.h,v 1.11 1998/12/30 05:11:15 grog Exp grog $ */
+/* $FreeBSD$ */
 
 #ifdef KERNEL
 #define REALLYKERNEL

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sig.c,v 1.13 1998/05/21 21:48:20 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

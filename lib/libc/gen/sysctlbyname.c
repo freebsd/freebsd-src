@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: sysctlbyname.c,v 1.2 1997/07/12 11:14:30 peter Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/types.h>

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sap.h,v 1.3 1996/04/13 15:13:23 jhay Exp $
+ * $FreeBSD$
  */
 #ifndef _SAP_H_
 #define _SAP_H_

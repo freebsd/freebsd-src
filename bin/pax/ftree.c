@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftree.c,v 1.4.2.3 1998/02/15 11:18:19 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

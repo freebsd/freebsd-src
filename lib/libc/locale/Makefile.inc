@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.7.2.1 1997/06/24 03:51:33 julian Exp $
+# $FreeBSD$
 
 # locale sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/locale ${.CURDIR}/../libc/locale

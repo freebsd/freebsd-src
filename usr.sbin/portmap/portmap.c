@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)portmap.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: portmap.c,v 1.4.2.4 1998/06/04 15:41:32 wpaul Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*

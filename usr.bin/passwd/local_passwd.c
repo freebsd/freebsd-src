@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.9.2.4 1998/03/08 12:04:07 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

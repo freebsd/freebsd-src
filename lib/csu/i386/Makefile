@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.25.2.4 1997/10/29 01:23:14 asami Exp $
+# $FreeBSD$
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer -I${.CURDIR}
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o

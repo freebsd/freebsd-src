@@ -26,7 +26,7 @@
  */
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: file.c,v 1.3.2.2 1997/08/18 18:59:06 jdp Exp $";
+	"@(#)$FreeBSD$";
 #endif	/* lint */
 
 #include <stdio.h>

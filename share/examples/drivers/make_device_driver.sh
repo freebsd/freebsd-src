@@ -21,7 +21,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id:\$"
+# \$FreeBSD$"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -37,7 +37,7 @@ cat >../isa/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id:\$
+ * \$FreeBSD$
  */
 
 

@@ -37,7 +37,7 @@
  *
  *	@(#)host_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: host_ops.c,v 1.2 1995/05/30 03:45:45 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

@@ -15,7 +15,7 @@
 # The University of Texas at Austin
 # Austin, Texas  78712
 #
-# $Id: apropos.sh,v 1.6 1996/09/14 23:20:33 wosch Exp $
+# $FreeBSD$
 
 
 PATH=/bin:/usr/bin:$PATH

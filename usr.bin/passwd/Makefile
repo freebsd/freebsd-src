@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id$
+# $FreeBSD$
 
 PROG=	passwd
 SRCS=	local_passwd.c yppasswd_private_xdr.c yppasswd_comm.c yp_passwd.c \

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	6.3 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.4 1997/02/22 13:02:58 peter Exp $
+# $FreeBSD$
 
 VOLUME=	papers
 DOC=	diskperf

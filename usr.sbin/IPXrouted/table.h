@@ -36,7 +36,7 @@
  *
  *	@(#)table.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: table.h,v 1.2 1996/04/13 15:13:25 jhay Exp $
+ * $FreeBSD$
  */
 
 /*

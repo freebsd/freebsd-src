@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id: listing.h,v 1.1 1993/11/03 00:51:56 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef __listing_h__

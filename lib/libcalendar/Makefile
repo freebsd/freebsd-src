@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2.2.1 1998/01/12 05:11:13 obrien Exp $
+# $FreeBSD$
 
 LIB=	calendar
 

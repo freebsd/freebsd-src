@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: timers.h,v 1.1 1995/09/26 00:26:09 jb Exp jb $
+ * $FreeBSD$
  *
  * Description : Basic timers header.
  *

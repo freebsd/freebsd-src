@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1.2.1 1996/12/10 00:31:52 joerg Exp $
+# $FreeBSD$
 
 PROG=	pw
 SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c \

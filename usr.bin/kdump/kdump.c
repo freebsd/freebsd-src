@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: kdump.c,v 1.7.2.4 1997/08/29 05:29:24 imp Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #define KERNEL

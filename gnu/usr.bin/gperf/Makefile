@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../../contrib/gperf
 .PATH:	${.CURDIR}/../../../contrib/gperf/src

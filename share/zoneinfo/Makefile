@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1997/03/09 09:41:44 bde Exp $
+# $FreeBSD$
 
 CLEANFILES+=	yearistype
 

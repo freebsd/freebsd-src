@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kdestroy
 MAN1=		${KRB4DIR}/man/kdestroy.1

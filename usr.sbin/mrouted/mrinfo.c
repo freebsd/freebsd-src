@@ -61,7 +61,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 1.9 1996/10/01 23:14:35 fenner Exp $";
+    "@(#) $FreeBSD$";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */

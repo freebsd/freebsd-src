@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.23 1996/08/30 18:33:31 ache Exp $
+# $FreeBSD$
 
 SRCDIR= ${.CURDIR}/../../../contrib/libreadline
 .PATH: ${SRCDIR}

@@ -1,5 +1,5 @@
 # Makefile for uucico
-# $Id: Makefile,v 1.8 1995/08/19 21:29:34 ache Exp $
+# $FreeBSD$
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)

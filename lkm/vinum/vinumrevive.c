@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.6 1999/01/17 06:20:44 grog Exp grog $
+ * $FreeBSD$
  */
 
 #define REALLYKERNEL

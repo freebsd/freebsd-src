@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#) from_local.c 1.2 93/11/16 21:50:02";
 #endif
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif
 
 #ifdef TEST

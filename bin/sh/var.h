@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)var.h	8.2 (Berkeley) 5/4/95
- *	$Id: var.h,v 1.7 1998/09/06 21:13:09 tegge Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,7 +1,7 @@
 /*
  * Christian
  *
- * $Id: calendar.christian,v 1.7 1997/02/22 19:28:19 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_christian_

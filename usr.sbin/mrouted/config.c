@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: config.c,v 1.7 1996/01/06 21:09:39 peter Exp $
+ * $FreeBSD$
  */
 
 

@@ -53,7 +53,7 @@ char copyright[] = "\
 static char sccsid[] = "@(#)amq.c	8.1 (Berkeley) 6/7/93";
 #endif
 static const char rcsid[] =
-	"$Id: amq.c,v 1.2.6.3 1997/09/03 06:27:08 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "am.h"

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1993/12/21 19:42:18 wollman Exp $
+# $FreeBSD$
 #
 
 PARSEFLAGS= -DCLOCK_SCHMID -DCLOCK_DCF7000 -DCLOCK_MEINBERG \

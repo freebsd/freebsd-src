@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: list.h,v 1.1 1997/09/16 17:03:58 pst Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1997 FreeBSD, Inc.
  * All rights reserved.

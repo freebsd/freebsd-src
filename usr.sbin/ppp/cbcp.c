@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.7 1998/10/31 17:38:48 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/04/25 22:25:50 pst Exp $
+# $FreeBSD$
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb/gdbserver

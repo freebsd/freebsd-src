@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_remunk_rcsid[] = "$Id: remunk.c,v 1.5 1995/06/21 19:23:59 ian Rel $";
+const char _uuconf_remunk_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get the name of the remote.unknown shell script.  */

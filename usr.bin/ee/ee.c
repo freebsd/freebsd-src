@@ -52,7 +52,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ee.c,v 1.6.2.3 1998/03/08 08:09:00 jkh Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 char *ee_copyright_message = 
@@ -64,7 +64,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.3  $Revision: 1.6.2.3 $";
+char *version = "@(#) ee, version 1.3  $Revision: 1.6.2.4 $";
 
 #ifdef NCURSE
 #include "new_curse.h"

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1996/05/04 08:32:07 markm Exp $
+# $FreeBSD$
 
 # lib must be first, or it will not work.  This is because we reference
 # the lib's in the directory where they are built from the binaries we

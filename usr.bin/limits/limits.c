@@ -20,7 +20,7 @@
  *
  * Display/change(+runprogram)/eval resource limits.
  *
- *	$Id: limits.c,v 1.4 1997/05/10 19:00:58 davidn Exp $
+ * $FreeBSD$
  */
 
 #include <err.h>

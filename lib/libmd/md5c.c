@@ -22,7 +22,7 @@
  * These notices must be retained in any copies of any part of this
  * documentation and/or software.
  *
- * $Id: md5c.c,v 1.6 1996/12/22 10:27:25 phk Exp $
+ * $FreeBSD$
  *
  * This code is the same as the code published by RSA Inc.  It has been
  * edited for clarity and style only.

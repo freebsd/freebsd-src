@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)hexsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: hexsyntax.c,v 1.4.2.2 1997/08/29 05:29:21 imp Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

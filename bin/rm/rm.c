@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rm.c,v 1.11.2.1 1997/12/03 05:40:08 imp Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -37,7 +37,7 @@
  *
  *	@(#)os-bsd44.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-bsd44.h,v 1.4 1996/01/09 08:49:21 graichen Exp $
+ * $FreeBSD$
  *
  * 4.4 BSD definitions for Amd (automounter)
  */

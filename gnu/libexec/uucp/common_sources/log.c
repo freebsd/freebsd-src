@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char log_rcsid[] = "$Id: log.c,v 1.61 1995/06/21 19:14:58 ian Rel $";
+const char log_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <ctype.h>

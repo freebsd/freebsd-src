@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/10/06 22:16:52 wosch Exp $
+# $FreeBSD$
 
 KMOD=	blank_saver_mod
 SRCS= 	blank_saver.c

@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.5 1997/05/03 03:50:02 jb Exp $
+# $FreeBSD$
 
 # Quad support, if needed
 

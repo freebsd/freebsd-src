@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4.2.1 1998/06/23 21:41:21 peter Exp $
+# $FreeBSD$
 
 CFLAGS+= -DHAVE_PATHS_H
 

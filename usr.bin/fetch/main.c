@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.26.2.11 1998/07/16 23:51:51 jkh Exp $ */
+/* $FreeBSD$ */
 
 #include <sys/types.h>
 

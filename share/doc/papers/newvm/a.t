@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)a.t	5.1 (Berkeley) 4/16/91
-.\"	$Id: a.t,v 1.5 1997/02/22 13:03:56 peter Exp $
+.\" $FreeBSD$
 .\"
 .sp 2
 .ne 2i

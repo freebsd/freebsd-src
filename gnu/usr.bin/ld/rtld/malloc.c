@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)malloc.c	5.11 (Berkeley) 2/23/91";*/
-static char *rcsid = "$Id: malloc.c,v 1.8 1997/06/22 17:48:35 phk Exp $";
+static char *rcsid = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 /*

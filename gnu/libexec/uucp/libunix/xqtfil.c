@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xqtfil_rcsid[] = "$Id: xqtfil.c,v 1.10 1995/07/19 04:18:37 ian Rel $";
+const char xqtfil_rcsid[] = "$FreeBSD$";
 #endif
 
 #include "uudefs.h"

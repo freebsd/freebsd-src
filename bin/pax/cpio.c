@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpio.c,v 1.4.2.2 1997/09/14 13:07:17 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

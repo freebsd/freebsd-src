@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: re.c,v 1.9 1995/03/19 13:28:36 joerg Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

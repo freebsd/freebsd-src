@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	5.1 (Berkeley) 4/16/91
-.\"	$Id: 1.t,v 1.5 1997/02/22 13:03:52 peter Exp $
+.\" $FreeBSD$
 .\"
 .NH
 Motivations for a New Virtual Memory System

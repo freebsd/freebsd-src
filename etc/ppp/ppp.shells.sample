@@ -1,4 +1,4 @@
-#	$Id: ppp.shells.sample,v 1.2 1998/09/02 01:34:57 brian Exp $
+# $FreeBSD$
 #
 # List of acceptable shells for pppd(8).
 # Pppd will not accept a system password login

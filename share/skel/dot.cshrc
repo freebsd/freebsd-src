@@ -1,4 +1,4 @@
-#	$Id: dot.cshrc,v 1.5 1996/09/21 21:35:35 wosch Exp $
+# $FreeBSD$
 #
 # .cshrc - csh resource script, read at beginning 
 #	   of execution by each shell

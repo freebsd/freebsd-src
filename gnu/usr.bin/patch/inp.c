@@ -1,4 +1,4 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.3.6.1 1997/03/17 22:32:26 jmg Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.3.6.2 1998/03/03 07:13:40 jkh Exp $
  *
  * Log: inp.c,v
  *

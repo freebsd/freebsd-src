@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.3.2.1 1999/01/25 04:17:15 grog Exp $
+ * $FreeBSD$
  */
 
 #define STATIC						    /* nothing while we're testing XXX */

@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1.1.1 1994/12/03 04:33:28 ache Exp $
+# $FreeBSD$
 
 PROG=   bs
 MAN6=   bs.6

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: buf_subs.c,v 1.4.2.2 1997/09/14 13:07:13 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

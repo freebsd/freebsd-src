@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tsort.c,v 1.4.2.1 1997/08/29 05:30:03 imp Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 MAN6=	intro.6
 

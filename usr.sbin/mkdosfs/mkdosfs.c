@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mkdosfs.c,v 1.2.2.2 1997/09/29 06:34:38 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

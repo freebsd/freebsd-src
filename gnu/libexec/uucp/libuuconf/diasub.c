@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_diasub_rcsid[] = "$Id: diasub.c,v 1.6 1995/06/21 19:22:08 ian Rel $";
+const char _uuconf_diasub_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Clear the information in a dialer.  */

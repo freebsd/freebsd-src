@@ -39,7 +39,7 @@
 static char const sccsid[] = "@(#)error.c	5.3 (Berkeley) 6/1/90";
 #endif
 static const char rcsid[] =
-	"$Id: error.c,v 1.1.1.1.8.1 1997/08/29 11:40:45 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /* routines for printing error messages  */

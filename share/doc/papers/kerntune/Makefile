@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.5 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.5 1997/02/22 13:03:19 peter Exp $
+# $FreeBSD$
 
 VOLUME=	papers
 DOC=	kerntune

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.18 1999/01/15 02:41:16 grog Exp grog $
+ * $FreeBSD$
  */
 
 /* vinumext.h: external definitions */

@@ -1,6 +1,6 @@
 # /etc/crontab - root's crontab for FreeBSD
 #
-# $Id: crontab,v 1.12 1996/01/05 10:09:07 graichen Exp $
+# $FreeBSD$
 # From: Id: crontab,v 1.6 1993/05/31 02:03:57 cgd Exp
 #
 SHELL=/bin/sh

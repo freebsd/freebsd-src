@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.9.2.2 1998/02/15 10:53:17 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

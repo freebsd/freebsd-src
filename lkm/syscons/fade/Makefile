@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/10/06 22:16:57 wosch Exp $
+# $FreeBSD$
 
 KMOD=	fade_saver_mod
 SRCS= 	fade_saver.c

@@ -1,5 +1,5 @@
 :
-# $Id: fixit.profile,v 1.1 1995/03/15 06:14:19 phk Exp $
+# $FreeBSD$
 PATH=/stand
 BLOCKSIZE=K
 PS1="Fixit# "

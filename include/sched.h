@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sched.h,v 1.1 1998/03/08 02:17:26 jb Exp $
+ * $FreeBSD$
  *
  * POSIX 1003.1c scheduling definitions.
  *

@@ -37,7 +37,7 @@
  *
  *	@(#)os-irix4.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-irix4.h,v 1.1.1.1 1994/05/26 05:22:10 rgrimes Exp $
+ * $FreeBSD$
  *
  * IRIX 4.0.X definitions for Amd (automounter)
  * Contributed by Scott R. Presnell <srp@cgl.ucsf.edu>

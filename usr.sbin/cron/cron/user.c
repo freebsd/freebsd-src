@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: user.c,v 1.2.6.1 1997/09/16 07:01:48 charnier Exp $";
+  "$FreeBSD$";
 #endif
 
 /* vix 26jan87 [log is in RCS file]

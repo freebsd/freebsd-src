@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.6.2.8 1998/05/25 07:30:04 steve Exp $
+# $FreeBSD$
 
 if [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf

@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.2.2.2 $"
+#ident "$Revision: 1.2.2.3 $"
 
 #include "defs.h"
 #include "pathnames.h"

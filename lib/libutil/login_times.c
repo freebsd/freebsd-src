@@ -20,7 +20,7 @@
  *
  * Login period parsing and comparison functions.
  *
- *	$Id: login_times.c,v 1.4 1997/02/22 15:08:27 peter Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

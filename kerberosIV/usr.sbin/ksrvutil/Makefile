@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/10/02 15:03:23 markm Exp $
+# $FreeBSD$
 
 PROG=		ksrvutil
 MAN8=		${KRB4DIR}/man/ksrvutil.8

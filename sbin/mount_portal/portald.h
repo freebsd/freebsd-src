@@ -36,7 +36,7 @@
  *
  *	@(#)portald.h	8.1 (Berkeley) 6/5/93
  *
- * $Id: portald.h,v 1.1 1992/05/25 21:43:09 jsp Exp jsp $
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>

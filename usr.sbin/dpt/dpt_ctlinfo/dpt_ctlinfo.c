@@ -30,7 +30,7 @@
 
 /* dpt_ctlinfo.c:  Dunp a DPT HBA Information Block */
 
-#ident "$Id: dpt_ctlinfo.c,v 1.1 1998/01/22 23:32:27 ShimonR Exp ShimonR $"
+#ident "$FreeBSD$"
 
 #include <fcntl.h>
 #include <stdio.h>

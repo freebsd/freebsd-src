@@ -1,4 +1,4 @@
-#	$Id:$
+# $FreeBSD$
 #
 # csh .login file
 #

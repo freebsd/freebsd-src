@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.c,v 1.8 1996/01/06 21:10:26 peter Exp $
+ * $FreeBSD$
  */
 
 

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: locate.code.c,v 1.7.2.1 1997/08/29 05:29:28 imp Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

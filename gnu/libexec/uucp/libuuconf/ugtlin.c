@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_ugtlin_rcsid[] = "$Id: ugtlin.c,v 1.6 1995/06/21 19:25:06 ian Rel $";
+const char _uuconf_ugtlin_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Read a line from a file with backslash continuations.  This updates

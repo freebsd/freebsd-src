@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: locate.c,v 1.6.2.2 1997/08/29 05:29:29 imp Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -49,7 +49,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)locate.c    8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: locate.c,v 1.6.2.2 1997/08/29 05:29:29 imp Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*

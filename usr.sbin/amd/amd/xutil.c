@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)xutil.c 8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: xutil.c,v 1.1.1.1.8.2 1999/08/25 19:49:44 obrien Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "config.h"

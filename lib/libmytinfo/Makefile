@@ -1,7 +1,7 @@
 # Makefile for libmytinfo
 # Use 'make update_term_h' manually after changing internal
 # mytinfo structures
-# $Id: Makefile,v 1.9 1995/08/06 12:37:26 bde Exp $
+# $FreeBSD$
 
 LIB=    mytinfo
 SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\

@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_atan.S,v 1.2.8.2 1997/12/09 14:43:02 steve Exp $")
+RCSID("$FreeBSD$")
 
 ENTRY(atan)
 	fldl	4(%esp)

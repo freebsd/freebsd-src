@@ -36,7 +36,7 @@
 #
 # Posix 1003.2 compliant print spooler interface.
 #
-# $Id: lp.sh,v 1.2 1995/08/06 19:39:38 joerg Exp $
+# $FreeBSD$
 #
 
 ncopies=""

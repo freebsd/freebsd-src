@@ -1,5 +1,5 @@
 Portability of the new file(1) command.
-@(#) $Id: PORTING,v 1.3 1997/02/22 19:29:08 peter Exp $
+@(#) $FreeBSD$
 
 Read this file only if the program doesn't compile on your system.
 

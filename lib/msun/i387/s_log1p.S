@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_log1p.S,v 1.3.8.2 1997/12/09 14:43:06 steve Exp $")
+RCSID("$FreeBSD$")
 
 /*
  * The fyl2xp1 instruction has such a limited range:

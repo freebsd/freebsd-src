@@ -44,7 +44,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.1.2.1 1999/01/25 04:17:05 grog Exp $
+ * $FreeBSD$
  */
 
 #define STATIC						    /* nothing while we're testing XXX */

@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#	$Id: c89.sh,v 1.3.2.1 1998/01/12 05:07:57 obrien Exp $
+# $FreeBSD$
 #
 # This is the Posix.2 mandated C compiler.  Basically, a hook to the
 # cc(1) command.

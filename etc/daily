@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: daily,v 1.21.2.5 1999/01/01 17:44:15 billf Exp $
+# $FreeBSD$
 #	@(#)daily	5.12 (Berkeley) 5/24/91
 #
 PATH=/bin:/usr/bin:/sbin:/usr/sbin

@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: bit_fix.h,v 1.1 1993/11/03 00:51:19 paul Exp $
+ * $FreeBSD$
  */
 
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
- *	$Id: defs.h,v 1.2.2.1 1997/08/19 21:22:01 joerg Exp $
+ * $FreeBSD$
  */
 
 /* Definitions for RIPv2 routing process.

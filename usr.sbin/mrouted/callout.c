@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: callout.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $FreeBSD$
  */
 
 #include "defs.h"

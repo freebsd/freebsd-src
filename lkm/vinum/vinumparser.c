@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.14 1999/01/18 03:30:07 grog Exp grog $
+ * $FreeBSD$
  */
 
 /* This file contains the parser for the configuration routines.  It's used

@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)weekly	5.14 (Berkeley) 6/23/91
-#	$Id: weekly,v 1.17.2.2 1998/01/10 00:06:55 steve Exp $
+# $FreeBSD$
 
 PATH=/bin:/sbin:/usr/sbin:/usr/bin:/usr/libexec
 export PATH

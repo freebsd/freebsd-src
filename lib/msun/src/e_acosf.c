@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_acosf.c,v 1.5 1997/03/09 16:29:15 bde Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include "math.h"

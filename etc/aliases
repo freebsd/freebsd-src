@@ -1,4 +1,4 @@
-#	$Id: aliases,v 1.6 1997/08/19 17:16:14 wosch Exp $
+# $FreeBSD$
 #	@(#)aliases	5.3 (Berkeley) 5/24/90
 #
 #  Aliases in this file will NOT be expanded in the header from

@@ -7,7 +7,7 @@
  * If you figure out how to do this on another system,
  * please let me know.  <gwr@mc.com>
  *
- *	$Id: getether.c,v 1.4.2.1 1997/12/24 18:58:02 imp Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

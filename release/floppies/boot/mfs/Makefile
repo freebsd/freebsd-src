@@ -1,5 +1,5 @@
 ###
-#	$Id: Makefile,v 1.2 1996/08/22 09:45:43 julian Exp $
+# $FreeBSD$
 #
 # What are we if we weren't told..
 CRUNCHDIRS= ../crunch

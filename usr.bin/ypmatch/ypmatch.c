@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ypmatch.c,v 1.2.6.1 1997/09/01 06:06:23 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>

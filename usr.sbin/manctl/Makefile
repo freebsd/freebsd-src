@@ -1,5 +1,5 @@
 # Makefile
-# $Id: Makefile,v 1.6 1995/07/25 00:37:23 bde Exp $
+# $FreeBSD$
 
 MAN8=	manctl.8
 

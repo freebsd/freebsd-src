@@ -1,4 +1,4 @@
-#       $Id$
+# $FreeBSD$
 
 VOLUME= psd/28.cvs
 MACROS= -ms

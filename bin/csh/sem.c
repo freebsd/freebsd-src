@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sem.c,v 1.3.6.1 1997/08/24 21:41:38 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

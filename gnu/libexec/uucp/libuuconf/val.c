@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_val_rcsid[] = "$Id: val.c,v 1.5 1995/06/21 19:25:13 ian Rel $";
+const char _uuconf_val_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Validate a login name for a system.  */

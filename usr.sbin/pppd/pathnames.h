@@ -1,7 +1,7 @@
 /*
  * define path names
  *
- * $Id: pathnames.h,v 1.8 1997/08/19 17:52:45 peter Exp $
+ * $FreeBSD$
  */
 
 #ifdef HAVE_PATHS_H

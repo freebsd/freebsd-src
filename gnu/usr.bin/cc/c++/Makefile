@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5.6.1 1998/03/08 22:53:50 obrien Exp $
+# $FreeBSD$
 #
 
 PROG =	c++

@@ -1,4 +1,4 @@
-/*	$Id: domacro.c,v 1.5 1997/12/13 20:38:14 pst Exp $	*/
+/* $FreeBSD$	*/
 /*	$NetBSD: domacro.c,v 1.10 1997/07/20 09:45:45 lukem Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)domacro.c	8.3 (Berkeley) 4/2/94";
 #else
-__RCSID("$Id: domacro.c,v 1.5 1997/12/13 20:38:14 pst Exp $");
+__RCSID("$FreeBSD$");
 __RCSID_SOURCE("$NetBSD: domacro.c,v 1.10 1997/07/20 09:45:45 lukem Exp $");
 #endif
 #endif /* not lint */

@@ -37,7 +37,7 @@
  *
  *	@(#)os-u2_2.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-u2_2.h,v 5.2.2.1 1992/02/09 15:10:48 jsp beta $
+ * $FreeBSD$
  *
  * Ultrix 2.2 definitions for Amd (automounter)
  */

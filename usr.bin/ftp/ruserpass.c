@@ -1,4 +1,4 @@
-/*	$Id: ruserpass.c,v 1.7 1997/12/13 20:38:20 pst Exp $	*/
+/* $FreeBSD$	*/
 /*	$NetBSD: ruserpass.c,v 1.14.2.1 1997/11/18 01:02:05 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)ruserpass.c	8.4 (Berkeley) 4/27/95";
 #else
-__RCSID("$Id: ruserpass.c,v 1.7 1997/12/13 20:38:20 pst Exp $");
+__RCSID("$FreeBSD$");
 __RCSID_SOURCE("$NetBSD: ruserpass.c,v 1.14.2.1 1997/11/18 01:02:05 mellon Exp $");
 #endif
 #endif /* not lint */

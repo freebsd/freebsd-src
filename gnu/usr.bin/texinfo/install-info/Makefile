@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1997/04/07 16:52:45 bde Exp $
+# $FreeBSD$
 
 PROG=	install-info
 

@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $Id: expr.y,v 1.10 1995/08/04 17:08:07 joerg Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

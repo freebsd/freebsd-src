@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: readfile.c,v 1.2 1996/09/22 21:52:26 wosch Exp $
+ $FreeBSD$
 
 ************************************************************************/
 

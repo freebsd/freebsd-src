@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: monthly,v 1.6.2.2 1998/09/13 23:10:08 brian Exp $
+# $FreeBSD$
 #	@(#)monthly	5.5 (Berkeley) 6/17/91
 #
 

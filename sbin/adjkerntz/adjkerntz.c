@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: adjkerntz.c,v 1.18.2.3 1998/02/25 09:43:47 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.h,v 1.7 1998/05/29 18:33:09 brian Exp $
+ * $FreeBSD$
  */
 
 struct utmp;

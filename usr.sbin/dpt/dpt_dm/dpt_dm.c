@@ -30,7 +30,7 @@
 
 /* dpt_dm.c: Dump a DPT metrics structure */
 
-#ident "$Id: dpt_dm.c,v 1.8 1998/01/21 17:38:32 ShimonR Exp ShimonR $"
+#ident "$FreeBSD$"
 
 #include <fcntl.h>
 #include <stdio.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 13:04:53 peter Exp $
+# $FreeBSD$
 
 VOLUME=	psd/23.rpc
 SRCS=	rpc.prog.ms

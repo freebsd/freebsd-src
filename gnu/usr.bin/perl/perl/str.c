@@ -1,4 +1,4 @@
-/* $RCSfile: str.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:21 $
+/* $RCSfile: str.c,v $$Revision: 1.2.6.1 $$Date: 1997/08/08 20:54:50 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: str.c,v $
+ * Revision 1.2.6.1  1997/08/08 20:54:50  joerg
+ * MFC: fix buffer overflow condition.
+ *
  * Revision 1.2  1995/05/30 05:03:21  rgrimes
  * Remove trailing whitespace.
  *

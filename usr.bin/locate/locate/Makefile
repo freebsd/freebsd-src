@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $Id: Makefile,v 1.7 1996/09/01 16:03:28 wosch Exp $
+# $FreeBSD$
 
 PROG=	locate
 SRCS=	util.c locate.c

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 LIB=		roken
 CFLAGS+=	-I${KRB4DIR}/include \

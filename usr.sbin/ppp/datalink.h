@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.4 1998/06/15 19:05:19 brian Exp $
+ * $FreeBSD$
  */
 
 #define DATALINK_CLOSED  (0)

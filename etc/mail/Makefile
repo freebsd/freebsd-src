@@ -1,4 +1,4 @@
-#	$Id:$
+# $FreeBSD$
 
 default:
 .if exists(/etc/mail/ips.txt)

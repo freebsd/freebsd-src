@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.4 1995/10/05 06:18:48 joerg Exp $
+.\" $FreeBSD$
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os "FreeBSD 2.1"

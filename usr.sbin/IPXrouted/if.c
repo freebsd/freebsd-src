@@ -34,7 +34,7 @@
  *
  * static char sccsid[] = "@(#)if.c	5.1 (Berkeley) 6/4/85"; (routed/if.c)
  *
- *	$Id: if.c,v 1.1 1995/10/26 21:28:16 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

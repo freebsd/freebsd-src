@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: rup.c,v 1.4.2.2 1997/09/15 10:19:53 jkh Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <err.h>

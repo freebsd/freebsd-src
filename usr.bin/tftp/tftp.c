@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: tftp.c,v 1.1.1.1.8.1 1997/08/18 07:09:40 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */

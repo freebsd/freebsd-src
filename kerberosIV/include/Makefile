@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 .if exists(${.OBJDIR}/../../include)
 INCLUDEOBJDIR=	${.OBJDIR}/../include

@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp $";
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>

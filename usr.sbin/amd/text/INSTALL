@@ -191,4 +191,4 @@ mapping root to nobody.
 If anything interesting happened, eg it didn't work, please report it to me
 -- Jan-Simon Pendry <jsp@doc.ic.ac.uk> -- as detailed in the README file.
 
-$Id: INSTALL,v 5.2.2.2 1992/05/31 16:49:22 jsp Exp $
+$FreeBSD$

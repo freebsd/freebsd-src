@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.2.1 1997/06/28 01:08:56 brian Exp $
+# $FreeBSD$
 
 PROG=	pppctl
 SRCS=	pppctl.c

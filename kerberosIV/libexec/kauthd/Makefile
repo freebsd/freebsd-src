@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kauthd
 MAN8=		${KRB4DIR}/man/kauthd.8

@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.1.2.1 $"
+#ident "$Revision: 1.1.1.1.2.2 $"
 
 #include "defs.h"
 #include <netinet/in_systm.h>

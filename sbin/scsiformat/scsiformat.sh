@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-# $Id: scsiformat.sh,v 1.1.4.4 1998/03/09 21:59:32 andreas Exp $
+# $FreeBSD$
 #
 
 PATH="/sbin:/usr/sbin:/bin:/usr/bin"; export PATH

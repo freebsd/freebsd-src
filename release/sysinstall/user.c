@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.1.2.9 1997/02/18 04:39:18 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.

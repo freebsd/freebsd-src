@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.13.2.2 1997/06/06 16:09:12 charnier Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

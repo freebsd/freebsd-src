@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.46.2.8 1997/06/21 15:48:18 jkh Exp $
+# $FreeBSD$
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: magic.h,v 1.6 1997/08/19 17:52:42 peter Exp $
+ * $FreeBSD$
  */
 
 void magic_init __P((void));	/* Initialize the magic number generator */

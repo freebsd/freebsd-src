@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: disklabel.c,v 1.9.2.4 1998/07/17 20:13:00 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

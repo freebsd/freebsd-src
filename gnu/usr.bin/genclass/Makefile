@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1996/10/03 23:00:09 peter Exp $
+# $FreeBSD$
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++

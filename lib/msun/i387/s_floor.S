@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_floor.S,v 1.2.8.3 1997/12/09 14:43:05 steve Exp $")
+RCSID("$FreeBSD$")
 
 ENTRY(floor)
 	pushl	%ebp

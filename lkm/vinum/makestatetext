@@ -1,6 +1,6 @@
 #!/bin/sh
 # Make statetexts.h from vinumstate.h
-# $Id: makestatetext,v 1.5 1999/01/15 07:30:45 grog Exp grog $
+# $FreeBSD$
 infile=vinumstate.h
 ofile=statetexts.h
 cat > $ofile <<FOO

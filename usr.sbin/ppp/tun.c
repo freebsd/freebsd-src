@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.10 1998/10/22 02:32:50 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../../contrib/bison
 

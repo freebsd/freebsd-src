@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1997/10/03 06:37:35 markm Exp $
+# $FreeBSD$
 
 SUBDIR=	include lib libexec usr.bin usr.sbin
 

@@ -37,7 +37,7 @@
  *
  *	@(#)wire.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: wire.c,v 1.2 1995/05/30 03:46:01 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

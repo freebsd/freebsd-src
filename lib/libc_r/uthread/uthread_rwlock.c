@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_rwlock.c,v 1.3 1998/09/07 21:07:59 alex Exp $
+ * $FreeBSD$
  */
 
 #ifdef _THREAD_SAFE

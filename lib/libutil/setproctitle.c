@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $Id: setproctitle.c,v 1.2 1996/02/24 14:37:29 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_snams_rcsid[] = "$Id: snams.c,v 1.5 1995/06/21 19:24:07 ian Rel $";
+const char _uuconf_snams_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get all known system names.  */

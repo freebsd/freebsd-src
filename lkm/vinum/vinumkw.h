@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.11 1999/01/18 03:32:10 grog Exp grog $
+ * $FreeBSD$
  */
 
 #ifdef KERNEL

@@ -7,7 +7,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id: icmp.c,v 1.2.2.2 1998/02/20 15:42:04 brian Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -19,7 +19,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #include <stdlib.h>

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: args.c,v 1.3.8.2 1997/08/24 21:45:26 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

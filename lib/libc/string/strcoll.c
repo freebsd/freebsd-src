@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strcoll.c,v 1.6 1996/07/12 18:55:38 jkh Exp $
+ * $FreeBSD$
  */
 
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kauth
 MAN1=		${KRB4DIR}/man/kauth.1

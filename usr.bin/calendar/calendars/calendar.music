@@ -1,7 +1,7 @@
 /*
  * Music
  *
- * $Id: calendar.music,v 1.7 1997/02/25 01:20:28 mpp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_music_

@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id: bignum.h,v 1.2 1993/11/03 00:51:18 paul Exp $
+ * $FreeBSD$
  */
 
 /***********************************************************************\

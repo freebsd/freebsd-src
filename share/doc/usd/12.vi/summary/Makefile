@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SRCS=	vi.summary
 DOC=	summary

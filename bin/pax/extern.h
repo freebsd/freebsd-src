@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/18/94
- *	$Id: extern.h,v 1.2 1994/09/24 02:56:18 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_diacod_rcsid[] = "$Id: diacod.c,v 1.9 1995/06/21 19:22:03 ian Rel $";
+const char _uuconf_diacod_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

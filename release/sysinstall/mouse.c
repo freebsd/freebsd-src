@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mouse.c,v 1.1.2.2 1998/03/23 05:58:10 jkh Exp $
+ * $FreeBSD$
  */
 
 #include "sysinstall.h"

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.2.6.1 1998/03/06 08:06:39 jkh Exp $
+# $FreeBSD$
 #
 
 PROG=	mount_msdos

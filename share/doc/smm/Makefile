@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/10/93
-#	$Id: Makefile,v 1.4.2.4 1998/04/12 06:24:36 jkh Exp $
+# $FreeBSD$
 
 # The following modules do not describe FreeBSD:
 # 14.uucpimpl, 15.uucpnet

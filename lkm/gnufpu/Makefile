@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1 1995/12/14 08:26:14 phk Exp $
+# $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../sys/gnu/i386/fpemul
 KMOD=   gnufpu_mod

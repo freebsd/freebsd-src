@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1997/02/22 13:02:54 peter Exp $
+# $FreeBSD$
 
 VOLUME=	papers
 DOC=	contents

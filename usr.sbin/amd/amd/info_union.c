@@ -37,7 +37,7 @@
  *
  *	@(#)info_union.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: info_union.c,v 1.1.1.1 1994/05/26 05:22:03 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

@@ -1,4 +1,4 @@
-;	$Id: named.boot,v 1.3.6.1 1997/05/08 15:25:32 joerg Exp $
+; $FreeBSD$
 ;	From: @(#)named.boot	5.1 (Berkeley) 6/30/90
 
 ; Refer to the named(8) man page for details.  If you are ever going

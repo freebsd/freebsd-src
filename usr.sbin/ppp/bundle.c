@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.40.2.2 1999/01/06 00:09:10 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

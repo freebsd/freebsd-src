@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 1.10 1996/01/29 16:04:20 peter Exp $
+ * $FreeBSD$
  */
 
 

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/09/10 13:23:46 peter Exp $
+# $FreeBSD$
 
 INFO = bison
 INFOSECTION= "Programming & development tools."

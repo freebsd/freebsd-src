@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: df.c,v 1.8.2.1 1996/12/13 17:15:11 joerg Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

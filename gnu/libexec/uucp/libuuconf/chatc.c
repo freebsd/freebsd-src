@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_chatc_rcsid[] = "$Id: chatc.c,v 1.6 1995/06/21 19:21:48 ian Rel $";
+const char _uuconf_chatc_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <ctype.h>

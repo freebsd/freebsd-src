@@ -1,6 +1,6 @@
 /* RCS compile-time configuration */
 
-	/* $Id: conf.h,v 1.4 1995/10/28 21:49:25 peter Exp $ */
+	/* $FreeBSD$ */
 
 /*
  * This file is generated automatically.

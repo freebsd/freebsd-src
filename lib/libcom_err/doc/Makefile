@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1.6.2 1997/04/11 16:58:40 asami Exp $
+# $FreeBSD$
 
 INFO=	com_err
 INFOSECTION= "Programming & development tools."

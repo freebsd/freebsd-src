@@ -1,4 +1,4 @@
-/* $RCSfile: arg.h,v $$Revision: 1.2 $$Date: 1994/09/11 03:17:24 $
+/* $RCSfile: arg.h,v $$Revision: 1.3 $$Date: 1995/05/30 05:02:49 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: arg.h,v $
+ * Revision 1.3  1995/05/30 05:02:49  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1994/09/11  03:17:24  gclarkii
  * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
  * Added casts to shutup warnings in doio.c

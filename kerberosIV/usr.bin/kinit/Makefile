@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kinit
 MAN1=		${KRB4DIR}/man/kinit.1

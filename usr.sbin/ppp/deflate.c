@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.11 1998/08/07 18:42:48 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

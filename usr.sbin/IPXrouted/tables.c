@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tables.c,v 1.2 1996/04/13 15:13:27 jhay Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

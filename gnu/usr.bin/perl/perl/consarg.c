@@ -1,4 +1,4 @@
-/* $RCSfile: consarg.c,v $$Revision: 1.3 $$Date: 1995/05/30 05:02:57 $
+/* $RCSfile: consarg.c,v $$Revision: 1.3.6.1 $$Date: 1997/08/08 20:54:50 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: consarg.c,v $
+ * Revision 1.3.6.1  1997/08/08 20:54:50  joerg
+ * MFC: fix buffer overflow condition.
+ *
  * Revision 1.3  1995/05/30 05:02:57  rgrimes
  * Remove trailing whitespace.
  *

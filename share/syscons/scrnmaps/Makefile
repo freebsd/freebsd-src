@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SCRMAPS = koi8-r2cp866.scm iso-8859-1_to_cp437.scm
 

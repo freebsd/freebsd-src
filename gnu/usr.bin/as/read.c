@@ -19,7 +19,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: read.c,v 1.7.2.2 1997/04/29 02:16:51 jdp Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #define MASK_CHAR (0xFF)	/* If your chars aren't 8 bits, you will

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_input.c,v 1.2 1995/12/04 10:36:02 julian Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1996/09/21 14:27:29 peter Exp $
+# $FreeBSD$
 #
 
 PROG =	cc1obj

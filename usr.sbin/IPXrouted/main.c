@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.4 1996/04/13 15:13:18 jhay Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

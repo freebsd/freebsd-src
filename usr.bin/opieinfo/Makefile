@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 

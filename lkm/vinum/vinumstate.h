@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.h,v 1.12 1998/12/30 01:31:52 grog Exp grog $
+ * $FreeBSD$
  */
 
 /* This file gets read by makestatetext to create text files

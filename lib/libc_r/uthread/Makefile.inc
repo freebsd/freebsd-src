@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.3.2.3 1997/11/24 23:07:51 alex Exp $
+# $FreeBSD$
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread

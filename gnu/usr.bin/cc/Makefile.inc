@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.17 1996/10/01 03:44:29 peter Exp $
+# $FreeBSD$
 #
 
 # Sometimes this is .include'd several times...

@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.7.2.3 1998/02/18 11:41:29 markm Exp $
+# $FreeBSD$
 #
 
 /set type=dir uname=bin gname=bin mode=0755

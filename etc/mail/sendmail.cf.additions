@@ -1,4 +1,4 @@
-#	$Id:$
+# $FreeBSD$
 #
 # list of hosts and domains for whom we relay mail.
 # all .forward hosts, domains must be listed in this file.

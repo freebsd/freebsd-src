@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.8.2.4 1998/02/18 11:38:37 markm Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

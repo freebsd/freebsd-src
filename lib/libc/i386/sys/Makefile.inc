@@ -1,5 +1,5 @@
 #	from: Makefile.inc,v 1.1 1993/09/03 19:04:23 jtc Exp
-#	$Id: Makefile.inc,v 1.5 1997/05/03 03:49:56 jb Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../libc/${MACHINE}/sys
 

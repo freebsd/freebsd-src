@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: v.c,v 1.24 1999/01/17 02:53:38 grog Exp grog $ */
+/* $FreeBSD$ */
 
 #include <ctype.h>
 #include <errno.h>

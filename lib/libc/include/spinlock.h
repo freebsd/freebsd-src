@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: spinlock.h,v 1.3 1998/06/09 08:28:49 jb Exp $
+ * $FreeBSD$
  *
  * Lock definitions used in both libc and libpthread.
  *

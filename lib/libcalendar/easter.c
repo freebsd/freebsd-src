@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: easter.c,v 1.3.2.1 1998/01/12 05:11:22 obrien Exp $
+ * $FreeBSD$
  */
 
 #include "calendar.h"

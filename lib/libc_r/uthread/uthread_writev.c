@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_writev.c,v 1.1.2.3 1998/05/26 22:07:28 jb Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/types.h>

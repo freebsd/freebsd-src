@@ -1,4 +1,4 @@
-/*	$Id: catopen.c,v 1.3 1997/02/22 15:00:49 peter Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Written by J.T. Conklin, 10/05/94

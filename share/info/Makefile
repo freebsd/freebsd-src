@@ -1,5 +1,5 @@
 #       @(#)Makefile    8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.2.2.1 1998/03/06 13:59:35 jkh Exp $
+# $FreeBSD$
 
 NOOBJ=  noobj
 

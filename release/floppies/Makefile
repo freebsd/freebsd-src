@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/08/22 09:45:27 julian Exp $
+# $FreeBSD$
 #
 SUBDIR= bin boot fixit
 

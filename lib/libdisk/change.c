@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: change.c,v 1.10 1995/12/07 10:33:18 peter Exp $
+ * $FreeBSD$
  *
  */
 

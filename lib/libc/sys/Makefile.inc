@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.20.2.6 1998/06/29 19:18:06 dt Exp $
+# $FreeBSD$
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys

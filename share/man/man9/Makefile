@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11.2.7 1997/03/04 06:32:12 mpp Exp $
+# $FreeBSD$
 
 MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 copy.9 \
 	devfs_add_devswf.9 cd.9 \

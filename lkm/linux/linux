@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: linux,v 1.2 1995/10/28 12:35:06 peter Exp $
+# $FreeBSD$
 
 if modstat -n linux_mod > /dev/null ; then
 	echo Linux lkm already loaded

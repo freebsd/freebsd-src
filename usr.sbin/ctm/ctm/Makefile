@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: Makefile,v 1.9 1995/07/12 18:35:22 bde Exp $
+# $FreeBSD$
 #
 
 PROG=		ctm

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_free_rcsid[] = "$Id: free.c,v 1.6 1995/06/21 19:22:30 ian Rel $";
+const char _uuconf_free_rcsid[] = "$FreeBSD$";
 #endif
 
 #include "alloc.h"

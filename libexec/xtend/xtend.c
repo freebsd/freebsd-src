@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: xtend.c,v 1.3.2.1 1997/12/18 07:37:47 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*

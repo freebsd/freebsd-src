@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 VOLUME=	psd/13.rcs
 MACROS=	-ms

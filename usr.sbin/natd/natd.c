@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

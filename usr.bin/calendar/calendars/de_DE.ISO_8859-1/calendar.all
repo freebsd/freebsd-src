@@ -1,7 +1,7 @@
 /*
  * deutscher Kalender
  *
- * $Id: calendar.all,v 1.4 1997/02/22 19:28:29 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _de_DE_ISO_8859_1_all_

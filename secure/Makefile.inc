@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.8 1996/11/07 14:41:20 markm Exp $
+# $FreeBSD$
 
 DISTRIBUTION=des
 

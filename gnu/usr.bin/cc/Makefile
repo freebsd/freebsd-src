@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1996/09/19 15:37:58 peter Exp $
+# $FreeBSD$
 #
 
 # The order of some of these are rather important.  Some depend on previous

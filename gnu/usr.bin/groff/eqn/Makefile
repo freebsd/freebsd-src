@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		eqn
 SRCS=		eqn.cc eqn.tab.h main.cc lex.cc \

@@ -3,7 +3,7 @@
 # PC-card startup script
 # HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 #
-#	$Id$
+# $FreeBSD$
 #
 
 if [ "X$pccard_enable" = X"YES" ] ; then

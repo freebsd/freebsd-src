@@ -11,7 +11,7 @@
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
  *
- * $Id: ctm_smail.c,v 1.8 1996/09/07 21:06:19 peter Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

@@ -11,7 +11,7 @@
 
 /*
  * from: @(#)fdlibm.h 5.1 93/09/24
- * $Id: math.h,v 1.2.6.1 1997/12/28 19:45:49 steve Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MATH_H_

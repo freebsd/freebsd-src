@@ -3,20 +3,23 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
+ * $FreeBSD$
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.3.2.1  1997/08/18 18:59:16  jdp
+ * Sync with -current.
+ *
  * Revision 1.7  1997/03/18 19:37:21  mpp
  * Merge to resolve conflicts with file 3.22 merge.
  *
  * Revision 1.6  1997/02/22 19:54:59  peter
- * Revert $FreeBSD$ to $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
+ * Revert $FreeBSD$ to $FreeBSD$
  *
  * Revision 1.5  1997/02/22 19:29:15  peter
- * Revert $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $ to $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
+ * Revert $FreeBSD$
  *
  * Revision 1.4  1997/01/14 06:59:48  jkh
- * Make the long-awaited change from $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $ to $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
+ * Make the long-awaited change from $FreeBSD$
  *
  * This will make a number of things easier in the future, as well as (finally!)
  * avoiding the Id-smashing problem which has plagued developers for so long.

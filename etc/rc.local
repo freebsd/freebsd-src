@@ -1,7 +1,7 @@
 #
 # site-specific startup actions, daemons
 #
-#	$Id: rc.local,v 1.21.2.1 1997/08/13 06:50:33 dima Exp $
+# $FreeBSD$
 #
 
 # If there is a global system configuration file, suck it in.

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: proc.c,v 1.2.8.2 1998/01/31 17:06:15 joerg Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: parse.c,v 1.1.1.1.8.1 1997/07/11 06:25:59 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

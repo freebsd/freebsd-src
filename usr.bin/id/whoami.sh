@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)whoami.sh	8.1 (Berkeley) 6/6/93
-#	$Id: whoami.sh,v 1.3 1996/11/05 07:24:48 wosch Exp $
+# $FreeBSD$
 
 PATH=/bin:/usr/bin; export PATH
 

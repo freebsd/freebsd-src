@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: rmail.c,v 1.5 1997/03/31 05:11:22 imp Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

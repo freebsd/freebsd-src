@@ -31,7 +31,7 @@
  * 09/28/93 Released version 1.0
  * 09/93 Original developed by Gordon W. Ross <gwr@mc.com>
  *
- *	$Id: bootptest.c,v 1.2 1996/09/22 21:52:55 wosch Exp $
+ * $FreeBSD$
  */
 
 char *usage = "bootptest [-h] server-name [vendor-data-template-file]";

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kstash
 MAN8=		${KRB4DIR}/man/kstash.8

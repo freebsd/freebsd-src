@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG= pkg_info
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib

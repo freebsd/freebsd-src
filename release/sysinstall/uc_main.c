@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.13.4.6 1998/09/29 05:13:53 jkh Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

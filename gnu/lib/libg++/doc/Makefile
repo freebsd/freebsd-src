@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/10/04 08:43:37 peter Exp $
+# $FreeBSD$
 
 INFO = g++FAQ libg++ iostream
 INFOSECTION= "Gcc Documentation"

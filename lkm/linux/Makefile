@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1997/01/10 05:48:49 mpp Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod

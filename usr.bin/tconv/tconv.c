@@ -58,7 +58,7 @@
 static const char SCCSid[] =
 	"@(#) mytinfo tconv.c 3.2 92/02/01 public domain, By Ross Ridge";
 static const char rcsid[] =
-	"$Id: tconv.c,v 1.2.6.2 1998/03/08 13:35:30 jkh Exp $";
+  "$FreeBSD$";
 #endif
 
 /* the right margin of the output */

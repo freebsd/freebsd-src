@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fmt.c,v 1.6.2.1 1997/03/10 19:10:52 guido Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

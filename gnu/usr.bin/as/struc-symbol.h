@@ -17,7 +17,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: struc-symbol.h,v 1.5 1995/05/30 04:46:33 rgrimes Exp $
+ * $FreeBSD$
  */
 
 

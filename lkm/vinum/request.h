@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.13 1999/01/14 05:46:22 grog Exp grog $
+ * $FreeBSD$
  */
 
 /* Information needed to set up a transfer */

@@ -30,7 +30,7 @@
 
 /* dpt_sig.c:  Dunp a DPT Signature */
 
-#ident "$Id: dpt_sig.c,v 1.6 1998/01/22 22:06:30 ShimonR Exp ShimonR $"
+#ident "$FreeBSD$"
 
 #include <fcntl.h>
 #include <stdio.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.10.2.1 1997/08/24 10:34:45 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

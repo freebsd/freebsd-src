@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/06/22 04:19:08 brian Exp $
+# $FreeBSD$
 
 PROG=	natd
 SRCS=	natd.c icmp.c

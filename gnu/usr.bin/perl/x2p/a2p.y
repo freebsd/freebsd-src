@@ -1,5 +1,5 @@
 %{
-/* $RCSfile: a2p.y,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:09 $
+/* $RCSfile: a2p.y,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:53 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -7,6 +7,10 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: a2p.y,v $
+ * Revision 1.1.1.1  1994/09/10 06:27:53  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
+ *
  * Revision 1.1.1.1  1993/08/23  21:30:09  nate
  * PERL!
  *

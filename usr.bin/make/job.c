@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: job.c,v 1.5.2.1 1998/08/27 16:01:49 cracauer Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

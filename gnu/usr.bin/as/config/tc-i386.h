@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id: tc-i386.h,v 1.2 1994/12/23 22:37:36 nate Exp $
+ * $FreeBSD$
  */
 
 #ifndef TC_I386

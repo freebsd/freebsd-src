@@ -1,4 +1,4 @@
-.\"	$Id: addr.nr,v 1.4 1997/02/22 13:00:10 peter Exp $
+.\" $FreeBSD$
 .\"
 .NC "NSAP Addresses & Routing"
 .sh 1 "OSI Address Formats"

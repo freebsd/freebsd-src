@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.7.2.4 1998/03/07 11:42:06 jkh Exp $
+# $FreeBSD$
 #
 # .profile - Bourne Shell startup script for login shells
 #

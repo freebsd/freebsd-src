@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
- *	$Id: DEFS.h,v 1.3.2.3 1997/12/09 14:42:45 steve Exp $
+ * $FreeBSD$
  */
 
 #include <machine/asm.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ar.c,v 1.4.2.2 1997/08/29 05:28:53 imp Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

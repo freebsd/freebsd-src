@@ -1,4 +1,4 @@
-#	$Id: dot.login,v 1.7.2.1 1997/02/23 20:57:42 joerg Exp $
+# $FreeBSD$
 #
 # .login - csh login script, read by login shell, 
 #	   after `.cshrc' at login.

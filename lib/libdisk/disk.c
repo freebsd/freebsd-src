@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.22.2.11 1998/05/19 11:16:41 obrien Exp $
+ * $FreeBSD$
  *
  */
 

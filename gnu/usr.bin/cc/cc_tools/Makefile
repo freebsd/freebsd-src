@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1.2.1 1997/10/26 22:47:42 jkh Exp $
+# $FreeBSD$
 #
 
 #
