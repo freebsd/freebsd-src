@@ -48,7 +48,7 @@ If
 is unable to interface with the kernel over a specific timeout,
 the kernel will take actions to assist in debugging or restarting the computer.
 .Pp
-If 
+If
 .Fl e Ar cmd
 is specified,
 .Nm
@@ -58,16 +58,16 @@ and only if the command returns with a zero exit code will the
 watchdog be reset.
 If
 .Fl e Ar cmd
-is not specified the daemon will perform a trivial filesystem
+is not specified the daemon will perform a trivial file system
 check instead.
 .Pp
 The
-.Fl -s Ar sleep
+.Fl s Ar sleep
 argument can be used to control the sleep period between each execution
 of the check and defaults to one second.
 .Pp
 The
-.Fl -t Ar timeout
+.Fl t Ar timeout
 specifies the desired timeout period in seconds.
 .Pp
 One possible circumstance which will cause a watchdog timeout is an interrupt
@@ -84,7 +84,7 @@ or
 signals,
 .Nm
 will first instruct the kernel to no longer perform watchdog checks and then
-will terminate. 
+will terminate.
 .Pp
 The
 .Nm
@@ -95,25 +95,25 @@ Write the process id of the
 .Nm
 utility in the specified file.
 .It Fl d
-Don't fork.
+Do not fork.
 When this option is specified,
 .Nm
 will not fork into the background at startup.
 .El
 .Sh FILES
-.Bl -tag -width "/var/run/watchdogd.pid" -compact
+.Bl -tag -width ".Pa /var/run/watchdogd.pid" -compact
 .It Pa /var/run/watchdogd.pid
 .El
 .Sh SEE ALSO
 .Xr watchdog 4 ,
 .Xr watchdog 8 ,
-.Xr watchdog 9 ,
+.Xr watchdog 9
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 utility and manual page were written by
-.An Sean Kelly Aq smkelly@FreeBSD.org 
+.An Sean Kelly Aq smkelly@FreeBSD.org
 and
 .An Poul-Henning Kamp Aq phk@FreeBSD.org .
 .Pp
