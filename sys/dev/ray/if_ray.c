@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.24 2000/04/24 15:49:20 dmlb Exp $
+ * $Id: if_ray.c,v 1.29 2000/05/11 18:55:38 dmlb Exp $
  *
  */
 
@@ -106,7 +106,7 @@
  * power saving etc. is easy.
  *
  *
- * Packet translation/encapsulation
+ * Packet framing/encapsulation
  * ================================
  * 
  * Currently we only support the Webgear encapsulation
@@ -121,7 +121,7 @@
  *	rayctl.c	Linux Webgear, RFC1042
  * also whatever we can divine from the NDC Access points and Kanda's boxes.
  *
- * Most drivers appear to have a RFC1042 translation. The incoming packet is
+ * Most drivers appear to have a RFC1042 framing. The incoming packet is
  *	802.11	header <net/if_ieee80211.h>struct ieee80211_header
  *	802.2	LLC header
  *	802.2	SNAP header
@@ -131,11 +131,26 @@
  *	802.2	LLC header
  *	802.2	SNAP header
  *
- * Linux seems to look at the SNAP org_code and do some translations
+ * Linux seems to look at the SNAP org_code and do some framings
  * for IPX and APPLEARP on that. This just may be how Linux does IPX
  * and NETATALK. Need to see how FreeBSD does these.
  *
  * Translation should be selected via if_media stuff or link types.
+ *
+ *
+ * Authentication
+ * ==============
+ *
+ * 802.11 provides two authentication mechanisms. The first is a very
+ * simple host based mechanism (like xhost) called Open System and the
+ * second is a more complex challenge/response called Shared Key built
+ * ontop of WEP.
+ *
+ * This driver only supports Open System and does not implement any
+ * host based control lists. In otherwords authentication is always
+ * granted to hosts wanting to authenticate with this station. This is
+ * the only sensible behaviour as the Open System mechanism uses MAC
+ * addresses to identify hosts. Send me patches if you need it!
  */
 
 /*
@@ -204,6 +219,9 @@
  *	the rest is ansi anyway
  * macroize the attribute read/write and 3.x driver - done
  *	like the SRAM macros?
+ * rename "translation" to framing for consitency with Webgear - done
+ * severe breakage with CCS allocation - done
+ *	ccs are now allocated in a sleepable context with error recovery
  *
  * ***stop/unload needs to drain comq
  * ***stop/unload checks in more routines
@@ -214,6 +232,9 @@
  * ***check and rationalise CM mappings
  * ***should the desired nw parameters move into the comq entry to maintain
  *    correct sequencing?
+ * resource allocation should be be in attach and not probe
+ * resources allocated in probe hould be released before probe exits
+ * use /sys/net/if_ieee80211.h and update it
  * why can't download use sc_promisc?
  * macro for gone and check is at head of all externally called routines
  * for ALLMULTI must go into PROMISC and filter unicast packets
@@ -234,6 +255,7 @@
  * infrastructure mode
  *	needs handling of basic rate set
  *	all ray_sj, ray_assoc sequencues need a "nicer" solution as we
+ *	remember association and authentication
  *	need to consider WEP
  * acting as ap - should be able to get working from the manual
  * differeniate between parameters set in attach and init
@@ -251,13 +273,15 @@
 #define XXX		0
 #define XXX_CLEARCCS_IN_INIT	0
 #define XXX_ASSOC	0
+#define XXX_ACTING_AP	0
+#define XXX_INFRA	0
 #define XXX_MCAST	0
 #define XXX_RESET	0
 #define XXX_IFQ_PEEK	0
 #define RAY_DEBUG	(				\
- 			/* RAY_DBG_RECERR	| */	\
+ 			   RAY_DBG_RECERR	|    	\
  			/* RAY_DBG_SUBR		| */ 	\
-			   RAY_DBG_BOOTPARAM	|   	\
+			/* RAY_DBG_BOOTPARAM	| */ 	\
 			/* RAY_DBG_STARTJOIN	| */	\
 			/* RAY_DBG_CCS		| */	\
                         /* RAY_DBG_IOCTL	| */	\
@@ -266,6 +290,9 @@
                         /* RAY_DBG_CM		| */ 	\
                         /* RAY_DBG_COM		| */ 	\
                         /* RAY_DBG_STOP		| */	\
+                        /* RAY_DBG_CTL		| */	\
+                        /* RAY_DBG_MGT		| */ 	\
+                        /* RAY_DBG_TX		| */  	\
 			0				\
 			)
 
@@ -286,6 +313,7 @@
 #endif /* RAY_DEBUG */
 
 #include "ray.h"
+#include "opt_inet.h"
 
 #if NRAY > 0
 
@@ -313,6 +341,13 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_mib.h>
+
+#ifdef INET
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <netinet/if_ether.h>
+#endif /* INET */
+
 #include <net/bpf.h>
 
 #include <machine/bus.h>
@@ -337,8 +372,10 @@
  * Prototyping
  */
 static int	ray_attach		(device_t);
-static int	ray_ccs_alloc		(struct ray_softc *sc, size_t *ccsp, u_int cmd, int timo);
-static u_int8_t	ray_ccs_free		(struct ray_softc *sc, size_t ccs);
+static int	ray_ccs_alloc		(struct ray_softc *sc, size_t *ccsp, char *wmesg);
+static void	ray_ccs_fill		(struct ray_softc *sc, size_t ccs, u_int cmd);
+static u_int8_t	ray_ccs_free 		(struct ray_softc *sc, size_t ccs);
+static int	ray_ccs_tx		(struct ray_softc *sc, size_t *ccsp, size_t *bufpp);
 static void	ray_com_ecf		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_com_ecf_done	(struct ray_softc *sc);
 static void	ray_com_ecf_timo	(void *xsc);
@@ -351,10 +388,10 @@ static struct ray_comq_entry *
 #endif /* RAY_DEBUG & RAY_DBG_COM */
 static void	ray_com_runq		(struct ray_softc *sc);
 static void	ray_com_runq_add	(struct ray_softc *sc, struct ray_comq_entry *com);
-static void	ray_com_runq_arr	(struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, char *wmesg);
+static int	ray_com_runq_arr	(struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, char *wmesg);
 static void	ray_com_runq_done	(struct ray_softc *sc);
 static int	ray_detach		(device_t);
-static void	ray_init_user		(void *xsc);
+static int	ray_init_user		(struct ray_softc *sc);
 static void	ray_init_assoc		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_assoc_done	(struct ray_softc *sc, size_t ccs);
 static void	ray_init_download	(struct ray_softc *sc, struct ray_comq_entry *com);
@@ -383,12 +420,16 @@ static int	ray_res_alloc_cm	(struct ray_softc *sc);
 static int	ray_res_alloc_irq	(struct ray_softc *sc);
 static void	ray_res_release		(struct ray_softc *sc);
 static void	ray_rx			(struct ray_softc *sc, size_t rcs);
+static void	ray_rx_ctl		(struct ray_softc *sc, struct mbuf *m0);
+static void	ray_rx_mgt		(struct ray_softc *sc, struct mbuf *m0);
+static void	ray_rx_mgt_auth		(struct ray_softc *sc, struct mbuf *m0);
 static void	ray_rx_update_cache	(struct ray_softc *sc, u_int8_t *src, u_int8_t siglev, u_int8_t antenna);
 static void	ray_stop		(struct ray_softc *sc);
 static void	ray_tx			(struct ifnet *ifp);
 static void	ray_tx_done		(struct ray_softc *sc, size_t ccs);
 static void	ray_tx_timo		(void *xsc);
-static size_t	ray_tx_wrhdr		(struct ray_softc *sc, struct ether_header *eh, size_t bufp);
+static int	ray_tx_send		(struct ray_softc *sc, size_t ccs, u_int8_t pktlen, u_int8_t *dst);
+static size_t	ray_tx_wrhdr		(struct ray_softc *sc, size_t bufp, u_int8_t type, u_int8_t fc1, u_int8_t *addr1, u_int8_t *addr2, u_int8_t *addr3);
 static void	ray_upparams		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_upparams_done	(struct ray_softc *sc, size_t ccs);
 static int	ray_upparams_user	(struct ray_softc *sc, struct ray_param_req *pr);
@@ -582,7 +623,6 @@ ray_attach(device_t dev)
 		ifp->if_start = ray_tx;
 		ifp->if_ioctl = ray_ioctl;
 		ifp->if_watchdog = ray_watchdog;
-		ifp->if_init = ray_init_user;
 		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 		if_attach(ifp);
@@ -676,8 +716,7 @@ ray_detach(device_t dev)
 	/*
 	 * Mark as not running
 	 */
-	ifp->if_flags &= ~IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	/*
 	 * Cleardown interface
@@ -704,6 +743,7 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	struct ray_param_req pr;
 	struct ray_stats_req sr;
 	struct ifreq *ifr = (struct ifreq *)data;
+	struct ifaddr *ifa = (struct ifaddr *)data;
 	int s, error, error2;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_IOCTL, "");
@@ -722,12 +762,23 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 
-	case SIOCSIFADDR:
 	case SIOCGIFADDR:
 	case SIOCSIFMTU:
-		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFADDR/GIFADDR/SIFMTU");
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GIFADDR/SIFMTU");
 		error = ether_ioctl(ifp, command, data);
 		break;
+
+	case SIOCSIFADDR:
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFADDR");
+		ifp->if_flags |= IFF_UP;
+		switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+		case AF_INET:
+			arp_ifinit((struct arpcom *)ifp, ifa);
+			break;
+#endif
+		}
+		/* FALLTHROUGH */
 
 	case SIOCSIFFLAGS:
 		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFFLAGS");
@@ -737,7 +788,7 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		 */
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_flags & IFF_RUNNING))
-				ray_init_user(sc);
+				error = ray_init_user(sc);
 			else
 			    if (sc->sc_promisc !=
 				!!(ifp->if_flags & (IFF_PROMISC|IFF_ALLMULTI)))
@@ -826,11 +877,9 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 /*
- * User land entry to network initialisation.
- *
- * An ioctl calls ray_init_user.
+ * User land entry to network initialisation. Called by ray_ioctl
  * 
- * ray_init_user does a bit of house keeping before calling ray_download
+ * First do a bit of house keeping before calling ray_download
  *
  * ray_init_download fills the startup parameter structure out and
  * sends it to the card.
@@ -841,21 +890,23 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
  * ray_init_sj_done checks a few parameters and we are ready to process packets
  *
  * the promiscuous and multi-cast modes are then set
+ *
+ * Returns values are either 0 for success, a varity of resource allocation
+ * failures or errors in the command sent to the card.
  */
-static void
-ray_init_user(void *xsc)
+static int
+ray_init_user(struct ray_softc *sc)
 {
-	struct ray_softc *sc = (struct ray_softc *)xsc;
 	struct ray_comq_entry *com[5];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int i, ncom;
+	int i, ncom, error;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
 
 	if (sc->gone) {
 		RAY_PRINTF(sc, "unloaded");
-		return;
+		return (ENODEV);
 	}
 
 	if ((ifp->if_flags & IFF_RUNNING))
@@ -893,7 +944,7 @@ ray_init_user(void *xsc)
 	sc->sc_promisc = !!(ifp->if_flags & (IFF_PROMISC|IFF_ALLMULTI));
 
 	sc->sc_havenet = 0;
-	sc->translation = SC_TRANSLATE_WEBGEAR;
+	sc->framing = SC_FRAMING_WEBGEAR;
 
 #if XXX_CLEARCCS_IN_INIT > 0
 	/* Set all ccs to be free */
@@ -932,12 +983,16 @@ ray_init_user(void *xsc)
 	com[ncom++] = RAY_COM_MALLOC(ray_mcast, 0);
 #endif /* XXX_MCAST */
 
-	ray_com_runq_arr(sc, com, ncom, "rayinit");
+	error = ray_com_runq_arr(sc, com, ncom, "rayinit");
+	if ((error == EINTR) || (error == ERESTART))
+		return (error);
 
-	/* XXX no error processing from anything yet! */
+	/* XXX no real error processing from anything yet! */
 
 	for (i = 0; i < ncom; i++)
 		FREE(com[i], M_RAYCOM);
+
+	return (error);
 }
 
 /*
@@ -1066,7 +1121,7 @@ ray_init_download(struct ray_softc *sc, struct ray_comq_entry *com)
 		SRAM_WRITE_REGION(sc, RAY_HOST_TO_ECF_BASE,
 		    &ray_mib_5_default, sizeof(ray_mib_5_default));
 
-	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_DOWNLOAD_PARAMS, 0);
+	ray_ccs_fill(sc, com->c_ccs, RAY_CMD_DOWNLOAD_PARAMS);
 	ray_com_ecf(sc, com);
 }
 
@@ -1104,9 +1159,9 @@ ray_init_sj(struct ray_softc *sc, struct ray_comq_entry *com)
 
 	sc->sc_havenet = 0;
 	if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
-		(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_START_NET, 0);
+		ray_ccs_fill(sc, com->c_ccs, RAY_CMD_START_NET);
 	else
-		(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_JOIN_NET, 0);
+		ray_ccs_fill(sc, com->c_ccs, RAY_CMD_JOIN_NET);
 
 	update = 0;
 	if (sc->sc_c.np_net_type != sc->sc_d.np_net_type)
@@ -1190,7 +1245,7 @@ ray_init_assoc(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
 
-	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_START_ASSOC, 0);
+	ray_ccs_fill(sc, com->c_ccs, RAY_CMD_START_ASSOC);
 	ray_com_ecf(sc, com);
 }
 
@@ -1363,7 +1418,7 @@ ray_watchdog(struct ifnet *ifp)
  */
 
 /*
- * Start sending a packet.
+ * Send a packet.
  *
  * We make two assumptions here:
  *  1) That the current priority is set to splimp _before_ this code
@@ -1420,12 +1475,11 @@ ray_tx(struct ifnet *ifp)
 	struct mbuf *m0, *m;
 	struct ether_header *eh;
 	size_t ccs, bufp;
-	int i, pktlen, len;
-	u_int8_t status;
+	int pktlen, len;
 
 	sc = ifp->if_softc;
 
-	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
 	RAY_MAP_CM(sc);
 
 	/*
@@ -1452,50 +1506,15 @@ ray_tx(struct ifnet *ifp)
 		untimeout(ray_tx_timo, sc, sc->tx_timerh);
 
 	/*
-	 * Find a free ccs; if none available wave good bye and exit.
-	 *
 	 * We find a ccs before we process the mbuf so that we are sure it
 	 * is worthwhile processing the packet. All errors in the mbuf
 	 * processing are either errors in the mbuf or gross configuration
 	 * errors and the packet wouldn't get through anyway.
-	 *
-	 * Don't forget to clear the ccs on errors.
 	 */
-	i = RAY_CCS_TX_FIRST;
-	do {
-		status = SRAM_READ_FIELD_1(sc,
-		    RAY_CCS_ADDRESS(i), ray_cmd, c_status);
-		if (status == RAY_CCS_STATUS_FREE)
-			break;
-		i++;
-	} while (i <= RAY_CCS_TX_LAST);
-	if (i > RAY_CCS_TX_LAST) {
+	if (ray_ccs_tx(sc, &ccs, &bufp)) {
 		ifp->if_flags |= IFF_OACTIVE;
 		return;
 	}
-	RAY_DPRINTF(sc, RAY_DBG_CCS, "using ccs 0x%02x", i);
-
-	/*
-	 * Reserve and fill the ccs - must do the length later.
-	 *
-	 * Even though build 4 and build 5 have different fields all these
-	 * are common apart from tx_rate. Neither the NetBSD driver or Linux
-	 * driver bother to overwrite this for build 4 cards.
-	 *
-	 * The start of the buffer must be aligned to a 256 byte boundary
-	 * (least significant byte of address = 0x00).
-	 */
-	ccs = RAY_CCS_ADDRESS(i);
-	bufp = RAY_TX_BASE + i * RAY_TX_BUF_SIZE;
-	bufp += sc->sc_tibsize;
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_status, RAY_CCS_STATUS_BUSY);
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_cmd, RAY_CMD_TX_REQ);
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_link, RAY_CCS_LINK_NULL);
-	SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_bufp, bufp);
-	SRAM_WRITE_FIELD_1(sc,
-	    ccs, ray_cmd_tx, c_tx_rate, sc->sc_c.np_def_txrate);
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0); /* XXX */
-	bufp += sizeof(struct ray_tx_phy_header);
     
 	/*
 	 * Get the mbuf and process it - we have to remember to free the
@@ -1529,17 +1548,37 @@ ray_tx(struct ifnet *ifp)
 	 * as needed. This way, tcpdump -w can be used to grab the raw data. If
 	 * needed the 802.11 aware program can "translate" the .11 to ethernet
 	 * for tcpdump -r.
+	 *
+	 * XXX see /sys/dev/awi/awi.c:AWI_BPF_NORM stuff
 	 */
 	if (ifp->if_bpf)
 		bpf_mtap(ifp, m0);
 
 	/*
+	 * Write the header according to network type etc.
+	 */
+	if (sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
+		bufp = ray_tx_wrhdr(sc, bufp,
+		    IEEE80211_FC0_TYPE_DATA,
+		    IEEE80211_FC1_STA_TO_STA,
+		    eh->ether_dhost,
+		    eh->ether_shost,
+		    sc->sc_c.np_bss_id);
+	else
+		if (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL)
+			bufp = ray_tx_wrhdr(sc, bufp,
+			    IEEE80211_FC0_TYPE_DATA,
+			    IEEE80211_FC1_STA_TO_AP,
+			    sc->sc_c.np_bss_id,
+			    eh->ether_shost,
+			    eh->ether_dhost);
+		else
+			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
+
+	/*
 	 * Translation - capability as described earlier
 	 *
-	 * Each case must write the 802.11 header using ray_tx_wrhdr,
-	 * passing a pointer to the ethernet header in and getting a new
-	 * tc buffer pointer. Next remove/modify/addto the 802.3 and 802.2
-	 * headers as needed.
+	 * Remove/modify/addto the 802.3 and 802.2 headers as needed.
 	 *
 	 * We've pulled up the mbuf for you.
 	 *
@@ -1552,14 +1591,14 @@ ray_tx(struct ifnet *ifp)
 		ifp->if_oerrors++;
 		return;
 	}
-	switch (sc->translation) {
+	switch (sc->framing) {
 
-    	case SC_TRANSLATE_WEBGEAR:
-		bufp = ray_tx_wrhdr(sc, eh, bufp);
+    	case SC_FRAMING_WEBGEAR:
+		/* Nice and easy - nothing! (just add an 802.11 header) */
 		break;
 
 	default:
-		RAY_PRINTF(sc, "unknown translation type %d", sc->translation);
+		RAY_PRINTF(sc, "unknown framing type %d", sc->framing);
 		RAY_CCS_FREE(sc, ccs);
 		ifp->if_oerrors++;
 		m_freem(m0);
@@ -1592,31 +1631,15 @@ ray_tx(struct ifnet *ifp)
 			RAY_PANIC(sc, "tx buffer overflow");
 		bufp += len;
 	}
-	RAY_MBUF_DUMP(sc, m0, "ray_tx");
+	RAY_MBUF_DUMP(sc, RAY_DBG_TX, m0, "ray_tx");
 
 	/*
-	 * Fill in a few loose ends and kick the card to send the packet
+	 * Send it off
 	 */
-	if (!RAY_ECF_READY(sc)) {
-		/*
-		 * XXX From NetBSD code:
-		 *
-		 * XXX If this can really happen perhaps we need to save
-		 * XXX the chain and use it later.  I think this might
-		 * XXX be a confused state though because we check above
-		 * XXX and don't issue any commands between.
-		 */
-		RAY_PRINTF(sc, "ECF busy, dropping packet");
-		RAY_CCS_FREE(sc, ccs);
+	if (ray_tx_send(sc, ccs, pktlen, eh->ether_dhost))
 		ifp->if_oerrors++;
-		return;
-	}
-	SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_len, pktlen);
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna,
-	    ray_tx_best_antenna(sc, eh->ether_dhost));
-	SRAM_WRITE_1(sc, RAY_SCB_CCSI, RAY_CCS_INDEX(ccs));
-	RAY_ECF_START_CMD(sc);
-	ifp->if_opackets++;
+	else
+		ifp->if_opackets++;
 	m_freem(m0);
 }
 
@@ -1643,44 +1666,61 @@ ray_tx_timo(void *xsc)
 }
 
 /*
- * Write an 802.11 header into the TX buffer and return the
+ * Write an 802.11 header into the Tx buffer space and return the
  * adjusted buffer pointer.
  */
 static size_t
-ray_tx_wrhdr(struct ray_softc *sc, struct ether_header *eh, size_t bufp)
+ray_tx_wrhdr(struct ray_softc *sc, size_t bufp, u_int8_t type, u_int8_t fc1, u_int8_t *addr1, u_int8_t *addr2, u_int8_t *addr3)
 {
 	struct ieee80211_header header;
 
-	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
 	RAY_MAP_CM(sc);
 
 	bzero(&header, sizeof(struct ieee80211_header));
-
-	header.i_fc[0] = (IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA);
-	if (sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_ADHOC) {
-
-		header.i_fc[1] = IEEE80211_FC1_STA_TO_STA;
-		bcopy(eh->ether_dhost, header.i_addr1, ETHER_ADDR_LEN);
-		bcopy(eh->ether_shost, header.i_addr2, ETHER_ADDR_LEN);
-		bcopy(sc->sc_c.np_bss_id, header.i_addr3, ETHER_ADDR_LEN);
-
-	} else {
-		if (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL) {
-	    
-			header.i_fc[1] = IEEE80211_FC1_STA_TO_AP;
-			bcopy(sc->sc_c.np_bss_id, header.i_addr1,
-			    ETHER_ADDR_LEN);
-			bcopy(eh->ether_shost, header.i_addr2, ETHER_ADDR_LEN);
-			bcopy(eh->ether_dhost, header.i_addr3, ETHER_ADDR_LEN);
-
-		} else
-			RAY_PANIC(sc, "can't be an AP yet");
-	}
+	header.i_fc[0] = (IEEE80211_FC0_VERSION_0 | type);
+	header.i_fc[1] = fc1;
+	bcopy(addr1, header.i_addr1, ETHER_ADDR_LEN);
+	bcopy(addr2, header.i_addr2, ETHER_ADDR_LEN);
+	bcopy(addr3, header.i_addr3, ETHER_ADDR_LEN);
 
 	SRAM_WRITE_REGION(sc, bufp, (u_int8_t *)&header,
 	    sizeof(struct ieee80211_header));
 
 	return (bufp + sizeof(struct ieee80211_header));
+}
+
+/*
+ * Fill in a few loose ends and kick the card to send the packet
+ *
+ * Returns 0 on success, 1 on failure
+ */
+static int
+ray_tx_send(struct ray_softc *sc, size_t ccs, u_int8_t pktlen, u_int8_t *dst)
+{
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
+	RAY_MAP_CM(sc);
+
+	if (!RAY_ECF_READY(sc)) {
+		/*
+		 * XXX From NetBSD code:
+		 *
+		 * XXX If this can really happen perhaps we need to save
+		 * XXX the chain and use it later.  I think this might
+		 * XXX be a confused state though because we check above
+		 * XXX and don't issue any commands between.
+		 */
+		RAY_PRINTF(sc, "ECF busy, dropping packet");
+		RAY_CCS_FREE(sc, ccs);
+		return (1);
+	}
+	SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_len, pktlen);
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna,
+	    ray_tx_best_antenna(sc, dst));
+	SRAM_WRITE_1(sc, RAY_SCB_CCSI, RAY_CCS_INDEX(ccs));
+	RAY_ECF_START_CMD(sc);
+
+	return (0);
 }
 
 /*
@@ -1693,7 +1733,7 @@ ray_tx_best_antenna(struct ray_softc *sc, u_int8_t *dst)
 	int i;
 	u_int8_t antenna;
 
-	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
 	RAY_MAP_CM(sc);
 
 	if (sc->sc_version == RAY_ECFS_BUILD_4) 
@@ -1733,7 +1773,7 @@ ray_tx_done(struct ray_softc *sc, size_t ccs)
 	char *ss[] = RAY_CCS_STATUS_STRINGS;
 	u_int8_t status;
 
-	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
 	RAY_MAP_CM(sc);
 
 	status = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
@@ -1765,7 +1805,6 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 	size_t pktlen, fraglen, readlen, tmplen;
 	size_t bufp, ebufp;
 	u_int8_t *dst, *src;
-	u_int8_t fc;
 	u_int8_t siglev, antenna;
 	u_int first, ni, i;
 
@@ -1876,82 +1915,114 @@ skip_read:
 	if (m0 == NULL)
 		return;
 
-	RAY_MBUF_DUMP(sc, m0, "ray_rx");
-
 	/*
-	 * Check the 802.11 packet type and obtain the .11 src addresses.
+	 * Check the 802.11 packet type
 	 *
-	 * XXX CTL and MGT packets will have separate functions, DATA here
-	 *
-	 * XXX This needs some work for INFRA mode
+	 * DATA packets are dealt with below, CTL and MGT packets
+	 * are handled in their own functions.
 	 */
 	header = mtod(m0, struct ieee80211_header *);
-	fc = header->i_fc[0];
-	if ((fc & IEEE80211_FC0_VERSION_MASK) != IEEE80211_FC0_VERSION_0) {
+	if ((header->i_fc[0] & IEEE80211_FC0_VERSION_MASK)
+	    != IEEE80211_FC0_VERSION_0) {
 		RAY_DPRINTF(sc, RAY_DBG_RECERR,
-		    "header not version 0 fc 0x%x", fc);
+		    "header not version 0 fc0 0x%x", header->i_fc[0]);
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
 	}
-	switch (fc & IEEE80211_FC0_TYPE_MASK) {
+	switch (header->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
 
 	case IEEE80211_FC0_TYPE_MGT:
-		RAY_PRINTF(sc, "unexpected MGT packet");
-		ifp->if_ierrors++;
+		ray_rx_mgt(sc, m0);
 		m_freem(m0);
 		return;
+		break;
 
 	case IEEE80211_FC0_TYPE_CTL:
-		RAY_PRINTF(sc, "unexpected CTL packet");
-		ifp->if_ierrors++;
+		ray_rx_ctl(sc, m0);
 		m_freem(m0);
 		return;
+		break;
 
 	case IEEE80211_FC0_TYPE_DATA:
-		RAY_DPRINTF(sc, RAY_DBG_RX, "got a DATA packet");
 		break;
 
 	default:
-		RAY_PRINTF(sc, "unknown packet fc0 0x%x", fc);
+		RAY_PRINTF(sc, "unknown packet fc0 0x%x", header->i_fc[0]);
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
 
 	}
-	fc = header->i_fc[1];
+	
+	/*
+	 * Check the the data packet subtype, some packets have
+	 * nothing in them so we will drop them here.
+	 */
+	switch (header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
+
+	case IEEE80211_FC0_SUBTYPE_DATA_DATA:
+	case IEEE80211_FC0_SUBTYPE_DATA_DATA_CFACK:
+	case IEEE80211_FC0_SUBTYPE_DATA_DATA_CFPOLL:
+	case IEEE80211_FC0_SUBTYPE_DATA_DATA_CFACPL:
+		RAY_DPRINTF(sc, RAY_DBG_RX, "DATA packet");
+		break;
+
+	case IEEE80211_FC0_SUBTYPE_DATA_NULL:
+	case IEEE80211_FC0_SUBTYPE_DATA_CFACK:
+	case IEEE80211_FC0_SUBTYPE_DATA_CFPOLL:
+	case IEEE80211_FC0_SUBTYPE_DATA_CFACK_CFACK:
+		RAY_DPRINTF(sc, RAY_DBG_RX, "NULL packet");
+	    	m_freem(m0);
+		return;
+		break;
+
+	default:
+		RAY_PRINTF(sc, "reserved DATA packet subtype 0x%x",
+		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
+	}
+
+	/*
+	 * Obtain the .11 src addresses.
+	 *
+	 * XXX This needs some work for INFRA mode
+	 * XXX Do I need this at all? MGT and CTL is far easier.
+	 */
 	src = header->i_addr2;
-	switch (fc & IEEE80211_FC1_DS_MASK) {
+	switch (header->i_fc[1] & IEEE80211_FC1_DS_MASK) {
 
 	case IEEE80211_FC1_STA_TO_STA:
 		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from sta %6D",
 		    src, ":");
 		break;
 
-	case IEEE80211_FC1_STA_TO_AP:
+	case IEEE80211_FC1_STA_TO_AP:	/* XXX XXX_ACTING_AP */
 		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from sta to ap %6D %6D",
 		    src, ":", header->i_addr3, ":");
 		ifp->if_ierrors++;
 		m_freem(m0);
 		break;
 
-	case IEEE80211_FC1_AP_TO_STA:
+	case IEEE80211_FC1_AP_TO_STA:	/* XXX_INFRA */
 		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from ap %6D",
 		    src, ":");
 		ifp->if_ierrors++;
 		m_freem(m0);
 		break;
 
-	case IEEE80211_FC1_AP_TO_AP:
+	case IEEE80211_FC1_AP_TO_AP:	/* XXX XXX_ACTING_AP */
 		RAY_DPRINTF(sc, RAY_DBG_RX, "packet between aps %6D %6D",
 		    src, ":", header->i_addr2, ":");
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
+		break;
 
 	default:
-	    	src = NULL;
-		RAY_PRINTF(sc, "unknown packet fc1 0x%x", fc);
+		RAY_PRINTF(sc, "unknown packet fc1 0x%x", header->i_fc[1]);
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
@@ -1963,15 +2034,16 @@ skip_read:
 	 * Each case must remove the 802.11 header and leave an 802.3
 	 * header in the mbuf copy addresses as needed.
 	 */
-	switch (sc->translation) {
+	RAY_MBUF_DUMP(sc, RAY_DBG_RX, m0, "DATA packet before framing");
+	switch (sc->framing) {
 
-    	case SC_TRANSLATE_WEBGEAR:
+    	case SC_FRAMING_WEBGEAR:
 		/* Nice and easy - just trim the 802.11 header */
 		m_adj(m0, sizeof(struct ieee80211_header));
 		break;
 
 	default:
-		RAY_PRINTF(sc, "unknown translation type %d", sc->translation);
+		RAY_PRINTF(sc, "unknown framing type %d", sc->framing);
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
@@ -1991,6 +2063,242 @@ skip_read:
 	ether_input(ifp, eh, m0);
 
 	return;
+}
+
+/*
+ * Deal with MGT packet types
+ */
+static void
+ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
+{
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_MGT, "");
+
+	if ((header->i_fc[1] & IEEE80211_FC1_DS_MASK) !=
+	    IEEE80211_FC1_STA_TO_STA) {
+		RAY_DPRINTF(sc, RAY_DBG_RECERR,
+		    "MGT TODS/FROMDS wrong fc1 0x%x",
+		    header->i_fc[1] & IEEE80211_FC1_DS_MASK);
+		ifp->if_ierrors++;
+		return;
+	}
+
+	/*
+	 * Check the the mgt packet subtype, some packets should be
+	 * dropped depending on the mode the station is in.
+	 *
+	 * XXX investigations of v5 firmware See pg 52(60) of docs
+	 *
+	 * P - proccess, J - Junk, E - ECF deals with, I - Illegal
+ 	 * ECF Proccesses
+  	 *  AHDOC procces or junk
+   	 *   INFRA STA process or junk
+    	 *    INFRA AP process or jumk
+	 * 
+ 	 * +PPP	IEEE80211_FC0_SUBTYPE_MGT_BEACON
+ 	 * +EEE	IEEE80211_FC0_SUBTYPE_MGT_PROBE_REQ
+ 	 * +EEE	IEEE80211_FC0_SUBTYPE_MGT_PROBE_RESP
+ 	 *  PPP	IEEE80211_FC0_SUBTYPE_MGT_AUTH
+ 	 *  PPP	IEEE80211_FC0_SUBTYPE_MGT_DEAUTH
+ 	 *  JJP	IEEE80211_FC0_SUBTYPE_MGT_ASSOC_REQ
+ 	 *  JPJ	IEEE80211_FC0_SUBTYPE_MGT_ASSOC_RESP
+ 	 *  JPP	IEEE80211_FC0_SUBTYPE_MGT_DISASSOC
+ 	 *  JJP	IEEE80211_FC0_SUBTYPE_MGT_REASSOC_REQ
+ 	 *  JPJ	IEEE80211_FC0_SUBTYPE_MGT_REASSOC_RESP
+ 	 * +EEE	IEEE80211_FC0_SUBTYPE_MGT_ATIM
+	 */
+	RAY_MBUF_DUMP(sc, RAY_DBG_RX, m0, "MGT packet");
+	switch (header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
+
+ 	case IEEE80211_FC0_SUBTYPE_MGT_BEACON:
+		RAY_DPRINTF(sc, RAY_DBG_MGT, "BEACON MGT packet");
+		/* XXX furtle anything interesting out */
+		/* Note that there are rules governing what beacons to
+		   read, see 8802 S7.2.3, S11.1.2.3 */
+		break;
+
+ 	case IEEE80211_FC0_SUBTYPE_MGT_AUTH:
+		RAY_DPRINTF(sc, RAY_DBG_MGT, "AUTH MGT packet");
+		ray_rx_mgt_auth(sc, m0);
+		break;
+
+ 	case IEEE80211_FC0_SUBTYPE_MGT_DEAUTH:
+		RAY_DPRINTF(sc, RAY_DBG_MGT, "DEAUTH MGT packet");
+		break;
+
+	case IEEE80211_FC0_SUBTYPE_MGT_ASSOC_REQ:
+	case IEEE80211_FC0_SUBTYPE_MGT_REASSOC_REQ:
+		RAY_DPRINTF(sc, RAY_DBG_MGT, "(RE)ASSOC_REQ MGT packet");
+		if (sc->sc_c.np_ap_status != RAY_MIB_AP_STATUS_AP)
+			return;
+		else
+			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
+		break;
+			
+ 	case IEEE80211_FC0_SUBTYPE_MGT_ASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_MGT_REASSOC_RESP:
+		RAY_DPRINTF(sc, RAY_DBG_MGT, "(RE)ASSOC_RESP MGT packet");
+		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC) ||
+		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_AP))
+			return;
+		else
+			RAY_PANIC(sc, "can't be in INFRA yet"); /* XXX_INFRA */
+		break;
+
+	case IEEE80211_FC0_SUBTYPE_MGT_DISASSOC:
+		RAY_DPRINTF(sc, RAY_DBG_MGT, "DISASSOC MGT packet");
+		if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
+			return;
+		else
+			RAY_PANIC(sc, "can't be in INFRA yet"); /* XXX_INFRA */
+		break;
+
+ 	case IEEE80211_FC0_SUBTYPE_MGT_PROBE_REQ:
+ 	case IEEE80211_FC0_SUBTYPE_MGT_PROBE_RESP:
+	case IEEE80211_FC0_SUBTYPE_MGT_ATIM:
+		RAY_PRINTF(sc, "unexpected MGT packet subtype 0x%0x",
+		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
+		ifp->if_ierrors++;
+		break;
+	    	
+	default:
+		RAY_PRINTF(sc, "reserved MGT packet subtype 0x%x",
+		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
+		ifp->if_ierrors++;
+		return;
+	}
+}
+
+/*
+ * Deal with AUTH management packet types
+ */
+static void
+ray_rx_mgt_auth(struct ray_softc *sc, struct mbuf *m0)
+{
+	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
+	ieee80211_mgt_auth_t auth = (u_int8_t *)(header+1);
+	size_t ccs, bufp;
+	int pktlen;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_MGT, "");
+	RAY_MAP_CM(sc);
+
+	switch (IEEE80211_AUTH_ALGORITHM(auth)) {
+	    
+	case IEEE80211_AUTH_OPENSYSTEM:
+		if (IEEE80211_AUTH_TRANSACTION(auth) == 1) {
+			/* XXX see sys/dev/awi/awk.c:awi_{recv|send}_auth */
+
+			/*
+			 * Send authentication response if possible. If
+			 * we are out of CCSs we don't to anything, the
+			 * other end will try again.
+			 */
+			if (ray_ccs_tx(sc, &ccs, &bufp)) {
+				return;
+			}
+RAY_DPRINTF(sc, RAY_DBG_MGT, "bufp %x", bufp);
+
+			bufp = ray_tx_wrhdr(sc, bufp,
+			    IEEE80211_FC0_TYPE_MGT |
+				IEEE80211_FC0_SUBTYPE_MGT_AUTH,
+			    IEEE80211_FC1_STA_TO_STA,
+			    header->i_addr2,
+			    header->i_addr1,
+			    header->i_addr3);
+
+			for (pktlen = 0; pktlen < 6; pktlen++)
+			    SRAM_WRITE_1(sc, bufp+pktlen, 0);
+			pktlen += sizeof(struct ieee80211_header);
+			SRAM_WRITE_1(sc, bufp+2, 2);
+
+RAY_DPRINTF(sc, RAY_DBG_MGT, "dump start %x", bufp-pktlen+6);
+RAY_DHEX8(sc, RAY_DBG_MGT, bufp-pktlen+6, pktlen, "AUTH MGT response to Open System request");
+			(void)ray_tx_send(sc, ccs, pktlen, header->i_addr2);
+
+		} else if (IEEE80211_AUTH_TRANSACTION(auth) == 2) {
+
+			if (IEEE80211_AUTH_STATUS(auth) !=
+			    IEEE80211_STATUS_SUCCESS)
+				RAY_PRINTF(sc,
+				    "authentication failed with status %d",
+				    IEEE80211_AUTH_STATUS(auth));
+
+			/* XXX probably need a lot more than this */
+
+		}
+		break;
+
+	case IEEE80211_AUTH_SHAREDKEYS:
+		RAY_PRINTF(sc, "shared key authentication requested");
+		break;
+	
+	default:
+		RAY_PRINTF(sc,
+		    "unknown authentication subtype 0x%04hx",
+		    IEEE80211_AUTH_ALGORITHM(auth));
+		break;
+	}
+}
+
+/*
+ * Deal with CTL packet types
+ */
+static void
+ray_rx_ctl(struct ray_softc *sc, struct mbuf *m0)
+{
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CTL, "");
+
+	if ((header->i_fc[1] & IEEE80211_FC1_DS_MASK) !=
+	    IEEE80211_FC1_STA_TO_STA) {
+		RAY_DPRINTF(sc, RAY_DBG_RECERR,
+		    "CTL TODS/FROMDS wrong fc1 0x%x",
+		    header->i_fc[1] & IEEE80211_FC1_DS_MASK);
+		ifp->if_ierrors++;
+		return;
+	}
+
+	/*
+	 * Check the the ctl packet subtype, some packets should be
+	 * dropped depending on the mode the station is in. The ECF
+	 * should deal with everything but the power save poll to an
+	 * AP
+	 *
+	 * XXX investigations of v5 firmware See pg 52(60) of docs
+	 *
+	 */
+	RAY_MBUF_DUMP(sc, RAY_DBG_CTL, m0, "CTL packet");
+	switch (header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
+
+	case IEEE80211_FC0_SUBTYPE_CTL_PS_POLL:
+		RAY_DPRINTF(sc, RAY_DBG_CTL, "PS_POLL CTL packet");
+		if (sc->sc_c.np_ap_status != RAY_MIB_AP_STATUS_AP)
+			return;
+		else
+			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
+		break;
+
+	case IEEE80211_FC0_SUBTYPE_CTL_RTS:
+	case IEEE80211_FC0_SUBTYPE_CTL_CTS:
+	case IEEE80211_FC0_SUBTYPE_CTL_ACK:
+	case IEEE80211_FC0_SUBTYPE_CTL_CFEND:
+	case IEEE80211_FC0_SUBTYPE_CTL_CFEND_CFACK:
+		RAY_PRINTF(sc, "unexpected CTL packet subtype 0x%0x",
+		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
+		ifp->if_ierrors++;
+		break;
+
+	default:
+		RAY_PRINTF(sc, "reserved CTL packet subtype 0x%x",
+		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
+		ifp->if_ierrors++;
+		return;
+	}
 }
 
 /*
@@ -2227,17 +2535,17 @@ ray_intr_rcs(struct ray_softc *sc, u_int8_t cmd, size_t rcs)
 	switch (cmd) {
 
 	case RAY_ECMD_RX_DONE:
-		RAY_DPRINTF(sc, RAY_DBG_CCS, "RX_DONE");
+		RAY_DPRINTF(sc, RAY_DBG_RX, "RX_DONE");
 		ray_rx(sc, rcs);
 		break;
 
 	case RAY_ECMD_REJOIN_DONE:
-		RAY_DPRINTF(sc, RAY_DBG_CCS, "REJOIN_DONE");
+		RAY_DPRINTF(sc, RAY_DBG_RX, "REJOIN_DONE");
 		sc->sc_havenet = 1; /* XXX Should not be here but in function */
 		break;
 
 	case RAY_ECMD_ROAM_START:
-		RAY_DPRINTF(sc, RAY_DBG_CCS, "ROAM_START");
+		RAY_DPRINTF(sc, RAY_DBG_RX, "ROAM_START");
 		sc->sc_havenet = 0; /* XXX Should not be here but in function */
 		break;
 
@@ -2261,6 +2569,7 @@ ray_intr_rcs(struct ray_softc *sc, u_int8_t cmd, size_t rcs)
  * XXX for now.
  * XXX Don't like the code bloat to set promisc up - we use it here, ray_init,
  * XXX ray_promisc_user and ray_upparams_user...
+ * XXX need to use the runq_array
  */
 
 /*
@@ -2349,8 +2658,8 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_UPDATE_MCAST, 0);
-	SRAM_WRITE_FIELD_1(sc, &com->c_ccs,
+	ray_ccs_fill(sc, com->c_ccs, RAY_CMD_UPDATE_MCAST);
+	SRAM_WRITE_FIELD_1(sc, com->c_ccs
 	    ray_cmd_update_mcast, c_nmcast, count);
 	bufp = RAY_HOST_TO_ECF_BASE;
 	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
@@ -2398,8 +2707,11 @@ ray_promisc_user(struct ray_softc *sc)
 	ncom = 0;
 	com[ncom++] = RAY_COM_MALLOC(ray_promisc, RAY_COM_FWOK);
 
-	ray_com_runq_arr(sc, com, ncom, "raypromisc");
+	error = ray_com_runq_arr(sc, com, ncom, "raypromisc");
+	if ((error == EINTR) || (error == ERESTART))
+		return (error);
 
+	/* XXX no real error processing from anything yet! */
 	error = com[0]->c_retval;
 
 	for (i = 0; i < ncom; i++)
@@ -2419,7 +2731,7 @@ ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_UPDATE_PARAMS, 0);
+	ray_ccs_fill(sc, com->c_ccs, RAY_CMD_UPDATE_PARAMS);
 	SRAM_WRITE_FIELD_1(sc, com->c_ccs,
 	    ray_cmd_update, c_paramid, RAY_MIB_PROMISC);
 	SRAM_WRITE_FIELD_1(sc, com->c_ccs, ray_cmd_update, c_nparam, 1);
@@ -2532,8 +2844,11 @@ ray_repparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 	com[ncom++] = RAY_COM_MALLOC(ray_repparams, RAY_COM_FWOK);
 	com[ncom-1]->c_pr = pr;
 
-	ray_com_runq_arr(sc, com, ncom, "rayrepparams");
+	error = ray_com_runq_arr(sc, com, ncom, "rayrepparams");
+	if ((error == EINTR) || (error == ERESTART))
+		return (error);
 
+	/* XXX no real error processing from anything yet! */
 	error = com[0]->c_retval;
 	if (!error && pr->r_failcause)
 		error = EINVAL;
@@ -2553,7 +2868,7 @@ ray_repparams(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_REPORT_PARAMS, 0);
+	ray_ccs_fill(sc, com->c_ccs, RAY_CMD_REPORT_PARAMS);
 
 	SRAM_WRITE_FIELD_1(sc, com->c_ccs,
 	    ray_cmd_report, c_paramid, com->c_pr->r_paramid);
@@ -2703,12 +3018,15 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 #endif /* XXX_ASSOC */
 	}
 
-	ray_com_runq_arr(sc, com, ncom, "rayupparams");
+	error = ray_com_runq_arr(sc, com, ncom, "rayupparams");
+	if ((error == EINTR) || (error == ERESTART))
+		return (error);
+
+	/* XXX no real error processing from anything yet! */
 
 	error = com[0]->c_retval;
 	if (!error && pr->r_failcause)
 		error = EINVAL;
-	/* XXX no error processing from ray_init_sj yet! */
 
 	for (i = 0; i < ncom; i++)
 		FREE(com[i], M_RAYCOM);
@@ -2725,7 +3043,7 @@ ray_upparams(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_UPDATE_PARAMS, 0);
+	ray_ccs_fill(sc, com->c_ccs, RAY_CMD_UPDATE_PARAMS);
 
 	SRAM_WRITE_FIELD_1(sc, com->c_ccs,
 	    ray_cmd_update, c_paramid, com->c_pr->r_paramid);
@@ -2802,26 +3120,63 @@ ray_com_malloc(ray_comqfn_t function, int flags)
 }
 
 /*
- * Add an array of commands to the runq and then run them, waiting on
- * the last command
+ * Add an array of commands to the runq, get some ccs's for them and
+ * then run, waiting on the last command.
+ *
+ * We add the commands to the queue first to serialise ioctls, as the
+ * ccs allocation may wait. The ccs allocation may timeout, in which
+ * case the ccs and comq entries are freed.
  */
-static void
+static int
 ray_com_runq_arr(struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, char *wmesg)
 {
-	int i;
+	int i, error;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
+	error = 0;
+	/*
+	 * Add the commands to the runq but don't let it run until
+	 * the ccs's are allocated successfully
+	 */
+	com[0]->c_flags |= RAY_COM_FWAIT;
 	for (i = 0; i < ncom; i++) {
 		com[i]->c_wakeup = com[ncom-1];
 		ray_com_runq_add(sc, com[i]);
 	}
 	com[ncom-1]->c_flags = RAY_COM_FWOK;
 
+	/*
+	 * Allocate ccs's for each command. If we fail, clean up
+	 * and return.
+	 */
+	for (i = 0; i < ncom; i++) {
+		error = ray_ccs_alloc(sc, &com[i]->c_ccs, wmesg);
+		if (error)
+			break;
+	}
+	if (error) {
+		for (i = 0; i < ncom; i++) {
+			if (com[i]->c_ccs != NULL)
+				ray_ccs_free(sc, com[i]->c_ccs);
+			TAILQ_REMOVE(&sc->sc_comq, com[i], c_chain);
+			FREE(com[i], M_RAYCOM);
+		}
+		return (error);
+	}
+
+	/*
+	 * Allow the queue to run
+	 */
+	com[0]->c_flags &= ~RAY_COM_FWAIT;
 	ray_com_runq(sc);
 	RAY_DPRINTF(sc, RAY_DBG_COM, "sleeping");
-	(void)tsleep(com[ncom-1], 0, wmesg, 0);
+	error = tsleep(com[ncom-1], PCATCH, wmesg, 0);
 	RAY_DPRINTF(sc, RAY_DBG_COM, "awakened");
+	if (error)
+		RAY_PRINTF(sc, "sleep error 0x%0x", error);
+
+	return (error);
 }
 
 /*
@@ -2857,8 +3212,14 @@ ray_com_runq(struct ray_softc *sc)
 		RAY_DPRINTF(sc, RAY_DBG_COM, "command already running");
 		return;
 	}
+	if (com->c_flags & RAY_COM_FWAIT) {
+		RAY_DPRINTF(sc, RAY_DBG_COM, "command not ready");
+		return;
+	}
 #else
-	if ((com == NULL) || (com->c_flags & RAY_COM_FRUNNING))
+	if ((com == NULL) ||
+	    (com->c_flags & RAY_COM_FRUNNING) ||
+	    (com->c_flags & RAY_COM_FWAIT))
 		return;
 #endif /* RAY_DEBUG & RAY_DBG_COM */
 
@@ -3089,21 +3450,22 @@ ray_com_ecf_check(struct ray_softc *sc, size_t ccs, char *mesg)
 #endif /* RAY_DEBUG & RAY_DBG_COM */
 
 /*
- * CCS allocator for commands
+ * CCS allocators
  */
 
 /*
- * Obtain a ccs and fill easy bits in
+ * Obtain a ccs for a commmand
  *
- * Returns 1 and in `ccsp' the bus offset of the free ccs. Will block
- * awaiting free ccs if needed, timo is passed to tsleep and will
- * return 0 if the timeout expired.
+ * Returns 0 and in `ccsp' the bus offset of the free ccs. Will block
+ * awaiting free ccs if needed - if the sleep is interrupted EINTR/ERESTART
+ * is returned.
  */
 static int
-ray_ccs_alloc(struct ray_softc *sc, size_t *ccsp, u_int cmd, int timo)
+ray_ccs_alloc(struct ray_softc *sc, size_t *ccsp, char *wmesg)
 {
 	size_t ccs;
 	u_int i;
+	int error;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CCS, "");
 	RAY_MAP_CM(sc);
@@ -3117,20 +3479,37 @@ ray_ccs_alloc(struct ray_softc *sc, size_t *ccsp, u_int cmd, int timo)
 				break;
 		}
 		if (i > RAY_CCS_CMD_LAST) {
-			RAY_PANIC(sc, "out of CCS's");
+			RAY_DPRINTF(sc, RAY_DBG_CCS, "sleeping");
+			error = tsleep(ray_ccs_alloc, PCATCH, wmesg, 0);
+			RAY_DPRINTF(sc, RAY_DBG_CCS, "awakened");
+			if (error)
+				return (error);
 		} else
 			break;
 	}
-
+	RAY_DPRINTF(sc, RAY_DBG_CCS, "allocated 0x%02x", i);
 	sc->sc_ccsinuse[i] = 1;
 	ccs = RAY_CCS_ADDRESS(i);
-	RAY_DPRINTF(sc, RAY_DBG_CCS, "allocated 0x%02x", i);
+	*ccsp = ccs;
+
+	return (0);
+}
+
+/*
+ * Fill the easy bits in of a pre-allocated CCS
+ */
+static void
+ray_ccs_fill(struct ray_softc *sc, size_t ccs, u_int cmd)
+{
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CCS, "");
+	RAY_MAP_CM(sc);
+
+	if (ccs == NULL)
+		RAY_PANIC(sc, "ccs not allocated");
+
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_status, RAY_CCS_STATUS_BUSY);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_cmd, cmd);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_link, RAY_CCS_LINK_NULL);
-
-	*ccsp = ccs;
-	return (1);
 }
 
 /*
@@ -3150,10 +3529,69 @@ ray_ccs_free(struct ray_softc *sc, size_t ccs)
 	status = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
 	RAY_CCS_FREE(sc, ccs);
 	sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)] = 0;
-	wakeup(ray_ccs_alloc);
 	RAY_DPRINTF(sc, RAY_DBG_CCS, "freed 0x%02x", RAY_CCS_INDEX(ccs));
+	wakeup(ray_ccs_alloc);
 
 	return (status);
+}
+
+/*
+ * Obtain a ccs and tx buffer to transmit with and fill them in.
+ *
+ * Returns 0 and in `ccsp' the bus offset of the free ccs. Will not block
+ * and if none available and will returns EAGAIN.
+ *
+ * The caller must fill in the length later.
+ * The caller must clear the ccs on errors.
+ */
+static int
+ray_ccs_tx(struct ray_softc *sc, size_t *ccsp, size_t *bufpp)
+{
+	size_t ccs, bufp;
+	int i;
+	u_int8_t status;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CCS, "");
+	RAY_MAP_CM(sc);
+
+	i = RAY_CCS_TX_FIRST;
+	do {
+		status = SRAM_READ_FIELD_1(sc, RAY_CCS_ADDRESS(i),
+		    ray_cmd, c_status);
+		if (status == RAY_CCS_STATUS_FREE)
+			break;
+		i++;
+	} while (i <= RAY_CCS_TX_LAST);
+	if (i > RAY_CCS_TX_LAST) {
+		return (EAGAIN);
+	}
+	RAY_DPRINTF(sc, RAY_DBG_CCS, "allocated 0x%02x", i);
+
+	/*
+	 * Reserve and fill the ccs - must do the length later.
+	 *
+	 * Even though build 4 and build 5 have different fields all these
+	 * are common apart from tx_rate. Neither the NetBSD driver or Linux
+	 * driver bother to overwrite this for build 4 cards.
+	 *
+	 * The start of the buffer must be aligned to a 256 byte boundary
+	 * (least significant byte of address = 0x00).
+	 */
+	ccs = RAY_CCS_ADDRESS(i);
+	bufp = RAY_TX_BASE + i * RAY_TX_BUF_SIZE;
+	bufp += sc->sc_tibsize;
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_status, RAY_CCS_STATUS_BUSY);
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_cmd, RAY_CMD_TX_REQ);
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_link, RAY_CCS_LINK_NULL);
+	SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_bufp, bufp);
+	SRAM_WRITE_FIELD_1(sc,
+	    ccs, ray_cmd_tx, c_tx_rate, sc->sc_c.np_def_txrate);
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0); /* XXX */
+	bufp += sizeof(struct ray_tx_phy_header);
+
+	*ccsp = ccs;
+	*bufpp = bufp;
+    	return (0);
 }
 
 /*
@@ -3366,7 +3804,7 @@ ray_dump_mbuf(struct ray_softc *sc, struct mbuf *m, char *s)
 	u_int i;
 	char p[17];
 
-	RAY_PRINTF(sc, "%s mbuf dump:", s);
+	RAY_PRINTF(sc, "%s", s);
 	i = 0;
 	bzero(p, 17);
 	for (; m; m = m->m_next) {
@@ -3383,7 +3821,7 @@ ray_dump_mbuf(struct ray_softc *sc, struct mbuf *m, char *s)
 		}
 	}
 	if ((i - 1) % 16)
-		printf("%s\n", p);
+		printf("  %s\n", p);
 }
 #endif /* RAY_DEBUG & RAY_DBG_MBUF */
 
