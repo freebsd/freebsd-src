@@ -1613,6 +1613,16 @@ aml_parse_termobj(struct aml_environ *env, int indent)
 		AML_DEBUGPRINT(", ");
 		destname1 = aml_parse_termobj(env, indent);
 		AML_DEBUGPRINT(")");
+		/* XXX
+		 * temporary object may change during aml_store_to_name()
+		 * operation, so we make a copy of it on stack.
+		 */
+		if (destname1 == &env->tempname &&
+		    destname1->property == &env->tempobject) {
+			destname1 = aml_create_local_object();
+			AML_COPY_OBJECT(destname1->property, env,
+			    &env->tempobject, NULL);
+		}
 		aml_store_to_name(env, tmpobj, destname1);
 		if (env->stat == aml_stat_panic) {
 			AML_DEBUGPRINT("StoreOp failed");

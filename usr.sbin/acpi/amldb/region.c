@@ -36,6 +36,7 @@
 
 #include <dev/acpi/aml/aml_amlmem.h>
 #include <dev/acpi/aml/aml_name.h>
+#include <dev/acpi/aml/aml_region.h>
 #include <dev/acpi/aml/aml_common.h>
 
 #include <assert.h>
@@ -199,133 +200,102 @@ aml_simulation_regload(const char *dumpfile)
 	fclose(fp);
 }
 
-#define ACPI_REGION_INPUT	0
-#define ACPI_REGION_OUTPUT	1
-
-static int
-aml_simulate_region_io(int io, int regtype, u_int32_t flags, u_int32_t *valuep,
-    u_int32_t baseaddr, u_int32_t bitoffset, u_int32_t bitlen, int prompt)
+int
+aml_region_read_simple(struct aml_region_handle *h, vm_offset_t offset, 
+    u_int32_t *valuep)
 {
-	char		buf[64];
-	u_int8_t	val, tmp, masklow, maskhigh;
-	u_int8_t	offsetlow, offsethigh;
-	u_int32_t	addr, byteoffset, bytelen;
-	int		value, readval;
-	int		state, i;
+	int		i, state;
+	u_int8_t	val;
+	u_int32_t	value;
 
-	value = *valuep;
-	val = readval = 0;
-	masklow = maskhigh = 0xff;
 	state = 0;
-
-	byteoffset = bitoffset / 8;
-	bytelen = bitlen / 8 + ((bitlen % 8) ? 1 : 0);
-	addr = baseaddr + byteoffset;
-	offsetlow = bitoffset % 8;
-	if (bytelen > 1) {
-		offsethigh = (bitlen - (8 - offsetlow)) % 8;
-	} else {
-		offsethigh = 0;
-	}
-
-	if (offsetlow) {
-		masklow = (~((1 << bitlen) - 1) << offsetlow) | \
-		    ~(0xff << offsetlow);
-		printf("\t[offsetlow = 0x%x, masklow = 0x%x, ~masklow = 0x%x]\n",
-		    offsetlow, masklow, ~masklow & 0xff);
-	}
-	if (offsethigh) {
-		maskhigh = 0xff << offsethigh;
-		printf("\t[offsethigh = 0x%x, maskhigh = 0x%x, ~maskhigh = 0x%x]\n",
-		    offsethigh, maskhigh, ~maskhigh & 0xff);
-	}
-	for (i = bytelen; i > 0; i--, addr++) {
-		val = 0;
-		state = aml_simulate_regcontent_read(regtype, addr, &val);
+	value = val = 0;
+	for (i = 0; i < h->unit; i++) {
+		state = aml_simulate_regcontent_read(h->regtype,
+		    h->addr + offset + i, &val);
 		if (state == -1) {
-			goto finish;
+			goto out;
 		}
-		printf("\t[%d:0x%02x@0x%x]", regtype, val, addr);
+		value |= val << (i * 8);
+	}
+	*valuep = value;
+out:
+	return (state);
+}
 
-		switch (io) {
-		case ACPI_REGION_INPUT:
-			tmp = val;
-			/* the lowest byte? */
-			if (i == bytelen) {
-				if (offsetlow) {
-					readval = tmp & ~masklow;
-				} else {
-					readval = tmp;
-				}
-			} else {
-				if (i == 1 && offsethigh) {
-					tmp = tmp & ~maskhigh;
-				}
-				readval = (tmp << (8 * (bytelen - i))) | readval;
-			}
+int
+aml_region_write_simple(struct aml_region_handle *h, vm_offset_t offset,
+    u_int32_t value)
+{
+	int		i, state;
+	u_int8_t	val;
 
-			printf("\n");
-			/* goto to next byte... */
-			if (i > 1) {
-				continue;
-			}
-			/* final adjustment before finishing region access */
-			if (offsetlow) {
-				readval = readval >> offsetlow;
-			}
-			sprintf(buf, "[read(%d, 0x%x)&mask:0x%x]",
-			    regtype, addr, readval);
-			if (prompt) {
-				value = aml_simulate_prompt(buf, readval);
-				if (readval != value) {
-					state = aml_simulate_region_io(ACPI_REGION_OUTPUT,
-					    regtype, flags, &value, baseaddr,
-					    bitoffset, bitlen, 0);
-					if (state == -1) {
-						goto finish;
-					}
-				}
-			} else {
-				printf("\t%s\n", buf);
-				value = readval;
-			}
-			*valuep = value;
+	state = 0;
+	val = 0;
+	for (i = 0; i < h->unit; i++) {
+		val = value & 0xff;
+		state = aml_simulate_regcontent_write(h->regtype,
+		    h->addr + offset + i, &val);
+		if (state == -1) {
+			goto out;
+		}
+		value = value >> 8;
+	}
+out:
+	return (state);
+}
 
-			break;
-		case ACPI_REGION_OUTPUT:
-			tmp = value & 0xff;
-			/* the lowest byte? */
-			if (i == bytelen) {
-				if (offsetlow) {
-					tmp = (val & masklow) | tmp << offsetlow;
-				}
-				value = value >> (8 - offsetlow);
-			} else {
-				if (i == 1 && offsethigh) {
-					tmp = (val & maskhigh) | tmp;
-				}
-				value = value >> 8;
-			}
+u_int32_t
+aml_region_prompt_read(struct aml_region_handle *h, u_int32_t value)
+{
+	u_int32_t 	retval;
+	char		buf[64];
 
-			if (prompt) {
-				printf("\n");
-				sprintf(buf, "[write(%d, 0x%02x, 0x%x)]",
-				    regtype, tmp, addr);
-				val = aml_simulate_prompt(buf, tmp);
-			} else {
-				printf("->[%d:0x%02x@0x%x]\n",
-				    regtype, tmp, addr);
-				val = tmp;
-			}
-			state = aml_simulate_regcontent_write(regtype,
-			    addr, &val);
-			if (state == -1) {
-				goto finish;
-			}
-			break;
+	retval = value;
+	sprintf(buf, "[read(%d, 0x%x)&mask:0x%x]",
+	    h->regtype, h->addr, value);
+	if (aml_debug_prompt_reginput) {
+		retval = aml_simulate_prompt(buf, value);
+	} else {
+		printf("\t%s\n", buf);
+	}
+
+	return (retval);
+}
+
+u_int32_t
+aml_region_prompt_write(struct aml_region_handle *h, u_int32_t value)
+{
+	u_int32_t 	retval;
+	char		buf[64];
+
+	retval = value;
+	if (aml_debug_prompt_regoutput) {
+		printf("\n");
+		sprintf(buf, "[write(%d, 0x%x, 0x%x)]",
+		    h->regtype, value, h->addr);
+		retval = aml_simulate_prompt(buf, value);
+	}
+
+	return (retval);
+}
+
+int
+aml_region_prompt_update_value(u_int32_t orgval, u_int32_t value,
+    struct aml_region_handle *h)
+{
+	int	state;
+
+	state = 0;
+	if (orgval != value) {
+		state = aml_region_io(h->env, AML_REGION_OUTPUT, h->regtype,
+		    h->flags, &value, h->baseaddr, h->bitoffset, h->bitlen);
+		if (state == -1) {
+			goto out;
 		}
 	}
-finish:
+
+out:
 	return (state);
 }
 
@@ -355,7 +325,7 @@ aml_simulate_region_io_buffer(int io, int regtype, u_int32_t flags,
 
 	for (i = bytelen; i > 0; i--, addr++) {
 		switch (io) {
-		case ACPI_REGION_INPUT:
+		case AML_REGION_INPUT:
 			val = 0;
 			state = aml_simulate_regcontent_read(regtype, addr, &val);
 			if (state == -1) {
@@ -363,7 +333,7 @@ aml_simulate_region_io_buffer(int io, int regtype, u_int32_t flags,
 			}
 			buffer[bytelen - i] = val;
 			break;
-		case ACPI_REGION_OUTPUT:
+		case AML_REGION_OUTPUT:
 			val = buffer[bytelen - i];
 			state = aml_simulate_regcontent_write(regtype,
 			    addr, &val);
@@ -378,16 +348,14 @@ finish:
 }
 
 static u_int32_t
-aml_simulate_region_read(int regtype, u_int32_t flags, u_int32_t addr,
-    u_int32_t bitoffset, u_int32_t bitlen)
+aml_simulate_region_read(struct aml_environ *env, int regtype,
+    u_int32_t flags, u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen)
 {
 	int	value;
 	int	state;
 
-	AML_DEBUGPRINT("\n[aml_region_read(%d, %d, 0x%x, 0x%x, 0x%x)]\n",
-	    regtype, flags, addr, bitoffset, bitlen);
-	state = aml_simulate_region_io(ACPI_REGION_INPUT, regtype, flags, &value,
-	    addr, bitoffset, bitlen, aml_debug_prompt_reginput);
+	state = aml_region_io(env, AML_REGION_INPUT, regtype, flags, &value,
+	    addr, bitoffset, bitlen);
 	assert(state != -1);
 	return (value);
 }
@@ -398,24 +366,21 @@ aml_simulate_region_read_into_buffer(int regtype, u_int32_t flags,
 {
 	int	state;
 
-	AML_DEBUGPRINT("\n[aml_region_read_into_buffer(%d, %d, 0x%x, 0x%x, 0x%x)]\n",
-	    regtype, flags, addr, bitoffset, bitlen);
-	state = aml_simulate_region_io_buffer(ACPI_REGION_INPUT, regtype, flags,
+	state = aml_simulate_region_io_buffer(AML_REGION_INPUT, regtype, flags,
 	    buffer, addr, bitoffset, bitlen);
 	assert(state != -1);
 	return (state);
 }
 
 int
-aml_simulate_region_write(int regtype, u_int32_t flags, u_int32_t value,
-    u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen)
+aml_simulate_region_write(struct aml_environ *env, int regtype,
+    u_int32_t flags, u_int32_t value, u_int32_t addr, u_int32_t bitoffset,
+    u_int32_t bitlen)
 {
 	int	state;
 
-	AML_DEBUGPRINT("\n[aml_region_write(%d, %d, 0x%x, 0x%x, 0x%x, 0x%x)]\n",
-	    regtype, flags, value, addr, bitoffset, bitlen);
-	state = aml_simulate_region_io(ACPI_REGION_OUTPUT, regtype, flags,
-	    &value, addr, bitoffset, bitlen, aml_debug_prompt_regoutput);
+	state = aml_region_io(env, AML_REGION_OUTPUT, regtype, flags,
+	    &value, addr, bitoffset, bitlen);
 	assert(state != -1);
 	return (state);
 }
@@ -426,16 +391,15 @@ aml_simulate_region_write_from_buffer(int regtype, u_int32_t flags,
 {
 	int	state;
 
-	AML_DEBUGPRINT("\n[aml_region_write_from_buffer(%d, %d, 0x%x, 0x%x, 0x%x)]\n",
-	    regtype, flags, addr, bitoffset, bitlen);
-	state = aml_simulate_region_io_buffer(ACPI_REGION_OUTPUT, regtype,
+	state = aml_simulate_region_io_buffer(AML_REGION_OUTPUT, regtype,
 	    flags, buffer, addr, bitoffset, bitlen);
 	assert(state != -1);
 	return (state);
 }
 
 int
-aml_simulate_region_bcopy(int regtype, u_int32_t flags, u_int32_t addr,
+aml_simulate_region_bcopy(struct aml_environ *env, int regtype,
+    u_int32_t flags, u_int32_t addr,
     u_int32_t bitoffset, u_int32_t bitlen,
     u_int32_t dflags, u_int32_t daddr,
     u_int32_t dbitoffset, u_int32_t dbitlen)
@@ -444,19 +408,15 @@ aml_simulate_region_bcopy(int regtype, u_int32_t flags, u_int32_t addr,
 	u_int32_t	value;
 	int		state;
 
-	AML_DEBUGPRINT("\n[aml_region_bcopy(%d, %d, 0x%x, 0x%x, 0x%x, %d, 0x%x, 0x%x, 0x%x)]\n",
-	    regtype, flags, addr, bitoffset, bitlen,
-	    dflags, daddr, dbitoffset, dbitlen);
-
 	len = (bitlen > dbitlen) ? dbitlen : bitlen;
 	len = len / 8 + ((len % 8) ? 1 : 0);
 
 	for (i = 0; i < len; i++) {
-		state = aml_simulate_region_io(ACPI_REGION_INPUT, regtype,
-		    flags, &value, addr, bitoffset + i * 8, 8, 0);
+		state = aml_region_io(env, AML_REGION_INPUT, regtype,
+		    flags, &value, addr, bitoffset + i * 8, 8);
 		assert(state != -1);
-		state = aml_simulate_region_io(ACPI_REGION_OUTPUT, regtype,
-		    dflags, &value, daddr, dbitoffset + i * 8, 8, 0);
+		state = aml_region_io(env, AML_REGION_OUTPUT, regtype,
+		    dflags, &value, daddr, dbitoffset + i * 8, 8);
 		assert(state != -1);
 	}
 
@@ -468,7 +428,9 @@ aml_region_read(struct aml_environ *env, int regtype, u_int32_t flags,
     u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen)
 {
 
-	return (aml_simulate_region_read(regtype, flags, addr,
+	AML_REGION_READ_DEBUG(regtype, flags, addr, bitoffset, bitlen);
+
+	return (aml_simulate_region_read(env, regtype, flags, addr,
 	    bitoffset, bitlen));
 }
 
@@ -477,6 +439,8 @@ aml_region_read_into_buffer(struct aml_environ *env, int regtype,
     u_int32_t flags, u_int32_t addr, u_int32_t bitoffset,
     u_int32_t bitlen, u_int8_t *buffer)
 {
+
+	AML_REGION_READ_INTO_BUFFER_DEBUG(regtype, flags, addr, bitoffset, bitlen);
 
 	return (aml_simulate_region_read_into_buffer(regtype, flags, addr,
 	    bitoffset, bitlen, buffer));
@@ -487,7 +451,9 @@ aml_region_write(struct aml_environ *env, int regtype, u_int32_t flags,
     u_int32_t value, u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen)
 {
 
-	return (aml_simulate_region_write(regtype, flags, value, addr,
+	AML_REGION_WRITE_DEBUG(regtype, flags, value, addr, bitoffset, bitlen);
+
+	return (aml_simulate_region_write(env, regtype, flags, value, addr,
 	    bitoffset, bitlen));
 }
 
@@ -496,6 +462,9 @@ aml_region_write_from_buffer(struct aml_environ *env, int regtype,
     u_int32_t flags, u_int8_t *buffer, u_int32_t addr, u_int32_t bitoffset,
     u_int32_t bitlen)
 {
+
+	AML_REGION_WRITE_FROM_BUFFER_DEBUG(regtype, flags,
+	    addr, bitoffset, bitlen);
 
 	return (aml_simulate_region_write_from_buffer(regtype, flags, buffer,
 	    addr, bitoffset, bitlen));
@@ -508,7 +477,10 @@ aml_region_bcopy(struct aml_environ *env, int regtype, u_int32_t flags,
     u_int32_t dbitoffset, u_int32_t dbitlen)
 {
 
-	return (aml_simulate_region_bcopy(regtype, flags, addr, bitoffset,
+	AML_REGION_BCOPY_DEBUG(regtype, flags, addr, bitoffset, bitlen,
+	    dflags, daddr, dbitoffset, dbitlen);
+
+	return (aml_simulate_region_bcopy(env, regtype, flags, addr, bitoffset,
 	    bitlen, dflags, daddr, dbitoffset, dbitlen));
 }
 
