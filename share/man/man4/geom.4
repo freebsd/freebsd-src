@@ -45,7 +45,7 @@ The GEOM framework provides an infrastructure in which modules
 can perform transformations on disk I/O requests on their path from
 the upper kernel to the device drivers and back.
 .Pp
-Transformations in a GEOM context ranges from the simple geometric
+Transformations in a GEOM context range from the simple geometric
 displacement performed in typical disklabel modules over RAID
 algorithms and device multipath resolution to full blown cryptographic
 protection of the stored data.
@@ -72,7 +72,7 @@ than existing transformations.
 Fixed hierarchies are bad because they make it impossible to express
 the intent efficiently.
 In the fixed hierarchy above it is not possible to mirror two
-physical disks and then parition the mirror into subdisks, instead
+physical disks and then partition the mirror into subdisks, instead
 one is forced to make subdisks on the physical volumes and to mirror
 these two and two resulting in a much more complex configuration.
 GEOM on the other hand does not care in which order things are done,
@@ -80,24 +80,24 @@ the only restriction is that cycles in the graph will not be allowed.
 .Pp
 .Sh "TERMINOLOGY and TOPOLOGY"
 Geom is quite object oriented and consequently the terminology
-borrows a lot of context and sematics from the OO vocabulary:
+borrows a lot of context and semantics from the OO vocabulary:
 .Pp
 A "class", represented by the data structure g_class implements one
 particular kind of transformation.  Typical examples are MBR disk
-partition, BSD disklabel or RAID5 classes.
+partition, BSD disklabel, and RAID5 classes.
 .Pp
 An instance of a class is called a "geom" and represented by the
-data structure "g_geom".  An in typical i386 FreeBSD system, there
+data structure "g_geom".  In a typical i386 FreeBSD system, there
 will be one geom of class MBR for each disk.
 .Pp
 A "provider", represented by the data structure "g_provider", is
 the front gate at which a geom offers service.
-A provider is "a disk-like thing which appear in /dev" - a logical
+A provider is "a disk-like thing which appears in /dev" - a logical
 disk in other words.
-All providers have three main properties: name, sectorsize and size. .
+All providers have three main properties: name, sectorsize and size.
 .Pp
 A "consumer" is the backdoor through which a geom connects to another
-geoms provider and through which I/O requests are sent.
+geom provider and through which I/O requests are sent.
 .Pp
 The topological relationship between these entities are as follows:
 .Bl -bullet
@@ -108,39 +108,39 @@ A geom has exactly one class it is derived from.
 .It
 A geom has zero or more consumers.
 .It
-A geom has zero or more provicers.
+A geom has zero or more providers.
 .It
 A consumer can be attached to zero or one providers.
 .It
 A provider can have zero or more consumers attached.
 .El
 .Pp
-All geoms have a rank-number assigned which is used to detect and
-prevent loops in the acyclic directed graph, this rank number is
+All geoms have a rank-number assigned, which is used to detect and
+prevent loops in the acyclic directed graph.  This rank number is
 assigned as follows:
 .Bl -enum
 .It
 A geom with no attached consumers has rank=1
 .It
-A geom with attached consumers has a rank one higher then the
+A geom with attached consumers has a rank one higher than the
 highest rank of the geoms of the providers its consumers are
 attached to.
 .El
 .Sh "SPECIAL TOPOLOGICAL MANEUVRES"
-In addition to the straightforward attach which attaches a consumer
-to a provider and dettach which breaks the bond, a number of special
+In addition to the straightforward attach, which attaches a consumer
+to a provider, and dettach, which breaks the bond, a number of special
 toplogical maneuvres exists to facilitate configuration and to
 improve the overall flexibility.
 .Pp
 .Em TASTING
-is a process which happens whenever a new class or new provider
+is a process that happens whenever a new class or new provider
 is created and it is the class' chance to automatically configure an
-instance on providers which it recognize as its own.
-A typical example is the MBR disk-parition class which will look for
+instance on providers, which it recognize as its own.
+A typical example is the MBR disk-partition class which will look for
 the MBR table in the first sector and if found and validated it will
 instantiate a geom to multiplex according to the contents of the MBR.
 .Pp
-A new class will be offered all existing providers in turn and a new
+A new class will be offered to all existing providers in turn and a new
 provider will be offered to all classes in turn.
 .Pp
 Exactly what a class does to recognize if it should accept the offered
@@ -151,24 +151,24 @@ Examine specific data structures on the disk.
 .It
 Examine properties like sectorsize or mediasize for the provider.
 .It
-Examine the rank number of the providers geom.
+Examine the rank number of the provider's geom.
 .It
-Examine the method name of the providers geom.
+Examine the method name of the provider's geom.
 .El
 .Pp
 .Em ORPHANIZATION
 is the process by which a provider is removed while
-it potentially still being in used.
+it potentially is still being used.
 .Pp
-When a geom makes a provider as orphan all future I/O requests will
+When a geom makes a provider an orphan, all future I/O requests will
 "bounce" on the provider with an error code set by the geom.  Any
 consumers attached to the provider will receive notification about
 the orphanization and need to take appropriate action.
 .Pp
-A geom which came into being as result of a normal taste operation
-should selfdestruct unless it has an way to keep functioning.  Geoms
+A geom which came into being as a result of a normal taste operation
+should selfdestruct unless it has a way to keep functioning.  Geoms
 like disklabels and stripes should therefore selfdestruct whereas
-RAID5 or mirror geoms can continue to function as ong as they do
+RAID5 or mirror geoms can continue to function as long as they do
 not loose quorum.
 .Pp
 When a provider is orphaned, this does not result in any immediate
@@ -180,7 +180,7 @@ The typical scenario is that a device driver notices a disk has
 gone and orphans the provider for it.
 The geoms on top receive the orphanization event and orphan all
 their providers in turn.
-Providers which are not attached to are destroyed right away.
+Providers, which are not attached, are destroyed right away.
 Eventually at the toplevel the geom which interfaces
 to the DEVFS received an orphan event on its consumer and it
 calls destroy_dev(9) and does an explicit close if the
@@ -191,8 +191,8 @@ its consumer and selfdestruct and so the carnage passes back
 down the tree, until the original provider is dettached from
 and it can be destroyed by the geom serving the device driver.
 .Pp
-While this approach seens byzantine it does provide the maximum
-flexibility in handling disapparing devices.
+While this approach seems byzantine, it does provide the maximum
+flexibility in handling disappearing devices.
 .Pp
 .Em SPOILING
 is a special case of orphanization used to protect
@@ -238,11 +238,11 @@ each other and to remove it again.
 To understand the utility of this, imagine a provider with
 being mounted as a filesystem.
 Between the DEVFS geoms consumer and its provider we insert
-a mirror modules which configures itself with one mirror
+a mirror module which configures itself with one mirror
 copy and consequently is transparent to the I/O requests
 on the path.
 We can now configure yet a mirror copy on the mirror geom,
-request a synchronization and finally drop the first mirror
+request a synchronization, and finally drop the first mirror
 copy.
 We have now in essence moved a mounted filesystem from one
 disk to another while it was being used.
@@ -262,28 +262,28 @@ sending I/O requests through the graph.
 .Pp
 .Em "I/O REQUESTS
 represented by struct bio, originate at a consumer,
-are scheduled on its attached provider and when processed, returned
+are scheduled on its attached provider, and when processed, returned
 to the consumer.
 It is important to realize that the struct bio which
 enters throuh the provider of a particular geom does not "come
 out on the other side".
 Even simple transformations like MBR and BSD will clone the
-struct bio, modify the clone and schedule the clone on their
+struct bio, modify the clone, and schedule the clone on their
 own consumer.
 Note that cloning the struct bio does not involve cloning the
 actual data area specified in the IO request.
 .Pp
 In total five different IO requests exist in GEOM: read, write,
-delete, format, get attribute and set attribute.
+delete, format, get attribute, and set attribute.
 .Pp
-Read and write are pretty self explanatory.
+Read and write are self explanatory.
 .Pp
 Delete indicates that a certain range of data is no longer used
 and that it can be erased or freed as the underlying technology
 supports.
 Technologies like flash adaptation layers can arrange to erase
 the relevant blocks before they will become reassigned and
-crytographic devices may want to fill random bits into the
+cryptographic devices may want to fill random bits into the
 range to reduce the amount of data available for attack.
 .Pp
 It is important to recognize that a delete indication is not a
@@ -306,6 +306,7 @@ under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
 DARPA CHATS research program.
 .Pp
 The first precursor for GEOM was a gruesome hack to Minix 1.2 and was
-never distributed.  An earlier attempt to implement a less general scheme in FreeBSD never succeeded.
+never distributed.  An earlier attempt to implement a less general scheme
+in FreeBSD never succeeded.
 .Sh AUTHORS
 .An "Poul-Henning Kamp" Aq phk@FreeBSD.org
