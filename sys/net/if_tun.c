@@ -443,7 +443,7 @@ tunoutput(
 		TUNDEBUG ("%s%d: not ready 0%o\n", ifp->if_name,
 			  ifp->if_unit, tp->tun_flags);
 		m_freem (m0);
-		return EHOSTDOWN;
+		return (EHOSTDOWN);
 	}
 
 	/* BPF write needs to be handled specially */
@@ -495,7 +495,7 @@ tunoutput(
 		if (m0 == NULL) {
 			ifp->if_iqdrops++;
 			ifp->if_oerrors++;
-			return ENOBUFS;
+			return (ENOBUFS);
 		} else
 			*(u_int32_t *)m0->m_data = htonl(dst->sa_family);
 	} else {
@@ -504,16 +504,16 @@ tunoutput(
 #endif
 		{
 			m_freem(m0);
-			return EAFNOSUPPORT;
+			return (EAFNOSUPPORT);
 		}
 	}
 
 	if (! IF_HANDOFF(&ifp->if_snd, m0, ifp)) {
 		ifp->if_collisions++;
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
 	ifp->if_opackets++;
-	return 0;
+	return (0);
 }
 
 /*
@@ -643,7 +643,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
 	if ((tp->tun_flags & TUN_READY) != TUN_READY) {
 		TUNDEBUG ("%s%d: not ready 0%o\n", ifp->if_name,
 			  ifp->if_unit, tp->tun_flags);
-		return EHOSTDOWN;
+		return (EHOSTDOWN);
 	}
 
 	tp->tun_flags &= ~TUN_RWAIT;
@@ -654,13 +654,13 @@ tunread(dev_t dev, struct uio *uio, int flag)
 		if (m == NULL) {
 			if (flag & IO_NDELAY) {
 				splx(s);
-				return EWOULDBLOCK;
+				return (EWOULDBLOCK);
 			}
 			tp->tun_flags |= TUN_RWAIT;
 			if((error = tsleep((caddr_t)tp, PCATCH | (PZERO + 1),
 					"tunread", 0)) != 0) {
 				splx(s);
-				return error;
+				return (error);
 			}
 		}
 	} while (m == NULL);
@@ -677,7 +677,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
 		TUNDEBUG("%s%d: Dropping mbuf\n", ifp->if_name, ifp->if_unit);
 		m_freem(m);
 	}
-	return error;
+	return (error);
 }
 
 /*
@@ -695,19 +695,19 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
 
 	if (uio->uio_resid == 0)
-		return 0;
+		return (0);
 
 	if (uio->uio_resid < 0 || uio->uio_resid > TUNMRU) {
 		TUNDEBUG("%s%d: len=%d!\n", ifp->if_name, ifp->if_unit,
 		    uio->uio_resid);
-		return EIO;
+		return (EIO);
 	}
 	tlen = uio->uio_resid;
 
 	/* get a header mbuf */
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
-		return ENOBUFS;
+		return (ENOBUFS);
 	mlen = MHLEN;
 
 	top = 0;
@@ -730,7 +730,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 		if (top)
 			m_freem (top);
 		ifp->if_ierrors++;
-		return error;
+		return (error);
 	}
 
 	top->m_pkthdr.len = tlen;
@@ -744,7 +744,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 			 * Inconveniently, it's in the wrong byte order !
 			 */
 			if ((top = m_pullup(top, sizeof(family))) == NULL)
-				return ENOBUFS;
+				return (ENOBUFS);
 			*mtod(top, u_int32_t *) =
 			    ntohl(*mtod(top, u_int32_t *));
 			bpf_mtap(ifp, top);
@@ -772,7 +772,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	if (tp->tun_flags & TUN_IFHEAD) {
 		if (top->m_len < sizeof(family) &&
 		    (top = m_pullup(top, sizeof(family))) == NULL)
-				return ENOBUFS;
+			return (ENOBUFS);
 		family = ntohl(*mtod(top, u_int32_t *));
 		m_adj(top, sizeof(family));
 	} else
@@ -781,7 +781,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	ifp->if_ibytes += top->m_pkthdr.len;
 	ifp->if_ipackets++;
 
-	return family_enqueue(family, top);
+	return (family_enqueue(family, top));
 }
 
 /*
