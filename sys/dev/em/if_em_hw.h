@@ -104,6 +104,7 @@ typedef enum {
     em_bus_speed_33,
     em_bus_speed_66,
     em_bus_speed_100,
+    em_bus_speed_120,
     em_bus_speed_133,
     em_bus_speed_reserved
 } em_bus_speed;
@@ -319,10 +320,11 @@ void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
 #define E1000_DEV_ID_82545EM_FIBER       0x1011
 #define E1000_DEV_ID_82546EB_COPPER      0x1010
 #define E1000_DEV_ID_82546EB_FIBER       0x1012
+#define E1000_DEV_ID_82546EB_QUAD_COPPER 0x101D
 #define E1000_DEV_ID_82541EI             0x1013
 #define E1000_DEV_ID_82541EP             0x1018
 #define E1000_DEV_ID_82547EI             0x1019
-#define NUM_DEV_IDS 19
+#define NUM_DEV_IDS 20
 
 #define NODE_ADDRESS_SIZE 6
 #define ETH_LENGTH_OF_ADDRESS 6
@@ -606,7 +608,7 @@ struct em_ffvt_entry {
 #define E1000_EECD     0x00010  /* EEPROM/Flash Control - RW */
 #define E1000_EERD     0x00014  /* EEPROM Read - RW */
 #define E1000_CTRL_EXT 0x00018  /* Extended Device Control - RW */
-#define E1000_FLA      0x0001C  /* Flash Access Register - RW */
+#define E1000_FLA      0x0001C  /* Flash Access - RW */
 #define E1000_MDIC     0x00020  /* MDI Control - RW */
 #define E1000_FCAL     0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH     0x0002C  /* Flow Control Address High -RW */
@@ -735,6 +737,7 @@ struct em_ffvt_entry {
  * the registers function in the same manner.
  */
 #define E1000_82542_CTRL     E1000_CTRL
+#define E1000_82542_CTRL_DUP E1000_CTRL_DUP
 #define E1000_82542_STATUS   E1000_STATUS
 #define E1000_82542_EECD     E1000_EECD
 #define E1000_82542_EERD     E1000_EERD
@@ -1490,7 +1493,6 @@ struct em_hw {
 #define E1000_COLLISION_DISTANCE        64
 #define E1000_FDX_COLLISION_DISTANCE    E1000_COLLISION_DISTANCE
 #define E1000_HDX_COLLISION_DISTANCE    E1000_COLLISION_DISTANCE
-#define E1000_GB_HDX_COLLISION_DISTANCE 512
 #define E1000_COLD_SHIFT                12
 
 /* The number of Transmit and Receive Descriptors must be a multiple of 8 */
