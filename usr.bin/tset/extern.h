@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/9/93
+ *	$FreeBSD$
  */
 
 #include <termcap.h>
 
 extern struct termios mode, oldmode;
 extern int Columns, isreset, Lines;
-extern int erasechar, intrchar, killchar;
+extern int erasech, intrchar, killch;
 
 void	 add_mapping __P((char *, char *));
 void	 cat __P((char *));

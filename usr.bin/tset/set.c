@@ -169,19 +169,19 @@ set_control_chars()
 	else
 		bs_char = 0;
 
-	if (erasechar == 0 && bs_char != 0 && !tgetflag("os"))
-		erasechar = -1;
-	if (erasechar < 0)
-		erasechar = (bs_char != 0) ? bs_char : CTRL('h');
+	if (erasech == 0 && bs_char != 0 && !tgetflag("os"))
+		erasech = -1;
+	if (erasech < 0)
+		erasech = (bs_char != 0) ? bs_char : CTRL('h');
 
-	if (mode.c_cc[VERASE] == 0 || erasechar != 0)
-		mode.c_cc[VERASE] = erasechar ? erasechar : CERASE;
+	if (mode.c_cc[VERASE] == 0 || erasech != 0)
+		mode.c_cc[VERASE] = erasech ? erasech : CERASE;
 
 	if (mode.c_cc[VINTR] == 0 || intrchar != 0)
 		 mode.c_cc[VINTR] = intrchar ? intrchar : CINTR;
 
-	if (mode.c_cc[VKILL] == 0 || killchar != 0)
-		mode.c_cc[VKILL] = killchar ? killchar : CKILL;
+	if (mode.c_cc[VKILL] == 0 || killch != 0)
+		mode.c_cc[VKILL] = killch ? killch : CKILL;
 }
 
 /*
