@@ -71,7 +71,7 @@ struct disk {
 #define DISKFLAG_CANDELETE	0x4
 
 dev_t disk_create(int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, void *unused);
-void disk_destroy(dev_t dev);
+void disk_destroy(struct disk *disk);
 struct disk *disk_enumerate(struct disk *disk);
 void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 
