@@ -394,7 +394,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		 * Packet is tagged, m contains a normal
 		 * Ethernet frame; the tag is stored out-of-band.
 		 */
-		tag = *(u_int*)(mtag+1);
+		tag = EVL_VLANOFTAG(*(u_int*)(mtag+1));
 		m_tag_delete(m, mtag);
 	} else {
 		switch (ifp->if_type) {
@@ -409,7 +409,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 				("vlan_input: bad encapsulated protocols (%u)",
 				 ntohs(evl->evl_encap_proto)));
 
-			tag = ntohs(evl->evl_tag);
+			tag = EVL_VLANOFTAG(ntohs(evl->evl_tag));
 
 			/*
 			 * Restore the original ethertype.  We'll remove
@@ -735,6 +735,14 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		p = ifunit(vlr.vlr_parent);
 		if (p == 0) {
 			error = ENOENT;
+			break;
+		}
+		/*
+		 * Don't let the caller set up a VLAN tag with
+		 * anything except VLID bits.
+		 */
+		if (vlr.vlr_tag & ~EVL_VLID_MASK) {
+			error = EINVAL;
 			break;
 		}
 		error = vlan_config(ifv, p);
