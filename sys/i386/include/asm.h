@@ -53,13 +53,11 @@
 	popl	%ebx
 #define	PIC_PLT(x)	x@PLT
 #define	PIC_GOT(x)	x@GOT(%ebx)
-#define	PIC_GOTOFF(x)	x@GOTOFF(%ebx)
 #else
 #define	PIC_PROLOGUE
 #define	PIC_EPILOGUE
 #define	PIC_PLT(x)	x
 #define	PIC_GOT(x)	x
-#define	PIC_GOTOFF(x)	x
 #endif
 
 /*
