@@ -92,7 +92,7 @@ extern char *__progname; /* XXX not portable */
 #define HTTP_MOVED_TEMP		302
 #define HTTP_SEE_OTHER		303
 #define HTTP_NEED_AUTH		401
-#define HTTP_NEED_PROXY_AUTH	403
+#define HTTP_NEED_PROXY_AUTH	407
 #define HTTP_PROTOCOL_ERROR	999
 
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
@@ -728,6 +728,14 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	if (!url->port)
 	    url->port = _fetch_default_port(url->scheme);
     
+	/* were we redirected to an FTP URL? */
+	if (purl == NULL && strcmp(url->scheme, SCHEME_FTP) == 0) {
+	    if (strcmp(op, "GET") == 0)
+		return _ftp_request(url, "RETR", us, purl, flags);
+	    else if (strcmp(op, "HEAD") == 0)
+		return _ftp_request(url, "STAT", us, purl, flags);
+	}
+	
 	/* connect to server or proxy */
 	if ((fd = _http_connect(url, purl, flags)) == -1)
 	    goto ouch;
@@ -799,6 +807,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	    break;
 	case HTTP_MOVED_PERM:
 	case HTTP_MOVED_TEMP:
+	case HTTP_SEE_OTHER:
 	    /*
 	     * Not so fine, but we still have to read the headers to
 	     * get the new location.
