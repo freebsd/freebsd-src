@@ -17,6 +17,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040623:
+	pf was updated to OpenBSD-stable 3.5 and pflogd(8) is priviledge
+	separated now. It uses the newly created "_pflogd" user/group
+	combination. If you plan to use pflogd(8) make sure to run
+	mergemaster -p or install the "_pflogd" user and group manually.
+
 20040622:
 	Network interface cloning has been overhauled.  This change will
 	require a recompile of modules using cloning and modification of
