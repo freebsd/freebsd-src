@@ -48,13 +48,11 @@
 typedef	__rune_t	rune_t;
 #endif
 
-#define _INVALID_RUNE   _CurrentRuneLocale->invalid_rune
+#define _INVALID_RUNE   _CurrentRuneLocale->__invalid_rune
 
-#define __sgetrune      _CurrentRuneLocale->sgetrune
-#define __sputrune      _CurrentRuneLocale->sputrune
-
-#define sgetrune(s, n, r)       (*__sgetrune)((s), (n), (r))
-#define sputrune(c, s, n, r)    (*__sputrune)((c), (s), (n), (r))
+#define sgetrune(s, n, r)       (_CurrentRuneLocale->__sgetrune)((s), (n), (r))
+#define sputrune(c, s, n, r)    (_CurrentRuneLocale->__sputrune)((c), (s), \
+				    (n), (r))
 
 __BEGIN_DECLS
 char	*mbrune(const char *, rune_t);

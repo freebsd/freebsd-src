@@ -74,10 +74,10 @@ _EUC_init(_RuneLocale *rl)
 	int x, new__mb_cur_max;
 	char *v, *e;
 
-	if (rl->variable == NULL)
+	if (rl->__variable == NULL)
 		return (EFTYPE);
 
-	v = (char *)rl->variable;
+	v = (char *)rl->__variable;
 
 	while (*v == ' ' || *v == '\t')
 		++v;
@@ -109,8 +109,8 @@ _EUC_init(_RuneLocale *rl)
 		free(ei);
 		return (EFTYPE);
 	}
-	rl->variable = ei;
-	rl->variable_len = sizeof(_EucInfo);
+	rl->__variable = ei;
+	rl->__variable_len = sizeof(_EucInfo);
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = new__mb_cur_max;
 	__mbrtowc = _EUC_mbrtowc;
@@ -126,7 +126,7 @@ _EUC_mbsinit(const mbstate_t *ps)
 	return (ps == NULL || ((const _EucState *)ps)->want == 0);
 }
 
-#define	CEI	((_EucInfo *)(_CurrentRuneLocale->variable))
+#define	CEI	((_EucInfo *)(_CurrentRuneLocale->__variable))
 
 #define	_SS2	0x008e
 #define	_SS3	0x008f

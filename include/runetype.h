@@ -50,40 +50,40 @@
  * The lower 8 bits of runetype[] contain the digit value of the rune.
  */
 typedef struct {
-	__rune_t	min;		/* First rune of the range */
-	__rune_t	max;		/* Last rune (inclusive) of the range */
-	__rune_t	map;		/* What first maps to in maps */
-	unsigned long	*types;		/* Array of types in range */
+	__rune_t	__min;		/* First rune of the range */
+	__rune_t	__max;		/* Last rune (inclusive) of the range */
+	__rune_t	__map;		/* What first maps to in maps */
+	unsigned long	*__types;	/* Array of types in range */
 } _RuneEntry;
 
 typedef struct {
-	int		nranges;	/* Number of ranges stored */
-	_RuneEntry	*ranges;	/* Pointer to the ranges */
+	int		__nranges;	/* Number of ranges stored */
+	_RuneEntry	*__ranges;	/* Pointer to the ranges */
 } _RuneRange;
 
 typedef struct {
-	char		magic[8];	/* Magic saying what version we are */
-	char		encoding[32];	/* ASCII name of this encoding */
+	char		__magic[8];	/* Magic saying what version we are */
+	char		__encoding[32];	/* ASCII name of this encoding */
 
-	__rune_t	(*sgetrune)(const char *, __size_t, char const **);
-	int		(*sputrune)(__rune_t, char *, __size_t, char **);
-	__rune_t	invalid_rune;
+	__rune_t	(*__sgetrune)(const char *, __size_t, char const **);
+	int		(*__sputrune)(__rune_t, char *, __size_t, char **);
+	__rune_t	__invalid_rune;
 
-	unsigned long	runetype[_CACHED_RUNES];
-	__rune_t	maplower[_CACHED_RUNES];
-	__rune_t	mapupper[_CACHED_RUNES];
+	unsigned long	__runetype[_CACHED_RUNES];
+	__rune_t	__maplower[_CACHED_RUNES];
+	__rune_t	__mapupper[_CACHED_RUNES];
 
 	/*
 	 * The following are to deal with Runes larger than _CACHED_RUNES - 1.
 	 * Their data is actually contiguous with this structure so as to make
 	 * it easier to read/write from/to disk.
 	 */
-	_RuneRange	runetype_ext;
-	_RuneRange	maplower_ext;
-	_RuneRange	mapupper_ext;
+	_RuneRange	__runetype_ext;
+	_RuneRange	__maplower_ext;
+	_RuneRange	__mapupper_ext;
 
-	void		*variable;	/* Data which depends on the encoding */
-	int		variable_len;	/* how long that data is */
+	void		*__variable;	/* Data which depends on the encoding */
+	int		__variable_len;	/* how long that data is */
 } _RuneLocale;
 
 #define	_RUNE_MAGIC_1	"RuneMagi"	/* Indicates version 0 of RuneLocale */

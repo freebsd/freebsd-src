@@ -92,86 +92,89 @@ _Read_RuneMagi(fp)
 	rl = (_RuneLocale *)data;
 	lastp = data + sb.st_size;
 
-	rl->variable = rl + 1;
+	rl->__variable = rl + 1;
 
-	if (memcmp(rl->magic, _RUNE_MAGIC_1, sizeof(rl->magic))) {
+	if (memcmp(rl->__magic, _RUNE_MAGIC_1, sizeof(rl->__magic))) {
 		free(data);
 		errno = EFTYPE;
 		return (NULL);
 	}
 
-	rl->invalid_rune = ntohl(rl->invalid_rune);
-	rl->variable_len = ntohl(rl->variable_len);
-	rl->runetype_ext.nranges = ntohl(rl->runetype_ext.nranges);
-	rl->maplower_ext.nranges = ntohl(rl->maplower_ext.nranges);
-	rl->mapupper_ext.nranges = ntohl(rl->mapupper_ext.nranges);
+	rl->__invalid_rune = ntohl(rl->__invalid_rune);
+	rl->__variable_len = ntohl(rl->__variable_len);
+	rl->__runetype_ext.__nranges = ntohl(rl->__runetype_ext.__nranges);
+	rl->__maplower_ext.__nranges = ntohl(rl->__maplower_ext.__nranges);
+	rl->__mapupper_ext.__nranges = ntohl(rl->__mapupper_ext.__nranges);
 
 	for (x = 0; x < _CACHED_RUNES; ++x) {
-		rl->runetype[x] = ntohl(rl->runetype[x]);
-		rl->maplower[x] = ntohl(rl->maplower[x]);
-		rl->mapupper[x] = ntohl(rl->mapupper[x]);
+		rl->__runetype[x] = ntohl(rl->__runetype[x]);
+		rl->__maplower[x] = ntohl(rl->__maplower[x]);
+		rl->__mapupper[x] = ntohl(rl->__mapupper[x]);
 	}
 
-	rl->runetype_ext.ranges = (_RuneEntry *)rl->variable;
-	rl->variable = rl->runetype_ext.ranges + rl->runetype_ext.nranges;
-	if (rl->variable > lastp) {
+	rl->__runetype_ext.__ranges = (_RuneEntry *)rl->__variable;
+	rl->__variable = rl->__runetype_ext.__ranges +
+	    rl->__runetype_ext.__nranges;
+	if (rl->__variable > lastp) {
 		free(data);
 		errno = EFTYPE;
 		return (NULL);
 	}
 
-	rl->maplower_ext.ranges = (_RuneEntry *)rl->variable;
-	rl->variable = rl->maplower_ext.ranges + rl->maplower_ext.nranges;
-	if (rl->variable > lastp) {
+	rl->__maplower_ext.__ranges = (_RuneEntry *)rl->__variable;
+	rl->__variable = rl->__maplower_ext.__ranges +
+	    rl->__maplower_ext.__nranges;
+	if (rl->__variable > lastp) {
 		free(data);
 		errno = EFTYPE;
 		return (NULL);
 	}
 
-	rl->mapupper_ext.ranges = (_RuneEntry *)rl->variable;
-	rl->variable = rl->mapupper_ext.ranges + rl->mapupper_ext.nranges;
-	if (rl->variable > lastp) {
+	rl->__mapupper_ext.__ranges = (_RuneEntry *)rl->__variable;
+	rl->__variable = rl->__mapupper_ext.__ranges +
+	    rl->__mapupper_ext.__nranges;
+	if (rl->__variable > lastp) {
 		free(data);
 		errno = EFTYPE;
 		return (NULL);
 	}
 
-	for (x = 0; x < rl->runetype_ext.nranges; ++x) {
-		rr = rl->runetype_ext.ranges;
+	for (x = 0; x < rl->__runetype_ext.__nranges; ++x) {
+		rr = rl->__runetype_ext.__ranges;
 
-		rr[x].min = ntohl(rr[x].min);
-		rr[x].max = ntohl(rr[x].max);
-		if ((rr[x].map = ntohl(rr[x].map)) == 0) {
-			int len = rr[x].max - rr[x].min + 1;
-			rr[x].types = rl->variable;
-			rl->variable = rr[x].types + len;
-			if (rl->variable > lastp) {
+		rr[x].__min = ntohl(rr[x].__min);
+		rr[x].__max = ntohl(rr[x].__max);
+		if ((rr[x].__map = ntohl(rr[x].__map)) == 0) {
+			int len = rr[x].__max - rr[x].__min + 1;
+			rr[x].__types = rl->__variable;
+			rl->__variable = rr[x].__types + len;
+			if (rl->__variable > lastp) {
 				free(data);
 				errno = EFTYPE;
 				return (NULL);
 			}
 			while (len-- > 0)
-				rr[x].types[len] = ntohl(rr[x].types[len]);
+				rr[x].__types[len] = ntohl(rr[x].__types[len]);
 		} else
-			rr[x].types = 0;
+			rr[x].__types = 0;
 	}
 
-	for (x = 0; x < rl->maplower_ext.nranges; ++x) {
-		rr = rl->maplower_ext.ranges;
+	for (x = 0; x < rl->__maplower_ext.__nranges; ++x) {
+		rr = rl->__maplower_ext.__ranges;
 
-		rr[x].min = ntohl(rr[x].min);
-		rr[x].max = ntohl(rr[x].max);
-		rr[x].map = ntohl(rr[x].map);
+		rr[x].__min = ntohl(rr[x].__min);
+		rr[x].__max = ntohl(rr[x].__max);
+		rr[x].__map = ntohl(rr[x].__map);
 	}
 
-	for (x = 0; x < rl->mapupper_ext.nranges; ++x) {
-		rr = rl->mapupper_ext.ranges;
+	for (x = 0; x < rl->__mapupper_ext.__nranges; ++x) {
+		rr = rl->__mapupper_ext.__ranges;
 
-		rr[x].min = ntohl(rr[x].min);
-		rr[x].max = ntohl(rr[x].max);
-		rr[x].map = ntohl(rr[x].map);
+		rr[x].__min = ntohl(rr[x].__min);
+		rr[x].__max = ntohl(rr[x].__max);
+		rr[x].__map = ntohl(rr[x].__map);
 	}
-	if (((char *)rl->variable) + rl->variable_len > (char *)lastp) {
+	if (((char *)rl->__variable) + rl->__variable_len > (char *)lastp) {
 		free(data);
 		errno = EFTYPE;
 		return (NULL);
@@ -180,17 +183,17 @@ _Read_RuneMagi(fp)
 	/*
 	 * Go out and zero pointers that should be zero.
 	 */
-	if (!rl->variable_len)
-		rl->variable = 0;
+	if (!rl->__variable_len)
+		rl->__variable = 0;
 
-	if (!rl->runetype_ext.nranges)
-		rl->runetype_ext.ranges = 0;
+	if (!rl->__runetype_ext.__nranges)
+		rl->__runetype_ext.__ranges = 0;
 
-	if (!rl->maplower_ext.nranges)
-		rl->maplower_ext.ranges = 0;
+	if (!rl->__maplower_ext.__nranges)
+		rl->__maplower_ext.__ranges = 0;
 
-	if (!rl->mapupper_ext.nranges)
-		rl->mapupper_ext.ranges = 0;
+	if (!rl->__mapupper_ext.__nranges)
+		rl->__mapupper_ext.__ranges = 0;
 
 	return (rl);
 }
