@@ -339,11 +339,7 @@ ip6_input(m)
 	}
 	if (IN6_IS_ADDR_LOOPBACK(&ip6->ip6_src) ||
 	    IN6_IS_ADDR_LOOPBACK(&ip6->ip6_dst)) {
-		if (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) {
-			ours = 1;
-			deliverifp = m->m_pkthdr.rcvif;
-			goto hbhcheck;
-		} else {
+		if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
 			ip6stat.ip6s_badscope++;
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
 			goto bad;
