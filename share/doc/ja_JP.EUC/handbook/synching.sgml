@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.7 -->
+<!-- Original revision: 1.8 -->
 
 <chapt><heading>インターネットを通じたソースツリーの同期<label id="synching"></heading>
 
@@ -9,7 +9,7 @@
 
 <!--
 
-Last updated: $Date: 1997/01/02 18:03:20 $
+Last updated: $Date: 1997/01/14 06:27:53 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.

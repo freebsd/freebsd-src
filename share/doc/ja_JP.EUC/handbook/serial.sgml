@@ -1,9 +1,9 @@
+<!-- $FreeBSD$ -->
+<!-- FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.2 -->
+
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $FreeBSD$
-     FreeBSD Japanese Documentation Project
-     Original revision: 1.1
-
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
 
 <linuxdoc>
