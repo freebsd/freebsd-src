@@ -26,19 +26,18 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ccp.c,v 1.7 1997/08/19 17:52:33 peter Exp $";
+static char rcsid[] = "$Id: ccp.c,v 1.8 1998/03/22 06:57:18 peter Exp $";
 #endif
 
 #include <string.h>
 #include <syslog.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <net/ppp_defs.h>
-#include <net/ppp_comp.h>
 
 #include "pppd.h"
 #include "fsm.h"
 #include "ccp.h"
+#include <net/ppp_comp.h>
 
 /*
  * Protocol entry points from main code.
@@ -116,14 +115,8 @@ static fsm_callbacks ccp_callbacks = {
 /*
  * Do we want / did we get any compression?
  */
-#ifdef CI_BADDEFLATE
-#define ANY_COMPRESS(opt)	((opt).deflate || (opt).baddeflate \
-				 || (opt).bsd_compress \
-				 || (opt).predictor_1 || (opt).predictor_2)
-#else
 #define ANY_COMPRESS(opt)	((opt).deflate || (opt).bsd_compress \
 				 || (opt).predictor_1 || (opt).predictor_2)
-#endif
 
 /*
  * Local state (mainly for handling reset-reqs and reset-acks).
@@ -157,15 +150,12 @@ ccp_init(unit)
 
     ccp_wantoptions[0].deflate = 1;
     ccp_wantoptions[0].deflate_size = DEFLATE_MAX_SIZE;
+    ccp_wantoptions[0].deflate_correct = 1;
+    ccp_wantoptions[0].deflate_draft = 1;
     ccp_allowoptions[0].deflate = 1;
     ccp_allowoptions[0].deflate_size = DEFLATE_MAX_SIZE;
-
-#ifdef CI_BADDEFLATE
-    ccp_wantoptions[0].baddeflate = 1;
-    ccp_wantoptions[0].baddeflate_size = DEFLATE_MAX_SIZE;
-    ccp_allowoptions[0].baddeflate = 1;
-    ccp_allowoptions[0].baddeflate_size = DEFLATE_MAX_SIZE;
-#endif
+    ccp_allowoptions[0].deflate_correct = 1;
+    ccp_allowoptions[0].deflate_draft = 1;
 
     ccp_wantoptions[0].bsd_compress = 1;
     ccp_wantoptions[0].bsd_bits = BSD_MAX_BITS;
@@ -328,23 +318,25 @@ ccp_resetci(f)
 	    go->bsd_compress = 0;
     }
     if (go->deflate) {
-	opt_buf[0] = CI_DEFLATE;
-	opt_buf[1] = CILEN_DEFLATE;
-	opt_buf[2] = DEFLATE_MAKE_OPT(DEFLATE_MIN_SIZE);
-	opt_buf[3] = DEFLATE_CHK_SEQUENCE;
-	if (ccp_test(f->unit, opt_buf, CILEN_DEFLATE, 0) <= 0)
+	if (go->deflate_correct) {
+	    opt_buf[0] = CI_DEFLATE;
+	    opt_buf[1] = CILEN_DEFLATE;
+	    opt_buf[2] = DEFLATE_MAKE_OPT(DEFLATE_MIN_SIZE);
+	    opt_buf[3] = DEFLATE_CHK_SEQUENCE;
+	    if (ccp_test(f->unit, opt_buf, CILEN_DEFLATE, 0) <= 0)
+		go->deflate_correct = 0;
+	}
+	if (go->deflate_draft) {
+	    opt_buf[0] = CI_DEFLATE_DRAFT;
+	    opt_buf[1] = CILEN_DEFLATE;
+	    opt_buf[2] = DEFLATE_MAKE_OPT(DEFLATE_MIN_SIZE);
+	    opt_buf[3] = DEFLATE_CHK_SEQUENCE;
+	    if (ccp_test(f->unit, opt_buf, CILEN_DEFLATE, 0) <= 0)
+		go->deflate_draft = 0;
+	}
+	if (!go->deflate_correct && !go->deflate_draft)
 	    go->deflate = 0;
     }
-#ifdef CI_BADDEFLATE
-    if (go->baddeflate) {
-	opt_buf[0] = CI_BADDEFLATE;
-	opt_buf[1] = CILEN_DEFLATE;
-	opt_buf[2] = DEFLATE_MAKE_OPT(DEFLATE_MIN_SIZE);
-	opt_buf[3] = DEFLATE_CHK_SEQUENCE;
-	if (ccp_test(f->unit, opt_buf, CILEN_DEFLATE, 0) <= 0)
-	    go->baddeflate = 0;
-    }
-#endif
     if (go->predictor_1) {
 	opt_buf[0] = CI_PREDICTOR_1;
 	opt_buf[1] = CILEN_PREDICTOR_1;
@@ -370,9 +362,6 @@ ccp_cilen(f)
 
     return (go->bsd_compress? CILEN_BSD_COMPRESS: 0)
 	+ (go->deflate? CILEN_DEFLATE: 0)
-#ifdef CI_BADDEFLATE
-	+ (go->baddeflate? CILEN_DEFLATE: 0)
-#endif
 	+ (go->predictor_1? CILEN_PREDICTOR_1: 0)
 	+ (go->predictor_2? CILEN_PREDICTOR_2: 0);
 }
@@ -396,7 +385,7 @@ ccp_addci(f, p, lenp)
      * in case it gets Acked.
      */
     if (go->deflate) {
-	p[0] = CI_DEFLATE;
+	p[0] = go->deflate_correct? CI_DEFLATE: CI_DEFLATE_DRAFT;
 	p[1] = CILEN_DEFLATE;
 	p[2] = DEFLATE_MAKE_OPT(go->deflate_size);
 	p[3] = DEFLATE_CHK_SEQUENCE;
@@ -413,32 +402,14 @@ ccp_addci(f, p, lenp)
 	    --go->deflate_size;
 	    p[2] = DEFLATE_MAKE_OPT(go->deflate_size);
 	}
-    }
-#ifdef CI_BADDEFLATE
-    if (go->baddeflate) {
-	p[0] = CI_BADDEFLATE;
-	p[1] = CILEN_DEFLATE;
-	p[2] = DEFLATE_MAKE_OPT(go->baddeflate_size);
-	p[3] = DEFLATE_CHK_SEQUENCE;
-	if (p != p0) {
-	    p += CILEN_DEFLATE;		/* not the first option */
-	} else {
-	    for (;;) {
-		res = ccp_test(f->unit, p, CILEN_DEFLATE, 0);
-		if (res > 0) {
-		    p += CILEN_DEFLATE;
-		    break;
-		}
-		if (res < 0 || go->baddeflate_size <= DEFLATE_MIN_SIZE) {
-		    go->baddeflate = 0;
-		    break;
-		}
-		--go->baddeflate_size;
-		p[2] = DEFLATE_MAKE_OPT(go->baddeflate_size);
-	    }
+	if (p != p0 && go->deflate_correct && go->deflate_draft) {
+	    p[0] = CI_DEFLATE_DRAFT;
+	    p[1] = CILEN_DEFLATE;
+	    p[2] = p[2 - CILEN_DEFLATE];
+	    p[3] = DEFLATE_CHK_SEQUENCE;
+	    p += CILEN_DEFLATE;
 	}
     }
-#endif
     if (go->bsd_compress) {
 	p[0] = CI_BSD_COMPRESS;
 	p[1] = CILEN_BSD_COMPRESS;
@@ -501,7 +472,8 @@ ccp_ackci(f, p, len)
 
     if (go->deflate) {
 	if (len < CILEN_DEFLATE
-	    || p[0] != CI_DEFLATE || p[1] != CILEN_DEFLATE
+	    || p[0] != (go->deflate_correct? CI_DEFLATE: CI_DEFLATE_DRAFT)
+	    || p[1] != CILEN_DEFLATE
 	    || p[2] != DEFLATE_MAKE_OPT(go->deflate_size)
 	    || p[3] != DEFLATE_CHK_SEQUENCE)
 	    return 0;
@@ -510,21 +482,17 @@ ccp_ackci(f, p, len)
 	/* XXX Cope with first/fast ack */
 	if (len == 0)
 	    return 1;
+	if (go->deflate_correct && go->deflate_draft) {
+	    if (len < CILEN_DEFLATE
+		|| p[0] != CI_DEFLATE_DRAFT
+		|| p[1] != CILEN_DEFLATE
+		|| p[2] != DEFLATE_MAKE_OPT(go->deflate_size)
+		|| p[3] != DEFLATE_CHK_SEQUENCE)
+		return 0;
+	    p += CILEN_DEFLATE;
+	    len -= CILEN_DEFLATE;
+	}
     }
-#ifdef CI_BADDEFLATE
-    if (go->baddeflate) {
-	if (len < CILEN_DEFLATE
-	    || p[0] != CI_BADDEFLATE || p[1] != CILEN_DEFLATE
-	    || p[2] != DEFLATE_MAKE_OPT(go->baddeflate_size)
-	    || p[3] != DEFLATE_CHK_SEQUENCE)
-	    return 0;
-	p += CILEN_DEFLATE;
-	len -= CILEN_DEFLATE;
-	/* XXX Cope with first/fast ack */
-	if (p == p0 && len == 0)
-	    return 1;
-    }
-#endif
     if (go->bsd_compress) {
 	if (len < CILEN_BSD_COMPRESS
 	    || p[0] != CI_BSD_COMPRESS || p[1] != CILEN_BSD_COMPRESS
@@ -580,7 +548,8 @@ ccp_nakci(f, p, len)
     try = *go;
 
     if (go->deflate && len >= CILEN_DEFLATE
-	&& p[0] == CI_DEFLATE && p[1] == CILEN_DEFLATE) {
+	&& p[0] == (go->deflate_correct? CI_DEFLATE: CI_DEFLATE_DRAFT)
+	&& p[1] == CILEN_DEFLATE) {
 	no.deflate = 1;
 	/*
 	 * Peer wants us to use a different code size or something.
@@ -594,26 +563,13 @@ ccp_nakci(f, p, len)
 	    try.deflate_size = DEFLATE_SIZE(p[2]);
 	p += CILEN_DEFLATE;
 	len -= CILEN_DEFLATE;
+	if (go->deflate_correct && go->deflate_draft
+	    && len >= CILEN_DEFLATE && p[0] == CI_DEFLATE_DRAFT
+	    && p[1] == CILEN_DEFLATE) {
+	    p += CILEN_DEFLATE;
+	    len -= CILEN_DEFLATE;
+	}
     }
-
-#ifdef CI_BADDEFLATE
-    if (go->baddeflate && len >= CILEN_DEFLATE
-	&& p[0] == CI_BADDEFLATE && p[1] == CILEN_DEFLATE) {
-	no.baddeflate = 1;
-	/*
-	 * Peer wants us to use a different code size or something.
-	 * Stop asking for Deflate if we don't understand his suggestion.
-	 */
-	if (DEFLATE_METHOD(p[2]) != DEFLATE_METHOD_VAL
-	    || DEFLATE_SIZE(p[2]) < DEFLATE_MIN_SIZE
-	    || p[3] != DEFLATE_CHK_SEQUENCE)
-	    try.baddeflate = 0;
-	else if (DEFLATE_SIZE(p[2]) < go->baddeflate_size)
-	    try.baddeflate_size = DEFLATE_SIZE(p[2]);
-	p += CILEN_DEFLATE;
-	len -= CILEN_DEFLATE;
-    }
-#endif
 
     if (go->bsd_compress && len >= CILEN_BSD_COMPRESS
 	&& p[0] == CI_BSD_COMPRESS && p[1] == CILEN_BSD_COMPRESS) {
@@ -666,25 +622,30 @@ ccp_rejci(f, p, len)
 	return -1;
 
     if (go->deflate && len >= CILEN_DEFLATE
-	&& p[0] == CI_DEFLATE && p[1] == CILEN_DEFLATE) {
+	&& p[0] == (go->deflate_correct? CI_DEFLATE: CI_DEFLATE_DRAFT)
+	&& p[1] == CILEN_DEFLATE) {
 	if (p[2] != DEFLATE_MAKE_OPT(go->deflate_size)
 	    || p[3] != DEFLATE_CHK_SEQUENCE)
 	    return 0;		/* Rej is bad */
-	try.deflate = 0;
+	if (go->deflate_correct)
+	    try.deflate_correct = 0;
+	else
+	    try.deflate_draft = 0;
 	p += CILEN_DEFLATE;
 	len -= CILEN_DEFLATE;
+	if (go->deflate_correct && go->deflate_draft
+	    && len >= CILEN_DEFLATE && p[0] == CI_DEFLATE_DRAFT
+	    && p[1] == CILEN_DEFLATE) {
+	    if (p[2] != DEFLATE_MAKE_OPT(go->deflate_size)
+		|| p[3] != DEFLATE_CHK_SEQUENCE)
+		return 0;		/* Rej is bad */
+	    try.deflate_draft = 0;
+	    p += CILEN_DEFLATE;
+	    len -= CILEN_DEFLATE;
+	}
+	if (!try.deflate_correct && !try.deflate_draft)
+	    try.deflate = 0;
     }
-#ifdef CI_BADDEFLATE
-    if (go->baddeflate && len >= CILEN_DEFLATE
-	&& p[0] == CI_BADDEFLATE && p[1] == CILEN_DEFLATE) {
-	if (p[2] != DEFLATE_MAKE_OPT(go->baddeflate_size)
-	    || p[3] != DEFLATE_CHK_SEQUENCE)
-	    return 0;		/* Rej is bad */
-	try.baddeflate = 0;
-	p += CILEN_DEFLATE;
-	len -= CILEN_DEFLATE;
-    }
-#endif
     if (go->bsd_compress && len >= CILEN_BSD_COMPRESS
 	&& p[0] == CI_BSD_COMPRESS && p[1] == CILEN_BSD_COMPRESS) {
 	if (p[2] != BSD_MAKE_OPT(BSD_CURRENT_VERSION, go->bsd_bits))
@@ -753,7 +714,10 @@ ccp_reqci(f, p, lenp, dont_nak)
 
 	    switch (type) {
 	    case CI_DEFLATE:
-		if (!ao->deflate || clen != CILEN_DEFLATE) {
+	    case CI_DEFLATE_DRAFT:
+		if (!ao->deflate || clen != CILEN_DEFLATE
+		    || (!ao->deflate_correct && type == CI_DEFLATE)
+		    || (!ao->deflate_draft && type == CI_DEFLATE_DRAFT)) {
 		    newret = CONFREJ;
 		    break;
 		}
@@ -794,51 +758,6 @@ ccp_reqci(f, p, lenp, dont_nak)
 		    }
 		}
 		break;
-
-#ifdef CI_BADDEFLATE
-	    case CI_BADDEFLATE:
-		if (!ao->baddeflate || clen != CILEN_DEFLATE) {
-		    newret = CONFREJ;
-		    break;
-		}
-
-		ho->baddeflate = 1;
-		ho->baddeflate_size = nb = DEFLATE_SIZE(p[2]);
-		if (DEFLATE_METHOD(p[2]) != DEFLATE_METHOD_VAL
-		    || p[3] != DEFLATE_CHK_SEQUENCE
-		    || nb > ao->baddeflate_size || nb < DEFLATE_MIN_SIZE) {
-		    newret = CONFNAK;
-		    if (!dont_nak) {
-			p[2] = DEFLATE_MAKE_OPT(ao->baddeflate_size);
-			p[3] = DEFLATE_CHK_SEQUENCE;
-			/* fall through to test this #bits below */
-		    } else
-			break;
-		}
-
-		/*
-		 * Check whether we can do Deflate with the window
-		 * size they want.  If the window is too big, reduce
-		 * it until the kernel can cope and nak with that.
-		 * We only check this for the first option.
-		 */
-		if (p == p0) {
-		    for (;;) {
-			res = ccp_test(f->unit, p, CILEN_DEFLATE, 1);
-			if (res > 0)
-			    break;		/* it's OK now */
-			if (res < 0 || nb == DEFLATE_MIN_SIZE || dont_nak) {
-			    newret = CONFREJ;
-			    p[2] = DEFLATE_MAKE_OPT(ho->baddeflate_size);
-			    break;
-			}
-			newret = CONFNAK;
-			--nb;
-			p[2] = DEFLATE_MAKE_OPT(nb);
-		    }
-		}
-		break;
-#endif
 
 	    case CI_BSD_COMPRESS:
 		if (!ao->bsd_compress || clen != CILEN_BSD_COMPRESS) {
@@ -951,21 +870,16 @@ method_name(opt, opt2)
 	return "(none)";
     switch (opt->method) {
     case CI_DEFLATE:
+    case CI_DEFLATE_DRAFT:
 	if (opt2 != NULL && opt2->deflate_size != opt->deflate_size)
-	    sprintf(result, "Deflate (%d/%d)", opt->deflate_size,
-		    opt2->deflate_size);
+	    sprintf(result, "Deflate%s (%d/%d)",
+		    (opt->method == CI_DEFLATE_DRAFT? "(old#)": ""),
+		    opt->deflate_size, opt2->deflate_size);
 	else
-	    sprintf(result, "Deflate (%d)", opt->deflate_size);
+	    sprintf(result, "Deflate%s (%d)",
+		    (opt->method == CI_DEFLATE_DRAFT? "(old#)": ""),
+		    opt->deflate_size);
 	break;
-#ifdef CI_BADDEFLATE
-    case CI_BADDEFLATE:
-	if (opt2 != NULL && opt2->baddeflate_size != opt->baddeflate_size)
-	    sprintf(result, "Bad-Deflate (%d/%d)", opt->baddeflate_size,
-		    opt2->baddeflate_size);
-	else
-	    sprintf(result, "Bad-Deflate (%d)", opt->baddeflate_size);
-	break;
-#endif
     case CI_BSD_COMPRESS:
 	if (opt2 != NULL && opt2->bsd_bits != opt->bsd_bits)
 	    sprintf(result, "BSD-Compress (%d/%d)", opt->bsd_bits,
@@ -1081,8 +995,11 @@ ccp_printpkt(p, plen, printer, arg)
 	    optend = p + optlen;
 	    switch (code) {
 	    case CI_DEFLATE:
+	    case CI_DEFLATE_DRAFT:
 		if (optlen >= CILEN_DEFLATE) {
-		    printer(arg, "deflate %d", DEFLATE_SIZE(p[2]));
+		    printer(arg, "deflate%s %d",
+			    (code == CI_DEFLATE_DRAFT? "(old#)": ""),
+			    DEFLATE_SIZE(p[2]));
 		    if (DEFLATE_METHOD(p[2]) != DEFLATE_METHOD_VAL)
 			printer(arg, " method %d", DEFLATE_METHOD(p[2]));
 		    if (p[3] != DEFLATE_CHK_SEQUENCE)
@@ -1090,18 +1007,6 @@ ccp_printpkt(p, plen, printer, arg)
 		    p += CILEN_DEFLATE;
 		}
 		break;
-#ifdef CI_BADDEFLATE
-	    case CI_BADDEFLATE:
-		if (optlen >= CILEN_DEFLATE) {
-		    printer(arg, "baddeflate %d", DEFLATE_SIZE(p[2]));
-		    if (DEFLATE_METHOD(p[2]) != DEFLATE_METHOD_VAL)
-			printer(arg, " method %d", DEFLATE_METHOD(p[2]));
-		    if (p[3] != DEFLATE_CHK_SEQUENCE)
-			printer(arg, " check %d", p[3]);
-		    p += CILEN_DEFLATE;
-		}
-		break;
-#endif
 	    case CI_BSD_COMPRESS:
 		if (optlen >= CILEN_BSD_COMPRESS) {
 		    printer(arg, "bsd v%d %d", BSD_VERSION(p[2]),

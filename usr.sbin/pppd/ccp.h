@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id: ccp.h,v 1.5 1997/08/19 17:52:33 peter Exp $
+ * $Id: ccp.h,v 1.6 1998/03/22 06:57:19 peter Exp $
  */
 
 typedef struct ccp_options {
@@ -33,6 +33,8 @@ typedef struct ccp_options {
     u_int baddeflate: 1;	/* do Deflate? (Magnalink!) */
     u_int predictor_1: 1;	/* do Predictor-1? */
     u_int predictor_2: 1;	/* do Predictor-2? */
+    u_int deflate_correct: 1;	/* use correct code for deflate? */
+    u_int deflate_draft: 1;	/* use draft RFC code for deflate? */
     u_short bsd_bits;		/* # bits/code for BSD Compress */
     u_short deflate_size;	/* lg(window size) for Deflate */
     u_short baddeflate_size;	/* lg(window size) for Deflate */
