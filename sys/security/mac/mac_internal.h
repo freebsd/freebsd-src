@@ -899,6 +899,10 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_check_socket_visible =
 			    mpe->mpe_function;
 			break;
+		case MAC_CHECK_SYSTEM_SWAPON:
+			mpc->mpc_ops->mpo_check_system_swapon =
+			    mpe->mpe_function;
+			break;
 		case MAC_CHECK_VNODE_ACCESS:
 			mpc->mpc_ops->mpo_check_vnode_access =
 			    mpe->mpe_function;
@@ -1017,10 +1021,6 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			break;
 		case MAC_CHECK_VNODE_STAT:
 			mpc->mpc_ops->mpo_check_vnode_stat =
-			    mpe->mpe_function;
-			break;
-		case MAC_CHECK_VNODE_SWAPON:
-			mpc->mpc_ops->mpo_check_vnode_swapon =
 			    mpe->mpe_function;
 			break;
 		case MAC_CHECK_VNODE_WRITE:
@@ -2304,20 +2304,6 @@ mac_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 int
-mac_check_vnode_swapon(struct ucred *cred, struct vnode *vp)
-{
-	int error;
-
-	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_swapon");
-
-	if (!mac_enforce_fs)
-		return (0);
-
-	MAC_CHECK(check_vnode_swapon, cred, vp, &vp->v_label);
-	return (error);
-}
-
-int
 mac_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp)
 {
@@ -3007,6 +2993,20 @@ mac_check_socket_visible(struct ucred *cred, struct socket *socket)
 
 	MAC_CHECK(check_socket_visible, cred, socket, &socket->so_label);
 
+	return (error);
+}
+
+int
+mac_check_system_swapon(struct ucred *cred, struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_system_swapon");
+
+	if (!mac_enforce_fs)
+		return (0);
+
+	MAC_CHECK(check_system_swapon, cred, vp, &vp->v_label);
 	return (error);
 }
 
