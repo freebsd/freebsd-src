@@ -2190,7 +2190,7 @@ postsig(sig)
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
-		if (p->p_flag & P_SA)
+		if (td->td_flags & TDF_SA)
 			thread_signal_add(curthread, sig);
 		else
 			(*p->p_sysent->sv_sendsig)(action, sig,

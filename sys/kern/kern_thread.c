@@ -485,40 +485,33 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 {
 	struct proc *p;
 	struct ksegrp *kg;
-	struct timespec ts, ts2, ts3, timeout;
+	struct kse_upcall *ku;
+	struct timespec timeout;
 	struct timeval tv;
 	int error;
 
 	p = td->td_proc;
 	kg = td->td_ksegrp;
-	if (td->td_upcall == NULL || TD_CAN_UNBIND(td))
+	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td))
 		return (EINVAL);
 	if (uap->timeout != NULL) {
 		if ((error = copyin(uap->timeout, &timeout, sizeof(timeout))))
 			return (error);
-		getnanouptime(&ts);
-		timespecadd(&ts, &timeout);
 		TIMESPEC_TO_TIMEVAL(&tv, &timeout);
 	}
-	/* Change OURSELF to become an upcall. */
-	td->td_pflags |= TDP_UPCALLING;
+	if (td->td_flags & TDF_SA)
+		td->td_pflags |= TDP_UPCALLING;
 	PROC_LOCK(p);
-	while ((td->td_upcall->ku_flags & KUF_DOUPCALL) == 0 &&
-	       (kg->kg_completed == NULL)) {
+	if ((ku->ku_flags & KUF_DOUPCALL) == 0 && (kg->kg_completed == NULL)) {
 		kg->kg_upsleeps++;
 		error = msleep(&kg->kg_completed, &p->p_mtx, PPAUSE|PCATCH,
 			"kse_rel", (uap->timeout ? tvtohz(&tv) : 0));
 		kg->kg_upsleeps--;
-		PROC_UNLOCK(p);
-		if (uap->timeout == NULL || error != EWOULDBLOCK)
-			return (0);
-		getnanouptime(&ts2);
-		if (timespeccmp(&ts2, &ts, >=))
-			return (0);
-		ts3 = ts;
-		timespecsub(&ts3, &ts2);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
-		PROC_LOCK(p);
+	}
+	if (ku->ku_flags & KUF_DOUPCALL) {
+		mtx_lock_spin(&sched_lock);
+		ku->ku_flags &= ~KUF_DOUPCALL;
+		mtx_unlock_spin(&sched_lock);
 	}
 	PROC_UNLOCK(p);
 	return (0);
@@ -597,7 +590,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	struct proc *p;
 	struct kse_mailbox mbx;
 	struct kse_upcall *newku;
-	int err, ncpus;
+	int err, ncpus, sa = 0, first = 0;
+	struct thread *newtd;
 
 	p = td->td_proc;
 	if ((err = copyin(uap->mbx, &mbx, sizeof(mbx))))
@@ -609,17 +603,22 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 #else
 	ncpus = 1;
 #endif
-	if (thread_debug && virtual_cpu != 0)
+	if (virtual_cpu != 0)
 		ncpus = virtual_cpu;
-
-	/* Easier to just set it than to test and set */
+	if (!(mbx.km_flags & KMF_BOUND))
+		sa = TDF_SA;
 	PROC_LOCK(p);
-	p->p_flag |= P_SA;
+	if (!(p->p_flag & P_SA)) {
+		first = 1;
+		p->p_flag |= P_SA;
+	}
 	PROC_UNLOCK(p);
+	if (!sa && !uap->newgroup && !first)
+		return (EINVAL);
 	kg = td->td_ksegrp;
 	if (uap->newgroup) {
 		/* Have race condition but it is cheap */ 
-		if (p->p_numksegrps >= max_groups_per_proc) 
+		if (p->p_numksegrps >= max_groups_per_proc)
 			return (EPROCLIM);
 		/* 
 		 * If we want a new KSEGRP it doesn't matter whether
@@ -652,19 +651,22 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 
 	if (newkg->kg_numupcalls == 0) {
 		/*
-		 * Initialize KSE group, optimized for MP.
-		 * Create KSEs as many as physical cpus, this increases
-		 * concurrent even if userland is not MP safe and can only run
-		 * on single CPU (for early version of libpthread, it is true).
+		 * Initialize KSE group
+		 *
+		 * For multiplxed group, create KSEs as many as physical
+		 * cpus. This increases concurrent even if userland
+		 * is not MP safe and can only run on single CPU.
 		 * In ideal world, every physical cpu should execute a thread.
 		 * If there is enough KSEs, threads in kernel can be
 		 * executed parallel on different cpus with full speed, 
 		 * Concurrent in kernel shouldn't be restricted by number of 
-		 * upcalls userland provides.
-		 * Adding more upcall structures only increases concurrent
-		 * in userland.
-		 * Highest performance configuration is:
-		 * N kses = N upcalls = N phyiscal cpus
+		 * upcalls userland provides. Adding more upcall structures
+		 * only increases concurrent in userland.
+		 *
+		 * For bound thread group, because there is only thread in the
+		 * group, we only create one KSE for the group. Thread in this
+		 * kind of group will never schedule an upcall when blocked,
+		 * this intends to simulate pthread system scope thread.
 		 */
 		while (newkg->kg_kses < ncpus) {
 			newke = kse_alloc();
@@ -711,7 +713,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		 * Because new ksegrp hasn't thread,
 		 * create an initial upcall thread to own it.
 		 */
-		thread_schedule_upcall(td, newku);
+		newtd = thread_schedule_upcall(td, newku);
 	} else {
 		/*
 		 * If current thread hasn't an upcall structure,
@@ -720,12 +722,21 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		if (td->td_upcall == NULL) {
 			newku->ku_owner = td;
 			td->td_upcall = newku;
+			newtd = td;
 		} else {
 			/*
 			 * Create a new upcall thread to own it.
 			 */
-			thread_schedule_upcall(td, newku);
+			newtd = thread_schedule_upcall(td, newku);
 		}
+	}
+	if (!sa) {
+		if (newtd != td)
+			cpu_set_upcall_kse(newtd, newku);
+		newtd->td_mailbox = mbx.km_curthread;
+		newtd->td_flags &= ~TDF_SA;
+	} else {
+		newtd->td_flags |= TDF_SA;
 	}
 	mtx_unlock_spin(&sched_lock);
 	return (0);
@@ -923,7 +934,7 @@ thread_export_context(struct thread *td)
 	struct ksegrp *kg;
 	uintptr_t mbx;
 	void *addr;
-	int error,temp;
+	int error = 0, temp;
 	mcontext_t mc;
 
 	p = td->td_proc;
@@ -1022,9 +1033,10 @@ int
 thread_statclock(int user)
 {
 	struct thread *td = curthread;
+	struct ksegrp *kg = td->td_ksegrp;
 	
-	if (td->td_ksegrp->kg_numupcalls == 0)
-		return (-1);
+	if (kg->kg_numupcalls == 0 || !(td->td_flags & TDF_SA))
+		return (0);
 	if (user) {
 		/* Current always do via ast() */
 		mtx_lock_spin(&sched_lock);
@@ -1373,11 +1385,8 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	/* Let the new thread become owner of the upcall */
 	ku->ku_owner   = td2;
 	td2->td_upcall = ku;
+	td2->td_flags  = TDF_SA;
 	td2->td_pflags = TDP_UPCALLING;
-#if 0	/* XXX This shouldn't be necessary */
-	if (td->td_proc->p_sflag & PS_NEEDSIGCHK)
-		td2->td_flags |= TDF_ASTPENDING;
-#endif
 	td2->td_kse    = NULL;
 	td2->td_state  = TDS_CAN_RUN;
 	td2->td_inhibitors = 0;
@@ -1417,7 +1426,6 @@ error:
 	PROC_LOCK(p);
 	sigexit(td, SIGILL);
 }
-
 
 /*
  * Schedule an upcall to notify a KSE process recieved signals.
@@ -1480,14 +1488,13 @@ thread_user_enter(struct proc *p, struct thread *td)
 	 * First check that we shouldn't just abort.
 	 * But check if we are the single thread first!
 	 */
-	PROC_LOCK(p);
-	if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
+	if (p->p_flag & P_SINGLE_EXIT) {
+		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);
 		thread_exit();
 		/* NOTREACHED */
 	}
-	PROC_UNLOCK(p);
 
 	/*
 	 * If we are doing a syscall in a KSE environment,
@@ -1496,7 +1503,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 	 * but for now do it every time.
 	 */
 	kg = td->td_ksegrp;
-	if (kg->kg_numupcalls) {
+	if (td->td_flags & TDF_SA) {
 		ku = td->td_upcall;
 		KASSERT(ku, ("%s: no upcall owned", __func__));
 		KASSERT((ku->ku_owner == td), ("%s: wrong owner", __func__));
@@ -1542,9 +1549,10 @@ thread_userret(struct thread *td, struct trapframe *frame)
 
 	p = td->td_proc;
 	kg = td->td_ksegrp;
+	ku = td->td_upcall;
 
-	/* Nothing to do with non-threaded group/process */
-	if (td->td_ksegrp->kg_numupcalls == 0)
+	/* Nothing to do with bound thread */
+	if (!(td->td_flags & TDF_SA))
 		return (0);
 
 	/*
@@ -1557,13 +1565,12 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_USTATCLOCK;
 		mtx_unlock_spin(&sched_lock);
-		if (kg->kg_completed || 
+		if (kg->kg_completed ||
 		    (td->td_upcall->ku_flags & KUF_DOUPCALL))
 			thread_user_enter(p, td);
 	}
 
 	uts_crit = (td->td_mailbox == NULL);
-	ku = td->td_upcall;
 	/* 
 	 * Optimisation:
 	 * This thread has not started any upcall.
@@ -1622,6 +1629,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		/* NOTREACHED */
 	}
 
+	KASSERT(ku != NULL, ("upcall is NULL\n"));
 	KASSERT(TD_CAN_UNBIND(td) == 0, ("can unbind"));
 
 	if (p->p_numthreads > max_threads_per_proc) {
@@ -1665,11 +1673,11 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		    td, td->td_proc->p_pid, td->td_proc->p_comm);
 
 		td->td_pflags &= ~TDP_UPCALLING;
-		mtx_lock_spin(&sched_lock);
-		if (ku->ku_flags & KUF_DOUPCALL)
+		if (ku->ku_flags & KUF_DOUPCALL) {
+			mtx_lock_spin(&sched_lock);
 			ku->ku_flags &= ~KUF_DOUPCALL;
-		mtx_unlock_spin(&sched_lock);
-
+			mtx_unlock_spin(&sched_lock);
+		}
 		/*
 		 * Set user context to the UTS
 		 */
