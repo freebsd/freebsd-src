@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.9 1995/05/26 20:45:17 jkh Exp $
+ * $Id: config.c,v 1.10 1995/05/26 20:55:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -172,7 +172,7 @@ configFstab(void)
     }
 
     /* Go for the burn */
-    msgNotify("Generating /etc/fstab file");
+    msgDebug("Generating /etc/fstab file");
     for (i = 0; i < nchunks; i++) {
 	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s %s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]),
@@ -291,11 +291,7 @@ configSaverTimeout(char *str)
 void
 configResolv(void)
 {
-    static Boolean alreadyDone = FALSE;
     FILE *fp;
-
-    if (alreadyDone)
-	return;
 
     if (!getenv(VAR_DOMAINNAME) || !getenv(VAR_NAMESERVER)) {
 	msgConfirm("Warning: You haven't set a domain name or nameserver.  You will need\nto configure your /etc/resolv.conf file manually to fully use network services.");
@@ -309,9 +305,7 @@ configResolv(void)
     }
     fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
-    msgNotify("Wrote /etc/resolv.conf");
     fclose(fp);
-    alreadyDone = TRUE;
 }
 
 int
