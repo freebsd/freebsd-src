@@ -36,6 +36,7 @@
 .Dt CTYPE 3
 .Os
 .Sh NAME
+.Nm digittoint ,
 .Nm isalnum ,
 .Nm isalpha ,
 .Nm isascii ,
@@ -55,7 +56,6 @@
 .Nm isspecial ,
 .Nm isupper ,
 .Nm isxdigit ,
-.Nm digittoint ,
 .Nm toascii ,
 .Nm tolower ,
 .Nm toupper
@@ -64,6 +64,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In ctype.h
+.Ft int
+.Fn digittoint "int c"
 .Ft int
 .Fn isalnum "int c"
 .Ft int
@@ -101,8 +103,6 @@
 .Ft int
 .Fn isxdigit "int c"
 .Ft int
-.Fn digittoint "int c"
-.Ft int
 .Fn toascii "int c"
 .Ft int
 .Fn tolower "int c"
@@ -116,6 +116,7 @@ They are available as macros, defined in the include file
 or as true functions in the C library.
 See the specific manual pages for more information.
 .Sh SEE ALSO
+.Xr digittoint 3 ,
 .Xr isalnum 3 ,
 .Xr isalpha 3 ,
 .Xr isascii 3 ,
@@ -129,7 +130,6 @@ See the specific manual pages for more information.
 .Xr isspace 3 ,
 .Xr isupper 3 ,
 .Xr isxdigit 3 ,
-.Xr digittoint 3 ,
 .Xr toascii 3 ,
 .Xr tolower 3 ,
 .Xr toupper 3 ,
@@ -148,6 +148,3 @@ and
 .Fn toascii ,
 conform to
 .St -isoC .
-.Fn isblank
-conforms to
-.St -isoC-99 .
