@@ -85,7 +85,7 @@ forward(fp, style, off, sbp)
 	struct stat *sbp;
 {
 	register int ch;
-	struct timeval second;
+	struct timeval interval;
 
 	switch(style) {
 	case FBYTES:
@@ -177,10 +177,9 @@ forward(fp, style, off, sbp)
 		if (!fflag)
 			break;
 
-		/* Sleep(3) is eight system calls.  Do it fast. */
-		second.tv_sec = 0;
-		second.tv_usec = 250000;
-		if (select(0, NULL, NULL, NULL, &second) == -1)
+		interval.tv_sec = 0;
+		interval.tv_usec = 250000;
+		if (select(0, NULL, NULL, NULL, &interval) == -1)
 			if (errno != EINTR)
 				err(1, "select");
 		clearerr(fp);
