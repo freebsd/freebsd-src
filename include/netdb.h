@@ -61,12 +61,17 @@
 #ifndef _NETDB_H_
 #define _NETDB_H_
 
-#include <machine/ansi.h>
 #include <sys/cdefs.h>
+#include <machine/ansi.h>
 
 #ifdef	_BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
+#endif
+
+#ifdef	_BSD_SOCKLEN_T_
+typedef	_BSD_SOCKLEN_T_	socklen_t;
+#undef	_BSD_SOCKLEN_T_
 #endif
 
 #ifndef _PATH_HEQUIV
@@ -196,14 +201,6 @@ struct addrinfo {
  * Scope delimit character
  */
 #define	SCOPE_DELIMITER	'%'
-
-/*
- * data types - basically forward decl for getnameinfo()
- */
-#ifdef	_BSD_SOCKLEN_T_
-typedef	_BSD_SOCKLEN_T_	socklen_t;
-#undef	_BSD_SOCKLEN_T_
-#endif
 
 __BEGIN_DECLS
 void		endhostent __P((void));
