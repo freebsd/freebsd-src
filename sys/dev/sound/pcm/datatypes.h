@@ -137,9 +137,10 @@ struct _snddev_info {
 	void *devinfo;
 	device_t dev;
 	char status[SND_STATUSLEN];
-	/* sysctl stuff is only used in 5.x */
+#ifdef SND_DYNSYSCTL
 	struct sysctl_ctx_list sysctl_tree;
 	struct sysctl_oid *sysctl_tree_top;
+#endif
 };
 
 /*****************************************************************************/
