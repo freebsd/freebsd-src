@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.25 1998/09/19 17:16:48 jdp Exp $
+ * $Id: asnames.h,v 1.26 1998/10/03 17:23:25 jdp Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -297,6 +297,7 @@
 #define _other_cpus			other_cpus
 #define _ovbcopy_vector			ovbcopy_vector
 #define _panic				panic
+#define	_pc98_system_parameter	pc98_system_parameter
 #define _poly_div16			poly_div16
 #define _poly_div2			poly_div2
 #define _poly_div4			poly_div4
