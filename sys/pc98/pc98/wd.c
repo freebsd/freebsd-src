@@ -93,7 +93,6 @@
 #include <i386/isa/wdreg.h>
 #include <sys/syslog.h>
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/pmap.h>
 
 #include <i386/isa/atapi.h>

@@ -47,7 +47,6 @@
 #include <sys/pioctl.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>

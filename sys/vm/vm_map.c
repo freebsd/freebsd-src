@@ -79,8 +79,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_prot.h>
-#include <vm/vm_inherit.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>

@@ -62,7 +62,6 @@
 #include <sys/ktrace.h>
 #endif
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>

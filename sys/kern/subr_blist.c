@@ -72,7 +72,6 @@
 #include <sys/blist.h>
 #include <sys/malloc.h>
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>

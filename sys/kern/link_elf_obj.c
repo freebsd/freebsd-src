@@ -39,7 +39,6 @@
 
 #include <vm/vm.h>
 #ifdef SPARSE_MAPPING
-#include <vm/vm_prot.h>
 #endif
 #include <vm/vm_param.h>
 #include <sys/lock.h>

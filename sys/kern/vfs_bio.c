@@ -39,7 +39,6 @@
 #include <sys/lock.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_page.h>

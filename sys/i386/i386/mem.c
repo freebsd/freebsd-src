@@ -64,7 +64,6 @@
 #include <i386/isa/intr_machdep.h>
 
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 

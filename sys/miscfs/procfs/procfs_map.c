@@ -46,7 +46,6 @@
 #include <miscfs/procfs/procfs.h>
 
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>

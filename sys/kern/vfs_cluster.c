@@ -48,7 +48,6 @@
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <sys/sysctl.h>
