@@ -61,43 +61,43 @@ The
 .Fa resource
 argument is one of the following:
 .Bl -tag -width RLIMIT_FSIZEAA
-.It Li RLIMIT_AS
+.It Dv RLIMIT_AS
 The maximum amount (in bytes) of virtual memory the process is
 allowed to map.
-.It Li RLIMIT_CORE
+.It Dv RLIMIT_CORE
 The largest size (in bytes)
 .Xr core 5
 file that may be created.
-.It Li RLIMIT_CPU
+.It Dv RLIMIT_CPU
 The maximum amount of cpu time (in seconds) to be used by
 each process.
-.It Li RLIMIT_DATA
+.It Dv RLIMIT_DATA
 The maximum size (in bytes) of the data segment for a process;
 this defines how far a program may extend its break with the
 .Xr sbrk 2
 function.
-.It Li RLIMIT_FSIZE
+.It Dv RLIMIT_FSIZE
 The largest size (in bytes) file that may be created.
-.It Li RLIMIT_MEMLOCK
+.It Dv RLIMIT_MEMLOCK
 The maximum size (in bytes) which a process may lock into memory
 using the
 .Xr mlock 2
 system call.
-.It Li RLIMIT_NOFILE
+.It Dv RLIMIT_NOFILE
 The maximum number of open files for this process.
-.It Li RLIMIT_NPROC
+.It Dv RLIMIT_NPROC
 The maximum number of simultaneous processes for this user id.
-.It Li RLIMIT_RSS
+.It Dv RLIMIT_RSS
 The maximum size (in bytes) to which a process's resident set size may
 grow.
 This imposes a limit on the amount of physical memory to be given to
 a process; if memory is tight, the system will prefer to take memory
 from processes that are exceeding their declared resident set size.
-.It Li RLIMIT_SBSIZE
+.It Dv RLIMIT_SBSIZE
 The maximum size (in bytes) of socket buffer usage for this user.
 This limits the amount of network memory, and hence the amount of
 mbufs, that this user may hold at any time.
-.It Li RLIMIT_STACK
+.It Dv RLIMIT_STACK
 The maximum size (in bytes) of the stack segment for a process;
 this defines how far a program's stack segment may be extended.
 Stack extension is performed automatically by the system.
