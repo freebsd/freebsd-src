@@ -2275,14 +2275,22 @@ invltlb(void)
 int
 stop_cpus(u_int map)
 {
+	int count = 0;
+
 	if (!smp_started)
 		return 0;
 
 	/* send the Xcpustop IPI to all CPUs in map */
 	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
 	
-	while ((stopped_cpus & map) != map)
+	while (count++ < 100000 && (stopped_cpus & map) != map)
 		/* spin */ ;
+
+#ifdef DIAGNOSTIC
+	if ((stopped_cpus & map) != map)
+		printf("Warning: CPUs 0x%x did not stop!\n",
+		    (~(stopped_cpus & map)) & map);
+#endif
 
 	return 1;
 }
@@ -2304,13 +2312,22 @@ stop_cpus(u_int map)
 int
 restart_cpus(u_int map)
 {
+	int count = 0;
+
 	if (!smp_started)
 		return 0;
 
 	started_cpus = map;		/* signal other cpus to restart */
 
-	while ((stopped_cpus & map) != 0) /* wait for each to clear its bit */
+	/* wait for each to clear its bit */
+	while (count++ < 100000 && (stopped_cpus & map) != 0)
 		/* spin */ ;
+
+#ifdef DIAGNOSTIC
+	if ((stopped_cpus & map) != 0)
+		printf("Warning: CPUs 0x%x did not restart!\n",
+		    (~(stopped_cpus & map)) & map);
+#endif
 
 	return 1;
 }
