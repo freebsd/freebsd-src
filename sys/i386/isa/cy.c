@@ -27,11 +27,10 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.27 1995/12/10 20:34:27 bde Exp $
+ *	$Id: cy.c,v 1.28 1995/12/10 20:54:29 bde Exp $
  */
 
 #include "cy.h"
-#if NCY > 0
 /*
  * TODO:
  * Check that cy16's work.
@@ -85,6 +84,9 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
 
 #include <machine/clock.h>
 
@@ -114,7 +116,6 @@
 #define	comdefaultrate	cydefaultrate
 #define	com_events	cy_events
 #define	comhardclose	cyhardclose
-#define	commajor	cymajor
 #define	commctl		cymctl
 #define	comparam	cyparam
 #define	comspeed	cyspeed
@@ -229,9 +230,7 @@ struct com_s {
 	bool_t  active_out;	/* nonzero if the callout device is open */
 #if 0
 	u_char	cfcr_image;	/* copy of value written to CFCR */
-	u_char	ftl;		/* current rx fifo trigger level */
-	u_char	ftl_init;	/* ftl_max for next open() */
-	u_char	ftl_max;	/* maximum ftl for curent open() */
+	u_char	fifo_image;	/* copy of value written to FIFO */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
 	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
 #endif
@@ -300,6 +299,8 @@ struct com_s {
 	u_char	cor[3];		/* CD1400 COR1-3 shadows */
 	u_char	intr_enable;	/* CD1400 SRER shadow */
 
+	struct kern_devconf kdc;
+
 	/*
 	 * Ping-pong input buffers.  The extra factor of 2 in the sizes is
 	 * to allow for an error byte for each input byte.
@@ -314,12 +315,14 @@ struct com_s {
 	 */
 	u_char	obuf1[256];
 	u_char	obuf2[256];
-
 #ifdef DEVFS
-	void *devfs_token; /* one for now */
+	void	*devfs_token_ttyd;
+	void	*devfs_token_ttyl;
+	void	*devfs_token_ttyi;
+	void	*devfs_token_cuaa;
+	void	*devfs_token_cual;
+	void	*devfs_token_cuai;
 #endif
-
-	struct kern_devconf kdc;
 };
 
 /*
@@ -356,43 +359,45 @@ static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 void	cystatus	__P((int unit));
 #endif
 
+static char driver_name[] = "cy";
+
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
 
 static  struct timeval	intr_timestamp;
 
-static	d_open_t	cyopen;
-static	d_close_t	cyclose;
-static	d_read_t	cyread;
-static	d_write_t	cywrite;
-static	d_ioctl_t	cyioctl;
-static	d_stop_t	cystop;
-static	d_devtotty_t	cydevtotty;
+struct isa_driver	siodriver = {
+	sioprobe, sioattach, driver_name
+};
+
+static	d_open_t	sioopen;
+static	d_close_t	sioclose;
+static	d_read_t	sioread;
+static	d_write_t	siowrite;
+static	d_ioctl_t	sioioctl;
+static	d_stop_t	siostop;
+static	d_devtotty_t	siodevtotty;
 
 #define CDEV_MAJOR 48
-static struct cdevsw cy_cdevsw = 
-	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
-	  cyioctl,	cystop,		noreset,	cydevtotty,/*cyclades*/
-	  ttselect,	nommap,		NULL, "cy",	NULL,	-1 };
-
-
-struct isa_driver	siodriver = {
-	sioprobe, sioattach, "cy"
+static struct cdevsw sio_cdevsw = {
+	sioopen,	sioclose,	sioread,	siowrite,
+	sioioctl,	siostop,	noreset,	siodevtotty,
+	ttselect,	nommap,		NULL,		driver_name,
+	NULL,		-1,
 };
 
 static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
-static	int	commajor;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 #if 0 /* XXX */
 static struct tty	*sio_tty[NSIO];
 #else
 static struct tty	sio_tty[NSIO];
-static	int	nsio_tty = NSIO;
 #endif
+static	const int	nsio_tty = NSIO;
 
 #ifdef KGDB
 #include <machine/remote-sl.h>
@@ -415,10 +420,7 @@ static	int	cy_nr_cd1400s[NCY];
 #undef	RxFifoThreshold
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-
+static	char	chardev[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 static struct kern_devconf kdc_sio[NCY] = { {
 	0, 0, 0,		/* filled in by dev_attach */
 	"cyc", 0, { MDDT_ISA, 0, "tty" },
@@ -513,12 +515,13 @@ static int
 sioattach(isdp)
 	struct isa_device	*isdp;
 {
-	int	cyu;
-	cy_addr	cy_iobase;
-	cy_addr	iobase;
-	int	ncyu;
-	int	unit;
-	char name [32];
+	int		cyu;
+	cy_addr		cy_iobase;
+	dev_t		dev;
+	cy_addr		iobase;
+	char		name [32];
+	int		ncyu;
+	int		unit;
 
 	unit = isdp->id_unit;
 	if ((u_int)unit >= NCY)
@@ -579,7 +582,7 @@ sioattach(isdp)
 	com->it_out = com->it_in;
 
 			com->kdc = kdc_sio[0];
-			com->kdc.kdc_name = "cy";
+			com->kdc.kdc_name = driver_name;
 			com->kdc.kdc_unit = unit;
 			com->kdc.kdc_isa = isdp;
 			com->kdc.kdc_parent = &kdc_sio[isdp->id_unit];
@@ -592,12 +595,29 @@ sioattach(isdp)
 	s = spltty();
 	com_addr(unit) = com;
 	splx(s);
+
+	dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev, &sio_cdevsw, NULL);
 #ifdef DEVFS
-/* XXX */ /* Fix this when you work out what the f*ck it looks like */
-			sprintf(name, "cy%d", unit);
-			com->devfs_token =
-				devfs_add_devsw( "/", name, &cy_cdevsw, unit,
-						DV_CHR, 0,  0, 0600);
+		/* path, name, devsw, minor, type, uid, gid, perm */
+	sprintf(name, "ttyc%c", chardev[unit]);
+	com->devfs_token_ttyd = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit, DV_CHR, 0, 0, 0600);
+	sprintf(name, "ttyic%c", chardev[unit]);
+	com->devfs_token_ttyi = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0600);
+	sprintf(name, "ttylc%c", chardev[unit]);
+	com->devfs_token_ttyl = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0600);
+	sprintf(name, "cuac%c", chardev[unit]);
+	com->devfs_token_cuaa = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CALLOUT_MASK, DV_CHR, 0, 0, 0660);
+	sprintf(name, "cuaic%c", chardev[unit]);
+	com->devfs_token_cuai = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0660);
+	sprintf(name, "cualc%c", chardev[unit]);
+	com->devfs_token_cual = devfs_add_devsw("/", name, &sio_cdevsw,
+		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0660);
 #endif
 		}
 	}
@@ -688,7 +708,6 @@ open_top:
 				? com->it_out : com->it_in;
 #if 0
 		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
-		com->ftl_max = com->ftl_init;
 		com->poll = com->no_irq;
 		com->poll_output = com->loses_outints;
 #endif
@@ -741,7 +760,7 @@ open_top:
 			while (TRUE) {
 				outb(iobase + com_fifo,
 				     FIFO_RCV_RST | FIFO_XMT_RST
-				     | FIFO_ENABLE | com->ftl);
+				     | com->fifo_image);
 				DELAY(100);
 				if (!(inb(com->line_status_port) & LSR_RXRDY))
 					break;
@@ -866,7 +885,7 @@ comhardclose(com)
 
 #ifdef KGDB
 	/* do not disable interrupts or hang up if debugging */
-	if (kgdb_dev != makedev(commajor, unit))
+	if (kgdb_dev != makedev(CDEV_MAJOR, unit))
 #endif
 	{
 #if 0
@@ -903,6 +922,16 @@ comhardclose(com)
 			}
 		}
 	}
+#if 0
+	if (com->hasfifo) {
+		/*
+		 * Disable fifos so that they are off after controlled
+		 * reboots.  Some BIOSes fail to detect 16550s when the
+		 * fifos are enabled.
+		 */
+		outb(iobase + com_fifo, 0);
+	}
+#endif
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
@@ -2121,7 +2150,7 @@ comstart(tp)
 #endif
 #if 0
 	disable_intr();
-	if (com->state >= (CS_BUSY | CS_TTGO)) {
+	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);	/* fake interrupt to start output */
 	enable_intr();
 #endif
@@ -2156,7 +2185,7 @@ siostop(tp, rw)
 	/* XXX should clear h/w fifos too. */
 }
 
-struct tty *
+static struct tty *
 siodevtotty(dev)
 	dev_t	dev;
 {
@@ -2321,30 +2350,6 @@ comwakeup(chan)
 			log(LOG_ERR, "cy%d: %u more %s%s (total %lu)\n",
 			    unit, delta, error_desc[errnum],
 			    delta == 1 ? "" : "s", total);
-#if 0
-			/*
-			 * XXX if we resurrect this then we should move
-			 * the dropping of the ftl to somewhere with less
-			 * latency.
-			 */
-			if (errnum == CE_OVERRUN && com->hasfifo
-			    && com->ftl > FIFO_TRIGGER_1) {
-				static	u_char	ftl_in_bytes[] =
-					{ 1, 4, 8, 14, };
-
-				com->ftl_init = FIFO_TRIGGER_8;
-#define	FIFO_TRIGGER_DELTA	FIFO_TRIGGER_4
-				com->ftl_max =
-				com->ftl -= FIFO_TRIGGER_DELTA;
-				outb(com->iobase + com_fifo,
-				     FIFO_ENABLE | com->ftl);
-				log(LOG_DEBUG,
-				    "sio%d: reduced fifo trigger level to %d\n",
-				    unit,
-				    ftl_in_bytes[com->ftl
-						 / FIFO_TRIGGER_DELTA]);
-			}
-#endif
 		}
 	}
 }
@@ -2541,23 +2546,3 @@ cystatus(unit)
 		printf("tty state:\t\t\tclosed\n");
 }
 #endif /* CyDebug */
-
-
-
-static cy_devsw_installed = 0;
-
-static void 
-cy_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! cy_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&cy_cdevsw, NULL);
-		cy_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(cydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cy_drvinit,NULL)
-
-#endif /* NCY > 0 */
