@@ -2254,11 +2254,7 @@ test_char:
 		break;
 	    case '#':
 		if (!ignComment) {
-		    if (
-#if 0
-		    compatMake &&
-#endif
-		    (lastc != '\\')) {
+		    if (lastc != '\\') {
 			/*
 			 * If the character is a hash mark and it isn't escaped
 			 * (or we're being compatible), the thing is a comment.
