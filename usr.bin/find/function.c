@@ -393,7 +393,6 @@ f_execdir(plan, entry)
 	register PLAN *plan;
 	FTSENT *entry;
 {
-	extern int dotfd;
 	register int cnt;
 	pid_t pid;
 	int status;
@@ -1248,6 +1247,7 @@ f_expr(plan, entry)
 	register PLAN *p;
 	register int state;
 
+	state = 0;
 	for (p = plan->p_data[0];
 	    p && (state = (p->eval)(p, entry)); p = p->next);
 	return (state);
@@ -1283,6 +1283,7 @@ f_not(plan, entry)
 	register PLAN *p;
 	register int state;
 
+	state = 0;
 	for (p = plan->p_data[0];
 	    p && (state = (p->eval)(p, entry)); p = p->next);
 	return (!state);
@@ -1308,6 +1309,7 @@ f_or(plan, entry)
 	register PLAN *p;
 	register int state;
 
+	state = 0;
 	for (p = plan->p_data[0];
 	    p && (state = (p->eval)(p, entry)); p = p->next);
 
