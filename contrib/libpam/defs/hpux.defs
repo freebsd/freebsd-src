@@ -1,0 +1,36 @@
+##
+#  HPUX defs contributed by Derrick J Brashear <shadow@dementia.org>
+##
+# this file indicates the compiler and the various hardware/OS dependent
+# flags for installation. It also defines the various destinations of
+# installed files on the system.
+#
+# This file is the default version. Please look in .../defs/ for your
+# preferred OS/vendor.
+
+OS=hpux9
+ARCH=hpux
+CC=gcc
+INSTALL=install
+MKDIR=mkdir -p
+CFLAGS=-g -DPAM_SHL -DHAVE_UTMP_H
+ULIBS=
+LD=ld                                      
+LD_D=$(LD) -b
+LD_L=$(LD) -b
+USESONAME=no
+NEEDSONAME=no
+LDCONFIG=:
+AR=ar -cr
+RANLIB=ranlib
+FAKEROOT=
+PREFIX=/usr
+SUPLEMENTED=$(PREFIX)/sbin
+LIBDIR=$(PREFIX)/lib
+SECUREDIR=$(LIBDIR)/security
+INCLUDED=/usr/include/security
+CONFIGED=/etc
+SCONFIGED=/etc/security
+DYNLOAD="dld"
+DYNTYPE="sl"
+SHLIBMODE=755

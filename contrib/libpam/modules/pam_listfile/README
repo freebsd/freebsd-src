@@ -1,0 +1,25 @@
+SUMMARY:
+  pam_listfile:
+	Checks a specified item against a list in a file.
+	Options:
+		* item=[tty|user|rhost|ruser|group|shell]
+		* sense=[allow|deny] (action to take if found in file,
+			if the item is NOT found in the file, then
+			the opposite action is requested)
+		* file=/the/file/to/get/the/list/from
+		* onerr=[succeed|fail] (if something weird happens
+			such as unable to open the file, what to do?)
+		* apply=[user|@group]
+			restrict the user class for which the restriction
+			apply. Note that with item=[user|ruser|group] this
+			does not make sense, but for item=[tty|rhost|shell]
+			it have a meaning. (Cristian Gafton)
+
+	Also checks to make sure that the list file is a plain
+	file and not world writable.
+
+	- Elliot Lee <sopwith@redhat.com>, Red Hat Software.
+		v0.9 August 16, 1996.
+
+BUGS:
+  Bugs?

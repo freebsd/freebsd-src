@@ -1,0 +1,117 @@
+<!--
+   $Id: pam_radius.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   
+   This file was written by Cristian Gafton <gafton@redhat.com>
+-->
+
+<sect1>The RADIUS session module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_radius/
+
+<tag><bf>Author:</bf></tag>
+Cristian Gafton &lt;gafton@redhat.com&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Author.
+
+<tag><bf>Management groups provided:</bf></tag>
+session
+
+<tag><bf>Cryptographically sensitive:</bf></tag> 
+This module does not deal with passwords
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+gcc reports 1 warning when compiling <tt>/usr/include/rpc/clnt.h</tt>.
+Hey, is not my fault !
+
+<tag><bf>System dependencies:</bf></tag>
+
+<tag><bf>Network aware:</bf></tag>
+
+yes; this is a network module (independent of application).
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+This module is intended to provide the session service for users
+autheticated with a RADIUS server.  At the present stage, the only
+option supported is the use of the RADIUS server as an accounting
+server.
+
+<sect2>Session component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+
+<tt/debug/ - verbose logging to <tt/syslog(3)/.
+
+<tag><bf>Description:</bf></tag>
+
+This module is intended to provide the session service for users
+autheticated with a RADIUS server. At the present stage, the only
+option supported is the use of the RADIUS server as an <em/accounting/
+server.  
+
+<p>
+(There are few things which needs to be cleared out first in
+the PAM project until one will be able to use this module and expect
+it to magically start pppd in response to a RADIUS server command to
+use PPP for this user, or to initiate a telnet connection to another
+host, or to hang and call back the user using parameters provided in
+the RADIUS server response. Most of these things are better suited for
+the radius login application. I hope to make available Real Soon (tm)
+patches for the login apps to make it work this way.)
+
+<p>
+When opening a session, this module sends an ``Accounting-Start''
+message to the RADIUS server, which will log/update/whatever a
+database for this user. On close, an ``Accounting-Stop'' message is
+sent to the RADIUS server.
+
+<p>
+This module has no other prerequisites for making it work.  One can
+install a RADIUS server just for fun and use it as a centralized
+accounting server and forget about wtmp/last/sac etc. .
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+For the services that need this module (<em/login/ for example) put
+the following line in <tt>/etc/pam.conf</tt> as the last line for that
+service (usually after the pam_unix session line):
+<tscreen>
+<verb>
+login	session	 required	pam_radius.so
+</verb>
+</tscreen>
+Replace <tt/login/ for each service you are using this module.
+
+<p>
+This module make extensive use of the API provided in libpwdb
+0.54preB or later. By default, it will read the radius server
+configuration (hostname and secret) from <tt>/etc/raddb/server</tt>.
+This is a default compiled into libpwdb, and curently there is no way to
+modify this default without recompiling libpwdb. I am working on
+extending the radius support from libpwdb to provide a possibility
+to make this runtime-configurable.
+
+Also please note that libpwdb will require also the RADIUS
+dictionary to be present (<tt>/etc/raddb/dictionary</tt>).
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->
+

@@ -1,0 +1,34 @@
+$Id: TODO,v 1.3 1996/11/10 21:03:21 morgan Exp $
+
+	* get NIS working
+	* .. including "nonis" argument
+	* add helper binary
+
+Wed Sep  4 23:40:09 PDT 1996    Andrew G. Morgan
+
+	* verify that it works for everyone
+	* look more seriously at the issue of generating a shadow
+	  system on the fly
+	* add some more password flavors
+
+Thu Aug 29 06:26:42 PDT 1996	Andrew G. Morgan
+
+	* check that complete rewrite works! ;^)
+	* complete shadow support to the password changing code.
+	  Also some code needed here for session managment?
+	  (both pam.conf argument to turn it on/off, and some
+	  conditional compilation.)
+	* md5 passwords...
+	* make the exclusive nature of the arguments work. That is,
+	  only recognize the flags when appropriate.
+
+Wed May  8 19:08:49 EDT 1996	Alexander O. Yuriev
+
+	* support.c should go.
+
+Tue Apr 23 21:43:55 EDT 1996	Alexander O. Yuriev
+	
+	* pam_sm_chauth_tok() should be written
+	* QUICK FIX: pam_sm_setcred() probably returns incorrect error code
+
+

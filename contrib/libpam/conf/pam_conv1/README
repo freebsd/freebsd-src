@@ -1,0 +1,10 @@
+$Id: README,v 1.1 1997/02/15 15:50:50 morgan Exp $
+
+This directory contains a untility to convert pam.conf files to a pam.d/
+tree. The conversion program takes pam.conf from the standard input and
+creates the pam.d/ directory in the current directory.
+
+The program will fail if ./pam.d/ already exists.
+
+Andrew Morgan, February 1997
+

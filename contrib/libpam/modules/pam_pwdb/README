@@ -1,0 +1,41 @@
+This is the pam_unix module. It has been significantly rewritten since
+.51 was released (due mostly to the efforts of Cristian Gafton), and
+now takes more options and correctly updates vanilla UNIX/shadow/md5
+passwords.
+
+[Please read the source and make a note of all the warnings there, as
+the license suggests -- use at your own risk.]
+
+So far as I am concerned this module is now pretty stable. If you find
+any bugs, PLEASE tell me! <morgan@parc.power.net>
+
+Options recognized by this module are as follows:
+
+	debug		-	log more debugging info
+	audit		-	a little more extreme than debug
+	use_first_pass	-	don't prompt the user for passwords
+				take them from PAM_ items instead
+	try_first_pass  -	don't prompt the user for the passwords
+				unless PAM_(OLD)AUTHTOK is unset
+	use_authtok	-	like try_first_pass, but *fail* if the new
+				PAM_AUTHTOK has not been previously set.
+				(intended for stacking password modules only)
+	not_set_pass    -	don't set the PAM_ items with the passwords
+				used by this module.
+	shadow          -       try to maintian a shadow based system.
+	unix		-	when changing passwords, they are placed
+				in the /etc/passwd file
+	md5		-	when a user changes their password next,
+				encrypt it with the md5 algorithm.
+	bigcrypt	-	when a user changes their password next,
+				excrypt it with the DEC C2-algorithm(0).
+	nodelay		-	used to prevent failed authentication
+				resulting in a delay of about 1 second.
+
+There is some support for building a shadow file on-the-fly from an
+/etc/passwd file. This is VERY alpha. If you want to play with it you
+should read the source to find the appropriate #define that you will
+need.
+
+---------------------
+Andrew Morgan <morgan@parc.power.net>

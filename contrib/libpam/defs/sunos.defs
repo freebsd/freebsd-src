@@ -1,0 +1,37 @@
+##
+#  SunOS defs contributed by Derrick J Brashear <shadow@dementia.org>
+##
+# this file indicates the compiler and the various hardware/OS dependent
+# flags for installation. It also defines the various destinations of
+# installed files on the system.
+#
+# This file is the SunOS version. Please look in .../defs/ for your
+# preferred OS/vendor.
+
+OS=sunos
+ARCH=sun
+CC=gcc
+INSTALL=install
+MKDIR=mkdir -p
+CFLAGS=-O2 -pipe -g -D__EXTENSIONS__
+ULIBS=
+LD_D=gcc -shared -Xlinker -x  
+LD=ld                                      
+LD_L=$(LD)
+USESONAME=no
+NEEDSONAME=yes
+LDCONFIG=/usr/etc/ldconfig
+AR=ar cr
+RANLIB=ranlib
+FAKEROOT=
+PREFIX=/usr
+SUPLEMENTED=$(PREFIX)/sbin
+LIBDIR=$(PREFIX)/lib
+SECUREDIR=$(LIBDIR)/security
+INCLUDED=/usr/include/security
+CONFIGED=/etc
+SCONFIGED=/etc/security
+WARNINGS= -ansi -Wall -Wwrite-strings \
+        -Wpointer-arith -Wcast-qual -Wcast-align \
+        -Wtraditional -Wstrict-prototypes -Wmissing-prototypes \
+        -Wnested-externs -Winline -Wshadow

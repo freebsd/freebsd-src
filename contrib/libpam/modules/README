@@ -1,0 +1,55 @@
+This directory contains the modules.
+
+If you want to reserve a module name please email <pam-list@redhat.com>
+and announce its name. Andrew Morgan, <morgan@parc.power.net>, will
+add it to the Makefile in the next release of Linux-PAM.
+
+As of Linux-PAM-0.40 modules can optionally conform to the static
+modules conventions.
+
+This file was updated for Linux-PAM-0.53.
+
+The conventions are as follows:
+
+There are only 6 functions that a module may declare as "public" they
+fall into 4 managment groups as follows:
+
+	functions					Management group
+	------------------------------------------	----------------
+	pam_sm_authenticate, pam_sm_setcred,		PAM_SM_AUTH
+	pam_sm_acct_mgmt,				PAM_SM_ACCOUNT
+	pam_sm_open_session, pam_sm_close_session,	PAM_SM_SESSION
+	pam_sm_chauthtok				PAM_SM_PASSWORD
+
+If a module contains definitions for any of the above functions, it
+must supply definitions for all of the functions in the corresponding
+management group.
+
+The header file that defines the ANSI prototypes for these functions
+is <security/pam_modules.h> . In the case that the module wishes to
+offer the functions of a given managment group, it must #define
+PAM_SM_XXX, where XXX is one of the above four tokens. These
+definitions must occur *prior* to the 
+#include <security/pam_modules.h> line.
+
+The pam_sm_... functions should be defined to be of type 'PAM_EXTERN int'.
+
+In the case that a module is being compiled with PAM_STATIC #define'd
+it should also define a globally accessible structure
+_"NAME"_modstruct containing references to each of the functions
+defined by the module. (this structure is defined in
+<security/pam_modules.h>.  "NAME" is the title of the module
+(eg. "pam_deny")
+
+If a module wants to be included in the static libpam.a its Makefile
+should execute "register_static" with appropriate arguments (in this
+directory).
+
+[
+For SIMPLE working examples, see
+
+	./modules/pam_deny/* and ./modules/pam_rootok/* 
+.]
+
+Andrew Morgan
+96/11/10

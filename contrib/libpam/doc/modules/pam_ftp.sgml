@@ -1,0 +1,93 @@
+<!--
+   $Id: pam_ftp.sgml,v 1.1 1996/11/30 20:59:32 morgan Exp $
+   
+   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+-->
+
+<sect1>Anonymous access module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_ftp.so/
+
+<tag><bf>Author:</bf></tag>
+Andrew G. Morgan &lt;morgan@parc.power.net&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Author.
+
+<tag><bf>Management groups provided:</bf></tag>
+authentication
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+
+<tag><bf>Network aware:</bf></tag>
+prompts for email address of user; easily spoofed (XXX - needs work)
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+The purpose of this module is to provide a pluggable anonymous ftp
+mode of access.
+
+<sect2>Authentication component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt/debug/;
+<tt/users=XXX,YYY,.../;
+<tt/ignore/
+
+<tag><bf>Description:</bf></tag>
+
+This module intercepts the user's name and password. If the name is
+``<tt/ftp/'' or ``<tt/anonymous/'', the user's password is broken up
+at the `<tt/@/' delimiter into a <tt/PAM_RUSER/ and a <tt/PAM_RHOST/
+part; these pam-items being set accordingly. The username is set to
+``<tt/ftp/''.  In this case the module succeeds.  Alternatively, the
+module sets the <tt/PAM_AUTHTOK/ item with the entered password and
+fails.
+
+<p>
+The behavior of the module can be modified with the following flags:
+<itemize>
+<item><tt/debug/ -
+log more information to with <tt/syslog(3)/.
+
+<item><tt/users=XXX,YYY,.../ - 
+instead of ``<tt/ftp/'' or ``<tt/anonymous/'', provide anonymous login
+to the comma separated list of users; ``<tt/XXX,YYY,.../''. Should the
+applicant enter one of these usernames the returned username is set to
+the first in the list; ``<tt/XXX/''.
+
+<item><tt/ignore/ -
+pay no attention to the email address of the user (if supplied).
+
+</itemize>
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+An example of the use of this module is provided in the configuration
+file section <ref id="configuration" name="above">. With care, this
+module could be used to provide new/temporary account anonymous
+login.
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->
