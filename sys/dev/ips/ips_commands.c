@@ -248,7 +248,7 @@ static int ips_send_adapter_info_cmd(ips_command_t *command)
 			ips_adapter_info_callback, command, BUS_DMA_NOWAIT);
 
 	if ((status->value == IPS_ERROR_STATUS) ||
-	    (sema_timedwait(&command->cmd_sema, 30*hz) == 0))
+	    (sema_timedwait(&command->cmd_sema, 30*hz) != 0))
 		error = ETIMEDOUT;
 
 	if (error == 0) {
@@ -352,7 +352,7 @@ static int ips_send_drive_info_cmd(ips_command_t *command)
 			command->data_buffer,IPS_DRIVE_INFO_LEN, 
 			ips_drive_info_callback, command, BUS_DMA_NOWAIT);
 	if ((status->value == IPS_ERROR_STATUS) ||
-	    (sema_timedwait(&command->cmd_sema, 10*hz) == 0))
+	    (sema_timedwait(&command->cmd_sema, 10*hz) != 0))
 		error = ETIMEDOUT;
 
 	if (error == 0) {
@@ -606,7 +606,7 @@ static int ips_read_nvram(ips_command_t *command){
 			command->data_buffer,IPS_NVRAM_PAGE_SIZE, 
 			ips_read_nvram_callback, command, BUS_DMA_NOWAIT);
 	if ((status->value == IPS_ERROR_STATUS) ||
-	    (sema_timedwait(&command->cmd_sema, 30*hz) == 0))
+	    (sema_timedwait(&command->cmd_sema, 30*hz) != 0))
 		error = ETIMEDOUT;
 
 	if (error == 0) {
