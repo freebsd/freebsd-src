@@ -411,7 +411,8 @@ pfs_lookup(struct vop_lookup_args *va)
 		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
 		cnp->cn_flags &= ~PDIRUNLOCK;
 	}
-	if (!lockparent || !(cnp->cn_flags & ISLASTCN))
+	if (!((lockparent && (cnp->cn_flags & ISLASTCN)) ||
+	    (cnp->cn_flags & ISDOTDOT)))
 		VOP_UNLOCK(vn, 0, cnp->cn_thread);
 
 	/*
