@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.19 1999/01/17 01:22:54 billf Exp $";
+	"$Id: main.c,v 1.20 1999/01/18 03:54:17 billf Exp $";
 #endif
 
 /*
@@ -63,7 +63,7 @@ main(int argc, char **argv)
 
     char *remotepkg = NULL, *ptr;
     static char binformat[1024];
-    static char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/";
+    static char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/";
 
     start = argv;
     while ((ch = getopt(argc, argv, Options)) != -1) {
@@ -191,12 +191,12 @@ getpackagesite(char binform[1024])
     reldate = getosreldate();
 
     if (reldate == 300005)
-  	return "packages-3.0/Latest/";
+  	return "i386/packages-3.0/";
     else if (30004 > reldate && reldate >= 300000)
-	return "packages-current-aout/Latest/" ;
+	return "i386/packages-3.0-aout/Latest/" ;
     else if (30004 < reldate) 
-	return !strcmp(binform, "elf") ? "packages-current/Latest/" :
-		"packages-current-aout/Latest";
+	return !strcmp(binform, "elf") ? "i386/packages-3-stable/Latest/" :
+		"i386/packages-3.0-aout/Latest/";
 
     return(0);
 
