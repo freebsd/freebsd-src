@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.17 1996/10/09 19:47:26 bde Exp $
+ *	$Id: clock.h,v 1.18 1996/10/10 10:25:26 bde Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -52,9 +52,6 @@
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
-extern int	statclock_disable;
-extern int	wall_cmos_clock;
-
 #if defined(I586_CPU) || defined(I686_CPU)
 extern u_int	i586_ctr_bias;
 extern u_int	i586_ctr_comultiplier;
@@ -63,10 +60,12 @@ extern u_int	i586_ctr_multiplier;
 extern long long i586_last_tick;
 extern unsigned long i586_avg_tick;
 #endif
-extern int 	timer0_max_count;
-extern u_int 	timer0_overflow_threshold;
-extern u_int 	timer0_prescaler_count;
-
+extern int	statclock_disable;
+extern u_int	timer_freq;
+extern int	timer0_max_count;
+extern u_int	timer0_overflow_threshold;
+extern u_int	timer0_prescaler_count;
+extern int	wall_cmos_clock;
 
 #if defined(I586_CPU) || defined(I686_CPU)
 static __inline u_long 
