@@ -593,7 +593,7 @@ single_user()
 		 */
 		typ = getttynam("console");
 		pp = getpwnam("root");
-		if (typ && (typ->ty_status & TTY_SECURE) == 0 && pp) {
+		if (typ && (typ->ty_status & TTY_SECURE) == 0 && pp && *pp->pw_passwd) {
 			write(2, banner, sizeof banner - 1);
 			for (;;) {
 				clear = getpass("Password:");
