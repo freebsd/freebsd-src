@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.56 1995/01/31 06:34:53 amurai Exp $
+ *	$Id: conf.c,v 1.57 1995/02/05 11:29:38 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -751,6 +751,24 @@ d_select_t tunselect;
 #define tunselect       (d_select_t *)enxio
 #endif
 
+#include "spigot.h"     
+#if     NSPIGOT > 0     
+d_open_t        spigot_open;
+d_close_t       spigot_close;
+d_ioctl_t       spigot_ioctl;
+d_rdwr_t        spigot_read, spigot_write;
+d_select_t      spigot_select;
+d_mmap_t        spigot_mmap;
+#else
+#define spigot_open     (d_open_t *)enxio     
+#define spigot_close    (d_close_t *)enxio     
+#define spigot_ioctl    (d_ioctl_t *)enxio     
+#define spigot_read     (d_rdwr_t *)enxio     
+#define spigot_write    (d_rdwr_t *)enxio     
+#define spigot_select   seltrue     
+#define spigot_mmap     nommap
+#endif
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -787,9 +805,9 @@ struct cdevsw	cdevsw[] =
 	{ wtopen,	wtclose,	rawread,	rawwrite,	/*10*/
 	  wtioctl,	nostop,		nullreset,	NULL,	/* wt */
 	  seltrue,	nommap,		wtstrategy },
-	{ noopen,	noclose,	noread,		nowrite,	/*11*/
-	  noioc,	nostop,		nullreset,	NULL,
-	  seltrue,	nommap,		nostrat },
+	{ spigot_open,	spigot_close,	spigot_read,	spigot_write,	/*11*/
+	  spigot_ioctl,	nostop,		nullreset,	NULL,	/* Spigot */
+	  spigot_select, spigot_mmap,	NULL },
 	{ scopen,	scclose,	scread,		scwrite,	/*12*/
 	  scioctl,	nullstop,	nullreset,	sccons, /* sc */
 	  ttselect,	scmmap,		NULL },
