@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: parse.y,v 1.7 1997/02/22 19:54:31 peter Exp $
  */
 
 #include <err.h>
@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sysexits.h>
 #include "collate.h"
 
