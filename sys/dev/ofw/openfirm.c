@@ -57,22 +57,43 @@
  * $FreeBSD$
  */
 
+#include <sys/systm.h>
+
 #include <machine/stdarg.h>
 
-#include <stand.h>
+#include <dev/ofw/openfirm.h>
 
-#include "openfirm.h"
-
-static int (*openfirmware)(void *);
 static ihandle_t stdin;
 static ihandle_t stdout;
+
+char	*OF_buf;
+
+void	ofbcopy(const void *, void *, size_t);
 
 /* Initialiaser */
 
 void
 OF_init(int (*openfirm)(void *))
 {
-	openfirmware = openfirm;
+	phandle_t	chosen;
+
+	set_openfirm_callback(openfirm);
+	if ((chosen = OF_finddevice("/chosen")) == -1)
+		OF_exit();
+	OF_getprop(chosen, "stdin", &stdin, sizeof(stdin));
+	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+}
+
+void
+OF_printf(const char *fmt, ...)
+{
+	va_list	va;
+	char	buf[1024];
+
+	va_start(va, fmt);
+	vsprintf(buf, fmt, va);
+	OF_write(stdout, buf, strlen(buf));
+	va_end(va);
 }
 
 /*
@@ -734,7 +755,8 @@ OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 }
 #else
 void
-OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
+OF_chain(void *virt, u_int size,
+    void (*entry)(void *, u_int, void *, void *, u_int), void *arg, u_int len)
 {
 	/*
 	 * This is a REALLY dirty hack till the firmware gets this going
@@ -745,3 +767,16 @@ OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 	entry(0, 0, openfirmware, arg, len);
 }
 #endif
+
+void
+ofbcopy(const void *src, void *dst, size_t len)
+{
+	const char *sp = src;
+	char *dp = dst;
+
+	if (src == dst)
+		return;
+
+	while (len-- > 0)
+		*dp++ = *sp++;
+}
