@@ -674,7 +674,7 @@ uscannerpoll(dev_t dev, int events, usb_proc_ptr p)
 }
 
 int
-uscannerioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+uscannerioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 {
 	return (EINVAL);
 }
