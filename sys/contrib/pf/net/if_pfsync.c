@@ -1662,6 +1662,6 @@ static moduledata_t pfsync_mod = {
 
 #define PFSYNC_MODVER 1
 
-DECLARE_MODULE(pfsync, pfsync_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(pfsync, pfsync_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(pfsync, PFSYNC_MODVER);
 #endif /* __FreeBSD__ */
