@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -605,7 +605,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	struct componentname *cnp = &ndp->ni_cnd;
 
 	*retdirp = (struct vnode *)0;
-	cnp->cn_pnbuf = zalloc(namei_zone);
+	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 
 	/*
 	 * Copy the name from the mbuf list to ndp->ni_pnbuf
@@ -670,7 +670,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		 * Oh joy. For WebNFS, handle those pesky '%' escapes,
 		 * and the 'native path' indicator.
 		 */
-		cp = zalloc(namei_zone);
+		cp = uma_zalloc(namei_zone, M_WAITOK);
 		fromcp = cnp->cn_pnbuf;
 		tocp = cp;
 		if ((unsigned char)*fromcp >= WEBNFS_SPECCHAR_START) {
@@ -688,7 +688,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 			 */
 			default:
 				error = EIO;
-				zfree(namei_zone, cp);
+				uma_zfree(namei_zone, cp);
 				goto out;
 			}
 		}
@@ -704,14 +704,14 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 					continue;
 				} else {
 					error = ENOENT;
-					zfree(namei_zone, cp);
+					uma_zfree(namei_zone, cp);
 					goto out;
 				}
 			} else
 				*tocp++ = *fromcp++;
 		}
 		*tocp = '\0';
-		zfree(namei_zone, cnp->cn_pnbuf);
+		uma_zfree(namei_zone, cnp->cn_pnbuf);
 		cnp->cn_pnbuf = cp;
 	}
 
@@ -760,7 +760,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 			if (cnp->cn_flags & (SAVENAME | SAVESTART))
 				cnp->cn_flags |= HASBUF;
 			else
-				zfree(namei_zone, cnp->cn_pnbuf);
+				uma_zfree(namei_zone, cnp->cn_pnbuf);
 			break;
 		}
 
@@ -779,7 +779,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 			goto badlink2;
 		}
 		if (ndp->ni_pathlen > 1)
-			cp = zalloc(namei_zone);
+			cp = uma_zalloc(namei_zone, M_WAITOK);
 		else
 			cp = cnp->cn_pnbuf;
 		aiov.iov_base = cp;
@@ -795,7 +795,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		if (error) {
 		badlink1:
 			if (ndp->ni_pathlen > 1)
-				zfree(namei_zone, cp);
+				uma_zfree(namei_zone, cp);
 		badlink2:
 			vrele(ndp->ni_dvp);
 			vput(ndp->ni_vp);
@@ -816,7 +816,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		 */
 		if (ndp->ni_pathlen > 1) {
 			bcopy(ndp->ni_next, cp + linklen, ndp->ni_pathlen);
-			zfree(namei_zone, cnp->cn_pnbuf);
+			uma_zfree(namei_zone, cnp->cn_pnbuf);
 			cnp->cn_pnbuf = cp;
 		} else
 			cnp->cn_pnbuf[linklen] = '\0';
@@ -848,7 +848,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	 */
 out:
 	if (error) {
-		zfree(namei_zone, cnp->cn_pnbuf);
+		uma_zfree(namei_zone, cnp->cn_pnbuf);
 		ndp->ni_vp = NULL;
 		ndp->ni_dvp = NULL;
 		ndp->ni_startdir = NULL;
