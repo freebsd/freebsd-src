@@ -1035,7 +1035,7 @@ sub home_create {
     local($rootdir);
 
     if (-e "$homedir") {
-	warn "HOME Directory ``$homedir'' already exist\a\n";
+	warn "HOME directory ``$homedir'' already exists.\a\n";
 	return 0;
     }
 
@@ -1101,7 +1101,7 @@ sub mkdir_home {
 
 
 	if (-d $d) {
-	    warn "Oops, $d already exist\n" if $verbose;
+	    warn "Oops, $d already exists.\n" if $verbose;
 	} else {
 	    print "Create $d\n" if $verbose;
 	    if (!mkdir("$d", 0755)) {
