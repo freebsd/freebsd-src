@@ -143,6 +143,13 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>.
       &merged;</para>
 
+    <para>A possible privilege escalation vulnerability on &os;/amd64
+      has been fixed.  This allows unprivileged users to gain direct
+      access to some hardware which cannot be accessed
+      without the elevated privilege level.  More details are in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:03.amd64.asc">FreeBSD-SA-05:03.amd64</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
