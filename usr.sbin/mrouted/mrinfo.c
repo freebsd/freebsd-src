@@ -60,13 +60,14 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Id$";
+static const char rcsid[] =
+    "$Id$";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
 #endif
 
+#include <err.h>
 #include <netdb.h>
 #include <sys/time.h>
 #include "defs.h"
@@ -95,7 +96,7 @@ void			ask2 __P((u_int32 dst));
 int			get_number __P((int *var, int deflt, char ***pargv,
 					int *pargc));
 u_int32			host_addr __P((char *name));
-void			usage __P((void));
+static void		usage __P((void));
 
 /* to shut up -Wstrict-prototypes */
 int			main __P((int argc, char *argv[]));
@@ -312,11 +313,11 @@ get_number(var, deflt, pargv, pargc)
 	}
 }
 
-void
+static void
 usage()
 {
 	fprintf(stderr,
-	    "Usage: mrinfo [-n] [-t timeout] [-r retries] [router]\n");
+	    "usage: mrinfo [-n] [-t timeout] [-r retries] [router]\n");
 	exit(1);
 }
 
@@ -333,10 +334,8 @@ main(argc, argv)
 	char *host;
 	int curaddr;
 
-	if (geteuid() != 0) {
-		fprintf(stderr, "mrinfo: must be root\n");
-		exit(1);
-	}
+	if (geteuid() != 0)
+		errx(1, "must be root");
 
 	init_igmp();
 	setuid(getuid());
@@ -383,10 +382,8 @@ main(argc, argv)
 	} else
 		hp = gethostbyname(host);
 
-	if (hp == NULL || hp->h_length != sizeof(target_addr)) {
-		fprintf(stderr, "mrinfo: %s: no such host\n", argv[0]);
-		exit(1);
-	}
+	if (hp == NULL || hp->h_length != sizeof(target_addr))
+		errx(1, "%s: no such host", argv[0]);
 	if (debug)
 		fprintf(stderr, "Debug level %u\n", debug);
 
@@ -407,10 +404,8 @@ main(argc, argv)
 						 * do... */
 		if ((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0
 		|| connect(udp, (struct sockaddr *) & addr, sizeof(addr)) < 0
-		    || getsockname(udp, (struct sockaddr *) & addr, &addrlen) < 0) {
-			perror("Determining local address");
-			exit(-1);
-		}
+		|| getsockname(udp, (struct sockaddr *) & addr, &addrlen) < 0)
+			err(-1, "determining local address");
 		close(udp);
 		our_addr = addr.sin_addr.s_addr;
 	    }
@@ -455,7 +450,7 @@ main(argc, argv)
 
 		if (count < 0) {
 			if (errno != EINTR)
-				perror("select");
+				warn("select");
 			continue;
 		} else if (count == 0) {
 			log(LOG_DEBUG, 0, "Timed out receiving neighbor lists");
@@ -478,7 +473,7 @@ main(argc, argv)
 				   0, NULL, &dummy);
 		if (recvlen <= 0) {
 			if (recvlen && errno != EINTR)
-				perror("recvfrom");
+				warn("recvfrom");
 			continue;
 		}
 
@@ -517,10 +512,8 @@ main(argc, argv)
 		case DVMRP_NEIGHBORS:
 		case DVMRP_NEIGHBORS2:
 			if (src != target_addr) {
-				fprintf(stderr, "mrinfo: got reply from %s",
-					inet_fmt(src, s1));
-				fprintf(stderr, " instead of %s\n",
-					inet_fmt(target_addr, s1));
+				warnx("got reply from %s instead of %s",
+				inet_fmt(src, s1), inet_fmt(target_addr, s1));
 				/*continue;*/
 			}
 			break;
