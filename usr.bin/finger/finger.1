@@ -40,7 +40,7 @@
 .Nd user information lookup program
 .Sh SYNOPSIS
 .Nm
-.Op Fl glmpshoT
+.Op Fl 46glmpshoT
 .Op Ar user ...\&
 .Op Ar user@host ...\&
 .Sh DESCRIPTION
@@ -50,6 +50,14 @@ utility displays information about the system users.
 .Pp
 Options are:
 .Bl -tag -width flag
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
 .It Fl s
 Display the user's login name, real name, terminal name and write
 status (as a ``*'' before the terminal name if write permission is
