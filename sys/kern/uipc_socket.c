@@ -205,8 +205,8 @@ sodealloc(so)
 		if (so->so_accf->so_accept_filter_str != NULL)
 			FREE(so->so_accf->so_accept_filter_str, M_ACCF);
 		FREE(so->so_accf, M_ACCF);
-#endif /* INET */
 	}
+#endif /* INET */
 	crfree(so->so_cred);
 	zfreei(so->so_zone, so);
 }
