@@ -27,14 +27,30 @@
  */
 
 /*
- * We could actually use all 33 segments, but using only 32 means that
- * each scatter/gather map is 256 bytes in size, and thus we don't have to worry about
+ * Debugging levels:
+ *  0 - quiet, only emit warnings
+ *  1 - noisy, emit major function points and things done
+ *  2 - extremely noisy, emit trace items in loops, etc.
+ */
+#ifdef MLX_DEBUG
+#define debug(level, fmt, args...)	do { if (level <= MLX_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args); } while(0)
+#define debug_called(level)		do { if (level <= MLX_DEBUG) printf(__FUNCTION__ ": called\n"); } while(0)
+#else
+#define debug(level, fmt, args...)
+#define debug_called(level)
+#endif
+
+
+/*
+ * We could actually use all 17/33 segments, but using only 16/32 means that
+ * each scatter/gather map is 128/256 bytes in size, and thus we don't have to worry about
  * maps crossing page boundaries.
  */
-#define	MLX_NSEG	32		/* max scatter/gather segments we use */
+#define MLX_NSEG_OLD	16		/* max scatter/gather segments we use 3.x and earlier */
+#define	MLX_NSEG_NEW	32		/* max scatter/gather segments we use 4.x and later */
 #define MLX_NSLOTS	256		/* max number of command slots */
 
-#define MLX_MAXDRIVES	32
+#define MLX_MAXDRIVES	32		/* max number of system drives */
 
 /*
  * Structure describing a System Drive as attached to the controller.
@@ -90,6 +106,7 @@ struct mlx_softc
 {
     /* bus connections */
     device_t		mlx_dev;
+    dev_t		mlx_dev_t;
     struct resource	*mlx_mem;	/* mailbox interface window */
     bus_space_handle_t	mlx_bhandle;	/* bus space handle */
     bus_space_tag_t	mlx_btag;	/* bus space tag */
@@ -103,6 +120,7 @@ struct mlx_softc
     u_int32_t		mlx_sgbusaddr;	/* s/g table base address in bus space */
     bus_dma_tag_t	mlx_sg_dmat;	/* s/g buffer DMA tag */
     bus_dmamap_t	mlx_sg_dmamap;	/* map for s/g buffers */
+    int			mlx_sg_nseg;	/* max number of s/g entries */
     
     /* controller limits and features */
     struct mlx_enquiry2	*mlx_enq2;
@@ -138,15 +156,19 @@ struct mlx_softc
     struct mlx_pause	mlx_pause;	/* pending pause operation details */
 
     int			mlx_locks;	/* reentrancy avoidance */
+    int			mlx_flags;
+#define MLX_SPINUP_REPORTED	(1<<0)	/* "spinning up drives" message displayed */
 
     /* interface-specific accessor functions */
     int			mlx_iftype;	/* interface protocol */
+#define MLX_IFTYPE_2	2
 #define MLX_IFTYPE_3	3
 #define MLX_IFTYPE_4	4
 #define MLX_IFTYPE_5	5
     int			(* mlx_tryqueue)(struct mlx_softc *sc, struct mlx_command *mc);
     int			(* mlx_findcomplete)(struct mlx_softc *sc, u_int8_t *slot, u_int16_t *status);
     void		(* mlx_intaction)(struct mlx_softc *sc, int action);
+    int			(* mlx_fw_handshake)(struct mlx_softc *sc, int *error, int *param1, int *param2);
 #define MLX_INTACTION_DISABLE		0
 #define MLX_INTACTION_ENABLE		1
 };

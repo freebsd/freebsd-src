@@ -50,12 +50,6 @@
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
 
-#if 0
-#define debug(fmt, args...)	printf("%s: " fmt "\n", __FUNCTION__ , ##args)
-#else
-#define debug(fmt, args...)
-#endif
-
 static int			mlx_pci_probe(device_t dev);
 static int			mlx_pci_attach(device_t dev);
 
@@ -90,7 +84,7 @@ struct mlx_ident
     int		iftype;
     char	*desc;
 } mlx_identifiers[] = {
-/*    {0x1069, 0x0001, 0x0000, 0x0000, MLX_IFTYPE_2, "Mylex version 2 RAID interface"}, */
+    {0x1069, 0x0001, 0x0000, 0x0000, MLX_IFTYPE_2, "Mylex version 2 RAID interface"},
     {0x1069, 0x0002, 0x0000, 0x0000, MLX_IFTYPE_3, "Mylex version 3 RAID interface"},
     {0x1069, 0x0010, 0x0000, 0x0000, MLX_IFTYPE_4, "Mylex version 4 RAID interface"},
     {0x1011, 0x1065, 0x1069, 0x0020, MLX_IFTYPE_5, "Mylex version 5 RAID interface"},
@@ -102,7 +96,7 @@ mlx_pci_probe(device_t dev)
 {
     struct mlx_ident	*m;
 
-    debug("called");
+    debug_called(1);
 
     for (m = mlx_identifiers; m->vendor != 0; m++) {
 	if ((m->vendor == pci_get_vendor(dev)) &&
@@ -124,16 +118,19 @@ mlx_pci_attach(device_t dev)
     int			i, rid, error;
     u_int32_t		command;
 
-    debug("called");
+    debug_called(1);
 
     /*
      * Make sure we are going to be able to talk to this board.
      */
-    command = pci_read_config(dev, PCIR_COMMAND, 1);
+    command = pci_read_config(dev, PCIR_COMMAND, 2);
     if ((command & PCIM_CMD_MEMEN) == 0) {
 	device_printf(dev, "memory window not available\n");
 	return(ENXIO);
     }
+    /* force the busmaster enable bit on */
+    command |= PCIM_CMD_BUSMASTEREN;
+    pci_write_config(dev, PCIR_COMMAND, command, 2);
 
     /*
      * Initialise softc.
@@ -161,8 +158,17 @@ mlx_pci_attach(device_t dev)
      * Allocate the PCI register window.
      */
     
-    /* type 3 adapters have an I/O region we don't use at base 0 */
-    rid = (sc->mlx_iftype == MLX_IFTYPE_3) ? MLX_CFG_BASE1 : MLX_CFG_BASE0;
+    /* type 2/3 adapters have an I/O region we don't use at base 0 */
+    switch(sc->mlx_iftype) {
+    case MLX_IFTYPE_2:
+    case MLX_IFTYPE_3:
+	rid = MLX_CFG_BASE1;
+	break;
+    case MLX_IFTYPE_4:
+    case MLX_IFTYPE_5:
+	rid = MLX_CFG_BASE0;
+	break;
+    }
     sc->mlx_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE);
     if (sc->mlx_mem == NULL) {
 	device_printf(sc->mlx_dev, "couldn't allocate mailbox window\n");
@@ -180,7 +186,7 @@ mlx_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE, MLX_NSEG,	/* maxsize, nsegments */
+			       MAXBSIZE, MLX_NSEG_NEW,	/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       &sc->mlx_parent_dmat);
