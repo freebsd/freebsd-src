@@ -300,7 +300,9 @@ printf("errx=%d\n",error);
 
 			/* Not found, try to load it as a loadable module */
 			snprintf(filename, sizeof(filename), "ng_%s", mkp->type);
+			mtx_lock(&Giant);
 			error = linker_load_module(NULL, filename, NULL, NULL, &lf);
+			mtx_unlock(&Giant);
 			if (error != 0) {
 				FREE(msg, M_NETGRAPH_MSG);
 				goto release;
