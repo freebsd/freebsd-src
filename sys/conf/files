@@ -458,10 +458,10 @@ dev/lnc/if_lnc.c	optional lnc
 dev/lnc/if_lnc_pci.c	optional lnc pci
 dev/ncv/ncr53c500.c	optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv card
-#dev/ncv/ncr53c500_pccard.c	optional ncv pccard
+dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/nsp/nsp.c		optional nsp
 dev/nsp/nsp_pccard.c	optional nsp card
-#dev/nsp/nsp_pccard.c	optional nsp pccard
+dev/nsp/nsp_pccard.c	optional nsp pccard
 dev/mca/mca_bus.c	optional mca
 dev/mcd/mcd.c		optional mcd isa nowerror
 dev/mcd/mcd_isa.c	optional mcd isa nowerror
@@ -705,7 +705,7 @@ dev/sr/if_sr_pci.c	optional sr pci
 dev/streams/streams.c	optional streams
 dev/stg/tmc18c30.c	optional stg
 dev/stg/tmc18c30_pccard.c	optional stg card
-#dev/stg/tmc18c30_pccard.c	optional stg pccard
+dev/stg/tmc18c30_pccard.c	optional stg pccard
 dev/stg/tmc18c30_isa.c	optional stg isa
 dev/sym/sym_hipd.c	optional sym					\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
