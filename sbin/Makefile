@@ -21,6 +21,7 @@ SUBDIR=	adjkerntz \
 	fsirand \
 	ifconfig \
 	init \
+	ip6fw \
 	ipf \
 	ipfstat \
 	ipfw \
