@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.16 1995/03/01 23:29:56 davidg Exp $
+ * $Id: vm_map.c,v 1.17 1995/03/16 18:17:14 bde Exp $
  */
 
 /*
@@ -1508,7 +1508,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 				return (KERN_FAILURE);
 			}
 			if (invalidate)
-				vm_object_page_remove(object, offset, offset + size);
+				vm_object_page_remove(object, offset, offset + size, FALSE);
 			vm_object_unlock(object);
 		}
 		start += size;
@@ -1634,7 +1634,7 @@ vm_map_delete(map, start, end)
 
 		if (object == kernel_object || object == kmem_object)
 			vm_object_page_remove(object, entry->offset,
-			    entry->offset + (e - s));
+			    entry->offset + (e - s), FALSE);
 		else if (!map->is_main_map)
 			vm_object_pmap_remove(object,
 			    entry->offset,
