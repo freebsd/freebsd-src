@@ -62,7 +62,8 @@ struct pcb {
 	int     pcb_dr7;
 
 	struct	pcb_ldt *pcb_ldt;	/* per process (user) LDT */
-	struct	save87	pcb_savefpu;	/* floating point state for 287/387 */
+	union	savefpu	pcb_save;
+#define pcb_savefpu	pcb_save.sv_87
 	u_char	pcb_flags;
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 #define	PCB_DBREGS	0x02	/* process using debug registers */

@@ -47,6 +47,7 @@ extern	int	(*copyout_vector) __P((const void *kaddr, void *udaddr,
 extern	u_int	cpu_feature;
 extern	u_int	cpu_high;
 extern	u_int	cpu_id;
+extern	u_int	cpu_fxsr;
 extern	char	cpu_vendor[];
 extern	u_int	cyrix_did;
 extern	char	kstack[];
