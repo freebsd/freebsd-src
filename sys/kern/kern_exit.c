@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.49 1997/06/16 00:29:30 dyson Exp $
+ * $Id: kern_exit.c,v 1.50 1997/07/06 02:40:40 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -63,6 +63,7 @@
 #include <sys/filedesc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <sys/aio.h>
 
 #ifdef COMPAT_43
 #include <machine/reg.h>
