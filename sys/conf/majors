@@ -181,6 +181,8 @@ chrdev	name		comments
 162	digi		Digiboard
 163	gdt		ICP Vortex RAID controller
 164	src		Intel SRC RAID controller
+165	net		Network drivers <jlemon>
+166	ciss		Compaq SmartArray 5* adapter <msmith>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 253	mfs		Used by MFS
