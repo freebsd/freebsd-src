@@ -24,7 +24,12 @@
 <article>
   <articleinfo>
     <title>&os;
-    &release.next;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
     Errata</title>
 
     <corpauthor>
@@ -44,7 +49,12 @@
 
   <abstract>
     <para>This document lists errata items for &os; 
-      &release.next;,
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
       containing significant information discovered after the release.
       This information includes security advisories, as well as news
       relating to the software or documentation that could affect its
@@ -53,7 +63,12 @@
       &os;.</para>
 
     <para>This errata document for &os; 
-      &release.next;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
       will be maintained until the release of &os; 5.1-RELEASE.</para>
   </abstract>
 
@@ -62,7 +77,12 @@
 
     <para>This errata document contains <quote>late-breaking news</quote>
       about &os;
-      &release.next;.
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
@@ -147,7 +167,7 @@
       disk after changing the type of an FDISK-type partition.</para>
 
     <para>In some case, documentation (such as the FAQ or Handbook)
-      has not been updated to take into account &os; &release.current;
+      has not been updated to take into account &os; &release.prev;
       features.  Examples of areas where documentation is still
       needed include &man.gbde.8; and the new <quote>fast
       IPsec</quote> implementation.</para>
@@ -156,11 +176,11 @@
       <errorname>Device busy</errorname> errors even when the
       mount-point is not really busy.  A workaround is to keep trying
       to unmount the share until it eventually succeeds.  This bug has
-      been fixed in 5.0-CURRENT.</para>
+      been fixed in &release.current;.</para>
 
     <para>Forcefully unmounting (<command>umount -f</command>) smbfs
       shares may cause a kernel panic.  This bug has been fixed in
-      5.0-CURRENT.</para>
+      &release.current;.</para>
 
     <para>When called on a connected socket file descriptor,
       &man.fstat.2; is supposed to return the number of bytes
@@ -168,7 +188,7 @@
       <varname>struct stat</varname>. However,
       <varname>st_size</varname> is always erroneously reported as
       <literal>0</literal> on TCP sockets.  This bug has been fixed in
-      5.0-CURRENT.</para>
+      &release.current;.</para>
 
     <para>The &man.kqueue.2; <literal>EVFILT_READ</literal> filter
       erroneously indicates that <literal>0</literal> bytes are
@@ -176,23 +196,23 @@
       bytes that are actually available. The
       <literal>NOTE_LOWAT</literal> flag for
       <literal>EVFILT_READ</literal> is also broken on TCP sockets.
-      This bug has been fixed in 5.0-CURRENT.</para>
+      This bug has been fixed in &release.current;.</para>
 
-    <para>&os; 5.0-RELEASE introduced support for POSIX named semaphores
+    <para>&os; &release.prev; introduced support for POSIX named semaphores
       but the implementation contains a critical bug that causes
       &man.sem.open.3; to incorrectly handle the opening of the same
       semaphore multiple times by the same process, and that causes
       &man.sem.close.3; to crash calling programs.  This bug has been
-      fixed in 5.0-CURRENT.</para>
+      fixed in &release.current;.</para>
 
-    <para>&os; 5.0-RELEASE has a minor bug in how the permissions of
+    <para>&os; &release.prev; has a minor bug in how the permissions of
       <filename>/dev/tty</filename> are handled.  This can be
       triggered by logging in as a non-<username>root</username>,
       non-<groupname>tty</groupname> group user, and using &man.su.1;
       to switch to a second non-<username>root</username>,
       non-<groupname>tty</groupname> group user.  &man.ssh.1; will
       fail because it cannot open <filename>/dev/tty</filename>.  This
-      bug has been fixed in 5.0-CURRENT.</para>
+      bug has been fixed in &release.current;.</para>
 
     <para>&man.growfs.8; no longer works on &man.vinum.4; volumes (and
       presumably, on &man.geom.4; entities) since these subsystems no
