@@ -61,6 +61,8 @@ struct vx_softc {
     short tx_start_thresh;	/* Current TX_start_thresh.	*/
     int	tx_succ_ok;		/* # packets sent in sequence	*/
 				/* w/o underrun			*/
+    struct callout_handle ch;	/* Callout handle for timeouts  */
+    int	buffill_pending;
 };
 
 /*
