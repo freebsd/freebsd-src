@@ -53,8 +53,9 @@
 .Nm rc.local
 .Nm rc.shutdown
 .Sh DESCRIPTION
-.Nm Rc
-is the command script which controls the automatic reboot
+The
+.Nm
+utility is the command script which controls the automatic reboot
 (calling the other scripts) and
 .Nm rc.local
 is the script holding commands which are pertinent only
@@ -63,8 +64,9 @@ mechanism is used instead of rc.local these days but if
 you do want to use rc.local, /etc/rc still supports it.
 In this case, rc.local should source /etc/rc.conf and
 contain additional custom startup code for your system.
-.Nm Rc.conf
-contains the global system configuration information referenced
+The
+.Nm rc.conf
+file contains the global system configuration information referenced
 by the rc files, while
 .Nm rc.conf.local
 contains the local system configuration.
@@ -137,8 +139,9 @@ but these may be overridden with the
 .Xr rc.conf 5
 variable.
 .Pp
-.Nm Rc.shutdown
-is the command script which contains any necessary commands
+The
+.Nm rc.shutdown
+script contains any necessary commands
 to be executed as the system is shut down.
 .Pp
 When an automatic reboot is in progress,
@@ -168,18 +171,22 @@ starts all the daemons on the system, preserves editor files
 and clears the scratch directory
 .Pa /tmp .
 .Pp
-.Nm Rc.early
-is run very early in the startup process, immediately before the
+The
+.Nm rc.early
+script is run very early in the startup process, immediately before the
 filesystem check.
 .Pp
-.Nm Rc.serial
-is used to set any special configurations for serial devices.
+The
+.Nm rc.serial
+script is used to set any special configurations for serial devices.
 .Pp
-.Nm Rc.pccard
-is used to enable PC-cards.
+The
+.Nm rc.pccard
+script is used to enable PC-cards.
 .Pp
-.Nm Rc.network
-is used to start the network.
+The
+.Nm rc.network
+script is used to start the network.
 The network is started in three passes.
 The first pass sets the hostname and domainname, configures the network
 interfaces, turns on any IP firewall rules, and starts routing.
@@ -187,8 +194,9 @@ The second pass starts most of the network related daemons.
 The third pass starts NFS, amd, rwhod, Kerberos and
 the multicast routing daemon.
 .Pp
-.Nm Rc.firewall
-is used to configure rules for the kernel based firewall
+The
+.Nm rc.firewall
+script is used to configure rules for the kernel based firewall
 service.
 It has several possible options:
 .Pp
@@ -207,19 +215,22 @@ disables the loading of firewall rules.
 will load the rules in the given filename (full path required).
 .El
 .Pp
-.Nm Rc.atm
-is used to configure ATM network interfaces.
+The
+.Nm rc.atm
+script is used to configure ATM network interfaces.
 The interfaces are configured in three passes.
 The first pass performs the initial interface configuration.
 The second pass completes the interface configuration and defines PVCs and
 permanent ATMARP entries.
 The third pass starts any ATM daemons.
 .Pp
-.Nm Rc.<arch>
-runs architecture specific programs.
+The
+.Nm rc.<arch>
+script runs architecture specific programs.
 .Pp
-.Nm Rc.local
-is executed after the scripts above, but before the rest of the
+The
+.Nm rc.local
+script is executed after the scripts above, but before the rest of the
 .Nm
 file is completed.
 In a default installation
@@ -267,5 +278,5 @@ is unnecessary, but is often included.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.0 .
