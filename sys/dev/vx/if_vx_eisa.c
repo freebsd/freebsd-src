@@ -183,7 +183,7 @@ static device_method_t vx_eisa_methods[] = {
 static driver_t vx_eisa_driver = {
 	"vx",
 	vx_eisa_methods,
-	1,			/* unused */
+	sizeof(struct vx_softc)
 };
 
 static devclass_t vx_devclass;
