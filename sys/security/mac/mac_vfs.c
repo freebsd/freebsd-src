@@ -221,6 +221,8 @@ static void	mac_cred_mmapped_drop_perms(struct thread *td,
 static void	mac_cred_mmapped_drop_perms_recurse(struct thread *td,
 		    struct ucred *cred, struct vm_map *map);
 
+static void	mac_destroy_socket_label(struct label *label);
+
 MALLOC_DEFINE(M_MACOPVEC, "macopvec", "MAC policy operation vector");
 MALLOC_DEFINE(M_MACPIPELABEL, "macpipelabel", "MAC labels for pipes");
 
@@ -1156,17 +1158,57 @@ mac_init_pipe(struct pipe *pipe)
 #endif
 }
 
-void
-mac_init_socket(struct socket *socket)
+static int
+mac_init_socket_label(struct label *label, int flag)
 {
+	int error;
 
-	mac_init_label(&socket->so_label);
-	mac_init_label(&socket->so_peerlabel);
-	MAC_PERFORM(init_socket_label, &socket->so_label);
-	MAC_PERFORM(init_socket_peer_label, &socket->so_peerlabel);
+	mac_init_label(label);
+
+	MAC_CHECK(init_socket_label, label, flag);
+	if (error) {
+		MAC_PERFORM(destroy_socket_label, label);
+		mac_destroy_label(label);
+	}
+
 #ifdef MAC_DEBUG
-	atomic_add_int(&nmacsockets, 1);
+	if (error == 0)
+		atomic_add_int(&nmacsockets, 1);
 #endif
+
+	return (error);
+}
+
+static int
+mac_init_socket_peer_label(struct label *label, int flag)
+{
+	int error;
+
+	mac_init_label(label);
+
+	MAC_CHECK(init_socket_peer_label, label, flag);
+	if (error) {
+		MAC_PERFORM(destroy_socket_label, label);
+		mac_destroy_label(label);
+	}
+
+	return (error);
+}
+
+int
+mac_init_socket(struct socket *socket, int flag)
+{
+	int error;
+
+	error = mac_init_socket_label(&socket->so_label, flag);
+	if (error)
+		return (error);
+
+	error = mac_init_socket_peer_label(&socket->so_peerlabel, flag);
+	if (error)
+		mac_destroy_socket_label(&socket->so_label);
+
+	return (error);
 }
 
 static void
@@ -1282,17 +1324,31 @@ mac_destroy_pipe(struct pipe *pipe)
 #endif
 }
 
+static void
+mac_destroy_socket_label(struct label *label)
+{
+
+	MAC_PERFORM(destroy_socket_label, label);
+	mac_destroy_label(label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacsockets, 1);
+#endif
+}
+
+static void
+mac_destroy_socket_peer_label(struct label *label)
+{
+
+	MAC_PERFORM(destroy_socket_peer_label, label);
+	mac_destroy_label(label);
+}
+
 void
 mac_destroy_socket(struct socket *socket)
 {
 
-	MAC_PERFORM(destroy_socket_label, &socket->so_label);
-	MAC_PERFORM(destroy_socket_peer_label, &socket->so_peerlabel);
-	mac_destroy_label(&socket->so_label);
-	mac_destroy_label(&socket->so_peerlabel);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacsockets, 1);
-#endif
+	mac_destroy_socket_label(&socket->so_label);
+	mac_destroy_socket_peer_label(&socket->so_peerlabel);
 }
 
 static void

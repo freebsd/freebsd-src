@@ -80,8 +80,8 @@ struct mac_policy_ops {
 	int	(*mpo_init_mbuf_label)(struct label *label, int flag);
 	void	(*mpo_init_mount_label)(struct label *label);
 	void	(*mpo_init_mount_fs_label)(struct label *label);
-	void	(*mpo_init_socket_label)(struct label *label);
-	void	(*mpo_init_socket_peer_label)(struct label *label);
+	int	(*mpo_init_socket_label)(struct label *label, int flag);
+	int	(*mpo_init_socket_peer_label)(struct label *label, int flag);
 	void	(*mpo_init_pipe_label)(struct label *label);
 	void	(*mpo_init_temp_label)(struct label *label);
 	void	(*mpo_init_vnode_label)(struct label *label);

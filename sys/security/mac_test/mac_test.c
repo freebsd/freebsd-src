@@ -277,20 +277,22 @@ mac_test_init_mount_fs_label(struct label *label)
 	atomic_add_int(&init_count_mount_fslabel, 1);
 }
 
-static void
-mac_test_init_socket_label(struct label *label)
+static int
+mac_test_init_socket_label(struct label *label, int flag)
 {
 
 	SLOT(label) = SOCKETMAGIC;
 	atomic_add_int(&init_count_socket, 1);
+	return (0);
 }
 
-static void
-mac_test_init_socket_peer_label(struct label *label)
+static int
+mac_test_init_socket_peer_label(struct label *label, int flag)
 {
 
 	SLOT(label) = SOCKETMAGIC;
 	atomic_add_int(&init_count_socket_peerlabel, 1);
+	return (0);
 }
 
 static void
