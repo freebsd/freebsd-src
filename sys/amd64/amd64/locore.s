@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id$
+ *	$Id: locore.s,v 1.10 1993/11/13 02:25:00 davidg Exp $
  */
 
 /*
@@ -128,7 +128,7 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 
 #ifdef BDE_DEBUGGER
 	.globl	_bdb_exists			/* flag to indicate BDE debugger is available */
-		.long	0
+_bde_exists:	.long	0
 #endif
 
 	.globl	tmpstk
@@ -220,7 +220,7 @@ ENTRY(btext)
 
 /* clear bss */
 	movl	$_edata-KERNBASE,%edi
-	subl	%edi,%ecx			/* get mount to clear */
+	subl	%edi,%ecx			/* get amount to clear */
 	xorl	%eax,%eax			/* specify zero fill */
 	cld
 	rep
