@@ -85,6 +85,14 @@ coda/coda_venus.c	optional vcoda
 coda/coda_vfsops.c	optional vcoda
 coda/coda_vnops.c	optional vcoda
 compat/linprocfs/linprocfs.c	 optional linprocfs
+contrib/altq/altq/altq_cbq.c	 optional altq
+contrib/altq/altq/altq_cdnr.c	 optional altq
+contrib/altq/altq/altq_hfsc.c	 optional altq
+contrib/altq/altq/altq_priq.c	 optional altq
+contrib/altq/altq/altq_red.c	 optional altq
+contrib/altq/altq/altq_rio.c	 optional altq
+contrib/altq/altq/altq_rmclass.c optional altq
+contrib/altq/altq/altq_subr.c	 optional altq
 contrib/dev/acpica/dbcmds.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbdisply.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbexec.c	 optional acpi acpi_debug

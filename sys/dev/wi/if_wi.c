@@ -114,9 +114,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/wi/if_wireg.h>
 #include <dev/wi/if_wivar.h>
 
+#if 0 /* ALTQ */
 #define IF_POLL(ifq, m)		((m) = (ifq)->ifq_head)
 #define	IFQ_POLL(ifq, m)	IF_POLL((ifq), (m))
 #define IFQ_DEQUEUE(ifq, m)	IF_DEQUEUE((ifq), (m))
+#endif
 
 static void wi_start(struct ifnet *);
 static int  wi_reset(struct wi_softc *);

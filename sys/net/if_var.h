@@ -82,6 +82,10 @@ struct	ether_header;
 
 #define	IF_DUNIT_NONE	-1
 
+#if 1 /* ALTQ */
+#include <altq/if_altq.h>
+#endif
+
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifprefixhead, ifprefix);
@@ -171,7 +175,11 @@ struct ifnet {
 		(void *);
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
 		(struct ifnet *, struct sockaddr **, struct sockaddr *);
+#if 1 /* ALTQ */
+	struct  ifaltq if_snd;		/* output queue (includes altq) */
+#else
 	struct	ifqueue if_snd;		/* output queue */
+#endif
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 
 	struct	lltable *lltables;	/* list of L3-L2 resolution tables */
@@ -228,6 +236,7 @@ typedef void if_init_f_t(void *);
  */
 #define IF_LOCK(ifq)		mtx_lock(&(ifq)->ifq_mtx)
 #define IF_UNLOCK(ifq)		mtx_unlock(&(ifq)->ifq_mtx)
+#define	IF_LOCK_ASSERT(ifq)	mtx_assert(&(ifq)->ifq_mtx, MA_OWNED)
 #define	_IF_QFULL(ifq)		((ifq)->ifq_len >= (ifq)->ifq_maxlen)
 #define	_IF_DROP(ifq)		((ifq)->ifq_drops++)
 #define	_IF_QLEN(ifq)		((ifq)->ifq_len)
@@ -278,17 +287,24 @@ typedef void if_init_f_t(void *);
 	IF_UNLOCK(ifq); 					\
 } while (0)
 
-#define IF_DRAIN(ifq) do { 					\
+#define	_IF_POLL(ifq, m)	((m) = (ifq)->ifq_head)
+#define	IF_POLL(ifq, m)		_IF_POLL(ifq, m)
+
+#define _IF_DRAIN(ifq) do { 					\
 	struct mbuf *m; 					\
-	IF_LOCK(ifq); 						\
 	for (;;) { 						\
 		_IF_DEQUEUE(ifq, m); 				\
 		if (m == NULL) 					\
 			break; 					\
 		m_freem(m); 					\
 	} 							\
-	IF_UNLOCK(ifq); 					\
 } while (0)
+
+#define IF_DRAIN(ifq) do {					\
+	IF_LOCK(ifq);						\
+	_IF_DRAIN(ifq);						\
+	IF_UNLOCK(ifq);						\
+} while(0)
 
 #ifdef _KERNEL
 /* interface address change event */
@@ -311,8 +327,10 @@ EVENTHANDLER_DECLARE(if_clone_event, if_clone_event_handler_t);
 #define	IF_AFDATA_UNLOCK(ifp)	mtx_unlock(&(ifp)->if_afdata_mtx)
 #define	IF_AFDATA_DESTROY(ifp)	mtx_destroy(&(ifp)->if_afdata_mtx)
 
-#define	IF_HANDOFF(ifq, m, ifp)			if_handoff(ifq, m, ifp, 0)
-#define	IF_HANDOFF_ADJ(ifq, m, ifp, adj)	if_handoff(ifq, m, ifp, adj)
+#define	IF_HANDOFF(ifq, m, ifp)			\
+	if_handoff((struct ifqueue *)ifq, m, ifp, 0)
+#define	IF_HANDOFF_ADJ(ifq, m, ifp, adj)	\
+	if_handoff((struct ifqueue *)ifq, m, ifp, adj)
 
 static __inline int
 if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
@@ -338,6 +356,185 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 		(*ifp->if_start)(ifp);
 	return (1);
 }
+#if 1 /* ALTQ */
+#define	IFQ_ENQUEUE(ifq, m, err)					\
+do {									\
+	IF_LOCK(ifq);							\
+	if (ALTQ_IS_ENABLED(ifq))					\
+		ALTQ_ENQUEUE(ifq, m, NULL, err);			\
+	else {								\
+		if (_IF_QFULL(ifq)) {					\
+			m_freem(m);					\
+			(err) = ENOBUFS;				\
+		} else {						\
+			_IF_ENQUEUE(ifq, m);				\
+			(err) = 0;					\
+		}							\
+	}								\
+	if (err)							\
+		(ifq)->ifq_drops++;					\
+	IF_UNLOCK(ifq);							\
+} while (0)
+
+#define	IFQ_DEQUEUE_NOLOCK(ifq, m)					\
+do {									\
+	if (TBR_IS_ENABLED(ifq))					\
+		(m) = tbr_dequeue(ifq, ALTDQ_REMOVE);			\
+	else if (ALTQ_IS_ENABLED(ifq))					\
+		ALTQ_DEQUEUE(ifq, m);					\
+	else								\
+		_IF_DEQUEUE(ifq, m);					\
+} while (0)
+
+#define	IFQ_DEQUEUE(ifq, m)						\
+do {									\
+	IF_LOCK(ifq);							\
+	IFQ_DEQUEUE_NOLOCK(ifq, m);					\
+	IF_UNLOCK(ifq);							\
+} while (0)
+
+#define	IFQ_POLL_NOLOCK(ifq, m)						\
+do {									\
+	if (TBR_IS_ENABLED(ifq))					\
+		(m) = tbr_dequeue(ifq, ALTDQ_POLL);			\
+	else if (ALTQ_IS_ENABLED(ifq))					\
+		ALTQ_POLL(ifq, m);					\
+	else								\
+		_IF_POLL(ifq, m);					\
+} while (0)
+
+#define	IFQ_POLL(ifq, m)						\
+do {									\
+	IF_LOCK(ifq);							\
+	IFQ_POLL_NOLOCK(ifq, m);					\
+	IF_UNLOCK(ifq);							\
+} while (0)
+
+#define	IFQ_PURGE_NOLOCK(ifq)						\
+do {									\
+	if (ALTQ_IS_ENABLED(ifq)) {					\
+		ALTQ_PURGE(ifq);					\
+	} else								\
+		_IF_DRAIN(ifq);						\
+} while (0)
+
+#define	IFQ_PURGE(ifq)							\
+do {									\
+	IF_LOCK(ifq);							\
+	IFQ_PURGE_NOLOCK(ifq);						\
+	IF_UNLOCK(ifq);							\
+} while (0)
+
+#define	IFQ_SET_READY(ifq)						\
+	do { ((ifq)->altq_flags |= ALTQF_READY); } while (0)
+
+#else /* !ALTQ */
+#define	IFQ_ENQUEUE(ifq, m, err)					\
+do {									\
+	IF_LOCK(ifq);							\
+	if (_IF_QFULL(ifq)) {						\
+		m_freem(m);						\
+		(err) = ENOBUFS;					\
+	} else {							\
+		_IF_ENQUEUE(ifq, m);					\
+		(err) = 0;						\
+	}								\
+	if (err)							\
+		(ifq)->ifq_drops++;					\
+	IF_UNLOCK(ifq);							\
+} while (0)
+
+#define	IFQ_DEQUEUE_NOLOCK(ifq, m)	_IF_DEQUEUE(ifq, m)
+#define	IFQ_DEQUEUE(ifq, m)		IF_DEQUEUE(ifq, m)
+#define	IFQ_POLL_NOLOCK(ifq, m)		_IF_POLL(ifq, m)
+#define	IFQ_POLL(ifq, m)		IF_POLL(ifq, m)
+#define	IFQ_PURGE_NOLOCK(ifq)		_IF_DRAIN(ifq)
+#define	IFQ_PURGE(ifq)			IF_DRAIN(ifq)
+
+#define	IFQ_SET_READY(ifq)		/* nothing */
+
+#endif /* !ALTQ */
+
+#define	IFQ_LOCK(ifq)			IF_LOCK(ifq)
+#define	IFQ_UNLOCK(ifq)			IF_UNLOCK(ifq)
+#define	IFQ_LOCK_ASSERT(ifq)		IF_LOCK_ASSERT(ifq)
+#define	IFQ_IS_EMPTY(ifq)		((ifq)->ifq_len == 0)
+#define	IFQ_INC_LEN(ifq)		((ifq)->ifq_len++)
+#define	IFQ_DEC_LEN(ifq)		(--(ifq)->ifq_len)
+#define	IFQ_INC_DROPS(ifq)		((ifq)->ifq_drops++)
+#define	IFQ_SET_MAXLEN(ifq, len)	((ifq)->ifq_maxlen = (len))
+
+#define	IFQ_HANDOFF_ADJ(ifp, m, adj, err)				\
+do {									\
+	int len;							\
+	short mflags;							\
+									\
+	len = (m)->m_pkthdr.len;					\
+	mflags = (m)->m_flags;						\
+	IFQ_ENQUEUE(&(ifp)->if_snd, m, err);				\
+	if ((err) == 0) {						\
+		(ifp)->if_obytes += len + (adj);			\
+		if (mflags & M_MCAST)					\
+			(ifp)->if_omcasts++;				\
+		if (((ifp)->if_flags & IFF_OACTIVE) == 0)		\
+			(*(ifp)->if_start)(ifp);			\
+	}								\
+} while (0)
+
+#define	IFQ_HANDOFF(ifp, m, err)					\
+	IFQ_HANDOFF_ADJ(ifq, m, 0, err)
+
+#define	IFQ_DRV_DEQUEUE(ifq, m)						\
+do {									\
+	(m) = (ifq)->ifq_drv_head;					\
+	if (m) {							\
+		if (((ifq)->ifq_drv_head = (m)->m_nextpkt) == NULL)	\
+			(ifq)->ifq_drv_tail = NULL;			\
+		(m)->m_nextpkt = NULL;					\
+		(ifq)->ifq_drv_len--;					\
+	} else {							\
+		IFQ_LOCK(ifq);						\
+		IFQ_DEQUEUE_NOLOCK(ifq, m);				\
+		while ((ifq)->ifq_drv_len < (ifq)->ifq_drv_maxlen) {	\
+			struct mbuf *m0;				\
+			IFQ_DEQUEUE_NOLOCK(ifq, m0);			\
+			if (m0 == NULL)					\
+				break;					\
+			m0->m_nextpkt = NULL;				\
+			if ((ifq)->ifq_drv_tail == NULL)		\
+				(ifq)->ifq_drv_head = m0;		\
+			else						\
+				(ifq)->ifq_drv_tail->m_nextpkt = m0;	\
+			(ifq)->ifq_drv_tail = m0;			\
+			(ifq)->ifq_drv_len++;				\
+		}							\
+		IFQ_UNLOCK(ifq);					\
+	}								\
+} while (0)
+
+#define	IFQ_DRV_PREPEND(ifq, m)						\
+do {									\
+	(m)->m_nextpkt = (ifq)->ifq_drv_head;				\
+	if ((ifq)->ifq_tail == NULL)					\
+		(ifq)->ifq_tail = (m);					\
+	(ifq)->ifq_drv_head = (m);					\
+	(ifq)->ifq_drv_len++;						\
+} while (0)
+
+#define	IFQ_DRV_IS_EMPTY(ifq)						\
+	(((ifq)->ifq_drv_len == 0) && ((ifq)->ifq_len == 0))
+
+#define	IFQ_DRV_PURGE(ifq)						\
+do {									\
+	struct mbuf *m = (ifq)->ifq_drv_head;				\
+	while(m != NULL) {						\
+		m = m->m_nextpkt;					\
+		m_freem(m);						\
+	}								\
+	(ifq)->ifq_drv_head = (ifq)->ifq_drv_tail = NULL;		\
+	(ifq)->ifq_drv_len = 0;						\
+	IFQ_PURGE(ifq);							\
+} while (0)
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP

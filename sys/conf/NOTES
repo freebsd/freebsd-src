@@ -399,6 +399,20 @@ options 	NETSMBCRYPTO		#encrypted password support for SMB
 # mchain library. It can be either loaded as KLD or compiled into kernel
 options 	LIBMCHAIN
 
+# altq(9). Enable the base part of the hooks with the ALTQ option.
+# Individual disciplines must be built into the base system and can not be
+# loaded as modules at this point. In order to build a SMP kernel you must
+# also have the ALTQ_NOPCC option.
+options 	ALTQ
+options 	ALTQ_CBQ	# Class Bases Queueing
+options 	ALTQ_RED	# Random Early Drop
+options 	ALTQ_RIO	# RED In/Out
+options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
+options 	ALTQ_CDNR	# Traffic conditioner
+options 	ALTQ_PRIQ	# Prioirity Queueing
+options 	ALTQ_NOPCC	# Required for SMP build
+options 	ALTQ_DEBUG
+
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
 # Individual node types can be enabled with the corresponding option
 # listed below; however, this is not strictly necessary as netgraph
