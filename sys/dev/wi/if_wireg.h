@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wireg.h,v 1.29 1999/05/06 03:05:48 wpaul Exp $
+ *	$Id: if_wireg.h,v 1.30 1999/05/06 16:12:06 wpaul Exp $
  */
 
 struct wi_counters {
@@ -73,6 +73,7 @@ struct wi_softc	{
 	u_int16_t		wi_ap_density;
 	u_int16_t		wi_tx_rate;
 	u_int16_t		wi_create_ibss;
+	u_int16_t		wi_channel;
 	char			wi_node_name[32];
 	char			wi_net_name[32];
 	char			wi_ibss_name[32];
@@ -110,6 +111,8 @@ struct wi_softc	{
 #define WI_DEFAULT_NODENAME	"FreeBSD WaveLAN/IEEE node"
 
 #define WI_DEFAULT_IBSS		"FreeBSD IBSS"
+
+#define WI_DEFAULT_CHAN		3
 
 /*
  * register space access macros
@@ -456,7 +459,7 @@ struct wi_ltv_ssid {
 /*
  * Set communications channel (radio frequency).
  */
-#define WI_RID_CHNL		0xFC03
+#define WI_RID_OWN_CHNL		0xFC03
 
 /*
  * Frame data size.
