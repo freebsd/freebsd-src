@@ -191,7 +191,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	ng_iface_rcvdata,
-	ng_iface_rcvdata,
 	ng_iface_disconnect,
 	ng_iface_cmds
 };
@@ -721,7 +720,7 @@ ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
  */
 static int
 ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const priv_p priv = hook->node->private;
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);

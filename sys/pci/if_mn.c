@@ -497,7 +497,7 @@ mn_fmt_ts(char *p, u_int32_t ts)
 
 static int
 ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-			struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	struct mbuf  *m2;
 	struct trxd *dp, *dp2;
@@ -653,6 +653,8 @@ ngmn_connect(hook_p hook)
 	if (!(u & 1))
 		printf("%s: init chan %d stat %08x\n", sc->name, chan, u);
 	sc->m32x->stat = 1; 
+	/* probably not at splnet, force outward queueing */
+	hook->peer->flags |= HK_QUEUE;
 
 	return (0);
 }
@@ -1030,9 +1032,9 @@ mn_rx_intr(struct softc *sc, u_int32_t vector)
 		m->m_pkthdr.len = m->m_len = (dp->status >> 16) & 0x1fff;
 		err = (dp->status >> 8) & 0xff;
 		if (!err) {
-			ng_queue_data(sch->hook, m, NULL);
+			int error;
+			NG_SEND_DATA_ONLY(error, sch->hook, m);
 			sch->last_recv = time_second;
-			m = 0;
 			/* we could be down by now... */
 			if (sch->state != UP) 
 				return;

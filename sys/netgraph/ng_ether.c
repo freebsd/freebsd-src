@@ -100,6 +100,7 @@ static ng_constructor_t	ng_ether_constructor;
 static ng_rcvmsg_t	ng_ether_rcvmsg;
 static ng_shutdown_t	ng_ether_rmnode;
 static ng_newhook_t	ng_ether_newhook;
+static ng_connect_t	ng_ether_connect;
 static ng_rcvdata_t	ng_ether_rcvdata;
 static ng_disconnect_t	ng_ether_disconnect;
 static int		ng_ether_mod_event(module_t mod, int event, void *data);
@@ -187,8 +188,7 @@ static struct ng_type ng_ether_typestruct = {
 	ng_ether_rmnode,
 	ng_ether_newhook,
 	NULL,
-	NULL,
-	ng_ether_rcvdata,
+	ng_ether_connect,
 	ng_ether_rcvdata,
 	ng_ether_disconnect,
 	ng_ether_cmdlist,
@@ -242,7 +242,7 @@ ng_ether_input_orphan(struct ifnet *ifp,
 }
 
 /*
- * Handle a packet that has come in on an interface.
+ * Handle a packet that has come in on an ethernet interface.
  * The Ethernet header has already been detached from the mbuf,
  * so we have to put it back.
  *
@@ -252,7 +252,6 @@ static void
 ng_ether_input2(node_p node, struct mbuf **mp, struct ether_header *eh)
 {
 	const priv_p priv = node->private;
-	meta_p meta = NULL;
 	int error;
 
 	/* Glue Ethernet header back on */
@@ -260,7 +259,7 @@ ng_ether_input2(node_p node, struct mbuf **mp, struct ether_header *eh)
 		return;
 
 	/* Send out lower/orphan hook */
-	(void)ng_queue_data(priv->lower, *mp, meta);
+	NG_SEND_DATA_ONLY(error, priv->lower, *mp);
 	*mp = NULL;
 }
 
@@ -281,7 +280,7 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 		return (0);
 
 	/* Send it out "upper" hook */
-	NG_SEND_DATA_RET(error, priv->upper, *mp, meta);
+	NG_SEND_DATA_RET(error, priv->upper, *mp, meta, NULL);
 
 	/* If we got a reflected packet back, handle it */
 	if (error == 0 && *mp != NULL) {
@@ -481,6 +480,18 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 }
 
 /*
+ * Hooks are attached, adjust to force queueing.
+ * We don't really care which hook it is.
+ * they should all be queuing for outgoing data.
+ */
+static	int
+ng_ether_connect(hook_p hook)
+{
+	hook->peer->flags |= HK_QUEUE;
+	return (0);
+}
+
+/*
  * Receive an incoming control message.
  */
 static int
@@ -591,7 +602,7 @@ ng_ether_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  */
 static int
 ng_ether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;

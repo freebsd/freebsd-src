@@ -85,6 +85,9 @@ static int	ng_generic_msg(node_p here, struct ng_mesg *msg,
 			hook_p hook);
 static ng_ID_t	ng_decodeidname(const char *name);
 static int	ngb_mod_event(module_t mod, int event, void *data);
+static int	ng_send_data_dont_queue(hook_p hook, struct mbuf *m,
+		meta_p meta, struct mbuf **ret_m, meta_p *ret_meta,
+		struct ng_mesg **resp);
 static void	ngintr(void);
 
 /* Our own netgraph malloc type */
@@ -321,7 +324,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 		int error;
 
 		/* Not found, try to load it as a loadable module */
-		snprintf(filename, sizeof(filename), "ng_%s", typename);
+		snprintf(filename, sizeof(filename), "/boot/kernel/ng_%s", typename);
 		error = linker_load_file(filename, &lf);
 		if (error != 0)
 			return (error);
@@ -1028,10 +1031,8 @@ ng_path_parse(char *addr, char **nodep, char **pathp, char **hookp)
  * return the destination node. Compute the "return address" if desired.
  */
 int
-ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp,
-	hook_p *lasthook)
+ng_path2node(node_p here, const char *address, node_p *destp, hook_p *lasthook)
 {
-	const	node_p start = here;
 	char    fullpath[NG_PATHLEN + 1];
 	char   *nodename, *path, pbuf[2];
 	node_p  node;
@@ -1039,8 +1040,6 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp,
 	hook_p hook = NULL;
 
 	/* Initialize */
-	if (rtnp)
-		*rtnp = NULL;
 	if (destp == NULL)
 		return EINVAL;
 	*destp = NULL;
@@ -1111,19 +1110,6 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp,
 		return (ENXIO);
 	}
 
-	/* Now compute return address, i.e., the path to the sender */
-	if (rtnp != NULL) {
-		MALLOC(*rtnp, char *, NG_NODELEN + 2, M_NETGRAPH, M_NOWAIT);
-		if (*rtnp == NULL) {
-			TRAP_ERROR;
-			return (ENOMEM);
-		}
-		if (start->name != NULL)
-			sprintf(*rtnp, "%s:", start->name);
-		else
-			sprintf(*rtnp, "[%x]:", ng_node2ID(start));
-	}
-
 	/* Done */
 	*destp = node;
 	if (lasthook != NULL)
@@ -1160,22 +1146,49 @@ do {									\
 
 
 /*
- * Send a control message to a node
+ * Send a control message to a node.
+ * If hook is supplied, use it in preference to the address.
+ * If the return address is not supplied it will be set to this node.
  */
 int
 ng_send_msg(node_p here, struct ng_mesg *msg, const char *address,
-	    struct ng_mesg **rptr)
+		hook_p hook, char *retaddr, struct ng_mesg **rptr)
 {
 	node_p  dest = NULL;
-	char   *retaddr = NULL;
 	int     error;
 	hook_p	lasthook;
 
-	/* Find the target node */
-	error = ng_path2node(here, address, &dest, &retaddr, &lasthook);
-	if (error) {
-		FREE(msg, M_NETGRAPH);
-		return error;
+	/*
+	 * Find the target node.
+	 * If there is a HOOK argument, then use that in preference
+	 * to the address.
+	 */
+	if (hook) {
+		lasthook = hook->peer;
+		dest = lasthook->node;
+	} else {
+		error = ng_path2node(here, address, &dest, &lasthook);
+		if (error) {
+			FREE(msg, M_NETGRAPH);
+			return (error);
+		}
+	}
+
+	/* If the user didn't supply a return addres, assume it's "here". */
+	if (retaddr == NULL) {
+		/*
+		 * Now fill out the return address,
+		 * i.e. the name/ID of the sender. (If we didn't get one)
+		 */
+		MALLOC(retaddr, char *, NG_NODELEN + 2, M_NETGRAPH, M_NOWAIT);
+		if (retaddr == NULL) {
+			TRAP_ERROR;
+			return (ENOMEM);
+		}
+		if (here->name != NULL)
+			sprintf(retaddr, "%s:", here->name);
+		else
+			sprintf(retaddr, "[%x]:", ng_node2ID(here));
 	}
 
 	/* Make sure the resp field is null before we start */
@@ -1242,7 +1255,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 		con->path[sizeof(con->path) - 1] = '\0';
 		con->ourhook[sizeof(con->ourhook) - 1] = '\0';
 		con->peerhook[sizeof(con->peerhook) - 1] = '\0';
-		error = ng_path2node(here, con->path, &node2, NULL, NULL);
+		error = ng_path2node(here, con->path, &node2, NULL);
 		if (error)
 			break;
 		error = ng_con_nodes(here, con->ourhook, node2, con->peerhook);
@@ -1632,65 +1645,54 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 /*
  * Send a data packet to a node. If the recipient has no
  * 'receive data' method, then silently discard the packet.
+ * The receiving node may elect to put the data onto the netgraph
+ * NETISR queue for later delivery. It may do this because it knows there
+ * is some recursion and wishes to unwind the stack, or because it has
+ * some suspicion that it is being called at (say) splimp instead of
+ * splnet.
  */
 int 
 ng_send_data(hook_p hook, struct mbuf *m, meta_p meta,
-	struct mbuf **ret_m, meta_p *ret_meta)
+	struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	ng_rcvdata_t *rcvdata;
-	int error;
 
 	CHECK_DATA_MBUF(m);
-	if (hook && (hook->flags & HK_INVALID) == 0) {
-		rcvdata = hook->peer->node->type->rcvdata;
-		if (rcvdata != NULL)
-			error = (*rcvdata)(hook->peer, m, meta,
-					ret_m, ret_meta);
-		else {
-			error = 0;
-			NG_FREE_DATA(m, meta);
-		}
-	} else {
+	if ((hook == NULL)
+	|| ((hook->flags & HK_INVALID) != 0)
+	|| ((rcvdata = hook->peer->node->type->rcvdata) == NULL)) {
 		TRAP_ERROR;
-		error = ENOTCONN;
 		NG_FREE_DATA(m, meta);
+		return (ENOTCONN);
 	}
-	return (error);
+	if (hook->peer->flags & HK_QUEUE) {
+		return (ng_queue_data(hook, m, meta));
+	}
+	return ( (*rcvdata)(hook->peer, m, meta, ret_m, ret_meta, resp));
 }
 
 /*
- * Send a queued data packet to a node. If the recipient has no
- * 'receive queued data' method, then try the 'receive data' method above.
+ * Send a queued data packet to a node. 
+ *
+ * This is meant for data that is being dequeued and should therefore NOT
+ * be queued again. It ignores the queue flag and should NOT be called
+ * outside of this file. (thus it is static)
  */
-int 
-ng_send_dataq(hook_p hook, struct mbuf *m, meta_p meta,
-	struct mbuf **ret_m, meta_p *ret_meta)
+static int 
+ng_send_data_dont_queue(hook_p hook, struct mbuf *m, meta_p meta,
+	struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	ng_rcvdata_t *rcvdata;
-	int error;
 
 	CHECK_DATA_MBUF(m);
-	if (hook && (hook->flags & HK_INVALID) == 0) {
-		rcvdata = hook->peer->node->type->rcvdataq;
-		if (rcvdata != NULL)
-			error = (*rcvdata)(hook->peer, m, meta,
-					ret_m, ret_meta);
-		else {
-			rcvdata = hook->peer->node->type->rcvdata;
-			if (rcvdata != NULL) {
-				error = (*rcvdata)(hook->peer, m, meta,
-					ret_m, ret_meta);
-			} else {
-				error = 0;
-				NG_FREE_DATA(m, meta);
-			}
-		}
-	} else {
+	if ((hook == NULL)
+	|| ((hook->flags & HK_INVALID) != 0)
+	|| ((rcvdata = hook->peer->node->type->rcvdata) == NULL)) {
 		TRAP_ERROR;
-		error = ENOTCONN;
 		NG_FREE_DATA(m, meta);
-	}
-	return (error);
+		return (ENOTCONN);
+	} 
+	return ((*rcvdata)(hook->peer, m, meta, ret_m, ret_meta, resp));
 }
 
 /*
@@ -1821,8 +1823,8 @@ struct ng_queue_entry {
 		struct {
 			struct ng_mesg	*msg_msg;
 			node_p		msg_node;
-			void		*msg_retaddr;
 			hook_p		msg_lasthook;
+			char		*msg_retaddr;
 		} msg;
 	} body;
 };
@@ -1928,23 +1930,50 @@ ng_queue_data(hook_p hook, struct mbuf *m, meta_p meta)
 /*
  * Running at a raised (but we don't know which) processor priority level,
  * put the msg onto a queue to be picked up by another PPL (probably splnet)
+ * Either specify an address, or a hook to traverse.
+ * The return address can be specified, or it will be pointed at this node.
  */
 int
-ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address)
+ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address, hook_p hook,char *retaddr)
 {
 	register struct ng_queue_entry *q;
 	int     s;
 	node_p  dest = NULL;
-	char   *retaddr = NULL;
 	int     error;
 	hook_p	lasthook = NULL;
 
-	/* Find the target node. */
-	error = ng_path2node(here, address, &dest, &retaddr, &lasthook);
-	if (error) {
-		FREE(msg, M_NETGRAPH);
-		return (error);
+	/*
+	 * Find the target node.
+	 * If there is a HOOK argument, then use that in preference
+	 * to the address.
+	 */
+	if (hook) {
+		lasthook = hook->peer;
+		dest = lasthook->node;
+	} else {
+		error = ng_path2node(here, address, &dest, &lasthook);
+		if (error) {
+			FREE(msg, M_NETGRAPH);
+			return (error);
+		}
 	}
+
+	if (retaddr == NULL) {
+		/*
+		 * Now fill out the return address,
+		 * i.e. the name/ID of the sender. (If we didn't get one)
+		 */
+		MALLOC(retaddr, char *, NG_NODELEN + 2, M_NETGRAPH, M_NOWAIT);
+		if (retaddr == NULL) {
+			TRAP_ERROR;
+			return (ENOMEM);
+		}
+		if (here->name != NULL)
+			sprintf(retaddr, "%s:", here->name);
+		else
+			sprintf(retaddr, "[%x]:", ng_node2ID(here));
+	}
+
 	if ((q = ng_getqblk()) == NULL) {
 		FREE(msg, M_NETGRAPH);
 		if (retaddr)
@@ -1957,8 +1986,8 @@ ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address)
 	q->next = NULL;
 	q->body.msg.msg_node = dest;
 	q->body.msg.msg_msg = msg;
-	q->body.msg.msg_retaddr = retaddr;
-	q->body.msg.msg_lasthook = lasthook;
+	q->body.msg.msg_retaddr = retaddr; /* XXX malloc'd, give it away */
+	q->body.msg.msg_lasthook = lasthook; /* XXX needs reference */
 	s = splhigh();		/* protect refs and queue */
 	dest->refs++;		/* don't let it go away while on the queue */
 	if (lasthook)
@@ -2011,7 +2040,10 @@ ngintr(void)
 			m = ngq->body.data.da_m;
 			meta = ngq->body.data.da_meta;
 			RETURN_QBLK(ngq);
-			NG_SEND_DATAQ(error, hook, m, meta);
+			ng_send_data_dont_queue(hook, m, meta,
+				NULL, NULL, NULL);
+			m = NULL;
+			meta = NULL;
 			ng_unref_hook(hook);
 			break;
 		case NGQF_MESG:

@@ -184,7 +184,6 @@ static struct ng_type typestruct = {
         NULL,
         ng_lmc_connect,
         ng_lmc_rcvdata,
-        ng_lmc_rcvdata,
         ng_lmc_disconnect,
         ng_lmc_cmdlist
 };
@@ -623,9 +622,11 @@ lmc_rx_intr(lmc_softc_t * const sc)
 				}
 			}
 			if (accept) {
+				int error;
+
 				ms->m_pkthdr.len = total_len;
 				ms->m_pkthdr.rcvif = NULL;
-				ng_queue_data(sc->lmc_hook, ms, NULL);
+				NG_SEND_DATA_ONLY(error, sc->lmc_hook, ms);
 			}
 			ms = m0;
 		}
@@ -1396,7 +1397,7 @@ ng_lmc_rcvmsg(node_p node, struct ng_mesg *msg,
  */
 static  int
 ng_lmc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-	struct mbuf **ret_m, meta_p *ret_meta)
+	struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
         int s;
         int error = 0;
@@ -1462,6 +1463,8 @@ ng_lmc_rmnode(node_p node)
 static  int
 ng_lmc_connect(hook_p hook)
 {
+	/* We are probably not at splnet.. force outward queueing */
+	hook->peer->flags |= HK_QUEUE;
         /* be really amiable and just say "YUP that's OK by me! " */
         return (0);
 }

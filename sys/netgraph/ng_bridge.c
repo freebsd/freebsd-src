@@ -276,7 +276,6 @@ static struct ng_type ng_bridge_typestruct = {
 	NULL,
 	NULL,
 	ng_bridge_rcvdata,
-	ng_bridge_rcvdata,
 	ng_bridge_disconnect,
 	ng_bridge_cmdlist,
 };
@@ -511,7 +510,7 @@ ng_bridge_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  */
 static int
 ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;

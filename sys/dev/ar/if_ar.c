@@ -285,7 +285,6 @@ static struct ng_type typestruct = {
 	NULL,
 	ngar_connect,
 	ngar_rcvdata,
-	ngar_rcvdata,
 	ngar_disconnect,
 	NULL
 };
@@ -1732,6 +1731,9 @@ ar_get_packets(struct ar_softc *sc)
 	int i;
 	int len;
 	u_char rxstat;
+#ifdef NETGRAPH
+	int error;
+#endif
 
 	while(ar_packet_avail(sc, &len, &rxstat)) {
 		TRC(printf("apa: len %d, rxstat %x\n", len, rxstat));
@@ -1765,7 +1767,7 @@ ar_get_packets(struct ar_softc *sc)
 			sppp_input(&sc->ifsppp.pp_if, m);
 			sc->ifsppp.pp_if.if_ipackets++;
 #else	/* NETGRAPH */
-			ng_queue_data(sc->hook, m, NULL);
+			NG_SEND_DATA_ONLY(error, sc->hook, m);
 			sc->ipackets++;
 #endif	/* NETGRAPH */
 
@@ -2283,7 +2285,7 @@ ngar_rcvmsg(node_p node, struct ng_mesg *msg,
  */
 static	int
 ngar_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-			struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	int s;
 	int error = 0;
@@ -2350,6 +2352,8 @@ ngar_rmnode(node_p node)
 static	int
 ngar_connect(hook_p hook)
 {
+	/* probably not at splnet, force outward queueing */
+	hook->peer->flags |= HK_QUEUE;
 	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }

@@ -67,6 +67,7 @@ typedef struct ng_hook *hook_p;
 
 /* Flags for a hook */
 #define HK_INVALID		0x0001	/* don't trust it! */
+#define HK_QUEUE		0x0002	/* queue for later delivery */
 
 /*
  * Structure of a node
@@ -139,7 +140,7 @@ typedef	int	ng_newhook_t(node_p node, hook_p hook, const char *name);
 typedef	hook_p	ng_findhook_t(node_p node, const char *name);
 typedef	int	ng_connect_t(hook_p hook);
 typedef	int	ng_rcvdata_t(hook_p hook, struct mbuf *m, meta_p meta,
-			struct mbuf **ret_m, meta_p *ret_meta);
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp);
 typedef	int	ng_disconnect_t(hook_p hook);
 
 /*
@@ -158,6 +159,16 @@ struct ng_cmdlist {
 
 /*
  * Structure of a node type
+ * If data is sent to the "rcvdata()" entrypoint then the system
+ * may decide to defer it until later by queing it with the normal netgraph
+ * input queuing system.  This is decidde by the HK_QUEUE flag being set in
+ * the flags word of the peer (receiving) hook. The dequeuing mechanism will
+ * ensure it is not requeued again.
+ * Note the input queueing system is to allow modules
+ * to 'release the stack' or to pass data across spl layers.
+ * The data will be redelivered as soon as the NETISR code runs
+ * which may be almost immediatly.  A node may also do it's own queueing
+ * for other reasons (e.g. device output queuing).
  */
 struct ng_type {
 
@@ -170,8 +181,7 @@ struct ng_type {
 	ng_newhook_t	*newhook;	/* first notification of new hook */
 	ng_findhook_t	*findhook;	/* only if you have lots of hooks */
 	ng_connect_t	*connect;	/* final notification of new hook */
-	ng_rcvdata_t	*rcvdata;	/* date comes here */
-	ng_rcvdata_t	*rcvdataq;	/* or here if being queued */
+	ng_rcvdata_t	*rcvdata;	/* data comes here */
 	ng_disconnect_t	*disconnect;	/* notify on disconnect */
 
 	const struct	ng_cmdlist *cmdlist;	/* commands we can convert */
@@ -182,47 +192,64 @@ struct ng_type {
 };
 
 /* Send data packet with meta-data */
-#define NG_SEND_DATA(error, hook, m, a)					\
+#define NG_SEND_DATA(err, hook, m, meta)				\
 	do {								\
-		(error) = ng_send_data((hook), (m), (a), NULL, NULL);	\
+		(err) = ng_send_data((hook), (m), (meta),	\
+						NULL, NULL, NULL);	\
 		(m) = NULL;						\
-		(a) = NULL;						\
+		(meta) = NULL;						\
 	} while (0)
 
-/* Send  queued data packet with meta-data */
-#define NG_SEND_DATAQ(error, hook, m, a)				\
+/* Send data packet with no meta-data */
+#define NG_SEND_DATA_ONLY(err, hook, m)					\
 	do {								\
-		(error) = ng_send_dataq((hook), (m), (a), NULL, NULL);	\
+		(err) = ng_send_data((hook), (m), NULL,	\
+						NULL, NULL, NULL);	\
 		(m) = NULL;						\
-		(a) = NULL;						\
 	} while (0)
 
-#define NG_SEND_DATA_RET(error, hook, m, a)				\
+/* Send data packet including a possible sync response pointer */
+#define NG_SEND_DATA_RESP(err, hook, m, meta, rmsg)			\
+	do {								\
+		(err) = ng_send_data((hook), (m), (meta),	\
+					NULL, NULL, rmsg);		\
+		(m) = NULL;						\
+		(meta) = NULL;						\
+	} while (0)
+
+/*
+ * Send data packet including a possible sync response pointer
+ * Allow the callee to replace the data and pass it back
+ * or to simply 'reject it' or 'keep it'
+ */
+#define NG_SEND_DATA_RET(err, hook, m, meta, rmsg)			\
 	do {								\
 		struct mbuf *rm = NULL;					\
-		meta_p ra = NULL;					\
-		(error) = ng_send_data((hook), (m), (a), &rm, &ra);	\
+		meta_p rmeta = NULL;					\
+		(err) = ng_send_data((hook), (m), (meta),	\
+					&rm, &rmeta, (rmsg));		\
 		(m) = rm;						\
-		(a) = ra;						\
+		(meta) = rmeta;						\
 	} while (0)
 
+
 /* Free metadata */
-#define NG_FREE_META(a)							\
+#define NG_FREE_META(meta)						\
 	do {								\
-		if ((a)) {						\
-			FREE((a), M_NETGRAPH);				\
-			a = NULL;					\
+		if ((meta)) {						\
+			FREE((meta), M_NETGRAPH);			\
+			meta = NULL;					\
 		}							\
 	} while (0)
 
 /* Free any data packet and/or meta-data */
-#define NG_FREE_DATA(m, a)						\
+#define NG_FREE_DATA(m, meta)						\
 	do {								\
 		if ((m)) {						\
 			m_freem((m));					\
 			m = NULL;					\
 		}							\
-		NG_FREE_META((a));					\
+		NG_FREE_META((meta));					\
 	} while (0)
 
 /*
@@ -268,19 +295,18 @@ int	ng_mod_event(module_t mod, int what, void *arg);
 int	ng_name_node(node_p node, const char *name);
 int	ng_newtype(struct ng_type *tp);
 ng_ID_t ng_node2ID(node_p node);
-int	ng_path2node(node_p here, const char *path, node_p *dest, char **rtnp,
-			hook_p *lasthook);
+int	ng_path2node(node_p here, const char *path,
+		node_p *dest, hook_p *lasthook);
 int	ng_path_parse(char *addr, char **node, char **path, char **hook);
 int	ng_queue_data(hook_p hook, struct mbuf *m, meta_p meta);
-int	ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address);
+int	ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address,
+		hook_p hook, char *retaddr);
 void	ng_release_node(node_p node);
 void	ng_rmnode(node_p node);
 int	ng_send_data(hook_p hook, struct mbuf *m, meta_p meta,
-			struct mbuf **ret_m, meta_p *ret_meta);
-int	ng_send_dataq(hook_p hook, struct mbuf *m, meta_p meta,
-			struct mbuf **ret_m, meta_p *ret_meta);
-int	ng_send_msg(node_p here, struct ng_mesg *msg,
-	    const char *address, struct ng_mesg **resp);
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp);
+int	ng_send_msg(node_p here, struct ng_mesg *msg, const char *address,
+		hook_p hook, char *retaddr, struct ng_mesg **resp);
 void	ng_unname(node_p node);
 void	ng_unref(node_p node);
 int	ng_wait_node(node_p node, char *msg);

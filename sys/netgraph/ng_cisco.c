@@ -181,7 +181,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	cisco_rcvdata,
-	cisco_rcvdata,
 	cisco_disconnect,
 	ng_cisco_cmdlist
 };
@@ -351,7 +350,7 @@ cisco_rcvmsg(node_p node, struct ng_mesg *msg,
  */
 static int
 cisco_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const sc_p sc = hook->node->private;
 	struct protoent *pep;
@@ -502,8 +501,8 @@ cisco_input(sc_p sc, struct mbuf *m, meta_p meta)
 				    NGM_CISCO_GET_IPADDR, 0, M_NOWAIT);
 				if (msg == NULL)
 					goto nomsg;
-				ng_send_msg(sc->node, msg,
-				    NG_CISCO_HOOK_INET, &resp);
+				ng_send_msg(sc->node, msg, NULL,
+					sc->inet.hook, NULL, &resp);
 				if (resp != NULL)
 					cisco_rcvmsg(sc->node, resp, ".",
 								NULL, NULL);
