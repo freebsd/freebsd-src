@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.102 1998/10/13 08:24:42 dg Exp $
+ * $Id: swap_pager.c,v 1.103 1998/10/31 15:31:28 peter Exp $
  */
 
 /*
@@ -1535,12 +1535,14 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		}
 	}
 
-	if (bp->b_rcred != NOCRED)
-		crfree(bp->b_rcred);
-	if (bp->b_wcred != NOCRED)
-		crfree(bp->b_wcred);
-
-	spc_free(spc);
+	if (spc != NULL) {
+		if (bp->b_rcred != NOCRED)
+			crfree(bp->b_rcred);
+		if (bp->b_wcred != NOCRED)
+			crfree(bp->b_wcred);
+		spc_free(spc);
+	} else
+		relpbuf(bp);
 	if (swap_pager_free_pending)
 		swap_pager_sync();
 
