@@ -1,7 +1,7 @@
 #	Makefile.inc,v 1.2 1994/09/13 21:26:01 wollman Exp
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../libc/stdtime
+.PATH:	${.CURDIR}/../libc/stdtime ${.CURDIR}/../locale
 
 SRCS+=	asctime.c difftime.c localtime.c strftime.c strptime.c timelocal.c
 
