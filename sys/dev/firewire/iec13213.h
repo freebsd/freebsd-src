@@ -229,9 +229,9 @@ struct crom_chunk {
 	int ref_index; 
 	int offset;
 	struct {
-			u_int32_t crc:16,
-				  crc_len:16;
-			u_int32_t buf[CROM_MAX_CHUNK_LEN]; 
+		u_int32_t crc:16,
+			  crc_len:16;
+		u_int32_t buf[CROM_MAX_CHUNK_LEN]; 
 	} data;
 };
 
