@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -204,8 +204,8 @@ afd_describe(struct afd_softc *fdp)
 		printf("Unknown (0x%x)", fdp->cap.medium_type);
 	    }
 	    if (fdp->cap.wp) printf(", writeprotected");
+	    printf("\n");
 	}
-	printf("\n");
     }
     else {
 	ata_prtdev(fdp->device, "%luMB <%.40s> [%d/%d/%d] at ata%d-%s %s\n",

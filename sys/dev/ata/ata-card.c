@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,12 +61,6 @@ ata_pccard_match(device_t dev)
     return(ENXIO);
 }
 
-static int
-ata_pccard_intrnoop(struct ata_channel *ch)
-{
-    return 1;
-}
-
 static void
 ata_pccard_locknoop(struct ata_channel *ch, int type)
 {
@@ -116,8 +110,7 @@ ata_pccard_probe(device_t dev)
 
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
-    ch->intr_func = ata_pccard_intrnoop;
-    ch->lock_func = ata_pccard_locknoop;
+    ch->locking = ata_pccard_locknoop;
     return ata_probe(dev);
 }
 
