@@ -26,10 +26,11 @@
  * $FreeBSD$
  */
 
+#include "opt_acpi.h"
 #include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_kstack_pages.h"
 #include "opt_msgbuf.h"
-#include "opt_acpi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
