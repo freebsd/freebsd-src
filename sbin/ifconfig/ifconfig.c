@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <sys/module.h>
 #include <sys/linker.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
@@ -153,7 +154,7 @@ c_func	setifprefixlen;
 c_func	setip6flags;
 #endif
 c_func	setifipdst;
-c_func	setifflags, setifmetric, setifmtu;
+c_func	setifflags, setifmetric, setifmtu, setiflladdr;
 
 
 #define	NEXTARG		0xffffff
@@ -212,6 +213,7 @@ struct	cmd {
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
 	{ "mtu",	NEXTARG,	setifmtu },
+	{ "lladdr",	NEXTARG,	setiflladdr },
 	{ 0,		0,		setifaddr },
 	{ 0,		0,		setifdstaddr },
 };
@@ -225,7 +227,7 @@ typedef	void af_getaddr __P((const char *, int));
 typedef void af_getprefix __P((const char *, int));
 
 af_status	in_status, ipx_status, at_status, ether_status;
-af_getaddr	in_getaddr, ipx_getaddr, at_getaddr;
+af_getaddr	in_getaddr, ipx_getaddr, at_getaddr, ether_getaddr;
 
 #ifdef INET6
 af_status	in6_status;
@@ -266,13 +268,14 @@ struct	afswtch {
 	{ "ns", AF_NS, xns_status, xns_getaddr, NULL,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 #endif
-	{ "ether", AF_INET, ether_status, NULL, NULL },	/* XXX not real!! */
+	{ "ether", AF_LINK, ether_status, ether_getaddr, NULL,
+	     0, SIOCSIFLLADDR, NULL, C(ridreq) },
 #if 0	/* XXX conflicts with the media command */
 #ifdef USE_IF_MEDIA
-	{ "media", AF_INET, media_status, NULL, NULL, }, /* XXX not real!! */
+	{ "media", AF_UNSPEC, media_status, NULL, NULL, }, /* XXX not real!! */
 #endif
 #ifdef USE_VLANS
-	{ "vlan", AF_INET, media_status, NULL, NULL, },	/* XXX not real!! */
+	{ "vlan", AF_UNSPEC, vlan_status, NULL, NULL, },  /* XXX not real!! */
 #endif
 #endif
 	{ 0,	0,	    0,		0 }
@@ -309,17 +312,19 @@ void
 usage()
 {
 #ifndef INET6
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: ifconfig interface address_family [address [dest_address]]",
 	"                [parameters]",
 	"       ifconfig -a [-d] [-u] [address_family]",
-	"       ifconfig -l [-d] [-u] [address_family]");
+	"       ifconfig -l [-d] [-u] [address_family]",
+	"       ifconfig [-d] [-u]");
 #else
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: ifconfig [-L] interface address_family [address [dest_address]]",
 	"                [parameters]",
 	"       ifconfig -a [-L] [-d] [-u] [address_family]",
-	"       ifconfig -l [-d] [-u] [address_family]");
+	"       ifconfig -l [-d] [-u] [address_family]",
+	"       ifconfig [-L] [-d] [-u]");
 #endif
 	exit(1);
 }
@@ -543,7 +548,7 @@ ifconfig(argc, argv, afp)
 
 	if (afp == NULL)
 		afp = &afs[0];
-	ifr.ifr_addr.sa_family = afp->af_af;
+	ifr.ifr_addr.sa_family = afp->af_af == AF_LINK ? AF_INET : afp->af_af;
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
 
 	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
@@ -655,7 +660,7 @@ setifaddr(addr, param, s, afp)
 	 * and the flags may change when the address is set.
 	 */
 	setaddr++;
-	if (doalias == 0)
+	if (doalias == 0 && afp->af_af != AF_LINK)
 		clearaddr = 1;
 	(*afp->af_getaddr)(addr, (doalias >= 0 ? ADDR : RIDADDR));
 }
@@ -819,6 +824,29 @@ setifmtu(val, dummy, s, afp)
 		warn("ioctl (set mtu)");
 }
 
+void
+setiflladdr(val, dummy, s, afp)
+	const char *val;
+	int dummy __unused;
+	int s;
+	const struct afswtch *afp;
+{
+	struct ether_addr	*ea;
+
+	ea = ether_aton(val);
+	if (ea == NULL) {
+		warn("malformed link-level address");
+		return;
+	}
+	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	ifr.ifr_addr.sa_len = ETHER_ADDR_LEN;
+	ifr.ifr_addr.sa_family = AF_LINK;
+	bcopy(ea, ifr.ifr_addr.sa_data, ETHER_ADDR_LEN);
+	if (ioctl(s, SIOCSIFLLADDR, (caddr_t)&ifr) < 0)
+		warn("ioctl (set lladdr)");
+
+	return;
+}
 
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
@@ -848,7 +876,7 @@ status(afp, addrcount, sdl, ifm, ifam)
 	} else
 		allfamilies = 0;
 
-	ifr.ifr_addr.sa_family = afp->af_af;
+	ifr.ifr_addr.sa_family = afp->af_af == AF_LINK ? AF_INET : afp->af_af;
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
 
 	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
@@ -887,26 +915,12 @@ status(afp, addrcount, sdl, ifm, ifam)
 			  &info);
 
 		if (!allfamilies) {
-			if (afp->af_af == info.rti_info[RTAX_IFA]->sa_family &&
-#ifdef USE_IF_MEDIA
-			    afp->af_status != media_status &&
-#endif
-#ifdef USE_VLANS
-			    afp->af_status != vlan_status &&
-#endif
-			    afp->af_status != ether_status) {
+			if (afp->af_af == info.rti_info[RTAX_IFA]->sa_family) {
 				p = afp;
 				(*p->af_status)(s, &info);
 			}
 		} else for (p = afs; p->af_name; p++) {
-			if (p->af_af == info.rti_info[RTAX_IFA]->sa_family &&
-#ifdef USE_IF_MEDIA
-			    p->af_status != media_status &&
-#endif
-#ifdef USE_VLANS
-			    p->af_status != vlan_status &&
-#endif
-			    p->af_status != ether_status) 
+			if (p->af_af == info.rti_info[RTAX_IFA]->sa_family)
 				(*p->af_status)(s, &info);
 		}
 		addrcount--;
@@ -1379,6 +1393,24 @@ at_getaddr(addr, which)
 		errx(1, "%s: illegal address", addr);
 	sat->sat_addr.s_net = htons(net);
 	sat->sat_addr.s_node = node;
+}
+
+void
+ether_getaddr(addr, which)
+	const char *addr;
+	int which;
+{
+	struct ether_addr *ea;
+	struct sockaddr *sea = &ridreq.ifr_addr;
+
+	ea = ether_aton(addr);
+	if (ea == NULL)
+		errx(1, "malformed ether address");
+	if (which == MASK)
+		errx(1, "Ethernet does not use netmasks");
+	sea->sa_family = AF_LINK;
+	sea->sa_len = ETHER_ADDR_LEN;
+	bcopy(ea, sea->sa_data, ETHER_ADDR_LEN);
 }
 
 /* XXX  FIXME -- should use strtoul for better parsing. */
