@@ -1,6 +1,7 @@
-#	$Id: Makefile,v 1.4 1998/09/25 17:14:15 peter Exp $
+#	$Id: Makefile,v 1.5 1998/10/13 18:29:18 rnordier Exp $
 
 ORG=0x100000
+AFLAGS+=	--assembler-with-cpp
 
 all: btxldr
 
@@ -14,7 +15,7 @@ btxldr: btxldr.o
 .endif
 
 btxldr.o: btxldr.s
-	${AS} ${AFLAGS} -o ${.TARGET} ${.CURDIR}/btxldr.s
+	${CC} ${AFLAGS} -c -o ${.TARGET} ${.CURDIR}/btxldr.s
 
 CLEANFILES+= btxldr btxldr.out btxldr.o
 
