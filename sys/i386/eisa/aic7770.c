@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.19 1995/11/29 10:12:31 phk Exp $
+ *	$Id: aic7770.c,v 1.20 1995/12/14 23:23:48 bde Exp $
  */
 
 #include "eisa.h"
@@ -29,9 +29,12 @@
 #include <sys/systm.h>
 #include <sys/devconf.h>
 #include <sys/kernel.h>
+
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+
 #include <machine/clock.h>
+
 #include <i386/eisa/eisaconf.h>
 #include <i386/scsi/aic7xxx.h>
 #include <dev/aic7xxx/aic7xxx_reg.h>
@@ -67,6 +70,7 @@ static struct kern_devconf kdc_aic7770 = {
 	NULL,
 	DC_CLS_MISC		/* host adapters aren't special */
 };
+
 
 static char	*aic7770_match __P((eisa_id_t type));
 
@@ -136,7 +140,7 @@ aic7770probe(void)
 		eisa_registerdev(e_dev, &ahc_eisa_driver, &kdc_aic7770);
 		if(e_dev->id == EISA_DEVICE_ID_ADAPTEC_284xB
 		   || e_dev->id == EISA_DEVICE_ID_ADAPTEC_284x) {
-			/* Our real parent is the isa bus.  Say so */
+			/* Our real parent is the isa bus.  Say so. */
 			e_dev->kdc->kdc_parent = &kdc_isa0;
 		}
 		count++;
@@ -150,6 +154,7 @@ aic7770_attach(e_dev)
 {
 	ahc_type type;
 	struct ahc_data *ahc;
+	u_long	iobase;
 	int unit = e_dev->unit;
 	int irq = ffs(e_dev->ioconf.irq) - 1;
 
@@ -191,16 +196,131 @@ aic7770_attach(e_dev)
 	eisa_reg_end(e_dev);
 
 	/*
-	 * Now that we know we own the resources we need, do the full
+	 * Tell the user what type of interrupts we're using.
+	 * usefull for debugging irq problems
+	 */
+	if(bootverbose) {
+		if(ahc->pause & IRQMS)
+			printf("ahc%d: Using Level Sensitive "
+			       "Interrupts\n", unit);
+		else
+			printf("ahc%d: Using Edge Triggered "
+			       "Interrupts\n", unit); 
+	}
+
+	/*
+	 * Now that we know we own the resources we need, do the 
 	 * card initialization.
 	 */
-	if(ahc_init(unit)){
+	iobase = ahc->baseport;
+
+	/*
+	 * First, the aic7770 card specific setup.
+	 */
+	switch( ahc->type ) {
+	    case AHC_AIC7770:
+	    {
+		/* XXX
+		 * It would be really nice to know if the BIOS
+		 * was installed for the motherboard controllers,
+		 * but I don't know how to yet.  Assume its enabled
+		 * for now.
+		 */
+		break;
+	    }
+	    case AHC_274:
+	    {
+		if((inb(HA_274_BIOSCTRL + iobase) & BIOSMODE) == BIOSDISABLED)
+			ahc->flags |= AHC_USEDEFAULTS;
+		break;
+	    }
+	    case AHC_284:
+	    {
+		/* XXX
+		 * All values are automagically intialized at
+		 * POST for these cards, so we can always rely
+		 * on the Scratch Ram values.  However, we should
+		 * read the SEEPROM here (Dan has the code to do
+		 * it) so we can say what kind of translation the
+		 * BIOS is using.  Printing out the geometry could
+		 * save a lot of users the grief of failed installs.
+		 */
+		break;
+	    }
+	}
+
+	/*      
+	 * See if we have a Rev E or higher aic7770. Anything below a
+	 * Rev E will have a R/O autoflush disable configuration bit.
+	 * Its still not clear exactly what is differenent about the Rev E.
+	 * We think it has more QINFIFO and QOUTFIFO space to support
+	 * "paging" SCBs so you can have more than 4 commands active at
+	 * once.  We may use this information later.
+	 */     
+	{
+		char *id_string;
+		u_char sblkctl;
+		u_char sblkctl_orig;
+
+		sblkctl_orig = inb(SBLKCTL + iobase);
+		sblkctl = sblkctl_orig ^ AUTOFLUSHDIS;
+		outb(SBLKCTL + iobase, sblkctl);
+		sblkctl = inb(SBLKCTL + iobase);
+		if(sblkctl != sblkctl_orig)
+		{
+			id_string = "aic7770 >= Rev E, ";
+			/*
+			 * Ensure autoflush is enabled
+			 */
+			sblkctl &= ~AUTOFLUSHDIS;
+			outb(SBLKCTL + iobase, sblkctl);
+		}
+		else
+			id_string = "aic7770 <= Rev C, ";
+
+		printf("ahc%d: %s", unit, id_string);
+	}
+
+	/*
+	 * Only four SCBs on these cards.  If we ever do SCB paging,
+	 * we could support 255 on the Rev E cards.
+	 */
+	ahc->maxscbs = 0x4;     
+
+	/* Setup the FIFO threshold and the bus off time */
+	if(ahc->flags & AHC_USEDEFAULTS) {
+		outb(BUSSPD + iobase, DFTHRSH_100);
+		outb(BUSTIME + iobase, BOFF_60BCLKS);
+	}
+	else {
+		u_char hostconf = inb(HOSTCONF + iobase);
+		outb(BUSSPD + iobase, hostconf & DFTHRSH);
+		outb(BUSTIME + iobase, (hostconf << 2) & BOFF);
+	}
+
+	/*
+	 * Generic aic7xxx initialization.
+	 */
+	if(ahc_init(ahc)){
 		ahc_free(ahc);
 		/*
-		 * The board's IRQ line will not be left enabled
-		 * if we can't intialize correctly, so its safe
+		 * The board's IRQ line is not yet enabled so its safe
 		 * to release the irq.
 		 */
+		eisa_release_intr(e_dev, irq, ahc_eisa_intr);
+		return -1;
+	}
+
+	/*
+	 * Enable the board's BUS drivers
+	 */
+	outb(BCTL + iobase, ENABLE);
+
+	/*
+	 * Enable our interrupt handler.
+	 */
+	if(eisa_enable_intr(e_dev, irq)) {
+		ahc_free(ahc);
 		eisa_release_intr(e_dev, irq, ahc_eisa_intr);
 		return -1;
 	}
@@ -208,9 +328,9 @@ aic7770_attach(e_dev)
 	e_dev->kdc->kdc_state = DC_BUSY; /* host adapters always busy */
 
 	/* Attach sub-devices - always succeeds */
-	ahc_attach(unit);
+	ahc_attach(ahc);
 
-	return(eisa_enable_intr(e_dev, irq));
+	return 0;
 }
 
 #endif /* NEISA > 0 */
