@@ -531,7 +531,7 @@ msdosfs_read(ap)
 	if (orig_resid <= 0)
 		return (0);
 
-	seqcount = ap->a_ioflag >> 16;
+	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 
 	isadir = dep->de_Attributes & ATTR_DIRECTORY;
 	do {
