@@ -31,7 +31,6 @@
  *
  * $FreeBSD$
  */
-#include <machine/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
@@ -44,6 +43,8 @@
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/lockf.h>
+
+#include <machine/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
