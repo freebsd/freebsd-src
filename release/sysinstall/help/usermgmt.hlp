@@ -39,11 +39,11 @@ unimplemented, sorry.)
 Users
 =====
 
-The user's login ID is a short (8 characters) alphanumeric ID the user
-must enter when logging into the system.  It's often the initial
-letters of the user's name, and commonly used in lower case.  It's
-also the local mail name for this user (though it's possible to also
-setup more descriptive mail alias names later).
+The user's login ID is a short (up to 15 characters) alphanumeric ID
+the user must enter when logging into the system.  It's often the
+initial letters of the user's name, and commonly used in lower case.
+It's also the local mail name for this user (though it's possible to
+also setup more descriptive mail alias names later).
 
 The user's login group determines which group access rights the user
 will initially get when logging in.  If an additional list of groups is
