@@ -167,7 +167,7 @@ ata_pci_attach(device_t dev)
     int unit;
 
     /* do chipset specific setups only needed once */
-    if (ata_legacy(dev) || pci_read_config(dev, 0x18, 4) & IOMASK)
+    if (ata_legacy(dev) || pci_read_config(dev, PCIR_BAR(2), 4) & IOMASK)
 	ctlr->channels = 2;
     else
 	ctlr->channels = 1;
@@ -193,10 +193,17 @@ ata_pci_attach(device_t dev)
     ctlr->chipinit(dev);
 
     /* attach all channels on this controller */
-    for (unit = 0; unit < ctlr->channels; unit++)
-	device_add_child(dev, "ata", (pci_get_progif(dev) & 0x85) == 0x80 ?
-			 unit : devclass_find_free_unit(ata_devclass, 2));
-
+    for (unit = 0; unit < ctlr->channels; unit++) {
+	if (unit == 0 && (pci_get_progif(dev) & 0x81) == 0x80) {
+	    device_add_child(dev, "ata", unit);
+	    continue;
+	}
+	if (unit == 1 && (pci_get_progif(dev) & 0x84) == 0x80) {
+	    device_add_child(dev, "ata", unit);
+	    continue;
+	}
+	device_add_child(dev, "ata", devclass_find_free_unit(ata_devclass, 2));
+    }
     return bus_generic_attach(dev);
 }
 
@@ -261,7 +268,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		count = ATA_IOSIZE;
 		end = start + count - 1;
 	    }
-	    myrid = 0x10 + 8 * unit;
+	    myrid = PCIR_BAR(0) + (unit << 3);
 	    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 				     SYS_RES_IOPORT, &myrid,
 				     start, end, count, flags);
@@ -273,7 +280,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		count = ATA_ALTIOSIZE;
 		end = start + count - 1;
 	    }
-	    myrid = 0x14 + 8 * unit;
+	    myrid = PCIR_BAR(1) + (unit << 3);
 	    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 	                             SYS_RES_IOPORT, &myrid,
 				     start, end, count, flags);
@@ -310,12 +317,14 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	switch (rid) {
 	case ATA_IOADDR_RID:
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-					SYS_RES_IOPORT, 0x10 + 8 * unit, r);
+					SYS_RES_IOPORT,
+					PCIR_BAR(0) + (unit << 3), r);
 	    break;
 
 	case ATA_ALTADDR_RID:
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-					SYS_RES_IOPORT, 0x14 + 8 * unit, r);
+					SYS_RES_IOPORT,
+					PCIR_BAR(1) + (unit << 3), r);
 	    break;
 	default:
 	    return ENOENT;
