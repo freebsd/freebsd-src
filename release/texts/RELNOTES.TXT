@@ -86,6 +86,8 @@ based on the Adaptec AIC-6915 fast ethernet controller.
 
 Driver support for M-systems DiskOnChip products integrated.
 
+Driver support has been added for the 3Com 3c905C-TX.
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -336,10 +338,12 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
-(Fast) Etherlink III / (Fast) Etherlink XL
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
+and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
-3Com 3c980 Fast Etherlink XL server adapter
+3Com 3c980/3c980B Fast Etherlink XL server adapter
+
+3Com 3cSOHO100-TX OfficeConnect adapter
 
 Toshiba ethernet cards
 
