@@ -104,15 +104,21 @@ struct pps_kcbind_args {
 
 #ifdef _KERNEL
 struct pps_state {
-	pps_params_t	ppsparam;
-	pps_info_t	ppsinfo;
-	int		kcmode;
-	int		ppscap;
-	struct timecounter *ppstc;
-	unsigned	ppscount[3];
+	/* capture information */
+	struct timecounter	*captc;
+	u_int			capgen;
+	u_int			capcount;
+	/* state information */
+	pps_params_t		ppsparam;
+	pps_info_t		ppsinfo;
+	int			kcmode;
+	int			ppscap;
+	struct timecounter	*ppstc;
+	unsigned		ppscount[3];
 };
 
-void pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int event);
+void pps_capture(struct pps_state *pps);
+void pps_event(struct pps_state *pps, int event);
 void pps_init(struct pps_state *pps);
 int pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps);
 void hardpps(struct timespec *tsp, long nsec);
