@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.44 1994/09/02 15:49:48 paul Exp $
+#	$Id: files.i386,v 1.45 1994/09/05 22:32:42 ats Exp $
 #
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/conf.c		standard
@@ -112,8 +112,9 @@ i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
 i386/pci/if_de.c		optional	de	device-driver
 i386/pci/ncr.c			optional	ncr	device-driver
 i386/pci/pci.c			optional	pci	device-driver
-i386/pci/pci_config.c		optional	pci
 i386/pci/pcibios.c		optional	pci
+i386/pci/pci_config.c		optional	pci
+i386/pci/pci_intel.c		optional	pci
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
