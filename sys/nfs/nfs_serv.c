@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.72.2.2 1999/06/30 22:05:14 julian Exp $
+ * $Id: nfs_serv.c,v 1.72.2.3 1999/07/28 08:24:50 alc Exp $
  */
 
 /*
@@ -3470,7 +3470,7 @@ again:
 			 * are calculated conservatively, including all
 			 * XDR overheads.
 			 */
-			len += (7 * NFSX_UNSIGNED + nlen + rem + NFSX_V3FH +
+			len += (8 * NFSX_UNSIGNED + nlen + rem + NFSX_V3FH +
 				NFSX_V3POSTOPATTR);
 			dirlen += (6 * NFSX_UNSIGNED + nlen + rem);
 			if (len > cnt || dirlen > fullsiz) {
