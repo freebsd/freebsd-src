@@ -1,4 +1,3 @@
-#define KOBJ_STATS
 /*-
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
