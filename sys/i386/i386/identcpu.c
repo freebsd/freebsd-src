@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.4 1997/05/19 12:59:51 kato Exp $
+ *	$Id: identcpu.c,v 1.7.2.5 1997/06/20 10:27:33 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -182,6 +182,12 @@ printcpuinfo(void)
 			break;
 		case 0x510:
 			strcat(cpu_model, "K5 model 1");
+			break;
+		case 0x520:
+			strcat(cpu_model, "K5 PR166");
+			break;
+		case 0x530:
+			strcat(cpu_model, "K5 PR200");
 			break;
 		case 0x560:
 			strcat(cpu_model, "K6");
