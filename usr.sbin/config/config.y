@@ -1033,12 +1033,9 @@ checksystemspec(fl)
 		return;
 	}
 	/*
-	 * Default dump device and warn if place is not a
-	 * swap area.
+	 * Warn if dump device is not a swap area.
 	 */
-	if (fl->f_dumpdev == NODEV)
-		fl->f_dumpdev = swap->f_swapdev;
-	if (fl->f_dumpdev != swap->f_swapdev) {
+	if (fl->f_dumpdev != NODEV && fl->f_dumpdev != swap->f_swapdev) {
 		struct file_list *p = swap->f_next;
 
 		for (; p && p->f_type == SWAPSPEC; p = p->f_next)
