@@ -15,29 +15,29 @@
   <title>はじめに</title>
 
   <para>この文書は &arch; アーキテクチャ版 &os; &release.current;
-    のリリースノートです.
+    のリリースノートです。
     これには &release.prev; 以降に追加 (変更)
-    された新機能が書かれています.</para>
+    された新機能が書かれています。</para>
 
 <![ %release.type.snapshot [
 
-  <para>リリースノートが対象としているこの &release.type; は,
+  <para>リリースノートが対象としているこの &release.type; は、
     &release.branch; 開発ブランチの
-    &release.prev; と &release.next; の中間点に対応します.
+    &release.prev; と &release.next; の中間点に対応します。
     このブランチにおける構築済みのバイナリ &release.type;
-    は <ulink url="&release.url;"></ulink> から入手可能です.</para>
+    は <ulink url="&release.url;"></ulink> から入手可能です。</para>
 
 ]]>
 
 <![ %release.type.release [
 
-  <para>この &os; &release.current は &release.type; 版であり,
+  <para>この &os; &release.current は &release.type; 版であり、
     <ulink url="&release.url;"></ulink>
-    および各ミラーサイトで公開されています.
+    および各ミラーサイトで公開されています。
     &os; の &release.type; 版 (またはそれ以外) の入手法については
     <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
       ハンドブック</ulink>の<ulink url="http://www.FreeBSD.org/handbook/mirrors.html">付録
-      <quote>&os; を入手するには</quote></ulink>をご覧ください.</para>
+      <quote>&os; を入手するには</quote></ulink>をご覧ください。</para>
 
 ]]>
 </sect1>
