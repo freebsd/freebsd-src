@@ -180,7 +180,7 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
     max_lines = getnlines(prompt);
     print_page(dialog, theight, width, prompt, startline, hscroll);
     print_perc(dialog, height-3, width-9, (float) (startline+theight)/max_lines);
-    wmove(dialog, height-2, width/2-6);
+    wmove(dialog, height-2, width/2-3);
     wrefresh(dialog);
     while ((key != ESC) && (key != '\n') && (key != '\r')) {
 	key = wgetch(dialog);
@@ -230,7 +230,7 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
 	}
 	print_page(dialog, theight, width, prompt, startline, hscroll);
 	print_perc(dialog, height-3, width-9, (float) (startline+theight)/max_lines);
-	wmove(dialog, height-2, width/2-2);
+	wmove(dialog, height-2, width/2-3);
 	wrefresh(dialog);
     }
 
