@@ -94,11 +94,6 @@ hint.pckbd.0.irq="1"
 hint.gdc.0.at="isa"
 hint.sc.0.at="isa"
 
-hint.npx.0.at="nexus"
-hint.npx.0.port="0x0F8"
-hint.npx.0.irq="8"
-
-#hint.apm.0.at="nexus"
 #hint.apm.0.disabled="1"
 #hint.apm.0.flags="0x20"
 #hint.pmtimer.0.at="isa"
