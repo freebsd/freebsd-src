@@ -61,10 +61,12 @@
 #define	T_SPILL		0x1d
 #define	T_FILL		0x1e
 #define	T_BREAKPOINT	0x1f
-#define	T_KERNEL	0x20
+#define	T_SYSCALL	0x20
+#define	T_RESTOREWP	0x21
+#define	T_KERNEL	0x40
 
 #define	T_TYPE_SHIFT	0
-#define	T_TYPE_SIZE	6
+#define	T_TYPE_SIZE	7
 #define	T_TYPE_MASK	(((1 << T_TYPE_SIZE) - 1) << T_TYPE_SHIFT)
 #define	T_TYPE(type) \
 	(((type) & T_TYPE_MASK) >> T_TYPE_SHIFT)
@@ -78,5 +80,8 @@
 #ifndef LOCORE
 extern const char *trap_msg[];
 #endif
+
+#define	ST_BREAKPOINT	0x1
+#define	ST_SYSCALL	0x9
 
 #endif /* !_MACHINE_TRAP_H_ */
