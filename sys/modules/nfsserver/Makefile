@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.5 1998/02/04 21:56:37 eivind Exp $
+#       $Id: Makefile,v 1.6 1998/02/06 23:54:23 eivind Exp $
 
 .PATH:  ${.CURDIR}/../../sys/nfs
 KMOD=   nfs_mod
@@ -17,5 +17,7 @@ opt_inet.h:
 .if ${NFS_INET} > 0
 	echo "#define INET 1" > opt_inet.h
 .endif
+opt_nfs.h:
+	touch opt_nfs.h
 
 .include <bsd.kmod.mk>
