@@ -33,7 +33,6 @@
 
 #include <sys/queue.h>
 #include <sys/time.h>
-#include <geom/geom_stats.h>
 
 void geom_stats_close(void);
 void geom_stats_resync(void);
@@ -42,7 +41,7 @@ void *geom_stats_snapshot_get(void);
 void geom_stats_snapshot_free(void *arg);
 void geom_stats_snapshot_timestamp(void *arg, struct timespec *tp);
 void geom_stats_snapshot_reset(void *arg);
-struct g_stat *geom_stats_snapshot_next(void *arg);
+struct devstat *geom_stats_snapshot_next(void *arg);
 
 char *geom_getxml(void);
 
