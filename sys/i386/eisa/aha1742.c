@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.59 1997/07/20 06:31:08 bde Exp $
+ *      $Id: aha1742.c,v 1.60 1997/08/21 19:46:13 bde Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
@@ -267,7 +267,7 @@ static struct ecb *
 		ahb_ecb_phys_kv __P((struct ahb_data *ahb, physaddr ecb_phys));
 static int	ahb_init __P((struct ahb_data *ahb));
 static void	ahbintr __P((void *arg));
-static char	*ahbmatch __P((eisa_id_t type));
+static const char *ahbmatch __P((eisa_id_t type));
 static void	ahbminphys __P((struct buf *bp));
 static int	ahb_poll __P((struct ahb_data *ahb, int wait));
 #ifdef AHBDEBUG
@@ -428,7 +428,7 @@ ahb_send_immed(struct ahb_data *ahb, int target, u_long cmd)
 	splx(s);
 }
 
-static	char *
+static const char *
 ahbmatch(type)     
 	eisa_id_t type;
 {                         
@@ -576,7 +576,12 @@ ahb_attach(e_dev)
 	int	unit = e_dev->unit;
 	struct	ahb_data *ahb;
 	resvaddr_t *iospace;
-	int	irq = ffs(e_dev->ioconf.irq) - 1;
+	int	irq;
+
+	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
+		return (-1);
+
+	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
 
 	iospace = e_dev->ioconf.ioaddrs.lh_first;
 
@@ -757,7 +762,8 @@ ahbintr(arg)
 			if ((ahb_debug & AHB_SHOWECBS) && ecb)
 				printf("<int ecb(%x)>", ecb);
 #endif /*AHBDEBUG */
-			untimeout(ahb_timeout, (caddr_t)ecb);
+			untimeout(ahb_timeout, (caddr_t)ecb,
+				  ecb->xs->timeout_ch);
 			ahb_done(ahb, ecb, ((stat == AHB_ECB_OK) ? SUCCESS : FAIL));
 		}
 	}
@@ -1058,7 +1064,8 @@ ahb_scsi_cmd(xs)
 		if (!(flags & SCSI_NOMASK)) {
 			s = splbio();
 			ahb_send_immed(ahb, xs->sc_link->target, AHB_TARG_RESET);
-			timeout(ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
+			xs->timeout_ch = timeout(ahb_timeout, (caddr_t)ecb,
+						 (xs->timeout * hz) / 1000);
 			splx(s);
 			return (SUCCESSFULLY_QUEUED);
 		} else {
@@ -1188,7 +1195,8 @@ ahb_scsi_cmd(xs)
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();
 		ahb_send_mbox(ahb, OP_START_ECB, xs->sc_link->target, ecb);
-		timeout(ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
+		xs->timeout_ch = timeout(ahb_timeout, (caddr_t)ecb,
+					 (xs->timeout * hz) / 1000);
 		splx(s);
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 		return (SUCCESSFULLY_QUEUED);
@@ -1263,7 +1271,8 @@ ahb_timeout(void *arg1)
 		printf("\n");
 		ahb_send_mbox(ahb, OP_ABORT_ECB, ecb->xs->sc_link->target, ecb);
 		/* 2 secs for the abort */
-		timeout(ahb_timeout, (caddr_t)ecb, 2 * hz);
+		ecb->xs->timeout_ch = timeout(ahb_timeout,
+					      (caddr_t)ecb, 2 * hz);
 		ecb->flags = ECB_ABORTED;
 	}
 	splx(s);

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.40 1997/07/20 06:31:08 bde Exp $
+ *	$Id: aic7770.c,v 1.41 1997/08/21 19:55:49 bde Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -92,9 +92,9 @@ static struct eisa_driver ahc_eisa_driver =
 
 DATA_SET (eisadriver_set, ahc_eisa_driver);
 
-static char	*aic7770_match __P((eisa_id_t type));
+static const char	*aic7770_match __P((eisa_id_t type));
 
-static  char*
+static const char*
 aic7770_match(type)
 	eisa_id_t type;
 {
@@ -254,7 +254,12 @@ ahc_eisa_attach(parent, self, aux)
 	struct ahc_softc *ahc;
 	resvaddr_t *iospace;
 	int unit = e_dev->unit;
-	int irq = ffs(e_dev->ioconf.irq) - 1;
+	int irq;
+
+	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
+		return -1;
+
+	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
 
 	iospace = e_dev->ioconf.ioaddrs.lh_first;
 
