@@ -1328,6 +1328,21 @@ device		ahb
 device		ahc
 device		amd
 device		isp
+hint.isp.0.disable="1"
+hint.isp.0.role="3"
+hint.isp.0.prefer_iomap="1"
+hint.isp.0.prefer_memmap="1"
+hint.isp.0.fwload_disable="1"
+hint.isp.0.ignore_nvram="1"
+hint.isp.0.fullduplex="1"
+hint.isp.0.topology="lport"
+hint.isp.0.topology="nport"
+hint.isp.0.topology="lport-only"
+hint.isp.0.topology="nport-only"
+# we can't get u_int64_t types, nor can we get strings if it's got
+# a leading 0x, hence this silly dodge.
+hint.isp.0.portwnn="w50000000aaaa0000"
+hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
 device		ncr
 device		ncv
