@@ -187,8 +187,9 @@ pcic_pci_ti_init(device_t dev)
 	u_int32_t device_id = pci_get_devid(dev);
 	char	buf[128];
 	struct pcic_softc *sc = device_get_softc(dev);
-	int 	ti113x = (device_id == PCI_DEVICE_ID_PCIC_TI1130)
-	    || (device_id == PCI_DEVICE_ID_PCIC_TI1131);
+	int 	ti113x = (device_id == PCI_DEVICE_ID_PCIC_TI1031) ||
+	    (device_id == PCI_DEVICE_ID_PCIC_TI1130) ||
+	    (device_id == PCI_DEVICE_ID_PCIC_TI1131);
 
 	syscntl  = pci_read_config(dev, TI113X_PCI_SYSTEM_CONTROL, 4);
 	devcntl  = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
