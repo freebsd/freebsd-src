@@ -612,7 +612,7 @@ ng_atm_cpcs_init(node_p node, const struct ngm_atm_cpcs_init *arg)
 			break;
 	if (vcc == NULL)
 		return (ENOTCONN);
-	if (vcc->vci != 0)
+	if (vcc->flags & VCC_OPEN)
 		return (EISCONN);
 
 	/*
@@ -770,7 +770,7 @@ ng_atm_cpcs_term(node_p node, const struct ngm_atm_cpcs_term *arg)
 			break;
 	if (vcc == NULL)
 		return (ENOTCONN);
-	if (vcc->vci == 0)
+	if (!(vcc->flags & VCC_OPEN))
 		return (ENOTCONN);
 
 	error = cpcs_term(priv, vcc->vpi, vcc->vci);
