@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.6 1995/05/30 05:02:34 rgrimes Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.13 1998/01/21 15:15:39 ache Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -8,7 +8,63 @@ char rcsid[] =
  * This program may be copied as long as you don't try to make any
  * money off of it, or pretend that you wrote it.
  *
- * Log: patch.c,v
+ * $Log: patch.c,v $
+ * Revision 1.13  1998/01/21 15:15:39  ache
+ * Update usage line with new option
+ *
+ * Revision 1.12  1998/01/21 15:10:13  ache
+ * Add -I or --index-first option to take Index: precedence over context diff,
+ * as it was in hacked FreeBSD version
+ *
+ * Revision 1.11  1998/01/21 14:37:22  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
+ * Revision 1.9  1997/10/23 02:44:22  ache
+ * Add (unsigned char) cast to ctype macros
+ *
+ * Revision 1.8  1997/03/17 01:44:42  jmg
+ * fix compilation warnings in patch... (with slight modification)
+ *
+ * also remove -Wall that I acidentally committed last time I was here...
+ *
+ * Submitted-by: Philippe Charnier
+ *
+ * Closes PR#2998
+ *
+ * Revision 1.7  1997/02/13 21:10:41  jmg
+ * Fix a problem with patch in that is will always default, even when the
+ * controlling terminal is closed.  Now the function ask() will return 1 when th
+ * input is known to come from a file or terminal, or it will return 0 when ther
+ * was a read error.
+ *
+ * Modified the question "Skip patch?" so that on an error from ask it will skip
+ * the patch instead of looping.
+ *
+ * Closes PR#777
+ *
+ * 2.2 candidate
+ *
+ * Revision 1.6  1995/05/30 05:02:34  rgrimes
+ * Remove trailing whitespace.
+ *
+ * Revision 1.5  1995/01/12  22:09:40  hsu
+ * Fix bug that created new files even when running in -C check mode.
+ * Reviewed by: phk
+ *
+ * Revision 1.4  1994/02/25  21:46:04  phk
+ * added the -C/-check again.
+ *
+ * Revision 1.3  1994/02/17  22:20:34  jkh
+ * Put this back - I was somehow under the erroneous impression that patch was in
+ * ports, until I saw the the commit messages, that is! :-)  All changed backed out.
+ *
+ * Revision 1.2  1994/02/17  22:16:03  jkh
+ * From Poul-Henning Kamp -  Implement a -C option to verify the integrity of
+ * a patch before actually applying it.
+ *
+ * Revision 1.1.1.1  1993/06/19  14:21:52  paul
+ * b-maked patch-2.10
+ *
  * Revision 2.0.2.0  90/05/01  22:17:50  davison
  * patch12u: unidiff support added
  *
@@ -125,6 +181,9 @@ static int reverse_flag_specified = FALSE;
 
 /* TRUE if -C was specified on command line.  */
 int check_patch = FALSE;
+
+/* TRUE if -I was specified on command line.  */
+int index_first = FALSE;
 
 /* Apply a set of diffs as appropriate. */
 
@@ -439,7 +498,7 @@ reinitialize_almost_everything()
 	fatal1("you may not change to a different patch file\n");
 }
 
-static char *shortopts = "-b:B:cCd:D:eEfF:lnNo:p::r:RsStuvV:x:";
+static char *shortopts = "-b:B:cCd:D:eEfF:IlnNo:p::r:RsStuvV:x:";
 static struct option longopts[] =
 {
   {"suffix", 1, NULL, 'b'},
@@ -452,6 +511,7 @@ static struct option longopts[] =
   {"remove-empty-files", 0, NULL, 'E'},
   {"force", 0, NULL, 'f'},
   {"fuzz", 1, NULL, 'F'},
+  {"index-first", 0, NULL, 'I'},
   {"ignore-whitespace", 0, NULL, 'l'},
   {"normal", 0, NULL, 'n'},
   {"forward", 0, NULL, 'N'},
@@ -510,7 +570,7 @@ get_some_switches()
 		break;
 	    case 'D':
 	    	do_defines = TRUE;
-		if (!isalpha(*optarg) && '_' != *optarg)
+		if (!isalpha((unsigned char)*optarg) && '_' != *optarg)
 		    fatal1("argument to -D is not an identifier\n");
 		Sprintf(if_defined, "#ifdef %s\n", optarg);
 		Sprintf(not_defined, "#ifndef %s\n", optarg);
@@ -527,6 +587,9 @@ get_some_switches()
 		break;
 	    case 'F':
 		maxfuzz = atoi(optarg);
+		break;
+	    case 'I':
+		index_first = TRUE;
 		break;
 	    case 'l':
 		canonicalize = TRUE;
@@ -593,7 +656,7 @@ Options:\n\
 		fprintf(stderr, "\
        [--strip[=strip-count]] [--normal] [--reject-file=rej-name] [--skip]\n\
        [--remove-empty-files] [--quiet] [--silent] [--unified] [--version]\n\
-       [--version-control={numbered,existing,simple}]\n");
+       [--version-control={numbered,existing,simple}] [--index-first]\n");
 		my_exit(1);
 	    }
 	}
@@ -920,12 +983,12 @@ Reg2 char *b;
 Reg3 int len;
 {
     while (len) {
-	if (isspace(*b)) {		/* whitespace (or \n) to match? */
-	    if (!isspace(*a))		/* no corresponding whitespace? */
+	if (isspace((unsigned char)*b)) {              /* whitespace (or \n) to match? */
+	    if (!isspace((unsigned char)*a))           /* no corresponding whitespace? */
 		return FALSE;
-	    while (len && isspace(*b) && *b != '\n')
+	    while (len && isspace((unsigned char)*b) && *b != '\n')
 		b++,len--;		/* skip pattern whitespace */
-	    while (isspace(*a) && *a != '\n')
+	    while (isspace((unsigned char)*a) && *a != '\n')
 		a++;			/* skip target whitespace */
 	    if (*a == '\n' || *b == '\n')
 		return (*a == *b);	/* should end in sync */
