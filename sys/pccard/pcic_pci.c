@@ -147,6 +147,8 @@ ti1xxx_pci_init(device_t dev)
 		 */
 		cardcntl |= TI113X_CARDCNTL_PCI_IREQ;
 		cardcntl |= TI113X_CARDCNTL_PCI_CSC;
+		pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
+		cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL, 1);
 		if (syscntl & TI113X_SYSCNTL_CLKRUN_ENA){
 			if (syscntl & TI113X_SYSCNTL_CLKRUN_SEL)
 				strcat(buf, "[clkrun irq 12]");
@@ -175,9 +177,6 @@ ti1xxx_pci_init(device_t dev)
 			strcat(buf, "[FUNC pci int + CSC serial isa irq]");
 			break;
 	}
-	pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
-	if (ti113x)
-		cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL, 1);
 	device_printf(dev, "%s\n",buf);
 }
 
