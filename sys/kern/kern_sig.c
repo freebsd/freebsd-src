@@ -1515,6 +1515,9 @@ trapsignal(struct thread *td, int sig, u_long code)
 			if (td->td_upcall)
 				td->td_upcall->ku_flags |= KUF_DOUPCALL;
 			mtx_unlock_spin(&sched_lock);
+		} else {
+			/* UTS caused a sync signal */
+			sigexit(td, SIGILL);
 		}
 	} else {
 		PROC_LOCK(p);
@@ -1540,6 +1543,7 @@ trapsignal(struct thread *td, int sig, u_long code)
 			error = copyout(&siginfo, &td->td_mailbox->tm_syncsig,
 			    sizeof(siginfo));
 			PROC_LOCK(p);
+			/* UTS memory corrupted */
 			if (error)
 				sigexit(td, SIGILL);
 			SIGADDSET(td->td_sigmask, sig);
@@ -2282,7 +2286,8 @@ postsig(sig)
 #endif
 	_STOPEVENT(p, S_SIG, sig);
 
-	if (action == SIG_DFL) {
+	if (!(td->td_flags & TDF_SA && td->td_mailbox) &&
+	    action == SIG_DFL) {
 		/*
 		 * Default action, where the default is to kill
 		 * the process.  (Other cases were ignored above.)
@@ -2291,6 +2296,13 @@ postsig(sig)
 		sigexit(td, sig);
 		/* NOTREACHED */
 	} else {
+		if (td->td_flags & TDF_SA && td->td_mailbox) {
+			if (sig == SIGKILL) {
+				mtx_unlock(&ps->ps_mtx);
+				sigexit(td, sig);
+			}
+		}
+
 		/*
 		 * If we get here, the signal must be caught.
 		 */
@@ -2333,7 +2345,7 @@ postsig(sig)
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
-		if (td->td_flags & TDF_SA)
+		if (td->td_flags & TDF_SA && td->td_mailbox)
 			thread_signal_add(curthread, sig);
 		else
 			(*p->p_sysent->sv_sendsig)(action, sig,
