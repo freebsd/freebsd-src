@@ -56,36 +56,41 @@ and
 .Xr inetd 8 ) .
 The one line messages are of the form:
 .Pp
-.Dl user@mailbox-offset[:mailbox-name]
+.D1 Ar user Ns @ Ns Ar mailbox Ns - Ns Ar offset Ns Op : Ns Ar mailbox-name
 .Pp
 If the
-.Em user
+.Ar user
 specified is logged in to the system and the associated terminal has
 the owner execute bit turned on (by a
-.Dq Li biff y ) ,
+.Dq Nm biff Cm y ) ,
 the
-.Em offset
+.Ar offset
 is used as a seek offset into the appropriate mailbox file and
 the first 7 lines or 560 characters of the message are printed
-on the user's terminal.  Lines which appear to be part of
+on the user's terminal.
+Lines which appear to be part of
 the message header other than the
-.Dq From ,
-.Dq \&To ,
-.Dq Date ,
+.Dq Li From ,
+.Dq Li \&To ,
+.Dq Li Date ,
 or
-.Dq Subject
+.Dq Li Subject
 lines are not included in the displayed message.
 .Pp
 If the
-.Em user
+.Ar user
 specified is logged in to the system and the associated terminal has
 the group execute bit turned on (by a
-.Dq Li biff b ) ,
-two bell characters (ASCII \\007) are printed on the user's terminal.
+.Dq Nm biff Cm b ) ,
+two bell characters
+.Tn ( ASCII
+\\007) are printed on the user's terminal.
 .Pp
-If mailbox-name omitted, standard mailbox assumed.
+If
+.Ar mailbox-name
+omitted, standard mailbox assumed.
 .Sh FILES
-.Bl -tag -width /var/mail/user -compact
+.Bl -tag -width ".Pa /var/mail/user" -compact
 .It Pa /var/run/utmp
 to find out who's logged on and on what terminals
 .It Pa /var/mail/user
