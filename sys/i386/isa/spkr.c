@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.4 1993/11/09 02:32:30 ache Exp $
+ *    $Id: spkr.c,v 1.5 1993/11/15 01:33:11 ache Exp $
  */
 
 #include "speaker.h"
@@ -89,7 +89,7 @@ unsigned int thz, ticks;
      * emitted.
      */
     while ((error = tsleep((caddr_t)&endtone,
-		SPKRPRI | PCATCH, "spkrtone", ticks)) == ERESTART)
+		SPKRPRI | PCATCH, "spkrtn", ticks)) == ERESTART)
 		;
     outb(PPI, inb(PPI) & ~PPI_SPKR);
 
@@ -112,7 +112,7 @@ int	ticks;
     (void) printf("rest: %d\n", ticks);
 #endif /* DEBUG */
     while ((error = tsleep((caddr_t)&endrest,
-		SPKRPRI | PCATCH, "spkrrest", ticks)) == ERESTART)
+		SPKRPRI | PCATCH, "spkrrs", ticks)) == ERESTART)
 		;
     if (error == EWOULDBLOCK)
 	error = 0;
