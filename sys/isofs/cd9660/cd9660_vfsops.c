@@ -156,7 +156,17 @@ iso_mountroot(mp, td)
 		return (error);
 	}
 	args.flags = ISOFSMNT_ROOT;
+
+	vn_lock(rootvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = VOP_OPEN(rootvp, FREAD, FSCRED, td);
+	VOP_UNLOCK(rootvp, 0, td);
+	if (error)
+		return error;
+
 	args.ssector = iso_get_ssector(rootdev, td);
+
+	(void)VOP_CLOSE(rootvp, FREAD, NOCRED, td);
+
 	if (bootverbose)
 		printf("iso_mountroot(): using session at block %d\n",
 		       args.ssector);
