@@ -2,6 +2,11 @@
 # Original revision: 1.3
 
 RELN_ROOT?= ${.CURDIR}/../..
+.ifdef NO_LANGCODE_IN_DESTDIR
+DESTDIR?= ${DOCDIR}/early-adopter
+.else
+DESTDIR?= ${DOCDIR}/ja_JP.eucJP/early-adopter
+.endif
 
 DOC?= article
 FORMATS?= html
