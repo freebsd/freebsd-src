@@ -17,6 +17,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040207:
+	The /etc/rc.d/ttys script has been removed. It is no longer
+	necessary since devfs has been mandatory for some time.
+
 20040130:
 	libkse has been renamed back to libpthread and is now the
 	default threads library.  The gcc -pthread option has also
