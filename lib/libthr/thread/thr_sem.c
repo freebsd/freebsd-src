@@ -31,6 +31,7 @@
 
 #include <stdlib.h>
 #include <errno.h>
+#include <time.h>
 #include <semaphore.h>
 #include <pthread.h>
 #include "thr_private.h"
