@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.22 1994/09/19 01:40:39 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.23 1994/09/19 17:47:22 phk Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -15,10 +15,6 @@
         arpa           
         ..
         g++            
-            gen            
-            ..
-            sys            
-            ..
         ..
         kerberosIV     
         ..
