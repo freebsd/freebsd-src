@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.h,v 1.4 1999/02/05 07:19:23 mjacob Exp $
+ *      $Id: scsi_sa.h,v 1.3.2.1 1999/02/05 08:38:21 mjacob Exp $
  */
 
 #ifndef	_SCSI_SCSI_SA_H
@@ -155,19 +155,46 @@ struct scsi_erase
 /*
  * Sequential-access specific mode page numbers.
  */
-#define SA_DATA_COMPRESSION_PAGE	0x0f
 #define SA_DEVICE_CONFIGURATION_PAGE	0x10
 #define SA_MEDIUM_PARTITION_PAGE_1	0x11
 #define SA_MEDIUM_PARTITION_PAGE_2	0x12
 #define SA_MEDIUM_PARTITION_PAGE_3	0x13
 #define SA_MEDIUM_PARTITION_PAGE_4	0x14
+#define SA_DATA_COMPRESSION_PAGE	0x0f	/* SCSI-3 */
 
 /*
  * Mode page definitions.
  */
 
+/* See SCSI-II spec 9.3.3.1 */
+struct scsi_dev_conf_page {
+	u_int8_t pagecode;	/* 0x10 */
+	u_int8_t pagelength;	/* 0x0e */
+	u_int8_t byte2;
+	u_int8_t active_partition;
+	u_int8_t wb_full_ratio;
+	u_int8_t rb_empty_ratio;
+	u_int8_t wrdelay_time[2];
+	u_int8_t byte8;
+#define	SA_DBR			0x80	/* data buffer recovery */
+#define	SA_BIS			0x40	/* block identifiers supported */
+#define	SA_RSMK			0x20	/* report setmarks */
+#define	SA_AVC			0x10	/* automatic velocity control */
+#define	SA_SOCF_MASK		0xc0	/* stop on consecutive formats */
+#define	SA_RBO			0x20	/* recover buffer order */
+#define	SA_REW			0x10	/* report early warning */
+	u_int8_t gap_size;
+	u_int8_t byte10;
+	u_int8_t ew_bufsize[3];
+	u_int8_t sel_comp_alg;
+#define	SA_COMP_NONE		0x00
+#define	SA_COMP_DEFAULT		0x01
+	u_int8_t reserved;
+};
+
+/* from SCSI-3: SSC-Rev10 (6/97) */
 struct scsi_data_compression_page {
-	u_int8_t page_code;
+	u_int8_t page_code;	/* 0x0f */
 	u_int8_t page_length;
 #define SA_DCP_DCE		0x80 	/* Data compression enable */
 #define SA_DCP_DCC		0x40	/* Data compression capable */
@@ -183,6 +210,12 @@ struct scsi_data_compression_page {
 	u_int8_t decomp_algorithm[4];
 	u_int8_t reserved[4];
 };
+
+typedef union {
+	struct { u_int8_t pagecode, pagelength; } hdr;
+	struct scsi_dev_conf_page dconf;
+	struct scsi_data_compression_page dcomp;
+} sa_comp_t;
 
 struct scsi_tape_read_position {
 	u_int8_t opcode;		/* READ_POSITION */
@@ -254,6 +287,8 @@ struct scsi_tape_locate {
 #define SCSI_DENSITY_QIC_150		0x10    
 #define	SCSI_DENSITY_QIC_525_320	0x11
 #define	SCSI_DENSITY_QIC_1320		0x12
+#define	SCSI_DENSITY_QIC_2GB		0x22
+#define	SCSI_DENSITY_QIC_4GB		0x26
 #define	SCSI_DENSITY_QIC_3080		0x29
 
 __BEGIN_DECLS
