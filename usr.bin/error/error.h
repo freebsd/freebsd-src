@@ -230,7 +230,7 @@ void erroradd __P((int, char **, Errorclass, Errorclass));
 void  filenames __P((int, Eptr **));
 void  findfiles __P((int, Eptr *, int *, Eptr ***));
 void getignored __P((char *));
-void onintr __P((void));
+void onintr __P((int));
 int position __P((char *, char));
 void  printerrors __P((boolean, int, Eptr []));
 char *substitute __P((char *, char, char));
