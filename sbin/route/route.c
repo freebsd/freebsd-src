@@ -273,6 +273,8 @@ retry:
 		rtm->rtm_type = RTM_DELETE;
 		rtm->rtm_seq = seqno;
 		rlen = write(s, next, rtm->rtm_msglen);
+		if (rlen < 0 && errno == EPERM)
+			err(1, "write to routing socket");
 		if (rlen < (int)rtm->rtm_msglen) {
 			warn("write to routing socket");
 			(void) printf("got only %d for rlen\n", rlen);
@@ -1223,6 +1225,8 @@ rtmsg(cmd, flags)
 	if (debugonly)
 		return (0);
 	if ((rlen = write(s, (char *)&m_rtmsg, l)) < 0) {
+		if (errno == EPERM)
+			err(1, "writing to routing socket");
 		warn("writing to routing socket");
 		return (-1);
 	}
