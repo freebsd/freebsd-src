@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.92 1997/11/09 06:22:39 brian Exp $
+ * $Id: command.c,v 1.93 1997/11/09 17:51:24 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -67,6 +67,7 @@
 #include "ccp.h"
 #include "ip.h"
 #include "slcompress.h"
+#include "auth.h"
 
 struct in_addr ifnetmask;
 
@@ -760,7 +761,7 @@ QuitCommand(struct cmdtab const * list, int argc, char **argv)
       Cleanup(EX_NORMAL);
     } else if (VarTerm) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
-      VarLocalAuth = LOCAL_NO_AUTH;
+      LocalAuthInit();
       mode &= ~MODE_INTER;
       oVarTerm = VarTerm;
       VarTerm = 0;
