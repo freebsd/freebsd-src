@@ -6,7 +6,7 @@ static char	elsieid[] = "@(#)zic.c	7.96";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: zic.c,v 1.8 1999/01/21 17:12:49 wollman Exp $";
+	"$Id: zic.c,v 1.8 1999/01/21 17:46:19 wollman Exp $";
 #endif /* not lint */
 
 #include "private.h"
@@ -449,7 +449,7 @@ static const char *	leapsec;
 static const char *	yitcommand;
 static int		sflag = FALSE;
 static int		Dflag;
-static uid_t		oflag = (uid_t)-1;
+static uid_t		uflag = (uid_t)-1;
 static gid_t		gflag = (gid_t)-1;
 static mode_t		mflag = (S_IRUSR | S_IRGRP | S_IROTH
 				 | S_IWUSR);
