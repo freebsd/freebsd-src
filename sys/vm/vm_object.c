@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.23 1995/02/18 06:48:33 davidg Exp $
+ * $Id: vm_object.c,v 1.24 1995/02/20 14:21:58 davidg Exp $
  */
 
 /*
@@ -1119,7 +1119,6 @@ vm_object_enter(object, pager)
 	entry = (vm_object_hash_entry_t)
 	    malloc((u_long) sizeof *entry, M_VMOBJHASH, M_WAITOK);
 	entry->object = object;
-	object->flags |= OBJ_CANPERSIST;
 
 	vm_object_cache_lock();
 	TAILQ_INSERT_TAIL(bucket, entry, hash_links);

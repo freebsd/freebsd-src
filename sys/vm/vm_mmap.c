@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.8 1995/01/09 16:05:48 davidg Exp $
+ * $Id: vm_mmap.c,v 1.9 1995/02/15 09:22:17 davidg Exp $
  */
 
 /*
@@ -613,12 +613,16 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if (size == 0)
 		return (0);
 
+	size = round_page(size);
+
 	if ((flags & MAP_FIXED) == 0) {
 		fitit = TRUE;
 		*addr = round_page(*addr);
 	} else {
+		if (*addr != trunc_page(*addr))
+			return (EINVAL);
 		fitit = FALSE;
-		(void) vm_deallocate(map, *addr, size);
+		(void) vm_map_remove(map, *addr, *addr + size);
 	}
 
 	/*
@@ -640,175 +644,113 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if (pager == NULL)
 		return (type == PG_DEVICE ? EINVAL : ENOMEM);
 	/*
-	 * Find object and release extra reference gained by lookup
+	 * Guarantee that the pager has an object.
 	 */
 	object = vm_object_lookup(pager);
-	if (handle && object == NULL) {
-		panic("vm_mmap: vm_object_lookup failed");
+	if (object == NULL) {
+		if (handle != NULL)
+			panic("vm_mmap: pager didn't allocate an object (and should have)");
+		/*
+		 * Should only happen for unnamed anonymous regions.
+		 */
+		object = vm_object_allocate(size);
+		object->pager = pager;
+	} else {
+		/*
+		 * Lose vm_object_lookup() reference.
+		 */
+		vm_object_deallocate(object);
 	}
-	vm_object_deallocate(object);
 
 	/*
-	 * Anonymous memory.
+	 * Anonymous memory, shared file, or character special file.
 	 */
-	if (flags & MAP_ANON) {
-		rv = vm_allocate_with_pager(map, addr, size, fitit,
-		    pager, foff, TRUE);
+	if ((flags & (MAP_ANON|MAP_SHARED)) || (type == PG_DEVICE)) {
+		rv = vm_map_find(map, object, foff, addr, size, fitit);
 		if (rv != KERN_SUCCESS) {
-			if (handle == NULL)
-				vm_pager_deallocate(pager);
-			else
-				vm_object_deallocate(object);
+			/*
+			 * Lose reference gained by vm_pager_allocate(). This
+			 * will also destroy the pager if noone else holds a
+			 * reference.
+			 */
+			vm_object_deallocate(object);
 			goto out;
 		}
-		/*
-		 * Don't cache anonymous objects. Loses the reference gained
-		 * by vm_pager_allocate. Note that object will be NULL when
-		 * handle == NULL, this is ok since vm_allocate_with_pager has
-		 * made sure that these objects are uncached.
-		 */
-		(void) pager_cache(object, FALSE);
-#ifdef DEBUG
-		if (mmapdebug & MDB_MAPIT)
-			printf("vm_mmap(%d): ANON *addr %x size %x pager %x\n",
-			    curproc->p_pid, *addr, size, pager);
-#endif
 	}
 	/*
-	 * Must be a mapped file. Distinguish between character special and
-	 * regular files.
+	 * A COW regular file
 	 */
-	else if (vp->v_type == VCHR) {
-		rv = vm_allocate_with_pager(map, addr, size, fitit,
-		    pager, foff, FALSE);
+	else {
+		vm_map_t tmap;
+		vm_offset_t off;
+
+		/* locate and allocate the target address space */
+		rv = vm_map_find(map, NULL, 0, addr, size, fitit);
+		if (rv != KERN_SUCCESS) {
+			vm_object_deallocate(object);
+			goto out;
+		}
+
+		off = VM_MIN_ADDRESS;
+		tmap = vm_map_create(NULL, off, off + size, TRUE);
+		rv = vm_map_find(tmap, object, foff, &off, size, FALSE);
+		if (rv != KERN_SUCCESS) {
+			vm_object_deallocate(object);
+			vm_map_deallocate(tmap);
+			goto out;
+		}
+
 		/*
-		 * Uncache the object and lose the reference gained by
-		 * vm_pager_allocate().  If the call to
-		 * vm_allocate_with_pager() was sucessful, then we gained an
-		 * additional reference ensuring the object will continue to
-		 * exist.  If the call failed then the deallocate call below
-		 * will terminate the object which is fine.
+		 * (XXX) MAP_PRIVATE implies that we see changes made
+		 * by others.  To ensure that we need to guarentee
+		 * that no copy object is created (otherwise original
+		 * pages would be pushed to the copy object and we
+		 * would never see changes made by others).  We
+		 * totally sleeze it right now by marking the object
+		 * internal temporarily.
 		 */
-		(void) pager_cache(object, FALSE);
+		if ((flags & MAP_COPY) == 0)
+			object->flags |= OBJ_INTERNAL;
+		rv = vm_map_copy(map, tmap, *addr, size, off,
+		    FALSE, FALSE);
+		object->flags &= ~OBJ_INTERNAL;
+		/*
+		 * (XXX) My oh my, this only gets worse... Force
+		 * creation of a shadow object so that vm_map_fork
+		 * will do the right thing.
+		 */
+		if ((flags & MAP_COPY) == 0) {
+			vm_map_t tmap;
+			vm_map_entry_t tentry;
+			vm_object_t tobject;
+			vm_offset_t toffset;
+			vm_prot_t tprot;
+			boolean_t twired, tsu;
+
+			tmap = map;
+			vm_map_lookup(&tmap, *addr, VM_PROT_WRITE,
+			    &tentry, &tobject, &toffset,
+			    &tprot, &twired, &tsu);
+			vm_map_lookup_done(tmap, tentry);
+		}
+		/*
+		 * (XXX) Map copy code cannot detect sharing unless a
+		 * sharing map is involved.  So we cheat and write
+		 * protect everything ourselves.
+		 */
+		vm_object_pmap_copy(object, foff, foff + size);
+		vm_map_deallocate(tmap);
 		if (rv != KERN_SUCCESS)
 			goto out;
 	}
+
 	/*
-	 * A regular file
+	 * "Pre-fault" resident pages.
 	 */
-	else {
-#ifdef DEBUG
-		if (object == NULL)
-			printf("vm_mmap: no object: vp %x, pager %x\n",
-			    vp, pager);
-#endif
-		/*
-		 * Map it directly. Allows modifications to go out to the
-		 * vnode.
-		 */
-		if (flags & MAP_SHARED) {
-			rv = vm_allocate_with_pager(map, addr, size,
-			    fitit, pager,
-			    foff, FALSE);
-			if (rv != KERN_SUCCESS) {
-				vm_object_deallocate(object);
-				goto out;
-			}
-			/*
-			 * Don't cache the object.  This is the easiest way of
-			 * ensuring that data gets back to the filesystem
-			 * because vnode_pager_deallocate() will fsync the
-			 * vnode.  pager_cache() will lose the extra ref.
-			 */
-			if (prot & VM_PROT_WRITE)
-				pager_cache(object, FALSE);
-			else
-				vm_object_deallocate(object);
-
-			if (map->pmap)
-				pmap_object_init_pt(map->pmap, *addr, object, foff, size);
-		}
-		/*
-		 * Copy-on-write of file.  Two flavors. MAP_COPY is true COW,
-		 * you essentially get a snapshot of the region at the time of
-		 * mapping.  MAP_PRIVATE means only that your changes are not
-		 * reflected back to the object. Changes made by others will
-		 * be seen.
-		 */
-		else {
-			vm_map_t tmap;
-			vm_offset_t off;
-
-			/* locate and allocate the target address space */
-			rv = vm_map_find(map, NULL, (vm_offset_t) 0,
-			    addr, size, fitit);
-			if (rv != KERN_SUCCESS) {
-				vm_object_deallocate(object);
-				goto out;
-			}
-			tmap = vm_map_create(NULL, VM_MIN_ADDRESS,
-			    VM_MIN_ADDRESS + size, TRUE);
-			off = VM_MIN_ADDRESS;
-			rv = vm_allocate_with_pager(tmap, &off, size,
-			    TRUE, pager,
-			    foff, FALSE);
-			if (rv != KERN_SUCCESS) {
-				vm_object_deallocate(object);
-				vm_map_deallocate(tmap);
-				goto out;
-			}
-			/*
-			 * (XXX) MAP_PRIVATE implies that we see changes made
-			 * by others.  To ensure that we need to guarentee
-			 * that no copy object is created (otherwise original
-			 * pages would be pushed to the copy object and we
-			 * would never see changes made by others).  We
-			 * totally sleeze it right now by marking the object
-			 * internal temporarily.
-			 */
-			if ((flags & MAP_COPY) == 0)
-				object->flags |= OBJ_INTERNAL;
-			rv = vm_map_copy(map, tmap, *addr, size, off,
-			    FALSE, FALSE);
-			object->flags &= ~OBJ_INTERNAL;
-			/*
-			 * (XXX) My oh my, this only gets worse... Force
-			 * creation of a shadow object so that vm_map_fork
-			 * will do the right thing.
-			 */
-			if ((flags & MAP_COPY) == 0) {
-				vm_map_t tmap;
-				vm_map_entry_t tentry;
-				vm_object_t tobject;
-				vm_offset_t toffset;
-				vm_prot_t tprot;
-				boolean_t twired, tsu;
-
-				tmap = map;
-				vm_map_lookup(&tmap, *addr, VM_PROT_WRITE,
-				    &tentry, &tobject, &toffset,
-				    &tprot, &twired, &tsu);
-				vm_map_lookup_done(tmap, tentry);
-			}
-			/*
-			 * (XXX) Map copy code cannot detect sharing unless a
-			 * sharing map is involved.  So we cheat and write
-			 * protect everything ourselves.
-			 */
-			vm_object_pmap_copy(object, foff, foff + size);
-			if (map->pmap)
-				pmap_object_init_pt(map->pmap, *addr, object, foff, size);
-			vm_object_deallocate(object);
-			vm_map_deallocate(tmap);
-			if (rv != KERN_SUCCESS)
-				goto out;
-		}
-#ifdef DEBUG
-		if (mmapdebug & MDB_MAPIT)
-			printf("vm_mmap(%d): FILE *addr %x size %x pager %x\n",
-			    curproc->p_pid, *addr, size, pager);
-#endif
+	if ((type == PG_VNODE) && (map->pmap != NULL)) {
+		pmap_object_init_pt(map->pmap, *addr, object, foff, size);
 	}
+
 	/*
 	 * Correct protection (default is VM_PROT_ALL). If maxprot is
 	 * different than prot, we must set both explicitly.
@@ -819,7 +761,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if (rv == KERN_SUCCESS && prot != maxprot)
 		rv = vm_map_protect(map, *addr, *addr + size, prot, FALSE);
 	if (rv != KERN_SUCCESS) {
-		(void) vm_deallocate(map, *addr, size);
+		(void) vm_map_remove(map, *addr, *addr + size);
 		goto out;
 	}
 	/*
@@ -828,7 +770,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if (flags & MAP_SHARED) {
 		rv = vm_map_inherit(map, *addr, *addr + size, VM_INHERIT_SHARE);
 		if (rv != KERN_SUCCESS) {
-			(void) vm_deallocate(map, *addr, size);
+			(void) vm_map_remove(map, *addr, *addr + size);
 			goto out;
 		}
 	}
