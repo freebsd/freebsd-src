@@ -203,11 +203,9 @@ main(int argc, char *argv[])
 	rv = 0;
 	if (!*argv) {
 		mntsize = regetmntinfo(&mntbuf, mntsize, vfslist);
-		if (vfslist != NULL) {
-			bzero(&maxwidths, sizeof(maxwidths));
-			for (i = 0; i < mntsize; i++)
-				update_maxwidths(&maxwidths, &mntbuf[i]);
-		}
+		bzero(&maxwidths, sizeof(maxwidths));
+		for (i = 0; i < mntsize; i++)
+			update_maxwidths(&maxwidths, &mntbuf[i]);
 		for (i = 0; i < mntsize; i++) {
 			if (aflag || (mntbuf[i].f_flags & MNT_IGNORE) == 0)
 				prtstat(&mntbuf[i], &maxwidths);
