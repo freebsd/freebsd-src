@@ -76,6 +76,273 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/ffs_extern.h>
 #include <ufs/ufs/ufs_extern.h>
 
+#include "opt_ffs.h"
+
+#ifndef SOFTUPDATES
+
+int
+softdep_flushfiles(oldmnt, flags, td)
+	struct mount *oldmnt;
+	int flags;
+	struct thread *td;
+{
+
+	panic("softdep_flushfiles called");
+}
+
+int
+softdep_mount(devvp, mp, fs, cred)
+	struct vnode *devvp;
+	struct mount *mp;
+	struct fs *fs;
+	struct ucred *cred;
+{
+
+	return (0);
+}
+
+void 
+softdep_initialize()
+{
+
+	return;
+}
+
+void
+softdep_uninitialize()
+{
+
+	return;
+}
+
+void
+softdep_setup_inomapdep(bp, ip, newinum)
+	struct buf *bp;
+	struct inode *ip;
+	ino_t newinum;
+{
+
+	panic("softdep_setup_inomapdep called");
+}
+
+void
+softdep_setup_blkmapdep(bp, fs, newblkno)
+	struct buf *bp;
+	struct fs *fs;
+	ufs2_daddr_t newblkno;
+{
+
+	panic("softdep_setup_blkmapdep called");
+}
+
+void 
+softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
+	struct inode *ip;
+	ufs_lbn_t lbn;
+	ufs2_daddr_t newblkno;
+	ufs2_daddr_t oldblkno;
+	long newsize;
+	long oldsize;
+	struct buf *bp;
+{
+	
+	panic("softdep_setup_allocdirect called");
+}
+
+void 
+softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
+	struct inode *ip;
+	ufs_lbn_t lbn;
+	ufs2_daddr_t newblkno;
+	ufs2_daddr_t oldblkno;
+	long newsize;
+	long oldsize;
+	struct buf *bp;
+{
+	
+	panic("softdep_setup_allocdirect called");
+}
+
+void
+softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
+	struct inode *ip;
+	ufs_lbn_t lbn;
+	struct buf *bp;
+	int ptrno;
+	ufs2_daddr_t newblkno;
+	ufs2_daddr_t oldblkno;
+	struct buf *nbp;
+{
+
+	panic("softdep_setup_allocindir_page called");
+}
+
+void
+softdep_setup_allocindir_meta(nbp, ip, bp, ptrno, newblkno)
+	struct buf *nbp;
+	struct inode *ip;
+	struct buf *bp;
+	int ptrno;
+	ufs2_daddr_t newblkno;
+{
+
+	panic("softdep_setup_allocindir_meta called");
+}
+
+void
+softdep_setup_freeblocks(ip, length, flags)
+	struct inode *ip;
+	off_t length;
+	int flags;
+{
+	
+	panic("softdep_setup_freeblocks called");
+}
+
+void
+softdep_freefile(pvp, ino, mode)
+		struct vnode *pvp;
+		ino_t ino;
+		int mode;
+{
+
+	panic("softdep_freefile called");
+}
+
+int 
+softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
+	struct buf *bp;
+	struct inode *dp;
+	off_t diroffset;
+	ino_t newinum;
+	struct buf *newdirbp;
+	int isnewblk;
+{
+
+	panic("softdep_setup_directory_add called");
+}
+
+void 
+softdep_change_directoryentry_offset(dp, base, oldloc, newloc, entrysize)
+	struct inode *dp;
+	caddr_t base;
+	caddr_t oldloc;
+	caddr_t newloc;
+	int entrysize;
+{
+
+	panic("softdep_change_directoryentry_offset called");
+}
+
+void 
+softdep_setup_remove(bp, dp, ip, isrmdir)
+	struct buf *bp;
+	struct inode *dp;
+	struct inode *ip;
+	int isrmdir;
+{
+	
+	panic("softdep_setup_remove called");
+}
+
+void 
+softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
+	struct buf *bp;
+	struct inode *dp;
+	struct inode *ip;
+	ino_t newinum;
+	int isrmdir;
+{
+
+	panic("softdep_setup_directory_change called");
+}
+
+void
+softdep_change_linkcnt(ip)
+	struct inode *ip;
+{
+
+	panic("softdep_change_linkcnt called");
+}
+
+void 
+softdep_load_inodeblock(ip)
+	struct inode *ip;
+{
+
+	panic("softdep_load_inodeblock called");
+}
+
+void 
+softdep_update_inodeblock(ip, bp, waitfor)
+	struct inode *ip;
+	struct buf *bp;
+	int waitfor;
+{
+
+	panic("softdep_update_inodeblock called");
+}
+
+int
+softdep_fsync(vp)
+	struct vnode *vp;	/* the "in_core" copy of the inode */
+{
+
+	return (0);
+}
+
+void
+softdep_fsync_mountdev(vp)
+	struct vnode *vp;
+{
+
+	return;
+}
+
+int
+softdep_flushworklist(oldmnt, countp, td)
+	struct mount *oldmnt;
+	int *countp;
+	struct thread *td;
+{
+
+	*countp = 0;
+	return (0);
+}
+
+int
+softdep_sync_metadata(struct vnode *vp)
+{
+
+	return (0);
+}
+
+int
+softdep_slowdown(vp)
+	struct vnode *vp;
+{
+
+	panic("softdep_slowdown called");
+}
+
+void
+softdep_releasefile(ip)
+	struct inode *ip;	/* inode with the zero effective link count */
+{
+
+	panic("softdep_releasefile called");
+}
+
+int
+softdep_request_cleanup(fs, vp)
+	struct fs *fs;
+	struct vnode *vp;
+{
+
+	return (0);
+}
+
+#else
 /*
  * These definitions need to be adapted to the system to which
  * this file is being ported.
@@ -5647,3 +5914,5 @@ softdep_error(func, error)
 	/* XXX should do something better! */
 	printf("%s: got error %d while accessing filesystem\n", func, error);
 }
+
+#endif /* SOFTUPDATES */
