@@ -93,14 +93,16 @@ sub override ($$) {
 			# Ouch!  Don't ask.  :-)
 			eval <<EOF;
 *$name = sub {
-   \$replacement_sub->( sub {
-                              \$SelfLoader::AUTOLOAD = "$name";
-                              local \$SIG{__WARN__} = sub {};
-                              my \@r = \$sl_autoload->(\@_);
-                              my \$real_addr = "*$name\{CODE}";
-                              *$name = sub { \$replacement_sub->(
-                                                \$real_addr, \@_) };
-                            }, \@_)
+	\$replacement_sub->( sub {
+		\$SelfLoader::AUTOLOAD = "$name";
+		local \$SIG{__WARN__} = sub {};
+		my \@r = \$sl_autoload->(\@_);
+		my \$real_addr = eval "*$name\{CODE}";
+		my \$repsub2 = \$replacement_sub;
+		eval "*\$name = sub {
+			\\\$repsub2->(
+				\\\$real_addr, \\\@_) };";
+		}, \@_)
 };
 EOF
 		} else {
