@@ -50,6 +50,7 @@ SUBDIR=	${_3dfx} \
 	${_cp} \
 	${_crypto} \
 	${_cryptodev} \
+	${_cs} \
 	${_ctau} \
 	cue \
 	${_cx} \
@@ -293,6 +294,7 @@ _awi=		awi
 _bktr=		bktr
 _coff=		coff
 _cp=		cp
+_cs=		cs
 _drm=		drm
 _ed=		ed
 _elink=		elink
