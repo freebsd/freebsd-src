@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.4 1995/09/07 06:01:33 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.5 1995/09/08 04:46:14 julian Exp $
  */
 
 #include "param.h"
@@ -39,9 +39,9 @@ void  devfs_sinit(caddr_t junk) /*proto*/
 	/*
 	 * call the right routine at the right time with the right args....
 	 */
-	retval = dev_add_name("root",NULL,NULL,DEV_DIR,NULL,&dev_root);
+	retval = dev_add_entry("root", NULL, DEV_DIR, NULL, &dev_root);
 #ifdef PARANOID
-	if(retval) panic("devfs_sinit: dev_add_name failed ");
+	if(retval) panic("devfs_sinit: dev_add_entry failed ");
 #endif
 	devfs_hidden_mount = (struct mount *)malloc(sizeof(struct mount),
 							M_MOUNT,M_NOWAIT);
@@ -66,7 +66,7 @@ void  devfs_sinit(caddr_t junk) /*proto*/
 * Search down the linked list off a dir to find "name"		*
 * return the dn_p for that node.
 \***************************************************************/
-dn_p dev_findname(dn_p dir,char *name) /*proto*/
+devnm_p dev_findname(dn_p dir,char *name) /*proto*/
 {
 	devnm_p newfp;
 	DBPRINT(("	dev_findname(%s)\n",name));
@@ -76,21 +76,22 @@ dn_p dev_findname(dn_p dir,char *name) /*proto*/
 	{
 		if(name[1] == 0)
 		{
-			return dir;
+			return dir->by.Dir.myname;
 		}
 		if((name[1] == '.') && (name[2] == 0))
 		{
-			return dir->by.Dir.parent; /* for root, .. == . */
+			/* for root, .. == . */
+			return dir->by.Dir.parent->by.Dir.myname;
 		}
 	}
 	newfp = dir->by.Dir.dirlist;
 	while(newfp)
 	{
 		if(!(strcmp(name,newfp->name)))
-			return newfp->dnp;
+			return newfp;
 		newfp = newfp->next;
 	}
-	return (dn_p)0;
+	return NULL;
 }
 
 /***********************************************************************\
@@ -162,9 +163,10 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 	/***************************************\
 	* Start scanning along the linked list	*
 	\***************************************/
-	dnp = dev_findname(dirnode,name);
-	if(dnp)
+	devnmp = dev_findname(dirnode,name);
+	if(devnmp)
 	{	/* check it's a directory */
+		dnp = devnmp->dnp;
 		if(dnp->type != DEV_DIR) return ENOTDIR;
 	}
 	else
@@ -175,7 +177,7 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 		\***************************************/
 		if(!create) return ENOENT;
 
-		if(retval = dev_add_name(name, dirnode, NULL ,DEV_DIR,
+		if(retval = dev_add_entry(name, dirnode, DEV_DIR,
 					NULL, &devnmp))
 		{
 			return retval;
@@ -197,24 +199,20 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 /***********************************************************************\
 * Add a new element to the devfs backing structure. 			*
 * If we're creating a root node, then dirname is NULL			*
-* If devnode is non zero, then we just want to create a link to it	*
-* This implies that we are not at base level and it's a not a DIR	*
 *									*
-* Creates a name node, and (optionally) a new dev_node to go with it	*
+* Creates a name node, and links it to the supplied node		*
 \***********************************************************************/
-int	dev_add_name(char *name, dn_p dirnode,devnm_p back, int entrytype, union typeinfo *by, devnm_p *devnm_pp) /*proto*/
+int	dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp, devnm_p *devnm_pp) /*proto*/
 {
 	devnm_p devnmp;
 	devnm_p realthing;	/* needed to create an alias */
-	dn_p	dnp;
 	int	retval;
 
 	DBPRINT(("dev_add_name\n"));
 	if(dirnode ) {
 		if(dirnode->type != DEV_DIR) return(ENOTDIR);
 	
-		dnp = dev_findname(dirnode,name);
-		if(dnp) /* if we actually found it.. */
+		if( dev_findname(dirnode,name))
 			return(EEXIST);
 	}
 	/*
@@ -233,108 +231,11 @@ int	dev_add_name(char *name, dn_p dirnode,devnm_p back, int entrytype, union typ
 	}
 	bzero(devnmp,sizeof(devnm_t));
 
-	/*
-	 * If we don't already have one,
-	 * Allocate a devfs node..
-	 * If we already have one, create a new link to it.
-	 * DIR types ALWAYS get a new node..
-	 */
-	if (( entrytype == DEV_DIR) || (!back)) {
-		if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
-				M_DEVFSNODE, M_NOWAIT)))
-		{
-			free(devnmp,M_DEVFSNAME);
-			return ENOMEM;
-		}
-		bzero(dnp,sizeof(devnode_t));
-		/*
-		 * note the node type we are adding
-		 * and set the creation times to NOW
-		 * put in it's name
-		 */
-		dnp->type = entrytype;
-		TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
-		dnp->mtime = dnp->ctime;
-		dnp->atime = dnp->ctime;
-		/*
-		 * fill out the dev node according to type
-		 */
-		switch(entrytype) {
-		case DEV_DIR:
-			/*
-			 * As it's a directory, make sure
-			 * it has a null entries list
-			 */
-			dnp->by.Dir.dirlast = &(dnp->by.Dir.dirlist);
-			dnp->by.Dir.dirlist = (devnm_p)0;
-			if ( dirnode ) { 
-				dnp->by.Dir.parent = (dn_p)dirnode;
-			} else {
-				/* root loops to self */
-				dnp->by.Dir.parent = dnp;
-			}
-			dnp->by.Dir.parent->links++; /* account for .. */
-			dnp->links++; /* for .*/
-			dnp->by.Dir.myname = devnmp;
-			/*
-			 * make sure that the ops associated with it are the ops
-			 * that we use (by default) for directories
-			 */
-			dnp->ops = &devfs_vnodeop_p;
-			dnp->mode |= 0555;	/* default perms */
-			break;
-		/*******************************************************\
-		* The rest of these can't happen except in the back plane*
-		\*******************************************************/
-		case DEV_BDEV:
-			/*
-			 * Make sure it has DEVICE type ops
-			 * and device specific fields are correct
-			 */
-			dnp->ops = &dev_spec_vnodeop_p;
-			dnp->by.Bdev.bdevsw = by->Bdev.bdevsw;
-			dnp->by.Bdev.dev = by->Bdev.dev;
-			break;
-		case DEV_CDEV:
-			/*
-			 * Make sure it has DEVICE type ops
-			 * and device specific fields are correct
-			 */
-			dnp->ops = &dev_spec_vnodeop_p;
-			dnp->by.Cdev.cdevsw = by->Cdev.cdevsw;
-			dnp->by.Cdev.dev = by->Cdev.dev;
-			break;
-		case DEV_DDEV:
-			/*
-			 * store the address of (the address of) the ops
-			 * and the magic cookie to use with them
-			 */
-			dnp->by.Ddev.arg = by->Ddev.arg;
-			dnp->ops = by->Ddev.ops;
-			break;
-
-
-		case DEV_ALIAS:
-			/*
-			 * point to the node we want to shadow
-			 * Also store the fact we exist so that aliases
-			 * can be deleted accuratly when the original node
-			 * is deleted.. (i.e. when device is removed)
-			 */
-			realthing = by->Alias.realthing;
-			dnp->by.Alias.realthing = realthing;
-			dnp->by.Alias.next = realthing->as.back.aliases;
-			realthing->as.back.aliases = devnmp;
-			break;
-		}
-		/* inherrit our parent's mount info */
-		if(dirnode) {
-			dnp->dvm = dirnode->dvm;
-			if(!dnp->dvm) printf("parent had null dvm ");
-		}
-	} else {
-		dnp = back->dnp;
-		if(!dnp->dvm) printf("node has null dvm ");
+	/* inherrit our parent's mount info */ /*XXX*/
+	/* a kludge but.... */
+	if(dirnode && ( dnp->dvm == NULL)) {
+		dnp->dvm = dirnode->dvm;
+		if(!dnp->dvm) printf("parent had null dvm ");
 	}
 
 	/*
@@ -344,6 +245,22 @@ int	dev_add_name(char *name, dn_p dirnode,devnm_p back, int entrytype, union typ
 	 */
 	devnmp->dnp = dnp;
 	dnp->links++ ; /* implicit from our own name-node */
+	if(dnp->type == DEV_DIR) {
+		dnp->by.Dir.myname = devnmp;
+		/*
+		 * If we are unlinking from an old dir, decrement it's links
+		 * as we point our '..' elsewhere
+		 */
+		if(dnp->by.Dir.parent) {
+			dnp->by.Dir.parent->links--;
+		}
+	 	if(dirnode) {
+			dnp->by.Dir.parent = dirnode;
+		} else {
+			dnp->by.Dir.parent = dnp;
+		}
+		dnp->by.Dir.parent->links++; /* account for the new '..' */
+	}
 
 	/*
 	 * put in it's name
@@ -406,6 +323,102 @@ int	dev_add_name(char *name, dn_p dirnode,devnm_p back, int entrytype, union typ
 }
 
 
+/***********************************************************************\
+* Add a new element to the devfs backing structure. 			*
+*									*
+* Creates a new dev_node to go with it					*
+* 'by' gives us info to make our node					*
+* note the 'links' count is 0 (except if a dir)				*
+* but it is only cleared on a transition				*
+* so this is ok till we link it to something				*
+\***********************************************************************/
+int	dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp) /*proto*/
+{
+	dn_p	dnp;
+	int	retval;
+
+	DBPRINT(("dev_add_node\n"));
+	if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
+			M_DEVFSNODE, M_NOWAIT)))
+	{
+		return ENOMEM;
+	}
+	if(proto) {
+		/*  XXX should check that we are NOT copying a device node */
+		bcopy(proto, dnp, sizeof(devnode_t));
+		/* some things you DON'T copy */
+		dnp->links = 0;
+		dnp->dvm = NULL;
+		dnp->vn = NULL;
+		dnp->len = 0;
+	} else {
+		bzero(dnp,sizeof(devnode_t));
+		dnp->type = entrytype;
+		TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
+		dnp->mtime = dnp->ctime;
+		dnp->atime = dnp->ctime;
+	}
+	/*
+	 * fill out the dev node according to type
+	 */
+	switch(entrytype) {
+	case DEV_DIR:
+		/*
+		 * As it's a directory, make sure
+		 * it has a null entries list
+		 */
+		dnp->by.Dir.dirlast = &(dnp->by.Dir.dirlist);
+		dnp->by.Dir.dirlist = (devnm_p)0;
+		dnp->by.Dir.entrycount = 0;
+		/*  until we know better, it has a null parent pointer*/
+		dnp->by.Dir.parent = NULL;
+		dnp->links++; /* for .*/
+		dnp->by.Dir.myname = NULL;
+		/*
+		 * make sure that the ops associated with it are the ops
+		 * that we use (by default) for directories
+		 */
+		dnp->ops = &devfs_vnodeop_p;
+		dnp->mode |= 0555;	/* default perms */
+		break;
+	/*******************************************************\
+	* The rest of these can't happen except in the back plane*
+	\*******************************************************/
+	case DEV_BDEV:
+		/*
+		 * Make sure it has DEVICE type ops
+		 * and device specific fields are correct
+		 */
+		dnp->ops = &dev_spec_vnodeop_p;
+		dnp->by.Bdev.bdevsw = by->Bdev.bdevsw;
+		dnp->by.Bdev.dev = by->Bdev.dev;
+		break;
+	case DEV_CDEV:
+		/*
+		 * Make sure it has DEVICE type ops
+		 * and device specific fields are correct
+		 */
+		dnp->ops = &dev_spec_vnodeop_p;
+		dnp->by.Cdev.cdevsw = by->Cdev.cdevsw;
+		dnp->by.Cdev.dev = by->Cdev.dev;
+		break;
+	case DEV_DDEV:
+		/*
+		 * store the address of (the address of) the ops
+		 * and the magic cookie to use with them
+		 */
+		dnp->by.Ddev.arg = by->Ddev.arg;
+		dnp->ops = by->Ddev.ops;
+		break;
+	default:
+		return EINVAL;
+	}
+
+	*dn_pp = dnp;
+	return 0 ;
+}
+
+
 /***************************************************************\
 * DEV_NODE reference count manipulations.. when a ref count	*
 * reaches 0, the node is to be deleted				*
@@ -419,13 +432,7 @@ int	dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/
 
 void	devfs_dn_free(dn_p dnp) /*proto*/
 {
-	if(dnp->links <= 0)
-	{
-		printf("devfs node reference count bogus\n");
-		Debugger("devfs_dn_free");
-		return;
-	}
-	if(--dnp->links == 0 )
+	if(--dnp->links <= 0 ) /* can be -1 for initial free, on error */
 	{
 		/*probably need to do other cleanups XXX */
 	        devfs_dropvnode(dnp);
@@ -454,6 +461,7 @@ int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
 {
 	devnm_p newnmp;
 	devnm_p  falias;
+	dn_p	dnp = child->dnp;
 	int type = child->dnp->type;
 
 	DBPRINT(("	devfs_add_fronts\n"));
@@ -462,27 +470,30 @@ int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
 	\***********************************************/
 	for (falias = parent->next_front; falias; falias = falias->next_front)
 	{
-		if(dev_findname(falias->dnp,child->name))
-		{
-			printf("Device %s not created, already exists\n",
-				child->name);
-			continue;
+		/*
+		 * If a Dir (XXX symlink too one day)
+		 * Make the node, using the original as a prototype)
+		 */
+		if(type == DEV_DIR) {
+			if (dev_add_node(type, NULL, dnp, &dnp))
+			{
+				printf("Device %s: node allocation failed\n",
+					child->name);
+				continue;
+			}
 		}
-		if (dev_add_name(child->name,parent->dnp,child,
-					type,NULL,&newnmp))
-		{
-			printf("Device %s: allocation failed\n",
-				child->name);
+		if (dev_add_name(child->name,parent->dnp,child, dnp,&newnmp)) {
+			if( type == DEV_DIR) {
+				devfs_dn_free(dnp); /* 1->0 */
+			}
+			printf("Device %s: allocation failed\n", child->name);
 			continue;
 		}
 
 	}
-	return(0);	/* for now always succeed */
+	return 0;	/* for now always succeed */
 }
-
-
-
-
+
 /***********************************************************************
  * remove all instances of this devicename [for backing nodes..]
  * note.. if there is another link to the node (non dir nodes only)
@@ -511,7 +522,7 @@ void	dev_remove_dev(devnm_p devnmp) /*proto*/
 /***************************************************************
  * duplicate the backing tree into a tree of nodes hung off the
  * mount point given as the argument. Do this by
- * calling dev_dup_name which recurses all the way
+ * calling dev_dup_entry which recurses all the way
  * up the tree..
  * If we are the first plane, just return the base root 
  **************************************************************/
@@ -522,7 +533,7 @@ int dev_dup_plane(struct devfsmount *devfs_mp_p) /*proto*/
 
 	DBPRINT(("	dev_dup_plane\n"));
 	if(devfs_up_and_going) {
-		if(error = dev_dup_name(NULL, dev_root, &new, devfs_mp_p)) {
+		if(error = dev_dup_entry(NULL, dev_root, &new, devfs_mp_p)) {
 			return error;
 		}
 	} else { /* we are doing the dummy mount during initialisation.. */
@@ -555,7 +566,7 @@ void  devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/
 * recursively will create subnodes corresponding to equivalent	*
 * child nodes in the base level					*
 \***************************************************************/
-int dev_dup_name(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *dvm) /*proto*/
+int dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *dvm) /*proto*/
 {
 	devnm_p	newnmp;
 	struct	devfsmount *dmt;
@@ -563,13 +574,27 @@ int dev_dup_name(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *
 	devnm_p	newfront;
 	int	error;
 	dn_p	dnp = back->dnp;
+	int type = back->dnp->type;
 
-	DBPRINT(("	dev_dup_name\n"));
+	DBPRINT(("	dev_dup_entry\n"));
 	/*
-	 * go get the node made
+	 * go get the node made (if we need to)
+	 * use the back one as a prototype
 	 */
-	error = dev_add_name(back->name,parent,back,dnp->type,NULL,&newnmp);
-	if ( error ) return error;
+	if ( type == DEV_DIR) {
+		error = dev_add_node( dnp->type, NULL, dnp, &dnp);
+		if(error) {
+			printf("dev_dup_entry: node alloc failed\n");
+			return error;
+		}
+	} 
+	error = dev_add_name(back->name,parent,back,dnp,&newnmp);
+	if ( error ) {
+		if ( type == DEV_DIR) {
+			devfs_dn_free(dnp); /* 1->0 */
+		}
+		return error;
+	}
 
 	/*
 	 * If we have just made the root, then insert the pointer to the
@@ -589,7 +614,7 @@ int dev_dup_name(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *
 		for(newback = back->dnp->by.Dir.dirlist;
 				newback; newback = newback->next)
 		{
-			if(error = dev_dup_name(newnmp->dnp,
+			if(error = dev_dup_entry(newnmp->dnp,
 						newback, &newfront, NULL))
 			{
 				break; /* back out with an error */
@@ -604,26 +629,32 @@ int dev_dup_name(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *
 * Free a name node (and any below it of it's a directory node)	*
 * remember that if there are other names pointing to the	*
 * dev_node then it may not get freed yet			*
+* can handle if there is no dnp 				*
 \***************************************************************/
 void dev_free_name(devnm_p devnmp) /*proto*/
 {
 	dn_p	parent = devnmp->parent;
+	dn_p	dnp = devnmp->dnp;
 	devnm_p	back;
 
 	DBPRINT(("	dev_free_name\n"));
-	if(devnmp->dnp->type == DEV_DIR)
-	{
-		while(devnmp->dnp->by.Dir.dirlist)
+	if(dnp) {
+		if(dnp->type == DEV_DIR)
 		{
-			dev_free_name(devnmp->dnp->by.Dir.dirlist);
+			while(dnp->by.Dir.dirlist)
+			{
+				dev_free_name(dnp->by.Dir.dirlist);
+			}
+			/*
+			 * drop the reference counts on our and our parent's
+			 * nodes for "." and ".." (root has ".." -> "." )
+			 */
+			devfs_dn_free(dnp);	/* account for '.' */
+			devfs_dn_free(dnp->by.Dir.parent); /* '..' */
+			/* should only have one reference left
+				(from name element) */
 		}
-		/*
-		 * drop the reference counts on our and our parent's
-		 * nodes for "." and ".." (root has ".." -> "." )
-		 */
-		devfs_dn_free(devnmp->dnp);	/* account for '.' */
-		devfs_dn_free(devnmp->dnp->by.Dir.parent); /* and '..' */
-		/* should only have one reference left (from name element) */
+		devfs_dn_free(dnp);
 	}
 	/*
 	 * unlink ourselves from the directory on this plane
@@ -663,7 +694,6 @@ void dev_free_name(devnm_p devnmp) /*proto*/
 	* If the front node has it's own devnode structure,		*
 	* then free it.							*
 	\***************************************************************/
-	devfs_dn_free(devnmp->dnp);
 	free(devnmp,M_DEVFSNAME);
 	return;
 }
@@ -849,6 +879,30 @@ int get_bdev_major_num(caddr_t addr)	/*proto*/
 }
 
 /***********************************************************************\
+* add a whole device, with not prototype.. make name element and node	*
+\***********************************************************************/
+int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p *nm_pp) /*proto*/ 
+{
+	dn_p	dnp;
+	int	error = 0;
+
+	DBPRINT(("	devfs_add_entry\n"));
+	if (error = dev_add_node(type, by, NULL, &dnp))
+	{
+		printf("Device %s: base node allocation failed\n", name);
+		return error;
+	}
+	if ( error = dev_add_name(name ,parent ,NULL, dnp, nm_pp))
+	{
+		devfs_dn_free(dnp); /* 1->0 for dir, 0->(-1) for other */
+		printf("Device %s: name slot allocation failed\n",
+			name);
+		
+	}
+	return error;
+}
+
+/***********************************************************************\
 * Add the named device entry into the given directory, and make it 	*
 * The appropriate type... (called (sometimes indirectly) by drivers..)	*
 \***********************************************************************/
@@ -876,14 +930,14 @@ void *dev_add(char *path,
 		major = get_cdev_major_num(funct);
 		by.Cdev.cdevsw = cdevsw + major;
 		by.Cdev.dev = makedev(major, minor);
-		if( dev_add_name(name, dnp, NULL, DEV_CDEV, &by,&new_dev))
+		if( dev_add_entry(name, dnp, DEV_CDEV, &by,&new_dev))
 			return NULL;
 		break;
 	case	DV_BLK:
 		major = get_bdev_major_num(funct);
 		by.Bdev.bdevsw = bdevsw + major;
 		by.Bdev.dev = makedev(major, minor);
-		if( dev_add_name(name, dnp, NULL, DEV_BDEV, &by, &new_dev))
+		if( dev_add_entry(name, dnp, DEV_BDEV, &by, &new_dev))
 			return NULL;
 		break;
 	default:
@@ -894,8 +948,7 @@ void *dev_add(char *path,
 	new_dev->dnp->mode |= perms;
 	return new_dev;
 }
-
-
+
 /***********************************************************************\
 * Add the named device entry into the given directory, and make it 	*
 *  a link to the already created device given as an arg..		*
@@ -904,19 +957,19 @@ void *dev_link(char *path, char *name, void *original)
 {
 	devnm_p	new_dev;
 	devnm_p	orig = (devnm_p) original;
-	dn_p	dnp;	/* devnode for parent directory */
+	dn_p	dirnode;	/* devnode for parent directory */
 	int	retval;
 	int major ;
 	union	typeinfo by;
 
 	DBPRINT(("dev_add\n"));
-	retval = dev_finddir(path,NULL,1,&dnp);
+	retval = dev_finddir(path,NULL,1,&dirnode);
 	if (retval) return 0;
 	/*
 	 *  The DEV_CDEV below is not used other than it must NOT be DEV_DIR
 	 * the correctness of original shuold be checked..
 	 */
-	if( dev_add_name(name, dnp, orig, DEV_CDEV, NULL,&new_dev))
+	if( dev_add_name(name, dirnode, NULL, orig->dnp, &new_dev))
 		return NULL;
 	return new_dev;
 }
