@@ -1482,6 +1482,9 @@ dc_setcfg(sc, media)
 		}
 	}
 
+	if (DC_IS_ADMTEK(sc))
+		DC_SETBIT(sc, DC_AL_CR, DC_AL_CR_ATUR);
+
 	if ((media & IFM_GMASK) == IFM_FDX) {
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_FULLDUPLEX);
 		if (sc->dc_pmode == DC_PMODE_SYM && DC_IS_PNIC(sc))
