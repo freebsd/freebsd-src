@@ -70,6 +70,7 @@ static const char rcsid[] =
 
 #include "ls.h"
 #include "extern.h"
+#include "lomac.h"
 
 /*
  * Upward approximation of the maximum number of characters needed to
@@ -113,6 +114,7 @@ int f_statustime;		/* use time of last mode change */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
 int f_whiteout;			/* show whiteout entries */
+int f_lomac;			/* show LOMAC attributes */
 #ifdef COLORLS
 int f_color;			/* add type in color for non-regular files */
 
@@ -163,7 +165,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWabcdfgiklnoqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfgiklnoqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -268,6 +270,9 @@ main(argc, argv)
 			f_nonprint = 0;
 		        f_octal = 0;
 			f_octal_escape = 1;
+			break;
+		case 'Z':
+			f_lomac = 1;
 			break;
 		default:
 		case '?':
@@ -468,11 +473,11 @@ display(p, list)
 	FTSENT *cur;
 	NAMES *np;
 	u_quad_t maxsize;
-	u_long btotal, maxblock, maxinode, maxlen, maxnlink;
-	int bcfile, flen, glen, ulen, maxflags, maxgroup, maxuser;
+	u_long btotal, maxblock, maxinode, maxlen, maxnlink, maxlattr;
+	int bcfile, flen, glen, ulen, lattrlen, maxflags, maxgroup, maxuser;
 	char *initmax;
 	int entries, needstats;
-	char *user, *group, *flags;
+	char *user, *group, *flags, *lattr;
 	char buf[STRBUF_SIZEOF(u_quad_t) + 1];
 	char ngroup[STRBUF_SIZEOF(uid_t) + 1];
 	char nuser[STRBUF_SIZEOF(gid_t) + 1];
@@ -517,9 +522,9 @@ display(p, list)
 		if (initmax2[-1] == ':') strcpy(initmax2, "0");
 
 		ninitmax = sscanf(jinitmax,
-		    " %lu : %lu : %lu : %i : %i : %i : %qu : %lu ",
+		    " %lu : %lu : %lu : %i : %i : %i : %qu : %lu : %lu ",
 		    &maxinode, &maxblock, &maxnlink, &maxuser,
-		    &maxgroup, &maxflags, &maxsize, &maxlen);
+		    &maxgroup, &maxflags, &maxsize, &maxlen, &maxlattr);
 		f_notabs = 1;
 		switch (ninitmax) {
 		 case 0: maxinode = 0;
@@ -530,6 +535,7 @@ display(p, list)
 		 case 5: maxflags = 0;
 		 case 6: maxsize  = 0;
 		 case 7: maxlen   = 0;
+		 case 8: maxlattr = 0;
 #ifdef COLORLS
 		 if (!f_color)
 #endif
@@ -540,8 +546,10 @@ display(p, list)
 		maxnlink = makenines(maxnlink);
 		maxsize = makenines(maxsize);
 	} else if (initmax == NULL || *initmax == '\0')
-		maxblock = maxinode = maxlen = maxnlink =
+		maxlattr = maxblock = maxinode = maxlen = maxnlink =
 		    maxuser = maxgroup = maxflags = maxsize = 0;
+	if (f_lomac)
+		lomac_start();
 	bcfile = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
@@ -616,9 +624,16 @@ display(p, list)
 						maxflags = flen;
 				} else
 					flen = 0;
+				if (f_lomac) {
+					lattr = get_lattr(cur);
+					lattrlen = strlen(lattr);
+					if (lattrlen > maxlattr)
+						maxlattr = lattrlen;
+				} else
+					lattrlen = 0;
 
-				if ((np = malloc(sizeof(NAMES) +
-				    ulen + glen + flen + 3)) == NULL)
+				if ((np = malloc(sizeof(NAMES) + lattrlen +
+				    ulen + glen + flen + 4)) == NULL)
 					err(1, NULL);
 
 				np->user = &np->data[0];
@@ -634,6 +649,12 @@ display(p, list)
 					np->flags = &np->data[ulen + glen + 2];
 				  	(void)strcpy(np->flags, flags);
 					free(flags);
+				}
+				if (f_lomac) {
+					np->lattr = &np->data[ulen + glen + 2
+					    + (f_flags ? flen + 1 : 0)];
+					(void)strcpy(np->lattr, lattr);
+					free(lattr);
 				}
 				cur->fts_pointer = np;
 			}
@@ -653,6 +674,7 @@ display(p, list)
 		(void)snprintf(buf, sizeof(buf), "%lu", maxblock);
 		d.s_block = strlen(buf);
 		d.s_flags = maxflags;
+		d.s_lattr = maxlattr;
 		d.s_group = maxgroup;
 		(void)snprintf(buf, sizeof(buf), "%lu", maxinode);
 		d.s_inode = strlen(buf);
@@ -669,6 +691,8 @@ display(p, list)
 	if (f_longform)
 		for (cur = list; cur; cur = cur->fts_link)
 			free(cur->fts_pointer);
+	if (f_lomac)
+		lomac_stop();
 }
 
 /*

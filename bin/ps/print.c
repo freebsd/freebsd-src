@@ -726,3 +726,14 @@ rvar(k, ve)
 	else
 		(void)printf("%*s", v->width, "-");
 }
+
+void
+lattr(k, ve)
+	KINFO *k;
+	VARENT *ve;
+{
+	VAR *v;
+
+	v = ve->var;
+	(void)printf("%-*d", (int)v->width, get_lattr(k->ki_p->ki_pid));
+}
