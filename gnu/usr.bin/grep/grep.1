@@ -1,0 +1,234 @@
+.TH GREP 1 "1988 December 13" "GNU Project" \" -*- nroff -*-
+.UC 4
+.SH NAME
+grep, egrep \- print lines matching a regular expression
+.SH SYNOPSIS
+.B grep
+[
+.B \-CVbchilnsvwx
+] [
+.BI \- num
+] [
+.B \-AB
+.I num
+] [ [
+.B \-e
+]
+.I expr
+|
+.B \-f
+.I file
+] [
+.I "files ..."
+]
+.SH DESCRIPTION
+.I Grep
+searches the files listed in the arguments (or standard
+input if no files are given) for all lines that contain a match for
+the given
+.IR expr .
+If any lines match, they are printed.
+.PP
+Also, if any matches were found,
+.I grep
+exits with a status of 0, but if no matches were found it exits
+with a status of 1.  This is useful for building shell scripts that
+use
+.I grep
+as a condition for, for example, the
+.I if
+statement.
+.PP
+When invoked as
+.I egrep
+the syntax of the
+.I expr
+is slightly different; See below.
+.br
+.SH "REGULAR EXPRESSIONS"
+.RS 2.5i
+.ta 1i 2i
+.sp
+.ti -2.0i
+(grep)	(egrep)		(explanation)
+.sp
+.ti -2.0i
+\fIc\fP	\fIc\fP	a single (non-meta) character matches itself.
+.sp
+.ti -2.0i
+\&.	.	matches any single character except newline.
+.sp
+.ti -2.0i
+\\?	?	postfix operator; preceeding item is optional.
+.sp
+.ti -2.0i
+\(**	\(**	postfix operator; preceeding item 0 or
+more times.
+.sp
+.ti -2.0i
+\\+	+	postfix operator; preceeding item 1 or
+more times.
+.sp
+.ti -2.0i
+\\|	|	infix operator; matches either
+argument.
+.sp
+.ti -2.0i
+^	^	matches the empty string at the beginning of a line.
+.sp
+.ti -2.0i
+$	$	matches the empty string at the end of a line.
+.sp
+.ti -2.0i
+\\<	\\<	matches the empty string at the beginning of a word.
+.sp
+.ti -2.0i
+\\>	\\>	matches the empty string at the end of a word.
+.sp
+.ti -2.0i
+[\fIchars\fP]	[\fIchars\fP]	match any character in the given class; if the
+first character after [ is ^, match any character
+not in the given class; a range of characters may
+be specified by \fIfirst\-last\fP; for example, \\W
+(below) is equivalent to the class [^A\-Za\-z0\-9]
+.sp
+.ti -2.0i
+\\( \\)	( )	parentheses are used to override operator precedence.
+.sp
+.ti -2.0i
+\\\fIdigit\fP	\\\fIdigit\fP	\\\fIn\fP matches a repeat of the text
+matched earlier in the regexp by the subexpression inside the nth
+opening parenthesis.
+.sp
+.ti -2.0i
+\\	\\	any special character may be preceded
+by a backslash to match it literally.
+.sp
+.ti -2.0i
+(the following are for compatibility with GNU Emacs)
+.sp
+.ti -2.0i
+\\b	\\b	matches the empty string at the edge of a word.
+.sp
+.ti -2.0i
+\\B	\\B	matches the empty string if not at the edge of a word.
+.sp
+.ti -2.0i
+\\w	\\w	matches word-constituent characters (letters & digits).
+.sp
+.ti -2.0i
+\\W	\\W	matches characters that are not word-constituent.
+.RE
+.PP
+Operator precedence is (highest to lowest) ?, \(**, and +, concatenation,
+and finally |.  All other constructs are syntactically identical to
+normal characters.  For the truly interested, the file dfa.c describes
+(and implements) the exact grammar understood by the parser.
+.SH OPTIONS
+.TP
+.BI \-A " num"
+print <num> lines of context after every matching line
+.TP
+.BI \-B " num"
+print
+.I num
+lines of context before every matching line
+.TP
+.B \-C
+print 2 lines of context on each side of every match
+.TP
+.BI \- num
+print
+.I num
+lines of context on each side of every match
+.TP
+.B \-V
+print the version number on the diagnostic output
+.TP
+.B \-b
+print every match preceded by its byte offset
+.TP
+.B \-c
+print a total count of matching lines only
+.TP
+.BI \-e " expr"
+search for
+.IR expr ;
+useful if
+.I expr
+begins with \-
+.TP
+.BI \-f " file"
+search for the expression contained in
+.I file
+.TP
+.B \-h
+don't display filenames on matches
+.TP
+.B \-i
+ignore case difference when comparing strings
+.TP
+.B \-l
+list files containing matches only
+.TP
+.B \-n
+print each match preceded by its line number
+.TP
+.B \-s
+run silently producing no output except error messages
+.TP
+.B \-v
+print only lines that contain no matches for the <expr>
+.TP
+.B \-w
+print only lines where the match is a complete word
+.TP
+.B \-x
+print only lines where the match is a whole line
+.SH "SEE ALSO"
+emacs(1), ed(1), sh(1),
+.I "GNU Emacs Manual"
+.SH INCOMPATIBILITIES
+The following incompatibilities with UNIX
+.I grep
+exist:
+.PP
+.RS 0.5i
+The context-dependent meaning of \(** is not quite the same (grep only).
+.PP
+.B \-b
+prints a byte offset instead of a block offset.
+.PP
+The {\fIm,n\fP} construct of System V grep is not implemented.
+.PP
+.SH BUGS
+GNU \fIe?grep\fP has been thoroughly debugged and tested over a period
+of several years; we think it's a reliable beast or we wouldn't
+distribute it.  If by some fluke of the universe you discover a bug,
+send a detailed description (including options, regular expressions,
+and a copy of an input file that can reproduce it) to mike@ai.mit.edu.
+.PP
+.SH AUTHORS
+Mike Haertel wrote the deterministic regexp code and the bulk
+of the program.
+.PP
+James A. Woods is responsible for the hybridized search strategy
+of using Boyer-Moore-Gosper fixed-string search as a filter
+before calling the general regexp matcher.
+.PP
+Arthur David Olson contributed code that finds fixed strings for
+the aforementioned BMG search for a large class of regexps.
+.PP
+Richard Stallman wrote the backtracking regexp matcher that is used
+for \\\fIdigit\fP backreferences, as well as the GNU getopt.  The
+backtracking matcher was originally written for GNU Emacs.
+.PP
+D. A. Gwyn wrote the C alloca emulation that is provided so
+System V machines can run this program.  (Alloca is used only
+by RMS' backtracking matcher, and then only rarely, so there
+is no loss if your machine doesn't have a "real" alloca.)
+.PP
+Scott Anderson and Henry Spencer designed the regression tests
+used in the "regress" script.
+.PP
+Paul Placeway wrote the original version of this manual page.
