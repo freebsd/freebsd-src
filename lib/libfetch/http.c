@@ -732,15 +732,20 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 
     n = noredirect ? 1 : MAX_REDIRECT;
 
-    us->size = -1;
-    us->atime = us->mtime = 0;
+    /* just to appease compiler warnings */
+    code = HTTP_PROTOCOL_ERROR;
     chunked = 0;
     offset = 0;
     fd = -1;
-    code = HTTP_PROTOCOL_ERROR; /* just to appease a compiler warning */
     
     for (url = URL, i = 0; i < n; ++i) {
+	new = NULL;
+	us->size = -1;
+	us->atime = us->mtime = 0;
+	chunked = 0;
 	need_auth = 0;
+	offset = 0;
+	fd = -1;
     retry:
 	/* connect to server or proxy */
 	if ((fd = _http_connect(url, &proxy, flags)) == -1)
@@ -858,27 +863,28 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	    case hdr_location:
 		if (!HTTP_REDIRECT(code))
 		    break;
+		if (new)
+		    free(new);
 		if (verbose)
 		    _fetch_info("%d redirect to %s", code, p);
-		if ((new = fetchParseURL(p)) == NULL)
-		    /* invalid location */
+		if (*p == '/')
+		    /* absolute path */
+		    new = fetchMakeURL(url->scheme, url->host, url->port, p,
+				       url->user, url->pwd);
+		else
+		    new = fetchParseURL(p);
+		if (new == NULL) {
+		    /* XXX should set an error code */
+		    DEBUG(fprintf(stderr, "failed to parse new URL\n"));
 		    goto ouch;
+		}
 		if (!*new->user && !*new->pwd) {
 		    strcpy(new->user, url->user);
 		    strcpy(new->pwd, url->pwd);
 		}
 		new->offset = url->offset;
 		new->length = url->length;
-		close(fd);
-		us->size = -1;
-		us->atime = us->mtime = 0;
-		chunked = 0;
-		offset = 0;
-		fd = -1;
-		if (url != URL)
-		    fetchFreeURL(url);
-		url = new;
-		continue;
+		break;
 	    case hdr_transfer_encoding:	
 		/* XXX weak test*/
 		chunked = (strcasecmp(p, "chunked") == 0);
@@ -891,8 +897,15 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	    }
 	} while (h > hdr_end);
 
-	if (code == HTTP_OK || code == HTTP_PARTIAL)
+	/* we either have a hit, or a redirect with no Location: header */
+	if (code == HTTP_OK || code == HTTP_PARTIAL || !new)
 	    break;
+
+	/* we have a redirect */
+	close(fd);
+	if (url != URL)
+	    fetchFreeURL(url);
+	url = new;
     }
 
     /* no success */
