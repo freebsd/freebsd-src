@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 172 $
+ *              $Revision: 174 $
  *
  *****************************************************************************/
 
@@ -175,7 +175,7 @@ AcpiExStore (
     {
         /*
          * Dest is a namespace node,
-         * Storing an object into a Name "container"
+         * Storing an object into a Named node.
          */
         Status = AcpiExStoreObjectToNode (SourceDesc,
                     (ACPI_NAMESPACE_NODE *) DestDesc, WalkState);
@@ -187,7 +187,7 @@ AcpiExStore (
 
     switch (ACPI_GET_OBJECT_TYPE (DestDesc))
     {
-    case INTERNAL_TYPE_REFERENCE:
+    case ACPI_TYPE_LOCAL_REFERENCE:
         break;
 
     case ACPI_TYPE_INTEGER:
@@ -534,14 +534,14 @@ AcpiExStoreObjectToNode (
     switch (TargetType)
     {
     case ACPI_TYPE_BUFFER_FIELD:
-    case INTERNAL_TYPE_REGION_FIELD:
-    case INTERNAL_TYPE_BANK_FIELD:
-    case INTERNAL_TYPE_INDEX_FIELD:
+    case ACPI_TYPE_LOCAL_REGION_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
+    case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
         /*
          * For fields, copy the source data to the target field.
          */
-        Status = AcpiExWriteDataToField (SourceDesc, TargetDesc);
+        Status = AcpiExWriteDataToField (SourceDesc, TargetDesc, &WalkState->ResultObj);
         break;
 
 

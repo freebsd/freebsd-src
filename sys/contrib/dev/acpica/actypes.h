@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 239 $
+ *       $Revision: 241 $
  *
  *****************************************************************************/
 
@@ -133,7 +133,7 @@
 
 
 /*
- * Data types - Fixed across all compilation models
+ * Data types - Fixed across all compilation models (16/32/64)
  *
  * BOOLEAN      Logical Boolean.
  * INT8         8-bit  (1 byte) signed value
@@ -182,6 +182,7 @@ typedef UINT64                          ACPI_SIZE;
 
 
 #elif ACPI_MACHINE_WIDTH == 16
+
 /*
  * 16-bit type definitions
  */
@@ -224,6 +225,7 @@ typedef UINT16                          ACPI_SIZE;
 
 
 #elif ACPI_MACHINE_WIDTH == 32
+
 /*
  * 32-bit type definitions (default)
  */
@@ -259,7 +261,6 @@ typedef UINT32                          ACPI_SIZE;
 /*
  * Miscellaneous common types
  */
-
 typedef UINT32                          UINT32_BIT;
 typedef NATIVE_UINT                     ACPI_PTRDIFF;
 typedef char                            NATIVE_CHAR;
@@ -317,7 +318,6 @@ typedef struct AcpiPointer
 /*
  * Useful defines
  */
-
 #ifdef FALSE
 #undef FALSE
 #endif
@@ -336,7 +336,6 @@ typedef struct AcpiPointer
 /*
  * Local datatypes
  */
-
 typedef UINT32                          ACPI_STATUS;    /* All ACPI Exceptions */
 typedef UINT32                          ACPI_NAME;      /* 4-byte ACPI name */
 typedef char*                           ACPI_STRING;    /* Null terminated ASCII string */
@@ -405,7 +404,6 @@ typedef UINT64                          ACPI_INTEGER;
 /*
  * Constants with special meanings
  */
-
 #define ACPI_ROOT_OBJECT                (ACPI_HANDLE) ACPI_PTR_ADD (char, NULL, ACPI_MAX_PTR)
 
 
@@ -477,7 +475,6 @@ typedef UINT64                          ACPI_INTEGER;
 /*
  *  Table types.  These values are passed to the table related APIs
  */
-
 typedef UINT32                          ACPI_TABLE_TYPE;
 
 #define ACPI_TABLE_RSDP                 (ACPI_TABLE_TYPE) 0
@@ -492,15 +489,14 @@ typedef UINT32                          ACPI_TABLE_TYPE;
 
 
 /*
- * Types associated with names.  The first group of
- * values correspond to the definition of the ACPI
- * ObjectType operator (See the ACPI Spec).  Therefore,
+ * Types associated with ACPI names and objects.  The first group of
+ * values (up to ACPI_TYPE_EXTERNAL_MAX) correspond to the definition
+ * of the ACPI ObjectType() operator (See the ACPI Spec).  Therefore,
  * only add to the first group if the spec changes.
  *
- * Types must be kept in sync with the AcpiNsProperties
- * and AcpiNsTypeNames arrays
+ * Types must be kept in sync with the global AcpiNsProperties
+ * and AcpiNsTypeNames arrays.
  */
-
 typedef UINT32                          ACPI_OBJECT_TYPE;
 
 #define ACPI_TYPE_ANY                   0x00
@@ -521,52 +517,45 @@ typedef UINT32                          ACPI_OBJECT_TYPE;
 #define ACPI_TYPE_DDB_HANDLE            0x0F
 #define ACPI_TYPE_DEBUG_OBJECT          0x10
 
-#define ACPI_TYPE_MAX                   0x10
+#define ACPI_TYPE_EXTERNAL_MAX          0x10
 
 /*
- * This section contains object types that do not relate to the ACPI ObjectType operator.
- * They are used for various internal purposes only.  If new predefined ACPI_TYPEs are
- * added (via the ACPI specification), these internal types must move upwards.
- * Also, values exceeding the largest official ACPI ObjectType must not overlap with
- * defined AML opcodes.
+ * These are object types that do not map directly to the ACPI 
+ * ObjectType() operator. They are used for various internal purposes only.  
+ * If new predefined ACPI_TYPEs are added (via the ACPI specification), these 
+ * internal types must move upwards. (There is code that depends on these
+ * values being contiguous with the external types above.)
  */
-#define INTERNAL_TYPE_BEGIN             0x11
+#define ACPI_TYPE_LOCAL_REGION_FIELD    0x11
+#define ACPI_TYPE_LOCAL_BANK_FIELD      0x12
+#define ACPI_TYPE_LOCAL_INDEX_FIELD     0x13
+#define ACPI_TYPE_LOCAL_REFERENCE       0x14  /* Arg#, Local#, Name, Debug, RefOf, Index */
+#define ACPI_TYPE_LOCAL_ALIAS           0x15
+#define ACPI_TYPE_LOCAL_NOTIFY          0x16
+#define ACPI_TYPE_LOCAL_ADDRESS_HANDLER 0x17
+#define ACPI_TYPE_LOCAL_RESOURCE        0x18
+#define ACPI_TYPE_LOCAL_RESOURCE_FIELD  0x19
+#define ACPI_TYPE_LOCAL_SCOPE           0x1A  /* 1 Name, multiple ObjectList Nodes */
 
-#define INTERNAL_TYPE_REGION_FIELD      0x11
-#define INTERNAL_TYPE_BANK_FIELD        0x12
-#define INTERNAL_TYPE_INDEX_FIELD       0x13
-#define INTERNAL_TYPE_REFERENCE         0x14  /* Arg#, Local#, Name, Debug; used only in descriptors */
-#define INTERNAL_TYPE_ALIAS             0x15
-#define INTERNAL_TYPE_NOTIFY            0x16
-#define INTERNAL_TYPE_ADDRESS_HANDLER   0x17
-#define INTERNAL_TYPE_RESOURCE          0x18
-#define INTERNAL_TYPE_RESOURCE_FIELD    0x19
+#define ACPI_TYPE_NS_NODE_MAX           0x1A  /* Last typecode used within a NS Node */
 
+/*
+ * These are special object types that never appear in
+ * a Namespace node, only in an ACPI_OPERAND_OBJECT
+ */
+#define ACPI_TYPE_LOCAL_EXTRA           0x1B
+#define ACPI_TYPE_LOCAL_DATA            0x1C
 
-#define INTERNAL_TYPE_NODE_MAX          0x19
+#define ACPI_TYPE_LOCAL_MAX             0x1C
 
-/* These are pseudo-types because there are never any namespace nodes with these types */
+/* All types above here are invalid */
 
-#define INTERNAL_TYPE_FIELD_DEFN        0x1A  /* Name, ByteConst, multiple FieldElement */
-#define INTERNAL_TYPE_BANK_FIELD_DEFN   0x1B  /* 2 Name,DWordConst,ByteConst,multi FieldElement */
-#define INTERNAL_TYPE_INDEX_FIELD_DEFN  0x1C  /* 2 Name, ByteConst, multiple FieldElement */
-#define INTERNAL_TYPE_IF                0x1D
-#define INTERNAL_TYPE_ELSE              0x1E
-#define INTERNAL_TYPE_WHILE             0x1F
-#define INTERNAL_TYPE_SCOPE             0x20  /* Name, multiple Node */
-#define INTERNAL_TYPE_DEF_ANY           0x21  /* type is Any, suppress search of enclosing scopes */
-#define INTERNAL_TYPE_EXTRA             0x22
-#define INTERNAL_TYPE_DATA              0x23
-
-#define INTERNAL_TYPE_MAX               0x23
-
-#define INTERNAL_TYPE_INVALID           0x24
+#define ACPI_TYPE_INVALID               0x1D
 #define ACPI_TYPE_NOT_FOUND             0xFF
 
 
 /*
- * Bitmapped ACPI types
- * Used internally only
+ * Bitmapped ACPI types.  Used internally only
  */
 #define ACPI_BTYPE_ANY                  0x00000000
 #define ACPI_BTYPE_INTEGER              0x00000001
@@ -601,12 +590,12 @@ typedef UINT32                          ACPI_OBJECT_TYPE;
  */
 #define ACPI_READ                       0
 #define ACPI_WRITE                      1
+#define ACPI_IO_MASK                    1
 
 
 /*
  * AcpiEvent Types: Fixed & General Purpose
  */
-
 typedef UINT32                          ACPI_EVENT_TYPE;
 
 #define ACPI_EVENT_FIXED                0
@@ -615,7 +604,6 @@ typedef UINT32                          ACPI_EVENT_TYPE;
 /*
  * Fixed events
  */
-
 #define ACPI_EVENT_PMTIMER              0
 #define ACPI_EVENT_GLOBAL               1
 #define ACPI_EVENT_POWER_BUTTON         2
@@ -634,9 +622,7 @@ typedef UINT32                          ACPI_EVENT_TYPE;
 /*
  * GPEs
  */
-
 #define ACPI_EVENT_WAKE_ENABLE          0x1
-
 #define ACPI_EVENT_WAKE_DISABLE         0x1
 
 
@@ -669,7 +655,7 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 #define ACPI_DEVICE_NOTIFY              1
 #define ACPI_MAX_NOTIFY_HANDLER_TYPE    1
 
-#define ACPI_MAX_SYS_NOTIFY                  0x7f
+#define ACPI_MAX_SYS_NOTIFY             0x7f
 
 
 /* Address Space (Operation Region) Types */
@@ -717,10 +703,10 @@ typedef UINT8                           ACPI_ADR_SPACE_TYPE;
 #define ACPI_BITREG_MAX                         0x13
 #define ACPI_NUM_BITREG                         ACPI_BITREG_MAX + 1
 
+
 /*
  * External ACPI object definition
  */
-
 typedef union AcpiObj
 {
     ACPI_OBJECT_TYPE            Type;   /* See definition of AcpiNsType for values */
@@ -779,7 +765,6 @@ typedef union AcpiObj
 /*
  * List of objects, used as a parameter list for control method evaluation
  */
-
 typedef struct AcpiObjList
 {
     UINT32                      Count;
@@ -791,7 +776,6 @@ typedef struct AcpiObjList
 /*
  * Miscellaneous common Data Structures used by the interfaces
  */
-
 #define ACPI_NO_BUFFER              0
 #define ACPI_ALLOCATE_BUFFER        (ACPI_SIZE) (-1)
 #define ACPI_ALLOCATE_LOCAL_BUFFER  (ACPI_SIZE) (-2)
@@ -807,7 +791,6 @@ typedef struct
 /*
  * NameType for AcpiGetName
  */
-
 #define ACPI_FULL_PATHNAME              0
 #define ACPI_SINGLE_NAME                1
 #define ACPI_NAME_TYPE_MAX              1
@@ -816,7 +799,6 @@ typedef struct
 /*
  * Structure and flags for AcpiGetSystemInfo
  */
-
 #define ACPI_SYS_MODE_UNKNOWN           0x0000
 #define ACPI_SYS_MODE_ACPI              0x0001
 #define ACPI_SYS_MODE_LEGACY            0x0002
@@ -836,7 +818,6 @@ typedef struct AcpiTableInfo
 /*
  * System info returned by AcpiGetSystemInfo()
  */
-
 typedef struct _AcpiSysInfo
 {
     UINT32                      AcpiCaVersion;
@@ -855,7 +836,6 @@ typedef struct _AcpiSysInfo
 /*
  * Various handlers and callback procedures
  */
-
 typedef
 UINT32 (*ACPI_EVENT_HANDLER) (
     void                        *Context);
@@ -1092,7 +1072,7 @@ typedef struct
 
 /*
  * END_DEPENDENT_FUNCTIONS_RESOURCE struct is not
- *  needed because it has no fields
+ * needed because it has no fields
  */
 
 typedef struct

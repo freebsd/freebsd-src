@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 113 $
+ *       $Revision: 114 $
  *
  *****************************************************************************/
 
@@ -290,6 +290,7 @@ typedef struct AcpiObjectMutex
     void                        *Semaphore;
     union acpi_operand_obj      *Prev;              /* Link for list of acquired mutexes */
     union acpi_operand_obj      *Next;              /* Link for list of acquired mutexes */
+    ACPI_NAMESPACE_NODE         *Node;              /* containing object */
 
 } ACPI_OBJECT_MUTEX;
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbgetall - Get all required ACPI tables
- *              $Revision: 2 $
+ *              $Revision: 3 $
  *
  *****************************************************************************/
 
@@ -319,7 +319,14 @@ AcpiTbGetRequiredTables (
          * Get the tables needed by this subsystem (FADT and any SSDTs).
          * NOTE: All other tables are completely ignored at this time.
          */
-        AcpiTbGetPrimaryTable (&Address, &TableInfo);
+        Status = AcpiTbGetPrimaryTable (&Address, &TableInfo);
+        if ((Status != AE_OK) && (Status != AE_TABLE_NOT_SUPPORTED))
+        {
+            ACPI_REPORT_WARNING (("%s, while getting table at %8.8X%8.8X\n", 
+                AcpiFormatException (Status), 
+                ACPI_HIDWORD (Address.Pointer.Value),
+                ACPI_LODWORD (Address.Pointer.Value)));
+        }
     }
 
     /* We must have a FADT to continue */

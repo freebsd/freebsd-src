@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdisasm.h - AML disassembler
- *       $Revision: 3 $
+ *       $Revision: 5 $
  *
  *****************************************************************************/
 
@@ -199,10 +199,6 @@ AcpiDmDumpName (
     char                    *Name);
 
 void
-AcpiDmString (
-    char                    *String);
-
-void
 AcpiDmUnicode (
     ACPI_PARSE_OBJECT       *Op);
 
@@ -334,6 +330,9 @@ void
 AcpiDmBitList (
     UINT16                  Mask);
 
+void
+AcpiDmDecodeAttribute (
+    UINT8                   Attribute);
 
 /*
  * dmresrcl
