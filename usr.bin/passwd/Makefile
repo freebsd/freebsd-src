@@ -1,6 +1,29 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 # $FreeBSD$
 
+# NOPAM is used by PicoBSD
+
+.if defined(NOPAM)
+
+PROG=	passwd
+SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c 
+
+GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
+	yppasswd_private.h yppasswd_private_clnt.c yppasswd_private_xdr.c
+CFLAGS+=-Wall
+
+DPADD=	${LIBCRYPT} ${LIBUTIL}
+LDADD=	-lcrypt -lutil
+.PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
+	${.CURDIR}/../rlogin 
+
+CFLAGS+= -DLOGIN_CAP -DCRYPT -I. -I${.CURDIR} \
+	-I${.CURDIR}/../../usr.sbin/vipw \
+	-I${.CURDIR}/../../usr.bin/chpass \
+	-Dyp_error=warnx -DLOGGING
+
+.else
+
 PROG=	passwd
 SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c \
 	yp_passwd.c ypxfr_misc.c ${GENSRCS}
@@ -20,6 +43,8 @@ CFLAGS+= -DLOGIN_CAP -DCRYPT -DYP -I. -I${.CURDIR} \
 	-I${.CURDIR}/../../libexec/ypxfr \
 	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd \
 	-Dyp_error=warnx -DLOGGING
+
+.endif
 
 CLEANFILES= ${GENSRCS}
 

@@ -6,20 +6,12 @@ SRC?=/usr/src
 all: crunch
 
 crunch:
-	@if [ ! -f /usr/src/usr.bin/passwd/.picobsd.patched ]; then \
-		cat passwd.diff|(cd /usr/src/usr.bin/passwd; patch -p0); \
-		touch /usr/src/usr.bin/passwd/.picobsd.patched; \
-	fi
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
 	@crunchgen ./crunch1.conf
 	@${MAKE} -f crunch1.mk -DNOPAM all \
 	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY -DRELEASE_CRUNCH -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
 
 clean:
-	@if [ -f /usr/src/usr.bin/passwd/.picobsd.patched ]; then \
-		cat passwd.diff|(cd /usr/src/usr.bin/passwd; patch -R -p0); \
-		rm /usr/src/usr.bin/passwd/.picobsd.patched; \
-	fi
 	rm  -f *.o *.stub *.lo *_stub.c *.mk \
 		crunch.cache \
 		crunch.mk \
