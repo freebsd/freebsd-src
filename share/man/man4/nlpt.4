@@ -31,12 +31,12 @@
 .Dt LPT 4
 .Os FreeBSD
 .Sh NAME
-.Nm nlpt
+.Nm lpt
 .Nd
 Generic printer device driver
 .Sh SYNOPSIS
 .Cd "controller ppbus0"
-.Cd "device nlpt0 at ppbus?"
+.Cd "device lpt0 at ppbus?"
 .Pp
 .Cd "controller	ppc0	at isa? port" \&"IO_LPT1\&" tty irq 7
 .Cd "controller	ppc1	at isa? port" \&"IO_LPT2\&" tty irq 7
@@ -53,7 +53,7 @@ For DMA capable parallel port:
 .Cd "controller ppc0 at isa? port? tty irq 7 drq 1"
 .Sh DESCRIPTION
 The current
-.Em nlpt
+.Em lpt
 driver is the port of the original lpt driver to the
 .Xr ppbus 4
 system.
@@ -61,12 +61,12 @@ system.
 One purpose of this port was to allow parallel port sharing with other
 parallel devices.
 Secondly, inb()/outb() calls have been replaced by ppbus
-function calls. nlpt is now arch-independent thanks to the ppbus interface.
+function calls. lpt is now arch-independent thanks to the ppbus interface.
 See
 .Xr ppbus 4
 for more info about the ppbus system.
 .Pp
-The parallel port bus is allocated by nlpt when the printer device is opened
+The parallel port bus is allocated by lpt when the printer device is opened
 and released only when the transfer is completed: either when the device
 is closed or when the entire buffer is sent in interrupt driven mode.
 .Pp
@@ -82,7 +82,7 @@ command.
 With an ECP/ISA port, you can take advantage
 of FIFO and DMA.
 .Pp
-In order to retrieve printer info from /dev/nlpt0, just apply the
+In order to retrieve printer info from /dev/lpt0, just apply the
 .Nm cat
 command to the device.
 If the printer supports IEEE1284 nibble mode and has
@@ -96,13 +96,13 @@ This driver replaces the functionality of the lpa
 driver, which is now defunct.
 .Sh FILES
 .Bl -tag -width Pa -compact
-.It Pa /dev/nlpt0
+.It Pa /dev/lpt0
 first parallel port driver
 .El
 .Sh BUGS
 There are lots of them, especially in cheap parallel port implementations.
 .Pp
-It is only possible to open a nlpt port when a printer is connected and
+It is only possible to open a lpt port when a printer is connected and
 on-line, making it impossible to run 
 .Xr lptcontrol 8 
 when there is no printer connected.
