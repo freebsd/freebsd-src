@@ -38,6 +38,9 @@
  * $FreeBSD$
  */
 
+#ifndef _LIBKERN_QUAD_H
+#define _LIBKERN_QUAD_H
+
 /*
  * Quad arithmetic.
  *
@@ -116,3 +119,4 @@ typedef unsigned int	qshift_t;
 #else
 typedef u_quad_t	qshift_t;
 #endif
+#endif /* _LIBKERN_QUAD_H */
