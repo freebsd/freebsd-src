@@ -21,9 +21,6 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
-#ifdef __FreeBSD__
-#include <locale.h>
-#endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -120,6 +117,23 @@ static char **enlist _RE_ARGS((char **cpp, char *new, size_t len));
 static char **comsubs _RE_ARGS((char *left, char *right));
 static char **addlists _RE_ARGS((char **old, char **new));
 static char **inboth _RE_ARGS((char **left, char **right));
+
+#ifdef __FreeBSD__
+static int collate_range_cmp (a, b)
+	int a, b;
+{
+	int r;
+	static char s[2][2];
+
+	if ((unsigned char)a == (unsigned char)b)
+		return 0;
+	s[0][0] = a;
+	s[1][0] = b;
+	if ((r = strcoll(s[0], s[1])) == 0)
+		r = (unsigned char)a - (unsigned char)b;
+	return r;
+}
+#endif
 
 static ptr_t
 xcalloc(n, s)
