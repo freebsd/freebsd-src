@@ -454,8 +454,11 @@ showkre()
 	PUTRATE(Cnt.v_hits, VMSTATROW + 2, VMSTATCOL + 3, 6);
 	PUTRATE(Cnt.v_zfod, VMSTATROW + 3, VMSTATCOL + 4, 5);
 	PUTRATE(Cnt.v_nzfod, VMSTATROW + 4, VMSTATCOL + 3, 6);
-	putfloat(cnt.v_nzfod == 0 ? 0.0 : (100.0 * cnt.v_zfod / cnt.v_nzfod),
-		 VMSTATROW + 5, VMSTATCOL + 2, 7, 2, 1);
+	{
+		unsigned long tot = cnt.v_zfod + cnt.v_nzfod;
+		putfloat(tot == 0 ? 0.0 : (100.0 * cnt.v_zfod / tot),
+			 VMSTATROW + 5, VMSTATCOL + 2, 7, 2, 1);
+	}
 	putint(pgtokb(cnt.v_kernel_pages), VMSTATROW + 6, VMSTATCOL, 9);
 	putint(pgtokb(cnt.v_wire_count), VMSTATROW + 7, VMSTATCOL, 9);
 	putint(pgtokb(cnt.v_active_count), VMSTATROW + 8, VMSTATCOL, 9);
