@@ -79,7 +79,8 @@ ENTRY(_thread_enter_uts)
 	 */
 	fnstcw	MC_FP_CW_OFFSET(%edx)
 	movl	$0, MC_OWNEDFP_OFFSET(%edx) /* no FP */
-	lahf				/* get eflags */
+	pushfl				/* get eflags */
+	popl	%eax
 	movl	%eax, 68(%edx)		/* store eflags */
 	movl	%esp, %eax		/* setcontext pushes the return  */
 	addl	$4, %eax		/*   address onto the top of the */
