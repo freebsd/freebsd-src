@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2003
+.Dd September 12, 2004
 .Dt UBSEC 4
 .Os
 .Sh NAME
@@ -40,6 +40,29 @@
 .Sh SYNOPSIS
 .Cd device ubsec
 .Sh DESCRIPTION
+The
+.Nm
+driver supports cards containing Broadcom and BlueSteel uBsec 5x0x
+crypto accelerator chips.
+.Pp
+The
+.Nm
+driver registers itself to accelerate DES, Triple-DES, MD5-HMAC,
+and SHA1-HMAC operations for
+.Xr ipsec 4
+and
+.Xr crypto 4 .
+.Pp
+On those models which contain a public key engine (almost all of the
+more recent ones), this feature is registered with the
+.Xr crypto 4
+subsystem.
+.Pp
+On all models except the Bluesteel 5501 and Broadcom 5801, the driver
+registers itself to provide random data to the
+.Xr random 4
+subsystem.
+.Sh HARDWARE
 The
 .Nm
 driver supports cards containing any of the following chips:
@@ -66,24 +89,6 @@ Faster version of the BCM5820.
 .It Broadcom BCM5823
 A BCM5822 with AES capability.
 .El
-.Pp
-The
-.Nm
-driver registers itself to accelerate DES, Triple-DES, MD5-HMAC,
-and SHA1-HMAC operations for
-.Xr ipsec 4
-and
-.Xr crypto 4 .
-.Pp
-On those models which contain a public key engine (almost all of the
-more recent ones), this feature is registered with the
-.Xr crypto 4
-subsystem.
-.Pp
-On all models except the Bluesteel 5501 and Broadcom 5801, the driver
-registers itself to provide random data to the
-.Xr random 4
-subsystem.
 .Sh SEE ALSO
 .Xr crypt 3 ,
 .Xr crypto 4 ,

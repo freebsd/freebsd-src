@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd May 30, 2002
+.Dd September 12, 2004
 .Dt SAFE 4
 .Os
 .Sh NAME
@@ -42,16 +42,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver supports cards containing any of the following chips:
-.Bl -tag -width "SafeNet 1141" -offset indent
-.It SafeNet 1141
-The original chipset.
-Supports DES, Triple-DES, AES, MD5, and SHA-1
-symmetric crypto operations, RNG, public key operations, and full IPsec
-packet processing.
-.It SafeNet 1741
-A faster version of the 1141.
-.El
+driver supports cards containing SafeNet crypto accelerator chips.
 .Pp
 The
 .Nm
@@ -100,6 +91,19 @@ or
 to
 .Dq Li int
 to dump the hardware interrupt registers.
+.Sh HARDWARE
+The
+.Nm
+driver supports cards containing any of the following chips:
+.Bl -tag -width "SafeNet 1141" -offset indent
+.It SafeNet 1141
+The original chipset.
+Supports DES, Triple-DES, AES, MD5, and SHA-1
+symmetric crypto operations, RNG, public key operations, and full IPsec
+packet processing.
+.It SafeNet 1741
+A faster version of the 1141.
+.El
 .Sh SEE ALSO
 .Xr crypt 3 ,
 .Xr crypto 4 ,
