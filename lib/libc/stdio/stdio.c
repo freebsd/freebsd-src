@@ -118,8 +118,10 @@ __sseek(cookie, offset, whence)
 	 * (fseek) in the cases it can't detect.
 	 */
 	if (ret < 0) {
-		if (errret == 0)
+		if (errret == 0) {
+			fp->_flags |= __SERR;
 			errno = EINVAL;
+		}
 		fp->_flags &= ~__SOFF;
 		ret = -1;
 	} else {
