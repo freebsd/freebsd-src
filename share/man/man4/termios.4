@@ -47,7 +47,8 @@ supported on tty asynchronous communication ports.
 When a terminal file is opened, it normally causes the process to wait
 until a connection is established.  For most hardware, the presence
 of a connection is indicated by the assertion of the hardware
-.Dv CARRIER line.
+.Dv CARRIER
+line.
 If the termios structure associated with the terminal file has the
 .Dv CLOCAL
 flag set in the cflag, or if the
@@ -323,7 +324,7 @@ characters (see the
 is received.
 This processing affects data in the input queue that has not yet been
 delimited by a newline
-.Dv NL,
+.Dv NL ,
 .Dv EOF ,
 or
 .Dv EOL
@@ -625,13 +626,15 @@ character.
 .El
 .Pp
 The following special characters are extensions defined by this
-system and are not a part of 1003.1 termios.
+system and are not a part of
+.St -p1003.1
+termios.
 .Bl -tag -width indent
 .It Dv EOL2
 Secondary
 .Dv EOL
 character.  Same function as
-.Dv EOL.
+.Dv EOL .
 .It Dv WERASE
 Special character on input and is recognized if the
 .Dv ICANON
@@ -705,7 +708,7 @@ Special Control Characters.
 Special
 character functions associated with changeable special control characters
 can be disabled individually by setting their value to
-.Dv {_POSIX_VDISABLE};
+.Dv {_POSIX_VDISABLE} ;
 see
 .Sx "Special Control Characters" .
 .Pp
@@ -989,8 +992,10 @@ and are composed of the following masks:
 /* enable following output processing */
 .It Dv ONLCR
 /* map NL to CR-NL (ala
-.Dv CRMOD)
+.Dv CRMOD )
 */
+.It Dv OCRNL
+/* map CR to NL */
 .It Dv OXTABS
 /* expand tabs to spaces */
 .It Dv ONOEOT
@@ -998,6 +1003,10 @@ and are composed of the following masks:
 .Dv EOT Ns 's
 .Ql \&^D
 on output) */
+.It Dv ONOCR
+/* do not transmit CRs on column 0 */
+.It Dv ONLRET
+/* on the termianl NL performs the CR function */
 .El
 .Pp
 If
@@ -1010,6 +1019,10 @@ If
 is set, newlines are translated to carriage return, linefeeds.
 .Pp
 If
+.Dv OCRNL
+is set, carriage returns are translated to newlines.
+.Pp
+If
 .Dv OXTABS
 is set, tabs are expanded to the appropriate number of
 spaces (assuming 8 column tab stops).
@@ -1020,6 +1033,15 @@ is set,
 .Tn ASCII
 .Dv EOT Ns 's
 are discarded on output.
+.Pp
+If
+.Dv ONOCR
+is set, no CR character is transmitted when at column 0 (first position).
+.Pp
+If
+.Dv ONLRET
+is set, the NL character is assumed to do the carriage-return function;
+the column pointer will be set to 0.
 .Ss Control Modes
 Values of the
 .Fa c_cflag
@@ -1283,10 +1305,10 @@ If
 is set, canonical processing is enabled.  This enables the
 erase and kill edit functions, and the assembly of input characters into
 lines delimited by
-.Dv NL,
+.Dv NL ,
 .Dv EOF ,
 and
-.Dv EOL,
+.Dv EOL ,
 as described in
 .Sx "Canonical Mode Input Processing" .
 .Pp
