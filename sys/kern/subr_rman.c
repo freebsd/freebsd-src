@@ -66,6 +66,12 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 
+#ifdef RMAN_DEBUG
+#define DPRINTF(params) printf##params
+#else
+#define DPRINTF(params)
+#endif
+
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
 struct	rman_head rman_head;
@@ -184,11 +190,9 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 
 	rv = 0;
 
-#ifdef RMAN_DEBUG
-	printf("rman_reserve_resource: <%s> request: [%#lx, %#lx], length "
+	DPRINTF(("rman_reserve_resource: <%s> request: [%#lx, %#lx], length "
 	       "%#lx, flags %u, device %s%d\n", rm->rm_descr, start, end,
-	       count, flags, device_get_name(dev), device_get_unit(dev));
-#endif /* RMAN_DEBUG */
+	       count, flags, device_get_name(dev), device_get_unit(dev)));
 	want_activate = (flags & RF_ACTIVE);
 	flags &= ~RF_ACTIVE;
 
@@ -200,9 +204,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 		;
 
 	if (CIRCLEQ_TERMCOND(r, rm->rm_list)) {
-#ifdef RMAN_DEBUG
-		printf("could not find a region\n");
-#endif RMAN_DEBUG
+		DPRINTF(("could not find a region\n"));
 		goto out;
 	}
 
@@ -211,37 +213,25 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	 */
 	for (s = r; !CIRCLEQ_TERMCOND(s, rm->rm_list);
 	     s = CIRCLEQ_NEXT(s, r_link)) {
-#ifdef RMAN_DEBUG
-		printf("considering [%#lx, %#lx]\n", s->r_start, s->r_end);
-#endif /* RMAN_DEBUG */
+		DPRINTF(("considering [%#lx, %#lx]\n", s->r_start, s->r_end));
 		if (s->r_start > end) {
-#ifdef RMAN_DEBUG
-			printf("s->r_start (%#lx) > end (%#lx)\n", s->r_start, end);
-#endif /* RMAN_DEBUG */
+			DPRINTF(("s->r_start (%#lx) > end (%#lx)\n", s->r_start, end));
 			break;
 		}
 		if (s->r_flags & RF_ALLOCATED) {
-#ifdef RMAN_DEBUG
-			printf("region is allocated\n");
-#endif /* RMAN_DEBUG */
+			DPRINTF(("region is allocated\n"));
 			continue;
 		}
 		rstart = max(s->r_start, start);
 		rend = min(s->r_end, max(start + count, end));
-#ifdef RMAN_DEBUG
-		printf("truncated region: [%#lx, %#lx]; size %#lx (requested %#lx)\n",
-		       rstart, rend, (rend - rstart + 1), count);
-#endif /* RMAN_DEBUG */
+		DPRINTF(("truncated region: [%#lx, %#lx]; size %#lx (requested %#lx)\n",
+		       rstart, rend, (rend - rstart + 1), count));
 
 		if ((rend - rstart + 1) >= count) {
-#ifdef RMAN_DEBUG
-			printf("candidate region: [%#lx, %#lx], size %#lx\n",
-			       rend, rstart, (rend - rstart + 1));
-#endif /* RMAN_DEBUG */
+			DPRINTF(("candidate region: [%#lx, %#lx], size %#lx\n",
+			       rend, rstart, (rend - rstart + 1)));
 			if ((s->r_end - s->r_start + 1) == count) {
-#ifdef RMAN_DEBUG
-				printf("candidate region is entire chunk\n");
-#endif /* RMAN_DEBUG */
+				DPRINTF(("candidate region is entire chunk\n"));
 				rv = s;
 				rv->r_flags |= RF_ALLOCATED | flags;
 				rv->r_dev = dev;
@@ -270,13 +260,11 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			rv->r_rm = rm;
 			
 			if (s->r_start < rv->r_start && s->r_end > rv->r_end) {
-#ifdef RMAN_DEBUG
-				printf("splitting region in three parts: "
+				DPRINTF(("splitting region in three parts: "
 				       "[%#lx, %#lx]; [%#lx, %#lx]; [%#lx, %#lx]\n",
 				       s->r_start, rv->r_start - 1,
 				       rv->r_start, rv->r_end,
-				       rv->r_end + 1, s->r_end);
-#endif /* RMAN_DEBUG */
+				       rv->r_end + 1, s->r_end));
 				/*
 				 * We are allocating in the middle.
 				 */
@@ -299,9 +287,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 				CIRCLEQ_INSERT_AFTER(&rm->rm_list, rv, r,
 						     r_link);
 			} else if (s->r_start == rv->r_start) {
-#ifdef RMAN_DEBUG
-				printf("allocating from the beginning\n");
-#endif /* RMAN_DEBUG */
+				DPRINTF(("allocating from the beginning\n"));
 				/*
 				 * We are allocating at the beginning.
 				 */
@@ -309,9 +295,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 				CIRCLEQ_INSERT_BEFORE(&rm->rm_list, s, rv,
 						      r_link);
 			} else {
-#ifdef RMAN_DEBUG
-				printf("allocating at the end\n");
-#endif /* RMAN_DEBUG */
+				DPRINTF(("allocating at the end\n"));
 				/*
 				 * We are allocating at the end.
 				 */
@@ -331,9 +315,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	 * former restriction could probably be lifted without too much
 	 * additional work, but this does not seem warranted.)
 	 */
-#ifdef RMAN_DEBUG
-	printf("no unshared regions found\n");
-#endif /* RMAN_DEBUG */
+	DPRINTF(("no unshared regions found\n"));
 	if ((flags & (RF_SHAREABLE | RF_TIMESHARE)) == 0)
 		goto out;
 
