@@ -35,6 +35,9 @@
 /*
  * Network parameters, used twice in sotfc to store what we want and what
  * we have.
+ *
+ * The current parameters are ONLY valid in a function called from the runq
+ * and should not be accessed directly from ioctls.
  */
 struct ray_nw_param {
     struct ray_cmd_net	p_1;
@@ -61,8 +64,6 @@ struct ray_softc {
     device_t dev;			/* Device */
     struct arpcom	arpcom;		/* Ethernet common 		*/
     struct ifmedia	ifmedia;	/* Ifnet common 		*/
-    struct callout_handle
-    			reset_timerh;	/* Handle for reset timer	*/
     struct callout_handle
     			tx_timerh;	/* Handle for tx timer	*/
     struct callout_handle
@@ -194,16 +195,21 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #define	SRAM_WRITE_FIELD_N(sc, off, s, f, p, n)	\
     SRAM_WRITE_REGION((sc), (off) + offsetof(struct s, f), (p), (n))
 
+/* Flags for runq entries */
 #define RAY_COM_FWOK		0x0001		/* Wakeup on completion	*/
 #define RAY_COM_FRUNNING	0x0002		/* This one running	*/
 #define RAY_COM_FCOMPLETED	0x0004		/* This one completed	*/
 #define RAY_COM_FWAIT		0x0008		/* Do not run the queue */
+#define RAY_COM_FCHKRUNNING	0x0010		/* Check IFF_RUNNING	*/
+#define RAY_COM_FDETACHED	0x0020		/* Card is gone		*/
 #define RAY_COM_FLAGS_PRINTFB	\
 	"\020"			\
 	"\001WOK"		\
 	"\002RUNNING"		\
 	"\003COMPLETED"		\
-	"\004WAIT"
+	"\004WAIT"		\
+	"\005CHKRUNNING"	\
+	"\006DETACHED"
 
 #define RAY_COM_NEEDS_TIMO(cmd)	(		\
 	 (cmd == RAY_CMD_DOWNLOAD_PARAMS) ||	\
