@@ -84,15 +84,18 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	 */
 	if (S_ISCHR(tbuf.st_mode) &&
 	    (dev = findcdev(buf->st_rdev)) != NULL) {
-		cdevsw = devsw(dev);
-		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
-			tbuf.st_mode &= ~S_IFMT;
-			tbuf.st_mode |= S_IFBLK;
+		cdevsw = dev_refthread(dev);
+		if (cdevsw != NULL) {
+			if (cdevsw->d_flags & D_DISK) {
+				tbuf.st_mode &= ~S_IFMT;
+				tbuf.st_mode |= S_IFBLK;
 
-			/* XXX this may not be quite right */
-			/* Map major number to 0 */
-			tbuf.st_dev = uminor(buf->st_dev) & 0xf;
-			tbuf.st_rdev = buf->st_rdev & 0xff;
+				/* XXX this may not be quite right */
+				/* Map major number to 0 */
+				tbuf.st_dev = uminor(buf->st_dev) & 0xf;
+				tbuf.st_rdev = buf->st_rdev & 0xff;
+			}
+			dev_relthread(dev);
 		}
 	}
 
@@ -428,15 +431,18 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	 */
 	if (S_ISCHR(lbuf.st_mode) &&
 	    (dev = findcdev(buf->st_rdev)) != NULL) {
-		cdevsw = devsw(dev);
-		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
-			lbuf.st_mode &= ~S_IFMT;
-			lbuf.st_mode |= S_IFBLK;
+		cdevsw = dev_refthread(dev);
+		if (cdevsw != NULL) {
+			if (cdevsw->d_flags & D_DISK) {
+				lbuf.st_mode &= ~S_IFMT;
+				lbuf.st_mode |= S_IFBLK;
 
-			/* XXX this may not be quite right */
-			/* Map major number to 0 */
-			lbuf.st_dev = uminor(buf->st_dev) & 0xf;
-			lbuf.st_rdev = buf->st_rdev & 0xff;
+				/* XXX this may not be quite right */
+				/* Map major number to 0 */
+				lbuf.st_dev = uminor(buf->st_dev) & 0xf;
+				lbuf.st_rdev = buf->st_rdev & 0xff;
+			}
+			dev_relthread(dev);
 		}
 	}
 
