@@ -49,8 +49,13 @@
   <sect1 id="intro">
     <title>Introduction</title>
 
-    <para>This distribution is a &release.type; of &os; &release.current;, the
-      latest point along the &release.branch; branch.</para>
+    <para>This distribution is a &release.type; of &os;
+      &release.current;.  This is a <quote>point release</quote>.  It
+      exists primarily to address some specific issues found
+      (after-the-fact) in the &os; &release.base; distribution.
+      Changes made for this point release are described, in the
+      release notes.  Generally speaking, the features of this release
+      are unchanged compared to &os; &release.base;.</para>
 
     <sect2>
       <title>About &os;</title>
