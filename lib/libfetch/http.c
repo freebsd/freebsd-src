@@ -106,7 +106,7 @@ __FBSDID("$FreeBSD$");
 
 struct cookie
 {
-	int		 fd;
+	conn_t		*conn;
 	char		*buf;
 	size_t		 b_size;
 	ssize_t		 b_len;
@@ -127,13 +127,13 @@ _http_new_chunk(struct cookie *c)
 {
 	char *p;
 
-	if (_fetch_getln(c->fd, &c->buf, &c->b_size, &c->b_len) == -1)
+	if (_fetch_getln(c->conn) == -1)
 		return (-1);
 
-	if (c->b_len < 2 || !ishexnumber(*c->buf))
+	if (c->b_len < 2 || !ishexnumber(*c->conn->buf))
 		return (-1);
 
-	for (p = c->buf; !isspace(*p) && p < c->buf + c->b_len; ++p) {
+	for (p = c->conn->buf; *p && !isspace(*p); ++p) {
 		if (*p == ';')
 			break;
 		if (!ishexnumber(*p))
@@ -194,14 +194,16 @@ _http_fillbuf(struct cookie *c)
 		c->b_size = c->chunksize;
 	}
 
-	if ((c->b_len = read(c->fd, c->buf, c->chunksize)) == -1)
+	if ((c->b_len = read(c->conn->sd, c->buf, c->chunksize)) == -1)
 		return (-1);
 	c->chunksize -= c->b_len;
 
 	if (c->chunksize == 0) {
-		char endl;
-		if (read(c->fd, &endl, 1) == -1 ||
-		    read(c->fd, &endl, 1) == -1)
+		char endl[2];
+
+		if (read(c->conn->sd, &endl[0], 1) == -1 ||
+		    read(c->conn->sd, &endl[1], 1) == -1 ||
+		    endl[0] != '\r' || endl[1] != '\n')
 			return (-1);
 	}
 
@@ -249,7 +251,7 @@ _http_writefn(void *v, const char *buf, int len)
 {
 	struct cookie *c = (struct cookie *)v;
 
-	return (write(c->fd, buf, len));
+	return (write(c->conn->sd, buf, len));
 }
 
 /*
@@ -261,7 +263,7 @@ _http_closefn(void *v)
 	struct cookie *c = (struct cookie *)v;
 	int r;
 
-	r = close(c->fd);
+	r = _fetch_close(c->conn);
 	if (c->buf)
 		free(c->buf);
 	free(c);
@@ -272,7 +274,7 @@ _http_closefn(void *v)
  * Wrap a file descriptor up
  */
 static FILE *
-_http_funopen(int fd)
+_http_funopen(conn_t *conn)
 {
 	struct cookie *c;
 	FILE *f;
@@ -281,7 +283,7 @@ _http_funopen(int fd)
 		_fetch_syserr();
 		return (NULL);
 	}
-	c->fd = fd;
+	c->conn = conn;
 	f = funopen(c, _http_readfn, _http_writefn, NULL, _http_closefn);
 	if (f == NULL) {
 		_fetch_syserr();
@@ -324,15 +326,11 @@ static struct {
 	{ hdr_unknown,			NULL },
 };
 
-static char		*reply_buf;
-static size_t		 reply_size;
-static size_t		 reply_length;
-
 /*
  * Send a formatted line; optionally echo to terminal
  */
 static int
-_http_cmd(int fd, const char *fmt, ...)
+_http_cmd(conn_t *conn, const char *fmt, ...)
 {
 	va_list ap;
 	size_t len;
@@ -349,7 +347,7 @@ _http_cmd(int fd, const char *fmt, ...)
 		return (-1);
 	}
 
-	r = _fetch_putln(fd, msg, len);
+	r = _fetch_putln(conn, msg, len);
 	free(msg);
 
 	if (r == -1) {
@@ -364,11 +362,11 @@ _http_cmd(int fd, const char *fmt, ...)
  * Get and parse status line
  */
 static int
-_http_get_reply(int fd)
+_http_get_reply(conn_t *conn)
 {
 	char *p;
 
-	if (_fetch_getln(fd, &reply_buf, &reply_size, &reply_length) == -1)
+	if (_fetch_getln(conn) == -1)
 		return (-1);
 	/*
 	 * A valid status line looks like "HTTP/m.n xyz reason" where m
@@ -379,9 +377,9 @@ _http_get_reply(int fd)
 	 * on finding one, but if we do, insist on it being 1.0 or 1.1.
 	 * We don't care about the reason phrase.
 	 */
-	if (strncmp(reply_buf, "HTTP", 4) != 0)
+	if (strncmp(conn->buf, "HTTP", 4) != 0)
 		return (HTTP_PROTOCOL_ERROR);
-	p = reply_buf + 4;
+	p = conn->buf + 4;
 	if (*p == '/') {
 		if (p[1] != '1' || p[2] != '.' || (p[3] != '0' && p[3] != '1'))
 			return (HTTP_PROTOCOL_ERROR);
@@ -390,7 +388,8 @@ _http_get_reply(int fd)
 	if (*p != ' ' || !isdigit(p[1]) || !isdigit(p[2]) || !isdigit(p[3]))
 		return (HTTP_PROTOCOL_ERROR);
 
-	return ((p[1] - '0') * 100 + (p[2] - '0') * 10 + (p[3] - '0'));
+	conn->err = (p[1] - '0') * 100 + (p[2] - '0') * 10 + (p[3] - '0');
+	return (conn->err);
 }
 
 /*
@@ -413,17 +412,17 @@ _http_match(const char *str, const char *hdr)
  * Get the next header and return the appropriate symbolic code.
  */
 static hdr_t
-_http_next_header(int fd, const char **p)
+_http_next_header(conn_t *conn, const char **p)
 {
 	int i;
 
-	if (_fetch_getln(fd, &reply_buf, &reply_size, &reply_length) == -1)
+	if (_fetch_getln(conn) == -1)
 		return (hdr_syserror);
-	while (reply_length && isspace(reply_buf[reply_length-1]))
-		reply_length--;
-	reply_buf[reply_length] = 0;
-	if (reply_length == 0)
-	return (hdr_end);
+	while (conn->buflen && isspace(conn->buf[conn->buflen - 1]))
+		conn->buflen--;
+	conn->buf[conn->buflen] = '\0';
+	if (conn->buflen == 0)
+		return (hdr_end);
 	/*
 	 * We could check for malformed headers but we don't really care.
 	 * A valid header starts with a token immediately followed by a
@@ -431,7 +430,7 @@ _http_next_header(int fd, const char **p)
 	 * characters except "()<>@,;:\\\"{}".
 	 */
 	for (i = 0; hdr_names[i].num != hdr_unknown; i++)
-		if ((*p = _http_match(hdr_names[i].name, reply_buf)) != NULL)
+		if ((*p = _http_match(hdr_names[i].name, conn->buf)) != NULL)
 			return (hdr_names[i].num);
 	return (hdr_unknown);
 }
@@ -573,7 +572,7 @@ _http_base64(const char *src)
  * Encode username and password
  */
 static int
-_http_basic_auth(int fd, const char *hdr, const char *usr, const char *pwd)
+_http_basic_auth(conn_t *conn, const char *hdr, const char *usr, const char *pwd)
 {
 	char *upw, *auth;
 	int r;
@@ -586,7 +585,7 @@ _http_basic_auth(int fd, const char *hdr, const char *usr, const char *pwd)
 	free(upw);
 	if (auth == NULL)
 		return (-1);
-	r = _http_cmd(fd, "%s: Basic %s", hdr, auth);
+	r = _http_cmd(conn, "%s: Basic %s", hdr, auth);
 	free(auth);
 	return (r);
 }
@@ -595,7 +594,7 @@ _http_basic_auth(int fd, const char *hdr, const char *usr, const char *pwd)
  * Send an authorization header
  */
 static int
-_http_authorize(int fd, const char *hdr, const char *p)
+_http_authorize(conn_t *conn, const char *hdr, const char *p)
 {
 	/* basic authorization */
 	if (strncasecmp(p, "basic:", 6) == 0) {
@@ -612,7 +611,7 @@ _http_authorize(int fd, const char *hdr, const char *p)
 		user = str;
 		pwd = strchr(str, ':');
 		*pwd++ = '\0';
-		r = _http_basic_auth(fd, hdr, user, pwd);
+		r = _http_basic_auth(conn, hdr, user, pwd);
 		free(str);
 		return (r);
 	}
@@ -627,11 +626,12 @@ _http_authorize(int fd, const char *hdr, const char *p)
 /*
  * Connect to the correct HTTP server or proxy.
  */
-static int
+static conn_t *
 _http_connect(struct url *URL, struct url *purl, const char *flags)
 {
+	conn_t *conn;
 	int verbose;
-	int af, fd;
+	int af;
 
 #ifdef INET6
 	af = AF_UNSPEC;
@@ -652,13 +652,13 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 	} else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
 		/* can't talk http to an ftp server */
 		/* XXX should set an error code */
-		return (-1);
+		return (NULL);
 	}
 
-	if ((fd = _fetch_connect(URL->host, URL->port, af, verbose)) == -1)
+	if ((conn = _fetch_connect(URL->host, URL->port, af, verbose)) == NULL)
 		/* _fetch_connect() has already set an error code */
-		return (-1);
-	return (fd);
+		return (NULL);
+	return (conn);
 }
 
 static struct url *
@@ -730,9 +730,10 @@ FILE *
 _http_request(struct url *URL, const char *op, struct url_stat *us,
     struct url *purl, const char *flags)
 {
+	conn_t *conn;
 	struct url *url, *new;
 	int chunked, direct, need_auth, noredirect, verbose;
-	int code, fd, i, n;
+	int i, n;
 	off_t offset, clength, length, size;
 	time_t mtime;
 	const char *p;
@@ -782,7 +783,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		}
 
 		/* connect to server or proxy */
-		if ((fd = _http_connect(url, purl, flags)) == -1)
+		if ((conn = _http_connect(url, purl, flags)) == NULL)
 			goto ouch;
 
 		host = url->host;
@@ -798,36 +799,36 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			_fetch_info("requesting %s://%s:%d%s",
 			    url->scheme, host, url->port, url->doc);
 		if (purl) {
-			_http_cmd(fd, "%s %s://%s:%d%s HTTP/1.1",
+			_http_cmd(conn, "%s %s://%s:%d%s HTTP/1.1",
 			    op, url->scheme, host, url->port, url->doc);
 		} else {
-			_http_cmd(fd, "%s %s HTTP/1.1",
+			_http_cmd(conn, "%s %s HTTP/1.1",
 			    op, url->doc);
 		}
 
 		/* virtual host */
 		if (url->port == _fetch_default_port(url->scheme))
-			_http_cmd(fd, "Host: %s", host);
+			_http_cmd(conn, "Host: %s", host);
 		else
-			_http_cmd(fd, "Host: %s:%d", host, url->port);
+			_http_cmd(conn, "Host: %s:%d", host, url->port);
 
 		/* proxy authorization */
 		if (purl) {
 			if (*purl->user || *purl->pwd)
-				_http_basic_auth(fd, "Proxy-Authorization",
+				_http_basic_auth(conn, "Proxy-Authorization",
 				    purl->user, purl->pwd);
 			else if ((p = getenv("HTTP_PROXY_AUTH")) != NULL && *p != '\0')
-				_http_authorize(fd, "Proxy-Authorization", p);
+				_http_authorize(conn, "Proxy-Authorization", p);
 		}
 
 		/* server authorization */
 		if (need_auth || *url->user || *url->pwd) {
 			if (*url->user || *url->pwd)
-				_http_basic_auth(fd, "Authorization", url->user, url->pwd);
+				_http_basic_auth(conn, "Authorization", url->user, url->pwd);
 			else if ((p = getenv("HTTP_AUTH")) != NULL && *p != '\0')
-				_http_authorize(fd, "Authorization", p);
+				_http_authorize(conn, "Authorization", p);
 			else if (fetchAuthMethod && fetchAuthMethod(url) == 0) {
-				_http_basic_auth(fd, "Authorization", url->user, url->pwd);
+				_http_basic_auth(conn, "Authorization", url->user, url->pwd);
 			} else {
 				_http_seterr(HTTP_NEED_AUTH);
 				goto ouch;
@@ -836,16 +837,16 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* other headers */
 		if ((p = getenv("HTTP_USER_AGENT")) != NULL && *p != '\0')
-			_http_cmd(fd, "User-Agent: %s", p);
+			_http_cmd(conn, "User-Agent: %s", p);
 		else
-			_http_cmd(fd, "User-Agent: %s " _LIBFETCH_VER, _getprogname());
+			_http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER, getprogname());
 		if (url->offset)
-			_http_cmd(fd, "Range: bytes=%lld-", (long long)url->offset);
-		_http_cmd(fd, "Connection: close");
-		_http_cmd(fd, "");
+			_http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
+		_http_cmd(conn, "Connection: close");
+		_http_cmd(conn, "");
 
 		/* get reply */
-		switch ((code = _http_get_reply(fd))) {
+		switch (_http_get_reply(conn)) {
 		case HTTP_OK:
 		case HTTP_PARTIAL:
 			/* fine */
@@ -864,7 +865,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 				 * We already sent out authorization code, so there's
 				 * nothing more we can do.
 				 */
-				_http_seterr(code);
+				_http_seterr(conn->err);
 				goto ouch;
 			}
 			/* try again, but send the password this time */
@@ -876,7 +877,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			 * If we're talking to a proxy, we already sent our proxy
 			 * authorization code, so there's nothing more we can do.
 			 */
-			_http_seterr(code);
+			_http_seterr(conn->err);
 			goto ouch;
 		case HTTP_PROTOCOL_ERROR:
 			/* fall through */
@@ -884,7 +885,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			_fetch_syserr();
 			goto ouch;
 		default:
-			_http_seterr(code);
+			_http_seterr(conn->err);
 			if (!verbose)
 				goto ouch;
 			/* fall through so we can get the full error message */
@@ -892,7 +893,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* get headers */
 		do {
-			switch ((h = _http_next_header(fd, &p))) {
+			switch ((h = _http_next_header(conn, &p))) {
 			case hdr_syserror:
 				_fetch_syserr();
 				goto ouch;
@@ -909,12 +910,12 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 				_http_parse_mtime(p, &mtime);
 				break;
 			case hdr_location:
-				if (!HTTP_REDIRECT(code))
+				if (!HTTP_REDIRECT(conn->err))
 					break;
 				if (new)
 					free(new);
 				if (verbose)
-					_fetch_info("%d redirect to %s", code, p);
+					_fetch_info("%d redirect to %s", conn->err, p);
 				if (*p == '/')
 					/* absolute path */
 					new = fetchMakeURL(url->scheme, url->host, url->port, p,
@@ -938,7 +939,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 				chunked = (strcasecmp(p, "chunked") == 0);
 				break;
 			case hdr_www_authenticate:
-				if (code != HTTP_NEED_AUTH)
+				if (conn->err != HTTP_NEED_AUTH)
 					break;
 				/* if we were smarter, we'd check the method and realm */
 				break;
@@ -951,21 +952,21 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		} while (h > hdr_end);
 
 		/* we have a hit or an error */
-		if (code == HTTP_OK || code == HTTP_PARTIAL || HTTP_ERROR(code))
+		if (conn->err == HTTP_OK || conn->err == HTTP_PARTIAL || HTTP_ERROR(conn->err))
 			break;
 
 		/* we need to provide authentication */
-		if (code == HTTP_NEED_AUTH) {
+		if (conn->err == HTTP_NEED_AUTH) {
 			need_auth = 1;
-			close(fd);
-			fd = -1;
+			_fetch_close(conn);
+			conn = NULL;
 			continue;
 		}
 
 		/* all other cases: we got a redirect */
 		need_auth = 0;
-		close(fd);
-		fd = -1;
+		_fetch_close(conn);
+		conn = NULL;
 		if (!new) {
 			DEBUG(fprintf(stderr, "redirect with no new location\n"));
 			break;
@@ -976,8 +977,8 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	} while (++i < n);
 
 	/* we failed, or ran out of retries */
-	if (fd == -1) {
-		_http_seterr(code);
+	if (conn == NULL) {
+		_http_seterr(conn->err);
 		goto ouch;
 	}
 
@@ -1019,7 +1020,13 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	URL->length = clength;
 
 	/* wrap it up in a FILE */
-	if ((f = chunked ? _http_funopen(fd) : fdopen(fd, "r")) == NULL) {
+	if (chunked) {
+		f = _http_funopen(conn);
+	} else {
+		f = fdopen(dup(conn->sd), "r");
+		_fetch_close(conn);
+	}
+	if (f == NULL) {
 		_fetch_syserr();
 		goto ouch;
 	}
@@ -1029,7 +1036,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	if (purl)
 		fetchFreeURL(purl);
 
-	if (HTTP_ERROR(code)) {
+	if (HTTP_ERROR(conn->err)) {
 		_http_print_html(stderr, f);
 		fclose(f);
 		f = NULL;
@@ -1042,8 +1049,8 @@ ouch:
 		fetchFreeURL(url);
 	if (purl)
 		fetchFreeURL(purl);
-	if (fd != -1)
-		close(fd);
+	if (conn != NULL)
+		_fetch_close(conn);
 	return (NULL);
 }
 
