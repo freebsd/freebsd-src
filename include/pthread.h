@@ -190,9 +190,12 @@ enum pthread_mutextype {
  */
 __BEGIN_DECLS
 int		pthread_attr_destroy __P((pthread_attr_t *));
-int		pthread_attr_getstacksize __P((pthread_attr_t *, size_t *));
-int		pthread_attr_getstackaddr __P((pthread_attr_t *, void **));
-int		pthread_attr_getdetachstate __P((pthread_attr_t *, int *));
+int		pthread_attr_getstacksize __P((const pthread_attr_t *,
+			size_t *));
+int		pthread_attr_getstackaddr __P((const pthread_attr_t *,
+			void **));
+int		pthread_attr_getdetachstate __P((const pthread_attr_t *,
+			int *));
 int		pthread_attr_init __P((pthread_attr_t *));
 int		pthread_attr_setstacksize __P((pthread_attr_t *, size_t));
 int		pthread_attr_setstackaddr __P((pthread_attr_t *, void *));
@@ -231,6 +234,7 @@ int		pthread_key_delete __P((pthread_key_t));
 int		pthread_kill __P((pthread_t, int));
 int		pthread_mutexattr_init __P((pthread_mutexattr_t *));
 int		pthread_mutexattr_destroy __P((pthread_mutexattr_t *));
+int		pthread_mutexattr_gettype __P((pthread_mutexattr_t *, int *));
 int		pthread_mutexattr_settype __P((pthread_mutexattr_t *, int));
 int		pthread_mutex_destroy __P((pthread_mutex_t *));
 int		pthread_mutex_init __P((pthread_mutex_t *,
