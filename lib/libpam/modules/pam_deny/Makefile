@@ -25,11 +25,11 @@
 #	$FreeBSD$
 
 
-.PATH:		${PAMDIR}/modules/pam_deny
-
 LIB=		pam_deny
 SRCS=		pam_deny.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 
 .include <bsd.lib.mk>
+
+.PATH:		${PAMDIR}/modules/pam_deny
