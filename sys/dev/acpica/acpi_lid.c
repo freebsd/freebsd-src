@@ -50,6 +50,8 @@ struct acpi_lid_softc {
     int		lid_status;	/* open or closed */
 };
 
+ACPI_SERIAL_DECL(lid, "ACPI lid");
+
 static int	acpi_lid_probe(device_t dev);
 static int	acpi_lid_attach(device_t dev);
 static int	acpi_lid_suspend(device_t dev);
@@ -101,6 +103,7 @@ acpi_lid_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->lid_dev = dev;
     sc->lid_handle = acpi_get_handle(dev);
+    sc->lid_status = -1;
 
     /*
      * If a system does not get lid events, it may make sense to change
@@ -114,7 +117,11 @@ acpi_lid_attach(device_t dev)
     acpi_wake_init(dev, ACPI_GPE_TYPE_WAKE_RUN);
     acpi_wake_set_enable(dev, 1);
 
-    return_VALUE (0);
+    /* Attempt to get the initial lid switch state. */
+    AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_lid_notify_status_changed,
+	sc);
+
+    return (0);
 }
 
 static int
@@ -135,6 +142,7 @@ acpi_lid_notify_status_changed(void *arg)
     struct acpi_lid_softc	*sc;
     struct acpi_softc		*acpi_sc;
     ACPI_STATUS			status;
+    int				lid_status, old_status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -145,24 +153,34 @@ acpi_lid_notify_status_changed(void *arg)
      *	Zero:		The lid is closed
      *	Non-zero:	The lid is open
      */
-    status = acpi_GetInteger(sc->lid_handle, "_LID", &sc->lid_status);
+    status = acpi_GetInteger(sc->lid_handle, "_LID", &lid_status);
     if (ACPI_FAILURE(status))
 	return_VOID;
 
-    acpi_sc = acpi_device_get_parent_softc(sc->lid_dev);
-    if (acpi_sc == NULL)
-        return_VOID;
+    ACPI_SERIAL_BEGIN(lid);
+    if (lid_status != sc->lid_status) {
+	old_status = sc->lid_status;
+	sc->lid_status = lid_status;
 
-    ACPI_VPRINT(sc->lid_dev, acpi_sc, "Lid %s\n",
-		sc->lid_status ? "opened" : "closed");
+	/* If this is the initialization pass, skip the notification. */
+	if (old_status == -1)
+	    goto out;
 
-    acpi_UserNotify("Lid", sc->lid_handle, sc->lid_status);
+	/* Since the status has changed, notify the system. */
+	acpi_sc = acpi_device_get_parent_softc(sc->lid_dev);
+	if (acpi_sc == NULL)
+	    goto out;
+	ACPI_VPRINT(sc->lid_dev, acpi_sc, "Lid %s\n",
+	    lid_status ? "opened" : "closed");
+	acpi_UserNotify("Lid", sc->lid_handle, lid_status);
+	if (lid_status == 0)
+	    EVENTHANDLER_INVOKE(acpi_sleep_event, acpi_sc->acpi_lid_switch_sx);
+	else
+	    EVENTHANDLER_INVOKE(acpi_wakeup_event, acpi_sc->acpi_lid_switch_sx);
+    }
 
-    if (sc->lid_status == 0)
-	EVENTHANDLER_INVOKE(acpi_sleep_event, acpi_sc->acpi_lid_switch_sx);
-    else
-	EVENTHANDLER_INVOKE(acpi_wakeup_event, acpi_sc->acpi_lid_switch_sx);
-
+out:
+    ACPI_SERIAL_END(lid);
     return_VOID;
 }
 
