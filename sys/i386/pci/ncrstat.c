@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrstat.c,v 2.0.0.7 94/08/27 20:13:42 wolf Exp $
+**  $Id: ncrstat.c,v 2.0.0.9 94/09/11 22:12:21 wolf Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -43,40 +43,6 @@
 **
 **
 **-------------------------------------------------------------------------
-**
-**  $Log:	ncrstat.c,v $
-**  Revision 2.0.0.7  94/08/27  20:13:42  wolf
-**  New: "-sflags=xxx"
-**  flags=1: command tracing.
-**  
-**  Revision 2.0.0.6  94/08/10  19:36:32  wolf
-**  Multiple "-s" options per line supported.
-**  Ported to NetBSD.
-**  
-**  Revision 2.0.0.5  94/08/09  23:10:20  wolf
-**  new message.
-**  
-**  Revision 2.0.0.4  94/08/08  19:10:28  wolf
-**  struct script left outside struct ncb.
-**  (must fit in one physical page)
-**  
-**  Revision 2.0.0.3  94/08/05  18:44:43  wolf
-**  adapted to ncr.c 2.0.0.8
-**  (script now inside control structure)
-**  
-**  Revision 2.0.0.2  94/07/22  16:57:34  wolf
-**  New option "-n#": get the script label of an address.
-**  
-**  Revision 2.0.0.1  94/07/19  22:25:05  wolf
-**  hexadecimal args.
-**  
-**  Revision 2.0  94/07/10  19:01:30  wolf
-**  FreeBSD release.
-**  
-**  Revision 1.1  94/06/25  17:18:11  wolf
-**  Initial revision
-**  
-***************************************************************************
 */
 
 #include <sys/file.h>
@@ -380,7 +346,7 @@ do_info(void)
 
 	set_target_mask();
 
-	printf ("T:L  Vendor   Device           Rev  Speed   Max   Tags\n");
+	printf ("T:L  Vendor   Device           Rev  Speed   Max Wide Tags\n");
 	for (t=0; t<MAX_TARGET;t++) {
 		if (!((target_mask>>t)&1)) continue;
 		tip = &ncr.target[t];
@@ -426,6 +392,20 @@ do_info(void)
 				continue;
 			};
 			read_lcb ((u_long) tip->lp[l]);
+
+			switch (tip->widedone) {
+			case 1:
+				printf ("   8");
+				break;
+			case 2:
+				printf ("  16");
+				break;
+			case 3:
+				printf ("  32");
+				break;
+			default:
+				printf ("   ?");
+			};
 
 			if (lcb.usetags)
 				printf ("%5d", lcb.actlink);
@@ -735,6 +715,8 @@ void do_set (char * arg)
 "sync=value:    set the maximal synchronous transfer rate (MHz).\n"
 "fast:          set FAST SCSI-2.\n"
 "\n"
+"wide=value:    set the bus width (0=8bit 1=16bit).\n"
+"\n"
 "tags=value:    use this number of tags.\n"
 "orderedtag:    use ordered tags only.\n"
 "simpletag:     use simple tags only.\n"
@@ -760,6 +742,14 @@ void do_set (char * arg)
 		if (f>=4.0 && f<=10.0) {
 			user.data = 250.0 / f;
 			user.cmd  = UC_SETSYNC;
+		};
+	};
+
+	if (!strncmp(arg, "wide=", 5)) {
+		u_char t = strtoul (arg+5, (char**)0, 0);
+		if (t<=1) {
+			user.data = t;
+			user.cmd  = UC_SETWIDE;
 		};
 	};
 
@@ -793,12 +783,12 @@ void do_set (char * arg)
 		user.data = M_SIMPLE_TAG;
 		user.cmd  = UC_SETORDER;
 	};
-
+
 	if (!strcmp(arg, "orderedwrite")) {
 		user.data = 0;
 		user.cmd  = UC_SETORDER;
 	};
-
+
 	if (user.cmd) {
 		openkernelwritefile();
 
@@ -929,7 +919,7 @@ static const char * sn (u_long a)
 	if ((d=a-offsetof(struct script, msg_sdtr))<m) m=d, s="<msg_sdtr>";
 	if ((d=a-offsetof(struct script, complete))<m) m=d, s="<complete>";
 	if ((d=a-offsetof(struct script, cleanup))<m) m=d, s="<cleanup>";
-	if ((d=a-offsetof(struct script, savepos))<m) m=d, s="<savepos>";
+	if ((d=a-offsetof(struct script, cleanup0))<m) m=d, s="<cleanup>";
 	if ((d=a-offsetof(struct script, signal))<m) m=d, s="<signal>";
 	if ((d=a-offsetof(struct script, save_dp))<m) m=d, s="<save_dp>";
 	if ((d=a-offsetof(struct script, restore_dp))<m) m=d, s="<restore_dp>";
@@ -1282,10 +1272,12 @@ static void dump_tip (struct tcb * tip)
 
 	printf ("   transfers:%10d.\n", tip->transfers);
 	printf ("       bytes:%10d.\n", tip->bytes    );
-	printf (" user limits: usrsync=%d  usrtags=%d.\n",
-			tip->usrsync, tip->usrtags);
+	printf (" user limits: usrsync=%d  usrwide=%d  usrtags=%d.\n",
+			tip->usrsync, tip->usrwide, tip->usrtags);
 	printf ("        sync: minsync=%d, maxoffs=%d, period=%d ns, sval=%x.\n",
 			tip->minsync, tip->maxoffs, tip->period, tip->sval);
+	printf ("	wide: widedone=%d, wval=%x.\n",
+			tip->widedone, tip->wval);
 
 	printf   ("     hold_cp: %x\n", tip->hold_cp);
 	dump_link ("    jump_tcb", &tip->jump_tcb);
@@ -1580,10 +1572,10 @@ void main(argc, argv)
 	case 'i':
 		do_info();
 		break;
+
 	case 's':
 		do_set(optarg);
 		break;
-
 	case 'd':
 		do_debug(optarg);
 		break;
