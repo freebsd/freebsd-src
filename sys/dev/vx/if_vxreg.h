@@ -452,5 +452,5 @@ extern struct vx_softc *vxalloc __P((int));
 extern void vxfree __P((struct vx_softc *));
 extern int vxattach __P((struct vx_softc *));
 extern void vxstop __P((struct vx_softc *));
-extern void vxintr __P((struct vx_softc *));
+extern void vxintr __P((void *));
 extern int vxbusyeeprom __P((struct vx_softc *));
