@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: locate.bigram.c,v 1.5 1996/08/30 03:06:15 peter Exp $
+ * 	$Id: locate.bigram.c,v 1.1 1996/09/13 13:23:48 wosch Exp wosch $
  */
 
 #ifndef lint
@@ -71,25 +71,20 @@ main(void)
 
      	while (fgets(path, sizeof(buf2), stdin) != NULL) {
 
-	    	/* skip empty lines */
-		if (*path == '\n')
-			continue;
+		/* 
+		 * We don't need remove newline character '\n'.
+		 * '\n' is less than ASCII_MIN and will be later
+		 * ignored at output.
+		 */
 
-		/* Squelch characters that would botch the decoding. */
-		for (cp = path; *cp != '\0'; cp++) {
-			/* chop newline */
-			if (*cp == '\n')
-				*cp = '\0';
-			/* range */
-			else if (*cp < ASCII_MIN || *cp > ASCII_MAX)
-				*cp = '?';
-		}
 
 		/* skip longest common prefix */
-		for (cp = path; *cp == *oldpath && *cp != '\0'; cp++, oldpath++);
+		for (cp = path; *cp == *oldpath; cp++, oldpath++)
+			if (*cp == '\0')
+				break;
 
-		while (*cp != '\0' && *(cp+1) != '\0') {
-			bigram[*cp][*(cp+1)]++;
+		while (*cp != '\0' && *(cp + 1) != '\0') {
+			bigram[(u_int)*cp][(u_int)*(cp + 1)]++;
 			cp += 2;
 		}
 
@@ -103,11 +98,11 @@ main(void)
 		}
    	}
 
-	/* output, (paranoid) boundary check */
+	/* output, boundary check */
 	for (i = ASCII_MIN; i <= ASCII_MAX; i++)
 		for (j = ASCII_MIN; j <= ASCII_MAX; j++)
 			if (bigram[i][j] != 0)
-				printf("%4u %c%c\n", bigram[i][j], i, j);
+				(void)printf("%4u %c%c\n", bigram[i][j], i, j);
 
 	exit(0);
 }
