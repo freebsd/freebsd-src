@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.52 1999/04/18 14:27:33 kato Exp $";
+	"$Id: mkioconf.c,v 1.53 1999/04/19 14:40:55 peter Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -60,7 +60,7 @@ devstr(struct device *dp)
 	return "nexus0";
 
     if (dp->d_unit >= 0) {
-	sprintf(buf, "%s%d", dp->d_name, dp->d_unit);
+	snprintf(buf, sizeof(buf), "%s%d", dp->d_name, dp->d_unit);
 	return buf;
     } else
 	return dp->d_name;
@@ -319,7 +319,7 @@ qu(num)
 		return ("'?'");
 	if (num == UNKNOWN)
 		return (" -1");
-	(void) sprintf(errbuf, "%3d", num);
+	(void) snprintf(errbuf, sizeof(errbuf), "%3d", num);
 	return (errbuf);
 }
 
@@ -330,6 +330,6 @@ wnum(num)
 
 	if (num == QUES || num == UNKNOWN)
 		return ("?");
-	(void) sprintf(errbuf, "%d", num);
+	(void) snprintf(errbuf, sizeof(errbuf), "%d", num);
 	return (errbuf);
 }

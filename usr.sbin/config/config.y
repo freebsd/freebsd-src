@@ -2,7 +2,6 @@
 	char	*str;
 	int	val;
 	struct	file_list *file;
-	struct	idlst *lst;
 }
 
 %token	AND
@@ -17,7 +16,6 @@
 %token	CONFLICTS
 %token	CONTROLLER
 %token	CPU
-%token	CSR
 %token	DEVICE
 %token	DISABLE
 %token	DISK
@@ -27,7 +25,6 @@
 %token	EQUALS
 %token	FLAGS
 %token	IDENT
-%token	INTERLEAVE
 %token	IOMEM
 %token	IOSIZ
 %token	IRQ
@@ -62,18 +59,14 @@
 %token	<val>	FPNUMBER
 
 %type	<str>	Save_id
-%type	<str>	Opt_value
+%type	<str>	Opt_name
+%type	<str>	Opt_string
 %type	<str>	Dev
-%type	<lst>	Id_list
-%type	<val>	optional_size
-%type	<val>	optional_sflag
 %type	<str>	device_name
 %type	<val>	major_minor
-%type	<val>	arg_device_spec
 %type	<val>	root_device_spec root_device_specs
 %type	<val>	dump_device_spec
 %type	<file>	swap_device_spec
-%type	<file>	comp_device_spec
 
 %{
 
@@ -140,7 +133,6 @@ int	seen_scbus;
 static int alreadychecked __P((dev_t, dev_t[], dev_t *));
 static void deverror __P((char *, char *));
 static int finddev __P((dev_t));
-static void verifycomp __P((struct file_list *));
 static struct device *connect __P((char *, int));
 static struct device *huhcon __P((char *));
 static dev_t *verifyswap __P((struct file_list *, dev_t *, dev_t *));
@@ -173,7 +165,7 @@ Spec:
 		;
 
 Config_spec:
-	MACHINE Save_id
+	MACHINE Opt_string
 	    = {
 		if (!strcmp($2, "i386")) {
 			machine = MACHINE_I386;
@@ -187,7 +179,7 @@ Config_spec:
 		} else
 			yyerror("Unknown machine type");
 	      } |
-	CPU Save_id
+	CPU Opt_string
 	      = {
 		struct cputype *cp =
 		    (struct cputype *)malloc(sizeof (struct cputype));
@@ -326,7 +318,6 @@ arg_spec:
 
 arg_device_spec:
 	  device_name
-		= { $$ = nametodev($1, 0, COMPATIBILITY_SLICE, 'b'); }
 	| major_minor
 	;
 
@@ -342,16 +333,14 @@ optional_on:
 
 optional_size:
 	  SIZE NUMBER
-	      = { $$ = $2; }
+	      = { yyerror("`size nnn' swap spec obsolete"); }
 	| /* empty */
-	      = { $$ = 0; }
 	;
 
 optional_sflag:
 	  SEQUENTIAL
-	      = { $$ = 2; }
+	      = { yyerror("`sequential' swap spec obsolete"); }
 	| /* empty */
-	      = { $$ = 0; }
 	;
 
 device_name:
@@ -361,28 +350,29 @@ device_name:
 		= {
 			char buf[80];
 
-			(void) snprintf(buf, 80, "%s%d", $1, $2);
+			(void) snprintf(buf, sizeof(buf), "%s%d", $1, $2);
 			$$ = ns(buf); free($1);
 		}
 	| Save_id NUMBER ID
 		= {
 			char buf[80];
 
-			(void) snprintf(buf, 80, "%s%d%s", $1, $2, $3);
+			(void) snprintf(buf, sizeof(buf), "%s%d%s", $1, $2, $3);
 			$$ = ns(buf); free($1);
 		}
 	| Save_id NUMBER ID NUMBER
 		= {
 			char buf[80];
 
-			(void) snprintf(buf, 80, "%s%d%s%d", $1, $2, $3, $4);
+			(void) snprintf(buf, sizeof(buf), "%s%d%s%d",
+			     $1, $2, $3, $4);
 			$$ = ns(buf); free($1);
 		}
 	| Save_id NUMBER ID NUMBER ID
 		= {
 			char buf[80];
 
-			(void) snprintf(buf, 80, "%s%d%s%d%s",
+			(void) snprintf(buf, sizeof(buf), "%s%d%s%d%s",
 			     $1, $2, $3, $4, $5);
 			$$ = ns(buf); free($1);
 		}
@@ -395,7 +385,7 @@ Opt_list:
 		;
 
 Option:
-	Save_id
+	Opt_string
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		char *s;
@@ -410,12 +400,12 @@ Option:
 		op->op_line = yyline;
 		opt = op;
 		if ((s = strchr(op->op_name, '='))) {
-			/* AARGH!!!! Old-style bogon */
+			warnx("line %d: The `=' in options should not be quoted", yyline);
 			*s = '\0';
 			op->op_value = ns(s + 1);
 		}
 	      } |
-	Save_id EQUALS Opt_value
+	Opt_string EQUALS Opt_string
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		memset(op, 0, sizeof(*op));
@@ -426,16 +416,26 @@ Option:
 		opt = op;
 	      } ;
 
-Opt_value:
+Opt_name:
 	ID
-	      = { $$ = $1; } |
+		= { $$ = $1; } |
 	NUMBER
-	      = {
-		char nb[16];
-	        (void) sprintf(nb, "%d", $1);
-		$$ = ns(nb);
-	      } ;
+		= {
+			char buf[80];
 
+			(void) snprintf(buf, sizeof(buf), "%d", $1);
+			$$ = ns(buf);
+		} ;
+Opt_string:
+	Opt_name
+		= { $$ = $1; } |
+	Opt_name Opt_string
+		= {
+			char buf[80];
+
+			(void) snprintf(buf, sizeof(buf), "%s%s", $1, $2);
+			$$ = ns(buf); free($1); free($2);
+		} ;
 
 Save_id:
 	ID
@@ -449,7 +449,7 @@ Mkopt_list:
 		;
 
 Mkoption:
-	Save_id EQUALS Opt_value
+	Opt_string EQUALS Opt_string
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		memset(op, 0, sizeof(*op));
@@ -485,64 +485,7 @@ Device_spec:
 		cur.d_name = $3;
 		cur.d_type = PSEUDO_DEVICE;
 		cur.d_slave = $4;
-		} |
-	PSEUDO_DEVICE Dev_name Cdev_init Cdev_info
-	      = {
-		if (!eq(cur.d_name, "cd"))
-			yyerror("improper spec for pseudo-device");
-		cur.d_type = DEVICE;
-		verifycomp(*compp);
-		};
-
-Cdev_init:
-	/* lambda */
-	      = { mkcomp(&cur); };
-
-Cdev_info:
-	  optional_on comp_device_list comp_option_list
-	;
-
-comp_device_list:
-	  comp_device_list AND comp_device
-	| comp_device
-	;
-
-comp_device:
-	  comp_device_spec
-	      = { addcomp(*compp, $1); }
-	;
-
-comp_device_spec:
-	  device_name
-		= {
-			struct file_list *fl = newflist(COMPSPEC);
-
-			fl->f_compdev = nametodev($1, 0, COMPATIBILITY_SLICE,
-						  'c');
-			fl->f_fn = devtoname(fl->f_compdev);
-			$$ = fl;
-		}
-	| major_minor
-		= {
-			struct file_list *fl = newflist(COMPSPEC);
-
-			fl->f_compdev = $1;
-			fl->f_fn = devtoname($1);
-			$$ = fl;
-		}
-	;
-
-comp_option_list:
-	  comp_option_list comp_option
-		|
-	  /* lambda */
-		;
-
-comp_option:
-	INTERLEAVE NUMBER
-	      = { cur.d_pri = $2; } |
-	FLAGS NUMBER
-	      = { cur.d_flags = $2; };
+		} ;
 
 Dev_name:
 	Init_dev Dev NUMBER
@@ -567,7 +510,7 @@ Con_info:
 	AT Dev NUMBER
 	      = {
 		if (eq(cur.d_name, "mba") || eq(cur.d_name, "uba")) {
-			(void) sprintf(errbuf,
+			(void) snprintf(errbuf, sizeof(errbuf), 
 				"%s must be connected to a nexus", cur.d_name);
 			yyerror(errbuf);
 		}
@@ -583,8 +526,6 @@ Info_list:
 		;
 
 Info:
-	CSR NUMBER
-	      = { cur.d_addr = $2; } |
 	BUS NUMBER
 	      = {
 		if (cur.d_conn != 0 && cur.d_conn->d_type == CONTROLLER)
@@ -620,13 +561,13 @@ Info:
 	PORT NUMBER
 	      = { cur.d_portn = $2; } |
 	TTY 
-	      = { cur.d_mask = "tty"; } |
+	      = { yyerror("`tty' interrupt label obsolete"); } |
 	BIO 
-	      = { cur.d_mask = "bio"; } |
+	      = { yyerror("`bio' interrupt label obsolete"); } |
 	CAM 
-	      = { cur.d_mask = "cam"; } |
+	      = { yyerror("`cam' interrupt label obsolete"); } |
 	NET 
-	      = { cur.d_mask = "net"; } |
+	      = { yyerror("`net' interrupt label obsolete"); } |
 	FLAGS NUMBER
 	      = { cur.d_flags = $2; } |
 	DISABLE	
@@ -635,26 +576,12 @@ Info:
 	      = { cur.d_conflicts = 1; };
 
 Int_spec:
-	VECTOR Id_list
-	      = { cur.d_vec = $2; } |
+	VECTOR ID
+	      = { yyerror("`vector xxxintr' interrupt vector obsolete"); } |
 	PRIORITY NUMBER
-	      = { cur.d_pri = $2; } |
+	      = { yyerror("`priority nnn' interrupt priority obsolete"); } |
 	/* lambda */
 		;
-
-Id_list:
-	Save_id
-	      = {
-		struct idlst *a = (struct idlst *)malloc(sizeof(struct idlst));
-		memset(a, 0, sizeof(*a));
-		a->id = $1; a->id_next = 0; $$ = a;
-		} |
-	Save_id Id_list =
-		{
-		struct idlst *a = (struct idlst *)malloc(sizeof(struct idlst));
-		memset(a, 0, sizeof(*a));
-	        a->id = $1; a->id_next = $2; $$ = a;
-		};
 
 %%
 
@@ -673,8 +600,17 @@ static void
 newdev(dp)
 	register struct device *dp;
 {
-	register struct device *np;
+	register struct device *np, *xp;
 
+	if (dp->d_unit >= 0) {
+		for (xp = dtab; xp != 0; xp = xp->d_next) {
+			if ((xp->d_unit == dp->d_unit) &&
+			    eq(xp->d_name, dp->d_name)) {
+				warnx("line %d: already seen device %s%d",
+				    yyline, xp->d_name, xp->d_unit);
+			}
+		}
+	}
 	np = (struct device *) malloc(sizeof *np);
 	memset(np, 0, sizeof(*np));
 	*np = *dp;
@@ -766,47 +702,6 @@ mkswap(system, fl, size, flag)
 		system->f_fn = ns(system->f_needs);
 }
 
-static void
-mkcomp(dp)
-	register struct device *dp;
-{
-	register struct file_list *fl, **flp;
-	char buf[80];
-
-	fl = (struct file_list *) malloc(sizeof *fl);
-	memset(fl, 0, sizeof(*fl));
-	fl->f_type = COMPDEVICE;
-	fl->f_compinfo = dp->d_unit;
-	fl->f_fn = ns(dp->d_name);
-	(void) sprintf(buf, "%s%d", dp->d_name, dp->d_unit);
-	fl->f_needs = ns(buf);
-	fl->f_next = 0;
-	for (flp = compp; *flp; flp = &(*flp)->f_next)
-		;
-	*flp = fl;
-	compp = flp;
-}
-
-static void
-addcomp(compdev, fl)
-	struct file_list *compdev, *fl;
-{
-	register struct file_list **flp;
-
-	if (compdev == 0 || compdev->f_type != COMPDEVICE) {
-		yyerror("component spec precedes device specification");
-		return;
-	}
-	/*
-	 * Append description to the end of the list.
-	 */
-	flp = &compdev->f_next;
-	for (; *flp && (*flp)->f_type == COMPSPEC; flp = &(*flp)->f_next)
-		;
-	fl->f_next = *flp;
-	*flp = fl;
-}
-
 /*
  * find the pointer to connect to the given device and number.
  * returns 0 if no such device and prints an error message
@@ -824,14 +719,14 @@ connect(dev, num)
 		if ((num != dp->d_unit) || !eq(dev, dp->d_name))
 			continue;
 		if (dp->d_type != CONTROLLER && dp->d_type != MASTER) {
-			(void) sprintf(errbuf,
+			(void) snprintf(errbuf, sizeof(errbuf), 
 			    "%s connected to non-controller", dev);
 			yyerror(errbuf);
 			return (0);
 		}
 		return (dp);
 	}
-	(void) sprintf(errbuf, "%s %d not defined", dev, num);
+	(void) snprintf(errbuf, sizeof(errbuf), "%s %d not defined", dev, num);
 	yyerror(errbuf);
 	return (0);
 }
@@ -854,7 +749,8 @@ huhcon(dev)
 		if (eq(dp->d_name, dev))
 			break;
 	if (dp == 0) {
-		(void) sprintf(errbuf, "no %s's to wildcard", dev);
+		(void) snprintf(errbuf, sizeof(errbuf), "no %s's to wildcard",
+		   dev);
 		yyerror(errbuf);
 		return (0);
 	}
@@ -906,9 +802,7 @@ init_dev(dp)
 	dp->d_conn = 0;
 	dp->d_conflicts = 0;
 	dp->d_disabled = 0;
-	dp->d_vec = 0;
-	dp->d_addr = dp->d_flags = dp->d_dk = 0;
-	dp->d_pri = -1;
+	dp->d_flags = dp->d_dk = 0;
 	dp->d_slave = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = UNKNOWN;
 	dp->d_port = (char *)0;
 	dp->d_portn = -1;
@@ -916,7 +810,6 @@ init_dev(dp)
 	dp->d_drq = -1;
 	dp->d_maddr = 0;
 	dp->d_msize = 0;
-	dp->d_mask = "null";
 }
 
 /*
@@ -974,7 +867,7 @@ checksystemspec(fl)
 		swap = newflist(SWAPSPEC);
 		dev = fl->f_rootdev;
 		if (dkpart(dev) != 0) {
-			(void) sprintf(buf, 
+			(void) snprintf(buf, sizeof(buf),
 "Warning, swap defaulted to 'b' partition with root on '%c' partition",
 				dkpart(dev) + 'a');
 			yyerror(buf);
@@ -1003,7 +896,7 @@ checksystemspec(fl)
 		for (; p && p->f_type == SWAPSPEC; p = p->f_next)
 			if (fl->f_dumpdev == p->f_swapdev)
 				return;
-		(void) sprintf(buf,
+		(void) snprintf(buf, sizeof(buf),
 		    "Warning: dump device is not a swap partition");
 		yyerror(buf);
 	}
@@ -1055,22 +948,6 @@ verifyswap(fl, checked, pchecked)
 		*pchecked++ = fl->f_swapdev;
 	}
 	return (pchecked);
-}
-
-/*
- * Verify that components of a compound device have themselves been config'ed
- */
-static void
-verifycomp(fl)
-	register struct file_list *fl;
-{
-	char *dname = fl->f_needs;
-
-	for (fl = fl->f_next; fl; fl = fl->f_next) {
-		if (fl->f_type != COMPSPEC || finddev(fl->f_compdev))
-			continue;
-		warnx("%s: component device %s not configured", dname, fl->f_needs);
-	}
 }
 
 /*

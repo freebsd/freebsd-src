@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkoptions.c,v 1.9 1999/04/17 14:41:40 peter Exp $";
+	"$Id: mkoptions.c,v 1.10 1999/04/18 13:36:29 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -106,7 +106,7 @@ options()
 	op = (struct opt *)malloc(sizeof(*op));
 	memset(op, 0, sizeof(*op));
 	op->op_name = "MAXUSERS";
-	sprintf(buf, "%d", maxusers);
+	snprintf(buf, sizeof(buf), "%d", maxusers);
 	op->op_value = ns(buf);
 	op->op_next = opt;
 	opt = op;

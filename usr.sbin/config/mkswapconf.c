@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkswapconf.c,v 1.17 1999/04/17 14:41:40 peter Exp $";
+	"$Id: mkswapconf.c,v 1.18 1999/04/18 13:36:29 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -87,8 +87,8 @@ do_swap(fl)
 		fl = fl->f_next;
 		return (fl->f_next);
 	}
-	(void) sprintf(swapname, "swap%s.c", fl->f_fn);
-	(void) sprintf(newswapname, "swap%s.c.new", fl->f_fn);
+	(void) snprintf(swapname, sizeof(swapname), "swap%s.c", fl->f_fn);
+	(void) snprintf(newswapname, sizeof(newswapname), "swap%s.c.new", fl->f_fn);
 	fp = fopen(path(newswapname), "w");
 	if (fp == 0)
 		err(1, "%s", path(newswapname));
@@ -225,9 +225,9 @@ devtoname(dev)
 		partname[0] = 'a' + part;
 		partname[1] = '\0';
 		if (slice != COMPATIBILITY_SLICE)
-			sprintf(slicename, "s%d", slice - 1);
+			snprintf(slicename, sizeof(slicename), "s%d", slice - 1);
 	}
-	(void) sprintf(buf, "%s%d%s%s", dp->dev_name,
+	(void) snprintf(buf, sizeof(buf), "%s%d%s%s", dp->dev_name,
 		dkunit(dev), slicename, partname);
 	return (ns(buf));
 }
@@ -241,7 +241,7 @@ initdevtable()
 	register struct devdescription **dp = &devtable;
 	FILE *fp;
 
-	(void) sprintf(buf, "../conf/devices.%s", machinename);
+	(void) snprintf(buf, sizeof(buf), "../conf/devices.%s", machinename);
 	fp = fopen(buf, "r");
 	if (fp == NULL)
 		errx(1, "can't open %s", buf);
