@@ -19,9 +19,6 @@
 <article lang="ru">
   <articleinfo>
     <title>Список проблем &os;
-<![ %release.type.current [
-    &release.current;
-]]>
 <![ %release.type.snapshot [
     &release.prev;
 ]]>
@@ -55,9 +52,6 @@
 
   <abstract>
     <para>В этом документе находится список проблем &os;
-<![ %release.type.current [
-      &release.current;,
-]]>
 <![ %release.type.snapshot [
       &release.prev;,
 ]]>
@@ -72,9 +66,6 @@
       &os; необходимо сверяться с обновленной версией этого документа.</para>
 
     <para>Этот список проблем &os; 
-<![ %release.type.current [
-      &release.current;.
-]]>
 <![ %release.type.snapshot [
       &release.prev;
 ]]>
@@ -88,9 +79,6 @@
     <title>Введение</title>
 
     <para>Этот документ содержит последние новости об &os;
-<![ %release.type.current [
-      &release.current;.
-]]>
 <![ %release.type.snapshot [
       &release.prev;.
 ]]>
@@ -123,10 +111,6 @@
   <sect1 id="security">
     <title>Сообщения безопасности</title>
 
-<![ %release.type.current [
-    <para>Нет сообщений.</para>
-]]>
-
 <![ %release.type.release [
     <para>Нет сообщений.</para>
 ]]>
@@ -140,10 +124,6 @@
   <sect1 id="open-issues">
     <title>Актуальные проблемы</title>
 
-<![ %release.type.current [
-    <para>Нет актуальных проблем.</para>
-]]>
-
 <![ %release.type.release [
     <para>Нет актуальных проблем.</para>
 ]]>
@@ -156,10 +136,6 @@
 
   <sect1 id="late-news">
     <title>Последние новости</title>
-
-<![ %release.type.current [
-    <para>Нет новостей.</para>
-]]>
 
 <![ %release.type.release [
     <para>Нет новостей.</para>

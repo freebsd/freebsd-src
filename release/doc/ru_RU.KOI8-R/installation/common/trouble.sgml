@@ -2,9 +2,9 @@
 	The FreeBSD Russian Documentation Project
 
 	$FreeBSD$
-	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/trouble.sgml,v 1.1 2004/06/24 07:21:48 den Exp $
+	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/trouble.sgml,v 1.3 2004/09/06 14:05:03 den Exp $
 
-	Original revision: 1.14
+	Original revision: 1.16
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
@@ -188,8 +188,9 @@
 	    мешает работе карты Intel EtherExpress.</para>
 	</question>
 	<answer>
-	  <para>Используйте утилиту UserConfig (см.
-	    <filename>HARDWARE.TXT</filename>), отмените тестирование
+	  <para>Установите переменные <quote>hint.mcd.0.disabled="1"</quote>
+	    и <quote>hint.mcd.1.disabled="1"</quote> на третьей стадии
+	    загрузчика для отмены тестирования
 	    устройств <devicename>mcd0</devicename> и
 	    <devicename>mcd1</devicename>.  Вообще говоря, вы должны
 	    оставить включенными только те устройства, которые
@@ -203,16 +204,17 @@
 	</question>
 	<answer>
 	  <para>Возможно, карта находится не на том IRQ, которое
-	    указано в файле настройки ядра.  Драйвер ed по умолчанию не
+	    указано в файле <filename>/boot/device.hints</filename>.
+	    Драйвер ed по умолчанию не
 	    использует <quote>программную</quote> конфигурацию (значения,
 	    вводимые с помощью EZSETUP в DOS), но он будет использовать
-	    программную настройку, если вы укажете <literal>?</literal>
-	    в поле IRQ файла настройки ядра.</para>
+	    программную настройку, если вы укажете <literal>-1</literal> в
+	    хинтах интерфейса.</para>
 
 	  <para>Или переместите перемычку на карте для жесткого задания
 	    настроек (изменив настройки ядра если потребуется), или
-	    задайте IRQ <literal>-1</literal> в UserConfig, или
-	    <literal>?</literal> в файле настройки ядра.  Это сообщит
+	    задайте IRQ <literal>-1</literal> путем установки
+	    <quote>hint.ed.0.irq="-1"</quote>.  Это укажет
 	    ядру использовать программную конфигурацию.</para>
 
 	  <para>Возможно, ваша карта находится на IRQ 9, которое совместно
@@ -227,11 +229,11 @@
 	    и клавиатура работает неправильно.</para>
 	</question>
 	<answer>
-	  <para>Старые лэптопы IBM использует стандартный контроллер
+	  <para>Старые лэптопы IBM используют нестандартный контроллер
 	    клавиатуры, поэтому вы должны сообщить драйверу клавиатуры
 	    (atkbd0) перейти в специальный режим, работающий на
-	    ThinkPad.  Измените atkbd0 'Flags' на 0x4 в UserConfig
-	    (смотрите в Input Menu, 'Keyboard').</para>
+	    ThinkPad.  Установите хинт <quote>hint.atkbd.0.flags="4"</quote>
+	    и все должно заработать отлично.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -252,22 +254,9 @@
 	</question>
 	<answer>
 	  <para>Это известная проблема, она вероятно будет исправлена
-	    в будущем.  Для того, чтобы вообще установить систему, загрузитесь
-	    с параметром <option>-c</option> в UserConfig, но
-	    используйте старый CLI режим, а <emphasis>не</emphasis>
-	    визуальный режим.  Наберите:</para>
-
-	  <screen><userinput>eisa 12</userinput>
-<userinput>quit</userinput></screen>
-
-	  <para>в приглашении.  (Вместо `quit', вы можете ввести
-	    `visual', и продолжить настройку в визуальном режиме).
-	    Хотя рекомендуется собрать новое ядро, dset может
-	    сохранить это значение.</para>
-
-	  <para>Обратитесь к FAQ за разъяснением проблемы и информацией
-	    по ее решению.  Помните, что FAQ из дистрибутивного набора
-	    `doc' устанавливается в каталог /usr/share/doc/FAQ.</para>
+	    в будущем.  Для того, чтобы вообще установить систему,
+	    установите хинт <quote>hw.eisa_slots="12"</quote> на
+	    третьей стадии загрузчика.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -278,15 +267,8 @@
 	<answer>
 	  <para>Ваш компьютер не понимает новый код
 	    <literal>i586_copyout</literal> и
-	    <literal>i586_copyin</literal>.  Загрузитесь с установочной
-	    дискеты, и когда появится первое меню (выбор запуска
-	    UserConfig), выберите интерфейс командной строки
-	    (<quote>expert mode</quote>) и введите следующее:</para>
-
-	  <screen><userinput>flags npx0 1</userinput></screen>
-
-	  <para>Затем продолжайте загрузку.  Этот параметр будет
-	    сохранен и вам не придется вводить его дважды.</para>
+	    <literal>i586_copyin</literal>.  Установите хинт
+	    <quote>hint.npx.0.flags="1"</quote>.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -307,9 +289,9 @@
 	  <para>Compaq немного отличаются от других систем, они не
 	    анонсируют гибкий диск в CMOS RAM ноутбука Aero.
 	    Следовательно, драйвер дисковода считает, что нет
-	    подключенных дисководов.  Перейдите к экрану
-	    UserConfig и установите Flags для устройства fdc0 в
-	    значение 0x1.  Это значение сообщает драйверу о наличии первого
+	    подключенных дисководов.  Установите хинт
+	    <quote>hint.fdc.0.flags="1"</quote>.
+	    Это значение сообщает драйверу о наличии первого
 	    дисковода (как 1.44 MB диск) без запроса к CMOS.</para>
 	</answer>
       </qandaentry>

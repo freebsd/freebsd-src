@@ -2,9 +2,9 @@
 The FreeBSD Russian Documentation Project
 
 $FreeBSD$
-$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.3 2004/08/03 12:53:40 den Exp $
+$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.5 2004/09/06 14:05:03 den Exp $
 
-Original revision: 1.26
+Original revision: 1.28
 
 install.sgml
 
@@ -19,9 +19,9 @@ from {alpha,i386}/INSTALL.TXT.
   <para>Этот раздел описывает процесс установки новой системы &os;.
     Особое внимание уделено получению дистрибутива &os; &release.current;
     и началу процедуры установки.  Глава <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html"><quote>Установка
+    url="&url.books.handbook;/install.html"><quote>Установка
     FreeBSD</quote></ulink> <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Руководства
+    url="&url.books.handbook;/">Руководства
     FreeBSD</ulink> предоставляет более подробную информацию о самой
     программе установке, включая пошаговую инструкцию по установке
     с иллюстрациями.</para>
@@ -42,10 +42,10 @@ from {alpha,i386}/INSTALL.TXT.
       Documentation программы установки.</para>
 
     <para>Он-лайн версии &os; <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> и
+      url="&url.books.faq;/">FAQ</ulink> и
       <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink>
-      доступны также с <ulink url="http://www.FreeBSD.org/">веб сайта
+      url="&url.books.handbook;/">Handbook</ulink>
+      доступны также с <ulink url="&url.base;/ru/">веб сайта
       Проекта FreeBSD</ulink>, если у вас есть подключение к интернет.</para>
 
     <para>Этот набор документов может показаться сложным, но время,
@@ -75,11 +75,12 @@ from {alpha,i386}/INSTALL.TXT.
 
 <!-- i386/pc98 text starts here -->
 
-    <para arch="i386,pc98">&os; для &arch.print; для работы требуется
-      386 процессор или выше (к сожалению, поддержки 286 процессоров нет),
-      как минимум 5 мегабайт оперативной памяти для установки и
-      4 мегабайта оперативной памяти для запуска.  Вам потребуется как
-      минимум 100MB свободного места на жестком диске для минимальной
+    <para arch="i386,pc98">&os; для &arch.print; для установки и работы
+      требуется 486 процессор или выше (хотя с другим ядром &os; может
+      работать на процессорах 386), как минимум 8 мегабайт оперативной
+      памяти для установки и
+      7 мегабайта для запуска.  Вам потребуется как
+      минимум 150MB свободного места на жестком диске для минимальной
       установки.  Ниже дана информация по урезанию существующего
       раздела DOS для установки &os;.</para>
 
@@ -134,7 +135,7 @@ from {alpha,i386}/INSTALL.TXT.
     <title>Инструкции по созданию дискет</title>
 
     <para arch="i386,alpha,pc98">В зависимости от способа установки &os;,
-      вам может потребоваться создание набора дискет (обычно двух)
+      вам может потребоваться создание набора дискет (обычно трех)
       для начала процесса установки.  Этот раздел кратко описывает
       как создать эти диски с установочного CDROM или из интернет.
       Обратите внимание, что в общем случае установки &os; с CDROM
@@ -143,34 +144,31 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="i386,alpha">Для большинства установок с CDROM или по сети,
       вам потребуются скопировать образы дискет
-      <filename>kern.flp</filename> и <filename>mfsroot.flp</filename>
-      из каталога <filename>floppies/</filename> (для 1.44MB дискет).
-      В зависимости от имеющегося оборудования, вам может также потребоваться
-      третья дискета, <filename>drivers.flp</filename>, на которой
-      находятся драйвера устройств.</para>
+      <filename>boot.flp</filename> и <filename>kernX.flp</filename>
+      из каталога <filename>floppies/</filename> (для 1.44MB дискет).</para>
 
     <para arch="pc98">Для обычной установки с CDROM или по сети, вам
-      потребуется скопировать образы дискет <filename>kern.flp</filename>
-      и <filename>mfsroot.flp</filename> из каталога
+      потребуется скопировать образы дискет <filename>boot.flp</filename>
+      и <filename>kernX.flp</filename> из каталога
       <filename>floppies/</filename> (для 1.44MB дискет) или
-      <filename>kern-small.flp</filename> и
-      <filename>mfsroot-small.flp</filename> (для 1.2MB дискет).</para>
+      <filename>boot-small.flp</filename> и
+      <filename>kern-small.flp</filename> (для 1.2MB дискет).</para>
 
     <para arch="i386,alpha,pc98">Получить эти образы по сети просто.
       Загрузите
-      <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>,
-      <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>,
-      и
-      <replaceable>release</replaceable><filename>/floppies/drivers.flp</filename>
+      <replaceable>release</replaceable><filename>/floppies/boot.flp</filename>
+      и все
+      <replaceable>release</replaceable><filename>/floppies/kernX.flp</filename>
       с <ulink url="&release.url;"></ulink> или с одного из зеркал,
       перечисленных в разделе <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+      url="&url.books.handbook;/mirrors-ftp.html">FTP
       зеркала</ulink> Руководства или, или на страницах
       <ulink url="http://mirrorlist.FreeBSD.org/"></ulink>.</para>
 
-    <para arch="i386,alpha">Возьмите две чистые, только что отформатированные
-      дискеты и поместите образ <filename>kern.flp</filename> на первую,
-      а <filename>mfsroot.flp</filename> на вторую.  Эти образы
+    <para arch="i386,alpha">Возьмите три (или сколько потребуется) чистых,
+      только что отформатированных
+      дискет и поместите образ <filename>boot.flp</filename> на первую,
+      а <filename>kernX.flp</filename> на остальные.  Эти образы
       <emphasis>не</emphasis> DOS файлы.  Вы не можете просто скопировать
       их на DOS или UFS дискету как обычные файлы, потребуется
       размещение образов на диске с помощью <filename>fdimage.exe</filename>
@@ -178,9 +176,10 @@ from {alpha,i386}/INSTALL.TXT.
       или на FTP зеркалах &os;) или с помощью команды &man.dd.1;
       в UNIX.</para>
 
-    <para arch="pc98">Возьмите две чистые, только что отформатированные
-      дискеты и поместите образ <filename>kern.flp</filename> на первую,
-      а <filename>mfsroot.flp</filename> на вторую.  Эти образы
+    <para arch="pc98">Возьмите три (или сколько потребуется) чистых,
+      только что отформатированных
+      дискет и поместите образ <filename>boot.flp</filename> на первую,
+      а <filename>kernX.flp</filename> на остальные.  Эти образы
       <emphasis>не</emphasis> DOS файлы.  Вы не можете просто скопировать
       их на DOS или UFS дискету как обычные файлы, потребуется
       размещение образов на диске с помощью <filename>rawrite.exe</filename>
@@ -191,43 +190,37 @@ from {alpha,i386}/INSTALL.TXT.
     <para arch="i386,alpha,pc98">Например, для создания дискеты с образом ядра
       под DOS, вам потребуется выполнить примерно такую команду:</para>
 
-    <screen arch="i386,alpha"><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
+    <screen arch="i386,alpha"><prompt>C></prompt> <userinput>fdimage boot.flp a:</userinput></screen>
     <screen arch="pc98"><prompt>A></prompt> <userinput>rawrite</userinput></screen>
 
     <para arch="i386,alpha">Предполагается, что вы скопировали
-      <filename>fdimage.exe</filename> и <filename>kern.flp</filename>
-      в отдельный каталог.  Для <filename>mfsroot.flp</filename>
+      <filename>fdimage.exe</filename> и <filename>boot.flp</filename>
+      в отдельный каталог.  Для файлов <filename>kernX.flp</filename>
       действия будут аналогичны.</para>
 
     <para arch="pc98">Предполагается, что вы скопировали
-      <filename>rawrite.exe</filename> и <filename>kern.flp</filename>
-      в отдельный каталог.  Для <filename>mfsroot.flp</filename>
+      <filename>rawrite.exe</filename> и <filename>boot.flp</filename>
+      в отдельный каталог.  Для файлов <filename>kernX.flp</filename>
       действия будут аналогичны.</para>
 
     <para arch="i386,alpha,pc98">Если вы создаете загрузочную дискету на
       компьютере UNIX, используйте команду:</para>
 
-    <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
-    <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0.1440</userinput></screen>
+    <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/boot.flp of=/dev/rfd0</userinput></screen>
+    <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/boot.flp of=/dev/rfd0.1440</userinput></screen>
+
+    <para arch="i386,alpha">или</para>
+
+    <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/boot.flp of=/dev/fd0</userinput></screen>
 
     <para arch="i386,alpha,pc98">или</para>
 
-    <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
-    <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/kern-small.flp of=/dev/rfd0.1200</userinput></screen>
+    <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/boot.flp of=/dev/floppy</userinput></screen>
+    <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/boot-small.flp of=/dev/rfd0.1200</userinput></screen>
 
     <para arch="i386,alpha,pc98">в зависимости от имеющегося оборудования
       и операционной системы (различные версии UNIX по-разному именуют
       устройства гибких дисков).</para>
-
-    <para arch="alpha">Если у вас компьютер alpha, который может загружаться
-      с образов дисков по сети, или дисковод поддерживает диски 2.88MB или
-      LS-120 и может работать с 2.88MB образами на компьютере x86, вы можете
-      использовать один (но вдвое больший по размеру) образ
-      <filename>boot.flp</filename>.  В нем находится содержимое
-      <filename>kern.flp</filename> и <filename>mfsroot.flp</filename>.
-      Этот файл также должен использоваться в качестве загрузочного
-      для создания загрузочных образов CD <quote>El Torito</quote>.
-      Обратитесь к &man.mkisofs.8; за дальнейшей информацией.</para>
 
     <para arch="amd64">Установка с дискеты не поддерживается в
       &os;/&arch;.</para>
@@ -243,18 +236,15 @@ from {alpha,i386}/INSTALL.TXT.
       CD &os;, существует два способа установки с него:
       <itemizedlist>
 	<listitem>
-	  <para>Если ваша система поддерживает загрузку с CDROM
-	    (обычно в этот параметр выбирается в меню настройки
-	    контроллера или в PC BIOS на некоторых системах)
-	    и если она включена, &os; загружается с CD в формате
-	    <quote>El Torito</quote>.  Просто поместите установочный
-	    CD в привод и загрузите систему для начала установки.</para>
+	  <para>Если ваша система поддерживает стандарт <quote>CDBOOT</quote>
+	    загрузочных CDROM и загрузка с CD включена, просто поместите
+	    установочный CD &os; в привод и загрузите систему для начала
+	    установки.</para>
 	</listitem>
 	<listitem>
 	  <para>Создайте набор загрузочных дискет &os; из каталога
 	    <filename>floppies/</filename> дистрибутива &os;.
-	    Или просто используйте скрипт <filename>makeflp.bat</filename>
-	    из DOS, или прочтите <xref linkend="floppies"> с более
+	    Прочтите <xref linkend="floppies"> с более
 	    подробной информацией по созданию загрузочных дискет
 	    под различными операционными системами.  Затем просто
 	    загрузитесь с первой дискеты, и вскоре начнется установка
@@ -282,22 +272,22 @@ from {alpha,i386}/INSTALL.TXT.
       поддерживает загрузку с CDROM), вы можете просто выполнить установку
       через сеть, используя PPP, SLIP или выделенное соединение.
       Начните установку, создав набор загрузочных дискет &os;
-      из файлов <filename>floppies/kern.flp</filename> и
-      <filename>floppies/mfsroot.flp</filename>, используя инструкции
+      из файлов <filename>floppies/boot.flp</filename> и
+      <filename>floppies/kernX.flp</filename>, используя инструкции
       в <xref linkend="floppies">.  Перезагрузите компьютер,
-      диск <filename>kern.flp</filename>; после запроса вставьте
-      диск <filename>mfsroot.flp</filename>.  Прочтите
+      диск <filename>boot.flp</filename>; после запроса вставьте
+      последовательно остальные диски.  Прочтите
       <xref linkend="ftpnfs"> с дополнительной информацией по установке
       через FTP или NFS.</para>
 
     <para arch="pc98">Если у вас нет CDROM, вы можете просто выполнить
       установку через сеть, используя PPP, SLIP или выделенное соединение.
       Начните установку, создав набор загрузочных дискет &os;
-      из файлов <filename>floppies/kern.flp</filename> и
+      из файлов <filename>floppies/boot.flp</filename> и
       <filename>floppies/mfsroot.flp</filename>, используя инструкции
       в <xref linkend="floppies">.  Перезагрузите компьютер,
       диск <filename>kern.flp</filename>; после запроса вставьте
-      диск <filename>mfsroot.flp</filename>.  Прочтите
+      последовательно остальные диски.  Прочтите
       <xref linkend="ftpnfs"> с дополнительной информацией по установке
       через FTP или NFS.</para>
 
@@ -314,16 +304,16 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="alpha">В качестве альтернативы вы можете начать установку
       с дискеты.  Для начала вам потребуется создать набор загрузочных
-      дискет из файлов <filename>floppies/kern.flp</filename> и
-      <filename>floppies/mfsroot.flp</filename>, используя инструкции из
-      <xref linkend="floppies">.  Вставьте <filename>kern.flp</filename>,
+      дискет из <filename>floppies/boot.flp</filename> и файлов
+      <filename>floppies/kernX.flp</filename>, используя инструкции из
+      <xref linkend="floppies">.  Вставьте <filename>boot.flp</filename>,
       для запуска установки из приглашения SRM консоли
       (<literal>&gt;&gt;&gt;</literal>) наберите следующую команду:</para>
 
     <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dva0</userinput></screen>
 
-    <para arch="alpha">Вставьте дискету <filename>mfsroot.flp</filename>
-      когда появится приглашение и после ее загрузки появится первое
+    <para arch="alpha">Вставьте остальные дискеты
+      когда появится приглашение и после загрузки появится первое
       окно программы установки.</para>
 
 <!-- sparc64 text starts here -->
@@ -461,8 +451,8 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<listitem>
 	  <para>Если у вас есть возможность установки &os; через FTP
 	    непосредственно с CDROM на другом компьютере &os;, это очень
-	    просто: просто добавьте следующую строку в файл паролей
-	    (используя &man.vipw.8;):</para>
+	    просто: убедитесь, что FTP сервер работает и добавьте следующую
+	    строку в файл паролей (используя &man.vipw.8;):</para>
 
 	  <screen>ftp:*:99:99::0:0:FTP:/cdrom:/sbin/nologin</screen>
 
@@ -543,16 +533,14 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	создания на дискетах файловой системы UFS, что проиллюстрировано
 	в следующей последовательности команд:</para>
 
-      <screen>&prompt.root; <userinput>fdformat -f 1440 fd0.1440</userinput>
-&prompt.root; <userinput>disklabel -w -r fd0.1440 floppy3</userinput>
-&prompt.root; <userinput>newfs -t 2 -u 18 -l 1 -i 65536 /dev/fd0</userinput></screen>
+      <screen>&prompt.root; <userinput>fdformat -f 1440 fd0</userinput>
+&prompt.root; <userinput>disklabel -w fd0 floppy3</userinput>
+&prompt.root; <userinput>newfs -i 65536 /dev/fd0</userinput></screen>
 
       <para>После форматирования дискет для DOS или UFS, вам потребуется
 	скопировать на них файлы.  Файлы дистрибутива разделены на
-	части такого размера, чтобы 5 таких файлов помещались на обычную
-	1.44MB дискету.  Скопируйте на каждую дискету столько файлов, сколько
-	поместится, пока не будут скопированы все дистрибутивные файлы,
-	которые вы хотели поместить на дискеты.  Каждый дистрибутивный
+	части такого размера, чтобы на каждую дискету помещался один файл.
+	Каждый дистрибутивный
 	набор должен располагаться на дискете в своем собственном каталоге,
 	т.е.: <filename>a:\bin\bin.inf</filename>,
 	<filename>a:\bin\bin.aa</filename>,
@@ -566,8 +554,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  дистрибутивный набор.  При помещении дистрибутивных наборов на
 	  дискеты, файл <filename>distname.inf</filename>
 	  <emphasis>должен</emphasis> помещаться на первую дискету
-	  каждого дистрибутивного набора.  Об этом также говорится в
-	  <filename>README.TXT</filename>.</para>
+	  каждого дистрибутивного набора.</para>
       </important>
 
       <para>Как только в программе установки появится экран Media,
@@ -619,7 +606,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	помещения их на ленту с помощью примерно такой команды:</para>
 
       <screen>&prompt.root; <userinput>cd <replaceable>/where/you/have/your/dists</replaceable></userinput>
-&prompt.root; <userinput>tar cvf /dev/rsa0 <replaceable>dist1</replaceable> .. <replaceable>dist2</replaceable></userinput></screen>
+&prompt.root; <userinput>tar cvf /dev/sa0 <replaceable>dist1</replaceable> .. <replaceable>dist2</replaceable></userinput></screen>
 
       <para>При установке вы также должны убедиться, что оставлено
 	достаточно места во временном каталоге (который вам будет предложено
@@ -656,7 +643,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  поскольку программа SLIP на данный момент не предоставляет
 	  возможности дозвона.  Если вам требуется дозвон по модему
 	  или иной способ подготовки соединения перед его установкой,
-	  рекомендуется использовать PPP.</para>
+	  используйте PPP.</para>
 
 	<para>При использовании PPP, убедитесь, что у вас есть IP адрес
 	  провайдера и сведения о DNS, так как они понадобятся на
@@ -700,7 +687,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <sect4>
 	<title>Ethernet</title>
 
-	<para>&os; поддерживает множество широко распространенных
+	<para>&os; поддерживает большинство широко распространенных
 	  карт Ethernet; таблица совместимых карт является частью
 	  информации об оборудовании (<filename>HARDWARE.TXT</filename>
 	  в меню Documentation на загрузочной дискете или в корневом
@@ -741,7 +728,8 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	<para>Если этот сервер поддерживает доступ только через
 	  <quote>привилегированные порты</quote> (обычно это режим по
-	  умолчанию для рабочих станций Sun и Linux), вам потребуется
+	  умолчанию для рабочих станций Sun и Linux), вам может
+	  потребоваться
 	  установить соответствующий параметр в меню Options перед
 	  началом установки.</para>
 
@@ -845,19 +833,23 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	</step>
 	<step>
 	  <para>Если вы не видите ничего на последовательной консоли,
-	    подключите клавиатуру опять и подождите звуковых сигналов.
+	    подключите клавиатуру опять.
 	    Если вы загружаетесь с CDROM, выполните <xref
 	    linkend="hitspace"> после получения сигналов.</para>
 	</step>
 	<step>
-	  <para>Для загрузки с дискет, первый звуковой сигнал означает
-	    необходимость удалить дискету <filename>kern.flp</filename>
-	    и вставить дискету <filename>mfsroot.flp</filename>, после
-	    чего вы должны нажать <keycap>Enter</keycap> и подождать
-	    следующего сигнала.</para>
+	  <para>При загрузке с дискет, после остановки чтения с диска
+	    вставьте первый диск <filename>kernX.flp</filename> и нажмите
+	    <keycap>Enter</keycap>.  После остановки чтения с диска
+	    вставьте следующий диск <filename>kernX.flp</filename> и нажмите
+	    <keycap>Enter</keycap>, и так далее для всех дисков
+	    <filename>kernX.flp</filename>.  Когда загрузка завершится,
+	    вставьте опять <filename>boot.flp</filename> и нажмите
+	    <keycap>Enter</keycap>.</para>
 	</step>
 	<step id="hitspace">
-	  <para>Нажмите пробел, затем введите</para>
+	  <para>После звукового сигнала нажмите цифру <keycap>6</keycap>,
+	    затем введите</para>
 
 	  <screen><userinput>boot -h</userinput></screen>
 
@@ -965,7 +957,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<answer>
 	  <para>Хотя еще имеются некоторые острые углы, во многих случаях
 	    может подойти утилита &man.doscmd.1;, работа над которой
-	    продолжается.  Если вы заинтересованы в работе над ней,
+	    продолжается.  Порт/пакет <filename
+	    role="package">emulators/doscmd</filename> можно найти в
+	    коллекции портов &os;.  Если вы заинтересованы в работе над
+	    этой утилитой,
 	    отправьте письмо в &a.emulation; и укажите, что вы
 	    заинтересованы в этой продолжающейся работе!</para>
 
@@ -973,6 +968,40 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	    в коллекции портов &os; эмулирует 8088 и BIOS сервисы для
 	    запуска текстовых приложений DOS.  Для работы ему требуется
 	    X Window System (XFree86).</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Могу ли я запускать в &os; приложения
+	    &microsoft.windows;?</para>
+	</question>
+
+	<answer>
+	  <para>Существуют несколько портов/пакетов в коллекции портов
+	    &os;, которые могут сделать возможным использование многих
+	    приложений &windows;.  Порт/пакет <filename
+	    role="package">emulators/wine</filename> предоставляет уровень
+	    совместимости над &os;, который позволяет многим
+	    &windows; приложениям работать в X Windows (XFree86).</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Могу ли я запускать в &os; другие операционные системы?</para>
+	</question>
+
+	<answer>
+	  <para>В коллекции портов находятся несколько портов/пакетов, которые
+	    имитируют <quote>виртуальные машины</quote> и позволяют другим
+	    операционным системам работать поверх &os;.  Порт/пакет
+	    <filename role="package">emulators/bochs</filename> позволяет
+	    &microsoft.windows;, Linux и даже другим копиям &os; работать
+	    внутри окна рабочего стола &os;.  Порты/пакеты <filename
+	    role="package">emulators/vmware2</filename> и <filename
+	    role="package">emulators/vmware3</filename> позволяют запускать
+	    в &os; коммерческие виртуальные машины VMware.</para>
 	</answer>
       </qandaentry>
     </qandaset>
