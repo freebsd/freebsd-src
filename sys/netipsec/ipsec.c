@@ -1922,6 +1922,8 @@ xform_init(struct secasvar *sav, int xftype)
 {
 	struct xformsw *xsp;
 
+	if (sav->tdb_xform != NULL)	/* previously initialized */
+		return 0;
 	for (xsp = xforms; xsp; xsp = xsp->xf_next)
 		if (xsp->xf_type == xftype)
 			return (*xsp->xf_init)(sav, xsp);
