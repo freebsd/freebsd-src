@@ -41,7 +41,7 @@
 .Nm rdump
 .Nd filesystem backup
 .Sh SYNOPSIS
-.Nm dump
+.Nm
 .Op Fl 0123456789acknu
 .Op Fl B Ar records
 .Op Fl b Ar blocksize
@@ -51,10 +51,10 @@
 .Op Fl s Ar feet
 .Op Fl T Ar date
 .Ar filesystem
-.Nm dump
+.Nm
 .Op Fl W Li \&| Fl w
 .Pp
-.in -\\n(iSu
+.in -\n(iSu
 (The
 .Bx 4.3
 option syntax is implemented for backward compatibility, but
@@ -87,7 +87,7 @@ By default, the same output file name is used for each volume
 after prompting the operator to change media.
 .Pp
 The following options are supported by
-.Nm Ns :
+.Nm :
 .Bl -tag -width Ds
 .It Fl 0\-9
 Dump levels.

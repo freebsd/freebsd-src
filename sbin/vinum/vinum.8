@@ -315,7 +315,7 @@ is a utility program to communicate with the \fBVinum\fP\| logical volume
 manager.  See
 .Xr vinum 4
 for more information about the volume manager.
-.Xr vinum 8
+.Nm
 is designed either for interactive use, when started without command line
 arguments, or to execute a single command if the command is supplied on the
 command line.  In interactive mode,
@@ -905,7 +905,7 @@ This command is deprecated.
 .Ar list
 is used to show information about the specified object.  If the argument is
 omitted, information is shown about all objects known to
-.Nm vinum .
+.Nm .
 The
 .Ar l
 command is a synonym for
@@ -1355,7 +1355,7 @@ If no parameters are specified,
 removes the
 .Nm
 kld and stops
-.Xr vinum 8 .
+.Nm .
 This can only be done if no objects are active.  In particular, the
 .Fl f
 option does not override this requirement.  Normally, the
@@ -1633,7 +1633,7 @@ must be the name of a disk partition, for example
 or
 .Pa /dev/wd3s2h ,
 and it must be of type
-.Nm vinum .
+.Nm .
 Do not use the
 .Nm c
 partition, which is reserved for the complete disk.
@@ -1916,7 +1916,7 @@ the maximum size of a subdisk is 265 sectors smaller than the drive.
 maintains a log file, by default
 .Pa /var/tmp/vinum_history ,
 in which it keeps track of the commands issued to
-.Nm vinum .
+.Nm .
 You can override the name of this file by setting the environment variable
 .Ev VINUM_HISTORY 
 to the name of the file.  
@@ -1935,7 +1935,7 @@ system.
 .Ss Where to put the data
 The first choice you need to make is where to put the data.  You need dedicated
 disk partitions for
-.Nm vinum .
+.Nm .
 They should be partitions, not devices, and they should not be partition
 .Nm c .
 For example, good names are
@@ -2313,7 +2313,7 @@ command.
 A number of misconceptions exist about how to set up a RAID array for best
 performance.  In particular, most systems use far too small a stripe size.  The
 following discussion applies to all RAID systems, not just to
-.Nm vinum .
+.Nm .
 .Pp
 The FreeBSD block I/O system issues requests of between .5kB and 128 kB; a
 typical mix is somewhere round 8 kB.  You can't stop any striping system from
@@ -2523,7 +2523,8 @@ you can easily overwrite a file system.
 will not permit this.
 .Pp
 For similar reasons, the
-.Nm vinum Ar start
+.Nm
+.Ar start
 command will not accept a drive on partition
 .Ar c .
 Partition
@@ -2562,7 +2563,8 @@ provides two ways to ensure that newly created plexes are
 .Bl -bullet
 .It
 Create the plexes and then synchronize them with
-.Nm vinum start .
+.Nm
+.Ar start .
 .It
 Create the volume (not the plex) with the keyword
 .Ar setupstate ,
@@ -2601,7 +2603,7 @@ please report the situation.
 If you build the kernel module with the
 .Ar -DVINUMDEBUG
 option, you must also build
-.Nm vinum(8)
+.Nm
 with the
 .Ar -DVINUMDEBUG
 option, since the size of some data objects used by both components depends on
@@ -2616,12 +2618,15 @@ vinumioctl: invalid ioctl from process 247 (vinum): c0e44642
 This error may also occur if you use old versions of kld or userland program.
 .It
 The
-.Nm vinum Ar read
+.Nm
+.Ar read
 command has a particularly emetic syntax.  Once it was the only way to start
-.Nm vinum ,
+.Nm ,
 but now the preferred method is with
-.Nm vinum Ar start .
-.Nm vinum Ar read
+.Nm
+.Ar start .
+.Nm
+.Ar read
 should be used for maintenance purposes only.  Note that its syntax has changed,
 and the arguments must be disk slices, such as
 .Pa /dev/da0 ,
@@ -2637,7 +2642,7 @@ objects.
 .br
 .Ar /dev/vinum/control
 - control device for
-.Nm vinum
+.Nm
 .br
 .Ar /dev/vinum/plex
 - directory containing device nodes for

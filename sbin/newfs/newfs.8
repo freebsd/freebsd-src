@@ -40,7 +40,7 @@
 .Nm mount_mfs
 .Nd construct a new file system
 .Sh SYNOPSIS
-.Nm newfs
+.Nm
 .Op Fl NO
 .Op Fl S Ar sector-size
 .Op Fl T Ar disktype
@@ -118,7 +118,7 @@ corresponding file system.
 The parameters to
 .Nm mount_mfs
 are the same as those to
-.Nm Ns .
+.Nm .
 If the
 .Fl T
 flag is specified (see below), the special file is unused.
@@ -245,7 +245,7 @@ Specify that the disk does not contain any partitions, and that
 .Nm
 should build a file system on the whole disk.
 This option is useful for synthetic disks such as
-.Nm vinum.
+.Nm vinum .
 .El
 .Pp
 The following options override the standard sizes for the disk geometry. 
