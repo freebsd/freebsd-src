@@ -51,6 +51,11 @@
 # MFILES	Optionally a list of interfaces used by the module.
 #		This file contains a default list of interfaces.
 #
+# EXPORT_SYMS	A list of symbols that should be exported from the module,
+#		or the name of a file containing a list of symbols, or NO
+#		to export no symbols.  If missing, all global symbols are
+#		exported.
+#
 # +++ targets +++
 #
 #       distribute:
@@ -119,6 +124,11 @@ CFLAGS+=	-I${DESTDIR}/usr/include
 CFLAGS+=	-I@/../include -I${DESTDIR}/usr/include
 .endif # @
 
+# Disallow common variables, and if we end up with commons from
+# somewhere unexpected, allocate storage for them in the module itself.
+CFLAGS+=	-fno-common
+LDFLAGS+=	-d -warn-common
+
 CFLAGS+=	${DEBUG_FLAGS}
 
 .if ${OBJFORMAT} == elf
@@ -143,8 +153,25 @@ ${PROG}: ${FULLPROG}
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 
+.if defined(EXPORT_SYMS)
+CLEANFILES+=	${.OBJDIR}/export_syms
+.endif
+
 ${KMOD}.kld: ${OBJS}
-	${LD} ${LDFLAGS} -r -o ${.TARGET} ${OBJS}
+	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+.if defined(EXPORT_SYMS)
+.if ${EXPORT_SYMS} == NO
+	touch ${.OBJDIR}/export_syms
+.elif !exists(${.CURDIR}/${EXPORT_SYMS})
+	echo ${EXPORT_SYMS} > ${.OBJDIR}/export_syms
+.else
+	grep -v '^#' < ${EXPORT_SYMS} >  ${.OBJDIR}/export_syms
+.endif
+	awk -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
+		${.OBJDIR}/export_syms | \
+	xargs -t -J% ${OBJCOPY} % ${.TARGET}
+.endif
+
 
 .if !defined(NOMAN)
 .if 0

@@ -38,7 +38,7 @@ INCLUDES+= -I/usr/include
 .endif
 
 COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -ffreestanding -include opt_global.h
-CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -fno-common
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
@@ -76,7 +76,7 @@ SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} hints.o env.o config.o hack.So
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
-	-export-dynamic -dynamic-linker /red/herring \
+	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 	${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
