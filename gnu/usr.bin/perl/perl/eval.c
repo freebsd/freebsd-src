@@ -1,4 +1,4 @@
-/* $RCSfile: eval.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
+/* $RCSfile: eval.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:03 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: eval.c,v $
+ * Revision 1.2  1995/05/30 05:03:03  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -2927,11 +2930,11 @@ donumset:
 	  gimme,arglast);
 	goto array_return;
     case O_SPWENT:
-	value = (double) setpwent();
-	goto donumset;
+	setpwent();
+	goto say_yes;
     case O_EPWENT:
-	value = (double) endpwent();
-	goto donumset;
+	endpwent();
+	goto say_yes;
 #else
     case O_EPWENT:
     case O_SPWENT:
