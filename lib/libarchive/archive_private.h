@@ -243,6 +243,5 @@ int	__archive_read_register_compression(struct archive *a,
  */
 int		 __archive_entry_acl_parse_w(struct archive_entry *,
 		     const wchar_t *, int type);
-const wchar_t	*__archive_entry_acl_text_w(struct archive_entry *, int type);
 
 #endif
