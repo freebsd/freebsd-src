@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id$
+#	$Id: rc,v 1.104.2.4 1996/12/23 00:36:58 joerg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -85,6 +85,9 @@ if [ $? != 0 ]; then
 fi
 
 adjkerntz -i
+
+# Keep a copy of the boot messages around
+/sbin/dmesg > /var/run/dmesg.boot
 
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/sysconfig ]; then
