@@ -64,6 +64,11 @@
 #define PCI_SUBCLASS_SERIALBUS_USB              0x00030000
 #define PCI_SUBCLASS_SERIALBUS_FIBER            0x00040000
 
+#define PCI_INTERFACE(d)        (((d) >> 8) & 0xff)
+#define PCI_SUBCLASS(d)         ((d) & PCI_SUBCLASS_MASK)
+#define PCI_CLASS(d)            ((d) & PCI_CLASS_MASK)
+
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdivar.h>
@@ -71,13 +76,6 @@
 
 #include <dev/usb/ohcireg.h>
 #include <dev/usb/ohcivar.h>
-
-#define PCI_INTERFACE(d)        (((d) >> 8) & 0xff)
-#define PCI_SUBCLASS(d)         ((d) & PCI_SUBCLASS_MASK)
-#define PCI_CLASS(d)            ((d) & PCI_CLASS_MASK)
-
-#define PCI_VENDOR(d)           ((d) & 0xffff)
-#define PCI_DEVICE(d)           (((d) >> 8) & 0xffff)
 
 
 #define PCI_OHCI_VENDORID_ALI		0x10b9
@@ -101,12 +99,10 @@ static const char *ohci_device_usb0673	 = "CMD Tech 673 (USB0673) USB Host Contr
 static const char *ohci_device_generic   = "OHCI (generic) USB Host Controller";
 
 
-#define PCI_OHCI_BASE_REG	0x10
-
 static const char *ohci_pci_probe              __P((pcici_t, pcidi_t));
 static void ohci_pci_attach              __P((pcici_t, int));
 
-u_long ohci_count = 0;           /* global counter for nr. of devices found */
+static u_long ohci_count = 0;
 
 static struct pci_device ohci_pci_device = {
         "ohci",
@@ -118,22 +114,24 @@ static struct pci_device ohci_pci_device = {
 
 DATA_SET(pcidevice_set, ohci_pci_device);
 
+
 static const char *
 ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
 {
         u_int32_t class;
 
-	if (device_id == PCI_OHCI_DEVICEID_ALADDIN_V) {
+	switch(device_id) {
+	case PCI_OHCI_DEVICEID_ALADDIN_V:
 		return (ohci_device_aladdin_v);
-	} else if (device_id == PCI_OHCI_DEVICEID_USB0670) {
+	case PCI_OHCI_DEVICEID_USB0670:
 		return (ohci_device_usb0670);
-	} else if (device_id == PCI_OHCI_DEVICEID_USB0673) {
+	case PCI_OHCI_DEVICEID_USB0673:
 		return (ohci_device_usb0673);
-	} else if (device_id == PCI_OHCI_DEVICEID_FIRELINK) {
+	case PCI_OHCI_DEVICEID_FIRELINK:
 		return (ohci_device_firelink);
-	} else if (device_id == PCI_OHCI_DEVICEID_NEC) {
+	case PCI_OHCI_DEVICEID_NEC:
 		return (ohci_device_nec);
-	} else {
+	default:
 		class = pci_conf_read(config_id, PCI_CLASS_REG);
 		if (   (PCI_CLASS(class)     == PCI_CLASS_SERIALBUS)
 		    && (PCI_SUBCLASS(class)  == PCI_SUBCLASS_SERIALBUS_USB)
@@ -148,83 +146,72 @@ ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
 static void
 ohci_pci_attach(pcici_t config_id, int unit)
 {
-	int id;
-	usbd_status r;
-	ohci_softc_t *sc = NULL;
 	vm_offset_t pbase;
+	device_t usbus;
+	ohci_softc_t *sc;
+	usbd_status err;
+	int id;
 
 	sc = malloc(sizeof(ohci_softc_t), M_DEVBUF, M_NOWAIT);
 	/* Do not free it below, intr might use the sc */
 	if ( sc == NULL ) {
-		printf("usb%d: could not allocate memory", unit);
+		printf("ohci%d: could not allocate memory", unit);
 		return;
 	}
 	memset(sc, 0, sizeof(ohci_softc_t));
 
 	if(!pci_map_mem(config_id, PCI_CBMEM,
            (vm_offset_t *)&sc->sc_iobase, &pbase)) {
-		printf("usb%d: could not map memory\n", unit);
+		printf("ohci%d: could not map memory\n", unit);
 		return;
         }
-	sc->unit      = unit;
 
 	if ( !pci_map_int(config_id, (pci_inthand_t *)ohci_intr,
 			  (void *) sc, &bio_imask)) {
-		printf("usb%d: could not map irq\n", unit);
+		printf("ohci%d: could not map irq\n", unit);
 		return;                    
 	}
 
-	/* Figure out vendor for root hub descriptor. */
-	id = pci_conf_read(config_id, PCI_ID_REG);
-	if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_ALI)
-		sprintf(sc->sc_vendor, "AcerLabs");
-	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_CMDTECH)
-		sprintf(sc->sc_vendor, "CMDTECH");
-	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_COMPAQ)
-		sprintf(sc->sc_vendor, "Compaq");
-	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_NEC)
-		sprintf(sc->sc_vendor, "NEC");
-	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_OPTI)
-		sprintf(sc->sc_vendor, "OPTi");
-	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_SIS)
-		sprintf(sc->sc_vendor, "SiS");
-	else
-		sprintf(sc->sc_vendor, "(0x%04x)", PCI_VENDOR(id));
-
-	sc->sc_bus.bdev = device_add_child(root_bus, "usb", unit, sc);
-	if (!sc->sc_bus.bdev) {
-		printf("%s%d: could not add USB device to root bus\n",
-			device_get_name(sc->sc_bus.bdev),
-			device_get_unit(sc->sc_bus.bdev));
+	usbus = device_add_child(root_bus, "usb", -1, sc);
+	if (!usbus) {
+		printf("ohci%d: could not add USB device to root bus\n", unit);
 		return;
 	}
 
+	id = pci_conf_read(config_id, PCI_ID_REG);
 	switch(id) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_aladdin_v);
+		device_set_desc(usbus, ohci_device_aladdin_v);
+		sprintf(sc->sc_vendor, "AcerLabs");
 		break;
 	case PCI_OHCI_DEVICEID_FIRELINK:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_firelink);
+		device_set_desc(usbus, ohci_device_firelink);
+		sprintf(sc->sc_vendor, "OPTi");
 		break;
 	case PCI_OHCI_DEVICEID_NEC:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_nec);
+		device_set_desc(usbus, ohci_device_nec);
+		sprintf(sc->sc_vendor, "NEC");
 		break;
 	case PCI_OHCI_DEVICEID_USB0670:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0670);
+		device_set_desc(usbus, ohci_device_usb0670);
+		sprintf(sc->sc_vendor, "CMDTECH");
 		break;
 	case PCI_OHCI_DEVICEID_USB0673:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0673);
+		device_set_desc(usbus, ohci_device_usb0673);
+		sprintf(sc->sc_vendor, "CMDTECH");
 		break;
 	default:
-		printf("(New OHCI DeviceId=0x%08x)\n", id);
-		device_set_desc(sc->sc_bus.bdev, ohci_device_generic);
+		if (bootverbose)
+			printf("(New OHCI DeviceId=0x%08x)\n", id);
+		device_set_desc(usbus, ohci_device_generic);
+		sprintf(sc->sc_vendor, "(unknown)");
 	}
 
-	r = ohci_init(sc);
-	if (r != USBD_NORMAL_COMPLETION) {
-		printf("%s%d: init failed, error=%d\n",
-			device_get_name(sc->sc_bus.bdev), unit ,r);
-		device_delete_child(root_bus, sc->sc_bus.bdev);
+	sc->sc_bus.bdev = usbus;
+	err = ohci_init(sc);
+	if (err != USBD_NORMAL_COMPLETION) {
+		printf("ohci%d: init failed, error=%d\n", unit, err);
+		device_delete_child(root_bus, usbus);
 	}
 
 	return;
