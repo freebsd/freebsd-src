@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.17 1996/06/12 05:09:52 gpalmer Exp $
+ * $Id: fdesc_vnops.c,v 1.18 1996/09/03 14:22:12 bde Exp $
  */
 
 /*
@@ -488,8 +488,8 @@ fdesc_getattr(ap)
 		vap->va_gid = 0;
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 		vap->va_blocksize = DEV_BSIZE;
-		vap->va_atime.ts_sec = boottime.tv_sec;
-		vap->va_atime.ts_nsec = 0;
+		vap->va_atime.tv_sec = boottime.tv_sec;
+		vap->va_atime.tv_nsec = 0;
 		vap->va_mtime = vap->va_atime;
 		vap->va_ctime = vap->va_mtime;
 		vap->va_gen = 0;
