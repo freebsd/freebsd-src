@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.8, Thu Sep 28 20:24:38 MSK 1995
+ * Version 1.9, Thu Oct 12 15:53:50 MSK 1995
  */
 
 /*
@@ -190,10 +190,64 @@ struct atapires {
 	u_char error;                   /* error register contents */
 };
 
+struct atapidrv {                       /* delayed attach info */
+	int ctlr;                       /* IDE controller, 0/1 */
+	int unit;                       /* drive unit, 0/1 */
+	int port;                       /* controller base port */
+	int attached;                   /* the drive is attached */
+	struct kern_devconf *parent;    /* the devconf info pattern */
+};
+
+struct atapicmd {                       /* ATAPI command block */
+	struct atapicmd *next;          /* next command in queue */
+	int              busy;          /* busy flag */
+	u_char           cmd[16];       /* command and args */
+	int              unit;          /* drive unit number */
+	int              count;         /* byte count, >0 - read, <0 - write */
+	char            *addr;          /* data to transfer */
+	void           (*callback) ();  /* call when done */
+	void            *cbarg1;        /* callback arg 1 */
+	void            *cbarg2;        /* callback arg 1 */
+	struct atapires  result;        /* resulting error code */
+};
+
+struct atapi {                          /* ATAPI controller data */
+	u_short          port;          /* i/o port base */
+	u_char           ctrlr;         /* physical controller number */
+	u_char           debug : 1;     /* trace enable flag */
+	u_char           cmd16 : 1;     /* 16-byte command flag */
+	u_char           intrcmd : 1;   /* interrupt before cmd flag */
+	u_char           slow : 1;      /* slow reaction device */
+	u_char           attached[2];   /* units are attached to subdrivers */
+	struct atapi_params *params[2]; /* params for units 0,1 */
+	struct kern_devconf *parent;    /* parent configuration pattern */
+	struct atapicmd *queue;         /* queue of commands to perform */
+	struct atapicmd *tail;          /* tail of queue */
+	struct atapicmd *free;          /* queue of free command blocks */
+	struct atapicmd  cmdrq[16];     /* pool of command requests */
+};
+
 #ifdef KERNEL
 struct atapi;
 struct kern_devconf;
-void atapi_attach (int ctlr, int unit, int port, struct kern_devconf*);
+
+extern struct atapidrv atapi_drvtab[4]; /* delayed attach info */
+extern int atapi_ndrv;                  /* the number of potential drives */
+extern struct atapi *atapi_tab;         /* the table of atapi controllers */
+
+#ifndef ATAPI_STATIC
+#   define atapi_start             (*atapi_start_ptr)
+#   define atapi_intr              (*atapi_intr_ptr)
+#   define atapi_debug             (*atapi_debug_ptr)
+#   define atapi_request_wait      (*atapi_request_wait_ptr)
+#   define atapi_request_callback  (*atapi_request_callback_ptr)
+#   define atapi_request_immediate (*atapi_request_immediate_ptr)
+#endif
+
+#ifndef ATAPI_MODULE
+int atapi_attach (int ctlr, int unit, int port, struct kern_devconf*);
+#endif
+
 int atapi_start (int ctrlr);
 int atapi_intr (int ctrlr);
 void atapi_debug (struct atapi *ata, int on);
