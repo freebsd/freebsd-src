@@ -628,8 +628,8 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 #else
 			else
 #endif
-			panic("spin lock %s held by %p for > 5 seconds",
-			    m->mtx_object.lo_name, (void *)m->mtx_lock);
+				panic("spin lock %s held by %p for > 5 seconds",
+				    m->mtx_object.lo_name, (void *)m->mtx_lock);
 		}
 		critical_enter();
 	}
