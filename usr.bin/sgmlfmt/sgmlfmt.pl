@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.15 1996/09/29 19:42:51 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.16 1996/10/01 16:23:39 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -361,7 +361,8 @@ sub html2html {
 
 	      $header[$st_ol[$sc]] = 
 		  "$doctype\n<HTML>\n<HEAD>\n<TITLE>$st_header[0]</TITLE>\n" . 
-		      "</HEAD>\n<BODY>\n";
+		      "</HEAD>\n$BODY\n";
+    	      $header[$st_ol[$sc]] .= $html_header;
 	      if ($opt_ssi) {	# Server Side Include hook
 		  $header[$st_ol[$sc]] .=
 		      "<!--#include virtual=\"./$fileroot.hdr\" -->";
@@ -369,6 +370,7 @@ sub html2html {
 	      $header[$st_ol[$sc]] .= "\n<H1>$st_header[0]</H1>\n"; 
 
 	      $footer[$st_ol[$sc]] = "\n";
+    	      $footer[$st_ol[$sc]] .= $html_footer;
 	      if ($opt_ssi) {	# Server Side Include hook
 		  $footer[$st_ol[$sc]] .= 
 		      "<!--#include virtual=\"./$fileroot.ftr\" -->";
@@ -393,13 +395,15 @@ sub html2html {
 	      # set up headers and footers
 	      if ($st_sl[$sc] > 0 && $st_sl[$sc] <= $maxlevel) {
 		  $header[$st_ol[$sc]] = 
-		      "$doctype\n<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n<BODY>\n";
+		      "$doctype\n<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n$BODY\n";
+		  $header[$st_ol[$sc]] .= $html_header;
 		  if ($opt_ssi) { # Server Side Include hook
 		      $header[$st_ol[$sc]] .=
 			  "<!--#include virtual=\"./$fileroot.hdr$st_ol[$sc]\" -->";
 		  }
-		  $header[$st_ol[$sc]] .= "\n$navbar[$st_ol[$sc]]\n<HR>\n";
-		  $footer[$st_ol[$sc]] = "<HR>\n$navbar[$st_ol[$sc]]\n";
+		  $header[$st_ol[$sc]] .= "\n$navbar[$st_ol[$sc]]\n<HR NOSHADE>\n";
+		  $footer[$st_ol[$sc]] = "<HR NOSHADE>\n$navbar[$st_ol[$sc]]\n";
+		  $footer[$st_ol[$sc]] .= $html_footer;
 		  if ($opt_ssi) { # Server Side Include hook
 		      $footer[$st_ol[$sc]] .=
 			  "<!--#include virtual=\"./$fileroot.ftr$st_ol[$sc]\" -->";
@@ -659,7 +663,7 @@ sub extlink {
 
 sub main {
     # Check arguments
-    if (!&NGetOpt('f=s', 'links', 'ssi', 'i:s@')) {
+    if (!&NGetOpt('f=s', 'links', 'ssi', 'i:s@', 'hdr=s', 'ftr=s', 'white')) {
 	&usage;
 	exit 1;
     }
@@ -676,6 +680,10 @@ sub main {
 
     # Generate output
     if ($opt_f eq 'html') {
+    	if ($opt_hdr) {$html_header = &gethf($opt_hdr);}
+    	if ($opt_ftr) {$html_footer = &gethf($opt_ftr);}
+    	if ($opt_white) {$BODY = "<BODY text=\"#000000\" bgcolor=\"#ffffff\">";}
+    	else {$BODY = "<BODY>"}
     	&gen_html(); 
     }
     elsif ($opt_f eq 'latex' || $opt_f eq 'latex') {
@@ -713,3 +721,26 @@ sub main {
 
 exit 0;
 
+sub getdate {
+    @months = ("January", "February", "March", "April", "May","June",
+    	"July", "August", "September", "October", "November", "December");
+    ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+    $year += 1900;
+    return "$months[$mon] $mday, $year";
+}
+
+sub gethf {
+    local ($file) = @_;
+
+    $date = &getdate;
+    $data = "";
+    
+    if (open(IN, $file)) {
+    	while (<IN>) {
+    	    s/\@\@UPDATE\@\@/Updated $date/;
+    	    $data .= $_;
+	}
+	close(IN);
+    }
+    return $data;
+}
