@@ -122,10 +122,6 @@ main(argc, argv)
 	extern int forward_flags;
 #endif	/* FORWARD */
 
-#ifdef	SOCKS
-	SOCKSinit(argv[0]);
-#endif	/* SOCKS */
-
 	tninit();		/* Clear out things */
 #if	defined(CRAY) && !defined(__STDC__)
 	_setlist_init();	/* Work around compiler bug */
