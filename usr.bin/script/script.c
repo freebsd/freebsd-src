@@ -245,7 +245,7 @@ doshell(av)
 		execvp(av[0], av);
 		warn("%s", av[0]);
 	} else {
-		execl(shell, shell, "-i", NULL);
+		execl(shell, shell, "-i", (char *)NULL);
 		warn("%s", shell);
 	}
 	fail();

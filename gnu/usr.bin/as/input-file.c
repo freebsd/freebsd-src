@@ -173,8 +173,8 @@ int	debugging;	/* TRUE if we are debugging assembler. */
 				(void)dup2 (fd, fileno(stdout));
 				/* JF for testing #define PREPROCESSOR "/lib/app" */
 #define PREPROCESSOR "./app"
-				execl (PREPROCESSOR, PREPROCESSOR, 0);
-				execl ("app","app",0);
+				execl (PREPROCESSOR, PREPROCESSOR, (char *)0);
+				execl ("app","app",(char *)0);
 				(void)write(2,"Exec of app failed.  Get help.\n",31);
 				(void)unlink(temporary_file_name);
 				_exit (11);

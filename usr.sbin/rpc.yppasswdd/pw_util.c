@@ -152,10 +152,11 @@ char *username;
 	install_reaper(0);
 	if (!(pid = vfork())) {
 		if(!username) {
-			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname, NULL);
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname,
+			    (char *)NULL);
 		} else {
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", "-u", username,
-						tempname, NULL);
+			    tempname, (char *)NULL);
 		}
 		pw_error(_PATH_PWD_MKDB, 1, 1);
 		return(-1);

@@ -188,7 +188,7 @@ _openchild(command, fto, ffrom)
 			_exit(~0);
 		}
 		(void)sprintf(com, "exec %s", command);
-		execl(SHELL, basename(SHELL), "-c", com, NULL);
+		execl(SHELL, basename(SHELL), "-c", com, (char *)NULL);
 		_exit(~0);
 
 	default:

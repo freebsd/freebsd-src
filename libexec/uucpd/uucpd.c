@@ -191,7 +191,7 @@ void doit(struct sockaddr *sinp)
 		initgroups(pw->pw_name, pw->pw_gid);
 		chdir(pw->pw_dir);
 		setuid(pw->pw_uid);
-		execl(pw->pw_shell, "uucico", NULL);
+		execl(pw->pw_shell, "uucico", (char *)NULL);
 		syslog(LOG_ERR, "execl: %m");
 		_exit(1);
 	}

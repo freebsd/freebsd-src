@@ -241,7 +241,8 @@ create_session(void)
 
 	i = forkpty(&ptyfd, buf, 0, 0);
 	if (i == 0) {
-		execl("/usr/libexec/getty", "getty", "std.300", "-", NULL);
+		execl("/usr/libexec/getty", "getty", "std.300", "-",
+		    (char *)NULL);
 		syslog(LOG_ERR, "exec getty %d", errno);
 		exit(2);
 	} else if (i < 0) {

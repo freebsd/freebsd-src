@@ -380,7 +380,7 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 			"-p", yp_dir, "-C", t,
 		      	g, inet_ntoa(rqhost->sin_addr),
 			p, argp->map_parms.map,
-		      	NULL);
+		      	(char *)NULL);
 		} else {
 			execl(ypxfr_command, "ypxfr",
 			"-d", argp->map_parms.domain,
@@ -388,7 +388,7 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 			"-C", t,
 		      	g, inet_ntoa(rqhost->sin_addr),
 			p, argp->map_parms.map,
-		      	NULL);
+		      	(char *)NULL);
 		}
 		yp_error("ypxfr execl(%s): %s", ypxfr_command, strerror(errno));
 		YPXFR_RETURN(YPXFR_XFRERR)

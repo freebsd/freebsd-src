@@ -86,7 +86,7 @@ main(argc, argv)
 
 	if (!(shell = getenv("SHELL")))
 		shell = _PATH_BSHELL;
-	execlp(shell, shell, "-i", NULL);
+	execlp(shell, shell, "-i", (char *)NULL);
 	err(1, "%s", shell);
 	/* NOTREACHED */
 }

@@ -1345,7 +1345,8 @@ ar_start_gzip(int fd, const char *gzip_program, int wr)
 		}
 		close(fds[0]);
 		close(fds[1]);
-		if (execlp(gzip_program, gzip_program, gzip_flags, NULL) < 0)
+		if (execlp(gzip_program, gzip_program, gzip_flags,
+		    (char *)NULL) < 0)
 			err(1, "could not exec");
 		/* NOTREACHED */
 	}

@@ -225,7 +225,8 @@ fileGetURL(char *base, char *spec)
 	dup2(pfd[0], 0);
 	for (fd = getdtablesize() - 1; fd >= 3; --fd)
 	    close(fd);
-	execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
+	execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-",
+	    (char *)0);
 	_exit(2);
     }
     close(pfd[0]);
