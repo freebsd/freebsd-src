@@ -15,6 +15,6 @@ else
 	title="$1"; shift
 	tree=$1; shift
 	outfile=$1; shift
-	copyright="$1"
+	copyright="$*"
 	mkisofs -a -d -N -D -R -T -V "$title" -P "$copyright" -o $outfile $tree
 fi
