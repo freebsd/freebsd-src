@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.86 1996/11/09 16:47:08 joerg Exp $
+ * $Id: sysinstall.h,v 1.87 1996/11/09 18:12:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -342,6 +342,7 @@ extern DMenu		MenuXF86SelectPC98Server; /* XFree86 server distribution menu		*/
 extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
 extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
+extern DMenu		MenuUsermgmt;		/* User management menu				*/
 
 
 /*** Prototypes ***/
@@ -630,6 +631,10 @@ extern int	set_termcap(void);
 extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
 extern int	mediaGetUFS(Device *dev, char *file, Boolean probe);
+
+/* user.c */
+extern int	userAddGroup(dialogMenuItem *self);
+extern int	userAddUser(dialogMenuItem *self);
 
 /* variable.c */
 extern void	variable_set(char *var);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.16 1996/08/03 10:11:26 jkh Exp $
+ * $Id: network.c,v 1.17 1996/12/08 12:27:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -16,6 +16,7 @@
  *    notice, this list of conditions and the following disclaimer,
  *    verbatim and that no modifications are made prior to this
  *    point in the file.
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -92,6 +93,11 @@ mediaInitNetwork(Device *dev)
 	    return FALSE;
 	else
 	    strcpy(attach, val);
+	/*
+	 * Doing this with vsystem() is actually bogus since we should be storing the pid of slattach
+	 * in dev->private for later killing.  It's just too convenient to call vsystem(), however,
+	 * rather than constructing a proper argument for exec() so we punt on doing slip right for now.
+	 */
 	if (vsystem(attach)) {
 	    msgConfirm("slattach returned a bad status!  Please verify that\n"
 		       "the command is correct and try again.");
