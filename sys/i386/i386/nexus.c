@@ -226,14 +226,8 @@ nexus_probe(device_t dev)
 static int
 nexus_attach(device_t dev)
 {
-	device_t child;
 
 	bus_generic_probe(dev);
-	if (!devclass_get_device(devclass_find("acpi"), 0)) {
-		child = BUS_ADD_CHILD(dev, 0, "legacy", 0);
-		if (child == NULL)
-			panic("nexus_attach legacy");
-	}
 	bus_generic_attach(dev);
 	return 0;
 }
