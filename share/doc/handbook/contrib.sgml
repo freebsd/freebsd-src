@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.118 1996/08/09 08:18:10 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.119 1996/08/09 12:53:07 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -161,12 +161,14 @@
       <p>(in alphabetical order by first name):
 
 	<itemize>
+	  <item>A JOSEPH KOSHY &lt;koshy@india.hp.com&gt;
 	  <item>ABURAYA Ryushirou &lt;pcs51674@asciinet.or.jp&gt;
 	  <item>Adam Glass &lt;glass@postgres.berkeley.edu&gt;
 	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
 	  <item>Alex Nash &lt;nash@mcs.com&gt;
+	  <item>Andy Whitcroft &lt;andy@sarc.city.ac.uk&gt;
 	  <item>Andreas Klemm &lt;andreas@knobel.GUN.de&gt;
 	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
