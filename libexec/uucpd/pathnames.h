@@ -35,4 +35,4 @@
 
 #include <paths.h>
 
-#define	_PATH_UUCICO	"/usr/lib/uucp/uucico"
+#define _PATH_UUCICO    "/usr/libexec/uucp/uucico"
