@@ -105,6 +105,11 @@ The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs
 when unloading and reloading, and syncs with some NetBSD
 changes.
 
+SCSI cdrom drives driven by the isp(4) driver may fail to attach to the cd(4)
+driver during boot. This problem has been observed with both DEC RRD4x
+and Toshiba CDROM drives, but could affect other brands as well. Workaround
+is to leave a CD in the drive during boot or 'camcontrol rescan'. 
+CDROM drives attached to other non-isp adapters are not affected.
 
 1.2. SECURITY FIXES
 -------------------
