@@ -279,7 +279,6 @@ struct vattr {
 #define	IO_INVAL	0x0040		/* invalidate after I/O */
 #define	IO_ASYNC	0x0080		/* bawrite rather then bdwrite */
 #define	IO_DIRECT	0x0100		/* attempt to bypass buffer cache */
-#define	IO_NOWDRAIN	0x0200		/* do not block on wdrain */
 #define	IO_EXT		0x0400		/* operate on external attributes */
 #define	IO_NORMAL	0x0800		/* operate on regular data */
 #define	IO_NOMACCHECK	0x1000		/* MAC checks unnecessary */

@@ -702,8 +702,6 @@ ffs_write(ap)
 			vfs_bio_clrbuf(bp);
 		if (ioflag & IO_DIRECT)
 			bp->b_flags |= B_DIRECT;
-		if (ioflag & IO_NOWDRAIN)
-			bp->b_flags |= B_NOWDRAIN;
 
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
@@ -1163,8 +1161,6 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 			vfs_bio_clrbuf(bp);
 		if (ioflag & IO_DIRECT)
 			bp->b_flags |= B_DIRECT;
-		if (ioflag & IO_NOWDRAIN)
-			bp->b_flags |= B_NOWDRAIN;
 
 		if (uio->uio_offset + xfersize > dp->di_extsize)
 			dp->di_extsize = uio->uio_offset + xfersize;

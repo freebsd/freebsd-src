@@ -973,12 +973,6 @@ again:
 			}
 			vfs_bio_set_validclean(bp, on, n);
 		}
-		/*
-		 * If IO_NOWDRAIN then set B_NOWDRAIN (nfs-backed MD 
-		 * filesystem)
-		 */
-		if (ioflag & IO_NOWDRAIN)
-			bp->b_flags |= B_NOWDRAIN;
 
 		/*
 		 * If IO_SYNC do bwrite().
