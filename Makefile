@@ -66,7 +66,7 @@ TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distributeworld everything \
 	hierarchy install installcheck installkernel installkernel.debug\
 	reinstallkernel reinstallkernel.debug installworld \
-	libraries lint maninstall \
+	kernel-toolchain libraries lint maninstall \
 	obj objlink regress rerelease tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend
