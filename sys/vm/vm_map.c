@@ -2041,8 +2041,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * Find the start of the region, and clip it
 	 */
@@ -2091,8 +2089,10 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		offidxend = offidxstart + count;
 
 		if ((object == kernel_object) || (object == kmem_object)) {
+			GIANT_REQUIRED;
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 		} else {
+			mtx_lock(&Giant);
 			pmap_remove(map->pmap, s, e);
 			if (object != NULL &&
 			    object->ref_count != 1 &&
@@ -2108,6 +2108,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 					object->size = offidxstart;
 				}
 			}
+			mtx_unlock(&Giant);
 		}
 
 		/*
@@ -2132,8 +2133,6 @@ int
 vm_map_remove(vm_map_t map, vm_offset_t start, vm_offset_t end)
 {
 	int result, s = 0;
-
-	GIANT_REQUIRED;
 
 	if (map == kmem_map)
 		s = splvm();
