@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 uma_zone_t	zone_label;
 
-static void	mac_labelzone_ctor(void *mem, int size, void *arg);
+static int	mac_labelzone_ctor(void *mem, int size, void *arg, int flags);
 static void	mac_labelzone_dtor(void *mem, int size, void *arg);
 
 void
@@ -57,8 +57,8 @@ mac_labelzone_init(void)
 	    UMA_ALIGN_PTR, 0);
 }
 
-static void
-mac_labelzone_ctor(void *mem, int size, void *arg)
+static int
+mac_labelzone_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct label *label;
 
@@ -66,6 +66,7 @@ mac_labelzone_ctor(void *mem, int size, void *arg)
 	label = mem;
 	bzero(label, sizeof(*label));
 	label->l_flags = MAC_FLAG_INITIALIZED;
+	return (0);
 }
 
 static void

@@ -74,9 +74,9 @@ static void doenterpgrp(struct proc *, struct pgrp *);
 static void orphanpg(struct pgrp *pg);
 static void pgadjustjobc(struct pgrp *pgrp, int entering);
 static void pgdelete(struct pgrp *);
-static void proc_ctor(void *mem, int size, void *arg);
+static int proc_ctor(void *mem, int size, void *arg, int flags);
 static void proc_dtor(void *mem, int size, void *arg);
-static void proc_init(void *mem, int size);
+static int proc_init(void *mem, int size, int flags);
 static void proc_fini(void *mem, int size);
 
 /*
@@ -128,12 +128,13 @@ procinit()
 /*
  * Prepare a proc for use.
  */
-static void
-proc_ctor(void *mem, int size, void *arg)
+static int
+proc_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct proc *p;
 
 	p = (struct proc *)mem;
+	return (0);
 }
 
 /*
@@ -178,8 +179,8 @@ proc_dtor(void *mem, int size, void *arg)
 /*
  * Initialize type-stable parts of a proc (when newly created).
  */
-static void
-proc_init(void *mem, int size)
+static int
+proc_init(void *mem, int size, int flags)
 {
 	struct proc *p;
 	struct thread *td;
@@ -195,6 +196,7 @@ proc_init(void *mem, int size)
 	proc_linkup(p, kg, ke, td);
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
+	return (0);
 }
 
 /*
