@@ -23,8 +23,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.14 1998/04/17 04:53:39 bde Exp $
+ * $Id: kern_intr.c,v 1.15 1998/06/07 17:11:34 dfr Exp $
  *
+ */
+
+#ifdef __i386__
+
+/*
+ * This file is pretty i386 specific.  I might be able to make it more
+ * portable in the future but for now turn it off for non-i386 ports.
  */
 
 #include <sys/types.h>
@@ -430,3 +437,5 @@ unregister_intr(int intr, inthand2_t handler)
 		return (intr_destroy(p));
 	return (EINVAL);
 }
+
+#endif /* __i386__ */
