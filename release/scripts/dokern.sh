@@ -15,6 +15,7 @@ sed	-e '/pty/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
+	-e '/SOFTUPDATES/d' \
 	-e '/maxusers/d' \
 	-e 's/GENERIC/BOOTMFS/g'
 
@@ -35,6 +36,7 @@ sed	-e '/pty/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
+	-e '/SOFTUPDATES/d' \
 	-e '/maxusers/d' \
 	-e 's/GENERIC/BOOTMFS/g'
 fi
