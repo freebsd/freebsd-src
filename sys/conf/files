@@ -187,6 +187,8 @@ dev/hfa/fore_stats.c	optional hfa
 dev/hfa/fore_timer.c	optional hfa
 dev/hfa/fore_transmit.c	optional hfa
 dev/hfa/fore_vcm.c	optional hfa
+dev/ichsmb/ichsmb.c	optional ichsmb
+dev/ichsmb/ichsmb_pci.c	optional ichsmb pci
 dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional ida
 dev/ida/ida_eisa.c	optional ida eisa
