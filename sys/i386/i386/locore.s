@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.62 1996/02/04 21:20:32 davidg Exp $
+ *	$Id: locore.s,v 1.63 1996/03/02 19:37:38 peter Exp $
  */
 
 /*
@@ -45,17 +45,20 @@
  *			Bruce Evans, Wolfgang Solfrank, and many others.
  */
 
-#include "opt_ddb.h"
-#include "assym.s"			/* system definitions */
-#include <machine/psl.h>		/* processor status longword defs */
-#include <machine/pte.h>		/* page table entry definitions */
-#include <sys/errno.h>			/* error return codes */
-#include <machine/specialreg.h>		/* x86 special registers */
-#include <machine/cputypes.h>		/* x86 cpu type definitions */
-#include <sys/syscall.h>		/* system call numbers */
-#include <machine/asmacros.h>		/* miscellaneous asm macros */
-#include <sys/reboot.h>
 #include "apm.h"
+#include "opt_ddb.h"
+
+#include <sys/errno.h>
+#include <sys/syscall.h>
+#include <sys/reboot.h>
+
+#include <machine/asmacros.h>
+#include <machine/cputypes.h>
+#include <machine/psl.h>
+#include <machine/pte.h>
+#include <machine/specialreg.h>
+
+#include "assym.s"
 
 /*
  *	XXX
@@ -101,12 +104,11 @@
  * Globals
  */
 	.data
-	.align	2		/* Just to be sure */
+	ALIGN_DATA		/* just to be sure */
 
 	.globl	tmpstk
 	.space	0x2000		/* space for tmpstk - temporary stack */
 tmpstk:
-	.long	0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555
 
 	.globl	_boothowto,_bootdev
 
@@ -797,10 +799,10 @@ NON_GPROF_ENTRY(sigcode)
 	movl	$SYS_sigreturn,%eax		/* sigreturn() */
 	LCALL(0x7,0)				/* enter kernel with args on stack */
 	hlt					/* never gets here */
-	.align	2				/* long word align */
+	.align	2,0x90				/* long word text-align */
 _esigcode:
+
 	.data
 	.globl	_szsigcode
 _szsigcode:
 	.long	_esigcode-_sigcode
-	.text
