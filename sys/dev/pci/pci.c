@@ -180,8 +180,8 @@ static int pci_do_powerstate = 0;
 TUNABLE_INT("hw.pci.do_powerstate", (int *)&pci_do_powerstate);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_powerstate, CTLFLAG_RW,
     &pci_do_powerstate, 0,
-    "Enable setting the power states of the PCI devices.  This means that we\n\
-set devices into D3 for all devices that fail to attach a driver.");
+    "Power down devices into D3 state when no driver attaches to them.\n\
+Otherwise, leave the device in D0 state when no driver attaches.");
 
 /* Find a device_t by bus/slot/function */
 
