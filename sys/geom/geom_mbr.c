@@ -159,7 +159,7 @@ static struct dos_partition historical_bogus_partition_table_fixed[NDOSPART] = {
 };
 
 static void
-g_mbr_print(int i __unused, struct dos_partition *dp __unused)
+g_mbr_print(int i, struct dos_partition *dp)
 {
 
 	g_hexdump(dp, sizeof(dp[0]));
@@ -247,7 +247,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			if (dp[i].dp_size == 0)
 				continue;
 			if (bootverbose) {
-				printf("Slice %d:\n", i + 1);
+				printf("Slice %d on %s:\n", i + 1, gp->name);
 				g_mbr_print(i, dp + i);
 			}
 			npart++;
@@ -324,16 +324,6 @@ g_mbrext_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_con
 	}
 }
 
-static void
-g_mbrext_print(int i, struct dos_partition *dp)
-{
-	g_hexdump(dp, sizeof(dp[0]));
-	printf("[%d] f:%02x typ:%d", i, dp->dp_flag, dp->dp_typ);
-	printf(" s(CHS):%d/%d/%d", dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
-	printf(" e(CHS):%d/%d/%d", dp->dp_ecyl, dp->dp_ehd, dp->dp_esect);
-	printf(" s:%d l:%d\n", dp->dp_start, dp->dp_size);
-}
-
 static struct g_geom *
 g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
@@ -379,12 +369,13 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				break;
 			for (i = 0; i < NDOSPART; i++) 
 				g_dec_dos_partition(
-				    buf + DOSPARTOFF + i * sizeof(struct dos_partition),
-				    dp + i);
+				    buf + DOSPARTOFF + 
+				    i * sizeof(struct dos_partition), dp + i);
 			g_free(buf);
-			g_mbrext_print(0, dp);
-			g_mbrext_print(1, dp + 1);
-			if (dp[0].dp_flag == 0 && dp[0].dp_size != 0) {
+			printf("Slice %d on %s:\n", slice + 5, gp->name);
+			g_mbr_print(0, dp);
+			g_mbr_print(1, dp + 1);
+			if ((dp[0].dp_flag & 0x7f) == 0 && dp[0].dp_size != 0) {
 				g_topology_lock();
 				pp2 = g_slice_addslice(gp, slice,
 				    (((off_t)dp[0].dp_start) << 9ULL) + off,
