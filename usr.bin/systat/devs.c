@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devs.c,v 1.1 1998/09/15 08:16:40 gibbs Exp $
+ *	$Id: devs.c,v 1.2 1998/09/20 00:11:23 ken Exp $
  */
 /*
  * Some code and ideas taken from the old disks.c.
@@ -70,8 +70,12 @@
 
 #include <string.h>
 #include <devstat.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <err.h>
 #include "systat.h"
 #include "extern.h"
+#include "devs.h"
 
 typedef enum {
 	DS_MATCHTYPE_NONE,
@@ -190,7 +194,6 @@ dsmatchselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
 {
 	char **tempstr;
 	char *tstr[100];
-	char *err_str;
 	int num_args = 0;
 	register int i;
 	int retval = 0;
