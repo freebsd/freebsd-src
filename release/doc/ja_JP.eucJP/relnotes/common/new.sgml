@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.172
+    Original revision: 1.22.2.173
 -->
 
 <articleinfo>
@@ -559,6 +559,50 @@
     <para><filename>libstand</filename> が新しく,
       <application>bzip2</application>
       で圧縮されたファイルが含まれるファイルシステムに対応しました.</para>
+
+    <para>X11R6 や他の UNIX 系 OS で使われているものと互換性を向上させるため,
+      locale 名が変更されました.
+      たとえば
+      <literal>en_US.ISO_8859-1</literal> という locale 名は
+      <literal>en_US.ISO8859-1</literal> に変わっています.
+      後方互換性は
+      <filename>/etc/locale.alias</filename>,
+      <filename>/etc/man.alias</filename>,
+      <filename>/etc/nls.alias</filename>
+      の各ファイル中のエントリによって実現されます.
+      次の表は locale 名の変更をまとめたものです.
+      
+      <informaltable>
+        <tgroup cols=2 align=left>
+          <colspec colwidth="*">
+            <colspec colwidth="*">
+              <thead>
+                <row>
+                  <entry>&os; &release.prev;</entry>
+                  <entry>&os; &release.current;</entry>
+                </row>
+              </thead>
+              <tbody>
+                <row>
+                  <entry><literal>ISO_</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ISO</literal><replaceable>*</replaceable></entry>
+                </row>
+                <row>
+                  <entry><literal>ru_SU</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ru_RU</literal><replaceable>*</replaceable></entry>
+                </row>
+                <row>
+                  <entry><literal>DIS_</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ISO</literal><replaceable>*</replaceable><literal>-15</literal></entry>
+                </row>
+                <row>
+                  <entry><replaceable>*</replaceable><literal>.ASCII</literal></entry>
+                  <entry><replaceable>*</replaceable><literal>.US-ASCII</literal></entry>
+                </row>
+              </tbody>
+        </tgroup>
+      </informaltable>
+    </para>
 
     <para>&man.lpd.8; の制御ファイルに新しく,
       <literal>o</literal> という型のプリントファイル動作指定が追加されました.
