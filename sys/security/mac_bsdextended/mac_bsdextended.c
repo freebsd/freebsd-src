@@ -459,8 +459,8 @@ mac_bsdextended_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	if (error)
 		return (error);
 	error = mac_bsdextended_check(cred, vap.va_uid, vap.va_gid, VWRITE);
-		if (error)  
-	return (error);
+	if (error)
+		return (error);
 
 	error = VOP_GETATTR(vp, &vap, cred, curthread);
 	if (error)
