@@ -455,7 +455,7 @@ ng_ppp_newhook(node_p node, hook_p hook, const char *name)
 
 	/* OK */
 	*hookPtr = hook;
-	NG_HOOK_SET_PRIVATE(hook, (void *)hookIndex);
+	NG_HOOK_SET_PRIVATE(hook, (void *)(intptr_t)hookIndex);
 	ng_ppp_update(node, 0);
 	return (0);
 }
@@ -593,7 +593,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	const int index = (int)NG_HOOK_PRIVATE(hook);
+	const int index = (intptr_t)NG_HOOK_PRIVATE(hook);
 	u_int16_t linkNum = NG_PPP_BUNDLE_LINKNUM;
 	hook_p outHook = NULL;
 	int proto = 0, error;
@@ -826,7 +826,7 @@ ng_ppp_disconnect(hook_p hook)
 {
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	const int index = (int)NG_HOOK_PRIVATE(hook);
+	const int index = (intptr_t)NG_HOOK_PRIVATE(hook);
 
 	/* Zero out hook pointer */
 	if (index < 0)
