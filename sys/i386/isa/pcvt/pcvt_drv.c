@@ -642,8 +642,8 @@ pcvt_cn_probe(struct consdev *cp)
 	int unit = 0;
 	int i;
 
-	/* See if this driver is disabled in probe hint. */ 
-	if (resource_int_value("vt", unit, "disabled", &i) == 0 && i)
+	/* See if this driver is disabled in probe hint. */
+	if (resource_disabled("vt", unit))
 	{
 		cp->cn_pri = CN_DEAD;
 		return;

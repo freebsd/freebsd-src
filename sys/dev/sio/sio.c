@@ -2967,11 +2967,9 @@ siocnprobe(cp)
 
 	for (unit = 0; unit < 16; unit++) { /* XXX need to know how many */
 		int flags;
-		int disabled;
-		if (resource_int_value("sio", unit, "disabled", &disabled) == 0) {
-			if (disabled)
-				continue;
-		}
+
+		if (resource_disabled("sio", unit))
+			continue;
 		if (resource_int_value("sio", unit, "flags", &flags))
 			continue;
 		if (COM_CONSOLE(flags) || COM_DEBUGGER(flags)) {

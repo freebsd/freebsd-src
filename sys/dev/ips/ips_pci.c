@@ -50,13 +50,10 @@ static int ips_pci_probe(device_t dev)
 static int ips_pci_attach(device_t dev)
 {
         u_int32_t command;
-        int tval;
         ips_softc_t *sc;
 
 
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "disable", &tval) == 0 && tval) {
+	if (resource_disabled(device_get_name(dev), device_get_unit(dev))) {
 		device_printf(dev, "device is disabled\n");
 		/* but return 0 so the !$)$)*!$*) unit isn't reused */
 		return (0);

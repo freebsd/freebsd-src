@@ -277,8 +277,7 @@ atkbd_configure(int flags)
 	atkbdc_configure();
 
 	/* if the driver is disabled, unregister the keyboard if any */
-	if ((resource_int_value("atkbd", ATKBD_DEFAULT, "disabled", &i) == 0)
-	    && i != 0) {
+	if (resource_disabled("atkbd", ATKBD_DEFAULT)) {
 		i = kbd_find_keyboard(ATKBD_DRIVER_NAME, ATKBD_DEFAULT);
 		if (i >= 0) {
 			kbd = kbd_get_keyboard(i);
