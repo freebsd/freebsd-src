@@ -201,16 +201,16 @@ new_indir(uint shift)
 
 	ip = malloc(sizeof *ip, M_MD, M_NOWAIT | M_ZERO);
 	if (ip == NULL)
-		return(NULL);
+		return (NULL);
 	ip->array = malloc(sizeof(uintptr_t) * NINDIR,
 	    M_MDSECT, M_NOWAIT | M_ZERO);
 	if (ip->array == NULL) {
 		free(ip, M_MD);
-		return(NULL);
+		return (NULL);
 	}
 	ip->total = NINDIR;
 	ip->shift = shift;
-	return(ip);
+	return (ip);
 }
 
 static void
@@ -236,7 +236,6 @@ destroy_indir(struct md_s *sc, struct indir *ip)
 	}
 	del_indir(ip);
 }
-
 
 /*
  * This function does the math and alloctes the top level "indir" structure
@@ -290,7 +289,7 @@ s_read(struct indir *ip, off_t offset)
 			continue;
 		}
 		idx = offset & NMASK;
-		return(cip->array[idx]);
+		return (cip->array[idx]);
 	}
 	return (0);
 }
@@ -324,7 +323,7 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 			cip->array[idx] =
 			    (uintptr_t)new_indir(cip->shift - nshift);
 			if (cip->array[idx] == 0)
-				return(ENOMEM);
+				return (ENOMEM);
 			cip->used++;
 			up = cip->array[idx];
 			cip = (struct indir *)up;
@@ -363,7 +362,7 @@ mdopen(dev_t dev, int flag, int fmt, struct thread *td)
 	struct disklabel *dl;
 
 	if (md_debug)
-		printf("mdopen(%p %x %x %p)\n",
+		printf("mdopen(%s %x %x %p)\n",
 			devtoname(dev), flag, fmt, td);
 
 	sc = dev->si_drv1;
@@ -467,7 +466,6 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 	bp->bio_resid = 0;
 	return (error);
 }
-
 
 static int
 mdstart_preload(struct md_s *sc, struct bio *bp)
