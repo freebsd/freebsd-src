@@ -45,7 +45,6 @@
 #include <err.h>
 #include <fts.h>
 #include <string.h>
-#include <machine/bootinfo.h>
 #include <machine/elf.h>
 #include <stdio.h>
 #include <stdlib.h>
