@@ -748,6 +748,9 @@ void top_makefile_rules(FILE *outmk)
     fprintf(outmk, "SUBMAKE_TARGETS=");
     for(p = progs; p != NULL; p = p->next)
 	fprintf(outmk, " %s_make", p->ident);
+    fprintf(outmk, "\nSUBCLEAN_TARGETS=");
+    for(p = progs; p != NULL; p = p->next)
+	fprintf(outmk, " %s_clean", p->ident);
     fprintf(outmk, "\n\n");
 
     fprintf(outmk, "%s: %s.o $(CRUNCHED_OBJS)\n",
@@ -757,8 +760,10 @@ void top_makefile_rules(FILE *outmk)
     fprintf(outmk, "\tstrip %s\n", execfname);
     fprintf(outmk, "all: objs exe\nobjs: $(SUBMAKE_TARGETS)\n");
     fprintf(outmk, "exe: %s\n", execfname);
+    fprintf(outmk, "realclean: clean subclean\n");
     fprintf(outmk, "clean:\n\trm -f %s *.lo *.o *_stub.c\n",
 	    execfname);
+    fprintf(outmk, "subclean: $(SUBCLEAN_TARGETS)\n");
 }
 
 
@@ -773,8 +778,10 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_OBJS=", p->ident);
 	output_strlst(outmk, p->objs);
 	fprintf(outmk, "%s_make:\n", p->ident);
-	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make depend && make $(%s_OBJS))\n\n",
+	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make depend && make $(%s_OBJS))\n",
 		p->ident, p->ident);
+	fprintf(outmk, "%s_clean:\n", p->ident);
+	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make clean)\n\n", p->ident);
     }
     else
 	fprintf(outmk, "%s_make:\n\t@echo \"** cannot make objs for %s\"\n\n",
