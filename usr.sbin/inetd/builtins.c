@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.10 1999/07/24 16:24:03 green Exp $
+ * $Id: builtins.c,v 1.11 1999/07/24 17:06:05 green Exp $
  *
  */
 
@@ -338,6 +338,8 @@ ident_stream(s, sep)		/* Ident service */
 	int s;
 	struct servtab *sep;
 {
+	struct utsname un;
+	struct stat sb;
 	struct sockaddr_in sin[2];
 	struct ucred uc;
 	struct timeval tv = {
@@ -390,8 +392,6 @@ ident_stream(s, sep)		/* Ident service */
 			}
 	}
 	if (osname == NULL) {
-		struct utsname un;
-
 		if (uname(&un) == -1)
 			iderror(0, 0, s, errno);
 		osname = un.sysname;
@@ -428,29 +428,24 @@ ident_stream(s, sep)		/* Ident service */
 	if (pw == NULL)
 		iderror(lport, fport, s, errno);
 	if (nflag) {
-		struct stat sb;
-		char *noident_path;
-
-		if (asprintf(&noident_path, "%s/.noident", pw->pw_dir) == -1)
+		if (asprintf(&p, "%s/.noident", pw->pw_dir) == -1)
 			iderror(lport, fport, s, errno);
-		if (lstat(noident_path, &sb) == 0) {
-			free(noident_path);
+		if (lstat(p, &sb) == 0) {
+			free(p);
 			iderror(lport, fport, s, -1);
 		}
-		free(noident_path);
+		free(p);
 	}
 	if (fflag) {
-		struct stat sb;
 		FILE *fakeid = NULL;
-		char *fakeid_path;
 
-		if (asprintf(&fakeid_path, "%s/.fakeid", pw->pw_dir) == -1)
+		if (asprintf(&p, "%s/.fakeid", pw->pw_dir) == -1)
 			iderror(lport, fport, s, errno);
 		seteuid(pw->pw_uid);
 		setegid(pw->pw_gid);
-		fakeid = fopen(fakeid_path, "r");
-		free(fakeid_path);
-		if ((fakeid = fopen(fakeid_path, "r")) != NULL &&
+		fakeid = fopen(p, "r");
+		free(p);
+		if (fakeid != NULL &&
 		    fstat(fileno(fakeid), &sb) != -1 && S_ISREG(sb.st_mode)) {
 			buf[sizeof(buf) - 1] = '\0';
 			if (fgets(buf, sizeof(buf), fakeid) == NULL) {
