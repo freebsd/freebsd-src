@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.34 1997/05/07 14:37:32 kato Exp $
+ * $Id: union_vnops.c,v 1.35 1997/08/12 07:18:59 kato Exp $
  */
 
 #include <sys/param.h>
@@ -286,9 +286,7 @@ union_lookup(ap)
 		/*if (uppervp == upperdvp)
 			dun->un_flags |= UN_KLOCK;*/
 
-		if (cnp->cn_consume != 0 || uerror == EACCES) {
-			if (uerror == EACCES)
-				uppervp = NULLVP;
+		if (cnp->cn_consume != 0) {
 			*ap->a_vpp = uppervp;
 			if (!lockparent)
 				cnp->cn_flags &= ~LOCKPARENT;
