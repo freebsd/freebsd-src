@@ -349,8 +349,8 @@ done:
 	for (i = 0; i < NDADDR; i++)
 		if (newblks[i] != oip->i_db[i])
 			panic("itrunc2");
-	if (length == 0 &&
-	    (ovp->v_dirtyblkhd.lh_first || ovp->v_cleanblkhd.lh_first))
+	if (length == 0 && (!TAILQ_EMPTY(&ovp->v_dirtyblkhd) ||
+			    !TAILQ_EMPTY(&ovp->v_cleanblkhd)))
 		panic("itrunc3");
 #endif /* DIAGNOSTIC */
 	/*

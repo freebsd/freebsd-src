@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.47 1998/09/15 14:45:28 luoqi Exp $
+ * $Id: ffs_inode.c,v 1.48 1998/10/25 17:44:57 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -387,7 +387,8 @@ done:
 		if (newblks[i] != oip->i_db[i])
 			panic("ffs_truncate2");
 	if (length == 0 &&
-	    (ovp->v_dirtyblkhd.lh_first || ovp->v_cleanblkhd.lh_first))
+	    (!TAILQ_EMPTY(&ovp->v_dirtyblkhd) ||
+	     !TAILQ_EMPTY(&ovp->v_cleanblkhd)))
 		panic("ffs_truncate3");
 #endif /* DIAGNOSTIC */
 	/*
