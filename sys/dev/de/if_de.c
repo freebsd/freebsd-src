@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.48 1996/06/14 05:25:32 davidg Exp $
+ * $Id: if_de.c,v 1.49 1996/08/06 21:09:25 phk Exp $
  *
  */
 
@@ -46,7 +46,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>	/* only for declaration of wakeup() used by vm.h */
 #if defined(__FreeBSD__)
-#include <sys/devconf.h>
 #include <machine/clock.h>
 #elif defined(__bsdi__) || defined(__NetBSD__)
 #include <sys/device.h>
@@ -3712,17 +3711,14 @@ static const int tulip_eisa_irqs[4] = { IRQ5, IRQ9, IRQ10, IRQ11 };
 
 static int
 tulip_pci_shutdown(
-    struct kern_devconf * const kdc,
+    int unit,
     int force)
 {
-    if (kdc->kdc_unit < tulip_count) {
-	tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(kdc->kdc_unit);
-	TULIP_CSR_WRITE(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
-	DELAY(10);	/* Wait 10 microseconds (actually 50 PCI cycles but at 
-			   33MHz that comes to two microseconds but wait a
-			   bit longer anyways) */
-    }
-    (void) dev_detach(kdc);
+    tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(unit);
+    TULIP_CSR_WRITE(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
+    DELAY(10);	/* Wait 10 microseconds (actually 50 PCI cycles but at 
+		       33MHz that comes to two microseconds but wait a
+		       bit longer anyways) */
     return 0;
 }
 

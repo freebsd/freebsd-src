@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.15 1996/07/23 21:51:13 phk Exp $ */
+/* $Id: ccd.c,v 1.16 1996/07/24 23:45:24 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -107,7 +107,6 @@
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h> 
-#include <sys/devconf.h>
 #include <sys/device.h>
 #undef KERNEL			/* XXX */
 #include <sys/disk.h>

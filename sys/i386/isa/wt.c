@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.33 1996/07/23 21:51:50 phk Exp $
+ * $Id: wt.c,v 1.34 1996/08/31 14:47:45 bde Exp $
  *
  */
 
@@ -69,7 +69,6 @@
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
 #include <sys/proc.h>
-#include <sys/devconf.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -187,17 +186,6 @@ static int wtreadfm (wtinfo_t *t);
 static int wtwritefm (wtinfo_t *t);
 static int wtpoll (wtinfo_t *t, int mask, int bits);
 
-static struct kern_devconf kdc_wt[NWT] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"wt", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Archive or Wangtek QIC-02/QIC-36 tape controller",
-	DC_CLS_TAPE		/* class */
-} };
-
 static	d_open_t	wtopen;
 static	d_close_t	wtclose;
 static	d_ioctl_t	wtioctl;
@@ -213,16 +201,6 @@ static struct bdevsw wt_bdevsw =
 	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
 	  wtdump,	wtsize,		B_TAPE,	"wt",	&wt_cdevsw,	-1 };
 
-static inline void
-wt_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_wt[id->id_unit] = kdc_wt[0];
-	kdc_wt[id->id_unit].kdc_unit = id->id_unit;
-	kdc_wt[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_wt[id->id_unit]);
-}
-
 
 /*
  * Probe for the presence of the device.
@@ -231,8 +209,6 @@ static int
 wtprobe (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
-
-	wt_registerdev(id);
 
 	t->unit = id->id_unit;
 	t->chan = id->id_drq;
@@ -286,7 +262,6 @@ wtattach (struct isa_device *id)
 		printf ("wt%d: type <Wangtek>\n", t->unit);
 	t->flags = TPSTART;                     /* tape is rewound */
 	t->dens = -1;                           /* unknown density */
-	kdc_wt[id->id_unit].kdc_state = DC_IDLE;
 	isa_dmainit(t->chan, 1024);
 
 #ifdef DEVFS
@@ -389,7 +364,6 @@ wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 		return(EBUSY);
 
 	t->flags = TPINUSE;
-	kdc_wt[u].kdc_state = DC_BUSY;
 
 	if (flag & FREAD)
 		t->flags |= TPREAD;
@@ -439,7 +413,6 @@ wtclose (dev_t dev, int flags, int fmt, struct proc *p)
 		wtreadfm (t);
 done:
 	t->flags &= TPREW | TPRMARK | TPSTART | TPTIMER;
-	kdc_wt[u].kdc_state = DC_IDLE;
 	free (t->buf, M_TEMP);
 	isa_dma_release(t->chan);
 	return (0);

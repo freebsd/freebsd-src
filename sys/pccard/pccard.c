@@ -39,9 +39,7 @@
 #include <sys/proc.h>
 #include <sys/ioctl.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #include <sys/malloc.h>
-#include <sys/devconf.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -70,18 +68,6 @@
 #include <machine/laptops.h>
 #include <machine/md_var.h>
 
-extern struct kern_devconf kdc_cpu0;
-
-struct kern_devconf kdc_pccard0 = {
-	0, 0, 0,			/* filled in by dev_attach */
-	"pccard", 0, { MDDT_BUS, 0 },
-	0, 0, 0, BUS_EXTERNALLEN,
-	&kdc_cpu0,			/* parent is the CPU */
-	0,				/* no parentdata */
-	DC_UNCONFIGURED,		/* until we see it */
-	"PCCARD or PCMCIA bus",
-	DC_CLS_BUS			/* class */
-};
 
 #define	PCCARD_MEMSIZE	(4*1024)
 
@@ -149,7 +135,6 @@ static struct cdevsw crd_cdevsw =
 void
 pccard_configure()
 {
-	dev_attach(&kdc_pccard0);
 
 #include "pcic.h"
 #if NPCIC > 0
@@ -397,7 +382,6 @@ pccard_alloc_slot(struct slot_ctrl *cp)
 			break;
 	if (slotno >= MAXSLOT)
 		return(0);
-	kdc_pccard0.kdc_state = DC_BUSY;
 	MALLOC(sp, struct slot *, sizeof(*sp), M_DEVBUF, M_WAITOK);
 	bzero(sp, sizeof(*sp));
 #ifdef DEVFS

@@ -61,7 +61,6 @@
 #if defined(__FreeBSD__)
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/devconf.h>
 #endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -157,11 +156,10 @@ get_e(unit, offset)
 
 static int
 vx_pci_shutdown(
-	struct kern_devconf * const kdc,
+	int unit,
 	int force)
 {
-   vxreset(kdc->kdc_unit); 
-   dev_detach(kdc);
+   vxreset(unit); 
    return 0;
 }
 

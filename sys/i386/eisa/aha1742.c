@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.53 1996/05/22 00:03:50 dima Exp $
+ *      $Id: aha1742.c,v 1.54 1996/06/12 05:02:39 gpalmer Exp $
  */
 
 #include <sys/types.h>
@@ -26,7 +26,6 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/devconf.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
@@ -341,18 +340,6 @@ static struct scsi_device ahb_dev =
     { 0, 0 }
 };
 
-static struct kern_devconf kdc_ahb = {
-        0, 0, 0,                /* filled in by dev_attach */
-        "ahb", 0, { MDDT_EISA, 0, "bio" },
-        eisa_generic_externalize, 0, 0, EISA_EXTERNALLEN,
-        &kdc_eisa0,             /* parent */
-        0,                      /* parentdata */
-        DC_UNCONFIGURED,        /* always start out here */
-        NULL,
-        DC_CLS_MISC             /* host adapters aren't special */
-};
-
-
 #endif /*KERNEL */
 
 #ifndef	KERNEL
@@ -504,7 +491,7 @@ ahbprobe(void)
                                 continue;
 		}               
 		eisa_add_intr(e_dev, irq);
-		eisa_registerdev(e_dev, &ahb_eisa_driver, &kdc_ahb);
+		eisa_registerdev(e_dev, &ahb_eisa_driver);
 		count++;        
 	}               
 	return count;   
@@ -640,7 +627,6 @@ ahb_attach(e_dev)
 		eisa_release_intr(e_dev, irq, ahbintr);
 		return -1;
         }
-	e_dev->kdc->kdc_state = DC_BUSY; /* host adapters always busy */
 
 	/* Attach sub-devices - always succeeds */
 	ahb_bus_attach(ahb);

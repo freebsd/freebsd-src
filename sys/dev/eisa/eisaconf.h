@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.h,v 1.8 1996/01/30 22:53:51 mpp Exp $
+ *	$Id: eisaconf.h,v 1.9 1996/04/20 21:21:50 gibbs Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -110,14 +110,11 @@ int eisa_add_iospace __P((struct eisa_device *, u_long, u_long, int));
 int eisa_reg_iospace __P((struct eisa_device *, resvaddr_t *));
 int eisa_add_mspace __P((struct eisa_device *, u_long, u_long, int));
 int eisa_reg_mspace __P((struct eisa_device *, resvaddr_t *));
-int eisa_registerdev __P((struct eisa_device *, struct eisa_driver *, struct kern_devconf *));
+int eisa_registerdev __P((struct eisa_device *, struct eisa_driver *));
 
 
 struct sysctl_req;
 int eisa_externalize (struct eisa_device *, struct sysctl_req*);
-
-int eisa_generic_externalize (struct kern_devconf *, struct sysctl_req *);
-extern struct kern_devconf kdc_eisa0;
 
 #define EISA_EXTERNALLEN (sizeof(struct eisa_device))
 

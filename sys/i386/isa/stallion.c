@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.2 1996/05/04 08:44:42 peter Exp $
+ * $Id: stallion.c,v 1.3 1996/06/12 04:26:36 gpalmer Exp $
  */
 
 /*****************************************************************************/
@@ -51,7 +51,6 @@
 #include <sys/file.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #include <machine/cpu.h>
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>

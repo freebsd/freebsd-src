@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_sr.c,v 1.1 1996/07/05 18:49:21 jhay Exp $
  */
 
 /*
@@ -71,7 +71,6 @@
 #include <net/bpfdesc.h>
 #endif
 
-#include <sys/devconf.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
@@ -118,7 +117,6 @@ static struct sr_hardc {
 
 	sca_regs *sca;
 
-	struct kern_devconf kdc;
 }sr_hardc[NSR];
 
 struct sr_softc {
@@ -151,7 +149,6 @@ struct sr_softc {
 
 	int scachan;
 
-	struct kern_devconf kdc;
 };
 
 static int srprobe(struct isa_device *id);
@@ -181,28 +178,6 @@ static int sr_irqtable[16] = {
 
 struct isa_driver srdriver = {srprobe, srattach, "src"};
 
-static struct kern_devconf kdc_sr_template = { 
-	0, 0, 0, 
-	"sr", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, 
-	&kdc_isa0, 
-	0,
-	DC_UNCONFIGURED, 
-	"SDL Riscom/N2 Port",
-	DC_CLS_NETIF
-};
-
-static struct kern_devconf kdc_src_template = { 
-	0, 0, 0, 
-	"src", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, 
-	&kdc_isa0, 
-	0,
-	DC_UNCONFIGURED, 
-	"SDL Riscom/N2 Adapter",
-	DC_CLS_NETIF
-};
-
 static void sr_xmit(struct sr_softc *sc);
 static void srstart(struct ifnet *ifp);
 static int srioctl(struct ifnet *ifp, int cmd, caddr_t data);
@@ -223,33 +198,6 @@ static void sr_dmac_intr(struct sr_hardc *hc, u_char isr);
 static void sr_msci_intr(struct sr_hardc *hc, u_char isr);
 static void sr_timer_intr(struct sr_hardc *hc, u_char isr);
 
-static inline void
-sr_registerdev(int ctlr, int unit)
-{
-	struct sr_softc *sc;
-	
-	sc = &sr_hardc[ctlr].sc[unit];
-	sc->kdc = kdc_sr_template;
-
-	sc->kdc.kdc_unit = sr_hardc[ctlr].startunit + unit;
-	sc->kdc.kdc_parentdata = &sr_hardc[ctlr].kdc;
-	dev_attach(&sc->kdc);
-}
-
-static inline void
-src_registerdev(struct isa_device *dvp)
-{
-        int unit = dvp->id_unit;
-	struct sr_hardc *hc = &sr_hardc[dvp->id_unit];
-
-	hc->kdc = kdc_src_template;
-
-        hc->kdc.kdc_unit = unit;
-        hc->kdc.kdc_parentdata = dvp;
-        dev_attach(&hc->kdc);
-}
-
-
 /*
  * Register the Adapter.
  * Probe to see if it is there.
@@ -264,11 +212,6 @@ srprobe(struct isa_device *id)
 	u_short *smem;
 	u_char mar;
 	sca_regs *sca = 0;
-
-	/*
-	 * Register the card.
-	 */
-	src_registerdev(id);
 
 	/*
 	 * Now see if the card is realy there.
@@ -438,8 +381,6 @@ srattach(struct isa_device *id)
 		hc->memsize/1024,
 		hc->numports);
 	
-	hc->kdc.kdc_state = DC_BUSY;
-
 	src_init(id);
 
 	sc = hc->sc;
@@ -454,8 +395,6 @@ srattach(struct isa_device *id)
 		sc->subunit = unit;
 		sc->unit = hc->startunit + unit;
 		sc->scachan = unit%NCHAN;
-
-		sr_registerdev(id->id_unit, unit);
 
 		sr_init_rx_dmac(sc);
 		sr_init_tx_dmac(sc);
@@ -473,8 +412,6 @@ srattach(struct isa_device *id)
 		ifp->if_watchdog = srwatchdog;
 
 		sc->ifsppp.pp_flags = PP_KEEPALIVE;
-
-		sc->kdc.kdc_state = DC_IDLE;
 
 		printf("sr%d: Adapter %d, port %d.\n",
 			sc->unit,
@@ -796,8 +733,6 @@ sr_up(struct sr_softc *sc)
 	sca_regs *sca = sc->hc->sca;
 	msci_channel *msci = &sca->msci[sc->scachan];
 
-	sc->kdc.kdc_state = DC_BUSY;
-
 	/*
 	 * Enable transmitter and receiver.
 	 * Raise DTR and RTS.
@@ -839,8 +774,6 @@ sr_down(struct sr_softc *sc)
 {
 	sca_regs *sca = sc->hc->sca;
 	msci_channel *msci = &sca->msci[sc->scachan];
-
-	sc->kdc.kdc_state = DC_IDLE;
 
 	/*
 	 * Disable transmitter and receiver.

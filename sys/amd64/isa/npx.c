@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.29 1996/01/06 23:10:52 peter Exp $
+ *	$Id: npx.c,v 1.30 1996/06/25 20:30:38 bde Exp $
  */
 
 #include "npx.h"
@@ -47,7 +47,6 @@
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/proc.h>
-#include <sys/devconf.h>
 #include <sys/ioctl.h>
 #include <sys/syslog.h>
 #include <sys/signalvar.h>
@@ -158,30 +157,6 @@ _probetrap:
 	iret
 ");
 
-static struct kern_devconf kdc_npx[NNPX] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"npx", 0, { MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Floating-point unit",
-	DC_CLS_MISC		/* class */
-} };
-
-static inline void
-npx_registerdev(struct isa_device *id)
-{
-	int	unit;
-
-	unit = id->id_unit;
-	if (unit != 0)
-		kdc_npx[unit] = kdc_npx[0];
-	kdc_npx[unit].kdc_unit = unit;
-	kdc_npx[unit].kdc_isa = id;
-	dev_attach(&kdc_npx[unit]);
-}
-
 /*
  * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
  * whether the device exists or not (XXX should be elsewhere).  Set flags
@@ -205,7 +180,6 @@ npxprobe(dvp)
 	 * install suitable handlers and run with interrupts enabled so we
 	 * won't need to do so much here.
 	 */
-	npx_registerdev(dvp);
 	npx_intrno = NRSVIDT + ffs(dvp->id_irq) - 1;
 	save_eflags = read_eflags();
 	disable_intr();
@@ -366,9 +340,6 @@ npxattach(dvp)
 		printf("npx%d: no 387 emulator in kernel!\n", dvp->id_unit);
 #endif
 	npxinit(__INITIAL_NPXCW__);
-	if (npx_exists) {
-		kdc_npx[dvp->id_unit].kdc_state = DC_BUSY;
-	}
 	return (1);		/* XXX unused */
 }
 

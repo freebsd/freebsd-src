@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.92 1996/08/02 06:10:49 peter Exp $
+ *      $Id: sd.c,v 1.93 1996/09/03 10:24:29 asami Exp $
  */
 
 #include "opt_bounce.h"
@@ -27,7 +27,6 @@
 #include <sys/systm.h>
 #include <sys/ioctl.h>
 #include <sys/buf.h>
-#include <sys/devconf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/dkstat.h>
@@ -152,32 +151,10 @@ static struct scsi_device sd_switch =
 
 static struct scsi_xfer sx;
 
-static int
-sd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return scsi_externalize(SCSI_LINK(&sd_switch, kdc->kdc_unit), req);
-}
-
-static struct kern_devconf kdc_sd_template = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"sd", 0, MDDC_SCSI,
-	sd_externalize, 0, scsi_goaway, SCSI_EXTERNALLEN,
-	&kdc_scbus0,		/* XXX parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-};
 
 static inline void
 sd_registerdev(int unit)
 {
-	struct kern_devconf *kdc;
-
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc) return;
-	*kdc = kdc_sd_template;
-	kdc->kdc_unit = unit;
-	kdc->kdc_description = sd_switch.desc;
-	dev_attach(kdc);
 	if(dk_ndrive < DK_NDRIVE) {
 		sprintf(dk_names[dk_ndrive], "sd%d", unit);
 		dk_wpms[dk_ndrive] = (8*1024*1024/2);

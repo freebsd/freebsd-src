@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.81 1996/06/18 01:22:27 bde Exp $
+ *	$Id: mcd.c,v 1.82 1996/07/23 21:51:36 phk Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -60,7 +60,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/errno.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
-#include <sys/devconf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -242,27 +241,6 @@ static struct bdevsw mcd_bdevsw =
 #define MIN_DELAY       15
 #define DELAY_GETREPLY  5000000
 
-static struct kern_devconf kdc_mcd[NMCD] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"mcd", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* status */
-	"Mitsumi CD-ROM controller", /* properly filled later */
-	DC_CLS_RDISK
-} };
-
-static inline void
-mcd_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_mcd[id->id_unit] = kdc_mcd[0];
-	kdc_mcd[id->id_unit].kdc_unit = id->id_unit;
-	kdc_mcd[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_mcd[id->id_unit]);
-}
-
 int mcd_attach(struct isa_device *dev)
 {
 	int	unit = dev->id_unit;
@@ -277,9 +255,7 @@ int mcd_attach(struct isa_device *dev)
 	/* wire controller for interrupts and dma */
 	mcd_configure(cd);
 #endif
-	kdc_mcd[unit].kdc_state = DC_IDLE;
 	/* name filled in probe */
-	kdc_mcd[unit].kdc_description = mcd_data[unit].name;
 #ifdef DEVFS
 	cd->ra_devfs_token = 
 		devfs_add_devswf(&mcd_cdevsw, dkmakeminor(unit, 0, 0),
@@ -343,7 +319,6 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		cd->openflags |= (1<<part);
 		if (phys)
 			cd->partflags[part] |= MCDREADRAW;
-		kdc_mcd[unit].kdc_state = DC_BUSY;
 		return 0;
 	}
 	if (cd->status & MCDDOOROPEN) {
@@ -364,7 +339,6 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 			cd->openflags |= (1<<part);
 			if (phys)
 				cd->partflags[part] |= MCDREADRAW;
-			kdc_mcd[unit].kdc_state = DC_BUSY;
 			return 0;
 		}
 		printf("mcd%d: failed to get disk size\n",unit);
@@ -384,7 +358,6 @@ MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
 		cd->openflags |= (1<<part);
 		if (part == RAW_PART && phys)
 			cd->partflags[part] |= MCDREADRAW;
-		kdc_mcd[unit].kdc_state = DC_BUSY;
 		(void) mcd_lock_door(unit, MCD_LK_LOCK);
 		if (!(cd->flags & MCDVALID))
 			return ENXIO;
@@ -414,7 +387,6 @@ int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	(void) mcd_lock_door(unit, MCD_LK_UNLOCK);
 	cd->openflags &= ~(1<<part);
 	cd->partflags[part] &= ~MCDREADRAW;
-	kdc_mcd[unit].kdc_state = DC_IDLE;
 
 	return 0;
 }
@@ -766,7 +738,6 @@ mcd_probe(struct isa_device *dev)
 	int i, j;
 	unsigned char stbytes[3];
 
-	mcd_registerdev(dev);
 	mcd_data[unit].flags = MCDPROBING;
 
 #ifdef NOTDEF

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.103 1996/08/06 21:14:02 phk Exp $
+ *	$Id: if_ed.c,v 1.104 1996/08/07 11:18:21 davidg Exp $
  */
 
 /*
@@ -48,7 +48,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -133,7 +132,6 @@ struct ed_softc {
 	u_char  rec_page_start;	/* first page of RX ring-buffer */
 	u_char  rec_page_stop;	/* last page of RX ring-buffer */
 	u_char  next_packet;	/* pointer to next unread RX packet */
-	struct	kern_devconf kdc; /* kernel configuration database info */
 };
 
 static struct ed_softc ed_softc[NED];
@@ -280,11 +278,10 @@ edunload(struct pccard_dev *dp)
 	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
-	if (sc->kdc.kdc_state == DC_UNCONFIGURED) {
+	if (sc->gone) {
 		printf("ed%d: already unloaded\n", dp->isahd.id_unit);
 		return;
 	}
-	sc->kdc.kdc_state = DC_UNCONFIGURED;
 	ifp->if_flags &= ~IFF_RUNNING;
 	if_down(ifp);
 	sc->gone = 1;
@@ -362,28 +359,6 @@ static unsigned short ed_hpp_intr_mask[] = {
 	IRQ15		/* 15 */
 };
 
-static struct kern_devconf kdc_ed_template = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"ed", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"",			/* description */
-	DC_CLS_NETIF		/* class */
-};
-
-static inline void
-ed_registerdev(struct isa_device *id, const char *descr)
-{
-	struct kern_devconf *kdc = &ed_softc[id->id_unit].kdc;
-	*kdc = kdc_ed_template;
-	kdc->kdc_unit = id->id_unit;
-	kdc->kdc_parentdata = id;
-	kdc->kdc_description = descr;
-	dev_attach(kdc);
-}
-
 /*
  * Determine if the device is present
  *
@@ -406,10 +381,6 @@ ed_probe(isa_dev)
 	 */
 	pccard_add_driver(&ed_info);
 #endif
-
-#ifndef DEV_LKM
-	ed_registerdev(isa_dev, "Ethernet adapter");
-#endif /* not DEV_LKM */
 
 	nports = ed_probe_WD80x3(isa_dev);
 	if (nports)
@@ -530,29 +501,23 @@ ed_probe_WD80x3(isa_dev)
 	switch (sc->type) {
 	case ED_TYPE_WD8003S:
 		sc->type_str = "WD8003S";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8003S";
 		break;
 	case ED_TYPE_WD8003E:
 		sc->type_str = "WD8003E";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8003E";
 		break;
 	case ED_TYPE_WD8003EB:
 		sc->type_str = "WD8003EB";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8003EB";
 		break;
 	case ED_TYPE_WD8003W:
 		sc->type_str = "WD8003W";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8003W";
 		break;
 	case ED_TYPE_WD8013EBT:
 		sc->type_str = "WD8013EBT";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8013EBT";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013W:
 		sc->type_str = "WD8013W";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8013W";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
@@ -562,29 +527,22 @@ ed_probe_WD80x3(isa_dev)
 			isa16bit = 1;
 			memsize = 16384;
 			sc->type_str = "WD8013EP";
-			sc->kdc.kdc_description =
-				"Ethernet adapter: WD 8013EP";
 		} else {
 			sc->type_str = "WD8003EP";
-			sc->kdc.kdc_description =
-				"Ethernet adapter: WD 8003EP";
 		}
 		break;
 	case ED_TYPE_WD8013WC:
 		sc->type_str = "WD8013WC";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8013WC";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013EBP:
 		sc->type_str = "WD8013EBP";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8013EBP";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013EPC:
 		sc->type_str = "WD8013EPC";
-		sc->kdc.kdc_description = "Ethernet adapter: WD 8013EPC";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
@@ -592,12 +550,8 @@ ed_probe_WD80x3(isa_dev)
 	case ED_TYPE_SMC8216T:
 		if (sc->type == ED_TYPE_SMC8216C) {
 			sc->type_str = "SMC8216/SMC8216C";
-			sc->kdc.kdc_description =
-				"Ethernet adapter: SMC 8216 or 8216C";
 		} else {
 			sc->type_str = "SMC8216T";
-			sc->kdc.kdc_description =
-				"Ethernet adapter: SMC 8216T";
 		}
 
 		outb(sc->asic_addr + ED_WD790_HWR,
@@ -616,12 +570,8 @@ ed_probe_WD80x3(isa_dev)
 			/* 8216 has 16K shared mem -- 8416 has 8K */
 			if (sc->type == ED_TYPE_SMC8216C) {
 				sc->type_str = "SMC8416C/SMC8416BT";
-				sc->kdc.kdc_description =
-					"Ethernet adapter: SMC 8416C or 8416BT";
 			} else {
 				sc->type_str = "SMC8416T";
-				sc->kdc.kdc_description =
-					"Ethernet adapter: SMC 8416T";
 			}
 			memsize = 8192;
 			break;
@@ -635,13 +585,11 @@ ed_probe_WD80x3(isa_dev)
 #ifdef TOSH_ETHER
 	case ED_TYPE_TOSHIBA1:
 		sc->type_str = "Toshiba1";
-		sc->kdc.kdc_description = "Ethernet adapter: Toshiba1";
 		memsize = 32768;
 		isa16bit = 1;
 		break;
 	case ED_TYPE_TOSHIBA4:
 		sc->type_str = "Toshiba4";
-		sc->kdc.kdc_description = "Ethernet adapter: Toshiba4";
 		memsize = 32768;
 		isa16bit = 1;
 		break;
@@ -969,7 +917,6 @@ ed_probe_3Com(isa_dev)
 
 	sc->vendor = ED_VENDOR_3COM;
 	sc->type_str = "3c503";
-	sc->kdc.kdc_description = "Ethernet adapter: 3c503";
 	sc->mem_shared = 1;
 	sc->cr_proto = ED_CR_RD2;
 
@@ -1232,11 +1179,9 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 
 		sc->type = ED_TYPE_NE2000;
 		sc->type_str = "NE2000";
-		sc->kdc.kdc_description = "Ethernet adapter: NE2000";
 	} else {
 		sc->type = ED_TYPE_NE1000;
 		sc->type_str = "NE1000";
-		sc->kdc.kdc_description = "Ethernet adapter: NE1000";
 	}
 
 	/* 8k of memory plus an additional 8k if 16bit */
@@ -1340,7 +1285,6 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 #ifdef GWETHER
 	if (sc->arpcom.ac_enaddr[2] == 0x86) {
 		sc->type_str = "Gateway AT";
-		sc->kdc.kdc_description = "Ethernet adapter: Gateway AT";
 	}
 #endif	/* GWETHER */
 
@@ -1383,7 +1327,6 @@ ed_probe_pccard(isa_dev, ether)
 	sc->vendor = ED_VENDOR_PCCARD;
 	sc->type = 0;
 	sc->type_str = "PCCARD";
-	sc->kdc.kdc_description = "PCCARD Ethernet";
 	sc->mem_size = isa_dev->id_msize = memsize = 16384;
 	sc->isa16bit = isa16bit = 1;
 
@@ -1613,7 +1556,6 @@ ed_probe_HP_pclanp(isa_dev)
 	sc->vendor = ED_VENDOR_HP;
 	sc->type = ED_TYPE_HP_PCLANPLUS;
 	sc->type_str = "HP-PCLAN+";
-	sc->kdc.kdc_description = "Ethernet adapter: HP PCLAN+ (27247B/27252A)";
 
 	sc->mem_shared = 0;	/* we DON'T have dual ported RAM */
 	sc->mem_start = 0;	/* we use offsets inside the card RAM */
@@ -1841,7 +1783,6 @@ ed_attach(sc, unit, flags)
 		ether_ifattach(ifp);
 	}
 	/* device attach does transition from UNCONFIGURED to IDLE state */
-	sc->kdc.kdc_state = DC_IDLE;
 
 	/*
 	 * Print additional info when attached
@@ -2720,10 +2661,6 @@ ed_ioctl(ifp, command, data)
 				ifp->if_flags &= ~IFF_RUNNING;
 			}
 		}
-		/* UP controls BUSY/IDLE */
-		sc->kdc.kdc_state = ((ifp->if_flags & IFF_UP)
-				     ? DC_BUSY
-				     : DC_IDLE);
 
 #if NBPFILTER > 0
 

@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.32 1996/03/27 18:50:07 bde Exp $
+ *      $Id: ch.c,v 1.33 1996/07/14 10:46:47 joerg Exp $
  */
 
 #include	<sys/types.h>
@@ -19,7 +19,6 @@
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -112,34 +111,6 @@ static struct scsi_device ch_switch =
 
 #define CH_OPEN		0x01
 
-static int
-ch_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return scsi_externalize(SCSI_LINK(&ch_switch, kdc->kdc_unit), req);
-}
-
-static struct kern_devconf kdc_ch_template = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"ch", 0, MDDC_SCSI,
-	ch_externalize, 0, scsi_goaway, SCSI_EXTERNALLEN,
-	&kdc_scbus0,		/* parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-};
-
-static inline void
-ch_registerdev(int unit)
-{
-	struct kern_devconf *kdc;
-
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc) return;
-	*kdc = kdc_ch_template;
-	kdc->kdc_unit = unit;
-	kdc->kdc_description = ch_switch.desc;
-	dev_attach(kdc);
-}
-
 /*
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
@@ -164,7 +135,6 @@ chattach(struct scsi_link *sc_link)
 		printf("%d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s)",
 		    ch->slots, ch->drives, ch->chms, ch->imexs);
 	}
-	ch_registerdev(unit);
 
 #ifdef DEVFS
 	ch->c_devfs_token = devfs_add_devswf(&ch_cdevsw, unit << 4, DV_CHR,

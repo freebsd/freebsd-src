@@ -51,7 +51,6 @@
 #include <sys/sysent.h>
 #include <sys/exec.h>
 #include <sys/lkm.h>
-#include <sys/devconf.h>
 
 #include <machine/clock.h>
 #include <machine/laptops.h>
@@ -73,21 +72,6 @@
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
-
-extern struct kern_devconf kdc_pccard0;
-
-struct kern_devconf kdc_pcic[PCIC_MAX_SLOTS] = {
-    {
-	0, 0, 0,		/* filled in by dev_attach */
-	"pcic", 0, { MDDT_BUS, 0 },
-	0, 0, 0, BUS_EXTERNALLEN,
-	&kdc_pccard0,		/* parent is the CPU */
-	0,			/* no parentdata */
-	DC_UNKNOWN,
-	"PCMCIA or PCCARD slot",
-	DC_CLS_BUS		/* class */
-    }
-};
 
 /*
  *	Prototypes for interrupt handler.
@@ -265,7 +249,6 @@ pcic_unload(struct lkm_table *lkmtp, int cmd)
 		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
 			if (sp->slotp)
 				putb(sp, PCIC_STAT_INT, 0);
-			kdc_pcic[slot].kdc_state = DC_UNCONFIGURED;
 		}
 		unregister_intr(pcic_irq, pcicintr);
 	}
@@ -703,18 +686,9 @@ pcic_probe ()
 		 */
 		validslots++;
 		sp->slot = slot;
-		if (kdc_pcic[slot].kdc_state == DC_UNKNOWN) {
-		    if (slot != 0)
-			kdc_pcic[slot] = kdc_pcic[0];
-		    kdc_pcic[slot].kdc_unit = slot;
-		    kdc_pcic[slot].kdc_state = DC_UNCONFIGURED;
-		    kdc_pcic[slot].kdc_description = cinfo.name;
-		    dev_attach(kdc_pcic+slot);
-		}
 		slotp = pccard_alloc_slot(&cinfo);
 		if (slotp == 0)
 			continue;
-		kdc_pcic[slot].kdc_state = DC_IDLE;
 		slotp->cdata = sp;
 		sp->slotp = slotp;
 		/*
@@ -758,21 +732,12 @@ pcic_probe ()
 		cinfo.irqs = 0x1468;
 		validslots++;
 		sp->slot = slot;
-		if (kdc_pcic[slot].kdc_state == DC_UNKNOWN) {
-		    if (slot != 0)
-			kdc_pcic[slot] = kdc_pcic[0];
-		    kdc_pcic[slot].kdc_unit = slot;
-		    kdc_pcic[slot].kdc_state = DC_UNCONFIGURED;
-		    kdc_pcic[slot].kdc_description = cinfo.name;
-		    dev_attach(kdc_pcic+slot);
-		}
 
 		slotp = pccard_alloc_slot(&cinfo);
 		if (slotp == 0){
 		    printf("pcic98: slotp == NULL\n");
 		    goto pcic98_probe_end;
 		}
-		kdc_pcic[slot].kdc_state = DC_IDLE;
 		slotp->cdata = sp;
 		sp->slotp = slotp;
 
@@ -1067,12 +1032,10 @@ pcicintr(int unit)
 	    /* Check for a card in this slot */
 	    if (inb(PCIC98_REG1) & PCIC98_CARDEXIST){
 		if (sp->slotp->laststate != filled){
-		    kdc_pcic[slot].kdc_state = DC_BUSY;;
 		    pccard_event(sp->slotp, card_inserted);
 		}
 	    } else {
 		if (sp->slotp->laststate != empty){
-		    kdc_pcic[slot].kdc_state = DC_IDLE;;
 		    pccard_event(sp->slotp, card_removed);
 		}
 	    }
@@ -1086,13 +1049,11 @@ pcicintr(int unit)
 			if (chg & PCIC_CDTCH) {
 				if ((getb(sp, PCIC_STATUS) & PCIC_CD) ==
 						PCIC_CD) {
-					kdc_pcic[slot].kdc_state = DC_BUSY;;
 					pccard_event(sp->slotp,
 						card_inserted);
 				} else {
 					pccard_event(sp->slotp,
 						card_removed);
-					kdc_pcic[slot].kdc_state = DC_IDLE;;
 				}
 			}
 	splx(s);

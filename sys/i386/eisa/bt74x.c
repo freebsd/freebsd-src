@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.5 1996/02/26 01:01:41 gibbs Exp $
+ *	$Id: bt74x.c,v 1.6 1996/06/12 05:02:40 gpalmer Exp $
  */
 
 #include "eisa.h"
@@ -27,7 +27,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/devconf.h>
 #include <sys/kernel.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -102,17 +101,6 @@ struct eisa_driver bt_eisa_driver = {
 				      };
 
 DATA_SET (eisadriver_set, bt_eisa_driver);
-
-static struct kern_devconf kdc_eisa_bt = {
-	0, 0, 0,                /* filled in by dev_attach */
-	"bt", 0, { MDDT_EISA, 0, "bio" },
-	eisa_generic_externalize, 0, 0, EISA_EXTERNALLEN,
-	&kdc_eisa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start out here */
-	NULL,
-	DC_CLS_MISC		/* host adapters aren't special */
-};
 
 static char   *bt_match __P((eisa_id_t type));
 
@@ -288,7 +276,7 @@ bt_eisa_probe(void)
 		}
 		eisa_add_intr(e_dev, irq);
 
-		eisa_registerdev(e_dev, &bt_eisa_driver, &kdc_eisa_bt);
+		eisa_registerdev(e_dev, &bt_eisa_driver);
 
 		count++;
 	}
@@ -359,8 +347,6 @@ bt_eisa_attach(e_dev)
 		eisa_release_intr(e_dev, irq, bt_intr);
 		return -1;
 	}
-
-	e_dev->kdc->kdc_state = DC_BUSY; /* host adapters always busy */
 
 	/* Attach sub-devices - always succeeds */
 	bt_attach(bt);

@@ -61,7 +61,6 @@ error "Can only have 1 spigot configured."
 #include	<sys/file.h>
 #include	<sys/uio.h>
 #include	<sys/malloc.h>
-#include	<sys/devconf.h>
 #include	<sys/errno.h>
 #include	<sys/mman.h>
 #ifdef DEVFS
@@ -111,38 +110,6 @@ static struct cdevsw spigot_cdevsw =
 	  spigot_ioctl,	nostop,		nullreset,	nodevtotty,/* Spigot */
 	  spigot_select, spigot_mmap,	NULL,	"spigot",	NULL,	-1  };
 
-static struct kern_devconf kdc_spigot[NSPIGOT] = { {
-	0,			/* kdc_next -> filled in by dev_attach() */
-	0,			/* kdc_rlink -> filled in by dev_attach() */
-	0,			/* kdc_number -> filled in by dev_attach() */
-	"spigot",			/* kdc_name */
-	0,				/* kdc_unit */
-	{ 				/* kdc_md */
-  	   MDDT_ISA,			/* mddc_devtype */
-	   0				/* mddc_flags */
-					/* mddc_imask[4] */
-	},
-	isa_generic_externalize,	/* kdc_externalize */
-	0,				/* kdc_internalize */
-	0,				/* kdc_goaway */
-	ISA_EXTERNALLEN,		/* kdc_datalen */
-	&kdc_isa0,			/* kdc_parent */
-	0,				/* kdc_parentdata */
-	DC_UNCONFIGURED,	/* kdc_state - not supported */
-	"Video Spigot frame grabber",	/* kdc_description */
-	DC_CLS_MISC		/* class */
-} };
-
-static inline void
-spigot_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_spigot[id->id_unit] = kdc_spigot[0];
-	kdc_spigot[id->id_unit].kdc_unit = id->id_unit;
-	kdc_spigot[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_spigot[id->id_unit]);
-}
-
 static int
 spigot_probe(struct isa_device *devp)
 {
@@ -158,7 +125,6 @@ struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 	else {
 		status = 1;	/* found */
 		ss->flags |= ALIVE;
-		spigot_registerdev(devp);
 	}
 
 	return(status);
@@ -169,8 +135,6 @@ spigot_attach(struct isa_device *devp)
 {
 	int	unit;
 	struct	spigot_softc	*ss= &spigot_softc[unit = devp->id_unit];
-
-	kdc_spigot[unit].kdc_state = DC_UNKNOWN;
 
 	ss->maddr = kvtop(devp->id_maddr);
 	ss->irq = devp->id_irq;

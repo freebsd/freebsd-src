@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ixreg.h,v 1.7 1996/01/30 22:55:52 mpp Exp $
+ *	$Id: if_ixreg.h,v 1.8 1996/08/06 21:14:09 phk Exp $
  */
 
 /*
@@ -356,5 +356,4 @@ typedef struct
 	rfd_t	*rfd_tail;		/* tail of the rfd list */
 	rbd_t	*rbd_head;		/* head of the rbd list */
 	rbd_t	*rbd_tail;		/* tail of the rbd list */
-	struct kern_devconf	kdc;
 	}	ix_softc_t;

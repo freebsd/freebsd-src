@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.33 1996/06/12 05:03:36 gpalmer Exp $
+ *	$Id: cy.c,v 1.34 1996/07/30 19:50:37 bde Exp $
  */
 
 #include "cy.h"
@@ -37,8 +37,6 @@
  * Implement BREAK.
  * Fix overflows when closing line.
  * Atomic COR change.
- * Don't report individual ports in devconf; busy flag for board should be
- * union of the current individual busy flags.
  * Consoles.
  */
 
@@ -83,7 +81,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -119,7 +116,6 @@
 #define	comspeed	cyspeed
 #define	comstart	cystart
 #define	comwakeup	cywakeup
-#define	kdc_sio		kdc_cy
 #define	nsio_tty	ncy_tty
 #define	p_com_addr	p_cy_addr
 #define	sioattach	cyattach
@@ -134,7 +130,6 @@
 #define	siopoll		cypoll
 #define	sioprobe	cyprobe
 #define	sioread		cyread
-#define	sioregisterdev	cyregisterdev
 #define	siosettimeout	cysettimeout
 #define	siostop		cystop
 #define	siowrite	cywrite
@@ -298,8 +293,6 @@ struct com_s {
 	u_char	cor[3];		/* CD1400 COR1-3 shadows */
 	u_char	intr_enable;	/* CD1400 SRER shadow */
 
-	struct kern_devconf kdc;
-
 	/*
 	 * Ping-pong input buffers.  The extra factor of 2 in the sizes is
 	 * to allow for an error byte for each input byte.
@@ -347,7 +340,6 @@ static	void	siointr1	__P((struct com_s *com));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	int	sioprobe	__P((struct isa_device *dev));
-static	void	sioregisterdev	__P((struct isa_device *id));
 static	void	siosettimeout	__P((void));
 static	int	comspeed	__P((speed_t speed, int *prescaler_io));
 static	void	comstart	__P((struct tty *tp));
@@ -410,31 +402,6 @@ static	int	cy_nr_cd1400s[NCY];
 #undef	RxFifoThreshold
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
 
-static struct kern_devconf kdc_sio[NCY] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"cyc", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Cyclades multiport board",
-	DC_CLS_MISC		/* just an ordinary device */
-} };
-
-static void
-sioregisterdev(id)
-	struct isa_device *id;
-{
-	int	unit;
-
-	unit = id->id_unit;
-	if (unit != 0)
-		kdc_sio[unit] = kdc_sio[0];
-	kdc_sio[unit].kdc_unit = unit;
-	kdc_sio[unit].kdc_isa = id;
-	dev_attach(&kdc_sio[unit]);
-}
-
 static int
 sioprobe(dev)
 	struct isa_device	*dev;
@@ -449,7 +416,6 @@ sioprobe(dev)
 	if ((u_int)unit >= NCY)
 		return (0);
 	cy_nr_cd1400s[unit] = 0;
-	sioregisterdev(dev);
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
 	cy_inb(iobase, CY16_RESET);	/* XXX? */
@@ -568,17 +534,6 @@ sioattach(isdp)
 	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	com->it_out = com->it_in;
 
-			com->kdc = kdc_sio[0];
-			com->kdc.kdc_name = driver_name;
-			com->kdc.kdc_unit = unit;
-			com->kdc.kdc_isa = isdp;
-			com->kdc.kdc_parent = &kdc_sio[isdp->id_unit];
-			com->kdc.kdc_state = DC_IDLE;
-			com->kdc.kdc_description =
-			  "Serial port: Cirrus Logic CD1400";
-			com->kdc.kdc_class = DC_CLS_SERIAL;
-			dev_attach(&com->kdc);
-
 	s = spltty();
 	com_addr(unit) = com;
 	splx(s);
@@ -607,7 +562,6 @@ sioattach(isdp)
 #endif
 		}
 	}
-	kdc_sio[isdp->id_unit].kdc_state = DC_BUSY;	/* XXX */
 
 	/* ensure an edge for the next interrupt */
 	cy_outb(cy_iobase, CY_CLEAR_INTR, 0);
@@ -652,7 +606,6 @@ open_top:
 		if (error != 0)
 			goto out;
 	}
-	com->kdc.kdc_state = DC_BUSY;
 	if (tp->t_state & TS_ISOPEN) {
 		/*
 		 * The device is open, so everything has been initialized.
@@ -917,8 +870,6 @@ comhardclose(com)
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
-	if (!(com->state & CS_DTR_OFF) && unit != comconsole)
-		com->kdc.kdc_state = DC_IDLE;
 	splx(s);
 }
 
@@ -980,8 +931,6 @@ siodtrwakeup(chan)
 
 	com = (struct com_s *)chan;
 	com->state &= ~CS_DTR_OFF;
-	if (com->unit != comconsole)
-		com->kdc.kdc_state = DC_IDLE;
 	wakeup(&com->dtr_wait);
 }
 

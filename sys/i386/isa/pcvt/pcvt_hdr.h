@@ -175,10 +175,6 @@
 #include "machine/pc/display.h"
 #endif /* PCVT_FREEBSD >= 200 */
 
-#if PCVT_FREEBSD > 205
-#include <sys/devconf.h>
-#endif
-
 /* setup irq disable function to use */
 
 #if !(PCVT_SLOW_INTERRUPT) && (PCVT_NETBSD > 9)
