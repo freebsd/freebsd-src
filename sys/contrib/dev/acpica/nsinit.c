@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 35 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,7 +123,7 @@
 #include "acinterp.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
-        MODULE_NAME         ("nsinit")
+        ACPI_MODULE_NAME    ("nsinit")
 
 
 /*******************************************************************************
@@ -147,7 +147,7 @@ AcpiNsInitializeObjects (
     ACPI_INIT_WALK_INFO     Info;
 
 
-    FUNCTION_TRACE ("NsInitializeObjects");
+    ACPI_FUNCTION_TRACE ("NsInitializeObjects");
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
@@ -209,7 +209,7 @@ AcpiNsInitializeDevices (
     ACPI_DEVICE_WALK_INFO   Info;
 
 
-    FUNCTION_TRACE ("NsInitializeDevices");
+    ACPI_FUNCTION_TRACE ("NsInitializeDevices");
 
 
     Info.DeviceCount = 0;
@@ -263,14 +263,14 @@ AcpiNsInitOneObject (
     void                    *Context,
     void                    **ReturnValue)
 {
-    ACPI_OBJECT_TYPE8       Type;
+    ACPI_OBJECT_TYPE        Type;
     ACPI_STATUS             Status;
     ACPI_INIT_WALK_INFO     *Info = (ACPI_INIT_WALK_INFO *) Context;
     ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
 
-    PROC_NAME ("NsInitOneObject");
+    ACPI_FUNCTION_NAME ("NsInitOneObject");
 
 
     Info->ObjectCount++;
@@ -319,7 +319,7 @@ AcpiNsInitOneObject (
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_ERROR, "\n"));
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                     "%s while getting region arguments [%4.4s]\n",
-                    AcpiFormatException (Status), (char*)&Node->Name));
+                    AcpiFormatException (Status), (char *) &Node->Name));
         }
 
         if (!(AcpiDbgLevel & ACPI_LV_INIT))
@@ -345,7 +345,7 @@ AcpiNsInitOneObject (
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_ERROR, "\n"));
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                     "%s while getting buffer field arguments [%4.4s]\n",
-                    AcpiFormatException (Status), (char*)&Node->Name));
+                    AcpiFormatException (Status), (char *) &Node->Name));
         }
         if (!(AcpiDbgLevel & ACPI_LV_INIT))
         {
@@ -396,7 +396,7 @@ AcpiNsInitOneDevice (
     ACPI_DEVICE_WALK_INFO  *Info = (ACPI_DEVICE_WALK_INFO *) Context;
 
 
-    FUNCTION_TRACE ("NsInitOneDevice");
+    ACPI_FUNCTION_TRACE ("NsInitOneDevice");
 
 
     if (!(AcpiDbgLevel & ACPI_LV_INIT))
@@ -406,21 +406,29 @@ AcpiNsInitOneDevice (
 
     Info->DeviceCount++;
 
-    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     Node = AcpiNsMapHandleToNode (ObjHandle);
     if (!Node)
     {
-        AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+        (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    Status = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /*
      * Run _STA to determine if we can run _INI on the device.
      */
-    DEBUG_EXEC (AcpiUtDisplayInitPathname (Node, "_STA  [Method]"));
+    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (Node, "_STA  [Method]"));
     Status = AcpiUtExecute_STA (Node, &Flags);
     if (ACPI_FAILURE (Status))
     {
@@ -442,7 +450,7 @@ AcpiNsInitOneDevice (
     /*
      * The device is present. Run _INI.
      */
-    DEBUG_EXEC (AcpiUtDisplayInitPathname (ObjHandle, "_INI  [Method]"));
+    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (ObjHandle, "_INI  [Method]"));
     Status = AcpiNsEvaluateRelative (ObjHandle, "_INI", NULL, NULL);
     if (AE_NOT_FOUND == Status)
     {
@@ -456,7 +464,7 @@ AcpiNsInitOneDevice (
         /* Ignore error and move on to next device */
 
 #ifdef ACPI_DEBUG
-        NATIVE_CHAR *ScopeName = AcpiNsGetTablePathname (ObjHandle);
+        NATIVE_CHAR *ScopeName = AcpiNsGetExternalPathname (ObjHandle);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "%s._INI failed: %s\n",
                 ScopeName, AcpiFormatException (Status)));

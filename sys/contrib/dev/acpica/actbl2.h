@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl2.h - ACPI Specification Revision 2.0 Tables
- *       $Revision: 24 $
+ *       $Revision: 27 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -140,48 +140,48 @@
 #pragma pack(1)
 
 /*
- * ACPI Specification Rev 2.0 for the Root System Description Table
+ * ACPI 2.0 Root System Description Table (RSDT)
  */
 typedef struct
 {
-    ACPI_TABLE_HEADER       header;                 /* Table header */
+    ACPI_TABLE_HEADER       Header;                 /* ACPI table header */
     UINT32                  TableOffsetEntry [1];   /* Array of pointers to  */
-                                                    /* other tables' headers */
+                                                    /* ACPI table headers */
 } RSDT_DESCRIPTOR_REV2;
 
 
 /*
- * ACPI Specification Rev 2.0 for the Extended System Description Table (XSDT)
+ * ACPI 2.0 Extended System Description Table (XSDT)
  */
 typedef struct
 {
-    ACPI_TABLE_HEADER       Header;                 /* Table header */
+    ACPI_TABLE_HEADER       Header;                 /* ACPI table header */
     UINT64                  TableOffsetEntry [1];   /* Array of pointers to  */
-                                                    /* other tables' headers */
+                                                    /* ACPI table headers */
 } XSDT_DESCRIPTOR_REV2;
 
 
 /*
- * ACPI Specification Rev 2.0 for the Firmware ACPI Control Structure
+ * ACPI 2.0 Firmware ACPI Control Structure (FACS)
  */
 typedef struct
 {
-    NATIVE_CHAR             Signature[4];           /* signature "FACS" */
-    UINT32                  Length;                 /* length of structure, in bytes */
-    UINT32                  HardwareSignature;      /* hardware configuration signature */
+    NATIVE_CHAR             Signature[4];           /* ACPI signature */
+    UINT32                  Length;                 /* Length of structure, in bytes */
+    UINT32                  HardwareSignature;      /* Hardware configuration signature */
     UINT32                  FirmwareWakingVector;   /* 32bit physical address of the Firmware Waking Vector. */
     UINT32                  GlobalLock;             /* Global Lock used to synchronize access to shared hardware resources */
-    UINT32_BIT              S4Bios_f        : 1;    /* Indicates if S4BIOS support is present */
-    UINT32_BIT              Reserved1       : 31;   /* must be 0 */
+    UINT32                  S4Bios_f        : 1;    /* S4Bios_f - Indicates if S4BIOS support is present */
+    UINT32_BIT              Reserved1       : 31;   /* Must be 0 */
     UINT64                  XFirmwareWakingVector;  /* 64bit physical address of the Firmware Waking Vector. */
     UINT8                   Version;                /* Version of this table */
-    UINT8                   Reserved3 [31];         /* reserved - must be zero */
+    UINT8                   Reserved3 [31];         /* Reserved - must be zero */
 
 } FACS_DESCRIPTOR_REV2;
 
 
 /*
- * ACPI Specification Rev 2.0 for the Generic Address Structure (GAS)
+ * ACPI 2.0 Generic Address Structure (GAS)
  */
 typedef struct
 {
@@ -195,21 +195,21 @@ typedef struct
 
 
 /*
- * ACPI Specification Rev 2.0 for the Fixed ACPI Description Table
+ * ACPI 2.0 Fixed ACPI Description Table (FADT)
  */
 typedef struct
 {
-    ACPI_TABLE_HEADER       header;             /* table header */
+    ACPI_TABLE_HEADER       Header;             /* ACPI table header */
     UINT32                  V1_FirmwareCtrl;    /* 32-bit physical address of FACS */
     UINT32                  V1_Dsdt;            /* 32-bit physical address of DSDT */
     UINT8                   Reserved1;          /* System Interrupt Model isn't used in ACPI 2.0*/
     UINT8                   Prefer_PM_Profile;  /* Conveys preferred power management profile to OSPM. */
     UINT16                  SciInt;             /* System vector of SCI interrupt */
     UINT32                  SmiCmd;             /* Port address of SMI command port */
-    UINT8                   AcpiEnable;         /* value to write to smi_cmd to enable ACPI */
-    UINT8                   AcpiDisable;        /* value to write to smi_cmd to disable ACPI */
+    UINT8                   AcpiEnable;         /* Value to write to smi_cmd to enable ACPI */
+    UINT8                   AcpiDisable;        /* Value to write to smi_cmd to disable ACPI */
     UINT8                   S4BiosReq;          /* Value to write to SMI CMD to enter S4BIOS state */
-    UINT8                   PstateCnt;          /* processor performance state control*/
+    UINT8                   PstateCnt;          /* Processor performance state control*/
     UINT32                  V1_Pm1aEvtBlk;      /* Port address of Power Mgt 1a AcpiEvent Reg Blk */
     UINT32                  V1_Pm1bEvtBlk;      /* Port address of Power Mgt 1b AcpiEvent Reg Blk */
     UINT32                  V1_Pm1aCntBlk;      /* Port address of Power Mgt 1a Control Reg Blk */
@@ -224,35 +224,35 @@ typedef struct
     UINT8                   PmTmLen;            /* Byte Length of ports at pm_tm_blk */
     UINT8                   Gpe0BlkLen;         /* Byte Length of ports at gpe0_blk */
     UINT8                   Gpe1BlkLen;         /* Byte Length of ports at gpe1_blk */
-    UINT8                   Gpe1Base;           /* offset in gpe model where gpe1 events start */
+    UINT8                   Gpe1Base;           /* Offset in gpe model where gpe1 events start */
     UINT8                   CstCnt;             /* Support for the _CST object and C States change notification.*/
-    UINT16                  Plvl2Lat;           /* worst case HW latency to enter/exit C2 state */
-    UINT16                  Plvl3Lat;           /* worst case HW latency to enter/exit C3 state */
-    UINT16                  FlushSize;          /* number of flush strides that need to be read */
+    UINT16                  Plvl2Lat;           /* Worst case HW latency to enter/exit C2 state */
+    UINT16                  Plvl3Lat;           /* Worst case HW latency to enter/exit C3 state */
+    UINT16                  FlushSize;          /* Number of flush strides that need to be read */
     UINT16                  FlushStride;        /* Processor's memory cache line width, in bytes */
     UINT8                   DutyOffset;         /* Processor’s duty cycle index in processor's P_CNT reg*/
     UINT8                   DutyWidth;          /* Processor’s duty cycle value bit width in P_CNT register.*/
-    UINT8                   DayAlrm;            /* index to day-of-month alarm in RTC CMOS RAM */
-    UINT8                   MonAlrm;            /* index to month-of-year alarm in RTC CMOS RAM */
-    UINT8                   Century;            /* index to century in RTC CMOS RAM */
+    UINT8                   DayAlrm;            /* Index to day-of-month alarm in RTC CMOS RAM */
+    UINT8                   MonAlrm;            /* Index to month-of-year alarm in RTC CMOS RAM */
+    UINT8                   Century;            /* Index to century in RTC CMOS RAM */
     UINT16                  IapcBootArch;       /* IA-PC Boot Architecture Flags. See Table 5-10 for description*/
-    UINT8                   Reserved2;          /* reserved */
-    UINT32_BIT              WbInvd      : 1;    /* wbinvd instruction works properly */
-    UINT32_BIT              WbInvdFlush : 1;    /* wbinvd flushes but does not invalidate */
-    UINT32_BIT              ProcC1      : 1;    /* all processors support C1 state */
+    UINT8                   Reserved2;          /* Reserved */
+    UINT32_BIT              WbInvd      : 1;    /* The wbinvd instruction works properly */
+    UINT32_BIT              WbInvdFlush : 1;    /* The wbinvd flushes but does not invalidate */
+    UINT32_BIT              ProcC1      : 1;    /* All processors support C1 state */
     UINT32_BIT              Plvl2Up     : 1;    /* C2 state works on MP system */
     UINT32_BIT              PwrButton   : 1;    /* Power button is handled as a generic feature */
     UINT32_BIT              SleepButton : 1;    /* Sleep button is handled as a generic feature, or not present */
     UINT32_BIT              FixedRTC    : 1;    /* RTC wakeup stat not in fixed register space */
     UINT32_BIT              Rtcs4       : 1;    /* RTC wakeup stat not possible from S4 */
-    UINT32_BIT              TmrValExt   : 1;    /* tmr_val is 32 bits */
+    UINT32_BIT              TmrValExt   : 1;    /* Indicates tmr_val is 32 bits 0=24-bits*/
     UINT32_BIT              DockCap     : 1;    /* Supports Docking */
     UINT32_BIT              ResetRegSup : 1;    /* Indicates system supports system reset via the FADT RESET_REG*/
     UINT32_BIT              SealedCase  : 1;    /* Indicates system has no internal expansion capabilities and case is sealed. */
     UINT32_BIT              Headless    : 1;    /* Indicates system does not have local video capabilities or local input devices.*/
     UINT32_BIT              CpuSwSleep  : 1;    /* Indicates to OSPM that a processor native instruction */
-                                                /* must be executed after writing the SLP_TYPx register. */
-    UINT32_BIT              Reserved6   : 18;   /* reserved - must be zero */
+                                                /* Must be executed after writing the SLP_TYPx register. */
+    UINT32_BIT              Reserved6   : 18;   /* Reserved - must be zero */
 
     ACPI_GENERIC_ADDRESS    ResetRegister;      /* Reset register address in GAS format */
     UINT8                   ResetValue;         /* Value to write to the ResetRegister port to reset the system. */

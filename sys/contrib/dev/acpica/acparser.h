@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 55 $
+ *       $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,10 +124,6 @@
 /* variable # arguments */
 
 #define ACPI_VAR_ARGS                   ACPI_UINT32_MAX
-
-/* maximum virtual address */
-
-#define ACPI_MAX_AML                    ((UINT8 *)(~0UL))
 
 
 #define ACPI_PARSE_DELETE_TREE          0x0001

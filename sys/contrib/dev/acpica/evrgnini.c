@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 51 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,7 +124,7 @@
 #include "amlcode.h"
 
 #define _COMPONENT          ACPI_EVENTS
-        MODULE_NAME         ("evrgnini")
+        ACPI_MODULE_NAME    ("evrgnini")
 
 
 /*******************************************************************************
@@ -149,7 +149,7 @@ AcpiEvSystemMemoryRegionSetup (
     void                    *HandlerContext,
     void                    **RegionContext)
 {
-    FUNCTION_TRACE ("EvSystemMemoryRegionSetup");
+    ACPI_FUNCTION_TRACE ("EvSystemMemoryRegionSetup");
 
 
     if (Function == ACPI_REGION_DEACTIVATE)
@@ -197,7 +197,7 @@ AcpiEvIoSpaceRegionSetup (
     void                    *HandlerContext,
     void                    **RegionContext)
 {
-    FUNCTION_TRACE ("EvIoSpaceRegionSetup");
+    ACPI_FUNCTION_TRACE ("EvIoSpaceRegionSetup");
 
 
     if (Function == ACPI_REGION_DEACTIVATE)
@@ -246,7 +246,7 @@ AcpiEvPciConfigRegionSetup (
     ACPI_DEVICE_ID          ObjectHID;
 
 
-    FUNCTION_TRACE ("EvPciConfigRegionSetup");
+    ACPI_FUNCTION_TRACE ("EvPciConfigRegionSetup");
 
 
     HandlerObj = RegionObj->Region.AddrHandler;
@@ -290,7 +290,7 @@ AcpiEvPciConfigRegionSetup (
      *  First get device and function numbers from the _ADR object
      *  in the parent's scope.
      */
-    Node = AcpiNsGetParentObject (RegionObj->Region.Node);
+    Node = AcpiNsGetParentNode (RegionObj->Region.Node);
 
 
     /* AcpiEvaluate the _ADR object */
@@ -303,8 +303,8 @@ AcpiEvPciConfigRegionSetup (
      */
     if (ACPI_SUCCESS (Status))
     {
-        PciId->Device = HIWORD (Temp);
-        PciId->Function = LOWORD (Temp);
+        PciId->Device   = ACPI_HIWORD (Temp);
+        PciId->Function = ACPI_LOWORD (Temp);
     }
 
     /*
@@ -330,17 +330,17 @@ AcpiEvPciConfigRegionSetup (
             Status = AcpiUtExecute_HID (Node, &ObjectHID);
             if (ACPI_SUCCESS (Status))
             {
-                if (!(STRNCMP (ObjectHID.Buffer, PCI_ROOT_HID_STRING,
+                if (!(ACPI_STRNCMP (ObjectHID.Buffer, PCI_ROOT_HID_STRING,
                                     sizeof (PCI_ROOT_HID_STRING))))
                 {
-                    AcpiInstallAddressSpaceHandler (Node,
+                    AcpiInstallAddressSpaceHandler ((ACPI_HANDLE) Node,
                                         ACPI_ADR_SPACE_PCI_CONFIG,
                                         ACPI_DEFAULT_HANDLER, NULL, NULL);
                     break;
                 }
             }
 
-            Node = AcpiNsGetParentObject (Node);
+            Node = AcpiNsGetParentNode (Node);
         }
     }
     else
@@ -354,7 +354,7 @@ AcpiEvPciConfigRegionSetup (
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__SEG, Node, &Temp);
     if (ACPI_SUCCESS (Status))
     {
-        PciId->Segment = LOWORD (Temp);
+        PciId->Segment = ACPI_LOWORD (Temp);
     }
 
     /*
@@ -363,7 +363,7 @@ AcpiEvPciConfigRegionSetup (
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__BBN, Node, &Temp);
     if (ACPI_SUCCESS (Status))
     {
-        PciId->Bus = LOWORD (Temp);
+        PciId->Bus = ACPI_LOWORD (Temp);
     }
 
     *RegionContext = PciId;
@@ -396,7 +396,7 @@ AcpiEvPciBarRegionSetup (
     void                    **RegionContext)
 {
 
-    FUNCTION_TRACE ("EvPciBarRegionSetup");
+    ACPI_FUNCTION_TRACE ("EvPciBarRegionSetup");
 
 
     return_ACPI_STATUS (AE_OK);
@@ -428,7 +428,7 @@ AcpiEvCmosRegionSetup (
     void                    **RegionContext)
 {
 
-    FUNCTION_TRACE ("EvCmosRegionSetup");
+    ACPI_FUNCTION_TRACE ("EvCmosRegionSetup");
 
 
     return_ACPI_STATUS (AE_OK);
@@ -457,7 +457,7 @@ AcpiEvDefaultRegionSetup (
     void                    *HandlerContext,
     void                    **RegionContext)
 {
-    FUNCTION_TRACE ("EvDefaultRegionSetup");
+    ACPI_FUNCTION_TRACE ("EvDefaultRegionSetup");
 
 
     if (Function == ACPI_REGION_DEACTIVATE)
@@ -509,7 +509,7 @@ AcpiEvInitializeRegion (
     ACPI_OPERAND_OBJECT     *RegionObj2;
 
 
-    FUNCTION_TRACE_U32 ("EvInitializeRegion", AcpiNsLocked);
+    ACPI_FUNCTION_TRACE_U32 ("EvInitializeRegion", AcpiNsLocked);
 
 
     if (!RegionObj)
@@ -527,7 +527,7 @@ AcpiEvInitializeRegion (
     {
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
-    Node = AcpiNsGetParentObject (RegionObj->Region.Node);
+    Node = AcpiNsGetParentNode (RegionObj->Region.Node);
 
 
     SpaceId = RegionObj->Region.SpaceId;
@@ -616,7 +616,7 @@ AcpiEvInitializeRegion (
          *  This one does not have the handler we need
          *  Pop up one level
          */
-        Node = AcpiNsGetParentObject (Node);
+        Node = AcpiNsGetParentNode (Node);
 
     } /* while Node != ROOT */
 

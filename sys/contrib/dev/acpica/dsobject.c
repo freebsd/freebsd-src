@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 85 $
+ *              $Revision: 90 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,7 +124,7 @@
 #include "acnamesp.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
-        MODULE_NAME         ("dsobject")
+        ACPI_MODULE_NAME    ("dsobject")
 
 
 /*******************************************************************************
@@ -154,13 +154,13 @@ AcpiDsInitOneObject (
     void                    *Context,
     void                    **ReturnValue)
 {
-    ACPI_OBJECT_TYPE8       Type;
+    ACPI_OBJECT_TYPE        Type;
     ACPI_STATUS             Status;
     ACPI_INIT_WALK_INFO     *Info = (ACPI_INIT_WALK_INFO *) Context;
     UINT8                   TableRevision;
 
 
-    PROC_NAME ("DsInitOneObject");
+    ACPI_FUNCTION_NAME ("DsInitOneObject");
 
 
     Info->ObjectCount++;
@@ -183,7 +183,6 @@ AcpiDsInitOneObject (
 
     switch (Type)
     {
-
     case ACPI_TYPE_REGION:
 
         AcpiDsInitializeRegion (ObjHandle);
@@ -218,7 +217,7 @@ AcpiDsInitOneObject (
         if (ACPI_FAILURE (Status))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Method %p [%4.4s] - parse failure, %s\n",
-                ObjHandle, (char*)&((ACPI_NAMESPACE_NODE *)ObjHandle)->Name,
+                ObjHandle, (char *) &((ACPI_NAMESPACE_NODE *) ObjHandle)->Name,
                 AcpiFormatException (Status)));
 
             /* This parse failed, but we will continue parsing more methods */
@@ -231,6 +230,7 @@ AcpiDsInitOneObject (
          * for every execution since there isn't much overhead
          */
         AcpiNsDeleteNamespaceSubtree (ObjHandle);
+        AcpiNsDeleteNamespaceByOwner (((ACPI_NAMESPACE_NODE *) ObjHandle)->Object->Method.OwningId);
         break;
 
     default:
@@ -267,7 +267,7 @@ AcpiDsInitializeObjects (
     ACPI_INIT_WALK_INFO     Info;
 
 
-    FUNCTION_TRACE ("DsInitializeObjects");
+    ACPI_FUNCTION_TRACE ("DsInitializeObjects");
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
@@ -333,7 +333,7 @@ AcpiDsInitObjectFromOp (
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
 
-    PROC_NAME ("DsInitObjectFromOp");
+    ACPI_FUNCTION_NAME ("DsInitObjectFromOp");
 
 
     ObjDesc = *RetObjDesc;
@@ -390,7 +390,7 @@ AcpiDsInitObjectFromOp (
         if (ObjDesc->Buffer.Length == 0)
         {
             ObjDesc->Buffer.Pointer = NULL;
-            REPORT_WARNING (("Buffer created with zero length in AML\n"));
+            ACPI_REPORT_WARNING (("Buffer created with zero length in AML\n"));
             break;
         }
 
@@ -421,8 +421,8 @@ AcpiDsInitObjectFromOp (
                 return (AE_TYPE);
             }
 
-            MEMCPY (ObjDesc->Buffer.Pointer, ByteList->Data,
-                    ObjDesc->Buffer.Length);
+            ACPI_MEMCPY (ObjDesc->Buffer.Pointer, ByteList->Data,
+                         ObjDesc->Buffer.Length);
         }
 
         break;
@@ -448,7 +448,7 @@ AcpiDsInitObjectFromOp (
 
     case ACPI_TYPE_STRING:
         ObjDesc->String.Pointer = Op->Value.String;
-        ObjDesc->String.Length = STRLEN (Op->Value.String);
+        ObjDesc->String.Length = ACPI_STRLEN (Op->Value.String);
 
         /*
          * The string is contained in the ACPI table, don't ever try
@@ -534,11 +534,10 @@ AcpiDsBuildInternalSimpleObj (
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
-    UINT32                  Length;
     char                    *Name;
 
 
-    FUNCTION_TRACE ("DsBuildInternalSimpleObj");
+    ACPI_FUNCTION_TRACE ("DsBuildInternalSimpleObj");
 
 
     if (Op->Opcode == AML_INT_NAMEPATH_OP)
@@ -551,27 +550,27 @@ AcpiDsBuildInternalSimpleObj (
         if (!Op->Node)
         {
             Status = AcpiNsLookup (WalkState->ScopeInfo, Op->Value.String,
-                            ACPI_TYPE_ANY, IMODE_EXECUTE,
-                            NS_SEARCH_PARENT | NS_DONT_OPEN_SCOPE, NULL,
-                            (ACPI_NAMESPACE_NODE **)&(Op->Node));
+                            ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+                            ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE, NULL,
+                            (ACPI_NAMESPACE_NODE **) &(Op->Node));
 
             if (ACPI_FAILURE (Status))
             {
                 if (Status == AE_NOT_FOUND)
                 {
                     Name = NULL;
-                    AcpiNsExternalizeName (ACPI_UINT32_MAX, Op->Value.String, &Length, &Name);
+                    AcpiNsExternalizeName (ACPI_UINT32_MAX, Op->Value.String, NULL, &Name);
 
                     if (Name)
                     {
-                        REPORT_WARNING (("Reference %s at AML %X not found\n",
+                        ACPI_REPORT_WARNING (("Reference %s at AML %X not found\n",
                                     Name, Op->AmlOffset));
                         ACPI_MEM_FREE (Name);
                     }
 
                     else
                     {
-                        REPORT_WARNING (("Reference %s at AML %X not found\n",
+                        ACPI_REPORT_WARNING (("Reference %s at AML %X not found\n",
                                    Op->Value.String, Op->AmlOffset));
                     }
 
@@ -632,7 +631,7 @@ AcpiDsBuildInternalPackageObj (
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE ("DsBuildInternalPackageObj");
+    ACPI_FUNCTION_TRACE ("DsBuildInternalPackageObj");
 
 
     ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_PACKAGE);
@@ -763,7 +762,7 @@ AcpiDsCreateNode (
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
 
-    FUNCTION_TRACE_PTR ("DsCreateNode", Op);
+    ACPI_FUNCTION_TRACE_PTR ("DsCreateNode", Op);
 
 
     /*
@@ -797,7 +796,7 @@ AcpiDsCreateNode (
 
     /* Init obj */
 
-    Status = AcpiNsAttachObject (Node, ObjDesc, (UINT8) Node->Type);
+    Status = AcpiNsAttachObject (Node, ObjDesc, Node->Type);
 
     /* Remove local reference to the object */
 

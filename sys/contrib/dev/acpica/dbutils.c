@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 45 $
+ *              $Revision: 51 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -129,7 +129,7 @@
 #ifdef ENABLE_DEBUGGER
 
 #define _COMPONENT          ACPI_DEBUGGER
-        MODULE_NAME         ("dbutils")
+        ACPI_MODULE_NAME    ("dbutils")
 
 
 /*******************************************************************************
@@ -152,12 +152,9 @@ AcpiDbSetOutputDestination (
 
     AcpiGbl_DbOutputFlags = (UINT8) OutputFlags;
 
-    if (OutputFlags & DB_REDIRECTABLE_OUTPUT)
+    if ((OutputFlags & ACPI_DB_REDIRECTABLE_OUTPUT) && AcpiGbl_DbOutputToFile)
     {
-        if (AcpiGbl_DbOutputToFile)
-        {
-            AcpiDbgLevel = AcpiGbl_DbDebugLevel;
-        }
+        AcpiDbgLevel = AcpiGbl_DbDebugLevel;
     }
     else
     {
@@ -186,7 +183,7 @@ AcpiDbDumpBuffer (
     AcpiOsPrintf ("\nLocation %X:\n", Address);
 
     AcpiDbgLevel |= ACPI_LV_TABLES;
-    AcpiUtDumpBuffer ((UINT8 *) Address, 64, DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
+    AcpiUtDumpBuffer (ACPI_TO_POINTER (Address), 64, DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
 }
 
 
@@ -232,8 +229,9 @@ AcpiDbDumpObject (
 
     case ACPI_TYPE_INTEGER:
 
-        AcpiOsPrintf ("[Integer] = %8.8X%8.8X\n", HIDWORD (ObjDesc->Integer.Value),
-                                               LODWORD (ObjDesc->Integer.Value));
+        AcpiOsPrintf ("[Integer] = %8.8X%8.8X\n",
+                    ACPI_HIDWORD (ObjDesc->Integer.Value),
+                    ACPI_LODWORD (ObjDesc->Integer.Value));
         break;
 
 
@@ -315,7 +313,7 @@ AcpiDbPrepNamestring (
         return;
     }
 
-    STRUPR (Name);
+    ACPI_STRUPR (Name);
 
     /* Convert a leading forward slash to a backslash */
 
@@ -372,7 +370,7 @@ AcpiDbSecondPassParse (
     ACPI_WALK_STATE         *WalkState;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("Pass two parse ....\n");
@@ -449,6 +447,9 @@ AcpiDbSecondPassParse (
  *
  * DESCRIPTION: Lookup a name in the ACPI namespace
  *
+ * Note: Currently begins search from the root.  Could be enhanced to use
+ * the current prefix (scope) node as the search beginning point.
+ *
  ******************************************************************************/
 
 ACPI_NAMESPACE_NODE *
@@ -471,22 +472,18 @@ AcpiDbLocalNsLookup (
         return (NULL);
     }
 
-    /* Lookup the name */
-
-    /* TBD: [Investigate] what scope do we use? */
-    /* Use the root scope for the start of the search */
-
-    Status = AcpiNsLookup (NULL, InternalPath, ACPI_TYPE_ANY, IMODE_EXECUTE,
-                                    NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE, NULL, &Node);
-
+    /*
+     * Lookup the name.
+     * (Uses root node as the search starting point)
+     */
+    Status = AcpiNsLookup (NULL, InternalPath, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+                                    ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE, NULL, &Node);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("Could not locate name: %s %s\n", Name, AcpiFormatException (Status));
     }
 
-
     ACPI_MEM_FREE (InternalPath);
-
     return (Node);
 }
 

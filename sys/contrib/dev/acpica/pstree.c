@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: pstree - Parser op tree manipulation/traversal/search
- *              $Revision: 35 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -122,7 +122,7 @@
 #include "amlcode.h"
 
 #define _COMPONENT          ACPI_PARSER
-        MODULE_NAME         ("pstree")
+        ACPI_MODULE_NAME    ("pstree")
 
 
 /*******************************************************************************
@@ -147,7 +147,7 @@ AcpiPsGetArg (
     const ACPI_OPCODE_INFO  *OpInfo;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     /* Get the info structure for this opcode */
@@ -204,7 +204,7 @@ AcpiPsAppendArg (
     const ACPI_OPCODE_INFO  *OpInfo;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     if (!Op)
@@ -219,7 +219,7 @@ AcpiPsAppendArg (
     {
         /* Invalid opcode */
 
-        REPORT_ERROR (("PsAppendArg: Invalid AML Opcode: 0x%2.2X\n", Op->Opcode));
+        ACPI_REPORT_ERROR (("PsAppendArg: Invalid AML Opcode: 0x%2.2X\n", Op->Opcode));
         return;
     }
 
@@ -284,7 +284,7 @@ AcpiPsGetChild (
     ACPI_PARSE_OBJECT       *Child = NULL;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     switch (Op->Opcode)
@@ -353,7 +353,7 @@ AcpiPsGetDepthNext (
     ACPI_PARSE_OBJECT       *Arg;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     if (!Op)

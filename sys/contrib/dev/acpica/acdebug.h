@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 50 $
+ *       $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,60 +118,7 @@
 #define __ACDEBUG_H__
 
 
-#define DB_MAX_ARGS             8  /* Must be max method args + 1 */
-
-#define DB_COMMAND_PROMPT      '-'
-#define DB_EXECUTE_PROMPT      '%'
-
-
-extern int                      optind;
-extern NATIVE_CHAR              *optarg;
-extern UINT8                    *AmlStart;
-extern UINT32                   AmlLength;
-
-extern BOOLEAN                  AcpiGbl_DbOpt_tables;
-extern BOOLEAN                  AcpiGbl_DbOpt_disasm;
-extern BOOLEAN                  AcpiGbl_DbOpt_stats;
-extern BOOLEAN                  AcpiGbl_DbOpt_parse_jit;
-extern BOOLEAN                  AcpiGbl_DbOpt_verbose;
-extern BOOLEAN                  AcpiGbl_DbOpt_ini_methods;
-
-
-extern NATIVE_CHAR              *AcpiGbl_DbArgs[DB_MAX_ARGS];
-extern NATIVE_CHAR              AcpiGbl_DbLineBuf[80];
-extern NATIVE_CHAR              AcpiGbl_DbScopeBuf[40];
-extern NATIVE_CHAR              AcpiGbl_DbDebugFilename[40];
-extern BOOLEAN                  AcpiGbl_DbOutputToFile;
-extern NATIVE_CHAR              *AcpiGbl_DbBuffer;
-extern NATIVE_CHAR              *AcpiGbl_DbFilename;
-extern NATIVE_CHAR              *AcpiGbl_DbDisasmIndent;
-extern UINT8                    AcpiGbl_DbOutputFlags;
-extern UINT32                   AcpiGbl_DbDebugLevel;
-extern UINT32                   AcpiGbl_DbConsoleDebugLevel;
-extern ACPI_TABLE_HEADER        *AcpiGbl_DbTablePtr;
-
-/*
- * Statistic globals
- */
-extern UINT16                   AcpiGbl_ObjTypeCount[INTERNAL_TYPE_NODE_MAX+1];
-extern UINT16                   AcpiGbl_NodeTypeCount[INTERNAL_TYPE_NODE_MAX+1];
-extern UINT16                   AcpiGbl_ObjTypeCountMisc;
-extern UINT16                   AcpiGbl_NodeTypeCountMisc;
-extern UINT32                   AcpiGbl_NumNodes;
-extern UINT32                   AcpiGbl_NumObjects;
-
-
-extern UINT32                   AcpiGbl_SizeOfParseTree;
-extern UINT32                   AcpiGbl_SizeOfMethodTrees;
-extern UINT32                   AcpiGbl_SizeOfNodeEntries;
-extern UINT32                   AcpiGbl_SizeOfAcpiObjects;
-
-
 #define ACPI_DEBUG_BUFFER_SIZE  4196
-
-#define DB_REDIRECTABLE_OUTPUT  0x01
-#define DB_CONSOLE_OUTPUT       0x02
-#define DB_DUPLICATE_OUTPUT     0x03
 
 
 typedef struct CommandInfo
@@ -397,7 +344,7 @@ AcpiDbCreateExecutionThreads (
  * dbfileio - Debugger file I/O commands
  */
 
-ACPI_OBJECT_TYPE8
+ACPI_OBJECT_TYPE
 AcpiDbMatchArgument (
     NATIVE_CHAR             *UserArgument,
     ARGUMENT_INFO           *Arguments);

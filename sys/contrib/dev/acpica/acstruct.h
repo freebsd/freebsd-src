@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acstruct.h - Internal structs
- *       $Revision: 12 $
+ *       $Revision: 16 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,18 +125,17 @@
  ****************************************************************************/
 
 
-
 /*
  * Walk state - current state of a parse tree walk.  Used for both a leisurely stroll through
  * the tree (for whatever reason), and for control method execution.
  */
 
-#define NEXT_OP_DOWNWARD    1
-#define NEXT_OP_UPWARD      2
+#define ACPI_NEXT_OP_DOWNWARD    1
+#define ACPI_NEXT_OP_UPWARD      2
 
-#define WALK_NON_METHOD     0
-#define WALK_METHOD         1
-#define WALK_METHOD_RESTART 2
+#define ACPI_WALK_NON_METHOD     0
+#define ACPI_WALK_METHOD         1
+#define ACPI_WALK_METHOD_RESTART 2
 
 typedef struct acpi_walk_state
 {
@@ -153,6 +152,7 @@ typedef struct acpi_walk_state
     UINT32                  AmlOffset;
     UINT32                  ArgTypes;
     UINT32                  MethodBreakpoint;                   /* For single stepping */
+    UINT32                  UserBreakpoint;                     /* User AML breakpoint */
     UINT32                  ParseFlags;
     UINT32                  PrevArgTypes;
 
@@ -177,11 +177,8 @@ typedef struct acpi_walk_state
     union acpi_operand_obj  *ReturnDesc;                        /* Return object, if any */
     ACPI_GENERIC_STATE      *ScopeInfo;                         /* Stack of nested scopes */
 
-/* TBD: Obsolete with removal of WALK procedure ? */
     ACPI_PARSE_OBJECT       *PrevOp;                            /* Last op that was processed */
     ACPI_PARSE_OBJECT       *NextOp;                            /* next op to be processed */
-
-
     ACPI_PARSE_DOWNWARDS    DescendingCallback;
     ACPI_PARSE_UPWARDS      AscendingCallback;
     ACPI_THREAD_STATE       *Thread;
@@ -189,7 +186,6 @@ typedef struct acpi_walk_state
 
 
 } ACPI_WALK_STATE;
-
 
 
 /* Info used by AcpiPsInitObjects */
@@ -207,7 +203,7 @@ typedef struct acpi_init_walk_info
 } ACPI_INIT_WALK_INFO;
 
 
-/* Info used by TBD */
+/* Info used by AcpiNsInitializeDevices */
 
 typedef struct acpi_device_walk_info
 {

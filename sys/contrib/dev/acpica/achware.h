@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: achware.h -- hardware specific interfaces
- *       $Revision: 56 $
+ *       $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -151,13 +151,20 @@ AcpiHwGetModeCapabilities (
 
 /* Register I/O Prototypes */
 
+ACPI_BIT_REGISTER_INFO *
+AcpiHwGetBitRegisterInfo (
+    UINT32                  RegisterId);
 
 UINT32
-AcpiHwRegisterBitAccess (
-    NATIVE_UINT             ReadWrite,
-    BOOLEAN                 UseLock,
+AcpiHwBitRegisterRead (
     UINT32                  RegisterId,
-    ... /* DWORD Write Value */);
+    UINT32                  Flags);
+
+UINT32
+AcpiHwBitRegisterWrite (
+    UINT32                  RegisterId,
+    UINT32                  Value,
+    UINT32                  Flags);
 
 UINT32
 AcpiHwRegisterRead (
@@ -186,10 +193,6 @@ AcpiHwLowLevelWrite (
 void
 AcpiHwClearAcpiStatus (
    void);
-
-UINT32
-AcpiHwGetBitShift (
-    UINT32                  Mask);
 
 
 /* GPE support */
@@ -231,7 +234,7 @@ AcpiHwEnableNonWakeupGpes (
 /* Sleep Prototypes */
 
 ACPI_STATUS
-AcpiHwObtainSleepTypeRegisterData (
+AcpiHwGetSleepTypeData (
     UINT8                   SleepState,
     UINT8                   *Slp_TypA,
     UINT8                   *Slp_TypB);

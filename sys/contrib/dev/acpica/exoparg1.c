@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
- *              $Revision: 124 $
+ *              $Revision: 134 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -126,7 +126,7 @@
 
 
 #define _COMPONENT          ACPI_EXECUTER
-        MODULE_NAME         ("exoparg1")
+        ACPI_MODULE_NAME    ("exoparg1")
 
 
 /*!
@@ -173,7 +173,7 @@ AcpiExOpcode_1A_0T_0R (
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE_STR ("ExOpcode_1A_0T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_STR ("ExOpcode_1A_0T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
     /* Examine the AML opcode */
@@ -200,13 +200,13 @@ AcpiExOpcode_1A_0T_0R (
 
     case AML_SLEEP_OP:      /*  Sleep (MsecTime) */
 
-        AcpiExSystemDoSuspend ((UINT32) Operand[0]->Integer.Value);
+        Status = AcpiExSystemDoSuspend ((UINT32) Operand[0]->Integer.Value);
         break;
 
 
     case AML_STALL_OP:      /*  Stall (UsecTime) */
 
-        AcpiExSystemDoStall ((UINT32) Operand[0]->Integer.Value);
+        Status = AcpiExSystemDoStall ((UINT32) Operand[0]->Integer.Value);
         break;
 
 
@@ -218,7 +218,7 @@ AcpiExOpcode_1A_0T_0R (
 
     default:                /*  Unknown opcode  */
 
-        REPORT_ERROR (("AcpiExOpcode_1A_0T_0R: Unknown opcode %X\n",
+        ACPI_REPORT_ERROR (("AcpiExOpcode_1A_0T_0R: Unknown opcode %X\n",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
@@ -249,7 +249,7 @@ AcpiExOpcode_1A_1T_0R (
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
 
 
-    FUNCTION_TRACE_STR ("ExOpcode_1A_1T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_STR ("ExOpcode_1A_1T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
     /* Examine the AML opcode */
@@ -258,12 +258,12 @@ AcpiExOpcode_1A_1T_0R (
     {
     case AML_LOAD_OP:
 
-        Status = AcpiExLoadOp (Operand[0], Operand[1]);
+        Status = AcpiExLoadOp (Operand[0], Operand[1], WalkState);
         break;
 
     default:                        /* Unknown opcode */
 
-        REPORT_ERROR (("AcpiExOpcode_1A_1T_0R: Unknown opcode %X\n",
+        ACPI_REPORT_ERROR (("AcpiExOpcode_1A_1T_0R: Unknown opcode %X\n",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -303,7 +303,7 @@ AcpiExOpcode_1A_1T_1R (
     ACPI_INTEGER            Digit;
 
 
-    FUNCTION_TRACE_STR ("ExOpcode_1A_1T_1R", AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_STR ("ExOpcode_1A_1T_1R", AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
     /* Create a return object of type Integer for most opcodes */
@@ -416,7 +416,8 @@ AcpiExOpcode_1A_1T_1R (
         if (Operand[0]->Integer.Value > ACPI_MAX_BCD_VALUE)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD overflow: %8.8X%8.8X\n",
-                HIDWORD(Operand[0]->Integer.Value), LODWORD(Operand[0]->Integer.Value)));
+                ACPI_HIDWORD(Operand[0]->Integer.Value),
+                ACPI_LODWORD(Operand[0]->Integer.Value)));
             Status = AE_AML_NUMERIC_OVERFLOW;
             goto Cleanup;
         }
@@ -437,7 +438,7 @@ AcpiExOpcode_1A_1T_1R (
 
             if (Digit > 0)
             {
-                ReturnDesc->Integer.Value += (Temp32 << (i * 4));
+                ReturnDesc->Integer.Value += ((ACPI_INTEGER) Temp32 << (i * 4));
             }
         }
         break;
@@ -480,7 +481,6 @@ AcpiExOpcode_1A_1T_1R (
 
         ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
         goto Cleanup;
-        break;
 
 
     case AML_STORE_OP:              /* Store (Source, Target) */
@@ -505,7 +505,6 @@ AcpiExOpcode_1A_1T_1R (
         WalkState->ResultObj = Operand[0];
         WalkState->Operands[0] = NULL;  /* Prevent deletion */
         return_ACPI_STATUS (Status);
-        break;
 
 
     /*
@@ -513,8 +512,7 @@ AcpiExOpcode_1A_1T_1R (
      */
     case AML_COPY_OP:               /* Copy (Source, Target) */
 
-        Status = AE_NOT_IMPLEMENTED;
-        goto Cleanup;
+        Status = AcpiUtCopyIobjectToIobject (Operand[0], &ReturnDesc, WalkState);
         break;
 
 
@@ -552,12 +550,11 @@ AcpiExOpcode_1A_1T_1R (
                         AcpiPsGetOpcodeName (WalkState->Opcode)));
         Status = AE_SUPPORT;
         goto Cleanup;
-        break;
 
 
     default:                        /* Unknown opcode */
 
-        REPORT_ERROR (("AcpiExOpcode_1A_1T_1R: Unknown opcode %X\n",
+        ACPI_REPORT_ERROR (("AcpiExOpcode_1A_1T_1R: Unknown opcode %X\n",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -608,7 +605,7 @@ AcpiExOpcode_1A_0T_1R (
     ACPI_INTEGER            Value;
 
 
-    FUNCTION_TRACE_STR ("ExOpcode_1A_0T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_STR ("ExOpcode_1A_0T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
     /* Examine the AML opcode */
@@ -633,10 +630,10 @@ AcpiExOpcode_1A_0T_1R (
 
         /*
          * Since we are expecting a Reference operand, it
-         * can be either a Node or an internal object.
+         * can be either a NS Node or an internal object.
          */
         ReturnDesc = Operand[0];
-        if (VALID_DESCRIPTOR_TYPE (Operand[0], ACPI_DESC_TYPE_INTERNAL))
+        if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) == ACPI_DESC_TYPE_INTERNAL)
         {
             /* Internal reference object - prevent deletion */
 
@@ -731,7 +728,7 @@ AcpiExOpcode_1A_0T_1R (
 
             default:
 
-                REPORT_ERROR (("AcpiExOpcode_1A_0T_1R/TypeOp: Internal error - Unknown Reference subtype %X\n",
+                ACPI_REPORT_ERROR (("AcpiExOpcode_1A_0T_1R/TypeOp: Internal error - Unknown Reference subtype %X\n",
                     Operand[0]->Reference.Opcode));
                 Status = AE_AML_INTERNAL;
                 goto Cleanup;
@@ -773,7 +770,7 @@ AcpiExOpcode_1A_0T_1R (
     case AML_SIZE_OF_OP:            /* SizeOf (SourceObject)  */
 
         TempDesc = Operand[0];
-        if (VALID_DESCRIPTOR_TYPE (Operand[0], ACPI_DESC_TYPE_NAMED))
+        if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) == ACPI_DESC_TYPE_NAMED)
         {
             TempDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) Operand[0]);
         }
@@ -836,56 +833,88 @@ AcpiExOpcode_1A_0T_1R (
         break;
 
 
-    case AML_DEREF_OF_OP:           /* DerefOf (ObjReference) */
+    case AML_DEREF_OF_OP:           /* DerefOf (ObjReference | String) */
 
-        /* Check for a method local or argument */
+        /* Check for a method local or argument, or standalone String */
 
-        if (!VALID_DESCRIPTOR_TYPE (Operand[0], ACPI_DESC_TYPE_NAMED))
+        if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) != ACPI_DESC_TYPE_NAMED)
         {
-            /*
-             * Must resolve/dereference the local/arg reference first
-             */
-            switch (Operand[0]->Reference.Opcode)
+            switch (ACPI_GET_OBJECT_TYPE (Operand[0]))
             {
-            case AML_LOCAL_OP:
-            case AML_ARG_OP:
+            case INTERNAL_TYPE_REFERENCE:
+                /*
+                 * This is a DerefOf (LocalX | ArgX)
+                 *
+                 * Must resolve/dereference the local/arg reference first
+                 */
+                switch (Operand[0]->Reference.Opcode)
+                {
+                case AML_LOCAL_OP:
+                case AML_ARG_OP:
 
-                /* Set Operand[0] to the value of the local/arg */
+                    /* Set Operand[0] to the value of the local/arg */
 
-                AcpiDsMethodDataGetValue (Operand[0]->Reference.Opcode,
-                        Operand[0]->Reference.Offset, WalkState, &TempDesc);
+                    AcpiDsMethodDataGetValue (Operand[0]->Reference.Opcode,
+                            Operand[0]->Reference.Offset, WalkState, &TempDesc);
+
+                    /*
+                     * Delete our reference to the input object and
+                     * point to the object just retrieved
+                     */
+                    AcpiUtRemoveReference (Operand[0]);
+                    Operand[0] = TempDesc;
+                    break;
+
+                default:
+
+                    /* Must be an Index op - handled below */
+                    break;
+                }
+                break;
+
+
+            case ACPI_TYPE_STRING:
 
                 /*
-                 * Delete our reference to the input object and
-                 * point to the object just retrieved
+                 * This is a DerefOf (String).  The string is a reference to a named ACPI object.
+                 *
+                 * 1) Find the owning Node
+                 * 2) Dereference the node to an actual object.  Could be a Field, so we nee
+                 *    to resolve the node to a value.
                  */
-                AcpiUtRemoveReference (Operand[0]);
-                Operand[0] = TempDesc;
-                break;
+                Status = AcpiNsGetNodeByPath (Operand[0]->String.Pointer, WalkState->ScopeInfo->Scope.Node,
+                                ACPI_NS_SEARCH_PARENT, (ACPI_NAMESPACE_NODE **) &ReturnDesc);
+                if (ACPI_FAILURE (Status))
+                {
+                    goto Cleanup;
+                }
+
+                Status = AcpiExResolveNodeToValue ((ACPI_NAMESPACE_NODE **) &ReturnDesc, WalkState);
+                goto Cleanup;
+
 
             default:
 
-                /* Must be an Index op - handled below */
-                break;
+                Status = AE_AML_OPERAND_TYPE;
+                goto Cleanup;
             }
         }
 
         /* Operand[0] may have changed from the code above */
 
-        if (VALID_DESCRIPTOR_TYPE (Operand[0], ACPI_DESC_TYPE_NAMED))
+        if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) == ACPI_DESC_TYPE_NAMED)
         {
-            /* Get the actual object from the Node (This is the dereference) */
-
+            /*
+             * This is a DerefOf (ObjectReference)
+             * Get the actual object from the Node (This is the dereference).
+             * -- This case may only happen when a LocalX or ArgX is dereferenced above.
+             */
             ReturnDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) Operand[0]);
-
-            /* Returning a pointer to the object, add another reference! */
-
-            AcpiUtAddReference (ReturnDesc);
         }
         else
         {
             /*
-             * This must be a reference produced by either the Index() or 
+             * This must be a reference object produced by either the Index() or
              * RefOf() operator
              */
             switch (Operand[0]->Reference.Opcode)
@@ -915,7 +944,7 @@ AcpiExOpcode_1A_0T_1R (
                         goto Cleanup;
                     }
 
-                    /* 
+                    /*
                      * Since we are returning the value of the buffer at the
                      * indexed location, we don't need to add an additional
                      * reference to the buffer itself.
@@ -924,7 +953,7 @@ AcpiExOpcode_1A_0T_1R (
                     ReturnDesc->Integer.Value =
                         TempDesc->Buffer.Pointer[Operand[0]->Reference.Offset];
                     break;
-                
+
 
                 case ACPI_TYPE_PACKAGE:
 
@@ -977,7 +1006,6 @@ AcpiExOpcode_1A_0T_1R (
 
                 Status = AE_TYPE;
                 goto Cleanup;
-                break;
             }
         }
         break;
@@ -985,7 +1013,7 @@ AcpiExOpcode_1A_0T_1R (
 
     default:
 
-        REPORT_ERROR (("AcpiExOpcode_1A_0T_1R: Unknown opcode %X\n",
+        ACPI_REPORT_ERROR (("AcpiExOpcode_1A_0T_1R: Unknown opcode %X\n",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;

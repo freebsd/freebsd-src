@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdispat.h - dispatcher (parser to interpreter interface)
- *       $Revision: 48 $
+ *       $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -177,7 +177,7 @@ AcpiDsExecEndControlOp (
 ACPI_STATUS
 AcpiDsGetPredicateValue (
     ACPI_WALK_STATE         *WalkState,
-    UINT32                  HasResultObj);
+    ACPI_OPERAND_OBJECT     *ResultObj);
 
 ACPI_STATUS
 AcpiDsExecBeginOp (
@@ -271,7 +271,7 @@ BOOLEAN
 AcpiDsIsMethodValue (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
-ACPI_OBJECT_TYPE8
+ACPI_OBJECT_TYPE
 AcpiDsMethodDataGetType (
     UINT16                  Opcode,
     UINT32                  Index,
@@ -436,7 +436,7 @@ AcpiDsResolveOperands (
 ACPI_STATUS
 AcpiDsScopeStackPush (
     ACPI_NAMESPACE_NODE     *Node,
-    ACPI_OBJECT_TYPE8       Type,
+    ACPI_OBJECT_TYPE        Type,
     ACPI_WALK_STATE         *WalkState);
 
 
