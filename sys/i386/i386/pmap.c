@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.99 1996/06/05 03:31:26 dyson Exp $
+ *	$Id: pmap.c,v 1.100 1996/06/05 06:36:21 dyson Exp $
  */
 
 /*
@@ -1797,6 +1797,8 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			    (p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
+				if (p->queue == PQ_CACHE)
+					vm_page_deactivate(p);
 				p->flags |= PG_BUSY;
 				pmap_enter_quick(pmap, 
 					addr + (tmpidx << PAGE_SHIFT),
