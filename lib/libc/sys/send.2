@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
-.\"	$Id$
+.\"	$Id: send.2,v 1.7 1997/02/22 15:04:22 peter Exp $
 .\"
 .Dd February 15, 1995
 .Dt SEND 2
@@ -171,6 +171,19 @@ but may be caused by transient congestion.
 .It Bq Er EHOSTUNREACH
 The remote host was unreachable.
 .El
+.Sh BUGS
+Because
+.Fn sendmsg
+doesn't necessarily block until the data has been transferred, it
+is possible to transfer an open file descriptor across an
+.Dv AF_UNIX
+domain socket
+.Pq see Xr recv 2 ,
+then
+.Fn close
+it before it has actually been sent, the result being that the receiver
+gets a closed file descriptor.  It is left to the application to
+implement an acknowlegment mechanism to prevent this from happening.
 .Sh SEE ALSO
 .Xr fcntl 2 ,
 .Xr getsockopt 2 ,
