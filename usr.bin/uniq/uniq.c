@@ -210,7 +210,7 @@ void
 show(FILE *ofp, wchar_t *str)
 {
 
-	if (cflag && *str)
+	if (cflag)
 		(void)fprintf(ofp, "%4d %ls\n", repeats + 1, str);
 	if ((dflag && repeats) || (uflag && !repeats))
 		(void)fprintf(ofp, "%ls\n", str);
