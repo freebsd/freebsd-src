@@ -1,0 +1,407 @@
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001, 2003  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: dnssec-makekeyset.html,v 1.4.2.2.4.1 2004/03/06 10:21:15 marka Exp $ -->
+
+<HTML
+><HEAD
+><TITLE
+>dnssec-makekeyset</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.73
+"></HEAD
+><BODY
+CLASS="REFENTRY"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><H1
+><A
+NAME="AEN1"
+><SPAN
+CLASS="APPLICATION"
+>dnssec-makekeyset</SPAN
+></A
+></H1
+><DIV
+CLASS="REFNAMEDIV"
+><A
+NAME="AEN9"
+></A
+><H2
+>Name</H2
+><SPAN
+CLASS="APPLICATION"
+>dnssec-makekeyset</SPAN
+>&nbsp;--&nbsp;DNSSEC zone signing tool</DIV
+><DIV
+CLASS="REFSYNOPSISDIV"
+><A
+NAME="AEN13"
+></A
+><H2
+>Synopsis</H2
+><P
+><B
+CLASS="COMMAND"
+>dnssec-makekeyset</B
+>  [<TT
+CLASS="OPTION"
+>-a</TT
+>] [<TT
+CLASS="OPTION"
+>-s <TT
+CLASS="REPLACEABLE"
+><I
+>start-time</I
+></TT
+></TT
+>] [<TT
+CLASS="OPTION"
+>-e <TT
+CLASS="REPLACEABLE"
+><I
+>end-time</I
+></TT
+></TT
+>] [<TT
+CLASS="OPTION"
+>-h</TT
+>] [<TT
+CLASS="OPTION"
+>-p</TT
+>] [<TT
+CLASS="OPTION"
+>-r <TT
+CLASS="REPLACEABLE"
+><I
+>randomdev</I
+></TT
+></TT
+>] [<TT
+CLASS="OPTION"
+>-t</TT
+><TT
+CLASS="REPLACEABLE"
+><I
+>ttl</I
+></TT
+>] [<TT
+CLASS="OPTION"
+>-v <TT
+CLASS="REPLACEABLE"
+><I
+>level</I
+></TT
+></TT
+>] {key...}</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN38"
+></A
+><H2
+>DESCRIPTION</H2
+><P
+>        <B
+CLASS="COMMAND"
+>dnssec-makekeyset</B
+> generates a key set from one
+	or more keys created by <B
+CLASS="COMMAND"
+>dnssec-keygen</B
+>.  It creates
+	a file containing a KEY record for each key, and self-signs the key
+	set with each zone key.  The output file is of the form
+	<TT
+CLASS="FILENAME"
+>keyset-nnnn.</TT
+>, where <TT
+CLASS="FILENAME"
+>nnnn</TT
+>
+	is the zone name.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN45"
+></A
+><H2
+>OPTIONS</H2
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>-a</DT
+><DD
+><P
+>	      Verify all generated signatures.
+	  </P
+></DD
+><DT
+>-s <TT
+CLASS="REPLACEABLE"
+><I
+>start-time</I
+></TT
+></DT
+><DD
+><P
+>	       Specify the date and time when the generated SIG records
+	       become valid.  This can be either an absolute or relative
+	       time.  An absolute start time is indicated by a number
+	       in YYYYMMDDHHMMSS notation; 20000530144500 denotes
+	       14:45:00 UTC on May 30th, 2000.  A relative start time is
+	       indicated by +N, which is N seconds from the current time.
+	       If no <TT
+CLASS="OPTION"
+>start-time</TT
+> is specified, the current
+	       time is used.
+	  </P
+></DD
+><DT
+>-e <TT
+CLASS="REPLACEABLE"
+><I
+>end-time</I
+></TT
+></DT
+><DD
+><P
+>	       Specify the date and time when the generated SIG records
+	       expire.  As with <TT
+CLASS="OPTION"
+>start-time</TT
+>, an absolute
+	       time is indicated in YYYYMMDDHHMMSS notation.  A time relative
+	       to the start time is indicated with +N, which is N seconds from
+	       the start time.  A time relative to the current time is
+	       indicated with now+N.  If no <TT
+CLASS="OPTION"
+>end-time</TT
+> is
+	       specified, 30 days from the start time is used as a default.
+	  </P
+></DD
+><DT
+>-h</DT
+><DD
+><P
+>	       Prints a short summary of the options and arguments to
+	       <B
+CLASS="COMMAND"
+>dnssec-makekeyset</B
+>.
+	  </P
+></DD
+><DT
+>-p</DT
+><DD
+><P
+>	       Use pseudo-random data when signing the zone.  This is faster,
+	       but less secure, than using real random data.  This option
+	       may be useful when signing large zones or when the entropy
+	       source is limited.
+	  </P
+></DD
+><DT
+>-r <TT
+CLASS="REPLACEABLE"
+><I
+>randomdev</I
+></TT
+></DT
+><DD
+><P
+>	       Specifies the source of randomness.  If the operating
+	       system does not provide a <TT
+CLASS="FILENAME"
+>/dev/random</TT
+>
+	       or equivalent device, the default source of randomness
+	       is keyboard input.  <TT
+CLASS="FILENAME"
+>randomdev</TT
+> specifies
+	       the name of a character device or file containing random
+	       data to be used instead of the default.  The special value
+	       <TT
+CLASS="FILENAME"
+>keyboard</TT
+> indicates that keyboard
+	       input should be used.
+	  </P
+></DD
+><DT
+>-t <TT
+CLASS="REPLACEABLE"
+><I
+>ttl</I
+></TT
+></DT
+><DD
+><P
+>	       Specify the TTL (time to live) of the KEY and SIG records.
+	       The default is 3600 seconds.
+	  </P
+></DD
+><DT
+>-v <TT
+CLASS="REPLACEABLE"
+><I
+>level</I
+></TT
+></DT
+><DD
+><P
+>	       Sets the debugging level.
+	  </P
+></DD
+><DT
+>key</DT
+><DD
+><P
+>	       The list of keys to be included in the keyset file.  These keys
+	       are expressed in the form <TT
+CLASS="FILENAME"
+>Knnnn.+aaa+iiiii</TT
+>
+	       as generated by <B
+CLASS="COMMAND"
+>dnssec-keygen</B
+>.
+	  </P
+></DD
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN98"
+></A
+><H2
+>EXAMPLE</H2
+><P
+>        The following command generates a keyset containing the DSA key for
+	<TT
+CLASS="USERINPUT"
+><B
+>example.com</B
+></TT
+> generated in the
+	<B
+CLASS="COMMAND"
+>dnssec-keygen</B
+> man page.
+    </P
+><P
+>        <TT
+CLASS="USERINPUT"
+><B
+>dnssec-makekeyset -t 86400 -s 20000701120000 -e +2592000 Kexample.com.+003+26160</B
+></TT
+>
+    </P
+><P
+>        In this example, <B
+CLASS="COMMAND"
+>dnssec-makekeyset</B
+> creates
+	the file <TT
+CLASS="FILENAME"
+>keyset-example.com.</TT
+>.  This file
+	contains the specified key and a self-generated signature.
+    </P
+><P
+>        The DNS administrator for <TT
+CLASS="USERINPUT"
+><B
+>example.com</B
+></TT
+> could
+	send <TT
+CLASS="FILENAME"
+>keyset-example.com.</TT
+> to the DNS
+	administrator for <TT
+CLASS="USERINPUT"
+><B
+>.com</B
+></TT
+> for signing, if the
+	.com zone is DNSSEC-aware and the administrators of the two zones
+	have some mechanism for authenticating each other and exchanging
+	the keys and signatures securely.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN112"
+></A
+><H2
+>SEE ALSO</H2
+><P
+>      <SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dnssec-keygen</SPAN
+>(8)</SPAN
+>,
+      <SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dnssec-signkey</SPAN
+>(8)</SPAN
+>,
+      <I
+CLASS="CITETITLE"
+>BIND 9 Administrator Reference Manual</I
+>,
+      <I
+CLASS="CITETITLE"
+>RFC 2535</I
+>.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN123"
+></A
+><H2
+>AUTHOR</H2
+><P
+>        Internet Software Consortium
+    </P
+></DIV
+></BODY
+></HTML
+>
