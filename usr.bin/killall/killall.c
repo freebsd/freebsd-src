@@ -124,7 +124,7 @@ main(int ac, char **av)
 	const char *const *p;
 	char		*ep;
 	int		errors = 0;
-	int		mib[3];
+	int		mib[4];
 	size_t		miblen;
 	int		st, nprocs;
 	size_t		size;
