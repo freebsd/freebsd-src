@@ -18,10 +18,11 @@
 name="sendmail"
 rcvar=`set_rcvar`
 required_files="/etc/mail/${name}.cf"
-command=${sendmail_program:-/usr/sbin/sendmail}
-pidfile=${sendmail_pidfile:-/var/run/sendmail.pid}
 
 load_rc_config $name
+command=${sendmail_program:-/usr/sbin/sendmail}
+pidfile=${sendmail_pidfile:-/var/run/sendmail.pid}
+procname=${sendmail_procname:-/usr/sbin/sendmail}
 
 case ${sendmail_enable} in
 [Nn][Oo][Nn][Ee])
@@ -73,7 +74,7 @@ run_rc_command "$1"
 
 required_files=
 
-if ! checkyesno sendmail_enable; then
+if ! checkyesno sendmail_submit_enable; then
 	name="sendmail_submit"
 	rcvar=`set_rcvar`
 	start_cmd="${command} ${sendmail_submit_flags}"
