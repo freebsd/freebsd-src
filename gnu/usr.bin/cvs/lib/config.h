@@ -25,7 +25,7 @@
 #define HAVE_LONG_FILE_NAMES 1
 
 /* Define if you have a working `mmap' system call.  */
-/* #undef HAVE_MMAP */
+#define HAVE_MMAP 1
 
 /* Define if your struct stat has st_blksize.  */
 #define HAVE_ST_BLKSIZE 1
