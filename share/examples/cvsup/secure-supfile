@@ -1,4 +1,4 @@
-# $Id$
+# $Id: secure-supfile,v 1.1 1996/08/21 00:23:53 jkh Exp $
 #
 # This file contains all of the "CVSUP collections" that comprise the FreeBSD
 # International secure distribution from the current (new and experimental)
@@ -33,5 +33,5 @@
 #		The directory that is the prefix must exist in order for
 #		SUP to transfer files successfully.
 
-src-eBones release=cvs host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old compress use-rel-suffix tag=.
-src-secure release=cvs host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old compress use-rel-suffix tag=.
+src-eBones release=cvs host=cvsup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old compress use-rel-suffix tag=.
+src-secure release=cvs host=cvsup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old compress use-rel-suffix tag=.
