@@ -93,11 +93,15 @@ load()
 		arptable[ARP_SERVER].ipaddr);
 
 		/* Now use TFTP to load configuration file */
-	sprintf(cfg,"/tftpboot/cfg.%I",arptable[ARP_CLIENT].ipaddr);
+	sprintf(cfg,"cfg.%I",arptable[ARP_CLIENT].ipaddr);
 	printf("Loading %s...\r\n",cfg);
 	if (!tftp(cfg)) {
-		printf("Unable to load config file.\r\n");
-		longjmp(jmp_bootmenu,1);
+		sprintf(cfg,"/tftpboot/cfg.%I",arptable[ARP_CLIENT].ipaddr);
+		printf("Loading %s...\r\n",cfg);
+		if (!tftp(cfg)) {
+			printf("Unable to load config file.\r\n");
+			longjmp(jmp_bootmenu,1);
+		}
 	}
 		/* Execute commands in config file */
 	p = config_buffer;
