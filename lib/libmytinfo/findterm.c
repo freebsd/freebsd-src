@@ -4,6 +4,7 @@
  * Public Domain
  * 92/02/01 07:29:56
  *
+ * $FreeBSD$
  */
 
 #include "defs.h"
@@ -242,7 +243,7 @@ char *buf; {
 			} else {
 				s = path->file;
 				d = buf;
-				while(*s != '\0' && *s != ':')
+				while(*s != '\0' && *s != ':' && d - buf < MAX_LINE - 1)
 					*d++ = *s++;
 				*d = '\0';
 				if (_tmatch(buf, name)) {
@@ -259,7 +260,7 @@ char *buf; {
 			} else {
 				s = path->file;
 				d = buf;
-				while(*s != '\0' && *s != ',')
+				while(*s != '\0' && *s != ',' && d - buf < MAX_LINE - 1)
 					*d++ = *s++;
 				*d = '\0';
 				if (_tmatch(buf, name)) {
