@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <machine/frame.h>
@@ -37,8 +38,18 @@
 
 #define sign_extend(imm, w) (((int64_t)(imm) << (64 - (w))) >> (64 - (w)))
 
-extern int	ia64_unaligned_print, ia64_unaligned_fix;
-extern int	ia64_unaligned_sigbus;
+static int ia64_unaligned_print = 1;	/* warn about unaligned accesses */
+static int ia64_unaligned_fix = 1;	/* fix up unaligned accesses */
+static int ia64_unaligned_sigbus = 0;	/* don't SIGBUS on fixed-up accesses */
+
+SYSCTL_INT(_machdep, OID_AUTO, unaligned_print, CTLFLAG_RW,
+    &ia64_unaligned_print, 0, "warn about unaligned accesses");
+
+SYSCTL_INT(_machdep, OID_AUTO, unaligned_fix, CTLFLAG_RW,
+    &ia64_unaligned_fix, 0, "fix up unaligned accesses (if possible)");
+
+SYSCTL_INT(_machdep, OID_AUTO, unaligned_sigbus, CTLFLAG_RW,
+    &ia64_unaligned_sigbus, 0, "do not SIGBUS on fixed-up accesses");
 
 int unaligned_fixup(struct trapframe *framep, struct thread *td);
 
