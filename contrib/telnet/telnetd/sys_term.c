@@ -1245,14 +1245,14 @@ addarg(char **argv, const char *val)
 	}
 	for (cpp = argv; *cpp; cpp++)
 		;
-	if (cpp == &argv[(int)argv[-1]]) {
+	if (cpp == &argv[(long)argv[-1]]) {
 		--argv;
-		*argv = (char *)((int)(*argv) + 10);
-		argv = (char **)realloc(argv, sizeof(*argv)*((int)(*argv) + 2));
+		*argv = (char *)((long)(*argv) + 10);
+		argv = (char **)realloc(argv, sizeof(*argv)*((long)(*argv) + 2));
 		if (argv == NULL)
 			return(NULL);
 		argv++;
-		cpp = &argv[(int)argv[-1] - 10];
+		cpp = &argv[(long)argv[-1] - 10];
 	}
 	*cpp++ = strdup(val);
 	*cpp = 0;
