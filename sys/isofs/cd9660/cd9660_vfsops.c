@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.8 1994/09/26 00:32:58 gpalmer Exp $
+ * $Id: cd9660_vfsops.c,v 1.9 1994/11/14 07:01:58 bde Exp $
  */
 
 #include <sys/param.h>
@@ -224,11 +224,13 @@ iso_mountfs(devvp, mp, p, argp)
 	dev_t dev = devvp->v_rdev;
 	int error = EINVAL;
 	int needclose = 0;
+	int high_sierra = 0;
 	int ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	int iso_bsize;
 	int iso_blknum;
 	struct iso_volume_descriptor *vdp;
 	struct iso_primary_descriptor *pri;
+	struct iso_sierra_primary_descriptor *pri_sierra;
 	struct iso_directory_record *rootp;
 	int logical_block_size;
 	
@@ -265,28 +267,36 @@ iso_mountfs(devvp, mp, p, argp)
 		
 		vdp = (struct iso_volume_descriptor *)bp->b_un.b_addr;
 		if (bcmp (vdp->id, ISO_STANDARD_ID, sizeof vdp->id) != 0) {
+			if (bcmp (vdp->id_sierra, ISO_SIERRA_ID,
+				  sizeof vdp->id) != 0) {
+				error = EINVAL;
+				goto out;
+			} else
+				high_sierra = 1;
+		}
+		
+		if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) == ISO_VD_END) {
 			error = EINVAL;
 			goto out;
 		}
 		
-		if (isonum_711 (vdp->type) == ISO_VD_END) {
-			error = EINVAL;
-			goto out;
-		}
-		
-		if (isonum_711 (vdp->type) == ISO_VD_PRIMARY)
+		if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) == ISO_VD_PRIMARY)
 			break;
 		brelse(bp);
 	}
 	
-	if (isonum_711 (vdp->type) != ISO_VD_PRIMARY) {
+	if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) != ISO_VD_PRIMARY) {
 		error = EINVAL;
 		goto out;
 	}
 	
 	pri = (struct iso_primary_descriptor *)vdp;
+	pri_sierra = (struct iso_sierra_primary_descriptor *)vdp;
 	
-	logical_block_size = isonum_723 (pri->logical_block_size);
+	logical_block_size =
+		isonum_723 (high_sierra?
+			    pri_sierra->logical_block_size:
+			    pri->logical_block_size);
 	
 	if (logical_block_size < DEV_BSIZE || logical_block_size > MAXBSIZE
 	    || (logical_block_size & (logical_block_size - 1)) != 0) {
@@ -294,12 +304,18 @@ iso_mountfs(devvp, mp, p, argp)
 		goto out;
 	}
 	
-	rootp = (struct iso_directory_record *)pri->root_directory_record;
+	rootp = (struct iso_directory_record *)
+		(high_sierra?
+		 pri_sierra->root_directory_record:
+		 pri->root_directory_record);
 	
 	isomp = malloc(sizeof *isomp, M_ISOFSMNT, M_WAITOK);
 	bzero((caddr_t)isomp, sizeof *isomp);
 	isomp->logical_block_size = logical_block_size;
-	isomp->volume_space_size = isonum_733 (pri->volume_space_size);
+	isomp->volume_space_size =
+		isonum_733 (high_sierra?
+			    pri_sierra->volume_space_size:
+			    pri->volume_space_size);
 	bcopy (rootp, isomp->root, sizeof isomp->root);
 	isomp->root_extent = isonum_733 (rootp->extent);
 	isomp->root_size = isonum_733 (rootp->size);
@@ -335,9 +351,9 @@ iso_mountfs(devvp, mp, p, argp)
 		rootp = (struct iso_directory_record *)bp->b_un.b_addr;
 		
 		if ((isomp->rr_skip = cd9660_rrip_offset(rootp,isomp)) < 0) {
-		    argp->flags  |= ISOFSMNT_NORRIP;
+		    argp->flags	 |= ISOFSMNT_NORRIP;
 		} else {
-		    argp->flags  &= ~ISOFSMNT_GENS;
+		    argp->flags	 &= ~ISOFSMNT_GENS;
 		}
 		
 		/*
@@ -349,17 +365,22 @@ iso_mountfs(devvp, mp, p, argp)
 		bp = NULL;
 	}
 	isomp->im_flags = argp->flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS|ISOFSMNT_EXTATT);
-	switch (isomp->im_flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS)) {
-	default:
-	    isomp->iso_ftype = ISO_FTYPE_DEFAULT;
-	    break;
-	case ISOFSMNT_GENS|ISOFSMNT_NORRIP:
-	    isomp->iso_ftype = ISO_FTYPE_9660;
-	    break;
-	case 0:
-	    isomp->iso_ftype = ISO_FTYPE_RRIP;
-	    break;
-	}
+
+	if(high_sierra)
+		/* this effectively ignores all the mount flags */
+		isomp->iso_ftype = ISO_FTYPE_HIGH_SIERRA;
+	else
+		switch (isomp->im_flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS)) {
+		  default:
+			  isomp->iso_ftype = ISO_FTYPE_DEFAULT;
+			  break;
+		  case ISOFSMNT_GENS|ISOFSMNT_NORRIP:
+			  isomp->iso_ftype = ISO_FTYPE_9660;
+			  break;
+		  case 0:
+			  isomp->iso_ftype = ISO_FTYPE_RRIP;
+			  break;
+		}
 	
 	return 0;
 out:
@@ -501,7 +522,7 @@ cd9660_statfs(mp, sbp, p)
 	sbp->f_blocks = isomp->volume_space_size;
 	sbp->f_bfree = 0; /* total free blocks */
 	sbp->f_bavail = 0; /* blocks free for non superuser */
-	sbp->f_files =  0; /* total files */
+	sbp->f_files =	0; /* total files */
 	sbp->f_ffree = 0; /* free file nodes */
 	if (sbp != &mp->mnt_stat) {
 		bcopy((caddr_t)mp->mnt_stat.f_mntonname,
@@ -574,7 +595,7 @@ cd9660_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct iso_mnt			*imp;
 	struct buf			*bp;
 	struct iso_directory_record	*dirp;
-	struct iso_node 		tip, *ip, *nip;
+	struct iso_node			tip, *ip, *nip;
 	struct netcred			*np;
 	
 	imp = VFSTOISOFS (mp);

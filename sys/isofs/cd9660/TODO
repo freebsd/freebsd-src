@@ -1,8 +1,10 @@
-#	$Id: TODO,v 1.4 1993/09/07 15:40:51 ws Exp $
+#	$Id: TODO,v 1.1.1.1 1994/05/24 10:04:12 rgrimes Exp $
 
  1) should understand "older", original High Sierra ("CDROM001") type
 
    Not yet. ( I don't have this technical information, yet. )
+   Done. (16-Jan-95, Joerg Wunsch joerg@freebsd.org)
+
 
  2) should understand Rock Ridge
 

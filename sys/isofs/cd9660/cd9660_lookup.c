@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.4 1994/09/15 19:45:58 bde Exp $
+ * $Id: cd9660_lookup.c,v 1.5 1994/09/26 00:32:54 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -116,6 +116,7 @@ cd9660_lookup(ap)
 	ino_t ino = 0;
 	int reclen;
 	u_short namelen;
+	int isoflags;
 	char altname[NAME_MAX];
 	int res;
 	int assoc, len;
@@ -276,6 +277,8 @@ searchloop:
 		 * Check for a name match.
 		 */
 		namelen = isonum_711(ep->name_len);
+		isoflags = isonum_711(imp->iso_ftype == ISO_FTYPE_HIGH_SIERRA?
+				      &ep->date[6]: ep->flags);
 		
 		if (reclen < ISO_DIRECTORY_RECORD_SIZE + namelen)
 			/* illegal entry, stop */
@@ -283,7 +286,7 @@ searchloop:
 		
 		switch (imp->iso_ftype) {
 		default:
-			if ((!(isonum_711(ep->flags)&4)) == !assoc) {
+			if (!(isoflags & 4) == !assoc) {
 				if ((len == 1
 				     && *name == '.')
 				    || (flags & ISDOTDOT)) {
@@ -302,7 +305,7 @@ searchloop:
 						goto notfound;
 				} else if (!(res = isofncmp(name,len,
 							    ep->name,namelen))) {
-					if (isonum_711(ep->flags)&2)
+					if (isoflags & 2)
 						isodirino(&ino,ep,imp);
 					else
 						ino = dbtob(bp->b_blkno)

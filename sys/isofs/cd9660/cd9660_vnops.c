@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.9 1994/09/26 00:32:59 gpalmer Exp $
+ * $Id: cd9660_vnops.c,v 1.10 1994/09/28 16:44:59 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -290,7 +290,7 @@ cd9660_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
 		int  a_command;
-		caddr_t  a_data;
+		caddr_t	 a_data;
 		int  a_fflag;
 		struct ucred *a_cred;
 		struct proc *a_p;
@@ -476,6 +476,7 @@ cd9660_readdir(ap)
 	struct iso_directory_record *ep;
 	u_short elen;
 	int reclen;
+	int isoflags;
 	struct iso_mnt *imp;
 	struct iso_node *ip;
 	struct buf *bp = NULL;
@@ -535,6 +536,8 @@ cd9660_readdir(ap)
 			(bp->b_un.b_addr + entryoffsetinblock);
 		
 		reclen = isonum_711 (ep->length);
+		isoflags = isonum_711(imp->iso_ftype == ISO_FTYPE_HIGH_SIERRA?
+				      &ep->date[6]: ep->flags);
 		if (reclen == 0) {
 			/* skip to next block, if any */
 			idp->curroff = roundup (idp->curroff,
@@ -555,7 +558,7 @@ cd9660_readdir(ap)
 		}
 		
 		idp->current.d_namlen = isonum_711 (ep->name_len);
-		if (isonum_711(ep->flags)&2)
+		if (isoflags & 2)
 			isodirino(&idp->current.d_fileno,ep,imp);
 		else
 			idp->current.d_fileno = dbtob(bp->b_blkno) +
@@ -580,7 +583,7 @@ cd9660_readdir(ap)
 			if (idp->current.d_namlen)
 				error = iso_uiodir(idp,&idp->current,idp->curroff);
 			break;
-		default:	/* ISO_FTYPE_DEFAULT || ISO_FTYPE_9660 */
+		default: /* ISO_FTYPE_DEFAULT || ISO_FTYPE_9660 || ISO_FTYPE_HIGH_SIERRA*/
 			strcpy(idp->current.d_name,"..");
 			switch (ep->name[0]) {
 			case 0:
@@ -595,7 +598,7 @@ cd9660_readdir(ap)
 				isofntrans(ep->name,idp->current.d_namlen,
 					   idp->current.d_name, &elen,
 					   imp->iso_ftype == ISO_FTYPE_9660,
-					   isonum_711(ep->flags)&4);
+					   isoflags & 4);
 				idp->current.d_namlen = (u_char)elen;
 				if (imp->iso_ftype == ISO_FTYPE_DEFAULT)
 					error = iso_shipdir(idp);
@@ -648,8 +651,8 @@ cd9660_readdir(ap)
  * But otherwise the block read here is in the block buffer two times.
  */
 typedef struct iso_directory_record ISODIR;
-typedef struct iso_node             ISONODE;
-typedef struct iso_mnt              ISOMNT;
+typedef struct iso_node		    ISONODE;
+typedef struct iso_mnt		    ISOMNT;
 int
 cd9660_readlink(ap)
 	struct vop_readlink_args /* {
@@ -659,7 +662,7 @@ cd9660_readlink(ap)
 	} */ *ap;
 {
 	ISONODE	*ip;
-	ISODIR	*dirp;                   
+	ISODIR	*dirp;			 
 	ISOMNT	*imp;
 	struct	buf *bp;
 	u_short	symlen;
