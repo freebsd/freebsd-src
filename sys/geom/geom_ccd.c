@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.25 1997/10/11 07:35:25 phk Exp $ */
+/* $Id: ccd.c,v 1.26 1997/10/24 14:24:55 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -173,8 +173,6 @@ static d_strategy_t ccdstrategy;
 static d_ioctl_t ccdioctl;
 static d_dump_t ccddump;
 static d_psize_t ccdsize;
-static d_read_t ccdread;
-static d_write_t ccdwrite;
 
 #define CDEV_MAJOR 74
 #define BDEV_MAJOR 21
