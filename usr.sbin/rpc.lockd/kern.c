@@ -35,6 +35,9 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -69,6 +72,8 @@ static OWNER owner;
 
 static char hostname[MAXHOSTNAMELEN + 1];	/* Hostname. */
 
+static void	client_cleanup(void);
+static void	set_auth(CLIENT *cl, struct ucred *ucred);
 int	lock_request(LOCKD_MSG *);
 int	test_request(LOCKD_MSG *);
 void	show(LOCKD_MSG *);
@@ -86,9 +91,7 @@ int	unlock_request(LOCKD_MSG *);
 	(inet_ntoa((sockaddr)->sin_addr))
 
 void
-client_cleanup(sig, code)
-	int sig;
-	int code;
+client_cleanup(void)
 {
 	(void)lockd_seteuid(0);
 	(void)unlink(_PATH_LCKFIFO);
@@ -133,8 +136,8 @@ client_request(void)
 		return (child);
 	}
 
-	signal(SIGHUP, client_cleanup);
-	signal(SIGTERM, client_cleanup);
+	signal(SIGHUP, (sig_t)client_cleanup);
+	signal(SIGTERM, (sig_t)client_cleanup);
 
 	/* Setup. */
 	(void)time(&owner.tod);
@@ -459,7 +462,7 @@ lock_answer(int pid, netobj *netcookie, int result, int *pid_p, int version)
 
 	if (d_calls)
 		syslog(LOG_DEBUG, "lock answer: pid %lu: %s %d",
-		    ans.la_msg_ident.pid,
+		    (unsigned long)ans.la_msg_ident.pid,
 		    version == NLM_VERS4 ? "nlmv4" : "nlmv3",
 		    result);
 
