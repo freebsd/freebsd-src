@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.133 1998/07/11 07:45:59 bde Exp $
+ *      $Id: sd.c,v 1.134 1998/07/13 08:23:05 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -1264,7 +1264,7 @@ sdsdump(void *private, int32_t start, int32_t num)
 		 * If we are dumping core, it may take a while.
 		 * So reassure the user and hold off any watchdogs.
 		 */
-		if ((u_long)addr % (1024 * 1024) == 0) {
+		if ((uintptr_t)addr % (1024 * 1024) == 0) {
 #ifdef	HW_WDOG
 			if (wdog_tickler)
 				(*wdog_tickler)();
@@ -1274,7 +1274,7 @@ sdsdump(void *private, int32_t start, int32_t num)
 		/* update block count */
 		num -= blkcnt;
 		blknum += blkcnt;
-		(long) addr += blkcnt * sd->params.secsiz;
+		addr += blkcnt * sd->params.secsiz;
 
 		/* operator aborting dump? */
 		if (cncheckc() != -1)
