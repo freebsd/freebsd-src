@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_debug_npx.h"
 #include "opt_isa.h"
 
 #include <sys/param.h>
@@ -53,9 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#ifdef NPX_DEBUG
-#include <sys/syslog.h>
-#endif
 #include <sys/signalvar.h>
 #include <sys/user.h>
 
@@ -75,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
+ * Floating point support.
  */
 
 #if defined(__GNUC__) && !defined(lint)
@@ -110,59 +106,50 @@ void	stop_emulating(void);
 
 typedef u_char bool_t;
 
-static	int	npx_attach(device_t dev);
-static	void	npx_identify(driver_t *driver, device_t parent);
-static	int	npx_probe(device_t dev);
+static	int	fpu_attach(device_t dev);
+static	void	fpu_identify(driver_t *driver, device_t parent);
+static	int	fpu_probe(device_t dev);
 
 int	hw_float = 1;
 SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	CTLFLAG_RD, &hw_float, 0, 
 	"Floatingpoint instructions executed in hardware");
 
-static	struct savefpu		npx_cleanstate;
-static	bool_t			npx_cleanstate_ready;
+static	struct savefpu		fpu_cleanstate;
+static	bool_t			fpu_cleanstate_ready;
 
 /*
  * Identify routine.  Create a connection point on our parent for probing.
  */
 static void
-npx_identify(driver, parent)
-	driver_t *driver;
-	device_t parent;
+fpu_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
 
-	child = BUS_ADD_CHILD(parent, 0, "npx", 0);
+	child = BUS_ADD_CHILD(parent, 0, "fpu", 0);
 	if (child == NULL)
-		panic("npx_identify");
+		panic("fpu_identify");
 }
 
 /*
  * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
  * whether the device exists or not (XXX should be elsewhere).
- * Modify device struct if npx doesn't need to use interrupts.
+ * Modify device struct if fpu doesn't need to use interrupts.
  * Return 0 if device exists.
  */
 static int
-npx_probe(dev)
-	device_t dev;
+fpu_probe(device_t dev)
 {
 
 	/*
-	 * Partially reset the coprocessor, if any.  Some BIOS's don't reset
-	 * it after a warm boot.
-	 */
-	outb(0xf1, 0);		/* full reset on some systems, NOP on others */
-	outb(0xf0, 0);		/* clear BUSY# latch */
-	/*
-	 * Prepare to trap all ESC (i.e., NPX) instructions and all WAIT
+	 * Prepare to trap all ESC (i.e., FPU) instructions and all WAIT
 	 * instructions.  We must set the CR0_MP bit and use the CR0_TS
 	 * bit to control the trap, because setting the CR0_EM bit does
 	 * not cause WAIT instructions to trap.  It's important to trap
 	 * WAIT instructions - otherwise the "wait" variants of no-wait
 	 * control instructions would degenerate to the "no-wait" variants
 	 * after FP context switches but work correctly otherwise.  It's
-	 * particularly important to trap WAITs when there is no NPX -
+	 * particularly important to trap WAITs when there is no FPU -
 	 * otherwise the "wait" variants would always degenerate.
 	 *
 	 * Try setting CR0_NE to get correct error reporting on 486DX's.
@@ -179,6 +166,7 @@ npx_probe(dev)
 	fninit();
 
 	device_set_desc(dev, "math processor");
+	device_quiet(dev);
 
 	return (0);
 }
@@ -187,19 +175,18 @@ npx_probe(dev)
  * Attach routine - announce which it is, and wire into system
  */
 static int
-npx_attach(dev)
-	device_t dev;
+fpu_attach(device_t dev)
 {
 	register_t s;
 
-	npxinit(__INITIAL_NPXCW__);
+	fpuinit(__INITIAL_FPUCW__);
 
-	if (npx_cleanstate_ready == 0) {
+	if (fpu_cleanstate_ready == 0) {
 		s = intr_disable();
 		stop_emulating();
-		fxsave(&npx_cleanstate);
+		fxsave(&fpu_cleanstate);
 		start_emulating();
-		npx_cleanstate_ready = 1;
+		fpu_cleanstate_ready = 1;
 		intr_restore(s);
 	}
 	return (0);		/* XXX unused */
@@ -209,21 +196,20 @@ npx_attach(dev)
  * Initialize floating point unit.
  */
 void
-npxinit(control)
-	u_short control;
+fpuinit(u_short control)
 {
 	static struct savefpu dummy;
 	register_t savecrit;
 
 	/*
 	 * fninit has the same h/w bugs as fnsave.  Use the detoxified
-	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
+	 * fnsave to throw away any junk in the fpu.  fpusave() initializes
 	 * the fpu and sets fpcurthread = NULL as important side effects.
 	 */
 	savecrit = intr_disable();
-	npxsave(&dummy);
+	fpusave(&dummy);
 	stop_emulating();
-	/* XXX npxsave() doesn't actually initialize the fpu in the SSE case. */
+	/* XXX fpusave() doesn't actually initialize the fpu in the SSE case. */
 	fninit();
 	fldcw(&control);
 	start_emulating();
@@ -234,34 +220,18 @@ npxinit(control)
  * Free coprocessor (if we have it).
  */
 void
-npxexit(td)
-	struct thread *td;
+fpuexit(struct thread *td)
 {
-#ifdef NPX_DEBUG
-	u_int	masked_exceptions;
-#endif
 	register_t savecrit;
 
 	savecrit = intr_disable();
 	if (curthread == PCPU_GET(fpcurthread))
-		npxsave(&PCPU_GET(curpcb)->pcb_save);
+		fpusave(&PCPU_GET(curpcb)->pcb_save);
 	intr_restore(savecrit);
-#ifdef NPX_DEBUG
-	masked_exceptions = GET_FPU_CW(td) & GET_FPU_SW(td) & 0x7f;
-	/*
-	 * Log exceptions that would have trapped with the old
-	 * control word (overflow, divide by 0, and invalid operand).
-	 */
-	if (masked_exceptions & 0x0d)
-		log(LOG_ERR,
-"pid %d (%s) exited with masked floating point exceptions 0x%02x\n",
-		    td->td_proc->p_pid, td->td_proc->p_comm,
-		    masked_exceptions);
-#endif
 }
 
 int
-npxformat()
+fpuformat()
 {
 
 	return (_MC_FPFMT_XMM);
@@ -456,7 +426,7 @@ static char fpetable[128] = {
  * solution for signals other than SIGFPE.
  */
 int
-npxtrap()
+fputrap()
 {
 	register_t savecrit;
 	u_short control, status;
@@ -493,48 +463,48 @@ npxtrap()
 static int err_count = 0;
 
 int
-npxdna()
+fpudna()
 {
 	struct pcb *pcb;
 	register_t s;
 	u_short control;
 
 	if (PCPU_GET(fpcurthread) == curthread) {
-		printf("npxdna: fpcurthread == curthread %d times\n",
+		printf("fpudna: fpcurthread == curthread %d times\n",
 		    ++err_count);
 		stop_emulating();
 		return (1);
 	}
 	if (PCPU_GET(fpcurthread) != NULL) {
-		printf("npxdna: fpcurthread = %p (%d), curthread = %p (%d)\n",
+		printf("fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
 		       PCPU_GET(fpcurthread),
 		       PCPU_GET(fpcurthread)->td_proc->p_pid,
 		       curthread, curthread->td_proc->p_pid);
-		panic("npxdna");
+		panic("fpudna");
 	}
 	s = intr_disable();
 	stop_emulating();
 	/*
-	 * Record new context early in case frstor causes an IRQ13.
+	 * Record new context early in case frstor causes a trap.
 	 */
 	PCPU_SET(fpcurthread, curthread);
 	pcb = PCPU_GET(curpcb);
 
-	if ((pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
+	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
 		/*
 		 * This is the first time this thread has used the FPU or
 		 * the PCB doesn't contain a clean FPU state.  Explicitly
 		 * initialize the FPU and load the default control word.
 		 */
 		fninit();
-		control = __INITIAL_NPXCW__;
+		control = __INITIAL_FPUCW__;
 		fldcw(&control);
-		pcb->pcb_flags |= PCB_NPXINITDONE;
+		pcb->pcb_flags |= PCB_FPUINITDONE;
 	} else {
 		/*
 		 * The following frstor may cause a trap when the state
 		 * being restored has a pending error.  The error will
-		 * appear to have been triggered by the current (npx) user
+		 * appear to have been triggered by the current (fpu) user
 		 * instruction even when that instruction is a no-wait
 		 * instruction that should not trigger an error (e.g.,
 		 * instructions are broken the same as frstor, so our
@@ -548,36 +518,19 @@ npxdna()
 }
 
 /*
- * Wrapper for fnsave instruction, partly to handle hardware bugs.  When npx
- * exceptions are reported via IRQ13, spurious IRQ13's may be triggered by
- * no-wait npx instructions.  See the Intel application note AP-578 for
- * details.  This doesn't cause any additional complications here.  IRQ13's
- * are inherently asynchronous unless the CPU is frozen to deliver them --
- * one that started in userland may be delivered many instructions later,
- * after the process has entered the kernel.  It may even be delivered after
- * the fnsave here completes.  A spurious IRQ13 for the fnsave is handled in
- * the same way as a very-late-arriving non-spurious IRQ13 from user mode:
- * it is normally ignored at first because we set fpcurthread to NULL; it is
- * normally retriggered in npxdna() after return to user mode.
+ * Wrapper for fnsave instruction.
  *
- * npxsave() must be called with interrupts disabled, so that it clears
+ * fpusave() must be called with interrupts disabled, so that it clears
  * fpcurthread atomically with saving the state.  We require callers to do the
  * disabling, since most callers need to disable interrupts anyway to call
- * npxsave() atomically with checking fpcurthread.
- *
- * A previous version of npxsave() went to great lengths to excecute fnsave
- * with interrupts enabled in case executing it froze the CPU.  This case
- * can't happen, at least for Intel CPU/NPX's.  Spurious IRQ13's don't imply
- * spurious freezes.
+ * fpusave() atomically with checking fpcurthread.
  */
 void
-npxsave(addr)
-	struct savefpu *addr;
+fpusave(struct savefpu *addr)
 {
 
 	stop_emulating();
 	fxsave(addr);
-
 	start_emulating();
 	PCPU_SET(fpcurthread, NULL);
 }
@@ -587,13 +540,13 @@ npxsave(addr)
  * FPU thread is non-null.
  */
 void
-npxdrop()
+fpudrop()
 {
 	struct thread *td;
 
 	td = PCPU_GET(fpcurthread);
 	PCPU_SET(fpcurthread, NULL);
-	td->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
+	td->td_pcb->pcb_flags &= ~PCB_FPUINITDONE;
 	start_emulating();
 }
 
@@ -602,15 +555,13 @@ npxdrop()
  * It returns the FPU ownership status.
  */
 int
-npxgetregs(td, addr)
-	struct thread *td;
-	struct savefpu *addr;
+fpugetregs(struct thread *td, struct savefpu *addr)
 {
 	register_t s;
 
-	if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
-		if (npx_cleanstate_ready)
-			bcopy(&npx_cleanstate, addr, sizeof(npx_cleanstate));
+	if ((td->td_pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
+		if (fpu_cleanstate_ready)
+			bcopy(&fpu_cleanstate, addr, sizeof(fpu_cleanstate));
 		else
 			bzero(addr, sizeof(*addr));
 		return (_MC_FPOWNED_NONE);
@@ -631,9 +582,7 @@ npxgetregs(td, addr)
  * Set the state of the FPU.
  */
 void
-npxsetregs(td, addr)
-	struct thread *td;
-	struct savefpu *addr;
+fpusetregs(struct thread *td, struct savefpu *addr)
 {
 	register_t s;
 
@@ -645,14 +594,14 @@ npxsetregs(td, addr)
 		intr_restore(s);
 		bcopy(addr, &td->td_pcb->pcb_save, sizeof(*addr));
 	}
-	curthread->td_pcb->pcb_flags |= PCB_NPXINITDONE;
+	curthread->td_pcb->pcb_flags |= PCB_FPUINITDONE;
 }
 
-static device_method_t npx_methods[] = {
+static device_method_t fpu_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	npx_identify),
-	DEVMETHOD(device_probe,		npx_probe),
-	DEVMETHOD(device_attach,	npx_attach),
+	DEVMETHOD(device_identify,	fpu_identify),
+	DEVMETHOD(device_probe,		fpu_probe),
+	DEVMETHOD(device_attach,	fpu_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -661,49 +610,51 @@ static device_method_t npx_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t npx_driver = {
-	"npx",
-	npx_methods,
+static driver_t fpu_driver = {
+	"fpu",
+	fpu_methods,
 	1,			/* no softc */
 };
 
-static devclass_t npx_devclass;
+static devclass_t fpu_devclass;
 
 /*
  * We prefer to attach to the root nexus so that the usual case (exception 16)
  * doesn't describe the processor as being `on isa'.
  */
-DRIVER_MODULE(npx, nexus, npx_driver, npx_devclass, 0, 0);
+DRIVER_MODULE(fpu, nexus, fpu_driver, fpu_devclass, 0, 0);
 
 #ifdef DEV_ISA
 /*
  * This sucks up the legacy ISA support assignments from PNPBIOS/ACPI.
  */
-static struct isa_pnp_id npxisa_ids[] = {
+static struct isa_pnp_id fpuisa_ids[] = {
 	{ 0x040cd041, "Legacy ISA coprocessor support" }, /* PNP0C04 */
 	{ 0 }
 };
 
 static int
-npxisa_probe(device_t dev)
+fpuisa_probe(device_t dev)
 {
 	int result;
-	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, npxisa_ids)) <= 0) {
+
+	result = ISA_PNP_PROBE(device_get_parent(dev), dev, fpuisa_ids);
+	if (result <= 0)
 		device_quiet(dev);
-	}
-	return(result);
+	return (result);
 }
 
 static int
-npxisa_attach(device_t dev)
+fpuisa_attach(device_t dev)
 {
+
 	return (0);
 }
 
-static device_method_t npxisa_methods[] = {
+static device_method_t fpuisa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		npxisa_probe),
-	DEVMETHOD(device_attach,	npxisa_attach),
+	DEVMETHOD(device_probe,		fpuisa_probe),
+	DEVMETHOD(device_attach,	fpuisa_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -712,14 +663,14 @@ static device_method_t npxisa_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t npxisa_driver = {
-	"npxisa",
-	npxisa_methods,
+static driver_t fpuisa_driver = {
+	"fpuisa",
+	fpuisa_methods,
 	1,			/* no softc */
 };
 
-static devclass_t npxisa_devclass;
+static devclass_t fpuisa_devclass;
 
-DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
-DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
+DRIVER_MODULE(fpuisa, isa, fpuisa_driver, fpuisa_devclass, 0, 0);
+DRIVER_MODULE(fpuisa, acpi, fpuisa_driver, fpuisa_devclass, 0, 0);
 #endif /* DEV_ISA */
