@@ -4,23 +4,25 @@ PROG=	yppush
 SRCS=	yp_clnt.c ypxfr_getmap.c yp_dblookup.c yppush_svc.c \
 	yp_error.c ypxfr_misc.c yppush_main.c
 
-.PATH: ${.CURDIR}/../ypserv ${.CURDIR}/../../libexec/ypxfr
-
 MAN8=	yppush.8
+
 CFLAGS+=-I. -I${.CURDIR}/../../libexec/ypxfr
+
+RPCDIR=	${.CURDIR}/../../include/rpcsvc
+RPCGEN= rpcgen -C
+
+.PATH:	${RPCDIR} ${.CURDIR}/../../usr.sbin/ypserv \
+	${.CURDIR}/../../libexec/ypxfr
 
 CLEANFILES= yp.h yp_clnt.c yppush_svc.c
 
-RPCSRC= ${.DESTDIR}/usr/include/rpcsvc/yp.x
-RPCGEN= rpcgen -C
+yppush_svc.c: yp.x yp.h
+	${RPCGEN} -DYPPUSH_ONLY -m -o ${.TARGET} ${RPCDIR}/yp.x
 
-yppush_svc.c: ${RPCSRC} yp.h
-	${RPCGEN} -DYPPUSH_ONLY -m -o ${.TARGET} ${RPCSRC}
+yp_clnt.c: yp.x yp.h
+	${RPCGEN} -DYPSERV_ONLY -l -o ${.TARGET} ${RPCDIR}/yp.x
 
-yp_clnt.c: ${RPCSRC} yp.h
-	${RPCGEN} -DYPSERV_ONLY -l -o ${.TARGET} ${RPCSRC}
-
-yp.h: ${RPCSRC}
-	${RPCGEN} -h -o ${.TARGET} ${RPCSRC}
+yp.h: yp.x
+	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/yp.x
 
 .include <bsd.prog.mk>
