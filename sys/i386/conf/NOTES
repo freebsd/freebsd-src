@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.50 1994/02/01 08:34:16 ache Exp $
+#	$Id: LINT,v 1.51 1994/02/01 10:46:43 ache Exp $
 #
 
 machine		"i386"
@@ -121,9 +121,10 @@ controller	bt0	at isa? port "IO_BT0" bio irq 12 vector btintr
 # driver for the Seagate ST01/ST02 card, not yet finished.
 #controller	sg0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector sgintr
 #dcfclk	device-driver
-controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
-disk		fd0	at fd0 drive 0
-disk		fd1	at fd0 drive 1
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+disk		fd1	at fdc0 drive 1
+tape		ft0	at fdc0 drive 2
 # driver for the Western Digital and SMCC WD80xx cards, for the Novell
 # NE1000/200 card and the 3COM 3C503 card.
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
