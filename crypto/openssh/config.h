@@ -214,10 +214,10 @@
 /* #undef AFS */
 
 /* Define if you want S/Key support */
-#define SKEY 1
+/* #undef SKEY */
 
 /* Define if you want OPIE support */
-#define OPIE 1
+/* #undef OPIE */
 
 /* Define if you want TCP Wrappers support */
 #define LIBWRAP 1
@@ -399,7 +399,7 @@
 /* #undef HAVE_ENDIAN_H */
 
 /* Define if you have the `endutent' function. */
-#define HAVE_ENDUTENT 1
+/* #undef HAVE_ENDUTENT */
 
 /* Define if you have the `endutxent' function. */
 /* #undef HAVE_ENDUTXENT */
@@ -465,7 +465,7 @@
 /* #undef HAVE_GETUTID */
 
 /* Define if you have the `getutline' function. */
-#define HAVE_GETUTLINE 1
+/* #undef HAVE_GETUTLINE */
 
 /* Define if you have the `getutxent' function. */
 /* #undef HAVE_GETUTXENT */
@@ -606,7 +606,7 @@
 /* #undef HAVE_PTY_H */
 
 /* Define if you have the `pututline' function. */
-#define HAVE_PUTUTLINE 1
+/* #undef HAVE_PUTUTLINE */
 
 /* Define if you have the `pututxline' function. */
 /* #undef HAVE_PUTUTXLINE */
@@ -678,7 +678,7 @@
 #define HAVE_SETSID 1
 
 /* Define if you have the `setutent' function. */
-#define HAVE_SETUTENT 1
+/* #undef HAVE_SETUTENT */
 
 /* Define if you have the `setutxent' function. */
 /* #undef HAVE_SETUTXENT */
