@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.19 1995/03/22 12:24:08 davidg Exp $
+ * $Id: vm_map.c,v 1.20 1995/03/25 17:36:57 davidg Exp $
  */
 
 /*
@@ -142,8 +142,8 @@ vm_map_entry_t kentry_free;
 vm_map_t kmap_free;
 
 int kentry_count;
-static vm_offset_t mapvm_start = 0, mapvm = 0, mapvmmax;
-static int mapvmpgcnt = 0;
+static vm_offset_t mapvm_start, mapvm, mapvmmax;
+static int mapvmpgcnt;
 
 static void _vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void _vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
@@ -2599,6 +2599,7 @@ vm_map_simplify(map, start)
 	vm_map_unlock(map);
 }
 
+#ifdef DDB
 /*
  *	vm_map_print:	[ debug ]
  */
@@ -2666,3 +2667,4 @@ vm_map_print(map, full)
 	}
 	indent -= 2;
 }
+#endif
