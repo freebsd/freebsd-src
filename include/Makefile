@@ -102,9 +102,6 @@ copies:
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
 .endfor
-.for i in ${LNOHEADERDIRS}
-	rm -rf ${DESTDIR}/usr/include/$i
-.endfor
 	mtree -deU -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .for i in ${LDIRS} ${LSUBDIRS}
