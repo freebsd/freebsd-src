@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.391 1998/01/14 19:41:36 phk Exp $
+#	$Id: LINT,v 1.392 1998/01/16 22:12:59 pst Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1278,6 +1278,8 @@ options	"EISA_SLOTS=12"
 # The `fxp' device provides support for the Intel EtherExpress Pro/100B
 # PCI Fast Ethernet adapters.
 #
+# The `tx' device provides support for the SMC 9432TX cards.
+#
 # The `vx' device provides support for the 3Com 3C590 and 3C595
 # early support
 #
@@ -1304,6 +1306,7 @@ controller	ncr0
 controller	amd0
 device		de0
 device		fxp0
+device		tx0
 device		vx0
 device		fpa0
 device		meteor0
