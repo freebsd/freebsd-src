@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.2 1994/11/17 11:53:14 jkh Exp $
+# $Id: netinst.sh,v 1.3 1994/11/18 10:05:47 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -159,6 +159,7 @@ network_setup()
 				gateway=$answer
 				echo "Progress <$ROUTE $ROUTE_FLAGS $gateway>" > /dev/ttyv1 2>&1
 				$ROUTE $ROUTE_FLAGS $gateway > /dev/ttyv1 2>&1
+				echo $gateway > /etc/defaultrouter
 			fi
 		fi
 
