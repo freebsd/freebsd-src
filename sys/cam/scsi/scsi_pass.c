@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.2 1998/09/16 00:11:53 ken Exp $
+ *      $Id: scsi_pass.c,v 1.3 1998/10/15 17:46:26 ken Exp $
  */
 
 #include <sys/param.h>
@@ -42,7 +42,6 @@
 #include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/cdio.h>
 #include <sys/errno.h>
 #include <sys/devicestat.h>
 
@@ -104,6 +103,7 @@ static	d_strategy_t	passstrategy;
 
 static	periph_init_t	passinit;
 static	periph_ctor_t	passregister;
+static	periph_oninv_t	passoninvalidate;
 static	periph_dtor_t	passcleanup;
 static	periph_start_t	passstart;
 static	void		passasync(void *callback_arg, u_int32_t code,
@@ -197,15 +197,72 @@ passinit(void)
 }
 
 static void
+passoninvalidate(struct cam_periph *periph)
+{
+	int s;
+	struct pass_softc *softc;
+	struct buf *q_bp;
+	struct ccb_setasync csa;
+
+	softc = (struct pass_softc *)periph->softc;
+
+	/*
+	 * De-register any async callbacks.
+	 */
+	xpt_setup_ccb(&csa.ccb_h, periph->path,
+		      /* priority */ 5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = 0;
+	csa.callback = passasync;
+	csa.callback_arg = periph;
+	xpt_action((union ccb *)&csa);
+
+	softc->flags |= PASS_FLAG_INVALID;
+
+	/*
+	 * Although the oninvalidate() routines are always called at
+	 * splsoftcam, we need to be at splbio() here to keep the buffer
+	 * queue from being modified while we traverse it.
+	 */
+	s = splbio();
+
+	/*
+	 * Return all queued I/O with ENXIO.
+	 * XXX Handle any transactions queued to the card
+	 *     with XPT_ABORT_CCB.
+	 */
+	while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
+		bufq_remove(&softc->buf_queue, q_bp);
+		q_bp->b_resid = q_bp->b_bcount;
+		q_bp->b_error = ENXIO;
+		q_bp->b_flags |= B_ERROR;
+		biodone(q_bp);
+	}
+	splx(s);
+
+	if (bootverbose) {
+		xpt_print_path(periph->path);
+		printf("lost device\n");
+	}
+
+}
+
+static void
 passcleanup(struct cam_periph *periph)
 {
+	struct pass_softc *softc;
+
+	softc = (struct pass_softc *)periph->softc;
+
+	devstat_remove_entry(&softc->device_stats);
+
 	cam_extend_release(passperiphs, periph->unit_number);
 
 	if (bootverbose) {
 		xpt_print_path(periph->path);
 		printf("removing device entry\n");
 	}
-	free(periph->softc, M_DEVBUF);
+	free(softc, M_DEVBUF);
 }
 
 static void
@@ -229,10 +286,10 @@ passasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(passregister, passcleanup, passstart,
-					  "pass", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, passasync,
-					  AC_FOUND_DEVICE, cgd);
+		status = cam_periph_alloc(passregister, passoninvalidate,
+					  passcleanup, passstart, "pass",
+					  CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  passasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
 		 && status != CAM_REQ_INPROG)
@@ -242,57 +299,8 @@ passasync(void *callback_arg, u_int32_t code,
 		break;
 	}
 	case AC_LOST_DEVICE:
-	{
-		int s;
-		struct pass_softc *softc;
-		struct buf *q_bp;
-		struct ccb_setasync csa;
-
-		softc = (struct pass_softc *)periph->softc;
-
-		/*
-		 * Insure that no other async callbacks that
-		 * might affect this peripheral can come through.
-		 */
-		s = splcam();
-
-		/*
-		 * De-register any async callbacks.
-		 */
-		xpt_setup_ccb(&csa.ccb_h, periph->path,
-			      /* priority */ 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = 0;
-		csa.callback = passasync;
-		csa.callback_arg = periph;
-		xpt_action((union ccb *)&csa);
-
-		softc->flags |= PASS_FLAG_INVALID;
-
-		/*
-		 * Return all queued I/O with ENXIO.
-		 * XXX Handle any transactions queued to the card
-		 *     with XPT_ABORT_CCB.
-		 */
-		while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
-			bufq_remove(&softc->buf_queue, q_bp);
-			q_bp->b_resid = q_bp->b_bcount;
-			q_bp->b_error = ENXIO;
-			q_bp->b_flags |= B_ERROR;
-			biodone(q_bp);
-		}
-		devstat_remove_entry(&softc->device_stats);
-
-		if (bootverbose) {
-			xpt_print_path(periph->path);
-			printf("lost device\n");
-		}
-
-		splx(s);
-
 		cam_periph_invalidate(periph);
 		break;
-	}
 	case AC_TRANSFER_NEG:
 	case AC_SENT_BDR:
 	case AC_SCSI_AEN:
@@ -371,6 +379,7 @@ passopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct cam_periph *periph;
 	struct pass_softc *softc;
 	int unit, error;
+	int s;
 
 	error = 0; /* default to no error */
 
@@ -385,8 +394,12 @@ passopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	softc = (struct pass_softc *)periph->softc;
 
-	if (softc->flags & PASS_FLAG_INVALID)
+	s = splsoftcam();
+	if (softc->flags & PASS_FLAG_INVALID) {
+		splx(s);
 		return(ENXIO);
+	}
+	splx(s);
 
 	/*
 	 * Only allow read-write access.
