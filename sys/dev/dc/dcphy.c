@@ -367,6 +367,9 @@ dcphy_status(sc)
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
+	if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
+		return;
+
 	reg = CSR_READ_4(dc_sc, DC_10BTSTAT) &
 	    (DC_TSTAT_LS10|DC_TSTAT_LS100);
 
