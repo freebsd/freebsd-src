@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.11 1995/05/16 11:37:26 jkh Exp $
+ * $Id: system.c,v 1.12 1995/05/17 16:16:10 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -265,6 +265,10 @@ int
 vsystem(char *fmt, ...)
 {
     va_list args;
+    union wait pstat;
+    pid_t pid;
+    int omask;
+    sig_t intsave, quitsave;
     char *cmd;
     int i;
 
@@ -273,8 +277,25 @@ vsystem(char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(cmd, FILENAME_MAX, fmt, args);
     va_end(args);
+    omask = sigblock(sigmask(SIGCHLD));
     msgNotify("Executing command: %s", cmd);
-    i = system(cmd);
+    switch(pid = vfork()) {
+    case -1:			/* error */
+	(void)sigsetmask(omask);
+	i = 127;
+
+    case 0:				/* child */
+	(void)sigsetmask(omask);
+	execl("/stand/sh", "sh", "-c", cmd, (char *)NULL);
+	i = 127;
+    }
+    intsave = signal(SIGINT, SIG_IGN);
+    quitsave = signal(SIGQUIT, SIG_IGN);
+    pid = waitpid(pid, (int *)&pstat, 0);
+    (void)sigsetmask(omask);
+    (void)signal(SIGINT, intsave);
+    (void)signal(SIGQUIT, quitsave);
+    i = (pid == -1) ? -1 : pstat.w_status;
     msgDebug("Command `%s' returns status of %d\n", cmd, i);
     free(cmd);
     return i;
