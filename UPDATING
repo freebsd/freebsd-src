@@ -1685,7 +1685,7 @@ COMMON ITEMS:
 		adjkerntz -i		# if CMOS is wall time
 	Also, when doing a major release upgrade, it is required that
 	you boot into single user mode to do the installworld.
-	For the 4.x -> 5.0 upgrade, you will also see many messages about
+	For the 4.x -> 5.x upgrade, you will also see many messages about
 	needing to recompile your userland.  These are harmless and can
 	be ignored while you proceed to the next step.
 
@@ -1729,11 +1729,11 @@ COMMON ITEMS:
 	operator, so that buildworld can override the CPUTYPE if it needs to.
 	In case you would like to avoid installing new packages of everything,
 	you might want to uncomment the "COMPAT4X=	YES" entry, so that 4.x
-	compatibility libraries are build which should allow you to continue
+	compatibility libraries are built which should allow you to continue
 	using your existing software for a while.
 
 	[10] In order to create temporary files, /dev/random must be
-	initialized by feeding data into it.  /etc/rc.d/preseedrandom
+	initialized by feeding data into it.  /usr/src/etc/rc.d/preseedrandom
 	takes care of this.
 FORMAT:
 
