@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.23 1999/01/25 23:07:02 rnordier Exp $
+ *	$Id: biosdisk.c,v 1.1 1999/02/03 08:39:09 kato Exp $
  */
 
 /*
@@ -173,8 +173,12 @@ bd_init(void)
 	    bdinfo[nbdinfo].bd_flags = (unit & 0xf0) == 0x90 ? BD_FLOPPY : 0;
 
 	    /* XXX add EDD probes */
-	    if (!bd_int13probe(&bdinfo[nbdinfo]))
-	        break;
+	    if (!bd_int13probe(&bdinfo[nbdinfo])){
+		if ((unit & 0xf0) == 0xa0 && (unit & 0x0f) < 6)
+		    continue;	/* Target IDs are not contiguous. */
+		else
+		    break;
+	    }
 
 	    if (bdinfo[nbdinfo].bd_flags & BD_FLOPPY){
 	        bdinfo[nbdinfo].bd_drive = 'A' + (unit & 0xf);
