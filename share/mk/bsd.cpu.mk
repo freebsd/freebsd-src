@@ -100,9 +100,6 @@ _ICC_CPUCFLAGS = -tpp5
 .  else
 _ICC_CPUCFLAGS =
 .  endif # ICC on 'i386'
-.  if ${CPUTYPE} == "i386"
-CFLAGS += -DI386_CPU
-.  endif
 . elif ${MACHINE_ARCH} == "alpha"
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_ARCH} == "amd64"
