@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 4/20/94
-#	$Id$
+#	$Id: Makefile,v 1.2 1995/01/11 03:23:59 wollman Exp $
 
 # The following modules are encumbered:
 # 01.begin 02.learn 03.shell 05.dc 06.bc 09.edtut 10.edadv 15.sed 16.awk
@@ -9,11 +9,8 @@
 # The following modules are not provided:
 # 14.jove
 
-# The following modules use -me (which doesn't work)
-# 19.memacros 20.meref 30.rogue 31.trek
-
 BINDIR=	/usr/share/doc/usd
 SUBDIR=	title contents 04.csh 07.mail 10.exref 11.vitut 12.vi 13.viref \
-	18.msdiffs
+	18.msdiffs 19.memacros 20.meref 30.rogue 31.trek
 
 .include <bsd.subdir.mk>
