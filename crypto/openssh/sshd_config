@@ -17,7 +17,7 @@
 #VersionAddendum FreeBSD-20040106
 
 #Port 22
-#Protocol 2,1
+#Protocol 2
 #ListenAddress 0.0.0.0
 #ListenAddress ::
 
