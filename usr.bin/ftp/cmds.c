@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: cmds.c,v 1.12 1997/12/13 20:38:12 pst Exp $	*/
 /*	$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$Id$");
+__RCSID("$Id: cmds.c,v 1.12 1997/12/13 20:38:12 pst Exp $");
 __RCSID_SOURCE("$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $");
 #endif
 #endif /* not lint */
@@ -1137,7 +1137,7 @@ ls(argc, argv)
 		code = -1;
 		return;
 	}
-	cmd = strcmp(argv[0], "dir") == 0 ? "LIST" : "NLST";
+	cmd = strcmp(argv[0], "nlist") == 0 ? "NLST" : "LIST";
 	oldargv2 = argv[2];
 	if (strcmp(argv[2], "-") && !globulize(&argv[2])) {
 		code = -1;
