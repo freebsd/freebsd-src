@@ -52,15 +52,17 @@ The following variables are used by
 .Xr periodic 8
 itself:
 .Bl -tag -offset 4n -width 2n
-.It Ar local_periodic
-(str) List of directories to search for periodic scripts.
+.It Va local_periodic
+.Pq Vt str
+List of directories to search for periodic scripts.
 This list is always prefixed with
 .Pa /etc/periodic ,
 and is only used when an argument to
 .Xr periodic 8
 is not an absolute directory name.
-.It Ar dir Ns No _output
-(path or list) What to do with the output of the scripts envoked from
+.It Va dir Ns No _output
+.Pq Vt path No or Vt list
+What to do with the output of the scripts envoked from
 the directory
 .Ar dir .
 If this variable is set to an absolute path name, output is logged to
@@ -69,10 +71,10 @@ addresses and mailed to those users.
 If this variable is not set or is empty, output is sent to standard output.
 .Pp
 For an unattended machine, suitable values for
-.Ar $daily_output ,
-.Ar $weekly_output ,
+.Va daily_output ,
+.Va weekly_output ,
 and
-.Ar $monthly_output
+.Va monthly_output
 might be
 .Dq /var/log/daily.log ,
 .Dq /var/log/weekly.log ,
@@ -81,10 +83,11 @@ and
 respectively, as
 .Xr newsyslog 8
 will rotate these files (if they exists) at the appropriate times.
-.It Ar dir Ns No _show_success
-.It Ar dir Ns No _show_info
-.It Ar dir Ns No _show_badconfig
-(bool) These variables control whether
+.It Va dir Ns No _show_success
+.It Va dir Ns No _show_info
+.It Va dir Ns No _show_badconfig
+.Pq Vt bool
+These variables control whether
 .Xr periodic 8
 will mask the output of the envoked scripts based on their return code
 (where
@@ -93,21 +96,24 @@ is the base directory name in which each script resides).
 If the return code of a script is
 .Sq 0
 and
-.Ar dir Ns No _show_success is set to
+.Va dir Ns No _show_success
+is set to
 .Dq NO ,
 .Xr periodic 8
 will mask the script's output.
 If the return code of a script is
 .Sq 1
 and
-.Ar dir Ns No _show_info is set to
+.Va dir Ns No _show_info
+is set to
 .Dq NO ,
 .Xr periodic 8
 will mask the script's output.
 If the return code of a script is
 .Sq 2
 and
-.Ar dir Ns No _show_badconfig is set to
+.Va dir Ns No _show_badconfig
+is set to
 .Dq NO ,
 .Xr periodic 8
 will mask the script's output.
@@ -130,100 +136,121 @@ man page for how script return codes are interpreted.
 The following variables are used by the standard scripts that reside in
 .Pa /etc/periodic/daily :
 .Bl -tag -offset 4n -width 2n
-.It Ar daily_clean_disks_enable
-(bool) Set to
+.It Va daily_clean_disks_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to remove all files matching
-.Ar daily_clean_disks_files
+.Va daily_clean_disks_files
 daily.
-.It Ar daily_clean_disks_files
-(str) Set to a list of file names to match.
+.It Va daily_clean_disks_files
+.Pq Vt str
+Set to a list of file names to match.
 Wild cards are permitted.
-.It Ar daily_clean_disks_days
-(num) When
-.Ar daily_clean_disks_enable
+.It Va daily_clean_disks_days
+.Pq Vt num
+When
+.Va daily_clean_disks_enable
 is set to
 .Dq YES ,
 this must also be set to the number of days old that a file's access
 and modification times must be before it's deleted.
-.It Ar daily_clean_disks_verbose
-(bool) Set to
+.It Va daily_clean_disks_verbose
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the removed files to be reported in your daily output.
-.It Ar daily_clean_tmps_enable
-(bool) Set to
+.It Va daily_clean_tmps_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to clear temporary directories daily.
-.It Ar daily_clean_tmps_dirs
-(str) Set to the list of directories to clear if
-.Ar daily_clean_tmps_enable
+.It Va daily_clean_tmps_dirs
+.Pq Vt str
+Set to the list of directories to clear if
+.Va daily_clean_tmps_enable
 is set to
 .Dq YES .
-.It Ar daily_clean_tmps_days
-(num) When
-.Ar daily_clean_tmps_enable
+.It Va daily_clean_tmps_days
+.Pq Vt num
+When
+.Va daily_clean_tmps_enable
 is set, this must also be set to the number of days old that a file's access
 and modification times must be before it's deleted.
-.It Ar daily_clean_tmps_ignore
-(str) Set to the list of files that should not be deleted when
-.Ar daily_clean_tmps_enable
+.It Va daily_clean_tmps_ignore
+.Pq Vt str
+Set to the list of files that should not be deleted when
+.Va daily_clean_tmps_enable
 is set to
 .Dq YES .
 Wild card characters are permitted.
-.It Ar daily_clean_tmps_verbose
-(bool) Set to
+.It Va daily_clean_tmps_verbose
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the removed files to be reported in your daily output.
-.It Ar daily_clean_preserve_enable
-(bool) Set to
+.It Va daily_clean_preserve_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you wish to remove old files from
 .Pa /var/preserve .
-.It Ar daily_clean_preserve_days
-(num) Set to the number of days that files must not have been modified before
+.It Va daily_clean_preserve_days
+.Pq Vt num
+Set to the number of days that files must not have been modified before
 they are deleted.
-.It Ar daily_clean_preserve_verbose
-(bool) Set to
+.It Va daily_clean_preserve_verbose
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the removed files to be reported in your daily output.
-.It Ar daily_clean_msgs_enable
-(bool) Set to
+.It Va daily_clean_msgs_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you old system messages to be purged.
-.It Ar daily_clean_msgs_days
-(num) Set to the number of days that files must not have been modified before
+.It Va daily_clean_msgs_days
+.Pq Vt num
+Set to the number of days that files must not have been modified before
 they are deleted.
 If this variable is left blank, the
 .Xr msgs 1
 default is used.
-.It Ar daily_clean_rwho_enable
-(bool) Set to
+.It Va daily_clean_rwho_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you wish old files in
 .Pa /var/who
 to be purged.
-.It Ar daily_clean_rwho_days
-(num) Set to the number of days that files must not have been modified before
+.It Va daily_clean_rwho_days
+.Pq Vt num
+Set to the number of days that files must not have been modified before
 they are deleted.
-.It Ar daily_clean_rwho_verbose
-(bool) Set to
+.It Va daily_clean_rwho_verbose
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the removed files to be reported in your daily output.
-.It Ar daily_clean_hoststat_enable
-(bool) Set to
+.It Va daily_clean_hoststat_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you wish old files in
 .Pa /var/spool/.hoststat
 to be purged.
-.It Ar daily_clean_hoststat_days
-(num) Set to the number of days that files must not have been modified before
+.It Va daily_clean_hoststat_days
+.Pq Vt num
+Set to the number of days that files must not have been modified before
 they are deleted.
-.It Ar daily_clean_hoststat_verbose
-(bool) Set to
+.It Va daily_clean_hoststat_verbose
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the removed files to be reported in your daily output.
-.It Ar daily_backup_passwd_enable
-(bool) Set to
+.It Va daily_backup_passwd_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the
 .Pa /etc/master.passwd
@@ -235,39 +262,45 @@ Reporting consists of checking both files for modifications and running
 on the
 .Pa group
 file.
-.It Ar daily_backup_aliases_enable
-(bool) Set to
+.It Va daily_backup_aliases_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the
 .Pa /etc/mail/aliases
 file backed up and modifications to be displayed in your daily output.
-.It Ar daily_backup_distfile_enable
-(bool) Set to
+.It Va daily_backup_distfile_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the
 .Pa /etc/Distfile
 file backed up and modifications to be displayed in your daily output.
-.It Ar daily_calendar_enable
-(bool) Set to
+.It Va daily_calendar_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Ic calendar -a
 daily.
-.It Ar daily_accounting_enable
-(bool) Set to
+.It Va daily_accounting_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to rotate your daily accounting files.
 No rotations are necessary unless
-.Ar accounting_enable
+.Va accounting_enable
 is enabled in
 .Xr rc.conf 5 .
-.It Ar daily_accounting_compress
-(bool) Set to
+.It Va daily_accounting_compress
+.Pq Vt bool
+Set to
 .Dq YES
 if you want your daily accounting files to be compressed using
 .Xr gzip 1 .
-.It Ar daily_distfile_enable
-(bool) Set to
+.It Va daily_distfile_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Xr rdist 1
@@ -276,141 +309,163 @@ The
 .Pa /etc/Distfile
 file must also exist.
 .It Pa daily_news_expire_enable
-(bool) Set to
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Pa /etc/news.expire .
 .It Pa daily_uuclean_enable
-(bool) Set to
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Pa /etc/uuclean.daily .
-.It Ar daily_status_disks_enable
-(bool) Set to
+.It Va daily_status_disks_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Xr df 1
 .Po
 with the arguments supplied in
-.Ar daily_status_disks_df_flags
+.Va daily_status_disks_df_flags
 .Pc
 and
 .Ic dump -W .
-.It Ar daily_status_disks_df_flags
-(str) Set to the arguments for the
+.It Va daily_status_disks_df_flags
+.Pq Vt str
+Set to the arguments for the
 .Xr df 1
 utility when
-.Ar daily_status_disks_enable
+.Va daily_status_disks_enable
 is set to
 .Dq YES .
-.It Ar daily_status_uucp_enable
-(bool) Set to
+.It Va daily_status_uucp_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Ic uustat -a .
-.It Ar daily_status_network_enable
-(bool) Set to
+.It Va daily_status_network_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Ic netstat -i .
-.It Ar daily_status_network_usedns
-(bool) Set to
+.It Va daily_status_network_usedns
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Xr netstat 1
 without the
 .Fl n
 option (to do DNS lookups).
-.It Ar daily_status_rwho_enable
-(bool) Set to
+.It Va daily_status_rwho_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Xr uptime 1
 (or
 .Xr ruptime 1
 if 
-.Ar rwhod_enable
+.Va rwhod_enable
 is set to
 .Dq YES
 in
 .Pa /etc/rc.conf ) .
-.It Ar daily_status_mailq_enable
-(bool) Set to
+.It Va daily_status_mailq_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Xr mailq 1 .
-.It Ar daily_status_mailq_shorten
-(bool) Set to
+.It Va daily_status_mailq_shorten
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to shorten the
 .Nm mailq
 output when
-.Ar daily_status_mailq_enable
+.Va daily_status_mailq_enable
 is set to
 .Dq YES .
-.It Ar daily_status_security_enable
-(bool) Set to
+.It Va daily_status_security_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Pa /etc/security .
-.It Ar daily_status_security_inline
-(bool) Set to
+.It Va daily_status_security_inline
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Pa /etc/security
 inline.
 The default is to either mail or log the output according to the value of
-.Ar $daily_status_security_output .
-.It Ar daily_status_security_output
-(str) Where to send the output of
+.Va daily_status_security_output .
+.It Va daily_status_security_output
+.Pq Vt str
+Where to send the output of
 .Pa /etc/security
 if
-.Ar $daily_status_security_inline
+.Va daily_status_security_inline
 is set to
 .Dq NO .
 This variable behaves in the same way as the
-.Ar *_output
+.Va *_output
 variables above, namely it can be set either to one or more email addresses
 or to an absolute file name.
-.It Ar daily_status_security_noamd
-(bool) Set to
+.It Va daily_status_security_noamd
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to ignore
 .Xr amd 8
 mounts when comparing against yesterdays filesystem mounts.
-.It Ar daily_status_security_nomfs
-(bool) Set to
+.It Va daily_status_security_nomfs
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to ignore
 .Xr mfs 8
 mounts when comparing against yesterdays filesystem mounts.
-.It Ar daily_status_mail_rejects_enable
-(bool) Set to
+.It Va daily_status_mail_rejects_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to summarise mail rejections logged to
 .Pa /var/log/maillog
 for the previous day.
-.It Ar daily_status_mail_rejects_logs
-(num) Set to the number of maillog files that should be checked
+.It Va daily_status_mail_rejects_logs
+.Pq Vt num
+Set to the number of maillog files that should be checked
 for yesterday's mail rejects.
-.It Ar daily_status_named_enable
-(bool) Set to
+.It Va daily_status_named_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to summarise denied zone transfers (AXFR and IXFR)
 for the previious day.
-.It Ar daily_status_named_logs
-(num) Set to the number of log files that should be checked for
+.It Va daily_status_named_logs
+.Pq Vt num
+Set to the number of log files that should be checked for
 yesterday's rejected zone transfers.
-.It Ar daily_status_named_usedns
-(bool) Set to
+.It Va daily_status_named_usedns
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to enable reverse DNS lookups.
-.It Ar daily_queuerun_enable
-(bool) Set to
+.It Va daily_queuerun_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to manually run the mail queue at least once a day.
-.It Ar daily_local
-(str) Set to a list of extra scripts that should be run after all other
+.It Va daily_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
 daily scripts.
 All scripts must be absolute path names.
 .El
@@ -418,27 +473,32 @@ All scripts must be absolute path names.
 The following variables are used by the standard scripts that reside in
 .Pa /etc/periodic/weekly :
 .Bl -tag -offset 4n -width 2n
-.It Ar weekly_clean_kvmdb_enable
-(bool) Set to
+.It Va weekly_clean_kvmdb_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to purge old
 .Pa /var/db/kvm_*.db
 files.
 The kvm file for the current kernel will not be purged.
-.It Ar weekly_clean_kvmdb_days
-(num) Set to the number of days that the file must not have been accessed
+.It Va weekly_clean_kvmdb_days
+.Pq Vt num
+Set to the number of days that the file must not have been accessed
 before being deleted.
-.It Ar weekly_clean_kvmdb_verbose
-(bool) Set to
+.It Va weekly_clean_kvmdb_verbose
+.Pq Vt bool
+Set to
 .Dq YES
 if you want the removed files to be reported in your weekly output.
-.It Ar weekly_uucp_enable
-(bool) Set to
+.It Va weekly_uucp_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Pa /usr/libexec/uucp/clean.weekly .
-.It Ar weekly_locate_enable
-(bool) Set to
+.It Va weekly_locate_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Pa /usr/libexec/locate.updatedb .
@@ -449,39 +509,45 @@ as user
 and generates the table used by the
 .Xr locate 1
 command.
-.It Ar weekly_whatis_enable
-(bool) Set to
+.It Va weekly_whatis_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Pa /usr/libexec/makewhatis.local .
 This script regenerates the database used by the
 .Xr apropos 1
 command.
-.It Ar weekly_catman_enable
-(bool) Set to
+.It Va weekly_catman_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to run
 .Pa /usr/libexec/catman.local .
 This script processes all out of date man pages, speeding up the
 .Xr man 1
 command at the expense of disk space.
-.It Ar weekly_noid_enable
-(bool) Set to
+.It Va weekly_noid_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to locate orphaned files on the system.
 An orphaned file is one with an invalid owner or group.
-.It Ar weekly_noid_dirs
-(str) A list of directories under which orphaned files are searched for.
+.It Va weekly_noid_dirs
+.Pq Vt str
+A list of directories under which orphaned files are searched for.
 This would usually be set to
 .Pa / .
-.It Ar weekly_status_pkg_enable
-(bool) Set to
+.It Va weekly_status_pkg_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to use
 .Xr pkg_version 1
 to list installed packages which are out of date.
-.It Ar weekly_local
-(str) Set to a list of extra scripts that should be run after all other
+.It Va weekly_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
 weekly scripts.
 All scripts must be absolute path names.
 .El
@@ -489,14 +555,16 @@ All scripts must be absolute path names.
 The following variables are used by the standard scripts that reside in
 .Pa /etc/periodic/monthly :
 .Bl -tag -offset 4n -width 2n
-.It Ar monthly_accounting_enable
-(bool) Set to
+.It Va monthly_accounting_enable
+.Pq Vt bool
+Set to
 .Dq YES
 if you want to do login accounting using the
 .Xr ac 8
 command.
-.It Ar monthly_local
-(str) Set to a list of extra scripts that should be run after all other
+.It Va monthly_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
 monthly scripts.
 All scripts must be absolute path names.
 .El
