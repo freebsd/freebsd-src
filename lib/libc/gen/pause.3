@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)pause.3	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
 .Dd June 4, 1993
 .Dt PAUSE 3
@@ -42,9 +43,8 @@
 .Ft int
 .Fn pause void
 .Sh DESCRIPTION
-.Bf -symbolic
-Pause is made obsolete by sigpause(3).
-.Ef
+.Sy Pause is made obsolete by
+.Xr sigsuspend 2 .
 .Pp
 The
 .Fn pause
@@ -75,7 +75,7 @@ The call was interrupted.
 .Sh SEE ALSO
 .Xr kill 2 ,
 .Xr select 2 ,
-.Xr sigpause 2
+.Xr sigsuspend 2
 .Sh HISTORY
 A
 .Fn pause
