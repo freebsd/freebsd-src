@@ -414,31 +414,49 @@ zfree(vm_zone_t z, void *item)
 static int
 sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 {
-	int error, len;
-	char tmpbuf[128];
+	int error, len, cnt;
+	const int linesize = 128;	/* conservative */
+	char *tmpbuf, *offset;
 	vm_zone_t z;
 	char *p;
 
+	cnt = 0;
 	mtx_lock(&zone_mtx);
-	len = snprintf(tmpbuf, sizeof(tmpbuf),
+	SLIST_FOREACH(z, &zlist, zent)
+		cnt++;
+	mtx_unlock(&zone_mtx);
+	MALLOC(tmpbuf, char *, (cnt == 0 ? 1 : cnt) * linesize,
+			M_TEMP, M_WAITOK);
+	len = snprintf(tmpbuf, linesize,
 	    "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n\n");
-	error = SYSCTL_OUT(req, tmpbuf, SLIST_EMPTY(&zlist) ? len-1 : len);
+	if (cnt == 0)
+		tmpbuf[len - 1] = '\0';
+	error = SYSCTL_OUT(req, tmpbuf, cnt == 0 ? len-1 : len);
+	if (error || cnt == 0)
+		goto out;
+	offset = tmpbuf;
+	mtx_lock(&zone_mtx);
 	SLIST_FOREACH(z, &zlist, zent) {
+		if (cnt == 0)	/* list may have changed size */
+			break;
 		mtx_lock(&z->zmtx);
-		len = snprintf(tmpbuf, sizeof(tmpbuf),
+		len = snprintf(offset, linesize,
 		    "%-12.12s  %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
 		    z->zname, z->zsize, z->zmax, (z->ztotal - z->zfreecnt),
 		    z->zfreecnt, z->znalloc);
-		for (p = tmpbuf + 12; p > tmpbuf && *p == ' '; --p)
+		mtx_unlock(&z->zmtx);
+		for (p = offset + 12; p > offset && *p == ' '; --p)
 			/* nothing */ ;
 		p[1] = ':';
-		mtx_unlock(&z->zmtx);
-		if (SLIST_NEXT(z, zent) == NULL)
-			tmpbuf[len - 1] = 0;
-		if ((error = SYSCTL_OUT(req, tmpbuf, len)) != 0)
-			break;
+		cnt--;
+		offset += len;
 	}
 	mtx_unlock(&zone_mtx);
+	offset--;
+	*offset = '\0';
+	error = SYSCTL_OUT(req, tmpbuf, offset - tmpbuf);
+out:
+	FREE(tmpbuf, M_TEMP);
 	return (error);
 }
 
