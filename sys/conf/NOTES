@@ -2435,6 +2435,54 @@ options 	BUS_DEBUG	# enable newbus debugging
 options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
 options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
 
+#####################################################################
+# SYSV IPC KERNEL PARAMETERS
+#
+# Maximum number of entries in a semaphore map.
+options 	SEMMAP=31
+
+# Maximum number of System V semaphores that can be used on the system at
+# one time. 
+options 	SEMMNI=11
+
+# Total number of semaphores system wide
+options 	SEMMNS=61
+
+# Total number of undo structures in system
+options 	SEMMNU=31
+
+# Maximum number of System V semaphores that can be used by a single process
+# at one time. 
+options 	SEMMSL=61
+
+# Maximum number of operations that can be outstanding on a single System V
+# semaphore at one time. 
+options 	SEMOPM=101
+
+# Maximum number of undo operations that can be outstanding on a single
+# System V semaphore at one time. 
+options 	SEMUME=11
+
+# Maximum number of shared memory pages system wide.
+options 	SHMALL=1025
+
+# Maximum size, in bytes, of a single System V shared memory region. 
+options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
+options 	SHMMAXPGS=1025
+
+# Minimum size, in bytes, of a single System V shared memory region. 
+options 	SHMMIN=2
+
+# Maximum number of shared memory regions that can be used on the system
+# at one time. 
+options 	SHMMNI=33
+
+# Maximum number of System V shared memory regions that can be attached to
+# a single process at one time. 
+options 	SHMSEG=9
+
+#####################################################################
+
 # More undocumented options for linting.
 # Note that documenting these are not considered an affront.
 
@@ -2478,20 +2526,6 @@ options 	SCSI_NCR_MAX_WIDE=1
 options 	SCSI_NCR_MYADDR=7
 options 	SC_DEBUG_LEVEL
 options 	SC_RENDER_DEBUG
-options 	SEMMAP=31
-options 	SEMMNI=11
-options 	SEMMNS=61
-options 	SEMMNU=31
-options 	SEMMSL=61
-options 	SEMOPM=101
-options 	SEMUME=11
-options 	SHMALL=1025
-options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
-options 	SHMMAXPGS=1025
-options 	SHMMIN=2
-options 	SHMMNI=33
-options 	SHMSEG=9
-options 	SHM_PHYS_BACKED
 options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	SIMPLELOCK_DEBUG
 options 	SLIP_IFF_OPTS
