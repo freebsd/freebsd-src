@@ -212,6 +212,7 @@ MAN=	aac.4 \
 	ukbd.4 \
 	ulpt.4 \
 	umass.4 \
+	umct.4 \
 	ums.4 \
 	unix.4 \
 	uplcom.4 \
