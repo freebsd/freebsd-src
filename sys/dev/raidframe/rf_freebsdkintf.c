@@ -219,7 +219,6 @@ static struct cdevsw raidctl_cdevsw = {
 	.d_close =	raidctlclose,
 	.d_ioctl =	raidctlioctl,
 	.d_name =	"raidctl",
-	.d_maj =	201,
 };
 
 /*
