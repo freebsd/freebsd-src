@@ -22,51 +22,49 @@ CLEANFILES=	makedevs.c rtermcap rtermcap.tmp dumpnlist
 CLEANFILES+=	keymap.tmp keymap.h
 
 makedevs.c:	Makefile rtermcap
-	rm -f makedevs.tmp
-	echo '#include <sys/types.h>' > makedevs.tmp
+	echo '#include <sys/types.h>' > makedevs.c
 	./rtermcap ansi | \
 		file2c 'const char termcap_ansi[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25w | \
 		file2c 'const char termcap_cons25w[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25-m | \
 		file2c 'const char termcap_cons25_m[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25r | \
 		file2c 'const char termcap_cons25r[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25r-m | \
 		file2c 'const char termcap_cons25r_m[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25l1 | \
 		file2c 'const char termcap_cons25l1[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25l1-m | \
 		file2c 'const char termcap_cons25l1_m[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap xterm | \
 		file2c 'const char termcap_xterm[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 .if ${MACHINE} == "i386"
-	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.tmp
-	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.tmp
-	file2c 'u_char mbr[] = {' '};' < /boot/mbr >> makedevs.tmp
-	echo "size_t mbr_size = sizeof(mbr);" >> makedevs.tmp
+	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.c
+	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.c
+	file2c 'u_char mbr[] = {' '};' < /boot/mbr >> makedevs.c
+	echo "size_t mbr_size = sizeof(mbr);" >> makedevs.c
 .endif
 .if ${MACHINE} == "pc98"
-	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.tmp
-	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.tmp
-	file2c 'u_char boot05[] = {' '};' < /boot/boot0.5 >> makedevs.tmp
-	echo "size_t boot05_size = sizeof(boot05);" >> makedevs.tmp
+	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.c
+	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.c
+	file2c 'u_char boot05[] = {' '};' < /boot/boot0.5 >> makedevs.c
+	echo "size_t boot05_size = sizeof(boot05);" >> makedevs.c
 .endif
-	mv makedevs.tmp makedevs.c
 
 build-tools:	rtermcap
 
