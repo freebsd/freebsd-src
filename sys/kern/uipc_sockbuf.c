@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.38 1998/09/04 13:13:18 ache Exp $
+ *	$Id: uipc_socket2.c,v 1.39 1998/09/05 13:24:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -477,18 +477,20 @@ sbcheck(sb)
 	register struct sockbuf *sb;
 {
 	register struct mbuf *m;
-	register int len = 0, mbcnt = 0;
+	register struct mbuf *n = 0;
+	register u_long len = 0, mbcnt = 0;
 
-	for (m = sb->sb_mb; m; m = m->m_next) {
+	for (m = sb->sb_mb; m; m = n) {
+	    n = m->m_nextpkt;
+	    for (; m; m = m->m_next) {
 		len += m->m_len;
 		mbcnt += MSIZE;
 		if (m->m_flags & M_EXT) /*XXX*/ /* pretty sure this is bogus */
 			mbcnt += m->m_ext.ext_size;
-		if (m->m_nextpkt)
-			panic("sbcheck nextpkt");
+	    }
 	}
 	if (len != sb->sb_cc || mbcnt != sb->sb_mbcnt) {
-		printf("cc %d != %d || mbcnt %d != %d\n", len, sb->sb_cc,
+		printf("cc %ld != %ld || mbcnt %ld != %ld\n", len, sb->sb_cc,
 		    mbcnt, sb->sb_mbcnt);
 		panic("sbcheck");
 	}
@@ -720,10 +722,10 @@ sbflush(sb)
 
 	if (sb->sb_flags & SB_LOCK)
 		panic("sbflush: locked");
-	while (sb->sb_mbcnt)
+	while (sb->sb_mbcnt && sb->sb_cc)
 		sbdrop(sb, (int)sb->sb_cc);
-	if (sb->sb_cc || sb->sb_mb)
-		panic("sbflush: cc %ld || mb %p", sb->sb_cc, (void *)sb->sb_mb);
+	if (sb->sb_cc || sb->sb_mb || sb->sb_mbcnt)
+		panic("sbflush: cc %ld || mb %p || mbcnt %ld", sb->sb_cc, (void *)sb->sb_mb, sb->sb_mbcnt);
 }
 
 /*
