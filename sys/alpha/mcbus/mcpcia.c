@@ -324,6 +324,12 @@ mcpcia_maxdevs(u_int b)
 static u_int32_t mcpcia_cfgread(u_int, u_int, u_int, u_int, u_int, int);
 static void mcpcia_cfgwrite(u_int, u_int, u_int, u_int, u_int, int, u_int32_t);
 
+#if	0
+#define	RCFGP	printf
+#else
+#define	RCFGP	if (0) printf
+#endif
+
 static u_int32_t
 mcpcia_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 {
@@ -332,26 +338,25 @@ mcpcia_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 	u_int32_t *dp, data, rvp;
 	u_int64_t paddr;
 
+	RCFGP("CFGREAD %u.%u.%u.%u.%u.%d", bh, bus, slot, func, off, sz);
 	rvp = data = ~0;
-	if (bh > 3)
-		return (data);
+	if (bh == (u_int8_t)-1)
+		bh = bus >> 4;
 	dev = mcpcias[bh];
 	if (dev == (device_t) 0) {
+		RCFGP(" (no dev)\n");
 		return (data);
 	}
 	sc = MCPCIA_SOFTC(dev);
-
-	/*
-	 * The bus number being passed is the pci instance number- not
-	 * the actual pci bus number. FreeBSD farts bad on this one.
-	 */
-	bus = 0;	/* No secondaries for the moment */
+	bus &= 0xf;
 
 	/*
 	 * There's nothing in slot 0 on a primary bus.
 	 */
-	if (bus == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV))
+	if (bus == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV)) {
+		RCFGP(" (no slot)\n");
 		return (data);
+	}
 
 	paddr = bus << 21;
 	paddr |= slot << 16;
@@ -361,11 +366,7 @@ mcpcia_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 	paddr |= MCPCIA_PCI_CONF;
 	paddr |= sc->sysbase;
 	dp = (u_int32_t *)KV(paddr);
-
-#if	0
-printf("CFGREAD MID %d %d.%d.%d sz %d off %d -> paddr 0x%x",
-mcbus_get_mid(dev), bus , slot, func, sz, off, paddr);
-#endif
+	RCFGP(" hose %d MID%d paddr 0x%lx", bh, mcbus_get_mid(dev), paddr);
 	if (badaddr(dp, sizeof (*dp)) == 0) {
 		data = *dp;
 	}
@@ -380,12 +381,15 @@ mcbus_get_mid(dev), bus , slot, func, sz, off, paddr);
 	} else {
 		rvp = data;
 	}
-
-#if	0
-printf(" data 0x%x -> 0x%x\n", data, rvp);
-#endif
+	RCFGP(" data %x->0x%x\n", data, rvp);
 	return (rvp);
 }
+
+#if	0
+#define	WCFGP	printf
+#else
+#define	WCFGP	if (0) printf
+#endif
 
 static void
 mcpcia_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
@@ -396,20 +400,24 @@ mcpcia_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 	u_int32_t *dp;
 	u_int64_t paddr;
 
-	if (bh > 3)
-		return;
+	WCFGP("CFGWRITE %u.%u.%u.%u.%u.%d", bh, bus, slot, func, off, sz);
+	if (bh == (u_int8_t)-1)
+		bh = bus >> 4;
 	dev = mcpcias[bh];
 	if (dev == (device_t) 0) {
+		WCFGP(" (no dev)\n");
 		return;
 	}
 	sc = MCPCIA_SOFTC(dev);
-	bus = 0;	/* No secondaries for the moment */
+	bus &= 0xf;
 
 	/*
 	 * There's nothing in slot 0 on a primary bus.
 	 */
-	if (bus != 0 && (slot < 1 || slot >= MCPCIA_MAXDEV))
+	if (bus == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV)) {
+		WCFGP(" (no slot)\n");
 		return;
+	}
 
 	paddr = bus << 21;
 	paddr |= slot << 16;
@@ -419,7 +427,7 @@ mcpcia_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 	paddr |= MCPCIA_PCI_CONF;
 	paddr |= sc->sysbase;
 	dp = (u_int32_t *)KV(paddr);
-
+	WCFGP(" hose %d MID%d paddr 0x%lx\n", bh, mcbus_get_mid(dev), paddr);
 	if (badaddr(dp, sizeof (*dp)) == 0) {
 		u_int32_t new_data;
 		if (sz == 1) {
@@ -429,12 +437,6 @@ mcpcia_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 		} else  {
 			new_data = data;
 		}
-
-#if	0
-printf("CFGWRITE MID%d %d.%d.%d sz %d off %d paddr %lx, data %x new_data %x\n",
-mcbus_get_mid(dev), bus , slot, func, sz, off, paddr, data, new_data);
-#endif
-
 		*dp = new_data;
 	}
 }
