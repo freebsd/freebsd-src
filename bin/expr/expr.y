@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $Id: expr.y,v 1.8 1994/09/24 02:55:37 davidg Exp $
+ * $Id: expr.y,v 1.9 1995/03/19 13:28:41 joerg Exp $
  */
 
 #include <stdio.h>
@@ -107,13 +107,25 @@ make_str (s)
 char *s;
 {
 	struct val *vp;
+	int i, isint;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
 		err (2, NULL);
 	}
 
+	for(i = 1, isint = isdigit(s[0]) || s[0] == '-';
+	    isint && i < strlen(s);
+	    i++)
+	{
+		if(!isdigit(s[i]))
+			 isint = 0;
+	}
+
 	vp->type = string;
+	if(isint)
+		to_integer(vp);
+
 	return vp;
 }
 
