@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-ospf.c,v 1.23 96/12/10 23:15:46 leres Exp $ (LBL)";
+    "@(#) $Header: print-ospf.c,v 1.24 97/04/26 13:31:46 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -215,11 +215,7 @@ ospf_print_lsa(register const struct lsa *lsap)
 		TCHECK(lsap->lsa_un.un_rla.rla_link);
 		rlp = lsap->lsa_un.un_rla.rla_link;
 		while (j--) {
-			register struct rlalink *rln =
-			    (struct rlalink *)((u_char *)(rlp + 1) +
-			    ((rlp->link_toscount) * sizeof(*tosp)));
-
-			TCHECK(*rln);
+			TCHECK(*rlp);
 			printf(" {");				/* } (ctags) */
 			switch (rlp->link_type) {
 
@@ -262,7 +258,8 @@ ospf_print_lsa(register const struct lsa *lsap)
 			}
 								/* { (ctags) */
 			printf(" }");
-			rlp = rln;
+			rlp = (struct rlalink *)((u_char *)(rlp + 1) +
+			    ((rlp->link_toscount) * sizeof(*tosp)));
 		}
 		break;
 
@@ -514,6 +511,13 @@ ospf_print(register const u_char *bp, register u_int length,
 	    ipaddr_string(&ip->ip_src),
 	    ipaddr_string(&ip->ip_dst));
 
+        /* XXX Before we do anything else, strip off the MD5 trailer */
+        TCHECK(op->ospf_authtype);
+        if (ntohs(op->ospf_authtype) == OSPF_AUTH_MD5) {
+                length -= OSPF_AUTH_MD5_LEN;
+                snapend -= OSPF_AUTH_MD5_LEN;
+        }
+
 	/* If the type is valid translate it, or just print the type */
 	/* value.  If it's not valid, say so and return */
 	TCHECK(op->ospf_type);
@@ -553,6 +557,10 @@ ospf_print(register const u_char *bp, register u_int length,
 			(void)fn_printn(op->ospf_authdata,
 			    sizeof(op->ospf_authdata), NULL);
 			printf("\"");
+			break;
+
+		case OSPF_AUTH_MD5:
+			printf(" auth MD5");
 			break;
 
 		default:

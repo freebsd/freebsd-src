@@ -1,4 +1,75 @@
-@(#) $Header: CHANGES,v 1.45 96/12/07 20:38:04 leres Exp $ (LBL)
+@(#) $Header: CHANGES,v 1.54 98/07/25 12:41:06 leres Exp $ (LBL)
+
+v3.4 Sat Jul 25 12:40:55 PDT 1998
+
+- Hardwire Linux slip support since it's too hard to detect.
+
+- Redo configuration of "network" libraries (-lsocket and -lnsl) to
+  deal with IRIX. Thanks to John Hawkinson (jhawk@mit.edu)
+
+- Added -a which tries to translate network and broadcast addresses to
+  names. Suggested by Rob van Nieuwkerk (robn@verdi.et.tudelft.nl)
+
+- Added a configure option to disable gcc.
+
+- Added a "raw" packet printer.
+
+- Not having an interface address is no longer fatal. Requested by John
+  Hawkinson.
+
+- Rework signal setup to accommodate Linux.
+
+- OSPF truncation check fix. Also display the type of OSPF packets
+  using MD5 authentication. Thanks to Brian Wellington
+  (bwelling@tis.com)
+
+- Fix truncation check bugs in the Kerberos printer. Reported by Ezra
+  Peisach (epeisach@mit.edu)
+
+- Don't catch SIGHUP when invoked with nohup(1). Thanks to Dave Plonka
+  (plonka@mfa.com)
+
+- Specify full install target as a way of detecting if install
+  directory does not exist. Thanks to Dave Plonka.
+
+- Bit-swap FDDI addresses for BSD/OS too. Thanks to Paul Vixie
+  (paul@vix.com)
+
+- Fix off-by-one bug when testing size of ethernet packets. Thanks to
+  Marty Leisner (leisner@sdsp.mc.xerox.com)
+
+- Add a local autoconf macro to check for routines in libraries; the
+  autoconf version is broken (it only puts the library name in the
+  cache variable name). Thanks to John Hawkinson.
+
+- Add a local autoconf macro to check for types; the autoconf version
+  is broken (it uses grep instead of actually compiling a code fragment).
+
+- Modified to support the new BSD/OS 2.1 PPP and SLIP link layer header
+  formats.
+
+- Extend OSF ip header workaround to versions 1 and 2.
+
+- Fix some signed problems in the nfs printer. As reported by David
+  Sacerdote (davids@silence.secnet.com)
+
+- Detect group wheel and use it as the default since BSD/OS' install
+  can't hack numeric groups. Reported by David Sacerdote.
+
+- AIX needs special loader options. Thanks to Jonathan I. Kamens
+  (jik@cam.ov.com)
+
+- Fixed the nfs printer to print port numbers in decimal. Thanks to
+  Kent Vander Velden (graphix@iastate.edu)
+
+- Find installed libpcap in /usr/local/lib when not using gcc.
+
+- Disallow network masks with non-network bits set.
+
+- Attempt to detect "egcs" versions of gcc.
+
+- Add missing closing double quotes when displaying bootp strings.
+  Reported by Viet-Trung Luu (vluu@picard.math.uwaterloo.ca)
 
 v3.3 Sat Nov 30 20:56:27 PST 1996
 
