@@ -105,9 +105,7 @@ static int ips_cmdqueue_free(ips_softc_t *sc)
 {
 	int i, error = -1;
 	ips_command_t *command;
-	intrmask_t mask;
 
-	mask = splbio();
 	if(!sc->used_commands){
 		for(i = 0; i < sc->max_cmds; i++){
 
@@ -129,7 +127,6 @@ static int ips_cmdqueue_free(ips_softc_t *sc)
 	}
 	sc->staticcmd = NULL;
 	free(sc->commandarray, M_DEVBUF);
-	splx(mask);
 	return error;
 }
 
@@ -186,18 +183,14 @@ error:
  */
 int ips_get_free_cmd(ips_softc_t *sc, ips_command_t **cmd, unsigned long flags)
 {
-	intrmask_t mask;
 	ips_command_t *command;
-	mask = splbio();
 
 	if(sc->state & IPS_OFFLINE){
-		splx(mask);
 		return EIO;
 	}
 	if ((flags & IPS_STATIC_FLAG) == 0) {
 		command = SLIST_FIRST(&sc->free_cmd_list);
 		if(!command || (sc->state & IPS_TIMEOUT)){
-			splx(mask);
 			return EBUSY;
 		}
 		SLIST_REMOVE_HEAD(&sc->free_cmd_list, next);
@@ -208,7 +201,6 @@ int ips_get_free_cmd(ips_softc_t *sc, ips_command_t **cmd, unsigned long flags)
 		command = sc->staticcmd;
 		sc->state |= IPS_STATIC_BUSY;
 	}
-	splx(mask);
 	clear_ips_command(command);
 	bzero(command->command_buffer, IPS_COMMAND_LEN);
 	*cmd = command;
@@ -218,8 +210,6 @@ int ips_get_free_cmd(ips_softc_t *sc, ips_command_t **cmd, unsigned long flags)
 /* adds a command back to the free command queue */
 void ips_insert_free_cmd(ips_softc_t *sc, ips_command_t *command)
 {
-	intrmask_t mask;
-	mask = splbio();
 
 	if (sema_value(&sc->cmd_sema) != 0)
 		panic("ips: command returned non-zero semaphore");
@@ -230,7 +220,6 @@ void ips_insert_free_cmd(ips_softc_t *sc, ips_command_t *command)
 	} else {
 		sc->state &= ~IPS_STATIC_BUSY;
 	}
-	splx(mask);
 }
 static const char* ips_diskdev_statename(u_int8_t state)
 {
@@ -303,14 +292,12 @@ static int ips_diskdev_free(ips_softc_t *sc)
  * up and declares the card dead. */
 static void ips_timeout(void *arg)
 {
-	intrmask_t mask;
 	ips_softc_t *sc = arg;
 	int i, state = 0;
 	ips_command_t *command;
 
 	mtx_lock(&sc->queue_mtx);
 	command = &sc->commandarray[0];
-	mask = splbio();
 	for(i = 0; i < sc->max_cmds; i++){
 		if(!command[i].timeout){
 			continue;
@@ -341,7 +328,6 @@ static void ips_timeout(void *arg)
 	if (sc->state != IPS_OFFLINE)
 		sc->timer = timeout(ips_timeout, sc, 10*hz);
 	mtx_unlock(&sc->queue_mtx);
-	splx(mask);
 }
 
 /* check card and initialize it */
@@ -493,7 +479,6 @@ int ips_morpheus_reinit(ips_softc_t *sc, int force)
 int ips_adapter_free(ips_softc_t *sc)
 {
 	int error = 0;
-	intrmask_t mask;
 	if(sc->state & IPS_DEV_OPEN)
 		return EBUSY;
 	if((error = ips_diskdev_free(sc)))
@@ -504,9 +489,7 @@ int ips_adapter_free(ips_softc_t *sc)
 		return EBUSY;
 	}
 	DEVICE_PRINTF(1, sc->dev, "free\n");
-	mask = splbio();
 	untimeout(ips_timeout, sc, sc->timer);
-	splx(mask);
 
 	if(sc->sg_dmatag)
 		bus_dma_tag_destroy(sc->sg_dmatag);
@@ -548,17 +531,14 @@ void ips_morpheus_intr(void *void_sc)
 
 void ips_issue_morpheus_cmd(ips_command_t *command)
 {
-	intrmask_t mask = splbio();
 	/* hmmm, is there a cleaner way to do this? */
 	if(command->sc->state & IPS_OFFLINE){
-		splx(mask);
 		command->status.value = IPS_ERROR_STATUS;
 		command->callback(command);
 		return;
 	}
 	command->timeout = 10;
 	ips_write_4(command->sc, MORPHEUS_REG_IQPR, command->command_phys_addr);
-	splx(mask);
 }
 
 static void ips_copperhead_queue_callback(void *queueptr, bus_dma_segment_t *segments,int segnum, int error)
@@ -686,16 +666,13 @@ int ips_copperhead_reinit(ips_softc_t *sc, int force)
 }
 static u_int32_t ips_copperhead_cmd_status(ips_softc_t *sc)
 {
-	intrmask_t mask;
 	u_int32_t value;
 	int statnum = sc->copper_queue->nextstatus++;
 	if(sc->copper_queue->nextstatus == IPS_MAX_CMD_NUM)
 		sc->copper_queue->nextstatus = 0;
-	mask = splbio();
 	value = sc->copper_queue->status[statnum];
 	ips_write_4(sc, COPPER_REG_SQTR, sc->copper_queue->base_phys_addr + 
 		    4 * statnum);
-	splx(mask);
 	return value;
 }
 
@@ -722,10 +699,8 @@ void ips_copperhead_intr(void *void_sc)
 void ips_issue_copperhead_cmd(ips_command_t *command)
 {
 	int i;
-	intrmask_t mask = splbio();
 	/* hmmm, is there a cleaner way to do this? */
 	if(command->sc->state & IPS_OFFLINE){
-		splx(mask);
 		command->status.value = IPS_ERROR_STATUS;
 		command->callback(command);
 		return;
@@ -735,13 +710,11 @@ void ips_issue_copperhead_cmd(ips_command_t *command)
 	    i++ ){
 		if( i == 20){
 printf("sem bit still set, can't send a command\n");
-			splx(mask);
 			return;
 		}
 		DELAY(500);/* need to do a delay here */
 	}
 	ips_write_4(command->sc, COPPER_REG_CCSAR, command->command_phys_addr);
 	ips_write_2(command->sc, COPPER_REG_CCCR, COPPER_CMD_START);
-	splx(mask);
 }
 
