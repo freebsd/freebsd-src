@@ -215,6 +215,7 @@ agp_intel_attach(device_t dev)
 	case 0x33408086: /* i855 */
 	case 0x25708086: /* i865 */
 	case 0x25788086: /* i875P */
+	case 0x25608086: /* i845G */
 		pci_write_config(dev, AGP_INTEL_I845_MCHCFG,
 				 (pci_read_config(dev, AGP_INTEL_I845_MCHCFG, 1)
 				  | (1 << 1)), 1);
