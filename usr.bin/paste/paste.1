@@ -42,13 +42,13 @@
 .Nm paste
 .Nd merge corresponding or subsequent lines of files
 .Sh SYNOPSIS
-.Nm paste
+.Nm
 .Op Fl s
 .Op Fl d Ar list
 .Ar file ...
 .Sh DESCRIPTION
 The
-.Nm paste
+.Nm
 utility concatenates the corresponding lines of the given input files,
 replacing all but the last file's newline characters with a single tab
 character, and writes the resulting lines to standard output.
@@ -71,7 +71,7 @@ is reused.
 This continues until a line from the last input file (in default operation)
 or the last line in each file (using the -s option) is displayed, at which
 time
-.Nm paste
+.Nm
 begins selecting characters from the beginning of
 .Ar list
 again.
@@ -107,13 +107,13 @@ for each instance of
 .Ql Fl .
 .Pp
 The
-.Nm paste
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr cut 1
 .Sh STANDARDS
 The
-.Nm paste
+.Nm
 utility is expected to be
 .St -p1003.2
 compatible.
