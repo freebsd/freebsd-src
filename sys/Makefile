@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.16 1998/12/30 12:06:08 bde Exp $
+#	$Id: Makefile,v 1.17 1999/04/21 11:09:40 jkoshy Exp $
 
 # This is the old aout only boot loader.
 .if	exists(${.CURDIR}/${MACHINE}/boot) && ${OBJFORMAT} == "aout"
 SUBDIR=	${MACHINE}/boot
-.elif	exists(${.CURDIR}/boot) && ${MACHINE} == "i386" && ${OBJFORMAT} == "elf"
+.elif	exists(${.CURDIR}/boot) && ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf"
 SUBDIR=	boot
 .endif
 
