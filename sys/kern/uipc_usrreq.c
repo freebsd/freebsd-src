@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.8 1995/05/11 00:13:06 wollman Exp $
+ *	$Id: uipc_usrreq.c,v 1.9 1995/05/30 08:06:25 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -391,8 +391,6 @@ unp_detach(unp)
 		unp_drop(unp->unp_refs, ECONNRESET);
 	soisdisconnected(unp->unp_socket);
 	unp->unp_socket->so_pcb = 0;
-	m_freem(unp->unp_addr);
-	(void) m_free(dtom(unp));
 	if (unp_rights) {
 		/*
 		 * Normally the receive buffer is flushed later,
@@ -404,6 +402,8 @@ unp_detach(unp)
 		sorflush(unp->unp_socket);
 		unp_gc();
 	}
+	m_freem(unp->unp_addr);
+	(void) m_free(dtom(unp));
 }
 
 int
