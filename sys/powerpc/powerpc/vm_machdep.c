@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.2 1998/06/10 19:59:41 dfr Exp $
+ *	$Id: vm_machdep.c,v 1.3 1998/07/12 16:30:58 dfr Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -369,7 +369,7 @@ grow(p, sp)
 	if ((caddr_t)sp <= vm->vm_maxsaddr || sp >= (size_t) USRSTACK)
 	    return (1);
 
-	nss = roundup(USRSTACK - (unsigned)sp, PAGE_SIZE);
+	nss = roundup(USRSTACK - (vm_offset_t)sp, PAGE_SIZE);
 
 	if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur)
 		return (0);
