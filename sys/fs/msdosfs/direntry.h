@@ -1,4 +1,4 @@
-/*	$Id: direntry.h,v 1.4 1997/02/22 09:40:45 peter Exp $ */
+/*	$Id: direntry.h,v 1.5 1998/02/18 09:28:27 jkh Exp $ */
 /*	$NetBSD: direntry.h,v 1.14 1997/11/17 15:36:32 ws Exp $	*/
 
 /*-
@@ -132,9 +132,9 @@ void unix2dostime __P((struct timespec *tsp, u_int16_t *ddp,
 void dos2unixtime __P((u_int dd, u_int dt, u_int dh, struct timespec *tsp));
 int dos2unixfn __P((u_char dn[11], u_char *un, int lower));
 int unix2dosfn __P((const u_char *un, u_char dn[12], int unlen, u_int gen));
-int unix2winfn __P((const u_char *un, int unlen, struct winentry *wep, int cnt, int chksum));
+int unix2winfn __P((const u_char *un, int unlen, struct winentry *wep, int cnt, int chksum, int table_loaded, u_int16_t *u2w));
 int winChkName __P((const u_char *un, int unlen, struct winentry *wep, int chksum));
-int win2unixfn __P((struct winentry *wep, struct dirent *dp, int chksum));
+int win2unixfn __P((struct winentry *wep, struct dirent *dp, int chksum, int table_loaded, u_int16_t *u2w));
 u_int8_t winChksum __P((u_int8_t *name));
 int winSlotCnt __P((const u_char *un, int unlen));
 #endif	/* KERNEL */

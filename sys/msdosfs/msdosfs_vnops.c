@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.55 1998/02/06 12:13:46 eivind Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.56 1998/02/18 09:28:45 jkh Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1701,7 +1701,10 @@ msdosfs_readdir(ap)
 			if (dentp->deAttributes == ATTR_WIN95) {
 				if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 					continue;
-				chksum = win2unixfn((struct winentry *)dentp, &dirbuf, chksum);
+				chksum = win2unixfn((struct winentry *)dentp,
+					&dirbuf, chksum,
+					pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
+					pmp->pm_u2w);
 				continue;
 			}
 

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.16 1998/02/22 12:05:42 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.17 1998/02/22 12:22:23 ache Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -87,6 +87,8 @@ static u_long  lasttime;
 static u_long  lastday;
 static u_short lastddate;
 static u_short lastdtime;
+
+static inline u_int8_t find_lcode __P((u_int16_t code, u_int16_t *u2w));
 
 /*
  * Convert the unix version of time to dos's idea of time to be used in
@@ -336,270 +338,6 @@ u2l[256] = {
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, /* f8-ff */
 };
 
-/* UNICODE Cyrillic to local code table conversion */
-/* will be loadable in future */
-
-static u_char
-cyr2u[256] = {  /* defaulted to KOI8-R */
- '?', /* */
-0xb3, /* CYRILLIC CAPITAL LETTER IO */
- '?', /* CYRILLIC CAPITAL LETTER DJE */
- '?', /* CYRILLIC CAPITAL LETTER GJE */
- '?', /* CYRILLIC CAPITAL LETTER UKRAINIAN IE */
- '?', /* CYRILLIC CAPITAL LETTER DZE */
- '?', /* CYRILLIC CAPITAL LETTER BYELORUSSIAN-UKRAINIAN I */
- '?', /* CYRILLIC CAPITAL LETTER YI */
- '?', /* CYRILLIC CAPITAL LETTER JE */
- '?', /* CYRILLIC CAPITAL LETTER LJE */
- '?', /* CYRILLIC CAPITAL LETTER NJE */
- '?', /* CYRILLIC CAPITAL LETTER TSHE */
- '?', /* CYRILLIC CAPITAL LETTER KJE */
- '?', /* */
- '?', /* CYRILLIC CAPITAL LETTER SHORT U */
- '?', /* CYRILLIC CAPITAL LETTER DZHE */
-0xe1, /* CYRILLIC CAPITAL LETTER A */
-0xe2, /* CYRILLIC CAPITAL LETTER BE */
-0xf7, /* CYRILLIC CAPITAL LETTER VE */
-0xe7, /* CYRILLIC CAPITAL LETTER GHE */
-0xe4, /* CYRILLIC CAPITAL LETTER DE */
-0xe5, /* CYRILLIC CAPITAL LETTER IE */
-0xf6, /* CYRILLIC CAPITAL LETTER ZHE */
-0xfa, /* CYRILLIC CAPITAL LETTER ZE */
-0xe9, /* CYRILLIC CAPITAL LETTER I */
-0xea, /* CYRILLIC CAPITAL LETTER SHORT I */
-0xeb, /* CYRILLIC CAPITAL LETTER KA */
-0xe4, /* CYRILLIC CAPITAL LETTER EL */
-0xed, /* CYRILLIC CAPITAL LETTER EM */
-0xee, /* CYRILLIC CAPITAL LETTER EN */
-0xef, /* CYRILLIC CAPITAL LETTER O */
-0xf0, /* CYRILLIC CAPITAL LETTER PE */
-0xf2, /* CYRILLIC CAPITAL LETTER ER */
-0xf3, /* CYRILLIC CAPITAL LETTER ES */
-0xf4, /* CYRILLIC CAPITAL LETTER TE */
-0xf5, /* CYRILLIC CAPITAL LETTER U */
-0xe6, /* CYRILLIC CAPITAL LETTER EF */
-0xe8, /* CYRILLIC CAPITAL LETTER HA */
-0xe3, /* CYRILLIC CAPITAL LETTER TSE */
-0xfe, /* CYRILLIC CAPITAL LETTER CHE */
-0xfb, /* CYRILLIC CAPITAL LETTER SHA */
-0xfd, /* CYRILLIC CAPITAL LETTER SHCHA */
-0xff, /* CYRILLIC CAPITAL LETTER HARD SIGN */
-0xf9, /* CYRILLIC CAPITAL LETTER YERU */
-0xf8, /* CYRILLIC CAPITAL LETTER SOFT SIGN */
-0xfc, /* CYRILLIC CAPITAL LETTER E */
-0xe0, /* CYRILLIC CAPITAL LETTER YU */
-0xf1, /* CYRILLIC CAPITAL LETTER YA */
-0xc1, /* CYRILLIC SMALL LETTER A */
-0xc2, /* CYRILLIC SMALL LETTER BE */
-0xd7, /* CYRILLIC SMALL LETTER VE */
-0xc7, /* CYRILLIC SMALL LETTER GHE */
-0xc4, /* CYRILLIC SMALL LETTER DE */
-0xc5, /* CYRILLIC SMALL LETTER IE */
-0xd6, /* CYRILLIC SMALL LETTER ZHE */
-0xda, /* CYRILLIC SMALL LETTER ZE */
-0xc9, /* CYRILLIC SMALL LETTER I */
-0xca, /* CYRILLIC SMALL LETTER SHORT I */
-0xcb, /* CYRILLIC SMALL LETTER KA */
-0xcc, /* CYRILLIC SMALL LETTER EL */
-0xcd, /* CYRILLIC SMALL LETTER EM */
-0xce, /* CYRILLIC SMALL LETTER EN */
-0xcf, /* CYRILLIC SMALL LETTER O */
-0xd0, /* CYRILLIC SMALL LETTER PE */
-0xd2, /* CYRILLIC SMALL LETTER ER */
-0xd3, /* CYRILLIC SMALL LETTER ES */
-0xd4, /* CYRILLIC SMALL LETTER TE */
-0xd5, /* CYRILLIC SMALL LETTER U */
-0xc6, /* CYRILLIC SMALL LETTER EF */
-0xc8, /* CYRILLIC SMALL LETTER HA */
-0xc3, /* CYRILLIC SMALL LETTER TSE */
-0xde, /* CYRILLIC SMALL LETTER CHE */
-0xdb, /* CYRILLIC SMALL LETTER SHA */
-0xdd, /* CYRILLIC SMALL LETTER SHCHA */
-0xdf, /* CYRILLIC SMALL LETTER HARD SIGN */
-0xd9, /* CYRILLIC SMALL LETTER YERU */
-0xd8, /* CYRILLIC SMALL LETTER SOFT SIGN */
-0xdc, /* CYRILLIC SMALL LETTER E */
-0xc0, /* CYRILLIC SMALL LETTER YU */
-0xd1, /* CYRILLIC SMALL LETTER YA */
- '?', /* */
-0xa3, /* CYRILLIC SMALL LETTER IO */
- '?', /* CYRILLIC SMALL LETTER DJE */
- '?', /* CYRILLIC SMALL LETTER GJE */
- '?', /* CYRILLIC SMALL LETTER UKRAINIAN IE */
- '?', /* CYRILLIC SMALL LETTER DZE */
- '?', /* CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I */
- '?', /* CYRILLIC SMALL LETTER YI */
- '?', /* CYRILLIC SMALL LETTER JE */
- '?', /* CYRILLIC SMALL LETTER LJE */
- '?', /* CYRILLIC SMALL LETTER NJE */
- '?', /* CYRILLIC SMALL LETTER TSHE */
- '?', /* CYRILLIC SMALL LETTER KJE */
- '?', /* */
- '?', /* CYRILLIC SMALL LETTER SHORT U */
- '?', /* CYRILLIC SMALL LETTER DZHE */
- '?', /* CYRILLIC CAPITAL LETTER OMEGA */
- '?', /* CYRILLIC SMALL LETTER OMEGA */
- '?', /* CYRILLIC CAPITAL LETTER YAT */
- '?', /* CYRILLIC SMALL LETTER YAT */
- '?', /* CYRILLIC CAPITAL LETTER IOTIFIED E */
- '?', /* CYRILLIC SMALL LETTER IOTIFIED E */
- '?', /* CYRILLIC CAPITAL LETTER LITTLE YUS */
- '?', /* CYRILLIC SMALL LETTER LITTLE YUS */
- '?', /* CYRILLIC CAPITAL LETTER IOTIFIED LITTLE YUS */
- '?', /* CYRILLIC SMALL LETTER IOTIFIED LITTLE YUS */
- '?', /* CYRILLIC CAPITAL LETTER BIG YUS */
- '?', /* CYRILLIC SMALL LETTER BIG YUS */
- '?', /* CYRILLIC CAPITAL LETTER IOTIFIED BIG YUS */
- '?', /* CYRILLIC SMALL LETTER IOTIFIED BIG YUS */
- '?', /* CYRILLIC CAPITAL LETTER KSI */
- '?', /* CYRILLIC SMALL LETTER KSI */
- '?', /* CYRILLIC CAPITAL LETTER PSI */
- '?', /* CYRILLIC SMALL LETTER PSI */
- '?', /* CYRILLIC CAPITAL LETTER FITA */
- '?', /* CYRILLIC SMALL LETTER FITA */
- '?', /* CYRILLIC CAPITAL LETTER IZHITSA */
- '?', /* CYRILLIC SMALL LETTER IZHITSA */
- '?', /* CYRILLIC CAPITAL LETTER IZHITSA WITH DOUBLE GRAVE ACCENT */
- '?', /* CYRILLIC SMALL LETTER IZHITSA WITH DOUBLE GRAVE ACCENT */
- '?', /* CYRILLIC CAPITAL LETTER UK */
- '?', /* CYRILLIC SMALL LETTER UK */
- '?', /* CYRILLIC CAPITAL LETTER ROUND OMEGA */
- '?', /* CYRILLIC SMALL LETTER ROUND OMEGA */
- '?', /* CYRILLIC CAPITAL LETTER OMEGA WITH TITLO */
- '?', /* CYRILLIC SMALL LETTER OMEGA WITH TITLO */
- '?', /* CYRILLIC CAPITAL LETTER OT */
- '?', /* CYRILLIC SMALL LETTER OT */
- '?', /* CYRILLIC CAPITAL LETTER KOPPA */
- '?', /* CYRILLIC SMALL LETTER KOPPA */
- '?', /* CYRILLIC THOUSANDS SIGN */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* CYRILLIC CAPITAL LETTER GHE WITH UPTURN */
- '?', /* CYRILLIC SMALL LETTER GHE WITH UPTURN */
- '?', /* CYRILLIC CAPITAL LETTER GHE WITH STROKE */
- '?', /* CYRILLIC SMALL LETTER GHE WITH STROKE */
- '?', /* CYRILLIC CAPITAL LETTER GHE WITH MIDDLE HOOK */
- '?', /* CYRILLIC SMALL LETTER GHE WITH MIDDLE HOOK */
- '?', /* CYRILLIC CAPITAL LETTER ZHE WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER ZHE WITH DESCENDER */
- '?', /* CYRILLIC CAPITAL LETTER ZE WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER ZE WITH DESCENDER */
- '?', /* CYRILLIC CAPITAL LETTER KA WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER KA WITH DESCENDER */
- '?', /* CYRILLIC CAPITAL LETTER KA WITH VERTICAL STROKE */
- '?', /* CYRILLIC SMALL LETTER KA WITH VERTICAL STROKE */
- '?', /* CYRILLIC CAPITAL LETTER KA WITH STROKE */
- '?', /* CYRILLIC SMALL LETTER KA WITH STROKE */
- '?', /* CYRILLIC CAPITAL LETTER BASHKIR KA */
- '?', /* CYRILLIC SMALL LETTER BASHKIR KA */
- '?', /* CYRILLIC CAPITAL LETTER EN WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER EN WITH DESCENDER */
- '?', /* CYRILLIC CAPITAL LIGATURE EN GHE */
- '?', /* CYRILLIC SMALL LIGATURE EN GHE */
- '?', /* CYRILLIC CAPITAL LETTER PE WITH MIDDLE HOOK */
- '?', /* CYRILLIC SMALL LETTER PE WITH MIDDLE HOOK */
- '?', /* CYRILLIC CAPITAL LETTER ABKHASIAN HA */
- '?', /* CYRILLIC SMALL LETTER ABKHASIAN HA */
- '?', /* CYRILLIC CAPITAL LETTER ES WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER ES WITH DESCENDER */
- '?', /* CYRILLIC CAPITAL LETTER TE WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER TE WITH DESCENDER */
- '?', /* CYRILLIC CAPITAL LETTER STRAIGHT U */
- '?', /* CYRILLIC SMALL LETTER STRAIGHT U */
- '?', /* CYRILLIC CAPITAL LETTER STRAIGHT U WITH STROKE */
- '?', /* CYRILLIC SMALL LETTER STRAIGHT U WITH STROKE */
- '?', /* CYRILLIC CAPITAL LETTER HA WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER HA WITH DESCENDER */
- '?', /* CYRILLIC CAPITAL LIGATURE TE TSE */
- '?', /* CYRILLIC SMALL LIGATURE TE TSE */
- '?', /* CYRILLIC CAPITAL LETTER CHE WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER CHE WITH DESCENDER */
- '?', /* CYRILLIC CAPITAL LETTER CHE WITH VERTICAL STROKE */
- '?', /* CYRILLIC SMALL LETTER CHE WITH VERTICAL STROKE */
- '?', /* CYRILLIC CAPITAL LETTER SHHA */
- '?', /* CYRILLIC SMALL LETTER SHHA */
- '?', /* CYRILLIC CAPITAL LETTER ABKHASIAN CHE */
- '?', /* CYRILLIC SMALL LETTER ABKHASIAN CHE */
- '?', /* CYRILLIC CAPITAL LETTER ABKHASIAN CHE WITH DESCENDER */
- '?', /* CYRILLIC SMALL LETTER ABKHASIAN CHE WITH DESCENDER */
- '?', /* CYRILLIC LETTER PALOCHKA */
- '?', /* CYRILLIC CAPITAL LETTER ZHE WITH BREVE */
- '?', /* CYRILLIC SMALL LETTER ZHE WITH BREVE */
- '?', /* CYRILLIC CAPITAL LETTER KA WITH HOOK */
- '?', /* CYRILLIC SMALL LETTER KA WITH HOOK */
- '?', /* */
- '?', /* */
- '?', /* CYRILLIC CAPITAL LETTER EN WITH HOOK */
- '?', /* CYRILLIC SMALL LETTER EN WITH HOOK */
- '?', /* */
- '?', /* */
- '?', /* CYRILLIC CAPITAL LETTER KHAKASSIAN CHE */
- '?', /* CYRILLIC SMALL LETTER KHAKASSIAN CHE */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* CYRILLIC CAPITAL LETTER A WITH BREVE */
- '?', /* CYRILLIC SMALL LETTER A WITH BREVE */
- '?', /* CYRILLIC CAPITAL LETTER A WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER A WITH DIAERESIS */
- '?', /* CYRILLIC CAPITAL LIGATURE A IE */
- '?', /* CYRILLIC SMALL LIGATURE A IE */
- '?', /* CYRILLIC CAPITAL LETTER IE WITH BREVE */
- '?', /* CYRILLIC SMALL LETTER IE WITH BREVE */
- '?', /* CYRILLIC CAPITAL LETTER SCHWA */
- '?', /* CYRILLIC SMALL LETTER SCHWA */
- '?', /* CYRILLIC CAPITAL LETTER SCHWA WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER SCHWA WITH DIAERESIS */
- '?', /* CYRILLIC CAPITAL LETTER ZHE WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER ZHE WITH DIAERESIS */
- '?', /* CYRILLIC CAPITAL LETTER ZE WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER ZE WITH DIAERESIS */
- '?', /* CYRILLIC CAPITAL LETTER ABKHASIAN DZE */
- '?', /* CYRILLIC SMALL LETTER ABKHASIAN DZE */
- '?', /* CYRILLIC CAPITAL LETTER I WITH MACRON */
- '?', /* CYRILLIC SMALL LETTER I WITH MACRON */
- '?', /* CYRILLIC CAPITAL LETTER I WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER I WITH DIAERESIS */
- '?', /* CYRILLIC CAPITAL LETTER O WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER O WITH DIAERESIS */
- '?', /* CYRILLIC CAPITAL LETTER BARRED O */
- '?', /* CYRILLIC SMALL LETTER BARRED O */
- '?', /* CYRILLIC CAPITAL LETTER BARRED O WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER BARRED O WITH DIAERESIS */
- '?', /* */
- '?', /* */
- '?', /* CYRILLIC CAPITAL LETTER U WITH MACRON */
- '?', /* CYRILLIC SMALL LETTER U WITH MACRON */
- '?', /* CYRILLIC CAPITAL LETTER U WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER U WITH DIAERESIS */
- '?', /* CYRILLIC CAPITAL LETTER U WITH DOUBLE ACUTE */
- '?', /* CYRILLIC SMALL LETTER U WITH DOUBLE ACUTE */
- '?', /* CYRILLIC CAPITAL LETTER CHE WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER CHE WITH DIAERESIS */
- '?', /* */
- '?', /* */
- '?', /* CYRILLIC CAPITAL LETTER YERU WITH DIAERESIS */
- '?', /* CYRILLIC SMALL LETTER YERU WITH DIAERESIS */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?', /* */
- '?'  /* */
-};
-
-
 /*
  * DOS filenames are made of 2 parts, the name part and the extension part.
  * The name part is 8 characters long and the extension part is 3
@@ -825,16 +563,19 @@ unix2dosfn(un, dn, unlen, gen)
  *	 i.e. doesn't consist solely of blanks and dots
  */
 int
-unix2winfn(un, unlen, wep, cnt, chksum)
+unix2winfn(un, unlen, wep, cnt, chksum, table_loaded, u2w)
 	const u_char *un;
 	int unlen;
 	struct winentry *wep;
 	int cnt;
 	int chksum;
+	int table_loaded;
+	u_int16_t *u2w;
 {
 	const u_int8_t *cp;
 	u_int8_t *wcp;
 	int i;
+	u_int16_t code;
 
 	/*
 	 * Drop trailing blanks and dots
@@ -860,20 +601,38 @@ unix2winfn(un, unlen, wep, cnt, chksum)
 	for (wcp = wep->wePart1, i = sizeof(wep->wePart1)/2; --i >= 0;) {
 		if (--unlen < 0)
 			goto done;
-		*wcp++ = *un++;
-		*wcp++ = 0;
+		if (table_loaded && (*un & 0x80)) {
+			code = u2w[*un++ & 0x7f];
+			*wcp++ = code;
+			*wcp++ = code >> 8;
+		} else {
+			*wcp++ = *un++;
+			*wcp++ = 0;
+		}
 	}
 	for (wcp = wep->wePart2, i = sizeof(wep->wePart2)/2; --i >= 0;) {
 		if (--unlen < 0)
 			goto done;
-		*wcp++ = *un++;
-		*wcp++ = 0;
+		if (table_loaded && (*un & 0x80)) {
+			code = u2w[*un++ & 0x7f];
+			*wcp++ = code;
+			*wcp++ = code >> 8;
+		} else {
+			*wcp++ = *un++;
+			*wcp++ = 0;
+		}
 	}
 	for (wcp = wep->wePart3, i = sizeof(wep->wePart3)/2; --i >= 0;) {
 		if (--unlen < 0)
 			goto done;
-		*wcp++ = *un++;
-		*wcp++ = 0;
+		if (table_loaded && (*un & 0x80)) {
+			code = u2w[*un++ & 0x7f];
+			*wcp++ = code;
+			*wcp++ = code >> 8;
+		} else {
+			*wcp++ = *un++;
+			*wcp++ = 0;
+		}
 	}
 	if (!unlen)
 		wep->weCnt |= WIN_LAST;
@@ -953,15 +712,30 @@ winChkName(un, unlen, wep, chksum)
 	return chksum;
 }
 
+static inline u_int8_t
+find_lcode(code, u2w)
+	u_int16_t code;
+	u_int16_t *u2w;
+{
+	int i;
+
+	for (i = 0; i < 128; i++)
+		if (u2w[i] == code)
+			return (i | 0x80);
+	return '?';
+}
+
 /*
  * Convert Win95 filename to dirbuf.
  * Returns the checksum or -1 if impossible
  */
 int
-win2unixfn(wep, dp, chksum)
+win2unixfn(wep, dp, chksum, table_loaded, u2w)
 	struct winentry *wep;
 	struct dirent *dp;
 	int chksum;
+	int table_loaded;
+	u_int16_t *u2w;
 {
 	u_int8_t *cp;
 	u_int8_t *np, *ep = dp->d_name + WIN_MAXLEN;
@@ -1007,10 +781,10 @@ win2unixfn(wep, dp, chksum)
 			*np = '\0';
 			return -1;
 		default:
-			if (code & 0xff00) {
-				if ((code &~ 0xff) == 0x400)
-					code = cyr2u[code & 0xff];
-				else
+			if (code & 0xff80) {
+				if (table_loaded)
+					code = find_lcode(code, u2w);
+				else if (code & 0xff00)
 					code = '?';
 			}
 			*np++ = code;
@@ -1038,10 +812,10 @@ win2unixfn(wep, dp, chksum)
 			*np = '\0';
 			return -1;
 		default:
-			if (code & 0xff00) {
-				if ((code &~ 0xff) == 0x400)
-					code = cyr2u[code & 0xff];
-				else
+			if (code & 0xff80) {
+				if (table_loaded)
+					code = find_lcode(code, u2w);
+				else if (code & 0xff00)
 					code = '?';
 			}
 			*np++ = code;
@@ -1069,10 +843,10 @@ win2unixfn(wep, dp, chksum)
 			*np = '\0';
 			return -1;
 		default:
-			if (code & 0xff00) {
-				if ((code &~ 0xff) == 0x400)
-					code = cyr2u[code & 0xff];
-				else
+			if (code & 0xff80) {
+				if (table_loaded)
+					code = find_lcode(code, u2w);
+				else if (code & 0xff00)
 					code = '?';
 			}
 			*np++ = code;

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.14 1997/09/10 19:44:36 phk Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.15 1998/02/18 09:28:41 jkh Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -637,7 +637,10 @@ createde(dep, ddep, depp, cnp)
 				ndep--;
 				ddep->de_fndoffset -= sizeof(struct direntry);
 			}
-			if (!unix2winfn(un, unlen, (struct winentry *)ndep, cnt++, chksum))
+			if (!unix2winfn(un, unlen, (struct winentry *)ndep,
+					cnt++, chksum,
+					pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
+					pmp->pm_u2w));
 				break;
 		}
 	}
