@@ -40,8 +40,12 @@ other CPU's the DEC Alpha processor cannot access unaligned data.  To work
 around this, the Alpha has the ability to fix the UA fault rather than send
 the faulting process a SIGBUS signal.  However, doing so does slow down the
 execution of the faulting process.
-At boot up, the DEC Alpha CPU defaults to printing "Fixed up unaligned data
-access for pid nnn at pc 0xADDR" when a UA happens along with fixing it so
+At boot up, the DEC Alpha CPU defaults to printing 
+.Bl -diag
+.It pid nnn (<progname>): unaligned access: va=0xADDR pc=0xADDR ra=0xADDR op=ldl
+.El
+.Pp
+when a UA happens along with fixing it so
 the faulting instruction can continue.
 UA handling settings are inherited by child process.
 Issued with out any options,
