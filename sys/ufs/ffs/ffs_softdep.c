@@ -1608,8 +1608,8 @@ setup_allocindir_phase2(bp, ip, aip)
 			if (aip->ai_oldblkno == 0)
 				oldaip = NULL;
 			else
-				for (oldaip=LIST_FIRST(&indirdep->ir_deplisthd);
-				    oldaip; oldaip = LIST_NEXT(oldaip, ai_next))
+
+				LIST_FOREACH(oldaip, &indirdep->ir_deplisthd, ai_next)
 					if (oldaip->ai_offset == aip->ai_offset)
 						break;
 			freefrag = NULL;
@@ -2351,8 +2351,8 @@ softdep_change_directoryentry_offset(dp, base, oldloc, newloc, entrysize)
 		goto done;
 	oldoffset = offset + (oldloc - base);
 	newoffset = offset + (newloc - base);
-	for (dap = LIST_FIRST(&pagedep->pd_diraddhd[DIRADDHASH(oldoffset)]);
-	     dap; dap = LIST_NEXT(dap, da_pdlist)) {
+
+	LIST_FOREACH(dap, &pagedep->pd_diraddhd[DIRADDHASH(oldoffset)], da_pdlist) {
 		if (dap->da_offset != oldoffset)
 			continue;
 		dap->da_offset = newoffset;
@@ -2364,8 +2364,8 @@ softdep_change_directoryentry_offset(dp, base, oldloc, newloc, entrysize)
 		break;
 	}
 	if (dap == NULL) {
-		for (dap = LIST_FIRST(&pagedep->pd_pendinghd);
-		     dap; dap = LIST_NEXT(dap, da_pdlist)) {
+
+		LIST_FOREACH(dap, &pagedep->pd_pendinghd, da_pdlist) {
 			if (dap->da_offset == oldoffset) {
 				dap->da_offset = newoffset;
 				break;
@@ -2531,13 +2531,13 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * be de-allocated. Check for an entry on both the pd_dirraddhd
 	 * list and the pd_pendinghd list.
 	 */
-	for (dap = LIST_FIRST(&pagedep->pd_diraddhd[DIRADDHASH(offset)]);
-	     dap; dap = LIST_NEXT(dap, da_pdlist))
+
+	LIST_FOREACH(dap, &pagedep->pd_diraddhd[DIRADDHASH(offset)], da_pdlist)
 		if (dap->da_offset == offset)
 			break;
 	if (dap == NULL) {
-		for (dap = LIST_FIRST(&pagedep->pd_pendinghd);
-		     dap; dap = LIST_NEXT(dap, da_pdlist))
+
+		LIST_FOREACH(dap, &pagedep->pd_pendinghd, da_pdlist)
 			if (dap->da_offset == offset)
 				break;
 		if (dap == NULL)
@@ -4045,8 +4045,8 @@ loop:
 
 		case D_INDIRDEP:
 		restart:
-			for (aip = LIST_FIRST(&WK_INDIRDEP(wk)->ir_deplisthd);
-			     aip; aip = LIST_NEXT(aip, ai_next)) {
+
+			LIST_FOREACH(aip, &WK_INDIRDEP(wk)->ir_deplisthd, ai_next) {
 				if (aip->ai_state & DEPCOMPLETE)
 					continue;
 				nbp = aip->ai_buf;
@@ -4686,8 +4686,8 @@ softdep_count_dependencies(bp, wantcount)
 
 		case D_INDIRDEP:
 			indirdep = WK_INDIRDEP(wk);
-			for (aip = LIST_FIRST(&indirdep->ir_deplisthd);
-			     aip; aip = LIST_NEXT(aip, ai_next)) {
+
+			LIST_FOREACH(aip, &indirdep->ir_deplisthd, ai_next) {
 				/* indirect block pointer dependency */
 				retval += 1;
 				if (!wantcount)
@@ -4698,8 +4698,8 @@ softdep_count_dependencies(bp, wantcount)
 		case D_PAGEDEP:
 			pagedep = WK_PAGEDEP(wk);
 			for (i = 0; i < DAHASHSZ; i++) {
-				for (dap = LIST_FIRST(&pagedep->pd_diraddhd[i]);
-				     dap; dap = LIST_NEXT(dap, da_pdlist)) {
+
+				LIST_FOREACH(dap, &pagedep->pd_diraddhd[i], da_pdlist) {
 					/* directory entry dependency */
 					retval += 1;
 					if (!wantcount)
