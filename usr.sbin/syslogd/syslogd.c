@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.27 1997/10/20 12:55:49 charnier Exp $";
+	"$Id: syslogd.c,v 1.28 1998/02/28 15:14:00 jraynard Exp $";
 #endif /* not lint */
 
 /*
@@ -366,28 +366,27 @@ main(argc, argv)
 		created_lsock = 1;
 
 	inetm = 0;
-	finet = socket(AF_INET, SOCK_DGRAM, 0);
-	if (finet >= 0) {
-		struct servent *sp;
+	if (!SecureMode) {
+		finet = socket(AF_INET, SOCK_DGRAM, 0);
+		if (finet >= 0) {
+			struct servent *sp;
 
-		sp = getservbyname("syslog", "udp");
-		if (sp == NULL) {
-			errno = 0;
-			logerror("syslog/udp: unknown service");
-			die(0);
-		}
-		memset(&sin, 0, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_port = LogPort = sp->s_port;
+			sp = getservbyname("syslog", "udp");
+			if (sp == NULL) {
+				errno = 0;
+				logerror("syslog/udp: unknown service");
+				die(0);
+			}
+			memset(&sin, 0, sizeof(sin));
+			sin.sin_family = AF_INET;
+			sin.sin_port = LogPort = sp->s_port;
 
-		if (!SecureMode) {
-		    if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-			    logerror("bind");
-			    if (!Debug)
-				    die(0);
-		    } else {
-			    inetm = FDMASK(finet);
-		    }
+			if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+				logerror("bind");
+				if (!Debug)
+					die(0);
+				inetm = FDMASK(finet);
+			}
 		}
 	}
 	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) >= 0)
