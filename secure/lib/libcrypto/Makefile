@@ -81,8 +81,6 @@ SRCS+=	bn_add.c bn_blind.c bn_ctx.c bn_div.c bn_err.c \
 	bn_sqr.c bn_word.c
 .if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	bn-586.pl co-586.pl
-.elif ${MACHINE_ARCH} == "alpha"
-SRCS+=	bn-alpha.pl co-alpha.pl
 .else
 SRCS+=	bn_asm.c
 .endif
