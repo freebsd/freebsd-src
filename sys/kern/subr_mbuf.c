@@ -86,7 +86,7 @@
  *
  * The buckets are kept on singly-linked lists called "containers." A container
  * is protected by a mutex lock in order to ensure consistency.  The mutex lock
- * itself is allocated seperately and attached to the container at boot time,
+ * itself is allocated separately and attached to the container at boot time,
  * thus allowing for certain containers to share the same mutex lock.  Per-CPU
  * containers for mbufs and mbuf clusters all share the same per-CPU
  * lock whereas the "general system" containers (i.e., the "main lists") for
