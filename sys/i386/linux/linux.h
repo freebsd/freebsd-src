@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.30 1999/07/17 08:24:57 marcel Exp $
+ *	$Id: linux.h,v 1.31 1999/08/11 13:34:29 marcel Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -705,5 +705,8 @@ struct linux_ifreq
 #define LINUX_CDROMREADALL		0x5318
 #define LINUX_CDROMCLOSETRAY		0x5319
 #define LINUX_CDROMLOADFROMSLOT		0x531a
+
+#define LINUX_CDROM_LBA                 0x01
+#define LINUX_CDROM_MSF                 0x02
 
 #endif /* !_I386_LINUX_LINUX_H_ */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.35 1999/07/08 16:15:19 marcel Exp $
+ *  $Id: linux_ioctl.c,v 1.36 1999/07/17 08:24:57 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <i386/linux/linux_util.h>
 
 #define ISSIGVALID(sig)		((sig) > 0 && (sig) < NSIG)
 
@@ -484,6 +485,18 @@ struct linux_cdrom_tocentry
     u_char	cdte_datamode;  
 };
 
+struct linux_cdrom_subchnl
+{
+    u_char      cdsc_format;
+    u_char      cdsc_audiostatus;
+    u_char      cdsc_adr:4;
+    u_char      cdsc_ctrl:4;
+    u_char      cdsc_trk;
+    u_char      cdsc_ind;
+    union linux_cdrom_addr cdsc_absaddr;
+    union linux_cdrom_addr cdsc_reladdr;
+};
+
 #if 0
 static void
 linux_to_bsd_msf_lba(u_char address_format,
@@ -510,6 +523,20 @@ bsd_to_linux_msf_lba(u_char address_format,
 	lp->msf.second = bp->msf.second;
 	lp->msf.frame = bp->msf.frame;
     }
+}
+
+static void
+set_linux_cdrom_addr(union linux_cdrom_addr *addr, int format, int lba)
+{
+    if (format == LINUX_CDROM_MSF) {
+        addr->msf.frame = lba % 75;
+        lba /= 75;
+        lba += 2;
+        addr->msf.second = lba % 60;
+        addr->msf.minute = lba / 60;
+    }
+    else
+        addr->lba = lba;
 }
 
 static unsigned dirbits[4] = { IOC_VOID, IOC_OUT, IOC_IN, IOC_INOUT };
@@ -1181,6 +1208,43 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 		&irtse.entry.addr, &lte.cdte_addr);
 	    copyout((caddr_t)&lte, (caddr_t)args->arg, sizeof(lte));
 	}
+	return error;
+    }
+
+    case LINUX_CDROMSUBCHNL: {
+	caddr_t sg;
+	struct linux_cdrom_subchnl sc;
+	struct ioc_read_subchannel bsdsc;
+	struct cd_sub_channel_info *bsdinfo;
+
+	sg = stackgap_init();
+	bsdinfo = (struct cd_sub_channel_info*)stackgap_alloc(&sg,
+			sizeof(struct cd_sub_channel_info));
+
+	bsdsc.address_format = CD_LBA_FORMAT;
+	bsdsc.data_format = CD_CURRENT_POSITION;
+	bsdsc.data_len = sizeof(struct cd_sub_channel_info);
+	bsdsc.data = bsdinfo;
+	error = (*func)(fp, CDIOCREADSUBCHANNEL, (caddr_t)&bsdsc, p);
+	if (error)
+	    return error;
+
+	error = copyin((caddr_t)args->arg, (caddr_t)&sc,
+			sizeof(struct linux_cdrom_subchnl));
+	if (error)
+	    return error;
+
+	sc.cdsc_audiostatus = bsdinfo->header.audio_status;
+	sc.cdsc_adr = bsdinfo->what.position.addr_type;
+	sc.cdsc_ctrl = bsdinfo->what.position.control;
+	sc.cdsc_trk = bsdinfo->what.position.track_number;
+	sc.cdsc_ind = bsdinfo->what.position.index_number;
+	set_linux_cdrom_addr(&sc.cdsc_absaddr, sc.cdsc_format,
+			bsdinfo->what.position.absaddr.lba);
+	set_linux_cdrom_addr(&sc.cdsc_reladdr, sc.cdsc_format,
+			bsdinfo->what.position.reladdr.lba);
+	error = copyout((caddr_t)&sc, (caddr_t)args->arg,
+			sizeof(struct linux_cdrom_subchnl));
 	return error;
     }
 
