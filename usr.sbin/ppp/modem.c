@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.35 1997/05/10 01:22:17 brian Exp $
+ * $Id: modem.c,v 1.36 1997/05/10 03:39:54 brian Exp $
  *
  *  TODO:
  */
@@ -228,6 +228,7 @@ DownConnection()
 void
 ModemTimeout()
 {
+  static int waiting;
   int ombits = mbits;
   int change;
 
@@ -237,6 +238,13 @@ ModemTimeout()
   StartTimer(&ModemTimer);
 
   if (dev_is_modem) {
+    if (modem < 0) {
+      if (!waiting)
+        DownConnection();
+      waiting = 1;
+      return;
+    }
+    waiting = 0;
     if (ioctl(modem, TIOCMGET, &mbits) < 0) {
       LogPrintf(LOG_PHASE_BIT, "ioctl error (%s)!\n", strerror(errno));
       DownConnection();
