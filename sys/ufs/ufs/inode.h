@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.14 1997/04/01 08:02:00 bde Exp $
+ * $Id: inode.h,v 1.15 1997/05/22 07:30:55 phk Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -87,7 +87,7 @@ struct inode {
 	doff_t	  i_offset;	/* Offset of free space in directory. */
 	ino_t	  i_ino;	/* Inode number of found directory. */
 	u_int32_t i_reclen;	/* Size of found directory entry. */
-	int	  i_spare[5];	/* XXX spare storage (for ext2fs) */
+	int	  i_spare[5];	/* XXX actually non-spare (for ext2fs). */
 	/*
 	 * The on-disk dinode itself.
 	 */
