@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.28.2.1 1996/11/09 21:10:49 phk Exp $
+ * $Id: nfs_bio.c,v 1.28.2.2 1996/11/12 09:09:27 phk Exp $
  */
 
 #include <sys/param.h>
@@ -972,7 +972,7 @@ nfs_doio(bp, cr, p)
 		bp->b_flags |= B_WRITEINPROG;
 		error = nfs_writerpc(vp, uiop, cr, &iomode, &must_commit);
 		if (!error && iomode == NFSV3WRITE_UNSTABLE)
-		    bp->b_flags |= B_NEEDCOMMIT;
+		    bp->b_flags |= B_NEEDCOMMIT | B_CLUSTEROK;
 		else
 		    bp->b_flags &= ~B_NEEDCOMMIT;
 		bp->b_flags &= ~B_WRITEINPROG;

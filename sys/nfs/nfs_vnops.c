@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.36.2.1 1996/11/09 21:11:07 phk Exp $
+ * $Id: nfs_vnops.c,v 1.36.2.2 1997/01/07 06:18:27 wpaul Exp $
  */
 
 /*
@@ -3131,7 +3131,8 @@ nfs_writebp(bp, force)
 	 * an actual write will have to be scheduled via. VOP_STRATEGY().
 	 * If B_WRITEINPROG is already set, then push it with a write anyhow.
 	 */
-	if (oldflags & (B_NEEDCOMMIT | B_WRITEINPROG) == B_NEEDCOMMIT) {
+	vfs_busy_pages(bp, 1);
+	if ((oldflags & (B_NEEDCOMMIT | B_WRITEINPROG)) == B_NEEDCOMMIT) {
 		off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		bp->b_flags |= B_WRITEINPROG;
 		retv = nfs_commit(bp->b_vp, off, bp->b_dirtyend-bp->b_dirtyoff,
@@ -3147,7 +3148,6 @@ nfs_writebp(bp, force)
 	if (retv) {
 		if (force)
 			bp->b_flags |= B_WRITEINPROG;
-		vfs_busy_pages(bp, 1);
 		VOP_STRATEGY(bp);
 	}
 
