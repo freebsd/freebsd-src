@@ -222,8 +222,6 @@ kse_reassign(struct kse *ke)
 	 * can not borrow KSEs.
 	 */
 	if (loaned) {
-		KASSERT((original->td_standin == NULL),
-		    ("kse_reassign: borrower still has standin thread"));
 		TD_CLR_LOAN(owner);
 		ke->ke_thread = owner;
 		original->td_kse = NULL; /* give it amnesia */

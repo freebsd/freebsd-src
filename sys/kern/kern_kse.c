@@ -1455,6 +1455,8 @@ justreturn:
 			FOREACH_KSE_IN_GROUP(kg, ke) {	
 				if (TD_IS_IDLE(ke->ke_owner)) {
 					TD_CLR_IDLE(ke->ke_owner);
+					setrunnable(ke->ke_owner);
+					break;
 				}
 			}
 		}
