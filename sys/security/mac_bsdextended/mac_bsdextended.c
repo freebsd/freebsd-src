@@ -675,8 +675,8 @@ mac_bsdextended_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_stat(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+mac_bsdextended_check_vnode_stat(struct ucred *active_cred,
+    struct ucred *file_cred, struct vnode *vp, struct label *label)
 {
 	struct vattr vap;
 	int error;
@@ -684,10 +684,11 @@ mac_bsdextended_check_vnode_stat(struct ucred *cred, struct vnode *vp,
 	if (!mac_bsdextended_enabled)
 		return (0);
 
-	error = VOP_GETATTR(vp, &vap, cred, curthread);
+	error = VOP_GETATTR(vp, &vap, active_cred, curthread);
 	if (error)
 		return (error);
-	return (mac_bsdextended_check(cred, vap.va_uid, vap.va_gid, VSTAT));
+	return (mac_bsdextended_check(active_cred, vap.va_uid, vap.va_gid,
+	    VSTAT));
 }
 
 static struct mac_policy_op_entry mac_bsdextended_ops[] =

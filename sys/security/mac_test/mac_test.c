@@ -1007,16 +1007,16 @@ mac_test_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_test_check_vnode_poll(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+mac_test_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp, struct label *label)
 {
 
 	return (0);
 }
 
 static int
-mac_test_check_vnode_read(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+mac_test_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp, struct label *label)
 {
 
 	return (0);
@@ -1121,16 +1121,16 @@ mac_test_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_test_check_vnode_stat(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+mac_test_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp, struct label *label)
 {
 
 	return (0);
 }
 
 static int
-mac_test_check_vnode_write(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+mac_test_check_vnode_write(struct ucred *active_cred,
+    struct ucred *file_cred, struct vnode *vp, struct label *label)
 {
 
 	return (0);

@@ -771,7 +771,7 @@ ktr_writerequest(struct ktr_request *req)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
 #ifdef MAC
-	error = mac_check_vnode_write(cred, vp);
+	error = mac_check_vnode_write(cred, NOCRED, vp);
 	if (error == 0)
 #endif
 		error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, cred);

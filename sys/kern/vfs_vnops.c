@@ -402,9 +402,11 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 #ifdef MAC
 	if ((ioflg & IO_NOMACCHECK) == 0) {
 		if (rw == UIO_READ)
-			error = mac_check_vnode_read(active_cred, vp);
+			error = mac_check_vnode_read(active_cred, file_cred,
+			    vp);
 		else
-			error = mac_check_vnode_write(active_cred, vp);
+			error = mac_check_vnode_write(active_cred, file_cred,
+			    vp);
 	}
 #endif
 	if (error == 0) {
@@ -505,7 +507,7 @@ vn_read(fp, uio, active_cred, flags, td)
 	ioflag |= sequential_heuristic(uio, fp);
 
 #ifdef MAC
-	error = mac_check_vnode_read(active_cred, vp);
+	error = mac_check_vnode_read(active_cred, fp->f_cred, vp);
 	if (error == 0)
 #endif
 		error = VOP_READ(vp, uio, ioflag, fp->f_cred);
@@ -560,7 +562,7 @@ vn_write(fp, uio, active_cred, flags, td)
 		uio->uio_offset = fp->f_offset;
 	ioflag |= sequential_heuristic(uio, fp);
 #ifdef MAC
-	error = mac_check_vnode_write(active_cred, vp);
+	error = mac_check_vnode_write(active_cred, fp->f_cred, vp);
 	if (error == 0)
 #endif
 		error = VOP_WRITE(vp, uio, ioflag, fp->f_cred);
@@ -610,7 +612,7 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	u_short mode;
 
 #ifdef MAC
-	error = mac_check_vnode_stat(active_cred, vp);
+	error = mac_check_vnode_stat(active_cred, file_cred, vp);
 	if (error)
 		return (error);
 #endif
@@ -805,7 +807,7 @@ vn_poll(fp, events, active_cred, td)
 	vp = (struct vnode *)fp->f_data;
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = mac_check_vnode_poll(active_cred, vp);
+	error = mac_check_vnode_poll(active_cred, fp->f_cred, vp);
 	VOP_UNLOCK(vp, 0, td);
 	if (error)
 		return (error);
