@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.20 1996/04/13 00:05:30 jkh Exp $ -->
+<!-- $Id: eresources.sgml,v 1.21 1996/05/09 23:04:37 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -312,47 +312,49 @@ User Groups.
           <heading>BSD specific newsgroups</heading>
 
           <p><itemize>
-              <item>comp.unix.bsd.freebsd.announce
-              <item>comp.unix.bsd.freebsd.misc
+              <item><url url="news:comp.unix.bsd.freebsd.announce"
+		    name="comp.unix.bsd.freebsd.announce"></item>
+              <item><url url="news:comp.unix.bsd.freebsd.misc"
+		    name="comp.unix.bsd.freebsd.misc"></item>
             </itemize>
 
         <sect1>
           <heading>Other Unix newsgroups of interest</heading>
 
           <p><itemize>
-              <item>comp.unix 
-              <item>comp.unix.questions 
-              <item>comp.unix.admin 
-              <item>comp.unix.programmer 
-              <item>comp.unix.shell 
-              <item>comp.unix.user-friendly 
-              <item>comp.security.unix 
-              <item>comp.sources.unix 
-              <item>comp.unix.advocacy 
-              <item>comp.unix.misc 
-              <item>comp.os.386bsd.announce
-              <item>comp.os.386bsd.apps
-              <item>comp.os.386bsd.bugs 
-              <item>comp.os.386bsd.development 
-              <item>comp.os.386bsd.misc 
-              <item>comp.os.386bsd.questions 
-              <item>comp.bugs.4bsd 
-              <item>comp.bugs.4bsd.ucb-fixes 
-              <item>comp.unix.bsd 
+              <item><url url="news:comp.unix" name="comp.unix"></item>
+              <item><url url="news:comp.unix.questions" name="comp.unix.questions"></item>
+              <item><url url="news:comp.unix.admin" name="comp.unix.admin"></item>
+              <item><url url="news:comp.unix.programmer" name="comp.unix.programmer"></item>
+              <item><url url="news:comp.unix.shell" name="comp.unix.shell"></item>
+              <item><url url="news:comp.unix.user-friendly" name="comp.unix.user-friendly"></item>
+              <item><url url="news:comp.security.unix" name="comp.security.unix"></item>
+              <item><url url="news:comp.sources.unix" name="comp.sources.unix"></item>
+              <item><url url="news:comp.unix.advocacy" name="comp.unix.advocacy"></item>
+              <item><url url="news:comp.unix.misc" name="comp.unix.misc"></item>
+              <item><url url="news:comp.os.386bsd.announc" name="comp.os.386bsd.announc"></item>
+              <item><url url="news:comp.os.386bsd.app" name="comp.os.386bsd.app"></item>
+              <item><url url="news:comp.os.386bsd.bugs" name="comp.os.386bsd.bugs"></item>
+              <item><url url="news:comp.os.386bsd.development" name="comp.os.386bsd.development"></item>
+              <item><url url="news:comp.os.386bsd.misc" name="comp.os.386bsd.misc"></item>
+              <item><url url="news:comp.os.386bsd.questions" name="comp.os.386bsd.questions"></item>
+              <item><url url="news:comp.bugs.4bsd" name="comp.bugs.4bsd"></item>
+              <item><url url="news:comp.bugs.4bsd.ucb-fixes" name="comp.bugs.4bsd.ucb-fixes"></item>
+              <item><url url="news:comp.unix.bsd" name="comp.unix.bsd"></item>
             </itemize>
 
         <sect1>
           <heading>X-Window system</heading>
 
           <p><itemize>
-              <item>comp.windows.x.i386unix 
-              <item>comp.windows.x 
-              <item>comp.windows.x.apps 
-              <item>comp.windows.x.announce 
-              <item>comp.windows.x.intrinsics 
-              <item>comp.windows.x.motif 
-              <item>comp.windows.x.pex 
-              <item>comp.emulators.ms-windows.wine 
+              <item><url url="news:comp.windows.x.i386unix" name="comp.windows.x.i386unix"></item>
+              <item><url url="news:comp.windows.x" name="comp.windows.x"></item>
+              <item><url url="news:comp.windows.x.apps" name="comp.windows.x.apps"></item>
+              <item><url url="news:comp.windows.x.announce" name="comp.windows.x.announce"></item>
+              <item><url url="news:comp.windows.x.intrinsics" name="comp.windows.x.intrinsics"></item>
+              <item><url url="news:comp.windows.x.motif" name="comp.windows.x.motif"></item>
+              <item><url url="news:comp.windows.x.pex" name="comp.windows.x.pex"></item>
+              <item><url url="news:comp.emulators.ms-windows.wine" name="comp.emulators.ms-windows.wine"></item>
             </itemize>
 
       <sect>
