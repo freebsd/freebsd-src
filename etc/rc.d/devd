@@ -3,6 +3,7 @@
 # $FreeBSD$
 #
 
+# REQUIRE: rcconf
 # PROVIDE: devd
 # BEFORE: disks
 # KEYWORD: FreeBSD
