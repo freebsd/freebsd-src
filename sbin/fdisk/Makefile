@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	fdisk
-WARNS=	0
+WARNS=	4
 MAN=	fdisk.8
 
 .include <bsd.prog.mk>
