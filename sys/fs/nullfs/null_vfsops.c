@@ -42,6 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -260,7 +261,7 @@ nullfs_root(mp, vpp)
 
 #ifdef NULLFS_DEBUG
 	if (VOP_ISLOCKED(vp, NULL)) {
-		Debugger("root vnode is locked.\n");
+		kdb_enter("root vnode is locked.\n");
 		vrele(vp);
 		return (EDEADLK);
 	}
