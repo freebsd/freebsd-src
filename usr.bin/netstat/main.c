@@ -42,7 +42,7 @@ char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.23 1999/01/18 02:09:15 fenner Exp $";
+	"$Id: main.c,v 1.23.2.1 1999/04/24 09:36:39 jhay Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -145,6 +145,8 @@ struct protox {
 	  icmp_stats,	"icmp",		IPPROTO_ICMP },
 	{ -1,		-1,		1,	protopr,
 	  igmp_stats,	"igmp",		IPPROTO_IGMP },
+	{ -1,		-1,		1,	protopr,
+	  bdg_stats,	"bdg",		1 /* bridging... */ },
 	{ -1,		-1,		0,	0,
 	  0,		0 }
 };
