@@ -109,7 +109,9 @@ Author: Martin Renters
 #define RFC1048_SWAP_LEN	129	/* T129 */
 
 #define RFC1048_END		255
-#define BOOTP_VENDOR_LEN	256
+#define BOOTP_VENDOR_LEN	256	/* Extended vendor field */
+
+#define BOOTP_MIN_LEN		300	/* Minimum size of bootp udp packet */
 
 #define TFTP_RRQ	1
 #define TFTP_WRQ	2
