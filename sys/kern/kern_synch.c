@@ -468,12 +468,12 @@ msleep(ident, mtx, priority, wmesg, timo)
 		callout_reset(&td->td_slpcallout, timo, endtsleep, td);
 	/*
 	 * We put ourselves on the sleep queue and start our timeout
-	 * before calling CURSIG, as we could stop there, and a wakeup
+	 * before calling cursig, as we could stop there, and a wakeup
 	 * or a SIGCONT (or both) could occur while we were stopped.
 	 * A SIGCONT would cause us to be marked as SSLEEP
 	 * without resuming us, thus we must be ready for sleep
-	 * when CURSIG is called.  If the wakeup happens while we're
-	 * stopped, td->td_wchan will be 0 upon return from CURSIG.
+	 * when cursig is called.  If the wakeup happens while we're
+	 * stopped, td->td_wchan will be 0 upon return from cursig.
 	 */
 	if (catch) {
 		CTR3(KTR_PROC, "msleep caught: proc %p (pid %d, %s)", p,
@@ -481,7 +481,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		td->td_flags |= TDF_SINTR;
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
-		sig = CURSIG(p);
+		sig = cursig(p);
 		mtx_lock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		if (sig != 0) {
@@ -524,8 +524,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 
 	if (rval == 0 && catch) {
 		PROC_LOCK(p);
-		/* XXX: shouldn't we always be calling CURSIG() */ 
-		if (sig != 0 || (sig = CURSIG(p))) {
+		/* XXX: shouldn't we always be calling cursig() */ 
+		if (sig != 0 || (sig = cursig(p))) {
 			if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 				rval = EINTR;
 			else
