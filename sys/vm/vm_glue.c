@@ -118,8 +118,11 @@ kernacc(addr, len, rw)
 {
 	boolean_t rv;
 	vm_offset_t saddr, eaddr;
-	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
+	vm_prot_t prot;
 
+	KASSERT(rw & (~VM_PROT_ALL),
+	    ("illegal ``rw'' argument to kernacc (%x)\n", rw));
+	prot = rw;
 	saddr = trunc_page((vm_offset_t)addr);
 	eaddr = round_page((vm_offset_t)addr + len);
 	vm_map_lock_read(kernel_map);
@@ -134,10 +137,13 @@ useracc(addr, len, rw)
 	int len, rw;
 {
 	boolean_t rv;
-	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
+	vm_prot_t prot;
 	vm_map_t map;
 	vm_map_entry_t save_hint;
 
+	KASSERT(rw & (~VM_PROT_ALL),
+	    ("illegal ``rw'' argument to useracc (%x)\n", rw));
+	prot = rw;
 	/*
 	 * XXX - check separately to disallow access to user area and user
 	 * page tables - they are in the map.

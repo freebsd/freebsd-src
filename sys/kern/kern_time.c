@@ -276,7 +276,8 @@ nanosleep(p, uap)
 	if (error)
 		return (error);
 	if (SCARG(uap, rmtp))
-		if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), B_WRITE))
+		if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), 
+		    VM_PROT_WRITE))
 			return (EFAULT);
 	error = nanosleep1(p, &rqt, &rmt);
 	if (error && SCARG(uap, rmtp)) {
