@@ -18,9 +18,9 @@ dd if=/dev/random of=${src} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
 mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us0 || exit 1
 mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us1 || exit 1
 mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us2 || exit 1
-sleep 1
 
 gmirror label -b $balance -s `expr $ddbs / 2` $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
+sleep 1
 
 dd if=${src} of=/dev/mirror/${name} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
 
