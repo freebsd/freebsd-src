@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.17 1998/12/16 18:42:38 phk Exp $
+ * $Id: if_sr.c,v 1.18 1999/01/12 01:17:00 eivind Exp $
  */
 
 /*
@@ -269,6 +269,7 @@ struct	sr_hardc *srattach_pci(int unit, vm_offset_t plx_vaddr,
 				vm_offset_t sca_vaddr);
 void	srintr_hc(struct sr_hardc *hc);
 
+static ointhand2_t srintr;
 static int	srattach(struct sr_hardc *hc);
 static void	sr_xmit(struct sr_softc *sc);
 static void	srstart(struct ifnet *ifp);
@@ -571,6 +572,8 @@ srattach_isa(struct isa_device *id)
 	u_char mar;
 	struct sr_hardc *hc = &sr_hardc[id->id_unit];
 
+	id->id_ointr = srintr;
+
 	outb(hc->iobase + SR_PCR, inb(hc->iobase + SR_PCR) | SR_PCR_SCARUN);
 	outb(hc->iobase + SR_PSR, inb(hc->iobase + SR_PSR) | SR_PSR_EN_SCA_DMA);
 	outb(hc->iobase + SR_MCR,
@@ -856,6 +859,22 @@ srattach(struct sr_hardc *hc)
 	return 1;
 }
 
+/*
+ * Get the ISA interrupts
+ */
+void
+srintr(void * cookie)
+{ 
+	struct sr_hardc *hc; 
+
+	hc = &sr_hardc[unit];
+	srintr_hc(hc);
+	return; 
+}
+
+/*
+ * PCI interrupts come straight here
+ */
 void
 srintr_hc(struct sr_hardc *hc)
 {
