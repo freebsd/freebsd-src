@@ -195,7 +195,7 @@ afd_describe(struct afd_softc *fdp)
 	    printf("\n");
     }
     else {
-	printf("afd%d: %luMB floppy <%.40s> at ata%d as %s mode %s\n",
+	printf("afd%d: %luMB floppy <%.40s> at ata%d-%s using %s\n",
 	       fdp->lun, (fdp->cap.cylinders*fdp->cap.heads*fdp->cap.sectors) /
 			 ((1024L * 1024L) / fdp->cap.sector_size),	
 	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
