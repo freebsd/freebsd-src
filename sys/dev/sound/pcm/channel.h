@@ -36,7 +36,6 @@ struct pcmchan_caps {
 	u_int32_t *fmtlist;
 	u_int32_t caps;
 };
-typedef struct pcmchan_caps pcmchan_caps;
 
 #define	CHN_NAMELEN	32
 struct pcm_channel {
