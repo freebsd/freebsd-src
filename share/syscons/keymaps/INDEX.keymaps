@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.11 1997/02/22 13:56:37 peter Exp $
+# $Id: INDEX.keymaps,v 1.12 1997/07/14 18:29:56 ache Exp $
 #
 # database for kbdmap(8) 
 #
@@ -24,10 +24,12 @@ MENU:en:Choose your keyboard language
 MENU:da,no,sv:Vælg dit keyboard layout
 MENU:de:Wähle Deine Tastaturbelegung
 MENU:fr:Choisissez la nationalité de votre clavier
+MENU:pl:Wybierz uk³ad klawiatury
 #
 FONT:en:cp437-8x16.fnt
 FONT:de,fr,da,no,sv:iso-8x16.fnt
 FONT:ru:koi8-r-8x16.fnt
+FONT:pl:iso02-8x16.fnt
 # 
 be.iso.kbd:en:Belgian ISO-8859-1
 be.iso.kbd:de:Belgisch ISO-8859-1
@@ -74,6 +76,9 @@ lat-amer.kbd:en:Latin American
 norwegian.iso.kbd:en:Norwegian ISO-8859-1
 norwegian.iso.kbd:no:Norsk ISO-8859-1
 norwegian.iso.kbd:de:Norwegisch ISO-8859-1
+
+pl_PL.ISO_8859-2.kbd:en:Polish ISO-8859-2 (programmer's)
+pl_PL.ISO_8859-2.kbd:pl:Polska ISO-8859-2 (programisty)
 
 ru.cp866.kbd:en:Russian Codepage 866 (alternative)
 ru.cp866.kbd:de:Russisch Codeseite 866 (alternativ)
