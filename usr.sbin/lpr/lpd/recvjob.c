@@ -69,7 +69,7 @@ static const char rcsid[] =
 #include "extern.h"
 #include "pathnames.h"
 
-#define ack()	(void) write(STDOUT_FILENO, sp, 1);
+#define ack()	(void) write(STDOUT_FILENO, sp, (size_t)1);
 
 static char	 dfname[NAME_MAX];	/* data files */
 static int	 minfree;       /* keep at least minfree blocks available */
@@ -81,7 +81,7 @@ static void	 frecverr(const char *_msg, ...) __printf0like(1, 2);
 static int	 noresponse(void);
 static void	 rcleanup(int _signo);
 static int	 read_number(const char *_fn);
-static int	 readfile(struct printer *_pp, char *_file, int _size);
+static int	 readfile(struct printer *_pp, char *_file, size_t _size);
 static int	 readjob(struct printer *_pp);
 
 
@@ -144,9 +144,8 @@ static int
 readjob(struct printer *pp)
 {
 	register int size;
-	register char *cp;
 	int cfcnt, dfcnt;
-	char *errmsg;
+	char *cp, *clastp, *errmsg;
 	char givenid[32], givenhost[MAXHOSTNAMELEN];
 
 	ack();
@@ -157,17 +156,19 @@ readjob(struct printer *pp)
 		 * Read a command to tell us what to do
 		 */
 		cp = line;
+		clastp = line + sizeof(line) - 1;
 		do {
-			if ((size = read(STDOUT_FILENO, cp, 1)) != 1) {
-				if (size < 0) {
+			size = read(STDOUT_FILENO, cp, (size_t)1);
+			if (size != (ssize_t)1) {
+				if (size < (ssize_t)0) {
 					frecverr("%s: lost connection",
 					    pp->printer);
 					/*NOTREACHED*/
 				}
 				return (cfcnt);
 			}
-		} while (*cp++ != '\n' && (cp - line + 1) < sizeof(line));
-		if (cp - line + 1 >= sizeof(line)) {
+		} while ((*cp++ != '\n') && (cp <= clastp));
+		if (cp > clastp) {
 			frecverr("%s: readjob overflow", pp->printer);
 			/*NOTREACHED*/
 		}
@@ -200,10 +201,10 @@ readjob(struct printer *pp)
 				frecverr("readjob: %s: illegal path name",
 				    tfname);
 			if (!chksize(size)) {
-				(void) write(STDOUT_FILENO, "\2", 1);
+				(void) write(STDOUT_FILENO, "\2", (size_t)1);
 				continue;
 			}
-			if (!readfile(pp, tfname, size)) {
+			if (!readfile(pp, tfname, (size_t)size)) {
 				rcleanup(0);
 				continue;
 			}
@@ -225,7 +226,7 @@ readjob(struct printer *pp)
 			if (*cp++ != ' ')
 				break;
 			if (!chksize(size)) {
-				(void) write(STDOUT_FILENO, "\2", 1);
+				(void) write(STDOUT_FILENO, "\2", (size_t)1);
 				continue;
 			}
 			strlcpy(dfname, cp, sizeof(dfname));
@@ -236,9 +237,9 @@ readjob(struct printer *pp)
 			}
 			dfcnt++;
 			trstat_init(pp, dfname, dfcnt);
-			(void) readfile(pp, dfname, size);
-			trstat_write(pp, TR_RECVING, size, givenid, from_host,
-				     givenhost);
+			(void) readfile(pp, dfname, (size_t)size);
+			trstat_write(pp, TR_RECVING, (size_t)size, givenid,
+			    from_host, givenhost);
 			continue;
 		}
 		frecverr("protocol screwup: %s", line);
@@ -250,12 +251,12 @@ readjob(struct printer *pp)
  * Read files send by lpd and copy them to the spooling directory.
  */
 static int
-readfile(struct printer *pp, char *file, int size)
+readfile(struct printer *pp, char *file, size_t size)
 {
 	register char *cp;
 	char buf[BUFSIZ];
-	register int i, j, amt;
-	int fd, err;
+	size_t amt, i;
+	int err, fd, j;
 
 	fd = open(file, O_CREAT|O_EXCL|O_WRONLY, FILMOD);
 	if (fd < 0) {
@@ -282,7 +283,7 @@ readfile(struct printer *pp, char *file, int size)
 		amt = BUFSIZ;
 		if (i + amt > size)
 			amt = size - i;
-		if (write(fd, buf, amt) != amt) {
+		if (write(fd, buf, amt) != (ssize_t)amt) {
 			err++;
 			break;
 		}
@@ -306,7 +307,7 @@ noresponse(void)
 {
 	char resp;
 
-	if (read(STDOUT_FILENO, &resp, 1) != 1) {
+	if (read(STDOUT_FILENO, &resp, (size_t)1) != 1) {
 		frecverr("lost connection in noresponse()");
 		/*NOTREACHED*/
 	}
