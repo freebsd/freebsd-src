@@ -130,7 +130,7 @@ static ndis_status ndis_encode_parm(ndis_miniport_block *,
 	struct sysctl_oid *, ndis_parm_type, ndis_config_parm **);
 static ndis_status ndis_decode_parm(ndis_miniport_block *,
 	ndis_config_parm *, char *);
-static int my_strcasecmp(const char *, const char *, int);
+static int my_strcasecmp(const char *, const char *);
 __stdcall static void ndis_read_cfg(ndis_status *, ndis_config_parm **,
 	ndis_handle, ndis_unicode_string *, ndis_parm_type);
 __stdcall static void ndis_write_cfg(ndis_status *, ndis_handle,
@@ -557,19 +557,27 @@ ndis_encode_parm(block, oid, type, parm)
 }
 
 static int
-my_strcasecmp(s1, s2, len)
+my_strcasecmp(s1, s2)
         const char              *s1;
         const char              *s2;
-        int                     len;
 {
-        int                     i;
+	char			a, b;
 
-        for (i = 0; i < len; i++) {
-                if (toupper(s1[i]) != toupper(s2[i]))
-                        return(1);
-        }
+	/*
+	 * In the kernel, toupper() is a macro. Have to be careful
+	 * not to use pointer arithmetic when passing it arguments.
+	 */
 
-        return(0);
+	while(1) {
+		a = *s1;
+		b = *s2++;
+		if (toupper(a) != toupper(b))
+			break;
+		if (*s1++ == 0)
+			return(0);
+	}
+
+	return (*(const unsigned char *)s1 - *(const unsigned char *)(s2 - 1));
 }
 
 __stdcall static void
@@ -607,8 +615,7 @@ ndis_read_cfg(status, parm, cfg, key, type)
 	 */
 	TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
 		oidp = e->entry;
-		if (my_strcasecmp(oidp->oid_name,
-		    keystr, strlen(keystr)) == 0) {
+		if (my_strcasecmp(oidp->oid_name, keystr) == 0) {
 			if (strcmp((char *)oidp->oid_arg1, "UNSET") == 0) {
 				free(keystr, M_DEVBUF);
 				*status = NDIS_STATUS_FAILURE;
@@ -704,8 +711,7 @@ ndis_write_cfg(status, cfg, key, parm)
 
 	TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
 		oidp = e->entry;
-		if (my_strcasecmp(oidp->oid_name,
-		    keystr, strlen(keystr)) == 0) {
+		if (my_strcasecmp(oidp->oid_name, keystr) == 0) {
 			/* Found it, set the value. */
 			strcpy((char *)oidp->oid_arg1, val);
 			free(keystr, M_DEVBUF);
