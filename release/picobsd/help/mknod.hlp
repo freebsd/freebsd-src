@@ -1,5 +1,0 @@
-[1mmknod[m	build special file
-
-	Usage:
-
-	mknod name [b | c] major minor

@@ -1,9 +1,0 @@
-[1mmount_procfs[m	mount process filesystem
-
-	Usage:
-
-	mount_procfs [-o options] what_to_mount mount_point
-
-	Most commonly this will be:
-
-		mount_procfs proc /proc
