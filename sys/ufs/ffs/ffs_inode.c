@@ -559,7 +559,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			panic("ffs_indirtrunc: bad buffer size");
 		bp->b_blkno = dbn;
 		vfs_busy_pages(bp, 0);
-		BUF_STRATEGY(bp);
+		VOP_STRATEGY(bp->b_vp, bp);
 		error = bufwait(bp);
 	}
 	if (error) {

@@ -163,7 +163,7 @@ swapdev_strategy(ap)
 	}
 	bp->b_vp = sp->sw_vp;
 	splx(s);
-	BUF_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 	return 0;
 }
 
