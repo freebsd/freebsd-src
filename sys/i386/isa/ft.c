@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.15 1994/12/04 03:10:09 jkh Exp $
+ *  $Id: ft.c,v 1.16 1995/03/26 19:28:22 rgrimes Exp $
  *
  *  06/07/94 v0.9 ++sg
  *  Tape stuck on segment problem should be gone.  Re-wrote buffering
@@ -77,7 +77,8 @@
 #include <sys/ftape.h>
 #include <sys/devconf.h>
 
-#include <machine/cpufunc.h>
+#include <machine/clock.h>
+
 #include <i386/isa/isa_device.h>
 #include <i386/isa/fdreg.h>
 #include <i386/isa/fdc.h>

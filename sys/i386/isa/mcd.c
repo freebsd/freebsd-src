@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.38 1995/02/22 02:12:10 ache Exp $
+ *	$Id: mcd.c,v 1.39 1995/02/23 17:40:16 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -52,6 +52,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/buf.h>
+#include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
@@ -60,6 +61,10 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/devconf.h>
+
+#include <machine/clock.h>
+
+#include <i386/i386/cons.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

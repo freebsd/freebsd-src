@@ -46,7 +46,7 @@
  *               delays, device flags, polling mode, generic cleanup
  * vak    950115 Added request-sense ops
  *
- * $Id: seagate.c,v 1.3 1994/06/16 13:26:14 sean Exp $
+ * $Id: seagate.c,v 1.5 1995/01/10 11:41:28 jkh Exp $
  */
 
 /*
@@ -109,6 +109,9 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/devconf.h>
+
+#include <machine/clock.h>
+
 #include <i386/isa/isa_device.h>
 
 #include <scsi/scsi_all.h>

@@ -40,6 +40,7 @@
 #if defined(__FreeBSD__)
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <machine/clock.h>
 #endif
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

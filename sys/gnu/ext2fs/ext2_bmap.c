@@ -36,10 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.5 1995/01/09 16:05:25 davidg Exp $
+ * $Id: ufs_bmap.c,v 1.6 1995/03/04 03:24:45 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -52,8 +53,6 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
-
-int	ufs_bmaparray __P((struct vnode *, daddr_t, daddr_t *, struct indir *, int *, int *));
 
 /*
  * Bmap converts a the logical block number of a file to its physical block

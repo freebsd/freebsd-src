@@ -1,13 +1,15 @@
 /*
  *	DMA buffer calls
  *
- * $Id: sound_calls.h,v 1.7 1994/10/01 02:17:10 swallace Exp $
+ * $Id: sound_calls.h,v 1.10 1995/03/12 23:34:06 swallace Exp $
  */
 
 #ifndef _MACHINE_ISA_SOUND_H_
 #define _MACHINE_ISA_SOUND_H_
 
 int DMAbuf_open(int dev, int mode);
+int DMAbuf_output_ready(int dev);
+int DMAbuf_input_ready(int dev);
 int DMAbuf_release(int dev, int mode);
 int DMAbuf_getwrbuffer(int dev, char **buf, int *size);
 int DMAbuf_getrdbuffer(int dev, char **buf, int *len);
@@ -160,6 +162,7 @@ long attach_adlib_card(long mem_start, struct address_info *hw_config);
 int probe_adlib(struct address_info *hw_config);
 
 /*	From pas_card.c	*/
+void mix_write(unsigned char data, int ioaddr);
 long attach_pas_card(long mem_start, struct address_info *hw_config);
 int probe_pas(struct address_info *hw_config);
 int pas_set_intr(int mask);

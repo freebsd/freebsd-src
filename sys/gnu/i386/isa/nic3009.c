@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.3 1995/02/15 11:59:41 jkh Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.4 1995/02/16 08:06:21 jkh Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.3 1995/02/15 11:59:41 jkh E
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.4  1995/02/16  08:06:21  jkh
+ * Fix a few bogons introduced when config lost the 3 char limitation.
+ *
  * Revision 1.3  1995/02/15  11:59:41  jkh
  * Fix a few more nits.  Should compile better now! :_)
  *
@@ -43,6 +46,7 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.3 1995/02/15 11:59:41 jkh E
 #include "ioctl.h"
 #include "kernel.h"
 #include "systm.h"
+#include "proc.h"
 
 #include "i386/isa/isa_device.h"
 #include "gnu/i386/isa/nic3009.h"
@@ -1116,7 +1120,11 @@ up_intr(unsigned unit, struct nnic_softc * sc)
 		{
 			chan->state = IDLE;
 			ctrl->o_len = 0;
-			timeout(isdn_start_out,(void *)chan->ctrl,hz/5);
+			/*
+			 * XXX the chan->ctrl arg is very bogus.
+			 * Don't just use a cast to "fix" it.
+			 */
+			timeout(isdn_start_out, chan->ctrl, hz / 5);
 		}
 		break;
 

@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.13 1994/10/25 08:57:39 swallace Exp $
+ * $Id: wt.c,v 1.14 1995/01/09 17:55:10 joerg Exp $
  *
  */
 
@@ -61,8 +61,11 @@
 #include <sys/malloc.h>
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
+#include <sys/proc.h>
 #include <sys/devconf.h>
 #include <vm/vm_param.h>
+
+#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>

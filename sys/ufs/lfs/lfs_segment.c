@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.7 1995/01/09 16:05:22 davidg Exp $
+ * $Id: lfs_segment.c,v 1.8 1995/03/19 14:29:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -146,7 +146,6 @@ lfs_alloc_buffer(int size) {
 void	 lfs_callback __P((struct buf *));
 void	 lfs_gather __P((struct lfs *, struct segment *,
 	     struct vnode *, int (*) __P((struct lfs *, struct buf *))));
-int	 lfs_gatherblock __P((struct segment *, struct buf *, int *));
 void	 lfs_iset __P((struct inode *, daddr_t, time_t));
 int	 lfs_match_data __P((struct lfs *, struct buf *));
 int	 lfs_match_dindir __P((struct lfs *, struct buf *));
@@ -155,11 +154,7 @@ int	 lfs_match_tindir __P((struct lfs *, struct buf *));
 void	 lfs_newseg __P((struct lfs *));
 void	 lfs_shellsort __P((struct buf **, daddr_t *, register int));
 void	 lfs_supercallback __P((struct buf *));
-void	 lfs_updatemeta __P((struct segment *));
 void	 lfs_writefile __P((struct lfs *, struct segment *, struct vnode *));
-int	 lfs_writeinode __P((struct lfs *, struct segment *, struct inode *));
-int	 lfs_writeseg __P((struct lfs *, struct segment *));
-void	 lfs_writesuper __P((struct lfs *));
 void	 lfs_writevnodes __P((struct lfs *fs, struct mount *mp,
 	    struct segment *sp, int dirops));
 

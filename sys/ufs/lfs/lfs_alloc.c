@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.5 1994/10/10 01:04:48 phk Exp $
+ * $Id: lfs_alloc.c,v 1.6 1995/03/19 14:29:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>

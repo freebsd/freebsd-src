@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ep.c,v 1.20 1995/03/23 06:53:38 davidg Exp $
+ *	$Id: if_ep.c,v 1.21 1995/03/23 07:31:08 gibbs Exp $
  */
 
 /*
@@ -77,6 +77,10 @@
 #if NBPFILTER > 0
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
+#endif
+
+#if defined(__FreeBSD__)
+#include <machine/clock.h>
 #endif
 
 #include <i386/isa/isa.h>

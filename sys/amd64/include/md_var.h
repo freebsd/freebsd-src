@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: $
+ *	$Id: md_var.h,v 1.1 1995/03/16 18:11:43 bde Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -64,5 +64,6 @@ int	fill_regs __P((struct proc *p, struct reg *regs));
 int	mvesp __P((void));
 void	setconf __P((void));
 void	userconfig __P((void));
+void	vm_bounce_init __P((void));
 
 #endif /* !_MACHINE_MD_VAR_H_ */

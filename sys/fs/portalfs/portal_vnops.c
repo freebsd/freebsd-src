@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.3 1994/08/20 03:48:52 davidg Exp $
+ * $Id: portal_vnops.c,v 1.4 1994/09/21 03:47:05 wollman Exp $
  */
 
 /*
@@ -70,9 +70,7 @@ portal_closefd(p, fd)
 	int fd;
 {
 	int error;
-	struct {
-		int fd;
-	} ua;
+	struct close_args ua;
 	int rc;
 
 	ua.fd = fd;
