@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +27,29 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
+#include <wchar.h>
 
 int
 mblen(const char *s, size_t n)
 {
+	static const mbstate_t initial;
+	static mbstate_t mbs;
+	size_t rval;
 
-	/*
-	 * Calling mbtowc() is only legal because we don't support
-	 * state-dependent encodings.
-	 */
-	return (mbtowc(NULL, s, n));
+	if (s == NULL) {
+		/* No support for state dependent encodings. */
+		mbs = initial;
+		return (0);
+	}
+	rval = mbrtowc(NULL, s, n, &mbs);
+	if (rval == (size_t)-1 || rval == (size_t)-2)
+		return (-1);
+	if (rval > INT_MAX) {
+		errno = ERANGE;
+		return (-1);
+	}
+	return ((int)rval);
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,11 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 size_t
-mbrlen(const char * __restrict s, size_t n, mbstate_t * __restrict ps __unused)
+mbrlen(const char * __restrict s, size_t n, mbstate_t * __restrict ps)
 {
+	static mbstate_t mbs;
 
-	return (mbrtowc(NULL, s, n, NULL));
+	if (ps == NULL)
+		ps = &mbs;
+	return (mbrtowc(NULL, s, n, ps));
 }
