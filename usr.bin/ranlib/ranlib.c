@@ -44,19 +44,21 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)ranlib.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
+
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "archive.h"
 
-extern int build( void );
-extern int touch( void );
+#include "archive.h"
+#include "extern.h"
+
 static void usage(void);
 
 CHDR chdr;
@@ -64,9 +66,7 @@ u_int options;				/* UNUSED -- keep open_archive happy */
 char *archive;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	int ch, eval, tflag;
 
@@ -92,7 +92,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: ranlib [-t] archive ...\n");
 	exit(1);
