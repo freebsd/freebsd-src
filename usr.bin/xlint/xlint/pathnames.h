@@ -35,14 +35,11 @@
 
 /* directory where lint1 and lint2 reside */
 #ifndef PATH_LIBEXEC
-#define	PATH_LIBEXEC		"/usr/libexec"
+#define	PATH_LIBEXEC		PREFIX"/usr/libexec"
 #endif
 
 /* directory where cc(1) resides */
-#define	PATH_USRBIN		"/usr/bin"
-
-/* directory where cc(1) resides */
-#define PATH_USRBIN		"/usr/bin"
+#define	PATH_USRBIN		PREFIX"/usr/bin"
 
 /* default library search path */
-#define PATH_LINTLIB		"/usr/libdata/lint"
+#define PATH_LINTLIB		PREFIX"/usr/libdata/lint"
