@@ -36,7 +36,7 @@
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2002
+.Dd October 12, 2004
 .Dt STRERROR 3
 .Os
 .Sh NAME
@@ -102,18 +102,17 @@ a colon and space
 .Pq Dq Li ":\ " ;
 otherwise, only the error message string is printed.
 .Pp
-If
-.Fa errnum
-is not a recognized error number,
-.Fn strerror
-returns an error message string containing
+If the error number is not recognized, these functions return an error message
+string containing
 .Dq Li "Unknown error:\ "
-followed by the error number in decimal, while
+followed by the error number in decimal.
+The
+.Fn strerror
+and
 .Fn strerror_r
-leaves
-.Fa strerrbuf
-unchanged and returns
-.Er EINVAL .
+functions return
+.Er EINVAL
+as a warning.
 Error numbers recognized by this implementation fall in
 the range 0 <
 .Fa errnum
