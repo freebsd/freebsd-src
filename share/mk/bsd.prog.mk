@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.44 1997/02/22 13:56:13 peter Exp $
+#	$Id: bsd.prog.mk,v 1.45 1997/03/08 19:47:08 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -22,9 +22,11 @@ LDFLAGS+= -static
 .endif
 
 .if defined(DESTDIR)
-LDDESTDIR+=	-L${DESTDIR}/usr/lib
+LDDESTDIR?=	-L${DESTDIR}${SHLIBDIR} -L${DESTDIR}/usr/lib
+# LDDESTDIR+=	-nostdlib
 .endif
 
+# XXX obsolescent.
 .include <bsd.libnames.mk>
 
 .if defined(PROG)
@@ -35,13 +37,14 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if defined(LDONLY)
 
-${PROG}: ${LIBCRT0} ${LIBC} ${DPSRCS} ${OBJS} ${DPADD} 
+# XXX is this used?  -static in ${LDFLAGS} can't be passed here.
+${PROG}: ${DPSRCS} ${OBJS}
 	${LD} ${LDFLAGS} -o ${.TARGET} ${LIBCRT0} ${OBJS} ${LIBC} ${LDDESTDIR} \
 		${LDADD}
 
 .else defined(LDONLY)
 
-${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
+${PROG}: ${DPSRCS} ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
 
 .endif
@@ -51,7 +54,7 @@ ${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
 SRCS=	${PROG}.c
 
 .if 0
-${PROG}: ${DPSRCS} ${SRCS} ${LIBC} ${DPADD}
+${PROG}: ${DPSRCS} ${SRCS}
 	${CC} ${LDFLAGS} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${SRCS} \
 		${LDDESTDIR} ${LDADD}
 
@@ -63,7 +66,7 @@ MKDEP=	-p
 #   the name of a variable temporary object.
 # - it's useful to keep objects around for crunching.
 OBJS=	${PROG}.o
-${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
+${PROG}: ${DPSRCS} ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
 .endif
 
@@ -89,6 +92,12 @@ clean: _SUBDIR
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
+.endif
+
+.if defined(PROG)
+_EXTRADEPEND:
+	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
+	    ${LDADD}` >> ${DEPENDFILE}
 .endif
 
 .if !target(install)
