@@ -5,7 +5,7 @@
 # Configuring the FreeBSD Kernel -> The Configuration File. 
 # The handbook is available in /usr/share/doc/handbook or online as
 # latest version from the FreeBSD World Wide Web server 
-# <URL:http://www.FreeBSD.ORG/>
+# <URL:http://www.FreeBSD.org/>
 #
 # An exhaustive list of options and more detailed explanations of the 
 # device lines is present in the ./LINT configuration file. If you are 
