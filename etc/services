@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.27.2.15 1998/03/09 02:17:45 jkh Exp $
+#	$Id: services,v 1.27.2.16 1998/03/09 02:59:21 steve Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1524,6 +1524,12 @@ rtsserv		2500/udp   #Resource Tracking system server
 rtsclient	2501/tcp   #Resource Tracking system client
 rtsclient	2501/udp   #Resource Tracking system client
 hp-3000-telnet	2564/tcp   #HP 3000 NS/VT block mode telnet
+zebrasrv	2600/tcp   #zebra service
+zebra		2601/tcp   #zebra vty
+ripd		2602/tcp   #RIPd vty
+ripngd		2603/tcp   #RIPngd vty
+ospfd		2604/tcp   #OSPFd vty
+bgpd		2605/tcp   #BGPd vty
 listen		2766/tcp			# System V listener port
 www-dev		2784/tcp   #world wide web - development
 www-dev		2784/udp   #world wide web - development
