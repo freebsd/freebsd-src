@@ -3,6 +3,7 @@ PROG= a2p
 
 SRCS+= a2p.c hash.c str.c walk.c util.c
 CFLAGS+= -I${.CURDIR}/../perl
+CLEANFILES+= y.tab.h a2p.c
 
 LDADD= -lm
 DPADD= ${LIBM}
