@@ -1088,6 +1088,10 @@ device		mca
 
 device		pci
 
+#
+# AGP GART support
+device		agp
+
 # PCI options
 #
 #options 	PCI_QUIET	#quiets PCI code on chipset settings
