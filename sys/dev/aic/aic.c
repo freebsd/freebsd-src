@@ -30,8 +30,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
-#include <sys/devicestat.h>	/* for struct devstat */
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -41,7 +39,6 @@
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
-#include <cam/cam_periph.h>
 
 #include <cam/scsi/scsi_message.h>
 
@@ -68,9 +65,6 @@ static void aic_timeout __P((void *arg));
 static void aic_scsi_reset __P((struct aic_softc *aic));
 static void aic_chip_reset __P((struct aic_softc *aic));
 static void aic_reset __P((struct aic_softc *aic, int initiate_reset));
-static void aic_cam_rescan_callback __P((struct cam_periph *periph,
-					union ccb *ccb));
-static void aic_cam_rescan __P((struct aic_softc *aic));
 
 devclass_t aic_devclass;
 
@@ -1529,6 +1523,14 @@ aic_attach(struct aic_softc *aic)
 		return (ENXIO);
 	}
 
+	if (xpt_create_path(&aic->path, /*periph*/NULL,
+			    cam_sim_path(aic->sim), CAM_TARGET_WILDCARD,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_bus_deregister(cam_sim_path(aic->sim));
+		cam_sim_free(aic->sim, /*free_devq*/TRUE);
+		return (ENXIO);
+	}
+
 	aic_init(aic);
 
 	printf("aic%d: %s", aic->unit,
@@ -1542,9 +1544,6 @@ aic_attach(struct aic_softc *aic)
 	if (aic->flags & AIC_FAST_ENABLE)
 		printf(", fast SCSI");
 	printf("\n");
-
-	aic_cam_rescan(aic);	/* have CAM rescan the bus */
-
 	return (0);
 }
 
@@ -1556,30 +1555,4 @@ aic_detach(struct aic_softc *aic)
 	xpt_bus_deregister(cam_sim_path(aic->sim));
 	cam_sim_free(aic->sim, /*free_devq*/TRUE);
 	return (0);
-}
-
-static void
-aic_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-	free(ccb, M_TEMP);
-}
-
-static void
-aic_cam_rescan(struct aic_softc *aic)
-{
-	union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
-
-	if (xpt_create_path(&aic->path, xpt_periph, cam_sim_path(aic->sim), 0, 0)
-	    != CAM_REQ_CMP) {
-		/* A failure is benign as the user can do a manual rescan */
-		return;
-	}
-
-	xpt_setup_ccb(&ccb->ccb_h, aic->path, 5/*priority (low)*/);
-	ccb->ccb_h.func_code = XPT_SCAN_BUS;
-	ccb->ccb_h.cbfcnp = aic_cam_rescan_callback;
-	ccb->crcn.flags = CAM_FLAG_NONE;
-	xpt_action(ccb);
-
-	/* The scan is in progress now. */
 }
