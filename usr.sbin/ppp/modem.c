@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.71 1998/05/19 21:51:24 brian Exp $
+ * $Id: modem.c,v 1.81 1998/05/21 21:46:56 brian Exp $
  *
  *  TODO:
  */
@@ -987,6 +987,7 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
   p->desc.next = NULL;
   p->type = PHYS_DIRECT;
   p->dl = dl;
+  len = strlen(_PATH_DEV);
   p->name.base = strncmp(p->name.full, _PATH_DEV, len) ?
                         p->name.full : p->name.full + len;
   p->mbits = 0;
