@@ -2286,7 +2286,7 @@ remotename(name, m, flags, pstat, e)
 	if (bitset(RF_CANONICAL, flags) || bitnset(M_NOCOMMENT, m->m_flags))
 		fancy = "\201g";
 	else
-		fancy = crackaddr(name);
+		fancy = crackaddr(name, e);
 
 	/*
 	**  Turn the name into canonical form.
