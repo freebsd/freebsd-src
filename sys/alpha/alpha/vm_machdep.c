@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.18 1999/07/22 06:03:42 alc Exp $
+ *	$Id: vm_machdep.c,v 1.19 1999/08/05 23:38:13 jdp Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -187,9 +187,9 @@ cpu_fork(p1, p2)
 		/*
 		 * Set up return-value registers as fork() libc stub expects.
 		 */
-		p2tf->tf_regs[FRAME_V0] = p1->p_pid;	/* parent's pid */
-		p2tf->tf_regs[FRAME_A3] = 0;		/* no error */
-		p2tf->tf_regs[FRAME_A4] = 1;		/* is child */
+		p2tf->tf_regs[FRAME_V0] = 0; 	/* child's pid (linux) 	*/
+		p2tf->tf_regs[FRAME_A3] = 0;	/* no error 		*/
+		p2tf->tf_regs[FRAME_A4] = 1;	/* is child (FreeBSD) 	*/
 
 		/*
 		 * Arrange for continuation at child_return(), which
