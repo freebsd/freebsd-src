@@ -554,6 +554,18 @@ mawait(struct mtx *mtx, int priority, int timo)
 	KASSERT(timo > 0 || mtx_owned(&Giant) || mtx != NULL,
 	    ("sleeping without a mutex"));
 	mtx_lock_spin(&sched_lock);
+	if (cold || panicstr) {
+		/*
+		 * After a panic, or during autoconfiguration,
+		 * just give interrupts a chance, then just return;
+		 * don't run any other procs or panic below,
+		 * in case this is the idle process and already asleep.
+		 */
+		if (mtx != NULL && priority & PDROP)
+			mtx_unlock_flags(mtx, MTX_NOSWITCH);
+		mtx_unlock_spin(&sched_lock);
+		return (0);
+	}
 	DROP_GIANT_NOSWITCH();
 	if (mtx != NULL) {
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
