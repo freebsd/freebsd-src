@@ -6,6 +6,7 @@
 PROG=genrtab
 WARNS=5
 NOMAN=true
+DPADD=${LIBM}
 LDADD=-lm
 
 install:

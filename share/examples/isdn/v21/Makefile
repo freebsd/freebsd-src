@@ -2,6 +2,7 @@
 
 PROG=		v21modem
 NOMAN=		1
+DPADD=		${LIBUTIL} ${LIBM}
 LDADD=		-lutil -lm
 CFLAGS+=	-g -Wall
 
