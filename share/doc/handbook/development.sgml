@@ -1,0 +1,105 @@
+<!-- $Id $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>The FreeBSD development model<label id="development"></heading>
+
+<p><em>Contributed by &a.asami;</em>.
+
+<p>The development of FreeBSD is a very open and flexible process,
+FreeBSD being literally built from the contributions of hundreds of
+people around the world, as can be seen from our <ref id="contrib"
+name="list of contributors">. We are constantly on the lookout for
+new developers and ideas, and those interested in becoming more
+closely involved with the project need simply contact us at our
+<htmlurl url="mailto:hackers@freebsd.org" name="hackers@freebsd.org">
+mailing list.  Those who prefer to work more independantly are also
+accomodated, and they are free to use our FTP facilities at <htmlurl
+url="ftp://ftp.freebsd.org/pub/FreeBSD/incoming"
+name="ftp.freebsd.org"> to distribute their own patches or work-in-progress
+sources.  Our <htmlurl url="mailto:announce@freebsd.org"
+name="announcements mailing list"> is also available to those wishing
+to make other FreeBSD users aware of major areas of work.
+
+Whether working independantly or more closely with the project, there
+are number of things about how we handle our development which is useful
+to know.  The first and foremost item of importance in our development
+work is:
+
+<descrip>
+<tag>The CVS repository<label id="development:cvs-repository"></tag>
+
+<p>The central source tree for FreeBSD is maintained by <htmlurl
+url="http://www.cyclic.com/cyclic-pages/CVS-sheet.html" name="CVS">
+(Concurrent Version System), a freely available source code control
+tool which comes bundled with FreeBSD.  The primary <htmlurl
+url="http://www.freebsd.org/cgi-bin/cvsweb" name="CVS repository">
+resides on a machine in Concord CA, USA from where it is replicated
+to numerous mirror machines throughout the world.  The CVS tree, as well
+as the <ref id="current" name="-current"> and <ref id="stable"
+name="-stable"> trees which are checked out of it, can be easily
+replicated to your own machine as well.  Please refer to the
+<ref id="synching" name="Syncronizing your source tree">
+section for more information on doing this.
+
+<tag>The committers list<label id="development:committers"></tag>
+<p>The <ref id="contrib:committers" name="committers"> are the people
+who have <em>write</em> access to the CVS tree, and are thus
+authorized to make modifications to the FreeBSD source (the term
+``committer'' comes from the <tt>cvs(1)</tt> ``<tt>commit</tt>''
+command, which is used to bring new changes into the CVS repository).
+The best way of making submissions for review by the committers list
+is to use the <htmlurl url="http://www.freebsd.org/send-pr.html"
+name="send-pr(1)"> command, though if something appears to be jammed
+in the system then you may also reach them by sending mail to <htmlurl
+url="mailto:committers@freebsd.org" name="committers@freebsd.org">.
+
+
+<tag>The FreeBSD core team</tag>
+
+<p>The <ref id="contrib:core" name="FreeBSD core team"> would be
+equivalent to the board of directors if the FreeBSD Project were a
+company.  The primary task of the core team is to make sure the
+project, as a whole, is in good shape and is heading in the right
+directions.  Inviting dedicated and responsible developers to join our
+group of committers is one of the functions of the core team, as is
+the recruitment of new core team members as others move on.  Most
+current members of the core team started as committers who's addiction
+to the project got the better of them.
+
+<p>Some core team members also have specific <ref id="contrib:who"
+name="areas of responsibility">, meaning that they are committed to
+ensuring that some large portion of the system works as advertised.
+Note that most members of the core team are volunteers when it comes
+to FreeBSD development and do not benefit from the project
+financially, so "committment" should also not be misconstrued as
+meaning "guaranteed support."  The ``board of directors'' analogy
+above is not actually very accurate, and it may be more suitable to
+say that these are the people who gave up their lives in favor of
+FreeBSD against their better judgement! <tt>;)</tt>
+
+<tag>Additional contributors</tag>
+
+<p>Last, but definitely not least, the largest group of developers are
+the users themselves who provide feedback and bug-fixes to us on an
+almost constant basis.  Here are <ref id="contrib:additional"
+name="the names"> of the people who contributed something which made
+its way into our source tree.  Why not join this list too by
+contributing something back to FreeBSD? <tt>:-)</tt>
+
+<p>Providing code is not the only way to contribute to the project;
+for a more complete list of things we need, please refer to the <ref
+id="submitters" name="how to contribute"> section in this handbook.
+
+</descrip>
+
+In summary, our development model is organized as a loose set of
+concentric circles.  The centralized model is designed for the
+convenience of the <em>users</em> of FreeBSD, who are thereby provided
+with an easy way of tracking one central code base, not to keep
+potential contributors out!  Our desire is to to present a stable
+operating system with a large set of coherent <ref id="ports"
+name="application programs"> that the users can easily install and
+use, and this model works very well in accomplishing that.
+
+All we ask of those who would join us as FreeBSD developers is some of
+the same dedication its current people have to its continued success!
