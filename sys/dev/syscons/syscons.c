@@ -389,11 +389,9 @@ sc_attach_unit(int unit, int flags)
 			      (void *)(uintptr_t)unit, SHUTDOWN_PRI_DEFAULT);
 
     for (vc = 0; vc < sc->vtys; vc++) {
-	if (sc->dev[vc] == NULL) {
-		dev = make_dev(&sc_cdevsw, vc + unit * MAXCONS,
-		    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
-		sc->dev[vc] = dev;
-	}
+	dev = make_dev(&sc_cdevsw, vc + unit * MAXCONS,
+	    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
+	sc->dev[vc] = dev;
 	/*
 	 * The first vty already has struct tty and scr_stat initialized
 	 * in scinit().  The other vtys will have these structs when
@@ -2732,8 +2730,7 @@ scinit(int unit, int flags)
 	sc->vtys = MAXCONS;		/* XXX: should be configurable */
 	if (flags & SC_KERNEL_CONSOLE) {
 	    sc->dev = main_devs;
-	    sc->dev[0] = make_dev(&sc_cdevsw, unit * MAXCONS,
-	        UID_ROOT, GID_WHEEL, 0600, "ttyv%r", unit * MAXCONS);
+	    sc->dev[0] = makedev(CDEV_MAJOR, unit*MAXCONS);
 	    sc->dev[0]->si_tty = &main_tty;
 	    ttyregister(&main_tty);
 	    scp = &main_console;
@@ -2748,8 +2745,7 @@ scinit(int unit, int flags)
 	} else {
 	    /* assert(sc_malloc) */
 	    sc->dev = malloc(sizeof(dev_t)*sc->vtys, M_DEVBUF, M_WAITOK|M_ZERO);
-	    sc->dev[0] = make_dev(&sc_cdevsw, unit * MAXCONS,
-	        UID_ROOT, GID_WHEEL, 0600, "ttyv%r", unit * MAXCONS);
+	    sc->dev[0] = makedev(CDEV_MAJOR, unit*MAXCONS);
 	    sc->dev[0]->si_tty = ttymalloc(sc->dev[0]->si_tty);
 	    scp = alloc_scp(sc, sc->first_vty);
 	}
