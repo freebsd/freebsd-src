@@ -57,6 +57,6 @@ ASM_CFLAGS= -x assembler-with-cpp -Wa,-x -DLOCORE ${CFLAGS}
 
 %CLEAN
 
-.include "$S/conf/kern.post.mk"
-
 %RULES
+
+.include "$S/conf/kern.post.mk"
