@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.29 1997/05/31 09:27:28 peter Exp $
+ *	$Id: exception.s,v 1.30 1997/06/22 16:03:02 peter Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -267,11 +267,8 @@ IDTVEC(int0x80_syscall)
 	jmp	_doreti
 
 ENTRY(fork_trampoline)
-	movl	$SWI_AST_MASK,_cpl
-	call	_splz
-
+	call	_spl0
 	pushl	$_runtime
-
 	call	_microtime
 	popl	%eax
 
