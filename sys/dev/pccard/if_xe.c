@@ -644,13 +644,17 @@ xe_card_init(struct pccard_devinfo *devi)
 
   /* Check for certain strange CE2's that look like CE's */
   if (strcmp(scp->card_type, "CE") == 0) {
-    u_char *str = ver_str;
+    u_char *str = ver_str+2;	/* version number is 2 bytes, skip those */
 #if XE_DEBUG > 1
     printf("xe%d: Checking for weird CE2 string\n", unit);
+    printf("xe%d: card says it is type: %s \n", unit, scp->card_type);
+    printf("xe%d: str[0] = %s \n", unit, str);
 #endif
-    str += strlen(str) + 1;			/* Skip forward to 3rd version string */
-    str += strlen(str) + 1;
-    str += strlen(str) + 1;
+    str += strlen(str) + 1;			/* Skip forward to 2nd version string */
+    str += strlen(str) + 1; 
+#if XE_DEBUG > 1
+    printf("xe%d: skipped-to  version string is: %s \n",unit,str);
+#endif
     for (i = 0; i < strlen(str) - 2; i++) {
       if (bcmp(&str[i], "CE2", 3) ==0) {	/* Look for "CE2" string */
 	scp->card_type = "CE2";
