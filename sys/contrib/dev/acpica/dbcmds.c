@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 105 $
+ *              $Revision: 109 $
  *
  ******************************************************************************/
 
@@ -187,14 +187,16 @@ AcpiDbWalkForReferences (
 
     if (Node == (void *) ObjDesc)
     {
-        AcpiOsPrintf ("Object is a Node [%4.4s]\n", Node->Name.Ascii);
+        AcpiOsPrintf ("Object is a Node [%4.4s]\n",
+            AcpiUtGetNodeName (Node));
     }
 
     /* Check for match against the object attached to the node */
 
     if (AcpiNsGetAttachedObject (Node) == ObjDesc)
     {
-        AcpiOsPrintf ("Reference at Node->Object %p [%4.4s]\n", Node, Node->Name.Ascii);
+        AcpiOsPrintf ("Reference at Node->Object %p [%4.4s]\n",
+            Node, AcpiUtGetNodeName (Node));
     }
 
     return (AE_OK);
@@ -508,7 +510,8 @@ AcpiDbDumpNamespace (
 
             if (ACPI_GET_DESCRIPTOR_TYPE (SubtreeEntry) != ACPI_DESC_TYPE_NAMED)
             {
-                AcpiOsPrintf ("Address %p is not a valid Named object\n", SubtreeEntry);
+                AcpiOsPrintf ("Address %p is not a valid NS node [%s]\n",
+                        SubtreeEntry, AcpiUtGetDescriptorName (SubtreeEntry));
                 return;
             }
         }
@@ -809,8 +812,7 @@ AcpiDbWalkForSpecificObjects (
 
         case ACPI_TYPE_INTEGER:
             AcpiOsPrintf ("  Value %8.8X%8.8X",
-                    ACPI_HIDWORD (ObjDesc->Integer.Value),
-                    ACPI_LODWORD (ObjDesc->Integer.Value));
+                    ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
             break;
 
         case ACPI_TYPE_STRING:
@@ -821,8 +823,7 @@ AcpiDbWalkForSpecificObjects (
             AcpiOsPrintf ("  SpaceId %X Length %X Address %8.8X%8.8X",
                     ObjDesc->Region.SpaceId,
                     ObjDesc->Region.Length,
-                    ACPI_HIDWORD (ObjDesc->Region.Address),
-                    ACPI_LODWORD (ObjDesc->Region.Address));
+                    ACPI_FORMAT_UINT64 (ObjDesc->Region.Address));
             break;
 
         case ACPI_TYPE_PACKAGE:
@@ -1210,8 +1211,8 @@ AcpiDbIntegrityWalk (
     Info->Nodes++;
     if (ACPI_GET_DESCRIPTOR_TYPE (Node) != ACPI_DESC_TYPE_NAMED)
     {
-        AcpiOsPrintf ("Invalid Descriptor Type for Node %p, Type = %X\n",
-            Node, ACPI_GET_DESCRIPTOR_TYPE (Node));
+        AcpiOsPrintf ("Invalid Descriptor Type for Node %p [%s]\n",
+            Node, AcpiUtGetDescriptorName (Node));
     }
 
     if (Node->Type > ACPI_TYPE_LOCAL_MAX)
@@ -1231,8 +1232,8 @@ AcpiDbIntegrityWalk (
         Info->Objects++;
         if (ACPI_GET_DESCRIPTOR_TYPE (Object) != ACPI_DESC_TYPE_OPERAND)
         {
-            AcpiOsPrintf ("Invalid Descriptor Type for Object %p, Type = %X\n",
-                Object, ACPI_GET_DESCRIPTOR_TYPE (Object));
+            AcpiOsPrintf ("Invalid Descriptor Type for Object %p [%s]\n",
+                Object, AcpiUtGetDescriptorName (Object));
         }
     }
 
@@ -1292,7 +1293,7 @@ AcpiDbGenerateGpe (
     BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 0);
 
 
-    GpeEventInfo = AcpiEvGetGpeEventInfo ((void *)(uintptr_t) BlockNumber, GpeNumber);
+    GpeEventInfo = AcpiEvGetGpeEventInfo (ACPI_TO_POINTER (BlockNumber), GpeNumber);
     if (!GpeEventInfo)
     {
         AcpiOsPrintf ("Invalid GPE\n");
