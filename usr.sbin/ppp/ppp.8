@@ -330,10 +330,12 @@ When you first run
 you may need to deal with some initial configuration details.
 .Bl -bullet
 .It
-Your kernel must include a tunnel device (the GENERIC kernel includes
-one by default).  If it doesn't, or if you require more than one tun
-interface, you'll need to rebuild your kernel with the following line in
-your kernel configuration file:
+Up until FreeBSD-current as of October 1999, your kernel must include a
+tunnel device (the GENERIC kernel includes one by default).  Versions of
+FreeBSD after this will dynamically load the if_tun kld and the tun device
+will allocate new minors on demand.  If an older kernel doesn't contain any
+tun device or if you require more than one tun interface with that old kernel,
+you'll need to rebuild it with the following line in the configuration file:
 .Pp
 .Dl pseudo-device tun N
 .Pp
@@ -353,6 +355,9 @@ represents the number of the tun device, starting at zero.
 If they don't exist, you can create them by running "sh ./MAKEDEV tunN".
 This will create tun devices 0 through
 .Ar N .
+.Pp
+This is required even if your kernel is capable of dynamically allocating
+tun devices.
 .It
 Make sure that your system has a group named
 .Dq network
