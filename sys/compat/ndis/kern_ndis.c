@@ -464,7 +464,7 @@ ndis_ptom(m0, p)
 		 * set up the free mechanism in the first mbuf of the
 		 * chain.
 		 */
-		if (buf->nb_size)
+		if (buf->nb_bytecount > buf->nb_size)
 			m->m_len = buf->nb_size;
 		else
 			m->m_len = buf->nb_bytecount;

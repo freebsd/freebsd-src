@@ -467,6 +467,11 @@ ndis_read_cfg(status, parm, cfg, key, type)
 	TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
 		oidp = e->entry;
 		if (strcmp(oidp->oid_name, keystr) == 0) {
+			if (strcmp((char *)oidp->oid_arg1, "UNSET") == 0) {
+				free(keystr, M_DEVBUF);
+				*status = NDIS_STATUS_FAILURE;
+				return;
+			}
 			*status = ndis_encode_parm(block, oidp, type, parm);
 			free(keystr, M_DEVBUF);
 			return;
@@ -486,9 +491,11 @@ ndis_read_cfg(status, parm, cfg, key, type)
 	 */
 
 	if (type == ndis_parm_int || type == ndis_parm_hexint)
-		ndis_add_sysctl(sc, keystr, NULL, "0", CTLFLAG_RW);
+		ndis_add_sysctl(sc, keystr, "(dynamic integer key)",
+		    "UNSET", CTLFLAG_RW);
 	else
-		ndis_add_sysctl(sc, keystr, NULL, "", CTLFLAG_RW);
+		ndis_add_sysctl(sc, keystr, "(dynamic string key)",
+		    "UNSET", CTLFLAG_RW);
 
 	free(keystr, M_DEVBUF);
 	*status = NDIS_STATUS_FAILURE;
@@ -1502,7 +1509,7 @@ ndis_adjust_buflen(buf, len)
 	ndis_buffer		*buf;
 	int			len;
 {
-	if (buf->nb_bytecount > len)
+	if (len > buf->nb_size)
 		return;
 	buf->nb_bytecount = len;
 
