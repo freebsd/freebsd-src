@@ -521,11 +521,6 @@
       <para arch="alpha">The API CS20 1U high server has been verified
 	to work.</para>
 
-      <para arch="alpha">The DEC3000 series support has been removed
-	from the mfsroot floppy image so that it fits on a 1.44 Mbyte
-	floppy again. As the DEC3000 is currently only usable diskless
-	this should not cause any problems.</para>
-
       <para arch="alpha">Support for AlphaServer 2100A
 	(<quote>Lynx</quote>) has been added.</para>
 
@@ -573,6 +568,9 @@
 	<literal>1</literal>, for <quote>enabled</quote>)
 	forces &os; to enable these devices so that they can be
 	used.</para>
+
+      <para arch="alpha">Support for TurboChannel Alphas has been
+        removed.</para>
 
     </sect3>
 
@@ -693,7 +691,7 @@
       <para arch="i386">The &man.el.4; driver can now be loaded as a
 	module.</para>
 
-      <para arch="i386,pc98" role="historic">The &man.em.4; driver has been added to
+      <para arch="i386,pc98,ia64" role="historic">The &man.em.4; driver has been added to
 	support NICs based on the Intel 82542, 82543, 82544, 82545EM,
 	and 82546EB
 	Gigabit Ethernet controller chips.  The driver has VLAN
@@ -3820,7 +3818,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> has been updated to
-	  0.9.6e. &merged;</para>
+	  0.9.6g.</para>
 
 	<para role="historic"><application>OpenSSL</application> now has support for
 	  machine-dependent ASM optimizations, activated by the new
@@ -4082,11 +4080,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       components. &merged;</para>
 
     <para>It is now possible to make releases of &os;
-      &release.current; on a &os; 4-STABLE host.  Cross-architecture
+      5-CURRENT on a &os; 4-STABLE host and vice versa.  Cross-architecture
       (building a release for a target architecture on a host of a
       different architecture) releases are also possible.  See
-      &man.release.7; for details.</para>
+      &man.release.7; for details. &merged;</para>
 
+    <para>A third <filename>drivers.flp</filename> floppy has been
+      added to floppy releases.  It holds loadable modules
+      containing drivers that do not fit in the kernel on the
+      <filename>kern.flp</filename> disk or in the
+      <filename>mfsroot.flp</filename> image.</para>
   </sect2>
 
   <sect2>
