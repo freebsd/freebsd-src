@@ -50,6 +50,7 @@
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -60,11 +61,11 @@ static MALLOC_DEFINE(M_SYSCTLOID, "sysctloid", "sysctl dynamic oids");
 /*
  * Locking and stats
  */
-static struct sysctl_lock {
-	int	sl_lock;
-	int	sl_want;
-	int	sl_locked;
-} memlock;
+static struct sx memlock;
+
+#define	MEMLOCK_LOCK()		sx_xlock(&memlock)
+#define	MEMLOCK_UNLOCK()	sx_xunlock(&memlock)
+#define	MEMLOCK_INIT()		sx_init(&memlock, "sysctl memlock")
 
 static int sysctl_root(SYSCTL_HANDLER_ARGS);
 
@@ -396,6 +397,7 @@ sysctl_register_all(void *arg)
 {
 	struct sysctl_oid **oidp;
 
+	MEMLOCK_INIT();
 	SET_FOREACH(oidp, sysctl_set)
 		sysctl_register_oid(*oidp);
 }
@@ -899,25 +901,14 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.newfunc = sysctl_new_kernel;
 	req.lock = 1;
 
-	/* XXX this should probably be done in a general way */
-	while (memlock.sl_lock) {
-		memlock.sl_want = 1;
-		(void) tsleep((caddr_t)&memlock, PRIBIO+1, "sysctl", 0);
-		memlock.sl_locked++;
-	}
-	memlock.sl_lock = 1;
+	MEMLOCK_LOCK();
 
 	error = sysctl_root(0, name, namelen, &req);
 
 	if (req.lock == 2)
 		vsunlock(req.oldptr, req.oldlen);
 
-	memlock.sl_lock = 0;
-
-	if (memlock.sl_want) {
-		memlock.sl_want = 0;
-		wakeup((caddr_t)&memlock);
-	}
+	MEMLOCK_UNLOCK();
 
 	if (error && error != ENOMEM)
 		return (error);
@@ -1187,13 +1178,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.newfunc = sysctl_new_user;
 	req.lock = 1;
 
-	/* XXX this should probably be done in a general way */
-	while (memlock.sl_lock) {
-		memlock.sl_want = 1;
-		(void) tsleep((caddr_t)&memlock, PRIBIO+1, "sysctl", 0);
-		memlock.sl_locked++;
-	}
-	memlock.sl_lock = 1;
+	MEMLOCK_LOCK();
 
 	do {
 	    req2 = req;
@@ -1204,12 +1189,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	if (req.lock == 2)
 		vsunlock(req.oldptr, req.oldlen);
 
-	memlock.sl_lock = 0;
-
-	if (memlock.sl_want) {
-		memlock.sl_want = 0;
-		wakeup((caddr_t)&memlock);
-	}
+	MEMLOCK_UNLOCK();
 
 	if (error && error != ENOMEM)
 		return (error);
