@@ -70,6 +70,8 @@
 .Ft struct mbuf *
 .Fn m_get "int how" "int type"
 .Ft struct mbuf *
+.Fn m_getm "struct mbuf *orig" "int len" "int how" "int type"
+.Ft struct mbuf *
 .Fn m_getclr "int how" "int type"
 .Ft struct mbuf *
 .Fn m_gethdr "int how" "int type"
@@ -333,6 +335,26 @@ The functions are:
 A function version of
 .Fn MGET
 for non-critical paths.
+.It Fn m_getm orig len how type
+Allocate
+.Ar len
+bytes worth of mbufs and mbuf clusters if necessary and append the resulting
+allocated chain to the
+.Ar orig
+mbuf chain, if it is non-NULL.
+If the allocation fails at any point,
+free whatever was allocated and return NULL.
+If
+.Ar orig
+is non-NULL,
+it will not be freed.
+It is possible to use
+.Fn m_getm
+to either append
+.Ar len
+bytes to an existing mbuf or mbuf chain
+(for example, one which may be sitting in a pre-allocated ring)
+or to simply perform an all-or-nothing mbuf and mbuf cluster allocation.
 .It Fn m_gethdr how type
 A function version of
 .Fn MGETHDR
