@@ -389,7 +389,7 @@ svr4_delete_socket(p, fp)
 		if (e->p == p && e->cookie == cookie) {
 			TAILQ_REMOVE(&svr4_head, e, entries);
 			DPRINTF(("svr4_delete_socket: %s [%p,%d,%d]\n",
-				 e->sock.sun_path, p, e->dev, e->ino));
+				 e->sock.sun_path, p, (int)e->dev, e->ino));
 			free(e, M_TEMP);
 			return;
 		}
