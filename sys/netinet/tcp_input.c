@@ -94,16 +94,16 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
     &tcp_delack_enabled, 0, 
     "Delay ACK to try and piggyback it onto a data packet");
 
+#ifdef TCP_DROP_SYNFIN
+static int drop_synfin = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
+    &drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
+#endif
+
 #ifdef TCP_RESTRICT_RST
 static int restrict_rst = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, restrict_rst, CTLFLAG_RW,
     &restrict_rst, 0, "Restrict RST emission");
-#endif
-
-#ifdef TCP_DROP_SYNFIN
-static int drop_synfin = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
-    &drop_synfin, 0, "Drop TCP packets with FIN+ACK set");
 #endif
 
 struct inpcbhead tcb;
