@@ -229,12 +229,8 @@ pcic_power_on (int slot)
 void
 pcic_power_off (int slot)
 {
-	/*
-	 * If you success to power-off the PCMCIA slots and
-	 * resume safely, please tell me your way to implement it.
-	 *
-	 *  HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
-	 */
+    pcic_putb (slot, PCIC_POWER,
+	       pcic_getb (slot, PCIC_POWER) & ~(PCIC_OUTENA|PCIC_PCPWRE));
 }
 
 void
