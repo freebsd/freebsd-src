@@ -369,16 +369,18 @@ in_inithead(void **head, int off)
 
 
 /*
- * This zaps old routes (including ARP entries) when the interface
- * address is deleted.  Previously it didn't delete static routes,
- * and this caused some weird things to happen.  In particular, if
- * you changed the address on an interface, and the default route
- * was using this interface and address, outgoing datagrams still
- * used the old address.
+ * This zaps old routes when the interface goes down or interface
+ * address is deleted.  In the latter case, it deletes static routes
+ * that point to this address.  If we don't do this, we may end up
+ * using the old address in the future.  The ones we always want to
+ * get rid of are things like ARP entries, since the user might down
+ * the interface, walk over to a completely different network, and
+ * plug back in.
  */
 struct in_ifadown_arg {
 	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
+	int del;
 };
 
 static int
@@ -388,7 +390,8 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
 
-	if (rt->rt_ifa == ap->ifa) {
+	if (rt->rt_ifa == ap->ifa &&
+	    (ap->del || !(rt->rt_flags & RTF_STATIC))) {
 		/*
 		 * We need to disable the automatic prune that happens
 		 * in this case in rtrequest() because it will blow
@@ -408,7 +411,7 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 }
 
 int
-in_ifadown(struct ifaddr *ifa)
+in_ifadown(struct ifaddr *ifa, int delete)
 {
 	struct in_ifadown_arg arg;
 	struct radix_node_head *rnh;
@@ -418,6 +421,7 @@ in_ifadown(struct ifaddr *ifa)
 
 	arg.rnh = rnh = rt_tables[AF_INET];
 	arg.ifa = ifa;
+	arg.del = delete;
 	rnh->rnh_walktree(rnh, in_ifadownkill, &arg);
 	ifa->ifa_flags &= ~IFA_ROUTE;
 	return 0;
