@@ -1,5 +1,5 @@
 /*
- * $Header: nfsfh.h,v 1.4 95/10/19 20:27:44 leres Exp $
+ * $Header: nfsfh.h,v 1.5 96/08/20 14:33:23 leres Exp $
  *
  * nfsfh.h - NFS file handle definitions (for portable use)
  *
@@ -24,7 +24,7 @@ typedef struct {
  * our internal representation of that.
  */
 typedef	struct {
-	my_devt	fsid_dev;
+	my_devt	Fsid_dev;		/* XXX avoid name conflict with AIX */
 	u_int32_t fsid_code;
 } my_fsid;
 

@@ -17,16 +17,14 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- */
-
-/*
+ *
  * Code by Matt Thomas, Digital Equipment Corporation
  *	with an awful lot of hacking by Jeffrey Mogul, DECWRL
  */
 
 #ifndef lint
-static  char rcsid[] =
-	"@(#)$Header: print-llc.c,v 1.20 96/07/23 14:17:25 leres Exp $";
+static const char rcsid[] =
+    "@(#) $Header: print-llc.c,v 1.22 96/12/10 23:23:37 leres Exp $";
 #endif
 
 #include <sys/param.h>

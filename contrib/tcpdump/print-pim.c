@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-pim.c,v 1.6 96/07/23 14:17:26 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-pim.c,v 1.7 96/09/26 23:36:48 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

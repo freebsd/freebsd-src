@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1993, 1994, 1995
+ * Copyright (c) 1992, 1993, 1994, 1995, 1996
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: bpf_dump.c,v 1.8 95/10/19 20:28:00 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: bpf_dump.c,v 1.9 96/09/26 23:11:04 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

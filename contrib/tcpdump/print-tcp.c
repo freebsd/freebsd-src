@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-tcp.c,v 1.46 96/07/23 14:17:27 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-tcp.c,v 1.52 96/12/03 10:59:55 vern Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -100,7 +100,7 @@ tcp_print(register const u_char *bp, register u_int length,
 	register const struct tcphdr *tp;
 	register const struct ip *ip;
 	register u_char flags;
-	register u_int hlen;
+	register int hlen;
 	register char ch;
 	u_short sport, dport, win, urp;
 	u_int32_t seq, ack;
@@ -190,6 +190,10 @@ tcp_print(register const u_char *bp, register u_int length,
 		}
 	}
 	hlen = tp->th_off * 4;
+	if (hlen > length) {
+		(void)printf(" [bad hdr length]");
+		return;
+	}
 	length -= hlen;
 	if (length > 0 || flags & (TH_SYN | TH_FIN | TH_RST))
 		(void)printf(" %u:%u(%d)", seq, seq + length, length);
@@ -211,27 +215,30 @@ tcp_print(register const u_char *bp, register u_int length,
 		putchar(' ');
 		ch = '<';
 		while (hlen > 0) {
-			--hlen;
 			putchar(ch);
-			if (cp > snapend)
-				goto trunc;
+			TCHECK(*cp);
 			opt = *cp++;
 			if (ZEROLENOPT(opt))
 				len = 1;
 			else {
-				if (cp > snapend)
-					goto trunc;
-				len = *cp++;
-				--hlen;
+				TCHECK(*cp);
+				len = *cp++;	/* total including type, len */
+				if (len < 2 || len > hlen)
+					goto bad;
+				--hlen;		/* account for length byte */
 			}
+			--hlen;			/* account for type byte */
 			datalen = 0;
+
+/* Bail if "l" bytes of data are not left or were not captured  */
+#define LENCHECK(l) { if ((l) > hlen) goto bad; TCHECK2(*cp, l); }
+
 			switch (opt) {
 
 			case TCPOPT_MAXSEG:
 				(void)printf("mss");
 				datalen = 2;
-				if (cp + datalen > snapend)
-					goto trunc;
+				LENCHECK(datalen);
 				(void)printf(" %u", EXTRACT_16BITS(cp));
 
 				break;
@@ -247,8 +254,7 @@ tcp_print(register const u_char *bp, register u_int length,
 			case TCPOPT_WSCALE:
 				(void)printf("wscale");
 				datalen = 1;
-				if (cp + datalen > snapend)
-					goto trunc;
+				LENCHECK(datalen);
 				(void)printf(" %u", *cp);
 				break;
 
@@ -259,14 +265,12 @@ tcp_print(register const u_char *bp, register u_int length,
 			case TCPOPT_SACK:
 				(void)printf("sack");
 				datalen = len - 2;
-				i = datalen;
-				for (i = datalen; i > 0; i -= 4) {
-					if (cp + i + 4 > snapend)
-						goto trunc;
+				for (i = 0; i < datalen; i += 4) {
+					LENCHECK(i + 4);
 					/* block-size@relative-origin */
 					(void)printf(" %u@%u",
-					    EXTRACT_16BITS(cp + 2),
-					    EXTRACT_16BITS(cp));
+					    EXTRACT_16BITS(cp + i + 2),
+					    EXTRACT_16BITS(cp + i));
 				}
 				if (datalen % 4)
 					(void)printf("[len %d]", len);
@@ -275,63 +279,52 @@ tcp_print(register const u_char *bp, register u_int length,
 			case TCPOPT_ECHO:
 				(void)printf("echo");
 				datalen = 4;
-				if (cp + datalen > snapend)
-					goto trunc;
+				LENCHECK(datalen);
 				(void)printf(" %u", EXTRACT_32BITS(cp));
 				break;
 
 			case TCPOPT_ECHOREPLY:
 				(void)printf("echoreply");
 				datalen = 4;
-				if (cp + datalen > snapend)
-					goto trunc;
+				LENCHECK(datalen);
 				(void)printf(" %u", EXTRACT_32BITS(cp));
 				break;
 
 			case TCPOPT_TIMESTAMP:
 				(void)printf("timestamp");
-				datalen = 4;
-				if (cp + datalen > snapend)
-					goto trunc;
+				datalen = 8;
+				LENCHECK(4);
 				(void)printf(" %u", EXTRACT_32BITS(cp));
-				datalen += 4;
-				if (cp + datalen > snapend)
-					goto trunc;
+				LENCHECK(datalen);
 				(void)printf(" %u", EXTRACT_32BITS(cp + 4));
 				break;
 
 			case TCPOPT_CC:
 				(void)printf("cc");
 				datalen = 4;
-				if (cp + datalen > snapend)
-					goto trunc;
+				LENCHECK(datalen);
 				(void)printf(" %u", EXTRACT_32BITS(cp));
 				break;
 
 			case TCPOPT_CCNEW:
 				(void)printf("ccnew");
 				datalen = 4;
-				if (cp + datalen > snapend)
-					goto trunc;
+				LENCHECK(datalen);
 				(void)printf(" %u", EXTRACT_32BITS(cp));
 				break;
 
 			case TCPOPT_CCECHO:
 				(void)printf("ccecho");
 				datalen = 4;
-				if (cp + datalen > snapend)
-					goto trunc;
+				LENCHECK(datalen);
 				(void)printf(" %u", EXTRACT_32BITS(cp));
 				break;
 
 			default:
 				(void)printf("opt-%d:", opt);
 				datalen = len - 2;
-				if  (datalen < 0)
-					datalen = 0;
 				for (i = 0; i < datalen; ++i) {
-					if (cp + i > snapend)
-						goto trunc;
+					LENCHECK(i);
 					(void)printf("%02x", cp[i]);
 				}
 				break;
@@ -348,9 +341,16 @@ tcp_print(register const u_char *bp, register u_int length,
 			if (datalen != len)
 				(void)printf("[len %d]", len);
 			ch = ',';
+			if (opt == TCPOPT_EOL)
+				break;
 		}
 		putchar('>');
 	}
+	return;
+bad:
+	fputs("[bad opt]", stdout);
+	if (ch != '\0')
+		putchar('>');
 	return;
 trunc:
 	fputs("[|tcp]", stdout);

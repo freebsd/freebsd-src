@@ -17,15 +17,13 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- */
-
-/*
+ *
  * Original code by Matt Thomas, Digital Equipment Corporation
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-isoclns.c,v 1.12 96/07/14 19:39:00 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-isoclns.c,v 1.14 96/12/10 23:26:56 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

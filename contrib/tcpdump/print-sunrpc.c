@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-sunrpc.c,v 1.24 96/07/23 14:17:27 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-sunrpc.c,v 1.25 96/09/26 23:36:49 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-"@(#) $Header: print-dvmrp.c,v 1.9 96/07/23 14:17:23 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-dvmrp.c,v 1.13 96/12/10 23:16:30 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -71,6 +71,7 @@ static char rcsid[] =
 #define DVMRP_NF_DISABLED	0x20	/* administratively disabled */
 #define DVMRP_NF_QUERIER	0x40	/* I am the subnet's querier */
 
+static void print_probe(const u_char *, const u_char *, u_int);
 static void print_report(const u_char *, const u_char *, u_int);
 static void print_neighbors(const u_char *, const u_char *, u_int);
 static void print_neighbors2(const u_char *, const u_char *, u_int);
@@ -99,8 +100,11 @@ dvmrp_print(register const u_char *bp, register u_int len)
 	len -= 8;
 
 	switch (type) {
+
 	case DVMRP_PROBE:
 		printf(" Probe");
+		if (vflag)
+			print_probe(bp, ep, len);
 		break;
 
 	case DVMRP_REPORT:
@@ -119,25 +123,19 @@ dvmrp_print(register const u_char *bp, register u_int len)
 		break;
 
 	case DVMRP_ASK_NEIGHBORS2:
-		printf(" Ask-neighbors");
+		printf(" Ask-neighbors2");
 		break;
 
 	case DVMRP_NEIGHBORS2:
-		printf(" Neighbors");
+		printf(" Neighbors2");
+		/*
+		 * extract version and capabilities from IGMP group
+		 * address field
+		 */
 		bp -= 4;
-		target_level = ((u_int32_t) * bp++ << 24);
-		/*
-		 * Group address in IGMP
-		 */
-
-		target_level += ((u_int32_t) * bp++ << 16);
-		/*
-		 * header is version number
-		 */
-
-		target_level += ((u_int32_t) * bp++ << 8);
-		target_level += ((u_int32_t) * bp++);
-		target_level = htonl(target_level);
+		target_level = (bp[0] << 24) | (bp[1] << 16) |
+		    (bp[2] << 8) | bp[3];
+		bp += 4;
 		print_neighbors2(bp, ep, len);
 		break;
 
@@ -163,20 +161,18 @@ dvmrp_print(register const u_char *bp, register u_int len)
 }
 
 static void
-print_report(const u_char *bp, const u_char *ep, u_int len)
+print_report(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
-	u_int32_t mask, origin;
-	int metric;
-	int i;
-	int width;
-	int done;
+	register u_int32_t mask, origin;
+	register int metric, i, width, done;
 
 	while (len > 0) {
 		if (len < 3) {
 			printf(" [|]");
 			return;
 		}
-		mask = 0xff << 24 | bp[0] << 16 | bp[1] << 8 | bp[2];
+		mask = (u_int32_t)0xff << 24 | bp[0] << 16 | bp[1] << 8 | bp[2];
 		width = 1;
 		if (bp[0])
 			width = 2;
@@ -213,18 +209,45 @@ print_report(const u_char *bp, const u_char *ep, u_int len)
 	}
 }
 
-#define GET_ADDR(to) (memcpy((char*)to, (char*)bp, 4), bp += 4)
+#define GET_ADDR(to) (memcpy((char *)to, (char *)bp, 4), bp += 4)
 
 static void
-print_neighbors(const u_char *bp, const u_char *ep, u_int len)
+print_probe(register const u_char *bp, register const u_char *ep,
+    register u_int len)
+{
+	register u_int32_t genid;
+	u_char neighbor[4];
+
+	if ((len < 4) || ((bp + 4) > ep)) {
+		/* { (ctags) */
+		printf(" [|}");
+		return;
+	}
+	genid = (bp[0] << 24) | (bp[1] << 16) | (bp[2] << 8) | bp[3];
+	bp += 4;
+	len -= 4;
+	printf("\n\tgenid %u", genid);
+
+	while ((len > 0) && (bp < ep)) {
+		if ((len < 4) || ((bp + 4) > ep)) {
+			printf(" [|]");
+			return;
+		}
+		GET_ADDR(neighbor);
+		len -= 4;
+		printf("\n\tneighbor %s", ipaddr_string(neighbor));
+	}
+}
+
+static void
+print_neighbors(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 	u_char laddr[4], neighbor[4];
-	u_char metric;
-	u_char thresh;
-	u_char save_nflag;
-	int ncount;
+	register u_char metric;
+	register u_char thresh;
+	register int ncount;
 
-	save_nflag = nflag;
 	while (len > 0 && bp < ep) {
 		if (len < 7 || (bp + 7) >= ep) {
 			printf(" [|]");
@@ -237,9 +260,7 @@ print_neighbors(const u_char *bp, const u_char *ep, u_int len)
 		len -= 7;
 		while (--ncount >= 0 && (len >= 4) && (bp + 4) < ep) {
 			GET_ADDR(neighbor);
-			nflag = 0;
 			printf(" [%s ->", ipaddr_string(laddr));
-			nflag = save_nflag;
 			printf(" %s, (%d/%d)]",
 				   ipaddr_string(neighbor), metric, thresh);
 			len -= 4;
@@ -248,20 +269,17 @@ print_neighbors(const u_char *bp, const u_char *ep, u_int len)
 }
 
 static void
-print_neighbors2(const u_char *bp, const u_char *ep, u_int len)
+print_neighbors2(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 	u_char laddr[4], neighbor[4];
-	u_char metric;
-	u_char thresh;
-	u_char flags;
-	u_char save_nflag;
-	int ncount;
+	register u_char metric, thresh, flags;
+	register int ncount;
 
 	printf(" (v %d.%d):",
 	       (int)target_level & 0xff,
 	       (int)(target_level >> 8) & 0xff);
 
-	save_nflag = nflag;
 	while (len > 0 && bp < ep) {
 		if (len < 8 || (bp + 8) >= ep) {
 			printf(" [|]");
@@ -273,11 +291,9 @@ print_neighbors2(const u_char *bp, const u_char *ep, u_int len)
 		flags = *bp++;
 		ncount = *bp++;
 		len -= 8;
-		while (--ncount >= 0 && (len >= 4) && (bp + 4) < ep) {
+		while (--ncount >= 0 && (len >= 4) && (bp + 4) <= ep) {
 			GET_ADDR(neighbor);
-			nflag = 0;
 			printf(" [%s -> ", ipaddr_string(laddr));
-			nflag = save_nflag;
 			printf("%s (%d/%d", ipaddr_string(neighbor),
 				     metric, thresh);
 			if (flags & DVMRP_NF_TUNNEL)
@@ -301,14 +317,15 @@ print_neighbors2(const u_char *bp, const u_char *ep, u_int len)
 }
 
 static void
-print_prune(const u_char *bp, const u_char *ep, u_int len)
+print_prune(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 	union a {
 		u_char b[4];
 		u_int32_t i;
 	} prune_timer;
 
-	if (len < 12 || (bp + 12) >= ep) {
+	if (len < 12 || (bp + 12) > ep) {
 		printf(" [|]");
 		return;
 	}
@@ -319,10 +336,11 @@ print_prune(const u_char *bp, const u_char *ep, u_int len)
 }
 
 static void
-print_graft(const u_char *bp, const u_char *ep, u_int len)
+print_graft(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 
-	if (len < 8 || (bp + 8) >= ep) {
+	if (len < 8 || (bp + 8) > ep) {
 		printf(" [|]");
 		return;
 	}
@@ -330,10 +348,11 @@ print_graft(const u_char *bp, const u_char *ep, u_int len)
 }
 
 static void
-print_graft_ack(const u_char *bp, const u_char *ep, u_int len)
+print_graft_ack(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 
-	if (len < 8 || (bp + 8) >= ep) {
+	if (len < 8 || (bp + 8) > ep) {
 		printf(" [|]");
 		return;
 	}

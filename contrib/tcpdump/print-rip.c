@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-rip.c,v 1.34 96/07/23 14:17:26 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-rip.c,v 1.36 96/11/29 01:22:50 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -99,7 +99,7 @@ rip_print(const u_char *dat, u_int length)
 	register const struct rip_netinfo *ni;
 	register int i, j, trunc;
 
-	i = min(length, snapend - dat) - (sizeof(*rp) - sizeof(*ni));
+	i = min(length, snapend - dat) - sizeof(*rp);
 	if (i < 0)
 		return;
 

@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-icmp.c,v 1.36 96/07/23 14:17:24 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-icmp.c,v 1.38 96/09/26 23:36:44 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -273,7 +273,7 @@ icmp_print(register const u_char *bp, register const u_char *bp2)
 
 		ihp = (struct ih_rdiscovery *)&dp->icmp_void;
 		TCHECK(*ihp);
-		(void)strcpy(cp, "lifetime ");
+		(void)strcpy(cp, " lifetime ");
 		cp = buf + strlen(buf);
 		lifetime = EXTRACT_16BITS(&ihp->ird_lifetime);
 		if (lifetime < 60)
