@@ -45,7 +45,11 @@ atomicio(f, fd, _s, n)
 		res = (f) (fd, s + pos, n - pos);
 		switch (res) {
 		case -1:
+#ifdef EWOULDBLOCK
+			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+#else
 			if (errno == EINTR || errno == EAGAIN)
+#endif
 				continue;
 		case 0:
 			return (res);
