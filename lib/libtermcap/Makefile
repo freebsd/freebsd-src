@@ -2,7 +2,7 @@
 
 LIB=	termcap
 SHLIB_MAJOR= 2
-SHLIB_MINOR= 1
+SHLIB_MINOR= 2
 CFLAGS+=-DCM_N -DCM_GT -DCM_B -DCM_D -I${.CURDIR}
 SRCS=   termcap.c tgoto.c tputs.c tparm.c tospeed.c
 
