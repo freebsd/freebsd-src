@@ -927,6 +927,18 @@ with a
 .It Cm ipprecedence Ar precedence
 Matches IP packets whose precedence field is equal to
 .Ar precedence .
+.It Cm ipsec
+Matches packets that have IPSEC history associated with them
+(i.e. the packet comes encapsulated in IPSEC, the kernel
+has IPSEC support and IPSEC_FILTERGIF option, and can correctly
+decapsulate it).
+.Pp
+Note that specifying
+.Cm ipsec
+is different from specifying
+.Cm proto Ar ipsec
+as the latter will only look at the specific IP protocol field,
+irrespective of IPSEC kernel support and the validity of the IPSEC data.
 .It Cm iptos Ar spec
 Matches IP packets whose
 .Cm tos
