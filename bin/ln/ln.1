@@ -39,7 +39,8 @@
 .Dt LN 1
 .Os BSD 4
 .Sh NAME
-.Nm ln
+.Nm ln ,
+.Nm link
 .Nd make links
 .Sh SYNOPSIS
 .Nm ln
@@ -50,6 +51,8 @@
 .Op Fl fsv
 .Ar source_file ...
 .Op target_dir
+.Nm link
+.Ar source_file Ar target_file
 .Sh DESCRIPTION
 The
 .Nm
@@ -122,6 +125,15 @@ makes links in
 .Ar target_dir
 to all the named source files.
 The links made will have the same name as the files being linked to.
+.Pp
+When the utility is called as
+.Nm link ,
+exactly two arguments must be supplied,
+neither of which may specify a directory.
+No options may be supplied in this simple mode of operation,
+which simply performs a
+.Xr link 2
+operation using the two passed arguments.
 .Sh SEE ALSO
 .Xr link 2 ,
 .Xr lstat 2 ,
@@ -138,3 +150,7 @@ An
 .Nm
 command appeared in
 .At v1 .
+The simplified
+.Nm link
+command conforms to
+.St -susv2 .

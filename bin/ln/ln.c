@@ -73,7 +73,24 @@ main(argc, argv)
 	extern int optind;
 	struct stat sb;
 	int ch, exitval;
-	char *sourcedir;
+	char *p, *sourcedir;
+
+	/*
+	 * Test for the special case where the utility is called as
+	 * "link", for which the functionality provided is greatly
+	 * simplified.
+	 */
+	if ((p = rindex(argv[0], '/')) == NULL)
+		p = argv[0];
+	else
+		++p;
+	if (strcmp(p, "link") == 0) {
+		if (argc == 3) {
+			linkf = link;
+			exit(linkit(argv[1], argv[2], 0));
+		} else
+			usage();
+	}
 
 	while ((ch = getopt(argc, argv, "fsv")) != -1)
 		switch (ch) {
@@ -167,8 +184,9 @@ linkit(target, source, isdir)
 void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: ln [-fsv] file1 file2",
-	    "       ln [-fsv] file ... directory");
+	    "       ln [-fsv] file ... directory",
+	    "       link file1 file2");
 	exit(1);
 }
