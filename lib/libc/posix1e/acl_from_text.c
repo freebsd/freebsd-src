@@ -40,6 +40,10 @@
 
 #include "acl_support.h"
 
+static acl_tag_t acl_string_to_tag(char *tag, char *qualifier);
+static char *string_skip_whitespace(char *string);
+static void string_trim_trailing_whitespace(char *string);
+
 static char *
 string_skip_whitespace(char *string)
 {
@@ -72,7 +76,7 @@ string_trim_trailing_whitespace(char *string)
 	return;
 }
 
-acl_tag_t
+static acl_tag_t
 acl_string_to_tag(char *tag, char *qualifier)
 {
 
