@@ -130,6 +130,7 @@ static void	ng_iface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
 /* Netgraph methods */
+static int		ng_iface_mod_event(module_t, int, void *);
 static ng_constructor_t	ng_iface_constructor;
 static ng_rcvmsg_t	ng_iface_rcvmsg;
 static ng_shutdown_t	ng_iface_shutdown;
@@ -195,6 +196,7 @@ static const struct ng_cmdlist ng_iface_cmds[] = {
 static struct ng_type typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_IFACE_NODE_TYPE,
+	.mod_event =	ng_iface_mod_event,
 	.constructor =	ng_iface_constructor,
 	.rcvmsg =	ng_iface_rcvmsg,
 	.shutdown =	ng_iface_shutdown,
@@ -214,7 +216,6 @@ static int	ng_units_in_use = 0;
 #define UNITS_BITSPERWORD	(sizeof(*ng_iface_units) * NBBY)
 
 static struct mtx	ng_iface_mtx;
-MTX_SYSINIT(ng_iface, &ng_iface_mtx, "ng_iface", MTX_DEF);
 
 /************************************************************************
 			HELPER STUFF
@@ -836,3 +837,24 @@ ng_iface_disconnect(hook_p hook)
 	return (0);
 }
 
+/*
+ * Handle loading and unloading for this node type.
+ */
+static int
+ng_iface_mod_event(module_t mod, int event, void *data)
+{
+	int error = 0;
+
+	switch (event) {
+	case MOD_LOAD:
+		mtx_init(&ng_iface_mtx, "ng_iface", NULL, MTX_DEF);
+		break;
+	case MOD_UNLOAD:
+		mtx_destroy(&ng_iface_mtx);
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
+}
