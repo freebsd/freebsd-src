@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.17 1995/06/04 23:45:35 jkh Exp $
+ * $Id: menus.c,v 1.41.2.18 1995/06/05 04:16:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -354,12 +354,16 @@ the list of distributions yourself, simply select \"custom\".",
 static char *
 srcFlagCheck(DMenuItem *item)
 {
+    if (isDebug())
+	msgDebug("Dists & DIST_SRC = %d\n", Dists & DIST_SRC);
     return (Dists & DIST_SRC) ? "YES" : "NO";
 }
 
 static char *
 x11FlagCheck(DMenuItem *item)
 {
+    if (isDebug())
+	msgDebug("Dists & DIST_XF86 = %d\n", Dists & DIST_XF86);
     return (Dists & DIST_XF86) ? "YES" : "NO";
 }
 
@@ -443,7 +447,7 @@ clearx11(char *str)
     XF86ServerDists = 0;
     XF86FontDists = 0;
     Dists &= ~DIST_XF86;
-    return 1;
+    return 0;
 }
 
 DMenu MenuXF86Select = {
