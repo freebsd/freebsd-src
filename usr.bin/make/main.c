@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.29 1998/11/15 05:55:58 bde Exp $";
+	"$Id: main.c,v 1.30 1999/03/01 06:01:05 imp Exp $";
 #endif /* not lint */
 
 /*-
@@ -95,6 +95,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <sysexits.h>
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -204,11 +205,18 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			Var_Append(MAKEFLAGS, "-B", VAR_GLOBAL);
 			break;
 #ifdef REMOTE
-		case 'L':
-			maxLocal = atoi(optarg);
+		case 'L': {
+			char *endptr;
+
+			maxLocal = strtol(optarg, &endptr, 10);
+			if (maxLocal < 0 || *endptr != '\0') {
+				errx(EX_USAGE,
+				    "illegal argument to -L -- %s", optarg);
+			}
 			Var_Append(MAKEFLAGS, "-L", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
+		}
 #endif
 		case 'P':
 			usePipes = FALSE;
@@ -282,15 +290,22 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			ignoreErrors = TRUE;
 			Var_Append(MAKEFLAGS, "-i", VAR_GLOBAL);
 			break;
-		case 'j':
+		case 'j': {
+			char *endptr;
+
 			forceJobs = TRUE;
-			maxJobs = atoi(optarg);
+			maxJobs = strtol(optarg, &endptr, 10);
+			if (maxJobs <= 0 || *endptr != '\0') {
+				errx(EX_USAGE,
+				    "illegal argument to -j -- %s", optarg);
+			}
 #ifndef REMOTE
 			maxLocal = maxJobs;
 #endif
 			Var_Append(MAKEFLAGS, "-j", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
+		}
 		case 'k':
 			keepgoing = TRUE;
 			Var_Append(MAKEFLAGS, "-k", VAR_GLOBAL);
