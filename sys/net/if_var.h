@@ -348,12 +348,18 @@ struct ifaddr {
 #endif
 	int (*ifa_claim_addr)		/* check if an addr goes to this if */
 		(struct ifaddr *, struct sockaddr *);
-
+	struct mtx ifa_mtx;
 };
 #define	IFA_ROUTE	RTF_UP		/* route installed */
 
 /* for compatibility with other BSDs */
 #define	ifa_list	ifa_link
+
+#define	IFA_LOCK_INIT(ifa)	\
+    mtx_init(&(ifa)->ifa_mtx, "ifaddr", NULL, MTX_DEF)
+#define	IFA_LOCK(ifa)		mtx_lock(&(ifa)->ifa_mtx)
+#define	IFA_UNLOCK(ifa)		mtx_unlock(&(ifa)->ifa_mtx)
+#define	IFA_DESTROY(ifa)	mtx_destroy(&(ifa)->ifa_mtx)
 
 /*
  * The prefix structure contains information about one prefix
@@ -385,12 +391,23 @@ struct ifmultiaddr {
 };
 
 #ifdef _KERNEL
-#define	IFAFREE(ifa) \
-	do { \
-		if ((ifa)->ifa_refcnt <= 0) \
-			ifafree(ifa); \
-		else \
-			(ifa)->ifa_refcnt--; \
+#define	IFAFREE(ifa)				\
+	do {					\
+		IFA_LOCK(ifa);			\
+		if ((ifa)->ifa_refcnt == 0) {	\
+			IFA_DESTROY(ifa);	\
+			free(ifa, M_IFADDR);	\
+		} else {			\
+			--(ifa)->ifa_refcnt;	\
+			IFA_UNLOCK(ifa);	\
+		}				\
+	} while (0)
+
+#define IFAREF(ifa)				\
+	do {					\
+		IFA_LOCK(ifa);			\
+		++(ifa)->ifa_refcnt;		\
+		IFA_UNLOCK(ifa);		\
 	} while (0)
 
 struct ifindex_entry {
@@ -438,7 +455,6 @@ struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithnet(struct sockaddr *);
 struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *);
 struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
-void	ifafree(struct ifaddr *);
 
 struct	ifmultiaddr *ifmaof_ifpforaddr(struct sockaddr *, struct ifnet *);
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);

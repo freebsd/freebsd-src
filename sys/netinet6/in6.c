@@ -908,6 +908,7 @@ in6_update_ifa(ifp, ifra, ia)
 			return (ENOBUFS);
 		bzero((caddr_t)ia, sizeof(*ia));
 		/* Initialize the address and masks */
+		IFA_LOCK_INIT(&ia->ia_ifa);
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
 		ia->ia_addr.sin6_family = AF_INET6;
 		ia->ia_addr.sin6_len = sizeof(ia->ia_addr);
@@ -921,8 +922,7 @@ in6_update_ifa(ifp, ifra, ia)
 		} else {
 			ia->ia_ifa.ifa_dstaddr = NULL;
 		}
-		ia->ia_ifa.ifa_netmask
-			= (struct sockaddr *)&ia->ia_prefixmask;
+		ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
 
 		ia->ia_ifp = ifp;
 		if ((oia = in6_ifaddr) != NULL) {
@@ -932,8 +932,8 @@ in6_update_ifa(ifp, ifra, ia)
 		} else
 			in6_ifaddr = ia;
 
-		TAILQ_INSERT_TAIL(&ifp->if_addrlist, &ia->ia_ifa,
-				  ifa_list);
+		ia->ia_ifa.ifa_refcnt = 1;
+		TAILQ_INSERT_TAIL(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
 	}
 
 	/* set prefix mask */

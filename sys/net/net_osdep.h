@@ -304,9 +304,6 @@ extern const char *if_name(struct ifnet *);
 #define if_addrlist	if_addrhead
 #define if_list		if_link
 
-/* sys/net/if.h */
-#define IFAREF(ifa)	do { ++(ifa)->ifa_refcnt; } while (0)
-
 #define WITH_CONVERT_AND_STRIP_IP_LEN
 
 #if 1				/* at this moment, all OSes do this */
