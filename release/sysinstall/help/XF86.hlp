@@ -7,17 +7,17 @@ Release Notes for XFree86[tm] 3.3.2
 
 
 
-		      Release Notes for XFree86[tm] 3.3.2
+                      Release Notes for XFree86[tm] 3.3.2
 
 
-			   The XFree86 Project, Inc
+                           The XFree86 Project, Inc
 
 
-			       28 February 1998
+                               28 February 1998
 
 
 
-				   Abstract
+                                   Abstract
 
      This document describes the bugs fixed and the features added in
      XFree86 3.3.2 compared with the 3.3.1 release, It also includes
@@ -31,11 +31,11 @@ XFree86 releases starting with the 3.2A beta are based on the X Consortium's
 X11R6.3 (the final release from the X Consortium).
 
 R6.3 is an update to R6.1, and is intended to be compatible with R6.1 and R6 at
-the source and protocol levels.  Binaries should be upward-compatible.	X11R6.3
+the source and protocol levels.  Binaries should be upward-compatible.  X11R6.3
 includes some new Xserver extensions: SECURITY, XC-APPGROUP, XpExtension (print
 extension), and an updated, and standardised version of LBX.  X11R6.3 also has
 new standards, including RX (X Remote Execution MIME type), and a proxy manage-
-ment protocol.	X11R6.3 includes support for gzipped fonts.
+ment protocol.  X11R6.3 includes support for gzipped fonts.
 
 R6.1 is an update to R6, and is intended to be compatible with R6 at the source
 and protocol levels.  Binaries should be upward-compatible.  X11R6.1 includes
@@ -51,7 +51,7 @@ user-defined character support in addition to those features included in R6.1.
 Always check the OS specific README files for special requirements or caveats.
 
 Users running Linux should note that Elf is now the only binary type supported
-for Linux OSs.	This means that binaries for ix86/a.out and AXP/ECOFF are not
+for Linux OSs.  This means that binaries for ix86/a.out and AXP/ECOFF are not
 available with this release.
 
 
@@ -269,7 +269,7 @@ Release Notes for XFree86[tm] 3.3.2
 
 
 
-     are unlikely to be fixed.	If you wish to work on this, please contact us.
+     are unlikely to be fixed.  If you wish to work on this, please contact us.
      We don't need testers, we need people willing and able to fix the prob-
      lems.
 
@@ -292,35 +292,35 @@ The following are required for all new installations or upgrades from versions
 prior to 3.3.1:
 
 
-	  preinst.sh	  Pre-installation script
-	  postinst.sh	  Post-installation script
-	  extract	  XFree86 extraction utility
-	  X332bin.tgz	  Clients, run-time libs, and app-defaults files
-	  X332doc.tgz	  Documentation
-	  X332fnts.tgz	  75dpi, misc and PEX fonts
-	  X332lib.tgz	  Data files required at run-time
-	  X332man.tgz	  Manual pages
-	  X332set.tgz	  XF86Setup utility
-	  X332VG16.tgz	  16 colour VGA server (XF86Setup needs this server)
+          preinst.sh      Pre-installation script
+          postinst.sh     Post-installation script
+          extract         XFree86 extraction utility
+          X332bin.tgz     Clients, run-time libs, and app-defaults files
+          X332doc.tgz     Documentation
+          X332fnts.tgz    75dpi, misc and PEX fonts
+          X332lib.tgz     Data files required at run-time
+          X332man.tgz     Manual pages
+          X332set.tgz     XF86Setup utility
+          X332VG16.tgz    16 colour VGA server (XF86Setup needs this server)
 
 
 The following are required for an upgrade from XFree86 3.3.1:
 
 
-	  preinst.sh	  Pre-installation script
-	  postinst.sh	  Post-installation script
-	  extract	  XFree86 extraction utility
-	  X332upd.tgz	  Changes since 3.3.1 (except the servers)
-	  X332doc.tgz	  Documentation
-	  X332set.tgz	  XF86Setup utility
-	  X332VG16.tgz	  16 colour VGA server (XF86Setup needs this server)
+          preinst.sh      Pre-installation script
+          postinst.sh     Post-installation script
+          extract         XFree86 extraction utility
+          X332upd.tgz     Changes since 3.3.1 (except the servers)
+          X332doc.tgz     Documentation
+          X332set.tgz     XF86Setup utility
+          X332VG16.tgz    16 colour VGA server (XF86Setup needs this server)
 
 
 The following is required for new installations, and optional for existing
 installations:
 
 
-	  X332cfg.tgz	  sample config files for xinit, xdm
+          X332cfg.tgz     sample config files for xinit, xdm
 
 
 
@@ -337,7 +337,7 @@ Release Notes for XFree86[tm] 3.3.2
 
 NOTE: Be very careful about installing X332cfg.tgz over an existing installa-
 tion if you have customised your xinit and/or xdm config files.  Installing
-X332cfg.tgz will overwrite any existing files.	If you do have customised
+X332cfg.tgz will overwrite any existing files.  If you do have customised
 files, there is no need to install X332cfg.tgz.
 
 NOTE: The bitmap fonts distributed with this release are compressed using gzip
@@ -352,36 +352,36 @@ VGA16 server.  The VGA16 server is required by the new configuration utility
 (XF86Setup).
 
 
-	  X3328514.tgz	  8514/A server
-	  X332AGX.tgz	  AGX server
-	  X332I128.tgz	  I128 server
-	  X332Ma32.tgz	  Mach 32 server
-	  X332Ma64.tgz	  Mach 64 server
-	  X332Ma8.tgz	  Mach 8 server
-	  X332Mono.tgz	  Mono server
-	  X332P9K.tgz	  P9000 server
-	  X332S3.tgz	  S3 server
-	  X332S3V.tgz	  old S3 ViRGE server (please use SVGA server)
-	  X332SVGA.tgz	  SVGA server
-	  X332VG16.tgz	  16 colour VGA server (XF86Setup needs this server)
-	  X332W32.tgz	  ET4000/W32, ET6000 server
+          X3328514.tgz    8514/A server
+          X332AGX.tgz     AGX server
+          X332I128.tgz    I128 server
+          X332Ma32.tgz    Mach 32 server
+          X332Ma64.tgz    Mach 64 server
+          X332Ma8.tgz     Mach 8 server
+          X332Mono.tgz    Mono server
+          X332P9K.tgz     P9000 server
+          X332S3.tgz      S3 server
+          X332S3V.tgz     old S3 ViRGE server (please use SVGA server)
+          X332SVGA.tgz    SVGA server
+          X332VG16.tgz    16 colour VGA server (XF86Setup needs this server)
+          X332W32.tgz     ET4000/W32, ET6000 server
 
 
 
 The following X servers are available for Alpha hardware:
 
 
-	  X332Ma64.tgz	  Mach 64 server
-	  X332Mono.tgz	  Mono server (generic driver only)
-	  X332P9K.tgz	  P9000 server
-	  X332TGA.tgz	  DEC 21030 (TGA) server
-	  X332S3.tgz	  S3 server
-	  X332S3V.tgz	  old S3 ViRGE server (please use SVGA server)
-	  X332SVGA.tgz	  SVGA server (Matrox Millennium driver only)
+          X332Ma64.tgz    Mach 64 server
+          X332Mono.tgz    Mono server (generic driver only)
+          X332P9K.tgz     P9000 server
+          X332TGA.tgz     DEC 21030 (TGA) server
+          X332S3.tgz      S3 server
+          X332S3V.tgz     old S3 ViRGE server (please use SVGA server)
+          X332SVGA.tgz    SVGA server (Matrox Millennium driver only)
 
 
 
-The following X servers are for PC98 hardware.	If you have a PC98 machine,
+The following X servers are for PC98 hardware.  If you have a PC98 machine,
 choose one which suits your hardware.  If you don't know what a PC98 machine
 is, you don't need any of these.
 
@@ -401,42 +401,42 @@ Release Notes for XFree86[tm] 3.3.2
 
 
 
-	  X3329NS3.tgz	  PC98 NEC(S3) server
-	  X3329SPW.tgz	  PC98 PCSKB-PowerWindow(S3) server
-	  X3329LPW.tgz	  PC98 PowerWindowLB(S3) server
-	  X3329EGC.tgz	  PC98 EGC(generic) server
-	  X3329GA9.tgz	  PC98 GA-968V4/PCI(S3 968) server
-	  X3329GAN.tgz	  PC98 GANB-WAP(cirrus) server
-	  X3329480.tgz	  PC98 PEGC-480(generic) server
-	  X3329NKV.tgz	  PC98 NKV-NEC(cirrus) server
-	  X3329WS.tgz	  PC98 WABS(cirrus) server
-	  X3329WEP.tgz	  PC98 WAB-EP(cirrus) server
-	  X3329WSN.tgz	  PC98 WSN-A2F(cirrus) server
-	  X3329TGU.tgz	  PC98 TGUI server
-	  X3329MGA.tgz	  PC98 MGA server
-	  X3329SVG.tgz	  PC98 CLGD755x server
-	  X3329set.tgz	  PC98 XF98Setup utility
+          X3329NS3.tgz    PC98 NEC(S3) server
+          X3329SPW.tgz    PC98 PCSKB-PowerWindow(S3) server
+          X3329LPW.tgz    PC98 PowerWindowLB(S3) server
+          X3329EGC.tgz    PC98 EGC(generic) server
+          X3329GA9.tgz    PC98 GA-968V4/PCI(S3 968) server
+          X3329GAN.tgz    PC98 GANB-WAP(cirrus) server
+          X3329480.tgz    PC98 PEGC-480(generic) server
+          X3329NKV.tgz    PC98 NKV-NEC(cirrus) server
+          X3329WS.tgz     PC98 WABS(cirrus) server
+          X3329WEP.tgz    PC98 WAB-EP(cirrus) server
+          X3329WSN.tgz    PC98 WSN-A2F(cirrus) server
+          X3329TGU.tgz    PC98 TGUI server
+          X3329MGA.tgz    PC98 MGA server
+          X3329SVG.tgz    PC98 CLGD755x server
+          X3329set.tgz    PC98 XF98Setup utility
 
 
 
 The following are optional.
 
 
-	  X332f100.tgz	  100dpi fonts
-	  X332fcyr.tgz	  Cyrillic fonts
-	  X332fnon.tgz	  Other fonts (Chinese, Japanese, Korean, Hebrew)
-	  X332fscl.tgz	  Scalable fonts (Speedo and Type1)
-	  X332fsrv.tgz	  Font server and config files
-	  X332prog.tgz	  X header files, config files and compile-time libs
-	  X332nest.tgz	  Nested X server
-	  X332vfb.tgz	  Virtual framebuffer X server
-	  X332prt.tgz	  X Print server
-	  X332ps.tgz	  PostScript version of the documentation
-	  X332html.tgz	  HTML version of the documentation
-	  X332jdoc.tgz	  Documentation in Japanese (for version 3.2)
-	  X332jhtm.tgz	  HTML version of the documentation in Japanese (3.2)
-	  X332lkit.tgz	  X server LinkKit
-	  X332lk98.tgz	  X server LinkKit for PC98 servers
+          X332f100.tgz    100dpi fonts
+          X332fcyr.tgz    Cyrillic fonts
+          X332fnon.tgz    Other fonts (Chinese, Japanese, Korean, Hebrew)
+          X332fscl.tgz    Scalable fonts (Speedo and Type1)
+          X332fsrv.tgz    Font server and config files
+          X332prog.tgz    X header files, config files and compile-time libs
+          X332nest.tgz    Nested X server
+          X332vfb.tgz     Virtual framebuffer X server
+          X332prt.tgz     X Print server
+          X332ps.tgz      PostScript version of the documentation
+          X332html.tgz    HTML version of the documentation
+          X332jdoc.tgz    Documentation in Japanese (for version 3.2)
+          X332jhtm.tgz    HTML version of the documentation in Japanese (3.2)
+          X332lkit.tgz    X server LinkKit
+          X332lk98.tgz    X server LinkKit for PC98 servers
 
 
 If you already have a version of XFree86 installed, MAKE A BACKUP OF /usr/X11R6
@@ -448,8 +448,8 @@ extract the required .tgz files.  If you don't have enough space in /usr for
 this, create a directory elsewhere and create a symbolic link to it.  E.g., if
 you create a directory in /home:
 
-	  mkdir /home/X11R6
-	  ln -s /home/X11R6 /usr
+          mkdir /home/X11R6
+          ln -s /home/X11R6 /usr
 
 The next step is to run the pre-installation script.  This script makes some
 preliminary checks of your system.  For some OSs, it may tell you to install
@@ -476,14 +476,14 @@ with the name of that directory.
 
 To run the pre-installation script, go to /usr/X11R6 and run it:
 
-	  cd /usr/X11R6
-	  sh /var/tmp/preinst.sh
+          cd /usr/X11R6
+          sh /var/tmp/preinst.sh
 
 The next step is to make the installation utility executable.  To do this, make
 sure the `extract' file is in the same directory as all the X332*.tgz files,
 and run the following from that directory:
 
-	  chmod 755 extract
+          chmod 755 extract
 
 The installation utility ``extract'' is used to unpack the .tgz files that make
 up the XFree86 distribution.  The .tgz files are gzipped tar files.  However,
@@ -501,14 +501,14 @@ the normal GNU tar.
 
 To extract the XFree86 binaries, run the following as root:
 
-	  cd /usr/X11R6
-	  /var/tmp/extract /var/tmp/X332*.tgz
+          cd /usr/X11R6
+          /var/tmp/extract /var/tmp/X332*.tgz
 
 Once the required .tgz files have been extracted, run the post installation
 script:
 
-	  cd /usr/X11R6
-	  sh /var/tmp/postinst.sh
+          cd /usr/X11R6
+          sh /var/tmp/postinst.sh
 
 For OSs which use ldconfig, you may need to run ldconfig or reboot to complete
 the installation.  The postinst.sh script should run ldconfig correctly for you
@@ -599,7 +599,7 @@ Release Notes for XFree86[tm] 3.3.2
 
 
 
-				   CONTENTS
+                                   CONTENTS
 
 
 
@@ -655,7 +655,7 @@ Release Notes for XFree86[tm] 3.3.2
 
 
 
-				       i
+                                       i
 
 
 
