@@ -61,17 +61,18 @@
 #include <stdio.h>
 #include <ucontext.h>
 #include <unistd.h>
+#if defined(_PTHREADS_INVARIANTS)
+#include <assert.h>
+#endif
 
 #include <machine/atomic.h>
 #include <sys/thr.h>
 #include <sys/umtx.h>
 
+#if defined(_PTHREADS_INVARIANTS)
 /*
  * Kernel fatal error handler macro.
  */
-#ifndef _PTHREADS_INVARIANTS
-#define PANIC(string)		_thread_exit(__FILE__, __LINE__, (string))
-#else /* _PTHREADS_INVARIANTS */
 #define PANIC(string)							     \
 	do {								     \
 		_thread_printf(STDOUT_FILENO, (string));		     \
@@ -80,7 +81,21 @@
 		    __FILE__, __LINE__);				     \
 		abort();						     \
 	} while (0)
-#endif /* !_PTHREADS_INVARIANTS */
+
+#define PTHREAD_ASSERT(cond, msg) do {	\
+	if (!(cond))			\
+		PANIC(msg);		\
+} while (0)
+
+#define PTHREAD_ASSERT_NOT_IN_SYNCQ(thrd) \
+	PTHREAD_ASSERT((((thrd)->flags & PTHREAD_FLAGS_IN_SYNCQ) == 0),	\
+	    "Illegal call from signal handler");
+
+#else /* !_PTHREADS_INVARIANTS */
+#define PANIC(string)		_thread_exit(__FILE__, __LINE__, (string))
+#define PTHREAD_ASSERT(cond, msg)
+#define PTHREAD_ASSERT_NOT_IN_SYNCQ(thrd)
+#endif /* _PTHREADS_INVARIANTS */
 
 /* Output debug messages like this: */
 #define stdout_debug(args...)	_thread_printf(STDOUT_FILENO, args)
@@ -115,7 +130,7 @@
 
 
 /*
- * State change macro without scheduling queue change:
+ * State change macro:
  */
 #define PTHREAD_SET_STATE(thrd, newstate) do {				\
 	(thrd)->state = newstate;					\
@@ -123,51 +138,13 @@
 	(thrd)->lineno = __LINE__;					\
 } while (0)
 
-/*
- * State change macro with scheduling queue change - This must be
- * called with GIANT held.
- */
-#if defined(_PTHREADS_INVARIANTS)
-#include <assert.h>
-#define PTHREAD_ASSERT(cond, msg) do {	\
-	if (!(cond))			\
-		PANIC(msg);		\
-} while (0)
-#define PTHREAD_ASSERT_NOT_IN_SYNCQ(thrd) \
-	PTHREAD_ASSERT((((thrd)->flags & PTHREAD_FLAGS_IN_SYNCQ) == 0),	\
-	    "Illegal call from signal handler");
 #define PTHREAD_NEW_STATE(thrd, newstate) do {				\
-	if ((thrd)->state != newstate) {				\
-		if ((thrd)->state == PS_RUNNING) {			\
-			PTHREAD_SET_STATE(thrd, newstate);		\
-		} else if (newstate == PS_RUNNING) { 			\
-			if (thr_kill(thrd->thr_id, SIGTHR))		\
-				abort();				\
-			PTHREAD_SET_STATE(thrd, newstate);		\
-		}							\
-	}								\
-} while (0)
-#else
-#define PTHREAD_ASSERT(cond, msg)
-#define PTHREAD_ASSERT_NOT_IN_SYNCQ(thrd)
-#define PTHREAD_NEW_STATE(thrd, newstate) do {				\
-	if (thr_kill(thrd->thr_id, SIGTHR))				\
-		abort();						\
-	PTHREAD_SET_STATE(thrd, newstate);				\
-} while (0)
-#if 0
-#define PTHREAD_NEW_STATE(thrd, newstate) do {				\
-	if ((thrd)->state != newstate) {				\
-		if ((thrd)->state == PS_RUNNING) {			\
-		} else if (newstate == PS_RUNNING) { 			\
-			if (thr_kill(thrd->thr_id, SIGTHR))		\
-				abort();				\
-		}							\
+	if (newstate == PS_RUNNING) { 					\
+		if (thr_kill(thrd->thr_id, SIGTHR))			\
+			abort();					\
 	}								\
 	PTHREAD_SET_STATE(thrd, newstate);				\
 } while (0)
-#endif
-#endif
 
 
 /*
