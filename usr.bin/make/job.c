@@ -471,20 +471,20 @@ JobCmpPid(const void *job, const void *pid)
 static int
 JobPrintCommand(void *cmdp, void *jobp)
 {
-    Boolean	  noSpecials;	    /* true if we shouldn't worry about
-				     * inserting special commands into
-				     * the input stream. */
-    Boolean       shutUp = FALSE;   /* true if we put a no echo command
-				     * into the command file */
-    Boolean	  errOff = FALSE;   /* true if we turned error checking
-				     * off before printing the command
-				     * and need to turn it back on */
-    const char    *cmdTemplate;	    /* Template to use when printing the
-				     * command */
-    char    	  *cmdStart;	    /* Start of expanded command */
-    LstNode 	  *cmdNode;  	    /* Node for replacing the command */
-    char     	  *cmd = cmdp;
-    Job           *job = jobp;
+    Boolean	noSpecials;	/* true if we shouldn't worry about
+				 * inserting special commands into
+				 * the input stream. */
+    Boolean	shutUp = FALSE;	/* true if we put a no echo command
+				 * into the command file */
+    Boolean	errOff = FALSE;	/* true if we turned error checking
+				 * off before printing the command
+				 * and need to turn it back on */
+    const char	*cmdTemplate;	/* Template to use when printing the
+				 * command */
+    char	*cmdStart;	/* Start of expanded command */
+    LstNode	*cmdNode;	/* Node for replacing the command */
+    char	*cmd = cmdp;
+    Job		*job = jobp;
 
     noSpecials = (noExecute && !(job->node->type & OP_MAKE));
 
