@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 PROG=   getpmac
+NOMAN=	#true
 SRCS=   getpmac.c
-CFLAGS+=-Wall
-NOMAN=yes
+
+WARNS?=	2
+
 .include <bsd.prog.mk>

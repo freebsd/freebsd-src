@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 PROG=   setfmac
-SRCS=   setfmac.c
 MAN=	setfmac.8
-CFLAGS+=-Wall
+SRCS=   setfmac.c
+
+WARNS?=	2
+
 .include <bsd.prog.mk>

@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 PROG=   setpmac
+NOMAN=	#true
 SRCS=   setpmac.c
-CFLAGS+=-Wall
-NOMAN=yes
+
+WARNS?=	2
+
 .include <bsd.prog.mk>
