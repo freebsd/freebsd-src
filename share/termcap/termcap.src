@@ -491,7 +491,7 @@ abm80|amtek business machines 80:\
 	:do=^J:al=\E^Z:am:le=^H:bs:cd=\E^X:ce=\E^O:cl=\E^\:cm=\E^Q%r%+ %+ :\
 	:co#80:dl=\E^S:do=\E^K:li#24:nd=^P:.so=\E^_:.se=\E^Y:up=\E^L:\
 	:bw:bt=^T:ho=\E^R:
-tab132|tab|tab132/15|tab 132/15:\
+tab132|tab|tab132-15|tab 132-15:\
 	:is=\E[?7h\E[?3l\E[?5l:dN@:ks@:ke@:do=^J:\
 	:da:db:al=\E[L:dl=\E[M:dc=\E[P:ei=\E[4l:im=\E[4h:cm=\E[%i%d;%dH:\
 	:ku=\E[A:kd=\E[B:kl=\E[D:tc=vt100:
