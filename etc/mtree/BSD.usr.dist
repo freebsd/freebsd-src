@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.137 1998/12/14 07:44:47 dillon Exp $
+#	$Id: BSD.usr.dist,v 1.138 1998/12/14 08:06:57 dillon Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -350,6 +350,8 @@
 	    mdoc
             ..
 	    perfmon
+	    ..
+	    portal
 	    ..
 	    ppi
 	    ..
