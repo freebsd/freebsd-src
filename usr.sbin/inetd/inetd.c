@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.46.2.3 1999/06/22 18:06:35 sheldonh Exp $";
+	"$Id: inetd.c,v 1.46.2.4 1999/07/21 18:39:50 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -128,12 +128,11 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <tcpd.h>
 #include <unistd.h>
 #include <libutil.h>
 #include <sysexits.h>
 
-#ifdef LIBWRAP
-# include <tcpd.h>
 #ifndef LIBWRAP_ALLOW_FACILITY
 # define LIBWRAP_ALLOW_FACILITY LOG_AUTH
 #endif
@@ -146,9 +145,11 @@ static const char rcsid[] =
 #ifndef LIBWRAP_DENY_SEVERITY
 # define LIBWRAP_DENY_SEVERITY LOG_WARNING
 #endif
-int allow_severity;
-int deny_severity;
-#endif
+
+#define ISWRAP(sep)	\
+	   ( ((wrap_ex && !(sep)->se_bi) || (wrap_bi && (sep)->se_bi)) \
+	&& ( ((sep)->se_accept && (sep)->se_socktype == SOCK_STREAM) \
+	    || (sep)->se_socktype == SOCK_DGRAM))
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
@@ -178,6 +179,10 @@ int deny_severity;
 
 #define	SIGBLOCK	(sigmask(SIGCHLD)|sigmask(SIGHUP)|sigmask(SIGALRM))
 
+int	allow_severity;
+int	deny_severity;
+int	wrap_ex = 0;
+int	wrap_bi = 0;
 int	debug = 0;
 int	log = 0;
 int	nsock, maxsock;
@@ -253,6 +258,7 @@ struct servtab *getconfigent __P((void));
 void		ident_stream __P((int, struct servtab *));
 void		machtime_dg __P((int, struct servtab *));
 void		machtime_stream __P((int, struct servtab *));
+int		matchservent __P((char *, char *, char *));
 char	       *newstr __P((char *));
 char	       *nextline __P((FILE *));
 void		print_service __P((char *, struct servtab *));
@@ -269,6 +275,7 @@ char	       *sskip __P((char **));
 char	       *skip __P((char **));
 struct servtab *tcpmux __P((int));
 int		cpmip __P((struct servtab *, int));
+void		inetd_setproctitle __P((char *, int));
 
 void		unregisterrpc __P((register struct servtab *sep));
 
@@ -301,7 +308,7 @@ struct biltin {
 
 	{ "tcpmux",	SOCK_STREAM,	1, -1,	(void (*)())tcpmux },
 
-	{ "ident",	SOCK_STREAM,	1, -1,	ident_stream },
+	{ "auth",	SOCK_STREAM,	1, -1,	ident_stream },
 
 	{ NULL }
 };
@@ -347,14 +354,12 @@ main(argc, argv, envp)
 #ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
 #endif
-#ifdef LIBWRAP
 	struct request_info req;
 	int denied;
 	char *service = NULL;
-#else
+	char *pnm;
 	struct  sockaddr_in peer;
 	int i;
-#endif
 
 
 #ifdef OLD_SETPROCTITLE
@@ -369,7 +374,7 @@ main(argc, argv, envp)
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "dlR:a:c:C:p:")) != -1)
+	while ((ch = getopt(argc, argv, "dlwWR:a:c:C:p:")) != -1)
 		switch(ch) {
 		case 'd':
 			debug = 1;
@@ -400,10 +405,16 @@ main(argc, argv, envp)
 		case 'p':
 			pid_file = optarg;
 			break;
+		case 'w':
+			wrap_ex++;
+			break;
+		case 'W':
+			wrap_bi++;
+			break;
 		case '?':
 		default:
 			syslog(LOG_ERR,
-				"usage: inetd [-dl] [-a address] [-R rate]"
+				"usage: inetd [-dlwW] [-a address] [-R rate]"
 				" [-c maximum] [-C rate]"
 				" [-p pidfile] [conf-file]");
 			exit(EX_USAGE);
@@ -539,35 +550,31 @@ main(argc, argv, envp)
 				close(ctrl);
 				continue;
 			    }
-#ifndef LIBWRAP
-			    if (log) {
-				i = sizeof peer;
-				if (getpeername(ctrl, (struct sockaddr *)
-						&peer, &i)) {
-					syslog(LOG_WARNING,
-						"getpeername(for %s): %m",
-						sep->se_service);
-					close(ctrl);
-					continue;
-				}
-				syslog(LOG_INFO,"%s from %s",
-					sep->se_service,
-					inet_ntoa(peer.sin_addr));
-			    }
-#endif
 		    } else
 			    ctrl = sep->se_fd;
+		    if (log && !ISWRAP(sep)) {
+			    pnm = "unknown";
+			    i = sizeof peer;
+			    if (getpeername(ctrl, (struct sockaddr *)
+					    &peer, &i)) {
+				    i = sizeof peer;
+				    if (recvfrom(ctrl, buf, sizeof(buf),
+					MSG_PEEK,
+					(struct sockaddr *)&peer, &i) >= 0)
+					    pnm = inet_ntoa(peer.sin_addr);
+			    }
+			    else
+				    pnm = inet_ntoa(peer.sin_addr);
+			    syslog(LOG_INFO,"%s from %s", sep->se_service, pnm);
+		    }
 		    (void) sigblock(SIGBLOCK);
 		    pid = 0;
-#ifdef LIBWRAP_INTERNAL
 		    /*
-		     * When builtins are wrapped, avoid a minor optimization
-		     * that breaks hosts_options(5) twist.
+		     * Fork for all external services, builtins which need to
+		     * fork and anything we're wrapping (as wrapping might
+		     * block or use hosts_options(5) twist).
 		     */
-		    dofork = 1;
-#else
-		    dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
-#endif
+		    dofork = !sep->se_bi || sep->se_bi->bi_fork || ISWRAP(sep);
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
 				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
@@ -629,12 +636,8 @@ main(argc, argv, envp)
 					    _exit(0);
 				    }
 			    }
-#ifdef LIBWRAP
-#ifndef LIBWRAP_INTERNAL
-			    if (sep->se_bi == 0)
-#endif
-			    if (sep->se_accept
-				&& sep->se_socktype == SOCK_STREAM) {
+			    if (ISWRAP(sep)) {
+				inetd_setproctitle("wrapping", ctrl);
 				service = sep->se_server_name ?
 				    sep->se_server_name : sep->se_service;
 				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, NULL);
@@ -646,7 +649,10 @@ main(argc, argv, envp)
 				    syslog(deny_severity,
 				        "refused connection from %.500s, service %s (%s)",
 				        eval_client(&req), service, sep->se_proto);
-				    goto reject;
+				    if (sep->se_socktype != SOCK_STREAM)
+					recv(ctrl, buf, sizeof (buf), 0);
+				    if (dofork)
+					_exit(0);
 				}
 				if (log) {
 				    syslog(allow_severity,
@@ -654,10 +660,8 @@ main(argc, argv, envp)
 					eval_client(&req), service, sep->se_proto);
 				}
 			    }
-#endif /* LIBWRAP */
 			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
-				/* NOTREACHED */
 			    } else {
 				if (debug)
 					warnx("%d execl %s",
@@ -744,9 +748,6 @@ main(argc, argv, envp)
 				execv(sep->se_server, sep->se_argv);
 				syslog(LOG_ERR,
 				    "cannot execute %s: %m", sep->se_server);
-#ifdef LIBWRAP
-			    reject:
-#endif
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
 			    }
@@ -1132,6 +1133,23 @@ close_sep(sep)
 	sep->se_numchild = 0;	/* forget about any existing children */
 }
 
+int
+matchservent(name1, name2, proto)
+	char *name1, *name2, *proto;
+{
+	char **alias;
+	struct servent *se;
+
+	if ((se = getservbyname(name1, proto)) != NULL) {
+		if (strcmp(name2, se->s_name) == 0)
+			return(1);
+		for (alias = se->s_aliases; *alias; alias++)
+			if (strcmp(name2, *alias) == 0)
+				return(1);
+	}
+	return(0);
+}
+
 struct servtab *
 enter(cp)
 	struct servtab *cp;
@@ -1406,8 +1424,10 @@ more:
 		struct biltin *bi;
 
 		for (bi = biltins; bi->bi_service; bi++)
-			if (bi->bi_socktype == sep->se_socktype &&
-			    strcmp(bi->bi_service, sep->se_service) == 0)
+			if ((bi->bi_socktype == sep->se_socktype &&
+			    strcmp(bi->bi_service, sep->se_service) == 0) ||
+			    matchservent(bi->bi_service, sep->se_service,
+			    sep->se_proto))
 				break;
 		if (bi->bi_service == 0) {
 			syslog(LOG_ERR, "internal service %s unknown",
