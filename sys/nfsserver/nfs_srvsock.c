@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.50 1999/02/25 00:03:51 peter Exp $
+ * $Id: nfs_socket.c,v 1.51 1999/04/24 11:29:48 dt Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 #include <sys/tprintf.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -115,6 +116,15 @@ static int proct[NFS_NPROCS] = {
 	0, 0, 0,
 };
 
+static int nfs_realign_test;
+static int nfs_realign_count;
+
+SYSCTL_DECL(_vfs_nfs);
+
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RD, &nfs_realign_test, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RD, &nfs_realign_count, 0, "");
+
+
 /*
  * There is a congestion window for outstanding rpcs maintained per mount
  * point. The cwnd size is adjusted in roughly the way that:
@@ -138,7 +148,7 @@ struct callout_handle	nfs_timer_handle;
 static int	nfs_msg __P((struct proc *,char *,char *));
 static int	nfs_rcvlock __P((struct nfsreq *));
 static void	nfs_rcvunlock __P((struct nfsreq *));
-static void	nfs_realign __P((struct mbuf *m, int hsiz));
+static void	nfs_realign __P((struct mbuf **pm, int hsiz));
 static int	nfs_receive __P((struct nfsreq *rep, struct sockaddr **aname,
 				 struct mbuf **mp));
 static int	nfs_reconnect __P((struct nfsreq *rep));
@@ -702,7 +712,7 @@ errout:
 	 * These could cause pointer alignment problems, so copy them to
 	 * well aligned mbufs.
 	 */
-	nfs_realign(*mp, 5 * NFSX_UNSIGNED);
+	nfs_realign(mp, 5 * NFSX_UNSIGNED);
 	return (error);
 }
 
@@ -1589,92 +1599,56 @@ nfs_rcvunlock(rep)
 }
 
 /*
- * Check for badly aligned mbuf data areas and
- * realign data in an mbuf list by copying the data areas up, as required.
+ *	nfs_realign:
+ *
+ *	Check for badly aligned mbuf data and realign by copying the unaligned
+ *	portion of the data into a new mbuf chain and freeing the portions
+ *	of the old chain that were replaced.
+ *
+ *	We cannot simply realign the data within the existing mbuf chain
+ *	because the underlying buffers may contain other rpc commands and
+ *	we cannot afford to overwrite them.
+ *
+ *	We would prefer to avoid this situation entirely.  The situation does
+ *	not occur with NFS/UDP and is supposed to only occassionally occur
+ *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
  */
 static void
-nfs_realign(m, hsiz)
-	register struct mbuf *m;
+nfs_realign(pm, hsiz)
+	register struct mbuf **pm;
 	int hsiz;
 {
-	register struct mbuf *m2;
-	register int siz, mlen, olen;
-	register caddr_t tcp, fcp;
-	struct mbuf *mnew;
+	struct mbuf *m;
+	struct mbuf *n = NULL;
+	int off = 0;
 
-	while (m) {
-	    /*
-	     * This never happens for UDP, rarely happens for TCP
-	     * but frequently happens for iso transport.
-	     */
-	    if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-		olen = m->m_len;
-		fcp = mtod(m, caddr_t);
-		if ((intptr_t)fcp & 0x3) {
-			m->m_flags &= ~M_PKTHDR;
-			if (m->m_flags & M_EXT)
-				m->m_data = m->m_ext.ext_buf +
-					((m->m_ext.ext_size - olen) & ~0x3);
-			else
-				m->m_data = m->m_dat;
+	++nfs_realign_test;
+
+	while ((m = *pm) != NULL) {
+		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
+			MGET(n, M_WAIT, MT_DATA);
+			if (m->m_len >= MINCLSIZE) {
+				MCLGET(n, M_WAIT);
+			}
+			n->m_len = 0;
+			break;
 		}
-		m->m_len = 0;
-		tcp = mtod(m, caddr_t);
-		mnew = m;
-		m2 = m->m_next;
+		pm = &m->m_next;
+	}
 
-		/*
-		 * If possible, only put the first invariant part
-		 * of the RPC header in the first mbuf.
-		 */
-		mlen = M_TRAILINGSPACE(m);
-		if (olen <= hsiz && mlen > hsiz)
-			mlen = hsiz;
-
-		/*
-		 * Loop through the mbuf list consolidating data.
-		 */
+	/*
+	 * If n is non-NULL, loop on m copying data, then replace the
+	 * portion of the chain that had to be realigned.
+	 */
+	if (n != NULL) {
+		++nfs_realign_count;
 		while (m) {
-			while (olen > 0) {
-				if (mlen == 0) {
-					m2->m_flags &= ~M_PKTHDR;
-					if (m2->m_flags & M_EXT)
-						m2->m_data = m2->m_ext.ext_buf;
-					else
-						m2->m_data = m2->m_dat;
-					m2->m_len = 0;
-					mlen = M_TRAILINGSPACE(m2);
-					tcp = mtod(m2, caddr_t);
-					mnew = m2;
-					m2 = m2->m_next;
-				}
-				siz = min(mlen, olen);
-				if (tcp != fcp)
-					bcopy(fcp, tcp, siz);
-				mnew->m_len += siz;
-				mlen -= siz;
-				olen -= siz;
-				tcp += siz;
-				fcp += siz;
-			}
+			m_copyback(n, off, m->m_len, mtod(m, caddr_t));
+			off += m->m_len;
 			m = m->m_next;
-			if (m) {
-				olen = m->m_len;
-				fcp = mtod(m, caddr_t);
-			}
 		}
-
-		/*
-		 * Finally, set m_len == 0 for any trailing mbufs that have
-		 * been copied out of.
-		 */
-		while (m2) {
-			m2->m_len = 0;
-			m2 = m2->m_next;
-		}
-		return;
-	    }
-	    m = m->m_next;
+		m_freem(*pm);
+		*pm = n;
 	}
 }
 
@@ -2040,7 +2014,7 @@ nfsrv_rcv(so, arg, waitflag)
 					m_freem(mp);
 					continue;
 				}
-				nfs_realign(mp, 10 * NFSX_UNSIGNED);
+				nfs_realign(&mp, 10 * NFSX_UNSIGNED);
 				rec->nr_address = nam;
 				rec->nr_packet = mp;
 				STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);
@@ -2182,7 +2156,7 @@ nfsrv_getstream(slp, waitflag)
 		if (!rec) {
 		    m_freem(slp->ns_frag);
 		} else {
-		    nfs_realign(slp->ns_frag, 10 * NFSX_UNSIGNED);
+		    nfs_realign(&slp->ns_frag, 10 * NFSX_UNSIGNED);
 		    rec->nr_address = (struct sockaddr *)0;
 		    rec->nr_packet = slp->ns_frag;
 		    STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);

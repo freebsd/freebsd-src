@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.128 1999/03/19 05:21:03 alc Exp $
+ *	$Id: vm_page.c,v 1.129 1999/04/05 19:38:29 julian Exp $
  */
 
 /*
@@ -1460,14 +1460,16 @@ vm_page_bits(int base, int size)
 }
 
 /*
- * set a page valid and clean.  May not block.
+ *	vm_page_set_validclean:
  *
- * In order to maintain consistancy due to the DEV_BSIZE granularity
- * of the valid bits, we have to zero non-DEV_BSIZE aligned portions of 
- * the page at the beginning and end of the valid range when the 
- * associated valid bits are not already set.
+ *	Sets portions of a page valid and clean.  The arguments are expected
+ *	to be DEV_BSIZE aligned but if they aren't the bitmap is inclusive
+ *	of any partial chunks touched by the range.  The invalid portion of
+ *	such chunks will be zero'd.
  *
- * (base + size) must be less then or equal to PAGE_SIZE.
+ *	This routine may not block.
+ *
+ *	(base + size) must be less then or equal to PAGE_SIZE.
  */
 void
 vm_page_set_validclean(m, base, size)
@@ -1529,8 +1531,35 @@ vm_page_set_validclean(m, base, size)
 		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 }
 
+#if 0
+
+void
+vm_page_set_dirty(m, base, size)
+	vm_page_t m;
+	int base;
+	int size;
+{
+	m->dirty |= vm_page_bits(base, size);
+}
+
+#endif
+
+void
+vm_page_clear_dirty(m, base, size)
+	vm_page_t m;
+	int base;
+	int size;
+{
+	m->dirty &= ~vm_page_bits(base, size);
+}
+
 /*
- * set a page (partially) invalid.  May not block.
+ *	vm_page_set_invalid:
+ *
+ *	Invalidates DEV_BSIZE'd chunks within a page.  Both the
+ *	valid and dirty bits for the effected areas are cleared.
+ *
+ *	May not block.
  */
 void
 vm_page_set_invalid(m, base, size)
@@ -1540,9 +1569,9 @@ vm_page_set_invalid(m, base, size)
 {
 	int bits;
 
-	m->valid &= ~(bits = vm_page_bits(base, size));
-	if (m->valid == 0)
-		m->dirty &= ~bits;
+	bits = vm_page_bits(base, size);
+	m->valid &= ~bits;
+	m->dirty &= ~bits;
 	m->object->generation++;
 }
 

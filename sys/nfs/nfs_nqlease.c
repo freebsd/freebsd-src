@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.39 1998/10/31 15:31:25 peter Exp $
+ * $Id: nfs_nqlease.c,v 1.40 1999/02/25 00:03:51 peter Exp $
  */
 
 
@@ -561,6 +561,10 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 				*mtod(m, u_int32_t *) = htonl(0x80000000 |
 					(m->m_pkthdr.len - NFSX_UNSIGNED));
 			}
+			/*
+			 * nfs_sndlock if PR_CONNREQUIRED XXX
+			 */
+
 			if (((lph->lph_flag & (LC_UDP | LC_CLTP)) == 0 &&
 			    (lph->lph_slp->ns_flag & SLP_VALID) == 0) ||
 			    (nfs_slplock(lph->lph_slp, 0) == 0))

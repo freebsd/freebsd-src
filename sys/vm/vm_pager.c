@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.44 1999/03/14 09:20:00 julian Exp $
+ * $Id: vm_pager.c,v 1.45 1999/04/11 02:16:27 eivind Exp $
  */
 
 /*
@@ -523,6 +523,9 @@ vm_pager_chain_iodone(struct buf *nbp)
  *	Obtain a physical buffer and chain it to its parent buffer.  When
  *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
  *	automatically propogated to the parent
+ *
+ *	Since these are brand new buffers, we do not have to clear B_INVAL
+ *	and B_ERROR because they are already clear.
  */
 
 struct buf *

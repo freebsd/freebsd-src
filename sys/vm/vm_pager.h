@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.20 1999/01/24 02:32:15 dillon Exp $
+ * $Id: vm_pager.h,v 1.21 1999/03/14 09:20:00 julian Exp $
  */
 
 /*
@@ -110,6 +110,14 @@ void flushchainbuf(struct buf *nbp);
 void waitchainbuf(struct buf *bp, int count, int done);
 void autochaindone(struct buf *bp);
 
+/*
+ *	vm_page_get_pages:
+ *
+ *	Retrieve pages from the VM system in order to map them into an object
+ *	( or into VM space somewhere ).  If the pagein was successful, we
+ *	must fully validate it.
+ */
+
 static __inline int
 vm_pager_get_pages(
 	vm_object_t object,
@@ -117,7 +125,13 @@ vm_pager_get_pages(
 	int count,
 	int reqpage
 ) {
-	return ((*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage));
+	int r;
+
+	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage);
+	if (r == VM_PAGER_OK && m[reqpage]->valid != VM_PAGE_BITS_ALL) {
+		vm_page_zero_invalid(m[reqpage], TRUE);
+	}
+	return(r);
 }
 
 static __inline void

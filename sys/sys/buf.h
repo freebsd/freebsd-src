@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.64 1999/03/02 04:04:28 mckusick Exp $
+ * $Id: buf.h,v 1.65 1999/03/12 02:24:55 julian Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -78,6 +78,19 @@ struct iodone_chain {
 
 /*
  * The buffer header describes an I/O operation in the kernel.
+ *
+ * NOTES:
+ *	b_bufsize, b_bcount.  b_bufsize is the allocation size of the
+ *	buffer, either DEV_BSIZE or PAGE_SIZE aligned.  b_bcount is the
+ *	originally requested buffer size and can serve as a bounds check
+ *	against EOF.  For most, but not all uses, b_bcount == b_bufsize.
+ *
+ *	b_dirtyoff, b_dirtyend.  Buffers support piecemeal, unaligned
+ *	ranges of dirty data that need to be written to backing store.
+ *	The range is typically clipped at b_bcount ( not b_bufsize ).
+ *
+ *	b_resid.  Number of bytes remaining in I/O.  After an I/O operation
+ *	completes, b_resid is usually 0 indicating 100% success.
  */
 struct buf {
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
@@ -109,8 +122,10 @@ struct buf {
 	int	b_dirtyend;		/* Offset of end of dirty region. */
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
+#if 0
 	int	b_validoff;		/* Offset in buffer of valid region. */
 	int	b_validend;		/* Offset of end of valid region. */
+#endif
 	daddr_t	b_pblkno;               /* physical block number */
 	void	*b_saveaddr;		/* Original b_addr for physio. */
 	caddr_t	b_savekva;              /* saved kva for transfer while bouncing */
@@ -151,9 +166,24 @@ struct buf {
  *			Buffer vp reassignments are illegal in this case.
  *
  *	B_CACHE		This may only be set if the buffer is entirely valid.
- *			The situation where B_DELWRI is set and B_CACHE gets
- *			cleared MUST be committed to disk so B_DELWRI can
- *			also be cleared.
+ *			The situation where B_DELWRI is set and B_CACHE is
+ *			clear MUST be committed to disk by getblk() so 
+ *			B_DELWRI can also be cleared.  See the comments for
+ *			getblk() in kern/vfs_bio.c.  If B_CACHE is clear,
+ *			the caller is expected to clear B_ERROR|B_INVAL,
+ *			set B_READ, and initiate an I/O.
+ *
+ *			The 'entire buffer' is defined to be the range from
+ *			0 through b_bcount.
+ *
+ *	B_MALLOC	Request that the buffer be allocated from the malloc
+ *			pool, DEV_BSIZE aligned instead of PAGE_SIZE aligned.
+ *
+ *	B_VMIO		Indicates that the buffer is tied into an VM object.
+ *			The buffer's data is always PAGE_SIZE aligned even
+ *			if b_bufsize and b_bcount are not.  ( b_bufsize is 
+ *			always at least DEV_BSIZE aligned, though ).
+ *	
  */
 
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
@@ -356,6 +386,7 @@ void	cluster_write __P((struct buf *, u_quad_t));
 int	physio __P((void (*)(struct buf *), struct buf *, dev_t, 
 	    int, u_int (*)(struct buf *), struct uio *));
 u_int	minphys __P((struct buf *));
+void	vfs_bio_set_validclean __P((struct buf *, int base, int size));
 void	vfs_bio_clrbuf __P((struct buf *));
 void	vfs_busy_pages __P((struct buf *, int clear_modify));
 void	vfs_unbusy_pages __P((struct buf *));
@@ -371,6 +402,7 @@ int	allocbuf __P((struct buf *bp, int size));
 void	reassignbuf __P((struct buf *, struct vnode *));
 void	pbreassignbuf __P((struct buf *, struct vnode *));
 struct	buf *trypbuf __P((int *));
+
 #endif /* KERNEL */
 
 #endif /* !_SYS_BUF_H_ */
