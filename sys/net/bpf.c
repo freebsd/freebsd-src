@@ -564,6 +564,9 @@ bpfwrite(dev, uio, ioflag)
 
 	ifp = d->bd_bif->bif_ifp;
 
+	if ((ifp->if_flags & IFF_UP) == 0)
+		return (ENETDOWN);
+
 	if (uio->uio_resid == 0)
 		return (0);
 
@@ -1006,14 +1009,10 @@ bpf_setif(d, ifr)
 		mtx_unlock(&bpf_mtx);
 		/*
 		 * We found the requested interface.
-		 * If it's not up, return an error.
 		 * Allocate the packet buffers if we need to.
 		 * If we're already attached to requested interface,
 		 * just flush the buffer.
 		 */
-		if ((ifp->if_flags & IFF_UP) == 0)
-			return (ENETDOWN);
-
 		if (d->bd_sbuf == NULL) {
 			error = bpf_allocbufs(d);
 			if (error != 0)
