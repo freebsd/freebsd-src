@@ -280,17 +280,17 @@ main(int argc, char *argv[])
 	if ((display & (MSGINFO | MSGTOTAL))) {
 		if (display & MSGTOTAL) {
 			printf("msginfo:\n");
-			printf("\tmsgmax: %6d\t(max characters in a message)\n",
+			printf("\tmsgmax: %12d\t(max characters in a message)\n",
 			    msginfo.msgmax);
-			printf("\tmsgmni: %6d\t(# of message queues)\n",
+			printf("\tmsgmni: %12d\t(# of message queues)\n",
 			    msginfo.msgmni);
-			printf("\tmsgmnb: %6d\t(max characters in a message queue)\n",
+			printf("\tmsgmnb: %12d\t(max characters in a message queue)\n",
 			    msginfo.msgmnb);
-			printf("\tmsgtql: %6d\t(max # of messages in system)\n",
+			printf("\tmsgtql: %12d\t(max # of messages in system)\n",
 			    msginfo.msgtql);
-			printf("\tmsgssz: %6d\t(size of a message segment)\n",
+			printf("\tmsgssz: %12d\t(size of a message segment)\n",
 			    msginfo.msgssz);
-			printf("\tmsgseg: %6d\t(# of message segments in system)\n\n",
+			printf("\tmsgseg: %12d\t(# of message segments in system)\n\n",
 			    msginfo.msgseg);
 		}
 		if (display & MSGINFO) {
@@ -303,17 +303,18 @@ main(int argc, char *argv[])
 			kget(X_MSQIDS, kxmsqids, kxmsqids_len);
 
 			printf("Message Queues:\n");
-			printf("T     ID     KEY        MODE       OWNER    GROUP");
+			printf("T %12s %12s %-11s %-8s %-8s", "ID", "KEY", "MODE",
+			    "OWNER", "GROUP");
 			if (option & CREATOR)
-				printf("  CREATOR   CGROUP");
+				printf(" %-8s %-8s", "CREATOR", "CGROUP");
 			if (option & OUTSTANDING)
-				printf(" CBYTES  QNUM");
+				printf(" %20s %20s", "CBYTES", "QNUM");
 			if (option & BIGGEST)
-				printf(" QBYTES");
+				printf(" %20s", "QBYTES");
 			if (option & PID)
-				printf(" LSPID LRPID");
+				printf(" %12s %12s", "LSPID", "LRPID");
 			if (option & TIME)
-				printf("    STIME    RTIME    CTIME");
+				printf(" %-8s %-8s %-8s", "STIME", "RTIME", "CTIME");
 			printf("\n");
 			for (i = 0; i < msginfo.msgmni; i += 1) {
 				if (kxmsqids[i].u.msg_qbytes != 0) {
@@ -328,7 +329,7 @@ main(int argc, char *argv[])
 					cvt_time(kmsqptr->u.msg_rtime, rtime_buf);
 					cvt_time(kmsqptr->u.msg_ctime, ctime_buf);
 
-					printf("q %6d %10d %s %8s %8s",
+					printf("q %12d %12d %s %8s %8s",
 					    IXSEQ_TO_IPCID(i, kmsqptr->u.msg_perm),
 					    (int)kmsqptr->u.msg_perm.key,
 					    fmt_perm(kmsqptr->u.msg_perm.mode),
@@ -341,16 +342,16 @@ main(int argc, char *argv[])
 						    group_from_gid(kmsqptr->u.msg_perm.cgid, 0));
 
 					if (option & OUTSTANDING)
-						printf(" %6lu %6lu",
+						printf(" %12lu %12lu",
 						    kmsqptr->u.msg_cbytes,
 						    kmsqptr->u.msg_qnum);
 
 					if (option & BIGGEST)
-						printf(" %6lu",
+						printf(" %20lu",
 						    kmsqptr->u.msg_qbytes);
 
 					if (option & PID)
-						printf(" %6d %6d",
+						printf(" %12d %12d",
 						    kmsqptr->u.msg_lspid,
 						    kmsqptr->u.msg_lrpid);
 
@@ -375,15 +376,15 @@ main(int argc, char *argv[])
 	if ((display & (SHMINFO | SHMTOTAL))) {
 		if (display & SHMTOTAL) {
 			printf("shminfo:\n");
-			printf("\tshmmax: %7d\t(max shared memory segment size)\n",
+			printf("\tshmmax: %12d\t(max shared memory segment size)\n",
 			    shminfo.shmmax);
-			printf("\tshmmin: %7d\t(min shared memory segment size)\n",
+			printf("\tshmmin: %12d\t(min shared memory segment size)\n",
 			    shminfo.shmmin);
-			printf("\tshmmni: %7d\t(max number of shared memory identifiers)\n",
+			printf("\tshmmni: %12d\t(max number of shared memory identifiers)\n",
 			    shminfo.shmmni);
-			printf("\tshmseg: %7d\t(max shared memory segments per process)\n",
+			printf("\tshmseg: %12d\t(max shared memory segments per process)\n",
 			    shminfo.shmseg);
-			printf("\tshmall: %7d\t(max amount of shared memory in pages)\n\n",
+			printf("\tshmall: %12d\t(max amount of shared memory in pages)\n\n",
 			    shminfo.shmall);
 		}
 		if (display & SHMINFO) {
@@ -395,17 +396,18 @@ main(int argc, char *argv[])
 			kget(X_SHMSEGS, kxshmids, kxshmids_len);
 
 			printf("Shared Memory:\n");
-			printf("T     ID     KEY        MODE       OWNER    GROUP");
+			printf("T %12s %12s %-11s %-8s %-8s", "ID", "KEY", "MODE",
+			    "OWNER", "GROUP");
 			if (option & CREATOR)
-				printf("  CREATOR   CGROUP");
+				printf(" %-8s %-8s", "CREATOR", "CGROUP");
 			if (option & OUTSTANDING)
-				printf(" NATTCH");
+				printf(" %12s", "NATTCH");
 			if (option & BIGGEST)
-				printf("  SEGSZ");
+				printf(" %12s", "SEGSZ");
 			if (option & PID)
-				printf("  CPID  LPID");
+				printf(" %12s %12s", "CPID", "LPID");
 			if (option & TIME)
-				printf("    ATIME    DTIME    CTIME");
+				printf(" %-8s %-8s %-8s", "ATIME", "DTIME", "CTIME");
 			printf("\n");
 			for (i = 0; i < shminfo.shmmni; i += 1) {
 				if (kxshmids[i].u.shm_perm.mode & 0x0800) {
@@ -420,7 +422,7 @@ main(int argc, char *argv[])
 					cvt_time(kshmptr->u.shm_dtime, dtime_buf);
 					cvt_time(kshmptr->u.shm_ctime, ctime_buf);
 
-					printf("m %6d %10d %s %8s %8s",
+					printf("m %12d %12d %s %8s %8s",
 					    IXSEQ_TO_IPCID(i, kshmptr->u.shm_perm),
 					    (int)kshmptr->u.shm_perm.key,
 					    fmt_perm(kshmptr->u.shm_perm.mode),
@@ -433,15 +435,15 @@ main(int argc, char *argv[])
 						    group_from_gid(kshmptr->u.shm_perm.cgid, 0));
 
 					if (option & OUTSTANDING)
-						printf(" %6d",
+						printf(" %12d",
 						    kshmptr->u.shm_nattch);
 
 					if (option & BIGGEST)
-						printf(" %6d",
+						printf(" %12d",
 						    kshmptr->u.shm_segsz);
 
 					if (option & PID)
-						printf(" %6d %6d",
+						printf(" %12d %12d",
 						    kshmptr->u.shm_cpid,
 						    kshmptr->u.shm_lpid);
 
@@ -469,25 +471,25 @@ main(int argc, char *argv[])
 
 		if (display & SEMTOTAL) {
 			printf("seminfo:\n");
-			printf("\tsemmap: %6d\t(# of entries in semaphore map)\n",
+			printf("\tsemmap: %12d\t(# of entries in semaphore map)\n",
 			    seminfo.semmap);
-			printf("\tsemmni: %6d\t(# of semaphore identifiers)\n",
+			printf("\tsemmni: %12d\t(# of semaphore identifiers)\n",
 			    seminfo.semmni);
-			printf("\tsemmns: %6d\t(# of semaphores in system)\n",
+			printf("\tsemmns: %12d\t(# of semaphores in system)\n",
 			    seminfo.semmns);
-			printf("\tsemmnu: %6d\t(# of undo structures in system)\n",
+			printf("\tsemmnu: %12d\t(# of undo structures in system)\n",
 			    seminfo.semmnu);
-			printf("\tsemmsl: %6d\t(max # of semaphores per id)\n",
+			printf("\tsemmsl: %12d\t(max # of semaphores per id)\n",
 			    seminfo.semmsl);
-			printf("\tsemopm: %6d\t(max # of operations per semop call)\n",
+			printf("\tsemopm: %12d\t(max # of operations per semop call)\n",
 			    seminfo.semopm);
-			printf("\tsemume: %6d\t(max # of undo entries per process)\n",
+			printf("\tsemume: %12d\t(max # of undo entries per process)\n",
 			    seminfo.semume);
-			printf("\tsemusz: %6d\t(size in bytes of undo structure)\n",
+			printf("\tsemusz: %12d\t(size in bytes of undo structure)\n",
 			    seminfo.semusz);
-			printf("\tsemvmx: %6d\t(semaphore maximum value)\n",
+			printf("\tsemvmx: %12d\t(semaphore maximum value)\n",
 			    seminfo.semvmx);
-			printf("\tsemaem: %6d\t(adjust on exit max value)\n\n",
+			printf("\tsemaem: %12d\t(adjust on exit max value)\n\n",
 			    seminfo.semaem);
 		}
 		if (display & SEMINFO) {
@@ -496,13 +498,14 @@ main(int argc, char *argv[])
 			kget(X_SEMA, kxsema, kxsema_len);
 
 			printf("Semaphores:\n");
-			printf("T     ID     KEY        MODE       OWNER    GROUP");
+			printf("T %12s %12s %-11s %-8s %-8s", "ID", "KEY", "MODE",
+			    "OWNER", "GROUP");
 			if (option & CREATOR)
-				printf("  CREATOR   CGROUP");
+				printf(" %-8s %-8s", "CREATOR", "CGROUP");
 			if (option & BIGGEST)
-				printf(" NSEMS");
+				printf(" %12s", "NSEMS");
 			if (option & TIME)
-				printf("    OTIME    CTIME");
+				printf(" %-8s %-8s", "OTIME", "CTIME");
 			printf("\n");
 			for (i = 0; i < seminfo.semmni; i += 1) {
 				if ((kxsema[i].u.sem_perm.mode & SEM_ALLOC) != 0) {
@@ -515,7 +518,7 @@ main(int argc, char *argv[])
 					cvt_time(ksemaptr->u.sem_otime, otime_buf);
 					cvt_time(ksemaptr->u.sem_ctime, ctime_buf);
 
-					printf("s %6d %10d %s %8s %8s",
+					printf("s %12d %12d %s %8s %8s",
 					    IXSEQ_TO_IPCID(i, ksemaptr->u.sem_perm),
 					    (int)ksemaptr->u.sem_perm.key,
 					    fmt_perm(ksemaptr->u.sem_perm.mode),
@@ -528,7 +531,7 @@ main(int argc, char *argv[])
 						    group_from_gid(ksemaptr->u.sem_perm.cgid, 0));
 
 					if (option & BIGGEST)
-						printf(" %6d",
+						printf(" %12d",
 						    ksemaptr->u.sem_nsems);
 
 					if (option & TIME)
