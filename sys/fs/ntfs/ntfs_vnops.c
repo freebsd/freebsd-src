@@ -223,8 +223,6 @@ ntfs_inactive(ap)
 	if (ntfs_prtactive && vrefcnt(vp) != 0)
 		vprint("ntfs_inactive: pushing active", vp);
 
-	VOP_UNLOCK(vp, 0, ap->a_td);
-
 	/* XXX since we don't support any filesystem changes
 	 * right now, nothing more needs to be done
 	 */

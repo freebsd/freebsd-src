@@ -498,7 +498,6 @@ fdesc_inactive(ap)
 	 * Clear out the v_type field to avoid
 	 * nasty things happening in vgone().
 	 */
-	VOP_UNLOCK(vp, 0, ap->a_td);
 	vp->v_type = VNON;
 	return (0);
 }

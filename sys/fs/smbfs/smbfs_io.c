@@ -672,7 +672,7 @@ smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 	struct smbnode *np = VTOSMB(vp);
 	int error = 0;
 
-	if (vp->v_iflag & VI_XLOCK)
+	if (vp->v_iflag & VI_DOOMED)
 		return 0;
 
 	while (np->n_flag & NFLUSHINPROG) {

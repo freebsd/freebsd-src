@@ -411,7 +411,6 @@ umap_inactive(ap)
 	 *
 	 */
 	VOP_INACTIVE(lowervp, ap->a_td);
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 	return (0);
 }
 
