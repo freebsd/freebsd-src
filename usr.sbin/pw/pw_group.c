@@ -158,11 +158,13 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 	 * software.
 	 */
 
-	if ((arg = getarg(args, 'h')) != NULL) {
+	if ((arg = getarg(args, 'h')) != NULL ||
+	    (arg = getarg(args, 'H')) != NULL) {
 		if (strcmp(arg->val, "-") == 0)
 			grp->gr_passwd = "*";	/* No access */
 		else {
 			int             fd = atoi(arg->val);
+			int		precrypt = (arg->ch == 'H');
 			int             b;
 			int             istty = isatty(fd);
 			struct termios  t;
@@ -196,7 +198,12 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 				*p = '\0';
 			if (!*line)
 				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
-			grp->gr_passwd = pw_pwcrypt(line);
+			if (precrypt) {
+				if (strchr(line, ':') != NULL)
+					return EX_DATAERR;
+				grp->gr_passwd = line;
+			} else
+				grp->gr_passwd = pw_pwcrypt(line);
 		}
 	}
 
