@@ -1225,10 +1225,7 @@ union descriptor gdt[NGDT * MAXCPU];	/* global descriptor table */
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
-#ifdef SMP
-/* table descriptors - used to load tables by microp */
-struct region_descriptor r_gdt, r_idt;
-#endif
+struct region_descriptor r_gdt, r_idt;	/* table descriptors */
 
 int private_tss;			/* flag indicating private tss */
 
@@ -1922,10 +1919,6 @@ init386(first)
 {
 	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, off, x;
-#ifndef SMP
-	/* table descriptors - used to load tables by microp */
-	struct region_descriptor r_gdt, r_idt;
-#endif
 	struct pcpu *pc;
 
 	proc0.p_uarea = proc0uarea;

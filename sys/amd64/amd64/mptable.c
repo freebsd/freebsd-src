@@ -250,9 +250,6 @@ static struct mtx ap_boot_mtx;
 /** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
 int	current_postcode;
 
-/** XXX FIXME: what system files declare these??? */
-extern struct region_descriptor r_gdt, r_idt;
-
 int	bsp_apic_ready = 0;	/* flags useability of BSP apic */
 int	mp_naps;		/* # of Applications processors */
 int	mp_nbusses;		/* # of busses */
