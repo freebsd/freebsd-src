@@ -152,7 +152,7 @@ int
 sc_get_cons_priority(int *unit, int *flags)
 {
 	int disabled;
-	char *at;
+	const char *at;
 	int u, f;
 
 	*unit = -1;
