@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $Id$
+ * $Id: ffs_balloc.c,v 1.13 1997/02/22 09:47:01 peter Exp $
  */
 
 #include <sys/param.h>
@@ -92,7 +92,7 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 				osize, (int)fs->fs_bsize, cred, &bp);
 			if (error)
 				return (error);
-			ip->i_size = (nb + 1) * fs->fs_bsize;
+			ip->i_size = smalllblktosize(fs, nb + 1);
 			ip->i_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			if (flags & B_SYNC)
@@ -106,7 +106,7 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 	 */
 	if (lbn < NDADDR) {
 		nb = ip->i_db[lbn];
-		if (nb != 0 && ip->i_size >= (lbn + 1) * fs->fs_bsize) {
+		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
 			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
 			if (error) {
 				brelse(bp);
@@ -137,7 +137,7 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 					return (error);
 			}
 		} else {
-			if (ip->i_size < (lbn + 1) * fs->fs_bsize)
+			if (ip->i_size < smalllblktosize(fs, lbn + 1))
 				nsize = fragroundup(fs, size);
 			else
 				nsize = fs->fs_bsize;
