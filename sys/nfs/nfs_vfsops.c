@@ -37,6 +37,8 @@
  * $FreeBSD$
  */
 
+#include "opt_bootp.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/proc.h>
@@ -398,6 +400,10 @@ nfs_mountroot(mp)
 	int error, i;
 	u_long l;
 	char buf[128];
+
+#if defined(BOOTP_NFSROOT) && defined(BOOTP)
+	bootpc_init();		/* use bootp to get nfs_diskless filled in */
+#endif
 
 	/*
 	 * XXX time must be non-zero when we init the interface or else
