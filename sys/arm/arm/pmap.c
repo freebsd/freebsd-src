@@ -1103,8 +1103,8 @@ pmap_free_l2_bucket(pmap_t pm, struct l2_bucket *l2b, u_int count)
  * Pool cache constructors for L2 descriptor tables, metadata and pmap
  * structures.
  */
-static void
-pmap_l2ptp_ctor(void *mem, int size, void *arg)
+static int
+pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 {
 #ifndef PMAP_INCLUDE_PTE_SYNC
 	struct l2_bucket *l2b;
@@ -1136,6 +1136,7 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg)
 
 	memset(mem, 0, L2_TABLE_SIZE_REAL);
 	PTE_SYNC_RANGE(mem, L2_TABLE_SIZE_REAL / sizeof(pt_entry_t));
+	return (0);
 }
 
 /*
