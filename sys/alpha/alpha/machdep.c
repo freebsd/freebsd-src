@@ -278,18 +278,6 @@ cpu_startup(dummy)
 
 	vm_ksubmap_init(&kmi);
 
-#if defined(USERCONFIG)
-#if defined(USERCONFIG_BOOT)
-	if (1)
-#else
-        if (boothowto & RB_CONFIG)
-#endif
-	{
-		userconfig();
-		cninit();	/* the preferred console may have changed */
-	}
-#endif
-
 	printf("avail memory = %ld (%ldK bytes)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1024);
 

@@ -1245,7 +1245,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	}
 
 	/*
-	 * Allow us to set the XT_KEYBD flag in UserConfig so that keyboards
+	 * Allow us to set the XT_KEYBD flag so that keyboards
 	 * such as those on the IBM ThinkPad laptop computers can be used
 	 * with the standard console driver.
 	 */
