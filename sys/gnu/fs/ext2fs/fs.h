@@ -168,9 +168,9 @@ extern u_char *fragtbl[];
 	long flags; \
 	int s; \
 	s = splbio(); \
+	BUF_LOCK(bp, LK_EXCLUSIVE, NULL); \
 	flags = (bp)->b_flags; \
 	(bp)->b_flags &= ~(B_DIRTY | B_LOCKED); \
-	BUF_LOCK(bp, LK_EXCLUSIVE, NULL); \
 	bremfree(bp); \
 	splx(s); \
 	if (flags & B_DIRTY) \
