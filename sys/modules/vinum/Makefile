@@ -9,7 +9,7 @@ SRCS=   vnode_if.h opt_vinum.h vinumstate.h vinumvar.h \
 	vinumhdr.h request.h vinumext.h vinumio.h vinumkw.h \
 	vinum.c vinumparser.c vinumconfig.c vinumio.c vinumutil.c \
 	vinumstate.c vinummemory.c vinumrequest.c vinumlock.c \
-	vinumrevive.c vinumioctl.c vinuminterrupt.c vinumdaemon.c
+	vinumrevive.c vinumioctl.c vinuminterrupt.c vinumdaemon.c vinumraid5.c
 
 NOMAN=
 
