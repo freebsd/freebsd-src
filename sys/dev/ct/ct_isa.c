@@ -75,6 +75,7 @@
 #include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
+#include <machine/md_var.h>
 
 #include <pc98/pc98/pc98.h>
 #include <isa/isavar.h>
@@ -100,6 +101,9 @@ static int ct_space_map(device_t, struct bshw *,
 static void ct_space_unmap(device_t, struct ct_softc *);
 static struct bshw *ct_find_hw(device_t);
 static void ct_dmamap(void *, bus_dma_segment_t *, int, int);
+static void ct_isa_bus_access_weight __P((struct ct_bus_access_handle *));
+static void ct_isa_dmasync_before __P((struct ct_softc *));
+static void ct_isa_dmasync_after __P((struct ct_softc *));
 
 struct ct_isa_softc {
 	struct ct_softc sc_ct;
@@ -132,6 +136,7 @@ ct_isa_match(device_t dev)
 {
 	struct bshw *hw;
 	struct resource *port_res, *mem_res;
+	struct ct_bus_access_handle ch;
 	int rv;
 
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, ct_pnp_ids) == ENXIO)
@@ -146,17 +151,20 @@ ct_isa_match(device_t dev)
 	if (ct_space_map(dev, hw, &port_res, &mem_res) != 0)
 		return ENXIO;
 
-	rv = ctprobesubr(rman_get_bustag(port_res),
-			 rman_get_bushandle(port_res),
-			 0, BSHW_DEFAULT_HOSTID, BSHW_DEFAULT_CHIPCLK);
+	bzero(&ch, sizeof(ch));
+	ch.ch_iot = rman_get_bustag(port_res);
+	ch.ch_ioh = rman_get_bushandle(port_res),
+	ch.ch_bus_weight = ct_isa_bus_access_weight;
+
+	rv = ctprobesubr(&ch, 0, BSHW_DEFAULT_HOSTID,
+			 BSHW_DEFAULT_CHIPCLK, NULL);
 	if (rv != 0)
 	{
 		struct bshw_softc bshw_tab;
 		struct bshw_softc *bs = &bshw_tab;
 
 		memset(bs, 0, sizeof(*bs));
-		bshw_read_settings(rman_get_bustag(port_res),
-				   rman_get_bushandle(port_res), bs);
+		bshw_read_settings(&ch, bs);
 		bus_set_resource(dev, SYS_RES_IRQ, 0, bs->sc_irq, 1);
 		bus_set_resource(dev, SYS_RES_DRQ, 0, bs->sc_drq, 1);
 	}
@@ -175,12 +183,14 @@ ct_isa_attach(device_t dev)
 {
 	struct ct_isa_softc *pct = device_get_softc(dev);
 	struct ct_softc *ct = &pct->sc_ct;
+	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct bshw_softc *bs = &pct->sc_bshw;
 	struct bshw *hw;
-	int irq_rid, drq_rid;
+	int irq_rid, drq_rid, chiprev;
 	u_int8_t *vaddr;
 	bus_addr_t addr;
+	intrmask_t s;
 
 	hw = ct_find_hw(dev);
 	if (ct_space_map(dev, hw, &ct->port_res, &ct->mem_res) != 0) {
@@ -188,12 +198,14 @@ ct_isa_attach(device_t dev)
 		return ENXIO;
 	}
 
-	ct->sc_iot = rman_get_bustag(ct->port_res);
-	ct->sc_ioh = rman_get_bushandle(ct->port_res);
+	bzero(chp, sizeof(*chp));
+	chp->ch_iot = rman_get_bustag(ct->port_res);
+	chp->ch_ioh = rman_get_bushandle(ct->port_res);
 	if (ct->mem_res) {
-		ct->sc_memt = rman_get_bustag(ct->mem_res);
-		ct->sc_memh = rman_get_bushandle(ct->mem_res);
+		chp->ch_memt = rman_get_bustag(ct->mem_res);
+		chp->ch_memh = rman_get_bushandle(ct->mem_res);
 	}
+	chp->ch_bus_weight = ct_isa_bus_access_weight;
 
 	irq_rid = 0;
 	ct->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, 0, ~0,
@@ -202,6 +214,14 @@ ct_isa_attach(device_t dev)
 	ct->drq_res = bus_alloc_resource(dev, SYS_RES_DRQ, &drq_rid, 0, ~0,
 					 1, RF_ACTIVE);
 	if (ct->irq_res == NULL || ct->drq_res == NULL) {
+		ct_space_unmap(dev, ct);
+		return ENXIO;
+	}
+
+	if (ctprobesubr(chp, 0, BSHW_DEFAULT_HOSTID,
+			BSHW_DEFAULT_CHIPCLK, &chiprev) == 0)
+	{
+		device_printf(dev, "hardware missing\n");
 		ct_space_unmap(dev, ct);
 		return ENXIO;
 	}
@@ -229,11 +249,14 @@ ct_isa_attach(device_t dev)
 
 	/* setup machdep softc */
 	bs->sc_hw = hw;
+	bs->sc_io_control = 0;
 	bs->sc_bounce_phys = (u_int8_t *)addr;
 	bs->sc_bounce_addr = vaddr;
 	bs->sc_bounce_size = MAXBSIZE;
 	bs->sc_minphys = (1 << 24);
-	bshw_read_settings(ct->sc_iot, ct->sc_ioh, bs);
+	bs->sc_dmasync_before = ct_isa_dmasync_before;
+	bs->sc_dmasync_after = ct_isa_dmasync_after;
+	bshw_read_settings(chp, bs);
 
 	/* setup ct driver softc */
 	ct->ct_hw = bs;
@@ -245,17 +268,54 @@ ct_isa_attach(device_t dev)
 	ct->ct_synch_setup = bshw_synch_setup;
 
 	ct->sc_xmode = CT_XMODE_DMA;
-	if (ct->sc_memh != NULL)
+	if (chp->ch_memh != NULL)
 		ct->sc_xmode |= CT_XMODE_PIO;
-	ct->sc_chiprev = CT_WD33C93_B;
-	ct->sc_chipclk = BSHW_DEFAULT_CHIPCLK;
+
+	ct->sc_chiprev = chiprev;
+	switch (chiprev)
+	{
+	case CT_WD33C93:
+		/* s = "WD33C93"; */
+		ct->sc_chipclk = 8;
+		break;
+	case CT_WD33C93_A:
+		if (DVCFG_MAJOR(device_get_flags(dev)) > 0)
+		{
+			/* s = "AM33C93_A"; */
+			ct->sc_chipclk = 20;
+			ct->sc_chiprev = CT_AM33C93_A;
+		}
+		else
+		{
+			/* s = "WD33C93_A"; */
+			ct->sc_chipclk = 10;
+		}
+		break;
+
+	case CT_AM33C93_A:
+		/* s = "AM33C93_A"; */
+		ct->sc_chipclk = 20;
+		break;
+
+	default:
+	case CT_WD33C93_B:
+		/* s = "WD33C93_B"; */
+		ct->sc_chipclk = 20;
+		break;
+	}
+#if	0
+	printf("%s: chiprev %s chipclk %d Mhz\n", 
+		slp->sl_dev.dv_xname, s, ct->sc_chipclk);
+#endif
 
 	slp->sl_dev = dev;
 	slp->sl_hostid = bs->sc_hostid;
 	slp->sl_irq = isa_get_irq(dev);
 	slp->sl_cfgflags = device_get_flags(dev);
 
+	s = splcam();
 	ctattachsubr(ct);
+	splx(s);
 
 	if (bus_setup_intr(dev, ct->irq_res, INTR_TYPE_CAM,
 			   (driver_intr_t *)ctintr, ct, &ct->sc_ih)) {
@@ -319,4 +379,30 @@ ct_dmamap(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	bus_addr_t *addr = (bus_addr_t *)arg;
 
 	*addr = seg->ds_addr;
+}
+
+static void
+ct_isa_bus_access_weight(chp)
+	struct ct_bus_access_handle *chp;
+{
+
+	outb(0x5f, 0);
+}
+
+static void
+ct_isa_dmasync_before(ct)
+	struct ct_softc *ct;
+{
+
+	if (need_pre_dma_flush)
+		wbinvd();
+}
+
+static void
+ct_isa_dmasync_after(ct)
+	struct ct_softc *ct;
+{
+
+	if (need_post_dma_flush)
+		invd();
 }

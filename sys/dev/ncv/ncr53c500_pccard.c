@@ -341,10 +341,13 @@ static void
 ncv_card_unload(DEVPORT_PDEVICE devi)
 {
 	struct ncv_softc *sc = DEVPORT_PDEVGET_SOFTC(devi);
+	intrmask_t s;
 
 	printf("%s: unload\n", sc->sc_sclow.sl_xname);
+	s = splcam();
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
+	splx(s);
 }
 
 static int
@@ -384,6 +387,7 @@ ncvattach(DEVPORT_PDEVICE devi)
 	bus_addr_t offset = 0;
 	u_int iobase = DEVPORT_PDEVIOBASE(devi);
 #endif
+	intrmask_t s;
 	char dvname[16]; /* SCSI_LOW_DVNAME_LEN */
 
 	strcpy(dvname, "ncv");
@@ -426,9 +430,9 @@ ncvattach(DEVPORT_PDEVICE devi)
 	slp->sl_hostid = NCV_HOSTID;
 	slp->sl_cfgflags = flags;
 
+	s = splcam();
 	ncvattachsubr(sc);
-
-	sc->sc_ih = ncvintr;
+	splx(s);
 
 	return(NCVIOSZ);
 }

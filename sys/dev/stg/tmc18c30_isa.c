@@ -237,10 +237,13 @@ static	void
 stg_isa_unload(device_t devi)
 {
 	struct stg_softc *sc = device_get_softc(devi);
+	intrmask_t s;
 
 	printf("%s: unload\n",sc->sc_sclow.sl_xname);
+	s = splcam();
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
 	scsi_low_dettach(&sc->sc_sclow);
+	splx(s);
 }
 
 static	int
@@ -263,7 +266,7 @@ stgattach(device_t devi)
 	struct scsi_low_softc *slp;
 	u_int32_t flags = device_get_flags(devi);
 	u_int iobase = bus_get_resource_start(devi, SYS_RES_IOPORT, 0);
-
+	intrmask_t s;
 	char	dvname[16];
 
 	strcpy(dvname,"stg");
@@ -288,9 +291,9 @@ stgattach(device_t devi)
 	slp->sl_hostid = STG_HOSTID;
 	slp->sl_cfgflags = flags;
 
+	s = splcam();
 	stgattachsubr(sc);
-
-	sc->sc_ih = stgintr;
+	splx(s);
 
 	return(STGIOSZ);
 }
