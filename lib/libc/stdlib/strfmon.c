@@ -88,7 +88,8 @@ static int __calc_left_pad(int, char *);
 static char *__format_grouped_double(double, int *, int, int, int);
 
 ssize_t
-strfmon(char *s, size_t maxsize, const char *format, ...)
+strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
+    ...)
 {
 	va_list		ap;
 	char 		*dst;		/* output destination pointer */
