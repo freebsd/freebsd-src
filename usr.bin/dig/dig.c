@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Id: dig.c,v 4.9.1.17 1994/07/19 22:51:24 vixie Exp $";
+static char rcsid[] = "$Id: dig.c,v 1.1.1.1 1994/09/22 21:33:31 pst Exp $";
 #endif
 
 /*
@@ -162,9 +162,9 @@ static char rcsid[] = "$Id: dig.c,v 4.9.1.17 1994/07/19 22:51:24 vixie Exp $";
 #include <string.h>
 #include <setjmp.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
-#include "nslookup/res.h"
-#include "../conf/portability.h"
+#include "../../usr.sbin/nslookup/res.h"
 
 #define PRF_DEF		0x2ff9
 #define PRF_MIN		0xA930
