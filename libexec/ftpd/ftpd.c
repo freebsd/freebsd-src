@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.12 1995/08/28 21:30:49 mpp Exp $
+ *	$Id: ftpd.c,v 1.13 1995/11/29 19:52:30 guido Exp $
  */
 
 #ifndef lint
@@ -80,6 +80,7 @@ static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #ifdef	SKEY
 #include <skey.h>
@@ -152,8 +153,10 @@ int	swaitmax = SWAITMAX;
 int	swaitint = SWAITINT;
 
 #ifdef SETPROCTITLE
+#ifdef OLD_SETPROCTITLE
 char	**Argv = NULL;		/* pointer to argument vector */
 char	*LastArgv = NULL;	/* end of argv */
+#endif /* OLD_SETPROCTITLE */
 char	proctitle[LINE_MAX];	/* initial part of title */
 #endif /* SETPROCTITLE */
 
@@ -247,7 +250,7 @@ main(argc, argv, envp)
 #endif
 	data_source.sin_port = htons(ntohs(ctrl_addr.sin_port) - 1);
 	debug = 0;
-#ifdef SETPROCTITLE
+#ifdef OLD_SETPROCTITLE
 	/*
 	 *  Save start and extent of argv for setproctitle.
 	 */
@@ -255,7 +258,7 @@ main(argc, argv, envp)
 	while (*envp)
 		envp++;
 	LastArgv = envp[-1] + strlen(envp[-1]);
-#endif /* SETPROCTITLE */
+#endif /* OLD_SETPROCTITLE */
 
 
 #ifdef STATS
@@ -672,7 +675,7 @@ pass(passwd)
 		    "%s: anonymous/%.*s", remotehost,
 		    sizeof(proctitle) - sizeof(remotehost) -
 		    sizeof(": anonymous/"), passwd);
-		setproctitle(proctitle);
+		setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 		if (logging)
 			syslog(LOG_INFO, "ANONYMOUS FTP LOGIN FROM %s, %s",
@@ -682,7 +685,7 @@ pass(passwd)
 #ifdef SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
 		    "%s: %s", remotehost, pw->pw_name);
-		setproctitle(proctitle);
+		setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 		if (logging)
 			syslog(LOG_INFO, "FTP LOGIN FROM %s as %s",
@@ -1468,7 +1471,7 @@ dolog(sin)
 		    sizeof(remotehost));
 #ifdef SETPROCTITLE
 	snprintf(proctitle, sizeof(proctitle), "%s: connected", remotehost);
-	setproctitle(proctitle);
+	setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 
 	if (logging)
@@ -1774,7 +1777,7 @@ out:
 	}
 }
 
-#ifdef SETPROCTITLE
+#ifdef OLD_SETPROCTITLE
 /*
  * Clobber argv so ps will show what we're doing.  (Stolen from sendmail.)
  * Warning, since this is usually started from inetd.conf, it often doesn't
@@ -1817,7 +1820,7 @@ setproctitle(fmt, va_alist)
 	while (p < LastArgv)
 		*p++ = ' ';
 }
-#endif /* SETPROCTITLE */
+#endif /* OLD_SETPROCTITLE */
 
 #ifdef STATS
 logxfer(name, size, start)
