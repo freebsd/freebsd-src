@@ -36,11 +36,10 @@ INTERFACE bus;
 CODE {
 	static struct resource *
 	null_alloc_resource(device_t dev, device_t child,
-			    int type, int *rid,
-			    u_long start, u_long end,
-			    u_long count, u_int flags)
+	    int type, int *rid, u_long start, u_long end,
+	    u_long count, u_int flags)
 	{
-	    return 0;
+	    return (0);
 	}
 };
 
@@ -244,3 +243,11 @@ METHOD struct resource_list * get_resource_list {
 	device_t	_dev;
 	device_t	_child;
 } DEFAULT bus_generic_get_resource_list;
+
+#
+# Is the hardware described by _child still attached to the system?
+#
+METHOD int child_present {
+	device_t	_dev;
+	device_t	_child;
+} DEFAULT bus_generic_child_present;
