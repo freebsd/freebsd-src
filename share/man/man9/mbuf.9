@@ -228,7 +228,7 @@ types are defined as follows:
 #define	MT_FTABLE	11	/* fragment reassembly header */
 #define	MT_TAG		13	/* volatile metadata associated to pkts */
 #define	MT_CONTROL	14	/* extra-data protocol message */
-#define	MT_OOBDATA	15	/* expedited data  */
+#define	MT_OOBDATA	15	/* expedited data */
 .Ed
 .Pp
 If the
@@ -777,7 +777,8 @@ Apply a function to an
 at offset
 .Fa off ,
 for length
-.Fa len bytes .
+.Fa len
+bytes.
 Typically used to avoid calls to
 .Fn m_pullup
 which would otherwise be unnecessary or undesirable.
@@ -809,7 +810,7 @@ bytes from the beginning of the
 The corresponding offset into the mbuf will be stored in
 .Fa *off .
 .It Fn m_defrag m0 how
-Defragment a mbuf chain, returning the shortest possible
+Defragment an mbuf chain, returning the shortest possible
 chain of mbufs and clusters.
 If allocation fails and this can not be completed,
 .Dv NULL
@@ -864,7 +865,7 @@ is consulted for the capabilities of the interface to assist in
 computing checksums.
 The
 .Va csum_flags
-field of the packet is set to indicate which actions the interface
+field of the packet header is set to indicate which actions the interface
 is supposed to perform on it.
 The actions unsupported by the network interface are done in the
 software prior to passing the packet down to the interface driver;
@@ -879,9 +880,11 @@ corresponding field of the packet.
 The hardware is expected to know the format of an IP header
 to determine the offset of the IP checksum field.
 .It Dv CSUM_TCP
-The TCP checksum is to be computed. (See below.)
+The TCP checksum is to be computed.
+(See below.)
 .It Dv CSUM_UDP
-The UDP checksum is to be computed. (See below.)
+The UDP checksum is to be computed.
+(See below.)
 .El
 .Pp
 Should a TCP or UDP checksum be offloaded to the hardware,
@@ -973,7 +976,7 @@ and set
 to
 .Li 0xFFFF
 hexadecimal to indicate a valid checksum.
-It's a peculiarity of the algorithm used that the Internet checksum
+It is a peculiarity of the algorithm used that the Internet checksum
 calculated over any valid packet will be
 .Li 0xFFFF
 as long as the original checksum field is included.
@@ -1025,7 +1028,7 @@ should be tested with this feature.
 .Sh RETURN VALUES
 See above.
 .Sh SEE ALSO
-.Xr ifnet 9 .
+.Xr ifnet 9
 .Sh HISTORY
 .\" Please correct me if I'm wrong
 .Vt Mbufs
