@@ -54,6 +54,21 @@ convert_host_conf()
         }' < $host_conf > $nsswitch_conf
 }
 
+generate_nsswitch_conf()
+{
+    nsswitch_conf=$1; shift;
+
+    cat >$nsswitch_conf <<EOF
+group: compat
+group_compat: nis
+hosts: dns files
+networks: files
+passwd: compat
+passwd_compat: nis
+shells: files
+EOF
+}
+
 generate_host_conf()
 {
     nsswitch_conf=$1; shift;
@@ -87,13 +102,6 @@ END {
 
 nsswitch_start()
 {
-	# Generate host.conf for compatibility
-	#
-	if [ -f "/etc/nsswitch.conf" ]; then
-		echo 'Generating host.conf.'
-		generate_host_conf /etc/nsswitch.conf /etc/host.conf
-	fi
-
 	# Convert host.conf to nsswitch.conf if necessary
 	#
 	if [ -f "/etc/host.conf" -a ! -f "/etc/nsswitch.conf" ]; then
@@ -102,6 +110,21 @@ nsswitch_start()
 		echo '  /etc/nsswitch.conf will be created for you'
 		convert_host_conf /etc/host.conf /etc/nsswitch.conf
 	fi
+
+	# Generate default nsswitch.conf if none exists
+	#
+	if [ ! -f "/etc/nsswitch.conf" ]; then
+		echo 'Generating nsswitch.conf.'
+		generate_nsswitch_conf /etc/nsswitch.conf
+	fi
+
+	# Generate host.conf for compatibility
+	#
+	if [ ! -f "/etc/host.conf" ]; then
+		echo 'Generating host.conf.'
+		generate_host_conf /etc/nsswitch.conf /etc/host.conf
+	fi
+
 }
 
 load_rc_config $name
