@@ -1119,6 +1119,7 @@ _thr_schedule_add(struct pthread *curthread, struct pthread *newthread)
 		newthread->kse->k_curthread = NULL;
 		newthread->kse->k_mbx.km_flags = 0;
 		newthread->kse->k_mbx.km_func = (kse_func_t *)kse_sched_multi;
+		newthread->kse->k_mbx.km_quantum = 0;
 
 		/*
 		 * This thread needs a new KSE and KSEG.
@@ -1857,6 +1858,7 @@ kse_free_unlocked(struct kse *kse)
 	TAILQ_REMOVE(&active_kseq, kse, k_qe);
 	active_kse_count--;
 	kse->k_kseg = NULL;
+	kse->k_mbx.km_quantum = 20000;
 	kse->k_flags &= ~KF_INITIALIZED;
 	TAILQ_INSERT_HEAD(&free_kseq, kse, k_qe);
 	free_kse_count++;
