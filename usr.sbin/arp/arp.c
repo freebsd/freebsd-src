@@ -45,7 +45,7 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: arp.c,v 1.4.2.3 1997/09/04 11:35:44 charnier Exp $";
+	"$Id: arp.c,v 1.4.2.4 1997/11/13 01:37:28 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -93,11 +94,10 @@ int set(int argc, char **argv);
 int get(char *host);
 int file(char *name);
 void getsocket(void);
-int ether_aton(char *a, u_char *n);
+int my_ether_aton(char *a, u_char *n);
 int rtmsg(int cmd);
 int get_ether_addr(u_long ipaddr, u_char *hwaddr);
 
-extern int errno;
 static int pid;
 static int nflag;	/* no reverse dns lookups */
 static int aflag;	/* do it for all entries */
@@ -121,7 +121,7 @@ main(argc, argv)
 	int rtn = 0;
 
 	pid = getpid();
-	while ((ch = getopt(argc, argv, "andfsS")) !=  -1)
+	while ((ch = getopt(argc, argv, "andfsS")) != -1)
 		switch((char)ch) {
 		case 'a':
 			aflag = 1;
@@ -293,7 +293,7 @@ set(int argc, char **argv)
 		}
 		sdl_m.sdl_alen = 6;
 	} else {
-		if (ether_aton(eaddr, ea) == 0)
+		if (my_ether_aton(eaddr, ea) == 0)
 			sdl_m.sdl_alen = 6;
 	}
 tryagain:
@@ -522,7 +522,7 @@ ether_print(u_char *cp)
 }
 
 int
-ether_aton(char *a, u_char *n)
+my_ether_aton(char *a, u_char *n)
 {
 	int i, o[6];
 
