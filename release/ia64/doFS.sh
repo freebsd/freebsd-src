@@ -20,7 +20,7 @@ FSLABEL=$1 ; shift
 if [ x$FSLABEL != "xefi" ]; then
     DOFS_SH=`dirname $0`/../scripts/`basename $0`
     echo "Transferring control to $DOFS_SH..."
-    exec sh $DOFS_SH disklabel ia64 $FSIMG $RD $MNT $FSSIZE $FSPROTO $FSINODE $FSLABEL
+    exec sh $DOFS_SH bsdlabel ia64 $FSIMG $RD $MNT $FSSIZE $FSPROTO $FSINODE $FSLABEL
 fi
 
 export BLOCKSIZE=512

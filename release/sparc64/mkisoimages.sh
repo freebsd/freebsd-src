@@ -30,7 +30,7 @@ MNT=/mnt
 if [ "x$1" = "x-b" ]; then
 	dd if=/dev/zero of=${IMG} bs=512 count=1024
 	MD=`mdconfig -a -t vnode -f ${IMG}`
-	disklabel -Brw ${MD} auto
+	sunlabel -Brw ${MD} auto
 	newfs /dev/${MD}c
 	mount /dev/${MD}c ${MNT}
 	mkdir ${MNT}/boot
