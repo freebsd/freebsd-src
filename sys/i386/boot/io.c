@@ -1,3 +1,4 @@
+
 /*
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
@@ -24,7 +25,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.4 1994/06/15 18:15:17 adam Exp $
+ *	$Id: io.c,v 1.5 1994/06/15 19:09:14 jkh Exp $
  */
 
 #include <i386/include/pio.h>
@@ -137,6 +138,15 @@ getchar()
 	return(c);
 }
 
+#if BOOTWAIT
+spinwait(i)
+int i;
+{
+	while (--i >= 0)
+		(void)inb(0x84);
+}
+#endif
+
 gets(buf)
 char *buf;
 {
@@ -144,7 +154,7 @@ char *buf;
 	char *ptr=buf;
 
 #if BOOTWAIT
-	for (i = BOOTWAIT; i>0; i--)
+	for (i = BOOTWAIT; i>0; spinwait(10000),i--)
 #endif
 		if (ischar())
 			for (;;)
