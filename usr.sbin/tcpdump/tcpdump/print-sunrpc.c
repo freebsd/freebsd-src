@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-sunrpc.c,v 1.1 92/06/02 11:36:37 mccanne Exp $ (LBL)";
+    "@(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/print-sunrpc.c,v 1.1.1.1 1993/06/12 14:42:07 rgrimes Exp $ (LBL)";
 #endif
 
 #include <stdio.h>
@@ -37,13 +37,7 @@ static char rcsid[] =
 
 #include <sys/time.h>
 #include <errno.h>
-#include <rpc/types.h>
-#include <rpc/auth.h>
-#include <rpc/auth_unix.h>
-#include <rpc/svc.h>
-#include <rpc/xdr.h>
-#include <rpc/rpc_msg.h>
-
+#include <rpc/rpc.h>
 #include <rpc/pmap_prot.h>
 
 #include <ctype.h>
