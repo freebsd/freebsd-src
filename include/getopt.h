@@ -43,7 +43,8 @@
 #include <sys/cdefs.h>
 
 /*
- * GNU-like getopt_long() & getopt() for GNU programs.
+ * GNU-like getopt_long() with 4.4BSD optreset extension.
+ * getopt() is declared here too for GNU programs.
  */
 #define no_argument        0
 #define required_argument  1
