@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.13 1996/08/13 19:51:36 jkh Exp $ -->
+<!-- $Id: ports.sgml,v 1.14 1996/10/04 22:54:10 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -104,7 +104,7 @@ isn't even any source code there!''
 see what happens if we try and install a port. I've chose `bash', also
 known as the Bourne-Again Shell, as that seems fairly typical.
 
-<em /Note/ if you're trying this at home, you'll need to be root.
+<em>Note</em> if you're trying this at home, you'll need to be root.
 
 <verb>
  # cd /usr/ports/shells/bash
