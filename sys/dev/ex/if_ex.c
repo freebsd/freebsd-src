@@ -38,8 +38,6 @@
  * 30-Oct-1996: first beta version. Inet and BPF supported, but no multicast.
  */
 
-#include "ex.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
