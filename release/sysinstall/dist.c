@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.82 1996/12/11 18:23:17 jkh Exp $
+ * $Id: dist.c,v 1.83 1996/12/12 08:33:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -411,7 +411,7 @@ distExtract(char *parent, Distribution *me)
 	}
 	else {
 	    /* Try to get the distribution as a single file */
-	    snprintf(buf, 512, "%s/%s.tgz", path, dist);
+	    snprintf(buf, sizeof buf, "%s/%s.tgz", path, dist);
 	    /*
 	     * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
 	     * are not considered too significant.
@@ -421,7 +421,7 @@ distExtract(char *parent, Distribution *me)
 		char *dir = root_bias(me[i].my_dir);
 
 		msgNotify("Extracting %s into %s directory...", dist, dir);
-		status = mediaExtractDist(dir, fp);
+		status = mediaExtractDist(dir, dist, fp);
 		fclose(fp);
 		goto done;
 	    }
@@ -452,7 +452,7 @@ distExtract(char *parent, Distribution *me)
 
 	    last_msg = 0;
 
-	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    snprintf(buf, sizeof buf, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
 	    fp = mediaDevice->get(mediaDevice, buf, FALSE);
@@ -461,7 +461,7 @@ distExtract(char *parent, Distribution *me)
 			   "Aborting the transfer", buf);
 		goto punt;
 	    }
-	    snprintf(prompt, 80, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
+	    snprintf(prompt, sizeof prompt, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
 	    while (1) {
 		int seconds;
