@@ -184,8 +184,21 @@ typeerr:		LABEL;
 		LABEL;
 		(void)printf("%smodification time expected %.24s ",
 		    tab, ctime(&s->st_mtimespec.tv_sec));
-		(void)printf("found %.24s\n",
+		(void)printf("found %.24s",
 		    ctime(&p->fts_statp->st_mtimespec.tv_sec));
+		if (uflag) {
+			struct timeval tv[2];
+			tv[0].tv_sec = s->st_mtimespec.tv_sec;
+			tv[0].tv_usec = s->st_mtimespec.tv_nsec / 1000;
+			tv[1] = tv[0];
+			if (utimes(p->fts_accpath, tv))
+				(void)printf(" not modified: %s\n",
+				    strerror(errno));
+			else
+				(void)printf(" modified\n");
+		} else
+			(void)printf("\n");
+
 		tab = "\t";
 	}
 	if (s->flags & F_CKSUM) {
