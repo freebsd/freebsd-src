@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id: types.h,v 1.6 1996/02/25 09:15:03 hsu Exp $
+ * $Id: types.h,v 1.6 1996/03/11 02:23:56 hsu Exp $
  */
 
-#ifndef	_MACHTYPES_H_
-#define	_MACHTYPES_H_
+#ifndef _MACHINE_TYPES_H_
+#define	_MACHINE_TYPES_H_
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 typedef struct _physadr {
@@ -47,10 +47,10 @@ typedef struct label_t {
 } label_t;
 #endif
 
-typedef	unsigned long vm_offset_t;
-typedef	unsigned long	vm_size_t;
+typedef	unsigned int	vm_offset_t;
 typedef	long long	vm_ooffset_t;
-typedef	unsigned long	vm_pindex_t;
+typedef	unsigned int	vm_pindex_t;
+typedef	unsigned int	vm_size_t;
 
 /*
  * Basic integral types.  Omit the typedef if
@@ -67,4 +67,4 @@ typedef	unsigned long long	u_int64_t;
 
 typedef	int32_t			register_t;
 
-#endif	/* _MACHTYPES_H_ */
+#endif /* !_MACHINE_TYPES_H_ */
