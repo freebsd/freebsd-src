@@ -1669,16 +1669,16 @@ int15e820:
 			    smap->type, smap->base, smap->length);
 
 		if (smap->type != 0x01)
-			goto next_run;
+			continue;
 
 		if (smap->length == 0)
-			goto next_run;
+			continue;
 
 #ifndef PAE
 		if (smap->base >= 0xffffffff) {
 			printf("%uK of memory above 4GB ignored\n",
 			    (u_int)(smap->length / 1024));
-			goto next_run;
+			continue;
 		}
 #endif
 
@@ -1687,13 +1687,13 @@ int15e820:
 				if (boothowto & RB_VERBOSE)
 					printf(
 	"Overlapping or non-montonic memory region, ignoring second region\n");
-				goto next_run;
+				continue;
 			}
 		}
 
 		if (smap->base == physmap[physmap_idx + 1]) {
 			physmap[physmap_idx + 1] += smap->length;
-			goto next_run;
+			continue;
 		}
 
 		physmap_idx += 2;
@@ -1704,7 +1704,6 @@ int15e820:
 		}
 		physmap[physmap_idx] = smap->base;
 		physmap[physmap_idx + 1] = smap->base + smap->length;
-next_run: ;
 	} while (vmf.vmf_ebx != 0);
 
 	/*
