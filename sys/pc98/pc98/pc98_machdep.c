@@ -31,22 +31,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/vmmeter.h>
 
 #include <scsi/scsiconf.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_prot.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_object.h>
-#include <vm/vm_page.h>
-#include <vm/vm_pager.h>
-#include <vm/vm_extern.h>
-
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
-#include <i386/isa/isa_device.h>
 
 extern	int Maxmem;
 extern	int Maxmem_under16M;
