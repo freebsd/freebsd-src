@@ -348,7 +348,8 @@ _ftp_readfn(void *v, char *buf, int len)
 	io->eof = 1;
 	return _ftp_closefn(v);
     }
-    io->err = errno;
+    if (errno != EINTR)
+	io->err = errno;
     return -1;
 }
 
@@ -374,7 +375,8 @@ _ftp_writefn(void *v, const char *buf, int len)
     w = write(io->dsd, buf, len);
     if (w >= 0)
 	return w;
-    io->err = errno;
+    if (errno != EINTR)
+	io->err = errno;
     return -1;
 }
 
@@ -875,10 +877,11 @@ _ftp_get_proxy(void)
     struct url *purl;
     char *p;
     
-    if (((p = getenv("FTP_PROXY")) || (p = getenv("HTTP_PROXY"))) &&
+    if (((p = getenv("FTP_PROXY")) || (p = getenv("ftp_proxy")) ||
+	 (p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
 	*p && (purl = fetchParseURL(p)) != NULL) {
 	if (!*purl->scheme) {
-	    if (getenv("FTP_PROXY"))
+	    if (getenv("FTP_PROXY") || getenv("ftp_proxy"))
 		strcpy(purl->scheme, SCHEME_FTP);
 	    else
 		strcpy(purl->scheme, SCHEME_HTTP);
