@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.14 1994/11/13 01:55:33 jkh Exp $
+ *      $Id: userconfig.c,v 1.15 1994/11/14 03:22:28 bde Exp $
  */
 
 #include <sys/param.h>
@@ -431,7 +431,7 @@ cngets(char *input, int maxin)
 		continue;
 	}
 	printf("%c", c);
-	if ((++nchars == maxin) || (c == '\n')) {
+	if ((++nchars == maxin) || (c == '\n') || (c == '\r')) {
 	    *input = '\0';
 	    break;
 	}
