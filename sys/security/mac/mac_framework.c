@@ -113,13 +113,7 @@ SYSCTL_UINT(_security_mac, OID_AUTO, max_slots, CTLFLAG_RD,
  * access to this variable is serialized during the boot process.  Following
  * the end of serialization, we don't update this flag; no locking.
  */
-static int	mac_late = 0;
-
-/*
- * Warn about EA transactions only the first time they happen.
- * Weak coherency, no locking.
- */
-static int	ea_warn_once = 0;
+int	mac_late = 0;
 
 /*
  * Flag to indicate whether or not we should allocate label storage for
@@ -133,7 +127,7 @@ static int	ea_warn_once = 0;
  * be a problem.  Note: currently no locking.  Will this be a problem?
  */
 #ifndef MAC_ALWAYS_LABEL_MBUF
-static int	mac_labelmbufs = 0;
+int	mac_labelmbufs = 0;
 #endif
 
 static int	mac_enforce_fs = 1;
@@ -272,8 +266,8 @@ MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 static struct mtx mac_policy_mtx;
 static struct cv mac_policy_cv;
 static int mac_policy_count;
-static LIST_HEAD(, mac_policy_conf) mac_policy_list;
-static LIST_HEAD(, mac_policy_conf) mac_static_policy_list;
+struct mac_policy_list_head mac_policy_list;
+struct mac_policy_list_head mac_static_policy_list;
 
 /*
  * We manually invoke WITNESS_WARN() to allow Witness to generate
@@ -284,7 +278,7 @@ static LIST_HEAD(, mac_policy_conf) mac_static_policy_list;
  * framework to become quiescent so that a policy list change may
  * be made.
  */
-static __inline void
+void
 mac_policy_grab_exclusive(void)
 {
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
@@ -294,7 +288,7 @@ mac_policy_grab_exclusive(void)
 		cv_wait(&mac_policy_cv, &mac_policy_mtx);
 }
 
-static __inline void
+void
 mac_policy_assert_exclusive(void)
 {
 	mtx_assert(&mac_policy_mtx, MA_OWNED);
@@ -302,7 +296,7 @@ mac_policy_assert_exclusive(void)
 	    ("mac_policy_assert_exclusive(): not exclusive"));
 }
 
-static __inline void
+void
 mac_policy_release_exclusive(void)
 {
 
@@ -312,7 +306,7 @@ mac_policy_release_exclusive(void)
 	cv_signal(&mac_policy_cv);
 }
 
-static __inline void
+void
 mac_policy_list_busy(void)
 {
 	mtx_lock(&mac_policy_mtx);
@@ -320,7 +314,7 @@ mac_policy_list_busy(void)
 	mtx_unlock(&mac_policy_mtx);
 }
 
-static __inline int
+int
 mac_policy_list_conditional_busy(void)
 {
 	int ret;
@@ -335,7 +329,7 @@ mac_policy_list_conditional_busy(void)
 	return (ret);
 }
 
-static __inline void
+void
 mac_policy_list_unbusy(void)
 {
 	mtx_lock(&mac_policy_mtx);
