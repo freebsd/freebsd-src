@@ -189,7 +189,7 @@ contrib/dev/acpica/utclib.c	 optional acpi
 contrib/dev/acpica/utcopy.c	 optional acpi
 contrib/dev/acpica/utdebug.c	 optional acpi
 contrib/dev/acpica/utdelete.c	 optional acpi
-contrib/dev/acpica/uteval.c	 optional acpi
+contrib/dev/acpica/uteval.c	 optional acpi nowerror
 contrib/dev/acpica/utglobal.c	 optional acpi nowerror
 contrib/dev/acpica/utinit.c	 optional acpi
 contrib/dev/acpica/utmath.c	 optional acpi
