@@ -87,7 +87,7 @@ swapon -a
 
 case ${bootmode} in
 autoboot)
-	echo Automatic boot in progress...
+	echo 'Automatic boot in progress...'
 	fsck -p
 	case $? in
 	0)
@@ -97,15 +97,15 @@ autoboot)
 		;;
 	4)
 		reboot
-		echo "reboot failed... help!"
+		echo 'Reboot failed... help!'
 		exit 1
 		;;
 	8)
-		echo "Automatic file system check failed... help!"
+		echo 'Automatic file system check failed... help!'
 		exit 1
 		;;
 	12)
-		echo "Reboot interrupted"
+		echo 'Reboot interrupted'
 		exit 1
 		;;
 	130)
@@ -113,13 +113,13 @@ autoboot)
 		exit 1
 		;;
 	*)
-		echo "Unknown error in reboot"
+		echo 'Unknown error in reboot'
 		exit 1
 		;;
 	esac
 	;;
 *)
-	echo Skipping disk checks ...
+	echo 'Skipping disk checks ...'
 	;;
 esac
 
@@ -134,7 +134,7 @@ case ${root_rw_mount} in
 	;;
 *)
 	if ! mount -u -o rw / ; then
-		echo "Mounting root filesystem rw failed, startup aborted"
+		echo 'Mounting root filesystem rw failed, startup aborted'
 		exit 1
 	fi
 	;;
@@ -149,7 +149,7 @@ case $? in
 0)
 	;;
 *)
-	echo "Mounting /etc/fstab filesystems failed, startup aborted"
+	echo 'Mounting /etc/fstab filesystems failed, startup aborted'
 	exit 1
 	;;
 esac
@@ -210,7 +210,7 @@ case ${swapfile} in
 	;;
 *)
 	if [ -w "${swapfile}" -a -c /dev/vn0b ]; then
-		echo "Adding ${swapfile} as additional swap."
+		echo "Adding ${swapfile} as additional swap"
 		vnconfig /dev/vn0b ${swapfile} && swapon /dev/vn0b
 	fi
 	;;
@@ -253,9 +253,9 @@ esac
 # Mount NFS filesystems if present in /etc/fstab
 case "`mount -d -a -t nfs`" in
 *mount_nfs*)
-	echo -n "Mounting NFS file systems"
+	echo -n 'Mounting NFS file systems:'
 	mount -a -t nfs
-	echo .
+	echo '.'
 	;;
 esac
 
@@ -279,12 +279,13 @@ rm /var/run/clean_var
 #
 case ${clear_tmp_enable} in
 [Yy][Ee][Ss])
-	echo clearing /tmp
+	echo -n 'Clearing /tmp:'
 	# prune quickly with one rm, then use find to clean up /tmp/[lq]*
 	# (not needed with mfs /tmp, but doesn't hurt there...)
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
 		find -d . ! -name . ! -name lost+found ! -name quota.user \
 		! -name quota.group -exec rm -rf -- {} \;)
+	echo '.'
 	;;
 esac
 
@@ -296,7 +297,7 @@ rm -f /tmp/.X*-lock /tmp/.X11-unix/*
 # Snapshot any kernel -c changes back to disk here <someday>.
 # This has changed with ELF and /kernel.config.
 
-echo -n 'additional daemons:'
+echo -n 'Additional daemons:'
 
 # Start system logging and name service.  Named needs to start before syslogd
 # if you don't have a /etc/resolv.conf.
@@ -327,7 +328,7 @@ case ${dumpdev} in
 *)
 	if [ -e "${dumpdev}" -a -d /var/crash ]; then
 		dumpon -v ${dumpdev}
-		echo -n checking for core dump...
+		echo -n 'Checking for core dump: '
 		savecore /var/crash
 	fi
 	;;
@@ -343,13 +344,13 @@ case ${enable_quotas} in
 [Yy][Ee][Ss])
 	case ${check_quotas} in
 	[Yy][Ee][Ss])
-		echo -n 'checking quotas:'
+		echo -n 'Checking quotas:'
 		quotacheck -a
 		echo ' done.'
 		;;
 	esac
 
-	echo -n 'enabling quotas:'
+	echo -n 'Enabling quotas:'
 	quotaon -a
 	echo ' done.'
 	;;
@@ -373,7 +374,7 @@ fi
 case ${accounting_enable} in
 [Yy][Ee][Ss])
 	if [ -d /var/account ]; then
-		echo 'turning on accounting'
+		echo 'Turning on accounting:'
 		if [ ! -e /var/account/acct ]; then
 			touch /var/account/acct
 		fi
@@ -418,7 +419,7 @@ fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
-echo -n starting standard daemons:
+echo -n 'Starting standard daemons:'
 case ${inetd_enable} in
 [Nn][Oo])
 	;;
@@ -470,7 +471,7 @@ echo '.'
 find /var/tmp/vi.recover ! -type f -a ! -type d -delete
 vibackup=`echo /var/tmp/vi.recover/vi.*`
 if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
-	echo 'Recovering vi editor sessions'
+	echo -n 'Recovering vi editor sessions:'
 	for i in /var/tmp/vi.recover/vi.*; do
 		# Only test files that are readable.
 		if [ ! -r "${i}" ]; then
@@ -505,12 +506,12 @@ if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 			fi
 		done
 	fi
+	echo '.'
 fi
 
 # Make a bounds file for msgs(1) if there isn't one already
-# "Delete important files with symlink" security hole?
 #
-if [ -d /var/msgs -a ! -f /var/msgs/bounds ]; then
+if [ -d /var/msgs -a ! -f /var/msgs/bounds -a ! -L /var/msgs/bounds ]; then
 	echo 0 > /var/msgs/bounds
 fi
 
@@ -543,7 +544,7 @@ if [ -r /etc/rc.devfs ]; then
 	sh /etc/rc.devfs
 fi
 
-echo -n additional ABI support:
+echo -n 'Additional ABI support:'
 
 # Start the Linux binary compatibility if requested.
 #
@@ -567,7 +568,7 @@ case ${svr4_enable} in
 	;;
 esac
 
-echo .
+echo '.'
 
 # Do traditional (but rather obsolete) rc.local file if it exists.  If you
 # use this file and want to make it programmatic, source /etc/defaults/rc.conf
@@ -587,7 +588,7 @@ echo .
 # ---- rc.local ----
 #
 if [ -r /etc/rc.local ]; then
-	echo -n 'starting local daemons:'
+	echo -n 'Starting local daemons:'
 	sh /etc/rc.local
 	echo '.'
 fi
@@ -610,7 +611,7 @@ case ${local_startup} in
 			done
 		fi
 	done
-	echo .
+	echo '.'
 	;;
 esac
 
@@ -624,11 +625,15 @@ fi
 case ${kern_securelevel_enable} in
 [Yy][Ee][Ss])
 	if [ "${kern_securelevel}" -ge 0 ]; then
-		echo 'Raising kernel security level'
+		echo 'Raising kernel security level: '
 		sysctl -w kern.securelevel=${kern_securelevel}
 	fi
 	;;
 esac
 
+echo ''
+
 date
+
 exit 0
+
