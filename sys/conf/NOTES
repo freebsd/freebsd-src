@@ -737,6 +737,9 @@ options 	VFS_AIO
 #
 # Enabling this will probably not give an overall speedup except for
 # special workloads.
+#
+# WARNING: Do not enable this, it is known to be broken, and will result
+# in system instability, as well as possible data loss.
 options 	ENABLE_VFS_IOOPT
 
 # Cryptographically secure random number generator; /dev/[u]random
