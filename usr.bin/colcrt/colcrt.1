@@ -51,8 +51,8 @@ is destructive.
 Half-line characters and underlining (changed to dashing `\-')
 are placed on new lines in between the normal output lines.
 .Pp
-Available options:
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl
 Suppress all underlining.
 This option is especially useful for previewing
@@ -60,7 +60,7 @@ This option is especially useful for previewing
 tables from
 .Xr tbl 1 .
 .It Fl 2
-Causes all half-lines to be printed, effectively double spacing the output.
+Cause all half-lines to be printed, effectively double spacing the output.
 Normally, a minimal space output format is used which will suppress empty
 lines.
 The program never suppresses two consecutive empty lines, however.
@@ -71,7 +71,7 @@ contains superscripts and subscripts which would otherwise be invisible.
 .El
 .Sh EXAMPLES
 A typical use of
-.Nm colcrt
+.Nm
 would be
 .Bd -literal
 tbl exum2.n \&| nroff \-ms \&| colcrt \- \&| more
