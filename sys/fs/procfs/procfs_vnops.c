@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.6 1994/09/24 17:01:05 davidg Exp $
+ *	$Id: procfs_vnops.c,v 1.7 1994/10/10 07:55:40 phk Exp $
  */
 
 /*
@@ -187,6 +187,8 @@ procfs_bmap(ap)
 		*ap->a_vpp = ap->a_vp;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
 	return (0);
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.8 1994/10/28 12:41:59 jkh Exp $
+ * $Id: spec_vnops.c,v 1.9 1994/11/14 13:22:52 bde Exp $
  */
 
 #include <sys/param.h>
@@ -512,6 +512,8 @@ spec_bmap(ap)
 		*ap->a_vpp = ap->a_vp;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
 	return (0);
 }
 

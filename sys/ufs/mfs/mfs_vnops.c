@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
- * $Id: mfs_vnops.c,v 1.6 1994/09/25 22:31:08 davidg Exp $
+ * $Id: mfs_vnops.c,v 1.7 1994/10/09 07:35:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -230,6 +230,8 @@ mfs_bmap(ap)
 		*ap->a_vpp = ap->a_vp;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
 	return (0);
 }
 
