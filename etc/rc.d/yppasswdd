@@ -18,7 +18,6 @@ start_precmd="yppasswdd_precmd"
 case `${CMD_OSTYPE}` in
 FreeBSD)
 	rcvar="nis_yppasswdd_enable"
-	required_vars="portmap_enable nis_server_enable"
 	command_args="${nis_yppasswdd_flags}"
 	;;
 NetBSD)
@@ -29,6 +28,21 @@ esac
 
 yppasswdd_precmd()
 {
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		if ! checkyesno rpcbind_enable  && \
+		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+		then
+			force_depend rpcbind || return 1
+		fi
+		if ! checkyesno nis_server_enable && \
+		    ! /etc/rc.d/ypserv forcestatus 1>/dev/null 2>&1
+		then
+			force_depend ypserv || return 1
+		fi
+		;;
+	esac
+
 	_domain=`domainname`
 	if [ -z "$_domain" ]; then
 		warn "domainname(1) is not set."
