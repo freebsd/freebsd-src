@@ -1031,7 +1031,7 @@ sis_attach(dev)
 			BUS_SPACE_MAXADDR,	/* lowaddr */
 			BUS_SPACE_MAXADDR,	/* highaddr */
 			NULL, NULL,		/* filter, filterarg */
-			SIS_TX_LIST_SZ, 1,	/* maxsize,nsegments */
+			MCLBYTES, 1,		/* maxsize,nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
 			&sc->sis_tag);
