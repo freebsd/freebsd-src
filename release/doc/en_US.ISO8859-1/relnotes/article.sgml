@@ -127,8 +127,8 @@
       been removed.  Users running this class of CPU should use &os;
       5.<replaceable>X</replaceable> or earlier.</para>
 
-    <para>The loader tunable <varname>debug.mpsafevm</varname> has been
-      has been enabled by default.</para>
+    <para arch="alpha,amd64,i386">The loader tunable <varname>debug.mpsafevm</varname>
+      has been enabled by default.  &merged;</para>
 
     <para>&man.memguard.9;, a kernel memory allocator designed to help detect
       <quote>tamper-after-free</quote> scenarios, has been added.
