@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.204
+    Original revision: 1.205
 -->
 
 <articleinfo>
@@ -836,16 +836,40 @@
     <sect3>
       <title>ディスク・記憶装置</title>
 
-      <para arch="i386">&man.asr.4; ドライバが
-        Adaptec 2000S, 2005S Zero-Channel RAID コントローラに対応しました.
+      <para arch="i386">&man.aac.4; が
+        Adaptec PCI-SCSI RAID コントローラの FSA ファミリに対応しました.
         &merged;</para>
 
       <para arch="i386">&man.aac.4; ドライバが
         Adaptec SCSI RAID 5400S コントローラに対応しました.
         &merged;</para>
 
-      <para arch="i386">3ware ATA RAID に対応する
-        &man.twe.4; ドライバが追加されました.&merged;</para>
+      <para arch="i386">The &man.aac.4; ドライバが更新され,
+        アダプタによって発行されるコマンド,
+        ディスクデバイスの脱着, クラッシュダンプ機能,
+        CLI 管理に使われる &man.ioctl.2;
+        コマンドなどを正しく処理できるようになりました.
+        &merged;</para>
+
+      <para>&man.ahc.4; ドライバに対して非常に数多くの更新や
+        バグ修正, 改良が加えられました.
+        それには <quote>RAID Port</quote> モードでの動作,
+        AAA や ARO カードを搭載したシステムでの動作が可能になったこと,
+        また, パフォーマンスの向上などが含まれています.
+        Ultra2/U160
+        コントローラでまれにハングアップが発生するといったバグを含め,
+        いくつかのバグも修正されています.
+        &merged;</para>
+
+      <para arch="i386">
+        Adaptec SCSI RAID コントローラファミリ,
+        および DPT SmartRAID V, VI ファミリに対応する
+        &man.asr.4; ドライバが新たに追加されました.
+        &merged;</para>
+
+      <para arch="i386">&man.asr.4; ドライバが
+        Adaptec 2000S, 2005S Zero-Channel RAID コントローラに対応しました.
+        &merged;</para>
 
       <para>&man.ata.4; ドライバが ATA100 コントローラに対応しました.
         さらに ServerWorks ROSB4 ATA33 チップセット,
@@ -870,48 +894,10 @@
         ATA <quote>疑似</quote> RAID コントローラに対応しました.        
         &merged;</para>
 
-      <para>&man.wd.4; 互換デバイスが
-        &man.ata.4; ドライバから削除されました.
+      <para>ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
         &merged;</para>
 
-      <para arch="i386">firmware 6.X 以降を搭載した
-        Mylex PCI to SCSI AccelRAID コントローラおよび
-        eXtremeRAID コントローラに対応する
-        &man.mly.4; ドライバが新たに追加されました.
-        &merged;</para>
-
-      <para arch="i386">
-        Adaptec SCSI RAID コントローラファミリ,
-        および DPT SmartRAID V, VI ファミリに対応する
-        &man.asr.4; ドライバが新たに追加されました.
-        &merged;</para>
-
-      <para arch="i386">&man.aac.4; が
-        Adaptec PCI-SCSI RAID コントローラの FSA ファミリに対応しました.
-        &merged;</para>
-
-      <para arch="i386">The &man.aac.4; ドライバが更新され,
-        アダプタによって発行されるコマンド,
-        ディスクデバイスの脱着, クラッシュダンプ機能,
-        CLI 管理に使われる &man.ioctl.2;
-        コマンドなどを正しく処理できるようになりました.
-        &merged;</para>
-
-      <para>&man.ahc.4; ドライバに対して非常に数多くの更新や
-        バグ修正, 改良が加えられました.
-        それには <quote>RAID Port</quote> モードでの動作,
-        AAA や ARO カードを搭載したシステムでの動作が可能になったこと,
-        また, パフォーマンスの向上などが含まれています.
-        Ultra2/U160
-        コントローラでまれにハングアップが発生するといったバグを含め,
-        いくつかのバグも修正されています.
-        &merged;</para>
-
-      <para arch="i386">NetBSD/pc98 から
-        ncv, nsp, stg ドライバが移植されました.
-        これらは NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50
-        ベースの PC-Card/ISA SCSI コントローラに対応しています.
-        &merged;</para>
+      <para>CAM のエラー回復処理コードが更新されました.</para>
 
       <para>&man.cd.4; ドライバが書き込み操作に対応しました.
         これにより, DVD-RAM, PD
@@ -923,16 +909,7 @@
         が対応しています.
         &merged;</para>
 
-      <para>&man.vinum.4;
-        ボリュームマネージャにいくつかのバグ修正と改良が加えられました.</para>
-
-      <para>メモリディスクデバイス &man.md.4; に
-        &man.md.4; の機能が統合されました.
-        &man.md.4; デバイスは &man.mdconfig.8; で設定できるようになり,
-        &man.vn.4; は削除されています.
-        また, メモリファイルシステム (MFS) も削除されました.</para>
-
-      <para>ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
+      <para>ida ディスクドライバがクラッシュダンプに対応しました.
         &merged;</para>
 
       <para arch="alpha">&man.isp.4; が対応している
@@ -950,16 +927,39 @@
       <para>&man.isp.4; ドライバが Qlogic 2300/2312 Optical
 	Fibre Channel PCI カードをサポートしました. &merged;</para>
 
-      <para>ida ディスクドライバがクラッシュダンプに対応しました.
+      <para>メモリディスクデバイス &man.md.4; に
+        &man.md.4; の機能が統合されました.
+        &man.md.4; デバイスは &man.mdconfig.8; で設定できるようになり,
+        &man.vn.4; は削除されています.
+        また, メモリファイルシステム (MFS) も削除されました.</para>
+
+      <para arch="i386">firmware 6.X 以降を搭載した
+        Mylex PCI to SCSI AccelRAID コントローラおよび
+        eXtremeRAID コントローラに対応する
+        &man.mly.4; ドライバが新たに追加されました.
         &merged;</para>
 
-      <para>CAM のエラー回復処理コードが更新されました.</para>
+      <para arch="i386">NetBSD/pc98 から
+        ncv, nsp, stg ドライバが移植されました.
+        これらは NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50
+        ベースの PC-Card/ISA SCSI コントローラに対応しています.
+        &merged;</para>
 
       <para>&man.sa.4; エラー処理にあったいくつかの問題点が修正されました.
         これには
         <quote>テープドライブが &man.mt.1; <option>stat</option>
           に追随せずにまわってしまう</quote>
         という問題も含まれています.</para>
+
+      <para arch="i386">3ware ATA RAID に対応する
+        &man.twe.4; ドライバが追加されました.&merged;</para>
+
+      <para>&man.vinum.4;
+        ボリュームマネージャにいくつかのバグ修正と改良が加えられました.</para>
+
+      <para>&man.wd.4; 互換デバイスが
+        &man.ata.4; ドライバから削除されました.
+        &merged;</para>
     </sect3>
 
     <sect3>
