@@ -17,10 +17,13 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020801:	p6	FreeBSD-SA-02:34.rpc
+	The original fix applied to the XDR decoder was in error.
+
 20020731:	p5
 	A bounds checking error in FFS filesize limits was corrected.
 
-20020731:	p4
+20020731:	p4	FreeBSD-SA-02:34.rpc
 	A bounds checking error in the XDR decoder was corrected.
 
 20020730:	p3
