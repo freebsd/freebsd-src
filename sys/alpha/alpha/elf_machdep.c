@@ -101,7 +101,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			break;
 
 		case R_ALPHA_RELATIVE:
-			addr = relocbase + addend + *where;
+			addr = relocbase + addend;
 			if (*where != addr)
 				*where = addr;
 			break;
