@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.3 1996/09/28 15:43:39 bde Exp $
+ * $Id$
  */
 
 #include <sys/param.h>
@@ -123,7 +123,7 @@ sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
 		error = sysctl_handle_int(oidp, &level, 0, req);
 		if (error || !req->newptr)
 			return (error);
-		if (level < securelevel && req->p->p_pid != 1)
+		if (level < securelevel)
 			return (EPERM);
 		securelevel = level;
 		return (error);
