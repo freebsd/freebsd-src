@@ -26,4 +26,6 @@ SUBDIR+= libm
 SUBDIR+= msun
 .endif
 
+SUBDIR+= compat
+
 .include <bsd.subdir.mk>
