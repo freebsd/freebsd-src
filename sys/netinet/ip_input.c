@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.25 1995/07/09 14:29:46 davidg Exp $
+ * $Id: ip_input.c,v 1.26 1995/07/18 09:56:44 peter Exp $
  */
 
 #include <sys/param.h>
@@ -1228,6 +1228,11 @@ ip_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	case IPCTL_RTMAXCACHE:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,
 				   &rtq_toomany));
+	case IPCTL_INTRQMAXLEN:
+		return (sysctl_rdint(oldp, oldlenp, newp, 
+				     ipintrq.ifq_maxlen));
+	case IPCTL_INTRQDROPS:
+		return (sysctl_rdint(oldp, oldlenp, newp, ipintrq.ifq_drops));
 	default:
 		return (EOPNOTSUPP);
 	}
