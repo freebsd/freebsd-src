@@ -33,7 +33,11 @@ purgedir()
 	fi
 }
 
-rm -f /var/run/clean_var /var/spool/lock/clean_var
+# These files must be removed only the first time this script is run
+# on boot.
+#
+[ "$1" != "reload" ] && rm -f /var/run/clean_var /var/spool/lock/clean_var
+
 if [ -d /var/run -a ! -f /var/run/clean_var ]; then
 	purgedir /var/run
 	# And an initial utmp file
