@@ -186,6 +186,12 @@ char	*krbtkfile_env = NULL;
 #endif
 
 /*
+ * Limit number of pathnames that glob can return.
+ * A limit of 0 indicates the number of pathnames is unlimited.
+ */
+#define MAXGLOBARGS    16384
+
+/*
  * Timeout intervals for retrying connections
  * to hosts that don't accept PORT cmds.  This
  * is a kludge, but given the problems with TCP...
@@ -2115,6 +2121,8 @@ send_file_list(whichf)
 		int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
 
 		memset(&gl, 0, sizeof(gl));
+		gl.gl_matchc = MAXGLOBARGS;
+		flags |= GLOB_MAXPATH;
 		freeglob = 1;
 		if (glob(whichf, flags, 0, &gl)) {
 			reply(550, "not found");
