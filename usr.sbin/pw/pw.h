@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.h,v 1.6 1997/02/22 16:12:27 peter Exp $
+ *	$Id: pw.h,v 1.7 1997/10/10 06:23:35 charnier Exp $
  */
 
 #include <stdio.h>
@@ -34,12 +34,14 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/queue.h>
 #include <sysexits.h>
 
 #include "psdate.h"
+#include "pwupd.h"
 
 enum _mode
 {
