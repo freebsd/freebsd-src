@@ -143,11 +143,12 @@ struct if_data {
  * IFF flags, so we have an easier time when we want to merge them.
  */
 #define	IFF_POLLING	0x10000		/* Interface is in polling mode. */
+#define	IFF_PPROMISC	0x20000		/* user-requested promisc mode */
 
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
-	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART)
+	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_POLLING)
 
 /* Capabilities that interfaces can advertise. */
 #define IFCAP_RXCSUM		0x0001  /* can offload checksum on RX */
@@ -238,8 +239,8 @@ struct	ifreq {
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
 #define	ifr_broadaddr	ifr_ifru.ifru_broadaddr	/* broadcast address */
-#define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags */
-#define	ifr_prevflags	ifr_ifru.ifru_flags[1]	/* flags */
+#define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags (low 16 bits) */
+#define	ifr_flagshigh	ifr_ifru.ifru_flags[1]	/* flags (high 16 bits) */
 #define	ifr_metric	ifr_ifru.ifru_metric	/* metric */
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
