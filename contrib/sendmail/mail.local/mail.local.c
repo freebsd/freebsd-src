@@ -308,7 +308,7 @@ main(argc, argv)
 # endif /* LOG_MAIL */
 
 	from = NULL;
-	while ((ch = getopt(argc, argv, "7bdf:r:l")) != -1)
+	while ((ch = getopt(argc, argv, "7Bbdf:r:ls")) != -1)
 	{
 		switch(ch)
 		{
