@@ -1498,7 +1498,8 @@ trapsignal(struct thread *td, int sig, u_long code)
 
 	p = td->td_proc;
 	if (td->td_flags & TDF_SA) {
-		thread_user_enter(p, td);
+		if (td->td_mailbox == NULL)
+			thread_user_enter(p, td);
 		PROC_LOCK(p);
 		if (td->td_mailbox) {
 			SIGDELSET(td->td_sigmask, sig);
