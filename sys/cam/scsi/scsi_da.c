@@ -1499,15 +1499,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			} else {
 				bp->bio_resid = csio->resid;
 				bp->bio_error = 0;
-				if (bp->bio_resid != 0) {
-					/* Short transfer ??? */
-#if 0
-					if (cmd6workaround(done_ccb) 
-								== ERESTART)
-						return;
-#endif
+				if (bp->bio_resid != 0)
 					bp->bio_flags |= BIO_ERROR;
-				}
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				cam_release_devq(done_ccb->ccb_h.path,
@@ -1519,14 +1512,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				panic("REQ_CMP with QFRZN");
 			bp->bio_resid = csio->resid;
-			if (csio->resid > 0) {
-				/* Short transfer ??? */
-#if 0 /* XXX most of the broken umass devices need this ad-hoc work around */
-				if (cmd6workaround(done_ccb) == ERESTART)
-					return;
-#endif
+			if (csio->resid > 0)
 				bp->bio_flags |= BIO_ERROR;
-			}
 		}
 
 		/*
