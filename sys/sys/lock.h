@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.9 1997/08/30 07:59:47 fsmp Exp $
+ * $Id: lock.h,v 1.10 1997/09/21 04:24:02 dyson Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -133,6 +133,7 @@ struct lock {
 #define LK_INTERLOCK	0x00010000 /* unlock passed simple lock after
 				   getting lk_interlock */
 #define LK_RETRY	0x00020000 /* vn_lock: retry until locked */
+#define	LK_NOOBJ	0x00040000 /* vget: don't create object */
 
 /*
  * Internal state flags corresponding to lk_sharecount, and lk_waitcount

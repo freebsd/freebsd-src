@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.44 1997/09/10 19:52:25 phk Exp $
+ * $Id: nfs_bio.c,v 1.45 1997/12/08 00:59:08 dyson Exp $
  */
 
 
@@ -84,8 +84,8 @@ nfs_getpages(ap)
 	int error;
 	vm_page_t m;
 
-	if (!(ap->a_vp->v_flag & VVMIO)) {
-		printf("nfs_getpages: called with non-VMIO vnode??\n");
+	if ((ap->a_vp->v_object) == NULL) {
+		printf("nfs_getpages: called with non-merged cache vnode??\n");
 		return EOPNOTSUPP;
 	}
 

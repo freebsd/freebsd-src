@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.50 1997/12/27 02:56:25 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.51 1998/01/06 01:37:12 sef Exp $
  */
 
 /*
@@ -186,7 +186,7 @@ procfs_close(ap)
 		 * vnode.  While one would expect v_usecount to be 1 at
 		 * that point, it seems that (according to John Dyson)
 		 * the VM system will bump up the usecount.  So:  if the
-		 * usecount is 2, and VVMIO is set, then this is really
+		 * usecount is 2, and VOBJBUF is set, then this is really
 		 * the last close.  Otherwise, if the usecount is < 2
 		 * then it is definitely the last close.
 		 * If this is the last close, then it checks to see if
@@ -197,10 +197,7 @@ procfs_close(ap)
 		 * told to stop on an event, but then the requesting process
 		 * has gone away or forgotten about it.
 		 */
-		if (((ap->a_vp->v_usecount == 2
-		      && ap->a_vp->v_object
-		      && (ap->a_vp->v_flag & VVMIO)) ||
-		     (ap->a_vp->v_usecount < 2))
+		if ((ap->a_vp->v_usecount < 2)
 		    && (p = pfind(pfs->pfs_pid))
 		    && !(p->p_pfsflags & PF_LINGER)) {
 			p->p_stops = 0;

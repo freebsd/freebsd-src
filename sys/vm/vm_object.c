@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.102 1997/12/19 09:03:14 dyson Exp $
+ * $Id: vm_object.c,v 1.103 1997/12/29 00:24:49 dyson Exp $
  */
 
 /*
@@ -94,7 +94,6 @@ static void	vm_object_qcollapse __P((vm_object_t object));
 #ifdef not_used
 static void	vm_object_deactivate_pages __P((vm_object_t));
 #endif
-static void	vm_object_terminate __P((vm_object_t));
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -236,18 +235,36 @@ vm_object_reference(object)
 {
 	if (object == NULL)
 		return;
-	if (object->ref_count == 0) {
-		panic("vm_object_reference: attempting to reference deallocated obj");
-	}
+
+#if defined(DIAGNOSTIC)
+	if (object->flags & OBJ_DEAD)
+		panic("vm_object_reference: attempting to reference dead obj");
+#endif
+
 	object->ref_count++;
-	if ((object->type == OBJT_VNODE) && (object->flags & OBJ_VFS_REF)) {
-		struct vnode *vp;
-		vp = (struct vnode *)object->handle;
-		simple_lock(&vp->v_interlock);
-		if (vp->v_flag & VOBJREF)
-			vp->v_flag |= VOBJREF;
-		++vp->v_usecount;
-		simple_unlock(&vp->v_interlock);
+	if (object->type == OBJT_VNODE)
+		vget((struct vnode *) object->handle, LK_NOOBJ, curproc);
+}
+
+inline void
+vm_object_vndeallocate(object)
+	vm_object_t object;
+{
+	struct vnode *vp = (struct vnode *) object->handle;
+#if defined(DIAGNOSTIC)
+	if (object->type != OBJT_VNODE)
+		panic("vm_object_vndeallocate: not a vnode object");
+	if (vp == NULL)
+		panic("vm_object_vndeallocate: missing vp");
+	if (object->ref_count == 0) {
+		vprint("vm_object_vndeallocate", vp);
+		panic("vm_object_vndeallocate: bad object reference count");
+	}
+#endif
+
+	object->ref_count--;
+	if (object->type == OBJT_VNODE) {
+		vrele(vp);
 	}
 }
 
@@ -266,10 +283,15 @@ void
 vm_object_deallocate(object)
 	vm_object_t object;
 {
+	int s;
 	vm_object_t temp;
-	struct vnode *vp;
 
 	while (object != NULL) {
+
+		if (object->type == OBJT_VNODE) {
+			vm_object_vndeallocate(object);
+			return;
+		}
 
 		if (object->ref_count == 0) {
 			panic("vm_object_deallocate: object deallocated too many times");
@@ -282,94 +304,68 @@ vm_object_deallocate(object)
 		 * Here on ref_count of one or two, which are special cases for
 		 * objects.
 		 */
-		vp = NULL;
-		if (object->type == OBJT_VNODE) {
-			vp = (struct vnode *)object->handle;
-			if (vp->v_flag & VOBJREF) {
-				if (object->ref_count < 2) {
-					panic("vm_object_deallocate: "
-							"not enough references for OBJT_VNODE: %d",
-							object->ref_count);
-				} else {
+		if ((object->ref_count == 2) && (object->shadow_count == 1)) {
 
-					/*
-					 * Freeze optimized copies.
-					 */
-					vm_freeze_copyopts(object, 0, object->size);
-
-					/*
-					 * Loose our reference to the vnode.
-					 */
-					vp->v_flag &= ~VOBJREF;
-					vrele(vp);
-				}
-			}
-		}
-
-		/*
-		 * Lose the reference
-		 */
-		if (object->ref_count == 2) {
 			object->ref_count--;
 			if ((object->handle == NULL) &&
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
 				vm_object_t robject;
+
 				robject = TAILQ_FIRST(&object->shadow_head);
-				if ((robject != NULL) &&
-				    (robject->handle == NULL) &&
+#if defined(DIAGNOSTIC)
+				if (robject == NULL)
+					panic("vm_object_deallocate: ref_count: %d,"
+						  " shadow_count: %d",
+						  object->ref_count, object->shadow_count);
+#endif
+				if ((robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
 				     robject->type == OBJT_SWAP)) {
-					int s;
-					robject->ref_count += 2;
-					object->ref_count += 2;
 
-					do {
-						s = splvm();
-						while (robject->paging_in_progress) {
-							robject->flags |= OBJ_PIPWNT;
-							tsleep(robject, PVM, "objde1", 0);
-						}
+					robject->ref_count++;
 
-						while (object->paging_in_progress) {
-							object->flags |= OBJ_PIPWNT;
-							tsleep(object, PVM, "objde2", 0);
-						}
-						splx(s);
-
-					} while( object->paging_in_progress || robject->paging_in_progress);
-
-					object->ref_count -= 2;
-					robject->ref_count -= 2;
-					if( robject->ref_count == 0) {
-						robject->ref_count += 1;
-						object = robject;
-						continue;
+			retry:
+					s = splvm();
+					if (robject->paging_in_progress) {
+						robject->flags |= OBJ_PIPWNT;
+						tsleep(robject, PVM, "objde1", 0);
+						goto retry;
 					}
-					vm_object_collapse(robject);
-					return;
+
+					if (object->paging_in_progress) {
+						object->flags |= OBJ_PIPWNT;
+						tsleep(object, PVM, "objde2", 0);
+						goto retry;
+					}
+					splx(s);
+
+					if( robject->ref_count == 1) {
+						robject->ref_count--;
+						object = robject;
+						goto doterm;
+					}
+
+					object = robject;
+					vm_object_collapse(object);
+					continue;
 				}
 			}
-			/*
-			 * If there are still references, then we are done.
-			 */
+
 			return;
+
+		} else {
+			object->ref_count--;
+			if (object->ref_count != 0)
+				return;
 		}
 
-		/*
-		 * Make sure no one uses us.
-		 */
-		object->flags |= OBJ_DEAD;
-
-		if (vp)
-			vp->v_flag &= ~VTEXT;
-
-		object->ref_count--;
+doterm:
 
 		temp = object->backing_object;
 		if (temp) {
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
-			--temp->shadow_count;
+			temp->shadow_count--;
 		}
 		vm_object_terminate(object);
 		/* unlocks and deallocates object */
@@ -383,15 +379,17 @@ vm_object_deallocate(object)
  *
  *	The object must be locked.
  */
-static void
+void
 vm_object_terminate(object)
 	register vm_object_t object;
 {
 	register vm_page_t p;
 	int s;
 
-	if (object->flags & OBJ_VFS_REF)
-		panic("vm_object_deallocate: freeing VFS_REF'ed object");
+	/*
+	 * Make sure no one uses us.
+	 */
+	object->flags |= OBJ_DEAD;
 
 	/*
 	 * wait for the pageout daemon to be done with the object
@@ -403,29 +401,44 @@ vm_object_terminate(object)
 	}
 	splx(s);
 
+#if defined(DIAGNOSTIC)
 	if (object->paging_in_progress != 0)
 		panic("vm_object_deallocate: pageout in progress");
+#endif
 
 	/*
 	 * Clean and free the pages, as appropriate. All references to the
 	 * object are gone, so we don't need to lock it.
 	 */
 	if (object->type == OBJT_VNODE) {
-		struct vnode *vp = object->handle;
-		vm_object_page_clean(object, 0, 0, TRUE);
-		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
-	}
+		struct vnode *vp;
 
-	/*
-	 * Now free the pages. For internal objects, this also removes them
-	 * from paging queues.
-	 */
-	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-		if (p->busy || (p->flags & PG_BUSY))
-			printf("vm_object_terminate: freeing busy page\n");
-		PAGE_WAKEUP(p);
-		vm_page_free(p);
-		cnt.v_pfree++;
+		/*
+		 * Freeze optimized copies.
+		 */
+		vm_freeze_copyopts(object, 0, object->size);
+
+		/*
+		 * Clean pages and flush buffers.
+		 */
+		vm_object_page_clean(object, 0, 0, TRUE);
+
+		vp = (struct vnode *) object->handle;
+		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
+
+	} else {
+
+		/*
+		 * Now free the pages. For internal objects, this also removes them
+		 * from paging queues.
+		 */
+		while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+			if (p->busy || (p->flags & PG_BUSY))
+				printf("vm_object_terminate: freeing busy page\n");
+			PAGE_WAKEUP(p);
+			vm_page_free(p);
+			cnt.v_pfree++;
+		}
 	}
 
 	/*
@@ -1122,6 +1135,7 @@ vm_object_collapse(object)
 
 			object_collapses++;
 		} else {
+			vm_object_t new_backing_object;
 			/*
 			 * If all of the pages in the backing object are
 			 * shadowed by the parent object, the parent object no
@@ -1173,25 +1187,26 @@ vm_object_collapse(object)
 			 * it, since its reference count is at least 2.
 			 */
 
-			TAILQ_REMOVE(&object->backing_object->shadow_head,
+			TAILQ_REMOVE(&backing_object->shadow_head,
 			    object, shadow_list);
-			--object->backing_object->shadow_count;
-			vm_object_reference(object->backing_object = backing_object->backing_object);
-			if (object->backing_object) {
-				TAILQ_INSERT_TAIL(&object->backing_object->shadow_head,
+			--backing_object->shadow_count;
+
+			new_backing_object = backing_object->backing_object;
+			if (object->backing_object = new_backing_object) {
+				vm_object_reference(new_backing_object);
+				TAILQ_INSERT_TAIL(&new_backing_object->shadow_head,
 				    object, shadow_list);
-				++object->backing_object->shadow_count;
+				++new_backing_object->shadow_count;
+				object->backing_object_offset +=
+					backing_object->backing_object_offset;
 			}
-			object->backing_object_offset += backing_object->backing_object_offset;
 
 			/*
 			 * Drop the reference count on backing_object. Since
 			 * its ref_count was at least 2, it will not vanish;
 			 * so we don't need to call vm_object_deallocate.
 			 */
-			if (backing_object->ref_count == 1)
-				printf("should have called obj deallocate\n");
-			backing_object->ref_count--;
+			vm_object_deallocate(backing_object);
 
 			object_bypasses++;
 
@@ -1220,18 +1235,20 @@ vm_object_page_remove(object, start, end, clean_only)
 {
 	register vm_page_t p, next;
 	unsigned int size;
-	int s;
+	int s, all;
 
 	if (object == NULL)
 		return;
 
+	all = ((end == 0) && (start == 0));
+
 	object->paging_in_progress++;
 again:
 	size = end - start;
-	if (size > 4 || size >= object->size / 4) {
+	if (all || size > 4 || size >= object->size / 4) {
 		for (p = TAILQ_FIRST(&object->memq); p != NULL; p = next) {
 			next = TAILQ_NEXT(p, listq);
-			if ((start <= p->pindex) && (p->pindex < end)) {
+			if (all || ((start <= p->pindex) && (p->pindex < end))) {
 				if (p->wire_count != 0) {
 					vm_page_protect(p, VM_PROT_NONE);
 					p->valid = 0;
@@ -1516,12 +1533,17 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	if (object == NULL)
 		return;
 
-	db_iprintf("Object 0x%x: size=0x%x, res=%d, ref=%d, ",
-	    (int) object, (int) object->size,
-	    object->resident_page_count, object->ref_count);
-	db_printf("offset=0x%x, backing_object=(0x%x)+0x%x\n",
+	db_iprintf("Object 0x%x: type=%d, size=0x%x, res=%d, ref=%d, flags=0x%x\n",
+	    (int) object, (int) object->type, (int) object->size,
+	    object->resident_page_count,
+		object->ref_count,
+		object->flags);
+	db_iprintf(" sref=%d, offset=0x%x, backing_object(%d)=(0x%x)+0x%x\n",
+		object->shadow_count,
 	    (int) object->paging_offset,
-	    (int) object->backing_object, (int) object->backing_object_offset);
+		(((int)object->backing_object)?object->backing_object->ref_count:0),
+	    (int) object->backing_object,
+		(int) object->backing_object_offset);
 
 	if (!full)
 		return;

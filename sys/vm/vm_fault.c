@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.71 1997/09/01 03:17:15 bde Exp $
+ * $Id: vm_fault.c,v 1.72 1997/12/19 09:03:10 dyson Exp $
  */
 
 /*
@@ -222,6 +222,15 @@ RetryFault:;
 		}
 	}
 
+	/*
+	 * Make a reference to this object to prevent its disposal while we
+	 * are messing with it.  Once we have the reference, the map is free
+	 * to be diddled.  Since objects reference their shadows (and copies),
+	 * they will stay around as well.
+	 */
+	vm_object_reference(first_object);
+	first_object->paging_in_progress++;
+
 	vp = vnode_pager_lock(first_object);
 	if ((fault_type & VM_PROT_WRITE) &&
 		(first_object->type == OBJT_VNODE)) {
@@ -234,16 +243,6 @@ RetryFault:;
 		fault_type = prot;
 
 	first_m = NULL;
-
-	/*
-	 * Make a reference to this object to prevent its disposal while we
-	 * are messing with it.  Once we have the reference, the map is free
-	 * to be diddled.  Since objects reference their shadows (and copies),
-	 * they will stay around as well.
-	 */
-
-	first_object->ref_count++;
-	first_object->paging_in_progress++;
 
 	/*
 	 * INVARIANTS (through entire routine):

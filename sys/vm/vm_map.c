@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.102 1997/12/29 00:24:43 dyson Exp $
+ * $Id: vm_map.c,v 1.103 1997/12/29 01:03:34 dyson Exp $
  */
 
 /*
@@ -558,6 +558,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if ((object == NULL) &&
 	    (prev_entry != &map->header) &&
 	    (( prev_entry->eflags & (MAP_ENTRY_IS_A_MAP | MAP_ENTRY_IS_SUB_MAP)) == 0) &&
+		((prev_entry->object.vm_object == NULL) ||
+			(prev_entry->object.vm_object->type == OBJT_DEFAULT)) &&
 	    (prev_entry->end == start) &&
 	    (prev_entry->wired_count == 0)) {
 		
@@ -757,7 +759,8 @@ vm_map_simplify_entry(map, entry)
 		prevsize = prev->end - prev->start;
 		if ( (prev->end == entry->start) &&
 		     (prev->object.vm_object == entry->object.vm_object) &&
-		     (!prev->object.vm_object || (prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
+		     (!prev->object.vm_object ||
+				(prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
 		     (!prev->object.vm_object ||
 			(prev->offset + prevsize == entry->offset)) &&
 		     (prev->eflags == entry->eflags) &&
@@ -783,7 +786,8 @@ vm_map_simplify_entry(map, entry)
 		esize = entry->end - entry->start;
 		if ((entry->end == next->start) &&
 		    (next->object.vm_object == entry->object.vm_object) &&
-		    (!next->object.vm_object || (next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
+		    (!next->object.vm_object ||
+				(next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
 		     (!entry->object.vm_object ||
 			(entry->offset + esize == next->offset)) &&
 		    (next->eflags == entry->eflags) &&
@@ -2012,7 +2016,7 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 				(src_entry->object.vm_object->type == OBJT_DEFAULT ||
 				 src_entry->object.vm_object->type == OBJT_SWAP))
 				vm_object_collapse(src_entry->object.vm_object);
-			++src_entry->object.vm_object->ref_count;
+			vm_object_reference(src_entry->object.vm_object);
 			src_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
 			dst_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
 			dst_entry->object.vm_object =
@@ -2099,7 +2103,7 @@ vmspace_fork(vm1)
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
 			new_entry->wired_count = 0;
-			++object->ref_count;
+			vm_object_reference(object);
 
 			/*
 			 * Insert the entry into the new map -- we know we're
@@ -2458,12 +2462,13 @@ vm_map_lookup_done(map, entry)
  * operations.
  */
 int
-vm_uiomove(mapa, srcobject, cp, cnt, uaddra)
+vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 	vm_map_t mapa;
 	vm_object_t srcobject;
 	off_t cp;
 	int cnt;
 	vm_offset_t uaddra;
+	int *npages;
 {
 	vm_map_t map;
 	vm_object_t first_object, object;
@@ -2475,6 +2480,9 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra)
 	vm_pindex_t first_pindex, osize, oindex;
 	off_t ooffset;
 
+	if (npages)
+		*npages = 0;
+
 	while (cnt > 0) {
 		map = mapa;
 		uaddr = uaddra;
@@ -2484,11 +2492,6 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra)
 			&first_pindex, &prot, &wired, &su)) != KERN_SUCCESS) {
 			return EFAULT;
 		}
-
-#if 0
-		printf("foff: 0x%x, uaddr: 0x%x\norig entry: (0x%x, 0x%x), ",
-			(int) cp, uaddr, first_entry->start, first_entry->end);
-#endif
 
 		vm_map_clip_start(map, first_entry, uaddr);
 
@@ -2500,11 +2503,27 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra)
 
 		start = first_entry->start;
 		end = first_entry->end;
-#if 0
-		printf("new entry: (0x%x, 0x%x)\n", start, end);
-#endif
 
 		osize = atop(tcnt);
+
+		if (npages) {
+			vm_pindex_t src_index, idx;
+			src_index = OFF_TO_IDX(cp);
+			for (idx = 0; idx < osize; idx++) {
+				vm_page_t m;
+				if ((m = vm_page_lookup(srcobject, src_index + idx)) == NULL) {
+					vm_map_lookup_done(map, first_entry);
+					return 0;
+				}
+				if ((m->flags & PG_BUSY) || m->busy ||
+					m->hold_count || m->wire_count ||
+					((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
+					vm_map_lookup_done(map, first_entry);
+					return 0;
+				}
+			}
+		}
+
 		oindex = OFF_TO_IDX(first_entry->offset);
 
 /*
@@ -2538,7 +2557,7 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra)
 
 			object = srcobject;
 			object->flags |= OBJ_OPT;
-			object->ref_count++;
+			vm_object_reference(object);
 			ooffset = cp;
 
 			vm_object_shadow(&object, &ooffset, osize);
@@ -2577,6 +2596,8 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra)
 		cnt -= tcnt;
 		uaddra += tcnt;
 		cp += tcnt;
+		if (npages)
+			*npages += osize;
 	}
 	return 0;
 }
@@ -2616,13 +2637,11 @@ vm_freeze_copyopts(object, froma, toa)
 	int s;
 	vm_object_t robject, robjectn;
 	vm_pindex_t idx, from, to;
+	return;
 
-	if (vfs_ioopt == 0 || (object == NULL) || ((object->flags & OBJ_OPT) == 0))
+	if ((vfs_ioopt == 0) || (object == NULL) ||
+		((object->flags & OBJ_OPT) == 0))
 		return;
-
-#if 0
-	printf("sc: %d, rc: %d\n", object->shadow_count, object->ref_count);
-#endif
 
 	if (object->shadow_count > object->ref_count)
 		panic("vm_freeze_copyopts: sc > rc");
@@ -2643,7 +2662,7 @@ vm_freeze_copyopts(object, froma, toa)
 		if ((bo_pindex + robject->size) < froma)
 			continue;
 
-		robject->ref_count++;
+		vm_object_reference(robject);
 		while (robject->paging_in_progress) {
 			robject->flags |= OBJ_PIPWNT;
 			tsleep(robject, PVM, "objfrz", 0);
@@ -2714,9 +2733,6 @@ retryout:
 		vm_object_pip_wakeup(robject);
 
 		if (((from - bo_pindex) == 0) && ((to - bo_pindex) == robject->size)) {
-#if 0
-			printf("removing obj: %d, %d\n", object->shadow_count, object->ref_count);
-#endif
 			object->shadow_count--;
 
 			TAILQ_REMOVE(&object->shadow_head, robject, shadow_list);
@@ -2729,9 +2745,8 @@ retryout:
 				vm_object_deallocate(object);
 				vm_object_deallocate(robject);
 				return;
-			} else {
-				object->ref_count--;
 			}
+			vm_object_deallocate(object);
 		}
 		vm_object_deallocate(robject);
 	}
@@ -2750,16 +2765,18 @@ retryout:
  */
 DB_SHOW_COMMAND(map, vm_map_print)
 {
+	static int nlines;
 	/* XXX convert args. */
 	register vm_map_t map = (vm_map_t)addr;
 	boolean_t full = have_addr;
 
 	register vm_map_entry_t entry;
 
-	db_iprintf("%s map 0x%x: pmap=0x%x,ref=%d,nentries=%d,version=%d\n",
+	db_iprintf("%s map 0x%x: pmap=0x%x, ref=%d, nentries=%d, version=%d\n",
 	    (map->is_main_map ? "Task" : "Share"),
 	    (int) map, (int) (map->pmap), map->ref_count, map->nentries,
 	    map->timestamp);
+	nlines++;
 
 	if (!full && db_indent)
 		return;
@@ -2767,23 +2784,34 @@ DB_SHOW_COMMAND(map, vm_map_print)
 	db_indent += 2;
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
-		db_iprintf("map entry 0x%x: start=0x%x, end=0x%x, ",
+#if 0
+		if (nlines > 18) {
+			db_printf("--More--");
+			cngetc();
+			db_printf("\r");
+			nlines = 0;
+		}
+#endif
+		
+		db_iprintf("map entry 0x%x: start=0x%x, end=0x%x\n",
 		    (int) entry, (int) entry->start, (int) entry->end);
+		nlines++;
 		if (map->is_main_map) {
 			static char *inheritance_name[4] =
 			{"share", "copy", "none", "donate_copy"};
 
-			db_printf("prot=%x/%x/%s, ",
+			db_iprintf(" prot=%x/%x/%s",
 			    entry->protection,
 			    entry->max_protection,
 			    inheritance_name[entry->inheritance]);
 			if (entry->wired_count != 0)
-				db_printf("wired, ");
+				db_printf(", wired");
 		}
 		if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
-			db_printf("share=0x%x, offset=0x%x\n",
+			db_printf(", share=0x%x, offset=0x%x\n",
 			    (int) entry->object.share_map,
 			    (int) entry->offset);
+			nlines++;
 			if ((entry->prev == &map->header) ||
 			    ((entry->prev->eflags & MAP_ENTRY_IS_A_MAP) == 0) ||
 			    (entry->prev->object.share_map !=
@@ -2794,13 +2822,14 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_indent -= 2;
 			}
 		} else {
-			db_printf("object=0x%x, offset=0x%x",
+			db_printf(", object=0x%x, offset=0x%x",
 			    (int) entry->object.vm_object,
 			    (int) entry->offset);
 			if (entry->eflags & MAP_ENTRY_COW)
 				db_printf(", copy (%s)",
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");
 			db_printf("\n");
+			nlines++;
 
 			if ((entry->prev == &map->header) ||
 			    (entry->prev->eflags & MAP_ENTRY_IS_A_MAP) ||
@@ -2809,10 +2838,31 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_indent += 2;
 				vm_object_print((int)entry->object.vm_object,
 						full, 0, (char *)0);
+				nlines += 4;
 				db_indent -= 2;
 			}
 		}
 	}
 	db_indent -= 2;
+	if (db_indent == 0)
+		nlines = 0;
 }
+
+
+DB_SHOW_COMMAND(procvm, procvm)
+{
+	struct proc *p;
+
+	if (have_addr) {
+		p = (struct proc *) addr;
+	} else {
+		p = curproc;
+	}
+
+	printf("p = 0x%x, vmspace = 0x%x, map = 0x%x, pmap = 0x%x\n",
+		p, p->p_vmspace, &p->p_vmspace->vm_map, &p->p_vmspace->vm_pmap);
+
+	vm_map_print ((int) &p->p_vmspace->vm_map, 1, 0, NULL);
+}
+
 #endif /* DDB */

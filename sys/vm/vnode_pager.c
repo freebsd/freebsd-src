@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.77 1997/12/19 09:03:17 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.78 1997/12/29 00:25:11 dyson Exp $
  */
 
 /*
@@ -140,25 +140,17 @@ vnode_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
 		 * And an object of the appropriate size
 		 */
 		object = vm_object_allocate(OBJT_VNODE, size);
-		if (vp->v_type == VREG)
-			object->flags = OBJ_CANPERSIST;
-		else
-			object->flags = 0;
+		object->flags = 0;
 
 		object->un_pager.vnp.vnp_size = (vm_ooffset_t) size * PAGE_SIZE;
 
 		object->handle = handle;
 		vp->v_object = object;
+		vp->v_usecount++;
 	} else {
-		/*
-		 * vm_object_reference() will remove the object from the cache if
-		 * found and gain a reference to the object.
-		 */
-		vm_object_reference(object);
+		object->ref_count++;
+		vp->v_usecount++;
 	}
-
-	if (vp->v_type == VREG)
-		vp->v_flag |= VVMIO;
 
 	vp->v_flag &= ~VOLOCK;
 	if (vp->v_flag & VOWANT) {
@@ -186,10 +178,11 @@ vnode_pager_dealloc(object)
 		splx(s);
 	}
 
+	object->flags |= OBJ_DEAD;
 	object->handle = NULL;
-
+	object->type = OBJT_DEFAULT;
 	vp->v_object = NULL;
-	vp->v_flag &= ~(VTEXT | VVMIO);
+	vp->v_flag &= ~(VTEXT|VOBJBUF);
 }
 
 static boolean_t
@@ -541,8 +534,7 @@ vnode_pager_getpages(object, m, count, reqpage)
 {
 	int rtval;
 	struct vnode *vp;
-	if (object->flags & OBJ_VNODE_GONE)
-		return VM_PAGER_ERROR;
+
 	vp = object->handle;
 	rtval = VOP_GETPAGES(vp, m, count*PAGE_SIZE, reqpage, 0);
 	if (rtval == EOPNOTSUPP)
@@ -643,7 +635,7 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 			IDX_TO_OFF(m[i]->pindex), &runpg);
 		if (firstaddr == -1) {
 			if (i == reqpage && foff < object->un_pager.vnp.vnp_size) {
-				panic("vnode_pager_putpages: unexpected missing page: firstaddr: %d, foff: %ld, vnp_size: %d",
+				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %d, foff: %ld, vnp_size: %d",
 			   	 firstaddr, foff, object->un_pager.vnp.vnp_size);
 			}
 			vnode_pager_freepage(m[i]);
@@ -791,9 +783,6 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 {
 	int rtval;
 	struct vnode *vp;
-
-	if (object->flags & OBJ_VNODE_GONE)
-		return VM_PAGER_ERROR;
 
 	vp = object->handle;
 	rtval = VOP_PUTPAGES(vp, m, count*PAGE_SIZE, sync, rtvals, 0);
