@@ -29,7 +29,6 @@
  *	$FreeBSD$
  */
 
-#define __RMAN_RESOURCE_VISIBLE
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
