@@ -231,7 +231,6 @@ pcic_pci_ti_init(device_t dev)
 {
 	u_long	syscntl,devcntl,cardcntl;
 	u_int32_t device_id = pci_get_devid(dev);
-	char	buf[128];
 	struct pcic_softc *sc = device_get_softc(dev);
 	int 	ti113x = (device_id == PCI_DEVICE_ID_PCIC_TI1031) ||
 	    (device_id == PCI_DEVICE_ID_PCIC_TI1130) ||
@@ -243,10 +242,10 @@ pcic_pci_ti_init(device_t dev)
 
 	switch(ti113x){
 	case 0 :
-		strcpy(buf, "TI12XX PCI Config Reg: ");
+		device_printf(dev, "TI12XX PCI Config Reg: ");
 		break;
 	case 1 :
-		strcpy(buf, "TI113X PCI Config Reg: ");
+		device_printf(dev, "TI113X PCI Config Reg: ");
 		/* 
 		 * Default card control register setting is
 		 * PCI interrupt.  The method of this code
@@ -268,9 +267,9 @@ pcic_pci_ti_init(device_t dev)
 		cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL, 1);
 		if (syscntl & TI113X_SYSCNTL_CLKRUN_ENA) {
 			if (syscntl & TI113X_SYSCNTL_CLKRUN_SEL)
-				strcat(buf, "[clkrun irq 12]");
+				printf("[clkrun irq 12]");
 			else
-				strcat(buf, "[clkrun irq 10]");
+				printf("[clkrun irq 10]");
 		}
 		break;
 	}
@@ -283,26 +282,26 @@ pcic_pci_ti_init(device_t dev)
 		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
 	}
 	if (cardcntl & TI113X_CARDCNTL_RING_ENA)
-		strcat(buf, "[ring enable]");
+		printf("[ring enable]");
 	if (cardcntl & TI113X_CARDCNTL_SPKR_ENA)
-		strcat(buf, "[speaker enable]");
+		printf("[speaker enable]");
 	if (syscntl & TI113X_SYSCNTL_PWRSAVINGS)
-		strcat(buf, "[pwr save]");
-	switch(devcntl & TI113X_DEVCNTL_INTR_MASK){
+		printf("[pwr save]");
+	switch (devcntl & TI113X_DEVCNTL_INTR_MASK) {
 		case TI113X_DEVCNTL_INTR_ISA :
-			strcat(buf, "[CSC parallel isa irq]");
+			printf("[CSC parallel isa irq]");
 			break;
 		case TI113X_DEVCNTL_INTR_SERIAL :
-			strcat(buf, "[CSC serial isa irq]");
+			printf("[CSC serial isa irq]");
 			break;
 		case TI113X_DEVCNTL_INTR_NONE :
-			strcat(buf, "[pci only]");
+			printf("[pci only]");
 			break;
 		case TI12XX_DEVCNTL_INTR_ALLSERIAL :
-			strcat(buf, "[FUNC pci int + CSC serial isa irq]");
+			printf("[FUNC pci int + CSC serial isa irq]");
 			break;
 	}
-	device_printf(dev, "%s\n",buf);
+	printf("\n");
 }
 
 static void
