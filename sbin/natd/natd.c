@@ -86,7 +86,7 @@ static void	SetAliasAddressFromIfName (const char *ifName);
 static void	InitiateShutdown (int);
 static void	Shutdown (int);
 static void	RefreshAddr (int);
-static void	ParseOption (const char* option, const char* parms, int cmdLine);
+static void	ParseOption (const char* option, const char* parms);
 static void	ReadConfigFile (const char* fileName);
 static void	SetupPortRedirect (const char* parms);
 static void	SetupAddressRedirect (const char* parms);
@@ -188,7 +188,7 @@ int main (int argc, char** argv)
 			errx (1, "both input and output ports are required");
 
 	if (inPort == 0 && outPort == 0 && inOutPort == 0)
-		ParseOption ("port", DEFAULT_SERVICE, 0);
+		ParseOption ("port", DEFAULT_SERVICE);
 
 /*
  * Check if ignored packets should be dropped.
@@ -421,9 +421,9 @@ static void DaemonMode ()
 static void ParseArgs (int argc, char** argv)
 {
 	int		arg;
-	char*		parm;
 	char*		opt;
 	char		parmBuf[256];
+	int		len; /* bounds checking */
 
 	for (arg = 1; arg < argc; arg++) {
 
@@ -434,23 +434,27 @@ static void ParseArgs (int argc, char** argv)
 			Usage ();
 		}
 
-		parm = NULL;
 		parmBuf[0] = '\0';
+		len = 0;
 
 		while (arg < argc - 1) {
 
 			if (argv[arg + 1][0] == '-')
 				break;
 
-			if (parm)
-				strcat (parmBuf, " ");
+			if (len) {
+				strncat (parmBuf, " ", sizeof(parmBuf) - (len + 1));
+				len += strlen(parmBuf + len);
+			}
 
 			++arg;
-			parm = parmBuf;
-			strcat (parmBuf, argv[arg]);
+			strncat (parmBuf, argv[arg], sizeof(parmBuf) - (len + 1));
+			len += strlen(parmBuf + len);
+
 		}
 
-		ParseOption (opt + 1, parm, 1);
+		ParseOption (opt + 1, (len ? parmBuf : NULL));
+
 	}
 }
 
@@ -1069,7 +1073,7 @@ static struct OptionInfo optionTable[] = {
 
 };
 	
-static void ParseOption (const char* option, const char* parms, int cmdLine)
+static void ParseOption (const char* option, const char* parms)
 {
 	int			i;
 	struct OptionInfo*	info;
@@ -1295,7 +1299,7 @@ void ReadConfigFile (const char* fileName)
 		while (*ptr && isspace (*ptr))
 			++ptr;
 
-		ParseOption (option, *ptr ? ptr : NULL, 0);
+		ParseOption (option, *ptr ? ptr : NULL);
 	}
 
 	fclose (file);
