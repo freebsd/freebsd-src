@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.107 1999/03/07 20:58:48 brian Exp $
+ * $Id: modem.c,v 1.108 1999/04/03 11:54:00 brian Exp $
  *
  *  TODO:
  */
@@ -965,7 +965,6 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   struct physical *p = descriptor2physical(d);
   u_char *rbuff;
   int n, found;
-  size_t sz;
 
   rbuff = p->input.buf + p->input.sz;
 
