@@ -49,7 +49,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2002
+.Dd October 3, 2002
 .Dt WCSTOK 3
 .Os
 .Sh NAME
@@ -96,6 +96,19 @@ function
 returns a pointer to the beginning of each subsequent token in the string,
 after replacing the token itself with a null wide character (L'\e0').
 When no more tokens remain, a null pointer is returned.
+.Sh EXAMPLES
+The following code fragment splits a wide character string on
+.Tn ASCII
+space, tab and newline characters and writes the tokens to
+standard output:
+.Bd -literal -offset indent
+const wchar_t *seps = L" \et\en";
+wchar_t *last, *tok, text[] = L" \enone\ettwo\et\etthree  \en";
+
+for (tok = wcstok(text, seps, &last); tok != NULL;
+    tok = wcstok(NULL, seps, &last))
+	wprintf(L"%ls\en", tok);
+.Ed
 .Sh COMPATIBILITY
 Some early implementations of
 .Fn wcstok
@@ -106,12 +119,12 @@ and maintain state across calls in a static variable like
 .Fn strtok
 does.
 .Sh SEE ALSO
+.Xr strtok 3 ,
 .Xr wcschr 3 ,
 .Xr wcscspn 3 ,
 .Xr wcspbrk 3 ,
 .Xr wcsrchr 3 ,
 .Xr wcsspn 3 ,
-.Xr strtok 3
 .Sh STANDARDS
 The
 .Fn wcstok
