@@ -1025,7 +1025,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>A &man.gre.4; driver, which can encapsulate IP packets
         using GRE (RFC 1701) or minimal IP encapsulation for Mobile IP
-        (RFC 2004), has been added.</para>
+        (RFC 2004), has been added. &merged;</para>
 
       <para>ICMP ECHO and TSTAMP replies are now rate limited.  TCP
 	RSTs generated due to packets sent to open and unopen ports
@@ -3834,7 +3834,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	8.3.3. &merged;</para>
 
       <para><application>Binutils</application> has been updated to
-	a pre-release snapshot of 2.13.1 from 11 October 2002.</para>
+	a pre-release snapshot of 2.13.2 from 27 October 2002.</para>
 
       <para role="historic"><application>bzip2</application> 1.0.2 has been imported;
 	this brings the &man.bzip2.1; program and the
@@ -3879,7 +3879,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	have been updated to FSF version 1.18.1.</para>
 
       <para><application>Heimdal Kerberos</application> has been updated to
-	0.5.1.</para>
+	0.5.1. &merged;</para>
 
       <para role="historic">The version of <application>IPFilter</application>
 	provided with &os; now includes the &man.ipfs.8; program,
@@ -4028,7 +4028,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>CVS</title>
 
 	<para><application>cvs</application> has been updated to
-	  1.11.2. &merged;</para>
+	  a snapshot of 1.11.2.1, as of 1 December 2002.</para>
 
 	<para role="historic">The default value for &man.cvs.1;'s
 	  <envar>CVS_RSH</envar> variable is now
