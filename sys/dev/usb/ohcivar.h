@@ -57,6 +57,7 @@ typedef struct ohci_soft_td {
 	u_int16_t flags;
 #define OHCI_CALL_DONE	0x0001
 #define OHCI_ADD_LEN	0x0002
+#define OHCI_TD_HANDLED	0x0004		/* signal process_done has seen it */
 } ohci_soft_td_t;
 #define OHCI_STD_SIZE ((sizeof (struct ohci_soft_td) + OHCI_TD_ALIGN - 1) / OHCI_TD_ALIGN * OHCI_TD_ALIGN)
 #define OHCI_STD_CHUNK 128
@@ -106,8 +107,10 @@ typedef struct ohci_softc {
 	char sc_vendor[16];
 	int sc_id_vendor;
 
+#if defined(__NetBSD__)
 	void *sc_powerhook;
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
+#endif
 
 	device_ptr_t sc_child;
 } ohci_softc_t;
