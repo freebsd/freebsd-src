@@ -1,5 +1,5 @@
-/*	$NetBSD: if_devar.h,v 1.26 1998/02/11 01:28:29 thorpej Exp $	*/
-/*	$Id: if_devar.h,v 1.6 1998/06/07 17:12:37 dfr Exp $ */
+/*	$NetBSD: if_devar.h,v 1.27 1998/05/25 22:13:28 mark Exp $	*/
+/*	$Id: if_devar.h,v 1.7 1998/06/08 09:47:46 bde Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -167,7 +167,7 @@ typedef struct {
  * architecture which can't handle unaligned accesses) because with
  * 100Mb/s cards the copying is just too much of a hit.
  */
-#if defined(__alpha__)
+#if defined(__alpha__) || defined(__arm32__)
 #define	TULIP_COPY_RXDATA	1
 #endif
 
