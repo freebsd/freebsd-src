@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.15 1995/06/25 14:02:53 joerg Exp $
+ *	$Id: io.c,v 1.16 1996/01/21 11:30:12 joerg Exp $
  */
 
 #include "boot.h"
@@ -161,8 +161,7 @@ loop:
  * is not a valid ISA bus address, those machines execute this inb in
  * 60 nS :-(.
  *
- * XXX we need to use BIOS timer calls or something more reliable to
- * produce timeouts in the boot code.
+ * XXX this should be converted to use bios_tick.
  */
 void
 delay1ms(void)
@@ -172,21 +171,34 @@ delay1ms(void)
 		(void)inb(0x84);
 }
 
+static __inline unsigned
+pword(unsigned physaddr)
+{
+	unsigned result;
+
+	/*
+	 * Give the fs prefix separately because gas omits it for
+	 * "movl %fs:0x46c, %eax".
+	 */
+	__asm __volatile("fs; movl %1, %0" : "=r" (result)
+			 : "m" (*(unsigned *)physaddr));
+	return (result);
+}
+
 int
 gets(char *buf)
 {
-	int	i;
-#if TIMEOUT+0 > 0
-	int	j;
-#endif
+#define bios_tick		pword(0x46c)
+#define BIOS_TICK_MS		55
+	unsigned initial_bios_tick;
 	char *ptr=buf;
 
-#if TIMEOUT+0 == 0
 #if BOOTWAIT
-	for (i = BOOTWAIT; i>0; delay1ms(),i--)
+	for (initial_bios_tick = bios_tick;
+	     bios_tick - initial_bios_tick < BOOTWAIT / BIOS_TICK_MS;)
 #endif
 		if ((loadflags & RB_SERIAL) ? serial_ischar() : ischar())
-			for (;;)
+			for (;;) {
 				switch(*ptr = getchar(ptr - buf) & 0xff) {
 				      case '\n':
 				      case '\r':
@@ -198,28 +210,20 @@ gets(char *buf)
 				      default:
 					ptr++;
 				}
-#else /* TIMEOUT */
-#if BOOTWAIT == 0
-# error "TIMEOUT without BOOTWAIT"
+#if TIMEOUT + 0
+#if !BOOTWAIT
+#error "TIMEOUT without BOOTWAIT"
 #endif
-	for (i = BOOTWAIT; i>0; delay1ms(),i--)
-		if ((loadflags & RB_SERIAL) ? serial_ischar() : ischar())
-			for (j = TIMEOUT; j>0; delay1ms(),j--)
-				if ((loadflags & RB_SERIAL) ?
-				    serial_ischar() : ischar())
-					switch(*ptr = getchar(ptr - buf) &
-					       0xff) {
-					       case '\n':
-					       case '\r':
-						       *ptr = '\0';
-						       return 1;
-					       case '\b':
-						       if (ptr > buf) ptr--;
-						       continue;
-					       default:
-						       ptr++;
-					}
-#endif /* !TIMEOUT */
+				for (initial_bios_tick = bios_tick;;) {
+					if ((loadflags & RB_SERIAL) ?
+					    serial_ischar() : ischar())
+						break;
+					if (bios_tick - initial_bios_tick >=
+					    TIMEOUT / BIOS_TICK_MS)
+					return 0;
+				}
+#endif
+			}
 	return 0;
 }
 
