@@ -50,6 +50,8 @@ char *UP;
 char *BC;
 
 #ifdef FREEBSD_NATIVE
+#undef	GCC_UNUSED
+#define	GCC_UNUSED
 extern char _nc_termcap[];	/* buffer to copy out */
 #endif
 
