@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.10 1995/10/26 20:29:53 julian Exp $
+ *	$Id: if_zp.c,v 1.11 1995/10/28 15:39:13 phk Exp $
  */
 /*-
  * TODO:
@@ -143,6 +143,7 @@ enum memtype {
 #include <sys/param.h>
 #if defined(__FreeBSD__)
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #endif
 #include <sys/mbuf.h>
@@ -186,7 +187,7 @@ enum memtype {
 #endif
 
 #if defined(__FreeBSD__) && defined(ZP_DEBUG)
-#include <i386/i386/cons.h>
+#include <machine/cons.h>
 #endif
 
 #include <i386/isa/isa.h>
@@ -271,11 +272,12 @@ static unsigned char card_info[256];
 
 int zpprobe     __P((struct isa_device *));
 int zpattach    __P((struct isa_device *));
+static int zp_suspend __P((void *visa_dev));
+static int zp_resume __P((void *visa_dev));
 static int zpioctl __P((struct ifnet * ifp, int, caddr_t));
 static u_short read_eeprom_data __P((int, int));
 
 void zpinit     __P((int));
-void zpintr     __P((int));
 void zpmbuffill __P((void *));
 static void zpmbufempty __P((struct zp_softc *));
 void zpread     __P((struct zp_softc *));
@@ -711,9 +713,10 @@ re_init:
 
 #if NAPM > 0
 static int
-zp_suspend(isa_dev)
-    struct isa_device *isa_dev;
+zp_suspend(visa_dev)
+    void *visa_dev;
 {
+    struct isa_device *isa_dev = visa_dev;
     struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 
     pcic_power_off(sc->slot);
@@ -721,9 +724,11 @@ zp_suspend(isa_dev)
 }
 
 static int
-zp_resume(isa_dev)
-    struct isa_device *isa_dev;
+zp_resume(visa_dev)
+    void *visa_dev;
 {
+    struct isa_device *isa_dev = visa_dev;
+
     prev_slot = 0;
     reconfig_isadev(isa_dev, &net_imask);
     return 0;
