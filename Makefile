@@ -1,8 +1,8 @@
 #
-#	$Id: Makefile,v 1.55 1995/05/06 03:59:58 rgrimes Exp $
+#	$Id: Makefile,v 1.56 1995/05/13 03:34:23 rgrimes Exp $
 #
 # Make command line options:
-#	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
+#	-DCLOBBER will remove /usr/include and MOST of /usr/lib
 #	-DMAKE_LOCAL to add ./local to the SUBDIR list
 #	-DMAKE_PORTS to add ./ports to the SUBDIR list
 #	-DMAKE_EBONES to build eBones (KerberosIV)
@@ -88,7 +88,7 @@ OBJDIR=		obj
 .endif
 .if defined(NOCLEANDIR)
 CLEANDIR=	clean
-.else 
+.else
 CLEANDIR=	cleandir
 .endif
 
