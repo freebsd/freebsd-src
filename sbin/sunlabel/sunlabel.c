@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libgeom.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,7 +92,6 @@ static int bflag;
 static int Bflag;
 static int eflag;
 static int nflag;
-static int rflag = 1;
 static int Rflag;
 static int wflag;
 
@@ -140,7 +140,7 @@ main(int ac, char **av)
 			nflag = 1;
 			break;
 		case 'r':
-			rflag = 1;
+			fprintf(stderr, "Obsolete -r flag ignored\n");
 			break;
 		case 'R':
 			Rflag = 1;
@@ -318,52 +318,86 @@ static void
 write_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 {
 	char path[MAXPATHLEN];
-	char boot[16 * 512];
+	char boot[SUN_BOOTSIZE];
 	char buf[SUN_SIZE];
+	const char *errstr;
 	off_t off;
 	int bfd;
 	int fd;
 	int i;
+	struct gctl_req *grq;
 
 	sl->sl_magic = SUN_DKMAGIC;
 
 	if (check_label(sl) != 0)
 		errx(1, "invalid label");
 
+	bzero(buf, sizeof(buf));
+	sunlabel_enc(buf, sl);
+
 	if (nflag) {
 		print_label(sl, disk, stdout);
-	} else if (rflag) {
-		snprintf(path, sizeof(path), "%s%s", _PATH_DEV, disk);
-		if ((fd = open(path, O_RDWR)) < 0)
-			err(1, "open %s", path);
+		return;
+	}
+	if (Bflag) {
+		if ((bfd = open(bootpath, O_RDONLY)) < 0)
+			err(1, "open %s", bootpath);
+		i = read(bfd, boot, sizeof(boot));
+		if (i < 0)
+			err(1, "read");
+		else if (i != sizeof (boot))
+			errx(1, "read wrong size boot code (%d)", i);
+		close(bfd);
+	}
+	snprintf(path, sizeof(path), "%s%s", _PATH_DEV, disk);
+	fd = open(path, O_RDWR);
+	if (fd < 0) {
+		grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+		gctl_ro_param(grq, "class", -1, "SUN");
+		gctl_ro_param(grq, "geom", -1, disk);
+		gctl_ro_param(grq, "verb", -1, "write label");
+		gctl_ro_param(grq, "label", sizeof buf, buf);
+		errstr = gctl_issue(grq);
+		if (errstr != NULL)
+			errx(1, "%s", errstr);
+		gctl_free(grq);
 		if (Bflag) {
-			if ((bfd = open(bootpath, O_RDONLY)) < 0)
-				err(1, "open %s", bootpath);
-			if (read(bfd, boot, sizeof(boot)) != sizeof(boot))
-				err(1, "read");
-			close(bfd);
+			grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+			gctl_ro_param(grq, "class", -1, "SUN");
+			gctl_ro_param(grq, "geom", -1, disk);
+			gctl_ro_param(grq, "verb", -1, "write bootcode");
+			gctl_ro_param(grq, "bootcode", sizeof boot, boot);
+			errstr = gctl_issue(grq);
+			if (errstr != NULL)
+				errx(1, "%s", errstr);
+			gctl_free(grq);
+		}
+	} else {
+		if (lseek(fd, 0, SEEK_SET) < 0)
+			err(1, "lseek");
+		if (write(fd, buf, sizeof(buf)) != sizeof(buf))
+			err (1, "write");
+		if (Bflag) {
 			for (i = 0; i < SUN_NPART; i++) {
 				if (sl->sl_part[i].sdkp_nsectors == 0)
 					continue;
 				off = sl->sl_part[i].sdkp_cyloffset *
 				    sl->sl_ntracks * sl->sl_nsectors * 512;
-				if (lseek(fd, off, SEEK_SET) < 0)
+				/*
+				 * Ignore first SUN_SIZE bytes of boot code to
+				 * avoid overwriting the label.
+				 */
+				if (lseek(fd, off + SUN_SIZE, SEEK_SET) < 0)
 					err(1, "lseek");
-				if (write(fd, boot, sizeof(boot)) !=
-				    sizeof(boot))
+				if (write(fd, boot + SUN_SIZE,
+				    sizeof(boot) - SUN_SIZE) !=
+				    sizeof(boot) - SUN_SIZE)
 					err(1, "write");
 			}
 		}
-		if (lseek(fd, 0, SEEK_SET) < 0)
-			err(1, "lseek");
-		bzero(buf, sizeof(buf));
-		sunlabel_enc(buf, sl);
-		
-		if (write(fd, buf, sizeof(buf)) != sizeof(buf))
-			err(1, "write");
 		close(fd);
-	} else
-		err(1, "implement!");
+	}
+	exit(0);
 }
 
 static int
