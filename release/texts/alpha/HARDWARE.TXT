@@ -1625,7 +1625,7 @@ http://www.netbsd.org proved to be an invaluable source of information.
 If it wasn't for NetBSD/alpha there probably would not be a FreeBSD/alpha
 in the first place. 
 
-People who kindly helped me creating this document:
+People who kindly helped me create this document:
 
 - Nick Maniscalco <nmanisca@vt.edu>
 - Andrew Gallatin <gallatin@cs.duke.edu>
