@@ -67,6 +67,7 @@ static int  vcmp(const void *, const void *);
 #define	PIDLEN	5
 #define USERLEN (MAXLOGNAME - 1)
 
+/* PLEASE KEEP THE TABLE BELOW SORTED ALPHABETICALLY!!! */
 static VAR var[] = {
 	{"%cpu", "%CPU", NULL, 0, pcpu, NULL, 4, 0, CHAR, NULL, 0},
 	{"%mem", "%MEM", NULL, 0, pmem, NULL, 4, 0, CHAR, NULL, 0},
@@ -98,6 +99,8 @@ static VAR var[] = {
 	{"label", "LABEL", NULL, LJUST|DSIZ, label, s_label, SHRT_MAX, 0, CHAR,
 	    NULL, 0},
 	{"lim", "LIM", NULL, 0, maxrss, NULL, 5, 0, CHAR, NULL, 0},
+	{"lockname", "LOCK", NULL, LJUST, lockname, NULL, 6, 0, CHAR, NULL,
+		0},
 	{"login", "LOGIN", NULL, LJUST, logname, NULL, MAXLOGNAME-1, 0, CHAR,
 		NULL, 0},
 	{"logname", "", "login", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
@@ -111,8 +114,6 @@ static VAR var[] = {
 		LONG, "ld", 0},
 	{"msgsnd", "MSGSND", NULL, USER, rvar, NULL, 4, ROFF(ru_msgsnd),
 		LONG, "ld", 0},
-	{"lockname", "LOCK", NULL, LJUST, lockname, NULL, 6, 0, CHAR, NULL,
-		0},
 	{"mwchan", "MWCHAN", NULL, LJUST, mwchan, NULL, 6, 0, CHAR, NULL, 0},
 	{"ni", "", "nice", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"nice", "NI", NULL, 0, kvar, NULL, 2, KOFF(ki_nice), CHAR, "d",
