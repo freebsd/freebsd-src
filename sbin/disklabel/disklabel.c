@@ -1462,7 +1462,8 @@ checklabel(struct disklabel *lp)
 			} else {
 				/* allow them to be out of order for old-style tables */
 				if (pp->p_offset < current_offset && 
-				    seen_default_offset && i != RAW_PART) {
+				    seen_default_offset && i != RAW_PART &&
+				    pp->p_fstype != FS_VINUM) {
 					fprintf(stderr,
 "Offset %ld for partition %c overlaps previous partition which ends at %lu\n",
 					    (long)pp->p_offset,i+'a',current_offset);
@@ -1537,9 +1538,11 @@ checklabel(struct disklabel *lp)
 		/* check for overlaps */
 		/* this will check for all possible overlaps once and only once */
 		for (j = 0; j < i; j++) {
-			if (j != RAW_PART && i != RAW_PART &&
+			pp2 = &lp->d_partitions[j];
+			if (j != RAW_PART && i != RAW_PART &&	
+			    pp->p_fstype != FS_VINUM &&
+			    pp2->p_fstype != FS_VINUM &&
 			    part_set[i] && part_set[j]) {
-				pp2 = &lp->d_partitions[j];
 				if (pp2->p_offset < pp->p_offset + pp->p_size &&
 				    (pp2->p_offset + pp2->p_size > pp->p_offset ||
 					pp2->p_offset >= pp->p_offset)) {
