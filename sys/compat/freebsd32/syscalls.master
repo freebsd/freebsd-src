@@ -292,7 +292,7 @@
 186	UNIMPL	BSD	lfs_segclean
 187	UNIMPL	BSD	lfs_segwait
 188	STD	POSIX	{ int freebsd32_stat(char *path, struct stat32 *ub); }
-189	STD	POSIX	{ int freebsd32_fstat(int fd, struct stat32 *ub); }
+189	MSTD	POSIX	{ int freebsd32_fstat(int fd, struct stat32 *ub); }
 190	STD	POSIX	{ int freebsd32_lstat(char *path, struct stat32 *ub); }
 191	NOPROTO	POSIX	{ int pathconf(char *path, int name); }
 192	MNOPROTO POSIX	{ int fpathconf(int fd, int name); }
