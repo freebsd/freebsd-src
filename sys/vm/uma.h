@@ -359,6 +359,16 @@ void uma_reclaim(void);
 struct vm_object;
 int uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int size);
 
+/*
+ * Sets a high limit on the number of items allowed in a zone
+ *
+ * Arguments:
+ *	zone  The zone to limit
+ *
+ * Returns:
+ *	Nothing
+ */
+void uma_zone_set_max(uma_zone_t zone, int nitems);
 
 /*
  * Replaces the standard page_alloc or obj_alloc functions for this zone
