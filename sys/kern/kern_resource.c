@@ -682,7 +682,7 @@ calcru(p, up, sp, ip)
 				bt = p->p_runtime;
 			}
 			bintime2timeval(&bt, &tv);
-			tu = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
+			tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 			ptu = ke->ke_uu + ke->ke_su + ke->ke_iu;
 			if (tu < ptu || (int64_t)tu < 0) {
 				/* XXX no %qd in kernel.  Truncate. */
