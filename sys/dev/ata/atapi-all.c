@@ -48,15 +48,12 @@
 #include <dev/ata/atapi-all.h>
 
 /* prototypes */
-static void atapi_attach(void *);
-static int32_t atapi_getparam(struct atapi_softc *);
 static void atapi_read(struct atapi_request *, int32_t);
 static void atapi_write(struct atapi_request *, int32_t);
 static void atapi_timeout(struct atapi_request *request);
 static int8_t *atapi_type(int32_t);
 static int8_t *atapi_cmd2str(u_int8_t);
 static int8_t *atapi_skey2str(u_int8_t);
-static void atapi_init(void);
 
 /* extern references */
 int32_t acdattach(struct atapi_softc *);
@@ -64,166 +61,75 @@ int32_t afdattach(struct atapi_softc *);
 int32_t astattach(struct atapi_softc *);
 
 /* internal vars */
-static struct intr_config_hook *atapi_attach_hook;
 MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 
 /* defines */
-#define ATAPI_MAX_RETRIES  5
+#define ATAPI_MAX_RETRIES  	5
+#define ATP_PARAM		ATA_PARAM(atp->controller, atp->unit)
 
-static __inline int
-apiomode(struct atapi_params *ap)
-{
-    if (ap->atavalid & 2) {
-	if (ap->apiomodes & 2) return 4;
-	if (ap->apiomodes & 1) return 3;
-    }
-    return -1;
-}
-
-static __inline int
-wdmamode(struct atapi_params *ap)
-{
-    if (ap->atavalid & 2) {
-	if (ap->wdmamodes & 4) return 2;
-	if (ap->wdmamodes & 2) return 1;
-	if (ap->wdmamodes & 1) return 0;
-    }
-    return -1;
-}
-
-static __inline int
-udmamode(struct atapi_params *ap)
-{
-    if (ap->atavalid & 4) {
-	if (ap->udmamodes & 4) return 2;
-	if (ap->udmamodes & 2) return 1;
-	if (ap->udmamodes & 1) return 0;
-    }
-    return -1;
-}
-
-static void
-atapi_attach(void *notused)
+void
+atapi_attach(struct ata_softc *scp, int32_t device)
 {
     struct atapi_softc *atp;
-    int32_t ctlr, dev;
-    int8_t model_buf[40+1];
-    int8_t revision_buf[8+1];
 
-    /* now, run through atadevices and look for ATAPI devices */
-    for (ctlr=0; ctlr<MAXATA; ctlr++) {
-	if (!atadevices[ctlr]) continue;
-	for (dev=0; dev<2; dev++) {
-	    if (atadevices[ctlr]->devices & 
-		(dev ? ATA_ATAPI_SLAVE : ATA_ATAPI_MASTER)) {
-		if (!(atp = malloc(sizeof(struct atapi_softc),
-				   M_ATAPI, M_NOWAIT))) {
-		    printf("atapi: failed to allocate driver storage\n");
-		    continue;
-		}
-		bzero(atp, sizeof(struct atapi_softc));
-		atp->controller = atadevices[ctlr];
-		atp->unit = (dev == 0) ? ATA_MASTER : ATA_SLAVE;
-		if (atapi_getparam(atp)) {
-		    free(atp, M_ATAPI);
-		    continue;
-		}
-		if (bootverbose) 
-			printf("ata%d-%s: piomode=%d dmamode=%d "
-			       "udmamode=%d dmaflag=%d\n",
-			       ctlr, (dev == ATA_MASTER) ? "master" : "slave",
-			       apiomode(atp->atapi_parm),
-			       wdmamode(atp->atapi_parm),
-			       udmamode(atp->atapi_parm),
-			       atp->atapi_parm->dmaflag);
+    if (!(atp = malloc(sizeof(struct atapi_softc), M_ATAPI, M_NOWAIT))) {
+	printf("atapi: failed to allocate driver storage\n");
+	return;
+    }
+    bzero(atp, sizeof(struct atapi_softc));
+    atp->controller = scp;
+    atp->unit = device;
+    if (bootverbose) 
+	printf("ata%d-%s: piomode=%d dmamode=%d udmamode=%d dmaflag=%d\n",
+	       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
+	       ata_pmode(ATP_PARAM), ata_wmode(ATP_PARAM),
+	       ata_umode(ATP_PARAM), ATP_PARAM->dmaflag);
 
 #ifdef ATA_ENABLE_ATAPI_DMA
-		if (!(atp->atapi_parm->drqtype == ATAPI_DRQT_INTR)) {
-		    if (!ata_dmainit(atp->controller, atp->unit,
-				 (apiomode(atp->atapi_parm) < 0) ? 
-				 (atp->atapi_parm->dmaflag ? 4 : 0) : 
-				 apiomode(atp->atapi_parm),
-				 (wdmamode(atp->atapi_parm) < 0) ? 
-				 (atp->atapi_parm->dmaflag ? 2 : 0) : 
-				 wdmamode(atp->atapi_parm),
-				 udmamode(atp->atapi_parm)))
-		    atp->flags |= ATAPI_F_DMA_ENABLED;
-		}
-		else
+    if (!(ATP_PARAM->drqtype == ATAPI_DRQT_INTR)) {
+	if (!ata_dmainit(atp->controller, atp->unit,
+			 (ata_pmode(ATP_PARAM) < 0) ? 
+			  (ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
+			 (ata_wmode(ATP_PARAM) < 0) ? 
+			  (ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
+			 ata_umode(ATP_PARAM)))
+	    atp->flags |= ATAPI_F_DMA_ENABLED;
+    }
+    else
 #endif
-		    /* set PIO mode */
-		    ata_dmainit(atp->controller, atp->unit,
-				(apiomode(atp->atapi_parm) < 0) ?
-				  0 : apiomode(atp->atapi_parm), -1, -1);
+	/* set PIO mode */
+	ata_dmainit(atp->controller, atp->unit, 
+		    (ata_pmode(ATP_PARAM)<0) ? 0 : ata_pmode(ATP_PARAM), -1,-1);
 
-		switch (atp->atapi_parm->device_type) {
+    switch (ATP_PARAM->device_type) {
 #if NATAPICD > 0
-		case ATAPI_TYPE_CDROM:
-		    if (acdattach(atp))
-			goto notfound;
-		    break; 
+    case ATAPI_TYPE_CDROM:
+	if (acdattach(atp))
+		goto notfound;
+	break; 
 #endif
 #if NATAPIFD > 0
-		case ATAPI_TYPE_DIRECT:
-		    if (afdattach(atp))
-			goto notfound;
-		    break; 
+    case ATAPI_TYPE_DIRECT:
+	if (afdattach(atp))
+		goto notfound;
+	break; 
 #endif
 #if NATAPIST > 0
-		case ATAPI_TYPE_TAPE:
-		    if (astattach(atp))
-			goto notfound;
-		    break; 
+    case ATAPI_TYPE_TAPE:
+	if (astattach(atp))
+		goto notfound;
+	break; 
 #endif
 notfound:
-		default:
-		    bpack(atp->atapi_parm->model, model_buf, sizeof(model_buf));
-		    bpack(atp->atapi_parm->revision, revision_buf, 
-			  sizeof(revision_buf));
-		    printf("ata%d-%s: <%s/%s> %s device - NO DRIVER!\n", 
-			   ctlr, (dev == ATA_MASTER) ? "master" : "slave",
-			   model_buf, revision_buf,
-			   atapi_type(atp->atapi_parm->device_type));
-		    free(atp, M_ATAPI);
-		    atp = NULL;
-		}
-		/* store our softc */
-		atp->controller->dev_softc[(atp->unit==ATA_MASTER)?0:1] = atp;
-	    }
-	}
+    default:
+	printf("ata%d-%s: <%.40s/%.8s> %s device - NO DRIVER!\n", scp->lun, 
+	       (device == ATA_MASTER) ? "master" : "slave", ATP_PARAM->model,
+	       ATP_PARAM->revision, atapi_type(ATP_PARAM->device_type));
+	free(atp, M_ATAPI);
+	atp = NULL;
     }
-    config_intrhook_disestablish(atapi_attach_hook); 
-}
-
-static int32_t
-atapi_getparam(struct atapi_softc *atp)
-{
-    struct atapi_params *atapi_parm;
-    int8_t buffer[DEV_BSIZE];
-
-    /* select drive */
-    outb(atp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | atp->unit);
-    DELAY(1);
-    if (ata_command(atp->controller, atp->unit, ATA_C_ATAPI_IDENTIFY,
-		0, 0, 0, 0, 0, ATA_WAIT_INTR))
-	return -1;
-    if (ata_wait(atp->controller, atp->unit, ATA_S_DRQ))
-	return -1;
-    insw(atp->controller->ioaddr + ATA_DATA, buffer,
-	 sizeof(buffer)/sizeof(int16_t));
-    if (ata_wait(atp->controller, atp->unit, 0))
-	return -1;
-    if (!(atapi_parm = malloc(sizeof(struct atapi_params), M_ATAPI, M_NOWAIT)))
-	return -1; 
-    bcopy(buffer, atapi_parm, sizeof(struct atapi_params));
-    if (!((atapi_parm->model[0] == 'N' && atapi_parm->model[1] == 'E') ||
-	  (atapi_parm->model[0] == 'F' && atapi_parm->model[1] == 'X')))
-	bswap(atapi_parm->model, sizeof(atapi_parm->model));
-    btrim(atapi_parm->model, sizeof(atapi_parm->model));
-    bswap(atapi_parm->revision, sizeof(atapi_parm->revision));
-    btrim(atapi_parm->revision, sizeof(atapi_parm->revision));
-    atp->atapi_parm = atapi_parm;
-    return 0;
+    /* store our softc */
+    atp->controller->dev_softc[(atp->unit==ATA_MASTER)?0:1] = atp;
 }
 
 int32_t	  
@@ -243,7 +149,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     request->bytecount = count;
     request->flags = flags;
     request->timeout = timeout * hz;
-    request->ccbsize = (atp->atapi_parm->cmdsize) ? 16 : 12;
+    request->ccbsize = (ATP_PARAM->cmdsize) ? 16 : 12;
     bcopy(ccb, request->ccb, request->ccbsize);
     if (callback) {
 	request->callback = callback;
@@ -324,7 +230,7 @@ atapi_transfer(struct atapi_request *request)
 	ata_dmastart(atp->controller);
 
     /* command interrupt device ? just return */
-    if (atp->atapi_parm->drqtype == ATAPI_DRQT_INTR)
+    if (ATP_PARAM->drqtype == ATAPI_DRQT_INTR)
 	return;
 
     /* ready to write ATAPI command */
@@ -513,11 +419,11 @@ atapi_reinit(struct atapi_softc *atp)
 {
     /* reinit device parameters */
     ata_dmainit(atp->controller, atp->unit,
-		(apiomode(atp->atapi_parm) < 0) ?
-		(atp->atapi_parm->dmaflag ? 4 : 0) : apiomode(atp->atapi_parm),
-		(wdmamode(atp->atapi_parm) < 0) ? 
-		(atp->atapi_parm->dmaflag ? 2 : 0) : wdmamode(atp->atapi_parm),
-		udmamode(atp->atapi_parm));
+		(ata_pmode(ATP_PARAM) < 0) ?
+		(ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
+		(ata_wmode(ATP_PARAM) < 0) ? 
+		(ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
+		ata_umode(ATP_PARAM));
 }
 
 int32_t
@@ -730,25 +636,3 @@ atapi_skey2str(u_int8_t skey)
     default: return("UNKNOWN");
     }
 }
-
-static void
-atapi_init(void)
-{
-    /* register callback for when interrupts are enabled */
-    if (!(atapi_attach_hook =
-	(struct intr_config_hook *)malloc(sizeof(struct intr_config_hook),
-					  M_TEMP, M_NOWAIT))) {
-	printf("atapi: malloc attach_hook failed\n");
-	return;
-    }
-    bzero(atapi_attach_hook, sizeof(struct intr_config_hook));
-
-    atapi_attach_hook->ich_func = atapi_attach;
-    if (config_intrhook_establish(atapi_attach_hook) != 0) {
-	printf("atapi: config_intrhook_establish failed\n");
-	free(atapi_attach_hook, M_TEMP);
-    }
-
-}
-
-SYSINIT(atconf, SI_SUB_CONFIGURE, SI_ORDER_SECOND, atapi_init, NULL)

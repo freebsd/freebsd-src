@@ -311,12 +311,11 @@ struct acd_softc {
     struct atapi_softc		*atp;		/* controller structure */
     int32_t			lun;		/* logical device unit */
     int32_t			flags;		/* device state flags */
-#define 	F_BOPEN			0x0001	/* the block device is opened */
-#define 	F_LOCKED		0x0002	/* this unit is locked */
-#define 	F_WRITING		0x0004	/* this unit is writing */
-#define 	F_WRITTEN		0x0008	/* medium has been written to */
-#define 	F_DISK_OPEN		0x0010	/* disk open for writing */
-#define 	F_TRACK_OPEN		0x0020	/* track open for writing */
+#define 	F_LOCKED		0x0001	/* this unit is locked */
+#define 	F_WRITING		0x0002	/* this unit is writing */
+#define 	F_WRITTEN		0x0004	/* medium has been written to */
+#define 	F_DISK_OPEN		0x0008	/* disk open for writing */
+#define 	F_TRACK_OPEN		0x0010	/* track open for writing */
 
     int32_t			refcnt;		/* the number of raw opens */
     struct buf_queue_head	buf_queue;	/* Queue of i/o requests */

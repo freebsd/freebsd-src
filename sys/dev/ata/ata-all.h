@@ -97,6 +97,9 @@
 #define ATA_IOSIZE			0x08
 #define ATA_OP_FINISHED			0x00
 #define ATA_OP_CONTINUES		0x01
+#define ATA_DEV(unit)			((unit == ATA_MASTER) ? 0 : 1)
+#define ATA_PARAM(scp, unit)		scp->dev_param[ATA_DEV(unit)]
+
 
 /* busmaster DMA related defines */
 #define ATA_BM_OFFSET1			0x08
@@ -124,6 +127,126 @@ struct ata_dmaentry {
 	u_int32_t count;
 };  
 
+/* ATA/ATAPI device parameter information */
+struct ata_params {
+    u_int8_t    cmdsize         :2;             /* packet command size */
+#define         ATAPI_PSIZE_12          0       /* 12 bytes */
+#define         ATAPI_PSIZE_16          1       /* 16 bytes */
+
+    u_int8_t                    :3;
+    u_int8_t    drqtype         :2;             /* DRQ type */
+#define         ATAPI_DRQT_MPROC        0       /* cpu    3 ms delay */
+#define         ATAPI_DRQT_INTR         1       /* intr  10 ms delay */
+#define         ATAPI_DRQT_ACCEL        2       /* accel 50 us delay */
+
+    u_int8_t    removable       :1;             /* device is removable */
+    u_int8_t    device_type     :5;             /* device type */
+#define         ATAPI_TYPE_DIRECT       0       /* disk/floppy */
+#define         ATAPI_TYPE_TAPE         1       /* streaming tape */
+#define         ATAPI_TYPE_CDROM        5       /* CD-ROM device */
+#define         ATAPI_TYPE_OPTICAL      7       /* optical disk */
+
+    u_int8_t                    :1;
+    u_int8_t    proto           :2;             /* command protocol */
+#define         ATAPI_PROTO_ATAPI       2
+
+    u_int16_t	cylinders;			/* number of cylinders */
+    int16_t	reserved2;
+    u_int16_t	heads;				/* # heads */
+    int16_t	unfbytespertrk;			/* # unformatted bytes/track */
+    int16_t	unfbytes;			/* # unformatted bytes/sector */
+    u_int16_t	sectors;			/* # sectors/track */
+    int16_t	vendorunique0[3];
+    int8_t	serial[20];			/* serial number */
+    int16_t	buffertype;			/* buffer type */
+#define ATA_BT_SINGLEPORTSECTOR		1	/* 1 port, 1 sector buffer */
+#define ATA_BT_DUALPORTMULTI		2	/* 2 port, mult sector buffer */
+#define ATA_BT_DUALPORTMULTICACHE	3	/* above plus track cache */
+
+    int16_t	buffersize;			/* buf size, 512-byte units */
+    int16_t	necc;				/* ecc bytes appended */
+    int8_t	revision[8];			/* firmware revision */
+    int8_t	model[40];			/* model name */
+    int8_t	nsecperint;			/* sectors per interrupt */
+    int8_t	vendorunique1;
+    int16_t	usedmovsd;			/* double word read/write? */
+
+    u_int8_t	vendorcap;			/* vendor capabilities */
+    u_int8_t	dmaflag		:1;		/* DMA supported - always 1 */
+    u_int8_t	lbaflag		:1;		/* LBA supported - always 1 */
+    u_int8_t	iordydis	:1;		/* IORDY may be disabled */
+    u_int8_t	iordyflag	:1;		/* IORDY supported */
+    u_int8_t			:1;
+    u_int8_t	stdby_ovlap	:1;		/* standby/overlap supported */
+    u_int8_t			:1;
+    u_int8_t	idmaflag	:1;		/* interleaved DMA supported */
+    int16_t	capvalidate;			/* validation for above */
+
+    int8_t	vendorunique3;
+    int8_t	opiomode;			/* PIO modes 0-2 */
+    int8_t	vendorunique4;
+    int8_t	odmamode;			/* old DMA modes, not ATA-3 */
+
+    int16_t	atavalid;			/* fields valid */
+#define		ATA_FLAG_54_58	      1		/* words 54-58 valid */
+#define		ATA_FLAG_64_70	      2		/* words 64-70 valid */
+#define		ATA_FLAG_88	      4		/* word 88 valid */
+
+    int16_t	currcyls;
+    int16_t	currheads;
+    int16_t	currsectors;
+    int16_t	currsize0;
+    int16_t	currsize1;
+    int8_t	currmultsect;
+    int8_t	multsectvalid;
+    int32_t	lbasize;
+
+    int16_t	sdmamodes;			/* singleword DMA modes */ 
+    int16_t	wdmamodes;			/* multiword DMA modes */ 
+    int16_t	apiomodes;			/* advanced PIO modes */ 
+
+    u_int16_t	mwdmamin;			/* min. M/W DMA time/word ns */
+    u_int16_t	mwdmarec;			/* rec. M/W DMA time ns */
+    u_int16_t	pioblind;			/* min. PIO cycle w/o flow */
+    u_int16_t	pioiordy;			/* min. PIO cycle IORDY flow */
+
+    int16_t	reserved69;
+    int16_t	reserved70;
+    u_int16_t	rlsovlap;			/* rel time (us) for overlap */
+    u_int16_t	rlsservice;			/* rel time (us) for service */
+    int16_t	reserved73;
+    int16_t	reserved74;
+    int16_t	queuelen;
+    int16_t	reserved76;
+    int16_t	reserved77;
+    int16_t	reserved78;
+    int16_t	reserved79;
+    int16_t	versmajor;
+    int16_t	versminor;
+    int16_t	featsupp1;
+    int16_t	featsupp2;
+    int16_t	featsupp3;
+    int16_t	featenab1;
+    int16_t	featenab2;
+    int16_t	featenab3;
+    int16_t	udmamodes;			/* UltraDMA modes */
+    int16_t	erasetime;
+    int16_t	enherasetime;
+    int16_t	apmlevel;
+    int16_t	masterpasswdrev;
+    u_int16_t	masterhwres	:8;
+    u_int16_t	slavehwres	:5;
+    u_int16_t	cblid		:1;
+    u_int16_t	reserved93_1415	:2;
+    int16_t	reserved94[32];
+    int16_t	rmvstat;
+    int16_t	securstat;
+    int16_t	reserved129[30];
+    int16_t	cfapwrmode;
+    int16_t	reserved161[84];
+    int16_t	integrity;
+};
+
 /* structure describing an ATA device */
 struct ata_softc {
     int32_t			unit;		/* unit on this controller */
@@ -133,6 +256,7 @@ struct ata_softc {
     int32_t			altioaddr;	/* alternate port addr */
     int32_t			bmaddr;		/* bus master DMA port */
     int32_t			chiptype;	/* pciid of controller chip */
+    struct ata_params		*dev_param[2];	/* ptr to devices params */
     void			*dev_softc[2];	/* ptr to devices softc's */
     struct ata_dmaentry		*dmatab[2];	/* DMA transfer tables */
     int32_t 			mode[2];	/* transfer mode for devices */
@@ -191,9 +315,9 @@ int32_t ata_dmasetup(struct ata_softc *, int32_t, int8_t *, int32_t, int32_t);
 void ata_dmastart(struct ata_softc *);
 int32_t ata_dmastatus(struct ata_softc *);
 int32_t ata_dmadone(struct ata_softc *);
+int32_t ata_pmode(struct ata_params *);
+int32_t ata_wmode(struct ata_params *);
+int32_t ata_umode(struct ata_params *);
 int8_t *ata_mode2str(int32_t);
 int8_t ata_pio2mode(int32_t);
-void bswap(int8_t *, int32_t);
-void btrim(int8_t *, int32_t);
-void bpack(int8_t *, int8_t *, int32_t);
 int32_t ata_find_dev(device_t, int32_t);

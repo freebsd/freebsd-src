@@ -72,210 +72,130 @@ static struct cdevsw ad_cdevsw = {
 	/* dump */	addump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	30,
+	/* bmaj */	30
 };
 static struct cdevsw addisk_cdevsw;
-static struct cdevsw fakewd_cdevsw;
+static struct cdevsw fakewd_cdevsw = {
+	/* open */	adopen,
+	/* close */	nullclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	noioctl,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	adstrategy,
+	/* name */	"wd",
+	/* maj */	3,
+	/* dump */	addump,
+	/* psize */	nopsize,
+	/* flags */	D_DISK,
+	/* bmaj */	0
+};
 static struct cdevsw fakewddisk_cdevsw;
 
 /* prototypes */
-static void ad_attach(void *);
-static int32_t ad_getparam(struct ad_softc *);
 static void ad_start(struct ad_softc *);
 static void ad_timeout(struct ad_request *);
 static int32_t ad_version(u_int16_t);
-static void ad_drvinit(void);
 
 /* internal vars */
-static struct intr_config_hook *ad_attach_hook;
 MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 
 /* defines */
 #define	AD_MAX_RETRIES	3
+#define AD_PARAM	ATA_PARAM(adp->controller, adp->unit)
 
-static __inline int
-apiomode(struct ata_params *ap)
-{
-    if (ap->atavalid & ATA_FLAG_64_70) {
-	if (ap->apiomodes & 2) return 4;
-	if (ap->apiomodes & 1) return 3;
-    }	
-    return -1; 
-} 
-
-static __inline int
-wdmamode(struct ata_params *ap)
-{
-    if (ap->atavalid & ATA_FLAG_64_70) {
-	if (ap->wdmamodes & 4) return 2;
-	if (ap->wdmamodes & 2) return 1;
-	if (ap->wdmamodes & 1) return 0;
-    }
-    return -1;
-}
-
-static __inline int
-udmamode(struct ata_params *ap)
-{
-    if (ap->atavalid & ATA_FLAG_88) {
-	if (ap->udmamodes & 0x10) return (ap->cblid ? 4 : 2);
-	if (ap->udmamodes & 0x08) return (ap->cblid ? 3 : 2);
-	if (ap->udmamodes & 0x04) return 2;
-	if (ap->udmamodes & 0x02) return 1;
-	if (ap->udmamodes & 0x01) return 0;
-    }
-    return -1;
-}
-
-static void
-ad_attach(void *notused)
+void
+ad_attach(struct ata_softc *scp, int32_t device)
 {
     struct ad_softc *adp;
-    int32_t ctlr, dev, secsperint;
-    int8_t model_buf[40+1];
-    int8_t revision_buf[8+1];
-    dev_t dev1;
     static int32_t adnlun = 0;
+    dev_t dev1;
+    int32_t secsperint;
 
-    /* now, run through atadevices and look for ATA disks */
-    for (ctlr=0; ctlr<MAXATA; ctlr++) {
-	if (!atadevices[ctlr]) continue;
-	for (dev=0; dev<2; dev++) {
-	    if (atadevices[ctlr]->devices & 
-		(dev ? ATA_ATA_SLAVE : ATA_ATA_MASTER)) {
 #ifdef ATA_STATIC_ID
-		adnlun = dev + ctlr * 2;   
+    adnlun = (scp->lun << 1) + ATA_DEV(device);   
 #endif
-		if (!(adp = malloc(sizeof(struct ad_softc), 
-				   M_AD, M_NOWAIT))) {
-		    printf("ad%d: failed to allocate driver storage\n", adnlun);
-		    continue;
-		}
-		bzero(adp, sizeof(struct ad_softc));
-		adp->controller = atadevices[ctlr];
-		adp->unit = (dev == 0) ? ATA_MASTER : ATA_SLAVE;
-		adp->lun = adnlun++;
-		if (ad_getparam(adp)) {
-		    free(adp, M_AD);
-		    continue;
-		}
-		adp->controller->dev_softc[(adp->unit==ATA_MASTER)?0:1] = adp;
-		adp->heads = adp->ata_parm->heads;
-		adp->sectors = adp->ata_parm->sectors;
-		adp->total_secs = 
-		    adp->ata_parm->cylinders * adp->heads * adp->sectors;	
-		if (adp->ata_parm->cylinders == 16383 && 
-		    adp->total_secs < adp->ata_parm->lbasize) {
-		    adp->total_secs = adp->ata_parm->lbasize;
-		}
-		if (adp->ata_parm->atavalid & ATA_FLAG_54_58 &&
-		    adp->ata_parm->lbasize)
-		    adp->flags |= AD_F_LBA_ENABLED;
-
-		/* use multiple sectors/interrupt if device supports it */
-		adp->transfersize = DEV_BSIZE;
-		secsperint = max(1, min(adp->ata_parm->nsecperint, 16));
-		if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
-				 0, 0, 0, secsperint, 0, ATA_WAIT_INTR) &&
-		    ata_wait(adp->controller, adp->unit, ATA_S_READY) >= 0)
-		    adp->transfersize *= secsperint;
-
-		/* enable read/write cacheing if not default on device */
-		if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-			    0, 0, 0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
-		    printf("ad%d: enabling readahead cache failed\n", adp->lun);
-
-		if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-			    0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
-		    printf("ad%d: enabling write cache failed\n", adp->lun);
-
-		/* use DMA if drive & controller supports it */
-		if (!ata_dmainit(adp->controller, adp->unit,
-				 apiomode(adp->ata_parm),
-				 wdmamode(adp->ata_parm),
-				 udmamode(adp->ata_parm)))
-		    adp->flags |= AD_F_DMA_ENABLED;
-
-		/* use tagged queueing if supported (not yet) */
-		if ((adp->num_tags = (adp->ata_parm->queuelen & 0x1f) + 1))
-		    adp->flags |= AD_F_TAG_ENABLED;
-
-		bpack(adp->ata_parm->model, model_buf, sizeof(model_buf));
-		bpack(adp->ata_parm->revision, revision_buf, 
-		      sizeof(revision_buf));
-
-		if (bootverbose)
-		    printf("ad%d: piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
-		           adp->lun, apiomode(adp->ata_parm),
-		           wdmamode(adp->ata_parm), udmamode(adp->ata_parm),
-			   adp->ata_parm->cblid);
-
-		printf("ad%d: <%s/%s> ATA-%d disk at ata%d as %s\n", 
-		       adp->lun, model_buf, revision_buf,
-		       ad_version(adp->ata_parm->versmajor), ctlr,
-		       (adp->unit == ATA_MASTER) ? "master" : "slave ");
-
-		printf("ad%d: %luMB (%u sectors), "
-		       "%u cyls, %u heads, %u S/T, %u B/S\n",
-		       adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
-		       adp->total_secs, 
-		       adp->total_secs / (adp->heads * adp->sectors),
-		       adp->heads, adp->sectors, DEV_BSIZE);
-
-		printf("ad%d: %d secs/int, %d depth queue, %s\n", 
-		       adp->lun, adp->transfersize / DEV_BSIZE, adp->num_tags,
-		       ata_mode2str(adp->controller->mode[
-				    (adp->unit == ATA_MASTER) ? 0 : 1]));
-
-		devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
-				  DEVSTAT_NO_ORDERED_TAGS,
-				  DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
-				  DEVSTAT_PRIORITY_DISK);
-
-		dev1 = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, 
-				   &addisk_cdevsw);
-		dev1->si_drv1 = adp;
-		dev1->si_iosize_max = 256 * DEV_BSIZE;
-
-		dev1 = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw,
-				   &fakewddisk_cdevsw);
-		dev1->si_drv1 = adp;
-		dev1->si_iosize_max = 256 * DEV_BSIZE;
-
-		bufq_init(&adp->queue);
-	    }
-	}
+    if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT))) {
+	printf("ad%d: failed to allocate driver storage\n", adnlun);
+	return;
     }
-    config_intrhook_disestablish(ad_attach_hook);
-}
+    bzero(adp, sizeof(struct ad_softc));
+    scp->dev_softc[ATA_DEV(device)] = adp;
+    adp->controller = scp;
+    adp->unit = device;
+    adp->lun = adnlun++;
+    adp->heads = AD_PARAM->heads;
+    adp->sectors = AD_PARAM->sectors;
+    adp->total_secs = AD_PARAM->cylinders * adp->heads * adp->sectors;	
+    if (AD_PARAM->cylinders == 16383 && adp->total_secs < AD_PARAM->lbasize)
+	adp->total_secs = AD_PARAM->lbasize;
+    
+    if (AD_PARAM->atavalid & ATA_FLAG_54_58 && AD_PARAM->lbasize)
+	adp->flags |= AD_F_LBA_ENABLED;
 
-static int32_t
-ad_getparam(struct ad_softc *adp)
-{
-    struct ata_params *ata_parm;
-    int8_t buffer[DEV_BSIZE];
+    /* use multiple sectors/interrupt if device supports it */
+    adp->transfersize = DEV_BSIZE;
+    secsperint = max(1, min(AD_PARAM->nsecperint, 16));
+    if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
+		     0, 0, 0, secsperint, 0, ATA_WAIT_INTR) &&
+        ata_wait(adp->controller, adp->unit, ATA_S_READY) >= 0)
+        adp->transfersize *= secsperint;
 
-    /* select drive */
-    outb(adp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | adp->unit);
-    DELAY(1);
-    if (ata_command(adp->controller, adp->unit, ATA_C_ATA_IDENTIFY,
-		0, 0, 0, 0, 0, ATA_WAIT_INTR))
-	return -1;
-    if (ata_wait(adp->controller, adp->unit,
-		 ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
-	return -1;
-    insw(adp->controller->ioaddr + ATA_DATA, buffer, 
-	 sizeof(buffer)/sizeof(int16_t));
-    ata_parm = malloc(sizeof(struct ata_params), M_AD, M_NOWAIT);
-    if (!ata_parm) 
-	return -1; 
-    bcopy(buffer, ata_parm, sizeof(struct ata_params));
-    bswap(ata_parm->model, sizeof(ata_parm->model));
-    btrim(ata_parm->model, sizeof(ata_parm->model));
-    bswap(ata_parm->revision, sizeof(ata_parm->revision));
-    btrim(ata_parm->revision, sizeof(ata_parm->revision));
-    adp->ata_parm = ata_parm;
-    return 0;
+    /* enable read/write cacheing if not default on device */
+    if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+		    0, 0, 0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
+	printf("ad%d: enabling readahead cache failed\n", adp->lun);
+
+    if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+		    0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
+	printf("ad%d: enabling write cache failed\n", adp->lun);
+
+    /* use DMA if drive & controller supports it */
+    if (!ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
+		     ata_wmode(AD_PARAM), ata_umode(AD_PARAM)))
+	adp->flags |= AD_F_DMA_ENABLED;
+
+    /* use tagged queueing if supported (not yet) */
+    if ((adp->num_tags = (AD_PARAM->queuelen & 0x1f) + 1))
+	adp->flags |= AD_F_TAG_ENABLED;
+
+
+    if (bootverbose)
+	printf("ad%d: piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
+	       adp->lun, ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
+	       ata_umode(AD_PARAM), AD_PARAM->cblid);
+
+    printf("ad%d: <%s/%s> ATA-%d disk at ata%d as %s\n", 
+	   adp->lun, AD_PARAM->model, AD_PARAM->revision,
+	   ad_version(AD_PARAM->versmajor), scp->lun,
+	   (adp->unit == ATA_MASTER) ? "master" : "slave ");
+
+    printf("ad%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
+	   adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
+	   adp->total_secs, 
+	   adp->total_secs / (adp->heads * adp->sectors),
+	   adp->heads, adp->sectors, DEV_BSIZE);
+
+    printf("ad%d: %d secs/int, %d depth queue, %s\n", 
+	   adp->lun, adp->transfersize / DEV_BSIZE, adp->num_tags,
+	   ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
+
+    devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
+		      DEVSTAT_NO_ORDERED_TAGS,
+		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
+		      DEVSTAT_PRIORITY_DISK);
+
+    dev1 = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, &addisk_cdevsw);
+    dev1->si_drv1 = adp;
+    dev1->si_iosize_max = 256 * DEV_BSIZE;
+
+    dev1 = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw,
+		       &fakewddisk_cdevsw);
+    dev1->si_drv1 = adp;
+    dev1->si_iosize_max = 256 * DEV_BSIZE;
+
+    bufq_init(&adp->queue);
 }
 
 static int
@@ -543,7 +463,7 @@ oops:
 		printf(" retrying\n");
 	    else {
 		ata_dmainit(adp->controller, adp->unit, 
-			    apiomode(adp->ata_parm), -1, -1);
+			    ata_pmode(AD_PARAM), -1, -1);
 		adp->flags &= ~AD_F_DMA_ENABLED;
 		printf(" falling back to PIO mode\n");
 	    }
@@ -555,7 +475,7 @@ oops:
 	if (request->flags & AR_F_DMA_USED) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
 	    ata_dmainit(adp->controller, adp->unit, 
-			apiomode(adp->ata_parm), -1, -1);
+			ata_pmode(AD_PARAM), -1, -1);
 	    request->flags |= AR_F_FORCE_PIO;
 	    adp->flags &= ~AD_F_DMA_ENABLED;
 	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
@@ -638,8 +558,8 @@ ad_reinit(struct ad_softc *adp)
     ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0, 0, 0,
 		adp->transfersize / DEV_BSIZE, 0, ATA_IMMEDIATE);
     ata_wait(adp->controller, adp->unit, ATA_S_READY);
-    ata_dmainit(adp->controller, adp->unit, apiomode(adp->ata_parm),
-		wdmamode(adp->ata_parm), udmamode(adp->ata_parm));
+    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
+		ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
 }
 
 static void
@@ -653,8 +573,7 @@ ad_timeout(struct ad_request *request)
     if (request->flags & AR_F_DMA_USED) {
 	ata_dmadone(adp->controller);
         if (request->retries == AD_MAX_RETRIES) {
-	    ata_dmainit(adp->controller, adp->unit, 
-			apiomode(adp->ata_parm), -1, -1);
+	    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1,-1);
 	    adp->flags &= ~AD_F_DMA_ENABLED;
 	    printf("ad%d: ad_timeout: trying fallback to PIO mode\n", adp->lun);
 	    request->retries = 0;
@@ -687,29 +606,3 @@ ad_version(u_int16_t version)
 	    return bit;
     return 0;
 }
-
-static void 
-ad_drvinit(void)
-{
-    fakewd_cdevsw = ad_cdevsw;
-    fakewd_cdevsw.d_maj = 3;
-    fakewd_cdevsw.d_bmaj = 0;
-    fakewd_cdevsw.d_name = "wd";
-    
-    /* register callback for when interrupts are enabled */
-    if (!(ad_attach_hook = 
-	(struct intr_config_hook *)malloc(sizeof(struct intr_config_hook),
-					  M_TEMP, M_NOWAIT))) {
-	printf("ad: malloc attach_hook failed\n");
-	return;
-    }
-    bzero(ad_attach_hook, sizeof(struct intr_config_hook));
-
-    ad_attach_hook->ich_func = ad_attach;
-    if (config_intrhook_establish(ad_attach_hook) != 0) {
-	printf("ad: config_intrhook_establish failed\n");
-	free(ad_attach_hook, M_TEMP);
-    }
-}
-
-SYSINIT(addev, SI_SUB_DRIVERS, SI_ORDER_SECOND, ad_drvinit, NULL)
