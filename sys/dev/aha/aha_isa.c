@@ -193,7 +193,8 @@ aha_isa_attach(device_t dev)
 	void		 *filter_arg;
 	bus_addr_t	 lowaddr;
 	void		 *ih;
-	int		 error;
+	int		 error = ENOMEM;
+	int		 aha_free_needed = 0;
 
 	aha->dev = dev;
 	aha->portrid = 0;
@@ -201,7 +202,7 @@ aha_isa_attach(device_t dev)
 	    0, ~0, AHA_NREGS, RF_ACTIVE);
 	if (!aha->port) {
 		device_printf(dev, "Unable to allocate I/O ports\n");
-		return ENOMEM;
+		goto fail;
 	}
 
 	aha->irqrid = 0;
@@ -209,9 +210,7 @@ aha_isa_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!aha->irq) {
 		device_printf(dev, "Unable to allocate excluse use of irq\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
-		    aha->port);
-		return ENOMEM;
+		goto fail;
 	}
 
 	aha->drqrid = 0;
@@ -219,10 +218,7 @@ aha_isa_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!aha->drq) {
 		device_printf(dev, "Unable to allocate drq\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
-		    aha->port);
-		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
-		return ENOMEM;
+		goto fail;
 	}
 
 #if 0				/* is the drq ever unset? */
@@ -250,23 +246,14 @@ aha_isa_attach(device_t dev)
 				/* lockfunc	*/ busdma_lock_mutex,
 				/* lockarg	*/ &Giant,
 				&aha->parent_dmat) != 0) {
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
-		    aha->port);
-		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
-		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
-		aha_free(aha);
-		return (ENOMEM);
-	}
+		device_printf(dev, "dma tag create failed.\n");
+		goto fail;
+        }                              
 
 	if (aha_init(aha)) {
 		device_printf(dev, "init failed\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
-		    aha->port);
-		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
-		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
-		aha_free(aha);
-		return (ENOMEM);
-	} 
+		goto fail;
+        }
 	/*
 	 * The 1542A and B look the same.  So we guess based on
 	 * the firmware revision.  It appears that only rev 0 is on
@@ -277,31 +264,29 @@ aha_isa_attach(device_t dev)
 		aha->ccb_sg_opcode = INITIATOR_SG_CCB;
 		aha->ccb_ccb_opcode = INITIATOR_CCB;
 	}
+	aha_free_needed++;
 	
 	error = aha_attach(aha);
 	if (error) {
 		device_printf(dev, "attach failed\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
-		    aha->port);
-		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
-		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
-		aha_free(aha);
-		return (error);
+		goto fail;
 	}
 
 	error = bus_setup_intr(dev, aha->irq, INTR_TYPE_CAM|INTR_ENTROPY,
 	    aha_intr, aha, &ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
-		    aha->port);
-		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
-		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
-		aha_free(aha);
-		return (error);
+                goto fail;
 	}
 
 	return (0);
+fail: ;
+	bus_free_resource(dev, SYS_RES_IOPORT, aha->port);
+	bus_free_resource(dev, SYS_RES_IRQ, aha->irq);
+	bus_free_resource(dev, SYS_RES_DRQ, aha->drq);
+	if (aha_free_needed)
+		aha_free(aha);
+	return (error);
 }
 
 static int
@@ -311,13 +296,12 @@ aha_isa_detach(device_t dev)
 	int error;
 
 	error = bus_teardown_intr(dev, aha->irq, aha->ih);
-	if (error) {
+	if (error)
 		device_printf(dev, "failed to unregister interrupt handler\n");
-	}
 
-	bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
-	bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
-	bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
+	bus_free_resource(dev, SYS_RES_IOPORT, aha->port);
+	bus_free_resource(dev, SYS_RES_IRQ, aha->irq);
+	bus_free_resource(dev, SYS_RES_DRQ, aha->drq);
 
 	error = aha_detach(aha);
 	if (error) {
