@@ -742,7 +742,7 @@ try_krb5_authentication(krb5_context *context, krb5_auth_context *auth_context)
      goto out;
   }
   
-  packet_start(SSH_CMSG_AUTH_KRB5);
+  packet_start(SSH_CMSG_AUTH_KERBEROS);
   packet_put_string((char *) ap.data, ap.length);
   packet_send();
   packet_write_wait();
@@ -753,13 +753,13 @@ try_krb5_authentication(krb5_context *context, krb5_auth_context *auth_context)
   type = packet_read(&payload_len);
    switch (type) {
         case SSH_SMSG_FAILURE:
-                /* Should really be SSH_SMSG_AUTH_KRB5_FAILURE */
+                /* Should really be SSH_SMSG_AUTH_KERBEROS_FAILURE */
                 debug("Kerberos V5 authentication failed.");
                 ret = 0;
                 break;
 
-         case SSH_SMSG_AUTH_KRB5_RESPONSE:
-                /* SSH_SMSG_AUTH_KRB5_SUCCESS */
+         case SSH_SMSG_AUTH_KERBEROS_RESPONSE:
+                /* SSH_SMSG_AUTH_KERBEROS_SUCCESS */
                 debug("Kerberos V5 authentication accepted.");
 
                 /* Get server's response. */
@@ -870,7 +870,7 @@ send_krb5_tgt(krb5_context context, krb5_auth_context auth_context)
      goto out;
   }
   
-  packet_start(SSH_CMSG_HAVE_KRB5_TGT);
+  packet_start(SSH_CMSG_HAVE_KERBEROS_TGT);
   packet_put_string((char *)outbuf.data, outbuf.length);
   packet_send();
   packet_write_wait();
