@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.42 1994/11/13 01:46:22 jkh Exp $
+#	$Id: Makefile,v 1.43 1994/11/14 20:56:17 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -18,7 +18,7 @@ DDCOUNT=	80
 MNT=		/mnt
 
 CPIO1= basename cat chmod cp date dd df dmesg echo ed expr hostname kill ln
-CPIO1+= ls mkdir mt mv rcp rm rmdir sh sleep stty sync test tip [ -sh
+CPIO1+= ls mkdir mt mv rcp rm rmdir sh sleep stty sync tar test tip [ -sh
 CPIO1+= badsect chown clri disklabel dump dmesg fdisk fsck ifconfig init
 CPIO1+= mknod mount mount_cd9660 mount_msdos mount_nfs ncftp newfs ping pwd
 CPIO1+= reboot restore slattach swapon umount route
