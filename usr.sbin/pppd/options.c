@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.3 1995/05/24 01:56:52 davidg Exp $";
+static char rcsid[] = "$Id: options.c,v 1.5 1995/09/06 16:33:40 pst Exp $";
 #endif
 
 #include <stdio.h>
@@ -1216,14 +1216,14 @@ static int
 setnetmask(argv)
     char **argv;
 {
-    u_long mask;
+    struct in_addr mask;
 
-    if ((mask = inet_addr(*argv)) == -1 || (netmask & ~mask) != 0) {
+    if ((inet_aton(*argv, &mask) < 0) || (netmask & ~mask.s_addr)) {
 	fprintf(stderr, "Invalid netmask %s\n", *argv);
-	return 0;
+	return (0);
     }
 
-    netmask = mask;
+    netmask = mask.s_addr;
     return (1);
 }
 
