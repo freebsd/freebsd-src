@@ -56,10 +56,6 @@ struct snoop {
 	struct selinfo	snp_sel;	/* Selection info	       */
 	int		snp_olddisc;	/* Old line discipline	       */
 };
-
-/* XXX several wrong storage classes and types here. */
-int	snpdown __P((struct snoop *snp));
-int	snpin __P((struct snoop *snp, char *buf, int n));
 #endif /* _KERNEL */
 
 /*
