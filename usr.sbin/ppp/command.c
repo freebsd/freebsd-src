@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.76 1998/05/01 19:22:16 brian Exp $
+ * $Id: command.c,v 1.131.2.77 1998/05/01 19:24:16 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/01 19:22:16 $";
+const char VersionDate[] = "$Date: 1998/05/01 19:24:16 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1404,36 +1404,39 @@ static int
 AddCommand(struct cmdargs const *arg)
 {
   struct in_addr dest, gateway, netmask;
-  int gw;
+  int gw, addrs;
 
   if (arg->argc != arg->argn+3 && arg->argc != arg->argn+2)
     return -1;
 
+  addrs = 0;
   if (arg->argc == arg->argn+2) {
     if (strcasecmp(arg->argv[arg->argn], "default"))
       return -1;
-    else {
-      dest.s_addr = netmask.s_addr = INADDR_ANY;
-      gw = 1;
-    }
+    dest.s_addr = netmask.s_addr = INADDR_ANY;
+    gw = 1;
   } else {
-    if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0)
+    if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0) {
+      addrs = ROUTE_DSTMYADDR;
       dest = arg->bundle->ncp.ipcp.my_ip;
-    else if (strcasecmp(arg->argv[arg->argn], "HISADDR") == 0)
+    } else if (strcasecmp(arg->argv[arg->argn], "HISADDR") == 0) {
+      addrs = ROUTE_DSTHISADDR;
       dest = arg->bundle->ncp.ipcp.peer_ip;
-    else
+    } else
       dest = GetIpAddr(arg->argv[arg->argn]);
     netmask = GetIpAddr(arg->argv[arg->argn+1]);
     gw = 2;
   }
-  if (strcasecmp(arg->argv[arg->argn+gw], "HISADDR") == 0)
+  if (strcasecmp(arg->argv[arg->argn+gw], "HISADDR") == 0) {
     gateway = arg->bundle->ncp.ipcp.peer_ip;
-  else if (strcasecmp(arg->argv[arg->argn+gw], "INTERFACE") == 0)
+    addrs |= ROUTE_GWHISADDR;
+  } else if (strcasecmp(arg->argv[arg->argn+gw], "INTERFACE") == 0)
     gateway.s_addr = INADDR_ANY;
   else
     gateway = GetIpAddr(arg->argv[arg->argn+gw]);
-  bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
-                  arg->cmd->args ? 1 : 0);
+  if (bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
+                  arg->cmd->args ? 1 : 0))
+    route_Add(&arg->bundle->ncp.ipcp.route, addrs, dest, netmask, gateway);
   return 0;
 }
 
@@ -1441,20 +1444,31 @@ static int
 DeleteCommand(struct cmdargs const *arg)
 {
   struct in_addr dest, none;
+  int addrs;
 
   if (arg->argc == arg->argn+1) {
-    if(strcasecmp(arg->argv[arg->argn], "all") == 0)
+    if(strcasecmp(arg->argv[arg->argn], "all") == 0) {
       route_IfDelete(arg->bundle, 0);
-    else {
-      if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0)
+      route_DeleteAll(&arg->bundle->ncp.ipcp.route);
+    } else {
+      addrs = 0;
+      if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0) {
         dest = arg->bundle->ncp.ipcp.my_ip;
-      else if (strcasecmp(arg->argv[arg->argn], "default") == 0)
-        dest.s_addr = INADDR_ANY;
-      else
-        dest = GetIpAddr(arg->argv[arg->argn]);
+        addrs = ROUTE_DSTMYADDR;
+      } else if (strcasecmp(arg->argv[arg->argn], "HISADDR") == 0) {
+        dest = arg->bundle->ncp.ipcp.peer_ip;
+        addrs = ROUTE_DSTHISADDR;
+      } else {
+        if (strcasecmp(arg->argv[arg->argn], "default") == 0)
+          dest.s_addr = INADDR_ANY;
+        else
+          dest = GetIpAddr(arg->argv[arg->argn]);
+        addrs = ROUTE_STATIC;
+      }
       none.s_addr = INADDR_ANY;
       bundle_SetRoute(arg->bundle, RTM_DELETE, dest, none, none,
                       arg->cmd->args ? 1 : 0);
+      route_Delete(&arg->bundle->ncp.ipcp.route, addrs, dest);
     }
   } else
     return -1;
@@ -1757,12 +1771,14 @@ static struct cmdtab const NegotiateCommands[] = {
   "disable|enable", (const void *)OPT_PASSWDAUTH},
   {"proxy", NULL, OptSet, LOCAL_AUTH, "Create proxy ARP entry",
   "disable|enable", (const void *)OPT_PROXY},
+  {"sroutes", NULL, OptSet, LOCAL_AUTH, "Use sticky routes",
+  "disable|enable", (const void *)OPT_SROUTES},
   {"throughput", NULL, OptSet, LOCAL_AUTH, "Rolling throughput",
   "disable|enable", (const void *)OPT_THROUGHPUT},
   {"utmp", NULL, OptSet, LOCAL_AUTH, "Log connections in utmp",
   "disable|enable", (const void *)OPT_UTMP},
 
-#define OPT_MAX 6	/* accept/deny allowed below and not above */
+#define OPT_MAX 7	/* accept/deny allowed below and not above */
 
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Address & Control field compression", "accept|deny|disable|enable",

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.24 1998/04/23 18:56:18 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.25 1998/05/01 19:24:53 brian Exp $
  *
  *	TODO:
  */
@@ -33,6 +33,8 @@
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
 #define TY_ADJUST_NS		119 /* subtract from NS val for REJECT bit */
+
+struct sticky_route;
 
 struct in_range {
   struct in_addr ipaddr;
@@ -72,6 +74,7 @@ struct ipcp {
     struct slstat slstat;		/* VJ statistics */
   } vj;
 
+  struct sticky_route *route;		/* List of dynamic routes */
 
   unsigned heis1172 : 1;		/* True if he is speaking rfc1172 */
 

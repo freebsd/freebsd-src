@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.20 1998/04/28 01:25:39 brian Exp $
+ * $Id: route.c,v 1.42.2.21 1998/05/01 19:25:46 brian Exp $
  *
  */
 
@@ -433,4 +433,130 @@ GetIfIndex(char *name)
     else
       idx++;
   return -1;
+}
+
+void
+route_Change(struct bundle *bundle, struct sticky_route *r,
+             struct in_addr me, struct in_addr peer)
+{
+  struct in_addr none, del;
+
+  none.s_addr = INADDR_ANY;
+  for (; r; r = r->next) {
+    if ((r->type & ROUTE_DSTMYADDR) && r->dst.s_addr != me.s_addr) {
+      del.s_addr = r->dst.s_addr & r->mask.s_addr;
+      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+      r->dst = me;
+      if (r->type & ROUTE_GWHISADDR)
+        r->gw = peer;
+    } else if ((r->type & ROUTE_DSTHISADDR) && r->dst.s_addr != peer.s_addr) {
+      del.s_addr = r->dst.s_addr & r->mask.s_addr;
+      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+      r->dst = peer;
+      if (r->type & ROUTE_GWHISADDR)
+        r->gw = peer;
+    } else if ((r->type & ROUTE_GWHISADDR) && r->gw.s_addr != peer.s_addr)
+      r->gw = peer;
+    else
+      continue;
+    bundle_SetRoute(bundle, RTM_ADD, r->dst, r->gw, r->mask, 1);
+  }
+}
+
+void
+route_Clean(struct bundle *bundle, struct sticky_route *r)
+{
+  struct in_addr none, del;
+
+  none.s_addr = INADDR_ANY;
+  for (; r; r = r->next) {
+    del.s_addr = r->dst.s_addr & r->mask.s_addr;
+    bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+  }
+}
+
+void
+route_Add(struct sticky_route **rp, int type, struct in_addr dst,
+          struct in_addr mask, struct in_addr gw)
+{
+  if (type != ROUTE_STATIC) {
+    struct sticky_route *r;
+    int dsttype = type & ROUTE_DSTANY;
+
+    r = NULL;
+    while (*rp) {
+      if (dsttype && dsttype == ((*rp)->type & ROUTE_DSTANY)) {
+        r = *rp;
+        *rp = r->next;
+      } else
+        rp = &(*rp)->next;
+    }
+
+    if (!r)
+      r = (struct sticky_route *)malloc(sizeof(struct sticky_route));
+    r->type = type;
+    r->next = NULL;
+    r->dst = dst;
+    r->mask = mask;
+    r->gw = gw;
+    *rp = r;
+  }
+}
+
+void
+route_Delete(struct sticky_route **rp, int type, struct in_addr dst)
+{
+  struct sticky_route *r;
+  int dsttype = type & ROUTE_DSTANY;
+
+  for (; *rp; rp = &(*rp)->next) {
+    if ((dsttype && dsttype == ((*rp)->type & ROUTE_DSTANY)) ||
+        (!dsttype && dst.s_addr == ((*rp)->dst.s_addr & (*rp)->mask.s_addr))) {
+      r = *rp;
+      *rp = r->next;
+      free(r);
+      break;
+    }
+  }
+}
+
+void
+route_DeleteAll(struct sticky_route **rp)
+{
+  struct sticky_route *r, *rn;
+
+  for (r = *rp; r; r = rn) {
+    rn = r->next;
+    free(r);
+  }
+  *rp = NULL;
+}
+
+void
+route_ShowSticky(struct prompt *p, struct sticky_route *r)
+{
+  int def;
+
+  prompt_Printf(p, "Sticky routes:\n");
+  for (; r; r = r->next) {
+    def = r->dst.s_addr == INADDR_ANY && r->mask.s_addr == INADDR_ANY;
+
+    prompt_Printf(p, " add ");
+    if (r->type & ROUTE_DSTMYADDR)
+      prompt_Printf(p, "MYADDR");
+    else if (r->type & ROUTE_DSTHISADDR)
+      prompt_Printf(p, "HISADDR");
+    else if (!def)
+      prompt_Printf(p, "%s", inet_ntoa(r->dst));
+
+    if (def)
+      prompt_Printf(p, "default ");
+    else
+      prompt_Printf(p, " %s ", inet_ntoa(r->mask));
+
+    if (r->type & ROUTE_GWHISADDR)
+      prompt_Printf(p, "HISADDR\n");
+    else
+      prompt_Printf(p, "%s\n", inet_ntoa(r->gw));
+  }
 }

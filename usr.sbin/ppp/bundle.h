@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.34 1998/04/30 23:53:22 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.35 1998/05/02 21:57:44 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -37,8 +37,9 @@
 #define OPT_LOOPBACK	0x02
 #define OPT_PASSWDAUTH	0x04
 #define OPT_PROXY	0x08
-#define OPT_THROUGHPUT	0x10
-#define OPT_UTMP	0x20
+#define OPT_SROUTES	0x10
+#define OPT_THROUGHPUT	0x20
+#define OPT_UTMP	0x40
 
 #define MAX_ENDDISC_CLASS 5
 
@@ -109,8 +110,8 @@ extern const char *bundle_PhaseName(struct bundle *);
 #define bundle_Phase(b) ((b)->phase)
 extern void bundle_NewPhase(struct bundle *, u_int);
 extern int  bundle_LinkIsUp(const struct bundle *);
-extern void bundle_SetRoute(struct bundle *, int, struct in_addr,
-                            struct in_addr, struct in_addr, int);
+extern int bundle_SetRoute(struct bundle *, int, struct in_addr,
+                           struct in_addr, struct in_addr, int);
 extern void bundle_Close(struct bundle *, const char *, int);
 extern void bundle_Open(struct bundle *, const char *, int);
 extern void bundle_LinkClosed(struct bundle *, struct datalink *);

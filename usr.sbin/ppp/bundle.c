@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.70 1998/05/03 22:13:11 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.71 1998/05/05 03:01:24 brian Exp $
  */
 
 #include <sys/types.h>
@@ -522,7 +522,8 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   bundle.cfg.idle_timeout = NCP_IDLE_TIMEOUT;
   *bundle.cfg.auth.name = '\0';
   *bundle.cfg.auth.key = '\0';
-  bundle.cfg.opt = OPT_IDCHECK | OPT_LOOPBACK | OPT_THROUGHPUT | OPT_UTMP;
+  bundle.cfg.opt = OPT_SROUTES | OPT_IDCHECK | OPT_LOOPBACK |
+                   OPT_THROUGHPUT | OPT_UTMP;
   *bundle.cfg.label = '\0';
   bundle.cfg.mtu = DEF_MTU;
   bundle.phys_type = type;
@@ -642,7 +643,7 @@ struct rtmsg {
   char m_space[64];
 };
 
-void
+int
 bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
                 struct in_addr gateway, struct in_addr mask, int bang)
 {
@@ -651,6 +652,7 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   char *cp;
   const char *cmdstr;
   struct sockaddr_in rtdata;
+  int result = 1;
 
   if (bang)
     cmdstr = (cmd == RTM_ADD ? "Add!" : "Delete!");
@@ -659,7 +661,7 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
   if (s < 0) {
     log_Printf(LogERROR, "bundle_SetRoute: socket(): %s\n", strerror(errno));
-    return;
+    return result;
   }
   memset(&rtmes, '\0', sizeof rtmes);
   rtmes.m_rtm.rtm_version = RTM_VERSION;
@@ -728,10 +730,11 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
 failed:
     if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
                            (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST))) {
-      if (!bang)
+      if (!bang) {
         log_Printf(LogWARN, "Add route failed: %s already exists\n",
                   inet_ntoa(dst));
-      else {
+        result = 0;	/* Don't add to our dynamic list */
+      } else {
         rtmes.m_rtm.rtm_type = cmd = RTM_CHANGE;
         if ((wb = ID0write(s, &rtmes, nb)) < 0)
           goto failed;
@@ -752,6 +755,8 @@ failed:
   log_Printf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
             wb, cmdstr, (unsigned)dst.s_addr, (unsigned)gateway.s_addr);
   close(s);
+
+  return result;
 }
 
 void
@@ -861,12 +866,13 @@ bundle_ShowStatus(struct cmdargs const *arg)
   int remaining;
 
   prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
-  prompt_Printf(arg->prompt, " Interface:  %s\n", arg->bundle->dev);
+  prompt_Printf(arg->prompt, " Interface:     %s\n", arg->bundle->dev);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
-  prompt_Printf(arg->prompt, " Label:      %s\n", arg->bundle->cfg.label);
-  prompt_Printf(arg->prompt, " Auth name:  %s\n", arg->bundle->cfg.auth.name);
-  prompt_Printf(arg->prompt, " Idle Timer: ");
+  prompt_Printf(arg->prompt, " Label:         %s\n", arg->bundle->cfg.label);
+  prompt_Printf(arg->prompt, " Auth name:     %s\n",
+                arg->bundle->cfg.auth.name);
+  prompt_Printf(arg->prompt, " Idle Timer:    ");
   if (arg->bundle->cfg.idle_timeout) {
     prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle_timeout);
     remaining = bundle_RemainingIdleTime(arg->bundle);
@@ -875,23 +881,25 @@ bundle_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
   } else
     prompt_Printf(arg->prompt, "disabled\n");
-  prompt_Printf(arg->prompt, " MTU:        ");
+  prompt_Printf(arg->prompt, " MTU:           ");
   if (arg->bundle->cfg.mtu)
     prompt_Printf(arg->prompt, "%d\n", arg->bundle->cfg.mtu);
   else
     prompt_Printf(arg->prompt, "unspecified\n");
 
-  prompt_Printf(arg->prompt, " ID check:   %s\n",
+  prompt_Printf(arg->prompt, " Sticky Routes: %s\n",
+                optval(arg->bundle, OPT_SROUTES));
+  prompt_Printf(arg->prompt, " ID check:      %s\n",
                 optval(arg->bundle, OPT_IDCHECK));
-  prompt_Printf(arg->prompt, " Loopback:   %s\n",
+  prompt_Printf(arg->prompt, " Loopback:      %s\n",
                 optval(arg->bundle, OPT_LOOPBACK));
-  prompt_Printf(arg->prompt, " PasswdAuth: %s\n",
+  prompt_Printf(arg->prompt, " PasswdAuth:    %s\n",
                 optval(arg->bundle, OPT_PASSWDAUTH));
-  prompt_Printf(arg->prompt, " Proxy:      %s\n",
+  prompt_Printf(arg->prompt, " Proxy:         %s\n",
                 optval(arg->bundle, OPT_PROXY));
-  prompt_Printf(arg->prompt, " Throughput: %s\n",
+  prompt_Printf(arg->prompt, " Throughput:    %s\n",
                 optval(arg->bundle, OPT_THROUGHPUT));
-  prompt_Printf(arg->prompt, " Utmp:       %s\n",
+  prompt_Printf(arg->prompt, " Utmp Logging:  %s\n",
                 optval(arg->bundle, OPT_UTMP));
 
   return 0;

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.26 1998/05/01 22:39:38 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.27 1998/05/03 22:13:14 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -486,18 +486,37 @@ connection is established.  See the provided
 .Dq pmdemand
 example in
 .Pa /etc/ppp/ppp.conf.sample
-which adds a default route.  The strings
+which runs a script in the background after the connection is established.
+The literal strings
 .Dv HISADDR ,
 .Dv MYADDR
 and
 .Dv INTERFACE
-are available as the relevent IP addresses and interface name.
-Similarly, when a connection is closed, the
+may be used, and will be replaced with the relevent IP addresses and interface
+name.  Similarly, when a connection is closed, the
 contents of the
 .Pa /etc/ppp/ppp.linkdown
 file are executed.
 Both of these files have the same format as
 .Pa /etc/ppp/ppp.conf .
+.Pp
+In previous versions of
+.Nm ppp ,
+it was necessary to re-add routes such as the default route in the
+.Pa ppp.linkup
+file.
+.Nm Ppp
+now supports
+.Sq sticky routes ,
+where all routes that contain the
+.Dv HISADDR
+or
+.Dv MYADDR
+literals will automatically be updated when the values of
+.Dv HISADDR
+and/or
+.Dv MYADDR
+change.
 .Sh BACKGROUND DIALING
 If you want to establish a connection using
 .Nm
@@ -507,12 +526,7 @@ entry or an
 .Xr at 1
 job) you should use the
 .Fl background
-option.  You must also specify the destination label in
-.Pa /etc/ppp/ppp.conf
-to use.  This label must contain the
-.Dq set ifaddr
-command to define the remote peers IP address. (refer to
-.Pa /etc/ppp/ppp.conf.sample )
+option.
 When
 .Fl background
 is specified,
@@ -1214,15 +1228,18 @@ is the IP address which the remote side should use and
 .Sq netmask
 is the netmask that should be used.
 .Sq Src_addr
-and
+defaults to the current
+.Xr hostname 1 ,
 .Sq dst_addr
-default to 0.0.0.0, and
+defaults to 0.0.0.0, and
 .Sq netmask
 defaults to whatever mask is appropriate for
 .Sq src_addr .
 It is only possible to make
 .Sq netmask
-smaller than the default.  The usual value is 255.255.255.255.
+smaller than the default.  The usual value is 255.255.255.255, as
+most kernels ignore the netmask of a POINTOPOINT interface.
+.Pp
 Some incorrect
 .Em PPP
 implementations require that the peer negotiates a specific IP
@@ -1458,11 +1475,8 @@ set ifaddr 10.0.0.1/0 10.0.0.2/0 0.0.0.0 0.0.0.0
 .Pp
 .It
 In most cases, your ISP will also be your default router.  If this is
-the case, and if you're using
-.Fl auto
-mode, add the lines
+the case, add the line
 .Bd -literal -offset indent
-delete ALL
 add default HISADDR
 .Ed
 .Pp
@@ -1471,43 +1485,21 @@ to
 .Pp
 This tells
 .Nm
-to delete all non-direct routing entries for the tun interface that
-.Nm
-is running on, then to add a default route to 10.0.0.2.  If you're
-not using
-.Fl auto
-mode, this isn't necessary as
-.Nm
-will dial immediately and may negotiate new IP numbers with the peer.
+to add a default route to whatever the peer address is
+.Pq 10.0.0.2 in this example .
+This route is
+.Sq sticky ,
+meaning that should the value of
+.Dv HISADDR
+change, the route will be updated accordingly.
 .Pp
-If you're not using
-.Fl auto
-mode, or if you're using dynamic IP numbers, you must also put these
-two lines in the
+Previous versions of
+.Nm
+required a similar entry in the
 .Pa /etc/ppp/ppp.linkup
-file:
-.Bd -literal -offset indent
-delete ALL
-add default HISADDR
-.Ed
-.Pp
-HISADDR is a macro meaning the "other side"s IP number, and is
-available once an IP number has been agreed (using IPCP) or set
-.Pq using Dq set ifaddr .
-Now, once a connection is established,
-.Nm
-will delete all non-direct interface routes, and add a default route
-pointing at the peers IP number.  You should use the same label as the
-one used in
-.Pa /etc/ppp/ppp.conf .
-.Pp
-If commands are being typed interactively, the only requirement is
-to type
-.Bd -literal -offset indent
-add default HISADDR
-.Ed
-.Pp
-after a successful dial.
+file.  Since the advent of
+.Sq sticky routes ,
+his is no longer required.
 .It
 If your provider requests that you use PAP/CHAP authentication methods, add
 the next lines to your
@@ -1872,6 +1864,25 @@ is checked before
 Default: Disabled.  Enabling this option will tell
 .Nm
 to proxy ARP for the peer.
+.It sroutes
+Default: Enabled.  When the
+.Dq add
+command is used with the
+.Dv HISADDR
+or
+.Dv MYADDR
+values, entries are stored in the
+.Sq stick route
+list.  Each time
+.Dv HISADDR
+or
+.Dv MYADDR
+change, this list is re-applied to the routing table.
+.Pp
+Disabling this option will prevent the re-application of sticky routes,
+altough the
+.Sq stick route
+list will still be maintained.
 .It throughput
 Default: Enabled.  This option tells
 .Nm
@@ -1903,7 +1914,7 @@ you require the user to both login and authenticate themselves.
 .Ar Dest
 is the destination IP address and
 .Ar mask
-is its mask.
+is its netmask.
 .Ar 0 0
 refers to the default route, and it is possible to use the symbolic name
 .Sq default
@@ -1915,9 +1926,13 @@ arguments.
 .Ar Gateway
 is the next hop gateway to get to the given
 .Ar dest
-machine/network.  It is possible to use the symbolic names
+machine/network.  Refer to the
+.Xr route 8
+command for further details.
+.Pp
+It is possible to use the symbolic names
 .Sq MYADDR
-and
+or
 .Sq HISADDR
 as the destination, and either
 .Sq HISADDR
@@ -1928,7 +1943,7 @@ as the
 .Sq MYADDR
 is replaced with the interface address,
 .Sq HISADDR
-is replaced with the interfaces destination address and
+is replaced with the interface destination address and
 .Sq INTERFACE
 is replaced with the current interface name.  If the interfaces destination
 address has not yet been assigned
@@ -1938,22 +1953,31 @@ the current
 is used instead of
 .Sq HISADDR .
 .Pp
-Refer to the
-.Dq set ifaddr
-command below for details of some restrictions regarding the use of this
-command in the
-.Pa ppp.conf
-file.
-.Pp
 If the
 .Ar add!
 command is used
-.Pq note the following Dq \&! ,
+.Pq note the trailing Dq \&! ,
 then if the route already exists, it will be updated as with the
 .Sq route change
 command (see
 .Xr route 8
 for further details).
+.Pp
+Routes that contain the
+.Dq HISADDR
+or
+.Dq MYADDR
+constants are considered
+.Sq sticky .
+They are stored in a list (use
+.Dq show ipcp
+to see the list), and each time the value of
+.Dv HISADDR
+or
+.Dv MYADDR
+changes, the appropriate routing table entries are updated.  This facility
+may be disabled using
+.Dq disable sroutes .
 .It allow Ar command Op Ar args
 This command controls access to
 .Nm
@@ -2126,10 +2150,10 @@ IP address.  If
 .Ar dest
 is specified as
 .Sq ALL ,
-all non-direct entries in the routing for the current interface that
-.Nm
-is using are deleted.  This means all entries for tunN, except the entry
-representing the actual link.  If
+all non-direct entries in the routing table for the current interface,
+and all
+.Sq sticky route
+entries are deleted.  If
 .Ar dest
 is specified as
 .Sq default ,
@@ -2138,7 +2162,7 @@ the default route is deleted.
 If the
 .Ar delete!
 command is used
-.Pq note the following Dq \&! ,
+.Pq note the trailing Dq \&! ,
 .Nm
 will not complain if the route does not already exist.
 .It dial|call Op Ar label
@@ -2557,7 +2581,7 @@ and that number is not already in use,
 .Nm
 will grant the peers request.  This is useful if the peer wants
 to re-establish a link using the same IP number as was previously
-allocated.
+allocated (thus maintaining any existing tcp connections).
 .Pp
 If the peer requests an IP number that's either outside
 of this range or is already in use,
@@ -2571,8 +2595,9 @@ is specified, it is used in place of
 in the initial IPCP negotiation.  However, only an address in the
 .Ar myaddr
 range will be accepted.  This is useful when negotiating with some
-.Dv PPP implementations that will not assign an IP number unless
-their peer requests
+.Dv PPP
+implementations that will not assign an IP number unless their peer
+requests
 .Ar 0.0.0.0 .
 .Pp
 It should be noted that in
@@ -2583,27 +2608,15 @@ will configure the interface immediately upon reading the
 .Dq set ifaddr
 line in the config file.  In any other mode, these values are just
 used for IPCP negotiations, and the interface isn't configured
-until the IPCP layer is up.  As a result, it is impossible
-.Pq or at least unwise
-to use the
-.Dq add
-command in
-.Pa ppp.conf
-unless using
-.Fl auto
-mode (the
-.Pa ppp.linkup
-file should be used instead).  Use
-.Dq allow mode auto
-to restrict the current profile to
-.Fl auto
-mode only.
+until the IPCP layer is up.
 .Pp
-Note also that the
-.Ar hisaddr
-argument may be overridden in the
+Note that the
+.Ar HISADDR
+argument may be overridden by the third field in the
 .Pa ppp.secret
-file once the client has authenticated themself.  Refer to the
+file once the client has authenticated themself
+.Pq if PAP or CHAP are Dq enabled .
+Refer to the
 .Em AUTHENTICATING INCOMING CONNECTIONS
 section for details.
 .Pp
@@ -2987,6 +3000,7 @@ Get port number if port number is using service name.
 .Xr getty 8 ,
 .Xr group 5 ,
 .Xr gzip 1 ,
+.Xr hostname 1 ,
 .Xr inetd 8 ,
 .Xr init 8 ,
 .Xr login 1 ,
