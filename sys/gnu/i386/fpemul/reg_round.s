@@ -162,7 +162,7 @@ FPU_round_sqrt:		/* Entry point from wm_sqrt.S */
 /* Cannot use this here yet */
 /*	orl	%eax,%eax */
 /*	jns	L_entry_bugged */
-#endif PARANOID
+#endif /* PARANOID */
 
 	cmpl	EXP_UNDER,EXP(%edi)
 	jle	xMake_denorm			/* The number is a de-normal*/
@@ -185,7 +185,7 @@ xDenorm_done:
 
 #ifdef PARANOID
 	jmp	L_bugged	/* There is no bug, just a bad control word */
-#endif PARANOID
+#endif /* PARANOID */
 
 
 /* Round etc to 24 bit precision */
@@ -206,7 +206,7 @@ LRound_To_24:
 
 #ifdef PARANOID
 	jmp	L_bugged
-#endif PARANOID
+#endif /* PARANOID */
 
 LUp_24:
 	cmpb	SIGN_POS,SIGN(%edi)
@@ -286,7 +286,7 @@ LRound_To_53:
 
 #ifdef PARANOID
 	jmp	L_bugged
-#endif PARANOID
+#endif /* PARANOID */
 
 LUp_53:
 	cmpb	SIGN_POS,SIGN(%edi)
@@ -360,7 +360,7 @@ LRound_To_64:
 
 #ifdef PARANOID
 	jmp	L_bugged
-#endif PARANOID
+#endif /* PARANOID */
 
 LUp_64:
 	cmpb	SIGN_POS,SIGN(%edi)
@@ -560,7 +560,7 @@ xNormalise_result:
 	/* But check it... just in case.*/
 	cmpl	EXP_UNDER+1,EXP(%edi)
 	jne	L_norm_bugged
-#endif PARANOID
+#endif /* PARANOID */
 
 	orl	%eax,%eax	/* ms bits*/
 	jnz	LNormalise_shift_up_to_31	/* Shift left 0 - 31 bits*/
@@ -647,4 +647,4 @@ L_entry_bugged:
 	call	EXCEPTION
 	popl	%ebx
 	jmp	FPU_Arith_exit
-#endif PARANOID
+#endif /* PARANOID */
