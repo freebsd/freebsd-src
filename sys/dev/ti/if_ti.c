@@ -134,8 +134,8 @@ __FBSDID("$FreeBSD$");
 #endif /* !TI_PRIVATE_JUMBOS */
 #include <sys/vnode.h> /* for vfindev, vgone */
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <sys/tiio.h>
 #include <pci/if_tireg.h>

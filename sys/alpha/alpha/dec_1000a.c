@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <alpha/pci/apecsvar.h>
 #include <alpha/pci/ciavar.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 #ifndef CONSPEED
 #define CONSPEED TTYDEF_SPEED

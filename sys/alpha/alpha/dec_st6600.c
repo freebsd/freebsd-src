@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/rpb.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <alpha/pci/tsunamivar.h>
 
 #ifndef	CONSPEED

@@ -171,10 +171,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #include <machine/ioctl_meteor.h>
-#include <pci/meteor_reg.h>
+#include <dev/pci/meteor_reg.h>
 
 #ifndef COMPAT_OLDPCI
 #error "The meteor device requires the old pci compatibility shims"
