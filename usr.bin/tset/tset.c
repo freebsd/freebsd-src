@@ -261,7 +261,6 @@ report(name, which, def)
 	u_int def;
 {
 	u_int old, new;
-	char *bp, buf[1024];
 
 	new = mode.c_cc[which];
 	old = oldmode.c_cc[which];
@@ -271,8 +270,7 @@ report(name, which, def)
 
 	(void)fprintf(stderr, "%s %s ", name, old == new ? "is" : "set to");
 
-	bp = buf;
-	if (tgetstr("kb", &bp) && new == buf[0] && buf[1] == '\0')
+	if (new == 010)
 		(void)fprintf(stderr, "backspace.\n");
 	else if (new == 0177)
 		(void)fprintf(stderr, "delete.\n");
