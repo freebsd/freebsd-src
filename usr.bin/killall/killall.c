@@ -100,7 +100,7 @@ main(int ac, char **av)
 {
 	struct kinfo_proc *procs = NULL, *newprocs;
 	struct stat	sb;
-	struct passwd  *pw;
+	struct passwd	*pw;
 	regex_t		rgx;
 	regmatch_t	pmatch;
 	int		i, j;
@@ -119,7 +119,7 @@ main(int ac, char **av)
 	uid_t		thisuid;
 	dev_t		thistdev;
 	int		sig = SIGTERM;
-	const char	*const * p;
+	const char *const *p;
 	char		*ep;
 	int		errors = 0;
 	int		mib[3];
