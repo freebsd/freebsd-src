@@ -39,21 +39,30 @@
 #include <i386/isa/bs/bsif.h>
 #endif
 
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_debug.h>
+
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
+
 /*****************************************************************
  * Inline phase funcs
  *****************************************************************/
 /* static inline declare */
 static BS_INLINE struct targ_info *bs_reselect __P((struct bs_softc *));
-static BS_INLINE void bs_sat_continue __P((struct bs_softc *, struct targ_info *, struct ccb *));
-static BS_INLINE struct targ_info *bs_selected __P((struct bs_softc *, struct targ_info *, struct ccb *));
+static BS_INLINE void bs_sat_continue __P((struct bs_softc *, struct targ_info *, struct bsccb *));
+static BS_INLINE struct targ_info *bs_selected __P((struct bs_softc *, struct targ_info *, struct bsccb *));
 static BS_INLINE u_int8_t bs_read_1byte __P((struct bs_softc *));
 static BS_INLINE void bs_write_1byte __P((struct bs_softc *, u_int8_t));
-static BS_INLINE void bs_commandout __P((struct bs_softc *, struct targ_info *, struct ccb *));
+static BS_INLINE void bs_commandout __P((struct bs_softc *, struct targ_info *, struct bsccb *));
 static BS_INLINE void bs_status_check __P((struct bs_softc *, struct targ_info *));
 static BS_INLINE void bs_msgin __P((struct bs_softc *, struct targ_info *));
-static BS_INLINE void bs_msgout __P((struct bs_softc *, struct targ_info *, struct ccb *));
-static BS_INLINE void bs_disconnect_phase __P((struct bs_softc *, struct targ_info *, struct ccb *));
-static void bs_phase_error __P((struct targ_info *, struct ccb *));
+static BS_INLINE void bs_msgout __P((struct bs_softc *, struct targ_info *, struct bsccb *));
+static BS_INLINE void bs_disconnect_phase __P((struct bs_softc *, struct targ_info *, struct bsccb *));
+static void bs_phase_error __P((struct targ_info *, struct bsccb *));
 static int bs_scsi_cmd_poll_internal __P((struct targ_info *));
 static int bs_xfer __P((struct bs_softc *, char *, int));
 static void bs_io_xfer __P((struct targ_info *));
@@ -64,99 +73,153 @@ static void bs_msg_reject __P((struct targ_info *));
 static void bshoststart __P((struct bs_softc *, struct targ_info *));
 
 /*****************************************************************
- * Julian scsi interface
+ * SIM interface
  *****************************************************************/
-XSBS_INT32T
-bs_scsi_cmd(xs)
-	struct scsi_xfer *xs;
+void
+bs_scsi_cmd(struct cam_sim *sim, union ccb *ccb)
 {
-	struct bs_softc *bsc = (struct bs_softc *) xs->sc_link->adapter_softc;
-	int s, target = (u_int) (xs->sc_link->target);
+	struct bs_softc *bsc = (struct bs_softc *) cam_sim_softc(sim);
+	int s, target = (u_int) (ccb->ccb_h.target_id);
 	struct targ_info *ti;
-	struct ccb *cb;
-	u_int flags = xs->flags;
+	struct bsccb *cb;
 
-	if (xs->bp == NULL && (bsc->sc_openf & (1 << target)) == 0)
-	{
+	switch (ccb->ccb_h.func_code) {
+	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
+		ti = bsc->sc_ti[target];
+		if ((cb = bs_get_ccb()) == NULL) {
+			ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+			xpt_done(ccb);
+			return;
+		}
+
+		/* make up ccb! */
+		cb->ccb = ccb;
+		cb->lun = ccb->ccb_h.target_lun;
+		cb->cmd = ccb->csio.cdb_io.cdb_bytes;
+		cb->cmdlen = (int) ccb->csio.cdb_len;
+		cb->data = ccb->csio.data_ptr;
+		cb->datalen = (int) ccb->csio.dxfer_len;
+		cb->rcnt = 0;
+		cb->msgoutlen = 0;
+		cb->bsccb_flags = 0;
+		bs_targ_flags(ti, cb);
+		cb->tcmax = 0;/*(xs->timeout >> 10); default HN2*/
+		if (cb->tcmax < BS_DEFAULT_TIMEOUT_SECOND)
+			cb->tcmax = BS_DEFAULT_TIMEOUT_SECOND;
+
 		s = splbio();
-		xs->error = XS_DRIVER_STUFFUP;
-		xs->flags |= XSBS_ITSDONE;
-		scsi_done(xs);
-		splx(s);
-		return COMPLETE;
-	}
 
-	ti = bsc->sc_ti[target];
-	if ((cb = bs_get_ccb(flags & XSBS_SCSI_NOSLEEP)) == NULL)
-		return TRY_AGAIN_LATER;
+		TAILQ_INSERT_TAIL(&ti->ti_ctab, cb, ccb_chain);
 
-	/* make up ccb! */
-	cb->xs = xs;
-	cb->lun = xs->sc_link->lun;
-	cb->cmd = (u_int8_t *) xs->cmd;
-	cb->cmdlen = (int) xs->cmdlen;
-	cb->data = (u_int8_t *) xs->data;
-	cb->datalen = (int) xs->datalen;
-	cb->rcnt = 0;
-	cb->msgoutlen = 0;
-	cb->flags = (flags & XSBS_SCSI_POLL) ? BSFORCEIOPOLL : 0;
-	bs_targ_flags(ti, cb);
-	cb->tcmax = (xs->timeout >> 10);
-	if (cb->tcmax < BS_DEFAULT_TIMEOUT_SECOND)
-		cb->tcmax = BS_DEFAULT_TIMEOUT_SECOND;
-
-#ifdef	BS_ADDRESS_CHECK
-	/* XXX:
-	 * Sanity check, however this is critical!
-	 * NetBSD 1.0: WRONG
-	 * NetBSD 1.1: OK
-	 * FreeBSD: WRONG
-	 */
-	if ((caddr_t) cb->data < (caddr_t) KERNBASE)
-	{
-		u_int8_t *altbp;
-
-		altbp = (u_int8_t *) malloc(cb->datalen, M_DEVBUF, M_NOWAIT);
-		if (altbp == NULL)
-		{
-			bs_free_ccb(cb);
-			return TRY_AGAIN_LATER;
-		}
-
-		if (flags & SCSI_DATA_OUT)
-			bcopy(cb->data, altbp, cb->datalen);
-		else
-			bzero(altbp, cb->datalen);
-
-		cb->data = (u_int8_t *) altbp;
-		cb->flags |= BSALTBUF;
-	}
-#endif	/* BS_ADDRESS_CHECK */
-
-	s = splbio();
-
-	TAILQ_INSERT_TAIL(&ti->ti_ctab, cb, ccb_chain);
-
-	if (ti->ti_phase == FREE)
-	{
-		if (ti->ti_state == BS_TARG_START)
-		{
-			if ((flags & XSBS_SCSI_POLL) == 0)
+		if (ti->ti_phase == FREE) {
+			if (ti->ti_state == BS_TARG_START)
 				bs_start_syncmsg(ti, NULL, BS_SYNCMSG_ASSERT);
+			bscmdstart(ti, BSCMDSTART);
 		}
-		bscmdstart(ti, BSCMDSTART);
-	}
 
-	if ((flags & XSBS_SCSI_POLL) == 0)
-	{
 		splx(s);
-		return SUCCESSFULLY_QUEUED;
+		break;
+	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
+	case XPT_EN_LUN:		/* Enable LUN as a target */
+	case XPT_TARGET_IO:		/* Execute target I/O request */
+	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
+	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
+	case XPT_ABORT:			/* Abort the specified CCB */
+		/* XXX Implement */
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
+	case XPT_SET_TRAN_SETTINGS:
+		/* XXX Implement */
+		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
+		xpt_done(ccb);
+		break;
+	case XPT_GET_TRAN_SETTINGS: {
+		struct ccb_trans_settings *cts;
+		struct targ_info *ti;
+		/*int s;*/
+
+		cts = &ccb->cts;
+		ti = bsc->sc_ti[ccb->ccb_h.target_id];
+		/*s = splcam();*/
+		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
+			if (ti->ti_cfgflags & BS_SCSI_DISC)
+				cts->flags = CCB_TRANS_DISC_ENB;
+			else
+				cts->flags = 0;
+			if (ti->ti_cfgflags & BS_SCSI_QTAG)
+				cts->flags |= CCB_TRANS_TAG_ENB;
+			cts->sync_period = ti->ti_syncnow.period;
+			cts->sync_offset = ti->ti_syncnow.offset;
+			cts->bus_width = 0;/*HN2*/
+
+			cts->valid = CCB_TRANS_SYNC_RATE_VALID
+				   | CCB_TRANS_SYNC_OFFSET_VALID
+				   | CCB_TRANS_BUS_WIDTH_VALID
+				   | CCB_TRANS_DISC_VALID
+				   | CCB_TRANS_TQ_VALID;
+			ccb->ccb_h.status = CAM_REQ_CMP;
+		} else
+			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
+
+		/*splx(s);*/
+		xpt_done(ccb);
+		break;
 	}
+	case XPT_CALC_GEOMETRY: { /* not yet HN2 */
+		struct	  ccb_calc_geometry *ccg;
+		u_int32_t size_mb;
+		u_int32_t secs_per_cylinder;
 
-	bs_scsi_cmd_poll(ti, cb);
-	splx(s);
+		ccg = &ccb->ccg;
+		size_mb = ccg->volume_size
+			/ ((1024L * 1024L) / ccg->block_size);
+		
+		ccg->heads = 8;
+		ccg->secs_per_track = 34;
 
-	return COMPLETE;
+		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
+		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
+		bshw_chip_reset(bsc);	/* XXX need perfect RESET? */
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	case XPT_TERM_IO:		/* Terminate the I/O process */
+		/* XXX Implement */
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
+	case XPT_PATH_INQ: {		/* Path routing inquiry */
+		struct ccb_pathinq *cpi = &ccb->cpi;
+		
+		cpi->version_num = 1; /* XXX??? */
+		cpi->hba_inquiry = PI_SDTR_ABLE;
+		cpi->target_sprt = 0;
+		cpi->hba_misc = 0;
+		cpi->hba_eng_cnt = 0;
+		cpi->max_target = NTARGETS - 1;
+		cpi->max_lun = 7;
+		cpi->initiator_id = bsc->sc_hostid;
+		cpi->bus_id = cam_sim_bus(sim);
+		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strncpy(cpi->hba_vid, "NEC", HBA_IDLEN);
+		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		cpi->unit_number = cam_sim_unit(sim);
+		cpi->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+	default:
+/*printf("bs: non support func_code = %d ", ccb->ccb_h.func_code);*/
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
+	}
 }
 
 /**************************************************
@@ -170,7 +233,7 @@ bscmdstart(ti, flags)
 	struct targ_info *ti;
 	int flags;
 {
-	struct ccb *cb;
+	struct bsccb *cb;
 	struct bs_softc *bsc = ti->ti_bsc;
 
 	if ((cb = ti->ti_ctab.tqh_first) == NULL)
@@ -186,9 +249,9 @@ bscmdstart(ti, flags)
 	ti->ti_scsp.datalen = cb->datalen;
 	ti->ti_scsp.seglen = 0;
 	if (cb->rcnt)
-		cb->flags &= ~(BSSAT | BSLINK);
+		cb->bsccb_flags &= ~(BSSAT | BSLINK);
 	ti->ti_flags &= ~BSCFLAGSMASK;
-	ti->ti_flags |= cb->flags & BSCFLAGSMASK;
+	ti->ti_flags |= cb->bsccb_flags & BSCFLAGSMASK;
 	cb->tc = cb->tcmax;
 
 	/* GO GO */
@@ -211,13 +274,13 @@ bscmdstart(ti, flags)
 	return 1;
 }
 
-struct ccb *
+struct bsccb *
 bscmddone(ti)
 	struct targ_info *ti;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
-	struct ccb *cb = ti->ti_ctab.tqh_first;
-	struct scsi_xfer *xs;
+	struct bsccb *cb = ti->ti_ctab.tqh_first;
+	union ccb *ccb;
 	int error;
 
 	if (ti->ti_state == BS_TARG_SYNCH)
@@ -233,12 +296,12 @@ bscmddone(ti)
 
 	do
 	{
-		xs = cb->xs;
-		error = XS_NOERROR;
+		ccb = cb->ccb;
+		error = CAM_REQ_CMP;
 
-		if (cb->flags & (BSITSDONE | BSSENSECCB | BSCASTAT))
+		if (cb->bsccb_flags & (BSITSDONE | BSSENSECCB | BSCASTAT))
 		{
-			if (cb->flags & BSSENSECCB)
+			if (cb->bsccb_flags & BSSENSECCB)
 			{
 				cb->error &= ~BSDMAABNORMAL;
 				if (cb->error == 0)
@@ -246,18 +309,17 @@ bscmddone(ti)
 
 				ti->ti_flags |= BSERROROK;
 			}
-			else if (cb->flags & BSCASTAT)
+			else if (cb->bsccb_flags & BSCASTAT)
 			{
 				if (ti->ti_flags & BSCASTAT)
 				{
 					ti->ti_flags &= ~BSCASTAT;
-					error = XS_SENSE;
-					if (xs)
-						xs->sense = ti->sense;
+					error = CAM_AUTOSNS_VALID|CAM_SCSI_STATUS_ERROR;
+					if (ccb)
+						ccb->csio.sense_data = ti->sense;/* XXX may not be csio.... */
 				}
 				else
-					error = XS_DRIVER_STUFFUP;
-
+					error = CAM_AUTOSENSE_FAIL;
 				ti->ti_flags |= BSERROROK;
 			} else
 				bs_panic(bsc, "internal error");
@@ -271,11 +333,11 @@ bscmddone(ti)
 			if (cb->rcnt >= bsc->sc_retry || (cb->error & BSFATALIO))
 			{
 				if (cb->error & (BSSELTIMEOUT | BSTIMEOUT))
-					error = XS_TIMEOUT;
+					error = CAM_CMD_TIMEOUT;
 				else if (cb->error & BSTARGETBUSY)
-					error = XS_BUSY;
+					error = CAM_SCSI_STATUS_ERROR;
 				else
-					error = XS_DRIVER_STUFFUP;
+					error = CAM_REQ_CMP_ERR;
 				break;
 			}
 
@@ -283,7 +345,7 @@ bscmddone(ti)
 			{
 				/* must clear the target's sense state */
 				cb->rcnt++;
-				cb->flags |= (BSITSDONE | BSCASTAT);
+				cb->bsccb_flags |= (BSITSDONE | BSCASTAT);
 				cb->error &= ~BSREQSENSE;
 				return bs_request_sense(ti);
 			}
@@ -295,16 +357,15 @@ bscmddone(ti)
 				cb->error &= ~BSDMAABNORMAL;
 				continue;
 			}
-
-			if ((xs && xs->bp) || (cb->error & BSSELTIMEOUT) == 0)
+			if (/*(xs && xs->bp) || can't know whether bufferd i/o or not */
+			    (cb->error & BSSELTIMEOUT) == 0)
 				bs_debug_print(bsc, ti);
-
 			cb->rcnt++;
 			return cb;
 		}
 
 #ifdef	BS_DIAG
-		cb->flags |= BSITSDONE;
+		cb->bsccb_flags |= BSITSDONE;
 #endif	/* BS_DIAG */
 		if (bsc->sc_poll)
 		{
@@ -315,28 +376,18 @@ bscmddone(ti)
 
 		TAILQ_REMOVE(&ti->ti_ctab, cb, ccb_chain);
 
-		if (xs)
+		if (ccb)
 		{
-#ifdef	BS_ADDRESS_CHECK
-			if (cb->flags & BSALTBUF)
-			{
-				if (xs->flags & SCSI_DATA_IN)
-					bcopy(cb->data, xs->data, cb->datalen);
-				free(cb->data, M_DEVBUF);
-			}
-#endif	/* BS_ADDRESS_CHECK */
-
-			if ((xs->error = error) == XS_NOERROR)
-				xs->resid = 0;
-			xs->flags |= XSBS_ITSDONE;
-			scsi_done(xs);
+			ccb->ccb_h.status = error;
+			ccb->csio.scsi_status = ti->ti_status;/*XXX*/
+			xpt_done(ccb);
 		}
 
 		bs_free_ccb(cb);
 		cb = ti->ti_ctab.tqh_first;
 
 	}
-	while (cb != NULL && (cb->flags & BSITSDONE) != 0);
+	while (cb != NULL && (cb->bsccb_flags & BSITSDONE) != 0);
 
 	/* complete */
 	return NULL;
@@ -353,7 +404,7 @@ bshoststart(bsc, ti)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
 {
-	struct ccb *cb;
+	struct bsccb *cb;
 	int s;
 
 	if (bsc->sc_flags & BSINACTIVE)
@@ -376,7 +427,7 @@ again:
 	}
 
 #ifdef	BS_DIAG
-	if (cb->flags & BSITSDONE)
+	if (cb->bsccb_flags & BSITSDONE)
 		bs_panic(bsc, "bshoststart: already done");
 
 	if (bsc->sc_nexus || (ti->ti_flags & BSNEXUS))
@@ -495,7 +546,7 @@ static BS_INLINE struct targ_info *
 bs_selected(bsc, ti, cb)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 
 	if (bsc->sc_busstat != BSR_SELECTED)
@@ -587,7 +638,7 @@ static BS_INLINE void
 bs_sat_continue(bsc, ti, cb)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 
 	BS_SETUP_PHASE(SATRESEL);
@@ -720,7 +771,7 @@ static BS_INLINE void
 bs_commandout(bsc, ti, cb)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 	u_int8_t scsi_cmd[16];
 	int len;
@@ -780,7 +831,7 @@ bs_quick_abort(ti, msg)
 	struct targ_info *ti;
 	u_int msg;
 {
-	struct ccb *cb;
+	struct bsccb *cb;
 
 	if ((cb = ti->ti_ctab.tqh_first) == NULL)
 		return;
@@ -816,7 +867,7 @@ bs_msgin_ext(ti)
 	struct targ_info *ti;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
-	struct ccb *cb = ti->ti_ctab.tqh_first;
+	struct bsccb *cb = ti->ti_ctab.tqh_first;
 	int count;
 	u_int reqlen;
 	u_int32_t *ptr;
@@ -889,14 +940,14 @@ bs_msg_reject(ti)
 	struct targ_info *ti;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
-	struct ccb *cb = ti->ti_ctab.tqh_first;
+	struct bsccb *cb = ti->ti_ctab.tqh_first;
 	char *s = "unexpected msg reject";
 
 	switch (ti->ti_ophase)
 	{
 	case CMDPHASE:
 		s = "cmd rejected";
-		cb->flags &= ~BSLINK;
+		cb->bsccb_flags &= ~BSLINK;
 		BS_SETUP_MSGPHASE(IOCOMPLETED);
 		break;
 
@@ -904,7 +955,7 @@ bs_msg_reject(ti)
 		if (ti->ti_msgout & 0x80)
 		{
 			s = "identify msg rejected";
-			cb->flags &= ~BSDISC;
+			cb->bsccb_flags &= ~BSDISC;
 			BS_SETUP_MSGPHASE(IOCOMPLETED);
 		}
 		else if (ti->ti_msgout == MSG_EXTEND)
@@ -1039,7 +1090,7 @@ static BS_INLINE void
 bs_msgout(bsc, ti, cb)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 	u_int8_t msg[MAXMSGLEN + 1];
 
@@ -1114,7 +1165,7 @@ static BS_INLINE void
 bs_disconnect_phase(bsc, ti, cb)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 
 	switch (bsc->sc_msgphase)
@@ -1186,7 +1237,7 @@ struct bs_err bs_cmderr[] = {
 static void
 bs_phase_error(ti, cb)
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
 	struct bs_err *pep;
@@ -1242,13 +1293,13 @@ bs_phase_error(ti, cb)
 /**************************************************
  * ### SCSI PHASE SEQUENCER ###
  **************************************************/
-static BS_INLINE void bs_ack_wait __P((struct bs_softc *, struct targ_info *, struct ccb *));
+static BS_INLINE void bs_ack_wait __P((struct bs_softc *, struct targ_info *, struct bsccb *));
 
 static BS_INLINE void
 bs_ack_wait(bsc, ti, cb)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 	int wc = bsc->sc_wc;
 
@@ -1287,7 +1338,7 @@ bs_sequencer(bsc)
 	struct bs_softc *bsc;
 {
 	register struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 
 	/**************************************************
 	 * Check reset
@@ -1372,7 +1423,7 @@ bs_sequencer(bsc)
 
 	default:
 		/* XXX:
-		 * check check check for safty !!
+		 * check check check for safety !!
 		 */
 		if (bsc->sc_selwait)
 		{
@@ -1531,7 +1582,7 @@ bs_scsi_cmd_poll_internal(cti)
 {
 	struct bs_softc *bsc = cti->ti_bsc;
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 	int i, waits, delay_count;
 
 	bsc->sc_poll++;
@@ -1550,7 +1601,7 @@ bs_scsi_cmd_poll_internal(cti)
 		{
 			ti->ti_flags |= BSFORCEIOPOLL;
 			if ((cb = ti->ti_ctab.tqh_first) != NULL)
-				cb->flags |= BSFORCEIOPOLL;
+				cb->bsccb_flags |= BSFORCEIOPOLL;
 		}
 	}
 
@@ -1579,7 +1630,7 @@ bs_scsi_cmd_poll_internal(cti)
 int
 bs_scsi_cmd_poll(cti, targetcb)
 	struct targ_info *cti;
-	struct ccb *targetcb;
+	struct bsccb *targetcb;
 {
 	struct bs_softc *bsc = cti->ti_bsc;
 	struct targ_info *ti;

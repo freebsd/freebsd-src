@@ -42,6 +42,15 @@
 #include <i386/isa/bs/bsif.h>
 #endif	/* __FreeBSD__ */
 
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_debug.h>
+
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
+
 /**************************************************
  * DEVICE DECLARE
  **************************************************/
@@ -69,8 +78,9 @@ struct scsi_adapter pc98texa55bs = {
 
 #ifdef __FreeBSD__
 static int bsprobe __P((struct isa_device *));
-static int bsattach __P((struct isa_device *));
-static inthand2_t bsintr;
+static void bs_poll(struct cam_sim *sim);
+static int bsattach(struct isa_device *);
+static ointhand2_t bsintr;
 static int bsprint __P((void *, const char *));
 static void bs_scsi_minphys __P((struct buf *));
 static int bs_dmarangecheck __P((caddr_t, unsigned));
@@ -80,7 +90,7 @@ struct isa_driver bsdriver = {
 	bsattach,
 	"bs"
 };
-
+#if 0
 struct scsi_device bs_dev = {
 	NULL,	/* Use default error handler */
 	NULL,	/* have a queue, served by this */
@@ -89,14 +99,14 @@ struct scsi_device bs_dev = {
 	"bs",
 	0, {0, 0}
 };
-
+#endif
 u_int32_t
 bs_adapter_info(unit)
 	int unit;
 {
 	return (1);
 }
-
+#if 0
 static struct scsi_adapter pc98texa55bs = {
 	bs_scsi_cmd,
 	bs_scsi_minphys,
@@ -105,7 +115,7 @@ static struct scsi_adapter pc98texa55bs = {
 	bs_adapter_info,
 	"bs", {0, 0}
 };
-
+#endif
 static u_short pc98_irq_ball[16] = {
 	IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7,
 	IRQ8, IRQ9, IRQ10, IRQ11, IRQ12, IRQ13, IRQ14, IRQ15
@@ -213,6 +223,12 @@ bsprint(aux, name)
 }
 
 #ifdef __FreeBSD__
+static void
+bs_poll(struct cam_sim *sim)
+{
+	bs_sequencer(cam_sim_softc(sim));
+}
+
 static int
 bsattach(dev)
 	struct isa_device *dev;
@@ -220,28 +236,37 @@ bsattach(dev)
 	int unit = dev->id_unit;
 	struct bs_softc *bsc = bscdata[unit];
 	struct scsibus_data *scbus;
+	struct cam_devq *devq;
 
 	dev->id_ointr = bsintr;
-	bsc->sc_link.adapter_unit = unit;
-	bsc->sc_link.adapter_targ = bsc->sc_hostid;
-	bsc->sc_link.flags = SDEV_BOUNCE;
-	bsc->sc_link.opennings = XSMAX;
-	bsc->sc_link.adapter_softc = bsc;
-	bsc->sc_link.adapter = &pc98texa55bs;
-	bsc->sc_link.device = &bs_dev;
 
 	/*
-	 * Prepare the scsibus_data area for the upperlevel
-	 * scsi code.
+	 * CAM support  HN2  MAX_START, MAX_TAGS xxxx
 	 */
-	scbus = scsi_alloc_bus();
-	if (!scbus)
+	devq = cam_simq_alloc(256/*MAX_START*/);
+	if (devq == NULL)
 		return 0;
-	scbus->adapter_link = &bsc->sc_link;
-	/*
-	 * ask the adapter what subunits are present
-	 */
-	scsi_attachdevs(scbus);
+
+	bsc->sim = cam_sim_alloc(bs_scsi_cmd, bs_poll, "bs",
+				 bsc, unit, 1, 32/*MAX_TAGS*/, devq);
+	if (bsc->sim == NULL) {
+		cam_simq_free(devq);
+		return 0;
+	}
+
+	if (xpt_bus_register(bsc->sim, 0) != CAM_SUCCESS) {
+		free(bsc->sim, M_DEVBUF);
+		return 0;
+	}
+	
+	if (xpt_create_path(&bsc->path, /*periph*/NULL,
+			    cam_sim_path(bsc->sim), CAM_TARGET_WILDCARD,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_bus_deregister(cam_sim_path(bsc->sim));
+		cam_sim_free(bsc->sim, /*free_simq*/TRUE);
+		free(bsc->sim, M_DEVBUF);
+		return 0;
+	}
 	bs_start_timeout(bsc);
 	return 1;
 }
@@ -278,7 +303,7 @@ bs_scsi_minphys(bp)
 		bp->b_bcount = BSDMABUFSIZ;
 	minphys(bp);
 }
-
+#if 0
 XSBS_INT32T
 bs_target_open(sc, cf)
 	struct scsi_link *sc;
@@ -298,7 +323,7 @@ bs_target_open(sc, cf)
 	bs_setup_ctrl(ti, (u_int)sc->quirks, flags);
 	return 0;
 }
-
+#endif
 /*****************************************************************
  * BS MEMORY ALLOCATION INTERFACE
  *****************************************************************/
@@ -361,7 +386,7 @@ static int bs_dmarangecheck(caddr_t va, unsigned length)
 {
 	vm_offset_t phys, priorpage = 0, endva;
 
-	endva = (vm_offset_t)round_page(va+length);
+	endva = (vm_offset_t)round_page((unsigned long)(va+length));
 	for (; va < (caddr_t)endva; va += PAGE_SIZE) {
 		phys = trunc_page(pmap_extract(pmap_kernel(), (vm_offset_t)va));
 		if (phys == 0)

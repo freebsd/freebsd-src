@@ -97,7 +97,7 @@ int bshw_board_probe __P((struct bs_softc *, u_int *, u_int *));
 void bshw_lock __P((struct bs_softc *));
 void bshw_unlock __P((struct bs_softc *));
 void bshw_get_syncreg __P((struct bs_softc *));
-void bshw_issue_satcmd __P((struct bs_softc *, struct ccb *, int));
+void bshw_issue_satcmd __P((struct bs_softc *, struct bsccb *, int));
 void bshw_print_port __P((struct bs_softc *));
 
 void bs_lc_smit_xfer __P((struct targ_info *, u_int));
