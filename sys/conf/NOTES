@@ -1750,6 +1750,7 @@ hint.gusc.0.flags="0x13"
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
 # cy: Cyclades serial driver
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
+# rc: RISCom/8 multiport card
 # rp: Comtrol Rocketport(ISA/PCI) - single card
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
 # nmdm: nullmodem terminal driver (see nmdm(4))
@@ -1796,6 +1797,10 @@ hint.scd.0.port="0x230"
 device		joy			# PnP aware, hints for nonpnp only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"
+device		rc
+hint.rc.0.at="isa"
+hint.rc.0.port="0x220"
+hint.rc.0.irq="12"
 device		rp
 hint.rp.0.at="isa"
 hint.rp.0.port="0x280"
