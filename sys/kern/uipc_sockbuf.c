@@ -256,11 +256,11 @@ sonewconn(head, connstatus)
 		head->so_qlen++;
 	} else {
 		/*
-		 * XXXRW: Keep removing sockets from the head until there's
-		 * room for us to insert on the tail.  In pre-locking
-		 * revisions, this was a simple if(), but as we could be
-		 * racing with other threads and soabort() requires dropping
-		 * locks, we must loop waiting for the condition to be true.
+		 * Keep removing sockets from the head until there's room for
+		 * us to insert on the tail.  In pre-locking revisions, this
+		 * was a simple if(), but as we could be racing with other
+		 * threads and soabort() requires dropping locks, we must
+		 * loop waiting for the condition to be true.
 		 */
 		while (head->so_incqlen > head->so_qlimit) {
 			struct socket *sp;
