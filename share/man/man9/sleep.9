@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sleep.9,v 1.12 1998/12/21 10:34:53 dillon Exp $
+.\" $Id: sleep.9,v 1.14 1999/02/01 22:55:54 mpp Exp $
 .\" "
 .Dd December 17, 1998
 .Os
@@ -196,7 +196,7 @@ These routines may also be used to avoid nasty spl*() calls to get around
 race conditions with simple conditional test/wait interlocks.  You simple
 call
 .Fn asleep
-prior to your test, then conditonally
+prior to your test, then conditionally
 .Fn await
 only if the test fails.  It is usually a good idea to cancel an
 .Fn asleep
