@@ -52,30 +52,10 @@
 
 #include "dev/pst/pst-iop.h"
 
-/* device structures */ 
-static d_strategy_t pststrategy;
-static struct cdevsw pst_cdevsw = {
-    /* open */	nullopen,
-    /* close */ nullclose,
-    /* read */	physread,
-    /* write */ physwrite,
-    /* ioctl */ noioctl,
-    /* poll */	nopoll,
-    /* mmap */	nommap,
-    /* strat */ pststrategy,
-    /* name */	"pst",
-    /* maj */	200,
-    /* dump */	nodump,
-    /* psize */ nopsize,
-    /* flags */ D_DISK,
-};
-static struct cdevsw pstdisk_cdevsw;
-
 struct pst_softc {
     struct iop_softc		*iop;
     struct i2o_lct_entry	*lct;
     struct i2o_bsa_device	*info;
-    dev_t			device;
     struct devstat		stats;
     struct disk			disk;
     struct bio_queue_head	queue;
@@ -91,6 +71,7 @@ struct pst_request {
 };
 
 /* prototypes */
+static disk_strategy_t pststrategy;
 static int pst_probe(device_t);
 static int pst_attach(device_t);
 static int pst_shutdown(device_t);
@@ -111,7 +92,11 @@ pst_add_raid(struct iop_softc *sc, struct i2o_lct_entry *lct)
 
     if (!child)
 	return ENOMEM;
-    psc = malloc(sizeof(struct pst_softc), M_PSTRAID, M_NOWAIT | M_ZERO); 
+    if (!(psc = malloc(sizeof(struct pst_softc), 
+		       M_PSTRAID, M_NOWAIT | M_ZERO))) {
+	device_delete_child(sc->dev, child);
+	return ENOMEM;
+    }
     psc->iop = sc;
     psc->lct = lct;
     device_set_softc(child, psc);
@@ -168,9 +153,11 @@ pst_attach(device_t dev)
     bioq_init(&psc->queue);
     mtx_init(&psc->mtx, "pst lock", MTX_DEF, 0);
 
-    psc->device = disk_create(lun, &psc->disk, 0, &pst_cdevsw, &pstdisk_cdevsw);
-    psc->device->si_drv1 = psc;
-    psc->device->si_iosize_max = 64 * 1024; /*I2O_SGL_MAX_SEGS * PAGE_SIZE;*/
+    psc->disk.d_name = "pst";
+    psc->disk.d_strategy = pststrategy;
+    psc->disk.d_maxsize = 64 * 1024; /*I2O_SGL_MAX_SEGS * PAGE_SIZE;*/
+    psc->disk.d_drv1 = psc;
+    disk_create(lun, &psc->disk, 0, NULL, NULL);
 
     psc->disk.d_sectorsize = psc->info->block_size;
     psc->disk.d_mediasize = psc->info->capacity;
@@ -217,7 +204,7 @@ pst_shutdown(device_t dev)
 static void
 pststrategy(struct bio *bp)
 {
-    struct pst_softc *psc = bp->bio_dev->si_drv1;
+    struct pst_softc *psc = bp->bio_disk->d_drv1;
     
     mtx_lock(&psc->mtx);
     bioqdisksort(&psc->queue, bp);
