@@ -1,5 +1,5 @@
 /* inflate.c -- zlib interface to inflate modules
- * Copyright (C) 1995-1996 Mark Adler
+ * Copyright (C) 1995-1998 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
@@ -8,11 +8,7 @@
 
 struct inflate_blocks_state {int dummy;}; /* for buggy compilers */
 
-/* inflate private state */
-struct internal_state {
-
-  /* mode */
-  enum {
+typedef enum {
       METHOD,   /* waiting for method byte */
       FLAG,     /* waiting for flag byte */
       DICT4,    /* four dictionary check bytes to go */
@@ -27,7 +23,13 @@ struct internal_state {
       CHECK1,   /* one check byte to go */
       DONE,     /* finished check, done */
       BAD}      /* got an error--stay here */
-    mode;               /* current inflate mode */
+inflate_mode;
+
+/* inflate private state */
+struct internal_state {
+
+  /* mode */
+  inflate_mode  mode;   /* current inflate mode */
 
   /* mode dependent information */
   union {
@@ -48,39 +50,35 @@ struct internal_state {
 };
 
 
-int inflateReset(z)
+int ZEXPORT inflateReset(z)
 z_streamp z;
 {
-  uLong c;
-
   if (z == Z_NULL || z->state == Z_NULL)
     return Z_STREAM_ERROR;
   z->total_in = z->total_out = 0;
   z->msg = Z_NULL;
   z->state->mode = z->state->nowrap ? BLOCKS : METHOD;
-  inflate_blocks_reset(z->state->blocks, z, &c);
-  Trace((stderr, "inflate: reset\n"));
+  inflate_blocks_reset(z->state->blocks, z, Z_NULL);
+  Tracev((stderr, "inflate: reset\n"));
   return Z_OK;
 }
 
 
-int inflateEnd(z)
+int ZEXPORT inflateEnd(z)
 z_streamp z;
 {
-  uLong c;
-
   if (z == Z_NULL || z->state == Z_NULL || z->zfree == Z_NULL)
     return Z_STREAM_ERROR;
   if (z->state->blocks != Z_NULL)
-    inflate_blocks_free(z->state->blocks, z, &c);
+    inflate_blocks_free(z->state->blocks, z);
   ZFREE(z, z->state);
   z->state = Z_NULL;
-  Trace((stderr, "inflate: end\n"));
+  Tracev((stderr, "inflate: end\n"));
   return Z_OK;
 }
 
 
-int inflateInit2_(z, w, version, stream_size)
+int ZEXPORT inflateInit2_(z, w, version, stream_size)
 z_streamp z;
 int w;
 const char *version;
@@ -129,7 +127,7 @@ int stream_size;
     inflateEnd(z);
     return Z_MEM_ERROR;
   }
-  Trace((stderr, "inflate: allocated\n"));
+  Tracev((stderr, "inflate: allocated\n"));
 
   /* reset state */
   inflateReset(z);
@@ -137,7 +135,7 @@ int stream_size;
 }
 
 
-int inflateInit_(z, version, stream_size)
+int ZEXPORT inflateInit_(z, version, stream_size)
 z_streamp z;
 const char *version;
 int stream_size;
@@ -146,18 +144,19 @@ int stream_size;
 }
 
 
-#define NEEDBYTE {if(z->avail_in==0)return r;r=Z_OK;}
+#define NEEDBYTE {if(z->avail_in==0)return r;r=f;}
 #define NEXTBYTE (z->avail_in--,z->total_in++,*z->next_in++)
 
-int inflate(z, f)
+int ZEXPORT inflate(z, f)
 z_streamp z;
 int f;
 {
   int r;
   uInt b;
 
-  if (z == Z_NULL || z->state == Z_NULL || z->next_in == Z_NULL || f < 0)
+  if (z == Z_NULL || z->state == Z_NULL || z->next_in == Z_NULL)
     return Z_STREAM_ERROR;
+  f = f == Z_FINISH ? Z_BUF_ERROR : Z_OK;
   r = Z_BUF_ERROR;
   while (1) switch (z->state->mode)
   {
@@ -188,11 +187,11 @@ int f;
         z->state->sub.marker = 5;       /* can't try inflateSync */
         break;
       }
-      Trace((stderr, "inflate: zlib header ok\n"));
+      Tracev((stderr, "inflate: zlib header ok\n"));
       if (!(b & PRESET_DICT))
       {
         z->state->mode = BLOCKS;
-	break;
+        break;
       }
       z->state->mode = DICT4;
     case DICT4:
@@ -226,9 +225,11 @@ int f;
         z->state->sub.marker = 0;       /* can try inflateSync */
         break;
       }
+      if (r == Z_OK)
+        r = f;
       if (r != Z_STREAM_END)
         return r;
-      r = Z_OK;
+      r = f;
       inflate_blocks_reset(z->state->blocks, z, &z->state->sub.check.was);
       if (z->state->nowrap)
       {
@@ -259,7 +260,7 @@ int f;
         z->state->sub.marker = 5;       /* can't try inflateSync */
         break;
       }
-      Trace((stderr, "inflate: zlib check ok\n"));
+      Tracev((stderr, "inflate: zlib check ok\n"));
       z->state->mode = DONE;
     case DONE:
       return Z_STREAM_END;
@@ -268,10 +269,13 @@ int f;
     default:
       return Z_STREAM_ERROR;
   }
+#ifdef NEED_DUMMY_RETURN
+  return Z_STREAM_ERROR;  /* Some dumb compilers complain without this */
+#endif
 }
 
 
-int inflateSetDictionary(z, dictionary, dictLength)
+int ZEXPORT inflateSetDictionary(z, dictionary, dictLength)
 z_streamp z;
 const Bytef *dictionary;
 uInt  dictLength;
@@ -295,7 +299,7 @@ uInt  dictLength;
 }
 
 
-int inflateSync(z)
+int ZEXPORT inflateSync(z)
 z_streamp z;
 {
   uInt n;       /* number of bytes to look at */
@@ -319,7 +323,8 @@ z_streamp z;
   /* search */
   while (n && m < 4)
   {
-    if (*p == (Byte)(m < 2 ? 0 : 0xff))
+    static const Byte mark[4] = {0, 0, 0xff, 0xff};
+    if (*p == mark[m])
       m++;
     else if (*p)
       m = 0;
@@ -342,4 +347,20 @@ z_streamp z;
   z->total_in = r;  z->total_out = w;
   z->state->mode = BLOCKS;
   return Z_OK;
+}
+
+
+/* Returns true if inflate is currently at the end of a block generated
+ * by Z_SYNC_FLUSH or Z_FULL_FLUSH. This function is used by one PPP
+ * implementation to provide an additional safety check. PPP uses Z_SYNC_FLUSH
+ * but removes the length bytes of the resulting empty stored block. When
+ * decompressing, PPP checks that at the end of input packet, inflate is
+ * waiting for these length bytes.
+ */
+int ZEXPORT inflateSyncPoint(z)
+z_streamp z;
+{
+  if (z == Z_NULL || z->state == Z_NULL || z->state->blocks == Z_NULL)
+    return Z_STREAM_ERROR;
+  return inflate_blocks_sync_point(z->state->blocks);
 }

@@ -1,5 +1,5 @@
 /* inftrees.h -- header to use inftrees.c
- * Copyright (C) 1995-1996 Mark Adler
+ * Copyright (C) 1995-1998 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
@@ -27,15 +27,19 @@ struct inflate_huft_s {
   } more;
 };
 
-#ifdef DEBUG
-  extern uInt inflate_hufts;
-#endif
+/* Maximum size of dynamic tree.  The maximum found in a long but non-
+   exhaustive search was 1041 huft structures (875 for length/literals
+   and 166 for distances, the latter actually the result of an
+   exhaustive search).  The actual maximum is not known, but the
+   value below is more than safe. */
+#define MANY 1440
 
 extern int inflate_trees_bits OF((
     uIntf *,                    /* 19 code lengths */
     uIntf *,                    /* bits tree desired/actual depth */
     inflate_huft * FAR *,       /* bits tree result */
-    z_streamp ));               /* for zalloc, zfree functions */
+    inflate_huft *,             /* space for trees */
+    z_streamp));                /* for messages */
 
 extern int inflate_trees_dynamic OF((
     uInt,                       /* number of literal/length codes */
@@ -45,15 +49,12 @@ extern int inflate_trees_dynamic OF((
     uIntf *,                    /* distance desired/actual bit depth */
     inflate_huft * FAR *,       /* literal/length tree result */
     inflate_huft * FAR *,       /* distance tree result */
-    z_streamp ));               /* for zalloc, zfree functions */
+    inflate_huft *,             /* space for trees */
+    z_streamp));                /* for messages */
 
 extern int inflate_trees_fixed OF((
     uIntf *,                    /* literal desired/actual bit depth */
     uIntf *,                    /* distance desired/actual bit depth */
     inflate_huft * FAR *,       /* literal/length tree result */
-    inflate_huft * FAR *));     /* distance tree result */
-
-extern int inflate_trees_free OF((
-    inflate_huft *,             /* tables to free */
-    z_streamp ));               /* for zfree function */
-
+    inflate_huft * FAR *,       /* distance tree result */
+    z_streamp));                /* for memory allocation */

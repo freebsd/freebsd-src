@@ -1,9 +1,9 @@
 /* crc32.c -- compute the CRC-32 of a data stream
- * Copyright (C) 1995-1996 Mark Adler
+ * Copyright (C) 1995-1998 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* $Id: crc32.c,v 1.8 1996/01/30 21:59:10 me Exp $ */
+/* @(#) $Id$ */
 
 #include "zlib.h"
 
@@ -45,7 +45,7 @@ local void make_crc_table()
   int n, k;
   uLong poly;            /* polynomial exclusive-or pattern */
   /* terms of polynomial defining this crc (except x^32): */
-  static Byte p[] = {0,1,2,4,5,7,8,10,11,12,16,22,23,26};
+  static const Byte p[] = {0,1,2,4,5,7,8,10,11,12,16,22,23,26};
 
   /* make exclusive-or pattern from polynomial (0xedb88320L) */
   poly = 0L;
@@ -65,7 +65,7 @@ local void make_crc_table()
 /* ========================================================================
  * Table of CRC-32's of all single-byte values (made by make_crc_table)
  */
-local uLongf crc_table[256] = {
+local const uLongf crc_table[256] = {
   0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
   0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L, 0x79dcb8a4L,
   0xe0d5e91eL, 0x97d2d988L, 0x09b64c2bL, 0x7eb17cbdL, 0xe7b82d07L,
@@ -124,12 +124,12 @@ local uLongf crc_table[256] = {
 /* =========================================================================
  * This function can be used by asm versions of crc32()
  */
-uLongf *get_crc_table()
+const uLongf * ZEXPORT get_crc_table()
 {
 #ifdef DYNAMIC_CRC_TABLE
   if (crc_table_empty) make_crc_table();
 #endif
-  return (uLongf *)crc_table;
+  return (const uLongf *)crc_table;
 }
 
 /* ========================================================================= */
@@ -139,7 +139,7 @@ uLongf *get_crc_table()
 #define DO8(buf)  DO4(buf); DO4(buf);
 
 /* ========================================================================= */
-uLong crc32(crc, buf, len)
+uLong ZEXPORT crc32(crc, buf, len)
     uLong crc;
     const Bytef *buf;
     uInt len;
