@@ -80,6 +80,25 @@ struct iodone_chain {
 };
 
 /*
+ * The bio structure descripes an I/O operation in the kernel.
+ */
+
+struct bio {
+	u_int	bio_cmd;		/* BIO_READ, BIO_WRITE, BIO_DELETE */
+	dev_t	bio_dev;		/* Device to do I/O on */
+	daddr_t	bio_blkno;		/* Underlying physical block number. */
+	u_int	bio_flags;		/* BIO_ORDERED, BIO_ERROR */
+	struct buf *__bio_buf;		/* Parent buffer */
+	int	bio_error;		/* Errno for BIO_ERROR */
+	long	bio_resid;		/* Remaining I/0 in bytes */
+	void	(*bio_done) __P((struct buf *));
+	void	*bio_driver1;		/* for private use by the driver */
+	void	*bio_driver2;		/* for private use by the driver */
+	void	*bio_caller1;		/* for private use by the caller */
+	void	*bio_caller2;		/* for private use by the caller */
+};
+
+/*
  * The buffer header describes an I/O operation in the kernel.
  *
  * NOTES:
@@ -96,29 +115,36 @@ struct iodone_chain {
  *	completes, b_resid is usually 0 indicating 100% success.
  */
 struct buf {
+	struct bio b_bio;		/* I/O request
+					 * XXX: Must be first element for now
+					 */
+#define b_iocmd		b_bio.bio_cmd
+#define b_ioflags	b_bio.bio_flags
+#define b_iodone	b_bio.bio_done
+#define b_error		b_bio.bio_error
+#define b_resid		b_bio.bio_resid
+#define b_blkno		b_bio.bio_blkno
+#define b_driver1	b_bio.bio_driver1
+#define b_driver2	b_bio.bio_driver2
+#define b_caller1	b_bio.bio_caller1
+#define b_caller2	b_bio.bio_caller2
+#define b_dev		b_bio.bio_dev
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
-	u_int	b_iocmd;		/* BIO_READ, BIO_WRITE, BIO_DELETE */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
 	unsigned char b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */
-	int	b_error;		/* Errno value. */
 	long	b_bufsize;		/* Allocated buffer size. */
 	long	b_bcount;		/* Valid bytes in buffer. */
-	long	b_resid;		/* Remaining I/O. */
-	dev_t	b_dev;			/* Device associated with buffer. */
 	caddr_t	b_data;			/* Memory, superblocks, indirect etc. */
 	caddr_t	b_kvabase;		/* base kva for buffer */
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t	b_lblkno;		/* Logical block number. */
-	daddr_t	b_blkno;		/* Underlying physical block number. */
 	off_t	b_offset;		/* Offset into file */
 					/* Function to call upon completion. */
-	void	(*b_iodone) __P((struct buf *));
-					/* For nested b_iodone's. */
 	struct	iodone_chain *b_iodone_chain;
 	struct	vnode *b_vp;		/* Device vnode. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
@@ -127,10 +153,6 @@ struct buf {
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	daddr_t	b_pblkno;               /* physical block number */
 	void	*b_saveaddr;		/* Original b_addr for physio. */
-	void	*b_driver1;		/* for private use by the driver */
-	void	*b_driver2;		/* for private use by the driver */
-	void	*b_caller1;		/* for private use by the caller */
-	void	*b_caller2;		/* for private use by the caller */
 	union	pager_info {
 		void	*pg_spc;
 		int	pg_reqpage;
