@@ -30,16 +30,21 @@
 #ident	"@(#)rpc_util.c	1.14	93/07/05 SMI"
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rpc_util.c 1.11 89/02/22 (C) 1987 SMI";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
  * rpc_util.c, Utility routines for the RPC protocol compiler
  * Copyright (C) 1989, Sun Microsystems, Inc.
  */
+#include <err.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include <unistd.h>
 #include "rpc_scan.h"
 #include "rpc_parse.h"
@@ -275,8 +280,7 @@ error(msg)
 	char *msg;
 {
 	printwhere();
-	f_print(stderr, "%s, line %d: ", infilename, linenum);
-	f_print(stderr, "%s\n", msg);
+	warnx("%s, line %d: %s", infilename, linenum, msg);
 	crash();
 }
 
@@ -302,7 +306,7 @@ record_open(file)
 	if (nfiles < NFILES) {
 		outfiles[nfiles++] = file;
 	} else {
-		f_print(stderr, "too many files!\n");
+		warnx("too many files");
 		crash();
 	}
 }
@@ -459,10 +463,8 @@ make_argname(pname, vname)
 	char *name;
 
 	name = malloc(strlen(pname) + strlen(vname) + strlen(ARGEXT) + 3);
-	if (!name) {
-		fprintf(stderr, "failed in malloc");
-		exit(1);
-	}
+	if (!name)
+		errx(1, "failed in malloc");
 	sprintf(name, "%s_%s_%s", locase(pname), vname, ARGEXT);
 	return (name);
 }
@@ -477,11 +479,8 @@ char *type;
 {
 	bas_type *ptr;
 
-	if ((ptr = (bas_type *) malloc(sizeof (bas_type))) ==
-	    (bas_type *)NULL) {
-		fprintf(stderr, "failed in malloc");
-		exit(1);
-	}
+	if ((ptr = (bas_type *) malloc(sizeof (bas_type))) == (bas_type *)NULL)
+		errx(1, "failed in malloc");
 
 	ptr->name = type;
 	ptr->length = len;
