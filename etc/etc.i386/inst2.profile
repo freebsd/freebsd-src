@@ -256,12 +256,14 @@ extract()
 	esac
 	#XXX ugly hack to eliminate busy files, copy them to /tmp and use them
 	#from there...
-	cp -p /usr/bin/gunzip /usr/bin/tar /tmp
+	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
 	
-	for i in "$@"*; do
-		/tmp/gunzip <$i
-	done | (cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
-	rm -f /tmp/gunzip /tmp/tar
+	for i in $*; do
+		/tmp/cat "$i"* | 
+		/tmp/gunzip |
+		(cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
+	done
+	rm -f /bin/cat /tmp/gunzip /tmp/tar
 	sync
 }
 configure()
