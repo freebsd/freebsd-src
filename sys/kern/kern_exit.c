@@ -125,6 +125,8 @@ exit1(td, rv)
 	register struct vmspace *vm;
 	struct vnode *vtmp;
 	struct exitlist *ep;
+	struct vnode *ttyvp;
+	struct tty *tp;
 
 	GIANT_REQUIRED;
 
@@ -186,7 +188,9 @@ exit1(td, rv)
 	 * Reset any sigio structures pointing to us as a result of
 	 * F_SETOWN with our pid.
 	 */
+	PROC_LOCK(p);
 	funsetownlst(&p->p_sigiolst);
+	PROC_UNLOCK(p);
 
 	/*
 	 * Close open files and release open-file table.
@@ -227,11 +231,11 @@ exit1(td, rv)
 		vm->vm_freer = p;
 	}
 
-	PROC_LOCK(p);
+	PGRPSESS_XLOCK();
 	if (SESS_LEADER(p)) {
-		register struct session *sp = p->p_session;
+		register struct session *sp;
 
-		PROC_UNLOCK(p);
+		sp = p->p_session;
 		if (sp->s_ttyvp) {
 			/*
 			 * Controlling process.
@@ -240,29 +244,48 @@ exit1(td, rv)
 			 * and revoke access to controlling terminal.
 			 */
 			if (sp->s_ttyp && (sp->s_ttyp->t_session == sp)) {
-				if (sp->s_ttyp->t_pgrp)
+				tp = sp->s_ttyp;
+				if (sp->s_ttyp->t_pgrp) {
+					PGRP_LOCK(sp->s_ttyp->t_pgrp);
 					pgsignal(sp->s_ttyp->t_pgrp, SIGHUP, 1);
-				(void) ttywait(sp->s_ttyp);
+					PGRP_UNLOCK(sp->s_ttyp->t_pgrp);
+				}
+				/* XXX tp should be locked. */
+				(void) ttywait(tp);
 				/*
 				 * The tty could have been revoked
 				 * if we blocked.
 				 */
-				if (sp->s_ttyvp)
-					VOP_REVOKE(sp->s_ttyvp, REVOKEALL);
+				if (sp->s_ttyvp) {
+					ttyvp = sp->s_ttyvp;
+					SESS_LOCK(p->p_session);
+					sp->s_ttyvp = NULL;
+					SESS_UNLOCK(p->p_session);
+					PGRPSESS_XUNLOCK();
+					VOP_REVOKE(ttyvp, REVOKEALL);
+					PGRPSESS_XLOCK();
+					vrele(ttyvp);
+				}
 			}
-			if (sp->s_ttyvp)
-				vrele(sp->s_ttyvp);
-			sp->s_ttyvp = NULL;
+			if (sp->s_ttyvp) {
+				ttyvp = sp->s_ttyvp;
+				SESS_LOCK(p->p_session);
+				sp->s_ttyvp = NULL;
+				SESS_UNLOCK(p->p_session);
+				vrele(ttyvp);
+			}
 			/*
 			 * s_ttyp is not zero'd; we use this to indicate
 			 * that the session once had a controlling terminal.
 			 * (for logging and informational purposes)
 			 */
 		}
+		SESS_LOCK(p->p_session);
 		sp->s_leader = NULL;
-	} else
-		PROC_UNLOCK(p);
+		SESS_UNLOCK(p->p_session);
+	}
 	fixjobc(p, p->p_pgrp, 0);
+	PGRPSESS_XUNLOCK();
 	(void)acct_process(td);
 #ifdef KTRACE
 	/*
@@ -309,7 +332,7 @@ exit1(td, rv)
 			q->p_flag &= ~P_TRACED;
 			psignal(q, SIGKILL);
 		}
-		PROC_UNLOCK(q);		
+		PROC_UNLOCK(q);
 	}
 
 	/*
@@ -338,6 +361,7 @@ exit1(td, rv)
 	 * notify interested parties of our demise.
 	 */
 	PROC_LOCK(p);
+	PROC_LOCK(p->p_pptr);
 	KNOTE(&p->p_klist, NOTE_EXIT);
 
 	/*
@@ -347,7 +371,9 @@ exit1(td, rv)
 	 */
 	if (p->p_pptr->p_procsig->ps_flag & PS_NOCLDWAIT) {
 		struct proc *pp = p->p_pptr;
+		PROC_UNLOCK(pp);
 		proc_reparent(p, initproc);
+		PROC_LOCK(p->p_pptr);
 		/*
 		 * If this was the last child of our parent, notify
 		 * parent, so in case he was wait(2)ing, he will
@@ -357,7 +383,6 @@ exit1(td, rv)
 			wakeup((caddr_t)pp);
 	}
 
-	PROC_LOCK(p->p_pptr);
 	if (p->p_sigparent && p->p_pptr != initproc)
 	        psignal(p->p_pptr, p->p_sigparent);
 	else
@@ -480,8 +505,11 @@ wait1(td, uap, compat)
 
 	mtx_lock(&Giant);
 	q = td->td_proc;
-	if (uap->pid == 0)
+	if (uap->pid == 0) {
+		PROC_LOCK(q);
 		uap->pid = -q->p_pgid;
+		PROC_UNLOCK(q);
+	}
 	if (uap->options &~ (WUNTRACED|WNOHANG|WLINUXCLONE)) {
 		error = EINVAL;
 		goto done2;
@@ -490,9 +518,12 @@ loop:
 	nfound = 0;
 	sx_slock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
+		PROC_LOCK(p);
 		if (uap->pid != WAIT_ANY &&
-		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
+		    p->p_pid != uap->pid && p->p_pgid != -uap->pid) {
+			PROC_UNLOCK(p);
 			continue;
+		}
 
 		/*
 		 * This special case handles a kthread spawned by linux_clone 
@@ -502,7 +533,6 @@ loop:
 		 * p_sigparent is not SIGCHLD, and the WLINUXCLONE option
 		 * signifies we want to wait for threads and not processes.
 		 */
-		PROC_LOCK(p);
 		if ((p->p_sigparent != SIGCHLD) ^
 		    ((uap->options & WLINUXCLONE) != 0)) {
 			PROC_UNLOCK(p);

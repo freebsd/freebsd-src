@@ -41,6 +41,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/kernel.h>
 #include <sys/msgbuf.h>
 #include <sys/malloc.h>
@@ -113,16 +116,28 @@ uprintf(const char *fmt, ...)
 	struct proc *p = td->td_proc;
 	va_list ap;
 	struct putchar_arg pca;
-	int retval = 0;
+	int retval;
 
-	if (td && td != PCPU_GET(idlethread) && p->p_flag & P_CONTROLT &&
-	    p->p_session->s_ttyvp) {
-		va_start(ap, fmt);
-		pca.tty = p->p_session->s_ttyp;
-		pca.flags = TOTTY;
-		retval = kvprintf(fmt, putchar, &pca, 10, ap);
-		va_end(ap);
+	if (td == NULL || td == PCPU_GET(idlethread))
+		return (0);
+
+	p = td->td_proc;
+	PROC_LOCK(p);
+	if ((p->p_flag & P_CONTROLT) == 0) {
+		PROC_UNLOCK(p);
+		return (0);
 	}
+	SESS_LOCK(p->p_session);
+	pca.tty = p->p_session->s_ttyp;
+	SESS_UNLOCK(p->p_session);
+	PROC_UNLOCK(p);
+	if (pca.tty == NULL)
+		return (0);
+	pca.flags = TOTTY;
+	va_start(ap, fmt);
+	retval = kvprintf(fmt, putchar, &pca, 10, ap);
+	va_end(ap);
+
 	return (retval);
 }
 
@@ -141,13 +156,23 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 
 	if (pri != -1)
 		flags |= TOLOG;
-	if (p && p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
-		SESSHOLD(p->p_session);
-		shld++;
-		if (ttycheckoutq(p->p_session->s_ttyp, 0)) {
-			flags |= TOTTY;
+	if (p != NULL) {
+		PGRPSESS_XLOCK();
+		PROC_LOCK(p);
+		if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
+			SESS_LOCK(p->p_session);
+			SESSHOLD(p->p_session);
 			tp = p->p_session->s_ttyp;
-		}
+			SESS_UNLOCK(p->p_session);
+			PROC_UNLOCK(p);
+			shld++;
+			if (ttycheckoutq(tp, 0))
+				flags |= TOTTY;
+			else
+				tp = NULL;
+		} else
+			PROC_UNLOCK(p);
+		PGRPSESS_XUNLOCK();
 	}
 	pca.pri = pri;
 	pca.tty = tp;
@@ -155,8 +180,13 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	va_start(ap, fmt);
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
-	if (shld)
+	if (shld) {
+		PGRPSESS_XLOCK();
+		SESS_LOCK(p->p_session);
 		SESSRELE(p->p_session);
+		SESS_UNLOCK(p->p_session);
+		PGRPSESS_XUNLOCK();
+	}
 	msgbuftrigger = 1;
 }
 

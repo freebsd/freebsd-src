@@ -552,6 +552,7 @@ ibcs2_ioctl(td, uap)
 	        } ibcs2_jwinsize;
 
 		PROC_LOCK(p);
+		SESS_LOCK(p->p_session);
                 ibcs2_jwinsize.bytex = 80;
 	          /* p->p_session->s_ttyp->t_winsize.ws_col; XXX */
 	        ibcs2_jwinsize.bytey = 25;
@@ -560,6 +561,7 @@ ibcs2_ioctl(td, uap)
 		  p->p_session->s_ttyp->t_winsize.ws_xpixel;
 	        ibcs2_jwinsize.bity =
 		  p->p_session->s_ttyp->t_winsize.ws_ypixel;
+		SESS_UNLOCK(p->p_session);
 		PROC_UNLOCK(p);
 	        error = copyout((caddr_t)&ibcs2_jwinsize, SCARG(uap, data),
 			       sizeof(ibcs2_jwinsize));

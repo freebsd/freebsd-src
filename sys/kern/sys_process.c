@@ -515,10 +515,10 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 				struct proc *pp;
 
 				pp = pfind(p->p_oppid);
-				if (pp != NULL)
-					PROC_UNLOCK(pp);
-				else
+				if (pp == NULL)
 					pp = initproc;
+				else
+					PROC_UNLOCK(pp);
 				PROC_LOCK(p);
 				proc_reparent(p, pp);
 			} else

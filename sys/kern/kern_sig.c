@@ -1001,16 +1001,21 @@ killpg1(cp, sig, pgid, all)
 		}
 		sx_sunlock(&allproc_lock);
 	} else {
-		if (pgid == 0)
+		PGRPSESS_SLOCK();
+		if (pgid == 0) {
 			/*
 			 * zero pgid means send to my process group.
 			 */
 			pgrp = cp->p_pgrp;
-		else {
+			PGRP_LOCK(pgrp);
+		} else {
 			pgrp = pgfind(pgid);
-			if (pgrp == NULL)
+			if (pgrp == NULL) {
+				PGRPSESS_SUNLOCK();
 				return (ESRCH);
+			}
 		}
+		PGRPSESS_SUNLOCK();
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);	      
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM) {
@@ -1031,6 +1036,7 @@ killpg1(cp, sig, pgid, all)
 			}
 			PROC_UNLOCK(p);
 		}
+		PGRP_UNLOCK(pgrp);
 	}
 	return (nfound ? 0 : ESRCH);
 }
@@ -1124,8 +1130,15 @@ gsignal(pgid, sig)
 {
 	struct pgrp *pgrp;
 
-	if (pgid && (pgrp = pgfind(pgid)))
-		pgsignal(pgrp, sig, 0);
+	if (pgid != 0) {
+		PGRPSESS_SLOCK();
+		pgrp = pgfind(pgid);
+		PGRPSESS_SUNLOCK();
+		if (pgrp != NULL) {
+			pgsignal(pgrp, sig, 0);
+			PGRP_UNLOCK(pgrp);
+		}
+	}
 }
 
 /*
@@ -1140,6 +1153,7 @@ pgsignal(pgrp, sig, checkctty)
 	register struct proc *p;
 
 	if (pgrp) {
+		PGRP_LOCK_ASSERT(pgrp, MA_OWNED);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (checkctty == 0 || p->p_flag & P_CONTROLT)
@@ -1351,11 +1365,10 @@ psignal(p, sig)
 				goto out;
 			SIGDELSET(p->p_siglist, sig);
 			p->p_xstat = sig;
-			if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0) {
-				PROC_LOCK(p->p_pptr);
+			PROC_LOCK(p->p_pptr);
+			if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 				psignal(p->p_pptr, SIGCHLD);
-				PROC_UNLOCK(p->p_pptr);
-			}
+			PROC_UNLOCK(p->p_pptr);
 			mtx_lock_spin(&sched_lock);
 			stop(p);
 			mtx_unlock_spin(&sched_lock);
@@ -1629,14 +1642,13 @@ issignal(p)
 			if (prop & SA_STOP) {
 				if (p->p_flag & P_TRACED ||
 		    		    (p->p_pgrp->pg_jobc == 0 &&
-				    prop & SA_TTYSTOP))
+				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
 				p->p_xstat = sig;
-				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0) {
-					PROC_LOCK(p->p_pptr);
+				PROC_LOCK(p->p_pptr);
+				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 					psignal(p->p_pptr, SIGCHLD);
-					PROC_UNLOCK(p->p_pptr);
-				}
+				PROC_UNLOCK(p->p_pptr);
 				mtx_lock_spin(&sched_lock);
 				stop(p);
 				PROC_UNLOCK(p);
@@ -2074,7 +2086,7 @@ pgsigio(sigio, sig, checkctty)
 {
 	if (sigio == NULL)
 		return;
-		
+
 	if (sigio->sio_pgid > 0) {
 		PROC_LOCK(sigio->sio_proc);
 		if (CANSIGIO(sigio->sio_ucred, sigio->sio_proc->p_ucred))
@@ -2083,6 +2095,7 @@ pgsigio(sigio, sig, checkctty)
 	} else if (sigio->sio_pgid < 0) {
 		struct proc *p;
 
+		PGRP_LOCK(sigio->sio_pgrp);
 		LIST_FOREACH(p, &sigio->sio_pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (CANSIGIO(sigio->sio_ucred, p->p_ucred) &&
@@ -2090,6 +2103,7 @@ pgsigio(sigio, sig, checkctty)
 				psignal(p, sig);
 			PROC_UNLOCK(p);
 		}
+		PGRP_UNLOCK(sigio->sio_pgrp);
 	}
 }
 
