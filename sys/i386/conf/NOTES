@@ -495,10 +495,11 @@ hint.mse.0.irq="5"
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
-# ctau:	Cronyx/Tau sync dual port V.35/RS-232/RS-530/RS-449/X.21/G.703/E1 serial
-#	adapter (requires sppp or NETGRAPH, depends on NETGRAPH_CRONYX option)
-# cx:   Cronyx/Sigma multiport sync/async adapter (requires sppp or NETGRAPH;
-#       NETGRAPH support depends on NETGRAPH_CRONYX option) 
+# ctau: Cronyx/Tau sync dual port V.35/RS-232/RS-530/RS-449/X.21/G.703/E1
+#       serial adaptor (requires sppp (default), or NETGRAPH if
+#       NETGRAPH_CRONYX is configured)
+# cx:   Cronyx/Sigma multiport sync/async adapter (requires sppp (default),
+#       or NETGRAPH if NETGRAPH_CRONYX is configured)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
 #       (requires miibus)
