@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eval.c,v 1.12 1997/04/28 03:06:33 steve Exp $
+ *	$Id: eval.c,v 1.13 1997/05/19 00:18:36 steve Exp $
  */
 
 #ifndef lint
@@ -764,7 +764,10 @@ evalcommand(cmd, flags, backcmd)
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
 		funcnest++;
-		evaltree(cmdentry.u.func, 0);
+		if (flags & EV_TESTED)
+			evaltree(cmdentry.u.func, EV_TESTED);
+		else
+			evaltree(cmdentry.u.func, 0);
 		funcnest--;
 		INTOFF;
 		poplocalvars();
