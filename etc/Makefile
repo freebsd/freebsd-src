@@ -52,8 +52,12 @@ NAMEDB=	PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
 
 PPPCNF=	ppp.conf
 
+.if defined(NO_SENDMAIL)
+ETCMAIL=mailer.conf aliases
+.else
 ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 	mailertable.sample aliases
+.endif
 
 # Special top level files for FreeBSD
 FREEBSD=COPYRIGHT
