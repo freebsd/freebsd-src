@@ -128,7 +128,7 @@ acpi_pcib_attach(device_t dev)
     ACPI_STATUS			status;
     int				result;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = device_get_softc(dev);
     sc->ap_dev = dev;
@@ -310,7 +310,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     int				i;
     uintptr_t			up;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     
     crsbuf.Pointer = NULL;
     prsbuf.Pointer = NULL;

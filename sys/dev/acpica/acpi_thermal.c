@@ -172,7 +172,7 @@ acpi_tz_attach(device_t dev)
     int				error;
     char			oidname[8];
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_LOCK;
 
@@ -288,7 +288,7 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     int		i;
     char	nbuf[8];
     
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -380,7 +380,7 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     struct	timespec curtime;
     ACPI_STATUS	status;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -499,7 +499,7 @@ acpi_tz_all_off(struct acpi_tz_softc *sc)
 {
     int		i;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_ASSERTLOCK;
     
@@ -531,7 +531,7 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
 {
     ACPI_HANDLE		cooler;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -571,7 +571,7 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
     ACPI_HANDLE			cooler;
     ACPI_STATUS			status;
     
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -613,7 +613,7 @@ static void
 acpi_tz_getparam(struct acpi_tz_softc *sc, char *node, int *data)
 {
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -683,7 +683,7 @@ acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)context;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -781,7 +781,7 @@ acpi_tz_thread(void *arg)
     device_t	*devs;
     int		devcount, i;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 
     devs = NULL;

@@ -322,7 +322,7 @@ DRIVER_MODULE(acpi_ec, acpi, acpi_ec_driver, acpi_ec_devclass, 0, 0);
 static void
 acpi_ec_identify(driver_t driver, device_t bus)
 {
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /* XXX implement - need an ACPI 2.0 system to test this */
 
@@ -358,7 +358,7 @@ acpi_ec_attach(device_t dev)
     ACPI_STATUS			Status;
     int errval = 0;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
      * Fetch/initialise softc
@@ -457,7 +457,7 @@ EcGpeQueryHandler(void *Context)
     ACPI_STATUS			Status;
     char			qxx[5];
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     for (;;) {
 
@@ -548,7 +548,7 @@ static ACPI_STATUS
 EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context, void **RegionContext)
 {
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
      * Just pass the context through, there's nothing to do here.
@@ -567,7 +567,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, ACP
     EC_REQUEST			EcRequest;
     int				i;
 
-    ACPI_FUNCTION_TRACE_U32(__func__, (UINT32)Address);
+    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Address);
 
     if ((Address > 0xFF) || (width % 8 != 0) || (Value == NULL) || (Context == NULL))
         return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -615,7 +615,7 @@ EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
     EC_STATUS	EcStatus;
     int		i;
 
-    ACPI_FUNCTION_TRACE_U32(__func__, (UINT32)Event);
+    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Event);
 
     /* XXX this should test whether interrupts are available some other way */
     if(cold)
