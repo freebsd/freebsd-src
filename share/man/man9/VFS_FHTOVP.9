@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd January 7, 2005
 .Os
 .Dt VFS_FHTOVP 9
 .Sh NAME
@@ -41,9 +41,11 @@
 .Ft int
 .Fn VFS_FHTOVP "struct mount *mp" "struct fid *fhp" "struct vnode **vpp"
 .Sh DESCRIPTION
-This is used by the NFS server to turn an NFS filehandle into a vnode.
+The
+.Fn VFS_FHTOVP
+macro is used by the NFS server to turn an NFS filehandle into a vnode.
 .Pp
-Its arguments are:
+The arguments it expects are:
 .Bl -tag -width vpp
 .It Fa mp
 The file system.
@@ -63,7 +65,9 @@ For instance, UFS
 file system stores the inode number and inode generation counter in its
 filehandle.
 .Pp
-A call to this function should generally be preceded by a call to
+A call to
+.Fn VFS_FHTOVP
+should generally be preceded by a call to
 .Xr VFS_CHECKEXP 9
 to check if the file is accessible to the client.
 .Sh RETURN VALUES
