@@ -144,18 +144,15 @@ struct vn_softc {
 /* sc_flags */
 #define VNF_INITED	0x01
 
-struct vn_softc *vn_softc[NVN];
-u_long	vn_options;
+static struct vn_softc *vn_softc[NVN];
+static u_long	vn_options;
 
 #define IFOPT(vn,opt) if (((vn)->sc_options|vn_options) & (opt))
 
-/*
- * XXX these decls should be static (without __P(())) or elsewhere.
- */
-void	vniodone __P((struct buf *bp));
-int	vnsetcred __P((struct vn_softc *vn, struct ucred *cred));
-void	vnshutdown __P((void));
-void	vnclear __P((struct vn_softc *vn));
+static void	vniodone (struct buf *bp);
+static int	vnsetcred (struct vn_softc *vn, struct ucred *cred);
+static void	vnshutdown (void);
+static void	vnclear (struct vn_softc *vn);
 
 static	int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
