@@ -105,6 +105,20 @@ static char vt_description[];
 #define VT_DESCR_LEN 40
 #endif /* PCVT_FREEBSD > 205 */
 
+static	d_open_t	pcopen;
+static	d_close_t	pcclose;
+static	d_rdwr_t	pcread;
+static	d_rdwr_t	pcwrite;
+static	d_ioctl_t	pcioctl;
+static	d_ttycv_t	pcdevtotty;
+static	d_mmap_t	pcmmap;
+
+static	struct cdevsw	pcdevsw = {
+	pcopen,		pcclose,	pcread,		pcwrite,
+	pcioctl,	nullstop,	noreset,	pcdevtotty,
+	ttselect,	pcmmap,		nostrategy,
+};
+
 #if PCVT_NETBSD > 100	/* NetBSD-current Feb 20 1995 */
 int
 pcprobe(struct device *parent, void *match, void *aux)
@@ -309,6 +323,8 @@ pcattach(struct isa_device *dev)
 	kdc_vt[dev->id_unit].kdc_state =
 		pcvt_is_console? DC_IDLE: DC_BUSY;
 	vt_registerdev(dev, (char *)vga_string(vga_type));
+
+	register_cdev("vt", &pcdevsw);
 #endif /* PCVT_FREEBSD > 205 */
 
 #if PCVT_NETBSD > 9
@@ -1086,20 +1102,17 @@ int
 #endif
 pccnprobe(struct consdev *cp)
 {
+	struct isa_device *dvp;
 	int maj;
 
-	/* locate the major number */
-
-	for (maj = 0; maj < nchrdev; maj++)
-	{
-		if ((u_int)cdevsw[maj].d_open == (u_int)pcopen)
-			break;
-	}
-
-	if (maj == nchrdev)
-	{
-		/* we are not in cdevsw[], give up */
-		panic("pcvt is not in cdevsw[]");
+	/*
+	 * Take control if we are the highest priority enabled display device.
+	 */
+	dvp = find_display();
+	maj = getmajorbyname("vt");
+	if (dvp->id_driver != &vtdriver || maj < 0) {
+		cp->cn_pri = CN_DEAD;
+		return;
 	}
 
 	/* initialize required fields */

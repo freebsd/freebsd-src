@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.32 1995/09/09 18:09:44 davidg Exp $
+ *	$Id: cons.c,v 1.33 1995/09/10 18:57:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -53,7 +53,10 @@
 #include "vt.h"
 #include "sio.h"
 static struct consdev constab[] = {
-#if NSC > 0 || NVT > 0
+#if NSC > 0
+	{ sccnprobe,	sccninit,	sccngetc,	sccncheckc,	sccnputc },
+#endif
+#if NVT > 0
 	{ pccnprobe,	pccninit,	pccngetc,	pccncheckc,	pccnputc },
 #endif
 #if NSIO > 0

@@ -132,7 +132,7 @@
 #if PCVT_NETBSD > 9
 #include "dev/cons.h"
 #elif PCVT_FREEBSD >= 200
-#include <i386/i386/cons.h>
+#include <machine/cons.h>
 #else
 #include "i386/i386/cons.h"
 #endif
@@ -943,7 +943,7 @@ int pcprobe ( struct isa_device *dev );
 int pcattach ( struct isa_device *dev );
 
 struct	isa_driver vtdriver = {		/* driver routines */
-	pcprobe, pcattach, "vt",
+	pcprobe, pcattach, "vt", 1,
 };
 
 #endif /* PCVT_NETBSD > 9 */
@@ -959,7 +959,8 @@ u_char bgansitopc[] = {			/* background ANSI color -> pc */
 };
 
 #if !PCVT_NETBSD
-u_short *Crtat	=	(u_short *)MONO_BUF;	/* screen start address */
+/* XXX Crtat is shared with syscons. */
+u_short *Crtat;			/* screen start address */
 #if !(PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200)
 struct tty *pcconsp =	&pccons[0];		/* ptr to current device */
 #else /* PCVT_FREEBSD > 110 */
@@ -1210,20 +1211,11 @@ extern void bcopyb(void *from, void *to, u_int length);
 extern void fillw(U_short value, void *addr, u_int length);
 #endif
 
-int	pcopen ( Dev_t dev, int flag, int mode, struct proc *p );
-int	pcclose ( Dev_t dev, int flag, int mode, struct proc *p );
-int	pcread ( Dev_t dev, struct uio *uio, int flag );
-int	pcwrite ( Dev_t dev, struct uio *uio, int flag );
-int	pcioctl ( Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p );
-int	pcmmap ( Dev_t dev, int offset, int nprot );
-#if PCVT_FREEBSD > 205
-struct tty *pcdevtotty ( Dev_t dev );
-#endif /* PCVT_FREEBSD > 205 */
 int	pcrint ( void );
 int	pcparam ( struct tty *tp, struct termios *t );
 
 /*
- * In FreeBSD > 2.0.6, driver console functions are declared in i386/cons.h
+ * In FreeBSD > 2.0.6, driver console functions are declared in machine/cons.h
  * and some return void, so don't declare them here.
  */
 #if PCVT_FREEBSD <= 205

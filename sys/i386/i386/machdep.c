@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.140 1995/09/08 03:19:47 davidg Exp $
+ *	$Id: machdep.c,v 1.141 1995/09/09 18:09:45 davidg Exp $
  */
 
 #include "npx.h"
@@ -375,8 +375,10 @@ again:
 	for (i = 1; i < ncallout; i++)
 		callout[i-1].c_next = &callout[i];
 
-        if (boothowto & RB_CONFIG)
+        if (boothowto & RB_CONFIG) {
 		userconfig();
+		cninit();	/* the preferred console may have changed */
+	}
 
 #ifdef BOUNCE_BUFFERS
 	/*
@@ -1256,8 +1258,7 @@ init386(first)
 	/*
 	 * Initialize the console before we print anything out.
 	 */
-
-	cninit ();
+	cninit();
 
 	/*
 	 * make gdt memory segments, the code segment goes up to end of the
