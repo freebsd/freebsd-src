@@ -1875,7 +1875,8 @@ siointr1(com)
 					recv_data = 0;
 			}
 			++com->bytes_in;
-			if (com->tp->t_hotchar != 0 && recv_data == com->tp->t_hotchar)
+			if (com->tp != NULL &&
+			    com->tp->t_hotchar != 0 && recv_data == com->tp->t_hotchar)
 				swi_sched(sio_fast_ih, 0);
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
