@@ -35,28 +35,103 @@
 
 #include <machine/globaldata.h>
 
-static __inline struct globaldata *
-_global_globaldata(void)
-{
-	struct globaldata *gd;
-	int offset;
+#ifndef	__GNUC__
+#error	gcc is required to use this file
+#endif
 
-	offset = offsetof(struct globaldata, gd_prvspace);
-	__asm __volatile("movl %%fs:%1,%0"
-	    : "=r" (gd)
-	    : "m" (*(struct globaldata *)(offset)));
+/*
+ * Evaluates to the byte offset of the per-cpu variable name.
+ */
+#define	__pcpu_offset(name)						\
+	__offsetof(struct globaldata, name)
 
-	return (gd);
-}
+/*
+ * Evaluates to the type of the per-cpu variable name.
+ */
+#define	__pcpu_type(name)						\
+	__typeof(((struct globaldata *)0)->name)
 
-#define	GLOBALDATA		(_global_globaldata())
+/*
+ * Evaluates to the address of the per-cpu variable name.
+ */
+#define	__PCPU_PTR(name) ({						\
+	__pcpu_type(name) *__p;						\
+									\
+	__asm __volatile("movl %%fs:%1,%0; addl %2,%0"			\
+	    : "=r" (__p)						\
+	    : "m" (*(struct globaldata *)(__pcpu_offset(gd_prvspace))),	\
+	      "i" (__pcpu_offset(name)));				\
+									\
+	__p;								\
+})
 
-#define	PCPU_GET(member)	(GLOBALDATA->gd_ ## member)
-#define	PCPU_PTR(member)	(&GLOBALDATA->gd_ ## member)
-#define	PCPU_SET(member, val)	(GLOBALDATA->gd_ ## member = (val))
+/*
+ * Evaluates to the value of the per-cpu variable name.
+ */
+#define	__PCPU_GET(name) ({						\
+	__pcpu_type(name) __result;					\
+									\
+	if (sizeof(__result) == 1) {					\
+		u_char __b;						\
+		__asm __volatile("movb %%fs:%1,%0"			\
+		    : "=r" (__b)					\
+		    : "m" (*(u_char *)(__pcpu_offset(name))));		\
+		__result = *(__pcpu_type(name) *)&__b;			\
+	} else if (sizeof(__result) == 2) {				\
+		u_short __w;						\
+		__asm __volatile("movw %%fs:%1,%0"			\
+		    : "=r" (__w)					\
+		    : "m" (*(u_short *)(__pcpu_offset(name))));		\
+		__result = *(__pcpu_type(name) *)&__w;			\
+	} else if (sizeof(__result) == 4) {				\
+		u_int __i;						\
+		__asm __volatile("movl %%fs:%1,%0"			\
+		    : "=r" (__i)					\
+		    : "m" (*(u_int *)(__pcpu_offset(name))));		\
+		__result = *(__pcpu_type(name) *)&__i;			\
+	} else {							\
+		__result = *__PCPU_PTR(name);				\
+	}								\
+									\
+	__result;							\
+})
+
+/*
+ * Sets the value of the per-cpu variable name to value val.
+ */
+#define	__PCPU_SET(name, val) ({					\
+	__pcpu_type(name) __val = (val);				\
+									\
+	if (sizeof(__val) == 1) {					\
+		u_char __b;						\
+		__b = *(u_char *)&__val;				\
+		__asm __volatile("movb %1,%%fs:%0"			\
+		    : "=m" (*(u_char *)(__pcpu_offset(name)))		\
+		    : "r" (__b));					\
+	} else if (sizeof(__val) == 2) {				\
+		u_short __w;						\
+		__w = *(u_short *)&__val;				\
+		__asm __volatile("movw %1,%%fs:%0"			\
+		    : "=m" (*(u_short *)(__pcpu_offset(name)))		\
+		    : "r" (__w));					\
+	} else if (sizeof(__val) == 4) {				\
+		u_int __i;						\
+		__i = *(u_int *)&__val;					\
+		__asm __volatile("movl %1,%%fs:%0"			\
+		    : "=m" (*(u_int *)(__pcpu_offset(name)))		\
+		    : "r" (__i));					\
+	} else {							\
+		*__PCPU_PTR(name) = __val;				\
+	}								\
+})
+
+#define	PCPU_GET(member)	__PCPU_GET(gd_ ## member)
+#define	PCPU_PTR(member)	__PCPU_PTR(gd_ ## member)
+#define	PCPU_SET(member, val)	__PCPU_SET(gd_ ## member, val)
 
 #define	CURPROC			PCPU_GET(curproc)
 #define	CURTHD			PCPU_GET(curproc)
+#define	GLOBALDATA		PCPU_GET(prvspace)
 #define	curproc			PCPU_GET(curproc)
 
 #endif	/* _KERNEL */
