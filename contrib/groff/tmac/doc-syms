@@ -186,6 +186,7 @@
 .el .ie "\\$1"3.5"      \c
 .el .ie "\\$1"4.0"      \c
 .el .ie "\\$1"4.1"      \c
+.el .ie "\\$1"4.2"      \c
 .el .ie "\\$1"5.0"      \c
 .el .ie "\\$1","        .rm ab \" Allow ".Fx ,"
 .el .ie "\\$1"."        .rm ab \" Allow ".Fx ."

@@ -260,6 +260,7 @@
 .	el .ie "\\$2"4"         %comment%
 .	el .ie "\\$2"4.0"       %comment%
 .	el .ie "\\$2"4.1"       %comment%
+.	el .ie "\\$2"4.2"       %comment%
 .	el .ie "\\$2"5"         %comment%
 .	el .ie "\\$2"5.0"       %comment%
 .	el .tm Unknown FreeBSD version ``\\$2'' at line \\n(c.
