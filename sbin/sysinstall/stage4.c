@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage4.c,v 1.6 1994/11/17 14:12:37 jkh Exp $
+ * $Id: stage4.c,v 1.7 1994/11/17 14:18:43 jkh Exp $
  *
  */
 
@@ -38,7 +38,7 @@ stage4()
 
     while (1) {
 	dialog_msgbox(TITLE, 
-		      "Insert CPIO floppy in floppy drive 0", 6, 75, 1);
+		      "Insert CPIO floppy in floppy drive 0", -1, -1, 1);
 	ffd = open("/dev/fd0a",O_RDONLY);
 	if (ffd > 0)
 	    break;

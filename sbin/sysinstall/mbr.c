@@ -257,7 +257,7 @@ edit_mbr(struct mbr *mbr, struct disklabel *label)
 {
     
     dialog_msgbox("DOS partition table editor", 
-		  "This editor is still under construction :-)", 10, 75, 1);
+		  "This editor is still under construction :-)", -1, -1, 1);
     show_mbr(mbr);
 }
 

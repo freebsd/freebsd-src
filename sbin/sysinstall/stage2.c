@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.13 1994/11/06 01:16:29 jkh Exp $
+ * $Id: stage2.c,v 1.14 1994/11/11 07:58:08 jkh Exp $
  *
  */
 
@@ -36,7 +36,7 @@ stage2()
     FILE *f1;
     int i, j;
 
-    if (dialog_yesno("Last Chance!", "Are you sure you want to proceed with the installation?\nLast chance before wiping your hard disk!", 8, 72))
+    if (dialog_yesno("Last Chance!", "Are you sure you want to proceed with the installation?\nLast chance before wiping your hard disk!", -1, -1))
 	exit(0);
     /* Sort in mountpoint order */
     memset(Fsize, 0, sizeof Fsize);
@@ -133,6 +133,6 @@ stage2()
 	/* Don't do error-check, we reboot anyway... */
 	unmount(dbuf, 0);
     }
-    dialog_msgbox(TITLE,"Remove the floppy from the drive and hit return to reboot from the hard disk",6, 75, 1);
+    dialog_msgbox(TITLE,"Remove the floppy from the drive and hit return to reboot from the hard disk", -1, -1, 1);
     dialog_clear();
 }
