@@ -3,8 +3,12 @@
  * calls to valid<object>
  */
 /*-
- * Copyright (c) 1997, 1998
+ * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
  *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
@@ -37,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.8 1999/03/23 02:46:39 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.9 1999/07/03 04:59:57 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -461,6 +465,9 @@ resetstats(struct vinum_ioctl_msg *msg)
 		plex->writes = 0;			    /* number of writes on this plex */
 		plex->bytes_read = 0;			    /* number of bytes read */
 		plex->bytes_written = 0;		    /* number of bytes written */
+		plex->recovered_reads = 0;		    /* number of recovered read operations */
+		plex->degraded_writes = 0;		    /* number of degraded writes */
+		plex->parityless_writes = 0;		    /* number of parityless writes */
 		plex->multiblock = 0;			    /* requests that needed more than one block */
 		plex->multistripe = 0;			    /* requests that needed more than one stripe */
 		reply->error = 0;
@@ -638,7 +645,6 @@ detachobject(struct vinum_ioctl_msg *msg)
 		set_plex_state(plex->plexno,
 		    plex_down,
 		    setstate_force | setstate_configuring);
-	    update_sd_config(sd->sdno, 0);
 	    save_config();
 	    reply->error = 0;
 	}
@@ -669,7 +675,9 @@ detachobject(struct vinum_ioctl_msg *msg)
 		    break;
 	    }
 	    if (plexno < (vol->plexes - 1))		    /* not the last one, compact */
-		bcopy(&vol[plexno + 1], &vol[plexno], (vol->plexes - 1 - plexno) * sizeof(int));
+		bcopy(&vol->plex[plexno + 1],
+		    &vol->plex[plexno],
+		    (vol->plexes - 1 - plexno) * sizeof(int));
 	    vol->plexes--;
 	    if (!bcmp(vol->name, plex->name, strlen(vol->name))) { /* this plex is named after the volume */
 		/* First, check if the subdisks are the same */
@@ -690,7 +698,6 @@ detachobject(struct vinum_ioctl_msg *msg)
 		bcopy("ex-", plex->name, 3);
 		plex->name[MAXPLEXNAME - 1] = '\0';
 	    }
-	    update_plex_config(plex->plexno, 0);
 	    update_volume_config(volno, 0);
 	    save_config();
 	    reply->error = 0;
@@ -776,7 +783,12 @@ renameobject(struct vinum_rename_msg *msg)
     }
 }
 
-/* Replace one object with another */
+/*
+ * Replace one object with another.
+ * Currently only for drives.
+ * message->index is the drive number of the old drive
+ * message->otherobject is the drive number of the new drive
+ */
 void 
 replaceobject(struct vinum_ioctl_msg *msg)
 {
