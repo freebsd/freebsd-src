@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: tftpd.c,v 1.12 1998/10/30 16:17:39 dg Exp $";
+	"$Id: tftpd.c,v 1.13 1999/04/06 23:05:59 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -325,10 +325,10 @@ again:
 	}
 	ecode = (*pf->f_validate)(&filename, tp->th_opcode);
 	if (logging) {
-		char host[MAXHOSTNAMELEN + 1];
+		char host[MAXHOSTNAMELEN];
 
-		realhostname(host, sizeof host - 1, &from.sin_addr);
-		host[sizeof host - 1] = '\0';
+		realhostname(host, sizeof(host) - 1, &from.sin_addr);
+		host[sizeof(host) - 1] = '\0';
 		syslog(LOG_INFO, "%s: %s request for %s: %s", host,
 			tp->th_opcode == WRQ ? "write" : "read",
 			filename, errtomsg(ecode));

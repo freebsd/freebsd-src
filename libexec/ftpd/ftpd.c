@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.52 1998/10/13 20:42:01 des Exp $";
+	"$Id: ftpd.c,v 1.53 1999/04/06 23:05:57 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -166,7 +166,7 @@ static struct ftphost {
 } *thishost, *firsthost;
 
 #endif
-char	remotehost[MAXHOSTNAMELEN + 1];
+char	remotehost[MAXHOSTNAMELEN];
 char	*ident = NULL;
 
 static char ttyline[20];
@@ -542,7 +542,8 @@ main(argc, argv, envp)
 #ifndef VIRTUAL_HOSTING
 	if ((hostname = malloc(MAXHOSTNAMELEN)) == NULL)
 		fatal("Ran out of memory.");
-	(void) gethostname(hostname, MAXHOSTNAMELEN);
+	(void) gethostname(hostname, MAXHOSTNAMELEN - 1);
+	hostname[MAXHOSTNAMELEN - 1] = '\0';
 #endif
 	reply(220, "%s FTP server (%s) ready.", hostname, version);
 	(void) setjmp(errcatch);
@@ -1896,7 +1897,7 @@ static void
 dolog(sin)
 	struct sockaddr_in *sin;
 {
-	realhostname(remotehost, sizeof remotehost - 1, &sin->sin_addr);
+	realhostname(remotehost, sizeof(remotehost) - 1, &sin->sin_addr);
 
 #ifdef SETPROCTITLE
 #ifdef VIRTUAL_HOSTING

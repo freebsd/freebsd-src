@@ -49,7 +49,7 @@
 static const char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: conf.c,v 1.3 1997/11/24 07:33:40 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -69,7 +69,7 @@ static const char rcsid[] =
 **	simplify the boot file search code.
 */
 
-char	MyHost[MAXHOSTNAMELEN+1];		/* host name */
+char	MyHost[MAXHOSTNAMELEN];			/* host name */
 pid_t	MyPid;					/* process id */
 int	DebugFlg = 0;				/* set true if debugging */
 int	BootAny = 0;				/* set true if we boot anyone */
