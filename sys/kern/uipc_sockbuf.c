@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.14 1996/09/19 00:54:36 pst Exp $
+ * $Id: uipc_socket2.c,v 1.15 1996/10/07 04:32:27 pst Exp $
  */
 
 #include <sys/param.h>
@@ -109,8 +109,8 @@ soisconnected(so)
 	so->so_state |= SS_ISCONNECTED;
 	if (head && (so->so_state & SS_INCOMP)) {
 		TAILQ_REMOVE(&head->so_incomp, so, so_list);
+		head->so_incqlen--;
 		so->so_state &= ~SS_INCOMP;
-		so->so_incqlen--;
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		so->so_state |= SS_COMP;
 		sorwakeup(head);
@@ -148,7 +148,10 @@ soisdisconnected(so)
 
 /*
  * Return a random connection that hasn't been serviced yet and
- * is eligible for discard.
+ * is eligible for discard.  There is a one in qlen chance that
+ * we will return a null, saying that there are no dropable
+ * requests.  In this case, the protocol specific code should drop
+ * the new request.  This insures fairness.
  *
  * This may be used in conjunction with protocol specific queue
  * congestion routines.
@@ -164,18 +167,17 @@ sodropablereq(head)
 	static long old_mono_secs;
 	static unsigned int cur_cnt, old_cnt;
 
-	so = TAILQ_FIRST(&head->so_incomp);
-	if (!so)
-		return (so);
-
-	qlen = head->so_incqlen;
-
 	if ((i = (mono_time.tv_sec - old_mono_secs)) != 0) {
 		old_mono_secs = mono_time.tv_sec;
 		old_cnt = cur_cnt / i;
 		cur_cnt = 0;
 	}
 
+	so = TAILQ_FIRST(&head->so_incomp);
+	if (!so)
+		return (so);
+
+	qlen = head->so_incqlen;
 	if (++cur_cnt > qlen || old_cnt > qlen) {
 		rnd = (314159 * rnd + 66329) & 0xffff;
 		j = ((qlen + 1) * rnd) >> 16;
