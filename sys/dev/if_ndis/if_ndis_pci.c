@@ -147,7 +147,7 @@ ndis_probe_pci(dev)
 	driver_object		*drv;
 
 	t = ndis_devs;
-	drv = windrv_lookup(NULL, "PCI Bus");
+	drv = windrv_lookup(0, "PCI Bus");
 
 	if (drv == NULL)
 		return(ENXIO);
