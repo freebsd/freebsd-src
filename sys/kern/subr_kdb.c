@@ -316,7 +316,21 @@ kdb_thr_first(void)
 }
 
 struct thread *
-kdb_thr_lookup(pid_t tid)
+kdb_thr_from_pid(pid_t pid)
+{
+	struct proc *p;
+
+	p = LIST_FIRST(&allproc);
+	while (p != NULL) {
+		if (p->p_sflag & PS_INMEM && p->p_pid == pid)
+			return (FIRST_THREAD_IN_PROC(p));
+		p = LIST_NEXT(p, p_list);
+	}
+	return (NULL);
+}
+
+struct thread *
+kdb_thr_lookup(lwpid_t tid)
 {
 	struct thread *thr;
 
