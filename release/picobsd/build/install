@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+#	$Id: install,v 1.3 1998/08/02 01:04:37 abial Exp $
+#
+
+echo "Please insert a blank floppy in /dev/fd0."
+echo "WARNING: the contents of the floppy will be permanently erased!"
+echo "Press ^C to abort, Enter to continue."
+read junk
+
+echo "Writing picobsd.bin..."
+dd if=picobsd.bin of=/dev/rfd0
+echo "Done."

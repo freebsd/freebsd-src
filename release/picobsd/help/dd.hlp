@@ -1,0 +1,12 @@
+[1mdd[m	convert and copy a file
+
+	Examples of usage:
+
+	This command will create 16MB, zero-filled file in /dos/SWAP.swp:
+
+		dd if=/dev/zero of=/dos/SWAP.swp bs=512 count=32000
+
+	This command will transfer floppy image from picobsd.flp to device
+	/dev/rfd0, which denotes raw floppy A:
+
+		dd if=picobsd.flp of=/dev/rfd0

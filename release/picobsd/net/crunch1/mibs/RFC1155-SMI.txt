@@ -1,0 +1,9 @@
+RFC1155-SMI DEFINITIONS ::= BEGIN
+    nullOID       OBJECT IDENTIFIER ::= { ccitt 0 }
+    internet      OBJECT IDENTIFIER ::= { iso org(3) dod(6) 1 }
+    directory     OBJECT IDENTIFIER ::= { internet 1 }
+    mgmt          OBJECT IDENTIFIER ::= { internet 2 }
+    experimental  OBJECT IDENTIFIER ::= { internet 3 }
+    private       OBJECT IDENTIFIER ::= { internet 4 }
+    enterprises   OBJECT IDENTIFIER ::= { private 1 }
+END
