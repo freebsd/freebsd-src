@@ -220,12 +220,13 @@ setup_network_ether()
 {
 	dialog --clear --title "Ethernet Interface Name" \
 	--menu "Please select the type of ethernet device you have:\n\n" \
-	 20 76 5 \
+	 20 76 6 \
 	"ed0" "WD80x3, SMC, Novell NE[21]000 or 3C503 generic NIC at 0x280/5" \
 	"ed1" "Same as above, but at address 0x300 and IRQ 5" \
 	"ed2" "Same as above, but at address 0x300 and IRQ 10" \
 	"ie0" "AT&T StarLan and EN100 family at 0x360 and IRQ 7" \
 	"is0" "Isolan 4141-0 or Isolink 4110 at 0x280 and IRQ 7" \
+	"ze0" "PCMCIA IBM or National card at 0x300 and IRQ 5" \
 	  2> ${TMP}/menu.tmp.$$
 
 	retval=$?
