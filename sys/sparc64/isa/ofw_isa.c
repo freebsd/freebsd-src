@@ -53,18 +53,35 @@
 
 #include "pcib_if.h"
 
+int
+ofw_isa_range_restype(struct isa_ranges *range)
+{
+	int ps = ISA_RANGE_PS(range);
+
+	switch (ps) {
+	case PCI_CS_IO:
+		return (SYS_RES_IOPORT);
+	case PCI_CS_MEM32:
+		return (SYS_RES_MEMORY);
+	default:
+		panic("ofw_isa_range_restype: illegal space %x", ps);
+	}
+
+}
+
 /* XXX: this only supports PCI as parent bus right now. */
 int
-ofw_isa_map_iorange(struct isa_ranges *range, int nrange, u_long *start,
-    u_long *end)
+ofw_isa_range_map(struct isa_ranges *range, int nrange, u_long *start,
+    u_long *end, int *which)
 {
+	struct isa_ranges *r;
 	u_int64_t offs, cstart, cend;
 	int i;
 
 	for (i = 0; i < nrange; i++) {
-		cstart = ((u_int64_t)range[i].child_hi << 32) |
-		    range[i].child_lo;
-		cend = cstart + range[i].size;
+		r = &range[i];
+		cstart = ISA_RANGE_CHILD(r);
+		cend = cstart + r->size;
 		if (*start < cstart || *start > cend)
 			continue;
 		if (*end < cstart || *end > cend) {
@@ -72,21 +89,12 @@ ofw_isa_map_iorange(struct isa_ranges *range, int nrange, u_long *start,
 			    "ranges (%#lx not in %#lx - %#lx)", *end, cstart,
 			    cend);
 		}
-		offs = (((u_int64_t)range[i].phys_mid << 32) |
-		    range[i].phys_lo);
+		offs = ISA_RANGE_PHYS(r);
 		*start = *start + offs - cstart;
 		*end  = *end + offs - cstart;
-		/* Isolate address space and find the right tag */
-		switch (ISA_RANGE_PS(&range[i])) {
-		case PCI_CS_IO:
-			return (SYS_RES_IOPORT);
-		case PCI_CS_MEM32:
-			return (SYS_RES_MEMORY);
-		default:
-			panic("ofw_isa_map_iorange: illegal space %x",
-			    ISA_RANGE_PS(&range[i]));
-			break;
-		}
+		if (which != NULL)
+			*which = i;
+		return (ofw_isa_range_restype(r));
 	}
 	panic("ofw_isa_map_iorange: could not map range %#lx - %#lx",
 	    *start, *end);

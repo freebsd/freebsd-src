@@ -56,10 +56,13 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
+#include <machine/bus.h>
+
+#include <sys/rman.h>
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
 
-#include <machine/bus.h>
 #include <machine/ofw_bus.h>
 #include <machine/resource.h>
 
@@ -75,19 +78,6 @@
 #include <sparc64/isa/ofw_isa.h>
 #include <sparc64/ebus/ebusvar.h>
 
-#ifdef EBUS_DEBUG
-#define	EDB_PROM	0x01
-#define EDB_CHILD	0x02
-#define	EDB_INTRMAP	0x04
-#define EDB_BUSMAP	0x08
-#define EDB_BUSDMA	0x10
-#define EDB_INTR	0x20
-int ebus_debug = 0xff;
-#define DPRINTF(l, s)   do { if (ebus_debug & l) printf s; } while (0)
-#else
-#define DPRINTF(l, s)
-#endif
-
 struct ebus_devinfo {
 	char			*edi_name;	/* PROM name */
 	char			*edi_compat;
@@ -96,10 +86,17 @@ struct ebus_devinfo {
 	struct resource_list	edi_rl;
 };
 
+struct ebus_rinfo {
+	int			eri_rtype;
+	struct rman		eri_rman;
+	struct resource		*eri_res;
+};
+
 struct ebus_softc {
 	phandle_t		sc_node;
 
 	struct isa_ranges	*sc_range;
+	struct ebus_rinfo	*sc_rinfo;
 
 	int			sc_nrange;
 	int			sc_nimap;
@@ -109,14 +106,15 @@ struct ebus_softc {
 #endif
 };
 
-static int ebus_probe(device_t);
-static int ebus_print_child(device_t, device_t);
-static void ebus_probe_nomatch(device_t, device_t);
-static int ebus_read_ivar(device_t, device_t, int, uintptr_t *);
-static int ebus_write_ivar(device_t, device_t, int, uintptr_t);
-static struct resource *ebus_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
-static struct resource_list *ebus_get_resource_list(device_t, device_t);
+static device_probe_t ebus_probe;
+static device_attach_t ebus_attach;
+static bus_print_child_t ebus_print_child;
+static bus_probe_nomatch_t ebus_probe_nomatch;
+static bus_read_ivar_t ebus_read_ivar;
+static bus_write_ivar_t ebus_write_ivar;
+static bus_alloc_resource_t ebus_alloc_resource;
+static bus_release_resource_t ebus_release_resource;
+static bus_get_resource_list_t ebus_get_resource_list;
 
 static struct ebus_devinfo *ebus_setup_dinfo(device_t, struct ebus_softc *,
     phandle_t, char *);
@@ -126,7 +124,7 @@ static int ebus_print_res(struct ebus_devinfo *);
 static device_method_t ebus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ebus_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	ebus_attach),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	ebus_print_child),
@@ -139,7 +137,7 @@ static device_method_t ebus_methods[] = {
 	DEVMETHOD(bus_get_resource_list, ebus_get_resource_list),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_release_resource,	ebus_release_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 
 	{ 0, 0 }
@@ -155,26 +153,27 @@ static devclass_t ebus_devclass;
 
 DRIVER_MODULE(ebus, pci, ebus_driver, ebus_devclass, 0, 0);
 
+static phandle_t
+ebus_get_busnode(device_t dev)
+{
+
+#ifdef OFW_NEWPCI
+	return (ofw_pci_get_node(dev));
+#else
+	return (ofw_pci_find_node(pci_get_bus(dev), pci_get_slot(dev),
+	    pci_get_function(dev)));
+#endif
+}
+
 static int
 ebus_probe(device_t dev)
 {
-	struct ebus_softc *sc;
-	struct ebus_devinfo *edi;
 	char name[10];
-	device_t cdev;
 	phandle_t node;
-	char *cname;
 
-#ifdef OFW_NEWPCI
-	node = ofw_pci_get_node(dev);
-#else
-	node = ofw_pci_find_node(pci_get_bus(dev), pci_get_slot(dev),
-	    pci_get_function(dev));
-#endif
-	if (node == 0)
+	if ((node = ebus_get_busnode(dev)) == 0)
 		return (ENXIO);
 
-	/* Match a real ebus */
 	OF_getprop(node, "name", &name, sizeof(name));
 	if (pci_get_class(dev) != PCIC_BRIDGE ||
 	    pci_get_vendor(dev) != 0x108e ||
@@ -187,16 +186,60 @@ ebus_probe(device_t dev)
 		device_set_desc(dev, "PCI-EBus3 bridge");
 	else
 		return (ENXIO);
+	return (0);
+}
 
-	device_printf(dev, "revision 0x%02x\n", pci_get_revid(dev));
+static int
+ebus_attach(device_t dev)
+{
+	struct ebus_softc *sc;
+	struct ebus_devinfo *edi;
+	struct ebus_rinfo *eri;
+	struct resource *res;
+	device_t cdev;
+	phandle_t node;
+	char *cname;
+	int i, rnum, rid;
 
 	sc = device_get_softc(dev);
-	sc->sc_node = node;
+	sc->sc_node = node = ebus_get_busnode(dev);
 
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_range), (void **)&sc->sc_range);
-	if (sc->sc_nrange == -1)
-		panic("ebus_attach: could not get ranges property");
+	if (sc->sc_nrange == -1) {
+		printf("ebus_attach: could not get ranges property\n");
+		return (ENXIO);
+	}
+
+	sc->sc_rinfo = malloc(sizeof(*sc->sc_rinfo) * sc->sc_nrange, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
+
+	/* For every range, there must be a matching resource. */
+	for (rnum = 0; rnum < sc->sc_nrange; rnum++) {
+		eri = &sc->sc_rinfo[rnum];
+		eri->eri_rtype = ofw_isa_range_restype(&sc->sc_range[rnum]);
+		rid = PCIR_BAR(rnum);
+		res = bus_alloc_resource_any(dev, eri->eri_rtype, &rid,
+		    RF_ACTIVE);
+		if (res == NULL) {
+			printf("ebus_attach: failed to allocate range "
+			    "resource!\n");
+			goto fail;
+		}
+		eri->eri_res = res;
+		eri->eri_rman.rm_type = RMAN_ARRAY;
+		eri->eri_rman.rm_descr = "EBus range";
+		if (rman_init(&eri->eri_rman) != 0) {
+			printf("ebus_attach: failed to initialize rman!");
+			goto fail;
+		}
+		if (rman_manage_region(&eri->eri_rman, rman_get_start(res),
+		     rman_get_end(res)) != 0) {
+			printf("ebus_attach: failed to register region!");
+			rman_fini(&eri->eri_rman);
+			goto fail;
+		}
+	}
 
 #ifdef OFW_NEWPCI
 	ofw_bus_setup_iinfo(node, &sc->sc_iinfo, sizeof(ofw_isa_intr_t));
@@ -205,7 +248,6 @@ ebus_probe(device_t dev)
 	/*
 	 * Now attach our children.
 	 */
-	DPRINTF(EDB_CHILD, ("ebus node %08x, searching children...\n", node));
 	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
 		if ((OF_getprop_alloc(node, "name", 1, (void **)&cname)) == -1)
 			continue;
@@ -219,7 +261,20 @@ ebus_probe(device_t dev)
 			panic("ebus_attach: device_add_child failed");
 		device_set_ivars(cdev, edi);
 	}
-	return (0);
+	return (bus_generic_attach(dev));
+
+fail:
+	for (i = rnum; i >= 0; i--) {
+		eri = &sc->sc_rinfo[i];
+		if (i < rnum)
+			rman_fini(&eri->eri_rman);
+		if (eri->eri_res != 0) {
+			bus_release_resource(dev, eri->eri_rtype,
+			    PCIR_BAR(rnum), eri->eri_res);
+		}
+	}
+	free(sc->sc_range, M_OFWPROP);
+	return (ENXIO);
 }
 
 static int
@@ -293,74 +348,100 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	struct ebus_softc *sc;
 	struct resource_list *rl;
-	struct resource_list_entry *rle;
-	struct ebus_devinfo *edi;
+	struct resource_list_entry *rle = NULL;
+	struct resource *res;
+	struct ebus_rinfo *ri;
+	bus_space_tag_t bt;
+	bus_space_handle_t bh;
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault = (start == 0UL && end == ~0UL);
-	u_long nstart, nend;
-	int ptype;
+	int ptype, ridx, rv;
 
 	sc = (struct ebus_softc *)device_get_softc(bus);
-	edi = device_get_ivars(child);
-	rl = &edi->edi_rl;
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	/*
 	 * Map ebus ranges to PCI ranges. This may include changing the
 	 * allocation type.
 	 */
-	ptype = type;
-	nstart = start;
-	nend = end;
 	switch (type) {
 	case SYS_RES_IOPORT:
-		if (!isdefault && !passthrough) {
-			ptype = ofw_isa_map_iorange(sc->sc_range, sc->sc_nrange,
-			    &nstart, &nend);
+		KASSERT(!(isdefault && passthrough),
+		    ("ebus_alloc_resource: passthrough of default alloc"));
+		if (!passthrough) {
+			rle = resource_list_find(rl, type, *rid);
+			if (rle == NULL)
+				return (NULL);
+			KASSERT(rle->res == NULL,
+			    ("ebus_alloc_resource: resource entry is busy"));
+			if (isdefault) {
+				start = rle->start;
+				count = ulmax(count, rle->count);
+				end = ulmax(rle->end, start + count - 1);
+			}
 		}
-		if (isdefault && passthrough) {
-			panic("ebus_alloc_resource: passthrough of default "
-			    "allocation not supported");
+
+		ptype = ofw_isa_range_map(sc->sc_range, sc->sc_nrange,
+		    &start, &end, &ridx);
+
+		ri = &sc->sc_rinfo[ridx];
+		res = rman_reserve_resource(&ri->eri_rman, start, end, count,
+		    flags, child);
+		if (res == NULL)
+			return (NULL);
+		bt = rman_get_bustag(ri->eri_res);
+		rman_set_bustag(res, bt);
+		rv = bus_space_subregion(bt, rman_get_bushandle(ri->eri_res),
+		    rman_get_start(res) - rman_get_start(ri->eri_res), count,
+		    &bh);
+		if (rv != 0) {
+			rman_release_resource(res);
+			return (NULL);
 		}
-		break;
+		rman_set_bushandle(res, bh);
+		if (!passthrough)
+			rle->res = res;
+		return (res);
 	case SYS_RES_IRQ:
-		break;
+		return (resource_list_alloc(rl, bus, child, type, rid, start,
+		    end, count, flags));
 	default:
 		panic("ebus_alloc_resource: unsupported resource type %d",
 		    type);
 	}
+}
 
-	/*
-	 * This inlines a modified resource_list_alloc(); this is needed
-	 * because the resources need to be mapped into the bus space.
-	 * This could be done when the resources are added to the resource
-	 * lists, however doing it here is slightly more flexible.
-	 */
-	if (passthrough) {
-		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
-		    ptype, rid, nstart, nend, count, flags));
-	}
+int
+ebus_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	struct ebus_softc *sc;
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+	int passthrough = (device_get_parent(child) != bus);
+	int rv;
 
-	rle = resource_list_find(rl, type, *rid);
-	if (rle == NULL)
-		return (NULL);		/* no resource of that type/rid */
-
-	if (rle->res != NULL)
-		panic("ebus_alloc_resource: resource entry is busy");
-
-	if (isdefault) {
-		nstart = rle->start;
-		count = ulmax(count, rle->count);
-		nend = ulmax(rle->end, nstart + count - 1);
-		if (type == SYS_RES_IOPORT) {
-			ptype = ofw_isa_map_iorange(sc->sc_range, sc->sc_nrange,
-			    &nstart, &nend);
+	sc = (struct ebus_softc *)device_get_softc(bus);
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
+	switch (type) {
+ 	case SYS_RES_IOPORT:
+		if ((rv = rman_release_resource(res)) != 0)
+			return (rv);
+		if (!passthrough) {
+			rle = resource_list_find(rl, type, rid);
+			KASSERT(rle != NULL, ("ebus_release_resource: "
+			    "resource entry not found!"));
+			KASSERT(rle->res != NULL, ("ebus_alloc_resource: "
+			    "resource entry is not busy"));
+			rle->res = NULL;
 		}
+		break;
+	case SYS_RES_IRQ:
+		return (resource_list_release(rl, bus, child, type, rid, res));
+	default:
+		panic("ebus_release_resource: unsupported resource type %d",
+		    type);
 	}
-
-	rle->res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
-	    ptype, rid, nstart, nend, count, flags);
-
-	return (rle->res);
-
+	return (0);
 }
 
 static struct resource_list *
@@ -441,7 +522,6 @@ ebus_destroy_dinfo(struct ebus_devinfo *edi)
 	resource_list_free(&edi->edi_rl);
 	free(edi, M_DEVBUF);
 }
-
 
 static int
 ebus_print_res(struct ebus_devinfo *edi)
