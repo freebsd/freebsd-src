@@ -35,11 +35,11 @@
 .Fd #include <sys/bus.h>
 .Fd #include <sys/proc.h>
 .Fd #include <sys/interrupt.h>
-.Vt "extern	struct ithd *tty_ithd;"
-.Vt "extern	struct ithd *clk_ithd;"
-.Vt "extern	struct intrhand *net_ih;"
-.Vt "extern	struct intrhand *softclock_ih;"
-.Vt "extern	struct intrhand *vm_ih;"
+.Vt "extern	struct ithd *tty_ithd" ;
+.Vt "extern	struct ithd *clk_ithd" ;
+.Vt "extern	struct intrhand *net_ih" ;
+.Vt "extern	struct intrhand *softclock_ih" ;
+.Vt "extern	struct intrhand *vm_ih" ;
 .Ft void
 .Fn sched_swi "struct intrhand *handler" "int flags"
 .Ft struct intrhand *

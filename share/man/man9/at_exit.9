@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/systm.h>
-.Ft typedef void \*(lp*exitlist_fn\*(rp \*(lpstruct proc *\*(rp;
+.Ft "typedef void" ( exitlist_fn ) ( "struct proc *" ) ;
 .Pp
 .Ft int
 .Fn at_exit "exitlist_fn func"
