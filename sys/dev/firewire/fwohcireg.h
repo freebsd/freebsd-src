@@ -332,8 +332,7 @@ struct fwohci_txpkthdr{
 		u_int32_t ld[4];
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
-			u_int32_t :13,
-				  spd:3,
+			u_int32_t spd:16, /* XXX include reserved field */
 				  :8,
 				  tcode:4,
 				  :4;
@@ -341,8 +340,7 @@ struct fwohci_txpkthdr{
 			u_int32_t :4,
 				  tcode:4,
 				  :8,
-				  spd:3,
-				  :13;
+				  spd:16; /* XXX include reserved fields */
 #endif
 		}common;
 		struct {
