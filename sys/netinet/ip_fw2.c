@@ -50,6 +50,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/jail.h>
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
@@ -111,6 +112,7 @@ struct ip_fw_ugid {
 	gid_t		fw_groups[NGROUPS];
 	int		fw_ngroups;
 	uid_t		fw_uid;
+	int		fw_prid;
 };
 
 struct ip_fw_chain {
@@ -1579,6 +1581,8 @@ check_uidgid(ipfw_insn_u32 *insn,
 			INP_LOCK(pcb);
 			if (pcb->inp_socket != NULL) {
 				cr = pcb->inp_socket->so_cred;
+				ugp->fw_prid = jailed(cr) ?
+				    cr->cr_prison->pr_id : -1;
 				ugp->fw_uid = cr->cr_uid;
 				ugp->fw_ngroups = cr->cr_ngroups;
 				bcopy(cr->cr_groups, ugp->fw_groups,
@@ -1601,13 +1605,15 @@ check_uidgid(ipfw_insn_u32 *insn,
 	} 
 	if (insn->o.opcode == O_UID)
 		match = (ugp->fw_uid == (uid_t)insn->d[0]);
-	else if (insn->o.opcode == O_GID)
+	else if (insn->o.opcode == O_GID) {
 		for (gp = ugp->fw_groups;
 			gp < &ugp->fw_groups[ugp->fw_ngroups]; gp++)
 			if (*gp == (gid_t)insn->d[0]) {
 				match = 1;
 				break;
 			}
+	} else if (insn->o.opcode == O_JAIL)
+		match = (ugp->fw_prid == (int)insn->d[0]);
 	return match;
 }
 
@@ -1921,6 +1927,7 @@ check_body:
 
 			case O_GID:
 			case O_UID:
+			case O_JAIL:
 				/*
 				 * We only check offset == 0 && proto != 0,
 				 * as this ensures that we have an IPv4
@@ -2862,6 +2869,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_UID:
 		case O_GID:
+		case O_JAIL:
 		case O_IP_SRC:
 		case O_IP_DST:
 		case O_TCPSEQ:

@@ -44,7 +44,10 @@
  * 64-bit architectures, so the must be handled with care.
  *
  * "enum ipfw_opcodes" are the opcodes supported. We can have up
- * to 256 different opcodes.
+ * to 256 different opcodes. When adding new opcodes, they should
+ * be appended to the end of the opcode list before O_LAST_OPCODE,
+ * this will prevent the ABI from being broken, otherwise users
+ * will have to recompile ipfw(8) when they update the kernel.
  */
 
 enum ipfw_opcodes {		/* arguments (4 byte each)	*/
@@ -129,6 +132,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_IPSEC,		/* has ipsec history 		*/
 	O_IP_SRC_LOOKUP,	/* arg1=table number, u32=value	*/
 	O_IP_DST_LOOKUP,	/* arg1=table number, u32=value	*/
+	O_JAIL,			/* u32 = id			*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
