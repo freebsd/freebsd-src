@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: expand.c,v 1.2 1994/09/24 02:57:34 davidg Exp $
  */
 
 #ifndef lint
@@ -402,8 +402,10 @@ expbackq(cmd, quoted, flag)
 			STPUTC(lastc, dest);
 		}
 	}
-	if (lastc == '\n') {
+	p--;
+	while (lastc == '\n') {
 		STUNPUTC(dest);
+		lastc = *--p;
 	}
 	if (in.fd >= 0)
 		close(in.fd);
