@@ -609,9 +609,15 @@ ng_ksocket_connect(hook_p hook)
 	/* Add our hook for incoming data and other events */
 	priv->so->so_upcallarg = (caddr_t)node;
 	priv->so->so_upcall = ng_ksocket_incoming;
+	SOCKBUF_LOCK(&priv->so->so_rcv);
 	priv->so->so_rcv.sb_flags |= SB_UPCALL;
+	SOCKBUF_UNLOCK(&priv->so->so_rcv);
+	SOCKBUF_LOCK(&priv->so->so_snd);
 	priv->so->so_snd.sb_flags |= SB_UPCALL;
+	SOCKBUF_UNLOCK(&priv->so->so_snd);
+	SOCK_LOCK(priv->so);
 	priv->so->so_state |= SS_NBIO;
+	SOCK_UNLOCK(priv->so);
 	/*
 	 * --Original comment--
 	 * On a cloned socket we may have already received one or more
@@ -941,8 +947,12 @@ ng_ksocket_shutdown(node_p node)
 	/* Close our socket (if any) */
 	if (priv->so != NULL) {
 		priv->so->so_upcall = NULL;
+		SOCKBUF_LOCK(&priv->so->so_rcv);
 		priv->so->so_rcv.sb_flags &= ~SB_UPCALL;
+		SOCKBUF_UNLOCK(&priv->so->so_rcv);
+		SOCKBUF_LOCK(&priv->so->so_snd);
 		priv->so->so_snd.sb_flags &= ~SB_UPCALL;
+		SOCKBUF_UNLOCK(&priv->so->so_snd);
 		soclose(priv->so);
 		priv->so = NULL;
 	}
@@ -1257,8 +1267,12 @@ ng_ksocket_finish_accept(priv_p priv)
 
 	so->so_upcallarg = (caddr_t)node;
 	so->so_upcall = ng_ksocket_incoming;
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_flags |= SB_UPCALL;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags |= SB_UPCALL;
+	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/* Fill in the response data and send it or return it to the caller */
 	resp_data = (struct ng_ksocket_accept *)resp->data;

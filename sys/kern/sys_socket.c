@@ -131,21 +131,41 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 	switch (cmd) {
 
 	case FIONBIO:
+		SOCK_LOCK(so);
 		if (*(int *)data)
 			so->so_state |= SS_NBIO;
 		else
 			so->so_state &= ~SS_NBIO;
+		SOCK_UNLOCK(so);
 		return (0);
 
 	case FIOASYNC:
+		/*
+		 * XXXRW: This code separately acquires SOCK_LOCK(so)
+		 * and SOCKBUF_LOCK(&so->so_rcv) even though they are
+		 * the same mutex to avoid introducing the assumption
+		 * that they are the same.
+		 */
 		if (*(int *)data) {
+			SOCK_LOCK(so);
 			so->so_state |= SS_ASYNC;
+			SOCK_UNLOCK(so);
+			SOCKBUF_LOCK(&so->so_rcv);
 			so->so_rcv.sb_flags |= SB_ASYNC;
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCKBUF_LOCK(&so->so_snd);
 			so->so_snd.sb_flags |= SB_ASYNC;
+			SOCKBUF_UNLOCK(&so->so_snd);
 		} else {
+			SOCK_LOCK(so);
 			so->so_state &= ~SS_ASYNC;
+			SOCK_UNLOCK(so);
+			SOCKBUF_LOCK(&so->so_rcv);
 			so->so_rcv.sb_flags &= ~SB_ASYNC;
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCKBUF_LOCK(&so->so_snd);
 			so->so_snd.sb_flags &= ~SB_ASYNC;
+			SOCKBUF_UNLOCK(&so->so_snd);
 		}
 		return (0);
 

@@ -997,8 +997,12 @@ ng_btsocket_rfcomm_sessions_task(void *ctx, int pending)
 			/* Close L2CAP socket */
 			s->l2so->so_upcallarg = NULL;
 			s->l2so->so_upcall = NULL;
+			SOCKBUF_LOCK(&s->l2so->so_rcv);
 			s->l2so->so_rcv.sb_flags &= ~SB_UPCALL;
+			SOCKBUF_UNLOCK(&s->l2so->so_rcv);
+			SOCKBUF_LOCK(&s->l2so->so_snd);
 			s->l2so->so_snd.sb_flags &= ~SB_UPCALL;
+			SOCKBUF_UNLOCK(&s->l2so->so_snd);
 			soclose(s->l2so);
 
 			mtx_unlock(&s->session_mtx);
@@ -1237,8 +1241,12 @@ ng_btsocket_rfcomm_session_create(ng_btsocket_rfcomm_session_p *sp,
 	/* Prepare L2CAP socket */
 	l2so->so_upcallarg = NULL;
 	l2so->so_upcall = ng_btsocket_rfcomm_upcall;
+	SOCKBUF_LOCK(&l2so->so_rcv);
 	l2so->so_rcv.sb_flags |= SB_UPCALL;
+	SOCKBUF_UNLOCK(&l2so->so_rcv);
+	SOCKBUF_LOCK(&l2so->so_snd);
 	l2so->so_snd.sb_flags |= SB_UPCALL;
+	SOCKBUF_UNLOCK(&l2so->so_snd);
 	l2so->so_state |= SS_NBIO;
 	s->l2so = l2so;
 
@@ -1317,8 +1325,12 @@ bad:
 	/* Return L2CAP socket back to its original state */
 	l2so->so_upcallarg = NULL;
 	l2so->so_upcall = NULL;
+	SOCKBUF_LOCK(&l2so->so_rcv);
 	l2so->so_rcv.sb_flags &= ~SB_UPCALL;
+	SOCKBUF_LOCK(&l2so->so_rcv);
+	SOCKBUF_LOCK(&l2so->so_snd);
 	l2so->so_snd.sb_flags &= ~SB_UPCALL;
+	SOCKBUF_LOCK(&l2so->so_snd);
 	l2so->so_state &= ~SS_NBIO;
 
 	mtx_destroy(&s->session_mtx);

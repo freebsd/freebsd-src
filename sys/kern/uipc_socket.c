@@ -277,8 +277,11 @@ solisten(so, backlog, td)
 		return (error);
 	}
 	ACCEPT_LOCK();
-	if (TAILQ_EMPTY(&so->so_comp))
+	if (TAILQ_EMPTY(&so->so_comp)) {
+		SOCK_LOCK(so);
 		so->so_options |= SO_ACCEPTCONN;
+		SOCK_UNLOCK(so);
+	}
 	if (backlog < 0 || backlog > somaxconn)
 		backlog = somaxconn;
 	so->so_qlimit = backlog;
@@ -448,14 +451,13 @@ soaccept(so, nam)
 	struct socket *so;
 	struct sockaddr **nam;
 {
-	int s = splnet();
 	int error;
 
-	if ((so->so_state & SS_NOFDREF) == 0)
-		panic("soaccept: !NOFDREF");
+	SOCK_LOCK(so);
+	KASSERT((so->so_state & SS_NOFDREF) != 0, ("soaccept: !NOFDREF"));
 	so->so_state &= ~SS_NOFDREF;
+	SOCK_UNLOCK(so);
 	error = (*so->so_proto->pr_usrreqs->pru_accept)(so, nam);
-	splx(s);
 	return (error);
 }
 
@@ -754,9 +756,11 @@ restart:
 				break;
 			}
 		    } while (space > 0 && atomic);
-		    if (dontroute)
+		    if (dontroute) {
+			    SOCK_LOCK(so);
 			    so->so_options |= SO_DONTROUTE;
-		    s = splnet();				/* XXX */
+			    SOCK_UNLOCK(so);
+		    }
 		    /*
 		     * XXX all the SBS_CANTSENDMORE checks previously
 		     * done could be out of date.  We could have recieved
@@ -1396,11 +1400,13 @@ sosetopt(so, sopt)
 			if (error)
 				goto bad;
 
+			SOCK_LOCK(so);
 			so->so_linger = l.l_linger;
 			if (l.l_onoff)
 				so->so_options |= SO_LINGER;
 			else
 				so->so_options &= ~SO_LINGER;
+			SOCK_UNLOCK(so);
 			break;
 
 		case SO_DEBUG:
@@ -1418,10 +1424,12 @@ sosetopt(so, sopt)
 					    sizeof optval);
 			if (error)
 				goto bad;
+			SOCK_LOCK(so);
 			if (optval)
 				so->so_options |= sopt->sopt_name;
 			else
 				so->so_options &= ~sopt->sopt_name;
+			SOCK_UNLOCK(so);
 			break;
 
 		case SO_SNDBUF:
@@ -1842,12 +1850,16 @@ sopoll(struct socket *so, int events, struct ucred *active_cred,
 		    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM |
 		     POLLRDBAND)) {
 			selrecord(td, &so->so_rcv.sb_sel);
+			SOCKBUF_LOCK(&so->so_rcv);
 			so->so_rcv.sb_flags |= SB_SEL;
+			SOCKBUF_UNLOCK(&so->so_rcv);
 		}
 
 		if (events & (POLLOUT | POLLWRNORM)) {
 			selrecord(td, &so->so_snd.sb_sel);
+			SOCKBUF_LOCK(&so->so_snd);
 			so->so_snd.sb_flags |= SB_SEL;
+			SOCKBUF_UNLOCK(&so->so_snd);
 		}
 	}
 
@@ -1860,7 +1872,6 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 {
 	struct socket *so = kn->kn_fp->f_data;
 	struct sockbuf *sb;
-	int s;
 
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
@@ -1878,10 +1889,10 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 		return (1);
 	}
 
-	s = splnet();
+	SOCKBUF_LOCK(sb);
 	SLIST_INSERT_HEAD(&sb->sb_sel.si_note, kn, kn_selnext);
 	sb->sb_flags |= SB_KNOTE;
-	splx(s);
+	SOCKBUF_UNLOCK(sb);
 	return (0);
 }
 
@@ -1889,12 +1900,12 @@ static void
 filt_sordetach(struct knote *kn)
 {
 	struct socket *so = kn->kn_fp->f_data;
-	int s = splnet();
 
+	SOCKBUF_LOCK(&so->so_rcv);
 	SLIST_REMOVE(&so->so_rcv.sb_sel.si_note, kn, knote, kn_selnext);
 	if (SLIST_EMPTY(&so->so_rcv.sb_sel.si_note))
 		so->so_rcv.sb_flags &= ~SB_KNOTE;
-	splx(s);
+	SOCKBUF_UNLOCK(&so->so_rcv);
 }
 
 /*ARGSUSED*/
@@ -1922,12 +1933,12 @@ static void
 filt_sowdetach(struct knote *kn)
 {
 	struct socket *so = kn->kn_fp->f_data;
-	int s = splnet();
 
+	SOCKBUF_LOCK(&so->so_snd);
 	SLIST_REMOVE(&so->so_snd.sb_sel.si_note, kn, knote, kn_selnext);
 	if (SLIST_EMPTY(&so->so_snd.sb_sel.si_note))
 		so->so_snd.sb_flags &= ~SB_KNOTE;
-	splx(s);
+	SOCKBUF_UNLOCK(&so->so_snd);
 }
 
 /*ARGSUSED*/
