@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_eisa.c,v 1.3 1998/10/15 18:21:50 gibbs Exp $
+ *	$Id: ahc_eisa.c,v 1.4 1998/12/15 08:24:45 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -439,7 +439,9 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 		 */
 		int i;
 		int max_targ = (ahc->features & AHC_WIDE) != 0 ? 16 : 8;
+		u_int16_t discenable;
 
+		discenable = 0;
 		for (i = 0; i < max_targ; i++){
 	                u_int8_t target_settings;
 			target_settings = (sc.device_flags[i] & CFXFER) << 4;
@@ -448,11 +450,11 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 			if (sc.device_flags[i] & CFWIDEB)
 				target_settings |= WIDEXFER;
 			if (sc.device_flags[i] & CFDISC)
-				ahc->discenable |= (0x01 << i);
+				discenable |= (0x01 << i);
 			ahc_outb(ahc, TARG_SCSIRATE + i, target_settings);
 		}
-		ahc_outb(ahc, DISC_DSB, ~(ahc->discenable & 0xff));
-		ahc_outb(ahc, DISC_DSB + 1, ~((ahc->discenable >> 8) & 0xff));
+		ahc_outb(ahc, DISC_DSB, ~(discenable & 0xff));
+		ahc_outb(ahc, DISC_DSB + 1, ~((discenable >> 8) & 0xff));
 
 		ahc->our_id = sc.brtime_id & CFSCSIID;
 
