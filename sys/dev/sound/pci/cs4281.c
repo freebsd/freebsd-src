@@ -769,6 +769,7 @@ cs4281_pci_attach(device_t dev)
 
     data = pci_read_config(dev, PCIR_COMMAND, 2);
 
+#if 0
     if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 	/* Reset the power state. */
 	device_printf(dev, "chip is in D%d power mode "
@@ -776,6 +777,7 @@ cs4281_pci_attach(device_t dev)
 
 	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
     }
+#endif
 
     sc->regid   = PCIR_MAPS;
     sc->regtype = SYS_RES_MEMORY;
