@@ -9,8 +9,6 @@ SRCS=   sort.c \
 	dup-safer.c \
 	error.c \
 	fopen-safer.c \
-	getopt.c \
-	getopt1.c \
 	hard-locale.c \
 	human.c \
 	long-options.c \
