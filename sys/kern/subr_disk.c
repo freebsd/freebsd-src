@@ -48,6 +48,8 @@ disk_dev_synth(dev_t dev)
 		p = RAW_PART;
 		s = WHOLE_DISK_SLICE;
 		pdev = makedev(dp->d_devsw->d_maj, dkmakeminor(u, s, p));
+		if (pdev->si_devsw == NULL)
+			return;		/* Probably a unit we don't have */
 		s = dkslice(dev);
 		p = dkpart(dev);
 		if (s == WHOLE_DISK_SLICE && p == RAW_PART) {
