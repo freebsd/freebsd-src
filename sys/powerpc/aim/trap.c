@@ -34,10 +34,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/proc.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -73,12 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/spr.h>
 #include <machine/sr.h>
 
-#include <ddb/ddb.h>
-
-#ifndef MULTIPROCESSOR
-extern int intr_depth;
-#endif
-
 void		trap(struct trapframe *);
 
 static void	trap_fatal(struct trapframe *frame);
@@ -98,6 +92,8 @@ int	badaddr(void *, size_t);
 int	badaddr_read(void *, size_t, int *);
 
 extern char	*syscallnames[];
+
+extern int debugger_on_panic; /* XXX */
 
 struct powerpc_exception {
 	u_int	vector;
@@ -269,8 +265,9 @@ trap_fatal(struct trapframe *frame)
 {
 
 	printtrap(frame->exc, frame, 1, (frame->srr1 & PSL_PR));
-#ifdef DDB
-	if ((debugger_on_panic || db_active) && kdb_trap(frame->exc, frame))
+#ifdef KDB
+	if ((debugger_on_panic || kdb_active) &&
+	    kdb_trap(frame->exc, 0, frame))
 		return;
 #endif
 	panic("%s trap", trapname(frame->exc));
