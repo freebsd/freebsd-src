@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.1.2.8 1997/05/19 08:02:37 jkh Exp $
+#	$Id: rc.network,v 1.1.2.9 1997/07/06 00:32:00 pst Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -54,12 +54,39 @@ network_pass1() {
 	    fi
 	    ifconfig ${ifn}
     done
-    
-    # If IP filtering
-    if [ -n "$firewall" -a "x$firewall" != "xNO" -a -f /etc/rc.firewall ] ; then
-	    echo -n ' firewall'
-	    . /etc/rc.firewall
+
+    # Initialize IP filtering using ipfw
+    echo ""
+    /sbin/ipfw -q flush > /dev/null 2>&1
+    if [ $? ] ; then
+	firewall_in_kernel=0
+    else 
+	firewall_in_kernel=1
     fi
+
+    if [ $firewall_in_kernel = 0 -a "x$firewall_enable"  = "xYES" ] ; then
+	modload /lkm/ipfw_mod.o
+	if [ $? = 0 ]; then
+		firewall_in_kernel=1		# module loaded successfully
+		echo "Kernel firewall module loaded."
+	else
+		echo "Warning: firewall kernel module failed to load."
+	fi
+    fi
+
+    # Load the filters if required
+    if [ $firewall_in_kernel = 1 ]; then
+	if [ -n "$firewall_enable" -a -f /etc/rc.firewall -a \
+		"x$firewall_enable" = "xYES" ] ; then
+	    . /etc/rc.firewall
+	    echo "Firewall rules loaded."
+	else
+	    echo "Warning: kernel has firewall functionality, but firewall rules are not enabled."
+	    echo "         All ip services are disabled."
+	fi
+    fi
+
+    # Configure routing
 
     if [ "x$defaultrouter" != "xNO" ] ; then
 	    static_routes="default ${static_routes}"
