@@ -758,7 +758,7 @@ read_again:
 		if (EP_FTST(sc, F_ACCESS_32_BITS)) {
 			/* default for EISA configured cards */
 			EP_READ_MULTI_4(sc, EP_W1_RX_PIO_RD_1,
-			    mtod(m, uint32_t *)+m->m_len,
+			    (uint32_t *)(mtod(m, caddr_t)+m->m_len),
 			    lenthisone / 4);
 			m->m_len += (lenthisone & ~3);
 			if (lenthisone & 3)
@@ -767,7 +767,8 @@ read_again:
 			m->m_len += (lenthisone & 3);
 		} else {
 			EP_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
-			    mtod(m, uint16_t *)+m->m_len, lenthisone / 2);
+			    (uint16_t *)mtod(m, caddr_t)+m->m_len),
+			    lenthisone / 2);
 			m->m_len += lenthisone;
 			if (lenthisone & 1)
 				*(mtod(m, caddr_t)+m->m_len - 1) =
