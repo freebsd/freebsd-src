@@ -1,6 +1,7 @@
 #	$FreeBSD$
 
-MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 cd.9 copy.9 devfs_add_devswf.9 \
+MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 cd.9 copy.9 \
+	devfs_add_devswf.9 \
 	devfs_link.9 fetch.9 ifnet.9 intro.9 panic.9 psignal.9 rtalloc.9 \
 	rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 store.9 style.9 \
 	timeout.9 uio.9
