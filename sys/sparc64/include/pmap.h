@@ -78,7 +78,16 @@ void	pmap_qenter_flags(vm_offset_t va, vm_page_t *m, int count, u_long fl);
 int	pmap_cache_enter(vm_page_t m, vm_offset_t va);
 void	pmap_cache_remove(vm_page_t m, vm_offset_t va);
 
+int	pmap_remove_tte(struct pmap *pm1, struct pmap *pm2, struct tte *tp,
+			vm_offset_t va);
+int	pmap_protect_tte(struct pmap *pm1, struct pmap *pm2, struct tte *tp,
+			 vm_offset_t va);
+
 void	pmap_map_tsb(void);
+
+void	pmap_remove_all(vm_page_t m);
+
+void	pmap_clear_write(vm_page_t m);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
