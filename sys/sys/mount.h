@@ -464,7 +464,6 @@ struct sysctl_req;
 struct mntarg;
 
 typedef int vfs_cmount_t(struct mntarg *ma, void *data, int flags, struct thread *td);
-typedef int vfs_start_t(struct mount *mp, int flags, struct thread *td);
 typedef int vfs_unmount_t(struct mount *mp, int mntflags, struct thread *td);
 typedef int vfs_root_t(struct mount *mp, struct vnode **vpp, struct thread *td);
 typedef	int vfs_quotactl_t(struct mount *mp, int cmds, uid_t uid,
@@ -490,7 +489,6 @@ typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
 	vfs_cmount_t		*vfs_cmount;
-	vfs_start_t		*vfs_start;
 	vfs_unmount_t		*vfs_unmount;
 	vfs_root_t		*vfs_root;
 	vfs_quotactl_t		*vfs_quotactl;
@@ -509,7 +507,6 @@ struct vfsops {
 vfs_statfs_t	__vfs_statfs;
 
 #define VFS_MOUNT(MP, P)    (*(MP)->mnt_op->vfs_mount)(MP, P)
-#define VFS_START(MP, FLAGS, P)	  (*(MP)->mnt_op->vfs_start)(MP, FLAGS, P)
 #define VFS_UNMOUNT(MP, FORCE, P) (*(MP)->mnt_op->vfs_unmount)(MP, FORCE, P)
 #define VFS_ROOT(MP, VPP, P)	  (*(MP)->mnt_op->vfs_root)(MP, VPP, P)
 #define VFS_QUOTACTL(MP,C,U,A,P)  (*(MP)->mnt_op->vfs_quotactl)(MP, C, U, A, P)
@@ -622,7 +619,6 @@ extern	struct nfs_public nfs_pub;
  * kern/vfs_default.c, they should be used instead of making "dummy"
  * functions or casting entries in the VFS op table to "enopnotsupp()".
  */
-vfs_start_t		vfs_stdstart;
 vfs_root_t		vfs_stdroot;
 vfs_quotactl_t		vfs_stdquotactl;
 vfs_statfs_t		vfs_stdstatfs;
