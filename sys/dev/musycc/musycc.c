@@ -222,7 +222,7 @@ struct softc {
 	struct mdesc *mdt[NHDLC];
 	struct mdesc *mdr[NHDLC];
 	node_p node;			/* NG node */
-	char nodename[NG_NODELEN + 1];	/* NG nodename */
+	char nodename[NG_NODESIZ];	/* NG nodename */
 	struct schan *chan[NHDLC];
 	u_long		cnt_ferr;
 	u_long		cnt_cerr;
