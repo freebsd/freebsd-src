@@ -1,5 +1,3 @@
-.\" -*- nroff -*-
-.\"
 .\" Copyright (c) 1996 Doug Rabson
 .\"
 .\" All rights reserved.
@@ -28,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 1999
+.Dd May 20, 2003
 .Os
 .Dt VNODE 9
 .Sh NAME
@@ -37,114 +35,20 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
-.Pp
-.Bd -literal
-/*
- * Vnode types.  VNON means no type.
- */
-enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
-
-/*
- * Each underlying file system allocates its own private area and hangs
- * it from v_data.  If non-null, this area is freed in getnewvnode().
- */
-TAILQ_HEAD(buflists, buf);
-
-typedef	int 	vop_t(void *);
-struct namecache;
-
-/*
- * Reading or writing any of these items requires holding the appropriate lock.
- * v_freelist is locked by the global vnode_free_list simple lock.
- * v_mntvnodes is locked by the global mntvnodes simple lock.
- * v_flag, v_usecount, v_holdcount and v_writecount are
- *    locked by the v_interlock simple lock.
- * v_pollinfo is locked by the lock contained inside it.
- */
-struct vnode {
-	u_long	v_flag;				/* vnode flags (see below) */
-	int	v_usecount;			/* reference count of users */
-	int	v_writecount;			/* reference count of writers */
-	int	v_holdcnt;			/* page & buffer references */
-	u_long	v_id;				/* capability identifier */
-	struct	mount *v_mount;			/* ptr to vfs we are in */
-	vop_t	**v_op;				/* vnode operations vector */
-	TAILQ_ENTRY(vnode) v_freelist;		/* vnode freelist */
-	LIST_ENTRY(vnode) v_mntvnodes;		/* vnodes for mount point */
-	struct	buflists v_cleanblkhd;		/* clean blocklist head */
-	struct	buflists v_dirtyblkhd;		/* dirty blocklist head */
-	LIST_ENTRY(vnode) v_synclist;		/* vnodes with dirty buffers */
-	long	v_numoutput;			/* num of writes in progress */
-	enum	vtype v_type;			/* vnode type */
-	union {
-		struct mount	*vu_mountedhere;/* ptr to mounted vfs (VDIR) */
-		struct socket	*vu_socket;	/* unix ipc (VSOCK) */
-		struct {
-			struct specinfo *vu_specinfo; /* device (VCHR, VBLK) */
-			SLIST_ENTRY(vnode) vu_specnext;
-		} vu_spec;
-		struct fifoinfo *vu_fifoinfo;	/* fifo (VFIFO) */
-	} v_un;
-	struct	nqlease *v_lease;		/* Soft reference to lease */
-	daddr_t	v_lastw;			/* last write (write cluster) */
-	daddr_t	v_cstart;			/* start block of cluster */
-	daddr_t	v_lasta;			/* last allocation */
-	int	v_clen;				/* length of current cluster */
-	struct vm_object *v_object;		/* Place to store VM object */
-	struct	simplelock v_interlock;		/* lock on usecount and flag */
-	struct	lock *v_vnlock;			/* used for non-locking fs's */
-	const	char *v_tag;			/* type of underlying data */
-	void 	*v_data;			/* private data for fs */
-	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
-	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
-	struct	vnode *v_dd;			/* .. vnode */
-	u_long	v_ddid;				/* .. capability identifier */
-	struct	{
-		struct	simplelock vpi_lock;	/* lock to protect below */
-		struct	selinfo vpi_selinfo;	/* identity of poller(s) */
-		short	vpi_events;		/* what they are looking for */
-		short	vpi_revents;		/* what has happened */
-	} v_pollinfo;
-};
-#define v_mountedhere	v_un.vu_mountedhere
-#define v_socket	v_un.vu_socket
-#define v_rdev		v_un.vu_spec.vu_specinfo
-#define v_specnext	v_un.vu_spec.vu_specnext
-#define v_fifoinfo	v_un.vu_fifoinfo
-
-/*
- * Vnode flags.
- */
-#define	VROOT		0x00001	/* root of its file system */
-#define	VTEXT		0x00002	/* vnode is a pure text prototype */
-#define	VSYSTEM		0x00004	/* vnode being used by kernel */
-#define	VISTTY		0x00008	/* vnode represents a tty */
-#define	VXLOCK		0x00100	/* vnode is locked to change underlying type */
-#define	VXWANT		0x00200	/* process is waiting for vnode */
-#define	VBWAIT		0x00400	/* waiting for output to complete */
-#define	VOBJBUF		0x02000	/* Allocate buffers in VM object */
-#define	VAGE		0x08000	/* Insert vnode at head of free list */
-#define	VOLOCK		0x10000	/* vnode is locked waiting for an object */
-#define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
-#define	VDOOMED		0x40000	/* This vnode is being recycled */
-#define	VFREE		0x80000	/* This vnode is on the freelist */
-#define	VTBFREE		0x100000 /* This vnode is on the to-be-freelist */
-#define	VONWORKLST	0x200000 /* On syncer work-list */
-#define	VMOUNT		0x400000 /* Mount in progress */
-
-.Ed
 .Sh DESCRIPTION
 The vnode is the focus of all file activity in
 .Ux .
+A vnode is described by
+.Vt "struct vnode" .
 There is a
 unique vnode allocated for each active file, each current directory,
 each mounted-on file, text file, and the root.
 .Pp
 Each vnode has three reference counts,
-.Dv v_usecount ,
-.Dv v_holdcnt
+.Va v_usecount ,
+.Va v_holdcnt
 and
-.Dv v_writecount .
+.Va v_writecount .
 The first is the number of clients within the kernel which are
 using this vnode.  This count is maintained by
 .Xr vref 9 ,
@@ -158,9 +62,9 @@ maintained by
 and
 .Xr vdrop 9 .
 When both the
-.Dv v_usecount
+.Va v_usecount
 and the
-.Dv v_holdcnt
+.Va v_holdcnt
 of a vnode reaches zero then the vnode will be put on the freelist
 and may be reused for another file, possibly in another file system.
 The transition to and from the freelist is handled by
@@ -180,7 +84,7 @@ Any call which returns a vnode (e.g.\&
 .Xr VOP_LOOKUP 9
 etc.)
 will increase the
-.Dv v_usecount
+.Va v_usecount
 of the vnode by one.  When the caller is finished with the vnode, it
 should release this reference by calling
 .Xr vrele 9
@@ -189,17 +93,17 @@ should release this reference by calling
 if the vnode is locked).
 .Pp
 Other commonly used members of the vnode structure are
-.Dv v_id
+.Va v_id
 which is used to maintain consistency in the name cache,
-.Dv v_mount
+.Va v_mount
 which points at the file system which owns the vnode,
-.Dv v_type
+.Va v_type
 which contains the type of object the vnode represents and
-.Dv v_data
+.Va v_data
 which is used by file systems to store file system specific data with
 the vnode.
 The
-.Dv v_op
+.Va v_op
 field is used by the
 .Dv VOP_*
 macros to call functions in the file system which implement the vnode's
