@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.55 1997/08/21 16:21:36 brian Exp $
+.\" $Id: ppp.8,v 1.56 1997/08/21 17:16:21 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1037,22 +1037,23 @@ dialing and redialing separated by either a pipe (|) or a colon (:)
 set phone "111[|222]...[:333[|444]...]...
 .Ed
 Numbers after the first in a pipe-separated list are only used if the
-previous number was used in a failed login script.  Numbers separated
-by a colon are used sequentially, irrespective of what happened as a
-result of using the previous number.  For example:
+previous number was used in a failed dial or login script.  Numbers
+separated by a colon are used sequentially, irrespective of what happened
+as a result of using the previous number.  For example:
 .Bd -literal -offset indent
 set phone "1234567|2345678:3456789|4567890"
 .Ed
 .Pp
-Here, the 1234567 number is attempted.  If the login script fails, the
-2345678 number is used next time, but *only* if the login script fails.
-On the dial after this, the 3456789 number is used.  The 4567890 number
-is only used if the login script using the 3456789 fails.  If the login
-script of the 2345678 number fails, the next number is still the 3456789
-number.  As many pipes and colons can be used as are necessary.
-The next number redial timeout is used between all numbers.  When the
-end of the list is reached, the normal redial period is used before
-starting at the beginning again.
+Here, the 1234567 number is attempted.  If the dial or login script fails,
+the 2345678 number is used next time, but *only* if the dial or login script
+fails.  On the dial after this, the 3456789 number is used.  The 4567890
+number is only used if the dial or login script using the 3456789 fails.  If
+the login script of the 2345678 number fails, the next number is still the
+3456789 number.  As many pipes and colons can be used as are necessary
+(although a given site would usually prefer to use either the pipe or the
+colon, but not both).  The next number redial timeout is used between all
+numbers.  When the end of the list is reached, the normal redial period is
+used before starting at the beginning again.
 
 The selected phone number is substituted for the \\\\T string in the
 .Dq set dial
@@ -1691,13 +1692,13 @@ This allows the line parity to be set.  The default value is none.
 .It set phone telno[|telno]...[:telno[|telno]...]...
 This allows the specification of the phone number to be used in
 place of the \\\\T string in the dial and login chat scripts.
-Multiple phone numbers may be given separated by a colon (:) or
-a pipe (|).  Numbers after the pipe are only dialed if the login script
-for the previous number failed.  Numbers separated by a colon are tried
-sequentially, irrespective of the reason the line was dropped.
+Multiple phone numbers may be given separated by a pipe (|) or
+a colon (:).  Numbers after the pipe are only dialed if the dial or login
+script for the previous number failed.  Numbers separated by a colon are
+tried sequentially, irrespective of the reason the line was dropped.
 If multiple numbers are given,
 .Nm
-will dial them in rotation until a connection is made, retrying
+will dial them according to these rules until a connection is made, retrying
 the maximum number of times specified by
 .Dq set redial
 below.  In
@@ -1918,7 +1919,7 @@ for machine [aliasIP] to
 on
 .Dq targetIP .
 If proto is specified, only connections of the given protocol
-are matched.  This option is useful if you wish to things like
+are matched.  This option is useful if you wish to run things like
 internet phone on the machines behind your gateway.
 
 .It alias addr [addr_local addr_alias]
