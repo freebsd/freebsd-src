@@ -44,7 +44,7 @@
 .Nm unstr
 .Nd "create a random access file for storing strings"
 .Sh SYNOPSIS
-.Nm strfile
+.Nm
 .Op Fl iorsx
 .Op Fl c Ar char
 .Ar source_file
@@ -128,7 +128,7 @@ All fields are written in network byte order.
 The purpose of
 .Nm unstr
 is to undo the work of
-.Nm strfile .
+.Nm .
 It prints out the strings contained in the file
 .Ar source_file
 in the order that they are listed in
@@ -138,7 +138,7 @@ to standard output.
 It is possible to create sorted versions of input files by using
 .Fl o
 when
-.Nm strfile
+.Nm
 is run and then using
 .Nm unstr
 to dump them out in the table order.
@@ -152,5 +152,5 @@ default output file.
 .El
 .Sh HISTORY
 The
-.Nm strfile
+.Nm
 utility first appeared in 4.4BSD.
