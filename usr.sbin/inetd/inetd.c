@@ -325,7 +325,7 @@ main(int argc, char **argv)
 	struct passwd *pwd;
 	struct group *grp;
 	struct sigaction sa, saalrm, sachld, sahup, sapipe;
-	int tmpint, ch, dofork;
+	int ch, dofork;
 	pid_t pid;
 	char buf[50];
 #ifdef LOGIN_CAP
