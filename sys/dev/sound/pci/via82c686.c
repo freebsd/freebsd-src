@@ -248,12 +248,12 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	if (ch->dir == PCMDIR_PLAY) {
 		ch->base = VIA_PLAY_DMAOPS_BASE;
 		ch->count = VIA_PLAY_DMAOPS_COUNT;
-		ch->ctrl = VIA_RECORD_CONTROL;
+		ch->ctrl = VIA_PLAY_CONTROL;
 		ch->mode = VIA_PLAY_MODE;
 	} else {
 		ch->base = VIA_RECORD_DMAOPS_BASE;
 		ch->count = VIA_RECORD_DMAOPS_COUNT;
-		ch->ctrl = VIA_PLAY_CONTROL;
+		ch->ctrl = VIA_RECORD_CONTROL;
 		ch->mode = VIA_RECORD_MODE;
 	}
 
