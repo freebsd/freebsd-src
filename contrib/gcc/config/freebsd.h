@@ -89,11 +89,10 @@ Boston, MA 02111-1307, USA.  */
    libraries compiled with the native cc.  */
 #undef NO_DOLLAR_IN_LABEL
 
-/* Use more efficient ``thunks'' to implement C++ vtables.  XXX note that 
-   this setting is claimed to have a few bugs by the EGCS maintainers.  They
-   believe the bugs will be worked out in EGCS 1.2.  */
+/* Do not use ``thunks'' to implement C++ vtables.  This method still has
+   fatal bugs.  Also, GCC 3.0 will have a new C++ ABI that may not even
+   support `thunks'.  */
 #undef DEFAULT_VTABLE_THUNKS
-#define DEFAULT_VTABLE_THUNKS 1
 
 /* This is BSD, so we want the DBX format.  */
 #define DBX_DEBUGGING_INFO
