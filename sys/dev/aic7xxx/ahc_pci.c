@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.13 1999/05/17 21:53:09 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.14 1999/05/25 20:12:32 gibbs Exp $
  */
 
 #include <pci.h>
@@ -217,69 +217,63 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 	},
 	/* aic7880 based controllers */
 	{
-		ID_AHA_2940AU_CN,
-		ID_ALL_MASK,
+		ID_AHA_2940AU_CN & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 2940A/CN Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
-		ID_AHA_2940U,
-		ID_ALL_MASK,
+		ID_AHA_2940U & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 2940 Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
-		ID_AHA_3940U,
-		ID_ALL_MASK,
+		ID_AHA_3940U & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 3940 Ultra SCSI adapter",
 		ahc_aha394XU_setup
 	},
 	{
-		ID_AHA_2944U,
-		ID_ALL_MASK,
+		ID_AHA_2944U & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 2944 Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
-		ID_AHA_3944U,
-		ID_ALL_MASK,
+		ID_AHA_3944U & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 3944 Ultra SCSI adapter",
 		ahc_aha394XU_setup
 	},
 	{
-		ID_AHA_398XU,
-		ID_ALL_MASK,
+		ID_AHA_398XU & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 398X Ultra SCSI RAID adapter",
 		ahc_aha398XU_setup
 	},
 	{
 		/* XXX Don't know the slot numbers so can't identify channels */
-		ID_AHA_4944U,
-		ID_ALL_MASK,
+		ID_AHA_4944U & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 4944 Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
-		ID_AHA_2940UB,
-		ID_ALL_MASK,
-		"Adaptec 2940B Ultra SCSI adapter",
-		ahc_aic7880_setup
-	},
-	{
-		ID_AHA_2930U,
-		ID_ALL_MASK,
+		ID_AHA_2930U & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 2930 Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
-		ID_AHA_2940U_PRO,
-		ID_ALL_MASK,
+		ID_AHA_2940U_PRO & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 2940 Pro Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
 	{
-		ID_AHA_2940U_CN,
-		ID_ALL_MASK,
+		ID_AHA_2940U_CN & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 2940/CN Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
