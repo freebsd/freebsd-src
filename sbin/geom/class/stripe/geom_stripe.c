@@ -172,8 +172,8 @@ stripe_label(struct gctl_req *req)
 		stripe_metadata_encode(&md, sector);
 		error = g_metadata_store(name, sector, sizeof(sector));
 		if (error != 0) {
-			fprintf(stderr, "Can't store metadata on %s: %s.", name,
-			    strerror(error));
+			fprintf(stderr, "Can't store metadata on %s: %s.\n",
+			    name, strerror(error));
 			gctl_error(req, "Not fully done.");
 			continue;
 		}
@@ -206,8 +206,8 @@ stripe_clear(struct gctl_req *req)
 
 		error = g_metadata_clear(name, G_STRIPE_MAGIC);
 		if (error != 0) {
-			fprintf(stderr, "Can't clear metadata on %s: %s.", name,
-			    strerror(error));
+			fprintf(stderr, "Can't clear metadata on %s: %s.\n",
+			    name, strerror(error));
 			gctl_error(req, "Not fully done.");
 			continue;
 		}
