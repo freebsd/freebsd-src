@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id$
+.\" $Id: ppp.8,v 1.25 1997/02/22 16:10:45 peter Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -335,7 +335,7 @@ If it succeeds, then
 .Nm ppp
 becomes a daemon, and returns an exit status of zero to its caller.
 The daemon exits automatically if the connection is dropped by the
-remote system, or it receives a HUP or TERM signal.
+remote system, or it receives a TERM signal.
 
 The file
 .Pa /var/run/ppp.tun0.pid
@@ -838,6 +838,9 @@ The
 command allows you to set logging output level, of which
 multiple levels can be specified.  The default is equivalent to
 .Dq set debug carrier link phase .
+
+If a HUP signal is received, the log file is closed and re-opened
+to facilitate log file rotation.
 
 .Sh MORE DETAILS
 
