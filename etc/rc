@@ -799,7 +799,7 @@ case ${local_startup} in
 		if [ -x "${script}" ]; then
 			(set -T
 			trap 'exit 1' 2
-			sh ${script} start)
+			${script} start)
 		fi
 	done
 	IFS="${script_save_sep}"
