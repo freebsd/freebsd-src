@@ -409,7 +409,8 @@ mediaSetFTP(dialogMenuItem *self)
 		return DITEM_FAILURE | what;
 	    }
 	}
-	msgDebug("Found DNS entry for %s successfully..\n", hostname);
+	if (isDebug())
+	    msgDebug("Found DNS entry for %s successfully..\n", hostname);
     }
     variable_set2(VAR_FTP_HOST, hostname, 0);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/", 0);
@@ -510,8 +511,10 @@ mediaSetNFS(dialogMenuItem *self)
 	    variable_unset(VAR_NFS_PATH);
 	    return DITEM_FAILURE;
 	}
-	else
-	    msgDebug("Found DNS entry for %s successfully..", hostname);
+	else {
+	    if (isDebug())
+		msgDebug("Found DNS entry for %s successfully..", hostname);
+	}
     }
     variable_set2(VAR_NFS_HOST, hostname, 0);
     nfsDevice.type = DEVICE_TYPE_NFS;
