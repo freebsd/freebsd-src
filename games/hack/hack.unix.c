@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.unix.c - version 1.0.3 */
+/* $FreeBSD$ */
 
 /* This file collects some Unix dependencies; hack.pager.c contains some more */
 

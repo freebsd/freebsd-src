@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.bones.c - version 1.0.3 */
+/* $FreeBSD$ */
 
 #include "hack.h"
 extern char plname[PL_NSIZ];

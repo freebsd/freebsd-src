@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.wizard.c - version 1.0.3 */
+/* $FreeBSD$ */
 
 /* wizard code - inspired by rogue code from Merlyn Leroy (digi-g!brian) */
 

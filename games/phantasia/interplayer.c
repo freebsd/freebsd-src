@@ -1,5 +1,7 @@
 /*
  * interplayer.c - player to player routines for Phantasia
+ *
+ * $FreeBSD$
  */
 
 #include <string.h>

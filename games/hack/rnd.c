@@ -1,4 +1,5 @@
 /* rnd.c - version 1.0.2 */
+/* $FreeBSD$ */
 
 #include <stdlib.h>
 

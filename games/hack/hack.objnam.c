@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.objnam.c - version 1.0.2 */
+/* $FreeBSD$ */
 
 #include	"hack.h"
 #define Sprintf (void) sprintf
