@@ -139,7 +139,7 @@
   <para>(20 May 2004) A security problem was discovered
     in <application>CVS</application> but the release notes
     did not state that since it was very late in the release cycle.
-    &os; &release.prev; includes a fix for it and is not vulnerable.
+    &os; &release.current; includes a fix for it and is not vulnerable.
     For the details, see the security advisory
     <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:10.cvs.asc">FreeBSD-SA-04:10</ulink>.</para>
 
