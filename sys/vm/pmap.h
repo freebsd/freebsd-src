@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.2 1994/08/02 07:55:12 davidg Exp $
+ * $Id: pmap.h,v 1.3 1994/08/06 10:25:49 davidg Exp $
  */
 
 /*
@@ -116,7 +116,6 @@ void		pmap_qremove		__P((vm_offset_t, int));
 void		pmap_reference		__P((pmap_t));
 void		pmap_release		__P((pmap_t));
 void		pmap_remove		__P((pmap_t, vm_offset_t, vm_offset_t));
-void		pmap_update		__P((void));
 void		pmap_zero_page		__P((vm_offset_t));
 __END_DECLS
 #endif
