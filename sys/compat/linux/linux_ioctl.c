@@ -32,6 +32,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/cdio.h>
+#include <sys/dvdio.h>
 #include <sys/consio.h>
 #include <sys/ctype.h>
 #include <sys/disklabel.h>
@@ -864,6 +865,131 @@ struct linux_cdrom_subchnl
 	union linux_cdrom_addr cdsc_reladdr;
 };
 
+struct l_dvd_layer {
+	u_char		book_version:4;
+	u_char		book_type:4;
+	u_char		min_rate:4;
+	u_char		disc_size:4;
+	u_char		layer_type:4;
+	u_char		track_path:1;
+	u_char		nlayers:2;
+	u_char		track_density:4;
+	u_char		linear_density:4;
+	u_char		bca:1;
+	u_int32_t	start_sector;
+	u_int32_t	end_sector;
+	u_int32_t	end_sector_l0;
+};
+
+struct l_dvd_physical {
+	u_char		type;
+	u_char		layer_num;
+	struct l_dvd_layer layer[4];
+};
+
+struct l_dvd_copyright {
+	u_char		type;
+	u_char		layer_num;
+	u_char		cpst;
+	u_char		rmi;
+};
+
+struct l_dvd_disckey {
+	u_char		type;
+	l_uint		agid:2;
+	u_char		value[2048];
+};
+
+struct l_dvd_bca {
+	u_char		type;
+	l_int		len;
+	u_char		value[188];
+};
+
+struct l_dvd_manufact {
+	u_char		type;
+	u_char		layer_num;
+	l_int		len;
+	u_char		value[2048];
+};
+
+typedef union {
+	u_char			type;
+	struct l_dvd_physical	physical;
+	struct l_dvd_copyright	copyright;
+	struct l_dvd_disckey	disckey;
+	struct l_dvd_bca	bca;
+	struct l_dvd_manufact	manufact;
+} l_dvd_struct;
+
+typedef u_char l_dvd_key[5];
+typedef u_char l_dvd_challenge[10];
+
+struct l_dvd_lu_send_agid {
+	u_char		type;
+	l_uint		agid:2;
+};
+
+struct l_dvd_host_send_challenge {
+	u_char		type;
+	l_uint		agid:2;
+	l_dvd_challenge	chal;
+};
+
+struct l_dvd_send_key {
+	u_char		type;
+	l_uint		agid:2;
+	l_dvd_key	key;
+};
+
+struct l_dvd_lu_send_challenge {
+	u_char		type;
+	l_uint		agid:2;
+	l_dvd_challenge	chal;
+};
+
+struct l_dvd_lu_send_title_key {
+	u_char		type;
+	l_uint		agid:2;
+	l_dvd_key	title_key;
+	l_int		lba;
+	l_uint		cpm:1;
+	l_uint		cp_sec:1;
+	l_uint		cgms:2;
+};
+
+struct l_dvd_lu_send_asf {
+	u_char		type;
+	l_uint		agid:2;
+	l_uint		asf:1;
+};
+
+struct l_dvd_host_send_rpcstate {
+	u_char		type;
+	u_char		pdrc;
+};
+
+struct l_dvd_lu_send_rpcstate {
+	u_char		type:2;
+	u_char		vra:3;
+	u_char		ucca:3;
+	u_char		region_mask;
+	u_char		rpc_scheme;
+};
+
+typedef union {
+	u_char				type;
+	struct l_dvd_lu_send_agid	lsa;
+	struct l_dvd_host_send_challenge hsc;
+	struct l_dvd_send_key		lsk;
+	struct l_dvd_lu_send_challenge	lsc;
+	struct l_dvd_send_key		hsk;
+	struct l_dvd_lu_send_title_key	lstk;
+	struct l_dvd_lu_send_asf	lsasf;
+	struct l_dvd_host_send_rpcstate	hrpcs;
+	struct l_dvd_lu_send_rpcstate	lrpcs;
+} l_dvd_authinfo;
+
 static void
 bsd_to_linux_msf_lba(u_char af, union msf_lba *bp, union linux_cdrom_addr *lp)
 {
@@ -887,6 +1013,186 @@ set_linux_cdrom_addr(union linux_cdrom_addr *addr, int format, int lba)
 		addr->msf.minute = lba / 60;
 	} else
 		addr->lba = lba;
+}
+
+static int
+linux_to_bsd_dvd_struct(l_dvd_struct *lp, struct dvd_struct *bp)
+{
+	bp->format = lp->type;
+	switch (bp->format) {
+	case DVD_STRUCT_PHYSICAL:
+		if (bp->layer_num >= 4)
+			return (EINVAL);
+		bp->layer_num = lp->physical.layer_num;
+		break;
+	case DVD_STRUCT_COPYRIGHT:
+		bp->layer_num = lp->copyright.layer_num;
+		break;
+	case DVD_STRUCT_DISCKEY:
+		bp->agid = lp->disckey.agid;
+		break;
+	case DVD_STRUCT_BCA:
+	case DVD_STRUCT_MANUFACT:
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+bsd_to_linux_dvd_struct(struct dvd_struct *bp, l_dvd_struct *lp)
+{
+	switch (bp->format) {
+	case DVD_STRUCT_PHYSICAL: {
+		struct dvd_layer *blp = (struct dvd_layer *)bp->data;
+		struct l_dvd_layer *llp = &lp->physical.layer[bp->layer_num];
+		memset(llp, 0, sizeof(*llp));
+		llp->book_version = blp->book_version;
+		llp->book_type = blp->book_type;
+		llp->min_rate = blp->max_rate;
+		llp->disc_size = blp->disc_size;
+		llp->layer_type = blp->layer_type;
+		llp->track_path = blp->track_path;
+		llp->nlayers = blp->nlayers;
+		llp->track_density = blp->track_density;
+		llp->linear_density = blp->linear_density;
+		llp->bca = blp->bca;
+		llp->start_sector = blp->start_sector;
+		llp->end_sector = blp->end_sector;
+		llp->end_sector_l0 = blp->end_sector_l0;
+		break;
+	}
+	case DVD_STRUCT_COPYRIGHT:
+		lp->copyright.cpst = bp->cpst;
+		lp->copyright.rmi = bp->rmi;
+		break;
+	case DVD_STRUCT_DISCKEY:
+		memcpy(lp->disckey.value, bp->data, sizeof(lp->disckey.value));
+		break;
+	case DVD_STRUCT_BCA:
+		lp->bca.len = bp->length;
+		memcpy(lp->bca.value, bp->data, sizeof(lp->bca.value));
+		break;
+	case DVD_STRUCT_MANUFACT:
+		lp->manufact.len = bp->length;
+		memcpy(lp->manufact.value, bp->data,
+		    sizeof(lp->manufact.value));
+		/* lp->manufact.layer_num is unused in linux (redhat 7.0) */
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+linux_to_bsd_dvd_authinfo(l_dvd_authinfo *lp, int *bcode,
+    struct dvd_authinfo *bp)
+{
+	switch (lp->type) {
+	case LINUX_DVD_LU_SEND_AGID:
+		*bcode = DVDIOCREPORTKEY;
+		bp->format = DVD_REPORT_AGID;
+		bp->agid = lp->lsa.agid;
+		break;
+	case LINUX_DVD_HOST_SEND_CHALLENGE:
+		*bcode = DVDIOCSENDKEY;
+		bp->format = DVD_SEND_CHALLENGE;
+		bp->agid = lp->hsc.agid;
+		memcpy(bp->keychal, lp->hsc.chal, 10);
+		break;
+	case LINUX_DVD_LU_SEND_KEY1:
+		*bcode = DVDIOCREPORTKEY;
+		bp->format = DVD_REPORT_KEY1;
+		bp->agid = lp->lsk.agid;
+		break;
+	case LINUX_DVD_LU_SEND_CHALLENGE:
+		*bcode = DVDIOCREPORTKEY;
+		bp->format = DVD_REPORT_CHALLENGE;
+		bp->agid = lp->lsc.agid;
+		break;
+	case LINUX_DVD_HOST_SEND_KEY2:
+		*bcode = DVDIOCSENDKEY;
+		bp->format = DVD_SEND_KEY2;
+		bp->agid = lp->hsk.agid;
+		memcpy(bp->keychal, lp->hsk.key, 5);
+		break;
+	case LINUX_DVD_LU_SEND_TITLE_KEY:
+		*bcode = DVDIOCREPORTKEY;
+		bp->format = DVD_REPORT_TITLE_KEY;
+		bp->agid = lp->lstk.agid;
+		bp->lba = lp->lstk.lba;
+		break;
+	case LINUX_DVD_LU_SEND_ASF:
+		*bcode = DVDIOCREPORTKEY;
+		bp->format = DVD_REPORT_ASF;
+		bp->agid = lp->lsasf.agid;
+		break;
+	case LINUX_DVD_INVALIDATE_AGID:
+		*bcode = DVDIOCREPORTKEY;
+		bp->format = DVD_INVALIDATE_AGID;
+		bp->agid = lp->lsa.agid;
+		break;
+	case LINUX_DVD_LU_SEND_RPC_STATE:
+		*bcode = DVDIOCREPORTKEY;
+		bp->format = DVD_REPORT_RPC;
+		break;
+	case LINUX_DVD_HOST_SEND_RPC_STATE:
+		*bcode = DVDIOCSENDKEY;
+		bp->format = DVD_SEND_RPC;
+		bp->region = lp->hrpcs.pdrc;
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+bsd_to_linux_dvd_authinfo(struct dvd_authinfo *bp, l_dvd_authinfo *lp)
+{
+	switch (lp->type) {
+	case LINUX_DVD_LU_SEND_AGID:
+		lp->lsa.agid = bp->agid;
+		break;
+	case LINUX_DVD_HOST_SEND_CHALLENGE:
+		lp->type = LINUX_DVD_LU_SEND_KEY1;
+		break;
+	case LINUX_DVD_LU_SEND_KEY1:
+		memcpy(lp->lsk.key, bp->keychal, sizeof(lp->lsk.key));
+		break;
+	case LINUX_DVD_LU_SEND_CHALLENGE:
+		memcpy(lp->lsc.chal, bp->keychal, sizeof(lp->lsc.chal));
+		break;
+	case LINUX_DVD_HOST_SEND_KEY2:
+		lp->type = LINUX_DVD_AUTH_ESTABLISHED;
+		break;
+	case LINUX_DVD_LU_SEND_TITLE_KEY:
+		memcpy(lp->lstk.title_key, bp->keychal,
+		    sizeof(lp->lstk.title_key));
+		lp->lstk.cpm = bp->cpm;
+		lp->lstk.cp_sec = bp->cp_sec;
+		lp->lstk.cgms = bp->cgms;
+		break;
+	case LINUX_DVD_LU_SEND_ASF:
+		lp->lsasf.asf = bp->asf;
+		break;
+	case LINUX_DVD_INVALIDATE_AGID:
+		break;
+	case LINUX_DVD_LU_SEND_RPC_STATE:
+		lp->lrpcs.type = bp->reg_type;
+		lp->lrpcs.vra = bp->vend_rsts;
+		lp->lrpcs.ucca = bp->user_rsts;
+		lp->lrpcs.region_mask = bp->region;
+		lp->lrpcs.rpc_scheme = bp->rpc_scheme;
+		break;
+	case LINUX_DVD_HOST_SEND_RPC_STATE:
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
 }
 
 static int
@@ -1009,6 +1315,74 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	/* LINUX_CDROMREADALL */
 	/* LINUX_CDROMCLOSETRAY */
 	/* LINUX_CDROMLOADFROMSLOT */
+	/* LINUX_CDROMGETSPINDOWN */
+	/* LINUX_CDROMSETSPINDOWN */
+	/* LINUX_CDROM_SET_OPTIONS */
+	/* LINUX_CDROM_CLEAR_OPTIONS */
+	/* LINUX_CDROM_SELECT_SPEED */
+	/* LINUX_CDROM_SELECT_DISC */
+	/* LINUX_CDROM_MEDIA_CHANGED */
+	/* LINUX_CDROM_DRIVE_STATUS */
+	/* LINUX_CDROM_DISC_STATUS */
+	/* LINUX_CDROM_CHANGER_NSLOTS */
+	/* LINUX_CDROM_LOCKDOOR */
+	/* LINUX_CDROM_DEBUG */
+	/* LINUX_CDROM_GET_CAPABILITY */
+	/* LINUX_CDROMAUDIOBUFSIZ */
+
+	case LINUX_DVD_READ_STRUCT: {
+		l_dvd_struct lds;
+		struct dvd_struct bds;
+
+		error = copyin((caddr_t)args->arg, &lds, sizeof(l_dvd_struct));
+		if (error)
+			return (error);
+		error = linux_to_bsd_dvd_struct(&lds, &bds);
+		if (error)
+			return (error);
+		error = fo_ioctl(fp, DVDIOCREADSTRUCTURE, (caddr_t)&bds, td);
+		if (error)
+			return (error);
+		error = bsd_to_linux_dvd_struct(&bds, &lds);
+		if (error)
+			return (error);
+		return (copyout(&lds, (caddr_t)args->arg,
+			    sizeof(l_dvd_struct)));
+	}
+
+	/* LINUX_DVD_WRITE_STRUCT */
+
+	case LINUX_DVD_AUTH: {
+		l_dvd_authinfo lda;
+		struct dvd_authinfo bda;
+		int bcode;
+
+		error = copyin((caddr_t)args->arg, &lda,
+		    sizeof(l_dvd_authinfo));
+		if (error)
+			return (error);
+		error = linux_to_bsd_dvd_authinfo(&lda, &bcode, &bda);
+		if (error)
+			return (error);
+		error = fo_ioctl(fp, bcode, (caddr_t)&bda, td);
+		if (error) {
+			if (lda.type == LINUX_DVD_HOST_SEND_KEY2) {
+				lda.type = LINUX_DVD_AUTH_FAILURE;
+				copyout(&lda, (caddr_t)args->arg,
+				    sizeof(l_dvd_authinfo));
+			}
+			return (error);
+		}
+		error = bsd_to_linux_dvd_authinfo(&bda, &lda);
+		if (error)
+			return (error);
+		return (copyout(&lda, (caddr_t)args->arg,
+			    sizeof(l_dvd_authinfo)));
+	}
+
+	/* LINUX_CDROM_SEND_PACKET */
+	/* LINUX_CDROM_NEXT_WRITABLE */
+	/* LINUX_CDROM_LAST_WRITTEN */
 
 	}
 
