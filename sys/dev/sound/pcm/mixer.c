@@ -40,6 +40,7 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_LINE1]	= 75,
 	[SOUND_MIXER_VIDEO]	= 75,
 	[SOUND_MIXER_RECLEV]	= 0,
+	[SOUND_MIXER_OGAIN]	= 50,
 };
 
 int
