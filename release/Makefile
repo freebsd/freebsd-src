@@ -271,6 +271,7 @@ rerelease release:
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
 	echo "export CFLAGS='-O -pipe'"	>> ${CHROOTDIR}/mk
+	echo "export NO_X=YES"			>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
@@ -294,9 +295,6 @@ rerelease release:
 .endif
 .if defined(NOSHARED)
 	echo "export NOSHARED=${NOSHARED}"	>> ${CHROOTDIR}/mk
-.endif
-.if defined(USA_RESIDENT)
-	echo "export USA_RESIDENT=${USA_RESIDENT}" >> ${CHROOTDIR}/mk
 .endif
 .if defined(BOOT_CONFIG)
 	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
