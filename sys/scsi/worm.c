@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.37 1997/05/05 13:35:01 joerg Exp $
+ *      $Id: worm.c,v 1.38 1997/05/10 12:12:47 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -73,17 +73,11 @@
 struct worm_quirks
 {
 	/*
-	 * Vendor and model are used for comparision; the model may be
-	 * abbreviated (or could even be empty at all).
-	 */
-	const char *vendor;
-	const char *model;
-	/*
 	 * The device-specific functions that need to be called during
 	 * the several steps.
 	 */
 	errval	(*prepare_disk)(struct scsi_link *, int dummy, int speed);
-	errval	(*prepare_track)(struct scsi_link *, int audio, int preemp);
+	errval	(*prepare_track)(struct scsi_link *, struct wormio_prepare_track *t);
 	errval	(*finalize_track)(struct scsi_link *);
 	errval	(*finalize_disk)(struct scsi_link *, int toc_type, int onp);
 };
@@ -105,14 +99,30 @@ struct scsi_data
 
 	u_int8_t dummy;		/* use dummy writes */
 	u_int8_t speed;		/* select drive speed */
-	u_int8_t audio;		/* write audio data */
-	u_int8_t preemp;		/* audio only: use preemphasis */
 
 	u_int32_t worm_flags;	/* driver-internal flags */
 #define WORMFL_DISK_PREPED	0x01 /* disk parameters have been spec'ed */
 #define WORMFL_TRACK_PREPED	0x02 /* track parameters have been spec'ed */
 #define WORMFL_WRITTEN		0x04 /* track has been written */
 #define WORMFL_IOCTL_ONLY	0x08 /* O_NDELAY, only ioctls allowed */
+
+        int error;              /* last error */
+};
+
+struct {
+    int asc;
+    int devmode;
+    int error;
+    int ret;
+} worm_error[] = {
+    {0x24, WORM_Q_PLASMON|WORM_Q_PHILIPS, WORM_ABSORPTION_CONTROL_ERROR, 0},
+    {0xb0, WORM_Q_PLASMON|WORM_Q_PHILIPS, WORM_CALIBRATION_AREA_ALMOST_FULL, 0},
+    {0xb4, WORM_Q_PLASMON|WORM_Q_PHILIPS, WORM_CALIBRATION_AREA_FULL, SCSIRET_CONTINUE},
+    {0xb5, WORM_Q_PLASMON|WORM_Q_PHILIPS, WORM_DUMMY_BLOCKS_ADDED, 0},
+    {0xaa, WORM_Q_PLASMON|WORM_Q_PHILIPS, WORM_END_OF_MEDIUM, SCSIRET_CONTINUE},
+    {0xad, WORM_Q_PLASMON|WORM_Q_PHILIPS, WORM_BUFFER_UNDERRUN, SCSIRET_CONTINUE},
+    {0xaf, WORM_Q_PLASMON|WORM_Q_PHILIPS, WORM_OPTIMUM_POWER_CALIBRATION_ERROR, SCSIRET_CONTINUE},
+    {0, 0, 0, 0}
 };
 
 static void wormstart(u_int32_t unit, u_int32_t flags);
@@ -124,22 +134,20 @@ static errval worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 static errval worm_close(dev_t dev, int flag, int fmt, struct proc *p,
 			 struct scsi_link *sc_link);
 static void worm_strategy(struct buf *bp, struct scsi_link *sc_link);
-
-static errval worm_quirk_select(struct scsi_link *sc_link, u_int32_t unit,
-				struct wormio_quirk_select *);
 static errval worm_read_toc(struct scsi_link *sc_link,
 			    u_int32_t mode, u_int32_t start,
 			    struct cd_toc_entry *data, u_int32_t len);
 static errval worm_rezero_unit(struct scsi_link *sc_link);
+static int worm_sense_handler(struct scsi_xfer *);
 
 /* XXX should be moved out to an LKM */
 static errval rf4100_prepare_disk(struct scsi_link *, int dummy, int speed);
-static errval rf4100_prepare_track(struct scsi_link *, int audio, int preemp);
+static errval rf4100_prepare_track(struct scsi_link *, struct wormio_prepare_track *);
 static errval rf4100_finalize_track(struct scsi_link *);
 static errval rf4100_finalize_disk(struct scsi_link *, int toc_type, int onp);
 
 static errval hp4020i_prepare_disk(struct scsi_link *, int dummy, int speed);
-static errval hp4020i_prepare_track(struct scsi_link *, int audio, int preemp);
+static errval hp4020i_prepare_track(struct scsi_link *, struct  wormio_prepare_track *);
 static errval hp4020i_finalize_track(struct scsi_link *);
 static errval hp4020i_finalize_disk(struct scsi_link *, int toc_type, int onp);
 
@@ -168,7 +176,7 @@ SCSI_DEVICE_ENTRIES(worm)
 
 static struct scsi_device worm_switch =
 {
-	NULL,
+	worm_sense_handler,
 	wormstart,   /* we have a queue, and this is how we service it */
 	NULL,
 	NULL,
@@ -189,24 +197,13 @@ static struct scsi_device worm_switch =
 	worm_strategy,
 };
 
-/* XXX This should become the registration table for the LKMs. */
-struct worm_quirks worm_quirks[] = {
-	{
-		"PLASMON", "RF410",
-		rf4100_prepare_disk, rf4100_prepare_track,
-		rf4100_finalize_track, rf4100_finalize_disk
-	},
-	{
-		"HP", "4020i",
-		hp4020i_prepare_disk, hp4020i_prepare_track,
-		hp4020i_finalize_track, hp4020i_finalize_disk
-	},
-	{
-		"PHILIPS", "CDD2000",
-		hp4020i_prepare_disk, hp4020i_prepare_track,
-		hp4020i_finalize_track, hp4020i_finalize_disk
-	},
-	{0}
+static struct worm_quirks worm_quirks_plasmon = {
+    rf4100_prepare_disk, rf4100_prepare_track,
+    rf4100_finalize_track, rf4100_finalize_disk
+};
+static struct worm_quirks worm_quirks_philips = {
+    hp4020i_prepare_disk, hp4020i_prepare_track,
+    hp4020i_finalize_track, hp4020i_finalize_disk
 };
 
 static inline void
@@ -238,7 +235,6 @@ worm_size(struct scsi_link *sc_link, int flags)
 	 * doesn't give us any good results.  Make a more educated
 	 * guess instead.
 	 */
-	worm->blk_size = (worm->audio? 2352: 2048);
 
 	if (worm->n_blks)
 	{
@@ -298,6 +294,9 @@ wormattach(struct scsi_link *sc_link)
  * XXX It looks like we need a "scsistart" to hoist common code up
  * into.  In particular, the removable media checking should be
  * handled in one place.
+ *
+ * Writes will fail if the disk and track not been prepared via the control
+ * device.
  */
 static void
 wormstart(unit, flags)
@@ -309,7 +308,7 @@ wormstart(unit, flags)
 	register struct buf *bp = 0;
 	struct scsi_rw_big cmd;
 
-	u_int32_t lba;	/* Logical block address */
+	u_int32_t lba;  /* Logical block address */
 	u_int32_t tl;		/* Transfer length */
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("wormstart "));
@@ -340,6 +339,15 @@ wormstart(unit, flags)
 		}
 		TAILQ_REMOVE( &worm->buf_queue, bp, b_act);
 
+		if (((bp->b_flags & B_READ) == B_WRITE) 
+		    && ((worm->worm_flags & WORMFL_TRACK_PREPED) == 0)) {
+		    SC_DEBUG(sc_link, SDEV_DB3, ("sequence error\n"));
+		    bp->b_error = EIO;
+		    bp->b_flags |= B_ERROR;
+		    worm->error = WORM_SEQUENCE_ERROR;
+		    biodone(bp);
+		    goto badnews;
+		}
 		/*
 		 *  Fill out the scsi command
 		 */
@@ -352,11 +360,19 @@ wormstart(unit, flags)
 			flags |= SCSI_DATA_IN;
 		}
 
+		worm->error = 0;
 
-		lba = bp->b_blkno / (worm->blk_size / DEV_BSIZE);
+                lba = bp->b_blkno / (worm->blk_size / DEV_BSIZE);
 		tl = bp->b_bcount / worm->blk_size;
 
-		scsi_uto4b(lba, &cmd.addr_3);
+		if (bp->b_flags & B_READ)
+		    /*
+		     * Leave the LBA as 0 for write operations, it
+		     * is reserved in this case (and wouldn't make
+		     * any sense to set it at all, since CD-R write
+		     * operations are in `streaming' mode anyway.
+		     */
+		    scsi_uto4b(lba, &cmd.addr_3);
 		scsi_uto2b(tl, &cmd.length2);
 
 		/*
@@ -459,8 +475,6 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 /*
  * Open the device.
  * Only called for the "real" device, not for the control device.
- * Will fail if the disk and track not been prepared via the control
- * device.
  */
 static int
 worm_open(dev_t dev, int flags, int fmt, struct proc *p,
@@ -495,18 +509,7 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 	 * If the device has been opened with O_NONBLOCK set, no
 	 * actual IO will be allowed, and the command sequence is only
 	 * subject to the restrictions as in worm_ioctl() below.
-	 *
-	 * If the device is to be opened with O_RDWR/O_WRONLY, the
-	 * disk and track must have been prepared accordingly by
-	 * preceding ioctls (on an O_NONBLOCK descriptor for the device),
-	 * or a sequence error will result here.
 	 */
-	if ((flags & FWRITE) != 0 &&
-	    (worm->worm_flags & WORMFL_TRACK_PREPED) == 0) {
-		SC_DEBUG(sc_link, SDEV_DB3, ("sequence error\n"));
-		return ENXIO;
-	}
-
 	/*
 	 * Next time actually take notice of error returns,
 	 * unit attn errors are now errors.
@@ -527,12 +530,9 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 
 		if((flags & FWRITE) != 0) {
 			if ((error = worm_rezero_unit(sc_link)) != 0 ||
-			    (error = worm_size(sc_link, 0)) != 0 ||
-			    (error = (worm->quirks->prepare_track)
-			     (sc_link, worm->audio, worm->preemp)) != 0) {
+			    (error = worm_size(sc_link, 0)) != 0) {
 				SC_DEBUG(sc_link, SDEV_DB3,
-					 ("rezero, get size, or prepare_track failed\n"));
-				scsi_stop_unit(sc_link, 0, SCSI_SILENT);
+					 ("rezero, or get size failed\n"));
 				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
 				sc_link->flags &= ~SDEV_OPEN;
@@ -542,7 +542,6 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 			if ((error = worm_size(sc_link, 0)) != 0) {
 				SC_DEBUG(sc_link, SDEV_DB3,
 					 ("get size failed\n"));
-				scsi_stop_unit(sc_link, 0, SCSI_SILENT);
 				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
 				sc_link->flags &= ~SDEV_OPEN;
@@ -551,6 +550,17 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 	} else
 		worm->worm_flags |= WORMFL_IOCTL_ONLY;
 
+	switch (*(int *) sc_link->devmodes) {
+	case WORM_Q_PLASMON:
+	    worm->quirks = &worm_quirks_plasmon;
+	    break;
+	case WORM_Q_PHILIPS:
+	    worm->quirks = &worm_quirks_philips;
+	    break;
+	default:
+	    error = EINVAL; 
+	}
+	worm->error = 0;
 	return error;
 }
 
@@ -564,15 +574,13 @@ worm_close(dev_t dev, int flags, int fmt, struct proc *p,
 	error = 0;
 
 	if ((worm->worm_flags & WORMFL_IOCTL_ONLY) == 0) {
-		scsi_stop_unit(sc_link, 0, SCSI_SILENT);
-		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
-
-		sc_link->flags &= ~SDEV_OPEN;
-
 		if ((flags & FWRITE) != 0) {
-			worm->worm_flags &= ~WORMFL_TRACK_PREPED;
+		    worm->error = 0;
+		    if ((worm->worm_flags & WORMFL_TRACK_PREPED) != 0) 
 			error = (worm->quirks->finalize_track)(sc_link);
+		    worm->worm_flags &= ~WORMFL_TRACK_PREPED;
 		}
+		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 	}
 	sc_link->flags &= ~SDEV_OPEN;
 	worm->worm_flags &= ~WORMFL_IOCTL_ONLY;
@@ -600,75 +608,76 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	SC_DEBUG(sc_link, SDEV_DB2, ("wormioctl 0x%x ", cmd));
 
 	switch (cmd) {
-	case WORMIOCQUIRKSELECT:
-		error = worm_quirk_select(sc_link, unit,
-					  (struct wormio_quirk_select *)addr);
-		break;
-
 	case WORMIOCPREPDISK:
-		if (worm->quirks == 0)
-			error = ENXIO;
-		else {
-			struct wormio_prepare_disk *w =
-				(struct wormio_prepare_disk *)addr;
-			if (w->dummy != 0 && w->dummy != 1)
-				error = EINVAL;
-			else {
-				error = (worm->quirks->prepare_disk)
-					(sc_link, w->dummy, w->speed);
-				if (error == 0) {
-					worm->worm_flags |= WORMFL_DISK_PREPED;
-					worm->dummy = w->dummy;
-					worm->speed = w->speed;
-				}
-			}
+	{
+	    struct wormio_prepare_disk *w =
+		(struct wormio_prepare_disk *)addr;
+	    if (w->dummy != 0 && w->dummy != 1)
+		error = EINVAL;
+	    else {
+		error = (worm->quirks->prepare_disk)
+		    (sc_link, w->dummy, w->speed);
+		if (error == 0) {
+		    worm->worm_flags |= WORMFL_DISK_PREPED;
+		    worm->dummy = w->dummy;
+		    worm->speed = w->speed;
 		}
-		break;
+	    }
+	}
+	break;
 
 	case WORMIOCPREPTRACK:
-		if (worm->quirks == 0)
-			error = ENXIO;
-		else {
-			struct wormio_prepare_track *w =
-				(struct wormio_prepare_track *)addr;
-			if (w->audio != 0 && w->audio != 1)
-				error = EINVAL;
-			else if (w->audio == 0 && w->preemp)
-				error = EINVAL;
-			else if ((worm->worm_flags & WORMFL_DISK_PREPED)==0)
-				error = EINVAL;
-			else {
-				worm->audio = w->audio;
-				worm->preemp = w->preemp;
-				worm->worm_flags |=
-					WORMFL_TRACK_PREPED;
-			}
-		}
-		break;
+	{
+	    struct wormio_prepare_track *w =
+		(struct wormio_prepare_track *)addr;
+	    if (w->audio != 0 && w->audio != 1)
+		error = EINVAL;
+	    else if (w->audio == 0 && w->preemp)
+		error = EINVAL;
+	    else if ((worm->worm_flags & WORMFL_DISK_PREPED)==0) {
+		error = EINVAL;
+		worm->error = WORM_SEQUENCE_ERROR;
+	    } else {
+		if ((error = (worm->quirks->prepare_track)
+		     (sc_link, w)) == 0)
+		    worm->worm_flags |=
+			WORMFL_TRACK_PREPED;
+	    }
+	}
+	break;
+
+	case WORMIOCFINISHTRACK:
+	    error = (worm->quirks->finalize_track)(sc_link);
+	    worm->worm_flags &= ~WORMFL_TRACK_PREPED;
+	    break;
 
 	case WORMIOCFIXATION:
-		if (worm->quirks == 0)
-			error = ENXIO;		
-		else {
-			struct wormio_fixation *w =
-				(struct wormio_fixation *)addr;
-
-			if ((worm->worm_flags & WORMFL_WRITTEN) == 0)
-				error = EINVAL;
-			else if (w->toc_type < WORM_TOC_TYPE_AUDIO ||
-				 w->toc_type > WORM_TOC_TYPE_CDI)
-				error = EINVAL;
-			else if (w->onp != 0 && w->onp != 1)
-				error = EINVAL;
-			else {
-				worm->worm_flags = 0;
-				/* no fixation needed if dummy write */
-				if (worm->dummy == 0)
-					error = (worm->quirks->finalize_disk)
-						(sc_link, w->toc_type, w->onp);
-			}
+	{
+	    struct wormio_fixation *w =
+		(struct wormio_fixation *)addr;
+	    
+	    if ((worm->worm_flags & WORMFL_WRITTEN) == 0)
+		error = EINVAL;
+	    else if (w->toc_type < WORM_TOC_TYPE_AUDIO ||
+		     w->toc_type > WORM_TOC_TYPE_CDI)
+		error = EINVAL;
+	    else if (w->onp != 0 && w->onp != 1)
+		error = EINVAL;
+	    else {
+		worm->worm_flags = 0;
+		/* no fixation needed if dummy write */
+		if (worm->dummy == 0) {
+		    worm->error = 0;
+		    error = (worm->quirks->finalize_disk)
+			(sc_link, w->toc_type, w->onp);
 		}
-		break;
+	    }
+	}
+	break;
+
+	case WORMIOERROR:
+            bcopy(&(worm->error), addr, sizeof (int));
+	    break;
 
 	case CDIOREADTOCHEADER:
 		{
@@ -877,32 +886,28 @@ worm_read_toc(struct scsi_link *sc_link, u_int32_t mode, u_int32_t start,
 			      SCSI_DATA_IN));
 }
 
-static errval
-worm_quirk_select(struct scsi_link *sc_link, u_int32_t unit,
-		  struct wormio_quirk_select *qs)
+static int
+worm_sense_handler(struct scsi_xfer *xs)
 {
-	struct worm_quirks *qp;
-	struct scsi_data *worm = sc_link->sd;
-	errval error = 0;
-	
-	SC_DEBUG(sc_link, SDEV_DB2, ("worm_quirk_select"));
+    struct scsi_data *worm;
+    struct scsi_sense_data *sense;
+    struct scsi_sense_extended *ext;
+    int asc, devmode, i;
+   
+    worm = xs->sc_link->sd;
+    sense = &(xs->sense);
+    ext = (struct scsi_sense_extended *) &(sense->ext.extended);
+    asc = ext->add_sense_code;
+    devmode = *(int *) xs->sc_link->devmodes;
 
-	for (qp = worm_quirks; qp->vendor; qp++)
-		if (strcmp(qp->vendor, qs->vendor) == 0 &&
-		    strncmp(qp->model, qs->model, strlen(qp->model)) == 0)
-			break;
-	if (qp->vendor) {
-		SC_DEBUG(sc_link, SDEV_DB3,
-			 ("worm_quirk_select: %s %s",
-			  qp->vendor, qp->model));
-		worm->quirks = qp;
+    for (i = 0; worm_error[i].asc; i++)
+	if ((asc == worm_error[i].asc) && (devmode & worm_error[i].devmode)) {
+	    worm->error = worm_error[i].error;
+	    return worm_error[i].ret;
 	}
-	else
-		error = EINVAL;
-
-	return error;
+    worm->error = -1;
+    return SCSIRET_CONTINUE;
 }
-
 
 static void
 worm_drvinit(void *unused)
@@ -920,6 +925,16 @@ SYSINIT(wormdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,worm_drvinit,NULL)
  * Begin device-specific stuff.  Subject to being moved out to LKMs.
  */
 
+static u_char
+ascii_to_6bit (char c)
+{
+    if (c < '0' || c > 'Z' || (c > '9' && c < 'A'))
+	return 0;
+    if (c <= '9')
+	return c - '0';
+    else
+	return c - 'A' + 11;
+}
 /*
  * PLASMON RF4100/4102
  * Perhaps other Plasmon's, too.
@@ -951,7 +966,7 @@ struct plasmon_rf4100_pages
 #define RF4100_MIXED_MODE	0x08	/* mixed mode data enabled */
 #define RF4100_AUDIO_MODE	0x04	/* audio mode data enabled */
 #define RF4100_MODE_1		0x01	/* mode 1 blocks are enabled */
-#define RF4110_MODE_2		0x02	/* mode 2 blocks are enabled */
+#define RF4100_MODE_2		0x02	/* mode 2 blocks are enabled */
 			u_char	track_number;
 			u_char	isrc_i1; /* country code, ASCII */
 			u_char	isrc_i2;
@@ -1028,15 +1043,19 @@ rf4100_prepare_disk(struct scsi_link *sc_link, int dummy, int speed)
 
 
 static errval
-rf4100_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
+rf4100_prepare_track(struct scsi_link *sc_link, struct wormio_prepare_track *t)
 {
 	struct scsi_mode_select scsi_cmd;
+	struct scsi_data *worm;
 	struct {
 		struct scsi_mode_header header;
 		struct blk_desc blk_desc;
 		struct plasmon_rf4100_pages page;
 	} dat;
 	u_int32_t pagelen, dat_len, blk_len;
+	int year;
+
+	worm = sc_link->sd;
 
 	pagelen = sizeof(dat.page.pages.page_0x21) + PAGE_HEADERLEN;
 	dat_len = sizeof(struct scsi_mode_header)
@@ -1044,16 +1063,6 @@ rf4100_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
 		+ pagelen;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("rf4100_prepare_track"));
-
-	if (!audio && preemp)
-		return EINVAL;
-
-	/*
-	 * By now, make a simple decision about the block length to be
-	 * used.  It's just only Red Book (Audio) == 2352 bytes, or
-	 * Yellow Book (CD-ROM) Mode 1 == 2048 bytes.
-	 */
-	blk_len = audio? 2352: 2048;
 
 	/*
 	 * Set up a mode page 0x21.  Note that the block descriptor is
@@ -1072,15 +1081,70 @@ rf4100_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
 	scsi_cmd.op_code = MODE_SELECT;
 	scsi_cmd.length = dat_len;
 	dat.header.blk_desc_len = sizeof(struct blk_desc);
-	/* dat.header.dev_spec = host application code; (see spec) */
-	scsi_uto3b(blk_len, dat.blk_desc.blklen);
 	dat.page.page_code = RF4100_PAGE_CODE_21;
 	dat.page.param_len = sizeof(dat.page.pages.page_0x21);
-	dat.page.pages.page_0x21.mode =
-		(audio? RF4100_AUDIO_MODE: RF4100_MODE_1) +
-		(preemp? RF4100_MODE_1: 0);
-	/* dat.page.pages.page_0x21.track_number = 0; (current track) */
+	/* dat.header.dev_spec = host application code; (see spec) */
+	if (t->audio) {
+	    blk_len = 2352;
+	    dat.page.pages.page_0x21.mode = RF4100_AUDIO_MODE + 
+		(t->preemp? RF4100_MODE_1 : 0);
+	} else
+	    switch (t->track_type) {
+	    case BLOCK_RAW: 
+		blk_len = 2352;
+		dat.page.pages.page_0x21.mode = RF4100_RAW_MODE;
+		break;
+	    case BLOCK_MODE_1: 
+		blk_len = 2048;
+		dat.page.pages.page_0x21.mode = RF4100_MODE_1;
+		break;
+	    case BLOCK_MODE_2: 
+		blk_len = 2336; 
+		dat.page.pages.page_0x21.mode = RF4100_MODE_2;
+		break;
+	    case BLOCK_MODE_2_FORM_1:
+		blk_len = 2048;
+		dat.page.pages.page_0x21.mode = RF4100_MODE_2;
+		break;
+	    case BLOCK_MODE_2_FORM_1b:
+		blk_len = 2056;
+		dat.page.pages.page_0x21.mode = RF4100_MODE_2;
+		break;
+	    case BLOCK_MODE_2_FORM_2:
+		blk_len = 2324;
+		dat.page.pages.page_0x21.mode = RF4100_MODE_2;
+		break;
+	    case BLOCK_MODE_2_FORM_2b:
+		blk_len = 2332;
+		dat.page.pages.page_0x21.mode = RF4100_MODE_2;
+		break;
+	    default:
+		return EINVAL;
+	    }
+	dat.page.pages.page_0x21.mode |= t->copy_bits << 5;
 	
+	worm->blk_size = blk_len;
+
+	dat.page.pages.page_0x21.track_number = t->track_number;
+
+	dat.page.pages.page_0x21.isrc_i1 = ascii_to_6bit(t->ISRC_country[0]);
+	dat.page.pages.page_0x21.isrc_i2 = ascii_to_6bit(t->ISRC_country[1]);
+	dat.page.pages.page_0x21.isrc_i3 = ascii_to_6bit(t->ISRC_owner[0]);
+	dat.page.pages.page_0x21.isrc_i4 = ascii_to_6bit(t->ISRC_owner[1]);
+	dat.page.pages.page_0x21.isrc_i5 = ascii_to_6bit(t->ISRC_owner[2]);
+	year = t->ISRC_year > 1900 ? t->ISRC_year - 1900 : t->ISRC_year;
+	if (year > 99 || year < 0)
+	    return EINVAL;
+	dat.page.pages.page_0x21.isrc_i6_7 = bin2bcd(year);
+	if (t->ISRC_serial[0]) {
+	    dat.page.pages.page_0x21.isrc_i8_9 = ((t->ISRC_serial[0]-'0') << 8) ||
+		(t->ISRC_serial[1] - '0');
+	    dat.page.pages.page_0x21.isrc_i10_11 = ((t->ISRC_serial[2]-'0') << 8) ||
+		(t->ISRC_serial[3] - '0');
+	    dat.page.pages.page_0x21.isrc_i12_0 =  (t->ISRC_serial[4] - '0' << 8);
+	}
+	scsi_uto3b(blk_len, dat.blk_desc.blklen);
+
 	/*
 	 * Fire it off.
 	 */
@@ -1100,7 +1164,8 @@ static errval
 rf4100_finalize_track(struct scsi_link *sc_link)
 {
 	struct scsi_synchronize_cache cmd;
-	
+	int error;
+
 	SC_DEBUG(sc_link, SDEV_DB2, ("rf4100_finalize_track"));
 
 	/*
@@ -1108,7 +1173,7 @@ rf4100_finalize_track(struct scsi_link *sc_link)
 	 */
 	bzero(&cmd, sizeof(cmd));
 	cmd.op_code = SYNCHRONIZE_CACHE;
-	return scsi_scsi_cmd(sc_link,
+	error = scsi_scsi_cmd(sc_link,
 			     (struct scsi_generic *) &cmd,
 			     sizeof(cmd),
 			     0,	/* no data transfer */
@@ -1117,6 +1182,13 @@ rf4100_finalize_track(struct scsi_link *sc_link)
 			     60000, /* this may take a while */
 			     NULL,
 			     0);
+	if (!error) {
+	    struct wormio_prepare_track t;
+	    bzero (&t, sizeof (t));
+	    t.track_type = BLOCK_MODE_1;
+	    error = rf4100_prepare_track(sc_link, &t);
+	}
+	return error;
 }
 
 
@@ -1190,7 +1262,7 @@ struct hp_4020i_pages
 			u_char	isrc_i3; /* owner code, ASCII */
 			u_char	isrc_i4;
 			u_char	isrc_i5;
-			u_char	isrc_i6_7; /* country code, BCD */
+			u_char	isrc_i6_7; /* year code, BCD */
 			u_char	isrc_i8_9; /* serial number, BCD */
 			u_char	isrc_i10_11;
 			u_char	isrc_i12_0;
@@ -1261,15 +1333,19 @@ hp4020i_prepare_disk(struct scsi_link *sc_link, int dummy, int speed)
 
 
 static errval
-hp4020i_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
+hp4020i_prepare_track(struct scsi_link *sc_link, struct wormio_prepare_track *t)
 {
 	struct scsi_mode_select scsi_cmd;
+	struct scsi_data *worm;
 	struct {
 		struct scsi_mode_header header;
 		struct blk_desc blk_desc;
 		struct hp_4020i_pages page;
 	} dat;
 	u_int32_t pagelen, dat_len, blk_len;
+	int year;
+
+	worm = sc_link->sd;
 
 	pagelen = sizeof(dat.page.pages.page_0x21) + PAGE_HEADERLEN;
 	dat_len = sizeof(struct scsi_mode_header)
@@ -1278,15 +1354,6 @@ hp4020i_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("hp4020i_prepare_track"));
 
-	if (!audio && preemp)
-		return EINVAL;
-
-	/*
-	 * By now, make a simple decision about the block length to be
-	 * used.  It's just only Red Book (Audio) == 2352 bytes, or
-	 * Yellow Book (CD-ROM) Mode 1 == 2048 bytes.
-	 */
-	blk_len = audio? 2352: 2048;
 
 	/*
 	 * Set up a mode page 0x21.  Note that the block descriptor is
@@ -1306,14 +1373,70 @@ hp4020i_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
 	scsi_cmd.byte2 |= SMS_PF;
 	scsi_cmd.length = dat_len;
 	dat.header.blk_desc_len = sizeof(struct blk_desc);
-	/* dat.header.dev_spec = host application code; (see spec) */
-	scsi_uto3b(blk_len, dat.blk_desc.blklen);
 	dat.page.page_code = HP4020I_PAGE_CODE_21;
 	dat.page.param_len = sizeof(dat.page.pages.page_0x21);
-	dat.page.pages.page_0x21.mode =
-		(audio? HP4020I_AUDIO_MODE: HP4020I_MODE_1) +
-		(preemp? HP4020I_MODE_1: 0);
-	/* dat.page.pages.page_0x21.track_number = 0; (current track) */
+	/* dat.header.dev_spec = host application code; (see spec) */
+	if (t->audio) {
+	    blk_len = 2352;
+	    dat.page.pages.page_0x21.mode = HP4020I_AUDIO_MODE + 
+		(t->preemp? HP4020I_MODE_1 : 0);
+	} else
+	    switch (t->track_type) {
+	    case BLOCK_RAW: 
+		blk_len = 2352;
+		dat.page.pages.page_0x21.mode = HP4020I_RAW_MODE;
+		break;
+	    case BLOCK_MODE_1: 
+		blk_len = 2048;
+		dat.page.pages.page_0x21.mode = HP4020I_MODE_1;
+		break;
+	    case BLOCK_MODE_2: 
+		blk_len = 2336; 
+		dat.page.pages.page_0x21.mode = HP4020I_MODE_2;
+		break;
+	    case BLOCK_MODE_2_FORM_1:
+		blk_len = 2048;
+		dat.page.pages.page_0x21.mode = HP4020I_MODE_2;
+		break;
+	    case BLOCK_MODE_2_FORM_1b:
+		blk_len = 2056;
+		dat.page.pages.page_0x21.mode = HP4020I_MODE_2;
+		break;
+	    case BLOCK_MODE_2_FORM_2:
+		blk_len = 2324;
+		dat.page.pages.page_0x21.mode = HP4020I_MODE_2;
+		break;
+	    case BLOCK_MODE_2_FORM_2b:
+		blk_len = 2332;
+		dat.page.pages.page_0x21.mode = HP4020I_MODE_2;
+		break;
+	    default:
+		return EINVAL;
+	    }
+	dat.page.pages.page_0x21.mode |= t->copy_bits << 5;
+	
+	worm->blk_size = blk_len;
+
+	dat.page.pages.page_0x21.track_number = t->track_number;
+
+	dat.page.pages.page_0x21.isrc_i1 = ascii_to_6bit(t->ISRC_country[0]);
+	dat.page.pages.page_0x21.isrc_i2 = ascii_to_6bit(t->ISRC_country[1]);
+	dat.page.pages.page_0x21.isrc_i3 = ascii_to_6bit(t->ISRC_owner[0]);
+	dat.page.pages.page_0x21.isrc_i4 = ascii_to_6bit(t->ISRC_owner[1]);
+	dat.page.pages.page_0x21.isrc_i5 = ascii_to_6bit(t->ISRC_owner[2]);
+	year = t->ISRC_year > 1900 ? t->ISRC_year - 1900 : t->ISRC_year;
+	if (year > 99 || year < 0)
+	    return EINVAL;
+	dat.page.pages.page_0x21.isrc_i6_7 = bin2bcd(year);
+	if (t->ISRC_serial[0]) {
+	    dat.page.pages.page_0x21.isrc_i8_9 = ((t->ISRC_serial[0]-'0') << 8) ||
+		(t->ISRC_serial[1] - '0');
+	    dat.page.pages.page_0x21.isrc_i10_11 = ((t->ISRC_serial[2]-'0') << 8) ||
+		(t->ISRC_serial[3] - '0');
+	    dat.page.pages.page_0x21.isrc_i12_0 =  (t->ISRC_serial[4] - '0' << 8);
+	}
+
+	scsi_uto3b(blk_len, dat.blk_desc.blklen);
 	
 	/*
 	 * Fire it off.
@@ -1334,7 +1457,8 @@ static errval
 hp4020i_finalize_track(struct scsi_link *sc_link)
 {
 	struct scsi_synchronize_cache cmd;
-	
+	int error;
+
 	SC_DEBUG(sc_link, SDEV_DB2, ("hp4020i_finalize_track"));
 
 	/*
@@ -1342,7 +1466,7 @@ hp4020i_finalize_track(struct scsi_link *sc_link)
 	 */
 	bzero(&cmd, sizeof(cmd));
 	cmd.op_code = SYNCHRONIZE_CACHE;
-	return scsi_scsi_cmd(sc_link,
+	error = scsi_scsi_cmd(sc_link,
 			     (struct scsi_generic *) &cmd,
 			     sizeof(cmd),
 			     0,	/* no data transfer */
@@ -1351,6 +1475,13 @@ hp4020i_finalize_track(struct scsi_link *sc_link)
 			     60000, /* this may take a while */
 			     NULL,
 			     0);
+	if (!error) {
+	    struct wormio_prepare_track t;
+	    bzero (&t, sizeof (t));
+	    t.track_type = BLOCK_MODE_1;
+	    error = hp4020i_prepare_track(sc_link, &t);
+	}
+	return error;
 }
 
 
