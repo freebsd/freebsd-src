@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1998 Søren Schmidt
+ * Copyright (c) 1994-1998 Sen Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,13 +28,12 @@
  * $FreeBSD$
  */
 
-#include "pca.h"
-#if NPCA > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
 #include <sys/filio.h>
 #include <sys/poll.h>
 #include <sys/vnode.h>
@@ -42,14 +41,9 @@
 #include <machine/clock.h>
 #include <machine/pcaudioio.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#include <i386/isa/isa_device.h>
+#include <isa/isareg.h>
+#include <isa/isavar.h>
 #include <i386/isa/timerreg.h>
-
 
 #define BUF_SIZE 	8192
 #define SAMPLE_RATE	8000
@@ -153,12 +147,6 @@ static int pca_sleep = 0;
 static int pca_initialized = 0;
 
 static void pcaintr(struct clockframe *frame);
-static int pcaprobe(struct isa_device *dvp);
-static int pcaattach(struct isa_device *dvp);
-
-struct	isa_driver pcadriver = {
-	pcaprobe, pcaattach, "pca",
-};
 
 static	d_open_t	pcaopen;
 static	d_close_t	pcaclose;
@@ -220,7 +208,6 @@ pca_volume(int volume)
 static void
 pca_init(void)
 {
-	cdevsw_add(&pca_cdevsw);
 	pca_status.open = 0;
 	pca_status.queries = 0;
 	pca_status.timer_on = 0;
@@ -323,11 +310,10 @@ pca_continue(void)
 
 #ifdef PC98
         pca_status.oldval = inb(IO_PPI) & ~0x08;
-	acquire_timer1(TIMER_LSB|TIMER_ONESHOT);
 #else
         pca_status.oldval = inb(IO_PPI) | 0x03;
-	acquire_timer2(TIMER_LSB|TIMER_ONESHOT);
 #endif
+	acquire_timer2(TIMER_LSB|TIMER_ONESHOT);
 	acquire_timer0(INTERRUPT_RATE, pcaintr);
 	pca_status.timer_on = 1;
 	splx(x);
@@ -358,22 +344,48 @@ pca_wait(void)
 }
 
 
+static struct isa_pnp_id pca_ids[] = {
+	{0x0008d041, "AT-style speaker sound"},	/* PNP0800 */
+	{0}
+};
+
 static int
-pcaprobe(struct isa_device *dvp)
+pcaprobe(device_t dev)
 {
-	return(-1);
+	int error;
+
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pca_ids);
+	if (error == ENXIO)
+		return ENXIO;
+	return 0;
 }
 
 
 static int
-pcaattach(struct isa_device *dvp)
+pcaattach(device_t dev)
 {
-	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();
 	make_dev(&pca_cdevsw, 0, 0, 0, 0600, "pcaudio");
 	make_dev(&pca_cdevsw, 128, 0, 0, 0600, "pcaudioctl");
-	return 1;
+	return 0;
 }
+
+static device_method_t pca_methods[] = {
+	DEVMETHOD(device_probe,		pcaprobe),
+	DEVMETHOD(device_attach,	pcaattach),
+	{ 0, 0 }
+};
+
+static driver_t pca_driver = {
+	"pca",
+	pca_methods,
+	1
+};
+
+static devclass_t pca_devclass;
+
+DRIVER_MODULE(pca, isa, pca_driver, pca_devclass, 0, 0);
 
 
 static int
@@ -547,7 +559,7 @@ pcaintr(struct clockframe *frame)
 		disable_intr();
 #ifdef PC98
 		__asm__("outb %0,$0x35\n"
-			"orb $0x08,%0\n"
+			"andb $0x08,%0\n"
 			"outb %0,$0x35"
 #else
 		__asm__("outb %0,$0x61\n"
@@ -610,5 +622,3 @@ pcapoll(dev_t dev, int events, struct proc *p)
 	splx(s);
 	return (revents);
 }
-
-#endif
