@@ -80,7 +80,9 @@ off_t lseek ();
 #endif
 #else
 #include <strings.h>
+#ifndef __386BSD__
 char *memchr ();
+#endif
 #endif
 
 #include <errno.h>
