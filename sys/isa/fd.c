@@ -96,6 +96,7 @@
 #define FDC_IS_PCMCIA  (1 << 1)		/* if successful probe, then it's
 					   a PCMCIA device */
 #endif
+#define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
 
 /* internally used only, not really from CMOS: */
 #define RTCFDT_144M_PRETENDED	0x1000
@@ -739,7 +740,7 @@ fdc_probe(device_t dev)
 	 * don't succeed on probe; wait
 	 * for PCCARD subsystem to do it
 	 */
-	if (dev->id_flags & FDC_IS_PCMCIA)
+	if (device_get_flags(fdc->fdc_dev) & FDC_IS_PCMCIA)
 		return(0);
 #endif
 	return (0);
@@ -920,6 +921,7 @@ fd_probe(device_t dev)
 
 	/* XXX This doesn't work before the first set_motor() */
 	if (fd_fifo == 0 && fdc->fdct != FDC_NE765 && fdc->fdct != FDC_UNKNOWN
+	    && (device_get_flags(fdc->fdc_dev) & FDC_NO_FIFO) == 0
 	    && enable_fifo(fdc) == 0) {
 		device_print_prettyname(device_get_parent(dev));
 		printf("FIFO enabled, %d bytes threshold\n", fifo_threshold);
