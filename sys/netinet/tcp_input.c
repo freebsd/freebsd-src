@@ -657,7 +657,7 @@ findpcb:
 
 	so = inp->inp_socket;
 #ifdef MAC
-	error = mac_check_socket_receive(so, m);
+	error = mac_check_socket_deliver(so, m);
 	if (error)
 		goto drop;
 #endif

@@ -159,7 +159,7 @@ rip_input(m, off)
 #endif /*IPSEC*/
 #ifdef MAC
 				if (policyfail == 0 &&
-				    mac_check_socket_receive(last->inp_socket,
+				    mac_check_socket_deliver(last->inp_socket,
 				    n) != 0)
 					policyfail = 1;
 #endif
@@ -196,7 +196,7 @@ rip_input(m, off)
 		}
 #endif /*IPSEC*/
 #ifdef MAC
-		if (mac_check_socket_receive(last->inp_socket, m) != 0) {
+		if (mac_check_socket_deliver(last->inp_socket, m) != 0) {
 			m_freem(m);
 			ipstat.ips_delivered--;
 			return;

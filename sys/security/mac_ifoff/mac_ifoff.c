@@ -146,7 +146,7 @@ mac_ifoff_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
 }
 
 static int
-mac_ifoff_check_socket_receive(struct socket *so, struct label *socketlabel,
+mac_ifoff_check_socket_deliver(struct socket *so, struct label *socketlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 
@@ -164,8 +164,8 @@ static struct mac_policy_op_entry mac_ifoff_ops[] =
 	    (macop_t)mac_ifoff_check_bpfdesc_receive },
 	{ MAC_CHECK_IFNET_TRANSMIT,
 	    (macop_t)mac_ifoff_check_ifnet_transmit },
-	{ MAC_CHECK_SOCKET_RECEIVE,
-	    (macop_t)mac_ifoff_check_socket_receive },
+	{ MAC_CHECK_SOCKET_DELIVER,
+	    (macop_t)mac_ifoff_check_socket_deliver },
 	{ MAC_OP_LAST, NULL }
 };
 
