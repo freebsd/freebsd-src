@@ -151,7 +151,7 @@ Pred1ResetOutput(void *v)
 }
 
 static void *
-Pred1InitInput(struct fsm_opt *o)
+Pred1InitInput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct pred1_state *state;
   state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
@@ -161,7 +161,7 @@ Pred1InitInput(struct fsm_opt *o)
 }
 
 static void *
-Pred1InitOutput(struct fsm_opt *o)
+Pred1InitOutput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct pred1_state *state;
   state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
@@ -300,13 +300,15 @@ Pred1DispOpts(struct fsm_opt *o)
 }
 
 static void
-Pred1InitOptsOutput(struct fsm_opt *o, const struct ccp_config *cfg)
+Pred1InitOptsOutput(struct bundle *bundle, struct fsm_opt *o,
+                    const struct ccp_config *cfg)
 {
   o->hdr.len = 2;
 }
 
 static int
-Pred1SetOpts(struct fsm_opt *o, const struct ccp_config *cfg)
+Pred1SetOpts(struct bundle *bundle, struct fsm_opt *o,
+             const struct ccp_config *cfg)
 {
   if (o->hdr.len != 2) {
     o->hdr.len = 2;

@@ -369,7 +369,7 @@ CcpSendConfigReq(struct fsm *fp)
         (*o)->val.hdr.len = 2;
         (*o)->next = NULL;
         (*o)->algorithm = f;
-        (*algorithm[f]->o.OptInit)(&(*o)->val, &ccp->cfg);
+        (*algorithm[f]->o.OptInit)(fp->bundle, &(*o)->val, &ccp->cfg);
       }
 
       if (cp + (*o)->val.hdr.len > buff + sizeof buff) {
@@ -517,7 +517,8 @@ CcpLayerUp(struct fsm *fp)
 
   if (ccp->in.state == NULL && ccp->in.algorithm >= 0 &&
       ccp->in.algorithm < NALGORITHMS) {
-    ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)(&ccp->in.opt);
+    ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)
+      (fp->bundle, &ccp->in.opt);
     if (ccp->in.state == NULL) {
       log_Printf(LogERROR, "%s: %s (in) initialisation failure\n",
                 fp->link->name, protoname(ccp->his_proto));
@@ -534,7 +535,8 @@ CcpLayerUp(struct fsm *fp)
 
   if (ccp->out.state == NULL && ccp->out.algorithm >= 0 &&
       ccp->out.algorithm < NALGORITHMS) {
-    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)(&(*o)->val);
+    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)
+      (fp->bundle, &(*o)->val);
     if (ccp->out.state == NULL) {
       log_Printf(LogERROR, "%s: %s (out) initialisation failure\n",
                 fp->link->name, protoname(ccp->my_proto));
@@ -596,7 +598,7 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
             (*algorithm[f]->Usable)(fp) &&
             ccp->in.algorithm == -1) {
           memcpy(&ccp->in.opt, opt, opt->hdr.len);
-          switch ((*algorithm[f]->i.Set)(&ccp->in.opt, &ccp->cfg)) {
+          switch ((*algorithm[f]->i.Set)(fp->bundle, &ccp->in.opt, &ccp->cfg)) {
           case MODE_REJ:
             fsm_rej(dec, &ccp->in.opt);
             break;
@@ -622,7 +624,8 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
                      " option\n", fp->link->name);
         else {
           memcpy(&o->val, opt, opt->hdr.len);
-          if ((*algorithm[f]->o.Set)(&o->val, &ccp->cfg) == MODE_ACK)
+          if ((*algorithm[f]->o.Set)(fp->bundle, &o->val, &ccp->cfg) ==
+              MODE_ACK)
             ccp->my_proto = algorithm[f]->id;
           else {
             ccp->his_reject |= (1 << opt->hdr.id);

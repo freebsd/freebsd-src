@@ -26,6 +26,12 @@
  * $FreeBSD$
  */
 
+#define	MPPE_POLICY_ALLOWED	1
+#define	MPPE_POLICY_REQUIRED	2
+
+#define	MPPE_TYPE_40BIT		2
+#define	MPPE_TYPE_128BIT	4
+
 struct radius {
   struct fdescriptor desc;	/* We're a sort of (selectable) fdescriptor */
   struct {
@@ -45,6 +51,14 @@ struct radius {
   char *msrepstr;		/* MS-CHAP2-Response */
   char *repstr;			/* Reply-Message */
   char *errstr;			/* Error-Message */
+  struct {
+    int policy;			/* MPPE_POLICY_* */
+    int types;			/* MPPE_TYPE_*BIT bitmask */
+    char *recvkey;
+    size_t recvkeylen;
+    char *sendkey;
+    size_t sendkeylen;
+  } mppe;
   struct {
     char file[PATH_MAX];	/* Radius config file */
   } cfg;
