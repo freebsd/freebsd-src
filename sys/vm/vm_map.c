@@ -61,13 +61,12 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.55 1996/09/08 16:57:53 dyson Exp $
+ * $Id: vm_map.c,v 1.56 1996/09/08 23:49:47 dyson Exp $
  */
 
 /*
  *	Virtual memory mapping module.
  */
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -2363,77 +2362,80 @@ vm_map_simplify(map, start)
 	vm_map_unlock(map);
 }
 
+#include "opt_ddb.h"
 #ifdef DDB
+#include <sys/kernel.h>
+
+#include <ddb/ddb.h>
+
 /*
  *	vm_map_print:	[ debug ]
  */
-void
-vm_map_print(imap, full, dummy3, dummy4)
-	/* db_expr_t */ int imap;
-	boolean_t full;
-	/* db_expr_t */ int dummy3;
-	char *dummy4;
+DB_SHOW_COMMAND(map, vm_map_print)
 {
-	register vm_map_entry_t entry;
-	register vm_map_t map = (vm_map_t)imap;	/* XXX */
+	/* XXX convert args. */
+	register vm_map_t map = (vm_map_t)addr;
+	boolean_t full = have_addr;
 
-	iprintf("%s map 0x%x: pmap=0x%x,ref=%d,nentries=%d,version=%d\n",
+	register vm_map_entry_t entry;
+
+	db_iprintf("%s map 0x%x: pmap=0x%x,ref=%d,nentries=%d,version=%d\n",
 	    (map->is_main_map ? "Task" : "Share"),
 	    (int) map, (int) (map->pmap), map->ref_count, map->nentries,
 	    map->timestamp);
 
-	if (!full && indent)
+	if (!full && db_indent)
 		return;
 
-	indent += 2;
+	db_indent += 2;
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
-		iprintf("map entry 0x%x: start=0x%x, end=0x%x, ",
+		db_iprintf("map entry 0x%x: start=0x%x, end=0x%x, ",
 		    (int) entry, (int) entry->start, (int) entry->end);
 		if (map->is_main_map) {
 			static char *inheritance_name[4] =
 			{"share", "copy", "none", "donate_copy"};
 
-			printf("prot=%x/%x/%s, ",
+			db_printf("prot=%x/%x/%s, ",
 			    entry->protection,
 			    entry->max_protection,
 			    inheritance_name[entry->inheritance]);
 			if (entry->wired_count != 0)
-				printf("wired, ");
+				db_printf("wired, ");
 		}
 		if (entry->is_a_map || entry->is_sub_map) {
-			printf("share=0x%x, offset=0x%x\n",
+			db_printf("share=0x%x, offset=0x%x\n",
 			    (int) entry->object.share_map,
 			    (int) entry->offset);
 			if ((entry->prev == &map->header) ||
 			    (!entry->prev->is_a_map) ||
 			    (entry->prev->object.share_map !=
 				entry->object.share_map)) {
-				indent += 2;
+				db_indent += 2;
 				vm_map_print((int)entry->object.share_map,
 					     full, 0, (char *)0);
-				indent -= 2;
+				db_indent -= 2;
 			}
 		} else {
-			printf("object=0x%x, offset=0x%x",
+			db_printf("object=0x%x, offset=0x%x",
 			    (int) entry->object.vm_object,
 			    (int) entry->offset);
 			if (entry->copy_on_write)
-				printf(", copy (%s)",
+				db_printf(", copy (%s)",
 				    entry->needs_copy ? "needed" : "done");
-			printf("\n");
+			db_printf("\n");
 
 			if ((entry->prev == &map->header) ||
 			    (entry->prev->is_a_map) ||
 			    (entry->prev->object.vm_object !=
 				entry->object.vm_object)) {
-				indent += 2;
+				db_indent += 2;
 				vm_object_print((int)entry->object.vm_object,
 						full, 0, (char *)0);
-				indent -= 2;
+				db_indent -= 2;
 			}
 		}
 	}
-	indent -= 2;
+	db_indent -= 2;
 }
-#endif
+#endif /* DDB */
