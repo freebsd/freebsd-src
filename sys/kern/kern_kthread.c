@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
+#include <sys/ptrace.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/unistd.h>
@@ -100,6 +101,7 @@ kthread_create(void (*func)(void *), void *arg,
 void
 kthread_exit(int ecode)
 {
+	proc_reparent(curproc, initproc);
 	exit1(curproc, W_EXITCODE(ecode, 0));
 }
 
