@@ -486,7 +486,7 @@ commit (argc, argv)
 	/* Run the user-defined script to verify/check information in
 	 *the log message
 	 */
-	do_verify (message, (char *)NULL);  	
+	do_verify (&message, (char *)NULL);  	
 
 	/* We always send some sort of message, even if empty.  */
 	option_with_arg ("-m", message);
@@ -1110,7 +1110,7 @@ commit_fileproc (callerdat, finfo)
 	got_message = 1;
 	if (use_editor)
 	    do_editor (finfo->update_dir, &message, finfo->repository, ulist);
-	do_verify (message, finfo->repository);  
+	do_verify (&message, finfo->repository);  
     }
 
     p = findnode (cilist, finfo->file);
@@ -1400,7 +1400,7 @@ commit_direntproc (callerdat, dir, repos, update_dir, entries)
     got_message = 1;
     if (use_editor)
 	do_editor (update_dir, &message, real_repos, ulist);
-    do_verify (message, real_repos);  
+    do_verify (&message, real_repos);  
     free (real_repos);
     return (R_PROCESS);
 }
