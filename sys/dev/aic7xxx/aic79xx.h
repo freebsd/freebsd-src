@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#56 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#61 $
  *
  * $FreeBSD$
  */
@@ -243,7 +243,11 @@ typedef enum {
 	AHD_AUTOFLUSH_BUG	= 0x0200,
 	AHD_CLRLQO_AUTOCLR_BUG	= 0x0400,
 	AHD_PKTIZED_STATUS_BUG  = 0x0800,
-	AHD_PKT_LUN_BUG		= 0x1000
+	AHD_PKT_LUN_BUG		= 0x1000,
+	AHD_MDFF_WSCBPTR_BUG	= 0x2000,
+	AHD_REG_SLOW_SETTLE_BUG	= 0x4000,
+	AHD_SET_MODE_BUG	= 0x8000,
+	AHD_BUSFREEREV_BUG	= 0x10000
 } ahd_bug;
 
 /*
@@ -409,9 +413,9 @@ struct hardware_scb {
  *	  transfer.
  */ 
 #define SG_PTR_MASK	0xFFFFFFF8
-/*16*/	uint8_t  cdb_len;
-/*17*/	uint8_t  task_management;
-/*18*/	uint16_t tag;
+/*16*/	uint16_t tag;
+/*18*/	uint8_t  cdb_len;
+/*19*/	uint8_t  task_management;
 /*20*/	uint32_t next_hscb_busaddr;
 /*24*/	uint64_t dataptr;
 /*32*/	uint32_t datacnt;	/* Byte 3 is spare. */
@@ -422,7 +426,7 @@ struct hardware_scb {
 				 * Our Id (bits 0-3) Their ID (bits 4-7)
 				 */
 /*42*/	uint8_t  lun;
-/*43*/	uint8_t  task_attribute_nonpkt_tag;
+/*43*/	uint8_t  task_attribute;
 /*44*/	uint32_t hscb_busaddr;
 /******* Long lun field only downloaded for full 8 byte lun support *******/
 /*48*/  uint8_t	 pkt_long_lun[8];
