@@ -56,12 +56,6 @@
 #define suser_td(a)	suser(a)
 #endif
 
-/* The following might now be obsolete */
-static int pcic_resume_reset = 1;
-
-SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW,
-    &pcic_resume_reset, 0, "");
-
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
 static int		allocate_driver(struct slot *, struct dev_desc *);
@@ -303,7 +297,7 @@ inserted(void *arg)
 	 *	Enable 5V to the card so that the CIS can be read.
 	 */
 	slt->pwr.vcc = -1;
-	slt->pwr.vpp = 50;
+	slt->pwr.vpp = -1;
 
 	/*
 	 * Disable any pending timeouts for this slot, and explicitly
