@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.30 1997/03/10 06:21:02 ache Exp $
+ * $Id: modem.c,v 1.31 1997/03/10 06:54:58 ache Exp $
  *
  *  TODO:
  */
@@ -28,6 +28,7 @@
 #include <sys/tty.h>
 #include <errno.h>
 #include <time.h>
+#include <libutil.h>
 #include "hdlc.h"
 #include "lcp.h"
 #include "ip.h"
@@ -48,7 +49,6 @@ static int connect_count;
 static struct pppTimer ModemTimer;
 static char uucplock[10];
 
-extern int uu_lock(), uu_unlock();
 extern void PacketMode(), TtyTermMode(), TtyCommandMode();
 extern int TermMode;
 
@@ -377,6 +377,7 @@ int mode;
   struct termios rstio;
   int oldflag;
   char *host, *cp, *port;
+  int res;
 
   mbits = 0;
   if (mode & MODE_DIRECT) {
@@ -392,8 +393,12 @@ int mode;
     if (strncmp(VarDevice, "/dev", 4) == 0) {
       strncpy(uucplock, rindex(VarDevice, '/')+1,sizeof(uucplock)-1);
       uucplock[sizeof(uucplock)-1] = '\0';
-      if (uu_lock(uucplock) < 0) {
-        LogPrintf(LOG_PHASE_BIT, "Modem %s is in use\n", VarDevice);
+      if ((res = uu_lock(uucplock)) != UU_LOCK_OK) {
+        if (res == UU_LOCK_INUSE)
+          LogPrintf(LOG_PHASE_BIT, "Modem %s is in use\n", VarDevice);
+        else
+          LogPrintf(LOG_PHASE_BIT, "Modem %s is in use: uu_lock: %s\n",
+                    VarDevice, uu_lockerr(res));
         return(-1);
       }
       modem = open(VarDevice, O_RDWR|O_NONBLOCK);

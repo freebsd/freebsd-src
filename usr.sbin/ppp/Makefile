@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.16 1997/03/13 12:45:26 brian Exp $
+#	$Id: Makefile,v 1.17 1997/03/30 12:12:20 brian Exp $
 
 PROG=	ppp
 SRCS=	async.c auth.c ccp.c chap.c chat.c command.c filter.c fsm.c hdlc.c \
@@ -7,7 +7,7 @@ SRCS=	async.c auth.c ccp.c chap.c chat.c command.c filter.c fsm.c hdlc.c \
 	vjcomp.c arp.c alias.c alias_db.c alias_ftp.c alias_util.c \
 	passwdauth.c sig.c
 #CFLAGS+= -DHAVE_SHELL_CMD_WITH_ANY_MODE
-CFLAGS += -Wall -DUSE_PERROR -DMSEXT -DPASSWDAUTH
+CFLAGS += -Wall -DMSEXT -DPASSWDAUTH
 LDADD += -lmd -lcrypt -lutil
 DPADD += ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
 MAN8=	ppp.8
