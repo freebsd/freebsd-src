@@ -110,7 +110,7 @@ tagged		{ return(TAGGED); }
 			/* count up for nl */
 			    {
 				char *p;
-				for (p = yytext; *p != NULL; p++)
+				for (p = yytext; *p != '\0'; p++)
 					if (*p == '\n')
 						lineno++;
 			    }
@@ -221,7 +221,7 @@ any		{ return(ANY); }
 {quotedstring}	{
 			char *p = yytext;
 			while (*++p != '"') ;
-			*p = NULL;
+			*p = '\0';
 			yytext++;
 			yylval.val.len = yyleng - 2;
 			yylval.val.buf = strdup(yytext);
