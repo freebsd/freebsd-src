@@ -1025,7 +1025,8 @@ kern/kern_xxx.c		standard
 kern/link_elf.c		standard
 kern/md4c.c		optional netsmb
 kern/md5c.c		standard
-kern/sched_4bsd.c	standard
+kern/sched_4bsd.c	optional sched_4bsd
+kern/sched_ule.c	optional sched_ule
 kern/subr_autoconf.c	standard
 kern/subr_blist.c	standard
 kern/subr_bus.c		standard
