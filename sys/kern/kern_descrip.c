@@ -1485,6 +1485,8 @@ fdfree(td)
 	struct vnode *vp;
 	struct flock lf;
 
+	GIANT_REQUIRED;		/* VFS */
+
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
@@ -1633,6 +1635,8 @@ setugidsafety(td)
 	struct filedesc *fdp;
 	int i;
 
+	GIANT_REQUIRED;		/* kqueue */
+
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
@@ -1733,6 +1737,8 @@ fdcheckstd(td)
 	struct file *fp;
 	register_t retval;
 	int fd, i, error, flags, devnull;
+
+	GIANT_REQUIRED;		/* VFS */
 
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
@@ -1963,6 +1969,8 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 	struct file *fp;
 	int error;
 
+	GIANT_REQUIRED;		/* VFS */
+
 	*vpp = NULL;
 	if ((error = _fget(td, fd, &fp, 0, 0)) != 0)
 		return (error);
@@ -2009,6 +2017,8 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 {
 	struct file *fp;
 	int error;
+
+	NET_ASSERT_GIANT();
 
 	*spp = NULL;
 	if (fflagp != NULL)
