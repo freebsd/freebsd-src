@@ -219,7 +219,6 @@ extern struct file_format	*file_formats[];	/* supplied by consumer */
 extern struct preloaded_file	*preloaded_files;
 
 int			mod_load(char *name, struct mod_depend *verinfo, int argc, char *argv[]);
-int			mod_loadobj(char *type, char *name);
 int			mod_loadkld(const char *name, int argc, char *argv[]);
 
 struct preloaded_file *file_alloc(void);
