@@ -158,6 +158,10 @@ and
 .Fn verrx
 functions do not return, but exit with the value of the argument
 .Fa eval .
+It is recommended that the standard values defined in
+.Xr sysexits 3
+be used for the value of
+.Fa eval .
 The
 .Fn err_set_exit
 function can be used to specify a function which is called before
@@ -209,7 +213,8 @@ if (error != 0)
 .Xr exit 3 ,
 .Xr fmtmsg 3 ,
 .Xr printf 3 ,
-.Xr strerror 3
+.Xr strerror 3 ,
+.Xr sysexits 3
 .Sh HISTORY
 The
 .Fn err
