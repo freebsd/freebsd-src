@@ -143,7 +143,6 @@ vm_object_t kernel_object;
 vm_object_t kmem_object;
 static struct vm_object kernel_object_store;
 static struct vm_object kmem_object_store;
-extern int vm_pageout_page_count;
 
 static long object_collapses;
 static long object_bypasses;
