@@ -3,17 +3,18 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /users/hugh/tmp/old_ae/ee.msg,v 1.3 1993/06/22 04:13:35 hugh Exp $
+$ $Header: /home/hugh/sources/old_ae/RCS/ee.msg,v 1.6 1995/10/16 05:20:50 hugh Exp $
+$ 
 $ 
 $set 1
 $quote "
 1 "modes menu"
-2 "tabs to spaces       "
-3 "case sensitive search"
-4 "margins observed     "
-5 "auto-paragraph format"
-6 "eightbit characters  "
-7 "info window          "
+2 "tabs to spaces       " 
+3 "case sensitive search" 
+4 "margins observed     " 
+5 "auto-paragraph format" 
+6 "eightbit characters  " 
+7 "info window          " 
 8 "right margin         "
 9 "leave menu"
 10 "save changes"
@@ -41,7 +42,7 @@ $quote "
 32 "settings"
 33 "search"
 34 "miscellaneous"
-35 "Control keys:                                                              "
+35 "Control keys:                                                              " 
 36 "^a ascii code           ^i tab                  ^r right                   "
 37 "^b bottom of text       ^j newline              ^t top of text             "
 38 "^c command              ^k delete char          ^u up                      "
@@ -168,3 +169,11 @@ $quote "
 159 "EMACS"
 160 "NOEMACS"
 161 "       +#   put cursor at line #\n"
+162 "unable to open .init.ee for writing, no configuration saved!"
+163 "ee configuration saved in file %s"
+164 "save editor configuration"
+165 "save ee configuration"
+166 "save in current directory"
+167 "save in home directory"
+168 "ee configuration not saved"
+169 "must specify a file when invoking ree"
