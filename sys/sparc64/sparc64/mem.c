@@ -130,6 +130,7 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 	struct iovec *iov;
 	int error = 0;
 	vm_offset_t addr, eaddr, o, v = 0;
+	vm_prot_t prot;
 	vm_size_t c = 0;
 	u_long asi;
 	char *buf = NULL;
@@ -198,12 +199,12 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return EFAULT;
 
-			if (!kernacc((caddr_t)uio->uio_offset, c,
-			    uio->uio_rw == UIO_READ ?
-			    VM_PROT_READ : VM_PROT_WRITE)) {
-				return (EFAULT);
-			}
+			prot = (uio->uio_rw == UIO_READ) ? VM_PROT_READ :
+			    VM_PROT_WRITE;
 			v = uio->uio_offset;
+			if (v < VM_MIN_DIRECT_ADDRESS &&
+			    kernacc((caddr_t)v, c, prot) == FALSE)
+				return (EFAULT);
 			error = uiomove((caddr_t)v, c, uio);
 			if (uio->uio_rw == UIO_WRITE)
 				icache_flush(v, v + c);
