@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1995/01/19 22:28:35 wollman Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -15,7 +15,7 @@ ss_err.h ss_err.c:	ss_err.et
 std_rqs.c:		std_rqs.ct
 	test -e std_rqs.ct || ln -s ${.CURDIR}/std_rqs.ct .
 	mk_cmds std_rqs.ct
-	ln -s ${.CURDIR} ss
+	test -e ss || ln -s ${.CURDIR} ss
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s ss.h ${DESTDIR}/usr/include/ss/ss.h || \
