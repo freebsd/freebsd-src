@@ -95,7 +95,7 @@ buf_write(struct dumperinfo *di, char *ptr, size_t sz)
 		ptr += len;
 		sz -= len;
 		if (fragsz == DEV_BSIZE) {
-			error = di->dumper(di->priv, buffer, NULL, dumplo,
+			error = di->dumper(di->priv, buffer, 0, dumplo,
 			    DEV_BSIZE);
 			if (error)
 				return error;
@@ -115,7 +115,7 @@ buf_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = di->dumper(di->priv, buffer, NULL, dumplo, DEV_BSIZE);
+	error = di->dumper(di->priv, buffer, 0, dumplo, DEV_BSIZE);
 	dumplo += DEV_BSIZE;
 	return (error);
 }
@@ -145,7 +145,7 @@ cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 			printf("%c\b", "|/-\\"[twiddle++ & 3]);
 			counter &= (1<<24) - 1;
 		}
-		error = di->dumper(di->priv, (void*)pa, NULL, dumplo, sz);
+		error = di->dumper(di->priv, (void*)pa, 0, dumplo, sz);
 		if (error)
 			break;
 		dumplo += sz;
@@ -270,7 +270,7 @@ dumpsys(struct dumperinfo *di)
 	    ehdr.e_phnum);
 
 	/* Dump leader */
-	error = di->dumper(di->priv, &kdh, NULL, dumplo, sizeof(kdh));
+	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 	dumplo += sizeof(kdh);
@@ -301,12 +301,12 @@ dumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = di->dumper(di->priv, &kdh, NULL, dumplo, sizeof(kdh));
+	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 
 	/* Signal completion, signoff and exit stage left. */
-	di->dumper(di->priv, NULL, NULL, 0, 0);
+	di->dumper(di->priv, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return;
 
