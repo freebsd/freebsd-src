@@ -1,4 +1,4 @@
-# @(#)leapseconds	7.8
+# @(#)leapseconds	7.9
 
 # Allowance for leapseconds added to each timezone file.
 
@@ -40,3 +40,4 @@ Leap	1992	Jun	30	23:59:60	+	S
 Leap	1993	Jun	30	23:59:60	+	S
 Leap	1994	Jun	30	23:59:60	+	S
 Leap	1995	Dec	31	23:59:60	+	S
+Leap	1997	Jun	30	23:59:60	+	S

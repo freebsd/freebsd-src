@@ -1,4 +1,4 @@
-# @(#)europe	7.41
+# @(#)europe	7.46
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -78,7 +78,7 @@
 # of the text said:
 #
 # `An old stone obelisk marking a forgotten terrestrial meridian stands
-# beside the river at Kew. In the 18th century, before time and longditude
+# beside the river at Kew. In the 18th century, before time and longitude
 # was standardised by the Royal Observatory in Greenwich, scholars observed
 # this stone and the movement of stars from Kew Observatory nearby. They
 # made their calculations and set the time for the Horse Guards and Parliament,
@@ -86,7 +86,7 @@
 # along the towpath within a few yards of it.'
 #
 # I have a one inch to one mile map of London and my estimate of the stone's
-# position is 51 deg. 28' 30" N, 0 deg. 18' 45" W. The longditude should
+# position is 51 deg. 28' 30" N, 0 deg. 18' 45" W. The longitude should
 # be within about +-2". The Ordnance Survey grid reference is TQ172761.
 #
 # [This yields GMTOFF = -0:01:15 for London LMT in the 18th century.]
@@ -167,7 +167,7 @@
 # It ends at 02:00 GMT on the morning of the day after the fourth Saturday
 # in October. (All the redundant `morning of the day ...' is in the Act.)
 # This is only of passing interest now as it will always be overridden by
-# an Order in Council (a Statutary Instrument, the SI thing mentioned above)
+# an Order in Council (a Statutory Instrument, the SI thing mentioned above)
 # to specify the EC specified dates.
 
 # From Peter Ilieve <peter@memex.co.uk> (1993-10-18):
@@ -327,7 +327,7 @@
 # so that part of the 1922 Act will still apply.
 #
 # - The Defence (Summer Time) Regulations, 1939, SR&O 1939 No. 1379
-#   [SR&O == Statutary Regulation and Order]
+#   [SR&O == Statutory Regulation and Order]
 #
 # These were made under the Emergency Powers (Defence) Act, 1939.
 # It changes the end date to be the day after the third Saturday in November.
@@ -403,7 +403,7 @@
 # harmonise with the EC since 1981. The major change is that the time changes
 # to 01:00 GMT.)
 #
-# - The Summer Time Order, 1992, SI 1992/1729 [SI == Statutary Instrument]
+# - The Summer Time Order, 1992, SI 1992/1729 [SI == Statutory Instrument]
 #
 # This specifies dates of:
 #       Start       End
@@ -630,10 +630,18 @@
 # came into force on 16 November.  It restates the dates from the EC
 # seventh Summer Time Directive....
 #
-# From Peter Ilieve <peter@aldie.co.uk> (1996-04-20):
-# Proposals for the eighth directive were supposed to have been produced
-# by the Commission by 1 Jan 96. They have not yet appeared (I asked just
-# before Easter).
+# From Peter Ilieve <peter@aldie.co.uk> (1997-08-06):
+# I now have a copy of the ... Eighth Directive 97/44/EC of the European
+# Parliament and of the Council of 22 July 1997 on summer-time arrangements.
+# It runs for 4 years, 1998--2001, and confirms the current rules of
+# last Sunday in March to last Sunday in October....
+# The directive does not apply in overseas territories of the Member States.
+# It says the Commission should produce a proposal for 2002 and beyond
+# by 1 Jan 2000 and this should be adopted by 1 Jan 2001.  I doubt that
+# this will happen though....
+# There is no mention of the French desire to abandon the whole idea.
+# France has had a change of government recently so maybe it will
+# be quietly dropped.
 
 # From Peter Ilieve <peter@memex.co.uk> (1994-03-28):
 # The [GB-Eire] end date of 22 October [1995] conflicts with your current rule
@@ -659,12 +667,12 @@
 # Also, for lack of other data, we'll follow Shanks for Eire in 1940-1948.
 #
 # Given Peter Ilieve's comments, the following claims by Shanks are incorrect:
-#     * Wales did not switch from GMT to daylight savings time until
+#     * Wales did not switch from GMT to daylight saving time until
 #	1921 Apr 3, when they began to conform with the rest of Great Britain.
 # Actually, Wales was identical after 1880.
 #     * Eire had two transitions on 1916 Oct 1.
 # It actually just had one transition.
-#     * Northern Ireland used single daylight savings time throughout WW II.
+#     * Northern Ireland used single daylight saving time throughout WW II.
 # Actually, it conformed to Britain.
 #     * GB-Eire changed standard time to 1 hour ahead of GMT on 1968-02-18.
 # Actually, that date saw the usual switch to summer time.
@@ -673,7 +681,7 @@
 # The following claims by Shanks are possible though doubtful;
 # we'll ignore them for now.
 #     * Jersey, Guernsey, and the Isle of Man did not switch from GMT
-#	to daylight savings time until 1921 Apr 3, when they began to
+#	to daylight saving time until 1921 Apr 3, when they began to
 #	conform with Great Britain.
 #     * Dublin's 1971-10-31 switch was at 02:00, even though London's was 03:00.
 #
@@ -821,7 +829,6 @@ Rule	C-Eur	1916	only	-	Oct	 1	 1:00	0	-
 Rule	C-Eur	1917	1918	-	Apr	Mon>=15	 2:00s	1:00	S
 Rule	C-Eur	1917	1918	-	Sep	Mon>=15	 2:00s	0	-
 Rule	C-Eur	1940	only	-	Apr	 1	 2:00s	1:00	S
-# Whitman says 1941 DST was only from Feb 25 to Oct 5; go with Shanks.
 Rule	C-Eur	1942	only	-	Nov	 2	 2:00s	0	-
 Rule	C-Eur	1943	only	-	Mar	29	 2:00s	1:00	S
 Rule	C-Eur	1943	only	-	Oct	 4	 2:00s	0	-
@@ -930,12 +937,11 @@ Rule	Albania	1982	only	-	Oct	 3	0:00	0	-
 Rule	Albania	1983	only	-	Apr	18	0:00	1:00	S
 Rule	Albania	1983	only	-	Oct	 1	0:00	0	-
 Rule	Albania	1984	only	-	Apr	 1	0:00	1:00	S
-Rule	Albania	1984	only	-	Oct	 1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Tirane	1:19:20 -	LMT	1914
 			1:00	-	CET	1940 Jun 16
-			1:00	Albania	CE%sT	1985 Mar 31 1:00
-			1:00	W-Eur	CE%sT	1991
+# The following transition is from Shanks's 4th edition (1995).
+			1:00	Albania	CE%sT	1984 Jul
 			1:00	EU	CE%sT
 
 # Andorra
@@ -976,50 +982,62 @@ Zone	Europe/Minsk	1:50:16 -	LMT	1880
 			2:00	Russia	EE%sT
 
 # Belgium
-# Whitman and Shanks disagree; go with Shanks, usually.
+#
+# From Paul Eggert (1997-07-02):
+# Entries from 1918 through 1991 are taken from:
+#	Annuaire de L'Observatoire Royal de Belgique,
+#	Avenue Circulaire, 3, B-1180 BRUXELLES, CLVIIe annee, 1991
+#	(Imprimerie HAYEZ, s.p.r.l., Rue Fin, 4, 1080 BRUXELLES, MCMXC),
+#	pp 8-9.
+# LMT before 1892 was 0:17:30, according to the official journal of Belgium:
+#	Moniteur Belge, Samedi 30 Avril 1892, N.121.
+# Thanks to Pascal Delmoitie <pascal@belnet.be> for these references.
+# The 1918 rules are listed for completeness; they apply to unoccupied Belgium.
+# Assume Brussels switched to WET in 1918 when the armistice took effect.
+# 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-# From Whitman:
+Rule	Belgium	1918	only	-	Mar	 9	 0:00s	1:00	S
+Rule	Belgium	1918	1919	-	Oct	Sat>=1	23:00s	0	-
 Rule	Belgium	1919	only	-	Mar	 1	23:00s	1:00	S
-Rule	Belgium	1919	only	-	Oct	 4	23:00s	0	-
-# Shanks gives 1920 Feb 14 23:00s; go with Whitman.
-Rule	Belgium	1920	1921	-	Mar	14	23:00s	1:00	S
+Rule	Belgium	1920	only	-	Feb	14	23:00s	1:00	S
 Rule	Belgium	1920	only	-	Oct	23	23:00s	0	-
+Rule	Belgium	1921	only	-	Mar	14	23:00s	1:00	S
 Rule	Belgium	1921	only	-	Oct	25	23:00s	0	-
 Rule	Belgium	1922	only	-	Mar	25	23:00s	1:00	S
-# Whitman gives 1927 Oct 1 2:00s and 1928 Oct 7 2:00s; go with Shanks.
-Rule	Belgium	1922	1928	-	Oct	Sat>=1	23:00s	0	-
+Rule	Belgium	1922	1927	-	Oct	Sat>=1	23:00s	0	-
 Rule	Belgium	1923	only	-	Apr	21	23:00s	1:00	S
 Rule	Belgium	1924	only	-	Mar	29	23:00s	1:00	S
 Rule	Belgium	1925	only	-	Apr	 4	23:00s	1:00	S
 Rule	Belgium	1926	only	-	Apr	17	23:00s	1:00	S
 Rule	Belgium	1927	only	-	Apr	 9	23:00s	1:00	S
 Rule	Belgium	1928	only	-	Apr	14	23:00s	1:00	S
+Rule	Belgium	1928	1938	-	Oct	Sun>=2	 2:00s	0	-
 Rule	Belgium	1929	only	-	Apr	21	 2:00s	1:00	S
-Rule	Belgium	1929	1938	-	Oct	Sun>=2	 2:00s	0	-
 Rule	Belgium	1930	only	-	Apr	13	 2:00s	1:00	S
 Rule	Belgium	1931	only	-	Apr	19	 2:00s	1:00	S
-Rule	Belgium	1932	only	-	Apr	17	 2:00s	1:00	S
+Rule	Belgium	1932	only	-	Apr	 3	 2:00s	1:00	S
 Rule	Belgium	1933	only	-	Mar	26	 2:00s	1:00	S
 Rule	Belgium	1934	only	-	Apr	 8	 2:00s	1:00	S
 Rule	Belgium	1935	only	-	Mar	31	 2:00s	1:00	S
 Rule	Belgium	1936	only	-	Apr	19	 2:00s	1:00	S
-# Whitman says 1937 Apr 18 2:00s; go with Shanks.
 Rule	Belgium	1937	only	-	Apr	 4	 2:00s	1:00	S
-# Whitman says 1938 Apr 10 2:00s; go with Shanks.
 Rule	Belgium	1938	only	-	Mar	27	 2:00s	1:00	S
 Rule	Belgium	1939	only	-	Apr	16	 2:00s	1:00	S
 Rule	Belgium	1939	only	-	Nov	19	 2:00s	0	-
+Rule	Belgium	1940	only	-	Feb	25	 2:00s	1:00	S
+Rule	Belgium	1944	only	-	Sep	17	 2:00s	0	-
 Rule	Belgium	1945	only	-	Apr	 2	 2:00s	1:00	S
 Rule	Belgium	1945	only	-	Sep	16	 2:00s	0	-
 Rule	Belgium	1946	only	-	May	19	 2:00s	1:00	S
 Rule	Belgium	1946	only	-	Oct	 7	 2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Europe/Brussels	0:17:20 -	LMT	1880
-			0:17:20	-	BMT	1892 May  1 12:00 # Brussels MT
-			0:00	-	WET	1914 Aug  4
-			1:00	C-Eur	CE%sT	1919 Mar  1 23:00
-			0:00	Belgium	WE%sT	1940 Feb 24 23:00
-			1:00	C-Eur	CE%sT	1945 Apr  2  2:00
+Zone	Europe/Brussels	0:17:30 -	LMT	1880
+			0:17:30	-	BMT	1892 May  1 12:00 # Brussels MT
+			0:00	-	WET	1914 Nov  8
+			1:00	-	CET	1916 May  1  0:00
+			1:00	C-Eur	CE%sT	1918 Nov 11 11:00u
+			0:00	Belgium	WE%sT	1940 May 20  2:00s
+			1:00	C-Eur	CE%sT	1944 Sep  3
 			1:00	Belgium	CE%sT	1977
 			1:00	EU	CE%sT
 
@@ -1029,7 +1047,7 @@ Zone	Europe/Sarajevo	1:13:40	-	LMT	1884
 			1:00	-	CET	1941 Apr 18 23:00
 			1:00	C-Eur	CE%sT	1945 May  8  2:00s
 			1:00	1:00	CEST	1945 Sep 16  2:00s
-			1:00	-	CET	1983
+			1:00	-	CET	1982 Nov 27
 			1:00	EU	CE%sT
 
 # Bulgaria
@@ -1055,7 +1073,7 @@ Zone	Europe/Zagreb	1:03:52	-	LMT	1884
 			1:00	-	CET	1941 Apr 18 23:00
 			1:00	C-Eur	CE%sT	1945 May  8  2:00s
 			1:00	1:00	CEST	1945 Sep 16  2:00s
-			1:00	-	CET	1983
+			1:00	-	CET	1982 Nov 27
 			1:00	EU	CE%sT
 
 # Czech Republic
@@ -1298,7 +1316,7 @@ Zone	Europe/Athens	1:34:52 -	LMT	1895 Sep 14
 			1:00	Greece	CE%sT	1944 Apr  4
 			2:00	Greece	EE%sT	1981
 			# Shanks says they switched to C-Eur in 1981;
-			# go with EU intead, since Greece joined it on Jan 1.
+			# go with EU instead, since Greece joined it on Jan 1.
 			2:00	EU	EE%sT
 
 # Hungary
@@ -1554,7 +1572,7 @@ Zone	Europe/Skopje	1:25:44	-	LMT	1884
 			1:00	-	CET	1941 Apr 18 23:00
 			1:00	C-Eur	CE%sT	1945 May  8  2:00s
 			1:00	1:00	CEST	1945 Sep 16  2:00s
-			1:00	-	CET	1983
+			1:00	-	CET	1982 Nov 27
 			1:00	EU	CE%sT
 
 # Malta
@@ -1819,9 +1837,15 @@ Zone Europe/Bucharest	1:44:24 -	LMT	1891 Oct
 			2:00	E-Eur	EE%sT
 
 # Russia
-# From Shanks (1991):
-# In 1929 the Soviet Union instituted a 5 day week; in 1932 it instituted
-# a 6 day week; on 1940-06-27 it returned to the Gregorian week.
+
+# From Chris Carrier <72157.3334@CompuServe.COM> (1996-12-02):
+# On 1929-10-01 the Soviet Union instituted an ``Eternal Calendar''
+# with 30-day months plus 5 holidays, with a 5-day week.
+# On 1931-12-01 it changed to a 6-day week; in 1934 it reverted to the
+# Gregorian calendar while retaining the 6-day week; on 1940-06-27 it
+# reverted to the 7-day week.  With the 6-day week the usual days
+# off were the 6th, 12th, 18th, 24th and 30th of the month.
+# (Source: Evitiar Zerubavel, _The Seven Day Circle_)
 #
 # From Paul Eggert <eggert@twinsun.com> (1996-11-22):
 # Except for Moscow after 1919-07-01, I invented the time zone abbreviations,
@@ -1944,7 +1968,7 @@ Zone Europe/Ljubljana	0:58:04	-	LMT	1884
 			1:00	-	CET	1941 Apr 18 23:00
 			1:00	C-Eur	CE%sT	1945 May  8  2:00s
 			1:00	1:00	CEST	1945 Sep 16  2:00s
-			1:00	-	CET	1983
+			1:00	-	CET	1982 Nov 27
 			1:00	EU	CE%sT
 
 # Spain
@@ -2134,7 +2158,7 @@ Link	Europe/Istanbul	Asia/Istanbul	# Istanbul is in both continents.
 # Ukraine
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Ukraine	1917	only	-	Jul	 1	23:00	1:00	UST	# Ukrainian Summer Time
-Rule	Ukraine	1917	only	-	Dec	28	 0:00	0	KMT	# Kiev Mean TIme
+Rule	Ukraine	1917	only	-	Dec	28	 0:00	0	KMT	# Kiev Mean Time
 Rule	Ukraine	1918	only	-	May	31	22:00	2:00	UDST	# Ukrainian Double Summer Time
 Rule	Ukraine	1918	only	-	Sep	17	 0:00	1:00	UST
 Rule	Ukraine	1919	only	-	May	31	23:00	2:00	UDST
@@ -2184,7 +2208,10 @@ Zone	Europe/Belgrade	1:22:00	-	LMT	1884
 			1:00	-	CET	1941 Apr 18 23:00
 			1:00	C-Eur	CE%sT	1945 May  8  2:00s
 			1:00	1:00	CEST	1945 Sep 16  2:00s
-			1:00	-	CET	1983
+# Metod Kozelj <metod.kozelj@rzs-hm.si> reports that the legal date of
+# transition to EU rules was 1982-11-27, for all of Yugoslavia at the time.
+# Shanks doesn't give as much detail, so go with Kozelj.
+			1:00	-	CET	1982 Nov 27
 			1:00	EU	CE%sT
 
 ###############################################################################

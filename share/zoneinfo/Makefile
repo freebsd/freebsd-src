@@ -1,6 +1,5 @@
-#	$Id: Makefile,v 1.9.2.1 1996/11/28 21:55:43 phk Exp $
+#	$Id: Makefile,v 1.15 1997/03/09 09:41:44 bde Exp $
 
-NOBIN=
 CLEANFILES+=	yearistype
 
 .if defined(LEAPSECONDS)
@@ -18,24 +17,25 @@ TZFILES+=	backward
 .endif
 
 .if exists(${.OBJDIR}/yearistype)
-YEARISTYPE=${.OBJDIR}/yearistype
+YEARISTYPE=	${.OBJDIR}/yearistype
 .else
-YEARISTYPE=${.CURDIR}/yearistype
+YEARISTYPE=	${.CURDIR}/yearistype
 .endif
 
-all:	yearistype
-depend:
+all: yearistype
 
-yearistype:	yearistype.sh
-	cp ${.CURDIR}/yearistype.sh yearistype
-	chmod +x yearistype
+yearistype: yearistype.sh
+	cp ${.ALLSRC} ${.TARGET}
+	chmod +x ${.TARGET}
 
-afterinstall:	yearistype
+beforeinstall:
 	umask 022; cd ${.CURDIR}; \
 	zic -d ${DESTDIR}/usr/share/zoneinfo -p ${POSIXRULES} \
-		${LEAPFILE} -y ${YEARISTYPE} ${TZFILES}
-	chown -R bin.bin ${DESTDIR}/usr/share/zoneinfo/*
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/zone.tab \
-		${DESTDIR}/usr/share/zoneinfo
+	    ${LEAPFILE} -y ${YEARISTYPE} ${TZFILES}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	    ${.CURDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
+
+afterinstall:
+	chown -R ${BINOWN}:${BINGRP} ${DESTDIR}/usr/share/zoneinfo/*
 
 .include <bsd.prog.mk>
