@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.45 1996/07/05 08:35:58 jkh Exp $
+ * $Id: media.c,v 1.46 1996/07/08 08:54:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -312,6 +312,7 @@ mediaSetFTP(dialogMenuItem *self)
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		   "name server, gateway and network interface are correctly configured?", hostname);
+	mediaDevice->shutdown(mediaDevice);
 	return DITEM_FAILURE | DITEM_RECREATE;
     }
     variable_set2(VAR_FTP_HOST, hostname);
@@ -577,27 +578,6 @@ mediaVerify(void)
 	return DITEM_STATUS(mediaGetType(NULL)) == DITEM_SUCCESS;
     }
     return TRUE;
-}
-
-/* Set FTP error behavior */
-int
-mediaSetFtpOnError(dialogMenuItem *self)
-{
-    char *cp = variable_get(VAR_FTP_ONERROR);
-
-    if (!cp) {
-	msgConfirm("FTP error handling is not set to anything!");
-	return DITEM_FAILURE;
-    }
-    else {
-	if (!strcmp(cp, "abort"))
-	    variable_set2(VAR_FTP_ONERROR, "retry");
-	else if (!strcmp(cp, "retry"))
-	    variable_set2(VAR_FTP_ONERROR, "reselect");
-	else /* must be "reselect" - wrap around */
-	    variable_set2(VAR_FTP_ONERROR, "abort");
-    }
-    return DITEM_SUCCESS;
 }
 
 /* Set the FTP username and password fields */

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.59 1996/06/13 13:45:16 jkh Exp $
+ * $Id: dist.c,v 1.60 1996/07/02 01:03:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -379,7 +379,7 @@ distExtract(char *parent, Distribution *me)
 	    mediaDevice->close(mediaDevice, fd);
 	    goto done;
 	}
-	else if (fd == -2) {	/* Hard error, can't continue */
+	else if (fd == IO_ERROR) {	/* Hard error, can't continue */
 	    mediaDevice->shutdown(mediaDevice);
 	    status = FALSE;
 	    goto done;
@@ -411,7 +411,7 @@ distExtract(char *parent, Distribution *me)
 	    safe_free(dist_attr);
 	    mediaDevice->close(mediaDevice, fd);
 	}
-	else if (fd == -2) {	/* Hard error, can't continue */
+	else if (fd == IO_ERROR) {	/* Hard error, can't continue */
 	    mediaDevice->shutdown(mediaDevice);
 	    status = FALSE;
 	    goto done;

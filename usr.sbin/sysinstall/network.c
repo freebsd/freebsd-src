@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.13 1996/06/12 17:09:34 jkh Exp $
+ * $Id: network.c,v 1.14 1996/07/08 08:54:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,6 +76,7 @@ mediaInitNetwork(Device *dev)
 	char *val;
 	char attach[256];
 
+	dialog_clear();
 	/* Cheesy slip attach */
 	snprintf(attach, 256, "slattach -a -h -l -s 9600 %s", dev->devname);
 	val = msgGetInput(attach,
@@ -179,6 +180,7 @@ startPPP(Device *devp)
     Mkdir("/var/spool/lock");
     Mkdir("/etc/ppp");
 
+    dialog_clear();
     if (!variable_get(VAR_SERIAL_SPEED))
 	variable_set2(VAR_SERIAL_SPEED, "115200");
     /* Get any important user values */
@@ -199,7 +201,10 @@ startPPP(Device *devp)
     else
 	strcpy(myaddr, "0");
 
-    fp = fopen("/etc/ppp/ppp.linkup", "w");
+    if (!Fake)
+	fp = fopen("/etc/ppp/ppp.linkup", "w");
+    else
+	fp = fopen("/dev/stderr", "w");
     if (fp != NULL) {
 	fprintf(fp, "MYADDR:\n");
 	fprintf(fp, " delete ALL\n");
@@ -207,12 +212,18 @@ startPPP(Device *devp)
 	fchmod(fileno(fp), 0755);
 	fclose(fp);
     }
-    fd2 = open("/etc/ppp/ppp.secret", O_CREAT);
+    if (!Fake)
+	fd2 = open("/etc/ppp/ppp.secret", O_CREAT);
+    else
+	fd2 = -1;
     if (fd2 != -1) {
 	fchmod(fd2, 0700);
 	close(fd2);
     }
-    fp = fopen("/etc/ppp/ppp.conf", "w");
+    if (!Fake)
+	fp = fopen("/etc/ppp/ppp.conf", "w");
+    else
+	fp = fopen("/dev/stderr", "w");
     if (!fp) {
 	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
 	return 0;
@@ -223,7 +234,7 @@ startPPP(Device *devp)
     fprintf(fp, " set ifaddr %s %s\n", myaddr, provider);
     fclose(fp);
 
-    if (!file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
+    if (!Fake && !file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
 	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
 	return 0;
     }
@@ -256,13 +267,14 @@ startPPP(Device *devp)
 	exit(1);
     }
     else {
-	msgConfirm("The PPP command is now started on VTY3 (type ALT-F3 to\n"
+	msgConfirm("NOTICE: The PPP command is now started on VTY3 (type ALT-F3 to\n"
 		   "interact with it, ALT-F1 to switch back here). The only command\n"
 		   "you'll probably want or need to use is the \"term\" command\n"
 		   "which starts a terminal emulator you can use to talk to your\n"
 		   "modem and dial the service provider.  Once you're connected,\n"
-		   "come back to this screen and press return.  DO NOT PRESS [ENTER]\n"
-		   "HERE UNTIL THE CONNECTION IS FULLY ESTABLISHED!");
+		   "come back to this screen and press return.\n\n"
+		   "DO NOT PRESS [ENTER] HERE UNTIL THE CONNECTION IS FULLY\n"
+		   "ESTABLISHED!");
     }
     return pid;
 }

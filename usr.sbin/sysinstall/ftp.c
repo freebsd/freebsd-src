@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.15 1995/12/07 10:33:47 peter Exp $
+ * $Id: ftp.c,v 1.16 1996/04/28 20:53:56 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -65,7 +65,7 @@ writes(int fd, char *s)
 {
     int i = strlen(s);
     if (i != write(fd, s, i))
-	return -2;
+	return IO_ERROR;
     return 0;
 }
 
@@ -100,7 +100,7 @@ get_a_number(FTP_t ftp, char **q)
     while(1) {
 	p = get_a_line(ftp);
 	if (!p)
-	    return -2;
+	    return IO_ERROR;
 	if (!(isdigit(p[0]) && isdigit(p[1]) && isdigit(p[2])))
 	    continue;
 	if (i == -1 && p[3] == '-') {
@@ -131,14 +131,14 @@ zap(FTP_t ftp)
     close(ftp->fd_ctrl); ftp->fd_ctrl = -1;
     close(ftp->fd_xfer); ftp->fd_xfer = -1;
     ftp->state = init;
-    return -2;
+    return IO_ERROR;
 }
 
 static int
 botch(FTP_t ftp, char *func, char *state)
 {
     debug(ftp, "Botch: %s called outside state %s\n",func,state);
-    return -2;
+    return IO_ERROR;
 }
 
 static int
@@ -155,7 +155,7 @@ cmd(FTP_t ftp, const char *fmt, ...)
     debug(ftp, "send <%s>\n", p);
     strcat(p,"\r\n");
     if (writes(ftp->fd_ctrl, p))
-	return -2;
+	return IO_ERROR;
     i = get_a_number(ftp, 0);
     return i;
 }
