@@ -162,11 +162,6 @@ all in lowercase and the macro has the same name all in uppercase.
 .\" same and you #undef the macro (if any) to get the function.
 .\" It is not followed for MALLOC(), and not very common if inline
 .\" functions are used.
-If a
-macro needs more than a single line, use braces
-.Ql ( \&{
-and
-.Ql \&} ) .
 Right-justify the
 backslashes; it makes it easier to read.
 If the macro encapsulates a compound statement, enclose it in a
@@ -376,7 +371,11 @@ comment.
 .Pp
 Space after keywords
 .Pq Ic if , while , for , return , switch .
-No braces are
+No braces
+.Ql ( \&{
+and
+.Ql \&} )
+are
 used for control statements with zero or only a single statement unless that
 statement is more than a single line in which case they are permitted.
 Forever loops are done with
