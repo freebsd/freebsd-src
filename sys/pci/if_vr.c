@@ -1348,6 +1348,7 @@ static void vr_start(ifp)
 		/* Pack the data into the descriptor. */
 		if (vr_encap(sc, cur_tx, m_head)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_flags |= IFF_OACTIVE;
 			cur_tx = NULL;
 			break;
 		}
