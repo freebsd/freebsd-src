@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.28.2.3 1998/04/19 18:52:03 brian Exp $
+# $Id: ppp.conf.sample,v 1.28.2.4 1998/04/24 19:16:23 brian Exp $
 #
 #################################################################
 
@@ -25,10 +25,9 @@
 #  so that subsequent commands are logged.
 #
 default:
- set log Phase Chat Connect LCP IPCP CCP tun command
+ set log Phase Chat LCP IPCP CCP tun command
  set device /dev/cuaa1
  set speed 115200
- deny lqr
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" AT OK-AT-OK ATE1Q0 OK \\dATDT\\T TIMEOUT 40 CONNECT"
 
 # Client side PPP
@@ -152,12 +151,12 @@ examples:
     set log local LCP IPCP CCP
 #
 # If you're seeing a lot of magic number problems and failed connections,
-# try this (check out the FAQ):
+# try this (see the man page):
 #
     set openmode active 5
 #
 # For noisy lines, we may want to reconnect (up to 20 times) after loss
-# of carrier:
+# of carrier, with 3 second delays between each attempt:
 #
     set reconnect 3 20
 #
@@ -254,7 +253,8 @@ dodgy:
 #   # ppp -direct CHAPserver
 #
 #  Note:  We can supply a third field in ppp.secret specifying the IP address
-#         for that user.
+#         for that user.  We can even specify a forth field to specify the
+#         ppp.link{up,down} label to use.
 #
 CHAPserver:
  enable chap
@@ -344,5 +344,31 @@ loop:
  
 loop-in:
  set timeout 0
- set log phase chat connect lcp ipcp command
+ set log phase lcp ipcp command
+ allow mode direct
+
+# Multilink mode is available (rfc1990).
+# To enable multilink capabilities, you must specify a MRRU.  1500 is
+# a reasonable value.  To create new links, use the ``clone'' command
+# to duplicate an existing link.  If you already have more than one
+# link, you must specify which link you wish to run the command on via
+# the ``link'' command.
+#
+# You can now ``dial'' specific links, or even dial all links at the
+# same time.  The `dial'
+#
+
+mloop:
+ load loop
+ set mode interactive
+ set mrru 1500
+ clone 1 2 3
+ link deflink remove
+ # dial
+ # link 2 dial 
+ # link 3 dial 
+
+mloop-in:
+ set timeout 0
+ set log tun phase
  allow mode direct
