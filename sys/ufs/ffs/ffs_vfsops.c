@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.6 1994/09/21 03:47:37 wollman Exp $
+ * $Id: ffs_vfsops.c,v 1.7 1994/09/22 01:57:27 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,12 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
-int ffs_sbupdate __P((struct ufsmount *, int));
+#include <machine/clock.h> 	/* What is inittodr() doing in a fs anyway ? */
+
+int	ffs_sbupdate __P((struct ufsmount *, int));
+int	ffs_flushfiles __P((struct mount *, int, struct proc *));
+int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
+int	ffs_oldfscompat __P((struct fs *));
 
 struct vfsops ufs_vfsops = {
 	ffs_mount,
@@ -107,11 +112,13 @@ ffs_mountroot()
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = &ufs_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
-	if (error = ffs_mountfs(rootvp, mp, p)) {
+	error = ffs_mountfs(rootvp, mp, p);
+	if (error) {
 		free(mp, M_MOUNT);
 		return (error);
 	}
-	if (error = vfs_lock(mp)) {
+	error = vfs_lock(mp);
+	if (error) {
 		(void)ffs_unmount(mp, 0, p);
 		free(mp, M_MOUNT);
 		return (error);
@@ -154,7 +161,8 @@ ffs_mount(mp, path, data, ndp, p)
 	u_int size;
 	int error, flags;
 
-	if (error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args)))
+	error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args));
+	if (error)
 		return (error);
 	/*
 	 * If updating, check whether changing from read-only to
@@ -195,7 +203,8 @@ ffs_mount(mp, path, data, ndp, p)
 	 * and verify that it refers to a sensible block device.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
-	if (error = namei(ndp))
+	error = namei(ndp);
+	if (error)
 		return (error);
 	devvp = ndp->ni_vp;
 
@@ -269,7 +278,8 @@ ffs_reload(mountp, cred, p)
 	/*
 	 * Step 2: re-read superblock from disk.
 	 */
-	if (error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp))
+	error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp);
+	if (error)
 		return (error);
 	fs = (struct fs *)bp->b_data;
 	if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
@@ -294,8 +304,9 @@ ffs_reload(mountp, cred, p)
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
-		if (error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
-		    NOCRED, &bp))
+		error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
+		    NOCRED, &bp);
+		if (error)
 			return (error);
 		bcopy(bp->b_data, fs->fs_csp[fragstoblks(fs, i)], (u_int)size);
 		brelse(bp);
@@ -321,9 +332,10 @@ loop:
 		 * Step 6: re-read inode data for all active vnodes.
 		 */
 		ip = VTOI(vp);
-		if (error =
+		error =
 		    bread(devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		    (int)fs->fs_bsize, NOCRED, &bp)) {
+		    (int)fs->fs_bsize, NOCRED, &bp);
+		if (error) {
 			vput(vp);
 			return (error);
 		}
@@ -362,15 +374,18 @@ ffs_mountfs(devvp, mp, p)
 	 * (except for root, which might share swap device for miniroot).
 	 * Flush out any old buffers remaining from a previous use.
 	 */
-	if (error = vfs_mountedon(devvp))
+	error = vfs_mountedon(devvp);
+	if (error)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	if (error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0))
+	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
+	if (error)
 		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	if (error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p))
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
+	if (error)
 		return (error);
 	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, NOCRED, p) != 0)
 		size = DEV_BSIZE;
@@ -381,7 +396,8 @@ ffs_mountfs(devvp, mp, p)
 
 	bp = NULL;
 	ump = NULL;
-	if (error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp))
+	error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp);
+	if (error)
 		goto out;
 	fs = (struct fs *)bp->b_data;
 	if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
@@ -502,7 +518,8 @@ ffs_unmount(mp, mntflags, p)
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
 	}
-	if (error = ffs_flushfiles(mp, flags, p))
+	error = ffs_flushfiles(mp, flags, p);
+	if (error)
 		return (error);
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
@@ -534,7 +551,7 @@ ffs_flushfiles(mp, flags, p)
 {
 	extern int doforce;
 	register struct ufsmount *ump;
-	int i, error;
+	int error;
 
 	if (!doforce)
 		flags &= ~FORCECLOSE;
@@ -650,14 +667,16 @@ loop:
 			continue;
 		if (vget(vp, 1))
 			goto loop;
-		if (error = VOP_FSYNC(vp, cred, waitfor, p))
+		error = VOP_FSYNC(vp, cred, waitfor, p);
+		if (error)
 			allerror = error;
 		vput(vp);
 	}
 	/*
 	 * Force stale file system control information to be flushed.
 	 */
-	if (error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p))
+	error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p);
+	if (error)
 		allerror = error;
 #ifdef QUOTA
 	qsync(mp);
@@ -683,7 +702,7 @@ ffs_vget(mp, ino, vpp)
 	struct buf *bp;
 	struct vnode *vp;
 	dev_t dev;
-	int i, type, error;
+	int type, error;
 
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
@@ -691,7 +710,8 @@ ffs_vget(mp, ino, vpp)
 		return (0);
 
 	/* Allocate a new vnode/inode. */
-	if (error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp)) {
+	error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp);
+	if (error) {
 		*vpp = NULL;
 		return (error);
 	}
@@ -716,8 +736,9 @@ ffs_vget(mp, ino, vpp)
 	ufs_ihashins(ip);
 
 	/* Read in the disk contents for the inode, copy into the inode. */
-	if (error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
-	    (int)fs->fs_bsize, NOCRED, &bp)) {
+	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
+	    (int)fs->fs_bsize, NOCRED, &bp);
+	if (error) {
 		/*
 		 * The inode does not contain anything useful, so it would
 		 * be misleading to leave it on its hash chain. With mode
@@ -736,7 +757,8 @@ ffs_vget(mp, ino, vpp)
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	if (error = ufs_vinit(mp, ffs_specop_p, FFS_FIFOOPS, &vp)) {
+	error = ufs_vinit(mp, ffs_specop_p, FFS_FIFOOPS, &vp);
+	if (error) {
 		vput(vp);
 		*vpp = NULL;
 		return (error);
