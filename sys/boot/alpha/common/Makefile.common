@@ -13,7 +13,7 @@ SRCS+=		dev_net.c
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/alpha
-#CFLAGS+=	-DBOOT_FORTH
+CFLAGS+=	-DBOOT_FORTH
 .if exists(${.OBJDIR}/../../ficl/libficl.a)
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .else
@@ -39,6 +39,10 @@ CFLAGS+=	-I${.CURDIR}/..
 CRT=		start.o
 STRIP=
 BINDIR?=	/boot
+.ifdef INSTALL_FORTH
+MAN5=		../../forth/loader.conf.5
+MAN8=		../../i386/loader/loader.8 ../../forth/loader.4th.8
+.endif
 
 all: ${BASE}
 
@@ -68,6 +72,19 @@ beforeinstall:
 		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
 .endif
 .endif
+.ifdef INSTALL_FORTH
+.if !exists(${DESTDIR}/boot/loader.rc)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+.endif
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
+.endif
+
 
 start.o:	${.CURDIR}/../libalpha/start.S
 	${CC} -c ${CFLAGS} $<

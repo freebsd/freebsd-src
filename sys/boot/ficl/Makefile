@@ -4,6 +4,9 @@
 BASE_SRCS=		dict.c ficl.c math64.c stack.c vm.c words.c
 SRCS=			${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES=		softcore.c testmain testmain.o
+.if ${MACHINE_ARCH} == "alpha"
+CFLAGS+=		-mno-fp-regs
+.endif
 .ifmake testmain
 CFLAGS+=			-DTESTMAIN -D_TESTMAIN
 SRCS+=				testmain.c

@@ -5,6 +5,7 @@ PROG= 		${BASE}
 NOMAN=
 NEWVERSWHAT=	"SRM disk boot" alpha
 INSTALL_HELP=	yes
+INSTALL_FORTH=	yes
 LOAD_ADDRESS=	${SECONDARY_LOAD_ADDRESS}
 
 # Only disk support
