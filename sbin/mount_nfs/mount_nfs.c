@@ -72,6 +72,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <sysexits.h>
 #include <unistd.h>
@@ -248,7 +249,7 @@ main(argc, argv)
 	int c;
 	struct nfs_args *nfsargsp;
 	struct nfs_args nfsargs;
-	int mntflags, altflags, nfssvc_flag, num;
+	int mntflags, altflags, num;
 	char *name, *p, *spec;
 	char mntpath[MAXPATHLEN];
 
@@ -690,7 +691,8 @@ tryagain:
 
 	try.tv_sec = 10;
 	try.tv_usec = 0;
-	stat = clnt_call(clp, NFSPROC_NULL, xdr_void, NULL, xdr_void, NULL,
+	stat = clnt_call(clp, NFSPROC_NULL, (xdrproc_t)xdr_void, NULL,
+			 (xdrproc_t)xdr_void, NULL,
 	    try);
 	if (stat != RPC_SUCCESS) {
 		if (stat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
@@ -719,7 +721,8 @@ tryagain:
 	clp->cl_auth = authsys_create_default();
 	nfhret.auth = RPCAUTH_UNIX;
 	nfhret.vers = mntvers;
-	stat = clnt_call(clp, RPCMNT_MOUNT, xdr_dir, spec, xdr_fh, &nfhret,
+	stat = clnt_call(clp, RPCMNT_MOUNT, (xdrproc_t)xdr_dir, spec, 
+			 (xdrproc_t)xdr_fh, &nfhret,
 	    try);
 	auth_destroy(clp->cl_auth);
 	if (stat != RPC_SUCCESS) {
