@@ -36,9 +36,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
+#include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <machine/clock.h>
 
@@ -65,6 +69,13 @@
 #define emptyq(q)	((q)->tail = (q)->head = 0)
 #endif
 
+#define read_data(k)	(bus_space_read_1((k)->iot, (k)->ioh0, 0))
+#define read_status(k)	(bus_space_read_1((k)->iot, (k)->ioh1, 0))
+#define write_data(k, d)	\
+			(bus_space_write_1((k)->iot, (k)->ioh0, 0, (d)))
+#define write_command(k, d)	\
+			(bus_space_write_1((k)->iot, (k)->ioh1, 0, (d)))
+
 /* local variables */
 
 /*
@@ -80,7 +91,8 @@ static int verbose = KBDIO_DEBUG;
 
 /* function prototypes */
 
-static int atkbdc_setup(atkbdc_softc_t *sc, int port);
+static int atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag,
+			bus_space_handle_t h0, bus_space_handle_t h1);
 static int addq(kqueue *q, int c);
 static int removeq(kqueue *q);
 static int wait_while_controller_busy(atkbdc_softc_t *kbdc);
@@ -104,39 +116,68 @@ atkbdc_softc_t
 		if (sc == NULL)
 			return NULL;
 		bzero(sc, sizeof(*sc));
-		sc->port = -1;	/* XXX */
 	}
 	return sc;
 }
 
 int
-atkbdc_probe_unit(int unit, int port)
+atkbdc_probe_unit(int unit, struct resource *port0, struct resource *port1)
 {
-	if (port <= 0)
+	if (rman_get_start(port0) <= 0)
+		return ENXIO;
+	if (rman_get_start(port1) <= 0)
 		return ENXIO;
 	return 0;
 }
 
 int
-atkbdc_attach_unit(int unit, atkbdc_softc_t *sc, int port)
+atkbdc_attach_unit(int unit, atkbdc_softc_t *sc, struct resource *port0,
+		   struct resource *port1)
 {
-	return atkbdc_setup(sc, port);
+	return atkbdc_setup(sc, rman_get_bustag(port0),
+			    rman_get_bushandle(port0),
+			    rman_get_bushandle(port1));
 }
 
 /* the backdoor to the keyboard controller! XXX */
 int
 atkbdc_configure(void)
 {
-	return atkbdc_setup(atkbdc_softc[0], -1);
+	bus_space_tag_t tag;
+	bus_space_handle_t h0;
+	bus_space_handle_t h1;
+	int port0;
+	int port1;
+
+	port0 = IO_KBD;
+	resource_int_value("atkbdc", 0, "port", &port0);
+	port1 = IO_KBD + KBD_STATUS_PORT;
+#if 0
+	resource_int_value("atkbdc", 0, "port", &port0);
+#endif
+
+	/* XXX: tag should be passed from the caller */
+#if defined(__i386__)
+	tag = I386_BUS_SPACE_IO;
+#elif defined(__alpha__)
+	tag = ALPHA_BUS_SPACE_IO;
+#endif
+
+#if notyet
+	bus_space_map(tag, port0, IO_KBDSIZE, 0, &h0);
+	bus_space_map(tag, port1, IO_KBDSIZE, 0, &h1);
+#else
+	h0 = (bus_space_handle_t)port0;
+	h1 = (bus_space_handle_t)port1;
+#endif
+	return atkbdc_setup(atkbdc_softc[0], tag, h0, h1);
 }
 
 static int
-atkbdc_setup(atkbdc_softc_t *sc, int port)
+atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag, bus_space_handle_t h0,
+	     bus_space_handle_t h1)
 {
-	if (port <= 0)
-		port = IO_KBD;
-
-	if (sc->port <= 0) {
+	if (sc->ioh0 == 0) {	/* XXX */
 	    sc->command_byte = -1;
 	    sc->command_mask = 0;
 	    sc->lock = FALSE;
@@ -149,37 +190,23 @@ atkbdc_setup(atkbdc_softc_t *sc, int port)
 	    sc->aux.qcount = sc->aux.max_qcount = 0;
 #endif
 	}
-	sc->port = port;	/* may override the previous value */
+	sc->iot = tag;
+	sc->ioh0 = h0;
+	sc->ioh1 = h1;
 	return 0;
 }
 
-/* associate a port number with a KBDC */
-
+/* open a keyboard controller */
 KBDC 
-kbdc_open(int port)
+atkbdc_open(int unit)
 {
-    int s;
-    int i;
-
-    if (port <= 0)
-	port = IO_KBD;
-
-    s = spltty();
-    for (i = 0; i < sizeof(atkbdc_softc)/sizeof(atkbdc_softc[0]); ++i) {
-	if (atkbdc_softc[i] == NULL)
-	    continue;
-	if (atkbdc_softc[i]->port == port) {
-	    splx(s);
-	    return (KBDC)atkbdc_softc[i];
-	}
-	if (atkbdc_softc[i]->port <= 0) {
-	    if (atkbdc_setup(atkbdc_softc[i], port))
-		break;
-	    splx(s);
-	    return (KBDC)atkbdc_softc[i];
-	}
-    }
-    splx(s);
+    if (unit <= 0)
+	unit = 0;
+    if (unit >= MAXKBDC)
+	return NULL;
+    if ((atkbdc_softc[unit]->port0 != NULL)
+	|| (atkbdc_softc[unit]->ioh0 != 0))		/* XXX */
+	return (KBDC)atkbdc_softc[unit];
     return NULL;
 }
 
@@ -238,7 +265,7 @@ int
 kbdc_data_ready(KBDC p)
 {
     return (availq(&kbdcp(p)->kbd) || availq(&kbdcp(p)->aux) 
-	|| (inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL));
+	|| (read_status(kbdcp(p)) & KBDS_ANY_BUFFER_FULL));
 }
 
 /* queuing functions */
@@ -284,16 +311,15 @@ wait_while_controller_busy(struct atkbdc_softc *kbdc)
 {
     /* CPU will stay inside the loop for 100msec at most */
     int retry = 5000;
-    int port = kbdc->port;
     int f;
 
-    while ((f = inb(port + KBD_STATUS_PORT)) & KBDS_INPUT_BUFFER_FULL) {
+    while ((f = read_status(kbdc)) & KBDS_INPUT_BUFFER_FULL) {
 	if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-	    addq(&kbdc->kbd, inb(port + KBD_DATA_PORT));
+	    addq(&kbdc->kbd, read_data(kbdc));
 	} else if ((f & KBDS_BUFFER_FULL) == KBDS_AUX_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-	    addq(&kbdc->aux, inb(port + KBD_DATA_PORT));
+	    addq(&kbdc->aux, read_data(kbdc));
 	}
         DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
@@ -311,10 +337,9 @@ wait_for_data(struct atkbdc_softc *kbdc)
 {
     /* CPU will stay inside the loop for 200msec at most */
     int retry = 10000;
-    int port = kbdc->port;
     int f;
 
-    while ((f = inb(port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL) == 0) {
+    while ((f = read_status(kbdc) & KBDS_ANY_BUFFER_FULL) == 0) {
         DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
     	    return 0;
@@ -329,14 +354,13 @@ wait_for_kbd_data(struct atkbdc_softc *kbdc)
 {
     /* CPU will stay inside the loop for 200msec at most */
     int retry = 10000;
-    int port = kbdc->port;
     int f;
 
-    while ((f = inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL) 
+    while ((f = read_status(kbdc) & KBDS_BUFFER_FULL)
 	    != KBDS_KBD_BUFFER_FULL) {
         if (f == KBDS_AUX_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-	    addq(&kbdc->aux, inb(port + KBD_DATA_PORT));
+	    addq(&kbdc->aux, read_data(kbdc));
 	}
         DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
@@ -355,14 +379,13 @@ wait_for_kbd_ack(struct atkbdc_softc *kbdc)
 {
     /* CPU will stay inside the loop for 200msec at most */
     int retry = 10000;
-    int port = kbdc->port;
     int f;
     int b;
 
     while (retry-- > 0) {
-        if ((f = inb(port + KBD_STATUS_PORT)) & KBDS_ANY_BUFFER_FULL) {
+        if ((f = read_status(kbdc)) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-            b = inb(port + KBD_DATA_PORT);
+            b = read_data(kbdc);
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL) {
 		if ((b == KBD_ACK) || (b == KBD_RESEND) 
 		    || (b == KBD_RESET_FAIL))
@@ -383,14 +406,13 @@ wait_for_aux_data(struct atkbdc_softc *kbdc)
 {
     /* CPU will stay inside the loop for 200msec at most */
     int retry = 10000;
-    int port = kbdc->port;
     int f;
 
-    while ((f = inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL) 
+    while ((f = read_status(kbdc) & KBDS_BUFFER_FULL)
 	    != KBDS_AUX_BUFFER_FULL) {
         if (f == KBDS_KBD_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-	    addq(&kbdc->kbd, inb(port + KBD_DATA_PORT));
+	    addq(&kbdc->kbd, read_data(kbdc));
 	}
         DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
@@ -409,14 +431,13 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
 {
     /* CPU will stay inside the loop for 200msec at most */
     int retry = 10000;
-    int port = kbdc->port;
     int f;
     int b;
 
     while (retry-- > 0) {
-        if ((f = inb(port + KBD_STATUS_PORT)) & KBDS_ANY_BUFFER_FULL) {
+        if ((f = read_status(kbdc)) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-            b = inb(port + KBD_DATA_PORT);
+            b = read_data(kbdc);
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_AUX_BUFFER_FULL) {
 		if ((b == PSM_ACK) || (b == PSM_RESEND) 
 		    || (b == PSM_RESET_FAIL))
@@ -437,7 +458,7 @@ write_controller_command(KBDC p, int c)
 {
     if (!wait_while_controller_busy(kbdcp(p)))
 	return FALSE;
-    outb(kbdcp(p)->port + KBD_COMMAND_PORT, c);
+    write_command(kbdcp(p), c);
     return TRUE;
 }
 
@@ -447,7 +468,7 @@ write_controller_data(KBDC p, int c)
 {
     if (!wait_while_controller_busy(kbdcp(p)))
 	return FALSE;
-    outb(kbdcp(p)->port + KBD_DATA_PORT, c);
+    write_data(kbdcp(p), c);
     return TRUE;
 }
 
@@ -457,7 +478,7 @@ write_kbd_command(KBDC p, int c)
 {
     if (!wait_while_controller_busy(kbdcp(p)))
 	return FALSE;
-    outb(kbdcp(p)->port + KBD_DATA_PORT, c);
+    write_data(kbdcp(p), c);
     return TRUE;
 }
 
@@ -586,7 +607,7 @@ read_controller_data(KBDC p)
         return removeq(&kbdcp(p)->aux);
     if (!wait_for_data(kbdcp(p)))
         return -1;		/* timeout */
-    return inb(kbdcp(p)->port + KBD_DATA_PORT);
+    return read_data(kbdcp(p));
 }
 
 #if KBDIO_DEBUG >= 2
@@ -611,7 +632,7 @@ read_kbd_data(KBDC p)
         return removeq(&kbdcp(p)->kbd);
     if (!wait_for_kbd_data(kbdcp(p)))
         return -1;		/* timeout */
-    return inb(kbdcp(p)->port + KBD_DATA_PORT);
+    return read_data(kbdcp(p));
 }
 
 /* read one byte from the keyboard, but return immediately if 
@@ -634,15 +655,15 @@ read_kbd_data_no_wait(KBDC p)
 
     if (availq(&kbdcp(p)->kbd)) 
         return removeq(&kbdcp(p)->kbd);
-    f = inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL;
+    f = read_status(kbdcp(p)) & KBDS_BUFFER_FULL;
     if (f == KBDS_AUX_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
-        addq(&kbdcp(p)->aux, inb(kbdcp(p)->port + KBD_DATA_PORT));
-        f = inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL;
+        addq(&kbdcp(p)->aux, read_data(kbdcp(p)));
+        f = read_status(kbdcp(p)) & KBDS_BUFFER_FULL;
     }
     if (f == KBDS_KBD_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
-        return inb(kbdcp(p)->port + KBD_DATA_PORT);
+        return read_data(kbdcp(p));
     }
     return -1;		/* no data */
 }
@@ -655,7 +676,7 @@ read_aux_data(KBDC p)
         return removeq(&kbdcp(p)->aux);
     if (!wait_for_aux_data(kbdcp(p)))
         return -1;		/* timeout */
-    return inb(kbdcp(p)->port + KBD_DATA_PORT);
+    return read_data(kbdcp(p));
 }
 
 /* read one byte from the aux device, but return immediately if 
@@ -668,15 +689,15 @@ read_aux_data_no_wait(KBDC p)
 
     if (availq(&kbdcp(p)->aux)) 
         return removeq(&kbdcp(p)->aux);
-    f = inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL;
+    f = read_status(kbdcp(p)) & KBDS_BUFFER_FULL;
     if (f == KBDS_KBD_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
-        addq(&kbdcp(p)->kbd, inb(kbdcp(p)->port + KBD_DATA_PORT));
-        f = inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL;
+        addq(&kbdcp(p)->kbd, read_data(kbdcp(p)));
+        f = read_status(kbdcp(p)) & KBDS_BUFFER_FULL;
     }
     if (f == KBDS_AUX_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
-        return inb(kbdcp(p)->port + KBD_DATA_PORT);
+        return read_data(kbdcp(p));
     }
     return -1;		/* no data */
 }
@@ -695,9 +716,9 @@ empty_kbd_buffer(KBDC p, int wait)
     int delta = 2;
 
     for (t = wait; t > 0; ) { 
-        if ((f = inb(kbdcp(p)->port + KBD_STATUS_PORT)) & KBDS_ANY_BUFFER_FULL) {
+        if ((f = read_status(kbdcp(p))) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-            b = inb(kbdcp(p)->port + KBD_DATA_PORT);
+            b = read_data(kbdcp(p));
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_AUX_BUFFER_FULL) {
 		addq(&kbdcp(p)->aux, b);
 #if KBDIO_DEBUG >= 2
@@ -734,9 +755,9 @@ empty_aux_buffer(KBDC p, int wait)
     int delta = 2;
 
     for (t = wait; t > 0; ) { 
-        if ((f = inb(kbdcp(p)->port + KBD_STATUS_PORT)) & KBDS_ANY_BUFFER_FULL) {
+        if ((f = read_status(kbdcp(p))) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-            b = inb(kbdcp(p)->port + KBD_DATA_PORT);
+            b = read_data(kbdcp(p));
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL) {
 		addq(&kbdcp(p)->kbd, b);
 #if KBDIO_DEBUG >= 2
@@ -772,9 +793,9 @@ empty_both_buffers(KBDC p, int wait)
     int delta = 2;
 
     for (t = wait; t > 0; ) { 
-        if ((f = inb(kbdcp(p)->port + KBD_STATUS_PORT)) & KBDS_ANY_BUFFER_FULL) {
+        if ((f = read_status(kbdcp(p))) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
-            (void)inb(kbdcp(p)->port + KBD_DATA_PORT);
+            (void)read_data(kbdcp(p));
 #if KBDIO_DEBUG >= 2
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL)
 		++c1;

@@ -184,8 +184,14 @@ typedef struct _kqueue {
 #endif
 } kqueue;
 
+struct resource;
+
 typedef struct atkbdc_softc {
-    int port;			/* base port address */
+    struct resource *port0;	/* data port */
+    struct resource *port1;	/* status port */
+    bus_space_tag_t iot;
+    bus_space_handle_t ioh0;
+    bus_space_handle_t ioh1;
     int command_byte;		/* current command byte value */
     int command_mask;		/* command byte mask bits for kbd/aux devices */
     int lock;			/* FIXME: XXX not quite a semaphore... */
@@ -194,9 +200,12 @@ typedef struct atkbdc_softc {
 } atkbdc_softc_t; 
 
 enum kbdc_device_ivar {
-	KBDC_IVAR_PORT,
 	KBDC_IVAR_IRQ,
 	KBDC_IVAR_FLAGS,
+	KBDC_IVAR_VENDORID,
+	KBDC_IVAR_SERIAL,
+	KBDC_IVAR_LOGICALID,
+	KBDC_IVAR_COMPATID, 
 };
 
 typedef caddr_t KBDC;
@@ -204,11 +213,12 @@ typedef caddr_t KBDC;
 /* function prototypes */
 
 atkbdc_softc_t *atkbdc_get_softc(int unit);
-int atkbdc_probe_unit(int unit, int port);
-int atkbdc_attach_unit(int unit, atkbdc_softc_t *sc, int port);
+int atkbdc_probe_unit(int unit, struct resource *port0, struct resource *port1);
+int atkbdc_attach_unit(int unit, atkbdc_softc_t *sc, struct resource *port0,
+		       struct resource *port1);
 int atkbdc_configure(void);
 
-KBDC kbdc_open(int port);
+KBDC atkbdc_open(int unit);
 int kbdc_lock(KBDC kbdc, int lock);
 int kbdc_data_ready(KBDC kbdc);
 
