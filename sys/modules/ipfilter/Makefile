@@ -11,6 +11,6 @@ CFLAGS+= -DIPFILTER_LKM -DIPFILTER_LOG
 #
 
 opt_ipfilter.h:
-	echo "#define NIPFILTER 1" > opt_ipfilter.h
+	echo "#define IPFILTER 1" > opt_ipfilter.h
 
 .include <bsd.kmod.mk>
