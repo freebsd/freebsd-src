@@ -330,17 +330,25 @@ ENTRY(openfirmware)
 	rdpr	%pstate, %l0
 	rdpr	%tl, %l1
 	rdpr	%tba, %l2
+	mov	AA_DMMU_PCXR, %l3
+	ldxa	[%l3] ASI_DMMU, %l4
+	stxa	%g0, [%l3] ASI_DMMU
+	membar	#Sync
+	flush	%sp
+	setx	ofw_tba, %l7, %l5
+	ldx	[%l5], %l5
+	setx	ofw_vec, %l7, %l6
+	ldx	[%l6], %l6
+	wrpr	%l5, 0, %tba
 	wrpr	%g0, 0, %tl
-	setx	ofw_tba, %l4, %l3
-	ldx	[%l3], %l3
-	setx	ofw_vec, %l5, %l4
-	ldx	[%l4], %l4
-	wrpr	%l3, 0, %tba
-	call	%l4
+	call	%l6
 	 mov	%i0, %o0
 	wrpr	%l0, 0, %pstate
 	wrpr	%l1, 0, %tl
 	wrpr	%l2, 0, %tba
+	stxa	%l4, [%l3] ASI_DMMU
+	membar	#Sync
+	flush	%sp
 	ret
 	 restore
 END(openfirmware)
