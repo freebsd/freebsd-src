@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.14 1998/10/15 17:06:36 peter Exp $
+ *	$Id: bootinfo.c,v 1.15 1998/11/13 23:40:02 msmith Exp $
  */
 
 #include <stand.h>
@@ -255,7 +255,10 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 	/* pass in the BIOS device number of the current disk */
 	bi.bi_bios_dev = bd_unit2bios(rootdev->d_kind.biosdisk.unit);
 	bootdevnr = bd_getdev(rootdev);
-	break;
+	if (bootdevnr != -1)
+	    break;
+	printf("root device %s invalid\n", i386_fmtdev(rootdev));
+	return(EINVAL);
 
     default:
 	printf("aout_exec: WARNING - don't know how to boot from device type %d\n", rootdev->d_type);
