@@ -37,76 +37,91 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 #include <pci/cy_pcireg.h>
-
-#ifdef CY_PCI_FASTINTR
-#include <i386/isa/intr_machdep.h>
-#endif
-
-#ifndef COMPAT_OLDPCI
-#error "The cy device requires the old pci compatibility shims"
-#endif
-
-static const char *cy_probe		__P((pcici_t, pcidi_t));
-static void cy_attach		__P((pcici_t, int));
 
 extern int cyattach_common(void *, int); /* Not exactly correct */
 extern void cyintr(int);
 
-static u_long cy_count;
+static int	cy_pci_attach __P((device_t dev));
+static int	cy_pci_probe __P((device_t dev));
 
-static struct pci_device cy_device = {
-        "cy",
-        cy_probe,
-        cy_attach,
-        &cy_count,
-        NULL
+static device_method_t cy_pci_methods[] = {
+	/* Device interface. */
+	DEVMETHOD(device_probe,		cy_pci_probe),
+	DEVMETHOD(device_attach,	cy_pci_attach),
+
+	{ 0, 0 }
 };
-COMPAT_PCI_DRIVER(cy_pci, cy_device);
 
-static const char *
-cy_probe(config_id, device_id)
-	pcici_t config_id;
-	pcidi_t device_id;
+static driver_t cy_pci_driver = {
+	"cy",
+	cy_pci_methods,
+	0,
+};
+
+static devclass_t	cy_devclass;
+
+DRIVER_MODULE(cy, pci, cy_pci_driver, cy_devclass, 0, 0);
+
+static int
+cy_pci_probe(dev)
+	device_t dev;
 {
+	u_int32_t device_id;
+
+	device_id = pci_get_devid(dev);
 	device_id &= ~0x00060000;
-	if (device_id == 0x0100120e || device_id == 0x0101120e)
-		return ("Cyclades Cyclom-Y Serial Adapter");
-	return (NULL);
+	if (device_id != 0x0100120e && device_id != 0x0101120e)
+		return (ENXIO);
+	device_set_desc(dev, "Cyclades Cyclom-Y Serial Adapter");
+	return (0);
 }
 
-static void
-cy_attach(config_id, unit)
-	pcici_t config_id;
-	int unit;
+static int
+cy_pci_attach(dev)
+	device_t dev;
 {
-	vm_offset_t paddr;
-	void *vaddr;
+	struct resource *ioport_res, *irq_res, *mem_res;
+	void *irq_cookie, *vaddr;
 	u_int32_t ioport;
-	int adapter;
+	int adapter, irq_setup, ioport_rid, irq_rid, mem_rid;
 	u_char plx_ver;
 
-	ioport = (u_int32_t) pci_conf_read(config_id, CY_PCI_BASE_ADDR1) & ~0x3;
-	paddr = pci_conf_read(config_id, CY_PCI_BASE_ADDR2) & ~0xf;
-#if 0
-	if (!pci_map_mem(config_id, CY_PCI_BASE_ADDR2, &vaddr, &paddr)) {
-		printf("cy%d: couldn't map shared memory\n", unit);
-		return;
-	};
-#endif
-	vaddr = pmap_mapdev(paddr, 0x4000);
+	ioport_res = NULL;
+	irq_res = NULL;
+	mem_res = NULL;
+
+	ioport_rid = CY_PCI_BASE_ADDR1;
+	ioport_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &ioport_rid,
+	    0ul, ~0ul, 0ul, RF_ACTIVE);
+	if (ioport_res == NULL) {
+		device_printf(dev, "ioport resource allocation failed\n");
+		goto fail;
+	}
+	ioport = rman_get_start(ioport_res);
+
+	mem_rid = CY_PCI_BASE_ADDR2;
+	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
+	     0ul, ~0ul, 0ul, RF_ACTIVE);
+	if (mem_res == NULL) {
+		device_printf(dev, "memory resource allocation failed\n");
+		goto fail;
+	}
+	vaddr = rman_get_virtual(mem_res);
 
 	adapter = cyattach_common(vaddr, 1);
 	if (adapter < 0) {
-		/*
-		 * No ports found. Release resources and punt.
-		 */
-		printf("cy%d: no ports found!\n", unit);
+		device_printf(dev, "no ports found!\n");
 		goto fail;
 	}
 
@@ -119,15 +134,22 @@ cy_attach(config_id, unit)
 	 *	since the ISA driver must handle the interrupt anyway, we use
 	 *	the unit number as the token even for PCI.
 	 */
-	if (
+	irq_rid = 0;
+	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, 0ul, ~0ul, 0ul,
+	    RF_SHAREABLE | RF_ACTIVE);
+	if (irq_res == NULL) {
+		device_printf(dev, "interrupt resource allocation failed\n");
+		goto fail;
+	}
 #ifdef CY_PCI_FASTINTR
-	    !pci_map_int_right(config_id, (pci_inthand_t *)cyintr,
-			       (void *)adapter, &tty_imask,
-			       INTR_EXCL | INTR_FAST) &&
+	irq_setup = bus_setup_intr(dev, irq_res, INTR_TYPE_TTY | INTR_FAST,
+	    (driver_intr_t *)cyintr, (void *)adapter, &irq_cookie);
 #endif
-	    !pci_map_int_right(config_id, (pci_inthand_t *)cyintr,
-			       (void *)adapter, &tty_imask, 0)) {
-		printf("cy%d: couldn't map interrupt\n", unit);
+	if (irq_setup != 0)
+		irq_setup = bus_setup_intr(dev, irq_res, INTR_TYPE_TTY,
+		    (driver_intr_t *)cyintr, (void *)adapter, &irq_cookie);
+	if (irq_setup != 0) {
+		device_printf(dev, "interrupt setup failed\n");
 		goto fail;
 	}
 
@@ -151,9 +173,15 @@ cy_attach(config_id, unit)
 		break;
 	}
 
-	return;
+	return (0);
 
 fail:
-	/* XXX should release any allocated virtual memory */
-	return;
+	if (ioport_res != NULL)
+		bus_release_resource(dev, SYS_RES_IOPORT, ioport_rid,
+		    ioport_res);
+	if (irq_res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+	if (mem_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, mem_rid, mem_res);
+	return (ENXIO);
 }
