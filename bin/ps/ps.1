@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
-.\"	$Id: ps.1,v 1.5 1995/12/26 03:38:52 peter Exp $
+.\"	$Id: ps.1,v 1.6 1995/12/30 13:52:02 joerg Exp $
 .\"
 .Dd April 18, 1994
 .Dt PS 1
@@ -488,7 +488,7 @@ wait channel (as a symbolic name)
 exit or stop status (valid only for stopped or zombie process)
 .El
 .Sh FILES
-.Bl -tag -width /var/run/kvm_kernel.db -compact
+.Bl -tag -width /var/db/kvm_kernel.db -compact
 .It Pa /dev
 special files and device names
 .It Pa /dev/drum
@@ -497,7 +497,7 @@ default swap device
 default kernel memory
 .It Pa /var/run/dev.db
 /dev name database
-.It Pa /var/run/kvm_kernel.db
+.It Pa /var/db/kvm_kernel.db
 system namelist database
 .It Pa /kernel
 default system namelist
