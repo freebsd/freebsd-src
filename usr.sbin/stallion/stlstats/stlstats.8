@@ -42,11 +42,11 @@
 .Op Fl p Ar port-number
 .Op Fl d Ar port-device
 .Sh DESCRIPTION
-.Nm stlstats
+.Nm Stlstats
 is used to display statistical information about the ports on Stallion
 Technologies multiport serial boards.
 .Pp
-.Nm stlstats
+.Nm Stlstats
 normally runs as a full screen menu driven application.
 A help line is displayed at the bottom of each screen with the valid
 input keys for this screen.
@@ -91,7 +91,7 @@ modem signal transitions and
 current RS-232 signal states.
 .Pp
 The options are:
-.Bl -tag -width xxxxxxx
+.Bl -tag -width indent
 .It Fl h
 Output usage information.
 .It Fl V
@@ -100,21 +100,24 @@ Output version information.
 Output only the board type information.
 This output is useful for scripts or other programs that need to know
 a little bit about the board (for example an automated download script).
-.Nm stlstats
+.Nm Stlstats
 will not enter full screen interactive mode. 
 .It Fl c Ar control-device
 Specify the board control device through which to gather port statistics.
-The default is /dev/staliomem0.
+The default is
+.Pa /dev/staliomem0 .
 .It Fl b Ar board-number
 Specify the board number to display first.
 The default is to display board 0.
 .It Fl p Ar port-number
 Specify the port number to display first.
-.Nm stlstats
+.Nm Stlstats
 will go straight into the port display screen (bypassing board display)
 when this option is used.
 .It Fl d Ar port-device
-Specify the port special device file (the /dev/ttyXXX file) to
+Specify the port special device file (the
+.Pa /dev/ttyXXX
+file) to
 display first.
 The board screen is bypassed and the port statistics screen is shown
 immediately on start up.
@@ -128,4 +131,5 @@ driver control device used for statistics collection
 .Xr stli 4 ,
 .Xr stlload 8
 .Sh HISTORY
-This program was originally developed by Greg Ungerer (gerg@stallion.com).
+This program was originally developed by
+.An Greg Ungerer Aq gerg@stallion.com .
