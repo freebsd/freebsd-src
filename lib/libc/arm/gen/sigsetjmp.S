@@ -52,6 +52,7 @@ ENTRY(sigsetjmp)
 
 .L_setjmp_magic:
 	.word	_JB_MAGIC__SETJMP
+WEAK_ALIAS(__siglongjmp, siglongjmp)
 
 ENTRY(siglongjmp)
 	ldr	r2, .L_setjmp_magic
