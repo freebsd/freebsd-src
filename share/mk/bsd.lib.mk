@@ -179,7 +179,7 @@ _EXTRADEPEND:
 	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So:/' < ${DEPENDFILE} \
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
-.if !defined(NOEXTRADEPEND) && defined(SHLIB_NAME)
+.if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
 	echo ${SHLIB_NAME}: ${DPADD} >> ${DEPENDFILE}
 .endif
