@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.15 1995/12/06 09:04:42 peter Exp $
+ *	$Id: swapgeneric.c,v 1.16 1996/06/12 15:10:30 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -190,6 +190,7 @@ void gets(cp)
 	for (;;) {
 		printf("%c", c = cngetc()&0177);
 		switch (c) {
+		case -1:
 		case '\n':
 		case '\r':
 			*lp++ = '\0';

@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.61 1996/10/20 18:35:35 phk Exp $
+ **      $Id: userconfig.c,v 1.62 1996/10/28 17:14:58 imp Exp $
  **/
 
 /**
@@ -1358,6 +1358,7 @@ yesnocancel(char *str)
     for(;;)
 	switch(getchar())
 	{
+	case -1:
 	case 'n':
 	case 'N':
 	    return(0);
@@ -1545,6 +1546,7 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    VetRet(KEY_TAB);			/* verify and maybe return */
 	    break;
 
+	case -1:
 	case 'q':
 	case 'Q':
 	    VetRet(KEY_EXIT);
@@ -2210,7 +2212,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.61 1996/10/20 18:35:35 phk Exp $
+ *      $Id: userconfig.c,v 1.62 1996/10/28 17:14:58 imp Exp $
  */
 
 #include "scbus.h"
@@ -2638,6 +2640,7 @@ introfunc(CmdParm *parms)
 		    extended = 0;
 		break;
 		
+	    case -1:
 	    case 'Q':
 	    case 'q':
 		clear();
@@ -2763,7 +2766,7 @@ cngets(char *input, int maxin)
 		continue;
 	}
 	printf("%c", c);
-	if ((++nchars == maxin) || (c == '\n') || (c == '\r')) {
+	if ((++nchars == maxin) || (c == '\n') || (c == '\r') || ( c == -1)) {
 	    *input = '\0';
 	    break;
 	}
