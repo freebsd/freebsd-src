@@ -74,6 +74,7 @@ static u_long dehash;			/* size of hash table - 1 */
 #define	DEHASH(dev, dcl, doff)	(dehashtbl[(minor(dev) + (dcl) + (doff) / 	\
 				sizeof(struct direntry)) & dehash])
 static struct mtx dehash_mtx;
+static int dehash_init;
 
 union _qcvt {
 	quad_t qcvt;
@@ -102,6 +103,17 @@ int
 msdosfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
+	/*
+	 * The following lines prevent us from initializing the mutex
+	 * init multiple times.  I'm not sure why we get called multiple
+	 * times, but the following prevents the panic when we initalize
+	 * the mutext the second time.  XXX BAD XXX
+	 */
+	if (dehash_init) {
+		printf("Warning: msdosfs_init called more than once!\n");
+		return (0);
+	}
+	dehash_init++;
 	dehashtbl = hashinit(desiredvnodes/2, M_MSDOSFSMNT, &dehash);
 	mtx_init(&dehash_mtx, "msdosfs dehash", NULL, MTX_DEF);
 	return (0);
@@ -115,6 +127,7 @@ msdosfs_uninit(vfsp)
 	if (dehashtbl)
 		free(dehashtbl, M_MSDOSFSMNT);
 	mtx_destroy(&dehash_mtx);
+	dehash_init--;
 	return (0);
 }
 
