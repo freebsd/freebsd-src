@@ -57,6 +57,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
 #include <sys/kernel.h>
@@ -92,6 +93,7 @@
 #include <i386/isa/isa.h>
 #include <isa/rtc.h>
 #endif
+#include <isa/isavar.h>
 #include <i386/isa/timerreg.h>
 
 #include <i386/isa/intr_machdep.h>
@@ -1571,3 +1573,49 @@ tsc_get_timecount(struct timecounter *tc)
 {
 	return (rdtsc());
 }
+
+/*
+ * Attach to the ISA PnP descriptors for the timer and realtime clock.
+ */
+static struct isa_pnp_id attimer_ids[] = {
+	{ 0x0001d041 /* PNP0100 */, "AT timer" },
+	{ 0x000bd041 /* PNP0B00 */, "AT realtime clock" },
+	{ 0 }
+};
+
+static int
+attimer_probe(device_t dev)
+{
+	int result;
+	
+	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, attimer_ids)) <= 0)
+		device_quiet(dev);
+	return(result);
+}
+
+static int
+attimer_attach(device_t dev)
+{
+	return(0);
+}
+
+static device_method_t attimer_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		attimer_probe),
+	DEVMETHOD(device_attach,	attimer_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),	/* XXX stop statclock? */
+	DEVMETHOD(device_resume,	bus_generic_resume),	/* XXX restart statclock? */
+	{ 0, 0 }
+};
+
+static driver_t attimer_driver = {
+	"attimer",
+	attimer_methods,
+	1,		/* no softc */
+};
+
+static devclass_t attimer_devclass;
+
+DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
