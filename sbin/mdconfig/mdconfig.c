@@ -32,6 +32,7 @@ struct md_ioctl mdio;
 enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
 
 void mdmaybeload(void);
+void usage(void);
 
 void
 usage()
@@ -200,10 +201,11 @@ int
 list(const int fd)
 {
 	char *disklist, *p, *p2, *p3;
-	int unit, dll;
+	int unit;
+	size_t dll;
 	struct dl *dp, *di, *dn;
 
-	if (sysctlbyname("kern.disks", NULL, &dll, NULL, NULL) == -1)
+	if (sysctlbyname("kern.disks", NULL, &dll, NULL, 0) == -1)
 		err(1, "sysctlbyname: kern.disks");
 	if ( (disklist = malloc(dll)) == NULL)
 		err(1, "malloc");
@@ -280,7 +282,7 @@ mdmaybeload(void)
 {
         struct module_stat mstat;
         int fileid, modid;
-        char *name = "md";
+        const char *name = "md";
 	char *cp;
 
         /* scan files in kernel */
