@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc0,v 1.2 1998/05/11 09:26:39 jb Exp $
+# $Id: Makefile.inc0,v 1.3 1998/06/03 18:57:59 peter Exp $
 #
 
 .include "${.CURDIR}/../../Makefile.inc0"
@@ -14,10 +14,11 @@ SRCS+=		app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 		flonum-mult.c frags.c hash.c input-file.c \
 		input-scrub.c listing.c literal.c macro.c messages.c \
 		output-file.c read.c sb.c stabs.c \
-		subsegs.c symbols.c write.c
+		subsegs.c symbols.c write.c depend.c ehopt.c
 CFLAGS+=	-I${SRCDIR}/gas
 CFLAGS+=	-I${SRCDIR}/gas/config
 CFLAGS+=	-I${SRCDIR}
+CFLAGS+=	-DVERSION=\"${VERSION}\"
 LDADD+=		-L${RELTOP}/libbfd -lbfd
 LDADD+=		-L${RELTOP}/libiberty -liberty
 LDADD+=		-L${RELTOP}/libopcodes -lopcodes

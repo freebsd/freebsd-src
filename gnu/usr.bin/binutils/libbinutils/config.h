@@ -1,6 +1,15 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
+/* Name of package.  */
+#define PACKAGE "binutils"
+
+/* Version of package.  */
+#define VERSION "2.9.1"
+
+/* Configured target name.  */
+#define TARGET "i386-unknown-freebsdelf"
+
 /* Whether strstr must be declared even if <string.h> is included.  */
 /* #undef NEED_DECLARATION_STRSTR */
 
@@ -29,12 +38,6 @@
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #define HAVE_SYS_WAIT_H 1
 
-/* Define if you have <vfork.h>.  */
-/* #undef HAVE_VFORK_H */
-
-/* Define to `int' if <sys/types.h> doesn't define.  */
-/* #undef pid_t */
-
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at run-time.
@@ -44,11 +47,8 @@
  */
 /* #undef STACK_DIRECTION */
 
-/* Define if you have the ANSI C header files.  */
-#define STDC_HEADERS 1
-
-/* Define vfork as fork if vfork does not work.  */
-/* #undef vfork */
+/* Define if lex declares yytext as a char * by default, not a char[].  */
+#define YYTEXT_POINTER 1
 
 /* Is the type time_t defined in <time.h>?  */
 #define HAVE_TIME_T_IN_TIME_H 1
