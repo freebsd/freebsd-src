@@ -522,6 +522,7 @@ fw_xferq_drain(struct fw_xferq *xferq)
 
 	while ((xfer = STAILQ_FIRST(&xferq->q)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->q, link);
+		xferq->queued --;
 		xfer->resp = EAGAIN;
 		switch (xfer->act_type) {
 		case FWACT_XFER:
