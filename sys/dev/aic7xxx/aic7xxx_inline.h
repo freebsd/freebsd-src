@@ -200,6 +200,12 @@ static __inline void	ahc_free_scb(struct ahc_softc *ahc, struct scb *scb);
 static __inline void	ahc_swap_with_next_hscb(struct ahc_softc *ahc,
 						struct scb *scb);
 static __inline void	ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb);
+static __inline struct scsi_sense_data *
+			ahc_get_sense_buf(struct ahc_softc *ahc,
+					  struct scb *scb);
+static __inline uint32_t
+			ahc_get_sense_bufaddr(struct ahc_softc *ahc,
+					      struct scb *scb);
 
 /*
  * Determine whether the sequencer reported a residual
@@ -344,6 +350,25 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 		if ((ahc->features & AHC_AUTOPAUSE) == 0)
 			unpause_sequencer(ahc);
 	}
+}
+
+static __inline struct scsi_sense_data *
+ahc_get_sense_buf(struct ahc_softc *ahc, struct scb *scb)
+{
+	int offset;
+
+	offset = scb - ahc->scb_data->scbarray;
+	return (&ahc->scb_data->sense[offset]);
+}
+
+static __inline uint32_t
+ahc_get_sense_bufaddr(struct ahc_softc *ahc, struct scb *scb)
+{
+	int offset;
+
+	offset = scb - ahc->scb_data->scbarray;
+	return (ahc->scb_data->sense_busaddr
+	      + (offset * sizeof(struct scsi_sense_data)));
 }
 
 /************************** Interrupt Processing ******************************/
