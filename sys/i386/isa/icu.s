@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.11 1994/08/15 03:15:19 wollman Exp $
+ *	$Id: icu.s,v 1.12 1994/08/18 05:09:24 davidg Exp $
  */
 
 /*
@@ -296,29 +296,42 @@ swi_clock:
 	addl	$4,%esp
 	ret
 
-#define DONET(s, c, event) ; \
-	.globl	c ; \
+	ALIGN_TEXT
+	.globl _dummynetisr
+_dummynetisr:
+	MCOUNT
+	ret	
+	
+	
+	.data
+	.globl _netisrs
+_netisrs:
+	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	
+#define DONET(s) ; \
 	btrl	$s,_netisr ; \
 	jnc	9f ; \
-	call	c ; \
+	movl	$_netisrs+4*s,%eax ; \
+	call	(%eax) ; \
 9:
 
 	ALIGN_TEXT
 swi_net:
 	MCOUNT
-#ifdef INET
-	DONET(NETISR_ARP, _arpintr,netisr_ip)
-	DONET(NETISR_IP, _ipintr,netisr_ip)
-#endif
-#ifdef NS
-	DONET(NETISR_NS, _nsintr,netisr_ns)
-#endif
-#ifdef ISO
-	DONET(NETISR_ISO, _clnlintr,netisr_iso)
-#endif
-#ifdef CCITT
-	DONET(NETISR_CCITT, _ccittintr, 29)
-#endif
+	DONET(0) ; DONET(1) ; DONET(2) ; DONET(3) ; DONET(4)
+	DONET(5) ; DONET(6) ; DONET(7) ; DONET(8) ; DONET(9)
+	DONET(10) ; DONET(11) ; DONET(12) ; DONET(13) ; DONET(14)
+	DONET(15) ; DONET(16) ; DONET(17) ; DONET(18) ; DONET(19)
+	DONET(20) ; DONET(21) ; DONET(22) ; DONET(23) ; DONET(24)
+	DONET(25) ; DONET(26) ; DONET(27) ; DONET(28) ; DONET(29)
+	DONET(30) ; DONET(31)
 	ret
 
 	ALIGN_TEXT
