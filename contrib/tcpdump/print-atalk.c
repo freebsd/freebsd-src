@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-atalk.c,v 1.64 2000/10/30 06:22:14 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-atalk.c,v 1.70 2001/11/15 08:23:12 itojun Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -40,13 +40,13 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <netdb.h>		/* for MAXHOSTNAMELEN on some platforms */
+#include <pcap.h>
 
 #include "interface.h"
 #include "addrtoname.h"
 #include "ethertype.h"
 #include "extract.h"			/* must come after interface.h */
 #include "appletalk.h"
-#include "savestr.h"
 
 static struct tok type2str[] = {
 	{ ddpRTMP,		"rtmp" },
@@ -84,6 +84,24 @@ static void ddp_print(const u_char *, u_int, int, u_short, u_char, u_char);
 static const char *ddpskt_string(int);
 
 /*
+ * Print LLAP packets received on a physical LocalTalk interface.
+ */
+void
+ltalk_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+{
+	snapend = p + h->caplen;
+	++infodelay;
+	ts_print(&h->ts);
+	llap_print(p, h->caplen);
+	if(xflag)
+		default_print(p, h->caplen);
+	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
+}
+
+/*
  * Print AppleTalk LLAP packets.
  */
 void
@@ -94,7 +112,7 @@ llap_print(register const u_char *bp, u_int length)
 	register const struct atShortDDP *sdp;
 	u_short snet;
 
-	lp = (struct LAP *)bp;
+	lp = (const struct LAP *)bp;
 	bp += sizeof(*lp);
 	length -= sizeof(*lp);
 	switch (lp->type) {
@@ -156,8 +174,8 @@ atalk_print(register const u_char *bp, u_int length)
 	u_short snet;
 
 	if (length < ddpSize) {
-	  (void)printf(" [|ddp %d]", length);
-	  return;
+		(void)printf(" [|ddp %d]", length);
+		return;
 	}
 	dp = (const struct atDDP *)bp;
 	snet = EXTRACT_16BITS(&dp->srcNet);
@@ -168,6 +186,21 @@ atalk_print(register const u_char *bp, u_int length)
 	       ddpskt_string(dp->dstSkt));
 	bp += ddpSize;
 	length -= ddpSize;
+#ifdef LBL_ALIGN
+	if ((long)bp & 3) {
+		static u_char *abuf = NULL;
+
+		if (abuf == NULL) {
+			abuf = (u_char *)malloc(snaplen);
+			if (abuf == NULL)
+				error("atalk_print: malloc");
+		}
+		memcpy((char *)abuf, (char *)bp, min(length, snaplen));
+		snapend += abuf - (u_char *)bp;
+		packetp = abuf;
+		bp = abuf;
+	}
+#endif
 	ddp_print(bp, length, dp->type, snet, dp->srcNode, dp->srcSkt);
 }
 
@@ -357,7 +390,7 @@ nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 	  register u_char snode, register u_char skt)
 {
 	register const struct atNBPtuple *tp =
-			(struct atNBPtuple *)((u_char *)np + nbpHeaderSize);
+		(const struct atNBPtuple *)((u_char *)np + nbpHeaderSize);
 	int i;
 	const u_char *ep;
 
@@ -433,7 +466,7 @@ print_cstring(register const char *cp, register const u_char *ep)
 		return (0);
 	}
 	while ((int)--length >= 0) {
-		if (cp >= (char *)ep) {
+		if (cp >= (const char *)ep) {
 			fputs(tstr, stdout);
 			return (0);
 		}
@@ -542,7 +575,7 @@ ataddr_string(u_short atnet, u_char athost)
 				;
 			tp->addr = i3;
 			tp->nxt = newhnamemem();
-			tp->name = savestr(nambuf);
+			tp->name = strdup(nambuf);
 		}
 		fclose(fp);
 	}
@@ -559,7 +592,7 @@ ataddr_string(u_short atnet, u_char athost)
 			tp->nxt = newhnamemem();
 			(void)snprintf(nambuf, sizeof(nambuf), "%s.%d",
 			    tp2->name, athost);
-			tp->name = savestr(nambuf);
+			tp->name = strdup(nambuf);
 			return (tp->name);
 		}
 
@@ -571,7 +604,7 @@ ataddr_string(u_short atnet, u_char athost)
 	else
 		(void)snprintf(nambuf, sizeof(nambuf), "%d.%d", atnet >> 8,
 		    atnet & 0xff);
-	tp->name = savestr(nambuf);
+	tp->name = strdup(nambuf);
 
 	return (tp->name);
 }

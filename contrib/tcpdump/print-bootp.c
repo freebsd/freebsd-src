@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-bootp.c,v 1.56 2000/12/04 00:00:08 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-bootp.c,v 1.60 2001/09/17 21:57:56 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -48,8 +48,8 @@ struct rtentry;
 #include "ether.h"
 #include "bootp.h"
 
-static void rfc1048_print(const u_char *, u_int);
-static void cmu_print(const u_char *, u_int);
+static void rfc1048_print(const u_char *);
+static void cmu_print(const u_char *);
 
 static char tstr[] = " [|bootp]";
 
@@ -61,10 +61,10 @@ bootp_print(register const u_char *cp, u_int length,
 	    u_short sport, u_short dport)
 {
 	register const struct bootp *bp;
-	static u_char vm_cmu[4] = VM_CMU;
-	static u_char vm_rfc1048[4] = VM_RFC1048;
+	static const u_char vm_cmu[4] = VM_CMU;
+	static const u_char vm_rfc1048[4] = VM_RFC1048;
 
-	bp = (struct bootp *)cp;
+	bp = (const struct bootp *)cp;
 	TCHECK(bp->bp_op);
 	switch (bp->bp_op) {
 
@@ -130,14 +130,14 @@ bootp_print(register const u_char *cp, u_int length,
 		register const char *e;
 
 		TCHECK2(bp->bp_chaddr[0], 6);
-		eh = (struct ether_header *)packetp;
+		eh = (const struct ether_header *)packetp;
 		if (bp->bp_op == BOOTREQUEST)
 			e = (const char *)ESRC(eh);
 		else if (bp->bp_op == BOOTREPLY)
 			e = (const char *)EDST(eh);
 		else
 			e = 0;
-		if (e == 0 || memcmp((char *)bp->bp_chaddr, e, 6) != 0)
+		if (e == 0 || memcmp((const char *)bp->bp_chaddr, e, 6) != 0)
 			printf(" ether %s", etheraddr_string(bp->bp_chaddr));
 	}
 
@@ -164,13 +164,12 @@ bootp_print(register const u_char *cp, u_int length,
 
 	/* Decode the vendor buffer */
 	TCHECK(bp->bp_vend[0]);
-	length -= sizeof(*bp) - sizeof(bp->bp_vend);
-	if (memcmp((char *)bp->bp_vend, (char *)vm_rfc1048,
+	if (memcmp((const char *)bp->bp_vend, vm_rfc1048,
 		 sizeof(u_int32_t)) == 0)
-		rfc1048_print(bp->bp_vend, length);
-	else if (memcmp((char *)bp->bp_vend, (char *)vm_cmu,
+		rfc1048_print(bp->bp_vend);
+	else if (memcmp((const char *)bp->bp_vend, vm_cmu,
 		      sizeof(u_int32_t)) == 0)
-		cmu_print(bp->bp_vend, length);
+		cmu_print(bp->bp_vend);
 	else {
 		u_int32_t ul;
 
@@ -184,7 +183,19 @@ trunc:
 	fputs(tstr, stdout);
 }
 
-/* The first character specifies the format to print */
+/*
+ * The first character specifies the format to print:
+ *     i - ip address (32 bits)
+ *     p - ip address pairs (32 bits + 32 bits)
+ *     l - long (32 bits)
+ *     L - unsigned long (32 bits)
+ *     s - short (16 bits)
+ *     b - period-seperated decimal bytes (variable length)
+ *     x - colon-seperated hex bytes (variable length)
+ *     a - ascii string (variable length)
+ *     B - on/off (8 bits)
+ *     $ - special (explicit code to handle)
+ */
 static struct tok tag2str[] = {
 /* RFC1048 tags */
 	{ TAG_PAD,		" PAD" },
@@ -236,7 +247,7 @@ static struct tok tag2str[] = {
 	{ TAG_VENDOR_OPTS,	"bVO" },
 	{ TAG_NETBIOS_NS,	"iWNS" },
 	{ TAG_NETBIOS_DDS,	"iWDD" },
-	{ TAG_NETBIOS_NODE,	"bWNT" },
+	{ TAG_NETBIOS_NODE,	"$WNT" },
 	{ TAG_NETBIOS_SCOPE,	"aWSC" },
 	{ TAG_XWIN_FS,		"iXFS" },
 	{ TAG_XWIN_DM,		"iXDM" },
@@ -253,7 +264,7 @@ static struct tok tag2str[] = {
 	{ TAG_STREETTALK_STDA,	"iSTDA" },
 	{ TAG_REQUESTED_IP,	"iRQ" },
 	{ TAG_IP_LEASE,		"lLT" },
-	{ TAG_OPT_OVERLOAD,	"bOO" },
+	{ TAG_OPT_OVERLOAD,	"$OO" },
 	{ TAG_TFTP_SERVER,	"aTFTP" },
 	{ TAG_BOOTFILENAME,	"aBF" },
 	{ TAG_DHCP_MESSAGE,	" DHCP" },
@@ -263,8 +274,8 @@ static struct tok tag2str[] = {
 	{ TAG_MAX_MSG_SIZE,	"sMSZ" },
 	{ TAG_RENEWAL_TIME,	"lRN" },
 	{ TAG_REBIND_TIME,	"lRB" },
-	{ TAG_VENDOR_CLASS,	"bVC" },
-	{ TAG_CLIENT_ID,	"xCID" },
+	{ TAG_VENDOR_CLASS,	"aVC" },
+	{ TAG_CLIENT_ID,	"$CID" },
 /* RFC 2485 */
 	{ TAG_OPEN_GROUP_UAP,	"aUAP" },
 /* RFC 2563 */
@@ -279,7 +290,7 @@ static struct tok tag2str[] = {
 /* ftp://ftp.isi.edu/.../assignments/bootp-dhcp-extensions */
 	{ TAG_USER_CLASS,	"aCLASS" },
 	{ TAG_SLP_NAMING_AUTH,	"aSLP-NA" },
-	{ TAG_CLIENT_FQDN,	"bFQDN" },	/* XXX 'b' */
+	{ TAG_CLIENT_FQDN,	"$FQDN" },
 	{ TAG_AGENT_CIRCUIT,	"bACKT" },
 	{ TAG_AGENT_REMOTE,	"bARMT" },
 	{ TAG_AGENT_MASK,	"bAMSK" },
@@ -307,8 +318,36 @@ static struct tok xtag2str[] = {
 	{ 0,			NULL }
 };
 
+/* DHCP "options overload" types */
+static struct tok oo2str[] = {
+	{ 1,			"file" },
+	{ 2,			"sname" },
+	{ 3,			"file+sname" },
+	{ 0,			NULL }
+};
+
+/* NETBIOS over TCP/IP node type options */
+static struct tok nbo2str[] = {
+	{ 0x1,			"b-node" },
+	{ 0x2,			"p-node" },
+	{ 0x4,			"m-node" },
+	{ 0x8,			"h-node" },
+	{ 0,			NULL }
+};
+
+/* ARP Hardware types, for Client-ID option */
+static struct tok arp2str[] = {
+	{ 0x1,			"ether" },
+	{ 0x6,			"ieee802" },
+	{ 0x7,			"arcnet" },
+	{ 0xf,			"frelay" },
+	{ 0x17,			"strip" },
+	{ 0x18,			"ieee1394" },
+	{ 0,			NULL }
+};
+
 static void
-rfc1048_print(register const u_char *bp, register u_int length)
+rfc1048_print(register const u_char *bp)
 {
 	register u_char tag;
 	register u_int len, size;
@@ -446,10 +485,10 @@ rfc1048_print(register const u_char *bp, register u_int length)
 			while (size >= 2*sizeof(ul)) {
 				if (!first)
 					putchar(',');
-				memcpy((char *)&ul, (char *)bp, sizeof(ul));
+				memcpy((char *)&ul, (const char *)bp, sizeof(ul));
 				printf("(%s:", ipaddr_string(&ul));
 				bp += sizeof(ul);
-				memcpy((char *)&ul, (char *)bp, sizeof(ul));
+				memcpy((char *)&ul, (const char *)bp, sizeof(ul));
 				printf("%s)", ipaddr_string(&ul));
 				bp += sizeof(ul);
 				size -= 2*sizeof(ul);
@@ -498,11 +537,74 @@ rfc1048_print(register const u_char *bp, register u_int length)
 			/* Bytes */
 			while (size > 0) {
 				if (!first)
-					putchar (c == 'x' ? ':' : '.');
-				printf (c == 'x' ? "%02x" : "%d", *bp);
+					putchar(c == 'x' ? ':' : '.');
+				if (c == 'x')
+					printf("%02x", *bp);
+				else
+					printf("%d", *bp);
 				++bp;
 				--size;
 				first = 0;
+			}
+			break;
+
+		case '$':
+			/* Guys we can't handle with one of the usual cases */
+			switch (tag) {
+
+			case TAG_NETBIOS_NODE:
+				tag = *bp++;
+				--size;
+				fputs(tok2str(nbo2str, NULL, tag), stdout);
+				break;
+
+			case TAG_OPT_OVERLOAD:
+				tag = *bp++;
+				--size;
+				fputs(tok2str(oo2str, NULL, tag), stdout);
+				break;
+
+			case TAG_CLIENT_FQDN:
+				if (*bp++)
+					printf("[svrreg]");
+				if (*bp)
+					printf("%d/%d/", *bp, *(bp+1));
+				bp += 2;
+				putchar('"');
+				(void)fn_printn(bp, size - 3, NULL);
+				putchar('"');
+				bp += size - 3;
+				size = 0;
+				break;
+
+			case TAG_CLIENT_ID:
+			    {	int type = *bp++;
+				size--;
+				if (type == 0) {
+					putchar('"');
+					(void)fn_printn(bp, size, NULL);  
+					putchar('"');
+					break;
+				} else {
+					printf("[%s]", tok2str(arp2str, "type-%d", type));
+				}
+				while (size > 0) {
+					if (!first)
+						putchar(':');
+					printf("%02x", *bp);
+					++bp;
+					--size;
+					first = 0;
+				}
+				break;
+			    }
+
+			default:
+				printf("[unknown special tag %d, size %d]",
+				    tag, size);
+				bp += size;
+				size = 0;
+				break;
 			}
 			break;
 		}
@@ -516,17 +618,16 @@ trunc:
 }
 
 static void
-cmu_print(register const u_char *bp, register u_int length)
+cmu_print(register const u_char *bp)
 {
 	register const struct cmu_vend *cmu;
-	char *fmt = " %s:%s";
 
 #define PRINTCMUADDR(m, s) { TCHECK(cmu->m); \
     if (cmu->m.s_addr != 0) \
-	printf(fmt, s, ipaddr_string(&cmu->m.s_addr)); }
+	printf(" %s:%s", s, ipaddr_string(&cmu->m.s_addr)); }
 
 	printf(" vend-cmu");
-	cmu = (struct cmu_vend *)bp;
+	cmu = (const struct cmu_vend *)bp;
 
 	/* Only print if there are unknown bits */
 	TCHECK(cmu->v_flags);

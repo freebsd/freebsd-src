@@ -1,16 +1,29 @@
 /*
  * Copyright (c) 1990, 1991, 1993, 1994, 1995, 1996, 1997
- *	The Regents of the University of California.  All rights reserved.
+ *     John Robert LoVerso. All rights reserved.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that the above copyright notice and this paragraph are
- * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
- * distribution and use acknowledge that the software was developed
- * by John Robert LoVerso.
- * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  *
  * This implementation has been influenced by the CMU SNMP release,
  * by Steve Waldbusser.  However, this shares no code with that system.
@@ -45,7 +58,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.44 2000/11/10 17:34:10 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.50 2001/09/17 22:16:53 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -428,16 +441,11 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 	elem->form = form;
 	elem->class = class;
 	elem->id = id;
-	if (vflag > 1)
-		printf("|%.2x", *p);
 	p++; len--; hdr = 1;
 	/* extended tag field */
 	if (id == ASN_ID_EXT) {
-		for (id = 0; *p & ASN_BIT8 && len > 0; len--, hdr++, p++) {
-			if (vflag > 1)
-				printf("|%.2x", *p);
+		for (id = 0; *p & ASN_BIT8 && len > 0; len--, hdr++, p++)
 			id = (id << 7) | (*p & ~ASN_BIT8);
-		}
 		if (len == 0 && *p & ASN_BIT8) {
 			ifNotTruncated fputs("[Xtagfield?]", stdout);
 			return -1;
@@ -452,8 +460,6 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 		return -1;
 	}
 	elem->asnlen = *p;
-	if (vflag > 1)
-		printf("|%.2x", *p);
 	p++; len--; hdr++;
 	if (elem->asnlen & ASN_BIT8) {
 		int noct = elem->asnlen % ASN_BIT8;
@@ -462,11 +468,8 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 			ifNotTruncated printf("[asnlen? %d<%d]", len, noct);
 			return -1;
 		}
-		for (; noct-- > 0; len--, hdr++) {
-			if (vflag > 1)
-				printf("|%.2x", *p);
+		for (; noct-- > 0; len--, hdr++)
 			elem->asnlen = (elem->asnlen << ASN_SHIFT8) | *p++;
-		}
 	}
 	if (len < elem->asnlen) {
 		if (!truncated) {
@@ -720,7 +723,7 @@ asn1_print(struct be *elem)
 		d = elem->data.uns64.high * 4294967296.0;	/* 2^32 */
 		if (elem->data.uns64.high <= 0x1fffff) { 
 		        d += elem->data.uns64.low;
-#if 0 /*is looks illegal, but what is the intention???*/
+#if 0 /*is looks illegal, but what is the intention?*/
 			printf("%.f", d);
 #else
 			printf("%f", d);
@@ -728,7 +731,7 @@ asn1_print(struct be *elem)
 			break;
 		}
 		d += (elem->data.uns64.low & 0xfffff000);
-#if 0 /*is looks illegal, but what is the intention???*/
+#if 0 /*is looks illegal, but what is the intention?*/
 		snprintf(first, sizeof(first), "%.f", d);
 #else
 		snprintf(first, sizeof(first), "%f", d);
@@ -837,25 +840,6 @@ asn1_decode(u_char *p, u_int length)
 
 #ifdef LIBSMI
 
-#if (SMI_VERSION_MAJOR == 0 && SMI_VERSION_MINOR >= 2) || (SMI_VERSION_MAJOR > 0)
-#define LIBSMI_API_V2
-#else
-#define LIBSMI_API_V1
-#endif
-
-#ifdef LIBSMI_API_V1
-/* Some of the API revisions introduced new calls that can be
- * represented by macros.
- */
-#define	smiGetNodeType(n)	smiGetType((n)->typemodule, (n)->typename)
-
-#else
-/* These calls in the V1 API were removed in V2. */
-#define	smiFreeRange(r)
-#define	smiFreeType(r)
-#define	smiFreeNode(r)
-#endif
-
 struct smi2be {
     SmiBasetype basetype;
     int be;
@@ -878,7 +862,7 @@ static struct smi2be smi2betab[] = {
 };
 
 static void smi_decode_oid(struct be *elem, unsigned int *oid,
-			   unsigned int *oidlen)
+			   unsigned int oidsize, unsigned int *oidlen)
 {
 	u_char *p = (u_char *)elem->data.raw;
 	u_int32_t asnlen = elem->asnlen;
@@ -894,10 +878,14 @@ static void smi_decode_oid(struct be *elem, unsigned int *oid,
 		 */
 		if (first < 0) {
 		        first = 0;
-			oid[(*oidlen)++] = o/OIDMUX;
+			if (*oidlen < oidsize) {
+			    oid[(*oidlen)++] = o/OIDMUX;
+			}
 			o %= OIDMUX;
 		}
-		oid[(*oidlen)++] = o;
+		if (*oidlen < oidsize) {
+		    oid[(*oidlen)++] = o;
+		}
 		o = 0;
 	}
 }
@@ -966,37 +954,22 @@ static int smi_check_range(SmiType *smiType, struct be *elem)
         SmiRange *smiRange;
 	int ok = 1;
 
-#ifdef LIBSMI_API_V1
-	for (smiRange = smiGetFirstRange(smiType->module, smiType->name);
-#else
 	for (smiRange = smiGetFirstRange(smiType);
-#endif
 	     smiRange;
 	     smiRange = smiGetNextRange(smiRange)) {
 
 	    ok = smi_check_a_range(smiType, smiRange, elem);
 
 	    if (ok) {
-		smiFreeRange(smiRange);
 		break;
 	    }
 	}
 
-	if (ok
-#ifdef LIBSMI_API_V1
-		&& smiType->parentmodule && smiType->parentname
-#endif
-		) {
+	if (ok) {
 	    SmiType *parentType;
-#ifdef LIBSMI_API_V1
-	    parentType = smiGetType(smiType->parentmodule,
-				    smiType->parentname);
-#else
 	    parentType = smiGetParentType(smiType);
-#endif
 	    if (parentType) {
 		ok = smi_check_range(parentType, elem);
-		smiFreeType(parentType);
 	    }
 	}
 
@@ -1009,18 +982,14 @@ static SmiNode *smi_print_variable(struct be *elem)
 	SmiNode *smiNode = NULL;
 	int i;
 
-	smi_decode_oid(elem, oid, &oidlen);
+	smi_decode_oid(elem, oid, sizeof(oid)/sizeof(unsigned int), &oidlen);
 	smiNode = smiGetNodeByOID(oidlen, oid);
 	if (! smiNode) {
 	        asn1_print(elem);
 		return NULL;
 	}
 	if (vflag) {
-#ifdef LIBSMI_API_V1
-		fputs(smiNode->module, stdout);
-#else
 		fputs(smiGetNodeModule(smiNode)->name, stdout);
-#endif
 		fputs("::", stdout);
 	}
 	fputs(smiNode->name, stdout);
@@ -1069,26 +1038,18 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 	    fputs("[noAccess]", stdout);
 	}
 
-#ifdef LIBSMI_API_V1
-	smiType = smiGetType(smiNode->typemodule, smiNode->typename);
-#else
 	smiType = smiGetNodeType(smiNode);
-#endif
 	if (! smiType) {
 	    asn1_print(elem);
 	    return;
 	}
 
-#ifdef LIBSMI_API_V1
-	if (! smi_check_type(smiNode->basetype, elem->type)) {
-#else
 	if (! smi_check_type(smiType->basetype, elem->type)) {
-#endif
 	    fputs("[wrongType]", stdout);
 	}
 
 	if (! smi_check_range(smiType, elem)) {
-	    fputs("[wrongLength]", stdout);
+	    fputs("[outOfRange]", stdout);
 	}
 
 	/* resolve bits to named bits */
@@ -1104,15 +1065,13 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 	        if (smiType->basetype == SMI_BASETYPE_BITS) {
 		        /* print bit labels */
 		} else {
-		        smi_decode_oid(elem, oid, &oidlen);
+		        smi_decode_oid(elem, oid,
+				       sizeof(oid)/sizeof(unsigned int),
+				       &oidlen);
 			smiNode = smiGetNodeByOID(oidlen, oid);
 			if (smiNode) {
 			        if (vflag) {
-#ifdef LIBSMI_API_V1
-					fputs(smiNode->module, stdout);
-#else
 					fputs(smiGetNodeModule(smiNode)->name, stdout);
-#endif
 					fputs("::", stdout);
 				}
 				fputs(smiNode->name, stdout);
@@ -1128,15 +1087,8 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 		break;
 
 	case BE_INT:
-#ifdef LIBSMI_API_V1
-	        if (smiNode->basetype == SMI_BASETYPE_ENUM
-		    && smiNode->typemodule && smiNode->typename) {
-		        for (nn = smiGetFirstNamedNumber(smiNode->typemodule,
-							 smiNode->typename);
-#else
 	        if (smiType->basetype == SMI_BASETYPE_ENUM) {
 		        for (nn = smiGetFirstNamedNumber(smiType);
-#endif
 			     nn;
 			     nn = smiGetNextNamedNumber(nn)) {
 			         if (nn->value.value.integer32
@@ -1153,10 +1105,6 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 
 	if (! done) {
 	        asn1_print(elem);
-	}
-
-	if (smiType) {
-		smiFreeType(smiType);
 	}
 }
 #endif
@@ -1273,7 +1221,6 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 		        if (elem.type != BE_NULL) {
 #ifdef LIBSMI
 			        smi_print_value(smiNode, pduid, &elem);
-				smiFreeNode(smiNode);
 #else
 				asn1_print(&elem);
 #endif

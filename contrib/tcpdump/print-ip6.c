@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ip6.c,v 1.16 2000/11/17 19:08:15 itojun Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip6.c,v 1.21 2001/11/16 02:17:36 itojun Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -51,11 +51,11 @@ static const char rcsid[] =
  * print an IP6 datagram.
  */
 void
-ip6_print(register const u_char *bp, register int length)
+ip6_print(register const u_char *bp, register u_int length)
 {
 	register const struct ip6_hdr *ip6;
 	register int advance;
-	register int len;
+	register u_int len;
 	register const u_char *cp;
 	int nh;
 	int fragmented = 0;
@@ -66,24 +66,23 @@ ip6_print(register const u_char *bp, register int length)
 #ifdef LBL_ALIGN
 	/*
 	 * The IP6 header is not 16-byte aligned, so copy into abuf.
-	 * This will never happen with BPF.  It does happen raw packet
-	 * dumps from -r.
 	 */
 	if ((u_long)ip6 & 15) {
 		static u_char *abuf;
 
-		if (abuf == NULL)
+		if (abuf == NULL) {
 			abuf = malloc(snaplen);
+			if (abuf == NULL)
+				error("ip6_print: malloc");
+		}
 		memcpy(abuf, ip6, min(length, snaplen));
 		snapend += abuf - (u_char *)ip6;
 		packetp = abuf;
 		ip6 = (struct ip6_hdr *)abuf;
+		bp = abuf;
 	}
 #endif
-	if ((u_char *)(ip6 + 1) > snapend) {
-		printf("[|ip6]");
-		return;
-	}
+	TCHECK(*ip6);
 	if (length < sizeof (struct ip6_hdr)) {
 		(void)printf("truncated-ip6 %d", length);
 		return;
@@ -100,7 +99,7 @@ ip6_print(register const u_char *bp, register int length)
 	while (cp < snapend) {
 		cp += advance;
 
-		if (cp == (u_char *)(ip6 + 1)
+		if (cp == (const u_char *)(ip6 + 1)
 		 && nh != IPPROTO_TCP && nh != IPPROTO_UDP) {
 			(void)printf("%s > %s: ", ip6addr_string(&ip6->ip6_src),
 				     ip6addr_string(&ip6->ip6_dst));
@@ -143,11 +142,12 @@ ip6_print(register const u_char *bp, register int length)
 			break;
 		case IPPROTO_ESP:
 		    {
-			int enh;
-			advance = esp_print(cp, (const u_char *)ip6, &enh);
+			int enh, padlen;
+			advance = esp_print(cp, (const u_char *)ip6, &enh, &padlen);
 			if (enh < 0)
 				goto end;
 			nh = enh & 0xff;
+			len -= padlen;
 			break;
 		    }
 #ifndef IPPROTO_IPCOMP
@@ -221,6 +221,9 @@ ip6_print(register const u_char *bp, register int length)
 			(void)printf(", hlim %d", (int)ip6->ip6_hlim);
 		printf(")");
 	}
+	return;
+trunc:
+	(void)printf("[|ip6]");
 }
 
 #endif /* INET6 */

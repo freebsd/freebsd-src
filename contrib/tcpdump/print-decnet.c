@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-decnet.c,v 1.30 2000/09/28 06:42:57 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-decnet.c,v 1.33 2001/09/17 21:57:59 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -730,7 +730,7 @@ print_reason(register int reason)
 	printf("%s ", tok2str(reason2str, "reason-%d", reason));
 }
 
-char *
+const char *
 dnnum_string(u_short dnaddr)
 {
 	char *str;
@@ -745,7 +745,7 @@ dnnum_string(u_short dnaddr)
 	return(str);
 }
 
-char *
+const char *
 dnname_string(u_short dnaddr)
 {
 #ifdef	HAVE_LIBDNET
@@ -753,7 +753,7 @@ dnname_string(u_short dnaddr)
 
 	dna.a_len = sizeof(short);
 	memcpy((char *)dna.a_addr, (char *)&dnaddr, sizeof(short));
-	return (savestr(dnet_htoa(&dna)));
+	return (strdup(dnet_htoa(&dna)));
 #else
 	return(dnnum_string(dnaddr));	/* punt */
 #endif
@@ -768,10 +768,7 @@ pdata(u_char *dp, u_int maxlen)
 
 	while (x-- > 0) {
 	    c = *dp++;
-	    if (isprint(c))
-		putchar(c);
-	    else
-		printf("\\%o", c & 0xFF);
+	    safeputchar(c);
 	}
 }
 #endif
