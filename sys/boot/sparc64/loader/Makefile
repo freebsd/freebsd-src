@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=		loader
-STRIP=
 NEWVERSWHAT=	"bootstrap loader" sparc64
 INSTALLFLAGS=	-b
 
