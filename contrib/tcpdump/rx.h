@@ -1,7 +1,7 @@
 /*
  * Rx protocol format
  *
- * $Id: rx.h,v 1.1 1999/11/17 05:45:58 assar Exp $
+ * $Id: rx.h,v 1.3 2000/10/03 02:55:02 itojun Exp $
  */
 
 #define FS_RX_PORT	7000
@@ -40,7 +40,7 @@ struct rx_header {
 	u_int32_t callNumber;
 	u_int32_t seq;
 	u_int32_t serial;
-	u_char type;
+	u_int8_t type;
 #define RX_PACKET_TYPE_DATA		1
 #define RX_PACKET_TYPE_ACK		2
 #define RX_PACKET_TYPE_BUSY		3
@@ -51,18 +51,39 @@ struct rx_header {
 #define RX_PACKET_TYPE_DEBUG		8
 #define RX_PACKET_TYPE_PARAMS		9
 #define RX_PACKET_TYPE_VERSION		13
-	u_char flags;
+	u_int8_t flags;
 #define RX_CLIENT_INITIATED	1
 #define RX_REQUEST_ACK		2
 #define RX_LAST_PACKET		4
 #define RX_MORE_PACKETS		8
 #define RX_FREE_PACKET		16
-	u_char userStatus;
-	u_char securityIndex;
-	u_short spare;			/* How clever: even though the AFS */
-	u_short serviceId;		/* header files indicate that the */
+	u_int8_t userStatus;
+	u_int8_t securityIndex;
+	u_int16_t spare;		/* How clever: even though the AFS */
+	u_int16_t serviceId;		/* header files indicate that the */
 };					/* serviceId is first, it's really */
 					/* encoded _after_ the spare field */
 					/* I wasted a day figuring that out! */
 
 #define NUM_RX_FLAGS 5
+
+#define RX_MAXACKS 255
+
+struct rx_ackPacket {
+	u_int16_t bufferSpace;		/* Number of packet buffers available */
+	u_int16_t maxSkew;		/* Max diff between ack'd packet and */
+					/* highest packet received */
+	u_int32_t firstPacket;		/* The first packet in ack list */
+	u_int32_t previousPacket;	/* Previous packet recv'd (obsolete) */
+	u_int32_t serial;		/* # of packet that prompted the ack */
+	u_int8_t reason;		/* Reason for acknowledgement */
+	u_int8_t nAcks;			/* Number of acknowledgements */
+	u_int8_t acks[RX_MAXACKS];	/* Up to RX_MAXACKS acknowledgements */
+};
+
+/*
+ * Values for the acks array
+ */
+
+#define RX_ACK_TYPE_NACK	0	/* Don't have this packet */
+#define RX_ACK_TYPE_ACK		1	/* I have this packet */

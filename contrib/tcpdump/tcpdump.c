@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.138.2.1 2000/01/11 07:34:00 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.158 2000/12/21 10:43:24 guy Exp $ (LBL)";
 #endif
 
 /*
@@ -52,8 +52,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <ctype.h>
 
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -74,11 +72,11 @@ int Rflag = 1;			/* print sequence # field in AH/ESP*/
 int sflag = 0;			/* use the libsmi to translate OIDs */
 int Sflag;			/* print raw TCP sequence numbers */
 int tflag = 1;			/* print packet arrival time */
+int uflag = 0;			/* Print undecoded NFS handles */
 int vflag;			/* verbose */
 int xflag;			/* print packet in hex */
 int Xflag;			/* print packet in ascii as well as hex */
 
-char *ahsecret = NULL;		/* AH secret key */
 char *espsecret = NULL;		/* ESP secret key */
 
 int packettype;
@@ -88,12 +86,9 @@ char *program_name;
 
 int32_t thiszone;		/* seconds offset from gmt to local time */
 
-/* Externs */
-extern void bpf_dump(struct bpf_program *, int);
-
 /* Forwards */
-RETSIGTYPE cleanup(int);
-extern __dead void usage(void) __attribute__((volatile));
+static RETSIGTYPE cleanup(int);
+static void usage(void) __attribute__((noreturn));
 
 /* Length of saved portion of packet. */
 int snaplen = DEFAULT_SNAPLEN;
@@ -105,12 +100,15 @@ struct printer {
 
 static struct printer printers[] = {
 	{ ether_if_print,	DLT_EN10MB },
-	{ ether_if_print,	DLT_IEEE802 },
+	{ token_if_print,	DLT_IEEE802 },
 #ifdef DLT_LANE8023
 	{ lane_if_print,        DLT_LANE8023 },
 #endif
 #ifdef DLT_CIP
 	{ cip_if_print,         DLT_CIP },
+#endif
+#ifdef DLT_ATM_CLIP
+	{ cip_if_print,         DLT_ATM_CLIP },
 #endif
 	{ sl_if_print,		DLT_SLIP },
 	{ sl_bsdos_if_print,	DLT_SLIP_BSDOS },
@@ -118,10 +116,19 @@ static struct printer printers[] = {
 	{ ppp_bsdos_if_print,	DLT_PPP_BSDOS },
 	{ fddi_if_print,	DLT_FDDI },
 	{ null_if_print,	DLT_NULL },
+#ifdef DLT_LOOP
+	{ null_if_print,	DLT_LOOP },
+#endif
 	{ raw_if_print,		DLT_RAW },
 	{ atm_if_print,		DLT_ATM_RFC1483 },
-#ifdef DLT_CHDLC
-	{ chdlc_if_print,	DLT_CHDLC },
+#ifdef DLT_C_HDLC
+	{ chdlc_if_print,	DLT_C_HDLC },
+#endif
+#ifdef DLT_PPP_SERIAL
+	{ ppp_hdlc_if_print,    DLT_PPP_SERIAL },
+#endif
+#ifdef DLT_LINUX_SLL
+	{ sll_if_print,		DLT_LINUX_SLL },
 #endif
 	{ NULL,			0 },
 };
@@ -135,7 +142,7 @@ lookup_printer(int type)
 		if (type == p->type)
 			return p->f;
 
-	error("unknown data link type 0x%x", type);
+	error("unknown data link type %d", type);
 	/* NOTREACHED */
 }
 
@@ -167,7 +174,7 @@ main(int argc, char **argv)
 	else
 		program_name = argv[0];
 
-	if (abort_on_misalignment(ebuf) < 0)
+	if (abort_on_misalignment(ebuf, sizeof(ebuf)) < 0)
 		error("%s", ebuf);
 
 #ifdef LIBSMI
@@ -176,21 +183,12 @@ main(int argc, char **argv)
 	
 	opterr = 0;
 	while (
-	    (op = getopt(argc, argv, "ac:deE:fF:i:lnNm:Opqr:Rs:StT:vw:xXY")) != EOF)
+	    (op = getopt(argc, argv, "ac:deE:fF:i:lm:nNOpqr:Rs:StT:uvw:xXY")) != -1)
 		switch (op) {
 
 		case 'a':
 			++aflag;
 			break;
-
-#if 0
-		case 'A':
-#ifndef CRYPTO
-			warning("crypto code not compiled in");
-#endif
-			ahsecret = optarg;
-			break;
-#endif
 
 		case 'c':
 			cnt = atoi(optarg);
@@ -207,7 +205,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'E':
-#ifndef CRYPTO
+#ifndef HAVE_LIBCRYPTO
 			warning("crypto code not compiled in");
 #endif
 			espsecret = optarg;
@@ -273,11 +271,17 @@ main(int argc, char **argv)
 			Rflag = 0;
 			break;
 
-		case 's':
-			snaplen = atoi(optarg);
-			if (snaplen <= 0)
+		case 's': {
+			char *end;
+
+			snaplen = strtol(optarg, &end, 0);
+			if (optarg == end || *end != '\0'
+			    || snaplen < 0 || snaplen > 65535)
 				error("invalid snaplen %s", optarg);
+			else if (snaplen == 0)
+				snaplen = 65535;
 			break;
+		}
 
 		case 'S':
 			++Sflag;
@@ -300,10 +304,16 @@ main(int argc, char **argv)
 				packettype = PT_RTCP;
 			else if (strcasecmp(optarg, "snmp") == 0)
 				packettype = PT_SNMP;
+			else if (strcasecmp(optarg, "cnfp") == 0)
+				packettype = PT_CNFP;
 			else
 				error("unknown packet type `%s'", optarg);
 			break;
 
+		case 'u':
+			++uflag;
+			break;
+			
 		case 'v':
 			++vflag;
 			break;
@@ -317,7 +327,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'X':
-			++xflag;
+    		        ++xflag;
 			++Xflag;
 			break;
 
@@ -426,7 +436,7 @@ main(int argc, char **argv)
 }
 
 /* make a clean exit on interrupts */
-RETSIGTYPE
+static RETSIGTYPE
 cleanup(int signo)
 {
 	struct pcap_stat stat;
@@ -483,7 +493,7 @@ default_print(register const u_char *bp, register u_int length)
 	default_print_unaligned(bp, length);
 }
 
-__dead void
+static void
 usage(void)
 {
 	extern char version[];
@@ -492,7 +502,7 @@ usage(void)
 	(void)fprintf(stderr, "%s version %s\n", program_name, version);
 	(void)fprintf(stderr, "libpcap version %s\n", pcap_version);
 	(void)fprintf(stderr,
-"Usage: %s [-adeflnNOpqStvxX] [-c count] [ -F file ]\n", program_name);
+"Usage: %s [-adeflnNOpqStuvxX] [-c count] [ -F file ]\n", program_name);
 	(void)fprintf(stderr,
 "\t\t[ -i interface ] [ -r file ] [ -s snaplen ]\n");
 	(void)fprintf(stderr,

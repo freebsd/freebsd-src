@@ -1,3 +1,4 @@
+/* @(#) $Header: /tcpdump/master/tcpdump/ospf.h,v 1.3 2000/12/17 23:07:50 guy Exp $ (LBL) */
 /*
  * Copyright (c) 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
@@ -91,14 +92,14 @@
 
 /* link state advertisement header */
 struct lsa_hdr {
-    u_short ls_age;
-    u_char ls_options;
-    u_char ls_type;
+    u_int16_t ls_age;
+    u_int8_t ls_options;
+    u_int8_t ls_type;
     struct in_addr ls_stateid;
     struct in_addr ls_router;
     u_int32_t ls_seq;
-    u_short ls_chksum;
-    u_short ls_length;
+    u_int16_t ls_chksum;
+    u_int16_t ls_length;
 } ;
 
 /* link state advertisement */
@@ -109,15 +110,15 @@ struct lsa {
     union {
 	/* Router links advertisements */
 	struct {
-	    u_char rla_flags;
-	    u_char rla_zero[1];
-	    u_short rla_count;
+	    u_int8_t rla_flags;
+	    u_int8_t rla_zero[1];
+	    u_int16_t rla_count;
 	    struct rlalink {
 		struct in_addr link_id;
 		struct in_addr link_data;
-		u_char link_type;
-		u_char link_toscount;
-		u_short link_tos0metric;
+		u_int8_t link_type;
+		u_int8_t link_toscount;
+		u_int16_t link_tos0metric;
 	    } rla_link[1];		/* may repeat	*/
 	} un_rla;
 
@@ -156,9 +157,9 @@ struct lsa {
  * TOS metric struct (will be 0 or more in router links update)
  */
 struct tos_metric {
-    u_char tos_type;
-    u_char tos_zero;
-    u_short tos_metric;
+    u_int8_t tos_type;
+    u_int8_t tos_zero;
+    u_int16_t tos_metric;
 } ;
 
 #define	OSPF_AUTH_SIZE	8
@@ -167,22 +168,22 @@ struct tos_metric {
  * the main header
  */
 struct ospfhdr {
-    u_char ospf_version;
-    u_char ospf_type;
-    u_short ospf_len;
+    u_int8_t ospf_version;
+    u_int8_t ospf_type;
+    u_int16_t ospf_len;
     struct in_addr ospf_routerid;
     struct in_addr ospf_areaid;
-    u_short ospf_chksum;
-    u_short ospf_authtype;
-    u_char ospf_authdata[OSPF_AUTH_SIZE];
+    u_int16_t ospf_chksum;
+    u_int16_t ospf_authtype;
+    u_int8_t ospf_authdata[OSPF_AUTH_SIZE];
     union {
 
 	/* Hello packet */
 	struct {
 	    struct in_addr hello_mask;
-	    u_short hello_helloint;
-	    u_char hello_options;
-	    u_char hello_priority;
+	    u_int16_t hello_helloint;
+	    u_int8_t hello_options;
+	    u_int8_t hello_priority;
 	    u_int32_t hello_deadint;
 	    struct in_addr hello_dr;
 	    struct in_addr hello_bdr;
@@ -191,9 +192,9 @@ struct ospfhdr {
 
 	/* Database Description packet */
 	struct {
-	    u_char db_zero[2];
-	    u_char db_options;
-	    u_char db_flags;
+	    u_int8_t db_zero[2];
+	    u_int8_t db_options;
+	    u_int8_t db_flags;
 	    u_int32_t db_seq;
 	    struct lsa_hdr db_lshdr[1]; /* may repeat	*/
 	} un_db;

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-tcp.c,v 1.63 1999/12/22 15:44:10 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-tcp.c,v 1.81 2000/12/23 20:55:22 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -31,27 +31,30 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/time.h>
 
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/tcp.h>
+#include <rpc/rpc.h>
 
-#ifdef HAVE_MEMORY_H
-#include <memory.h>
-#endif
+#include <netinet/in.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif
 
 #include "interface.h"
 #include "addrtoname.h"
 #include "extract.h"
+
+#include "tcp.h"
+
+#include "ip.h"
+#ifdef INET6
+#include "ip6.h"
+#endif
+
+static void print_tcp_rst_data(register const u_char *sp, u_int length);
+
+#define MAX_RST_DATA_LEN	30
 
 /* Compatibility */
 #ifndef TCPOPT_WSCALE
@@ -80,6 +83,17 @@ static const char rcsid[] =
 #endif
 #ifndef TCPOPT_CCECHO
 #define TCPOPT_CCECHO		13	/* T/TCP CC options (rfc1644) */
+#endif
+
+/*
+ * Definitions required for ECN
+ * for use if the OS running tcpdump does not have ECN
+ */
+#ifndef TH_ECNECHO
+#define TH_ECNECHO		0x40	/* ECN Echo in tcp header */
+#endif
+#ifndef TH_CWR
+#define TH_CWR			0x80	/* ECN Cwnd Reduced in tcp header*/
 #endif
 
 struct tha {
@@ -115,17 +129,114 @@ static struct tcp_seq_hash tcp_seq_hash[TSEQ_HASHSIZE];
 #define BGP_PORT	179
 #endif
 #define NETBIOS_SSN_PORT 139
+#define BXXP_PORT        10288
+#ifndef NFS_PORT
+#define NFS_PORT	2049
+#endif
+
+static int tcp_cksum(register const struct ip *ip,
+		     register const struct tcphdr *tp,
+		     register int len)
+{
+	int i, tlen;
+	union phu {
+		struct phdr {
+			u_int32_t src;
+			u_int32_t dst;
+			u_char mbz;
+			u_char proto;
+			u_int16_t len;
+		} ph;
+		u_int16_t pa[6];
+	} phu;
+	register const u_int16_t *sp;
+	u_int32_t sum;
+	tlen = ntohs(ip->ip_len) - ((const char *)tp-(const char*)ip);
+
+	/* pseudo-header.. */
+	phu.ph.len = htons(tlen);
+	phu.ph.mbz = 0;
+	phu.ph.proto = IPPROTO_TCP;
+	memcpy(&phu.ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
+	memcpy(&phu.ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
+
+	sp = &phu.pa[0];
+	sum = sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5];
+
+	sp = (const u_int16_t *)tp;
+
+	for (i=0; i<(tlen&~1); i+= 2)
+		sum += *sp++;
+
+	if (tlen & 1) {
+		sum += htons( (*(const u_int8_t *)sp) << 8);
+	}
+
+	while (sum > 0xffff)
+		sum = (sum & 0xffff) + (sum >> 16);
+	sum = ~sum & 0xffff;
+
+	return (sum);
+}
+
+#ifdef INET6
+static int tcp6_cksum(const struct ip6_hdr *ip6, const struct tcphdr *tp,
+	int len)
+{
+	int i, tlen;
+	register const u_int16_t *sp;
+	u_int32_t sum;
+	union {
+		struct {
+			struct in6_addr ph_src;
+			struct in6_addr ph_dst;
+			u_int32_t	ph_len;
+			u_int8_t	ph_zero[3];
+			u_int8_t	ph_nxt;
+		} ph;
+		u_int16_t pa[20];
+	} phu;
+
+	tlen = ntohs(ip6->ip6_plen) + sizeof(struct ip6_hdr) -
+	    ((const char *)tp - (const char*)ip6);
+
+	/* pseudo-header */
+	memset(&phu, 0, sizeof(phu));
+	phu.ph.ph_src = ip6->ip6_src;
+	phu.ph.ph_dst = ip6->ip6_dst;
+	phu.ph.ph_len = htonl(tlen);
+	phu.ph.ph_nxt = IPPROTO_TCP;
+
+	sum = 0;
+	for (i = 0; i < sizeof(phu.pa) / sizeof(phu.pa[0]); i++)
+		sum += phu.pa[i];
+
+	sp = (const u_int16_t *)tp;
+
+	for (i = 0; i < (tlen & ~1); i += 2)
+		sum += *sp++;
+
+	if (tlen & 1)
+		sum += htons((*(const u_int8_t *)sp) << 8);
+
+	while (sum > 0xffff)
+		sum = (sum & 0xffff) + (sum >> 16);
+	sum = ~sum & 0xffff;
+
+	return (sum);
+}
+#endif
 
 void
 tcp_print(register const u_char *bp, register u_int length,
-	  register const u_char *bp2)
+	  register const u_char *bp2, int fragmented)
 {
 	register const struct tcphdr *tp;
 	register const struct ip *ip;
 	register u_char flags;
 	register int hlen;
 	register char ch;
-	u_short sport, dport, win, urp;
+	u_int16_t sport, dport, win, urp;
 	u_int32_t seq, ack, thseq, thack;
 	int threv;
 #ifdef INET6
@@ -135,7 +246,7 @@ tcp_print(register const u_char *bp, register u_int length,
 	tp = (struct tcphdr *)bp;
 	ip = (struct ip *)bp2;
 #ifdef INET6
-	if (ip->ip_v == 6)
+	if (IP_V(ip) == 6)
 		ip6 = (struct ip6_hdr *)bp2;
 	else
 		ip6 = NULL;
@@ -151,6 +262,28 @@ tcp_print(register const u_char *bp, register u_int length,
 	sport = ntohs(tp->th_sport);
 	dport = ntohs(tp->th_dport);
 
+
+	hlen = TH_OFF(tp) * 4;
+
+	/*
+	 * If data present and NFS port used, assume NFS.
+	 * Pass offset of data plus 4 bytes for RPC TCP msg length
+	 * to NFS print routines.
+	 */
+	if (!qflag) {
+		if ((u_char *)tp + 4 + sizeof(struct rpc_msg) <= snapend &&
+		    dport == NFS_PORT) {
+			nfsreq_print((u_char *)tp + hlen + 4, length-hlen,
+				     (u_char *)ip);
+			return;
+		} else if ((u_char *)tp + 4 + sizeof(struct rpc_msg)
+			   <= snapend &&
+			   sport == NFS_PORT) {
+			nfsreply_print((u_char *)tp + hlen + 4,length-hlen,
+				       (u_char *)ip);
+			return;
+		}
+	}
 #ifdef INET6
 	if (ip6) {
 		if (ip6->ip6_nxt == IPPROTO_TCP) {
@@ -180,21 +313,17 @@ tcp_print(register const u_char *bp, register u_int length,
 
 	TCHECK(*tp);
 
-	seq = ntohl(tp->th_seq);
-	ack = ntohl(tp->th_ack);
+	seq = (u_int32_t)ntohl(tp->th_seq);
+	ack = (u_int32_t)ntohl(tp->th_ack);
 	win = ntohs(tp->th_win);
 	urp = ntohs(tp->th_urp);
 
 	if (qflag) {
-		(void)printf("tcp %d", length - tp->th_off * 4);
+		(void)printf("tcp %d", length - TH_OFF(tp) * 4);
 		return;
 	}
-#ifdef TH_ECN
-	if ((flags = tp->th_flags) & (TH_SYN|TH_FIN|TH_RST|TH_PUSH|TH_ECN))
-#else
-	if ((flags = tp->th_flags) & (TH_SYN|TH_FIN|TH_RST|TH_PUSH))
-#endif
-	{
+	if ((flags = tp->th_flags) & (TH_SYN|TH_FIN|TH_RST|TH_PUSH|
+				      TH_ECNECHO|TH_CWR)) {
 		if (flags & TH_SYN)
 			putchar('S');
 		if (flags & TH_FIN)
@@ -203,21 +332,12 @@ tcp_print(register const u_char *bp, register u_int length,
 			putchar('R');
 		if (flags & TH_PUSH)
 			putchar('P');
-#ifdef TH_ECN
-		if (flags & TH_ECN)
-			putchar('C');
-#endif
+		if (flags & TH_CWR)
+			putchar('W');	/* congestion _W_indow reduced (ECN) */
+		if (flags & TH_ECNECHO)
+			putchar('E');	/* ecn _E_cho sent (ECN) */
 	} else
 		putchar('.');
-
-	if (flags&0xc0) {
-		printf(" [");
-		if (flags&0x40)
-			printf("ECN-Echo");
-		if (flags&0x80)
-			printf("%sCWR", (flags&0x40) ? "," : "");
-		printf("]");
-	}
 
 	if (!Sflag && (flags & TH_ACK)) {
 		register struct tcp_seq_hash *th;
@@ -230,7 +350,7 @@ tcp_print(register const u_char *bp, register u_int length,
 		 * both directions).
 		 */
 #ifdef INET6
-		bzero(&tha, sizeof(tha));
+		memset(&tha, 0, sizeof(tha));
 		rev = 0;
 		if (ip6) {
 			if (sport > dport) {
@@ -292,7 +412,7 @@ tcp_print(register const u_char *bp, register u_int length,
 				  sizeof(th->addr)))
 				break;
 
-		if (!th->nxt || flags & TH_SYN) {
+		if (!th->nxt || (flags & TH_SYN)) {
 			/* didn't find it or new conversation */
 			if (th->nxt == NULL) {
 				th->nxt = (struct tcp_seq_hash *)
@@ -305,22 +425,48 @@ tcp_print(register const u_char *bp, register u_int length,
 				th->ack = seq, th->seq = ack - 1;
 			else
 				th->seq = seq, th->ack = ack - 1;
-		} else {
-	  
-			thseq = th->seq;
-			thack = th->ack;
 
+		} else {
 			if (rev)
 				seq -= th->ack, ack -= th->seq;
 			else
 				seq -= th->seq, ack -= th->ack;
 		}
+
+		thseq = th->seq;
+		thack = th->ack;
+	} else {
+		/*fool gcc*/
+		thseq = thack = threv = 0;
 	}
-	hlen = tp->th_off * 4;
 	if (hlen > length) {
 		(void)printf(" [bad hdr length]");
 		return;
 	}
+
+	if (IP_V(ip) == 4 && vflag && !fragmented) {
+		int sum;
+		if (TTEST2(tp->th_sport, length)) {
+			sum = tcp_cksum(ip, tp, length);
+			if (sum != 0)
+				(void)printf(" [bad tcp cksum %x!]", sum);
+			else
+				(void)printf(" [tcp sum ok]");
+		}
+	}
+#ifdef INET6
+	if (IP_V(ip) == 6 && ip6->ip6_plen && vflag && !fragmented) {
+		int sum;
+		if (TTEST2(tp->th_sport, length)) {
+			sum = tcp6_cksum(ip6, tp, length);
+			if (sum != 0)
+				(void)printf(" [bad tcp cksum %x!]", sum);
+			else
+				(void)printf(" [tcp sum ok]");
+		}
+	}
+#endif
+
 	length -= hlen;
 	if (vflag > 1 || length > 0 || flags & (TH_SYN | TH_FIN | TH_RST))
 		(void)printf(" %u:%u(%d)", seq, seq + length, length);
@@ -493,14 +639,21 @@ tcp_print(register const u_char *bp, register u_int length,
 	/*
 	 * Decode payload if necessary.
 	 */
-	bp += (tp->th_off * 4);
-	if (!qflag && vflag && length > 0
-	 && (sport == TELNET_PORT || dport == TELNET_PORT))
-		telnet_print(bp, length);
-	else if (sport == BGP_PORT || dport == BGP_PORT)
-		bgp_print(bp, length);
-	else if (sport == NETBIOS_SSN_PORT || dport == NETBIOS_SSN_PORT)
-		nbt_tcp_print(bp, length);
+	bp += TH_OFF(tp) * 4;
+	if (flags & TH_RST) {
+		if (vflag)
+			print_tcp_rst_data(bp, length);
+	} else {
+		if (sport == TELNET_PORT || dport == TELNET_PORT) {
+			if (!qflag && vflag)
+				telnet_print(bp, length);
+		} else if (sport == BGP_PORT || dport == BGP_PORT)
+			bgp_print(bp, length);
+		else if (sport == NETBIOS_SSN_PORT || dport == NETBIOS_SSN_PORT)
+			nbt_tcp_print(bp, length);
+		else if (sport == BXXP_PORT || dport == BXXP_PORT)
+			bxxp_print(bp, length);
+	}
 	return;
 bad:
 	fputs("[bad opt]", stdout);
@@ -513,3 +666,41 @@ trunc:
 		putchar('>');
 }
 
+/*
+ * RFC1122 says the following on data in RST segments:
+ *
+ *         4.2.2.12  RST Segment: RFC-793 Section 3.4
+ *
+ *            A TCP SHOULD allow a received RST segment to include data.
+ *
+ *            DISCUSSION
+ *                 It has been suggested that a RST segment could contain
+ *                 ASCII text that encoded and explained the cause of the
+ *                 RST.  No standard has yet been established for such
+ *                 data.
+ *
+ */
+
+static void
+print_tcp_rst_data(register const u_char *sp, u_int length)
+{
+	int c;
+
+	if (TTEST2(*sp, length))
+		printf(" [RST");
+	else
+		printf(" [!RST");
+	if (length > MAX_RST_DATA_LEN) {
+		length = MAX_RST_DATA_LEN;	/* can use -X for longer */
+		putchar('+');			/* indicate we truncate */
+	}
+	putchar(' ');
+	while (length-- && sp <= snapend) {
+		c = *sp++;
+		if (isprint(c))
+			putchar(c);
+		else
+			putchar('.');
+	}
+	putchar(']');
+}

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-esp.c,v 1.5 1999/12/15 08:10:18 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-esp.c,v 1.17 2000/12/12 09:58:41 itojun Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -36,20 +36,9 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <net/route.h>
-#include <net/if.h>
-
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
-#ifdef CRYPTO
+#ifdef HAVE_LIBCRYPTO
 #include <des.h>
 #include <blowfish.h>
 #ifdef HAVE_RC5_H
@@ -62,32 +51,11 @@ static const char rcsid[] =
 
 #include <stdio.h>
 
+#include "ip.h"
+#include "esp.h"
 #ifdef INET6
-#include <netinet/ip6.h>
+#include "ip6.h"
 #endif
-
-/* there's no standard definition so we are on our own */
-struct esp {
-	u_int32_t	esp_spi;	/* ESP */
-	/*variable size, 32bit bound*/	/* Initialization Vector */
-	/*variable size*/		/* Payload data */
-	/*variable size*/		/* padding */
-	/*8bit*/			/* pad size */
-	/*8bit*/			/* next header */
-	/*8bit*/			/* next header */
-	/*variable size, 32bit bound*/	/* Authentication data (new IPsec) */
-};
-
-struct newesp {
-	u_int32_t	esp_spi;	/* ESP */
-	u_int32_t	esp_seq;	/* Sequence number */
-	/*variable size*/		/* (IV and) Payload data */
-	/*variable size*/		/* padding */
-	/*8bit*/			/* pad size */
-	/*8bit*/			/* next header */
-	/*8bit*/			/* next header */
-	/*variable size, 32bit bound*/	/* Authentication data */
-};
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -112,14 +80,14 @@ esp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 	esp = (struct esp *)bp;
 	spi = (u_int32_t)ntohl(esp->esp_spi);
 
-	/* 'ep' points to the end of avaible data. */
+	/* 'ep' points to the end of available data. */
 	ep = snapend;
 
 	if ((u_char *)(esp + 1) >= ep - sizeof(struct esp)) {
 		fputs("[|ESP]", stdout);
 		goto fail;
 	}
-	printf("ESP(spi=%u", spi);
+	printf("ESP(spi=0x%08x", spi);
 	printf(",seq=0x%x", (u_int32_t)ntohl(*(u_int32_t *)(esp + 1)));
 	printf(")");
 
@@ -164,7 +132,7 @@ esp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 	}
 
 	ip = (struct ip *)bp2;
-	switch (ip->ip_v) {
+	switch (IP_V(ip)) {
 #ifdef INET6
 	case 6:
 		ip6 = (struct ip6_hdr *)bp2;
@@ -197,7 +165,7 @@ esp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 
 	switch (algo) {
 	case DESCBC:
-#ifdef CRYPTO
+#ifdef HAVE_LIBCRYPTO
 	    {
 		u_char iv[8];
 		des_key_schedule schedule;
@@ -232,10 +200,10 @@ esp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 	    }
 #else
 		goto fail;
-#endif /*CRYPTO*/
+#endif /*HAVE_LIBCRYPTO*/
 
 	case BLOWFISH:
-#ifdef CRYPTO
+#ifdef HAVE_LIBCRYPTO
 	    {
 		BF_KEY schedule;
 		u_char *p;
@@ -250,10 +218,10 @@ esp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 	    }
 #else
 		goto fail;
-#endif /*CRYPTO*/
+#endif /*HAVE_LIBCRYPTO*/
 
 	case RC5:
-#if defined(CRYPTO) && defined(HAVE_RC5_H)
+#if defined(HAVE_LIBCRYPTO) && defined(HAVE_RC5_H)
 	    {
 		RC5_32_KEY schedule;
 		u_char *p;
@@ -269,10 +237,10 @@ esp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 	    }
 #else
 		goto fail;
-#endif /*CRYPTO*/
+#endif /*HAVE_LIBCRYPTO*/
 
 	case CAST128:
-#if defined(CRYPTO) && defined(HAVE_CAST_H) && !defined(HAVE_BUGGY_CAST128)
+#if defined(HAVE_LIBCRYPTO) && defined(HAVE_CAST_H) && !defined(HAVE_BUGGY_CAST128)
 	    {
 		CAST_KEY schedule;
 		u_char *p;
@@ -287,10 +255,10 @@ esp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 	    }
 #else
 		goto fail;
-#endif /*CRYPTO*/
+#endif /*HAVE_LIBCRYPTO*/
 
 	case DES3CBC:
-#if defined(CRYPTO)
+#if defined(HAVE_LIBCRYPTO)
 	    {
 		des_key_schedule s1, s2, s3;
 		u_char *p;
@@ -308,7 +276,7 @@ esp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 	    }
 #else
 		goto fail;
-#endif /*CRYPTO*/
+#endif /*HAVE_LIBCRYPTO*/
 
 	case NONE:
 	default:

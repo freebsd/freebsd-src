@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.62 1999/12/15 06:58:03 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.69 2000/07/11 00:49:03 assar Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -38,16 +38,9 @@ static const char rcsid[] =
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_MALLOC_H
-#include <malloc.h>
-#endif
 #include <pcap.h>
 #include <stdio.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 #ifdef TIME_WITH_SYS_TIME
@@ -129,37 +122,51 @@ void
 ts_print(register const struct timeval *tvp)
 {
 	register int s;
+	struct tm *tm;
+	time_t Time;
+	static unsigned b_sec;
+	static unsigned b_usec;
 
-	if (tflag > 0) {
-		/* Default */
+	switch(tflag) {
+	case 1: /* Default */
 		s = (tvp->tv_sec + thiszone) % 86400;
 		(void)printf("%02d:%02d:%02d.%06u ",
-		    s / 3600, (s % 3600) / 60, s % 60, (u_int32_t)tvp->tv_usec);
-	} else if (tflag < 0) {
-		if (tflag < -1) {
-			static unsigned b_sec;
-			static unsigned b_usec;
-			if (b_sec == 0) {
-				printf("000000 ");
-			} else {
-				int d_usec = tvp->tv_usec - b_usec;
-				int d_sec = tvp->tv_sec - b_sec;
-
-				while (d_usec < 0) {
-					d_usec += 1000000;
-					d_sec--;
-				}
-				if (d_sec)
-					printf("%d. ", d_sec);
-				printf("%06d ", d_usec);
-			}
-			b_sec = tvp->tv_sec;
-			b_usec = tvp->tv_usec;
+			     s / 3600, (s % 3600) / 60, s % 60,
+			     (unsigned)tvp->tv_usec);
+		break;
+	case -1: /* Unix timeval style */
+		(void)printf("%u.%06u ",
+			     (unsigned)tvp->tv_sec,
+			     (unsigned)tvp->tv_usec);
+		break;
+	case -2:
+		if (b_sec == 0) {
+			printf("000000 ");
 		} else {
-			/* Unix timeval style */
-			(void)printf("%u.%06u ",
-				     (u_int32_t)tvp->tv_sec, (u_int32_t)tvp->tv_usec);
+			int d_usec = tvp->tv_usec - b_usec;
+			int d_sec = tvp->tv_sec - b_sec;
+			
+			while (d_usec < 0) {
+				d_usec += 1000000;
+				d_sec--;
+			}
+			if (d_sec)
+				printf("%d. ", d_sec);
+			printf("%06d ", d_usec);
 		}
+		b_sec = tvp->tv_sec;
+		b_usec = tvp->tv_usec;
+		break;
+	case -3: /* Default + Date*/
+		s = (tvp->tv_sec + thiszone) % 86400;
+		Time = (tvp->tv_sec + thiszone) - s;
+		tm  = gmtime (&Time);
+		(void)printf("%02d/%02d/%04d %02d:%02d:%02d.%06u ",
+			     tm->tm_mon+1, tm->tm_mday,
+			     tm->tm_year+1900,
+			     s / 3600, (s % 3600) / 60,
+			     s % 60, (unsigned)tvp->tv_usec);
+		break;
 	}
 }
 
@@ -171,22 +178,23 @@ ts_print(register const struct timeval *tvp)
 void
 relts_print(int secs)
 {
-    static char *lengths[]={"y","w","d","h","m","s"};
-    static int seconds[]={31536000,604800,86400,3600,60,1};
-    char **l = lengths;
-    int *s = seconds;
+	static char *lengths[] = {"y", "w", "d", "h", "m", "s"};
+	static int seconds[] = {31536000, 604800, 86400, 3600, 60, 1};
+	char **l = lengths;
+	int *s = seconds;
 
-    if (secs == 0) {
-	(void)printf("0s");
-	return;
-    }
-    while (secs) {
-	if (secs >= *s) {
-	    (void)printf("%d%s", secs / *s, *l);
-	    secs -= (secs / *s) * *s;
+	if (secs <= 0) {
+		(void)printf("0s");
+		return;
 	}
-	s++; l++;
-    }
+	while (secs > 0) {
+		if (secs >= *s) {
+			(void)printf("%d%s", secs / *s, *l);
+			secs -= (secs / *s) * *s;
+		}
+		s++;
+		l++;
+	}
 }
 
 /*
@@ -205,29 +213,19 @@ tok2str(register const struct tok *lp, register const char *fmt,
 	}
 	if (fmt == NULL)
 		fmt = "#%d";
-	(void)sprintf(buf, fmt, v);
+	(void)snprintf(buf, sizeof(buf), fmt, v);
 	return (buf);
 }
 
 
 /* VARARGS */
-__dead void
-#if __STDC__
+void
 error(const char *fmt, ...)
-#else
-error(fmt, va_alist)
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
 	(void)fprintf(stderr, "%s: ", program_name);
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	if (*fmt) {
@@ -241,22 +239,12 @@ error(fmt, va_alist)
 
 /* VARARGS */
 void
-#if __STDC__
 warning(const char *fmt, ...)
-#else
-warning(fmt, va_alist)
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
 	(void)fprintf(stderr, "%s: WARNING: ", program_name);
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	if (*fmt) {
@@ -323,4 +311,25 @@ read_infile(char *fname)
 	cp[(int)buf.st_size] = '\0';
 
 	return (cp);
+}
+
+void
+safeputs(const char *s)
+{
+	while (*s) {
+		safeputchar(*s);
+		s++;
+	}
+}
+
+void
+safeputchar(int c)
+{
+	unsigned char ch;
+
+	ch = (unsigned char)(c & 0xff);
+	if (c < 0x80 && isprint(c))
+		printf("%c", c & 0xff);
+	else
+		printf("\\%03o", c & 0xff);
 }
