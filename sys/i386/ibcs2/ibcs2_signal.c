@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_signal.c,v 1.11 1997/07/20 09:39:46 bde Exp $
+ * $Id: ibcs2_signal.c,v 1.12 1997/11/06 19:28:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -165,10 +165,10 @@ ibcs2_to_bsd_sigaction(isa, bsa)
 	struct sigaction *bsa;
 {
 
-	bsa->sa_handler = isa->sa_handler;
-	ibcs2_to_bsd_sigset(&isa->sa_mask, &bsa->sa_mask);
+	bsa->sa_handler = isa->isa_handler;
+	ibcs2_to_bsd_sigset(&isa->isa_mask, &bsa->sa_mask);
 	bsa->sa_flags = 0;	/* ??? SA_NODEFER */
-	if ((isa->sa_flags & IBCS2_SA_NOCLDSTOP) != 0)
+	if ((isa->isa_flags & IBCS2_SA_NOCLDSTOP) != 0)
 		bsa->sa_flags |= SA_NOCLDSTOP;
 }
 
@@ -178,11 +178,11 @@ bsd_to_ibcs2_sigaction(bsa, isa)
 	struct ibcs2_sigaction *isa;
 {
 
-	isa->sa_handler = bsa->sa_handler;
-	bsd_to_ibcs2_sigset(&bsa->sa_mask, &isa->sa_mask);
-	isa->sa_flags = 0;
+	isa->isa_handler = bsa->sa_handler;
+	bsd_to_ibcs2_sigset(&bsa->sa_mask, &isa->isa_mask);
+	isa->isa_flags = 0;
 	if ((bsa->sa_flags & SA_NOCLDSTOP) != 0)
-		isa->sa_flags |= IBCS2_SA_NOCLDSTOP;
+		isa->isa_flags |= IBCS2_SA_NOCLDSTOP;
 }
 
 int

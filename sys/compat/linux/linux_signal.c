@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.14 1998/12/21 19:21:36 sos Exp $
+ *  $Id: linux_signal.c,v 1.15 1999/05/06 18:44:26 peter Exp $
  */
 
 #include <sys/param.h>
@@ -69,38 +69,38 @@ bsd_to_linux_sigset(sigset_t mask) {
 static void
 linux_to_bsd_sigaction(linux_sigaction_t *lsa, struct sigaction *bsa)
 {
-    bsa->sa_mask = linux_to_bsd_sigset(lsa->sa_mask);
-    bsa->sa_handler = lsa->sa_handler;
+    bsa->sa_mask = linux_to_bsd_sigset(lsa->lsa_mask);
+    bsa->sa_handler = lsa->lsa_handler;
     bsa->sa_flags = 0;
-    if (lsa->sa_flags & LINUX_SA_NOCLDSTOP)
+    if (lsa->lsa_flags & LINUX_SA_NOCLDSTOP)
 	bsa->sa_flags |= SA_NOCLDSTOP;
-    if (lsa->sa_flags & LINUX_SA_ONSTACK)
+    if (lsa->lsa_flags & LINUX_SA_ONSTACK)
 	bsa->sa_flags |= SA_ONSTACK;
-    if (lsa->sa_flags & LINUX_SA_RESTART)
+    if (lsa->lsa_flags & LINUX_SA_RESTART)
 	bsa->sa_flags |= SA_RESTART;
-    if (lsa->sa_flags & LINUX_SA_ONESHOT)
+    if (lsa->lsa_flags & LINUX_SA_ONESHOT)
 	bsa->sa_flags |= SA_RESETHAND;
-    if (lsa->sa_flags & LINUX_SA_NOMASK)
+    if (lsa->lsa_flags & LINUX_SA_NOMASK)
 	bsa->sa_flags |= SA_NODEFER;
 }
 
 static void
 bsd_to_linux_sigaction(struct sigaction *bsa, linux_sigaction_t *lsa)
 {
-    lsa->sa_handler = bsa->sa_handler;
-    lsa->sa_restorer = NULL;	/* unsupported */
-    lsa->sa_mask = bsd_to_linux_sigset(bsa->sa_mask);
-    lsa->sa_flags = 0;
+    lsa->lsa_handler = bsa->sa_handler;
+    lsa->lsa_restorer = NULL;	/* unsupported */
+    lsa->lsa_mask = bsd_to_linux_sigset(bsa->sa_mask);
+    lsa->lsa_flags = 0;
     if (bsa->sa_flags & SA_NOCLDSTOP)
-	lsa->sa_flags |= LINUX_SA_NOCLDSTOP;
+	lsa->lsa_flags |= LINUX_SA_NOCLDSTOP;
     if (bsa->sa_flags & SA_ONSTACK)
-	lsa->sa_flags |= LINUX_SA_ONSTACK;
+	lsa->lsa_flags |= LINUX_SA_ONSTACK;
     if (bsa->sa_flags & SA_RESTART)
-	lsa->sa_flags |= LINUX_SA_RESTART;
+	lsa->lsa_flags |= LINUX_SA_RESTART;
     if (bsa->sa_flags & SA_RESETHAND)
-	lsa->sa_flags |= LINUX_SA_ONESHOT;
+	lsa->lsa_flags |= LINUX_SA_ONESHOT;
     if (bsa->sa_flags & SA_NODEFER)
-	lsa->sa_flags |= LINUX_SA_NOMASK;
+	lsa->lsa_flags |= LINUX_SA_NOMASK;
 }
 
 int
