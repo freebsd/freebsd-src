@@ -592,9 +592,9 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 	map->buffer = uio;
 
 	if (uio->uio_segflg == UIO_USERSPACE) {
-		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
-		KASSERT(td != NULL,
+		KASSERT(uio->uio_td != NULL,
 		    ("bus_dmamap_load_uio: USERSPACE but no proc"));
+		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
 	} else
 		pmap = kernel_pmap;
 
