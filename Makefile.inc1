@@ -572,14 +572,13 @@ installmost:
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
 _strfile=	games/fortune/strfile
 .endif
-_cxx_consumers=	gnu/usr.bin/gperf gnu/usr.bin/groff
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
     usr.bin/makewhatis usr.bin/rpcgen usr.bin/uudecode \
     usr.bin/xargs usr.bin/xinstall \
     usr.sbin/config usr.sbin/kbdcontrol \
-    ${_cxx_consumers} gnu/usr.bin/texinfo
+    gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
