@@ -36,8 +36,8 @@ static char sccsid[] = "@(#)iso.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*
- * $Header: iso.c,v 1.5 92/06/04 00:36:32 leres Exp $
- * $Source: /usr/src/usr.bin/netstat/RCS/iso.c,v $
+ * $Header: /home/ncvs/src/usr.bin/netstat/iso.c,v 1.1.1.1 1994/05/27 12:32:25 rgrimes Exp $
+ * $Source: /home/ncvs/src/usr.bin/netstat/iso.c,v $
  */
 /*******************************************************************************
 	          Copyright IBM Corporation 1987
@@ -73,6 +73,7 @@ SOFTWARE.
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/queue.h>
 #include <errno.h>
 #include <net/if.h>
 #include <net/route.h>

@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)inet.c	8.4 (Berkeley) 4/20/94";
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 
 #include <net/route.h>
 #include <netinet/in.h>
@@ -86,26 +87,26 @@ protopr(off, name)
 	u_long off;
 	char *name;
 {
-	struct inpcb cb;
+	struct inpcbhead head;
 	register struct inpcb *prev, *next;
 	int istcp;
 	static int first = 1;
 
 	if (off == 0)
 		return;
+
 	istcp = strcmp(name, "tcp") == 0;
-	kread(off, (char *)&cb, sizeof (struct inpcb));
-	inpcb = cb;
+	kread(off, (char *)&head, sizeof (struct inpcbhead));
 	prev = (struct inpcb *)off;
-	if (inpcb.inp_next == (struct inpcb *)off)
-		return;
-	while (inpcb.inp_next != (struct inpcb *)off) {
-		next = inpcb.inp_next;
+
+	for (next = head.lh_first; next != NULL; next = inpcb.list.le_next) {
 		kread((u_long)next, (char *)&inpcb, sizeof (inpcb));
-		if (inpcb.inp_prev != prev) {
+#if 0
+		if (*inpcb.list.le_prev != prev) {
 			printf("???\n");
 			break;
 		}
+#endif
 		if (!aflag &&
 		  inet_lnaof(inpcb.inp_laddr) == INADDR_ANY) {
 			prev = next;
