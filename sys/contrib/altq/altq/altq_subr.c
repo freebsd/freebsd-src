@@ -901,6 +901,10 @@ extern u_int64_t cpu_tsc_freq;
 void
 init_machclk(void)
 {
+#if (__FreeBSD_version >= 600000)
+	callout_init(&tbr_callout, 0);
+#endif
+
 	machclk_usepcc = 1;
 
 #if (!defined(__i386__) && !defined(__alpha__)) || defined(ALTQ_NOPCC)
@@ -936,9 +940,6 @@ init_machclk(void)
 #ifdef __FreeBSD__
 #if (__FreeBSD_version > 300000)
 	machclk_freq = tsc_freq;
-#if (__FreeBSD_version >= 600000)
-	callout_init(&tbr_callout, 0);
-#endif
 #else
 	machclk_freq = i586_ctr_freq;
 #endif
