@@ -278,7 +278,7 @@ typedef struct
 static void		EcGpeHandler(void *Context);
 static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, 
 					   void *Context, void **return_Context);
-static ACPI_STATUS	EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UINT32 *Value, 
+static ACPI_STATUS	EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, ACPI_INTEGER *Value, 
 				      void *Context, void *RegionContext);
 
 static ACPI_STATUS	EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event);
@@ -538,7 +538,7 @@ EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context, void **RegionCo
 }
 
 static ACPI_STATUS
-EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UINT32 *Value, 
+EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, ACPI_INTEGER *Value, 
 	       void *Context, void *RegionContext)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
@@ -552,13 +552,13 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
         return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     switch (Function) {
-    case ACPI_READ_ADR_SPACE:
+    case ACPI_READ:
         EcRequest.Command = EC_COMMAND_READ;
         EcRequest.Address = Address;
 	(*Value) = 0;
         break;
 
-    case ACPI_WRITE_ADR_SPACE:
+    case ACPI_WRITE:
         EcRequest.Command = EC_COMMAND_WRITE;
         EcRequest.Address = Address;
         break;
@@ -572,13 +572,13 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
      * Perform the transaction.
      */
     for (i = 0; i < width; i += 8) {
-	if (Function == ACPI_READ_ADR_SPACE)
+	if (Function == ACPI_READ)
 	    EcRequest.Data = 0;
 	else
 	    EcRequest.Data = (UINT8)((*Value) >> i);
 	if ((Status = EcTransaction(sc, &EcRequest)) != AE_OK)
 	    break;
-        (*Value) |= (UINT32)EcRequest.Data << i;
+        (*Value) |= (ACPI_INTEGER)EcRequest.Data << i;
 	if (++EcRequest.Address == 0)
             return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
