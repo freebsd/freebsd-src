@@ -1260,11 +1260,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 		uio.uio_segflg = UIO_USERSPACE;
 		uio.uio_rw = UIO_READ;
 		uio.uio_td = p;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		error = uiomove((caddr_t)cdesc, len, &uio);
-#elif defined(__FreeBSD__)
 		error = uiomove((void *)cdesc, len, &uio);
-#endif
 		free(cdesc, M_TEMP);
 		return (error);
 	}
