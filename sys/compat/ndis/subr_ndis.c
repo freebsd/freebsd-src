@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timespec.h>
 #include <sys/smp.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -97,7 +99,6 @@ __FBSDID("$FreeBSD$");
 #define FUNC void(*)(void)
 
 static struct mtx ndis_interlock;
-static int ndis_inits = 0;
 
 __stdcall static void ndis_initwrap(ndis_handle,
 	ndis_driver_object *, void *, void *);
@@ -251,6 +252,8 @@ __stdcall static u_int8_t ndis_cpu_cnt(void);
 __stdcall static void ndis_ind_statusdone(ndis_handle);
 __stdcall static void ndis_ind_status(ndis_handle, ndis_status,
         void *, uint32_t);
+static void ndis_workfunc(void *, int);
+__stdcall static ndis_status ndis_sched_workitem(ndis_work_item *);
 __stdcall static void dummy(void);
 
 /*
@@ -266,29 +269,16 @@ __stdcall static void dummy(void);
 int
 ndis_libinit()
 {
-	if (ndis_inits) {
-		ndis_inits++;
-		return(0);
-	}
-
 	mtx_init(&ndis_interlock, "ndislock", MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
 
-	ndis_inits++;
 	return(0);
 }
 
 int
 ndis_libfini()
 {
-	if (ndis_inits != 1) {
-		ndis_inits--;
-		return(0);
-	}
-
 	mtx_destroy(&ndis_interlock);
-	ndis_inits--;
-
 	return(0);
 }
 
@@ -2389,6 +2379,32 @@ ndis_ind_status(adapter, status, sbuf, slen)
 	return;
 }
 
+static void
+ndis_workfunc(ctx, pending)
+	void			*ctx;
+	int			pending;
+{
+	ndis_work_item		*work;
+	__stdcall ndis_proc	workfunc;
+
+	work = ctx;
+	workfunc = work->nwi_func;
+	workfunc(work, work->nwi_ctx);
+	return;
+}
+
+__stdcall static ndis_status
+ndis_sched_workitem(work)
+	ndis_work_item		*work;
+{
+	struct task		*t;
+
+	t = (struct task *)&work->nwi_wraprsvd;
+	TASK_INIT(t, 0, ndis_workfunc, work);
+	taskqueue_enqueue(taskqueue_swi, t);
+	return(NDIS_STATUS_SUCCESS);
+}
+
 __stdcall static void
 dummy()
 {
@@ -2397,6 +2413,7 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisScheduleWorkItem",	(FUNC)ndis_sched_workitem },
 	{ "NdisMIndicateStatusComplete", (FUNC)ndis_ind_statusdone },
 	{ "NdisMIndicateStatus",	(FUNC)ndis_ind_status },
 	{ "NdisSystemProcessorCount",	(FUNC)ndis_cpu_cnt },
