@@ -30,6 +30,7 @@ else
 	    gzip < $i > /mnt/$i.gz
 	fi
     done
+fi
 echo " Done."
 echo -n "Updating kernel parameters...  "
 kget /mnt/boot/kernel.conf
