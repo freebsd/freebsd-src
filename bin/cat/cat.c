@@ -96,7 +96,7 @@ main(argc, argv)
 			tflag = vflag = 1;	/* -t implies -v */
 			break;
 		case 'u':
-			setbuf(stdout, (char *)NULL);
+			setbuf(stdout, NULL);
 			break;
 		case 'v':
 			vflag = 1;
@@ -249,7 +249,7 @@ raw_cat(rfd)
 			err(1, "%s", filename);
 		bsize = MAX(sbuf.st_blksize, 1024);
 		if ((buf = malloc(bsize)) == NULL)
-			err(1, NULL);
+			err(1, "buffer");
 	}
 	while ((nr = read(rfd, buf, bsize)) > 0)
 		for (off = 0; nr; nr -= nw, off += nw)
