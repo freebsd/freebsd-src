@@ -33,21 +33,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cerror.S,v 1.8 1997/02/22 14:59:29 peter Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: cerror.S,v 1.8 1997/02/22 14:59:29 peter Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
 	.globl HIDENAME(cerror)
 
-#ifdef _THREAD_SAFE
 	/*
-	 * Threaded version using __error().
+	 * The __error() function is thread aware. For non-threaded
+	 * programs and the initial threaded in threaded programs,
+	 * it returns a pointer to the global errno variable.
 	 */
 	.globl	CNAME(__error)
 	.type	CNAME(__error),@function
@@ -67,21 +68,3 @@ HIDENAME(cerror):
 	movl	$-1,%edx
 	ret
 
-#else /* _THREAD_SAFE */
-	/*
-	 * Non-threaded version using global errno.
-	 */
-	.globl	CNAME(errno)
-HIDENAME(cerror):
-#ifdef PIC
-	/* The caller must execute the PIC prologue before jumping to cerror. */
-	movl	PIC_GOT(CNAME(errno)),%ecx
-	movl	%eax,(%ecx)
-	PIC_EPILOGUE
-#else
-	movl	%eax,CNAME(errno)
-#endif
-	movl	$-1,%eax
-	movl	$-1,%edx
-	ret
-#endif /* _THREAD_SAFE */
