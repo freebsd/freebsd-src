@@ -50,11 +50,11 @@ isatty(fd)
 	struct termios t;
 
 #ifdef _THREAD_SAFE
-	if (_thread_fd_lock(fd, FD_READ, NULL,__FILE__,__LINE__) == 0) {
+	if (_FD_LOCK(fd, FD_READ, NULL) == 0) {
 #endif
 		retval = (tcgetattr(fd, &t) != -1);
 #ifdef _THREAD_SAFE
-        _thread_fd_unlock(fd, FD_READ);
+        	_FD_UNLOCK(fd, FD_READ);
 	} else {
 		retval = 0;
 	}

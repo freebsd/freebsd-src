@@ -59,9 +59,9 @@ ttyname(int fd)
 {
 	char           *ret;
 
-	if (_thread_fd_lock(fd, FD_READ, NULL, __FILE__, __LINE__) == 0) {
+	if (_FD_LOCK(fd, FD_READ, NULL) == 0) {
 		ret = __ttyname_basic(fd);
-		_thread_fd_unlock(fd, FD_READ);
+		_FD_UNLOCK(fd, FD_READ);
 	} else {
 		ret = NULL;
 	}
@@ -144,9 +144,9 @@ ttyname_r(int fd, char *buf, size_t len)
 {
 	char           *ret;
 
-	if (_thread_fd_lock(fd, FD_READ, NULL, __FILE__, __LINE__) == 0) {
+	if (_FD_LOCK(fd, FD_READ, NULL) == 0) {
 		ret = __ttyname_r_basic(fd, buf, len);
-		_thread_fd_unlock(fd, FD_READ);
+		_FD_UNLOCK(fd, FD_READ);
 	} else {
 		ret = NULL;
 	}
