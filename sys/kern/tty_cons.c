@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.19 1994/12/18 19:42:41 joerg Exp $
+ *	$Id: cons.c,v 1.20 1995/01/21 14:12:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -76,8 +76,6 @@ struct	tty *cn_tty;		/* XXX: console tty struct for tprintf */
 
 /* XXX */
 typedef	u_char bool_t;
-typedef	int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
-typedef	int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
 
 static bool_t cn_is_open;	/* nonzero if logical console is open */
 static bool_t cn_phys_is_open;	/* nonzero if physical console is open */
