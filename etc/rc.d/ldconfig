@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: ldconfig
-# REQUIRE: mountall mountcritremote
+# REQUIRE: mountcritremote
 # BEFORE:  DAEMON
 # KEYWORD: FreeBSD
 

@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: dhclient
-# REQUIRE: network netif ipfw ipfilter mountcritlocal
+# REQUIRE: netif ipfw ipfilter mountcritlocal
 # BEFORE:  NETWORKING
 # KEYWORD: FreeBSD
 #
