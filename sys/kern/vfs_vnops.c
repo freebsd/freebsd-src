@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.50 1998/02/25 05:58:47 bde Exp $
+ * $Id: vfs_vnops.c,v 1.51 1998/04/06 17:38:42 peter Exp $
  */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ vn_open(ndp, fmode, cmode)
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
 		ndp->ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF;
-		if ((fmode & O_EXCL) == 0)
+		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		error = namei(ndp);
 		if (error)
@@ -125,7 +125,7 @@ vn_open(ndp, fmode, cmode)
 			return (error);
 		vp = ndp->ni_vp;
 	}
-	if (vp->v_type == VSOCK) {
+	if (vp->v_type == VSOCK || vp->v_type == VLNK) {
 		error = EOPNOTSUPP;
 		goto bad;
 	}
