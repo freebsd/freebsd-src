@@ -1,7 +1,7 @@
 /* node.h -- declarations for Node.
-   $Id: node.h,v 1.5 1999/07/11 16:50:19 karl Exp $
+   $Id: node.h,v 1.6 2002/01/16 15:52:45 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@ typedef struct tentry
   int number;           /* Number for this node, relevant for HTML
                            splitting -- from use+define order, not just
                            define. */
+  char *html_fname;	/* The HTML file to which this node is written
+			   (non-NULL only for HTML splitting).  */
 } TAG_ENTRY;
 
 /* If node-a has a "Next" for node-b, but node-b has no "Prev" for node-a,

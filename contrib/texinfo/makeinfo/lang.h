@@ -1,7 +1,7 @@
 /* lang.h -- declarations for language codes etc.
-   $Id: lang.h,v 1.6 1999/03/22 20:07:34 karl Exp $
+   $Id: lang.h,v 1.7 2001/09/11 18:04:29 karl Exp $
 
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2001 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,15 +17,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-   Written by Karl Heinz Marbaise <kama@hippo.fido.de>.  */
+   Originally written by Karl Heinz Marbaise <kama@hippo.fido.de>.  */
 
 #ifndef LANG_H
 #define LANG_H
 
-/* The langauge code which can be changed through @documentlanguage
- * Actualy Info does not support this (may be in the future) ;-)
- * Default for language code is en (english!)                kama
- * These code should ISO 639 two letter codes.
+/* The language code which can be changed through @documentlanguage
+ * Actually we don't currently support this (may be in the future) ;-)
+ * These code are the ISO-639 two letter codes.
  */
 typedef enum
 {
@@ -61,19 +60,71 @@ typedef enum
 /* The current language code.  */
 extern language_code_type language_code;
 
-/* Information about all valid languages.  */
+
+/* Information for each language.  */
 typedef struct
 {
   language_code_type lc; /* language code as enum type */
   char *abbrev;          /* two letter language code */
   char *desc;            /* full name for language code */
-} language_struct;
-extern language_struct language_table[];
+} language_type;
 
-/* The encoding, or null if not set.  */
-extern char *document_encoding;
+extern language_type language_table[];
 
 
+
+/* The document encoding. This is usefull if we working e.g.
+ * with german Texinfo so we can produce correct german umlaut
+ * while creating output (--no-headers ASCII like).
+ */
+typedef enum {
+    no_encoding,
+    ISO_8859_1,    /* default for en, de, */
+    ISO_8859_2,    /* actualy not supported like the rest below */
+    ISO_8859_3,
+    ISO_8859_4,
+    ISO_8859_5,
+    ISO_8859_6,
+    ISO_8859_7,
+    ISO_8859_8,
+    ISO_8859_9,
+    ISO_8859_10,
+    ISO_8859_11,
+    ISO_8859_12,
+    ISO_8859_13,
+    ISO_8859_14,
+    ISO_8859_15,
+    last_encoding_code
+} encoding_code_type;
+
+/* The current document encoding, or null if not set.  */
+extern encoding_code_type document_encoding_code;
+
+
+/* Maps an HTML abbreviation to ISO and Unicode codes for a given code.  */
+
+typedef unsigned short int unicode_t; /* should be 16 bits */
+typedef unsigned char byte_t;
+
+typedef struct
+{
+  char *html;        /* HTML equivalent like umlaut auml => &auml; */
+  byte_t bytecode;   /* 8-Bit Code (ISO 8859-1,...) */
+  unicode_t unicode; /* Unicode in U+ convention */
+} iso_map_type;
+
+/* Information about the document encoding. */
+typedef struct
+{
+  encoding_code_type ec; /* document encoding type (see above enum) */
+  char *ecname;          /* encoding name like ISO-8859-1 */
+  iso_map_type *isotab;  /* address of ISO translation table */
+} encoding_type;
+
+/* Table with all the encoding codes that we recognize.  */
+extern encoding_type encoding_table[];
+
+
 /* The commands.  */
 extern void cm_documentlanguage (), cm_documentencoding ();
 

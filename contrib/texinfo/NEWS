@@ -1,4 +1,38 @@
+Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000, 01, 02
+Free Software Foundation.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover Texts.  
+
 This file records noteworthy changes.
+
+4.1 (4 March 2002)
+* Language:
+  . new commands @verbatim and @verb for printing verbatim inserts.
+  . new command @verbatiminclude for verbatim include of files.
+  . new environment @documentdescription for defining the HTML description.
+  . new command @afivepaper for the A5 paper size.
+* makeinfo:
+  . supports xml and docbook output.
+  . supports HTML splitting by node, which is now the default.
+  . new option --split-size to control maximum size of split info files.
+* info:
+  . user-specified key bindings supported.
+  . ANSI escape sequences (as produced by groff) removed from man output
+    by default; use --raw-escapes to let them through if your terminal
+    supports them.
+* texinfo.tex:
+  . @math implies @tex, so all the usual plain TeX math is supported.
+  . smaller fonts for @smallexample, in all page sizes.
+  . improvements in the PDF support.
+* texi2dvi:
+  . new option -o to explicitly specify output filename.
+* Distribution:
+  . switch to GNU Free Documentation License (http://www.gnu.org/copyleft/).
+  . update to GNU gettext 0.11, autoconf 2.52, and automake 1.5.
+  . Danish, Swedish, and Hebrew message translations.
 
 4.0 (28 September 1999)
 * Language:
@@ -34,6 +68,7 @@ This file records noteworthy changes.
   . @emph and @i use true italic type (cmti) instead of slanted (cmsl).
   . implements pdf output when run with pdftex.
   . better support for internationalization via txi-??.tex files.
+  . footnotes now set in a smaller point size.
 * makeinfo:
   . supports HTML output with the --html option.
   . implication of --html: @top nodes should be wrapped in @ifnottex

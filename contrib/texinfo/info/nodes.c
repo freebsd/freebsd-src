@@ -1,7 +1,7 @@
 /* nodes.c -- how to get an Info file and node.
-   $Id: nodes.c,v 1.14 1999/08/15 10:18:09 karl Exp $
+   $Id: nodes.c,v 1.15 2000/11/11 00:40:37 karl Exp $
 
-   Copyright (C) 1993, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1993, 98, 99, 2000 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,11 +222,12 @@ info_find_file_internal (filename, get_tags)
   if (info_loaded_files)
     {
       for (i = 0; (file_buffer = info_loaded_files[i]); i++)
-        if ((FILENAME_CMP (filename, file_buffer->filename) == 0) ||
-            (FILENAME_CMP (filename, file_buffer->fullpath) == 0) ||
-            (!IS_ABSOLUTE (filename) &&
-             FILENAME_CMP (filename,
-			   filename_non_directory (file_buffer->fullpath)) == 0))
+        if ((FILENAME_CMP (filename, file_buffer->filename) == 0)
+            || (FILENAME_CMP (filename, file_buffer->fullpath) == 0)
+            || (!IS_ABSOLUTE (filename)
+                && FILENAME_CMP (filename,
+                                filename_non_directory (file_buffer->fullpath))
+                    == 0))
           {
             struct stat new_info, *old_info;
 
@@ -241,9 +242,8 @@ info_find_file_internal (filename, get_tags)
               return file_buffer;
 #endif /* HANDLE_MAN_PAGES */
 
-            /* The file appears to be already loaded, and it is not "dir".
-               Check to see if it has changed since the last time it was
-               loaded. */
+            /* The file appears to be already loaded, and is not "dir".  Check
+               to see if it's changed since the last time it was loaded.  */
             if (stat (file_buffer->fullpath, &new_info) == -1)
               {
                 filesys_error_number = errno;
@@ -252,8 +252,8 @@ info_find_file_internal (filename, get_tags)
 
             old_info = &file_buffer->finfo;
 
-            if ((new_info.st_size != old_info->st_size) ||
-                (new_info.st_mtime != old_info->st_mtime))
+            if (new_info.st_size != old_info->st_size
+                || new_info.st_mtime != old_info->st_mtime)
               {
                 /* The file has changed.  Forget that we ever had loaded it
                    in the first place. */
@@ -267,13 +267,13 @@ info_find_file_internal (filename, get_tags)
                    for this file, and there isn't one here, build the nodes
                    for this file_buffer.  In any case, return the file_buffer
                    object. */
-		if (!file_buffer->contents)
-		  {
-		    /* The file's contents have been gc'ed.  Reload it.  */
-		    info_reload_file_buffer_contents (file_buffer);
-		    if (!file_buffer->contents)
-		      return NULL;
-		  }
+                if (!file_buffer->contents)
+                  {
+                    /* The file's contents have been gc'ed.  Reload it.  */
+                    info_reload_file_buffer_contents (file_buffer);
+                    if (!file_buffer->contents)
+                      return NULL;
+                  }
 
                 if (get_tags && !file_buffer->tags)
                   build_tags_and_nodes (file_buffer);
@@ -770,20 +770,20 @@ get_tags_of_indirect_tags_table (file_buffer, indirect_binding, tags_binding)
       /* Build the file buffer's list of subfiles. */
       {
         char *containing_dir = xstrdup (file_buffer->fullpath);
-	char *temp = filename_non_directory (containing_dir);
+        char *temp = filename_non_directory (containing_dir);
         int len_containing_dir;
 
-	if (temp > containing_dir)
-	  {
-	    if (HAVE_DRIVE (file_buffer->fullpath) &&
-		temp == containing_dir + 2)
-	      {
-		/* Avoid converting "d:foo" into "d:/foo" below.  */
-		*temp = '.';
-		temp += 2;
-	      }
-	    temp[-1] = 0;
-	  }
+        if (temp > containing_dir)
+          {
+            if (HAVE_DRIVE (file_buffer->fullpath) &&
+                temp == containing_dir + 2)
+              {
+                /* Avoid converting "d:foo" into "d:/foo" below.  */
+                *temp = '.';
+                temp += 2;
+              }
+            temp[-1] = 0;
+          }
 
         len_containing_dir = strlen (containing_dir);
 
@@ -940,20 +940,22 @@ info_node_of_file_buffer_tags (file_buffer, nodename)
   TAG *tag;
   int i;
 
+  /* If no tags at all (possibly a misformatted info file), quit.  */
+  if (!file_buffer->tags) {
+    return NULL;
+  }
+  
   for (i = 0; (tag = file_buffer->tags[i]); i++)    
     if (strcmp (nodename, tag->nodename) == 0)
       {
-        FILE_BUFFER *subfile;
-
-        subfile = info_find_file_internal (tag->filename, INFO_NO_TAGS);
-
+        FILE_BUFFER *subfile = info_find_file_internal (tag->filename,
+                                                        INFO_NO_TAGS);
         if (!subfile)
           return NULL;
 
         if (!subfile->contents)
           {
             info_reload_file_buffer_contents (subfile);
-
             if (!subfile->contents)
               return NULL;
           }
@@ -1187,7 +1189,7 @@ info_reload_file_buffer_contents (fb)
   /* Let the filesystem do all the work for us. */
   fb->contents =
     filesys_read_info_file (fb->fullpath, &(fb->filesize), &(fb->finfo),
-			    &is_compressed);
+                            &is_compressed);
   if (is_compressed)
     fb->flags |= N_IsCompressed;
 }
