@@ -76,6 +76,8 @@
 #include <alpha/isa/isavar.h>
 #endif
 
+static int	isa_print_child(device_t bus, device_t dev);
+
 MALLOC_DEFINE(M_ISADEV, "isadev", "ISA device");
 
 static devclass_t isa_devclass;
@@ -411,11 +413,10 @@ isa_assign_resources(device_t child)
 	/*
 	 * Disable the device.
 	 */
-	if (device_get_desc(child))
-	    device_printf(child, "<%s> can't assign resources\n",
-			  device_get_desc(child));
-	else
-	    device_printf(child, "can't assign resources\n");
+	bus_print_child_header(device_get_parent(child), child);
+	printf(" can't assign resources\n");
+	if (bootverbose)
+	    isa_print_child(device_get_parent(child), child);
 	bzero(&config, sizeof config);
 	if (idev->id_config_cb)
 		idev->id_config_cb(idev->id_config_arg, &config, 0);
@@ -605,11 +606,12 @@ isa_print_child(device_t bus, device_t dev)
 static void
 isa_probe_nomatch(device_t dev, device_t child)
 {
-	device_printf(dev, "<%s> found",
-		       pnp_eisaformat(isa_get_logicalid(child)));
-	if (bootverbose)
+	if (bootverbose) {
+		bus_print_child_header(dev, child);
+		printf(" failed to probe");
 		isa_print_all_resources(child);
-	printf("\n");
+		bus_print_child_footer(dev, child);
+	}
                                       
 	return;
 }
