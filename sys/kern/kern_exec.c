@@ -105,6 +105,7 @@ execve(p, uap)
 	int error, len, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
+	int (*img_first) __P((struct image_params *));
 
 	imgp = &image_params;
 
@@ -173,38 +174,46 @@ interpret:
 		goto exec_fail_dealloc;
 
 	/*
-	 * Loop through list of image activators, calling each one.
-	 *	If there is no match, the activator returns -1. If there
-	 *	is a match, but there was an error during the activation,
-	 *	the error is returned. Otherwise 0 means success. If the
-	 *	image is interpreted, loop back up and try activating
-	 *	the interpreter.
+	 *	If the current process has a special image activator it
+	 *	wants to try first, call it.   For example, emulating shell 
+	 *	scripts differently.
 	 */
-	for (i = 0; execsw[i]; ++i) {
-		if (execsw[i]->ex_imgact)
-			error = (*execsw[i]->ex_imgact)(imgp);
-		else
+	error = -1;
+	if ((img_first = imgp->proc->p_sysent->sv_imgact_try) != NULL)
+		error = img_first(imgp);
+
+	/*
+	 *	Loop through the list of image activators, calling each one.
+	 *	An activator returns -1 if there is no match, 0 on success,
+	 *	and an error otherwise.
+	 */
+	for (i = 0; error == -1 && execsw[i]; ++i) {
+		if (execsw[i]->ex_imgact == NULL ||
+		    execsw[i]->ex_imgact == img_first) {
 			continue;
-		if (error == -1)
-			continue;
-		if (error)
-			goto exec_fail_dealloc;
-		if (imgp->interpreted) {
-			exec_unmap_first_page(imgp);
-			/* free name buffer and old vnode */
-			NDFREE(ndp, NDF_ONLY_PNBUF);
-			vrele(ndp->ni_vp);
-			/* set new name to that of the interpreter */
-			NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
-			    UIO_SYSSPACE, imgp->interpreter_name, p);
-			goto interpret;
 		}
-		break;
+		error = (*execsw[i]->ex_imgact)(imgp);
 	}
-	/* If we made it through all the activators and none matched, exit. */
-	if (error == -1) {
-		error = ENOEXEC;
+
+	if (error) {
+		if (error == -1)
+			error = ENOEXEC;
 		goto exec_fail_dealloc;
+	}
+
+	/*
+	 * Special interpreter operation, cleanup and loop up to try to
+	 * activate the interpreter.
+	 */
+	if (imgp->interpreted) {
+		exec_unmap_first_page(imgp);
+		/* free name buffer and old vnode */
+		NDFREE(ndp, NDF_ONLY_PNBUF);
+		vrele(ndp->ni_vp);
+		/* set new name to that of the interpreter */
+		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
+		    UIO_SYSSPACE, imgp->interpreter_name, p);
+		goto interpret;
 	}
 
 	/*
