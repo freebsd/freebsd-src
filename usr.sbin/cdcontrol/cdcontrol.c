@@ -37,20 +37,22 @@ struct cmdtab {
 	{ CMD_HELP,     "?",            0, },
 	{ CMD_HELP,     "Help",         "", },
 #define CMD_INFO        4
-	{ CMD_INFO,     "Info",         "", },
-#define CMD_PAUSE       5
+	{ CMD_INFO,     "INFo",         "", },
+#define CMD_INJECT      5
+	{ CMD_INJECT,   "INJect",       "", },
+#define CMD_PAUSE       6
 	{ CMD_PAUSE,    "PAuse",        "", },
-#define CMD_PLAY        6
-	{ CMD_PLAY,     "Play",        "min1:sec1[.fr1] [min2:sec2[.fr2]]", },
-	{ CMD_PLAY,     "Play",        "track1[.index1] [track2.[index2]]", },
-	{ CMD_PLAY,     "Play",        "[#block [len]]", },
-#define CMD_QUIT        7
+#define CMD_PLAY        7
+	{ CMD_PLAY,     "PLay",        "min1:sec1[.fr1] [min2:sec2[.fr2]]", },
+	{ CMD_PLAY,     "PLay",        "track1[.index1] [track2.[index2]]", },
+	{ CMD_PLAY,     "PLay",        "[#block [len]]", },
+#define CMD_QUIT        8
 	{ CMD_QUIT,     "Quit",         "", },
-#define CMD_RESUME      8
+#define CMD_RESUME      9
 	{ CMD_RESUME,   "Resume",       "", },
-#define CMD_STOP        9
+#define CMD_STOP        10
 	{ CMD_STOP,     "Stop",         "", },
-#define CMD_VOLUME      10
+#define CMD_VOLUME      11
 	{ CMD_VOLUME,   "Volume",       "<l> <r> | left | right | mute | mono | stereo", },
 	{ 0,            0, },
 };
@@ -178,7 +180,7 @@ int main (int argc, char **argv)
 		arg = input (&cmd);
 		if (run (cmd, arg) < 0) {
 			if (verbose)
-				perror ("cdplay");
+				perror ("cdcontrol");
 			close (fd);
 			fd = -1;
 		}
@@ -232,7 +234,14 @@ int run (int cmd, char *arg)
 		rc = ioctl (fd, CDIOCEJECT);
 		if (rc < 0)
 			return (rc);
-		close (fd);
+		return (0);
+
+	case CMD_INJECT:
+		if (fd<0 && ! open_cd ()) return (0);
+		rc = ioctl (fd, CDIOCCLOSE);
+		if (rc < 0)
+			return (rc);
+		close(fd);
 		fd = -1;
 		return (0);
 
