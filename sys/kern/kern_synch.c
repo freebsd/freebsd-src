@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.65 1998/10/25 20:11:36 bde Exp $
+ * $Id: kern_synch.c,v 1.66 1998/11/26 14:00:08 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -293,7 +293,7 @@ schedcpu(arg)
 #define	PPQ	(128 / NQS)		/* priorities per queue */
 			if ((p != curproc) &&
 #ifdef SMP
-			    p->p_oncpu == 0xff && 	/* idle */
+			    (u_char)p->p_oncpu == 0xff && 	/* idle */
 #endif
 			    p->p_stat == SRUN &&
 			    (p->p_flag & P_INMEM) &&
@@ -635,7 +635,7 @@ mi_switch()
 
 #ifdef SIMPLELOCK_DEBUG
 	if (p->p_simple_locks)
-		Debugger("sleep: holding simple lock\n");
+		printf("sleep: holding simple lock\n");
 #endif
 	/*
 	 * Compute the amount of time during which the current
@@ -651,9 +651,9 @@ mi_switch()
 	 */
 	if (p->p_stat != SZOMB && p->p_runtime > p->p_limit->p_cpulimit) {
 		rlim = &p->p_rlimit[RLIMIT_CPU];
-		if (p->p_runtime / 1000000 >= rlim->rlim_max)
+		if (p->p_runtime / (rlim_t)1000000 >= rlim->rlim_max) {
 			killproc(p, "exceeded maximum CPU limit");
-		else {
+		} else {
 			psignal(p, SIGXCPU);
 			if (rlim->rlim_cur < rlim->rlim_max) {
 				/* XXX: we should make a private copy */
