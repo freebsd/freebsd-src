@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.10 1995/12/08 23:22:29 phk Exp $
+ *      $Id: su.c,v 1.11 1995/12/10 14:57:04 bde Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
@@ -78,7 +78,7 @@ static	d_strategy_t	sustrategy;
 static struct cdevsw su_cdevsw = 
 	{ suopen,	suclose,	suread,		suwrite,	/*18*/
 	  suioctl,	nostop,		nullreset,	nodevtotty,/* scsi */
-	  suselect,	nxmmap,		sustrategy, "su",	NULL,	-1 };
+	  suselect,	nommap,		sustrategy, "su",	NULL,	-1 };
 
 
 /* Build an old style device number (unit encoded in the minor number)
