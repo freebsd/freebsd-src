@@ -65,6 +65,23 @@ compat/linux/linux_signal.c	optional	compat_linux
 compat/linux/linux_socket.c	optional	compat_linux
 compat/linux/linux_stats.c	optional	compat_linux
 compat/linux/linux_util.c	optional	compat_linux
+compat/svr4/imgact_svr4.c		optional	compat_svr4
+compat/svr4/svr4_fcntl.c		optional	compat_svr4
+compat/svr4/svr4_filio.c		optional	compat_svr4
+compat/svr4/svr4_ioctl.c		optional	compat_svr4
+compat/svr4/svr4_ipc.c			optional	compat_svr4
+compat/svr4/svr4_misc.c		optional	compat_svr4
+compat/svr4/svr4_resource.c		optional	compat_svr4
+compat/svr4/svr4_signal.c		optional	compat_svr4
+compat/svr4/svr4_socket.c		optional	compat_svr4
+compat/svr4/svr4_sockio.c		optional	compat_svr4
+compat/svr4/svr4_stat.c		optional	compat_svr4
+compat/svr4/svr4_stream.c		optional	compat_svr4
+compat/svr4/svr4_syscallnames.c	optional	compat_svr4
+compat/svr4/svr4_sysent.c		optional	compat_svr4
+compat/svr4/svr4_sysvec.c		optional	compat_svr4
+compat/svr4/svr4_termios.c		optional	compat_svr4
+compat/svr4/svr4_ttold.c		optional	compat_svr4
 contrib/dev/fla/fla.c		optional	fla
 contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
@@ -372,20 +389,3 @@ libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-svr4/imgact_svr4.c		optional	compat_svr4
-svr4/svr4_fcntl.c		optional	compat_svr4
-svr4/svr4_filio.c		optional	compat_svr4
-svr4/svr4_ioctl.c		optional	compat_svr4
-svr4/svr4_ipc.c			optional	compat_svr4
-svr4/svr4_misc.c		optional	compat_svr4
-svr4/svr4_resource.c		optional	compat_svr4
-svr4/svr4_signal.c		optional	compat_svr4
-svr4/svr4_socket.c		optional	compat_svr4
-svr4/svr4_sockio.c		optional	compat_svr4
-svr4/svr4_stat.c		optional	compat_svr4
-svr4/svr4_stream.c		optional	compat_svr4
-svr4/svr4_syscallnames.c	optional	compat_svr4
-svr4/svr4_sysent.c		optional	compat_svr4
-svr4/svr4_sysvec.c		optional	compat_svr4
-svr4/svr4_termios.c		optional	compat_svr4
-svr4/svr4_ttold.c		optional	compat_svr4
