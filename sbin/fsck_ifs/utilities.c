@@ -45,7 +45,6 @@ static const char sccsid[] = "@(#)utilities.c	8.1 (Berkeley) 6/5/93";
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
-#include <ctype.h>
 #include "fsck.h"
 
 long	diskreads, totalreads;	/* Disk cache statistics */
