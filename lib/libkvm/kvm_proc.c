@@ -159,6 +159,8 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				pgrp.pg_session);
 			return (-1);
 		}
+		(void)memcpy(eproc.e_login, sess.s_login,
+						sizeof(eproc.e_login));
 		if ((proc.p_flag & P_CONTROLT) && sess.s_ttyp != NULL) {
 			if (KREAD(kd, (u_long)sess.s_ttyp, &tty)) {
 				_kvm_err(kd, kd->program,
