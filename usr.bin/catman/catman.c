@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <err.h>
 #include <fcntl.h>
+#include <locale.h>
+#include <langinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -709,24 +711,19 @@ determine_locale(void)
 {
 	char *sep;
 
-	locale = getenv("LC_ALL");
-	if (locale == NULL)
-		locale = getenv("LC_CTYPE");
-	if (locale == NULL)
-		locale = getenv("LANG");
-	if (locale == NULL) {
-		warnx("-L option used, but no locale in environment\n");
+	if ((locale = setlocale(LC_CTYPE, "")) == NULL) {
+		warnx("-L option used, but no locale found\n");
 		return;
 	}
 	sep = strchr(locale, '_');
-	if (sep != NULL && isupper(sep[1]) && isupper(sep[2])) {
+	if (sep != NULL && isupper((unsigned char)sep[1])
+			&& isupper((unsigned char)sep[2])) {
 		asprintf(&lang_locale, "%.*s%s", sep - locale, locale, &sep[3]);
 	}
-	sep = strchr(locale, '.');
-	if (sep != NULL) {
+	sep = nl_langinfo(CODESET);
+	if (sep != NULL && *sep != '\0' && strcmp(sep, "US-ASCII") != 0) {
 		int i;
 
-		sep++;
 		for (i = 0; locale_device[i] != NULL; i += 2) {
 			if (strcmp(sep, locale_device[i]) == 0) {
 				nroff_device = locale_device[i + 1];
@@ -734,8 +731,11 @@ determine_locale(void)
 			}
 		}
 	}
-	if (verbose)
+	if (verbose) {
+		if (lang_locale != NULL)
+			fprintf(stderr, "short locale is %s\n", lang_locale);
 		fprintf(stderr, "nroff device is %s\n", nroff_device);
+	}
 }
 
 static void
