@@ -21,10 +21,11 @@
  */
 
 #include "cvs.h"
+#include "save-cwd.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)modules.c 1.62 94/09/29 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)modules.c 1.62 94/09/29 $";
+USE(rcsid);
 #endif
 
 struct sortrec
@@ -35,7 +36,7 @@ struct sortrec
     char *comment;
 };
 
-static int sort_order PROTO((CONST PTR l, CONST PTR r));
+static int sort_order PROTO((const PTR l, const PTR r));
 static void save_d PROTO((char *k, int ks, char *d, int ds));
 
 
@@ -83,7 +84,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     char *mname;
     enum mtype m_type;
     char *msg;
-    int (*callback_proc) ();
+    CALLBACKPROC callback_proc;
     char *where;
     int shorten;
     int local_specified;
@@ -92,26 +93,39 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 {
     char *checkin_prog = NULL;
     char *checkout_prog = NULL;
+    char *export_prog = NULL;
     char *tag_prog = NULL;
     char *update_prog = NULL;
-    char cwd[PATH_MAX];
+    struct saved_cwd cwd;
     char line[MAXLINELEN];
-    char *xmodargv[MAXFILEPERDIR];
+    int modargc;
+    int xmodargc;
     char **modargv;
+    char *xmodargv[MAXFILEPERDIR];
     char *value;
     char *zvalue;
     char *mwhere = NULL;
     char *mfile = NULL;
     char *spec_opt = NULL;
     char xvalue[PATH_MAX];
-    int modargc, alias = 0;
+    int alias = 0;
     datum key, val;
     char *cp;
     int c, err = 0;
 
+#ifdef SERVER_SUPPORT
+    if (trace)
+      {
+	fprintf (stderr, "%c-> do_module (%s, %s, %s, %s)\n",
+		 (server_active) ? 'S' : ' ',
+                mname, msg, where ? where : "",
+                extra_arg ? extra_arg : "");
+      }
+#endif
+
     /* remember where we start */
-    if (getwd (cwd) == NULL)
-	error (1, 0, "cannot get current working directory: %s", cwd);
+    if (save_cwd (&cwd))
+	exit (1);
 
     /* if this is a directory to ignore, add it to that list */
     if (mname[0] == '!' && mname[1] != '\0')
@@ -329,18 +343,24 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		err++;
 		goto out;
 	    }
-	    if (!isfile (CVSADM) && !isfile (OCVSADM))
+	    if (!isfile (CVSADM))
 	    {
 		char nullrepos[PATH_MAX];
 
 		(void) sprintf (nullrepos, "%s/%s/%s", CVSroot,
 				CVSROOTADM, CVSNULLREPOS);
 		if (!isfile (nullrepos))
-		    (void) mkdir (nullrepos, 0777);
+		{
+		    mode_t omask;
+		    omask = umask (cvsumask);
+		    (void) CVS_MKDIR (nullrepos, 0777);
+		    (void) umask (omask);
+		}
 		if (!isdir (nullrepos))
 		    error (1, 0, "there is no repository %s", nullrepos);
 
-		Create_Admin (".", nullrepos, (char *) NULL, (char *) NULL);
+		Create_Admin (".", dir,
+			      nullrepos, (char *) NULL, (char *) NULL);
 		if (!noexec)
 		{
 		    FILE *fp;
@@ -348,6 +368,10 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		    fp = open_file (CVSADM_ENTSTAT, "w+");
 		    if (fclose (fp) == EOF)
 			error (1, errno, "cannot close %s", CVSADM_ENTSTAT);
+#ifdef SERVER_SUPPORT
+		    if (server_active)
+			server_set_entstat (dir, nullrepos);
+#endif
 		}
 	    }
 	  out:
@@ -372,7 +396,8 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     (void) sprintf (line, "%s %s", "XXX", value);
 
     /* turn the line into an argv[] array */
-    line2argv (&modargc, xmodargv, line);
+    line2argv (&xmodargc, xmodargv, line);
+    modargc = xmodargc;
     modargv = xmodargv;
 
     /* parse the args */
@@ -396,6 +421,9 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		local_specified = 1;
 	    case 'o':
 		checkout_prog = optarg;
+		break;
+	    case 'e':
+		export_prog = optarg;
 		break;
 	    case 't':
 		tag_prog = optarg;
@@ -451,8 +479,12 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     err += callback_proc (&modargc, modargv, where, mwhere, mfile, shorten,
 			  local_specified, mname, msg);
 
-    /* clean up */
-    free_names (&modargc, modargv);
+#if 0
+    /* FIXME: I've fixed this so that the correct arguments are called, 
+       but now this fails because there is code below this point that
+       uses optarg values extracted from the arg vector. */
+    free_names (&xmodargc, xmodargv);
+#endif
 
     /* if there were special include args, process them now */
 
@@ -495,6 +527,16 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     }
 
     /* write out the checkin/update prog files if necessary */
+#ifdef SERVER_SUPPORT
+    if (err == 0 && !noexec && m_type == CHECKOUT && server_expanding)
+    {
+	if (checkin_prog != NULL)
+	    server_prog (where ? where : mname, checkin_prog, PROG_CHECKIN);
+	if (update_prog != NULL)
+	    server_prog (where ? where : mname, update_prog, PROG_UPDATE);
+    }
+    else
+#endif
     if (err == 0 && !noexec && m_type == CHECKOUT && run_module_prog)
     {
 	FILE *fp;
@@ -516,23 +558,26 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     }
 
     /* cd back to where we started */
-    if (chdir (cwd) < 0)
-	error (1, errno, "failed chdir to %s!", cwd);
+    if (restore_cwd (&cwd, NULL))
+	exit (1);
+    free_cwd (&cwd);
 
     /* run checkout or tag prog if appropriate */
     if (err == 0 && run_module_prog)
     {
 	if ((m_type == TAG && tag_prog != NULL) ||
-	    (m_type == CHECKOUT && checkout_prog != NULL))
+	    (m_type == CHECKOUT && checkout_prog != NULL) ||
+	    (m_type == EXPORT && export_prog != NULL))
 	{
 	    /*
-	     * If a relative pathname is specified as the checkout or
-	     * tag proc, try to tack on the current "where" value.
+	     * If a relative pathname is specified as the checkout, tag
+	     * or export proc, try to tack on the current "where" value.
 	     * if we can't find a matching program, just punt and use
 	     * whatever is specified in the modules file.
 	     */
 	    char real_prog[PATH_MAX];
-	    char *prog = (m_type == TAG ? tag_prog : checkout_prog);
+	    char *prog = (m_type == TAG ? tag_prog :
+			  (m_type == CHECKOUT ? checkout_prog : export_prog));
 	    char *real_where = (where != NULL ? where : mwhere);
 
 	    if ((*prog != '/') && (*prog != '.'))
@@ -594,7 +639,10 @@ static struct sortrec *s_head;
 static int s_max = 0;			/* Number of elements allocated */
 static int s_count = 0;			/* Number of elements used */
 
-static int Status;
+static int Status;		        /* Nonzero if the user is
+					   interested in status
+					   information as well as
+					   module name */
 static char def_status[] = "NONE";
 
 /* Sort routine for qsort:
@@ -604,12 +652,12 @@ static char def_status[] = "NONE";
 */
 static int
 sort_order (l, r)
-    CONST PTR l;
-    CONST PTR r;
+    const PTR l;
+    const PTR r;
 {
     int i;
-    CONST struct sortrec *left = (CONST struct sortrec *) l;
-    CONST struct sortrec *right = (CONST struct sortrec *) r;
+    const struct sortrec *left = (const struct sortrec *) l;
+    const struct sortrec *right = (const struct sortrec *) r;
 
     if (Status)
     {
@@ -699,6 +747,9 @@ save_d (k, ks, d, ds)
 
     s_count++;
 }
+
+/* Print out the module database as we know it.  If STATUS is
+   non-zero, print out status information for each module. */
 
 void
 cat_module (status)
@@ -827,5 +878,7 @@ cat_module (status)
 	    *cp++ = '\0';
 	    (void) printf ("%s\n", cp2);
 	}
+
+	free_names(&moduleargc, moduleargv);
     }
 }

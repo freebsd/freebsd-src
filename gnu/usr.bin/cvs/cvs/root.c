@@ -14,8 +14,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)root.c,v 1.2 1994/09/15 05:32:17 zoo Exp";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)root.c,v 1.2 1994/09/15 05:32:17 zoo Exp";
+USE(rcsid);
 #endif
 
 char *
@@ -38,22 +38,19 @@ Name_Root(dir, update_dir)
     if (dir != NULL)
     {
 	(void) sprintf (cvsadm, "%s/%s", dir, CVSADM);
+	(void) sprintf (tmp, "%s/%s", dir, CVSADM_ROOT);
     }
     else
     {
 	(void) strcpy (cvsadm, CVSADM);
-    }
-
-    if (dir != NULL)
-	(void) sprintf (tmp, "%s/%s", dir, CVSADM_ROOT);
-    else
 	(void) strcpy (tmp, CVSADM_ROOT);
+    }
 
     /*
      * Do not bother looking for a readable file if there is no cvsadm
      * directory present.
      *
-     * It is possiible that not all repositories will have a CVS/Root
+     * It is possible that not all repositories will have a CVS/Root
      * file. This is ok, but the user will need to specify -d
      * /path/name or have the environment variable CVSROOT set in
      * order to continue.
@@ -90,7 +87,14 @@ Name_Root(dir, update_dir)
      * root now contains a candidate for CVSroot. It must be an
      * absolute pathname
      */
+
+#ifdef CLIENT_SUPPORT
+    /* It must specify a server via remote CVS or be an absolute pathname.  */
+    if ((strchr (root, ':') == NULL)
+    	&& ! isabsolute (root))
+#else
     if (root[0] != '/')
+#endif
     {
 	error (0, 0, "in directory %s:", xupdate_dir);
 	error (0, 0,
@@ -99,7 +103,11 @@ Name_Root(dir, update_dir)
 	return (NULL);
     }
 
+#ifdef CLIENT_SUPPORT
+    if ((strchr (root, ':') == NULL) && !isdir (root))
+#else
     if (!isdir (root))
+#endif
     {
 	error (0, 0, "in directory %s:", xupdate_dir);
 	error (0, 0,
@@ -154,6 +162,9 @@ Create_Root (dir, rootdir)
     FILE *fout;
     char tmp[PATH_MAX];
 
+    if (noexec)
+	return;
+
     /* record the current cvs root */
 
     if (rootdir != NULL)
@@ -163,7 +174,7 @@ Create_Root (dir, rootdir)
         else
 	    (void) strcpy (tmp, CVSADM_ROOT);
         fout = open_file (tmp, "w+");
-        if (fprintf (fout, "%s\n", rootdir) == EOF)
+        if (fprintf (fout, "%s\n", rootdir) < 0)
 	    error (1, errno, "write to %s failed", tmp);
         if (fclose (fout) == EOF)
 	    error (1, errno, "cannot close %s", tmp);

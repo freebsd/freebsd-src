@@ -8,14 +8,15 @@
  * manipulation
  */
 
+#include <assert.h>
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)rcs.c 1.40 94/10/07 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)rcs.c 1.40 94/10/07 $";
+USE(rcsid);
 #endif
 
-static RCSNode *RCS_parsercsfile_i PROTO((FILE * fp, char *rcsfile));
+static RCSNode *RCS_parsercsfile_i PROTO((FILE * fp, const char *rcsfile));
 static char *RCS_getdatebranch PROTO((RCSNode * rcs, char *date, char *branch));
 static int getrcskey PROTO((FILE * fp, char **keyp, char **valp));
 static int parse_rcs_proc PROTO((Node * file, void *closure));
@@ -56,7 +57,7 @@ static const char spacetab[] = {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  /* 0xf0 - 0xff */
 };
 
-#define whitespace(c)	(spacetab[c] != 0)
+#define whitespace(c)	(spacetab[(unsigned char)c] != 0)
 
 /*
  * Parse all the rcs files specified and return a list
@@ -108,7 +109,7 @@ parse_rcs_proc (file, closure)
 
 void
 RCS_addnode (file, rcs, list)
-    char *file;
+    const char *file;
     RCSNode *rcs;
     List *list;
 {
@@ -128,12 +129,18 @@ RCS_addnode (file, rcs, list)
  */
 RCSNode *
 RCS_parse (file, repos)
-    char *file;
-    char *repos;
+    const char *file;
+    const char *repos;
 {
     RCSNode *rcs;
     FILE *fp;
     char rcsfile[PATH_MAX];
+
+#ifdef LINES_CRLF_TERMINATED
+    /* Some ports of RCS to Windows NT write RCS files with newline-
+       delimited lines.  We would need to pass fopen a "binary" flag.  */
+    abort ();
+#endif
 
     (void) sprintf (rcsfile, "%s/%s%s", repos, file, RCSEXT);
     if ((fp = fopen (rcsfile, "r")) != NULL) 
@@ -145,6 +152,17 @@ RCS_parse (file, repos)
 	fclose (fp);
 	return (rcs);
     }
+    else if (! existence_error (errno))
+    {
+	error (0, errno, "cannot open %s", rcsfile);
+	return NULL;
+    }
+
+#ifdef LINES_CRLF_TERMINATED
+    /* Some ports of RCS to Windows NT write RCS files with newline-
+       delimited lines.  We would need to pass fopen a "binary" flag.  */
+    abort ();
+#endif
 
     (void) sprintf (rcsfile, "%s/%s/%s%s", repos, CVSATTIC, file, RCSEXT);
     if ((fp = fopen (rcsfile, "r")) != NULL) 
@@ -158,6 +176,11 @@ RCS_parse (file, repos)
 
 	fclose (fp);
 	return (rcs);
+    }
+    else if (! existence_error (errno))
+    {
+	error (0, errno, "cannot open %s", rcsfile);
+	return NULL;
     }
 
     return (NULL);
@@ -173,6 +196,12 @@ RCS_parsercsfile (rcsfile)
     FILE *fp;
     RCSNode *rcs;
 
+#ifdef LINES_CRLF_TERMINATED
+    /* Some ports of RCS to Windows NT write RCS files with newline-
+       delimited lines.  We would need to pass fopen a "binary" flag.  */
+    abort ();
+#endif
+
     /* open the rcsfile */
     if ((fp = fopen (rcsfile, "r")) == NULL)
     {
@@ -186,19 +215,15 @@ RCS_parsercsfile (rcsfile)
     return (rcs);
 }
 
+
 /*
- * Do the real work of parsing an RCS file
- */
+ */ 
 static RCSNode *
 RCS_parsercsfile_i (fp, rcsfile)
     FILE *fp;
-    char *rcsfile;
+    const char *rcsfile;
 {
-    Node *q, *r;
     RCSNode *rdata;
-    RCSVers *vnode;
-    int n;
-    char *cp;
     char *key, *value;
 
     /* make a node */
@@ -206,6 +231,87 @@ RCS_parsercsfile_i (fp, rcsfile)
     memset ((char *) rdata, 0, sizeof (RCSNode));
     rdata->refcount = 1;
     rdata->path = xstrdup (rcsfile);
+
+    /* Process HEAD and BRANCH keywords from the RCS header.  
+     *
+     * Most cvs operatations on the main branch don't need any more
+     * information.  Those that do call XXX to completely parse the
+     * RCS file.  */
+
+    if (getrcskey (fp, &key, &value) == -1 || key == NULL)
+	goto l_error;
+
+    if (strcmp (RCSHEAD, key) == 0 && value != NULL)
+	rdata->head = xstrdup (value);
+
+    if (getrcskey (fp, &key, &value) == -1 || key == NULL)
+	goto l_error;
+
+    if (strcmp (RCSBRANCH, key) == 0 && value != NULL)
+    {
+	char *cp;
+
+	rdata->branch = xstrdup (value);
+	if ((numdots (rdata->branch) & 1) != 0)
+	{
+	    /* turn it into a branch if it's a revision */
+	    cp = strrchr (rdata->branch, '.');
+	    *cp = '\0';
+	}
+    }
+
+    rdata->flags |= PARTIAL;
+    return rdata;
+
+l_error:
+    if (!really_quiet)
+    {
+	if (ferror(fp))
+	{
+	    error (1, 0, "error reading `%s'", rcsfile);
+	}
+	else
+	{
+	    error (0, 0, "`%s' does not appear to be a valid rcs file",
+		   rcsfile);
+	}
+    }
+    freercsnode (&rdata);
+    return (NULL);
+}
+
+
+/*
+ * Do the real work of parsing an RCS file 
+ *
+ * There are no allowances for error here.
+ */
+void
+RCS_reparsercsfile (rdata)
+    RCSNode *rdata;
+{
+    FILE *fp;
+    char *rcsfile;
+
+    Node *q, *r;
+    RCSVers *vnode;
+    int n;
+    char *cp;
+    char *key, *value;
+
+    rcsfile = rdata->path;
+
+#ifdef LINES_CRLF_TERMINATED
+    /* Some ports of RCS to Windows NT write RCS files with newline-
+       delimited lines.  We would need to pass fopen a "binary" flag.  */
+    abort ();
+#endif
+
+    fp = fopen(rcsfile, "r");
+    if (fp == NULL)
+	error (1, 0, "unable to reopen `%s'", rcsfile);
+
+    /* make a node */
     rdata->versions = getlist ();
     rdata->dates = getlist ();
 
@@ -221,40 +327,17 @@ RCS_parsercsfile_i (fp, rcsfile)
 	   or we had trouble reading the file. */
 	if (getrcskey (fp, &key, &value) == -1 || key == NULL)
 	{
-
-	    if (!really_quiet)
+	    if (ferror(fp))
 	    {
-		if (ferror(fp))
-		{
-		    error (1, 0, "error reading `%s'", rcsfile);
-		}
-		else
-		{
-		    error (0, 0, "`%s' does not appear to be a valid rcs file",
-			   rcsfile);
-		}
+		error (1, 0, "error reading `%s'", rcsfile);
 	    }
-	    freercsnode (&rdata);
-	    return (NULL);
+	    else
+	    {
+		error (1, 0, "`%s' does not appear to be a valid rcs file",
+		       rcsfile);
+	    }
 	}
 
-	/* process it */
-	if (strcmp (RCSHEAD, key) == 0 && value != NULL)
-	{
-	    rdata->head = xstrdup (value);
-	    continue;
-	}
-	if (strcmp (RCSBRANCH, key) == 0 && value != NULL)
-	{
-	    rdata->branch = xstrdup (value);
-	    if ((numdots (rdata->branch) & 1) != 0)
-	    {
-		/* turn it into a branch if it's a revision */
-		cp = strrchr (rdata->branch, '.');
-		*cp = '\0';
-	    }
-	    continue;
-	}
 	if (strcmp (RCSSYMBOLS, key) == 0)
 	{
 	    if (value != NULL)
@@ -262,6 +345,12 @@ RCS_parsercsfile_i (fp, rcsfile)
 		rdata->symbols_data = xstrdup(value);
 		continue;
 	    }
+	}
+
+	if (strcmp (RCSEXPAND, key) == 0)
+	{
+	    rdata->expand = xstrdup (value);
+	    continue;
 	}
 
 	/*
@@ -312,6 +401,17 @@ RCS_parsercsfile_i (fp, rcsfile)
 
 	/* throw away the state field */
 	(void) getrcskey (fp, &key, &value);
+#ifdef DEATH_SUPPORT
+	/* Accept this regardless of DEATH_STATE, so that we can read
+	   repositories created with different versions of CVS.  */
+	if (strcmp (key, "state") != 0)
+	    error (1, 0, "\
+unable to parse rcs file; `state' not in the expected place");
+	if (strcmp (value, "dead") == 0)
+	{
+	    vnode->dead = 1;
+	}
+#endif
 
 	/* fill in the date field */
 	r->key = vnode->date = xstrdup (date);
@@ -335,6 +435,15 @@ RCS_parsercsfile_i (fp, rcsfile)
 	 */
 	while ((n = getrcskey (fp, &key, &value)) >= 0)
 	{
+#ifdef DEATH_SUPPORT
+	    /* Enable use of repositories created with a CVS which defines
+	       DEATH_SUPPORT and not DEATH_STATE.  */
+	    if (strcmp(key, RCSDEAD) == 0)
+	    {
+		vnode->dead = 1;
+		continue;
+	    }
+#endif
 	    /* if we have a revision, break and do it */
 	    for (cp = key; (isdigit (*cp) || *cp == '.') && *cp != '\0'; cp++)
 		 /* do nothing */ ;
@@ -354,7 +463,8 @@ RCS_parsercsfile_i (fp, rcsfile)
 	    break;
     }
 
-    return (rdata);
+    fclose (fp);
+    rdata->flags &= ~PARTIAL;
 }
 
 /*
@@ -390,6 +500,8 @@ freercsnode (rnodep)
 	dellist (&(*rnodep)->symbols);
     if ((*rnodep)->symbols_data != (char *) NULL)
 	free ((*rnodep)->symbols_data);
+    if ((*rnodep)->expand != NULL)
+	free ((*rnodep)->expand);
     if ((*rnodep)->head != (char *) NULL)
 	free ((*rnodep)->head);
     if ((*rnodep)->branch != (char *) NULL)
@@ -435,17 +547,17 @@ null_delproc (p)
  *      space or semicolon 
  *    o if key == "desc" then key and data are NULL and return -1 
  *    o if key wasn't terminated by a semicolon, skip white space and fill 
- *      in value with everything up to a semicolon o compress all whitespace
- *      down to a single space 
+ *      in value with everything up to a semicolon 
+ *    o compress all whitespace down to a single space 
  *    o if a word starts with @, do funky rcs processing
  *    o strip whitespace off end of value or set value to NULL if it empty 
  *    o return 0 since we found something besides "desc"
  */
 
 static char *key = NULL;
-static int keysize = 0;
 static char *value = NULL;
-static int valsize = 0;
+static size_t keysize = 0;
+static size_t valsize = 0;
 
 #define ALLOCINCR 1024
 
@@ -457,11 +569,9 @@ getrcskey (fp, keyp, valp)
 {
     char *cur, *max;
     int c;
-    int funky = 0;
-    int white = 1;
 
     /* skip leading whitespace */
-    while (1)
+    do
     {
 	c = getc (fp);
 	if (c == EOF)
@@ -470,25 +580,22 @@ getrcskey (fp, keyp, valp)
 	    *valp = (char *) NULL;
 	    return (-1);
 	}
-	if (!whitespace (c))
-	    break;
-    }
+    } while (whitespace (c));
 
     /* fill in key */
     cur = key;
     max = key + keysize;
     while (!whitespace (c) && c != ';')
     {
-	if (cur < max)
-	    *cur++ = c;
-	else
+	if (cur >= max)
 	{
 	    key = xrealloc (key, keysize + ALLOCINCR);
 	    cur = key + keysize;
 	    keysize += ALLOCINCR;
 	    max = key + keysize;
-	    *cur++ = c;
 	}
+	*cur++ = c;
+
 	c = getc (fp);
 	if (c == EOF)
 	{
@@ -504,7 +611,6 @@ getrcskey (fp, keyp, valp)
 	keysize += ALLOCINCR;
 	max = key + keysize;
     }
-
     *cur = '\0';
 
     /* if we got "desc", we are done with the file */
@@ -515,6 +621,18 @@ getrcskey (fp, keyp, valp)
 	return (-1);
     }
 
+    /* skip whitespace between key and val */
+    while (whitespace (c))
+    {
+	c = getc (fp);
+	if (c == EOF)
+	{
+	    *keyp = (char *) NULL;
+	    *valp = (char *) NULL;
+	    return (-1);
+	}
+    } 
+
     /* if we ended key with a semicolon, there is no value */
     if (c == ';')
     {
@@ -524,33 +642,25 @@ getrcskey (fp, keyp, valp)
     }
 
     /* otherwise, there might be a value, so fill it in */
-    (void) ungetc (c, fp);
     cur = value;
     max = value + valsize;
 
     /* process the value */
     for (;;)
     {
-	/* get a character */
-	c = getc (fp);
-	if (c == EOF)
+	/* handle RCS "strings" */
+	if (c == '@') 
 	{
-	    *keyp = (char *) NULL;
-	    *valp = (char *) NULL;
-	    return (-1);
-	}
-
-	/* if we are in funky mode, do the rest of this string */
-	if (funky)
-	{
-
-	    /*
-	     * funky mode processing does the following: o @@ means one @ o
-	     * all other characters are literal up to a single @ (including
-	     * ';')
-	     */
 	    for (;;)
 	    {
+		c = getc (fp);
+		if (c == EOF)
+		{
+		    *keyp = (char *) NULL;
+		    *valp = (char *) NULL;
+		    return (-1);
+		}
+
 		if (c == '@')
 		{
 		    c = getc (fp);
@@ -560,16 +670,11 @@ getrcskey (fp, keyp, valp)
 			*valp = (char *) NULL;
 			return (-1);
 		    }
+		    
 		    if (c != '@')
-		    {
-			/* @ followed by non @ turns off funky mode */
-			funky = 0;
 			break;
-		    }
-		    /* otherwise, we already ate one @ so copy the other one */
 		}
 
-		/* put the character on the value (maybe allocating space) */
 		if (cur >= max)
 		{
 		    value = xrealloc (value, valsize + ALLOCINCR);
@@ -578,6 +683,13 @@ getrcskey (fp, keyp, valp)
 		    max = value + valsize;
 		}
 		*cur++ = c;
+	    }
+	}
+
+	/* compress whitespace down to a single space */
+	if (whitespace (c))
+	{
+	    do {
 		c = getc (fp);
 		if (c == EOF)
 		{
@@ -585,45 +697,8 @@ getrcskey (fp, keyp, valp)
 		    *valp = (char *) NULL;
 		    return (-1);
 		}
-	    }
-	}
+	    } while (whitespace (c));
 
-	/* if we got the semi-colon we are done with the entire value */
-	if (c == ';')
-	    break;
-
-	/* process the character we got */
-	if (white && c == '@')
-	{
-
-	    /*
-	     * if we are starting a word with an '@', enable funky processing
-	     */
-	    white = 0;			/* you can't be funky and white :-) */
-	    funky = 1;
-	}
-	else
-	{
-
-	    /*
-	     * we put the character on the list, compressing all whitespace
-	     * to a single space
-	     */
-
-	    /* whitespace with white set means compress it out */
-	    if (white && whitespace (c))
-		continue;
-
-	    if (whitespace (c))
-	    {
-		/* make c a space and set white */
-		white = 1;
-		c = ' ';
-	    }
-	    else
-		white = 0;
-
-	    /* put the char on the end of value (maybe allocating space) */
 	    if (cur >= max)
 	    {
 		value = xrealloc (value, valsize + ALLOCINCR);
@@ -631,17 +706,13 @@ getrcskey (fp, keyp, valp)
 		valsize += ALLOCINCR;
 		max = value + valsize;
 	    }
-	    *cur++ = c;
+	    *cur++ = ' ';
 	}
-    }
 
-    /* if the last char was white space, take it off */
-    if (white && cur != value)
-	cur--;
+	/* if we got a semi-colon we are done with the entire value */
+	if (c == ';')
+	    break;
 
-    /* terminate the string */
-    if (cur)
-    {
 	if (cur >= max)
 	{
 	    value = xrealloc (value, valsize + ALLOCINCR);
@@ -649,8 +720,26 @@ getrcskey (fp, keyp, valp)
 	    valsize += ALLOCINCR;
 	    max = value + valsize;
 	}
-	*cur = '\0';
+	*cur++ = c;
+
+	c = getc (fp);
+	if (c == EOF)
+	{
+	    *keyp = (char *) NULL;
+	    *valp = (char *) NULL;
+	    return (-1);
+	}
     }
+
+    /* terminate the string */
+    if (cur >= max)
+    {
+	value = xrealloc (value, valsize + ALLOCINCR);
+	cur = value + valsize;
+	valsize += ALLOCINCR;
+	max = value + valsize;
+    }
+    *cur = '\0';
 
     /* if the string is empty, make it null */
     if (value && *value != '\0')
@@ -746,15 +835,15 @@ do_branches (list, val)
  * The result is returned; null-string if error.
  */
 char *
-RCS_getversion (rcs, tag, date, force_tag_match)
+RCS_getversion (rcs, tag, date, force_tag_match, return_both)
     RCSNode *rcs;
     char *tag;
     char *date;
     int force_tag_match;
+    int return_both;
 {
     /* make sure we have something to look at... */
-    if (rcs == NULL)
-	return ((char *) NULL);
+    assert (rcs != NULL);
 
     if (tag && date)
     {
@@ -764,7 +853,7 @@ RCS_getversion (rcs, tag, date, force_tag_match)
 	 * first lookup the tag; if that works, turn the revision into
 	 * a branch and lookup the date.
 	 */
-	tagrev = RCS_gettag (rcs, tag, force_tag_match);
+	tagrev = RCS_gettag (rcs, tag, force_tag_match, 0);
 	if (tagrev == NULL)
 	    return ((char *) NULL);
 
@@ -775,7 +864,7 @@ RCS_getversion (rcs, tag, date, force_tag_match)
 	return (rev);
     }
     else if (tag)
-	return (RCS_gettag (rcs, tag, force_tag_match));
+	return (RCS_gettag (rcs, tag, force_tag_match, return_both));
     else if (date)
 	return (RCS_getdate (rcs, date, force_tag_match));
     else
@@ -792,22 +881,29 @@ RCS_getversion (rcs, tag, date, force_tag_match)
  * If the matched tag is a branch tag, find the head of the branch.
  */
 char *
-RCS_gettag (rcs, tag, force_tag_match)
+RCS_gettag (rcs, symtag, force_tag_match, return_both)
     RCSNode *rcs;
-    char *tag;
+    char *symtag;
     int force_tag_match;
+    int return_both;
 {
     Node *p;
+    char *tag = symtag;
 
     /* make sure we have something to look at... */
-    if (rcs == NULL)
-	return ((char *) NULL);
+    assert (rcs != NULL);
+
+    /* XXX this is probably not necessary, --jtc */
+    if (rcs->flags & PARTIAL) 
+	RCS_reparsercsfile (rcs);
 
     /* If tag is "HEAD", special case to get head RCS revision */
     if (tag && (strcmp (tag, TAG_HEAD) == 0 || *tag == '\0'))
+#if 0 /* This #if 0 is only in the Cygnus code.  Why?  Death support?  */
 	if (force_tag_match && (rcs->flags & VALID) && (rcs->flags & INATTIC))
 	    return ((char *) NULL);	/* head request for removed file */
 	else
+#endif
 	    return (RCS_head (rcs));
 
     if (!isdigit (tag[0]))
@@ -895,7 +991,25 @@ RCS_gettag (rcs, tag, force_tag_match)
 	else
 	    p = findnode (rcs->versions, tag);
 	if (p != NULL)
-	    return (xstrdup (tag));
+	{
+	    /*
+	     * we have found a numeric revision for the revision tag.
+	     * To support expanding the RCS keyword Name, return both
+	     * the numeric tag and the supplied tag (which might be
+	     * symbolic).  They are separated with a ':' which is not
+	     * a valid tag char.  The variable return_both is only set
+	     * if this function is called through Version_TS ->
+	     * RCS_getversion.
+	     */
+	    if (return_both)
+	    {
+		char *both = xmalloc(strlen(tag) + 2 + strlen(symtag));
+		sprintf(both, "%s:%s", tag, symtag);
+		return both;
+	    }
+	    else
+		return (xstrdup (tag));
+	}
 	else
 	{
 	    /* The revision wasn't there, so return the head or NULL */
@@ -1124,8 +1238,10 @@ RCS_getbranch (rcs, tag, force_tag_match)
     char *cp;
 
     /* make sure we have something to look at... */
-    if (rcs == NULL)
-	return ((char *) NULL);
+    assert (rcs != NULL);
+
+    if (rcs->flags & PARTIAL)
+	RCS_reparsercsfile (rcs);
 
     /* find out if the tag contains a dot, or is on the trunk */
     cp = strrchr (tag, '.');
@@ -1233,16 +1349,14 @@ RCS_head (rcs)
     RCSNode *rcs;
 {
     /* make sure we have something to look at... */
-    if (rcs == NULL)
-	return ((char *) NULL);
-
-    if (rcs->branch)
-	return (RCS_getbranch (rcs, rcs->branch, 1));
+    assert (rcs != NULL);
 
     /*
      * NOTE: we call getbranch with force_tag_match set to avoid any
      * possibility of recursion
      */
+    if (rcs->branch)
+	return (RCS_getbranch (rcs, rcs->branch, 1));
     else
 	return (xstrdup (rcs->head));
 }
@@ -1263,8 +1377,10 @@ RCS_getdate (rcs, date, force_tag_match)
     RCSVers *vers = NULL;
 
     /* make sure we have something to look at... */
-    if (rcs == NULL)
-	return ((char *) NULL);
+    assert (rcs != NULL);
+
+    if (rcs->flags & PARTIAL)
+	RCS_reparsercsfile (rcs);
 
     /* if the head is on a branch, try the branch first */
     if (rcs->branch != NULL)
@@ -1347,6 +1463,12 @@ RCS_getdatebranch (rcs, date, branch)
 	return (NULL);
     }
     *cp = '\0';				/* turn it into a revision */
+
+    assert (rcs != NULL);
+
+    if (rcs->flags & PARTIAL)
+	RCS_reparsercsfile (rcs);
+
     p = findnode (rcs->versions, xrev);
     free (xrev);
     if (p == NULL)
@@ -1427,8 +1549,10 @@ RCS_getrevtime (rcs, rev, date, fudge)
     RCSVers *vers;
 
     /* make sure we have something to look at... */
-    if (rcs == NULL)
-	return (revdate);
+    assert (rcs != NULL);
+
+    if (rcs->flags & PARTIAL)
+	RCS_reparsercsfile (rcs);
 
     /* look up the revision */
     p = findnode (rcs->versions, rev);
@@ -1481,14 +1605,19 @@ List *
 RCS_symbols(rcs)
     RCSNode *rcs;
 {
-	if (rcs->symbols_data) {
-		rcs->symbols = getlist ();
-		do_symbols (rcs->symbols, rcs->symbols_data);
-		free(rcs->symbols_data);
-		rcs->symbols_data = NULL;
-	}
+    assert(rcs != NULL);
 
-	return rcs->symbols;
+    if (rcs->flags & PARTIAL)
+	RCS_reparsercsfile (rcs);
+
+    if (rcs->symbols_data) {
+	rcs->symbols = getlist ();
+	do_symbols (rcs->symbols, rcs->symbols_data);
+	free(rcs->symbols_data);
+	rcs->symbols_data = NULL;
+    }
+
+    return rcs->symbols;
 }
 
 /*
@@ -1498,12 +1627,24 @@ RCS_symbols(rcs)
  */
 char *
 RCS_check_kflag (arg)
-    char *arg;
+    const char *arg;
 {
-    static char *kflags[] =
-    {"kv", "kvl", "k", "v", "o", (char *) NULL};
+    static const char *const kflags[] =
+    {"kv", "kvl", "k", "v", "o", "b", (char *) NULL};
+    static const char *const  keyword_usage[] =
+    {
+      "%s %s: invalid RCS keyword expansion mode\n",
+      "Valid expansion modes include:\n",
+      "   -kkv\tGenerate keywords using the default form.\n",
+      "   -kkvl\tLike -kkv, except locker's name inserted.\n",
+      "   -kk\tGenerate only keyword names in keyword strings.\n",
+      "   -kv\tGenerate only keyword values in keyword strings.\n",
+      "   -ko\tGenerate the old keyword string (no changes from checked in file).\n",
+      "   -kb\tGenerate binary file unmodified (merges not allowed) (RCS 5.7).\n",
+      NULL,
+    };
     char karg[10];
-    char **cpp = NULL;
+    char const *const *cpp = NULL;
 
 #ifndef HAVE_RCS5
     error (1, 0, "%s %s: your version of RCS does not support the -k option",
@@ -1521,12 +1662,7 @@ RCS_check_kflag (arg)
 
     if (arg == NULL || *cpp == NULL)
     {
-	(void) fprintf (stderr, "%s %s: invalid -k option\n",
-			program_name, command_name);
-	(void) fprintf (stderr, "\tvalid options are:\n");
-	for (cpp = kflags; *cpp != NULL; cpp++)
-	    (void) fprintf (stderr, "\t\t-k%s\n", *cpp);
-	error (1, 0, "Please retry with a valid -k option");
+	usage (keyword_usage);
     }
 
     (void) sprintf (karg, "-k%s", *cpp);
@@ -1539,10 +1675,10 @@ RCS_check_kflag (arg)
  */
 void
 RCS_check_tag (tag)
-    char *tag;
+    const char *tag;
 {
     char *invalid = "$,.:;@";		/* invalid RCS tag characters */
-    char *cp;
+    const char *cp;
 
     /*
      * The first character must be an alphabetic letter. The remaining
@@ -1565,3 +1701,26 @@ RCS_check_tag (tag)
 	error (1, 0, "tag `%s' must start with a letter", tag);
 }
 
+#ifdef DEATH_SUPPORT
+/*
+ * Return true if RCS revision with TAG is a dead revision.
+ */
+int
+RCS_isdead (rcs, tag)
+    RCSNode *rcs;
+    const char *tag;
+{
+    Node *p;
+    RCSVers *version;
+
+    if (rcs->flags & PARTIAL)
+	RCS_reparsercsfile (rcs);
+
+    p = findnode (rcs->versions, tag);
+    if (p == NULL)
+	return (0);
+
+    version = (RCSVers *) p->data;
+    return (version->dead);
+}
+#endif /* DEATH_SUPPORT */

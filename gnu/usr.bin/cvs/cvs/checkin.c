@@ -18,14 +18,16 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)checkin.c 1.48 94/10/07 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)checkin.c 1.48 94/10/07 $";
+USE(rcsid);
 #endif
 
 int
-Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
+Checkin (type, file, update_dir, repository,
+	 rcs, rev, tag, options, message, entries)
     int type;
     char *file;
+    char *update_dir;
     char *repository;
     char *rcs;
     char *rev;
@@ -37,8 +39,17 @@ Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
     char fname[PATH_MAX];
     Vers_TS *vers;
     int set_time;
+    char *fullname;
 
-    (void) printf ("Checking in %s;\n", file);
+    char *tocvsPath = NULL;
+
+    fullname = xmalloc (strlen (update_dir) + strlen (file) + 10);
+    if (update_dir[0] == '\0')
+	strcpy (fullname, file);
+    else
+	sprintf (fullname, "%s/%s", update_dir, file);
+
+    (void) printf ("Checking in %s;\n", fullname);
     (void) sprintf (fname, "%s/%s%s", CVSADM, CVSPREFIX, file);
 
     /*
@@ -46,13 +57,28 @@ Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
      * modification times, then place a copy back in the original file name
      * for the checkin and checkout.
      */
+
+    tocvsPath = wrap_tocvs_process_file (fullname);
+
     if (!noexec)
-	copy_file (file, fname);
+    {
+        if (tocvsPath)
+	{
+            copy_file (tocvsPath, fname);
+	    if (unlink_file_dir (file) < 0)
+		if (! existence_error (errno))
+		    error (1, errno, "cannot remove %s", file);
+	    copy_file (tocvsPath, file);
+	}
+	else
+	{
+	    copy_file (file, fname);
+	}
+    }
 
     run_setup ("%s%s -f %s%s", Rcsbin, RCS_CI,
 	       rev ? "-r" : "", rev ? rev : "");
-    run_args ("-m%s", (*message == '\0' || strcmp(message, "\n") == 0) ?
-	"*** empty log message ***\n" : message);
+    run_args ("-m%s", make_message_rcslegal (message));
     run_arg (rcs);
 
     switch (run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL))
@@ -83,10 +109,13 @@ Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
 	    }
 	    else
 	    {
-		(void) unlink_file (fname);
+		if (unlink_file (fname) < 0)
+		    error (0, errno, "cannot remove %s", fname);
 		/* sync up with the time from the RCS file */
 		set_time = 1;
 	    }
+
+	    wrap_fromcvs_process_file (file);
 
 	    /*
 	     * If we want read-only files, muck the permissions here, before
@@ -95,13 +124,15 @@ Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
 	    if (cvswrite == FALSE)
 		xchmod (file, 0);
 
+#ifndef DEATH_SUPPORT
+ /* With death_support, files added with tags go into branches immediately. */
+
 	    /* for added files with symbolic tags, need to add the tag too */
 	    if (type == 'A' && tag && !isdigit (*tag))
 	    {
-		run_setup ("%s%s -q -N%s:%s", Rcsbin, RCS, tag, rev);
-		run_arg (rcs);
-		(void) run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
+		(void) RCS_settag(rcs, tag, rev);
 	    }
+#endif /* No DEATH_SUPPORT */
 
 	    /* re-register with the new data */
 	    vers = Version_TS (repository, (char *) NULL, tag, (char *) NULL,
@@ -112,11 +143,21 @@ Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
 		      vers->options, vers->tag, vers->date, (char *) 0);
 	    history_write (type, (char *) 0, vers->vn_rcs, file, repository);
 	    freevers_ts (&vers);
+
+	    if (tocvsPath)
+		if (unlink_file_dir (tocvsPath) < 0)
+		    error (0, errno, "cannot remove %s", tocvsPath);
+
 	    break;
 
 	case -1:			/* fork failed */
+	    if (tocvsPath)
+		if (unlink_file_dir (tocvsPath) < 0)
+		    error (0, errno, "cannot remove %s", tocvsPath);
+
 	    if (!noexec)
-		error (1, errno, "could not check in %s -- fork failed", file);
+		error (1, errno, "could not check in %s -- fork failed",
+		       fullname);
 	    return (1);
 
 	default:			/* ci failed */
@@ -125,10 +166,14 @@ Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
 	     * The checkin failed, for some unknown reason, so we restore the
 	     * original user file, print an error, and return an error
 	     */
+	    if (tocvsPath)
+		if (unlink_file_dir (tocvsPath) < 0)
+		    error (0, errno, "cannot remove %s", tocvsPath);
+
 	    if (!noexec)
 	    {
 		rename_file (fname, file);
-		error (0, 0, "could not check in %s", file);
+		error (0, 0, "could not check in %s", fullname);
 	    }
 	    return (1);
     }
@@ -140,10 +185,20 @@ Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
      */
     if (rev)
     {
-	run_setup ("%s%s -q -u", Rcsbin, RCS);
-	run_arg (rcs);
-	(void) run_exec (RUN_TTY, RUN_TTY, DEVNULL, RUN_NORMAL);
+	(void) RCS_unlock (rcs, NULL, 1);
     }
+
+#ifdef SERVER_SUPPORT
+    if (server_active)
+    {
+	if (set_time)
+	    /* Need to update the checked out file on the client side.  */
+	    server_updated (file, update_dir, repository, SERVER_UPDATED,
+			    NULL, NULL);
+	else
+	    server_checked_in (file, update_dir, repository);
+    }
+#endif
 
     return (0);
 }

@@ -9,11 +9,13 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)vers_ts.c 1.45 94/10/07 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)vers_ts.c 1.45 94/10/07 $";
+USE(rcsid);
 #endif
 
-#define ctime(X)	do not use ctime, please
+#ifdef SERVER_SUPPORT
+static void time_stamp_server PROTO((char *, Vers_TS *));
+#endif
 
 /*
  * Fill in and return a Vers_TS structure "user" is the name of the local
@@ -136,16 +138,39 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 	/* squirrel away the rcsdata pointer for others */
 	vers_ts->srcfile = rcsdata;
 
+#ifndef DEATH_SUPPORT
+	/* (is this indeed death support?  I haven't looked carefully).  */
 	/* get RCS version number into vn_rcs (if appropriate) */
 	if (((vers_ts->tag || vers_ts->date) && force_tag_match) ||
 	    ((rcsdata->flags & VALID) && (rcsdata->flags & INATTIC) == 0))
 	{
+#endif
 	    if (vers_ts->tag && strcmp (vers_ts->tag, TAG_BASE) == 0)
+	    {
 		vers_ts->vn_rcs = xstrdup (vers_ts->vn_user);
+		vers_ts->vn_tag = xstrdup (vers_ts->vn_user);
+	    }
 	    else
+	    {
 		vers_ts->vn_rcs = RCS_getversion (rcsdata, vers_ts->tag,
-					    vers_ts->date, force_tag_match);
+					    vers_ts->date, force_tag_match, 1);
+		if (vers_ts->vn_rcs == NULL)
+		    vers_ts->vn_tag = NULL;
+		else
+		{
+		    char *colon = strchr (vers_ts->vn_rcs, ':');
+		    if (colon)
+		    {
+			vers_ts->vn_tag = xstrdup (colon+1);
+			*colon = '\0';
+		    }
+		    else
+			vers_ts->vn_tag = xstrdup (vers_ts->vn_rcs);
+		}
+	    }
+#ifndef DEATH_SUPPORT
 	} 
+#endif
 
 	/*
 	 * If the source control file exists and has the requested revision,
@@ -167,12 +192,81 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
     /* get user file time-stamp in ts_user */
     if (entries != (List *) NULL)
     {
-      vers_ts->ts_user = time_stamp (user);
+#ifdef SERVER_SUPPORT
+	if (server_active)
+	    time_stamp_server (user, vers_ts);
+	else
+#endif
+	    vers_ts->ts_user = time_stamp (user);
     }
 
     return (vers_ts);
 }
 
+#ifdef SERVER_SUPPORT
+
+/* Set VERS_TS->TS_USER to time stamp for FILE.  */
+
+/* Separate these out to keep the logic below clearer.  */
+#define mark_lost(V)		((V)->ts_user = 0)
+#define mark_unchanged(V)	((V)->ts_user = xstrdup ((V)->ts_rcs))
+
+static void
+time_stamp_server (file, vers_ts)
+    char *file;
+    Vers_TS *vers_ts;
+{
+    struct stat sb;
+    char *cp;
+
+    if (stat (file, &sb) < 0)
+    {
+	if (! existence_error (errno))
+	    error (1, errno, "cannot stat temp file");
+	if (use_unchanged)
+	  {
+	    /* Missing file means lost or unmodified; check entries
+	       file to see which.
+
+	       XXX FIXME - If there's no entries file line, we
+	       wouldn't be getting the file at all, so consider it
+	       lost.  I don't know that that's right, but it's not
+	       clear to me that either choice is.  Besides, would we
+	       have an RCS string in that case anyways?  */
+	    if (vers_ts->entdata == NULL)
+	      mark_lost (vers_ts);
+	    else if (vers_ts->entdata->timestamp
+		     && vers_ts->entdata->timestamp[0] == '=')
+	      mark_unchanged (vers_ts);
+	    else
+	      mark_lost (vers_ts);
+	  }
+	else
+	  {
+	    /* Missing file in the temp directory means that the file
+	       was not modified.  */
+	    mark_unchanged (vers_ts);
+	  }
+    }
+    else if (sb.st_mtime == 0)
+    {
+	if (use_unchanged)
+	  /* We shouldn't reach this case any more!  */
+	  abort ();
+
+	/* Special code used by server.c to indicate the file was lost.  */
+	mark_lost (vers_ts);
+    }
+    else
+    {
+	vers_ts->ts_user = xmalloc (25);
+	cp = asctime (gmtime (&sb.st_mtime));	/* copy in the modify time */
+	cp[24] = 0;
+	(void) strcpy (vers_ts->ts_user, cp);
+    }
+}
+
+#endif /* SERVER_SUPPORT */
 /*
  * Gets the time-stamp for the file "file" and returns it in space it
  * allocates
@@ -213,6 +307,8 @@ freevers_ts (versp)
 	free ((*versp)->vn_user);
     if ((*versp)->vn_rcs)
 	free ((*versp)->vn_rcs);
+    if ((*versp)->vn_tag)
+	free ((*versp)->vn_tag);
     if ((*versp)->ts_user)
 	free ((*versp)->ts_user);
     if ((*versp)->ts_rcs)

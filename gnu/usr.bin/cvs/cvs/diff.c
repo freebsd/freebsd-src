@@ -17,8 +17,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)diff.c 1.61 94/10/22 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)diff.c 1.61 94/10/22 $";
+USE(rcsid);
 #endif
 
 static Dtype diff_dirproc PROTO((char *dir, char *pos_repos, char *update_dir));
@@ -33,12 +33,19 @@ static void diff_mark_errors PROTO((int err));
 static char *diff_rev1, *diff_rev2;
 static char *diff_date1, *diff_date2;
 static char *use_rev1, *use_rev2;
+
+#ifdef SERVER_SUPPORT
+/* Revision of the user file, if it is unchanged from something in the
+   repository and we want to use that fact.  */
+static char *user_file_rev;
+#endif
+
 static char *options;
 static char opts[PATH_MAX];
 static int diff_errors;
 static int empty_files = 0;
 
-static char *diff_usage[] =
+static const char *const diff_usage[] =
 {
     "Usage: %s %s [-lN] [rcsdiff-options]\n",
 #ifdef CVS_DIFFDATE
@@ -58,7 +65,7 @@ static char *diff_usage[] =
 int
 diff (argc, argv)
     int argc;
-    char *argv[];
+    char **argv;
 {
     char tmp[50];
     int c, err = 0;
@@ -73,6 +80,11 @@ diff (argc, argv)
      * intercept the -r arguments for doing revision diffs; and -l/-R for a
      * non-recursive/recursive diff.
      */
+#ifdef SERVER_SUPPORT
+    /* Need to be able to do this command more than once (according to
+       the protocol spec, even if the current client doesn't use it).  */
+    opts[0] = '\0';
+#endif
     optind = 1;
     while ((c = getopt (argc, argv,
 		   "abcdefhilnpqtuw0123456789BHNQRTC:D:F:I:L:V:k:r:")) != -1)
@@ -150,9 +162,62 @@ diff (argc, argv)
     if (!options)
 	options = xstrdup ("");
 
+#ifdef CLIENT_SUPPORT
+    if (client_active) {
+	/* We're the client side.  Fire up the remote server.  */
+	start_server ();
+	
+	ign_setup ();
+
+	if (local)
+	    send_arg("-l");
+	if (empty_files)
+	    send_arg("-N");
+	send_option_string (opts);
+	if (diff_rev1)
+	    option_with_arg ("-r", diff_rev1);
+	if (diff_date1)
+	    client_senddate (diff_date1);
+	if (diff_rev2)
+	    option_with_arg ("-r", diff_rev2);
+	if (diff_date2)
+	    client_senddate (diff_date2);
+
+#if 0
+/* FIXME:  We shouldn't have to send current files to diff two revs, but it
+   doesn't work yet and I haven't debugged it.  So send the files --
+   it's slower but it works.  gnu@cygnus.com  Apr94  */
+
+/* Idea: often times the changed region of a file is relatively small.
+   It would be cool if the client could just divide the file into 4k
+   blocks or whatever and send hash values for the blocks.  Send hash
+   values for blocks aligned with the beginning of the file and the
+   end of the file.  Then the server can tell how much of the head and
+   tail of the file is unchanged.  Well, hash collisions will screw
+   things up, but MD5 has 128 bits of hash value...  */
+
+	/* Send the current files unless diffing two revs from the archive */
+	if (diff_rev2 == NULL && diff_date2 == NULL)
+	    send_files (argc, argv, local);
+	else
+	    send_file_names (argc, argv);
+#else
+	send_files (argc, argv, local, 0);
+#endif
+
+	if (fprintf (to_server, "diff\n") < 0)
+	    error (1, errno, "writing to server");
+        err = get_responses_and_close ();
+	free (options);
+	return (err);
+    }
+#endif
+
     which = W_LOCAL;
     if (diff_rev2 != NULL || diff_date2 != NULL)
 	which |= W_REPOS | W_ATTIC;
+
+    wrap_setup ();
 
     /* start the recursion processor */
     err = start_recursion (diff_fileproc, diff_filesdoneproc, diff_dirproc,
@@ -185,7 +250,12 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 	DIFF_NEITHER
     } empty_file = DIFF_NEITHER;
     char tmp[L_tmpnam+1];
+    char *tocvsPath;
+    char fname[PATH_MAX];
 
+#ifdef SERVER_SUPPORT
+    user_file_rev = 0;
+#endif
     vers = Version_TS (repository, (char *) NULL, (char *) NULL, (char *) NULL,
 		       file, 1, 0, entries, srcfiles);
 
@@ -243,6 +313,15 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 		diff_mark_errors (err);
 		return (err);
 	    }
+#ifdef SERVER_SUPPORT
+	    else if (!strcmp (vers->ts_user, vers->ts_rcs)) 
+	    {
+		/* The user file matches some revision in the repository
+		   Diff against the repository (for remote CVS, we might not
+		   have a copy of the user file around).  */
+		user_file_rev = vers->vn_user;
+	    }
+#endif
 	}
     }
 
@@ -252,6 +331,11 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 	return (0);
     }
 
+#ifdef DEATH_SUPPORT
+    /* FIXME: Check whether use_rev1 and use_rev2 are dead and deal
+       accordingly.  */
+#endif
+
     /* Output an "Index:" line for patch to use */
     (void) fflush (stdout);
     if (update_dir[0])
@@ -259,6 +343,19 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
     else
 	(void) printf ("Index: %s\n", file);
     (void) fflush (stdout);
+
+    tocvsPath = wrap_tocvs_process_file(file);
+    if (tocvsPath)
+    {
+	/* Backup the current version of the file to CVS/,,filename */
+	sprintf(fname,"%s/%s%s",CVSADM, CVSPREFIX, file);
+	if (unlink_file_dir (fname) < 0)
+	    if (! existence_error (errno))
+		error (1, errno, "cannot remove %s", file);
+	rename_file (file, fname);
+	/* Copy the wrapped file to the current directory then go to work */
+	copy_file (tocvsPath, file);
+    }
 
     if (empty_file == DIFF_ADDED || empty_file == DIFF_REMOVED)
     {
@@ -320,6 +417,17 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 	    break;
     }
 
+    if (tocvsPath)
+    {
+	if (unlink_file_dir (file) < 0)
+	    if (! existence_error (errno))
+		error (1, errno, "cannot remove %s", file);
+
+	rename_file (fname,file);
+	if (unlink_file (tocvsPath) < 0)
+	    error (1, errno, "cannot remove %s", file);
+    }
+
     if (empty_file == DIFF_REMOVED)
 	(void) unlink (tmp);
 
@@ -342,6 +450,8 @@ diff_mark_errors (err)
 
 /*
  * Print a warm fuzzy message when we enter a dir
+ *
+ * Don't try to diff directories that don't exist! -- DW
  */
 /* ARGSUSED */
 static Dtype
@@ -351,6 +461,11 @@ diff_dirproc (dir, pos_repos, update_dir)
     char *update_dir;
 {
     /* XXX - check for dirs we don't want to process??? */
+
+    /* YES ... for instance dirs that don't exist!!! -- DW */
+    if (!isdir (dir) )
+      return (R_SKIP_ALL);
+  
     if (!quiet)
 	error (0, 0, "Diffing %s", update_dir);
     return (R_PROCESS);
@@ -414,8 +529,11 @@ diff_file_nodiff (file, repository, entries, srcfiles, vers)
 				diff_date1, file, 1, 0, entries, srcfiles);
 	    if (xvers->vn_rcs == NULL)
 	    {
-		if (diff_rev1)
-		    error (0, 0, "tag %s is not in file %s", diff_rev1, file);
+		/* Don't gripe if it doesn't exist, just ignore! */
+		if (! isfile (file))
+                  /* null statement */ ;
+		else if (diff_rev1)
+                    error (0, 0, "tag %s is not in file %s", diff_rev1, file);
 		else
 		    error (0, 0, "no revision for date %s in file %s",
 			   diff_date1, file);
@@ -436,7 +554,10 @@ diff_file_nodiff (file, repository, entries, srcfiles, vers)
 				diff_date2, file, 1, 0, entries, srcfiles);
 	    if (xvers->vn_rcs == NULL)
 	    {
-		if (diff_rev1)
+		/* Don't gripe if it doesn't exist, just ignore! */
+		if (! isfile (file))
+                  /* null statement */ ;
+		else if (diff_rev1)
 		    error (0, 0, "tag %s is not in file %s", diff_rev2, file);
 		else
 		    error (0, 0, "no revision for date %s in file %s",
@@ -455,6 +576,24 @@ diff_file_nodiff (file, repository, entries, srcfiles, vers)
 	    return (1);
 	}
     }
+#ifdef SERVER_SUPPORT
+    if (user_file_rev) 
+    {
+        /* drop user_file_rev into first unused use_rev */
+        if (!use_rev1) 
+	  use_rev1 = xstrdup (user_file_rev);
+	else if (!use_rev2)
+	  use_rev2 = xstrdup (user_file_rev);
+	/* and if not, it wasn't needed anyhow */
+	user_file_rev = 0;
+    }
+
+    /* now, see if we really need to do the diff */
+    if (use_rev1 && use_rev2) 
+    {
+	return (strcmp (use_rev1, use_rev2) == 0);
+    }
+#endif /* SERVER_SUPPORT */
     if (use_rev1 == NULL || strcmp (use_rev1, vers->vn_user) == 0)
     {
 	if (strcmp (vers->ts_rcs, vers->ts_user) == 0 &&
