@@ -1282,6 +1282,7 @@ ip6_mdq(m, ifp, rt)
 	mifi_t mifi, iif;
 	struct mif6 *mifp;
 	int plen = m->m_pkthdr.len;
+	u_int32_t dscopein, sscopein;
 
 /*
  * Macro to send packet on mif.  Since RSVP packets don't get counted on
@@ -1413,10 +1414,13 @@ ip6_mdq(m, ifp, rt)
 	 * For each mif, forward a copy of the packet if there are group
 	 * members downstream on the interface.
 	 */
+	if (in6_addr2zoneid(ifp, &ip6->ip6_dst, &dscopein) ||
+	    in6_addr2zoneid(ifp, &ip6->ip6_src, &sscopein))
+		return (EINVAL);
 	for (mifp = mif6table, mifi = 0; mifi < nummifs; mifp++, mifi++) {
-		u_int32_t dscopein, sscopein, dscopeout, sscopeout;
-
 		if (IF_ISSET(mifi, &rt->mf6c_ifset)) {
+			u_int32_t dscopeout, sscopeout;
+
 			/*
 			 * check if the outgoing packet is going to break
 			 * a scope boundary.
@@ -1432,10 +1436,6 @@ ip6_mdq(m, ifp, rt)
 				    in6_addr2zoneid(mif6table[mifi].m6_ifp,
 						    &ip6->ip6_src,
 						    &sscopeout) ||
-				    in6_addr2zoneid(ifp, &ip6->ip6_dst,
-						    &dscopein) ||
-				    in6_addr2zoneid(ifp, &ip6->ip6_src,
-						    &sscopein) ||
 				    dscopein != dscopeout ||
 				    sscopein != sscopeout) {
 					ip6stat.ip6s_badscope++;
