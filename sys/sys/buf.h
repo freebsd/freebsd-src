@@ -62,6 +62,7 @@ LIST_HEAD(workhead, worklist);
  * to each buffer.
  */
 extern struct bio_ops {
+	int	(*io_prewrite)(struct vnode *, struct buf *);
 	void	(*io_start)(struct buf *);
 	void	(*io_complete)(struct buf *);
 	void	(*io_deallocate)(struct buf *);
@@ -403,6 +404,15 @@ struct cluster_save {
 
 #ifdef _KERNEL
 
+
+static __inline int
+buf_prewrite(struct vnode *vp, struct buf *bp)
+{
+	if (bioops.io_start)
+		return (*bioops.io_prewrite)(vp, bp);
+	else
+		return (0);
+}
 
 static __inline void
 buf_start(struct buf *bp)
