@@ -80,12 +80,12 @@ void
 pfs_fileno_init(struct pfs_info *pi)
 {
 	struct pfs_bitmap *pb;
-	
+
 	MALLOC(pb, struct pfs_bitmap *, sizeof *pb,
 	    M_PFSFILENO, M_WAITOK|M_ZERO);
 
 	mtx_lock(&pi->pi_mutex);
-	
+
 	pb->pb_bitmap[0] = 07;
 	pb->pb_used = 3;
 	pi->pi_bitmap = pb;
@@ -102,12 +102,12 @@ pfs_fileno_uninit(struct pfs_info *pi)
 {
 	struct pfs_bitmap *pb, *npb;
 	int used;
-	
+
 	mtx_lock(&pi->pi_mutex);
-	
+
 	pb = pi->pi_bitmap;
 	pi->pi_bitmap = NULL;
-	
+
 	mtx_unlock(&pi->pi_mutex);
 
 	for (used = 0; pb; pb = npb) {
@@ -134,7 +134,7 @@ pfs_get_fileno(struct pfs_info *pi)
 	int i;
 
 	mtx_lock(&pi->pi_mutex);
-	
+
 	/* look for the first page with free bits */
 	for (ppb = NULL, pb = pi->pi_bitmap; pb; ppb = pb, pb = pb->pb_next)
 		if (pb->pb_used != PFS_BITMAP_BITS)
@@ -157,7 +157,7 @@ pfs_get_fileno(struct pfs_info *pi)
 	for (i = 0; i < PFS_BITMAP_SIZE; ++i)
 		if (pb->pb_bitmap[i] != UINT_MAX)
 			break;
-	
+
 	/* find the first available bit and flip it */
 	fileno = pb->pb_offset + i * PFS_SLOT_BITS;
 	p = &pb->pb_bitmap[i];
@@ -168,9 +168,9 @@ pfs_get_fileno(struct pfs_info *pi)
 	    ("slot has free bits, yet doesn't"));
 	*p |= (unsigned int)(1 << i);
 	++pb->pb_used;
-	
+
 	mtx_unlock(&pi->pi_mutex);
-	
+
 	return fileno;
 }
 
@@ -185,7 +185,7 @@ pfs_free_fileno(struct pfs_info *pi, u_int32_t fileno)
 	int i;
 
 	mtx_lock(&pi->pi_mutex);
-	
+
 	/* find the right page */
 	for (pb = pi->pi_bitmap;
 	     pb && fileno >= PFS_BITMAP_BITS;
@@ -215,7 +215,7 @@ pfs_fileno_alloc(struct pfs_info *pi, struct pfs_node *pn)
 	/* make sure our parent has a file number */
 	if (pn->pn_parent && !pn->pn_parent->pn_fileno)
 		pfs_fileno_alloc(pi, pn->pn_parent);
-	
+
 	switch (pn->pn_type) {
 	case pfstype_root:
 	case pfstype_dir:
@@ -244,7 +244,7 @@ pfs_fileno_alloc(struct pfs_info *pi, struct pfs_node *pn)
 		KASSERT(0,
 		    ("pfs_fileno_alloc() called for pfstype_none node"));
 		break;
- 	}
+	}
 
 #if 0
 	printf("pfs_fileno_alloc(): %s: ", pi->pi_name);
