@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: if_wl.c,v 1.6 1997/08/01 03:36:12 msmith Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -122,7 +122,6 @@
  */
 
 #define MULTICAST  1
-#define WLCACHE 1
 
 /* 
  *	Olivetti PC586 Mach Ethernet driver v1.0
@@ -206,12 +205,10 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <net/if.h>
 #include <net/if_dl.h>
-/* #include <net/if_types.h>*/
 
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
-#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #endif
@@ -220,7 +217,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <net/bpf.h>
 #endif
 
-#include <machine/cpufunc.h>
 #include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
@@ -304,7 +300,7 @@ SYSCTL_INT(_machdep, OID_AUTO, wl_gather_snr, CTLFLAG_RW, &gathersnr, 0, "");
 static void	wlstart(struct ifnet *ifp);
 static void	wlinit(void *xsc);
 static int	wlioctl(struct ifnet *ifp, int cmd, caddr_t data);
-static void	wlwatchdog(struct wl_softc *sc);
+static timeout_t wlwatchdog;
 static void	wlxmt(int unt, struct mbuf *m);
 static int	wldiag(int unt); 
 static int	wlconfig(int unit); 
@@ -700,7 +696,7 @@ wlinit(void *xsc)
 		
 	sc->flags |= DSF_RUNNING;
 	sc->tbusy = 0;
-	untimeout((timeout_func_t)wlwatchdog, sc);
+	untimeout(wlwatchdog, sc);
 		
 	wlstart(ifp);
     } else {
@@ -871,7 +867,7 @@ wlstart(struct ifnet *ifp)
 	if((scb_status & 0x0700) == SCB_CUS_IDLE &&
 	   (cu_status & AC_SW_B) == 0){
 	    sc->tbusy = 0;
-	    untimeout((timeout_func_t)wlwatchdog, sc);
+	    untimeout(wlwatchdog, sc);
 	    sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
 	    /*
 	     * This is probably just a race.  The xmt'r is just
@@ -910,7 +906,7 @@ wlstart(struct ifnet *ifp)
 	 * fails to interrupt we will restart
 	 */
 	/* try 10 ticks, not very long */
-	timeout((timeout_func_t)wlwatchdog, sc, 10);
+	timeout(wlwatchdog, sc, 10);
 	sc->wl_ac.ac_if.if_flags |= IFF_OACTIVE;
 	sc->wl_if.if_opackets++;
 	wlxmt(unit, m);
@@ -1462,8 +1458,9 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
  *
  */
 static void
-wlwatchdog(struct wl_softc *sc)
+wlwatchdog(void *vsc)
 {
+    struct wl_softc *sc = vsc;
     int unit = sc->unit;
 
     log(LOG_ERR, "wl%d: wavelan device timeout on xmit\n", unit);
@@ -1610,7 +1607,7 @@ int unit;
 		}
 	    }
 	    sc->tbusy = 0;
-	    untimeout((timeout_func_t)wlwatchdog, sc);
+	    untimeout(wlwatchdog, sc);
 	    sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
 	    wlstart(&(sc->wl_if));
 	}
