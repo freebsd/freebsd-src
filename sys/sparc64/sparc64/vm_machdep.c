@@ -57,7 +57,10 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
 
+#include <machine/cache.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -108,7 +111,6 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 	__asm __volatile("flushw");
 	/* Copy the pcb (this will copy the windows saved in the pcb, too). */
 	bcopy(td1->td_pcb, pcb, sizeof(*pcb));
-	pcb->pcb_cwp = 2;
 
 	/*
 	 * Create a new fresh stack for the new process.
@@ -127,7 +129,6 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 	fp->f_local[0] = (u_long)fork_return;
 	fp->f_local[1] = (u_long)td2;
 	fp->f_local[2] = (u_long)tf;
-	pcb->pcb_cwp = 0;
 	pcb->pcb_fp = (u_long)fp - SPOFF;
 	pcb->pcb_pc = (u_long)fork_trampoline - 8;
 
@@ -157,7 +158,7 @@ cpu_reset(void)
 			bspec[0] = '\0';
 		bspec[sizeof(bspec) - 1] = '\0';
 	}
-		
+
 	openfirmware_exit(&args);
 }
 
@@ -188,30 +189,133 @@ int
 is_physical_memory(vm_offset_t addr)
 {
 
-	TODO;
+	/* There is no device memory in the midst of the normal RAM. */
+	return (1);
 }
 
 void
 swi_vm(void *v)
 {
-	TODO;
+
+	/*
+	 * Nothing to do here yet - busdma bounce buffers are not yet
+	 * implemented.
+	 */
 }
 
+/*
+ * quick version of vm_fault
+ */
 int
 vm_fault_quick(caddr_t v, int prot)
 {
-	TODO;
-	return (0);
+	int r;
+
+	if (prot & VM_PROT_WRITE)
+		r = subyte(v, fubyte(v));
+	else
+		r = fubyte(v);
+	return(r);
 }
 
+/*
+ * Map an IO request into kernel virtual address space.
+ *
+ * All requests are (re)mapped into kernel VA space.
+ * Notice that we use b_bufsize for the size of the buffer
+ * to be mapped.  b_bcount might be modified by the driver.
+ */
 void
 vmapbuf(struct buf *bp)
 {
-	TODO;
+	caddr_t addr, kva;
+	vm_offset_t pa;
+	int pidx;
+	struct vm_page *m;
+	pmap_t pmap;
+
+	GIANT_REQUIRED;
+
+	if ((bp->b_flags & B_PHYS) == 0)
+		panic("vmapbuf");
+
+	pmap = &curproc->p_vmspace->vm_pmap;
+	for (addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data), pidx = 0;
+	     addr < bp->b_data + bp->b_bufsize; addr += PAGE_SIZE,  pidx++) {
+		/*
+		 * Do the vm_fault if needed; do the copy-on-write thing
+		 * when reading stuff off device into memory.
+		 */
+		vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
+		    (bp->b_iocmd == BIO_READ) ? (VM_PROT_READ | VM_PROT_WRITE) :
+		    VM_PROT_READ);
+		pa = trunc_page(pmap_extract(pmap, (vm_offset_t)addr));
+		if (pa == 0)
+			panic("vmapbuf: page not present");
+		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_hold(m);
+		bp->b_pages[pidx] = m;
+	}
+	if (pidx > btoc(MAXPHYS))
+		panic("vmapbuf: mapped more than MAXPHYS");
+	pmap_qenter((vm_offset_t)bp->b_saveaddr, bp->b_pages, pidx);
+
+	kva = bp->b_saveaddr;
+	bp->b_npages = pidx;
+	bp->b_saveaddr = bp->b_data;
+	bp->b_data = kva + (((vm_offset_t)bp->b_data) & PAGE_MASK);
+	if (CACHE_BADALIAS(trunc_page(bp->b_data),
+	    trunc_page(bp->b_saveaddr))) {
+		/*
+		 * bp->data (the virtual address the buffer got mapped to in the
+		 * kernel) is an illegal alias to the user address.
+		 * If the kernel had mapped this buffer previously (during a
+		 * past IO operation) at this address, there might still be
+		 * stale but valid tagged data in the cache, so flush it.
+		 * XXX: the kernel address should be selected such that this
+		 * cannot happen.
+		 * XXX: pmap_kenter() maps physically uncacheable right now, so
+		 * this cannot happen.
+		 */
+		dcache_inval(pmap, (vm_offset_t)bp->b_data,
+		    (vm_offset_t)bp->b_data + bp->b_bufsize - 1);
+	}
 }
 
+/*
+ * Free the io map PTEs associated with this IO operation.
+ * We also invalidate the TLB entries and restore the original b_addr.
+ */
 void
 vunmapbuf(struct buf *bp)
 {
-	TODO;
+	int pidx;
+	int npages;
+
+	GIANT_REQUIRED;
+
+	if ((bp->b_flags & B_PHYS) == 0)
+		panic("vunmapbuf");
+
+	npages = bp->b_npages;
+	pmap_qremove(trunc_page((vm_offset_t)bp->b_data),
+	    npages);
+	for (pidx = 0; pidx < npages; pidx++)
+		vm_page_unhold(bp->b_pages[pidx]);
+
+	if (CACHE_BADALIAS(trunc_page(bp->b_data),
+	    trunc_page(bp->b_saveaddr))) {
+		/*
+		 * bp->data (the virtual address the buffer got mapped to in the
+		 * kernel) is an illegal alias to the user address. In this
+		 * case, D$ of the user adress needs to be flushed to avoid the
+		 * user reading stale data.
+		 * XXX: the kernel address should be selected such that this
+		 * cannot happen.
+		 */
+		dcache_inval(&curproc->p_vmspace->vm_pmap,
+		    (vm_offset_t)bp->b_saveaddr, (vm_offset_t)bp->b_saveaddr +
+		    bp->b_bufsize - 1);
+	}
+	bp->b_data = bp->b_saveaddr;
 }
