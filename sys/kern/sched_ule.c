@@ -378,7 +378,7 @@ kseq_balance(void *arg)
 		goto out;
 
 	for (i = 0; i < mp_maxid; i++) {
-		if (CPU_ABSENT(i))
+		if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
 			continue;
 		kseq = KSEQ_CPU(i);
 		if (kseq->ksq_load > high_load) {
@@ -425,7 +425,7 @@ kseq_load_highest(void)
 	load = 0;
 
 	for (i = 0; i < mp_maxid; i++) {
-		if (CPU_ABSENT(i))
+		if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
 			continue;
 		kseq = KSEQ_CPU(i);
 		if (kseq->ksq_load > load) {
@@ -705,7 +705,7 @@ sched_pickcpu(void)
 	cpu = 0;
 
 	for (i = 0; i < mp_maxid; i++) {
-		if (CPU_ABSENT(i))
+		if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
 			continue;
 		kseq = KSEQ_CPU(i);
 		if (kseq->ksq_load < load) {
@@ -1088,7 +1088,7 @@ sched_runnable(void)
 		int i;
 
 		for (i = 0; i < mp_maxid; i++) {
-			if (CPU_ABSENT(i))
+			if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
 				continue;
 			kseq = KSEQ_CPU(i);
 			if (kseq->ksq_load > 1)
