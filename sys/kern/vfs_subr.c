@@ -2481,48 +2481,6 @@ vclean(vp, flags, td)
 }
 
 /*
- * Eliminate all activity associated with the requested vnode
- * and with all vnodes aliased to the requested vnode.
- */
-int
-vop_revoke(ap)
-	struct vop_revoke_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-	} */ *ap;
-{
-	struct vnode *vp, *vq;
-	struct cdev *dev;
-
-	KASSERT((ap->a_flags & REVOKEALL) != 0, ("vop_revoke"));
-	vp = ap->a_vp;
-	KASSERT((vp->v_type == VCHR), ("vop_revoke: not VCHR"));
-
-	VI_LOCK(vp);
-	/*
-	 * If a vgone (or vclean) is already in progress,
-	 * wait until it is done and return.
-	 */
-	if (vp->v_iflag & VI_XLOCK) {
-		vp->v_iflag |= VI_XWANT;
-		msleep(vp, VI_MTX(vp), PINOD | PDROP,
-		    "vop_revokeall", 0);
-		return (0);
-	}
-	VI_UNLOCK(vp);
-	dev = vp->v_rdev;
-	for (;;) {
-		dev_lock();
-		vq = SLIST_FIRST(&dev->si_hlist);
-		dev_unlock();
-		if (vq == NULL)
-			break;
-		vgone(vq);
-	}
-	return (0);
-}
-
-/*
  * Recycle an unused vnode to the front of the free list.
  * Release the passed interlock if the vnode will be recycled.
  */
