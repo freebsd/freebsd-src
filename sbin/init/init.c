@@ -1279,9 +1279,6 @@ clean_ttys(void)
 	int devlen;
 	char *old_getty, *old_window, *old_type;
 
-	if (! sessions)
-		return (state_func_t) multi_user;
-
 	/* 
 	 * mark all sessions for death, (!SE_PRESENT) 
 	 * as we find or create new ones they'll be marked as keepers,
