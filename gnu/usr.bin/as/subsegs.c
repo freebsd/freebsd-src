@@ -22,7 +22,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: subsegs.c,v 1.3 1995/03/02 20:29:18 nate Exp $";
+static char rcsid[] = "$Id: subsegs.c,v 1.4 1995/05/30 04:46:34 rgrimes Exp $";
 #endif
 
 #include "as.h"
@@ -133,20 +133,24 @@ register int	subseg;
 {
 	now_seg = seg;
 	now_subseg = subseg;
+	know(SEG_NORMAL(seg));
 #ifdef MANY_SEGMENTS
 	seg_fix_rootP = &segment_info[seg].fix_root;
 	seg_fix_tailP = &segment_info[seg].fix_tail;
 #else
-	if (seg == SEG_DATA) {
+	switch (seg) {
+	case SEG_DATA:
 		seg_fix_rootP = &data_fix_root;
 		seg_fix_tailP = &data_fix_tail;
-	} else if (seg == SEG_BSS) {
-		seg_fix_rootP = &bss_fix_root;
-		seg_fix_tailP = &bss_fix_tail;
-	} else {
-		know (seg == SEG_TEXT);
+		break;
+	case SEG_TEXT:
 		seg_fix_rootP = &text_fix_root;
 		seg_fix_tailP = &text_fix_tail;
+		break;
+	case SEG_BSS:
+		seg_fix_rootP = &bss_fix_root;
+		seg_fix_tailP = &bss_fix_tail;
+		break;
 	}
 #endif
 }
@@ -173,9 +177,7 @@ register segT	seg; /* SEG_DATA or SEG_TEXT */
 register subsegT	subseg;
 {
 	long tmp;		/* JF for obstack alignment hacking */
-#ifndef MANY_SEGMENTS
-	know(seg == SEG_DATA || seg == SEG_TEXT || seg == SEG_BSS);
-#endif
+	know(SEG_NORMAL(seg));
 	if (seg != now_seg || subseg != now_subseg)
 	    {				/* we just changed sub-segments */
 		    register frchainS *	frcP;	/* crawl frchain chain */

@@ -101,6 +101,7 @@ const pseudo_typeS obj_pseudo_table[] = {
 	{ "type",	s_type, 0 },
 	{ "val",	s_ignore, 0 },
 	{ "version",	s_ignore, 0 },
+	{ "weak",	s_weak, 0 },
 
 	/* stabs-in-coff (?) debug pseudos (ignored) */
 	{ "optim",	s_ignore, 0 }, /* For sun386i cc (?) */
@@ -227,17 +228,17 @@ symbolS *symbol_rootP;
 		temp = S_GET_NAME(symbolP);
 		S_SET_OFFSET(symbolP, symbolP->sy_name_offset);
 
+		/* Any symbol still undefined and is not a dbg symbol is made N_EXT. */
+		if (!S_IS_DEBUG(symbolP) && !S_IS_DEFINED(symbolP))
+			S_SET_EXTERNAL(symbolP);
+
 		/*
 		 * Put aux info in lower four bits of `n_other' field
 		 * Do this only now, because things like S_IS_DEFINED()
 		 * depend on S_GET_OTHER() for some unspecified reason.
 		 */
-		if (symbolP->sy_aux)
-			S_SET_OTHER(symbolP, (symbolP->sy_aux & 0xf));
-
-		/* Any symbol still undefined and is not a dbg symbol is made N_EXT. */
-		if (!S_IS_DEBUG(symbolP) && !S_IS_DEFINED(symbolP))
-			S_SET_EXTERNAL(symbolP);
+		S_SET_OTHER(symbolP,
+			(symbolP->sy_bind << 4) | (symbolP->sy_aux & 0xf));
 
 		if (S_GET_TYPE(symbolP) == N_SIZE) {
 			expressionS	*exp = (expressionS*)symbolP->sy_sizexp;
@@ -467,13 +468,19 @@ object_headers *headers;
 
 	/* JF deal with forward references first... */
 	for (symbolP = symbol_rootP; symbolP; symbolP = symbol_next(symbolP)) {
-		if (symbolP->sy_forward) {
+		if (symbolP->sy_forward && symbolP->sy_forward != symbolP) {
+			S_SET_SEGMENT(symbolP,
+				      S_GET_SEGMENT(symbolP->sy_forward));
 			S_SET_VALUE(symbolP, S_GET_VALUE(symbolP)
 				    + S_GET_VALUE(symbolP->sy_forward)
 				    + symbolP->sy_forward->sy_frag->fr_address);
 
-			symbolP->sy_forward=0;
+			symbolP->sy_aux |= symbolP->sy_forward->sy_aux;
+			symbolP->sy_sizexp = symbolP->sy_forward->sy_sizexp;
+			if (S_IS_EXTERNAL(symbolP->sy_forward))
+				S_SET_EXTERNAL(symbolP);
 		} /* if it has a forward reference */
+		symbolP->sy_forward=0;
 	} /* walk the symbol chain */
 
 	tc_crawl_symbol_chain(headers);
@@ -482,7 +489,7 @@ object_headers *headers;
 	while ((symbolP  = *symbolPP) != NULL) {
 		if (flagseen['R'] && (S_GET_SEGMENT(symbolP) == SEG_DATA)) {
 			S_SET_SEGMENT(symbolP, SEG_TEXT);
-		} /* if pusing data into text */
+		} /* if pushing data into text */
 
 		S_SET_VALUE(symbolP, S_GET_VALUE(symbolP) + symbolP->sy_frag->fr_address);
 
@@ -515,12 +522,12 @@ object_headers *headers;
 			|| (S_GET_NAME(symbolP)[0] != '\001' &&
 				(flagseen['L'] || ! S_LOCAL_NAME(symbolP))
 #ifdef PIC
-				|| (flagseen['k'] && symbolP->sy_forceout)
+				|| (picmode && symbolP->sy_forceout)
 #endif
 			   )
 			)
 #ifdef PIC
-		     && (!flagseen['k'] ||
+		     && (!picmode ||
 				symbolP != GOT_symbol || got_referenced != 0
 			)
 #endif
@@ -544,7 +551,7 @@ object_headers *headers;
 			 * some its terms may not have had their final values
 			 * set. We defer this until `obj_emit_symbols()'
 			 */
-			if (flagseen['k'] &&
+			if (picmode &&
 				S_GET_TYPE(symbolP) != N_SIZE &&
 #ifndef GRACE_PERIOD_EXPIRED
 				/*Can be enabled when no more old ld's around*/
@@ -578,7 +585,7 @@ object_headers *headers;
 		} else {
 			if ((S_IS_EXTERNAL(symbolP) || !S_IS_DEFINED(symbolP))
 #ifdef PIC
-			     && (!flagseen['k'] ||
+			     && (!picmode ||
 				symbolP != GOT_symbol || got_referenced != 0
 				)
 #endif

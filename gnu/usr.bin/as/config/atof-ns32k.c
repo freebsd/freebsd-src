@@ -132,10 +132,11 @@ static void
 make_invalid_floating_point_number (words)
      LITTLENUM_TYPE *	words;
 {
-	words[0]= ((unsigned)-1)>>1;	/* Zero the leftmost bit */
-	words[1]= -1;
-	words[2]= -1;
-	words[3]= -1;
+	/* Zero the leftmost bit */
+	words[0]= (LITTLENUM_TYPE) ((unsigned)-1)>>1;
+	words[1]= (LITTLENUM_TYPE) -1;
+	words[2]= (LITTLENUM_TYPE) -1;
+	words[3]= (LITTLENUM_TYPE) -1;
 }
 
 /***********************************************************************\
