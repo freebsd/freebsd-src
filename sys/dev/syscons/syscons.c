@@ -942,22 +942,22 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return EINVAL;
 
     case VT_ACTIVATE:   	/* switch to screen *data */
+	i = (*(int *)data == 0) ? scp->index : (*(int *)data - 1);
 	s = spltty();
 	sc_clean_up(sc->cur_scp);
 	splx(s);
-	return sc_switch_scr(sc, *(int *)data - 1);
+	return sc_switch_scr(sc, i);
 
     case VT_WAITACTIVE: 	/* wait for switch to occur */
-	if ((*(int *)data >= sc->first_vty + sc->vtys)
-		|| (*(int *)data < sc->first_vty))
+	i = (*(int *)data == 0) ? scp->index : (*(int *)data - 1);
+	if ((i < sc->first_vty) || (i >= sc->first_vty + sc->vtys))
 	    return EINVAL;
 	s = spltty();
 	error = sc_clean_up(sc->cur_scp);
 	splx(s);
 	if (error)
 	    return error;
-	if (*(int *)data != 0)
-	    scp = SC_STAT(SC_DEV(sc, *(int *)data - 1));
+	scp = SC_STAT(SC_DEV(sc, i));
 	if (scp == scp->sc->cur_scp)
 	    return 0;
 	while ((error=tsleep((caddr_t)&scp->smode, PZERO|PCATCH,
