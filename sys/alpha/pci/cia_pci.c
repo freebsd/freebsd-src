@@ -97,7 +97,9 @@
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <sys/rman.h>
+#include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#include <machine/cpuconf.h>
 #include <machine/bwx.h>
 #include <machine/swiz.h>
 
@@ -374,6 +376,19 @@ static u_int32_t
 cia_pcib_read_config(device_t dev, int b, int s, int f,
 		     int reg, int width)
 {
+	pcicfgregs cfg;
+
+	if ((reg == PCIR_INTLINE) && (width == 1) && 
+	     (platform.pci_intr_map != NULL)) {
+		cfg.bus = b;
+		cfg.slot = s;
+		cfg.func = f;
+		cfg.intline = 255;
+		platform.pci_intr_map((void *)&cfg);
+		if (cfg.intline != 255)
+			return cfg.intline;
+	}
+
 	if (chipset_bwx)
 		return cia_pcib_bwx_read_config(b, s, f, reg, width);
 	else
