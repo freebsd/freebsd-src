@@ -94,7 +94,9 @@ int
 procfs_attr(PFS_ATTR_ARGS)
 {
 	/* XXX inefficient, split into separate functions */
-	if (strcmp(pn->pn_name, "ctl") == 0 ||
+	if (p->p_flag & P_SUGID)
+		vap->va_mode = 0;
+	else if (strcmp(pn->pn_name, "ctl") == 0 ||
 	    strcmp(pn->pn_name, "note") == 0 ||
 	    strcmp(pn->pn_name, "notepg") == 0)
 		vap->va_mode = 0200;
