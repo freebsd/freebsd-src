@@ -1,7 +1,7 @@
 /*
  * Christian
  *
- * $Id: calendar.christian,v 1.2 1996/01/29 00:32:56 wosch Exp $
+ * $Id: calendar.christian,v 1.3 1996/02/02 06:04:06 wosch Exp $
  */
 
 #ifndef _calendar_christian_
@@ -13,7 +13,7 @@ Easter-46	Ash Wednesday (First day of Lent)
 Easter-7	Palm Sunday (7 days before Easter)
 Easter-3	Maundy Thursday (3 days before Easter)
 Easter-2	Good Friday (2 days before Easter)
-Easter		Easter Sunday
+Easter	Easter Sunday
 Easter+39	Ascension Day (10 days before Pentecost)
 Easter+49	Pentecost (Whitsunday)
 Easter+50	Whitmonday
