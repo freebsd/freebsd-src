@@ -99,8 +99,6 @@
 #include <dev/zs/z8530reg.h>
 #include <dev/zs/z8530var.h>
 
-#define	CDEV_MAJOR	182
-
 #define	ZS_READ(sc, r) \
 	bus_space_read_1((sc)->sc_bt, (r), 0)
 #define	ZS_WRITE(sc, r, v) \
@@ -161,7 +159,7 @@ static struct cdevsw zstty_cdevsw = {
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"zstty",
-	/* major */	CDEV_MAJOR,
+	/* major */	MAJOR_AUTO,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY | D_KQFILTER,
