@@ -10,3 +10,4 @@ scanner.c
 grammar.c
 tokdefs.h
 version.c
+version.h
