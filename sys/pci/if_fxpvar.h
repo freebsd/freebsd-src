@@ -68,6 +68,12 @@ struct fxp_softc {
 	int phy_primary_device;		/* device type of primary PHY */
 	int phy_10Mbps_only;		/* PHY is 10Mbps-only device */
 	int eeprom_size;		/* size of serial EEPROM */
+	int suspended;			/* 0 = normal  1 = suspended (APM) */
+	u_int32_t saved_maps[5];	/* pci data */
+	u_int32_t saved_biosaddr;
+	u_int8_t saved_intline;
+	u_int8_t saved_cachelnsz;
+	u_int8_t saved_lattimer;
 };
 
 /* Macros to ease CSR access. */
