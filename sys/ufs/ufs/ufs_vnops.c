@@ -235,26 +235,25 @@ ufs_mknod(ap)
 
 /*
  * Open called.
- *
- * Nothing to do.
  */
 /* ARGSUSED */
 static int
 ufs_open(struct vop_open_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
+	struct inode *ip;
 
 	if (vp->v_type == VCHR || vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
+	ip = VTOI(vp);
 	/*
 	 * Files marked append-only must be opened for appending.
 	 */
-	if ((VTOI(vp)->i_flags & APPEND) &&
+	if ((ip->i_flags & APPEND) &&
 	    (ap->a_mode & (FWRITE | O_APPEND)) == FWRITE)
 		return (EPERM);
-	/* XXX: if we have the size we should pass it for speed */
-	vnode_create_vobject(vp, 0, ap->a_td);
+	vnode_create_vobject(vp, DIP(ip, i_size), ap->a_td);
 	return (0);
 }
 
