@@ -30,6 +30,7 @@
  * Obtain memory configuration information from the BIOS
  */
 #include <stand.h>
+#include "libi386.h"
 #include "btxv86.h"
 
 vm_offset_t	memtop;

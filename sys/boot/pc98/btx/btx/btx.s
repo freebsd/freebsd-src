@@ -114,7 +114,7 @@ btx_hdr:	.byte 0xeb			# Machine ID
 		.ascii "BTX"			# Magic
 		.byte 0x1			# Major version
 		.byte 0x1			# Minor version
-		.byte 0x0			# Flags
+		.byte BTX_FLAGS			# Flags
 		.word PAG_CNT-MEM_ORG>>0xc	# Paging control
 		.word break-start		# Text size
 		.long 0x0			# Entry address
