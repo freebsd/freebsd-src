@@ -144,6 +144,27 @@ static int	tcp_isn_reseed_interval = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &tcp_isn_reseed_interval, 0, "Seconds between reseeding of ISN secret");
 
+/*
+ * TCP bandwidth limiting sysctls.  Note that the default lower bound of 
+ * 1024 exists only for debugging.  A good production default would be 
+ * something like 6100.
+ */
+static int     tcp_inflight_enable = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_enable, CTLFLAG_RW,
+    &tcp_inflight_enable, 0, "Enable automatic TCP inflight data limiting");
+
+static int     tcp_inflight_debug = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_debug, CTLFLAG_RW,
+    &tcp_inflight_debug, 0, "Debug TCP inflight calculations");
+
+static int     tcp_inflight_min = 6144;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_min, CTLFLAG_RW,
+    &tcp_inflight_min, 0, "Lower-bound for TCP inflight window");
+
+static int     tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_max, CTLFLAG_RW,
+    &tcp_inflight_max, 0, "Upper-bound for TCP inflight window");
+
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
 
@@ -545,8 +566,10 @@ tcp_newtcpcb(inp)
 	tp->t_rttmin = tcp_rexmit_min;
 	tp->t_rxtcur = TCPTV_RTOBASE;
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
+	tp->snd_bwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->t_rcvtime = ticks;
+	tp->t_bw_rtttime = ticks;
         /*
 	 * IPv4 TTL initialization is necessary for an IPv6 socket as well,
 	 * because the socket may be bound to an IPv6 wildcard address,
@@ -1448,3 +1471,142 @@ static void
 tcp_cleartaocache()
 {
 }
+
+/*
+ * TCP BANDWIDTH DELAY PRODUCT WINDOW LIMITING
+ *
+ * This code attempts to calculate the bandwidth-delay product as a
+ * means of determining the optimal window size to maximize bandwidth,
+ * minimize RTT, and avoid the over-allocation of buffers on interfaces and
+ * routers.  This code also does a fairly good job keeping RTTs in check
+ * across slow links like modems.  We implement an algorithm which is very
+ * similar (but not meant to be) TCP/Vegas.  The code operates on the
+ * transmitter side of a TCP connection and so only effects the transmit
+ * side of the connection.
+ *
+ * BACKGROUND:  TCP makes no provision for the management of buffer space
+ * at the end points or at the intermediate routers and switches.  A TCP 
+ * stream, whether using NewReno or not, will eventually buffer as
+ * many packets as it is able and the only reason this typically works is
+ * due to the fairly small default buffers made available for a connection
+ * (typicaly 16K or 32K).  As machines use larger windows and/or window
+ * scaling it is now fairly easy for even a single TCP connection to blow-out
+ * all available buffer space not only on the local interface, but on 
+ * intermediate routers and switches as well.  NewReno makes a misguided
+ * attempt to 'solve' this problem by waiting for an actual failure to occur,
+ * then backing off, then steadily increasing the window again until another
+ * failure occurs, ad-infinitum.  This results in terrible oscillation that
+ * is only made worse as network loads increase and the idea of intentionally
+ * blowing out network buffers is, frankly, a terrible way to manage network
+ * resources.
+ *
+ * It is far better to limit the transmit window prior to the failure
+ * condition being achieved.  There are two general ways to do this:  First
+ * you can 'scan' through different transmit window sizes and locate the
+ * point where the RTT stops increasing, indicating that you have filled the
+ * pipe, then scan backwards until you note that RTT stops decreasing, then
+ * repeat ad-infinitum.  This method works in principle but has severe
+ * implementation issues due to RTT variances, timer granularity, and
+ * instability in the algorithm which can lead to many false positives and
+ * create oscillations as well as interact badly with other TCP streams
+ * implementing the same algorithm.
+ *
+ * The second method is to limit the window to the bandwidth delay product
+ * of the link.  This is the method we implement.  RTT variances and our
+ * own manipulation of the congestion window, bwnd, can potentially 
+ * destabilize the algorithm.  For this reason we have to stabilize the
+ * elements used to calculate the window.  We do this by using the minimum
+ * observed RTT, the long term average of the observed bandwidth, and
+ * by adding two segments worth of slop.  It isn't perfect but it is able
+ * to react to changing conditions and gives us a very stable basis on
+ * which to extend the algorithm.
+ */
+void
+tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
+{
+	u_long bw;
+	u_long bwnd;
+	int save_ticks;
+
+	/*
+	 * If inflight_enable is disabled in the middle of a tcp connection,
+	 * make sure snd_bwnd is effectively disabled.
+	 */
+	if (tcp_inflight_enable == 0) {
+		tp->snd_bwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
+		tp->snd_bandwidth = 0;
+		return;
+	}
+
+	/*
+	 * Figure out the bandwidth.  Due to the tick granularity this
+	 * is a very rough number and it MUST be averaged over a fairly
+	 * long period of time.  XXX we need to take into account a link
+	 * that is not using all available bandwidth, but for now our
+	 * slop will ramp us up if this case occurs and the bandwidth later
+	 * increases.
+	 *
+	 * Note: if ticks rollover 'bw' may wind up negative.  We must
+	 * effectively reset t_bw_rtttime for this case.
+	 */
+	save_ticks = ticks;
+	if ((u_int)(save_ticks - tp->t_bw_rtttime) < 1)
+		return;
+
+	bw = (int64_t)(ack_seq - tp->t_bw_rtseq) * hz / 
+	    (save_ticks - tp->t_bw_rtttime);
+	tp->t_bw_rtttime = save_ticks;
+	tp->t_bw_rtseq = ack_seq;
+	if (tp->t_bw_rtttime == 0 || (int)bw < 0)
+		return;
+	bw = ((int64_t)tp->snd_bandwidth * 15 + bw) >> 4;
+
+	tp->snd_bandwidth = bw;
+
+	/*
+	 * Calculate the semi-static bandwidth delay product, plus two maximal
+	 * segments.  The additional slop puts us squarely in the sweet
+	 * spot and also handles the bandwidth run-up case.  Without the
+	 * slop we could be locking ourselves into a lower bandwidth.
+	 *
+	 * Situations Handled:
+	 *	(1) Prevents over-queueing of packets on LANs, especially on
+	 *	    high speed LANs, allowing larger TCP buffers to be
+	 *	    specified, and also does a good job preventing 
+	 *	    over-queueing of packets over choke points like modems
+	 *	    (at least for the transmit side).
+	 *
+	 *	(2) Is able to handle changing network loads (bandwidth
+	 *	    drops so bwnd drops, bandwidth increases so bwnd
+	 *	    increases).
+	 *
+	 *	(3) Theoretically should stabilize in the face of multiple
+	 *	    connections implementing the same algorithm (this may need
+	 *	    a little work).
+	 */
+#define USERTT	((tp->t_srtt + tp->t_rttbest) / 2)
+	bwnd = (int64_t)bw * USERTT / (hz << TCP_RTT_SHIFT) + 2 * tp->t_maxseg;
+#undef USERTT
+
+	if (tcp_inflight_debug > 0) {
+		static int ltime;
+		if ((u_int)(ticks - ltime) >= hz / tcp_inflight_debug) {
+			ltime = ticks;
+			printf("%p bw %ld rttbest %d srtt %d bwnd %ld\n",
+			    tp,
+			    bw,
+			    tp->t_rttbest,
+			    tp->t_srtt,
+			    bwnd
+			);
+		}
+	}
+	if ((long)bwnd < tcp_inflight_min)
+		bwnd = tcp_inflight_min;
+	if (bwnd > tcp_inflight_max)
+		bwnd = tcp_inflight_max;
+	if ((long)bwnd < tp->t_maxseg * 2)
+		bwnd = tp->t_maxseg * 2;
+	tp->snd_bwnd = bwnd;
+}
+

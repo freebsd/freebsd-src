@@ -123,10 +123,12 @@ struct tcpcb {
 
 	u_long	snd_wnd;		/* send window */
 	u_long	snd_cwnd;		/* congestion-controlled window */
+	u_long	snd_bwnd;		/* bandwidth-controlled window */
 	u_long	snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch
 					 */
+	u_long	snd_bandwidth;		/* calculated bandwidth or 0 */
 	tcp_seq	snd_recover;		/* for use in fast recovery */
 
 	u_int	t_maxopd;		/* mss plus options */
@@ -136,6 +138,9 @@ struct tcpcb {
 	int	t_rtttime;		/* round trip time */
 	tcp_seq	t_rtseq;		/* sequence number being timed */
 
+	int	t_bw_rtttime;		/* used for bandwidth calculation */
+	tcp_seq	t_bw_rtseq;		/* used for bandwidth calculation */
+
 	int	t_rxtcur;		/* current retransmit value (ticks) */
 	u_int	t_maxseg;		/* maximum segment size */
 	int	t_srtt;			/* smoothed round-trip time */
@@ -143,6 +148,7 @@ struct tcpcb {
 
 	int	t_rxtshift;		/* log(2) of rexmt exp. backoff */
 	u_int	t_rttmin;		/* minimum rtt allowed */
+	u_int	t_rttbest;		/* best rtt we've seen */
 	u_long	t_rttupdated;		/* number of times rtt sampled */
 	u_long	max_sndwnd;		/* largest window peer has offered */
 
@@ -469,6 +475,7 @@ struct tcpcb *
 	 tcp_timers __P((struct tcpcb *, int));
 void	 tcp_trace __P((int, int, struct tcpcb *, void *, struct tcphdr *,
 			int));
+void	 tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq);
 void	 syncache_init(void);
 void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
 int	 syncache_expand(struct in_conninfo *, struct tcphdr *,
