@@ -32,8 +32,9 @@
 .Op Ar start-time Op end-time
 .Ar
 .Sh DESCRIPTION
-.Nm Tcpslice
-is a program for extracting portions of packet-trace files generated using
+The
+.Nm
+utility extracts portions of packet-trace files generated using
 .Xr tcpdump 1 Ns 's
 .Fl w
 flag.
@@ -231,14 +232,16 @@ with a start/end time.  Such filenames can be specified with a
 leading `./'; for example, specify the file `04Jul76.trace' as
 `./04Jul76.trace'.
 .Pp
-.Nm Tcpslice
-cannot read its input from
+The
+.Nm
+utility cannot read its input from
 .Pa stdin ,
 since it uses random-access
 to rummage through its input files.
 .Pp
-.Nm Tcpslice
-refuses to write to its output if it is a terminal
+The
+.Nm
+utility refuses to write to its output if it is a terminal
 (as indicated by
 .Xr isatty 3 ) .
 This is not a bug but a feature,
@@ -249,8 +252,9 @@ or specify an
 output file via
 .Fl w .
 .Pp
-.Nm Tcpslice
-will not work properly on
+The
+.Nm
+utility will not work properly on
 .Xr tcpdump 1
 files spanning more than one year;
 with files containing portions of packets whose original length was
