@@ -401,7 +401,7 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 			slicename=`dkitos $slice`
 			minor=`dkminor 0 $unit $slice $dkrawpart`
 			mknod  $name$unit$slicename c $chr $minor root:operator
-			mknod r$name$unit$slicename c $chr $minor root:operator
+			ln -f $name$unit$slicename r$name$unit$slicename
 			case $part in
 			[a-h])
 				case $oldslice in
@@ -413,8 +413,8 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 					partname=`dkitop $part`
 					mknod  $name$unit$slicename$partname \
 					      c $chr $minor root:operator
-					mknod r$name$unit$slicename$partname \
-					      c $chr $minor root:operator
+					ln -f $name$unit$slicename$partname \
+					     r$name$unit$slicename$partname
 				done
 				;;
 			"")
@@ -443,7 +443,7 @@ fd*)
 	case $unit in
 	0|1|2|3)
 		mknod ${name}${unit}   c $chr `expr $unit '*' 64` root:operator
-		mknod r${name}${unit}  c $chr `expr $unit '*' 64` root:operator
+		ln -f ${name}${unit} r${name}${unit}
 		# Fake BSD partitions
 		for i in a b c d e f g h
 		do
@@ -454,15 +454,13 @@ fd*)
 
 		mknod ${name}${unit}.1720  c $chr `expr $unit '*' 64 + 1` \
 		    root:operator
-		mknod r${name}${unit}.1720 c $chr `expr $unit '*' 64 + 1` \
-		    root:operator
+		ln -f ${name}${unit}.1720 r${name}${unit}.1720
 		# ln -f ${name}${unit}.1720 ${name}${unit}135hs21
 		# ln -f r${name}${unit}.1720 r${name}${unit}135hs21
 
 		mknod ${name}${unit}.1480  c $chr `expr $unit '*' 64 + 2` \
 		    root:operator
-		mknod r${name}${unit}.1480 c $chr `expr $unit '*' 64 + 2` \
-		    root:operator
+		ln -f ${name}${unit}.1480 r${name}${unit}.1480
 		# ln -f ${name}${unit}.1480 ${name}${unit}135hs18
 		# ln -f r${name}${unit}.1480 r${name}${unit}135hs18
 		# ln -f ${name}${unit}.1480 ${name}${unit}96hs18
@@ -470,8 +468,7 @@ fd*)
 
 		mknod ${name}${unit}.1440  c $chr `expr $unit '*' 64 + 3` \
 		    root:operator
-		mknod r${name}${unit}.1440 c $chr `expr $unit '*' 64 + 3` \
-		    root:operator
+		ln -f ${name}${unit}.1440 r${name}${unit}.1440
 		# ln -f ${name}${unit}.1440 ${name}${unit}135
 		# ln -f r${name}${unit}.1440 r${name}${unit}135
 		# ln -f ${name}${unit}.1440 ${name}${unit}135ds18
@@ -481,8 +478,7 @@ fd*)
 
 		mknod ${name}${unit}.1200  c $chr `expr $unit '*' 64 + 4` \
 		    root:operator
-		mknod r${name}${unit}.1200 c $chr `expr $unit '*' 64 + 4` \
-		    root:operator
+		ln -f ${name}${unit}.1200 r${name}${unit}.1200
 		# ln -f ${name}${unit}.1200 ${name}${unit}96
 		# ln -f r${name}${unit}.1200 r${name}${unit}96
 		# ln -f ${name}${unit}.1200 ${name}${unit}96ds15
@@ -492,8 +488,7 @@ fd*)
 
 		mknod ${name}${unit}.820  c $chr `expr $unit '*' 64 + 5` \
 		    root:operator
-		mknod r${name}${unit}.820 c $chr `expr $unit '*' 64 + 5` \
-		    root:operator
+		ln -f ${name}${unit}.820 r${name}${unit}.820
 		# ln -f ${name}${unit}.820 ${name}${unit}96hs10
 		# ln -f r${name}${unit}.820 r${name}${unit}96hs10
 		# ln -f ${name}${unit}.820 ${name}${unit}135hs10
@@ -501,8 +496,7 @@ fd*)
 
 		mknod ${name}${unit}.800  c $chr `expr $unit '*' 64 + 6` \
 		    root:operator
-		mknod r${name}${unit}.800 c $chr `expr $unit '*' 64 + 6` \
-		    root:operator
+		ln -f ${name}${unit}.800 r${name}${unit}.800
 		# ln -f ${name}${unit}.800 ${name}${unit}96ds10
 		# ln -f r${name}${unit}.800 r${name}${unit}96ds10
 		# ln -f ${name}${unit}.800 ${name}${unit}135ds10
@@ -510,8 +504,7 @@ fd*)
 
 		mknod ${name}${unit}.720  c $chr `expr $unit '*' 64 + 7` \
 		    root:operator
-		mknod r${name}${unit}.720 c $chr `expr $unit '*' 64 + 7` \
-		    root:operator
+		ln -f ${name}${unit}.720 r${name}${unit}.720
 		# ln -f ${name}${unit}.720 ${name}${unit}96ds9
 		# ln -f r${name}${unit}.720 r${name}${unit}96ds9
 		# ln -f ${name}${unit}.720 ${name}${unit}135ds9
@@ -519,8 +512,7 @@ fd*)
 
 		mknod ${name}${unit}.360  c $chr `expr $unit '*' 64 + 8` \
 		    root:operator
-		mknod r${name}${unit}.360 c $chr `expr $unit '*' 64 + 8` \
-		    root:operator
+		ln -f ${name}${unit}.360 r${name}${unit}.360
 		# ln -f ${name}${unit}.360 ${name}${unit}48
 		# ln -f r${name}${unit}.360 r${name}${unit}48
 		# ln -f ${name}${unit}.360 ${name}${unit}48ds9
@@ -528,8 +520,7 @@ fd*)
 
 		mknod ${name}${unit}.640  c $chr `expr $unit '*' 64 + 9` \
 		    root:operator
-		mknod r${name}${unit}.640 c $chr `expr $unit '*' 64 + 9` \
-		    root:operator
+		ln -f ${name}${unit}.640 r${name}${unit}.640
 		# ln -f ${name}${unit}.640 ${name}${unit}96ds8
 		# ln -f r${name}${unit}.640 r${name}${unit}96ds8
 		# ln -f ${name}${unit}.640 ${name}${unit}135ds8
@@ -537,8 +528,7 @@ fd*)
 
 		mknod ${name}${unit}.1232  c $chr `expr $unit '*' 64 + 10` \
 		    root:operator
-		mknod r${name}${unit}.1232 c $chr `expr $unit '*' 64 + 10` \
-		    root:operator
+		ln -f ${name}${unit}.1232 r${name}${unit}.1232
 		# ln -f ${name}${unit}.1232 ${name}${unit}96ds8
 		# ln -f r${name}${unit}.1232 r${name}${unit}96ds8
 		# ln -f ${name}${unit}.1232 ${name}${unit}135ds8
@@ -603,7 +593,7 @@ ccd*)
 			minor=`dkminor 0 $unit 0 $part`
 			partname=`dkitop $part`
 			mknod  $name$unit$partname c $chr $minor root:operator
-			mknod r$name$unit$partname c $chr $minor root:operator
+			ln -f $name$unit$partname r$name$unit$partname
 		done
 		;;
 	*)
@@ -723,19 +713,29 @@ sa*)
 
 	case $unit in
 	[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])
-		mknod rsa${unit}.ctl c $chr `saminor 1 ${unit} 0 0`
+		mknod sa${unit}.ctl c $chr `saminor 1 ${unit} 0 0`
+		ln -f sa${unit}.ctl rsa${unit}.ctl
 		for m in 0 1 2 3
 		do
-			mknod rsa${unit}.${m} c $chr \
+			mknod sa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 0`  root:operator
-			mknod nrsa${unit}.${m} c $chr \
+			ln -f sa${unit}.${m} c rsa${unit}.${m}
+			mknod nsa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 1` root:operator
+			ln -f nsa${unit}.${m} c nrsa${unit}.${m}
 			mknod ersa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 2` root:operator
+			ln -f esa${unit}.${m} ersa${unit}.${m}
 		done
-		ln -f rsa${unit}.0 rsa${unit}
-		ln -f nrsa${unit}.0 nrsa${unit}
-		ln -f ersa${unit}.0 ersa${unit}
+		ln -f sa${unit}.0 sa${unit}
+		ln -f sa${unit}.0 rsa${unit}.0
+		ln -f sa${unit}.0 rsa${unit}
+		ln -f nsa${unit}.0 nsa${unit}
+		ln -f nsa${unit}.0 nrsa${unit}.0
+		ln -f nsa${unit}.0 nrsa${unit}
+		ln -f esa${unit}.0 esa${unit}
+		ln -f esa${unit}.0 ersa${unit}.0
+		ln -f esa${unit}.0 ersa${unit}
 		;;
 	*)
 		echo bad unit for tape in: $i
@@ -797,8 +797,8 @@ acd*|cd*|mcd*|scd*)
 			rm -rf ${dname}* r${dname}*
 			mknod ${dname}a c $chr $(($i * 8)) root:operator
 			mknod ${dname}c c $chr $(($i * 8 + 2)) root:operator
-			mknod r${dname}a c $chr $(($i * 8)) root:operator
-			mknod r${dname}c c $chr $(($i * 8 + 2)) root:operator
+			ln -f ${dname}a r${dname}a
+			ln -f ${dname}c r${dname}c
 			i=$(($i + 1))
 		done
 	else
@@ -818,20 +818,16 @@ matcd*)
 		    root:operator
 		mknod ${name}${unit}c   c $chr `expr $unit '*' 8 + 2` \
 		    root:operator
-		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0` \
-		    root:operator
-		mknod r${name}${unit}c  c $chr `expr $unit '*' 8 + 2` \
-		    root:operator
+		ln -f ${name}${unit}a r${name}${unit}a
+		ln -f ${name}${unit}c r${name}${unit}c
 		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
 
 		mknod ${name}${unit}la  c $chr `expr $unit '*' 8 + 128` \
 		    root:operator
 		mknod ${name}${unit}lc  c $chr `expr $unit '*' 8 + 130` \
 		    root:operator
-		mknod r${name}${unit}la c $chr `expr $unit '*' 8 + 128` \
-		    root:operator
-		mknod r${name}${unit}lc c $chr `expr $unit '*' 8 + 130` \
-		    root:operator
+		ln -f ${name}${unit}la r${name}${unit}la
+		ln -f ${name}${unit}lc r${name}${unit}lc
 		chmod 640 ${name}${unit}l[a-h] r${name}${unit}l[a-h]
 		;;
 	*)
@@ -848,9 +844,9 @@ wcd*)
 	case $unit in
 	0|1|2|3|4|5|6|7)
 		mknod wcd${unit}a  c $chr `expr $unit '*' 8 + 0` root:operator
-		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0` root:operator
 		mknod wcd${unit}c  c $chr `expr $unit '*' 8 + 2` root:operator
-		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 2` root:operator
+		ln -f wcd${unit}a rwcd${unit}a
+		ln -f wcd${unit}c rwcd${unit}c
 		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
 		;;
 	*)
@@ -921,7 +917,7 @@ ums*)
 
 ulpt*)
 	unit=`expr $i : 'ulpt\(.*\)'`
-   minor=$unit
+	minor=$unit
 	mknod ulpt$unit c 113 $minor
 	minor=`expr $unit + 64`
 	mknod unlpt$unit c 113 $minor		# and the 'no prime' version
@@ -1060,8 +1056,8 @@ ttyA*)
 	nports=`expr $i : 'ttyA\(.*\)$'`
 	port=1
 	while [ $port -le $nports ]; do
-		minor=`expr $port - 1`
-		name=`expr $port + 1000 | cut -c 3-4`
+		minor=$(expr $port - 1)
+		name=$(printf %02d $port)
 		mknod ttyA$name c $major $minor
 		mknod ttyiA$name c $major `expr $minor + 65536`
 		mknod ttylA$name c $major `expr $minor + 131072`
@@ -1077,8 +1073,8 @@ cuaA*)
 	nports=`expr $i : 'cuaA\(.*\)$'`
 	port=1
 	while [ $port -le $nports ]; do
-		minor=`expr $port - 1`
-		name=`expr $port + 1000 | cut -c 3-4`
+		minor=$(expr $port - 1)
+		name=$(printf %02d $port)
 		mknod cuaA$name c $major `expr $minor + 128` uucp:dialer
 		mknod cuaiA$name c $major `expr $minor + 128 + 65536` \
 		    uucp:dialer
