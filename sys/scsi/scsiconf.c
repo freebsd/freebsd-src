@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.41 1995/12/13 20:08:53 peter Exp $
+ *      $Id: scsiconf.c,v 1.42 1995/12/14 09:54:29 phk Exp $
  */
 
 #include <sys/types.h>
@@ -69,6 +69,7 @@ struct extend_array
 };
 
 static void make_readable __P((char *to, char *from, size_t n));
+static int match __P((char *pattern, char *name));
 static int scsi_bus_conf __P((struct scsi_link *sc_link_proto));
 
 static void *
