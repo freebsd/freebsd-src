@@ -52,10 +52,14 @@ led_timeout(void *p)
 			sc->count--;
 			continue;
 		}
-		if (*sc->ptr >= 'a' && *sc->ptr <= 'j')
+		if (*sc->ptr == '.') {
+			sc->ptr = NULL;
+			continue;
+		} else if (*sc->ptr >= 'a' && *sc->ptr <= 'j') {
 			sc->func(sc->private, 0);
-		else if (*sc->ptr >= 'A' && *sc->ptr <= 'J')
+		} else if (*sc->ptr >= 'A' && *sc->ptr <= 'J') {
 			sc->func(sc->private, 1);
+		}
 		sc->count = *sc->ptr & 0xf;
 		sc->ptr++;
 		if (*sc->ptr == '\0')
@@ -153,11 +157,10 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 		 */
 		case 's':
 			for(s++; *s; s++) {
-				if ((*s & 0x0f) > 10)
-					continue;
-				if ((*s & 0xf0) < ' ')
-					continue;
-				sbuf_bcat(sb, s, 1);
+				if ((*s >= 'a' && *s <= 'j') ||
+				    (*s >= 'A' && *s <= 'J') ||
+					*s == '.')
+					sbuf_bcat(sb, s, 1);
 			}
 			break;
 		/*
@@ -249,6 +252,7 @@ led_create(led_t *func, void *priv, char const *name)
 	sbuf_delete(sb);
 	mtx_lock(&led_mtx);
 	LIST_INSERT_HEAD(&led_list, sc, list);
+	sc->func(sc->private, 0);
 	mtx_unlock(&led_mtx);
 	return (sc->dev);
 }
