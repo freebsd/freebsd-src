@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.32 1996/06/12 05:03:42 gpalmer Exp $
+ * $Id: if_le.c,v 1.33 1996/06/18 01:22:23 bde Exp $
  */
 
 /*
@@ -49,7 +49,6 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -325,26 +324,6 @@ static unsigned le_intrs[NLE];
 #define	MEMSET(where, what, howmuch)	bzero(where, howmuch)
 #define	MEMCMP(l, r, len)		bcmp(l, r, len)
 
-static struct kern_devconf kdc_le[NLE] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"le", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Ethernet adapter: DEC EtherWorks II or EtherWorks III",
-	DC_CLS_NETIF		/* class */
-} };
-
-static inline void
-le_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_le[id->id_unit] = kdc_le[0];
-	kdc_le[id->id_unit].kdc_unit = id->id_unit;
-	kdc_le[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_le[id->id_unit]);
-}
 
 static int
 le_probe(
@@ -359,8 +338,6 @@ le_probe(
 	       ledriver.name, dvp->id_unit);
 	return 0;
     }
-
-    le_registerdev(dvp);
 
     sc->le_iobase = dvp->id_iobase;
     sc->le_membase = (u_char *) dvp->id_maddr;
@@ -410,7 +387,6 @@ le_attach(
 
     if_attach(ifp);
     ether_ifattach(ifp);
-    kdc_le[dvp->id_unit].kdc_state = DC_IDLE;
 
     return 1;
 }
@@ -637,8 +613,6 @@ le_ioctl(
     }
 
     splx(s);
-    kdc_le[ifp->if_unit].kdc_state = (ifp->if_flags & IFF_UP)
-      ? DC_BUSY : DC_IDLE;
     return error;
 }
 

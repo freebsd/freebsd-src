@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.12 1996/04/08 01:31:41 davidg Exp $
+ *	$Id: if_fxp.c,v 1.13 1996/06/01 23:25:10 gpalmer Exp $
  */
 
 /*
@@ -39,7 +39,6 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/devconf.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -131,7 +130,7 @@ static u_char fxp_cb_config_template[] = {
 static inline int fxp_scb_wait	__P((struct fxp_csr *));
 static char *fxp_probe		__P((pcici_t, pcidi_t));
 static void fxp_attach		__P((pcici_t, int));
-static int fxp_shutdown		__P((struct kern_devconf *, int));
+static int fxp_shutdown		__P((int, int));
 static void fxp_intr		__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *, int, caddr_t));
@@ -392,15 +391,14 @@ fxp_get_macaddr(sc)
  * kernel memory doesn't get clobbered during warmboot.
  */
 static int
-fxp_shutdown(kdc, force)
-	struct kern_devconf *kdc;
+fxp_shutdown(unit, force)
+	int unit;
 	int force;
 {
-	struct fxp_softc *sc = fxp_sc[kdc->kdc_unit];
+	struct fxp_softc *sc = fxp_sc[unit];
 	
 	fxp_stop(sc);
 
-	(void) dev_detach(kdc);
 	return 0;
 }
 

@@ -28,14 +28,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.20 1996/06/12 05:02:41 gpalmer Exp $
+ *	$Id: eisaconf.c,v 1.21 1996/08/31 14:47:30 bde Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/devconf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/conf.h>		/* For kdc_isa */
+#include <sys/conf.h>
 #include <sys/malloc.h>
 
 #include <i386/eisa/eisaconf.h>
@@ -45,19 +44,6 @@
 struct eisa_device_node{
 	struct	eisa_device dev;
 	struct	eisa_device_node *next;
-};
-
-extern struct kern_devconf kdc_cpu0;
- 
-struct kern_devconf kdc_eisa0 = {
-	0, 0, 0,                /* filled in by dev_attach */ 
-	"eisa", 0, { MDDT_BUS, 0 },
-	0, 0, 0, BUS_EXTERNALLEN,
-	&kdc_cpu0,              /* parent is the CPU */
-	0,                      /* no parentdata */
-	DC_BUSY,                /* busses are always busy */
-	NULL,        
-	DC_CLS_BUS              /* class */
 };
 
 /* 
@@ -204,16 +190,6 @@ eisa_configure()
 		       e_dev->full_name);
 
 		/* Should set the iosize, but I don't have a spec handy */
-		kdc_eisa0.kdc_description = 
-			(char *)malloc(strlen(e_dev->full_name)
-				       + sizeof("EISA bus <>")
-				       + 1, M_DEVBUF, M_NOWAIT);
-		if (!kdc_eisa0.kdc_description) {
-			panic("Eisa probe unable to malloc");
-		}
-		sprintf((char *)kdc_eisa0.kdc_description, "EISA bus <%s>",
-			e_dev->full_name);
-		dev_attach(&kdc_eisa0);
 		printf("Probing for devices on the EISA bus\n");
 		dev_node = dev_node->next;
 	}
@@ -263,7 +239,6 @@ eisa_configure()
 			}
 			/* Ensure registration has ended */
 			reg_state.in_registration = 0;
-			e_dev->kdc->kdc_unit = e_dev->unit;
 		}
 		else {
 			/* Announce unattached device */
@@ -379,14 +354,9 @@ eisa_reg_end(e_dev)
 		 */
 		char string[25];
 
-		if (e_dev->kdc && (e_dev->kdc->kdc_parent == &kdc_isa0)) {
-			sprintf(string, " on isa");
-		}
-		else {
-			sprintf(string, " on %s0 slot %d",
-				mainboard_drv.name,
-				e_dev->ioconf.slot);
-		}
+		sprintf(string, " on %s0 slot %d",
+			mainboard_drv.name,
+			e_dev->ioconf.slot);
 		eisa_reg_print(e_dev, string, NULL);
 		printf("\n");
 		reg_state.in_registration = 0;
@@ -620,7 +590,6 @@ eisa_reg_resvaddr(e_dev, head, resvaddr, reg_count)
 				eisa_reg_print(e_dev, buf,
 						*reg_count ? &separator : NULL);
 				(*reg_count)++;
-				e_dev->kdc->kdc_datalen += sizeof(resvaddr_t);
 				return (0);
 			}
 		}
@@ -668,94 +637,11 @@ eisa_reg_iospace(e_dev, resvaddr)
 }
 
 int
-eisa_registerdev(e_dev, driver, kdc_template)
+eisa_registerdev(e_dev, driver)
 	struct eisa_device *e_dev;
 	struct eisa_driver *driver;
-	struct kern_devconf *kdc_template;
 {
 	e_dev->driver = driver;	/* Driver now owns this device */
-	e_dev->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
-						   M_DEVBUF, M_NOWAIT);
-	if (!e_dev->kdc) {
-		printf("WARNING: eisa_registerdev unable to malloc! "
-		       "Device kdc will not be registerd\n");
-		return 1;
-	}
-	bcopy(kdc_template, e_dev->kdc, sizeof(*kdc_template));
-	e_dev->kdc->kdc_description = e_dev->full_name;
-	e_dev->kdc->kdc_parentdata = e_dev;
-	dev_attach(e_dev->kdc);
 	return (0);
 }
 
-int
-eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	struct eisa_device *e_dev;
-	resvaddr_t *node;
-	void *buf;	/* Temporary externalizing buffer */
-	void *bufp;	/* Current offset in the buffer */
-	void *offset;	/* Offset relative to target address space */
-	void *ioa_prev; /* Prev Node entries relative to target address space */
-	void *ma_prev;	/* Prev Node entries relative to target address space */
-	int retval;
-
-	offset = (char *)req->oldptr + req->oldidx;
-	buf = malloc(kdc->kdc_datalen, M_TEMP, M_NOWAIT);
-	if (!buf)
-		return 0;
-
-	bufp = buf;
-	bcopy(kdc->kdc_eisa, bufp, sizeof(struct eisa_device));
-	e_dev = bufp;
-
-	/* Calculate initial prev nodes */
-	ioa_prev = (char *)offset + ((char *)&(e_dev->ioconf.ioaddrs.lh_first)
-				  - (char *)e_dev);
-	ma_prev = (char *)offset + ((char *)&(e_dev->ioconf.maddrs.lh_first)
-				 - (char *)e_dev);
-
-	offset = (char *)offset + sizeof(*e_dev);
-	bufp = (char *)bufp + sizeof(*e_dev);
-
-	if (e_dev->ioconf.ioaddrs.lh_first) {
-		node = e_dev->ioconf.ioaddrs.lh_first;
-		e_dev->ioconf.ioaddrs.lh_first = offset;
-		for(;node;node = node->links.le_next) {
-			resvaddr_t *out_node;
-
-			bcopy(node, bufp, sizeof(resvaddr_t));
-			out_node = (resvaddr_t *)bufp;
-			bufp = (char *)bufp + sizeof(resvaddr_t);
-			offset = (char *)offset + sizeof(resvaddr_t);
-
-			out_node->links.le_prev = ioa_prev;
-			ioa_prev = (char *)ioa_prev + sizeof(resvaddr_t);
-
-			if (out_node->links.le_next)
-				out_node->links.le_next = offset;
-		}
-	}
-	if (e_dev->ioconf.maddrs.lh_first) {
-		node = e_dev->ioconf.maddrs.lh_first;
-		e_dev->ioconf.maddrs.lh_first = offset;
-		for(;node;node = node->links.le_next) {
-			resvaddr_t *out_node;
-
-			bcopy(node, bufp, sizeof(resvaddr_t));
-			out_node = (resvaddr_t *)bufp;
-			bufp = (char *)bufp + sizeof(resvaddr_t);
-			offset = (char *)offset + sizeof(resvaddr_t);
-
-			out_node->links.le_prev = ma_prev;
-			ma_prev = (char *)ma_prev + sizeof(resvaddr_t);
-
-			if (out_node->links.le_next)
-				out_node->links.le_next = offset;
-		}
-	}
-	
-	retval = SYSCTL_OUT(req, buf, kdc->kdc_datalen);
-	free(buf, M_TEMP);
-	return retval;
-}

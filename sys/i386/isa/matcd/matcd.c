@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.18 1996/06/08 09:17:51 bde Exp $ */
+/* $Id: matcd.c,v 1.19 1996/07/23 21:51:56 phk Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -360,7 +360,6 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 #include	"i386/isa/matcd/matcddrv.h"	/*Drive-related defs & strings*/
 #include	"i386/isa/matcd/creative.h"	/*Host interface related defs*/
 
-#include 	<sys/devconf.h>
 #include	<sys/conf.h>
 #include	<sys/kernel.h>
 #ifdef DEVFS
@@ -483,18 +482,6 @@ struct matcd_read2 {
 /*	This mystery structure is supposed to make dynamic driver
 	loading possible.
 */
-
-static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {
-	0,0,0,				/*Filled in by dev_attach*/
-	"matcdc",0,{MDDT_ISA,0,"bio"},
-	isa_generic_externalize,0,0,ISA_EXTERNALLEN,
-	&kdc_isa0,			/*<12>Parent*/
-	0,				/*<12>Parent Data*/
-	DC_IDLE,			/*<12>Status*/
-	"Matsushita CD-ROM Controller"	/*<12>This is the description*/
-} };
-
-
 
 
 /*---------------------------------------------------------------------------
@@ -1331,25 +1318,6 @@ int doprobe(int port,int cdrive)
 	printf("matcdc%d: Probe DID NOT find something\n",nextcontroller);
 #endif /*DEBUGPROBE*/
 	return(1);
-}
-
-
-/*---------------------------------------------------------------------------
-<12>	matcd_register - Something to handle dynamic driver loading.
-		Sorry for the lousy description but no one could point
-		me to anything that explained what it is for either.
-		Added in Edit 12.
----------------------------------------------------------------------------*/
-
-static inline void matcd_register(struct isa_device *id)
-{
-	if(id->id_unit) {
-		kdc_matcd[id->id_unit]=kdc_matcd[0];
-	}
-	kdc_matcd[id->id_unit].kdc_unit=id->id_unit;
-	kdc_matcd[id->id_unit].kdc_isa=id;
-	dev_attach(&kdc_matcd[id->id_unit]);
-	return;
 }
 
 

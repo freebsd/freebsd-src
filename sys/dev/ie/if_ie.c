@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.34 1996/06/18 01:22:22 bde Exp $
+ *	$Id: if_ie.c,v 1.35 1996/06/25 20:30:13 bde Exp $
  */
 
 /*
@@ -117,7 +117,6 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -314,34 +313,11 @@ static int sl_probe(struct isa_device *);
 static int el_probe(struct isa_device *);
 static int ni_probe(struct isa_device *);
 
-static struct kern_devconf kdc_ie[NIE] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"ie", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Ethernet adapter",	/* description */
-	DC_CLS_NETIF		/* class */
-} };
-
-static inline void
-ie_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_ie[id->id_unit] = kdc_ie[0];
-	kdc_ie[id->id_unit].kdc_unit = id->id_unit;
-	kdc_ie[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_ie[id->id_unit]);
-}
-
 /* This routine written by Charles Martin Hannum. */
 int ieprobe(dvp)
      struct isa_device *dvp;
 {
   int ret;
-
-  ie_registerdev(dvp);
 
   ret = sl_probe(dvp);
   if(!ret) ret = el_probe(dvp);
@@ -596,7 +572,6 @@ ieattach(dvp)
 
   if_attach(ifp);
   ether_ifattach(ifp);
-  kdc_ie[unit].kdc_description = ie_hardware_names[ie_softc[unit].hard_type];
   return 1;
 }
 

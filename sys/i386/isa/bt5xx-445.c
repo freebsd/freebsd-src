@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt5xx-445.c,v 1.2 1995/12/14 14:19:15 peter Exp $
+ *      $Id: bt5xx-445.c,v 1.3 1996/03/31 03:06:20 gibbs Exp $
  */
 
 /*
@@ -33,7 +33,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/devconf.h>
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -50,29 +49,6 @@ struct isa_driver btdriver =
     bt_isa_attach,
     "bt"
 };
-
-static struct kern_devconf kdc_isa_bt = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"bt", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start here */
-	NULL,
-	DC_CLS_MISC		/* host adapters aren't special */
-};
-
-static inline void
-bt_isa_registerdev(struct isa_device *id)
-{
-#ifdef BOGUS
-	if(id->id_unit)
-		kdc_bt[id->id_unit] = kdc_bt[0];
-	kdc_bt[id->id_unit].kdc_unit = id->id_unit;
-	kdc_bt[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_bt[id->id_unit]);
-#endif
-}
 
 /*
  * Check if the device can be found at the port given
@@ -103,10 +79,6 @@ bt_isa_probe(dev)
 	bt = bt_alloc(unit, dev->id_iobase);
 	if (!bt) 
 		return 0;
-
-#ifndef DEV_LKM
-	bt_isa_registerdev(dev);
-#endif /* not DEV_LKM */
 
 	/*
 	 * Try initialise a unit at this location

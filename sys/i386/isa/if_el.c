@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.24 1996/06/18 01:22:20 bde Exp $
+ * $Id: if_el.c,v 1.25 1996/08/06 21:14:04 phk Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -30,7 +30,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -98,27 +97,6 @@ struct isa_driver eldriver = {
 	el_probe, el_attach, "el"
 };
 
-static struct kern_devconf kdc_el[NEL] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"el", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Ethernet adapter: 3Com 3C501",
-	DC_CLS_NETIF		/* class */
-} };
-
-static inline void
-el_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_el[id->id_unit] = kdc_el[0];
-	kdc_el[id->id_unit].kdc_unit = id->id_unit;
-	kdc_el[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_el[id->id_unit]);
-}
-
 /* Probe routine.  See if the card is there and at the right place. */
 static int
 el_probe(struct isa_device *idev)
@@ -132,10 +110,6 @@ el_probe(struct isa_device *idev)
 	sc = &el_softc[idev->id_unit];
 	sc->el_base = idev->id_iobase;
 	base = sc->el_base;
-
-#ifndef DEV_LKM
-	el_registerdev(idev);
-#endif
 
 	/* First check the base */
 	if((base < 0x280) || (base > 0x3f0)) {
@@ -216,7 +190,6 @@ el_attach(struct isa_device *idev)
 	dprintf(("Attaching interface...\n"));
 	if_attach(ifp);
 	ether_ifattach(ifp);
-	kdc_el[idev->id_unit].kdc_state = DC_BUSY;
 
 	/* Put the station address in the ifa address list's AF_LINK
 	 * entry, if any.

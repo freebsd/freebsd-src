@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.70 1996/05/02 10:43:09 phk Exp $
+ *	$Id: isa.c,v 1.71 1996/06/25 20:30:36 bde Exp $
  */
 
 /*
@@ -64,7 +64,6 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
-#include <sys/devconf.h>
 #include "vector.h"
 
 /*
@@ -88,19 +87,6 @@ inthand2_t *intr_handler[ICU_LEN];
 u_int	intr_mask[ICU_LEN];
 u_int*	intr_mptr[ICU_LEN];
 int	intr_unit[ICU_LEN];
-
-extern struct kern_devconf kdc_cpu0;
-
-struct kern_devconf kdc_isa0 = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"isa", 0, { MDDT_BUS, 0 },
-	0, 0, 0, BUS_EXTERNALLEN,
-	&kdc_cpu0,		/* parent is the CPU */
-	0,			/* no parentdata */
-	DC_BUSY,		/* busses are always busy */
-	"ISA bus",
-	DC_CLS_BUS		/* class */
-};
 
 static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr0), &IDTVEC(fastintr1),
@@ -268,8 +254,6 @@ haveseen_isadev(dvp, checkbits)
 void
 isa_configure() {
 	struct isa_device *dvp;
-
-	dev_attach(&kdc_isa0);
 
 	splhigh();
 	printf("Probing for devices on the ISA bus:\n");
@@ -484,43 +468,6 @@ config_isadev_c(isdp, mp, reconfig)
 			}
 		}
 	}
-}
-
-/*
- * Provide ISA-specific device information to user programs using the
- * hw.devconf interface.
- */
-int
-isa_externalize(struct isa_device *id, struct sysctl_req *req)
-{
-	return (SYSCTL_OUT(req, id, sizeof *id));
-}
-
-/*
- * This is used to forcibly reconfigure an ISA device.  It currently just
- * returns an error 'cos you can't do that yet.  It is here to demonstrate
- * what the `internalize' routine is supposed to do.
- */
-int
-isa_internalize(struct isa_device *id, struct sysctl_req *req)
-{
-	struct isa_device myid;
-	int rv;
-
-	rv = SYSCTL_IN(req, &myid, sizeof *id);
-	if(rv)
-		return rv;
-
-	rv = EOPNOTSUPP;
-	/* code would go here to validate the configuration request */
-	/* code would go here to actually perform the reconfiguration */
-	return rv;
-}
-
-int
-isa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return isa_externalize(kdc->kdc_isa, req);
 }
 
 /*

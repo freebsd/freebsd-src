@@ -46,7 +46,6 @@
 #include	<machine/cpufunc.h>
 #ifdef	KERNEL
 #include	<sys/systm.h>
-#include	<sys/devconf.h>
 #include	<machine/clock.h>
 #include	<machine/qcam.h>
 #else	/* user mode version of driver */

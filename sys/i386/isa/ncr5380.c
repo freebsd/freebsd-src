@@ -45,7 +45,6 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/devconf.h>
 
 #include <machine/clock.h>
 
@@ -244,14 +243,6 @@ static struct scsi_adapter nca_switch = {
 static struct scsi_device nca_dev = { NULL, NULL, NULL, NULL, "nca", 0, {0} };
 struct isa_driver ncadriver = { nca_probe, nca_attach, "nca" };
 
-static char nca_description [80];
-static struct kern_devconf nca_kdc[NNCA] = {{
-	0, 0, 0, "nca", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, &kdc_isa0, 0,
-	DC_UNCONFIGURED, nca_description,
-	DC_CLS_MISC		/* host adapters aren't special */
-}};
-
 /*
  * Check if the device can be found at the port given and if so,
  * detect the type of board. Set it up ready for further work.
@@ -262,12 +253,6 @@ int nca_probe (struct isa_device *dev)
 {
 	adapter_t *z = &ncadata[dev->id_unit];
 	int i;
-
-	if (dev->id_unit)
-		nca_kdc[dev->id_unit] = nca_kdc[0];
-	nca_kdc[dev->id_unit].kdc_unit = dev->id_unit;
-	nca_kdc[dev->id_unit].kdc_isa = dev;
-	dev_attach (&nca_kdc[dev->id_unit]);
 
 	/* Init fields used by our routines */
 	z->parity = (dev->id_flags & FLAG_NOPARITY) ? 0 :
@@ -495,7 +480,6 @@ int nca_attach (struct isa_device *dev)
 	adapter_t *z = &ncadata[unit];
 	struct scsibus_data *scbus;
 
-	sprintf (nca_description, "%s SCSI controller", z->name);
 	printf ("nca%d: type %s%s\n", unit, z->name,
 		(dev->id_flags & FLAG_NOPARITY) ? ", no parity" : "");
 
@@ -516,7 +500,6 @@ int nca_attach (struct isa_device *dev)
 	scbus->adapter_link = &z->sc_link;
 
 	/* ask the adapter what subunits are present */
-	nca_kdc[unit].kdc_state = DC_BUSY;
 	scsi_attachdevs (scbus);
 
 	return (1);

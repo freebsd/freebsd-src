@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.163 1996/09/01 18:16:05 sos Exp $
+ *  $Id: syscons.c,v 1.164 1996/09/04 22:24:19 sos Exp $
  */
 
 #include "sc.h"
@@ -46,7 +46,6 @@
 #include <sys/syslog.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
-#include <sys/devconf.h>
 #ifdef	DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -302,27 +301,6 @@ gotack:
     return (IO_KBDSIZE);
 }
 
-static struct kern_devconf kdc_sc[NSC] = {
-    0, 0, 0,        		/* filled in by dev_attach */
-    "sc", 0, { MDDT_ISA, 0, "tty" },
-    isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-    &kdc_isa0,      		/* parent */
-    0,          		/* parentdata */
-    DC_BUSY,        		/* the console is almost always busy */
-    "Graphics console",
-    DC_CLS_DISPLAY		/* class */
-};
-
-static inline void
-sc_registerdev(struct isa_device *id)
-{
-    if(id->id_unit)
-	kdc_sc[id->id_unit] = kdc_sc[0];
-    kdc_sc[id->id_unit].kdc_unit = id->id_unit;
-    kdc_sc[id->id_unit].kdc_isa = id;
-    dev_attach(&kdc_sc[id->id_unit]);
-}
-
 #if NAPM > 0
 static int
 scresume(void *dummy)
@@ -451,7 +429,6 @@ scattach(struct isa_device *dev)
     scrn_timer();
 
     update_leds(scp->status);
-    sc_registerdev(dev);
 
     printf("sc%d: ", dev->id_unit);
     if (crtc_vga)

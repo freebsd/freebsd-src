@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.23 1996/07/12 04:11:25 bde Exp $ */
+/* $Id: scd.c,v 1.24 1996/07/23 21:51:39 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -63,7 +63,6 @@
 #include <sys/errno.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
-#include <sys/devconf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -199,27 +198,6 @@ static struct bdevsw scd_bdevsw =
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
 	  nodump,	nopsize,	0, "scd",	&scd_cdevsw,	-1 };
 
-static struct kern_devconf kdc_scd[NSCD] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"scd", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* status */
-	"Sony CD-ROM drive",	/* properly filled later */
-	DC_CLS_RDISK		/* class */
-} };
-
-static inline void
-scd_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_scd[id->id_unit] = kdc_scd[0];
-	kdc_scd[id->id_unit].kdc_unit = id->id_unit;
-	kdc_scd[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_scd[id->id_unit]);
-}
-
 int scd_attach(struct isa_device *dev)
 {
 	int	unit = dev->id_unit;
@@ -227,9 +205,7 @@ int scd_attach(struct isa_device *dev)
 
 	cd->iobase = dev->id_iobase;	/* Already set by probe, but ... */
 
-	kdc_scd[dev->id_unit].kdc_state = DC_IDLE;
 	/* name filled in probe */
-	kdc_scd[dev->id_unit].kdc_description = scd_data[dev->id_unit].name;
 	printf("scd%d: <%s>\n", dev->id_unit, scd_data[dev->id_unit].name);
 
 	init_drive(dev->id_unit);
@@ -307,7 +283,6 @@ scdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	cd->openflag = 1;
 	cd->flags |= SCDVALID;
-	kdc_scd[unit].kdc_state = DC_BUSY;
 
 	return 0;
 }
@@ -334,7 +309,6 @@ scdclose(dev_t dev, int flags, int fmt, struct proc *p)
 		cd->flags &= ~SCDSPINNING;
 	}
 
-	kdc_scd[unit].kdc_state = DC_IDLE;
 
 	/* close channel */
 	cd->openflag = 0;
@@ -722,8 +696,6 @@ scd_probe(struct isa_device *dev)
 	scd_data[unit].iobase = dev->id_iobase;
 
 	bzero(&drive_config, sizeof(drive_config));
-
-	scd_registerdev(dev);
 
 again:
 	/* Reset drive */

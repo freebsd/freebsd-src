@@ -80,7 +80,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -120,7 +119,7 @@ static struct lnc_softc {
 	int initialised;
 	int rap;
 	int rdp;
-	struct kern_devconf kdc;
+	char *descr;
 #ifdef DEBUG
 	int lnc_debug;
 #endif
@@ -165,17 +164,6 @@ void lncintr_sc __P((struct lnc_softc *sc));
 
 struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
 
-static struct kern_devconf kdc_lnc = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"lnc", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,
-	"",
-	DC_CLS_NETIF
-};
-
 static inline void
 write_csr(struct lnc_softc *sc, u_short port, u_short val)
 {
@@ -194,48 +182,43 @@ static inline void
 lnc_registerdev(struct isa_device *isa_dev)
 {
 	struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
-	struct kern_devconf *kdc = &sc->kdc;
-	*kdc = kdc_lnc;
-	kdc->kdc_unit = isa_dev->id_unit;
-	kdc->kdc_parentdata = isa_dev;
 
 	switch(sc->nic.ic) {
 		case LANCE:
 			if (sc->nic.ident == BICC)
-				kdc->kdc_description = "BICC (LANCE) Ethernet controller";
+				sc->descr = "BICC (LANCE) Ethernet controller";
 			else if (sc->nic.ident == NE2100)
-				kdc->kdc_description = "NE2100 (LANCE) Ethernet controller";
+				sc->descr = "NE2100 (LANCE) Ethernet controller";
 			else if (sc->nic.ident == DEPCA)
-				kdc->kdc_description = "DEPCA (LANCE) Ethernet controller";
+				sc->descr = "DEPCA (LANCE) Ethernet controller";
 			break;
 		case C_LANCE:
 			if (sc->nic.ident == BICC)
-				kdc->kdc_description = "BICC (C-LANCE) Ethernet controller";
+				sc->descr = "BICC (C-LANCE) Ethernet controller";
 			else if (sc->nic.ident == NE2100)
-				kdc->kdc_description = "NE2100 (C-LANCE) Ethernet controller";
+				sc->descr = "NE2100 (C-LANCE) Ethernet controller";
 			else if (sc->nic.ident == DEPCA)
-				kdc->kdc_description = "DEPCA (C-LANCE) Ethernet controller";
+				sc->descr = "DEPCA (C-LANCE) Ethernet controller";
 			break;
 		case PCnet_ISA:
-			kdc->kdc_description = "PCnet-ISA Ethernet controller";
+			sc->descr = "PCnet-ISA Ethernet controller";
 			break;
 		case PCnet_ISAplus:
-			kdc->kdc_description = "PCnet-ISA+ Ethernet controller";
+			sc->descr = "PCnet-ISA+ Ethernet controller";
 			break;
 		case PCnet_32:
-			kdc->kdc_description = "PCnet-32 VL-Bus Ethernet controller";
+			sc->descr = "PCnet-32 VL-Bus Ethernet controller";
 			break;
 		case PCnet_PCI:
 			/*
 			 * XXX - This should never be the case ...
 			 */
-			kdc->kdc_description = "PCnet-PCI Ethernet controller";
+			sc->descr = "PCnet-PCI Ethernet controller";
 			break;
 		default:
 			break;
 	}
 
-	dev_attach(kdc);
 }
 
 
@@ -1198,14 +1181,13 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 
 	if_attach(&sc->arpcom.ac_if);
 	ether_ifattach(&sc->arpcom.ac_if);
-	sc->kdc.kdc_state = DC_IDLE;
 
-	if (sc->kdc.kdc_description == NULL)
-		sc->kdc.kdc_description = "Lance Ethernet controller";
+	if (sc->descr == NULL)
+		sc->descr = "Lance Ethernet controller";
 
 	printf("lnc%d: %s, address %6D\n",
 	       unit,
-	       sc->kdc.kdc_description,
+	       sc->descr,
 	       sc->arpcom.ac_enaddr, ":");
 
 #if NBPFILTER > 0
@@ -1736,7 +1718,6 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 	switch (command) {
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
-		sc->kdc.kdc_state = DC_BUSY;
 
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
@@ -1783,8 +1764,6 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 			 */
 			lnc_init(sc);
 		}
-		sc->kdc.kdc_state =
-			((ifp->if_flags & IFF_UP) ? DC_BUSY : DC_IDLE);
 		break;
 #ifdef LNC_MULTICAST
 	case SIOCADDMULTI:

@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.16 1996/01/07 19:22:37 gibbs Exp $
+ * $Id: seagate.c,v 1.17 1996/03/10 07:04:47 gibbs Exp $
  */
 
 /*
@@ -121,7 +121,6 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/devconf.h>
 
 #include <machine/clock.h>
 
@@ -362,14 +361,6 @@ static struct scsi_adapter sea_switch = {
 static struct scsi_device sea_dev = { NULL, NULL, NULL, NULL, "sea", 0, {0} };
 struct isa_driver seadriver = { sea_probe, sea_attach, "sea" };
 
-static char sea_description [80]; /* XXX BOGUS!!! */
-static struct kern_devconf sea_kdc[NSEA] = {{
-	0, 0, 0, "sea", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, &kdc_isa0, 0,
-	DC_UNCONFIGURED, sea_description,
-	DC_CLS_MISC		/* host adapters aren't special */
-} };
-
 /* FD TMC885's can't handle detach & re-attach */
 static int sea_select_cmd = CMD_DRVR_ENABLE | CMD_ATTN;
 
@@ -386,12 +377,6 @@ int sea_probe (struct isa_device *dev)
 		0xc8000, 0xca000, 0xcc000, 0xce000, 0xdc000, 0xde000, 0,
 	};
 	int i;
-
-	if (dev->id_unit)
-		sea_kdc[dev->id_unit] = sea_kdc[0];
-	sea_kdc[dev->id_unit].kdc_unit = dev->id_unit;
-	sea_kdc[dev->id_unit].kdc_isa = dev;
-	dev_attach (&sea_kdc[dev->id_unit]);
 
 	/* Init fields used by our routines */
 	z->parity = (dev->id_flags & FLAG_NOPARITY) ? 0 : CMD_EN_PARITY;
@@ -551,8 +536,6 @@ int sea_attach (struct isa_device *dev)
 	adapter_t *z = &seadata[unit];
 	struct scsibus_data *scbus;
 
-	sea_kdc[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
-	sprintf (sea_description, "%s SCSI controller", z->name);
 	printf ("\nsea%d: type %s%s\n", unit, z->name,
 		(dev->id_flags & FLAG_NOPARITY) ? ", no parity" : "");
 

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.3 1996/06/12 05:02:39 gpalmer Exp $
+ *	$Id: 3c5x9.c,v 1.4 1996/07/19 13:19:47 amurai Exp $
  */
 
 #include "eisa.h"
@@ -27,7 +27,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/devconf.h>
 #include <sys/kernel.h>
 
 #include <machine/clock.h>
@@ -38,7 +37,6 @@
 #include <netinet/if_ether.h>
 
 #include <i386/isa/if_epreg.h>
-#include <i386/isa/isa_device.h> /* For kdc_isa0 */
 #include <i386/eisa/eisaconf.h>
 
 #define EISA_DEVICE_ID_3COM_3C509_TP	0x506d5090
@@ -79,17 +77,6 @@ struct eisa_driver ep_eisa_driver = {
 				      };
 
 DATA_SET (eisadriver_set, ep_eisa_driver);
-
-static struct kern_devconf kdc_eisa_ep = {
-	0, 0, 0,                /* filled in by dev_attach */
-	"ep", 0, { MDDT_EISA, 0, "net" },
-	eisa_generic_externalize, 0, 0, EISA_EXTERNALLEN,
-	&kdc_eisa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start out here */
-	NULL,
-	DC_CLS_MISC		/* host adapters aren't special */
-};
 
 static char   *ep_match __P((eisa_id_t type));
 
@@ -181,12 +168,7 @@ ep_eisa_probe(void)
 				continue;
 		}
 		eisa_add_intr(e_dev, irq);
-		eisa_registerdev(e_dev, &ep_eisa_driver, &kdc_eisa_ep);
-		if(e_dev->id != EISA_DEVICE_ID_3COM_3C579_TP &&
-		   e_dev->id != EISA_DEVICE_ID_3COM_3C579_BNC) {
-			/* Our real parent is the isa bus.  Say so. */
-                        e_dev->kdc->kdc_parent = &kdc_isa0;
-		}
+		eisa_registerdev(e_dev, &ep_eisa_driver);
 		count++;
 	}
 	return count;
@@ -238,7 +220,6 @@ ep_eisa_attach(e_dev)
 	ep_boards++;
 
 	sc->stat = 0;
-	sc->kdc = e_dev->kdc;
 	level_intr = FALSE;
 	switch(e_dev->id) {
 		case EISA_DEVICE_ID_3COM_3C509_TP:

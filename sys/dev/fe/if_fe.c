@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.16 1996/06/18 01:22:21 bde Exp $
+ * $Id: if_fe.c,v 1.17 1996/08/06 21:14:07 phk Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -83,7 +83,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -206,7 +205,6 @@ static struct fe_softc {
 	struct arpcom arpcom;	/* Ethernet common */
 
 	/* Used by config codes.  */
-	struct kern_devconf kdc;/* Kernel configuration database info.  */
 
 	/* Set by probe() and not modified in later phases.  */
 	char * typestr;		/* printable name of the interface.  */
@@ -239,8 +237,6 @@ static struct fe_softc {
 #define sc_if		arpcom.ac_if
 #define sc_unit		arpcom.ac_if.if_unit
 #define sc_enaddr	arpcom.ac_enaddr
-#define sc_dcstate	kdc.kdc_state
-#define sc_description	kdc.kdc_description
 
 /* Standard driver entry points.  These can be static.  */
 static int		fe_probe	( struct isa_device * );
@@ -252,7 +248,6 @@ static void		fe_reset	( int );
 static void		fe_watchdog	( struct ifnet * );
 
 /* Local functions.  Order of declaration is confused.  FIXME.  */
-static void	fe_registerdev	( struct fe_softc *, DEVICE * );
 static int	fe_probe_fmv	( DEVICE *, struct fe_softc * );
 static int	fe_probe_ati	( DEVICE *, struct fe_softc * );
 static int	fe_probe_mbh	( DEVICE *, struct fe_softc * );
@@ -279,19 +274,6 @@ struct isa_driver fedriver =
 	fe_attach,
 	"fe",
 	1			/* It's safe to mark as "sensitive"  */
-};
-
-/* Initial value for a kdc struct.  */
-static struct kern_devconf const fe_kdc_template =
-{
-	0, 0, 0,
-	"fe", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* This is an ISA device.  */
-	0,
-	DC_UNCONFIGURED,	/* Not yet configured.  */
-	"Ethernet (MB8696x)",	/* Tentative description (filled in later.)  */
-	DC_CLS_NETIF		/* This is a network interface.  */
 };
 
 /*
@@ -460,15 +442,6 @@ static struct fe_probe_list const fe_probe_list [] =
 	{ NULL, NULL }
 };
 
-static void
-fe_registerdev ( struct fe_softc * sc, DEVICE * dev )
-{
-	/* Fill the device config data and register it.  */
-	sc->kdc = fe_kdc_template;
-	sc->kdc.kdc_unit = sc->sc_unit;
-	sc->kdc.kdc_parentdata = dev;
-	dev_attach( &sc->kdc );
-}
 
 /*
  * Determine if the device is present
@@ -497,19 +470,12 @@ fe_probe ( DEVICE * dev )
 	sc = &fe_softc[ dev->id_unit ];
 	sc->sc_unit = dev->id_unit;
 
-#if NCRD == 0
-#ifndef DEV_LKM
-	fe_registerdev(sc, dev);   
-#endif  
-#endif  /* NCRD == 0 */
-
 #if NCRD > 0
 	/*
 	 * If PC-Card probe required, then register driver with
 	 * slot manager.
 	 */
 	if (fe_already_init != 1) {
-		fe_registerdev(sc,dev);
 		pccard_add_driver(&fe_info);
 		fe_already_init = 1;
 	}
@@ -784,7 +750,6 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 		switch ( revision ) {
 		  case 8:
 		    sc->typestr = "FMV-183";
-		    sc->sc_description = "Ethernet adapter: FMV-183";
 		    break;
 		}
 		break;
@@ -792,11 +757,9 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 		switch ( revision ) {
 		  case 0:
 		    sc->typestr = "FMV-181";
-		    sc->sc_description = "Ethernet adapter: FMV-181";
 		    break;
 		  case 1:
 		    sc->typestr = "FMV-181A";
-		    sc->sc_description = "Ethernet adapter: FMV-181A";
 		    break;
 		}
 		break;
@@ -804,7 +767,6 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 		switch ( revision ) {
 		  case 8:
 		    sc->typestr = "FMV-184 (CSR = 2)";
-		    sc->sc_description = "Ethernet adapter: FMV-184";
 		    break;
 		}
 		break;
@@ -812,7 +774,6 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 		switch ( revision ) {
 		  case 8:
 		    sc->typestr = "FMV-184 (CSR = 1)";
-		    sc->sc_description = "Ethernet adapter: FMV-184";
 		    break;
 		}
 		break;
@@ -820,15 +781,12 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 		switch ( revision ) {
 		  case 0:
 		    sc->typestr = "FMV-182";
-		    sc->sc_description = "Ethernet adapter: FMV-182";
 		    break;
 		  case 1:
 		    sc->typestr = "FMV-182A";
-		    sc->sc_description = "Ethernet adapter: FMV-182A";
 		    break;
 		  case 8:
 		    sc->typestr = "FMV-184 (CSR = 3)";
-		    sc->sc_description = "Ethernet adapter: FMV-184";
 		    break;
 		}
 		break;
@@ -836,8 +794,6 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 	if ( sc->typestr == NULL ) {
 	  	/* Unknown card type...  Hope the driver works.  */
 		sc->typestr = "unknown FMV-180 version";
-		sc->sc_description
-			= "Ethernet adapter: unknown FMV-180 version";
 		log( LOG_WARNING, "fe%d: %s: %x-%x-%x-%x\n",
 			sc->sc_unit, sc->typestr,
 			inb( sc->ioaddr[ FE_FMV0 ] ),
@@ -1023,23 +979,18 @@ fe_probe_ati ( DEVICE * dev, struct fe_softc * sc )
 	switch (eeprom[FE_ATI_EEP_MODEL]) {
 	  case FE_ATI_MODEL_AT1700T:
 		sc->typestr = "AT-1700T/RE2001";
-		sc->sc_description = "Ethernet adapter: AT1700T or RE2001";
 		break;
 	  case FE_ATI_MODEL_AT1700BT:
 		sc->typestr = "AT-1700BT/RE2003";
-		sc->sc_description = "Ethernet adapter: AT1700BT or RE2003";
 		break;
 	  case FE_ATI_MODEL_AT1700FT:
 		sc->typestr = "AT-1700FT/RE2009";
-		sc->sc_description = "Ethernet adapter: AT1700FT or RE2009";
 		break;
 	  case FE_ATI_MODEL_AT1700AT:
 		sc->typestr = "AT-1700AT/RE2005";
-		sc->sc_description = "Ethernet adapter: AT1700AT or RE2005";
 		break;
 	  default:
 		sc->typestr = "unknown AT-1700/RE2000 ?";
-		sc->sc_description = "Ethernet adapter: AT1700 or RE2000 ?";
 		break;
 	}
 
@@ -1220,7 +1171,6 @@ fe_probe_mbh ( DEVICE * dev, struct fe_softc * sc )
 
 	/* Determine the card type.  */
 	sc->typestr = "MBH10302 (PCMCIA)";
-	sc->sc_description = "Ethernet adapter: MBH10302 (PCMCIA)";
 
 	/*
 	 * Initialize constants in the per-line structure.
@@ -1480,7 +1430,6 @@ fe_stop ( int unit )
 	sc->filter_change = 0;
 
 	/* Update config status also.  */
-	sc->sc_dcstate = DC_IDLE;
 
 	/* Call a hook.  */
 	if ( sc->stop ) sc->stop( sc );
@@ -1677,9 +1626,6 @@ fe_init ( int unit )
 #endif
 	/* Set 'running' flag, because we are now running.   */
 	sc->sc_if.if_flags |= IFF_RUNNING;
-
-	/* Update device config status.  */
-	sc->sc_dcstate = DC_BUSY;
 
 	/*
 	 * At this point, the interface is running properly,

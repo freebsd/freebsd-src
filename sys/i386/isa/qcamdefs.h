@@ -69,7 +69,6 @@ struct qcam_softc {
 	u_char		whitebalance;
 
 #if defined(__FreeBSD__) && defined(KERNEL)
-	struct		kern_devconf kdc;	/* kernel config database */
 #ifdef	DEVFS
 	void		*devfs_token;		/* device filesystem handle */
 #endif	/* DEVFS */

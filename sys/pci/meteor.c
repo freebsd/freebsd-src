@@ -159,7 +159,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
-#include <sys/devconf.h>
 #include <sys/mman.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
