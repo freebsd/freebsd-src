@@ -2930,7 +2930,10 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 *  specific GPIO wiring and for the 895A, 896 
 	 *  and 1010 that drive the LED directly.
 	 */
-	if ((SYM_SETUP_SCSI_LED || nvram->type == SYM_SYMBIOS_NVRAM) &&
+	if ((SYM_SETUP_SCSI_LED || 
+	     (nvram->type == SYM_SYMBIOS_NVRAM ||
+	      (nvram->type == SYM_TEKRAM_NVRAM &&
+	       np->device_id == PCI_ID_SYM53C895))) &&
 	    !(np->features & FE_LEDC) && !(np->sv_gpcntl & 0x01))
 		np->features |= FE_LED0;
 
@@ -10124,7 +10127,7 @@ static int sym_read_S24C16_nvram (hcb_p np, int offset, u_char *data, int len)
 	/* save current state of GPCNTL and GPREG */
 	old_gpreg	= INB (nc_gpreg);
 	old_gpcntl	= INB (nc_gpcntl);
-	gpcntl		= old_gpcntl & 0xfc;
+	gpcntl		= old_gpcntl & 0x1c;
 
 	/* set up GPREG & GPCNTL to set GPIO0 and GPIO1 in to known state */
 	OUTB (nc_gpreg,  old_gpreg);
