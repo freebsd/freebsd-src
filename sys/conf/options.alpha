@@ -48,10 +48,6 @@ PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
-# Fb options
-FB_DEBUG		opt_fb.h
-FB_INSTALL_CDEV		opt_fb.h
-
 # Atkbd options
 ATKBD_DFLT_KEYMAP	opt_atkbd.h
 
@@ -62,5 +58,3 @@ KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
-
-BREAK_TO_DEBUGGER	opt_comconsole.h

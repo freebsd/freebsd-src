@@ -75,6 +75,8 @@ options 	BLKDEV_IOSIZE=8192
 #options 	PQ_NOOPT		# No coloring
 options 	PQ_LARGECACHE		# color for 512k/16k cache
 #options 	PQ_HUGECACHE		# color for 1024k/16k cache
+#options	PQ_MEDIUMCACHE		# color for 64k/16k cache
+#options	PQ_NORMALCACHE		# color for 256k/16k cache
 
 # This allows you to actually store this configuration file into
 # the kernel binary itself, where it may be later read by saying:
@@ -627,13 +629,6 @@ options 	NSWAPDEV=20
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
 
-# In particular multi-session CD-Rs might require a huge amount of
-# time in order to "settle".  If we are about mounting them as the
-# root f/s, we gotta wait a little.
-#
-# The number is supposed to be in seconds.
-options 	CD9660_ROOTDELAY=20
-
 # If you are running a machine just as a fileserver for PC and MAC
 # users, using SAMBA or Netatalk, you may consider setting this option
 # and keeping all those users' directories on a filesystem that is
@@ -759,8 +754,6 @@ device		pt0 at scbus?		# SCSI processor type
 # CAM_MAX_HIGHPOWER: Maximum number of concurrent high power (start unit) cmds
 # SCSI_NO_SENSE_STRINGS: When defined disables sense descriptions
 # SCSI_NO_OP_STRINGS: When defined disables opcode descriptions
-# SCSI_REPORT_GEOMETRY: Always report disk geometry at boot up instead
-#                       of only when booting verbosely.
 # SCSI_DELAY: The number of MILLISECONDS to freeze the SIM (scsi adapter)
 #             queue after a bus reset, and the number of milliseconds to
 #             freeze the device queue after a bus device reset.
@@ -772,7 +765,6 @@ options 	CAM_DEBUG_FLAGS="CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB"
 options 	CAM_MAX_HIGHPOWER=4
 options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
-options 	SCSI_REPORT_GEOMETRY
 options 	SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
 
 # Options for the CAM CDROM driver:
@@ -1559,6 +1551,10 @@ device		fea0
 # default.
 options 	AHC_ALLOW_MEMIO
 
+# The adw driver will attempt to use memory mapped I/O for all PCI
+# controllers that have it configured only if this option is set.
+options 	ADW_ALLOW_MEMIO
+
 # By default, only 10 EISA slots are probed, since the slot numbers
 # above clash with the configuration address space of the PCI subsystem,
 # and the EISA probe is not very smart about this.  This is sufficient
@@ -2131,27 +2127,40 @@ options 	NSFBUFS=1024
 options 	DEBUG_LOCKS
 
 # More undocumented options for linting.
+# Note that documenting these are not considered an affront.
 
+options 	AHC_DUMP_EEPROM
+options 	AHC_TMODE_ENABLE
+options 	ATA_16BIT_ONLY
+options 	ATA_STATIC_ID
+options 	BUS_DEBUG
+options 	CAM_DEBUG_DELAY
 options 	CLK_CALIBRATION_LOOP
 options 	CLK_USE_I8254_CALIBRATION
 options 	CLK_USE_TSC_CALIBRATION
-options 	TIMER_FREQ="((14318182+6)/12)"
 options 	CLUSTERDEBUG
 options 	COMPAT_LINUX
 options 	CPU_UPGRADE_HW_CACHE
 options 	DEBUG
+options 	DEBUG_LINUX
 options 	DEBUG_VFS_LOCKS
 #options 	DISABLE_PSE
+options 	ENABLE_ALART
+options 	ENABLE_VFS_IOOPT
+options 	FB_DEBUG
+options 	FB_INSTALL_CDEV
+options 	FE_8BIT_SUPPORT
+options 	I4B_SMP_WORKAROUND
 options 	I586_PMC_GUPROF=0x70000
 options 	IBCS2
+options 	KBDIO_DEBUG=2
+options 	KBD_MAXRETRY=4
+options 	KBD_MAXWAIT=6
+options 	KBD_RESETDELAY=201
 options 	KEY
 options 	KEY_DEBUG
 options 	LOCKF_DEBUG
 options 	LOUTB
-options 	KBD_MAXRETRY=4
-options 	KBD_MAXWAIT=6
-options 	KBD_RESETDELAY=201
-options 	KBDIO_DEBUG=2
 options 	MSGMNB=2049
 options 	MSGMNI=41
 options 	MSGSEG=2049
@@ -2161,13 +2170,18 @@ options 	NBUF=512
 options 	NETATALKDEBUG
 options 	NMBCLUSTERS=1024
 options 	NPX_DEBUG
+#options 	OLTR_NO_BULLSEYE_MAC
+#options 	OLTR_NO_HAWKEYE_MAC
+#options 	OLTR_NO_TMS_MAC
 options 	PANIC_REBOOT_WAIT_TIME=16
+options 	PNPBIOS
 options 	PSM_DEBUG=1
 options 	SCSI_NCR_DEBUG
-options 	SCSI_NCR_DFLT_TAGS=4
 options 	SCSI_NCR_MAX_SYNC=10000
 options 	SCSI_NCR_MAX_WIDE=1
 options 	SCSI_NCR_MYADDR=7
+options 	SC_DEBUG_LEVEL
+options 	SC_RENDER_DEBUG
 options 	SEMMAP=31
 options 	SEMMNI=11
 options 	SEMMNS=61
@@ -2175,18 +2189,26 @@ options 	SEMMNU=31
 options 	SEMMSL=61
 options 	SEMOPM=101
 options 	SEMUME=11
-options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	SHMALL=1025
 options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
 options 	SHMMAXPGS=1025
 options 	SHMMIN=2
 options 	SHMMNI=33
 options 	SHMSEG=9
-options 	SI_DEBUG
+options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	SIMPLELOCK_DEBUG
+options 	SI_DEBUG
+options 	SLIP_IFF_OPTS
 options 	SPX_HACK
+options 	TIMER_FREQ="((14318182+6)/12)"
 options 	VFS_BIO_DEBUG
-options 	ENABLE_ALART
+options 	VM_KMEM_SIZE
+options 	VM_KMEM_SIZE_MAX
+options 	VM_KMEM_SIZE_SCALE
+
+# Undocumented options covering presently broken code
+#options 	ASUSCOM_IPAC
+#options 	SC_VIDEO_DEBUG
 
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
@@ -2195,19 +2217,9 @@ options 	ENABLE_ALART
 # Compaq are actually DPT controllers.
 #
 # See sys/dev/dpt for debugging and other subtle options.
-#   DPT_VERIFY_HINTR        Performs some strict hardware interrupts testing.
-#                           Only use if you suspect PCI bus corruption problems
-#   DPT_RESTRICTED_FREELIST Normally, the freelist used by the DPT for queue
-#                           will grow to accommodate increased use. This growth
-#                           will NOT shrink.  To restrict the number of queue
-#                           slots to exactly what the DPT can hold at one time,
-#                           enable this option.
 #   DPT_MEASURE_PERFORMANCE Enables a set of (semi)invasive metrics. Various
 #                           instruments are enabled.  The tools in
 #                           /usr/sbin/dpt_* assume these to be enabled.
-#   DPT_FREELIST_IS_STACK   For optimal L{1,2} CPU cache utilization, enable
-#                           this option.  Otherwise, the transaction queue is
-#                           a LIFO.  I cannot measure the performance gain.
 #   DPT_HANDLE_TIMEOUTS     Normally device timeouts are handled by the DPT.
 #                           If you ant the driver to handle timeouts, enable
 #                           this option.  If your system is very busy, this
@@ -2222,29 +2234,16 @@ options 	ENABLE_ALART
 #  DPT_RESET_HBA            Make "reset" actually reset the controller
 #                           instead of fudging it.  Only enable this if you
 #			    are 100% certain you need it.
-#  DPT_SHUTDOWN_SLEEP       Reset controller if a request take more than
-#                           this number of seconds.  Do NOT enable this
-#			    unless you are really, really, really certain
-#			    you need it.  You are advised to call Simon (the
-#			    driver author) before setting it, and NEVER,
-#			    EVER set it to less than 300s (5 minutes).
 
 controller	dpt0
 
 # DPT options
-options 	DPT_VERIFY_HINTR
-options 	DPT_RESTRICTED_FREELIST
 #!CAM# options 	DPT_MEASURE_PERFORMANCE
-options 	DPT_FREELIST_IS_STACK
 #!CAM# options 	DPT_HANDLE_TIMEOUTS
 options 	DPT_TIMEOUT_FACTOR=4
-options 	DPT_INTR_DELAY=200      # Some motherboards need that
 options 	DPT_LOST_IRQ
 options 	DPT_RESET_HBA
-
-# Don't EVER set this without having talked to Simon Shapiro on the phone
-# first.
-options 	DPT_SHUTDOWN_SLEEP=500
+options 	DPT_ALLOW_MEMIO
 
 # USB support
 # UHCI controller
