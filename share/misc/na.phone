@@ -150,6 +150,7 @@
 509:Spokane:Washington:WA
 509:Walla Walla:Washington:WA
 509:Yakima:Washington:WA
+510:Berkeley:California:CA
 510:Oakland:California:CA
 512:Alamo:Texas:TX
 512:Austin:Texas:TX
@@ -169,8 +170,9 @@
 518:Schenectady:New York:NY
 518:Troy:New York:NY
 519:London:Ontario:ON
-520:Tempe:Arizona:AZ
 520:Flagstaff:Arizona:AZ
+520:Tempe:Arizona:AZ
+520:Tuscon:Arizona:AZ
 540:Roanoke:Virginia:VA
 541:Bend:Oregon:OR
 541:Corvallis:Oregon:OR
@@ -217,6 +219,10 @@
 618:Mt. Vernon:Illinois:IL
 619:San Diego:California:CA
 630:Chicago Suburbs (Cellular and Pagers):Illinois:IL
+650:Foster City:California:CA
+650:Mountain View:California:CA
+650:Palo Alto:California:CA
+650:San Mateo:California:CA
 664::Montserrat:
 701::North Dakota:ND
 702::Nevada:NV
