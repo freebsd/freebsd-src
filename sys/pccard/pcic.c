@@ -83,8 +83,8 @@ static struct slot_ctrl pcic_cinfo = {
 unsigned char
 pcic_getb_io(struct pcic_slot *sp, int reg)
 {
-	outb(sp->index, sp->offset + reg);
-	return (inb(sp->data));
+	bus_space_write_1(sp->bst, sp->bsh, PCIC_INDEX, sp->offset + reg);
+	return (bus_space_read_1(sp->bst, sp->bsh, PCIC_DATA));
 }
 
 /*
@@ -93,8 +93,13 @@ pcic_getb_io(struct pcic_slot *sp, int reg)
 void
 pcic_putb_io(struct pcic_slot *sp, int reg, unsigned char val)
 {
-	outb(sp->index, sp->offset + reg);
-	outb(sp->data, val);
+	/*
+	 * Many datasheets recommend using outw rather than outb to save 
+	 * a microsecond.  Maybe we should do this, but we'd likely only
+	 * save 20-30us on card activation.
+	 */
+	bus_space_write_1(sp->bst, sp->bsh, PCIC_INDEX, sp->offset + reg);
+	bus_space_write_1(sp->bst, sp->bsh, PCIC_DATA, val);
 }
 
 /*
