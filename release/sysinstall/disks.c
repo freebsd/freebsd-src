@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.18 1995/10/19 15:54:57 jkh Exp $
+ * $Id: disks.c,v 1.31.2.20 1995/10/20 21:57:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -121,6 +121,88 @@ print_command_summary()
     move(0, 0);
 }
 
+/* Partition a disk based wholly on which variables are set */
+static void
+scriptPartition(Device *dev, Disk *d)
+{
+    char *cp;
+    int i, sz;
+
+    record_chunks(d);
+    cp = variable_get(VAR_GEOMETRY);
+    if (cp) {
+	msgDebug("Setting geometry from script to: %s\n", cp);
+	d->bios_cyl = strtol(cp, &cp, 0);
+	d->bios_hd = strtol(cp + 1, &cp, 0);
+	d->bios_sect = strtol(cp + 1, 0, 0);
+    }
+
+    cp = variable_get(VAR_DISKSPACE);
+    if (cp) {
+	if (!strcmp(cp, "free")) {
+	    /* Do free disk space case */
+	    for (i = 0; chunk_info[i]; i++) {
+		/* If a chunk is at least 10MB in size, use it. */
+		if (chunk_info[i]->type == unused && chunk_info[i]->size > (10 * ONE_MEG)) {
+		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size, freebsd, 3,
+				 (chunk_info[i]->flags & CHUNK_ALIGN));
+		    variable_set2(DISK_PARTITIONED, "yes");
+		    break;
+		}
+	    }
+	    if (!chunk_info[i]) {
+		msgConfirm("Unable to find any free space on this disk!");
+		return;
+	    }
+	}
+	else if (!strcmp(cp, "all")) {
+	    /* Do all disk space case */
+	    msgDebug("Warning:  Devoting all of disk %s to FreeBSD.\n", d->name);
+
+	    All_FreeBSD(d, FALSE);
+	}
+	else if (!strcmp(cp, "exclusive")) {
+	    /* Do really-all-the-disk-space case */
+	    msgDebug("Warning:  Devoting all of disk %s to FreeBSD.\n", d->name);
+
+	    All_FreeBSD(d, TRUE);
+	}
+	else if ((sz = strtol(cp, &cp, 0))) {
+	    /* Look for sz bytes free */
+	    if (*cp && toupper(*cp) == 'M')
+		sz *= ONE_MEG;
+	    for (i = 0; chunk_info[i]; i++) {
+		/* If a chunk is at least sz MB, use it. */
+		if (chunk_info[i]->type == unused && chunk_info[i]->size >= sz) {
+		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3, (chunk_info[i]->flags & CHUNK_ALIGN));
+		    variable_set2(DISK_PARTITIONED, "yes");
+		    break;
+		}
+	    }
+	    if (!chunk_info[i]) {
+		msgConfirm("Unable to find %d free blocks on this disk!", sz);
+		return;
+	    }
+	}
+	else if (!strcmp(cp, "existing")) {
+	    /* Do existing FreeBSD case */
+	    for (i = 0; chunk_info[i]; i++) {
+		if (chunk_info[i]->type == freebsd)
+		    break;
+	    }
+	    if (!chunk_info[i]) {
+		msgConfirm("Unable to find any existing FreeBSD partitons on this disk!");
+		return;
+	    }
+	}
+	else {
+	    msgConfirm("`%s' is an invalid value for %s - is config file valid?", cp, VAR_DISKSPACE);
+	    return;
+	}
+	variable_set2(DISK_PARTITIONED, "yes");
+    }
+}
+
 void
 diskPartition(Device *dev, Disk *d)
 {
@@ -230,7 +312,7 @@ diskPartition(Device *dev, Disk *d)
 				  "a trailing `M' for megabytes (e.g. 20M).");
 		if (val && (size = strtol(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
-			size *= 2048;
+			size *= ONE_MEG;
 		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, freebsd, 3,
 				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 		    variable_set2(DISK_PARTITIONED, "yes");
@@ -372,8 +454,10 @@ diskPartitionEditor(char *str)
     DMenu *menu;
     Device **devs;
     int i, cnt;
+    char *cp;
 
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    cp = variable_get(VAR_DISK);
+    devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
@@ -383,7 +467,10 @@ diskPartitionEditor(char *str)
     }
     else if (cnt == 1) {
 	devs[0]->enabled = TRUE;
-	diskPartition(devs[0], (Disk *)devs[0]->private);
+	if (str && !strcmp(str, "script"))
+	    scriptPartition(devs[0], (Disk *)devs[0]->private);
+	else
+	    diskPartition(devs[0], (Disk *)devs[0]->private);
 	i = RET_SUCCESS;
     }
     else {

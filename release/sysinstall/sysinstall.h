@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.28 1995/10/21 14:07:02 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.30 1995/10/21 18:28:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,42 +96,53 @@
 #define TCP_CONFIGURED		"_tcpConfigured"
 
 /* Ones that can be tweaked from config files */
-#define TAPE_BLOCKSIZE		"tapeBlocksize"
-#define FTP_USER		"ftpUser"
-#define FTP_PASS		"ftpPass"
-#define RELNAME			"releaseName"
-#define CPIO_VERBOSITY_LEVEL	"cpioVerboseLevel"
-#define BROWSER_PACKAGE		"browserPackage"
-#define BROWSER_BINARY		"browserBinary"
-#define CONFIG_FILE		"configFile"
-#define ROOT_SIZE		"rootSize"
-#define USR_SIZE		"usrSize"
-#define VAR_SIZE		"varSize"
-#define SWAP_SIZE		"swapSize"
-#define NFS_PATH		"nfs"
-#define FTP_PATH		"ftp"
-#define UFS_PATH		"ufs"
-#define PORTS_PATH		"ports"
-#define DIST_SETS		"dists"		/* This one is sort of advanced-users only */
-#define MEDIA_TYPE		"mediaType"
-#define VAR_HOSTNAME		"hostname"
-#define VAR_DOMAINNAME		"domainname"
-#define VAR_NAMESERVER		"nameserver"
-#define VAR_GATEWAY		"defaultrouter"
-#define VAR_IPADDR		"ipaddr"
-#define VAR_NETMASK		"netmask"
-#define VAR_IFCONFIG		"ifconfig_"
-#define VAR_EXTRAS		"ifconfig_"
-#define VAR_INTERFACES		"network_interfaces"
+#define VAR_BLANKTIME			"blanktime"
+#define VAR_BROWSER_BINARY		"browserBinary"
+#define VAR_BROWSER_PACKAGE		"browserPackage"
+#define VAR_CONFIG_FILE			"configFile"
+#define VAR_CPIO_VERBOSITY		"cpioVerbose"
+#define VAR_DEBUG			"debug"
+#define VAR_DISK			"disk"
+#define VAR_DISKSPACE			"diskSpace"
+#define VAR_DIST_SETS			"dists"		/* This one is sort of advanced-users only */
+#define VAR_DOMAINNAME			"domainname"
+#define VAR_EXTRAS			"ifconfig_"
+#define VAR_FTP_ONERROR			"ftpOnError"
+#define VAR_FTP_PASS			"ftpPass"
+#define VAR_FTP_PATH			"ftp"
+#define VAR_FTP_STATE			"ftpState"
+#define VAR_FTP_USER			"ftpUser"
+#define VAR_GATEWAY			"defaultrouter"
+#define VAR_GEOMETRY			"geometry"
+#define VAR_HOSTNAME			"hostname"
+#define VAR_IFCONFIG			"ifconfig_"
+#define VAR_INTERFACES			"network_interfaces"
+#define VAR_IPADDR			"ipaddr"
+#define VAR_LABEL			"label"
+#define VAR_LABEL_COUNT			"labelCount"
+#define VAR_MEDIA_TYPE			"mediaType"
+#define VAR_NAMESERVER			"nameserver"
+#define VAR_NETMASK			"netmask"
+#define VAR_NFS_PATH			"nfs"
+#define VAR_NFS_SECURE			"nfsSecure"
+#define VAR_NO_CONFIRM			"noConfirm"
+#define VAR_NTPDATE			"ntpDate"
+#define VAR_PORTS_PATH			"ports"
+#define VAR_RELNAME			"releaseName"
+#define VAR_ROOT_SIZE			"rootSize"
+#define VAR_ROUTEDFLAGS			"routedflags"
+#define VAR_SLOW_ETHER			"slowEthernetCard"
+#define VAR_SWAP_SIZE			"swapSize"
+#define VAR_TAPE_BLOCKSIZE		"tapeBlocksize"
+#define VAR_UFS_PATH			"ufs"
+#define VAR_USR_SIZE			"usrSize"
+#define VAR_VAR_SIZE			"varSize"
+#define VAR_SERIAL_SPEED		"serialSpeed"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
-#define OPT_NO_CONFIRM		"noConfirm"
-#define OPT_NFS_SECURE		"nfsSecure"
-#define OPT_DEBUG		"debug"
-#define OPT_FTP_STATE		"ftpState"
-#define OPT_FTP_ONERROR		"ftpOnError"
-#define OPT_SLOW_ETHER		"slowEthernetCard"
+/* One MB worth of blocks */
+#define ONE_MEG				2048
 
 /* The help file for the TCP/IP setup screen */
 #define TCP_HELPFILE		"tcp"
