@@ -337,7 +337,6 @@ case NGM_ASYNC_COOKIE:
 		if (!resp ^ (cmd != NGM_ASYNC_CMD_GET_CONFIG))
 			return;
 		NGLOGX("    enabled   %s", ac->enabled ? "YES" : "NO");
-		NGLOGX("    acfcomp   %s", ac->acfcomp ? "YES" : "NO");
 		NGLOGX("    Async MRU %u", ac->amru);
 		NGLOGX("    Sync MRU  %u", ac->smru);
 		NGLOGX("    ACCM      0x%08x", ac->accm);
