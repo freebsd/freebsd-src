@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.11 1997/02/22 09:35:01 peter Exp $
+ * $Id: profile.h,v 1.12 1997/08/30 08:07:50 fsmp Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
@@ -62,10 +62,13 @@
 #define	PC_TO_I(p, pc)	((fptrint_t)(pc) - (fptrint_t)(p)->lowpc)
 #else
 #define	MCOUNT_DECL(s)	u_long s;
-#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
 #ifdef SMP
-#define	MCOUNT_EXIT(s)	{ MPINTR_UNLOCK(); write_eflags(s); }
+#define	MCOUNT_ENTER(s)	{ s = read_eflags(); \
+ 			  __asm __volatile("cli" : : : "memory"); \
+			  s_lock_np(&mcount_lock); }
+#define	MCOUNT_EXIT(s)	{ s_unlock_np(&mcount_lock); write_eflags(s); }
 #else
+#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
 #define	MCOUNT_EXIT(s)	(write_eflags(s))
 #endif
 #endif /* GUPROF */
@@ -107,7 +110,7 @@ typedef	u_int	fptrint_t;
  * An unsigned integral type that can hold non-negative difference between
  * function pointers.
  */
-typedef	int	fptrdiff_t;
+typedef	u_int	fptrdiff_t;
 
 #ifdef KERNEL
 
