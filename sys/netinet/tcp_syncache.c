@@ -37,6 +37,7 @@
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
+#include "opt_tcpdebug.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -68,10 +69,16 @@
 #include <netinet6/in6_pcb.h>
 #endif
 #include <netinet/tcp.h>
+#ifdef TCPDEBUG
+#include <netinet/tcpip.h>
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#ifdef TCPDEBUG
+#include <netinet/tcp_debug.h>
+#endif
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -104,7 +111,11 @@ static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
 struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
+#ifdef TCPDEBUG
+static int	 syncache_respond(struct syncache *, struct mbuf *, struct socket *);
+#else
 static int	 syncache_respond(struct syncache *, struct mbuf *);
+#endif
 static struct 	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
 static void	 syncache_timer(void *);
@@ -397,7 +408,11 @@ syncache_timer(xslot)
 		 * to modify another entry, so do not obtain the next
 		 * entry on the timer chain until it has completed.
 		 */
+#ifdef TCPDEBUG
+		(void) syncache_respond(sc, NULL, NULL);
+#else
 		(void) syncache_respond(sc, NULL);
+#endif
 		nsc = TAILQ_NEXT(sc, sc_timerq);
 		tcpstat.tcps_sc_retransmitted++;
 		TAILQ_REMOVE(&tcp_syncache.timerq[slot], sc, sc_timerq);
@@ -870,7 +885,11 @@ syncache_add(inc, to, th, sop, m)
 		 */
 		sc->sc_tp = tp;
 		sc->sc_inp_gencnt = tp->t_inpcb->inp_gencnt;
+#ifdef TCPDEBUG
+		if (syncache_respond(sc, m, so) == 0) {
+#else
 		if (syncache_respond(sc, m) == 0) {
+#endif
 		        s = splnet();
 			TAILQ_REMOVE(&tcp_syncache.timerq[sc->sc_rxtslot],
 			    sc, sc_timerq);
@@ -1027,7 +1046,11 @@ syncache_add(inc, to, th, sop, m)
 	 * TAO test failed or there was no CC option,
 	 *    do a standard 3-way handshake.
 	 */
+#ifdef TCPDEBUG
+	if (syncache_respond(sc, m, so) == 0) {
+#else
 	if (syncache_respond(sc, m) == 0) {
+#endif
 		syncache_insert(sc, sch);
 		tcpstat.tcps_sndacks++;
 		tcpstat.tcps_sndtotal++;
@@ -1039,10 +1062,18 @@ syncache_add(inc, to, th, sop, m)
 	return (1);
 }
 
+#ifdef TCPDEBUG
+static int
+syncache_respond(sc, m, so)
+	struct syncache *sc;
+	struct mbuf *m;
+	struct socket *so;
+#else
 static int
 syncache_respond(sc, m)
 	struct syncache *sc;
 	struct mbuf *m;
+#endif
 {
 	u_int8_t *optp;
 	int optlen, error;
@@ -1217,6 +1248,16 @@ syncache_respond(sc, m)
 		    htons(tlen - hlen + IPPROTO_TCP));
 		m->m_pkthdr.csum_flags = CSUM_TCP;
 		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+#ifdef TCPDEBUG
+		/*
+		 * Trace.
+		 */
+		if (so != NULL && so->so_options & SO_DEBUG) {
+			struct tcpcb *tp = sototcpcb(so);
+			tcp_trace(TA_OUTPUT, tp->t_state, tp,
+			    mtod(m, void *), th, 0);
+		}
+#endif
 		error = ip_output(m, sc->sc_ipopts, &sc->sc_route, 0, NULL,
 				sc->sc_tp->t_inpcb);
 	}
