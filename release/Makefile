@@ -760,117 +760,6 @@ release.9:
 .endif
 	touch release.9
 
-release.9.alpha:
-.if ${TARGET_ARCH} != "ia64" || ${TARGET_ARCH} == ${MACHINE_ARCH}
-	cp ${RD}/trees/base/etc/disktab /etc
-	rm -rf ${RD}/mfsfd
-	mkdir ${RD}/mfsfd
-	cd ${RD}/mfsfd && \
-		mkdir -p etc/defaults dev mnt stand/etc/defaults stand/help
-	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
-		DIR=${RD}/mfsfd/stand ZIP=false
-	( cd ${RD}/mfsfd && \
-	  for dir in bin sbin ; do \
-		ln -sf /stand $$dir; \
-	  done )
-	cp ${RD}/trees/base/sbin/dhclient-script ${RD}/mfsfd/stand
-.if ${TARGET} == "pc98"
-	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
-.endif
-	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
-	( for F in defaults/rc.conf netconfig protocols ; do \
-		sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
-		${RD}/trees/base/etc/$$F > ${RD}/mfsfd/stand/etc/$$F ; \
-	  done )
-	grep -E '^(ftp|nameserver|domain|sunrpc|cmd|nfsd)[^-\w]' \
-	    ${RD}/trees/base/etc/services | \
-	    sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
-	    > ${RD}/mfsfd/stand/etc/services
-	ln ${RD}/mfsfd/stand/etc/services ${RD}/mfsfd/etc/services
-	ln ${RD}/mfsfd/stand/etc/netconfig ${RD}/mfsfd/etc/netconfig
-	cp ${RD}/trees/base/COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
-.if !defined(NODOC)
-	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	done
-	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	done
-	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT ${RD}/mfsfd/stand/help/INSTALL.TXT
-	@mv ${RD}/mfsfd/stand/help/EARLY-ADOPTER.TXT ${RD}/mfsfd/stand/help/EARLY.TXT
-.endif
-	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
-	@mkdir -p ${RD}/mfsfd/boot
-.if ${TARGET_ARCH} != "ia64"
-	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
-.endif
-.if ${TARGET} == "i386"
-	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
-.endif
-	@echo "Making the regular boot floppy."
-	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
-		tar xf - -C ${RD}/mfsfd/stand
-.if ${TARGET_ARCH} == "alpha" && !defined(NO_FLOPPIES)
-	rm -rf ${RD}/mfsfd/stand/help/*
-.endif
-.if defined(SMALLBOOTSIZE)
-.if exists(${.CURDIR}/${TARGET}/drivers-small.conf)
-	@rm -rf ${RD}/mfsfd/modules
-	@mkdir -p ${RD}/mfsfd/modules
-	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
-	    ${.CURDIR}/${TARGET}/drivers-small.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
-.endif
-	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
-		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9vc mfsroot > mfsroot.gz
-	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
-		${RD} ${MNT} ${SMALLBOOTSIZE} mfsroot.gz \
-		${BOOTINODE} ${SMALLBOOTLABEL}
-.endif
-.if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@rm -rf ${RD}/mfsfd/modules
-	@mkdir -p ${RD}/mfsfd/modules
-	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
-	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
-	@rm -rf ${RD}/driversfd
-	@mkdir ${RD}/driversfd
-	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 3 \
-	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/driversfd
-	-@rmdir ${RD}/driversfd
-	if [ -d ${RD}/driversfd ]; then \
-	    sh -e ${DOFS_SH} \
-		${RD}/floppies/drivers.flp ${RD} ${MNT} ${DRIVERSIZE} \
-		${RD}/driversfd ${DRIVERINODE} ${DRIVERLABEL}; \
-	    cd ${RD}/driversfd && awk -f  ${.CURDIR}/scripts/driver-desc.awk \
-		*.dsc >> ${RD}/floppies/DRIVERS.TXT; \
-	fi
-.endif
-	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
-		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9vc mfsroot > mfsroot.gz
-	@mkdir -p ${RD}/mfsroot
-	@cp mfsroot.gz ${RD}/mfsroot
-.if !defined(NO_FLOPPIES)
-.if defined(BOOTSIZE)
-	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot.flp \
-		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
-.endif
-.if defined(SMALLBOOTSIZE)
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern-small FDSIZE=SMALL
-.endif
-.if defined(BIGBOOTSIZE)
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
-.endif
-.endif
-	@rm mfsroot mfsroot.gz
-	@echo "Regular and MFS boot floppies made."
-.endif
-	touch release.9.alpha
-
 #
 # --==## Create a fixit floppy ##==--
 #
@@ -1087,7 +976,7 @@ doTARBALL:
 		   md5 * > CHECKSUM.MD5) \
 	)
 
-.if ${TARGET_ARCH} == "alpha"
+.if target(release.9.${TARGET_ARCH})
 RELEASE9=release.9.${TARGET_ARCH}
 .else
 RELEASE9=release.9 
