@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.57.2.2 1997/01/23 23:28:14 se Exp $
+**  $Id: pci.c,v 1.57.2.3 1997/01/25 02:02:40 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1739,18 +1739,27 @@ pci_remember(int bus, int dev, int func)
 	}
 
 	p = &pci_dev_list[pci_dev_list_count - 1];
-	p->pc_sel.pc_bus = bus;
-	p->pc_sel.pc_dev = dev;
+	p->pc_sel.pc_bus  = bus;
+	p->pc_sel.pc_dev  = dev;
 	p->pc_sel.pc_func = func;
-	p->pc_hdr = (pci_conf_read (tag, PCI_HEADER_MISC) >> 16) & 0xff;
+
 	tag = pcibus->pb_tag  (bus, dev, func);
+	p->pc_hdr   = (pci_conf_read (tag, PCI_HEADER_MISC) >> 16) & 0xff;
 	p->pc_devid = pci_conf_read(tag, PCI_ID_REG);
-	if ((p->pc_hdr & 0x7f) == 1) {
-		p->pc_subid = pci_conf_read(tag, PCI_SUBID_REG1);
-	} else {
-		p->pc_subid = pci_conf_read(tag, PCI_SUBID_REG0);
-	}
 	p->pc_class = pci_conf_read(tag, PCI_CLASS_REG);
+	switch (p->pc_hdr & 0x7f) {
+	case 0:
+		p->pc_subid = pci_conf_read(tag, PCI_SUBID_REG0);
+		break;
+	case 1:
+		p->pc_subid = pci_conf_read(tag, PCI_SUBID_REG1);
+		break;
+	case 2:
+		p->pc_subid = pci_conf_read(tag, PCI_SUBID_REG2);
+		break;
+	default:
+		p->pc_subid = 0;
+	}
 }
 
 static int
