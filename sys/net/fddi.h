@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1995 Matt Thomas (thomas@lkg.dec.com)
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,6 +48,7 @@ struct	fddi_header {
 	u_char	fddi_shost[6];
 };
 
+#define	FDDIIPMTU		4352
 #define	FDDIMTU			4470
 #define	FDDIMIN			3
 
@@ -66,17 +69,18 @@ struct	fddi_header {
 #define FDDIFC_LLC_SYNC         0xd0
 #define	FDDIFC_SMT		0x40
 
-#ifdef	KERNEL
+#if defined(KERNEL) || defined(_KERNEL)
 #define	fddibroadcastaddr	etherbroadcastaddr
 #define	fddi_ipmulticast_min	ether_ipmulticast_min
 #define	fddi_ipmulticast_max	ether_ipmulticast_max
 #define	fddi_addmulti		ether_addmulti
 #define	fddi_delmulti		ether_delmulti
+#define	fddi_sprintf		ether_sprintf
 
 void    fddi_ifattach __P((struct ifnet *));
 void    fddi_input __P((struct ifnet *, struct fddi_header *, struct mbuf *));
 int     fddi_output __P((struct ifnet *,
-           struct mbuf *, struct sockaddr *, struct rtentry *));
+           struct mbuf *, struct sockaddr *, struct rtentry *)); 
 
 #endif
 
