@@ -14,10 +14,6 @@
 #ifndef _ALIAS_H_
 #define _ALIAS_H_
 
-#ifndef NULL
-#define NULL 0
-#endif
-
 /* Alias link representative (incomplete struct) */
 struct alias_link;
 
@@ -92,7 +88,7 @@ struct alias_link;
 
 
 /********************** Mode flags ********************/
-/* Set these flags using SetPacketAliasMode() */
+/* Set these flags using PacketAliasSetMode() */
 
 /* If PKT_ALIAS_LOG is set, a message will be printed to
 	/var/log/alias.log every time a link is created or deleted.  This
@@ -105,7 +101,7 @@ struct alias_link;
 #define PKT_ALIAS_DENY_INCOMING 0x02
 
 /* If PKT_ALIAS_SAME_PORTS is set, packets will be attempted sent from
-	the same port as they originated on.  This allows eg rsh to work
+	the same port as they originated on.  This allows e.g. rsh to work
 	*99% of the time*, but _not_ 100%.  (It will be slightly flakey
 	instead of not working at all.)  This mode bit is set by
         PacketAliasInit(), so it is a default mode of operation. */
@@ -120,7 +116,7 @@ struct alias_link;
         mode of operation.*/
 #define PKT_ALIAS_USE_SOCKETS 0x08
 
-/* If PKT_ALIAS_UNREGISTERED_ONLY is set, then only packets with with
+/* If PKT_ALIAS_UNREGISTERED_ONLY is set, then only packets with
 	unregistered source addresses will be aliased (along with those
 	of the ppp host maching itself.  Private addresses are those
         in the following ranges:
