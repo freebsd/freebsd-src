@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.18 1999/02/20 03:05:37 yokota Exp $
+ * $Id: vesa.c,v 1.19 1999/03/18 04:38:16 jlemon Exp $
  */
 
 #include "vga.h"
@@ -212,7 +212,7 @@ vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
 	vmf.vmf_eax = 0x4f01; 
 	vmf.vmf_ecx = mode;
 	buf = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
-	vm86_getptr(&vesa_vmcontext, buf, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
 	if ((err != 0) || (vmf.vmf_eax != 0x4f))
@@ -263,7 +263,7 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 	vmf.vmf_ecx = colors;
 	vmf.vmf_edx = start;
 	p = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
-	vm86_getptr(&vesa_vmcontext, p, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
 	if ((err != 0) || (vmf.vmf_eax != 0x4f))
@@ -300,7 +300,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	vmf.vmf_ebx = 0;	/* set primary palette data */
 	vmf.vmf_ecx = colors;
 	vmf.vmf_edx = start;
-	vm86_getptr(&vesa_vmcontext, p, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
 	return ((err != 0) || (vmf.vmf_eax != 0x4f));
@@ -334,7 +334,7 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	vmf.vmf_ecx = STATE_MOST;
 	vmf.vmf_edx = code;	/* STATE_SAVE/STATE_LOAD */
 	buf = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
-	vm86_getptr(&vesa_vmcontext, buf, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_di);
 	bcopy(p, buf, size);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
@@ -434,7 +434,7 @@ vesa_bios_init(void)
 	bzero(&vmf, sizeof(vmf));	/* paranoia */
 	bcopy("VBE2", buf, 4);		/* try for VBE2 data */
 	vmf.vmf_eax = 0x4f00;
-	vm86_getptr(&vesa_vmcontext, buf, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
 	if ((err != 0) || (vmf.vmf_eax != 0x4f) || bcmp("VESA", buf, 4))
