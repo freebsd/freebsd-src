@@ -214,10 +214,22 @@
 #define WI_CMD_NOTIFY		0x0010
 #define WI_CMD_INQUIRE		0x0011
 #define WI_CMD_ACCESS		0x0021
+#define WI_CMD_ACCESS_WRITE	0x0121
 #define WI_CMD_PROGRAM		0x0022
 #define WI_CMD_READEE		0x0030	/* symbol only */
+#define WI_CMD_READMIF		0x0030	/* prism2 */
+#define WI_CMD_WRITEMIF		0x0031	/* prism2 */
+#define WI_CMD_DEBUG		0x0038	/* Various test commands */
 
 #define WI_CMD_CODE_MASK	0x003F
+
+/*
+ * Various cmd test stuff.
+ */
+#define WI_TEST_MONITOR		0x0B
+#define WI_TEST_STOP		0x0F
+#define WI_TEST_CFG_BITS	0x15
+#define WI_TEST_CFG_BIT_ALC	0x08
 
 /*
  * Reclaim qualifier bit, applicable to the
@@ -664,3 +676,9 @@ struct wi_frame {
 #define WI_SNAP_WORD1		(WI_SNAP_K2 | (WI_SNAP_CONTROL << 8))
 #define WI_SNAPHDR_LEN		0x6
 #define WI_FCS_LEN		0x4
+
+/*
+ * HFA3861/3863 (BBP) Control Registers
+ */
+#define WI_HFA386X_CR_A_D_TEST_MODES2 0x1A
+#define WI_HFA386X_CR_MANUAL_TX_POWER 0x3E

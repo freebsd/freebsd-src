@@ -50,7 +50,6 @@
 #ifndef SIOCGWAVELAN
 #define SIOCGWAVELAN	SIOCGIFGENERIC
 #endif
-#define WI_RID_MONITOR_MODE	0x0500
 
 /*
  * Technically I don't think there's a limit to a record
@@ -76,6 +75,9 @@ struct wi_req {
 #define WI_RID_ZERO_CACHE	0x0300
 #define WI_RID_READ_CACHE	0x0400
 #define WI_RID_FWDOWNLOAD	0x0500
+#define WI_RID_MONITOR_MODE	0x0600
+#define WI_RID_MIF		0x0700
+
 
 struct wi_80211_hdr {
 	u_int16_t		frame_ctl;
@@ -697,8 +699,6 @@ struct wi_scan_p2_hdr {
  */
 #define SIOCSPRISM2DEBUG	_IOW('i', 137, struct ifreq)
 #define SIOCGPRISM2DEBUG	_IOWR('i', 138, struct ifreq)
-
-#define WI_CMD_DEBUG		0x0038 /* prism2 debug */
 
 #define WI_DEBUG_RESET		0x00
 #define WI_DEBUG_INIT		0x01

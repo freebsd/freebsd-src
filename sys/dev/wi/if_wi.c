@@ -142,10 +142,12 @@ static void wi_media_status(struct ifnet *, struct ifmediareq *);
 static int wi_get_debug(struct wi_softc *, struct wi_req *);
 static int wi_set_debug(struct wi_softc *, struct wi_req *);
 
+#if __FreeBSD_version >= 500000
 /* support to download firmware for symbol CF card */
 static int wi_symbol_write_firm(struct wi_softc *, const void *, int,
 		const void *, int);
 static int wi_symbol_set_hcr(struct wi_softc *, int);
+#endif
 
 devclass_t wi_devclass;
 
@@ -842,7 +844,7 @@ wi_txeof(sc, status)
 	return;
 }
 
-void
+static void
 wi_inquire(xsc)
 	void			*xsc;
 {
@@ -866,7 +868,7 @@ wi_inquire(xsc)
 	return;
 }
 
-void
+static void
 wi_update_stats(sc)
 	struct wi_softc		*sc;
 {
@@ -1651,6 +1653,9 @@ wi_ioctl(ifp, command, data)
 {
 	int			error = 0;
 	int			len;
+	int			s;
+	uint16_t		mif;
+	uint16_t		val;
 	u_int8_t		tmpkey[14];
 	char			tmpssid[IEEE80211_NWID_LEN];
 	struct wi_softc		*sc;
@@ -1662,7 +1667,6 @@ wi_ioctl(ifp, command, data)
 #else
 	struct proc		*td = curproc;		/* Little white lie */
 #endif
-	int			s;
 
 	sc = ifp->if_softc;
 	WI_LOCK(sc, s);
@@ -1763,6 +1767,12 @@ wi_ioctl(ifp, command, data)
 			memcpy((char *)wreq.wi_val, (char *)sc->wi_scanbuf,
 			    sc->wi_scanbuf_len * 2);
 			wreq.wi_len = sc->wi_scanbuf_len;
+		} else if (wreq.wi_type == WI_RID_MIF) {
+			mif = wreq.wi_val[0];
+			error = wi_cmd(sc, WI_CMD_READMIF, mif, 0, 0);
+			val = CSR_READ_2(sc, WI_RESP0);
+			wreq.wi_len = 2;
+			wreq.wi_val[0] = val;
 		} else {
 			if (wi_read_record(sc, (struct wi_ltv_gen *)&wreq)) {
 				error = EINVAL;
@@ -1799,6 +1809,10 @@ wi_ioctl(ifp, command, data)
 		} else if (wreq.wi_type == WI_RID_SCAN_REQ && 
 		    sc->sc_firmware_type == WI_LUCENT) {
 			wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_SCAN_RESULTS, 0, 0);
+		} else if (wreq.wi_type == WI_RID_MIF) {
+			mif = wreq.wi_val[0];
+			val = wreq.wi_val[1];
+			error = wi_cmd(sc, WI_CMD_WRITEMIF, mif, val, 0);
 		} else {
 			error = wi_write_record(sc, (struct wi_ltv_gen *)&wreq);
 			if (!error)
@@ -3137,6 +3151,7 @@ wi_set_debug(sc, wreq)
 	return (error);
 }
 
+#if __FreeBSD_version >= 500000
 /*
  * Special routines to download firmware for Symbol CF card.
  * XXX: This should be modified generic into any PRISM-2 based card.
@@ -3273,3 +3288,4 @@ wi_symbol_set_hcr(struct wi_softc *sc, int mode)
 	tsleep(sc, PWAIT, "wiinit", 1);
 	return 0;
 }
+#endif
