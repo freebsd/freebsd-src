@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.12 1999/01/11 03:18:24 yokota Exp $
+ * $Id: vesa.c,v 1.13 1999/01/13 01:16:39 yokota Exp $
  */
 
 #include "vga.h"
@@ -152,8 +152,10 @@ static int int10_set_mode(int mode);
 static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode);
 static int vesa_bios_set_mode(int mode);
 static int vesa_bios_set_dac(int bits);
-static int vesa_bios_save_palette(int start, int colors, u_char *palette);
-static int vesa_bios_load_palette(int start, int colors, u_char *palette);
+static int vesa_bios_save_palette(int start, int colors, u_char *palette,
+				  int bits);
+static int vesa_bios_load_palette(int start, int colors, u_char *palette,
+				  int bits);
 #define STATE_SIZE	0
 #define STATE_SAVE	1
 #define STATE_LOAD	2
@@ -239,11 +241,13 @@ vesa_bios_set_dac(int bits)
 	vmf.vmf_eax = 0x4f08;
 	vmf.vmf_ebx = (bits << 8);
 	err = vm86_intcall(0x10, &vmf);
-	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+		return 6;	/* XXX */
+	return ((vmf.vmf_ebx >> 8) & 0x00ff);
 }
 
 static int
-vesa_bios_save_palette(int start, int colors, u_char *palette)
+vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 {
 	struct vm86frame vmf;
 	u_char *p;
@@ -263,17 +267,18 @@ vesa_bios_save_palette(int start, int colors, u_char *palette)
 		return 1;
 	}
 
+	bits = 8 - bits;
 	for (i = 0; i < colors; ++i) {
-		palette[i*3]     = p[i*4 + 1];
-		palette[i*3 + 1] = p[i*4 + 2];
-		palette[i*3 + 2] = p[i*4 + 3];
+		palette[i*3]     = p[i*4 + 2] << bits;
+		palette[i*3 + 1] = p[i*4 + 1] << bits;
+		palette[i*3 + 2] = p[i*4] << bits;
 	}
 	free(p, M_DEVBUF);
 	return 0;
 }
 
 static int
-vesa_bios_load_palette(int start, int colors, u_char *palette)
+vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 {
 	struct vm86frame vmf;
 	u_char *p;
@@ -281,11 +286,12 @@ vesa_bios_load_palette(int start, int colors, u_char *palette)
 	int i;
 
 	p = malloc(colors*4, M_DEVBUF, M_WAITOK);
+	bits = 8 - bits;
 	for (i = 0; i < colors; ++i) {
-		p[i*4]     = 0;
-		p[i*4 + 1] = palette[i*3];
-		p[i*4 + 2] = palette[i*3 + 1];
-		p[i*4 + 3] = palette[i*3 + 2];
+		p[i*4]	   = palette[i*3 + 2] >> bits;
+		p[i*4 + 1] = palette[i*3 + 1] >> bits;
+		p[i*4 + 2] = palette[i*3] >> bits;
+		p[i*4 + 3] = 0;
 	}
 
 	bzero(&vmf, sizeof(vmf));
@@ -779,21 +785,35 @@ vesa_show_font(video_adapter_t *adp, int page)
 static int
 vesa_save_palette(video_adapter_t *adp, u_char *palette)
 {
-	if ((adp != vesa_adp) || !(vesa_adp_info->v_flags & V_DAC8) 
-	    || vesa_bios_set_dac(8))
-		return (*prevvidsw->save_palette)(adp, palette);
+	int bits;
+	int error;
 
-	return vesa_bios_save_palette(0, 256, palette);
+	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8) 
+	    && ((bits = vesa_bios_set_dac(8)) > 6)) {
+		error = vesa_bios_save_palette(0, 256, palette, bits);
+		if (error == 0)
+			return 0;
+		vesa_bios_set_dac(6);
+	}
+
+	return (*prevvidsw->save_palette)(adp, palette);
 }
 
 static int
 vesa_load_palette(video_adapter_t *adp, u_char *palette)
 {
-	if ((adp != vesa_adp) || !(vesa_adp_info->v_flags & V_DAC8) 
-	    || vesa_bios_set_dac(8))
-		return (*prevvidsw->load_palette)(adp, palette);
+	int bits;
+	int error;
 
-	return vesa_bios_load_palette(0, 256, palette);
+	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8) 
+	    && ((bits = vesa_bios_set_dac(8)) > 6)) {
+		error = vesa_bios_load_palette(0, 256, palette, bits);
+		if (error == 0)
+			return 0;
+		vesa_bios_set_dac(6);
+	}
+
+	return (*prevvidsw->load_palette)(adp, palette);
 }
 
 static int
