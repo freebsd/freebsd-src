@@ -180,7 +180,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 			if (owner == -1)
 				return (EFAULT);
 
-			if (owner == MTX_CONTESTED)
+			if (owner == UMTX_CONTESTED)
 				return (0);
 
 			/* If this failed the lock has changed, restart. */
