@@ -88,6 +88,9 @@
 #define AHC_NEW_TRAN_SETTINGS
 #endif /* CAM_NEW_TRAN_CODE */
 
+/*************************** Attachment Bookkeeping ***************************/
+extern devclass_t ahc_devclass;
+
 /****************************** Platform Macros *******************************/
 #define	SIM_IS_SCSIBUS_B(ahc, sim)	\
 	((sim) == ahc->platform_data->sim_b)
