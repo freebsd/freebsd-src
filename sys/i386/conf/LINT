@@ -640,14 +640,8 @@ options 	NFS_ROOT		#NFS usable as root device
 options 	DEVFS			#devices filesystem
 
 # Soft updates is technique for improving file system speed and
-# making abrupt shutdown less risky.  It is not enabled by default due
-# to copyright restraints on the code that implement it.
-#
-# Read ../../ufs/ffs/README.softupdates to learn what you need to
-# do to enable this.  ../../contrib/softupdates/README gives
-# more details on how they actually work.
-#
-#options 	SOFTUPDATES
+# making abrupt shutdown less risky.
+options 	SOFTUPDATES
 
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
