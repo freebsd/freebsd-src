@@ -184,6 +184,8 @@
             xsm
             ..
         ..
+        aout
+        ..
         modules
         ..
     ..
