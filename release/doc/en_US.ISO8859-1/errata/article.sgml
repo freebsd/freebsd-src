@@ -267,5 +267,12 @@
       kernel panic (or other problems) when attempting to configure an
       interface.  This bug has been fixed in &release.current;.</para>
 
+    <bridgehead renderas="sect3">ISC DHCP</bridgehead>
+
+    <para><application>ISC DHCP</application> was updated to
+      3.0.1rc11.  This update was actually a part of &os;
+      &release.prev;, but was not documented in the release
+      notes.</para>
+
   </sect1>
 </article>
