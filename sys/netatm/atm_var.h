@@ -203,6 +203,11 @@ int		atm_dgram_usrreq __P((struct socket *, int, KBuffer *,
 			KBuffer *, KBuffer *));
 #endif
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_harp);
+SYSCTL_DECL(_net_harp_atm);
+#endif
+
 #endif	/* ATM_KERNEL */
 
 #endif	/* _NETATM_ATM_VAR_H */

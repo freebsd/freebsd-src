@@ -35,6 +35,8 @@
  *
  */
 
+#include <sys/param.h>
+#include <sys/sysctl.h>
 #include <netatm/kern_include.h>
 #include <net/intrq.h>
 
@@ -56,9 +58,6 @@ int			atm_intr_index;
 #endif
 struct atm_sock_stat	atm_sock_stat = { { 0 } };
 int			atm_init = 0;
-int			atm_debug = 0;
-int			atm_dev_print = 0;
-int			atm_print_data = 0;
 int			atm_version = ATM_VERSION;
 struct timeval		atm_debugtime = {0, 0};
 const int		atmintrq_present = 1;
@@ -70,6 +69,26 @@ struct sp_info	atm_attributes_pool = {
 	100				/* si_maxallow */
 };
 
+/*
+ * net.harp.atm.atm_debug
+ */
+int atm_debug;
+SYSCTL_INT(_net_harp_atm, OID_AUTO, atm_debug, CTLFLAG_RW,
+    &atm_debug, 0, "HARP ATM layer debugging flag");
+
+/*
+ * net.harp.atm.atm_dev_print
+ */
+int atm_dev_print;
+SYSCTL_INT(_net_harp_atm, OID_AUTO, atm_dev_print, CTLFLAG_RW,
+    &atm_dev_print, 0, "display ATM CPCS headers");
+
+/*
+ * net.harp.atm.atm_print_data
+ */
+int atm_print_data;
+SYSCTL_INT(_net_harp_atm, OID_AUTO, atm_print_data, CTLFLAG_RW,
+    &atm_print_data, 0, "display ATM CPCS payloads");
 
 /*
  * Local functions

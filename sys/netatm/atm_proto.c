@@ -36,6 +36,7 @@
  */
 
 #include <netatm/kern_include.h>
+#include <sys/sysctl.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
@@ -112,6 +113,8 @@ struct domain atmdomain = {
 DOMAIN_SET(atm);
 #endif
 
+SYSCTL_NODE(_net, PF_ATM, harp, CTLFLAG_RW, 0, "HARP/ATM family");
+SYSCTL_NODE(_net_harp, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM layer");
 
 #if (defined(__FreeBSD__) && (BSD >= 199506))
 /*
