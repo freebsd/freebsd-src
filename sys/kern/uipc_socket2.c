@@ -117,14 +117,14 @@ soisconnected(so)
 {
 	struct socket *head;
 
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
-	SOCK_UNLOCK(so);
-	ACCEPT_LOCK();
 	head = so->so_head;
 	if (head != NULL && (so->so_qstate & SQ_INCOMP)) {
 		if ((so->so_options & SO_ACCEPTFILTER) == 0) {
+			SOCK_UNLOCK(so);
 			TAILQ_REMOVE(&head->so_incomp, so, so_list);
 			head->so_incqlen--;
 			so->so_qstate &= ~SQ_INCOMP;
@@ -136,7 +136,6 @@ soisconnected(so)
 			wakeup_one(&head->so_timeo);
 		} else {
 			ACCEPT_UNLOCK();
-			SOCK_LOCK(so);
 			so->so_upcall =
 			    head->so_accf->so_accept_filter->accf_callback;
 			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
@@ -147,6 +146,7 @@ soisconnected(so)
 		}
 		return;
 	}
+	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
 	wakeup(&so->so_timeo);
 	sorwakeup(so);
