@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.32 1996/07/30 19:17:00 wollman Exp $
+ * $Id: if.h,v 1.33 1996/08/04 10:54:12 phk Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -311,7 +311,7 @@ struct ifaddr {
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		__P((int, struct rtentry *, struct sockaddr *));
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
-	short	ifa_refcnt;		/* extra to malloc for link info */
+	short	ifa_refcnt;		/* references to this structure */
 	int	ifa_metric;		/* cost of going out this interface */
 #ifdef notdef
 	struct	rtentry *ifa_rt;	/* XXXX for ROUTETOIF ????? */
