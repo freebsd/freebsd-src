@@ -107,7 +107,9 @@ int vttoif_tab[9] = {
 	S_IFSOCK, S_IFIFO, S_IFMT,
 };
 
-/* vnode free list */
+/*
+ * List of vnodes that are ready for recycling.
+ */
 static TAILQ_HEAD(freelst, vnode) vnode_free_list;
 
 /*
@@ -121,8 +123,9 @@ static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
 /*
- * Various variables used for debugging the new implementation of reassignbuf().
- * XXX These are probably of (very) limited utility now.
+ * Various variables used for debugging the new implementation of
+ * reassignbuf().
+ * XXX these are probably of (very) limited utility now.
  */
 static int reassignbufcalls;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0, "");
@@ -137,15 +140,17 @@ static int reassignbufmethod = 1;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
 
 #ifdef ENABLE_VFS_IOOPT
-/* See NOTES for description */
+/* See NOTES for a description of this setting. */
 int vfs_ioopt = 0;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 #endif
 
-/* mounted fs */
+/* List of mounted filesystems. */
 struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
+
 /* For any iteration/modification of mountlist */
 struct mtx mountlist_mtx;
+
 /* For any iteration/modification of mnt_vnodelist */
 struct simplelock mntvnode_slock;
 /*
@@ -157,6 +162,7 @@ int	nfs_mount_type = -1;
 #ifndef NULL_SIMPLELOCKS
 /* To keep more than one thread at a time from running vfs_getnewfsid */
 static struct simplelock mntid_slock;
+
 /* For any iteration/modification of vnode_free_list */
 static struct simplelock vnode_free_list_slock;
 
@@ -169,8 +175,10 @@ static struct simplelock spechash_slock;
 
 /* Publicly exported FS */
 struct nfs_public nfs_pub;
+
 /* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
 static vm_zone_t vnode_zone;
+
 /* Set to 1 to print out reclaim of active vnodes */
 int	prtactive = 0;
 
@@ -218,8 +226,11 @@ static int stat_rush_requests;	/* number of times I/O speeded up */
 SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
 
 /*
- * Number of vnodes we want to exist at any one time.  Used all over the place.
- * XXX Better documentation gladly accepted.
+ * Number of vnodes we want to exist at any one time.  This is mostly used
+ * to size hash tables in vnode-related code.  It is normally not used in
+ * getnewvnode(), as wantfreevnodes is normally nonzero.)
+ *
+ * XXX desiredvnodes is historical cruft and should not exist.
  */
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, 
@@ -1160,9 +1171,9 @@ pbreassignbuf(bp, newvp)
 	struct buf *bp;
 	struct vnode *newvp;
 {
+
 	KASSERT(bp->b_flags & B_PAGING,
 	    ("pbreassignbuf() on non phys bp %p", bp));
-
 	bp->b_vp = newvp;
 }
 
@@ -1386,15 +1397,16 @@ addaliasu(nvp, nvp_rdev)
 	return (ovp);
 }
 
-/* Local helper function  - same as addaliasu, but for a dev_t */
+/* This is a local helper function that do the same as addaliasu, but for a
+ * dev_t instead of an udev_t. */
 static void
 addalias(nvp, dev)
 	struct vnode *nvp;
 	dev_t dev;
 {
+
 	KASSERT(nvp->v_type == VBLK || nvp->v_type == VCHR,
 	    ("addalias on non-special vnode"));
-
 	nvp->v_rdev = dev;
 	simple_lock(&spechash_slock);
 	SLIST_INSERT_HEAD(&dev->si_hlist, nvp, v_specnext);
@@ -1459,7 +1471,7 @@ vget(vp, flags, p)
 }
 
 /* 
- * Increase reference count of a vnode
+ * Increase the reference count of a vnode.
  */
 void
 vref(struct vnode *vp)
@@ -1517,8 +1529,9 @@ vrele(vp)
 }
 
 /* 
- * Release an already locked vnode.
- * This gives almost the exact same effects as unlock+vrele()
+ * Release an already locked vnode.  This give the same effects as
+ * unlock+vrele(), but takes less time and avoids releasing and
+ * re-aquiring the lock (as vrele() aquires the lock internally.)
  */
 void
 vput(vp)
@@ -1527,9 +1540,7 @@ vput(vp)
 	struct proc *p = curproc;	/* XXX */
 
 	KASSERT(vp != NULL, ("vput: null vp"));
-
 	mtx_enter(&vp->v_interlock, MTX_DEF);
-
 	KASSERT(vp->v_writecount < vp->v_usecount, ("vput: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
@@ -1578,7 +1589,8 @@ vhold(vp)
 }
 
 /*
- * One less who cares about this vnode (opposite of vhold())
+ * Note that there is one less who cares about this vnode.  vdrop() is the
+ * opposite of vhold().
  */
 void
 vdrop(vp)
@@ -2105,7 +2117,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 		return (sysctl_ovfs_conf(oidp, arg1, arg2, req));
 #endif
 
-	/* XXX The below code does not compile; vfs_sysctl does not exist. */
+	/* XXX the below code does not compile; vfs_sysctl does not exist. */
 #ifdef notyet
 	/* all sysctl names at this level are at least name and field */
 	if (namelen < 2)
@@ -2358,7 +2370,7 @@ out:
 	return (error);
 }
 
-/* Helper for vfs_free_addrlist */
+/* Helper for vfs_free_addrlist. */
 /* ARGSUSED */
 static int
 vfs_free_netcred(rn, w)
@@ -2971,8 +2983,7 @@ vn_isdisk(vp, errp)
 }
 
 /*
- * Free data allocated by namei().
- * See namei(9) for details.
+ * Free data allocated by namei(); see namei(9) for details.
  */
 void
 NDFREE(ndp, flags)
