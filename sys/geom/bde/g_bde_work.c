@@ -403,6 +403,8 @@ g_bde_write_done(struct bio *bp)
 	KASSERT(sc != NULL, ("NULL sc"));
 	KASSERT(sp->owner != NULL, ("NULL sp->owner"));
 	g_trace(G_T_TOPOLOGY, "g_bde_write_done(%p)", sp);
+	if (bp->bio_error == 0 && bp->bio_completed != sp->size)
+		bp->bio_error = EIO;
 	sp->error = bp->bio_error;
 	g_destroy_bio(bp);
 	wp = sp->owner;
@@ -479,6 +481,8 @@ g_bde_read_done(struct bio *bp)
 	g_trace(G_T_TOPOLOGY, "g_bde_read_done(%p)", sp);
 	sc = bp->bio_caller2;
 	mtx_lock(&sc->worklist_mutex);
+	if (bp->bio_error == 0 && bp->bio_completed != sp->siz)
+		bp->bio_error = EIO;
 	sp->error = bp->bio_error;
 	if (sp->error == 0)
 		sp->state = VALID;
