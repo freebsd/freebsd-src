@@ -745,6 +745,7 @@ netgraph/ng_mppc.c	optional netgraph_mppc_compression
 net/mppcc.c		optional netgraph_mppc_compression
 net/mppcd.c		optional netgraph_mppc_compression
 netgraph/ng_mppc.c	optional netgraph_mppc_encryption
+crypto/rc4/rc4.c	optional awi
 crypto/rc4/rc4.c	optional netgraph_mppc_encryption
 crypto/sha1.c		optional netgraph_mppc_encryption
 netgraph/ng_one2many.c	optional netgraph_one2many
@@ -917,6 +918,11 @@ agp_if.h		optional agp					\
 	clean		"agp_if.h"
 pci/amd.c		optional amd
 pci/pcic_p.c		optional pcic pci
+dev/awi/am79c930.c	optional awi
+dev/awi/awi.c		optional awi
+dev/awi/awi_wep.c	optional awi
+dev/awi/awi_wicfg.c	optional awi
+dev/awi/if_awi_pccard.c	optional awi card
 dev/bktr/bktr_core.c	optional bktr pci
 dev/bktr/bktr_i2c.c	optional bktr pci smbus
 dev/bktr/bktr_card.c	optional bktr pci
