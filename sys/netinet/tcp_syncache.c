@@ -900,7 +900,10 @@ syncache_add(inc, to, th, sop, m)
 		sc->sc_route.ro_rt = NULL;
 	}
 	sc->sc_irs = th->th_seq;
-	sc->sc_iss = syncookie_generate(sc);
+	if (tcp_syncookies)
+		sc->sc_iss = syncookie_generate(sc);
+	else
+		sc->sc_iss = arc4random();
 
 	/* Initial receive window: clip sbspace to [0 .. TCP_MAXWIN] */
 	win = sbspace(&so->so_rcv);
