@@ -13,9 +13,10 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>

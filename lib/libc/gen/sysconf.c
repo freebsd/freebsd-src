@@ -37,11 +37,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)sysconf.c	8.2 (Berkeley) 3/20/94";
 #endif /* LIBC_SCCS and not lint */
-
-#if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* LIBC_RCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/_posix.h>
 #include <sys/param.h>

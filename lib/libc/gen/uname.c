@@ -32,10 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-/*static char sccsid[] = "From: @(#)uname.c	8.1 (Berkeley) 1/4/94";*/
-static const char rcsid[] =
-  "$FreeBSD$";
+static char sccsid[] = "From: @(#)uname.c	8.1 (Berkeley) 1/4/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define uname wrapped_uname
 #include <sys/param.h>

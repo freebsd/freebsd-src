@@ -2,8 +2,10 @@
  * The contents of this file are in the public domain.
  * Written by Garrett A. Wollman, 2000-10-07.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/mman.h>
 
