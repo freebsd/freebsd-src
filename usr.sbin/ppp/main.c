@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.100 1997/11/17 00:42:40 brian Exp $
+ * $Id: main.c,v 1.101 1997/11/17 01:13:41 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -180,6 +180,7 @@ TtyOldMode()
 void
 Cleanup(int excode)
 {
+  DropClient();
   ServerClose();
   OsInterfaceDown(1);
   HangupModem(1);
@@ -586,7 +587,6 @@ ReadTty()
   int n;
   char ch;
   static int ttystate;
-  FILE *oVarTerm;
   char linebuff[LINE_LEN];
 
   LogPrintf(LogDEBUG, "termode = %d, netfd = %d, mode = %d\n",
@@ -600,15 +600,8 @@ ReadTty()
       if (n)
         DecodeCommand(linebuff, n, IsInteractive(0) ? NULL : "Client");
       Prompt();
-    } else {
-      LogPrintf(LogPHASE, "client connection closed.\n");
-      oVarTerm = VarTerm;
-      VarTerm = 0;
-      if (oVarTerm && oVarTerm != stdout)
-	fclose(oVarTerm);
-      close(netfd);
-      netfd = -1;
-    }
+    } else if (n < 0)
+      DropClient();
     return;
   }
 
