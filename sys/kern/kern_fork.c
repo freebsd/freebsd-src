@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.60 1999/04/28 01:04:27 luoqi Exp $
+ * $Id: kern_fork.c,v 1.61 1999/04/28 11:36:53 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -92,8 +92,15 @@ fork(p, uap)
 	struct proc *p;
 	struct fork_args *uap;
 {
+	int error;
+	struct proc *p2;
 
-	return (fork1(p, RFFDG | RFPROC));
+	error = fork1(p, RFFDG | RFPROC, &p2);
+	if (error == 0) {
+		p->p_retval[0] = p2->p_pid;
+		p->p_retval[1] = 0;
+	}
+	return error;
 }
 
 /* ARGSUSED */
@@ -102,18 +109,31 @@ vfork(p, uap)
 	struct proc *p;
 	struct vfork_args *uap;
 {
+	int error;
+	struct proc *p2;
 
-	return (fork1(p, RFFDG | RFPROC | RFPPWAIT | (fast_vfork ? RFMEM : 0)));
+	error = fork1(p, RFFDG | RFPROC | RFPPWAIT | RFMEM, &p2);
+	if (error == 0) {
+		p->p_retval[0] = p2->p_pid;
+		p->p_retval[1] = 0;
+	}
+	return error;
 }
 
-/* ARGSUSED */
 int
 rfork(p, uap)
 	struct proc *p;
 	struct rfork_args *uap;
 {
+	int error;
+	struct proc *p2;
 
-	return (fork1(p, uap->flags));
+	error = fork1(p, uap->flags, &p2);
+	if (error == 0) {
+		p->p_retval[0] = p2->p_pid;
+		p->p_retval[1] = 0;
+	}
+	return error;
 }
 
 
@@ -121,12 +141,13 @@ int	nprocs = 1;		/* process 0 */
 static int nextpid = 0;
 
 int
-fork1(p1, flags)
-	register struct proc *p1;
+fork1(p1, flags, procp)
+	struct proc *p1;
 	int flags;
+	struct proc **procp;
 {
-	register struct proc *p2, *pptr;
-	register uid_t uid;
+	struct proc *p2, *pptr;
+	uid_t uid;
 	struct proc *newproc;
 	int count;
 	static int pidchecked = 0;
@@ -213,9 +234,9 @@ fork1(p1, flags)
 	/* Allocate new proc. */
 	newproc = zalloc(proc_zone);
 
-/*
- * Setup linkage for kernel based threading
- */
+	/*
+	 * Setup linkage for kernel based threading
+	 */
 	if((flags & RFTHREAD) != 0) {
 		newproc->p_peers = p1->p_peers;
 		p1->p_peers = newproc;
@@ -321,31 +342,28 @@ again:
 			struct sigacts *newsigacts;
 			int s;
 
-			if (p2->p_procsig->ps_refcnt != 2)
-				printf ("PID:%d Creating shared sigacts with procsig->ps_refcnt %d\n",
-					p2->p_pid, p2->p_procsig->ps_refcnt);
 			/* Create the shared sigacts structure */
-			MALLOC (newsigacts, struct sigacts *, sizeof (struct sigacts),
-				M_SUBPROC, M_WAITOK);
+			MALLOC(newsigacts, struct sigacts *,
+			    sizeof(struct sigacts), M_SUBPROC, M_WAITOK);
 			s = splhigh();
-			/* Set p_sigacts to the new shared structure.  Note that this
-			 * is updating p1->p_sigacts at the same time, since p_sigacts
-			 * is just a pointer to the shared p_procsig->ps_sigacts.
+			/*
+			 * Set p_sigacts to the new shared structure.
+			 * Note that this is updating p1->p_sigacts at the
+			 * same time, since p_sigacts is just a pointer to
+			 * the shared p_procsig->ps_sigacts.
 			 */
 			p2->p_sigacts  = newsigacts;
-			/* Copy in the values from the u area */
+			bcopy(&p1->p_addr->u_sigacts, p2->p_sigacts,
+			    sizeof(*p2->p_sigacts));
 			*p2->p_sigacts = p1->p_addr->u_sigacts;
-			splx (s);
+			splx(s);
 		}
 	} else {
-		MALLOC (p2->p_procsig, struct procsig *, sizeof(struct procsig),
-			M_SUBPROC, M_WAITOK);
-		bcopy(&p1->p_procsig->ps_begincopy, &p2->p_procsig->ps_begincopy,
-			(char *)&p1->p_procsig->ps_endcopy -
-			(char *)&p1->p_procsig->ps_begincopy);
+		MALLOC(p2->p_procsig, struct procsig *, sizeof(struct procsig),
+		    M_SUBPROC, M_WAITOK);
+		bcopy(p1->p_procsig, p2->p_procsig, sizeof(*p2->p_procsig));
 		p2->p_procsig->ps_refcnt = 1;
-		/* Note that we fill in the values of sigacts in vm_fork */
-		p2->p_sigacts = NULL;
+		p2->p_sigacts = NULL;	/* finished in vm_fork() */
 	}
 	if (flags & RFLINUXTHPN) 
 	        p2->p_sigparent = SIGUSR1;
@@ -467,11 +485,9 @@ again:
 		tsleep(p1, PWAIT, "ppwait", 0);
 
 	/*
-	 * Return child pid to parent process,
-	 * marking us as parent via p1->p_retval[1].
+	 * Return child proc pointer to parent.
 	 */
-	p1->p_retval[0] = p2->p_pid;
-	p1->p_retval[1] = 0;
+	*procp = p2;
 	return (0);
 }
 

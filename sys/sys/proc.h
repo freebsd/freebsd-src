@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.81 1999/04/28 11:38:04 phk Exp $
+ * $Id: proc.h,v 1.82 1999/06/28 09:14:18 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -78,12 +78,10 @@ struct	pgrp {
 };
 
 struct	procsig {
-#define ps_begincopy ps_sigignore
 	sigset_t ps_sigignore;	/* Signals being ignored. */
 	sigset_t ps_sigcatch;	/* Signals being caught by user. */
 	int      ps_flag;
 	struct	 sigacts *ps_sigacts;
-#define ps_endcopy ps_refcnt
 	int	 ps_refcnt;
 };
 
@@ -402,7 +400,7 @@ void	exit1 __P((struct proc *, int)) __dead2;
 void	cpu_fork __P((struct proc *, struct proc *));
 void	cpu_set_fork_handler __P((struct proc *, void (*pc)(const void *),
 				  const void *));
-int	fork1 __P((struct proc *, int));
+int	fork1 __P((struct proc *, int, struct proc **));
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
 int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));
