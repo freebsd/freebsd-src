@@ -493,7 +493,9 @@ The packet is discarded without inspecting its contents.
 .It TEST5
 Cryptographic authentication fails.
 See the
-.Xr ntp_auth 8
+.Qq Authentication Support
+section of the
+.Xr ntp.conf 5
 page.
 .It TEST6
 Peer is unsynchronized.
@@ -511,7 +513,9 @@ or somebody trashed our packet.
 .It TEST10
 Access is denied.
 See the
-.Xr ntp_acc 8
+.Qq Access Control Support
+section of the
+.Xr ntp.conf 5
 page.
 .El
 .It Ic pstatus Ar assocID
@@ -569,8 +573,9 @@ Like the
 request, except the internal list variables are written instead of read.
 .El
 .Sh SEE ALSO
-.Xr ntp_acc 8 ,
-.Xr ntp_auth 8
+.Xr ntp.conf 5 ,
+.Xr ntpd 8 ,
+.Xr ntpdc 8
 .Sh HISTORY
 Written by
 .An Dennis Ferguson
