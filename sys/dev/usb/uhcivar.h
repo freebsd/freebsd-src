@@ -164,7 +164,7 @@ typedef struct uhci_softc {
 	char sc_vendor[16];		/* vendor string for root hub */
 	int sc_id_vendor;		/* vendor ID for root hub */
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__)
 	void *sc_powerhook;		/* cookie from power hook */
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
 #endif
