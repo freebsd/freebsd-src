@@ -49,6 +49,11 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 # then it might break building of utilities.
 CFLAGS+=	${FMT}
 
+.if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
+IDENT=	-DGPROF
+PROF=	-pg
+.endif
+
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
 CFLAGS+=	-falign-functions=16
