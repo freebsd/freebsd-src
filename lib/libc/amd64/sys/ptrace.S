@@ -51,7 +51,7 @@ ENTRY(ptrace)
 #else
         movl    %eax,CNAME(errno)
 #endif
-	lea	SYS_ptrace,%eax
+	mov	$SYS_ptrace,%eax
 	KERNCALL
 	jb	err
 	ret

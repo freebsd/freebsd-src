@@ -60,7 +60,7 @@ ENTRY(sbrk)
 	testl	%ecx,%ecx
 	jz	back
 	addl	%eax,4(%esp)
-	lea	SYS_break,%eax
+	mov	$SYS_break,%eax
 	KERNCALL
 	jb	err
 	PIC_PROLOGUE
@@ -81,7 +81,7 @@ err:
 	testl	%ecx,%ecx
 	jz	back
 	addl	%eax,4(%esp)
-	lea	SYS_break,%eax
+	mov	$SYS_break,%eax
 	KERNCALL
 	jb	err
 	movl	HIDENAME(curbrk),%eax
