@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.10 1997/02/22 09:45:37 peter Exp $
+ * $Id: mtio.h,v 1.11 1998/09/15 10:07:26 gibbs Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -150,6 +150,16 @@ struct mtget {
 #define	MTIOCGET	_IOR('m', 2, struct mtget)	/* get tape status */
 #define MTIOCIEOT	_IO('m', 3)			/* ignore EOT error */
 #define MTIOCEEOT	_IO('m', 4)			/* enable EOT error */
+/*
+ * When more SCSI-3 SSC (streaming device) devices are out there
+ * that support the full 32 byte type 2 structure, we'll have to
+ * rethink these ioctls to support all the entities they haul into
+ * the picture (64 bit blocks, logical file record numbers, etc..).
+ */
+#define	MTIOCRDSPOS	_IOR('m', 5, u_int32_t)	/* get logical blk addr */
+#define	MTIOCRDHPOS	_IOR('m', 6, u_int32_t)	/* get hardware blk addr */
+#define	MTIOCSLOCATE	_IOW('m', 5, u_int32_t)	/* seek to logical blk addr */
+#define	MTIOCHLOCATE	_IOW('m', 6, u_int32_t)	/* seek to hardware blk addr */
 
 #ifndef KERNEL
 #define	DEFTAPE	"/dev/nrsa0"
