@@ -31,7 +31,7 @@ cd /tmp
 #		-a -atime +3 -exec rm -f -- {} \;
 #
 
-# remove system	messages older than 21 days
+# remove system messages older than 21 days
 msgs -c
 
 if [ -f /etc/news.expire ]; then
@@ -91,6 +91,23 @@ fi
 echo ""
 echo "Running calendar:"
 calendar -a
+
+echo ""
+echo "Rotating mail log:"
+cd /var/log
+rm -f maillog.7
+if [ -f maillog.6 ]; then mv -f maillog.6  maillog.7; fi
+if [ -f maillog.5 ]; then mv -f maillog.5  maillog.6; fi
+if [ -f maillog.4 ]; then mv -f maillog.4  maillog.5; fi
+if [ -f maillog.3 ]; then mv -f maillog.3  maillog.4; fi
+if [ -f maillog.2 ]; then mv -f maillog.2  maillog.3; fi
+if [ -f maillog.1 ]; then mv -f maillog.1  maillog.2; fi
+if [ -f maillog.0 ]; then mv -f maillog.0  maillog.1; fi
+mv -f maillog maillog.0
+cp /dev/null maillog
+chmod 644    maillog
+kill -1 `cat /var/run/syslog.pid`
+cd /
 
 if [ -d /var/spool/uucp -a -f /etc/uuclean.daily ]; then
 	echo ""

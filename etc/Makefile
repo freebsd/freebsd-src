@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.117.4.6 1996/05/09 05:58:59 jkh Exp $
+#	$Id: Makefile,v 1.117.4.7 1996/05/29 22:23:10 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -7,7 +7,7 @@ BINGRP= wheel
 BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
 	inetd.conf login.access motd modems netstart networks \
-	newsyslog.conf phones printcap profile protocols \
+	phones printcap profile protocols \
 	rc rc.firewall rc.local rc.serial \
 	etc.${MACHINE}/rc.${MACHINE} \
 	remote security services sysconfig shells \
