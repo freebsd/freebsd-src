@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.29 1997/12/28 13:36:06 phk Exp $
+ *	$Id: clock.h,v 1.30 1997/12/28 17:33:08 phk Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -76,9 +76,9 @@ clock_latency(void)
 }
 
 /*
- * When we update `time', on we also update `tsc_bias'
- * atomically.  `tsc_bias' is the best available approximation to
- * the value of the TSC (mod 2^32) at the time of the i8254
+ * When we update `time', we also update `tsc_bias' atomically (if we
+ * are using the TSC).  `tsc_bias' is the best available approximation
+ * to the value of the TSC (mod 2^32) at the time of the i8254
  * counter transition that caused the clock interrupt that caused the
  * update.  clock_latency() gives the time between the transition and
  * the update to within a few usec provided another such transition
