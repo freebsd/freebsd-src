@@ -1,7 +1,7 @@
 /* execute.c - run a bc program. */
 
 /*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+    Copyright (C) 1991-1994, 1997, 2000 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -52,11 +54,7 @@ unsigned char
 byte (pc)
      program_counter *pc;
 {
-  int seg, offset;
-    
-  seg = pc->pc_addr >> BC_SEG_LOG;
-  offset = pc->pc_addr++ % BC_SEG_SIZE;
-  return (functions[pc->pc_func].f_body[seg][offset]);
+  return (functions[pc->pc_func].f_body[pc->pc_addr++]);
 }
 
 
@@ -81,7 +79,7 @@ execute ()
   pc.pc_func = 0;
   pc.pc_addr = 0;
   runtime_error = FALSE;
-  init_num (&temp_num);
+  bc_init_num (&temp_num);
 
   /* Set up the interrupt mechanism for an interactive session. */
   if (interactive)
@@ -105,11 +103,12 @@ execute ()
 	    depth = 1;
 	    while (temp != NULL)
 	      {
-		printf ("   %d = ", depth);
-		out_num (temp->s_num, 10, out_char);
+		printf ("  %d = ", depth);
+		bc_out_num (temp->s_num, 10, out_char, std_only);
 		depth++;
 		temp = temp->s_next;
 	      }
+	    out_char ('\n');
 	  }
       }
 #endif
@@ -120,13 +119,13 @@ execute ()
       case 'A' : /* increment array variable (Add one). */
 	var_name = byte(&pc);
 	if ((var_name & 0x80) != 0)
-	  var_name = ((var_name << 8) & 0x7f) + byte(&pc);
+	  var_name = ((var_name & 0x7f) << 8) + byte(&pc);
 	incr_array (var_name);
 	break;
 
       case 'B' : /* Branch to a label if TOS != 0. Remove value on TOS. */
       case 'Z' : /* Branch to a label if TOS == 0. Remove value on TOS. */
-	c_code = !is_zero (ex_stack->s_num);
+	c_code = !bc_is_zero (ex_stack->s_num);
 	pop ();
       case 'J' : /* Jump to a label. */
 	label_num = byte(&pc);  /* Low order bits first. */
@@ -145,7 +144,7 @@ execute ()
 	/* Get the function number. */
 	new_func = byte(&pc);
 	if ((new_func & 0x80) != 0) 
-	  new_func = ((new_func << 8) & 0x7f) + byte(&pc);
+	  new_func = ((new_func & 0x7f) << 8) + byte(&pc);
 
 	/* Check to make sure it is defined. */
 	if (!functions[new_func].f_defined)
@@ -192,14 +191,14 @@ execute ()
       case 'L' : /* load array variable */
 	var_name = byte(&pc);
 	if ((var_name & 0x80) != 0)
-	  var_name = ((var_name << 8) & 0x7f) + byte(&pc);
+	  var_name = ((var_name & 0x7f) << 8) + byte(&pc);
 	load_array (var_name);
 	break;
 
       case 'M' : /* decrement array variable (Minus!) */
 	var_name = byte(&pc);
 	if ((var_name & 0x80) != 0)
-	  var_name = ((var_name << 8) & 0x7f) + byte(&pc);
+	  var_name = ((var_name & 0x7f) << 8) + byte(&pc);
 	decr_array (var_name);
 	break;
 
@@ -245,18 +244,18 @@ execute ()
       case 'S' : /* store array variable */
 	var_name = byte(&pc);
 	if ((var_name & 0x80) != 0)
-	  var_name = ((var_name << 8) & 0x7f) + byte(&pc);
+	  var_name = ((var_name & 0x7f ) << 8) + byte(&pc);
 	store_array (var_name);
 	break;
 
       case 'T' : /* Test tos for zero */
-	c_code = is_zero (ex_stack->s_num);
+	c_code = bc_is_zero (ex_stack->s_num);
 	assign (c_code);
 	break;
 
       case 'W' : /* Write the value on the top of the stack. */
       case 'P' : /* Write the value on the top of the stack.  No newline. */
-	out_num (ex_stack->s_num, o_base, out_char);
+	bc_out_num (ex_stack->s_num, o_base, out_char, std_only);
 	if (inst == 'W') out_char ('\n');
 	store_var (4);  /* Special variable "last". */
 	fflush (stdout);
@@ -273,14 +272,14 @@ execute ()
 	  if (ex_stack->s_num->n_len == 1 &&
 	      ex_stack->s_num->n_scale != 0 &&
 	      ex_stack->s_num->n_value[0] == 0 )
-	    int2num (&ex_stack->s_num, ex_stack->s_num->n_scale);
+	    bc_int2num (&ex_stack->s_num, ex_stack->s_num->n_scale);
 	  else
-	    int2num (&ex_stack->s_num, ex_stack->s_num->n_len
+	    bc_int2num (&ex_stack->s_num, ex_stack->s_num->n_len
 		     + ex_stack->s_num->n_scale);
 	  break;
 		
 	case 'S':  /* Scale function. */ 
-	  int2num (&ex_stack->s_num, ex_stack->s_num->n_scale);
+	  bc_int2num (&ex_stack->s_num, ex_stack->s_num->n_scale);
 	  break;
 
 	case 'R':  /* Square Root function. */
@@ -297,7 +296,7 @@ execute ()
       case 'd' : /* Decrement number */
 	var_name = byte(&pc);
 	if ((var_name & 0x80) != 0)
-	  var_name = ((var_name << 8) & 0x7f) + byte(&pc);
+	  var_name = ((var_name & 0x7f) << 8) + byte(&pc);
 	decr_var (var_name);
 	break;
       
@@ -307,14 +306,14 @@ execute ()
       case 'i' : /* increment number */
 	var_name = byte(&pc);
 	if ((var_name & 0x80) != 0)
-	  var_name = ((var_name << 8) & 0x7f) + byte(&pc);
+	  var_name = ((var_name & 0x7f) << 8) + byte(&pc);
 	incr_var (var_name);
 	break;
 
       case 'l' : /* load variable */
 	var_name = byte(&pc);
 	if ((var_name & 0x80) != 0)
-	  var_name = ((var_name << 8) & 0x7f) + byte(&pc);
+	  var_name = ((var_name & 0x7f) << 8) + byte(&pc);
 	load_var (var_name);
 	break;
 
@@ -329,7 +328,7 @@ execute ()
       case 's' : /* store variable */
 	var_name = byte(&pc);
 	if ((var_name & 0x80) != 0)
-	  var_name = ((var_name << 8) & 0x7f) + byte(&pc);
+	  var_name = ((var_name & 0x7f) << 8) + byte(&pc);
 	store_var (var_name);
 	break;
 
@@ -355,15 +354,15 @@ execute ()
 	break;
 
       case '!' : /* Negate the boolean value on top of the stack. */
-	c_code = is_zero (ex_stack->s_num);
+	c_code = bc_is_zero (ex_stack->s_num);
 	assign (c_code);
 	break;
 
       case '&' : /* compare greater than */
 	if (check_stack(2))
 	  {
-	    c_code = !is_zero (ex_stack->s_next->s_num)
-	      && !is_zero (ex_stack->s_num);
+	    c_code = !bc_is_zero (ex_stack->s_next->s_num)
+	      && !bc_is_zero (ex_stack->s_num);
 	    pop ();
 	    assign (c_code);
 	  }
@@ -372,8 +371,8 @@ execute ()
       case '|' : /* compare greater than */
 	if (check_stack(2))
 	  {
-	    c_code = !is_zero (ex_stack->s_next->s_num)
-	      || !is_zero (ex_stack->s_num);
+	    c_code = !bc_is_zero (ex_stack->s_next->s_num)
+	      || !bc_is_zero (ex_stack->s_num);
 	    pop ();
 	    assign (c_code);
 	  }
@@ -386,7 +385,7 @@ execute ()
 	    pop();
 	    pop();
 	    push_num (temp_num);
-	    init_num (&temp_num);
+	    bc_init_num (&temp_num);
 	  }
 	break;
 
@@ -397,7 +396,7 @@ execute ()
 	    pop();
 	    pop();
 	    push_num (temp_num);
-	    init_num (&temp_num);
+	    bc_init_num (&temp_num);
 	  }
 	break;
 
@@ -409,7 +408,7 @@ execute ()
 	    pop();
 	    pop();
 	    push_num (temp_num);
-	    init_num (&temp_num);
+	    bc_init_num (&temp_num);
 	  }
 	break;
 
@@ -422,7 +421,7 @@ execute ()
 		pop();
 		pop();
 		push_num (temp_num);
-		init_num (&temp_num);
+		bc_init_num (&temp_num);
 	      }
 	    else
 	      rt_error ("Divide by zero");
@@ -432,7 +431,7 @@ execute ()
       case '%' : /* remainder */
 	if (check_stack(2))
 	  {
-	    if (is_zero (ex_stack->s_num))
+	    if (bc_is_zero (ex_stack->s_num))
 	      rt_error ("Modulo by zero");
 	    else
 	      {
@@ -441,7 +440,7 @@ execute ()
 		pop();
 		pop();
 		push_num (temp_num);
-		init_num (&temp_num);
+		bc_init_num (&temp_num);
 	      }
 	  }
 	break;
@@ -451,12 +450,12 @@ execute ()
 	  {
 	    bc_raise (ex_stack->s_next->s_num,
 		      ex_stack->s_num, &temp_num, scale);
-	    if (is_zero (ex_stack->s_next->s_num) && is_neg (ex_stack->s_num))
+	    if (bc_is_zero (ex_stack->s_next->s_num) && bc_is_neg (ex_stack->s_num))
 	      rt_error ("divide by zero");
 	    pop();
 	    pop();
 	    push_num (temp_num);
-	    init_num (&temp_num);
+	    bc_init_num (&temp_num);
 	  }
 	break;
 
@@ -578,7 +577,7 @@ input_char ()
     }
 
   /* Classify and preprocess the input character. */
-  if (isdigit(in_ch))
+  if (isdigit((int)in_ch))
     return (in_ch - '0');
   if (in_ch >= 'A' && in_ch <= 'F')
     return (in_ch + 10 - 'A');
@@ -608,14 +607,14 @@ push_constant (in_char, conv_base)
   char  negative;
 
   /* Initialize all bc numbers */
-  init_num (&temp);
-  init_num (&result);
-  init_num (&mult);
-  build = copy_num (_zero_);
+  bc_init_num (&temp);
+  bc_init_num (&result);
+  bc_init_num (&mult);
+  build = bc_copy_num (_zero_);
   negative = FALSE;
 
   /* The conversion base. */
-  int2num (&mult, conv_base);
+  bc_int2num (&mult, conv_base);
   
   /* Get things ready. */
   in_ch = in_char();
@@ -638,7 +637,7 @@ push_constant (in_char, conv_base)
       in_ch = in_char();
       if (in_ch < 16 && first_ch >= conv_base)
 	first_ch = conv_base - 1;
-      int2num (&build, (int) first_ch);
+      bc_int2num (&build, (int) first_ch);
     }
 
   /* Convert the integer part. */
@@ -646,7 +645,7 @@ push_constant (in_char, conv_base)
     {
       if (in_ch < 16 && in_ch >= conv_base) in_ch = conv_base-1;
       bc_multiply (build, mult, &result, 0);
-      int2num (&temp, (int) in_ch);
+      bc_int2num (&temp, (int) in_ch);
       bc_add (result, temp, &build, 0);
       in_ch = in_char();
     }
@@ -654,15 +653,15 @@ push_constant (in_char, conv_base)
     {
       in_ch = in_char();
       if (in_ch >= conv_base) in_ch = conv_base-1;
-      free_num (&result);
-      free_num (&temp);
-      divisor = copy_num (_one_);
-      result = copy_num (_zero_);
+      bc_free_num (&result);
+      bc_free_num (&temp);
+      divisor = bc_copy_num (_one_);
+      result = bc_copy_num (_zero_);
       digits = 0;
       while (in_ch < 16)
 	{
 	  bc_multiply (result, mult, &result, 0);
-	  int2num (&temp, (int) in_ch);
+	  bc_int2num (&temp, (int) in_ch);
 	  bc_add (result, temp, &result, 0);
 	  bc_multiply (divisor, mult, &divisor, 0);
 	  digits++;
@@ -678,9 +677,9 @@ push_constant (in_char, conv_base)
     bc_sub (_zero_, build, &build, 0);
 
   push_num (build);
-  free_num (&temp);
-  free_num (&result);
-  free_num (&mult);
+  bc_free_num (&temp);
+  bc_free_num (&result);
+  bc_free_num (&mult);
 }
 
 
@@ -738,8 +737,8 @@ push_b10_const (pc)
     }
     if (inchar > 9)
       {
-	init_num (&build);
-	int2num (&build, inchar);
+	bc_init_num (&build);
+	bc_int2num (&build, inchar);
 	push_num (build);
 	inchar = byte(pc);
 	return;
@@ -749,23 +748,25 @@ push_b10_const (pc)
   /* Build the new number. */
   if (kdigits == 0)
     {
-      build = new_num (1,kscale);
+      build = bc_new_num (1,kscale);
       ptr = build->n_value;
       *ptr++ = 0;
     }
   else
     {
-      build = new_num (kdigits,kscale);
+      build = bc_new_num (kdigits,kscale);
       ptr = build->n_value;
     }
 
   while (inchar != ':')
     {
       if (inchar != '.')
-	if (inchar > 9)
-	  *ptr++ = 9;
-	else
-	  *ptr++ = inchar;
+	{
+	  if (inchar > 9)
+	    *ptr++ = 9;
+	  else
+	    *ptr++ = inchar;
+	}
       inchar = byte(pc);
     }
   push_num (build);
@@ -778,9 +779,10 @@ void
 assign (c_code)
      char c_code;
 {
-  free_num (&ex_stack->s_num);
+  bc_free_num (&ex_stack->s_num);
   if (c_code)
-    ex_stack->s_num = copy_num (_one_);
+    ex_stack->s_num = bc_copy_num (_one_);
   else
-    ex_stack->s_num = copy_num (_zero_);
+    ex_stack->s_num = bc_copy_num (_zero_);
 }
+

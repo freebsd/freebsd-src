@@ -1,7 +1,7 @@
 /* storage.c:  Code and data storage manipulations.  This includes labels. */
 
 /*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+    Copyright (C) 1991-1994, 1997, 2000 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -56,11 +58,11 @@ init_storage ()
   i_base = 10;
   o_base = 10;
   scale  = 0;
-#ifdef READLINE
-  n_history = -1;	/* no limit. */
+#if defined(READLINE) || defined(LIBEDIT)
+  n_history = -1;	
 #endif
   c_code = FALSE;
-  init_numbers();
+  bc_init_numbers();
 }
 
 /* Three functions for increasing the number of functions, variables, or
@@ -70,7 +72,7 @@ void
 more_functions (VOID)
 {
   int old_count;
-  int indx1, indx2;
+  int indx;
   bc_function *old_f;
   bc_function *f;
   char **old_names;
@@ -86,19 +88,19 @@ more_functions (VOID)
   f_names = (char **) bc_malloc (f_count*sizeof (char *));
 
   /* Copy old ones. */
-  for (indx1 = 0; indx1 < old_count; indx1++)
+  for (indx = 0; indx < old_count; indx++)
     {
-      functions[indx1] = old_f[indx1];
-      f_names[indx1] = old_names[indx1];
+      functions[indx] = old_f[indx];
+      f_names[indx] = old_names[indx];
     }
 
   /* Initialize the new ones. */
-  for (; indx1 < f_count; indx1++)
+  for (; indx < f_count; indx++)
     {
-      f = &functions[indx1];
+      f = &functions[indx];
       f->f_defined = FALSE;
-      for (indx2 = 0; indx2 < BC_MAX_SEGS; indx2++)
-	f->f_body [indx2] = NULL;
+      f->f_body = (char *) bc_malloc (BC_START_SIZE);
+      f->f_body_size = BC_START_SIZE;
       f->f_code_size = 0;
       f->f_label = NULL;
       f->f_autos = NULL;
@@ -187,26 +189,15 @@ more_arrays ()
 
 void
 clear_func (func)
-     char func;
+     int func;
 {
   bc_function *f;
-  int indx;
   bc_label_group *lg;
 
   /* Set the pointer to the function. */
   f = &functions[func];
   f->f_defined = FALSE;
-
-  /* Clear the code segments. */
-  for (indx = 0; indx < BC_MAX_SEGS; indx++)
-    {
-      if (f->f_body[indx] != NULL)
-	{
-	  free (f->f_body[indx]);
-	  f->f_body[indx] = NULL;
-	}
-    }
-
+  /* XXX restore f_body to initial size??? */
   f->f_code_size = 0;
   if (f->f_autos != NULL)
     {
@@ -242,6 +233,11 @@ fpop()
       retval = temp->s_val;
       free (temp);
     }
+  else
+    {
+      retval = 0;
+      rt_error ("function stack underflow, contact maintainer.");
+    }
   return (retval);
 }
 
@@ -272,7 +268,7 @@ pop ()
     {
       temp = ex_stack;
       ex_stack = temp->s_next;
-      free_num (&temp->s_num);
+      bc_free_num (&temp->s_num);
       free (temp);
     }
 }
@@ -287,7 +283,7 @@ push_copy (num)
   estack_rec *temp;
 
   temp = (estack_rec *) bc_malloc (sizeof (estack_rec));
-  temp->s_num = copy_num (num);
+  temp->s_num = bc_copy_num (num);
   temp->s_next = ex_stack;
   ex_stack = temp;
 }
@@ -349,7 +345,7 @@ get_var (var_name)
   if (var_ptr == NULL)
     {
       var_ptr = variables[var_name] = (bc_var *) bc_malloc (sizeof (bc_var));
-      init_num (&var_ptr->v_value);
+      bc_init_num (&var_ptr->v_value);
     }
   return var_ptr;
 }
@@ -414,7 +410,7 @@ get_array_num (var_index, index)
       else
 	{
 	  for (ix=0; ix < NODE_SIZE; ix++)
-	    temp->n_items.n_num[ix] = copy_num(_zero_);
+	    temp->n_items.n_num[ix] = bc_copy_num(_zero_);
 	}
       a_var->a_tree = temp;
       a_var->a_depth++;
@@ -435,7 +431,7 @@ get_array_num (var_index, index)
 	      temp->n_items.n_down[ix] = NULL;
 	  else
 	    for (ix=0; ix < NODE_SIZE; ix++)
-	      temp->n_items.n_num[ix] = copy_num(_zero_);
+	      temp->n_items.n_num[ix] = bc_copy_num(_zero_);
 	}
       else
 	temp = temp->n_items.n_down[ix1];
@@ -463,15 +459,16 @@ store_var (var_name)
       var_ptr = get_var (var_name);
       if (var_ptr != NULL)
 	{
-	  free_num(&var_ptr->v_value);
-	  var_ptr->v_value = copy_num (ex_stack->s_num);
+	  bc_free_num(&var_ptr->v_value);
+	  var_ptr->v_value = bc_copy_num (ex_stack->s_num);
 	}
     }
   else
     {
       /* It is a special variable... */
       toobig = FALSE;
-      if (is_neg (ex_stack->s_num))
+      temp = 0;
+      if (bc_is_neg (ex_stack->s_num))
 	{
 	  switch (var_name)
 	    {
@@ -487,7 +484,7 @@ store_var (var_name)
 	      rt_warn ("negative scale, set to 0");
 	      temp = 0;
 	      break;
-#ifdef READLINE
+#if defined(READLINE) || defined(LIBEDIT)
 	    case 3:
 	      temp = -1;
 	      break;
@@ -496,8 +493,8 @@ store_var (var_name)
 	}
       else
 	{
-	  temp = num2long (ex_stack->s_num);
-	  if (!is_zero (ex_stack->s_num) && temp == 0)
+	  temp = bc_num2long (ex_stack->s_num);
+	  if (!bc_is_zero (ex_stack->s_num) && temp == 0)
 	    toobig = TRUE;
 	}
       switch (var_name)
@@ -546,21 +543,21 @@ store_var (var_name)
 	    scale = (int) temp;
 	  break;
 
-#ifdef READLINE
+#if defined(READLINE) || defined(LIBEDIT)
 	case 3:
 	  if (toobig)
 	    {
 	      temp = -1;
 	      rt_warn ("history too large, set to unlimited");
-	      unstifle_history ();
+	      UNLIMIT_HISTORY;
 	    }
 	  else
 	    {
 	      n_history = temp;
-	      if (temp == -1)
-		unstifle_history ();
+	      if (temp < 0)
+		UNLIMIT_HISTORY;
 	      else
-		stifle_history (n_history);
+		HISTORY_SIZE(n_history);
 	    }
 #endif
 	}
@@ -580,20 +577,20 @@ store_array (var_name)
   long index;
 
   if (!check_stack(2)) return;
-  index = num2long (ex_stack->s_next->s_num);
+  index = bc_num2long (ex_stack->s_next->s_num);
   if (index < 0 || index > BC_DIM_MAX ||
-      (index == 0 && !is_zero(ex_stack->s_next->s_num))) 
+      (index == 0 && !bc_is_zero(ex_stack->s_next->s_num))) 
     rt_error ("Array %s subscript out of bounds.", a_names[var_name]);
   else
     {
       num_ptr = get_array_num (var_name, index);
       if (num_ptr != NULL)
 	{
-	  free_num (num_ptr);
-	  *num_ptr = copy_num (ex_stack->s_num);
-	  free_num (&ex_stack->s_next->s_num);
+	  bc_free_num (num_ptr);
+	  *num_ptr = bc_copy_num (ex_stack->s_num);
+	  bc_free_num (&ex_stack->s_next->s_num);
 	  ex_stack->s_next->s_num = ex_stack->s_num;
-	  init_num (&ex_stack->s_num);
+	  bc_init_num (&ex_stack->s_num);
 	  pop();
 	}
     }
@@ -615,26 +612,26 @@ load_var (var_name)
     case 0:
       /* Special variable ibase. */
       push_copy (_zero_);
-      int2num (&ex_stack->s_num, i_base);
+      bc_int2num (&ex_stack->s_num, i_base);
       break;
 
     case 1:
       /* Special variable obase. */
       push_copy (_zero_);
-      int2num (&ex_stack->s_num, o_base);
+      bc_int2num (&ex_stack->s_num, o_base);
       break;
 
     case 2:
       /* Special variable scale. */
       push_copy (_zero_);
-      int2num (&ex_stack->s_num, scale);
+      bc_int2num (&ex_stack->s_num, scale);
       break;
 
-#ifdef READLINE
+#if defined(READLINE) || defined(LIBEDIT)
     case 3:
       /* Special variable history. */
       push_copy (_zero_);
-      int2num (&ex_stack->s_num, n_history);
+      bc_int2num (&ex_stack->s_num, n_history);
       break;
 #endif
 
@@ -660,9 +657,9 @@ load_array (var_name)
   long   index;
 
   if (!check_stack(1)) return;
-  index = num2long (ex_stack->s_num);
+  index = bc_num2long (ex_stack->s_num);
   if (index < 0 || index > BC_DIM_MAX ||
-     (index == 0 && !is_zero(ex_stack->s_num))) 
+     (index == 0 && !bc_is_zero(ex_stack->s_num))) 
     rt_error ("Array %s subscript out of bounds.", a_names[var_name]);
   else
     {
@@ -709,16 +706,16 @@ decr_var (var_name)
 	rt_warn ("scale can not be negative in -- ");
       break;
 
-#ifdef READLINE
+#if defined(READLINE) || defined(LIBEDIT)
     case 3: /* history */
       n_history--;
-      if (n_history > 0)
-	stifle_history (n_history);
+      if (n_history >= 0)
+	HISTORY_SIZE(n_history);
       else
 	{
 	  n_history = -1;
 	  rt_warn ("history is negative, set to unlimited");
-	  unstifle_history ();
+	  UNLIMIT_HISTORY;
 	}
 #endif
 
@@ -735,16 +732,16 @@ decr_var (var_name)
 
 void
 decr_array (var_name)
-     char var_name;
+     int var_name;
 {
   bc_num *num_ptr;
   long   index;
 
   /* It is an array variable. */
   if (!check_stack (1)) return;
-  index = num2long (ex_stack->s_num);
+  index = bc_num2long (ex_stack->s_num);
   if (index < 0 || index > BC_DIM_MAX ||
-     (index == 0 && !is_zero (ex_stack->s_num))) 
+     (index == 0 && !bc_is_zero (ex_stack->s_num))) 
     rt_error ("Array %s subscript out of bounds.", a_names[var_name]);
   else
     {
@@ -791,16 +788,16 @@ incr_var (var_name)
 	rt_warn ("Scale too big in ++");
       break;
 
-#ifdef READLINE
+#if defined(READLINE) || defined(LIBEDIT)
     case 3: /* history */
       n_history++;
       if (n_history > 0)
-	stifle_history (n_history);
+	HISTORY_SIZE(n_history);
       else
 	{
 	  n_history = -1;
 	  rt_warn ("history set to unlimited");
-	  unstifle_history ();
+	  UNLIMIT_HISTORY;
 	}
 #endif
 
@@ -824,9 +821,9 @@ incr_array (var_name)
   long   index;
 
   if (!check_stack (1)) return;
-  index = num2long (ex_stack->s_num);
+  index = bc_num2long (ex_stack->s_num);
   if (index < 0 || index > BC_DIM_MAX ||
-      (index == 0 && !is_zero (ex_stack->s_num))) 
+      (index == 0 && !bc_is_zero (ex_stack->s_num))) 
     rt_error ("Array %s subscript out of bounds.", a_names[var_name]);
   else
     {
@@ -858,7 +855,7 @@ auto_var (name)
       ix = name;
       v_temp = (bc_var *) bc_malloc (sizeof (bc_var));
       v_temp->v_next = variables[ix];
-      init_num (&v_temp->v_value);
+      bc_init_num (&v_temp->v_value);
       variables[ix] = v_temp;
     }
   else
@@ -891,7 +888,7 @@ free_a_tree ( root, depth )
 	  free_a_tree (root->n_items.n_down[ix], depth-1);
       else
 	for (ix = 0; ix < NODE_SIZE; ix++)
-	  free_num ( &(root->n_items.n_num[ix]));
+	  bc_free_num ( &(root->n_items.n_num[ix]));
       free (root);
     }
 }
@@ -918,7 +915,7 @@ pop_vars (list)
 	  if (v_temp != NULL)
 	    {
 	      variables[ix] = v_temp->v_next;
-	      free_num (&v_temp->v_value);
+	      bc_free_num (&v_temp->v_value);
 	      free (v_temp);
 	    }
 	}
@@ -962,7 +959,7 @@ copy_tree (ary_node, depth)
   else
     for (i=0; i<NODE_SIZE; i++)
       if (ary_node->n_items.n_num[i] != NULL)
-	res->n_items.n_num[i] = copy_num (ary_node->n_items.n_num[i]);
+	res->n_items.n_num[i] = bc_copy_num (ary_node->n_items.n_num[i]);
       else
 	res->n_items.n_num[i] = NULL;
   return res;
@@ -1013,7 +1010,7 @@ process_params (pc, func)
 	      v_temp = (bc_var *) bc_malloc (sizeof(bc_var));
 	      v_temp->v_next = variables[ix];
 	      v_temp->v_value = ex_stack->s_num;
-	      init_num (&ex_stack->s_num);
+	      bc_init_num (&ex_stack->s_num);
 	      variables[ix] = v_temp;
 	    }
 	  else
@@ -1022,7 +1019,7 @@ process_params (pc, func)
 		/* The variables is an array variable. */
 	
 		/* Compute source index and make sure some structure exists. */
-		ix = (int) num2long (ex_stack->s_num);
+		ix = (int) bc_num2long (ex_stack->s_num);
 		n_temp = get_array_num (ix, 0);    
 	
 		/* Push a new array and Compute Destination index */
