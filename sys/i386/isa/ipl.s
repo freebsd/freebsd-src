@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.15 1997/09/28 19:34:46 fsmp Exp $
+ *	$Id: ipl.s,v 1.17 1997/09/29 05:32:02 fsmp Exp $
  */
 
 
@@ -90,6 +90,7 @@ _netisrs:
 	.text
 
 #ifdef SMP
+#ifdef notnow
 #define TEST_CIL			\
 	cmpl	$0x0100, _cil ;		\
 	jne	1f ;			\
@@ -97,6 +98,9 @@ _netisrs:
 	jne	1f ;			\
 	int	$3 ;			\
 1:
+#else
+#define TEST_CIL
+#endif
 #endif
 
 /*
