@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.12 2001/07/05 03:19:43 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.14 2001/10/05 05:32:27 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.131 2001/06/29 14:56:22 christos Exp $ */
+/* $NetBSD: pcmciadevs,v 1.139 2001/09/29 13:59:16  ichiro Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -72,6 +72,7 @@
 #define	PCCARD_VENDOR_SIMPLETECH	0x014d	/* Simple Technology */
 #define	PCCARD_VENDOR_LUCENT	0x0156	/* Lucent Technologies */
 #define	PCCARD_VENDOR_AIRONET	0x015f	/* Aironet Wireless Communications */
+#define	PCCARD_VENDOR_PSION	0x016c	/* Psion */
 #define	PCCARD_VENDOR_COMPAQ2	0x0183	/* Compaq */
 #define	PCCARD_VENDOR_KINGSTON	0x0186	/* Kingston */
 #define	PCCARD_VENDOR_DAYNA	0x0194	/* Dayna Corporation */
@@ -82,12 +83,14 @@
 #define	PCCARD_VENDOR_TELECOMDEVICE	0x021b	/* Telecom Device */
 #define	PCCARD_VENDOR_NOKIA	0x023d	/* Nokia Communications */
 #define	PCCARD_VENDOR_SAMSUNG	0x0250	/* Samsung */
+#define	PCCARD_VENDOR_SYMBOL	0x026c	/* Symbol */
 #define	PCCARD_VENDOR_BUFFALO	0x026f	/* BUFFALO (Melco Corporation) */
 #define	PCCARD_VENDOR_IODATA2	0x028a	/* I-O DATA */
 #define	PCCARD_VENDOR_LASAT	0x3401	/* Lasat Communications A/S */
 #define	PCCARD_VENDOR_LEXARMEDIA	0x4e01	/* Lexar Media */
 #define	PCCARD_VENDOR_COMPEX	0x8a01	/* Compex Corporation */
 #define	PCCARD_VENDOR_MELCO	0x8a01	/* Melco Corporation */
+#define	PCCARD_VENDOR_ZONET	0x8a01	/* Zonet Technology Inc. */
 #define	PCCARD_VENDOR_CONTEC	0xc001	/* Contec */
 #define	PCCARD_VENDOR_MACNICA	0xc00b	/* MACNICA */
 #define	PCCARD_VENDOR_ROLAND	0xc00c	/* Roland */
@@ -138,6 +141,9 @@
 #define	PCCARD_CIS_3COM_3CCFEM556BI	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_3COM_3CCFEM556BI	0x0556
 #define	PCCARD_STR_3COM_3CCFEM556BI	"3Com/Megahertz 3CCFEM556BI Ethernet/Modem"
+#define	PCCARD_CIS_3COM_3CRWE62092A	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_3COM_3CRWE62092A	0x2092
+#define	PCCARD_STR_3COM_3CRWE62092A	"3Com 3CRWE62092A Wireless LAN"
 
 /* Compaq Products */
 #define	PCCARD_CIS_COMPAQ2_CPQ_10_100	{ NULL, NULL, NULL, NULL }
@@ -323,6 +329,11 @@
 #define	PCCARD_PRODUCT_PANASONIC_KXLC003	0x0504
 #define	PCCARD_STR_PANASONIC_KXLC003	"Panasonic 8X CD-ROM Interface Card"
 
+/* Psion */
+#define	PCCARD_CIS_PSION_GOLDCARD	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_PSION_GOLDCARD	0x0020
+#define	PCCARD_STR_PSION_GOLDCARD	"Psion Gold Card"
+
 /* US Robotics Products */
 #define	PCCARD_CIS_USROBOTICS_WORLDPORT144	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_USROBOTICS_WORLDPORT144	0x3330
@@ -484,6 +495,11 @@
 #define	PCCARD_PRODUCT_SAMSUNG_SWL_2000N	0x02
 #define	PCCARD_STR_SAMSUNG_SWL_2000N	"Samsung MagicLAN SWL-2000N"
 
+/* Symbol */
+#define	PCCARD_CIS_SYMBOL_LA4100	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_SYMBOL_LA4100	0x0001
+#define	PCCARD_STR_SYMBOL_LA4100	"Symbol Spectrum24 LA4100 Series WLAN"
+
 /* Telecom Device */
 #define	PCCARD_CIS_TELECOMDEVICE_TCD_HPC100	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_TELECOMDEVICE_TCD_HPC100	0x0202
@@ -503,6 +519,12 @@
 #define	PCCARD_CIS_BUFFALO_WLI_PCM_S11	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_BUFFALO_WLI_PCM_S11	0x0305
 #define	PCCARD_STR_BUFFALO_WLI_PCM_S11	"BUFFALO AirStation 11Mbps WLAN"
+
+/* ZONET */
+#define	PCCARD_CIS_ZONET_ZEN	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_ZONET_ZEN	0x0100
+#define	PCCARD_STR_ZONET_ZEN	"Zonet Zen 10/10"
+
 
 /* Cards we know only by their cis */
 #define	PCCARD_VENDOR_PREMAX	-1	/* Premax */
@@ -525,6 +547,7 @@
 #define	PCCARD_VENDOR_INTERSIL	-1	/* Intersil */
 #define	PCCARD_VENDOR_SYNERGY21	-1	/* Synergy 21 */
 #define	PCCARD_VENDOR_CNET	-1	/* CNet */
+#define	PCCARD_VENDOR_EIGERLABS	-1	/* Eiger labs,Inc. */
 
 #define	PCCARD_CIS_MEGAHERTZ_XJ2288	{ "MEGAHERTZ", "MODEM XJ2288", NULL, NULL }
 #define	PCCARD_PRODUCT_MEGAHERTZ_XJ2288	-1
@@ -551,6 +574,9 @@
 #define	PCCARD_CIS_DLINK_DE660	{ "D-Link", "DE-660", NULL, NULL }
 #define	PCCARD_PRODUCT_DLINK_DE660	-1
 #define	PCCARD_STR_DLINK_DE660	"D-Link DE-660"
+#define	PCCARD_CIS_DLINK_DE660PLUS	{ "D-Link", "DE-660+", NULL, NULL }
+#define	PCCARD_PRODUCT_DLINK_DE660PLUS	-1
+#define	PCCARD_STR_DLINK_DE660PLUS	"D-Link DE-660+"
 #define	PCCARD_CIS_RPTI_EP400	{ "RPTI LTD.", "EP400", "CISV100", NULL }
 #define	PCCARD_PRODUCT_RPTI_EP400	-1
 #define	PCCARD_STR_RPTI_EP400	"RPTI EP400"
@@ -663,6 +689,16 @@
 #define	PCCARD_CIS_CNET_NE2000	{ "CNet", "CN40BC Ethernet", "D", "NE2000" }
 #define	PCCARD_PRODUCT_CNET_NE2000	-1
 #define	PCCARD_STR_CNET_NE2000	"CNet CN40BC NE2000 Compatible"
+#define	PCCARD_CIS_GEMTEK_WLAN	{ "Intersil", "PRISM 2_5 PCMCIA ADAPTER", "ISL37300P", "Eval-RevA" }
+#define	PCCARD_PRODUCT_GEMTEK_WLAN	-1
+#define	PCCARD_STR_GEMTEK_WLAN	"GEMTEK Prism2_5 WaveLAN Card"
+/*
+ * vendor ID of EPX_AA2000 is Fujitsu (0x0004) and product ID is 0x2000, but
+ * it conflicts with Fujitsu Towa LA501 Ethernet.
+ */
+#define	PCCARD_CIS_EIGERLABS_EPX_AA2000	{ "Eiger labs,Inc.", "EPX-AA2000 PC Sound Card", NULL, NULL }
+#define	PCCARD_PRODUCT_EIGERLABS_EPX_AA2000	-1
+#define	PCCARD_STR_EIGERLABS_EPX_AA2000	"EPX-AA2000 PC Sound Card"
 #define	PCCARD_CIS_ZOOM_AIR_4000	{ "Zoom", "Air-4000", NULL, NULL }
 #define	PCCARD_PRODUCT_ZOOM_AIR_4000	-1
 #define	PCCARD_STR_ZOOM_AIR_4000	"Zoom Air-4000"
