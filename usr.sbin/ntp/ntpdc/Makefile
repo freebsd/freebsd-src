@@ -8,8 +8,15 @@ SRCS= 	ntpdc.c ntpdc_ops.c version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 
-DPADD=	${LIBNTP} ${LIBREADLINE} ${LIBTERMCAP} ${LIBMD}
-LDADD=	${LIBNTP} -lreadline -ltermcap -lmd
+DPADD=	${LIBNTP} ${LIBMD}
+LDADD=	${LIBNTP} -lmd
+
+.if !defined(NO_GNU)
+DPADD+=		${LIBREADLINE} ${LIBTERMCAP}
+LDADD+=		-lreadline -ltermcap
+CFLAGS+=	-DHAVE_LIBREADLINE -DHAVE_READLINE_HISTORY_H \
+		-DHAVE_READLINE_READLINE_H
+.endif
 
 CLEANFILES+= .version version.c
 
