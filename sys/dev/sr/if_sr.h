@@ -16,7 +16,6 @@
 
 /* Netgraph hooks */
 #define NG_SR_HOOK_DEBUG	"debug"
-#define NG_SR_HOOK_CONTROL	"control"
 #define NG_SR_HOOK_RAW		"rawdata"
 
 #endif /* _I386_ISA_IF_SR_H_ */
