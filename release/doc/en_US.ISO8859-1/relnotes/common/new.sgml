@@ -185,6 +185,15 @@
     <para><literal>OLDCARD</literal> and &man.pccardd.8; now support
     PCI cards.</para>
 
+    <para>An &man.orm.4; device has been added to claim the option
+    ROMs in the ISA memory I/O space, to prevent other drivers from
+    mistakenly assigned address that conflict with these ROMs.</para>
+
+    <para>The out-of-swap process termination code now begins killing
+    processes earlier to avoid deadlocks; it now also takes into
+    account the swap space used by processes when computing the
+    process sizes. &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -330,9 +339,8 @@
     <sect3>
       <title>Network Protocols</title>
 
-      <para>Various fixes and improvements to the IPv6 code have been merged in
-      from the KAME project, including significantly-improved IPSEC
-      functionality. &merged;</para>
+      <para>The IPv6 code is now based on a snapshot based on the KAME
+      Project's IPv6 stack as of 28 May, 2001.</para>
 
       <para>&man.accept.filter.9;, a kernel feature to reduce overheads
       when accepting and reading new connections on listening sockets,
@@ -384,7 +392,7 @@
       connection in progress if no response has been received by the
       third SYN segment sent.  This behavior tries to work around
       (very old) terminal servers with buggy VJ header compression
-      implementations.</para>
+      implementations. &merged;</para>
 
       <para>A new sysctl <literal>net.inet.ip.check_interface</literal>,
       which is on by default, causes IP to verify that an incoming
@@ -495,7 +503,8 @@
       attach when connected to a SCSI card driven by &man.isp.4; has
       been fixed. &merged;</para>
 
-      <para>The &man.isp.4; driver has been updated. &merged;</para>
+      <para>The &man.isp.4; driver is now proactive about discovering
+      Fibre Channel topology changes.</para>
 
       <para>The &man.isp.4; driver now supports target mode for Qlogic
       SCSI cards, including Ultra2 and Ultra3 and dual bus cards.</para>
@@ -821,6 +830,11 @@
     <para>&os;'s TCP implementation has been made more resistant to
     SYN floods, by eliminating the RST segment normally sent when
     removing a connection from the listen queue.</para>
+
+    <para><application>OpenSSH</application> now switches to the
+    user's UID before attempting to unlink the authentication
+    forwarding file, nullifying the effects of a race.</para>
+
   </sect2>
   <sect2>
     <title>Userland Changes</title>
@@ -1269,6 +1283,9 @@
     <para>&man.dump.8; now supports inheritance of the
     <literal>nodump</literal> flag down a hierarchy. &merged;</para>
 
+    <para>The <option>-T</option> to &man.dump.8; no longer swallows
+    an extra argument.</para>
+
     <para>&man.split.1; now has the ability to split a file longer
     than 2GB. &merged;</para>
 
@@ -1320,6 +1337,12 @@
     changed; this affects the behavior of &man.fetch.1;, which has
     gained the <option>-U</option> option to restore the old
     behavior. &merged;</para>
+
+    <para><filename>libfetch</filename> now has support for an
+    authentication callback.
+
+    <para><filename>libfetch</filename> now has support for a
+    <varname>HTTP_USER_AGENT</varname> environment variable. &merged;</para>
 
     <para>&man.atacontrol.8; has been added to control various aspects
     of the &man.ata.4; driver.</para>
@@ -1407,7 +1430,10 @@
     existing target files and the <option>-S</option> option for
     <quote>safe</quote> (atomic copy) operation.  The
     <option>-c</option> (copy) flag is now the default, and the
-    <option>-D</option> (debugging) flag has been withdrawn.</para>
+    <option>-D</option> (debugging) flag has been withdrawn.
+    &man.install.1; now issues a warning if <option>-d</option>
+    (create directories) and <option>-C</option> (copy changed files
+    only) are used together.</para>
 
     <para>&man.whois.1; now directs queries for IP addresses to
     ARIN.</para>
@@ -1429,6 +1455,10 @@
 
     <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
     been cleaned up and updated.</para>
+
+    <para>&man.du.1; now takes a <option>-I</option> command-line flag
+    to ignore/skip files and subdirectories matching a specified
+    shell-glob mask.</para>
 
     <sect3>
       <title>Contributed Software</title>
