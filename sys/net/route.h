@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.19 1995/12/14 09:53:28 phk Exp $
+ * $Id: route.h,v 1.20 1996/01/30 22:58:00 mpp Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -154,7 +154,10 @@ struct ortentry {
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
 #define RTF_CHAINDELETE	0x80000		/* chain is being deleted (internal) */
 #define RTF_PINNED	0x100000	/* future use */
-					/* 0x200000 and up unassigned */
+#define	RTF_LOCAL	0x200000 	/* route represents a local address */
+#define	RTF_BROADCAST	0x400000	/* route represents a bcast address */
+#define	RTF_MULTICAST	0x800000	/* route represents a mcast address */
+					/* 0x1000000 and up unassigned */
 
 /*
  * Routing statistics.
