@@ -6,7 +6,8 @@
  
 PROG=	cc1
 SRCS=	c-parse.c c-parse.h c-lang.c
-SRCS+=	c-lex.c
+# Ugh, compiled twice...
+SRCS+=	c-decl.c c-lex.c
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED=yes
