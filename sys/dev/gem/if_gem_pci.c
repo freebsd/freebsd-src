@@ -126,7 +126,7 @@ struct gem_pci_dev {
 	{ 0x2bad108e, GEM_SUN_GEM,	"Sun GEM Gigabit Ethernet Adaptor" },
 	{ 0x0021106b, GEM_APPLE_GMAC,	"Apple GMAC Ethernet Adaptor" },
 	{ 0x0024106b, GEM_APPLE_GMAC,	"Apple GMAC2 Ethernet Adaptor" },
-	{ 0, NULL }
+	{ 0, 0, NULL }
 };
 
 /*
