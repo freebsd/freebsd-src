@@ -36,7 +36,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.13 1998/07/15 06:51:35 charnier Exp $
+.\" $Id: boot_i386.8,v 1.14 1998/09/23 06:54:14 yokota Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -60,11 +60,42 @@ drive 0 (otherwise known as drive C:,
 or (confusingly) hard disk drive 1, or drive 0x80 in the BIOS).
 Some BIOSes let you change this default sequence or may include a CD-ROM
 drive as a boot device.
+.Pp
+By default, a three-stage bootstrap is employed, and control is
+automatically passed from the boot blocks (bootstrap stages one and
+two) to a separate third-stage bootstrap program,
+.Pa /boot/loader .
+This third stage provides considerably more sophisticated control
+over the booting process than it is possible to achieve in the boot
+blocks, which are constrained by occupying limited fixed space on a
+given disk or slice.
+.Pp
+However, it is possible to dispense with the third stage altogether,
+either by specifying a kernel name in the boot block parameter
+file,
+.Pa /boot.config ,
+or by hitting a key during a brief pause (while one of the characters
+.Dv - ,
+.Dv \e ,
+.Dv \&| ,
+or
+.Dv /
+is displayed) before
+.Pa /boot/loader
+is invoked.  Booting will also be attempted at stage two, if the
+third stage cannot be loaded.
+.Pp
+The remainder of this subsection deals only with the boot blocks.
+At present, documentation of the third stage is chiefly
+available though online help in the
+.Pa /boot/loader
+program itself.
+.Pp
 After the boot blocks have been loaded,
 you should see a prompt similar to the following:
 .Bd -literal
->> FreeBSD BOOT @ 0x10000: 640/7168 k of memory, internal console
-Boot default: 0:wd(0,a)kernel
+>> FreeBSD/i386 BOOT
+Default: 0:wd(0,a)/kernel
 
 boot:
 .Ed
@@ -83,7 +114,10 @@ prompt.  At this time, the following input will be accepted:
 .Bl -tag -width 10x
 .It \&?
 Give a short listing of the files in the root directory of the default
-boot device, as a hint about available boot files.
+boot device, as a hint about available boot files.  (A
+.Dv \&?
+may also be specified as the last segment of a path, in which case
+the listing will be of the relevant subdirectory.)
 .It Op bios_drive:interface(unit,part) Op filename Op Fl aCcDdghPrsv
 Specify boot file and flags.
 .Bl -tag -width 10x -compact
@@ -117,12 +151,12 @@ By convention, only partition
 .Ql a
 contains a bootable image.  If sliced disks are used
 .Pq Dq fdisk partitions ,
-only the first BSD slice can be used to boot from.  The partition
-letter always refers to the first slice.
+any slice can be booted from, with the default being the active slice
+or, otherwise, the first slice.
 .It filename
 The pathname of the file to boot (relative to the root directory
 on the specified partition).  Defaults to
-.Pa kernel .
+.Pa /kernel .
 Symbolic links are not supported (hard links are).
 .It Fl acCdDghPrsv
 Boot flags:
@@ -206,19 +240,15 @@ prompt.
 .Sh FILES
 .Bl -tag -width /kernel.old.config -compact
 .It Pa /boot.config
-parameters for the boot loader (optional)
+parameters for the boot blocks (optional)
 .It Pa /boot.help
-help messages
+help messages (optional)
+.It Pa /boot/loader
+third-stage bootstrap
 .It Pa /kernel
 default kernel
-.It Pa /kernel.config
-parameters for default kernel (optional)
 .It Pa /kernel.old
 typical non-default kernel (optional)
-.It Pa /kernel.old.config
-parameters for non-default kernel (optional)
-.\" .It Pa /boot
-.\" system bootstrap
 .El
 .Sh SEE ALSO
 .Xr ddb 4 ,
@@ -234,5 +264,4 @@ The disklabel format used by this version of
 is quite
 different from that of other architectures.
 .Pp
-The boot flags are not very self-explanatory, and the alphabet has
-too few characters to implement every potentially useful boot option.
+Some features are, as yet, undocumented.
