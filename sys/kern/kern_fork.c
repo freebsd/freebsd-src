@@ -246,7 +246,8 @@ fork1(p1, flags, procp)
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
 	 */
-	ok = chgproccnt(uid, 1, p1->p_rlimit[RLIMIT_NPROC].rlim_cur);
+	ok = chgproccnt(p1->p_cred->p_uidinfo, 1,
+		p1->p_rlimit[RLIMIT_NPROC].rlim_cur);
 	if (uid != 0 && !ok) {
 		/*
 		 * Back out the process count
@@ -359,6 +360,7 @@ again:
 	bcopy(p1->p_cred, p2->p_cred, sizeof(*p2->p_cred));
 	p2->p_cred->p_refcnt = 1;
 	crhold(p1->p_ucred);
+	uihold(p1->p_cred->p_uidinfo);
 
 	if (p2->p_prison) {
 		p2->p_prison->pr_ref++;
