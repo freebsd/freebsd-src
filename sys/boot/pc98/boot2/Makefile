@@ -8,11 +8,12 @@ SRCS+=	probe_keyboard.c io.c disk.c sys.c
 
 BINDIR=		/boot
 BINMODE=	444
-CFLAGS=		-elf -Os -fno-guess-branch-probability -mrtd \
+CFLAGS=		-elf -Os -mrtd \
+		-ffreestanding -fno-builtin -fno-guess-branch-probability \
 		-D_KERNEL -DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
-CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
 
 # By default, if a serial port is going to be used as console, use COM1
@@ -85,6 +86,17 @@ all:		boot1 boot2
 install:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		boot1 boot2 ${DESTDIR}${BINDIR}
+
+# If it's not there, don't consider it a target
+.if exists(${.CURDIR}/../../../i386/include)
+beforedepend ${OBJS}: machine
+
+machine:
+	ln -sf ${.CURDIR}/../../../i386/include machine
+
+.endif
+
+CLEANFILES+=	machine
 
 .include <bsd.kern.mk>
 .include <bsd.prog.mk>
