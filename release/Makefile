@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.420 1998/10/15 11:12:40 jkh Exp $
+#	$Id: Makefile,v 1.421 1998/10/16 10:17:29 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -721,7 +721,7 @@ doMFSKERN:
 .if !defined(_MFSKERN) || ${MACHINE_ARCH} == "alpha"
 	@mkdir -p ${RD}/boot.${FSIMAGE}/boot
 .if ${MACHINE_ARCH} == "alpha"
-	@cp /usr/mdec/boot2 ${RD}/boot.${FSIMAGE}/boot
+	@cp /usr/mdec/loader ${RD}/boot.${FSIMAGE}/boot
 .else
 	@cp /boot/* ${RD}/boot.${FSIMAGE}/boot
 .endif
