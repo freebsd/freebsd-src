@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.39 1998/07/04 22:30:17 julian Exp $ */
+/* $Id: scd.c,v 1.40 1998/07/13 09:53:02 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -201,7 +201,8 @@ static struct cdevsw scd_cdevsw = {
 	  D_DISK,	0,		-1 };
 
 
-int scd_attach(struct isa_device *dev)
+static int
+scd_attach(struct isa_device *dev)
 {
 	int	unit = dev->id_unit;
 	struct scd_data *cd = scd_data + unit;
@@ -694,7 +695,13 @@ scd_subchan(int unit, struct ioc_read_subchannel *sc)
 	return 0;
 }
 
-int
+static __inline void
+write_control(unsigned port, unsigned data)
+{
+	outb(port + OREG_CONTROL, data);
+}
+
+static int
 scd_probe(struct isa_device *dev)
 {
 	struct sony_drive_configuration drive_config;
@@ -1283,12 +1290,6 @@ read_toc(dev_t dev)
 	cd->flags |= SCDTOC;
 
 	return 0;
-}
-
-static __inline void
-write_control(unsigned port, unsigned data)
-{
-	outb(port + OREG_CONTROL, data);
 }
 
 static void
