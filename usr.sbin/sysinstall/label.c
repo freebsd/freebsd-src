@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.27 1995/05/28 09:31:34 jkh Exp $
+ * $Id: label.c,v 1.28 1995/05/28 20:28:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -399,11 +399,12 @@ print_command_summary()
 int
 diskLabelEditor(char *str)
 {
-    int sz, key = 0;
+    int sz, i, key = 0;
     Boolean labeling;
     char *msg = NULL;
     PartInfo *p;
     PartType type;
+    Device **devs;
 
     labeling = TRUE;
     keypad(stdscr, TRUE);
@@ -467,6 +468,18 @@ diskLabelEditor(char *str)
 	    if (label_chunk_info[here].type != PART_SLICE) {
 		msg = "You can only do this in a master partition (see top of screen)";
 		break;
+	    }
+	    else {
+		int i, cnt;
+
+		cnt = i = 0;
+		while (label_chunk_info[i].c)
+		    if (label_chunk_info[i++].type != PART_SLICE)
+			cnt++;
+		if (cnt == (CHUNK_COLUMN_MAX * 2)) {
+		    msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\nthis limitation by partitioning your disks individually rather than all\nat once.  This will be fixed just as soon as we get a scrolling partition\nbox written.  Sorry for the inconvenience!");
+		    break;
+		}
 	    }
 	    sz = space_free(label_chunk_info[here].c);
 	    if (sz <= FS_MIN_SIZE) {
@@ -609,11 +622,19 @@ diskLabelEditor(char *str)
 	    break;
 
 	case 'U':
-	    Free_Disk(label_chunk_info[here].c->disk);
-	    label_chunk_info[here].c->disk = Open_Disk(label_chunk_info[here].c->disk->name);
-	    if (!label_chunk_info[here].c->disk)
-		msgFatal("Can't reopen disk in undo!");
+	    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+	    for (i = 0; devs[i]; i++) {
+		if (!devs[i]->enabled)
+		    continue;
+		else {
+		    char *cp = devs[i]->name;
+
+		    Free_Disk(devs[i]->private);
+		    devs[i]->private = Open_Disk(cp);
+		}
+	    }
 	    record_label_chunks();
+	    break;
 
 	case 'W':
 	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\nThis is an entirely undocumented feature which you are not\nexpected to understand!")) {
