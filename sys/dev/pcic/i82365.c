@@ -96,9 +96,6 @@ static void	pcic_intr(void *arg);
 
 static void	pcic_attach_card(struct pcic_handle *);
 static void	pcic_detach_card(struct pcic_handle *, int);
-#if 0
-void		pcic_deactivate_card(struct pcic_handle *);
-#endif
 
 static void	pcic_chip_do_mem_map(struct pcic_handle *, int);
 static void	pcic_chip_do_io_map(struct pcic_handle *, int);
@@ -128,7 +125,6 @@ pcic_get_handle(device_t dev, device_t child)
 		return NULL;
 	return ((struct pcic_handle *) device_get_ivars(child));
 }
-
 
 int
 pcic_ident_ok(int ident)
@@ -233,6 +229,8 @@ pcic_activate(device_t dev)
 		return err;
 	}
 
+	/* XXX This might not be needed in future, get it directly from
+	 * XXX parent */
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid, 
 	    0, ~0, 1 << 13, RF_ACTIVE);
@@ -243,9 +241,6 @@ pcic_activate(device_t dev)
 		pcic_deactivate(dev);
 		return ENOMEM;
 	}
-	sc->subregionmask = (1 << 
-	    ((rman_get_end(sc->mem_res) - rman_get_start(sc->mem_res) + 1) / 
-		PCIC_MEM_PAGESIZE)) - 1;
 
 	sc->iot = rman_get_bustag(sc->port_res);
 	sc->ioh = rman_get_bushandle(sc->port_res);;
@@ -621,7 +616,8 @@ pcic_init_socket(struct pcic_handle *h)
 
 #if 0
 /* XXX */
-/*	SHould do this later */
+/*	Should do this later */
+/* maybe as part of interrupt routing verification */
 	if ((reg & PCIC_IF_STATUS_CARDDETECT_MASK) ==
 	    PCIC_IF_STATUS_CARDDETECT_PRESENT) {
 		pcic_attach_card(h);
@@ -745,30 +741,14 @@ pcic_detach_card(struct pcic_handle *h, int flags)
 	}
 }
 
-#if 0
-void
-pcic_deactivate_card(struct pcic_handle *h)
-{
-
-	/* call the MI deactivate function */
-	pccard_card_deactivate(h->dev);
-
-	/* power down the socket */
-	pcic_write(h, PCIC_PWRCTL, 0);
-
-	/* reset the socket */
-	pcic_write(h, PCIC_INTR, 0);
-}
-#endif
-
 static int 
-pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size,
+pcic_chip_mem_alloc(struct pcic_handle *h, struct resource *r, bus_size_t size,
     struct pccard_mem_handle *pcmhp)
 {
 	bus_space_handle_t memh;
 	bus_addr_t addr;
 	bus_size_t sizepg;
-	int i, mask, mhandle;
+	int mask;
 	struct pcic_softc *sc = h->sc;
 
 	/* out of sc->memh, allocate as many pages as necessary */
@@ -780,34 +760,19 @@ pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size,
 
 	mask = (1 << sizepg) - 1;
 
-	addr = 0;		/* XXX gcc -Wuninitialized */
-	mhandle = 0;		/* XXX gcc -Wuninitialized */
-
-	for (i = 0; i <= PCIC_MAX_MEM_PAGES - sizepg; i++) {
-		if ((sc->subregionmask & (mask << i)) == (mask << i)) {
-			mhandle = mask << i;
-			addr = sc->membase + (i * PCIC_MEM_PAGESIZE);
-			memh = addr;
-			sc->subregionmask &= ~(mhandle);
-			pcmhp->memt = sc->memt;
-			pcmhp->memh = memh;
-			pcmhp->addr = addr;
-			pcmhp->size = size;
-			pcmhp->mhandle = mhandle;
-			pcmhp->realsize = sizepg * PCIC_MEM_PAGESIZE;
-			return (0);
-		}
-	}
-
-	return (1);
+	addr = rman_get_start(r);
+	memh = addr;
+	pcmhp->memt = sc->memt;
+	pcmhp->memh = memh;
+	pcmhp->addr = addr;
+	pcmhp->size = size;
+	pcmhp->realsize = sizepg * PCIC_MEM_PAGESIZE;
+	return (0);
 }
 
 static void 
 pcic_chip_mem_free(struct pcic_handle *h, struct pccard_mem_handle *pcmhp)
 {
-	struct pcic_softc *sc = h->sc;
-
-	sc->subregionmask |= pcmhp->mhandle;
 }
 
 static struct mem_map_index_st {
@@ -930,7 +895,6 @@ pcic_chip_mem_map(struct pcic_handle *h, int kind, bus_addr_t card_addr,
 	bus_addr_t busaddr;
 	long card_offset;
 	int i, win;
-	struct pcic_softc *sc = h->sc;
 
 	win = -1;
 	for (i = 0; i < (sizeof(mem_map_index) / sizeof(mem_map_index[0]));
@@ -946,11 +910,6 @@ pcic_chip_mem_map(struct pcic_handle *h, int kind, bus_addr_t card_addr,
 		return (1);
 
 	*windowp = win;
-#if 0
-	/* XXX this is pretty gross */
-	if (sc->memt != pcmhp->memt)
-		panic("pcic_chip_mem_map memt is bogus");
-#endif
 	busaddr = pcmhp->addr;
 
 	/*
@@ -1123,7 +1082,9 @@ pcic_chip_io_map(struct pcic_handle *h, int width, bus_addr_t offset,
 #ifdef PCICDEBUG
 	static char *width_names[] = { "auto", "io8", "io16" };
 #endif
+#if 0
 	struct pcic_softc *sc = h->sc;
+#endif
 
 	/* XXX Sanity check offset/size. */
 
@@ -1451,9 +1412,15 @@ pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource *r;
 	struct pcic_handle *h = pcic_get_handle(dev, child);
 
+	/* Nearly default */
+	if (type == SYS_RES_MEMORY && start == 0 && end == ~0 && count != 1) {
+		start = 0xd0000;	/* XXX */
+		end = 0xdffff;
+	}
+
 	r = bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags);
-	if (!r)
+	if (r == NULL)
 		return r;
 	sz = rman_get_end(r) - rman_get_start(r) + 1;
 	switch (type) {
@@ -1467,7 +1434,7 @@ pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		break;
 	case SYS_RES_MEMORY: 
-		err = pcic_chip_mem_alloc(h, sz, &h->mem[*rid]);
+		err = pcic_chip_mem_alloc(h, r, sz, &h->mem[*rid]);
 		if (err) {
 			bus_generic_release_resource(dev, child, type, *rid,
 			    r);
@@ -1524,8 +1491,8 @@ pcic_set_res_flags(device_t dev, device_t child, int type, int rid,
     u_int32_t flags)
 {
 	struct pcic_handle *h = pcic_get_handle(dev, child);
-printf("%p %p %d %d %#x\n", dev, child, type, rid, flags);
 
+	DPRINTF(("%p %p %d %d %#x\n", dev, child, type, rid, flags));
 	if (type != SYS_RES_MEMORY)
 		return (EINVAL);
 	h->mem[rid].kind = PCCARD_MEM_ATTR;

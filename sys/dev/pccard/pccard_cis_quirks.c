@@ -47,7 +47,6 @@
 
 #include <dev/pccard/pccarddevs.h>
 #include <dev/pccard/pccardreg.h>
-#include <dev/pccard/pccardchip.h>
 #include <dev/pccard/pccardvar.h>
 
 /* There are cards out there whose CIS flat-out lies.  This file

@@ -44,7 +44,6 @@
 #include <machine/resource.h>
 
 #include <dev/pccard/pccardreg.h>
-#include <dev/pccard/pccardchip.h>
 #include <dev/pccard/pccardvar.h>
 
 #include "power_if.h"
