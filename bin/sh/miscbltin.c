@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: miscbltin.c,v 1.13 1997/05/19 00:18:43 steve Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*

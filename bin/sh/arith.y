@@ -88,11 +88,11 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: arith.y,v 1.6 1997/02/22 13:58:21 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
+static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include "shell.h"
