@@ -1,5 +1,5 @@
 /* BFD semi-generic back-end for a.out binaries.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -2822,7 +2822,7 @@ NAME(aout,find_nearest_line)
     }
 
   if (main_file_name == NULL
-      || main_file_name[0] == '/'
+      || IS_ABSOLUTE_PATH (main_file_name)
       || directory_name == NULL)
     filelen = 0;
   else
@@ -2846,7 +2846,7 @@ NAME(aout,find_nearest_line)
 
   if (main_file_name != NULL)
     {
-      if (main_file_name[0] == '/' || directory_name == NULL)
+      if (IS_ABSOLUTE_PATH (main_file_name) || directory_name == NULL)
 	*filename_ptr = main_file_name;
       else
 	{

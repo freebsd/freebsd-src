@@ -711,7 +711,6 @@ INSTALL_MODULES = \
 	install-shellutils \
 	install-sim \
 	install-tar \
-	install-texinfo \
 	install-textutils \
 	install-tgas \
 	install-time \

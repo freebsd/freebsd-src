@@ -1,6 +1,6 @@
 /* Opcode table for the ARM.
 
-   Copyright 1994, 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 1997, 2000 Free Software Foundation, Inc.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,8 +93,8 @@ static struct arm_opcode arm_opcodes[] =
     {0x00a00000, 0x0de00000, "adc%c%20's\t%12-15r, %16-19r, %o"},
     {0x00c00000, 0x0de00000, "sbc%c%20's\t%12-15r, %16-19r, %o"},
     {0x00e00000, 0x0de00000, "rsc%c%20's\t%12-15r, %16-19r, %o"},
-    {0x0120f000, 0x0db6f000, "msr%c\t%22?scpsr%C, %o"},
-    {0x010f0000, 0x0fbf0fff, "mrs%c\t%12-15r, %22?scpsr"},
+    {0x0120f000, 0x0db0f000, "msr%c\t%22?SCPSR%C, %o"},
+    {0x010f0000, 0x0fbf0fff, "mrs%c\t%12-15r, %22?SCPSR"},
     {0x01000000, 0x0de00000, "tst%c%p\t%16-19r, %o"},
     {0x01200000, 0x0de00000, "teq%c%p\t%16-19r, %o"},
     {0x01400000, 0x0de00000, "cmp%c%p\t%16-19r, %o"},
@@ -164,7 +164,7 @@ static struct arm_opcode arm_opcodes[] =
     {0x0e000010, 0x0f100010, "mcr%c\t%8-11d, %21-23d, %12-15r, cr%16-19d, cr%0-3d, {%5-7d}"},
     {0x0c000000, 0x0e100000, "stc%c%22'l\t%8-11d, cr%12-15d, %A"},
     {0x0c100000, 0x0e100000, "ldc%c%22'l\t%8-11d, cr%12-15d, %A"},
-    
+
     /* The rest.  */
     {0x00000000, 0x00000000, "undefined instruction %0-31x"},
     {0x00000000, 0x00000000, 0}
@@ -213,7 +213,7 @@ static struct thumb_opcode thumb_opcodes[] =
   /* format 8 */
   {0x5200, 0xFE00, "strh\t%0-2r, [%3-5r, %6-8r]"},
   {0x5A00, 0xFE00, "ldrh\t%0-2r, [%3-5r, %6-8r]"},
-  {0x5600, 0xF600, "lds%11?hb\t%0-2r, [%3-5r, %6-8r]"},
+  {0x5600, 0xF600, "ldrs%11?hb\t%0-2r, [%3-5r, %6-8r]"},
   /* format 7 */
   {0x5000, 0xFA00, "str%10'b\t%0-2r, [%3-5r, %6-8r]"},
   {0x5800, 0xFA00, "ldr%10'b\t%0-2r, [%3-5r, %6-8r]"},

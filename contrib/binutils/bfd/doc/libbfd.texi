@@ -43,7 +43,7 @@ To detect calling these with less than a @code{bfd_vma}, use
  /* Byte swapping macros for user section data.  */
 
 #define bfd_put_8(abfd, val, ptr) \
-                (*((unsigned char *)(ptr)) = (unsigned char)(val))
+                ((void) (*((unsigned char *)(ptr)) = (unsigned char)(val)))
 #define bfd_put_signed_8 \
                bfd_put_8
 #define bfd_get_8(abfd, ptr) \
@@ -77,6 +77,20 @@ To detect calling these with less than a @code{bfd_vma}, use
                 BFD_SEND(abfd, bfd_getx64, (ptr))
 #define bfd_get_signed_64(abfd, ptr) \
                 BFD_SEND(abfd, bfd_getx_signed_64, (ptr))
+
+#define bfd_get(bits, abfd, ptr)                               \
+                ((bits) == 8 ? bfd_get_8 (abfd, ptr)           \
+                : (bits) == 16 ? bfd_get_16 (abfd, ptr)        \
+                : (bits) == 32 ? bfd_get_32 (abfd, ptr)        \
+                : (bits) == 64 ? bfd_get_64 (abfd, ptr)        \
+                : (abort (), (bfd_vma) - 1))
+
+#define bfd_put(bits, abfd, val, ptr)                          \
+                ((bits) == 8 ? bfd_put_8 (abfd, val, ptr)      \
+                : (bits) == 16 ? bfd_put_16 (abfd, val, ptr)   \
+                : (bits) == 32 ? bfd_put_32 (abfd, val, ptr)   \
+                : (bits) == 64 ? bfd_put_64 (abfd, val, ptr)   \
+                : (abort (), (void) 0))
 
 @end example
 
