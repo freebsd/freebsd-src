@@ -183,11 +183,7 @@ ufs_reclaim(ap)
 	if (ip->i_dirhash != NULL)
 		ufsdirhash_free(ip);
 #endif
-	if (ump->um_fstype == UFS1)
-		FREE(ip->i_din1, ump->um_malloctype);
-	else
-		FREE(ip->i_din2, ump->um_malloctype);
-	FREE(vp->v_data, ump->um_malloctype);
+	UFS_IFREE(ump, ip);
 	vp->v_data = 0;
 	return (0);
 }
