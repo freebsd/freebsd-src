@@ -9,9 +9,43 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.317.4.64 2001/05/24 16:45:49 ca Exp $
+.\"	$Id: op.me,v 8.317.4.70 2001/07/24 04:08:25 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
+.\"
+.\" Define \(sc if not defined (for text output)
+.\"
+.if !c \(sc .char \(sc S
+.\"
+.\" Define \(dg as "*" for text output and create a new .DG macro
+.\" which describes the symbol.
+.\"
+.ie !c \(dg \{\
+.char \(dg *
+.de DG
+an asterick
+..
+.\}
+.el \{\
+.de DG
+a dagger
+..
+.\}
+.\"
+.\" Define \(dd as "#" for text output and create a new .DD macro
+.\" which describes the symbol.
+.\"
+.ie !c \(dd \{\
+.char \(dd #
+.de DD
+a pound sign
+..
+.\}
+.el \{\
+.de DD
+a double dagger
+..
+.\}
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
 .oh 'Sendmail Installation and Operation Guide''SMM:08-%'
 .\" SD is lib if sendmail is installed in /usr/lib, sbin if in /usr/sbin
@@ -53,7 +87,7 @@ eric@Sendmail.COM
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.317.4.64 $
+.Ve $Revision: 8.317.4.70 $
 .rm Ve
 .sp
 For Sendmail Version 8.11
@@ -2189,8 +2223,12 @@ For compatibility with old configuration files,
 if no
 .i suboption
 is specified,
-all the timeouts marked with a dagger (\(dg) are set to the indicated value.
-All but those marked with a double dagger (\(dd) apply to client SMTP.
+all the timeouts marked with
+.DG
+(\(dg) are set to the indicated value.
+All but those marked with
+.DD
+(\(dd) apply to client SMTP.
 .pp
 Many of the RFC 1123 minimum values
 may well be too short.
@@ -6444,7 +6482,15 @@ Defaults to 600000.
 .ip QueueLA=\fILA\fP
 [x]
 When the system load average exceeds
-.i LA ,
+.i LA
+and the
+.b QueueFactor
+(\c
+.b q )
+option divided by the difference in the current load average and the
+.b QueueLA
+option plus one
+is less than the priority of the message, 
 just queue messages
 (i.e., don't try to send them).
 Defaults to 8 multiplied by
@@ -6766,7 +6812,10 @@ This should really
 be set.
 .ip TempFileMode=\fImode\fP
 [F]
-The file mode for queue files.
+The file mode for queue files, files to which
+.i sendmail
+delivers directly, and files in the
+.b HostStatusDirectory .
 It is interpreted in octal by default.
 Defaults to 0600.
 .ip Timeout.\fItype\fP=\|\fItimeout\fP
@@ -8704,7 +8753,8 @@ has been compiled with support for STARTTLS.
 When acting as a server,
 .i sendmail
 requires X.509 certificates to support STARTTLS:
-one as certificate for the server (ServerCertFile)
+one as certificate for the server (ServerCertFile and corresponding
+private ServerKeyFile)
 at least one root CA (CACERTFile),
 i.e., a certificate that is used to sign other certificates,
 and a path to a directory which contains other CAs (CACERTPath).
@@ -8723,7 +8773,7 @@ C=FileName_of_CA_Certificate
 ln -s $C `openssl x509 -noout -hash < $C`.0
 .)b
 An X.509 certificate is also required for authentication in client mode
-(ClientCertFile), however,
+(ClientCertFile and corresponding private ClientKeyFile), however,
 .i sendmail
 will always use STARTTLS when offered by a server.
 The client and server certificates can be identical.
@@ -9425,7 +9475,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.317.4.64 $
+.\"Version $Revision: 8.317.4.70 $
 .\".ce 0
 .bp 3
 .ce

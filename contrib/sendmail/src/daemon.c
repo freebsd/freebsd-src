@@ -16,9 +16,9 @@
 
 #ifndef lint
 # ifdef DAEMON
-static char id[] = "@(#)$Id: daemon.c,v 8.401.4.61 2001/05/27 22:14:40 gshapiro Exp $ (with daemon mode)";
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.68 2001/07/20 18:45:58 gshapiro Exp $ (with daemon mode)";
 # else /* DAEMON */
-static char id[] = "@(#)$Id: daemon.c,v 8.401.4.61 2001/05/27 22:14:40 gshapiro Exp $ (without daemon mode)";
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.68 2001/07/20 18:45:58 gshapiro Exp $ (without daemon mode)";
 # endif /* DAEMON */
 #endif /* ! lint */
 
@@ -702,7 +702,6 @@ getrequests(e)
 			(void) setsignal(SIGHUP, SIG_DFL);
 			(void) setsignal(SIGTERM, intsig);
 
-
 			if (!control)
 			{
 				define(macid("{daemon_addr}", NULL),
@@ -718,6 +717,7 @@ getrequests(e)
 			{
 				if (Daemons[idx].d_socket >= 0)
 					(void) close(Daemons[idx].d_socket);
+				Daemons[idx].d_socket = -1;
 			}
 			clrcontrol();
 
@@ -2481,15 +2481,26 @@ sighup(sig)
 **		restarts the daemon or exits if restart fails.
 */
 
+/* Make a non-DFL/IGN signal a noop */
+#define SM_NOOP_SIGNAL(sig, old)				\
+do								\
+{								\
+	(old) = setsignal((sig), sm_signal_noop);		\
+	if ((old) == SIG_IGN || (old) == SIG_DFL)		\
+		(void) setsignal((sig), (old));			\
+} while (0)
+
 static void
 restart_daemon()
 {
 	int i;
 	int save_errno;
 	char *reason;
-	sigfunc_t oalrm, ochld, ohup, oint, opipe, oterm, ousr1;
+	sigfunc_t ignore, oalrm, ousr1;
 	extern int DtableSize;
 
+	/* clear the events to turn off SIGALRMs */
+	clear_events();
 	allsignals(TRUE);
 
 	reason = RestartRequest;
@@ -2527,28 +2538,37 @@ restart_daemon()
 			(void) fcntl(i, F_SETFD, j | FD_CLOEXEC);
 	}
 
-	/* need to allow signals before execve() so make them harmless */
-	oalrm = setsignal(SIGALRM, SIG_DFL);
-	ochld = setsignal(SIGCHLD, SIG_DFL);
-	ohup = setsignal(SIGHUP, SIG_DFL);
-	oint = setsignal(SIGINT, SIG_DFL);
-	opipe = setsignal(SIGPIPE, SIG_DFL);
-	oterm = setsignal(SIGTERM, SIG_DFL);
-	ousr1 = setsignal(SIGUSR1, SIG_DFL);
+	/*
+	**  Need to allow signals before execve() to make them "harmless".
+	**  However, the default action can be "terminate", so it isn't
+	**  really harmless.  Setting signals to IGN will cause them to be
+	**  ignored in the new process to, so that isn't a good alternative.
+	*/
+
+	SM_NOOP_SIGNAL(SIGALRM, oalrm);
+	SM_NOOP_SIGNAL(SIGCHLD, ignore);
+	SM_NOOP_SIGNAL(SIGHUP, ignore);
+	SM_NOOP_SIGNAL(SIGINT, ignore);
+	SM_NOOP_SIGNAL(SIGPIPE, ignore);
+	SM_NOOP_SIGNAL(SIGTERM, ignore);
+#ifdef SIGUSR1
+	SM_NOOP_SIGNAL(SIGUSR1, ousr1);
+#endif /* SIGUSR1 */
 	allsignals(FALSE);
 
 	(void) execve(SaveArgv[0], (ARGV_T) SaveArgv, (ARGV_T) ExternalEnviron);
 	save_errno = errno;
 
-	/* restore signals */
+	/* block signals again and restore needed signals */
 	allsignals(TRUE);
+
+	/* For finis() events */
 	(void) setsignal(SIGALRM, oalrm);
-	(void) setsignal(SIGCHLD, ochld);
-	(void) setsignal(SIGHUP, ohup);
-	(void) setsignal(SIGINT, oint);
-	(void) setsignal(SIGPIPE, opipe);
-	(void) setsignal(SIGTERM, oterm);
+
+#ifdef SIGUSR1
+	/* For debugging finis() */
 	(void) setsignal(SIGUSR1, ousr1);
+#endif /* SIGUSR1 */
 
 	errno = save_errno;
 	if (LogLevel > 0)
@@ -2580,6 +2600,19 @@ myhostname(hostbuf, size)
 	if (gethostname(hostbuf, size) < 0 || hostbuf[0] == '\0')
 		(void) strlcpy(hostbuf, "localhost", size);
 	hp = sm_gethostbyname(hostbuf, InetMode);
+# if NETINET && NETINET6
+	if (hp == NULL && InetMode == AF_INET6)
+	{
+		/*
+		**  It's possible that this IPv6 enabled machine doesn't
+		**  actually have any IPv6 interfaces and, therefore, no
+		**  IPv6 addresses.  Fall back to AF_INET.
+		*/
+
+		hp = sm_gethostbyname(hostbuf, AF_INET);
+	}
+# endif /* NETINET && NETINET6 */
+
 	if (hp == NULL)
 		return NULL;
 	if (strchr(hp->h_name, '.') != NULL || strchr(hostbuf, '.') == NULL)
@@ -2793,10 +2826,30 @@ getauthinfo(fd, may_be_forged)
 	}
 	else
 	{
-		/* try to match the reverse against the forward lookup */
-		hp = sm_gethostbyname(RealHostName,
-				      RealHostAddr.sa.sa_family);
+		int family;
 
+		family = RealHostAddr.sa.sa_family;
+# if NETINET6 && NEEDSGETIPNODE
+		/*
+		**  If RealHostAddr is an IPv6 connection with an
+		**  IPv4-mapped address, we need RealHostName's IPv4
+		**  address(es) for addrcmp() to compare against
+		**  RealHostAddr.
+		**
+		**  Actually, we only need to do this for systems
+		**  which NEEDSGETIPNODE since the real getipnodebyname()
+		**  already does V4MAPPED address via the AI_V4MAPPEDCFG
+		**  flag.  A better fix to this problem is to add this
+		**  functionality to our stub getipnodebyname().
+		*/
+
+		if (family == AF_INET6 &&
+		    IN6_IS_ADDR_V4MAPPED(&RealHostAddr.sin6.sin6_addr))
+			family = AF_INET;
+# endif /* NETINET6 && NEEDSGETIPNODE */
+
+		/* try to match the reverse against the forward lookup */
+		hp = sm_gethostbyname(RealHostName, family);
 		if (hp == NULL)
 			*may_be_forged = TRUE;
 		else

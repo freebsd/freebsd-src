@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: sendmail.h,v 8.34.4.7 2000/10/09 16:15:26 gshapiro Exp $
+ *	$Id: sendmail.h,v 8.34.4.8 2001/06/01 05:06:51 gshapiro Exp $
  */
 
 /*
@@ -108,7 +108,6 @@ typedef unsigned int	BITMAP256[BITMAPBYTES / sizeof (int)];
 extern int	safefile __P((char *, UID_T, GID_T, char *, long, int, struct stat *));
 extern int	safedirpath __P((char *, UID_T, GID_T, char *, long, int, int));
 extern int	safeopen __P((char *, int, int, long));
-extern FILE	*safefopen __P((char *, int, int, long));
 extern int	dfopen __P((char *, int, int, long));
 extern bool	filechanged __P((char *, int, struct stat *));
 
