@@ -4427,6 +4427,7 @@ checkTuner:
 		 goto checkDBX;
 
 
+	       case 0x8:
 	       case 0xb:
 		 bktr->card.tuner = &tuners[ PHILIPS_PALI ];
 		 goto checkDBX;
