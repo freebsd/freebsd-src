@@ -326,8 +326,8 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * then handle specially.
 	 */
 	if ((sap == NULL)
-	|| ((len = sap->sg_len) <= 2)
-	|| (*sap->sg_data == '\0')) {
+	    || ((len = sap->sg_len - 2) <= 0)
+	    || (*sap->sg_data == '\0')) {
 		if (pcbp->sockdata->node->numhooks != 1) {
 			error = EDESTADDRREQ;
 			goto release;
