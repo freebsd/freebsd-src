@@ -193,7 +193,7 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 		if (error)
 			return (error);
 	}
-	h = acpi_get_handle(dev);
+	h = acpi_get_handle(child);
 	status = acpi_pwr_switch_consumer(h, acpi_state);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
 		device_printf(dev,
