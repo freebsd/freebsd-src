@@ -72,7 +72,7 @@ Only the superuser may set the date.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl d
+.It Fl d Ar dst
 Set the kernel's value for daylight saving time.
 If
 .Ar dst
@@ -80,7 +80,7 @@ is non-zero, future calls
 to
 .Xr gettimeofday 2
 will return a non-zero for
-.Ql tz_dsttime  .
+.Fa tz_dsttime  .
 .It Fl f
 Use
 .Ar fmt
@@ -92,10 +92,12 @@ the default
 .Oc "\&yy" Oc "\&mm" Oc "\&dd" Oc "\&HH" Ns
 .Oc
 .No "\&MM" Ns Op "\&.ss" Xc
-format.  Parsing is done using
+format.
+Parsing is done using
 .Xr strptime 3 .
 .It Fl j
-Do not try to set the date.  This allows you to use the
+Do not try to set the date.
+This allows you to use the
 .Fl f
 flag in addition to the
 .Cm +
@@ -119,12 +121,12 @@ from the Epoch
 see
 .Xr time 3
 .Pc .
-.It Fl t
+.It Fl t Ar minutes_west
 Set the system's value for minutes west of
 .Tn GMT .
-.Ar Minutes_west
+.Ar minutes_west
 specifies the number of minutes returned in
-.Ql tz_minuteswest  
+.Fa tz_minuteswest  
 by future calls to
 .Xr gettimeofday 2 .
 .It Fl u
@@ -132,14 +134,16 @@ Display or set the date in
 .Tn UTC
 (Coordinated Universal) time.
 .It Fl v
-Adjust the second, minute, hour, month day, week day, month or year according to
+Adjust the second, minute, hour, month day, week day,
+month or year according to
 .Ar val .  
 If
 .Ar val
-is preceded with a plus or minus sign, the date is adjusted forwards
-or backwards according to the remaining string, otherwise the relevant
-part of the date is set.  The date can be adjusted as many times as
-required using these flags.  Flags are processed in the order given.
+is preceded with a plus or minus sign,
+the date is adjusted forwards or backwards according to the remaining string,
+otherwise the relevant part of the date is set.
+The date can be adjusted as many times as required using these flags.
+Flags are processed in the order given.
 .Pp
 When setting values
 .Pq rather than adjusting them ,
@@ -165,13 +169,15 @@ or
 must be used to specify which part of the date is to be adjusted.
 .Pp
 The week day or month may be specified using a name rather than a
-number.  If a name is used with the plus
+number.
+If a name is used with the plus
 .Pq or minus
 sign, the date will be put forwards
 .Pq or backwards
 to the next
 .Pq previous
-date that matches the given week day or month.  This will not adjust the date
+date that matches the given week day or month.
+This will not adjust the date,
 if the given week day or month is the same as the current one.
 .Pp
 When a date is adjusted to a specific value or in units greater than hours,
@@ -199,10 +205,11 @@ Refer to the examples below for further details.
 .El
 .Pp
 An operand with a leading plus sign
-.Pq Dq \&+
-sign signals a user-defined format string which specifies the format in
-which to display the date and time.  The format string may contain any of
-the conversion specifications described in the 
+.Pq Sq +
+sign signals a user-defined format string
+which specifies the format in which to display the date and time.
+The format string may contain any of the conversion specifications
+described in the 
 .Xr strftime 3
 manual page, as well as any arbitrary text.
 A newline
@@ -225,15 +232,14 @@ prepended to the abbreviated year.
 Year in abbreviated form
 .Pq e.g. 89 for 1989, 06 for 2006 .
 .It Ar mm
-Numeric month.
-A number from 1 to 12.
+Numeric month, a number from 1 to 12.
 .It Ar dd
 Day, a number from 1 to 31.
 .It Ar HH
 Hour, a number from 0 to 23.
 .It Ar MM
 Minutes, a number from 0 to 59.
-.It Ar .ss
+.It Ar ss
 Seconds, a number from 0 to 61
 .Pq 59 plus a maximum of two leap seconds .
 .El
@@ -357,7 +363,7 @@ occurs when the communication
 between
 .Nm
 and
-.Xr timed
+.Xr timed 8
 fails.
 .Sh STANDARDS
 The
