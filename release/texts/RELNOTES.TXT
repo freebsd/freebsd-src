@@ -267,6 +267,9 @@ Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   CNet Pro120B (98715)
   SVEC PN102TX (98713)
 
+Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
+  LinkSys EtherFast LNE100TX Version 2
+
 Winbond W89C840F fast ethernet NICs including the following:
   Trendware TE100-PCIE
 

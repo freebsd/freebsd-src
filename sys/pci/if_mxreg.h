@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mxreg.h,v 1.17 1999/05/06 15:04:00 wpaul Exp $
+ *	$Id: if_mxreg.h,v 1.2.2.3 1999/05/06 15:39:34 wpaul Exp $
  */
 
 /*
@@ -537,6 +537,17 @@ struct mx_softc {
  * Compex PMAC PCI device IDs.
  */
 #define CP_DEVICEID_98713	0x9881
+
+/* 
+ * Lite-On PNIC PCI vendor ID
+ */
+#define PN_VENDORID		0x11AD
+ 
+/*    
+ * Lite-On PNIC II device ID. Note: this is actually a Macronix 98715A
+ * with wake on lan/magic packet support.
+ */   
+#define PN_DEVICEID_PNIC_II	0xc115 
 
 /*
  * Texas Instruments PHY identifiers
