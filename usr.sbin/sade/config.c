@@ -680,7 +680,7 @@ configXDesktop(dialogMenuItem *self)
     else if (!strcmp(desk, "fvwm2")) {
 	ret = package_add("fvwm");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("fvwm"))
-	    write_root_xprofile("xterm &\nexec fvwm\n");
+	    write_root_xprofile("exec fvwm\n");
     }
     if (DITEM_STATUS(ret) == DITEM_FAILURE)
 	msgConfirm("An error occurred while adding the package(s) required\n"
