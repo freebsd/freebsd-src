@@ -217,9 +217,7 @@ USB_ATTACH(ugen)
 }
 
 Static int
-ugen_set_config(sc, configno)
-	struct ugen_softc *sc;
-	int configno;
+ugen_set_config(struct ugen_softc *sc, int configno)
 {
 	usbd_device_handle dev = sc->sc_udev;
 	usbd_interface_handle iface;
@@ -310,11 +308,7 @@ ugen_set_config(sc, configno)
 }
 
 int
-ugenopen(dev, flag, mode, p)
-	dev_t dev;
-	int flag;
-	int mode;
-	struct proc *p;
+ugenopen(dev_t dev, int flag, int mode, struct proc *p)
 {
 	struct ugen_softc *sc;
 	int unit = UGENUNIT(dev);
@@ -446,11 +440,7 @@ ugenopen(dev, flag, mode, p)
 }
 
 int
-ugenclose(dev, flag, mode, p)
-	dev_t dev;
-	int flag;
-	int mode;
-	struct proc *p;
+ugenclose(dev_t dev, int flag, int mode, struct proc *p)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -512,11 +502,7 @@ ugenclose(dev, flag, mode, p)
 }
 
 Static int
-ugen_do_read(sc, endpt, uio, flag)
-	struct ugen_softc *sc;
-	int endpt;
-	struct uio *uio;
-	int flag;
+ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 {
 	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][IN];
 	u_int32_t n, tn;
@@ -658,10 +644,7 @@ ugen_do_read(sc, endpt, uio, flag)
 }
 
 int
-ugenread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+ugenread(dev_t dev, struct uio *uio, int flag)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -677,11 +660,7 @@ ugenread(dev, uio, flag)
 }
 
 Static int
-ugen_do_write(sc, endpt, uio, flag)
-	struct ugen_softc *sc;
-	int endpt;
-	struct uio *uio;
-	int flag;
+ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 {
 	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][OUT];
 	u_int32_t n;
@@ -738,10 +717,7 @@ ugen_do_write(sc, endpt, uio, flag)
 }
 
 int
-ugenwrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+ugenwrite(dev_t dev, struct uio *uio, int flag)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -758,9 +734,7 @@ ugenwrite(dev, uio, flag)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-ugen_activate(self, act)
-	device_ptr_t self;
-	enum devact act;
+ugen_activate(device_ptr_t self, enum devact act)
 {
 	struct ugen_softc *sc = (struct ugen_softc *)self;
 
@@ -861,10 +835,7 @@ USB_DETACH(ugen)
 }
 
 Static void
-ugenintr(xfer, addr, status)
-	usbd_xfer_handle xfer;
-	usbd_private_handle addr;
-	usbd_status status;
+ugenintr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 {
 	struct ugen_endpoint *sce = addr;
 	/*struct ugen_softc *sc = sce->sc;*/
@@ -947,9 +918,7 @@ ugen_isoc_rintr(usbd_xfer_handle xfer, usbd_private_handle addr,
 }
 
 Static usbd_status
-ugen_set_interface(sc, ifaceidx, altno)
-	struct ugen_softc *sc;
-	int ifaceidx, altno;
+ugen_set_interface(struct ugen_softc *sc, int ifaceidx, int altno)
 {
 	usbd_interface_handle iface;
 	usb_endpoint_descriptor_t *ed;
@@ -1004,10 +973,7 @@ ugen_set_interface(sc, ifaceidx, altno)
 
 /* Retrieve a complete descriptor for a certain device and index. */
 Static usb_config_descriptor_t *
-ugen_get_cdesc(sc, index, lenp)
-	struct ugen_softc *sc;
-	int index;
-	int *lenp;
+ugen_get_cdesc(struct ugen_softc *sc, int index, int *lenp)
 {
 	usb_config_descriptor_t *cdesc, *tdesc, cdescr;
 	int len;
@@ -1040,9 +1006,7 @@ ugen_get_cdesc(sc, index, lenp)
 }
 
 Static int
-ugen_get_alt_index(sc, ifaceidx)
-	struct ugen_softc *sc;
-	int ifaceidx;
+ugen_get_alt_index(struct ugen_softc *sc, int ifaceidx)
 {
 	usbd_interface_handle iface;
 	usbd_status err;
@@ -1054,13 +1018,8 @@ ugen_get_alt_index(sc, ifaceidx)
 }
 
 Static int
-ugen_do_ioctl(sc, endpt, cmd, addr, flag, p)
-	struct ugen_softc *sc;
-	int endpt;
-	u_long cmd;
-	caddr_t addr; 
-	int flag;
-	struct proc *p;
+ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
+	      caddr_t addr, int flag, struct proc *p)
 {
 	struct ugen_endpoint *sce;
 	usbd_status err;
@@ -1336,12 +1295,7 @@ ugen_do_ioctl(sc, endpt, cmd, addr, flag, p)
 }
 
 int
-ugenioctl(dev, cmd, addr, flag, p)
-	dev_t dev;
-	u_long cmd;
-	caddr_t addr; 
-	int flag;
-	struct proc *p;
+ugenioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	int endpt = UGENENDPOINT(dev);
 	struct ugen_softc *sc;
@@ -1357,10 +1311,7 @@ ugenioctl(dev, cmd, addr, flag, p)
 }
 
 int
-ugenpoll(dev, events, p)
-	dev_t dev;
-	int events;
-	struct proc *p;
+ugenpoll(dev_t dev, int events, struct proc *p)
 {
 	struct ugen_softc *sc;
 	struct ugen_endpoint *sce;
