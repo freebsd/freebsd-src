@@ -492,13 +492,9 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		icflags = INTR_EXCL;
 
 	driver = device_get_driver(child);
-	switch (flags) {
+	switch (flags & INTR_TYPE_FAST) {
 	case INTR_TYPE_TTY:
 		mask = &tty_imask;
-		break;
-	case (INTR_TYPE_TTY | INTR_TYPE_FAST):
-		mask = &tty_imask;
-		icflags |= INTR_FAST;
 		break;
 	case INTR_TYPE_BIO:
 		mask = &bio_imask;
@@ -515,6 +511,8 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	default:
 		panic("still using grody create_intr interface");
 	}
+	if (flags & INTR_TYPE_FAST)
+		icflags |= INTR_FAST;
 
 	/*
 	 * We depend here on rman_activate_resource() being idempotent.
