@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.22 1997/10/27 12:50:57 bde Exp $
+ * $Id: ufs_extern.h,v 1.23 1998/03/08 09:59:24 julian Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -84,6 +84,7 @@ struct vnode *
 void	 ufs_ihashrem __P((struct inode *));
 int	 ufs_inactive __P((struct vop_inactive_args *));
 int	 ufs_init __P((struct vfsconf *));
+void	 ufs_itimes __P((struct vnode *vp));
 int	 ufs_lookup __P((struct vop_cachedlookup_args *));
 int	 ufs_reclaim __P((struct vop_reclaim_args *));
 int	 ufs_root __P((struct mount *, struct vnode **));

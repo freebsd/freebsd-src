@@ -91,25 +91,13 @@ ext2_update(vp, access, modify, waitfor)
 	struct inode *ip;
 	int error;
 
+	ufs_itimes(vp);
 	ip = VTOI(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY) {
-		ip->i_flag &=
-		    ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
+	if ((ip->i_flag & IN_MODIFIED) == 0)
 		return (0);
-	}
-	if ((ip->i_flag &
-	    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)
+	ip->i_flag &= ~IN_MODIFIED;
+	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (0);
-	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime = access->tv_sec;
-	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime = modify->tv_sec;
-		ip->i_modrev++;
-	}
-	if (ip->i_flag & IN_CHANGE) {
-		ip->i_ctime = time_second;
-	}
-	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 	fs = ip->i_e2fs;
 	if (error = bread(ip->i_devvp,
 	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),

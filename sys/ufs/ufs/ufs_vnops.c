@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.89 1998/06/27 06:45:04 phk Exp $
+ * $Id: ufs_vnops.c,v 1.88 1998/06/08 23:55:33 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -71,7 +71,6 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
-static void itimes __P((struct vnode *vp));
 static int ufs_abortop __P((struct vop_abortop_args *));
 static int ufs_access __P((struct vop_access_args *));
 static int ufs_advlock __P((struct vop_advlock_args *));
@@ -134,8 +133,8 @@ static struct odirtemplate omastertemplate = {
 	0, DIRBLKSIZ - 12, 2, ".."
 };
 
-static void
-itimes(vp)
+void
+ufs_itimes(vp)
 	struct vnode *vp;
 {
 	struct inode *ip;
@@ -270,7 +269,7 @@ ufs_close(ap)
 
 	simple_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1)
-		itimes(vp);
+		ufs_itimes(vp);
 	simple_unlock(&vp->v_interlock);
 	return (0);
 }
@@ -373,7 +372,7 @@ ufs_getattr(ap)
 	register struct inode *ip = VTOI(vp);
 	register struct vattr *vap = ap->a_vap;
 
-	itimes(vp);
+	ufs_itimes(vp);
 	/*
 	 * Copy from inode table
 	 */
@@ -401,7 +400,7 @@ ufs_getattr(ap)
 	else
 		vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
 	vap->va_bytes = dbtob((u_quad_t)ip->i_blocks);
-	vap->va_type = IFTOVT(ip->i_mode);
+	vap->va_type = vp->v_type;
 	vap->va_filerev = ip->i_modrev;
 	return (0);
 }
@@ -423,7 +422,6 @@ ufs_setattr(ap)
 	struct inode *ip = VTOI(vp);
 	struct ucred *cred = ap->a_cred;
 	struct proc *p = ap->a_p;
-	struct timeval atimeval, mtimeval;
 	int error;
 
 	/*
@@ -503,11 +501,13 @@ ufs_setattr(ap)
 			ip->i_flag |= IN_ACCESS;
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		atimeval.tv_sec = vap->va_atime.tv_sec;
-		atimeval.tv_usec = vap->va_atime.tv_nsec / 1000;
-		mtimeval.tv_sec = vap->va_mtime.tv_sec;
-		mtimeval.tv_usec = vap->va_mtime.tv_nsec / 1000;
-		error = UFS_UPDATE(vp, &atimeval, &mtimeval, 0);
+		ufs_itimes(vp);
+		if (vap->va_mtime.tv_sec != VNOVAL)
+			ip->i_atime = vap->va_atime.tv_sec;
+		if (vap->va_atime.tv_sec != VNOVAL)
+			ip->i_mtime = vap->va_mtime.tv_sec;
+		error = UFS_UPDATE(vp, (struct timeval *)0,
+		    (struct timeval *)0, 0);
 		if (error)
 			return (error);
 	}
@@ -1761,8 +1761,8 @@ ufs_print(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip = VTOI(vp);
 
-	printf("tag VT_UFS, ino %ld, on dev %x (%d, %d)", ip->i_number,
-		ip->i_dev, major(ip->i_dev), minor(ip->i_dev));
+	printf("tag VT_UFS, ino %ld, on dev %d, %d", ip->i_number,
+		major(ip->i_dev), minor(ip->i_dev));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	lockmgr_printinfo(&ip->i_lock);
@@ -1834,7 +1834,7 @@ ufsspec_close(ap)
 
 	simple_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1)
-		itimes(vp);
+		ufs_itimes(vp);
 	simple_unlock(&vp->v_interlock);
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
@@ -1904,7 +1904,7 @@ ufsfifo_close(ap)
 
 	simple_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1)
-		itimes(vp);
+		ufs_itimes(vp);
 	simple_unlock(&vp->v_interlock);
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
