@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.4 1995/02/02 04:13:22 jkh Exp $
+# $Id: netinst.sh,v 1.5 1995/03/18 08:04:18 phk Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -48,7 +48,8 @@ network_basic_setup()
 			HOSTNAME=${ANSWER}
 		fi
 	done
-	echo ${HOSTNAME} > ${ETC}/myname
+	sed -e "s/hostname=.\*\$/hostname=${HOSTNAME}/" < etc/sysconfig \
+		> etc/sysconfig.new && mv etc/sysconfig.new etc/sysconfig
 	${HOSTNAME_CMD} ${HOSTNAME}
 
 	DEFAULT_VALUE=`echo ${HOSTNAME} | sed -e 's/[^.]*\.//'`
