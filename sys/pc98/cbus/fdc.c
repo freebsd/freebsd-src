@@ -366,10 +366,6 @@ static void fd_turnon(struct fd_data *);
 static void fdc_reset(fdc_p);
 static int fd_in(struct fdc_data *, int *);
 static int out_fdc(struct fdc_data *, int);
-/*
- * The open function is named fdopen() to avoid confusion with fdopen()
- * in fd(4).  The difference is now only meaningful for debuggers.
- */
 static	d_open_t	fdopen;
 static	d_close_t	fdclose;
 static	d_strategy_t	fdstrategy;
