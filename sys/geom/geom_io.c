@@ -212,7 +212,9 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	int error;
 	off_t excess;
 
-	KASSERT(cp != NULL, ("bio_request on thin air"));
+	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
+	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
+	KASSERT(bp->bio_data != NULL, ("NULL bp->data in g_io_request"));
 	error = 0;
 	bp->bio_from = cp;
 	bp->bio_to = cp->provider;
@@ -300,6 +302,10 @@ void
 g_io_deliver(struct bio *bp, int error)
 {
 
+	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
+	KASSERT(bp->bio_from != NULL, ("NULL bio_from in g_io_deliver"));
+	KASSERT(bp->bio_from->geom != NULL, ("NULL bio_from->geom in g_io_deliver"));
+	KASSERT(bp->bio_to != NULL, ("NULL bio_to in g_io_deliver"));
 	g_trace(G_T_BIO,
 	    "g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d",
 	    bp, bp->bio_from, bp->bio_from->geom->name,
