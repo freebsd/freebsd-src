@@ -122,27 +122,27 @@ gid_t   gid;
 
 void
 login_protect(table, pattern, mask, uid, gid)
-	char	*table;
-	char	*pattern;
-	int	mask;
-	uid_t	uid;
-	gid_t	gid;
+char *table;
+char *pattern;
+int mask;
+uid_t uid;
+gid_t gid;
 {
-	glob_t  gl;
-	char	*path;
-	int     i;
+    glob_t  gl;
+    char   *path;
+    int     i;
 
-	if (glob(pattern, GLOB_NOSORT, NULL, &gl) != 0)
-		return;
-	for (i = 0; i < gl.gl_pathc; i++) {
-		path = gl.gl_pathv[i];
-		/* clear flags of the device */
-		if (chflags(path, 0) && errno != ENOENT && errno != EOPNOTSUPP)
-			syslog(LOG_ERR, "%s: chflags(%s): %m", table, path);
-		if (chmod(path, mask) && errno != ENOENT)
-			syslog(LOG_ERR, "%s: chmod(%s): %m", table, path);
-		if (chown(path, uid, gid) && errno != ENOENT)
-			syslog(LOG_ERR, "%s: chown(%s): %m", table, path);
-	}
-	globfree(&gl);
+    if (glob(pattern, GLOB_NOSORT, NULL, &gl) != 0)
+	return;
+    for (i = 0; i < gl.gl_pathc; i++) {
+	path = gl.gl_pathv[i];
+	/* clear flags of the device */
+	if (chflags(path, 0) && errno != ENOENT && errno != EOPNOTSUPP)
+	    syslog(LOG_ERR, "%s: chflags(%s): %m", table, path);
+	if (chmod(path, mask) && errno != ENOENT)
+	    syslog(LOG_ERR, "%s: chmod(%s): %m", table, path);
+	if (chown(path, uid, gid) && errno != ENOENT)
+	    syslog(LOG_ERR, "%s: chown(%s): %m", table, path);
+    }
+    globfree(&gl);
 }
