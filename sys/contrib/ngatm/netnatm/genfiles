@@ -11,5 +11,5 @@ awk -f ${SRC}msg/parseie.awk -f ${SRC}msg/geniec.awk ${SRC}msg/ie.def >${DST}msg
 awk -f ${SRC}msg/parseie.awk -f ${SRC}msg/genieh.awk ${SRC}msg/ie.def >${DST}msg/uni_ie.h
 awk -f ${SRC}msg/parsemsg.awk -f ${SRC}msg/genmsgc.awk ${SRC}msg/msg.def >${DST}msg/uni_msg.c
 awk -f ${SRC}msg/parsemsg.awk -f ${SRC}msg/genmsgh.awk ${SRC}msg/msg.def >${DST}msg/uni_msg.h
-# awk -f ${SRC}msg/parsemsg.awk -f ${SRC}sig/genmsgcpyh.awk ${SRC}msg/msg.def >${DST}sig/unimsgcpy.h
-# awk -f ${SRC}msg/parsemsg.awk -f ${SRC}sig/genmsgcpyc.awk ${SRC}msg/msg.def >${DST}sig/sig_unimsgcpy.c
+awk -f ${SRC}msg/parsemsg.awk -f ${SRC}sig/genmsgcpyh.awk ${SRC}msg/msg.def >${DST}sig/unimsgcpy.h
+awk -f ${SRC}msg/parsemsg.awk -f ${SRC}sig/genmsgcpyc.awk ${SRC}msg/msg.def >${DST}sig/sig_unimsgcpy.c
