@@ -2,7 +2,6 @@
  * Copyright (c) 1988 Mark Nudleman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
- * Portions copyright (c) 1996, 1997, 1998 Shigio Yamaguchi.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
