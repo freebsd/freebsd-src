@@ -22,8 +22,8 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-esp.c,v 1.20.4.2 2002/02/22 09:26:27 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-esp.c,v 1.44.2.4 2003/11/19 05:36:40 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -31,22 +31,14 @@ static const char rcsid[] =
 #endif
 
 #include <string.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+
+#include <tcpdump-stdinc.h>
+
 #include <stdlib.h>
 
-#include <netinet/in.h>
-
 #ifdef HAVE_LIBCRYPTO
-#include <openssl/des.h>
-#include <openssl/blowfish.h>
-#ifdef HAVE_RC5_H
-#include <openssl/rc5.h>
-#endif
-#ifdef HAVE_CAST_H
-#include <openssl/cast.h>
+#ifdef HAVE_OPENSSL_EVP_H
+#include <openssl/evp.h>
 #endif
 #endif
 
@@ -58,53 +50,71 @@ static const char rcsid[] =
 #include "ip6.h"
 #endif
 
-#define AVOID_CHURN 1
+#if defined(__MINGW32__) || defined(__WATCOMC__)
+extern char *strsep(char **stringp, const char *delim); /* Missing/strsep.c */
+#endif
+
 #include "interface.h"
 #include "addrtoname.h"
+#include "extract.h"
 
-static struct esp_algorithm *espsecret_xform=NULL;  /* cache of decoded alg. */
-static char                 *espsecret_key=NULL;
+#ifndef HAVE_SOCKADDR_STORAGE
+#ifdef INET6
+struct sockaddr_storage {
+	union {
+		struct sockaddr_in sin;
+		struct sockaddr_in6 sin6;
+	} un;
+};
+#else
+#define sockaddr_storage sockaddr
+#endif
+#endif /* HAVE_SOCKADDR_STORAGE */
 
-
-enum cipher { NONE,
-	      DESCBC,
-	      BLOWFISH,
-	      RC5,
-	      CAST128,
-	      DES3CBC};
-
-
-
-struct esp_algorithm {
-	char        *name;
-	enum  cipher algo;
-	int          ivlen;
-	int          authlen;
-	int          replaysize;
+#ifdef HAVE_LIBCRYPTO
+struct sa_list {
+	struct sa_list	*next;
+	struct sockaddr_storage daddr;
+	u_int32_t	spi;
+	const EVP_CIPHER *evp;
+	int		ivlen;
+	int		authlen;
+	char		secret[256];  /* is that big enough for all secrets? */
+	int		secretlen;
 };
 
-struct esp_algorithm esp_xforms[]={
-	{"none",                  NONE,    0,  0, 0},
-	{"des-cbc",               DESCBC,  8,  0, 0},
-	{"des-cbc-hmac96",        DESCBC,  8, 12, 4},
-	{"blowfish-cbc",          BLOWFISH,8,  0, 0},
-	{"blowfish-cbc-hmac96",   BLOWFISH,8, 12, 4},
-	{"rc5-cbc",               RC5,     8,  0, 0},
-	{"rc5-cbc-hmac96",        RC5,     8, 12, 4},
-	{"cast128-cbc",           CAST128, 8,  0, 0},
-	{"cast128-cbc-hmac96",    CAST128, 8, 12, 4},
-	{"3des-cbc-hmac96",       DES3CBC, 8, 12, 4},
-};
+static struct sa_list *sa_list_head = NULL;
+static struct sa_list *sa_default = NULL;
+
+static void esp_print_addsa(struct sa_list *sa, int sa_def)
+{
+	/* copy the "sa" */
+
+	struct sa_list *nsa;
+
+	nsa = (struct sa_list *)malloc(sizeof(struct sa_list));
+	if (nsa == NULL)
+		error("ran out of memory to allocate sa structure");
+
+	*nsa = *sa;
+
+	if (sa_def)
+		sa_default = nsa;
+
+	nsa->next = sa_list_head;
+	sa_list_head = nsa;
+}
+
 
 static int hexdigit(char hex)
 {
-	if(hex >= '0' && hex <= '9') {
+	if (hex >= '0' && hex <= '9')
 		return (hex - '0');
-	} else if(hex >= 'A' && hex <= 'F') {
+	else if (hex >= 'A' && hex <= 'F')
 		return (hex - 'A' + 10);
-	} else if(hex >= 'a' && hex <= 'f') {
+	else if (hex >= 'a' && hex <= 'f')
 		return (hex - 'a' + 10);
-	} else {
+	else {
 		printf("invalid hex digit %c in espsecret\n", hex);
 		return 0;
 	}
@@ -114,79 +124,236 @@ static int hex2byte(char *hexstring)
 {
 	int byte;
 
-	byte = (hexdigit(hexstring[0]) << 4) +
-		hexdigit(hexstring[1]);
+	byte = (hexdigit(hexstring[0]) << 4) + hexdigit(hexstring[1]);
 	return byte;
 }
 
+/*
+ * decode the form:    SPINUM@IP <tab> ALGONAME:0xsecret
+ *
+ * special form: file /name
+ * causes us to go read from this file instead.
+ *
+ */
+static void esp_print_decode_onesecret(char *line)
+{
+	struct sa_list sa1;
+	int sa_def;
+
+	char *spikey;
+	char *decode;
+
+	spikey = strsep(&line, " \t");
+	sa_def = 0;
+	memset(&sa1, 0, sizeof(struct sa_list));
+
+	/* if there is only one token, then it is an algo:key token */
+	if (line == NULL) {
+		decode = spikey;
+		spikey = NULL;
+		/* memset(&sa1.daddr, 0, sizeof(sa1.daddr)); */
+		/* sa1.spi = 0; */
+		sa_def    = 1;
+	} else
+		decode = line;
+
+	if (spikey && strcasecmp(spikey, "file") == 0) {
+		/* open file and read it */
+		FILE *secretfile;
+		char  fileline[1024];
+		char  *nl;
+
+		secretfile = fopen(line, FOPEN_READ_TXT);
+		if (secretfile == NULL) {
+			perror(line);
+			exit(3);
+		}
+
+		while (fgets(fileline, sizeof(fileline)-1, secretfile) != NULL) {
+			/* remove newline from the line */
+			nl = strchr(fileline, '\n');
+			if (nl)
+				*nl = '\0';
+			if (fileline[0] == '#') continue;
+			if (fileline[0] == '\0') continue;
+
+			esp_print_decode_onesecret(fileline);
+		}
+		fclose(secretfile);
+
+		return;
+	}
+
+	if (spikey) {
+		char *spistr, *foo;
+		u_int32_t spino;
+		struct sockaddr_in *sin;
+#ifdef INET6
+		struct sockaddr_in6 *sin6;
+#endif
+
+		spistr = strsep(&spikey, "@");
+
+		spino = strtoul(spistr, &foo, 0);
+		if (spistr == foo || !spikey) {
+			printf("print_esp: failed to decode spi# %s\n", foo);
+			return;
+		}
+
+		sa1.spi = spino;
+
+		sin = (struct sockaddr_in *)&sa1.daddr;
+#ifdef INET6
+		sin6 = (struct sockaddr_in6 *)&sa1.daddr;
+		if (inet_pton(AF_INET6, spikey, &sin6->sin6_addr) == 1) {
+#ifdef HAVE_SOCKADDR_SA_LEN
+			sin6->sin6_len = sizeof(struct sockaddr_in6);
+#endif
+			sin6->sin6_family = AF_INET6;
+		} else
+#endif
+		if (inet_pton(AF_INET, spikey, &sin->sin_addr) == 1) {
+#ifdef HAVE_SOCKADDR_SA_LEN
+			sin->sin_len = sizeof(struct sockaddr_in);
+#endif
+			sin->sin_family = AF_INET;
+		} else {
+			printf("print_esp: can not decode IP# %s\n", spikey);
+			return;
+		}
+	}
+
+	if (decode) {
+		char *colon, *p;
+		char  espsecret_key[256];
+		int len;
+		size_t i;
+		const EVP_CIPHER *evp;
+		int ivlen = 8;
+		int authlen = 0;
+
+		/* skip any blank spaces */
+		while (isspace((unsigned char)*decode))
+			decode++;
+
+		colon = strchr(decode, ':');
+		if (colon == NULL) {
+			printf("failed to decode espsecret: %s\n", decode);
+			return;
+		}
+		*colon = '\0';
+
+		len = colon - decode;
+		if (strlen(decode) > strlen("-hmac96") &&
+		    !strcmp(decode + strlen(decode) - strlen("-hmac96"),
+		    "-hmac96")) {
+			p = strstr(decode, "-hmac96");
+			*p = '\0';
+			authlen = 12;
+		}
+		if (strlen(decode) > strlen("-cbc") &&
+		    !strcmp(decode + strlen(decode) - strlen("-cbc"), "-cbc")) {
+			p = strstr(decode, "-cbc");
+			*p = '\0';
+		}
+		evp = EVP_get_cipherbyname(decode);
+		if (!evp) {
+			printf("failed to find cipher algo %s\n", decode);
+			sa1.evp = NULL;
+			sa1.authlen = 0;
+			sa1.ivlen = 0;
+			return;
+		}
+
+		sa1.evp = evp;
+		sa1.authlen = authlen;
+		sa1.ivlen = ivlen;
+
+		colon++;
+		if (colon[0] == '0' && colon[1] == 'x') {
+			/* decode some hex! */
+			colon += 2;
+			len = strlen(colon) / 2;
+
+			if (len > 256) {
+				printf("secret is too big: %d\n", len);
+				return;
+			}
+
+			i = 0;
+			while (colon[0] != '\0' && colon[1]!='\0') {
+				espsecret_key[i] = hex2byte(colon);
+				colon += 2;
+				i++;
+			}
+
+			memcpy(sa1.secret, espsecret_key, i);
+			sa1.secretlen = i;
+		} else {
+			i = strlen(colon);
+
+			if (i < sizeof(sa1.secret)) {
+				memcpy(sa1.secret, colon, i);
+				sa1.secretlen = i;
+			} else {
+				memcpy(sa1.secret, colon, sizeof(sa1.secret));
+				sa1.secretlen = sizeof(sa1.secret);
+			}
+		}
+	}
+
+	esp_print_addsa(&sa1, sa_def);
+}
 
 static void esp_print_decodesecret(void)
 {
-	char *colon;
-	int   len, i;
-	struct esp_algorithm *xf;
+	char *line;
+	char *p;
 
-	if(espsecret == NULL) {
-		/* set to NONE transform */
-		espsecret_xform = esp_xforms;
-		return;
-	}
+	p = espsecret;
 
-	if(espsecret_key != NULL) {
-		return;
-	}
-
-	colon = strchr(espsecret, ':');
-	if(colon == NULL) {
-		printf("failed to decode espsecret: %s\n",
-		       espsecret);
-		/* set to NONE transform */
-		espsecret_xform = esp_xforms;
-	}
-
-	len   = colon - espsecret;
-	xf = esp_xforms;
-	while(xf->name && strncasecmp(espsecret, xf->name, len)!=0) {
-		xf++;
-	}
-	if(xf->name == NULL) {
-		printf("failed to find cipher algo %s\n",
-		       espsecret);
-		espsecret_xform = esp_xforms;
-		return;
-	}
-	espsecret_xform = xf;
-
-	colon++;
-	if(colon[0]=='0' && colon[1]=='x') {
-		/* decode some hex! */
-		colon+=2;
-		len = strlen(colon) / 2;
-		espsecret_key = (char *)malloc(len);
-		if(espsecret_key == NULL) {
-		  fprintf(stderr, "%s: ran out of memory (%d) to allocate secret key\n",
-			  program_name, len);
-		  exit(2);
+	while (espsecret && espsecret[0] != '\0') {
+		/* pick out the first line or first thing until a comma */
+		if ((line = strsep(&espsecret, "\n,")) == NULL) {
+			line = espsecret;
+			espsecret = NULL;
 		}
-		i = 0;
-		while(colon[0] != '\0' && colon[1]!='\0') {
-			espsecret_key[i]=hex2byte(colon);
-			colon+=2;
-			i++;
-		}
-	} else {
-		espsecret_key = colon;
+
+		esp_print_decode_onesecret(line);
 	}
 }
 
-int
-esp_print(register const u_char *bp, register const u_char *bp2,
-	  int *nhdr, int *padlen)
+static void esp_init(void)
 {
-	register const struct esp *esp;
+
+	OpenSSL_add_all_algorithms();
+	EVP_add_cipher_alias(SN_des_ede3_cbc, "3des");
+}
+#endif
+
+int
+esp_print(const u_char *bp, const u_char *bp2
+#ifndef HAVE_LIBCRYPTO
+	_U_
+#endif
+	,
+	int *nhdr
+#ifndef HAVE_LIBCRYPTO
+	_U_
+#endif
+	,
+	int *padlen
+#ifndef HAVE_LIBCRYPTO
+	_U_
+#endif
+	)
+{
+	register const struct newesp *esp;
 	register const u_char *ep;
-	u_int32_t spi;
-	struct ip *ip = NULL;
+#ifdef HAVE_LIBCRYPTO
+	struct ip *ip;
+	struct sa_list *sa = NULL;
+	int espsecret_keylen;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 #endif
@@ -195,11 +362,23 @@ esp_print(register const u_char *bp, register const u_char *bp2,
 	char *secret;
 	int ivlen = 0;
 	u_char *ivoff;
-	u_char *p;
-	
-	esp = (struct esp *)bp;
-	spi = (u_int32_t)ntohl(esp->esp_spi);
+	const u_char *p;
+	EVP_CIPHER_CTX ctx;
+	int blocksz;
+	static int initialized = 0;
+#endif
+
+	esp = (struct newesp *)bp;
+
+#ifdef HAVE_LIBCRYPTO
 	secret = NULL;
+	advance = 0;
+
+	if (!initialized) {
+		esp_init();
+		initialized = 1;
+	}
+#endif
 
 #if 0
 	/* keep secret out of a register */
@@ -209,187 +388,109 @@ esp_print(register const u_char *bp, register const u_char *bp2,
 	/* 'ep' points to the end of available data. */
 	ep = snapend;
 
-	if ((u_char *)(esp + 1) >= ep - sizeof(struct esp)) {
+	if ((u_char *)(esp + 1) >= ep) {
 		fputs("[|ESP]", stdout);
 		goto fail;
 	}
-	printf("ESP(spi=0x%08x", spi);
-	printf(",seq=0x%x", (u_int32_t)ntohl(*(u_int32_t *)(esp + 1)));
+	printf("ESP(spi=0x%08x", EXTRACT_32BITS(&esp->esp_spi));
+	printf(",seq=0x%x", EXTRACT_32BITS(&esp->esp_seq));
 	printf(")");
 
-	/* if we don't have decryption key, we can't decrypt this packet. */
-	if (!espsecret)
-		goto fail;
+#ifndef HAVE_LIBCRYPTO
+	goto fail;
+#else
+	/* initiailize SAs */
+	if (sa_list_head == NULL) {
+		if (!espsecret)
+			goto fail;
 
-	if(!espsecret_xform) {
 		esp_print_decodesecret();
 	}
-	if(espsecret_xform->algo == NONE) {
+
+	if (sa_list_head == NULL)
 		goto fail;
-	}
 
 	ip = (struct ip *)bp2;
 	switch (IP_V(ip)) {
 #ifdef INET6
 	case 6:
 		ip6 = (struct ip6_hdr *)bp2;
-		ip = NULL;
 		/* we do not attempt to decrypt jumbograms */
-		if (!ntohs(ip6->ip6_plen))
+		if (!EXTRACT_16BITS(&ip6->ip6_plen))
 			goto fail;
 		/* if we can't get nexthdr, we do not need to decrypt it */
-		len = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen);
+		len = sizeof(struct ip6_hdr) + EXTRACT_16BITS(&ip6->ip6_plen);
+
+		/* see if we can find the SA, and if so, decode it */
+		for (sa = sa_list_head; sa != NULL; sa = sa->next) {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&sa->daddr;
+			if (sa->spi == ntohl(esp->esp_spi) &&
+			    sin6->sin6_family == AF_INET6 &&
+			    memcmp(&sin6->sin6_addr, &ip6->ip6_dst,
+				   sizeof(struct in6_addr)) == 0) {
+				break;
+			}
+		}
 		break;
 #endif /*INET6*/
 	case 4:
 		/* nexthdr & padding are in the last fragment */
-		if (ntohs(ip->ip_off) & IP_MF)
+		if (EXTRACT_16BITS(&ip->ip_off) & IP_MF)
 			goto fail;
-#ifdef INET6
-		ip6 = NULL;
-#endif
-		len = ntohs(ip->ip_len);
+		len = EXTRACT_16BITS(&ip->ip_len);
+
+		/* see if we can find the SA, and if so, decode it */
+		for (sa = sa_list_head; sa != NULL; sa = sa->next) {
+			struct sockaddr_in *sin = (struct sockaddr_in *)&sa->daddr;
+			if (sa->spi == ntohl(esp->esp_spi) &&
+			    sin->sin_family == AF_INET &&
+			    sin->sin_addr.s_addr == ip->ip_dst.s_addr) {
+				break;
+			}
+		}
 		break;
 	default:
 		goto fail;
 	}
+
+	/* if we didn't find the specific one, then look for
+	 * an unspecified one.
+	 */
+	if (sa == NULL)
+		sa = sa_default;
+	
+	/* if not found fail */
+	if (sa == NULL)
+		goto fail;
 
 	/* if we can't get nexthdr, we do not need to decrypt it */
 	if (ep - bp2 < len)
 		goto fail;
-
-	ivoff = (u_char *)(esp + 1) + espsecret_xform->replaysize;
-	ivlen = espsecret_xform->ivlen;
-	secret = espsecret_key;
-
-	switch (espsecret_xform->algo) {
-	case DESCBC:
-#ifdef HAVE_LIBCRYPTO
-	    {
-		u_char iv[8];
-		des_key_schedule schedule;
-
-		switch (ivlen) {
-		case 4:
-			memcpy(iv, ivoff, 4);
-			memcpy(&iv[4], ivoff, 4);
-			p = &iv[4];
-			*p++ ^= 0xff;
-			*p++ ^= 0xff;
-			*p++ ^= 0xff;
-			*p++ ^= 0xff;
-			break;
-		case 8:
-			memcpy(iv, ivoff, 8);
-			break;
-		default:
-			goto fail;
-		}
-
-		des_check_key = 0;
-		des_set_key((void *)secret, schedule);
-
-		p = ivoff + ivlen;
-		des_cbc_encrypt((void *)p, (void *)p,
-			(long)(ep - p), schedule, (void *)iv,
-			DES_DECRYPT);
-		advance = ivoff - (u_char *)esp + ivlen;
-		break;
-	    }
-#else
-		goto fail;
-#endif /*HAVE_LIBCRYPTO*/
-
-	case BLOWFISH:
-#ifdef HAVE_LIBCRYPTO
-	    {
-		BF_KEY schedule;
-
-		BF_set_key(&schedule, strlen(secret), secret);
-
-		p = ivoff + ivlen;
-		BF_cbc_encrypt(p, p, (long)(ep - p), &schedule, ivoff,
-			BF_DECRYPT);
-		advance = ivoff - (u_char *)esp + ivlen;
-		break;
-	    }
-#else
-		goto fail;
-#endif /*HAVE_LIBCRYPTO*/
-
-	case RC5:
-#if defined(HAVE_LIBCRYPTO) && defined(HAVE_RC5_H)
-	    {
-		RC5_32_KEY schedule;
-
-		RC5_32_set_key(&schedule, strlen(secret), secret,
-			RC5_16_ROUNDS);
-
-		p = ivoff + ivlen;
-		RC5_32_cbc_encrypt(p, p, (long)(ep - p), &schedule, ivoff,
-			RC5_DECRYPT);
-		advance = ivoff - (u_char *)esp + ivlen;
-		break;
-	    }
-#else
-		goto fail;
-#endif /*HAVE_LIBCRYPTO*/
-
-	case CAST128:
-#if defined(HAVE_LIBCRYPTO) && defined(HAVE_CAST_H) && !defined(HAVE_BUGGY_CAST128)
-	    {
-		CAST_KEY schedule;
-
-		CAST_set_key(&schedule, strlen(secret), secret);
-
-		p = ivoff + ivlen;
-		CAST_cbc_encrypt(p, p, (long)(ep - p), &schedule, ivoff,
-			CAST_DECRYPT);
-		advance = ivoff - (u_char *)esp + ivlen;
-		break;
-	    }
-#else
-		goto fail;
-#endif /*HAVE_LIBCRYPTO*/
-
-	case DES3CBC:
-#if defined(HAVE_LIBCRYPTO)
-	    {
-		des_key_schedule s1, s2, s3;
-
-		des_check_key = 1;
-		des_set_odd_parity((void *)secret);
-		des_set_odd_parity((void *)(secret + 8));
-		des_set_odd_parity((void *)(secret + 16));
-		if(des_set_key((void *)secret, s1) != 0) {
-		  printf("failed to schedule key 1\n");
-		}
-		if(des_set_key((void *)(secret + 8), s2)!=0) {
-		  printf("failed to schedule key 2\n");
-		}
-		if(des_set_key((void *)(secret + 16), s3)!=0) {
-		  printf("failed to schedule key 3\n");
-		}
-
-		p = ivoff + ivlen;
-		des_ede3_cbc_encrypt((void *)p, (void *)p,
-				     (long)(ep - p),
-				     s1, s2, s3,
-				     (void *)ivoff, DES_DECRYPT);
-		advance = ivoff - (u_char *)esp + ivlen;
-		break;
-	    }
-#else
-		goto fail;
-#endif /*HAVE_LIBCRYPTO*/
-
-	case NONE:
-	default:
-		advance = sizeof(struct esp) + espsecret_xform->replaysize;
-		break;
+	if (ep - bp2 > len) {
+		/* FCS included at end of frame (NetBSD 1.6 or later) */
+		ep = bp2 + len;
 	}
 
-	ep = ep - espsecret_xform->authlen;
+	ivoff = (u_char *)(esp + 1) + 0;
+	ivlen = sa->ivlen;
+	secret = sa->secret;
+	espsecret_keylen = sa->secretlen;
+
+	if (sa->evp) {
+		memset(&ctx, 0, sizeof(ctx));
+		if (EVP_CipherInit(&ctx, sa->evp, secret, NULL, 0) < 0)
+			printf("espkey init failed");
+
+		blocksz = EVP_CIPHER_CTX_block_size(&ctx);
+
+		p = ivoff;
+		EVP_CipherInit(&ctx, NULL, NULL, p, 0);
+		EVP_Cipher(&ctx, p + ivlen, p + ivlen, ep - (p + ivlen));
+		advance = ivoff - (u_char *)esp + ivlen;
+	} else
+		advance = sizeof(struct newesp);
+
+	ep = ep - sa->authlen;
 	/* sanity check for pad length */
 	if (ep - bp < *(ep - 2))
 		goto fail;
@@ -402,9 +503,8 @@ esp_print(register const u_char *bp, register const u_char *bp2,
 
 	printf(": ");
 	return advance;
+#endif
 
 fail:
-	if (nhdr)
-		*nhdr = -1;
-	return 65536;
+	return -1;
 }

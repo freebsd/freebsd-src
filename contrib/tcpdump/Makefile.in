@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.260 2001/12/10 08:21:23 guy Exp $ (LBL)
+# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.276.2.4 2004/03/28 21:25:02 fenner Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -43,7 +43,7 @@ CC = @CC@
 PROG = tcpdump
 CCOPT = @V_CCOPT@
 INCLS = -I. @V_INCLS@
-DEFS = @DEFS@
+DEFS = @DEFS@ @V_DEFS@
 
 # Standard CFLAGS
 CFLAGS = $(CCOPT) $(DEFS) $(INCLS)
@@ -65,25 +65,26 @@ INSTALL_DATA = @INSTALL_DATA@
 	@rm -f $@
 	$(CC) $(CFLAGS) -c $(srcdir)/$*.c
 
-CSRC =	addrtoname.c gmt2local.c machdep.c parsenfsfh.c \
-	print-802_11.c print-ah.c print-arcnet.c print-arp.c \
-	print-ascii.c print-atalk.c print-atm.c print-bgp.c \
-	print-bootp.c print-beep.c print-cdp.c print-chdlc.c \
-	print-cip.c print-cnfp.c print-decnet.c print-domain.c \
-	print-dvmrp.c print-egp.c print-esp.c print-ether.c \
-	print-fddi.c print-gre.c print-hsrp.c print-icmp.c \
-	print-igmp.c print-igrp.c print-ip.c print-ipcomp.c \
+CSRC =	addrtoname.c gmpls.c gmt2local.c machdep.c oui.c parsenfsfh.c \
+	print-802_11.c print-ap1394.c print-ah.c print-arcnet.c \
+	print-aodv.c print-arp.c print-ascii.c print-atalk.c print-atm.c \
+	print-beep.c print-bfd.c print-bgp.c print-bootp.c print-cdp.c \
+	print-chdlc.c print-cip.c print-cnfp.c print-decnet.c \
+	print-domain.c print-dvmrp.c print-enc.c print-egp.c \
+	print-esp.c print-ether.c print-fddi.c print-fr.c \
+	print-gre.c print-hsrp.c print-icmp.c print-igmp.c \
+	print-igrp.c print-ip.c print-ipcomp.c print-ipfc.c \
 	print-ipx.c print-isakmp.c print-isoclns.c print-krb.c \
-	print-l2tp.c print-lane.c print-lcp.c print-llc.c print-lwres.c \
-	print-msdp.c print-mobile.c print-mpls.c print-nfs.c \
-	print-ntp.c print-null.c print-ospf.c print-pim.c \
-	print-ppp.c print-pppoe.c print-pptp.c print-radius.c \
-	print-raw.c print-rip.c print-rx.c print-sctp.c \
-	print-sl.c print-sll.c print-snmp.c \
-	print-stp.c print-sunrpc.c print-tcp.c \
-	print-telnet.c print-tftp.c print-timed.c print-token.c \
-	print-udp.c print-vjc.c print-vrrp.c print-wb.c print-zephyr.c \
-	setsignal.c tcpdump.c util.c
+	print-l2tp.c print-lane.c print-ldp.c print-llc.c \
+	print-lwres.c print-mobile.c print-mpls.c print-msdp.c \
+	print-nfs.c print-ntp.c print-null.c print-ospf.c \
+	print-pflog.c print-pim.c print-ppp.c print-pppoe.c \
+	print-pptp.c print-radius.c print-raw.c print-rip.c \
+	print-rsvp.c print-rx.c print-sctp.c print-sl.c print-sll.c \
+	print-snmp.c print-stp.c print-sunatm.c print-sunrpc.c \
+	print-tcp.c print-telnet.c print-tftp.c print-timed.c \
+	print-token.c print-udp.c print-vjc.c print-vrrp.c \
+	print-wb.c print-zephyr.c setsignal.c tcpdump.c util.c
 
 LOCALSRC = @LOCALSRC@
 GENSRC = version.c
@@ -99,7 +100,7 @@ HDR =   addrtoname.h appletalk.h bootp.h decnet.h \
 	ipx.h llc.h machdep.h mib.h nfsfh.h nfsv2.h ntp.h ospf.h \
 	setsignal.h \
 	gnuc.h ipsec_doi.h isakmp.h l2tp.h nameser.h \
-	netbios.h oakley.h ospf6.h ppp.h route6d.h
+	netbios.h oakley.h ospf6.h pf.h ppp.h route6d.h
 
 TAGHDR = \
 	/usr/include/arpa/tftp.h \
@@ -122,6 +123,10 @@ $(PROG): $(OBJ) @V_PCAPDEP@
 	@rm -f $@
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
+datalinks.o: $(srcdir)/missing/datalinks.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/datalinks.c
+dlnames.o: $(srcdir)/missing/dlnames.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/dlnames.c
 getnameinfo.o: $(srcdir)/missing/getnameinfo.c
 	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/getnameinfo.c
 getaddrinfo.o: $(srcdir)/missing/getaddrinfo.c
@@ -138,6 +143,8 @@ strlcat.o: $(srcdir)/missing/strlcat.c
 	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/strlcat.c
 strlcpy.o: $(srcdir)/missing/strlcpy.c
 	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/strlcpy.c
+strsep.o: $(srcdir)/missing/strsep.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/strsep.c
 
 version.o: version.c
 	$(CC) $(CFLAGS) -c version.c
