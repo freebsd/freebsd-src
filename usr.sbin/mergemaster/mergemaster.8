@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998, 1999 Douglas Barton
+.\" Copyright (c) 1998-2000 Douglas Barton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 1999
+.Dd October 30, 2000
 .Dt MERGEMASTER 8
 .Os FreeBSD
 .Sh NAME
@@ -32,12 +32,13 @@
 .Nd Merge configuration files, et al during an upgrade
 .Sh SYNOPSIS
 .Nm
-.Op Fl scrvah
+.Op Fl scrvahi
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
 .Op Fl u Ar N
 .Op Fl w Ar N
+.Op Fl D Ar /path
 .Sh DESCRIPTION
 .Nm
 is a Bourne shell script which is designed to aid you
@@ -58,7 +59,10 @@ files.
 You can specify a different source directory
 with the
 .Op Fl m
-command line option.
+command line option, or specify the destination
+directory with the
+.Op Fl D
+option.
 It then compares each file in that environment
 to its installed counterpart.
 When the script finds a
@@ -113,6 +117,26 @@ and file permissions as specified by the umask.
 Unified diffs are used by default to display any
 differences unless you choose context diffs.
 .Pp
+.Nm
+will source scripts that you specify right before
+it starts the comparison, and after it's done running.
+The easiest way to handle this is to place the path
+to the script(s) in the appropriate variables in your
+.Pa .mergemasterrc
+file.
+The script sourced before comparison is named in
+.Ev MM_PRE_COMPARE_SCRIPT ,
+and the one sourced after the script is done is
+.Ev MM_EXIT_SCRIPT .
+This is the recommended way to specify local modifications,
+or files that you want to give special handling to.
+This includes files that you want to be deleted without
+being compared.
+Because the named scripts are sourced from within
+.Nm ,
+all of the script's variables are available for use in
+your custom script.
+.Pp
 The options are as follows:
 .Bl -tag -width Fl
 .It Fl s
@@ -149,6 +173,9 @@ Setting -a makes
 -w superfluous.
 .It Fl h
 Display usage and help information.
+.It Fl i
+Automatically install any files that do not exist in the
+destination directory.
 .It Fl m Ar /path/to/sources
 Specify the path to the directory where you want to do the
 .Xr make 1 .
@@ -172,6 +199,8 @@ Supply an alternate screen width to the
 .Xr sdiff 1
 command in numbers of columns.
 The default is 80.
+.It Fl D Ar /path
+Specify the destination directory for the installed files.
 .El
 .Sh ENVIRONMENT
 The
@@ -190,6 +219,15 @@ limited
 without specifying the full path,
 .Nm
 prompts you with options on how to proceed.
+The
+.Ev MM_PRE_COMPARE_SCRIPT
+and
+.Ev MM_EXIT_SCRIPT
+variables are used as described above.
+Other variables that are used by the script internally
+can be specified in
+.Pa .mergemasterrc
+as described in more detail below.
 .Sh EXAMPLES
 Typically all you will need to do is type
 .Nm
@@ -240,19 +278,33 @@ with all values commented out:
 # Verbose mode includes more details and additional checks
 #VERBOSE=
 #
+# Automatically install files that do not exist on the system already
+#AUTO_INSTALL=
+#
 # Sourcedir is the directory to do the 'make' in (where the new files are)
-#SOURCEDIR=/usr/src/etc
+#SOURCEDIR='/usr/src/etc'
 #
 # The umask for mergemaster to compare the default file's modes to
 #NEW_UMASK=022
 #
+# Specify the destination directory for the installed files
+#DESTDIR=
+#
 # The following options have no command line overrides
 # For those who just cannot stand including the full path to PAGER
 #DONT_CHECK_PAGER=
+#
 # If you set 'yes' above, make sure to include the PATH to your pager
 #PATH=/bin:/usr/bin:/usr/sbin
+#
 # Don't compare the old and new motd files
 #IGNORE_MOTD=yes
+#
+# Specify the path to scripts to run before the comparison starts,
+# and/or after the script has finished its work
+#MM_PRE_COMPARE_SCRIPT=
+#MM_EXIT_SCRIPT=
+
 .Ed
 .Sh SEE ALSO
 .Xr cvs 1 ,
@@ -291,7 +343,7 @@ make world tutorial which is referenced above.
 .Pp
 .Sh AUTHOR
 This manual page and the script itself were written by
-.An Douglas Barton Aq Doug@gorean.org .
+.An Douglas Barton Aq DougB@FreeBSD.org .
 .Sh BUGS
 There are no known bugs.
 Please report any problems,
