@@ -917,6 +917,18 @@ By default, the files specified are
 .Pa /etc/rc.conf
 and
 .Pa /etc/rc.conf.local
+.It Va gbde_autoattach_all
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+.Pa /etc/rc.d/gbde
+will attempt to automatically initialize your .bde devices in
+.Pa /etc/fstab .
+.It Va gbde_devices
+.Pq Vt str
+List the devices that the script should try to attach,
+or
+.Dq Li AUTO .
 .It Va fsck_y_enable
 .Pq Vt bool
 If set to
