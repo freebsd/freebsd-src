@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)xdr_subs.h	8.3 (Berkeley) 3/30/95
- * $Id: xdr_subs.h,v 1.9 1997/02/22 09:42:53 peter Exp $
+ * $Id: xdr_subs.h,v 1.10 1998/05/31 20:09:01 peter Exp $
  */
 
 
@@ -79,13 +79,12 @@
 	((struct nfsv3_time *)(t))->nfsv3_nsec = htonl((f)->tv_nsec); \
 }
 
-#define	fxdr_hyper(f, t) { \
-	((int32_t *)(t))[_QUAD_HIGHWORD] = ntohl(((int32_t *)(f))[0]); \
-	((int32_t *)(t))[_QUAD_LOWWORD] = ntohl(((int32_t *)(f))[1]); \
-}
+#define	fxdr_hyper(f) \
+	((((u_quad_t)ntohl(((u_int32_t *)(f))[0])) << 32) | \
+	 (u_quad_t)(ntohl(((u_int32_t *)(f))[1])))
 #define	txdr_hyper(f, t) { \
-	((int32_t *)(t))[0] = htonl(((int32_t *)(f))[_QUAD_HIGHWORD]); \
-	((int32_t *)(t))[1] = htonl(((int32_t *)(f))[_QUAD_LOWWORD]); \
+	((u_int32_t *)(t))[0] = htonl((u_int32_t)((f) >> 32)); \
+	((u_int32_t *)(t))[1] = htonl((u_int32_t)((f) & 0xffffffff)); \
 }
 
 #endif

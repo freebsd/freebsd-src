@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.76 1999/05/06 18:13:04 peter Exp $
+ * $Id: nfs_serv.c,v 1.77 1999/05/11 19:54:45 phk Exp $
  */
 
 /*
@@ -620,7 +620,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 	nfsm_srvmtofh(fhp);
 	if (v3) {
 		nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		fxdr_hyper(tl, &off);
+		off = fxdr_hyper(tl);
 	} else {
 		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
 		off = (off_t)fxdr_unsigned(u_int32_t, *tl);
@@ -656,7 +656,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 	if (off >= vap->va_size)
 		cnt = 0;
 	else if ((off + reqlen) > vap->va_size)
-		cnt = nfsm_rndup(vap->va_size - off);
+		cnt = vap->va_size - off;
 	else
 		cnt = reqlen;
 	nfsm_reply(NFSX_POSTOPORFATTR(v3) + 3 * NFSX_UNSIGNED+nfsm_rndup(cnt));
@@ -670,7 +670,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		fp = (struct nfs_fattr *)tl;
 		tl += (NFSX_V2FATTR / sizeof (u_int32_t));
 	}
-	len = left = cnt;
+	len = left = nfsm_rndup(cnt);
 	if (cnt > 0) {
 		/*
 		 * Generate the mbuf list with the uio_iov ref. to it.
@@ -695,7 +695,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		       M_TEMP, M_WAITOK);
 		uiop->uio_iov = iv2 = iv;
 		m = mb;
-		left = cnt;
+		left = len;
 		i = 0;
 		while (left > 0) {
 			if (m == NULL)
@@ -713,7 +713,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		}
 		uiop->uio_iovcnt = i;
 		uiop->uio_offset = off;
-		uiop->uio_resid = cnt;
+		uiop->uio_resid = len;
 		uiop->uio_rw = UIO_READ;
 		uiop->uio_segflg = UIO_SYSSPACE;
 		error = VOP_READ(vp, uiop, IO_NODELOCKED, cred);
@@ -732,18 +732,19 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		uiop->uio_resid = 0;
 	vput(vp);
 	nfsm_srvfillattr(vap, fp);
-	len -= uiop->uio_resid;
-	tlen = nfsm_rndup(len);
-	if (cnt != tlen || tlen != len)
-		nfsm_adj(mb, cnt - tlen, tlen - len);
+	tlen = len - uiop->uio_resid;
+	cnt = cnt < tlen ? cnt : tlen;
+	tlen = nfsm_rndup(cnt);
+	if (len != tlen || tlen != cnt)
+		nfsm_adj(mb, len - tlen, tlen - cnt);
 	if (v3) {
-		*tl++ = txdr_unsigned(len);
+		*tl++ = txdr_unsigned(cnt);
 		if (len < reqlen)
 			*tl++ = nfs_true;
 		else
 			*tl++ = nfs_false;
 	}
-	*tl = txdr_unsigned(len);
+	*tl = txdr_unsigned(cnt);
 	nfsm_srvdone;
 }
 
@@ -792,7 +793,7 @@ nfsrv_write(nfsd, slp, procp, mrq)
 	nfsm_srvmtofh(fhp);
 	if (v3) {
 		nfsm_dissect(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
-		fxdr_hyper(tl, &off);
+		off = fxdr_hyper(tl);
 		tl += 3;
 		stable = fxdr_unsigned(int, *tl++);
 	} else {
@@ -997,7 +998,7 @@ nfsrv_writegather(ndp, slp, procp, mrq)
 	    nfsm_srvmtofh(&nfsd->nd_fh);
 	    if (v3) {
 		nfsm_dissect(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
-		fxdr_hyper(tl, &nfsd->nd_off);
+		nfsd->nd_off = fxdr_hyper(tl);
 		tl += 3;
 		nfsd->nd_stable = fxdr_unsigned(int, *tl++);
 	    } else {
@@ -2530,13 +2531,14 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	nfsm_srvmtofh(fhp);
 	if (v3) {
 		nfsm_dissect(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
-		fxdr_hyper(tl, &toff);
+		toff = fxdr_hyper(tl);
 		tl += 2;
-		fxdr_hyper(tl, &verf);
+		verf = fxdr_hyper(tl);
 		tl += 2;
 	} else {
 		nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		toff = fxdr_unsigned(u_quad_t, *tl++);
+		verf = 0;	/* shut up gcc */
 	}
 	off = toff;
 	cnt = fxdr_unsigned(int, *tl);
@@ -2624,7 +2626,7 @@ again:
 			if (v3) {
 				nfsm_srvpostop_attr(getret, &at);
 				nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
-				txdr_hyper(&at.va_filerev, tl);
+				txdr_hyper(at.va_filerev, tl);
 				tl += 2;
 			} else
 				nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
@@ -2670,7 +2672,7 @@ again:
 	if (v3) {
 		nfsm_srvpostop_attr(getret, &at);
 		nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		txdr_hyper(&at.va_filerev, tl);
+		txdr_hyper(at.va_filerev, tl);
 	}
 	mp = mp2 = mb;
 	bp = bpos;
@@ -2797,9 +2799,9 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	nfsm_dissect(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
-	fxdr_hyper(tl, &toff);
+	toff = fxdr_hyper(tl);
 	tl += 2;
-	fxdr_hyper(tl, &verf);
+	verf = fxdr_hyper(tl);
 	tl += 2;
 	siz = fxdr_unsigned(int, *tl++);
 	cnt = fxdr_unsigned(int, *tl);
@@ -2884,7 +2886,7 @@ again:
 				2 * NFSX_UNSIGNED);
 			nfsm_srvpostop_attr(getret, &at);
 			nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
-			txdr_hyper(&at.va_filerev, tl);
+			txdr_hyper(at.va_filerev, tl);
 			tl += 2;
 			*tl++ = nfs_false;
 			*tl = nfs_true;
@@ -2942,7 +2944,7 @@ again:
 	nfsm_reply(cnt);
 	nfsm_srvpostop_attr(getret, &at);
 	nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-	txdr_hyper(&at.va_filerev, tl);
+	txdr_hyper(at.va_filerev, tl);
 	mp = mp2 = mb;
 	bp = bpos;
 	be = bp + M_TRAILINGSPACE(mp);
@@ -3111,7 +3113,7 @@ nfsrv_commit(nfsd, slp, procp, mrq)
 	 * XXX At this time VOP_FSYNC() does not accept offset and byte
 	 * count parameters, so these arguments are useless (someday maybe).
 	 */
-	fxdr_hyper(tl, &off);
+	off = fxdr_hyper(tl);
 	tl += 2;
 	cnt = fxdr_unsigned(int, *tl);
 	error = nfsrv_fhtovp(fhp, 1, &vp, cred, slp, nam,
@@ -3195,13 +3197,13 @@ nfsrv_statfs(nfsd, slp, procp, mrq)
 	if (v3) {
 		tval = (u_quad_t)sf->f_blocks;
 		tval *= (u_quad_t)sf->f_bsize;
-		txdr_hyper(&tval, &sfp->sf_tbytes);
+		txdr_hyper(tval, &sfp->sf_tbytes);
 		tval = (u_quad_t)sf->f_bfree;
 		tval *= (u_quad_t)sf->f_bsize;
-		txdr_hyper(&tval, &sfp->sf_fbytes);
+		txdr_hyper(tval, &sfp->sf_fbytes);
 		tval = (u_quad_t)sf->f_bavail;
 		tval *= (u_quad_t)sf->f_bsize;
-		txdr_hyper(&tval, &sfp->sf_abytes);
+		txdr_hyper(tval, &sfp->sf_abytes);
 		sfp->sf_tfiles.nfsuquad[0] = 0;
 		sfp->sf_tfiles.nfsuquad[1] = txdr_unsigned(sf->f_files);
 		sfp->sf_ffiles.nfsuquad[0] = 0;
@@ -3286,7 +3288,7 @@ nfsrv_fsinfo(nfsd, slp, procp, mrq)
 	sip->fs_wtpref = txdr_unsigned(pref);
 	sip->fs_wtmult = txdr_unsigned(NFS_FABLKSIZE);
 	sip->fs_dtpref = txdr_unsigned(pref);
-	txdr_hyper(&maxfsize, &sip->fs_maxfilesize);
+	txdr_hyper(maxfsize, &sip->fs_maxfilesize);
 	sip->fs_timedelta.nfsv3_sec = 0;
 	sip->fs_timedelta.nfsv3_nsec = txdr_unsigned(1);
 	sip->fs_properties = txdr_unsigned(NFSV3FSINFO_LINK |

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.73 1999/02/17 13:59:29 bde Exp $
+ * $Id: nfs_subs.c,v 1.74 1999/05/11 19:54:46 phk Exp $
  */
 
 /*
@@ -1345,9 +1345,9 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		vap->va_nlink = fxdr_unsigned(u_short, fp->fa_nlink);
 		vap->va_uid = fxdr_unsigned(uid_t, fp->fa_uid);
 		vap->va_gid = fxdr_unsigned(gid_t, fp->fa_gid);
-		fxdr_hyper(&fp->fa3_size, &vap->va_size);
+		vap->va_size = fxdr_hyper(&fp->fa3_size);
 		vap->va_blocksize = NFS_FABLKSIZE;
-		fxdr_hyper(&fp->fa3_used, &vap->va_bytes);
+		vap->va_bytes = fxdr_hyper(&fp->fa3_used);
 		vap->va_fileid = fxdr_unsigned(int32_t,
 		    fp->fa3_fileid.nfsuquad[1]);
 		fxdr_nfsv3time(&fp->fa3_atime, &vap->va_atime);
@@ -1360,7 +1360,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		vap->va_gid = fxdr_unsigned(gid_t, fp->fa_gid);
 		vap->va_size = fxdr_unsigned(u_int32_t, fp->fa2_size);
 		vap->va_blocksize = fxdr_unsigned(int32_t, fp->fa2_blocksize);
-		vap->va_bytes = fxdr_unsigned(int32_t, fp->fa2_blocks)
+		vap->va_bytes = (u_quad_t)fxdr_unsigned(int32_t, fp->fa2_blocks)
 		    * NFS_FABLKSIZE;
 		vap->va_fileid = fxdr_unsigned(int32_t, fp->fa2_fileid);
 		fxdr_nfsv2time(&fp->fa2_atime, &vap->va_atime);
@@ -1810,7 +1810,7 @@ nfsm_srvwcc(nfsd, before_ret, before_vap, after_ret, after_vap, mbp, bposp)
 	} else {
 		nfsm_build(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
 		*tl++ = nfs_true;
-		txdr_hyper(&(before_vap->va_size), tl);
+		txdr_hyper(before_vap->va_size, tl);
 		tl += 2;
 		txdr_nfsv3time(&(before_vap->va_mtime), tl);
 		tl += 2;
@@ -1860,8 +1860,8 @@ nfsm_srvfattr(nfsd, vap, fp)
 	if (nfsd->nd_flag & ND_NFSV3) {
 		fp->fa_type = vtonfsv3_type(vap->va_type);
 		fp->fa_mode = vtonfsv3_mode(vap->va_mode);
-		txdr_hyper(&vap->va_size, &fp->fa3_size);
-		txdr_hyper(&vap->va_bytes, &fp->fa3_used);
+		txdr_hyper(vap->va_size, &fp->fa3_size);
+		txdr_hyper(vap->va_bytes, &fp->fa3_used);
 		fp->fa3_rdev.specdata1 = txdr_unsigned(umajor(vap->va_rdev));
 		fp->fa3_rdev.specdata2 = txdr_unsigned(uminor(vap->va_rdev));
 		fp->fa3_fsid.nfsuquad[0] = 0;
