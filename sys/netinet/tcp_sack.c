@@ -301,6 +301,9 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	/* Note: TCPOLEN_SACK must be 2*sizeof(tcp_seq) */
 	if (optlen <= 2 || (optlen - 2) % TCPOLEN_SACK != 0)
 		return (1);
+	/* If ack is outside window, ignore the SACK options */
+	if (SEQ_LT(th->th_ack, tp->snd_una) || SEQ_GT(th->th_ack, tp->snd_max))
+		return (1);
 	tmp_cp = cp + 2;
 	tmp_olen = optlen - 2;
 	tcpstat.tcps_sack_rcv_blocks++;
