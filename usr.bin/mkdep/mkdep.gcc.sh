@@ -63,7 +63,7 @@ while :
 done
 
 case $# in 0) 
-	echo 'usage: mkdep [-p] [-f depend_file] [cc_flags] file ...'
+	echo 'usage: mkdep [-ap] [-f file] [flags] file ...' >&2
 	exit 1;;
 esac
 
@@ -80,7 +80,7 @@ echo "# $@" > $TMP	# store arguments for debugging
 
 if $MKDEP_CPP -M "$@" >> $TMP; then :
 else
-	echo 'mkdep: compile failed.'
+	echo 'mkdep: compile failed' >&2
 	exit 1
 fi
 
