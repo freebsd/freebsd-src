@@ -891,13 +891,18 @@ pcic_cd_change(void *arg)
  	sc->cd_pending = 0;
 	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
 
-	/* If the card left, remove it from the system. */
-	if ((stat & CB_SS_CD) != 0) {
+	/* Status changed while present; remove the card from the system. */
+	if (sc->cd_present) {
 		sc->cd_present = 0;
 		pccard_event(sp->slt, card_removed);
-		return;
 	}
+	/* Nothing to do if the debounced state is 'not present'. */
+	if ((stat & CB_SS_CD) != 0)
+		return;
+
 	sc->cd_present = 1;
+	if (bootverbose && (stat & CB_SS_BADVCC) != 0)
+		device_printf(sc->dev, "BAD Vcc request\n");
 	if ((stat & CB_SS_16BIT) == 0)
 		device_printf(sp->sc->dev, "Card type %s is unsupported\n",
 		    pcic_pci_cardtype(stat));
@@ -911,31 +916,28 @@ pcic_pci_intr(void *arg)
 	struct pcic_softc *sc = (struct pcic_softc *) arg;
 	struct pcic_slot *sp = &sc->slots[0];
 	u_int32_t event;
-	u_int32_t stat;
-	int present;
 
 	event = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_EVENT);
 	if (event != 0) {
-		stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
 		if (bootverbose)
-			device_printf(sc->dev, "Event mask 0x%x stat 0x%x\n",
-			    event, stat);
+			device_printf(sc->dev, "Event mask 0x%x\n", event);
 
-		present = (stat & CB_SS_CD) == 0;
-		if (present != sc->cd_present) {
+		/*
+		 * Treat all card-detect signal transitions the same way
+		 * since we can't reliably tell if this is an insert or a
+		 * remove event. Stop the card from getting interrupts and
+		 * defer the insert/remove event until the CB_SOCKET_STATE
+		 * signals have had time to settle.
+		 */
+		if ((event & CB_SE_CD) != 0) {
 			if (sc->cd_pending) {
 				untimeout(pcic_cd_change, arg, sc->cd_ch);
 				sc->cd_pending = 0;
 			}
-			/* Delay insert events to debounce noisy signals. */
 			sc->cd_pending = 1;
 			sc->cd_ch = timeout(pcic_cd_change, arg, hz/2);
-			/* if the card is gone, stop interrupts to it */
-			if (!present)
-				sc->func_intr = NULL;
+			sc->func_intr = NULL;
 		}
-		if (bootverbose && (stat & CB_SS_BADVCC) != 0)
-			device_printf(sc->dev, "BAD Vcc request\n");
 
 		/* Ack the interrupt */
 		bus_space_write_4(sp->bst, sp->bsh, 0, event);
