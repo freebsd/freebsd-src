@@ -246,7 +246,8 @@ sw1b:
 	/* XXX FIXME: we should be restoring the local APIC TPR */
 #endif /* SMP */
 
-	cmpl	$0, PCB_USERLDT(%edx)	/* if there is one */
+	movl	TD_PROC(%ecx), %eax	/* load struct proc from CURTHREAD */
+	cmpl    $0, P_MD+MD_LDT(%eax)   /* see if md_ldt == 0 */
 	jnz	1f			/* then use it */
 	movl	_default_ldt,%eax	/* We will use the default */
 	cmpl	PCPU(CURRENTLDT),%eax	/* check to see if already loaded */
@@ -255,9 +256,11 @@ sw1b:
 	movl	%eax,PCPU(CURRENTLDT)	/* store what we have */
 	jmp	2f
 
-1:	pushl	%edx			/* call a non-trusting routine */
-	call	set_user_ldt		/* to check and load the ldt */
-	popl	%edx
+1:	pushl	%edx			/* save edx */
+	pushl	P_MD+MD_LDT(%eax)	/* passing p_md -> set_user_ldt */
+	call	set_user_ldt		/* check and load the ldt */
+	popl	%eax			/* get p_md off stack */
+	popl	%edx			/* restore edx */
 2:
 
 	/* This must be done after loading the user LDT. */

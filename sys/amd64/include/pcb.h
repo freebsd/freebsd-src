@@ -61,7 +61,6 @@ struct pcb {
 	int     pcb_dr6;
 	int     pcb_dr7;
 
-	struct	pcb_ldt *pcb_ldt;	/* per process (user) LDT */
 	union	savefpu	pcb_save;
 	u_char	pcb_flags;
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */

@@ -103,6 +103,7 @@
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
+#include <machine/proc.h>
 #include <machine/globals.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
@@ -880,8 +881,8 @@ setregs(td, entry, stack, ps_strings)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
-	if (pcb->pcb_ldt)
-		user_ldt_free(pcb);
+	if (td->td_proc->p_md.md_ldt)
+		user_ldt_free(td);
   
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_eip = entry;

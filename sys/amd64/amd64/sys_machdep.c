@@ -54,6 +54,7 @@
 
 #include <machine/cpu.h>
 #include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
+#include <machine/proc.h>
 #include <machine/sysarch.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */
@@ -70,7 +71,7 @@ static int i386_set_ldt	__P((struct thread *, char *));
 static int i386_get_ioperm	__P((struct thread *, char *));
 static int i386_set_ioperm	__P((struct thread *, char *));
 #ifdef SMP
-static void set_user_ldt_rv	__P((struct pcb *));
+static void set_user_ldt_rv	__P((struct thread *));
 #endif
 
 #ifndef _SYS_SYSPROTO_H_
@@ -256,15 +257,15 @@ done:
  * curproc but before sched_lock's owner is updated in mi_switch().
  */   
 void
-set_user_ldt(struct pcb *pcb)
+set_user_ldt(struct mdproc *mdp)
 {
-	struct pcb_ldt *pcb_ldt;
+	struct proc_ldt *pldt;
 
-	pcb_ldt = pcb->pcb_ldt;
+	pldt = mdp->md_ldt;
 #ifdef SMP
-	gdt[PCPU_GET(cpuid) * NGDT + GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
+	gdt[PCPU_GET(cpuid) * NGDT + GUSERLDT_SEL].sd = pldt->ldt_sd;
 #else
-	gdt[GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
+	gdt[GUSERLDT_SEL].sd = pldt->ldt_sd;
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
@@ -272,14 +273,14 @@ set_user_ldt(struct pcb *pcb)
 
 #ifdef SMP
 static void
-set_user_ldt_rv(struct pcb *pcb)
+set_user_ldt_rv(struct thread *td)
 {
 
-	if (pcb != PCPU_GET(curpcb))
+	if (td != PCPU_GET(curthread))
 		return;
 
 	mtx_lock_spin(&sched_lock);
-	set_user_ldt(pcb);
+	set_user_ldt(&td->td_proc->p_md);
 	mtx_unlock_spin(&sched_lock);
 }
 #endif
@@ -288,15 +289,15 @@ set_user_ldt_rv(struct pcb *pcb)
  * Must be called with either sched_lock free or held but not recursed.
  * If it does not return NULL, it will return with it owned.
  */
-struct pcb_ldt *
-user_ldt_alloc(struct pcb *pcb, int len)
+struct proc_ldt *
+user_ldt_alloc(struct mdproc *mdp, int len)
 {
-	struct pcb_ldt *pcb_ldt, *new_ldt;
+	struct proc_ldt *pldt, *new_ldt;
 
 	if (mtx_owned(&sched_lock))
 		mtx_unlock_spin(&sched_lock);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
-	MALLOC(new_ldt, struct pcb_ldt *, sizeof(struct pcb_ldt),
+	MALLOC(new_ldt, struct proc_ldt *, sizeof(struct proc_ldt),
 		M_SUBPROC, M_WAITOK);
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
@@ -314,11 +315,11 @@ user_ldt_alloc(struct pcb *pcb, int len)
 	gdt_segs[GUSERLDT_SEL].ssd_limit = len * sizeof(union descriptor) - 1;
 	ssdtosd(&gdt_segs[GUSERLDT_SEL], &new_ldt->ldt_sd);
 
-	if ((pcb_ldt = pcb->pcb_ldt)) {
-		if (len > pcb_ldt->ldt_len)
-			len = pcb_ldt->ldt_len;
-		bcopy(pcb_ldt->ldt_base, new_ldt->ldt_base,
-			len * sizeof(union descriptor));
+	if ((pldt = mdp->md_ldt)) {
+		if (len > pldt->ldt_len)
+			len = pldt->ldt_len;
+		bcopy(pldt->ldt_base, new_ldt->ldt_base,
+		    len * sizeof(union descriptor));
 	} else {
 		bcopy(ldt, new_ldt->ldt_base, sizeof(ldt));
 	}
@@ -327,30 +328,31 @@ user_ldt_alloc(struct pcb *pcb, int len)
 
 /*
  * Must be called either with sched_lock free or held but not recursed.
- * If pcb->pcb_ldt is not NULL, it will return with sched_lock released.
+ * If md_ldt is not NULL, it will return with sched_lock released.
  */
 void
-user_ldt_free(struct pcb *pcb)
+user_ldt_free(struct thread *td)
 {
-	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
+	struct mdproc *mdp = &td->td_proc->p_md;
+	struct proc_ldt *pldt = mdp->md_ldt;
 
-	if (pcb_ldt == NULL)
+	if (pldt == NULL)
 		return;
 
 	if (!mtx_owned(&sched_lock))
 		mtx_lock_spin(&sched_lock);
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-	if (pcb == PCPU_GET(curpcb)) {
+	if (td == PCPU_GET(curthread)) {
 		lldt(_default_ldt);
 		PCPU_SET(currentldt, _default_ldt);
 	}
 
-	pcb->pcb_ldt = NULL;
-	if (--pcb_ldt->ldt_refcnt == 0) {
+	mdp->md_ldt = NULL;
+	if (--pldt->ldt_refcnt == 0) {
 		mtx_unlock_spin(&sched_lock);
-		kmem_free(kernel_map, (vm_offset_t)pcb_ldt->ldt_base,
-			pcb_ldt->ldt_len * sizeof(union descriptor));
-		FREE(pcb_ldt, M_SUBPROC);
+		kmem_free(kernel_map, (vm_offset_t)pldt->ldt_base,
+			pldt->ldt_len * sizeof(union descriptor));
+		FREE(pldt, M_SUBPROC);
 	} else
 		mtx_unlock_spin(&sched_lock);
 }
@@ -361,8 +363,7 @@ i386_get_ldt(td, args)
 	char *args;
 {
 	int error = 0;
-	struct pcb *pcb = td->td_pcb;
-	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
+	struct proc_ldt *pldt = td->td_proc->p_md.md_ldt;
 	int nldt, num;
 	union descriptor *lp;
 	struct i386_ldt_args ua, *uap = &ua;
@@ -379,10 +380,10 @@ i386_get_ldt(td, args)
 	if ((uap->start < 0) || (uap->num <= 0))
 		return(EINVAL);
 
-	if (pcb_ldt) {
-		nldt = pcb_ldt->ldt_len;
+	if (pldt) {
+		nldt = pldt->ldt_len;
 		num = min(uap->num, nldt);
-		lp = &((union descriptor *)(pcb_ldt->ldt_base))[uap->start];
+		lp = &((union descriptor *)(pldt->ldt_base))[uap->start];
 	} else {
 		nldt = sizeof(ldt)/sizeof(ldt[0]);
 		num = min(uap->num, nldt);
@@ -405,8 +406,8 @@ i386_set_ldt(td, args)
 {
 	int error = 0, i, n;
 	int largest_ld;
-	struct pcb *pcb = td->td_pcb;
-	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
+	struct mdproc *mdp = &td->td_proc->p_md;
+	struct proc_ldt *pldt = mdp->md_ldt;
 	struct i386_ldt_args ua, *uap = &ua;
 	caddr_t old_ldt_base;
 	int old_ldt_len;
@@ -431,16 +432,16 @@ i386_set_ldt(td, args)
 		return(EINVAL);
 
 	/* allocate user ldt */
-	if (!pcb_ldt || largest_ld >= pcb_ldt->ldt_len) {
-		struct pcb_ldt *new_ldt = user_ldt_alloc(pcb, largest_ld);
+	if (!pldt || largest_ld >= pldt->ldt_len) {
+		struct proc_ldt *new_ldt = user_ldt_alloc(mdp, largest_ld);
 		if (new_ldt == NULL)
 			return ENOMEM;
-		if (pcb_ldt) {
-			old_ldt_base = pcb_ldt->ldt_base;
-			old_ldt_len = pcb_ldt->ldt_len;
-			pcb_ldt->ldt_sd = new_ldt->ldt_sd;
-			pcb_ldt->ldt_base = new_ldt->ldt_base;
-			pcb_ldt->ldt_len = new_ldt->ldt_len;
+		if (pldt) {
+			old_ldt_base = pldt->ldt_base;
+			old_ldt_len = pldt->ldt_len;
+			pldt->ldt_sd = new_ldt->ldt_sd;
+			pldt->ldt_base = new_ldt->ldt_base;
+			pldt->ldt_len = new_ldt->ldt_len;
 			mtx_unlock_spin(&sched_lock);
 			kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
 				old_ldt_len * sizeof(union descriptor));
@@ -449,16 +450,17 @@ i386_set_ldt(td, args)
 			mtx_lock_spin(&sched_lock);
 #endif
 		} else {
-			pcb->pcb_ldt = pcb_ldt = new_ldt;
+			mdp->md_ldt = pldt = new_ldt;
 #ifdef SMP
 			mtx_unlock_spin(&sched_lock);
 #endif
 		}
 #ifdef SMP
 		/* signal other cpus to reload ldt */
-		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv, NULL, pcb);
+		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv, 
+		    NULL, td);
 #else
-		set_user_ldt(pcb);
+		set_user_ldt(mdp);
 		mtx_unlock_spin(&sched_lock);
 #endif
 	}
@@ -532,7 +534,7 @@ i386_set_ldt(td, args)
 	/* Fill in range */
 	savecrit = critical_enter();
 	error = copyin(uap->descs, 
-	    &((union descriptor *)(pcb_ldt->ldt_base))[uap->start],
+	    &((union descriptor *)(pldt->ldt_base))[uap->start],
 	    uap->num * sizeof(union descriptor));
 	if (!error)
 		td->td_retval[0] = uap->start;
