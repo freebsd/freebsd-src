@@ -150,7 +150,6 @@ struct cue_chain {
 	usbd_xfer_handle	cue_xfer;
 	char			*cue_buf;
 	struct mbuf		*cue_mbuf;
-	int			cue_accum;
 	int			cue_idx;
 };
 
