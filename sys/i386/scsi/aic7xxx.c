@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.17 1995/03/17 23:58:27 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.18 1995/03/31 13:54:40 gibbs Exp $
  */
 /*
  * TODO:
@@ -355,6 +355,7 @@ struct scsi_device ahc_dev =
 #define			MSG_REJECT	0x60
 #define			BAD_STATUS	0x70
 #define			RESIDUAL	0x80
+#define			ABORT_TAG	0x90
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
@@ -1129,6 +1130,26 @@ ahcintr(unit)
 			    scb->xs->resid = (inb(iobase+SCBARRAY+17) << 16) |
 					     (inb(iobase+SCBARRAY+16) << 8) |
 					      inb(iobase+SCBARRAY+15);
+			break;
+		  }
+		  case ABORT_TAG:
+		  {
+                        int   scb_index;
+			scb_index = inb(SCBPTR + iobase);
+			scb = ahc->scbarray[scb_index];
+			/*
+			 * We didn't recieve a valid tag back from 
+			 * the target on a reconnect.
+			 */
+			printf("ahc%d: invalid tag recieved on channel %c "  
+			       "target %d, lun %d -- sending ABORT_TAG\n",
+			       unit,
+			       ((u_long)xs->sc_link->fordriver & 0x08)? 'B':'A',
+			       xs->sc_link->target,
+			       xs->sc_link->lun);
+			scb->xs->error = XS_DRIVER_STUFFUP;
+			untimeout(ahc_timeout, (caddr_t)scb);
+			ahc_done(unit, scb);
 			break;
 		  }
 		  default:  
@@ -1956,6 +1977,7 @@ ahc_abort_scb( unit, ahc, scb )
 	int found = 0;
 	int active_scb;
 	u_char flags;
+	u_char scb_control;
 
 	PAUSE_SEQUENCER(ahc);
 	/*
@@ -1993,12 +2015,18 @@ ahc_abort_scb( unit, ahc, scb )
 		 * the driver will then abort the command
 		 * and notify us of the abort.
 		 */
-		int scb_control;
 		outb(SCBPTR + iobase, scb->position);
 		scb_control = inb(SCBARRAY + iobase);
 		scb_control &= ~SCB_DIS;
 		outb(SCBARRAY + iobase, scb_control);
 		outb(SCBPTR + iobase, active_scb);
+		goto done;
+	}
+	scb_control = inb(SCBARRAY + iobase);
+	scb_control &= ~SCB_DIS;
+	if( scb_control & SCB_DIS ) {
+		scb_control &= ~SCB_DIS;
+		outb(SCBARRAY + iobase, scb_control);
 		goto done;
 	}
 	/*
@@ -2078,7 +2106,7 @@ ahc_timeout(void *arg1)
 #endif /*AHC_DEBUG */
 
         /*
-         * If it's immediate, don't try abort it
+         * If it's immediate, don't try to abort it
          */
         if (scb->flags & SCB_IMMED) {
                 scb->xs->retries = 0;   /* I MEAN IT ! */
