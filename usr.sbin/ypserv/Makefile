@@ -30,14 +30,13 @@ ypxfr_clnt.c: yp.x
 yp.h: yp.x
 	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/yp.x
 
-afterinstall:
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/Makefile.yp \
-		${DESTDIR}/var/yp/Makefile.dist
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 555 \
-		${.CURDIR}/ypinit.sh ${DESTDIR}${BINDIR}/ypinit
-	@if [ ! -f ${DESTDIR}/var/yp/Makefile.dist ]; then \
-		ln -s	${DESTDIR}/var/yp/Makefile.dist \
-			${DESTDIR}/var/yp/Makefile; fi
+FILES=	Makefile.yp
+FILESNAME= Makefile.dist
+FILESDIR= /var/yp
+SCRIPTS= ypinit.sh
+
+.if !exists(${DESTDIR}${FILESDIR}/Makefile)
+SYMLINKS= ${FILESNAME} ${FILESDIR}/Makefile
+.endif
 
 .include <bsd.prog.mk>
