@@ -1,14 +1,21 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/2/94
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../../usr.sbin/pwd_mkdb ${.CURDIR}/../../lib/libc/gen
+
 PROG=	chpass
 SRCS=	chpass.c edit.c field.c pw_scan.c table.c util.c
 BINOWN=	root
 BINMODE=4555
-.PATH:	${.CURDIR}/../../usr.sbin/pwd_mkdb \
-	${.CURDIR}/../../lib/libc/gen
-CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../lib/libc/gen
 WARNS?=	5
+CFLAGS+=-DYP
+#Some people need this, uncomment to activate
+#CFLAGS+=-DRESTRICT_FULLNAME_CHANGE
+CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../lib/libc/gen -I.
+
+DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBYPCLNT}
+LDADD=	-lcrypt -lutil -lypclnt
+
 LINKS=	${BINDIR}/chpass ${BINDIR}/chfn
 LINKS+=	${BINDIR}/chpass ${BINDIR}/chsh
 LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchpass
@@ -17,14 +24,6 @@ LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchsh
 
 MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
 MLINKS+= chpass.1 ypchpass.1 chpass.1 ypchfn.1 chpass.1 ypchsh.1
-
-CFLAGS+=-DYP -I.
-
-#Some people need this, uncomment to activate
-#CFLAGS+=-DRESTRICT_FULLNAME_CHANGE
-
-DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBYPCLNT}
-LDADD+=	-lcrypt -lutil -lypclnt
 
 beforeinstall:
 .for i in chpass chfn chsh ypchpass ypchfn ypchsh
