@@ -282,12 +282,13 @@ If you have a filesystem (such as the root filesystem) which is
 close to full, doing a major update of it, e.g.\&
 .Dq Li "make installworld" ,
 can run it out of space and cause the update to fail.
+For this reason, softupdates will not be enabled on the root filesystem
+during a typical install.  There is no loss of performance since the root
+filesystem is rarely written to.
 .Pp
 A number of run-time
 .Xr mount 8
 options exist that can help you tune the system.
-For this reason, softupdates will not be enabled on the root filesystem
-during a typical install.
 The most obvious and most dangerous one is
 .Cm async .
 Do not ever use it, it is far too dangerous.
