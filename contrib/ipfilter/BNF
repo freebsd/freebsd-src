@@ -11,9 +11,9 @@ proto	= "proto" protocol .
 ip	= srcdst [ flags ] [ with withopt ] [ icmp ] [ keep ] .
 group	= [ "head" decnumber ] [ "group" decnumber ] .
 
-block	= "block" [ "return-icmp"[return-code] | "return-rst" ] .
+block	= "block" [ icmp [return-code] | "return-rst" ] .
 auth	= "auth" | "preauth" .
-log	= "log" [ "body" ] [ "first" ] [ "or-block" ] .
+log	= "log" [ "body" ] [ "first" ] [ "or-block" ] [ "level" loglevel ] .
 call	= "call" [ "now" ] function-name .
 skip	= "skip" decnumber .
 dup	= "dup-to" interface-name[":"ipaddr] .
@@ -22,6 +22,8 @@ protocol = "tcp/udp" | "udp" | "tcp" | "icmp" | decnumber .
 srcdst	= "all" | fromto .
 fromto	= "from" object "to" object .
 
+icmp	= "return-icmp" | "return-icmp-as-dest" .
+loglevel = facility"."priority | priority .
 object	= addr [ port-comp | port-range ] .
 addr	= "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
 port-comp = "port" compare port-num .
@@ -55,6 +57,12 @@ icmp-code = decumber | "net-unr" | "host-unr" | "proto-unr" | "port-unr" |
 optlist	= "nop" | "rr" | "zsu" | "mtup" | "mtur" | "encode" | "ts" | "tr" |
 	  "sec" | "lsrr" | "e-sec" | "cipso" | "satid" | "ssrr" | "addext" |
 	  "visa" | "imitd" | "eip" | "finn" .
+facility = "kern" | "user" | "mail" | "daemon" | "auth" | "syslog" |
+	   "lpr" | "news" | "uucp" | "cron" | "ftp" | "authpriv" |
+	   "audit" | "logalert" | "local0" | "local1" | "local2" |
+	   "local3" | "local4" | "local5" | "local6" | "local7" .
+priority = "emerg" | "alert" | "crit" | "err" | "warn" | "notice" |
+	   "info" | "debug" . 
 
 hexnumber = "0" "x" hexstring .
 hexstring = hexdigit [ hexstring ] .

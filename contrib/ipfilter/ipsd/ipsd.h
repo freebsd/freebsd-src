@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1995-1997 Darren Reed.
+ * (C)opyright 1995-1998 Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1997 by Darren Reed.
+ * Copyright (C) 1997-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -49,3 +49,6 @@ typedef	struct	aniphdr	{
 #define	ah_tcp	ah_un.ahu_tcp
 #define	ah_udp	ah_un.ahu_udp
 #define	ah_icmp	ah_un.ahu_icmp
+
+extern	int	get_arpipv4 __P((char *, char *));
+

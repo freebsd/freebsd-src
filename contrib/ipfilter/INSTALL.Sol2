@@ -1,8 +1,9 @@
 
-For those running Solaris 2.5, please read COMPILE.2.5 before building
-IP Filter.
+For those running Solaris 2.5 or later, please read COMPILE.2.5 before
+building IP Filter.
 
-Type "make solaris" to build all the required binaries.
+Type "make solaris" to build all the required binaries.  DO NOT USE THE
+GNU make!!!
 
 Once IP Filter has been successfully compiled, you may then install it using
 the usual package method (using pkgadd), however, the package needs to be

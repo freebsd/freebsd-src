@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1995-1997 Darren Reed.
+ * (C)opyright 1995-1998 Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -38,7 +38,7 @@
 
 #ifndef	lint
 static const char sccsid[] = "@(#)ipsdr.c	1.3 12/3/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsdr.c,v 2.0.2.3 1997/09/28 07:13:18 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipsdr.c,v 2.1 1999/08/04 17:30:57 darrenr Exp $";
 #endif
 
 extern	char	*optarg;

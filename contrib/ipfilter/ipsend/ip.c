@@ -1,5 +1,5 @@
 /*
- * ip.c (C) 1995-1997 Darren Reed
+ * ip.c (C) 1995-1998 Darren Reed
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995";
-static const char rcsid[] = "@(#)$Id: ip.c,v 2.0.2.11.2.3 1997/12/21 12:17:37 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip.c,v 2.1 1999/08/04 17:31:04 darrenr Exp $";
 #endif
 #include <errno.h>
 #include <stdio.h>

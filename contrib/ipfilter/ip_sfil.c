@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.0.2.25.2.5 1997/12/02 13:55:39 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.1.2.2 1999/10/05 12:59:08 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -52,16 +52,18 @@ static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.0.2.25.2.5 1997/12/02 13:55:
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
 
+
 extern	fr_flags, fr_active;
 
-int	ipfr_timer_id = 0;
+int	fr_running = 0;
 int	ipl_unreach = ICMP_UNREACH_HOST;
 u_long	ipl_frouteok[2] = {0, 0};
 static	void	frzerostats __P((caddr_t));
 
-static	int	frrequest __P((int, int, caddr_t, int));
-kmutex_t	ipl_mutex, ipf_mutex, ipfs_mutex;
-kmutex_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
+static	int	frrequest __P((minor_t, int, caddr_t, int));
+kmutex_t	ipl_mutex, ipf_authmx, ipf_rw;
+KRWLOCK_T	ipf_mutex, ipfs_mutex, ipf_solaris;
+KRWLOCK_T	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
 kcondvar_t	iplwait, ipfauthwait;
 
 
@@ -72,49 +74,62 @@ int ipldetach()
 #ifdef	IPFDEBUG
 	cmn_err(CE_CONT, "ipldetach()\n");
 #endif
+#ifdef	IPFILTER_LOG
 	for (i = IPL_LOGMAX; i >= 0; i--)
 		ipflog_clear(i);
-	untimeout(ipfr_timer_id);
+#endif
 	i = FR_INQUE|FR_OUTQUE;
-	frflush(IPL_LOGIPF, &i);
+	(void) frflush(IPL_LOGIPF, FR_INQUE|FR_OUTQUE);
 	ipfr_unload();
 	fr_stateunload();
 	ip_natunload();
 	cv_destroy(&iplwait);
 	cv_destroy(&ipfauthwait);
+	mutex_destroy(&ipf_authmx);
 	mutex_destroy(&ipl_mutex);
-	mutex_destroy(&ipf_mutex);
-	mutex_destroy(&ipfs_mutex);
-	mutex_destroy(&ipf_frag);
-	mutex_destroy(&ipf_state);
-	mutex_destroy(&ipf_natfrag);
-	mutex_destroy(&ipf_nat);
-	mutex_destroy(&ipf_auth);
+	mutex_destroy(&ipf_rw);
+	RW_DESTROY(&ipf_mutex);
+	RW_DESTROY(&ipf_frag);
+	RW_DESTROY(&ipf_state);
+	RW_DESTROY(&ipf_natfrag);
+	RW_DESTROY(&ipf_nat);
+	RW_DESTROY(&ipf_auth);
+	RW_DESTROY(&ipfs_mutex);
+	/* NOTE: This lock is acquired in ipf_detach */
+	RWLOCK_EXIT(&ipf_solaris);
+	RW_DESTROY(&ipf_solaris);
 	return 0;
 }
 
 
 int iplattach __P((void))
 {
-	int	i;
-
 #ifdef	IPFDEBUG
 	cmn_err(CE_CONT, "iplattach()\n");
 #endif
-	bzero((char *)nat_table, sizeof(nat_table));
 	bzero((char *)frcache, sizeof(frcache));
 	mutex_init(&ipl_mutex, "ipf log mutex", MUTEX_DRIVER, NULL);
-	mutex_init(&ipf_mutex, "ipf filter mutex", MUTEX_DRIVER, NULL);
-	mutex_init(&ipfs_mutex, "ipf solaris mutex", MUTEX_DRIVER, NULL);
-	mutex_init(&ipf_frag, "ipf fragment mutex", MUTEX_DRIVER, NULL);
-	mutex_init(&ipf_state, "ipf IP state mutex", MUTEX_DRIVER, NULL);
-	mutex_init(&ipf_nat, "ipf IP NAT mutex", MUTEX_DRIVER, NULL);
-	mutex_init(&ipf_natfrag, "ipf IP NAT-Frag mutex", MUTEX_DRIVER, NULL);
-	mutex_init(&ipf_auth, "ipf IP User-Auth mutex", MUTEX_DRIVER, NULL);
+	mutex_init(&ipf_rw, "ipf rw mutex", MUTEX_DRIVER, NULL);
+	mutex_init(&ipf_authmx, "ipf auth log mutex", MUTEX_DRIVER, NULL);
+	RWLOCK_INIT(&ipf_solaris, "ipf filter load/unload mutex", NULL);
+	RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock", NULL);
+	RWLOCK_INIT(&ipfs_mutex, "ipf solaris mutex", NULL);
+	RWLOCK_INIT(&ipf_frag, "ipf fragment rwlock", NULL);
+	RWLOCK_INIT(&ipf_state, "ipf IP state rwlock", NULL);
+	RWLOCK_INIT(&ipf_nat, "ipf IP NAT rwlock", NULL);
+	RWLOCK_INIT(&ipf_natfrag, "ipf IP NAT-Frag rwlock", NULL);
+	RWLOCK_INIT(&ipf_auth, "ipf IP User-Auth rwlock", NULL);
 	cv_init(&iplwait, "ipl condvar", CV_DRIVER, NULL);
 	cv_init(&ipfauthwait, "ipf auth condvar", CV_DRIVER, NULL);
-	ipfr_timer_id = timeout(ipfr_slowtimer, NULL, drv_usectohz(500000));
+#ifdef	IPFILTER_LOG
 	ipflog_init();
+#endif
+	if (nat_init() == -1)
+		return -1;
+	if (fr_stateinit() == -1)
+		return -1;
+	if (appr_init() == -1)
+		return -1;
 	return 0;
 }
 
@@ -122,7 +137,7 @@ int iplattach __P((void))
 static	void	frzerostats(data)
 caddr_t	data;
 {
-	struct	friostat	fio;
+	friostat_t fio;
 
 	bcopy((char *)frstats, (char *)fio.f_st,
 		sizeof(struct filterstats) * 2);
@@ -148,27 +163,38 @@ caddr_t	data;
 int iplioctl(dev, cmd, data, mode, cp, rp)
 dev_t dev;
 int cmd;
-int data;
+#if SOLARIS2 >= 7
+intptr_t data;
+#else
+int *data;
+#endif
 int mode;
 cred_t *cp;
 int *rp;
 {
-	int error = 0, unit, tmp;
+	int error = 0, tmp;
+	minor_t unit;
 
 #ifdef	IPFDEBUG
 	cmn_err(CE_CONT, "iplioctl(%x,%x,%x,%d,%x,%d)\n",
 		dev, cmd, data, mode, cp, rp);
 #endif
 	unit = getminor(dev);
-	if ((IPL_LOGMAX < unit) || (unit < 0))
+	if (IPL_LOGMAX < unit)
 		return ENXIO;
 
+	if (fr_running <= 0)
+		return 0;
+
+	READ_ENTER(&ipf_solaris);
 	if (unit == IPL_LOGNAT) {
 		error = nat_ioctl((caddr_t)data, cmd, mode);
+		RWLOCK_EXIT(&ipf_solaris);
 		return error;
 	}
 	if (unit == IPL_LOGSTATE) {
 		error = fr_state_ioctl((caddr_t)data, cmd, mode);
+		RWLOCK_EXIT(&ipf_solaris);
 		return error;
 	}
 
@@ -178,16 +204,20 @@ int *rp;
 		u_int	enable;
 
 		if (!(mode & FWRITE))
-			return EPERM;
-		IRCOPY((caddr_t)data, (caddr_t)&enable, sizeof(enable));
+			error = EPERM;
+		else
+			IRCOPY((caddr_t)data, (caddr_t)&enable, sizeof(enable));
 		break;
 	}
 	case SIOCSETFF :
 		if (!(mode & FWRITE))
-			return EPERM;
-		mutex_enter(&ipf_mutex);
-		IRCOPY((caddr_t)data, (caddr_t)&fr_flags, sizeof(fr_flags));
-		mutex_exit(&ipf_mutex);
+			error = EPERM;
+		else {
+			WRITE_ENTER(&ipf_mutex);
+			IRCOPY((caddr_t)data, (caddr_t)&fr_flags,
+			       sizeof(fr_flags));
+			RWLOCK_EXIT(&ipf_mutex);
+		}
 		break;
 	case SIOCGETFF :
 		IWCOPY((caddr_t)&fr_flags, (caddr_t)data, sizeof(fr_flags));
@@ -197,34 +227,36 @@ int *rp;
 	case SIOCADAFR :
 	case SIOCZRLST :
 		if (!(mode & FWRITE))
-			return EPERM;
-		mutex_enter(&ipf_mutex);
-		error = frrequest(unit, cmd, (caddr_t)data, fr_active);
-		mutex_exit(&ipf_mutex);
+			error = EPERM;
+		else
+			error = frrequest(unit, cmd, (caddr_t)data, fr_active);
 		break;
 	case SIOCINIFR :
 	case SIOCRMIFR :
 	case SIOCADIFR :
 		if (!(mode & FWRITE))
-			return EPERM;
-		mutex_enter(&ipf_mutex);
-		error = frrequest(unit, cmd, (caddr_t)data, 1 - fr_active);
-		mutex_exit(&ipf_mutex);
+			error = EPERM;
+		else
+			error = frrequest(unit, cmd, (caddr_t)data,
+					  1 - fr_active);
 		break;
 	case SIOCSWAPA :
 		if (!(mode & FWRITE))
-			return EPERM;
-		mutex_enter(&ipf_mutex);
-		bzero((char *)frcache, sizeof(frcache[0]) * 2);
-		IWCOPY((caddr_t)&fr_active, (caddr_t)data, sizeof(fr_active));
-		fr_active = 1 - fr_active;
-		mutex_exit(&ipf_mutex);
+			error = EPERM;
+		else {
+			WRITE_ENTER(&ipf_mutex);
+			bzero((char *)frcache, sizeof(frcache[0]) * 2);
+			IWCOPY((caddr_t)&fr_active, (caddr_t)data,
+			       sizeof(fr_active));
+			fr_active = 1 - fr_active;
+			RWLOCK_EXIT(&ipf_mutex);
+		}
 		break;
 	case SIOCGETFS :
 	{
 		struct	friostat	fio;
 
-		mutex_enter(&ipf_mutex);
+		READ_ENTER(&ipf_mutex);
 		bcopy((char *)frstats, (char *)fio.f_st,
 			sizeof(struct filterstats) * 2);
 		fio.f_fin[0] = ipfilter[0][0];
@@ -238,51 +270,75 @@ int *rp;
 		fio.f_active = fr_active;
 		fio.f_froute[0] = ipl_frouteok[0];
 		fio.f_froute[1] = ipl_frouteok[1];
-		mutex_exit(&ipf_mutex);
+		fio.f_running = fr_running;
+		fio.f_groups[0][0] = ipfgroups[0][0];
+		fio.f_groups[0][1] = ipfgroups[0][1];
+		fio.f_groups[1][0] = ipfgroups[1][0];
+		fio.f_groups[1][1] = ipfgroups[1][1];
+		fio.f_groups[2][0] = ipfgroups[2][0];
+		fio.f_groups[2][1] = ipfgroups[2][1];
+#ifdef	IPFILTER_LOG
+		fio.f_logging = 1;
+#else
+		fio.f_logging = 0;
+#endif
+		fio.f_defpass = fr_pass;
+		strncpy(fio.f_version, fio.f_version,
+			sizeof(fio.f_version));
+		RWLOCK_EXIT(&ipf_mutex);
 		IWCOPY((caddr_t)&fio, (caddr_t)data, sizeof(fio));
 		break;
 	}
 	case SIOCFRZST :
 		if (!(mode & FWRITE))
-			return EPERM;
-		frzerostats((caddr_t)data);
+			error = EPERM;
+		else
+			frzerostats((caddr_t)data);
 		break;
 	case	SIOCIPFFL :
 		if (!(mode & FWRITE))
-			return EPERM;
-		IRCOPY((caddr_t)data, (caddr_t)&tmp, sizeof(tmp));
-		mutex_enter(&ipf_mutex);
-		frflush(unit, &tmp);
-		mutex_exit(&ipf_mutex);
-		IWCOPY((caddr_t)&tmp, (caddr_t)data, sizeof(tmp));
+			error = EPERM;
+		else {
+			IRCOPY((caddr_t)data, (caddr_t)&tmp, sizeof(tmp));
+			tmp = frflush(unit, tmp);
+			IWCOPY((caddr_t)&tmp, (caddr_t)data, sizeof(tmp));
+		}
 		break;
 #ifdef	IPFILTER_LOG
 	case	SIOCIPFFB :
 		if (!(mode & FWRITE))
-			return EPERM;
-		tmp = ipflog_clear(unit);
-		IWCOPY((caddr_t)&tmp, (caddr_t)data, sizeof(tmp));
+			error = EPERM;
+		else {
+			tmp = ipflog_clear(unit);
+			IWCOPY((caddr_t)&tmp, (caddr_t)data, sizeof(tmp));
+		}
 		break;
 #endif /* IPFILTER_LOG */
 	case SIOCFRSYN :
 		if (!(mode & FWRITE))
-			return EPERM;
-		error = ipfsync();
+			error = EPERM;
+		else
+			error = ipfsync();
 		break;
 	case SIOCGFRST :
 		IWCOPY((caddr_t)ipfr_fragstats(), (caddr_t)data,
 		       sizeof(ipfrstat_t));
 		break;
 	case FIONREAD :
+	{
 #ifdef	IPFILTER_LOG
-		IWCOPY((caddr_t)&iplused[IPL_LOGIPF], (caddr_t)data,
-		       sizeof(iplused[IPL_LOGIPF]));
+		int copy = (int)iplused[IPL_LOGIPF];
+
+		IWCOPY((caddr_t)&copy, (caddr_t)data, sizeof(copy));
 #endif
 		break;
+	}
 	case SIOCAUTHW :
 	case SIOCAUTHR :
-		if (!(mode & FWRITE))
-			return EPERM;
+		if (!(mode & FWRITE)) {
+			error = EPERM;
+			break;
+		}
 	case SIOCATHST :
 		error = fr_auth_ioctl((caddr_t)data, cmd, NULL, NULL);
 		break;
@@ -290,6 +346,7 @@ int *rp;
 		error = EINVAL;
 		break;
 	}
+	RWLOCK_EXIT(&ipf_solaris);
 	return error;
 }
 
@@ -297,8 +354,8 @@ int *rp;
 ill_t	*get_unit(name)
 char	*name;
 {
+	size_t	len = strlen(name) + 1;	/* includes \0 */
 	ill_t	*il;
-	int	len = strlen(name) + 1;	/* includes \0 */
 
 	for (il = ill_g_head; il; il = il->ill_next)
 		if ((len == il->ill_name_length) &&
@@ -308,27 +365,8 @@ char	*name;
 }
 
 
-static void fixskip(listp, rp, addremove)
-frentry_t **listp, *rp;
-int addremove;
-{
-	frentry_t *fp;
-	int rules = 0, rn = 0;
-
-	for (fp = *listp; fp && (fp != rp); fp = fp->fr_next, rules++)
-		;
-
-	if (!fp)
-		return;
-
-	for (fp = *listp; fp && (fp != rp); fp = fp->fr_next, rn++)
-		if (fp->fr_skip && (rn + fp->fr_skip >= rules))
-			fp->fr_skip += addremove;
-}
-
-
 static int frrequest(unit, req, data, set)
-int unit;
+minor_t unit;
 int req, set;
 caddr_t data;
 {
@@ -337,24 +375,31 @@ caddr_t data;
 	frentry_t fr;
 	frdest_t *fdp;
 	frgroup_t *fg = NULL;
-	int error = 0, in, group;
+	int error = 0, in;
+	u_int group;
 	ill_t *ill;
 	ipif_t *ipif;
 	ire_t *ire;
 
 	fp = &fr;
 	IRCOPY(data, (caddr_t)fp, sizeof(*fp));
+	fp->fr_ref = 0;
 
+	WRITE_ENTER(&ipf_mutex);
 	/*
 	 * Check that the group number does exist and that if a head group
 	 * has been specified, doesn't exist.
 	 */
-	if (fp->fr_grhead &&
-	    fr_findgroup(fp->fr_grhead, fp->fr_flags, unit, set, NULL))
-		return EEXIST;
-	if (fp->fr_group &&
-	    !fr_findgroup(fp->fr_group, fp->fr_flags, unit, set, NULL))
-		return ESRCH;
+	if ((req != SIOCZRLST) && fp->fr_grhead &&
+	    fr_findgroup((u_int)fp->fr_grhead, fp->fr_flags, unit, set, NULL)) {
+		error = EEXIST;
+		goto out;
+	}
+	if ((req != SIOCZRLST) && fp->fr_group &&
+	    !fr_findgroup((u_int)fp->fr_group, fp->fr_flags, unit, set, NULL)) {
+		error = ESRCH;
+		goto out;
+	}
 
 	in = (fp->fr_flags & FR_INQUE) ? 0 : 1;
 
@@ -364,12 +409,18 @@ caddr_t data;
 		ftail = fprev = &ipacct[in][set];
 	else if (fp->fr_flags & (FR_OUTQUE|FR_INQUE))
 		ftail = fprev = &ipfilter[in][set];
-	else
-		return ESRCH;
+	else {
+		error = ESRCH;
+		goto out;
+	}
 
-	if ((group = fp->fr_group)) {
-		if (!(fg = fr_findgroup(group, fp->fr_flags, unit, set, NULL)))
-			return ESRCH;
+	group = fp->fr_group;
+	if (group != NULL) {
+		fg = fr_findgroup(group, fp->fr_flags, unit, set, NULL);
+		if (fg == NULL) {
+			error = ESRCH;
+			goto out;
+		}
 		ftail = fprev = fg->fg_start;
 	}
 
@@ -435,12 +486,15 @@ caddr_t data;
 	 * If zero'ing statistics, copy current to caller and zero.
 	 */
 	if (req == SIOCZRLST) {
-		if (!f)
-			return ESRCH;
+		if (!f) {
+			error = ESRCH;
+			goto out;
+		}
+		MUTEX_DOWNGRADE(&ipf_mutex);
 		IWCOPY((caddr_t)f, data, sizeof(*f));
 		f->fr_hits = 0;
 		f->fr_bytes = 0;
-		return 0;
+		goto out;
 	}
 
 	if (!f) {
@@ -458,26 +512,32 @@ caddr_t data;
 		if (!f)
 			error = ESRCH;
 		else {
-			if (f->fr_ref > 1)
-				return EBUSY;
+			if (f->fr_ref > 1) {
+				error = EBUSY;
+				goto out;
+			}
 			if (fg && fg->fg_head)
 				fg->fg_head->fr_ref--;
-			if (unit == IPL_LOGAUTH)
-				return fr_auth_ioctl(data, req, f, ftail);
+			if (unit == IPL_LOGAUTH) {
+				error = fr_auth_ioctl(data, req, f, ftail);
+				goto out;
+			}
 			if (f->fr_grhead)
-				fr_delgroup(f->fr_grhead, fp->fr_flags, unit,
-					    set);
+				fr_delgroup((u_int)f->fr_grhead, fp->fr_flags,
+					    unit, set);
 			fixskip(fprev, f, -1);
 			*ftail = f->fr_next;
 			KFREE(f);
 		}
 	} else {
-		if (f)
+		if (f) {
 			error = EEXIST;
-		else {
-			if (unit == IPL_LOGAUTH)
-				return fr_auth_ioctl(data, req, f, ftail);
-			KMALLOC(f, frentry_t *, sizeof(*f));
+		} else {
+			if (unit == IPL_LOGAUTH) {
+				error = fr_auth_ioctl(data, req, f, ftail);
+				goto out;
+			}
+			KMALLOC(f, frentry_t *);
 			if (f != NULL) {
 				if (fg && fg->fg_head)
 					fg->fg_head->fr_ref++;
@@ -489,12 +549,15 @@ caddr_t data;
 				if (req == SIOCINIFR || req == SIOCINAFR)
 					fixskip(fprev, f, 1);
 				f->fr_grp = NULL;
-				if ((group = f->fr_grhead))
+				group = f->fr_grhead;
+				if (group != NULL)
 					fg = fr_addgroup(group, f, unit, set);
 			} else
 				error = ENOMEM;
 		}
 	}
+out:
+	RWLOCK_EXIT(&ipf_mutex);
 	return (error);
 }
 
@@ -507,14 +570,14 @@ dev_t *devp;
 int flags, otype;
 cred_t *cred;
 {
-	u_int min = getminor(*devp);
+	minor_t min = getminor(*devp);
 
 #ifdef	IPFDEBUG
 	cmn_err(CE_CONT, "iplopen(%x,%x,%x,%x)\n", devp, flags, otype, cred);
 #endif
-	if (!(otype & OTYP_CHR))
+	if ((fr_running <= 0) || !(otype & OTYP_CHR))
 		return ENXIO;
-	min = (2 < min || min < 0) ? ENXIO : 0;
+	min = (IPL_LOGMAX < min) ? ENXIO : 0;
 	return min;
 }
 
@@ -524,12 +587,12 @@ dev_t dev;
 int flags, otype;
 cred_t *cred;
 {
-	u_int	min = getminor(dev);
+	minor_t	min = getminor(dev);
 
 #ifdef	IPFDEBUG
 	cmn_err(CE_CONT, "iplclose(%x,%x,%x,%x)\n", dev, flags, otype, cred);
 #endif
-	min = (2 < min || min < 0) ? ENXIO : 0;
+	min = (IPL_LOGMAX < min) ? ENXIO : 0;
 	return min;
 }
 
@@ -557,72 +620,76 @@ cred_t *cp;
  * send_reset - this could conceivably be a call to tcp_respond(), but that
  * requires a large amount of setting up and isn't any more efficient.
  */
-int send_reset(iphdr, qif)
+int send_reset(fin, iphdr, qif)
+fr_info_t *fin;
 ip_t *iphdr;
 qif_t *qif;
 {
-	struct tcpiphdr *ti = (struct tcpiphdr *)iphdr;
-	struct ip *ip;
-	struct tcphdr *tcp;
-	queue_t *q = qif->qf_q;
-	mblk_t *m;
+	tcphdr_t *tcp, *tcp2;
 	int tlen = 0;
+	mblk_t *m;
+	ip_t *ip;
 
-	if (ti->ti_flags & TH_RST)
+	tcp = (struct tcphdr *)fin->fin_dp;
+	if (tcp->th_flags & TH_RST)
 		return -1;
-	if (ti->ti_flags & TH_SYN)
+	if (tcp->th_flags & TH_SYN)
 		tlen = 1;
-	if ((m = (mblk_t *)allocb(sizeof(struct tcpiphdr), BPRI_HI)) == NULL)
+	if ((m = (mblk_t *)allocb(sizeof(*ip) + sizeof(*tcp),BPRI_HI)) == NULL)
 		return -1;
 
 	MTYPE(m) = M_DATA;
-	m->b_wptr += sizeof(struct tcpiphdr);
-	bzero((char *)m->b_rptr, sizeof(struct tcpiphdr));
+	m->b_wptr += sizeof(*ip) + sizeof(*tcp);
+	bzero((char *)m->b_rptr, sizeof(*ip) + sizeof(*tcp));
 	ip = (ip_t *)m->b_rptr;
-	tcp = (struct tcphdr *)(m->b_rptr + sizeof(*ip));
+	tcp2 = (struct tcphdr *)(m->b_rptr + sizeof(*ip));
 
-	ip->ip_src.s_addr = ti->ti_dst.s_addr;
-	ip->ip_dst.s_addr = ti->ti_src.s_addr;
-	tcp->th_dport = ti->ti_sport;
-	tcp->th_sport = ti->ti_dport;
-	tcp->th_ack = htonl(ntohl(ti->ti_seq) + tlen);
-	tcp->th_off = sizeof(struct tcphdr) >> 2;
-	tcp->th_flags = TH_RST|TH_ACK;
+	ip->ip_src.s_addr = iphdr->ip_dst.s_addr;
+	ip->ip_dst.s_addr = iphdr->ip_src.s_addr;
+	tcp2->th_dport = tcp->th_sport;
+	tcp2->th_sport = tcp->th_dport;
+	tcp2->th_ack = htonl(ntohl(tcp->th_seq) + tlen);
+	tcp2->th_seq = tcp->th_ack;
+	tcp2->th_off = sizeof(struct tcphdr) >> 2;
+	tcp2->th_flags = TH_RST|TH_ACK;
 	/*
 	 * This is to get around a bug in the Solaris 2.4/2.5 TCP checksum
 	 * computation that is done by their put routine.
 	 */
-	tcp->th_sum = htons(0x14);
+	tcp2->th_sum = htons(0x14);
 	ip->ip_hl = sizeof(*ip) >> 2;
 	ip->ip_v = IPVERSION;
 	ip->ip_p = IPPROTO_TCP;
-	ip->ip_len = htons(sizeof(struct tcpiphdr));
-	ip->ip_tos = ((struct ip *)ti)->ip_tos;
+	ip->ip_len = htons(sizeof(*ip) + sizeof(*tcp));
+	ip->ip_tos = iphdr->ip_tos;
 	ip->ip_off = 0;
 	ip->ip_ttl = 60;
 	ip->ip_sum = 0;
+	RWLOCK_EXIT(&ipfs_mutex);
+	RWLOCK_EXIT(&ipf_solaris);
 	ip_wput(qif->qf_ill->ill_wq, m);
+	READ_ENTER(&ipf_solaris);
+	READ_ENTER(&ipfs_mutex);
 	return 0;
 }
 
 
-int	icmp_error(ip, type, code, qif, src)
+int	icmp_error(ip, type, code, qif, dst)
 ip_t	*ip;
 int	type, code;
 qif_t	*qif;
-struct	in_addr	src;
+struct	in_addr	dst;
 {
-	queue_t *q = qif->qf_q;
 	mblk_t *mb;
 	struct icmp *icmp;
 	ip_t *nip;
-	int sz = sizeof(*nip) + sizeof(*icmp) + 8;
+	u_short sz = sizeof(*nip) + sizeof(*icmp) + 8;
 
-	if ((mb = (mblk_t *)allocb(sz, BPRI_HI)) == NULL)
+	if ((mb = (mblk_t *)allocb((size_t)sz, BPRI_HI)) == NULL)
 		return -1;
 	MTYPE(mb) = M_DATA;
 	mb->b_wptr += sz;
-	bzero((char *)mb->b_rptr, sz);
+	bzero((char *)mb->b_rptr, (size_t)sz);
 	nip = (ip_t *)mb->b_rptr;
 	icmp = (struct icmp *)(nip + 1);
 
@@ -633,9 +700,13 @@ struct	in_addr	src;
 	nip->ip_sum = 0;
 	nip->ip_ttl = 60;
 	nip->ip_tos = ip->ip_tos;
-	nip->ip_len = htons(sz);
-	nip->ip_src.s_addr = ip->ip_dst.s_addr;
-	nip->ip_dst.s_addr = ip->ip_src.s_addr;
+	nip->ip_len = (u_short)htons(sz);
+	if (dst.s_addr == 0) {
+		if (fr_ifpaddr(qif->qf_ill, &dst) == -1)
+			return -1;
+	}
+	nip->ip_src = dst;
+	nip->ip_dst = ip->ip_src;
 
 	icmp->icmp_type = type;
 	icmp->icmp_code = code;
@@ -643,7 +714,26 @@ struct	in_addr	src;
 	bcopy((char *)ip, (char *)&icmp->icmp_ip, sizeof(*ip));
 	bcopy((char *)ip + (ip->ip_hl << 2),
 	      (char *)&icmp->icmp_ip + sizeof(*ip), 8);	/* 64 bits */
+#ifndef	sparc
+	ip = &icmp->icmp_ip;
+	{
+	u_short	__iplen, __ipoff;
+
+	__iplen = ip->ip_len;
+	__ipoff = ip->ip_len;
+	ip->ip_len = htons(__iplen);
+	ip->ip_off = htons(__ipoff);
+	}
+#endif
 	icmp->icmp_cksum = ipf_cksum((u_short *)icmp, sizeof(*icmp) + 8);
+	/*
+	 * Need to exit out of these so we don't recursively call rw_enter
+	 * from fr_qout.
+	 */
+	RWLOCK_EXIT(&ipfs_mutex);
+	RWLOCK_EXIT(&ipf_solaris);
 	ip_wput(qif->qf_ill->ill_wq, mb);
+	READ_ENTER(&ipf_solaris);
+	READ_ENTER(&ipfs_mutex);
 	return 0;
 }
