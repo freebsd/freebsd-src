@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.151 1997/07/21 01:21:25 dyson Exp $
+ *	$Id: pmap.c,v 1.153 1997/08/05 01:02:14 dyson Exp $
  */
 
 /*
@@ -89,6 +89,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_zone.h>
 
 #include <sys/user.h>
 
@@ -117,8 +118,6 @@
 #endif
 
 #define PTPHINT
-
-static void	init_pv_entries __P((int));
 
 /*
  * Get PDEs and PTEs for user/kernel address space
@@ -154,8 +153,9 @@ vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 static vm_offset_t vm_first_phys;
-static int pgeflag;		/* PG_G or-in */
-static int pseflag;		/* PG_PS or-in */
+int pgeflag;		/* PG_G or-in */
+int pseflag;		/* PG_PS or-in */
+int pv_npg;
 
 static int nkpt;
 static vm_page_t nkpg;
@@ -163,15 +163,14 @@ vm_offset_t kernel_vm_end;
 
 extern vm_offset_t clean_sva, clean_eva;
 
-#define PV_FREELIST_MIN ((PAGE_SIZE / sizeof (struct pv_entry)) / 2)
-
 /*
  * Data for the pv entry allocation mechanism
  */
-static int pv_freelistcnt;
-TAILQ_HEAD (,pv_entry) pv_freelist = {0};
-static vm_offset_t pvva;
-static int npvvapg;
+vm_zone_t pvzone;
+struct vm_zone pvzone_store;
+struct vm_object pvzone_obj;
+#define NPVINIT 8192
+struct pv_entry pvinit[NPVINIT];
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -191,7 +190,6 @@ static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static unsigned * get_ptbase __P((pmap_t pmap));
 static pv_entry_t get_pv_entry __P((void));
 static void	i386_protection_init __P((void));
-static void	pmap_alloc_pv_entry __P((void));
 static void	pmap_changebit __P((vm_offset_t pa, int bit, boolean_t setem));
 
 static PMAP_INLINE int	pmap_is_managed __P((vm_offset_t pa));
@@ -475,41 +473,48 @@ pmap_init(phys_start, phys_end)
 {
 	vm_offset_t addr;
 	vm_size_t s;
-	int i, npg;
+	int i;
 
 	/*
 	 * calculate the number of pv_entries needed
 	 */
 	vm_first_phys = phys_avail[0];
 	for (i = 0; phys_avail[i + 1]; i += 2);
-	npg = (phys_avail[(i - 2) + 1] - vm_first_phys) / PAGE_SIZE;
+	pv_npg = (phys_avail[(i - 2) + 1] - vm_first_phys) / PAGE_SIZE;
 
 	/*
 	 * Allocate memory for random pmap data structures.  Includes the
 	 * pv_head_table.
 	 */
-	s = (vm_size_t) (sizeof(pv_table_t) * npg);
+	s = (vm_size_t) (sizeof(pv_table_t) * pv_npg);
 	s = round_page(s);
 
 	addr = (vm_offset_t) kmem_alloc(kernel_map, s);
 	pv_table = (pv_table_t *) addr;
-	for(i = 0; i < npg; i++) {
+	for(i = 0; i < pv_npg; i++) {
 		vm_offset_t pa;
 		TAILQ_INIT(&pv_table[i].pv_list);
 		pv_table[i].pv_list_count = 0;
 		pa = vm_first_phys + i * PAGE_SIZE;
 		pv_table[i].pv_vm_page = PHYS_TO_VM_PAGE(pa);
 	}
-	TAILQ_INIT(&pv_freelist);
 
 	/*
 	 * init the pv free list
 	 */
-	init_pv_entries(npg);
+	pvzone = &pvzone_store;
+	_zbootinit(pvzone, "PV entries", sizeof(pvinit[0]), pvinit, NPVINIT);
+
 	/*
 	 * Now it is safe to enable pv_table recording.
 	 */
 	pmap_initialized = TRUE;
+}
+
+void
+pmap_init2() {
+	_zinit(pvzone, &pvzone_obj, NULL, 0,
+		PMAP_SHPGPERPROC * maxproc + pv_npg, ZONE_INTERRUPT, 4);
 }
 
 /*
@@ -660,9 +665,9 @@ pmap_extract(pmap, va)
 	vm_offset_t rtval;
 	vm_offset_t pdirindex;
 	pdirindex = va >> PDRSHIFT;
-	if (pmap) {
+	if (pmap && (rtval = (unsigned) pmap->pm_pdir[pdirindex])) {
 		unsigned *pte;
-		if (((rtval = (unsigned) pmap->pm_pdir[pdirindex]) & PG_PS) != 0) {
+		if ((rtval & PG_PS) != 0) {
 			rtval &= ~(NBPDR - 1);
 			rtval |= va & (NBPDR - 1);
 			return rtval;
@@ -1384,7 +1389,9 @@ retry:
 		pdstack[pdstackptr] = (vm_offset_t) pmap->pm_pdir;
 		++pdstackptr;
 	} else {
-		kmem_free(kernel_map, (vm_offset_t) pmap->pm_pdir, PAGE_SIZE);
+		int pdstmp = pdstackptr - 1;
+		kmem_free(kernel_map, pdstack[pdstmp], PAGE_SIZE);
+		pdstack[pdstmp] = (vm_offset_t) pmap->pm_pdir;
 	}
 	pmap->pm_pdir = 0;
 }
@@ -1484,12 +1491,11 @@ pmap_reference(pmap)
 /*
  * free the pv_entry back to the free list
  */
-static PMAP_INLINE void
+static inline void
 free_pv_entry(pv)
 	pv_entry_t pv;
 {
-	++pv_freelistcnt;
-	TAILQ_INSERT_HEAD(&pv_freelist, pv, pv_list);
+	zfreei(pvzone, pv);
 }
 
 /*
@@ -1498,108 +1504,10 @@ free_pv_entry(pv)
  * the memory allocation is performed bypassing the malloc code
  * because of the possibility of allocations at interrupt time.
  */
-static pv_entry_t
-get_pv_entry()
+static inline pv_entry_t
+get_pv_entry(void)
 {
-	pv_entry_t tmp;
-
-	/*
-	 * get more pv_entry pages if needed
-	 */
-	if (pv_freelistcnt < PV_FREELIST_MIN || !TAILQ_FIRST(&pv_freelist)) {
-		pmap_alloc_pv_entry();
-	}
-	/*
-	 * get a pv_entry off of the free list
-	 */
-	--pv_freelistcnt;
-	tmp = TAILQ_FIRST(&pv_freelist);
-	TAILQ_REMOVE(&pv_freelist, tmp, pv_list);
-	return tmp;
-}
-
-/*
- * This *strange* allocation routine eliminates the possibility of a malloc
- * failure (*FATAL*) for a pv_entry_t data structure.
- * also -- this code is MUCH MUCH faster than the malloc equiv...
- * We really need to do the slab allocator thingie here.
- */
-static void
-pmap_alloc_pv_entry()
-{
-	/*
-	 * do we have any pre-allocated map-pages left?
-	 */
-	if (npvvapg) {
-		vm_page_t m;
-
-		/*
-		 * allocate a physical page out of the vm system
-		 */
-		m = vm_page_alloc(kernel_object,
-		    OFF_TO_IDX(pvva - vm_map_min(kernel_map)),
-		    VM_ALLOC_INTERRUPT);
-		if (m) {
-			int newentries;
-			int i;
-			pv_entry_t entry;
-
-			newentries = (PAGE_SIZE / sizeof(struct pv_entry));
-			/*
-			 * wire the page
-			 */
-			vm_page_wire(m);
-			m->flags &= ~PG_BUSY;
-			/*
-			 * let the kernel see it
-			 */
-			pmap_kenter(pvva, VM_PAGE_TO_PHYS(m));
-
-			entry = (pv_entry_t) pvva;
-			/*
-			 * update the allocation pointers
-			 */
-			pvva += PAGE_SIZE;
-			--npvvapg;
-
-			/*
-			 * free the entries into the free list
-			 */
-			for (i = 0; i < newentries; i++) {
-				free_pv_entry(entry);
-				entry++;
-			}
-		}
-	}
-	if (!TAILQ_FIRST(&pv_freelist))
-		panic("get_pv_entry: cannot get a pv_entry_t");
-}
-
-/*
- * init the pv_entry allocation system
- */
-void
-init_pv_entries(npg)
-	int npg;
-{
-	/*
-	 * Allocate enough kvm space for one entry per page, and
-	 * each process having PMAP_SHPGPERPROC pages shared with other
-	 * processes.  (The system can panic if this is too small, but also
-	 * can fail on bootup if this is too big.)
-	 * XXX The pv management mechanism needs to be fixed so that systems
-	 * with lots of shared mappings amongst lots of processes will still
-	 * work.  The fix will likely be that once we run out of pv entries
-	 * we will free other entries (and the associated mappings), with
-	 * some policy yet to be determined.
-	 */
-	npvvapg = ((PMAP_SHPGPERPROC * maxproc + npg) * sizeof(struct pv_entry)
-		+ PAGE_SIZE - 1) / PAGE_SIZE;
-	pvva = kmem_alloc_pageable(kernel_map, npvvapg * PAGE_SIZE);
-	/*
-	 * get the first batch of entries
-	 */
-	pmap_alloc_pv_entry();
+	return zalloci(pvzone);
 }
 
 /*
@@ -2614,7 +2522,8 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 		}
 
 		srcmpte = vm_page_lookup(src_pmap->pm_pteobj, ptepindex);
-		if ((srcmpte->hold_count == 0) || (srcmpte->flags & PG_BUSY))
+		if ((srcmpte == NULL) ||
+			(srcmpte->hold_count == 0) || (srcmpte->flags & PG_BUSY))
 			continue;
 
 		if (pdnxt > end_addr)
