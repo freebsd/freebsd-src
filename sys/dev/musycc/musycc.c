@@ -1424,7 +1424,7 @@ musycc_probe(device_t self)
 	}
 
 	device_set_desc_copy(self, desc);
-	return 0;
+	return BUS_PROBE_DEFAULT;
 }
 
 static int

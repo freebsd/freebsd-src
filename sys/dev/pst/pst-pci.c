@@ -55,13 +55,13 @@ iop_pci_probe(device_t dev)
     /* tested with actual hardware kindly donated by Promise */
     if (pci_get_devid(dev) == 0x19628086 && pci_get_subvendor(dev) == 0x105a) {
 	device_set_desc(dev, "Promise SuperTrak SX6000 ATA RAID controller");
-	return 0;
+	return BUS_PROBE_DEFAULT;
     } 
 
     /* support the older SuperTrak 100 as well */
     if (pci_get_devid(dev) == 0x19608086 && pci_get_subvendor(dev) == 0x105a) {
 	device_set_desc(dev, "Promise SuperTrak 100 ATA RAID controller");
-	return 0;
+	return BUS_PROBE_DEFAULT;
     } 
 
     return ENXIO;

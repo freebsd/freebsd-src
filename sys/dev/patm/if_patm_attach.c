@@ -151,7 +151,7 @@ patm_probe(device_t dev)
 		for (i = 0; devs[i].desc != NULL; i++)
 			if (pci_get_device(dev) == devs[i].devid) {
 				device_set_desc(dev, devs[i].desc);
-				return (0);
+				return (BUS_PROBE_DEFAULT);
 			}
 	}
 	return (ENXIO);
