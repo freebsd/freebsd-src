@@ -39,7 +39,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-MALLOC_DEFINE(M_ACPICA, "acpica", "ACPI CA memory pool");
+static MALLOC_DEFINE(M_ACPICA, "acpica", "ACPI CA memory pool");
 
 void *
 AcpiOsAllocate(UINT32 Size)

@@ -37,7 +37,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 
-MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
+static MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
 
 /*
  * Simple counting semaphore implemented using a mutex. (Subsequently used
