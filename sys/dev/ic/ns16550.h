@@ -133,7 +133,14 @@
 /* 16650 registers #2,[4-7].  Access enabled by LCR_EFR_ENABLE. */
 
 #define	com_efr		2	/* enhanced features register (R/W) */
+#define	EFR_AUTOCTS	0x80
+#define	EFR_AUTORTS	0x40
 #define	EFR_EFE		0x10	/* enhanced functions enable */
+
+#define	com_xon1	4	/* XON 1 character (R/W) */
+#define	com_xon2	5	/* XON 2 character (R/W) */
+#define	com_xoff1	6	/* XOFF 1 character (R/W) */
+#define	com_xoff2	7	/* XOFF 2 character (R/W) */
 
 #ifdef PC98
 /* Hardware extension mode register for RSB-2000/3000. */
