@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1.1.1 1998/03/01 23:41:02 jdp Exp $
+# $Id: Makefile,v 1.1.1.1 1998/03/09 00:33:25 jb Exp $
 #
 
 .include "../Makefile.inc0"
@@ -12,7 +12,7 @@ LDSCRIPTS=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
 		alpha.xn alpha.xr alpha.xu
 
 PROG=		ld
-BINDIR=		/usr/libexec/elf
+BINDIR=		/usr/bin
 SCRIPTDIR=	/usr/libdata/ldscripts
 SRCS=		ldgram.c eelf64alpha.c ealpha.c ldcref.c \
 		ldctor.c  ldemul.c ldexp.c ldfile.c ldlang.c \
