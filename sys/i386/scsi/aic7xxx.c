@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.32 1995/07/17 23:35:16 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.33 1995/07/31 08:25:36 gibbs Exp $
  */
 /*
  * TODO:
@@ -1308,9 +1308,7 @@ ahcintr(unit)
 					}
 #endif
 					bzero(scb, SCB_DOWN_SIZE);
-#ifdef NOT_YET
 					scb->control |= control & SCB_DISCENB;
-#endif
 					scb->flags |= SCB_SENSE;
 					sc->op_code = REQUEST_SENSE;
 					sc->byte2 =  xs->sc_link->lun << 5;
@@ -2178,10 +2176,8 @@ ahc_scsi_cmd(xs)
 
 	if(ahc->tagenable & mask)
 		scb->control |= SCB_TE;
-#ifdef NOT_YET
 	if(ahc->discenable & mask)
 		scb->control |= SCB_DISCENB;
-#endif
 	if((ahc->needwdtr & mask) && !(ahc->wdtrpending & mask))
 	{
 		scb->control |= SCB_NEEDWDTR;
