@@ -145,35 +145,8 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 struct msgbuf *msgbufp=0;
 
 long Maxmem = 0;
-long physmem;				/* Physical conventional memory. */
 
 vm_offset_t phys_avail[100];
-
-static int
-sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
-{
-	u_long val;
-
-	val = ia64_ptob(physmem);
-	return (sysctl_handle_long(oidp, &val, 0, req));
-}
-
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "LU", "");
-
-static int
-sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
-{
-	u_long val;
-
-	val = ia64_ptob(physmem - cnt.v_wire_count);
-	return (sysctl_handle_long(oidp, &val, 0, req));
-}
-
-SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "LU", "");
-
-SYSCTL_ULONG(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
