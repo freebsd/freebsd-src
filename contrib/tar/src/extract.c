@@ -114,8 +114,8 @@ extr_init (void)
   we_are_root = geteuid () == 0;
 #ifndef __FreeBSD__
   same_permissions_option += we_are_root;
-  same_owner_option += we_are_root;
 #endif
+  same_owner_option += we_are_root;
   xalloc_fail_func = extract_finish;
 
   /* Option -p clears the kernel umask, so it does not affect proper
