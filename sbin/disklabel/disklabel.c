@@ -225,7 +225,7 @@ main(argc, argv)
 
 	dkname = argv[0];
 	if (dkname[0] != '/') {
-		(void)sprintf(np, "%sr%s%c", _PATH_DEV, dkname, 'a' + RAW_PART);
+		(void)sprintf(np, "%s%s%c", _PATH_DEV, dkname, 'a' + RAW_PART);
 		specname = np;
 		np += strlen(specname) + 1;
 	} else
