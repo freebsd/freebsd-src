@@ -112,12 +112,12 @@ acl_set_permset(acl_entry_t entry_d, acl_permset_t permset_d)
 
 	if (!entry_d) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	entry_d->ae_perm = *permset_d;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -129,7 +129,7 @@ acl_set_qualifier(acl_entry_t entry_d, const void *tag_qualifier_p)
 {
 	if (!entry_d || !tag_qualifier_p) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	switch(entry_d->ae_tag) {
@@ -139,10 +139,10 @@ acl_set_qualifier(acl_entry_t entry_d, const void *tag_qualifier_p)
 		break;
 	default:
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -153,9 +153,9 @@ int
 acl_set_tag_type(acl_entry_t entry_d, acl_tag_t tag_type)
 {
 
-	if (!entry_d) {
+	if (entry_d == NULL) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	switch(tag_type) {
@@ -166,9 +166,9 @@ acl_set_tag_type(acl_entry_t entry_d, acl_tag_t tag_type)
 	case ACL_MASK:
 	case ACL_OTHER:
 		entry_d->ae_tag = tag_type;
-		return 0;
+		return (0);
 	}
 
 	errno = EINVAL;
-	return -1;
+	return (-1);
 }

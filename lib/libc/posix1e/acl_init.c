@@ -65,11 +65,11 @@ acl_dup(acl_t acl)
 	acl_t	acl_new;
 
 	acl_new = acl_init(ACL_MAX_ENTRIES);
-	if (!acl_new)
-		return NULL;
-	*acl_new = *acl;
-	acl->ats_cur_entry = 0;
-	acl_new->ats_cur_entry = 0;
+	if (acl_new != NULL) {
+		*acl_new = *acl;
+		acl->ats_cur_entry = 0;
+		acl_new->ats_cur_entry = 0;
+	}
 
-	return(acl_new);
+	return (acl_new);
 }
