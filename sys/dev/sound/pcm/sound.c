@@ -166,7 +166,7 @@ sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 		if (unit < 0 || unit > devclass_get_maxunit(pcm_devclass))
 			return EINVAL;
 		d = devclass_get_softc(pcm_devclass, unit);
-		if (d == NULL || d->chancount == 0)
+		if (d == NULL || SLIST_EMPTY(&d->channels))
 			return EINVAL;
 		snd_unit = unit;
 	}
@@ -371,7 +371,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->dev = dev;
 	d->devinfo = devinfo;
 	d->chancount = 0;
-	d->defaultchan = 0;
 	d->inprog = 0;
 
 	if (((numplay == 0) || (numrec == 0)) && (numplay != numrec))
@@ -428,7 +427,7 @@ pcm_unregister(device_t dev)
 	d->sysctl_tree_top = NULL;
 	sysctl_ctx_free(&d->sysctl_tree);
 #endif
-	while (d->chancount > 0)
+	while (!SLIST_EMPTY(&d->channels))
 		pcm_killchan(dev);
 
 	chn_kill(d->fakechan);

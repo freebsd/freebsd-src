@@ -147,7 +147,7 @@ sndstat_prepare(struct sbuf *s)
 		snd_mtxlock(d->lock);
 		dev = devclass_get_device(pcm_devclass, i);
 		sbuf_printf(s, "pcm%d: <%s> %s", i, device_get_desc(dev), d->status);
-		if (d->chancount > 0) {
+		if (!SLIST_EMPTY(&d->channels)) {
 			pc = rc = vc = 0;
 			SLIST_FOREACH(sce, &d->channels, link) {
 				c = sce->channel;
