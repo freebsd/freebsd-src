@@ -397,14 +397,13 @@ vm_pageout_flush(mc, count, flags)
 	    (flags | ((object == kernel_object) ? VM_PAGER_PUT_SYNC : 0)),
 	    pageout_status);
 
+	VM_OBJECT_LOCK(object);
 	vm_page_lock_queues();
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
-			numpagedout++;
-			break;
 		case VM_PAGER_PEND:
 			numpagedout++;
 			break;
@@ -443,6 +442,7 @@ vm_pageout_flush(mc, count, flags)
 				pmap_page_protect(mt, VM_PROT_READ);
 		}
 	}
+	VM_OBJECT_UNLOCK(object);
 	return numpagedout;
 }
 
