@@ -620,26 +620,6 @@ trap(int vector, int imm, struct trapframe *framep)
 			 */
 			rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 		}
-				
-		/*
-		 * If this was a stack access we keep track of the
-		 * maximum accessed stack size.  Also, if vm_fault
-		 * gets a protection failure it is due to accessing
-		 * the stack region outside the current limit and
-		 * we need to reflect that as an access error.
-		 */
-		if (map != kernel_map &&
-		    (caddr_t)va >= vm->vm_maxsaddr
-		    && (caddr_t)va < (caddr_t)USRSTACK) {
-			if (rv == KERN_SUCCESS) {
-				unsigned nss;
-	
-				nss = ia64_btop(round_page(USRSTACK - va));
-				if (nss > vm->vm_ssize)
-					vm->vm_ssize = nss;
-			} else if (rv == KERN_PROTECTION_FAILURE)
-				rv = KERN_INVALID_ADDRESS;
-		}
 		mtx_unlock(&Giant);
 		if (rv == KERN_SUCCESS)
 			goto out;
