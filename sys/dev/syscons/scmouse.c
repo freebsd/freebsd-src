@@ -669,8 +669,6 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    return 0;
 
 	case MOUSE_SHOW:
-	    if (!ISMOUSEAVAIL(scp->sc->adp->va_flags))
-		return EINVAL;
 	    s = spltty();
 	    if (!(scp->sc->flags & SC_MOUSE_ENABLED)) {
 		scp->sc->flags |= SC_MOUSE_ENABLED;

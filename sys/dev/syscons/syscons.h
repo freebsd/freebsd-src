@@ -56,6 +56,20 @@
 #undef SC_PIXEL_MODE
 #endif
 
+/* Always load font data if the pixel (raster text) mode is to be used. */
+#ifdef SC_PIXEL_MODE
+#undef SC_NO_FONT_LOADING
+#endif
+
+/* 
+ * If font data is not available, the `arrow'-shaped mouse cursor cannot
+ * be drawn.  Use the alternative drawing method.
+ */
+#ifdef SC_NO_FONT_LOADING
+#undef SC_ALT_MOUSE_IMAGE
+#define SC_ALT_MOUSE_IMAGE 1
+#endif
+
 #ifndef SC_CURSOR_CHAR
 #define SC_CURSOR_CHAR	(0x07)
 #endif
@@ -456,15 +470,9 @@ typedef struct {
 			  == PIXEL_MODE)
 #define ISUNKNOWNSC(scp) ((scp)->status & UNKNOWN_MODE)
 
-#ifndef ISMOUSEAVAIL
-#ifdef SC_ALT_MOUSE_IMAGE
-#define ISMOUSEAVAIL(af) (1)
-#else
 #define ISMOUSEAVAIL(af) ((af) & V_ADP_FONT)
-#endif /* SC_ALT_MOUSE_IMAGE */
 #define ISFONTAVAIL(af)	((af) & V_ADP_FONT)
 #define ISPALAVAIL(af)	((af) & V_ADP_PALETTE)
-#endif /* ISMOUSEAVAIL */
 
 #define ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
