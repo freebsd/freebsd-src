@@ -200,14 +200,16 @@ atalk_print2(struct sockaddr *sa, struct sockaddr *mask, int what)
   sa2 = (struct sockaddr *)&thesockaddr;
 
   thesockaddr.sat_addr.s_net = sat1->sat_addr.s_net & sat2->sat_addr.s_net;
-  n = snprintf(buf, sizeof(buf), "%s", atalk_print(sa2, 1 |(what & 8)));
+  snprintf(buf, sizeof(buf), "%s", atalk_print(sa2, 1 |(what & 8)));
   if(sat2->sat_addr.s_net != 0xFFFF) {
     thesockaddr.sat_addr.s_net = sat1->sat_addr.s_net | ~sat2->sat_addr.s_net;
-    n += snprintf(buf + n, sizeof(buf) - n,
-		"-%s", atalk_print(sa2, 1 |(what & 8)));
+    n = strlen(buf);
+    snprintf(buf + n, sizeof(buf) - n, "-%s", atalk_print(sa2, 1 |(what & 8)));
   }
-  if(what & 2)
-  n += snprintf(buf + n, sizeof(buf) - n, ".%s", atalk_print(sa, what&(~1)));
+  if(what & 2) {
+    n = strlen(buf);
+    snprintf(buf + n, sizeof(buf) - n, ".%s", atalk_print(sa, what & (~1)));
+  }
   return(buf);
 }
 
