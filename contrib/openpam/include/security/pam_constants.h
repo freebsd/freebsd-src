@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_constants.h#19 $
+ * $P4: //depot/projects/openpam/include/security/pam_constants.h#20 $
  */
 
 #ifndef _PAM_CONSTANTS_H_INCLUDED
@@ -97,7 +97,8 @@ enum {
  * XSSO 5.4
  */
 enum {
-	PAM_SILENT			= 0x80000000,
+	/* some compilers promote 0x8000000 to long */
+	PAM_SILENT			= (-0x7fffffff - 1),
 	PAM_DISALLOW_NULL_AUTHTOK	= 0x1,
 	PAM_ESTABLISH_CRED		= 0x1,
 	PAM_DELETE_CRED			= 0x2,
