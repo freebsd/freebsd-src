@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.133 1998/09/22 21:42:46 ken Exp $
+**  $Id: ncr.c,v 1.134 1998/09/26 14:29:59 dfr Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.133 1998/09/22 21:42:46 ken Exp $\n";
+	"\n$Id: ncr.c,v 1.134 1998/09/26 14:29:59 dfr Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3863,6 +3863,10 @@ ncr_attach (pcici_t config_id, int unit)
 		return;
 	}
 	
+#ifdef __alpha__
+	alpha_register_pci_scsi(config_id->bus, config_id->slot, np->sim);
+#endif	
+
 	if (xpt_create_path(&np->path, /*periph*/NULL,
 			    cam_sim_path(np->sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
