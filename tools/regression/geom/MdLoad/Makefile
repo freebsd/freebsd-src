@@ -7,7 +7,7 @@ LDADD=	-lsbuf -lbsdxml
 NOMAN=	sorry
 
 
-WARNS=4
+WARNS?=	4
 .include "bsd.prog.mk"
 
 test:	${PROG}

@@ -7,7 +7,7 @@ SRCS+=	subr_sbuf.c
 .PATH:	../../../../sys/kern
 
 NOOBJ=	youbet
-WARNS=	5
+WARNS?=	5
 CFLAGS+=	 -g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -static
 # Uncomment for ElectricFence
 #LDADD += -lefence -L/usr/local/lib
