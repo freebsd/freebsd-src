@@ -35,7 +35,7 @@
 .\"
 .\"     @(#)strftime.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd June 4, 1993
+.Dd October 4, 1997
 .Dt STRFTIME 3
 .Os
 .Sh NAME
@@ -113,6 +113,14 @@ representations.
 .It Cm %e
 is replaced by the day of month as a decimal number (1-31); single
 digits are preceded by a blank.
+.It Cm \&%G
+is replaced by a year as a decimal number with century.
+This year is the one that contains the greater part of
+the week (Monday as the first day of the week).
+.It Cm %g
+is replaced by the same year as in
+.Dq Li %G ,
+but as a decimal number without century (00-99).
 .It Cm \&%H
 is replaced by the hour (24-hour clock) as a decimal number (00-23).
 .It Cm %h
@@ -164,9 +172,10 @@ the week) as a decimal number (00-53).
 is replaced by the weekday (Monday as the first day of the week)
 as a decimal number (1-7).
 .It Cm \&%V
-is replaced by the week number of the year (the first
-Monday as the first day of week 1) as a
-decimal number (01-53).
+is replaced by the week number of the year (Monday as the first day of
+the week) as a decimal number (01-53).  If the week containing January
+1 has four or more days in the new year, then it is week 1; otherwise
+it is the last week of the previous year, and the next week is week 1.
 .It Cm %v
 is equivalent to
 .Dq Li %e-%b-%Y .
@@ -205,9 +214,34 @@ The
 .Fn strftime
 function
 conforms to
-.St -ansiC .
-The
-.Ql %s
-conversion specification is an extension.
+.St -ansiC
+with a lot of extensions including
+.Ql %C ,
+.Ql %D ,
+.Ql %E* ,
+.Ql %e ,
+.Ql %G ,
+.Ql %g ,
+.Ql %h ,
+.Ql %k ,
+.Ql %l ,
+.Ql %n ,
+.Ql %O* ,
+.Ql \&%R ,
+.Ql %r ,
+.Ql %s ,
+.Ql \&%T ,
+.Ql %t ,
+.Ql %u ,
+.Ql \&%V ,
+.Ql %+ .
+
+The peculiar week number and year occuring in the replacements of
+.Ql %G ,
+.Ql %g
+and
+.Ql \&%V
+are defined in ISO 8601: 1988.
+
 .Sh BUGS
 There is no conversion specification for the phase of the moon.
