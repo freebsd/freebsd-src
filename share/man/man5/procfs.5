@@ -86,9 +86,11 @@ The type of the executable referenced by the
 .Pa file
 entry.
 .It Pa file
-A reference to the vnode from which the process text was read.
+A symbolic link to the file from which the process text was read.
 This can be used to gain access to the process' symbol table,
 or to start another copy of the process.
+If the file cannot be found, the link target is
+.Ql unknown .
 .It Pa fpregs
 The floating point registers as defined by
 .Dv "struct fpregs"
