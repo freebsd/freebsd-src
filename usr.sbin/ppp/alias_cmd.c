@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.18 1998/09/17 00:45:25 brian Exp $
+ *	$Id: alias_cmd.c,v 1.19 1999/01/28 01:56:30 brian Exp $
  */
 
 #include <sys/param.h>
@@ -215,4 +215,27 @@ StrToAddrAndPort(const char *str, struct in_addr *addr, u_short *port, const cha
     return -1;
 
   return StrToPort(colon+1, port, proto);
+}
+
+int
+alias_ProxyRule(struct cmdargs const *arg)
+{
+  char cmd[LINE_LEN];
+  int f, pos;
+  size_t len;
+
+  if (arg->argn >= arg->argc)
+    return -1;
+
+  for (f = arg->argn, pos = 0; f < arg->argc; f++) {
+    len = strlen(arg->argv[f]);
+    if (sizeof cmd - pos < len + (f ? 1 : 0))
+      break;
+    if (f)
+      cmd[pos++] = ' ';
+    strcpy(cmd + pos, arg->argv[f]);
+    pos += len;
+  }
+
+  return PacketAliasProxyRule(cmd);
 }
