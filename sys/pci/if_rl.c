@@ -988,8 +988,9 @@ rl_attach(dev)
 	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030 ||
 	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139 ||
 	    rl_did == RT_DEVICEID_8138 || rl_did == DLINK_DEVICEID_530TXPLUS ||
-	    rl_did == DLINK_DEVICEID_690TXD || rl_did == COREGA_DEVICEID_CBTXD ||
-	    rl_did == COREGA_DEVICEID_CBTXD)
+	    rl_did == DLINK_DEVICEID_690TXD ||
+	    rl_did == COREGA_DEVICEID_FETHERCBTXD ||
+	    rl_did == COREGA_DEVICEID_FETHERIICBTXD)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
