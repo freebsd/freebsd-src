@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.144 2001/10/27 08:05:21 ichiro Exp $ */
+/* $NetBSD: pcmciadevs,v 1.145 2001/11/08 17:05:42 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
 
 /*-
@@ -330,6 +330,7 @@ product USROBOTICS WORLDPORT144	0x3330 US Robotics WorldPort 14.4 Modem
 product XIRCOM CE		0x0108 Xircom CreditCard Ethernet
 product XIRCOM CE3		0x010a Xircom CreditCard 10/100 Ethernet
 product XIRCOM CE2		0x010b Xircom CreditCard Ethernet II
+product XIRCOM XE2000		0x0153 Xircom XE2000 10/100 Ethernet
 product XIRCOM CNW_801		0x0801 Xircom CreditCard Netwave (Canada)
 product XIRCOM CNW_802		0x0802 Xircom CreditCard Netwave (US)
 product XIRCOM CT2		0x1101 Xircom CreditCard Token Ring II
