@@ -148,14 +148,14 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize);
 		if (error) {
 			secsize = 512;
-			printf("g_bsd_taste: error %d Sectors are %d bytes\n",
+			printf("g_dev_taste: error %d Sectors are %d bytes\n",
 			    error, secsize);
 		}
 		j = sizeof mediasize;
 		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
 		if (error) {
 			mediasize = 0;
-			printf("g_error %d Mediasize is %lld bytes\n",
+			printf("g_dev_taste: %d Mediasize is %lld bytes\n",
 			    error, (long long)mediasize);
 		}
 		g_topology_lock();
