@@ -494,7 +494,7 @@ AcpiUtGetRegionName (
         return ("InvalidSpaceId");
     }
 
-    return ((char *) AcpiGbl_RegionTypes[SpaceId]);
+    return ((char *) (uintptr_t) AcpiGbl_RegionTypes[SpaceId]);
 }
 
 
@@ -532,7 +532,7 @@ AcpiUtGetEventName (
         return ("InvalidEventID");
     }
 
-    return ((char *) AcpiGbl_EventTypes[EventId]);
+    return ((char *) (uintptr_t) AcpiGbl_EventTypes[EventId]);
 }
 
 
@@ -602,10 +602,10 @@ AcpiUtGetTypeName (
 
     if (Type > ACPI_TYPE_INVALID)
     {
-        return ((char *) AcpiGbl_BadType);
+        return ((char *) (uintptr_t) AcpiGbl_BadType);
     }
 
-    return ((char *) AcpiGbl_NsTypeNames[Type]);
+    return ((char *) (uintptr_t) AcpiGbl_NsTypeNames[Type]);
 }
 
 
@@ -722,10 +722,10 @@ AcpiUtGetDescriptorName (
 
     if (ACPI_GET_DESCRIPTOR_TYPE (Object) > ACPI_DESC_TYPE_MAX)
     {
-        return ((char *) AcpiGbl_BadType);
+        return ((char *) (uintptr_t) AcpiGbl_BadType);
     }
 
-    return ((char *) AcpiGbl_DescTypeNames[ACPI_GET_DESCRIPTOR_TYPE (Object)]);
+    return ((char *) (uintptr_t) AcpiGbl_DescTypeNames[ACPI_GET_DESCRIPTOR_TYPE (Object)]);
 
 }
 
