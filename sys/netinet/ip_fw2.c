@@ -1718,6 +1718,14 @@ ipfw_chk(struct ip_fw_args *args)
 	int ugid_lookup = 0;
 
 	/*
+	 * divinput_flags	If non-zero, set to the IP_FW_DIVERT_*_FLAG
+	 *	associated with a packet input on a divert socket.  This
+	 *	will allow to distinguish traffic and its direction when
+	 *	it originates from a divert socket.
+	 */
+	u_int divinput_flags = 0;
+
+	/*
 	 * oif | args->oif	If NULL, ipfw_chk has been called on the
 	 *	inbound path (ether_input, bdg_forward, ip_input).
 	 *	If non-NULL, ipfw_chk has been called on the outbound path
@@ -1893,8 +1901,11 @@ after_ip_checks:
 		}
 	}
 	/* reset divert rule to avoid confusion later */
-	if (mtag)
+	if (mtag) {
+		divinput_flags = divert_info(mtag) &
+		    (IP_FW_DIVERT_OUTPUT_FLAG | IP_FW_DIVERT_LOOPBACK_FLAG);
 		m_tag_delete(m, mtag);
+	}
 
 	/*
 	 * Now scan the rules, and parse microinstructions for each rule.
@@ -2025,6 +2036,13 @@ check_body:
 
 			case O_LAYER2:
 				match = (args->eh != NULL);
+				break;
+
+			case O_DIVERTED:
+				match = (cmd->arg1 & 1 && divinput_flags &
+				    IP_FW_DIVERT_LOOPBACK_FLAG) ||
+					(cmd->arg1 & 2 && divinput_flags &
+				    IP_FW_DIVERT_OUTPUT_FLAG);
 				break;
 
 			case O_PROTO:
@@ -2912,6 +2930,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_LAYER2:
 		case O_IN:
 		case O_FRAG:
+		case O_DIVERTED:
 		case O_IPOPT:
 		case O_IPTOS:
 		case O_IPPRECEDENCE:
