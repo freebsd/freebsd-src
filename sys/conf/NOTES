@@ -563,7 +563,7 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  The `bpf' device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
-#  simultaneous BPF clients programs runnable.
+#  simultaneous BPF clients programs runnable.  DHCP requires bpf.
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
 #  included for testing purposes.  This shows up as the `ds' interface.
