@@ -30,7 +30,6 @@
 #include <vm/vm_extern.h>
 
 static void	physwakeup __P((struct buf *bp));
-static struct buf * phygetvpbuf(dev_t dev, int resid);
 
 int
 physread(dev_t dev, struct uio *uio, int ioflag)
@@ -67,7 +66,7 @@ physio(bp, dev, rw, minp, uio)
 	PHOLD(curproc);
 
 	/* create and build a buffer header for a transfer */
-	bpa = (struct buf *)phygetvpbuf(dev, uio->uio_resid);
+	bpa = getpbuf(NULL);
 	if (!bp_alloc)
 		BUF_LOCK(bp, LK_EXCLUSIVE);
 	else
@@ -193,23 +192,6 @@ minphys(bp)
 	}
 
 	return bp->b_bcount;
-}
-
-struct buf *
-phygetvpbuf(dev_t dev, int resid)
-{
-	struct cdevsw *bdsw;
-	int maxio;
-
-	bdsw = devsw(dev);
-	if ((bdsw == NULL) || (bdsw->d_bmaj == -1))
-		return getpbuf(NULL);
-
-	maxio = bdsw->d_maxio;
-	if (resid > maxio)
-		resid = maxio;
-
-	return getpbuf(NULL);
 }
 
 static void
