@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.22 1997/02/18 04:39:15 jkh Exp $
+ * $Id: menus.c,v 1.89.2.23 1997/02/27 12:56:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -222,6 +222,7 @@ DMenu MenuIndex = {
       { "Dists, Kern Developer", "Select kernel developer's distribution.", checkDistKernDeveloper, distSetKernDeveloper },
       { "Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { "Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
+      { "Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
       { "Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
       { "Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "readme" },
@@ -231,7 +232,6 @@ DMenu MenuIndex = {
       { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
-      { "Extract",		"Extract selected distributions from media.",		NULL, distExtractAll },
       { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
@@ -650,10 +650,10 @@ DMenu MenuDistributions = {
 	checkDistXUser,		distSetXUser },
       { "6 Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
-      { "7 All",		"All sources, binaries and XFree86 binaries",
-	checkDistEverything,	distSetEverything },
-      { "8 Custom",		"Specify your own distribution set",
+      { "7 Custom",		"Specify your own distribution set",
 	NULL,			dmenuSubmenu, NULL, &MenuSubDistributions, '>', '>', '>' },
+      { "8 All",		"All sources, binaries and XFree86 binaries",
+	checkDistEverything,	distSetEverything },
       { "9 Clear",		"Reset selected distribution list to nothing",
 	NULL,			distReset, NULL, NULL, ' ', ' ', ' ' },
       { "0 Exit",		"Exit this menu (returning to previous)",
@@ -695,6 +695,8 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PROFLIBS },
       { "src",		"Sources for everything but DES",
 	srcFlagCheck,	distSetSrc },
+      { "ports",	"The FreeBSD Ports collection",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
       { "XFree86",	"The XFree86 3.2 distribution",
 	x11FlagCheck,	distSetXF86 },
       { "All",		"All sources, binaries and XFree86 binaries",
@@ -1001,7 +1003,6 @@ DMenu MenuInstallCustom = {
       { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
       { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
-      { "7 Extract",		"Just do distribution extract step",	NULL, distExtractAll },
       { "0 Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
       { NULL } },
 };
@@ -1019,8 +1020,8 @@ DMenu MenuMBRType = {
     "one, select \"standard\".  If you would prefer your Master Boot\n"
     "Record to remain untouched then select \"None\".\n\n"
     "  NOTE:  PC-DOS users will almost certainly require \"None\"!",
-    "Press F1 to read the installation guide",
-    "install",
+    "Press F1 to read about drive setup",
+    "drives",
     { { "BootMgr",	"Install the FreeBSD Boot Manager (\"Booteasy\")",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
       { "Standard",	"Install a standard MBR (no boot manager)",
@@ -1062,6 +1063,8 @@ DMenu MenuConfigure = {
 	NULL, docBrowser },
       { "B XFree86",	"Configure XFree86",
 	NULL, configXFree86 },
+      { "D Distributions", "Install additional distribution sets",
+	NULL, distExtractAll },
       { "L Label",	"The disk Label editor",
 	NULL, diskLabelEditor },
       { "P Partition",	"The disk Partition Editor",

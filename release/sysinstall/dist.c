@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.17 1997/01/29 03:30:46 jkh Exp $
+ * $Id: dist.c,v 1.73.2.18 1997/02/17 04:56:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,6 +75,7 @@ static Distribution DistTable[] = {
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
+{ "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "XF8632",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
@@ -645,7 +646,12 @@ distExtractAll(dialogMenuItem *self)
     char buf[512];
 
     /* paranoia */
-    if (!Dists || !mediaVerify() || !mediaDevice->init(mediaDevice))
+    if (!Dists) {
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+    if (!mediaVerify() || !mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
 
     dialog_clear_norefresh();
@@ -667,3 +673,5 @@ distExtractAll(dialogMenuItem *self)
     }
     return DITEM_SUCCESS;
 }
+
+    
