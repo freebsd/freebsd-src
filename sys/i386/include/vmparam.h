@@ -72,13 +72,6 @@
 #define USRTEXT		(1*PAGE_SIZE)		/* base of user text XXX bogus */
 
 /*
- * Size of the Shared Memory Pages page table.
- */
-#ifndef	SHMMAXPGS
-#define	SHMMAXPGS	1024		/* XXX until we have more kmap space */
-#endif
-
-/*
  * The time for a process to be blocked before being very swappable.
  * This is a number of seconds which the system takes as being a non-trivial
  * amount of real time.  You probably shouldn't change this;
