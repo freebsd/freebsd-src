@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.17 1996/11/14 16:24:23 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.18 1997/03/11 09:29:36 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -107,7 +107,6 @@ ze0     300     5       n/a     d8000   IBM/National Semiconductor
                                         PCMCIA Ethernet Controller
 zp0     300     10      n/a     d8000   3Com 3c589 Etherlink III
                                         PCMCIA Ethernet Controller
-                                        (NOT including the 3c589D!)
 --- End of table ---
 
 
@@ -299,16 +298,11 @@ Q: FreeBSD claims to support the 3Com PCMCIA card, but my card isn't
 
 A: There are a couple of possible problems.  First of all, FreeBSD does
    not support multi-function cards, so if you have a combo
-   ethernet/modem card, it won't work.  Secondly, 3Com's most recent
-   version of the 3C589, the 'D' revision is not supported by the
-   GENERIC kernel.  3Com changed the card in a manner that we can no
-   longer support it in the default driver (* See below).
-       Assuming you have an older 3C589 card, then this card is
-   supported and will work in FreeBSD.  The driver was written just like
-   all of the other drivers in FreeBSD, and depend on the card's own
-   configuration data stored in NVRAM to work.  You must correctly
-   configure FreeBSD's driver to match the IRQ, port, and IOMEM stored
-   in NVRAM.
+   ethernet/modem card (such as the 3C562), it won't work.  The
+   default driver for the 3C589 card was written just like all of the
+   other drivers in FreeBSD, and depend on the card's own configuration
+   data stored in NVRAM to work.  You must correctly configure FreeBSD's
+   driver to match the IRQ, port, and IOMEM stored in NVRAM.
        Unfortunately, the only program capable of reading them is the
    3COM supplied DOS program.  This program must be run on a absolutely
    clean system (no other drivers must be running), and the program will
@@ -318,12 +312,6 @@ A: There are a couple of possible problems.  First of all, FreeBSD does
    3COM).  The first two can be set in the program, the third is
    un-settable, and can only be read.  Once you have these values, set
    them in UserConfig and your card will be recognized.
-
-   * The D revision is supported in new PCMCIA generic code written for
-     FreeBSD, but there is little/no documentation written on how to set
-     it up yet.  Hopefully in the next release of FreeBSD the new code
-     will be better supported, which will add support for almost all
-     PCMCIA cards.
 
 Q: FreeBSD finds my PCMCIA network card, but no packets appear to
    be sent even though it claims to be working.
