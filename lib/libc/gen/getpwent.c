@@ -231,6 +231,8 @@ setpassent(stayopen)
 	_pw_keynum = 0;
 #ifdef YP
 	_pw_stepping_yp = 0;
+	if (stayopen)
+		setgroupent(1);
 #endif
 	_pw_stayopen = stayopen;
 	return(1);
@@ -429,7 +431,6 @@ grpagain:
 					gr->gr_mem++;
 					return(rv);
 				} else {
-					endgrent();
 					latch = 0;
 					_pw_stepping_yp = 0;
 					gr = NULL;
@@ -496,14 +497,11 @@ ingr(grp, name)
 		return(0);
 
 	while(*gr->gr_mem) {
-		if (!strcmp(*gr->gr_mem, name)) {
-			endgrent();
+		if (!strcmp(*gr->gr_mem, name))
 			return(1);
-		}
 		gr->gr_mem++;
 	}
 
-	endgrent();
 	return(0);
 }
 
