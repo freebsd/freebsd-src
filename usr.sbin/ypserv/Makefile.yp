@@ -116,7 +116,7 @@ MASTER	  = $(MASTER_PASSWD)
 YPSERVERS = $(YPDIR)/ypservers	# List of all NIS servers for a domain
 PUBLICKEY = $(YPSRCDIR)/publickey
 NETID     = $(YPSRCDIR)/netid
-AMDHOST   = $(YPSRCDIR)/amd.host
+AMDHOST   = $(YPSRCDIR)/amd.map
 
 # List of maps that are always built.
 # If you want to omit some of them, feel free to comment
@@ -160,7 +160,7 @@ PUBLICKEY= /dev/null
 .endif
 
 .if exists($(AMDHOST))
-TARGETS+= amd.host
+TARGETS+= amd.map
 .else
 AMDHOST= /dev/null
 .endif
@@ -567,7 +567,7 @@ master.passwd.byuid: $(MASTER)
 .endif
 
 
-amd.host: $(AMDHOST)
+amd.map: $(AMDHOST)
 	@echo "Updating $@..."
 	$(CAT) $(AMDHOST) | \
 	$(AWK) '$$1 !~ "^#.*"  { \
