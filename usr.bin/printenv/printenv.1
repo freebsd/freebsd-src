@@ -33,10 +33,10 @@
 .\"
 .\"	@(#)printenv.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
-
+.\"
 .Dd June 6, 1993
 .Dt PRINTENV 1
-.Os BSD 3
+.Os
 .Sh NAME
 .Nm printenv , env
 .Nd print out the environment, set and print environment
@@ -46,12 +46,13 @@
 .Nm env
 .Op Fl
 .Op Fl i
-.Op Ar name=value ...\&
+.Op Ar name Ns = Ns Ar value ...
 .Op Ar command
 .Sh DESCRIPTION
 .Nm Printenv
 prints out the names and values of the variables in the environment,
-with one name/value pair per line.  If
+with one name/value pair per line.
+If
 .Ar name
 is specified, only
 its value is printed.
@@ -73,8 +74,9 @@ manual page.
 executes
 .Ar command
 after modifying the environment as
-specified on the command line.  The option
-.Ar name=value
+specified on the command line.
+The option
+.Ar name Ns = Ns Ar value
 specifies
 an environment variable,
 .Ar name  ,
@@ -104,13 +106,13 @@ of the variables in the environment, with one name/value pair per line.
 .Pp
 .Nm env
 is sometimes useful with the
-.Qq #!
+.Dq Li #!
 construct (see
 .Xr execve 2 ) .
 The only difference between
-.Qq #!/usr/local/bin/foo
+.Dq Li #!/usr/local/bin/foo
 and
-.Qq #!/usr/bin/env /usr/local/bin/foo
+.Dq Li "#!/usr/bin/env\ /usr/local/bin/foo"
 is that the latter works even if
 .Pa /usr/local/bin/foo
 is itself interpreted.
