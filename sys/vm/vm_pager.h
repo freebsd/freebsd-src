@@ -119,17 +119,13 @@ vm_pager_get_pages(
 	int count,
 	int reqpage
 ) {
-	int is_object_locked;
 	int r;
 
-	if (!(is_object_locked = VM_OBJECT_LOCKED(object)))
-		VM_OBJECT_LOCK(object);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage);
 	if (r == VM_PAGER_OK && m[reqpage]->valid != VM_PAGE_BITS_ALL) {
 		vm_page_zero_invalid(m[reqpage], TRUE);
 	}
-	if (!is_object_locked)
-		VM_OBJECT_UNLOCK(object);
 	return (r);
 }
 
