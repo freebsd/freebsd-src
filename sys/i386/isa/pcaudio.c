@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.20 1995/11/30 05:58:53 julian Exp $
+ *	$Id: pcaudio.c,v 1.21 1995/12/01 23:09:20 julian Exp $
  */
 
 #include "pca.h"
@@ -39,6 +39,7 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/devconf.h>
+#include <sys/kernel.h>
 
 #include <machine/clock.h>
 #include <machine/pcaudioio.h>
@@ -52,11 +53,6 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#endif /* JREMOD */
-#define CDEV_MAJOR 24
 
 #define BUF_SIZE 	8192
 #define SAMPLE_RATE	8000
@@ -85,6 +81,8 @@ static char buffer1[BUF_SIZE];
 static char buffer2[BUF_SIZE];
 static char volume_table[256];
 
+static	void	*pca_devfs_token;
+static	void	*pcac_devfs_token;
 static int pca_sleep = 0;
 static int pca_initialized = 0;
 
@@ -95,6 +93,18 @@ int pcaattach(struct isa_device *dvp);
 struct	isa_driver pcadriver = {
 	pcaprobe, pcaattach, "pca",
 };
+
+static	d_open_t	pcaopen;
+static	d_close_t	pcaclose;
+static	d_write_t	pcawrite;
+static	d_ioctl_t	pcaioctl;
+static	d_select_t	pcaselect;
+
+#define CDEV_MAJOR 24
+struct cdevsw pca_cdevsw = 
+ 	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
+ 	  pcaioctl,     nostop,         nullreset,      nodevtotty,/* pcaudio */
+ 	  pcaselect,	nommap,		NULL,	"pca",	NULL,	-1 };
 
 
 inline void conv(const void *table, void *buff, unsigned long n)
@@ -250,17 +260,6 @@ pca_registerdev(struct isa_device *id)
 	dev_attach(&kdc_pca[id->id_unit]);
 }
 
-#ifdef	DEVFS
-
-void pcadevfs_init(caddr_t data) /* data not used */
-{
-  void * x;
-/*            path	name		devsw   minor	type   uid gid perm*/
-   x=devfs_add_devsw("/",	"pcaudio",	CDEV_MAJOR, 0,	DV_CHR, 0,  0, 0666);
-   x=devfs_add_devsw("/",	"pcaudioctl",	CDEV_MAJOR, 128,	DV_CHR, 0,  0, 0666);
-}
-#endif /*DEVFS*/
-
 
 int
 pcaattach(struct isa_device *dvp)
@@ -269,14 +268,18 @@ pcaattach(struct isa_device *dvp)
 	pca_init();
 	pca_registerdev(dvp);
 #ifdef DEVFS
-	pcadevfs_init(NULL);
+/*            path	name		devsw   minor	type   uid gid perm*/
+   pca_devfs_token = devfs_add_devsw("/", "pcaudio", &pca_cdevsw, 0,
+			DV_CHR, 0,  0, 0666);
+   pcac_devfs_token = devfs_add_devsw("/", "pcaudioctl", &pca_cdevsw, 128,
+			DV_CHR, 0,  0, 0666);
 #endif /*DEVFS*/
 
 	return 1;
 }
 
 
-int
+static	int
 pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	/* audioctl device can always be opened */
@@ -304,7 +307,7 @@ pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 
-int
+static	int
 pcaclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	/* audioctl device can always be closed */
@@ -320,7 +323,7 @@ pcaclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 
-int
+static	int
 pcawrite(dev_t dev, struct uio *uio, int flag)
 {
 	int count, error, which;
@@ -364,7 +367,7 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 }
 
 
-int
+static	int
 pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	audio_info_t *auptr;
@@ -487,12 +490,6 @@ pcaselect(dev_t dev, int rw, struct proc *p)
 	}
 }
 
-#ifdef JREMOD
-struct cdevsw pca_cdevsw = 
- 	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
- 	  pcaioctl,     nostop,         nullreset,      nodevtotty,/* pcaudio */
- 	  pcaselect,	nommap,		NULL };
-
 static pca_devsw_installed = 0;
 
 static void 	pca_drvinit(void *unused)
@@ -500,14 +497,13 @@ static void 	pca_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! pca_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&pca_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&pca_cdevsw, NULL);
 		pca_devsw_installed = 1;
     	}
 }
 
 SYSINIT(pcadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pca_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif

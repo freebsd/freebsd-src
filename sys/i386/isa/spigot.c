@@ -64,6 +64,10 @@ error "Can only have 1 spigot configured."
 #include	<sys/devconf.h>
 #include	<sys/errno.h>
 #include	<sys/mman.h>
+#include	<sys/conf.h>
+#ifdef DEVFS
+#include	<sys/devfsext.h>
+#endif /* DEVFS */
 
 #include	<machine/frame.h>
 #include	<machine/spigot.h>
@@ -72,13 +76,6 @@ error "Can only have 1 spigot configured."
 #include	<i386/isa/isa.h>
 #include	<i386/isa/isa_device.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 11
-#endif /*JREMOD*/
 
 struct spigot_softc {
 	u_long		flags;
@@ -86,6 +83,9 @@ struct spigot_softc {
 	struct proc	*p;
 	u_long		signal_num;
 	u_short		irq;
+#ifdef	DEVFS
+	void	*devfs_token;
+#endif
 } spigot_softc[NSPIGOT];
 
 /* flags in softc */
@@ -98,6 +98,21 @@ int	spigot_probe(struct isa_device *id);
 int	spigot_attach(struct isa_device *id);
 
 struct isa_driver	spigotdriver = {spigot_probe, spigot_attach, "spigot"};
+
+static	d_open_t	spigot_open;
+static	d_close_t	spigot_close;
+static	d_rdwr_t	spigot_rw;
+static	d_read_t	spigot_read;
+static	d_write_t	spigot_write;
+static	d_ioctl_t	spigot_ioctl;
+static	d_select_t	spigot_select;
+static	d_mmap_t	spigot_mmap;
+
+#define CDEV_MAJOR 11
+struct cdevsw spigot_cdevsw = 
+	{ spigot_open,	spigot_close,	spigot_read,	spigot_write,	/*11*/
+	  spigot_ioctl,	nostop,		nullreset,	nodevtotty,/* Spigot */
+	  spigot_select, spigot_mmap,	NULL,	"spigot",	NULL,	-1  };
 
 static struct kern_devconf kdc_spigot[NSPIGOT] = { {
 	0,			/* kdc_next -> filled in by dev_attach() */
@@ -155,17 +170,26 @@ struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 int
 spigot_attach(struct isa_device *devp)
 {
-struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
+	char	name[32];
+	int	unit;
+	struct	spigot_softc	*ss= &spigot_softc[unit = devp->id_unit];
 
-	kdc_spigot[devp->id_unit].kdc_state = DC_UNKNOWN;
+	kdc_spigot[unit].kdc_state = DC_UNKNOWN;
 
 	ss->maddr = kvtop(devp->id_maddr);
 	ss->irq = devp->id_irq;
+#ifdef DEVFS
+	sprintf(name,"spigot%d",unit);
+/*	path	name	devsw		minor	type   uid gid perm*/
+	ss->devfs_token = devfs_add_devsw( "/", name,
+					&spigot_cdevsw, unit,
+					DV_CHR, 0, 0, 0600);
+#endif
 
 	return 1;
 }
 
-int
+static	int
 spigot_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
@@ -183,7 +207,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 	return 0;
 }
 
-int
+static	int
 spigot_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
@@ -197,20 +221,20 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 	return 0;
 }
 
-int
+static	int
 spigot_write(dev_t dev, struct uio *uio, int ioflag)
 {
 	return ENXIO;
 }
 
-int
+static	int
 spigot_read(dev_t dev, struct uio *uio, int ioflag)
 {
 	return ENXIO;
 }
 
 
-int
+static	int
 spigot_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 int			error;
@@ -249,7 +273,7 @@ struct	spigot_info	*info;
 	return 0;
 }
 
-int
+static	int
 spigot_select(dev_t dev, int rw, struct proc *p)
 {
 
@@ -269,7 +293,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[unit];
 		psignal(ss->p, ss->signal_num);
 }
 
-int
+static	int
 spigot_mmap(dev_t dev, int offset, int nprot)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
@@ -286,12 +310,6 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 }
 
 
-#ifdef JREMOD
-struct cdevsw spigot_cdevsw = 
-	{ spigot_open,	spigot_close,	spigot_read,	spigot_write,	/*11*/
-	  spigot_ioctl,	nostop,		nullreset,	nodevtotty,/* Spigot */
-	  spigot_select, spigot_mmap,	NULL };
-
 static spigot_devsw_installed = 0;
 
 static void 	spigot_drvinit(void *unused)
@@ -299,23 +317,13 @@ static void 	spigot_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! spigot_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&spigot_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&spigot_cdevsw, NULL);
 		spigot_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"spigot",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(spigotdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spigot_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NSPIGOT */

@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.19 1995/11/29 10:47:57 julian Exp $
+ *    $Id: spkr.c,v 1.20 1995/11/29 14:39:59 julian Exp $
  */
 
 #include "speaker.h"
@@ -18,21 +18,29 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
+#include <sys/conf.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/timerreg.h>
 #include <machine/clock.h>
 #include <machine/speaker.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#define CDEV_MAJOR 26
-#endif /*JREMOD*/
 
 
 #ifdef	DEVFS
 #include <sys/devfsext.h>
+void	*devfs_token;
 #endif
 
+static	d_open_t	spkropen;
+static	d_close_t	spkrclose;
+static	d_write_t	spkrwrite;
+static	d_ioctl_t	spkrioctl;
+
+#define CDEV_MAJOR 26
+struct cdevsw spkr_cdevsw = 
+	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
+	  spkrioctl,    nostop,         nullreset,      nodevtotty,/* spkr */
+	  seltrue,	nommap,		NULL,	"spkr",	NULL,	-1 };
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *
@@ -569,11 +577,6 @@ struct proc	*p;
     return(EINVAL);
 }
 
-#ifdef JREMOD
-struct cdevsw spkr_cdevsw = 
-	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
-	  spkrioctl,    nostop,         nullreset,      nodevtotty,/* spkr */
-	  seltrue,	nommap,		NULL };
 
 static spkr_devsw_installed = 0;
 
@@ -582,24 +585,19 @@ static void 	spkr_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! spkr_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&spkr_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&spkr_cdevsw, NULL);
 		spkr_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"spkr",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
+			devfs_token = devfs_add_devsw("/", "spkr",
+						&spkr_cdevsw, 0,
+						DV_CHR, 0,  0, 0600);
 #endif
     	}
 }
 
 SYSINIT(spkrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spkr_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif  /* NSPEAKER > 0 */
 /* spkr.c ends here */

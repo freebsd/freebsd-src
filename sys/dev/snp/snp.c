@@ -30,15 +30,25 @@
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-
-#include <sys/snoop.h>
-
-#ifdef JREMOD
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+
+#include <sys/snoop.h>
+
+static	d_open_t	snpopen;
+static	d_close_t	snpclose;
+static	d_read_t	snpread;
+static	d_write_t	snpwrite;
+static	d_ioctl_t	snpioctl;
+static	d_select_t	snpselect;
+
 #define CDEV_MAJOR 53
-#endif /*JREMOD*/
+struct cdevsw snp_cdevsw = 
+	{ snpopen,	snpclose,	snpread,	snpwrite,	/*53*/
+	  snpioctl,	nostop,		nullreset,	nodevtotty,/* snoop */
+	  snpselect,	nommap,		NULL,	"snp",	NULL,	-1 };
+
 
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -63,7 +73,7 @@ devtotty (dev)
 				 * length for function keys...
 				 */
 
-int
+static	int
 snpwrite(dev, uio, flag)
 	dev_t           dev;
 	struct uio     *uio;
@@ -104,7 +114,7 @@ tty_input:
 }
 
 
-int
+static	int
 snpread(dev, uio, flag)
 	dev_t           dev;
 	struct uio     *uio;
@@ -270,7 +280,7 @@ snpin(snp, buf, n)
 	return n;
 }
 
-int
+static	int
 snpopen(dev, flag, mode, p)
 	dev_t           dev;
 	int             flag, mode;
@@ -346,7 +356,7 @@ detach_notty:
 	return (0);
 }
 
-int
+static	int
 snpclose(dev, flags, fmt, p)
 	dev_t           dev;
 	int             flags;
@@ -376,7 +386,7 @@ snpdown(snp)
 }
 
 
-int
+static	int
 snpioctl(dev, cmd, data, flags, p)
 	dev_t           dev;
 	int             cmd;
@@ -473,7 +483,7 @@ snpioctl(dev, cmd, data, flags, p)
 }
 
 
-int
+static	int
 snpselect(dev, rw, p)
 	dev_t           dev;
 	int             rw;
@@ -500,29 +510,26 @@ snpselect(dev, rw, p)
 	return 0;
 }
 
-#ifdef JREMOD
-struct cdevsw snp_cdevsw = 
-	{ snpopen,	snpclose,	snpread,	snpwrite,	/*53*/
-	  snpioctl,	nostop,		nullreset,	nodevtotty,/* snoop */
-	  snpselect,	nommap,		NULL };
-
+static	void	*snp_devfs_token[NSNP];
 static snp_devsw_installed = 0;
 
-static void 	snp_drvinit(void *unused)
+static void
+snp_drvinit(void *unused)
 {
 	dev_t dev;
+	char	name[32];
+	int	i;
 
 	if( ! snp_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&snp_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&snp_cdevsw, NULL);
 		snp_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"snp",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		for ( i = 0 ; i < NSNP ; i++) {
+			sprintf(name,"snp%d",i);
+			snp_devfs_token[i] =
+				devfs_add_devsw( "/", name, &snp_cdevsw, i,
+							DV_CHR, 0, 0, 0600);
 		}
 #endif
     	}
@@ -530,6 +537,5 @@ static void 	snp_drvinit(void *unused)
 
 SYSINIT(snpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snp_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif

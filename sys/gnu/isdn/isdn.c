@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.7 1995/11/29 10:47:10 julian Exp $";
+static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.8 1995/11/29 14:39:12 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.8 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.7 1995/11/29 10:47:10 julian Ex
  *
  *******************************************************************************
  * $Log: isdn.c,v $
+ * Revision 1.8  1995/11/29  14:39:12  julian
+ * If you're going to mechanically replicate something in 50 files
+ * it's best to not have a (compiles cleanly) typo in it! (sigh)
+ *
  * Revision 1.7  1995/11/29  10:47:10  julian
  * OK, that's it..
  * That's EVERY SINGLE driver that has an entry in conf.c..
@@ -80,15 +84,12 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.7 1995/11/29 10:47:10 julian Ex
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
-
-#include "gnu/isdn/isdn_ioctl.h"
-
-#ifdef JREMOD
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 55
-#endif /*JREMOD*/
+
+#include "gnu/isdn/isdn_ioctl.h"
+
 
 isdn_appl_t     isdn_appl[N_ISDN_APPL];
 isdn_ctrl_t     isdn_ctrl[N_ISDN_CTRL];
@@ -101,6 +102,20 @@ extern int	isdn_get_prot_size __P((int ap));
 extern int	isdn_set_prot __P((int ap, int dir, char *p));
 extern int	isdn_stat __P((int cn));
 static void	passout __P((int unit, int l, char *buf));
+
+static	d_open_t	isdnopen;
+static	d_close_t	isdnclose;
+static	d_rdwr_t	isdnrw;
+static	d_read_t	isdnread;
+static	d_write_t	isdnwrite;
+static	d_ioctl_t	isdnioctl;
+
+#define CDEV_MAJOR 55
+struct cdevsw isdn_cdevsw = 
+	{ isdnopen,	isdnclose,	isdnread,	nowrite,	/*55*/
+	  isdnioctl,	nostop,		nullreset,	nodevtotty,/* isdn */
+	  seltrue,	nommap,		NULL,	"isdn",	NULL,	-1 };
+
 
 static int      o_flags, r_flags, bufind[TYPNR];
 static char     buffer[TYPNR][257];
@@ -222,6 +237,9 @@ isdn_ctrl_attach(int n)
 	if ((Isdn_Ctrl += n) <= N_ISDN_CTRL)
 		return (c);
 	Isdn_Ctrl = c;
+#ifdef	DEVFS
+/*SOMETHING GOES IN HERE I THINK*/
+#endif
 	return (-1);
 }
 
@@ -231,7 +249,7 @@ isdn_ctrl_attach(int n)
  * I forbid all but one open per application. The only programs opening the
  *  isdn device are the ISDN-daemon
  */
-int
+static	int
 isdnopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int             err;
@@ -248,14 +266,14 @@ isdnopen(dev_t dev, int flags, int fmt, struct proc *p)
 	return (0);
 }
 
-int
+static	int
 isdnclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	o_flags &= ~(1 << minor(dev));
 	return (0);
 }
 
-int
+static	int
 isdnread(dev_t dev, struct uio * uio, int ioflag)
 {
 	int             x;
@@ -280,7 +298,7 @@ isdnread(dev_t dev, struct uio * uio, int ioflag)
 	return error;
 }
 
-int
+static	int
 isdnioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int             err, x, i;
@@ -673,15 +691,10 @@ passout(int unit, int l, char *buf)
 	splx(x);
 }
 
-#ifdef JREMOD
-struct cdevsw isdn_cdevsw = 
-	{ isdnopen,	isdnclose,	isdnread,	nowrite,	/*55*/
-	  isdnioctl,	nostop,		nullreset,	nodevtotty,/* isdn */
-	  seltrue,	nommap,		NULL };
-
 static isdn_devsw_installed = 0;
 
-static void 	isdn_drvinit(void *unused)
+static void
+isdn_drvinit(void *unused)
 {
 	dev_t dev;
 
@@ -689,20 +702,9 @@ static void 	isdn_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&isdn_cdevsw,NULL);
 		isdn_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"isdn",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(isdndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,isdn_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif				/* NISDN > 0 */

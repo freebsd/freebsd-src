@@ -33,6 +33,11 @@
 #include "uio.h"
 #include "kernel.h"
 #include "malloc.h"
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -47,14 +52,6 @@
 #define SLEEP_MAX 1000
 #define SLEEP_MIN 4
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 44
-#endif /*JREMOD*/
 
 
 int initgpib(void);
@@ -79,6 +76,17 @@ int gpattach();
 
 struct   isa_driver gpdriver = {gpprobe, gpattach, "gp"};
 
+static	d_open_t	gpopen;
+static	d_close_t	gpclose;
+static	d_write_t	gpwrite;
+static	d_ioctl_t	gpioctl;
+
+#define CDEV_MAJOR 44
+struct cdevsw gp_cdevsw = 
+	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
+	  gpioctl,	nostop,		nullreset,	nodevtotty,/* GPIB */
+          seltrue,	nommap,		NULL,	"gp",	NULL,	-1 };
+
 #define   BUFSIZE      1024
 #define   ATTACHED     0x08
 #define   OPEN         0x04
@@ -92,7 +100,10 @@ static struct gpib_softc {
 	u_char	sc_flags;	/* flags (open and internal)	*/
         char	sc_unit;	/* gpib device number		*/
         char	*sc_inbuf;	/* buffer for data		*/
-} gpib_sc;
+#ifdef DEVFS
+	void	*devfs_token;	/* handle for devfs entry	*/
+#endif
+} gpib_sc; /* only support one of these? */
 static int oldcount;
 static char oldbytes[2];
 /*Probe routine*/
@@ -134,6 +145,10 @@ gpattach(isdp)
            printf ("gp%d: type AT-GPIB chip NAT4882A\n",sc->sc_unit);
         sc->sc_flags |=ATTACHED;
 
+#ifdef DEVFS
+	sc->devfs_token = devfs_add_devsw( "/", "gp", &gp_cdevsw, 0,
+					DV_CHR, 0, 0, 0600);
+#endif
         return (1);
 }
 
@@ -144,7 +159,7 @@ gpattach(isdp)
  * More than 1 open is not allowed on the entire device.
  * i.e. even if gpib5 is open, we can't open another minor device
  */
-int
+static	int
 gpopen(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -222,7 +237,7 @@ enableremote(unit);
  * gpclose()
  *	Close gpib device.
  */
-int
+static	int
 gpclose(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -325,7 +340,7 @@ while (!(inb(ISR1)&2)&&(status==EWOULDBLOCK));
  *	Copy from user's buffer, then write to GPIB device referenced
  *    by minor(dev).
  */
-int
+static	int
 gpwrite(dev, uio, ioflag)
 	dev_t dev;
 	struct uio *uio;
@@ -378,7 +393,7 @@ gpwrite(dev, uio, ioflag)
    An exception would be a plotter or printer that you can just
    write to using a minor device = its GPIB address */
 
-int
+static	int
 gpioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	struct gpibdata *gd = (struct gpibdata *)data;
@@ -1264,36 +1279,21 @@ outb(CDOR,95); /*untalk*/
 }
 
 
-#ifdef JREMOD
-struct cdevsw gp_cdevsw = 
-	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
-	  gpioctl,	nostop,		nullreset,	nodevtotty,/* GPIB */
-          seltrue,	nommap,		NULL };
-
 static gp_devsw_installed = 0;
 
-static void 	gp_drvinit(void *unused)
+static void
+gp_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! gp_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&gp_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&gp_cdevsw, NULL);
 		gp_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"gp",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(gpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,gp_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NGPIB > 0 */

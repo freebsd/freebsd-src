@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.7 1995/11/29 10:47:08 julian Exp $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.8 1995/11/29 14:39:11 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.8 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.7 1995/11/29 10:47:08 julian E
  *
  *******************************************************************************
  * $Log: iitel.c,v $
+ * Revision 1.8  1995/11/29  14:39:11  julian
+ * If you're going to mechanically replicate something in 50 files
+ * it's best to not have a (compiles cleanly) typo in it! (sigh)
+ *
  * Revision 1.7  1995/11/29  10:47:08  julian
  * OK, that's it..
  * That's EVERY SINGLE driver that has an entry in conf.c..
@@ -63,15 +67,12 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.7 1995/11/29 10:47:08 julian E
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-
-#include "gnu/isdn/isdn_ioctl.h"
-
-#ifdef JREMOD
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 57
-#endif /*JREMOD*/
+
+#include "gnu/isdn/isdn_ioctl.h"
+
 
 int             nitel = NITEL;
 static int	applnr[NITEL];
@@ -83,6 +84,18 @@ static int	next_if =0;
 #define WRITE_WAIT	8
 #define min(a,b)        ((a)<(b)?(a):(b))
 
+static	d_open_t	itelopen;
+static	d_close_t	itelclose;
+static	d_read_t	itelread;
+static	d_write_t	itelwrite;
+static	d_ioctl_t	itelioctl;
+
+#define CDEV_MAJOR 57
+struct cdevsw itel_cdevsw = 
+	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
+	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
+	  seltrue,	nommap,		NULL,	"itel",	NULL,	-1 };
+
 static
 struct itel_data
 {
@@ -90,18 +103,28 @@ struct itel_data
 	char obuf[ITEL_SIZE];
 	int state;
 	int ilen, olen;
+#ifdef	DEVFS
+	void	*devfs_token;
+#endif
 } itel_data[NITEL];
 
 int
 itelattach(int ap)
 {
 	struct itel_data *itel;
+	char	name[32];
+
 	if(next_if >= NITEL)
 		return(-1);
 	itel= &itel_data[next_if];
 	itel->ilen= itel->olen= 0;
 	itel->state= 0;
 	applnr[next_if]= ap;
+#ifdef	DEVFS
+	sprintf(name,"itel%d",next_if);
+	itel->devfs_token = devfs_add_devsw("/isdn",name,&itel_cdevsw,next_if,
+				DV_CHR, 0, 0, 0600);
+#endif
 	return(next_if++);
 }
 
@@ -270,42 +293,19 @@ itelwrite(dev_t dev, struct uio * uio, int ioflag)
 	return error;
 }
 
-#ifdef JREMOD
-struct cdevsw itel_cdevsw = 
-	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
-	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
-	  seltrue,	nommap,		NULL };
-
 static itel_devsw_installed = 0;
 
 static void 	itel_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! itel_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&itel_cdevsw,NULL);
-		dev_chr = dev;
-#if defined(BDEV_MAJOR)
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&itel_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&itel_cdevsw, NULL);
 		itel_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"itel",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(iteldev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,itel_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.6 1995/11/29 10:48:30 julian Exp $
+ * $Id: tty_tty.c,v 1.7 1995/11/29 14:40:38 julian Exp $
  */
 
 /*
@@ -45,19 +45,28 @@
 #include <sys/tty.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
-
-#ifdef JREMOD
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+
+static	d_open_t	cttyopen;
+static	d_read_t	cttyread;
+static	d_write_t	cttywrite;
+static	d_ioctl_t	cttyioctl;
+static	d_select_t	cttyselect;
+
 #define CDEV_MAJOR 1
-#endif /*JREMOD*/
+struct cdevsw ctty_cdevsw = 
+	{ cttyopen,	nullclose,	cttyread,	cttywrite,	/*1*/
+	  cttyioctl,	nullstop,	nullreset,	nodevtotty,/* tty */
+	  cttyselect,	nommap,		NULL,	"ctty",	NULL,	-1 };
+
 
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)
 
 /*ARGSUSED*/
-int
+static	int
 cttyopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -88,7 +97,7 @@ cttyopen(dev, flag, mode, p)
 }
 
 /*ARGSUSED*/
-int
+static	int
 cttyread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -106,7 +115,7 @@ cttyread(dev, uio, flag)
 }
 
 /*ARGSUSED*/
-int
+static	int
 cttywrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -124,7 +133,7 @@ cttywrite(dev, uio, flag)
 }
 
 /*ARGSUSED*/
-int
+static	int
 cttyioctl(dev, cmd, addr, flag, p)
 	dev_t dev;
 	int cmd;
@@ -149,7 +158,7 @@ cttyioctl(dev, cmd, addr, flag, p)
 }
 
 /*ARGSUSED*/
-int
+static	int
 cttyselect(dev, flag, p)
 	dev_t dev;
 	int flag;
@@ -162,15 +171,11 @@ cttyselect(dev, flag, p)
 	return (VOP_SELECT(ttyvp, flag, FREAD|FWRITE, NOCRED, p));
 }
 
-#ifdef JREMOD
-struct cdevsw ctty_cdevsw = 
-	{ cttyopen,	nullclose,	cttyread,	cttywrite,	/*1*/
-	  cttyioctl,	nullstop,	nullreset,	nodevtotty,/* tty */
-	  cttyselect,	nommap,		NULL };
-
 static ctty_devsw_installed = 0;
+static 	void	*ctty_devfs_token;
 
-static void 	ctty_drvinit(void *unused)
+static void
+ctty_drvinit(void *unused)
 {
 	dev_t dev;
 
@@ -179,18 +184,12 @@ static void 	ctty_drvinit(void *unused)
 		cdevsw_add(&dev,&ctty_cdevsw,NULL);
 		ctty_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"tty",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
+		ctty_devfs_token = devfs_add_devsw( "/", "tty",
+				&ctty_cdevsw, 0, DV_CHR, 0, 0, 0600);
 #endif
     	}
 }
 
 SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctty_drvinit,NULL)
 
-#endif /* JREMOD */
 

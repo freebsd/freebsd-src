@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.22 1995/11/29 17:45:59 wollman Exp $
+ * $Id: kern_lkm.c,v 1.23 1995/12/07 12:46:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -49,18 +49,15 @@
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/lkm.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-#ifdef JREMOD
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 32
-#endif /*JREMOD */
 
 #define PAGESIZE 1024		/* kmem_alloc() allocation quantum */
 
@@ -89,8 +86,19 @@ static int	_lkm_vfs __P((struct lkm_table *lkmtp, int cmd));
 static int	_lkm_syscall __P((struct lkm_table *lkmtp, int cmd));
 static void	lkmunreserve __P((void));
 
+static	d_open_t	lkmcopen;
+static	d_close_t	lkmcclose;
+static	d_ioctl_t	lkmcioctl;
+
+#define CDEV_MAJOR 32
+struct cdevsw lkmc_cdevsw = 
+	{ lkmcopen,	lkmcclose,	noread,		nowrite,	/*32*/
+	  lkmcioctl,	nostop,		nullreset,	nodevtotty,
+	  noselect,	nommap,		NULL,	"lkm",	NULL,	-1 };
+
+
 /*ARGSUSED*/
-int
+static	int
 lkmcopen(dev, flag, devtype, p)
 	dev_t dev;
 	int flag;
@@ -149,7 +157,7 @@ lkmunreserve()
 	lkm_state = LKMS_IDLE;
 }
 
-int
+static	int
 lkmcclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag;
@@ -181,7 +189,7 @@ lkmcclose(dev, flag, mode, p)
 }
 
 /*ARGSUSED*/
-int
+static	int
 lkmcioctl(dev, cmd, data, flag, p)
 	dev_t dev;
 	int cmd;
@@ -690,9 +698,7 @@ _lkm_dev(lkmtp, cmd)
 {
 	struct lkm_dev *args = lkmtp->private.lkm_dev;
 	int i;
-#ifdef JREMOD
 	dev_t descrip;
-#endif /* JREMOD */
 	int err = 0;
 
 	switch(cmd) {
@@ -702,35 +708,6 @@ _lkm_dev(lkmtp, cmd)
 			return(EEXIST);
 		switch(args->lkm_devtype) {
 		case LM_DT_BLOCK:
-#ifndef JREMOD
-			if ((i = args->lkm_offset) == -1) {	/* auto */
-				/*
-				 * Search the table looking for a slot...
-				 */
-				for (i = 0; i < nblkdev; i++)
-					if (bdevsw[i].d_open == lkmenodev)
-						break;		/* found it! */
-				/* out of allocable slots? */
-				if (i == nblkdev) {
-					err = ENFILE;
-					break;
-				}
-			} else {				/* assign */
-				if (i < 0 || i >= nblkdev) {
-					err = EINVAL;
-					break;
-				}
-			}
-
-			/* save old */
-			bcopy(&bdevsw[i], &(args->lkm_olddev.bdev), sizeof(struct bdevsw));
-
-			/* replace with new */
-			bcopy(args->lkm_dev.bdev, &bdevsw[i], sizeof(struct bdevsw));
-
-			/* done! */
-			args->lkm_offset = i;	/* slot in bdevsw[] */
-#else /* JREMOD */
 			if ((i = args->lkm_offset) == -1)
 				descrip = (dev_t) -1;
 			else
@@ -740,50 +717,9 @@ _lkm_dev(lkmtp, cmd)
 				break;
 			}
 			args->lkm_offset = major(descrip) ;
-#endif /* JREMOD */
 			break;
 
 		case LM_DT_CHAR:
-#ifndef JREMOD
-			if ((i = args->lkm_offset) == -1) {	/* auto */
-				/*
-				 * Search the table looking for a slot...
-				 */
-				for (i = 0; i < nchrdev; i++)
-					if (cdevsw[i].d_open == lkmenodev)
-						break;		/* found it! */
-				/* out of allocable slots? */
-				if (i == nchrdev) {
-					err = ENFILE;
-					break;
-				}
-			} else {				/* assign */
-				if (i < 0 || i >= nchrdev) {
-					err = EINVAL;
-					break;
-				}
-			}
-
-			/* save old */
-			bcopy(&cdevsw[i], &(args->lkm_olddev.cdev), sizeof(struct cdevsw));
-
-			/* replace with new */
-			bcopy(args->lkm_dev.cdev, &cdevsw[i], sizeof(struct cdevsw));
-
-			/* done! */
-			args->lkm_offset = i;	/* slot in cdevsw[] */
-
-#else /* JREMOD */
-			if ((i = args->lkm_offset) == -1)
-				descrip = (dev_t) -1;
-			else
-				descrip = makedev(args->lkm_offset,0);
-			if ( err = cdevsw_add(&descrip, args->lkm_dev.cdev,
-					&(args->lkm_olddev.cdev))) {
-				break;
-			}
-			args->lkm_offset = major(descrip) ;
-#endif /* JREMOD */
 			break;
 
 		default:
@@ -799,22 +735,13 @@ _lkm_dev(lkmtp, cmd)
 		switch(args->lkm_devtype) {
 		case LM_DT_BLOCK:
 			/* replace current slot contents with old contents */
-#ifndef JREMOD
-			bcopy(&(args->lkm_olddev.bdev), &bdevsw[i], sizeof(struct bdevsw));
-#else /* JREMOD */
 			descrip = makedev(i,0);
 			bdevsw_add(&descrip, &(args->lkm_olddev.bdev),NULL);
-#endif /* JREMOD */
 			break;
 
 		case LM_DT_CHAR:
 			/* replace current slot contents with old contents */
-#ifndef JREMOD
-			bcopy(&(args->lkm_olddev.cdev), &cdevsw[i], sizeof(struct cdevsw));
-#else /* JREMOD */
-			descrip = makedev(i,0);
 			cdevsw_add(&descrip, &(args->lkm_olddev.cdev),NULL);
-#endif /* JREMOD */
 			break;
 
 		default:
@@ -996,35 +923,24 @@ lkm_nullcmd(lkmtp, cmd)
 	return (0);
 }
 
-#ifdef JREMOD
-struct cdevsw lkm_cdevsw = 
-	{ lkmcopen,	lkmcclose,	noread,		nowrite,	/*32*/
-	  lkmcioctl,	nostop,		nullreset,	nodevtotty,
-	  noselect,	nommap,		NULL };
-
 static lkm_devsw_installed = 0;
+static void	*lkmc_devfs_token;
 
 static void 	lkm_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! lkm_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&lkm_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&lkmc_cdevsw, NULL);
 		lkm_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"lkm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
+		lkmc_devfs_token = devfs_add_devsw( "/", "lkm", &lkmc_cdevsw, 0,
+					DV_CHR, 0, 0, 0660);
 #endif
     	}
 }
 
 SYSINIT(lkmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lkm_drvinit,NULL)
 
-#endif /* JREMOD */
 

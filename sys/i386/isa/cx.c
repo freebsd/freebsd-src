@@ -39,12 +39,6 @@
 #      include <machine/pio.h>
 #      define RB_GETC(q) getc(q)
 #   else /* BSD 4.4 Lite */
-#	ifdef JREMOD
-#	 define CDEV_MAJOR 42
-#        if defined(DEVFS)
-#          include <sys/devfsext.h>
-#        endif /*DEVFS*/
-#	endif /*JREMOD*/
 #      include <sys/devconf.h>
 #   endif
 #endif
@@ -83,6 +77,23 @@ extern cx_chan_t *cxchan [NCX*NCHAN];   /* unit to channel struct pointer */
 #if __FreeBSD__ >= 2
 extern struct kern_devconf kdc_cx [NCX];
 struct tty cx_tty [NCX*NCHAN];          /* tty data */
+
+static	d_open_t	cxopen;
+static	d_close_t	cxclose;
+static	d_read_t	cxread;
+static	d_write_t	cxwrite;
+static	d_ioctl_t	cxioctl;
+static	d_stop_t	cxstop;
+static	d_select_t	cxselect;
+static	d_ttycv_t	cxdevtotty;
+
+# define CDEV_MAJOR 42
+
+struct cdevsw cx_cdevsw = 
+	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
+	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
+	  cxselect,	nommap,		NULL,	"cx",	NULL,	-1 };
+
 #else
 struct tty *cx_tty [NCX*NCHAN];         /* tty data */
 #endif
@@ -968,14 +979,9 @@ void cxtimeout (void *a)
 	timeout (cxtimeout, 0, hz*5);
 }
 
-#ifdef JREMOD
-struct cdevsw cx_cdevsw = 
-	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
-	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
-	  cxselect,	nommap,		NULL };
 
+#if defined(__FreeBSD__) && (__FreeBSD__ > 1 )
 static cx_devsw_installed = 0;
-
 static void 	cx_drvinit(void *unused)
 {
 	dev_t dev;
@@ -984,20 +990,11 @@ static void 	cx_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&cx_cdevsw,NULL);
 		cx_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"cx",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(cxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cx_drvinit,NULL)
 
-#endif /* JREMOD */
 
+#endif
 #endif /* NCX */

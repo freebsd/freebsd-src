@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.8 1995/12/06 23:52:08 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.9 1995/12/07 12:45:18 davidg Exp $
  *
  *  Digiboard driver.
  *
@@ -40,6 +40,9 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -54,12 +57,6 @@
 #include <gnu/i386/isa/dgfep.h>
 #include <gnu/i386/isa/dgreg.h>
 
-#ifdef JREMOD
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 58
-#endif /*JREMOD*/
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -132,6 +129,14 @@ struct dgb_p {
 	u_char draining; /* port is being drained now */
 	u_char used;	/* port is being used now */
 	u_char mustdrain; /* data must be waited to drain in dgbparam() */
+#ifdef	DEVFS
+	struct	{
+		void	*tty;
+		void	*init;
+		void	*lock;
+		void	*cua;
+	} devfs_token;
+#endif
 };
 
 /* Digiboard per-board structure */
@@ -189,6 +194,20 @@ static	void	wakeflush	__P((void *p));
 struct isa_driver	dgbdriver = {
 	dgbprobe, dgbattach, "dgb",0
 };
+
+static	d_open_t	dgbopen;
+static	d_close_t	dgbclose;
+static	d_read_t	dgbread;
+static	d_write_t	dgbwrite;
+static	d_ioctl_t	dgbioctl;
+static	d_stop_t	dgbstop;
+static	d_ttycv_t	dgbdevtotty;
+
+#define CDEV_MAJOR 58
+struct cdevsw dgb_cdevsw = 
+	{ dgbopen,	dgbclose,	dgbread,	dgbwrite,	/*58*/
+	  dgbioctl,	dgbstop,	nxreset,	dgbdevtotty, /* dgb */
+	  ttselect,	nommap,		NULL,	"dgb",	NULL,	-1 };
 
 static	speed_t	dgbdefaultrate = TTYDEF_SPEED;
 static	u_int	dgb_events;	/* input chars + weighted output completions */
@@ -437,6 +456,7 @@ dgbattach(dev)
 	ushort *pstat;
 	int lowwater;
 	int nports=0;
+	char	name[32];
 
 	if(sc->status!=ENABLED) {
 		DPRINT2("dbg%d: try to attach a disabled card\n",unit);
@@ -832,6 +852,28 @@ load_fep:
 		termioschars(&port->it_in);
 		port->it_in.c_ispeed = port->it_in.c_ospeed = dgbdefaultrate;
 		port->it_out = port->it_in;
+#ifdef	DEVFS
+/*XXX*/ /* fix the minor numbers */
+		sprintf(name,"dgb%d.%d",unit,i);
+		port->devfs_token.tty = devfs_add_devsw("/",name,
+			&dgb_cdevsw,(unit*32)+i,	/*mytical number */
+			DV_CHR, 0, 0, 0600);
+
+		sprintf(name,"idgb%d.%d",unit,i);
+		port->devfs_token.tty = devfs_add_devsw("/",name,
+			&dgb_cdevsw,(unit*32)+i + 64,	/*mytical number */
+			DV_CHR, 0, 0, 0600);
+
+		sprintf(name,"ldgb%d.%d",unit,i);
+		port->devfs_token.tty = devfs_add_devsw("/",name,
+			&dgb_cdevsw,(unit*32)+i + 128,	/*mytical number */
+			DV_CHR, 0, 0, 0600);
+
+		sprintf(name,"dgbcua%d.%d",unit,i);
+		port->devfs_token.tty = devfs_add_devsw("/",name,
+			&dgb_cdevsw,(unit*32)+i + 192,	/*mytical number */
+			DV_CHR, 0, 0, 0600);
+#endif
 	}
 
 	hidewin(sc);
@@ -843,7 +885,7 @@ load_fep:
 }
 
 /* ARGSUSED */
-int
+static	int
 dgbopen(dev, flag, mode, p)
 	dev_t		dev;
 	int		flag;
@@ -1011,7 +1053,7 @@ out:
 }
 
 /*ARGSUSED*/
-int
+static	int
 dgbclose(dev, flag, mode, p)
 	dev_t		dev;
 	int		flag;
@@ -1087,7 +1129,7 @@ wakeup((caddr_t)chan);
 }
 
 
-int
+static	int
 dgbread(dev, uio, flag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -1111,7 +1153,7 @@ dgbread(dev, uio, flag)
 	return error;
 }
 
-int
+static	int
 dgbwrite(dev, uio, flag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -1363,7 +1405,7 @@ dgbintr(unit)
 {
 }
 
-int
+static	int
 dgbioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
 	int		cmd;
@@ -1989,36 +2031,21 @@ fepcmd(port, cmd, op1, op2, ncmds, bytecmd)
 			port->unit, port->pnum);
 }
 
-#ifdef JREMOD
-struct cdevsw dgb_cdevsw = 
-	{ dgbopen,	dgbclose,	dgbread,	dgbwrite,	/*58*/
-	  dgbioctl,	dgbstop,	nxreset,	dgbdevtotty, /* dgb */
-	  ttselect,	nommap,		NULL };
 
 static dgb_devsw_installed = 0;
 
-static void 	dgb_drvinit(void *unused)
+static void 
+dgb_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! dgb_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&dgb_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&dgb_cdevsw, NULL);
 		dgb_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	major		minor	type   uid gid perm*/
-	"/",	"dgb",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(dgbdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,dgb_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif /* NDGB > 0 */

@@ -49,38 +49,49 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.6 1995/11/29 14:41:03 julian Exp $
+ * $Id: ssc.c,v 1.7 1995/12/05 19:36:33 bde Exp $
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/conf.h>
-#include <scsi/scsiconf.h>
 #include <sys/scsiio.h>
-
+#include <sys/kernel.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/systm.h>
-
-#ifdef JREMOD
-#include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+#include <scsi/scsiconf.h>
+
+static	d_open_t	sscopen;
+static	d_close_t	sscclose;
+static	d_ioctl_t	sscioctl;
+
+extern	d_open_t	suopen;
+extern	d_close_t	suclose;
+extern	d_ioctl_t	suioctl;
+
 #define CDEV_MAJOR 49
-#endif /*JREMOD*/
+struct cdevsw ssc_cdevsw = 
+	{ sscopen,	sscclose,	noread,		nowrite,	/*49*/
+	  sscioctl,	nostop,		nullreset,	nodevtotty,
+	  noselect,	nxmmap,		nostrategy,	"ssc",	NULL,	-1 };
 
 static dev_t sscdev = NODEV;
 
-int sscopen(dev_t dev, int flag, int type, struct proc *p)
+static	int
+sscopen(dev_t dev, int flag, int type, struct proc *p)
 {
 	if (sscdev != NODEV)
 		return suopen(sscdev, flag, type, p);
 	return 0;
 }
 
-int sscclose(dev_t dev, int fflag, int type, struct proc *p)
+static	int
+sscclose(dev_t dev, int fflag, int type, struct proc *p)
 {
 
 	if (sscdev != NODEV)
@@ -88,7 +99,8 @@ int sscclose(dev_t dev, int fflag, int type, struct proc *p)
 	return 0;
 }
 
-int sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
+static	int
+sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 {
 	if (cmd == SCIOCADDR)
 	{
@@ -121,42 +133,25 @@ int sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
  * good reason other than I'm not sure how you would use them.
  */
 
-
-#ifdef JREMOD
-struct cdevsw ssc_cdevsw = 
-	{ sscopen,	sscclose,	noread,		nowrite,	/*49*/
-	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
-	  noselect,	nommap,		nostrategy };
-
 static ssc_devsw_installed = 0;
+static	void *ssc_devfs_token;
 
-static void 	ssc_drvinit(void *unused)
+static void
+ssc_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! ssc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&ssc_cdevsw,NULL);
-		dev_chr = dev;
-#if defined(BDEV_MAJOR)
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&ssc_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&ssc_cdevsw, NULL);
 		ssc_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"ssc",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-		}
+		ssc_devfs_token = devfs_add_devsw(
+				"/scsi", "ssc", &ssc_cdevsw, 0,
+				DV_CHR, 0, 0, 0600);
 #endif
     	}
 }
 
 SYSINIT(sscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ssc_drvinit,NULL)
-
-#endif /* JREMOD */
 

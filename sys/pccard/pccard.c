@@ -42,6 +42,10 @@
 #include <sys/devconf.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -50,13 +54,6 @@
 #include <pccard/card.h>
 #include <pccard/slot.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 50
-#endif /*JREMOD*/
 
 
 extern struct kern_devconf kdc_cpu0;
@@ -96,6 +93,20 @@ static struct pccard_drv *drivers;		/* Card drivers */
  */
 static unsigned long pccard_mem;	/* Physical memory */
 static unsigned char *pccard_kmem;	/* Kernel virtual address */
+
+static	d_open_t	crdopen;
+static	d_close_t	crdclose;
+static	d_read_t	crdread;
+static	d_write_t	crdwrite;
+static	d_ioctl_t	crdioctl;
+static	d_select_t	crdselect;
+
+#define CDEV_MAJOR 50
+struct cdevsw crd_cdevsw = 
+	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
+	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
+	  crdselect,	nommap,		NULL,	"crd",	NULL,	-1 };
+
 
 /*
  *	pccard_configure - called by autoconf code.
@@ -590,7 +601,7 @@ slot_irq_handler(int sp)
 	/*
 	 *	Device driver interface.
 	 */
-int
+static	int
 crdopen(dev_t dev, int oflags, int devtype, struct proc *p)
 {
 struct slot *sp;
@@ -609,7 +620,7 @@ struct slot *sp;
  *	Close doesn't de-allocate any resources, since
  *	slots may be assigned to drivers already.
  */
-int
+static	int
 crdclose(dev_t dev, int fflag, int devtype, struct proc *p)
 {
 	return(0);
@@ -619,7 +630,7 @@ crdclose(dev_t dev, int fflag, int devtype, struct proc *p)
  *	read interface. Map memory at lseek offset,
  *	then transfer to user space.
  */
-int
+static	int
 crdread(dev_t dev, struct uio *uio, int ioflag)
 {
 	struct slot *sp = pccard_slots[minor(dev)];
@@ -669,7 +680,7 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
  *	Handles wrap around so that only one memory
  *	window is used.
  */
-int
+static	int
 crdwrite(dev_t dev, struct uio *uio, int ioflag)
 {
 struct slot *sp = pccard_slots[minor(dev)];
@@ -721,7 +732,7 @@ struct slot *sp = pccard_slots[minor(dev)];
  *	ioctl calls - allows setting/getting of memory and I/O
  *	descriptors, and assignment of drivers.
  */
-int
+static	int
 crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 {
 	int	s;
@@ -853,7 +864,7 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
  *	select - Selects on exceptions will return true
  *	when a change in card status occurs.
  */
-int
+static	int
 crdselect(dev_t dev, int rw, struct proc *p)
 {
 	int s;
@@ -905,29 +916,25 @@ find_driver(char *name)
 	return(0);
 }
 
-#ifdef JREMOD
-struct cdevsw crd_cdevsw = 
-	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
-	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
-	  crdselect,	nommap,		NULL };
-
 static crd_devsw_installed = 0;
 
-static void 	crd_drvinit(void *unused)
+static void
+crd_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! crd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&crd_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&crd_cdevsw, NULL);
 		crd_devsw_installed = 1;
 #ifdef DEVFS
+/* expand on this when ever you know what the f*ck pccard devices
+look like and when you know where to store the devfs_token
+I had a quick look but thios driver is not one for a quick look */
 		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"crd",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+			void *devfs_token;
+			devfs_token=devfs_add_devsw(
+	"/", "crd", &crd_cdevsw, 0, DV_CHR, 0, 0, 0600);
 		}
 #endif
     	}
@@ -935,5 +942,4 @@ static void 	crd_drvinit(void *unused)
 
 SYSINIT(crddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,crd_drvinit,NULL)
 
-#endif /* JREMOD */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.20 1995/12/05 21:51:45 bde Exp $
+ * $Id: spec_vnops.c,v 1.21 1995/12/07 12:47:17 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -159,10 +159,8 @@ spec_open(ap)
 	case VCHR:
 		if ((u_int)maj >= nchrdev)
 			return (ENXIO);
-#ifdef JREMOD
 		if ( cdevsw[maj].d_open == NULL)
 			return ENXIO;
-#endif /*JREMOD*/
 		if (ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
 			/*
 			 * When running in very secure mode, do not allow
@@ -194,10 +192,8 @@ spec_open(ap)
 	case VBLK:
 		if ((u_int)maj >= nblkdev)
 			return (ENXIO);
-#ifdef JREMOD
 		if ( bdevsw[maj].d_open == NULL)
 			return ENXIO;
-#endif /*JREMOD*/
 		/*
 		 * When running in very secure mode, do not allow
 		 * opens for writing of any disk block devices.

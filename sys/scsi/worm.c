@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.12 1995/11/29 14:41:09 julian Exp $
+ *      $Id: worm.c,v 1.13 1995/12/05 07:14:27 julian Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -55,24 +55,23 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <scsi/scsi_all.h>
-#include <scsi/scsiconf.h>
-#include <scsi/scsi_disk.h>
-
-#ifdef JREMOD
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 62
-#endif /*JREMOD*/
+#include <scsi/scsi_all.h>
+#include <scsi/scsiconf.h>
+#include <scsi/scsi_disk.h>
 
 
 struct scsi_data {
 	struct buf_queue_head buf_queue;
 	u_int32 n_blks;				/* Number of blocks (0 for bogus) */
 	u_int32 blk_size;			/* Size of each blocks */
+#ifdef	DEVFS
+	void	*devfs_token;			/* more elaborate later */
+#endif
 };
 
 static void wormstart(u_int32 unit, u_int32 flags);
@@ -85,22 +84,34 @@ static errval worm_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
 static void worm_strategy(struct buf *bp, struct scsi_link *sc_link);
 
+static	d_open_t	wormopen;
+static	d_close_t	wormclose;
+static	d_ioctl_t	wormioctl;
+d_strategy_t	wormstrategy;
+
+#define CDEV_MAJOR 62
+struct cdevsw worm_cdevsw = 
+	{ wormopen,	wormclose,	rawread,	rawwrite,	/*62*/
+	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
+	  seltrue,	nommap,		wormstrategy };
+
+
 SCSI_DEVICE_ENTRIES(worm)
 
 static struct scsi_device worm_switch =
 {
-    NULL,
-    wormstart,			/* we have a queue, and this is how we service it */
-    NULL,
-    NULL,
-    "worm",
-    0,
+	NULL,
+	wormstart,   /* we have a queue, and this is how we service it */
+	NULL,
+	NULL,
+	"worm",
+	0,
 	{0, 0},
 	SDEV_ONCE_ONLY,	/* Only one open allowed */
 	wormattach,
 	"Write-Once",
 	wormopen,
-    sizeof(struct scsi_data),
+	sizeof(struct scsi_data),
 	T_WORM,
 	0,
 	0,
@@ -147,7 +158,13 @@ wormattach(struct scsi_link *sc_link)
 	if (worm_size(sc_link, SCSI_NOSLEEP | SCSI_NOMASK) == 0)
 		printf("- can't get capacity.");
 	else
-		printf("with %ld %ld byte blocks.", worm->n_blks, worm->blk_size);
+		printf("with %ld %ld byte blocks.",
+				worm->n_blks, worm->blk_size);
+#ifdef DEVFS
+
+	worm->devfs_token = devfs_add_devsw( "/", "rworm", &worm_cdevsw, 0,
+					DV_CHR, 0, 0, 0600);
+#endif
 	return 0;
 }
 
@@ -358,15 +375,10 @@ worm_close(dev_t dev, int flag, int fmt, struct proc *p,
 	return 0;
 }
 
-#ifdef JREMOD
-struct cdevsw worm_cdevsw = 
-	{ wormopen,	wormclose,	rawread,	rawwrite,	/*62*/
-	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
-	  seltrue,	nommap,		wormstrategy };
-
 static worm_devsw_installed = 0;
 
-static void 	worm_drvinit(void *unused)
+static void
+worm_drvinit(void *unused)
 {
 	dev_t dev;
 
@@ -374,19 +386,9 @@ static void 	worm_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&worm_cdevsw,NULL);
 		worm_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rworm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(wormdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,worm_drvinit,NULL)
 
-#endif /* JREMOD */
 

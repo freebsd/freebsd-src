@@ -45,9 +45,9 @@
 #      include <machine/pio.h>
 #   else
 #      ifdef DEVFS
+extern struct cdevsw cx_cdevsw;
 #        include <sys/devfsext.h>
 #      endif /*DEVFS*/
-#      define CDEV_MAJOR 42 /*XXX*/ /* replace with variable ASAP*/
 #      include <sys/devconf.h>
 #   endif
 #   define watchdog_func_t void(*)(struct ifnet *)
@@ -372,11 +372,10 @@ void cxattach (struct device *parent, struct device *self, void *aux)
 	printf ("cx%d: <Cronyx-%s>\n", unit, b->name);
 #ifdef DEVFS
 	{
-		int x;
-/* default for a simple device with no probe routine (usually delete this) */
+		void *x;
 		x=devfs_add_devsw(
 /*	path	name	devsw			minor	type   uid gid perm*/
-	"/",	"cx",	major(CDEV_MAJOR),	0,	DV_CHR,	0,  0, 0600);
+	"/",	"cx",	&cx_cdevsw,	0,	DV_CHR,	0,  0, 0600);
 	}
 #endif
 	return (1);
