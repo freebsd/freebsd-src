@@ -40,7 +40,7 @@ static char copyright[] __attribute__ ((unused)) =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] __attribute__ ((unused)) =
-	"$Id$";
+	"$Id: inetd.c,v 1.21 1997/02/22 16:05:52 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -289,7 +289,7 @@ main(argc, argv, envp)
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "dlR:a:p:")) != EOF)
+	while ((ch = getopt(argc, argv, "dlR:a:p:")) != -1)
 		switch(ch) {
 		case 'd':
 			debug = 1;

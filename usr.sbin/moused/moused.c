@@ -30,7 +30,7 @@
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **
- **      $Id: moused.c,v 1.7 1997/02/22 16:06:42 peter Exp $
+ **      $Id: moused.c,v 1.8 1997/03/29 12:10:26 peter Exp $
  **/
 
 /**
@@ -157,7 +157,7 @@ main(int argc, char *argv[])
 
     progname = argv[0];
 
-    while((c = getopt(argc,argv,"cdfr:sp:t:h?RDS:")) != EOF)
+    while((c = getopt(argc,argv,"cdfr:sp:t:h?RDS:")) != -1)
 	switch(c)
 	{
 	case 'c':

@@ -29,7 +29,7 @@
 /*
  * Create an MS-DOS (FAT) file system.
  *
- * $Id$
+ * $Id: mkdosfs.c,v 1.4 1997/02/22 16:06:38 peter Exp $
  */
 
 #include <sys/types.h>
@@ -206,7 +206,7 @@ main(int argc, char **argv)
   int c, i, fd, format = 0, rootdirsize;
   const char *label = 0;
   
-  while((c = getopt(argc, argv, "f:L:")) != EOF)
+  while((c = getopt(argc, argv, "f:L:")) != -1)
     switch(c)
       {
       case 'f':

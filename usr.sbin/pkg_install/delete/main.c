@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: main.c,v 1.8 1997/02/22 16:09:36 peter Exp $";
 #endif
 
 /*
@@ -41,7 +41,7 @@ main(int argc, char **argv)
     char *prog_name = argv[0];
 
     pkgs = start = argv;
-    while ((ch = getopt(argc, argv, Options)) != EOF)
+    while ((ch = getopt(argc, argv, Options)) != -1)
 	switch(ch) {
 	case 'v':
 	    Verbose = TRUE;

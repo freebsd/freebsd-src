@@ -68,7 +68,7 @@ main(int argc, char **argv)
 
 	listmode = readmode = writemode = attachedmode = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "alrwbh")) != EOF) {
+	while ((c = getopt(argc, argv, "alrwbh")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;

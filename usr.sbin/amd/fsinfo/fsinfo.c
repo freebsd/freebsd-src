@@ -37,7 +37,7 @@
  *
  *	@(#)fsinfo.c	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: fsinfo.c,v 1.3 1997/02/22 16:03:20 peter Exp $
  *
  */
 
@@ -106,7 +106,7 @@ char *v[];
 	if (!progname)
 		progname = "fsinfo";
 
-	while ((ch = getopt(c, v, "a:b:d:e:f:h:m:D:U:I:qv")) != EOF)
+	while ((ch = getopt(c, v, "a:b:d:e:f:h:m:D:U:I:qv")) != -1)
 	switch (ch) {
 	case 'a':
 		autodir = optarg;

@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.12 1997/02/22 16:06:20 peter Exp $\n";
+	"\n$Id: lpr.c,v 1.13 1997/02/26 02:22:45 mpp Exp $\n";
 #endif /* not lint */
 
 /*
@@ -140,7 +140,7 @@ main(argc, argv)
 
 	errs = 0;
 	while ((c = getopt(argc, argv,
-			   ":#:1:2:3:4:C:J:P:T:U:cdfghi:lnmprstvw:")) != EOF)
+			   ":#:1:2:3:4:C:J:P:T:U:cdfghi:lnmprstvw:")) != -1)
 		switch (c) {
 		case '#':		/* n copies */
 			i = atoi(optarg);
