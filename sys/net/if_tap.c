@@ -39,7 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
-#include <sys/filedesc.h>
+#include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -47,6 +47,7 @@
 #include <sys/module.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -54,7 +55,6 @@
 #include <sys/systm.h>
 #include <sys/ttycom.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 #include <sys/queue.h>
 
 #include <net/bpf.h>
@@ -752,7 +752,7 @@ tapread(dev, uio, flag)
 		splx(s);
 
 		if (m == NULL) {
-			if (flag & IO_NDELAY)
+			if (flag & O_NONBLOCK)
 				return (EWOULDBLOCK);
 
 			mtx_lock(&tp->tap_mtx);
