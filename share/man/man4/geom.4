@@ -175,7 +175,7 @@ not loose quorum.
 .Pp
 When a provider is orphaned, this does not necessarily result in any
 immediate change in the topology: any attached consumers are still
-attached, any opened paths are still open, any outstanding I/O 
+attached, any opened paths are still open, any outstanding I/O
 requests are still outstanding.
 .Pp
 The typical scenario is
@@ -183,7 +183,7 @@ The typical scenario is
 .It
 A device driver detects a disk has departed and orphans the provider for it.
 .It
-The geoms on top of the disk receive the orphanization event and 
+The geoms on top of the disk receive the orphanization event and
 orphans all their providers in turn.
 Providers, which are not attached to, will typically self-destruct
 right away.

@@ -39,7 +39,7 @@ Create a huge partition called /FreeBSD.
 8-12GB is recommended.
 This partition will contain nearly all the development environment,
 including the CVS tree, broken-out source, and possibly even object files.
-You are going to export this partition to your other machines via a 
+You are going to export this partition to your other machines via a
 READ-ONLY NFS export so do not mix it with other more security-sensitive
 partitions.
 .Pp
@@ -96,7 +96,7 @@ checkout -P
 .Ed
 .Pp
 Now use cvs to checkout a -STABLE source tree and a -CURRENT source tree,
-as well as ports and docs, to create your initial source environment. 
+as well as ports and docs, to create your initial source environment.
 Keeping the broken-out source and ports in /FreeBSD allows you to export
 it to other machines via read-only NFS.
 This also means you only need to edit/maintain files in one place and all
@@ -139,7 +139,7 @@ ln -s /FreeBSD/obj obj
 .Ed
 .Pp
 Alternatively you may chose simply to leave /usr/obj in /usr.  If your
-/usr is large enough this will work, but I do not recommend it for 
+/usr is large enough this will work, but I do not recommend it for
 safety reasons (/usr/obj is constantly being modified, /usr is not).
 .Pp
 Note that exporting /usr/obj via read-only NFS to your other boxes will
@@ -262,7 +262,7 @@ make buildkernel KERNCONF=KERNELNAME
 .Pp
 .Sy WARNING!
 If you are familiar with the old config/cd/make method of building
-a -STABLE kernel, note that the config method will put the build 
+a -STABLE kernel, note that the config method will put the build
 environment in /usr/src/sys/compile/KERNELNAME instead of in /usr/obj.
 .Pp
 Building a -CURRENT kernel
