@@ -15,7 +15,7 @@
 #include <string.h>
 #include <bootstrap.h>
 
-STAILQ_HEAD(,pnpinfo)	pnp_devices;
+struct pnpinfo_stql	pnp_devices;
 static int		pnp_devices_initted = 0;
 
 static void		pnp_discard(void);
