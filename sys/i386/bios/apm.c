@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.11 1995/02/17 02:22:21 phk Exp $
+ *	$Id: apm.c,v 1.12 1995/05/30 07:58:06 rgrimes Exp $
  */
 
 #include "apm.h"
@@ -27,7 +27,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
