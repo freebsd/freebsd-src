@@ -108,13 +108,14 @@ __RCSID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#include <fcntl.h>
+#include <err.h>
 #include <errno.h>
-#include <utime.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <utime.h>
 #include "make.h"
 #include "hash.h"
 #include "dir.h"
@@ -1062,7 +1063,7 @@ Job_Touch(gn, silent)
 		 * modification time, then close the file.
 		 */
 		if (read(streamID, &c, 1) == 1) {
-		    (void) lseek(streamID, 0L, SEEK_SET);
+		    (void) lseek(streamID, (off_t)0, SEEK_SET);
 		    (void) write(streamID, &c, 1);
 		}
 
@@ -1235,7 +1236,7 @@ JobExec(job, argv)
 	if (dup2(FILENO(job->cmdFILE), 0) == -1)
 	    Punt("Cannot dup2: %s", strerror(errno));
 	(void) fcntl(0, F_SETFD, 0);
-	(void) lseek(0, 0, SEEK_SET);
+	(void) lseek(0, (off_t)0, SEEK_SET);
 
 	if (usePipes) {
 	    /*
@@ -1681,9 +1682,6 @@ JobStart(gn, flags, previous)
 	job = previous;
     } else {
 	job = (Job *) emalloc(sizeof(Job));
-	if (job == NULL) {
-	    Punt("JobStart out of memory");
-	}
 	flags |= JOB_FIRST;
     }
 
@@ -2061,7 +2059,7 @@ end_loop:
 			 JOB_BUFSIZE - job->curPos);
 	if (nRead < 0) {
 	    if (DEBUG(JOB)) {
-		perror("JobDoOutput(piperead)");
+		warn("JobDoOutput(piperead)");
 	    }
 	    nr = 0;
 	} else {
