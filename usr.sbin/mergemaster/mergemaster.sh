@@ -534,7 +534,7 @@ mm_install () {
     /dev/MAKEDEV)
       NEED_MAKEDEV=yes
       ;;
-    /etc/aliases)
+    /etc/mail/aliases)
       NEED_NEWALIASES=yes
       ;;
     /etc/login.conf)
