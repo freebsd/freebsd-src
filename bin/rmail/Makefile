@@ -16,14 +16,14 @@ LIBSMUTILDIR!=	cd ${.CURDIR}/../../lib/libsmutil; make -V .OBJDIR
 .endif
 LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 
-DPADD+=	${LIBSMUTIL}
-LDADD+=	${LIBSMUTIL}
+DPADD=	${LIBSMUTIL}
+LDADD=	${LIBSMUTIL}
 
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
-LDFLAGS+=${SENDMAIL_LDFLAGS}
-LDADD+=${SENDMAIL_LDADD}
 DPADD+=${SENDMAIL_DPADD}
+LDADD+=${SENDMAIL_LDADD}
+LDFLAGS+=${SENDMAIL_LDFLAGS}
 
 # If you want to have your rmail queuing the mail only, uncomment the
 # following:
