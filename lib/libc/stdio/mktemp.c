@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: mktemp.c,v 1.4 1996/06/22 10:33:37 jraynard Exp $";
+		"$Id: mktemp.c,v 1.4.2.1 1997/04/07 18:03:25 guido Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -44,10 +44,11 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <unistd.h>
 
-static int _gettemp(char *, int *);
+static int _gettemp(char *, int *, int);
 
 int
 mkstemp(path)
@@ -55,49 +56,91 @@ mkstemp(path)
 {
 	int fd;
 
-	return (_gettemp(path, &fd) ? fd : -1);
+	return (_gettemp(path, &fd, 0) ? fd : -1);
 }
+
+char *
+mkdtemp(path)
+	char *path;
+{
+	return(_gettemp(path, (int *)NULL, 1) ? path : (char *)NULL);
+}
+
+char *_mktemp(char *);
+
+char *
+_mktemp(path)
+	char *path;
+{
+	return(_gettemp(path, (int *)NULL, 0) ? path : (char *)NULL);
+}
+
+#ifdef UNSAFE_WARN
+__warn_references(mktemp,
+    "warning: mktemp() possibly used unsafely; consider using mkstemp()");
+#endif
 
 char *
 mktemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL) ? path : (char *)NULL);
+	return(_mktemp(path));
 }
 
 static int
-_gettemp(path, doopen)
+_gettemp(path, doopen, domkdir)
 	char *path;
 	register int *doopen;
+	int domkdir;
 {
 	register char *start, *trv;
 	struct stat sbuf;
-	pid_t pid;
+	int pid, rval;
+
+	if (doopen && domkdir) {
+		errno = EINVAL;
+		return(0);
+	}
 
 	pid = getpid();
-	for (trv = path; *trv; ++trv);		/* extra X's get set to 0's */
-	while (*--trv == 'X') {
-		*trv = (pid % 10) + '0';
+	for (trv = path; *trv; ++trv)
+		;
+	--trv;
+	while (*trv == 'X' && pid != 0) {
+		*trv-- = (pid % 10) + '0';
 		pid /= 10;
+	}
+	while (*trv == 'X') {
+		char c;
+
+		pid = (arc4random() & 0xffff) % (26+26);
+		if (pid < 26)
+			c = pid + 'A';
+		else
+			c = (pid - 26) + 'a';
+		*trv-- = c;
 	}
 
 	/*
 	 * check the target directory; if you have six X's and it
 	 * doesn't exist this runs for a *very* long time.
 	 */
-	for (start = trv + 1;; --trv) {
-		if (trv <= path)
-			break;
-		if (*trv == '/') {
-			*trv = '\0';
-			if (stat(path, &sbuf))
-				return(0);
-			if (!S_ISDIR(sbuf.st_mode)) {
-				errno = ENOTDIR;
-				return(0);
+	if (doopen || domkdir) {
+		for (start = trv + 1;; --trv) {
+			if (trv <= path)
+				break;
+			if (*trv == '/') {
+				*trv = '\0';
+				rval = stat(path, &sbuf);
+				*trv = '/';
+				if (rval != 0)
+					return(0);
+				if (!S_ISDIR(sbuf.st_mode)) {
+					errno = ENOTDIR;
+					return(0);
+				}
+				break;
 			}
-			*trv = '/';
-			break;
 		}
 	}
 
@@ -108,8 +151,12 @@ _gettemp(path, doopen)
 				return(1);
 			if (errno != EEXIST)
 				return(0);
-		}
-		else if (lstat(path, &sbuf))
+		} else if (domkdir) {
+			if (mkdir(path, 0700) == 0)
+				return(1);
+			if (errno != EEXIST)
+				return(0);
+		} else if (lstat(path, &sbuf))
 			return(errno == ENOENT ? 1 : 0);
 
 		/* tricky little algorithm for backward compatibility */

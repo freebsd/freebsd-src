@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)psignal.3	8.1 (Berkeley) 6/4/93
+.\"     @(#)psignal.3	8.2 (Berkeley) 2/27/95
 .\"
-.Dd June 4, 1993
+.Dd February 27, 1995
 .Dt PSIGNAL 3
 .Os BSD 4.2
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nm sys_signame
 .Nd system signal messages
 .Sh SYNOPSIS
-.Fd #include <sys/signal.h>
+.Fd #include <signal.h>
 .Ft void
 .Fn psignal "unsigned sig" "const char *s"
 .Vt extern const char * const sys_siglist[];

@@ -804,12 +804,18 @@ register cset *cs;
 		if (start == finish)
 			CHadd(cs, start);
 		else {
-			(void)REQUIRE(__collate_range_cmp(start, finish) <= 0, REG_ERANGE);
-			for (i = CHAR_MIN; i <= CHAR_MAX; i++) {
-				if (   __collate_range_cmp(start, i) <= 0
-				    && __collate_range_cmp(i, finish) <= 0
-				   )
+			if (__collate_load_error) {
+				(void)REQUIRE((uch)start <= (uch)finish, REG_ERANGE);
+				for (i = (uch)start; i <= (uch)finish; i++)
 					CHadd(cs, i);
+			} else {
+				(void)REQUIRE(__collate_range_cmp(start, finish) <= 0, REG_ERANGE);
+				for (i = CHAR_MIN; i <= CHAR_MAX; i++) {
+					if (   __collate_range_cmp(start, i) <= 0
+					    && __collate_range_cmp(i, finish) <= 0
+					   )
+						CHadd(cs, i);
+				}
 			}
 		}
 		break;
