@@ -53,7 +53,7 @@
  *					aid in bug reports.
  * 27 May 93	Guido van Rooij		New routine add find_isa_dev
  */
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/sys.386bsd/i386/isa/isa.c,v 1.1.1.1 1993/06/12 14:58:01 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/isa.c,v 1.2 1993/06/18 22:18:57 rgrimes Exp $";
 
 /*
  * code to manage AT bus
@@ -570,12 +570,12 @@ isa_strayintr(d) {
 /*
  * Wait "n" microseconds.
  * Relies on timer 1 counting down from (TIMER_FREQ / hz) at
- * (2 * TIMER_FREQ) Hz.
+ * (1 * TIMER_FREQ) Hz.
  * Note: timer had better have been programmed before this is first used!
  * (The standard programming causes the timer to generate a square wave and
  * the counter is decremented twice every cycle.)
  */
-#define	CF		(2 * TIMER_FREQ)
+#define	CF		(1 * TIMER_FREQ)
 #define	TIMER_FREQ	1193182	/* XXX - should be elsewhere */
 
 extern int hz;			/* XXX - should be elsewhere */
