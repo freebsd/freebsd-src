@@ -206,6 +206,8 @@ static __inline daddr_t	swp_pager_getswapspace(int npages);
 /*
  * Metadata functions
  */
+static __inline struct swblock **
+    swp_pager_hash(vm_object_t object, vm_pindex_t index);
 static void swp_pager_meta_build(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free_all(vm_object_t);
@@ -512,12 +514,22 @@ swp_pager_freeswapspace(blk, npages)
 	daddr_t blk;
 	int npages;
 {
+	struct swdevt *sp = &swdevt[BLK2DEVIDX(blk)];
+
 	GIANT_REQUIRED;
+
+	/* per-swap area stats */
+	sp->sw_used -= npages;
+
+	/*
+	 * If we are attempting to stop swapping on this device, we
+	 * don't want to mark any blocks free lest they be reused.
+	 */
+	if (sp->sw_flags & SW_CLOSING)
+		return;
 
 	blist_free(swapblist, blk, npages);
 	vm_swap_size += npages;
-	/* per-swap area stats */
-	swdevt[BLK2DEVIDX(blk)].sw_used -= npages;
 	swp_sizecheck();
 }
 
@@ -1622,6 +1634,149 @@ swp_pager_async_iodone(bp)
 	    )
 	);
 	splx(s);
+}
+
+/*
+ *	swap_pager_isswapped:
+ *
+ *	Return 1 if at least one page in the given object is paged
+ *	out to the given swap device.
+ *
+ *	This routine may not block.
+ */
+int swap_pager_isswapped(vm_object_t object, int devidx) {
+	daddr_t index = 0;
+	int bcount;
+	int i;
+
+	for (bcount = 0; bcount < object->un_pager.swp.swp_bcount; bcount++) {
+		struct swblock *swap;
+
+		if ((swap = *swp_pager_hash(object, index)) != NULL) {
+			for (i = 0; i < SWAP_META_PAGES; ++i) {
+				daddr_t v = swap->swb_pages[i];
+				if (v != SWAPBLK_NONE &&
+				    BLK2DEVIDX(v) == devidx)
+					return 1;
+			}
+		}
+
+		index += SWAP_META_PAGES;
+		if (index > 0x20000000)
+			panic("swap_pager_isswapped: failed to locate all swap meta blocks");
+	}
+	return 0;
+}
+
+/*
+ * SWP_PAGER_FORCE_PAGEIN() - force a swap block to be paged in
+ *
+ *	This routine dissociates the page at the given index within a
+ *	swap block from its backing store, paging it in if necessary.
+ *	If the page is paged in, it is placed in the inactive queue,
+ *	since it had its backing store ripped out from under it.
+ *	We also attempt to swap in all other pages in the swap block,
+ *	we only guarantee that the one at the specified index is
+ *	paged in.
+ *
+ *	XXX - The code to page the whole block in doesn't work, so we
+ *	      revert to the one-by-one behavior for now.  Sigh.
+ */
+static __inline void
+swp_pager_force_pagein(struct swblock *swap, int idx)
+{
+	vm_object_t object;
+	vm_page_t m;
+	vm_pindex_t pindex;
+
+	object = swap->swb_object;
+	pindex = swap->swb_index;
+
+	vm_object_pip_add(object, 1);
+	m = vm_page_grab(object, pindex + idx, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
+	if (m->valid == VM_PAGE_BITS_ALL) {
+		vm_object_pip_subtract(object, 1);
+		vm_page_lock_queues();
+		vm_page_activate(m);
+		vm_page_dirty(m);
+		vm_page_wakeup(m);
+		vm_page_unlock_queues();
+		vm_pager_page_unswapped(m);
+		return;
+	}
+
+	if (swap_pager_getpages(object, &m, 1, 0) !=
+	    VM_PAGER_OK)
+		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
+	vm_object_pip_subtract(object, 1);
+
+	vm_page_lock_queues();
+	vm_page_dirty(m);
+	vm_page_dontneed(m);
+	vm_page_wakeup(m);
+	vm_page_unlock_queues();
+	vm_pager_page_unswapped(m);
+}
+
+
+/*
+ *	swap_pager_swapoff:
+ *
+ *	Page in all of the pages that have been paged out to the
+ *	given device.  The corresponding blocks in the bitmap must be
+ *	marked as allocated and the device must be flagged SW_CLOSING.
+ *	There may be no processes swapped out to the device.
+ *
+ *	The sw_used parameter points to the field in the swdev structure
+ *	that contains a count of the number of blocks still allocated
+ *	on the device.  If we encounter objects with a nonzero pip count
+ *	in our scan, we use this number to determine if we're really done.
+ *
+ *	This routine may block.
+ */
+void
+swap_pager_swapoff(int devidx, int *sw_used)
+{
+	struct swblock **pswap;
+	struct swblock *swap;
+	vm_object_t waitobj;
+	daddr_t v;
+	int i, j;
+
+	GIANT_REQUIRED;
+
+full_rescan:
+	waitobj = NULL;
+	for (i = 0; i <= swhash_mask; i++) { /* '<=' is correct here */
+restart:
+		pswap = &swhash[i];
+		while ((swap = *pswap) != NULL) {
+                        for (j = 0; j < SWAP_META_PAGES; ++j) {
+                                v = swap->swb_pages[j];
+                                if (v != SWAPBLK_NONE &&
+				    BLK2DEVIDX(v) == devidx)
+                                        break;
+                        }
+			if (j < SWAP_META_PAGES) {
+				swp_pager_force_pagein(swap, j);
+				goto restart;
+			} else if (swap->swb_object->paging_in_progress) {
+				if (!waitobj)
+					waitobj = swap->swb_object;
+			}
+			pswap = &swap->swb_hnext;
+		}
+	}
+	if (waitobj && *sw_used) {
+	    /*
+	     * We wait on an arbitrary object to clock our rescans
+	     * to the rate of paging completion.
+	     */
+	    vm_object_pip_wait(waitobj, "swpoff");
+	    goto full_rescan;
+	}
+	if (*sw_used)
+	    panic("swapoff: failed to locate %d swap blocks", *sw_used);
 }
 
 /************************************************************************

@@ -612,6 +612,7 @@
 422	MSTD	BSD	{ int setcontext(const struct __ucontext *ucp); }
 423	MSTD	BSD	{ int swapcontext(struct __ucontext *oucp, \
 			    const struct __ucontext *ucp); }
+424	MSTD	BSD	{ int swapoff(const char *name); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)

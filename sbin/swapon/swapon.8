@@ -36,26 +36,34 @@
 .Dt SWAPON 8
 .Os
 .Sh NAME
-.Nm swapon
-.Nd "specify additional device for paging and swapping"
+.Nm swapon , swapoff
+.Nd "specify devices for paging and swapping"
 .Sh SYNOPSIS
-.Nm
+.Nm swap[on|off]
 .Fl a
-.Nm
+.Nm swap[on|off]
 .Ar special_file ...
 .Sh DESCRIPTION
 The
-.Nm
+.Nm swapon
 utility is used to specify additional devices on which paging and swapping
 are to take place.
 The system begins by swapping and paging on only a single device
 so that only one disk is required at bootstrap time.
 Calls to
-.Nm
+.Nm swapon
 normally occur in the system multi-user initialization file
 .Pa /etc/rc
 making all swap devices available, so that the paging and swapping
 activity is interleaved across several devices.
+.Pp
+The
+.Nm swapoff
+utility disables paging and swapping on a device.
+Calls to
+.Nm swapoff
+succeed only if disabling the device would leave enough
+remaining virtual memory to accomodate all running programs.
 .Pp
 Normally, the first form is used:
 .Bl -tag -width indent
@@ -63,12 +71,11 @@ Normally, the first form is used:
 All devices marked as ``sw''
 swap devices in
 .Pa /etc/fstab
-are made available unless their ``noauto'' option is also set.
+are added to or removed from the pool of available swap
+unless their ``noauto'' option is also set.
 .El
 .Pp
-The second form gives individual block devices as given
-in the system swap configuration table.  The call makes only this space
-available to the system for swap allocation.
+The second form is used to configure or disable individual devices.
 .Sh SEE ALSO
 .Xr swapon 2 ,
 .Xr fstab 5 ,
@@ -85,12 +92,12 @@ memory disk devices
 .It Pa /etc/fstab
 ASCII file system description table
 .El
-.Sh BUGS
-There is no way to stop paging and swapping on a device.
-It is therefore not possible to dismount swap devices which are
-mounted during system operation.
 .Sh HISTORY
 The
-.Nm
+.Nm swapon
 utility appeared in
 .Bx 4.0 .
+The
+.Nm swapoff
+utility appeared in
+.Fx 5.0 .
