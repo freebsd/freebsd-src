@@ -80,6 +80,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "pathnames.h"
 
+
 #ifndef TIOCPKT_WINDOW
 #define TIOCPKT_WINDOW 0x80
 #endif
@@ -125,6 +126,7 @@ void	getstr __P((char *, int, char *));
 void	setup_term __P((int));
 int	do_krb_login __P((struct sockaddr_in *));
 void	usage __P((void));
+
 
 int
 main(argc, argv)
@@ -561,6 +563,7 @@ int
 do_rlogin(dest)
 	union sockunion *dest;
 {
+
 	getstr(rusername, sizeof(rusername), "remuser too long");
 	getstr(lusername, sizeof(lusername), "locuser too long");
 	getstr(term+ENVSIZE, sizeof(term)-ENVSIZE, "Terminal type too long");
