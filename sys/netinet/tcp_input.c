@@ -995,7 +995,6 @@ after_listen:
 			      !SEQ_LT(tp->snd_una, tp->snd_recover)))) {
 				KASSERT(headlocked, ("headlocked"));
 				INP_INFO_WUNLOCK(&tcbinfo);
-				headlocked = 0;
 				/*
 				 * this is a pure ack for outstanding data.
 				 */
@@ -1075,7 +1074,6 @@ after_listen:
 		    tlen <= sbspace(&so->so_rcv)) {
 			KASSERT(headlocked, ("headlocked"));
 			INP_INFO_WUNLOCK(&tcbinfo);
-			headlocked = 0;
 			/*
 			 * this is a pure, in-sequence data packet
 			 * with nothing on the reassembly queue and
@@ -2097,10 +2095,6 @@ step6:
 	}
 dodata:							/* XXX */
 	KASSERT(headlocked, ("headlocked"));
-	if (!(thflags & TH_FIN && tp->t_state == TCPS_FIN_WAIT_2)) {
-		INP_INFO_WUNLOCK(&tcbinfo);
-		headlocked = 0;
-	}
 	/*
 	 * Process the segment text, merging it into the TCP sequencing queue,
 	 * and arranging for acknowledgment of receipt if necessary.
@@ -2219,6 +2213,7 @@ dodata:							/* XXX */
 			break;
 		}
 	}
+	INP_INFO_WUNLOCK(&tcbinfo);
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, (void *)tcp_saveipgen,
@@ -2230,14 +2225,13 @@ dodata:							/* XXX */
 	 */
 	if (needoutput || (tp->t_flags & TF_ACKNOW))
 		(void) tcp_output(tp);
+
 check_delack:
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
 		callout_reset(tp->tt_delack, tcp_delacktime,  
 		    tcp_timer_delack, tp);  
 	}
-	if (headlocked)
-		INP_INFO_WUNLOCK(&tcbinfo);
 	INP_UNLOCK(inp);
 	return;
 
