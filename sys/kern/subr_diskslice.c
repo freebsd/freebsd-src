@@ -658,13 +658,11 @@ dsopen(dev, mode, flags, sspp, lp)
 		 */
 		*sspp = dsmakeslicestruct(BASE_SLICE, lp);
 
-		if (!(flags & DSO_ONESLICE)) {
-			TRACE(("dsinit\n"));
-			error = dsinit(dev, lp, sspp);
-			if (error != 0) {
-				dsgone(sspp);
-				return (error);
-			}
+		TRACE(("dsinit\n"));
+		error = dsinit(dev, lp, sspp);
+		if (error != 0) {
+			dsgone(sspp);
+			return (error);
 		}
 		ssp = *sspp;
 		ssp->dss_oflags = flags;
@@ -719,30 +717,7 @@ dsopen(dev, mode, flags, sspp, lp)
 		set_ds_wlabel(ssp, slice, TRUE);	/* XXX invert */
 		lp1 = clone_label(lp);
 		TRACE(("readdisklabel\n"));
-		if (flags & DSO_NOLABELS)
-			msg = NULL;
-		else {
-			msg = readdisklabel(dev1, lp1);
-
-			/*
-			 * readdisklabel() returns NULL for success, and an
-			 * error string for failure.
-			 *
-			 * If there isn't a label on the disk, and if the
-			 * DSO_COMPATLABEL is set, we want to use the
-			 * faked-up label provided by the caller.
-			 *
-			 * So we set msg to NULL to indicate that there is
-			 * no failure (since we have a faked-up label),
-			 * free lp1, and then clone it again from lp.
-			 * (In case readdisklabel() modified lp1.)
-			 */
-			if (msg != NULL && (flags & DSO_COMPATLABEL)) {
-				msg = NULL;
-				free(lp1, M_DEVBUF);
-				lp1 = clone_label(lp);
-			}
-		}
+		msg = readdisklabel(dev1, lp1);
 		if (msg == NULL)
 			msg = fixlabel(sname, sp, lp1, FALSE);
 		if (msg == NULL && lp1->d_secsize != ssp->dss_secsize)
