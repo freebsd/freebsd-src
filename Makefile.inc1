@@ -756,7 +756,7 @@ _strfile=	games/fortune/strfile
 .endif
 
 .if !defined(NO_CXX)
-_gperf=	gnu/usr.bin/gperf
+_gperf=		gnu/usr.bin/gperf
 .if ${BOOTSTRAPPING} < 500113
 _groff=		gnu/usr.bin/groff
 .else
@@ -768,40 +768,13 @@ _groff=		gnu/usr.bin/groff/tmac
 _cap_mkdb=	usr.bin/cap_mkdb
 .endif
 
-.if ${BOOTSTRAPPING} < 502102
-_lex=		usr.bin/lex
-.endif
-
 .if ${BOOTSTRAPPING} < 600016
 _mklocale=	usr.bin/mklocale
-.endif
-
-.if ${BOOTSTRAPPING} < 450005 || \
-    ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500034
-_uudecode=	usr.bin/uudecode
-.endif
-
-.if ${BOOTSTRAPPING} < 430002 || \
-    ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500019
-_xargs=		usr.bin/xargs
-.endif
-
-.if ${BOOTSTRAPPING} < 430002 || \
-    ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500018
-_yacc=		usr.bin/yacc
 .endif
 
 .if !defined(NO_RESCUE) && \
     ${BOOTSTRAPPING} < 600008
 _crunchgen=	usr.sbin/crunch/crunchgen
-.endif
-
-.if ${BOOTSTRAPPING} < 502128
-_gensnmptree=	usr.sbin/bsnmpd/gensnmptree
-.endif
-
-.if ${BOOTSTRAPPING} < 500019
-_kbdcontrol=	usr.sbin/kbdcontrol
 .endif
 
 bootstrap-tools:
@@ -812,19 +785,13 @@ bootstrap-tools:
     gnu/usr.bin/texinfo \
     ${_cap_mkdb} \
     usr.bin/colldef \
-    ${_lex} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \
     usr.bin/rpcgen \
-    ${_uudecode} \
-    ${_xargs} \
     usr.bin/xinstall \
-    ${_yacc} \
     usr.sbin/config \
-    ${_crunchgen} \
-    ${_gensnmptree} \
-    ${_kbdcontrol}
+    ${_crunchgen}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -881,19 +848,13 @@ build-tools:
 #
 # cross-tools: Build cross-building tools
 #
-.if ${TARGET_ARCH} == "sparc64" && ${TARGET_ARCH} != ${MACHINE_ARCH} && \
-    ${BOOTSTRAPPING} < 500037
-_elf2aout=	usr.bin/elf2aout
-.endif
-
 .if (${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386") && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
 _btxld=		usr.sbin/btxld
 .endif
 
-.if (!defined(NO_RESCUE) || \
-    defined(RELEASEDIR)) && \
-    (${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 501101)
+.if (!defined(NO_RESCUE) || defined(RELEASEDIR)) && \
+    ${TARGET_ARCH} != ${MACHINE_ARCH}
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
 
@@ -910,7 +871,6 @@ cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
-    ${_elf2aout} \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
