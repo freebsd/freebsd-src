@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.116 1997/05/19 14:36:36 dfr Exp $
+ * $Id: vfs_bio.c,v 1.117 1997/05/30 22:25:35 dfr Exp $
  */
 
 /*
@@ -512,13 +512,17 @@ brelse(struct buf * bp)
 	 * flags in the vm_pages have only DEV_BSIZE resolution but
 	 * the b_validoff, b_validend fields have byte resolution.
 	 * This can avoid unnecessary re-reads of the buffer.
+	 * XXX this seems to cause performance problems.
 	 */
 	if ((bp->b_flags & B_VMIO)
+#ifdef notdef
 	    && (bp->b_vp->v_tag != VT_NFS
 		|| (bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR))
 		|| bp->b_validend == 0
 		|| (bp->b_validoff == 0
-		    && bp->b_validend == bp->b_bufsize))) {
+		    && bp->b_validend == bp->b_bufsize))
+#endif
+	    ) {
 		vm_ooffset_t foff;
 		vm_object_t obj;
 		int i, resid;
