@@ -1,6 +1,6 @@
 /*
  *
- *    $Id:$
+ *    $Id: fpu_proto.h,v 1.2 1994/04/29 21:16:23 gclarkii Exp $
  *
  */
 
@@ -53,7 +53,9 @@ extern void ffreep(void);
 extern void fst_i_(void);
 extern void fstp_i(void);
 /* fpu_entry.c */
+#if 0
 extern int math_emulate(struct trapframe * info);
+#endif
 /* fpu_etc.c */
 extern void fp_etc(void);
 /* fpu_trig.c */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.15 1995/02/14 06:12:26 phk Exp $
+ * $Id: ufs_vnops.c,v 1.16 1995/03/11 22:23:14 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1754,8 +1754,6 @@ ufsfifo_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	extern int (**fifo_vnodeop_p)();
-
 	/*
 	 * Set access flag.
 	 */
@@ -1775,8 +1773,6 @@ ufsfifo_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	extern int (**fifo_vnodeop_p)();
-
 	/*
 	 * Set update and change flags.
 	 */
@@ -1798,7 +1794,6 @@ ufsfifo_close(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	extern int (**fifo_vnodeop_p)();
 	register struct inode *ip = VTOI(ap->a_vp);
 
 	if (ap->a_vp->v_usecount > 1 && !(ip->i_flag & IN_LOCKED))

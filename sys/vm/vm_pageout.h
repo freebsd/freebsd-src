@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.8 1995/01/10 07:32:50 davidg Exp $
+ * $Id: vm_pageout.h,v 1.9 1995/03/01 23:30:03 davidg Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -75,6 +75,7 @@
  *	Exported data structures.
  */
 
+extern int vm_page_max_wired;
 extern int vm_pages_needed;	/* should be some "event" structure */
 simple_lock_data_t vm_pages_needed_lock;
 extern int vm_pageout_pages_needed;
@@ -124,6 +125,7 @@ vm_wait()
 
 
 #ifdef KERNEL
+void vm_daemon __P((void));
 int vm_pageout_scan __P((void));
 void vm_pageout_page __P((vm_page_t, vm_object_t));
 void vm_pageout_cluster __P((vm_page_t, vm_object_t));

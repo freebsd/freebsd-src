@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.6 1994/10/31 06:36:47 pst Exp $
+ * $Id: igmp.c,v 1.7 1995/02/16 00:27:41 wollman Exp $
  */
 
 /*
@@ -66,8 +66,6 @@
 #include <netinet/ip_var.h>
 #include <netinet/igmp.h>
 #include <netinet/igmp_var.h>
-
-extern struct ifnet loif;
 
 struct igmpstat igmpstat;
 

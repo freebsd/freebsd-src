@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.14 1994/12/22 07:20:03 davidg Exp $
+ * $Id: if.h,v 1.15 1994/12/30 06:46:21 davidg Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -350,6 +350,7 @@ struct	ifconf {
 		(ifa)->ifa_refcnt--;
 
 extern struct	ifnet	*ifnet;
+extern struct	ifnet	loif;
 
 void	ether_ifattach __P((struct ifnet *));
 void	ether_input __P((struct ifnet *, struct ether_header *, struct mbuf *));

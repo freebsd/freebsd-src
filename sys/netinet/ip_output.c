@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.11 1994/12/13 23:08:12 wollman Exp $
+ * $Id: ip_output.c,v 1.12 1995/01/12 13:06:31 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -172,7 +172,6 @@ ip_output(m0, opt, ro, flags, imo)
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		struct in_multi *inm;
-		extern struct ifnet loif;
 
 		m->m_flags |= M_MCAST;
 		/*
@@ -811,7 +810,6 @@ ip_setmoptions(optname, imop, m)
 	}
 
 	switch (optname) {
-		extern int (*legal_vif_num)(int);
 	/* store an index number for the vif you wanna use in the send */
 	case IP_MULTICAST_VIF:
 		if (!legal_vif_num) {

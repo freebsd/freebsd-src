@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.3 1994/08/02 07:48:20 davidg Exp $
+ * $Id: in_pcb.h,v 1.4 1994/08/21 05:27:28 paul Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -81,6 +81,8 @@ int	 in_pcbbind __P((struct inpcb *, struct mbuf *));
 int	 in_pcbconnect __P((struct inpcb *, struct mbuf *));
 void	 in_pcbdetach __P((struct inpcb *));
 void	 in_pcbdisconnect __P((struct inpcb *));
+int	 in_pcbladdr __P((struct inpcb *, struct mbuf *,
+	    struct sockaddr_in **));
 struct inpcb *
 	 in_pcblookup __P((struct inpcb *,
 	    struct in_addr, u_int, struct in_addr, u_int, int));

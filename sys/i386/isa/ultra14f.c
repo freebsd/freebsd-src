@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.26 1994/10/23 21:27:38 wollman Exp $
+ *      $Id: ultra14f.c,v 1.27 1995/01/07 23:23:40 ats Exp $
  */
 
 #include <sys/types.h>
@@ -39,6 +39,8 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/devconf.h>
+
+#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #endif /*KERNEL */
@@ -271,6 +273,8 @@ void    uhaminphys();
 void    uha_done();
 u_int32 uha_adapter_info();
 struct mscp *uha_mscp_phys_kv();
+int	uha_init __P((int unit));
+int	uha24_init __P((int unit));
 
 struct mscp *cheat;
 unsigned long int scratch;

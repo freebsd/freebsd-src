@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.12 1994/10/27 05:21:39 phk Exp $
+ * $Id: kern_exit.c,v 1.13 1994/12/28 06:15:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -280,16 +280,6 @@ done:
 	 */
 	cpu_exit(p);
 }
-
-struct wait_args {
-	int	pid;
-	int	*status;
-	int	options;
-	struct	rusage *rusage;
-#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
-	int	compat;		/* pseudo */
-#endif
-};
 
 #if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 #if defined(hp300) || defined(luna68k)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.7 1994/10/02 17:27:06 phk Exp $
+ * $Id: nfsnode.h,v 1.8 1994/10/17 17:47:44 phk Exp $
  */
 
 #ifndef _NFS_NFSNODE_H_
@@ -108,6 +108,10 @@ struct nfsnode {
 TAILQ_HEAD(, buf) nfs_bufq;
 
 #ifdef KERNEL
+extern	int	(**fifo_nfsv2nodeop_p)();
+extern	int	(**nfsv2_vnodeop_p)();
+extern	int	(**spec_nfsv2nodeop_p)();
+
 /*
  * Prototypes for NFS vnode operations
  */

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.9 1995/02/05 21:09:04 phk Exp $
+ *	$Id: db_command.c,v 1.10 1995/03/05 22:56:21 joerg Exp $
  */
 
 /*
@@ -61,6 +61,9 @@ db_addr_t	db_next;
  */
 boolean_t	db_ed_style = TRUE;
 
+
+void		db_help_cmd __P((void));
+void		db_fncall __P((void));
 
 /*
  * Utility routine - discard tokens through end-of-line.
@@ -182,7 +185,6 @@ db_command(last_cmdp, cmd_table)
 	    modif[0] = '\0';
 	}
 	else if (t == tEXCL) {
-	    void db_fncall();
 	    db_fncall();
 	    return;
 	}
@@ -308,7 +310,9 @@ extern void	db_show_one_thread(), db_show_all_threads();
 extern void	vm_page_print();
 extern void	db_ps();
 extern void	ipc_port_print();
+#if 0
 void		db_show_help();
+#endif
 void		db_panic();
 
 struct command db_show_all_cmds[] = {
@@ -337,9 +341,6 @@ struct command db_show_cmds[] = {
 #endif
 	{ (char *)0, }
 };
-
-void		db_help_cmd();
-void		db_fncall();
 
 struct command db_command_table[] = {
 	{ "print",	db_print_cmd,		0,	0 },
@@ -372,6 +373,7 @@ struct command db_command_table[] = {
 
 struct command	*db_last_command = 0;
 
+#if 0
 void
 db_help_cmd()
 {
@@ -383,6 +385,7 @@ db_help_cmd()
 	    cmd++;
 	}
 }
+#endif
 
 void
 db_panic()

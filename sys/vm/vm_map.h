@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.3 1994/08/02 07:55:26 davidg Exp $
+ * $Id: vm_map.h,v 1.4 1995/01/09 16:05:46 davidg Exp $
  */
 
 /*
@@ -181,6 +181,9 @@ typedef struct {
 #define	MAX_KMAPENT	128
 
 #ifdef KERNEL
+extern vm_offset_t kentry_data;
+extern vm_size_t kentry_data_size;
+
 boolean_t vm_map_check_protection __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t));
 int vm_map_copy __P((vm_map_t, vm_map_t, vm_offset_t, vm_size_t, vm_offset_t, boolean_t, boolean_t));
 void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t));

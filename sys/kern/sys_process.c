@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.10 1995/02/16 00:41:16 davidg Exp $
+ *	$Id: sys_process.c,v 1.11 1995/02/19 02:50:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -304,7 +304,7 @@ ptrace(curp, uap, retval)
 
 		if (uap->addr != (caddr_t)1) {
 			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-			if ((error = ptrace_set_pc (p, uap->addr)))
+			if ((error = ptrace_set_pc (p, (u_int)uap->addr)))
 				return error;
 		}
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.19 1995/02/01 23:11:38 se Exp $
+ *	$Id: autoconf.c,v 1.20 1995/02/18 18:04:30 wpaul Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 
+#include <machine/md_var.h>
 #include <machine/pte.h>
 
 static void swapconf(void);
@@ -65,7 +66,6 @@ static void setroot(void);
  * the machine.
  */
 int	dkn;		/* number of iostat dk numbers assigned so far */
-extern int	cold;		/* cold start flag initialized in locore.s */
 
 extern int (*mountroot) __P((void));
 #ifdef FFS
@@ -101,12 +101,8 @@ configure()
 #endif
 
 #ifdef NFS
-	{
-	extern int nfs_diskless_valid;
-
 	if (nfs_diskless_valid)
 		mountroot = nfs_mountroot;
-	}
 #endif /* NFS */
 #ifdef FFS
 	if (!mountroot) {
@@ -143,7 +139,6 @@ swapconf()
 {
 	register struct swdevt *swp;
 	register int nblks;
-	extern int Maxmem;
 
 	for (swp = swdevt; swp->sw_dev > 0; swp++)
 	{

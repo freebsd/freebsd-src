@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.52 1995/02/26 01:37:51 bde Exp $
+ *	$Id: fd.c,v 1.53 1995/03/12 22:40:56 joerg Exp $
  *
  */
 
@@ -289,6 +289,7 @@ static timeout_t fd_turnoff;
 static timeout_t fd_motor_on;
 static void fd_turnon(fdu_t);
 static void fdc_reset(fdc_p);
+static int fd_in(fdcu_t, int *);
 static void fdstart(fdcu_t);
 static timeout_t fd_timeout;
 static timeout_t fd_pseudointr;
@@ -477,9 +478,19 @@ int
 fd_read_status(fdc_p fdc, int fdsu)
 {
 	int i, ret;
+
 	for (i = 0; i < 7; i++)
 	{
-		if ((ret = fd_in(fdc->fdcu, fdc->status + i)))
+		/*
+		 * XXX types are poorly chosen.  Only bytes can by read
+		 * from the hardware, but fdc_status wants u_longs and
+		 * fd_in() gives ints.
+		 */
+		int status;
+
+		ret = fd_in(fdc->fdcu, &status);
+		fdc->status[i] = status;
+		if (ret != 0)
 			break;
 	}
 
@@ -854,7 +865,7 @@ in_fdc(fdcu_t fdcu)
 /*
  * fd_in: Like in_fdc, but allows you to see if it worked.
  */
-int
+static int
 fd_in(fdcu_t fdcu, int *ptr)
 {
 	int baseport = fdc_data[fdcu].baseport;

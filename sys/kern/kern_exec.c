@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.14 1995/03/01 04:09:50 davidg Exp $
+ *	$Id: kern_exec.c,v 1.15 1995/03/10 08:44:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,6 @@ static int exec_check_permissions(struct image_params *);
  * execsw_set is constructed for us by the linker.  Each of the items
  * is a pointer to a `const struct execsw', hence the double pointer here.
  */
-extern const struct linker_set execsw_set;
 const struct execsw **execsw = (const struct execsw **)&execsw_set.ls_items[0];
 
 /*

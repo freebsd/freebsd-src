@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.22 1995/03/06 15:02:13 dufault Exp $
+ *      $Id: scsiconf.c,v 1.23 1995/03/15 14:22:08 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -40,6 +40,13 @@
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+
+/*
+ * XXX SCSI_DEVICE_ENTRIES() generates extern switches but it should
+ * generate static switches except for this.  Separate macros are
+ * probably required for the extern and static parts.
+ */
+extern struct scsi_device uk_switch;
 
 /* Extensible arrays: Use a realloc like implementation to permit
  * the arrays to be extend.  These are set up to be moved out
@@ -388,7 +395,6 @@ scsi_device_register(struct scsi_device *sd)
 static struct scsi_device *
 scsi_device_lookup(int type)
 {
-	extern struct scsi_device uk_switch;
 	struct scsi_device *sd;
 
 	for (sd = device_list; sd; sd = sd->next)
@@ -401,7 +407,6 @@ scsi_device_lookup(int type)
 static struct scsi_device *
 scsi_device_lookup_by_name(char *name)
 {
-	extern struct scsi_device uk_switch;
 	struct scsi_device *sd;
 
 	for (sd = device_list; sd; sd = sd->next)

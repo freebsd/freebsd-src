@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.14 1995/01/23 02:00:34 wollman Exp $
+ * $Id: route.c,v 1.15 1995/01/23 17:53:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/ip_mroute.h>
 
 #ifdef NS
 #include <netns/ns.h>
@@ -293,7 +294,6 @@ rtioctl(req, data, p)
 	struct proc *p;
 {
 #ifdef INET
-	extern int (*mrt_ioctl)(int, caddr_t, struct proc *);
 	/* Multicast goop, grrr... */
 	return mrt_ioctl(req, data, p);
 #else /* INET */

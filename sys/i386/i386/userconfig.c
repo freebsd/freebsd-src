@@ -38,12 +38,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.20 1995/03/02 20:07:05 dufault Exp $
+ *      $Id: userconfig.c,v 1.21 1995/03/12 13:25:51 ugen Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+
+#include <machine/md_var.h>
 
 #include <i386/i386/cons.h>
 

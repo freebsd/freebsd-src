@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.69 1995/02/28 00:20:54 pst Exp $
+ *	$Id: sio.c,v 1.70 1995/02/28 23:21:33 ache Exp $
  */
 
 #include "sio.h"
@@ -313,10 +313,9 @@ struct tty	*sio_tty[NSIO];
 #else
 struct tty	sio_tty[NSIO];
 #endif
-extern	struct tty	*constty;	/* XXX */
 
 #ifdef KGDB
-#include "machine/remote-sl.h"
+#include <machine/remote-sl.h>
 
 extern	int	kgdb_dev;
 extern	int	kgdb_rate;
@@ -1955,7 +1954,7 @@ comwakeup(chan)
 /*
  * Following are all routines needed for SIO to act as console
  */
-#include "i386/i386/cons.h"
+#include <i386/i386/cons.h>
 
 struct siocnstate {
 	u_char	dlbl;

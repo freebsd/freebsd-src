@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.22 1995/02/14 06:55:42 phk Exp $
+ * 	$Id: pmap.h,v 1.23 1995/02/14 06:57:45 phk Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -190,7 +190,14 @@ typedef struct pv_entry {
 
 #ifdef	KERNEL
 
-pv_entry_t	pv_table;		/* array of entries, one per page */
+extern caddr_t	CADDR1;
+extern pt_entry_t *CMAP1;
+extern vm_offset_t avail_end;
+extern vm_offset_t avail_start;
+extern vm_offset_t phys_avail[6];
+extern pv_entry_t pv_table;	/* array of entries, one per page */
+extern vm_offset_t virtual_avail;
+extern vm_offset_t virtual_end;
 
 #define	pa_index(pa)		atop(pa - vm_first_phys)
 #define	pa_to_pvh(pa)		(&pv_table[pa_index(pa)])

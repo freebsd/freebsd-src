@@ -23,12 +23,14 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.8 1994/08/13 03:49:37 wollman Exp $
+ *	$Id: db_trace.c,v 1.9 1995/03/01 21:37:44 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+
+#include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -109,7 +111,6 @@ db_numargs(fp)
 	int	*argp;
 	int	inst;
 	int	args;
-	extern char	etext[];
 
 	argp = (int *)db_get_value((int)&fp->f_retaddr, 4, FALSE);
 	if (argp < (int *)VM_MIN_KERNEL_ADDRESS || argp > (int *)etext)

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.11 1995/03/12 08:05:46 davidg Exp $
+ * $Id: vm_object.h,v 1.12 1995/03/12 12:42:00 bde Exp $
  */
 
 /*
@@ -70,6 +70,10 @@
 
 #ifndef	_VM_OBJECT_
 #define	_VM_OBJECT_
+
+#ifdef KERNEL
+#include <sys/proc.h>		/* XXX for wakeup() */
+#endif
 
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -120,6 +124,8 @@ struct vm_object_hash_entry {
 typedef struct vm_object_hash_entry *vm_object_hash_entry_t;
 
 #ifdef	KERNEL
+extern int vm_object_cache_max;
+
 TAILQ_HEAD(object_q, vm_object);
 
 struct object_q vm_object_cached_list;	/* list of objects persisting */

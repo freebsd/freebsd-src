@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.11 1995/01/09 16:05:12 davidg Exp $
+ * $Id: buf.h,v 1.12 1995/02/18 21:12:33 bde Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -217,9 +217,11 @@ int	bwrite __P((struct buf *));
 void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
 void	brelse __P((struct buf *));
+void	vfs_bio_awrite __P((struct buf *));
 struct buf *getnewbuf __P((int slpflag, int slptimeo, int));
 struct buf *     getpbuf __P((void));
 struct buf *incore __P((struct vnode *, daddr_t));
+int	inmem __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
 int allocbuf __P((struct buf *, int, int));
@@ -229,15 +231,24 @@ void	biodone __P((struct buf *));
 void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, struct buf **));
+void	cluster_wbuild __P((struct vnode *, struct buf *, long, daddr_t, int,
+	    daddr_t));
 void	cluster_write __P((struct buf *, u_quad_t));
+int	physio __P((void (*)(), struct buf *, dev_t, int, u_int (*)(),
+	    struct uio *));
 u_int	minphys __P((struct buf *));
+void	vfs_busy_pages __P((struct buf *, int clear_modify));
+void	vfs_unbusy_pages(struct buf *);
 void	vwakeup __P((struct buf *));
 void	vmapbuf __P((struct buf *));
 void	vunmapbuf __P((struct buf *));
 void	relpbuf __P((struct buf *));
 void	brelvp __P((struct buf *));
 void	bgetvp __P((struct vnode *, struct buf *));
+void	pbgetvp __P((struct vnode *, struct buf *));
+void	pbrelvp __P((struct buf *));
 void	reassignbuf __P((struct buf *, struct vnode *));
+struct	buf *trypbuf __P((void));
 __END_DECLS
 #endif
 #endif /* !_SYS_BUF_H_ */

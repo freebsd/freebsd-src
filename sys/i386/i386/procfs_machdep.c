@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_machdep.c,v 1.2 1994/05/25 08:54:48 rgrimes Exp $
+ *	$Id: procfs_machdep.c,v 1.3 1995/01/14 13:20:09 bde Exp $
  */
 
 /*
@@ -71,14 +71,14 @@
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
 #include <machine/psl.h>
 #include <machine/reg.h>
 #include <machine/frame.h>
+#include <machine/md_var.h>
 #include <miscfs/procfs/procfs.h>
-
-extern char kstack[];		/* XXX */
 
 int
 procfs_read_regs(p, regs)

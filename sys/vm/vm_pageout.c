@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.40 1995/03/01 23:30:02 davidg Exp $
+ * $Id: vm_pageout.c,v 1.41 1995/03/12 07:58:29 davidg Exp $
  */
 
 /*
@@ -74,6 +74,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
@@ -472,7 +473,6 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 void
 vm_req_vmdaemon()
 {
-	extern int ticks;
 	static int lastrun = 0;
 
 	if ((ticks > (lastrun + hz / 10)) || (ticks < lastrun)) {

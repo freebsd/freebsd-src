@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id: mount.h,v 1.11 1994/09/27 20:39:50 phk Exp $
+ * $Id: mount.h,v 1.12 1994/10/20 00:48:21 wollman Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -208,6 +208,8 @@ struct vfsconf {
  */
 #ifdef KERNEL
 
+extern	int	doforce;	/* Flag to permit forcible unmounting. */
+extern struct vfsconf void_vfsconf;
 extern struct vfsconf *vfsconf[];
 
 #ifdef __STDC__
@@ -455,11 +457,14 @@ struct nfs_args {
 #endif /* NFS */
 
 #ifdef KERNEL
+extern	int (*mountroot) __P((void));
+
 /*
  * exported vnode operations
  */
 int	dounmount __P((struct mount *, int, struct proc *));
 struct	mount *getvfs __P((fsid_t *));      /* return vfs given fsid */
+void	getnewfsid __P((struct mount *mp, int mtype));
 int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int	vfs_export			    /* process mount export info */
 	  __P((struct mount *, struct netexport *, struct export_args *));
@@ -468,6 +473,7 @@ struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
 int	vfs_lock __P((struct mount *));         /* lock a vfs */
 int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */
 void	vfs_unlock __P((struct mount *));       /* unlock a vfs */
+void	vfs_unmountall __P((void));
 int	vfs_busy __P((struct mount *));         /* mark a vfs  busy */
 void	vfs_unbusy __P((struct mount *));       /* mark a vfs not busy */
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */

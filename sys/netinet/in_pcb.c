@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.6 1995/03/02 19:29:42 davidg Exp $
+ * $Id: in_pcb.c,v 1.7 1995/03/14 21:50:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -392,7 +392,6 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 	int cmd;
 	void (*notify) __P((struct inpcb *, int));
 {
-	extern u_char inetctlerrmap[];
 	register struct inpcb *inp, *oinp;
 	struct in_addr faddr;
 	u_short fport = fport_arg, lport = lport_arg;

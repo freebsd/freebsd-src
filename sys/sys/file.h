@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.1 (Berkeley) 6/2/93
- * $Id: file.h,v 1.3 1994/08/21 04:41:45 paul Exp $
+ * $Id: file.h,v 1.4 1995/02/20 19:42:37 guido Exp $
  */
 
 #ifndef _SYS_FILE_H_
@@ -74,6 +74,7 @@ struct file {
 };
 
 extern struct file *filehead;	/* head of list of open files */
+extern struct fileops vnops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
 extern int nfiles;		/* actual number of open files */

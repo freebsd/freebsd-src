@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.32 1995/02/20 22:23:31 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.33 1995/03/01 23:59:21 davidg Exp $
  */
 
 #include "npx.h"
@@ -51,6 +51,7 @@
 #include <sys/user.h>
 
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -546,8 +547,6 @@ cpu_fork(p1, p2)
 {
 	register struct user *up = p2->p_addr;
 	int offset;
-	extern char kstack[];
-	extern int mvesp();
 
 	/*
 	 * Copy pcb and stack from proc p1 to p2. 

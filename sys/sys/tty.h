@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.11 1995/02/25 20:09:44 pst Exp $
+ * $Id: tty.h,v 1.12 1995/02/28 00:21:11 pst Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -184,6 +184,7 @@ struct speedtab {
 	(isctty((p), (tp)) && (p)->p_pgrp != (tp)->t_pgrp)
 
 #ifdef KERNEL
+extern	struct tty *constty;	/* Temporary virtual console. */
 extern	struct ttychars ttydefaults;
 
 /* Symbolic sleep message strings. */
@@ -201,6 +202,8 @@ char	*nextc __P((struct clist *q, char *cp, int *c));
 int	 putc __P((int c, struct clist *q));
 int	 q_to_b __P((struct clist *q, char *cp, int cc));
 int	 unputc __P((struct clist *q));
+
+int	ttcompat __P((struct tty *tp, int com, caddr_t data, int flag));
 
 int	 nullmodem __P((struct tty *tp, int flag));
 int	 tputchar __P((int c, struct tty *tp));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.4 1994/10/08 22:39:56 phk Exp $
+ * $Id: ip_icmp.c,v 1.5 1995/02/16 00:27:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,8 @@
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <vm/vm.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -52,6 +54,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/ip_var.h>
 #include <netinet/icmp_var.h>
 
 /*
@@ -185,7 +188,6 @@ icmp_input(m, hlen)
 	struct in_ifaddr *ia;
 	void (*ctlfunc) __P((int, struct sockaddr *, struct ip *));
 	int code;
-	extern u_char ip_protox[];
 
 	/*
 	 * Locate icmp structure in mbuf, and check
@@ -420,7 +422,7 @@ icmp_reflect(m)
 	register struct ip *ip = mtod(m, struct ip *);
 	register struct in_ifaddr *ia;
 	struct in_addr t;
-	struct mbuf *opts = 0, *ip_srcroute();
+	struct mbuf *opts = 0;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
 
 	if (!in_canforward(ip->ip_src) &&
