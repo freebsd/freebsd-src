@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.61 1999/02/25 15:54:05 bde Exp $
+ * $Id: kern_time.c,v 1.62 1999/04/07 16:36:56 nsayer Exp $
  */
 
 #include <sys/param.h>
@@ -97,17 +97,20 @@ settime(tv)
 	 */
 	if (securelevel > 1) {
 		if (delta.tv_sec < 0 || delta.tv_usec < 0) {
-			if ( tv1.tv_sec > maxtime.tv_sec )
-				maxtime=tv1;
-			tv2=*tv;
-			timevalsub( &tv2, &maxtime );
-			if ( tv2.tv_sec < -1 ) {
-				tv.tv_sec=maxtime.tv_sec-1;
+			/*
+			 * Initialize maxtime if we've not seen it before.
+			 */
+			if (tv1.tv_sec > maxtime.tv_sec)
+				maxtime = tv1;
+			tv2 = *tv;
+			timevalsub(&tv2, &maxtime);
+			if (tv2.tv_sec < -1) {
+				tv->tv_sec = maxtime.tv_sec - 1;
 				printf("Time adjustment clamped to -1 second\n");
 			}
-		}
-		else {
-			/* XXX
+		} else {
+			/*
+			 * XXX
 			 * We have to figure out how to be secure
 			 * in this case. Allowing arbitrary
 			 * positive increases allows a miscreant
