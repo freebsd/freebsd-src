@@ -312,7 +312,7 @@
 	future growth and new features.</para>
 
       <para>The xe driver now supports CE2, CEM28, 
-        and CEM33 cards, and multicast datagram.  Also several
+        and CEM33 cards, and &man.multicast.4; datagram.  Also several
         bugs in the driver has been fixed.</para>
     </sect3>
 
@@ -347,7 +347,7 @@
 	to run the HARP ATM stack without real hardware.</para>
 
       <para>Kernel support has been added for Protocol Independent
-	Multicast routing. &merged;</para>
+	Multicast routing (&man.pim.4;). &merged;</para>
 
       <para>To reduce information leakage, IPv4 packets no longer have
 	a <varname>ip_id</varname> field set unless fragmentation is
@@ -385,9 +385,10 @@
         </listitem>
 
         <listitem>
-          <para>&man.rfcomm.sppd.1; and &man.rfcomm.pppd.8; now supports to
-            obtain a RFCOMM channel via SDP from the server.  Note that
-            it is still needed to specify a RFCOMM channel by hand.</para>
+          <para>&man.rfcomm.sppd.1; and &man.rfcomm.pppd.8; now support
+            to query RFCOMM channel via SDP from the server.  Specifying
+            RFCOMM channel manually, this behavior can be disabled and
+            these utilities will not use SDP query.</para>
         </listitem>
 
         <listitem>
