@@ -111,9 +111,6 @@ static struct inpcbinfo divcbinfo;
 static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
 static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 
-/* Optimization: have this preinitialized */
-static struct sockaddr_in divsrc = { sizeof(divsrc), AF_INET };
-
 /*
  * Initialize divert connection block queue.
  */
@@ -159,11 +156,10 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 	struct inpcb *inp;
 	struct socket *sa;
 	u_int16_t nport;
+	struct sockaddr_in divsrc;
 
 	/* Sanity check */
 	KASSERT(port != 0, ("%s: port=0", __func__));
-
-	divsrc.sin_port = rule;		/* record matching rule */
 
 	/* Assure header */
 	if (m->m_len < sizeof(struct ip) &&
@@ -175,7 +171,10 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 	 * Record receive interface address, if any.
 	 * But only for incoming packets.
 	 */
-	divsrc.sin_addr.s_addr = 0;
+	bzero(&divsrc, sizeof(divsrc));
+	divsrc.sin_len = sizeof(divsrc);
+	divsrc.sin_family = AF_INET;
+	divsrc.sin_port = rule;		/* record matching rule */
 	if (incoming) {
 		struct ifaddr *ifa;
 
@@ -196,7 +195,6 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 	/*
 	 * Record the incoming interface name whenever we have one.
 	 */
-	bzero(&divsrc.sin_zero, sizeof(divsrc.sin_zero));
 	if (m->m_pkthdr.rcvif) {
 		/*
 		 * Hide the actual interface name in there in the 
@@ -224,17 +222,25 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 	/* Put packet on socket queue, if any */
 	sa = NULL;
 	nport = htons((u_int16_t)port);
+	INP_INFO_RLOCK(&divcbinfo);
 	LIST_FOREACH(inp, &divcb, inp_list) {
-		if (inp->inp_lport == nport)
+		INP_LOCK(inp);
+		/* XXX why does only one socket match? */
+		if (inp->inp_lport == nport) {
 			sa = inp->inp_socket;
+			if (sbappendaddr(&sa->so_rcv,
+			    (struct sockaddr *)&divsrc, m,
+			    (struct mbuf *)0) == 0)
+				sa = NULL;	/* force mbuf reclaim below */
+			else
+				sorwakeup(sa);
+			INP_UNLOCK(inp);
+			break;
+		}
+		INP_UNLOCK(inp);
 	}
-	if (sa) {
-		if (sbappendaddr(&sa->so_rcv, (struct sockaddr *)&divsrc,
-				m, (struct mbuf *)0) == 0)
-			m_freem(m);
-		else
-			sorwakeup(sa);
-	} else {
+	INP_INFO_RUNLOCK(&divcbinfo);
+	if (sa == NULL) {
 		m_freem(m);
 		ipstat.ips_noproto++;
 		ipstat.ips_delivered--;
@@ -349,28 +355,37 @@ static int
 div_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct inpcb *inp;
-	int error, s;
+	int error;
 
+	INP_INFO_WLOCK(&divcbinfo);
 	inp  = sotoinpcb(so);
-	if (inp)
-		panic("div_attach");
-	if (td && (error = suser(td)) != 0)
+	if (inp != 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return EINVAL;
+	}
+	if (td && (error = suser(td)) != 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
 		return error;
-
+	}
 	error = soreserve(so, div_sendspace, div_recvspace);
-	if (error)
+	if (error) {
+		INP_INFO_WUNLOCK(&divcbinfo);
 		return error;
-	s = splnet();
+	}
 	error = in_pcballoc(so, &divcbinfo, td);
-	splx(s);
-	if (error)
+	if (error) {
+		INP_INFO_WUNLOCK(&divcbinfo);
 		return error;
+	}
 	inp = (struct inpcb *)so->so_pcb;
+	INP_LOCK(inp);
+	INP_INFO_WUNLOCK(&divcbinfo);
 	inp->inp_ip_p = proto;
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_flags |= INP_HDRINCL;
 	/* The socket is always "connected" because
 	   we always know "where" to send the packet */
+	INP_UNLOCK(inp);
 	so->so_state |= SS_ISCONNECTED;
 	return 0;
 }
@@ -380,10 +395,15 @@ div_detach(struct socket *so)
 {
 	struct inpcb *inp;
 
+	INP_INFO_WLOCK(&divcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0)
-		panic("div_detach");
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return EINVAL;
+	}
+	INP_LOCK(inp);
 	in_pcbdetach(inp);
+	INP_INFO_WUNLOCK(&divcbinfo);
 	return 0;
 }
 
@@ -406,11 +426,14 @@ static int
 div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
-	int s;
 	int error;
 
-	s = splnet();
+	INP_INFO_WLOCK(&divcbinfo);
 	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return EINVAL;
+	}
 	/* in_pcbbind assumes that nam is a sockaddr_in
 	 * and in_pcbbind requires a valid address. Since divert
 	 * sockets don't we need to make sure the address is
@@ -422,9 +445,11 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = EAFNOSUPPORT;
 	else {
 		((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
+		INP_LOCK(inp);
 		error = in_pcbbind(inp, nam, td);
+		INP_UNLOCK(inp);
 	}
-	splx(s);
+	INP_INFO_WUNLOCK(&divcbinfo);
 	return error;
 }
 
@@ -454,7 +479,7 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, n, s;
+	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
@@ -476,10 +501,12 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	s = splnet();
+	INP_INFO_RLOCK(&divcbinfo);
 	gencnt = divcbinfo.ipi_gencnt;
 	n = divcbinfo.ipi_count;
-	splx(s);
+	INP_INFO_RUNLOCK(&divcbinfo);
+
+	sysctl_wire_old_buffer(req, 2 * sizeof(xig) + n*sizeof(struct xinpcb));
 
 	xig.xig_len = sizeof xig;
 	xig.xig_count = n;
@@ -493,13 +520,16 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	if (inp_list == 0)
 		return ENOMEM;
 	
-	s = splnet();
+	INP_INFO_RLOCK(&divcbinfo);
 	for (inp = LIST_FIRST(divcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->td, inp))
+		INP_LOCK(inp);
+		if (inp->inp_gencnt <= gencnt &&
+		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0)
 			inp_list[i++] = inp;
+		INP_UNLOCK(inp);
 	}
-	splx(s);
+	INP_INFO_RUNLOCK(&divcbinfo);
 	n = i;
 
 	error = 0;
@@ -523,11 +553,11 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		 * while we were processing this request, and it
 		 * might be necessary to retry.
 		 */
-		s = splnet();
+		INP_INFO_RLOCK(&divcbinfo);
 		xig.xig_gen = divcbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
 		xig.xig_count = divcbinfo.ipi_count;
-		splx(s);
+		INP_INFO_RUNLOCK(&divcbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
 	free(inp_list, M_TEMP);
