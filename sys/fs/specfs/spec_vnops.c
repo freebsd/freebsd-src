@@ -760,8 +760,8 @@ spec_getpages(ap)
 	}
 	pmap_qremove(kva, pcount);
 
-
 	gotreqpage = 0;
+	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < pcount; i++, toff = nextoff) {
 		nextoff = toff + PAGE_SIZE;
 		m = ap->a_m[i];
@@ -812,6 +812,7 @@ spec_getpages(ap)
 				vm_page_zero_invalid(m, FALSE);
 		}
 	}
+	vm_page_unlock_queues();
 	if (!gotreqpage) {
 		m = ap->a_m[ap->a_reqpage];
 		printf(
