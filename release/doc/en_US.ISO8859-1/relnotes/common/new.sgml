@@ -280,7 +280,7 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para arch="i386">A new &man.axe.4; network driver has been
+      <para arch="i386,pc98">A new &man.axe.4; network driver has been
 	added.  It provides support for USB Ethernet adapters based on
 	the ASIX Electronics AX88172 USB 2.0 chipset.</para>
 
