@@ -58,8 +58,10 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
+# Similarly, you can specify make flags for make readmes via PORTREADMES_FLAGS.
 #WORLD_FLAGS=-j4
 #KERNEL_FLAGS=-j4
+#PORTREADMES_FLAGS=-j4
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
@@ -467,7 +469,7 @@ release rerelease:
 .endif
 	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/ports"			>> ${CHROOTDIR}/mk
-	echo "	make readmes"			>> ${CHROOTDIR}/mk
+	echo "	make ${PORTREADMES_FLAGS} readmes" >> ${CHROOTDIR}/mk
 	echo "	echo \">>> make readmes finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
