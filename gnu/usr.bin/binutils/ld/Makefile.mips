@@ -13,7 +13,7 @@ CFLAGS+=	-DDEFAULT_EMULATION=\"elf32lmip\"
 CFLAGS+=	-DTARGET=\"elf32-littlemips\"
 _mips_path=	\"/usr/lib\"
 .else
-_mips_path=	\"/usr/cross/mips-freebsdelf/usr/lib\"
+_mips_path=	\"/usr/cross/mips-freebsd/usr/lib\"
 .endif
 EMS+=		ld_elf32bmip_emulation ld_elf32lmip_emulation
 LDSCRIPTS+=	elf32bmip.x elf32bmip.xbn elf32bmip.xn elf32bmip.xr \
