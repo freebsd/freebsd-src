@@ -34,13 +34,12 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ccdconfig.c,v 1.10 1998/09/15 08:15:22 gibbs Exp $";
+	"$Id: ccdconfig.c,v 1.11 1999/04/05 06:30:12 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/disklabel.h>
 #include <sys/device.h>
-#include <sys/disk.h>
 #include <sys/stat.h>
 #include <sys/module.h>
 #include <ctype.h>
