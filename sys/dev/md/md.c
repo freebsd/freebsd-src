@@ -336,9 +336,7 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 
 
 struct g_class g_md_class = {
-	"MD",
-	NULL,
-	NULL,
+	.name = "MD",
 	G_CLASS_INITIALIZER
 
 };
