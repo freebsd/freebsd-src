@@ -87,11 +87,18 @@
 #define AGP_INTEL_I8XX_ERRSTS	0xc8
 
 /*
- * Config offsets for VIA AGP chipsets.
+ * Config offsets for VIA AGP 2.x chipsets.
  */
 #define AGP_VIA_GARTCTRL	0x80
 #define AGP_VIA_APSIZE		0x84
 #define AGP_VIA_ATTBASE		0x88
+
+/*
+ * Config offsets for VIA AGP 3.0 chipsets.
+ */
+#define AGP3_VIA_GARTCTRL        0x90
+#define AGP3_VIA_APSIZE          0x94
+#define AGP3_VIA_ATTBASE         0x98
 
 /*
  * Config offsets for SiS AGP chipsets.
