@@ -367,6 +367,10 @@ options 	ROOTDEVNAME=\"da0s2e\"
 #
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
+options 	IPSEC			#IP security
+options 	IPSEC_ESP		#IP security (crypto; define w/ IPSEC)
+options 	IPSEC_IPV6FWD		#IP security tunnel for IPv6
+options 	IPSEC_DEBUG		#debug for IP security
 
 options 	IPX			#IPX/SPX communications protocols
 options 	IPXIP			#IPX in IP encapsulation (not available)

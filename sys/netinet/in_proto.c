@@ -36,6 +36,8 @@
 
 #include "opt_ipdivert.h"
 #include "opt_ipx.h"
+#include "opt_ipsec.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -59,9 +61,20 @@
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+
+#include <netinet/ipprotosw.h>
+
 /*
  * TCP/IP protocol family: IP, ICMP, UDP, TCP.
  */
+
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#include <netinet6/ah.h>
+#ifdef IPSEC_ESP
+#include <netinet6/esp.h>
+#endif
+#endif /* IPSEC */
 
 #include "gif.h"
 #if NGIF > 0
@@ -80,7 +93,7 @@
 extern	struct domain inetdomain;
 static	struct pr_usrreqs nousrreqs;
 
-struct protosw inetsw[] = {
+struct ipprotosw inetsw[] = {
 { 0,		&inetdomain,	0,		0,
   0,		0,		0,		0,
   0,
@@ -124,6 +137,22 @@ struct protosw inetsw[] = {
   0,		0,		0,		0,
   &rip_usrreqs
 },
+#ifdef IPSEC
+{ SOCK_RAW,	&inetdomain,	IPPROTO_AH,	PR_ATOMIC|PR_ADDR,
+  ah4_input,	0,	 	0,		0,
+  0,	  
+  0,		0,		0,		0,
+  &nousrreqs
+},
+#ifdef IPSEC_ESP
+{ SOCK_RAW,	&inetdomain,	IPPROTO_ESP,	PR_ATOMIC|PR_ADDR,
+  esp4_input,	0,	 	0,		0,
+  0,	  
+  0,		0,		0,		0,
+  &nousrreqs
+},
+#endif
+#endif /* IPSEC */
 #if NGIF > 0
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,
   in_gif_input,	0,	 	0,		0,
@@ -199,7 +228,8 @@ extern int in_inithead __P((void **, int));
 
 struct domain inetdomain =
     { AF_INET, "internet", 0, 0, 0, 
-      inetsw, &inetsw[sizeof(inetsw)/sizeof(inetsw[0])], 0,
+      (struct protosw *)inetsw,
+      (struct protosw *)&inetsw[sizeof(inetsw)/sizeof(inetsw[0])], 0,
       in_inithead, 32, sizeof(struct sockaddr_in)
     };
 
@@ -213,6 +243,9 @@ SYSCTL_NODE(_net_inet, IPPROTO_ICMP,	icmp,	CTLFLAG_RW, 0,	"ICMP");
 SYSCTL_NODE(_net_inet, IPPROTO_UDP,	udp,	CTLFLAG_RW, 0,	"UDP");
 SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
 SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
+#ifdef IPSEC
+SYSCTL_NODE(_net_inet, IPPROTO_AH,	ipsec,	CTLFLAG_RW, 0,	"IPSEC");
+#endif /* IPSEC */
 SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
 #ifdef IPDIVERT
 SYSCTL_NODE(_net_inet, IPPROTO_DIVERT,	div,	CTLFLAG_RW, 0,	"DIVERT");

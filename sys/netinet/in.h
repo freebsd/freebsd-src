@@ -419,7 +419,7 @@ struct ip_mreq {
 #define	IPCTL_STATS		12	/* ipstat structure */
 #define	IPCTL_ACCEPTSOURCEROUTE	13	/* may accept source routed packets */
 #define	IPCTL_FASTFORWARDING	14	/* use fast IP forwarding code */
-#define	IPCTL_KEEPFAITH		15
+#define	IPCTL_KEEPFAITH		15	/* FAITH IPv4->IPv6 translater ctl */
 #define	IPCTL_GIF_TTL		16	/* default TTL for gif encap packet */
 #define	IPCTL_MAXID		17
 

@@ -34,6 +34,9 @@
  * $FreeBSD$
  */
 
+#include "opt_inet6.h"
+#include "opt_ipsec.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -60,6 +63,10 @@
 #include <netinet/ip_mroute.h>
 
 #include <netinet/ip_fw.h>
+
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#endif /*IPSEC*/
 
 #include "opt_ipdn.h"
 #ifdef DUMMYNET
@@ -105,9 +112,9 @@ static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
  * mbuf chain.
  */
 void
-rip_input(m, iphlen)
+rip_input(m, off, proto)
 	struct mbuf *m;
-	int iphlen;
+	int off, proto;
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register struct inpcb *inp;
@@ -115,8 +122,12 @@ rip_input(m, iphlen)
 	struct mbuf *opts = 0;
 
 	ripsrc.sin_addr = ip->ip_src;
-	for (inp = ripcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
-		if (inp->inp_ip_p && inp->inp_ip_p != ip->ip_p)
+	LIST_FOREACH(inp, &ripcb, inp_list) {
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV4) == 0)
+			continue;
+#endif
+		if (inp->inp_ip_p && inp->inp_ip_p != proto)
 			continue;
 		if (inp->inp_laddr.s_addr &&
                   inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
@@ -215,7 +226,13 @@ rip_output(m, so, dst)
 		flags |= IP_RAWOUTPUT;
 		ipstat.ips_rawout++;
 	}
-	return (ip_output(m, inp->inp_options, &inp->inp_route, flags,
+
+#ifdef IPSEC
+	m->m_pkthdr.rcvif = (struct ifnet *)so;	/*XXX*/
+#endif /*IPSEC*/
+
+	return (ip_output(m, inp->inp_options, &inp->inp_route,
+			  flags | IP_SOCKINMRCVIF,
 			  inp->inp_moptions));
 }
 
@@ -431,16 +448,24 @@ rip_attach(struct socket *so, int proto, struct proc *p)
 	if (p && (error = suser(p)) != 0)
 		return error;
 
+	error = soreserve(so, rip_sendspace, rip_recvspace);
+	if (error)
+		return error;
 	s = splnet();
 	error = in_pcballoc(so, &ripcbinfo, p);
 	splx(s);
 	if (error)
 		return error;
-	error = soreserve(so, rip_sendspace, rip_recvspace);
-	if (error)
-		return error;
 	inp = (struct inpcb *)so->so_pcb;
+	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_p = proto;
+#ifdef IPSEC
+	error = ipsec_init_policy(so, &inp->inp_sp);
+	if (error != 0) {
+		in_pcbdetach(inp);
+		return error;
+	}
+#endif /*IPSEC*/
 	return 0;
 }
 

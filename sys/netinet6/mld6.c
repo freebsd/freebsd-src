@@ -68,6 +68,8 @@
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
  */
 
+#include "opt_ipsec.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -391,10 +393,6 @@ mld6_sendpkt(in6m, type, dst)
 		return;
 	}
 	mh->m_next = md;
-
-#ifdef IPSEC
-	mh->m_pkthdr.rcvif = NULL;
-#endif
 	mh->m_pkthdr.len = sizeof(struct ip6_hdr) + sizeof(struct mld6_hdr);
 	mh->m_len = sizeof(struct ip6_hdr);
 	MH_ALIGN(mh, sizeof(struct ip6_hdr));

@@ -64,6 +64,8 @@
  *	@(#)in_proto.c	8.1 (Berkeley) 6/10/93
  */
 
+#include "opt_ipsec.h"
+
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -102,12 +104,13 @@
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
-#include <netinet6/ipsec6.h>
 #include <netinet6/ah.h>
+#include <netinet6/ipsec6.h>
+#include <netinet6/ah6.h>
 #ifdef IPSEC_ESP
 #include <netinet6/esp.h>
+#include <netinet6/esp6.h>
 #endif
-#include <netinet6/ipcomp.h>
 #endif /*IPSEC*/
 
 #include <netinet6/ip6protosw.h>
@@ -186,12 +189,6 @@ struct ip6protosw inet6sw[] = {
   &nousrreqs,
 },
 #endif
-{ SOCK_RAW,	&inet6domain,	IPPROTO_IPCOMP,	PR_ATOMIC|PR_ADDR,
-  ipcomp6_input, 0,	 	0,		0,
-  0,
-  0,		0,		0,		0,
-  &nousrreqs,
-},
 #endif /* IPSEC */
 #if NGIF > 0
 { SOCK_RAW,	&inet6domain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,

@@ -89,6 +89,10 @@ struct ip {
 #define	IPTOS_THROUGHPUT	0x08
 #define	IPTOS_RELIABILITY	0x04
 #define	IPTOS_MINCOST		0x02
+/* ECN bits proposed by Sally Floyd */
+#define	IPTOS_CE		0x01	/* congestion experienced */
+#define	IPTOS_ECT		0x02	/* ECN-capable transport */
+
 
 /*
  * Definitions for IP precedence (also in ip_tos) (hopefully unused)

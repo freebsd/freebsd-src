@@ -40,6 +40,7 @@
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,6 +50,7 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -60,12 +62,24 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 
+#include "faith.h"
+
 #ifdef vax
 #include <machine/mtpr.h>
 #endif
 #include <machine/in_cksum.h>
 
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
+
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#include <netkey/key.h>
+#ifdef IPSEC_DEBUG
+#include <netkey/key_debug.h>
+#else
+#define	KEYDEBUG(lev,arg)
+#endif
+#endif /*IPSEC*/
 
 #include <netinet/ip_fw.h>
 
@@ -123,6 +137,11 @@ ip_output(m0, opt, ro, flags, imo)
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
 	int isbroadcast;
+#ifdef IPSEC
+	struct route iproute;
+	struct socket *so;
+	struct secpolicy *sp = NULL;
+#endif
 	u_int16_t divert_cookie;		/* firewall cookie */
 #ifdef IPFIREWALL_FORWARD
 	int fwd_rewrite_src = 0;
@@ -136,6 +155,32 @@ ip_output(m0, opt, ro, flags, imo)
 #else
 	divert_cookie = 0;
 #endif
+
+#ifdef IPSEC
+	/*
+	 * NOTE: If IP_SOCKINMRCVIF flag is set, 'socket *' is kept in
+	 * m->m_pkthdr.rcvif for later IPSEC check. In this case,
+	 * m->m_pkthdr will be NULL cleared after the contents is saved in
+	 * 'so'.
+	 * NULL clearance of rcvif should be natural because the packet should
+	 * have been sent from my own socket and has no rcvif in this case.
+	 * It is also necessary because someone might consider it as
+	 * 'ifnet *', and cause SEGV.
+	 */
+	if ((flags & IP_SOCKINMRCVIF) != 0) {
+#if defined(IPFIREWALL) && defined(DUMMYNET)
+		if (m->m_type == MT_DUMMYNET) {
+			so = (struct socket *)m->m_next->m_pkthdr.rcvif;
+			m->m_next->m_pkthdr.rcvif = NULL;
+		} else
+#endif
+		{
+			so = (struct socket *)m->m_pkthdr.rcvif;
+			m->m_pkthdr.rcvif = NULL;
+		}
+	} else
+		so = NULL;
+#endif /*IPSEC*/
   
 #if defined(IPFIREWALL) && defined(DUMMYNET)
         /*  
@@ -151,13 +196,12 @@ ip_output(m0, opt, ro, flags, imo)
              * they are used to hold ifp, dst and NULL, respectively.
              */
             rule = (struct ip_fw_chain *)(m->m_data) ;
+            dst = (struct sockaddr_in *)((struct dn_pkt *)m)->dn_dst;
             m0 = m = m->m_next ;
             ip = mtod(m, struct ip *);
-            dst = (struct sockaddr_in *)flags ;
             ifp = (struct ifnet *)opt;
             hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
             opt = NULL ;
-            flags = 0 ; /* XXX is this correct ? */
             goto sendit;
         } else
             rule = NULL ;
@@ -455,7 +499,8 @@ sendit:
                      * XXX note: if the ifp or ro entry are deleted
                      * while a pkt is in dummynet, we are in trouble!
                      */ 
-                    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,dst,rule);
+                    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,dst,rule, 
+				flags);
 			goto done;
 		}
 #endif   
@@ -597,6 +642,125 @@ sendit:
 	}
 
 pass:
+#ifdef IPSEC
+	/* get SP for this packet */
+	if (so == NULL)
+		sp = ipsec4_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, flags, &error);
+	else
+		sp = ipsec4_getpolicybysock(m, IPSEC_DIR_OUTBOUND, so, &error);
+
+	if (sp == NULL) {
+		ipsecstat.out_inval++;
+		goto bad;
+	}
+
+	error = 0;
+
+	/* check policy */
+	switch (sp->policy) {
+	case IPSEC_POLICY_DISCARD:
+		/*
+		 * This packet is just discarded.
+		 */
+		ipsecstat.out_polvio++;
+		goto bad;
+
+	case IPSEC_POLICY_BYPASS:
+	case IPSEC_POLICY_NONE:
+		/* no need to do IPsec. */
+		goto skip_ipsec;
+	
+	case IPSEC_POLICY_IPSEC:
+		if (sp->req == NULL) {
+			/* XXX should be panic ? */
+			printf("ip_output: No IPsec request specified.\n");
+			error = EINVAL;
+			goto bad;
+		}
+		break;
+
+	case IPSEC_POLICY_ENTRUST:
+	default:
+		printf("ip_output: Invalid policy found. %d\n", sp->policy);
+	}
+
+	ip->ip_len = htons((u_short)ip->ip_len);
+	ip->ip_off = htons((u_short)ip->ip_off);
+	ip->ip_sum = 0;
+
+    {
+	struct ipsec_output_state state;
+	bzero(&state, sizeof(state));
+	state.m = m;
+	if (flags & IP_ROUTETOIF) {
+		state.ro = &iproute;
+		bzero(&iproute, sizeof(iproute));
+	} else
+		state.ro = ro;
+	state.dst = (struct sockaddr *)dst;
+
+	error = ipsec4_output(&state, sp, flags);
+
+	m = state.m;
+	if (flags & IP_ROUTETOIF) {
+		/*
+		 * if we have tunnel mode SA, we may need to ignore
+		 * IP_ROUTETOIF.
+		 */
+		if (state.ro != &iproute || state.ro->ro_rt != NULL) {
+			flags &= ~IP_ROUTETOIF;
+			ro = state.ro;
+		}
+	} else
+		ro = state.ro;
+	dst = (struct sockaddr_in *)state.dst;
+	if (error) {
+		/* mbuf is already reclaimed in ipsec4_output. */
+		m0 = NULL;
+		switch (error) {
+		case EHOSTUNREACH:
+		case ENETUNREACH:
+		case EMSGSIZE:
+		case ENOBUFS:
+		case ENOMEM:
+			break;
+		default:
+			printf("ip4_output (ipsec): error code %d\n", error);
+			/*fall through*/
+		case ENOENT:
+			/* don't show these error codes to the user */
+			error = 0;
+			break;
+		}
+		goto bad;
+	}
+    }
+
+	/* be sure to update variables that are affected by ipsec4_output() */
+	ip = mtod(m, struct ip *);
+#ifdef _IP_VHL
+	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+#else
+	hlen = ip->ip_hl << 2;
+#endif
+	if (ro->ro_rt == NULL) {
+		if ((flags & IP_ROUTETOIF) == 0) {
+			printf("ip_output: "
+				"can't update route after IPsec processing\n");
+			error = EHOSTUNREACH;	/*XXX*/
+			goto bad;
+		}
+	} else {
+		/* nobody uses ia beyond here */
+		ifp = ro->ro_rt->rt_ifp;
+	}
+
+	/* make it flipped, again. */
+	ip->ip_len = ntohs((u_short)ip->ip_len);
+	ip->ip_off = ntohs((u_short)ip->ip_off);
+skip_ipsec:
+#endif /*IPSEC*/
+
 	/*
 	 * If small enough for interface, can just send directly.
 	 */
@@ -724,6 +888,17 @@ sendorfree:
 		ipstat.ips_fragmented++;
     }
 done:
+#ifdef IPSEC
+	if (ro == &iproute && ro->ro_rt) {
+		RTFREE(ro->ro_rt);
+		ro->ro_rt = NULL;
+	}
+	if (sp != NULL) {
+		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
+			printf("DP ip_output call free SP:%p\n", sp));
+		key_freesp(sp);
+	}
+#endif /* IPSEC */
 	return (error);
 bad:
 	m_freem(m0);
@@ -868,6 +1043,9 @@ ip_ctloutput(so, sopt)
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
 		case IP_RECVIF:
+#if defined(NFAITH) && NFAITH > 0
+		case IP_FAITH:
+#endif
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -902,6 +1080,12 @@ ip_ctloutput(so, sopt)
 			case IP_RECVIF:
 				OPTSET(INP_RECVIF);
 				break;
+
+#if defined(NFAITH) && NFAITH > 0
+			case IP_FAITH:
+				OPTSET(INP_FAITH);
+				break;
+#endif
 			}
 			break;
 #undef OPTSET
@@ -943,6 +1127,28 @@ ip_ctloutput(so, sopt)
 			}
 			break;
 
+#ifdef IPSEC
+		case IP_IPSEC_POLICY:
+		{
+			caddr_t req;
+			int priv;
+			struct mbuf *m;
+			int optname;
+
+			if ((error = soopt_getm(sopt, &m)) != 0) /* XXX */
+				break;
+			if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
+				break;
+			priv = (sopt->sopt_p != NULL &&
+				suser(sopt->sopt_p) != 0) ? 0 : 1;
+			req = mtod(m, caddr_t);
+			optname = sopt->sopt_name;
+			error = ipsec4_set_policy(inp, optname, req, priv);
+			m_freem(m);
+			break;
+		}
+#endif /*IPSEC*/
+
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -969,6 +1175,9 @@ ip_ctloutput(so, sopt)
 		case IP_RECVDSTADDR:
 		case IP_RECVIF:
 		case IP_PORTRANGE:
+#if defined(NFAITH) && NFAITH > 0
+		case IP_FAITH:
+#endif
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1005,6 +1214,12 @@ ip_ctloutput(so, sopt)
 				else
 					optval = 0;
 				break;
+
+#if defined(NFAITH) && NFAITH > 0
+			case IP_FAITH:
+				optval = OPTBIT(INP_FAITH);
+				break;
+#endif
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
@@ -1017,6 +1232,22 @@ ip_ctloutput(so, sopt)
 		case IP_DROP_MEMBERSHIP:
 			error = ip_getmoptions(sopt, inp->inp_moptions);
 			break;
+
+#ifdef IPSEC
+		case IP_IPSEC_POLICY:
+		{
+			struct mbuf *m;
+			caddr_t req = NULL;
+
+			if (m != 0)
+				req = mtod(m, caddr_t);
+			error = ipsec4_get_policy(sotoinpcb(so), req, &m);
+			if (error == 0)
+				error = soopt_mcopyout(sopt, m); /* XXX */
+			m_freem(m);
+			break;
+		}
+#endif /*IPSEC*/
 
 		default:
 			error = ENOPROTOOPT;

@@ -220,7 +220,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	    struct route *ro = &(pkt->ro) ;
 
 	    (void)ip_output((struct mbuf *)pkt, (struct mbuf *)pkt->ifp,
-			ro, pkt->dn_dst, NULL);
+			ro, pkt->flags, NULL);
 	    rt_unref (ro->ro_rt) ;
 	    }
 	    break ;
@@ -290,7 +290,7 @@ int
 dummynet_io(int pipe_nr, int dir,
 	struct mbuf *m, struct ifnet *ifp, struct route *ro,
 	struct sockaddr_in *dst,
-	struct ip_fw_chain *rule)
+	struct ip_fw_chain *rule, int flags)
 {
     struct dn_pkt *pkt;
     struct dn_pipe *pipe;
@@ -359,6 +359,12 @@ dummynet_io(int pipe_nr, int dir,
 	    dst = (struct sockaddr_in *)&(pkt->ro.ro_dst) ;
 
 	pkt->dn_dst = dst;		/* XXX this can't be right! */
+	/*
+	 * 'flags' also need to be kept for later packet treatment
+	 * such as IPSEC. IPSEC consider sending packet's m->m_pkthdr.rcvif
+	 * as 'socket *' at ip_output(), if IP_SOCKINMRCVIF is set.
+	 */
+	pkt->flags = flags;
     }
     if (pipe->r.head == NULL)
 	pipe->r.head = pkt;

@@ -42,6 +42,7 @@
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
 #include "opt_ipstealth.h"
+#include "opt_ipsec.h"
 
 #include <stddef.h>
 
@@ -72,9 +73,26 @@
 #include <netinet/ip_icmp.h>
 #include <machine/in_cksum.h>
 
+#include <netinet/ipprotosw.h>
+
 #include <sys/socketvar.h>
 
 #include <netinet/ip_fw.h>
+
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#include <netkey/key.h>
+#ifdef IPSEC_DEBUG
+#include <netkey/key_debug.h>
+#else
+#define KEYDEBUG(lev,arg)
+#endif
+#endif
+
+#include "faith.h"
+#if defined(NFAITH) && NFAITH > 0
+#include <net/if_types.h>
+#endif
 
 #ifdef DUMMYNET
 #include <netinet/ip_dummynet.h>
@@ -104,12 +122,18 @@ static int	ip_acceptsourceroute = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute, 
     CTLFLAG_RW, &ip_acceptsourceroute, 0, 
     "Enable accepting source routed IP packets");
+
+static int	ip_keepfaith = 0;
+SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
+	&ip_keepfaith,	0,
+	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
+
 #ifdef DIAGNOSTIC
 static int	ipprintfs = 0;
 #endif
 
 extern	struct domain inetdomain;
-extern	struct protosw inetsw[];
+extern	struct ipprotosw inetsw[];
 u_char	ip_protox[IPPROTO_MAX];
 static int	ipqmaxlen = IFQ_MAXLEN;
 struct	in_ifaddrhead in_ifaddrhead; /* first inet address */
@@ -181,10 +205,10 @@ static int	ip_dooptions __P((struct mbuf *));
 static void	ip_forward __P((struct mbuf *, int));
 static void	ip_freef __P((struct ipq *));
 #ifdef IPDIVERT
-static struct	ip *ip_reass __P((struct mbuf *,
+static struct	mbuf *ip_reass __P((struct mbuf *,
 			struct ipq *, struct ipq *, u_int32_t *, u_int16_t *));
 #else
-static struct	ip *ip_reass __P((struct mbuf *, struct ipq *, struct ipq *));
+static struct	mbuf *ip_reass __P((struct mbuf *, struct ipq *, struct ipq *));
 #endif
 static struct	in_ifaddr *ip_rtaddr __P((struct in_addr));
 static void	ipintr __P((void));
@@ -196,17 +220,17 @@ static void	ipintr __P((void));
 void
 ip_init()
 {
-	register struct protosw *pr;
+	register struct ipprotosw *pr;
 	register int i;
 
 	TAILQ_INIT(&in_ifaddrhead);
-	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
+	pr = (struct ipprotosw *)pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == 0)
 		panic("ip_init");
 	for (i = 0; i < IPPROTO_MAX; i++)
 		ip_protox[i] = pr - inetsw;
-	for (pr = inetdomain.dom_protosw;
-	    pr < inetdomain.dom_protoswNPROTOSW; pr++)
+	for (pr = (struct ipprotosw *)inetdomain.dom_protosw;
+	    pr < (struct ipprotosw *)inetdomain.dom_protoswNPROTOSW; pr++)
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip_protox[pr->pr_protocol] = pr - inetsw;
@@ -387,7 +411,8 @@ iphack:
 #ifdef DUMMYNET
                 if ((i & IP_FW_PORT_DYNT_FLAG) != 0) {
                         /* Send packet to the appropriate pipe */
-                        dummynet_io(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule);
+                        dummynet_io(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule,
+				    0);
 			return;
 		}
 #endif
@@ -523,6 +548,19 @@ pass:
 	if (ip->ip_dst.s_addr == INADDR_ANY)
 		goto ours;
 
+#if defined(NFAITH) && 0 < NFAITH
+	/*
+	 * FAITH(Firewall Aided Internet Translator)
+	 */
+	if (m->m_pkthdr.rcvif && m->m_pkthdr.rcvif->if_type == IFT_FAITH) {
+		if (ip_keepfaith) {
+			if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_ICMP) 
+				goto ours;
+		}
+		m_freem(m);
+		return;
+	}
+#endif
 	/*
 	 * Not for us; forward if possible and desirable.
 	 */
@@ -546,6 +584,11 @@ ours:
 	 * but it's not worth the time; just let them time out.)
 	 */
 	if (ip->ip_off & (IP_MF | IP_OFFMASK | IP_RF)) {
+
+#if 0	/*
+	 * Reassembly should be able to treat a mbuf cluster, for later
+	 * operation of contiguous protocol headers on the cluster. (KAME)
+	 */
 		if (m->m_flags & M_EXT) {		/* XXX */
 			if ((m = m_pullup(m, hlen)) == 0) {
 				ipstat.ips_toosmall++;
@@ -556,6 +599,7 @@ ours:
 			}
 			ip = mtod(m, struct ip *);
 		}
+#endif
 		sum = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
 		/*
 		 * Look for queue of fragments
@@ -616,12 +660,12 @@ found:
 			ipstat.ips_fragments++;
 			m->m_pkthdr.header = ip;
 #ifdef IPDIVERT
-			ip = ip_reass(m,
+			m = ip_reass(m,
 			    fp, &ipq[sum], &divert_info, &divert_cookie);
 #else
-			ip = ip_reass(m, fp, &ipq[sum]);
+			m = ip_reass(m, fp, &ipq[sum]);
 #endif
-			if (ip == 0) {
+			if (m == 0) {
 #ifdef IPFIREWALL_FORWARD
 				ip_fw_fwd_addr = NULL;
 #endif
@@ -630,7 +674,7 @@ found:
 			/* Get the length of the reassembled packets header */
 			hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 			ipstat.ips_reassembled++;
-			m = dtom(ip);
+			ip = mtod(m, struct ip *);
 #ifdef IPDIVERT
 			/* Restore original checksum before diverting packet */
 			if (divert_info != 0) {
@@ -689,11 +733,15 @@ found:
 	 * Switch out to protocol's input routine.
 	 */
 	ipstat.ips_delivered++;
-	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
+    {
+	int off = hlen, nh = ip->ip_p;
+
+	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, off, nh);
 #ifdef	IPFIREWALL_FORWARD
 	ip_fw_fwd_addr = NULL;	/* tcp needed it */
 #endif
 	return;
+    }
 bad:
 #ifdef	IPFIREWALL_FORWARD
 	ip_fw_fwd_addr = NULL;
@@ -731,7 +779,7 @@ NETISR_SET(NETISR_IP, ipintr);
  * tells us if we need to divert or tee the packet we're building.
  */
 
-static struct ip *
+static struct mbuf *
 #ifdef IPDIVERT
 ip_reass(m, fp, where, divinfo, divcookie)
 #else
@@ -801,7 +849,7 @@ ip_reass(m, fp, where)
 		if (i > 0) {
 			if (i >= ip->ip_len)
 				goto dropfrag;
-			m_adj(dtom(ip), i);
+			m_adj(m, i);
 			ip->ip_off += i;
 			ip->ip_len -= i;
 		}
@@ -908,11 +956,11 @@ inserted:
 	/* some debugging cruft by sklower, below, will go away soon */
 	if (m->m_flags & M_PKTHDR) { /* XXX this should be done elsewhere */
 		register int plen = 0;
-		for (t = m; m; m = m->m_next)
-			plen += m->m_len;
-		t->m_pkthdr.len = plen;
+		for (t = m; t; t = t->m_next)
+			plen += t->m_len;
+		m->m_pkthdr.len = plen;
 	}
-	return (ip);
+	return (m);
 
 dropfrag:
 #ifdef IPDIVERT
@@ -1399,6 +1447,9 @@ ip_forward(m, srcrt)
 	struct mbuf *mcopy;
 	n_long dest;
 	struct ifnet *destifp;
+#ifdef IPSEC
+	struct ifnet dummyifp;
+#endif
 
 	dest = 0;
 #ifdef DIAGNOSTIC
@@ -1523,8 +1574,61 @@ ip_forward(m, srcrt)
 	case EMSGSIZE:
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_NEEDFRAG;
+#ifndef IPSEC
 		if (ipforward_rt.ro_rt)
 			destifp = ipforward_rt.ro_rt->rt_ifp;
+#else
+		/*
+		 * If the packet is routed over IPsec tunnel, tell the
+		 * originator the tunnel MTU.
+		 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
+		 * XXX quickhack!!!
+		 */
+		if (ipforward_rt.ro_rt) {
+			struct secpolicy *sp = NULL;
+			int ipsecerror;
+			int ipsechdr;
+			struct route *ro;
+
+			sp = ipsec4_getpolicybyaddr(mcopy,
+						    IPSEC_DIR_OUTBOUND,
+			                            IP_FORWARDING,
+			                            &ipsecerror);
+
+			if (sp == NULL)
+				destifp = ipforward_rt.ro_rt->rt_ifp;
+			else {
+				/* count IPsec header size */
+				ipsechdr = ipsec4_hdrsiz(mcopy,
+							 IPSEC_DIR_OUTBOUND,
+							 NULL);
+
+				/*
+				 * find the correct route for outer IPv4
+				 * header, compute tunnel MTU.
+				 *
+				 * XXX BUG ALERT
+				 * The "dummyifp" code relies upon the fact
+				 * that icmp_error() touches only ifp->if_mtu.
+				 */
+				/*XXX*/
+				destifp = NULL;
+				if (sp->req != NULL
+				 && sp->req->sav != NULL
+				 && sp->req->sav->sah != NULL) {
+					ro = &sp->req->sav->sah->sa_route;
+					if (ro->ro_rt && ro->ro_rt->rt_ifp) {
+						dummyifp.if_mtu =
+						    ro->ro_rt->rt_ifp->if_mtu;
+						dummyifp.if_mtu -= ipsechdr;
+						destifp = &dummyifp;
+					}
+				}
+
+				key_freesp(sp);
+			}
+		}
+#endif /*IPSEC*/
 		ipstat.ips_cantfrag++;
 		break;
 

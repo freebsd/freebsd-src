@@ -75,12 +75,16 @@
 struct ip6_hdr {
 	union {
 		struct ip6_hdrctl {
-			u_int32_t	ip6_un1_flow; /* 20 bits of flow-ID */
+			u_int32_t	ip6_un1_flow;	/* 4 bits version,
+							 * 8 bits traffic
+							 * class,
+							 * 20 bits flow-ID */
 			u_int16_t	ip6_un1_plen;	/* payload length */
 			u_int8_t	ip6_un1_nxt;	/* next header */
 			u_int8_t	ip6_un1_hlim;	/* hop limit */
 		} ip6_un1;
-		u_int8_t	ip6_un2_vfc; /* 4 bits version, 4 bits class */
+		u_int8_t	ip6_un2_vfc; /* 4 bits version,
+					      *	top 4 bits trafic class */
 	} ip6_ctlun;
 	struct	in6_addr ip6_src;	/* source address */
 	struct	in6_addr ip6_dst;	/* destination address */

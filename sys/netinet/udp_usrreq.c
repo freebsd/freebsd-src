@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ipsec.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
@@ -705,7 +706,8 @@ udp_output(inp, m, addr, control, p)
 #endif /*IPSEC*/
 
 	error = ip_output(m, inp->inp_options, &inp->inp_route,
-	    inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST),
+	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST))
+	    | IP_SOCKINMRCVIF,
 	    inp->inp_moptions);
 
 	if (addr) {

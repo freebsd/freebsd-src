@@ -36,6 +36,7 @@
 #include "opt_inet.h"
 #include "opt_ipfw.h"
 #include "opt_ipdivert.h"
+#include "opt_ipsec.h"
 
 #ifndef INET
 #error "IPDIVERT requires INET."
@@ -126,7 +127,7 @@ div_init(void)
  * with that protocol number to enter the system from the outside.
  */
 void
-div_input(struct mbuf *m, int hlen)
+div_input(struct mbuf *m, int off, int proto)
 {
 	ipstat.ips_noproto++;
 	m_freem(m);
@@ -296,7 +297,8 @@ div_output(so, m, addr, control)
 		ipstat.ips_rawout++;			/* XXX */
 		error = ip_output(m, inp->inp_options, &inp->inp_route,
 			(so->so_options & SO_DONTROUTE) |
-			IP_ALLOWBROADCAST | IP_RAWOUTPUT, inp->inp_moptions);
+			IP_ALLOWBROADCAST | IP_RAWOUTPUT | IP_SOCKINMRCVIF,
+			inp->inp_moptions);
 	} else {
 		struct	ifaddr *ifa;
 
@@ -344,12 +346,12 @@ div_attach(struct socket *so, int proto, struct proc *p)
 	if (p && (error = suser(p)) != 0)
 		return error;
 
+	error = soreserve(so, div_sendspace, div_recvspace);
+	if (error)
+		return error;
 	s = splnet();
 	error = in_pcballoc(so, &divcbinfo, p);
 	splx(s);
-	if (error)
-		return error;
-	error = soreserve(so, div_sendspace, div_recvspace);
 	if (error)
 		return error;
 	inp = (struct inpcb *)so->so_pcb;
@@ -358,6 +360,13 @@ div_attach(struct socket *so, int proto, struct proc *p)
 	/* The socket is always "connected" because
 	   we always know "where" to send the packet */
 	so->so_state |= SS_ISCONNECTED;
+#ifdef IPSEC
+	error = ipsec_init_policy(so, &inp->inp_sp);
+	if (error != 0) {
+		in_pcbdetach(inp);
+		return error;
+	}
+#endif /*IPSEC*/
 	return 0;
 }
 
@@ -414,7 +423,7 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 struct mbuf *control, struct proc *p)
 {
 	/* Packet must have a header (but that's about it) */
-	if (m->m_len < sizeof (struct ip) ||
+	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
 		ipstat.ips_toosmall++;
 		m_freem(m);
