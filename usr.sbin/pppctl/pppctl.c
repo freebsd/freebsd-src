@@ -7,6 +7,7 @@
 #include <netdb.h>
 
 #include <histedit.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,6 +127,40 @@ Receive(int fd, unsigned TimeoutVal, int display)
         sigaction(SIGALRM, &oact, 0);
     }
     return Result;
+}
+
+static int data = -1;
+
+static void
+check_fd(int sig)
+{
+  if (data != -1) {
+    struct pollfd p;
+    static char buf[LINELEN];
+
+    p.fd = data;
+    p.events = POLLIN|POLLPRI;
+    p.revents = p.events|POLLOUT;
+    if (poll(&p, 1, 0) > 0)
+      write(1, buf, read(data, buf, sizeof buf));
+  }
+}
+
+static const char *
+smartgets(EditLine *e, int *count, int fd)
+{
+  const char *result;
+  /* struct itimerval it; */
+
+  data = fd;
+  signal(SIGALRM, check_fd);
+  ualarm(500000, 500000);
+  result = el_gets(e, count);
+  ualarm(0,0);
+  signal(SIGALRM, SIG_DFL);
+  data = -1;
+
+  return result;
 }
 
 int
@@ -307,7 +342,7 @@ main(int argc, char **argv)
                         el_set(edit, EL_EDITOR, "emacs");
                 el_set(edit, EL_SIGNAL, 1);
                 el_set(edit, EL_HIST, history, (const char *)hist);
-                while ((l = el_gets(edit, &len))) {
+                while ((l = smartgets(edit, &len, fd))) {
                     if (len > 1)
                         history(hist, H_ENTER, l);
                     write(fd, l, len);
