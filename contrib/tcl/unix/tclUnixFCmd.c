@@ -1028,7 +1028,7 @@ GetPermissionsAttribute(interp, objIndex, fileName, attributePtrPtr)
 	return TCL_ERROR;
     }
 
-    sprintf(returnString, "%0#5lo", (statBuf.st_mode & 0x00007FFF));
+    sprintf(returnString, "%0#5o", (int)(statBuf.st_mode & 0x00007FFF));
 
     *attributePtrPtr = Tcl_NewStringObj(returnString, -1);
     
