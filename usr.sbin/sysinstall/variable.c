@@ -205,7 +205,7 @@ variable_check2(char *data)
 	    *cp3 = '\0';
         cp2 = variable_get(tmp);
         if (cp2 != NULL) {
-	    if (*cp == NULL)
+	    if (*cp == '\0')
 		return 2;
 	    else
 		return strcmp(cp, cp2) == 0 ? 1 : 0;

@@ -1342,7 +1342,7 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSubmenu, NULL, &MenuMedia },
 #ifdef WITH_MICE
       { " Mouse",	"Configure your mouse",
-	NULL,	dmenuSubmenu, NULL, &MenuMouse, NULL },
+	NULL,	dmenuSubmenu, NULL, &MenuMouse },
 #endif
       { " Networking",	"Configure additional network services",
 	NULL,	dmenuSubmenu, NULL, &MenuNetworking },
