@@ -1707,8 +1707,6 @@ ndis_adjust_buflen(buf, len)
 	ndis_buffer		*buf;
 	int			len;
 {
-	if (len > buf->nb_size)
-		return;
 	buf->nb_bytecount = len;
 
 	return;
