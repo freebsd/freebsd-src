@@ -32,7 +32,7 @@ SRCS+=	acl_calc_mask.c			\
 	cap_set_proc.c			\
 	cap_text.c
 
-MAN3=	acl.3				\
+MAN=	acl.3				\
 	acl_add_perm.3			\
 	acl_calc_mask.3			\
 	acl_clear_perms.3		\

@@ -43,12 +43,12 @@ SRCS=		pam_account.c pam_auth.c pam_data.c pam_delay.c \
 		pam_strerror.c
 HDRS1=		_pam_compat.h _pam_macros.h _pam_types.h \
 		pam_appl.h pam_malloc.h pam_modules.h
-MAN3+=		pam_authenticate.3 pam_chauthtok.3 pam_fail_delay.3 \
+MAN+=		pam_authenticate.3 pam_chauthtok.3 pam_fail_delay.3 \
 		pam_open_session.3 pam_setcred.3 pam_start.3 \
 		pam_strerror.3
 MLINKS+=	pam_open_session.3 pam_close_session.3 \
 		pam_start.3 pam_end.3
-MAN8+=		pam.8
+MAN+=		pam.8
 MLINKS+=	pam.8 pam.conf.5 pam.8 pam.d.5
 
 # Files from ${PAMDIR}/libpam_misc:

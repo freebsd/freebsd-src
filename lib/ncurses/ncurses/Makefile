@@ -376,7 +376,7 @@ terminfo.5:	MKterminfo.sh terminfo.head Caps
 CLEANFILES+=	terminfo.5
 MANFILTER=	sed -e 's\#@DATADIR@\#${TERMINFODIR}/terminfo\#g'
 
-MAN3x=	curs_addch.3x curs_addchstr.3x curs_addstr.3x curs_attr.3x \
+MANx=	curs_addch.3x curs_addchstr.3x curs_addstr.3x curs_attr.3x \
 	curs_beep.3x curs_bkgd.3x curs_border.3x curs_clear.3x curs_color.3x \
 	curs_delch.3x curs_deleteln.3x curs_extend.3x curs_getch.3x \
 	curs_getstr.3x \
@@ -389,15 +389,14 @@ MAN3x=	curs_addch.3x curs_addchstr.3x curs_addstr.3x curs_attr.3x \
 	curs_touch.3x curs_trace.3x curs_util.3x curs_window.3x \
 	default_colors.3x define_key.3x \
 	dft_fgbg.3x keybound.3x keyok.3x ncurses.3x resizeterm.3x wresize.3x
-MAN5=	term.5 terminfo.5
-MAN7=	term.7
+MAN=	term.5 terminfo.5
+MAN+=	term.7
 
-# Generate the MAN3 list from MAN3x
-.for page in ${MAN3x}
-CLEANFILES+=${page:T:S/3x$/3/g}
-MAN3+=${page:T:S/3x$/3/g}
-all-man: ${page:T:S/3x$/3/g}
-${page:T:S/3x$/3/g}: ${page}
+# Generate the MAN list from MANx
+.for page in ${MANx}
+CLEANFILES+=${page:T:S/x$//g}
+MAN+=${page:T:S/x$//g}
+${page:T:S/x$//g}: ${page}
 	ln -s ${.ALLSRC} ${.TARGET}
 .endfor
 
@@ -545,5 +544,3 @@ MLINKS+=default_colors.3 assume_default_colors.3 \
 	default_colors.3 use_default_colors.3
 
 .include <bsd.lib.mk>
-
-.SUFFIXES: .3x .3

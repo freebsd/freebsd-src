@@ -7,7 +7,7 @@ LIB=		crypt
 
 .PATH:		${.CURDIR}/../libmd
 SRCS=		crypt.c crypt-md5.c md5c.c misc.c
-MAN3=		crypt.3
+MAN=		crypt.3
 MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
 CFLAGS+=	-I${.CURDIR}/../libmd -I${.CURDIR}/../libutil
 CFLAGS+=	-DLIBC_SCCS -Wall

@@ -4,7 +4,7 @@
 MAINTAINER=	n_hibma@FreeBSD.ORG
 
 LIB=	usb
-MAN3=	usb.3
+MAN=	usb.3
 
 SHLIB_MAJOR= 0
 SHLIB_MINOR= 0

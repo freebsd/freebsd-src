@@ -4,7 +4,7 @@
 .PATH: ${.CURDIR}/../libc/db/man
 
 .if ${LIB} == "c"
-MAN3+=	btree.3 dbm.3 dbopen.3 hash.3 mpool.3 recno.3
+MAN+=	btree.3 dbm.3 dbopen.3 hash.3 mpool.3 recno.3
 
 MLINKS+= dbm.3 dbm_clearerr.3
 MLINKS+= dbm.3 dbm_close.3

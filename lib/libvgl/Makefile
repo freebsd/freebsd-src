@@ -5,7 +5,7 @@ SHLIB_MINOR= 0
 CFLAGS+=-Wall -I${.CURDIR}
 SRCS=	main.c simple.c bitmap.c text.c mouse.c keyboard.c
 INCS=	vgl.h
-MAN3=	vgl.3
+MAN=	vgl.3
 MLINKS+=	vgl.3 VGLBitmapCopy.3 \
 		vgl.3 VGLBitmapPutChar.3 \
 		vgl.3 VGLBitmapString.3 \

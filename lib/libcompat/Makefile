@@ -15,8 +15,8 @@ NOPIC=
 # XXX MISSING:	tell.c
 SRCS+=	ascftime.c cftime.c ftime.c getpw.c gtty.c stty.c
 
-MAN3+=	4.1/ftime.3 4.1/getpw.3 4.1/stty.3
-MAN3+=	4.1/cftime.3
+MAN+=	4.1/ftime.3 4.1/getpw.3 4.1/stty.3
+MAN+=	4.1/cftime.3
 
 MLINKS+=stty.3 gtty.3
 MLINKS+=cftime.3 ascftime.3
@@ -27,7 +27,7 @@ SRCS+=	cfree.c lsearch.c regex.c rexec.c
 SRCS+=	insque.c remque.c
 
 # XXX MISSING:	ecvt.0
-MAN3+=  4.3/cfree.3 4.3/insque.3 4.3/lsearch.3 4.3/re_comp.3 4.3/rexec.3
+MAN+=	4.3/cfree.3 4.3/insque.3 4.3/lsearch.3 4.3/re_comp.3 4.3/rexec.3
 
 # XXX MISSING:	ecvt.3, so can't MLINK
 #MLINKS+=ecvt.3 fcvt.3 ecvt.3 gcvt.3
@@ -37,12 +37,12 @@ MLINKS+=lsearch.3 lfind.3
 
 # compat 4.4 sources
 SRCS+=	cuserid.c
-MAN3+=	4.4/cuserid.3
+MAN+=	4.4/cuserid.3
 
 # regexp sources
 SRCS+=	regerror.c regexp.c regsub.c
 
-MAN3+=	regexp/regexp.3
+MAN+=	regexp/regexp.3
 
 # XXX name clash with libc
 # MLINKS+=regexp.3 regcomp.3 regexp.3 regexec.3 regexp.3 regerror.3

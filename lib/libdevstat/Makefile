@@ -6,7 +6,7 @@ LIB=	devstat
 SRCS=	devstat.c
 INCS=	devstat.h
 
-MAN3=	devstat.3
+MAN=	devstat.3
 
 MLINKS+=devstat.3 getnumdevs.3 
 MLINKS+=devstat.3 getgeneration.3 
