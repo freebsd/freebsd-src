@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.269 1996/12/30 05:35:33 jkh Exp $
+#	$Id: Makefile,v 1.270 1997/01/01 03:16:34 jkh Exp $
 #
 # How to roll a release:
 #
@@ -618,7 +618,7 @@ doMFSKERN:
 	@echo 'USERCONFIG' > startup_foo
 	@echo 'intro' >> startup_foo
 	dd if=startup_foo of=${RD}/floppies/boot${FSIMAGE}.flp \
-	  seek=1 bs=512 count=1 conv=sync
+	  seek=1 bs=512 count=1 conv=notrunc
 	@rm -f startup_foo
 
 .include <bsd.prog.mk>
