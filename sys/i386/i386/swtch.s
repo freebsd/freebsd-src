@@ -228,7 +228,7 @@ sw1b:
 	movl	PCB_EIP(%edx),%eax
 	movl	%eax,(%esp)
 
-#if defined(SMP) && defined(GRAP_LOPRIO)
+#if defined(SMP) && defined(GRAB_LOPRIO)
 	/* Hold LOPRIO for interrupts. */
 #ifdef CHEAP_TPR
 	movl	$0, lapic+LA_TPR
