@@ -1312,6 +1312,11 @@ PCI0 has 1 dedicated PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
 PCI/EISA bridge that drives things like the serial and parallel ports,
 keyboard/mouse etc. PCI1 has 4 PCI slots and an NCR810 SCSI chip.
 
+The current implementation has problems in handling PCI bridges. There is
+currently a limited fix in place which allows for single level, single device
+PCI bridges. The fix allows for the Digital supplied Qlogic SCSI card which
+sits behind a 21054 PCI bridge chip.
+
 	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
 	      EISA VGA adapter is treated as an ISA device. It therefore
 	      works OK as a console.
@@ -1384,7 +1389,8 @@ connector module.
 For best performance distribute high bandwidth (FibreChannel, Gigabit Ethernet)
 over multiple hoses and/or multiple KFTHA/KFTIA.
 
-Currently PCI expansion cards containing PCI bridges have not been tested.
+Currently PCI expansion cards containing PCI bridges are not usable. Don't
+use them at this time.
 
 Embedded SCSI:
 The single ended SCSI bus on the KFTIA will turn up as the fourth (!) 
