@@ -520,10 +520,8 @@ int
 mii_phy_detach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	mii = device_get_softc(device_get_parent(dev));
 	mii_phy_down(sc);
 	sc->mii_dev = NULL;
 	LIST_REMOVE(sc, mii_list);
