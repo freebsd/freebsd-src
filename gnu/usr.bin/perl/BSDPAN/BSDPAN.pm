@@ -11,7 +11,6 @@ package BSDPAN;
 #
 # The pod documentation for this module is at the end of this file.
 #
-use Config;
 
 my $bsdpan_path;	# Directory pathname of BSDPAN itself
 
@@ -34,19 +33,22 @@ sub path {
 }
 
 sub perl_version {
-	return $Config{version};
+	require Config;
+	return $Config::Config{version};
 }
 
 sub perl_ver {
+	require Config;
 	# pre-5.6.0 perls
-	return $Config{apiversion} if exists $Config{apiversion};
+	return $Config::Config{apiversion} if exists $Config::Config{apiversion};
 	# post-5.6.0 perls
-	return $Config{version};
+	return $Config::Config{version};
 }
 
 sub perl_arch {
+	require Config;
 	# pre-5.6.0 perls
-	return $Config{archname} if exists $Config{apiversion};
+	return $Config::Config{archname} if exists $Config::Config{apiversion};
 	# post-5.6.0 perls
 	return 'mach';
 }
