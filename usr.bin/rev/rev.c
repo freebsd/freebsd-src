@@ -103,6 +103,7 @@ main(int argc, char *argv[])
 		}
 		if (ferror(fp)) {
 			warn("%s", filename);
+			clearerr(fp);
 			rval = 1;
 		}
 		(void)fclose(fp);
