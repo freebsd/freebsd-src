@@ -709,6 +709,7 @@ div_modevent(module_t mod, int type, void *unused)
 		err = pf_proto_unregister(PF_INET, IPPROTO_DIVERT, SOCK_RAW);
 		INP_INFO_WUNLOCK(&divcbinfo);
 		INP_INFO_LOCK_DESTROY(&divcbinfo);
+		uma_zdestroy(divcbinfo.ipi_zone);
 		break;
 	default:
 		return EINVAL;
