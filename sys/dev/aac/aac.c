@@ -1794,6 +1794,7 @@ aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 
 #ifdef AAC_COMPAT_LINUX
 
+#include <sys/proc.h>
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #include <compat/linux/linux_ioctl.h>
