@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -46,11 +46,15 @@ which can be used for existing
 .Xr geom 8
 unaware classes.
 Here is the list of standard commands:
-.Bl -tag -width ".Cm unload"
+.Bl -tag -width ".Cm status"
 .It Cm help
 List all available commands for the given class.
 .It Cm list
 Print detailed information (within the given class) about all geoms
+(if no additional arguments were specified) or the given geoms.
+This command is only available if the given class exists in the kernel.
+.It Cm status
+Print general information (within the given class) about all geoms
 (if no additional arguments were specified) or the given geoms.
 This command is only available if the given class exists in the kernel.
 .It Cm load
