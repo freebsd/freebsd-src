@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.112 1999/07/27 05:08:36 mdodd Exp $
+ * $Id: pci.c,v 1.113 1999/07/28 07:57:47 dfr Exp $
  *
  */
 
@@ -1116,18 +1116,26 @@ pci_new_probe(device_t dev)
 	return 0;
 }
 
-static void
+static int
 pci_print_child(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo;
 	pcicfgregs *cfg;
+	int retval = 0;
 
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
+
+	retval += bus_print_child_header(dev, child);
+
 	if (cfg->intpin > 0 && cfg->intline != 255)
-		printf(" irq %d", cfg->intline);
-	printf(" at device %d.%d", pci_get_slot(child), pci_get_function(child));
-	printf(" on %s%d", device_get_name(dev), device_get_unit(dev));
+		retval += printf(" irq %d", cfg->intline);
+	retval += printf(" at device %d.%d", pci_get_slot(child),
+			 pci_get_function(child));
+
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
 }
 
 static void

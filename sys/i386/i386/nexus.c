@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.11 1999/05/30 10:50:57 dfr Exp $
+ *	$Id: nexus.c,v 1.12 1999/07/16 01:00:24 msmith Exp $
  */
 
 /*
@@ -74,7 +74,7 @@
 static struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
 static	int nexus_probe(device_t);
-static	void nexus_print_child(device_t, device_t);
+static	int nexus_print_child(device_t, device_t);
 static device_t nexus_add_child(device_t bus, int order, const char *name,
 				int unit);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
@@ -213,10 +213,15 @@ nexus_probe(device_t dev)
 	return 0;
 }
 
-static void
+static int
 nexus_print_child(device_t bus, device_t child)
 {
-	printf(" on motherboard");
+	int retval = 0;
+
+	retval += bus_print_child_header(bus, child);
+	retval += printf(" on motherboard\n");
+
+	return (retval);
 }
 
 static device_t

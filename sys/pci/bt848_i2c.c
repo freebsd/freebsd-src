@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt848_i2c.c,v 1.4 1999/05/10 10:08:05 roger Exp $
+ *	$Id: bt848_i2c.c,v 1.5 1999/07/03 20:17:01 peter Exp $
  *
  */
 
@@ -91,7 +91,6 @@ struct bt_data btdata[NBKTR];
 
 static int bti2c_probe(device_t);
 static int bti2c_attach(device_t);
-static void bti2c_print_child(device_t, device_t);
 
 static int bti2c_iic_callback(device_t, int, caddr_t *);
 static void bti2c_iic_setlines(device_t, int, int);
@@ -111,7 +110,7 @@ static device_method_t bti2c_methods[] = {
 	DEVMETHOD(device_attach,	bti2c_attach),
 
 	/* bus interface */
-	DEVMETHOD(bus_print_child,	bti2c_print_child),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* iicbb interface */
 	DEVMETHOD(iicbb_callback,	bti2c_iic_callback),
@@ -191,14 +190,6 @@ bti2c_attach(device_t dev)
 	sc->base = btdata[device_get_unit(dev)].base;
 
 	return (0);
-}
-
-static void
-bti2c_print_child(device_t bus, device_t dev)
-{
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
-
-	return;
 }
 
 static int

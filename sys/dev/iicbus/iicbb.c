@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbb.c,v 1.3 1999/01/28 15:50:24 roger Exp $
+ *	$Id: iicbb.c,v 1.4 1999/05/08 21:59:04 dfr Exp $
  *
  */
 
@@ -70,7 +70,7 @@ struct iicbb_softc {
 
 static int iicbb_probe(device_t);
 static int iicbb_attach(device_t);
-static void iicbb_print_child(device_t, device_t);
+static int iicbb_print_child(device_t, device_t);
 
 static int iicbb_callback(device_t, int, caddr_t);
 static int iicbb_start(device_t, u_char, int);
@@ -119,27 +119,28 @@ static int iicbb_attach(device_t dev)
 	return (0);
 }
 
-static void
+static int
 iicbb_print_child(device_t bus, device_t dev)
 {
 	int error;
+	int retval = 0;
 	u_char oldaddr;
 
+	retval += bus_print_child_header(bus, dev);
 	/* retrieve the interface I2C address */
 	error = IICBB_RESET(device_get_parent(bus), IIC_FASTEST, 0, &oldaddr);
 	if (error == IIC_ENOADDR) {
-		printf(" on %s%d master-only", device_get_name(bus),
-			device_get_unit(bus));
-
+		retval += printf(" on %s master-only\n",
+				 device_get_nameunit(bus));
 	} else {
 		/* restore the address */
 		IICBB_RESET(device_get_parent(bus), IIC_FASTEST, oldaddr, NULL);
 
-		printf(" on %s%d addr 0x%x", device_get_name(bus),
-			device_get_unit(bus), oldaddr & 0xff);
+		retval += printf(" on %s addr 0x%x\n",
+				 device_get_nameunit(bus), oldaddr & 0xff);
 	}
 
-	return;
+	return (retval);
 }
 
 #define I2C_SET(dev,ctrl,data) \

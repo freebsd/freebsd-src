@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.8 1999/05/06 18:54:18 peter Exp $
+ *	$Id: pcf.c,v 1.9 1999/05/08 21:59:27 dfr Exp $
  *
  */
 #include <sys/param.h>
@@ -103,7 +103,7 @@ struct isa_driver pcfdriver = {
 
 static int pcf_probe(device_t);
 static int pcf_attach(device_t);
-static void pcf_print_child(device_t, device_t);
+static int pcf_print_child(device_t, device_t);
 
 static int pcf_repeated_start(device_t, u_char, int);
 static int pcf_start(device_t, u_char, int);
@@ -219,15 +219,17 @@ pcf_attach(device_t pcfdev)
 	return (0);
 }
 
-static void
+static int
 pcf_print_child(device_t bus, device_t dev)
 {
 	struct pcf_softc *pcf = (struct pcf_softc *)device_get_softc(bus);
+	int retval = 0;
 
-	printf(" on %s%d addr 0x%x", device_get_name(bus),
-		device_get_unit(bus), (int)pcf->pcf_addr);
+	retval += bus_print_child_header(bus, dev);
+	retval += printf(" on %s addr 0x%x\n", device_get_nameunit(bus),
+			 (int)pcf->pcf_addr);
 
-	return;
+	return (retval);
 }
 
 /*
