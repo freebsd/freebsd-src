@@ -169,7 +169,7 @@ the absolute pathnames of all objects, to standard output.
 When set, these variables are interpreted as format strings a la
 .Xr printf 3
 to customize the trace output and are used by
-.Xr ldd 1 's
+.Xr ldd 1 Ns 's
 .Fl f
 option and allows
 .Xr ldd 1
