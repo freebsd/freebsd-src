@@ -55,8 +55,9 @@
 .Op Fl v | Fl q
 .Ar group
 .Sh DESCRIPTION
-.Nm Quota
-displays users' disk usage and limits.
+The
+.Nm
+utility displays users' disk usage and limits.
 By default only the user quotas are printed.
 .Pp
 The following options are available:
@@ -68,8 +69,7 @@ The optional
 .Fl u
 flag is equivalent to the default.
 .It Fl v
-.Nm Quota
-will display quotas on filesystems
+Display quotas on filesystems
 where no storage is allocated.
 .It Fl q
 Print a more terse message,
@@ -101,8 +101,9 @@ flag takes precedence over the
 .Fl v
 flag.
 .Pp
-.Nm Quota
-tries to report the quotas of all mounted filesystems.
+The
+.Nm
+utility tries to report the quotas of all mounted filesystems.
 If the filesystem is mounted via
 .Tn NFS ,
 it will attempt to contact the

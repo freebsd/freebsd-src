@@ -81,11 +81,12 @@
 .Op Fl troff
 .Op Fl v | Fl \&nv
 .Sh DESCRIPTION
-.Nm Indent
-is a
-.Ar C
+The
+.Nm
+utility is a
+.Em C
 program formatter.  It reformats the
-.Ar C
+.Em C
 program in the
 .Ar input-file
 according to the switches.  The switches which can be
@@ -381,7 +382,9 @@ switches.  The switches should be separated by spaces, tabs or newlines.
 .Ss Comments
 .Sq Em Box
 .Em comments .
-.Nm Indent
+The
+.Nm
+utility
 assumes that any comment with a dash or star immediately after the start of
 comment (that is, `/*\-' or `/**') is a comment surrounded by a box of stars.
 Each line of such a comment is left unchanged, except that its indentation
@@ -390,8 +393,9 @@ of the comment.
 .Pp
 .Em Straight text .
 All other comments are treated as straight text.
-.Nm Indent
-fits as many words (separated by blanks, tabs, or newlines) on a
+The
+.Nm
+utility fits as many words (separated by blanks, tabs, or newlines) on a
 line as possible.  Blank lines break paragraphs.
 .Pp
 .Ss Comment indentation
@@ -421,8 +425,9 @@ attempts to correctly
 compensate for the syntactic peculiarities introduced.
 .Pp
 .Ss C syntax
-.Nm Indent
-understands a substantial amount about the syntax of C, but it
+The
+.Nm
+utility understands a substantial amount about the syntax of C, but it
 has a `forgiving' parser.  It attempts to cope with the usual sorts of
 incomplete and misformed syntax.  In particular, the use of macros like:
 .Pp
@@ -430,8 +435,9 @@ incomplete and misformed syntax.  In particular, the use of macros like:
 .Pp
 is handled properly.
 .Sh ENVIRONMENT
-.Nm Indent
-uses the
+The
+.Nm
+utility uses the
 .Ev HOME
 environment variable.
 .Sh FILES
@@ -447,8 +453,9 @@ The
 command appeared in
 .Bx 4.2 .
 .Sh BUGS
-.Nm Indent
-has even more switches than
+The
+.Nm
+utility has even more switches than
 .Xr ls 1 .
 .Pp
 A common mistake that often causes grief is typing:
@@ -456,5 +463,6 @@ A common mistake that often causes grief is typing:
 .Dl indent *.c
 .Pp
 to the shell in an attempt to indent all the
-C programs in a directory.
+.Em C
+programs in a directory.
 This is probably a bug, not a feature.

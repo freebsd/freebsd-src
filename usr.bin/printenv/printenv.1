@@ -49,8 +49,9 @@
 .Op Ar name Ns = Ns Ar value ...
 .Op Ar command
 .Sh DESCRIPTION
-.Nm Printenv
-prints out the names and values of the variables in the environment,
+The
+.Nm
+utility prints out the names and values of the variables in the environment,
 with one name/value pair per line.
 If
 .Ar name
@@ -64,8 +65,9 @@ Consult the
 .Xr builtin 1
 manual page.
 .Pp
-.Nm Env
-executes
+The
+.Nm env
+utility executes
 .Ar command
 after modifying the environment as
 specified on the command line.
@@ -98,8 +100,9 @@ If no command is specified,
 prints out the names and values
 of the variables in the environment, with one name/value pair per line.
 .Pp
+The
 .Nm env
-is sometimes useful with the
+utility is sometimes useful with the
 .Dq Li #!
 construct (see
 .Xr execve 2 ) .
@@ -142,6 +145,7 @@ The
 command appeared in
 .Bx 3.0 .
 .Sh BUGS
-.Nm Env
-doesn't handle commands with equal (``='') signs in their
+The
+.Nm env
+utility doesn't handle commands with equal (``='') signs in their
 names, for obvious reasons.
