@@ -255,7 +255,6 @@ md_load(char *args, vm_offset_t *modulep)
     struct preloaded_file	*kfp;
     struct preloaded_file	*xp;
     struct file_metadata	*md;
-    struct ofw_devdesc		*rootdev;
     vm_offset_t			kernend;
     vm_offset_t			addr;
     vm_offset_t			envp;
@@ -273,16 +272,10 @@ md_load(char *args, vm_offset_t *modulep)
      * MI code before launching the kernel.
      */
     rootdevname = getenv("rootdev");
-    ofw_getdev((void **)(&rootdev), rootdevname, NULL);
-    if (rootdev == NULL) {		/* bad $rootdev/$currdev */
-	printf("can't determine root device\n");
-	return(EINVAL);
-    }
-
+    if (rootdevname == NULL)
+	    rootdevname = getenv("currdev");
     /* Try reading the /etc/fstab file to select the root device */
-    getrootmount(ofw_fmtdev((void *)rootdev));
-
-    free(rootdev);
+    getrootmount(rootdevname);
 
     /* find the last module in the chain */
     addr = 0;
