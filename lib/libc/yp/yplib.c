@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.12 1995/09/02 04:16:21 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.13 1995/11/05 05:39:04 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -43,7 +43,37 @@ static char *rcsid = "$Id: yplib.c,v 1.12 1995/09/02 04:16:21 wpaul Exp $";
 #include <unistd.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
-#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/yp.h>
+
+
+/*
+ * We have to define these here due to clashes between yp_prot.h and
+ * yp.h.
+ */
+
+struct dom_binding {
+	struct dom_binding *dom_pnext;
+	char dom_domain[YPMAXDOMAIN + 1];
+	struct sockaddr_in dom_server_addr;
+	u_short dom_server_port;
+	int dom_socket;
+	CLIENT *dom_client;
+	u_short dom_local_port;
+	long dom_vers;
+};
+
+struct _ypbind_binding {
+	struct in_addr ypbind_binding_addr;     /* In network order */
+	unsigned short int ypbind_binding_port; /* In network order */
+};
+struct _ypbind_resp {
+	enum ypbind_resptype ypbind_status;
+	union {
+	unsigned long ypbind_error;
+		struct _ypbind_binding ypbind_bindinfo;
+	} ypbind_respbody;
+};
+
 #include <rpcsvc/ypclnt.h>
 
 #ifndef YPBINDLOCK
@@ -200,7 +230,7 @@ struct dom_binding **ypdb;
 	static int pid = -1;
 	char path[MAXPATHLEN];
 	struct dom_binding *ysd, *ysd2;
-	struct ypbind_resp ypbr;
+	struct _ypbind_resp ypbr;
 	struct timeval tv;
 	struct sockaddr_in clnt_sin;
 	int clnt_sock, lfd, fd, gpid;
@@ -271,7 +301,7 @@ again:
 		}
 		if( flock(fd, LOCK_EX|LOCK_NB) == -1 && errno==EWOULDBLOCK) {
 			struct iovec iov[2];
-			struct ypbind_resp ybr;
+			struct _ypbind_resp ybr;
 			u_short	ypb_port;
 
 			iov[0].iov_base = (caddr_t)&ypb_port;
@@ -444,10 +474,10 @@ int *outvallen;
 
 #ifdef YPMATCHCACHE
 	if( !strcmp(_yp_domain, indomain) && ypmatch_find(inmap, inkey,
-	    inkeylen, &yprv.valdat.dptr, &yprv.valdat.dsize)) {
-		*outvallen = yprv.valdat.dsize;
+	    inkeylen, &yprv.val.valdat_val, &yprv.val.valdat_len)) {
+		*outvallen = yprv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
-		bcopy(yprv.valdat.dptr, *outval, *outvallen);
+		bcopy(yprv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 		return 0;
 	}
@@ -462,8 +492,8 @@ again:
 
 	yprk.domain = indomain;
 	yprk.map = inmap;
-	yprk.keydat.dptr = (char *)inkey;
-	yprk.keydat.dsize = inkeylen;
+	yprk.key.keydat_val = (char *)inkey;
+	yprk.key.keydat_len = inkeylen;
 
 	bzero((char *)&yprv, sizeof yprv);
 
@@ -474,10 +504,10 @@ again:
 		ysd->dom_vers = -1;
 		goto again;
 	}
-	if( !(r=ypprot_err(yprv.status)) ) {
-		*outvallen = yprv.valdat.dsize;
+	if( !(r=ypprot_err(yprv.stat)) ) {
+		*outvallen = yprv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
-		bcopy(yprv.valdat.dptr, *outval, *outvallen);
+		bcopy(yprv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 #ifdef YPMATCHCACHE
 		if( strcmp(_yp_domain, indomain)==0 )
@@ -543,14 +573,14 @@ again:
 		ysd->dom_vers = 0;
 		goto again;
 	}
-	if( !(r=ypprot_err(yprkv.status)) ) {
-		*outkeylen = yprkv.keydat.dsize;
+	if( !(r=ypprot_err(yprkv.stat)) ) {
+		*outkeylen = yprkv.key.keydat_len;
 		*outkey = (char *)malloc(*outkeylen+1);
-		bcopy(yprkv.keydat.dptr, *outkey, *outkeylen);
+		bcopy(yprkv.key.keydat_val, *outkey, *outkeylen);
 		(*outkey)[*outkeylen] = '\0';
-		*outvallen = yprkv.valdat.dsize;
+		*outvallen = yprkv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
-		bcopy(yprkv.valdat.dptr, *outval, *outvallen);
+		bcopy(yprkv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 	}
 	xdr_free(xdr_ypresp_key_val, (char *)&yprkv);
@@ -594,8 +624,8 @@ again:
 
 	yprk.domain = indomain;
 	yprk.map = inmap;
-	yprk.keydat.dptr = inkey;
-	yprk.keydat.dsize = inkeylen;
+	yprk.key.keydat_val = inkey;
+	yprk.key.keydat_len = inkeylen;
 	bzero((char *)&yprkv, sizeof yprkv);
 
 	r = clnt_call(ysd->dom_client, YPPROC_NEXT,
@@ -605,14 +635,14 @@ again:
 		ysd->dom_vers = -1;
 		goto again;
 	}
-	if( !(r=ypprot_err(yprkv.status)) ) {
-		*outkeylen = yprkv.keydat.dsize;
+	if( !(r=ypprot_err(yprkv.stat)) ) {
+		*outkeylen = yprkv.key.keydat_len;
 		*outkey = (char *)malloc(*outkeylen+1);
-		bcopy(yprkv.keydat.dptr, *outkey, *outkeylen);
+		bcopy(yprkv.key.keydat_val, *outkey, *outkeylen);
 		(*outkey)[*outkeylen] = '\0';
-		*outvallen = yprkv.valdat.dsize;
+		*outvallen = yprkv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
-		bcopy(yprkv.valdat.dptr, *outval, *outvallen);
+		bcopy(yprkv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 	}
 	xdr_free(xdr_ypresp_key_val, (char *)&yprkv);
@@ -711,7 +741,7 @@ again:
 	*outorder = ypro.ordernum;
 	xdr_free(xdr_ypresp_order, (char *)&ypro);
 	_yp_unbind(ysd);
-	return ypprot_err(ypro.status);
+	return ypprot_err(ypro.stat);
 }
 
 int
@@ -750,8 +780,8 @@ again:
 		ysd->dom_vers = -1;
 		goto again;
 	}
-	if( !(r=ypprot_err(yprm.status)) ) {
-		*outname = (char *)strdup(yprm.master);
+	if( !(r=ypprot_err(yprm.stat)) ) {
+		*outname = (char *)strdup(yprm.peer);
 	}
 	xdr_free(xdr_ypresp_master, (char *)&yprm);
 	_yp_unbind(ysd);
@@ -788,10 +818,10 @@ again:
 		ysd->dom_vers = -1;
 		goto again;
 	}
-	*outmaplist = ypml.list;
+	*outmaplist = ypml.maps;
 	/* NO: xdr_free(xdr_ypresp_maplist, &ypml);*/
 	_yp_unbind(ysd);
-	return ypprot_err(ypml.status);
+	return ypprot_err(ypml.stat);
 }
 
 char *
