@@ -573,7 +573,8 @@ pass:
 			 * ip_mforward() returns a non-zero value, the packet
 			 * must be discarded, else it may be accepted below.
 			 */
-			if (ip_mforward(ip, m->m_pkthdr.rcvif, m, 0) != 0) {
+			if (ip_mforward &&
+			    ip_mforward(ip, m->m_pkthdr.rcvif, m, 0) != 0) {
 				ipstat.ips_cantforward++;
 				m_freem(m);
 				return;
@@ -1919,10 +1920,10 @@ ip_rsvp_init(struct socket *so)
 {
 	if (so->so_type != SOCK_RAW ||
 	    so->so_proto->pr_protocol != IPPROTO_RSVP)
-	  return EOPNOTSUPP;
+		return EOPNOTSUPP;
 
 	if (ip_rsvpd != NULL)
-	  return EADDRINUSE;
+		return EADDRINUSE;
 
 	ip_rsvpd = so;
 	/*
@@ -1951,3 +1952,30 @@ ip_rsvp_done(void)
 	}
 	return 0;
 }
+
+void
+rsvp_input(struct mbuf *m, int off, int proto)	/* XXX must fixup manually */
+{
+	if (rsvp_input_p) { /* call the real one if loaded */
+		rsvp_input_p(m, off, proto);
+		return;
+	}
+
+	/* Can still get packets with rsvp_on = 0 if there is a local member
+	 * of the group to which the RSVP packet is addressed.  But in this
+	 * case we want to throw the packet away.
+	 */
+
+	if (!rsvp_on) {
+		m_freem(m);
+		return;
+	}
+
+	if (ip_rsvpd != NULL) { 
+		rip_input(m, off, proto);
+		return;
+	}
+	/* Drop the packet */
+	m_freem(m);
+}
+

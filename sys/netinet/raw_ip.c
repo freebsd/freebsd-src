@@ -78,6 +78,28 @@ ip_fw_ctl_t *ip_fw_ctl_ptr;
 ip_dn_ctl_t *ip_dn_ctl_ptr;
 
 /*
+ * hooks for multicast routing. They all default to NULL,
+ * so leave them not initialized and rely on BSS being set to 0.
+ */
+
+/* The socket used to communicate with the multicast routing daemon.  */
+struct socket  *ip_mrouter;
+
+/* The various mrouter and rsvp functions */
+int (*ip_mrouter_set)(struct socket *, struct sockopt *);
+int (*ip_mrouter_get)(struct socket *, struct sockopt *);
+int (*ip_mrouter_done)(void);
+int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
+		struct ip_moptions *);
+int (*mrt_ioctl)(int, caddr_t);
+int (*legal_vif_num)(int);
+u_long (*ip_mcast_src)(int);
+
+void (*rsvp_input_p)(struct mbuf *m, int off, int proto);
+int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
+void (*ip_rsvp_force_done)(struct socket *);
+
+/*
  * Nominal space allocated to a raw ip socket.
  */
 #define	RIPSNDQ		8192
@@ -88,10 +110,10 @@ ip_dn_ctl_t *ip_dn_ctl_ptr;
  */
 
 /*
- * Initialize raw connection block q.
+ * Initialize raw connection block queue.
  */
 void
-rip_init()
+rip_init(void)
 {
 	LIST_INIT(&ripcb);
 	ripcbinfo.listhead = &ripcb;
@@ -106,21 +128,24 @@ rip_init()
 				   maxsockets, ZONE_INTERRUPT, 0);
 }
 
+/*
+ * XXX ripsrc is modified in rip_input, so we must be fix this
+ * when we want to make this code smp-friendly.
+ */
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
+
 /*
  * Setup generic address and protocol structures
  * for raw_input routine, then pass them along with
  * mbuf chain.
  */
 void
-rip_input(m, off, proto)
-	struct mbuf *m;
-	int off, proto;
+rip_input(struct mbuf *m, int off, int proto)
 {
-	register struct ip *ip = mtod(m, struct ip *);
-	register struct inpcb *inp;
-	struct inpcb *last = 0;
-	struct mbuf *opts = 0;
+	struct ip *ip = mtod(m, struct ip *);
+	struct inpcb *inp;
+	struct inpcb *last = NULL;
+	struct mbuf *opts = NULL;
 
 	ripsrc.sin_addr = ip->ip_src;
 	LIST_FOREACH(inp, &ripcb, inp_list) {
@@ -130,14 +155,14 @@ rip_input(m, off, proto)
 #endif
 		if (inp->inp_ip_p && inp->inp_ip_p != proto)
 			continue;
-		if (inp->inp_laddr.s_addr &&
-                  inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+		if (inp->inp_laddr.s_addr != INADDR_ANY &&
+		    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
 			continue;
-		if (inp->inp_faddr.s_addr &&
-                  inp->inp_faddr.s_addr != ip->ip_src.s_addr)
+		if (inp->inp_faddr.s_addr != INADDR_ANY &&
+		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
 		if (last) {
-			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+			struct mbuf *n = m_copypacket(m, M_DONTWAIT);
 
 #ifdef IPSEC
 			/* check AH/ESP integrity. */
@@ -197,13 +222,10 @@ rip_input(m, off, proto)
  * Tack on options user may have setup with control call.
  */
 int
-rip_output(m, so, dst)
-	struct mbuf *m;
-	struct socket *so;
-	u_long dst;
+rip_output(struct mbuf *m, struct socket *so, u_long dst)
 {
-	register struct ip *ip;
-	register struct inpcb *inp = sotoinpcb(so);
+	struct ip *ip;
+	struct inpcb *inp = sotoinpcb(so);
 	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
 
 	/*
@@ -265,9 +287,7 @@ rip_output(m, so, dst)
  * Raw IP socket option processing.
  */
 int
-rip_ctloutput(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+rip_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
@@ -308,7 +328,8 @@ rip_ctloutput(so, sopt)
 		case MRT_DEL_MFC:
 		case MRT_VERSION:
 		case MRT_ASSERT:
-			error = ip_mrouter_get(so, sopt);
+			error = ip_mrouter_get ? ip_mrouter_get(so, sopt) :
+				EOPNOTSUPP;
 			break;
 
 		default:
@@ -358,13 +379,10 @@ rip_ctloutput(so, sopt)
 			error = ip_rsvp_done();
 			break;
 
-			/* XXX - should be combined */
 		case IP_RSVP_VIF_ON:
-			error = ip_rsvp_vif_init(so, sopt);
-			break;
-			
 		case IP_RSVP_VIF_OFF:
-			error = ip_rsvp_vif_done(so, sopt);
+			error = ip_rsvp_vif ?
+				ip_rsvp_vif(so, sopt) : EINVAL;
 			break;
 
 		case MRT_INIT:
@@ -375,7 +393,8 @@ rip_ctloutput(so, sopt)
 		case MRT_DEL_MFC:
 		case MRT_VERSION:
 		case MRT_ASSERT:
-			error = ip_mrouter_set(so, sopt);
+			error = ip_mrouter_set ? ip_mrouter_set(so, sopt) :
+					EOPNOTSUPP;
 			break;
 
 		default:
@@ -396,10 +415,7 @@ rip_ctloutput(so, sopt)
  * interface routes.
  */
 void
-rip_ctlinput(cmd, sa, vip)
-	int cmd;
-	struct sockaddr *sa;
-	void *vip;
+rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
 	struct in_ifaddr *ia;
 	struct ifnet *ifp;
@@ -491,9 +507,10 @@ rip_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0)
 		panic("rip_detach");
-	if (so == ip_mrouter)
+	if (so == ip_mrouter && ip_mrouter_done)
 		ip_mrouter_done();
-	ip_rsvp_force_done(so);
+	if (ip_rsvp_force_done)
+		ip_rsvp_force_done(so);
 	if (so == ip_rsvpd)
 		ip_rsvp_done();
 	in_pcbdetach(inp);
@@ -526,7 +543,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 
 	if (TAILQ_EMPTY(&ifnet) || ((addr->sin_family != AF_INET) &&
 				    (addr->sin_family != AF_IMPLINK)) ||
-	    (addr->sin_addr.s_addr &&
+	    (addr->sin_addr.s_addr != INADDR_ANY &&
 	     ifa_ifwithaddr((struct sockaddr *)addr) == 0))
 		return EADDRNOTAVAIL;
 	inp->inp_laddr = addr->sin_addr;
@@ -563,7 +580,7 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 struct mbuf *control, struct proc *p)
 {
 	struct inpcb *inp = sotoinpcb(so);
-	register u_long dst;
+	u_long dst;
 
 	if (so->so_state & SS_ISCONNECTED) {
 		if (nam) {
