@@ -269,7 +269,7 @@ ID0kill(pid_t pid, int sig)
   return result;
 }
 
-#ifdef KLDSYM_LOOKUP
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
 int
 ID0kldload(const char *dev)
 {
