@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.488 1999/05/16 12:21:54 phk Exp $
+#	$Id: Makefile,v 1.489 1999/05/23 20:01:20 brian Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -508,7 +508,7 @@ ftp.1:
 	@for i in ${DIST_DOCS}; do if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$$i ]; then cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${FD}; else cp ${.CURDIR}/texts/$${i} ${FD}; fi; done
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
-	@tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
+	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
 .endif
 
 #
@@ -536,7 +536,7 @@ cdrom.1:
 .if !defined(NOPORTS)
 	@-rm -rf /usr/ports/distfiles/*
 	@mkdir -p ${CD_DISC1}/ports && \
-	  tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
+	  tar --exclude CVS -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
 	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
 	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
