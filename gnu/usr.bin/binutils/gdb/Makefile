@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1998/06/03 18:00:57 peter Exp $
+# $Id: Makefile,v 1.40 1999/05/02 11:31:54 dfr Exp $
 #
 
 .include "../Makefile.inc0"
@@ -12,7 +12,7 @@ XSRCS = annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\
 	c-valprint.c ch-exp.c ch-lang.c ch-typeprint.c ch-valprint.c	\
 	coffread.c command.c complaints.c copying.c corefile.c		\
-	corelow.c cp-valprint.c dcache.c dbxread.c demangle.c		\
+	corelow.c core-regset.c cp-valprint.c dcache.c dbxread.c demangle.c \
 	dwarfread.c dwarf2read.c elfread.c environ.c eval.c exec.c	\
 	expprint.c f-exp.y f-lang.c f-typeprint.c f-valprint.c		\
 	findvar.c fork-child.c gdbarch.c gdbtypes.c infcmd.c inflow.c	\
