@@ -41,6 +41,7 @@
 
 struct url {
     off_t	 offset;
+    size_t	 length;
     char	 scheme[URL_SCHEMELEN+1];
     char	 user[URL_USERLEN+1];
     char	 pwd[URL_PWDLEN+1];
