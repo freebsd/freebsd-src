@@ -67,6 +67,11 @@
     tunables and can be overridden at boot-time.  The
     <varname>hz</varname> parameter is also now a tunable.</para>
 
+    <para arch="i386">The &os; boot loader now contains a workaround
+    to support CDROM booting on certain IBM BIOSs that expect the
+    first sector of the emulated floppy to contain a valid MS-DOS BPB
+    that they can modify.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
