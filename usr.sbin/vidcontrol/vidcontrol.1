@@ -11,7 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"     @(#)vidcontrol.1
-.\"	$Id: vidcontrol.1,v 1.11 1997/07/24 23:46:35 wosch Exp $
+.\"	$Id: vidcontrol.1,v 1.12 1997/10/27 07:52:08 charnier Exp $
 .\"
 .Dd May 22, 1994
 .Dt VIDCONTROL 1
@@ -25,6 +25,7 @@
 .Op Fl b Ar color
 .Op Fl c Ar appearance
 .Op Fl d
+.Op Fl i Ar adapter|mode
 .Op Fl l Ar scrmap
 .Op Fl L
 .Op Fl m Ar on|off
@@ -84,6 +85,10 @@ Install screen output map file from
 .Ar scrmap
 .It Fl L
 Install default screen output map.
+.It Fl i Ar adapter
+Shows info about the current videoadapter.
+.It Fl i Ar mode
+Shows the possible videomodes with the current video hardware.
 .It Fl m Ar on|off
 Switch the mousepointer
 .Ar on

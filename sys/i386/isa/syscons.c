@@ -1,18 +1,18 @@
 /*-
- * Copyright (c) 1992-1997 Søren Schmidt
+ * Copyright (c) 1992-1998 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -25,13 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.276 1998/08/23 08:26:41 bde Exp $
+ *	$Id$
  */
 
 #include "sc.h"
 #include "apm.h"
 #include "opt_ddb.h"
 #include "opt_devfs.h"
+#include "opt_vesa.h"
+#include "opt_vm86.h"
 #include "opt_syscons.h"
 
 #if NSC > 0
@@ -57,9 +59,9 @@
 #include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/pc/display.h>
+#include <machine/pc/vesa.h>
 #include <machine/apm_bios.h>
 #include <machine/random.h>
-#include <machine/bootinfo.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -70,6 +72,7 @@
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
 #include <i386/isa/kbdio.h>
+#include <i386/isa/videoio.h>
 #include <i386/isa/syscons.h>
 
 #if !defined(MAXCONS)
@@ -95,11 +98,6 @@
 
 #define COLD 0
 #define WARM 1
-
-#define VESA_MODE(x)		((x) >= M_VESA_BASE)
-
-#define MODE_MAP_SIZE		(M_VGA_CG320 + 1)
-#define MODE_PARAM_SIZE		64
 
 #define DEFAULT_BLANKTIME	(5*60)		/* 5 minutes */
 #define MAX_BLANKTIME		(7*24*60*60)	/* 7 days!? */
@@ -159,6 +157,7 @@ static  int        	blinkrate = 0;
 	u_int       	crtc_addr = MONO_BASE;
 	char		crtc_type = KD_MONO;
 	char        	crtc_vga = FALSE;
+static	int		adp_flags = 0;
 static  u_char      	shfts = 0, ctls = 0, alts = 0, agrs = 0, metas = 0;
 static  u_char		accents = 0;
 static  u_char      	nlkcnt = 0, clkcnt = 0, slkcnt = 0, alkcnt = 0;
@@ -172,7 +171,7 @@ static	int		run_scrn_saver = FALSE;	/* should run the saver? */
 static	int		scrn_idle = FALSE;	/* about to run the saver */
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
-	char        	*video_mode_ptr = NULL;
+static	int		initial_video_mode;	/* initial video mode # */
 static	int		bios_video_mode;	/* video mode # set by BIOS */
 	int     	fonts_loaded = 0
 #ifdef STD8X16FONT
@@ -180,19 +179,15 @@ static	int		bios_video_mode;	/* video mode # set by BIOS */
 #endif
 	;
 
-	char        	font_8[256*8];
-	char		font_14[256*14];
+	u_char		font_8[256*8];
+	u_char		font_14[256*14];
 #ifdef STD8X16FONT
 extern
 #endif
-	unsigned char	font_16[256*16];
-	char        	palette[256*3];
-static  char		*mode_map[MODE_MAP_SIZE];
-static  char		vgaregs[MODE_PARAM_SIZE];
-static  char		vgaregs2[MODE_PARAM_SIZE];
-static  int		rows_offset = 1;
-static	char 		*cut_buffer;
-static	int		cut_buffer_size;
+	u_char		font_16[256*16];
+	u_char        	palette[256*3];
+static	u_char 		*cut_buffer = NULL;
+static	int		cut_buffer_size = 0;
 static	int		mouse_level = 0;	/* sysmouse protocol level */
 static	mousestatus_t	mouse_status = { 0, 0, 0, 0, 0, 0 };
 static  u_short 	mouse_and_mask[16] = {
@@ -208,13 +203,14 @@ static  u_short 	mouse_or_mask[16] = {
 				0x0000, 0x0000, 0x0000, 0x0000
 			};
 
-static int		extra_history_size = 
+	int		sc_history_size = SC_HISTORY_SIZE;
+static	int		extra_history_size = 
 			    SC_MAX_HISTORY_SIZE - SC_HISTORY_SIZE * MAXCONS;
 
 static void    		none_saver(int blank) { }
 static void    		(*current_saver)(int blank) = none_saver;
 static void    		(*default_saver)(int blank) = none_saver;
-int  			(*sc_user_ioctl)(dev_t dev, int cmd, caddr_t data,
+	int  		(*sc_user_ioctl)(dev_t dev, int cmd, caddr_t data,
 					 int flag, struct proc *p) = NULL;
 
 static int		sticky_splash = FALSE;
@@ -233,8 +229,6 @@ static struct tty     	sccons[MAXCONS+2];
 #endif
 #define SC_MOUSE 	128
 #define SC_CONSOLE	255
-#define MONO_BUF    	pa_to_va(0xB0000)
-#define CGA_BUF     	pa_to_va(0xB8000)
 u_short         	*Crtat;
 static const int	nsccons = MAXCONS+2;
 
@@ -242,9 +236,6 @@ static const int	nsccons = MAXCONS+2;
     ((scp->history) + ((((pointer) - (scp->history)) + (scp->history_size)\
     + (offset)) % (scp->history_size)))
 #define ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
-
-/* this should really be in `rtc.h' */
-#define RTC_EQUIPMENT		0x14
 
 /* prototypes */
 static int scattach(struct isa_device *dev);
@@ -256,30 +247,26 @@ static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(void);
 static void scshutdown(int howto, void *arg);
-static void map_mode_table(char *map[], char *table, int max);
-static int map_mode_num(int mode);
-static char *get_mode_param(scr_stat *scp, int mode);
 static u_int scgetc(u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
 static void sccnupdate(scr_stat *scp);
-static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
 static void sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark);
 static int get_scr_num(void);
 static timeout_t scrn_timer;
 static void scrn_update(scr_stat *scp, int show_cursor);
+static void scrn_saver(void (*saver)(int), int blank);
 static void stop_scrn_saver(void (*saver)(int));
 static int wait_scrn_saver_stop(void);
-static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
-static void move_crsr(scr_stat *scp, int x, int y);
 static void scan_esc(scr_stat *scp, u_char c);
+static void ansi_put(scr_stat *scp, u_char *buf, int len);
 static void draw_cursor_image(scr_stat *scp); 
 static void remove_cursor_image(scr_stat *scp); 
-static void ansi_put(scr_stat *scp, u_char *buf, int len);
+static void move_crsr(scr_stat *scp, int x, int y);
 static u_char *get_fstr(u_int c, u_int *len);
 static void history_to_screen(scr_stat *scp);
 static int history_up_line(scr_stat *scp);
@@ -287,16 +274,6 @@ static int history_down_line(scr_stat *scp);
 static int mask2attr(struct term_stat *term);
 static void set_keyboard(int command, int data);
 static void update_leds(int which);
-static void set_vgaregs(char *modetable);
-static void read_vgaregs(char *buf);
-#define COMP_IDENTICAL	0
-#define COMP_SIMILAR	1
-#define COMP_DIFFERENT	2
-static int comp_vgaregs(u_char *buf1, u_char *buf2);
-static void dump_vgaregs(u_char *buf);
-#define PARAM_BUFSIZE	6
-static void set_font_mode(u_char *buf);
-static void set_normal_mode(u_char *buf);
 static void set_destructive_cursor(scr_stat *scp);
 static void set_mouse_pos(scr_stat *scp);
 static int skip_spc_right(scr_stat *scp, u_short *p);
@@ -312,12 +289,11 @@ static void draw_mouse_image(scr_stat *scp);
 static void remove_mouse_image(scr_stat *scp); 
 static void draw_cutmarking(scr_stat *scp); 
 static void remove_cutmarking(scr_stat *scp); 
-static void save_palette(void);
 static void do_bell(scr_stat *scp, int pitch, int duration);
 static timeout_t blink_screen;
 #ifdef SC_SPLASH_SCREEN
-static void scsplash_init(void);
-static void scsplash(int show);
+static void scsplash_init(scr_stat *scp);
+static void scsplash_saver(int show);
 #define scsplash_stick(stick)		(sticky_splash = (stick))
 #else
 #define scsplash_stick(stick)
@@ -332,7 +308,7 @@ static	d_close_t	scclose;
 static	d_read_t	scread;
 static	d_write_t	scwrite;
 static	d_ioctl_t	scioctl;
-static	d_devtotty_t	scdevtotty;
+	d_devtotty_t	scdevtotty;
 static	d_mmap_t	scmmap;
 
 #define	CDEV_MAJOR	12
@@ -353,7 +329,7 @@ draw_cursor_image(scr_stat *scp)
     u_short cursor_image, *ptr = Crtat + (scp->cursor_pos - scp->scr_buf);
     u_short prev_image;
 
-    if (VESA_MODE(scp->mode)) {
+    if (ISPIXELSC(scp)) {
 	sc_bcopy(scp, scp->scr_buf, scp->cursor_pos - scp->scr_buf, 
 	  scp->cursor_pos - scp->scr_buf, 1);
 	return;
@@ -405,7 +381,7 @@ draw_cursor_image(scr_stat *scp)
 static void
 remove_cursor_image(scr_stat *scp)
 {
-    if (VESA_MODE(scp->mode))
+    if (ISPIXELSC(scp))
 	sc_bcopy(scp, scp->scr_buf, scp->cursor_oldpos - scp->scr_buf, 
 	  scp->cursor_oldpos - scp->scr_buf, 0);
     else
@@ -436,6 +412,12 @@ scprobe(struct isa_device *dev)
 	    printf("sc%d: no video adapter is found.\n", dev->id_unit);
 	return (0);
     }
+    (*biosvidsw.diag)(bootverbose);
+#if defined(VESA) && defined(VM86)
+    if (vesa_load())
+	return FALSE;
+    (*biosvidsw.diag)(bootverbose);
+#endif
 
     sc_port = dev->id_iobase;
     if (sckbdprobe(dev->id_unit, dev->id_flags))
@@ -448,99 +430,24 @@ scprobe(struct isa_device *dev)
 static int
 scvidprobe(int unit, int flags)
 {
-    /* 
-     * XXX don't try to `printf' anything here, the console may not have 
-     * been configured yet. 
-     */
-    u_short volatile *cp;
-    u_short was;
-    u_int pa;
-    u_int segoff;
+    video_adapter_t *adp;
 
     /* do this test only once */
     if (init_done != COLD)
-	return (Crtat != 0);
+	return (crtc_type != -1);
 
-    /*
-     * Finish defaulting crtc variables for a mono screen.  Crtat is a
-     * bogus common variable so that it can be shared with pcvt, so it
-     * can't be statically initialized.  XXX.
-     */
-    Crtat = (u_short *)MONO_BUF;
-    crtc_type = KD_MONO;
-    /* If CGA memory seems to work, switch to color.  */
-    cp = (u_short *)CGA_BUF;
-    was = *cp;
-    *cp = (u_short) 0xA55A;
-    bios_video_mode = *(u_char *)pa_to_va(0x449);
-    if (bootinfo.bi_vesa == 0x102) {
-	bios_video_mode = bootinfo.bi_vesa;
-	Crtat  = (u_short *)pa_to_va(0xA0000);
-	crtc_addr = COLOR_BASE;
-	crtc_type = KD_VGA;
-        bzero(Crtat, 800*600/8);
-    } else if (*cp == 0xA55A) {
-	Crtat = (u_short *)CGA_BUF;
-	crtc_addr = COLOR_BASE;
-	crtc_type = KD_CGA;
-    } else {
-        cp = Crtat;
-	was = *cp;
-	*cp = (u_short) 0xA55A;
-	if (*cp != 0xA55A) {
-	    /* no screen at all, bail out */
-	    Crtat = 0;
-	    return FALSE;
-	}
-    }
-    *cp = was;
+    if ((*biosvidsw.init)() <= 0)
+	return FALSE;
+    if ((adp = (*biosvidsw.adapter)(V_ADP_PRIMARY)) == NULL)
+	return FALSE;
 
-    if (!VESA_MODE(bios_video_mode)) {
-	/* 
-	 * Check rtc and BIOS date area.
-	 * XXX: don't use BIOSDATA_EQUIPMENT, it is not a dead copy
-	 * of RTC_EQUIPMENT. The bit 4 and 5 of the ETC_EQUIPMENT are
-	 * zeros for EGA and VGA. However, the EGA/VGA BIOS will set 
-	 * these bits in BIOSDATA_EQUIPMENT according to the monitor
-	 * type detected.
-	 */
-	switch ((rtcin(RTC_EQUIPMENT) >> 4) & 3) {	/* bit 4 and 5 */
-	case 0: /* EGA/VGA, or nothing */
-	    crtc_type = KD_EGA;
-	    /* the color adapter may be in the 40x25 mode... XXX */
-	    break;
-	case 1: /* CGA 40x25 */
-	    /* switch to the 80x25 mode? XXX */
-	    /* FALL THROUGH */
-	case 2: /* CGA 80x25 */
-	    /* `crtc_type' has already been set... */
-	    /* crtc_type = KD_CGA; */
-	    break;
-	case 3: /* MDA */
-	    /* `crtc_type' has already been set... */
-	    /* crtc_type = KD_MONO; */
-	    break;
-	}
-
-	/* is this a VGA or higher ? */
-	outb(crtc_addr, 7);
-	if (inb(crtc_addr) == 7) {
-
-	    crtc_type = KD_VGA;
-	    crtc_vga = TRUE;
-	    read_vgaregs(vgaregs);
-
-	    /* Get the BIOS video mode pointer */
-	    segoff = *(u_int *)pa_to_va(0x4a8);
-	    pa = ((segoff & 0xffff0000) >> 12) + (segoff & 0xffff);
-	    if (ISMAPPED(pa, sizeof(u_int))) {
-		segoff = *(u_int *)pa_to_va(pa);
-		pa = ((segoff & 0xffff0000) >> 12) + (segoff & 0xffff);       
-		if (ISMAPPED(pa, MODE_PARAM_SIZE))
-		    video_mode_ptr = (char *)pa_to_va(pa);
-	    }
-	}
-    }
+    crtc_type = adp->va_type;
+    crtc_vga = (crtc_type == KD_VGA);
+    crtc_addr = adp->va_crtc_addr;
+    Crtat = (u_short *)adp->va_window;
+    adp_flags = adp->va_flags;
+    initial_video_mode = adp->va_initial_mode;
+    bios_video_mode = adp->va_initial_bios_mode;
 
     return TRUE;
 }
@@ -728,48 +635,42 @@ static int
 scattach(struct isa_device *dev)
 {
     scr_stat *scp;
+    video_info_t info;
     dev_t cdev = makedev(CDEV_MAJOR, 0);
-    char *p;
 #ifdef DEVFS
     int vc;
 #endif
 
     scinit();
     flags = dev->id_flags;
-    if (crtc_type != KD_VGA || VESA_MODE(bios_video_mode))
+    if (!ISFONTAVAIL(adp_flags))
 	flags &= ~CHAR_CURSOR;
 
     scp = console[0];
 
-    if (crtc_type == KD_VGA) {
-	cut_buffer_size = scp->xsize * scp->ysize + 1;
-    	cut_buffer = (char *)malloc(cut_buffer_size, M_DEVBUF, M_NOWAIT);
-	if (cut_buffer != NULL)
-	    cut_buffer[0] = '\0';
-    }
-
-    scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
-				     M_DEVBUF, M_NOWAIT);
-
     /* copy temporary buffer to final buffer */
-    bcopy(sc_buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+    scp->scr_buf = NULL;
+    sc_alloc_scr_buffer(scp, FALSE, FALSE);
+    bcopy(sc_buffer, scp->scr_buf, scp->xsize*scp->ysize*sizeof(u_short));
 
-    scp->cursor_pos = scp->cursor_oldpos =
-	scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
-    scp->mouse_pos = scp->mouse_oldpos = 
-	scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
-	    		scp->mouse_xpos/8);
+    /* cut buffer is available only when the mouse pointer is used */
+    if (ISMOUSEAVAIL(adp_flags))
+	sc_alloc_cut_buffer(scp, FALSE);
 
     /* initialize history buffer & pointers */
-    scp->history_head = scp->history_pos = 
-	(u_short *)malloc(scp->history_size*sizeof(u_short),
-			  M_DEVBUF, M_NOWAIT);
-    if (scp->history_head != NULL)
-        bzero(scp->history_head, scp->history_size*sizeof(u_short));
-    scp->history = scp->history_head;
+    sc_alloc_history_buffer(scp, sc_history_size, 0, FALSE);
+
+#if defined(VESA) && defined(VM86)
+    if ((flags & VESA800X600) 
+	&& ((*biosvidsw.get_info)(scp->adp, M_VESA_800x600, &info) == 0)) {
+	sc_set_graphics_mode(scp, NULL, M_VESA_800x600);
+	sc_set_pixel_mode(scp, NULL, COL, ROW, 16);
+	initial_video_mode = M_VESA_800x600;
+    }
+#endif /* VESA && VM86 */
 
     /* initialize cursor stuff */
-    if (!(scp->status & UNKNOWN_MODE))
+    if (!ISGRAPHSC(scp))
     	draw_cursor_image(scp);
 
     /* get screen update going */
@@ -777,42 +678,13 @@ scattach(struct isa_device *dev)
 
     update_leds(scp->status);
 
-    if ((crtc_type == KD_VGA) && bootverbose) {
-        printf("sc%d: BIOS video mode:%d\n", dev->id_unit, bios_video_mode);
-        printf("sc%d: VGA registers upon power-up\n", dev->id_unit);
-        dump_vgaregs(vgaregs);
-        printf("sc%d: video mode:%d\n", dev->id_unit, scp->mode);
-        printf("sc%d: VGA registers in BIOS for mode:%d\n", 
-		dev->id_unit, scp->mode);
-        dump_vgaregs(vgaregs2);
-	p = get_mode_param(scp, scp->mode);
-        if (p != NULL) {
-            printf("sc%d: VGA registers to be used for mode:%d\n", 
-		dev->id_unit, scp->mode);
-            dump_vgaregs(p);
-        }
-        printf("sc%d: rows_offset:%d\n", dev->id_unit, rows_offset);
-    }
-    if ((crtc_type == KD_VGA) && !VESA_MODE(bios_video_mode) 
-	&& (video_mode_ptr == NULL))
-        printf("sc%d: WARNING: video mode switching is only partially supported\n",
-	        dev->id_unit); 
-
     printf("sc%d: ", dev->id_unit);
     switch(crtc_type) {
     case KD_VGA:
-	if (VESA_MODE(bios_video_mode))
-	    printf("Graphics display (VESA mode = 0x%x)", bios_video_mode);
-	else if (crtc_addr == MONO_BASE)
-	    printf("VGA mono");
-	else
-	    printf("VGA color");
+	printf("VGA %s", (adp_flags & V_ADP_COLOR) ? "color" : "mono");
 	break;
     case KD_EGA:
-	if (crtc_addr == MONO_BASE)
-	    printf("EGA mono");
-	else
-	    printf("EGA color");
+	printf("EGA %s", (adp_flags & V_ADP_COLOR) ? "color" : "mono");
 	break;
     case KD_CGA:
 	printf("CGA");
@@ -820,7 +692,7 @@ scattach(struct isa_device *dev)
     case KD_MONO:
     case KD_HERCULES:
     default:
-	printf("MDA/hercules");
+	printf("MDA/Hercules");
 	break;
     }
     printf(" <%d virtual consoles, flags=0x%x>\n", MAXCONS, flags);
@@ -896,6 +768,8 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	    return(EBUSY);
     if (minor(dev) < MAXCONS && !console[minor(dev)]) {
 	console[minor(dev)] = alloc_scp();
+	if (ISGRAPHSC(console[minor(dev)]))
+	    sc_set_pixel_mode(console[minor(dev)], NULL, COL, ROW, 16);
     }
     if (minor(dev)<MAXCONS && !tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
 	tp->t_winsize.ws_col = console[minor(dev)]->xsize;
@@ -913,7 +787,7 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
     if (!tp)
 	return(ENXIO);
     if (minor(dev) < MAXCONS) {
-	scp = get_scr_stat(tp->t_dev);
+	scp = sc_get_scr_stat(tp->t_dev);
 	if (scp->status & SWITCH_WAIT_ACQ)
 	    wakeup((caddr_t)&scp->smode);
 #if not_yet_done
@@ -927,9 +801,9 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	    if (scp->history != NULL) {
 		free(scp->history, M_DEVBUF);
 		if (scp->history_size / scp->xsize
-			> imax(SC_HISTORY_SIZE, scp->ysize))
+			> imax(sc_history_size, scp->ysize))
 		    extra_history_size += scp->history_size / scp->xsize 
-			- imax(SC_HISTORY_SIZE, scp->ysize);
+			- imax(sc_history_size, scp->ysize);
 	    }
 	    free(scp, M_DEVBUF);
 	    console[minor(dev)] = NULL;
@@ -1008,10 +882,17 @@ scintr(int unit)
 	}
     }
 
+#if 0
     if (cur_console->status & MOUSE_ENABLED) {
 	cur_console->status &= ~MOUSE_VISIBLE;
 	remove_mouse_image(cur_console);
     }
+#else
+    if (cur_console->status & MOUSE_VISIBLE) {
+	remove_mouse_image(cur_console);
+	cur_console->status &= ~MOUSE_VISIBLE;
+    }
+#endif
 }
 
 static int
@@ -1030,20 +911,24 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     u_int i;
     struct tty *tp;
     scr_stat *scp;
-    u_short *usp;
-    char *mp;
+    video_adapter_t *adp;
     int s;
 
     tp = scdevtotty(dev);
     if (!tp)
 	return ENXIO;
-    scp = get_scr_stat(tp->t_dev);
+    scp = sc_get_scr_stat(tp->t_dev);
 
     /* If there is a user_ioctl function call that first */
     if (sc_user_ioctl) {
-	if (error = (*sc_user_ioctl)(dev, cmd, data, flag, p))
+	error = (*sc_user_ioctl)(dev, cmd, data, flag, p);
+	if (error != ENOIOCTL)
 	    return error;
     }
+
+    error = sc_vid_ioctl(tp, cmd, data, flag, p);
+    if (error != ENOIOCTL)
+	return error;
 
     switch (cmd) {  		/* process console hardware related ioctl's */
 
@@ -1052,18 +937,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case GIO_COLOR:     	/* is this a color console ? */
-	if (crtc_addr == COLOR_BASE)
-	    *(int*)data = 1;
-	else
-	    *(int*)data = 0;
-	return 0;
-
-    case CONS_CURRENT:  	/* get current adapter type */
-	*(int *)data = crtc_type;
-	return 0;
-
-    case CONS_GET:      	/* get current video mode */
-	*(int*)data = scp->mode;
+	*(int *)data = (adp_flags & V_ADP_COLOR) ? 1 : 0;
 	return 0;
 
     case CONS_BLANKTIME:    	/* set screen saver timeout (0 = no saver) */
@@ -1081,7 +955,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	else
 	    flags &= ~BLINK_CURSOR;
 	if ((*(int*)data) & 0x02) {
-	    if (crtc_type != KD_VGA || VESA_MODE(bios_video_mode))
+	    if (!ISFONTAVAIL(get_adapter(scp)->va_flags))
 		return ENXIO;
 	    flags |= CHAR_CURSOR;
 	} else
@@ -1090,7 +964,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * The cursor shape is global property; all virtual consoles
 	 * are affected. Update the cursor in the current console...
 	 */
-	if (!(cur_console->status & UNKNOWN_MODE)) {
+	if (!ISGRAPHSC(cur_console)) {
             remove_cursor_image(cur_console);
 	    if (flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
@@ -1117,37 +991,22 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    lines = imax(*(int *)data, scp->ysize);
 	    lines0 = (scp->history != NULL) ? 
 		      scp->history_size / scp->xsize : scp->ysize;
+	    if (lines0 > imax(sc_history_size, scp->ysize))
+		i = lines0 - imax(sc_history_size, scp->ysize);
+	    else
+		i = 0;
 	    /*
 	     * syscons unconditionally allocates buffers upto SC_HISTORY_SIZE
 	     * lines or scp->ysize lines, whichever is larger. A value 
 	     * greater than that is allowed, subject to extra_history_size.
 	     */
-	    if (lines > imax(lines0, SC_HISTORY_SIZE) + extra_history_size)
-                return EINVAL;
+	    if (lines > imax(sc_history_size, scp->ysize))
+		if (lines - imax(sc_history_size, scp->ysize) >
+		    extra_history_size + i)
+		    return EINVAL;
             if (cur_console->status & BUFFER_SAVED)
                 return EBUSY;
-	    usp = scp->history;
-	    scp->history = NULL;
-	    if (usp != NULL)
-		free(usp, M_DEVBUF);
-	    scp->history_size = lines * scp->xsize;
-	    /*
-	     * extra_history_size += 
-	     *    (lines0 > imax(SC_HISTORY_SIZE, scp->ysize)) ? 
-	     *     lines0 - imax(SC_HISTORY_SIZE, scp->ysize)) : 0;
-	     * extra_history_size -= 
-	     *    (lines > imax(SC_HISTORY_SIZE, scp->ysize)) ? 
-	     *	   lines - imax(SC_HISTORY_SIZE, scp->ysize)) : 0;
-	     * lines0 >= ysize && lines >= ysize... Hey, the above can be 
-	     * reduced to the following...
-	     */
-	    extra_history_size += 
-		imax(lines0, SC_HISTORY_SIZE) - imax(lines, SC_HISTORY_SIZE);
-	    usp = (u_short *)malloc(scp->history_size * sizeof(u_short),
-				    M_DEVBUF, M_WAITOK);
-	    bzero(usp, scp->history_size * sizeof(u_short));
-	    scp->history_head = scp->history_pos = usp;
-	    scp->history = usp;
+	    sc_alloc_history_buffer(scp, lines, i, TRUE);
 	    return 0;
 	}
 	else
@@ -1171,7 +1030,8 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	mouse_info_t *mouse = (mouse_info_t*)data;
 	mouse_info_t buf;
 
-	if (crtc_type != KD_VGA || VESA_MODE(bios_video_mode))
+	/* FIXME: */
+	if (!ISMOUSEAVAIL(get_adapter(scp)->va_flags))
 	    return ENODEV;
 	
 	if (cmd == OLD_CONS_MOUSECTL) {
@@ -1220,7 +1080,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return 0;
 
 	case MOUSE_SHOW:
-	    if (!(scp->status & MOUSE_ENABLED)) {
+	    if (ISTEXTSC(scp) && !(scp->status & MOUSE_ENABLED)) {
 		scp->status |= (MOUSE_ENABLED | MOUSE_VISIBLE);
 		scp->mouse_oldpos = scp->mouse_pos;
 		mark_all(scp);
@@ -1231,7 +1091,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    break;
 
 	case MOUSE_HIDE:
-	    if (scp->status & MOUSE_ENABLED) {
+	    if (ISTEXTSC(scp) && (scp->status & MOUSE_ENABLED)) {
 		scp->status &= ~(MOUSE_ENABLED | MOUSE_VISIBLE);
 		mark_all(scp);
 		return 0;
@@ -1276,7 +1136,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    if (mouse_status.flags == 0)
 		return 0;
 
-	    if (cur_console->status & MOUSE_ENABLED)
+	    if (ISTEXTSC(cur_console) && (cur_console->status & MOUSE_ENABLED))
 	    	cur_console->status |= MOUSE_VISIBLE;
 
 	    if ((MOUSE_TTY)->t_state & TS_ISOPEN) {
@@ -1321,7 +1181,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    else if (mouse->operation == MOUSE_ACTION && cut_buffer != NULL) {
 		/* process button presses */
 		if ((cur_console->mouse_buttons ^ mouse->u.data.buttons) && 
-		    !(cur_console->status & UNKNOWN_MODE)) {
+		    ISTEXTSC(cur_console)) {
 		    cur_console->mouse_buttons = mouse->u.data.buttons;
 		    if (cur_console->mouse_buttons & MOUSE_BUTTON1DOWN)
 			mouse_cut_start(cur_console);
@@ -1358,7 +1218,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    if (mouse_status.flags == 0)
 		return 0;
 
-	    if (cur_console->status & MOUSE_ENABLED)
+	    if (ISTEXTSC(cur_console) && (cur_console->status & MOUSE_ENABLED))
 	    	cur_console->status |= MOUSE_VISIBLE;
 
 	    if ((MOUSE_TTY)->t_state & TS_ISOPEN) {
@@ -1387,7 +1247,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		break;
 	    }
 
-	    if ((cur_console->status & UNKNOWN_MODE) || (cut_buffer == NULL))
+	    if (!ISTEXTSC(cur_console) || (cut_buffer == NULL))
 		break;
 
 	    switch (mouse->u.event.id) {
@@ -1567,18 +1427,41 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_IDLE:		/* see if the screen has been idle */
-	*(int *)data = (scrn_idle && !(cur_console->status & UNKNOWN_MODE));
+	/*
+	 * When the screen is in the GRAPHICS_MODE or UNKNOWN_MODE,
+	 * the user process may have been writing something on the
+	 * screen and syscons is not aware of it. Declare the screen
+	 * is NOT idle if it is in one of these modes. But there is
+	 * an exception to it; if a screen saver is running in the 
+	 * graphics mode in the current screen, we should say that the
+	 * screen has been idle.
+	 */
+	*(int *)data = scrn_idle 
+		       && (!ISGRAPHSC(cur_console)
+			   || (cur_console->status & SAVER_RUNNING));
 	return 0;
 
     case CONS_SAVERMODE:	/* set saver mode */
 	switch(*(int *)data) {
 	case CONS_USR_SAVER:
-	    /* if a LKM screen saver is running, it will eventually stop... */
+	    /* if a LKM screen saver is running, stop it first. */
+	    scsplash_stick(FALSE);
 	    saver_mode = *(int *)data;
+	    s = spltty();
+	    if ((error = wait_scrn_saver_stop())) {
+		splx(s);
+		return error;
+	    }
+	    scp->status |= SAVER_RUNNING;
 	    scsplash_stick(TRUE);
+	    splx(s);
 	    break;
 	case CONS_LKM_SAVER:
+	    s = spltty();
+	    if ((saver_mode == CONS_USR_SAVER) && (scp->status & SAVER_RUNNING))
+		scp->status &= ~SAVER_RUNNING;
 	    saver_mode = *(int *)data;
+	    splx(s);
 	    break;
 	default:
 	    return EINVAL;
@@ -1595,226 +1478,6 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (run_scrn_saver)
 	    scrn_time_stamp -= scrn_blank_time;
 	splx(s);
-	return 0;
-
-    /* VGA TEXT MODES */
-    case SW_VGA_C40x25:
-    case SW_VGA_C80x25: case SW_VGA_M80x25:
-    case SW_VGA_C80x30: case SW_VGA_M80x30:
-    case SW_VGA_C80x50: case SW_VGA_M80x50:
-    case SW_VGA_C80x60: case SW_VGA_M80x60:
-    case SW_B40x25:     case SW_C40x25:
-    case SW_B80x25:     case SW_C80x25:
-    case SW_ENH_B40x25: case SW_ENH_C40x25:
-    case SW_ENH_B80x25: case SW_ENH_C80x25:
-    case SW_ENH_B80x43: case SW_ENH_C80x43:
-    case SW_EGAMONO80x25:
-
-	if (crtc_type != KD_VGA)
- 	    return ENODEV;
- 	mp = get_mode_param(scp, cmd & 0xff);
- 	if (mp == NULL)
- 	    return ENODEV;
- 
-	s = spltty();
-	if ((error = wait_scrn_saver_stop())) {
-	    splx(s);
-	    return error;
-	}
-
-	scp->status &= ~MOUSE_VISIBLE;
-	remove_cutmarking(scp);
-	if (scp->history != NULL)
-	    i = imax(scp->history_size / scp->xsize 
-		     - imax(SC_HISTORY_SIZE, scp->ysize), 0);
-	else
-	    i = 0;
-	switch (cmd & 0xff) {
-	case M_VGA_C80x60: case M_VGA_M80x60:
-	    if (!(fonts_loaded & FONT_8)) {
-		splx(s);
-		return EINVAL;
-	    }
-	    /*
-	     * This is a kludge to fend off scrn_update() while we
-	     * muck around with scp. XXX
-	     */
-	    scp->status |= UNKNOWN_MODE;
-	    scp->xsize = 80;
-	    scp->ysize = 60;
-	    scp->font_size = 8;
-	    break;
-	case M_VGA_C80x50: case M_VGA_M80x50:
-	    if (!(fonts_loaded & FONT_8)) {
-		splx(s);
-		return EINVAL;
-	    }
-	    scp->status |= UNKNOWN_MODE;
-	    scp->xsize = 80;
-	    scp->ysize = 50;
-	    scp->font_size = 8;
-	    break;
-	case M_ENH_B80x43: case M_ENH_C80x43:
-	    if (!(fonts_loaded & FONT_8)) {
-		splx(s);
-		return EINVAL;
-	    }
-	    scp->status |= UNKNOWN_MODE;
-	    scp->xsize = 80;
-	    scp->ysize = 43;
-	    scp->font_size = 8;
-	    break;
-	case M_VGA_C80x30: case M_VGA_M80x30:
-	    scp->status |= UNKNOWN_MODE;
-	    scp->xsize = 80;
-	    scp->ysize = 30;
-	    scp->font_size = mp[2];
-	    break;
-	case M_ENH_C40x25: case M_ENH_B40x25:
-	case M_ENH_C80x25: case M_ENH_B80x25:
-	case M_EGAMONO80x25:
-	    if (!(fonts_loaded & FONT_14)) {
-		splx(s);
-		return EINVAL;
-	    }
-	    /* FALL THROUGH */
-	default:
-	    if ((cmd & 0xff) > M_VGA_CG320) {
-		splx(s);
-		return EINVAL;
-	    }
-	    scp->status |= UNKNOWN_MODE;
-            scp->xsize = mp[0];
-            scp->ysize = mp[1] + rows_offset;
-	    scp->font_size = mp[2];
-	    break;
-	}
-
-	scp->mode = cmd & 0xff;
-	scp->xpixel = scp->xsize * 8;
-	scp->ypixel = scp->ysize * scp->font_size;
-	free(scp->scr_buf, M_DEVBUF);
-	scp->scr_buf = (u_short *)
-	    malloc(scp->xsize*scp->ysize*sizeof(u_short), M_DEVBUF, M_WAITOK);
-	/* move the text cursor to the home position */
-	move_crsr(scp, 0, 0);
-	/* move the mouse cursor at the center of the screen */
-	scp->mouse_xpos = scp->xpixel / 2;
-	scp->mouse_ypos = scp->ypixel / 2;
-    	scp->mouse_pos = scp->mouse_oldpos = 
-	    scp->scr_buf + (scp->mouse_ypos / scp->font_size) * scp->xsize 
-	    + scp->mouse_xpos / 8;
-	/* allocate a larger cut buffer if necessary */
-	if ((cut_buffer == NULL)
-	    || (cut_buffer_size < scp->xsize * scp->ysize + 1)) {
-	    if (cut_buffer != NULL)
-		free(cut_buffer, M_DEVBUF);
-	    cut_buffer_size = scp->xsize * scp->ysize + 1;
-	    cut_buffer = (char *)malloc(cut_buffer_size, M_DEVBUF, M_NOWAIT);
-	    if (cut_buffer != NULL)
-		cut_buffer[0] = '\0';
-	}
-	splx(s);
-
-	usp = scp->history;
-	scp->history = NULL;
-	if (usp != NULL) {
-	    free(usp, M_DEVBUF);
-	    extra_history_size += i;
-	}
-	scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
-	usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
-				M_DEVBUF, M_NOWAIT);
-	if (usp != NULL)
-	    bzero(usp, scp->history_size * sizeof(u_short));
-	scp->history_head = scp->history_pos = usp;
-	scp->history = usp;
-	if (scp == cur_console)
-	    set_mode(scp);
-	clear_screen(scp);
-	scp->status &= ~UNKNOWN_MODE;
-
-	if (tp->t_winsize.ws_col != scp->xsize
-	    || tp->t_winsize.ws_row != scp->ysize) {
-	    tp->t_winsize.ws_col = scp->xsize;
-	    tp->t_winsize.ws_row = scp->ysize;
-	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
-	}
-	return 0;
-
-    /* GRAPHICS MODES */
-    case SW_BG320:     case SW_BG640:
-    case SW_CG320:     case SW_CG320_D:   case SW_CG640_E:
-    case SW_CG640x350: case SW_ENH_CG640:
-    case SW_BG640x480: case SW_CG640x480: case SW_VGA_CG320:
-
-	if (crtc_type != KD_VGA)
-	    return ENODEV;
-	mp = get_mode_param(scp, cmd & 0xff);
-	if (mp == NULL)
-	    return ENODEV;
-
-	s = spltty();
-	if ((error = wait_scrn_saver_stop())) {
-	    splx(s);
-	    return error;
-	}
-
-	scp->status &= ~MOUSE_VISIBLE;
-	remove_cutmarking(scp);
-	scp->status |= UNKNOWN_MODE;    /* graphics mode */
-	scp->mode = cmd & 0xFF;
-	scp->xpixel = mp[0] * 8;
-	scp->ypixel = (mp[1] + rows_offset) * mp[2];
-	scp->font_size = FONT_NONE;
-	/* move the mouse cursor at the center of the screen */
-	scp->mouse_xpos = scp->xpixel / 2;
-	scp->mouse_ypos = scp->ypixel / 2;
-	splx(s);
-
-	if (scp == cur_console)
-	    set_mode(scp);
-	/* clear_graphics();*/
-
-	if (tp->t_winsize.ws_xpixel != scp->xpixel
-	    || tp->t_winsize.ws_ypixel != scp->ypixel) {
-	    tp->t_winsize.ws_xpixel = scp->xpixel;
-	    tp->t_winsize.ws_ypixel = scp->ypixel;
-	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
-	}
-	return 0;
-
-    case SW_VGA_MODEX:
-	if (crtc_type != KD_VGA)
-	    return ENODEV;
-	mp = get_mode_param(scp, cmd & 0xff);
-	if (mp == NULL)
-	    return ENODEV;
-
-	s = spltty();
-	if ((error = wait_scrn_saver_stop())) {
-	    splx(s);
-	    return error;
-	}
-
-	scp->status &= ~MOUSE_VISIBLE;
-	remove_cutmarking(scp);
-	scp->status |= UNKNOWN_MODE;    /* graphics mode */
-	scp->mode = cmd & 0xFF;
-	scp->xpixel = 320;
-	scp->ypixel = 240;
-	scp->font_size = FONT_NONE;
-	splx(s);
-
-	if (scp == cur_console)
-	    set_mode(scp);
-	/* clear_graphics();*/
-	if (tp->t_winsize.ws_xpixel != scp->xpixel
-	    || tp->t_winsize.ws_ypixel != scp->ypixel) {
-	    tp->t_winsize.ws_xpixel = scp->xpixel;
-	    tp->t_winsize.ws_ypixel = scp->ypixel;
-	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
-	}
 	return 0;
 
     case VT_SETMODE:    	/* set screen switcher mode */
@@ -1839,7 +1502,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case VT_RELDISP:    	/* screen switcher ioctl */
-	switch(*data) {
+	switch(*(int *)data) {
 	case VT_FALSE:  	/* user refuses to release screen, abort */
 	    if (scp == old_scp && (scp->status & SWITCH_WAIT_REL)) {
 		old_scp->status &= ~SWITCH_WAIT_REL;
@@ -1879,32 +1542,32 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	for (i = 0; i < MAXCONS; i++) {
 	    tp = VIRTUAL_TTY(i);
 	    if (!(tp->t_state & TS_ISOPEN)) {
-		*data = i + 1;
+		*(int *)data = i + 1;
 		return 0;
 	    }
 	}
 	return EINVAL;
 
     case VT_ACTIVATE:   	/* switch to screen *data */
-	return switch_scr(scp, (*data) - 1);
+	return switch_scr(scp, *(int *)data - 1);
 
     case VT_WAITACTIVE: 	/* wait for switch to occur */
-	if (*data > MAXCONS || *data < 0)
+	if (*(int *)data > MAXCONS || *(int *)data < 0)
 	    return EINVAL;
-	if (minor(dev) == (*data) - 1)
+	if (minor(dev) == *(int *)data - 1)
 	    return 0;
-	if (*data == 0) {
+	if (*(int *)data == 0) {
 	    if (scp == cur_console)
 		return 0;
 	}
 	else
-	    scp = console[(*data) - 1];
+	    scp = console[*(int *)data - 1];
 	while ((error=tsleep((caddr_t)&scp->smode, PZERO|PCATCH,
 			     "waitvt", 0)) == ERESTART) ;
 	return error;
 
     case VT_GETACTIVE:
-	*data = get_scr_num()+1;
+	*(int *)data = get_scr_num()+1;
 	return 0;
 
     case KDENABIO:      	/* allow io operations */
@@ -1920,102 +1583,28 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	p->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
 	return 0;
 
-    case KDSETMODE:     	/* set current mode of this (virtual) console */
-	switch (*data) {
-	case KD_TEXT:   	/* switch to TEXT (known) mode */
-	    /* restore fonts & palette ! */
-	    if (crtc_type == KD_VGA) {
-		if (!VESA_MODE(scp->mode)) {
-#if 0
-		    /*
-		     * FONT KLUDGE
-		     * Don't load fonts for now... XXX
-		     */
-		    if (fonts_loaded & FONT_8)
-			copy_font(LOAD, FONT_8, font_8);
-		    if (fonts_loaded & FONT_14)
-			copy_font(LOAD, FONT_14, font_14);
-		    if (fonts_loaded & FONT_16)
-			copy_font(LOAD, FONT_16, font_16);
-#endif
-		}
-		load_palette(palette);
-	    }
-
-	    /* move hardware cursor out of the way */
-	    outb(crtc_addr, 14);
-	    outb(crtc_addr + 1, 0xff);
-	    outb(crtc_addr, 15);
-	    outb(crtc_addr + 1, 0xff);
-
-	    /* FALL THROUGH */
-
-	case KD_TEXT1:  	/* switch to TEXT (known) mode */
-	    s = spltty();
-	    if ((error = wait_scrn_saver_stop())) {
-		splx(s);
-		return error;
-	    }
-	    scp->status &= ~MOUSE_VISIBLE;
-	    remove_cutmarking(scp);
-	    scp->status |= UNKNOWN_MODE;
-	    splx(s);
-	    /* no restore fonts & palette */
-	    if (crtc_type == KD_VGA)
-		set_mode(scp);
-	    scp->status &= ~UNKNOWN_MODE;
-	    clear_screen(scp);
-	    return 0;
-
-	case KD_GRAPHICS:	/* switch to GRAPHICS (unknown) mode */
-	    s = spltty();
-	    if ((error = wait_scrn_saver_stop())) {
-		splx(s);
-		return error;
-	    }
-	    scp->status &= ~MOUSE_VISIBLE;
-	    remove_cutmarking(scp);
-	    scp->status |= UNKNOWN_MODE;
-	    splx(s);
-	    return 0;
-	default:
-	    return EINVAL;
-	}
-	/* NOT REACHED */
-
-    case KDGETMODE:     	/* get current mode of this (virtual) console */
-	*data = (scp->status & UNKNOWN_MODE) ? KD_GRAPHICS : KD_TEXT;
-	return 0;
-
-    case KDSBORDER:     	/* set border color of this (virtual) console */
-	scp->border = *data;
-	if (scp == cur_console)
-	    set_border(scp->border);
-	return 0;
-
     case KDSKBSTATE:    	/* set keyboard state (locks) */
-	if (*data >= 0 && *data <= LOCK_KEY_MASK) {
-	    scp->status &= ~LOCK_KEY_MASK;
-	    scp->status |= *data;
-	    if (scp == cur_console)
-		update_leds(scp->status);
-	    return 0;
-	}
-	return EINVAL;
+	if (*(int *)data & ~LOCK_KEY_MASK)
+	    return EINVAL;
+	scp->status &= ~LOCK_KEY_MASK;
+	scp->status |= *(int *)data;
+	if (scp == cur_console)
+	    update_leds(scp->status);
+	return 0;
 
     case KDGKBSTATE:    	/* get keyboard state (locks) */
-	*data = scp->status & LOCK_KEY_MASK;
+	*(int *)data = scp->status & LOCK_KEY_MASK;
 	return 0;
 
     case KDSETRAD:      	/* set keyboard repeat & delay rates */
-	if (*data & 0x80)
+	if (*(int *)data & ~0x7f)
 	    return EINVAL;
 	if (sc_kbdc != NULL) 
-	    set_keyboard(KBDC_SET_TYPEMATIC, *data);
+	    set_keyboard(KBDC_SET_TYPEMATIC, *(int *)data);
 	return 0;
 
     case KDSKBMODE:     	/* set keyboard mode */
-	switch (*data) {
+	switch (*(int *)data) {
 	case K_RAW: 		/* switch to RAW scancode mode */
 	    scp->status &= ~KBD_CODE_MODE;
 	    scp->status |= KBD_RAW_MODE;
@@ -2037,7 +1626,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	/* NOT REACHED */
 
     case KDGKBMODE:     	/* get keyboard mode */
-	*data = (scp->status & KBD_RAW_MODE) ? K_RAW : 
+	*(int *)data = (scp->status & KBD_RAW_MODE) ? K_RAW : 
 		((scp->status & KBD_CODE_MODE) ? K_CODE : K_XLATE);
 	return 0;
 
@@ -2074,21 +1663,20 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case KDGKBTYPE:     	/* get keyboard type */
-	*data = 0;  		/* type not known (yet) */
+	*(int *)data = 0;  	/* type not known (yet) */
 	return 0;
 
     case KDSETLED:      	/* set keyboard LED status */
-	if (*data >= 0 && *data <= LED_MASK) {
-	    scp->status &= ~LED_MASK;
-	    scp->status |= *data;
-	    if (scp == cur_console)
-		update_leds(scp->status);
-	    return 0;
-	}
-	return EINVAL;
+	if (*(int *)data & ~LED_MASK)
+	    return EINVAL;
+	scp->status &= ~LED_MASK;
+	scp->status |= *(int *)data;
+	if (scp == cur_console)
+	    update_leds(scp->status);
+	return 0;
 
     case KDGETLED:      	/* get keyboard LED status */
-	*data = scp->status & LED_MASK;
+	*(int *)data = scp->status & LED_MASK;
 	return 0;
 
     case GETFKEY:       	/* get functionkey string */
@@ -2143,7 +1731,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case PIO_FONT8x8:   	/* set 8x8 dot font */
-	if (crtc_type != KD_VGA)
+	if (!ISFONTAVAIL(get_adapter(scp)->va_flags))
 	    return ENXIO;
 	bcopy(data, font_8, 8*256);
 	fonts_loaded |= FONT_8;
@@ -2152,17 +1740,12 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * Always use the font page #0. XXX
 	 * Don't load if the current font size is not 8x8.
 	 */
-	if (!VESA_MODE(cur_console->mode) 
-	    && !(cur_console->status & UNKNOWN_MODE)
-	    && (cur_console->font_size < 14)) {
-	    copy_font(LOAD, FONT_8, font_8);
-	    if (flags & CHAR_CURSOR)
-	        set_destructive_cursor(cur_console);
-	}
+	if (ISTEXTSC(cur_console) && (cur_console->font_size < 14))
+	    copy_font(cur_console, LOAD, 8, font_8);
 	return 0;
 
     case GIO_FONT8x8:   	/* get 8x8 dot font */
-	if (crtc_type != KD_VGA)
+	if (!ISFONTAVAIL(get_adapter(scp)->va_flags))
 	    return ENXIO;
 	if (fonts_loaded & FONT_8) {
 	    bcopy(font_8, data, 8*256);
@@ -2172,7 +1755,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 
     case PIO_FONT8x14:  	/* set 8x14 dot font */
-	if (crtc_type != KD_VGA)
+	if (!ISFONTAVAIL(get_adapter(scp)->va_flags))
 	    return ENXIO;
 	bcopy(data, font_14, 14*256);
 	fonts_loaded |= FONT_14;
@@ -2181,17 +1764,13 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * Always use the font page #0. XXX
 	 * Don't load if the current font size is not 8x14.
 	 */
-	if (!VESA_MODE(cur_console->mode) 
-	    && !(cur_console->status & UNKNOWN_MODE)
-	    && (cur_console->font_size >= 14) && (cur_console->font_size < 16)) {
-	    copy_font(LOAD, FONT_14, font_14);
-	    if (flags & CHAR_CURSOR)
-	        set_destructive_cursor(cur_console);
-	}
+	if (ISTEXTSC(cur_console)
+	    && (cur_console->font_size >= 14) && (cur_console->font_size < 16))
+	    copy_font(cur_console, LOAD, 14, font_14);
 	return 0;
 
     case GIO_FONT8x14:  	/* get 8x14 dot font */
-	if (crtc_type != KD_VGA)
+	if (!ISFONTAVAIL(get_adapter(scp)->va_flags))
 	    return ENXIO;
 	if (fonts_loaded & FONT_14) {
 	    bcopy(font_14, data, 14*256);
@@ -2201,7 +1780,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 
     case PIO_FONT8x16:  	/* set 8x16 dot font */
-	if (crtc_type != KD_VGA)
+	if (!ISFONTAVAIL(get_adapter(scp)->va_flags))
 	    return ENXIO;
 	bcopy(data, font_16, 16*256);
 	fonts_loaded |= FONT_16;
@@ -2210,17 +1789,12 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * Always use the font page #0. XXX
 	 * Don't load if the current font size is not 8x16.
 	 */
-	if (!VESA_MODE(cur_console->mode) 
-	    && !(cur_console->status & UNKNOWN_MODE)
-	    && (cur_console->font_size >= 16)) {
-	    copy_font(LOAD, FONT_16, font_16);
-	    if (flags & CHAR_CURSOR)
-	        set_destructive_cursor(cur_console);
-	}
+	if (ISTEXTSC(cur_console) && (cur_console->font_size >= 16))
+	    copy_font(cur_console, LOAD, 16, font_16);
 	return 0;
 
     case GIO_FONT8x16:  	/* get 8x16 dot font */
-	if (crtc_type != KD_VGA)
+	if (!ISFONTAVAIL(get_adapter(scp)->va_flags))
 	    return ENXIO;
 	if (fonts_loaded & FONT_16) {
 	    bcopy(font_16, data, 16*256);
@@ -2247,7 +1821,7 @@ scstart(struct tty *tp)
     struct clist *rbp;
     int s, len;
     u_char buf[PCBURST];
-    scr_stat *scp = get_scr_stat(tp->t_dev);
+    scr_stat *scp = sc_get_scr_stat(tp->t_dev);
 
     if (scp->status & SLKED || blink_in_progress)
 	return; /* XXX who repeats the call when the above flags are cleared? */
@@ -2329,7 +1903,7 @@ sccnputc(dev_t dev, int c)
 
     scp->term = kernel_console;
     current_default = &kernel_default;
-    if (scp == cur_console && !(scp->status & UNKNOWN_MODE))
+    if (scp == cur_console && !ISGRAPHSC(scp))
 	remove_cursor_image(scp);
     buf[0] = c;
     ansi_put(scp, buf, 1);
@@ -2384,25 +1958,28 @@ sccnupdate(scr_stat *scp)
     if (font_loading_in_progress)
 	return;
 
-    if (panicstr) {
+    if (panicstr || shutdown_in_progress) {
 	scsplash_stick(FALSE);
 	run_scrn_saver = FALSE;
+    } else if (scp != cur_console) {
+	return;
     }
+
     if (!run_scrn_saver)
 	scrn_idle = FALSE;
     if ((saver_mode != CONS_LKM_SAVER) || !scrn_idle)
-	if (scrn_blanked > 0)
+	if (scp->status & SAVER_RUNNING)
             stop_scrn_saver(current_saver);
 
     if (scp != cur_console || blink_in_progress || switch_in_progress)
 	return;
 
-    if ((scp->status & UNKNOWN_MODE) == 0 && scrn_blanked <= 0)
+    if (!ISGRAPHSC(scp) && !(scp->status & SAVER_RUNNING))
 	scrn_update(scp, TRUE);
 }
 
-static scr_stat
-*get_scr_stat(dev_t dev)
+scr_stat
+*sc_get_scr_stat(dev_t dev)
 {
     int unit = minor(dev);
 
@@ -2461,6 +2038,8 @@ scrn_timer(void *arg)
 	    scintr(0);
     }
 
+    scp = cur_console;
+
     /* should we stop the screen saver? */
     getmicrouptime(&tv);
     if (panicstr || shutdown_in_progress) {
@@ -2476,7 +2055,7 @@ scrn_timer(void *arg)
 	    run_scrn_saver = TRUE;
     }
     if ((saver_mode != CONS_LKM_SAVER) || !scrn_idle)
-	if (scrn_blanked > 0)
+	if (scp->status & SAVER_RUNNING)
             stop_scrn_saver(current_saver);
 
     /* should we just return ? */
@@ -2488,14 +2067,13 @@ scrn_timer(void *arg)
     }
 
     /* Update the screen */
-    scp = cur_console;
-    if ((scp->status & UNKNOWN_MODE) == 0 && scrn_blanked <= 0)
+    if (!ISGRAPHSC(scp) && !(scp->status & SAVER_RUNNING))
 	scrn_update(scp, TRUE);
 
     /* should we activate the screen saver? */
     if ((saver_mode == CONS_LKM_SAVER) && scrn_idle)
-	if ((scp->status & UNKNOWN_MODE) == 0 || scrn_blanked > 0)
-	    (*current_saver)(TRUE);
+	if (!ISGRAPHSC(scp) || (scp->status & SAVER_RUNNING))
+	    scrn_saver(current_saver, TRUE);
 
     if (arg)
 	timeout(scrn_timer, (void *)TRUE, hz / 25);
@@ -2583,9 +2161,9 @@ add_scrn_saver(void (*this_saver)(int))
 
     if (current_saver != default_saver)
 	return EBUSY;
-    current_saver = this_saver;
+    run_scrn_saver = FALSE;
     saver_mode = CONS_LKM_SAVER;
-    run_scrn_saver = (scrn_blank_time > 0);
+    current_saver = this_saver;
     return 0;
 }
 
@@ -2613,9 +2191,21 @@ remove_scrn_saver(void (*this_saver)(int))
 }
 
 static void
+scrn_saver(void (*saver)(int), int blank)
+{
+    static int busy = FALSE;
+
+    if (busy)
+	return;
+    busy = TRUE;
+    (*saver)(blank);
+    busy = FALSE;
+}
+
+static void
 stop_scrn_saver(void (*saver)(int))
 {
-    (*saver)(FALSE);
+    scrn_saver(saver, FALSE);
     run_scrn_saver = FALSE;
     /* the screen saver may have chosen not to stop after all... */
     if (scrn_blanked > 0)
@@ -2632,8 +2222,8 @@ wait_scrn_saver_stop(void)
 {
     int error = 0;
 
-    run_scrn_saver = FALSE;
     while (scrn_blanked > 0) {
+	run_scrn_saver = FALSE;
 	error = tsleep((caddr_t)&scrn_blanked, PZERO | PCATCH, "scrsav", 0);
 	run_scrn_saver = FALSE;
 	if (error != ERESTART)
@@ -2642,8 +2232,8 @@ wait_scrn_saver_stop(void)
     return error;
 }
 
-static void
-clear_screen(scr_stat *scp)
+void
+sc_clear_screen(scr_stat *scp)
 {
     move_crsr(scp, 0, 0);
     scp->cursor_oldpos = scp->cursor_pos;
@@ -2668,8 +2258,7 @@ switch_scr(scr_stat *scp, u_int next_scr)
 	switch_in_progress = FALSE;
 
     if (next_scr >= MAXCONS || switch_in_progress ||
-	(cur_console->smode.mode == VT_AUTO
-	 && cur_console->status & UNKNOWN_MODE)) {
+	(cur_console->smode.mode == VT_AUTO && ISGRAPHSC(cur_console))) {
 	do_bell(scp, BELL_PITCH, BELL_DURATION);
 	return EINVAL;
     }
@@ -2721,25 +2310,26 @@ exchange_scr(void)
 {
     move_crsr(old_scp, old_scp->xpos, old_scp->ypos);
     cur_console = new_scp;
-    if (old_scp->mode != new_scp->mode || (old_scp->status & UNKNOWN_MODE)){
-	if (crtc_type == KD_VGA)
+    if (old_scp->mode != new_scp->mode || ISUNKNOWNSC(old_scp)) {
+	if (adp_flags & V_ADP_MODECHANGE)
 	    set_mode(new_scp);
     }
     move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
-    if (!(new_scp->status & UNKNOWN_MODE) && (flags & CHAR_CURSOR))
+    if (ISTEXTSC(new_scp) && (flags & CHAR_CURSOR))
 	set_destructive_cursor(new_scp);
-    if ((old_scp->status & UNKNOWN_MODE) && crtc_type == KD_VGA)
-	load_palette(palette);
+    if (ISGRAPHSC(old_scp))
+	load_palette(new_scp, palette);
     if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE ||
         old_scp->status & KBD_CODE_MODE || new_scp->status & KBD_CODE_MODE)
 	shfts = ctls = alts = agrs = metas = accents = 0;
-    set_border(new_scp->border);
+    set_border(new_scp, new_scp->border);
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
     mark_all(new_scp);
-    if (new_scp->mode == 0x102) {
-	bzero(Crtat, 800*600/8);
-    }
+
+    /* FIXME: the screen size may be larger than a 64K segment. */
+    if (ISPIXELSC(new_scp))
+	bzero(Crtat, new_scp->xpixel*new_scp->ypixel/8);
 }
 
 static void
@@ -2788,7 +2378,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    return;
 #endif
 	case 'c':   /* Clear screen & home */
-	    clear_screen(scp);
+	    sc_clear_screen(scp);
 	    break;
 
 	case '(':   /* iso-2022: designate 94 character set to G0 */
@@ -2874,7 +2464,7 @@ scan_esc(scr_stat *scp, u_char c)
 		      scp->cursor_pos,
 		      scp->scr_buf + scp->xsize * scp->ysize - scp->cursor_pos);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-    		mark_for_update(scp, scp->xsize * scp->ysize);
+    		mark_for_update(scp, scp->xsize * scp->ysize - 1);
 		remove_cutmarking(scp);
 		break;
 	    case 1: /* clear from beginning of display to cursor */
@@ -2936,7 +2526,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    fillw(scp->term.cur_color | scr_map[0x20], src,
 		  n * scp->xsize);
 	    mark_for_update(scp, scp->ypos * scp->xsize);
-	    mark_for_update(scp, scp->xsize * scp->ysize);
+	    mark_for_update(scp, scp->xsize * scp->ysize - 1);
 	    break;
 
 	case 'M':   /* Delete n lines */
@@ -2951,7 +2541,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    fillw(scp->term.cur_color | scr_map[0x20], src,
 		  n * scp->xsize);
 	    mark_for_update(scp, scp->ypos * scp->xsize);
-	    mark_for_update(scp, scp->xsize * scp->ysize);
+	    mark_for_update(scp, scp->xsize * scp->ysize - 1);
 	    break;
 
 	case 'P':   /* Delete n chars */
@@ -3192,7 +2782,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    if (scp->term.num_param == 1) {
 		scp->border=scp->term.param[0] & 0xff;
 		if (scp == cur_console)
-		    set_border(scp->border);
+		    set_border(cur_console, scp->border);
             }
 	    break;
 
@@ -3209,8 +2799,8 @@ scan_esc(scr_stat *scp, u_char c)
 		    flags |= BLINK_CURSOR;
 		else
 		    flags &= ~BLINK_CURSOR;
-		if ((scp->term.param[0] & 0x02) && 
-		    crtc_type == KD_VGA && !VESA_MODE(bios_video_mode))
+		if ((scp->term.param[0] & 0x02) 
+		    && ISFONTAVAIL(get_adapter(scp)->va_flags)) 
 		    flags |= CHAR_CURSOR;
 		else
 		    flags &= ~CHAR_CURSOR;
@@ -3223,9 +2813,9 @@ scan_esc(scr_stat *scp, u_char c)
 	     * The cursor shape is global property; all virtual consoles
 	     * are affected. Update the cursor in the current console...
 	     */
-	    if (!(cur_console->status & UNKNOWN_MODE)) {
+	    if (!ISGRAPHSC(cur_console)) {
 		remove_cursor_image(cur_console);
-		if (crtc_type == KD_VGA && (flags & CHAR_CURSOR))
+		if (flags & CHAR_CURSOR)
 	            set_destructive_cursor(cur_console);
 		draw_cursor_image(cur_console);
 	    }
@@ -3366,7 +2956,7 @@ outloop:
 	    break;
 
 	case 0x0c:  /* form feed, clears screen */
-	    clear_screen(scp);
+	    sc_clear_screen(scp);
 	    break;
 
 	case 0x0d:  /* return, return to pos 0 */
@@ -3413,42 +3003,17 @@ outloop:
 static void
 scinit(void)
 {
-    u_int hw_cursor;
+    int col;
+    int row;
     u_int i;
 
     if (init_done != COLD)
 	return;
     init_done = WARM;
 
-    /*
-     * Ensure a zero start address.  This is mainly to recover after
-     * switching from pcvt using userconfig().  The registers are w/o
-     * for old hardware so it's too hard to relocate the active screen
-     * memory.
-     */
-    outb(crtc_addr, 12);
-    outb(crtc_addr + 1, 0);
-    outb(crtc_addr, 13);
-    outb(crtc_addr + 1, 0);
-
-    /* extract cursor location */
-    outb(crtc_addr, 14);
-    hw_cursor = inb(crtc_addr + 1) << 8;
-    outb(crtc_addr, 15);
-    hw_cursor |= inb(crtc_addr + 1);
-
-    /*
-     * Validate cursor location.  It may be off the screen.  Then we must
-     * not use it for the initial buffer offset.
-     */
-    if (hw_cursor >= ROW * COL)
-	hw_cursor = (ROW - 1) * COL;
-
-    /* move hardware cursor out of the way */
-    outb(crtc_addr, 14);
-    outb(crtc_addr + 1, 0xff);
-    outb(crtc_addr, 15);
-    outb(crtc_addr + 1, 0xff);
+    /* extract the hardware cursor location and move it out of the way */
+    (*biosvidsw.read_hw_cursor)(V_ADP_PRIMARY, &col, &row);
+    (*biosvidsw.set_hw_cursor)(V_ADP_PRIMARY, -1, -1);
 
     /* set up the first console */
     current_default = &user_default;
@@ -3456,51 +3021,22 @@ scinit(void)
     init_scp(console[0]);
     cur_console = console[0];
 
-    /* discard the video mode table if we are not familiar with it... */
-    if (video_mode_ptr) {
-        bzero(mode_map, sizeof(mode_map));
-	bcopy(video_mode_ptr + MODE_PARAM_SIZE*console[0]->mode, 
-	      vgaregs2, sizeof(vgaregs2));
-        switch (comp_vgaregs(vgaregs, video_mode_ptr 
-                    + MODE_PARAM_SIZE*console[0]->mode)) {
-        case COMP_IDENTICAL:
-            map_mode_table(mode_map, video_mode_ptr, M_VGA_CG320 + 1);
-            /* 
-             * This is a kludge for Toshiba DynaBook SS433 whose BIOS video
-             * mode table entry has the actual # of rows at the offset 1; 
-	     * BIOSes from other manufacturers store the # of rows - 1 there. 
-	     * XXX
-             */
-	    rows_offset = vgaregs[1] + 1 
-		- video_mode_ptr[MODE_PARAM_SIZE*console[0]->mode + 1];
-            break;
-        case COMP_SIMILAR:
-            map_mode_table(mode_map, video_mode_ptr, M_VGA_CG320 + 1);
-            mode_map[console[0]->mode] = vgaregs;
-	    rows_offset = vgaregs[1] + 1 
-		- video_mode_ptr[MODE_PARAM_SIZE*console[0]->mode + 1];
-            vgaregs[1] -= rows_offset - 1;
-            break;
-        case COMP_DIFFERENT:
-        default:
-            video_mode_ptr = NULL;
-            mode_map[console[0]->mode] = vgaregs;
-	    rows_offset = 1;
-            break;
-        }
-    }
-
     /* copy screen to temporary buffer */
-    if (!VESA_MODE(console[0]->mode))
+    if (ISTEXTSC(console[0]))
 	    generic_bcopy(Crtat, sc_buffer,
 		   console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
     console[0]->scr_buf = console[0]->mouse_pos = console[0]->mouse_oldpos
 	= sc_buffer;
-    console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
+    if (col >= console[0]->xsize)
+	col = 0;
+    if (row >= console[0]->ysize)
+	row = console[0]->ysize - 1;
+    console[0]->xpos = col;
+    console[0]->ypos = row;
+    console[0]->cursor_pos = console[0]->cursor_oldpos =
+	sc_buffer + row*console[0]->xsize + col;
     console[0]->cursor_saveunder = *console[0]->cursor_pos;
-    console[0]->xpos = hw_cursor % COL;
-    console[0]->ypos = hw_cursor / COL;
     for (i=1; i<MAXCONS; i++)
 	console[i] = NULL;
     kernel_console.esc = 0;
@@ -3515,28 +3051,26 @@ scinit(void)
 	scr_map[i] = scr_rmap[i] = i;
     }
 
-    /* Save font and palette if VGA */
-    if (crtc_type == KD_VGA) {
-	if (!VESA_MODE(bios_video_mode)) {
-	    if (fonts_loaded & FONT_16) {
-		copy_font(LOAD, FONT_16, font_16);
-	    } else {
-		copy_font(SAVE, FONT_16, font_16);
-		fonts_loaded = FONT_16;
-	    }
-	    set_destructive_cursor(console[0]);
+    /* Save font and palette */
+    if (ISFONTAVAIL(get_adapter(cur_console)->va_flags)) {
+	if (fonts_loaded & FONT_16) {
+	    copy_font(cur_console, LOAD, 16, font_16);
+	} else {
+	    copy_font(cur_console, SAVE, 16, font_16);
+	    fonts_loaded = FONT_16;
+	    set_destructive_cursor(cur_console);
 	}
-	save_palette();
+	/*
+	 * FONT KLUDGE
+	 * Always use the font page #0. XXX
+	 */
+	(*biosvidsw.show_font)(cur_console->adp, 0);
     }
+    save_palette(cur_console, palette);
 
 #ifdef SC_SPLASH_SCREEN
-    /* 
-     * If not booting verbosely, put up the splash.
-     * Note that the splash screen is not currently supported in 
-     * the VESA mode.
-     */
-    if (!(boothowto & RB_VERBOSE) && !VESA_MODE(bios_video_mode))
-	scsplash_init();
+    /* put up the splash. */
+    scsplash_init(cur_console);
 #endif
 }
 
@@ -3551,52 +3085,79 @@ scshutdown(int howto, void *arg)
     shutdown_in_progress = TRUE;
 }
 
-static void
-map_mode_table(char *map[], char *table, int max)
+int
+sc_clean_up(scr_stat *scp)
 {
-    int i;
+    int error;
 
-    for(i = 0; i < max; ++i)
-	map[i] = table + i*MODE_PARAM_SIZE;
-    for(; i < MODE_MAP_SIZE; ++i)
-	map[i] = NULL;
+    if ((error = wait_scrn_saver_stop()))
+	return error;
+    scp->status &= ~MOUSE_VISIBLE;
+    remove_cutmarking(scp);
+    return 0;
 }
 
-static int
-map_mode_num(int mode)
+void
+sc_alloc_scr_buffer(scr_stat *scp, int wait, int clear)
 {
-    static struct {
-        int from;
-        int to;
-    } mode_map[] = {
-        { M_ENH_B80x43, M_ENH_B80x25 },
-        { M_ENH_C80x43, M_ENH_C80x25 },
-        { M_VGA_M80x30, M_VGA_M80x25 },
-        { M_VGA_C80x30, M_VGA_C80x25 },
-        { M_VGA_M80x50, M_VGA_M80x25 },
-        { M_VGA_C80x50, M_VGA_C80x25 },
-        { M_VGA_M80x60, M_VGA_M80x25 },
-        { M_VGA_C80x60, M_VGA_C80x25 },
-        { M_VGA_MODEX,  M_VGA_CG320 },
-    };
-    int i;
+    if (scp->scr_buf)
+	free(scp->scr_buf, M_DEVBUF);
+    scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short), 
+				     M_DEVBUF, (wait) ? M_WAITOK : M_NOWAIT);
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
-        if (mode_map[i].from == mode)
-            return mode_map[i].to;
+    if (clear) {
+        /* clear the screen and move the text cursor to the top-left position */
+	sc_clear_screen(scp);
+    } else {
+	/* retain the current cursor position, but adjust pointers */
+	move_crsr(scp, scp->xpos, scp->ypos);
+	scp->cursor_oldpos = scp->cursor_pos;
     }
-    return mode;
+
+    /* move the mouse cursor at the center of the screen */
+    sc_move_mouse(scp, scp->xpixel / 2, scp->ypixel / 2);
 }
 
-static char 
-*get_mode_param(scr_stat *scp, int mode)
+void
+sc_alloc_cut_buffer(scr_stat *scp, int wait)
 {
-    if (mode >= MODE_MAP_SIZE)
-	mode = map_mode_num(mode);
-    if (mode < MODE_MAP_SIZE)
-	return mode_map[mode];
-    else
-	return NULL;
+    if ((cut_buffer == NULL)
+	|| (cut_buffer_size < scp->xsize * scp->ysize + 1)) {
+	if (cut_buffer != NULL)
+	    free(cut_buffer, M_DEVBUF);
+	cut_buffer_size = scp->xsize * scp->ysize + 1;
+	cut_buffer = (u_char *)malloc(cut_buffer_size, 
+				    M_DEVBUF, (wait) ? M_WAITOK : M_NOWAIT);
+	if (cut_buffer != NULL)
+	    cut_buffer[0] = '\0';
+    }
+}
+
+void
+sc_alloc_history_buffer(scr_stat *scp, int lines, int extra, int wait)
+{
+    u_short *usp;
+
+    if (lines < scp->ysize)
+	lines = scp->ysize;
+
+    usp = scp->history;
+    scp->history = NULL;
+    if (usp != NULL) {
+	free(usp, M_DEVBUF);
+	if (extra > 0)
+	    extra_history_size += extra;
+    }
+
+    scp->history_size = lines * scp->xsize;
+    if (lines > imax(sc_history_size, scp->ysize))
+	extra_history_size -= lines - imax(sc_history_size, scp->ysize);
+    usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
+			    M_DEVBUF, (wait) ? M_WAITOK : M_NOWAIT);
+    if (usp != NULL)
+	bzero(usp, scp->history_size * sizeof(u_short));
+    scp->history_head = scp->history_pos = usp;
+    scp->history = usp;
 }
 
 static scr_stat
@@ -3606,22 +3167,15 @@ static scr_stat
 
     scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, M_WAITOK);
     init_scp(scp);
-    scp->scr_buf = scp->cursor_pos = scp->cursor_oldpos =
-	(u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
-			  M_DEVBUF, M_WAITOK);
-    scp->mouse_pos = scp->mouse_oldpos = 
-	scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
-			scp->mouse_xpos/8);
-    scp->history_head = scp->history_pos =
-	(u_short *)malloc(scp->history_size*sizeof(u_short),
-			  M_DEVBUF, M_WAITOK);
-    bzero(scp->history_head, scp->history_size*sizeof(u_short));
-    scp->history = scp->history_head;
+    sc_alloc_scr_buffer(scp, TRUE, TRUE);
+    if (ISMOUSEAVAIL(get_adapter(scp)->va_flags))
+	sc_alloc_cut_buffer(scp, TRUE);
+    sc_alloc_history_buffer(scp, sc_history_size, 0, TRUE);
 /* SOS
-    if (crtc_type == KD_VGA && video_mode_ptr)
+    if (get_adapter(scp)->va_flags & V_ADP_MODECHANGE)
 	set_mode(scp);
 */
-    clear_screen(scp);
+    sc_clear_screen(scp);
     scp->cursor_saveunder = *scp->cursor_pos;
     return scp;
 }
@@ -3629,43 +3183,29 @@ static scr_stat
 static void
 init_scp(scr_stat *scp)
 {
-    switch(crtc_type) {
-    case KD_VGA:
-	if (VESA_MODE(bios_video_mode))
-	    scp->mode = bios_video_mode;
-	else if (crtc_addr == MONO_BASE)
-	    scp->mode = M_VGA_M80x25;
-	else
-	    scp->mode = M_VGA_C80x25;
-	scp->font_size = 16;
-	break;
-    case KD_CGA:
-	if (crtc_addr == MONO_BASE)
-	    scp->mode = M_B80x25;
-	else
-	    scp->mode = M_C80x25;
-	scp->font_size = 8;
-	break;
-    case KD_EGA:
-	if (crtc_addr == MONO_BASE)
-	    scp->mode = M_B80x25;
-	else
-	    scp->mode = M_C80x25;
-	scp->font_size = 14;
-	break;
-    case KD_MONO:
-    case KD_HERCULES:
-    default:
-	scp->mode = M_EGAMONO80x25;
-	scp->font_size = 14;
-	break;
-    }
-    scp->initial_mode = scp->mode;
+    video_info_t info;
 
-    scp->xsize = COL;
-    scp->ysize = ROW;
-    scp->xpixel = scp->xsize * 8;
-    scp->ypixel = scp->ysize * scp->font_size;
+    scp->adp = V_ADP_PRIMARY;
+    (*biosvidsw.get_info)(scp->adp, initial_video_mode, &info);
+
+    scp->status = 0;
+    scp->mode = scp->initial_mode = initial_video_mode;
+    scp->scr_buf = NULL;
+    if (info.vi_flags & V_INFO_GRAPHICS) {
+	scp->status |= GRAPHICS_MODE;
+	scp->xpixel = info.vi_width;
+	scp->ypixel = info.vi_height;
+	scp->xsize = info.vi_width/8;
+	scp->ysize = info.vi_height/info.vi_cheight;
+	scp->font_size = FONT_NONE;
+    } else {
+	scp->xsize = info.vi_width;
+	scp->ysize = info.vi_height;
+	scp->xpixel = scp->xsize*8;
+	scp->ypixel = scp->ysize*info.vi_cheight;
+	scp->font_size = info.vi_cheight;
+    }
+    scp->xoff = scp->yoff = 0;
     scp->xpos = scp->ypos = 0;
     scp->saved_xpos = scp->saved_ypos = -1;
     scp->start = scp->xsize * scp->ysize;
@@ -3677,8 +3217,8 @@ init_scp(scr_stat *scp)
 	current_default->std_color;
     scp->term.rev_color = current_default->rev_color;
     scp->border = BG_BLACK;
-    scp->cursor_start = *(char *)pa_to_va(0x461);
-    scp->cursor_end = *(char *)pa_to_va(0x460);
+    scp->cursor_start = *(u_int8_t *)pa_to_va(0x461);
+    scp->cursor_end = *(u_int8_t *)pa_to_va(0x460);
     scp->mouse_xpos = scp->xsize*8/2;
     scp->mouse_ypos = scp->ysize*scp->font_size/2;
     scp->mouse_cut_start = scp->mouse_cut_end = NULL;
@@ -3687,13 +3227,13 @@ init_scp(scr_stat *scp)
     scp->mouse_proc = NULL;
     scp->bell_pitch = BELL_PITCH;
     scp->bell_duration = BELL_DURATION;
-    scp->status = (*(char *)pa_to_va(0x417) & 0x20) ? NLKED : 0;
+    scp->status |= (*(u_int8_t *)pa_to_va(0x417) & 0x20) ? NLKED : 0;
     scp->status |= CURSOR_ENABLED;
     scp->pid = 0;
     scp->proc = NULL;
     scp->smode.mode = VT_AUTO;
     scp->history_head = scp->history_pos = scp->history = NULL;
-    scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
+    scp->history_size = imax(sc_history_size, scp->ysize) * scp->xsize;
 }
 
 static u_char
@@ -4140,9 +3680,9 @@ next_code:
 			scsplash_stick(FALSE);
 			stop_scrn_saver(current_saver);
 		    } else {
-			if ((cur_console->status & UNKNOWN_MODE) == 0) {
+			if (!ISGRAPHSC(cur_console)) {
 			    scsplash_stick(TRUE);
-			    (*current_saver)(TRUE);
+			    scrn_saver(current_saver, TRUE);
 			}
 		    }
 		}
@@ -4409,475 +3949,100 @@ update_leds(int which)
     set_keyboard(KBDC_SET_LEDS, xlate_leds[which & LED_MASK]);
 }
 
-void
+int
 set_mode(scr_stat *scp)
 {
-    char special_modetable[MODE_PARAM_SIZE];
-    char *mp;
-    int s;
-    int i;
+    video_info_t info;
+    video_adapter_t *adp;
 
+    /* reject unsupported mode */
+    if ((*biosvidsw.get_info)(scp->adp, scp->mode, &info))
+	return 1;
+
+    /* if this vty is not currently showing, do nothing */
     if (scp != cur_console)
-	return;
-
-    /* 
-     * even if mode switching is disabled, we can change back
-     * to the initial mode or the custom mode based on the initial
-     * mode if we have saved register values upon start-up.
-     */
-    mp = get_mode_param(scp, scp->mode);
-    if (mp == NULL)
-	return;
-    bcopy(mp, &special_modetable, sizeof(special_modetable));
+	return 0;
 
     /* setup video hardware for the given mode */
-    switch (scp->mode) {
-    case M_VGA_C80x60: case M_VGA_M80x60:
-	special_modetable[2]  = 0x08;
-	special_modetable[19] = 0x47;
-	goto special_480l;
+    adp = get_adapter(scp);
+    (*biosvidsw.set_mode)(scp->adp, scp->mode);
+    Crtat = (u_short *)adp->va_window;
 
-    case M_VGA_C80x30: case M_VGA_M80x30:
-	special_modetable[19] = 0x4f;
-special_480l:
-	special_modetable[9] |= 0xc0;
-	special_modetable[16] = 0x08;
-	special_modetable[17] = 0x3e;
-	special_modetable[26] = 0xea;
-	special_modetable[28] = 0xdf;
-	special_modetable[31] = 0xe7;
-	special_modetable[32] = 0x04;
-	goto setup_mode;
-
-    case M_ENH_C80x43: case M_ENH_B80x43:
-	special_modetable[28] = 87;
-	goto special_80x50;
-
-    case M_VGA_C80x50: case M_VGA_M80x50:
-special_80x50:
-	special_modetable[2] = 8;
-	special_modetable[19] = 7;
-	goto setup_mode;
-
-    case M_VGA_C40x25: case M_VGA_C80x25:
-    case M_VGA_M80x25:
-    case M_B40x25:     case M_C40x25:
-    case M_B80x25:     case M_C80x25:
-    case M_ENH_B40x25: case M_ENH_C40x25:
-    case M_ENH_B80x25: case M_ENH_C80x25:
-    case M_EGAMONO80x25:
-
-setup_mode:
-	set_vgaregs(special_modetable);
-	scp->font_size = special_modetable[2];
-
-	/* set font type (size) */
-	if (scp->font_size < 14) {
-	    if (fonts_loaded & FONT_8)
-		copy_font(LOAD, FONT_8, font_8);
-	    i = 0x0a;				/* font 2 */
-	} else if (scp->font_size >= 16) {
-	    if (fonts_loaded & FONT_16)
-		copy_font(LOAD, FONT_16, font_16);
-	    i = 0x00;				/* font 0 */
-	} else {
-	    if (fonts_loaded & FONT_14)
-		copy_font(LOAD, FONT_14, font_14);
-	    i = 0x05;				/* font 1 */
+    if (!(scp->status & GRAPHICS_MODE)) {
+	/* load appropriate font */
+	if (!(scp->status & PIXEL_MODE) 
+	    && ISFONTAVAIL(get_adapter(scp)->va_flags)) {
+	    if (scp->font_size < 14) {
+		if (fonts_loaded & FONT_8)
+		    copy_font(scp, LOAD, 8, font_8);
+	    } else if (scp->font_size >= 16) {
+		if (fonts_loaded & FONT_16)
+		    copy_font(scp, LOAD, 16, font_16);
+	    } else {
+		if (fonts_loaded & FONT_14)
+		    copy_font(scp, LOAD, 14, font_14);
+	    }
+	    /*
+	    * FONT KLUDGE:
+	    * This is an interim kludge to display correct font.
+	    * Always use the font page #0 on the video plane 2.
+	    * Somehow we cannot show the font in other font pages on
+	    * some video cards... XXX
+	    */ 
+	    (*biosvidsw.show_font)(scp->adp, 0);
 	}
-	/*
-	 * FONT KLUDGE:
-	 * This is an interim kludge to display correct font.
-	 * Always use the font page #0 on the video plane 2.
-	 * Somehow we cannot show the font in other font pages on
-	 * some video cards... XXX
-	 */
-	i = 0x00;
-	s = splhigh();
-	outb(TSIDX, 0x00); outb(TSREG, 0x01);
-	outb(TSIDX, 0x03); outb(TSREG, i);
-	outb(TSIDX, 0x00); outb(TSREG, 0x03);
-	splx(s);
+	mark_all(scp);
+    }
+    set_border(scp, scp->border);
+
+    /* move hardware cursor out of the way */
+    (*biosvidsw.set_hw_cursor)(scp->adp, -1, -1);
+
+    return 0;
+}
+
+void
+copy_font(scr_stat *scp, int operation, int font_size, u_char *buf)
+{
+    /*
+     * FONT KLUDGE:
+     * This is an interim kludge to display correct font.
+     * Always use the font page #0 on the video plane 2.
+     * Somehow we cannot show the font in other font pages on
+     * some video cards... XXX
+     */ 
+    font_loading_in_progress = TRUE;
+    if (operation == LOAD) {
+	(*biosvidsw.load_font)(scp->adp, 0, font_size, buf, 0, 256);
 	if (flags & CHAR_CURSOR)
 	    set_destructive_cursor(scp);
-	mark_all(scp);
-	break;
-
-    case M_VGA_MODEX:
-	/* "unchain" the VGA mode */
-	special_modetable[5-1+0x04] &= 0xf7;
-	special_modetable[5-1+0x04] |= 0x04;
-	/* turn off doubleword mode */
-	special_modetable[10+0x14] &= 0xbf;
-	/* turn off word adressing */
-	special_modetable[10+0x17] |= 0x40;
-	/* set logical screen width */
-	special_modetable[10+0x13] = 80;
-	/* set 240 lines */
-	special_modetable[10+0x11] = 0x2c;
-	special_modetable[10+0x06] = 0x0d;
-	special_modetable[10+0x07] = 0x3e;
-	special_modetable[10+0x10] = 0xea;
-	special_modetable[10+0x11] = 0xac;
-	special_modetable[10+0x12] = 0xdf;
-	special_modetable[10+0x15] = 0xe7;
-	special_modetable[10+0x16] = 0x06;
-	/* set vertical sync polarity to reflect aspect ratio */
-	special_modetable[9] = 0xe3;
-	goto setup_grmode;
-
-    case M_BG320:     case M_CG320:     case M_BG640:
-    case M_CG320_D:   case M_CG640_E:
-    case M_CG640x350: case M_ENH_CG640:
-    case M_BG640x480: case M_CG640x480: case M_VGA_CG320:
-
-setup_grmode:
-	set_vgaregs(special_modetable);
-	scp->font_size = FONT_NONE;
-	break;
-
-    default:
-	/* call user defined function XXX */
-	break;
+    } else if (operation == SAVE) {
+	(*biosvidsw.save_font)(scp->adp, 0, font_size, buf, 0, 256);
     }
-
-    /* set border color for this (virtual) console */
-    set_border(scp->border);
-    return;
-}
-
-void
-set_border(u_char color)
-{
-    switch (crtc_type) {
-    case KD_EGA:
-    case KD_VGA:
-        inb(crtc_addr + 6);		/* reset flip-flop */
-        outb(ATC, 0x31); outb(ATC, color);
-	break;
-    case KD_CGA:
-	outb(crtc_addr + 5, color & 0x0f); /* color select register */
-	break;
-    case KD_MONO:
-    case KD_HERCULES:
-    default:
-	break;
-    }
-}
-
-static void
-set_vgaregs(char *modetable)
-{
-    int i, s = splhigh();
-
-    outb(TSIDX, 0x00); outb(TSREG, 0x01);   	/* stop sequencer */
-    for (i=0; i<4; i++) {           		/* program sequencer */
-	outb(TSIDX, i+1);
-	outb(TSREG, modetable[i+5]);
-    }
-    outb(MISC, modetable[9]);       		/* set dot-clock */
-    outb(TSIDX, 0x00); outb(TSREG, 0x03);   	/* start sequencer */
-    outb(crtc_addr, 0x11);
-    outb(crtc_addr+1, inb(crtc_addr+1) & 0x7F);
-    for (i=0; i<25; i++) {          		/* program crtc */
-	outb(crtc_addr, i);
-	if (i == 14 || i == 15)     		/* no hardware cursor */
-	    outb(crtc_addr+1, 0xff);
-	else
-	    outb(crtc_addr+1, modetable[i+10]);
-    }
-    inb(crtc_addr+6);           		/* reset flip-flop */
-    for (i=0; i<20; i++) {          		/* program attribute ctrl */
-	outb(ATC, i);
-	outb(ATC, modetable[i+35]);
-    }
-    for (i=0; i<9; i++) {           		/* program graph data ctrl */
-	outb(GDCIDX, i);
-	outb(GDCREG, modetable[i+55]);
-    }
-    inb(crtc_addr+6);           		/* reset flip-flop */
-    outb(ATC, 0x20);            		/* enable palette */
-    splx(s);
-}
-
-static void
-read_vgaregs(char *buf)
-{
-    int i, j;
-    int s;
-
-    bzero(buf, MODE_PARAM_SIZE);
-
-    s = splhigh();
-
-    outb(TSIDX, 0x00); outb(TSREG, 0x01);   	/* stop sequencer */
-    for (i=0, j=5; i<4; i++) {           
-	outb(TSIDX, i+1);
-	buf[j++] = inb(TSREG);
-    }
-    buf[9] = inb(MISC + 10);      		/* dot-clock */
-    outb(TSIDX, 0x00); outb(TSREG, 0x03);   	/* start sequencer */
-
-    for (i=0, j=10; i<25; i++) {       		/* crtc */
-	outb(crtc_addr, i);
-	buf[j++] = inb(crtc_addr+1);
-    }
-    for (i=0, j=35; i<20; i++) {          	/* attribute ctrl */
-        inb(crtc_addr+6);           		/* reset flip-flop */
-	outb(ATC, i);
-	buf[j++] = inb(ATC + 1);
-    }
-    for (i=0, j=55; i<9; i++) {           	/* graph data ctrl */
-	outb(GDCIDX, i);
-	buf[j++] = inb(GDCREG);
-    }
-    inb(crtc_addr+6);           		/* reset flip-flop */
-    outb(ATC, 0x20);            		/* enable palette */
-
-    buf[0] = *(char *)pa_to_va(0x44a);		/* COLS */
-    buf[1] = *(char *)pa_to_va(0x484);		/* ROWS */
-    buf[2] = *(char *)pa_to_va(0x485);		/* POINTS */
-    buf[3] = *(char *)pa_to_va(0x44c);
-    buf[4] = *(char *)pa_to_va(0x44d);
-
-    splx(s);
-}
-
-static int 
-comp_vgaregs(u_char *buf1, u_char *buf2)
-{
-    static struct {
-        u_char mask;
-    } params[MODE_PARAM_SIZE] = {
-	0xff, 0x00, 0xff, 		/* COLS, ROWS, POINTS */
-	0xff, 0xff, 			/* page length */
-	0xfe, 0xff, 0xff, 0xff,		/* sequencer registers */
-	0xf3,				/* misc register */
-	0xff, 0xff, 0xff, 0x7f, 0xff,	/* CRTC */
-	0xff, 0xff, 0xff, 0x7f, 0xff,
-	0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0xff, 0x7f, 0xff, 0xff,
-	0x7f, 0xff, 0xff, 0xef, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff,	/* attribute controller registers */
-	0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xf0,
-	0xff, 0xff, 0xff, 0xff, 0xff,	/* GDC register */
-	0xff, 0xff, 0xff, 0xff, 
-    }; 
-    int identical = TRUE;
-    int i;
-
-    for (i = 0; i < sizeof(params)/sizeof(params[0]); ++i) {
-	if (params[i].mask == 0)	/* don't care */
-	    continue;
-	if ((buf1[i] & params[i].mask) != (buf2[i] & params[i].mask))
-	    return COMP_DIFFERENT;
-	if (buf1[i] != buf2[i])
-	    identical = FALSE;
-    }
-    return (identical) ? COMP_IDENTICAL : COMP_SIMILAR;
-
-#if 0
-    for(i = 0; i < 20; ++i) {
-	if (*buf1++ != *buf2++)
-	    return COMP_DIFFERENT;
-    }
-    buf1 += 2;  /* skip the cursor shape */
-    buf2 += 2;
-    for(i = 22; i < 24; ++i) {
-	if (*buf1++ != *buf2++)
-	    return COMP_DIFFERENT;
-    }
-    buf1 += 2;  /* skip the cursor position */
-    buf2 += 2;
-    for(i = 26; i < MODE_PARAM_SIZE; ++i) {
-	if (*buf1++ != *buf2++)
-	    return COMP_DIFFERENT;
-    }
-    return COMP_IDENTICAL;
-#endif
-}
-
-static void
-dump_vgaregs(u_char *buf)
-{
-    int i;
-
-    for(i = 0; i < MODE_PARAM_SIZE;) {
-	printf("%02x ", buf[i]);
-	if ((++i % 16) == 0)
-	    printf("\n");
-    }
-}
-
-static void
-set_font_mode(u_char *buf)
-{
-    int s = splhigh();
-
-    font_loading_in_progress = TRUE;
-
-    /* save register values */
-    outb(TSIDX, 0x02); buf[0] = inb(TSREG);
-    outb(TSIDX, 0x04); buf[1] = inb(TSREG);
-    outb(GDCIDX, 0x04); buf[2] = inb(GDCREG);
-    outb(GDCIDX, 0x05); buf[3] = inb(GDCREG);
-    outb(GDCIDX, 0x06); buf[4] = inb(GDCREG);
-    inb(crtc_addr + 6);
-    outb(ATC, 0x10); buf[5] = inb(ATC + 1);
-
-    /* setup vga for loading fonts */
-    inb(crtc_addr+6);           		/* reset flip-flop */
-    outb(ATC, 0x10); outb(ATC, buf[5] & ~0x01);
-    inb(crtc_addr+6);               		/* reset flip-flop */
-    outb(ATC, 0x20);            		/* enable palette */
-
-#if SLOW_VGA
-#ifndef SC_BAD_FLICKER
-    outb(TSIDX, 0x00); outb(TSREG, 0x01);
-#endif
-    outb(TSIDX, 0x02); outb(TSREG, 0x04);
-    outb(TSIDX, 0x04); outb(TSREG, 0x07);
-#ifndef SC_BAD_FLICKER
-    outb(TSIDX, 0x00); outb(TSREG, 0x03);
-#endif
-    outb(GDCIDX, 0x04); outb(GDCREG, 0x02);
-    outb(GDCIDX, 0x05); outb(GDCREG, 0x00);
-    outb(GDCIDX, 0x06); outb(GDCREG, 0x04);
-#else
-#ifndef SC_BAD_FLICKER
-    outw(TSIDX, 0x0100);
-#endif
-    outw(TSIDX, 0x0402);
-    outw(TSIDX, 0x0704);
-#ifndef SC_BAD_FLICKER
-    outw(TSIDX, 0x0300);
-#endif
-    outw(GDCIDX, 0x0204);
-    outw(GDCIDX, 0x0005);
-    outw(GDCIDX, 0x0406);               /* addr = a0000, 64kb */
-#endif
-    splx(s);
-}
-
-static void
-set_normal_mode(u_char *buf)
-{
-    char *modetable;
-    int s = splhigh();
-
-    /* setup vga for normal operation mode again */
-    inb(crtc_addr+6);           		/* reset flip-flop */
-    outb(ATC, 0x10); outb(ATC, buf[5]);
-    inb(crtc_addr+6);               		/* reset flip-flop */
-    outb(ATC, 0x20);            		/* enable palette */
-
-#if SLOW_VGA
-#ifndef SC_BAD_FLICKER
-    outb(TSIDX, 0x00); outb(TSREG, 0x01);
-#endif
-    outb(TSIDX, 0x02); outb(TSREG, buf[0]);
-    outb(TSIDX, 0x04); outb(TSREG, buf[1]);
-#ifndef SC_BAD_FLICKER
-    outb(TSIDX, 0x00); outb(TSREG, 0x03);
-#endif
-    outb(GDCIDX, 0x04); outb(GDCREG, buf[2]);
-    outb(GDCIDX, 0x05); outb(GDCREG, buf[3]);
-    if (crtc_addr == MONO_BASE) {
-	outb(GDCIDX, 0x06); outb(GDCREG,(buf[4] & 0x03) | 0x08);
-    } else {
-	outb(GDCIDX, 0x06); outb(GDCREG,(buf[4] & 0x03) | 0x0c);
-    }
-#else
-#ifndef SC_BAD_FLICKER
-    outw(TSIDX, 0x0100);
-#endif
-    outw(TSIDX, 0x0002 | (buf[0] << 8));
-    outw(TSIDX, 0x0004 | (buf[1] << 8));
-#ifndef SC_BAD_FLICKER
-    outw(TSIDX, 0x0300);
-#endif
-    outw(GDCIDX, 0x0004 | (buf[2] << 8));
-    outw(GDCIDX, 0x0005 | (buf[3] << 8));
-    if (crtc_addr == MONO_BASE)
-        outw(GDCIDX, 0x0006 | (((buf[4] & 0x03) | 0x08)<<8));
-    else
-        outw(GDCIDX, 0x0006 | (((buf[4] & 0x03) | 0x0c)<<8));
-#endif
-
     font_loading_in_progress = FALSE;
-    splx(s);
-}
-
-void
-copy_font(int operation, int font_type, char* font_image)
-{
-    int ch, line, segment, fontsize;
-    u_char buf[PARAM_BUFSIZE];
-    u_char val;
-
-    switch (font_type) {
-    default:
-    case FONT_8:
-	segment = 0x8000;
-	fontsize = 8;
-	break;
-    case FONT_14:
-	segment = 0x4000;
-	fontsize = 14;
-	break;
-    case FONT_16:
-	segment = 0x0000;
-	fontsize = 16;
-	break;
-    }
-    /*
-     * FONT KLUDGE
-     * Always use the font page #0. XXX
-     */
-    segment = 0x0000;
-    outb(TSIDX, 0x01); val = inb(TSREG);        /* disable screen */
-    outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
-    set_font_mode(buf);
-    for (ch=0; ch < 256; ch++)
-	for (line=0; line < fontsize; line++)
-	if (operation)
-	    *(char *)pa_to_va(VIDEOMEM+(segment)+(ch*32)+line) =
-		    font_image[(ch*fontsize)+line];
-	else
-	    font_image[(ch*fontsize)+line] =
-	    *(char *)pa_to_va(VIDEOMEM+(segment)+(ch*32)+line);
-    set_normal_mode(buf);
-    outb(TSIDX, 0x01); outb(TSREG, val & 0xDF); /* enable screen */
 }
 
 static void
 set_destructive_cursor(scr_stat *scp)
 {
-    u_char buf[PARAM_BUFSIZE];
     u_char cursor[32];
-    caddr_t address;
+    u_char *font_buffer;
+    int font_size;
     int i;
-    char *font_buffer;
+
+    if (!ISFONTAVAIL(get_adapter(scp)->va_flags) || !ISTEXTSC(scp))
+	return;
 
     if (scp->font_size < 14) {
 	font_buffer = font_8;
-	address = (caddr_t)VIDEOMEM + 0x8000;
-    }
-    else if (scp->font_size >= 16) {
+	font_size = 8;
+    } else if (scp->font_size >= 16) {
 	font_buffer = font_16;
-	address = (caddr_t)VIDEOMEM;
-    }
-    else {
+	font_size = 16;
+    } else {
 	font_buffer = font_14;
-	address = (caddr_t)VIDEOMEM + 0x4000;
+	font_size = 14;
     }
-    /*
-     * FONT KLUDGE
-     * Always use the font page #0. XXX
-     */
-    address = (caddr_t)VIDEOMEM;
 
     if (scp->status & MOUSE_VISIBLE) {
 	if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR)
@@ -4902,9 +4067,18 @@ set_destructive_cursor(scr_stat *scp)
 #if 1
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
 #endif
-    set_font_mode(buf);
-    generic_bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
-    set_normal_mode(buf);
+    font_loading_in_progress = TRUE;
+    (*biosvidsw.load_font)(scp->adp, 0, font_size, cursor, DEAD_CHAR, 1);
+    font_loading_in_progress = FALSE;
+}
+
+void
+sc_move_mouse(scr_stat *scp, int x, int y)
+{
+    scp->mouse_xpos = x;
+    scp->mouse_ypos = y;
+    scp->mouse_pos = scp->mouse_oldpos = 
+	scp->scr_buf + (y / scp->font_size) * scp->xsize + x / 8;
 }
 
 static void
@@ -4916,7 +4090,7 @@ set_mouse_pos(scr_stat *scp)
 	scp->mouse_xpos = 0;
     if (scp->mouse_ypos < 0)
 	scp->mouse_ypos = 0;
-    if (scp->status & UNKNOWN_MODE) {
+    if (!ISTEXTSC(scp)) {
         if (scp->mouse_xpos > scp->xpixel-1)
 	    scp->mouse_xpos = scp->xpixel-1;
         if (scp->mouse_ypos > scp->ypixel-1)
@@ -5146,35 +4320,26 @@ mouse_paste(scr_stat *scp)
 static void
 draw_mouse_image(scr_stat *scp)
 {
-    caddr_t address;
-    int i;
-    char *font_buffer;
-    u_char buf[PARAM_BUFSIZE];
     u_short buffer[32];
     u_short xoffset, yoffset;
     u_short *crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
-    int font_size = scp->font_size;
+    u_char *font_buffer;
+    int font_size;
+    int i;
 
-    if (font_size < 14) {
+    if (scp->font_size < 14) {
 	font_buffer = font_8;
-	address = (caddr_t)VIDEOMEM + 0x8000;
-    }
-    else if (font_size >= 16) {
+	font_size = 8;
+    } else if (scp->font_size >= 16) {
 	font_buffer = font_16;
-	address = (caddr_t)VIDEOMEM;
-    }
-    else {
+	font_size = 16;
+    } else {
 	font_buffer = font_14;
-	address = (caddr_t)VIDEOMEM + 0x4000;
+	font_size = 14;
     }
-    /*
-     * FONT KLUDGE
-     * Always use the font page #0. XXX
-     */
-    address = (caddr_t)VIDEOMEM;
 
     xoffset = scp->mouse_xpos % 8;
-    yoffset = scp->mouse_ypos % font_size;
+    yoffset = scp->mouse_ypos % scp->font_size;
 
     /* prepare mousepointer char's bitmaps */
     bcopy(font_buffer + ((*(scp->mouse_pos) & 0xff) * font_size),
@@ -5209,9 +4374,11 @@ draw_mouse_image(scr_stat *scp)
     /* wait for vertical retrace to avoid jitter on some videocards */
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
 #endif
-    set_font_mode(buf);
-    generic_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + SC_MOUSE_CHAR * 32, 128);
-    set_normal_mode(buf);
+    font_loading_in_progress = TRUE;
+    (*biosvidsw.load_font)(scp->adp, 0, 32, scp->mouse_cursor, 
+			   SC_MOUSE_CHAR, 4); 
+    font_loading_in_progress = FALSE;
+
     *(crt_pos) = (*(scp->mouse_pos) & 0xff00) | SC_MOUSE_CHAR;
     *(crt_pos+scp->xsize) = 
 	(*(scp->mouse_pos + scp->xsize) & 0xff00) | (SC_MOUSE_CHAR + 2);
@@ -5229,6 +4396,8 @@ remove_mouse_image(scr_stat *scp)
 {
     u_short *crt_pos = Crtat + (scp->mouse_oldpos - scp->scr_buf);
 
+    if (!ISTEXTSC(scp))
+	return;
     *(crt_pos) = *(scp->mouse_oldpos);
     *(crt_pos+1) = *(scp->mouse_oldpos+1);
     *(crt_pos+scp->xsize) = *(scp->mouse_oldpos+scp->xsize);
@@ -5279,30 +4448,6 @@ remove_cutmarking(scr_stat *scp)
 }
 
 static void
-save_palette(void)
-{
-    int i;
-
-    outb(PALRADR, 0x00);
-    for (i=0x00; i<0x300; i++)
-	palette[i] = inb(PALDATA);
-    inb(crtc_addr+6);           /* reset flip/flop */
-}
-
-void
-load_palette(char *palette)
-{
-    int i;
-
-    outb(PIXMASK, 0xFF);            /* no pixelmask */
-    outb(PALWADR, 0x00);
-    for (i=0x00; i<0x300; i++)
-	 outb(PALDATA, palette[i]);
-    inb(crtc_addr+6);           /* reset flip/flop */
-    outb(ATC, 0x20);            /* enable palette */
-}
-
-static void
 do_bell(scr_stat *scp, int pitch, int duration)
 {
     if (cold || shutdown_in_progress)
@@ -5330,7 +4475,7 @@ blink_screen(void *arg)
 {
     scr_stat *scp = arg;
 
-    if ((scp->status & UNKNOWN_MODE) || (blink_in_progress <= 1)) {
+    if (!ISTEXTSC(scp) || (blink_in_progress <= 1)) {
 	blink_in_progress = FALSE;
     	mark_all(scp);
 	if (delayed_next_scr)
@@ -5351,25 +4496,41 @@ blink_screen(void *arg)
 void 
 sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark)
 {
-    if (!VESA_MODE(scp->mode)) {
-	generic_bcopy(p+from, Crtat+from, (to-from+1)*sizeof (u_short));
-    } else if (scp->mode == 0x102) {
-	u_char *d, *e;
-	int i,j;
+    u_char *font;
+    u_char *d, *e;
+    u_char *f;
+    int font_size;
+    int line_length;
+    int xsize;
+    int i, j;
 
+    if (ISTEXTSC(scp)) {
+	generic_bcopy(p+from, Crtat+from, (to-from+1)*sizeof (u_short));
+    } else /* if ISPIXELSC(scp) */ {
 	if (mark)
-		mark = 255;
-	d = (u_char *)Crtat;
-	d += 10 + 6*16*100 + (from%80) + 16*100*(from/80);
+	    mark = 255;
+	font_size = scp->font_size;
+	if (font_size < 14)
+	    font = font_8;
+	else if (font_size >= 16)
+	    font = font_16;
+	else
+	    font = font_14;
+	line_length = scp->xpixel/8;
+	xsize = scp->xsize;
+	d = (u_char *)Crtat 
+	    + scp->xoff + scp->yoff*font_size*line_length 
+	    + (from%xsize) + font_size*line_length*(from/xsize);
 	for (i = from ; i <= to ; i++) {
 	    e = d;
-	    for (j = 0 ; j < 16; j++) {
-	        *e = mark^font_16[(p[i]&0xff)*16+j];
-		e+=100;
+	    f = &font[(p[i] & 0x00ff)*font_size];
+	    for (j = 0 ; j < font_size; j++, f++) {
+	        *e = mark^*f;
+		e += line_length;
 	    }
 	    d++;
-	    if ((i % 80) == 79)
-		d += 20 + 15*100;
+	    if ((i % xsize) == xsize - 1)
+		d += scp->xoff*2 + (font_size - 1)*line_length;
 	}
     }
 }
@@ -5377,34 +4538,36 @@ sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark)
 #ifdef SC_SPLASH_SCREEN
 
 static void
-scsplash_init(void)
+scsplash_init(scr_stat *scp)
 {
+    video_info_t info;
+
     /* 
      * We currently assume the splash screen always use
      * VGA_CG320 mode and abort installation if this mode is not
      * supported with this video card. XXX
      */
-    if (crtc_type != KD_VGA || get_mode_param(cur_console, M_VGA_CG320) == NULL)
+    if ((*biosvidsw.get_info)(scp->adp, M_VGA_CG320, &info))
 	return;
 
-    if (splash_load() == 0 && add_scrn_saver(scsplash) == 0) {
-	default_saver = scsplash;
+    if (scsplash_load(scp) == 0 && add_scrn_saver(scsplash_saver) == 0) {
+	default_saver = scsplash_saver;
 	scrn_blank_time = DEFAULT_BLANKTIME;
 	run_scrn_saver = TRUE;
-	if (!(boothowto & RB_CONFIG)) {
+	if (!(boothowto & (RB_VERBOSE | RB_CONFIG))) {
 	    scsplash_stick(TRUE);
-	    scsplash(TRUE);
+	    scsplash_saver(TRUE);
 	}
     }
 }
 
 static void
-scsplash(int show)
+scsplash_saver(int show)
 {
     if (show)
-	splash(TRUE);
+	scsplash(TRUE);
     else if (!sticky_splash)
-	splash(FALSE);
+	scsplash(FALSE);
 }
 
 #endif /* SC_SPLASH_SCREEN */
