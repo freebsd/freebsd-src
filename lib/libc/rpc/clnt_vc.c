@@ -257,7 +257,7 @@ clnt_vc_create(fd, raddr, prog, vers, sendsz, recvsz)
 	ct->ct_addr.buf = malloc(raddr->maxlen);
 	if (ct->ct_addr.buf == NULL)
 		goto err;
-	memcpy(ct->ct_addr.buf, &raddr->buf, raddr->len);
+	memcpy(ct->ct_addr.buf, raddr->buf, raddr->len);
 	ct->ct_addr.len = raddr->maxlen;
 	ct->ct_addr.maxlen = raddr->maxlen;
 
