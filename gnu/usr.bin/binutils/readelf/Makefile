@@ -8,7 +8,6 @@
 BINDIR=/usr/bin
 
 PROG=		readelf
-NOMAN=		yes
 SRCS=		${PROG}.c
 CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils -I${SRCDIR}/binutils
 
