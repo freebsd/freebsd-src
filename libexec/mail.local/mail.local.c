@@ -288,22 +288,24 @@ tryagain:
 			if ((nw = write(mbfd, buf + off, nr)) < 0) {
 				e_to_sys(errno);
 				warn("%s: %s", path, strerror(errno));
-				goto err2;;
+				goto err2;
 			}
 	if (nr < 0) {
 		e_to_sys(errno);
 		warn("temporary file: %s", strerror(errno));
-		goto err2;;
-	}
-
-	/* Flush to disk, don't wait for update. */
-	if (fsync(mbfd)) {
-		e_to_sys(errno);
-		warn("%s: %s", path, strerror(errno));
 err2:		(void)ftruncate(mbfd, curoff);
 err1:		(void)close(mbfd);
 		return;
 	}
+
+#ifdef EXTRA_SAFETY
+	/* Flush to disk, don't wait for update. */
+	if (fsync(mbfd)) {
+		e_to_sys(errno);
+		warn("%s: %s", path, strerror(errno));
+		goto err2;
+	}
+#endif
 
 	/* Close and check -- NFS doesn't write until the close. */
 	if (close(mbfd)) {

@@ -2,6 +2,7 @@
 
 PROG=	mail.local
 MAN8=	mail.local.8
+# CFLAGS+= -DEXTRA_SAFETY
 BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
