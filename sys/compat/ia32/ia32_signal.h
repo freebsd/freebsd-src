@@ -113,6 +113,32 @@ struct ia32_ucontext4 {
 };
 #endif
 
+#ifdef COMPAT_FREEBSD3
+struct ia32_sigcontext3 {
+	int	sc_onstack;
+	u_int32_t sc_mask;
+	int	sc_esp;	
+	int	sc_ebp;
+	int	sc_isp;
+	int	sc_eip;
+	int	sc_eflags;
+	int	sc_es;
+	int	sc_ds;
+	int	sc_cs;
+	int	sc_ss;
+	int	sc_edi;
+	int	sc_esi;
+	int	sc_ebx;
+	int	sc_edx;
+	int	sc_ecx;
+	int	sc_eax;
+	int	sc_gs;
+	int	sc_fs;
+	int	sc_trapno;
+	int	sc_err;
+};
+#endif
+
 /*
  * Signal frames, arguments passed to application signal handlers.
  */
@@ -155,6 +181,23 @@ struct ia32_sigframe {
 	struct ia32_ucontext	sf_uc;		/* = *sf_ucontext */
 	struct ia32_siginfo	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
+
+#ifdef COMPAT_FREEBSD3
+struct ia32_siginfo3 {
+	struct ia32_sigcontext3 si_sc;
+	int			si_signo;
+	int			si_code;
+	union ia32_sigval si_value;
+};
+struct ia32_sigframe3 {
+	int			sf_signum;
+	u_int32_t		sf_arg2;	/* int or siginfo_t */
+	u_int32_t		sf_scp;
+	u_int32_t		sf_addr;
+	u_int32_t		sf_ah;		/* action/handler pointer */
+	struct ia32_siginfo3	sf_siginfo;
+};
+#endif
 
 extern char ia32_sigcode[];
 extern char freebsd4_ia32_sigcode[];
