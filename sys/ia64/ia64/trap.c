@@ -82,19 +82,18 @@ extern char *syscallnames[];
  * Define the code needed before returning to user mode, for
  * trap and syscall.
  */
-static int
-userret(register struct proc *p, u_int64_t pc, u_quad_t oticks, int have_giant)
+void
+userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 {
 	int sig, s;
 
 	/* take pending signals */
 	while ((sig = CURSIG(p)) != 0) {
-		if (have_giant == 0) {
+		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
 		postsig(sig);
 	}
+	mtx_enter(&sched_lock, MTX_SPIN);
 	p->p_priority = p->p_usrpri;
 	if (want_resched) {
 		/*
@@ -106,7 +105,6 @@ userret(register struct proc *p, u_int64_t pc, u_quad_t oticks, int have_giant)
 		 * indicated by our priority.
 		 */
 		s = splstatclock();
-		mtx_enter(&sched_lock, MTX_SPIN);
 		DROP_GIANT_NOSWITCH();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
@@ -115,27 +113,26 @@ userret(register struct proc *p, u_int64_t pc, u_quad_t oticks, int have_giant)
 		PICKUP_GIANT();
 		splx(s);
 		while ((sig = CURSIG(p)) != 0) {
-			if (have_giant == 0) {
+			if (!mtx_owned(&Giant))
 				mtx_enter(&Giant, MTX_DEF);
-				have_giant = 1;
-			}
 			postsig(sig);
 		}
+		mtx_enter(&sched_lock, MTX_SPIN);
 	}
 
 	/*
 	 * If profiling, charge recent system time to the trapped pc.
 	 */
-	if (p->p_flag & P_PROFIL) {
-		if (have_giant == 0) {
+	if (p->p_sflag & PS_PROFIL) {
+		mtx_exit(&sched_lock, MTX_SPIN);
+		if (!mtx_owned(Giant))
 			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
-		addupc_task(p, pc, (int)(p->p_sticks - oticks) * psratio);
+		mtx_enter(&sched_lock, MTX_SPIN);
+		addupc_task(p, frame->tf_cr_iip,
+		    (int)(p->p_sticks - oticks) * psratio);
 	}
-
 	curpriority = p->p_priority;
-	return (have_giant);
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 static const char *ia64_vector_names[] = {
@@ -252,7 +249,9 @@ trap(int vector, int imm, struct trapframe *framep)
 
 	user = ((framep->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER);
 	if (user) {
+		mtx_enter(&sched_lock, MTX_SPIN);
 		sticks = p->p_sticks;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		p->p_md.md_tf = framep;
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
@@ -396,7 +395,9 @@ trap(int vector, int imm, struct trapframe *framep)
 			 * Keep swapout from messing with us
 			 * during this critical time.
 			 */
+			PROC_LOCK(p);
 			++p->p_lock;
+			PROC_UNLOCK(p);
 
 			/*
 			 * Grow the stack if necessary
@@ -409,7 +410,9 @@ trap(int vector, int imm, struct trapframe *framep)
 			 */
 			if (!grow_stack (p, va)) {
 				rv = KERN_FAILURE;
+				PROC_LOCK(p);
 				--p->p_lock;
+				PROC_UNLOCK(p);
 				goto nogo;
 			}
 
@@ -420,7 +423,9 @@ trap(int vector, int imm, struct trapframe *framep)
 				      ? VM_FAULT_DIRTY
 				      : VM_FAULT_NORMAL);
 
+			PROC_LOCK(p);
 			--p->p_lock;
+			PROC_UNLOCK(p);
 		} else {
 			/*
 			 * Don't have to worry about process
@@ -473,7 +478,8 @@ trap(int vector, int imm, struct trapframe *framep)
 	trapsignal(p, i, ucode);
 out:
 	if (user) {
-		if (userret(p, framep->tf_cr_iip, sticks, 0))
+		userret(p, framep, sticks);
+		if (mtx_owned(&Giant))
 			mtx_exit(&Giant, MTX_DEF);
 	}
 	return;
@@ -512,13 +518,14 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	u_int64_t oldip, oldri;
 	u_quad_t sticks;
 
-	mtx_enter(&Giant, MTX_DEF);
-
 	cnt.v_syscall++;
 	p = curproc;
 	p->p_md.md_tf = framep;
+	mtx_enter(&sched_lock, MTX_SPIN);
 	sticks = p->p_sticks;
+	mtx_exit(&sched_lock, MTX_SPIN);
 
+	mtx_enter(&Giant, MTX_DEF);
 	/*
 	 * Skip past the break instruction. Remember old address in case
 	 * we have to restart.
@@ -599,13 +606,7 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 		break;
 	}
 
-        /*
-         * Reinitialize proc pointer `p' as it may be different
-         * if this is a child returning from fork syscall.
-         */
-	p = curproc;
-
-	userret(p, framep->tf_cr_iip, sticks, 1);
+	userret(p, framep, sticks);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
@@ -619,14 +620,14 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	STOPEVENT(p, S_SCX, code);
 	mtx_exit(&Giant, MTX_DEF);
 
-	mtx_assert(&sched_lock, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_NOTOWNED);
 #ifdef WITNESS
 	if (witness_list(p)) {
 		panic("system call %s returning with mutex(s) held\n",
 		    syscallnames[code]);
 	}
 #endif
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 /*
@@ -636,25 +637,21 @@ void
 child_return(p)
 	struct proc *p;
 {
-	int have_giant;
 
 	/*
 	 * Return values in the frame set by cpu_fork().
 	 */
 
-	have_giant = userret(p, p->p_md.md_tf->tf_cr_iip, 0,
-			     mtx_owned(&Giant));
+	userret(p, p->p_md.md_tf, 0);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (have_giant == 0) {
+		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
 		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
 	}
 #endif
 
-	if (have_giant)
+	if (mtx_owned(&Giant))
 		mtx_exit(&Giant, MTX_DEF);
 }
 
@@ -669,10 +666,10 @@ ast(framep)
 	register struct proc *p;
 	u_quad_t sticks;
 
-	mtx_enter(&Giant, MTX_DEF);
-
 	p = curproc;
+	mtx_enter(&sched_lock, MTX_SPIN);
 	sticks = p->p_sticks;
+	mtx_exit(&sched_lock, MTX_SPIN);
 	p->p_md.md_tf = framep;
 
 	if ((framep->tf_cr_ipsr & IA64_PSR_CPL) != IA64_PSR_CPL_USER)
@@ -681,15 +678,36 @@ ast(framep)
 	cnt.v_soft++;
 
 	PCPU_SET(astpending, 0);
-	if (p->p_flag & P_OWEUPC) {
-		p->p_flag &= ~P_OWEUPC;
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if (p->p_sflag & PS_OWEUPC) {
+		p->p_sflag &= ~PS_OWEUPC;
+		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_enter(&Giant, MTX_DEF);
+		mtx_enter(&sched_lock, MTX_SPIN);
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
 	}
+	if (p->p_sflag & PS_ALRMPEND) {
+		p->p_sflag &= ~PS_ALRMPEND;
+		mtx_exit(&sched_lock, MTX_SPIN);
+		if (!mtx_owned(&Giant))
+			mtx_enter(&Giant, MTX_DEF);
+		psignal(p, SIGVTALRM);
+		mtx_enter(&sched_lock, MTX_SPIN);
+	}
+	if (p->p_sflag & PS_PROFPEND) {
+		p->p_sflag &= ~PS_PROFPEND;
+		mtx_exit(&sched_lock, MTX_SPIN);
+		if (!mtx_owned(&Giant))
+			mtx_enter(&Giant, MTX_DEF);
+		psignal(p, SIGPROF);
+	} else
+		mtx_exit(&sched_lock, MTX_SPIN);
 
-	userret(p, framep->tf_cr_iip, sticks, 1);
+	userret(p, framep, sticks);
 
-	mtx_exit(&Giant, MTX_DEF);
+	if (mtx_owned(&Giant))
+		mtx_exit(&Giant, MTX_DEF);
 }
 
 extern int	ia64_unaligned_print, ia64_unaligned_fix;
