@@ -117,6 +117,7 @@ typedef	u_int	fptrdiff_t;
 #ifdef _KERNEL
 
 void	mcount __P((uintfptr_t frompc, uintfptr_t selfpc));
+void	kmupetext __P((uintfptr_t nhighpc));
 
 #ifdef GUPROF
 struct gmonparam;
