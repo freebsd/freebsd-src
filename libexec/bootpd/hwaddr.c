@@ -53,7 +53,7 @@
 /* For BSD 4.4, set arp entry by writing to routing socket */
 #if defined(BSD)
 #if BSD >= 199306
-extern int bsd_arp_set __P((struct in_addr *, char *, int));
+extern int bsd_arp_set(struct in_addr *, char *, int);
 #endif
 #endif
 
