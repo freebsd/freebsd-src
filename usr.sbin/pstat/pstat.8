@@ -70,6 +70,18 @@ option is implied, and only the
 .Fl k
 option is legal.
 .Pp
+If neither the
+.Fl N
+nor the
+.Fl M
+option is specified, information is obtained from
+the currently running kernel via the
+.Xr sysctl 3
+interface.
+Otherwise, information is read from the specified core file,
+using the name list from the specified kernel image (or from
+the default image).
+.Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl n
@@ -230,19 +242,10 @@ for
 PPPDISC.
 .El
 .It Fl M
-Extract values associated with the name list from the specified core
-instead of the default
-.Pa /dev/kmem .
+Extract values associated with the name list from the specified core.
 .It Fl N
-Extract the name list from the specified system instead of the default
-.Pa /boot/kernel/kernel .
-.El
-.Sh FILES
-.Bl -tag -width /boot/kernel/kernel -compact
-.It Pa /boot/kernel/kernel
-namelist
-.It Pa /dev/mem
-default source of tables
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
 .El
 .Sh SEE ALSO
 .Xr ps 1 ,
