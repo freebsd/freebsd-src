@@ -155,9 +155,7 @@ usbd_dump_queue(usbd_pipe_handle pipe)
 	usbd_xfer_handle xfer;
 
 	printf("usbd_dump_queue: pipe=%p\n", pipe);
-	for (xfer = SIMPLEQ_FIRST(&pipe->queue);
-	     xfer;
-	     xfer = SIMPLEQ_NEXT(xfer, next)) {
+	SIMPLEQ_FOREACH(xfer, &pipe->queue, next) {
 		printf("  xfer=%p\n", xfer);
 	}
 }
@@ -270,7 +268,7 @@ usbd_close_pipe(usbd_pipe_handle pipe)
 
 	if (--pipe->refcnt != 0)
 		return (USBD_NORMAL_COMPLETION);
-	if (SIMPLEQ_FIRST(&pipe->queue) != 0)
+	if (! SIMPLEQ_EMPTY(&pipe->queue))
 		return (USBD_PENDING_REQUESTS);
 	LIST_REMOVE(pipe, next);
 	pipe->endpoint->refcnt--;
