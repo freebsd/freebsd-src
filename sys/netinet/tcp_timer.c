@@ -31,13 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.25 1998/01/25 04:23:33 eivind Exp $
+ *	$Id: tcp_timer.c,v 1.26 1998/02/26 05:25:33 dg Exp $
  */
 
 #include "opt_compat.h"
 #include "opt_tcpdebug.h"
 
-#ifndef TUBA_INCLUDE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -85,10 +84,6 @@ static int	tcp_keepcnt = TCPTV_KEEPCNT;
 static int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
 	/* max idle time in persist */
 int	tcp_maxidle;
-#else /* TUBA_INCLUDE */
-
-static	int tcp_maxpersistidle;
-#endif /* TUBA_INCLUDE */
 
 /*
  * Fast timeout routine for processing delayed acks
@@ -180,7 +175,6 @@ tpgone:
 	tcp_now++;					/* for timestamps */
 	splx(s);
 }
-#ifndef TUBA_INCLUDE
 
 /*
  * Cancel all timers for TCP tp.
@@ -380,4 +374,3 @@ tcp_timers(tp, timer)
 	}
 	return (tp);
 }
-#endif /* TUBA_INCLUDE */
