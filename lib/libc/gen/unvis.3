@@ -43,11 +43,11 @@
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <vis.h>
-.Ft int 
+.Ft int
 .Fn unvis "char *cp" "int c" "int *astate" "int flag"
-.Ft int 
+.Ft int
 .Fn strunvis "char *dst" "const char *src"
-.Ft int 
+.Ft int
 .Fn strunvisx "char *dst" "const char *src" "int flag"
 .Sh DESCRIPTION
 The
@@ -61,7 +61,7 @@ by the
 .Xr vis 3
 function, back into
 the original form.  Unvis is called with successive characters in
-.Ar c 
+.Ar c
 until a valid
 sequence is recognized, at which time the decoded character is
 available at the character pointed to by
@@ -123,7 +123,7 @@ has several return codes that must be handled properly.  They are:
 .Bl -tag -width UNVIS_VALIDPUSH
 .It Li \&0 (zero)
 Another character is necessary; nothing has been recognized yet.
-.It Dv  UNVIS_VALID	
+.It Dv  UNVIS_VALID
 A valid character has been recognized and is available at the location
 pointed to by cp.
 .It Dv  UNVIS_VALIDPUSH
