@@ -72,7 +72,6 @@ static struct vnodeopv_entry_desc udf_vnodeop_entries[] = {
 	{ &vop_bmap_desc,		(vop_t *) udf_bmap },
 	{ &vop_cachedlookup_desc,	(vop_t *) udf_lookup },
 	{ &vop_getattr_desc,		(vop_t *) udf_getattr },
-	{ &vop_inactive_desc,		(vop_t *) vop_stdinactive },
 	{ &vop_ioctl_desc,		(vop_t *) udf_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
@@ -85,8 +84,6 @@ static struct vnodeopv_entry_desc udf_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) udf_reclaim },
 	{ &vop_strategy_desc,		(vop_t *) udf_strategy },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
-	{ &vop_getpages_desc,		(vop_t *) vop_stdgetpages },
-	{ &vop_putpages_desc,		(vop_t *) vop_stdputpages },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc udf_vnodeop_opv_desc =
