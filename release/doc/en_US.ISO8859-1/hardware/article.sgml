@@ -37,7 +37,7 @@
   <title>Supported Devices</title>
 
   <para>This section describes the devices currently known to be
-  supported by with &os; on the &arch; platform.  Other configurations
+  supported by with &os; on the &arch.print; platform.  Other configurations
   may also work, but simply have not been tested yet.  Feedback,
   updates, and corrections to this list are encouraged.</para>
 
