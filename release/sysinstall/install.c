@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.60 1995/10/27 03:07:10 jkh Exp $
+ * $Id: install.c,v 1.71.2.61 1995/10/27 03:59:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -641,6 +641,7 @@ installFilesystems(char *str)
 	}
     }
 
+    msgNotify("Copying initial device files..");
     /* Copy the boot floppy's dev files */
     if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio -pdmv /mnt")) {
 	dialog_clear();
