@@ -56,7 +56,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#ifdef __NetBSD__
 #include <sys/disklabel.h>
+#endif
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500001
 #include <sys/bio.h>
 #endif
@@ -66,15 +68,13 @@
 #include <sys/device_port.h>
 #include <sys/errno.h>
 
+#ifdef __NetBSD__
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#ifdef __NetBSD__
 #include <machine/intr.h>
-#endif
 #include <machine/dvcfg.h>
 
-#ifdef __NetBSD__
 #include <dev/cons.h>
 
 #include <dev/scsipi/scsipi_all.h>
@@ -89,12 +89,10 @@
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
-#include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
 #include <cam/cam_periph.h>
 
 #include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_message.h>
 
 #include <cam/scsi/scsi_low.h>
 
@@ -103,7 +101,6 @@
 #else
 #include <sys/cons.h>
 #endif
-#include <machine/clock.h>
 #define delay(time) DELAY(time)
 
 /* from sys/dev/usb/usb_port.h 

@@ -36,20 +36,18 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#ifdef __NetBSD__
 #include <sys/disklabel.h>
+#endif
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500001
 #include <sys/bio.h>
 #endif
 #include <sys/buf.h>
 #include <sys/queue.h>
-#include <sys/malloc.h>
 #include <sys/device_port.h>
-#include <sys/errno.h>
 
-#include <vm/vm.h>
-
-#include <machine/bus.h>
 #ifdef __NetBSD__
+#include <machine/bus.h>
 #include <machine/intr.h>
 #endif
 
@@ -58,11 +56,9 @@
 #include <dev/isa/isavar.h>
 
 #include <dev/isa/pisaif.h>
-#endif
 
 #include <machine/dvcfg.h>
 
-#ifdef __NetBSD__
 #include <dev/scsipi/scsi_all.h>
 #include <dev/scsipi/scsipi_all.h>
 #include <dev/scsipi/scsiconf.h>
@@ -74,9 +70,6 @@
 #define	SCSIBUS_RESCAN
 #else
 #ifdef __FreeBSD__
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-
 #include <cam/scsi/scsi_low.h>
 #include <cam/scsi/scsi_low_pisa.h>
 #endif
