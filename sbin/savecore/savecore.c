@@ -497,7 +497,7 @@ main(int argc, char **argv)
 		syslog(LOG_ERR, "Cannot allocate memory");
 		exit(1);
 	}
-	while ((ch = getopt(argc, argv, "CcdfkN:vz")) != -1)
+	while ((ch = getopt(argc, argv, "Ccfkvz")) != -1)
 		switch(ch) {
 		case 'C':
 			checkfor = 1;
@@ -517,8 +517,6 @@ main(int argc, char **argv)
 		case 'z':
 			compress = 1;
 			break;
-		case 'd':	/* Obsolete */
-		case 'N':
 		case '?':
 		default:
 			usage();
