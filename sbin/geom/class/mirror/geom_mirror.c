@@ -180,6 +180,7 @@ mirror_label(struct gctl_req *req)
 	md.md_all = *nargs - 1;
 	md.md_mflags = 0;
 	md.md_dflags = 0;
+	md.md_genid = 0;
 	md.md_syncid = 1;
 	md.md_sync_offset = 0;
 	valp = gctl_get_paraml(req, "slice", sizeof(*valp));
