@@ -57,6 +57,7 @@
 #include <machine/nexusvar.h>
 #include <machine/ofw_upa.h>
 #include <machine/resource.h>
+#include <machine/cpu.h>
 
 #include <sys/rman.h>
 
@@ -872,33 +873,39 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	bus_space_handle_t bh;
 	u_long offset = 0;
 	u_int32_t r, devid;
+	u_int8_t byte;
+	u_int16_t shrt;
+	u_int32_t wrd;
 	int i;
 
-	/*
-	 * The psycho bridge does not tolerate accesses to unconfigured PCI
-	 * devices' or function's config space, so look up the device in the
-	 * firmware device tree first, and if it is not present, return a value
-	 * that will make the detection code think that there is no device here.
-	 * This is ugly...
-	 */
-	if (reg == 0 && ofw_pci_find_node(bus, slot, func) == 0)
-		return (0xffffffff);
 	sc = (struct psycho_softc *)device_get_softc(dev);
 	offset = PSYCHO_CONF_OFF(bus, slot, func, reg);
 	bh = sc->sc_bh[PCI_CS_CONFIG];
 	switch (width) {
 	case 1:
-		r = bus_space_read_1(sc->sc_cfgt, bh, offset);
+		i = bus_space_peek_1(sc->sc_cfgt, bh, offset, &byte);
+		r = byte;
 		break;
 	case 2:
-		r = bus_space_read_2(sc->sc_cfgt, bh, offset);
+		i = bus_space_peek_2(sc->sc_cfgt, bh, offset, &shrt);
+		r = shrt;
 		break;
 	case 4:
-		r = bus_space_read_4(sc->sc_cfgt, bh, offset);
+		i = bus_space_peek_4(sc->sc_cfgt, bh, offset, &wrd);
+		r = wrd;
 		break;
 	default:
 		panic("psycho_read_config: bad width");
 	}
+
+	if (i) {
+#ifdef PSYCHO_DEBUG
+		printf("psycho read data error reading: %d.%d.%d: 0x%x\n",
+		    bus, slot, func, reg);
+#endif
+		r = -1;
+	}
+
 	if (reg == PCIR_INTPIN && r == 0) {
 		/* Check for DQT_BAD_INTPIN quirk. */
 		devid = psycho_read_config(dev, bus, slot, func,
