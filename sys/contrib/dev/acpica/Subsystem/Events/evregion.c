@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 90 $
+ *              $Revision: 93 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -418,8 +418,8 @@ AcpiEvAddressSpaceDispatch (
  *
  * FUNCTION:    AcpiEvDisassociateRegionFromHandler
  *
- * PARAMETERS:  HandlerObj      - Handler Object
- *              RegionObj       - Region Object
+ * PARAMETERS:  RegionObj       - Region Object
+ *              AcpiNsIsLocked  - Namespace Region Already Locked?
  *
  * RETURN:      None
  *
@@ -430,7 +430,8 @@ AcpiEvAddressSpaceDispatch (
 
 void
 AcpiEvDisassociateRegionFromHandler(
-    ACPI_OPERAND_OBJECT     *RegionObj)
+    ACPI_OPERAND_OBJECT     *RegionObj,
+    BOOLEAN                 AcpiNsIsLocked)
 {
     ACPI_OPERAND_OBJECT     *HandlerObj;
     ACPI_OPERAND_OBJECT     *ObjDesc;
@@ -481,10 +482,20 @@ AcpiEvDisassociateRegionFromHandler(
             *LastObjPtr = ObjDesc->Region.Next;
             ObjDesc->Region.Next = NULL;            /* Must clear field */
 
+            if (AcpiNsIsLocked)
+            {
+                AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+            }
+
             /*
              *  Now stop region accesses by executing the _REG method
              */
             AcpiEvExecuteRegMethod (RegionObj, 0);
+
+            if (AcpiNsIsLocked)
+            {
+                AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
+            }
 
             /*
              *  Call the setup handler with the deactivate notification
@@ -548,6 +559,7 @@ AcpiEvDisassociateRegionFromHandler(
  *
  * PARAMETERS:  HandlerObj      - Handler Object
  *              RegionObj       - Region Object
+ *              AcpiNsIsLocked  - Namespace Region Already Locked?
  *
  * RETURN:      None
  *
@@ -752,7 +764,7 @@ AcpiEvAddrHandlerHelper (
      *
      *  First disconnect region for any previous handler (if any)
      */
-    AcpiEvDisassociateRegionFromHandler (ObjDesc);
+    AcpiEvDisassociateRegionFromHandler (ObjDesc, FALSE);
 
     /*
      *  Then connect the region to the new handler

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amresop - AML Interpreter operand/object resolution
- *              $Revision: 18 $
+ *              $Revision: 19 $
  *
  *****************************************************************************/
 
@@ -10,8 +10,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -129,7 +129,6 @@
 
 #define _COMPONENT          INTERPRETER
         MODULE_NAME         ("amresop")
-
 
 
 /*******************************************************************************
@@ -344,8 +343,8 @@ AcpiAmlResolveOperands (
 
 
         /*
-         * Handle cases where the object does not need to be 
-         * resolved to a value 
+         * Handle cases where the object does not need to be
+         * resolved to a value
          */
 
         switch (ThisArgType)
@@ -361,7 +360,7 @@ AcpiAmlResolveOperands (
                 goto NextOperand;
             }
 
-            Status = AcpiAmlCheckObjectType (INTERNAL_TYPE_REFERENCE, 
+            Status = AcpiAmlCheckObjectType (INTERNAL_TYPE_REFERENCE,
                             ObjectType, ObjDesc);
             if (ACPI_FAILURE (Status))
             {
@@ -380,7 +379,7 @@ AcpiAmlResolveOperands (
                 AcpiCmRemoveReference (ObjDesc);
                 (*StackPtr) = TempHandle;
             }
-            
+
             goto NextOperand;
             break;
 
@@ -404,7 +403,6 @@ AcpiAmlResolveOperands (
         }
 
 
-
         /*
          * Resolve this object to a value
          */
@@ -426,7 +424,7 @@ AcpiAmlResolveOperands (
          * is allowed
          */
         case ARGI_NUMBER:   /* Number */
-            
+
             /* Need an operand of type ACPI_TYPE_NUMBER */
 
             TypeNeeded = ACPI_TYPE_NUMBER;
@@ -523,7 +521,7 @@ AcpiAmlResolveOperands (
                 DEBUG_PRINT (ACPI_INFO,
                     ("AmlResolveOperands: Needed [Buf/Str/Pkg/Ref], found [%s] %p\n",
                     AcpiCmGetTypeName ((*StackPtr)->Common.Type), *StackPtr));
-                
+
                 return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
             }
 
@@ -574,18 +572,16 @@ AcpiAmlResolveOperands (
         }
 
 
-        /* 
+        /*
          * Make sure that the original object was resolved to the
          * required object type (Simple cases only).
          */
-        Status = AcpiAmlCheckObjectType (TypeNeeded, 
+        Status = AcpiAmlCheckObjectType (TypeNeeded,
                         (*StackPtr)->Common.Type, *StackPtr);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
         }
-
-
 
 
 NextOperand:
@@ -599,7 +595,6 @@ NextOperand:
         }
 
     }   /* while (*Types) */
-
 
 
     return_ACPI_STATUS (Status);

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI hardware functions - mode and timer
- *              $Revision: 32 $
+ *              $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -239,7 +239,8 @@ AcpiHwInitialize (
          * block is not fixed, so the buffer must be allocated with malloc
          */
 
-        if (AcpiGbl_FADT->XGpe0Blk.Address && AcpiGbl_FADT->Gpe0BlkLen)
+        if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) && 
+            AcpiGbl_FADT->Gpe0BlkLen)
         {
             /* GPE0 specified in FADT  */
 
@@ -264,7 +265,8 @@ AcpiHwInitialize (
             AcpiGbl_Gpe0EnableRegisterSave = NULL;
         }
 
-        if (AcpiGbl_FADT->XGpe1Blk.Address && AcpiGbl_FADT->Gpe1BlkLen)
+        if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe1Blk.Address) && 
+            AcpiGbl_FADT->Gpe1BlkLen)
         {
             /* GPE1 defined */
 
@@ -460,7 +462,7 @@ AcpiHwPmtTicks (void)
 
     FUNCTION_TRACE ("AcpiPmtTicks");
 
-    Ticks = AcpiOsIn32 ((ACPI_IO_ADDRESS) AcpiGbl_FADT->XPmTmrBlk.Address);
+    Ticks = AcpiOsIn32 ((ACPI_IO_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XPmTmrBlk.Address));
 
     return_VALUE (Ticks);
 }
