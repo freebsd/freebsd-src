@@ -238,13 +238,16 @@ static int pcn_miibus_readreg(dev, phy, reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy >= 30)
+	if (sc->pcn_phyaddr && phy > sc->pcn_phyaddr)
 		return(0);
 
 	pcn_bcr_write(sc, PCN_BCR_MIIADDR, reg | (phy << 5));
 	val = pcn_bcr_read(sc, PCN_BCR_MIIDATA) & 0xFFFF;
 	if (val == 0xFFFF)
 		return(0);
+
+	sc->pcn_phyaddr = phy;
+
 	return(val);
 }
 
