@@ -1813,7 +1813,7 @@ ifmaybeload(char *name)
 				cp = mstat.name;
 			}
 			/* already loaded? */
-			if (!strcmp(ifkind, cp))
+			if (!strncmp(name, cp, strlen(cp)))
 				return;
 		}
 	}
