@@ -36,5 +36,5 @@ struct cardbus_devinfo {
 	u_int8_t        mprefetchable; /* bit mask of prefetchable BARs */
 	u_int8_t        mbelow1mb; /* bit mask of BARs which require below 1Mb */
 	u_int8_t        ibelow1mb; /* bit mask of BARs which require below 1Mb */
-#define        BARBIT(RID) (1<<((RID)-CARDBUS_BASE0_REG)/4)
+#define        BARBIT(RID) (1<<(((RID)-CARDBUS_BASE0_REG)/4))
 };
