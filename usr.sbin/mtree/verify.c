@@ -60,8 +60,8 @@ extern int lineno;
 static NODE *root;
 static char path[MAXPATHLEN];
 
-static void	miss __P((NODE *, char *));
-static int	vwalk __P((void));
+static void	miss(NODE *, char *);
+static int	vwalk(void);
 
 int
 verify()

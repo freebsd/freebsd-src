@@ -63,7 +63,7 @@ static const char rcsid[] =
 extern int uflag;
 extern int lineno;
 
-static char *ftype __P((u_int));
+static char *ftype(u_int);
 
 #define	INDENTNAMELEN	8
 #define	LABEL \

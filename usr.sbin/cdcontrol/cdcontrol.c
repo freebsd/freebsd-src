@@ -119,32 +119,31 @@ int		fd = -1;
 int		verbose = 1;
 int		msf = 1;
 
-int		 setvol __P((int, int));
-int		 read_toc_entrys __P((int));
-int		 play_msf __P((int, int, int, int, int, int));
-int		 play_track __P((int, int, int, int));
-int		 get_vol __P((int *, int *));
-int		 status __P((int *, int *, int *, int *));
-int		 open_cd __P((void));
-int		 next_prev __P((char *arg, int));
-int		 play __P((char *arg));
-int		 info __P((char *arg));
-int		 cdid __P((void));
-int		 pstatus __P((char *arg));
-char		*input __P((int *));
-void		 prtrack __P((struct cd_toc_entry *e, int lastflag));
-void		 lba2msf __P((unsigned long lba,
-		     u_char *m, u_char *s, u_char *f));
-unsigned int	 msf2lba __P((u_char m, u_char s, u_char f));
-int		 play_blocks __P((int blk, int len));
-int		 run __P((int cmd, char *arg));
-char		*parse __P((char *buf, int *cmd));
-void		 help __P((void));
-void		 usage __P((void));
-char		*use_cdrom_instead __P((const char *));
-__const char	*strstatus __P((int));
-static u_int	 dbprog_discid __P((void));
-__const char	*cdcontrol_prompt __P((void));
+int		 setvol(int, int);
+int		 read_toc_entrys(int);
+int		 play_msf(int, int, int, int, int, int);
+int		 play_track(int, int, int, int);
+int		 get_vol(int *, int *);
+int		 status(int *, int *, int *, int *);
+int		 open_cd(void);
+int		 next_prev(char *arg, int);
+int		 play(char *arg);
+int		 info(char *arg);
+int		 cdid(void);
+int		 pstatus(char *arg);
+char		*input(int *);
+void		 prtrack(struct cd_toc_entry *e, int lastflag);
+void		 lba2msf(unsigned long lba, u_char *m, u_char *s, u_char *f);
+unsigned int	 msf2lba(u_char m, u_char s, u_char f);
+int		 play_blocks(int blk, int len);
+int		 run(int cmd, char *arg);
+char		*parse(char *buf, int *cmd);
+void		 help(void);
+void		 usage(void);
+char		*use_cdrom_instead(const char *);
+__const char	*strstatus(int);
+static u_int	 dbprog_discid(void);
+__const char	*cdcontrol_prompt(void);
 
 void help ()
 {

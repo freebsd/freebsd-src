@@ -91,7 +91,7 @@ parsekey(name, needvaluep)
 	int *needvaluep;
 {
 	KEY *k, tmp;
-	int keycompare __P((const void *, const void *));
+	int keycompare(const void *, const void *);
 
 	tmp.name = name;
 	k = (KEY *)bsearch(&tmp, keylist, sizeof(keylist) / sizeof(KEY),
