@@ -44,8 +44,9 @@ This set of functions checks to see if login is allowed based on login
 class capability entries in the login database,
 .Xr login.conf 5 .
 .Pp
+The
 .Fn auth_ttyok
-checks to see if the named tty is available to users of a specific
+function checks to see if the named tty is available to users of a specific
 class, and is either in the
 .Em ttys.allow
 access list, and not in
@@ -73,8 +74,9 @@ or empty string as the
 .Ar tty
 parameter causes the function to return a non-zero value.
 .Pp
+The
 .Fn auth_hostok
-checks for any host restrictions for remote logins.
+function checks for any host restrictions for remote logins.
 The function checks on both a host name and IP address (given in its
 text form, typically n.n.n.n) against the
 .Em host.allow

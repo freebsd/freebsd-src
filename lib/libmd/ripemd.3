@@ -62,21 +62,24 @@ run over the data with
 and finally extract the result using
 .Fn RIPEMD160_Final .
 .Pp
+The
 .Fn RIPEMD160_End
-is a wrapper for
+function is a wrapper for
 .Fn RIPEMD160_Final
 which converts the return value to a 41-character
 (including the terminating '\e0')
 .Tn ASCII
 string which represents the 160 bits in hexadecimal.
 .Pp
+The
 .Fn RIPEMD160_File
-calculates the digest of a file, and uses
+function calculates the digest of a file, and uses
 .Fn RIPEMD160_End
 to return the result.
 If the file cannot be opened, a null pointer is returned.
+The
 .Fn RIPEMD160_FileChunk
-is similar to
+function is similar to
 .Fn RIPEMD160_File ,
 but it only calculates the digest over a byte-range of the file specified,
 starting at
@@ -92,8 +95,9 @@ of the file,
 calculates the digest from
 .Fa offset
 to the end of file.
+The
 .Fn RIPEMD160_Data
-calculates the digest of a chunk of data in memory, and uses
+function calculates the digest of a chunk of data in memory, and uses
 .Fn RIPEMD160_End
 to return the result.
 .Pp

@@ -57,13 +57,14 @@ and due care must be taken as detailed in the manpage for that
 function and this affects all processes running in the same session
 and not just the current process.
 .Pp
+The
 .Fn setclasscontext
-sets various class context values (resource limits, umask and
+function sets various class context values (resource limits, umask and
 process priorities) based on values for a specific named class.
 .Pp
-The function
+The
 .Fn setusercontext
-sets class context values based on a given login_cap_t
+function sets class context values based on a given login_cap_t
 object, a specific passwd record (if login_cap_t is NULL),
 sets the current session's login and the current process
 user and group ownership.
@@ -74,7 +75,7 @@ parameter, which is comprised of one or more of the following:
 .Bl -tag -width LOGIN_SETRESOURCES
 .It LOGIN_SETLOGIN
 Set the login associated with the current session to the user
-specified in the passwd structure.
+specified in the passwd structure using
 .Xr setlogin 2 .
 The
 .Ar pwd
@@ -170,10 +171,11 @@ and
 functions are subsets of the setcontext functions above, but may
 be useful in isolation.
 .Sh RETURN VALUES
+The
 .Fn setclasscontext
 and
 .Fn setusercontext
-return -1 if an error occurred, or 0 on success.
+functions return -1 if an error occurred, or 0 on success.
 If an error occurs when attempting to set the user, login, group
 or resources, a message is reported to
 .Xr syslog 3 ,
