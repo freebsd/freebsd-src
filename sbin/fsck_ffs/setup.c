@@ -306,7 +306,7 @@ readsb(int listerr)
 		super = bflag;
 		if ((bread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
 			return (0);
-		if (sblock.fs_magic == FS_BAD2_MAGIC) {
+		if (sblock.fs_magic == FS_BAD_MAGIC) {
 			fprintf(stderr, BAD_MAGIC_MSG);
 			exit(11);
 		}
@@ -322,7 +322,7 @@ readsb(int listerr)
 			if ((bread(fsreadfd, (char *)&sblock, super,
 			    (long)SBLOCKSIZE)))
 				return (0);
-			if (sblock.fs_magic == FS_BAD2_MAGIC) {
+			if (sblock.fs_magic == FS_BAD_MAGIC) {
 				fprintf(stderr, BAD_MAGIC_MSG);
 				exit(11);
 			}
