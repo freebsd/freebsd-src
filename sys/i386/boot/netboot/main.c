@@ -37,12 +37,11 @@ MAIN - Kick off routine
 main()
 {
 	int c;
-	char *p;
 	extern char edata[], end[];
-	for (p=edata; p<end; p++) *p = 0;	/* Zero BSS */
+	bzero(edata,end-edata);		/* Zero BSS */
 #ifdef ASK_BOOT
 	while (1) {
-		printf("\n\rBoot from Network (Y/N) ? ");
+		printf("\nBoot from Network (Y/N) ? ");
 		c = getchar();
 		if ((c >= 'a') && (c <= 'z')) c &= 0x5F;
 		if (c == '\r') break;
@@ -60,10 +59,10 @@ main()
 		bootinfo.bi_bios_geom[c] = get_diskinfo(c + 0x80);
 
 	gateA20();
-	printf("\r\nBOOTP/TFTP/NFS bootstrap loader    ESC for menu\n\r");
-	printf("\r\nSearching for adapter...");
+	printf("\nBOOTP/TFTP/NFS bootstrap loader    ESC for menu\n"
+		"\nSearching for adapter...");
 	if (!eth_probe()) {
-		printf("No adapter found.\r\n");
+		printf("No adapter found.\n");
 		exit(0);
 	}
 	kernel = DEFAULT_BOOTFILE;
@@ -111,8 +110,10 @@ load()
 	char	cmd_line[80];
 	int	err, read_size, i;
 	long	addr, broadcast;
+	int	swsize;
 	unsigned long pad;
 
+	config_buffer[0]='\0'; /* clear; bootp might fill this up */
 /* Initialize this early on */
 
         nfsdiskless.root_args.rsize = 8192;
@@ -120,9 +121,11 @@ load()
         nfsdiskless.swap_args.rsize = 8192;
         nfsdiskless.swap_args.wsize = 8192;
         nfsdiskless.root_args.sotype = SOCK_DGRAM;
-        nfsdiskless.root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE);
+        nfsdiskless.root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | 
+				       NFSMNT_RESVPORT);
         nfsdiskless.swap_args.sotype = SOCK_DGRAM;
-        nfsdiskless.swap_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE);
+        nfsdiskless.swap_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | 
+				       NFSMNT_RESVPORT);
 
 
 		/* Find a server to get BOOTP reply from */
@@ -142,6 +145,10 @@ load()
 	printf("\n=>>"); getchar();
 #endif
 
+	/*** check if have got info from bootp ***/
+	if (config_buffer[0])
+		goto cfg_done;
+#ifndef NO_TFTP
 	/* Now use TFTP to load configuration file */
 	sprintf(cfg,"/tftpboot/freebsd.%I",arptable[ARP_CLIENT].ipaddr);
 	if (tftp(cfg) || tftp(cfg+10))
@@ -152,6 +159,8 @@ load()
 	sprintf(cfg,"/tftpboot/cfg.%I",arptable[ARP_CLIENT].ipaddr);
 	if (tftp(cfg) || tftp(cfg+10))
 		goto cfg_done;
+#endif
+	/* not found; using default values... */
 	sprintf(config_buffer,"rootfs %I:/usr/diskless_root",
 		arptable[ARP_SERVER].ipaddr);
 	printf("Unable to load config file, guessing:\r\n\t%s\r\n",
@@ -223,10 +232,14 @@ cfg_done:
 		}
 		sprintf(swapfile,"swap.%I",arptable[ARP_CLIENT].ipaddr);
 		if (err = nfs_lookup(ARP_SWAPSERVER, swap_nfs_port,
-			&swapfs_fh, swapfile, &nfsdiskless.swap_fh)) {
+			&swapfs_fh, swapfile, &nfsdiskless.swap_fh, &swsize)) {
 			printf("Unable to open %s: ",swapfile);
 			nfs_err(err);
 			longjmp(jmp_bootmenu,1);
+		}
+		if (!nfsdiskless.swap_nblks) {
+		  nfsdiskless.swap_nblks = swsize / 1024;
+		  printf("Swap size is: %d blocks\n",nfsdiskless.swap_nblks);
 		}
 		nfsdiskless.swap_saddr.sin_len = sizeof(struct sockaddr_in);
 		nfsdiskless.swap_saddr.sin_family = AF_INET;
@@ -261,7 +274,7 @@ cfg_done:
 
 	if (err = nfs_lookup(ARP_ROOTSERVER, root_nfs_port,
 		&nfsdiskless.root_fh, *kernel == '/' ? kernel+1 : kernel,
-		&kernel_handle)) {
+		&kernel_handle, NULL)) {
 		printf("Unable to open %s: ",kernel);
 		nfs_err(err);
 		longjmp(jmp_bootmenu,1);
@@ -587,6 +600,17 @@ await_reply(type, ival, ptr)
 	return(0);
 }
 
+void
+bootp_string(char *name, char *bootp_ptr)
+{       
+	char tmp_buf[512]; /* oversized, but who cares ! */
+	bzero(tmp_buf, sizeof(tmp_buf));
+	bcopy(bootp_ptr+2, tmp_buf, TAG_LEN(bootp_ptr));
+	sprintf(config_buffer+strlen(config_buffer),
+	    "%s %s\n", name, tmp_buf);
+}
+
+
 /**************************************************************************
 DECODE_RFC1048 - Decodes RFC1048 header
 **************************************************************************/
@@ -615,6 +639,22 @@ decode_rfc1048(p)
 			case RFC1048_HOSTNAME:
 				bcopy(p+2, &nfsdiskless.my_hostnam, TAG_LEN(p));
 				hostnamelen = (TAG_LEN(p) + 3) & ~3;
+				break;
+			case RFC1048_ROOT_PATH: /* XXX check len */
+				bootp_string("rootfs", p);
+				break;
+			case RFC1048_SWAP_PATH:
+				bootp_string("swapfs", p);
+				break;
+			case RFC1048_SWAP_LEN: /* T129 */
+				sprintf(config_buffer+strlen(config_buffer),
+				    "swapsize %d\n", ntohl(*(long *)(p+2)) );
+				break;
+			case 130:       /* root mount options */
+				bootp_string("rootopts", p);
+				break;
+			case 131:       /* swap mount options */
+				bootp_string("swapopts", p);
 				break;
 			default:
 				printf("Unknown RFC1048-tag ");
