@@ -144,7 +144,7 @@ ${TGTS}:
 # Set a reasonable default
 .MAIN:	all
 
-.if defined(I_KNOW_WHAT_IM_DOING_THANKYOU_VERY_MUCH) || defined(DESTDIR)
+.if defined(HISTORICAL_MAKE_WORLD) || defined(DESTDIR)
 .if make(world)
 STARTTIME!= LC_ALL=C date
 .endif
@@ -187,8 +187,12 @@ world:
 	@echo "installation without also building and installing a new"
 	@echo "kernel.  This can be dangerous.  Please read the handbook,"
 	@echo "'Using make world', for how to upgrade your system."
-	@echo "Define DESTDIR to the where you want to install FreeBSD,"
+	@echo "Define DESTDIR to where you want to install FreeBSD,"
 	@echo "including /, to override this warning and proceed as usual."
+	@echo "You may get the historical 'make world' behavior by defining"
+	@echo "HISTORICAL_MAKE_WORLD.  You should understand the implications"
+	@echo "before doing this."
+	@echo ""
 	@echo "Bailing out now..."
 	@false
 .endif
