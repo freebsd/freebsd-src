@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .TH DIFF 1 "22sep1993" "GNU Tools" "GNU Tools"
 .SH NAME
 diff \- find differences between two files
@@ -297,6 +298,9 @@ Use
 to output a line taken from just the second file in
 if-then-else format.
 .TP
+.B \-o
+Use the old traditional output format.
+.TP
 .BI \-\-old\-group\-format= format
 Use
 .I format
@@ -463,6 +467,14 @@ match any pattern contained in
 .TP
 .B \-y
 Use the side by side output format.
+.SH ENVIRONMENT
+The environment variable
+.B DIFF_OPTIONS
+can hold a set of default
+options for
+.I diff.
+These options are interpreted first and can be overwritten by explicit command
+line parameters.
 .SH EXAMPLES
 To save to a file some changes that you have made to your local source
 tree (possibly including new files), which you would like to show to others
