@@ -737,7 +737,6 @@ xtrfile(buf, size)
 		fprintf(stderr,
 		    "write error extracting inode %d, name %s\nwrite: %s\n",
 			curfile.ino, curfile.name, strerror(errno));
-		done(1);
 	}
 }
 
