@@ -109,7 +109,7 @@ runcmdshell()
 	arglist.glob.gl_closedir = (void *)rst_closedir;
 	arglist.glob.gl_lstat = glob_stat;
 	arglist.glob.gl_stat = glob_stat;
-	canon("/", curdir);
+	canon("/", curdir, sizeof(curdir));
 loop:
 	if (setjmp(reset) != 0) {
 		if (arglist.freeglob != 0) {
@@ -357,7 +357,7 @@ getnext:
 	 * If it is an absolute pathname, canonicalize it and return it.
 	 */
 	if (rawname[0] == '/') {
-		canon(rawname, name);
+		canon(rawname, name, sizeof(name));
 	} else {
 		/*
 		 * For relative pathnames, prepend the current directory to
@@ -366,7 +366,7 @@ getnext:
 		(void) strcpy(output, curdir);
 		(void) strcat(output, "/");
 		(void) strcat(output, rawname);
-		canon(output, name);
+		canon(output, name, sizeof(name));
 	}
 	if (glob(name, GLOB_ALTDIRFUNC, NULL, &ap->glob) < 0)
 		fprintf(stderr, "%s: out of memory\n", ap->cmd);
@@ -438,8 +438,9 @@ copynext(input, output)
  * remove any imbedded "." and ".." components.
  */
 void
-canon(rawname, canonname)
+canon(rawname, canonname, len)
 	char *rawname, *canonname;
+	int len;
 {
 	register char *cp, *np;
 
@@ -449,6 +450,11 @@ canon(rawname, canonname)
 		(void) strcpy(canonname, ".");
 	else
 		(void) strcpy(canonname, "./");
+	if (strlen(canonname) + strlen(rawname) >= len) {
+		fprintf(stderr, "canonname: not enough bufferspace\n");
+		done(1);
+	}
+		
 	(void) strcat(canonname, rawname);
 	/*
 	 * Eliminate multiple and trailing '/'s

@@ -36,7 +36,7 @@
 struct entry	*addentry __P((char *, ino_t, int));
 long		 addfile __P((char *, ino_t, int));
 void		 badentry __P((struct entry *, char *));
-void	 	 canon __P((char *, char *));
+void	 	 canon __P((char *, char *, int));
 void		 checkrestore __P((void));
 void		 closemt __P((void));
 void		 createfiles __P((void));
