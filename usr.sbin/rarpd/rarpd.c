@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 	openlog(name, LOG_PID | LOG_CONS, LOG_DAEMON);
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "adfsv")) != -1) {
+	while ((op = getopt(argc, argv, "adfst:v")) != -1) {
 		switch (op) {
 		case 'a':
 			++aflag;
@@ -193,6 +193,10 @@ main(int argc, char *argv[])
 
 		case 's':
 			++sflag;
+			break;
+
+		case 't':
+			tftp_dir = optarg;
 			break;
 
 		case 'v':
