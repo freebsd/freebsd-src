@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: linux_sysvec.c,v 1.11 1997/02/22 09:38:26 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -69,6 +69,7 @@ int	linux_fixup __P((int **stack_base, struct image_params *iparams));
 int	elf_linux_fixup __P((int **stack_base, struct image_params *iparams));
 void	linux_prepsyscall __P((struct trapframe *tf, int *args, u_int *code, caddr_t *params));
 void    linux_sendsig __P((sig_t catcher, int sig, int mask, u_long code));
+static void linux_elf_init __P((void *dummy));
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -417,5 +418,15 @@ Elf32_Brandinfo linux_brand = {
  * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
  * "proof of concept" stage and will be fixed shortly
  */
-SYSINIT(linuxelf, SI_SUB_VFS, SI_ORDER_ANY, elf_insert_brand_entry, &linux_brand);
+static void
+linux_elf_init(dummy)
+	void *dummy;
+{
+	if (elf_insert_brand_entry(&linux_brand) < 0)
+		printf("cannot insert Linux elf brand handler\n");
+	else if (bootverbose)
+		printf("Linux-ELF exec handler installed\n");
+}
+
+SYSINIT(linuxelf, SI_SUB_VFS, SI_ORDER_ANY, linux_elf_init, NULL);
 #endif
