@@ -1,186 +1,239 @@
-<HTML><HEAD><TITLE>
-Building and Installing the Distribution
-</TITLE></HEAD><BODY><H3>
-Building and Installing the Distribution
-</H3>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Building and Installing the Distribution</title>
+</head>
+<body>
+<h3>Building and Installing the Distribution</h3>
 
-<img align=left src=pic/beaver.gif>From <i>pogo</i>, Walt Kelly
+<img align="left" src="pic/beaver.gif" alt="gif"><a href=
+"http://www.eecis.udel.edu/~mills/pictures.htm">from <i>Pogo</i>,
+Walt Kelly</a> 
 
-<p>For putting out compiler fires.
-<br clear=left><hr>
+<p>For putting out compiler fires.<br clear="left">
+</p>
 
-<H4>Building and Installing the Distribution</H4>
+<hr>
+<h4>Building and Installing the Distribution</h4>
 
-As a practical matter, every computer architecture and operating system
-version seems to be different than any other. The device drivers may be
-different, the input/output system may bew idiosyncratic and the
-libraries may have different semantics. It is not possible in a software
-distribution such as this one to support every individual sysdtem with a
-common set of binaries, even with the same system but different
-versions. Therefore, it is necessary to configure each system
-individually for each system and version, both at compile time and at
-run time. In almost all cases, these procedures are completely automatic
-and all the newbie user need do is type "make" and the autoconfigure
-system does the rest. There are some exceptions, as noted below.
+<p>As a practical matter, every computer architecture and operating
+system version seems to be different than any other. The device
+drivers may be different, the input/output system may be
+idiosyncratic and the libraries may have different semantics. It is
+not possible in a software distribution such as this one to support
+every individual sysdtem with a common set of binaries, even with
+the same system but different versions. Therefore, it is necessary
+to configure each system individually for each system and version,
+both at compile time and at run time. In almost all cases, these
+procedures are completely automatic and all the newbie user need do
+is type "make" and the autoconfigure system does the rest. There
+are some exceptions, as noted below.</p>
 
-<p>The autoconfigure system inspects the hardware and software
-environment and tests for the presence of system header files and the
-contents of these files to determine if certain features are available.
-When one or more of these features are present, the code is compiled to
-use them; if not, no special code is compiled. However, even if the code
-is compiled to use these features, the code does a special test at run
-time to see if one or more are actually present and avoids using them if
-not present. In such cases a warning message is sent to the system log,
-but the daemon should still work properly.
+<p>Some programs included in this distribution use cryptographic
+algorithms to verify server authenticity and credentials. As
+required by the International Trade in Arms Regulations (ITAR), now
+called the Defense Trade Regulations (DTR), certain cryptographic
+products and media, including the Data Encryption Standard (DES),
+cannot be exported without per-instance license. For this reason,
+the DES encryption routine has been removed from the the current
+version, even though it is used only to compute a message digest.
+Current DTR regulations allow export of the the MD5 message digest
+routine, which is in fact the preferred algorithm, and this is
+included in the current version.</p>
 
-Some programs included in this distribution use cryptographic algorithms
-to verify server authenticity and credentials. As required by the
-International Trade in Arms Regulations (ITAR), now called the Defense
-Trade Regulations (DTR), certain cryptographic products and media,
-including the Data Encryption Standard (DES), cannot be exported without
-per-instance license. For this reason, the DES encryption routine has
-been removed from the the current version, even though it is used only
-to compute a message digest. Current DTR regulations allow export of the
-the MD5 message digest routine, which is in fact the preferred
-algorithm, and this is included in the current
-version.
+<p>The NTP authentication routines conform to the interface used by
+RSA Laboratories in the <tt>rsaref20.zip</tt> package, which was
+formerly downloadable from <tt>ftp.rsa.com</tt> or via the web at
+<tt>www.rsa.com</tt>, but this may no longer be the case. Outside
+the US and Canada, the functionally identical <tt>rsaeuro.zip</tt>
+package is available from J.S.A. Kapp and other sources. The
+recommended way to integrate the routines in either package with
+the NTP build procedures is to uncompress and extract the <tt>
+rsaref20</tt> files in a top level directory with that name. Then
+install a link to that directory from <tt>rsaref2</tt> in the top
+level directory of the distribution. Use <tt>rsaeuro1</tt> instead
+for that distribution. These steps must be completed
+before the configuration process described below.</p>
 
-<P>The NTP authentication routines conform to the interface used by RSA
-Laboratories in the <TT>rsaref20.zip</TT> package, which is downloadable
-from <TT>ftp.rsa.com</TT> or via the web at <TT>www.rsa.com</TT>.
-Outside the U.S. and Canada, the functionally identical
-<TT>rsaeuro.zip</TT> package is available from J.S.A. Kapp and other
-sources. The recommended way to integrate the DES routines in either
-package with the NTP build procedures is to copy the <TT>desc.c</TT>
-file from the <TT>./source</TT> directory in the package to the
-<TT>./libntp</TT> directory in the distribution. Then copy the header
-files <TT>rsaref.h</TT>, <TT>des.h</TT> and <TT>md2.h</TT> in the
-<TT>./source</TT> directory to the <TT>./include</TT> directory. Do not
-copy the <TT>global.h</TT> header file; the one in the distribution has
-been modified. These steps must be completed before the configuration
-process described below.
+<h4>Building and Installing under Unix</h4>
 
-<H4>Building and Installing under Unix</H4>
+Make sure that you have all necessary tools for building
+executables. These tools include <tt>cc/gcc, make, awk, sed, tr,
+sh, grep, egrep</tt> and a few others. Not all of these tools exist
+in the standard distribution of modern Unix versions (compilers are
+likely to be an add-on product - consider using the GNU tools and
+<tt>gcc</tt> compiler in this case). For a successful build, all of
+these tools should be accessible via the current path. 
 
-Make sure that you have all necessary tools for building executables.
-These tools include <TT>cc/gcc, make, awk, sed, tr, sh, grep, egrep</TT>
-and a few others. Not all of these tools exist in the standard
-distribution of modern Unix versions (compilers are likely to be an
-add-on product - consider using the GNU tools and <TT>gcc</TT>
-compiler in this case). For a successful build, all of these tools
-should be accessible via the current path.
+<p>The first thing to do is uncompress the distribution and extract
+the source tree. Use the <tt>./configure</tt> command to perform an
+automatic configuration procedure. This command inspects the
+hardware and software environment and tests for the presence of
+system header files and the contents of these files to determine if
+certain features are present. When one or more of these features
+are present, the code is compiled to use them; if not, no special
+code is compiled. However, even if the code is compiled to use
+these features, the code does a special test at run time to see if
+one or more are actually present and avoids using them if not
+present. In such cases a warning message is sent to the system log,
+but the daemon should still work properly.</p>
 
-<H4>Configuration</H4>
-
-Use the <TT>./configure</TT> command to perform an automatic
-configuration procedure. This procedure normally includes the debugging
-code, which can be useful in diagnosing problems found in initial test,
-and all reference clock drivers known to work with each machine and
+<p>The default build normally includes the debugging code, which
+can be useful in diagnosing problems found in initial test, and all
+reference clock drivers known to work with each machine and
 operating system. Unless memory space is at a premium, this is a
 sensible strategy and saves lots of messy fiddling. If you need to
-delete either the debugging code or one or more or all reference clock
-drivers to save space, see the <A HREF="config.htm">Configuration
-Options</A> page.
+delete either the debugging code or one or more or all reference
+clock drivers to save space, see the <a href="config.htm">
+Configuration Options</a> page.</p>
 
-<P>If your site supports multiple architectures and uses NFS to share
-files, you can use a single source tree to compile executables for all
-architectures. While running on a target architecture machine and with
-the distribution base directory active, create a subdirectory using a
-command like <TT>mkdir A.`config.guess`</TT>, which will create an
-architecture-specific directory with name peculiar to the architecture
-and operating system. Then change to this directory and configure with
-the <TT>../configure</TT> command. The remaining steps are the same
-whether building in the base directory or in the subdirectory.
+<p>If your site supports multiple architectures and uses NFS to
+share files, you can use a single source tree to compile
+executables for all architectures. While running on a target
+architecture machine and with the distribution base directory
+active, create a subdirectory using a command like <tt>mkdir
+A.`config.guess`</tt>, which will create an architecture-specific
+directory with name peculiar to the architecture and operating
+system. Then change to this directory and configure with the <tt>
+../configure</tt> command. The remaining steps are the same whether
+building in the base directory or in the subdirectory.</p>
 
-<H4>Compilation</H4>
+<h4>Compilation</h4>
 
-Peruse the operating-system-specific information for your architecture
-under <A HREF="hints.htm">Hints and Kinks</A>.
+Peruse the operating-system-specific information for your
+architecture under <a href="hints.htm">Hints and Kinks</a>. 
 
-<P>Use the <TT>make</TT> command to compile all source modules,
+<p>Use the <tt>make</tt> command to compile all source modules,
 construct the libraries and link the distribution. Expect few or no
-warnings using <TT>cc</TT> and a moderate level of warnings using
-<TT>gcc</TT>. Note: On some Unix platforms the use of <TT>gcc</TT> can
-result in quite a few complaints about system header files and type
-inconsistencies, especially about pointer variables. This is usually the
-case when the system header files are not up to ANSI standards or
-<TT>gcc</TT>-isms, when gcc is not installed properly, or when operating
-system updates and patches are applied and gcc is not reinstalled. While
-the autoconfigure process is quite thorough, the Unix programming
-cultures of the various workstation makers still remain idiosyncratic.
+warnings using <tt>cc</tt> and a moderate level of warnings using
+<tt>gcc</tt>. Note: On some Unix platforms the use of <tt>gcc</tt>
+can result in quite a few complaints about system header files and
+type inconsistencies, especially about pointer variables. This is
+usually the case when the system header files are not up to ANSI
+standards or <tt>gcc</tt>-isms, when gcc is not installed properly,
+or when operating system updates and patches are applied and gcc is
+not reinstalled. While the autoconfigure process is quite thorough,
+the Unix programming cultures of the various workstation makers
+still remain idiosyncratic.</p>
 
-<H4>Installation</H4>
+<h4>Installation</h4>
 
-As root, use the <TT>make install</TT> command to install the binaries
-in the destination directory. You must of course have write permission
-on the install destination directory. This includes the programs <TT><A
-HREF="ntpd.htm">ntpd</A></TT> (the daemon), <TT><A
-HREF="ntpdc.htm">ntpdc</A></TT> (an <TT>ntpd</TT>-dependent query
-program), <TT><A HREF="ntpq.htm">ntpq</A></TT> (a standard query
-program), <TT><A HREF="ntpdate.htm">ntpdate</A></TT> (an <TT>rdate</TT>
-replacement for boot time date setting and sloppy time keeping) and
-<TT><A HREF="ntptrace.htm">ntptrace</A></TT> (a utility useful to find
-the primary (stratum-1) servers). In some systems, the <TT><A
-HREF="tickadj.htm">tickadj</A></TT> (a utility useful to adjust kernel
-variables) is installed. If the precision time kernel modifications are
-present, the <TT><A HREF="ntptime.htm">ntptime</A></TT> (a utility
-useful to debug kernel time functions) is installed.
+As root, use the <tt>make install</tt> command to install the
+binaries in the destination directory. You must of course have
+write permission on the install in the destination directory. This
+includes the following programs: 
 
-<P>You are now ready to configure the daemon and start it. You will need
-to create a NTP configuration file <TT>ntp.conf</TT> and possibly a
-cryptographic key file <TT>ntp.keys</TT>. Directions for doing that are
-in the <A HREF="notes.htm">Notes on Configuring NTP and Setting up a NTP
-Subnet</A>. The behavior when the daemon starts for the first time can
-be counterintuitive. To reduce the level of angst, see the <a
-href=quick.htm>Quick Start</a> page. A tutorial on debugging technique
-is in <A HREF="debug.htm">NTP Debugging Technique</A>.
+<ul>
+<li><a href="ntpd.htm"><tt>ntpd</tt> - Network Time Protocol (NTP)
+daemon</a></li>
 
-<P>If problems peculiar to the particular hardware and software
-environment (e.g. operating system -specific issues) are suspected,
-browse the <A HREF="hints.htm">Hints and Kinks</A> page.
+<li><a href="ntpq.htm"><tt>ntpq</tt> - standard NTP query
+program</a></li>
 
-<P>Bug reports of a general nature can be sent to David Mills <A
-HREF="mailto: mills@udel.edu">&lt;mills@udel.edu></A>. Bug reports of a
-specific nature on features implemented by the programmer corps
-mentioned in the <A HREF="copyright.htm">Copyright</A> page should be
-sent directly to the implementor listed in that page, with copy to
-mills@udel.edu.
+<li><a href="ntpdc.htm"><tt>ntpdc</tt> - special NTP query
+program</a></li>
 
-<P><B>Please include the version of the source distribution (e.g., ntp-
-4.0.70a) in your bug report.</B>
+<li><a href="ntpdate.htm"><tt>ntpdate</tt> - set the date and time
+via NTP</a></li>
 
-<P><B>Please include the <B>output</B> of <TT>config.guess</TT> in your
-bug report.</B>
+<li><a href="ntptrace.htm"><tt>ntptrace</tt> - trace a chain of NTP
+servers back to the primary source</a></li>
+</ul>
 
-<P><B>It will look something like: <TT>pdp11-dec-fuzzos3.4</TT></B>
+<p>If the precision time kernel modifications are present, the
+following program is installed:</p>
 
-<P>Additional <TT>make</TT> commands
+<ul>
+<li><a href="ntptime.htm"><tt>ntptime</tt> - read kernel time
+variables</a></li>
+</ul>
 
-<DL>
+<p>If the public key authentication functions are present, the
+following program is installed:</p>
 
-<DT><TT>make clean</TT></DT>
+<ul>
+<li><a href="genkeys.htm"><tt>ntp-genkeys</tt> - generate public
+and private keys</a></li>
+</ul>
 
-<DD>Cleans out object files, programs and temporary files.</DD>
+<p>In some systems that include the capability to edit kernel
+variables, the following program is installed:</p>
 
-<DT><TT>make distclean</TT></DT>
+<ul>
+<li><a href="tickadj.htm"><tt>tickadj</tt> - set time-related
+kernel variables</a></li>
+</ul>
 
-<DD>Does the work of <TT>clean</TT>, but cleans out all directories in
-preparation for a new distribution release.</DD>
+<h4>Configuration</h4>
 
-<DT><TT>make dist</TT></DT>
+<p>You are now ready to configure the daemon and start it. You will
+need to create a NTP configuration file <tt>ntp.conf</tt> and
+possibly a cryptographic key file <tt>ntp.keys</tt>. Newbies should
+see the <a href="quick.htm">Quick Start</a> page for orientation.
+Seasoned veterans can start with the <a href="ntpd.htm"><tt>
+ntpd</tt> - Network Time Protocol (NTP) daemon</a> page and move on
+to the specific configuration option pages from there. A tutorial
+on NTP subnet design and configuration options is in the <a href=
+"notes.htm">Notes on Configuring NTP and Setting up a NTP
+Subnet</a> page.</p>
 
-<DD>
-Does the work of <TT>make distclean</TT>, but constructs compressed tar
-files for distribution. You must have GNU automake to perform this
-function.</DD>
+<h4>If You Have Problems</h4>
 
-</DL>
+<p>If you have problems peculiar to the particular hardware and
+software environment (e.g. operating system-specific issues),
+browse the <a href="hints.htm">Hints and Kinks</a> page. For other
+problems a tutorial on debugging technique is in the <a href=
+"debug.htm">NTP Debugging Technique</a> page. As always, the first
+line of general assistance is the <a href="http://www.ntp.org">NTP
+web site www.ntp.org</a> and the FAQ resident there. Requests for
+assistance of a general nature and of interest to other timekeepers
+should be sent to the NTP newsgroup. Bug reports of a specific
+nature should be sent to <a href="mailto:bugs@mail.ntp.org">
+&lt;bugs@mail.ntp.org&gt;</a>. Bug reports of a specific nature on
+features implemented by the programmer corps mentioned in the <a
+href="copyright.htm">Copyright</a> page should be sent directly to
+the implementor listed in that page, with copy to
+bugs@mail.ntp.org.</p>
 
-<H4>Building and Installing under Windows NT</H4>
-See <tt><a href="hints/winnt.htm">hints/winnt.htm</a> </tt>for directions
-to compile the sources and install the executables. 
+<p>Please include the version of the source distribution (e.g.,
+ntp-4.0.70a) in your bug report, as well as billboards from the
+relevant utility programs and debug trace, if available. Please
+include the output of <tt>config.guess</tt> in your bug report. It
+will look something like:</p>
 
-<hr><a href=index.htm><img align=left
-src=pic/home.gif></a><address><a href="mailto:mills@udel.edu"> David L.
-Mills &lt;mills@udel.edu&gt;</a>
-</address></body></html>
+<p><tt>pdp11-dec-fuzzos3.4</tt></p>
+
+<p>Additional <tt>make</tt> commands</p>
+
+<dl>
+<dt><tt>make clean</tt></dt>
+
+<dd>Cleans out object files, programs and temporary files.</dd>
+
+<dt><tt>make distclean</tt></dt>
+
+<dd>Does the work of <tt>clean</tt>, but cleans out all directories
+in preparation for a new distribution release.</dd>
+
+<dt><tt>make dist</tt></dt>
+
+<dd>Does the work of <tt>make distclean</tt>, but constructs
+compressed tar files for distribution. You must have GNU automake
+to perform this function.</dd>
+</dl>
+
+<h4>Building and Installing under Windows NT</h4>
+
+See <tt><a href="hints/winnt.htm">hints/winnt.htm</a></tt> for
+directions to compile the sources and install the executables. 
+
+<hr>
+<a href="index.htm"><img align="left" src="pic/home.gif" alt=
+"gif"></a> 
+
+<address><a href="mailto:mills@udel.edu">David L. Mills
+&lt;mills@udel.edu&gt;</a></address>
+</body>
+</html>
+

@@ -13,9 +13,11 @@ libntp_a_SOURCES = a_md5encrypt.c adjtime.c atoint.c atolfp.c atouint.c \
 	tstotv.c tvtoa.c tvtots.c uglydate.c uinttoa.c utvtoa.c ymd2yd.c \
 	mfp_mul.c binio.c ieee754io.c gpstolfp.c recvbuff.c iosignal.c \
 	icom.c audio.c
+EXTRA_libntp_a_SOURCES = adjtimex.c log.c mktime.c random.c snprintf.c \
+	strdup.c strerror.c
 libntp_a_LIBADD = @LIBOBJS@
 libntp_a_DEPENDENCIES = @LIBOBJS@
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/librsaref
 ETAGS_ARGS = Makefile.am
 
 noinst_HEADERS = lib_strbuf.h log.h
@@ -23,7 +25,7 @@ noinst_HEADERS = lib_strbuf.h log.h
 ../include/des.h:
 	touch ../include/des.h
 
-EXTRA_DIST = README $(HEADERS) adjtimex.c log.c strerror.c mktime.c
+EXTRA_DIST = README
 
 #mktime_.c: mktime.c $(ANSI2KNR)
 #	$(ANSI2KNR) $< mktime_.c

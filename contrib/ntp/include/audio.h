@@ -8,6 +8,6 @@
 /*
  * Function prototypes
  */
-int	audio_init		P((void));
+int	audio_init		P((char *));
 int	audio_gain		P((int, int));
 void	audio_show		P((void));

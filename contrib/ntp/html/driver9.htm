@@ -2,24 +2,21 @@
 <HEAD>
    <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
    <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
-   <TITLE>Magnavox MX4200 GPS Receiver
-</TITLE>
+   <TITLE>Magnavox MX4200 GPS Receiver</TITLE>
 </HEAD>
 <BODY>
 
-<H3>
-Magnavox MX4200 GPS Receiver</H3>
+<H3>Magnavox MX4200 GPS Receiver</H3>
 
 <HR>
-<H4>
-Synopsis</H4>
+<H4>Synopsis</H4>
 Address: 127.127.9.<I>u</I>
 <BR>Reference ID: <TT>GPS</TT>
 <BR>Driver ID: <TT>GPS_MX4200</TT>
 <BR>Serial Port: <TT>/dev/gps<I>u</I></TT>; 4800 baud, 8-bits, no parity
 <BR>Features: <TT>ppsclock</TT> (required)
-<H4>
-Description</H4>
+
+<H4>Description</H4>
 This driver supports the Magnavox MX4200 Navigation Receiver adapted to
 precision timing applications. It requires the <TT>ppsclock</TT> line
 discipline or streams module described in the <A HREF="ldisc.htm">Line
@@ -32,8 +29,9 @@ Interfacing</A> page.
 MX4200, MX4200D, and the 12-channel MX9212, MX9012R, MX9112.
 
 <P>
-<A HREF="http://www.leica-gps.com/">
-<IMG SRC="pic/9400n.jpg" ALT="Leica MX9400N Navigator" ALIGN=LEFT></A>
+<A HREF="http://www.leica-gps.com/"><IMG align=left HEIGHT=143 WIDTH=180
+SRC="pic/9400n.jpg" ALT="Leica MX9400N Navigator"></A>
+
 <A HREF="http://www.leica-gps.com/">Leica Geosystems</A> acquired
 the Magnavox commercial GPS technology business in February of 1994.
 They now market and support former Magnavox GPS products such as the
@@ -44,32 +42,30 @@ Leica MX9400N Navigator.
 
 <P>
 
-<H4>
-Operating Modes</H4>
+<H4>Operating Modes</H4>
 This driver supports two modes of operation, static and mobile, controlled
 by clock flag 2.
 
 <P>In static mode (the default) the driver assumes that the GPS antenna
 is in a fixed location. The receiver is initially placed in a "Static,
-3D Nav" mode, where latitude, longitude, elevation and time are calculated
-for a fixed station. A DOP-weighted running average position is calculated
-from this data. After 24 hours, the receiver is placed into a "Known Position"
-mode, initialized with the calculated position, and then solves only for
-time.
+3D Nav" mode, where latitude, longitude, elevation and time are
+calculated for a fixed station. An average position is calculated from
+this data. After 24 hours, the receiver is placed into a "Known
+Position" mode, initialized with the calculated position, and then
+solves only for time.
 
 <P>In mobile mode, the driver assumes the GPS antenna is mounted on a moving
 platform such as a car, ship, or aircraft. The receiver is placed in "Dynamic,
 3D Nav" mode and solves for position, altitude and time while moving. No
 position averaging is performed.
-<H4>
-Monitor Data</H4>
+
+<H4>Monitor Data</H4>
 The driver writes each timecode as received to the <TT>clockstats</TT>
 file.  Documentation for the <CITE>NMEA-0183</CITE> proprietary
 sentences produced by the MX4200 can be found in
 <A HREF="mx4200data.htm">MX4200 Receiver Data Format</A>.
 
-<H4>
-Fudge Factors</H4>
+<H4>Fudge Factors</H4>
 
 <DL>
 <DT>

@@ -20,9 +20,6 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_PARSE) && defined(CLOCK_MEINBERG)
 
-#include <sys/types.h>
-#include <sys/time.h>
-
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
 #include "ntp_calendar.h"
@@ -412,7 +409,7 @@ mbg_input(
 {
 	unsigned int rtc;
 	
-	parseprintf(DD_PARSE, ("mbg_input(0x%x, 0x%x, ...)\n", (int)parseio, (int)ch));
+	parseprintf(DD_PARSE, ("mbg_input(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
 	
 	switch (ch)
 	{
@@ -580,7 +577,7 @@ gps_input(
   
   msg_buf = (struct msg_buf *)parseio->parse_pdata;
 
-  parseprintf(DD_PARSE, ("gps_input(0x%x, 0x%x, ...)\n", (int)parseio, (int)ch));
+  parseprintf(DD_PARSE, ("gps_input(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
 
   if (!msg_buf)
     return PARSE_INP_SKIP;

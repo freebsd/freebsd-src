@@ -1,96 +1,80 @@
-<HTML>
-<HEAD>
-   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
-   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
-   <TITLE>ntptime - read kernel time variables
-</TITLE>
-</HEAD>
-<BODY>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>ntptime - read kernel time variables</title>
+</head>
+<body>
+<h3><tt>ntptime</tt> - read kernel time variables</h3>
 
-<H3>
-<TT>ntptime</TT> - read kernel time variables</H3>
+<img align="left" src="pic/pogo5.gif" alt="gif"><a href=
+"http://www.eecis.udel.edu/~mills/pictures.htm">from <i>Pogo</i>,
+Walt Kelly</a> 
 
-<HR>
-<H4>
-Synopsis</H4>
-<TT>ntptime [ -chr ] [ -e <I>est_error</I> ] [ -f <I>frequency</I> ] [
--m <I>max_error</I> ] [ -o <I>offset</I> ] [ -s <I>status</I> ] [ -t <I>time_constant</I>
-]</TT>
-<H4>
-Description</H4>
-This program is useful only with special kernels described in the <A HREF="kern.htm">A
-Kernel Model for Precision Timekeeping </A>page. It reads and displays
-time-related kernel variables using the <TT>ntp_gettime()</TT> system call.
-A similar display can be obtained using the <TT>ntpdc</TT> program and
-<TT>kerninfo</TT> command.
-<H4>
-Options</H4>
+<p>The turtle is been swimming in the kernel.<br clear="left">
+</p>
 
-<DL>
-<DT>
-<TT>-c</TT></DT>
+<hr>
+<h4>Synopsis</h4>
 
-<DD>
-Display the execution time of <TT>ntptime</TT> itself.</DD>
+<tt>ntptime [ -chr ] [ -e <i>est_error</i> ] [ -f <i>frequency</i>
+] [ -m <i>max_error</i> ] [ -o <i>offset</i> ] [ -s <i>status</i> ]
+[ -t <i>time_constant</i>]</tt> 
 
-<DT>
-<TT>-e <I>est_error</I></TT></DT>
+<h4>Description</h4>
 
-<DD>
-Specify estimated error, in microseconds.</DD>
+This program is useful only with special kernels described in the
+<a href="kern.htm">A Kernel Model for Precision Timekeeping</a>
+page. It reads and displays time-related kernel variables using the
+<tt>ntp_gettime()</tt> system call. A similar display can be
+obtained using the <tt>ntpdc</tt> program and <tt>kerninfo</tt>
+command. 
 
-<DT>
-<TT>-f <I>frequency</I></TT></DT>
+<h4>Options</h4>
 
-<DD>
-Specify frequency offset, in parts per million.</DD>
+<dl>
+<dt><tt>-c</tt></dt>
 
-<DT>
-<TT>-h</TT></DT>
+<dd>Display the execution time of <tt>ntptime</tt> itself.</dd>
 
-<DD>
-Display times in Unix timeval format. Default is NTP format.</DD>
+<dt><tt>-e <i>est_error</i></tt></dt>
 
-<DT>
-<TT>-l</TT></DT>
+<dd>Specify estimated error, in microseconds.</dd>
 
-<DD>
-Specify the leap bits as a code from 0 to 3.</DD>
+<dt><tt>-f <i>frequency</i></tt></dt>
 
-<DT>
-<TT>-m <I>max_error</I></TT></DT>
+<dd>Specify frequency offset, in parts per million.</dd>
 
-<DD>
-Display help information.</DD>
+<dt><tt>-h</tt></dt>
 
-<DT>
-<TT>-o <I>offset</I></TT></DT>
+<dd>Display help information.</dd>
 
-<DD>
-Specify clock offset, in microseconds.</DD>
+<dt><tt>-m <i>max_error</i></tt></dt>
 
-<DT>
-<TT>-r</TT></DT>
+<dd>Specify max possible errors, in microseconds.</dd>
 
-<DD>
-Display Unix and NTP times in raw format.</DD>
+<dt><tt>-o <i>offset</i></tt></dt>
 
-<DT>
-<TT>-s <I>status</I></TT></DT>
+<dd>Specify clock offset, in microseconds.</dd>
 
-<DD>
-Specify clock status. Better know what you are doing.</DD>
+<dt><tt>-r</tt></dt>
 
-<DT>
-<TT>-t <I>time_constant</I></TT></DT>
+<dd>Display Unix and NTP times in raw format.</dd>
 
-<DD>
-Specify time constant, an integer in the range 0-4.</DD>
-</DL>
+<dt><tt>-s <i>status</i></tt></dt>
 
-<HR>
-<ADDRESS>
-David L. Mills (mills@udel.edu)</ADDRESS>
+<dd>Specify clock status. Better know what you are doing.</dd>
 
-</BODY>
-</HTML>
+<dt><tt>-t <i>time_constant</i></tt></dt>
+
+<dd>Specify time constant, an integer in the range 0-10.</dd>
+</dl>
+
+<hr>
+<a href="index.htm"><img align="left" src="pic/home.gif" alt=
+"gif"></a>
+<address><a href="mailto:mills@udel.edu">David L. Mills
+&lt;mills@udel.edu&gt;</a></address>
+</body>
+</html>
+

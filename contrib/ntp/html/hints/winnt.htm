@@ -1,5 +1,8 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
 <html>
 <head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.7 [en] (WinNT; I) [Netscape]">
    <title>NTP on Windows NT</title>
 </head>
 <body>
@@ -8,10 +11,22 @@
 NTP 4.x for Windows NT</h1>
 
 <h2>
+Do not try to compile NTP-4.0.99i under WINNT, it will not work.
+Fixed NTP-4.0.99i; look for next release to be functional.
+Sven - May 11 2000
+</h2>
+
+<h2>
+Download NTP-4.0.99g for the last stable WINNT port.
+I am working on adapting the major changes starting with 99i
+and getting things running again. Sven - April 25 2000
+</h2>
+
+<h2>
 Introduction</h2>
 The NTP 4 distribution runs as service on (i386) Windows NT 4.0 and Windows
-2000. The binaries now work on all dual processor systems (mostly Dell)
-that have been tested. This port has not been tested on the Alpha platform.
+2000. The binaries work on dual processor systems. This port has not been
+tested on the Alpha platform.
 <p>Refer to System Requirements and Instructions for how to compile the
 program.
 <h2>
@@ -72,9 +87,6 @@ Compiling Requirements</h2>
 <tt>Microsoft Visual C++ 6.0</tt></li>
 
 <li>
-<tt>Perl5 </tt><a href="http://www.perl.org">http://www.perl.org</a></li>
-
-<li>
 Some version of the archiving program <tt>ZIP</tt>.</li>
 </ul>
 
@@ -82,10 +94,6 @@ Some version of the archiving program <tt>ZIP</tt>.</li>
 Compiling Instructions</h2>
 
 <ol>
-<li>
-Install Perl and set the PERL environment variable to your Perl directory
-(e.g. C:\PERL)</li>
-
 <li>
 Unpack the NTP-4.x.tar.gz</li>
 
@@ -144,15 +152,26 @@ is no reason that the system clock should be that much off during bootup
 if 'ntpd' was running before, you may wish to override this default and/or
 pass other command line directives.
 <p>Use the registry editor to edit the value for the ntpd executable under
-LocalMachine\System\CurrentControlSet\Services\NetworkTimeProtocol.
-<p>Add the -g option behind "%INSTALLDIR>\ntpd". This will force NTP to
-accept large time errors (including 1.1.1980 00:00)
+LocalMachine\System\CurrentControlSet\Services\NTP.
+<p>Add the -g option to the ImagePath key, behind "%INSTALLDIR>\ntpd.exe".
+This will force NTP to accept large time errors (including 1.1.1980 00:00)
 <h2>
 Bug Reports</h2>
 Send bug reports to <a href="news://comp.protocols.time.ntp">news://comp.protocols.time.ntp</a>
 and Sven_Dietrich@Trimble.COM
 <h2>
 Change Log</h2>
+
+<h3>
+Last revision 16 February 1999&nbsp; Version 4.0.99e.</h3>
+<b>by Sven Dietrich (sven_dietrich@trimble.com)</b>
+<p><b>Significant Changes:</b>
+<ul>
+<li>
+Perl 5 is no longer needed to compile NTP. The configuration script which
+creates version.c with the current date and time was modified by Frederick
+Czajka [w2k@austin.rr.com] so that Perl is no longer required.</li>
+</ul>
 
 <h3>
 Last revision 15 November 1999&nbsp; Version 4.0.98f.</h3>

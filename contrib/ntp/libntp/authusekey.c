@@ -24,13 +24,11 @@
 
 #endif
 
-#ifdef	MD5
 #define	KEY_TYPE_MD5	4
-#endif
 
 int
 authusekey(
-	u_long keyno,
+	keyid_t keyno,
 	int keytype,
 	const u_char *str
 	)
@@ -119,11 +117,9 @@ authusekey(
 		break;
 #endif
 
-#ifdef	MD5
 	    case KEY_TYPE_MD5:
 		MD5auth_setkey(keyno, str, (int)strlen((const char *)str));
 		break;
-#endif
 
 	    default:
 		/* Oh, well */

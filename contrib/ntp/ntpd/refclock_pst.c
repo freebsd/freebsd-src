@@ -8,14 +8,13 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_PST)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 /*
  * This driver supports the PSTI 1010 and Traconex 1020 WWV/WWVH
