@@ -96,17 +96,17 @@ docShowDocument(dialogMenuItem *self)
 		   "properly set in the Options editor.", browser);
 	return DITEM_FAILURE;
     }
-    if (!strcmp(str, "Home"))
+    if (!strstr(str, "Home"))
 	where = "http://www.freebsd.org";
-    else if (!strcmp(str, "Other"))
+    else if (!strstr(str, "Other"))
 	where = msgGetInput("http://www.freebsd.org", "Please enter the URL of the location you wish to visit.");
-    else if (!strcmp(str, "FAQ")) {
+    else if (!strstr(str, "FAQ")) {
 	strcpy(target, "/usr/share/doc/faq/index.html");
 	if (!file_readable(target))
 	    strcpy(target, "http://www.freebsd.org/FAQ");
 	where = target;
     }
-    else if (!strcmp(str, "Handbook")) {
+    else if (!strstr(str, "Handbook")) {
 	strcpy(target, "/usr/share/doc/handbook/index.html");
 	if (!file_readable(target))
 	    strcpy(target, "http://www.freebsd.org/handbook");
