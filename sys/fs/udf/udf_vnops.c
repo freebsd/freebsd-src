@@ -831,7 +831,7 @@ udf_strategy(struct vop_strategy_args *a)
 	int maxsize;
 
 	bp = a->a_bp;
-	vp = bp->b_vp;
+	vp = a->a_vp;
 	node = VTON(vp);
 
 	KASSERT(a->a_vp == a->a_bp->b_vp, ("%s(%p != %p)",
