@@ -583,20 +583,14 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	}
 
 	/*
-	 * If we are in APIC_IO mode, we should ignore the ISA PIC if it
-	 * shows up.  Likewise, in !APIC_IO mode, we should ignore the
-	 * APIC (less important).
-	 * This is significant because the ISA PIC will claim IRQ 2 (which
-	 * it uses for chaining), while in APIC mode this is a valid IRQ
-	 * available for general use.
+	 * Ignore PICs so that we don't have to worry about the PICs
+	 * claiming IRQs to prevent their use.  The PIC drivers
+	 * already ensure that invalid IRQs are not used.
 	 */
-#ifdef APIC_IO
 	if (!strcmp(pnp_eisaformat(pd->devid), "PNP0000"))	/* ISA PIC */
 	    continue;
-#else
 	if (!strcmp(pnp_eisaformat(pd->devid), "PNP0003"))	/* APIC */
 	    continue;
-#endif	
 	
 	/* Add the device and parse its resources */
 	dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
