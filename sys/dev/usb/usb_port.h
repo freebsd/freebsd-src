@@ -173,9 +173,8 @@ __CONCAT(dname,_detach)(self, flags) \
 #define	uhidpoll		uhidselect
 #define	ugenpoll		ugenselect
 
-#define powerhook_establish(fn, sc) 0
-#define powerhook_disestablish(hdl)
 #define PWR_RESUME 0
+#define PWR_SUSPEND 1
 
 typedef struct device device_ptr_t;
 #define USBBASEDEVICE struct device
@@ -297,10 +296,8 @@ __CONCAT(dname,_detach)(self, flags) \
 #define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (s)), 0)
 #define clfree(p) clist_free_cblocks((p))
 
-#define powerhook_establish(fn, sc) 0
-#define powerhook_disestablish(hdl)
-#define PWR_SUSPEND 1
 #define PWR_RESUME 0
+#define PWR_SUSPEND 1
 
 #define USB_DECLARE_DRIVER_INIT(dname, init...) \
 Static device_probe_t __CONCAT(dname,_match); \
