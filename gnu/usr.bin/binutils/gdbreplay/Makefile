@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13.2.1 1997/02/02 20:46:32 joerg Exp $
+#	$Id: Makefile,v 1.1.1.1 1997/04/25 22:25:22 pst Exp $
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb/gdbserver
@@ -11,7 +11,7 @@ NOMAN=	yes
 
 SRCS=	gdbreplay.c
 
-CFLAGS+=-I${.CURDIR}/../gdb -I${.CURDIR}/../bfd -I${GDBDIR}/gdb -I${GDBDIR}/bfd
+CFLAGS+=-I${.CURDIR}/../gdb -I${.CURDIR}/../bfd
 CFLAGS+=-DNO_MMALLOC
 
 .include <bsd.prog.mk>
