@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.35 1997/04/30 21:54:01 fsmp Exp $
+#	$Id: bsd.kmod.mk,v 1.36 1997/05/06 14:29:56 dfr Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -112,6 +112,9 @@ ${SMPHDRS}:
 #
 CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
 	${CWARNFLAGS}
+.if defined(DESTDIR)
+CFLAGS+=	-I${DESTDIR}/usr/include
+.endif
 
 EXPORT_SYMS?= _${KMOD}
 
