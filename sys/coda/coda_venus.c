@@ -35,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
-#include <sys/select.h>
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
 

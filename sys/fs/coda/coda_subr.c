@@ -60,7 +60,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/select.h>
 #include <sys/mount.h>
 
 #include <coda/coda.h>
