@@ -73,7 +73,7 @@ chkerr() {
 }
 
 mount_md() {
-	/sbin/mount_mfs -s $1 -T qp120at -b 4096 -f 1024 dummy $2
+	/sbin/mount_mfs -s $1 -T qp120at -b 8192 -f 1024 dummy $2
 }
 
 # DEBUGGING
