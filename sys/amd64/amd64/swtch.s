@@ -33,10 +33,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.43 1997/02/22 09:32:51 peter Exp $
+ *	$Id: swtch.s,v 1.44 1997/04/07 07:15:54 peter Exp $
  */
 
-#include "apm.h"
 #include "npx.h"
 #include "opt_user_ldt.h"
 
@@ -273,13 +272,15 @@ idle_loop:
 	testl	%eax, %eax
 	jnz	idle_loop
 	sti
-#if NAPM > 0 && defined(APM_IDLE_CPU)
-	call    _apm_cpu_idle
-	call    _apm_cpu_busy
-#else
-	hlt					/* wait for interrupt */
-#endif
+	call	*_hlt_vector			/* wait for interrupt */
 	jmp	idle_loop
+
+defaulthlt:
+	hlt
+	ret
+
+	.globl	_hlt_vector
+_hlt_vector:	.long	defaulthlt
 
 CROSSJUMPTARGET(_idle)
 
