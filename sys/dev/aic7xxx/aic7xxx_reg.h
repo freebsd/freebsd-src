@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.2.2.10 1997/02/12 18:35:43 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.2.2.11 1997/02/18 19:52:38 gibbs Exp $
  */
 
 /*
@@ -382,6 +382,7 @@
 #define		STBOFF		0x38
 #define		STBON		0x07
 #define		DFTHRSH_100	0xc0
+#define		DFTHRSH_75	0x80
 
 /*
  * Host Control (p. 3-47) R/W
@@ -413,6 +414,10 @@
 #define			REJECT_MSG	0x61	/* Reject message received */
 #define			BAD_STATUS	0x71	/* Bad status from target */
 #define			RESIDUAL	0x81	/* Residual byte count != 0 */
+#define			ABORT_CMDCMPLT	0x91	/*
+						 * Command tagged for abort
+						 * completed successfully.
+						 */
 #define			AWAITING_MSG	0xa1	/*
 						 * Kernel requested to specify
                                                  * a message to this target

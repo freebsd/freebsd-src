@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.19 1997/02/12 18:35:41 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.20 1997/02/18 19:52:36 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -81,7 +81,11 @@ A = ACCUM
  */
 reset:
 	clr	SCSISIGO		/* De-assert BSY */
-
+	mvi	CLRSINT0, 0xFF		/* Clear all interrupts */
+	mvi	CLRSINT1, 0xFF		/* Clear all interrupts */
+	mvi	SCSISEQ,0x12		/* Always allow reselection 
+					 * ENRSELI|ENAUTOATNP
+					 */
 p_busfree:
 	clr	DFCNTRL
 	clr	SCSIRATE		/*
@@ -90,7 +94,6 @@ p_busfree:
 					 * transfers to avoid parity problems.
 					 */
 	and	SXFRCTL0, 0xdf		/* ~FAST20*/
-	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
 	mvi	LASTPHASE, P_BUSFREE
 	and	FLAGS,0x07		/* clear target specific flags */
 poll_for_work:
@@ -216,7 +219,9 @@ start_scb2:
  * selection bus phases.
  */
 start_selection:
-	mvi	SCSISEQ,0x58		/* ENSELO|ENAUTOATNO|ENRSELI */
+	mvi	SCSISEQ,0x5a		/* ENSELO|ENAUTOATNO|ENRSELI
+					 * |ENAUTOATNP
+					 */
 
 /*
  * As soon as we get a successful selection, the target should go
@@ -278,18 +283,18 @@ select:
 	mov	WAITING_SCBH,SCB_NEXT
 select2:
 	/* Turn off the selection hardware */
-	mvi	SCSISEQ,ENAUTOATNP		/*
+	mvi	CLRSINT1,CLRBUSFREE
+	mvi	SCSISEQ, 0x12			/* ENRSELI|ENAUTOATNP
 						 * ATN on parity errors
 						 * for "in" phases
 						 */
-	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
-	mvi	CLRSINT1,CLRBUSFREE
 	or	SIMODE1, ENBUSFREE		/*
 						 * We aren't expecting a
 						 * bus free, so interrupt
 						 * the kernel driver if it
 						 * happens.
 						 */
+	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
 /*
  * Initialize Ultra mode setting and clear the SCSI channel.
  */
@@ -659,6 +664,8 @@ complete:
 	/* Post the SCB and issue an interrupt */
 	mov	QOUTFIFO,SCB_TAG
 	mvi	INTSTAT,CMDCMPLT
+	test	SCB_CONTROL, ABORT_SCB jz dma_next_scb
+	mvi	INTSTAT ABORT_CMDCMPLT
 
 dma_next_scb:
 	cmp	SCB_LINKED_NEXT, SCB_LIST_NULL	je add_to_free_list
@@ -817,7 +824,7 @@ not_found:
 send_abort_msg:
 	test	FLAGS, TAGGED_SCB jnz abort_tag_msg
 	mvi	MSG_ABORT	call mk_mesg
-	jmp	mesgin_done
+	jmp	ITloop
 abort_tag_msg:
 	mvi	MSG_ABORT_TAG	call mk_mesg	/* ABORT TAG message */
 	jmp	mesgin_done
@@ -994,7 +1001,6 @@ find_dma_scb:
 	mvi	DMAPARAMS, 0xd	/* HDMAEN|DIRECTION|FIFORESET */
 	mov	ARG_1	call dma_scb
 	test	SCB_CONTROL, ABORT_SCB jz return
-	call	add_scb_to_free_list
 find_error:
 	mvi	SINDEX, SCB_LIST_NULL ret
 findBySCBID:

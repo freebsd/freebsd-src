@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.10.2.12 1997/02/12 18:39:03 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.10.2.13 1997/02/18 04:27:08 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -55,7 +55,7 @@
 #define	stqe_next		sqe_next
 #endif
 
-#define AHC_NSEG	32	/* The number of dma segments supported.
+#define	AHC_NSEG	32	/* The number of dma segments supported.
 				 * AHC_NSEG can be maxed out at 256 entries,
 				 * but the kernel will never need to transfer
 				 * such a large (1MB) request.  To reduce the
@@ -146,17 +146,17 @@ typedef enum {
 	SCB_ACTIVE		= 0x0001,
 	SCB_ABORTED		= 0x0002,
 	SCB_DEVICE_RESET	= 0x0004,
-	SCB_IMMED		= 0x0008,
-	SCB_SENSE		= 0x0010,
-	SCB_TIMEDOUT		= 0x0020,
-	SCB_QUEUED_FOR_DONE	= 0x0040,
-	SCB_RECOVERY_SCB	= 0x0080,
-	SCB_WAITINGQ		= 0x0100,
-	SCB_ASSIGNEDQ		= 0x0200,
-	SCB_SENTORDEREDTAG	= 0x0400,
-	SCB_MSGOUT_SDTR		= 0x0800,
-	SCB_MSGOUT_WDTR		= 0x1000,
-	SCB_ABORT		= 0x2000
+	SCB_SENSE		= 0x0008,
+	SCB_TIMEDOUT		= 0x0010,
+	SCB_QUEUED_FOR_DONE	= 0x0020,
+	SCB_RECOVERY_SCB	= 0x0040,
+	SCB_WAITINGQ		= 0x0080,
+	SCB_ASSIGNEDQ		= 0x0100,
+	SCB_SENTORDEREDTAG	= 0x0200,
+	SCB_MSGOUT_SDTR		= 0x0400,
+	SCB_MSGOUT_WDTR		= 0x0800,
+	SCB_ABORT		= 0x1000,
+	SCB_QUEUED_ABORT	= 0x2000
 } scb_flag;
 
 /*
@@ -289,8 +289,8 @@ struct ahc_softc {
 	u_int8_t	pause;
 	u_int8_t	in_timeout;
 	u_int8_t	in_reset;
-#define CHANNEL_A_RESET		0x01
-#define CHANNEL_B_RESET		0x02
+#define	CHANNEL_A_RESET		0x01
+#define	CHANNEL_B_RESET		0x02
 };
 
 struct full_ahc_softc {

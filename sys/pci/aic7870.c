@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.11.2.18 1996/10/06 16:42:35 gibbs Exp $
+ *	$Id: aic7870.c,v 1.11.2.19 1997/02/12 18:40:17 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -641,18 +641,18 @@ ahc_pci_attach(parent, self, aux)
 		printf("%s: %s", ahc_name(ahc), id_string);
 	}
 
+	/*
+	 * Put our termination setting into sxfrctl1 now so that the
+	 * generic initialization can see it.
+	 */
+	sxfrctl1 |= ahc_inb(ahc, SXFRCTL1);
+	ahc_outb(ahc, SXFRCTL1, sxfrctl1);
+
 	if (ahc_init(ahc)){
 		ahc_free(ahc);
 		splx(opri);
 		return; /* XXX PCI code should take return status */
 	}
-
-	/*
-	 * Put our termination setting into sxfrctl1 now that the
-	 * generic initialization is complete.
-	 */
-	sxfrctl1 |= ahc_inb(ahc, SXFRCTL1);
-	ahc_outb(ahc, SXFRCTL1, sxfrctl1);
 
 	if ((ahc->type & AHC_398) == AHC_398) {
 		/* Only set this once we've successfully probed */
