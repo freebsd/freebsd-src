@@ -302,6 +302,10 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	     *     flag as the request bubbles up?
 	     */
 	case SYS_RES_MEMORY:
+	    if (start < sc->membase && end > sc->membase)
+		start = sc->membase;
+	    if (end > sc->memlimit && start < end)
+		end = sc->memlimit;
 	    if (((start < sc->membase) || (end > sc->memlimit)) &&
 		((start < sc->pmembase) || (end > sc->pmemlimit))) {
 		device_printf(dev, "device %s%d requested unsupported memory range 0x%lx-0x%lx"
