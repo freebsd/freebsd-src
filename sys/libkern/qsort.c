@@ -36,10 +36,9 @@
 static char sccsid[] = "@(#)qsort.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: qsort.c,v 1.2 1995/12/26 13:24:47 bde Exp $";
 #endif /* LIBC_SCCS and not lint */
 
-#include <sys/types.h>
 #include <stdlib.h>
 
 typedef int		 cmp_t __P((const void *, const void *));
