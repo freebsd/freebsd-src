@@ -74,6 +74,12 @@ danish.cp865.kbd:fr:Danois Code page 865
 danish.cp865.kbd:pt:Dinamarquês Codepage 865
 danish.cp865.kbd:es:Danés Codepage 865
 
+estonian.iso.kbd:en:Estonian ISO-8859-1
+
+estonian.iso15.kbd:en:Estonian ISO-8859-15
+
+estonian.cp850.kbd:en:Estonian Codepage 850
+
 finnish.iso.kbd:en:Finnish ISO-8859-1
 
 finnish.cp850.kbd:en:Finnish Codepage 850
