@@ -87,18 +87,18 @@ ENTRY(ia64_change_mode, 0)
 	;;
 1:	mov	r16=ip
 	mov	ar.rnat=r18
-	mov	cr.ipsr=r14		// psr for physical mode
+	mov	cr.ipsr=r14		// psr for new mode
 	;; 
 	add	r16=2f-1b,r16		// address to rfi to
 	;;
-	dep	r16=r15,r16,61,3	// physical
+	dep	r16=r15,r16,61,3	// new mode address for rfi
 	;;
 	mov	cr.iip=r16		// setup for rfi
 	mov	cr.ifs=r0
 	;;
 	rfi
 	
-2:	br.ret.sptk.few rp		// now in physical mode
+2:	br.ret.sptk.few rp		// now in new mode
 	
 END(ia64_change_mode)
 
