@@ -198,13 +198,6 @@ in the reverse direction. To facilitate this, the recipient of a
 control message is supplied with a
 .Dq return address
 that is suitable for addressing a reply. 
-In addition, depending on the topology of
-the graph and whether the source has requested it, a pointer to a
-pointer that can be read by the source node may also be supplied.
-This allows the destination node to directly respond in a
-synchronous manner when control returns to the source node, by
-simply pointing the supplied pointer to the response message.
-Such synchronous message responses are more efficient but are not always possible.
 .Pp
 Each control message contains a 32 bit value called a
 .Em typecookie
@@ -223,11 +216,7 @@ messages for flow control and link management purposes are
 defined by the base system that are usually
 passed around in this manner. Flow control message would usually travel
 in the opposite direction to the data to which they pertain.
-.Pp
-Since flow control packets can also result from data being sent, it is also
-possible to return a synchronous message response to a data packet being
-sent between nodes. (See later).
-.Sh Netgraph is Functional
+.Sh Netgraph is (usually) Functional
 In order to minimize latency, most
 .Nm
 operations are functional.
@@ -241,20 +230,25 @@ node B and calls B's
 .Dq receive data
 method. There are exceptions to this.
 .Pp
-It is allowable for nodes to reject a data packet, or to pass it back to the
-caller in a modified or completely replaced form. The caller can notify the
-node being called that it does not wish to receive any such packets
-by using the
-.Fn NG_SEND_DATA
-and
-.Fn NG_SEND_DATA_ONLY
-macros, in which case, the second node should just discard rejected packets.
-If the sender knows how to handle returned packets, it must use the
-.Fn NG_SEND_DATA_RET
-macro, which will adjust the parameters to point to the returned data
-or NULL if no data was returned to the caller. No packet return is possible
-across a queuing link (though an explicitly sent return is of course possible,
-it doesn't mean quite the same thing).
+Each node has an input queue, and some operations can be considered to
+be 'writers' in that they alter the state of the node. Obviously in an SMP
+world it would be bad if the state of a node were changed while another
+data packet were transiting the node. For this purpose, the input queue
+implements a 
+.Em reader/writer
+semantic so that when there is a writer in the node, all other requests
+are queued, and while there are readers, a writer, and any following
+packets are queued. In the case where there is no reason to queue the
+data, the input method is called directly, as mentionned above.
+.Pp
+A node may declare that all requests should be considered as writers,
+or that requests coming in over a particular hook should be considered to 
+be a writer, or even that packets leaving or entering across a particular
+hook should always be queued, rather than delivered directly (often useful
+for interrupt routines who want to get back to the hardware quickly).
+By default, all controll message packets are considered to be writers
+unless specifically declared to be a reader in their definition. (see
+NGM_READONLY in ng_message.h)
 .Pp
 While this mode of operation
 results in good performance, it has a few implications for node
@@ -358,20 +352,42 @@ but doesn't remove it, in which case the generic destructor is not called.
 Two other methods are also supported by all nodes:
 .Bl -tag -width xxx
 .It Receive data message
-An mbuf chain is passed to the node.
-The node is notified on which hook the data arrived,
+A
+.Em Netgraph queueable reqest item
+(usually refered to as an 
+.Em item
+is recieved by the function.
+The item contains a pointer to an mbuf and metadata about the packet.
+.Pp
+The node is notified on which hook the item arrived,
 and can use this information in its processing decision.
 The receiving node must always 
-.Fn m_freem
-the mbuf chain on completion or error, pass it back (reject it), or pass
-it on to another node
+.Fn NG_FREE_M
+the mbuf chain on completion or error, or pass it on to another node
 (or kernel module) which will then be responsible for freeing it.
-If a node passes a packet back to the caller, it does not have to be the 
-same mbuf, in which case the original must be freed. Passing a packet
-back allows a module to modify the original data (e.g. encrypt it),
-or in some other way filter it (e.g. packet filtering). 
+Similarly the 
+.Em item
+must be freed if it is not to be passed on to another node, by using the
+.Fn NG_FREE_ITEM
+macro. If the item still holds references to mbufs or metadata at the time of
+freeing then they will also be appropriatly freed.
+Therefore, if there is any chance that the mbuf or metadata will be
+changed or freed separatly from the item, it is very important
+that these fields be retrieved using the 
+.Fn NGI_GET_M
+and
+.Fn NGI_GET_META
+macros that also remove the reference within the item. (or multiple frees
+of the same object will occur).
 .Pp
-In addition to the mbuf chain itself there is also a pointer to a 
+If it is only required to examine the contents of the mbufs or the 
+metadata, then it is possible to use the
+.Fn NGI_M
+and
+.Fn NGI_META
+macros to both read and rewrite these fields.
+.Pp
+In addition to the mbuf chain itself there may also be a pointer to a 
 structure describing meta-data about the message
 (e.g. priority information). This pointer may be
 .Dv NULL
@@ -381,18 +397,15 @@ described in
 The memory for meta-data must allocated via
 .Fn malloc
 with type
-.Dv M_NETGRAPH .
+.Dv M_NETGRAPH_META .
 As with the data itself, it is the receiver's responsibility to
 .Fn free
 the meta-data. If the mbuf chain is freed the meta-data must
 be freed at the same time. If the meta-data is freed but the
 real data on is passed on, then a
 .Dv NULL
-pointer must be substituted.
-Meta-data may be passed back in the same way that mbuf data may be passed back.
-As with mbuf data, the rejected or returned meta-data pointer may point to
-the same or different meta-data as that passed in,
-and if it is different, the original must be freed.
+pointer must be substituted. It is also the duty of the receiver to free
+the request item itself, or to use it to pass the message on further.
 .Pp
 The receiving node may decide to defer the data by queueing it in the
 .Nm
@@ -414,34 +427,44 @@ presently used in frame-relay to indicate that management packets
 should be queued for transmission
 at a higher priority than data packets. This is required for
 conformance with Frame Relay standards.
-.Pp
-The node may also receive information allowing it to send a synchronous
-message response to one of the originators of the data. it is envisionned
-that such a message would contain error or flow-control information. 
-Standard messages for these purposes have been defined in 
-.Pa sys/netgraph/netgraph.h .
 .It Receive control message
 This method is called when a control message is addressed to the node.
+As with the received data, an
+.Em item
+is reveived, with a pointer to the control message.
+The message can be examined using the 
+.Fn NGI_MSG
+macro, or completely extracted from the item using the
+.Fn NGI_GET_MSG
+which also removes the reference within the item.
+If the Item still holds a reference to the message when it is freed
+(using the 
+.Fn NG_FREE_ITEM
+macro), then the message will also be freed appropriatly. If the 
+reference has been removed the node must free the message itself using the
+.Fn NG_FREE_MSG
+macro.
 A return address is always supplied, giving the address of the node
 that originated the message so a reply message can be sent anytime later.
-.Pp
-It is possible for a synchronous reply to be made, and in fact this
-is more common in practice.
-This is done by setting a pointer (supplied as an extra function parameter)
-to point to the reply.
-Then when the control message delivery function returns,
-the caller can check if this pointer has been made non-NULL,
-and if so then it points to the reply message allocated via
-.Fn malloc
-and containing the synchronous response. In both directions, 
-(request and response) it is up to the 
-receiver of that message to 
-.Fn free
-the control message buffer. All control messages and replies are
+The return address is retrieved from the
+.Em item
+using the
+.Fn NGI_RETADDR
+macro and is of type 
+.Em ng_ID_t.
+All control messages and replies are
 allocated with
 .Fn malloc
 type
-.Dv M_NETGRAPH .
+.Dv M_NETGRAPH_MSG ,
+however it is more usual to use the
+.Fn NG_MKMESSAGE
+and
+.Fn NG_MKRESPONSE
+macros to allocate and fill out a message.
+Messages must be freed using the 
+.Fn NG_FREE_MSG
+macro.
 .Pp
 If the message was delivered via a specific hook, that hook will
 also be made known, which allows the use of such things as flow-control
@@ -484,6 +507,7 @@ Here are some examples of valid netgraph addresses:
 .Bd -literal -offset 4n -compact
 
   .:
+  [3f]:
   foo:
   .:hook1
   foo:hook1.hook2
@@ -571,92 +595,71 @@ over an ISDN line:
             [ (no name)  ]                       [ (no name)  ]
 .Ed
 .Sh Netgraph Structures
-Interesting members of the node and hook structures are shown below
-however you should
-check
+Structures are defined in 
 .Pa sys/netgraph/netgraph.h 
-on your system for more up-to-date versions.
-.Bd -literal
-struct  ng_node {
-  char    *name;                /* Optional globally unique name */
-  void    *private;             /* Node implementation private info */
-  struct  ng_type *type;        /* The type of this node */
-  int     refs;                 /* Number of references to this struct */
-  int     numhooks;             /* Number of connected hooks */
-  hook_p  hooks;                /* Linked list of (connected) hooks */
-};
-typedef struct ng_node *node_p;
+(for kernel sructures only of interest to nodes)
+and
+.Pa sys/netgraph/ng_message.h 
+(for message definitions also of interest to user programs).
 
-struct  ng_hook {
-  char           *name;         /* This node's name for this hook */
-  void           *private;      /* Node implementation private info */
-  int            refs;          /* Number of references to this struct */
-  struct ng_node *node;         /* The node this hook is attached to */
-  struct ng_hook *peer;         /* The other hook in this connected pair */
-  struct ng_hook *next;         /* Next in list of hooks for this node */
-};
-typedef struct ng_hook *hook_p;
-.Ed
+The following structures exist and have the following access
+fields of interest to the node writers. If applicable I show the
+access method for that information.
+for their fields:
+.Bl -tag -width xxx
+./.Bl  -bullet -compact -offset 2n
+.It struct  ng_node
+typedef struct ng_node *node_p;
+.Bl -tag -width xxx
+.It  char    name[NG_NODELEN+1]
+Optional globally unique name, null terminated string. If there
+is a value in here, it is the name of the node.
 .Pp
-The maintenance of the name pointers, reference counts, and linked list
+if (node->name[0]) ....
+.Pp
+.It  void    *private
+Node implementation private info.
+You may place anything you wish here.
+.It  int     numhooks
+Number of connected hooks.
+.It  hook_p  hooks
+Linked list of (connected) hooks.
+.El
+.It struct  ng_hook 
+typedef struct ng_hook *hook_p;
+.Bl -tag -width xxx
+.It  void           *private;      
+Node implementation private info.
+You may place anything you wish in this field.
+.It  struct ng_node *node;         
+The node this hook is attached to.
+.It  struct ng_hook *peer;         
+The other hook in this connected pair.
+.It  struct ng_hook *next;         
+Next in list of hooks for this node.
+A hook list traversal method will be supplied so use of this field
+directly will go away.
+.El
+.Pp
+The maintenance of the names, reference counts, and linked list
 of hooks for each node is handled automatically by the
 .Nm
 subsystem.
 Typically a node's private info contains a back-pointer to the node or hook
-structure, which counts as a new reference that must be registered by
-incrementing
-.Dv "node->refs" .
+structure, which counts as a new reference that must be included
+in the reference count for the node. When the node constructor is called
+there is already a reference for this calculated in, so that
+when the node is destroyed, it should remember to do a
+.Fn ng_unref
+on the node.
 .Pp
 From a hook you can obtain the corresponding node, and from
-a node the list of all active hooks.
+a node, the list of all active hooks.
 .Pp
-Node types are described by the structures below:
-.Bd -literal
-/** How to convert a control message from binary <-> ASCII */
-struct ng_cmdlist {
-  u_int32_t                  cookie;     /* typecookie */
-  int                        cmd;        /* command number */
-  const char                 *name;      /* command name */
-  const struct ng_parse_type *mesgType;  /* args if !NGF_RESP */
-  const struct ng_parse_type *respType;  /* args if NGF_RESP */
-};
-
-struct ng_type {
-  u_int32_t version;                    /* Must equal NG_ABI_VERSION */
-  const  char *name;                    /* Unique type name */
-
-  /* Module event handler */
-  modeventhand_t  mod_event;            /* Handle load/unload (optional) */
-
-  /* Constructor */
-  int    (*constructor)(node_p *node);  /* Create a new node */
-
-  /** Methods using the node **/
-  int    (*rcvmsg)(node_p node,         /* Receive control message */
-            struct ng_mesg *msg,        /* The message */
-            const char *retaddr,        /* Return address */
-            struct ng_mesg **resp       /* Synchronous response */
-            hook_p lasthook);           /* last hook traversed */
-  int    (*shutdown)(node_p node);      /* Shutdown this node */
-  int    (*newhook)(node_p node,        /* create a new hook */
-            hook_p hook,                /* Pre-allocated struct */
-            const char *name);          /* Name for new hook */
-
-  /** Methods using the hook **/
-  int    (*connect)(hook_p hook);       /* Confirm new hook attachment */
-  int    (*rcvdata)(hook_p hook,        /* Receive data on a hook */
-            struct mbuf *m,             /* The data in an mbuf */
-            meta_p meta,                /* Meta-data, if any */
-            struct mbuf  **ret_m,       /* return data here */
-            meta_p *ret_meta,           /* return Meta-data here */
-            struct ng_message **resp);  /* Synchronous reply info */
-  int    (*disconnect)(hook_p hook);    /* Notify disconnection of hook */
-
-  /** How to convert control messages binary <-> ASCII */
-  const struct ng_cmdlist *cmdlist; 	/* Optional; may be NULL */
-};
-.Ed
-.Pp
+A current example of how to define a node can always be seen in 
+.Em sys/netgraph/ng_sample.c
+and should be used as a starting point for new node writers.
+.Sh Netgraph Message Structure
 Control messages have the following structure:
 .Bd -literal
 #define NG_CMDSTRLEN    15      /* Max command string (16 with null) */
@@ -1116,8 +1119,8 @@ Nodes are responsible for freeing what they allocate.
 There are three exceptions:
 .Bl -tag -width xxxx
 .It 1
-Mbufs sent across a data link are never to be freed by the sender, 
-unless it is returned from the recipient. 
+Mbufs sent across a data link are never to be freed by the sender. In the
+case of error, they should be considered freed.
 .It 2
 Any meta-data information traveling with the data has the same restriction.
 It might be freed by any node the data passes through, and a
@@ -1126,7 +1129,7 @@ passed onwards, but the caller will never free it.
 Two macros
 .Fn NG_FREE_META "meta"
 and
-.Fn NG_FREE_DATA "m" "meta"
+.Fn NG_FREE_M "m"
 should be used if possible to free data and meta data (see
 .Pa netgraph.h ) .
 .It 3
@@ -1135,6 +1138,13 @@ Messages sent using
 are freed by the recipient. As in the case above, the addresses
 associated with the message are freed by whatever allocated them so the 
 recipient should copy them if it wants to keep that information.
+.It 4
+Both control mesages and data are delivered and queued with
+a netgraph 
+.Em item .
+The item must be freed using 
+.Fn NG_FREE_ITEM "item"
+or passed on to another node.
 .El
 .Sh FILES
 .Bl -tag -width xxxxx -compact
@@ -1159,6 +1169,8 @@ nodes, including the type cookie definition.
 Netgraph subsystem loadable KLD module.
 .It Pa /modules/ng_{type}.ko
 Loadable KLD module for node type {type}.
+.It Pa /sys/netgraph/ng_sample.c
+ Skeleton netgraph node. Use this as a starting point for new node types.
 .El
 .Sh USER MODE SUPPORT
 There is a library for supporting user-mode programs that wish

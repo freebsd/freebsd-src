@@ -70,7 +70,7 @@ typedef struct ng_UI_private *priv_p;
 /* Netgraph node methods */
 static ng_constructor_t	ng_UI_constructor;
 static ng_rcvmsg_t	ng_UI_rcvmsg;
-static ng_shutdown_t	ng_UI_rmnode;
+static ng_shutdown_t	ng_UI_shutdown;
 static ng_newhook_t	ng_UI_newhook;
 static ng_rcvdata_t	ng_UI_rcvdata;
 static ng_disconnect_t	ng_UI_disconnect;
@@ -82,7 +82,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_UI_constructor,
 	ng_UI_rcvmsg,
-	ng_UI_rmnode,
+	ng_UI_shutdown,
 	ng_UI_newhook,
 	NULL,
 	NULL,
@@ -101,24 +101,16 @@ NETGRAPH_INIT(UI, &typestruct);
  */
 
 static int
-ng_UI_constructor(node_p *nodep)
+ng_UI_constructor(node_p nodep)
 {
 	priv_p  priv;
-	int     error;
 
 	/* Allocate private structure */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
+	if (priv == NULL) {
 		return (ENOMEM);
-
-	/* Call generic node constructor */
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
-		FREE(priv, M_NETGRAPH);
-		return (error);
 	}
-	(*nodep)->private = priv;
-
-	/* Done */
+	nodep->private = priv;
 	return (0);
 }
 
@@ -147,26 +139,30 @@ ng_UI_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_UI_rcvmsg(node_p node, struct ng_mesg *msg,
-	     const char *raddr, struct ng_mesg **rp, hook_p lasthook)
+ng_UI_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
+	int	error;
 	const priv_p priv = node->private;
+	struct ng_mesg *msg;
 
+	msg = NGI_MSG(item); /* only peeking */
 	if ((msg->header.typecookie == NGM_FLOW_COOKIE) && lasthook)  {
 		if (lasthook == priv->downlink) {
 			if (priv->uplink) {
-				return (ng_send_msg(node, msg, NULL,
-					priv->uplink, raddr, rp));
+				NG_FWD_MSG_HOOK(error, node, item,
+					priv->uplink, 0);
+				return (error);
 			}
 		} else {
 			if (priv->downlink) {
-				return (ng_send_msg(node, msg, NULL,
-					priv->downlink, raddr, rp));
+				NG_FWD_MSG_HOOK(error, node, item, 
+					priv->downlink, 0);
+				return (error);
 			}
 		}
 	}
 		
-	FREE(msg, M_NETGRAPH);
+	NG_FREE_MSG(msg);
 	return (EINVAL);
 }
 
@@ -177,13 +173,14 @@ ng_UI_rcvmsg(node_p node, struct ng_mesg *msg,
  * Receive a data frame
  */
 static int
-ng_UI_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta,  struct ng_mesg **resp)
+ng_UI_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
+	struct mbuf *m;
 	int error = 0;
 
+	NGI_GET_M(item, m);
 	if (hook == priv->downlink) {
 		u_char *start, *ptr;
 
@@ -197,18 +194,20 @@ ng_UI_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			ERROUT(0);
 
 		m_adj(m, ptr - start);
-		NG_SEND_DATA(error, priv->uplink, m, meta);	/* m -> NULL */
+		NG_FWD_NEW_DATA(error, item, priv->uplink, m);	/* m -> NULL */
 	} else if (hook == priv->uplink) {
 		M_PREPEND(m, 1, M_DONTWAIT);	/* Prepend IP NLPID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
-		NG_SEND_DATA(error, priv->downlink, m, meta);	/* m -> NULL */
+		NG_FWD_NEW_DATA(error, item, priv->downlink, m);	/* m -> NULL */
 	} else
 		panic(__FUNCTION__);
 
 done:
-	NG_FREE_DATA(m, meta);	/* does nothing if m == NULL */
+	NG_FREE_M(m);	/* does nothing if m == NULL */
+	if (item)
+		NG_FREE_ITEM(item);
 	return (error);
 }
 
@@ -216,15 +215,11 @@ done:
  * Shutdown node
  */
 static int
-ng_UI_rmnode(node_p node)
+ng_UI_shutdown(node_p node)
 {
 	const priv_p priv = node->private;
 
 	/* Take down netgraph node */
-	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
-	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
 	node->private = NULL;
 	ng_unref(node);
@@ -239,14 +234,20 @@ ng_UI_disconnect(hook_p hook)
 {
 	const priv_p priv = hook->node->private;
 
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
-	else if (hook == priv->downlink)
+	if (hook == priv->downlink)
 		priv->downlink = NULL;
 	else if (hook == priv->uplink)
 		priv->uplink = NULL;
 	else
 		panic(__FUNCTION__);
+	/*
+	 * If we are not already shutting down,
+	 * and we have no more hooks, then DO shut down.
+	 */
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0)) {
+			ng_rmnode_self(hook->node);
+	}
 	return (0);
 }
 

@@ -267,7 +267,7 @@ struct softc {
 };
 
 static int
-ngmn_constructor(node_p *nodep)
+ngmn_constructor(node_p node)
 {
 
 	return (EINVAL);
@@ -281,29 +281,29 @@ ngmn_shutdown(node_p nodep)
 }
 
 static int
-ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-								struct ng_mesg **rptr, hook_p lasthook)
+ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct softc *sc;
 	struct ng_mesg *resp = NULL;
 	struct schan *sch;
 	char *arg;
 	int pos, i;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	sc = node->private;
 
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE ||
-		rptr == NULL ||  /* temporary */
 	    msg->header.cmd != NGM_TEXT_STATUS) {
-		if (rptr)
-			*rptr = NULL;
-		FREE(msg, M_NETGRAPH);
+		NG_FREE_ITEM(item);
+		NG_FREE_MSG(msg);
 		return (EINVAL);
 	}
 	NG_MKRESPONSE(resp, msg, sizeof(struct ng_mesg) + NG_TEXTRESPONSE,
 	    M_NOWAIT);
 	if (resp == NULL) {
-		FREE(msg, M_NETGRAPH);
+		NG_FREE_ITEM(item);
+		NG_FREE_MSG(msg);
 		return (ENOMEM);
 	}
 	arg = (char *)resp->data;
@@ -377,12 +377,8 @@ ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 	resp->header.arglen = pos + 1;
 
 	/* Take care of synchronous response, if any */
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);	/* Will eventually send the hard way */
-
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(i, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (0);
 }
 
@@ -505,28 +501,30 @@ mn_fmt_ts(char *p, u_int32_t ts)
  */
 
 static int
-ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ngmn_rcvdata(hook_p hook, item_p item)
 {
 	struct mbuf  *m2;
 	struct trxd *dp, *dp2;
 	struct schan *sch;
 	struct softc *sc;
 	int chan, pitch, len;
+	struct mbuf *m;
 
 	sch = hook->private;
 	sc = sch->sc;
 	chan = sch->chan;
 
 	if (sch->state != UP) {
-		NG_FREE_DATA(m, meta);
+		NG_FREE_ITEM(item);
 		return (0);
 	}
+	NGI_GET_M(item, m);
 	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * mn_maxlatency) {
-		NG_FREE_DATA(m, meta);
+		NG_FREE_M(m);
+		NG_FREE_ITEM(item);
 		return (0);
 	}
-	NG_FREE_META(meta);
+	NG_FREE_ITEM(item);
 	pitch = 0;
 	m2 = m;
 	dp2 = sc->ch[chan]->xl;
@@ -1350,7 +1348,6 @@ mn_attach (device_t self)
 	sc->node->private = sc;
 	sprintf(sc->nodename, "%s%d", NG_MN_NODE_TYPE, sc->unit);
 	if (ng_name_node(sc->node, sc->nodename)) {
-		ng_rmnode(sc->node);
 		ng_unref(sc->node);
 		return (0);
 	}

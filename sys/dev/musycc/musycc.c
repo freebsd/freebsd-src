@@ -834,7 +834,7 @@ musycc_intr1(void *arg)
  */
 
 static int
-musycc_constructor(node_p *nodep)
+musycc_constructor(node_p node)
 {
 
 	return (EINVAL);
@@ -929,21 +929,19 @@ barf:
 /*
  * Handle status and config enquiries.
  * Respond with a synchronous response.
- * [JRE] -this would be easier to read with the usual 'switch' structure-
  */
 static int
-musycc_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-					struct ng_mesg **rptr, hook_p lasthook)
+musycc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct softc *sc;
 	struct ng_mesg *resp = NULL;
 	char *s, *r;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	
+	NGI_GET_MSG(item, msg);
 	sc = node->private;
-	if (rptr)
-		*rptr = NULL; /* default answer in case of errors */
-
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE)
 		goto out;
 
@@ -957,7 +955,7 @@ musycc_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		s = (char *)resp->data;
 		status_8370(sc, s);
 		resp->header.arglen = strlen(s) + 1;
-		FREE(msg, M_NETGRAPH);
+		NG_FREE_MSG(msg);
 		
 	} else if (msg->header.cmd == NGM_TEXT_CONFIG) {
 		if (msg->header.arglen) {
@@ -976,19 +974,15 @@ musycc_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		*r = '\0';
 		musycc_config(node, s, r);
 		resp->header.arglen = strlen(r) + 1;
-		FREE(msg, M_NETGRAPH);
+		NG_FREE_MSG(msg);
 	} else {
 		error = EINVAL;
 	}
 
 out:
 	/* Take care of synchronous response, if any */
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH); /* eventually 'send' the response */
-
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -1044,8 +1038,7 @@ musycc_newhook(node_p node, hook_p hook, const char *name)
 }
 
 static int
-musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+musycc_rcvdata(hook_p hook, item_p item)
 {
 
 	struct softc *sc;
@@ -1054,6 +1047,7 @@ musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	struct mdesc *md;
 	u_int32_t ch, u, len;
 	struct mbuf *m2;
+	struct mbuf *m;
 
 	sch = hook->private;
 	sc = sch->sc;
@@ -1062,23 +1056,25 @@ musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 
 	if (csc->state != C_RUNNING) {
 		printf("csc->state = %d\n", csc->state);
-		NG_FREE_DATA(m, meta);
+		NG_FREE_ITEM(item);
 		return (0);
 	}
 
-	NG_FREE_META(meta);
-	meta = NULL;
 
 	if (sch->state != UP) {
 		printf("sch->state = %d\n", sch->state);
-		NG_FREE_DATA(m, meta);
+		NG_FREE_ITEM(item);
 		return (0);
 	} 
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
 	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * maxlatency) {
-		printf("pend %ld len %d lim %ld\n", sch->tx_pending, m->m_pkthdr.len, sch->tx_limit * maxlatency);
-		NG_FREE_DATA(m, meta);
+		printf("pend %ld len %d lim %ld\n", sch->tx_pending,
+				m->m_pkthdr.len, sch->tx_limit * maxlatency);
+		NG_FREE_M(m);
 		return (0);
 	}
+
 
 	m2 = m;
 	len = m->m_pkthdr.len;

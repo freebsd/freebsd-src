@@ -117,13 +117,13 @@ typedef struct cisco_priv *sc_p;
 /* Netgraph methods */
 static ng_constructor_t		cisco_constructor;
 static ng_rcvmsg_t		cisco_rcvmsg;
-static ng_shutdown_t		cisco_rmnode;
+static ng_shutdown_t		cisco_shutdown;
 static ng_newhook_t		cisco_newhook;
 static ng_rcvdata_t		cisco_rcvdata;
 static ng_disconnect_t		cisco_disconnect;
 
 /* Other functions */
-static int	cisco_input(sc_p sc, struct mbuf *m, meta_p meta);
+static int	cisco_input(sc_p sc, item_p item);
 static void	cisco_keepalive(void *arg);
 static int	cisco_send(sc_p sc, int type, long par1, long par2);
 
@@ -176,7 +176,7 @@ static struct ng_type typestruct = {
 	NULL,
 	cisco_constructor,
 	cisco_rcvmsg,
-	cisco_rmnode,
+	cisco_shutdown,
 	cisco_newhook,
 	NULL,
 	NULL,
@@ -190,22 +190,17 @@ NETGRAPH_INIT(cisco, &typestruct);
  * Node constructor
  */
 static int
-cisco_constructor(node_p *nodep)
+cisco_constructor(node_p node)
 {
 	sc_p sc;
-	int error = 0;
 
 	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
 
 	callout_handle_init(&sc->handle);
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
-		FREE(sc, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = sc;
-	sc->node = *nodep;
+	node->private = sc;
+	sc->node = node;
 
 	/* Initialise the varous protocol hook holders */
 	sc->downstream.af = 0xffff;
@@ -250,13 +245,14 @@ cisco_newhook(node_p node, hook_p hook, const char *name)
  * Receive control message.
  */
 static int
-cisco_rcvmsg(node_p node, struct ng_mesg *msg,
-	const char *retaddr, struct ng_mesg **rptr, hook_p lasthook)
+cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
+	struct ng_mesg *msg;
 	const sc_p sc = node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_GENERIC_COOKIE:
 		switch (msg->header.cmd) {
@@ -337,11 +333,8 @@ cisco_rcvmsg(node_p node, struct ng_mesg *msg,
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -349,23 +342,24 @@ cisco_rcvmsg(node_p node, struct ng_mesg *msg,
  * Receive data
  */
 static int
-cisco_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+cisco_rcvdata(hook_p hook, item_p item)
 {
 	const sc_p sc = hook->node->private;
 	struct protoent *pep;
 	struct cisco_header *h;
 	int error = 0;
+	struct mbuf *m;
 
 	if ((pep = hook->private) == NULL)
 		goto out;
 
 	/* If it came from our downlink, deal with it separately */
 	if (pep->af == 0xffff)
-		return (cisco_input(sc, m, meta));
+		return (cisco_input(sc, item));
 
 	/* OK so it came from a protocol, heading out. Prepend general data
 	   packet header. For now, IP,IPX only  */
+	m = NGI_M(item); /* still associated with item */
 	M_PREPEND(m, CISCO_HEADER_LEN, M_DONTWAIT);
 	if (!m) {
 		error = ENOBUFS;
@@ -394,11 +388,11 @@ cisco_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	}
 
 	/* Send it */
-	NG_SEND_DATA(error, sc->downstream.hook, m, meta);
+	NG_FWD_NEW_DATA(error, item,  sc->downstream.hook, m);
 	return (error);
 
 out:
-	NG_FREE_DATA(m, meta);
+	NG_FREE_ITEM(item);
 	return (error);
 }
 
@@ -406,13 +400,11 @@ out:
  * Shutdown node
  */
 static int
-cisco_rmnode(node_p node)
+cisco_shutdown(node_p node)
 {
 	const sc_p sc = node->private;
 
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
 	node->private = NULL;
 	ng_unref(sc->node);
 	FREE(sc, M_NETGRAPH);
@@ -440,8 +432,9 @@ cisco_disconnect(hook_p hook)
 	}
 
 	/* If no more hooks, remove the node */
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(hook->node);
 	return (0);
 }
 
@@ -449,13 +442,15 @@ cisco_disconnect(hook_p hook)
  * Receive data
  */
 static int
-cisco_input(sc_p sc, struct mbuf *m, meta_p meta)
+cisco_input(sc_p sc, item_p item)
 {
 	struct cisco_header *h;
 	struct cisco_packet *p;
 	struct protoent *pep;
 	int error = 0;
+	struct mbuf *m;
 
+	m = NGI_M(item);
 	if (m->m_pkthdr.len <= CISCO_HEADER_LEN)
 		goto drop;
 
@@ -477,7 +472,7 @@ cisco_input(sc_p sc, struct mbuf *m, meta_p meta)
 			switch (ntohl(p->type)) {
 			default:
 				log(LOG_WARNING,
-				    "cisco: unknown cisco packet type: 0x%lx\n",
+				    "cisco: unknown cisco packet type: 0x%x\n",
 				       ntohl(p->type));
 				break;
 			case CISCO_ADDR_REPLY:
@@ -492,7 +487,8 @@ cisco_input(sc_p sc, struct mbuf *m, meta_p meta)
 				break;
 			case CISCO_ADDR_REQ:
 			    {
-				struct ng_mesg *msg, *resp;
+				struct ng_mesg *msg;
+				int dummy_error = 0;
 
 				/* Ask inet peer for IP address information */
 				if (sc->inet.hook == NULL)
@@ -501,12 +497,13 @@ cisco_input(sc_p sc, struct mbuf *m, meta_p meta)
 				    NGM_CISCO_GET_IPADDR, 0, M_NOWAIT);
 				if (msg == NULL)
 					goto nomsg;
-				ng_send_msg(sc->node, msg, NULL,
-					sc->inet.hook, NULL, &resp);
-				if (resp != NULL)
-					cisco_rcvmsg(sc->node, resp, ".",
-								NULL, NULL);
-
+				NG_SEND_MSG_HOOK(dummy_error, sc->node, msg,
+					sc->inet.hook, NULL);
+		/*
+		 * XXX Now maybe we should set a flag telling
+		 * our receiver to send this message when the response comes in
+		 * instead of now when the data may be bad.
+		 */
 		nomsg:
 				/* Send reply to peer device */
 				error = cisco_send(sc, CISCO_ADDR_REPLY,
@@ -535,11 +532,11 @@ cisco_input(sc_p sc, struct mbuf *m, meta_p meta)
 	/* Send it on */
 	if (pep->hook == NULL)
 		goto drop;
-	NG_SEND_DATA(error, pep->hook, m, meta);
+	NG_FWD_NEW_DATA(error, item, pep->hook, m);
 	return (error);
 
 drop:
-	NG_FREE_DATA(m, meta);
+	NG_FREE_ITEM(item);
 	return (error);
 }
 
@@ -570,7 +567,6 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 	struct mbuf *m;
 	u_long  t;
 	int     error = 0;
-	meta_p  meta = NULL;
 	struct timeval time;
 
 	getmicrotime(&time);
@@ -596,6 +592,6 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 	ch->time0 = htons((u_short) (t >> 16));
 	ch->time1 = htons((u_short) t);
 
-	NG_SEND_DATA(error, sc->downstream.hook, m, meta);
+	NG_SEND_DATA_ONLY(error, sc->downstream.hook, m);
 	return (error);
 }

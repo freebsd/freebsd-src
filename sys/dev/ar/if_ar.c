@@ -267,7 +267,7 @@ static	void	ngar_init(void* ignored);
 
 static ng_constructor_t	ngar_constructor;
 static ng_rcvmsg_t	ngar_rcvmsg;
-static ng_shutdown_t	ngar_rmnode;
+static ng_shutdown_t	ngar_shutdown;
 static ng_newhook_t	ngar_newhook;
 /*static ng_findhook_t	ngar_findhook; */
 static ng_connect_t	ngar_connect;
@@ -280,7 +280,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ngar_constructor,
 	ngar_rcvmsg,
-	ngar_rmnode,
+	ngar_shutdown,
 	ngar_newhook,
 	NULL,
 	ngar_connect,
@@ -509,18 +509,17 @@ arattach(struct ar_hardc *hc)
 		if (ngar_done_init == 0) ngar_init(NULL);
 		if (ng_make_node_common(&typestruct, &sc->node) != 0)
 			return (0);
+		sprintf(sc->nodename, "%s%d", NG_AR_NODE_TYPE, sc->unit);
+		if (ng_name_node(sc->node, sc->nodename)) {
+			ng_unref(sc->node); /* drop it again */
+			return (0);
+		}
 		sc->node->private = sc;
 		callout_handle_init(&sc->handle);
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
 		mtx_init(&sc->xmitq.ifq_mtx, "ar_xmitq", MTX_DEF);
 		mtx_init(&sc->xmitq_hipri.ifq_mtx, "ar_xmitq_hipri", MTX_DEF);
-		sprintf(sc->nodename, "%s%d", NG_AR_NODE_TYPE, sc->unit);
-		if (ng_name_node(sc->node, sc->nodename)) {
-			ng_rmnode(sc->node);
-			ng_unref(sc->node);
-			return (0);
-		}
 		sc->running = 0;
 #endif	/* NETGRAPH */
 	}
@@ -2173,7 +2172,7 @@ ngar_watchdog_frame(void * arg)
  * If the hardware exists, it will already have created it.
  */
 static	int
-ngar_constructor(node_p *nodep)
+ngar_constructor(node_p node)
 {
 	return (EINVAL);
 }
@@ -2216,13 +2215,14 @@ ngar_newhook(node_p node, hook_p hook, const char *name)
  * Just respond to the generic TEXT_STATUS message
  */
 static	int
-ngar_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-				struct ng_mesg **rptr, hook_p lasthook)
+ngar_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct ar_softc *	sc;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	sc = node->private;
 	switch (msg->header.typecookie) {
 	case	NG_AR_COOKIE: 
@@ -2268,13 +2268,8 @@ ngar_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		break;
 	}
 	/* Take care of synchronous response, if any */
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		/* Should send the hard way */
-		FREE(resp, M_NETGRAPH);
-
-	free(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -2282,14 +2277,18 @@ ngar_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * get data from another node and transmit it to the correct channel
  */
 static	int
-ngar_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ngar_rcvdata(hook_p hook, item_p item)
 {
 	int s;
 	int error = 0;
 	struct ar_softc * sc = hook->node->private;
 	struct ifqueue	*xmitq_p;
+	struct mbuf *m;
+	meta_p meta;
 	
+	NGI_GET_M(item, m);
+	NGI_GET_META(item, meta);
+	NG_FREE_ITEM(item);
 	/*
 	 * data doesn't come in from just anywhere (e.g control hook)
 	 */
@@ -2326,7 +2325,8 @@ bad:
 	 * It was an error case.
 	 * check if we need to free the mbuf, and then return the error
 	 */
-	NG_FREE_DATA(m, meta);
+	NG_FREE_M(m);
+	NG_FREE_META(meta);
 	return (error);
 }
 
@@ -2336,13 +2336,27 @@ bad:
  * don't unref the node, or remove our name. just clear our links up.
  */
 static	int
-ngar_rmnode(node_p node)
+ngar_shutdown(node_p node)
 {
 	struct ar_softc * sc = node->private;
 
 	ar_down(sc);
-	ng_cutlinks(node);
-	node->flags &= ~NG_INVALID; /* bounce back to life */
+	ng_unref(node);
+	/* XXX need to drain the output queues! */
+
+	/* The node is dead, long live the node! */
+	/* stolen from the attach routine */
+	if (ng_make_node_common(&typestruct, &sc->node) != 0)
+		return (0);
+	sprintf(sc->nodename, "%s%d", NG_AR_NODE_TYPE, sc->unit);
+	if (ng_name_node(sc->node, sc->nodename)) {
+		sc->node = NULL;
+		printf("node naming failed\n");
+		ng_unref(sc->node); /* node dissappears */
+		return (0);
+	}
+	sc->node->private = sc;
+	sc->running = 0;
 	return (0);
 }
 

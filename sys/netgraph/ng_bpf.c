@@ -83,7 +83,7 @@ typedef struct ng_bpf_hookinfo *hinfo_p;
 /* Netgraph methods */
 static ng_constructor_t	ng_bpf_constructor;
 static ng_rcvmsg_t	ng_bpf_rcvmsg;
-static ng_shutdown_t	ng_bpf_rmnode;
+static ng_shutdown_t	ng_bpf_shutdown;
 static ng_newhook_t	ng_bpf_newhook;
 static ng_rcvdata_t	ng_bpf_rcvdata;
 static ng_disconnect_t	ng_bpf_disconnect;
@@ -191,7 +191,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_bpf_constructor,
 	ng_bpf_rcvmsg,
-	ng_bpf_rmnode,
+	ng_bpf_shutdown,
 	ng_bpf_newhook,
 	NULL,
 	NULL,
@@ -214,15 +214,12 @@ static const struct ng_bpf_hookprog ng_bpf_default_prog = {
  * Node constructor
  *
  * We don't keep any per-node private data
+ * We go via the hooks.
  */
 static int
-ng_bpf_constructor(node_p *nodep)
+ng_bpf_constructor(node_p node)
 {
-	int error = 0;
-
-	if ((error = ng_make_node_common(&typestruct, nodep)))
-		return (error);
-	(*nodep)->private = NULL;
+	node->private = NULL;
 	return (0);
 }
 
@@ -260,12 +257,13 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_bpf_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **rptr, hook_p lasthook)
+ng_bpf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
+	struct ng_mesg *msg;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_BPF_COOKIE:
 		switch (msg->header.cmd) {
@@ -357,13 +355,11 @@ ng_bpf_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
+	NG_RESPOND_MSG(error, node, item, resp);
 done:
-	FREE(msg, M_NETGRAPH);
+	if (item)
+		NG_FREE_ITEM(item);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -373,19 +369,23 @@ done:
  * Apply the filter, and then drop or forward packet as appropriate.
  */
 static int
-ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_bpf_rcvdata(hook_p hook, item_p item)
 {
 	const hinfo_p hip = hook->private;
-	int totlen = m->m_pkthdr.len;
+	int totlen;
 	int needfree = 0, error = 0;
 	u_char *data, buf[256];
 	hinfo_p dhip;
 	hook_p dest;
 	u_int len;
+	struct mbuf *m;
 
-	/* Update stats on incoming hook */
-	hip->stats.recvFrames++;
+	m = NGI_M(item);	/* 'item' still owns it.. we are peeking */ 
+	totlen = m->m_pkthdr.len;
+	/* Update stats on incoming hook. XXX Can we do 64 bits atomically? */
+	/* atomic_add_int64(&hip->stats.recvFrames, 1); */
+	/* atomic_add_int64(&hip->stats.recvOctets, totlen); */
+	hip->stats.recvFrames++; 
 	hip->stats.recvOctets += totlen;
 
 	/* Need to put packet in contiguous memory for bpf */
@@ -393,7 +393,7 @@ ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		if (totlen > sizeof(buf)) {
 			MALLOC(data, u_char *, totlen, M_NETGRAPH, M_NOWAIT);
 			if (data == NULL) {
-				NG_FREE_DATA(m, meta);
+				NG_FREE_ITEM(item);
 				return (ENOMEM);
 			}
 			needfree = 1;
@@ -412,10 +412,12 @@ ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	if (len > 0) {
 
 		/* Update stats */
+		/* XXX atomically? */
 		hip->stats.recvMatchFrames++;
 		hip->stats.recvMatchOctets += totlen;
 
 		/* Truncate packet length if required by the filter */
+		/* Assume this never changes m */
 		if (len < totlen) {
 			m_adj(m, -(totlen - len));
 			totlen -= len;
@@ -424,7 +426,7 @@ ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	} else
 		dest = ng_findhook(hip->node, hip->prog->ifNotMatch);
 	if (dest == NULL) {
-		NG_FREE_DATA(m, meta);
+		NG_FREE_ITEM(item);
 		return (0);
 	}
 
@@ -432,7 +434,7 @@ ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	dhip = (hinfo_p)dest->private;
 	dhip->stats.xmitOctets += totlen;
 	dhip->stats.xmitFrames++;
-	NG_SEND_DATA(error, dest, m, meta);
+	NG_FWD_DATA(error, item, dest);
 	return (error);
 }
 
@@ -440,11 +442,9 @@ ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
  * Shutdown processing
  */
 static int
-ng_bpf_rmnode(node_p node)
+ng_bpf_shutdown(node_p node)
 {
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
 	ng_unref(node);
 	return (0);
 }
@@ -462,8 +462,10 @@ ng_bpf_disconnect(hook_p hook)
 	bzero(hip, sizeof(*hip));
 	FREE(hip, M_NETGRAPH);
 	hook->private = NULL;			/* for good measure */
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags && NG_INVALID) == 0)) {
+		ng_rmnode_self(hook->node);
+	}
 	return (0);
 }
 
