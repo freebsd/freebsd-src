@@ -42,6 +42,8 @@ struct radius {
   unsigned long sessiontime;    /* Session-Timeout */
   char *filterid;		/* FRAMED Filter Id */
   struct sticky_route *routes;  /* FRAMED Routes */
+  char *repstr;			/* Reply-Message */
+  char *errstr;			/* Error-Message */
   struct {
     char file[PATH_MAX];	/* Radius config file */
   } cfg;
