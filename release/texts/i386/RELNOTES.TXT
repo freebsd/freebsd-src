@@ -119,7 +119,11 @@ controller family, as well as the DPT SmartRAID V and VI families, has
 been added. [MERGED]
 
 SMP support has been largely reworked, incorporating code from BSD/OS
-5.0.
+5.0.  One of the main features of SMPng ("SMP Next Generation") is to
+allow more processes to run in kernel, without the need for spin locks
+that can dramatically reduce the efficiency of multiple processors.
+Interrupt handlers now have contexts associated with them that allow 
+them to be blocked, which reduces the need to lock out interrupts.
 
 The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
 adapters used on some laptops. [MERGED]
@@ -172,6 +176,11 @@ isdn4bsd has been updated to version 0.96.00
 
 Support for Fujitsu MB86960A/MB86965A based Ethernet PC-Cards is back.
 [MERGED]
+
+devfs, which allows entries in the /dev directory to be built
+automatically and supports more flexible attachment of devices,
+has been largely reworked.
+
 
 1.2. SECURITY FIXES
 -------------------
