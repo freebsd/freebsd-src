@@ -1762,12 +1762,48 @@ do { \
 					break;
 				}
 
-				optbuf = sopt->sopt_val;
+				switch (optname) {
+				case IPV6_HOPOPTS:
+				case IPV6_DSTOPTS:
+				case IPV6_RTHDRDSTOPTS:
+				case IPV6_NEXTHOP:
+					if (!privileged)
+						error = EPERM;
+					break;
+				}
+				if (error)
+					break;
+
+				switch (optname) {
+				case IPV6_PKTINFO:
+					optlen = sizeof(struct in6_pktinfo);
+					break;
+				case IPV6_NEXTHOP:
+					optlen = SOCK_MAXADDRLEN;
+					break;
+				default:
+					optlen = IPV6_MAXOPTHDR;
+					break;
+				}
+				if (sopt->sopt_valsize > optlen) {
+					error = EINVAL;
+					break;
+				}
+
 				optlen = sopt->sopt_valsize;
+				optbuf = malloc(optlen, M_TEMP, M_WAITOK);
+				error = sooptcopyin(sopt, optbuf, optlen,
+				    optlen);
+				if (error) {
+					free(optbuf, M_TEMP);
+					break;
+				}
+
 				optp = &in6p->in6p_outputopts;
 				error = ip6_pcbopt(optname,
 						   optbuf, optlen,
 						   optp, privileged, uproto);
+				free(optbuf, M_TEMP);
 				break;
 			}
 #undef OPTSET

@@ -14,6 +14,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20040329:	p4	FreeBSD-SA-04:06.ipv6
+	Correct an input validation error involving setsockopt and
+	IPv6 sockets.
+
 20040317:	p3	FreeBSD-SA-04:05.openssl
 	Correct a denial-of-service vulnerability in OpenSSL.
 
