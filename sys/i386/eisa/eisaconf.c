@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.49 1999/07/30 13:54:00 mdodd Exp $
+ *	$Id: eisaconf.c,v 1.50 1999/08/01 22:57:09 mdodd Exp $
  */
 
 #include "opt_eisa.h"
@@ -257,7 +257,7 @@ eisa_print_child(device_t dev, device_t child)
 	char			buf[81];
 	struct eisa_device *	e_dev = device_get_ivars(child);
 	int			rid;
-	int			irq;
+	struct irq_node *	irq;
 	struct resvaddr *	resv;
 	char			separator = ',';
 	int			column = 0;
