@@ -969,7 +969,7 @@ nfssvc_iod(p)
 		/* Take one off the front of the list */
 		TAILQ_REMOVE(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen--;
-		if (nmp->nm_bufqwant && nmp->nm_bufqlen < 2 * nfs_numasync) {
+		if (nmp->nm_bufqwant && nmp->nm_bufqlen <= nfs_numasync) {
 		    nmp->nm_bufqwant = FALSE;
 		    wakeup(&nmp->nm_bufq);
 		}

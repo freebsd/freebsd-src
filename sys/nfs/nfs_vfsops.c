@@ -698,18 +698,30 @@ nfs_decode_args(nmp, argp)
 	if (nmp->nm_acregmin > nmp->nm_acregmax)
 		nmp->nm_acregmin = nmp->nm_acregmax;
 
-	if ((argp->flags & NFSMNT_MAXGRPS) && argp->maxgrouplist >= 0 &&
-		argp->maxgrouplist <= NFS_MAXGRPS)
-		nmp->nm_numgrps = argp->maxgrouplist;
-	if ((argp->flags & NFSMNT_READAHEAD) && argp->readahead >= 0 &&
-		argp->readahead <= NFS_MAXRAHEAD)
-		nmp->nm_readahead = argp->readahead;
-	if ((argp->flags & NFSMNT_LEASETERM) && argp->leaseterm >= 2 &&
-		argp->leaseterm <= NQ_MAXLEASE)
-		nmp->nm_leaseterm = argp->leaseterm;
-	if ((argp->flags & NFSMNT_DEADTHRESH) && argp->deadthresh >= 1 &&
-		argp->deadthresh <= NQ_NEVERDEAD)
-		nmp->nm_deadthresh = argp->deadthresh;
+	if ((argp->flags & NFSMNT_MAXGRPS) && argp->maxgrouplist >= 0) {
+		if (argp->maxgrouplist <= NFS_MAXGRPS)
+			nmp->nm_numgrps = argp->maxgrouplist;
+		else
+			nmp->nm_numgrps = NFS_MAXGRPS;
+	}
+	if ((argp->flags & NFSMNT_READAHEAD) && argp->readahead >= 0) {
+		if (argp->readahead <= NFS_MAXRAHEAD)
+			nmp->nm_readahead = argp->readahead;
+		else
+			nmp->nm_readahead = NFS_MAXRAHEAD;
+	}
+	if ((argp->flags & NFSMNT_LEASETERM) && argp->leaseterm >= 2) {
+		if (argp->leaseterm <= NQ_MAXLEASE)
+			nmp->nm_leaseterm = argp->leaseterm;
+		else
+			nmp->nm_leaseterm = NQ_MAXLEASE;
+	}
+	if ((argp->flags & NFSMNT_DEADTHRESH) && argp->deadthresh >= 1) {
+		if (argp->deadthresh <= NQ_NEVERDEAD)
+			nmp->nm_deadthresh = argp->deadthresh;
+		else
+			nmp->nm_deadthresh = NQ_NEVERDEAD;
+	}
 
 	adjsock |= ((nmp->nm_sotype != argp->sotype) ||
 		    (nmp->nm_soproto != argp->proto));
