@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.46 1998/05/19 19:40:45 peter Exp $
+ *	$Id: identcpu.c,v 1.47 1998/05/21 22:53:24 des Exp $
  */
 
 #include "opt_cpu.h"
@@ -144,7 +144,34 @@ printcpuinfo(void)
 				strcat(cpu_model, "i486 ");
 				break;
 			case 0x500:
-				strcat(cpu_model, "Pentium"); /* nb no space */
+			        /* Check the particular flavor of 586 */
+			        strcat(cpu_model, "Pentium");
+			        switch (cpu_id & 0xf0) {
+				case 0x00:
+				        strcat(cpu_model, " A-step");
+					break;
+				case 0x10:
+				        strcat(cpu_model, "/P5");
+					break;
+				case 0x20:
+				        strcat(cpu_model, "/P54C");
+					break;
+				case 0x30:
+				        strcat(cpu_model, "/P54T Overdrive");
+					break;
+				case 0x40:
+				        strcat(cpu_model, "/P55C");
+					break;
+				case 0x70:
+				        strcat(cpu_model, "/P54C");
+					break;
+				case 0x80:
+				        strcat(cpu_model, "/P55C (quarter-micron)");
+					break;
+				default:
+				        /* nothing */
+					break;
+				}
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 				/*
 				 * XXX - If/when Intel fixes the bug, this
@@ -156,19 +183,25 @@ printcpuinfo(void)
 				break;
 			case 0x600:
 			        /* Check the particular flavor of 686 */
-			        if ((cpu_id & 0xf0) == 0x00)
+  			        switch (cpu_id & 0xf0) {
+				case 0x00:
 				        strcat(cpu_model, "Pentium Pro A-step");
-			        else if ((cpu_id & 0xf0) == 0x10)
+					break;
+				case 0x10:
 				        strcat(cpu_model, "Pentium Pro");
-			        else if ((cpu_id & 0xf0) == 0x30) {
+					break;
+				case 0x30:
 				        strcat(cpu_model, "Pentium II");
 					cpu = CPU_PII;
-				}
-			        else if ((cpu_id & 0xf0) == 0x50) {
+					break;
+				case 0x50:
 				        strcat(cpu_model, "Pentium II (quarter-micron)");
 					cpu = CPU_PII;
+					break;
+				default:
+				        strcat(cpu_model, "Unknown 80686");
+					break;
 				}
-				else strcat(cpu_model, "Unknown 80686");
 				break;
 			default:
 				strcat(cpu_model, "unknown");
