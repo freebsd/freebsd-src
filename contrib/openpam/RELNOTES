@@ -1,6 +1,10 @@
 
-		  Release notes for OpenPAM Cyclamen
+		  Release notes for OpenPAM Daffodil
 		  ==================================
+
+This is a bugfix release.  The previous release, Cyclamen, was rushed
+out without sufficient testing, and contained a number of small but
+serious errors.
 
 This release corresponds to the code used in FreeBSD-CURRENT as of the
 release date.  It has also been successfully built on NetBSD 1.6, and
@@ -23,4 +27,4 @@ NOTE: to the person who sent me MacOS patches in July 2002: I have
 lost your name and email address.  Please contact me so I can give you
 proper credit for your contribution.
 
-$P4: //depot/projects/openpam/RELNOTES#13 $
+$P4: //depot/projects/openpam/RELNOTES#14 $

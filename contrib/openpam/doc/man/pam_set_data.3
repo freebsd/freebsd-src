@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd December 12, 2002
+.Dd January 6, 2003
 .Dt PAM_SET_DATA 3
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Sh LIBRARY
 .Lb libpam
 .Sh SYNOPSIS
+.In sys/types.h
 .In security/pam_appl.h
 .Ft int
 .Fn pam_set_data "pam_handle_t *pamh" "const char *module_data_name" "void *data" "void (*cleanup)(pam_handle_t *pamh, void *data, int pam_end_status)"

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#14 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#15 $
  */
 
 #include <sys/types.h>
@@ -89,7 +89,7 @@ prompt(const char *msg)
 	sigaction(SIGALRM, &saved_action, NULL);
 	sigprocmask(SIG_SETMASK, &saved_sigset, NULL);
 	alarm(saved_alarm);
-	if (timed_out || ferror(stdin))
+	if (timed_out || ferror(stdin) || feof(stdin))
 		return (NULL);
 	/* trim trailing whitespace */
 	for (len = strlen(buf); len > 0; --len)

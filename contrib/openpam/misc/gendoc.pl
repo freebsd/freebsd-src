@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/misc/gendoc.pl#18 $
+# $P4: //depot/projects/openpam/misc/gendoc.pl#19 $
 #
 
 use strict;
@@ -355,6 +355,7 @@ sub gendoc($) {
 .Sh LIBRARY
 .Lb libpam
 .Sh SYNOPSIS
+.In sys/types.h
 .In security/pam_appl.h
 ";
     if ($func->{'name'} =~ m/_sm_/) {
