@@ -33,17 +33,15 @@
 .Sh NAME
 .Nm ttcp
 .Nd Transmission Control Protocol Extensions for Transactions
-.Sh
+.Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <netinet/in.h>
 .Fd #include <netinet/tcp.h>
 .Ft int
 .Fn setsockopt sock IPPROTO_TCP TCP_NOPUSH &One "sizeof One"
-.br
 .Ft ssize_t
 .Fn sendto sock msg len MSG_EOF &sin "sizeof sin"
-.br
 .Ft ssize_t
 .Fn sendto sock msg len MSG_EOF 0 0
 .Sh DESCRIPTION

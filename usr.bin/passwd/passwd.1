@@ -64,8 +64,7 @@ prompts for the new password twice in order to detect typing errors.
 The new password should be at least six characters long (which
 may be overridden using the
 .Xr login.conf 5
-.if t ``minpasswordlen''
-.if n "minpasswordlen"
+.Dq minpasswordlen
 setting for a user's login class) and not purely alphabetic.
 Its total length must be less than
 .Dv _PASSWORD_LEN
@@ -74,8 +73,7 @@ Its total length must be less than
 The new password should contain a mixture of upper and lower case
 characters (which may be overridden using the
 .Xr login.conf 5
-.if t ``mixpasswordcase''
-.if n "mixpasswordcase"
+.Dq mixpasswordcase
 setting for a user's login class).  Allowing lower case passwords may
 be useful where the password file will be used in situations where only
 lower case passwords are permissible, such as when using Samba to
@@ -97,8 +95,7 @@ is used to update the password databases.
 .El
 When changing local or NIS password, the next password change date
 is set according to 
-.if t ``passwordtime''
-.if n "passwordtime"
+.Dq passwordtime
 capability in the user's login class.
 .Pp
 To change another user's Kerberos password, one must first
@@ -115,8 +112,7 @@ If a user exists in the NIS password
 database but does not exist locally,
 .Nm passwd
 automatically switches into 
-.if t ``yppasswd''
-.if n "yppasswd"
+.Dq yppasswd
 mode.
 If the specified
 user does not exist in either the local password database of the
@@ -153,14 +149,12 @@ When NIS is enabled, the
 flag can be used to force
 .Nm passwd
 into 
-.if t ``local only''
-.if n "local only"
+.Dq local only
 mode.
 This flag can be used to change the entry
 for a local user when an NIS user exists with the same login name.
 For example, you will sometimes find entries for system 
-.if t ``placeholder''
-.if n "placeholder"
+.Dq placeholder
 users such as
 .Pa bin
 or
@@ -200,8 +194,7 @@ option and
 is unable to determine the name of the NIS master server (possibly because
 the local domainname isn't set), the name of the NIS master is assumed to
 be 
-.if t ``localhost''.
-.if n "localhost".
+.Dq localhost .
 This can be overridden with the
 .Fl h
 flag.

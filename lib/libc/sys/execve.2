@@ -144,7 +144,6 @@ the effective user ID is recorded as the saved set-user-ID,
 and the effective group ID is recorded as the saved set-group-ID.
 These values may be used in changing the effective IDs later (see
 .Xr setuid 2 ) .
-.ne 1i
 .Pp
 The set-ID bits are not honored if the respective file system has the
 .Ar nosuid
@@ -242,7 +241,6 @@ permission, but has an invalid magic number in its header.
 .It Bq Er ETXTBSY
 The new process file is a pure procedure (shared text)
 file that is currently open for writing or reading by some process.
-.ne 1i
 .It Bq Er ENOMEM
 The new process requires more virtual memory than
 is allowed by the imposed maximum

@@ -61,7 +61,7 @@
 .Nm disklabel
 .Op Fl NW
 .Ar disk
-.sp
+.Pp
 .Nm disklabel
 .Fl B
 .Oo
@@ -124,8 +124,9 @@ and
 represents a slice.  Some devices, most notably
 .Ar ccd ,
 require that the
-.if t ``whole-disk'' (or ``c'')
-.if n "whole-disk" (or "c")
+.Dq whole-disk
+(or
+.Dq c )
 partition be specified.  For example
 .Pa ccd0c .
 You do not have to include the
@@ -220,8 +221,8 @@ itself must be provided as the canonical name, i.e. not as a full
 path name.
 .Pp
 PC-based systems have special requirements in order for the BIOS to properly
-recognize a FreeBSD disklabel.  Older systems may require what is known as
-a ``dangerously dedicated''
+recognize a FreeBSD disklabel.  Older systems may require what is known as a
+.Dq dangerously dedicated
 disklabel, which creates a fake DOS partition to work around problems older
 BIOSes have with modern disk geometries.  On newer systems you generally want
 to create a normal DOS slice using
@@ -293,7 +294,8 @@ command
 The final three forms of
 .Nm
 are used to install bootstrap code.  If you are creating a
-``dangerously-dedicated'' partition for compatibility with older PC systems,
+.Dq dangerously-dedicated
+partition for compatibility with older PC systems,
 you generally want to specify the raw disk name such as
 .Pa da0.
 If you are creating a label within an existing DOS slice, you should specify
@@ -313,8 +315,9 @@ then install the FreeBSD bootblocks in the slice.
 .Oo Ar disktype Oc
 .Pp
 This form installs the bootstrap only.  It does not change the disk label.
-You should never use this command on a base disk unless you intend to create
-a ``dangerously-dedicated'' disk, such as
+You should never use this command on a base disk unless you intend to create a
+.Dq dangerously-dedicated
+disk, such as
 .Ar da0 .
 This command is typically run on a slice such as 
 .Ar da0s1 .
@@ -329,10 +332,12 @@ This command is typically run on a slice such as
 .Ar disk Ar disktype
 .Oo Ar packid Oc
 .Pp
-.if t This form corresponds to the ``write label'' command described above.  
-.if n This form corresponds to the "write label" command described above.  
+This form corresponds to the
+.Dq write label
+command described above.  
 In addition to writing a new volume label, it also installs the bootstrap.
-If run on a base disk this command will create a ``dangerously-dedicated''
+If run on a base disk this command will create a
+.Dq dangerously-dedicated
 label.  This command is normally run on a slice rather then a base disk.
 .Pp
 .Nm disklabel
@@ -345,10 +350,12 @@ label.  This command is normally run on a slice rather then a base disk.
 .Ar disk Ar protofile
 .Oo Ar disktype Oc
 .Pp
-.if t This form corresponds to the ``restore label'' command described above.  
-.if n This form corresponds to the "restore label" command described above.  
+This form corresponds to the
+.Dq restore label
+command described above.  
 In addition to restoring the volume label, it also installs the bootstrap.
-If run on a base disk this command will create a ``dangerously-dedicated''
+If run on a base disk this command will create a
+.Dq dangerously-dedicated
 label.  This command is normally run on a slice rather then a base disk.
 .Pp
 The bootstrap commands always access the disk directly, so it is not necessary
@@ -378,8 +385,9 @@ and
 flags are not specified, but 
 .Ar disktype
 was specified, the names of the programs are taken from the 
-.if t ``b0'' and ``b1''
-.if n "b0" and "b1"
+.Dq b0
+and 
+.Dq b1
 parameters of the
 .Xr disktab 5
 entry for the disk if the disktab entry exists and includes those parameters.
@@ -412,11 +420,23 @@ Use
 to edit your newly created label, addiing appropriate partitions.
 .It
 Finally newfs the filesystem partitions you created in the label.  A typical
-disklabel partiioning scheme would be to have an ``a'' partition 
-of approximately 128MB to hold the root filesystem, a ``b'' partition for
-swap, a ``d'' partition for /var (usually 128MB), an ``e'' partition
-for /var/tmp (usually 128MB), an ``f'' partition for /usr (usually around 2G),
-and finally a ``g'' partition for /home (usally all remaining space).
+disklabel partiioning scheme would be to have an
+.Dq a
+partition 
+of approximately 128MB to hold the root filesystem, a
+.Dq b
+partition for
+swap, a
+.Dq d
+partition for /var (usually 128MB), an
+.Dq e
+partition
+for /var/tmp (usually 128MB), an
+.Dq f
+partition for /usr (usually around 2G),
+and finally a
+.Dq g
+partition for /home (usally all remaining space).
 Your mileage may vary.
 .El
 .Pp
@@ -541,7 +561,8 @@ as obtained via
 .Pa /dev/da0s1 .
 When reading a label, FreeBSD will allow you to specify the base disk name
 even if the label resides on a slice.  However, to be proper you should
-specify the base disk name only if you are using a ``dangerously-dedicated''
+specify the base disk name only if you are using a
+.Dq dangerously-dedicated
 label.  Normally you specify the slice.
 .Pp
 .Dl disklabel da0s1 > savedlabel
@@ -559,8 +580,8 @@ flag to restore the label at a later date.
 Create a label for 
 .Pa da0s1
 based on information for
-.if t ``da2212'' found in
-.if n "da2212" found in
+.Dq da2212
+found in
 .Pa /etc/disktab .
 Any existing bootstrap code will be clobbered.
 .Pp
@@ -599,9 +620,9 @@ On-disk and in-core labels are unchanged.
 .Dl disklabel -w -B /dev/da0s1 -b newboot1 -s newboot da2212
 .Pp
 Install a new label and bootstrap.
-.if t The label is derived from disktab information for ``da2212'' and
-.if n The label is derived from disktab information for "da2212" and
-installed both in-core and on-disk.
+The label is derived from disktab information for
+.Dq da2212
+and installed both in-core and on-disk.
 The bootstrap code comes from the files
 .Pa /boot/newboot1
 and
@@ -614,7 +635,9 @@ and
 .Dl disklabel -e da0s1
 .Pp
 Completely wipe any prior information on the disk, creating a new bootable
-disk with a DOS partition table containing one ``whole-disk'' slice.  Then
+disk with a DOS partition table containing one
+.Dq whole-disk
+slice.  Then
 initialize the slice, then edit it to your needs.  The
 .Pa dd
 commands are optional, but may be necessary for some BIOSes to properly
@@ -629,21 +652,20 @@ The kernel device drivers will not allow the size of a disk partition
 to be decreased or the offset of a partition to be changed while it is open.
 Some device drivers create a label containing only a single large partition
 if a disk is unlabeled; thus, the label must be written to the 
-.if t ``a''
-.if n "a"
+.Dq a
 partition of the disk while it is open.  This sometimes requires the desired
 label to be set in two steps, the first one creating at least one other
 partition, and the second setting the label on the new partition while shrinking
 the
-.if t ``a''
-.if n "a"
+.Dq a
 partition.
 .Pp
 On some machines the bootstrap code may not fit entirely in the area
 allocated for it by some filesystems.
 As a result, it may not be possible to have filesystems on some partitions
-.if t of a ``bootable'' disk.
-.if n of a "bootable" disk.
+of a
+.Dq bootable
+disk.
 When installing bootstrap code,
 .Nm
 checks for these cases.
@@ -657,8 +679,9 @@ Conversely, if a partition has a type other than FS_UNUSED or FS_BOOT,
 will not install bootstrap code that overlaps it.
 .Sh BUGS
 When a disk name is given without a full pathname,
-.if t the constructed device name uses the ``c'' partition.
-.if n the constructed device name uses the "c" partition.
+the constructed device name uses the
+.Dq c
+partition.
 .Pp
 For the i386 architecture, the primary bootstrap sector contains
 an embedded

@@ -143,7 +143,7 @@ the octal sequence to the full 3 octal digits.
 .It \echaracter
 A backslash followed by certain special characters maps to special
 values.
-.sp
+.Pp
 .Bl -column
 .It \ea	<alert character>
 .It \eb	<backspace>
@@ -153,14 +153,14 @@ values.
 .It \et	<tab>
 .It \ev	<vertical tab>
 .El
-.sp
+.Pp
 A backslash followed by any other character maps to that character.
 .It c-c
 Represents the range of characters between the range endpoints, inclusively.
 .It [:class:]
 Represents all characters belonging to the defined character class.
 Class names are:
-.sp
+.Pp
 .Bl -column
 .It alnum	<alphanumeric characters>
 .It alpha	<alphabetic characters>
@@ -234,18 +234,18 @@ The
 utility exits 0 on success, and >0 if an error occurs.
 .Sh EXAMPLES
 The following examples are shown as given to the shell:
-.sp
+.Pp
 Create a list of the words in file1, one per line, where a word is taken to
 be a maximal string of letters.
-.sp
+.Pp
 .D1 Li "tr -cs \*q[:alpha:]\*q \*q\en\*q < file1"
-.sp
+.Pp
 Translate the contents of file1 to upper-case.
-.sp
+.Pp
 .D1 Li "tr \*q[:lower:]\*q \*q[:upper:]\*q < file1"
-.sp
+.Pp
 Strip out non-printable characters from file1.
-.sp
+.Pp
 .D1 Li "tr -cd \*q[:print:]\*q < file1"
 .Sh COMPATIBILITY
 System V has historically implemented character ranges using the syntax
