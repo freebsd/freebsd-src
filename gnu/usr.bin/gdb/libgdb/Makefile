@@ -37,9 +37,13 @@ SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c bcache.c	\
 	tui-stack.c tui-win.c tui-windata.c tui-wingeneral.c		\
 	tui-winsource.c typeprint.c ui-file.c ui-out.c user-regs.c	\
 	utils.c valarith.c valops.c valprint.c values.c varobj.c	\
-	wrapper.c fbsd-threads.c ${LIBSRCS}
+	wrapper.c ${LIBSRCS}
 
 GENSRCS= version.c
+
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+LIBSRCS+= fbsd-threads.c
+.endif
 
 version.c:
 	echo '#include "version.h"' >  ${.TARGET}
