@@ -36,7 +36,7 @@
  */
 #include "bsd_locl.h"
 
-RCSID("$Id: rlogin.c,v 1.65 1999/03/13 21:13:54 assar Exp $");
+RCSID("$Id: rlogin.c,v 1.67 1999/11/13 06:13:02 assar Exp $");
 
 CREDENTIALS cred;
 Key_schedule schedule;
@@ -556,7 +556,7 @@ main(int argc, char **argv)
 	}
 
 #define	OPTIONS	"8DEKLde:k:l:xp:"
-	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != EOF)
+	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
 		case '8':
 			eight = 1;
@@ -579,7 +579,7 @@ main(int argc, char **argv)
 			break;
 		case 'k':
 			dest_realm = dst_realm_buf;
-			strcpy_truncate(dest_realm, optarg, REALM_SZ);
+			strlcpy(dest_realm, optarg, REALM_SZ);
 			break;
 		case 'l':
 			user = optarg;

@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rsh.c,v 1.41 1999/06/17 18:49:18 assar Exp $");
+RCSID("$Id: rsh.c,v 1.43 1999/11/13 06:13:34 assar Exp $");
 
 CREDENTIALS cred;
 Key_schedule schedule;
@@ -205,7 +205,7 @@ main(int argc, char **argv)
     }
 
 #define	OPTIONS	"+8KLde:k:l:np:wx"
-    while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != EOF)
+    while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 	switch(ch) {
 	case 'K':
 	    use_kerberos = 0;
@@ -223,7 +223,7 @@ main(int argc, char **argv)
 	    break;
 	case 'k':
 	    dest_realm = dst_realm_buf;
-	    strcpy_truncate(dest_realm, optarg, REALM_SZ);
+	    strlcpy(dest_realm, optarg, REALM_SZ);
 	    break;
 	case 'n':
 	    nflag = nfork = 1;

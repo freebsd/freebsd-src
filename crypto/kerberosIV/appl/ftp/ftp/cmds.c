@@ -36,7 +36,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: cmds.c,v 1.34.2.1 1999/08/18 18:19:44 assar Exp $");
+RCSID("$Id: cmds.c,v 1.36 1999/09/16 20:37:28 assar Exp $");
 
 typedef void (*sighand)(int);
 
@@ -119,16 +119,16 @@ setpeer(int argc, char **argv)
 		/*
 		 * Set up defaults for FTP.
 		 */
-		strcpy_truncate(typename, "ascii", sizeof(typename));
+		strlcpy(typename, "ascii", sizeof(typename));
 		type = TYPE_A;
 		curtype = TYPE_A;
-		strcpy_truncate(formname, "non-print", sizeof(formname));
+		strlcpy(formname, "non-print", sizeof(formname));
 		form = FORM_N;
-		strcpy_truncate(modename, "stream", sizeof(modename));
+		strlcpy(modename, "stream", sizeof(modename));
 		mode = MODE_S;
-		strcpy_truncate(structname, "file", sizeof(structname));
+		strlcpy(structname, "file", sizeof(structname));
 		stru = STRU_F;
-		strcpy_truncate(bytename, "8", sizeof(bytename));
+		strlcpy(bytename, "8", sizeof(bytename));
 		bytesize = 8;
 		if (autologin)
 			login(argv[1]);
@@ -170,7 +170,7 @@ setpeer(int argc, char **argv)
 			 * for text files unless changed by the user.
 			 */
 			type = 0;
-			strcpy_truncate(typename, "binary", sizeof(typename));
+			strlcpy(typename, "binary", sizeof(typename));
 			if (overbose)
 			    printf("Using %s mode to transfer files.\n",
 				typename);
@@ -243,7 +243,7 @@ settype(int argc, char **argv)
 	else
 		comret = command("TYPE %s", p->t_mode);
 	if (comret == COMPLETE) {
-		strcpy_truncate(typename, p->t_name, sizeof(typename));
+		strlcpy(typename, p->t_name, sizeof(typename));
 		curtype = type = p->t_type;
 	}
 }
@@ -784,7 +784,7 @@ remglob(char **argv, int doswitch)
     }
     if (ftemp == NULL) {
 	int fd;
-	strcpy_truncate(temp, _PATH_TMP_XXX, sizeof(temp));
+	strlcpy(temp, _PATH_TMP_XXX, sizeof(temp));
 	fd = mkstemp(temp);
 	if(fd < 0){
 	    warn("unable to create temporary file %s", temp);
@@ -1419,11 +1419,11 @@ quote1(char *initial, int argc, char **argv)
     int i;
     char buf[BUFSIZ];		/* must be >= sizeof(line) */
 
-    strcpy_truncate(buf, initial, sizeof(buf));
+    strlcpy(buf, initial, sizeof(buf));
     for(i = 1; i < argc; i++) {
 	if(i > 1)
-	    strcat_truncate(buf, " ", sizeof(buf));
-	strcat_truncate(buf, argv[i], sizeof(buf));
+	    strlcat(buf, " ", sizeof(buf));
+	strlcat(buf, argv[i], sizeof(buf));
     }
     if (command("%s", buf) == PRELIM) {
 	while (getreply(0) == PRELIM)
@@ -1575,11 +1575,11 @@ account(int argc, char **argv)
 	if (argc > 1) {
 		++argv;
 		--argc;
-		strcpy_truncate (acct, *argv, sizeof(acct));
+		strlcpy (acct, *argv, sizeof(acct));
 		while (argc > 1) {
 			--argc;
 			++argv;
-			strcat_truncate(acct, *argv, sizeof(acct));
+			strlcat(acct, *argv, sizeof(acct));
 		}
 	}
 	else {
@@ -1691,12 +1691,12 @@ setntrans(int argc, char **argv)
 	}
 	ntflag++;
 	code = ntflag;
-	strcpy_truncate (ntin, argv[1], 17);
+	strlcpy (ntin, argv[1], 17);
 	if (argc == 2) {
 		ntout[0] = '\0';
 		return;
 	}
-	strcpy_truncate (ntout, argv[2], 17);
+	strlcpy (ntout, argv[2], 17);
 }
 
 char *
@@ -1753,10 +1753,10 @@ setnmap(int argc, char **argv)
 		cp = strchr(altarg, ' ');
 	}
 	*cp = '\0';
-	strcpy_truncate(mapin, altarg, MaxPathLen);
+	strlcpy(mapin, altarg, MaxPathLen);
 	while (*++cp == ' ')
 		continue;
-	strcpy_truncate(mapout, cp, MaxPathLen);
+	strlcpy(mapout, cp, MaxPathLen);
 }
 
 char *
@@ -2008,7 +2008,7 @@ macdef(int argc, char **argv)
 	if (interactive) {
 		printf("Enter macro line by line, terminating it with a null line\n");
 	}
-	strcpy_truncate(macros[macnum].mac_name,
+	strlcpy(macros[macnum].mac_name,
 			argv[1],
 			sizeof(macros[macnum].mac_name));
 	if (macnum == 0) {

@@ -36,7 +36,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: main.c,v 1.25 1999/05/08 02:22:09 assar Exp $");
+RCSID("$Id: main.c,v 1.27 1999/11/13 06:18:02 assar Exp $");
 
 int
 main(int argc, char **argv)
@@ -56,7 +56,7 @@ main(int argc, char **argv)
 	autologin = 1;
 	passivemode = 0; /* passive mode not active */
 
-	while ((ch = getopt(argc, argv, "dginptv")) != EOF) {
+	while ((ch = getopt(argc, argv, "dginptv")) != -1) {
 		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;
@@ -107,7 +107,7 @@ main(int argc, char **argv)
 	 */
 	pw = k_getpwuid(getuid());
 	if (pw != NULL) {
-		strcpy_truncate(homedir, pw->pw_dir, sizeof(homedir));
+		strlcpy(homedir, pw->pw_dir, sizeof(homedir));
 		home = homedir;
 	}
 	if (argc > 0) {
@@ -246,7 +246,7 @@ cmdscanner(int top)
 	    p = readline("ftp> ");
 	    if(p == NULL)
 		quit(0, 0);
-	    strcpy_truncate(line, p, sizeof(line));
+	    strlcpy(line, p, sizeof(line));
 	    add_history(p);
 	    free(p);
 	} else{

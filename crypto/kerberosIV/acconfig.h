@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.103.2.1 1999/07/22 03:12:42 assar Exp $ */
+/* $Id: acconfig.h,v 1.105 1999/12/02 13:09:41 joda Exp $ */
 
 @BOTTOM@
 
@@ -17,6 +17,8 @@
 #define HAVE_KRB_ENABLE_DEBUG 1
 
 #define HAVE_KRB_DISABLE_DEBUG 1
+
+#define HAVE_KRB_GET_OUR_IP_FOR_REALM 1
 
 #define RCSID(msg) \
 static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }

@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.13 1999/03/21 14:08:14 joda Exp $
+# $Id: Makefile.am,v 1.17 1999/10/19 23:54:05 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -6,9 +6,6 @@ INCLUDES += $(INCLUDE_krb4) $(AFS_EXTRA_DEFS)
 
 if KRB4
 AFSLIBS = libkafs.la
-else
-AFSLIBS = 
-endif
 
 if AIX
 AFSL_EXP = $(srcdir)/afsl.exp
@@ -38,9 +35,13 @@ AFSL_EXP =
 AIX_SRC =
 endif # AIX
 
+else
+AFSLIBS = 
+endif # KRB4
+
 
 lib_LTLIBRARIES = $(AFSLIBS)
-libkafs_la_LDFLAGS = -version-info 0:0:0
+libkafs_la_LDFLAGS = -version-info 1:1:1
 foodir = $(libdir)
 foo_DATA = $(AFS_EXTRA_LIBS)
 # EXTRA_DATA = afslib.so

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: simple_exec.c,v 1.4 1999/03/20 02:43:16 assar Exp $");
+RCSID("$Id: simple_exec.c,v 1.6 1999/12/02 16:58:52 joda Exp $");
 #endif
 
 #include <stdarg.h>
@@ -69,6 +64,24 @@ RCSID("$Id: simple_exec.c,v 1.4 1999/03/20 02:43:16 assar Exp $");
    128- is 128 + signal that killed subprocess
    */
 
+static int
+check_status(pid_t pid)
+{
+    while(1) {
+	int status;
+
+	while(waitpid(pid, &status, 0) < 0)
+	    if (errno != EINTR)
+		return -3;
+	if(WIFSTOPPED(status))
+	    continue;
+	if(WIFEXITED(status))
+	    return WEXITSTATUS(status);
+	if(WIFSIGNALED(status))
+	    return WTERMSIG(status) + 128;
+    }
+}
+
 int
 simple_execvp(const char *file, char *const args[])
 {
@@ -80,45 +93,79 @@ simple_execvp(const char *file, char *const args[])
 	execvp(file, args);
 	exit((errno == ENOENT) ? EX_NOTFOUND : EX_NOEXEC);
     default: 
-	while(1) {
-	    int status;
-
-	    while(waitpid(pid, &status, 0) < 0)
-		if (errno != EINTR)
-		    return -3;
-	    if(WIFSTOPPED(status))
-		continue;
-	    if(WIFEXITED(status))
-		return WEXITSTATUS(status);
-	    if(WIFSIGNALED(status))
-		return WTERMSIG(status) + 128;
-	}
+	return check_status(pid);
     }
+}
+
+/* gee, I'd like a execvpe */
+int
+simple_execve(const char *file, char *const args[], char *const envp[])
+{
+    pid_t pid = fork();
+    switch(pid){
+    case -1:
+	return -2;
+    case 0:
+	execve(file, args, envp);
+	exit((errno == ENOENT) ? EX_NOTFOUND : EX_NOEXEC);
+    default: 
+	return check_status(pid);
+    }
+}
+
+static char **
+collect_args(va_list *ap)
+{
+    char **argv = NULL;
+    int argc = 0, i = 0;
+    do {
+	if(i == argc) {
+	    /* realloc argv */
+	    char **tmp = realloc(argv, (argc + 5) * sizeof(*argv));
+	    if(tmp == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	    }
+	    argv = tmp;
+	    argc += 5;
+	}
+	argv[i++] = va_arg(*ap, char*);
+    } while(argv[i - 1] != NULL);
+    return argv;
 }
 
 int
 simple_execlp(const char *file, ...)
 {
     va_list ap;
-    char **argv = NULL;
-    int argc, i;
+    char **argv;
+    int ret;
 
-    argc = i = 0;
     va_start(ap, file);
-    do {
-	if(i == argc) {
-	    char **tmp = realloc(argv, (argc + 5) * sizeof(*argv));
-	    if(tmp == NULL) {
-		errno = ENOMEM;
-		return -1;
-	    }
-	    argv = tmp;
-	    argc += 5;
-	}
-	argv[i++] = va_arg(ap, char*);
-    } while(argv[i - 1] != NULL);
+    argv = collect_args(&ap);
     va_end(ap);
-    i = simple_execvp(file, argv);
+    if(argv == NULL)
+	return -1;
+    ret = simple_execvp(file, argv);
     free(argv);
-    return i;
+    return ret;
+}
+
+int
+simple_execle(const char *file, ... /* ,char *const envp[] */)
+{
+    va_list ap;
+    char **argv;
+    char *const* envp;
+    int ret;
+
+    va_start(ap, file);
+    argv = collect_args(&ap);
+    envp = va_arg(ap, char **);
+    va_end(ap);
+    if(argv == NULL)
+	return -1;
+    ret = simple_execve(file, argv, envp);
+    free(argv);
+    return ret;
 }

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afskrb.c,v 1.11 1999/07/07 12:29:33 assar Exp $");
+RCSID("$Id: afskrb.c,v 1.13 1999/12/02 16:58:39 joda Exp $");
 
 struct krb_kafs_data {
     const char *realm;
@@ -60,26 +55,31 @@ get_cred(kafs_data *data, const char *name, const char *inst,
 }
 
 static int
-afslog_uid_int(kafs_data *data, const char *cell, uid_t uid,
+afslog_uid_int(kafs_data *data,
+	       const char *cell,
+	       const char *realm_hint,
+	       uid_t uid,
 	       const char *homedir)
 {
     int ret;
     CREDENTIALS c;
-    struct krb_kafs_data *d = data->data;
-    char realm[REALM_SZ], *lrealm;
+    char realm[REALM_SZ];
     
     if (cell == 0 || cell[0] == 0)
 	return _kafs_afslog_all_local_cells (data, uid, homedir);
 
-    ret = krb_get_lrealm(realm, 1);
-    if(ret == KSUCCESS && (d->realm == NULL || strcmp(d->realm, realm)))
-	lrealm = realm;
-    else
-	lrealm = NULL;
+    /* Extract realm from ticket file. */
+    {
+        char name[ANAME_SZ], inst[INST_SZ];
 
-    ret = _kafs_get_cred(data, cell, d->realm, lrealm, &c);
+	ret = krb_get_default_principal(name, inst, realm);
+	if (ret != KSUCCESS)
+	    return ret;
+    }
+
+    ret = _kafs_get_cred(data, cell, realm_hint, realm, &c);
     
-    if(ret == 0)
+    if (ret == 0)
 	ret = kafs_settoken(cell, uid, &c);
     return ret;
 }
@@ -95,36 +95,34 @@ get_realm(kafs_data *data, const char *host)
 }
 
 int
-krb_afslog_uid_home(const char *cell, const char *realm, uid_t uid,
+krb_afslog_uid_home(const char *cell, const char *realm_hint, uid_t uid,
 		    const char *homedir)
 {
     kafs_data kd;
-    struct krb_kafs_data d;
 
     kd.afslog_uid = afslog_uid_int;
     kd.get_cred = get_cred;
     kd.get_realm = get_realm;
-    kd.data = &d;
-    d.realm = realm;
-    return afslog_uid_int(&kd, cell, uid, homedir);
+    kd.data = 0;
+    return afslog_uid_int(&kd, cell, realm_hint, uid, homedir);
 }
 
 int
-krb_afslog_uid(const char *cell, const char *realm, uid_t uid)
+krb_afslog_uid(const char *cell, const char *realm_hint, uid_t uid)
 {
-    return krb_afslog_uid_home (cell, realm, uid, NULL);
+    return krb_afslog_uid_home(cell, realm_hint, uid, NULL);
 }
 
 int
-krb_afslog(const char *cell, const char *realm)
+krb_afslog(const char *cell, const char *realm_hint)
 {
-    return krb_afslog_uid (cell, realm, getuid());
+    return krb_afslog_uid(cell, realm_hint, getuid());
 }
 
 int
-krb_afslog_home(const char *cell, const char *realm, const char *homedir)
+krb_afslog_home(const char *cell, const char *realm_hint, const char *homedir)
 {
-    return krb_afslog_uid_home (cell, realm, getuid(), homedir);
+    return krb_afslog_uid_home(cell, realm_hint, getuid(), homedir);
 }
 
 /*

@@ -1,13 +1,20 @@
-# $Id: Makefile.am,v 1.38 1999/06/15 02:47:26 assar Exp $
+# $Id: Makefile.am,v 1.54 1999/12/03 04:04:13 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 CLEANFILES = roken.h make-roken.c print_version.h
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 0:0:0
+libroken_la_LDFLAGS = -version-info 3:2:0
 
 noinst_PROGRAMS = make-roken make-print-version
+
+check_PROGRAMS = parse_bytes-test strpftime-test getaddrinfo-test
+TESTS = $(check_PROGRAMS)
+
+getaddrinfo_test_LDADD = libroken.la
+parse_bytes_test_LDADD = libroken.la
+strpftime_test_LDADD = strftime.o strptime.o
 
 if KRB4
 if KRB5
@@ -35,17 +42,16 @@ libroken_la_SOURCES =		\
 	mini_inetd.c		\
 	net_read.c		\
 	net_write.c		\
+	parse_bytes.c		\
 	parse_time.c		\
 	parse_units.c		\
-	parse_units.h		\
 	print_version.c		\
 	resolve.c		\
 	roken_gethostby.c	\
 	signal.c		\
 	simple_exec.c		\
 	snprintf.c		\
-	strcat_truncate.c	\
-	strcpy_truncate.c	\
+	socket.c		\
 	tm2time.c		\
 	verify.c		\
 	warnerr.c		\
@@ -53,6 +59,7 @@ libroken_la_SOURCES =		\
 
 EXTRA_libroken_la_SOURCES =	\
 	chown.c			\
+	copyhostent.c		\
 	daemon.c		\
 	err.c			\
 	err.h			\
@@ -61,11 +68,18 @@ EXTRA_libroken_la_SOURCES =	\
 	flock.c			\
 	fnmatch.c		\
 	fnmatch.h		\
+	freeaddrinfo.c		\
+	freehostent.c		\
+	gai_strerror.c		\
+	getaddrinfo.c		\
 	getdtablesize.c		\
 	getegid.c		\
 	geteuid.c		\
 	getgid.c		\
 	gethostname.c		\
+	getipnodebyaddr.c	\
+	getipnodebyname.c	\
+	getnameinfo.c		\
 	getopt.c		\
 	gettimeofday.c		\
 	getuid.c		\
@@ -73,6 +87,8 @@ EXTRA_libroken_la_SOURCES =	\
 	glob.h			\
 	hstrerror.c		\
 	inet_aton.c		\
+	inet_ntop.c		\
+	inet_pton.c		\
 	initgroups.c		\
 	innetgr.c		\
 	iruserok.c		\
@@ -91,10 +107,13 @@ EXTRA_libroken_la_SOURCES =	\
 	strdup.c		\
 	strerror.c		\
 	strftime.c		\
+	strlcat.c		\
+	strlcpy.c		\
 	strlwr.c		\
 	strncasecmp.c		\
 	strndup.c		\
 	strnlen.c		\
+	strptime.c		\
 	strsep.c		\
 	strtok_r.c		\
 	strupr.c		\
@@ -118,7 +137,8 @@ libroken_la_LIBADD = @LTLIBOBJS@
 
 $(LTLIBOBJS) $(libroken_la_OBJECTS): roken.h
 
-include_HEADERS = $(err_h) base64.h getarg.h parse_time.h parse_units.h \
+include_HEADERS = $(err_h) base64.h getarg.h \
+	parse_bytes.h parse_time.h parse_units.h \
 	resolve.h roken.h roken-common.h
 
 build_HEADERZ = $(err_h) $(fnmatch_h) $(glob_h) xdbm.h

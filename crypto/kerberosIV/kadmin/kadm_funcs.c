@@ -30,7 +30,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kadm_funcs.c,v 1.17 1998/06/09 19:24:53 joda Exp $");
+RCSID("$Id: kadm_funcs.c,v 1.18 1999/09/16 20:41:40 assar Exp $");
 
 static int
 check_access(char *pname, char *pinst, char *prealm, enum acl_types acltype)
@@ -94,10 +94,10 @@ kadm_add_entry (char *rname, char *rinstance, char *rrealm,
   
     char admin[MAX_K_NAME_SZ], victim[MAX_K_NAME_SZ];
 
-    strcpy_truncate(admin,
+    strlcpy(admin,
 		    krb_unparse_name_long(rname, rinstance, rrealm),
 		    sizeof(admin));
-    strcpy_truncate(victim,
+    strlcpy(victim,
 		    krb_unparse_name_long(valsin->name,
 					  valsin->instance,
 					  NULL),
@@ -124,8 +124,8 @@ kadm_add_entry (char *rname, char *rinstance, char *rrealm,
     }
 
     kadm_vals_to_prin(valsin->fields, &data_i, valsin);
-    strcpy_truncate(data_i.name, valsin->name, ANAME_SZ);
-    strcpy_truncate(data_i.instance, valsin->instance, INST_SZ);
+    strlcpy(data_i.name, valsin->name, ANAME_SZ);
+    strlcpy(data_i.instance, valsin->instance, INST_SZ);
 
     if (!IS_FIELD(KADM_EXPDATE,valsin->fields))
 	data_i.exp_date = default_princ.exp_date;
@@ -159,8 +159,8 @@ kadm_add_entry (char *rname, char *rinstance, char *rrealm,
     } else {
 	data_i.key_version++;
 	data_i.kdc_key_ver = server_parm.master_key_version;
-	strcpy_truncate(data_i.mod_name, rname, sizeof(data_i.mod_name));
-	strcpy_truncate(data_i.mod_instance, rinstance,
+	strlcpy(data_i.mod_name, rname, sizeof(data_i.mod_name));
+	strlcpy(data_i.mod_instance, rinstance,
 			sizeof(data_i.mod_instance));
 
 	numfound = kerb_put_principal(&data_i, 1);
@@ -195,10 +195,10 @@ kadm_delete_entry (char *rname, char *rinstance, char *rrealm,
 
     char admin[MAX_K_NAME_SZ], victim[MAX_K_NAME_SZ];
     
-    strcpy_truncate(admin,
+    strlcpy(admin,
 		    krb_unparse_name_long(rname, rinstance, rrealm),
 		    sizeof(admin));
-    strcpy_truncate(victim,
+    strlcpy(victim,
 		    krb_unparse_name_long(valsin->name,
 					  valsin->instance,
 					  NULL),
@@ -244,10 +244,10 @@ kadm_get_entry (char *rname, char *rinstance, char *rrealm,
     
     char admin[MAX_K_NAME_SZ], victim[MAX_K_NAME_SZ];
     
-    strcpy_truncate(admin,
+    strlcpy(admin,
 		    krb_unparse_name_long(rname, rinstance, rrealm),
 		    sizeof(admin));
-    strcpy_truncate(victim,
+    strlcpy(victim,
 		    krb_unparse_name_long(valsin->name,
 					  valsin->instance,
 					  NULL),
@@ -290,10 +290,10 @@ kadm_mod_entry (char *rname, char *rinstance, char *rrealm,
 
     char admin[MAX_K_NAME_SZ], victim[MAX_K_NAME_SZ];
     
-    strcpy_truncate(admin,
+    strlcpy(admin,
 		    krb_unparse_name_long(rname, rinstance, rrealm),
 		    sizeof(admin));
-    strcpy_truncate(victim,
+    strlcpy(victim,
 		    krb_unparse_name_long(valsin->name,
 					  valsin->instance,
 					  NULL),
@@ -316,8 +316,8 @@ kadm_mod_entry (char *rname, char *rinstance, char *rrealm,
 	failmod(KADM_DB_INUSE);
     } else if (numfound) {
 	kadm_vals_to_prin(valsin2->fields, &temp_key, valsin2);
-	strcpy_truncate(data_o.name, valsin->name, ANAME_SZ);
-	strcpy_truncate(data_o.instance, valsin->instance, INST_SZ);
+	strlcpy(data_o.name, valsin->name, ANAME_SZ);
+	strlcpy(data_o.instance, valsin->instance, INST_SZ);
 	if (IS_FIELD(KADM_EXPDATE,valsin2->fields))
 	    data_o.exp_date = temp_key.exp_date;
 	if (IS_FIELD(KADM_ATTR,valsin2->fields))
@@ -344,8 +344,8 @@ kadm_mod_entry (char *rname, char *rinstance, char *rrealm,
 	}
 	memset(&temp_key, 0, sizeof(temp_key));
 
-	strcpy_truncate(data_o.mod_name, rname, sizeof(data_o.mod_name));
-	strcpy_truncate(data_o.mod_instance, rinstance,
+	strlcpy(data_o.mod_name, rname, sizeof(data_o.mod_name));
+	strlcpy(data_o.mod_instance, rinstance,
 			sizeof(data_o.mod_instance));
 	more = kerb_put_principal(&data_o, 1);
 
@@ -387,7 +387,7 @@ kadm_change (char *rname, char *rinstance, char *rrealm, unsigned char *newpw)
 
     char admin[MAX_K_NAME_SZ];
     
-    strcpy_truncate(admin,
+    strlcpy(admin,
 		    krb_unparse_name_long(rname, rinstance, rrealm),
 		    sizeof(admin));
     
@@ -416,8 +416,8 @@ kadm_change (char *rname, char *rinstance, char *rrealm, unsigned char *newpw)
 	copy_from_key(local_pw, &data_o.key_low, &data_o.key_high);
 	data_o.key_version++;
 	data_o.kdc_key_ver = server_parm.master_key_version;
-	strcpy_truncate(data_o.mod_name, rname, sizeof(data_o.mod_name));
-	strcpy_truncate(data_o.mod_instance, rinstance,
+	strlcpy(data_o.mod_name, rname, sizeof(data_o.mod_name));
+	strlcpy(data_o.mod_instance, rinstance,
 			sizeof(data_o.mod_instance));
 	more = kerb_put_principal(&data_o, 1);
 	memset(local_pw, 0, sizeof(local_pw));

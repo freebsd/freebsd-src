@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_in_tkt.c,v 1.23 1999/07/01 09:36:22 assar Exp $");
+RCSID("$Id: get_in_tkt.c,v 1.24 1999/11/25 05:22:43 assar Exp $");
 
 /*
  * This file contains three routines: passwd_to_key() and
@@ -164,6 +164,10 @@ krb_get_pw_in_tkt2(const char *user,
 	    return ret ? ret : code;
 
 	code = tf_setup(&cred, user, instance);
+	if (code == KSUCCESS) {
+	  if (krb_get_config_bool("nat_in_use"))
+	    krb_add_our_ip_for_realm(user, instance, realm, password);
+	}
     }
     if (password == pword)
         memset(pword, 0, sizeof(pword));

@@ -37,7 +37,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: popen.c,v 1.18 1998/06/09 19:24:24 joda Exp $");
+RCSID("$Id: popen.c,v 1.19 1999/09/16 20:38:45 assar Exp $");
 #endif
 
 #include <sys/types.h>
@@ -89,10 +89,10 @@ ftp_rooted(const char *path)
 
     if(!home[0])
 	if((pwd = k_getpwnam("ftp")))
-	    strcpy_truncate(home, pwd->pw_dir, sizeof(home));
+	    strlcpy(home, pwd->pw_dir, sizeof(home));
     snprintf(newpath, sizeof(newpath), "%s/%s", home, path);
     if(access(newpath, X_OK))
-	strcpy_truncate(newpath, path, sizeof(newpath));
+	strlcpy(newpath, path, sizeof(newpath));
     return newpath;
 }
 

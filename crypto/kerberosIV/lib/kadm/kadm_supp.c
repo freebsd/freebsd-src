@@ -35,7 +35,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
     
-RCSID("$Id: kadm_supp.c,v 1.13 1999/03/16 09:41:20 assar Exp $");
+RCSID("$Id: kadm_supp.c,v 1.14 1999/09/16 20:41:46 assar Exp $");
 
 static void
 time2str(char *buf, size_t len, time_t t)
@@ -112,11 +112,11 @@ kadm_prin_to_vals(u_char *fields, Kadm_vals *new, Principal *old)
 {
     memset(new, 0, sizeof(*new));
     if (IS_FIELD(KADM_NAME,fields)) {
-	strcpy_truncate(new->name, old->name, ANAME_SZ); 
+	strlcpy(new->name, old->name, ANAME_SZ); 
 	SET_FIELD(KADM_NAME, new->fields);
     }
     if (IS_FIELD(KADM_INST,fields)) {
-	strcpy_truncate(new->instance, old->instance, INST_SZ); 
+	strlcpy(new->instance, old->instance, INST_SZ); 
 	SET_FIELD(KADM_INST, new->fields);
     }      
     if (IS_FIELD(KADM_EXPDATE,fields)) {
@@ -142,11 +142,11 @@ kadm_prin_to_vals(u_char *fields, Kadm_vals *new, Principal *old)
 	SET_FIELD(KADM_MODDATE, new->fields);
     }
     if (IS_FIELD(KADM_MODNAME,fields)) {
-	strcpy_truncate(new->mod_name, old->mod_name, ANAME_SZ);
+	strlcpy(new->mod_name, old->mod_name, ANAME_SZ);
 	SET_FIELD(KADM_MODNAME, new->fields);
     }
     if (IS_FIELD(KADM_MODINST,fields)) {
-	strcpy_truncate(new->mod_instance, old->mod_instance, ANAME_SZ);
+	strlcpy(new->mod_instance, old->mod_instance, ANAME_SZ);
 	SET_FIELD(KADM_MODINST, new->fields);
     }
     if (IS_FIELD(KADM_KVNO,fields)) {
@@ -162,9 +162,9 @@ kadm_vals_to_prin(u_char *fields, Principal *new, Kadm_vals *old)
 
     memset(new, 0, sizeof(*new));
     if (IS_FIELD(KADM_NAME,fields))
-	strcpy_truncate(new->name, old->name, ANAME_SZ); 
+	strlcpy(new->name, old->name, ANAME_SZ); 
     if (IS_FIELD(KADM_INST,fields))
-	strcpy_truncate(new->instance, old->instance, INST_SZ); 
+	strlcpy(new->instance, old->instance, INST_SZ); 
     if (IS_FIELD(KADM_EXPDATE,fields))
 	new->exp_date   = old->exp_date; 
     if (IS_FIELD(KADM_ATTR,fields))
@@ -179,9 +179,9 @@ kadm_vals_to_prin(u_char *fields, Principal *new, Kadm_vals *old)
     if (IS_FIELD(KADM_MODDATE,fields))
 	new->mod_date = old->mod_date;
     if (IS_FIELD(KADM_MODNAME,fields))
-	strcpy_truncate(new->mod_name, old->mod_name, ANAME_SZ);
+	strlcpy(new->mod_name, old->mod_name, ANAME_SZ);
     if (IS_FIELD(KADM_MODINST,fields))
-	strcpy_truncate(new->mod_instance, old->mod_instance, ANAME_SZ);
+	strlcpy(new->mod_instance, old->mod_instance, ANAME_SZ);
     if (IS_FIELD(KADM_KVNO,fields))
 	new->key_version = old->key_version;
 #endif

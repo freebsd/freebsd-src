@@ -22,7 +22,7 @@
 
 #include <parse_time.h>
 
-RCSID("$Id: klist.c,v 1.41.2.1 1999/07/22 03:15:12 assar Exp $");
+RCSID("$Id: klist.c,v 1.44.2.2 1999/12/07 00:20:43 assar Exp $");
 
 static int option_verbose = 0;
 
@@ -147,24 +147,24 @@ display_tktfile(char *file, int tgt_test, int long_form)
 	}
 	if (long_form) {
 	    struct timeval tv;
-	    strcpy_truncate(buf1,
-			    short_date(c.issue_date),
-			    sizeof(buf1));
+	    strlcpy(buf1,
+		    short_date(c.issue_date),
+		    sizeof(buf1));
 	    c.issue_date = krb_life_to_time(c.issue_date, c.lifetime);
 	    krb_kdctimeofday(&tv);
 	    if (option_verbose || tv.tv_sec < (unsigned long) c.issue_date)
-	        strcpy_truncate(buf2,
-				short_date(c.issue_date),
-				sizeof(buf2));
+	        strlcpy(buf2,
+			short_date(c.issue_date),
+			sizeof(buf2));
 	    else
-	        strcpy_truncate(buf2,
-				">>> Expired <<<",
-				sizeof(buf2));
+	        strlcpy(buf2,
+			">>> Expired <<<",
+			sizeof(buf2));
 	    printf("%s  %s  ", buf1, buf2);
 	}
 	printf("%s", krb_unparse_name_long(c.service, c.instance, c.realm));
 	if(long_form && option_verbose)
-	  printf(" (%d)", c.kvno);
+	    printf(" (%d)", c.kvno);
 	printf("\n");
     }
     if (tgt_test)
@@ -172,6 +172,36 @@ display_tktfile(char *file, int tgt_test, int long_form)
     if (header && long_form && k_errno == EOF) {
 	printf("No tickets in file.\n");
     }
+    tf_close();
+ 
+    if (long_form && krb_get_config_bool("nat_in_use")) {
+	char realm[REALM_SZ];
+	struct in_addr addr;
+ 
+	printf("-----\nNAT addresses\n");
+ 
+	/* Open ticket file (again) */
+	if ((k_errno = tf_init(file, R_TKT_FIL))) {
+	    if (!tgt_test)
+		warnx("%s", krb_get_err_text(k_errno));
+	    return 1;
+	}
+ 
+	/* Get principal name and instance */
+	if ((k_errno = tf_get_pname(pr.name)) ||
+	    (k_errno = tf_get_pinst(pr.instance))) {
+	    if (!tgt_test)
+		warnx("%s", krb_get_err_text(k_errno));
+	    return 1;
+	}
+ 
+	while ((k_errno = tf_get_cred_addr(realm, sizeof(realm),
+					   &addr)) == KSUCCESS) {
+	    printf("%s: %s\n", realm, inet_ntoa(addr));
+	}
+	tf_close();
+    }
+ 
     return 0;
 }
 
@@ -234,11 +264,11 @@ display_tokens(void)
 	cell = (const char *)r;
 
 	krb_kdctimeofday (&tv);
-	strcpy_truncate (buf1, short_date(ct.BeginTimestamp), sizeof(buf1));
+	strlcpy (buf1, short_date(ct.BeginTimestamp), sizeof(buf1));
 	if (option_verbose || tv.tv_sec < ct.EndTimestamp)
-	    strcpy_truncate (buf2, short_date(ct.EndTimestamp), sizeof(buf2));
+	    strlcpy (buf2, short_date(ct.EndTimestamp), sizeof(buf2));
 	else
-	    strcpy_truncate (buf2, ">>> Expired <<<", sizeof(buf2));
+	    strlcpy (buf2, ">>> Expired <<<", sizeof(buf2));
 
 	printf("%s  %s  ", buf1, buf2);
 
@@ -345,7 +375,7 @@ main(int argc, char **argv)
 	if (!strcmp(*argv, "-srvtab")) {
 		if (tkt_file == NULL)	/* if no other file spec'ed,
 					   set file to default srvtab */
-		    tkt_file = KEYFILE;
+		    tkt_file = (char *)KEYFILE;
 		do_srvtab = 1;
 		continue;
 	}

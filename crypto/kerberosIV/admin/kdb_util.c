@@ -15,7 +15,7 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: kdb_util.c,v 1.40 1999/07/05 21:43:52 assar Exp $");
+RCSID("$Id: kdb_util.c,v 1.42 1999/09/16 20:37:21 assar Exp $");
 
 static des_cblock master_key, new_master_key;
 static des_key_schedule master_key_schedule, new_master_key_schedule;
@@ -53,7 +53,7 @@ time_explode(char *cp)
     memset(&tp, 0, sizeof(tp));	/* clear out the struct */
     
     if (strlen(cp) > 10) {		/* new format */
-	strcpy_truncate(wbuf, cp, sizeof(wbuf));
+	strlcpy(wbuf, cp, sizeof(wbuf));
 	tp.tm_year = atoi(wbuf) - 1900;
 	cp += 4;			/* step over the year */
 	local = 0;			/* GMT */
@@ -432,6 +432,7 @@ main(int argc, char **argv)
 	fprintf(stderr, "Operation is one of: "
 		"load, merge, dump, slave_dump, new_master_key, "
 		"convert_old_db\n");
+	fprintf(stderr, "use file `-' for stdout\n");
 	exit(1);
     }
     if (argc == 3)
@@ -469,7 +470,20 @@ main(int argc, char **argv)
     }
 
     file_name = argv[2];
-    file = fopen(file_name, (op == OP_LOAD || op == OP_MERGE) ? "r" : "w");
+    if (strcmp (file_name, "-") == 0
+	&& op != OP_LOAD
+	&& op != OP_MERGE)
+	file = stdout;
+    else {
+	char *mode;
+
+	if (op == OP_LOAD || op == OP_MERGE)
+	    mode = "r";
+	else
+	    mode = "w";
+
+	file = fopen (file_name, mode);
+    }
     if (file == NULL)
         err (1, "open %s", argv[2]);
 

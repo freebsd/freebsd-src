@@ -15,6 +15,7 @@ from source.
 * Installing from source::      
 * Installing a binary distribution::  
 * Finishing the installation::  
+* .klogin::
 * Authentication modules::      
 @end menu
 
@@ -59,7 +60,7 @@ Use cracklib for password quality control in
 @code{kadmind}. This option requires 
 @cindex cracklib
 cracklib with the patch from
-@code{ftp://ftp.pdc.kth.se/pub/krb/src/cracklib.patch}.
+@url{ftp://ftp.pdc.kth.se/pub/krb/src/cracklib.patch}.
 
 @item @kbd{--with-dictpath=}@var{dictpath}
 This is the dictionary that cracklib should use.
@@ -76,7 +77,7 @@ about socks see @url{http://www.socks.nec.com/}.
 @cindex readline
 To enable history/line editing in @code{ftp} and @code{kadmin}, any
 present version of readline will be used.  If you have readline
-installed but in a place where configure does not managed to find it,
+installed but in a place where configure does not manage to find it,
 you can use this option.  The code also looks for @code{libedit}.  If
 there is no library at all, the bundled version of @code{editline} will
 be used.
@@ -92,11 +93,22 @@ spool directory is located.  This directory is only accessed by
 @pindex login
 @code{login}.
 
+@item @kbd{--with-hesiod=}@var{dir}
+@cindex Hesiod
+Enable the Hesiod support in
+@pindex push
+@code{push}.  With this option, it will try
+to use the hesiod library to locate the mail post-office for the user.
+
 @c @item @kbd{--enable-random-mkey}
 @c Do not use this option unless you think you know what you are doing.
 
 @item @kbd{--with-mkey=}@var{file}
 Put the master key here, the default is @file{/.k}.
+
+@item @kbd{--with-db-dir=}@var{dir}
+Where the kerberos database should be stored.  The default is
+@file{/var/kerberos}.
 
 @item @kbd{--without-berkeley-db}
 If you have
@@ -108,20 +120,54 @@ since there currently isn't an easy way to convert a dbm database to a
 db one (you have to dump the old database and then load it with the new
 binaries).
 
-@item @kbd{--disable-shared-afs}
+@item @kbd{--without-afs-support}
+Do not include AFS support.
+
+@item @kbd{--with-afsws=}@var{dir}
+Where your AFS client installation resides.  The default is
+@file{/usr/afsws}.
+
+@item @kbd{--enable-rxkad}
+Build the rxkad library.  Normally automatically included if there is AFS.
+
+@item @kbd{--disable-dynamic-afs}
 The AFS support in AIX consists of a shared library that is loaded at
 runtime. This option disables this, and links with static system
 calls. Doing this will make the built binaries crash on a machine that
 doesn't have AFS in the kernel (for instance if the AFS module fails to
 load at boot).
 
-@item @kbd{--with-mips-api=api}
+@item @kbd{--with-mips-api=}@var{api}
 This option enables creation of different types of binaries on Irix.
 The allowed values are @kbd{32}, @kbd{n32}, and @kbd{64}.
 
 @item @kbd{--enable-legacy-kdestroy}
 This compile-time option creates a @code{kdestroy} that does not destroy
 any AFS tokens.
+
+@item @kbd{--disable-otp}
+Do not build the OTP (@pxref{One-Time Passwords}) library and programs,
+and do not include OTP support in the application programs.
+
+@item @kbd{--enable-match-subdomains}
+Normally, the host @samp{host.domain} will be considered to be part of
+the realm @samp{DOMAIN}.  With this option will also enable hosts of the
+form @samp{host.sub.domain}, @samp{host.sub1.sub2.domain}, and so on to
+be considered part of the realm @samp{DOMAIN}.
+
+@item @kbd{--enable-osfc2}
+Enable the use of enhanced C2 security on OSF/1. @xref{Digital SIA}.
+
+@item @kbd{--disable-mmap}
+Do not use the mmap system call.  Normally, configure detects if there
+is a working mmap and it is only used if there is one.  Only try this
+option if it fails to work anyhow.
+
+@item @kbd{--disable-cat-manpages}
+Do not install preformatted man pages.
+
+@c --with-des-quad-checksum
+
 @end table
 
 @node Installing a binary distribution, Finishing the installation, Installing from source, Installing programs
@@ -133,7 +179,7 @@ The binary distribution is supposed to be installed in
 recommended.  A symlink from @file{/usr/athena} to the install directory
 should be fine.
 
-@node Finishing the installation, Authentication modules, Installing a binary distribution, Installing programs
+@node Finishing the installation, .klogin, Installing a binary distribution, Installing programs
 @section Finishing the installation
 
 @pindex su
@@ -236,19 +282,64 @@ ttys. (From Wietse Venema)
 @end table
 
 @menu
+* .klogin::
 * Authentication modules::      
 @end menu
 
-@node  Authentication modules,  , Finishing the installation, Installing programs
+@node .klogin, Authentication modules, Finishing the installation, Installing programs
+@comment  node-name,  next,  previous,  up
+
+Each user can have an authorization file @file{~@var{user}/.klogin}
+@pindex .klogin
+that
+determines what principals can login as that user.  It is similar to the
+@file{~user/.rhosts} except that it does not use IP and privileged-port
+based authentication.  If this file does not exist, the user herself
+@samp{user@@LOCALREALM} will be allowed to login.  Supplementary local
+realms (@pxref{Install the configuration files}) also apply here.  If the
+file exists, it should contain the additional principals that are to
+be allowed to login as the local user @var{user}.
+
+This file is consulted by most of the daemons (@code{rlogind},
+@code{rshd}, @code{ftpd}, @code{telnetd}, @code{popper}, @code{kauthd}, and
+@code{kxd})
+@pindex rlogind
+@pindex rshd
+@pindex ftpd
+@pindex telnetd
+@pindex popper
+@pindex kauthd
+@pindex kxd
+to determine if the
+principal requesting a service is allowed to receive it.  It is also
+used by
+@pindex su
+@code{su}, which is a good way of keeping an access control list (ACL)
+on who is allowed to become root.  Assuming that @file{~root/.klogin}
+contains:
+
+@example
+nisse.root@@FOO.SE
+lisa.root@@FOO.SE
+@end example
+
+both nisse and lisa will be able to su to root by entering the password
+of their root instance.  If that fails or if the user is not listed in
+@file{~root/.klogin}, @code{su} falls back to the normal policy of who
+is permitted to su.  Also note that that nisse and lisa can login
+with e.g. @code{telnet} as root provided that they have tickets for
+their root instance.
+
+@node  Authentication modules, , .klogin, Installing programs
 @comment  node-name,  next,  previous,  up
 @section Authentication modules
 The problem of having different authentication mechanisms has been
 recognised by several vendors, and several solutions has appeared. In
 most cases these solutions involve some kind of shared modules that are
 loaded at run-time.  Modules for some of these systems can be found in
-@file{lib/auth}.  Presently there are modules for Digital's SIA, Linux'
-PAM (might also work on Solaris, when PAM gets supported), and IRIX'
-@code{login} and @code{xdm} (in @file{lib/auth/afskauthlib}).
+@file{lib/auth}.  Presently there are modules for Digital's SIA,
+Solaris' and Linux' PAM, and IRIX' @code{login} and @code{xdm} (in
+@file{lib/auth/afskauthlib}).
 
 @menu
 * Digital SIA::                 
@@ -382,9 +473,8 @@ files.
 @subsection PAM
 
 The PAM module was written more out of curiosity that anything else. It
-has not been updated for quite a while, since none of us are using
-Linux, and Solaris does not support PAM yet.  We've had positive reports
-from at least one person using the module, though.
+has not been updated for quite a while, but it seems to mostly work on
+both Linux and Solaris.
 
 To use this module you should:
 
@@ -402,5 +492,5 @@ There is currently no support for changing kerberos passwords. Use
 kpasswd instead.
 
 See also Derrick J Brashear's @code{<shadow@@dementia.org>} Kerberos PAM
-module at @kbd{ftp://ftp.dementia.org/pub/pam}. It has a lot more
+module at @* @url{ftp://ftp.dementia.org/pub/pam}. It has a lot more
 features, and it is also more in line with other PAM modules.
