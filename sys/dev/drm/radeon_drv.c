@@ -40,7 +40,6 @@
 
 drm_chipinfo_t DRM(devicelist)[] = {
 	{0x1002, 0x4242, 1, "ATI Radeon BB R200 AIW 8500DV"},
-	{0x1002, 0x4336, 1, "ATI Radeon Mobility U1"},
 	{0x1002, 0x4964, 1, "ATI Radeon Id R250 9000"},
 	{0x1002, 0x4965, 1, "ATI Radeon Ie R250 9000"},
 	{0x1002, 0x4966, 1, "ATI Radeon If R250 9000"},
@@ -57,7 +56,7 @@ drm_chipinfo_t DRM(devicelist)[] = {
 	{0x1002, 0x5145, 1, "ATI Radeon QE R100"},
 	{0x1002, 0x5146, 1, "ATI Radeon QF R100"},
 	{0x1002, 0x5147, 1, "ATI Radeon QG R100"},
-	{0x1002, 0x5148, 1, "ATI Radeon QH FireGL 8x00"},
+	{0x1002, 0x5148, 1, "ATI Radeon QH R200 8500"},
 	{0x1002, 0x5149, 1, "ATI Radeon QI R200"},
 	{0x1002, 0x514A, 1, "ATI Radeon QJ R200"},
 	{0x1002, 0x514B, 1, "ATI Radeon QK R200"},
@@ -67,13 +66,14 @@ drm_chipinfo_t DRM(devicelist)[] = {
 	{0x1002, 0x514F, 1, "ATI Radeon QO R200 8500 LE"},
 	{0x1002, 0x5157, 1, "ATI Radeon QW RV200 7500"},
 	{0x1002, 0x5158, 1, "ATI Radeon QX RV200 7500"},
-	{0x1002, 0x5159, 1, "ATI Radeon QY RV100 VE"},
-	{0x1002, 0x515A, 1, "ATI Radeon QZ RV100 VE"},
+	{0x1002, 0x5159, 1, "ATI Radeon QY RV100 7000/VE"},
+	{0x1002, 0x515A, 1, "ATI Radeon QZ RV100 7000/VE"},
 	{0x1002, 0x5168, 1, "ATI Radeon Qh R200"},
 	{0x1002, 0x5169, 1, "ATI Radeon Qi R200"},
 	{0x1002, 0x516A, 1, "ATI Radeon Qj R200"},
 	{0x1002, 0x516B, 1, "ATI Radeon Qk R200"},
 	{0x1002, 0x516C, 1, "ATI Radeon Ql R200"},
+	{0x1002, 0x5961, 1, "ATI Radeon RV280 9200"},
 	{0, 0, 0, NULL}
 };
 
