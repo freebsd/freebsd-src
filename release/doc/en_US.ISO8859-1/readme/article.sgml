@@ -29,9 +29,10 @@
 
   <abstract>
     <para>This document gives a brief introduction to &os;
-      &release.current;.  It includes a roadmap to the other release 
-      documentation files, as well as some pointers on obtaining &os; and
-      contacting the &os; development team.</para>
+      &release.current;.  It includes some information on how to
+      obtain &os;, a listing of various ways to contact the &os;
+      Project, and pointers to some other sources of
+      information.</para>
   </abstract>
 
   <sect1>
@@ -115,7 +116,7 @@
     <title>Obtaining &os;</title>
 
     <para>&os; may be obtained in a variety of ways.  This section
-      focuses on those ways that are primarily of use for obtaining a
+      focuses on those ways that are primarily useful for obtaining a
       complete &os; distribution, rather than updating an existing
       installation.</para>
 
@@ -159,8 +160,8 @@
 
       <para>Mirrors generally contain the floppy disk images necessary
 	to begin an installation, as well as the distribution files
-	needed for the install process itself.  Some mirrors also
-	contain some of the ISO images necessary to create a CDROM of
+	needed for the install process itself.  Many mirrors also
+	contain the ISO images necessary to create a CDROM of
 	a &os; release.</para>
 
     </sect2>
@@ -180,17 +181,16 @@
 	keep abreast of recent developments and changes that may
 	affect the way you use and maintain the system.
 
-      <para>Additionally, being a largely-volunteer effort, the &os;
-	Project is always happy to have extra hands willing to help
-	&mdash; there are already far more desired enhancements than
+      <para>Being a largely-volunteer effort, the &os;
+	Project is always happy to have extra hands willing to help&mdash;there are already far more desired enhancements than
 	there is time to implement them.  To contact the developers on
 	technical matters, or with offers of help, please send mail to
 	the &a.hackers;.</para>
 
       <para>Please note that these mailing lists can experience
-	<emphasis>significant</emphasis> amounts of traffic and if you
-	have slow or expensive mail access and are only interested in
-	keeping up with significant &os; events, you may find it
+	<emphasis>significant</emphasis> amounts of traffic.  If you
+	have slow or expensive mail access, or are only interested in
+	keeping up with major &os; events, you may find it
 	preferable to subscribe instead to the &a.announce;.</para>
 
       <para>All of the mailing lists can be freely joined by anyone
@@ -215,7 +215,7 @@
       <title>Submitting Problem Reports</title>
 
       <para>Suggestions, bug reports and contributions of code are
-	always valued &mdash; please do not hesitate to report any
+	always valued&mdash;please do not hesitate to report any
 	problems you may find.  Bug reports with attached fixes are of
 	course even more welcome.</para>
 
@@ -238,14 +238,20 @@
 	are unable to use &man.send-pr.1; to submit a bug report, you
 	can try to send it to the &a.bugs;.</para>
 
-      <para>In any case, before submitting a PR, please try to
-	determine whether the problem might have already been fixed
-	since.</para>
+      <para>For more information, <ulink
+	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/problem-reports/"><quote>Writing
+	FreeBSD Problem Reports</quote></ulink>, available on the &os; Web
+	site, has a number of helpful hints on writing and submitting
+	effective problem reports.</para>
     </sect2>
   </sect1>
 
   <sect1>
     <title>Further Reading</title>
+
+    <para>There are many sources of information about &os;; some are
+      included with this distribution, while others are available
+      on-line or in print versions.</para>
 
     <sect2 id="release-docs">
       <title>Release Documentation</title>
@@ -270,8 +276,8 @@
 	  <listitem>
 	    <para><filename>RELNOTES.TXT</filename>: The release
 	      notes, showing what's new and different in &os;
-	      &release.current; compared to &os;
-	      &release.prev;.</para>
+	      &release.current; compared to the previous release (&os;
+	      &release.prev;).</para>
 	  </listitem>
 
 	  <listitem>
@@ -297,9 +303,22 @@
 	      created.</para>
 	  </listitem>
 	</itemizedlist>
+
+	<note>
+	  <para>Several of these documents (in particular,
+	    <filename>RELNOTES.TXT</filename>,
+	    <filename>HARDWARE.TXT</filename>, and
+	    <filename>INSTALL.TXT</filename>) contain information that
+	    is specific to a particular hardware architecture.  For
+	    example, the alpha release notes contain information not
+	    applicable to the i386, and vice versa.  The architecture
+	    for which each document applies will be listed in that
+	    document's title.</para>
+	</note>
+
       </para>
 
-      <para>Most of this information is also available from the
+      <para>These documents are generally available via the
 	Documentation menu during installation.  Once the system is
 	installed, you can revisit this menu by running the
 	&man.sysinstall.8; utility.</para>
@@ -317,6 +336,24 @@
 	  well as any sites which keep up-to-date mirrors of this
 	  location).</para>
       </note>
+    </sect2>
+
+    <sect2>
+      <title>Manual Pages</title>
+
+      <para>As with almost all UNIX-like operating systems, &os; comes
+	with a set of on-line manual pages, accessed through the
+	&man.man.1; command or through the <ulink
+	url="http://www.FreeBSD.org/cgi/man.cgi">hypertext manual
+	pages gateway</ulink> on the &os; Web site.  In general, the
+	manual pages provide information on the different commands and
+	APIs available to the &os; user.</para>
+
+      <para>In some cases, manual pages are written to given
+	information on particular topics.  Notable examples of such
+	manual pages are &man.tuning.7; (a guide to performance tuning),
+	&man.security.7; (an introduction to &os; security), and
+	&man.style.9; (a style guide to kernel coding).</para>
     </sect2>
 
     <sect2>
@@ -362,8 +399,8 @@
       countless hours to bring about this &release.type;.  For a
       complete list of &os; developers and contributors, please see
       <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/contributors/">Contributors
-      to FreeBSD</ulink> on the &os; Web site or any of its
+      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/contributors/"><quote>Contributors
+      to FreeBSD</quote></ulink> on the &os; Web site or any of its
       mirrors.</para>
 
     <para>Special thanks also go to the many thousands of &os; users
