@@ -389,11 +389,15 @@ exec_coff_imgact(imgp)
 					M_TEMP, M_WAITOK);
 			strcpy(libbuf, ibcs2_emul_path);
 
-		    	for (j = off; j < scns[i].s_size + off; j++) {
+		    	for (j = off; j < scns[i].s_size + off;) {
+				long stroff, nextoff;
 	      			char *libname;
 
-		      		libname = buf + j + 4 * *(long*)(buf + j + 4);
-		      		j += 4* *(long*)(buf + j);
+				nextoff = 4 * *(long *)(buf + j);
+				stroff = 4 * *(long *)(buf + j + sizeof(long));
+
+		      		libname = buf + j + stroff;
+		      		j += nextoff;
 
 				DPRINTF(("%s(%d):  shared library %s\n",
 					 __FILE__, __LINE__, libname));
