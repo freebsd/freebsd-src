@@ -75,7 +75,7 @@ rather than just the specified printer.
 .Pp
 For each job submitted (i.e. invocation of
 .Xr lpr  1  )
-.Nm lpq
+.Nm
 reports the user's name, current rank in the queue, the
 names of files comprising the job, the job identifier (a number which
 may be supplied to
@@ -93,7 +93,7 @@ is used as a sink in a pipeline) in which case the file
 is indicated as ``(standard input)''.
 .Pp
 If
-.Nm lpq
+.Nm
 warns that there is no daemon present (i.e. due to some malfunction),
 the
 .Xr lpc  8
@@ -127,7 +127,7 @@ appeared in
 .Bx 3 .
 .Sh BUGS
 Due to the dynamic nature of the information in the spooling directory
-.Nm lpq
+.Nm
 may report unreliably.
 Output formatting is sensitive to the line length of the terminal;
 this can results in widely spaced columns.

@@ -33,27 +33,31 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lpc.c	8.3 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 
-#include <dirent.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <ctype.h>
-#include <string.h>
+#include <dirent.h>
 #include <grp.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <syslog.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include "lp.h"
 #include "lpc.h"
@@ -304,14 +308,11 @@ ingroup(grname)
 
 	if (gptr == NULL) {
 		if ((gptr = getgrnam(grname)) == NULL) {
-			fprintf(stderr, "Warning: unknown group '%s'\n",
-				grname);
+			warnx("warning: unknown group '%s'", grname);
 			return(0);
 		}
-		if (getgroups(NGROUPS, groups) < 0) {
-			perror("getgroups");
-			exit(1);
-		}
+		if (getgroups(NGROUPS, groups) < 0)
+			err(1, "getgroups");
 	}
 	gid = gptr->gr_gid;
 	for (i = 0; i < NGROUPS; i++)

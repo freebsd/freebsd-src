@@ -38,14 +38,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.10.2.3 1997/07/08 21:07:21 dima Exp $\n";
+#if 0
+static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -695,9 +698,9 @@ chkprinter(s)
 static void
 usage()
 {
-	fprintf(stderr,
-"usage: lpr [-Pprinter] [-#num] [-C class] [-J job] [-T title] [-U user]\n"
-"[-i[numcols]] [-1234 font] [-wnum] [-cdfghlnmprstv] [name ...]\n");
+	fprintf(stderr, "%s\n%s\n",
+"usage: lpr [-Pprinter] [-#num] [-C class] [-J job] [-T title] [-U user]",
+"[-i[numcols]] [-1234 font] [-wnum] [-cdfghlnmprstv] [name ...]");
 	exit(1);
 }
 

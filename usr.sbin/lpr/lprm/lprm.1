@@ -47,7 +47,7 @@
 .Nm Lprm
 will remove a job, or jobs, from a printer's spool queue.
 Since the spooling directory is protected from users, using
-.Nm lprm
+.Nm
 is normally the only method by which a user may remove a job.
 The owner of a job is determined by the user's login name
 and host name on the machine where the
@@ -64,16 +64,16 @@ Specify the queue associated with a specific
 If a single
 .Sq Fl
 is given,
-.Nm lprm
+.Nm
 will remove all jobs which a user
 owns.  If the super-user employs this flag, the spool queue will
 be emptied entirely.
 .It Ar user
-Causes
-.Nm lprm
+Cause
+.Nm
 to attempt to remove any jobs queued belonging to that user
 (or users).  This form of invoking
-.Nm lprm
+.Nm
 is useful only to the super-user.
 .It Ar job\ \&#
 A user may dequeue an individual job by specifying its job number.
@@ -91,7 +91,7 @@ program, e.g.
 .El
 .Pp
 If neither arguments or options are given,
-.Nm Lprm
+.Nm
 will delete the currently active job if it is
 owned by the user who invoked
 .Nm lprm  .
@@ -140,6 +140,6 @@ Since there are race conditions possible in the update of the lock file,
 the currently active job may be incorrectly identified.
 .Sh HISTORY
 The
-.Nm lprm
+.Nm
 command appeared in
 .Bx 3.0 .
