@@ -38,9 +38,6 @@
 #include <err.h>
 #include <errno.h>
 #include <histedit.h>
-#ifdef __FreeBSD__
-#include <libutil.h>
-#endif
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
