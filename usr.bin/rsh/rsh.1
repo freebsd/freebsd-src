@@ -51,7 +51,7 @@
 executes
 .Ar command
 on
-.Ar host  .
+.Ar host .
 .Pp
 .Nm Rsh
 copies its standard input to the remote command, the standard
@@ -67,7 +67,7 @@ The options are as follows:
 Turn off all Kerberos authentication.
 .It Fl d
 Turn on socket debugging (using
-.Xr setsockopt  2  )
+.Xr setsockopt 2 )
 on the
 .Tn TCP
 sockets used for communication with the remote host.
@@ -77,7 +77,7 @@ Cause
 to obtain tickets for the remote host in
 .Ar realm
 instead of the remote host's realm as determined by
-.Xr krb_realmofhost  3  .
+.Xr krb_realmofhost 3 .
 .It Fl l
 By default, the remote username is the same as the local username.
 The
@@ -85,7 +85,7 @@ The
 option allows the remote name to be specified.
 Kerberos authentication is used, and authorization is determined
 as in
-.Xr rlogin  1  .
+.Xr rlogin 1 .
 .It Fl n
 Redirect input from the special device
 .Pa /dev/null
@@ -105,7 +105,7 @@ data is sent or received in this time, rsh will exit.
 If no
 .Ar command
 is specified, you will be logged in on the remote host using
-.Xr rlogin  1  .
+.Xr rlogin 1 .
 .Pp
 Shell metacharacters which are not quoted are interpreted on local machine,
 while quoted metacharacters are interpreted on the remote machine.
@@ -168,9 +168,9 @@ option.
 .Pp
 You cannot run an interactive command
 (like
-.Xr rogue  6
+.Xr rogue 6
 or
-.Xr vi  1  )
+.Xr vi 1 )
 using
 .Nm rsh ;
 use
