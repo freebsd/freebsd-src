@@ -41,10 +41,13 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 
 #include "mntopts.h"
 
@@ -105,4 +108,40 @@ getmntopts(options, m0, flagp, altflagp)
 	}
 
 	free(optbuf);
+}
+
+void
+rmslashes(rrpin, rrpout)
+	char *rrpin;
+	char *rrpout;
+{
+	char *rrpoutstart;
+
+	*rrpout = *rrpin;
+	for (rrpoutstart = rrpout; *rrpin != '\0'; *rrpout++ = *rrpin++) {
+
+		/* skip all double slashes */
+		while (*rrpin == '/' && *(rrpin + 1) == '/')
+			 rrpin++;
+	}
+
+	/* remove trailing slash if necessary */
+	if (rrpout - rrpoutstart > 1 && *(rrpout - 1) == '/')
+		*(rrpout - 1) = '\0';
+	else
+		*rrpout = '\0';
+}
+
+void
+checkpath(path, resolved)
+	const char *path;
+	char *resolved;
+{
+	struct stat sb;
+
+	if (realpath(path, resolved) != NULL && stat(resolved, &sb) == 0) {
+		if (!S_ISDIR(sb.st_mode)) 
+			errx(EX_USAGE, "%s: not a directory", resolved);
+	} else
+		errx(EX_USAGE, "%s: %s", resolved, strerror(errno));
 }

@@ -71,6 +71,7 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, mntflags;
+	char mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error;
 
@@ -116,7 +117,10 @@ main(argc, argv)
 	if (error)
 		errx(EX_OSERR, "%s filesystem not available", fsname);
 
-	if (mount(vfc.vfc_name, argv[1], mntflags, NULL))
+	/* resolve the mountpoint with realpath(3) */
+	(void)checkpath(argv[1], mntpath);
+
+	if (mount(vfc.vfc_name, mntpath, mntflags, NULL))
 		err(EX_OSERR, NULL);
 	exit(0);
 }
