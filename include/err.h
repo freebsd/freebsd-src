@@ -47,10 +47,10 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-__dead void	err __P((int, const char *, ...));
-__dead void	verr __P((int, const char *, _BSD_VA_LIST_));
-__dead void	errx __P((int, const char *, ...));
-__dead void	verrx __P((int, const char *, _BSD_VA_LIST_));
+__dead void	err __P((int, const char *, ...)) __dead2;
+__dead void	verr __P((int, const char *, _BSD_VA_LIST_)) __dead2;
+__dead void	errx __P((int, const char *, ...)) __dead2;
+__dead void	verrx __P((int, const char *, _BSD_VA_LIST_)) __dead2;
 void		warn __P((const char *, ...));
 void		vwarn __P((const char *, _BSD_VA_LIST_));
 void		warnx __P((const char *, ...));

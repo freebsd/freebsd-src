@@ -50,7 +50,7 @@
 
 __BEGIN_DECLS
 __dead void
-	 _exit __P((int));
+	 _exit __P((int)) __dead2;
 int	 access __P((const char *, int));
 unsigned int	 alarm __P((unsigned int));
 int	 chdir __P((const char *));
