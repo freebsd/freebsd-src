@@ -2845,10 +2845,10 @@ biowait(struct bio *bp, const char *wchan)
 
 	while ((bp->bio_flags & BIO_DONE) == 0)
 		msleep(bp, NULL, PRIBIO, wchan, hz / 10);
-	if (!(bp->bio_flags & BIO_ERROR))
-		return (0);
 	if (bp->bio_error != 0)
 		return (bp->bio_error);
+	if (!(bp->bio_flags & BIO_ERROR))
+		return (0);
 	return (EIO);
 }
 
