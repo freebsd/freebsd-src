@@ -12,8 +12,6 @@
  * its use.
  */
 
-#define BOOT_MAGIC 0xAA55
-#define ACTIVE 0x80
 #define BOOT1 "/usr/mdec/sdboot"
 #define BOOT2 "/usr/mdec/bootsd"
 
@@ -21,26 +19,10 @@
 #define DEFFSIZE 1024
 #define DEFFRAG 8
 
-extern char *part_type(int);
-extern int disk_size(int);
-extern int enable_label(int);
-extern int disable_label(int);
-extern int write_bootblocks(int, off_t, int);
-extern int build_bootblocks(struct disklabel *);
-extern void build_disklabel(struct disklabel *, int, int);
-extern int write_bootarea(int);
-extern int read_bootarea(int);
-
-struct bootarea
-{
-	unsigned char padding[2]; /* force longs to be long aligned */
-	unsigned char bootcode[DOSPARTOFF];
-	struct dos_partition dospart[4];
-	unsigned short signature;
-};
-
-struct part_type 
-{
- unsigned char type;
- char *name;
-};
+int enable_label(int);
+int disable_label(int);
+int write_bootblocks(int, off_t, int);
+int build_bootblocks(struct disklabel *);
+int Mb_to_cylbdry(int, struct disklabel *);
+void default_disklabel(struct disklabel *, int, int);
+int disk_size(int);
