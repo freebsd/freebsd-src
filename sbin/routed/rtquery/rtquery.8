@@ -9,10 +9,15 @@
 .Op Fl np1
 .Op Fl w Ar timeout
 .Op Fl r Ar addr
+.Op Fl a Ar secret
+.Ar host ...
+
+.Nm
+.Op Fl t Ar op
 .Ar host ...
 .Sh DESCRIPTION
 .Nm Rtquery
-is used to query a network routing daemon,
+is used to query a RIP network routing daemon,
 .Xr routed 8
 or
 .Xr gated 8 ,
@@ -74,12 +79,17 @@ By default, each host is given 15 seconds to respond.
 .It Fl r Ar addr
 ask about the route to destination
 .Em addr .
+.It Fl a Ar passwd=XXX
+.It Fl a Ar md5_passwd=XXX|KeyID
+cause the query to be sent with the indicated cleartext or MD5 password.
 .It Fl t Ar op
 change tracing, where
 .Em op
 is one of the following.
 Requests from processes not running with UID 0 or on distant networks
 are generally ignored by the daemon except for a message in the system log.
+.Xr gated 8 
+is likely to ignore these debugging requests.
 .El
 .Bl -tag -width Ds -offset indent-two
 .It Em on=tracefile
