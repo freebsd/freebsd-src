@@ -1,7 +1,8 @@
+# $FreeBSD$
 
 PROG=	dumpvfscache
-
-LDADD=	-lkvm -lmd
+DPADD=	${LIBKVM}
+LDADD=	-lkvm
 
 NOMAN=	1
 
