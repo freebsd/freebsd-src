@@ -163,6 +163,7 @@ static int
 smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
 	const char *name, int nmlen, struct smbfattr *fap, struct vnode **vpp)
 {
+	struct vattr vattr;
 	struct proc *p = curproc;	/* XXX */
 	struct smbmount *smp = VFSTOSMBFS(mp);
 	struct smbnode_hashhead *nhpp;
@@ -207,6 +208,20 @@ loop:
 		smbfs_hash_unlock(smp, p);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) != 0)
 			goto retry;
+		/* Force cached attributes to be refreshed if stale. */
+		(void)VOP_GETATTR(vp, &vattr, p->p_ucred, p);
+		/*
+		 * If the file type on the server is inconsistent with
+		 * what it was when we created the vnode, kill the
+		 * bogus vnode now and fall through to the code below
+		 * to create a new one with the right type.
+		 */
+		if ((vp->v_type == VDIR && (np->n_dosattr & SMB_FA_DIR) == 0) ||
+		    (vp->v_type == VREG && (np->n_dosattr & SMB_FA_DIR) != 0)) {
+			vput(vp);
+			vgone(vp);
+			break;
+		}
 		*vpp = vp;
 		return 0;
 	}
@@ -359,6 +374,8 @@ smbfs_inactive(ap)
 		smbfs_attr_cacheremove(vp);
 	}
 	VOP_UNLOCK(vp, 0, p);
+	if (np->n_flag & NGONE)
+		vrecycle(vp, NULL, p);
 	return (0);
 }
 /*
