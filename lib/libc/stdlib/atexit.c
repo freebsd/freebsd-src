@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -42,6 +44,14 @@ static char sccsid[] = "@(#)atexit.c	8.2 (Berkeley) 7/3/94";
 #include <stdlib.h>
 #include <unistd.h>
 #include "atexit.h"
+
+#include "libc_private.h"
+#include "spinlock.h"
+
+static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
+
+#define THREAD_LOCK()		if (__isthreaded) _SPINLOCK(&thread_lock);
+#define THREAD_UNLOCK()		if (__isthreaded) _SPINUNLOCK(&thread_lock);
 
 struct atexit *__atexit;	/* points to head of LIFO stack */
 
@@ -55,15 +65,29 @@ atexit(fn)
 	static struct atexit __atexit0;	/* one guaranteed table */
 	register struct atexit *p;
 
+	THREAD_LOCK();
 	if ((p = __atexit) == NULL)
 		__atexit = p = &__atexit0;
-	else if (p->ind >= ATEXIT_SIZE) {
-		if ((p = (struct atexit *)sbrk(sizeof(*p))) == (struct atexit *)-1)
+	else while (p->ind >= ATEXIT_SIZE) {
+		struct atexit *old__atexit;
+		old__atexit = __atexit;
+	        THREAD_UNLOCK();
+		if ((p = (struct atexit *)malloc(sizeof(*p))) == NULL)
 			return (-1);
+		THREAD_LOCK();
+		if (old__atexit != __atexit) {
+			/* Lost race, retry operation */
+			THREAD_UNLOCK();
+			free(p);
+			THREAD_LOCK();
+			p = __atexit;
+			continue;
+		}
 		p->ind = 0;
 		p->next = __atexit;
 		__atexit = p;
 	}
 	p->fns[p->ind++] = fn;
+	THREAD_UNLOCK();
 	return (0);
 }
