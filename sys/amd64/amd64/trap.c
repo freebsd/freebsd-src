@@ -912,7 +912,6 @@ syscall(frame)
 	struct trapframe frame;
 {
 	caddr_t params;
-	int i;
 	struct sysent *callp;
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -985,38 +984,32 @@ syscall(frame)
 	/*
 	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
 	 */
-	if (params && (i = narg * sizeof(int)) &&
-	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
+	if (params != NULL && narg != 0)
+		error = copyin(params, (caddr_t)args,
+		    (u_int)(narg * sizeof(int)));
+	else
+		error = 0;
+		
 #ifdef KTRACE
-		if (KTRPOINT(p, KTR_SYSCALL))
-			ktrsyscall(p->p_tracep, code, narg, args);
+	if (KTRPOINT(td, KTR_SYSCALL))
+		ktrsyscall(code, narg, args);
 #endif
-		goto bad;
-	}
 
 	/*
 	 * Try to run the syscall without Giant if the syscall
 	 * is MP safe.
 	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_lock(&Giant);
+
+	if (error == 0) {
+		td->td_retval[0] = 0;
+		td->td_retval[1] = frame.tf_edx;
+
+		STOPEVENT(p, S_SCE, narg);
+
+		error = (*callp->sy_call)(td, args);
 	}
-
-#ifdef KTRACE
-	/*
-	 * We have to obtain Giant no matter what if 
-	 * we are ktracing
-	 */
-	if (KTRPOINT(p, KTR_SYSCALL)) {
-		ktrsyscall(p->p_tracep, code, narg, args);
-	}
-#endif
-	td->td_retval[0] = 0;
-	td->td_retval[1] = frame.tf_edx;
-
-	STOPEVENT(p, S_SCE, narg);
-
-	error = (*callp->sy_call)(td, args);
 
 	switch (error) {
 	case 0:
@@ -1037,7 +1030,6 @@ syscall(frame)
 		break;
 
 	default:
-bad:
  		if (p->p_sysent->sv_errsize) {
  			if (error >= p->p_sysent->sv_errsize)
   				error = -1;	/* XXX */
@@ -1062,20 +1054,16 @@ bad:
 	 */
 	userret(td, &frame, sticks);
 
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET)) {
-		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
-	}
-#endif
-
 	/*
-	 * Release Giant if we previously set it.  Do not
-	 * release based on mtx_owned() - we want to catch
-	 * broken syscalls.
+	 * Release Giant if we previously set it.
 	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
-	}
+
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSRET))
+		ktrsysret(code, error, td->td_retval[0]);
+#endif
 
 	/*
 	 * This works because errno is findable through the

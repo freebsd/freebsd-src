@@ -715,18 +715,17 @@ syscall(code, framep)
 		break;
 	}
 
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSCALL))
+	    ktrsyscall(code, (callp->sy_narg & SYF_ARGMASK), args + hidden);
+#endif
 	/*
 	 * Try to run the syscall without the MP lock if the syscall
 	 * is MP safe
 	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_lock(&Giant);
-	}
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSCALL)) {
-		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args + hidden);
-	}
-#endif
+
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = 0;
@@ -761,20 +760,17 @@ syscall(code, framep)
 	}
 
 	userret(td, framep, sticks);
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET)) {
-		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
-	}
-#endif
 	
 	/*
-	 * Release Giant if we had to get it.  Don't use mtx_owned(),
-	 * we want to catch broken syscalls.
+	 * Release Giant if we had to get it.
 	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
-	}
 
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSRET))
+		ktrsysret(code, error, td->td_retval[0]);
+#endif
 	/*
 	 * This works because errno is findable through the
 	 * register set.  If we ever support an emulation where this
