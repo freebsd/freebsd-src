@@ -1221,6 +1221,12 @@ isp_fibre_init(struct ispsoftc *isp)
 		fcp->isp_fwoptions &= ~ICBOPT_TGT_ENABLE;
 	}
 
+	if (isp->isp_role & ISP_ROLE_INITIATOR) {
+		fcp->isp_fwoptions &= ~ICBOPT_INI_DISABLE;
+	} else {
+		fcp->isp_fwoptions |= ICBOPT_INI_DISABLE;
+	}
+
 	/*
 	 * Propagate all of this into the ICB structure.
 	 */
