@@ -361,14 +361,14 @@ map_pal_code(void)
 	pte.pte_ppn = ia64_pal_base >> 12;
 
 	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
-	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)), "r"(28 << 2));
+	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)), "r"(IA64_ID_PAGE_SHIFT<<2));
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
 	__asm __volatile("srlz.i");
 	__asm __volatile("mov	cr.ifa=%0" ::
 	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)));
-	__asm __volatile("mov	cr.itir=%0" :: "r"(28 << 2));
+	__asm __volatile("mov	cr.itir=%0" :: "r"(IA64_ID_PAGE_SHIFT << 2));
 	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(1), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.d");		/* XXX not needed. */
 	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(1), "r"(*(u_int64_t*)&pte));
@@ -562,7 +562,7 @@ ia64_init(void)
 	/* OUTPUT NOW ALLOWED */
 
 	if (ia64_pal_base != 0) {
-		ia64_pal_base &= ~((1 << 28) - 1);
+		ia64_pal_base &= ~IA64_ID_PAGE_MASK;
 		/*
 		 * We use a TR to map the first 256M of memory - this might
 		 * cover the palcode too.
