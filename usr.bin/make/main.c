@@ -905,7 +905,7 @@ main(argc, argv)
 static Boolean
 ReadMakefile(p, q)
 	void *p;
-	void *q;
+	void *q __unused;
 {
 	char *fname = p;		/* makefile to read */
 	extern Lst parseIncPath;

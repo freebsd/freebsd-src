@@ -82,6 +82,7 @@ static GNode	    *ENDNode;
 static void CompatInterrupt(int);
 static int CompatRunCommand(void *, void *);
 static int CompatMake(void *, void *);
+static int shellneed(char *);
 
 static char *sh_builtin[] = { 
 	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit", 
