@@ -2,7 +2,7 @@
 PROG=	wicontrol
 SRCS=	wicontrol.c
 
-CFLAGS+= -Wall
+CFLAGS+= -Wall -DWICACHE
 
 MAN8=	wicontrol.8
 

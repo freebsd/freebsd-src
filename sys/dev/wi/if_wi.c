@@ -66,20 +66,26 @@
 
 #define WI_HERMES_AUTOINC_WAR	/* Work around data write autoinc bug. */
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
-
-#include "card.h"
-#undef NCARD
-#define NCARD 0
-#include "wi.h"
+#define WICACHE			/* turn on signal strength cache code */  
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+#include <sys/syslog.h>
+#include <sys/sysctl.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <machine/clock.h>
+#include <machine/md_var.h>
+#include <machine/bus_pio.h>
+#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -88,53 +94,33 @@
 #include <net/if_media.h>
 #include <net/if_types.h>
 
-#ifdef INET
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
-#endif
 
 #include <net/bpf.h>
 
-#include <machine/clock.h>
-#include <machine/md_var.h>
-#include <machine/bus_pio.h>
-#include <machine/bus.h>
-
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/if_wireg.h>
 #include <machine/if_wavelan_ieee.h>
-
-#if NCARD > 0
-#include <sys/select.h>
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-#endif
+#include <i386/isa/if_wireg.h>
 
 #if !defined(lint)
 static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static struct wi_softc wi_softc[NWI];
-
 #ifdef foo
 static u_int8_t	wi_mcast_addr[6] = { 0x01, 0x60, 0x1D, 0x00, 0x01, 0x00 };
 #endif
 
-static int wi_probe		__P((struct isa_device *));
-static int wi_attach		__P((struct isa_device *));
-ointhand2_t			wi_intr;
+static void wi_intr		__P((void *));
 static void wi_reset		__P((struct wi_softc *));
 static int wi_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void wi_init		__P((void *));
 static void wi_start		__P((struct ifnet *));
 static void wi_stop		__P((struct wi_softc *));
 static void wi_watchdog		__P((struct ifnet *));
-static void wi_shutdown		__P((void *, int));
 static void wi_rxeof		__P((struct wi_softc *));
 static void wi_txeof		__P((struct wi_softc *, int));
 static void wi_update_stats	__P((struct wi_softc *));
@@ -153,135 +139,117 @@ static void wi_inquire		__P((void *));
 static void wi_setdef		__P((struct wi_softc *, struct wi_req *));
 static int wi_mgmt_xmit		__P((struct wi_softc *, caddr_t, int));
 
-struct isa_driver widriver = {
-	wi_probe,
-	wi_attach,
-	"wi",
-	1
-};
-
-#if NCARD > 0
-static int wi_pccard_init	__P((struct pccard_devinfo *));
-static void wi_pccard_unload	__P((struct pccard_devinfo *));
-static int wi_pccard_intr	__P((struct pccard_devinfo *));
-
-#ifdef PCCARD_MODULE
-PCCARD_MODULE(wi, wi_pccard_init, wi_pccard_unload,
-		wi_pccard_intr, 0, net_imask);
-#else
-static struct pccard_device wi_info = {
-	"wi",
-	wi_pccard_init,
-	wi_pccard_unload,
-	wi_pccard_intr,
-	0,			/* Attributes - presently unused */
-	&net_imask		/* Interrupt mask for device */
-				/* XXX - Should this also include net_imask? */
-};
-
-DATA_SET(pccarddrv_set, wi_info);
+#ifdef WICACHE
+static
+void wi_cache_store __P((struct wi_softc *, struct ether_header *,
+	struct mbuf *, unsigned short));
 #endif
 
-/* Initialize the PCCARD. */
-static int wi_pccard_init(sc_p)
-	struct pccard_devinfo	*sc_p;
+static int wi_pccard_probe	__P((device_t));
+static int wi_pccard_attach	__P((device_t));
+static int wi_pccard_detach	__P((device_t));
+static void wi_shutdown		__P((device_t));
+
+static int wi_alloc		__P((device_t));
+static void wi_free		__P((device_t));
+
+static device_method_t wi_pccard_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		wi_pccard_probe),
+	DEVMETHOD(device_attach,	wi_pccard_attach),
+	DEVMETHOD(device_detach,	wi_pccard_detach),
+	DEVMETHOD(device_shutdown,	wi_shutdown),
+
+	{ 0, 0 }
+};
+
+static driver_t wi_pccard_driver = {
+	"wi",
+	wi_pccard_methods,
+	sizeof(struct wi_softc)
+};
+
+static devclass_t wi_pccard_devclass;
+
+DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_pccard_devclass, 0, 0);
+
+static int wi_pccard_probe(dev)
+	device_t	dev;
 {
-	struct wi_softc		*sc;
-	int			i;
-	u_int32_t		irq;
+	struct wi_softc	*sc;
+	int		error;
 
-	if (sc_p->isahd.id_unit >= NWI)
-		return(ENODEV);
-
-	sc = &wi_softc[sc_p->isahd.id_unit];
+	sc = device_get_softc(dev);
 	sc->wi_gone = 0;
-	sc->wi_unit = sc_p->isahd.id_unit;
-	sc->wi_bhandle = sc_p->isahd.id_iobase;
-	sc->wi_btag = I386_BUS_SPACE_IO;
+
+	error = wi_alloc(dev);
+	if (error)
+		return (error);
+
+	device_set_desc(dev, "WaveLAN/IEEE 802.11");
+	wi_free(dev);
 
 	/* Make sure interrupts are disabled. */
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
-	/* Grr. IRQ is encoded as a bitmask. */
-	irq = sc_p->isahd.id_irq;
-	for (i = 0; i < 32; i++) {
-		if (irq & 0x1)
-			break;
-		irq >>= 1;
-	}
-
-	/*
-	 * Print a nice probe message to let the operator
-	 * know something interesting is happening.
-	 */
-	printf("wi%d: <WaveLAN/IEEE 802.11> at 0x%x-0x%x irq %d on isa\n",
-	    sc_p->isahd.id_unit, sc_p->isahd.id_iobase,
-	    sc_p->isahd.id_iobase + WI_IOSIZ - 1, i);
-
-	if (wi_attach(&sc_p->isahd))
-		return(ENXIO);
-
-	return(0);
+	return (0);
 }
 
-static void wi_pccard_unload(sc_p)
-	struct pccard_devinfo	*sc_p;
+static int wi_pccard_detach(dev)
+	device_t		dev;
 {
 	struct wi_softc		*sc;
 	struct ifnet		*ifp;
+	int			s;
 
-	sc = &wi_softc[sc_p->isahd.id_unit];
+	s = splimp();
+
+	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
 	if (sc->wi_gone) {
-		printf("wi%d: already unloaded\n", sc_p->isahd.id_unit);
-		return;
+		device_printf(dev, "already unloaded\n");
+		return(ENODEV);
 	}
 
-	ifp->if_flags &= ~IFF_RUNNING;
-	if_down(ifp);
+	wi_stop(sc);
+	if_detach(ifp);
+	bus_teardown_intr(dev, sc->irq, &sc->wi_intrhand);
+	wi_free(dev);
 	sc->wi_gone = 1;
-	printf("wi%d: unloaded\n", sc_p->isahd.id_unit);
 
-	return;
-}
+	splx(s);
+	device_printf(dev, "unload\n");
 
-static int wi_pccard_intr(sc_p)
-	struct pccard_devinfo	*sc_p;
-{
-	wi_intr(sc_p->isahd.id_unit);
-	return(1);
-}
-#endif
-
-static int wi_probe(isa_dev)
-	struct isa_device	*isa_dev;
-{
-	/*
-	 * The ISA WaveLAN/IEEE card is actually not an ISA card:
-	 * it's a PCMCIA card plugged into a PCMCIA bridge adapter
-	 * that fits into an ISA slot. Consequently, we will always
-	 * be using the pccard support to probe and attach these
-	 * devices, so we can never actually probe one from here.
-	 */
 	return(0);
 }
 
-static int wi_attach(isa_dev)
-	struct isa_device	*isa_dev;
+static int wi_pccard_attach(device_t dev)
 {
 	struct wi_softc		*sc;
 	struct wi_ltv_macaddr	mac;
 	struct wi_ltv_gen	gen;
 	struct ifnet		*ifp;
-	char			ifname[IFNAMSIZ];
+	int			error;
 
-#ifdef PCCARD_MODULE
-	isa_dev->id_ointr = wi_intr;
-#endif
-	sc = &wi_softc[isa_dev->id_unit];
+	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
+
+	error = wi_alloc(dev);
+	if (error) {
+		device_printf(dev, "wi_alloc() failed! (%d)\n", error);
+		return (error);
+	}
+
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
+			       wi_intr, sc, &sc->wi_intrhand);
+
+	if (error) {
+		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
+		wi_free(dev);
+		return (error);
+	}
 
 	/* Reset the NIC. */
 	wi_reset(sc);
@@ -293,7 +261,7 @@ static int wi_attach(isa_dev)
 	bcopy((char *)&mac.wi_mac_addr,
 	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-	printf("wi%d: Ethernet address: %6D\n", sc->wi_unit,
+	device_printf(dev, "Ethernet address: %6D\n",
 	    sc->arpcom.ac_enaddr, ":");
 
 	ifp->if_softc = sc;
@@ -348,24 +316,12 @@ static int wi_attach(isa_dev)
 	wi_stop(sc);
 
 	/*
-	 * If this logical interface has already been attached,
-	 * don't attach it again or chaos will ensue.
+	 * Call MI attach routines.
 	 */
-	sprintf(ifname, "wi%d", sc->wi_unit);
-
-	if (ifunit(ifname) == NULL) {
-		callout_handle_init(&sc->wi_stat_ch);
-		/*
-		 * Call MI attach routines.
-		 */
-		if_attach(ifp);
-		ether_ifattach(ifp);
-
-		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-
-		EVENTHANDLER_REGISTER(shutdown_post_sync, wi_shutdown, sc,
-				      SHUTDOWN_PRI_DEFAULT);
-	}
+	if_attach(ifp);
+	ether_ifattach(ifp);
+	callout_handle_init(&sc->wi_stat_ch);
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	return(0);
 }
@@ -413,8 +369,8 @@ static void wi_rxeof(sc)
 	    rx_frame.wi_status == WI_STAT_TUNNEL ||
 	    rx_frame.wi_status == WI_STAT_WMP_MSG) {
 		if((rx_frame.wi_dat_len + WI_SNAPHDR_LEN) > MCLBYTES) {
-			printf("wi%d: oversized packet received "
-			    "(wi_dat_len=%d, wi_status=0x%x)\n", sc->wi_unit,
+			device_printf(sc->dev, "oversized packet received "
+			    "(wi_dat_len=%d, wi_status=0x%x)\n",
 			    rx_frame.wi_dat_len, rx_frame.wi_status);
 			m_freem(m);
 			ifp->if_ierrors++;
@@ -440,8 +396,8 @@ static void wi_rxeof(sc)
 	} else {
 		if((rx_frame.wi_dat_len +
 		    sizeof(struct ether_header)) > MCLBYTES) {
-			printf("wi%d: oversized packet received "
-			    "(wi_dat_len=%d, wi_status=0x%x)\n", sc->wi_unit,
+			device_printf(sc->dev, "oversized packet received "
+			    "(wi_dat_len=%d, wi_status=0x%x)\n",
 			    rx_frame.wi_dat_len, rx_frame.wi_status);
 			m_freem(m);
 			ifp->if_ierrors++;
@@ -473,6 +429,9 @@ static void wi_rxeof(sc)
 
 	/* Receive packet. */
 	m_adj(m, sizeof(struct ether_header));
+#ifdef WICACHE
+	wi_cache_store(sc, eh, m, rx_frame.wi_q_info);
+#endif  
 	ether_input(ifp, eh, m);
 
 	return;
@@ -555,14 +514,13 @@ void wi_update_stats(sc)
 	return;
 }
 
-void wi_intr(unit)
-	int			unit;
+static void wi_intr(xsc)
+	void		*xsc;
 {
-	struct wi_softc		*sc;
+	struct wi_softc		*sc = xsc;
 	struct ifnet		*ifp;
 	u_int16_t		status;
 
-	sc = &wi_softc[unit];
 	ifp = &sc->arpcom.ac_if;
 
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -657,14 +615,19 @@ static int wi_cmd(sc, cmd, val)
 static void wi_reset(sc)
 	struct wi_softc		*sc;
 {
+	wi_cmd(sc, WI_CMD_INI, 0);
+	DELAY(100000);
+	wi_cmd(sc, WI_CMD_INI, 0);
+	DELAY(100000);
+#ifdef foo
 	if (wi_cmd(sc, WI_CMD_INI, 0))
-		printf("wi%d: init failed\n", sc->wi_unit);
+		device_printf(sc->dev, "init failed\n");
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
 	/* Calibrate timer. */
 	WI_SETVAL(WI_RID_TICK_TIME, 8);
-
+#endif
 	return;
 }
 
@@ -752,7 +715,7 @@ static int wi_seek(sc, id, off, chan)
 		offreg = WI_OFF1;
 		break;
 	default:
-		printf("wi%d: invalid data path: %x\n", sc->wi_unit, chan);
+		device_printf(sc->dev, "invalid data path: %x\n", chan);
 		return(EIO);
 	}
 
@@ -848,8 +811,7 @@ static int wi_alloc_nicmem(sc, len, id)
 	int			i;
 
 	if (wi_cmd(sc, WI_CMD_ALLOC_MEM, len)) {
-		printf("wi%d: failed to allocate %d bytes on NIC\n",
-		    sc->wi_unit, len);
+		device_printf(sc->dev, "failed to allocate %d bytes on NIC\n", len);
 		return(ENOMEM);
 	}
 
@@ -1037,7 +999,23 @@ static int wi_ioctl(ifp, command, data)
 			bcopy((char *)&sc->wi_stats, (char *)&wreq.wi_val,
 			    sizeof(sc->wi_stats));
 			wreq.wi_len = (sizeof(sc->wi_stats) / 2) + 1;
-		} else {
+		}
+#ifdef WICACHE
+		else if (wreq.wi_type == WI_RID_ZERO_CACHE) {
+			sc->wi_sigitems = sc->wi_nextitem = 0;
+		} else if (wreq.wi_type == WI_RID_READ_CACHE) {
+			char *pt = (char *)&wreq.wi_val;
+			bcopy((char *)&sc->wi_sigitems,
+			    (char *)pt, sizeof(int));
+			pt += (sizeof (int));
+			wreq.wi_len = sizeof(int) / 2;
+			bcopy((char *)&sc->wi_sigcache, (char *)pt,
+			    sizeof(struct wi_sigcache) * sc->wi_sigitems);
+			wreq.wi_len += ((sizeof(struct wi_sigcache) *
+			    sc->wi_sigitems) / 2) + 1;
+		}
+#endif
+		else {
 			if (wi_read_record(sc, (struct wi_ltv_gen *)&wreq)) {
 				error = EINVAL;
 				break;
@@ -1147,11 +1125,11 @@ static void wi_init(xsc)
 	wi_cmd(sc, WI_CMD_ENABLE|sc->wi_portnum, 0);
 
 	if (wi_alloc_nicmem(sc, 1518 + sizeof(struct wi_frame) + 8, &id))
-		printf("wi%d: tx buffer allocation failed\n", sc->wi_unit);
+		device_printf(sc->dev, "tx buffer allocation failed\n");
 	sc->wi_tx_data_id = id;
 
 	if (wi_alloc_nicmem(sc, 1518 + sizeof(struct wi_frame) + 8, &id))
-		printf("wi%d: mgmt. buffer allocation failed\n", sc->wi_unit);
+		device_printf(sc->dev, "mgmt. buffer allocation failed\n");
 	sc->wi_tx_mgmt_id = id;
 
 	/* enable interrupts */
@@ -1244,7 +1222,7 @@ static void wi_start(ifp)
 	m_freem(m0);
 
 	if (wi_cmd(sc, WI_CMD_TX|WI_RECLAIM, id))
-		printf("wi%d: xmit failed\n", sc->wi_unit);
+		device_printf(sc->dev, "xmit failed\n");
 
 	ifp->if_flags |= IFF_OACTIVE;
 
@@ -1286,7 +1264,7 @@ static int wi_mgmt_xmit(sc, data, len)
 	    (len - sizeof(struct wi_80211_hdr)) + 2);
 
 	if (wi_cmd(sc, WI_CMD_TX|WI_RECLAIM, id)) {
-		printf("wi%d: xmit failed\n", sc->wi_unit);
+		device_printf(sc->dev, "xmit failed\n");
 		return(EIO);
 	}
 
@@ -1320,7 +1298,7 @@ static void wi_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
-	printf("wi%d: device timeout\n", sc->wi_unit);
+	device_printf(sc->dev,"device timeout\n");
 
 	wi_init(sc);
 
@@ -1329,14 +1307,264 @@ static void wi_watchdog(ifp)
 	return;
 }
 
-static void wi_shutdown(arg, howto)
-	void			*arg;
-	int			howto;
+static int wi_alloc(dev)
+	device_t		dev;
+{
+	struct wi_softc		*sc = device_get_softc(dev);
+	int			rid;
+
+	rid = 0;
+	sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+					0, ~0, 1, RF_ACTIVE);
+	if (!sc->iobase) {
+		device_printf(dev, "No I/O space?!\n");
+		return (ENXIO);
+	}
+
+	rid = 0;
+	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				     0, ~0, 1, RF_ACTIVE);
+	if (!sc->irq) {
+		device_printf(dev, "No irq?!\n");
+		return (ENXIO);
+	}
+
+	sc->dev = dev;
+	sc->wi_unit = device_get_unit(dev);
+	sc->wi_io_addr = rman_get_start(sc->iobase);
+	sc->wi_btag = rman_get_bustag(sc->iobase);
+	sc->wi_bhandle = rman_get_bushandle(sc->iobase);
+
+	return (0);
+}
+
+static void wi_free(dev)
+	device_t		dev;
+{
+	struct wi_softc		*sc = device_get_softc(dev);
+
+	if (sc->iobase != NULL)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->iobase);
+	if (sc->irq != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+
+	return;
+}
+
+static void wi_shutdown(dev)
+	device_t		dev;
 {
 	struct wi_softc		*sc;
 
-	sc = arg;
+	sc = device_get_softc(dev);
 	wi_stop(sc);
 
 	return;
 }
+
+#ifdef WICACHE
+/* wavelan signal strength cache code.
+ * store signal/noise/quality on per MAC src basis in
+ * a small fixed cache.  The cache wraps if > MAX slots
+ * used.  The cache may be zeroed out to start over.
+ * Two simple filters exist to reduce computation:
+ * 1. ip only (literally 0x800) which may be used
+ * to ignore some packets.  It defaults to ip only.
+ * it could be used to focus on broadcast, non-IP 802.11 beacons.
+ * 2. multicast/broadcast only.  This may be used to
+ * ignore unicast packets and only cache signal strength
+ * for multicast/broadcast packets (beacons); e.g., Mobile-IP
+ * beacons and not unicast traffic.
+ *
+ * The cache stores (MAC src(index), IP src (major clue), signal,
+ *	quality, noise)
+ *
+ * No apologies for storing IP src here.  It's easy and saves much
+ * trouble elsewhere.  The cache is assumed to be INET dependent, 
+ * although it need not be.
+ */
+
+#ifdef documentation
+
+int wi_sigitems;                                /* number of cached entries */
+struct wi_sigcache wi_sigcache[MAXWICACHE];  /*  array of cache entries */
+int wi_nextitem;                                /*  index/# of entries */
+
+
+#endif
+
+/* control variables for cache filtering.  Basic idea is
+ * to reduce cost (e.g., to only Mobile-IP agent beacons
+ * which are broadcast or multicast).  Still you might
+ * want to measure signal strength with unicast ping packets
+ * on a pt. to pt. ant. setup.
+ */
+/* set true if you want to limit cache items to broadcast/mcast 
+ * only packets (not unicast).  Useful for mobile-ip beacons which
+ * are broadcast/multicast at network layer.  Default is all packets
+ * so ping/unicast will work say with pt. to pt. antennae setup.
+ */
+static int wi_cache_mcastonly = 0;
+SYSCTL_INT(_machdep, OID_AUTO, wi_cache_mcastonly, CTLFLAG_RW, 
+	&wi_cache_mcastonly, 0, "");
+
+/* set true if you want to limit cache items to IP packets only
+*/
+static int wi_cache_iponly = 1;
+SYSCTL_INT(_machdep, OID_AUTO, wi_cache_iponly, CTLFLAG_RW, 
+	&wi_cache_iponly, 0, "");
+
+/*
+ * Original comments:
+ * -----------------
+ * wi_cache_store, per rx packet store signal
+ * strength in MAC (src) indexed cache.
+ *
+ * follows linux driver in how signal strength is computed.
+ * In ad hoc mode, we use the rx_quality field. 
+ * signal and noise are trimmed to fit in the range from 47..138.
+ * rx_quality field MSB is signal strength.
+ * rx_quality field LSB is noise.
+ * "quality" is (signal - noise) as is log value.
+ * note: quality CAN be negative.
+ * 
+ * In BSS mode, we use the RID for communication quality.
+ * TBD:  BSS mode is currently untested.
+ *
+ * Bill's comments:
+ * ---------------
+ * Actually, we use the rx_quality field all the time for both "ad-hoc"
+ * and BSS modes. Why? Because reading an RID is really, really expensive:
+ * there's a bunch of PIO operations that have to be done to read a record
+ * from the NIC, and reading the comms quality RID each time a packet is
+ * received can really hurt performance. We don't have to do this anyway:
+ * the comms quality field only reflects the values in the rx_quality field
+ * anyway. The comms quality RID is only meaningful in infrastructure mode,
+ * but the values it contains are updated based on the rx_quality from
+ * frames received from the access point.
+ *
+ * Also, according to Lucent, the signal strength and noise level values
+ * can be converted to dBms by subtracting 149, so I've modified the code
+ * to do that instead of the scaling it did originally.
+ */
+static  
+void wi_cache_store (struct wi_softc *sc, struct ether_header *eh,
+                     struct mbuf *m, unsigned short rx_quality)
+{
+	struct ip *ip = 0; 
+	int i;
+	static int cache_slot = 0; 	/* use this cache entry */
+	static int wrapindex = 0;       /* next "free" cache entry */
+	int sig, noise;
+	int sawip=0;
+
+	/* filters:
+	 * 1. ip only
+	 * 2. configurable filter to throw out unicast packets,
+	 * keep multicast only.
+	 */
+ 
+	if ((ntohs(eh->ether_type) == 0x800)) {
+		sawip = 1;
+	}
+
+	/* filter for ip packets only 
+	*/
+	if (wi_cache_iponly && !sawip) {
+		return;
+	}
+
+	/* filter for broadcast/multicast only
+	 */
+	if (wi_cache_mcastonly && ((eh->ether_dhost[0] & 1) == 0)) {
+		return;
+	}
+
+#ifdef SIGDEBUG
+	printf("wi%d: q value %x (MSB=0x%x, LSB=0x%x) \n", sc->wi_unit,
+	    rx_quality & 0xffff, rx_quality >> 8, rx_quality & 0xff);
+#endif
+
+	/* find the ip header.  we want to store the ip_src
+	 * address.  
+	 */
+	if (sawip) {
+		ip = mtod(m, struct ip *);
+	}
+        
+	/* do a linear search for a matching MAC address 
+	 * in the cache table
+	 * . MAC address is 6 bytes,
+	 * . var w_nextitem holds total number of entries already cached
+	 */
+	for(i = 0; i < sc->wi_nextitem; i++) {
+		if (! bcmp(eh->ether_shost , sc->wi_sigcache[i].macsrc,  6 )) {
+			/* Match!,
+			 * so we already have this entry,
+			 * update the data
+			 */
+			break;	
+		}
+	}
+
+	/* did we find a matching mac address?
+	 * if yes, then overwrite a previously existing cache entry
+	 */
+	if (i < sc->wi_nextitem )   {
+		cache_slot = i; 
+	}
+	/* else, have a new address entry,so
+	 * add this new entry,
+	 * if table full, then we need to replace LRU entry
+	 */
+	else    {                          
+
+		/* check for space in cache table 
+		 * note: wi_nextitem also holds number of entries
+		 * added in the cache table 
+		 */
+		if ( sc->wi_nextitem < MAXWICACHE ) {
+			cache_slot = sc->wi_nextitem;
+			sc->wi_nextitem++;                 
+			sc->wi_sigitems = sc->wi_nextitem;
+		}
+        	/* no space found, so simply wrap with wrap index
+		 * and "zap" the next entry
+		 */
+		else {
+			if (wrapindex == MAXWICACHE) {
+				wrapindex = 0;
+			}
+			cache_slot = wrapindex++;
+		}
+	}
+
+	/* invariant: cache_slot now points at some slot
+	 * in cache.
+	 */
+	if (cache_slot < 0 || cache_slot >= MAXWICACHE) {
+		log(LOG_ERR, "wi_cache_store, bad index: %d of "
+		    "[0..%d], gross cache error\n",
+		    cache_slot, MAXWICACHE);
+		return;
+	}
+
+	/*  store items in cache
+	 *  .ip source address
+	 *  .mac src
+	 *  .signal, etc.
+	 */
+	if (sawip) {
+		sc->wi_sigcache[cache_slot].ipsrc = ip->ip_src.s_addr;
+	}
+	bcopy( eh->ether_shost, sc->wi_sigcache[cache_slot].macsrc,  6);
+
+	sig = (rx_quality >> 8) & 0xFF;
+	noise = rx_quality & 0xFF;
+	sc->wi_sigcache[cache_slot].signal = sig - 149;
+	sc->wi_sigcache[cache_slot].noise = noise - 149;
+	sc->wi_sigcache[cache_slot].quality = sig - noise;
+
+	return;
+}
+#endif

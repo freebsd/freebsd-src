@@ -431,9 +431,76 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -f frequency\n", p);
 	fprintf(stderr, "\t%s -i iface -P 0|1t\n", p);
 	fprintf(stderr, "\t%s -i iface -S max sleep duration\n", p);
+#ifdef WICACHE
+	fprintf(stderr, "\t%s -i iface -Z zero out signal cache\n", p);
+	fprintf(stderr, "\t%s -i iface -C print signal cache\n", p);
+#endif
 
 	exit(1);
 }
+
+#ifdef WICACHE
+static void wi_zerocache(iface)
+	char			*iface;
+{
+	struct wi_req		wreq;
+
+	if (iface == NULL)
+		errx(1, "must specify interface name");
+
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = 0;
+	wreq.wi_type = WI_RID_ZERO_CACHE;
+
+	wi_getval(iface, &wreq);
+}
+
+static void wi_readcache(iface)
+	char			*iface;
+{
+	struct wi_req		wreq;
+	int 			*wi_sigitems;
+	struct wi_sigcache 	*sc;
+	char *			pt;
+	int 			i;
+
+	if (iface == NULL)
+		errx(1, "must specify interface name");
+
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_READ_CACHE;
+
+	wi_getval(iface, &wreq);
+
+	wi_sigitems = (int *) &wreq.wi_val; 
+	pt = ((char *) &wreq.wi_val);
+	pt += sizeof(int);
+	sc = (struct wi_sigcache *) pt;
+
+	for (i = 0; i < *wi_sigitems; i++) {
+		printf("[%d/%d]:", i+1, *wi_sigitems);
+		printf(" %02x:%02x:%02x:%02x:%02x:%02x,",
+		  		    	sc->macsrc[0]&0xff,
+		  		    	sc->macsrc[1]&0xff,
+		   		    	sc->macsrc[2]&0xff,
+		   			sc->macsrc[3]&0xff,
+		   			sc->macsrc[4]&0xff,
+		   			sc->macsrc[5]&0xff);
+        	printf(" %d.%d.%d.%d,",((sc->ipsrc >> 0) & 0xff),
+				        ((sc->ipsrc >> 8) & 0xff),
+				        ((sc->ipsrc >> 16) & 0xff),
+				        ((sc->ipsrc >> 24) & 0xff));
+		printf(" sig: %d, noise: %d, qual: %d\n",
+		   			sc->signal,
+		   			sc->noise,
+		   			sc->quality);
+		sc++;
+	}
+
+	return;
+}
+#endif
 
 int main(argc, argv)
 	int			argc;
@@ -444,8 +511,24 @@ int main(argc, argv)
 	char			*p = argv[0];
 
 	while((ch = getopt(argc, argv,
-	    "hoc:d:f:i:p:r:q:t:n:s:m:P:S:")) != -1) {
+	    "hoc:d:f:i:p:r:q:t:n:s:m:P:S:ZC")) != -1) {
 		switch(ch) {
+		case 'Z':
+#ifdef WICACHE
+			wi_zerocache(iface);
+			exit(0);
+#else
+			printf("WICACHE not available\n");
+#endif
+			break;
+		case 'C':
+#ifdef WICACHE
+			wi_readcache(iface);
+#else
+			printf("WICACHE not available\n");
+#endif
+			exit(0);
+			break;
 		case 'o':
 			wi_dumpstats(iface);
 			exit(0);
@@ -515,3 +598,6 @@ int main(argc, argv)
 
 	exit(0);
 }
+
+
+
