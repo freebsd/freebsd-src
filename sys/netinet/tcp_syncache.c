@@ -1114,15 +1114,27 @@ syncache_respond(sc, m)
 		ip = mtod(m, struct ip *);
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = sizeof(struct ip) >> 2;
-		ip->ip_tos = 0;
 		ip->ip_len = tlen;
 		ip->ip_id = 0;
 		ip->ip_off = 0;
-		ip->ip_ttl = ip_defttl;
 		ip->ip_sum = 0;
 		ip->ip_p = IPPROTO_TCP;
 		ip->ip_src = sc->sc_inc.inc_laddr;
 		ip->ip_dst = sc->sc_inc.inc_faddr;
+		ip->ip_ttl = sc->sc_tp->t_inpcb->inp_ip_ttl;   /* XXX */
+		ip->ip_tos = sc->sc_tp->t_inpcb->inp_ip_tos;   /* XXX */
+
+		/*
+		 * See if we should do MTU discovery.  Route lookups are expensive,
+		 * so we will only unset the DF bit if:
+		 *
+		 *	1) path_mtu_discovery is disabled
+		 *	2) the SCF_UNREACH flag has been set
+		 */
+		if (path_mtu_discovery
+		    && ((sc->sc_flags & SCF_UNREACH) == 0)) {
+		       ip->ip_off |= IP_DF;
+		}
 
 		th = (struct tcphdr *)(ip + 1);
 	}
