@@ -1625,6 +1625,7 @@ acd_send_cue(struct acd_softc *cdp, struct cdr_cuesheet *cuesheet)
     if ((error = acd_mode_sense(cdp, ATAPI_CDROM_WRITE_PARAMETERS_PAGE,
 				(caddr_t)&param, sizeof(param))))
 	return error;
+
     param.data_length = 0;
     param.page_code = ATAPI_CDROM_WRITE_PARAMETERS_PAGE;
     param.page_length = 0x32;
@@ -1638,25 +1639,26 @@ acd_send_cue(struct acd_softc *cdp, struct cdr_cuesheet *cuesheet)
     param.session_format = cuesheet->session_format;
     if (cdp->cap.burnproof) 
 	param.burnproof = 1;
+
     if ((error = acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10)))
 	return error;
 
-    buffer = malloc(cuesheet->len, M_ACD, M_NOWAIT);
-    if (!buffer)
+    if (!(buffer = malloc(cuesheet->len, M_ACD, M_NOWAIT)))
 	return ENOMEM;
-    if ((error = copyin(cuesheet->entries, buffer, cuesheet->len)))
-	return error;
+
+    if (!(error = copyin(cuesheet->entries, buffer, cuesheet->len))) {
 #ifdef ACD_DEBUG
-    printf("acd: cuesheet lenght = %d\n", cuesheet->len);
-    for (i=0; i<cuesheet->len; i++)
-	if (i%8)
-	    printf(" %02x", buffer[i]);
-	else
-	    printf("\n%02x", buffer[i]);
-    printf("\n");
+	printf("acd: cuesheet lenght = %d\n", cuesheet->len);
+	for (i=0; i<cuesheet->len; i++)
+	    if (i%8)
+		printf(" %02x", buffer[i]);
+	    else
+		printf("\n%02x", buffer[i]);
+	printf("\n");
 #endif
-    error = atapi_queue_cmd(cdp->device, ccb, buffer, cuesheet->len, 0,
-			    30, NULL, NULL);
+	error = atapi_queue_cmd(cdp->device, ccb, buffer, cuesheet->len, 0,
+				30, NULL, NULL);
+    }
     free(buffer, M_ACD);
     return error;
 }

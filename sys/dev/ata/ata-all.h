@@ -258,7 +258,7 @@ void ata_start(struct ata_channel *);
 void ata_reset(struct ata_channel *);
 int ata_reinit(struct ata_channel *);
 int ata_wait(struct ata_device *, u_int8_t);
-int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int8_t, int);
+int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int16_t, int);
 void ata_drawerleds(struct ata_device *, u_int8_t);
 int ata_printf(struct ata_channel *, int, const char *, ...) __printflike(3, 4);
 int ata_prtdev(struct ata_device *, const char *, ...) __printflike(2, 3);
