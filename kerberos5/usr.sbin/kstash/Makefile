@@ -20,9 +20,9 @@ LDADD=		-L${HDBOBJDIR} -lhdb \
 		-L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
 		${_krb4libs} \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR}
+		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
 MAN=		kstash.8
 
 .include <bsd.prog.mk>
