@@ -48,20 +48,20 @@
  * Only the suser()/suser_xxx() function should be used for this.
  */
 struct ucred {
-	u_int	cr_ref;			/* reference count */
+	u_int		cr_ref;		/* reference count */
 #define	cr_startcopy cr_uid
-	uid_t	cr_uid;			/* effective user id */
-	uid_t	cr_ruid;		/* real user id */
-	uid_t	cr_svuid;		/* saved user id */
-	short	cr_ngroups;		/* number of groups */
-	gid_t	cr_groups[NGROUPS];	/* groups */
-	gid_t	cr_rgid;		/* real group id */
-	gid_t	cr_svgid;		/* saved user id */
-	struct	uidinfo *cr_uidinfo;	/* per euid resource consumption */
-	struct	uidinfo *cr_ruidinfo;	/* per ruid resource consumption */
-	struct	prison *cr_prison;	/* jail(4) */
+	uid_t		cr_uid;		/* effective user id */
+	uid_t		cr_ruid;	/* real user id */
+	uid_t		cr_svuid;	/* saved user id */
+	short		cr_ngroups;	/* number of groups */
+	gid_t		cr_groups[NGROUPS]; /* groups */
+	gid_t		cr_rgid;	/* real group id */
+	gid_t		cr_svgid;	/* saved user id */
+	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
+	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
+	struct prison	*cr_prison;	/* jail(4) */
 #define	cr_endcopy cr_mtxp
-	struct	mtx *cr_mtxp;		/* protect refcount */
+	struct mtx	*cr_mtxp;		/* protect refcount */
 };
 #define cr_gid cr_groups[0]
 #define NOCRED ((struct ucred *)0)	/* no credential available */
@@ -84,19 +84,19 @@ struct xucred {
 
 
 void		cred_update_thread(struct thread *td);
-void		change_egid (struct ucred *newcred, gid_t egid);
-void		change_euid (struct ucred *newcred, uid_t euid);
-void		change_rgid (struct ucred *newcred, gid_t rgid);
-void		change_ruid (struct ucred *newcred, uid_t ruid);
-void		change_svgid (struct ucred *newcred, gid_t svgid);
-void		change_svuid (struct ucred *newcred, uid_t svuid);
-void		crcopy (struct ucred *dest, struct ucred *src);
-struct ucred	*crdup (struct ucred *cr);
-void		crfree (struct ucred *cr);
-struct ucred	*crget (void);
-struct ucred	*crhold (struct ucred *cr);
-int		crshared (struct ucred *cr);
-int		groupmember (gid_t gid, struct ucred *cred);
+void		change_egid(struct ucred *newcred, gid_t egid);
+void		change_euid(struct ucred *newcred, uid_t euid);
+void		change_rgid(struct ucred *newcred, gid_t rgid);
+void		change_ruid(struct ucred *newcred, uid_t ruid);
+void		change_svgid(struct ucred *newcred, gid_t svgid);
+void		change_svuid(struct ucred *newcred, uid_t svuid);
+void		crcopy(struct ucred *dest, struct ucred *src);
+struct ucred	*crdup(struct ucred *cr);
+void		crfree(struct ucred *cr);
+struct ucred	*crget(void);
+struct ucred	*crhold(struct ucred *cr);
+int		crshared(struct ucred *cr);
+int		groupmember(gid_t gid, struct ucred *cred);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_UCRED_H_ */
