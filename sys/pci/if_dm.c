@@ -48,7 +48,7 @@
  *
  * The DM9102's DMA engine seems pretty weak. Multi-fragment transmits
  * don't seem to work well, and on slow machines you get lots of RX
- * underruns.
+ * overruns.
  */
 
 #include "bpf.h"
