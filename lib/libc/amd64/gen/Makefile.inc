@@ -3,4 +3,4 @@
 
 SRCS+=	_setjmp.S setjmp.S sigsetjmp.S \
 	fabs.S modf.S \
-	frexp.c infinity.c isinf.c
+	frexp.c infinity.c isinf.c ldexp.c
