@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id$
+ * $Id: ffs_vnops.c,v 1.23 1997/02/22 09:47:09 peter Exp $
  */
 
 #include <sys/param.h>
@@ -241,7 +241,7 @@ int doclusterread = 1;
 int doclusterwrite = 1;
 
 #include <sys/sysctl.h>
-SYSCTL_NODE(_vfs_ffs, MOUNT_UFS, ffs, CTLFLAG_RW, 0, "FFS");
+SYSCTL_NODE(_vfs, MOUNT_UFS, ffs, CTLFLAG_RW, 0, "FFS filesystem");
 SYSCTL_INT(_vfs_ffs, FFS_CLUSTERREAD, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
 SYSCTL_INT(_vfs_ffs, FFS_CLUSTERWRITE, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
 
