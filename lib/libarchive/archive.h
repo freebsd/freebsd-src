@@ -29,6 +29,27 @@
 #ifndef ARCHIVE_H_INCLUDED
 #define	ARCHIVE_H_INCLUDED
 
+/*
+ * If ARCHIVE_API_VERSION != archive_api_version(), then the library you
+ * were linked with is using an incompatible API.  This is almost
+ * certainly a fatal problem.
+ *
+ * ARCHIVE_API_FEATURE is incremented with each significant feature
+ * addition, so you can test (at compile or run time) if a particular
+ * feature is implemented.  It's no big deal if ARCHIVE_API_FEATURE !=
+ * archive_api_feature(), as long as both are high enough to include
+ * the features you're relying on.  Specific values of FEATURE are
+ * documented here:
+ *
+ *    1 - Version test is available.
+ */
+#define	ARCHIVE_API_VERSION	1
+int		archive_api_version(void);
+#define	ARCHIVE_API_FEATURE	1
+int		archive_api_feature(void);
+/* Textual name/version of the library. */
+const char *	archive_version(void);
+
 #include <sys/types.h>  /* Linux requires this for off_t */
 #include <inttypes.h>  /* For int64_t */
 #include <unistd.h>  /* For ssize_t and size_t */
@@ -47,9 +68,9 @@ struct archive_entry;
  */
 #define	ARCHIVE_EOF	  1	/* Found end of archive. */
 #define	ARCHIVE_OK	  0	/* Operation was successful. */
-#define	ARCHIVE_WARN	(-1)	/* Sucess, but minor problem. */
-#define	ARCHIVE_RETRY	(-2)	/* Retry might succeed. */
-#define	ARCHIVE_FATAL	(-3)	/* No more operations are possible. */
+#define	ARCHIVE_RETRY	(-10)	/* Retry might succeed. */
+#define	ARCHIVE_WARN	(-20)	/* Partial sucess. */
+#define	ARCHIVE_FATAL	(-30)	/* No more operations are possible. */
 
 /*
  * As far as possible, archive_errno returns standard platform errno codes.
@@ -283,9 +304,6 @@ int		 archive_errno(struct archive *);
 const char	*archive_error_string(struct archive *);
 const char	*archive_format_name(struct archive *);
 int		 archive_format(struct archive *);
-/* void		 archive_set_errno(struct archive *, int); */
-/* void		 archive_error_printf(struct archive *, const char *fmt, ...); */
-
 void		 archive_set_error(struct archive *, int _err, const char *fmt, ...);
 
 #endif /* !ARCHIVE_H_INCLUDED */
