@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.8 1995/10/21 20:03:07 jkh Exp $
+ * $Id: package.c,v 1.9 1995/10/22 01:32:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,6 +51,15 @@
 #include "sysinstall.h"
 
 static char *make_playpen(char *pen, size_t sz);
+
+/* Like package_extract, but assumes current media device */
+int
+package_add(char *name)
+{
+    if (!mediaVerify())
+	return RET_FAIL;
+    return package_extract(mediaDevice, name);
+}
 
 /* Extract a package based on a namespec and a media device */
 int
