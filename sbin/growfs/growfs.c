@@ -2,10 +2,10 @@
  * Copyright (c) 2000 Christoph Herrmann, Thomas-Henning von Kamptz
  * Copyright (c) 1980, 1989, 1993 The Regents of the University of California.
  * All rights reserved.
- * 
+ *
  * This code is derived from software contributed to Berkeley by
  * Christoph Herrmann and Thomas-Henning von Kamptz, Munich and Frankfurt.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -22,7 +22,7 @@
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -112,7 +112,7 @@ static char		inobuf[MAXBSIZE];	/* inode block */
 static int		maxino;			/* last valid inode */
 
 /*
- * An  array of elements of type struct gfs_bpp describes all blocks  to
+ * An array of elements of type struct gfs_bpp describes all blocks to
  * be relocated in order to free the space needed for the cylinder group
  * summary for all cylinder groups located in the first cylinder group.
  */
@@ -151,13 +151,13 @@ static void	indirchk(ufs_lbn_t, ufs_lbn_t, ufs2_daddr_t, ufs_lbn_t,
 
 /* ************************************************************ growfs ***** */
 /*
- * Here  we actually start growing the file system. We basically  read  the
- * cylinder  summary  from the first cylinder group as we want  to  update
- * this  on  the fly during our various operations. First  we  handle  the
+ * Here we actually start growing the file system. We basically read the
+ * cylinder summary from the first cylinder group as we want to update
+ * this on the fly during our various operations. First we handle the
  * changes in the former last cylinder group. Afterwards we create all new
- * cylinder  groups.  Now  we handle the  cylinder  group  containing  the
- * cylinder  summary  which  might result in a  relocation  of  the  whole
- * structure.  In the end we write back the updated cylinder summary,  the
+ * cylinder groups.  Now we handle the cylinder group containing the
+ * cylinder summary which might result in a relocation of the whole
+ * structure.  In the end we write back the updated cylinder summary, the
  * new superblock, and slightly patched versions of the super block
  * copies.
  */
@@ -317,7 +317,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 
 	/*
 	 * XXX
-	 * The following fields are currently distributed from the  superblock
+	 * The following fields are currently distributed from the superblock
 	 * to the copies:
 	 *     fs_minfree
 	 *     fs_rotdelay
@@ -329,10 +329,10 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 *
 	 * We probably should rather change the summary for the cylinder group
 	 * statistics here to the value of what would be in there, if the file
-	 * system were created initially with the new size. Therefor we  still
+	 * system were created initially with the new size. Therefor we still
 	 * need to find an easy way of calculating that.
 	 * Possibly we can try to read the first superblock copy and apply the
-	 * "diffed" stats between the old and new superblock by still  copying
+	 * "diffed" stats between the old and new superblock by still copying
 	 * certain parameters onto that.
 	 */
 
@@ -353,9 +353,9 @@ growfs(int fsi, int fso, unsigned int Nflag)
 
 /* ************************************************************ initcg ***** */
 /*
- * This creates a new cylinder group structure, for more details please  see
- * the  source of newfs(8), as this function is taken over almost unchanged.
- * As  this  is  never called for the  first  cylinder  group,  the  special
+ * This creates a new cylinder group structure, for more details please see
+ * the source of newfs(8), as this function is taken over almost unchanged.
+ * As this is never called for the first cylinder group, the special
  * provisions for that case are removed here.
  */
 static void
@@ -535,9 +535,9 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 
 /* ******************************************************* frag_adjust ***** */
 /*
- * Here  we add or subtract (sign +1/-1) the available fragments in  a  given
+ * Here we add or subtract (sign +1/-1) the available fragments in a given
  * block to or from the fragment statistics. By subtracting before and adding
- * after  an operation on the free frag map we can easy update  the  fragment
+ * after an operation on the free frag map we can easy update the fragment
  * statistic, which seems to be otherwise a rather complex operation.
  */
 static void
@@ -554,11 +554,11 @@ frag_adjust(ufs2_daddr_t frag, int sign)
 	 * Here frag only needs to point to any fragment in the block we want
 	 * to examine.
 	 */
-	for(f=rounddown(frag, sblock.fs_frag); 
+	for(f=rounddown(frag, sblock.fs_frag);
 	    f<roundup(frag+1, sblock.fs_frag);
 	    f++) {
 		/*
-		 * Count contiguos free fragments.
+		 * Count contiguous free fragments.
 		 */
 		if(isset(cg_blksfree(&acg), f)) {
 			fragsize++;
@@ -595,9 +595,9 @@ frag_adjust(ufs2_daddr_t frag, int sign)
 /* ******************************************************* cond_bl_upd ***** */
 /*
  * Here we conditionally update a pointer to a fragment. We check for all
- * relocated blocks if any of it's fragments is referenced by the current
- * field,  and update the pointer to the respective fragment in  our  new
- * block.  If  we find a reference we write back the  block  immediately,
+ * relocated blocks if any of its fragments is referenced by the current
+ * field, and update the pointer to the respective fragment in our new
+ * block.  If we find a reference we write back the block immediately,
  * as there is no easy way for our general block reading engine to figure
  * out if a write back operation is needed.
  */
@@ -657,13 +657,13 @@ cond_bl_upd(ufs2_daddr_t *block, struct gfs_bpp *field, int fsi, int fso,
 /* ************************************************************ updjcg ***** */
 /*
  * Here we do all needed work for the former last cylinder group. It has to be
- * changed  in  any case, even if the file system ended exactly on the  end  of
- * this  group, as there is some slightly inconsistent handling of the  number
- * of cylinders in the cylinder group. We start again by reading the  cylinder
+ * changed in any case, even if the file system ended exactly on the end of
+ * this group, as there is some slightly inconsistent handling of the number
+ * of cylinders in the cylinder group. We start again by reading the cylinder
  * group from disk. If the last block was not fully available, we first handle
- * the  missing  fragments, then we handle all new full blocks  in  that  file
- * system  and  finally we handle the new last fragmented block  in  the  file
- * system.  We again have to handle the fragment statistics rotational  layout
+ * the missing fragments, then we handle all new full blocks in that file
+ * system and finally we handle the new last fragmented block in the file
+ * system.  We again have to handle the fragment statistics rotational layout
  * tables and cluster summary during all those operations.
  */
 static void
@@ -691,12 +691,12 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 	memcpy((void *)&cgun1, (void *)&cgun2, sizeof(cgun2));
 
 	/*
-	 * If  the  cylinder  group had already it's  new  final  size  almost
+	 * If the cylinder group had already its new final size almost
 	 * nothing is to be done ... except:
 	 * For some reason the value of cg_ncyl in the last cylinder group has
-	 * to  be  zero instead of fs_cpg. As this is now no longer  the  last
+	 * to be zero instead of fs_cpg. As this is now no longer the last
 	 * cylinder group we have to change that value now to fs_cpg.
-	 */ 
+	 */
 
 	if(cgbase(&osblock, cylno+1) == osblock.fs_size) {
 		if (sblock.fs_magic == FS_UFS1_MAGIC)
@@ -760,11 +760,11 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 	}
 
 	/*
-	 * Now  we have to update the free fragment bitmap for our new  free
-	 * space.  There again we have to handle the fragmentation and  also
-	 * the  rotational  layout tables and the cluster summary.  This  is
-	 * also  done per fragment for the first new block if the  old  file
-	 * system end was not on a block boundary, per fragment for the  new
+	 * Now we have to update the free fragment bitmap for our new free
+	 * space.  There again we have to handle the fragmentation and also
+	 * the rotational layout tables and the cluster summary.  This is
+	 * also done per fragment for the first new block if the old file
+	 * system end was not on a block boundary, per fragment for the new
 	 * last block if the new file system end is not on a block boundary,
 	 * and per block for all space in between.
 	 *
@@ -787,7 +787,7 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 			}
 
 			/*
-			 * Check  if the fragment just created could join  an
+			 * Check if the fragment just created could join an
 			 * already existing fragment at the former end of the
 			 * file system.
 			 */
@@ -795,7 +795,7 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 			    ((osblock.fs_size - cgbase(&sblock, cylno))/
 			    sblock.fs_frag))) {
 				/*
-				 * The block is now completely available
+				 * The block is now completely available.
 				 */
 				DBG_PRINT0("block was\n");
 				acg.cg_frsum[osblock.fs_size%sblock.fs_frag]--;
@@ -864,7 +864,7 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 
 	/*
 	 * Handle the last new block if there are stll some new fragments left.
-	 * Here  we don't have to bother about the cluster summary or the  even
+	 * Here we don't have to bother about the cluster summary or the even
 	 * the rotational layout table.
 	 */
 	if (i < (dmax - cbase)) {
@@ -904,19 +904,19 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 
 /* ********************************************************** updcsloc ***** */
 /*
- * Here  we update the location of the cylinder summary. We have  two  possible
+ * Here we update the location of the cylinder summary. We have two possible
  * ways of growing the cylinder summary.
- * (1)	We can try to grow the summary in the current location, and  relocate
+ * (1)	We can try to grow the summary in the current location, and relocate
  *	possibly used blocks within the current cylinder group.
  * (2)	Alternatively we can relocate the whole cylinder summary to the first
- *	new completely empty cylinder group. Once the cylinder summary is  no
- *	longer in the beginning of the first cylinder group you should  never
- *	use  a version of fsck which is not aware of the possibility to  have
+ *	new completely empty cylinder group. Once the cylinder summary is no
+ *	longer in the beginning of the first cylinder group you should never
+ *	use a version of fsck which is not aware of the possibility to have
  *	this structure in a non standard place.
- * Option (1) is considered to be less intrusive to the structure of the  file-
+ * Option (1) is considered to be less intrusive to the structure of the file-
  * system. So we try to stick to that whenever possible. If there is not enough
- * space  in the cylinder group containing the cylinder summary we have to  use
- * method  (2). In case of active snapshots in the file system we  probably  can
+ * space in the cylinder group containing the cylinder summary we have to use
+ * method (2). In case of active snapshots in the file system we probably can
  * completely avoid implementing copy on write if we stick to method (2) only.
  */
 static void
@@ -972,27 +972,27 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 
 	/*
 	 * XXX	In the case of having active snapshots we may need much more
-	 *	blocks for the copy on write. We need each block twice,  and
-	 *	also  up to 8*3 blocks for indirect blocks for all  possible
+	 *	blocks for the copy on write. We need each block twice, and
+	 *	also up to 8*3 blocks for indirect blocks for all possible
 	 *	references.
 	 */
 	if(/*((int)sblock.fs_time&0x3)>0||*/ cs->cs_nbfree < blocks) {
 		/*
-		 * There  is  not enough space in the old cylinder  group  to
-		 * relocate  all blocks as needed, so we relocate  the  whole
-		 * cylinder  group summary to a new group. We try to use  the
+		 * There is not enough space in the old cylinder group to
+		 * relocate all blocks as needed, so we relocate the whole
+		 * cylinder group summary to a new group. We try to use the
 		 * first complete new cylinder group just created. Within the
-		 * cylinder  group we allign the area immediately  after  the
-		 * cylinder  group  information location in order  to  be  as
+		 * cylinder group we align the area immediately after the
+		 * cylinder group information location in order to be as
 		 * close as possible to the original implementation of ffs.
 		 *
-		 * First  we have to make sure we'll find enough space in  the
-		 * new  cylinder  group. If not, then we  currently  give  up.
-		 * We  start  with freeing everything which was  used  by  the
+		 * First we have to make sure we'll find enough space in the
+		 * new cylinder group. If not, then we currently give up.
+		 * We start with freeing everything which was used by the
 		 * fragments of the old cylinder summary in the current group.
-		 * Now  we write back the group meta data, read in the  needed
+		 * Now we write back the group meta data, read in the needed
 		 * meta data from the new cylinder group, and start allocating
-		 * within  that  group. Here we can assume, the  group  to  be
+		 * within that group. Here we can assume, the group to be
 		 * completely empty. Which makes the handling of fragments and
 		 * clusters a lot easier.
 		 */
@@ -1009,7 +1009,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 
 		/*
 		 * Set up last cluster size ("lcs") already here. Calculate
-		 * the size for the trailing cluster just behind where  "d"
+		 * the size for the trailing cluster just behind where "d"
 		 * points to.
 		 */
 		if(sblock.fs_contigsumsize > 0) {
@@ -1044,16 +1044,15 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 				sblock.fs_cstotal.cs_nffree++;
 			}
 			/*
-			 * Point  "d" to the last fragment of the  last
-			 * (incomplete) block of the clinder summary.
+			 * Point "d" to the last fragment of the last
+			 * (incomplete) block of the cylinder summary.
 			 */
 			d++;
 			frag_adjust(d%sblock.fs_fpg, 1);
 
 			if(isblock(&sblock, cg_blksfree(&acg),
 			    (d%sblock.fs_fpg)/sblock.fs_frag)) {
-				DBG_PRINT1("d=%d\n",
-				    d);
+				DBG_PRINT1("d=%d\n", d);
 				acg.cg_cs.cs_nffree-=sblock.fs_frag;
 				acg.cg_cs.cs_nbfree++;
 				sblock.fs_cstotal.cs_nffree-=sblock.fs_frag;
@@ -1078,13 +1077,11 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			d--;
 		}
 
-		DBG_PRINT1("d=%d\n",
-		    d);
+		DBG_PRINT1("d=%d\n", d);
 		for(d=rounddown(d, sblock.fs_frag); d >= osblock.fs_csaddr;
 		    d-=sblock.fs_frag) {
 			DBG_TRC;
-			DBG_PRINT1("d=%d\n",
-			    d);
+			DBG_PRINT1("d=%d\n", d);
 			setblock(&sblock, cg_blksfree(&acg),
 			    (d%sblock.fs_fpg)/sblock.fs_frag);
 			acg.cg_cs.cs_nbfree++;
@@ -1191,7 +1188,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			frag_adjust(d%sblock.fs_fpg, +1);
 		}
 		/*
-		 * XXX	Handle the cluster statistics here in the case  this
+		 * XXX	Handle the cluster statistics here in the case this
 		 *	cylinder group is now almost full, and the remaining
 		 *	space is less then the maximum cluster size. This is
 		 *	probably not needed, as you would hardly find a file
@@ -1221,7 +1218,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 	}
 	/*
 	 * We have got enough of space in the current cylinder group, so we
-	 * can relocate just a few blocks, and let the summary  information
+	 * can relocate just a few blocks, and let the summary information
 	 * grow in place where it is right now.
 	 */
 	DBG_TRC;
@@ -1246,11 +1243,11 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 	    sizeof(struct gfs_bpp));
 
 	/*
-	 * Lock all new frags needed for the cylinder group summary. This  is
-	 * done per fragment in the first and last block of the new  required
+	 * Lock all new frags needed for the cylinder group summary. This is
+	 * done per fragment in the first and last block of the new required
 	 * area, and per block for all other blocks.
 	 *
-	 * Handle the first new  block here (but only if some fragments where
+	 * Handle the first new block here (but only if some fragments where
 	 * already used for the cylinder summary).
 	 */
 	ind=0;
@@ -1274,7 +1271,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 		}
 		/*
 		 * No cluster handling is needed here, as there was at least
-		 * one  fragment in use by the cylinder summary in  the  old
+		 * one fragment in use by the cylinder summary in the old
 		 * file system.
 		 * No block-free counter handling here as this block was not
 		 * a free block.
@@ -1380,7 +1377,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			if(!bp[i].old) { /* no more blocks listed */
 				/*
 				 * XXX	A relative blocknumber should not be
-				 *	zero,   which  is   not   explicitly
+				 *	zero, which is not explicitly
 				 *	guaranteed by our code.
 				 */
 				break;
@@ -1407,11 +1404,11 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			}
 
 			/*
-			 * Special handling is required if this was the  first
+			 * Special handling is required if this was the first
 			 * block. We have to consider the fragments which were
-			 * used by the cylinder summary in the original  block
-			 * which  re to be free in the copy of our  block.  We
-			 * have  to be careful if this first block happens  to
+			 * used by the cylinder summary in the original block
+			 * which re to be free in the copy of our block.  We
+			 * have to be careful if this first block happens to
 			 * be also the last block to be relocated.
 			 */
 			if(bp[i].flags & GFS_FL_FIRST) {
@@ -1426,7 +1423,6 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 				if(!(bp[i].flags & GFS_FL_LAST)) {
 					frag_adjust(bp[i].new*sblock.fs_frag,1);
 				}
-				
 			}
 
 			/*
@@ -1449,7 +1445,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			}
 
 			/*
-			 * !!! Attach the cylindergroup offset here. 
+			 * !!! Attach the cylindergroup offset here.
 			 */
 			bp[i].old+=cbase/sblock.fs_frag;
 			bp[i].new+=cbase/sblock.fs_frag;
@@ -1476,8 +1472,8 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 
 		/*
 		 * Now we have to update all references to any fragment which
-		 * belongs  to any block relocated. We iterate now  over  all
-		 * cylinder  groups,  within those over all non  zero  length 
+		 * belongs to any block relocated. We iterate now over all
+		 * cylinder groups, within those over all non zero length
 		 * inodes.
 		 */
 		for(cylno=0; cylno<osblock.fs_ncg; cylno++) {
@@ -1582,7 +1578,7 @@ wtfs(ufs2_daddr_t bno, size_t size, void *bf, int fso, unsigned int Nflag)
 /* ************************************************************* alloc ***** */
 /*
  * Here we allocate a free block in the current cylinder group. It is assumed,
- * that  acg contains the current cylinder group. As we may take a block  from
+ * that acg contains the current cylinder group. As we may take a block from
  * somewhere in the file system we have to handle cluster summary here.
  */
 static ufs2_daddr_t
@@ -1609,7 +1605,7 @@ alloc(void)
 	}
 	/*
 	 * We start seeking for free blocks only from the space available after
-	 * the  end of the new grown cylinder summary. Otherwise we allocate  a
+	 * the end of the new grown cylinder summary. Otherwise we allocate a
 	 * block here which we have to relocate a couple of seconds later again
 	 * again, and we are not prepared to to this anyway.
 	 */
@@ -1669,7 +1665,7 @@ alloc(void)
 		 */
 		clrbit(cg_clustersfree(&acg), blkno);
 		/*
-		 * We  possibly have split a cluster here, so we have  to  do
+		 * We possibly have split a cluster here, so we have to do
 		 * recalculate the sizes of the remaining cluster halves now,
 		 * and use them for updating the cluster summary information.
 		 *
@@ -1715,7 +1711,7 @@ alloc(void)
 
 /* *********************************************************** isblock ***** */
 /*
- * Here  we check if all frags of a block are free. For more details  again
+ * Here we check if all frags of a block are free. For more details again
  * please see the source of newfs(8), as this function is taken over almost
  * unchanged.
  */
@@ -1753,7 +1749,7 @@ isblock(struct fs *fs, unsigned char *cp, int h)
 /* ********************************************************** clrblock ***** */
 /*
  * Here we allocate a complete block in the block map. For more details again
- * please  see the source of newfs(8), as this function is taken over  almost
+ * please see the source of newfs(8), as this function is taken over almost
  * unchanged.
  */
 static void
@@ -1788,7 +1784,7 @@ clrblock(struct fs *fs, unsigned char *cp, int h)
 /* ********************************************************** setblock ***** */
 /*
  * Here we free a complete block in the free block map. For more details again
- * please  see the source of newfs(8), as this function is taken  over  almost
+ * please see the source of newfs(8), as this function is taken over almost
  * unchanged.
  */
 static void
@@ -1823,9 +1819,9 @@ setblock(struct fs *fs, unsigned char *cp, int h)
 /* ************************************************************ ginode ***** */
 /*
  * This function provides access to an individual inode. We find out in which
- * block  the  requested inode is located, read it from disk if  needed,  and
- * return  the pointer into that block. We maintain a cache of one  block  to
- * not  read the same block again and again if we iterate linearly  over  all
+ * block the requested inode is located, read it from disk if needed, and
+ * return the pointer into that block. We maintain a cache of one block to
+ * not read the same block again and again if we iterate linearly over all
  * inodes.
  */
 static union dinode *
@@ -1856,7 +1852,7 @@ ginode(ino_t inumber, int fsi, int cg)
 /* ****************************************************** charsperline ***** */
 /*
  * Figure out how many lines our current terminal has. For more details again
- * please  see the source of newfs(8), as this function is taken over  almost
+ * please see the source of newfs(8), as this function is taken over almost
  * unchanged.
  */
 static int
@@ -1886,25 +1882,25 @@ charsperline(void)
 
 /* ************************************************************** main ***** */
 /*
- * growfs(8)  is a utility which allows to increase the size of  an  existing
- * ufs file system. Currently this can only be done on unmounted file  system.
- * It  recognizes some command line options to specify the new desired  size,
- * and  it does some basic checkings. The old file system size is  determined
- * and  after some more checks like we can really access the new  last  block
+ * growfs(8)  is a utility which allows to increase the size of an existing
+ * ufs file system. Currently this can only be done on unmounted file system.
+ * It recognizes some command line options to specify the new desired size,
+ * and it does some basic checkings. The old file system size is determined
+ * and after some more checks like we can really access the new last block
  * on the disk etc. we calculate the new parameters for the superblock. After
- * having  done  this we just call growfs() which will do  the  work.  Before
+ * having done this we just call growfs() which will do the work.  Before
  * we finish the only thing left is to update the disklabel.
  * We still have to provide support for snapshots. Therefore we first have to
- * understand  what data structures are always replicated in the snapshot  on
- * creation,  for all other blocks we touch during our procedure, we have  to
+ * understand what data structures are always replicated in the snapshot on
+ * creation, for all other blocks we touch during our procedure, we have to
  * keep the old blocks unchanged somewhere available for the snapshots. If we
- * are lucky, then we only have to handle our blocks to be relocated in  that
+ * are lucky, then we only have to handle our blocks to be relocated in that
  * way.
- * Also  we  have to consider in what order we actually update  the  critical
+ * Also we have to consider in what order we actually update the critical
  * data structures of the file system to make sure, that in case of a disaster
  * fsck(8) is still able to restore any lost data.
- * The  foreseen last step then will be to provide for growing  even  mounted
- * file  systems. There we have to extend the mount() system call to  provide
+ * The foreseen last step then will be to provide for growing even mounted
+ * file systems. There we have to extend the mount() system call to provide
  * userland access to the file system locking facility.
  */
 int
@@ -1968,8 +1964,8 @@ main(int argc, char **argv)
 		 *     /dev/%s
 		 *     /dev/vinum/r%s
 		 *     /dev/vinum/%s.
-		 * 
-		 * FreeBSD now doesn't distinguish between raw and  block
+		 *
+		 * FreeBSD now doesn't distinguish between raw and block
 		 * devices any longer, but it should still work this way.
 		 */
 		len=strlen(device)+strlen(_PATH_DEV)+2+strlen("vinum/");
@@ -2014,9 +2010,9 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Try  to read a label and gess the slice if not  specified.  This
-	 * code  should guess the right thing and avaid to bother the  user
-	 * user with the task of specifying the option -v on vinum volumes.
+	 * Try to read a label and guess the slice if not specified. This
+	 * code should guess the right thing and avoid to bother the user
+	 * with the task of specifying the option -v on vinum volumes.
 	 */
 	cp=device+strlen(device)-1;
 	lp = get_disklabel(fsi);
@@ -2031,7 +2027,7 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Check if that partition looks suited for growing a file system.
+	 * Check if that partition is suitable for growing a file system.
 	 */
 	if (pp->p_size < 1) {
 		errx(1, "partition is unavailable");
@@ -2073,7 +2069,7 @@ main(int argc, char **argv)
 			errx(1, "There is not enough space (%d < %d)",
 			    pp->p_size, size);
 		}
-		sblock.fs_size = dbtofsb(&osblock, size);	
+		sblock.fs_size = dbtofsb(&osblock, size);
 	}
 
 	/*
@@ -2111,7 +2107,7 @@ main(int argc, char **argv)
 		if (strcmp(reply, "Yes\n")){
 			printf("\n Nothing done \n");
 			exit (0);
-		}		
+		}
 	}
 
 	printf("new file systemsize is: %d frags\n", sblock.fs_size);
@@ -2167,7 +2163,7 @@ main(int argc, char **argv)
 	 */
 	sblock.fs_cssize =
 	    fragroundup(&sblock, sblock.fs_ncg * sizeof(struct csum));
-	
+
 	if(osblock.fs_size >= sblock.fs_size) {
 		errx(1, "not enough new space");
 	}
@@ -2269,7 +2265,7 @@ get_disklabel(int fd)
  */
 static void
 usage(void)
-{	
+{
 	DBG_FUNC("usage")
 
 	DBG_ENTER;
@@ -2282,12 +2278,12 @@ usage(void)
 
 /* *********************************************************** updclst ***** */
 /*
- * This updates most paramters and the bitmap related to cluster. We have to
- * assume, that sblock, osblock, acg are set up.
+ * This updates most parameters and the bitmap related to cluster. We have to
+ * assume that sblock, osblock, acg are set up.
  */
 static void
 updclst(int block)
-{	
+{
 	DBG_FUNC("updclst")
 	static int	lcs=0;
 
@@ -2313,7 +2309,7 @@ updclst(int block)
 				break;
 			}
 		}
-	} 
+	}
 	if(lcs < sblock.fs_contigsumsize) {
 		if(lcs) {
 			cg_clustersum(&acg)[lcs]--;
@@ -2335,7 +2331,7 @@ updclst(int block)
 static void
 updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
     Nflag)
-{	
+{
 	DBG_FUNC("updrefs")
 	ufs_lbn_t	len, lbn, numblks;
 	ufs2_daddr_t	iptr, blksperindir;
