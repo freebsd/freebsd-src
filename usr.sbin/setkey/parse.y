@@ -672,6 +672,7 @@ portstr
 upper_spec
 	:	DECSTRING { $$ = $1; }
 	|	ANY { $$ = IPSEC_ULPROTO_ANY; }
+	|	PR_TCP { $$ = IPPROTO_TCP; }
 	|	STRING
 		{
 			struct protoent *ent;
