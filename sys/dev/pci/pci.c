@@ -188,6 +188,8 @@ struct pci_quirk pci_quirks[] = {
 #define PCI_MAPMEMP	0x02	/* prefetchable memory map */
 #define PCI_MAPPORT	0x04	/* port map */
 
+struct devlist pci_devq;
+u_int32_t pci_generation;
 u_int32_t pci_numdevs = 0;
 
 /* return base address of memory or port map */
