@@ -3477,6 +3477,7 @@ asr_intr (
           sc->ha_Virt->Status & Mask_InterruptsDisabled;
           processed = 1) {
                 union asr_ccb                     * ccb;
+                u_int                               dsc;
                 U32                                 ReplyOffset;
                 PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME Reply;
 
@@ -3566,17 +3567,17 @@ asr_intr (
                 /* Welease Wadjah! (and stop timeouts) */
                 ASR_ccbRemove (sc, ccb);
 
-                switch (
-                  I2O_SINGLE_REPLY_MESSAGE_FRAME_getDetailedStatusCode(
-                    &(Reply->StdReplyFrame))) {
+                dsc = I2O_SINGLE_REPLY_MESSAGE_FRAME_getDetailedStatusCode(
+		    &(Reply->StdReplyFrame));
+                ccb->csio.scsi_status = dsc & I2O_SCSI_DEVICE_DSC_MASK;
+                ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+                switch (dsc) {
 
                 case I2O_SCSI_DSC_SUCCESS:
-                        ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_REQ_CMP;
                         break;
 
                 case I2O_SCSI_DSC_CHECK_CONDITION:
-                        ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_REQ_CMP|CAM_AUTOSNS_VALID;
                         break;
 
@@ -3587,12 +3588,10 @@ asr_intr (
                 case I2O_SCSI_HBA_DSC_SCSI_BUS_RESET:
                         /* FALLTHRU */
                 case I2O_SCSI_HBA_DSC_BUS_BUSY:
-                        ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_SCSI_BUSY;
                         break;
 
                 case I2O_SCSI_HBA_DSC_SELECTION_TIMEOUT:
-                        ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_SEL_TIMEOUT;
                         break;
 
@@ -3603,19 +3602,16 @@ asr_intr (
                 case I2O_SCSI_HBA_DSC_LUN_INVALID:
                         /* FALLTHRU */
                 case I2O_SCSI_HBA_DSC_SCSI_TID_INVALID:
-                        ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
                         break;
 
                 case I2O_SCSI_HBA_DSC_DATA_OVERRUN:
                         /* FALLTHRU */
                 case I2O_SCSI_HBA_DSC_REQUEST_LENGTH_ERROR:
-                        ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_DATA_RUN_ERR;
                         break;
 
                 default:
-                        ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_REQUEUE_REQ;
                         break;
                 }
