@@ -197,12 +197,6 @@ static driver_t sis_driver = {
 
 static devclass_t sis_devclass;
 
-#ifdef __i386__
-static int sis_quick=1;
-SYSCTL_INT(_hw, OID_AUTO, sis_quick, CTLFLAG_RW,
-	&sis_quick,0,"do not mdevget in sis driver");
-#endif
-
 DRIVER_MODULE(if_sis, pci, sis_driver, sis_devclass, 0, 0);
 DRIVER_MODULE(miibus, sis, miibus_driver, miibus_devclass, 0, 0);
 
@@ -1249,36 +1243,26 @@ static int sis_newbuf(sc, c, m)
 	struct sis_desc		*c;
 	struct mbuf		*m;
 {
-	struct mbuf		*m_new = NULL;
 
 	if (c == NULL)
 		return(EINVAL);
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL)
+		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m == NULL)
 			return(ENOBUFS);
+	} else
+		m->m_data = m->m_ext.ext_buf;
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
 
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return(ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
+	m_adj(m, sizeof(u_int64_t));
 
-	m_adj(m_new, sizeof(u_int64_t));
-
-	c->sis_mbuf = m_new;
+	c->sis_mbuf = m;
 	c->sis_ctl = SIS_RXLEN;
 
 	bus_dmamap_create(sc->sis_tag, 0, &c->sis_map);
 	bus_dmamap_load(sc->sis_tag, c->sis_map,
-	    mtod(m_new, void *), m_new->m_len,
+	    mtod(m, void *), m->m_len,
 	    sis_dma_map_desc_ptr, c, 0);
 	bus_dmamap_sync(sc->sis_tag, c->sis_map, BUS_DMASYNC_PREWRITE);
 
@@ -1347,7 +1331,7 @@ static void sis_rxeof(sc)
 		 * if the allocation fails, then use m_devget and leave the
 		 * existing buffer in the receive ring.
 		 */
-		if (sis_quick && sis_newbuf(sc, cur_rx, NULL) == 0) {
+		if (sis_newbuf(sc, cur_rx, NULL) == 0) {
 			m->m_pkthdr.rcvif = ifp;
 			m->m_pkthdr.len = m->m_len = total_len;
 		} else
