@@ -122,6 +122,7 @@ ibcs2_ulimit(p, uap)
 		return 0;
 #endif
 	case IBCS2_GETPSIZE:
+		mtx_assert(&Giant, MA_OWNED);
 		p->p_retval[0] = p->p_rlimit[RLIMIT_RSS].rlim_cur; /* XXX */
 		return 0;
 	case IBCS2_GETDTABLESIZE:
@@ -946,7 +947,9 @@ ibcs2_pgrpsys(p, uap)
 {
 	switch (SCARG(uap, type)) {
 	case 0:			/* getpgrp */
+		PROC_LOCK(p);
 		p->p_retval[0] = p->p_pgrp->pg_id;
+		PROC_UNLOCK(p);
 		return 0;
 
 	case 1:			/* setpgrp */
@@ -956,7 +959,9 @@ ibcs2_pgrpsys(p, uap)
 		SCARG(&sa, pid) = 0;
 		SCARG(&sa, pgid) = 0;
 		setpgid(p, &sa);
+		PROC_LOCK(p);
 		p->p_retval[0] = p->p_pgrp->pg_id;
+		PROC_UNLOCK(p);
 		return 0;
 	    }
 
