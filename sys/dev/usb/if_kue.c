@@ -763,9 +763,11 @@ Static void kue_txeof(xfer, priv, status)
 
 	usbd_get_xfer_status(c->kue_xfer, NULL, NULL, NULL, &err);
 
-	c->kue_mbuf->m_pkthdr.rcvif = ifp;
-	usb_tx_done(c->kue_mbuf);
-	c->kue_mbuf = NULL;
+	if (c->kue_mbuf != NULL) {
+		c->kue_mbuf->m_pkthdr.rcvif = ifp;
+		usb_tx_done(c->kue_mbuf);
+		c->kue_mbuf = NULL;
+	}
 
 	if (err)
 		ifp->if_oerrors++;
@@ -1002,13 +1004,17 @@ Static void kue_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct kue_softc	*sc;
+	struct kue_chain	*c;
+	usbd_status		stat;
 
 	sc = ifp->if_softc;
 
 	ifp->if_oerrors++;
 	printf("kue%d: watchdog timeout\n", sc->kue_unit);
 
-	kue_init(sc);
+	c = &sc->kue_cdata.kue_tx_chain[0];
+	usbd_get_xfer_status(c->kue_xfer, NULL, NULL, NULL, &stat);
+	kue_txeof(c->kue_xfer, c, stat);
 
 	if (ifp->if_snd.ifq_head != NULL)
 		kue_start(ifp);
