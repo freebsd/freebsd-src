@@ -6,9 +6,9 @@ CLEANFILES=	krb5-config
 
 krb5-config: krb5-config.in
 	sed	-e "s,@PACKAGE\@,FreeBSD heimdal,g" \
-		-e "s,@VERSION\@,0.4e,g" \
-		-e "s,@prefix\@,/,g" \
-		-e "s,@exec_prefix\@,/,g" \
+		-e "s,@VERSION\@,0.4f,g" \
+		-e "s,@prefix\@,/usr,g" \
+		-e "s,@exec_prefix\@,/usr,g" \
 		-e "s,@libdir\@,${LIBDIR},g" \
 		-e "s,@includedir\@,${INCLUDEDIR},g" \
 		-e "s,@LIB_crypt\@,-lcrypt,g" \
