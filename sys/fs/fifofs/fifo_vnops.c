@@ -352,7 +352,7 @@ fifo_ioctl(ap)
 	if (ap->a_command == FIONBIO)
 		return (0);
 	if (ap->a_fflag & FREAD) {
-		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
+		filetmp.un_data.socket = ap->a_vp->v_fifoinfo->fi_readsock;
 		filetmp.f_cred = ap->a_cred;
 		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data,
 		    ap->a_td->td_ucred, ap->a_td);
@@ -360,7 +360,7 @@ fifo_ioctl(ap)
 			return (error);
 	}
 	if (ap->a_fflag & FWRITE) {
-		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_writesock;
+		filetmp.un_data.socket = ap->a_vp->v_fifoinfo->fi_writesock;
 		filetmp.f_cred = ap->a_cred;
 		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data,
 		    ap->a_td->td_ucred, ap->a_td);
@@ -482,9 +482,9 @@ fifo_poll(ap)
 			events |= POLLINIGNEOF;
 		}
 
-		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
+		filetmp.un_data.socket = ap->a_vp->v_fifoinfo->fi_readsock;
 		filetmp.f_cred = ap->a_cred;
-		if (filetmp.f_data)
+		if (filetmp.un_data.socket)
 			revents |= soo_poll(&filetmp, events,
 			    ap->a_td->td_ucred, ap->a_td);
 
@@ -497,9 +497,9 @@ fifo_poll(ap)
 	}
 	events = ap->a_events & (POLLOUT | POLLWRNORM | POLLWRBAND);
 	if (events) {
-		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_writesock;
+		filetmp.un_data.socket = ap->a_vp->v_fifoinfo->fi_writesock;
 		filetmp.f_cred = ap->a_cred;
-		if (filetmp.f_data)
+		if (filetmp.un_data.socket)
 			revents |= soo_poll(&filetmp, events,
 			    ap->a_td->td_ucred, ap->a_td);
 	}

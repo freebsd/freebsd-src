@@ -644,7 +644,7 @@ getparm(fp, pa)
 	if (st == NULL)
 		return;
 
-	so = (struct socket *) fp->f_data;
+	so = fp->un_data.socket;
 
 	pa->family = st->s_family;
 

@@ -381,23 +381,21 @@ dofiles(kp)
 			continue;
 		}
 		if (file.f_type == DTYPE_VNODE)
-			vtrans((struct vnode *)file.f_data, i, file.f_flag);
+			vtrans(file.un_data.vnode, i, file.f_flag);
 		else if (file.f_type == DTYPE_SOCKET) {
 			if (checkfile == 0)
-				socktrans((struct socket *)file.f_data, i);
+				socktrans(file.un_data.socket, i);
 		}
 #ifdef DTYPE_PIPE
 		else if (file.f_type == DTYPE_PIPE) {
 			if (checkfile == 0)
-				pipetrans((struct pipe *)file.f_data, i,
-				    file.f_flag);
+				pipetrans(file.un_data.pipe, i, file.f_flag);
 		}
 #endif
 #ifdef DTYPE_FIFO
 		else if (file.f_type == DTYPE_FIFO) {
 			if (checkfile == 0)
-				vtrans((struct vnode *)file.f_data, i,
-				    file.f_flag);
+				vtrans(file.un_data.vnode, i, file.f_flag);
 		}
 #endif
 		else {

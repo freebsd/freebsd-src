@@ -132,7 +132,7 @@ ibcs2_fstatfs(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	mp = ((struct vnode *)fp->f_data)->v_mount;
+	mp = fp->un_data.vnode->v_mount;
 	sp = &mp->mnt_stat;
 	error = VFS_STATFS(mp, sp, td);
 	fdrop(fp, td);

@@ -271,7 +271,7 @@ svr4_sys_getdents64(td, uap)
 		return (EBADF);
 	}
 
-	vp = (struct vnode *) fp->f_data;
+	vp = fp->un_data.vnode;
 
 	if (vp->v_type != VDIR) {
 		fdrop(fp, td);
@@ -451,7 +451,7 @@ svr4_sys_getdents(td, uap)
 		return (EBADF);
 	}
 
-	vp = (struct vnode *)fp->f_data;
+	vp = fp->un_data.vnode;
 	if (vp->v_type != VDIR) {
 		fdrop(fp, td);
 		return (EINVAL);
@@ -627,7 +627,7 @@ svr4_sys_fchroot(td, uap)
 		return error;
 	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return error;
-	vp = (struct vnode *) fp->f_data;
+	vp = fp->un_data.vnode;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;

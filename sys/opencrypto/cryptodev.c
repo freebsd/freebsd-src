@@ -134,7 +134,7 @@ cryptof_ioctl(
 	struct thread *td)
 {
 	struct cryptoini cria, crie;
-	struct fcrypt *fcr = (struct fcrypt *)fp->f_data;
+	struct fcrypt *fcr = fp->un_data.fcrypt;
 	struct csession *cse;
 	struct session_op *sop;
 	struct crypt_op *cop;
@@ -608,7 +608,7 @@ cryptof_stat(
 static int
 cryptof_close(struct file *fp, struct thread *td)
 {
-	struct fcrypt *fcr = (struct fcrypt *)fp->f_data;
+	struct fcrypt *fcr = fp->un_data.fcrypt;
 	struct csession *cse;
 
 	while ((cse = TAILQ_FIRST(&fcr->csessions))) {
@@ -616,7 +616,7 @@ cryptof_close(struct file *fp, struct thread *td)
 		(void)csefree(cse);
 	}
 	FREE(fcr, M_XDATA);
-	fp->f_data = NULL;
+	fp->un_data.fcrypt = NULL;
 	return 0;
 }
 
@@ -733,7 +733,7 @@ cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		f->f_flag = FREAD | FWRITE;
 		f->f_type = DTYPE_CRYPTO;
 		f->f_ops = &cryptofops;
-		f->f_data = (caddr_t) fcr;
+		f->un_data.fcrypt = fcr;
 		*(u_int32_t *)data = fd;
 		fdrop(f, td);
 		break;

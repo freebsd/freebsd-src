@@ -274,7 +274,7 @@ streamsopen(dev_t dev, int oflags, int devtype, struct thread *td)
 	}
 
 	FILEDESC_LOCK(p->p_fd);
-	fp->f_data = (caddr_t)so;
+	fp->un_data.socket = so;
 	fp->f_flag = FREAD|FWRITE;
 	fp->f_ops = &svr4_netops;
 	fp->f_type = DTYPE_SOCKET;
@@ -357,7 +357,7 @@ svr4_stream_get(fp)
 	if (fp == NULL || fp->f_type != DTYPE_SOCKET)
 		return NULL;
 
-	so = (struct socket *) fp->f_data;
+	so = fp->un_data.socket;
 
 	/*
 	 * mpfixme: lock socketbuffer here
@@ -395,7 +395,7 @@ svr4_delete_socket(p, fp)
 	struct file *fp;
 {
 	struct svr4_sockcache_entry *e;
-	void *cookie = ((struct socket *) fp->f_data)->so_emuldata;
+	void *cookie = fp->un_data.socket->so_emuldata;
 
 	while (svr4_str_initialized != 2) {
 		if (atomic_cmpset_acq_int(&svr4_str_initialized, 0, 1)) {
@@ -418,7 +418,7 @@ svr4_delete_socket(p, fp)
 static int
 svr4_soo_close(struct file *fp, struct thread *td)
 {
-        struct socket *so = (struct socket *)fp->f_data;
+        struct socket *so = fp->un_data.socket;
 	
 	/*	CHECKUNIT_DIAG(ENXIO);*/
 
