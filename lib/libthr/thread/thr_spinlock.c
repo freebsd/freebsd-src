@@ -69,6 +69,16 @@ _spinlock(spinlock_t *lck)
 	_spinlock_pthread(curthread, lck);
 }
 
+int
+_spintrylock(spinlock_t *lck)
+{
+	int error;
+	error = umtx_trylock((struct umtx *)lck, curthread->thr_id);
+	if (error != 0 && error != EBUSY)
+		abort();
+	return (error);
+}
+
 inline void
 _spinlock_pthread(pthread_t pthread, spinlock_t *lck)
 {

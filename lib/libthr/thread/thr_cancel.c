@@ -21,7 +21,16 @@ int
 _pthread_cancel(pthread_t pthread)
 {
 	int ret;
+	pthread_t joined;
 
+	/*
+	 * When canceling a thread that has joined another thread, this
+	 * routine breaks the normal lock order of locking first the
+	 * joined and then the joiner. Therefore, it is necessary that
+	 * if it can't obtain the second lock, that it release the first
+	 * one and restart from the top.
+	 */
+retry:
 	if ((ret = _find_thread(pthread)) != 0)
 		/* The thread is not on the list of active threads */
 		goto out;
@@ -70,10 +79,14 @@ _pthread_cancel(pthread_t pthread)
 			/*
 			 * Disconnect the thread from the joinee:
 			 */
-			if (pthread->join_status.thread != NULL) {
-				pthread->join_status.thread->joiner
-				    = NULL;
-				pthread->join_status.thread = NULL;
+			if ((joined = pthread->join_status.thread) != NULL) {
+				if (_spintrylock(&joined->lock) == EBUSY) {
+					_thread_critical_exit(pthread);
+					goto retry;
+				}
+				pthread->join_status.thread->joiner = NULL;
+				_spinunlock(&joined->lock);
+				joined = pthread->join_status.thread = NULL;
 			}
 			pthread->cancelflags |= PTHREAD_CANCELLING;
 			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
