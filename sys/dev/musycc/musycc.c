@@ -1207,7 +1207,7 @@ musycc_connect(hook_p hook)
 		if (m == NULL)
 			goto errfree;
 		MCLGET(m, M_TRYWAIT);
-		if ((m->m_flags M_EXT) == 0) {
+		if ((m->m_flags & M_EXT) == 0) {
 			/* We've waited mbuf_wait and still got nothing.
 			   We're calling with M_TRYWAIT anyway - a little
 			   defensive programming costs us very little - if
