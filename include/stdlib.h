@@ -38,15 +38,19 @@
 
 #include <machine/ansi.h>
 
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#ifdef	_BSD_RUNE_T_
+typedef	_BSD_RUNE_T_	rune_t;
+#undef	_BSD_RUNE_T_
+#endif
+#endif
+
 #ifdef	_BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
 #endif
 
 #ifdef	_BSD_WCHAR_T_
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-typedef	_BSD_WCHAR_T_	rune_t;
-#endif
 typedef	_BSD_WCHAR_T_	wchar_t;
 #undef	_BSD_WCHAR_T_
 #endif

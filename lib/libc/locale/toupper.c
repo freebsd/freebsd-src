@@ -37,9 +37,9 @@
 #include <stdio.h>
 #include <rune.h>
 
-_BSD_RUNE_T_
+_BSD_CT_RUNE_T_
 ___toupper(c)
-	_BSD_RUNE_T_ c;
+	_BSD_CT_RUNE_T_ c;
 {
 #ifdef XPG4
 	int x;
@@ -58,4 +58,3 @@ ___toupper(c)
 #endif
 	return(c);
 }
-
