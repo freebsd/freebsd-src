@@ -41,13 +41,11 @@
 #include <machine/asmacros.h>
 
 #ifdef SMP
-#include <machine/pmap.h>
 #include <machine/apic.h>
-#include <machine/smptests.h>		/** GRAB_LOPRIO */
+#include <machine/smptests.h>			/* CHEAP_TPR, GRAB_LOPRIO */
 #endif /* SMP */
 
 #include "assym.s"
-
 
 /*****************************************************************************/
 /* Scheduling                                                                */
@@ -76,12 +74,13 @@ ENTRY(cpu_throw)
  */
 ENTRY(cpu_switch)
 	
-	/* switch to new process. first, save context as needed */
+	/* Switch to new process.  First, save context as needed. */
 	movl	PCPU(CURTHREAD),%ecx
 
-	/* if no process to save, don't bother */
+	/* If no process to save, don't save it (XXX shouldn't happen). */
 	testl	%ecx,%ecx
 	jz	sw1
+
 	movl	TD_PROC(%ecx), %eax
 	movl	P_VMSPACE(%eax), %edx
 	movl	PCPU(CPUID), %eax
@@ -98,7 +97,7 @@ ENTRY(cpu_switch)
 	movl	%edi,PCB_EDI(%edx)
 	movl	%gs,PCB_GS(%edx)
 
-	/* test if debug registers should be saved */
+	/* Test if debug registers should be saved. */
 	movb    PCB_FLAGS(%edx),%al
 	andb    $PCB_DBREGS,%al
 	jz      1f                              /* no, skip over */
@@ -133,41 +132,39 @@ ENTRY(cpu_switch)
 1:
 #endif	/* DEV_NPX */
 
-/*##########################################################################*/
-/*##########################################################################*/
-/*##########################################################################*/
-	/* save is done, now choose a new process */
-	/* But still trashing space above the old "Top Of Stack".. */
+	/* Save is done.  Now choose a new thread. */
+	/* XXX still trashing space above the old "Top Of Stack". */
 sw1:
 
 #ifdef SMP
-	/* Stop scheduling if smp_active goes zero and we are not BSP */
+	/* Stop scheduling if smp_active goes to zero and we are not the BSP. */
 	cmpl	$0,smp_active
 	jne	1f
 	cmpl	$0,PCPU(CPUID)
 	je	1f
-
+	/* Idle thread can run on any kernel context. */
 	movl	PCPU(IDLETHREAD), %eax
-	jmp	sw1b  /* Idle thread can run on any kernel context */
+	jmp	sw1b
 1:
 #endif
 
 	/*
-	 * Choose a new process to schedule.  choosethread() returns idleproc
-	 * if it cannot find another process to run.
+	 * Choose a new thread to schedule.  choosethread() returns idlethread
+	 * if it cannot find another thread to run.
 	 */
 sw1a:
-	call	choosethread			/* trash ecx, edx, ret eax*/
+	call	choosethread			/* trash ecx, edx, ret eax */
 
 #ifdef INVARIANTS
-	testl	%eax,%eax			/* no process? */
+	testl	%eax,%eax			/* no thread? */
 	jz	badsw3				/* no, panic */
 #endif
+
 sw1b:
 	movl	%eax,%ecx
 
 #ifdef	INVARIANTS
-	movl	TD_PROC(%ecx), %eax	/* XXXKSE */
+	movl	TD_PROC(%ecx), %eax		/* XXXKSE */
 	cmpb	$SRUN,P_STAT(%eax)
 	jne	badsw2
 #endif
@@ -178,9 +175,6 @@ sw1b:
 	incl	swtch_optim_stats
 #endif
 
-/*##########################################################################*/
-/*##########################################################################*/
-/*##########################################################################*/
 	/* switch address space */
 	movl	%cr3,%ebx
 	cmpl	PCB_CR3(%edx),%ebx
@@ -190,8 +184,9 @@ sw1b:
 	incl	tlb_flush_count
 #endif
 	movl	PCB_CR3(%edx),%ebx
-	movl	%ebx,%cr3			/* LOAD NEW PAGE TABLES */
+	movl	%ebx,%cr3			/* Load new page tables. */
 4:
+
 	movl	PCPU(CPUID), %esi
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f
@@ -202,11 +197,12 @@ sw1b:
 	/* update common_tss.tss_esp0 pointer */
 	leal	-16(%edx), %ebx			/* leave space for vm86 */
 	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0 /* stack is below pcb */
+
 	btrl	%esi, private_tss
 	jae	3f
 	PCPU_ADDR(COMMON_TSSD, %edi)
 2:
-	/* move correct tss descriptor into GDT slot, then reload tr */
+	/* Move correct tss descriptor into GDT slot, then reload tr. */
 	movl	PCPU(TSS_GDT), %ebx		/* entry in GDT */
 	movl	0(%edi), %eax
 	movl	%eax, 0(%ebx)
@@ -215,9 +211,9 @@ sw1b:
 	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 3:
-	/* note in a vmspace that this cpu is using it */
-	movl	TD_PROC(%ecx),%eax	/* get proc from thread XXXKSE */
-	movl	P_VMSPACE(%eax), %ebx	/* get vmspace of proc */
+	/* Note in a vmspace that this cpu is using it. */
+	movl	TD_PROC(%ecx),%eax		/* XXXKSE proc from thread */
+	movl	P_VMSPACE(%eax), %ebx
 	movl	PCPU(CPUID), %eax
 	btsl	%eax, VM_PMAP+PM_ACTIVE(%ebx)
 
@@ -240,27 +236,27 @@ sw1b:
 #endif /** GRAB_LOPRIO */
 #endif /* SMP */
 	movl	%edx, PCPU(CURPCB)
-	movl	%ecx, PCPU(CURTHREAD)		/* into next process */
+	movl	%ecx, PCPU(CURTHREAD)		/* into next thread */
 
 #ifdef SMP
 	/* XXX FIXME: we should be restoring the local APIC TPR */
 #endif /* SMP */
 
-	movl	TD_PROC(%ecx), %eax	/* load struct proc from CURTHREAD */
-	cmpl    $0, P_MD+MD_LDT(%eax)   /* see if md_ldt == 0 */
-	jnz	1f			/* then use it */
-	movl	_default_ldt,%eax	/* We will use the default */
-	cmpl	PCPU(CURRENTLDT),%eax	/* check to see if already loaded */
-	je	2f			/* if so skip reload */
-	lldt	_default_ldt		/* load the default... we trust it. */
-	movl	%eax,PCPU(CURRENTLDT)	/* store what we have */
+	movl	TD_PROC(%ecx),%eax
+	cmpl    $0,P_MD+MD_LDT(%eax)		/* Have an LDT? */
+	jnz	1f				/* Yes, use it. */
+	movl	_default_ldt,%eax		/* Otherwise, use default. */
+	cmpl	PCPU(CURRENTLDT),%eax
+	je	2f
+	lldt	_default_ldt
+	movl	%eax,PCPU(CURRENTLDT)
 	jmp	2f
 
-1:	pushl	%edx			/* save edx */
+1:	pushl	%edx				/* Preserver pointer to pcb. */
 	pushl	P_MD+MD_LDT(%eax)	/* passing p_md -> set_user_ldt */
-	call	set_user_ldt		/* check and load the ldt */
-	popl	%eax			/* get p_md off stack */
-	popl	%edx			/* restore edx */
+	call	set_user_ldt			/* Check and load the ldt. */
+	popl	%eax
+	popl	%edx
 2:
 
 	/* This must be done after loading the user LDT. */
@@ -282,8 +278,8 @@ cpu_switch_load_gs:
 	movl    %eax,%dr1
 	movl    PCB_DR0(%edx),%eax
 	movl    %eax,%dr0
-	movl	%dr7,%eax                /* load dr7 so as not to disturb */
-	andl    $0x0000fc00,%eax         /*   reserved bits               */
+	movl	%dr7,%eax                	/* load dr7 so as not to */
+	andl    $0x0000fc00,%eax         	/* disturb reserved bits */
 	pushl   %ebx
 	movl    PCB_DR7(%edx),%ebx
 	andl	$~0x0000fc00,%ebx	/* re-enable the restored watchpoints */
@@ -306,7 +302,7 @@ badsw3:
 	pushl	$sw0_3
 	call	panic
 
-sw0_3:	.asciz	"cpu_switch: chooseproc returned NULL"
+sw0_3:	.asciz	"cpu_switch: choosethread returned NULL"
 #endif
 
 /*
