@@ -102,10 +102,14 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 		return -1;
 
 	/* Wait for the buffer to be transmitted */
-	buf = 0;	/* XXX Is this needed? */
 	do {
+		buf = 0;	/* XXX Is this needed? */
 		status = net->GetStatus(net, 0, &buf);
-	} while (status == EFI_SUCCESS && buf != pkt);
+		/*
+		 * XXX EFI1.1 and the E1000 card returns a different 
+		 * address than we gave.  Sigh.
+		 */
+	} while (status == EFI_SUCCESS && buf == 0);
 
 	/* XXX How do we deal with status != EFI_SUCCESS now? */
 	return (status == EFI_SUCCESS) ? len : -1;
@@ -120,15 +124,26 @@ efinet_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 	EFI_STATUS status;
 	UINTN bufsz;
 	time_t t;
+	char buf[2048];
 
 	net = nif->nif_devdata;
 
 	t = time(0);
 	while ((time(0) - t) < timeout) {
-		bufsz = len;
-		status = net->Receive(net, 0, &bufsz, pkt, 0, 0, 0);
-		if (status == EFI_SUCCESS)
+		bufsz = sizeof(buf);
+		status = net->Receive(net, 0, &bufsz, buf, 0, 0, 0);
+		if (status == EFI_SUCCESS) {
+			/*
+			 * XXX EFI1.1 and the E1000 card trash our
+			 * workspace if we do not do this silly copy.
+			 * Either they are not respecting the len
+			 * value or do not like the alignment.
+			 */
+			if (bufsz > len)
+				bufsz = len;
+			bcopy(buf, pkt, bufsz);
 			return bufsz;
+		}
 		if (status != EFI_NOT_READY)
 			return 0;
 	}
