@@ -102,6 +102,9 @@
 #ifndef DRIVER_IOCTLS
 #define DRIVER_IOCTLS
 #endif
+#ifndef DRIVER_OPEN_HELPER
+#define DRIVER_OPEN_HELPER( priv, dev )
+#endif
 #ifndef DRIVER_FOPS
 #endif
 
@@ -132,7 +135,9 @@ static drm_ioctl_desc_t		  DRM(ioctls)[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_VERSION)]       = { DRM(version),     0, 0 },
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE)]    = { DRM(getunique),   0, 0 },
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAGIC)]     = { DRM(getmagic),    0, 0 },
-	[DRM_IOCTL_NR(DRM_IOCTL_IRQ_BUSID)]     = { DRM(irq_busid),   0, 1 },
+#if __HAVE_IRQ
+	[DRM_IOCTL_NR(DRM_IOCTL_IRQ_BUSID)]     = { DRM(irq_by_busid), 0, 1 },
+#endif
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP)]       = { DRM(getmap),      0, 0 },
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_CLIENT)]    = { DRM(getclient),   0, 0 },
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS)]     = { DRM(getstats),    0, 0 },
@@ -413,14 +418,15 @@ const char *DRM(find_description)(int vendor, int device) {
 	return NULL;
 }
 
-/* Initialize the DRM on first open.  Called with device's lock held */
+/* Initialize the DRM on first open. */
 static int DRM(setup)( drm_device_t *dev )
 {
 	int i;
 
+	DRM_SPINLOCK_ASSERT(&dev->dev_lock);
+
 	DRIVER_PRESETUP();
 	dev->buf_use = 0;
-	dev->buf_alloc = 0;
 
 #if __HAVE_DMA
 	i = DRM(dma_setup)( dev );
@@ -476,9 +482,10 @@ static int DRM(setup)( drm_device_t *dev )
 
 	dev->lock.hw_lock = NULL;
 	dev->lock.lock_queue = 0;
-	dev->irq = 0;
+	dev->irq_enabled = 0;
 	dev->context_flag = 0;
 	dev->last_context = 0;
+	dev->if_version = 0;
 
 #ifdef __FreeBSD__
 	dev->buf_sigio = NULL;
@@ -492,9 +499,7 @@ static int DRM(setup)( drm_device_t *dev )
 	return 0;
 }
 
-/* Free resources associated with the DRM on the last close.
- * Called with the device's lock held.
- */
+/* Free resources associated with the DRM on the last close. */
 static int DRM(takedown)( drm_device_t *dev )
 {
 	drm_magic_entry_t *pt, *next;
@@ -502,11 +507,13 @@ static int DRM(takedown)( drm_device_t *dev )
 	drm_map_list_entry_t *list;
 	int i;
 
+	DRM_SPINLOCK_ASSERT(&dev->dev_lock);
+
 	DRM_DEBUG( "\n" );
 
 	DRIVER_PRETAKEDOWN();
 #if __HAVE_IRQ
-	if (dev->irq != 0)
+	if (dev->irq_enabled)
 		DRM(irq_uninstall)( dev );
 #endif
 
@@ -642,6 +649,13 @@ static int DRM(init)( device_t nbdev )
 #elif defined(__NetBSD__)
 	unit = minor(dev->device.dv_unit);
 #endif
+
+	dev->irq = pci_get_irq(dev->device);
+	/* XXX Fix domain number (alpha hoses) */
+	dev->pci_domain = 0;
+	dev->pci_bus = pci_get_bus(dev->device);
+	dev->pci_slot = pci_get_slot(dev->device);
+	dev->pci_func = pci_get_function(dev->device);
 
 	dev->maplist = DRM(calloc)(1, sizeof(*dev->maplist), DRM_MEM_MAPS);
 	if (dev->maplist == NULL) {

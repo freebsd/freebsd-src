@@ -124,6 +124,7 @@
 #define DRM_SPINUNINIT(l)	mtx_destroy(&l)
 #define DRM_SPINLOCK(l)		mtx_lock(l)
 #define DRM_SPINUNLOCK(u)	mtx_unlock(u);
+#define DRM_SPINLOCK_ASSERT(l)	mtx_assert(l, MA_OWNED)
 #define DRM_CURRENTPID		curthread->td_proc->p_pid
 #define DRM_LOCK()		mtx_lock(&dev->dev_lock)
 #define DRM_UNLOCK() 		mtx_unlock(&dev->dev_lock)
@@ -139,6 +140,7 @@
 #define DRM_SPINUNINIT(l)
 #define DRM_SPINLOCK(l)
 #define DRM_SPINUNLOCK(u)
+#define DRM_SPINLOCK_ASSERT(l)
 #define DRM_CURRENTPID		curproc->p_pid
 #define DRM_LOCK()
 #define DRM_UNLOCK()
@@ -269,8 +271,12 @@ for ( ret = 0 ; !ret && !(condition) ; ) {		\
 	(!useracc((caddr_t)uaddr, size, VM_PROT_READ))
 #define DRM_COPY_FROM_USER_UNCHECKED(arg1, arg2, arg3) 	\
 	copyin(arg2, arg1, arg3)
+#define DRM_COPY_TO_USER_UNCHECKED(arg1, arg2, arg3)	\
+	copyout(arg2, arg1, arg3)
 #define DRM_GET_USER_UNCHECKED(val, uaddr)			\
 	((val) = fuword(uaddr), 0)
+#define DRM_PUT_USER_UNCHECKED(uaddr, val)			\
+	suword(uaddr, val)
 
 /* DRM_READMEMORYBARRIER() prevents reordering of reads.
  * DRM_WRITEMEMORYBARRIER() prevents reordering of writes.

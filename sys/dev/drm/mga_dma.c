@@ -646,7 +646,7 @@ int mga_do_cleanup_dma( drm_device_t *dev )
 	 * may not have been called from userspace and after dev_private
 	 * is freed, it's too late.
 	 */
-	if ( dev->irq ) DRM(irq_uninstall)(dev);
+	if ( dev->irq_enabled ) DRM(irq_uninstall)(dev);
 #endif
 
 	if ( dev->dev_private ) {
