@@ -567,7 +567,7 @@ nodisks:
 	dialog_clear_norefresh();
     }
 
-    if (msgYesNo("Will this machine be a leaf node (e.g. will not forward packets)\n"
+    if (msgYesNo("Will this machine be a leaf node (e.g. will not forward packets\n"
 		 "between interfaces)?"))
 	variable_set2("gateway_enable", "YES", 1);
 
