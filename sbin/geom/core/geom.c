@@ -56,7 +56,6 @@ static char comm[MAXPATHLEN], *class_name = NULL, *gclass_name = NULL;
 static uint32_t *version = NULL;
 static int verbose = 0;
 static struct g_command *class_commands = NULL;
-static void (*usage)(const char *name);
 
 #define	GEOM_CLASS_CMDS	0x01
 #define	GEOM_STD_CMDS	0x02
@@ -70,73 +69,75 @@ static void std_load(struct gctl_req *req, unsigned flags);
 static void std_unload(struct gctl_req *req, unsigned flags);
 
 struct g_command std_commands[] = {
-	{ "help", 0, std_help, G_NULL_OPTS },
-	{ "list", 0, std_list, G_NULL_OPTS },
+	{ "help", 0, std_help, G_NULL_OPTS, NULL },
+	{ "list", 0, std_list, G_NULL_OPTS,
+	    "[name ...]"
+	},
 	{ "status", 0, std_status,
 	    {
 		{ 's', "script", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-s] [name ...]"
 	},
-	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS },
-	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS },
+	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS, NULL },
+	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS, NULL },
 	G_CMD_SENTINEL
 };
 
 static void
-std_usage(const char *name)
+usage_command(struct g_command *cmd, const char *prefix)
 {
-	struct g_command *cmd;
 	struct g_option *opt;
-	unsigned i, j;
+	unsigned i;
 
-	for (i = 0; ; i++) {
-		cmd = &class_commands[i];
-		if (cmd->gc_name == NULL)
-			break;
-		fprintf(stderr, "%s %s %s %s", i == 0 ? "usage:" : "      ",
-		    name, class_name, cmd->gc_name);
-		if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
-			fprintf(stderr, " [-v]");
-		for (j = 0; ; j++) {
-			opt = &cmd->gc_options[j];
-			if (opt->go_name == NULL)
-				break;
-			if (opt->go_val != NULL || opt->go_type == G_TYPE_NONE)
-				fprintf(stderr, " [");
-			else
-				fprintf(stderr, " ");
-			fprintf(stderr, "-%c", opt->go_char);
-			if (opt->go_type != G_TYPE_NONE)
-				fprintf(stderr, " %s", opt->go_name);
-			if (opt->go_val != NULL || opt->go_type == G_TYPE_NONE)
-				fprintf(stderr, "]");
-		}
-		fprintf(stderr, " ...\n");
+	fprintf(stderr, "%s %s %s", prefix, comm, cmd->gc_name);
+	if (cmd->gc_usage != NULL) {
+		fprintf(stderr, " %s\n", cmd->gc_usage);
+		return;
 	}
-	exit(EXIT_FAILURE);
+	if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
+		fprintf(stderr, " [-v]");
+	for (i = 0; ; i++) {
+		opt = &cmd->gc_options[i];
+		if (opt->go_name == NULL)
+			break;
+		if (opt->go_val != NULL || opt->go_type == G_TYPE_NONE)
+			fprintf(stderr, " [");
+		else
+			fprintf(stderr, " ");
+		fprintf(stderr, "-%c", opt->go_char);
+		if (opt->go_type != G_TYPE_NONE)
+			fprintf(stderr, " %s", opt->go_name);
+		if (opt->go_val != NULL || opt->go_type == G_TYPE_NONE)
+			fprintf(stderr, "]");
+	}
+	fprintf(stderr, "\n");
 }
 
 static void
-geom_usage(void)
+usage(void)
 {
 
 	if (class_name == NULL) {
 		errx(EXIT_FAILURE, "usage: %s <class> <command> [options]",
 		    "geom");
 	} else {
+		struct g_command *cmd;
 		const char *prefix;
 		unsigned i;
 
-		if (usage == NULL)
-			prefix = "usage:";
-		else {
-			usage(comm);
-			prefix = "      ";
+		prefix = "usage:";
+		if (class_commands != NULL) {
+			for (i = 0; ; i++) {
+				cmd = &class_commands[i];
+				if (cmd->gc_name == NULL)
+					break;
+				usage_command(cmd, prefix);
+				prefix = "      ";
+			}
 		}
 		for (i = 0; ; i++) {
-			struct g_command *cmd;
-
 			cmd = &std_commands[i];
 			if (cmd->gc_name == NULL)
 				break;
@@ -147,10 +148,7 @@ geom_usage(void)
 			 */
 			if (find_command(cmd->gc_name, GEOM_CLASS_CMDS) != NULL)
 				continue;
-			fprintf(stderr, "%s %s %s", prefix, comm, cmd->gc_name);
-			if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
-				fprintf(stderr, " [-v]");
-			fprintf(stderr, "\n");
+			usage_command(cmd, prefix);
 			prefix = "      ";
 		}
 		exit(EXIT_FAILURE);
@@ -287,11 +285,11 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		/* Options passed to kernel. */
 		opt = find_option(cmd, ch);
 		if (opt == NULL)
-			geom_usage();
+			usage();
 		if (G_OPT_ISDONE(opt)) {
 			fprintf(stderr, "Flag '%c' specified twice.\n",
 			    opt->go_char);
-			geom_usage();
+			usage();
 		}
 		G_OPT_DONE(opt);
 
@@ -320,7 +318,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 			if (opt->go_val == NULL) {
 				fprintf(stderr, "Flag '%c' not specified.\n",
 				    opt->go_char);
-				geom_usage();
+				usage();
 			} else {
 				if (opt->go_type == G_TYPE_NUMBER) {
 					gctl_ro_param(req, opt->go_name,
@@ -409,7 +407,7 @@ run_command(int argc, char *argv[])
 		cmd = find_command(argv[0], GEOM_STD_CMDS);
 		if (cmd == NULL) {
 			fprintf(stderr, "Unknown command: %s\n", argv[0]);
-			geom_usage();
+			usage();
 		}
 		if (!std_available(cmd->gc_name)) {
 			fprintf(stderr, "Command '%s' not available.\n",
@@ -511,9 +509,6 @@ load_library(void)
 		dlclose(dlh);
 		exit(EXIT_FAILURE);
 	}
-	usage = dlsym(dlh, "usage");
-	if (usage == NULL)
-		usage = std_usage;
 }
 
 /*
@@ -541,11 +536,11 @@ get_class(int *argc, char ***argv)
 	snprintf(comm, sizeof(comm), "%s", basename((*argv)[0]));
 	if (strcmp(comm, "geom") == 0) {
 		if (*argc < 2)
-			geom_usage();
+			usage();
 		else if (*argc == 2) {
 			if (strcmp((*argv)[1], "-h") == 0 ||
 			    strcmp((*argv)[1], "help") == 0) {
-				geom_usage();
+				usage();
 			}
 		}
 		strlcatf(comm, sizeof(comm), " %s", (*argv)[1]);
@@ -562,7 +557,7 @@ get_class(int *argc, char ***argv)
 	set_class_name();
 	load_library();
 	if (*argc < 1)
-		geom_usage();
+		usage();
 }
 
 int
@@ -678,7 +673,7 @@ static void
 std_help(struct gctl_req *req __unused, unsigned flags __unused)
 {
 
-	geom_usage();
+	usage();
 }
 
 static int
