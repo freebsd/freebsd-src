@@ -74,7 +74,7 @@ static struct cdevsw random_cdevsw = {
 static dev_t randomdev;
 static dev_t urandomdev;
 
-void *buf;
+static void *buf;
 
 extern void randominit(void);
 
