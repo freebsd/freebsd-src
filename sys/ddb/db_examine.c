@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.20 1998/06/10 10:56:09 dfr Exp $
+ *	$Id: db_examine.c,v 1.21 1998/06/27 15:39:51 dfr Exp $
  */
 
 /*
@@ -95,6 +95,10 @@ db_examine(addr, fmt, count)
 		    case 'l':
 			size = 4;
 			width = 16;
+			break;
+		    case 'g':
+			size = 8;
+			width = 32;
 			break;
 		    case 'a':	/* address */
 			/* always forces a new line */
