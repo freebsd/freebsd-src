@@ -408,10 +408,11 @@ kdb_trap(int type, int code, struct trapframe *tf)
 		stop_cpus(PCPU_GET(other_cpus));
 #endif
 
+	kdb_frame = tf;
+
 	/* Let MD code do its thing first... */
 	kdb_cpu_trap(type, code);
 
-	kdb_frame = tf;
 	makectx(tf, &kdb_pcb);
 	kdb_thr_select(curthread);
 
