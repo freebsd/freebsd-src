@@ -239,6 +239,20 @@ sub parse {
 		# reference.
 		#parabuf_addline(\%mdocvars, "&man.$1.$2;");
 		parabuf_addline(\%mdocvars, normalize("$1($2)"));
+	    } elsif (/^Dq (.+)$/) {
+		my (@stritems, $stritem, $punct_str);
+		$punct_str = "";
+		@stritems = split(/ /, $1);
+
+		# Handle trailing punctuation characters specially.
+		while (defined($stritem = $stritems[$#stritems]) &&
+		       is_punct_char($stritem)) {
+		    $punct_str = $stritem . $punct_str;
+		    pop(@stritems);
+		}
+		my $txt = "<quote>".join(' ', @stritems)."</quote>$punct_str";
+
+		parabuf_addline(\%mdocvars, normalize($txt));
 	    }
 	    # Ignore all other commands
 	} else {
@@ -383,4 +397,11 @@ sub load_archlist {
     }
 
     close(FILE);
+}
+
+# Check if a character is a mdoc(7) punctuation character.
+sub is_punct_char {
+    my ($str) = (@_);
+
+    return ($str =~ /[\.,:;()\[\]\?!]/);
 }
