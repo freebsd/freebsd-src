@@ -996,7 +996,7 @@ Features:
 	  max memory is 1 Gb
 	  uses ECC
 	AS800:
-	  Uses SDRAM DIMMs.
+	  Uses ECC EDO DIMMs.
 - embedded VGA (on some mainboard models)
 - expansion: 
 	3 PCI, 2 EISA, 1 64-bit PCI/EISA combo (AS800)
@@ -1021,7 +1021,7 @@ Memory:
   Uses DIMMs in sets of 4. DIMM installation must start in slots marked 
   bank 0. A bank is four physically adjacent slots. The biggest size DIMMs
   must be installed in bank 0 in case 2 banks of different DIMM sizes are
-  used. Max memory size is 2Gb.
+  used. Max memory size is 2Gb. Note that these are EDO DIMMs, not SDRAM.
 
 Console:
 The AS1000/800 are somewhat stubborn when it comes to serial
