@@ -141,13 +141,14 @@ linker_add_class(linker_class_t lc)
 {
 
 	/*
-	 * We disallow any class registration passt SI_ORDER_ANY
-	 * of SI_SUB_KLD.
+	 * We disallow any class registration past SI_ORDER_ANY
+	 * of SI_SUB_KLD.  We bump the reference count to keep the
+	 * ops from being freed.
 	 */
 	if (linker_no_more_classes == 1)
 		return (EPERM);
 	kobj_class_compile((kobj_class_t) lc);
-	((kobj_class_t)lc)->refs++;	/* prevent ops being freed */
+	((kobj_class_t)lc)->refs++;	/* XXX: kobj_mtx */
 	TAILQ_INSERT_TAIL(&classes, lc, link);
 	return (0);
 }

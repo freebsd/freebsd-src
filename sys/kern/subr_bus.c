@@ -850,7 +850,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 
 	dl->driver = driver;
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
-	driver->refs++;
+	driver->refs++;		/* XXX: kobj_mtx */
 
 	/*
 	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
@@ -930,6 +930,7 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 	TAILQ_REMOVE(&busclass->drivers, dl, link);
 	free(dl, M_BUS);
 
+	/* XXX: kobj_mtx */
 	driver->refs--;
 	if (driver->refs == 0)
 		kobj_class_free((kobj_class_t) driver);
