@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 
-#include "libusb.h"
+#include "libusbhid.h"
 #include "usbvar.h"
 
 report_desc_t
