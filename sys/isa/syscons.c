@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.256 1998/02/13 17:54:53 phk Exp $
+ *  $Id: syscons.c,v 1.257 1998/04/04 13:24:51 phk Exp $
  */
 
 #include "sc.h"
@@ -255,6 +255,7 @@ static int get_scr_num(void);
 static timeout_t scrn_timer;
 static void scrn_update(scr_stat *scp, int show_cursor);
 static void stop_scrn_saver(void (*saver)(int));
+static int wait_scrn_saver_stop(void);
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
@@ -1535,6 +1536,14 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
  	if (mp == NULL)
  	    return ENODEV;
  
+	s = spltty();
+	if ((error = wait_scrn_saver_stop())) {
+	    splx(s);
+	    return error;
+	}
+
+	scp->status &= ~MOUSE_VISIBLE;
+	remove_cutmarking(scp);
 	if (scp->history != NULL)
 	    i = imax(scp->history_size / scp->xsize 
 		     - imax(SC_HISTORY_SIZE, scp->ysize), 0);
@@ -1542,27 +1551,41 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    i = 0;
 	switch (cmd & 0xff) {
 	case M_VGA_C80x60: case M_VGA_M80x60:
-	    if (!(fonts_loaded & FONT_8))
+	    if (!(fonts_loaded & FONT_8)) {
+		splx(s);
 		return EINVAL;
+	    }
+	    /*
+	     * This is a kludge to fend off scrn_update() while we
+	     * muck around with scp. XXX
+	     */
+	    scp->status |= UNKNOWN_MODE;
 	    scp->xsize = 80;
 	    scp->ysize = 60;
 	    scp->font_size = 8;
 	    break;
 	case M_VGA_C80x50: case M_VGA_M80x50:
-	    if (!(fonts_loaded & FONT_8))
+	    if (!(fonts_loaded & FONT_8)) {
+		splx(s);
 		return EINVAL;
+	    }
+	    scp->status |= UNKNOWN_MODE;
 	    scp->xsize = 80;
 	    scp->ysize = 50;
 	    scp->font_size = 8;
 	    break;
 	case M_ENH_B80x43: case M_ENH_C80x43:
-	    if (!(fonts_loaded & FONT_8))
+	    if (!(fonts_loaded & FONT_8)) {
+		splx(s);
 		return EINVAL;
+	    }
+	    scp->status |= UNKNOWN_MODE;
 	    scp->xsize = 80;
 	    scp->ysize = 43;
 	    scp->font_size = 8;
 	    break;
 	case M_VGA_C80x30: case M_VGA_M80x30:
+	    scp->status |= UNKNOWN_MODE;
 	    scp->xsize = 80;
 	    scp->ysize = 30;
 	    scp->font_size = mp[2];
@@ -1570,19 +1593,23 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case M_ENH_C40x25: case M_ENH_B40x25:
 	case M_ENH_C80x25: case M_ENH_B80x25:
 	case M_EGAMONO80x25:
-	    if (!(fonts_loaded & FONT_14))
+	    if (!(fonts_loaded & FONT_14)) {
+		splx(s);
 		return EINVAL;
+	    }
 	    /* FALL THROUGH */
 	default:
-	    if ((cmd & 0xff) > M_VGA_CG320)
+	    if ((cmd & 0xff) > M_VGA_CG320) {
+		splx(s);
 		return EINVAL;
+	    }
+	    scp->status |= UNKNOWN_MODE;
             scp->xsize = mp[0];
             scp->ysize = mp[1] + rows_offset;
 	    scp->font_size = mp[2];
 	    break;
 	}
 
-	scp->status &= ~MOUSE_VISIBLE;
 	scp->mode = cmd & 0xff;
 	scp->xpixel = scp->xsize * 8;
 	scp->ypixel = scp->ysize * scp->font_size;
@@ -1600,6 +1627,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
+	splx(s);
+
 	usp = scp->history;
 	scp->history = NULL;
 	if (usp != NULL) {
@@ -1615,8 +1644,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	scp->history = usp;
 	if (scp == cur_console)
 	    set_mode(scp);
-	scp->status &= ~UNKNOWN_MODE;
 	clear_screen(scp);
+	scp->status &= ~UNKNOWN_MODE;
 
 	if (tp->t_winsize.ws_col != scp->xsize
 	    || tp->t_winsize.ws_row != scp->ysize) {
@@ -1638,7 +1667,15 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	if (mp == NULL)
 	    return ENODEV;
 
+	s = spltty();
+	if ((error = wait_scrn_saver_stop())) {
+	    splx(s);
+	    return error;
+	}
+
 	scp->status &= ~MOUSE_VISIBLE;
+	remove_cutmarking(scp);
+	scp->status |= UNKNOWN_MODE;    /* graphics mode */
 	scp->mode = cmd & 0xFF;
 	scp->xpixel = mp[0] * 8;
 	scp->ypixel = (mp[1] + rows_offset) * mp[2];
@@ -1646,9 +1683,10 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	/* move the mouse cursor at the center of the screen */
 	scp->mouse_xpos = scp->xpixel / 2;
 	scp->mouse_ypos = scp->ypixel / 2;
+	splx(s);
+
 	if (scp == cur_console)
 	    set_mode(scp);
-	scp->status |= UNKNOWN_MODE;    /* graphics mode */
 	/* clear_graphics();*/
 
 	if (tp->t_winsize.ws_xpixel != scp->xpixel
@@ -1666,13 +1704,24 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	if (mp == NULL)
 	    return ENODEV;
 
-	scp->mode = cmd & 0xFF;
-	if (scp == cur_console)
-	    set_mode(scp);
+	s = spltty();
+	if ((error = wait_scrn_saver_stop())) {
+	    splx(s);
+	    return error;
+	}
+
+	scp->status &= ~MOUSE_VISIBLE;
+	remove_cutmarking(scp);
 	scp->status |= UNKNOWN_MODE;    /* graphics mode */
-	/* clear_graphics();*/
+	scp->mode = cmd & 0xFF;
 	scp->xpixel = 320;
 	scp->ypixel = 240;
+	scp->font_size = FONT_NONE;
+	splx(s);
+
+	if (scp == cur_console)
+	    set_mode(scp);
+	/* clear_graphics();*/
 	if (tp->t_winsize.ws_xpixel != scp->xpixel
 	    || tp->t_winsize.ws_ypixel != scp->ypixel) {
 	    tp->t_winsize.ws_xpixel = scp->xpixel;
@@ -1789,12 +1838,18 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case KD_TEXT:   	/* switch to TEXT (known) mode */
 	    /* restore fonts & palette ! */
 	    if (crtc_vga) {
+#if 0
+		/*
+		 * FONT KLUDGE
+		 * Don't load fonts for now... XXX
+		 */
 		if (fonts_loaded & FONT_8)
 		    copy_font(LOAD, FONT_8, font_8);
 		if (fonts_loaded & FONT_14)
 		    copy_font(LOAD, FONT_14, font_14);
 		if (fonts_loaded & FONT_16)
 		    copy_font(LOAD, FONT_16, font_16);
+#endif
 		load_palette(palette);
 	    }
 
@@ -1807,7 +1862,15 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    /* FALL THROUGH */
 
 	case KD_TEXT1:  	/* switch to TEXT (known) mode */
+	    s = spltty();
+	    if ((error = wait_scrn_saver_stop())) {
+		splx(s);
+		return error;
+	    }
 	    scp->status &= ~MOUSE_VISIBLE;
+	    remove_cutmarking(scp);
+	    scp->status |= UNKNOWN_MODE;
+	    splx(s);
 	    /* no restore fonts & palette */
 	    if (crtc_vga)
 		set_mode(scp);
@@ -1816,8 +1879,15 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return 0;
 
 	case KD_GRAPHICS:	/* switch to GRAPHICS (unknown) mode */
+	    s = spltty();
+	    if ((error = wait_scrn_saver_stop())) {
+		splx(s);
+		return error;
+	    }
 	    scp->status &= ~MOUSE_VISIBLE;
+	    remove_cutmarking(scp);
 	    scp->status |= UNKNOWN_MODE;
+	    splx(s);
 	    return 0;
 	default:
 	    return EINVAL;
@@ -1988,7 +2058,13 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 	bcopy(data, font_8, 8*256);
 	fonts_loaded |= FONT_8;
-	if (!(cur_console->status & UNKNOWN_MODE)) {
+	/*
+	 * FONT KLUDGE
+	 * Always use the font page #0. XXX
+	 * Don't load if the current font size is not 8x8.
+	 */
+	if (!(cur_console->status & UNKNOWN_MODE)
+	    && (cur_console->font_size < 14)) {
 	    copy_font(LOAD, FONT_8, font_8);
 	    if (flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
@@ -2010,7 +2086,13 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 	bcopy(data, font_14, 14*256);
 	fonts_loaded |= FONT_14;
-	if (!(cur_console->status & UNKNOWN_MODE)) {
+	/*
+	 * FONT KLUDGE
+	 * Always use the font page #0. XXX
+	 * Don't load if the current font size is not 8x14.
+	 */
+	if (!(cur_console->status & UNKNOWN_MODE)
+	    && (cur_console->font_size >= 14) && (cur_console->font_size < 16)) {
 	    copy_font(LOAD, FONT_14, font_14);
 	    if (flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
@@ -2032,7 +2114,13 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 	bcopy(data, font_16, 16*256);
 	fonts_loaded |= FONT_16;
-	if (crtc_vga && !(cur_console->status & UNKNOWN_MODE)) {
+	/*
+	 * FONT KLUDGE
+	 * Always use the font page #0. XXX
+	 * Don't load if the current font size is not 8x16.
+	 */
+	if (crtc_vga && !(cur_console->status & UNKNOWN_MODE)
+	    && (cur_console->font_size >= 16)) {
 	    copy_font(LOAD, FONT_16, font_16);
 	    if (flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
@@ -2391,6 +2479,22 @@ stop_scrn_saver(void (*saver)(int))
     (*saver)(FALSE);
     getmicroruntime(&scrn_time_stamp);
     mark_all(cur_console);
+    wakeup((caddr_t)&scrn_blanked);
+}
+
+static int
+wait_scrn_saver_stop(void)
+{
+    int error = 0;
+
+    getmicroruntime(&scrn_time_stamp);
+    while (scrn_blanked > 0) {
+	error = tsleep((caddr_t)&scrn_blanked, PZERO | PCATCH, "scrsav", 0);
+	getmicroruntime(&scrn_time_stamp);
+	if (error != ERESTART)
+	    break;
+    }
+    return error;
 }
 
 static void
@@ -3360,19 +3464,37 @@ static scr_stat
 static void
 init_scp(scr_stat *scp)
 {
-    if (crtc_vga)
+    switch(crtc_type) {
+    case KD_VGA:
 	if (crtc_addr == MONO_BASE)
 	    scp->mode = M_VGA_M80x25;
 	else
 	    scp->mode = M_VGA_C80x25;
-    else
+	scp->font_size = 16;
+	break;
+    case KD_CGA:
 	if (crtc_addr == MONO_BASE)
 	    scp->mode = M_B80x25;
 	else
 	    scp->mode = M_C80x25;
+	scp->font_size = 8;
+	break;
+    case KD_EGA:
+	if (crtc_addr == MONO_BASE)
+	    scp->mode = M_B80x25;
+	else
+	    scp->mode = M_C80x25;
+	scp->font_size = 14;
+	break;
+    case KD_MONO:
+    case KD_HERCULES:
+    default:
+	scp->mode = M_EGAMONO80x25;
+	scp->font_size = 14;
+	break;
+    }
     scp->initial_mode = scp->mode;
 
-    scp->font_size = 16;
     scp->xsize = COL;
     scp->ysize = ROW;
     scp->xpixel = scp->xsize * 8;
@@ -4094,6 +4216,8 @@ set_mode(scr_stat *scp)
 {
     char special_modetable[MODE_PARAM_SIZE];
     char *mp;
+    int s;
+    int i;
 
     if (scp != cur_console)
 	return;
@@ -4153,16 +4277,29 @@ setup_mode:
 	if (scp->font_size < 14) {
 	    if (fonts_loaded & FONT_8)
 		copy_font(LOAD, FONT_8, font_8);
-	    outb(TSIDX, 0x03); outb(TSREG, 0x0A);   /* font 2 */
+	    i = 0x0a;				/* font 2 */
 	} else if (scp->font_size >= 16) {
 	    if (fonts_loaded & FONT_16)
 		copy_font(LOAD, FONT_16, font_16);
-	    outb(TSIDX, 0x03); outb(TSREG, 0x00);   /* font 0 */
+	    i = 0x00;				/* font 0 */
 	} else {
 	    if (fonts_loaded & FONT_14)
 		copy_font(LOAD, FONT_14, font_14);
-	    outb(TSIDX, 0x03); outb(TSREG, 0x05);   /* font 1 */
+	    i = 0x05;				/* font 1 */
 	}
+	/*
+	 * FONT KLUDGE:
+	 * This is an interim kludge to display correct font.
+	 * Always use the font page #0 on the video plane 2.
+	 * Somehow we cannot show the font in other font pages on
+	 * some video cards... XXX
+	 */
+	i = 0x00;
+	s = splhigh();
+	outb(TSIDX, 0x00); outb(TSREG, 0x01);
+	outb(TSIDX, 0x03); outb(TSREG, i);
+	outb(TSIDX, 0x00); outb(TSREG, 0x03);
+	splx(s);
 	if (flags & CHAR_CURSOR)
 	    set_destructive_cursor(scp);
 	mark_all(scp);
@@ -4236,7 +4373,6 @@ set_vgaregs(char *modetable)
     int i, s = splhigh();
 
     outb(TSIDX, 0x00); outb(TSREG, 0x01);   	/* stop sequencer */
-    outb(TSIDX, 0x07); outb(TSREG, 0x00);   	/* unlock registers */
     for (i=0; i<4; i++) {           		/* program sequencer */
 	outb(TSIDX, i+1);
 	outb(TSREG, modetable[i+5]);
@@ -4277,7 +4413,6 @@ read_vgaregs(char *buf)
     s = splhigh();
 
     outb(TSIDX, 0x00); outb(TSREG, 0x01);   	/* stop sequencer */
-    outb(TSIDX, 0x07); outb(TSREG, 0x00);   	/* unlock registers */
     for (i=0, j=5; i<4; i++) {           
 	outb(TSIDX, i+1);
 	buf[j++] = inb(TSREG);
@@ -4401,14 +4536,18 @@ set_font_mode(u_char *buf)
     outb(ATC, 0x20);            		/* enable palette */
 
 #if SLOW_VGA
+    outb(TSIDX, 0x00); outb(TSREG, 0x01);
     outb(TSIDX, 0x02); outb(TSREG, 0x04);
     outb(TSIDX, 0x04); outb(TSREG, 0x07);
+    outb(TSIDX, 0x00); outb(TSREG, 0x03);
     outb(GDCIDX, 0x04); outb(GDCREG, 0x02);
     outb(GDCIDX, 0x05); outb(GDCREG, 0x00);
     outb(GDCIDX, 0x06); outb(GDCREG, 0x04);
 #else
+    outw(TSIDX, 0x0100);
     outw(TSIDX, 0x0402);
     outw(TSIDX, 0x0704);
+    outw(TSIDX, 0x0300);
     outw(GDCIDX, 0x0204);
     outw(GDCIDX, 0x0005);
     outw(GDCIDX, 0x0406);               /* addr = a0000, 64kb */
@@ -4429,8 +4568,10 @@ set_normal_mode(u_char *buf)
     outb(ATC, 0x20);            		/* enable palette */
 
 #if SLOW_VGA
+    outb(TSIDX, 0x00); outb(TSREG, 0x01);
     outb(TSIDX, 0x02); outb(TSREG, buf[0]);
     outb(TSIDX, 0x04); outb(TSREG, buf[1]);
+    outb(TSIDX, 0x00); outb(TSREG, 0x03);
     outb(GDCIDX, 0x04); outb(GDCREG, buf[2]);
     outb(GDCIDX, 0x05); outb(GDCREG, buf[3]);
     if (crtc_addr == MONO_BASE) {
@@ -4439,8 +4580,10 @@ set_normal_mode(u_char *buf)
 	outb(GDCIDX, 0x06); outb(GDCREG,(buf[4] & 0x03) | 0x0c);
     }
 #else
+    outw(TSIDX, 0x0100);
     outw(TSIDX, 0x0002 | (buf[0] << 8));
     outw(TSIDX, 0x0004 | (buf[1] << 8));
+    outw(TSIDX, 0x0300);
     outw(GDCIDX, 0x0004 | (buf[2] << 8));
     outw(GDCIDX, 0x0005 | (buf[3] << 8));
     if (crtc_addr == MONO_BASE)
@@ -4475,6 +4618,11 @@ copy_font(int operation, int font_type, char* font_image)
 	fontsize = 16;
 	break;
     }
+    /*
+     * FONT KLUDGE
+     * Always use the font page #0. XXX
+     */
+    segment = 0x0000;
     outb(TSIDX, 0x01); val = inb(TSREG);        /* disable screen */
     outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
     set_font_mode(buf);
@@ -4511,6 +4659,11 @@ set_destructive_cursor(scr_stat *scp)
 	font_buffer = font_14;
 	address = (caddr_t)VIDEOMEM + 0x4000;
     }
+    /*
+     * FONT KLUDGE
+     * Always use the font page #0. XXX
+     */
+    address = (caddr_t)VIDEOMEM;
 
     if (scp->status & MOUSE_VISIBLE) {
 	if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR)
@@ -4800,6 +4953,12 @@ draw_mouse_image(scr_stat *scp)
 	font_buffer = font_14;
 	address = (caddr_t)VIDEOMEM + 0x4000;
     }
+    /*
+     * FONT KLUDGE
+     * Always use the font page #0. XXX
+     */
+    address = (caddr_t)VIDEOMEM;
+
     xoffset = scp->mouse_xpos % 8;
     yoffset = scp->mouse_ypos % font_size;
 
