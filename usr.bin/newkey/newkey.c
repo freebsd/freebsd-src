@@ -28,7 +28,11 @@
  * Mountain View, California  94043
  */
 #if !defined(lint) && defined(SCCSIDS)
+#if 0
 static char sccsid[] = "@(#)newkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
@@ -38,6 +42,7 @@ static char sccsid[] = "@(#)newkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 /*
  * Administrative tool to add a new user to the publickey database
  */
+#include <err.h>
 #include <stdio.h>
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
@@ -49,6 +54,7 @@ static char sccsid[] = "@(#)newkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #endif	/* YP */
 #include <pwd.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/resource.h>
 
 #ifdef YP
@@ -66,9 +72,6 @@ static char sccsid[] = "@(#)newkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #define	ERR_KEY		6
 #endif
 
-extern char *getpass();
-extern char *malloc();
-
 #ifdef YP
 static char *basename();
 static char SHELL[] = "/bin/sh";
@@ -80,6 +83,9 @@ static char PKFILE[] = "/etc/publickey";
 static char *err_string();
 #endif	/* YP */
 
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -98,37 +104,25 @@ main(argc, argv)
 
 	if (argc != 3 || !(strcmp(argv[1], "-u") == 0 ||
 		strcmp(argv[1], "-h") == 0)) {
-		(void)fprintf(stderr, "usage: %s [-u username]\n",
-				argv[0]);
-		(void)fprintf(stderr, "usage: %s [-h hostname]\n",
-					argv[0]);
-		exit(1);
+		usage();
 	}
-	if (geteuid() != 0) {
-		(void)fprintf(stderr, "must be superuser to run %s\n", argv[0]);
-		exit(1);
-	}
+	if (geteuid() != 0)
+		errx(1, "must be superuser");
 
 #ifdef YP
-	if (chdir(YPDBPATH) < 0) {
-		(void)fprintf(stderr, "cannot chdir to ");
-		perror(YPDBPATH);
-	}
+	if (chdir(YPDBPATH) < 0)
+		warn("cannot chdir to %s", YPDBPATH);
 #endif	/* YP */
 	if (strcmp(argv[1], "-u") == 0) {
 		pw = getpwnam(argv[2]);
-		if (pw == NULL) {
-			(void)fprintf(stderr, "unknown user: %s\n", argv[2]);
-			exit(1);
-		}
+		if (pw == NULL)
+			errx(1, "unknown user: %s", argv[2]);
 		(void)user2netname(name, (int)pw->pw_uid, (char *)NULL);
 	} else {
 #ifdef undef
 		h = gethostbyname(argv[2]);
-		if (h == NULL) {
-			(void)fprintf(stderr, "unknown host: %s\n", argv[1]);
-			exit(1);
-		}
+		if (h == NULL)
+			errx(1, "unknown host: %s", argv[1]);
 		(void)host2netname(name, h->h_name, (char *)NULL);
 #else
 		(void)host2netname(name, argv[2], (char *)NULL);
@@ -147,29 +141,33 @@ main(argc, argv)
 	memcpy(crypt2, crypt1, HEXKEYBYTES + KEYCHECKSUMSIZE + 1);	
 	xdecrypt(crypt2, getpass("Retype password:"));
 	if (memcmp(crypt2, crypt2 + HEXKEYBYTES, KEYCHECKSUMSIZE) != 0 ||
-		memcmp(crypt2, secret, HEXKEYBYTES) != 0) {
-		(void)fprintf(stderr, "Password incorrect.\n");
-		exit(1);
-	}
+		memcmp(crypt2, secret, HEXKEYBYTES) != 0)
+		errx(1, "password incorrect");
 
 #ifdef YP
 	(void)printf("Please wait for the database to get updated...\n");
 #endif
-	if (status = setpublicmap(name, public, crypt1)) {
+	if ((status = setpublicmap(name, public, crypt1))) {
 #ifdef YP
-		(void)fprintf(stderr, 
-			"%s: unable to update NIS database (%u): %s\n", 
-				argv[0], status, yperr_string(status));
+		errx(1, "unable to update NIS database (%u): %s", 
+			status, yperr_string(status));
 #else
-		(void)fprintf(stderr,
-		"%s: unable to update publickey database (%u): %s\n",
-			argv[0], status, err_string(status));
+		errx(1, "unable to update publickey database (%u): %s",
+			status, err_string(status));
 #endif
-		exit(1);
 	}
 	(void)printf("Your new key has been successfully stored away.\n");
 	exit(0);
 	/* NOTREACHED */
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "%s\n%s\n",
+		"usage: newkey [-u username]",
+		"       newkey [-h hostname]");
+	exit(1);
 }
 
 /*
