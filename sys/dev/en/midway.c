@@ -1148,7 +1148,6 @@ en_loadvc(struct en_softc *sc, struct en_vcc *vc)
 {
 	uint32_t reg = en_read(sc, MID_VC(vc->vcc.vci));
 
-printf("loadvc %u\n", vc->vcc.vci);
 	reg = MIDV_SETMODE(reg, MIDV_TRASH);
 	en_write(sc, MID_VC(vc->vcc.vci), reg);
 	DELAY(27);
@@ -1494,14 +1493,9 @@ en_init(struct en_softc *sc)
 		    (u_int)en_read(sc, MIDX_PLACE(slot))));
 	}
 
-
-printf("Re-loading vc's\n");
 	for (vc = 0; vc < MID_N_VC; vc++) 
-		if (sc->vccs[vc] != NULL) {
-printf("re-loading %u\n", vc);
+		if (sc->vccs[vc] != NULL)
 			en_loadvc(sc, sc->vccs[vc]);
-}
-
 
 	/*
 	 * enable!
@@ -1620,7 +1614,6 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS: 
 		EN_LOCK(sc);
-printf("if_flags=%x\n", ifp->if_flags);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_flags & IFF_RUNNING))
 				en_init(sc);
@@ -3106,10 +3099,7 @@ en_destroy(struct en_softc *sc)
 		/* get rid of sticky VCCs */
 		for (i = 0; i < MID_N_VC; i++)
 			if (sc->vccs[i] != NULL)
-{
-printf("freeing %p\n", sc->vccs[i]);
 				uma_zfree(en_vcc_zone, sc->vccs[i]);
-}
 		free(sc->vccs, M_DEVBUF);
 	}
 
