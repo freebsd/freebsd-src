@@ -16,6 +16,12 @@
 #include "ntp_if.h"
 #include "ntp_stdlib.h"
 
+#ifdef KERNEL_PLL
+#include <sys/timex.h>
+#define ntp_gettime(t)	syscall(SYS_ntp_gettime, (t))
+#define ntp_adjtime(t)	syscall(SYS_ntp_adjtime, (t))
+#endif /* KERNEL_PLL */
+
 /*
  * Structure to hold request procedure information
  */
@@ -56,7 +62,7 @@ static	void	do_conf		P((struct sockaddr_in *, struct interface *, struct req_pkt
 static	void	do_unconf	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	set_sys_flag	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	clr_sys_flag	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
-static	void	setclr_flags	P((struct sockaddr_in *, struct interface *, struct req_pkt *, int));
+static	void	setclr_flags	P((struct sockaddr_in *, struct interface *, struct req_pkt *, U_LONG));
 static	void	do_monitor	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	do_nomonitor	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	list_restrict	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
@@ -83,13 +89,14 @@ static	void	set_request_keyid P((struct sockaddr_in *, struct interface *, struc
 static	void	set_control_keyid P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	get_ctl_stats P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	get_leap_info P((struct sockaddr_in *, struct interface *, struct req_pkt *));
+#ifdef KERNEL_PLL
+static	void	get_kernel_info P((struct sockaddr_in *, struct interface *, struct req_pkt *));
+#endif /* KERNEL_PLL */
 #ifdef REFCLOCK
 static	void	get_clock_info P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	set_clock_fudge P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 #endif	/* REFCLOCK */
-static	void	set_maxskew	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	set_precision	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
-static	void	set_select_code	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 #ifdef REFCLOCK
 static	void	get_clkbug_info P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 #endif	/* REFCLOCK */
@@ -134,9 +141,10 @@ static	struct req_proc xntp_codes[] = {
 	{ REQ_CONTROL_KEY, AUTH, sizeof(U_LONG),	set_control_keyid },
 	{ REQ_GET_CTLSTATS,	NOAUTH,	0,	get_ctl_stats },
 	{ REQ_GET_LEAPINFO,	NOAUTH,	0,	get_leap_info },
-	{ REQ_SET_MAXSKEW, AUTH, sizeof(u_fp),	set_maxskew },
 	{ REQ_SET_PRECISION, AUTH, sizeof(LONG),	set_precision },
-	{ REQ_SET_SELECT_CODE, AUTH, sizeof(U_LONG),	set_select_code },
+#ifdef KERNEL_PLL
+	{ REQ_GET_KERNEL,	NOAUTH,	0,	get_kernel_info },
+#endif /* KERNEL_PLL */
 #ifdef REFCLOCK
 	{ REQ_GET_CLOCKINFO, NOAUTH, sizeof(U_LONG),	get_clock_info },
 	{ REQ_SET_CLKFUDGE, AUTH, sizeof(struct conf_fudge), set_clock_fudge },
@@ -162,6 +170,10 @@ U_LONG numresppkts;		/* number of resp packets sent with data */
 U_LONG errorcounter[INFO_ERR_AUTH+1];	/* lazy way to count errors, indexed */
 					/* by the error code */
 
+#ifdef KERNEL_PLL
+extern int syscall	P((int, void *, ...));
+#endif /* KERNEL_PLL */
+
 /*
  * Imported from the I/O module
  */
@@ -176,6 +188,11 @@ extern int debug;
  * Imported from the timer module
  */
 extern U_LONG current_time;
+
+/*
+ * Imported from ntp_loopfilter.c
+ */
+extern int pll_control;
 
 /*
  * A hack.  To keep the authentication module clear of xntp-ism's, we
@@ -657,6 +674,7 @@ peer_list_sum(srcadr, inter, inpkt)
 			ips->delay = HTONS_FP(pp->delay);
 			HTONL_FP(&pp->offset, &ips->offset);
 			ips->dispersion = HTONS_FP(pp->dispersion);
+
 			pp = pp->next;
 			ips = (struct info_peer_summary *)more_pkt();
 		}
@@ -724,7 +742,9 @@ peer_info (srcadr, inter, inpkt)
 		ip->valid = pp->valid;
 		ip->reach = pp->reach;
 		ip->unreach = pp->unreach;
-		ip->trust = 0;
+		ip->flash = pp->flash;
+		ip->estbdelay = htonl(pp->estbdelay);
+		ip->ttl = pp->ttl;
 		ip->associd = htons(pp->associd);
 		ip->rootdelay = HTONS_FP(pp->rootdelay);
 		ip->rootdispersion = HTONS_FP(pp->rootdispersion);
@@ -745,12 +765,10 @@ peer_info (srcadr, inter, inpkt)
 			if (ip->order[i] >= NTP_SHIFT)
 				ip->order[i] -= NTP_SHIFT;
 		}
-		ip->delay = HTONS_FP(pp->delay);
 		HTONL_FP(&pp->offset, &ip->offset);
+		ip->delay = HTONS_FP(pp->delay);
 		ip->dispersion = HTONS_FP(pp->dispersion);
-		for (i = 0; i < NTP_SHIFT; i++)
-			ip->bdelay[i] = 0;
-		ip->estbdelay = htonl(pp->estbdelay);
+		ip->selectdisp = HTONS_FP(pp->selectdisp);
 		ip = (struct info_peer *)more_pkt();
 	}
 	flush_pkt();
@@ -882,12 +900,8 @@ sys_info(srcadr, inter, inpkt)
 		is->flags |= INFO_FLAG_BCLIENT;
 	if (sys_authenticate)
 		is->flags |= INFO_FLAG_AUTHENABLE;
-	is->selection = 0;	/* Obsolete */
-	
 	HTONL_UF(sys_bdelay, &is->bdelay);
 	HTONL_UF(sys_authdelay, &is->authdelay);
-	is->maxskew = 0;
-
 	(void) more_pkt();
 	flush_pkt();
 }
@@ -915,7 +929,6 @@ sys_stats(srcadr, inter, inpkt)
 	extern U_LONG sys_badlength;
 	extern U_LONG sys_processed;
 	extern U_LONG sys_badauth;
-	extern U_LONG sys_wanderhold;
 	extern U_LONG sys_limitrejected;
 
 	ss = (struct info_sys_stats *)prepare_pkt(srcadr, inter, inpkt,
@@ -930,7 +943,6 @@ sys_stats(srcadr, inter, inpkt)
 	ss->badlength = htonl(sys_badlength);
 	ss->processed = htonl(sys_processed);
 	ss->badauth = htonl(sys_badauth);
-	ss->wanderhold = htonl(sys_wanderhold);
 	ss->limitrejected = htonl(sys_limitrejected);
 	(void) more_pkt();
 	flush_pkt();
@@ -1168,7 +1180,7 @@ do_conf(srcadr, inter, inpkt)
 	/* XXX W2DO? minpoll/maxpoll arguments ??? */
 		if (peer_config(&peeraddr, (struct interface *)0,
 		    cp->hmode, cp->version, cp->minpoll, cp->maxpoll,
-			cp->keyid, fl) == 0) {
+			fl, cp->ttl, cp->keyid) == 0) {
 			req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
 			return;
 		}
@@ -1253,7 +1265,7 @@ set_sys_flag(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	setclr_flags(srcadr, inter, inpkt, 1);
+	setclr_flags(srcadr, inter, inpkt, (U_LONG)1);
 }
 
 
@@ -1266,7 +1278,7 @@ clr_sys_flag(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	setclr_flags(srcadr, inter, inpkt, 0);
+	setclr_flags(srcadr, inter, inpkt, (U_LONG)0);
 }
 
 
@@ -1278,7 +1290,7 @@ setclr_flags(srcadr, inter, inpkt, set)
 	struct sockaddr_in *srcadr;
 	struct interface *inter;
 	struct req_pkt *inpkt;
-	int set;
+	U_LONG set;
 {
 	register U_LONG flags;
 
@@ -1290,15 +1302,20 @@ setclr_flags(srcadr, inter, inpkt, set)
 	flags = ((struct conf_sys_flags *)inpkt->data)->flags;
 
 	if (flags
-	    & ~(SYS_FLAG_BCLIENT|SYS_FLAG_AUTHENTICATE)) {
+	    & ~(SYS_FLAG_BCLIENT | SYS_FLAG_MCLIENT | SYS_FLAG_AUTHENTICATE)) {
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
 
 	if (flags & SYS_FLAG_BCLIENT)
-		proto_config(PROTO_BROADCLIENT, (LONG)set);
+		proto_config(PROTO_BROADCLIENT, set);
+	if (flags & SYS_FLAG_MCLIENT)
+		if (set)
+			proto_config(PROTO_MULTICAST_ADD, INADDR_NTP);
+		else
+			proto_config(PROTO_MULTICAST_DEL, INADDR_NTP);
 	if (flags & SYS_FLAG_AUTHENTICATE)
-		proto_config(PROTO_AUTHENTICATE, (LONG)set);
+		proto_config(PROTO_AUTHENTICATE, set);
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
 
@@ -2084,6 +2101,57 @@ get_leap_info(srcadr, inter, inpkt)
 }
 
 
+#ifdef KERNEL_PLL
+/*
+ * get_kernel_info - get kernel pll/pps information
+ */
+static void
+get_kernel_info(srcadr, inter, inpkt)
+	struct sockaddr_in *srcadr;
+	struct interface *inter;
+	struct req_pkt *inpkt;
+{
+	register struct info_kernel *ik;
+	struct timex ntx;
+
+	if (!pll_control)
+		return;
+	memset((char *)&ntx, 0, sizeof(ntx));
+	(void)ntp_adjtime(&ntx);
+
+	ik = (struct info_kernel *)prepare_pkt(srcadr, inter, inpkt,
+            sizeof(struct info_kernel));
+
+	/*
+	 * pll variables
+	 */
+	ik->offset = htonl(ntx.offset);
+	ik->freq = htonl(ntx.freq);
+	ik->maxerror = htonl(ntx.maxerror);
+	ik->esterror = htonl(ntx.esterror);
+	ik->status = htons(ntx.status);
+	ik->constant = htonl(ntx.constant);
+	ik->precision = htonl(ntx.precision);
+	ik->tolerance = htonl(ntx.tolerance);
+
+	/*
+	 * pps variables
+	 */
+	ik->ppsfreq = htonl(ntx.ppsfreq);
+	ik->jitter = htonl(ntx.jitter);
+	ik->shift = htons(ntx.shift);
+	ik->stabil = htonl(ntx.stabil);
+	ik->jitcnt = htonl(ntx.jitcnt);
+	ik->calcnt = htonl(ntx.calcnt);
+	ik->errcnt = htonl(ntx.errcnt);
+	ik->stbcnt = htonl(ntx.stbcnt);
+	
+	(void) more_pkt();
+	flush_pkt();
+}
+#endif /* KERNEL_PLL */
+
+
 #ifdef REFCLOCK
 /*
  * get_clock_info - get info about a clock
@@ -2209,29 +2277,6 @@ set_clock_fudge(srcadr, inter, inpkt)
 #endif
 
 /*
- * set_maxskew - set the system maxskew parameter
- */
-static void
-set_maxskew(srcadr, inter, inpkt)
-	struct sockaddr_in *srcadr;
-	struct interface *inter;
-	struct req_pkt *inpkt;
-{
-	register u_fp maxskew;
-
-	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
-		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
-		return;
-	}
-
-	maxskew = NTOHS_FP(*(u_fp *)(inpkt->data));
-
-	proto_config(PROTO_MAXSKEW, (LONG)maxskew);
-	req_ack(srcadr, inter, inpkt, INFO_OKAY);
-}
-
-
-/*
  * set_precision - set the system precision
  */
 static void
@@ -2253,31 +2298,6 @@ set_precision(srcadr, inter, inpkt)
 	proto_config(PROTO_PRECISION, precision);
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
-
-
-/*
- * set_select_code - set a select code to use
- */
-static void
-set_select_code(srcadr, inter, inpkt)
-	struct sockaddr_in *srcadr;
-	struct interface *inter;
-	struct req_pkt *inpkt;
-{
-	register U_LONG select_code;
-
-	select_code = ntohl(*(U_LONG *)(inpkt->data));
-
-	if (INFO_NITEMS(inpkt->err_nitems) > 1 ||
-	    select_code < SELECT_1 || select_code > SELECT_5) {
-		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
-		return;
-	}
-
-	proto_config(PROTO_SELECT, (LONG)select_code);
-	req_ack(srcadr, inter, inpkt, INFO_OKAY);
-}
-
 
 #ifdef REFCLOCK
 /*

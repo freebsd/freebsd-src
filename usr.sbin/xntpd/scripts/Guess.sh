@@ -78,7 +78,7 @@ if [ -f /bin/uname -o -f /usr/bin/uname ]; then
 					3.2.*)
 						case "$4" in
 							v*)
-								(i386) >/dev/null 2>&1 && guess=ptx;;
+								(i386) >/dev/null 2>&1 && [ -f /usr/lib/libseq.a ] && guess=ptx;;
 						esac
 				esac
 			fi

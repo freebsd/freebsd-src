@@ -93,17 +93,6 @@ refclock_newpeer(peer)
 	peer->stratum = STRATUM_REFCLOCK;
 	peer->ppoll = peer->minpoll;
 	peer->hpoll = peer->minpoll;
-	peer->maxpoll = peer->minpoll;
-	
-	/*
-	 * Check the flags.  If the peer is configured in client mode
-	 * but prefers the broadcast client filter algorithm, change
-	 * him over.
-	 */
-	if (peer->hmode == MODE_CLIENT
-	    && refclock_conf[clktype]->clock_flags & REF_FLAG_BCLIENT)
-		peer->hmode = MODE_BCLIENT;
-
 	peer->event_timer.peer = peer;
 	peer->event_timer.event_handler = refclock_transmit;
 
@@ -201,20 +190,14 @@ refclock_transmit(peer)
 
 		l_fp off;
 
-		if (peer->valid > 0) peer->valid--;
-		if (peer->hpoll > peer->minpoll) peer->hpoll--;
+		if (peer->valid > 0)
+			peer->valid--;
 		off.l_ui = off.l_uf = 0;
 		clock_filter(peer, &off, 0, NTP_MAXDISPERSE);
 		if (peer->flags & FLAG_SYSPEER)
-		    clock_select();
-	} else {
-		if (peer->valid < NTP_SHIFT) {
-			peer->valid++;
-		} else {
-			if (peer->hpoll < peer->maxpoll)
-			    peer->hpoll++;
-		}
-	}
+			clock_select();
+	} else if (peer->valid < NTP_SHIFT)
+		peer->valid++;
 
 	/*
 	 * If he wants to be polled, do it.
@@ -312,9 +295,6 @@ refclock_receive(peer, offset, delay, dispersion, reftime, rectime, leap)
 		break;
 	case MODE_CLIENT:
 		peer->pmode = MODE_SERVER;
-		break;
-	case MODE_BCLIENT:
-		peer->pmode = MODE_BROADCAST;
 		break;
 	default:
 		syslog(LOG_ERR, "refclock_receive: internal error, mode = %d",

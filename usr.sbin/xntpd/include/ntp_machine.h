@@ -526,6 +526,40 @@ typedef unsigned long u_long;
 #endif
 
 /*
+ * (Univel/Novell) Unixware1 SVR4 on intel x86 processor
+ */
+#if defined(SYS_UNIXWARE1)
+/* #define _POSIX_SOURCE */
+#undef HAVE_ATT_SETPGRP
+#define USE_PROTOTYPES
+#define NTP_POSIX_SOURCE
+#define HAVE_ATT_NICE
+#define HAVE_READKMEM 
+#define USE_TTY_SIGPOLL
+#define USE_UDP_SIGPOLL
+#define UDP_WILDCARD_DELIVERY
+#undef HAVE_SIGNALED_IO
+#define STREAM
+#define STREAMS
+#ifndef STREAMS_TLI
+/*#define STREAMS_TLI*/
+#endif
+/* #define USE_STREAMS_DEVICE_FOR_IF_CONFIG */
+#undef STEP_SLEW 		/* TWO step */
+#define LOCK_PROCESS
+#define NO_SIGNED_CHAR_DECL 
+#undef SYSV_TIMEOFDAY
+#define SIZE_RETURNED_IN_BUFFER
+#define	RETSIGTYPE void
+#include <sys/sockio.h>
+#include <sys/types.h>
+#include <netinet/in_systm.h>
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/Unixware1"
+#endif
+#endif
+
+/*
  * DomainOS
  */
 #if defined(SYS_DOMAINOS)

@@ -173,6 +173,7 @@ struct interface {
 #define	INT_BROADCAST	1	/* can broadcast out this interface */
 #define	INT_BCASTOPEN	2	/* broadcast socket is open */
 #define	INT_LOOPBACK	4	/* the loopback interface */
+#define INT_MULTICAST	8	/* multicasting enabled */
 
 /*
  * Define flasher bits (tests 1 through 8 in packet procedure)
@@ -222,7 +223,7 @@ struct peer {
 	U_LONG keyid;			/* encription key ID */
 	U_LONG pkeyid;			/* keyid used to encrypt last message */
 	u_short associd;		/* association ID, a unique integer */
-	u_char unused;
+	u_char ttl;			/* time to live (multicast) */
 /* **Start of clear-to-zero area.*** */
 /* Everything that is cleared to zero goes below here */
 	u_char valid;			/* valid counter */
@@ -248,12 +249,6 @@ struct peer {
 	s_fp soffset;			/* fp version of above */
 	s_fp synch;			/* synch distance from above */
 	u_fp selectdisp;		/* select dispersion */
-
-	/*
-	 * Stuff related to the experimental broadcast delay
-	 * determination code.  The registers will probably go away
-	 * later.
-	 */
 	U_LONG estbdelay;		/* broadcast delay, as a ts fraction */
 
 	/*
@@ -579,8 +574,8 @@ struct recvbuf {
 #define	PROTO_AUTHENTICATE	3
 #define	PROTO_BROADDELAY	4
 #define	PROTO_AUTHDELAY		5
-#define	PROTO_MAXSKEW		6
-#define	PROTO_SELECT		7
+#define PROTO_MULTICAST_ADD	6
+#define PROTO_MULTICAST_DEL	7
 
 /*
  * Configuration items for the loop filter
@@ -603,7 +598,7 @@ struct recvbuf {
  */
 #define	DEFPRECISION	(-5)		/* conservatively low */
 #define	DEFBROADDELAY	(0x020c49ba)	/* 8 ms.  This is round trip delay */
-
+#define INADDR_NTP	0xe0000101	/* NTP multicast address 224.0.1.1 */
 /*
  * Structure used optionally for monitoring when this is turned on.
  */

@@ -1,0 +1,39 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aq16153; 14 Feb 94 7:28 EST
+Received: from jagubox.gsfc.nasa.gov by louie.udel.edu id aa24615;
+          14 Feb 94 6:34 EST
+Received: by jagubox.gsfc.nasa.gov (Smail3.1.28.1 #1)
+	id m0pW1Zk-000C8UC; Mon, 14 Feb 94 06:34 EST
+Message-Id: <m0pW1Zk-000C8UC@jagubox.gsfc.nasa.gov>
+From: Jim Jagielski <jim@jagubox.gsfc.nasa.gov>
+Subject: xntp 3.3e (or is that zz ;) )
+To: Mills@udel.edu
+Date: Mon, 14 Feb 1994 06:34:52 -0500 (EST)
+Reply-To: Jim Jagielski <jim@jagubox.gsfc.nasa.gov>
+In-Reply-To:  <9308051324.aa24396@huey.udel.edu> from "Mills@udel.edu" at Aug 5, 93 01:24:24 pm
+X-Mailer: ELM [version 2.4 PL23]
+Content-Type: text
+Content-Length: 621       
+
+This latest version requires the NTP_NEED_BOPS define in ntp_machine.h for
+A/UX:
+
+*** ntp_machine.h.orig	Mon Feb 14 06:34:34 1994
+--- ntp_machine.h	Mon Feb 14 06:20:57 1994
+***************
+*** 299,304 ****
+--- 299,305 ----
+  #define HAVE_BSD_TTYS
+  #define LOG_NTP LOG_LOCAL1
+  #define HAVE_SIGNALED_IO
++ #define NTP_NEED_BOPS
+  #ifndef STR_SYSTEM
+  #define STR_SYSTEM "UNIX/AUX"
+  #endif
+-- 
+#include <std/disclaimer.h>
+    Jim Jagielski               |
+    jim@jagubox.gsfc.nasa.gov   |  "Ahh... west and wewaxation at wast"
+    NASA/GSFC, Code 734.4       |                Elmer Fudd
+    Greenbelt, MD 20771         |
+

@@ -1,0 +1,99 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa00679; 16 Feb 94 13:00 EST
+Received: from spatula.csv.warwick.ac.uk by louie.udel.edu id aa26092;
+          16 Feb 94 12:48 EST
+Date: Wed, 16 Feb 1994 17:47:50 GMT
+From: Ian Dickinson <cudep@csv.warwick.ac.uk>
+Message-Id: <7051.199402161747@spatula.csv.warwick.ac.uk>
+Received: from localhost by spatula.csv.warwick.ac.uk
+	id RAA07051; Wed, 16 Feb 1994 17:47:50 GMT
+In-Reply-To: Mills@udel.edu
+       "Re:  xntp sunos5 config" (Feb 16, 10:50am)
+X-Mailer: Mail User's Shell (7.2.4 2/2/92)
+To: Mills@udel.edu
+Subject: Re:  xntp sunos5 config
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+
+On Feb 16, 10:50am, Mills@udel.edu wrote:
+} Subject: Re:  xntp sunos5 config
+
+BTW, 3.3f seems to work fine on an SC2000 sunos5.3 (including the patch below)
+
+> Your message did not say in which file sunos5.1 or sunos5.2 or both
+> you wanted the -DLOCK_PROCESS. I'll wait for your patches.
+
+I've never done any heavy work on a sunos5.1 machine, so I can't remember if
+plock() exists there.  I *think* sunso5.2 will work with it.
+Perhaps it's time to create a sunos5.3 file which has -DLOCK_PROCESS and is
+otherwise identical to sunos5.2, though this is getting silly for supposedly
+a single SVR4-based operating system.
+
+As far as I'm aware, the choice between plock() and mlockall() can be done
+with feature testing and doesn't need a seperate #define.
+
+This patch applies to 3.3b and 3.3f (with line fuzz).
+I'm certainly not sure this is the best way to do this, but it does work here.
+Perhaps it's worth asking around how widely this works in sunos5.x
+
+*** 1.1	1994/02/01 17:16:13
+--- xntpd/ntpd.c	1994/02/16 16:32:47
+***************
+*** 28,35 ****
+--- 28,39 ----
+  #include "ntp_stdlib.h"
+  
+  #ifdef LOCK_PROCESS
++ #ifdef SYS_SOLARIS
++ #include <sys/mman.h>
++ #else
+  #include <sys/lock.h>
+  #endif
++ #endif
+  
+  /*
+   * Signals we catch for debugging.  If not debugging we ignore them.
+***************
+*** 218,229 ****
+  	if (rtprio(0, 120) < 0)
+  	    syslog(LOG_ERR, "rtprio() error: %m");
+  #else
+! #if defined(PROCLOCK) && defined(LOCK_PROCESS)
+  	/*
+  	 * lock the process into memory
+  	 */
+  	if (plock(PROCLOCK) < 0)
+  	    syslog(LOG_ERR, "plock(): %m");
+  #endif
+  #if defined(NTPD_PRIO) && NTPD_PRIO != 0
+  	/*
+--- 222,243 ----
+  	if (rtprio(0, 120) < 0)
+  	    syslog(LOG_ERR, "rtprio() error: %m");
+  #else
+! #if defined(LOCK_PROCESS)
+! #if defined(MCL_CURRENT) && defined(MCL_FUTURE)
+! 	/*
+! 	 * lock the process into memory
+! 	 */
+! 	if (mlockall(MCL_CURRENT|MCL_FUTURE) < 0)
+! 	    syslog(LOG_ERR, "mlockall(): %m");
+! #else
+! #if defined(PROCLOCK)
+  	/*
+  	 * lock the process into memory
+  	 */
+  	if (plock(PROCLOCK) < 0)
+  	    syslog(LOG_ERR, "plock(): %m");
++ #endif
++ #endif
+  #endif
+  #if defined(NTPD_PRIO) && NTPD_PRIO != 0
+  	/*
+
+
+
+Cheers,
+-- 
+Ian
+
