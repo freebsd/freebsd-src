@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.7 1994/10/10 01:00:46 phk Exp $
+ * $Id: kern_resource.c,v 1.8 1994/12/01 20:20:21 ats Exp $
  */
 
 #include <sys/param.h>
@@ -383,7 +383,7 @@ dosetrlimit(p, which, limp)
 			vm_size_t size;
 			vm_prot_t prot;
 
-			if ((u_quad_t) limp->rlim_cur > alimp->rlim_cur) {
+			if ((u_quad_t) limp->rlim_cur > (u_quad_t) alimp->rlim_cur) {
 				prot = VM_PROT_ALL;
 				size = limp->rlim_cur - alimp->rlim_cur;
 				addr = USRSTACK - limp->rlim_cur;
