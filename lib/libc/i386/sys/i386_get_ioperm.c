@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/sysarch.h>
 
+extern int sysarch(int op, char *parms);
+
 int
 i386_get_ioperm(unsigned int start, unsigned int *length, int *enable)
 {

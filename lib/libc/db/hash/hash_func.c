@@ -47,9 +47,9 @@ __FBSDID("$FreeBSD$");
 #include "page.h"
 #include "extern.h"
 
-static u_int32_t hash1(const void *, size_t);
-static u_int32_t hash2(const void *, size_t);
-static u_int32_t hash3(const void *, size_t);
+static u_int32_t hash1(const void *, size_t) __unused;
+static u_int32_t hash2(const void *, size_t) __unused;
+static u_int32_t hash3(const void *, size_t) __unused;
 static u_int32_t hash4(const void *, size_t);
 
 /* Global default hash function */

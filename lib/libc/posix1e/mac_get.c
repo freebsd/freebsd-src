@@ -37,6 +37,12 @@
 #include <errno.h>
 #include <stdlib.h>
 
+extern int __mac_get_fd(int fd, struct mac *mac_p);
+extern int __mac_get_file(const char *path_p, struct mac *mac_p);
+extern int __mac_get_link(const char *path_p, struct mac *mac_p);
+extern int __mac_get_pid(pid_t pid, struct mac *mac_p);
+extern int __mac_get_proc(struct mac *mac_p);
+
 int
 mac_get_fd(int fd, struct mac *label)
 {

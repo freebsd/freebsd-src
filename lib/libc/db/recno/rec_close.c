@@ -83,13 +83,14 @@ __rec_close(dbp)
 	if (F_ISSET(t, R_MEMMAPPED) && munmap(t->bt_smap, t->bt_msize))
 		status = RET_ERROR;
 
-	if (!F_ISSET(t, R_INMEM))
+	if (!F_ISSET(t, R_INMEM)) {
 		if (F_ISSET(t, R_CLOSEFP)) {
 			if (fclose(t->bt_rfp))
 				status = RET_ERROR;
 		} else
 			if (_close(t->bt_rfd))
 				status = RET_ERROR;
+	}
 
 	if (__bt_close(dbp) == RET_ERROR)
 		status = RET_ERROR;
