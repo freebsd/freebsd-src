@@ -410,6 +410,8 @@ routename(sa)
 		while (++s < slim && cp < cpe) /* start with sa->sa_data */
 			if ((n = snprintf(cp, cpe - cp, " %x", *s)) > 0)
 				cp += n;
+			else
+				*cp = '\0';
 		break;
 	    }
 	}
@@ -546,6 +548,8 @@ netname(sa)
 		while (s < slim && cp < cpe)
 			if ((n = snprintf(cp, cpe - cp, " %x", *s++)) > 0)
 				cp += n;
+			else
+				*cp = '\0';
 		break;
 	    }
 	}
