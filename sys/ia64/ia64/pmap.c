@@ -990,18 +990,19 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
+	vm_paddr_t pa;
 
-	if (!pmap)
-		return 0;
-
+	pa = 0;
+	if (pmap == NULL)
+		return (pa);
+	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 	pte = pmap_find_vhpt(va);
+	if (pte != NULL && pmap_pte_v(pte))
+		pa = pmap_pte_pa(pte);
 	pmap_install(oldpmap);
-
-	if (!pte)
-		return 0;
-	
-	return pmap_pte_pa(pte);
+	PMAP_UNLOCK(pmap);
+	return (pa);
 }
 
 /*
@@ -1898,6 +1899,8 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_page_protect(vm_page_t m, vm_prot_t prot)
 {
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 	pv_entry_t pv;
 
 	if ((prot & VM_PROT_WRITE) != 0)
@@ -1907,14 +1910,15 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 			return;
 		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 			int newprot = pte_prot(pv->pv_pmap, prot);
-			pmap_t oldpmap = pmap_install(pv->pv_pmap);
-			struct ia64_lpte *pte;
+			PMAP_LOCK(pv->pv_pmap);
+			oldpmap = pmap_install(pv->pv_pmap);
 			pte = pmap_find_vhpt(pv->pv_va);
 			KASSERT(pte != NULL, ("pte"));
 			pmap_pte_set_prot(pte, newprot);
 			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 			pmap_install(oldpmap);
+			PMAP_UNLOCK(pv->pv_pmap);
 		}
 		vm_page_flag_clear(m, PG_WRITEABLE);
 	} else {
@@ -1937,6 +1941,8 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 int
 pmap_ts_referenced(vm_page_t m)
 {
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 	pv_entry_t pv;
 	int count = 0;
 
@@ -1944,8 +1950,8 @@ pmap_ts_referenced(vm_page_t m)
 		return 0;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		pmap_t oldpmap = pmap_install(pv->pv_pmap);
-		struct ia64_lpte *pte;
+		PMAP_LOCK(pv->pv_pmap);
+		oldpmap = pmap_install(pv->pv_pmap);
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
 		if (pte->pte_a) {
@@ -1955,6 +1961,7 @@ pmap_ts_referenced(vm_page_t m)
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
 		pmap_install(oldpmap);
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 
 	return count;
@@ -1997,21 +2004,28 @@ pmap_is_referenced(vm_page_t m)
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 	pv_entry_t pv;
+	boolean_t rv;
 
+	rv = FALSE;
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
-		return FALSE;
+		return (rv);
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		pmap_t oldpmap = pmap_install(pv->pv_pmap);
-		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		PMAP_LOCK(pv->pv_pmap);
+		oldpmap = pmap_install(pv->pv_pmap);
+		pte = pmap_find_vhpt(pv->pv_va);
 		pmap_install(oldpmap);
 		KASSERT(pte != NULL, ("pte"));
-		if (pte->pte_d)
-			return 1;
+		rv = pte->pte_d != 0;
+		PMAP_UNLOCK(pv->pv_pmap);
+		if (rv)
+			break;
 	}
 
-	return 0;
+	return (rv);
 }
 
 /*
@@ -2037,14 +2051,17 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 void
 pmap_clear_modify(vm_page_t m)
 {
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 	pv_entry_t pv;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		pmap_t oldpmap = pmap_install(pv->pv_pmap);
-		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		PMAP_LOCK(pv->pv_pmap);
+		oldpmap = pmap_install(pv->pv_pmap);
+		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
 		if (pte->pte_d) {
 			pte->pte_d = 0;
@@ -2052,6 +2069,7 @@ pmap_clear_modify(vm_page_t m)
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
 		pmap_install(oldpmap);
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 }
 
@@ -2063,14 +2081,17 @@ pmap_clear_modify(vm_page_t m)
 void
 pmap_clear_reference(vm_page_t m)
 {
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 	pv_entry_t pv;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		pmap_t oldpmap = pmap_install(pv->pv_pmap);
-		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		PMAP_LOCK(pv->pv_pmap);
+		oldpmap = pmap_install(pv->pv_pmap);
+		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));
 		if (pte->pte_a) {
 			pte->pte_a = 0;
@@ -2078,6 +2099,7 @@ pmap_clear_reference(vm_page_t m)
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
 		pmap_install(oldpmap);
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 }
 
@@ -2169,9 +2191,11 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	struct ia64_lpte *pte;
 	int val = 0;
 	
+	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 	pte = pmap_find_vhpt(addr);
 	pmap_install(oldpmap);
+	PMAP_UNLOCK(pmap);
 
 	if (!pte)
 		return 0;
