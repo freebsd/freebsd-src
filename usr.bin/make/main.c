@@ -516,12 +516,16 @@ main(argc, argv)
 	}
 #endif
 
-#if defined(__i386__)
+#if defined(__i386__) && defined(__FreeBSD_version) && \
+    __FreeBSD_version > 300003
 	/*
 	 * PC-98 kernel sets the `i386' string to the utsname.machine and
 	 * it cannot be distinguished from IBM-PC by uname(3).  Therefore,
 	 * we check machine.ispc98 and adjust the machine variable before
 	 * using usname(3) below.
+	 * NOTE: machdep.ispc98 was defined on 1998/8/31. At that time,
+	 * __FreeBSD_version was defined as 300003. So, this check can
+	 * safely be done with any kernel with version > 300003.
 	 */
 	if (!machine) {
 		int	ispc98;
