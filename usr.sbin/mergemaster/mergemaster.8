@@ -260,11 +260,16 @@ comparison, use:
 .Dl # mergemaster -sw 110
 .Sh FILES
 .Bl -ohang
+.It Pa /etc/mergemaster.rc
 .It Pa $HOME/.mergemasterrc
+.Pp
 .Nm
-will . (source) this file if it exists.
+will . (source) these files if they exist.
 Command line options
 will override rc file options.
+.Pa $HOME/.mergemasterrc
+overrides
+.Pa /etc/mergemaster.rc .
 Here is an example
 with all values commented out:
 .Pp
