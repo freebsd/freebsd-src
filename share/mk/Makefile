@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1998/11/11 05:21:26 asami Exp $
+#	$Id: Makefile,v 1.22 1999/03/29 23:02:29 asami Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
 FILES=	bsd.README
@@ -14,6 +14,7 @@ beforeinstall:
 	    ${DESTDIR}${BINDIR}/mk
 
 afterinstall:
+	-mkdir -p /var/db/pkg
 	date '+%Y%m%d' > /var/db/pkg/.mkversion
 
 .include <bsd.prog.mk>
