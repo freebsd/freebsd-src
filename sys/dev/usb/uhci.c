@@ -581,32 +581,8 @@ uhci_detach(struct uhci_softc *sc, int flags)
 usbd_status
 uhci_allocm(struct usbd_bus *bus, usb_dma_t *dma, u_int32_t size)
 {
-	struct uhci_softc *sc = (struct uhci_softc *)bus;
-	u_int32_t n;
-
-	/*
-	 * XXX
-	 * Since we are allocating a buffer we can assume that we will
-	 * need TDs for it.  Since we don't want to allocate those from
-	 * an interrupt context, we allocate them here and free them again.
-	 * This is no guarantee that we'll get the TDs next time...
-	 */
-	n = size / 8;
-	if (n > 16) {
-		u_int32_t i;
-		uhci_soft_td_t **stds;
-		DPRINTF(("uhci_allocm: get %d TDs\n", n));
-		stds = malloc(sizeof(uhci_soft_td_t *) * n, M_TEMP,
-		    M_WAITOK|M_ZERO);
-		for(i=0; i < n; i++)
-			stds[i] = uhci_alloc_std(sc);
-		for(i=0; i < n; i++)
-			if (stds[i] != NULL)
-				uhci_free_std(sc, stds[i]);
-		free(stds, M_TEMP);
-	}
-
-	return (usb_allocmem(&sc->sc_bus, size, 0, dma));
+	return (usb_allocmem(&((struct uhci_softc *)bus)->sc_bus, size, 0,
+	    dma));
 }
 
 void
