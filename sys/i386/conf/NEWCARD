@@ -69,7 +69,7 @@ options		WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 device		isa
 device		eisa
-device		pci	1		# Unit count is for ahc/ahd
+device		pci
 #options 	PCI_ENABLE_IO_MODES	# Enable pci resources left off by a "lazy BIOS"
 
 # Floppy drives
