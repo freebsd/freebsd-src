@@ -142,8 +142,7 @@ g_destroy_event(struct g_event *ep)
 static void
 g_do_event(struct g_event *ep)
 {
-	struct g_class *mp, *mp2;
-	struct g_geom *gp;
+	struct g_class *mp;
 	struct g_consumer *cp, *cp2;
 	struct g_provider *pp;
 	int i;
@@ -155,23 +154,6 @@ g_do_event(struct g_event *ep)
 		ep->func(ep->arg, 0);
 		g_topology_assert();
 		break;	
-	case EV_NEW_CLASS:
-		if (g_shutdown)
-			break;
-		mp2 = ep->ref[0];
-		if (mp2->taste == NULL)
-			break;
-		LIST_FOREACH(mp, &g_classes, class) {
-			if (mp2 == mp)
-				continue;
-			LIST_FOREACH(gp, &mp->geom, geom) {
-				LIST_FOREACH(pp, &gp->provider, provider) {
-					mp2->taste(mp2, pp, 0);
-					g_topology_assert();
-				}
-			}
-		}
-		break;
 	case EV_NEW_PROVIDER:
 		if (g_shutdown)
 			break;
