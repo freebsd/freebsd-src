@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.73 1998/06/13 19:36:22 steve Exp $
+ *	$Id: si.c,v 1.74 1998/08/16 00:57:07 bde Exp $
  */
 
 #ifndef lint
@@ -465,7 +465,7 @@ si_eisa_attach(ed)
 	 * to be lazy and hand it the unit number.
 	 */
 	if (eisa_reg_intr(ed, irq, (void (*)(void *)) si_intr,
-		(void *)(ed->unit), &tty_imask, 1)) {
+		(void *)(intptr_t)(ed->unit), &tty_imask, 1)) {
 		printf("si%d: failed to register interrupt %d\n",
 			ed->unit, irq);
 		return -1;
@@ -517,8 +517,8 @@ siprobe(id)
 	 */
 	if ((caddr_t)paddr < (caddr_t)IOM_BEGIN ||
 	    (caddr_t)paddr >= (caddr_t)IOM_END) {
-		printf("si%d: iomem (%lx) out of range\n",
-			id->id_unit, (long)paddr);
+		printf("si%d: iomem (%p) out of range\n",
+			id->id_unit, (void *)paddr);
 		return(0);
 	}
 
