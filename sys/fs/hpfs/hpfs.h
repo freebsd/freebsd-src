@@ -391,7 +391,6 @@ MALLOC_DECLARE(M_HPFSNO);
 #define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b), (c))
 #define VGET(a, b, c)		vget((a), (b), (c))
 #define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
-#define	LOCKMGR(a, b, c, d)	lockmgr((a), (b), (c), (d))
 
 extern vop_t ** hpfs_vnodeop_p;
 

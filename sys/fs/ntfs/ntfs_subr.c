@@ -355,7 +355,8 @@ ntfs_ntget(ip)
 
 	mtx_lock(&ip->i_interlock);
 	ip->i_usecount++;
-	LOCKMGR(&ip->i_lock, LK_EXCLUSIVE | LK_INTERLOCK, &ip->i_interlock);
+	lockmgr(&ip->i_lock, LK_EXCLUSIVE | LK_INTERLOCK, &ip->i_interlock,
+	    NULL);
 
 	return 0;
 }
@@ -385,7 +386,8 @@ ntfs_ntlookup(
 			*ipp = ip;
 			return (0);
 		}
-	} while (LOCKMGR(&ntfs_hashlock, LK_EXCLUSIVE | LK_SLEEPFAIL, NULL));
+	} while (lockmgr(&ntfs_hashlock, LK_EXCLUSIVE | LK_SLEEPFAIL, NULL,
+	    NULL));
 
 	MALLOC(ip, struct ntnode *, sizeof(struct ntnode), M_NTFSNTNODE,
 		M_WAITOK | M_ZERO);
@@ -407,7 +409,7 @@ ntfs_ntlookup(
 
 	ntfs_nthashins(ip);
 
-	LOCKMGR(&ntfs_hashlock, LK_RELEASE, NULL);
+	lockmgr(&ntfs_hashlock, LK_RELEASE, NULL, NULL);
 
 	*ipp = ip;
 
@@ -443,7 +445,8 @@ ntfs_ntput(ip)
 #endif
 
 	if (ip->i_usecount > 0) {
-		LOCKMGR(&ip->i_lock, LK_RELEASE|LK_INTERLOCK, &ip->i_interlock);
+		lockmgr(&ip->i_lock, LK_RELEASE|LK_INTERLOCK, &ip->i_interlock,
+		    NULL);
 		return;
 	}
 
@@ -1928,7 +1931,7 @@ ntfs_toupper_use(mp, ntmp)
 	struct vnode *vp;
 
 	/* get exclusive access */
-	LOCKMGR(&ntfs_toupper_lock, LK_EXCLUSIVE, NULL);
+	lockmgr(&ntfs_toupper_lock, LK_EXCLUSIVE, NULL, NULL);
 	
 	/* only read the translation data from a file if it hasn't been
 	 * read already */
@@ -1951,7 +1954,7 @@ ntfs_toupper_use(mp, ntmp)
 
     out:
 	ntfs_toupper_usecount++;
-	LOCKMGR(&ntfs_toupper_lock, LK_RELEASE, NULL);
+	lockmgr(&ntfs_toupper_lock, LK_RELEASE, NULL, NULL);
 	return (error);
 }
 
@@ -1963,7 +1966,7 @@ void
 ntfs_toupper_unuse()
 {
 	/* get exclusive access */
-	LOCKMGR(&ntfs_toupper_lock, LK_EXCLUSIVE, NULL);
+	lockmgr(&ntfs_toupper_lock, LK_EXCLUSIVE, NULL, NULL);
 
 	ntfs_toupper_usecount--;
 	if (ntfs_toupper_usecount == 0) {
@@ -1978,7 +1981,7 @@ ntfs_toupper_unuse()
 #endif
 	
 	/* release the lock */
-	LOCKMGR(&ntfs_toupper_lock, LK_RELEASE, NULL);
+	lockmgr(&ntfs_toupper_lock, LK_RELEASE, NULL, NULL);
 } 
 
 int
