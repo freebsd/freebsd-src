@@ -87,4 +87,6 @@
 #define	WSTATE_MASK		7	/* for WSTATE.NORMAL */
 #define	WSTATE_USERSHIFT	3	/* for WSTATE.OTHER / user */
 
+#define	WSTATE_KERNEL		0	/* normal kernel wstate */
+
 #endif /* !_MACHINE_WSTATE_H_ */
