@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040807:
+	The size of 'struct ifnet' has changed due to the addition of the
+	if_carp placeholder.  All kernel modules implementing network
+	interfaces must be recompiled as a result.
+
 20040802:
 	making /dev/(null|zero) into a module proved to be too unpopular,
 	so this bit has been revoked from the previous (20040801) entry.
