@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD");
 #include <machine/psl.h>
 #include <machine/sigframe.h>
 #include <signal.h>
+#include <strings.h>
 
 __weak_reference(__signalcontext, signalcontext);
 

@@ -63,6 +63,7 @@
 #define		fcntl				_fcntl
 /*#define		flock				_flock */
 #define		flockfile			_flockfile
+#define		fpathconf			_fpathconf
 #define		fstat				_fstat
 #define		fstatfs				_fstatfs
 #define		fsync				_fsync
@@ -139,7 +140,6 @@
 #define		creat				_creat
 #define		fchflags			_fchflags
 #define		fchmod				_fchmod
-#define		fpathconf			_fpathconf
 #define		ftrylockfile			_ftrylockfile
 #define		msync				_msync
 #define		nfssvc				_nfssvc

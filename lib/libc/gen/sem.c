@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -37,6 +38,7 @@
 #include <pthread.h>
 #include <sys/queue.h>
 #include <_semaphore.h>
+#include "un-namespace.h"
 
 #define _SEM_CHECK_VALIDITY(sem)		\
 	if ((*(sem))->magic != SEM_MAGIC) {	\

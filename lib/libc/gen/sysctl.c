@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 
+extern int __sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
+    void *newp, size_t newlen);
+
 int
 sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	int *name;

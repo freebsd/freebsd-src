@@ -45,6 +45,7 @@
 #undef		fcntl
 #undef		flock
 #undef		flockfile
+#undef		fpathconf
 #undef		fstat
 #undef		fstatfs
 #undef		fsync
@@ -113,7 +114,6 @@
 #undef		creat
 #undef		fchflags
 #undef		fchmod
-#undef		fpathconf
 #undef		ftrylockfile
 #undef		msync
 #undef		nfssvc

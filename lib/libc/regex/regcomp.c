@@ -106,7 +106,7 @@ static void freeset(struct parse *p, cset *cs);
 static int freezeset(struct parse *p, cset *cs);
 static int firstch(struct parse *p, cset *cs);
 static int nch(struct parse *p, cset *cs);
-static void mcadd(struct parse *p, cset *cs, char *cp);
+static void mcadd(struct parse *p, cset *cs, char *cp) __unused;
 #if used
 static void mcsub(cset *cs, char *cp);
 static int mcin(cset *cs, char *cp);
@@ -1964,7 +1964,7 @@ struct re_guts *g;
 	 * is the first one that would be matched).
 	 */
 	for (mindex = 0; mindex < g->mlen; mindex++)
-		g->charjump[g->must[mindex]] = g->mlen - mindex - 1;
+		g->charjump[(int)g->must[mindex]] = g->mlen - mindex - 1;
 }
 
 /*

@@ -34,6 +34,9 @@
 #include <sys/types.h>
 #include <sys/mac.h>
 
+extern int __mac_execve(char *fname, char **argv, char **envv,
+    struct mac *mac_p);
+
 int
 mac_execve(char *fname, char **argv, char **envv, struct mac *label)
 {

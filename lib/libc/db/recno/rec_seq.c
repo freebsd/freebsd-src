@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)rec_seq.c	8.3 (Berkeley) 7/14/94";
-#endif /* not lint */
 #include <sys/cdefs.h>
+#ifndef lint
+/* XXX use __SCCSID */
+static char sccsid[] __unused = "@(#)rec_seq.c	8.3 (Berkeley) 7/14/94";
+#endif /* not lint */
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>

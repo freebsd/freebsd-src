@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <rpc/rpc.h>
+#include <unistd.h>
 #include "un-namespace.h"
 #include "rpc_com.h"
 

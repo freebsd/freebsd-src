@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #include <machine/sysarch.h>
 
+extern int sysarch(int op, char *parms);
+
 int
 i386_get_ldt(int start, union descriptor *descs, int num)
 {
