@@ -37,6 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumlock.c,v 1.11 1999/10/12 04:35:37 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -87,7 +88,7 @@ lockdrive(struct drive *drive)
 	 * of conflicts is negligible.
 	 */
 	if ((error = tsleep(&lockdrive,
-		    PRIBIO | PCATCH,
+		    PRIBIO,
 		    "vindrv",
 		    0)) != 0)
 	    return error;
@@ -126,7 +127,7 @@ lockvol(struct volume *vol)
 	 * table expansion.  The address we choose won't change.
 	 */
 	if ((error = tsleep(&vinum_conf.volume + vol->volno,
-		    PRIBIO | PCATCH,
+		    PRIBIO,
 		    "volock",
 		    0)) != 0)
 	    return error;
@@ -161,7 +162,7 @@ lockplex(struct plex *plex)
 	 * table expansion.  The address we choose won't change.
 	 */
 	if ((error = tsleep(&vinum_conf.plex + plex->sdnos[0],
-		    PRIBIO | PCATCH,
+		    PRIBIO,
 		    "plexlk",
 		    0)) != 0)
 	    return error;
@@ -248,7 +249,7 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 #endif
 		plex->lockwaits++;			    /* waited one more time */
 		while (lock->stripe)			    /* wait for it to become free */
-		    tsleep((void *) lock->stripe, PRIBIO | PCATCH, "vrlock", 2 * hz);
+		    tsleep((void *) lock->stripe, PRIBIO, "vrlock", 2 * hz);
 		break;					    /* out of the inner level loop */
 	    }
 	} else {
@@ -307,7 +308,7 @@ lock_config(void)
 
     while ((vinum_conf.flags & VF_LOCKED) != 0) {
 	vinum_conf.flags |= VF_LOCKING;
-	if ((error = tsleep(&vinum_conf, PRIBIO | PCATCH, "vincfg", 0)) != 0)
+	if ((error = tsleep(&vinum_conf, PRIBIO, "vincfg", 0)) != 0)
 	    return error;
     }
     vinum_conf.flags |= VF_LOCKED;
