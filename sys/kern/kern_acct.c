@@ -137,6 +137,7 @@ acct(td, uap)
 		return (error);
 
 	mtx_lock(&Giant);
+
 	/*
 	 * If accounting is to be started to a file, open that file for
 	 * appending and make sure it's a 'normal'.
@@ -169,16 +170,14 @@ acct(td, uap)
 #endif
 	}
 
+	mtx_lock(&acct_mtx);
+
 	/*
 	 * If accounting was previously enabled, kill the old space-watcher,
 	 * close the file, and (if no new file was specified, leave).
+	 *
+	 * XXX arr: should not hold lock over vnode operation.
 	 */
-
-	/*
-	 * XXX arr: Should not hold lock over vnode operation.
-	 */
-
-	mtx_lock(&acct_mtx);
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		callout_stop(&acctwatch_callout);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp),
@@ -205,6 +204,7 @@ acct(td, uap)
 	mtx_unlock(&acct_mtx);
 	log(LOG_NOTICE, "Accounting enabled\n");
 	acctwatch(NULL);
+
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -216,19 +216,18 @@ done2:
  * and are enumerated below.  (They're also noted in the system
  * "acct.h" header file.)
  */
-
 int
 acct_process(td)
 	struct thread *td;
 {
-	struct proc *p = td->td_proc;
 	struct acct acct;
-	struct rusage *r;
 	struct timeval ut, st, tmp;
-	int t, ret;
-	struct vnode *vp;
-	struct ucred *uc;
 	struct plimit *newlim, *oldlim;
+	struct proc *p;
+	struct rusage *r;
+	struct ucred *uc;
+	struct vnode *vp;
+	int t, ret;
 
 	mtx_lock(&acct_mtx);
 
@@ -238,6 +237,8 @@ acct_process(td)
 		mtx_unlock(&acct_mtx);
 		return (0);
 	}
+
+	p = td->td_proc;
 
 	/*
 	 * Get process accounting information.
@@ -292,7 +293,7 @@ acct_process(td)
 	PROC_UNLOCK(p);
 
 	/*
-	 * Write the accounting information to the file.
+	 * Finish doing things that require acct_mtx, and release acct_mtx.
 	 */
 	uc = crhold(acctcred);
 	vref(vp);
@@ -310,6 +311,9 @@ acct_process(td)
 	PROC_UNLOCK(p);
 	lim_free(oldlim);
 
+	/*
+	 * Write the accounting information to the file.
+	 */
 	VOP_LEASE(vp, td, uc, LEASE_WRITE);
 	ret = vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
 	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, uc, NOCRED,
@@ -374,10 +378,9 @@ acctwatch(a)
 	mtx_lock(&acct_mtx);
 
 	/*
-	 * XXX arr: Need to fix the issue of holding acct_mtx over
+	 * XXX arr: need to fix the issue of holding acct_mtx over
 	 * the below vnode operations.
 	 */
-
 	if (savacctp != NULLVP) {
 		if (savacctp->v_type == VBAD) {
 			(void) vn_close(savacctp, savacctflags, savacctcred,
