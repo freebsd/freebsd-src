@@ -23,8 +23,8 @@ static const char rcsid[] =
  *
  */
 
-#include <err.h>
 #include "lib.h"
+#include <err.h>
 #include <sys/signal.h>
 #include <sys/param.h>
 #include <sys/mount.h>
