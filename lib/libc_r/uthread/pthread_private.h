@@ -253,7 +253,7 @@ struct pthread_mutex {
  */
 #define PTHREAD_MUTEX_STATIC_INITIALIZER   \
 	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, TAILQ_INITIALIZER, \
-	NULL, { NULL }, 0, 0, 0, 0, TAILQ_INITIALIZER, \
+	NULL, { NULL }, MUTEX_FLAGS_PRIVATE, 0, 0, 0, TAILQ_INITIALIZER, \
 	_SPINLOCK_INITIALIZER }
 
 struct pthread_mutex_attr {
@@ -504,6 +504,15 @@ struct pthread {
 	 */
 	int	sig_saved;
 
+ 	/*
+	 * Cancelability flags - the lower 2 bits are used by cancel
+	 * definitions in pthread.h
+	 */
+#define PTHREAD_AT_CANCEL_POINT		0x0004
+#define PTHREAD_CANCELLING		0x0008
+#define PTHREAD_CANCEL_NEEDED		0x0010
+	int	cancelflags;
+
 	/*
 	 * Current signal mask and pending signals.
 	 */
@@ -601,15 +610,18 @@ struct pthread {
 	 */
 	int		yield_on_sig_undefer;
 
-	/* Miscellaneous data. */
+	/* Miscellaneous flags; only set with signals deferred. */
 	int		flags;
 #define PTHREAD_FLAGS_PRIVATE	0x0001
 #define PTHREAD_EXITING		0x0002
 #define PTHREAD_FLAGS_IN_CONDQ	0x0004	/* in condition queue using qe link*/
 #define PTHREAD_FLAGS_IN_WORKQ	0x0008	/* in work queue using qe link */
-#define PTHREAD_FLAGS_IN_WAITQ	0x0010	/* in waiting queue using pqe link*/
-#define PTHREAD_FLAGS_IN_PRIOQ	0x0020	/* in priority queue using pqe link*/
-#define PTHREAD_FLAGS_TRACE	0x0040	/* for debugging purposes */
+#define PTHREAD_FLAGS_IN_WAITQ	0x0010	/* in waiting queue using pqe link */
+#define PTHREAD_FLAGS_IN_PRIOQ	0x0020	/* in priority queue using pqe link */
+#define PTHREAD_FLAGS_IN_MUTEXQ	0x0040	/* in mutex queue using qe link */
+#define PTHREAD_FLAGS_IN_FILEQ	0x0080	/* in file lock queue using qe link */
+#define PTHREAD_FLAGS_IN_FDQ	0x0100	/* in fd lock queue using qe link */
+#define PTHREAD_FLAGS_TRACE	0x0200	/* for debugging purposes */
 
 	/*
 	 * Base priority is the user setable and retrievable priority
@@ -894,6 +906,7 @@ char    *__ttyname_r_basic(int, char *, size_t);
 char    *ttyname_r(int, char *, size_t);
 int     _find_dead_thread(pthread_t);
 int     _find_thread(pthread_t);
+void    _funlock_owned(pthread_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
 int     _thread_fd_lock(int, int, struct timespec *);
 int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
@@ -901,8 +914,9 @@ void    _dispatch_signals(void);
 void    _thread_signal(pthread_t, int);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
+void	_mutex_notify_priochange(pthread_t);
 int	_mutex_reinit(pthread_mutex_t *);
-void	_mutex_notify_priochange(struct pthread *);
+void	_mutex_unlock_private(pthread_t);
 int	_cond_reinit(pthread_cond_t *);
 int	_pq_alloc(struct pq_queue *, int, int);
 int	_pq_init(struct pq_queue *);
@@ -917,8 +931,10 @@ void	_waitq_setactive(void);
 void	_waitq_clearactive(void);
 #endif
 void    _thread_exit(char *, int, char *);
+void    _thread_exit_cleanup(void);
 void    _thread_fd_unlock(int, int);
 void    _thread_fd_unlock_debug(int, int, char *, int);
+void    _thread_fd_unlock_owned(pthread_t);
 void    *_thread_cleanup(pthread_t);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
@@ -938,6 +954,9 @@ void    _thread_start_sig_handler(void);
 void	_thread_seterrno(pthread_t,int);
 int     _thread_fd_table_init(int fd);
 pthread_addr_t _thread_gc(pthread_addr_t);
+void	_thread_enter_cancellation_point(void);
+void	_thread_leave_cancellation_point(void);
+void	_thread_cancellation_point(void);
 
 /* #include <signal.h> */
 int     _thread_sys_sigaction(int, const struct sigaction *, struct sigaction *);
@@ -1117,6 +1136,8 @@ pid_t   _thread_sys_wait4(pid_t, int *, int, struct rusage *);
 #ifdef _SYS_POLL_H_
 int 	_thread_sys_poll(struct pollfd *, unsigned, int);
 #endif
+/* #include <sys/mman.h> */
+int	_thread_sys_msync(void *, size_t, int);
 __END_DECLS
 
 #endif  /* !_PTHREAD_PRIVATE_H */

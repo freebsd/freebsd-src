@@ -94,7 +94,8 @@ _mutex_reinit(pthread_mutex_t * mutex)
 		TAILQ_INIT(&(*mutex)->m_queue);
 		(*mutex)->m_owner = NULL;
 		(*mutex)->m_data.m_count = 0;
-		(*mutex)->m_flags = MUTEX_FLAGS_INITED;
+		(*mutex)->m_flags &= MUTEX_FLAGS_PRIVATE;
+		(*mutex)->m_flags |= MUTEX_FLAGS_INITED;
 		(*mutex)->m_refcount = 0;
 		(*mutex)->m_prio = 0;
 		(*mutex)->m_saved_prio = 0;
@@ -428,6 +429,9 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 			_MUTEX_INIT_LINK(*mutex);
 		}
 
+		/* Reset the interrupted flag: */
+		_thread_run->interrupted = 0;
+
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_protocol) {
 		/* Default POSIX mutex: */
@@ -602,6 +606,13 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 			break;
 		}
 
+		/*
+		 * Check to see if this thread was interrupted and
+		 * is still in the mutex queue of waiting threads:
+		 */
+		if (_thread_run->interrupted != 0)
+			mutex_queue_remove(*mutex, _thread_run);
+
 		/* Unlock the mutex structure: */
 		_SPINUNLOCK(&(*mutex)->lock);
 
@@ -610,6 +621,12 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		 * necessary:
 		 */
 		_thread_kern_sig_undefer();
+
+		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+			_thread_exit_cleanup();
+			pthread_exit(PTHREAD_CANCELED);
+		}
 	}
 
 	/* Return the completion status: */
@@ -1314,6 +1331,18 @@ mutex_rescan_owned (pthread_t pthread, pthread_mutex_t mutex)
 	}
 }
 
+void
+_mutex_unlock_private(pthread_t pthread)
+{
+	struct pthread_mutex	*m, *m_next;
+
+	for (m = TAILQ_FIRST(&pthread->mutexq); m != NULL; m = m_next) {
+		m_next = TAILQ_NEXT(m, m_qe);
+		if ((m->m_flags & MUTEX_FLAGS_PRIVATE) != 0)
+			pthread_mutex_unlock(&m);
+	}
+}
+
 /*
  * Dequeue a waiting thread from the head of a mutex queue in descending
  * priority order.
@@ -1323,8 +1352,17 @@ mutex_queue_deq(pthread_mutex_t mutex)
 {
 	pthread_t pthread;
 
-	if ((pthread = TAILQ_FIRST(&mutex->m_queue)) != NULL)
+	while ((pthread = TAILQ_FIRST(&mutex->m_queue)) != NULL) {
 		TAILQ_REMOVE(&mutex->m_queue, pthread, qe);
+		pthread->flags &= ~PTHREAD_FLAGS_IN_MUTEXQ;
+
+		/*
+		 * Only exit the loop if the thread hasn't been
+		 * cancelled.
+		 */
+		if (pthread->interrupted == 0)
+			break;
+	}
 
 	return(pthread);
 }
@@ -1335,7 +1373,10 @@ mutex_queue_deq(pthread_mutex_t mutex)
 static inline void
 mutex_queue_remove(pthread_mutex_t mutex, pthread_t pthread)
 {
-	TAILQ_REMOVE(&mutex->m_queue, pthread, qe);
+	if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0) {
+		TAILQ_REMOVE(&mutex->m_queue, pthread, qe);
+		pthread->flags &= ~PTHREAD_FLAGS_IN_MUTEXQ;
+	}
 }
 
 /*
@@ -1359,6 +1400,7 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 			tid = TAILQ_NEXT(tid, qe);
 		TAILQ_INSERT_BEFORE(tid, pthread, qe);
 	}
+	pthread->flags |= PTHREAD_FLAGS_IN_MUTEXQ;
 }
 
 #endif

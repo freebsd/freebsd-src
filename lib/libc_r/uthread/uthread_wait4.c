@@ -42,6 +42,7 @@ wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 {
 	pid_t           ret;
 
+	_thread_enter_cancellation_point();
 	_thread_kern_sig_defer();
 
 	/* Perform a non-blocking wait4 syscall: */
@@ -61,6 +62,7 @@ wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 	}
 
 	_thread_kern_sig_undefer();
+	_thread_leave_cancellation_point();
 
 	return (ret);
 }

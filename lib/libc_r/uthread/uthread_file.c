@@ -225,18 +225,42 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			/* Unlock the hash table: */
 			_SPINUNLOCK(&hash_lock);
 		} else {
+			/* Clear the interrupted flag: */
+			_thread_run->interrupted = 0;
+
+			/*
+			 * Prevent being context switched out while
+			 * adding this thread to the file lock queue.
+			 */
+			_thread_kern_sig_defer();
+
 			/*
 			 * The file is locked for another thread.
 			 * Append this thread to the queue of
 			 * threads waiting on the lock.
 			 */
 			TAILQ_INSERT_TAIL(&p->l_head,_thread_run,qe);
+			_thread_run->flags |= PTHREAD_FLAGS_IN_FILEQ;
 
 			/* Unlock the hash table: */
 			_SPINUNLOCK(&hash_lock);
 
 			/* Wait on the FILE lock: */
 			_thread_kern_sched_state(PS_FILE_WAIT, fname, lineno);
+
+			if ((_thread_run->flags & PTHREAD_FLAGS_IN_FILEQ) != 0) {
+				TAILQ_REMOVE(&p->l_head,_thread_run,qe);
+				_thread_run->flags &= ~PTHREAD_FLAGS_IN_FILEQ;
+			}
+
+			_thread_kern_sig_undefer();
+
+			if (((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) && 
+			    (_thread_run->cancelflags & PTHREAD_CANCEL_DISABLE) != 0) {
+				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+				_thread_exit_cleanup();
+				pthread_exit(PTHREAD_CANCELED);
+			}
 		}
 	}
 	return;
@@ -304,7 +328,6 @@ _ftrylockfile(FILE * fp)
 void 
 _funlockfile(FILE * fp)
 {
-	int	status;
 	int	idx = file_idx(fp);
 	struct	file_lock	*p;
 
@@ -344,18 +367,27 @@ _funlockfile(FILE * fp)
 				p->count = 0;
 
 				/* Get the new owner of the lock: */
-				if ((p->owner = TAILQ_FIRST(&p->l_head)) != NULL) {
+				while ((p->owner = TAILQ_FIRST(&p->l_head)) != NULL) {
 					/* Pop the thread off the queue: */
 					TAILQ_REMOVE(&p->l_head,p->owner,qe);
+					p->owner->flags &= ~PTHREAD_FLAGS_IN_FILEQ;
 
-					/*
-					 * This is the first lock for the new
-					 * owner:
-					 */
-					p->count = 1;
+					if (p->owner->interrupted == 0) {
+						/*
+						 * This is the first lock for
+						 * the new owner:
+						 */
+						p->count = 1;
 
-					/* Allow the new owner to run: */
-					PTHREAD_NEW_STATE(p->owner,PS_RUNNING);
+						/* Allow the new owner to run: */
+						PTHREAD_NEW_STATE(p->owner,PS_RUNNING);
+
+						/* End the loop when we find a
+						 * thread that hasn't been
+						 * cancelled or interrupted;
+						 */
+						break;
+					}
 				}
 			}
 		}
@@ -370,6 +402,74 @@ _funlockfile(FILE * fp)
 		_thread_kern_sig_undefer();
 	}
 	return;
+}
+
+void
+_funlock_owned(pthread_t pthread)
+{
+	int			idx;
+	struct file_lock	*p, *next_p;
+
+	/*
+	 * Defer signals to protect the scheduling queues from
+	 * access by the signal handler:
+	 */
+	_thread_kern_sig_defer();
+
+	/* Lock the hash table: */
+	_SPINLOCK(&hash_lock);
+
+	for (idx = 0; idx < NUM_HEADS; idx++) {
+		/* Check the static file lock first: */
+		p = &flh[idx].fl;
+		next_p = LIST_FIRST(&flh[idx].head);
+
+		while (p != NULL) {
+			if (p->owner == pthread) {
+				/*
+				 * The running thread will release the
+				 * lock now:
+				 */
+				p->count = 0;
+
+				/* Get the new owner of the lock: */
+				while ((p->owner = TAILQ_FIRST(&p->l_head)) != NULL) {
+					/* Pop the thread off the queue: */
+					TAILQ_REMOVE(&p->l_head,p->owner,qe);
+					p->owner->flags &= ~PTHREAD_FLAGS_IN_FILEQ;
+
+					if (p->owner->interrupted == 0) {
+						/*
+						 * This is the first lock for
+						 * the new owner:
+						 */
+						p->count = 1;
+
+						/* Allow the new owner to run: */
+						PTHREAD_NEW_STATE(p->owner,PS_RUNNING);
+
+						/* End the loop when we find a
+						 * thread that hasn't been
+						 * cancelled or interrupted;
+						 */
+						break;
+					}
+				}
+			}
+			p = next_p;
+			if (next_p != NULL)
+				next_p = LIST_NEXT(next_p, entry);
+		}
+	}
+
+	/* Unlock the hash table: */
+	_SPINUNLOCK(&hash_lock);
+
+	/*
+	 * Undefer and handle pending signals, yielding if
+	 * necessary:
+	 */
+	_thread_kern_sig_undefer();
 }
 
 #endif

@@ -39,8 +39,28 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+#define FDQ_INSERT(q,p)					\
+do {							\
+	TAILQ_INSERT_TAIL(q,p,qe);			\
+	p->flags |= PTHREAD_FLAGS_IN_FDQ;		\
+} while (0)
+
+#define FDQ_REMOVE(q,p)					\
+do {							\
+	if ((p->flags & PTHREAD_FLAGS_IN_FDQ) != 0) {	\
+		TAILQ_REMOVE(q,p,qe);			\
+		p->flags &= ~PTHREAD_FLAGS_IN_FDQ;	\
+	}						\
+} while (0)
+
+
 /* Static variables: */
 static	spinlock_t	fd_table_lock	= _SPINLOCK_INITIALIZER;
+
+/* Prototypes: */
+static inline pthread_t fd_next_reader(int fd);
+static inline pthread_t fd_next_writer(int fd);
+
 
 /*
  * This function *must* return -1 and set the thread specific errno
@@ -200,11 +220,11 @@ _thread_fd_unlock(int fd, int lock_type)
 				 * Get the next thread in the queue for a
 				 * read lock on this file descriptor: 
 				 */
-				else if ((_thread_fd_table[fd]->r_owner = TAILQ_FIRST(&_thread_fd_table[fd]->r_queue)) == NULL) {
+				else if ((_thread_fd_table[fd]->r_owner = fd_next_reader(fd)) == NULL) {
 				} else {
 					/* Remove this thread from the queue: */
-					TAILQ_REMOVE(&_thread_fd_table[fd]->r_queue,
-					    _thread_fd_table[fd]->r_owner, qe);
+					FDQ_REMOVE(&_thread_fd_table[fd]->r_queue,
+					    _thread_fd_table[fd]->r_owner);
 
 					/*
 					 * Set the state of the new owner of
@@ -242,11 +262,11 @@ _thread_fd_unlock(int fd, int lock_type)
 				 * Get the next thread in the queue for a
 				 * write lock on this file descriptor: 
 				 */
-				else if ((_thread_fd_table[fd]->w_owner = TAILQ_FIRST(&_thread_fd_table[fd]->w_queue)) == NULL) {
+				else if ((_thread_fd_table[fd]->w_owner = fd_next_writer(fd)) == NULL) {
 				} else {
 					/* Remove this thread from the queue: */
-					TAILQ_REMOVE(&_thread_fd_table[fd]->w_queue,
-					    _thread_fd_table[fd]->w_owner, qe);
+					FDQ_REMOVE(&_thread_fd_table[fd]->w_queue,
+					    _thread_fd_table[fd]->w_owner);
 
 					/*
 					 * Set the state of the new owner of
@@ -289,6 +309,9 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 	 * entry: 
 	 */
 	if ((ret = _thread_fd_table_init(fd)) == 0) {
+		/* Clear the interrupted flag: */
+		_thread_run->interrupted = 0;
+
 		/*
 		 * Lock the file descriptor table entry to prevent
 		 * other threads for clashing with the current
@@ -299,10 +322,10 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 		/* Check the file descriptor and lock types: */
 		if (lock_type == FD_READ || lock_type == FD_RDWR) {
 			/*
-			 * Enter a loop to wait for the file descriptor to be
-			 * locked    for read for the current thread: 
+			 * Wait for the file descriptor to be locked
+			 * for read for the current thread: 
 			 */
-			while (_thread_fd_table[fd]->r_owner != _thread_run) {
+			if (_thread_fd_table[fd]->r_owner != _thread_run) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -314,7 +337,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 * queue of threads waiting for a  
 					 * read lock on this file descriptor: 
 					 */
-					TAILQ_INSERT_TAIL(&_thread_fd_table[fd]->r_queue, _thread_run, qe);
+					FDQ_INSERT(&_thread_fd_table[fd]->r_queue, _thread_run);
 
 					/*
 					 * Save the file descriptor details
@@ -349,6 +372,10 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
 
+					if (_thread_run->interrupted != 0) {
+						FDQ_REMOVE(&_thread_fd_table[fd]->r_queue,
+						    _thread_run);
+					}
 				} else {
 					/*
 					 * The running thread now owns the
@@ -364,17 +391,19 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 				}
 			}
 
-			/* Increment the read lock count: */
-			_thread_fd_table[fd]->r_lockcount++;
+			if (_thread_fd_table[fd]->r_owner == _thread_run)
+				/* Increment the read lock count: */
+				_thread_fd_table[fd]->r_lockcount++;
 		}
 
 		/* Check the file descriptor and lock types: */
-		if (lock_type == FD_WRITE || lock_type == FD_RDWR) {
+		if (_thread_run->interrupted == 0 &&
+		    (lock_type == FD_WRITE || lock_type == FD_RDWR)) {
 			/*
-			 * Enter a loop to wait for the file descriptor to be
-			 * locked for write for the current thread: 
+			 * Wait for the file descriptor to be locked
+			 * for write for the current thread: 
 			 */
-			while (_thread_fd_table[fd]->w_owner != _thread_run) {
+			if (_thread_fd_table[fd]->w_owner != _thread_run) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -387,7 +416,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 * write lock on this file
 					 * descriptor: 
 					 */
-					TAILQ_INSERT_TAIL(&_thread_fd_table[fd]->w_queue, _thread_run, qe);
+					FDQ_INSERT(&_thread_fd_table[fd]->w_queue, _thread_run);
 
 					/*
 					 * Save the file descriptor details
@@ -420,6 +449,11 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 * table entry again:
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
+
+					if (_thread_run->interrupted != 0) {
+						FDQ_REMOVE(&_thread_fd_table[fd]->w_queue,
+						    _thread_run);
+					}
 				} else {
 					/*
 					 * The running thread now owns the
@@ -436,12 +470,24 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 				}
 			}
 
-			/* Increment the write lock count: */
-			_thread_fd_table[fd]->w_lockcount++;
+			if (_thread_fd_table[fd]->w_owner == _thread_run)
+				/* Increment the write lock count: */
+				_thread_fd_table[fd]->w_lockcount++;
 		}
 
 		/* Unlock the file descriptor table entry: */
 		_SPINUNLOCK(&_thread_fd_table[fd]->lock);
+
+		if (_thread_run->interrupted != 0) {
+			if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) == 0) {
+				ret = -1;
+				errno = EINTR;
+			} else {
+				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+				_thread_exit_cleanup();
+				pthread_exit(PTHREAD_CANCELED);
+			}
+		}
 	}
 
 	/* Return the completion status: */
@@ -491,11 +537,11 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 				 * Get the next thread in the queue for a
 				 * read lock on this file descriptor: 
 				 */
-				else if ((_thread_fd_table[fd]->r_owner = TAILQ_FIRST(&_thread_fd_table[fd]->r_queue)) == NULL) {
+				else if ((_thread_fd_table[fd]->r_owner = fd_next_reader(fd)) == NULL) {
 				} else {
 					/* Remove this thread from the queue: */
-					TAILQ_REMOVE(&_thread_fd_table[fd]->r_queue,
-					    _thread_fd_table[fd]->r_owner, qe);
+					FDQ_REMOVE(&_thread_fd_table[fd]->r_queue,
+					    _thread_fd_table[fd]->r_owner);
 
 					/*
 					 * Set the state of the new owner of
@@ -533,11 +579,11 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 				 * Get the next thread in the queue for a
 				 * write lock on this file descriptor: 
 				 */
-				else if ((_thread_fd_table[fd]->w_owner = TAILQ_FIRST(&_thread_fd_table[fd]->w_queue)) == NULL) {
+				else if ((_thread_fd_table[fd]->w_owner = fd_next_writer(fd)) == NULL) {
 				} else {
 					/* Remove this thread from the queue: */
-					TAILQ_REMOVE(&_thread_fd_table[fd]->w_queue,
-					    _thread_fd_table[fd]->w_owner, qe);
+					FDQ_REMOVE(&_thread_fd_table[fd]->w_queue,
+					    _thread_fd_table[fd]->w_owner);
 
 					/*
 					 * Set the state of the new owner of
@@ -581,6 +627,9 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 	 * entry: 
 	 */
 	if ((ret = _thread_fd_table_init(fd)) == 0) {
+		/* Clear the interrupted flag: */
+		_thread_run->interrupted = 0;
+
 		/*
 		 * Lock the file descriptor table entry to prevent
 		 * other threads for clashing with the current
@@ -591,10 +640,10 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 		/* Check the file descriptor and lock types: */
 		if (lock_type == FD_READ || lock_type == FD_RDWR) {
 			/*
-			 * Enter a loop to wait for the file descriptor to be
-			 * locked    for read for the current thread: 
+			 * Wait for the file descriptor to be locked
+			 * for read for the current thread: 
 			 */
-			while (_thread_fd_table[fd]->r_owner != _thread_run) {
+			if (_thread_fd_table[fd]->r_owner != _thread_run) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -606,7 +655,7 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * queue of threads waiting for a  
 					 * read lock on this file descriptor: 
 					 */
-					TAILQ_INSERT_TAIL(&_thread_fd_table[fd]->r_queue, _thread_run, qe);
+					FDQ_INSERT(&_thread_fd_table[fd]->r_queue, _thread_run);
 
 					/*
 					 * Save the file descriptor details
@@ -643,6 +692,10 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
 
+					if (_thread_run->interrupted != 0) {
+						FDQ_REMOVE(&_thread_fd_table[fd]->r_queue,
+						    _thread_run);
+					}
 				} else {
 					/*
 					 * The running thread now owns the
@@ -665,17 +718,19 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 				}
 			}
 
-			/* Increment the read lock count: */
-			_thread_fd_table[fd]->r_lockcount++;
+			if (_thread_fd_table[fd]->r_owner == _thread_run)
+				/* Increment the read lock count: */
+				_thread_fd_table[fd]->r_lockcount++;
 		}
 
 		/* Check the file descriptor and lock types: */
-		if (lock_type == FD_WRITE || lock_type == FD_RDWR) {
+		if (_thread_run->interrupted == 0 &&
+		    (lock_type == FD_WRITE || lock_type == FD_RDWR)) {
 			/*
-			 * Enter a loop to wait for the file descriptor to be
-			 * locked for write for the current thread: 
+			 * Wait for the file descriptor to be locked
+			 * for write for the current thread: 
 			 */
-			while (_thread_fd_table[fd]->w_owner != _thread_run) {
+			if (_thread_fd_table[fd]->w_owner != _thread_run) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -688,7 +743,7 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * write lock on this file
 					 * descriptor: 
 					 */
-					TAILQ_INSERT_TAIL(&_thread_fd_table[fd]->w_queue, _thread_run, qe);
+					FDQ_INSERT(&_thread_fd_table[fd]->w_queue, _thread_run);
 
 					/*
 					 * Save the file descriptor details
@@ -723,6 +778,11 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * table entry again:
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
+
+					if (_thread_run->interrupted != 0) {
+						FDQ_REMOVE(&_thread_fd_table[fd]->w_queue,
+						    _thread_run);
+					}
 				} else {
 					/*
 					 * The running thread now owns the
@@ -746,15 +806,140 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 				}
 			}
 
-			/* Increment the write lock count: */
-			_thread_fd_table[fd]->w_lockcount++;
+			if (_thread_fd_table[fd]->w_owner == _thread_run)
+				/* Increment the write lock count: */
+				_thread_fd_table[fd]->w_lockcount++;
 		}
 
 		/* Unlock the file descriptor table entry: */
 		_SPINUNLOCK(&_thread_fd_table[fd]->lock);
+
+		if (_thread_run->interrupted != 0) {
+			if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) == 0) {
+				ret = -1;
+				errno = EINTR;
+			} else {
+				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+				_thread_exit_cleanup();
+				pthread_exit(PTHREAD_CANCELED);
+			}
+		}
 	}
 
 	/* Return the completion status: */
 	return (ret);
+}
+
+void
+_thread_fd_unlock_owned(pthread_t pthread)
+{
+	int fd;
+
+	for (fd = 0; fd < _thread_dtablesize; fd++) {
+		if ((_thread_fd_table[fd] != NULL) &&
+		    ((_thread_fd_table[fd]->r_owner == pthread) ||
+		    (_thread_fd_table[fd]->w_owner == pthread))) {
+			/*
+			 * Defer signals to protect the scheduling queues
+			 * from access by the signal handler:
+			 */
+			_thread_kern_sig_defer();
+
+			/*
+			 * Lock the file descriptor table entry to prevent
+			 * other threads for clashing with the current
+			 * thread's accesses:
+			 */
+			_SPINLOCK(&_thread_fd_table[fd]->lock);
+
+			/* Check if the thread owns the read lock: */
+			if (_thread_fd_table[fd]->r_owner == pthread) {
+				/* Clear the read lock count: */
+				_thread_fd_table[fd]->r_lockcount = 0;
+
+				/*
+				 * Get the next thread in the queue for a
+				 * read lock on this file descriptor: 
+				 */
+				if ((_thread_fd_table[fd]->r_owner = fd_next_reader(fd)) != NULL) {
+					/* Remove this thread from the queue: */
+					FDQ_REMOVE(&_thread_fd_table[fd]->r_queue,
+					    _thread_fd_table[fd]->r_owner);
+
+					/*
+					 * Set the state of the new owner of
+					 * the thread to running: 
+					 */
+					PTHREAD_NEW_STATE(_thread_fd_table[fd]->r_owner,PS_RUNNING);
+				}
+			}
+
+			/* Check if the thread owns the write lock: */
+			if (_thread_fd_table[fd]->w_owner == pthread) {
+				/* Clear the write lock count: */
+				_thread_fd_table[fd]->w_lockcount = 0;
+
+				/*
+				 * Get the next thread in the queue for a
+				 * write lock on this file descriptor: 
+				 */
+				if ((_thread_fd_table[fd]->w_owner = fd_next_writer(fd)) != NULL) {
+					/* Remove this thread from the queue: */
+					FDQ_REMOVE(&_thread_fd_table[fd]->w_queue,
+					    _thread_fd_table[fd]->w_owner);
+
+					/*
+					 * Set the state of the new owner of
+					 * the thread to running: 
+					 */
+					PTHREAD_NEW_STATE(_thread_fd_table[fd]->w_owner,PS_RUNNING);
+
+				}
+			}
+
+			/* Unlock the file descriptor table entry: */
+			_SPINUNLOCK(&_thread_fd_table[fd]->lock);
+
+			/*
+			 * Undefer and handle pending signals, yielding if
+			 * necessary.
+			 */
+			_thread_kern_sig_undefer();
+		}
+	}
+}
+
+static inline pthread_t
+fd_next_reader(int fd)
+{
+	pthread_t pthread;
+
+	while (((pthread = TAILQ_FIRST(&_thread_fd_table[fd]->r_queue)) != NULL) &&
+	    (pthread->interrupted != 0)) {
+		/*
+		 * This thread has either been interrupted by a signal or
+		 * it has been canceled.  Remove it from the queue.
+		 */
+		FDQ_REMOVE(&_thread_fd_table[fd]->r_queue, pthread);
+	}
+
+	return (pthread);
+}
+
+static inline pthread_t
+fd_next_writer(int fd)
+{
+	pthread_t pthread;
+
+	while (((pthread = TAILQ_FIRST(&_thread_fd_table[fd]->w_queue)) != NULL) &&
+	    (pthread->interrupted != 0)) {
+		/*
+		 * This thread has either been interrupted by a signal or
+		 * it has been canceled.  Remove it from the queue.
+		 */
+		FDQ_REMOVE(&_thread_fd_table[fd]->w_queue, pthread);
+	}
+
+	return (pthread);
 }
 #endif

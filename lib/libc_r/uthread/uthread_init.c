@@ -42,6 +42,7 @@
 #include <paths.h>
 #include <poll.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
@@ -184,6 +185,10 @@ _thread_init(void)
 		 * to help identify valid ones:
 		 */
 		_thread_initial->magic = PTHREAD_MAGIC;
+
+		/* Set the initial cancel state */
+		_thread_initial->cancelflags = PTHREAD_CANCEL_ENABLE |
+		    PTHREAD_CANCEL_DEFERRED;
 
 		/* Default the priority of the initial thread: */
 		_thread_initial->base_priority = PTHREAD_DEFAULT_PRIORITY;

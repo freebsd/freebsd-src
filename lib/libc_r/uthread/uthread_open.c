@@ -44,10 +44,11 @@
 int
 open(const char *path, int flags,...)
 {
-	int             fd;
-	int             mode = 0;
-	int             status;
-	va_list         ap;
+	int	fd;
+	int	mode = 0;
+	va_list	ap;
+
+	_thread_enter_cancellation_point();
 
 	/* Check if the file is being created: */
 	if (flags & O_CREAT) {
@@ -67,6 +68,8 @@ open(const char *path, int flags,...)
 		/* Reset the file descriptor: */
 		fd = -1;
 	}
+
+	_thread_leave_cancellation_point();
 
 	/* Return the file descriptor or -1 on error: */
 	return (fd);

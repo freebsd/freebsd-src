@@ -45,6 +45,7 @@ sigwait(const sigset_t * set, int *sig)
 	sigset_t	tempset, waitset;
 	struct sigaction act;
 	
+	_thread_enter_cancellation_point();
 	/*
 	 * Specify the thread kernel signal handler.
 	 */
@@ -81,6 +82,7 @@ sigwait(const sigset_t * set, int *sig)
 		/* Return the signal number to the caller: */
 		*sig = i;
 
+		_thread_leave_cancellation_point();
 		return (0);
 	}
 
@@ -133,6 +135,7 @@ sigwait(const sigset_t * set, int *sig)
 		}
 	}
 
+	_thread_leave_cancellation_point();
 	/* Return the completion status: */
 	return (ret);
 }

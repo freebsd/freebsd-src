@@ -41,10 +41,12 @@ fsync(int fd)
 {
 	int             ret;
 
+	_thread_enter_cancellation_point();
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		ret = _thread_sys_fsync(fd);
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
+	_thread_leave_cancellation_point();
 	return (ret);
 }
 #endif

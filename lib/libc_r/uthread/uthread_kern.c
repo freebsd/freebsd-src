@@ -67,11 +67,10 @@ _thread_kern_sched(struct sigcontext * scp)
 	char           *fdata;
 #endif
 	pthread_t       pthread, pthread_h = NULL;
-	pthread_t	last_thread = NULL;
 	struct itimerval itimer;
 	struct timespec ts, ts1;
 	struct timeval  tv, tv1;
-	int		i, set_timer = 0;
+	int		set_timer = 0;
 
 	/*
 	 * Flag the pthread kernel as executing scheduler code
@@ -108,6 +107,20 @@ __asm__("fnsave %0": :"m"(*fdata));
 		 * This is the normal way out of the scheduler.
 		 */
 		_thread_kern_in_sched = 0;
+
+		if (((_thread_run->cancelflags & PTHREAD_AT_CANCEL_POINT) == 0) &&
+		    ((_thread_run->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0)) {
+			/* 
+			 * Cancellations override signals.
+			 *
+			 * Stick a cancellation point at the start of
+			 * each async-cancellable thread's resumption.
+			 *
+			 * We allow threads woken at cancel points to do their
+			 * own checks.
+			 */
+			pthread_testcancel();
+		}
 
 		if (_sched_switch_hook != NULL) {
 			/* Run the installed switch hook: */
@@ -161,6 +174,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 			 */
 			switch (_thread_run->state) {
 			case PS_DEAD:
+			case PS_STATE_MAX: /* to silence -Wall */
 				/*
 				 * Dead threads are not placed in any queue:
 				 */
@@ -249,6 +263,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 	
 				/* Insert into the work queue: */
 				PTHREAD_WORKQ_INSERT(_thread_run);
+				break;
 			}
 		}
 
@@ -627,14 +642,12 @@ _thread_kern_sched_state_unlock(enum pthread_state state,
 static void
 _thread_kern_poll(int wait_reqd)
 {
-	char            bufr[128];
 	int             count = 0;
 	int             i, found;
 	int		kern_pipe_added = 0;
 	int             nfds = 0;
 	int		timeout_ms = 0;
-	struct pthread	*pthread, *pthread_next;
-	ssize_t         num;
+	struct pthread	*pthread;
 	struct timespec ts;
 	struct timeval  tv;
 
@@ -1103,10 +1116,10 @@ thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in)
 	pthread_t tid_in = thread_in;
 
 	if ((tid_out != NULL) &&
-	    (tid_out->flags & PTHREAD_FLAGS_PRIVATE != 0))
+	    (tid_out->flags & PTHREAD_FLAGS_PRIVATE) != 0)
 		tid_out = NULL;
 	if ((tid_in != NULL) &&
-	    (tid_in->flags & PTHREAD_FLAGS_PRIVATE != 0))
+	    (tid_in->flags & PTHREAD_FLAGS_PRIVATE) != 0)
 		tid_in = NULL;
 
 	if ((_sched_switch_hook != NULL) && (tid_out != tid_in)) {

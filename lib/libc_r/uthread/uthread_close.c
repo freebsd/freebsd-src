@@ -45,9 +45,10 @@ close(int fd)
 {
 	int		flags;
 	int		ret;
-	int		status;
 	struct stat	sb;
 	struct fd_table_entry	*entry;
+
+	_thread_enter_cancellation_point();
 
 	if ((fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1])) {
 		/*
@@ -98,6 +99,7 @@ close(int fd)
 		/* Close the file descriptor: */
 		ret = _thread_sys_close(fd);
 	}
+	_thread_leave_cancellation_point();
 	return (ret);
 }
 #endif

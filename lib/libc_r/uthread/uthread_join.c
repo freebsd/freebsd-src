@@ -41,16 +41,22 @@ pthread_join(pthread_t pthread, void **thread_return)
 {
 	int ret = 0;
 	pthread_t pthread1 = NULL;
+ 
+	_thread_enter_cancellation_point();
 
 	/* Check if the caller has specified an invalid thread: */
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
+	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC) {
 		/* Invalid thread: */
+		_thread_leave_cancellation_point();
 		return(EINVAL);
+	}
 
 	/* Check if the caller has specified itself: */
-	if (pthread == _thread_run)
+	if (pthread == _thread_run) {
 		/* Avoid a deadlock condition: */
+		_thread_leave_cancellation_point();
 		return(EDEADLK);
+	}
 
 	/*
 	 * Find the thread in the list of active threads or in the
@@ -71,11 +77,31 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 	/* Check if the thread is not dead: */
 	else if (pthread->state != PS_DEAD) {
+		/* Clear the interrupted flag: */
+		_thread_run->interrupted = 0;
+
+		/*
+		 * Protect against being context switched out while
+		 * adding this thread to the join queue.
+		 */
+		_thread_kern_sig_defer();
+
 		/* Add the running thread to the join queue: */
 		TAILQ_INSERT_TAIL(&(pthread->join_queue), _thread_run, qe);
 
 		/* Schedule the next thread: */
 		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
+
+		if (_thread_run->interrupted != 0)
+			TAILQ_REMOVE(&(pthread->join_queue), _thread_run, qe);
+
+		_thread_kern_sig_undefer();
+
+		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+			_thread_exit_cleanup();
+			pthread_exit(PTHREAD_CANCELED);
+		}
 
 		/* Check if the thread is not detached: */
 		if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
@@ -92,6 +118,8 @@ pthread_join(pthread_t pthread, void **thread_return)
 	} else if (thread_return != NULL)
 		/* Return the thread's return value: */
 		*thread_return = pthread->ret;
+
+	_thread_leave_cancellation_point();
 
 	/* Return the completion status: */
 	return (ret);

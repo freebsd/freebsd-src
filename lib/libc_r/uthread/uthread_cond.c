@@ -157,8 +157,7 @@ pthread_cond_destroy(pthread_cond_t * cond)
 int
 pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 {
-	int             rval = 0;
-	int             status;
+	int rval = 0;
 
 	if (cond == NULL)
 		rval = EINVAL;
@@ -169,6 +168,9 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 	 */
 	else if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
+
+		_thread_enter_cancellation_point();
+	
 		/* Lock the condition variable structure: */
 		_SPINLOCK(&(*cond)->lock);
 
@@ -193,8 +195,9 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 				/* Return invalid argument error: */
 				rval = EINVAL;
 			} else {
-				/* Reset the timeout flag: */
+				/* Reset the timeout and interrupted flags: */
 				_thread_run->timeout = 0;
+				_thread_run->interrupted = 0;
 
 				/*
 				 * Queue the running thread for the condition
@@ -233,7 +236,28 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 					_thread_kern_sched_state_unlock(PS_COND_WAIT,
 				    	    &(*cond)->lock, __FILE__, __LINE__);
 
-					/* Lock the mutex: */
+					if (_thread_run->interrupted != 0) {
+						/*
+						 * Lock the condition variable
+						 * while removing the thread.
+						 */
+						_SPINLOCK(&(*cond)->lock);
+
+						cond_queue_remove(*cond,
+						    _thread_run);
+
+						/* Check for no more waiters: */
+						if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
+							(*cond)->c_mutex = NULL;
+
+						_SPINUNLOCK(&(*cond)->lock);
+					}
+
+					/*
+					 * Note that even though this thread may have
+					 * been canceled, POSIX requires that the mutex
+					 * be reaquired prior to cancellation.
+					 */
 					rval = _mutex_cv_lock(mutex);
 				}
 			}
@@ -248,6 +272,14 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			rval = EINVAL;
 			break;
 		}
+
+		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+			_thread_exit_cleanup();
+			pthread_exit(PTHREAD_CANCELED);
+		}
+
+		_thread_leave_cancellation_point();
 	}
 
 	/* Return the completion status: */
@@ -258,8 +290,7 @@ int
 pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		       const struct timespec * abstime)
 {
-	int             rval = 0;
-	int             status;
+	int rval = 0;
 
 	if (cond == NULL || abstime == NULL)
 		rval = EINVAL;
@@ -276,6 +307,9 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 */
 	if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
+
+		_thread_enter_cancellation_point();
+
 		/* Lock the condition variable structure: */
 		_SPINLOCK(&(*cond)->lock);
 
@@ -306,8 +340,9 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				_thread_run->wakeup_time.tv_nsec =
 				    abstime->tv_nsec;
 
-				/* Reset the timeout flag: */
+				/* Reset the timeout and interrupted flags: */
 				_thread_run->timeout = 0;
+				_thread_run->interrupted = 0;
 
 				/*
 				 * Queue the running thread for the condition
@@ -341,12 +376,16 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					_thread_kern_sched_state_unlock(PS_COND_WAIT,
 				  	     &(*cond)->lock, __FILE__, __LINE__);
 
-					/* Check if the wait timedout: */
-					if (_thread_run->timeout == 0) {
+					/*
+					 * Check if the wait timedout or was
+					 * interrupted (canceled):
+					 */
+					if ((_thread_run->timeout == 0) &&
+					    (_thread_run->interrupted == 0)) {
 						/* Lock the mutex: */
 						rval = _mutex_cv_lock(mutex);
-					}
-					else {
+
+					} else {
 						/* Lock the condition variable structure: */
 						_SPINLOCK(&(*cond)->lock);
 
@@ -369,8 +408,12 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 						rval = ETIMEDOUT;
 
 						/*
-						 * Lock the mutex and ignore
-						 * any errors:
+						 * Lock the mutex and ignore any
+						 * errors.  Note that even though
+						 * this thread may have been
+						 * canceled, POSIX requires that
+						 * the mutex be reaquired prior
+						 * to cancellation.
 						 */
 						(void)_mutex_cv_lock(mutex);
 					}
@@ -388,6 +431,13 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			break;
 		}
 
+		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+			_thread_exit_cleanup();
+			pthread_exit(PTHREAD_CANCELED);
+		}
+
+		_thread_leave_cancellation_point();
 	}
 
 	/* Return the completion status: */
@@ -416,16 +466,7 @@ pthread_cond_signal(pthread_cond_t * cond)
 		switch ((*cond)->c_type) {
 		/* Fast condition variable: */
 		case COND_TYPE_FAST:
-			/*
-			 * Enter a loop to dequeue threads from the condition
-			 * queue until we find one that hasn't previously
-			 * timed out.
-			 */
-			while (((pthread = cond_queue_deq(*cond)) != NULL) &&
-			    (pthread->timeout != 0)) {
-			}
-
-			if (pthread != NULL)
+			if ((pthread = cond_queue_deq(*cond)) != NULL)
 				/* Allow the thread to run: */
 				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 
@@ -482,12 +523,7 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 			 * condition queue:
 			 */
 			while ((pthread = cond_queue_deq(*cond)) != NULL) {
-				/*
-				 * The thread is already running if the
-				 * timeout flag is set.
-				 */
-				if (pthread->timeout == 0)
-					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 			}
 
 			/* There are no more waiting threads: */
@@ -524,9 +560,17 @@ cond_queue_deq(pthread_cond_t cond)
 {
 	pthread_t pthread;
 
-	if ((pthread = TAILQ_FIRST(&cond->c_queue)) != NULL) {
+	while ((pthread = TAILQ_FIRST(&cond->c_queue)) != NULL) {
 		TAILQ_REMOVE(&cond->c_queue, pthread, qe);
 		pthread->flags &= ~PTHREAD_FLAGS_IN_CONDQ;
+		if ((pthread->timeout == 0) && (pthread->interrupted == 0))
+			/*
+			 * Only exit the loop when we find a thread
+			 * that hasn't timed out or been canceled;
+			 * those threads are already running and don't
+			 * need their run state changed.
+			 */
+			break;
 	}
 
 	return(pthread);

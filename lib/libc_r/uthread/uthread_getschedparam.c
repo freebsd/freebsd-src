@@ -37,7 +37,8 @@
 #include "pthread_private.h"
 
 int
-pthread_getschedparam(pthread_t pthread, int *policy, struct sched_param *param)
+pthread_getschedparam(pthread_t pthread, int *policy, 
+	struct sched_param *param)
 {
 	int ret;
 

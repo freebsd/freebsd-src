@@ -38,7 +38,8 @@
 #include "pthread_private.h"
 
 int
-pthread_setschedparam(pthread_t pthread, int policy, struct sched_param *param)
+pthread_setschedparam(pthread_t pthread, int policy, 
+	const struct sched_param *param)
 {
 	int old_prio, in_readyq = 0, ret = 0;
 

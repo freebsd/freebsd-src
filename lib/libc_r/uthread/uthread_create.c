@@ -48,9 +48,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
 	int		f_gc = 0;
-	int             i;
 	int             ret = 0;
-	int             status;
 	pthread_t       gc_thread;
 	pthread_t       new_thread;
 	pthread_attr_t	pattr;
@@ -93,6 +91,9 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->stack = stack;
 			new_thread->start_routine = start_routine;
 			new_thread->arg = arg;
+
+			new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
+			    PTHREAD_CANCEL_DEFERRED;
 
 			/*
 			 * Write a magic value to the thread structure

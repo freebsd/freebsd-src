@@ -37,7 +37,7 @@
 #include "pthread_private.h"
 
 int
-pthread_attr_getscope(pthread_attr_t *attr, int *contentionscope)
+pthread_attr_getscope(const pthread_attr_t *attr, int *contentionscope)
 {
 	int ret = 0;
 
