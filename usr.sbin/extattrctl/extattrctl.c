@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2001 Robert N. M. Watson
+ * Copyright (c) 1999-2002 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -59,12 +59,12 @@ usage()
 
 	fprintf(stderr,
 	    "usage:\n"
-	    "  extattrctl start [path]\n"
-	    "  extattrctl stop [path]\n"
-	    "  extattrctl initattr [-f] [-p path] [attrsize] [attrfile]\n"
-	    "  extattrctl showattr [attrfile]\n"
-	    "  extattrctl enable [path] [attrnamespace] [attrname] [attrfile]\n"
-	    "  extattrctl disable [path] [attrnamespace] [attrname]\n");
+	    "  extattrctl start path\n"
+	    "  extattrctl stop path\n"
+	    "  extattrctl initattr [-f] [-p path] attrsize attrfile\n"
+	    "  extattrctl showattr attrfile\n"
+	    "  extattrctl enable path attrnamespace attrname attrfile\n"
+	    "  extattrctl disable path attrnamespace attrname\n");
 	exit(-1);
 }
 
