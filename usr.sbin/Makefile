@@ -3,7 +3,7 @@
 # XXX MISSING:		mkproto
 # XXX MISSING SOURCES:	quot
 # XXX TEMP. BROKEN:	iostat
-SUBDIR= ac accton adduser amd arp chown chroot cron crunch dbsym dev_mkdb \
+SUBDIR= ac accton adduser amd arp chown chroot cron crunch ctm dbsym dev_mkdb \
 	diskpart edquota inetd kgmon kvm_mkdb lpr lsdev manctl \
 	mtree mrouted named nslookup pkg_install portmap ppp pppd pppstats \
 	pstat pwd_mkdb quotaon repquota routed rmt rwhod sa \
@@ -25,7 +25,8 @@ SUBDIR+=apm apmconf bad144 cdplay config config.new fdformat fdwrite \
 SUBDIR+=config iostat 
 .elif ${MACHINE} == "i386"
 SUBDIR+=apm apmconf bad144 cdplay config fdformat fdwrite fdcontrol iostat \
-	kbdcontrol lptcontrol ncrcontrol rtprio spkrtest swapinfo vidcontrol
+	kbdcontrol lptcontrol ncrcontrol rtprio sgsc spkrtest swapinfo \
+	vidcontrol
 .elif ${MACHINE} == "luna68k"
 SUBDIR+=config iostat 
 .elif ${MACHINE} == "mips"
