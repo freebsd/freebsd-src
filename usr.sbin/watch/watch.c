@@ -20,6 +20,7 @@
 #include <string.h>
 #include <termcap.h>
 #include <sgtty.h>
+#include <locale.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -262,6 +263,8 @@ main(ac, av)
 	extern int      optind;
 	char            ch, *buf, chb[READB_LEN];
 	fd_set          fd_s;
+
+	(void) setlocale(LC_TIME, "");
 
 	if (getuid() != 0)
 		fatal(NULL);
