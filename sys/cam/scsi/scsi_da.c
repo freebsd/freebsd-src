@@ -299,7 +299,7 @@ static struct periph_driver dadriver =
 	TAILQ_HEAD_INITIALIZER(dadriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, dadriver);
+PERIPHDRIVER_DECLARE(da, dadriver);
 
 #define DA_CDEV_MAJOR 13
 #define DA_BDEV_MAJOR 4
