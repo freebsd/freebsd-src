@@ -269,6 +269,8 @@ u_int pass;
 	    {
 		register tcphdr_t *tcp = (tcphdr_t *)fin->fin_dp;
 
+		if (tcp->th_flags & TH_RST)
+			return NULL;
 		/*
 		 * The endian of the ports doesn't matter, but the ack and
 		 * sequence numbers do as we do mathematics on them later.
