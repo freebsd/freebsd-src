@@ -60,10 +60,10 @@
  *	identify the port number, and the lower 6 bits
  *	select one of the 64 possible data registers.
  */
-#define PCIC_INDEX_0	0x3e0			/* index reg, chips 0 and 1 */
-#define PCIC_DATA_0	(PCIC_INDEX_0 + 1)	/* data reg, chips 0 and 1 */
-#define PCIC_INDEX_1	(PCIC_INDEX_0 + 2)	/* index reg, chips 2 and 3 */
-#define PCIC_DATA_1	(PCIC_INDEX_1 + 1)	/* data reg, chips 2 and 3 */
+#define PCIC_INDEX	0			/* Index register */
+#define PCIC_DATA	1			/* Data register */
+#define PCIC_NPORT	2			/* Number of ports */
+#define PCIC_PORT_0	0x3e0			/* index reg, chips 0 and 1 */
 
 /*
  *	Register index addresses.
