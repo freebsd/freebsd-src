@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.37 1999/03/02 05:43:18 alc Exp $
+ * $Id: vm_map.h,v 1.38 1999/03/06 07:11:33 alc Exp $
  */
 
 /*
@@ -305,9 +305,9 @@ vmspace_resident_count(struct vmspace *vmspace)
 /*
  * Copy-on-write flags for vm_map operations
  */
-#define MAP_COPY_NEEDED 0x1
-#define MAP_COPY_ON_WRITE 0x2
-#define MAP_NOFAULT 0x4
+#define MAP_UNUSED_01		0x1
+#define MAP_COPY_ON_WRITE	0x2
+#define MAP_NOFAULT		0x4
 
 /*
  * vm_fault option flags
