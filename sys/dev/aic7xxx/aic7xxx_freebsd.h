@@ -37,9 +37,6 @@
 #ifndef _AIC7XXX_FREEBSD_H_
 #define _AIC7XXX_FREEBSD_H_
 
-#ifdef CAM_NEW_TRAN_CODE
-#define AHC_NEW_TRAN_SETTINGS
-#endif /* CAM_NEW_TRAN_CODE */
 #include <opt_aic7xxx.h>	/* for config options */
 #ifndef NPCI
 #include <pci.h>
@@ -79,6 +76,10 @@
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
+
+#ifdef CAM_NEW_TRAN_CODE
+#define AHC_NEW_TRAN_SETTINGS
+#endif /* CAM_NEW_TRAN_CODE */
 
 /****************************** Platform Macros *******************************/
 #define	SIM_IS_SCSIBUS_B(ahc, sim)	\
