@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.52 1999/04/19 21:26:08 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.53 1999/04/21 07:26:24 peter Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -3710,10 +3710,18 @@ static void
 xpt_release_path(struct cam_path *path)
 {
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_release_path\n"));
-	if (path->device != NULL)
+	if (path->device != NULL) {
 		xpt_release_device(path->bus, path->target, path->device);
-	if (path->target != NULL)
+		path->device = NULL;
+	}
+	if (path->target != NULL) {
 		xpt_release_target(path->bus, path->target);
+		path->target = NULL;
+	}
+	if (path->bus != NULL) {
+		xpt_release_bus(path->bus);
+		path->bus = NULL;
+	}
 }
 
 void
@@ -5357,7 +5365,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Don't process the command as it was never sent
 			 */
 		} else if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP
-		      && (serial_buf->length > 0)) {
+			&& (serial_buf->length > 0)) {
 
 			have_serialnum = 1;
 			path->device->serial_num =
@@ -5871,6 +5879,8 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 
 		/* Release our hook so that the boot can continue. */
 		config_intrhook_disestablish(xpt_config_hook);
+		free(xpt_config_hook, M_TEMP);
+		xpt_config_hook = NULL;
 	}
 	if (done_ccb != NULL)
 		xpt_free_ccb(done_ccb);
