@@ -200,13 +200,13 @@ dev/acpica/acpi_acad.c		optional acpica
 dev/acpica/acpi_battery.c	optional acpica
 dev/acpica/acpi_button.c	optional acpica
 dev/acpica/acpi_cmbat.c		optional acpica
+dev/acpica/acpi_cpu.c		optional acpica
 dev/acpica/acpi_ec.c		optional acpica
 dev/acpica/acpi_isa.c		optional acpica isa
 dev/acpica/acpi_lid.c		optional acpica
 dev/acpica/acpi_pcib.c		optional acpica pci
 dev/acpica/acpi_powerres.c	optional acpica
 dev/acpica/acpi_powerprofile.c	optional acpica
-#dev/acpica/acpi_processor.c	optional acpica
 dev/acpica/acpi_resource.c	optional acpica
 dev/acpica/acpi_thermal.c	optional acpica
 dev/acpica/acpi_timer.c		optional acpica
