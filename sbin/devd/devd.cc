@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/sysctl.h>
 
 #include <ctype.h>
 #include <dirent.h>
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "devd.h"
 
 #define CF "/etc/devd.conf"
+#define SYSCTL "hw.bus.devctl_disable"
 
 using namespace std;
 
@@ -783,6 +785,22 @@ usage()
 	exit(1);
 }
 
+static void
+check_devd_enabled()
+{
+	int val = 0;
+	size_t len;
+
+	len = sizeof(val);
+	if (sysctlbyname(SYSCTL, &val, &len, NULL, NULL) != 0)
+		errx(1, "devctl sysctl missing from kernel!");
+	if (val) {
+		warnx("Setting " SYSCTL " to 0");
+		val = 0;
+		sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val));
+	}
+}
+
 /*
  * main
  */
@@ -791,6 +809,7 @@ main(int argc, char **argv)
 {
 	int ch;
 
+	check_devd_enabled();
 	while ((ch = getopt(argc, argv, "d")) != -1) {
 		switch (ch) {
 		case 'd':
