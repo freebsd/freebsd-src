@@ -48,12 +48,6 @@ __FBSDID("$FreeBSD$");
 #define IPC_TO_STRING(x) (x == 'Q' ? "message queue" : \
 	(x == 'M' ? "shared memory segment" : "semaphore"))
 
-void usage(void);
-int msgrm(key_t, int);
-int shmrm(key_t, int);
-int semrm(key_t, int);
-void not_configured(int);
-
 int signaled;
 
 void usage(void);
@@ -62,7 +56,7 @@ int shmrm(key_t, int);
 int semrm(key_t, int);
 void not_configured(int);
 
-void usage()
+void usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 		"usage: ipcrm [-q msqid] [-m shmid] [-s semid]",
@@ -70,9 +64,7 @@ void usage()
 	exit(1);
 }
 
-int msgrm(key, id)
-    key_t key;
-    int id;
+int msgrm(key_t key, int id)
 {
     if (key) {
 	id = msgget(key, 0);
@@ -82,9 +74,7 @@ int msgrm(key, id)
     return msgctl(id, IPC_RMID, NULL);
 }
 
-int shmrm(key, id)
-    key_t key;
-    int id;
+int shmrm(key_t key, int id)
 {
     if (key) {
 	id = shmget(key, 0, 0);
@@ -94,9 +84,7 @@ int shmrm(key, id)
     return shmctl(id, IPC_RMID, NULL);
 }
 
-int semrm(key, id)
-    key_t key;
-    int id;
+int semrm(key_t key, int id)
 {
     union semun arg;
 
@@ -113,10 +101,7 @@ void not_configured(int signo __unused)
     signaled++;
 }
 
-int main(argc, argv)
-    int argc;
-    char *argv[];
-
+int main(int argc, char *argv[])
 {
     int c, result, errflg, target_id;
     key_t target_key;

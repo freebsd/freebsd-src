@@ -72,7 +72,9 @@ typedef struct _fs {			/* format strings */
 } FS;
 
 extern FS *fshead;			/* head of format strings list */
+extern FU *endfu;			/* format at end-of-data */
 extern int blocksize;			/* data block size */
+extern int exitval;			/* final exit value */
 extern int odmode;			/* are we acting as od(1)? */
 extern int length;			/* amount of data to read */
 extern off_t skip;			/* amount of data to skip at start */

@@ -97,9 +97,7 @@ void prstr(char *);
 void xsdotc(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int c;
 
@@ -146,7 +144,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: xstr [-v] [-c] [-] [name ...]\n");
 	exit (1);
@@ -155,8 +153,7 @@ usage()
 char linebuf[BUFSIZ];
 
 void
-process(name)
-	const char *name;
+process(const char *name)
 {
 	char *cp;
 	int c;
@@ -224,8 +221,7 @@ out:
 }
 
 off_t
-yankstr(cpp)
-	char **cpp;
+yankstr(char **cpp)
 {
 	char *cp = *cpp;
 	int c, ch;
@@ -283,14 +279,13 @@ out:
 }
 
 int
-octdigit(c)
-	char c;
+octdigit(char c)
 {
 	return (isdigit(c) && c != '8' && c != '9');
 }
 
 void
-inithash()
+inithash(void)
 {
 	char buf[BUFSIZ];
 	FILE *mesgread = fopen(strings, "r");
@@ -307,10 +302,7 @@ inithash()
 }
 
 int
-fgetNUL(obuf, rmdr, file)
-	char *obuf;
-	int rmdr;
-	FILE *file;
+fgetNUL(char *obuf, int rmdr, FILE *file)
 {
 	int c;
 	char *buf = obuf;
@@ -322,8 +314,7 @@ fgetNUL(obuf, rmdr, file)
 }
 
 int
-xgetc(file)
-	FILE *file;
+xgetc(FILE *file)
 {
 
 	tellpt++;
@@ -340,9 +331,7 @@ struct	hash {
 } bucket[BUCKETS];
 
 off_t
-hashit(str, new)
-	char *str;
-	int new;
+hashit(char *str, int new)
 {
 	int i;
 	struct hash *hp, *hp0;
@@ -367,7 +356,7 @@ hashit(str, new)
 }
 
 void
-flushsh()
+flushsh(void)
 {
 	int i;
 	struct hash *hp;
@@ -400,10 +389,7 @@ flushsh()
 }
 
 void
-found(new, off, str)
-	int new;
-	off_t off;
-	char *str;
+found(int new, off_t off, char *str)
 {
 	if (vflg == 0)
 		return;
@@ -416,8 +402,7 @@ found(new, off, str)
 }
 
 void
-prstr(cp)
-	char *cp;
+prstr(char *cp)
 {
 	int c;
 
@@ -433,7 +418,7 @@ prstr(cp)
 }
 
 void
-xsdotc()
+xsdotc(void)
 {
 	FILE *strf = fopen(strings, "r");
 	FILE *xdotcf;
@@ -468,8 +453,7 @@ out:
 }
 
 char
-lastchr(cp)
-	char *cp;
+lastchr(char *cp)
 {
 
 	while (cp[0] && cp[1])
@@ -478,8 +462,7 @@ lastchr(cp)
 }
 
 int
-istail(str, of)
-	char *str, *of;
+istail(char *str, char *of)
 {
 	int d = strlen(of) - strlen(str);
 
@@ -489,8 +472,7 @@ istail(str, of)
 }
 
 void
-onintr(dummy)
-	int dummy __unused;
+onintr(int dummy __unused)
 {
 
 	ignore(signal(SIGINT, SIG_IGN));

@@ -101,9 +101,7 @@ void     print_from(unsigned char *, unsigned char *, unsigned char *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	int ch, fd, termchar, match;
@@ -160,11 +158,10 @@ main(argc, argv)
 }
 
 int
-look(string, front, back)
-	unsigned char *string, *front, *back;
+look(unsigned char *string, unsigned char *front, unsigned char *back)
 {
-	register int ch;
-	register unsigned char *readp, *writep;
+	int ch;
+	unsigned char *readp, *writep;
 
 	/* Reformat string string to avoid doing it multiple times later. */
 	for (readp = writep = string; (ch = *readp++);) {
@@ -228,10 +225,9 @@ look(string, front, back)
 	while (p < back && *p++ != '\n');
 
 char *
-binary_search(string, front, back)
-	register unsigned char *string, *front, *back;
+binary_search(unsigned char *string, unsigned char *front, unsigned char *back)
 {
-	register unsigned char *p;
+	unsigned char *p;
 
 	p = front + (back - front) / 2;
 	SKIP_PAST_NEWLINE(p, back);
@@ -263,8 +259,7 @@ binary_search(string, front, back)
  *	o front is before or at the first line to be printed.
  */
 char *
-linear_search(string, front, back)
-	unsigned char *string, *front, *back;
+linear_search(unsigned char *string, unsigned char *front, unsigned char *back)
 {
 	while (front < back) {
 		switch (compare(string, front, back)) {
@@ -286,8 +281,7 @@ linear_search(string, front, back)
  * Print as many lines as match string, starting at front.
  */
 void
-print_from(string, front, back)
-	register unsigned char *string, *front, *back;
+print_from(unsigned char *string, unsigned char *front, unsigned char *back)
 {
 	for (; front < back && compare(string, front, back) == EQUAL; ++front) {
 		for (; front < back && *front != '\n'; ++front)
@@ -312,10 +306,9 @@ print_from(string, front, back)
  * "back" terminated).
  */
 int
-compare(s1, s2, back)
-	register unsigned char *s1, *s2, *back;
+compare(unsigned char *s1, unsigned char *s2, unsigned char *back)
 {
-	register int ch;
+	int ch;
 
 	for (; *s1 && s2 < back && *s2 != '\n'; ++s1, ++s2) {
 		ch = *s2;
@@ -335,7 +328,7 @@ compare(s1, s2, back)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: look [-df] [-t char] string [file ...]\n");
 	exit(2);

@@ -59,9 +59,7 @@ int scmp(const void *, const void *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	namebuf *names = NULL;
 	int ncnt = 0;
@@ -107,15 +105,14 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: users\n");
 	exit(1);
 }
 	
 int
-scmp(p, q)
-	const void *p, *q;
+scmp(const void *p, const void *q)
 {
 	return(strncmp(p, q, UT_NAMESIZE));
 }

@@ -64,13 +64,11 @@ static void usage(void);
  * It nags you like a mother hen.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
-	register u_int secs;
-	register int hours, minutes;
-	register char c, *cp = NULL;
+	u_int secs;
+	int hours, minutes;
+	char c, *cp = NULL;
 	struct tm *t;
 	time_t now;
 	int plusnow, t_12_hour;
@@ -139,10 +137,9 @@ main(argc, argv)
 }
 
 void
-doalarm(secs)
-	u_int secs;
+doalarm(u_int secs)
 {
-	register int bother;
+	int bother;
 	time_t daytime;
 	char tb[80];
 	int pid;
@@ -192,7 +189,7 @@ doalarm(secs)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: leave [[+]hhmm]\n");
 	exit(1);

@@ -113,12 +113,10 @@ void	 tsort(void);
 void	 usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register BUF *b;
-	register int c, n;
+	BUF *b;
+	int c, n;
 	FILE *fp;
 	int bsize, ch, nused;
 	BUF bufs[2];
@@ -190,9 +188,7 @@ main(argc, argv)
 
 /* double the size of oldbuf and return a pointer to the new buffer. */
 void *
-grow_buf(bp, size)
-	void *bp;
-	size_t size;
+grow_buf(void *bp, size_t size)
 {
 	if ((bp = realloc(bp, size)) == NULL)
 		err(1, NULL);
@@ -204,10 +200,9 @@ grow_buf(bp, size)
  * the graph, then add them.
  */
 void
-add_arc(s1, s2)
-	char *s1, *s2;
+add_arc(char *s1, char *s2)
 {
-	register NODE *n1;
+	NODE *n1;
 	NODE *n2;
 	int bsize, i;
 
@@ -240,8 +235,7 @@ add_arc(s1, s2)
 
 /* Find a node in the graph (insert if not found) and return a pointer to it. */
 NODE *
-get_node(name)
-	char *name;
+get_node(char *name)
 {
 	DBT data, key;
 	NODE *n;
@@ -293,7 +287,7 @@ get_node(name)
  * Clear the NODEST flag from all nodes.
  */
 void
-clear_cycle()
+clear_cycle(void)
 {
 	NODE *n;
 
@@ -303,10 +297,10 @@ clear_cycle()
 
 /* do topological sort on graph */
 void
-tsort()
+tsort(void)
 {
-	register NODE *n, *next;
-	register int cnt, i;
+	NODE *n, *next;
+	int cnt, i;
 
 	while (graph != NULL) {
 		/*
@@ -366,11 +360,10 @@ tsort()
 
 /* print node and remove from graph (does not actually free node) */
 void
-remove_node(n)
-	register NODE *n;
+remove_node(NODE *n)
 {
-	register NODE **np;
-	register int i;
+	NODE **np;
+	int i;
 
 	(void)printf("%s\n", n->n_name);
 	for (np = n->n_arcs, i = n->n_narcs; --i >= 0; np++)
@@ -384,12 +377,10 @@ remove_node(n)
 
 /* look for the longest? cycle from node from to node to. */
 int
-find_cycle(from, to, longest_len, depth)
-	NODE *from, *to;
-	int depth, longest_len;
+find_cycle(NODE *from, NODE *to, int longest_len, int depth)
 {
-	register NODE **np;
-	register int i, len;
+	NODE **np;
+	int i, len;
 
 	/*
 	 * avoid infinite loops and ignore portions of the graph known
@@ -432,7 +423,7 @@ find_cycle(from, to, longest_len, depth)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: tsort [-dlq] [file]\n");
 	exit(1);

@@ -88,9 +88,7 @@ int	vtyunlock;			/* Unlock flag and code. */
 
 /*ARGSUSED*/
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	struct passwd *pw;
 	struct timeval timval;
@@ -242,7 +240,7 @@ main(argc, argv)
 
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: lock [-npv] [-t timeout]\n");
 	exit(1);

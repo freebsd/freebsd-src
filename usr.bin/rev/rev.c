@@ -58,9 +58,7 @@ __FBSDID("$FreeBSD$");
 void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	const char *filename, *p, *t;
 	FILE *fp;
@@ -108,7 +106,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: rev [file ...]\n");
 	exit(1);

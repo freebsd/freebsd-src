@@ -162,8 +162,7 @@ void	prmesg(int);
 static void usage(void);
 
 int
-main(argc, argv)
-int argc; char *argv[];
+main(int argc, char *argv[])
 {
 	bool newrc, already;
 	int rcfirst = 0;		/* first message to print (from .rc) */
@@ -287,8 +286,8 @@ int argc; char *argv[];
 		lastmsg = 0;
 
 		for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp)){
-			register char *cp = dp->d_name;
-			register int i = 0;
+			char *cp = dp->d_name;
+			int i = 0;
 
 			if (dp->d_ino == 0)
 				continue;
@@ -622,15 +621,14 @@ cmnd:
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: msgs [fhlopq] [[-]number]\n");
 	exit(1);
 }
 
 void
-prmesg(length)
-int length;
+prmesg(int length)
 {
 	FILE *outf;
 	char *env_pager;
@@ -677,8 +675,7 @@ int length;
 }
 
 void
-onintr(unused)
-	int unused __unused;
+onintr(int unused __unused)
 {
 	signal(SIGINT, onintr);
 	if (mailing)
@@ -703,8 +700,7 @@ onintr(unused)
  * We have just gotten a susp.  Suspend and prepare to resume.
  */
 void
-onsusp(unused)
-	int unused __unused;
+onsusp(int unused __unused)
 {
 	signal(SIGTSTP, SIG_DFL);
 	sigsetmask(0);
@@ -715,8 +711,7 @@ onsusp(unused)
 }
 
 int
-linecnt(f)
-FILE *f;
+linecnt(FILE *f)
 {
 	off_t oldpos = ftello(f);
 	int l = 0;
@@ -730,8 +725,7 @@ FILE *f;
 }
 
 int
-next(buf)
-char *buf;
+next(char *buf)
 {
 	int i;
 	sscanf(buf, "%d", &i);
@@ -740,8 +734,7 @@ char *buf;
 }
 
 void
-ask(prompt)
-const char *prompt;
+ask(const char *prompt)
 {
 	char	inch;
 	int	n, cmsg, fd;
@@ -827,8 +820,7 @@ const char *prompt;
 }
 
 void
-gfrsub(infile)
-FILE *infile;
+gfrsub(FILE *infile)
 {
 	off_t frompos;
 	int count;
@@ -908,8 +900,7 @@ FILE *infile;
 }
 
 char *
-nxtfld(s)
-unsigned char *s;
+nxtfld(unsigned char *s)
 {
 	if (*s) while (*s && !isspace(*s)) s++;     /* skip over this field */
 	if (*s) while (*s && isspace(*s)) s++;    /* find start of next field */

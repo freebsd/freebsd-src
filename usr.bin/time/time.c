@@ -68,11 +68,9 @@ static void usage(void);
 static char decimal_point;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
-	register int pid;
+	int pid;
 	int aflag, ch, hflag, lflag, status, pflag;
 	struct timeval before, after;
 	struct rusage ru;
@@ -223,7 +221,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	    "usage: time [-al] [-h|-p] [-o file] utility [argument ...]\n");
@@ -234,7 +232,7 @@ usage()
  * Return the frequency of the kernel's statistics clock.
  */
 static int
-getstathz()
+getstathz(void)
 {
 	struct clockinfo clockrate;
 	int mib[2];
@@ -249,10 +247,7 @@ getstathz()
 }
 
 static void
-humantime(out, sec, usec)
-	FILE *out;
-	long sec;
-	long usec;
+humantime(FILE *out, long sec, long usec)
 {
 	long days, hrs, mins;
 

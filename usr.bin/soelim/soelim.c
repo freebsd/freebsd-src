@@ -70,9 +70,7 @@ static const char rcsid[] =
 int process(const char *);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 
 	argc--;
@@ -90,11 +88,10 @@ main(argc, argv)
 }
 
 int
-process(file)
-	const char *file;
+process(const char *file)
 {
-	register char *cp;
-	register int c;
+	char *cp;
+	int c;
 	char fname[BUFSIZ];
 	FILE *soee;
 	int isfile;

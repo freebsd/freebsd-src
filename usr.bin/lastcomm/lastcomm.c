@@ -77,9 +77,7 @@ static	 void usage(void);
 #define AC_HZ ((double)AHZ)
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	char *p;
 	struct acct ab;
@@ -222,8 +220,7 @@ main(argc, argv)
 }
 
 time_t
-expand(t)
-	u_int t;
+expand(u_int t)
 {
 	time_t nt;
 
@@ -237,8 +234,7 @@ expand(t)
 }
 
 char *
-flagbits(f)
-	int f;
+flagbits(int f)
 {
 	static char flags[20] = "-";
 	char *p;
@@ -256,9 +252,7 @@ flagbits(f)
 }
 
 int
-requested(argv, acp)
-	char *argv[];
-	struct acct *acp;
+requested(char *argv[], struct acct *acp)
 {
 	const char *p;
 
@@ -275,8 +269,7 @@ requested(argv, acp)
 }
 
 const char *
-getdev(dev)
-	dev_t dev;
+getdev(dev_t dev)
 {
 	static dev_t lastdev = (dev_t)-1;
 	static const char *lastname;
@@ -291,7 +284,7 @@ getdev(dev)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 "usage: lastcomm [-EScesu] [ -f file ] [command ...] [user ...] [tty ...]\n");

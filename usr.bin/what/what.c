@@ -60,9 +60,7 @@ static void usage(void);
  * what
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int c;
 
@@ -90,16 +88,16 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: what [-s] [file ...]\n");
 	exit(1);
 }
 
 void
-search()
+search(void)
 {
-	register int c;
+	int c;
 
 	while ((c = getchar()) != EOF) {
 loop:		if (c != '@')

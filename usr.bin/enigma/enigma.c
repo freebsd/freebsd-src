@@ -36,8 +36,7 @@ void	shuffle(char *);
 void	setup(char *);
 
 void
-setup(pw)
-	char *pw;
+setup(char *pw)
 {
 	int ic, i, k, temp, pf[2], pid;
 	unsigned rnd;
@@ -109,11 +108,9 @@ setup(pw)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register int i, n1, n2, nr1, nr2;
+	int i, n1, n2, nr1, nr2;
 	int secureflg = 0, kflag = 0;
 	char *cp;
 
@@ -169,8 +166,7 @@ main(argc, argv)
 }
 
 void
-shuffle(deckary)
-	char deckary[];
+shuffle(char deckary[])
 {
 	int i, ic, k, temp;
 	unsigned rnd;

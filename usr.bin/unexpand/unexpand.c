@@ -66,9 +66,7 @@ static void usage(void);
 static void tabify(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, failed;
 	char *filename;
@@ -110,14 +108,14 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: unexpand [-a] [-t tablist] [file ...]\n");
 	exit(1);
 }
 
 static void
-tabify()
+tabify(void)
 {
 	int ch, dcol, doneline, limit, n, ocol;
 
@@ -199,8 +197,7 @@ tabify()
 }
 
 static void
-getstops(cp)
-	const char *cp;
+getstops(const char *cp)
 {
 	int i;
 

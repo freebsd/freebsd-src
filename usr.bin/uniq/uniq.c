@@ -71,11 +71,9 @@ static void	 usage(void);
 int      stricoll(char *, char*);
 
 int
-main (argc, argv)
-	int argc;
-	char *argv[];
+main (int argc, char *argv[])
 {
-	register char *t1, *t2;
+	char *t1, *t2;
 	FILE *ifp, *ofp;
 	int ch;
 	char *prevline, *thisline, *p;
@@ -199,9 +197,7 @@ getline(char *buf, size_t buflen, FILE *fp)
  *	of the line.
  */
 void
-show(ofp, str)
-	FILE *ofp;
-	char *str;
+show(FILE *ofp, char *str)
 {
 
 	if (cflag && *str)
@@ -211,10 +207,9 @@ show(ofp, str)
 }
 
 char *
-skip(str)
-	register char *str;
+skip(char *str)
 {
-	register int nchars, nfields;
+	int nchars, nfields;
 
 	for (nfields = 0; *str != '\0' && nfields++ != numfields; ) {
 		while (isblank((unsigned char)*str))
@@ -227,8 +222,7 @@ skip(str)
 }
 
 FILE *
-file(name, mode)
-	const char *name, *mode;
+file(const char *name, const char *mode)
 {
 	FILE *fp;
 
@@ -238,8 +232,7 @@ file(name, mode)
 }
 
 void
-obsolete(argv)
-	char *argv[];
+obsolete(char *argv[])
 {
 	int len;
 	char *ap, *p, *start;
@@ -268,7 +261,7 @@ obsolete(argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 "usage: uniq [-c | -d | -u] [-i] [-f fields] [-s chars] [input [output]]\n");
@@ -276,8 +269,7 @@ usage()
 }
 
 int
-stricoll(s1, s2)
-	char *s1, *s2;
+stricoll(char *s1, char *s2)
 {
 	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
 

@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/sysctl.h>
 
+#include <arpa/inet.h>
 #include <machine/elf.h>
 #include <machine/vmparam.h>
 
@@ -99,7 +100,8 @@ main(argc, argv)
 {
 	struct kinfo_proc *ki = NULL;
 	struct exec exec;
-	int ch, cnt, efd, fd, sflag, uid;
+	int ch, cnt, efd, fd, sflag;
+	uid_t uid;
 	char *binfile, *corefile;
 	char errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN];
 	int is_aout;
