@@ -36,9 +36,11 @@
 
 #include "sysinstall.h"
 
-#ifdef __alpha__
+#if	defined(__alpha__)
 #define _AS(str) str "alpha/"
-#else	/* i386 */
+#elif	defined(PC98)
+#define _AS(str) str "pc98/"
+#else
 #define _AS(str) str "i386/"
 #endif
 #define _AP(str) _AS(str "/pub/FreeBSD/releases/")
