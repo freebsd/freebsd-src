@@ -476,6 +476,9 @@ uart_tty_close(dev_t dev, int flags, int mode, struct thread *td)
 	if (sc->sc_sysdev == NULL)
 		UART_SETSIG(sc, UART_SIG_DDTR | UART_SIG_DRTS);
 
+	/* Disable pulse capturing. */
+	sc->sc_pps.ppsparam.mode = 0;
+
 	(*linesw[tp->t_line].l_close)(tp, flags);
 	ttyclose(tp);
 	wakeup(sc);
@@ -505,6 +508,7 @@ uart_tty_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 	if (error != ENOIOCTL)
 		return (error);
 
+	error = 0;
 	switch (cmd) {
 	case TIOCSBRK:
 		UART_IOCTL(sc, UART_IOCTL_BREAK, 1);
@@ -563,7 +567,10 @@ uart_tty_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 		*(int*)data = bits;
 		break;
 	default:
-		return (ENOTTY);
+		error = pps_ioctl(cmd, data, &sc->sc_pps);
+		if (error == ENODEV)
+			error = ENOTTY;
+		break;
 	}
-	return (0);
+	return (error);
 }

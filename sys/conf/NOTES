@@ -1465,6 +1465,10 @@ options 	CONSPEED=115200		# Speed for serial console
 #
 device		uart
 
+# Options for uart(4)
+options 	UART_PPS_ON_CTS		# Do time pulse capturing using CTS
+					# instead of DCD.
+
 # The following hint should only be used for pure ISA devices.  It is not
 # needed otherwise.  Use of hints is strongly discouraged.
 hint.uart.0.at="isa"

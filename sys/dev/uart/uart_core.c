@@ -162,6 +162,15 @@ uart_intr_sigchg(struct uart_softc *sc)
 	int new, old, sig;
 
 	sig = UART_GETSIG(sc);
+
+	if (sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) {
+		if (sig & UART_SIG_DPPS) {
+			pps_capture(&sc->sc_pps);
+			pps_event(&sc->sc_pps, (sig & UART_SIG_PPS) ?
+			    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
+		}
+	}
+
 	do {
 		old = sc->sc_ttypend;
 		new = old & ~UART_SIGMASK_STATE;
@@ -392,6 +401,9 @@ uart_bus_attach(device_t dev)
 		    "noems"[sc->sc_sysdev->parity], sc->sc_sysdev->databits,
 		    sc->sc_sysdev->stopbits);
 	}
+
+	sc->sc_pps.ppscap = PPS_CAPTUREBOTH;
+	pps_init(&sc->sc_pps);
 
 	error = (sc->sc_sysdev != NULL && sc->sc_sysdev->attach != NULL)
 	    ? (*sc->sc_sysdev->attach)(sc) : uart_tty_attach(sc);
