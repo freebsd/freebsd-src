@@ -67,6 +67,23 @@
  */
 #define FXP_MAX_RX_IDLE 15
 
+/*
+ * Default maximum time, in microseconds, that an interrupt may be delayed
+ * in an attempt to coalesce interrupts.  This is only effective if the Intel 
+ * microcode is loaded, and may be changed via either loader tunables or
+ * sysctl.  See also the CPUSAVER_DWORD entry in rcvbundl.h.
+ */
+#define TUNABLE_INT_DELAY 1000
+
+/*
+ * Default number of packets that will be bundled, before an interrupt is 
+ * generated.  This is only effective if the Intel microcode is loaded, and
+ * may be changed via either loader tunables or sysctl.  This may not be 
+ * present in all microcode revisions, see also the CPUSAVER_BUNDLE_MAX_DWORD
+ * entry in rcvbundl.h.
+ */
+#define TUNABLE_BUNDLE_MAX 6
+
 #if __FreeBSD_version < 500000
 #define	FXP_LOCK(_sc)
 #define	FXP_UNLOCK(_sc)
@@ -111,10 +128,14 @@ struct fxp_softc {
 	struct ifmedia sc_media;	/* media information */
 	device_t miibus;
 	device_t dev;
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
+	int tunable_int_delay;		/* interrupt delay value for ucode */
+	int tunable_bundle_max;		/* max # frames per interrupt (ucode) */
 	int eeprom_size;		/* size of serial EEPROM */
 	int suspended;			/* 0 = normal  1 = suspended (APM) */
 	int cu_resume_bug;
-	int chip;
+	int revision;
 	int flags;
 	u_int32_t saved_maps[5];	/* pci data */
 	u_int32_t saved_biosaddr;
@@ -122,8 +143,6 @@ struct fxp_softc {
 	u_int8_t saved_cachelnsz;
 	u_int8_t saved_lattimer;
 };
-
-#define FXP_CHIP_82557		1	/* 82557 chip type */
 
 #define FXP_FLAG_MWI_ENABLE	0x0001	/* MWI enable */
 #define FXP_FLAG_READ_ALIGN	0x0002	/* align read access with cacheline */
@@ -133,6 +152,7 @@ struct fxp_softc {
 #define FXP_FLAG_LONG_PKT_EN	0x0020	/* enable long packet reception */
 #define FXP_FLAG_ALL_MCAST	0x0040	/* accept all multicast frames */
 #define FXP_FLAG_CU_RESUME_BUG	0x0080	/* requires workaround for CU_RESUME */
+#define FXP_FLAG_UCODE		0x0100	/* ucode is loaded */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)						\
