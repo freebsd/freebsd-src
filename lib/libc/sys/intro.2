@@ -351,7 +351,9 @@ No connection could be made because the target machine actively
 refused it.  This usually results from trying to connect
 to a service that is inactive on the foreign host.
 .It Er 62 ELOOP Em "Too many levels of symbolic links" .
-A path name lookup involved more than 8 symbolic links.
+A path name lookup involved more than 32
+.Pq Dv MAXSYMLINKS
+symbolic links.
 .It Er 63 ENAMETOOLONG Em "File name too long" .
 A component of a path name exceeded 255
 .Pq Dv MAXNAMELEN
