@@ -105,9 +105,6 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/	lpt	/d' \
 	-e '/	plip	/d' \
 	-e '/	ppi	/d' \
-	-e '/	an	/d' \
-	-e '/	awi	/d' \
-	-e '/	wi	/d' \
 	-e '/	random	/d' \
 	-e '/	sl	/d' \
 	-e '/	ppp	/d' \
