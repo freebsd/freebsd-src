@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.78 1995/03/11 12:07:57 dufault Exp $
+#	$Id: MAKEDEV,v 1.79 1995/03/12 15:25:32 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -688,9 +688,9 @@ snd*)
 	mknod sequencer2	c $chr 8
 	chmod 666 sequencer2
 
-	rm -f sndproc		# PSS Device
-	mknod sndproc		c $chr 9
-	chmod 666 sndproc
+	rm -f pss               # PSS Device
+	mknod pss               c $chr 9
+	chmod 666 pss
 
 	rm -f midi01		# Midi 1
 	mknod midi01		c $chr 18
