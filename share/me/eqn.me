@@ -31,6 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)eqn.me	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
 .\"
 .\"	%beginstrip%
 .\"
@@ -81,7 +82,7 @@
 .de @q			\" --- equation output
 .nr _Q \\n(dnu
 .ev
-.sp \\n(esu			\" output rest of preceeding text
+.sp \\n(esu			\" output rest of preceding text
 .@C 2				\" .ev 2 may be jumbled from header
 .ie \\n(_d=1 \
 .	in (\\n(.lu+\\n($iu-\\n(dlu)/2u
