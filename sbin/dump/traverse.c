@@ -736,12 +736,55 @@ int	breaderrors = 0;
 void
 bread(ufs2_daddr_t blkno, char *buf, int size)
 {
-	int cnt, i;
+	int secsize, bytes, resid, xfer, base, cnt, i;
+	static char *tmpbuf;
+	off_t offset;
 
 loop:
-	cnt = cread(diskfd, buf, size, ((off_t)blkno << dev_bshift));
-	if (cnt == size)
-		return;
+	offset = blkno << dev_bshift;
+	secsize = sblock->fs_fsize;
+	base = offset % secsize;
+	resid = size % secsize;
+	/*
+	 * If the transfer request starts or ends on a non-sector
+	 * boundary, we must read the entire sector and copy out
+	 * just the part that we need.
+	 */
+	if (base == 0 && resid == 0) {
+		cnt = cread(diskfd, buf, size, offset);
+		if (cnt == size)
+			return;
+	} else {
+		if (tmpbuf == NULL && (tmpbuf = malloc(secsize)) == 0)
+			quit("buffer malloc failed\n");
+		xfer = 0;
+		bytes = size;
+		if (base != 0) {
+			cnt = cread(diskfd, tmpbuf, secsize, offset - base);
+			if (cnt != secsize)
+				goto bad;
+			xfer = secsize - base;
+			offset += xfer;
+			bytes -= xfer;
+			resid = bytes % secsize;
+			memcpy(buf, &tmpbuf[base], xfer);
+		}
+		if (bytes >= secsize) {
+			cnt = cread(diskfd, &buf[xfer], bytes - resid, offset);
+			if (cnt != bytes - resid)
+				goto bad;
+			xfer += cnt;
+			offset += cnt;
+		}
+		if (resid == 0)
+			return;
+		cnt = cread(diskfd, tmpbuf, secsize, offset);
+		if (cnt == secsize) {
+			memcpy(&buf[xfer], tmpbuf, resid);
+			return;
+		}
+	}
+bad:
 	if (blkno + (size / dev_bsize) > fsbtodb(sblock, sblock->fs_size)) {
 		/*
 		 * Trying to read the final fragment.
