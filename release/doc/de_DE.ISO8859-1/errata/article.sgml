@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.4 2002/03/19 05:34:40 ue Exp $
-	basiert auf: 1.1.2.59
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.9 2002/05/19 15:19:06 ue Exp $
+	basiert auf: 1.1.2.65
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -174,7 +174,33 @@
       Fehler in <application>zlib</application> wurde mittlerweile
       beseitigt.  Informationen, wie Sie dieses Problem umgehen bzw.
       beseitigen k&ouml;nnen, finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.</para>
+
+    <para>Durch Fehler in den TCP SYN Cache (<quote>syncache</quote>)
+      und SYN Cookie (<quote>syncookie</quote>) Routinen war es
+      m&ouml;glich, da&szlig; normale TCP/IP Datenpakete das System
+      abst&uuml;rzen lie&szlig;en.  Die Routinen wurden mittlerweile
+      beseitigt; Informationen, wie Sie die Problem umgehen bzw.
+      beseitigen k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.</para>
+
+    <para>In den Routinen zur Behandlung der Routing-Tabelle wurde ein
+      Speicherleck gestopft, durch das ein Angreifer den gesamten
+      Speicher eines System verbrauchen konnte.  Informationen, wie
+      Sie die Problem umgehen bzw.  beseitigen k&ouml;nnen, finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.</para>
+
+    <para>Bei der Behandlung von memory-mapped I/O wurde ein Fehler
+      beseitigt, der zum Absturz des Systems f&uuml;hren konnte.
+      Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.</para>
+
+    <para>SUID Programme konnten durch Manipulation Ihrer Standard-I/O
+      File-Descriptoren dazu gebracht werden, die falschen Dateien zu
+      lesen oder zu schreiben, dieser Fehler wurde behoben.  Weitere
+      Informatione finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.</para>
 
 ]]>
   </sect1>
@@ -225,6 +251,9 @@
         <programlisting>ChallengeResponseAuthentication no</programlisting>
       </listitem>
     </itemizedlist>
+
+    <para>Dieser Fehler wurde in &os; &release.current;
+      behoben.</para>
 
     <para>Der neue Treiber sbni wird zwar in den Release Notes
       erw&auml;hnt, allerdings ist der Verweis auf das Programm in der
@@ -285,6 +314,13 @@
       um das Problem komplett aus der Welt zu schaffen, sollten
       Sie einen aktuellen Snapshot von &os; &release.current;
       einspielen.</para>
+
+    <para>Bei der Erzeugung des Standardkernels
+      (<filename>GENERIC</filename>) f&uuml;r &os; &release.prev;
+      wurde der ciss Treiber vergessen, dadurch ist es fast
+      unm&ouml;glich, &os; auf einer Festplatte zu installieren, die
+      an einen solchen Controller angeschlossen ist.  Das Problem
+      wurde in &os; &release.current; behoben.</para>
 
 ]]>
   </sect1>
