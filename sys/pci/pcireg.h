@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.12 1997/02/22 09:44:12 peter Exp $
+**  $Id: pcireg.h,v 1.13 1997/04/20 06:57:43 phk Exp $
 **
 **  Names for PCI configuration space registers.
 **
@@ -163,6 +163,7 @@
 
 #define PCI_SUBID_REG0			0x2c
 #define PCI_SUBID_REG1			0x34
+#define PCI_SUBID_REG2			0x40
 
 #define PCI_SUBORDINATE_BUS_MASK	0x00ff0000
 #define PCI_SECONDARY_BUS_MASK		0x0000ff00
