@@ -661,15 +661,15 @@ static	volatile u_int trap_by_rdmsr;
  */
 inthand_t	bluetrap6;
 __asm
-("
-	.text
-	.p2align 2,0x90
-	.type	" __XSTRING(CNAME(bluetrap6)) ",@function
-" __XSTRING(CNAME(bluetrap6)) ":
-	ss
-	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_rdmsr)) "
-	addl	$2, (%esp)		  # I know rdmsr is a 2-bytes instruction.
-	iret
+("									\n\
+	.text								\n\
+	.p2align 2,0x90							\n\
+	.type	" __XSTRING(CNAME(bluetrap6)) ",@function		\n\
+" __XSTRING(CNAME(bluetrap6)) ":					\n\
+	ss								\n\
+	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_rdmsr)) "		\n\
+	addl	$2, (%esp)	/* rdmsr is a 2-byte instruction */	\n\
+	iret								\n\
 ");
 
 /*
@@ -678,16 +678,16 @@ __asm
  */
 inthand_t	bluetrap13;
 __asm
-("
-	.text
-	.p2align 2,0x90
-	.type " __XSTRING(CNAME(bluetrap13)) ",@function
-" __XSTRING(CNAME(bluetrap13)) ":
-	ss
-	movl	$0xa89c4," __XSTRING(CNAME(trap_by_rdmsr)) "
-	popl	%eax				# discard errorcode.
-	addl	$2, (%esp)			# I know rdmsr is a 2-bytes instruction.
-	iret
+("									\n\
+	.text								\n\
+	.p2align 2,0x90							\n\
+	.type	" __XSTRING(CNAME(bluetrap13)) ",@function		\n\
+" __XSTRING(CNAME(bluetrap13)) ":					\n\
+	ss								\n\
+	movl	$0xa89c4," __XSTRING(CNAME(trap_by_rdmsr)) "		\n\
+	popl	%eax		/* discard error code */		\n\
+	addl	$2, (%esp)	/* rdmsr is a 2-byte instruction */	\n\
+	iret								\n\
 ");
 
 /*
