@@ -101,6 +101,12 @@ The interrupt handler will be detached by
 The cookie needs to be passed to
 .Fn BUS_TEARDOWN_INTR
 in order to tear down the correct interrupt handler.
+Once
+.Fn BUS_TEARDOWN_INTR
+returns, it is guaranteed that the interrupt function is not active and
+will no longer be called.
+.Pp
+Mutexes are not allowed to be held across calls to these functions.
 .Sh RETURN VALUES
 Zero is returned on success,
 otherwise an appropriate error is returned.
