@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.16 1999/07/03 20:16:59 peter Exp $
+ *	$Id: ahc_pci.c,v 1.17 1999/08/16 02:33:46 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -1546,7 +1546,11 @@ ahc_aic7895_setup(device_t dev, char *channel, ahc_chip *chip,
 
 	*channel = pci_get_function(dev) == 1 ? 'B' : 'A';
 	*chip = AHC_AIC7895;
-	*features = AHC_AIC7895_FE;
+	/* The 'C' revision of the aic7895 has a few additional features */
+	if (pci_get_revid(dev) >= 4)
+		*features = AHC_AIC7895C_FE;
+	else
+		*features = AHC_AIC7895_FE;
 	*flags |= AHC_NEWEEPROM_FMT;
 	devconfig = pci_read_config(dev, DEVCONFIG, /*bytes*/4);
 	devconfig &= ~SCBSIZE32;
