@@ -44,12 +44,14 @@
 
 #include <sys/queue.h>
 
+struct disk;
 /*
  * The bio structure describes an I/O operation in the kernel.
  */
 struct bio {
 	u_int	bio_cmd;		/* I/O operation. */
 	dev_t	bio_dev;		/* Device to do I/O on. */
+	struct disk *bio_disk;		/* Valid below geom_disk.c only */
 	daddr_t bio_blkno;		/* Underlying physical block number. */
 	off_t	bio_offset;		/* Offset into file. */
 	long	bio_bcount;		/* Valid bytes in buffer. */
