@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.10 1995/05/08 02:02:56 phk Exp $
+ *	$Id: disk.c,v 1.11 1995/05/11 16:19:50 phk Exp $
  */
 
 /*
@@ -256,9 +256,9 @@ badsect(int dosdev, int sector)
 			goto no_remap;
 		}
 
-		cyl = sector / dl->d_secpercyl;
-		head = (sector % dl->d_secpercyl) / dl->d_nsectors;
-		sec = sector % dl->d_nsectors;
+		cyl = (sector-boff) / dl->d_secpercyl;
+		head = ((sector-boff) % dl->d_secpercyl) / dl->d_nsectors;
+		sec = (sector-boff) % dl->d_nsectors;
 		sec = (head<<8) + sec;
 
 		/* now, look in the table for a possible bad sector */
