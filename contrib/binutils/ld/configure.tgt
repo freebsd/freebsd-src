@@ -491,8 +491,16 @@ fr30-*-*)		targ_emul=elf32fr30 ;;
 mcore-*-pe)		targ_emul=mcorepe ;
 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
 mcore-*-elf)		targ_emul=elf32mcore ;;
-s390x-*-linux*)         targ_emul=elf64_s390 ;;
-s390-*-linux*)          targ_emul=elf_s390 ;;
+s390x-*-linux*)         targ_emul=elf64_s390
+			targ_extra_emuls=elf_s390
+			targ_extra_libpath=$targ_extra_emuls
+			tdir_elf_s390=`echo ${targ_alias} | sed -e 's/s390x/s390/'` ;;
+s390-*-linux*)          targ_emul=elf_s390
+			if test "${want64}" = "true"; then
+			  targ_extra_emuls=elf64_s390
+			  targ_extra_libpath=$targ_extra_emuls
+			  tdir_elf64_s390=`echo ${targ_alias} | sed -e 's/s390/s390x/'`
+			fi ;;
 *-*-ieee*)		targ_emul=vanilla ;;
 
 *)
