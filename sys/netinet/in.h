@@ -478,6 +478,10 @@ char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
 int	prison_ip __P((struct proc *p, int flag, u_int32_t *ip));
 void	prison_remote_ip __P((struct proc *p, int flag, u_int32_t *ip));
 
+#define satosin(sa)	((struct sockaddr_in *)(sa))
+#define sintosa(sin)	((struct sockaddr *)(sin))
+#define ifatoia(ifa)	((struct in_ifaddr *)(ifa))
+
 #endif
 
 #endif
