@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.3 1999/01/18 04:32:50 grog Exp grog $
+ * $Id: vinumdaemon.c,v 1.4 1999/03/16 03:40:59 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -132,6 +132,13 @@ vinum_daemon(void)
 		if (daemon_options & daemon_verbose)
 		    log(LOG_INFO, "vinumd: stopping\n");
 		daemon_options |= daemon_stopped;	    /* note that we've stopped */
+		Free(request);
+		while (daemonq != NULL) {		    /* backed up requests, */
+		    request = daemonq;			    /* get the request */
+		    daemonq = daemonq->next;		    /* and detach it */
+		    Free(request);			    /* then free it */
+		}
+		wakeup(&vinumclose);			    /* and wake any waiting vinum(8)s */
 		return;
 
 	    case daemonrq_ping:				    /* tell the caller we're here */
@@ -148,7 +155,6 @@ vinum_daemon(void)
 		log(LOG_WARNING, "Invalid request\n");
 		break;
 	    }
-	    Free(request);
 	}
     }
 }
