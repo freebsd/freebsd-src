@@ -130,7 +130,7 @@ talk()
 			 * curses's output routines would screw up
 			 */
 			int i;
-			ioctl(0, FIONREAD, (struct sgttyb *) &nb);
+			ioctl(0, FIONREAD, (void *) &nb);
 			nb = read(STDIN_FILENO, buf, nb);
 			display(&my_win, buf, nb);
 			/* might lose data here because sockt is non-blocking */
