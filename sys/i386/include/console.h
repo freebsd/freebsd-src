@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.24 1996/09/21 14:57:54 bde Exp $
+ *	$Id: console.h,v 1.26 1996/11/14 22:18:31 sos Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -278,20 +278,6 @@ typedef struct ssaver ssaver_t;
 #define	KB_BUF_FULL	0x02		/* kbd has char pending 	*/
 #define	KB_READY	0x02		/* kbd ready for command 	*/
 #define KB_WRITE	0x43		/* kbd write command 		*/
-#else
-#define	KB_DATA		0x60		/* kbd data port 		*/
-#define	KB_STAT		0x64		/* kbd status port 		*/
-#define	KB_BUF_FULL	0x01		/* kbd has char pending 	*/
-#define	KB_READY	0x02		/* kbd ready for command 	*/
-#define KB_MODE		0x4D		/* kbd mode (trans, ints enable)*/
-#define KB_WRITE	0x60		/* kbd write command 		*/
-#define KB_RESET_DONE	0xAA		/* kbd reset command completed  */
-#define KB_SETLEDS	0xED		/* kbd set leds 		*/
-#define KB_ECHO		0xEE		/* kbd set leds 		*/
-#define KB_SETRAD	0xF3		/* kbd set repeat&delay command */
-#define KB_ACK		0xFA		/* kbd acknowledge answer 	*/
-#define KB_RESEND	0xFE		/* kbd resend cmd answer      	*/
-#define KB_RESET	0xFF		/* kbd reset 			*/
 #endif
 
 /* video mode definitions */
