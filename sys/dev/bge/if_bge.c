@@ -1310,16 +1310,24 @@ bge_blockinit(sc)
 	 */
 	CSR_WRITE_4(sc, BGE_PCI_MEMWIN_BASEADDR, 0);
 
+	/* Note: the BCM5704 has a smaller mbuf space than other chips. */
+
 	if (sc->bge_asicrev != BGE_ASICREV_BCM5705) {
 		/* Configure mbuf memory pool */
 		if (sc->bge_extram) {
 			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_BASEADDR,
 			    BGE_EXT_SSRAM);
-			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x18000);
+			if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
+				CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x10000);
+			else
+				CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x18000);
 		} else {
 			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_BASEADDR,
 			    BGE_BUFFPOOL_1);
-			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x18000);
+			if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
+				CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x10000);
+			else
+				CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x18000);
 		}
 
 		/* Configure DMA resource pool */
