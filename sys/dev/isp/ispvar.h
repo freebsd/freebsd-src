@@ -257,7 +257,7 @@ typedef struct {
 	u_int8_t		isp_alpa;	/* ALPA */
 	u_int32_t		isp_portid;
 	volatile u_int16_t	isp_lipseq;	/* LIP sequence # */
-	u_int16_t		isp_xxxxxx;
+	u_int16_t		isp_fwattr;	/* firmware attributes */
 	u_int8_t		isp_execthrottle;
 	u_int8_t		isp_retry_delay;
 	u_int8_t		isp_retry_count;
@@ -464,7 +464,13 @@ typedef struct ispsoftc {
 #define	ISP_CODE_ORG			0x1000	/* default f/w code start */
 #define	ISP_CODE_ORG_2300		0x0800	/* ..except for 2300s */
 #define	ISP_FW_REV(maj, min, mic)	((maj << 24) | (min << 16) | mic)
+#define	ISP_FW_MAJOR(code)		((code >> 24) & 0xff)
+#define	ISP_FW_MINOR(code)		((code >> 16) & 0xff)
+#define	ISP_FW_MICRO(code)		((code >>  8) & 0xff)
 #define	ISP_FW_REVX(xp)			((xp[0]<<24) | (xp[1] << 16) | xp[2])
+#define	ISP_FW_MAJORX(xp)		(xp[0])
+#define	ISP_FW_MINORX(xp)		(xp[1])
+#define	ISP_FW_MICROX(xp)		(xp[2])
 
 /*
  * Bus (implementation) types
