@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.14 1997/04/11 07:44:39 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.15 1997/05/21 10:01:31 kato Exp $
  */
 
 #include "sc.h"
@@ -3249,13 +3249,13 @@ scinit(void)
     console[0] = &main_console;
     init_scp(console[0]);
     cur_console = console[0];
-
+#ifndef	PC98
     /* discard the video mode table if we are not familiar with it... */
     if (video_mode_ptr) {
         if (comp_vgaregs(vgaregs, video_mode_ptr + 64*console[0]->mode)) 
             video_mode_ptr = NULL;
     }
-
+#endif
     /* copy screen to temporary buffer */
     sc_bcopy(Crtat, sc_buffer,
 	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
