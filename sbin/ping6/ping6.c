@@ -296,6 +296,10 @@ main(argc, argv)
 				 case 'a':
 					 naflags |= NI_NODEADDR_FLAG_ALL;
 					 break;
+				 case 'c':
+				 case 'C':
+					 naflags |= NI_NODEADDR_FLAG_COMPAT;
+					 break;
 				 case 'l':
 				 case 'L':
 					 naflags |= NI_NODEADDR_FLAG_LINKLOCAL;
@@ -1553,7 +1557,7 @@ usage()
 		      "AE"
 #endif
 #endif
-		      "] [-a [alsg]] [-b sockbufsiz] [-c count] [-I interface]\n\
+		      "] [-a [aclsg]] [-b sockbufsiz] [-c count] [-I interface]\n\
              [-i wait] [-l preload] [-p pattern] [-s packetsize]\n\
              [-h hoplimit] host [hosts...]\n");
 	exit(1);
