@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.27 1995/02/25 19:11:11 jkh Exp $
+ * $Id: st.c,v 1.28 1995/03/01 22:24:46 dufault Exp $
  */
 
 /*
@@ -218,10 +218,12 @@ struct scsi_data {
 static int stunit(dev_t dev) { return STUNIT(dev); }
 static dev_t stsetunit(dev_t dev, int unit) { return STSETUNIT(dev, unit); }
 
-errval st_open(dev_t dev, int flags, struct scsi_link *sc_link);
+errval st_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link);
 errval st_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
-		struct scsi_link *sc_link);
-errval st_close(dev_t dev, struct scsi_link *sc_link);
+		struct proc *p, struct scsi_link *sc_link);
+errval st_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link);
 void st_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 SCSI_DEVICE_ENTRIES(st)
@@ -237,6 +239,7 @@ struct scsi_device st_switch =
 	{0, 0},
 	0,				/* Link flags */
 	stattach,
+	"Sequential-Access",
 	stopen,
     sizeof(struct scsi_data),
 	T_SEQUENTIAL,
@@ -287,7 +290,6 @@ static struct kern_devconf kdc_st_template = {
 	&kdc_scbus0,		/* XXX parent */
 	0,			/* parentdata */
 	DC_UNKNOWN,		/* not supported */
-	"SCSI tape drive"
 };
 
 static inline void
@@ -299,6 +301,7 @@ st_registerdev(int unit)
 	if(!kdc) return;
 	*kdc = kdc_st_template;
 	kdc->kdc_unit = unit;
+	kdc->kdc_description = st_switch.desc;
 	dev_attach(kdc);
 }
 
@@ -495,7 +498,8 @@ st_loadquirks(sc_link)
  * open the device.
  */
 errval 
-st_open(dev_t dev, int flags, struct scsi_link *sc_link)
+st_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link)
 {
 	u_int32 unit, mode, dsty;
 	errval  errno = 0;
@@ -580,7 +584,8 @@ st_open(dev_t dev, int flags, struct scsi_link *sc_link)
  * occurence of an open device
  */
 errval 
-st_close(dev_t dev, struct scsi_link *sc_link)
+st_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link)
 {
 	unsigned char unit, mode;
 	struct scsi_data *st;
@@ -1104,7 +1109,7 @@ badnews:
  */
 errval 
 st_ioctl(dev_t dev, int cmd, caddr_t arg, int	flag,
-struct scsi_link *sc_link)
+struct proc *p, struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
 	unsigned char unit;
@@ -1227,7 +1232,7 @@ struct scsi_link *sc_link)
 		break;
 	default:
 		if(IS_CTLMODE(dev))
-			errcode = scsi_do_ioctl(dev, cmd, arg, flag, sc_link);
+			errcode = scsi_do_ioctl(dev, cmd, arg, flag, p, sc_link);
 		else
 			errcode = ENOTTY;
 		break;

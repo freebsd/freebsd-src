@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.19 1995/01/31 11:41:44 dufault Exp $
+ *      $Id: scsi_base.c,v 1.20 1995/02/15 07:44:07 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -108,12 +108,16 @@ free_xs(xs, sc_link, flags)
 	}
 }
 
+/* XXX dufault: Replace "sd_size" with "scsi_read_capacity"
+ * when bde is done with sd.c
+ */
 /*
  * Find out from the device what its capacity is.
  */
 u_int32 
-scsi_size(sc_link, flags)
+scsi_read_capacity(sc_link, blk_size, flags)
 	struct scsi_link *sc_link;
+	u_int32 *blk_size;
 	u_int32 flags;
 {
 	struct scsi_read_cap_data rdcap;
@@ -145,10 +149,9 @@ scsi_size(sc_link, flags)
 		printf("could not get size\n");
 		return (0);
 	} else {
-		size = rdcap.addr_0 + 1;
-		size += rdcap.addr_1 << 8;
-		size += rdcap.addr_2 << 16;
-		size += rdcap.addr_3 << 24;
+		size = scsi_4btou(&rdcap.addr_3) + 1;
+		if (blk_size)
+			*blk_size = scsi_4btou(&rdcap.length_3);
 	}
 	return (size);
 }
@@ -932,9 +935,6 @@ scsi_uto3b(val, bytes)
 	*bytes = val & 0xff;
 }
 
-/*
- * The reverse of scsi_uto3b
- */
 u_int32
 scsi_3btou(bytes)
 	u_char *bytes;
@@ -946,9 +946,6 @@ scsi_3btou(bytes)
 	return rc;
 }
 
-/*
- * scsi_3btoi: scsi_3btou for twos complement signed integers:
- */
 int32
 scsi_3btoi(bytes)
 	u_char *bytes;
@@ -959,6 +956,48 @@ scsi_3btoi(bytes)
 		rc |= 0xff000000;
 
 	return (int32) rc;
+}
+
+void
+scsi_uto2b(val, bytes)
+	u_int32	val;
+	u_char	*bytes;
+{
+	*bytes++ = (val & 0xff00) >> 8;
+	*bytes =    val & 0xff;
+}
+
+u_int32
+scsi_2btou(bytes)
+	u_char *bytes;
+{
+	u_int32 rc;
+	rc  = (*bytes++ << 8);
+	rc +=  *bytes;
+	return rc;
+}
+
+void
+scsi_uto4b(val, bytes)
+	u_int32	val;
+	u_char	*bytes;
+{
+	*bytes++ = (val & 0xff000000) >> 24;
+	*bytes++ = (val & 0xff0000) >> 16;
+	*bytes++ = (val & 0xff00) >> 8;
+	*bytes =    val & 0xff;
+}
+
+u_int32
+scsi_4btou(bytes)
+	u_char *bytes;
+{
+	u_int32 rc;
+	rc  = (*bytes++ << 24);
+	rc += (*bytes++ << 16);
+	rc += (*bytes++ << 8);
+	rc +=  *bytes;
+	return rc;
 }
 
 /*

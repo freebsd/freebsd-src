@@ -2,7 +2,10 @@
  * Driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.6 1995/01/08 13:38:38 dufault Exp $
+ *      $Id: uk.c,v 1.7 1995/03/01 22:24:47 dufault Exp $
+ *
+ * If you find that you are adding any code to this file look closely
+ * at putting it in "scsi_driver.c" instead.
  */
 
 #include <sys/param.h>
@@ -21,7 +24,8 @@ struct scsi_device uk_switch =
     0,
 	{0, 0},
 	SDEV_ONCE_ONLY,	/* Only one open allowed */
-	ukattach,
+	0,
+	"Unknown",
 	ukopen,
     0,
 	T_UNKNOWN,
@@ -32,15 +36,3 @@ struct scsi_device uk_switch =
 	0,
 	0,
 };
-
-/*
- * The routine called by the low level scsi routine when it discovers
- * a device suitable for this driver.
- */
-errval 
-ukattach(struct scsi_link *sc_link)
-{
-	printf("unknown device\n");
-
-	return 0;
-}

@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.13 1995/01/19 21:02:54 ats Exp $
+ *      $Id: ch.c,v 1.14 1995/03/01 22:24:40 dufault Exp $
  */
 
 #include	<sys/types.h>
@@ -46,16 +46,17 @@ struct scsi_data {
 	u_long  op_matrix;		/* possible opertaions */
 	u_int16 lsterr;			/* details of lasterror */
 	u_char  stor;			/* posible Storage locations */
-	u_int32 initialized;
 };
 
 static int chunit(dev_t dev) { return CHUNIT(dev); }
 static dev_t chsetunit(dev_t dev, int unit) { return CHSETUNIT(dev, unit); }
 
-errval ch_open(dev_t dev, int flags, struct scsi_link *sc_link);
+errval ch_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link);
 errval ch_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
-		struct scsi_link *sc_link);
-errval ch_close(dev_t dev, struct scsi_link *sc_link);
+		struct proc *p, struct scsi_link *sc_link);
+errval ch_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link);
 
 SCSI_DEVICE_ENTRIES(ch)
 
@@ -70,6 +71,7 @@ struct scsi_device ch_switch =
 	{0, 0},
 	0,				/* Link flags */
 	chattach,
+	"Medium-Changer",
 	chopen,
     sizeof(struct scsi_data),
 	T_CHANGER,
@@ -82,7 +84,6 @@ struct scsi_device ch_switch =
 };
 
 #define CH_OPEN		0x01
-#define CH_KNOWN	0x02
 
 static int
 ch_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
@@ -99,7 +100,6 @@ static struct kern_devconf kdc_ch_template = {
 	&kdc_scbus0,		/* parent */
 	0,			/* parentdata */
 	DC_UNKNOWN,		/* not supported */
-	"SCSI media changer"
 };
 
 static inline void
@@ -111,6 +111,7 @@ ch_registerdev(int unit)
 	if(!kdc) return;
 	*kdc = kdc_ch_template;
 	kdc->kdc_unit = unit;
+	kdc->kdc_description = ch_switch.desc;
 	dev_attach(kdc);
 }
 
@@ -121,7 +122,7 @@ ch_registerdev(int unit)
 errval 
 chattach(struct scsi_link *sc_link)
 {
-	u_int32 unit, i, stat;
+	u_int32 unit, i;
 	unsigned char *tbl;
 
 	struct scsi_data *ch = sc_link->sd;
@@ -134,14 +135,11 @@ chattach(struct scsi_link *sc_link)
 	 * request must specify this.
 	 */
 	if ((ch_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK /*| SCSI_SILENT */ ))) {
-		printf("scsi changer :- offline\n");
-		stat = CH_OPEN;
+		printf("offline\n");
 	} else {
-		printf("scsi changer, %d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s)\n",
+		printf("%d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s)\n",
 		    ch->slots, ch->drives, ch->chms, ch->imexs);
-		stat = CH_KNOWN;
 	}
-	ch->initialized = 1;
 	ch_registerdev(unit);
 
 	return 0;
@@ -151,7 +149,8 @@ chattach(struct scsi_link *sc_link)
  *    open the device.
  */
 errval 
-ch_open(dev_t dev, int flags, struct scsi_link *sc_link)
+ch_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
 	u_int32 unit, mode;
@@ -168,12 +167,6 @@ ch_open(dev_t dev, int flags, struct scsi_link *sc_link)
 		printf("ch%d: already open\n", unit);
 		return EBUSY;
 	}
-	/*
-	 * Make sure the device has been initialised
-	 */
-	if (!cd->initialized)
-		return (ENXIO);
-
 	/*
 	 * Catch any unit attention errors.
 	 */
@@ -205,7 +198,8 @@ ch_open(dev_t dev, int flags, struct scsi_link *sc_link)
  * occurence of an open device
  */
 errval 
-ch_close(dev_t dev, struct scsi_link *sc_link)
+ch_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link)
 {
 	sc_link->sd->flags = 0;
 	sc_link->flags &= ~SDEV_OPEN;
@@ -218,7 +212,7 @@ ch_close(dev_t dev, struct scsi_link *sc_link)
  */
 errval 
 ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode,
-struct scsi_link *sc_link)
+struct proc *p, struct scsi_link *sc_link)
 {
 	/* struct ch_cmd_buf *args; */
 	union scsi_cmd *scsi_cmd;
@@ -274,7 +268,7 @@ struct scsi_link *sc_link)
 			}
 		}
 	default:
-		return scsi_do_ioctl(dev, cmd, arg, mode, sc_link);
+		return scsi_do_ioctl(dev, cmd, arg, mode, p, sc_link);
 	}
 	return (ret ? ESUCCESS : EIO);
 }
