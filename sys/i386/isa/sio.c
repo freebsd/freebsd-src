@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.47 1994/05/26 13:31:40 rgrimes Exp $
+ *	$Id: sio.c,v 1.48 1994/08/13 03:50:13 wollman Exp $
  */
 
 #include "sio.h"
@@ -427,6 +427,7 @@ sioattach(isdp)
 	int		s;
 	int		unit;
 
+	isdp->id_ri_flags |= RI_FAST;
 	iobase = isdp->id_iobase;
 	unit = isdp->id_unit;
 	s = spltty();

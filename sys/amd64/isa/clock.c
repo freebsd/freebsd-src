@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.13 1994/08/13 03:49:56 wollman Exp $
+ *	$Id: clock.c,v 1.14 1994/08/15 03:15:18 wollman Exp $
  */
 
 /*
@@ -497,16 +497,14 @@ test_inittodr(time_t base)
 /*
  * Wire clock interrupt in.
  */
-#define V(s)	__CONCAT(V, s)
-extern void V(clk)();
-extern void V(rtc)();
-
 void
 enablertclock() 
 {
-	setidt(ICU_OFFSET+0, &V(clk), SDT_SYS386IGT, SEL_KPL);
+	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0, clkintr,
+		      HWI_MASK | SWI_MASK, /* unit */ 0);
 	INTREN(IRQ0);
-	setidt(ICU_OFFSET+8, &V(rtc), SDT_SYS386IGT, SEL_KPL);
+	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0, rtcintr,
+		      SWI_CLOCK_MASK, /* unit */ 0);
 	INTREN(IRQ8);
 	outb(IO_RTC, RTC_STATUSB);
 	outb(IO_RTC+1, RTCSB_PINTR | RTCSB_24HR);
