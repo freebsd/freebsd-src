@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.15 1993/11/17 23:38:23 ache Exp $
+ *	$Id: sio.c,v 1.16 1993/11/25 01:31:48 wollman Exp $
  */
 
 #include "sio.h"
@@ -305,7 +305,7 @@ static int
 sioprobe(dev)
 	struct isa_device	*dev;
 {
-	static bool_t	already_init;
+	static bool_t   already_init=FALSE;
 	Port_t		*com_ptr;
 	Port_t		iobase;
 	int		result;
@@ -342,10 +342,14 @@ sioprobe(dev)
 	 *	o an output interrupt is generated and its vector is correct.
 	 *	o the interrupt goes away when the IIR in the UART is read.
 	 */
+	outb(iobase + com_cfcr, CFCR_DLAB);     /* DLAB = 1 */
+	outb(iobase + com_dlbl, COMBRD(9600) & 0xff); /* 9600bps */
+	outb(iobase + com_dlbh, ((u_int) COMBRD(9600) >> 8) & 0xff);
 	outb(iobase + com_cfcr, CFCR_8BITS);	/* ensure IER is addressed */
 	outb(iobase + com_mcr, MCR_IENABLE);	/* open gate early */
 	outb(iobase + com_ier, 0);		/* ensure edge on next intr  */
 	outb(iobase + com_ier, IER_ETXRDY);	/* generate interrupt */
+	DELAY(17000);                           /* wait for fifo drain on 9600 */
 	if (   inb(iobase + com_cfcr) != CFCR_8BITS
 	    || inb(iobase + com_ier) != IER_ETXRDY
 	    || inb(iobase + com_mcr) != MCR_IENABLE
@@ -663,6 +667,13 @@ bidir_open_top:
 			tp->t_lflag = 0;
 			tp->t_ispeed = tp->t_ospeed = comdefaultrate;
 		}
+#ifdef COM_BIDIR
+		if (com->bidir)
+			if (callout)
+				tp->t_cflag |= CLOCAL;
+			else
+				tp->t_cflag &= ~CLOCAL;
+#endif
 		(void) commctl(com, MCR_DTR | MCR_RTS, DMSET);
 		error = comparam(tp, &tp->t_termios);
 		if (error != 0)
