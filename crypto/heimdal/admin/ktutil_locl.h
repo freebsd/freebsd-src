@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: ktutil_locl.h,v 1.11 2000/02/07 04:26:37 assar Exp $
+ * $Id: ktutil_locl.h,v 1.14 2001/05/10 15:42:45 assar Exp $
  * $FreeBSD$
  */
 
@@ -55,7 +55,11 @@
 #include <parse_time.h>
 #include <roken.h>
 
+#ifdef HAVE_OPENSSL_DES_H
 #include <openssl/des.h>
+#else
+#include <des.h>
+#endif
 
 #include <krb5.h>
 #include <kadm5/admin.h>
@@ -65,10 +69,10 @@
 #include <getarg.h>
 
 extern krb5_context context;
-extern krb5_keytab keytab;
 
 extern int verbose_flag;
 extern char *keytab_string; 
+extern char keytab_buf[256];
 
 int kt_add (int argc, char **argv);
 int kt_change (int argc, char **argv);
