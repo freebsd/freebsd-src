@@ -108,6 +108,7 @@ struct iwic_softc iwic_sc[IWIC_MAXUNIT];
  * Vendor ID: 1043 Device ID: 0675 SubVendor: 1043 SubDevice ID: 1702
  * Vendor ID: 1043 Device ID: 0675 SubVendor: 1043 SubDevice ID: 1707
  * Vendor ID: 1050 Device ID: 6692 SubVendor: 0675 SubDevice ID: 1702
+ * Vendor ID: 1043 Device ID: 0675 SubVendor: 0675 SubDevice ID: 1704
  *---------------------------------------------------------------------------*/
 
 static struct winids {
@@ -117,6 +118,7 @@ static struct winids {
 	const char *desc;
 } win_ids[] = {
  { 0x66921050, -1, -1,		"Generic Winbond W6692 ISDN PCI (0x66921050)"      },
+ { 0x06751043, 0x0675, 0x1704,	"Planet PCI ISDN Adapter (IA128P-STD) ASUS-HCF675" },
  { 0x66921050, 0x144F, 0x1707,	"Planet PCI ISDN Adapter (Model IA128P-STDV)"      },
  { 0x17020675, -1, -1,		"ASUSCOM P-IN100-ST-D (Winbond W6692, 0x17020675)" },
  { 0x17030675, -1, -1,		"ASUSCOM P-IN100-ST-D (Winbond W6692, 0x17030675)" },
