@@ -1,6 +1,6 @@
 .\" -*- nroff-fill -*-
 .\" $FreeBSD$
-.Dd April 21, 2001
+.Dd June 20, 2001
 .Os
 .Dt PICOBSD 8
 .Sh NAME
@@ -8,30 +8,64 @@
 .Nd floppy disk based FreeBSD system
 .Sh SYNOPSIS
 .Nm
-.Op Fl n
+.Op options
 .Op Ar floppy-type Op Ar site-name
 .Sh DESCRIPTION
 .Nm
-is a minimal implementation of
+is a script which can be used to produce a minimal implementation of
 .Fx
-on one or more floppy disks.  The
-floppies are required for loading only; the system runs from ramdisk and is thus
-not limited to the speed of the floppies.
-The first (and only required)
-.Nm
-floppy contains a compressed kernel and compressed MFS root file system, as well
-as some files in the
-.Pa /etc
-directory.  The system loads the kernel in the normal way, uncompresses the file
-system and mounts it as root.  It then copies the files in the floppy
-.Pa /etc
-directory to the MFS
-.Pa /etc
-directory and executes a specialized version of
+(historically called
+.Nm PicoBSD )
+which typically fits on one floppy disk, or can be downloaded as a
+single image file from some media such as CDROM, flash memory, or through
+.Xr etherboot .
+.Pp
+The boot media (typically a floppy disk) contains a boot loader and a
+compressed kernel which includes a memory file system.
+Depending on the media, it might also contain a number of
+additional files, which can be updated at run time, and are
+used to override/update those in the memory file system.
+.Pp
+The system loads the kernel in the normal way, uncompresses
+the memory file system and mounts it as root.
+It then updates the memory
+filesystem with files from the boot media (if present),
+and executes a specialized version of
 .Pa /etc/rc .
-The standard version of
-.Pa /etc/rc
-prompts for additional floppies and reads them in to the MFS file system.
+The boot media (floppy etc.) is
+required for loading only, and typically used as readonly.
+After the boot phase, the system runs entirely from ram.
+.Pp
+The following options are available (but also check the
+.Nm
+script for more details):
+.Pp
+.Bl -tag -width "--floppy_size" -compact
+.It Fl c
+.It Fl clean
+Clean the product of previous builds.
+.It Fl n
+Make the script non interactive. Do not show the initial menu, and
+proceed in the build process without requiring user input.
+.It Fl v
+Make the script verbose, showing the various commands to execute and
+waiting for user input before each of them. Useful when debugging.
+.It Fl -floppy_size Ar size
+Set the size of the floppy image. Values other than 1440 can
+be used for images that are burned into a CDROM, or downloaded
+using
+.Xr etherboot
+.It Fl -src Ar pathname
+Use the source tree at
+.Ar pathname
+instead the one at
+.Ar /usr/src .
+Can be useful for cross-building floppy images, but you must be
+careful in that there are dependencies with the
+.Xr config 8
+program, and also with include files and libraries.
+.El
+.Pp
 .Sh ENVIRONMENT
 As a result of the extreme size limitations, the
 .Nm
@@ -123,6 +157,19 @@ More information on the build process can be found in the
 script.
 Sample configurations can be found in
 .Pa /usr/src/release/picobsd/ Ns ${type} Ns /
+.Sh USING ALTERNATE SOURCE TREES
+The build script can be instructed use an alternate source tree
+using the
+.Fl -src Ar pathname
+option.
+The tree that you specify must contain full sources for the kernel
+and for all programs that you want to include in your image.
+This option must be used with great care though, because different
+source trees might refer to different include files, libraries
+or versions of the
+.Xr config 8
+program.
+.Pp
 .Sh BOOTING PicoBSD
 To boot
 .Nm ,
@@ -145,7 +192,7 @@ ethernet.
 .Ss Swap space
 After booting,
 .Nm
-runs entirely from the MFS file system.  The floppies are no longer used, and
+runs entirely from the memory file system.  The floppies are no longer used, and
 even if there are hard disk drivers in the
 .Nm
 kernel, it does not access the drives.  In particular, there is no swap space,
