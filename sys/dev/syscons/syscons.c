@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.307 1999/06/22 14:13:31 yokota Exp $
+ *	$Id: syscons.c,v 1.308 1999/06/24 09:21:27 yokota Exp $
  */
 
 #include "sc.h"
@@ -485,8 +485,8 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     if (!tp)
 	return(ENXIO);
 
-    DPRINTF(5, ("scopen: dev:%d, unit:%d, vty:%d\n",
-		dev, unit, SC_VTY(dev)));
+    DPRINTF(5, ("scopen: dev:%d,%d, unit:%d, vty:%d\n",
+		major(dev), minor(dev), unit, SC_VTY(dev)));
 
     /* sc == NULL, if SC_VTY(dev) == SC_MOUSE */
     sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);
