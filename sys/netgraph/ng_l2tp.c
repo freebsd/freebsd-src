@@ -150,6 +150,7 @@ typedef struct ng_l2tp_private *priv_p;
 /* Hook private data (data session hooks only) */
 struct ng_l2tp_hook_private {
 	struct ng_l2tp_sess_config	conf;	/* hook/session config */
+	struct ng_l2tp_session_stats	stats;	/* per sessions statistics */
 	u_int16_t			ns;	/* data ns sequence number */
 	u_int16_t			nr;	/* data nr sequence number */
 };
@@ -221,6 +222,14 @@ static const struct ng_parse_type ng_l2tp_stats_type = {
 	&ng_l2tp_stats_type_fields
 };
 
+/* Parse type for struct ng_l2tp_session_stats. */
+static const struct ng_parse_struct_field
+	ng_l2tp_session_stats_type_fields[] = NG_L2TP_SESSION_STATS_TYPE_INFO;
+static const struct ng_parse_type ng_l2tp_session_stats_type = {
+	&ng_parse_struct_type,
+	&ng_l2tp_session_stats_type_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_l2tp_cmdlist[] = {
 	{
@@ -271,6 +280,27 @@ static const struct ng_cmdlist ng_l2tp_cmdlist[] = {
 	  "getclrstats",
 	  NULL,
 	  &ng_l2tp_stats_type
+	},
+	{
+	  NGM_L2TP_COOKIE,
+	  NGM_L2TP_GET_SESSION_STATS,
+	  "getsessstats",
+	  &ng_parse_int16_type,
+	  &ng_l2tp_session_stats_type
+	},
+	{
+	  NGM_L2TP_COOKIE,
+	  NGM_L2TP_CLR_SESSION_STATS,
+	  "clrsessstats",
+	  &ng_parse_int16_type,
+	  NULL
+	},
+	{
+	  NGM_L2TP_COOKIE,
+	  NGM_L2TP_GETCLR_SESSION_STATS,
+	  "getclrsessstats",
+	  &ng_parse_int16_type,
+	  &ng_l2tp_session_stats_type
 	},
 	{
 	  NGM_L2TP_COOKIE,
@@ -553,6 +583,45 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				memset(&priv->stats, 0, sizeof(priv->stats));
 			break;
 		    }
+		case NGM_L2TP_GET_SESSION_STATS:
+		case NGM_L2TP_CLR_SESSION_STATS:
+		case NGM_L2TP_GETCLR_SESSION_STATS:
+		    {
+			uint16_t session_id;
+			hookpriv_p hpriv;
+			hook_p hook;
+
+			/* Get session ID. */
+			if (msg->header.arglen != sizeof(session_id)) {
+				error = EINVAL;
+				break;
+			}
+			bcopy(msg->data, &session_id, sizeof(uint16_t));
+			session_id = htons(session_id);
+
+			/* Find matching hook. */
+			NG_NODE_FOREACH_HOOK(node, ng_l2tp_find_session,
+			    (void *)(uintptr_t)session_id, hook);
+			if (hook == NULL) {
+				error = ENOENT;
+				break;
+			}
+			hpriv = NG_HOOK_PRIVATE(hook);
+
+			if (msg->header.cmd != NGM_L2TP_CLR_SESSION_STATS) {
+				NG_MKRESPONSE(resp, msg,
+				    sizeof(hpriv->stats), M_NOWAIT);
+				if (resp == NULL) {
+					error = ENOMEM;
+					break;
+				}
+				bcopy(&hpriv->stats, resp->data,
+					sizeof(hpriv->stats));
+			}
+			if (msg->header.cmd != NGM_L2TP_GET_SESSION_STATS)
+				bzero(&hpriv->stats, sizeof(hpriv->stats));
+			break;
+		    }
 		case NGM_L2TP_SET_SEQ:
 		    {
 			struct ng_l2tp_seq_config *const conf =
@@ -708,6 +777,7 @@ ng_l2tp_reset_session(hook_p hook, void *arg)
 	if (hpriv != NULL) {
 		hpriv->conf.control_dseq = 0;
 		hpriv->conf.enable_dseq = 0;
+		bzero(&hpriv->conf, sizeof(struct ng_l2tp_session_stats));
 		hpriv->nr = 0;
 		hpriv->ns = 0;
 	}
@@ -734,14 +804,17 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 	u_int16_t nr;
 	int is_ctrl;
 	int error;
-	int len;
+	int len, plen;
 
 	/* Grab mbuf */
 	NGI_GET_M(item, m);
 
+	/* Remember full packet length; needed for per session accounting. */
+	plen = m->m_pkthdr.len;
+
 	/* Update stats */
 	priv->stats.recvPackets++;
-	priv->stats.recvOctets += m->m_pkthdr.len;
+	priv->stats.recvOctets += plen;
 
 	/* Get initial header */
 	if (m->m_pkthdr.len < 6) {
@@ -904,6 +977,10 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		return (error);
 	}
 
+	/* Per session packet, account it. */
+	hpriv->stats.recvPackets++;
+	hpriv->stats.recvOctets += plen;
+
 	/* Follow peer's lead in data sequencing, if configured to do so */
 	if (!hpriv->conf.control_dseq)
 		hpriv->conf.enable_dseq = ((hdr & L2TP_HDR_SEQ) != 0);
@@ -1044,6 +1121,10 @@ ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv)
 		hpriv->ns++;
 	}
 	mtod(m, u_int16_t *)[0] = htons(hdr);
+
+	/* Update per session stats. */
+	hpriv->stats.xmitPackets++;
+	hpriv->stats.xmitOctets += m->m_pkthdr.len;
 
 	/* Send packet */
 	NG_FWD_NEW_DATA(error, item, priv->lower, m);
