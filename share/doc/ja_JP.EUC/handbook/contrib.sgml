@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.11 1996/12/08 13:48:06 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.12 1996/12/08 23:17:50 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.168 -->
+<!-- Original revision: 1.169 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -218,7 +218,7 @@
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
 	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
 	  <item>David Leonard &lt;d@scry.dstc.edu.au&gt;
-	  <item>David O'Brien &lt;obrien@cs.ucdavis.edu&gt;
+	  <item>David L. Nugent &lt;davidn@blaze.net.au&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
 	  <item>Dmitry Kohmanyuk &lt;dk@farm.org&gt;
