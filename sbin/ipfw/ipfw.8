@@ -1,4 +1,4 @@
-.Dd February 24, 1996
+.Dd July 20, 1996
 .Dt IPFW 8 SMM
 .Os FreeBSD
 .Sh NAME
@@ -249,6 +249,14 @@ Matches if the ICMP type is in the list
 .Ar types .
 The list may be specified as any combination of ranges
 or individual types separated by commas.
+.It proto Ar ipproto
+Matches if the protocol field in the IP header matches
+any of the protocol numbers specified by the list
+.Ar ipproto
+(see
+.Pa /etc/protocols
+for a complete list).
+Protocol ranges may not be used.
 .El
 .Sh CHECKLIST
 Here are some important points to consider when designing your
@@ -262,10 +270,6 @@ Remember to test very carefully.
 It is a good idea to be near the console when doing this.
 .It
 Don't forget the loopback interface.
-.It
-Don't filter
-.Nm all
-if you are also specifying a port.
 .El
 .Sh FINE POINTS
 There is one kind of packet that the firewall will always discard,
@@ -322,10 +326,11 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
 .Xr getservbyport 3 ,
+.Xr divert 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
-.Xr ipaccounting 4 ,
-.Xr divert 4 ,
+.Xr protocols 5 ,
+.Xr services 5 ,
 .Xr reboot 8 ,
 .Xr syslogd 8
 .Sh BUGS
@@ -338,7 +343,7 @@ do
 .Em NOT
 do anything you don't understand.
 .Pp
-When manipulating/adding chain entries, service names are
+When manipulating/adding chain entries, service and protocol names are
 not accepted.
 .Sh HISTORY
 Initially this utility was written for BSDI by:

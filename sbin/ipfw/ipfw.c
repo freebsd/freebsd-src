@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.28 1996/06/29 01:28:19 alex Exp $
+ * $Id: ipfw.c,v 1.29 1996/07/10 19:44:07 julian Exp $
  *
  */
 
@@ -74,6 +74,7 @@ print_port(port, comma, flg)
 
 	if (do_resolv) {
 		struct servent *se;
+		struct protoent *pe;
 		const char *protocol;
 
 		switch (flg & IP_FW_F_KIND) {
@@ -88,11 +89,20 @@ print_port(port, comma, flg)
 				break;
 		}
 
-		se = getservbyport(htons(port), protocol);
+		if (protocol) {
+			se = getservbyport(htons(port), protocol);
 
-		if (se) {
-			printf("%s%s", comma, se->s_name);
-			printed = 1;
+			if (se) {
+				printf("%s%s", comma, se->s_name);
+				printed = 1;
+			}
+		} else {
+			pe = getprotobynumber(port);
+
+			if (pe) {
+				printf("%s%s", comma, pe->p_name);
+				printed = 1;
+			}
 		}
 	} 
 	if (!printed)
@@ -165,7 +175,7 @@ show_ipfw(chain)
 			printf(" udp ");
 			break;
 		case IP_FW_F_ALL:
-			printf(" all ");
+			printf(" ip ");
 			break;
 		default:
 			break;
@@ -200,13 +210,15 @@ show_ipfw(chain)
 			printf(inet_ntoa(chain->fw_src));
 	}
 
-	comma = " ";
-	for (i=0;i<chain->fw_nsp; i++ ) {
-		print_port(chain->fw_pts[i], comma, chain->fw_flg);
-		if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
-			comma = "-";
-		else
-			comma = ",";
+	if ((chain->fw_flg & IP_FW_F_KIND) != IP_FW_F_ALL) {
+		comma = " ";
+		for (i=0;i<chain->fw_nsp; i++ ) {
+			print_port(chain->fw_pts[i], comma, chain->fw_flg);
+			if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
+				comma = "-";
+			else
+				comma = ",";
+		}
 	}
 
 	printf(" to ");
@@ -246,6 +258,18 @@ show_ipfw(chain)
 		else
 		    comma = ",";
 	    }
+
+	if ((chain->fw_flg & IP_FW_F_KIND) == IP_FW_F_ALL && chain->fw_nsp) {
+		printf(" proto");
+		comma = " ";
+		for (i=0;i<chain->fw_nsp; i++) {
+			print_port(chain->fw_pts[i], comma, chain->fw_flg);
+			if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
+				comma = "-";
+			else
+				comma = ",";
+		}
+	}
 
 	if ((chain->fw_flg & IP_FW_F_IN) && (chain->fw_flg & IP_FW_F_OUT))
 		; 
@@ -374,6 +398,7 @@ show_usage(str)
 "\t\ttcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
 "\t\tipoptions [!]{ssrr|lsrr|rr|ts},...\n"
 "\t\ticmptypes {type},...\n"
+"\t\tproto {ipproto},...\n"
 , progname
 );
 
@@ -445,17 +470,22 @@ fill_ip(ipno, mask, acp, avp)
 }
 
 void
-add_port(cnt, ptr, off, port)
+add_port(cnt, ptr, off, port, proto)
 	u_short *cnt, *ptr, off, port;
+	int proto;
 {
+	if (proto && port > 255)
+		errx(1, "proto must be in the range 0-255");
 	if (off + *cnt >= IP_FW_MAX_PORTS)
-		errx(1, "too many ports (max is %d)", IP_FW_MAX_PORTS);
+		errx(1, "too many %s (max is %d)", 
+			 proto ? "protocols" : "ports", 
+			 IP_FW_MAX_PORTS);
 	ptr[off+*cnt] = port;
 	(*cnt)++;
 }
 
 int
-fill_port(cnt, ptr, off, arg)
+fill_port(cnt, ptr, off, arg, proto)
 	u_short *cnt, *ptr, off;
 	char *arg;
 {
@@ -464,6 +494,8 @@ fill_port(cnt, ptr, off, arg)
 
 	s = strchr(arg,'-');
 	if (s) {
+		if (proto)
+			errx(1,"proto ranges are not allowed");
 		*s++ = '\0';
 		if (strchr(arg, ','))
 			errx(1, "port range must be first in list");
@@ -480,7 +512,7 @@ fill_port(cnt, ptr, off, arg)
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, atoi(arg));
+		add_port(cnt, ptr, off, atoi(arg), proto);
 		arg = s;
 	}
 	return initial_range;
@@ -672,7 +704,7 @@ add(ac,av)
 	fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
-		if (fill_port(&rule.fw_nsp, &rule.fw_pts, 0, *av))
+		if (fill_port(&rule.fw_nsp, &rule.fw_pts, 0, *av, 0))
 			rule.fw_flg |= IP_FW_F_SRNG;
 		av++; ac--;
 	}
@@ -686,7 +718,7 @@ add(ac,av)
 	fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
-		if (fill_port(&rule.fw_ndp, &rule.fw_pts, rule.fw_nsp, *av))
+		if (fill_port(&rule.fw_ndp, &rule.fw_pts, rule.fw_nsp, *av, 0))
 			rule.fw_flg |= IP_FW_F_DRNG;
 		av++; ac--;
 	}
@@ -711,7 +743,7 @@ add(ac,av)
 				for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
 					continue;
 				if (*q == '*')
-					rule.fw_flg = IP_FW_F_IFUWILD;
+					rule.fw_flg |= IP_FW_F_IFUWILD;
 				else
 					rule.fw_via_unit = atoi(q);
 				*q = '\0';
@@ -756,6 +788,13 @@ add(ac,av)
 			if (ac > 1 && !strncmp(*av,"icmptypes",strlen(*av))) {
 				av++; ac--;
 				fill_icmptypes(rule.fw_icmptypes, av, &rule.fw_flg);
+				av++; ac--; continue;
+			}
+		}
+		if ((rule.fw_flg & IP_FW_F_KIND) == IP_FW_F_ALL) {
+			if (ac > 1 && !strncmp(*av,"proto",strlen(*av))) {
+				av++; ac--;
+				fill_port(&rule.fw_nsp, &rule.fw_pts, 0, *av, 1);
 				av++; ac--; continue;
 			}
 		}
