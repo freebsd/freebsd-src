@@ -968,6 +968,7 @@ isp_put_ctio2(struct ispsoftc *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
 	ISP_IOXPUT_16(isp, ctsrc->ct_timeout, &ctdst->ct_timeout);
 	ISP_IOXPUT_16(isp, ctsrc->ct_seg_count, &ctdst->ct_seg_count);
 	ISP_IOXPUT_32(isp, ctsrc->ct_resid, &ctdst->ct_resid);
+	ISP_IOXPUT_32(isp, ctsrc->ct_reloff, &ctdst->ct_reloff);
 	if ((ctsrc->ct_flags & CT2_FLAG_MMASK) == CT2_FLAG_MODE0) {
 		ISP_IOXPUT_32(isp, ctsrc->rsp.m0._reserved,
 		    &ctdst->rsp.m0._reserved);
