@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.18 1997/05/25 04:50:02 peter Exp $
+ *	$Id: null_vnops.c,v 1.19 1997/06/26 16:13:56 alex Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.18 1997/05/25 04:50:02 peter Exp $
+ * $Id: null_vnops.c,v 1.19 1997/06/26 16:13:56 alex Exp $
  */
 
 /*
@@ -162,15 +162,15 @@
  *
  * The first approach is to call the aliasing layer's bypass routine.
  * This method is most suitable when you wish to invoke the operation
- * currently being hanldled on the lower layer.  It has the advantage
+ * currently being handled on the lower layer.  It has the advantage
  * that the bypass routine already must do argument mapping.
  * An example of this is null_getattrs in the null layer.
  *
- * A second approach is to directly invoked vnode operations on
+ * A second approach is to directly invoke vnode operations on
  * the lower layer with the VOP_OPERATIONNAME interface.
  * The advantage of this method is that it is easy to invoke
  * arbitrary operations on the lower layer.  The disadvantage
- * is that vnodes arguments must be manualy mapped.
+ * is that vnode arguments must be manualy mapped.
  *
  */
 
