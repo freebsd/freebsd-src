@@ -740,11 +740,12 @@ ext2_dirbadentry(dp, de, entryoffsetinblock)
                 error_msg = "inode out of bounds";
 	*/
 
-        if (error_msg != NULL)
-                printf( "bad directory entry: %s\n"
-                        "offset=%lu, inode=%lu, rec_len=%d, name_len=%d \n",
-                        error_msg, entryoffsetinblock, 
-			(unsigned long) de->inode, de->rec_len, de->name_len);
+        if (error_msg != NULL) {
+                printf("bad directory entry: %s\n", error_msg);
+                printf("offset=%lu, inode=%lu, rec_len=%d, name_len=%d\n",
+			entryoffsetinblock, (unsigned long)de->inode,
+			de->rec_len, de->name_len);
+        }
         return error_msg == NULL ? 0 : 1;
 }
 

@@ -80,7 +80,9 @@ static void	ext2_fserr __P((struct ext2_sb_info *, u_int, char *));
  * I call it in ext2_inactive, ext2_truncate, ext2_vfree and in (2)
  * the call in vfree might be redundant
  */
-void ext2_discard_prealloc (struct inode * ip)
+void
+ext2_discard_prealloc(ip)
+	struct inode * ip;
 {
 #ifdef EXT2_PREALLOCATE
         if (ip->i_prealloc_count) {
@@ -127,7 +129,7 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 		panic("ext2_alloc: bad size");
 	}
 	if (cred == NOCRED)
-		panic("ext2_alloc: missing credential\n");
+		panic("ext2_alloc: missing credential");
 #endif /* DIAGNOSTIC */
 	if (size == fs->s_blocksize && fs->s_es->s_free_blocks_count == 0)
 		goto nospace;
@@ -542,7 +544,7 @@ ext2_vfree(ap)
 	pip = VTOI(ap->a_pvp);
 	fs = pip->i_e2fs;
 	if ((u_int)ino >= fs->s_inodes_per_group * fs->s_groups_count)
-		panic("ifree: range: dev = 0x%x, ino = %d, fs = %s\n",
+		panic("ifree: range: dev = 0x%x, ino = %d, fs = %s",
 		    pip->i_dev, ino, fs->fs_fsmnt);
 
 /* ext2_debug("ext2_vfree (%d, %d) called\n", pip->i_number, ap->a_mode);
