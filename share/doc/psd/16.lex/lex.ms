@@ -68,6 +68,11 @@ M. E. Lesk and E. Schmidt
 .AI
 .MH
 .AB
+.ps +1
+NOTE: This document describes the historical Unix version of \fIlex\fP.
+FreeBSD is supplied with \fIflex\fP\| which is a compatible replacement.
+See the extensive documentation in \fIflex(1)\fP\| for details.
+.ps
 .sp
 .bd I 2
 .\".nr PS 8
