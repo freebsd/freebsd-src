@@ -53,6 +53,7 @@ SUBDIR=	apply \
 	genassym \
 	gencat \
 	gensetdefs \
+	getconf \
 	getopt \
 	global \
 	gprof \
