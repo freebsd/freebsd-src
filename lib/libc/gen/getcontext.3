@@ -68,7 +68,7 @@ does not return.
 Instead, execution continues in the context specified by
 .Fa ucp ,
 which must have been previously initialized by a call to
-.Fn setcontext ,
+.Fn getcontext ,
 .Xr makecontext 3 ,
 or by being passed as an argument to a signal handler (see
 .Xr sigaction 2 ) .
