@@ -606,8 +606,6 @@ sigonstack(size_t sp)
 /* Lock and unlock a process group. */
 #define PGRP_LOCK(pg)	mtx_lock(&(pg)->pg_mtx)
 #define PGRP_UNLOCK(pg)	mtx_unlock(&(pg)->pg_mtx)
-#define	PGRP_UNLOCK_NOSWITCH(pg)					\
-	mtx_unlock_flags(&(pg)->pg_mtx, MTX_NOSWITCH)
 #define	PGRP_LOCKED(pg)	mtx_owned(&(pg)->pg_mtx)
 #define	PGRP_LOCK_ASSERT(pg, type)	mtx_assert(&(pg)->pg_mtx, (type))
 
@@ -626,8 +624,6 @@ sigonstack(size_t sp)
 /* Lock and unlock a session. */
 #define SESS_LOCK(s)	mtx_lock(&(s)->s_mtx)
 #define SESS_UNLOCK(s)	mtx_unlock(&(s)->s_mtx)
-#define	SESS_UNLOCK_NOSWITCH(s)						\
-	mtx_unlock_flags(&(s)->s_mtx, MTX_NOSWITCH)
 #define	SESS_LOCKED(s)	mtx_owned(&(s)->s_mtx)
 #define	SESS_LOCK_ASSERT(s, type)	mtx_assert(&(s)->s_mtx, (type))
 
