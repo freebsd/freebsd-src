@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)state.c	8.2 (Berkeley) 12/15/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -345,7 +347,7 @@ gotiac:			switch (c) {
 			continue;
 
 		default:
-			syslog(LOG_ERR, "telnetd: panic state=%d\n", state);
+			syslog(LOG_ERR, "panic state=%d", state);
 			printf("telnetd: panic state=%d\n", state);
 			exit(1);
 		}
@@ -1448,7 +1450,7 @@ doclientstat()
 	clientstat(TELOPT_LINEMODE, WILL, 0);
 }
 
-#define	ADD(c)	 *ncp++ = c;
+#define	ADD(c)	 *ncp++ = c
 #define	ADD_DATA(c) { *ncp++ = c; if (c == SE) *ncp++ = c; }
 	void
 send_status()
@@ -1500,14 +1502,14 @@ send_status()
 		ADD(SE);
 
 		if (restartany >= 0) {
-			ADD(SB)
+			ADD(SB);
 			ADD(TELOPT_LFLOW);
 			if (restartany) {
 				ADD(LFLOW_RESTART_ANY);
 			} else {
 				ADD(LFLOW_RESTART_XON);
 			}
-			ADD(SE)
+			ADD(SE);
 			ADD(SB);
 		}
 	}

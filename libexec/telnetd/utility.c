@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: utility.c,v 1.5 1996/09/22 21:55:52 wosch Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)utility.c	8.2 (Berkeley) 12/15/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #ifdef __FreeBSD__
@@ -68,10 +70,10 @@ ttloop()
     }
     ncc = read(net, netibuf, sizeof netibuf);
     if (ncc < 0) {
-	syslog(LOG_INFO, "ttloop:  read: %m\n");
+	syslog(LOG_INFO, "ttloop:  read: %m");
 	exit(1);
     } else if (ncc == 0) {
-	syslog(LOG_INFO, "ttloop:  peer died: %m\n");
+	syslog(LOG_INFO, "ttloop:  peer died: %m");
 	exit(1);
     }
     DIAG(TD_REPORT, {sprintf(nfrontp, "td: ttloop read %d chars\r\n", ncc);
@@ -340,7 +342,7 @@ fatalperror(f, msg)
 {
 	char buf[BUFSIZ], *strerror();
 
-	(void) sprintf(buf, "%s: %s\r\n", msg, strerror(errno));
+	(void) sprintf(buf, "%s: %s", msg, strerror(errno));
 	fatal(f, buf);
 }
 
@@ -352,7 +354,6 @@ edithost(pat, host)
 	register char *host;
 {
 	register char *res = editedhost;
-	char *strncpy();
 
 	if (!pat)
 		pat = "";
@@ -498,8 +499,7 @@ printsub(direction, pointer, length)
     unsigned char	*pointer;	/* where suboption data sits */
     int			length;		/* length of suboption data */
 {
-    register int i;
-    char buf[512];
+    register int i = 0;
 
         if (!(diagnostic & TD_OPTIONS))
 		return;
@@ -918,7 +918,6 @@ printsub(direction, pointer, length)
 			    break;
 
 			default:
-			def_case:
 			    if (isprint(pointer[i]) && pointer[i] != '"') {
 				if (noquote) {
 				    *nfrontp++ = '"';
@@ -974,8 +973,11 @@ printsub(direction, pointer, length)
 			"MUTUAL" : "ONE-WAY");
 		nfrontp += strlen(nfrontp);
 
-		auth_printsub(&pointer[1], length - 1, buf, sizeof(buf));
-		sprintf(nfrontp, "%s", buf);
+    		{
+		    char buf[512];
+		    auth_printsub(&pointer[1], length - 1, buf, sizeof(buf));
+		    sprintf(nfrontp, "%s", buf);
+		}
 		nfrontp += strlen(nfrontp);
 		break;
 

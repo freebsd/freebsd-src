@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)termstat.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -471,7 +473,7 @@ clientstat(code, parm1, parm2)
 		 ack = (useeditmode & MODE_ACK);
 		 useeditmode &= ~MODE_ACK;
 
-		 if (changed = (useeditmode ^ editmode)) {
+		 if ((changed = (useeditmode ^ editmode))) {
 			/*
 			 * This check is for a timing problem.  If the
 			 * state of the tty has changed (due to the user
