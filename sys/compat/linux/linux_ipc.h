@@ -32,19 +32,34 @@
 #define _LINUX_IPC_H_
 
 #ifndef __alpha__
-int linux_msgctl __P((struct proc *, struct linux_ipc_args *));
-int linux_msgget __P((struct proc *, struct linux_ipc_args *));
-int linux_msgrcv __P((struct proc *, struct linux_ipc_args *));
-int linux_msgsnd __P((struct proc *, struct linux_ipc_args *));
 
-int linux_semctl __P((struct proc *, struct linux_ipc_args *));
-int linux_semget __P((struct proc *, struct linux_ipc_args *));
-int linux_semop  __P((struct proc *, struct linux_ipc_args *));
+#define linux_msgctl_args linux_ipc_args 
+#define linux_msgget_args linux_ipc_args
+#define linux_msgrcv_args linux_ipc_args
+#define linux_msgsnd_args linux_ipc_args
 
-int linux_shmat  __P((struct proc *, struct linux_ipc_args *));
-int linux_shmctl __P((struct proc *, struct linux_ipc_args *));
-int linux_shmdt  __P((struct proc *, struct linux_ipc_args *));
-int linux_shmget __P((struct proc *, struct linux_ipc_args *));
-#endif	/*!__alpha__*/
+#define linux_semctl_args linux_ipc_args
+#define linux_semget_args linux_ipc_args
+#define linux_semop_args linux_ipc_args
+
+#define linux_shmat_args linux_ipc_args
+#define linux_shmctl_args linux_ipc_args
+#define linux_shmdt_args linux_ipc_args
+#define linux_shmget_args linux_ipc_args
+
+int linux_msgctl __P((struct proc *, struct linux_msgctl_args *));
+int linux_msgget __P((struct proc *, struct linux_msgget_args *));
+int linux_msgrcv __P((struct proc *, struct linux_msgrcv_args *));
+int linux_msgsnd __P((struct proc *, struct linux_msgsnd_args *));
+
+int linux_semctl __P((struct proc *, struct linux_semctl_args *));
+int linux_semget __P((struct proc *, struct linux_semget_args *));
+int linux_semop  __P((struct proc *, struct linux_semop_args *));
+
+int linux_shmat  __P((struct proc *, struct linux_shmat_args *));
+int linux_shmctl __P((struct proc *, struct linux_shmctl_args *));
+int linux_shmdt  __P((struct proc *, struct linux_shmdt_args *));
+int linux_shmget __P((struct proc *, struct linux_shmget_args *));
+#endif	/*__alpha__*/
 
 #endif /* _LINUX_IPC_H_ */
