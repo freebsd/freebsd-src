@@ -861,11 +861,13 @@ brelse(struct buf * bp)
 	if (bp->b_flags & B_LOCKED)
 		bp->b_flags &= ~B_ERROR;
 
-	if ((bp->b_flags & (B_READ | B_ERROR)) == B_ERROR) {
+	if ((bp->b_flags & (B_READ | B_ERROR | B_INVAL)) == B_ERROR) {
 		/*
 		 * Failed write, redirty.  Must clear B_ERROR to prevent
-		 * pages from being scrapped.  Note: B_INVAL is ignored
-		 * here but will presumably be dealt with later.
+		 * pages from being scrapped.  If B_INVAL is set then
+		 * this case is not run and the next case is run to 
+		 * destroy the buffer.  B_INVAL can occur if the buffer
+		 * is outside the range supported by the underlying device.
 		 */
 		bp->b_flags &= ~B_ERROR;
 		bdirty(bp);
