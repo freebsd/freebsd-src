@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.34 1995/05/27 10:47:38 jkh Exp $
+ * $Id: menus.c,v 1.35 1995/05/28 09:31:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -673,8 +673,6 @@ aspects of your system's network configuration.",
 	DMENU_SET_VARIABLE, "nfs_client=YES", 0, 0		},
       { "NFS server",	"This machine will be an NFS server",
 	DMENU_SET_VARIABLE, "nfs_server=YES", 0, 0		},
-      { "gated",	"This machine wants to run gated",
-	DMENU_SET_VARIABLE, "gated=YES", 0, 0			},
       { "interfaces",	"Configure additional interfaces",
 	DMENU_CALL,	tcpDeviceSelect, 0, 0			},
       { "ntpdate",	"Select a clock-syncronization server",
@@ -748,7 +746,7 @@ select Cancel.",
 	DMENU_SUBMENU, &MenuSysconsKeymap, 0, 0		},
       { "Repeat", "Set the rate at which keys repeat",
 	DMENU_SUBMENU, &MenuSysconsKeyrate, 0, 0	},
-      { "Saver", "Select a screen saver",
+      { "Saver", "Configure the screen saver",
 	DMENU_SUBMENU, &MenuSysconsSaver, 0, 0		},
       { NULL } },
 };
@@ -792,7 +790,7 @@ the other keymaps below.",
 };
 
 DMenu MenuSysconsKeyrate = {
-    DMENU_NORMAL_TYPE,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keyboard Repeat Rate",
     "This menu allows you to set the speed at which keys repeat\n\
 when held down.",
@@ -810,7 +808,7 @@ when held down.",
 };
 
 DMenu MenuSysconsSaver = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE,
     "System Console Screen Saver",
     "By default, the console driver will not attempt to do anything\n\
 special with your screen when it's idle.  If you expect to leave your\n\
