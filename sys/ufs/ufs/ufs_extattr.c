@@ -140,10 +140,10 @@ static struct ufs_extattr_list_entry *
 ufs_extattr_find_attr(struct ufsmount *ump, int attrnamespace,
     const char *attrname)
 {
-	struct ufs_extattr_list_entry	*search_attribute;
+	struct ufs_extattr_list_entry *search_attribute;
 
 	for (search_attribute = LIST_FIRST(&ump->um_extattr.uepm_list);
-	    search_attribute;
+	    search_attribute != NULL;
 	    search_attribute = LIST_NEXT(search_attribute, uele_entries)) {
 		if (!(strncmp(attrname, search_attribute->uele_attrname,
 		    UFS_EXTATTR_MAXEXTATTRNAME)) &&
@@ -200,8 +200,8 @@ ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm)
 int
 ufs_extattr_start(struct mount *mp, struct thread *td)
 {
-	struct ufsmount	*ump;
-	int	error = 0;
+	struct ufsmount *ump;
+	int error = 0;
 
 	ump = VFSTOUFS(mp);
 
@@ -546,9 +546,9 @@ return_vput_attr_dvp:
 int
 ufs_extattr_stop(struct mount *mp, struct thread *td)
 {
-	struct ufs_extattr_list_entry	*uele;
-	struct ufsmount	*ump = VFSTOUFS(mp);
-	int	error = 0;
+	struct ufs_extattr_list_entry *uele;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	int error = 0;
 
 	ufs_extattr_uepm_lock(ump, td);
 
@@ -582,10 +582,10 @@ static int
 ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
     const char *attrname, struct vnode *backing_vnode, struct thread *td)
 {
-	struct ufs_extattr_list_entry	*attribute;
-	struct iovec	aiov;
-	struct uio	auio;
-	int	error = 0;
+	struct ufs_extattr_list_entry *attribute;
+	struct iovec aiov;
+	struct uio auio;
+	int error = 0;
 
 	if (!ufs_extattr_valid_attrname(attrnamespace, attrname))
 		return (EINVAL);
@@ -675,8 +675,8 @@ static int
 ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
     const char *attrname, struct thread *td)
 {
-	struct ufs_extattr_list_entry	*uele;
-	int	error = 0;
+	struct ufs_extattr_list_entry *uele;
+	int error = 0;
 
 	if (!ufs_extattr_valid_attrname(attrnamespace, attrname))
 		return (EINVAL);
@@ -709,8 +709,8 @@ int
 ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
     int attrnamespace, const char *attrname, struct thread *td)
 {
-	struct ufsmount	*ump = VFSTOUFS(mp);
-	int	error;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	int error;
 
 	/*
 	 * Processes with privilege, but in jail, are not allowed to
@@ -805,9 +805,9 @@ vop_getextattr {
 };
 */
 {
-	struct mount	*mp = ap->a_vp->v_mount;
-	struct ufsmount	*ump = VFSTOUFS(mp);
-	int	error;
+	struct mount *mp = ap->a_vp->v_mount;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	int error;
 
 	ufs_extattr_uepm_lock(ump, ap->a_td);
 
@@ -827,16 +827,16 @@ static int
 ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
     struct uio *uio, size_t *size, struct ucred *cred, struct thread *td)
 {
-	struct ufs_extattr_list_entry	*attribute;
-	struct ufs_extattr_header	ueh;
-	struct iovec	local_aiov;
-	struct uio	local_aio;
-	struct mount	*mp = vp->v_mount;
-	struct ufsmount	*ump = VFSTOUFS(mp);
-	struct inode	*ip = VTOI(vp);
-	off_t	base_offset;
-	size_t	len, old_len;
-	int	error = 0;
+	struct ufs_extattr_list_entry *attribute;
+	struct ufs_extattr_header ueh;
+	struct iovec local_aiov;
+	struct uio local_aio;
+	struct mount *mp = vp->v_mount;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	struct inode *ip = VTOI(vp);
+	off_t base_offset;
+	size_t len, old_len;
+	int error = 0;
 
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);
@@ -978,10 +978,9 @@ vop_deleteextattr {
 };
 */
 {
-	struct mount	*mp = ap->a_vp->v_mount;
-	struct ufsmount	*ump = VFSTOUFS(mp); 
-
-	int	error;
+	struct mount *mp = ap->a_vp->v_mount;
+	struct ufsmount *ump = VFSTOUFS(mp); 
+	int error;
 
 	ufs_extattr_uepm_lock(ump, ap->a_td);
 
@@ -1010,10 +1009,9 @@ vop_setextattr {
 };
 */
 {
-	struct mount	*mp = ap->a_vp->v_mount;
-	struct ufsmount	*ump = VFSTOUFS(mp); 
-
-	int	error;
+	struct mount *mp = ap->a_vp->v_mount;
+	struct ufsmount *ump = VFSTOUFS(mp); 
+	int error;
 
 	ufs_extattr_uepm_lock(ump, ap->a_td);
 
@@ -1039,15 +1037,15 @@ static int
 ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
     struct uio *uio, struct ucred *cred, struct thread *td)
 {
-	struct ufs_extattr_list_entry	*attribute;
-	struct ufs_extattr_header	ueh;
-	struct iovec	local_aiov;
-	struct uio	local_aio;
-	struct mount	*mp = vp->v_mount;
-	struct ufsmount	*ump = VFSTOUFS(mp);
-	struct inode	*ip = VTOI(vp);
-	off_t	base_offset;
-	int	error = 0, ioflag;
+	struct ufs_extattr_list_entry *attribute;
+	struct ufs_extattr_header ueh;
+	struct iovec local_aiov;
+	struct uio local_aio;
+	struct mount *mp = vp->v_mount;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	struct inode *ip = VTOI(vp);
+	off_t base_offset;
+	int error = 0, ioflag;
 
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (EROFS);
@@ -1151,15 +1149,15 @@ static int
 ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
     struct ucred *cred, struct thread *td)
 {
-	struct ufs_extattr_list_entry	*attribute;
-	struct ufs_extattr_header	ueh;
-	struct iovec	local_aiov;
-	struct uio	local_aio;
-	struct mount	*mp = vp->v_mount;
-	struct ufsmount	*ump = VFSTOUFS(mp);
-	struct inode	*ip = VTOI(vp);
-	off_t	base_offset;
-	int	error = 0, ioflag;
+	struct ufs_extattr_list_entry *attribute;
+	struct ufs_extattr_header ueh;
+	struct iovec local_aiov;
+	struct uio local_aio;
+	struct mount *mp = vp->v_mount;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	struct inode *ip = VTOI(vp);
+	off_t base_offset;
+	int error = 0, ioflag;
 
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)  
 		return (EROFS);
@@ -1272,9 +1270,9 @@ vopunlock_exit:
 void
 ufs_extattr_vnode_inactive(struct vnode *vp, struct thread *td)
 {
-	struct ufs_extattr_list_entry	*uele;
-	struct mount	*mp = vp->v_mount;
-	struct ufsmount	*ump = VFSTOUFS(mp);
+	struct ufs_extattr_list_entry *uele;
+	struct mount *mp = vp->v_mount;
+	struct ufsmount *ump = VFSTOUFS(mp);
 
 	/*
 	 * In that case, we cannot lock. We should not have any active vnodes
