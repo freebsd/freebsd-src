@@ -88,14 +88,12 @@ struct mtx {
 	volatile u_int	mtx_recurse;	/* number of recursive holds */
 	u_int		mtx_saveintr;	/* saved flags (for spin locks) */
 	int		mtx_flags;	/* flags passed to mtx_init() */
-	union {
-		struct mtx_debug *mtxu_debug;
-		const char	*mtxu_description;
-	}		mtx_union;
+	const char	*mtx_description;
 	TAILQ_HEAD(, proc) mtx_blocked;
 	LIST_ENTRY(mtx)	mtx_contested;
 	struct mtx	*mtx_next;	/* all locks in system */
 	struct mtx	*mtx_prev;
+	struct mtx_debug *mtx_debug;
 };
 
 #define mp_fixme(string)
