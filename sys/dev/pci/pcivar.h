@@ -246,10 +246,12 @@ PCIB_ACCESSOR(bus,		BUS,		u_int32_t)
 #undef PCIB_ACCESSOR
 
 /*
- * PCI interrupt validation.
+ * PCI interrupt validation.  Invalid interrupt values such as 0 or 128
+ * on i386 or other platforms should be mapped out in the MD pcireadconf
+ * code and not here, since the only MI invalid IRQ is 255.
  */
 #define PCI_INVALID_IRQ		255
-#define PCI_INTERRUPT_VALID(x)	(((x) != 0) && ((x) != PCI_INVALID_IRQ))
+#define PCI_INTERRUPT_VALID(x)	((x) != PCI_INVALID_IRQ)
 
 /*
  * Convenience functions.
