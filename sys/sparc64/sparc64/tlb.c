@@ -81,14 +81,14 @@ tlb_context_demap(struct pmap *pm)
 }
 
 void
-tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
+tlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
 	u_long flags;
 	void *cookie;
 	u_long s;
 
 	critical_enter();
-	cookie = ipi_tlb_page_demap(tlb, pm, va);
+	cookie = ipi_tlb_page_demap(pm, va);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
 		    ("tlb_page_demap: inactive pmap?"));
@@ -98,14 +98,9 @@ tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 			flags = TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE;
 	
 		s = intr_disable();
-		if (tlb & TLB_DTLB) {
-			stxa(TLB_DEMAP_VA(va) | flags, ASI_DMMU_DEMAP, 0);
-			membar(Sync);
-		}
-		if (tlb & TLB_ITLB) {
-			stxa(TLB_DEMAP_VA(va) | flags, ASI_IMMU_DEMAP, 0);
-			membar(Sync);
-		}
+		stxa(TLB_DEMAP_VA(va) | flags, ASI_DMMU_DEMAP, 0);
+		stxa(TLB_DEMAP_VA(va) | flags, ASI_IMMU_DEMAP, 0);
+		membar(Sync);
 		intr_restore(s);
 	}
 	ipi_wait(cookie);

@@ -94,9 +94,6 @@ ASSYM(TLB_DEMAP_PRIMARY, TLB_DEMAP_PRIMARY);
 ASSYM(TLB_DEMAP_CONTEXT, TLB_DEMAP_CONTEXT);
 ASSYM(TLB_DEMAP_PAGE, TLB_DEMAP_PAGE);
 
-ASSYM(TLB_DTLB, TLB_DTLB);
-ASSYM(TLB_ITLB, TLB_ITLB);
-
 ASSYM(TSB_BUCKET_ADDRESS_BITS, TSB_BUCKET_ADDRESS_BITS);
 ASSYM(TSB_BUCKET_SHIFT, TSB_BUCKET_SHIFT);
 ASSYM(TSB_KERNEL_MASK, TSB_KERNEL_MASK);
@@ -197,7 +194,6 @@ ASSYM(IR_PRI, offsetof(struct intr_request, ir_pri));
 ASSYM(IR_VEC, offsetof(struct intr_request, ir_vec));
 
 ASSYM(ITA_MASK, offsetof(struct ipi_tlb_args, ita_mask));
-ASSYM(ITA_TLB, offsetof(struct ipi_tlb_args, ita_tlb));
 ASSYM(ITA_PMAP, offsetof(struct ipi_tlb_args, ita_pmap));
 ASSYM(ITA_START, offsetof(struct ipi_tlb_args, ita_start));
 ASSYM(ITA_END, offsetof(struct ipi_tlb_args, ita_end));
