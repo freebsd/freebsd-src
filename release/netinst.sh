@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.5 1994/11/18 11:01:33 jkh Exp $
+# $Id: netinst.sh,v 1.6 1994/11/18 16:27:54 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -69,7 +69,9 @@ network_setup_slip()
 		chmod 666 /var/log/aculog	> /dev/null 2>&1
 		confirm "You may now dialog with your modem and set up the slip connection.\nBe sure to disable DTR sensitivity (usually with AT&D0) or the modem may\nhang up when you exit 'cu'.  Use ~. to exit cu and continue."
 		dialog --clear
-		cu -l $serial_interface -s $serial_speed
+		# Grottyness to deal with a weird crunch bug.
+		if [ ! -f /stand/cu ]; then ln /stand/tip /stand/cu; fi
+		/stand/cu -l $serial_interface -s $serial_speed
 		dialog --clear
 	fi
 }
