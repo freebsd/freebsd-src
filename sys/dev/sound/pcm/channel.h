@@ -155,6 +155,4 @@ int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 /* The size of a whole secondary bufhard. */
 #define CHN_2NDBUFMAXSIZE	(131072)
 
-#define	CHN_DEFAULT_HZ		50
-
 #define CHANNEL_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))

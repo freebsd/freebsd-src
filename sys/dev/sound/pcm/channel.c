@@ -42,6 +42,26 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define DEB(x) x
 */
 
+static int chn_targetirqrate = 32;
+TUNABLE_INT("hw.snd.targetirqrate", &chn_targetirqrate);
+
+static int
+sysctl_hw_snd_targetirqrate(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = chn_targetirqrate;
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (val < 16 || val > 512)
+		err = EINVAL;
+	else
+		chn_targetirqrate = val;
+
+	return err;
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, targetirqrate, CTLTYPE_INT | CTLFLAG_RW,
+            0, sizeof(int), sysctl_hw_snd_targetirqrate, "I", "");
+
 static int chn_buildfeeder(struct pcm_channel *c);
 
 static void
@@ -678,7 +698,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 	}
 	chn_setdir(c, dir);
 
-	/* And the secondary bufhard. */
+	/* And the secondary buffer. */
 	sndbuf_setfmt(b, AFMT_U8);
 	sndbuf_setfmt(bs, AFMT_U8);
 	CHN_UNLOCK(c);
@@ -859,7 +879,7 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 		if (blksz == -1)
 			c->flags &= ~CHN_F_HAS_SIZE;
 		if (!(c->flags & CHN_F_HAS_SIZE)) {
-			blksz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / CHN_DEFAULT_HZ;
+			blksz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / chn_targetirqrate;
 	      		tmp = 32;
 			while (tmp <= blksz)
 				tmp <<= 1;
