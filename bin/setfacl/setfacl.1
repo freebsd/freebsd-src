@@ -30,15 +30,15 @@
 .Os
 .Sh NAME
 .Nm setfacl
-.Nd Set ACL Information
+.Nd set ACL Information
 .Sh SYNOPSIS
-.Nm setfacl
+.Nm
 .Op Fl bdkn
 .Op Fl m Ar entries
 .Op Fl M Ar file1
 .Op Fl x Ar entries
 .Op Fl X Ar file1
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 The
 .Nm
@@ -57,7 +57,7 @@ default ACL's.
 Delete any default ACL entries on the specified files.  It
 is not considered an error if the specified files do not have
 any default ACL entries.  An error will be reported if any of
-the specified files cannot have a default entry (i.e.
+the specified files cannot have a default entry (i.e.\&
 non-directories).
 .It Fl m Ar entries
 Modify the ACL entries on the specified files by adding new
@@ -71,7 +71,9 @@ entries specified in the file
 .Ar file .
 If
 .Ar file
-is "-", the input is taken from stdin.
+is
+.Fl ,
+the input is taken from stdin.
 .It Fl n
 Do not recalculate the permissions associated with the ACL
 mask entry.
@@ -88,70 +90,89 @@ from the access or default ACL of the specified files.
 The above options are evaluated in the order specified
 on the command-line.
 .Pp
-Multiple ACL entries specified on the command line shall be
+Multiple ACL entries specified on the command line are
 separated by commas.
 .Sh ACL ENTRIES
-An ACL entry shall contain three colon-separated fields:
+An ACL entry contains three colon-separated fields:
 an ACL tag, an ACL qualifier, and discretionary access
 permissions:
-.Pp
 .Bl -tag -width indent
-.It Ar ACL tag
-The ACL tag specifies the ACL entry type and shall consist of
-one of the following: ``user'' or ``u'' specifying the access
-granted to the owner of the file or a specified user; ``group''
-or ``g'' specifying the access granted to the file owning group
-or a specified group; ``other'' or ``o'' specifying the access
+.It Ar "ACL tag"
+The ACL tag specifies the ACL entry type and consists of
+one of the following:
+.Dq Li user
+or
+.Ql u
+specifying the access
+granted to the owner of the file or a specified user;
+.Dq Li group
+or
+.Ql g
+specifying the access granted to the file owning group
+or a specified group;
+.Dq Li other
+or
+.Ql o
+specifying the access
 granted to any process that does not match any user or group
-ACL entry; ``mask'' or ``m'' specifying the maximum access
+ACL entry;
+.Dq Li mask
+or
+.Ql m
+specifying the maximum access
 granted to any ACL entry except the
-.Ar user
+.Dq Li user
 ACL entry for the file owner and the
-.Ar other
+.Dq Li other
 ACL entry.
-.Pp
-.It Ar ACL qualifier
+.It Ar "ACL qualifier"
 The ACL qualifier field describes the user or group associated with
 the ACL entry.  It may consist of one of the following: uid or
 user name, gid or group name, or empty.  For
-.Ar user
-ACL entries, an empty field shall specify access granted to the
+.Dq Li user
+ACL entries, an empty field specifies access granted to the
 file owner.  For
-.Ar group
-ACL entries, an empty field shall specify access granted to the
+.Dq Li group
+ACL entries, an empty field specifies access granted to the
 file owning group.
-.Ar mask
+.Dq Li mask
 and
-.Ar other
+.Dq Li other
 ACL entries do not use this field.
-.Pp
-.It Ar access permissions
-The access permissions field shall contain up to one of each of
-the following: ``r'', ``w'', and ``x'' to set read, write, and
+.It Ar "access permissions"
+The access permissions field contains up to one of each of
+the following:
+.Ql r ,
+.Ql w ,
+and
+.Ql x
+to set read, write, and
 execute permissions, respectively.  Each of these may be excluded
-or replaced with a ``-'' character to indicate no access.
+or replaced with a
+.Ql -
+character to indicate no access.
 .El
 .Pp
 A
-.Ar mask
+.Dq Li mask
 ACL entry is required on a file with any ACL entries other than
 the default
-.Ar user ,
-.Ar group ,
+.Dq Li user ,
+.Dq Li group ,
 and
-.Ar other
+.Dq Li other
 ACL entries.  If the
 .Fl n
 option is not specified and no
-.Ar mask
+.Dq Li mask
 ACL entry was specified, the
 .Nm
 utility
 will apply a
-.Ar mask
+.Dq Li mask
 ACL entry consisting of the union of the permissions associated
 with all
-.Ar group
+.Dq Li group
 ACL entries in the resulting ACL.
 .Pp
 ACL entries applied from a file using the
@@ -159,21 +180,22 @@ ACL entries applied from a file using the
 or
 .Fl X
 options shall be of the following form: one ACL entry per line, as
-previously specified; whitespace is ignored; any text after a # is
-ignored (comments).
+previously specified; whitespace is ignored; any text after a
+.Ql #
+is ignored (comments).
 .Pp
 When ACL entries are evaluated, the access check algorithm checks
 the ACL entries in the following order: file owner,
-.Ar user
+.Dq Li user
 ACL entries, file owning group,
-.Ar group
+.Dq Li group
 ACL entries, and
-.Ar other
+.Dq Li other
 ACL entry.
-.Sh RETURN VALUES
+.Sh DIAGNOSTICS
 The
 .Nm
-utility returns 0 on success and > 0 if an error occurs.
+utility returns 0 on success and >0 if an error occurs.
 .Sh EXAMPLES
 .Dl setfacl -m u::rwx,g:mail:rw file
 .Pp
@@ -213,14 +235,18 @@ to
 .Xr getextattr 8 ,
 .Xr setextattr 8 ,
 .Xr acl 9 ,
-.Xr extattr 9 .
+.Xr extattr 9
 .Sh STANDARDS
 The
 .Nm
-utility is expected to be IEEE Std 1003.2c compliant.
+utility is expected to be
+.Tn IEEE
+Std 1003.2c compliant.
 .Sh HISTORY
 Extended Attribute and Access Control List support was developed
-as part of the TrustedBSD Project and introduced in
+as part of the
+.Tn TrustedBSD
+Project and introduced in
 .Fx 5.0 .
 .Sh AUTHORS
 The
