@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.8 1995/10/09 11:14:55 jkh Exp $
+ * $Id: media.c,v 1.25.2.9 1995/10/16 15:14:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -253,23 +253,22 @@ mediaSetFTP(char *str)
     char *cp;
 
     if (!dmenuOpenSimple(&MenuMediaFTP))
-	return 0;
-    cp = variable_get("ftp");
-    if (!cp)
 	return RET_FAIL;
-    if (!strcmp(cp, "other")) {
-	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\n"
-			 "remote ftp site.  This site must accept either anonymous\n"
-			 "ftp or you should have set an ftp username and password\n"
-			 "in the Options screen.\n"
-			 "A URL looks like this:  ftp://<hostname>/<path>\n"
-			 "Where <path> is relative to the anonymous ftp directory or the\n"
-			 "home directory of the user being logged in as.");
-	if (!cp || strncmp("ftp://", cp, 6))
-	    return RET_FAIL;
+    if (!strcmp(cp = variable_get("ftp"), "other")) {
+	variable_set2("ftp", "ftp://");
+	if (variable_get_value("ftp", "Please specify the URL of a FreeBSD distribution on a\n"
+			       "remote ftp site.  This site must accept either anonymous\n"
+			       "ftp or you should have set an ftp username and password\n"
+			       "in the Options screen.\n\n"
+			       "A URL looks like this:  ftp://<hostname>/<path>\n"
+			       "Where <path> is relative to the anonymous ftp directory or the\n"
+			       "home directory of the user being logged in as.") == RET_SUCCESS)
+	    cp = variable_get("ftp");
 	else
-	    variable_set2("ftp", cp);
+	    return RET_FAIL;
     }
+    if (!cp || strncmp("ftp://", cp, 6))
+	return RET_FAIL;
     strcpy(ftpDevice.name, cp);
     /* XXX hack: if str == NULL, we were called by an ftp strategy routine and don't need to reinit all */
     if (!str)
@@ -517,11 +516,8 @@ mediaSetFtpUserPass(char *str)
     int i;
 
     dialog_clear();
-    if (variable_get_value(FTP_USER, "Please enter the username you wish to login as") == RET_SUCCESS) {
-	noecho();
+    if (variable_get_value(FTP_USER, "Please enter the username you wish to login as") == RET_SUCCESS)
 	i = variable_get_value(FTP_PASS, "Please enter the password for this user.");
-	echo();
-    }
     else
 	i = RET_FAIL;
     dialog_clear();
@@ -532,7 +528,6 @@ mediaSetFtpUserPass(char *str)
 int
 mediaSetTapeBlocksize(char *str)
 {
-    char *bsize;
     int i;
 
     i = variable_get_value(TAPE_BLOCKSIZE, "Please enter the tape block size in 512 byte blocks");

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.11 1995/10/16 10:33:43 jkh Exp $
+ * $Id: label.c,v 1.32.2.12 1995/10/16 15:14:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -134,8 +134,10 @@ diskLabelEditor(char *str)
 		   "Documentation menu for clues on diagnosing this type of problem.");
 	return RET_FAIL;
     }
-    else if (cnt == 1 || variable_get(DISK_PARTITIONED))
+    else if (cnt == 1 || variable_get(DISK_PARTITIONED)) {
+	devs[0]->enabled = TRUE;
 	i = diskLabel(str);
+    }
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
 	if (!menu) {
@@ -171,10 +173,8 @@ diskLabelCommit(char *str)
     }
     else if ((cp = variable_get(DISK_PARTITIONED))) {
 	/* The routine will guard against redundant writes, just as this one does */
-	if (diskPartitionWrite(NULL) != RET_SUCCESS) {
-	    msgConfirm("Disk partition write returned an error status!");
+	if (diskPartitionWrite(NULL) != RET_SUCCESS)
 	    return RET_FAIL;
-	}
     }
     else {
 	msgConfirm("You must partition the disk(s) before this option can be used.");

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.9 1995/10/16 09:25:10 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.10 1995/10/16 15:13:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,20 +65,21 @@ get_new_host(Device *dev)
     MenuMediaFTP.title = "Request failed - please select another site";
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
-    if (i) {
+    if (i == RET_SUCCESS) {
 	char *cp = variable_get(FTP_USER);
 
 	if (cp && *cp)
 	    (void)mediaSetFtpUserPass(NULL);
-    }
-
-    if (dev) {
-	/* Bounce the link */
-	dev->shutdown(dev);
-	i = dev->init(dev);
+	if (dev) {
+	    /* Bounce the link */
+	    dev->shutdown(dev);
+	    i = dev->init(dev);
+	}
+	else
+	    i = TRUE;
     }
     else
-	i = TRUE;
+	dev->shutdown(link);
     return i;
 }
 
