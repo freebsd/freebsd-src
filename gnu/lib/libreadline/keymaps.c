@@ -1,27 +1,30 @@
 /* keymaps.c -- Functions and keymaps for the GNU Readline library. */
 
-/* Copyright (C) 1988, 1989, 1991 Free Software Foundation, Inc.
+/* Copyright (C) 1988,1989 Free Software Foundation, Inc.
 
    This file is part of GNU Readline, a library for reading lines
    of text with interactive input and history editing.
 
-   Readline is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   Readline is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 1, or (at your option) any
+   later version.
 
-   Readline is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   Readline is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   along with Readline; see the file COPYING.  If not, write to the Free
+   Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
-#include "sysdep.h"
-#include <stdio.h>
-#include "readline.h"
+#if defined (HAVE_STDLIB_H)
+#  include <stdlib.h>
+#else
+#  include "ansi_stdlib.h"
+#endif /* HAVE_STDLIB_H */
+
 #include "keymaps.h"
 #include "emacs_keymap.c"
 
@@ -29,12 +32,10 @@
 #include "vi_keymap.c"
 #endif
 
-/* Remove these declarations when we have a complete libgnu.a. */
-/* #define STATIC_MALLOC */
-#if !defined (STATIC_MALLOC)
-extern char *xmalloc (), *xrealloc ();
-#else
+#if defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();
+#else
+extern char *xmalloc (), *xrealloc ();
 #endif /* STATIC_MALLOC */
 
 /* **************************************************************** */
@@ -50,9 +51,9 @@ Keymap
 rl_make_bare_keymap ()
 {
   register int i;
-  Keymap keymap = (Keymap)xmalloc (128 * sizeof (KEYMAP_ENTRY));
+  Keymap keymap = (Keymap)xmalloc (KEYMAP_SIZE * sizeof (KEYMAP_ENTRY));
 
-  for (i = 0; i < 128; i++)
+  for (i = 0; i < KEYMAP_SIZE; i++)
     {
       keymap[i].type = ISFUNC;
       keymap[i].function = (Function *)NULL;
@@ -75,7 +76,7 @@ rl_copy_keymap (map)
   register int i;
   Keymap temp = rl_make_bare_keymap ();
 
-  for (i = 0; i < 128; i++)
+  for (i = 0; i < KEYMAP_SIZE; i++)
     {
       temp[i].type = map[i].type;
       temp[i].function = map[i].function;
@@ -89,19 +90,29 @@ rl_copy_keymap (map)
 Keymap
 rl_make_keymap ()
 {
-  extern rl_insert (), rl_rubout ();
+  extern int rl_insert (), rl_rubout ();
   register int i;
   Keymap newmap;
 
   newmap = rl_make_bare_keymap ();
 
-  /* All printing characters are self-inserting. */
+  /* All ASCII printing characters are self-inserting. */
   for (i = ' '; i < 126; i++)
     newmap[i].function = rl_insert;
 
   newmap[TAB].function = rl_insert;
   newmap[RUBOUT].function = rl_rubout;
   newmap[CTRL('H')].function = rl_rubout;
+
+#if KEYMAP_SIZE > 128
+  /* Printing characters in some 8-bit character sets. */
+  for (i = 128; i < 160; i++)
+    newmap[i].function = rl_insert;
+
+  /* ISO Latin-1 printing characters should self-insert. */
+  for (i = 160; i < 256; i++)
+    newmap[i].function = rl_insert;
+#endif /* KEYMAP_SIZE > 128 */
 
   return (newmap);
 }
@@ -115,7 +126,7 @@ rl_discard_keymap (map)
   if (!map)
     return;
 
-  for (i = 0; i < 128; i++)
+  for (i = 0; i < KEYMAP_SIZE; i++)
     {
       switch (map[i].type)
 	{
@@ -133,7 +144,7 @@ rl_discard_keymap (map)
     }
 }
 
-#ifdef STATIC_MALLOC
+#if defined (STATIC_MALLOC)
 
 /* **************************************************************** */
 /*								    */

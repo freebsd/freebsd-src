@@ -1,3 +1,8 @@
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename rluser.info
+@comment %**end of header (This is for running Texinfo on a region.)
+@setchapternewpage odd
+
 @ignore
 This file documents the end user interface to the GNU command line
 editing feautres.  It is to be an appendix to manuals for programs which
@@ -28,8 +33,11 @@ Permission is granted to copy and distribute translations of this manual
 into another language, under the above conditions for modified versions.
 @end ignore
 
+@comment If you are including this manual as an appendix, then set the
+@comment variable readline-appendix.
+
 @node Command Line Editing
-@appendix Command Line Editing
+@chapter Command Line Editing
 
 This text describes GNU's command line editing interface.
 
@@ -168,8 +176,8 @@ Kill from the cursor to the end of the current word, or if between
 words, to the end of the next word.
 
 @item M-DEL
-Kill from the cursor to the start of the previous word, or if between
-words, to the start of the previous word. 
+Kill from the cursor the start of the previous word, or if between
+words, to the start of the previous word.
 
 @item C-w
 Kill from the cursor to the previous whitespace.  This is different than
@@ -226,7 +234,7 @@ file is @file{~/.inputrc}.
 When a program which uses the Readline library starts up, the
 @file{~/.inputrc} file is read, and the keybindings are set.
 
-In addition, the @key{C-x C-r} command re-reads this init file, thus
+In addition, the @code{C-x C-r} command re-reads this init file, thus
 incorporating any changes that you might have made to it.
 
 @menu
@@ -305,8 +313,8 @@ Meta-Rubout: backward-kill-word
 Control-o: ">&output"
 @end example
 
-In the above example, @key{C-u} is bound to the function
-@code{universal-argument}, and @key{C-o} is bound to run the macro
+In the above example, @samp{C-u} is bound to the function
+@code{universal-argument}, and @samp{C-o} is bound to run the macro
 expressed on the right hand side (that is, to insert the text
 @samp{>&output} into the line).
 
@@ -322,10 +330,10 @@ following example:
 "\e[11~": "Function Key 1"
 @end example
 
-In the above example, @key{C-u} is bound to the function
+In the above example, @samp{C-u} is bound to the function
 @code{universal-argument} (just as it was in the first example),
-@key{C-x C-r} is bound to the function @code{re-read-init-file}, and
-@key{ESC [ 1 1 ~} is bound to insert the text @samp{Function Key 1}.
+@samp{C-x C-r} is bound to the function @code{re-read-init-file}, and
+@samp{ESC [ 1 1 ~} is bound to insert the text @samp{Function Key 1}.
 
 @end table
 @end table
@@ -343,25 +351,25 @@ In the above example, @key{C-u} is bound to the function
 @node Commands For Moving
 @subsubsection Commands For Moving
 @ftable @code
-@item beginning-of-line (@key{C-a})
+@item beginning-of-line (C-a)
 Move to the start of the current line.
 
-@item end-of-line (@key{C-e})
+@item end-of-line (C-e)
 Move to the end of the line.
 
-@item forward-char (@key{C-f})
+@item forward-char (C-f)
 Move forward a character.
 
-@item backward-char (@key{C-b})
+@item backward-char (C-b)
 Move back a character.
 
-@item forward-word (@key{M-f})
+@item forward-word (M-f)
 Move forward to the end of the next word.
 
-@item backward-word (@key{M-b})
+@item backward-word (M-b)
 Move back to the start of this, or the previous, word.
 
-@item clear-screen (@key{C-l})
+@item clear-screen (C-l)
 Clear the screen leaving the current line at the top of the screen.
 
 @end ftable
@@ -375,23 +383,23 @@ Accept the line regardless of where the cursor is.  If this line is
 non-empty, add it to the history list.  If this line was a history
 line, then restore the history line to its original state.
 
-@item previous-history (@key{C-p})
+@item previous-history (C-p)
 Move `up' through the history list.
 
-@item next-history (@key{C-n})
+@item next-history (C-n)
 Move `down' through the history list.
 
-@item beginning-of-history (@key{M-<})
+@item beginning-of-history (M-<)
 Move to the first line in the history.
 
-@item end-of-history (@key{M->})
+@item end-of-history (M->)
 Move to the end of the input history, i.e., the line you are entering!
 
-@item reverse-search-history (@key{C-r})
+@item reverse-search-history (C-r)
 Search backward starting at the current line and moving `up' through
 the history as necessary.  This is an incremental search.
 
-@item forward-search-history (@key{C-s})
+@item forward-search-history (C-s)
 Search forward starting at the current line and moving `down' through
 the the history as neccessary.
 
@@ -401,45 +409,45 @@ the the history as neccessary.
 @subsubsection Commands For Changing Text
 
 @ftable @code
-@item delete-char (@key{C-d})
+@item delete-char (C-d)
 Delete the character under the cursor.  If the cursor is at the
 beginning of the line, and there are no characters in the line, and
-the last character typed was not @key{C-d}, then return EOF.
+the last character typed was not C-d, then return EOF.
 
 @item backward-delete-char (Rubout)
 Delete the character behind the cursor.  A numeric arg says to kill
 the characters instead of deleting them.
 
-@item quoted-insert (@key{C-q}, @key{C-v})
+@item quoted-insert (C-q, C-v)
 Add the next character that you type to the line verbatim.  This is
-how to insert things like @key{C-q} for example.
+how to insert things like C-q for example.
 
-@item tab-insert (@key{M-TAB})
+@item tab-insert (M-TAB)
 Insert a tab character.
 
 @item self-insert (a, b, A, 1, !, ...)
 Insert yourself.
 
-@item transpose-chars (@key{C-t})
+@item transpose-chars (C-t)
 Drag the character before point forward over the character at point.
 Point moves forward as well.  If point is at the end of the line, then
 transpose the two characters before point.  Negative args don't work.
 
-@item transpose-words (@key{M-t})
+@item transpose-words (M-t)
 Drag the word behind the cursor past the word in front of the cursor
 moving the cursor over that word as well.
 
-@item upcase-word (@key{M-u})
-Uppercase all letters in the current (or following) word.  With a
-negative argument, do the previous word, but do not move point.
+@item upcase-word (M-u)
+Uppercase the current (or following) word.  With a negative argument,
+do the previous word, but do not move point.
 
-@item downcase-word (@key{M-l})
-Lowercase all letters in the current (or following) word.  With a
-negative argument, do the previous word, but do not move point.
+@item downcase-word (M-l)
+Lowercase the current (or following) word.  With a negative argument,
+do the previous word, but do not move point.
 
-@item capitalize-word (@key{M-c})
-Uppercase the first letter in the current (or following) word.  With a
-negative argument, do the previous word, but do not move point.
+@item capitalize-word (M-c)
+Uppercase the current (or following) word.  With a negative argument,
+do the previous word, but do not move point.
 
 @end ftable
 
@@ -448,32 +456,32 @@ negative argument, do the previous word, but do not move point.
 
 @ftable @code
 
-@item kill-line (@key{C-k})
+@item kill-line (C-k)
 Kill the text from the current cursor position to the end of the line.
 
 @item backward-kill-line ()
 Kill backward to the beginning of the line.  This is normally unbound.
 
-@item kill-word (@key{M-d})
+@item kill-word (M-d)
 Kill from the cursor to the end of the current word, or if between
 words, to the end of the next word.
 
-@item backward-kill-word (@key{M-DEL})
+@item backward-kill-word (M-DEL)
 Kill the word behind the cursor.
 
-@item unix-line-discard (@key{C-u})
-Do what @key{C-u} used to do in Unix line input.  We save the killed text on
+@item unix-line-discard (C-u)
+Do what C-u used to do in Unix line input.  We save the killed text on
 the kill-ring, though.
 
-@item unix-word-rubout (@key{C-w})
-Do what @key{C-w} used to do in Unix line input.  The killed text is saved
+@item unix-word-rubout (C-w)
+Do what C-w used to do in Unix line input.  The killed text is saved
 on the kill-ring.  This is different than backward-kill-word because
 the word boundaries differ.
 
-@item yank (@key{C-y})
+@item yank (C-y)
 Yank the top of the kill ring into the buffer at point.
 
-@item yank-pop (@key{M-y})
+@item yank-pop (M-y)
 Rotate the kill-ring, and yank the new top.  You can only do this if
 the prior command is yank or yank-pop.
 @end ftable
@@ -482,12 +490,12 @@ the prior command is yank or yank-pop.
 @subsubsection Specifying Numeric Arguments
 @ftable @code
 
-@item digit-argument (@key{M-0}, @key{M-1}, ... @key{M--})
+@item digit-argument (M-0, M-1, ... M--)
 Add this digit to the argument already accumulating, or start a new
-argument.  @key{M--} starts a negative argument.
+argument.  M-- starts a negative argument.
 
 @item universal-argument ()
-Do what @key{C-u} does in emacs.  By default, this is not bound.
+Do what C-u does in emacs.  By default, this is not bound.
 @end ftable
 
 
@@ -511,30 +519,25 @@ List the possible completions of the text before point.
 @subsubsection Some Miscellaneous Commands
 @ftable @code
 
-@item re-read-init-file (@key{C-x} @key{C-r})
+@item re-read-init-file (C-x C-r)
 Read in the contents of your @file{~/.inputrc} file, and incorporate
 any bindings found there.
 
-@item abort (@key{C-g})
-Stop running the current editing command.
+@item abort (C-g)
+Ding!  Stops things.
 
-@ignore
-@c I have no idea what this means, and can't figure it out by
-@c experiment, and can't find it in the readline source.
-@c pesch@cygnus.com, 20may1993.
-@item do-uppercase-version (@key{M-a}, @key{M-b}, ...)
+@item do-uppercase-version (M-a, M-b, ...)
 Run the command that is bound to your uppercase brother.
-@end ignore
 
 @item prefix-meta (ESC)
 Make the next character that you type be metafied.  This is for people
-without a meta key.  Typing @key{ESC f} is equivalent to typing
-@key{M-f}.
+without a meta key.  Typing @samp{ESC f} is equivalent to typing
+@samp{M-f}.
 
-@item undo (@key{C-_})
+@item undo (C-_)
 Incremental undo, separately remembered for each line.
 
-@item revert-line (@key{M-r})
+@item revert-line (M-r)
 Undo all changes made to this line.  This is like typing the `undo'
 command enough times to get back to the beginning.
 @end ftable
@@ -542,17 +545,14 @@ command enough times to get back to the beginning.
 @node Readline Vi Mode
 @subsection Readline Vi Mode
 
-@cindex @code{vi} style command editing
-@kindex toggle-editing-mode
 While the Readline library does not have a full set of Vi editing
 functions, it does contain enough to allow simple editing of the line.
 
 In order to switch interactively between Emacs and Vi editing modes, use
-the command @key{M-C-j} (toggle-editing-mode).
+the command M-C-j (toggle-editing-mode).
 
 When you enter a line in Vi mode, you are already placed in `insertion'
 mode, as if you had typed an `i'.  Pressing @key{ESC} switches you into
 `edit' mode, where you can edit the text of the line with the standard
 Vi movement keys, move to previous history lines with `k', and following
 lines with `j', and so forth.
-

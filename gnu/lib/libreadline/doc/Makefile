@@ -1,30 +1,34 @@
-# This makefile for Readline library documentation is in -*- text -*- mode.
+# This makefile for History library documentation is in -*- text -*- mode.
 # Emacs likes it that way.
 
-DVIOBJ = readline.dvi history.dvi
-INFOBJ = readline.info history.info
+DOC_SUPPORT = ../../doc-support/
+TEXINDEX    = $(DOC_SUPPORT)/texindex
+
+TEX    = tex
+DVIOBJ = history.dvi
+INFOBJ = history.info
 
 all: $(DVIOBJ) $(INFOBJ)
 
-readline.dvi: rlman.texinfo rluser.texinfo rltech.texinfo
-	tex rlman.texinfo
-	tex rlman.texinfo
-	mv rlman.dvi readline.dvi
-
 history.dvi: hist.texinfo hsuser.texinfo hstech.texinfo
-	tex hist.texinfo
-	tex hist.texinfo
+	$(TEX) hist.texinfo
+	$(TEXINDEX) hist.??
+	$(TEX) hist.texinfo
 	mv hist.dvi history.dvi
-
-readline.info: rlman.texinfo rluser.texinfo rltech.texinfo
-	makeinfo rlman.texinfo
 
 history.info: hist.texinfo hsuser.texinfo hstech.texinfo
 	makeinfo hist.texinfo
 
+./texinfo.tex: $(DOC_SUPPORT)texinfo.tex
+	ln -s $(DOC_SUPPORT)texinfo.tex .
+
+$(TEXINDEX):
+	(cd $(DOC_SUPPORT); $(MAKE) $(MFLAGS) CFLAGS='$(CFLAGS)' texindex)
+
 clean:
-	rm -f *.log *.cp *.ky *.tp *.vr *.fn *.aux *.pg *.toc core
+	rm -f *.aux *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.cps *.pgs \
+	      *.fns *.kys *.tps *.vrs *.o core texinfo.tex
 
 squeaky-clean:
-	rm -f *.log *.cp *.ky *.tp *.vr *.fn *.aux *.pg *.toc core *.dvi *.~* *.info
-
+	rm -f *.aux *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.cps *.pgs \
+	      *.dvi *.info *.info-* *.fns *.kys *.tps *.vrs *.o core

@@ -1,29 +1,35 @@
 /* vi_keymap.c -- the keymap for vi_mode in readline (). */
 
-/* Copyright (C) 1988, 1989, 1991 Free Software Foundation, Inc.
+/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
 
-   This file is part of GNU Readline, a library for reading lines
-   of text with interactive input and history editing.
+   This file is part of the GNU Readline Library, a library for
+   reading lines of text with interactive input and history editing.
 
-   Readline is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   The GNU Readline Library is free software; you can redistribute it
+   and/or modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; either version 1, or
    (at your option) any later version.
 
-   Readline is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   The GNU Readline Library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   The GNU General Public License is often shipped with GNU software, and
+   is generally kept in a file called COPYING or LICENSE.  If you do not
+   have a copy of the license, write to the Free Software Foundation,
+   675 Mass Ave, Cambridge, MA 02139, USA. */
+
+#if !defined (BUFSIZ)
+#include <stdio.h>
+#endif /* !BUFSIZ */
+
+#include "readline.h"
 
 extern KEYMAP_ENTRY_ARRAY vi_escape_keymap;
 
 /* The keymap arrays for handling vi mode. */
 KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
-
   /* The regular control keys come first. */
   { ISFUNC, (Function *)0x0 },		/* Control-@ */
   { ISFUNC, (Function *)0x0 },		/* Control-a */
@@ -33,7 +39,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_emacs_editing_mode },	/* Control-e */
   { ISFUNC, (Function *)0x0 },		/* Control-f */
   { ISFUNC, rl_abort },			/* Control-g */
-  { ISFUNC, rl_rubout },		/* Control-h */
+  { ISFUNC, rl_backward },		/* Control-h */
   { ISFUNC, (Function *)0x0 },		/* Control-i */
   { ISFUNC, rl_newline },		/* Control-j */
   { ISFUNC, rl_kill_line },		/* Control-k */
@@ -53,7 +59,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_yank },			/* Control-y */
   { ISFUNC, (Function *)0x0 },		/* Control-z */
 
-  { ISKMAP, (Function *)vi_escape_keymap }, /* Control-[ */
+  { ISFUNC, rl_abort },			/* Control-[ */
   { ISFUNC, (Function *)0x0 },		/* Control-\ */
   { ISFUNC, (Function *)0x0 },		/* Control-] */
   { ISFUNC, (Function *)0x0 },		/* Control-^ */
@@ -66,7 +72,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_vi_comment },		/* # */
   { ISFUNC, rl_end_of_line },		/* $ */
   { ISFUNC, rl_vi_match },		/* % */
-  { ISFUNC, (Function *)0x0 },		/* & */
+  { ISFUNC, rl_vi_tilde_expand },	/* & */
   { ISFUNC, (Function *)0x0 },		/* ' */
   { ISFUNC, (Function *)0x0 },		/* ( */
   { ISFUNC, (Function *)0x0 },		/* ) */
@@ -74,7 +80,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_get_next_history},	/* + */
   { ISFUNC, rl_vi_char_search },	/* , */
   { ISFUNC, rl_get_previous_history },	/* - */
-  { ISFUNC, (Function *)0x0 },		/* . */
+  { ISFUNC, rl_vi_redo },		/* . */
   { ISFUNC, rl_vi_search },		/* / */
 
   /* Regular digits. */
@@ -167,12 +173,143 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_vi_column },		/* | */
   { ISFUNC, (Function *)0x0 },		/* } */
   { ISFUNC, rl_vi_change_case },	/* ~ */
-  { ISFUNC, rl_backward }		/* RUBOUT */
+  { ISFUNC, (Function *)0x0 },		/* RUBOUT */
+
+#if KEYMAP_SIZE > 128
+  /* Undefined keys. */
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 }
+#endif /* KEYMAP_SIZE > 128 */
 };
 
 
 KEYMAP_ENTRY_ARRAY vi_insertion_keymap = {
-
   /* The regular control keys come first. */
   { ISFUNC, (Function *)0x0 },		/* Control-@ */
   { ISFUNC, rl_insert },		/* Control-a */
@@ -316,7 +453,143 @@ KEYMAP_ENTRY_ARRAY vi_insertion_keymap = {
   { ISFUNC, rl_insert },		/* | */
   { ISFUNC, rl_insert },		/* } */
   { ISFUNC, rl_insert },		/* ~ */
-  { ISFUNC, rl_rubout }			/* RUBOUT */
+  { ISFUNC, rl_rubout },		/* RUBOUT */
+
+#if KEYMAP_SIZE > 128
+  /* Pure 8-bit characters (128 - 159).
+     These might be used in some
+     character sets. */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+  { ISFUNC, rl_insert },	/* ? */
+
+  /* ISO Latin-1 characters (160 - 255) */
+  { ISFUNC, rl_insert },	/* No-break space */
+  { ISFUNC, rl_insert },	/* Inverted exclamation mark */
+  { ISFUNC, rl_insert },	/* Cent sign */
+  { ISFUNC, rl_insert },	/* Pound sign */
+  { ISFUNC, rl_insert },	/* Currency sign */
+  { ISFUNC, rl_insert },	/* Yen sign */
+  { ISFUNC, rl_insert },	/* Broken bar */
+  { ISFUNC, rl_insert },	/* Section sign */
+  { ISFUNC, rl_insert },	/* Diaeresis */
+  { ISFUNC, rl_insert },	/* Copyright sign */
+  { ISFUNC, rl_insert },	/* Feminine ordinal indicator */
+  { ISFUNC, rl_insert },	/* Left pointing double angle quotation mark */
+  { ISFUNC, rl_insert },	/* Not sign */
+  { ISFUNC, rl_insert },	/* Soft hyphen */
+  { ISFUNC, rl_insert },	/* Registered sign */
+  { ISFUNC, rl_insert },	/* Macron */
+  { ISFUNC, rl_insert },	/* Degree sign */
+  { ISFUNC, rl_insert },	/* Plus-minus sign */
+  { ISFUNC, rl_insert },	/* Superscript two */
+  { ISFUNC, rl_insert },	/* Superscript three */
+  { ISFUNC, rl_insert },	/* Acute accent */
+  { ISFUNC, rl_insert },	/* Micro sign */
+  { ISFUNC, rl_insert },	/* Pilcrow sign */
+  { ISFUNC, rl_insert },	/* Middle dot */
+  { ISFUNC, rl_insert },	/* Cedilla */
+  { ISFUNC, rl_insert },	/* Superscript one */
+  { ISFUNC, rl_insert },	/* Masculine ordinal indicator */
+  { ISFUNC, rl_insert },	/* Right pointing double angle quotation mark */
+  { ISFUNC, rl_insert },	/* Vulgar fraction one quarter */
+  { ISFUNC, rl_insert },	/* Vulgar fraction one half */
+  { ISFUNC, rl_insert },	/* Vulgar fraction three quarters */
+  { ISFUNC, rl_insert },	/* Inverted questionk mark */
+  { ISFUNC, rl_insert },	/* Latin capital letter a with grave */
+  { ISFUNC, rl_insert },	/* Latin capital letter a with acute */
+  { ISFUNC, rl_insert },	/* Latin capital letter a with circumflex */
+  { ISFUNC, rl_insert },	/* Latin capital letter a with tilde */
+  { ISFUNC, rl_insert },	/* Latin capital letter a with diaeresis */
+  { ISFUNC, rl_insert },	/* Latin capital letter a with ring above */
+  { ISFUNC, rl_insert },	/* Latin capital letter ae */
+  { ISFUNC, rl_insert },	/* Latin capital letter c with cedilla */
+  { ISFUNC, rl_insert },	/* Latin capital letter e with grave */
+  { ISFUNC, rl_insert },	/* Latin capital letter e with acute */
+  { ISFUNC, rl_insert },	/* Latin capital letter e with circumflex */
+  { ISFUNC, rl_insert },	/* Latin capital letter e with diaeresis */
+  { ISFUNC, rl_insert },	/* Latin capital letter i with grave */
+  { ISFUNC, rl_insert },	/* Latin capital letter i with acute */
+  { ISFUNC, rl_insert },	/* Latin capital letter i with circumflex */
+  { ISFUNC, rl_insert },	/* Latin capital letter i with diaeresis */
+  { ISFUNC, rl_insert },	/* Latin capital letter eth (Icelandic) */
+  { ISFUNC, rl_insert },	/* Latin capital letter n with tilde */
+  { ISFUNC, rl_insert },	/* Latin capital letter o with grave */
+  { ISFUNC, rl_insert },	/* Latin capital letter o with acute */
+  { ISFUNC, rl_insert },	/* Latin capital letter o with circumflex */
+  { ISFUNC, rl_insert },	/* Latin capital letter o with tilde */
+  { ISFUNC, rl_insert },	/* Latin capital letter o with diaeresis */
+  { ISFUNC, rl_insert },	/* Multiplication sign */
+  { ISFUNC, rl_insert },	/* Latin capital letter o with stroke */
+  { ISFUNC, rl_insert },	/* Latin capital letter u with grave */
+  { ISFUNC, rl_insert },	/* Latin capital letter u with acute */
+  { ISFUNC, rl_insert },	/* Latin capital letter u with circumflex */
+  { ISFUNC, rl_insert },	/* Latin capital letter u with diaeresis */
+  { ISFUNC, rl_insert },	/* Latin capital letter Y with acute */
+  { ISFUNC, rl_insert },	/* Latin capital letter thorn (Icelandic) */
+  { ISFUNC, rl_insert },	/* Latin small letter sharp s (German) */
+  { ISFUNC, rl_insert },	/* Latin small letter a with grave */
+  { ISFUNC, rl_insert },	/* Latin small letter a with acute */
+  { ISFUNC, rl_insert },	/* Latin small letter a with circumflex */
+  { ISFUNC, rl_insert },	/* Latin small letter a with tilde */
+  { ISFUNC, rl_insert },	/* Latin small letter a with diaeresis */
+  { ISFUNC, rl_insert },	/* Latin small letter a with ring above */
+  { ISFUNC, rl_insert },	/* Latin small letter ae */
+  { ISFUNC, rl_insert },	/* Latin small letter c with cedilla */
+  { ISFUNC, rl_insert },	/* Latin small letter e with grave */
+  { ISFUNC, rl_insert },	/* Latin small letter e with acute */
+  { ISFUNC, rl_insert },	/* Latin small letter e with circumflex */
+  { ISFUNC, rl_insert },	/* Latin small letter e with diaeresis */
+  { ISFUNC, rl_insert },	/* Latin small letter i with grave */
+  { ISFUNC, rl_insert },	/* Latin small letter i with acute */
+  { ISFUNC, rl_insert },	/* Latin small letter i with circumflex */
+  { ISFUNC, rl_insert },	/* Latin small letter i with diaeresis */
+  { ISFUNC, rl_insert },	/* Latin small letter eth (Icelandic) */
+  { ISFUNC, rl_insert },	/* Latin small letter n with tilde */
+  { ISFUNC, rl_insert },	/* Latin small letter o with grave */
+  { ISFUNC, rl_insert },	/* Latin small letter o with acute */
+  { ISFUNC, rl_insert },	/* Latin small letter o with circumflex */
+  { ISFUNC, rl_insert },	/* Latin small letter o with tilde */
+  { ISFUNC, rl_insert },	/* Latin small letter o with diaeresis */
+  { ISFUNC, rl_insert },	/* Division sign */
+  { ISFUNC, rl_insert },	/* Latin small letter o with stroke */
+  { ISFUNC, rl_insert },	/* Latin small letter u with grave */
+  { ISFUNC, rl_insert },	/* Latin small letter u with acute */
+  { ISFUNC, rl_insert },	/* Latin small letter u with circumflex */
+  { ISFUNC, rl_insert },	/* Latin small letter u with diaeresis */
+  { ISFUNC, rl_insert },	/* Latin small letter y with acute */
+  { ISFUNC, rl_insert },	/* Latin small letter thorn (Icelandic) */
+  { ISFUNC, rl_insert }		/* Latin small letter y with diaeresis */
+#endif /* KEYMAP_SIZE > 128 */
 };
 
 KEYMAP_ENTRY_ARRAY vi_escape_keymap = {
@@ -424,7 +697,7 @@ KEYMAP_ENTRY_ARRAY vi_escape_keymap = {
   { ISFUNC, rl_do_lowercase_version },	/* Z */
 
   /* Some more punctuation. */
-  { ISFUNC, (Function *)0x0 },		/* [ */
+  { ISFUNC, rl_arrow_keys },		/* [ */
   { ISFUNC, (Function *)0x0 },		/* \ */
   { ISFUNC, (Function *)0x0 },		/* ] */
   { ISFUNC, (Function *)0x0 },		/* ^ */
@@ -446,7 +719,7 @@ KEYMAP_ENTRY_ARRAY vi_escape_keymap = {
   { ISFUNC, (Function *)0x0 },		/* l */
   { ISFUNC, (Function *)0x0 },		/* m */
   { ISFUNC, (Function *)0x0 },		/* n */
-  { ISFUNC, (Function *)0x0 },		/* o */
+  { ISFUNC, rl_arrow_keys },		/* o */
   { ISFUNC, (Function *)0x0 },		/* p */
   { ISFUNC, (Function *)0x0 },		/* q */
   { ISFUNC, (Function *)0x0 },		/* r */
@@ -464,5 +737,137 @@ KEYMAP_ENTRY_ARRAY vi_escape_keymap = {
   { ISFUNC, (Function *)0x0 },		/* | */
   { ISFUNC, (Function *)0x0 },		/* } */
   { ISFUNC, (Function *)0x0 },		/* ~ */
-  { ISFUNC, rl_backward_kill_word }	/* RUBOUT */
+  { ISFUNC, rl_backward_kill_word },	/* RUBOUT */
+
+#if KEYMAP_SIZE > 128
+  /* Undefined keys. */
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 },
+  { ISFUNC, (Function *)0x0 }
+#endif /* KEYMAP_SIZE > 128 */
 };
