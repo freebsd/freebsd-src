@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1999 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -34,55 +34,37 @@ the original English.
 .SH NAME
 groff \- front end for the groff document formatting system
 .SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fBgroff 'u
+.ti \niu
 .B groff
-[
-.B \-abehilpstvzCENRSUVXZ
-]
-[
-.BI \-w name
-]
-[
-.BI \-W name
-]
-[
-.BI \-m name
-]
-[
-.BI \-F dir
-]
-[
-.BI \-I dir
-]
-[
-.BI \-T dev
-]
-[
-.BI \-f fam
-]
-[
-.BI \-M dir
-]
-[
-.BI \-d cs
-]
-[
-.BI \-r cn
-]
-[
-.BI \-n num
-]
-[
-.BI \-o list
-]
-[
-.BI \-P arg
-]
-[
-.BI \-L arg
-]
-[
-.IR files \|.\|.\|.\|
-]
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-abeghilpstvzCEGNRSUVXZ
+.OP \-w name
+.OP \-W name
+.OP \-m name
+.OP \-F dir
+.OP \-I dir
+.OP \-T dev
+.OP \-f fam
+.OP \-M dir
+.OP \-d cs
+.OP \-r cn
+.OP \-n num
+.OP \-o list
+.OP \-P arg
+.OP \-L arg
+.RI "[\ " files\|.\|.\|. "\ ]"
+.br
+.ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
 .SH DESCRIPTION
 .B groff
 is a front-end to the groff document formatting system.
@@ -108,13 +90,24 @@ For a 100dpi X11 previewer.
 For typewriter-like devices.
 .TP
 .B latin1
-For typewriter-like devices using the ISO Latin-1 character set.
+For typewriter-like devices using the ISO Latin-1 (ISO 8859-1) character set.
+.TP
+.B koi8-r
+For typewriter-like devices using the Russian KOI8-R character set.
+.TP
+.B utf8
+For typewriter-like devices using the Unicode (ISO 10646) character set with
+UTF-8 encoding.
+.TP
+.B cp1047
+For typewriter-like devices which use the EBCDIC code page IBM cp1047
+(e.g. OS/390 Unix).
 .TP 
 .B lj4
 For an HP LaserJet4-compatible (or other PCL5-compatible) printer.
 .TP
-.B koi8-r
-For typewriter-like devices using the russian KOI8-R character set.
+.B lbp
+For Canon CAPSL printers (LBP-4 and LBP-8 series laser printers).
 .TP
 .B html
 To produce HTML output.
@@ -131,6 +124,8 @@ The default device is
 It can optionally preprocess with any of
 .BR @g@pic ,
 .BR @g@eqn ,
+.BR @g@grn ,
+.BR grap ,
 .BR @g@tbl ,
 .BR @g@refer ,
 or
@@ -157,6 +152,12 @@ Preprocess with @g@eqn.
 .B \-t
 Preprocess with @g@tbl.
 .TP
+.B \-g
+Preprocess with @g@grn.
+.TP
+.B \-G
+Preprocess with grap.
+.TP
 .B \-p
 Preprocess with @g@pic.
 .TP
@@ -165,7 +166,7 @@ Preprocess with @g@soelim.
 .TP
 .BI \-I dir
 This option is as described in
-.BR @g@soelim (@MAN1EXT@) .
+.BR @g@soelim (@MAN1EXT@).
 This option implies the
 .B \-s
 option.
@@ -276,8 +277,8 @@ option to
 and use the
 .B \%\-msafer
 macros with
-.BR @g@troff .
-(enabled by default)
+.B @g@troff
+(enabled by default).
 .TP
 .B \-U
 Unsafe mode.  Reverts to the old unsafe behaviour.
@@ -329,10 +330,12 @@ This also applies to
 .BR tbl ,
 .BR pic ,
 .BR eqn ,
+.BR grn ,
 .BR refer ,
 and
 .BR soelim .
 It does not apply to
+.BR grap ,
 .BR grops ,
 .BR grodvi ,
 .BR grotty ,
@@ -386,6 +389,28 @@ Font file for font
 .I F
 of device
 .IR name .
+.LP
+Note that on EBCDIC hosts, output devices
+.BR ascii ,
+.BR latin1 ,
+and
+.B utf8
+aren't available.
+Similarly,
+.B cp1047
+is not available on ASCII based operating systems.
+.SH EXAMPLE
+To print the man page
+.B foo.1
+to the standard output using the latin-1 output device and
+.B less
+as the pager, the following command can be used:
+.IP
+.B groff -mandoc -Tlatin1 foo.1 | less
+.PP
+Alternatively, you can say
+.IP
+.B groff -m mandoc -Tlatin1 foo.1 | less
 .SH AUTHOR
 James Clark <jjc@jclark.com>
 .SH BUGS
@@ -394,7 +419,7 @@ Include a complete, self-contained example
 that will allow the bug to be reproduced,
 and say which version of groff you are using.
 .SH COPYRIGHT
-Copyright \(co 1989, 1990, 1991, 1992, 1999 Free Software Foundation, Inc.
+Copyright \(co 1989-2000 Free Software Foundation, Inc.
 .LP
 groff is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
@@ -412,19 +437,31 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .SH AVAILABILITY
 The most recent released version of groff is always available for
 anonymous ftp from ftp.gnu.org in the directory gnu/groff.
+.LP
+.B groff
+only supports the freely available
+.B grap
+implementation written by Ted Faber <faber@lunabase.org>.
+The actual version can be found at
+.IP
+\%http://www.lunabase.org/~faber/Vault/software/grap/
 .SH "SEE ALSO"
 .BR grog (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
 .BR @g@tbl (@MAN1EXT@),
 .BR @g@pic (@MAN1EXT@),
 .BR @g@eqn (@MAN1EXT@),
-.BR @g@soelim (@MAN1EXT@) ,
+.BR @g@grn (@MAN1EXT@),
+.BR grap (1),
+.BR @g@soelim (@MAN1EXT@),
 .BR @g@refer (@MAN1EXT@),
 .BR grops (@MAN1EXT@),
 .BR grodvi (@MAN1EXT@),
 .BR grotty (@MAN1EXT@),
+.BR grolj4 (@MAN1EXT@),
+.BR grolbp (@MAN1EXT@),
 .BR grohtml (@MAN1EXT@),
-.BR grohtml (@MAN1EXT@),
+.BR gxditview (@MAN1EXT@),
 .BR groff_font (@MAN5EXT@),
 .BR groff_out (@MAN5EXT@),
 .BR groff_man (@MAN7EXT@),

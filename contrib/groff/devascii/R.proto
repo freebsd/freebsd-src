@@ -1,9 +1,11 @@
+# $FreeBSD$
 name R
 internalname 0
 spacewidth 24
 charset
 !	24	0	0041
 "	24	0	0042
+dq	"
 lq	"
 rq	"
 #	24	0	0043
@@ -16,6 +18,7 @@ Do	"
 aa	"
 fm	"
 aq	"
+cq	"
 (	24	0	0050
 )	24	0	0051
 *	24	0	0052

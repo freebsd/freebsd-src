@@ -1,11 +1,13 @@
 .\" This file defines standard troff characters and some groff characters for
-.\" use with -Tascii and -Tlatin1.
+.\" use with -Tascii, -Tlatin1, -Tutf8, and -Tcp1047.
 .\"
 .\" These definitions are chosen so that, as far as possible, they:
-.\" - work with both -Tascii and -Tlatin1.
+.\" - work with all of -Tascii, -Tlatin1, -Tutf8, and -Tcp1047.
 .\" - work on devices that display only the last overstruck character
 .\"   as well as on devices that support overstriking
 .\" - represent the character's graphical shape (not its meaning)
+.\"
+.\" $FreeBSD$
 .\"
 .nr _C \n(.C
 .cp 0
@@ -85,7 +87,9 @@
 .tty-char \(OR v
 .tty-char \(uA \z=^
 .tty-char \(dA \z=v
-.if c\(md .tty-char \(a. \(md
+.if c\(md .tty-char \(pc \(md
+.if c\(pc .tty-char \(md \(pc
+.if c\(pc .tty-char \(a. \(pc
 .tty-char \(Im I
 .tty-char \(Re R
 .tty-char \(/L \z/L
@@ -128,6 +132,7 @@
 .tty-char \(S3 3
 .tty-char \(ps 9|
 .tty-char \(md .
+.tty-char \(pc .
 .tty-char \(ac ,
 .tty-char \(S1 1
 .tty-char \(Om \z_o
@@ -195,4 +200,5 @@
 .\"tty-char \(:y \ij
 .tty-char \[arrowvertex] |
 .cp \n(_C
-.if "\*[.T]"ascii" .do mso tmac.latin1
+.if !'\*(.T'cp1047' \
+.	do mso tmac.latin1

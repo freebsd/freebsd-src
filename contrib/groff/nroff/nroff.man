@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1999 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -23,37 +23,28 @@ the original English.
 .SH NAME
 @g@nroff \- emulate nroff command with groff
 .SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fB@g@nroff 'u
+.ti \niu
 .B @g@nroff
-[
-.B \-h
-]
-[
-.B \-i
-]
-[
-.BI \-m name
-]
-[
-.BI \-n num
-]
-[
-.BI \-o list
-]
-[
-.BI \-p
-]
-[
-.BI \-r cn
-]
-[
-.BI \-t
-]
-[
-.BI \-T name
-]
-[
-.I file\|.\|.\|.
-]
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-h
+.OP \-i
+.OP \-m name
+.OP \-n num
+.OP \-o list
+.OP \-p
+.OP \-r cn
+.OP \-t
+.OP \-T name
+.RI "[\ " file\|.\|.\|. "\ ]"
+.br
+.ad \na
 .SH DESCRIPTION
 The
 .B @g@nroff
@@ -63,11 +54,12 @@ command using groff.
 The
 .B \-T
 option with an argument other than
-.B ascii
-and
-.B latin1
-and
-.B koi8-r
+.BR ascii ,
+.BR latin1 ,
+.BR koi8-r ,
+.BR utf8 ,
+or
+.B cp1047
 will be ignored.
 The
 .B \-h
@@ -80,11 +72,9 @@ The
 .BR \-i ,
 .BR \-n ,
 .BR \-m ,
-.BR \-p ,
-.BR \-o ,
-.B \-r
+.B \-o
 and
-.B \-t
+.B \-r
 options have the effect described in
 .BR @g@troff (@MAN1EXT@).
 In addition
@@ -95,12 +85,21 @@ silently ignores options of
 or
 .BR \-s .
 Options 
+.BR \-p ,
+.BR \-t ,
 .B \-S
 (safer) and
 .B \-U
-(unsafe) are passed to groff. 
+(unsafe) are passed to
+.BR groff . 
 .B \-S
 is passed by default.
+.SH NOTES
+This shell script is basically intended for use with
+.BR man (1),
+so warnings are suppressed.
+nroff-style character definitions (in the file tmac.tty-char) are also
+loaded to emulate unrepresentable glyphs.
 .SH "SEE ALSO"
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
