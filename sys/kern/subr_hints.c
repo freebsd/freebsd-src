@@ -365,3 +365,17 @@ resource_find_dev(int *anchor, const char *name, int *unit,
 	*anchor = newln;
 	return ret;
 }
+
+/*
+ * Check to see if a device is disabled via a disabled hint.
+ */
+int
+resource_disabled(const char *name, int unit)
+{
+	int error, value;
+
+	error = resource_int_value(name, unit, "disabled", &value);
+	if (error)
+	       return (0);
+	return (value);
+}
