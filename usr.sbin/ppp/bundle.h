@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.17 1998/03/16 22:51:47 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.18 1998/03/16 22:53:06 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -66,7 +66,10 @@ struct bundle {
     struct filter alive;	/* keep-alive packet filter */
   } filter;
 
-  struct pppTimer IdleTimer;  /* timeout after cfg.idle_timeout */
+  struct {
+    struct pppTimer timer;      /* timeout after cfg.idle_timeout */
+    time_t done;
+  } idle;
 };
 
 extern struct bundle *bundle_Create(const char *);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.27 1998/03/16 22:53:04 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.28 1998/03/16 22:53:29 brian Exp $
  */
 
 #include <sys/param.h>
@@ -425,6 +425,9 @@ bundle_Create(const char *prefix)
   bundle.filter.alive.name = "ALIVE";
   bundle.filter.alive.logok = 1;
 
+  memset(&bundle.idle.timer, '\0', sizeof bundle.idle.timer);
+  bundle.idle.done = 0;
+
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
 
@@ -779,6 +782,7 @@ bundle_IdleTimeout(void *v)
 {
   struct bundle *bundle = (struct bundle *)v;
 
+  bundle->idle.done = 0;
   LogPrintf(LogPHASE, "IPCP Idle timer expired.\n");
   bundle_Close(bundle, NULL, 1);
 }
@@ -791,12 +795,13 @@ void
 bundle_StartIdleTimer(struct bundle *bundle)
 {
   if (!(mode & (MODE_DEDICATED | MODE_DDIAL))) {
-    StopTimer(&bundle->IdleTimer);
-    bundle->IdleTimer.func = bundle_IdleTimeout;
-    bundle->IdleTimer.load = bundle->cfg.idle_timeout * SECTICKS;
-    bundle->IdleTimer.state = TIMER_STOPPED;
-    bundle->IdleTimer.arg = bundle;
-    StartTimer(&bundle->IdleTimer);
+    StopTimer(&bundle->idle.timer);
+    bundle->idle.timer.func = bundle_IdleTimeout;
+    bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
+    bundle->idle.timer.state = TIMER_STOPPED;
+    bundle->idle.timer.arg = bundle;
+    StartTimer(&bundle->idle.timer);
+    bundle->idle.done = time(NULL) + bundle->cfg.idle_timeout;
   }
 }
 
@@ -811,13 +816,13 @@ bundle_SetIdleTimer(struct bundle *bundle, int value)
 void
 bundle_StopIdleTimer(struct bundle *bundle)
 {
-  StopTimer(&bundle->IdleTimer);
+  StopTimer(&bundle->idle.timer);
 }
 
 int
 bundle_RemainingIdleTime(struct bundle *bundle)
 {
-  if (bundle->cfg.idle_timeout == 0 || bundle->IdleTimer.state != TIMER_RUNNING)
-    return -1;
-  return bundle->IdleTimer.rest / SECTICKS;
+  if (bundle->idle.done)
+    return bundle->idle.done - time(NULL);
+  return -1;
 }
