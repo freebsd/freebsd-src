@@ -483,7 +483,7 @@ retry:
 		 * Get start of data onto full-word alignment
 		 */
 		KB_DATASTART ( m, cp, caddr_t );
-		if ((align = ((u_int)cp) & (sizeof(u_long)-1)) != 0) {
+		if ((align = ((uintptr_t)cp) & (sizeof(u_long)-1)) != 0) {
 			/*
 			 * Gotta slide the data up
 			 */
@@ -748,7 +748,7 @@ retry:
 	 */
 	tx_send = (Eni_mem)
 	    ((((int)eup->eu_midway[MIDWAY_TXPLACE] & 0x7ff) << ENI_LOC_PREDIV) +
-		    (int)eup->eu_ram);
+		    (intptr_t)eup->eu_ram);
 
 	/*
 	 * Set descriptor word
