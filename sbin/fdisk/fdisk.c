@@ -167,7 +167,7 @@ struct part_type
 	,{0x04, "Primary DOS with 16 bit FAT (<= 32MB)"}
 	,{0x05, "Extended DOS"}
 	,{0x06, "Primary 'big' DOS (> 32MB)"}
-	,{0x07, "OS/2 HPFS, QNX or Advanced UNIX"}
+	,{0x07, "OS/2 HPFS, NTFS, QNX or Advanced UNIX"}
 	,{0x08, "AIX filesystem"}
 	,{0x09, "AIX boot partition or Coherent"}
 	,{0x0A, "OS/2 Boot Manager or OPUS"}
@@ -449,11 +449,12 @@ print_part(int i)
 	part_mb *= secsize;
 	part_mb /= (1024 * 1024);
 	printf("sysid %d,(%s)\n", partp->dp_typ, get_type(partp->dp_typ));
-	printf("    start %ld, size %ld (%qd Meg), flag %x\n",
+	printf("    start %ld, size %ld (%qd Meg), flag %x%s\n",
 		partp->dp_start,
 		partp->dp_size, 
 		part_mb,
-		partp->dp_flag);
+		partp->dp_flag,
+		partp->dp_flag == ACTIVE ? " (active)" : "");
 	printf("\tbeg: cyl %d/ sector %d/ head %d;\n\tend: cyl %d/ sector %d/ head %d\n"
 		,DPCYL(partp->dp_scyl, partp->dp_ssect)
 		,DPSECT(partp->dp_ssect)
@@ -512,7 +513,7 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 	}
 
 	do {
-		Decimal("sysid", partp->dp_typ, tmp);
+		Decimal("sysid (165=FreeBSD)", partp->dp_typ, tmp);
 		Decimal("start", partp->dp_start, tmp);
 		Decimal("size", partp->dp_size, tmp);
 
@@ -574,9 +575,16 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts);
 		active = which;
 	if (!ok("Do you want to change the active partition?"))
 		return;
-	do
+setactive:
+	active = 4;
+	do {
 		Decimal("active partition", active, tmp);
-	while (!ok("Are you happy with this choice"));
+		if (active < 1 || 4 < active) {
+			printf("Active partition number must be in range 1-4."
+					"  Try again.\n");
+			goto setactive;
+		}
+	} while (!ok("Are you happy with this choice"));
 	for (i = 0; i < NDOSPART; i++)
 		partp[i].dp_flag = 0;
 	if (active > 0 && active <= NDOSPART)
@@ -809,7 +817,7 @@ char *cp;
 			*num = acc;
 			return 1;
 		} else
-			printf("%s is an invalid decimal number.  Try again\n",
+			printf("%s is an invalid decimal number.  Try again.\n",
 				lbuf);
 	}
 
@@ -850,7 +858,7 @@ char *cp;
 			*num = acc;
 			return 1;
 		} else
-			printf("%s is an invalid hex number.  Try again\n",
+			printf("%s is an invalid hex number.  Try again.\n",
 				lbuf);
 	}
 
