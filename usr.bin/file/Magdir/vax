@@ -1,5 +1,6 @@
-#
-# magic.pdp: VAX executable/object and APL workspace
+
+#------------------------------------------------------------------------------
+# vax:  file(1) magic for VAX executable/object and APL workspace
 #
 0	lelong		0101557		VAX single precision APL workspace
 0	lelong		0101556		VAX double precision APL workspace

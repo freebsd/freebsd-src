@@ -1,6 +1,7 @@
+
+#------------------------------------------------------------------------------
+# lif:  file(1) magic for lif
 #
-# magic.lif:
-#
-# XXX - byte order?
+# XXX - byte order?  (Probably beshort, Daniel Quinlan <quinlan@yggdrasil.com>)
 #
 0	short		0x8000		lif file
