@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.83 1998/09/04 08:06:57 dfr Exp $
+ * $Id: vm_mmap.c,v 1.84 1998/10/13 08:24:44 dg Exp $
  */
 
 /*
@@ -173,8 +173,7 @@ mmap(p, uap)
 	pos = uap->pos;
 
 	/* make sure mapping fits into numeric range etc */
-	if ((pos + size > (vm_offset_t)-PAGE_SIZE) ||
-	    (ssize_t) uap->len < 0 ||
+	if ((ssize_t) uap->len < 0 ||
 	    ((flags & MAP_ANON) && uap->fd != -1))
 		return (EINVAL);
 
