@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.18 1996/03/26 19:16:43 fenner Exp $
+ * $Id: ip_icmp.c,v 1.19 1996/04/02 12:26:10 phk Exp $
  */
 
 #include <sys/param.h>
@@ -611,6 +611,7 @@ icmp_send(m, opts)
 	register struct ip *ip = mtod(m, struct ip *);
 	register int hlen;
 	register struct icmp *icp;
+	struct route ro;
 
 	hlen = ip->ip_hl << 2;
 	m->m_data += hlen;
@@ -628,7 +629,10 @@ icmp_send(m, opts)
 		       buf, inet_ntoa(ip->ip_src));
 	}
 #endif
-	(void) ip_output(m, opts, NULL, 0, NULL);
+	bzero(&ro, sizeof ro);
+	(void) ip_output(m, opts, &ro, 0, NULL);
+	if (ro.ro_rt)
+		RTFREE(ro.ro_rt);
 }
 
 n_time
