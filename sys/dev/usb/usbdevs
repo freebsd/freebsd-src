@@ -410,6 +410,9 @@ product ACERP ACERSCAN_620U	0x2060	Acerscan 620U
 product ACTIVEWIRE IOBOARD	0x0100	I/O Board
 product ACTIVEWIRE IOBOARD_FW1	0x0101	I/O Board, rev. 1 firmware
 
+/* Actiontec, Inc. products */
+product ACTIONTEC UAT1	0x7605	UAT1 Wireless Ethernet adapter
+
 /* ADMtek products */
 product ADMTEK PEGASUS		0x0986	AN986 USB Ethernet adapter
 product ADMTEK PEGASUSII	0x8511	AN8511 USB Ethernet adapter
