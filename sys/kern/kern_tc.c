@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.59 1998/03/26 20:51:31 phk Exp $
+ * $Id: kern_clock.c,v 1.60 1998/03/30 09:50:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -618,9 +618,9 @@ init_timecounter(struct timecounter *tc)
 	ts1.tv_sec -= ts0.tv_sec;
 	tc->cost = ts1.tv_sec * 1000000000 + ts1.tv_nsec - ts0.tv_nsec;
 	tc->cost >>= 8;
-	if (print_tci)
-	printf("Timecounter \"%s\"  frequency %lu Hz  cost %u ns\n", 
-	    tc->name, tc->frequency, tc->cost);
+	if (print_tci && strcmp(tc->name, "dummy"))
+		printf("Timecounter \"%s\"  frequency %lu Hz  cost %u ns\n", 
+		    tc->name, tc->frequency, tc->cost);
 
 	/* XXX: For now always start using the counter. */
 	tc->offset_count = tc->get_timecount();
@@ -750,3 +750,35 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, frequency, CTLTYPE_INT | CTLFLAG_RW,
 
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, adjustment, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(int), sysctl_kern_timecounter_adjustment, "I", "");
+
+/*
+ * Implement a dummy timecounter which we can use until we get a real one
+ * in the air.  This allows the console and other early stuff to use
+ * timeservices.
+ */
+
+static u_int64_t
+dummy_get_timecount(void)
+{
+	static u_int64_t now;
+	return (++now);
+}
+
+static struct timecounter dummy_timecounter[3] = {
+	{
+		0,
+		dummy_get_timecount,
+		~0,
+		100000,
+		"dummy"
+	}
+};
+
+static void
+initdummytimecounter(dummy)
+	void *dummy;
+{
+	init_timecounter(dummy_timecounter);
+}
+
+SYSINIT(dummytc, SI_SUB_CONSOLE, SI_ORDER_FIRST, initdummytimecounter, NULL)
