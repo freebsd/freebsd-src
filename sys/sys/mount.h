@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.34.2.2 1998/02/21 19:22:14 jkh Exp $
+ *	$Id: mount.h,v 1.34.2.3 1998/02/22 01:17:20 jkh Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -396,6 +396,13 @@ struct msdosfs_args {
 	uid_t	uid;		/* uid that owns msdosfs files */
 	gid_t	gid;		/* gid that owns msdosfs files */
 	mode_t	mask;		/* mask to be applied for msdosfs perms */
+	int	flags;		/* see below */
+	int magic;		/* version number */
+	u_int16_t u2w[128];     /* Local->Unicode table */
+	u_int8_t  ul[128];      /* Local upper->lower table */
+	u_int8_t  lu[128];      /* Local lower->upper table */
+	u_int8_t  d2u[128];     /* DOS->local table */
+	u_int8_t  u2d[128];     /* Local->DOS table */
 };
 #endif
 
