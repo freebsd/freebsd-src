@@ -60,13 +60,17 @@ extern const char *version;
  * If the first character of name is %, we are considered to be
  * editing the file, otherwise we are reading our mail which has
  * signficance for mbox and so forth.
+ *
+ * If the -e option is being passed to mail, this function has a
+ * tri-state return code: -1 on error, 0 on no mail, 1 if there is
+ * mail.
  */
 int
 setfile(name)
 	char *name;
 {
 	FILE *ibuf;
-	int i, fd;
+	int checkmode, i, fd;
 	struct stat stb;
 	char isedit = *name != '%' || getuserid(myname) != getuid();
 	char *who = name[1] ? name + 1 : myname;
@@ -147,12 +151,17 @@ setfile(name)
 	(void)Fclose(ibuf);
 	relsesigs();
 	sawcom = 0;
-	if (!edit && msgCount == 0) {
+	checkmode = value("checkmode") != NULL;
+
+	if ((checkmode || !edit) && msgCount == 0) {
 nomail:
-		fprintf(stderr, "No mail for %s\n", who);
-		return (-1);
+		if (!checkmode) {
+			fprintf(stderr, "No mail for %s\n", who);
+			return (-1);
+		} else
+			return (0);
 	}
-	return (0);
+	return (checkmode ? 1 : 0);
 }
 
 /*
