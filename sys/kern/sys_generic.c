@@ -746,6 +746,10 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nd < 0)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
+	/*
+	 * XXX: kern_select() currently requires that we acquire Giant
+	 * even if none of the file descriptors we poll requires Giant.
+	 */
 	mtx_lock(&Giant);
 	FILEDESC_LOCK(fdp);
 
@@ -954,6 +958,10 @@ poll(td, uap)
 
 	nfds = uap->nfds;
 
+	/*
+	 * XXX: poll() currently requires that we acquire Giant even if
+	 * none of the file descriptors we poll requires Giant.
+	 */
 	mtx_lock(&Giant);
 	/*
 	 * This is kinda bogus.  We have fd limits, but that is not
