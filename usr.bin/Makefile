@@ -30,7 +30,6 @@ SUBDIR=	alias \
 	catman \
 	chat \
 	checknr \
-	chflags \
 	chpass \
 	cksum \
 	cmp \
