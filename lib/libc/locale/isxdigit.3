@@ -52,6 +52,16 @@
 The
 .Fn isxdigit
 function tests for any hexadecimal-digit character.
+For any locale, this includes the following characters only:
+.Pp
+.Bl -column \&``0''______ \&``0''______ \&``0''______ \&``0''______ \&``0''______
+.It "\&``0''\t``1''\t``2''\t``3''\t``4''"
+.It "\&``5''\t``6''\t``7''\t``8''\t``9''"
+.It "\&``A''\t``B''\t``C''\t``D''\t``E''"
+.It "\&``F''\t``a''\t``b''\t``c''\t``d''"
+.It "\&``e''\t``f''"
+.El
+.Pp
 For single C
 .Va char Ns s
 locales (see
@@ -61,16 +71,6 @@ representable as an
 .Li unsigned char
 or the value of
 .Dv EOF .
-In the ASCII character set, this includes the following characters
-(with their numeric values shown in octal):
-.Pp
-.Bl -column \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__
-.It "\&060\ ``0'' \t061\ ``1'' \t062\ ``2'' \t063\ ``3'' \t064\ ``4''"
-.It "\&065\ ``5'' \t066\ ``6'' \t067\ ``7'' \t070\ ``8'' \t071\ ``9''"
-.It "\&101\ ``A'' \t102\ ``B'' \t103\ ``C'' \t104\ ``D'' \t105\ ``E''"
-.It "\&106\ ``F'' \t141\ ``a'' \t142\ ``b'' \t143\ ``c'' \t144\ ``d''"
-.It "\&145\ ``e'' \t146\ ``f''"
-.El
 .Sh RETURN VALUES
 The
 .Fn isxdigit
