@@ -91,7 +91,7 @@ start:		cld				# string ops inc
 #
 		movw $bootinfo_msg, %si		# %ds:(%si) -> boot args message
 		callw putstr			# display the message
-		movl $MEM_ARG, %bx		# %ds:(%bx) -> boot args
+		movw $MEM_ARG, %bx		# %ds:(%bx) -> boot args
 		movw %bx, %di			# %es:(%di) -> boot args
 		xorl %eax, %eax			# zero %eax
 		movw $(MEM_ARG_SIZE/4), %cx	# Size of arguments in 32-bit
