@@ -58,6 +58,7 @@
 
 #ifdef IPSEC_IPV6FWD
 #include <netinet6/ipsec.h>
+#include <netinet6/ipsec6.h>
 #include <netkey/key.h>
 #endif /* IPSEC_IPV6FWD */
 
