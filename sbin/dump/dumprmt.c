@@ -80,12 +80,8 @@ static	int rmtgetb(void);
 static	void rmtgetconn(void);
 static	void rmtgets(char *, int);
 static	int rmtreply(const char *);
-#ifdef KERBEROS
-int	krcmd(char **, int /*u_short*/, char *, char *, int *, char *);
-#endif
 
 static	int errfd = -1;
-extern	int dokerberos;
 extern	int ntrec;		/* blocking factor on tape */
 
 int
@@ -142,10 +138,9 @@ rmtgetconn(void)
 	int on;
 
 	if (sp == NULL) {
-		sp = getservbyname(dokerberos ? "kshell" : "shell", "tcp");
+		sp = getservbyname("shell", "tcp");
 		if (sp == NULL) {
-			msg("%s/tcp: unknown service\n",
-			    dokerberos ? "kshell" : "shell");
+			msg("shell/tcp: unknown service\n");
 			exit(X_STARTUP);
 		}
 		pwd = getpwuid(getuid());
@@ -165,14 +160,8 @@ rmtgetconn(void)
 	if ((rmt = getenv("RMT")) == NULL)
 		rmt = _PATH_RMT;
 	msg("");
-#ifdef KERBEROS
-	if (dokerberos)
-		rmtape = krcmd(&rmtpeer, sp->s_port, tuser, rmt, &errfd,
-			       (char *)0);
-	else
-#endif
-		rmtape = rcmd(&rmtpeer, (u_short)sp->s_port, pwd->pw_name,
-			      tuser, rmt, &errfd);
+	rmtape = rcmd(&rmtpeer, (u_short)sp->s_port, pwd->pw_name,
+		      tuser, rmt, &errfd);
 	if (rmtape < 0) {
 		msg("login to %s as %s failed.\n", rmtpeer, tuser);
 		return;
