@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.3 1994/04/29 21:44:23 gclarkii Exp $
+ *	$Id: npx.h,v 1.4 1994/08/14 23:32:45 ats Exp $
  */
 
 /*
@@ -127,7 +127,7 @@ struct	emcsts {
 #define	__BETTER_BDE_NPXCW__	0x127f
 
 #ifdef __BROKEN_NPXCW__
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 #define	__INITIAL_NPXCW__	__386BSD_NPXCW__
 #else
 #define	__INITIAL_NPXCW__	__iBCS_NPXCW__
