@@ -186,6 +186,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: head [-n lines] [-c bytes] [file ...]\n");
+	(void)fprintf(stderr, "usage: head [-n lines | -c bytes] [file ...]\n");
 	exit(1);
 }
