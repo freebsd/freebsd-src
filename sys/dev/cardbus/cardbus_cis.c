@@ -75,9 +75,6 @@ struct tuple_callbacks {
 static int decode_tuple_generic(device_t cbdev, device_t child, int id,
     int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
     struct tuple_callbacks *info);
-static int decode_tuple_copy(device_t cbdev, device_t child, int id,
-    int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
-    struct tuple_callbacks *info);
 static int decode_tuple_linktarget(device_t cbdev, device_t child, int id,
     int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
     struct tuple_callbacks *info);
