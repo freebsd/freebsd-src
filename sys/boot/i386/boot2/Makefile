@@ -31,11 +31,11 @@ ORG2=	0x2000
 # Decide Level of UFS support.  UFS1_AND_UFS2 doesn't fit.
 
 # BOOT2_UFS?=	UFS2_ONLY
-# BOOT2_UFS?=	UFS1_AND_UFS2
-BOOT2_UFS?=	UFS1_ONLY
+BOOT2_UFS?=	UFS1_AND_UFS2
+# BOOT2_UFS?=	UFS1_ONLY
 
 CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
-	-fno-guess-branch-probability \
+	-fno-guess-branch-probability -fomit-frame-pointer\
 	-mrtd \
 	-D${BOOT2_UFS} \
 	-I${.CURDIR}/../../common \
@@ -44,7 +44,7 @@ CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings
 
-LDFLAGS=-nostdlib -static -N
+LDFLAGS=-nostdlib -static -N --gc-sections
 
 all: boot1 boot2
 
@@ -61,7 +61,6 @@ boot1.o: boot1.s
 boot2.o: boot2.c ${.CURDIR}/../../common/ufsread.c
 	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.IMPSRC}
 	sed -e '/align/d' -e '/nop/d' < boot2.s.tmp > boot2.s
-	rm -f boot2.s.tmp
 	${AS} ${AFLAGS} -o boot2.o boot2.s
 
 boot2.h: boot1.out
