@@ -280,6 +280,15 @@
     <para>The &man.locale.1; utility has been re-implemented and is
       now POSIX-compliant.</para>
 
+    <para>The &man.mount.8; utility now supports to display the filesystem
+      ID for each file system in addition to the normal information
+      when a <option>-v</option> flag is specified,
+      and &man.umount.8; utility now accepts the filesystem ID
+      as well as the usual device and path names.
+      This allows to unambiguously specify which file system is
+      to be unmounted even when two or more file systems share
+      the same device and mount point names.</para>
+
     <para>The &man.mount.nwfs.8;, &man.mount.portalfs.8;, and
       &man.mount.smbfs.8; utilities have been moved from
       <filename>/sbin</filename> to <filename>/usr/sbin</filename>.</para>
@@ -287,7 +296,7 @@
     <para>The &man.pam.guest.8; PAM module has been added to allow
       guest logins.  It replaces the pam_ftp(8) module.</para>
 
-    <para>&man.ps.1; now supports a <option>-H</option> option to display all
+    <para>&man.ps.1; and &man.top.1; now support a <option>-H</option> flag to display all
       kernel-visible threads in each process.</para>
 
     <para>A bug that &man.rarpd.8; does not recognize removable Ethernet NICs
