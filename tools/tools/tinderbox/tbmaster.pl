@@ -40,7 +40,10 @@ my %CONFIGS	= (
 	'SANDBOX'	=> '/home/des/tinderbox',
 	'LOGDIR'	=> '/home/des/public_html',
 	'OPTIONS'	=> [ '--verbose' ],
-	'EMAIL'		=> 'des+%%arch%%-%%branch%%@freebsd.org',
+	'SENDER'	=> 'Tinderbox <des+tinderbox@freebsd.org>',
+	'RECIPIENT'	=> 'des+%%arch%%-%%branch%%@freebsd.org',
+	'SUBJECT'	=> '[%%COMMENT%%] failure on %%arch%%/%%machine%%',
+
 	'ENV'		=> { },
     },
 
@@ -54,7 +57,7 @@ my %CONFIGS	= (
 	    'ia64'	=> [ 'ia64' ],
 	    'sparc64'	=> [ 'sparc64' ],
 	},
-	'EMAIL'		=> 'current@freebsd.org,%%arch%%@freebsd.org',
+	'RECIPIENT'	=> 'current@freebsd.org,%%arch%%@freebsd.org',
     },
 
     'triangle' => {
@@ -68,7 +71,7 @@ my %CONFIGS	= (
 	'ENV'		=> {
 	    'MAKE_KERBEROS5'	=> 'YES',
 	},
-#	'EMAIL'		=> 'stable@freebsd.org,%%arch%%@freebsd.org',
+#	'RECIPIENT'	=> 'stable@freebsd.org,%%arch%%@freebsd.org',
     },
 
     '9ball' => {
@@ -94,7 +97,6 @@ my %CONFIGS	= (
 	},
 	'ENV'		=> {
 	    'NOLIBC_R'		=> 'YES',
-	    'NOPERL'		=> 'YES',
 	    'NOPROFILE'		=> 'YES',
 	    'NO_BIND'		=> 'YES',
 	    'NO_FORTRAN'	=> 'YES',
@@ -119,29 +121,52 @@ my %CONFIGS	= (
 	},
     },
 );
-my %CONFIG = ();
-my $TINDERBOX;
+my $config;			# Name of current config
+my %CONFIG = ();		# Current config
+my $TINDERBOX;			# Tinderbox script
 
-sub report($$$) {
+sub report($$$$) {
+    my $sender = shift;
     my $recipient = shift;
     my $subject = shift;
     my $message = shift;
 
     local *PIPE;
-    if (!open(PIPE, "|-", "/usr/bin/mail -s'$subject' $recipient") ||
-	!print(PIPE $message) || !close(PIPE)) {
-	print(STDERR "Subject: $subject\n\n");
+    if (open(PIPE, "|-", "/usr/sbin/sendmail -t -f$sender")) {
+	print(PIPE "Sender: $sender\n");
+	print(PIPE "From: $sender\n");
+	print(PIPE "To: $recipient\n");
+	print(PIPE "Subject: $subject\n");
+	print(PIPE "\n");
+	print(PIPE "$message\n");
+	print(STDERR "mailed report to $recipient\n");
+	close(PIPE);
+    } else {
 	print(STDERR "[failed to send report by email]\n\n");
 	print(STDERR $message);
-    } else {
-	print(STDERR "mailed report to $recipient\n");
     }
+}
+
+sub expand($) {
+    my $str = shift;
+
+    while (my ($key, $val) = each(%CONFIG)) {
+	next if ref($val);
+	$str =~ s/\%\%$key\%\%/$val/g;
+	($key, $val) = (lc($key), lc($val));
+	$str =~ s/\%\%$key\%\%/$val/g;
+    }
+    return $str;
 }
 
 sub tinderbox($$$) {
     my $branch = shift;
     my $arch = shift;
     my $machine = shift;
+
+    $CONFIG{'BRANCH'} = $branch;
+    $CONFIG{'ARCH'} = $arch;
+    $CONFIG{'MACHINE'} = $machine;
 
     # Open log files: one for the full log and one for the summary
     my $logfile = "$CONFIG{'LOGDIR'}/tinderbox-$branch-$arch-$machine";
@@ -178,6 +203,8 @@ sub tinderbox($$$) {
     push(@args, "--branch=$branch");
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
+    push(@args, "--patch=$CONFIG{'PATCH'}")
+	if (defined($CONFIG{'PATCH'}));
     push(@args, @{$CONFIG{'TARGETS'}});
     while (my ($key, $val) = each(%{$CONFIG{'ENV'}})) {
 	push(@args, "$key=$val");
@@ -248,13 +275,10 @@ sub tinderbox($$$) {
     # Mail out error reports
     if ($error) {
 	warn("$branch tinderbox failed for $arch/$machine\n");
-	my $recipient = $CONFIG{'EMAIL'};
-	$recipient =~ s/\%\%branch\%\%/$branch/gi;
-	$recipient =~ s/\%\%arch\%\%/$arch/gi;
-	$recipient =~ s/\%\%machine\%\%/$machine/gi;
-	report(lc($recipient),
-	    "[$CONFIG{'COMMENT'}] failure on $arch/$machine",
-	    $summary);
+	my $sender = expand($CONFIG{'SENDER'});
+	my $recipient = expand($CONFIG{'RECIPIENT'});
+	my $subject = expand($CONFIG{'SUBJECT'});
+	report($sender, $recipient, $subject, $summary);
     }
 
     rename("$logfile.full.$$", "$logfile.full");
@@ -273,7 +297,6 @@ sub usage() {
 }
 
 MAIN:{
-    my $config;
     if (@ARGV) {
 	$config = lc(shift(@ARGV));
     } else {
