@@ -222,37 +222,49 @@ void
 mb_free_ext(struct mbuf *m)
 {
 	u_int cnt;
+	int dofree;
+
+	/* Account for lazy ref count assign. */
+	if (m->m_ext.ref_cnt == NULL)
+		dofree = 1;
+	else
+		dofree = 0;
 
 	/*
 	 * This is tricky.  We need to make sure to decrement the
 	 * refcount in a safe way but to also clean up if we're the
 	 * last reference.  This method seems to do it without race.
 	 */
-	do {
+	while (dofree == 0) {
 		cnt = *(m->m_ext.ref_cnt);
 		if (atomic_cmpset_int(m->m_ext.ref_cnt, cnt, cnt - 1)) {
-			if (cnt == 1) {
-				/*
-				 * Do the free, should be safe.
-				 */
-				if (m->m_ext.ext_type == EXT_PACKET) {
-					uma_zfree(zone_pack, m);
-					return;
-				} else if (m->m_ext.ext_type == EXT_CLUSTER) {
-					uma_zfree(zone_clust, m->m_ext.ext_buf);
-					m->m_ext.ext_buf = NULL;
-				} else {
-					(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
-					    m->m_ext.ext_args);
-					if (m->m_ext.ext_type != EXT_EXTREF)
-						free(m->m_ext.ref_cnt, M_MBUF);
-					m->m_ext.ext_buf = NULL;
-				}
-			}
-			/* Decrement (and potentially free) done, safely. */
+			if (cnt == 1)
+				dofree = 1;
 			break;
 		}
-	} while (1);
+	}
+
+	if (dofree) {
+		/*
+		 * Do the free, should be safe.
+		 */
+		if (m->m_ext.ext_type == EXT_PACKET) {
+			uma_zfree(zone_pack, m);
+			return;
+		} else if (m->m_ext.ext_type == EXT_CLUSTER) {
+			uma_zfree(zone_clust, m->m_ext.ext_buf);
+			m->m_ext.ext_buf = NULL;
+		} else {
+			(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
+			    m->m_ext.ext_args);
+			if (m->m_ext.ext_type != EXT_EXTREF) {
+				if (m->m_ext.ref_cnt != NULL)
+					free(m->m_ext.ref_cnt, M_MBUF);
+				m->m_ext.ref_cnt = NULL;
+			}
+			m->m_ext.ext_buf = NULL;
+		}
+	}
 	uma_zfree(zone_mbuf, m);
 }
 
@@ -405,6 +417,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
 			MEXT_ADD_REF(m);
+			n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 		} else
 			bcopy(mtod(m, caddr_t)+off, mtod(n, caddr_t),
 			    (u_int)n->m_len);
@@ -452,6 +465,7 @@ m_copypacket(struct mbuf *m, int how)
 		n->m_ext = m->m_ext;
 		n->m_flags |= M_EXT;
 		MEXT_ADD_REF(m);
+		n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 	} else {
 		n->m_data = n->m_pktdat + (m->m_data - m->m_pktdat );
 		bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
@@ -472,6 +486,7 @@ m_copypacket(struct mbuf *m, int how)
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
 			MEXT_ADD_REF(m);
+			n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 		} else {
 			bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
 		}
@@ -807,6 +822,7 @@ extpacket:
 		n->m_flags |= M_EXT;
 		n->m_ext = m->m_ext;
 		MEXT_ADD_REF(m);
+		n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 		n->m_data = m->m_data + len;
 	} else {
 		bcopy(mtod(m, caddr_t) + len, mtod(n, caddr_t), remain);
