@@ -304,6 +304,7 @@ pccard_function_init(struct pccard_function *pf)
 	int i;
 	struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
 	struct resource_list *rl = &devi->resources;
+	struct resource_list_entry *rle;
 	struct resource *r = 0;
 	device_t bus;
 	int start;
@@ -337,7 +338,8 @@ pccard_function_init(struct pccard_function *pf)
 			    rman_get_start(r), rman_get_end(r),
 			    cfe->iospace[i].length);
 			{
-				struct resource_list_entry *rle = resource_list_find(rl, SYS_RES_IOPORT, cfe->iorid[i]);
+				rle = resource_list_find(rl, SYS_RES_IOPORT, 
+				    cfe->iorid[i]);
 				rle->res = r;
 			}
 		}
@@ -353,7 +355,8 @@ pccard_function_init(struct pccard_function *pf)
 			resource_list_add(rl, SYS_RES_IRQ, cfe->irqrid,
 			    rman_get_start(r), rman_get_end(r), 1);
 			{
-				struct resource_list_entry *rle = resource_list_find(rl, SYS_RES_IRQ, cfe->irqrid);
+				rle = resource_list_find(rl, SYS_RES_IRQ,
+				    cfe->irqrid);
 				rle->res = r;
 			}
 		}
@@ -562,11 +565,13 @@ pccard_function_disable(struct pccard_function *pf)
 			struct resource_list_entry *rle = NULL;
 
 			pf->sc->intr_handler_count--;
-			rle = resource_list_find(&ivar->resources, SYS_RES_IRQ, 0);
+			rle = resource_list_find(&ivar->resources, SYS_RES_IRQ,
+			    0);
 			if (rle == NULL)
 				panic("No IRQ for pccard?");
 
-			bus_teardown_intr(dev, rle->res, &pf->sc->intr_handler_count);
+			bus_teardown_intr(dev, rle->res,
+			    &pf->sc->intr_handler_count);
 		}
 	}
 
@@ -993,14 +998,16 @@ pccard_child_detached(device_t parent, device_t dev)
 }
 
 static void
-pccard_intr(void *arg) {
+pccard_intr(void *arg)
+{
+	struct pccard_softc *sc = (struct pccard_softc *) arg;
 	struct pccard_function *pf;
-	STAILQ_FOREACH(pf, &((struct pccard_softc*)arg)->card.pf_head, pf_list) {
+	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (pf->intr_handler != NULL) {
 			int reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
 			if (reg & PCCARD_CCR_STATUS_INTR) {
 				pccard_ccr_write(pf, PCCARD_CCR_STATUS,
-						 reg & ~PCCARD_CCR_STATUS_INTR);
+				    reg & ~PCCARD_CCR_STATUS_INTR);
 				pf->intr_handler(pf->intr_handler_arg);
 			}
 		}
@@ -1008,9 +1015,8 @@ pccard_intr(void *arg) {
 }
 
 static int
-pccard_setup_intr(device_t dev, device_t child,
-		  struct resource *irq, int flags,
-		  driver_intr_t *intr, void *arg, void **cookiep)
+pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
 	struct pccard_function *func = ivar->fcn;
@@ -1018,7 +1024,7 @@ pccard_setup_intr(device_t dev, device_t child,
 	struct pccard_softc *sc = device_get_softc(dev);
 
 	if (func->intr_handler != NULL)
-		panic("Only one interrupt handler per function allowed for pccard\n");
+		panic("Only one interrupt handler per function allowed\n");
 
 	rle = resource_list_find(&ivar->resources, SYS_RES_IRQ, 0);
 	if (rle == NULL || rle->res != irq)
@@ -1028,8 +1034,8 @@ pccard_setup_intr(device_t dev, device_t child,
 	func->intr_handler_arg = arg;
 	func->intr_handler_cookie = *cookiep = func;
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
-			 pccard_ccr_read(func, PCCARD_CCR_OPTION) |
-			 PCCARD_CCR_OPTION_IREQ_ENABLE);
+	    pccard_ccr_read(func, PCCARD_CCR_OPTION) | 
+	    PCCARD_CCR_OPTION_IREQ_ENABLE);
 
 	if (sc->intr_handler_count++ == 0) {
 		rle = resource_list_find(&ivar->resources, SYS_RES_IRQ, 0);
@@ -1037,13 +1043,14 @@ pccard_setup_intr(device_t dev, device_t child,
 			panic("No IRQ for pccard?");
 
 		bus_setup_intr(dev, rle->res, INTR_TYPE_TTY/* | INTR_FAST*/,
-			       pccard_intr, sc, (void*)&sc->intr_handler_count);
+		    pccard_intr, sc, (void*)&sc->intr_handler_count);
 	}
 	return 0;
 }
 
 static int
-pccard_teardown_intr(device_t dev, device_t child, struct resource *r, void *cookie)
+pccard_teardown_intr(device_t dev, device_t child, struct resource *r,
+    void *cookie)
 {
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
 	struct pccard_function *func = ivar->fcn;
@@ -1056,8 +1063,8 @@ pccard_teardown_intr(device_t dev, device_t child, struct resource *r, void *coo
 	func->intr_handler_arg = NULL;
 	func->intr_handler_cookie = NULL;
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
-			 pccard_ccr_read(func, PCCARD_CCR_OPTION) &
-			 ~PCCARD_CCR_OPTION_IREQ_ENABLE);
+	    pccard_ccr_read(func, PCCARD_CCR_OPTION) &
+	    ~PCCARD_CCR_OPTION_IREQ_ENABLE);
 
 	if (--sc->intr_handler_count == 0) {
 		struct resource_list_entry *rle = NULL;
