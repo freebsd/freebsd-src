@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.603 1999/05/23 11:11:31 peter Exp $
+#	$Id: LINT,v 1.604 1999/05/28 10:27:22 roger Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -258,13 +258,6 @@ options		SYSVMSG
 # various authentication and privacy uses.
 #
 options		MD5
-
-#
-# Allow processes to switch to vm86 mode, as well as enabling direct
-# user-mode access to the I/O port space.  This option is necessary for 
-# the doscmd emulator to run and the VESA modes in syscons to be available.
-#
-options		VM86
 
 
 #####################################################################
@@ -924,7 +917,7 @@ options		VGA_NO_MODE_CHANGE	# don't change video modes
 options		VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
 
 # To include support for VESA video modes
-options		VESA			# needs VM86 defined too!!
+options		VESA
 
 # Splash screen at start up!  Screen savers require this too.
 pseudo-device	splash
