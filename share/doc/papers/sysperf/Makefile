@@ -4,15 +4,13 @@
 VOLUME=	papers
 DOC=	sysperf
 MACROS= -ms
-LSRCS=	0.t 1.t 2.t 3.t 4.t 5.t 6.t 7.t
+SRCS=	0.t 1.t 2.t 3.t 4.t 5.t 6.t 7.t
 EXTRA=	a1.t a2.t
-SRCS=	paper.tmp appendix.tmp
-CLEANFILES+=${SRCS}
+SRCS+=	appendix.tmp
+CLEANFILES=	appendix.tmp
 SRCDIR=	${.OBJDIR}
 USE_EQN=	yes
-
-paper.tmp: ${LSRCS}
-	(cd ${.CURDIR}; ${TBL} ${LSRCS}) > paper.tmp
+USE_TBL=	yes
 
 appendix.tmp: a1.t a2.t
 	${GRIND} ${.CURDIR}/a1.t |  awk '/\.\(\)/{ cnt = 2 } \
