@@ -109,7 +109,7 @@ int	f;
 	if (f <= 0 && !testnl())
 	{
 		r = getcodpar("Up or down", Udtab);
-		i = (int) r->value;
+		i = (long) r->value;
 	}
 	else
 	{

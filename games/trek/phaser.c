@@ -138,7 +138,7 @@ phaser()
 	if (!manual)
 	{
 		ptr = getcodpar("Manual or automatic", Matab);
-		manual = (int) ptr->value;
+		manual = (long) ptr->value;
 	}
 	if (!manual && damaged(COMPUTER))
 	{
