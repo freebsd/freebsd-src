@@ -38,7 +38,7 @@
  * Indentification of modem control signals.  These definitions match
  * the TIOCMGET definitions in <sys/ttycom.h> shifted a bit down, and
  * that identity is enforced with CTASSERT at the bottom of kern/tty.c
- * Both the modem bits and delta bits must fit in 16 bit!
+ * Both the modem bits and delta bits must fit in 16 bit.
  */
 #define		SER_DTR	0x0001		/* data terminal ready */
 #define		SER_RTS	0x0002		/* request to send */
@@ -50,13 +50,15 @@
 #define		SER_DSR	0x0080		/* data set ready */
 
 /* Delta bits, used to indicate which signals should/was affected */
-#define		SER_DDTR (SER_DTR << 8)
-#define		SER_DRTS (SER_RTS << 8)
-#define		SER_DSTX (SER_STX << 8)
-#define		SER_DSRX (SER_SRX << 8)
-#define		SER_DCTS (SER_CTS << 8)
-#define		SER_DDCD (SER_DCD << 8)
-#define		SER_DRI  (SER_RI  << 8)
-#define		SER_DDSR (SER_DSR << 8)
+#define		SER_DELTA(x)	((x) << 8)
+
+#define		SER_DDTR SER_DELTA(SER_DTR)
+#define		SER_DRTS SER_DELTA(SER_RTS)
+#define		SER_DSTX SER_DELTA(SER_STX)
+#define		SER_DSRX SER_DELTA(SER_SRX)
+#define		SER_DCTS SER_DELTA(SER_CTS)
+#define		SER_DDCD SER_DELTA(SER_DCD)
+#define		SER_DRI  SER_DELTA(SER_RI)
+#define		SER_DDSR SER_DELTA(SER_DSR)
 
 #endif /* !_SYS_SERIAL_H_ */
