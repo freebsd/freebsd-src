@@ -8,7 +8,7 @@ PROG=	f771
 SRCS=	bad.c bit.c bld.c com.c data.c equiv.c expr.c global.c implic.c info.c \
 	intrin.c lab.c lex.c malloc.c name.c parse.c        src.c st.c sta.c \
 	stb.c stc.c std.c ste.c storag.c stp.c str.c sts.c stt.c stu.c stv.c \
-	stw.c symbol.c target.c top.c type.c version.c where.c main.c
+	stw.c symbol.c target.c top.c type.c where.c main.c
 BINDIR=	/usr/libexec
 NOMAN=
 
