@@ -99,9 +99,8 @@ void		 pmap_enter __P((pmap_t, vm_offset_t, vm_offset_t, vm_prot_t,
 vm_offset_t	 pmap_extract __P((pmap_t, vm_offset_t));
 void		 pmap_growkernel __P((vm_offset_t));
 void		 pmap_init __P((vm_offset_t, vm_offset_t));
-boolean_t	 pmap_is_modified __P((vm_offset_t pa));
-boolean_t	 pmap_is_referenced __P((vm_offset_t pa));
-boolean_t	 pmap_ts_referenced __P((vm_offset_t pa));
+int		 pmap_tc_modified __P((vm_page_t m));
+int		 pmap_tc_referenced __P((vm_offset_t pa));
 void		 pmap_kenter __P((vm_offset_t, vm_offset_t));
 void		 pmap_kremove __P((vm_offset_t));
 vm_offset_t	 pmap_map __P((vm_offset_t, vm_offset_t, vm_offset_t, int));
@@ -121,6 +120,7 @@ void		 pmap_qremove __P((vm_offset_t, int));
 void		 pmap_reference __P((pmap_t));
 void		 pmap_release __P((pmap_t));
 void		 pmap_remove __P((pmap_t, vm_offset_t, vm_offset_t));
+void		 pmap_remove_pages __P((pmap_t, vm_offset_t, vm_offset_t));
 void		 pmap_zero_page __P((vm_offset_t));
 void		 pmap_prefault __P((pmap_t pmap, vm_offset_t addra,
 		    vm_map_entry_t entry, vm_object_t object));
