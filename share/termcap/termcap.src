@@ -586,7 +586,7 @@ falco-p|falco ts-1sp|falco with paging option:\
 	:ue=\Eg0:do=\E[B:cm=\E=%+ %+ :ms:kh=\E[H:da:mi:bt=\EI:
 #NOTE: bg can scroll, it just would rather not (ns) - rwells 3/13/81.
 # (Shouldn't you take out ns and put in an nl instead? - mrh)
-bg|bitgraph|BBN BitGraph terminal:\
+bitgraph|BBN BitGraph terminal:\
 	:do=^J:al=2*\E[L:bs:cd=150\E[J:ce=2\E[K:\
 	:cl=150\E[H\E[J:cm=%i\E[%d;%dH:co#85:\
 	:dl=2*\E[M:k0=\EP:k1=\EQ:k2=\ER:k3=\ES:kd=\EB:ke=\E>:kl=\ED:kr=\EC:\
@@ -794,7 +794,7 @@ f200|freedom200| Freedom 200 VDT by Liberty Electronics :\
 	:te=\EJ\E\\2\E|\041\061^L^Y:ti=\E\\1\EK\E|\041\061L^Y:\
 	:ts=\Ef:ue=\EG0:up=^K:us=\EG8:vb=\Eb\Ed:hs:i2=\E^O\Eg:\
 	:ts=\Ef:fs=^M:ds=\E^N:
-dg|dg6053|data general 6053:\
+dg6053|data general 6053:\
 	:do=^J:am:le=^H:bs:cm=^P%r%.%.:cl=^L:ho=^H:nd=^S:\
 	:up=^W:ce=^K:co#80:li#24:
 # dg450 and dg200 from cornell
@@ -1406,7 +1406,7 @@ aaa-db|ann arbor ambassador 30/destructive backspace:\
 	:ti=\E[H\E[J\E[30;0;0;30p:te=\E7\E[60;0;0;30p\E8:li#30:\
 	:is=\E[60;0;0;30p\E[H\E[J\E[1Q\E[m\E[20l\E[>30h:le=\E[D:bc=\E[D:bs@:\
 	:tc=aaa-unk:
-aa|annarbor|4080|ann arbor 4080:\
+annarbor|4080|ann arbor 4080:\
 	:do=^J:pt:ct=^\^P^P:st=^]^P1:cm=^O%r%\066%.%>^S^L%+@:\
 	:co#80:li#40:le=^H:bs:cl=2^L:up=^N:nd=^_:ho=^K:am:\
 	:kb=^^:kd=^J:ku=^N:kl=^H:kr=^_:kh=^K:ma=^_ ^N^P:
@@ -3352,7 +3352,7 @@ owl|perkin elmer 1200:\
 #
 # q: HOME MADE TERMINALS
 #
-bc|bill croft homebrew:\
+bill croft homebrew:\
 	:do=^J:am:le=^H:bs:cm=\E=%+ %+ :cl=^Z:co#96:ho=^^:li#72:\
 	:nd=^L:up=^K:vb=:
 nucterm|rayterm|NUC homebrew:\
@@ -3400,7 +3400,7 @@ arpanet:\
 	:tc=unknown:
 bussiplexer:\
 	:tc=unknown:
-du|dialup:\
+dialup:\
 	:tc=unknown:
 ethernet:\
 	:tc=unknown:
@@ -3408,7 +3408,8 @@ lpr|printer|print|printing|line printer:\
 	:do=^J:le=^H:bs:co#132:hc:os:
 plugboard|patch|patchboard:\
 	:tc=unknown:
-dumb|un|unknown:\
+# See login.c for "su"
+dumb|su|unknown:\
 	:am:co#80:do=^J:
 switch|intelligent switch:\
 	:tc=unknown:
@@ -3421,7 +3422,7 @@ other|None of the above, but not exactly unknown:\
 #
 # t: TEXAS INSTRUMENTS
 #
-ti|ti700|ti733|735|ti735|ti silent 700:\
+ti700|ti733|735|ti735|ti silent 700:\
 	:do=^J:le=^H:bs:co#80:hc:os:dC#162:
 ti745|745|743|ti silent 745:\
 	:do=^J:le=^H:bs:co#80:hc:os:
@@ -4472,7 +4473,7 @@ kons25jx-m|kon3jx-m|jkons3jx-mono|kons24-jis1983-j-mono:\
 
 # Termcap for Top Gun Telnet and SSH on the Palm Pilot.
 # http://www.isaac.cs.berkeley.edu/pilot/tgtelnet.html
-pi|pilot|tgtelnet:am:xn:bs:co#39:li#16:cl=\Ec:cm=\Em%+ %+ :ho=\Em  :nw=\Em~ :\
+pilot|tgtelnet:am:xn:bs:co#39:li#16:cl=\Ec:cm=\Em%+ %+ :ho=\Em  :nw=\Em~ :\
 	:so=\Eb:se=\EB:bl=^g:cr=^m:do=^j:le=^h:kP=^k:kN=^l:
 
 # Termcap entry for rxvt, taken from the sources of rxvt-2.6.3
