@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.177.2.4 1999/05/02 08:59:38 brian Exp $
+ * $Id: command.c,v 1.177.2.5 1999/08/23 21:59:27 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -144,7 +144,7 @@
 #define NEG_VJCOMP	53
 
 const char Version[] = "2.23";
-const char VersionDate[] = "$Date: 1999/08/19 18:15:49 $";
+const char VersionDate[] = "$Date: 1999/08/23 21:59:27 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1399,18 +1399,9 @@ SetVariable(struct cmdargs const *arg)
 
   switch (param) {
   case VAR_AUTHKEY:
-    switch (bundle_Phase(arg->bundle)) {
-      case PHASE_DEAD:
-      case PHASE_ESTABLISH:
-        strncpy(arg->bundle->cfg.auth.key, argp,
-                sizeof arg->bundle->cfg.auth.key - 1);
-        arg->bundle->cfg.auth.key[sizeof arg->bundle->cfg.auth.key - 1] = '\0';
-        break;
-      default:
-        err = "set authkey: Only available at phase DEAD/ESTABLISH\n";
-        log_Printf(LogWARN, err);
-        break;
-    }
+    strncpy(arg->bundle->cfg.auth.key, argp,
+            sizeof arg->bundle->cfg.auth.key - 1);
+    arg->bundle->cfg.auth.key[sizeof arg->bundle->cfg.auth.key - 1] = '\0';
     break;
 
   case VAR_AUTHNAME:
