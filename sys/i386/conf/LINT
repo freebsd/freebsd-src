@@ -1536,6 +1536,7 @@ device		pca0 at isa? port IO_TIMER1
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
 # stl: Stallion EasyIO and EasyConnection 8/32 (ISA and PCI), EasyConnection 8/64 PCI
 # stli: Stallion EasyConnection 8/64 ISA/EISA, ONboard, Brumby (intelligent)
+# nmdm: nullmodem terminal driver (see nmdm(4))
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -1639,6 +1640,8 @@ device		stli0	at isa? port 0x2a0 iomem 0xcc000 flags 23 iosiz 0x1000
 device		loran0	at isa? irq 5
 # HOT1 Xilinx 6200 card (http://www.vcc.com/)
 device		xrpu
+# nullmodem terminal driver
+device		nmdm
 
 #
 # MCA devices:
