@@ -422,11 +422,11 @@ typedef struct sc_renderer {
 } sc_renderer_t;
 
 #define RENDERER(name, mode, sw, set)				\
-	static struct sc_renderer scrndr_##name##_##mode## = {	\
+	static struct sc_renderer scrndr_##name##_##mode = {	\
 		#name, mode, &sw				\
 	};							\
-	DATA_SET(scrndr_set, scrndr_##name##_##mode##);		\
-	DATA_SET(set, scrndr_##name##_##mode##)
+	DATA_SET(scrndr_set, scrndr_##name##_##mode);		\
+	DATA_SET(set, scrndr_##name##_##mode)
 
 #define RENDERER_MODULE(name, set)				\
 	SET_DECLARE(set, sc_renderer_t);			\
@@ -460,7 +460,7 @@ typedef struct sc_renderer {
 		scrndr_##name##_event,				\
 		NULL,						\
 	};							\
-	DECLARE_MODULE(scrndr_##name##, scrndr_##name##_mod, 	\
+	DECLARE_MODULE(scrndr_##name, scrndr_##name##_mod, 	\
 		       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 typedef struct {
