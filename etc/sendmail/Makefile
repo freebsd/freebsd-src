@@ -57,8 +57,6 @@ CLEANFILES=	${ALL}
 
 all: ${ALL}
 
-depend:
-
 install distribution:
 .if defined(SENDMAIL_MC) && defined(SENDMAIL_CF)
 	@echo ">>> ERROR: Both SENDMAIL_MC and SENDMAIL_CF cannot be set"
