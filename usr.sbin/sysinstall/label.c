@@ -412,13 +412,13 @@ getNewfsCmd(PartInfo *p)
 	sstrncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
 }
 
-#define MAX_MOUNT_NAME	10
+#define MAX_MOUNT_NAME	9
 
 #define PART_PART_COL	0
 #define PART_MOUNT_COL	10
 #define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 3)
 #define PART_NEWFS_COL	(PART_SIZE_COL + 8)
-#define PART_OFF	39
+#define PART_OFF	38
 
 #define TOTAL_AVAIL_LINES       (10)
 #define PSLICE_SHOWABLE          (4)
@@ -578,9 +578,12 @@ print_label_chunks(void)
 	        strcpy(newfs, "DOS");
 	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM) {
 		strcpy(newfs, "UFS");
-		if (((PartInfo *)label_chunk_info[i].c->private_data)->soft)
-		    strcat(newfs, "+S");
-		strcat(newfs, ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ? " Y" : " N");
+		strcat(newfs,
+		    ((PartInfo *)label_chunk_info[i].c->private_data)->soft ?
+		      "+S" : "  ");
+		strcat(newfs,
+		    ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ?
+		      " Y" : " N");
 	    }
 	    else if (label_chunk_info[i].type == PART_SWAP)
 		strcpy(newfs, "SWAP");
