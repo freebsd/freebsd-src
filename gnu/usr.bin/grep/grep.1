@@ -13,7 +13,7 @@
 .de Id
 .ds Dt \\$4
 ..
-.Id $Id: grep.1,v 1.9 2000/01/26 03:42:16 alainm Exp $
+.Id $Id: grep.1,v 1.11 2000/02/26 03:18:40 alainm Exp $
 .TH GREP 1 \*(Dt "GNU Project"
 .SH NAME
 grep, egrep, fgrep, zgrep, zegrep, zfgrep,
@@ -110,7 +110,7 @@ If
 is
 .BR without-match ,
 .B grep
-assumes that a binary file does not match; this is equivalent to the 
+assumes that a binary file does not match; this is equivalent to the
 .B \-I
 option.
 If
@@ -151,8 +151,8 @@ If
 .I ACTION
 is
 .BR recurse ,
-.B
-grep reads all files under each directory, recursively;
+.B grep
+reads all files under each directory, recursively;
 this is equivalent to the
 .B \-r
 option.
@@ -178,7 +178,7 @@ any of which is to be matched.
 Obtain patterns from
 .IR FILE ,
 one per line.
-The empty file contains zero patterns, and therfore matches nothing.
+The empty file contains zero patterns, and therefore matches nothing.
 .TP
 .BR \-G ", " \-\^\-basic-regexp
 Interpret
