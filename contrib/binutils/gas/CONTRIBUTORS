@@ -52,9 +52,10 @@ code to support a.out format.
 
 Support for the Zilog Z8k and Hitachi H8/300, H8/500 and SH processors
 (tc-z8k, tc-h8300, tc-h8500, tc-sh), and IEEE 695 object file format
-(obj-ieee), was written by Steve Chamberlain of Cygnus Support.  Steve
-also modified the COFF back end (obj-coffbfd) to use BFD for some
-low-level operations, for use with the Hitachi, 29k and Zilog targets.
+(obj-ieee), was written by Steve Chamberlain of Cygnus Solutions.
+Steve also modified the COFF back end (obj-coffbfd) to use BFD for
+some low-level operations, for use with the Hitachi, 29k and Zilog
+targets.
 
 John Gilmore built the AMD 29000 support, added .include support, and
 simplified the configuration of which versions accept which
@@ -64,7 +65,7 @@ synthetic instructions remained shrinkable (jbsr).  John fixed many
 bugs, including true tested cross-compilation support, and one bug in
 relaxation that took a week and required the proverbial one-bit fix.
 
-Ian Lance Taylor of Cygnus Support merged the Motorola and MIT
+Ian Lance Taylor of Cygnus Solutions merged the Motorola and MIT
 syntaxes for the 68k, completed support for some COFF targets (68k,
 i386 SVR3, and SCO Unix), wrote the ECOFF support based on Michael
 Meissner's mips-tfile program, wrote the PowerPC and RS/6000 support,
@@ -77,22 +78,25 @@ Steve Chamberlain made gas able to generate listings.
 Support for the HP9000/300 was contributed by Glenn Engel of HP.
 
 Support for ELF format files has been worked on by Mark Eichin of
-Cygnus Support (original, incomplete implementation), Pete Hoogenboom
-at the University of Utah (HPPA mainly), Michael Meissner of the Open
-Software Foundation (i386 mainly), and Ken Raeburn of Cygnus Support
-(sparc, initial 64-bit support).
+Cygnus Solutions (original, incomplete implementation), Pete
+Hoogenboom at the University of Utah (HPPA mainly), Michael Meissner
+of the Open Software Foundation (i386 mainly), and Ken Raeburn of
+Cygnus Solutions (sparc, initial 64-bit support).
 
-Several engineers at Cygnus Support have also provided many small bug
-fixes and configuration enhancements.
+Several engineers at Cygnus Solutions have also provided many small
+bug fixes and configuration enhancements.
 
 The initial Alpha support was contributed by Carnegie-Mellon
 University.  Additional work was done by Ken Raeburn of Cygnus
-Support.  Richard Henderson then rewrote much of the Alpha support.
+Solutions.  Richard Henderson then rewrote much of the Alpha support.
 
 Ian Dall updated the support code for the National Semiconductor 32000
 series, and added support for Mach 3 and NetBSD running on the PC532.
 
 Klaus Kaempf ported the assembler and the binutils to openVMS/Alpha.
+
+Steve Haworth contributed the support for the Texas Instruction c30
+(tms320c30).
 
 Many others have contributed large or small bugfixes and enhancements.  If
 you've contributed significant work and are not mentioned on this list, and

@@ -28,11 +28,12 @@
 #define LISTING_HLL        8
 #define LISTING_NODEBUG   16
 #define LISTING_NOCOND	  32
+#define LISTING_MACEXP	  64
 
-#define LISTING_DEFAULT    (LISTING_LISTING | LISTING_HLL |  LISTING_SYMBOLS)
+#define LISTING_DEFAULT    (LISTING_LISTING | LISTING_HLL | LISTING_SYMBOLS)
 
 #ifndef NO_LISTING
-#define LISTING_NEWLINE() { if (listing) listing_newline(input_line_pointer); }
+#define LISTING_NEWLINE() { if (listing) listing_newline(NULL); }
 #else
 #define LISTING_NEWLINE() {;}
 #endif
@@ -54,6 +55,11 @@ void listing_source_line PARAMS ((unsigned int));
 void listing_title PARAMS ((int depth));
 void listing_warning PARAMS ((const char *message));
 void listing_width PARAMS ((unsigned int x));
+
+extern int listing_lhs_width;
+extern int listing_lhs_width_second;
+extern int listing_lhs_cont_lines;
+extern int listing_rhs_width;
 
 #endif /* __listing_h__ */
 

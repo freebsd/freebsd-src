@@ -59,7 +59,7 @@ MULTISUBDIR =
 MULTIDO = true
 MULTICLEAN = true
 
-INSTALL = install -c
+INSTALL = $(SHELL) $(srcdir)/../install-sh -c
 INSTALL_PROGRAM = $(INSTALL)
 INSTALL_DATA = $(INSTALL)
 
@@ -106,6 +106,9 @@ FLAGS_TO_PASS = \
 	"LIBCFLAGS=$(LIBCFLAGS)" \
 	"EXTRA_OFILES=$(EXTRA_OFILES)" \
 	"HDEFINES=$(HDEFINES)" \
+	"INSTALL=$(INSTALL)" \
+	"INSTALL_DATA=$(INSTALL_DATA)" \
+	"INSTALL_PROGRAM=$(INSTALL_PROGRAM)" \
 	"LDFLAGS=$(LDFLAGS)" \
 	"LOADLIBES=$(LOADLIBES)" \
 	"PICFLAG=$(PICFLAG)" \
@@ -143,12 +146,12 @@ HFILES =
 
 # NOTE: If you add new files to the library, add them to this list
 # (alphabetical), and add them to REQUIRED_OFILES or 'functions.def'.
-CFILES = alloca.c argv.c atexit.c basename.c bcmp.c bcopy.c bzero.c \
+CFILES = asprintf.c alloca.c argv.c atexit.c basename.c bcmp.c bcopy.c bzero.c \
 	 choose-temp.c clock.c concat.c cplus-dem.c fdmatch.c fnmatch.c \
 	 getcwd.c getopt.c getopt1.c getpagesize.c getruntime.c \
          floatformat.c hex.c index.c insque.c \
 	 memchr.c memcmp.c memcpy.c memmove.c memset.c objalloc.c \
-         obstack.c random.c rename.c rindex.c sigsetmask.c spaces.c \
+         obstack.c pexecute.c random.c rename.c rindex.c sigsetmask.c spaces.c \
 	 strcasecmp.c strncasecmp.c \
          strchr.c strdup.c strerror.c strrchr.c strsignal.c \
          strstr.c strtod.c strtol.c strtoul.c tmpnam.c \
@@ -157,8 +160,8 @@ CFILES = alloca.c argv.c atexit.c basename.c bcmp.c bcopy.c bzero.c \
 # These are always included in the library.
 REQUIRED_OFILES = argv.o basename.o choose-temp.o concat.o cplus-dem.o \
   fdmatch.o fnmatch.o getopt.o getopt1.o getruntime.o hex.o \
-  floatformat.o objalloc.o obstack.o spaces.o strerror.o strsignal.o \
-  xatexit.o xexit.o xmalloc.o xstrdup.o xstrerror.o
+  floatformat.o objalloc.o obstack.o pexecute.o spaces.o strerror.o \
+  strsignal.o xatexit.o xexit.o xmalloc.o xstrdup.o xstrerror.o
 
 # Do we want/need any config overrides?
 #	 
@@ -169,15 +172,15 @@ INSTALL_DEST = libdir
 install: install_to_$(INSTALL_DEST)
 
 install_to_libdir: all
-	$(INSTALL_DATA) $(TARGETLIB) $(libdir)/$(TARGETLIB).n
-	( cd $(libdir) ; $(RANLIB) $(libdir)/$(TARGETLIB).n )
-	mv -f $(libdir)/$(TARGETLIB).n $(libdir)$(MULTISUBDIR)/$(TARGETLIB)
+	$(INSTALL_DATA) $(TARGETLIB) $(libdir)$(MULTISUBDIR)/$(TARGETLIB).n
+	( cd $(libdir)$(MULTISUBDIR) ; $(RANLIB) $(TARGETLIB).n )
+	mv -f $(libdir)$(MULTISUBDIR)/$(TARGETLIB).n $(libdir)$(MULTISUBDIR)/$(TARGETLIB)
 	@$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO=install
 
 install_to_tooldir: all
-	$(INSTALL_DATA) $(TARGETLIB) $(tooldir)/lib/$(TARGETLIB).n
-	( cd $(tooldir) ; $(RANLIB) $(tooldir)/lib/$(TARGETLIB).n )
-	mv -f $(tooldir)/lib/$(TARGETLIB).n $(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB)
+	$(INSTALL_DATA) $(TARGETLIB) $(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB).n
+	( cd $(tooldir)/lib$(MULTISUBDIR) ; $(RANLIB) $(TARGETLIB).n )
+	mv -f $(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB).n $(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB)
 	@$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO=install
 
 # The default configuration adds to libiberty all those functions that are
@@ -185,8 +188,12 @@ install_to_tooldir: all
 # Then a sed+awk combination translates the ld error messages into
 # a list of .o files.
 
-needed-list: stamp-picdir $(NEEDED_LIST)
-	cp $(NEEDED_LIST) needed-list
+stamp-needed: stamp-picdir $(NEEDED_LIST)
+	cp $(NEEDED_LIST) needed-tmp
+	$(SHELL) $(srcdir)/$(MULTISRCTOP)../move-if-change needed-tmp needed-list
+	touch stamp-needed
+
+needed-list: stamp-needed ; @true
 
 lneeded-list: $(EXTRA_OFILES) needed.awk errors
 	rm -f lneeded-list
@@ -211,8 +218,12 @@ needed.awk: $(srcdir)/functions.def Makefile
 	    | sed -e '/DEF/s|DEF.\([^,]*\).*|/\1/ { printf "\1.o " }|' \
 	    >>needed.awk
 
-config.h: $(CONFIG_H)
-	cp $(CONFIG_H) config.h
+stamp-config: $(CONFIG_H)
+	cp $(CONFIG_H) config.tmp
+	$(SHELL) $(srcdir)/$(MULTISRCTOP)../move-if-change config.tmp config.h
+	touch stamp-config
+
+config.h: stamp-config ; @true
 
 lconfig.h: needed2.awk errors
 	echo "/* !Automatically generated from $(srcdir)/functions.def"\
@@ -285,15 +296,15 @@ ls:
 
 mostlyclean:
 	rm -rf *.o pic core errs \#* *.E a.out
-	rm -f needed.awk needed2.awk errors dummy needed-list config.h
+	rm -f needed.awk needed2.awk errors dummy needed-list config.h stamp-*
 	rm -f $(CONFIG_H) $(NEEDED_LIST) stamp-picdir
 	@$(MULTICLEAN) multi-clean DO=mostlyclean
 clean: mostlyclean
 	rm -f *.a required-list tmpmulti.out
 	@$(MULTICLEAN) multi-clean DO=clean
 distclean: clean
-	rm -f *~ Makefile config.status alloca-conf.h xhost-mkfrag TAGS multilib.out
 	@$(MULTICLEAN) multi-clean DO=distclean
+	rm -f *~ Makefile config.status alloca-conf.h xhost-mkfrag TAGS multilib.out
 maintainer-clean realclean: distclean
 
 force:
@@ -314,6 +325,7 @@ hex.o: $(INCDIR)/libiberty.h
 floatformat.o: $(INCDIR)/floatformat.h
 objalloc.o: $(INCDIR)/objalloc.h
 obstack.o: $(INCDIR)/obstack.h
+pexecute.o: $(INCDIR)/libiberty.h
 spaces.o: $(INCDIR)/libiberty.h
 strerror.o: $(INCDIR)/libiberty.h
 strsignal.o: $(INCDIR)/libiberty.h

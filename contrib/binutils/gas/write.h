@@ -49,7 +49,7 @@ struct fix
   /* These small fields are grouped together for compactness of
      this structure, and efficiency of access on some architectures.  */
 
-  /* pc-relative offset adjust */
+  /* pc-relative offset adjust (only used by m68k) */
   char fx_pcrel_adjust;
 
   /* How many bytes are involved? */
@@ -165,6 +165,7 @@ extern bit_fixS *bit_fix_new
 	   long max, long add));
 extern void append PARAMS ((char **charPP, char *fromP, unsigned long length));
 extern void record_alignment PARAMS ((segT seg, int align));
+extern void subsegs_finish PARAMS ((void));
 extern void write_object_file PARAMS ((void));
 extern long relax_frag PARAMS ((fragS *, long));
 extern void relax_segment

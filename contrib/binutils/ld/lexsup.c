@@ -1,5 +1,6 @@
 /* Parse options for the GNU linker.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -14,8 +15,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GLD; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+along with GLD; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -35,6 +37,14 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307
 #include "ldfile.h"
 #include "ldver.h"
 #include "ldemul.h"
+
+#ifndef PATH_SEPARATOR
+#if defined (__MSDOS__) || (defined (_WIN32) && ! defined (__CYGWIN32__))
+#define PATH_SEPARATOR ';'
+#else
+#define PATH_SEPARATOR ':'
+#endif
+#endif
 
 /* Somewhere above, sys/stat.h got included . . . . */
 #if !defined(S_ISDIR) && defined(S_IFDIR)
@@ -68,7 +78,8 @@ int parsing_defsym = 0;
 #define OPTION_IGNORE			(OPTION_HELP + 1)
 #define OPTION_MAP			(OPTION_IGNORE + 1)
 #define OPTION_NO_KEEP_MEMORY		(OPTION_MAP + 1)
-#define OPTION_NOINHIBIT_EXEC		(OPTION_NO_KEEP_MEMORY + 1)
+#define OPTION_NO_WARN_MISMATCH		(OPTION_NO_KEEP_MEMORY + 1)
+#define OPTION_NOINHIBIT_EXEC		(OPTION_NO_WARN_MISMATCH + 1)
 #define OPTION_NON_SHARED		(OPTION_NOINHIBIT_EXEC + 1)
 #define OPTION_NO_WHOLE_ARCHIVE		(OPTION_NON_SHARED + 1)
 #define OPTION_OFORMAT			(OPTION_NO_WHOLE_ARCHIVE + 1)
@@ -81,7 +92,8 @@ int parsing_defsym = 0;
 #define OPTION_SORT_COMMON		(OPTION_SONAME + 1)
 #define OPTION_STATS			(OPTION_SORT_COMMON + 1)
 #define OPTION_SYMBOLIC			(OPTION_STATS + 1)
-#define OPTION_TBSS			(OPTION_SYMBOLIC + 1)
+#define OPTION_TASK_LINK		(OPTION_SYMBOLIC + 1)
+#define OPTION_TBSS			(OPTION_TASK_LINK + 1)
 #define OPTION_TDATA			(OPTION_TBSS + 1)
 #define OPTION_TTEXT			(OPTION_TDATA + 1)
 #define OPTION_TRADITIONAL_FORMAT	(OPTION_TTEXT + 1)
@@ -246,6 +258,8 @@ static const struct ld_option ld_options[] =
       '\0', "FILE", "Write a map file", ONE_DASH },
   { {"no-keep-memory", no_argument, NULL, OPTION_NO_KEEP_MEMORY},
       '\0', NULL, "Use less memory and more disk I/O", TWO_DASHES },
+  { {"no-warn-mismatch", no_argument, NULL, OPTION_NO_WARN_MISMATCH},
+      '\0', NULL, "Don't warn about mismatched input files", TWO_DASHES},
   { {"no-whole-archive", no_argument, NULL, OPTION_NO_WHOLE_ARCHIVE},
       '\0', NULL, "Turn off --whole-archive", TWO_DASHES },
   { {"noinhibit-exec", no_argument, NULL, OPTION_NOINHIBIT_EXEC},
@@ -281,6 +295,8 @@ static const struct ld_option ld_options[] =
       '\0', "COUNT", "Split output sections every COUNT relocs", TWO_DASHES },
   { {"stats", no_argument, NULL, OPTION_STATS},
       '\0', NULL, "Print memory usage statistics", TWO_DASHES },
+  { {"task-link", required_argument, NULL, OPTION_TASK_LINK},
+      '\0', "SYMBOL", "Do task level linking", TWO_DASHES },
   { {"traditional-format", no_argument, NULL, OPTION_TRADITIONAL_FORMAT},
       '\0', NULL, "Use same format as native linker", TWO_DASHES },
   { {"Tbss", required_argument, NULL, OPTION_TBSS},
@@ -315,7 +331,7 @@ static const struct ld_option ld_options[] =
       '\0', "SYMBOL", "Use wrapper functions for SYMBOL", TWO_DASHES }
 };
 
-#define OPTION_COUNT (sizeof ld_options / sizeof ld_options[0])
+#define OPTION_COUNT ((int) (sizeof ld_options / sizeof ld_options[0]))
 
 void
 parse_args (argc, argv)
@@ -327,6 +343,7 @@ parse_args (argc, argv)
   char *default_dirlist = NULL;
   char shortopts[OPTION_COUNT * 3 + 2];
   struct option longopts[OPTION_COUNT + 1];
+  int last_optind;
 
   /* Starting the short option string with '-' is for programs that
      expect options and other ARGV-elements in any order and that care about
@@ -376,9 +393,10 @@ parse_args (argc, argv)
   for (i = 1; i < argc; i++)
     if (strcmp (argv[i], "-G") == 0
 	&& (i + 1 >= argc
-	    || ! isdigit (argv[i + 1][0])))
+	    || ! isdigit ((unsigned char) argv[i + 1][0])))
       argv[i] = (char *) "--shared";
 
+  last_optind = -1;
   while (1)
     {
       /* getopt_long_only is like getopt_long, but '-' as well as '--' can
@@ -386,8 +404,18 @@ parse_args (argc, argv)
       int longind;
       int optc;
 
-      if (ldemul_parse_args (argc, argv))
-	continue;
+      /* Using last_optind lets us avoid calling ldemul_parse_args
+	 multiple times on a single option, which would lead to
+	 confusion in the internal static variables maintained by
+	 getopt.  This could otherwise happen for an argument like
+	 -nx, in which the -n is parsed as a single option, and we
+	 loop around to pick up the -x.  */
+      if (optind != last_optind)
+	{
+	  if (ldemul_parse_args (argc, argv))
+	    continue;
+	  last_optind = optind;
+	}
 
       optc = getopt_long_only (argc, argv, shortopts, longopts, &longind);
 
@@ -553,6 +581,9 @@ parse_args (argc, argv)
 	case OPTION_NO_KEEP_MEMORY:
 	  link_info.keep_memory = false;
 	  break;
+	case OPTION_NO_WARN_MISMATCH:
+	  command_line.warn_mismatch = false;
+	  break;
 	case OPTION_NOINHIBIT_EXEC:
 	  force_make_executable = true;
 	  break;
@@ -679,6 +710,9 @@ parse_args (argc, argv)
 	case OPTION_TRADITIONAL_FORMAT:
 	  link_info.traditional_format = true;
 	  break;
+	case OPTION_TASK_LINK:
+	  link_info.task_link = true;
+	  /* Fall through - do an implied -r option.  */
 	case OPTION_UR:
 	  link_info.relocateable = true;
 	  config.build_constructors = true;
@@ -826,7 +860,7 @@ set_default_dirlist (dirlist_ptr)
 
   while (1)
     {
-      p = strchr (dirlist_ptr, ':');
+      p = strchr (dirlist_ptr, PATH_SEPARATOR);
       if (p != NULL)
 	*p = '\0';
       if (*dirlist_ptr != '\0')
@@ -944,5 +978,5 @@ help ()
   printf ("%s: supported emulations: ", program_name);
   ldemul_list_emulations (stdout);
   printf ("\n");
-  printf ("\nReport bugs to bug-gnu-utils@prep.ai.mit.edu\n");
+  printf ("\nReport bugs to bug-gnu-utils@gnu.org\n");
 }

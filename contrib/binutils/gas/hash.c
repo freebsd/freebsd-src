@@ -1,5 +1,5 @@
 /* hash.c - hash table lookup strings -
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 1996
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -705,7 +705,7 @@ hash_ask (handle, string, access_type)
 	  hash_found = TRUE;
 	  break;
 	}
-      if (slot->h == hcode)
+      if (slot->h == (unsigned long) hcode)
 	{
 	  if (!strcmp (string, s))
 	    {
@@ -735,7 +735,7 @@ hash_ask (handle, string, access_type)
 	      hash_found = TRUE;
 	      break;
 	    }
-	  if (slot->h == hcode)
+	  if (slot->h == (unsigned long) hcode)
 	    {
 	      if (!strcmp (string, s))
 		{

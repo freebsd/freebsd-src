@@ -1,4 +1,4 @@
-.\" Copyright (c) 1991, 1992, 1996 Free Software Foundation
+.\" Copyright (c) 1991, 1992, 1996, 1997, 1998 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
 .TH as 1 "29 March 1996" "cygnus support" "GNU Development Tools"
 
@@ -15,6 +15,7 @@ GNU as \- the portable GNU assembler.
 .RB "[\|" \-D "\|]"
 .RB "[\|" \-\-defsym\ SYM=VAL "\|]"
 .RB "[\|" \-f "\|]"
+.RB "[\|" \-\-gstabs "\|]"
 .RB "[\|" \-I
 .I path\c
 \&\|]
@@ -25,6 +26,7 @@ GNU as \- the portable GNU assembler.
 .I objfile\c
 \&\|]
 .RB "[\|" \-R "\|]"
+.RB "[\|" \-\-traditional\-format "\|]"
 .RB "[\|" \-v "\|]"
 .RB "[\|" \-w "\|]"
 .RB "[\|" \-\^\- "\ |\ " \c
@@ -163,6 +165,10 @@ to the search list for
 .B .include
 directives.
 .TP
+.B \-\-gstabs
+Generate stabs debugging information for each assembler line.  This
+may help debugging assembler code, if the debugger can handle it.
+.TP
 .B \-K
 Issue warnings when difference tables altered for long displacements.
 .TP
@@ -180,6 +186,9 @@ Name the object-file output from \c
 .TP
 .B \-R
 Fold data section into text section
+.TP
+.B \-\-traditional\-format
+Use same format as native assembler, when possible.
 .TP
 .B \-v
 Announce \c

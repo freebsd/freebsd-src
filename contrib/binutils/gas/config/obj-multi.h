@@ -16,7 +16,7 @@
 #define S_SET_SIZE		(this_format->s_set_size)
 #define S_GET_ALIGN		(this_format->s_get_align)
 #define S_SET_ALIGN		(this_format->s_set_align)
-#define obj_copy_symbol_attributes (this_format->copy_symbol_attributes)
+#define OBJ_COPY_SYMBOL_ATTRIBUTES (this_format->copy_symbol_attributes)
 #define OBJ_PROCESS_STAB	(this_format->process_stab)
 
 #if defined (OBJ_MAYBE_ECOFF) || (defined (OBJ_MAYBE_ELF) && defined (TC_MIPS))

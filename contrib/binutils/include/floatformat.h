@@ -28,7 +28,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    (i.e. BITS_BIG_ENDIAN type numbering), and specify which bits each field
    contains with the *_start and *_len fields.  */
 
-enum floatformat_byteorders { floatformat_little, floatformat_big };
+/* What is the order of the bytes. */
+
+enum floatformat_byteorders {
+
+  /* Standard little endian byte order.
+     EX: 1.2345678e10 => 00 00 80 c5 e0 fe 06 42 */
+
+  floatformat_little,
+
+  /* Standard big endian byte order.
+     EX: 1.2345678e10 => 42 06 fe e0 c5 80 00 00 */
+
+  floatformat_big,
+
+  /* Little endian byte order but big endian word order.
+     EX: 1.2345678e10 => e0 fe 06 42 00 00 80 c5 */
+
+  floatformat_littlebyte_bigword
+
+};
 
 enum floatformat_intbit { floatformat_intbit_yes, floatformat_intbit_no };
 
@@ -62,6 +81,10 @@ extern const struct floatformat floatformat_ieee_single_big;
 extern const struct floatformat floatformat_ieee_single_little;
 extern const struct floatformat floatformat_ieee_double_big;
 extern const struct floatformat floatformat_ieee_double_little;
+
+/* floatformat for ARM IEEE double, little endian bytes and big endian words */
+
+extern const struct floatformat floatformat_ieee_double_littlebyte_bigword;
 
 /* floatformats for various extendeds.  */
 

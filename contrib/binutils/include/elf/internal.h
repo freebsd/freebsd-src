@@ -43,8 +43,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 typedef struct elf_internal_ehdr {
   unsigned char		e_ident[EI_NIDENT];	/* ELF "magic number" */
   bfd_vma		e_entry;		/* Entry point virtual address */
-  bfd_signed_vma	e_phoff;		/* Program header table file offset */
-  bfd_signed_vma	e_shoff;		/* Section header table file offset */
+  bfd_size_type		e_phoff;		/* Program header table file offset */
+  bfd_size_type		e_shoff;		/* Section header table file offset */
   unsigned long		e_version;		/* Identifies object file version */
   unsigned long		e_flags;		/* Processor-specific flags */
   unsigned short	e_type;			/* Identifies object file type */

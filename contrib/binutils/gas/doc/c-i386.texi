@@ -1,4 +1,4 @@
-@c Copyright (C) 1991, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+@c Copyright (C) 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC
@@ -387,17 +387,6 @@ only present in the @samp{fildq} (load quad integer to stack top) and
 
 Register to register operations do not require opcode suffixes,
 so that @samp{fst %st, %st(1)} is equivalent to @samp{fstl %st, %st(1)}.
-
-@cindex i386 @code{fwait} instruction
-@cindex @code{fwait instruction}, i386
-Since the 80387 automatically synchronizes with the 80386 @samp{fwait}
-instructions are almost never needed (this is not the case for the
-80286/80287 and 8086/8087 combinations).  Therefore, @code{@value{AS}} suppresses
-the @samp{fwait} instruction whenever it is implicitly selected by one
-of the @samp{fn@dots{}} instructions.  For example, @samp{fsave} and
-@samp{fnsave} are treated identically.  In general, all the @samp{fn@dots{}}
-instructions are made equivalent to @samp{f@dots{}} instructions.  If
-@samp{fwait} is desired it must be explicitly coded.
 
 @node i386-16bit
 @section Writing 16-bit Code

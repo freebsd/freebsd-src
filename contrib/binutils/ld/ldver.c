@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldemul.h"
 #include "ldmain.h"
 
-const char *ld_program_version = "2.8.1";
+const char *ld_program_version = VERSION;
 
 void
 ldversion (noisy)

@@ -1,5 +1,5 @@
 /* as.h - global header file
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -52,8 +52,13 @@
 
 /* AIX requires this to be the first thing in the file.  */
 #ifdef __GNUC__
-# undef alloca
-# define alloca __builtin_alloca
+# ifndef alloca
+#  ifdef __STDC__
+extern void *alloca ();
+#  else
+extern char *alloca ();
+#  endif
+# endif
 #else
 # if HAVE_ALLOCA_H
 #  include <alloca.h>
@@ -63,9 +68,9 @@
 #  else
 #   ifndef alloca /* predefined by HP cc +Olibcalls */
 #    if !defined (__STDC__) && !defined (__hpux)
-char *alloca ();
+extern char *alloca ();
 #    else
-void *alloca ();
+extern void *alloca ();
 #    endif /* __STDC__, __hpux */
 #   endif /* alloca */
 #  endif /* _AIX */
@@ -163,8 +168,8 @@ extern void free ();
 extern int errno;
 #endif
 
-/* This is needed for VMS with DEC C.  */
-#if ! defined (__GNUC__) && ! defined (HAVE_UNLINK) && defined (HAVE_REMOVE)
+/* This is needed for VMS.  */
+#if ! defined (HAVE_UNLINK) && defined (HAVE_REMOVE)
 #define unlink remove
 #endif
 
@@ -372,7 +377,14 @@ enum _relax_state
        later.  Similar to rs_org, but different.
        fr_symbol: operand
        1 variable char: fill character  */
-    rs_space
+    rs_space,
+
+    /* A DWARF leb128 value; only ELF uses this.  The subtype is 0 for
+       unsigned, 1 for signed.  */
+    rs_leb128,
+
+    /* Exception frame information which we may be able to optimize.  */
+    rs_cfa
   };
 
 typedef enum _relax_state relax_stateT;
@@ -385,92 +397,6 @@ typedef unsigned int relax_substateT;
    Could be a problem, cross-assembling for 64-bit machines.  */
 typedef addressT relax_addressT;
 
-
-/* frags.c */
-
-/*
- * A code fragment (frag) is some known number of chars, followed by some
- * unknown number of chars. Typically the unknown number of chars is an
- * instruction address whose size is yet unknown. We always know the greatest
- * possible size the unknown number of chars may become, and reserve that
- * much room at the end of the frag.
- * Once created, frags do not change address during assembly.
- * We chain the frags in (a) forward-linked list(s). The object-file address
- * of the 1st char of a frag is generally not known until after relax().
- * Many things at assembly time describe an address by {object-file-address
- * of a particular frag}+offset.
-
- BUG: it may be smarter to have a single pointer off to various different
- notes for different frag kinds. See how code pans
- */
-struct frag
-{
-  /* Object file address. */
-  addressT fr_address;
-  /* Chain forward; ascending address order.  Rooted in frch_root. */
-  struct frag *fr_next;
-
-  /* (Fixed) number of chars we know we have.  May be 0. */
-  offsetT fr_fix;
-  /* (Variable) number of chars after above.  May be 0. */
-  offsetT fr_var;
-  /* For variable-length tail. */
-  struct symbol *fr_symbol;
-  /* For variable-length tail. */
-  offsetT fr_offset;
-  /* Points to opcode low addr byte, for relaxation.  */
-  char *fr_opcode;
-
-#ifndef NO_LISTING
-  struct list_info_struct *line;
-#endif
-
-  /* What state is my tail in? */
-  relax_stateT fr_type;
-  relax_substateT fr_subtype;
-
-  union {
-    /* These are needed only on the NS32K machines.  But since we don't
-       include targ-cpu.h until after this structure has been defined,
-       we can't really conditionalize it.  This code should be
-       rearranged a bit to make that possible.  */
-    struct {
-      char pcrel_adjust, bsr;
-    } ns32k;
-#ifdef USING_CGEN
-    /* Don't include this unless using CGEN to keep frag size down.  */
-    struct {
-      const struct cgen_insn *insn;
-      unsigned char opindex, opinfo;
-    } cgen;
-#endif
-  } fr_targ;
-
-  /* Where the frag was created, or where it became a variant frag.  */
-  char *fr_file;
-  unsigned int fr_line;
-
-  /* Data begins here.  */
-  char fr_literal[1];
-};
-
-#define SIZEOF_STRUCT_FRAG \
-((char *)zero_address_frag.fr_literal-(char *)&zero_address_frag)
-/* We want to say fr_literal[0] above. */
-
-typedef struct frag fragS;
-
-/* Current frag we are building.  This frag is incomplete.  It is, however,
-   included in frchain_now.  The fr_fix field is bogus; instead, use:
-   obstack_next_free(&frags)-frag_now->fr_literal.  */
-COMMON fragS *frag_now;
-extern int frag_now_fix PARAMS ((void));
-
-/* For foreign-segment symbol fixups. */
-COMMON fragS zero_address_frag;
-/* For local common (N_BSS segment) fixups. */
-COMMON fragS bss_address_frag;
-
 /* main program "as.c" (command arguments etc) */
 
 COMMON unsigned char flag_no_comments; /* -f */
@@ -501,8 +427,13 @@ COMMON int flag_no_warnings; /* -W */
 COMMON unsigned char flag_always_generate_output; /* -Z */
 
 /* This is true if the assembler should output time and space usage. */
-
 COMMON unsigned char flag_print_statistics;
+
+/* True if local absolute symbols are to be stripped.  */
+COMMON int flag_strip_local_absolute;
+
+/* True if we should generate a traditional format object file.  */
+COMMON int flag_traditional_format;
 
 /* name of emitted object file */
 COMMON char *out_file_name;
@@ -520,6 +451,13 @@ COMMON int linkrelax;
 /* TRUE if we should produce a listing.  */
 extern int listing;
 
+/* Type of debugging information we should generate.  We currently
+   only support stabs and ECOFF.  */
+
+enum debug_info_type { DEBUG_NONE, DEBUG_STABS, DEBUG_ECOFF };
+
+extern enum debug_info_type debug_type;
+
 /* Maximum level of macro nesting.  */
 extern int max_macro_nest;
 
@@ -555,21 +493,36 @@ typedef struct _pseudo_type pseudo_typeS;
 #ifdef USE_STDARG
 #if (__GNUC__ >= 2) && !defined(VMS)
 /* for use with -Wformat */
-#define PRINTF_LIKE(FCN)	void FCN (const char *format, ...) \
-					__attribute__ ((format (printf, 1, 2)))
-#define PRINTF_WHERE_LIKE(FCN)	void FCN (char *file, unsigned int line, \
-					  const char *format, ...) \
-					__attribute__ ((format (printf, 3, 4)))
-#else /* ANSI C with stdarg, but not GNU C */
+
+#if __GNUC_MINOR__ < 6
+/* Support for double underscores in attribute names was added in gcc
+   2.6, so avoid them if we are using an earlier version.  */
+#define __printf__ printf
+#define __format__ format
+#endif
+
+#define PRINTF_LIKE(FCN) \
+  void FCN (const char *format, ...) \
+    __attribute__ ((__format__ (__printf__, 1, 2)))
+#define PRINTF_WHERE_LIKE(FCN) \
+  void FCN (char *file, unsigned int line, const char *format, ...) \
+    __attribute__ ((__format__ (__printf__, 3, 4)))
+
+#else /* __GNUC__ < 2 || defined(VMS) */
+
 #define PRINTF_LIKE(FCN)	void FCN PARAMS ((const char *format, ...))
 #define PRINTF_WHERE_LIKE(FCN)	void FCN PARAMS ((char *file, \
 						  unsigned int line, \
 					  	  const char *format, ...))
-#endif
-#else /* not using stdarg */
+
+#endif /* __GNUC__ < 2 || defined(VMS) */
+
+#else /* ! USE_STDARG */
+
 #define PRINTF_LIKE(FCN)	void FCN ()
 #define PRINTF_WHERE_LIKE(FCN)	void FCN ()
-#endif
+
+#endif /* ! USE_STDARG */
 
 PRINTF_LIKE (as_bad);
 PRINTF_LIKE (as_fatal);
@@ -577,6 +530,7 @@ PRINTF_LIKE (as_tsktsk);
 PRINTF_LIKE (as_warn);
 PRINTF_WHERE_LIKE (as_bad_where);
 PRINTF_WHERE_LIKE (as_warn_where);
+
 void as_assert PARAMS ((const char *, int, const char *));
 void as_abort PARAMS ((const char *, int, const char *));
 
@@ -609,7 +563,7 @@ void do_scrub_begin PARAMS ((int));
 void input_scrub_begin PARAMS ((void));
 void input_scrub_close PARAMS ((void));
 void input_scrub_end PARAMS ((void));
-void new_logical_line PARAMS ((char *fname, int line_number));
+int new_logical_line PARAMS ((char *fname, int line_number));
 void subsegs_begin PARAMS ((void));
 void subseg_change PARAMS ((segT seg, int subseg));
 segT subseg_new PARAMS ((const char *name, subsegT subseg));
@@ -619,15 +573,25 @@ void subseg_set PARAMS ((segT seg, subsegT subseg));
 segT subseg_get PARAMS ((const char *, int));
 #endif
 
+void start_dependencies PARAMS ((char *));
+void register_dependency PARAMS ((char *));
+void print_dependencies PARAMS ((void));
+
 struct expressionS;
 struct fix;
 struct symbol;
 struct relax_type;
+typedef struct frag fragS;
 
 #ifdef BFD_ASSEMBLER
 /* literal.c */
 valueT add_to_literal_pool PARAMS ((struct symbol *, valueT, segT, int));
 #endif
+
+int check_eh_frame PARAMS ((struct expressionS *, unsigned int *));
+int eh_frame_estimate_size_before_relax PARAMS ((fragS *));
+int eh_frame_relax_frag PARAMS ((fragS *));
+void eh_frame_convert_frag PARAMS ((fragS *));
 
 #include "expr.h"		/* Before targ-*.h */
 
@@ -655,6 +619,12 @@ valueT add_to_literal_pool PARAMS ((struct symbol *, valueT, segT, int));
 
 #ifndef LOCAL_LABELS_FB
 #define LOCAL_LABELS_FB 0
+#endif
+
+#ifndef TEXT_SECTION_NAME
+#define TEXT_SECTION_NAME	".text"
+#define DATA_SECTION_NAME	".data"
+#define BSS_SECTION_NAME	".bss"
 #endif
 
 #endif /* GAS */

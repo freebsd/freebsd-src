@@ -30,16 +30,13 @@ explicitly set CC in the environment before running configure, and to
 also set CC when running make.  For example (assuming sh/bash/ksh):
 
 	CC=gcc ./configure
-	make CC=gcc
+	make
 
 A similar example using csh:
 
 	setenv CC gcc
 	./configure
-	make CC=gcc
-
-See etc/cfg-paper.texi, etc/configure.texi, and/or the README files in
-various subdirectories, for more details.
+	make
 
 Much of the code and documentation enclosed is copyright by
 the Free Software Foundation, Inc.  See the file COPYING or

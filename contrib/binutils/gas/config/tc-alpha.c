@@ -110,11 +110,20 @@ struct alpha_macro
 #define note_fpreg(R)		(alpha_fprmask |= (1 << (R)))
 
 /* Predicates for 16- and 32-bit ranges */
+/* XXX: The non-shift version appears to trigger a compiler bug when
+   cross-assembling from x86 w/ gcc 2.7.2.  */
 
+#if 1
+#define range_signed_16(x) \
+	(((offsetT)(x) >> 15) == 0 || ((offsetT)(x) >> 15) == -1)
+#define range_signed_32(x) \
+	(((offsetT)(x) >> 31) == 0 || ((offsetT)(x) >> 31) == -1)
+#else
 #define range_signed_16(x)	((offsetT)(x) >= -(offsetT)0x8000 &&	\
 				 (offsetT)(x) <=  (offsetT)0x7FFF)
 #define range_signed_32(x)	((offsetT)(x) >= -(offsetT)0x80000000 && \
 				 (offsetT)(x) <=  (offsetT)0x7FFFFFFF)
+#endif
 
 /* Macros for sign extending from 16- and 32-bits.  */
 /* XXX: The cast macros will work on all the systems that I care about,
@@ -220,7 +229,7 @@ static void create_literal_section PARAMS ((const char *, segT *, symbolS **));
 #ifndef OBJ_ELF
 static void select_gp_value PARAMS ((void));
 #endif
-static void alpha_align PARAMS ((int, char *, symbolS *));
+static void alpha_align PARAMS ((int, char *, symbolS *, int));
 
 
 /* Generic assembler global variables which must be defined by all
@@ -255,14 +264,16 @@ char FLT_CHARS[] = "rRsSfFdDxXpP";
 #endif
 
 #ifdef OBJ_EVAX
-const char *md_shortopts = "Fm:g+1h:H";
+const char *md_shortopts = "Fm:g+1h:HG:";
 #else
-const char *md_shortopts = "Fm:g";
+const char *md_shortopts = "Fm:gG:";
 #endif
 
 struct option md_longopts[] = {
 #define OPTION_32ADDR (OPTION_MD_BASE)
   { "32addr", no_argument, NULL, OPTION_32ADDR },
+#define OPTION_RELAX (OPTION_32ADDR+1)
+  { "relax", no_argument, NULL, OPTION_RELAX },
   { NULL, no_argument, NULL, 0 }
 };
 
@@ -375,6 +386,12 @@ unsigned long alpha_gprmask, alpha_fprmask;
 /* Whether the debugging option was seen.  */
 static int alpha_debug;
 
+/* Don't fully resolve relocations, allowing code movement in the linker.  */
+static int alpha_flag_relax;
+
+/* What value to give to bfd_set_gp_size.  */
+static int g_switch_value = 8;
+
 #ifdef OBJ_EVAX
 /* Collect information about current procedure here.  */
 static struct {
@@ -398,9 +415,47 @@ static int alpha_flag_show_after_trunc = 0;		/* -H */
  * longer than 64 characters, else longer symbol names are truncated.
  */
 
-static int alpha_basereg_clobbered;
 #endif
 
+/* A table of CPU names and opcode sets.  */
+
+static const struct cpu_type
+{
+  const char *name;
+  unsigned flags;
+} cpu_types[] =
+{
+  /* Ad hoc convention: cpu number gets palcode, process code doesn't.
+     This supports usage under DU 4.0b that does ".arch ev4", and 
+     usage in MILO that does -m21064.  Probably something more
+     specific like -m21064-pal should be used, but oh well.  */
+
+  { "21064", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
+  { "21064a", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
+  { "21066", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
+  { "21068", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
+  { "21164", AXP_OPCODE_BASE|AXP_OPCODE_EV5 },
+  /* Do we have CIX extension here? */
+  { "21164a", AXP_OPCODE_BASE|AXP_OPCODE_EV5|AXP_OPCODE_BWX },
+  /* Still same PALcodes? */
+  { "21164pc", (AXP_OPCODE_BASE|AXP_OPCODE_EV5|AXP_OPCODE_BWX
+		|AXP_OPCODE_MAX) },
+  /* All new PALcodes?  Extras? */
+  { "21264", (AXP_OPCODE_BASE|AXP_OPCODE_BWX
+	      |AXP_OPCODE_CIX|AXP_OPCODE_MAX) },
+
+  { "ev4", AXP_OPCODE_BASE },
+  { "ev45", AXP_OPCODE_BASE },
+  { "lca45", AXP_OPCODE_BASE },
+  { "ev5", AXP_OPCODE_BASE },
+  { "ev56", AXP_OPCODE_BASE|AXP_OPCODE_BWX },
+  { "pca56", AXP_OPCODE_BASE|AXP_OPCODE_BWX|AXP_OPCODE_MAX },
+  { "ev6", AXP_OPCODE_BASE|AXP_OPCODE_BWX|AXP_OPCODE_CIX|AXP_OPCODE_MAX },
+
+  { "all", AXP_OPCODE_BASE },
+  { 0 }
+};
+
 /* The macro table */
 
 static const struct alpha_macro alpha_macros[] = {
@@ -639,38 +694,30 @@ static const int alpha_num_macros
 void
 md_begin ()
 {
-  unsigned int i = 0;
+  unsigned int i;
 
   /* Create the opcode hash table */
 
   alpha_opcode_hash = hash_new ();
   for (i = 0; i < alpha_num_opcodes; )
     {
-      const char *name, *retval;
+      const char *name, *retval, *slash;
 
       name = alpha_opcodes[i].name;
       retval = hash_insert (alpha_opcode_hash, name, (PTR)&alpha_opcodes[i]);
       if (retval)
 	as_fatal ("internal error: can't hash opcode `%s': %s", name, retval);
 
-      while (++i < alpha_num_opcodes
-	     && (alpha_opcodes[i].name == name
-		 || !strcmp (alpha_opcodes[i].name, name)))
-	continue;
-    }
+      /* Some opcodes include modifiers of various sorts with a "/mod"
+	 syntax, like the architecture manual suggests.  However, for
+	 use with gcc at least, we also need access to those same opcodes
+	 without the "/".  */
 
-  /* Some opcodes include modifiers of various sorts with a "/mod" syntax,
-     like the architecture manual suggests.  However, for use with gcc at
-     least, we also need access to those same opcodes without the "/".  */
-  for (i = 0; i < alpha_num_opcodes; )
-    {
-      const char *name, *slash;
-      name = alpha_opcodes[i].name;
-      if ((slash = strchr(name, '/')) != NULL)
+      if ((slash = strchr (name, '/')) != NULL)
 	{
 	  char *p = xmalloc (strlen (name));
-	  memcpy(p, name, slash-name);
-	  strcpy(p+(slash-name), slash+1);
+	  memcpy (p, name, slash - name);
+	  strcpy (p + (slash - name), slash + 1);
 
 	  (void)hash_insert(alpha_opcode_hash, p, (PTR)&alpha_opcodes[i]);
 	  /* Ignore failures -- the opcode table does duplicate some
@@ -721,7 +768,7 @@ md_begin ()
   /* Create the special symbols and sections we'll be using */
 
   /* So .sbss will get used for tiny objects.  */
-  bfd_set_gp_size (stdoutput, 8);
+  bfd_set_gp_size (stdoutput, g_switch_value);
 
 #ifdef OBJ_ECOFF
   create_literal_section (".lita", &alpha_lita_section, &alpha_lita_symbol);
@@ -890,43 +937,14 @@ md_parse_option (c, arg)
       alpha_debug = 1;
       break;
 
+    case 'G':
+      g_switch_value = atoi(arg);
+      break;
+
     case 'm':
       {
-	static const struct machine
-	{
-	  const char *name;
-	  unsigned flags;
-	} *p, m[] =
-	{
-	  { "21064", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
-	  { "21064a", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
-	  { "21066", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
-	  { "21068", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
-	  { "21164", AXP_OPCODE_BASE|AXP_OPCODE_EV5 },
-	  /* Do we have CIX extension here? */
-	  { "21164a", AXP_OPCODE_BASE|AXP_OPCODE_EV5|AXP_OPCODE_BWX },
-	  /* Still same PALcodes? */
-	  { "21164pc", (AXP_OPCODE_BASE|AXP_OPCODE_EV5|AXP_OPCODE_BWX
-			|AXP_OPCODE_CIX|AXP_OPCODE_MAX) },
-	  /* All new PALcodes?  Extras? */
-	  { "21264", (AXP_OPCODE_BASE|AXP_OPCODE_BWX
-		      |AXP_OPCODE_CIX|AXP_OPCODE_MAX) },
-
-	  { "ev4", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
-	  { "ev45", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
-	  { "lca45", AXP_OPCODE_BASE|AXP_OPCODE_EV4 },
-	  { "ev5", AXP_OPCODE_BASE|AXP_OPCODE_EV5 },
-	  { "ev56", AXP_OPCODE_BASE|AXP_OPCODE_EV5|AXP_OPCODE_BWX },
-	  { "pca56", (AXP_OPCODE_BASE|AXP_OPCODE_EV5|AXP_OPCODE_BWX
-		      |AXP_OPCODE_CIX|AXP_OPCODE_MAX) },
-	  { "ev6", (AXP_OPCODE_BASE|AXP_OPCODE_BWX
-		    |AXP_OPCODE_CIX|AXP_OPCODE_MAX) },
-
-	  { "all", AXP_OPCODE_BASE },
-	  { 0 }
-	};
-
-	for (p = m; p->name; ++p)
+	const struct cpu_type *p;
+	for (p = cpu_types; p->name; ++p)
 	  if (strcmp(arg, p->name) == 0)
 	    {
 	      alpha_target_name = p->name, alpha_target = p->flags;
@@ -949,6 +967,10 @@ md_parse_option (c, arg)
     case 'h':			/* for gnu-c/vax compatibility.  */
       break;
 #endif
+
+    case OPTION_RELAX:
+      alpha_flag_relax = 1;
+      break;
 
     default:
       return 0;
@@ -1052,12 +1074,18 @@ md_apply_fix (fixP, valueP)
       break;
 
     case BFD_RELOC_16:
+      if (fixP->fx_pcrel)
+	fixP->fx_r_type = BFD_RELOC_16_PCREL;
       size = 2;
       goto do_reloc_xx;
     case BFD_RELOC_32:
+      if (fixP->fx_pcrel)
+	fixP->fx_r_type = BFD_RELOC_32_PCREL;
       size = 4;
       goto do_reloc_xx;
     case BFD_RELOC_64:
+      if (fixP->fx_pcrel)
+	fixP->fx_r_type = BFD_RELOC_64_PCREL;
       size = 8;
     do_reloc_xx:
       if (fixP->fx_pcrel == 0 && fixP->fx_addsy == 0)
@@ -1257,6 +1285,9 @@ int
 alpha_force_relocation (f)
      fixS *f;
 {
+  if (alpha_flag_relax)
+    return 1;
+
   switch (f->fx_r_type)
     {
     case BFD_RELOC_ALPHA_GPDISP_HI16:
@@ -1864,7 +1895,7 @@ emit_insn (insn)
 
   /* Take care of alignment duties */
   if (alpha_auto_align_on && alpha_current_align < 2)
-    alpha_align (2, (char *) NULL, alpha_insn_label);
+    alpha_align (2, (char *) NULL, alpha_insn_label, 0);
   if (alpha_current_align > 2)
     alpha_current_align = 2;
   alpha_insn_label = NULL;
@@ -1954,7 +1985,7 @@ assemble_tokens_to_insn(opname, tok, ntok, insn)
 	as_bad ("inappropriate arguments for opcode `%s'", opname);
       else
 	as_bad ("opcode `%s' not supported for target %s", opname,
-	       alpha_target_name);
+	        alpha_target_name);
     }
   else
     as_bad ("unknown opcode `%s'", opname);
@@ -2012,7 +2043,7 @@ assemble_tokens (opname, tok, ntok, local_macros_on)
       as_bad ("inappropriate arguments for opcode `%s'", opname);
     else
       as_bad ("opcode `%s' not supported for target %s", opname,
-	     alpha_target_name);
+	      alpha_target_name);
   else
     as_bad ("unknown opcode `%s'", opname);
 }
@@ -2241,7 +2272,10 @@ load_expression (targreg, exp, pbasereg, poffset)
 	else
 	  set_tok_reg (newtok[0], targreg);
 
-	if (!range_signed_32 (addend)
+	/* XXX: Disable this .got minimizing optimization so that we can get
+	   better instruction offset knowledge in the compiler.  This happens
+	   very infrequently anyway.  */
+	if (1 || !range_signed_32 (addend)
 	    && (alpha_noat_on || targreg == AXP_REG_AT))
 	  {
 	    newtok[1] = *exp;
@@ -2261,16 +2295,6 @@ load_expression (targreg, exp, pbasereg, poffset)
 #endif /* OBJ_ELF */
 #ifdef OBJ_EVAX
 	offsetT link;
-
-	if (alpha_basereg_clobbered)
-	  {
-	    /* no basereg, reload basreg from 0(FP).  */
-	    set_tok_reg (newtok[0], targreg);
-	    set_tok_const (newtok[1], 0);
-	    set_tok_preg (newtok[2], AXP_REG_FP);
-	    basereg = targreg;
-	    assemble_tokens ("ldq", newtok, 3, 0);
-	  }
 
 	/* Find symbol or symbol pointer in link section.  */
 
@@ -2346,6 +2370,12 @@ load_expression (targreg, exp, pbasereg, poffset)
       if (poffset)
 	set_tok_const (*poffset, 0);
       return 0;
+
+    case O_big:
+      as_bad ("%s number invalid; zero assumed",
+	      exp->X_add_number > 0 ? "bignum" : "floating point");
+      addend = 0;
+      break;
 
     default:
       abort();
@@ -2589,15 +2619,6 @@ emit_ir_load (tok, ntok, opname)
     }
 
   emit_insn (&insn);
-#ifdef OBJ_EVAX
-    /* special hack. If the basereg is clobbered for a call
-       all lda's before the call don't have a basereg.  */
-  if ((tok[0].X_op == O_register)
-     && (tok[0].X_add_number == alpha_gp_register))
-    {
-      alpha_basereg_clobbered = 1;
-    }
-#endif
 }
 
 /* Handle fp register loads, and both integer and fp register stores.
@@ -3236,19 +3257,6 @@ emit_jsrjmp (tok, ntok, vopname)
     }
 
   emit_insn (&insn);
-
-#ifdef OBJ_EVAX
-  alpha_basereg_clobbered = 0;
-
-  /* reload PV from 0(FP) if it is our current base register.  */
-  if (alpha_gp_register == AXP_REG_PV)
-    {
-      set_tok_reg (newtok[0], AXP_REG_PV);
-      set_tok_const (newtok[1], 0);
-      set_tok_preg (newtok[2], AXP_REG_FP);
-      assemble_tokens ("ldq", newtok, 3, 0);
-    }
-#endif
 }
 
 /* The ret and jcr instructions differ from their instruction
@@ -3316,9 +3324,10 @@ s_alpha_data (i)
   alpha_current_align = 0;
 }
 
-#ifdef OBJ_ECOFF
+#if defined (OBJ_ECOFF) || defined (OBJ_EVAX)
 
-/* Handle the OSF/1 .comm pseudo quirks.  */
+/* Handle the OSF/1 and openVMS .comm pseudo quirks.
+   openVMS constructs a section for every common symbol.  */
 
 static void
 s_alpha_comm (ignore)
@@ -3329,6 +3338,12 @@ s_alpha_comm (ignore)
   register char *p;
   offsetT temp;
   register symbolS *symbolP;
+
+#ifdef OBJ_EVAX
+  segT current_section = now_seg;
+  int current_subsec = now_subseg;
+  segT new_seg;
+#endif
 
   name = input_line_pointer;
   c = get_symbol_end ();
@@ -3356,6 +3371,11 @@ s_alpha_comm (ignore)
   symbolP = symbol_find_or_make (name);
   *p = c;
 
+#ifdef OBJ_EVAX
+  /* Make a section for the common symbol.  */
+  new_seg = subseg_new (xstrdup (name), 0);
+#endif
+
   if (S_IS_DEFINED (symbolP) && ! S_IS_COMMON (symbolP))
     {
       as_bad ("Ignoring attempt to re-define symbol");
@@ -3363,6 +3383,16 @@ s_alpha_comm (ignore)
       return;
     }
 
+#ifdef OBJ_EVAX
+  if (bfd_section_size (stdoutput, new_seg) > 0)
+    { 
+      if (bfd_section_size (stdoutput, new_seg) != temp)
+	as_bad ("Length of .comm \"%s\" is already %ld. Not changed to %ld.",
+		S_GET_NAME (symbolP),
+		(long) bfd_section_size (stdoutput, new_seg),
+		(long) temp);
+    }
+#else
   if (S_GET_VALUE (symbolP))
     {
       if (S_GET_VALUE (symbolP) != (valueT) temp)
@@ -3371,11 +3401,24 @@ s_alpha_comm (ignore)
 		(long) S_GET_VALUE (symbolP),
 		(long) temp);
     }
+#endif
   else
     {
+#ifdef OBJ_EVAX 
+      subseg_set (new_seg, 0);
+      p = frag_more (temp);
+      new_seg->flags |= SEC_IS_COMMON;
+      if (! S_IS_DEFINED (symbolP))
+	symbolP->bsym->section = new_seg;
+#else
       S_SET_VALUE (symbolP, (valueT) temp);
+#endif
       S_SET_EXTERNAL (symbolP);
     }
+
+#ifdef OBJ_EVAX
+  subseg_set (current_section, current_subsec);
+#endif
 
   know (symbolP->sy_frag == &zero_address_frag);
 
@@ -3452,9 +3495,9 @@ s_alpha_section (secid)
      int secid;
 {
   int temp;
-#define EVAX_SECTION_COUNT 6
+#define EVAX_SECTION_COUNT 5
   static char *section_name[EVAX_SECTION_COUNT+1] =
-    { "NULL", ".rdata", ".comm", ".link", ".ctors", ".dtors", ".lcomm" };
+    { "NULL", ".rdata", ".comm", ".link", ".ctors", ".dtors" };
 
   if ((secid <= 0) || (secid > EVAX_SECTION_COUNT))
     {
@@ -3477,7 +3520,6 @@ static void
 s_alpha_prologue (ignore)
      int ignore;
 {
-  alpha_basereg_clobbered = 0;
   demand_empty_rest_of_line ();
 
   return;
@@ -3873,7 +3915,6 @@ s_alpha_end (ignore)
   *input_line_pointer = c;
   demand_empty_rest_of_line ();
   alpha_evax_proc.symbol = 0;
-  alpha_basereg_clobbered = 0;
 
   return;
 }
@@ -3946,7 +3987,7 @@ s_alpha_gprel32 (ignore)
 #endif
 
   if (alpha_auto_align_on && alpha_current_align < 2)
-    alpha_align (2, (char *) NULL, alpha_insn_label);
+    alpha_align (2, (char *) NULL, alpha_insn_label, 0);
   if (alpha_current_align > 2)
     alpha_current_align = 2;
   alpha_insn_label = NULL;
@@ -3990,7 +4031,7 @@ s_alpha_float_cons (type)
     }
 
   if (alpha_auto_align_on && alpha_current_align < log_size)
-    alpha_align (log_size, (char *) NULL, alpha_insn_label);
+    alpha_align (log_size, (char *) NULL, alpha_insn_label, 0);
   if (alpha_current_align > log_size)
     alpha_current_align = log_size;
   alpha_insn_label = NULL;
@@ -4012,6 +4053,7 @@ s_alpha_proc (is_static)
   int temp;
 
   /* Takes ".proc name,nargs"  */
+  SKIP_WHITESPACE ();
   name = input_line_pointer;
   c = get_symbol_end ();
   p = input_line_pointer;
@@ -4043,13 +4085,12 @@ static void
 s_alpha_set (x)
      int x;
 {
-  char *name = input_line_pointer, ch, *s;
+  char *name, ch, *s;
   int yesno = 1;
 
-  while (!is_end_of_line[(unsigned char) *input_line_pointer])
-    input_line_pointer++;
-  ch = *input_line_pointer;
-  *input_line_pointer = '\0';
+  SKIP_WHITESPACE ();
+  name = input_line_pointer;
+  ch = get_symbol_end ();
 
   s = name;
   if (s[0] == 'n' && s[1] == 'o')
@@ -4144,7 +4185,7 @@ s_alpha_align (ignore)
   if (align != 0)
     {
       alpha_auto_align_on = 1;
-      alpha_align (align, pfill, alpha_insn_label);
+      alpha_align (align, pfill, alpha_insn_label, 1);
     }
   else
     {
@@ -4189,11 +4230,51 @@ alpha_cons_align (size)
     ++log_size;
 
   if (alpha_auto_align_on && alpha_current_align < log_size)
-    alpha_align (log_size, (char *) NULL, alpha_insn_label);
+    alpha_align (log_size, (char *) NULL, alpha_insn_label, 0);
   if (alpha_current_align > log_size)
     alpha_current_align = log_size;
   alpha_insn_label = NULL;
 }
+
+/* Here come the .uword, .ulong, and .uquad explicitly unaligned
+   pseudos.  We just turn off auto-alignment and call down to cons.  */
+
+static void
+s_alpha_ucons (bytes)
+     int bytes;
+{
+  int hold = alpha_auto_align_on;
+  alpha_auto_align_on = 0;
+  cons (bytes);
+  alpha_auto_align_on = hold;
+}
+
+/* Switch the working cpu type.  */
+
+static void
+s_alpha_arch (ignored)
+     int ignored;
+{
+  char *name, ch;
+  const struct cpu_type *p;
+
+  SKIP_WHITESPACE ();
+  name = input_line_pointer;
+  ch = get_symbol_end ();
+
+  for (p = cpu_types; p->name; ++p)
+    if (strcmp(name, p->name) == 0)
+      {
+        alpha_target_name = p->name, alpha_target = p->flags;
+	goto found;
+      }
+  as_warn("Unknown CPU identifier `%s'", name);
+
+found:
+  *input_line_pointer = ch;
+  demand_empty_rest_of_line ();
+}
+
 
 
 #ifdef DEBUG1
@@ -4230,7 +4311,6 @@ alpha_print_token(f, exp)
 
 const pseudo_typeS md_pseudo_table[] =
 {
-  {"common", s_comm, 0},	/* is this used? */
 #ifdef OBJ_ECOFF
   {"comm", s_alpha_comm, 0},	/* osf1 compiler does this */
   {"rdata", s_alpha_rdata, 0},
@@ -4259,11 +4339,10 @@ const pseudo_typeS md_pseudo_table[] =
   { "end", s_alpha_end, 0},
   { "file", s_alpha_file, 0},
   { "rdata", s_alpha_section, 1},
-  { "comm", s_alpha_section, 2},
+  { "comm", s_alpha_comm, 0},
   { "link", s_alpha_section, 3},
   { "ctors", s_alpha_section, 4},
   { "dtors", s_alpha_section, 5},
-  { "lcomm", s_alpha_section, 6},
 #endif
   {"gprel32", s_alpha_gprel32, 0},
   {"t_floating", s_alpha_float_cons, 'd'},
@@ -4295,9 +4374,23 @@ const pseudo_typeS md_pseudo_table[] =
   {"skip", s_alpha_space, 0},
   {"zero", s_alpha_space, 0},
 
+/* Unaligned data pseudos.  */
+  {"uword", s_alpha_ucons, 2},
+  {"ulong", s_alpha_ucons, 4},
+  {"uquad", s_alpha_ucons, 8},
+
+#ifdef OBJ_ELF
+/* Dwarf wants these versions of unaligned.  */
+  {"2byte", s_alpha_ucons, 2},
+  {"4byte", s_alpha_ucons, 4},
+  {"8byte", s_alpha_ucons, 8},
+#endif
+
 /* We don't do any optimizing, so we can safely ignore these.  */
   {"noalias", s_ignore, 0},
   {"alias", s_ignore, 0},
+
+  {"arch", s_alpha_arch, 0},
 
   {NULL, 0, 0},
 };
@@ -4379,10 +4472,11 @@ select_gp_value ()
    feature wrt labels.  */
 
 static void
-alpha_align (n, pfill, label)
+alpha_align (n, pfill, label, force)
      int n;
      char *pfill;
      symbolS *label;
+     int force;
 {
   if (alpha_current_align >= n)
     return;
@@ -4392,7 +4486,11 @@ alpha_align (n, pfill, label)
       if (n > 2
 	  && (bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
 	{
-	  static char const nop[4] = { 0x1f, 0x04, 0xff, 0x47 };
+	  static char const unop[4] = { 0x00, 0x00, 0xe0, 0x2f };
+	  static char const nopunop[8] = {
+		0x1f, 0x04, 0xff, 0x47,
+		0x00, 0x00, 0xe0, 0x2f
+	  };
 
 	  /* First, make sure we're on a four-byte boundary, in case
 	     someone has been putting .byte values into the text
@@ -4401,7 +4499,10 @@ alpha_align (n, pfill, label)
 	     with proper alignment.  */
 	  if (alpha_current_align < 2)
 	    frag_align (2, 0, 0);
-	  frag_align_pattern (n, nop, sizeof nop, 0);
+	  if (alpha_current_align < 3)
+	    frag_align_pattern (3, unop, sizeof unop, 0);
+	  if (n > 3)
+	    frag_align_pattern (n, nopunop, sizeof nopunop, 0);
 	}
       else
 	frag_align (n, 0, 0);
@@ -4419,6 +4520,9 @@ alpha_align (n, pfill, label)
     }
 
   record_alignment(now_seg, n);
+
+  /* ??? if alpha_flag_relax && force && elf, record the requested alignment
+     in a reloc for the linker to see.  */
 }
 
 /* The Alpha has support for some VAX floating point types, as well as for

@@ -1,3 +1,20 @@
+Thu Mar 26 01:54:25 1998  Geoffrey Noer  <noer@cygnus.com>
+
+	* mh-cygwin32: stop configuring and building dosrel.
+
+Thu Sep 11 16:43:27 1997  Jim Wilson  <wilson@cygnus.com>
+
+	* mh-elfalphapic, mt-elfalphapic: New files.
+
+Wed Jul 23 12:32:18 1997  Robert Hoehne <robert.hoehne@Mathematik.TU-Chemnitz.DE>
+
+	* mh-go32 (CFLAGS): Don't set -fno-omit-frame-pointer.
+
+Mon Jun 16 19:06:41 1997  Geoff Keating  <geoffk@ozemail.com.au>
+
+	* mh-ppcpic: New file.
+	* mt-ppcpic: New file.
+
 Thu Mar 27 15:52:40 1997  Geoffrey Noer  <noer@cygnus.com>
 
 	* mh-cygwin32: override CXXFLAGS, setting to -O2 only

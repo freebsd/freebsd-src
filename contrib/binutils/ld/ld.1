@@ -1,4 +1,4 @@
-.\" Copyright (c) 1991, 92, 93, 94, 95, 1996 Free Software Foundation
+.\" Copyright (c) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
 .TH ld 1 "17 August 1992" "cygnus support" "GNU Development Tools"
 .de BP
@@ -91,6 +91,7 @@ ld \- the GNU linker
 .RB "[\|" \-n | \-N "\|]" 
 .RB "[\|" \-noinhibit-exec "\|]" 
 .RB "[\|" \-no\-keep\-memory "\|]" 
+.RB "[\|" \-no\-warn\-mismatch "\|]" 
 .RB "[\|" "\-oformat\ "\c
 .I output-format\c
 \&\|] 
@@ -664,6 +665,16 @@ the symbol tables of input files in memory.  This option tells the
 linker to instead optimize for memory usage, by rereading the symbol
 tables as necessary.  This may be required if the linker runs out of
 memory space while linking a large executable.
+
+.TP
+.B \-no\-warn\-mismatch
+Normally the linker will give an error if you try to link together
+input files that are mismatched for some reason, perhaps because they
+have been compiled for different processors or for different
+endiannesses.  This option tells the linker that it should silently
+permit such possible errors.  This option should only be used with
+care, in cases when you have taken some special action that ensures
+that the linker errors are inappropriate.
 
 .TP
 .BI "\-o " "output"

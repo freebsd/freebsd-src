@@ -1,5 +1,5 @@
 /* BFD back-end data structures for ELF files.
-   Copyright (C) 1992, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -483,9 +483,15 @@ struct elf_backend_data
 
   const struct elf_size_info *s;
 
+  /* offset of the _GLOBAL_OFFSET_TABLE_ symbol from the start of the
+     .got section */
+  bfd_vma got_symbol_offset;
+
   unsigned want_got_plt : 1;
   unsigned plt_readonly : 1;
   unsigned want_plt_sym : 1;
+  unsigned plt_not_loaded : 1;
+  unsigned plt_alignment : 4;
 };
 
 /* Information stored for each BFD section in an ELF file.  This
@@ -559,7 +565,7 @@ typedef struct elf_linker_section
   bfd_vma max_hole_offset;		/* maximum offset for the hole */
   elf_linker_section_enum_t which;	/* which section this is */
   boolean hole_written_p;		/* whether the hole has been initialized */
-  int alignment;			/* alignment for the section */
+  unsigned int alignment;		/* alignment for the section */
   flagword flags;			/* flags to use to create the section */
 } elf_linker_section_t;
 
@@ -651,6 +657,9 @@ struct elf_obj_tdata
      find_nearest_line.  */
   struct mips_elf_find_line *find_line_info;
 
+  /* A place to stash dwarf2 info for this bfd. */
+  struct dwarf2_debug *dwarf2_find_line_info;
+
   /* An array of stub sections indexed by symbol number, used by the
      MIPS ELF linker.  FIXME: We should figure out some way to only
      include this field for a MIPS ELF target.  */
@@ -660,10 +669,10 @@ struct elf_obj_tdata
   boolean flags_init;
 
   /* Number of symbol version definitions we are about to emit.  */
-  int cverdefs;
+  unsigned int cverdefs;
 
   /* Number of symbol version references we are about to emit.  */
-  int cverrefs;
+  unsigned int cverrefs;
 
   /* Symbol version definitions in external objects.  */
   Elf_Internal_Verdef *verdef;
@@ -963,6 +972,8 @@ extern Elf_Internal_Rela *_bfd_elf64_link_read_relocs
 
 #define bfd_elf32_link_record_dynamic_symbol _bfd_elf_link_record_dynamic_symbol
 #define bfd_elf64_link_record_dynamic_symbol _bfd_elf_link_record_dynamic_symbol
+
+extern boolean _bfd_elf_close_and_cleanup PARAMS ((bfd *));
 
 /* MIPS ELF specific routines.  */
 

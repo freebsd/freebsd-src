@@ -57,6 +57,12 @@ static const char symbol_chars[] =
 #define	LEX_IS_COLON			9
 #define	LEX_IS_NEWLINE			10
 #define	LEX_IS_ONECHAR_QUOTE		11
+#ifdef TC_V850
+#define LEX_IS_DOUBLEDASH_1ST		12
+#endif
+#ifdef TC_M32R
+#define LEX_IS_DOUBLEBAR_1ST		13
+#endif
 #define IS_SYMBOL_COMPONENT(c)		(lex[c] == LEX_IS_SYMBOL_COMPONENT)
 #define IS_WHITESPACE(c)		(lex[c] == LEX_IS_WHITESPACE)
 #define IS_LINE_SEPARATOR(c)		(lex[c] == LEX_IS_LINE_SEPARATOR)
@@ -80,6 +86,7 @@ do_scrub_begin (m68k_mri)
 
   lex[' '] = LEX_IS_WHITESPACE;
   lex['\t'] = LEX_IS_WHITESPACE;
+  lex['\r'] = LEX_IS_WHITESPACE;
   lex['\n'] = LEX_IS_NEWLINE;
   lex[';'] = LEX_IS_LINE_SEPARATOR;
   lex[':'] = LEX_IS_COLON;
@@ -142,6 +149,13 @@ do_scrub_begin (m68k_mri)
          then it can't be used in an expression.  */
       lex['!'] = LEX_IS_LINE_COMMENT_START;
     }
+
+#ifdef TC_V850
+  lex['-'] = LEX_IS_DOUBLEDASH_1ST;
+#endif
+#ifdef TC_M32R
+  lex['|'] = LEX_IS_DOUBLEBAR_1ST;
+#endif
 }				/* do_scrub_begin() */
 
 /* Saved state of the scrubber */
@@ -285,6 +299,12 @@ do_scrub_chars (get, tostart, tolen)
 	 11: After seeing a symbol character in state 0 (eg a label definition)
 	 -1: output string in out_string and go to the state in old_state
 	 -2: flush text until a '*' '/' is seen, then go to state old_state
+#ifdef TC_V850
+         12: After seeing a dash, looking for a second dash as a start of comment.
+#endif
+#ifdef TC_M32R
+	 13: After seeing a vertical bar, looking for a second vertical bar as a parallel expression seperator.
+#endif
 	  */
 
   /* I added states 9 and 10 because the MIPS ECOFF assembler uses
@@ -295,7 +315,11 @@ do_scrub_chars (get, tostart, tolen)
 
      I added state 11 so that something like "Lfoo add %r25,%r26,%r27" works
      correctly on the PA (and any other target where colons are optional).
-     Jeff Law, law@cs.utah.edu.  */
+     Jeff Law, law@cs.utah.edu.
+
+     I added state 13 so that something like "cmp r1, r2 || trap #1" does not
+     get squashed into "cmp r1,r2||trap#1", with the all important space
+     between the 'trap' and the '#1' being eliminated.  nickc@cygnus.com  */
 
   /* This macro gets the next input character.  */
 
@@ -620,6 +644,7 @@ do_scrub_chars (get, tostart, tolen)
                  either '0' or '1' indicating whether to enter or
                  leave MRI mode.  */
 	      do_scrub_begin (mri_last_ch == '1');
+	      mri_state = NULL;
 
 	      /* We continue handling the character as usual.  The
                  main gas reader must also handle the .mri pseudo-op
@@ -890,6 +915,43 @@ do_scrub_chars (get, tostart, tolen)
 	  PUT (ch);
 	  break;
 
+#ifdef TC_V850
+	case LEX_IS_DOUBLEDASH_1ST:
+	  ch2 = GET();
+	  if (ch2 != '-')
+	    {
+	      UNGET (ch2);
+	      goto de_fault;
+	    }
+	  /* read and skip to end of line */
+	  do
+	    {
+	      ch = GET ();
+	    }
+	  while (ch != EOF && ch != '\n');
+	  if (ch == EOF)
+	    {
+	      as_warn ("end of file in comment; newline inserted");
+	    }
+	  state = 0;
+	  PUT ('\n');
+	  break;
+#endif	    
+#ifdef TC_M32R
+	case LEX_IS_DOUBLEBAR_1ST:
+	  ch2 = GET();
+	  if (ch2 != '|')
+	    {
+	      UNGET (ch2);
+	      goto de_fault;
+	    }
+	  /* Reset back to state 1 and pretend that we are parsing a line from
+	     just after the first white space.  */
+	  state = 1;
+	  PUT ('|');
+	  PUT ('|');
+	  break;
+#endif	    
 	case LEX_IS_LINE_COMMENT_START:
 	  /* FIXME-someday: The two character comment stuff was badly
 	     thought out.  On i386, we want '/' as line comment start
@@ -950,6 +1012,18 @@ do_scrub_chars (get, tostart, tolen)
 	      break;
 	    }
 
+#ifdef TC_D10V
+	  /* All insns end in a char for which LEX_IS_SYMBOL_COMPONENT is true.
+	     Trap is the only short insn that has a first operand that is
+	     neither register nor label.
+	     We must prevent exef0f ||trap #1 to degenerate to exef0f ||trap#1 .
+	     We can't make '#' LEX_IS_SYMBOL_COMPONENT because it is already
+	     LEX_IS_LINE_COMMENT_START.  However, it is the only character in
+	     line_comment_chars for d10v, hence we can recognize it as such.  */
+	  /* An alternative approach would be to reset the state to 1 when
+	     we see '||', '<'- or '->', but that seems to be overkill.  */
+	  if (state == 10) PUT (' ');
+#endif
 	  /* We have a line comment character which is not at the
 	     start of a line.  If this is also a normal comment
 	     character, fall through.  Otherwise treat it as a default

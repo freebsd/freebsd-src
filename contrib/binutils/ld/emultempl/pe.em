@@ -2,7 +2,7 @@
 # It does some substitutions.
 cat >e${EMULATION_NAME}.c <<EOF
 /* This file is part of GLD, the Gnu Linker.
-   Copyright 1995, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1995, 96, 97, 1998 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -364,6 +364,9 @@ gld_${EMULATION_NAME}_parse_args(argc, argv)
   return 1;
 }
 
+/* Assign values to the special symbols before the linker script is
+   read.  */
+
 static void
 gld_${EMULATION_NAME}_set_symbols()
 {
@@ -373,8 +376,18 @@ gld_${EMULATION_NAME}_set_symbols()
   lang_statement_list_type *save;
 
   if (!init[IMAGEBASEOFF].inited)
-    init[IMAGEBASEOFF].value = init[DLLOFF].value
-      ? NT_DLL_IMAGE_BASE : NT_EXE_IMAGE_BASE;
+    {
+      if (link_info.relocateable)
+	init[IMAGEBASEOFF].value = 0;
+      else if (init[DLLOFF].value)
+	init[IMAGEBASEOFF].value = NT_DLL_IMAGE_BASE;
+      else
+	init[IMAGEBASEOFF].value = NT_EXE_IMAGE_BASE;
+    }
+
+  /* Don't do any symbol assignments if this is a relocateable link.  */
+  if (link_info.relocateable)
+    return;
 
   /* Glue the assignments into the abs section */
   save = stat_ptr;
@@ -551,15 +564,18 @@ sort_sections (s)
 	    }
 
 	  /* If this is a collection of grouped sections, sort them.
-	     The linker script must explicitly mention "*(.foo\$)".
-	     Don't sort them if \$ is not the last character (not sure if
-	     this is really useful, but it allows explicitly mentioning
-	     some \$ sections and letting the linker handle the rest).  */
+	     The linker script must explicitly mention "*(.foo\$)" or
+	     "*(.foo\$*)".  Don't sort them if \$ is not the last
+	     character (not sure if this is really useful, but it
+	     allows explicitly mentioning some \$ sections and letting
+	     the linker handle the rest).  */
 	  if (s->wild_statement.section_name != NULL)
 	    {
 	      char *q = strchr (s->wild_statement.section_name, '\$');
 
-	      if (q && q[1] == 0)
+	      if (q != NULL
+		  && (q[1] == '\0'
+		      || (q[1] == '*' && q[2] == '\0')))
 		{
 		  lang_statement_union_type *end;
 		  int count;
@@ -593,14 +609,35 @@ gld_${EMULATION_NAME}_before_allocation()
       {
 	if (!ppc_process_before_allocation(is->the_bfd, &link_info))
 	  {
-	    einfo("Errors encountered processing file %s", is->filename);
+	    einfo("Errors encountered processing file %s\n", is->filename);
 	  }
       }
   }
 
   /* We have seen it all. Allocate it, and carry on */
   ppc_allocate_toc_section (&link_info);
-#endif
+#else
+#ifdef TARGET_IS_armpe
+  /* FIXME: we should be able to set the size of the interworking stub
+     section.
+
+     Here we rummage through the found bfds to collect glue
+     information.  FIXME: should this be based on a command line
+     option?  krk@cygnus.com */
+  {
+    LANG_FOR_EACH_INPUT_STATEMENT (is)
+      {
+	if (!arm_process_before_allocation (is->the_bfd, & link_info))
+	  {
+	    einfo ("Errors encountered processing file %s", is->filename);
+	  }
+      }
+  }
+
+  /* We have seen it all. Allocate it, and carry on */
+  arm_allocate_interworking_sections (& link_info);
+#endif /* TARGET_IS_armpe */
+#endif /* TARGET_IS_ppcpe */
 
   sort_sections (stat_ptr->head);
 }
@@ -610,7 +647,11 @@ gld_${EMULATION_NAME}_before_allocation()
    gets mapped to the output section with everything from the '\$' on stripped
    (e.g. .text).
    See the Microsoft Portable Executable and Common Object File Format
-   Specification 4.1, section 4.2, Grouped Sections.  */
+   Specification 4.1, section 4.2, Grouped Sections.
+
+   FIXME: This is now handled by the linker script using wildcards,
+   but I'm leaving this here in case we want to enable it for sections
+   which are not mentioned in the linker script.  */
 
 /*ARGSUSED*/
 static boolean

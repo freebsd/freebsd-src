@@ -107,12 +107,25 @@ extern void obj_elf_version PARAMS ((int));
 /* When setting one symbol equal to another, by default we probably
    want them to have the same "size", whatever it means in the current
    context.  */
-#define OBJ_COPY_SYMBOL_ATTRIBUTES(DEST,SRC)		\
-do							\
-  {							\
-    S_SET_SIZE ((DEST), S_GET_SIZE (SRC));		\
-    S_SET_OTHER ((DEST), S_GET_OTHER (SRC));		\
-  }							\
+#define OBJ_COPY_SYMBOL_ATTRIBUTES(DEST,SRC)			\
+do								\
+  {								\
+    if ((SRC)->sy_obj.size)					\
+      {								\
+	if ((DEST)->sy_obj.size == NULL)			\
+	  (DEST)->sy_obj.size =					\
+	    (expressionS *) xmalloc (sizeof (expressionS));	\
+	*(DEST)->sy_obj.size = *(SRC)->sy_obj.size;		\
+      }								\
+    else							\
+      {								\
+	if ((DEST)->sy_obj.size != NULL)			\
+	  free ((DEST)->sy_obj.size);				\
+	(DEST)->sy_obj.size = NULL;				\
+      }								\
+    S_SET_SIZE ((DEST), S_GET_SIZE (SRC));			\
+    S_SET_OTHER ((DEST), S_GET_OTHER (SRC));			\
+  }								\
 while (0)
 
 /* Stabs go in a separate section.  */

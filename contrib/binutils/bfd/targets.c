@@ -1,5 +1,6 @@
 /* Generic target-file-type support for the BFD library.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -483,6 +484,8 @@ extern const bfd_target armpei_big_vec;
 extern const bfd_target b_out_vec_big_host;
 extern const bfd_target b_out_vec_little_host;
 extern const bfd_target bfd_elf64_alpha_vec;
+extern const bfd_target bfd_elf32_bigarc_vec;
+extern const bfd_target bfd_elf32_littlearc_vec;
 extern const bfd_target bfd_elf32_big_generic_vec;
 extern const bfd_target bfd_elf32_bigmips_vec;
 extern const bfd_target bfd_elf64_bigmips_vec;
@@ -503,6 +506,7 @@ extern const bfd_target bfd_elf32_powerpcle_vec;
 extern const bfd_target bfd_elf32_sh_vec;
 extern const bfd_target bfd_elf32_shl_vec;
 extern const bfd_target bfd_elf32_sparc_vec;
+extern const bfd_target bfd_elf32_v850_vec;
 extern const bfd_target bfd_elf64_big_generic_vec;
 extern const bfd_target bfd_elf64_little_generic_vec;
 extern const bfd_target bfd_elf64_sparc_vec;
@@ -531,6 +535,7 @@ extern const bfd_target bfd_powerpcle_pei_vec;
 extern const bfd_target i386pe_vec;
 extern const bfd_target i386pei_vec;
 extern const bfd_target go32coff_vec;
+extern const bfd_target go32stubbedcoff_vec;
 extern const bfd_target i386linux_vec;
 extern const bfd_target i386lynx_aout_vec;
 extern const bfd_target i386lynx_coff_vec;
@@ -566,6 +571,8 @@ extern const bfd_target pmac_xcoff_vec;
 extern const bfd_target rs6000coff_vec;
 extern const bfd_target shcoff_vec;
 extern const bfd_target shlcoff_vec;
+extern const bfd_target shcoff_small_vec;
+extern const bfd_target shlcoff_small_vec;
 extern const bfd_target sparcle_aout_vec;
 extern const bfd_target sparclinux_vec;
 extern const bfd_target sparclynx_aout_vec;
@@ -574,6 +581,9 @@ extern const bfd_target sparcnetbsd_vec;
 extern const bfd_target sparccoff_vec;
 extern const bfd_target sunos_big_vec;
 extern const bfd_target tekhex_vec;
+extern const bfd_target tic30_aout_vec;
+extern const bfd_target tic30_coff_vec;
+extern const bfd_target vaxnetbsd_vec;
 extern const bfd_target versados_vec;
 extern const bfd_target we32kcoff_vec;
 extern const bfd_target w65_vec;
@@ -635,6 +645,7 @@ const bfd_target * const bfd_target_vector[] = {
 #ifdef BFD64
 	&bfd_elf64_alpha_vec,
 #endif
+	&bfd_elf32_bigarc_vec,
 	&bfd_elf32_bigmips_vec,
 #ifdef BFD64
 	&bfd_elf64_bigmips_vec,
@@ -644,6 +655,7 @@ const bfd_target * const bfd_target_vector[] = {
 	&bfd_elf32_i386_vec,
 	&bfd_elf32_i860_vec,
 	&bfd_elf32_little_generic_vec,
+	&bfd_elf32_littlearc_vec,
 	&bfd_elf32_littlemips_vec,
 #ifdef BFD64
 	&bfd_elf64_littlemips_vec,
@@ -655,6 +667,8 @@ const bfd_target * const bfd_target_vector[] = {
 	&bfd_elf32_m88k_vec,
 	&bfd_elf32_sparc_vec,
 	&bfd_elf32_powerpc_vec,
+	&bfd_elf32_powerpcle_vec,
+	&bfd_elf32_v850_vec,
 #ifdef BFD64			/* No one seems to use this.  */
 	&bfd_elf64_big_generic_vec,
 	&bfd_elf64_little_generic_vec,
@@ -699,6 +713,7 @@ const bfd_target * const bfd_target_vector[] = {
 	&bfd_powerpc_pei_vec,
 	&bfd_powerpcle_pei_vec,
 	&go32coff_vec,
+	&go32stubbedcoff_vec,
 #if 0
 	/* Since a.out files lack decent magic numbers, no way to recognize
 	   which kind of a.out file it is.  */
@@ -767,6 +782,8 @@ const bfd_target * const bfd_target_vector[] = {
 	&ppcboot_vec,
 	&shcoff_vec,
 	&shlcoff_vec,
+	&shcoff_small_vec,
+	&shlcoff_small_vec,
 	&sparcle_aout_vec,
 	&sparclinux_vec,
 	&sparclynx_aout_vec,
@@ -775,8 +792,11 @@ const bfd_target * const bfd_target_vector[] = {
 	&sunos_big_vec,
 	&aout0_big_vec,
 	&tekhex_vec,
-	&we32kcoff_vec,
+	&tic30_aout_vec,
+	&tic30_coff_vec,
+	&vaxnetbsd_vec,
 	&versados_vec,
+	&we32kcoff_vec,
 	&z8kcoff_vec,
 
 #endif /* not SELECT_VECS */
@@ -804,6 +824,9 @@ const bfd_target * const bfd_target_vector[] = {
 #endif
 #ifdef IRIX_CORE
 	&irix_core_vec,
+#endif
+#ifdef NETBSD_CORE
+	&netbsd_core_vec,
 #endif
 #ifdef OSF_CORE
 	&osf_core_vec,
