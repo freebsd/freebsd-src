@@ -507,7 +507,6 @@ hint.mse.0.irq="5"
 #       DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
 # lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
 #       Am79C960)
-# nv:   nVidia nForce MCP on-board Networking.
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
 #       OC-3141, OC-3540 and OC-3250.
