@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.11.2.1 1997/03/27 20:04:15 guido Exp $";
+	"$Id: mountd.c,v 1.11.2.2 1997/04/01 18:07:11 pst Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -315,13 +315,15 @@ main(argc, argv)
 	  }
 	}
 
-	mib[0] = CTL_VFS;
-	mib[1] = MOUNT_NFS;
-	mib[2] = NFS_NFSPRIVPORT;
-	if (sysctl(mib, 3, NULL, NULL, &resvport_only,
-	    sizeof(resvport_only)) != 0 && errno != ENOENT) {
-		syslog(LOG_ERR, "sysctl: %m");
-		exit(1);
+	if (!resvport_only) {
+		mib[0] = CTL_VFS;
+		mib[1] = MOUNT_NFS;
+		mib[2] = NFS_NFSPRIVPORT;
+		if (sysctl(mib, 3, NULL, NULL, &resvport_only,
+		    sizeof(resvport_only)) != 0 && errno != ENOENT) {
+			syslog(LOG_ERR, "sysctl: %m");
+			exit(1);
+		}
 	}
 
 	if ((udptransp = svcudp_create(RPC_ANYSOCK)) == NULL ||

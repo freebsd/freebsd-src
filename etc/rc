@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.5 1997/01/03 08:18:58 phk Exp $
+#	$Id: rc,v 1.104.2.6 1997/04/01 00:59:48 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -261,6 +261,9 @@ if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
 		mountd -n
 	else
 		mountd
+	fi
+	if [ "X${nfs_reserved_port_only}" = X"YES" ]; then
+		sysctl -w vfs.nfs.nfs_privport=1
 	fi
 	echo -n ' nfsd';		nfsd -u -t 4
 # Warning: rpc.lockd is broken.
