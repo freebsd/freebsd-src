@@ -56,14 +56,19 @@ CFGLABEL=`get_label ${CFGSLICE}`
 dd if=/dev/zero of=${TMPFILE0} count=${SECTS}
 MD=`mdconfig -a -t vnode -f ${TMPFILE0} -x ${SC} -y ${HD}`
 rm -f ${TMPFILE0}
-(
-sl=`expr "(" ${SECTS} - ${SC} - ${DATASIZE} ")" / 2`
-cyl=`expr ${SECTS} / ${SC} / ${HD}`
-echo g c${cyl} h${HD} s${SC}
-echo p 1 165 ${SC} $sl
-echo p 2 165 `expr ${SC} + $sl` $sl
-echo p 3 165 `expr ${SC} + $sl + $sl` ${DATASIZE}
-) > ${TMPFILE1}
+echo ${SECTS} ${SC} ${HD} ${DATASIZE} | awk '
+	{
+	cs = $2 * $3
+	cyl = $1 / cs
+	print "g c" cyl " h" $3 " s" $2
+	dsl = int (($4 + cs - 1) / cs)
+	csl = int ((cyl - dsl) / 2)
+	dsl = cyl - csl * 2
+	print "p 1 165 " $2, csl * cs - $2
+	print "p 2 165 " $2 + csl * cs, csl * cs - $2
+	print "p 3 165 " 2 * csl * cs, dsl * cs
+	}
+' > ${TMPFILE1}
 cat ${TMPFILE1}
 fdisk -i -f ${TMPFILE1} ${MD}
 fdisk ${MD}
