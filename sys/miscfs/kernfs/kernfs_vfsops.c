@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kernfs_vfsops.c,v 1.3 1994/08/02 07:45:02 davidg Exp $
  */
 
 /*
@@ -340,3 +340,5 @@ struct vfsops kernfs_vfsops = {
 	kernfs_vptofh,
 	kernfs_init,
 };
+
+VFS_SET(kernfs_vfsops, kernfs, MOUNT_KERNFS, 0);

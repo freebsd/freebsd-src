@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: fifo_vnops.c,v 1.3 1994/08/02 07:44:56 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -107,6 +107,8 @@ struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 };
 struct vnodeopv_desc fifo_vnodeop_opv_desc =
 	{ &fifo_vnodeop_p, fifo_vnodeop_entries };
+
+VNODEOP_SET(fifo_vnodeop_opv_desc);
 
 /*
  * Trivial lookup routine that always fails.

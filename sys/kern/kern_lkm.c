@@ -561,65 +561,74 @@ _lkm_vfs(lkmtp, cmd)
 	int cmd;
 {
 	struct lkm_vfs *args = lkmtp->private.lkm_vfs;
+	struct vfsconf *vfc = args->lkm_vfsconf;
+	extern struct vfsconf void_vfsconf;
 	int i;
 	int err = 0;
 
-#if 0
 	switch(cmd) {
 	case LKM_E_LOAD:
 		/* don't load twice! */
 		if (lkmexists(lkmtp))
 			return(EEXIST);
 
-		/* make sure there's no VFS in the table with this name */
-		for (i = 0; i < nvfssw; i++)
-			if (vfssw[i] != (struct vfsops *)0 &&
-			    strncmp(vfssw[i]->vfs_name,
-			    args->lkm_vfsops->vfs_name, MFSNAMELEN) == 0)
-				return (EEXIST);
-
-		/* pick the last available empty slot */
-		for (i = nvfssw - 1; i >= 0; i--)
-			if (vfssw[i] == (struct vfsops *)0)
-				break;
-		if (i == -1) {		/* or if none, punt */
-			err = EINVAL;
-			break;
+		for(i = 0; i < MOUNT_MAXTYPE; i++) {
+			if(!strcmp(vfc->vfc_name, vfsconf[i]->vfc_name)) {
+				return EEXIST;
+			}
 		}
 
-		/*
-		 * Set up file system
-		 */
-		vfssw[i] = args->lkm_vfsops;
+		if (args->lkm_offset != vfc->vfc_index)
+			return EINVAL;
+
+		i = args->lkm_offset;
+		if (!args->lkm_offset) {
+			for (i = MOUNT_MAXTYPE - 1; i >= 0; i--) {
+				if(vfsconf[i] == &void_vfsconf)
+					break;
+			}
+		}
+		if (i < 0) {
+			return EINVAL;
+		}
+		args->lkm_offset = vfc->vfc_index = i;
+		vfsconf[i] = vfc;
+		vfssw[i] = vfc->vfc_vfsops;
+
+		/* like in vfs_op_init */
+		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++) {
+			struct vnodeopv_desc *opv =
+			  (struct vnodeopv_desc *)args->lkm_vnodeops->ls_items[i];
+			*(opv->opv_desc_vector_p) = NULL; 
+		}
+		vfs_opv_init((struct vnodeopv_desc **)args->lkm_vnodeops->ls_items);
 
 		/*
 		 * Call init function for this VFS...
 		 */
-	 	(*(vfssw[i]->vfs_init))();
+	 	(*(vfssw[vfc->vfc_index]->vfs_init))();
 
 		/* done! */
 		args->lkm_offset = i;	/* slot in vfssw[] */
 		break;
 
 	case LKM_E_UNLOAD:
-#ifdef notyet
 		/* current slot... */
 		i = args->lkm_offset;
 
+		if (vfsconf[i]->vfc_refcount) {
+			return EBUSY;
+		}
+
 		/* replace current slot contents with old contents */
 		vfssw[i] = (struct vfsops *)0;
-#else
-		/* it's not safe to remove a vfs */
-		err = EBUSY;
-#endif
+		vfsconf[i] = &void_vfsconf;
+
 		break;
 
 	case LKM_E_STAT:	/* no special handling... */
 		break;
 	}
-#else
-	err = EINVAL;
-#endif
 	return(err);
 }
 

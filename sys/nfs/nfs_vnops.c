@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.4 1994/08/08 17:30:53 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.5 1994/08/29 06:09:08 davidg Exp $
  */
 
 /*
@@ -125,6 +125,7 @@ struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 };
 struct vnodeopv_desc nfsv2_vnodeop_opv_desc =
 	{ &nfsv2_vnodeop_p, nfsv2_vnodeop_entries };
+VNODEOP_SET(nfsv2_vnodeop_opv_desc);
 
 /*
  * Special device vnode ops
@@ -177,6 +178,7 @@ struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 };
 struct vnodeopv_desc spec_nfsv2nodeop_opv_desc =
 	{ &spec_nfsv2nodeop_p, spec_nfsv2nodeop_entries };
+VNODEOP_SET(spec_nfsv2nodeop_opv_desc);
 
 #ifdef FIFO
 int (**fifo_nfsv2nodeop_p)();
@@ -227,6 +229,7 @@ struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 };
 struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
 	{ &fifo_nfsv2nodeop_p, fifo_nfsv2nodeop_entries };
+VNODEOP_SET(fifo_nfsv2nodeop_opv_desc);
 #endif /* FIFO */
 
 void nqnfs_clientlease();

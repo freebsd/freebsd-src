@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.2 1994/08/02 07:45:06 davidg Exp $
+ * $Id: null_vnops.c,v 1.3 1994/08/20 03:48:51 davidg Exp $
  */
 
 /*
@@ -455,3 +455,5 @@ struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 };
 struct vnodeopv_desc null_vnodeop_opv_desc =
 	{ &null_vnodeop_p, null_vnodeop_entries };
+
+VNODEOP_SET(null_vnodeop_opv_desc);

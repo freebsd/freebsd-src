@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id$
+ * $Id: union_vnops.c,v 1.3 1994/08/02 07:45:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1494,3 +1494,5 @@ struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 };
 struct vnodeopv_desc union_vnodeop_opv_desc =
 	{ &union_vnodeop_p, union_vnodeop_entries };
+
+VNODEOP_SET(union_vnodeop_opv_desc);

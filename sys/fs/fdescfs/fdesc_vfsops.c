@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.9 1993/04/06 15:28:33 jsp Exp $
+ * $Id: fdesc_vfsops.c,v 1.1.1.1 1994/05/24 10:04:59 rgrimes Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/proc.h>
@@ -286,3 +287,5 @@ struct vfsops fdesc_vfsops = {
 	fdesc_vptofh,
 	fdesc_init,
 };
+
+VFS_SET(fdesc_vfsops, fdesc, MOUNT_FDESC, 0);

@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.6 (Berkeley) 1/21/94
  *
- * $Id: portal_vfsops.c,v 1.5 1992/05/30 10:25:27 jsp Exp jsp $
+ * $Id: portal_vfsops.c,v 1.1.1.1 1994/05/24 10:05:06 rgrimes Exp $
  */
 
 /*
@@ -311,3 +311,5 @@ struct vfsops portal_vfsops = {
 	portal_vptofh,
 	portal_init,
 };
+
+VFS_SET(portal_vfsops, portal, MOUNT_PORTAL, 0);

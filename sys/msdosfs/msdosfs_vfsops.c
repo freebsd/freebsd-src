@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.1 1994/09/19 15:41:45 dfr Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.2 1994/09/19 19:24:44 dfr Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -727,3 +727,5 @@ struct vfsops msdosfs_vfsops = {
 	msdosfs_vptofh,
 	msdosfs_init
 };
+
+VFS_SET(msdosfs_vfsops, msdos, MOUNT_MSDOS, 0);
