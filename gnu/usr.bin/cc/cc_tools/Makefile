@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.10 1998/03/23 11:50:38 bde Exp $
+# $Id: Makefile,v 1.11 1998/04/23 16:30:51 bde Exp $
 #
 
 #
@@ -21,6 +21,8 @@ CFLAGS+=	-I.
 # Bytecode components
 
 .for i in arity opcode opname
+build-tools: bi-$i
+
 bc-$i.h: bi-$i bytecode.def
 	./bi-$i < ${GCCDIR}/bytecode.def > bc-$i.h
 
@@ -54,6 +56,8 @@ GENSRCS+=	insn-$i.c
 .endfor
 
 .for i in attr codes config emit extract flags opinit output peep recog
+build-tools: gen$i
+
 gen$i: gen$i.o rtl.o obstack.o
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
@@ -62,6 +66,8 @@ CLEANFILES+=	gen$i
 .endfor
 
 .for i in attrtab
+build-tools: gen$i
+
 gen$i: gen$i.o rtl.o rtlanal.o print-rtl.o obstack.o
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
