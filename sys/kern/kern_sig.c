@@ -1932,7 +1932,7 @@ out:
 
 /*
  * The force of a signal has been directed against a single
- * thread. We need to see what we can do about knocking it
+ * thread.  We need to see what we can do about knocking it
  * out of any sleep it may be in etc.
  */
 static void
@@ -1944,15 +1944,16 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
 	prop = sigprop(sig);
+
 	/*
 	 * Bring the priority of a thread up if we want it to get
 	 * killed in this lifetime.
 	 */
-	if ((action == SIG_DFL) && (prop & SA_KILL)) {
-		if (td->td_priority > PUSER) {
+	if (action == SIG_DFL && (prop & SA_KILL)) {
+		if (td->td_priority > PUSER)
 			td->td_priority = PUSER;
-		}
 	}
+
 	if (TD_ON_SLEEPQ(td)) {
 		/*
 		 * If thread is sleeping uninterruptibly
@@ -1970,7 +1971,6 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 		if (p->p_flag & P_TRACED) {
 			p->p_flag &= ~P_STOPPED_TRACE;
 		} else {
-
 			/*
 			 * If SIGCONT is default (or ignored) and process is
 			 * asleep, we are finished; the process should not
@@ -1987,24 +1987,23 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 			}
 
 			/*
-			 * Raise priority to at least PUSER.
+			 * Give low priority threads a better chance to run.
 			 */
 			if (td->td_priority > PUSER)
 				td->td_priority = PUSER;
 		}
 		sleepq_abort(td);
-	}
-#ifdef SMP
-	  else {
+	} else {
 		/*
-		 * Other states do nothing with the signal immediatly,
+		 * Other states do nothing with the signal immediately,
 		 * other than kicking ourselves if we are running.
 		 * It will either never be noticed, or noticed very soon.
 		 */
+#ifdef SMP
 		if (TD_IS_RUNNING(td) && td != curthread)
 			forward_signal(td);
-	  }
 #endif
+	}
 }
 
 void
