@@ -521,6 +521,7 @@ static void
 i4bisppp_dialresponse(int unit, int status, cause_t cause)
 {
 	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];
+	struct sppp *sp = &sc->sc_if_un.scu_sp;
 
 	NDBGL4(L4_ISPDBG, "isp%d: status=%d, cause=%d", unit, status, cause);
 
@@ -535,6 +536,18 @@ i4bisppp_dialresponse(int unit, int status, cause_t cause)
 			while((m = sppp_dequeue(&sc->sc_if)) != NULL)
 				m_freem(m);
 		}
+
+		sc->sc_cdp = (call_desc_t *)0;	
+		/* do thhis here because pp_down calls i4bisppp_tlf */
+		sc->sc_state = ST_IDLE;
+
+		/* Ahh. ppp does't like to get a down event when
+		 * dialing fails. So first tell that we are up
+		 * (doesn't hurt us since sc_state != ST_CONNECTED)
+		 * and then go down.
+		 */
+		sp->pp_up(sp);
+		sp->pp_down(sp);
 	}
 }
 	
