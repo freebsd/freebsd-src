@@ -41,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)mkstr.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdio.h>
@@ -128,7 +129,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: mkstr [ - ] mesgfile prefix file ...\n");
+	fprintf(stderr, "usage: mkstr [-] mesgfile prefix file ...\n");
 	exit(1);
 }
 
@@ -300,6 +301,8 @@ hashit(str, really, fakept)
 		}
 	if (!really || hp == 0) {
 		hp = (struct hash *) calloc(1, sizeof *hp);
+		if (hp == NULL)
+			err(1, NULL);
 		hp->hnext = bucket[i];
 		hp->hval = hashval;
 		hp->hpt = really ? ftell(mesgwrite) : fakept;
