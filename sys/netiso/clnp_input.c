@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_input.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_input.c,v 1.3 1994/11/15 14:26:11 bde Exp $
+ * $Id: clnp_input.c,v 1.4 1995/03/16 18:15:20 bde Exp $
  */
 
 /***********************************************************
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_input.c,v 1.3 1994/11/15 14:26:11 bde Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/clnp_input.c,v $ */
+/* $Header: /a/ncvs/src/sys/netiso/clnp_input.c,v 1.4 1995/03/16 18:15:20 bde Exp $ */
+/* $Source: /a/ncvs/src/sys/netiso/clnp_input.c,v $ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -153,7 +153,7 @@ clnp_init()
  * NOTES:			
  */
 void
-clnlintr()
+clnlintr(void)
 {
 	register struct mbuf		*m;		/* ptr to first mbuf of pkt */
 	register struct clnl_fixed	*clnl;	/* ptr to fixed part of clnl hdr */
@@ -268,6 +268,8 @@ next:
 
 	goto next;
 }
+
+NETISR_SET(NETISR_ISO, clnlintr);
 
 /*
  * FUNCTION:		clnp_input

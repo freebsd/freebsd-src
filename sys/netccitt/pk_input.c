@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_input.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_input.c,v 1.2 1994/08/02 07:47:35 davidg Exp $
+ * $Id: pk_input.c,v 1.3 1994/12/13 22:32:15 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,7 @@ struct pkcb_q pkcb_q = {&pkcb_q, &pkcb_q};
  * employ boards that do all the stuff themselves, e.g. ADAX X.25 or TPS ISDN.)
  */
 void
-ccittintr ()
+ccittintr (void)
 {
 	extern struct ifqueue pkintrq;
 	extern struct ifqueue hdintrq;
@@ -86,6 +86,8 @@ ccittintr ()
 	if (pkintrq.ifq_len)
 		pkintr ();
 }
+
+NETISR_SET(NETISR_CCITT, ccittintr);
 
 struct pkcb *
 pk_newlink (ia, llnext)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.19 1995/03/16 18:22:28 wollman Exp $
+ * $Id: ip_input.c,v 1.20 1995/05/09 13:35:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/netisr.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -143,7 +144,7 @@ struct	route ipforward_rt;
  * try to reassemble.  Process options.  Pass to next level.
  */
 void
-ipintr()
+ipintr(void)
 {
 	register struct ip *ip;
 	register struct mbuf *m;
@@ -431,6 +432,8 @@ bad:
 	m_freem(m);
 	goto next;
 }
+
+NETISR_SET(NETISR_IP, ipintr);
 
 /*
  * Take incoming datagram fragment and try to
