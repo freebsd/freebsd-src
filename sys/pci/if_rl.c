@@ -1105,8 +1105,9 @@ rl_attach(dev)
 	ifp->if_watchdog = rl_watchdog;
 	ifp->if_init = rl_init;
 	ifp->if_baudrate = 10000000;
+	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-
+	
 	callout_handle_init(&sc->rl_stat_ch);
 
 	/*
