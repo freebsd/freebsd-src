@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.27 1996/01/27 01:57:02 bde Exp $
+ *	$Id: isa_device.h,v 1.28 1996/01/30 22:56:02 mpp Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -154,12 +154,12 @@ struct isa_device *
 int	haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
 void	isa_configure __P((void));
 void	isa_defaultirq __P((void));
-void	isa_dmacascade __P((unsigned chan));
+void	isa_dmacascade __P((int chan));
 void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
-void	isa_dmadone_nobounce __P((unsigned chan));
-void	isa_dmainit __P((unsigned chan, unsigned bouncebufsize));
-void	isa_dmastart __P((int flags, caddr_t addr, unsigned nbytes,
-			  unsigned chan));
+void	isa_dmainit __P((int chan, u_int bouncebufsize));
+void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
+int	isa_dma_acquire __P((int chan));
+void	isa_dma_release __P((int chan));
 int	isa_externalize __P((struct isa_device *id, struct sysctl_req *req));
 int	isa_generic_externalize __P((struct kern_devconf *kdc,
 				     struct sysctl_req *req));
