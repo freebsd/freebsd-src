@@ -77,7 +77,7 @@ SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
 #define ETHERTYPE_IPV6	0x86dd
 #endif
 
-#define senderr(e) { error = (e); goto bad;}
+#define senderr(e) do { error = (e); goto bad;} while (0)
 
 /*
  * atm_output: ATM output routine
