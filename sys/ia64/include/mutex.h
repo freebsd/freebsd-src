@@ -46,7 +46,7 @@
 #ifdef _KERN_MUTEX_C_
 char STR_IEN[] = "psr.i";
 char STR_IDIS[] = "!psr.i";
-char STR_SIEN[] = "mpp->mtx_saveintr & PSR_I";
+char STR_SIEN[] = "mpp->mtx_saveintr & IA64_PSR_I";
 #else	/* _KERN_MUTEX_C_ */
 extern char STR_IEN[];
 extern char STR_IDIS[];
@@ -57,9 +57,9 @@ extern char STR_SIEN[];
 
 #define	ASS_IEN		MPASS2((save_intr() & IA64_PSR_I), STR_IEN)
 #define	ASS_IDIS	MPASS2(!(save_intr() & IA64_PSR_I), STR_IDIS)
-#define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr & IA64_PSR_I), STR_SIEN)
+#define ASS_SIEN(mpp)	MPASS2(((mpp)->mtx_saveintr & IA64_PSR_I), STR_SIEN)
 
-#define	mtx_legal2block()	((save_intr() & IA64_PSL_I)
+#define	mtx_legal2block()	((save_intr() & IA64_PSR_I)
 
 #endif	/* _KERNEL */
 
