@@ -168,12 +168,13 @@ at a later time when the system is up and running, see
 .Xr atacontrol 8 .
 .Pp
 The driver attempts to set the maximum performance transfer mode on your disk
-drives by selecting the highest possible DMA mode. However the 
+drives by selecting the highest possible DMA mode.
+However the
 .Nm
-driver sometimes issue the message 
-"DMA limited to UDMA33, non-ATA66 cable or device",
+driver sometimes issues the message
+.Dq Sy "DMA limited to UDMA33, non-ATA66 cable or device" ,
 if the cable is ATA66 (or above) compliant, it is because the other device
-on this channel states it can only accept upto UDMA2/ATA33 signals.
+on this channel states it can only accept up to UDMA2/ATA33 signals.
 ATAPI devices are left in PIO mode because DMA problems are common despite the
 device specifications.
 You can always try to set DMA mode on an ATAPI device using
@@ -184,7 +185,7 @@ support it and can
 .Em hang
 the system.
 .Sh FILES
-.Bl -tag -width "/sys/i386/conf/GENERIC " -compact
+.Bl -tag -width ".Pa /sys/i386/conf/GENERIC" -compact
 .It Pa /dev/ad*
 ATA disk device nodes
 .It Pa /dev/acd*

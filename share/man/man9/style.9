@@ -195,7 +195,9 @@ greater than 20 lines, or where a series of nested
 .Ic #ifdef 's
 may be confusing to the reader.
 Exceptions may be made for cases where code is conditionally not compiled for
-the purposes of lint, even though the uncompiled region may be small.
+the purposes of
+.Xr lint 1 ,
+even though the uncompiled region may be small.
 The comment should be separated from the
 .Ic #endif
 or
@@ -252,8 +254,11 @@ enum enumtype { ONE, TWO } et;
 .Pp
 In declarations, do not put any whitespace between asterisks and
 adjacent tokens, except for tokens that are identifiers related to
-types.  (These identifiers are the names of basic types, type
-qualifiers, and typedef-names other than the one being declared.)
+types.
+(These identifiers are the names of basic types, type
+qualifiers, and
+.Ic typedef Ns -names
+other than the one being declared.)
 Separate these identifers from asterisks using a single space.
 .Pp
 When declaring variables in structures, declare them sorted by use, then

@@ -114,7 +114,8 @@ CFLAGS+=${BDECFLAGS}
 .It Va CPUTYPE
 .Pq Vt str
 Controls which processor should be targeted for generated
-code.  This controls processor-specific optimizations in
+code.
+This controls processor-specific optimizations in
 certain code (currently only OpenSSL) as well as modifying
 the value of
 .Va CFLAGS
@@ -130,7 +131,8 @@ may be overridden using the
 .Va NO_CPU_CFLAGS
 and
 .Va NO_CPU_COPTFLAGS
-variables, respectively.  Refer to
+variables, respectively.
+Refer to
 .Pa /usr/share/examples/etc/make.conf
 for a list of recognized
 .Va CPUTYPE
@@ -174,13 +176,12 @@ Controls the shell used internally by
 .Xr make 1
 to process the command scripts in makefiles.
 .Xr sh 1 ,
-.Xr ksh 1,
+.Xr ksh 1 ,
 and
 .Xr csh 1
 all currently supported.
-.Bd -literal -offset indent
-MAKE_SHELL?=sh
-.Ed
+.Pp
+.Dl "MAKE_SHELL?=sh"
 .It Va MTREE_FOLLOWS_SYMLINKS
 .Pq Vt str
 Set this to
@@ -317,7 +318,9 @@ loader retrieves the kernel via NFS.
 Defining this and recompiling
 .Pa /usr/src/sys/boot
 will cause it to retrieve the kernel via TFTP.
-This allows pxeboot to load a custom BOOTP diskless kernel yet
+This allows
+.Xr pxeboot 8
+to load a custom BOOTP diskless kernel yet
 still mount the server's
 .Pa /
 rather than load the server's kernel.
@@ -385,7 +388,8 @@ Normally
 .Pq Vt str
 If you want to install the MIT Kerberos5 port somewhere other than
 .Pa /usr/local ,
-define this.  This is also used to tell ssh1 that kerberos is needed).
+define this.
+This is also used to tell ssh1 that Kerberos is needed.
 .It Va MAKE_IDEA
 .Pq Vt bool
 Set to build the IDEA encryption code.
@@ -420,7 +424,7 @@ will not be able to change users' groups.
 .Pq Vt bool
 Set this to install
 .Xr ssh 1
-with the setuid bit turned on.
+with the set-user-ID bit turned on.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
@@ -443,7 +447,7 @@ and related libraries.
 .It Va NO_GDB
 .Pq Vt bool
 Set to not build
-.Xr gdb 1
+.Xr gdb 1 .
 .It Va NO_I4B
 .Pq Vt bool
 Set to not build isdn4bsd package.
@@ -568,7 +572,7 @@ Note that
 .Va SENDMAIL_CF
 is now deprecated.
 Avoid using a value of
-.Pa /etc/mail/sendmail.mc
+.Pa /etc/mail/sendmail.mc ,
 as a buildworld will create
 .Pa /etc/mail/sendmail.cf
 before installworld installs an updated
@@ -585,7 +589,7 @@ file, e.g.,
 Use with caution as a make install will overwrite any existing
 .Pa /etc/mail/submit.cf .
 Avoid using a value of
-.Pa /etc/mail/submit.mc
+.Pa /etc/mail/submit.mc ,
 as a buildworld will create
 .Pa /etc/mail/submit.cf
 before installworld installs an updated
@@ -604,7 +608,7 @@ file(s), e.g.,
 .Pa /etc/mail/foo.mc
 .Pa /etc/mail/bar.mc .
 Avoid using a value of
-.Pa /etc/mail/sendmail.mc
+.Pa /etc/mail/sendmail.mc ,
 as a buildworld will create
 .Pa /etc/mail/sendmail.cf
 before installworld installs an updated
@@ -663,8 +667,9 @@ The default value is 0640.
 .It Va TOP_TABLE_SIZE
 .Pq Vt int
 .Xr top 1
-uses a hash table for the user names.  The size of this hash can be tuned
-to match the number of local users.  The table size should be a prime number
+uses a hash table for the user names.
+The size of this hash can be tuned to match the number of local users.
+The table size should be a prime number
 approximately twice as large as the number of lines in
 .Pa /etc/passwd .
 The default number is 20011.
@@ -679,7 +684,8 @@ times \(em this is worse on the Alpha platform.
 The value assigned is the highest optimization value used.
 .It Va WANT_OPENSSL_MANPAGES
 .Pq Vt bool
-Set this to build the OpenSSL manual pages.  These are not built by
+Set this to build the OpenSSL manual pages.
+These are not built by
 default because they clobber a number of system manual pages with
 manual pages describing parts of the OpenSSL toolkit, including
 .Xr passwd 1 ,
