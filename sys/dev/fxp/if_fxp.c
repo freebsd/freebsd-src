@@ -1550,8 +1550,8 @@ fxp_intr(void *xsc)
 	if (ether_poll_register(fxp_poll, ifp)) {
 		/* disable interrupts */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
-		fxp_poll(ifp, 0, 1);
 		FXP_UNLOCK(sc);
+		fxp_poll(ifp, 0, 1);
 		return;
 	}
 #endif
