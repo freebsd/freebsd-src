@@ -7,6 +7,9 @@ CLEANFILES=		softcore.c testmain testmain.o
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=		-mno-fp-regs
 .endif
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+=		-mpreferred-stack-boundary=2
+.endif
 .ifmake testmain
 CFLAGS+=			-DTESTMAIN -D_TESTMAIN
 SRCS+=				testmain.c
