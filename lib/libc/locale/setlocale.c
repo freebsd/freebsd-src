@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <rune.h>
@@ -91,6 +92,7 @@ static char saved_categories[_LC_LAST][ENCODING_LEN + 1];
 static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
 static char	*currentlocale(void);
+static int      wrap_setrunelocale(char *);
 static char	*loadlocale(int);
 
 char *
@@ -101,8 +103,10 @@ setlocale(category, locale)
 	int i, j, len;
 	char *env, *r;
 
-	if (category < LC_ALL || category >= _LC_LAST)
+	if (category < LC_ALL || category >= _LC_LAST) {
+		errno = EINVAL;
 		return (NULL);
+	}
 
 	if (!locale)
 		return (category != LC_ALL ?
@@ -126,7 +130,7 @@ setlocale(category, locale)
 		if (!env || !*env)
 			env = getenv("LANG");
 
-		if (!env || !*env || strchr(env, '/'))
+		if (!env || !*env)
 			env = "C";
 
 		(void)strlcpy(new_categories[category], env, ENCODING_LEN + 1);
@@ -134,33 +138,42 @@ setlocale(category, locale)
 			for (i = 1; i < _LC_LAST; ++i) {
 				if (!(env = getenv(categories[i])) || !*env)
 					env = new_categories[LC_ALL];
-				(void)strlcpy(new_categories[i], env, ENCODING_LEN + 1);
+				(void)strlcpy(new_categories[i], env,
+					      ENCODING_LEN + 1);
 			}
 		}
 	} else if (category != LC_ALL)
-		(void)strlcpy(new_categories[category], locale, ENCODING_LEN + 1);
+		(void)strlcpy(new_categories[category], locale,
+			      ENCODING_LEN + 1);
 	else {
 		if ((r = strchr(locale, '/')) == NULL) {
 			for (i = 1; i < _LC_LAST; ++i)
-				(void)strlcpy(new_categories[i], locale, ENCODING_LEN + 1);
+				(void)strlcpy(new_categories[i], locale,
+					      ENCODING_LEN + 1);
 		} else {
-			for (i = 1; r[1] == '/'; ++r);
-			if (!r[1])
+			for (i = 1; r[1] == '/'; ++r)
+				;
+			if (!r[1]) {
+				errno = EINVAL;
 				return (NULL);	/* Hmm, just slashes... */
+			}
 			do {
 				if (i == _LC_LAST)
 					break;  /* Too many slashes... */
-				len = r - locale > ENCODING_LEN ? ENCODING_LEN : r - locale;
-				(void)strlcpy(new_categories[i], locale, len + 1);
+				len = r - locale > ENCODING_LEN ?
+				      ENCODING_LEN : r - locale;
+				(void)strlcpy(new_categories[i], locale,
+					      len + 1);
 				i++;
 				locale = r;
 				while (*locale == '/')
-				    ++locale;
-				while (*++r && *r != '/');
+					++locale;
+				while (*++r && *r != '/')
+					;
 			} while (*locale);
 			while (i < _LC_LAST) {
 				(void)strcpy(new_categories[i],
-				    new_categories[i-1]);
+					     new_categories[i-1]);
 				i++;
 			}
 		}
@@ -172,12 +185,14 @@ setlocale(category, locale)
 	for (i = 1; i < _LC_LAST; ++i) {
 		(void)strcpy(saved_categories[i], current_categories[i]);
 		if (loadlocale(i) == NULL) {
+			int saverr = errno;
+
 			for (j = 1; j < i; j++) {
 				(void)strcpy(new_categories[j],
-				     saved_categories[j]);
-				/* XXX can fail too */
+					     saved_categories[j]);
 				(void)loadlocale(j);
 			}
+			errno = saverr;
 			return (NULL);
 		}
 	}
@@ -194,12 +209,27 @@ currentlocale()
 	for (i = 2; i < _LC_LAST; ++i)
 		if (strcmp(current_categories[1], current_categories[i])) {
 			for (i = 2; i < _LC_LAST; ++i) {
-				(void) strcat(current_locale_string, "/");
-				(void) strcat(current_locale_string, current_categories[i]);
+				(void)strcat(current_locale_string, "/");
+				(void)strcat(current_locale_string,
+					     current_categories[i]);
 			}
 			break;
 		}
 	return (current_locale_string);
+}
+
+
+static int
+wrap_setrunelocale(locale)
+	char *locale;
+{
+	int ret = setrunelocale(locale);
+
+	if (ret != 0) {
+		errno = ret;
+		return (-1);
+	}
+	return (0);
 }
 
 static char *
@@ -210,6 +240,13 @@ loadlocale(category)
 	char *new = new_categories[category];
 	char *old = current_categories[category];
 
+	if ((new[0] == '.' &&
+	     (new[1] == '\0' || (new[1] == '.' && new[2] == '\0'))) ||
+	    strchr(new, '/') != NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
 	if (_PathLocale == NULL) {
 		char *p = getenv("PATH_LOCALE");
 
@@ -219,8 +256,10 @@ loadlocale(category)
 #endif
 			) {
 			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
-			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
+			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX) {
+				errno = ENAMETOOLONG;
 				return (NULL);
+			}
 			_PathLocale = strdup(p);
 			if (_PathLocale == NULL)
 				return (NULL);
@@ -228,35 +267,41 @@ loadlocale(category)
 			_PathLocale = _PATH_LOCALE;
 	}
 
-	if (strcmp(new, old) == 0)
-		return (old);
-
-	if (category == LC_CTYPE) {
-		ret = setrunelocale(new) ? NULL : new;
-		if (!ret)
-			(void)setrunelocale(old);
-		else
-			(void)strcpy(old, new);
-		return (ret);
+#define LOAD_CATEGORY(FUNC)                                   \
+	{                                                     \
+		if (strcmp(new, old) == 0)                    \
+			return (old);                         \
+		ret = FUNC(new) != 0 ? NULL : new;            \
+		if (ret == NULL) {                            \
+			if (FUNC(old) != 0 && FUNC("C") == 0) \
+				(void)strcpy(old, "C");       \
+		} else                                        \
+			(void)strcpy(old, new);               \
+		return (ret);                                 \
 	}
 
-#define LOAD_CATEGORY(CAT, FUNC)			\
-	if (category == CAT) {				\
-		ret = (FUNC(new) < 0) ? NULL : new;	\
-		if (!ret)				\
-			(void)FUNC(old);		\
-		else					\
-			(void)strcpy(old, new);		\
-		return (ret);				\
+	switch (category) {
+	case LC_CTYPE:
+		LOAD_CATEGORY(wrap_setrunelocale);
+		/* NOTREACHED */
+	case LC_COLLATE:
+		LOAD_CATEGORY(__collate_load_tables);
+		/* NOTREACHED */
+	case LC_TIME:
+		LOAD_CATEGORY(__time_load_locale);
+		/* NOTREACHED */
+	case LC_NUMERIC:
+		LOAD_CATEGORY(__numeric_load_locale);
+		/* NOTREACHED */
+	case LC_MONETARY:
+		LOAD_CATEGORY(__monetary_load_locale);
+		/* NOTREACHED */
+	case LC_MESSAGES:
+		LOAD_CATEGORY(__messages_load_locale);
+		/* NOTREACHED */
+	default:
+		errno = EINVAL;
+		return (NULL);
 	}
-
-	LOAD_CATEGORY(LC_COLLATE, __collate_load_tables);
-	LOAD_CATEGORY(LC_TIME, __time_load_locale);
-	LOAD_CATEGORY(LC_NUMERIC, __numeric_load_locale);
-	LOAD_CATEGORY(LC_MONETARY, __monetary_load_locale);
-	LOAD_CATEGORY(LC_MESSAGES, __messages_load_locale);
-
-	/* Just in case...*/
-	return (NULL);
 }
 
