@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.2 1995/05/28 03:05:00 jkh Exp $
+ * $Id: network.c,v 1.3 1995/05/28 09:31:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -139,7 +139,7 @@ configRoutedFlags(char *str)
 static Boolean
 startPPP(Device *devp)
 {
-    int fd;
+    int fd, fd2;
     FILE *fp;
     char *val;
     char myaddr[16], provider[16];
@@ -150,8 +150,16 @@ startPPP(Device *devp)
     Mkdir("/var/log", NULL);
     Mkdir("/var/spool/lock", NULL);
     Mkdir("/etc/ppp", NULL);
-    vsystem("touch /etc/ppp/ppp.linkup; chmod +x /etc/ppp/ppp.linkup");
-    vsystem("touch /etc/ppp/ppp.secret; chmod +x /etc/ppp/ppp.secret");
+    fd2 = open("/etc/ppp/ppp.linkup", O_CREAT);
+    if (fd2 != -1) {
+	fchmod(fd2, 0755);
+	close(fd2);
+    }
+    fd2 = open("/etc/ppp/ppp.secret", O_CREAT);
+    if (fd2 != -1) {
+	fchmod(fd2, 0755);
+	close(fd2);
+    }
     fp = fopen("/etc/ppp/ppp.conf", "w");
     if (!fp) {
 	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
