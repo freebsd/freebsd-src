@@ -762,9 +762,6 @@ ich_pci_suspend(device_t dev)
 			ichchan_trigger(0, &sc->ch[i], PCMTRIG_ABORT);
 		}
 	}
-
-	/* ACLINK shut off */
-	ich_wr(sc,ICH_REG_GLOB_CNT, ICH_GLOB_CTL_SHUT, 4);
 	return 0;
 }
 
