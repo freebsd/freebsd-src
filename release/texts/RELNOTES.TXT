@@ -82,6 +82,8 @@ ethernet adapters.
 Driver support has been added for Adaptec Duralink PCI ethernet adapters
 based on the Adaptec AIC-6915 fast ethernet controller.
 
+Driver support for M-systems DiskOnChip products integrated.
+
 1.2. SECURITY FIXES
 -------------------
 
