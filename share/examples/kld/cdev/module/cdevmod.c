@@ -82,6 +82,7 @@
 #endif
 
 static struct cdevsw my_devsw = {
+	/* version */	.d_version = D_VERSION,
 	/* open */	.d_open = mydev_open,
 	/* close */	.d_close = mydev_close,
 	/* read */	.d_read = mydev_read,
@@ -96,7 +97,7 @@ static struct cdevsw my_devsw = {
  * in devfs... we must keep this variable sane until we 
  * call kldunload.
  */
-static dev_t sdev;
+static struct cdev *sdev;
 
 /*
  * This function is called each time the module is loaded or unloaded.
