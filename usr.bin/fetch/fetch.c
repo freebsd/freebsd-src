@@ -125,7 +125,7 @@ stat_display(struct xferstat *xs, int force)
 	fprintf(stderr, ": %lld bytes", xs->rcvd);
     else
 	fprintf(stderr, " (%lld bytes): %d%%", xs->size,
-		(int)((100.0 * (xs->rcvd + xs->offset)) / xs->size));
+		(int)((100.0 * xs->rcvd) / xs->size));
 }
 
 void
@@ -137,7 +137,7 @@ stat_start(struct xferstat *xs, char *name, off_t size, off_t offset)
     xs->end = xs->last;
     xs->size = size;
     xs->offset = offset;
-    xs->rcvd = 0;
+    xs->rcvd = offset;
     stat_display(xs, 1);
 }
 
