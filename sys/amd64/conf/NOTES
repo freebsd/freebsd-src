@@ -468,7 +468,7 @@ options 	COMPAT_IA32
 # Enable Linux ABI emulation
 #XXX#options 	COMPAT_LINUX
 
-# Enable 32-bit Linux ABI emulation (requires COMPAT_43 and IA32)
+# Enable 32-bit Linux ABI emulation (requires COMPAT_43 and COMPAT_IA32)
 options 	COMPAT_LINUX32
 
 # Enable the linux-like proc filesystem support (requires COMPAT_LINUX32
