@@ -8,7 +8,6 @@
  * Added redirect stuff and a LOT of bug fixes. (mcn@EnGarde.com)
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.32 2001/01/10 06:19:11 darrenr Exp $";
 /*static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.16 2000/07/18 13:57:40 darrenr Exp $";*/
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
