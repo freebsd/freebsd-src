@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.137 1999/08/10 22:21:13 peter Exp $
+ *	$Id: vm_page.c,v 1.138 1999/08/11 05:12:00 alc Exp $
  */
 
 /*
@@ -1113,6 +1113,7 @@ vm_page_free_toq(vm_page_t m)
 	}
 
 	m->valid = 0;
+	vm_page_undirty(m);
 
 	if (m->wire_count != 0) {
 #if !defined(MAX_PERF)
