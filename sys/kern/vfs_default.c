@@ -130,6 +130,13 @@ vop_defaultop(struct vop_generic_args *ap)
 	return (VOCALL(default_vnodeop_p, ap->a_desc->vdesc_offset, ap));
 }
 
+int
+vop_panic(struct vop_generic_args *ap)
+{
+
+	panic("illegal vnode op called");
+}
+
 static int
 vop_nostrategy (struct vop_strategy_args *ap)
 {
