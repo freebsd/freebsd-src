@@ -674,12 +674,7 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	struct close_args /* {
 		int     fd;
 	} */ c_args;
-	struct fcntl_args /* {
-		int	fd;
-		int	cmd;
-		long	arg;
-	} */ f_args;
-	int error;
+	int error, fd;
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
 		return (error);
@@ -705,11 +700,9 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	 * accepted one, so we must clear the flags in the new descriptor.
 	 * Ignore any errors, because we already have an open fd.
 	 */
-	f_args.fd = td->td_retval[0];
-	f_args.cmd = F_SETFL;
-	f_args.arg = 0;
-	(void)fcntl(td, &f_args);
-	td->td_retval[0] = f_args.fd;
+	fd = td->td_retval[0];
+	(void)kern_fcntl(td, fd, F_SETFL, 0);
+	td->td_retval[0] = fd;
 	return (0);
 }
 

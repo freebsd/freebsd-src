@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -758,19 +759,14 @@ osf1_fcntl(td, uap)
 {
 	int error;
 	long tmp;
-	caddr_t oarg, sg;
-	struct fcntl_args a;
 	struct osf1_flock osf_flock;
 	struct flock bsd_flock;
-	struct flock *nflock;
 
 	error = 0;
 
 	switch (uap->cmd) {
 
 	case F_SETFL:
-		a.fd = uap->fd;
-		a.cmd = F_SETFL;
 		/* need to translate flags here */
 		tmp = 0;
 		if ((long)uap->arg & OSF1_FNONBLOCK)
@@ -791,8 +787,7 @@ osf1_fcntl(td, uap)
 			tmp |= FNDELAY;
 		if ((long)uap->arg & OSF1_FSYNC)
 			tmp |= FFSYNC;
-		a.arg = tmp;
-		error = fcntl(td, &a);
+		error = kern_fcntl(td, uap->fd, F_SETFL, tmp);
 		break;
 
 	case F_SETLK:
@@ -803,20 +798,15 @@ osf1_fcntl(td, uap)
 		 *  the BSD one, but all else is the same.  We must
 		 *  reorder the one we've gotten so that flock() groks it.
 		 */
-		if ((error = copyin(uap->arg, &osf_flock, sizeof(osf_flock))))
-			return error;
+		error = copyin(uap->arg, &osf_flock, sizeof(osf_flock));
+		if (error)
+			return (error);
 		bsd_flock.l_type = osf_flock.l_type;
 		bsd_flock.l_whence = osf_flock.l_whence;
 		bsd_flock.l_start = osf_flock.l_start;
 		bsd_flock.l_len = osf_flock.l_len;
 		bsd_flock.l_pid = osf_flock.l_pid;
-		sg = stackgap_init();
-		nflock = stackgap_alloc(&sg, sizeof(struct flock));
-		if ((error = copyout(&bsd_flock, nflock, sizeof(bsd_flock))) != 0)
-			return error;
-		oarg = uap->arg;
-		uap->arg = nflock;
-		error = fcntl(td, (struct fcntl_args *) uap);
+		error = kern_fcntl(td, uap->fd, uap->cmd, (intptr_t)&bsd_flock);
 /*		if (error) {
 			printf("fcntl called with cmd=%d, args=0x%lx\n returns %d\n",uap->cmd,(long)uap->arg,error);
 			printf("bsd_flock.l_type = 0x%x\n", bsd_flock.l_type);
@@ -827,14 +817,17 @@ osf1_fcntl(td, uap)
 		}
 */
 		if ((uap->cmd == F_GETLK) && !error) {
+			/*
+			 * XXX: Why are we hardcoding F_UNLCK here instead of
+			 * copying the structure members from bsd_flock?
+			 */
 			osf_flock.l_type = F_UNLCK;
-			if ((error = copyout(&osf_flock, oarg,
-			    sizeof(osf_flock))))
-				return error;
+			error = copyout(&osf_flock, uap->arg,
+			    sizeof(osf_flock));
 		}
 		break;
 	default:
-		error = fcntl(td, (struct fcntl_args *) uap);
+		error = kern_fcntl(td, uap->fd, uap->cmd, (intptr_t)uap->arg);
 
 		if ((uap->cmd == OSF1_F_GETFL) && !error ) {
 			tmp = td->td_retval[0] & O_ACCMODE;
