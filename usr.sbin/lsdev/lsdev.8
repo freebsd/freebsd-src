@@ -1,4 +1,4 @@
-.\" $Id: lsvfs.1,v 1.1 1994/09/22 01:25:56 wollman Exp $
+.\" $Id: lsdev.8,v 1.1.1.1 1994/10/17 23:26:10 wollman Exp $
 .\" Garrett A. Wollman, October 1994
 .\" This file is in the public domain.
 .\"
@@ -11,7 +11,7 @@
 .Sh SYNOPSIS
 .Nm lsdev
 .Op Fl t Ar type
-.Op Fl v
+.Op Fl cv
 .Op Ar class Ns Op unit
 .Sh DESCRIPTION
 The
@@ -25,7 +25,11 @@ of device;
 the types available vary from machine to machine.  (Specifying an
 invalid type will cause a list of valid types to be printed.)  The
 .Fl v
-flag requests more verbose output.  The optional
+flag requests more verbose output.  The
+.Fl c
+flag requests output in a format similar to the input of
+.Xr config 8 .
+The optional
 .Ar class
 argument requests information on a particular class of devices (e.g.,
 .Dq Li wdc
