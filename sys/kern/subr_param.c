@@ -98,33 +98,16 @@ int	nsfbufs;
 struct	buf *swbuf;
 
 /*
- * Boot time overrides
+ * Boot time overrides that are not scaled against main memory
  */
 void
-init_param(void)
+init_param1(void)
 {
-
-	/* Base parameters */
-	maxusers = MAXUSERS;
-	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
 	hz = HZ;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
 	tick = 1000000 / hz;
 	tickadj = howmany(30000, 60 * hz);	/* can adjust 30ms in 60s */
 
-	/* The following can be overridden after boot via sysctl */
-	maxproc = NPROC;
-	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
-	maxfiles = MAXFILES;
-	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
-	maxprocperuid = maxproc - 1;
-	maxfilesperproc = maxfiles;
-
-	/* Cannot be changed after boot */
-	nsfbufs = NSFBUFS;
-	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
-	nbuf = NBUF;
-	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
 #endif
@@ -133,8 +116,6 @@ init_param(void)
 	maxbcache = VM_BCACHE_SIZE_MAX;
 #endif
 	TUNABLE_INT_FETCH("kern.maxbcache", &maxbcache);
-	ncallout = 16 + maxproc + maxfiles;
-	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 
 	maxtsiz = MAXTSIZ;
 	TUNABLE_QUAD_FETCH("kern.maxtsiz", &maxtsiz);
@@ -149,3 +130,45 @@ init_param(void)
 	sgrowsiz = SGROWSIZ;
 	TUNABLE_QUAD_FETCH("kern.sgrowsiz", &sgrowsiz);
 }
+
+/*
+ * Boot time overrides that are scaled against main memory
+ */
+void
+init_param2(int physpages)
+{
+
+	/* Base parameters */
+	if ((maxusers = MAXUSERS) == 0) {
+		maxusers = physpages / (1024 * 1024 / PAGE_SIZE);
+		if (maxusers < 32)
+		    maxusers = 32;
+		if (maxusers > 512)
+		    maxusers = 512;
+	}
+	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
+
+	/*
+	 * The following can be overridden after boot via sysctl.  Note:
+	 * unless overriden, these macros are ultimately based on maxusers.
+	 */
+	maxproc = NPROC;
+	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
+	maxfiles = MAXFILES;
+	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
+	maxprocperuid = maxproc - 1;
+	maxfilesperproc = maxfiles;
+
+	/*
+	 * Cannot be changed after boot.  Unless overriden, NSFBUFS is based
+	 * on maxusers and NBUF is typically 0 (auto-sized later).
+	 */
+	nsfbufs = NSFBUFS;
+	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
+	nbuf = NBUF;
+	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
+
+	ncallout = 16 + maxproc + maxfiles;
+	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
+}
+

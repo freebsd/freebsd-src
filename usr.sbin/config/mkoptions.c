@@ -93,8 +93,8 @@ options()
 	} else
 		up = &users[machine - 1];
 	if (maxusers == 0) {
-		printf("maxusers not specified; %d assumed\n", up->u_default);
-		maxusers = up->u_default;
+		/* printf("maxusers not specified; will auto-size\n"); */
+		/* maxusers = 0; */
 	} else if (maxusers < up->u_min) {
 		printf("minimum of %d maxusers assumed\n", up->u_min);
 		maxusers = up->u_min;
