@@ -115,7 +115,7 @@ tty_Timeout(void *data)
     if (Online(dev))
       log_Printf(LogPHASE, "%s: %s: CD detected\n", p->link.name, p->name.full);
     else if (++dev->carrier_seconds >= p->cfg.cd.delay) {
-      if (p->cfg.cd.required)
+      if (p->cfg.cd.necessity == CD_REQUIRED)
         log_Printf(LogPHASE, "%s: %s: Required CD not detected\n",
                    p->link.name, p->name.full);
       else {
@@ -169,7 +169,7 @@ tty_AwaitCarrier(struct physical *p)
 {
   struct ttydevice *dev = device2tty(p->handler);
 
-  if (physical_IsSync(p))
+  if (p->cfg.cd.necessity == CD_NOTREQUIRED || physical_IsSync(p))
     return CARRIER_OK;
 
   if (dev->mbits == -1) {
@@ -180,7 +180,8 @@ tty_AwaitCarrier(struct physical *p)
     return CARRIER_PENDING;			/* Not yet ! */
   }
 
-  return Online(dev) || !p->cfg.cd.required ? CARRIER_OK : CARRIER_LOST;
+  return Online(dev) || !p->cfg.cd.necessity == CD_REQUIRED ?
+    CARRIER_OK : CARRIER_LOST;
 }
 
 static int

@@ -1757,14 +1757,18 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_CD:
     if (*argp) {
-      long_val = atol(argp);
-      if (long_val < 0)
-        long_val = 0;
-      cx->physical->cfg.cd.delay = long_val;
-      cx->physical->cfg.cd.required = argp[strlen(argp)-1] == '!';
+      if (strcasecmp(argp, "off")) {
+        long_val = atol(argp);
+        if (long_val < 0)
+          long_val = 0;
+        cx->physical->cfg.cd.delay = long_val;
+        cx->physical->cfg.cd.necessity = argp[strlen(argp)-1] == '!' ?
+          CD_REQUIRED : CD_VARIABLE;
+      } else
+        cx->physical->cfg.cd.necessity = CD_NOTREQUIRED;
     } else {
       cx->physical->cfg.cd.delay = DEF_CDDELAY;
-      cx->physical->cfg.cd.required = 0;
+      cx->physical->cfg.cd.necessity = CD_VARIABLE;
     }
     break;
 
