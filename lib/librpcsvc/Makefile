@@ -1,5 +1,5 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
-#	$Id: Makefile,v 1.4 1995/03/04 17:39:24 nate Exp $
+#	$Id: Makefile,v 1.5 1996/06/05 03:54:43 wpaul Exp $
 
 .PATH: ${DESTDIR}/usr/include/rpcsvc
 
@@ -24,13 +24,6 @@ NOMAN= noman
 .SUFFIXES: .x _xdr.c
 
 .x_xdr.c:
-	@${ECHO} generating ${.TARGET}...
-	@PWD=`pwd` ; cd ${.CURDIR} ; \
-		if cmp -s ${.IMPSRC} ${*F}.x > /dev/null 2>/dev/null; then \
-			true; \
-		else \
-			cp -f ${.IMPSRC} $$PWD/${*F}.x ; \
-		fi
-	@${RPCCOM} -c ${*F}.x -o ${.TARGET}
+	${RPCCOM} -c ${.IMPSRC} -o ${.TARGET}
 
 OBJS= ${RPCSRCS:R:S/$/_xdr.o/g}
