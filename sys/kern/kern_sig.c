@@ -921,12 +921,10 @@ again:
 	} else
 		hz = 0;
 
-	td->td_waitset = &waitset;
 	td->td_sigmask = savedmask;
 	SIGSETNAND(td->td_sigmask, waitset);
 	signotify(td);
 	error = msleep(&ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", hz);
-	td->td_waitset = NULL;
 	if (timeout) {
 		if (error == ERESTART) {
 			/* timeout can not be restarted. */
@@ -1577,28 +1575,17 @@ sigtd(struct proc *p, int sig, int prop)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	/*
-	 * First find a thread in sigwait state and signal belongs to
-	 * its wait set. POSIX's arguments is that speed of delivering signal
-	 * to sigwait thread is faster than delivering signal to user stack.
-	 * If we can not find sigwait thread, then find the first thread in
-	 * the proc that doesn't have this signal masked, an exception is
-	 * if current thread is sending signal to its process, and it does not
-	 * mask the signal, it should get the signal, this is another fast
-	 * way to deliver signal.
+	 * Check if current thread can handle the signal without
+	 * switching conetxt to another thread.
 	 */
+	if (curproc == p && !SIGISMEMBER(curthread->td_sigmask, sig))
+		return (curthread);
 	signal_td = NULL;
 	mtx_lock_spin(&sched_lock);
 	FOREACH_THREAD_IN_PROC(p, td) {
-		if (td->td_waitset != NULL &&
-		    SIGISMEMBER(*(td->td_waitset), sig)) {
-			mtx_unlock_spin(&sched_lock);
-			return (td);
-		}
 		if (!SIGISMEMBER(td->td_sigmask, sig)) {
-			if (td == curthread)
-				signal_td = curthread;
-			else if (signal_td == NULL)
-				signal_td = td;
+			signal_td = td;
+			break;
 		}
 	}
 	if (signal_td == NULL)
