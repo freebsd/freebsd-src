@@ -168,10 +168,10 @@ __tolower(_BSD_CT_RUNE_T_ _c)
 }
 
 static __inline int
-__maskrune(_BSD_RUNE_T_ c, unsigned long f)
+__maskrune(_BSD_CT_RUNE_T_ _c, unsigned long f)
 {
-	return(((c & _CRMASK)
-		? ___runetype(c) : _CurrentRuneLocale->runetype[c]) & f);
+	return(((_c & _CRMASK)
+		? ___runetype(_c) : _CurrentRuneLocale->runetype[_c]) & f);
 }
 
 #else /* not using inlines */
