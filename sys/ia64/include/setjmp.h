@@ -88,11 +88,10 @@
 #define	J_B5		0x1d0
 #define	J_SIGMASK	0x1d8
 #define	J_SIGSET	0x1e0
-#define	J_GP		0x1f0
 #endif /* __BSD_VISIBLE */
 
 /*
- * We have 8 bytes left for future use, but it's a nice round,
+ * We only have 16 bytes left for future use, but it's a nice round,
  * but above all large number. Size is in bytes.
  */
 #define	_JMPBUFSZ	0x200
