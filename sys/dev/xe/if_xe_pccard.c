@@ -213,6 +213,8 @@ xe_pccard_probe(device_t dev)
 	 */
 	pccard_get_vendor(dev, &vendor);
 	vendor_itm = xe_vendor_lookup(vendor, &xe_vendor_devs[0]);
+	if (vendor_itm == NULL)
+		return (ENODEV);
 	scp->vendor = vendor_itm->vendor_desc;
 	pccard_get_product(dev, &prodid);
 	pccard_get_prodext(dev, &prodext);
@@ -222,21 +224,19 @@ xe_pccard_probe(device_t dev)
 	 */
 	prod = (prodid << 8) | prodext;
 	card_itm = xe_card_type_lookup(prod, &xe_card_type_devs[0]);
-	if(!card_itm)
+	if (card_itm == NULL)
 		return (ENODEV);
-	else {
-		scp->card_type = card_itm->card_type_desc;
-		if (card_itm->prod_type & XE_PROD_MODEM_UMASK)
-			scp->modem = 1;
-		for(i=1; i!=XE_CARD_TYPE_FLAGS_DINGO; i=i<<1) {
-			switch(i & card_itm->flags) {
-			case XE_CARD_TYPE_FLAGS_CE2:
-				scp->ce2 = 1; break;
-			case XE_CARD_TYPE_FLAGS_MOHAWK:
-				scp->mohawk = 1; break;
-			case XE_CARD_TYPE_FLAGS_DINGO:
-				scp->dingo = 1; break;
-			}
+	scp->card_type = card_itm->card_type_desc;
+	if (card_itm->prod_type & XE_PROD_MODEM_UMASK)
+		scp->modem = 1;
+	for(i=1; i!=XE_CARD_TYPE_FLAGS_DINGO; i=i<<1) {
+		switch(i & card_itm->flags) {
+		case XE_CARD_TYPE_FLAGS_CE2:
+			scp->ce2 = 1; break;
+		case XE_CARD_TYPE_FLAGS_MOHAWK:
+			scp->mohawk = 1; break;
+		case XE_CARD_TYPE_FLAGS_DINGO:
+			scp->dingo = 1; break;
 		}
 	}
 	/*
@@ -307,6 +307,7 @@ xe_pccard_detach(device_t dev)
 }
 
 static const struct pccard_product xe_pccard_products[] = {
+	PCMCIA_CARD(COMPAQ2, CPQ_10_100, 0),
 	PCMCIA_CARD(XIRCOM, CE, 0),
 	PCMCIA_CARD(XIRCOM, CE2, 0),
 	PCMCIA_CARD(XIRCOM, CE3, 0),
