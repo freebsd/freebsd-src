@@ -54,6 +54,7 @@ vsnprintf(str, n, fmt, ap)
 {
 	size_t on;
 	int ret;
+	char dummy;
 	FILE f;
 
 	on = n;
@@ -61,6 +62,11 @@ vsnprintf(str, n, fmt, ap)
 		n--;
 	if (n > INT_MAX)
 		n = INT_MAX;
+	/* Stdio internals do not deal correctly with zero length buffer */
+	if (n == 0) {
+                str = &dummy;
+                n = 1;
+	}
 	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
