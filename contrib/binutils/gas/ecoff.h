@@ -1,5 +1,5 @@
 /* ecoff.h -- header file for ECOFF debugging support
-   Copyright (C) 1993, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94, 95, 96, 1997 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Put together by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -102,10 +102,6 @@ extern int ecoff_no_current_file PARAMS ((void));
 /* This routine is called from read.c to generate line number for .s
    file.  */
 extern void ecoff_generate_asm_lineno PARAMS ((const char *, int));
-
-/* This routine is called from read.c to generate line number stabs
-   for .s file.  */
-extern void ecoff_generate_asm_line_stab PARAMS ((char *, int));
 
 #endif /* ! GAS_ECOFF_H */
 #endif /* ECOFF_DEBUGGING */

@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifdef ARCH_all
 #define ARCH_a29k
 #define ARCH_alpha
+#define ARCH_arc
 #define ARCH_arm
 #define ARCH_d10v
 #define ARCH_h8300
@@ -39,9 +40,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ARCH_rs6000
 #define ARCH_sh
 #define ARCH_sparc
+#define ARCH_tic30
+#define ARCH_v850
 #define ARCH_w65
 #define ARCH_z8k
 #endif
+
 
 disassembler_ftype
 disassembler (abfd)
@@ -64,6 +68,14 @@ disassembler (abfd)
     case bfd_arch_alpha:
       disassemble = print_insn_alpha;
       break;
+#endif
+#ifdef ARCH_arc
+    case bfd_arch_arc:
+      {
+	disassemble = arc_get_disassembler (bfd_get_mach (abfd),
+					    bfd_big_endian (abfd));
+	break;
+      }
 #endif
 #ifdef ARCH_arm
     case bfd_arch_arm:
@@ -172,6 +184,16 @@ disassembler (abfd)
       disassemble = print_insn_sparc;
       break;
 #endif
+#ifdef ARCH_tic30
+    case bfd_arch_tic30:
+      disassemble = print_insn_tic30;
+      break;
+#endif
+#ifdef ARCH_v850
+    case bfd_arch_v850:
+      disassemble = print_insn_v850;
+      break;
+#endif
 #ifdef ARCH_w65
     case bfd_arch_w65:
       disassemble = print_insn_w65;
@@ -190,3 +212,4 @@ disassembler (abfd)
     }
   return disassemble;
 }
+

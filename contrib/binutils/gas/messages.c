@@ -1,5 +1,5 @@
 /* messages.c - error reporter -
-   Copyright (C) 1987, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1987, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -241,7 +241,7 @@ void
 as_warn (const char *format,...)
 {
   va_list args;
-  char buffer[200];
+  char buffer[2000];
 
   if (!flag_no_warnings)
     {
@@ -259,7 +259,7 @@ as_warn (format, va_alist)
      va_dcl
 {
   va_list args;
-  char buffer[200];
+  char buffer[2000];
 
   if (!flag_no_warnings)
     {
@@ -280,7 +280,7 @@ void
 as_warn_where (char *file, unsigned int line, const char *format,...)
 {
   va_list args;
-  char buffer[200];
+  char buffer[2000];
 
   if (!flag_no_warnings)
     {
@@ -300,7 +300,7 @@ as_warn_where (file, line, format, va_alist)
      va_dcl
 {
   va_list args;
-  char buffer[200];
+  char buffer[2000];
 
   if (!flag_no_warnings)
     {
@@ -350,7 +350,7 @@ void
 as_bad (const char *format,...)
 {
   va_list args;
-  char buffer[200];
+  char buffer[2000];
 
   va_start (args, format);
   vsprintf (buffer, format, args);
@@ -367,7 +367,7 @@ as_bad (format, va_alist)
      va_dcl
 {
   va_list args;
-  char buffer[200];
+  char buffer[2000];
 
   va_start (args);
   vsprintf (buffer, format, args);
@@ -386,7 +386,7 @@ void
 as_bad_where (char *file, unsigned int line, const char *format,...)
 {
   va_list args;
-  char buffer[200];
+  char buffer[2000];
 
   va_start (args, format);
   vsprintf (buffer, format, args);
@@ -405,7 +405,7 @@ as_bad_where (file, line, format, va_alist)
      va_dcl
 {
   va_list args;
-  char buffer[200];
+  char buffer[2000];
 
   va_start (args);
   vsprintf (buffer, format, args);

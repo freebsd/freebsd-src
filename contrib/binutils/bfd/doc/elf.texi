@@ -6,7 +6,7 @@ Currently, the best supported back ends are for sparc and i386
 Documentation of the internals of the support code still needs
 to be written.  The code is changing quickly enough that we
 haven't bothered yet.
-@*
+
 @findex bfd_elf_find_section
 @subsubsection @code{bfd_elf_find_section}
 @strong{Synopsis}
@@ -19,4 +19,4 @@ Since BFD hides string tables from callers, GDB needs to use an
 internal hook to find them.  Sun's .stabstr, in particular,
 isn't even pointed to by the .stab section, so ordinary
 mechanisms wouldn't work to find it, even if we had some.
-@*
+

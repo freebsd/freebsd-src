@@ -1,3 +1,31 @@
+Fri Mar 27 17:16:57 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h (ISPTR, ISFCN, ISARY): Add casts to unsigned long.
+
+Mon Feb  2 17:10:38 1998  Steve Haworth  <steve@pm.cse.rmit.EDU.AU>
+
+	* tic30.h: New file.
+
+Tue Dec  2 10:21:40 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* arm.h (COFFARM): New define.
+
+Sat Nov 22 15:10:14 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* internal.h (C_THUMBEXTFUNC, C_THUMBSTATFUNC): Constants to
+	define static and external functions.
+
+	* arm.h: Add bits to support PIC and APCS-FLOAT type binaries,
+	when implemented.
+
+Tue Jul 22 18:18:58 1997  Robert Hoehne <robert.hoehne@Mathematik.TU-Chemnitz.DE>
+
+	* go32exe.h: New file.
+
+Tue Jun  3 16:44:18 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* internal.h: Add storage classes for Thumb symbols
+
 Fri Apr 18 11:52:55 1997  Niklas Hallqvist  <niklas@appli.se>
 
 	* alpha.h (ALPHA_ECOFF_BADMAG): Recognize *BSD/alpha magic too.

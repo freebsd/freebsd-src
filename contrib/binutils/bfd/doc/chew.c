@@ -1,5 +1,6 @@
 /* chew
-   Copyright (C) 1990-1991 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1998
+   Free Software Foundation, Inc.
    Contributed by steve chamberlain @cygnus
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -118,7 +119,6 @@ static void overwrite_string (string_type *, string_type *);
 static void catbuf (string_type *, char *, unsigned int);
 static void cattext (string_type *, char *);
 static void catstr (string_type *, string_type *);
-static unsigned int skip_white_and_starts (string_type *, unsigned int);
 #endif
 
 
@@ -248,7 +248,7 @@ DEFUN(skip_white_and_stars,(src, idx),
 {
   char c;
   while ((c = at(src,idx)),
-	 isspace (c)
+	 isspace ((unsigned char) c)
 	 || (c == '*'
 	     /* Don't skip past end-of-comment or star as first
 		character on its line.  */
@@ -323,7 +323,7 @@ static void remchar (void), strip_trailing_newlines (void), push_number (void);
 static void push_text (void);
 static void remove_noncomments (string_type *, string_type *);
 static void print_stack_level (void);
-static void paramstuff (void), translatecomments (void), manglecomments (void);
+static void paramstuff (void), translatecomments (void);
 static void outputdots (void), courierize (void), bulletize (void);
 static void do_fancy_stuff (void);
 static int iscommand (string_type *, unsigned int);
@@ -379,7 +379,7 @@ WORD(remchar)
 static void
 strip_trailing_newlines ()
 {
-  while ((isspace (at (tos, tos->write_idx - 1))
+  while ((isspace ((unsigned char) at (tos, tos->write_idx - 1))
 	  || at (tos, tos->write_idx - 1) == '\n')
 	 && tos->write_idx > 0)
     tos->write_idx--;
@@ -503,9 +503,11 @@ DEFUN_VOID(paramstuff)
 	fname = openp;
 	/* Step back to the fname */
 	fname--;
-	while (fname && isspace(at(tos, fname)))
+	while (fname && isspace((unsigned char) at(tos, fname)))
 	 fname --;
-	while (fname && !isspace(at(tos,fname)) && at(tos,fname) != '*')
+	while (fname
+	       && !isspace((unsigned char) at(tos,fname))
+	       && at(tos,fname) != '*')
 	 fname--;
 
 	fname++;
@@ -573,6 +575,10 @@ WORD(translatecomments)
     
 }
 
+#if 0
+
+/* This is not currently used.  */
+
 /* turn everything not starting with a . into a comment */
 
 WORD(manglecomments)
@@ -607,6 +613,8 @@ WORD(manglecomments)
     
 }
 
+#endif
+
 /* Mod tos so that only lines with leading dots remain */
 static void
 DEFUN_VOID(outputdots)
@@ -619,7 +627,7 @@ DEFUN_VOID(outputdots)
     {
 	if (at(tos, idx) == '\n' && at(tos, idx+1) == '.') 
 	{
-	  char c, c2;
+	  char c;
 	  idx += 2;
 	    
 	    while ((c = at(tos, idx)) && c != '\n')
@@ -699,7 +707,8 @@ WORD(courierize)
 		    {
 			if (at(tos,idx) == '@')
 			    command = 1;
-			else if (isspace(at(tos,idx)) || at(tos,idx) == '}')
+			else if (isspace((unsigned char) at(tos,idx))
+				 || at(tos,idx) == '}')
 			    command = 0;
 			catchar(&out, at(tos, idx));
 			idx++;
@@ -709,8 +718,9 @@ WORD(courierize)
 		catchar(&out,'\n');
 	    }  
 	    while (at(tos, idx) == '\n' 
-		   && (at(tos, idx+1) == '.')
-		   || (at(tos,idx+1) == '|'));
+		   && ((at(tos, idx+1) == '.')
+		       || (at(tos,idx+1) == '|')))
+	      ;
 	    cattext(&out,"@end example");
 	}
 	else 
@@ -746,10 +756,10 @@ WORD(bulletize)
 	  idx+=2;
 	}
 	
-else
+	else
 	    if (at(tos, idx) == '\n' &&
 		at(tos, idx+1) == 'o' &&
-		isspace(at(tos, idx +2)))
+		isspace((unsigned char) at(tos, idx +2)))
 	    {
 		if (!on) 
 		{
@@ -797,7 +807,7 @@ WORD(do_fancy_stuff)
     {
 	if (at(tos, idx) == '<' 
 	    && at(tos, idx+1) == '<'
-	    && !isspace(at(tos,idx + 2))) 
+	    && !isspace((unsigned char) at(tos,idx + 2))) 
 	{
 	    /* This qualifies as a << startup */
 	    idx +=2;
@@ -831,7 +841,7 @@ DEFUN( iscommand,(ptr, idx),
 {
     unsigned int len = 0;
     while (at(ptr,idx)) {
-	    if (isupper(at(ptr,idx)) || at(ptr,idx) == ' ' ||
+	    if (isupper((unsigned char) at(ptr,idx)) || at(ptr,idx) == ' ' ||
 		at(ptr,idx) == '_') 
 	    {
 	     len++;
@@ -849,14 +859,29 @@ DEFUN( iscommand,(ptr, idx),
 }
 
 
+static int
 DEFUN(copy_past_newline,(ptr, idx, dst),
       string_type *ptr AND
       unsigned int idx AND
       string_type *dst)
 {
+    int column = 0;
+
     while (at(ptr, idx) && at(ptr, idx) != '\n') 
     {
-	catchar(dst, at(ptr, idx));
+	if (at (ptr, idx) == '\t')
+	  {
+	    /* Expand tabs.  Neither makeinfo nor TeX can cope well with
+	       them.  */
+	    do
+	      catchar (dst, ' ');
+	    while (++column & 7);
+	  }
+	else
+	  {
+	    catchar(dst, at(ptr, idx));
+	    column++;
+	  }
 	idx++;
 	
     }    
@@ -883,7 +908,6 @@ WORD(kill_bogus_lines)
 {
     int sl ;
     
-    int nl = 0;
     int idx = 0;
     int c;
     int dot = 0    ;
@@ -897,6 +921,11 @@ WORD(kill_bogus_lines)
     }
     c = idx;
     
+    /* If the first char is a '.' prepend a newline so that it is
+       recognized properly later.  */
+    if (at (tos, idx) == '.')
+      catchar (&out, '\n');
+
     /* Find the last char */
     while (at(tos,idx))
     {
@@ -906,7 +935,7 @@ WORD(kill_bogus_lines)
     /* find the last non white before the nl */
     idx--;
     
-    while (idx && isspace(at(tos,idx)))
+    while (idx && isspace((unsigned char) at(tos,idx)))
      idx--;
     idx++;
     
@@ -972,7 +1001,7 @@ WORD(indent)
 	      case '\n':
 		cattext(&out,"\n");
 		idx++;
-		if (tab) 
+		if (tab && at(tos,idx))
 		{
 		    cattext(&out,"    ");
 		}
@@ -1107,7 +1136,7 @@ DEFUN(nextword,(string, word),
     
     int length = 0;
     
-    while (isspace(*string) || *string == '-') {
+    while (isspace((unsigned char) *string) || *string == '-') {
 	    if (*string == '-') 
 	    {
 		while (*string && *string != '\n') 
@@ -1137,7 +1166,7 @@ DEFUN(nextword,(string, word),
       }
     else     
       {
-	while (!isspace(*string)) 
+	while (!isspace((unsigned char) *string)) 
 	{
 	    string++;
 	    length++;
@@ -1210,9 +1239,6 @@ static void DEFUN_VOID(perform)
       /* It's worth looking through the command list */
       if (iscommand(ptr, idx))
       {
-	unsigned int i;
-	int found = 0;
-
 	char *next;
 	dict_type *word ;
 		
@@ -1305,8 +1331,6 @@ void
 DEFUN(compile, (string), 
       char *string)
 {
-    int jstack[STACK];
-    int *jptr = jstack;
     /* add words to the dictionary */
     char *word;
     string = nextword(string, &word);
@@ -1416,7 +1440,7 @@ WORD(print)
   else if (*isp == 2)
     write_buffer (tos, stderr);
   else
-    fprintf (stderr, "print: illegal print destination `%d'\n", *isp);
+    fprintf (stderr, "print: illegal print destination `%ld'\n", *isp);
   isp--;
   tos--;
   icheck_range ();
@@ -1512,7 +1536,7 @@ char *av[])
 
   read_in(&buffer, stdin); 
   remove_noncomments(&buffer, ptr);
-  for (i= 1; i < ac; i++) 
+  for (i= 1; i < (unsigned int) ac; i++) 
   {
     if (av[i][0] == '-')
     {
@@ -1541,6 +1565,8 @@ char *av[])
       {
 	warning = 1;
       }
+      else
+	usage ();
     }
   }      
   write_buffer(stack+0, stdout);

@@ -1,5 +1,6 @@
 /* BFD back-end definitions used by all NetBSD targets.
-   Copyright (C) 1990, 91, 92, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91, 92, 94, 95, 96, 97 1998
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,8 +16,13 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-*/
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+USA.  */
+
+/* Check for our machine type (part of magic number). */
+#ifndef MACHTYPE_OK
+#define MACHTYPE_OK(m) ((m) == DEFAULT_MID || (m) == M_UNKNOWN)
+#endif
 
 /* This is the normal load address for executables. */
 #define TEXT_START_ADDR		TARGET_PAGE_SIZE
@@ -93,20 +99,8 @@ MY(write_object_contents) (abfd)
 
   /* Magic number, maestro, please!  */
   switch (bfd_get_arch(abfd)) {
-  case bfd_arch_m68k:
-    if (strcmp (abfd->xvec->name, "a.out-m68k4k-netbsd") == 0)
-      N_SET_MACHTYPE(*execp, M_68K4K_NETBSD);
-    else
-      N_SET_MACHTYPE(*execp, M_68K_NETBSD);
-    break;
-  case bfd_arch_sparc:
-    N_SET_MACHTYPE(*execp, M_SPARC_NETBSD);
-    break;
-  case bfd_arch_i386:
-    N_SET_MACHTYPE(*execp, M_386_NETBSD);
-    break;
-  case bfd_arch_ns32k:
-    N_SET_MACHTYPE(*execp, M_532_NETBSD);
+  case DEFAULT_ARCH:
+    N_SET_MACHTYPE(*execp, DEFAULT_MID);
     break;
   default:
     N_SET_MACHTYPE(*execp, M_UNKNOWN);

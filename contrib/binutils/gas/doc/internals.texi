@@ -8,7 +8,7 @@
 This chapter describes the internals of the assembler.  It is incomplete, but
 it may help a bit.
 
-This chapter was last modified on $Date: 1997/04/25 18:20:48 $.  It is not updated regularly, and it
+This chapter was last modified on $Date: 1998/02/06 03:42:57 $.  It is not updated regularly, and it
 may be out of date.
 
 @menu
@@ -469,11 +469,9 @@ This normally indicates the symbol to use when relaxing the frag according to
 @item fr_opcode
 Points to the lowest-addressed byte of the opcode, for use in relaxation.
 
-@item fr_pcrel_adjust
-@itemx fr_bsr
-These fields are only used in the NS32k configuration.  But since @code{struct
-frag} is defined before the CPU-specific header files are included, they must
-unconditionally be defined.
+@item tc_frag_data
+Target specific fragment data of type TC_FRAG_TYPE.
+Only present if @code{TC_FRAG_TYPE} is defined.
 
 @item fr_file
 @itemx fr_line
@@ -506,10 +504,25 @@ This indicates that ``broken word'' processing should be done (@pxref{Broken
 words}).  If broken word processing is not necessary on the target machine,
 this enumerator value will not be defined.
 
+@item rs_cfa
+This state is used to implement exception frame optimizations.  The
+@code{fr_symbol} is an expression symbol for the subtraction which may be
+relaxed.  The @code{fr_opcode} field holds the frag for the preceding command
+byte.  The @code{fr_offset} field holds the offset within that frag.  The
+@code{fr_subtype} field is used during relaxation to hold the current size of
+the frag.
+
 @item rs_fill
 The variable characters are to be repeated @code{fr_offset} times.  If
 @code{fr_offset} is 0, this frag has a length of @code{fr_fix}.  Most frags
 have this type.
+
+@item rs_leb128
+This state is used to implement the DWARF ``little endian base 128'' 
+variable length number format.  The @code{fr_symbol} is always an expression
+symbol, as constant expressions are emitted directly.  The @code{fr_offset}
+field is used during relaxation to hold the previous size of the number so
+that we can determine if the fragment changed size.
 
 @item rs_machine_dependent
 Displacement relaxation is to be done on this frag.  The target is indicated by
@@ -923,6 +936,21 @@ pseudo-op.
 @cindex TC_CONS_FIX_NEW
 You may define this macro to generate a fixup for a data allocation pseudo-op.
 
+@item TC_INIT_FIX_DATA (@var{fixp})
+@cindex TC_INIT_FIX_DATA
+A C statement to initialize the target specific fields of fixup @var{fixp}.
+These fields are defined with the @code{TC_FIX_TYPE} macro.
+
+@item TC_FIX_DATA_PRINT (@var{stream}, @var{fixp})
+@cindex TC_FIX_DATA_PRINT
+A C statement to output target specific debugging information for
+fixup @var{fixp} to @var{stream}.  This macro is called by @code{print_fixup}.
+
+@item TC_FRAG_INIT (@var{fragp})
+@cindex TC_FRAG_INIT
+A C statement to initialize the target specific fields of frag @var{fragp}.
+These fields are defined with the @code{TC_FRAG_TYPE} macro.
+
 @item md_number_to_chars
 @cindex md_number_to_chars
 This should just call either @code{number_to_chars_bigendian} or
@@ -1255,7 +1283,7 @@ the value to be stored is outside the range accessible by the current
 addressing mode.  The @code{fr_symbol} field of the frag indicates what symbol
 is to be accessed; the @code{fr_offset} field is added in.
 
-If the @code{fr_pcrel_adjust} field is set, which currently should only happen
+If the @code{TC_PCREL_ADJUST} macro is defined, which currently should only happen
 for the NS32k family, the @code{TC_PCREL_ADJUST} macro is called on the frag to
 compute an adjustment to be made to the displacement.
 

@@ -1,5 +1,5 @@
 /* write.c - emit .o file
-   Copyright (C) 1986, 87, 90, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1986, 87, 90, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -363,7 +363,7 @@ record_alignment (seg, align)
   if (seg == absolute_section)
     return;
 #ifdef BFD_ASSEMBLER
-  if (align > bfd_get_section_alignment (stdoutput, seg))
+  if ((unsigned int) align > bfd_get_section_alignment (stdoutput, seg))
     bfd_set_section_alignment (stdoutput, seg, align);
 #else
   if (align > section_alignment[(int) seg])
@@ -502,6 +502,26 @@ cvt_frag_to_fill (headersP, sec, fragP)
     case rs_fill:
       break;
 
+    case rs_leb128:
+      {
+	valueT value = S_GET_VALUE (fragP->fr_symbol);
+	int size;
+
+	size = output_leb128 (fragP->fr_literal + fragP->fr_fix, value,
+			      fragP->fr_subtype);
+
+	fragP->fr_fix += size;
+	fragP->fr_type = rs_fill;
+	fragP->fr_var = 0;
+	fragP->fr_offset = 0;
+	fragP->fr_symbol = NULL;
+      }
+      break;
+
+    case rs_cfa:
+      eh_frame_convert_frag (fragP);
+      break;
+
     case rs_machine_dependent:
 #ifdef BFD_ASSEMBLER
       md_convert_frag (stdoutput, sec, fragP);
@@ -509,7 +529,9 @@ cvt_frag_to_fill (headersP, sec, fragP)
       md_convert_frag (headersP, sec, fragP);
 #endif
 
-      assert (fragP->fr_next == NULL || (fragP->fr_next->fr_address - fragP->fr_address == fragP->fr_fix));
+      assert (fragP->fr_next == NULL
+	      || ((offsetT) (fragP->fr_next->fr_address - fragP->fr_address)
+		  == fragP->fr_fix));
 
       /*
        * After md_convert_frag, we make the frag into a ".space 0".
@@ -681,8 +703,6 @@ adjust_reloc_syms (abfd, sec, xxx)
 	symbolS *sym;
 	asection *symsec;
 
-      reduce_fixup:
-
 #ifdef DEBUG5
 	fprintf (stderr, "\n\nadjusting fixup:\n");
 	print_fixup (fixp);
@@ -695,9 +715,9 @@ adjust_reloc_syms (abfd, sec, xxx)
 	   symbols, though, since they are not in the regular symbol
 	   table.  */
 	if (sym != NULL && ! sym->sy_resolved)
-	  resolve_symbol_value (sym);
+	  resolve_symbol_value (sym, 1);
 	if (fixp->fx_subsy != NULL && ! fixp->fx_subsy->sy_resolved)
-	  resolve_symbol_value (fixp->fx_subsy);
+	  resolve_symbol_value (fixp->fx_subsy, 1);
 
 	/* If this symbol is equated to an undefined symbol, convert
            the fixup to being against that symbol.  */
@@ -1301,10 +1321,47 @@ set_symtab ()
 }
 #endif
 
+/* Finish the subsegments.  After every sub-segment, we fake an
+   ".align ...".  This conforms to BSD4.2 brane-damage.  We then fake
+   ".fill 0" because that is the kind of frag that requires least
+   thought.  ".align" frags like to have a following frag since that
+   makes calculating their intended length trivial.  */
+
+#ifndef SUB_SEGMENT_ALIGN
+#ifdef BFD_ASSEMBLER
+#define SUB_SEGMENT_ALIGN(SEG) (0)
+#else
+#define SUB_SEGMENT_ALIGN(SEG) (2)
+#endif
+#endif
+
+void
+subsegs_finish ()
+{
+  struct frchain *frchainP;
+
+  for (frchainP = frchain_root; frchainP; frchainP = frchainP->frch_next)
+    {
+      subseg_set (frchainP->frch_seg, frchainP->frch_subseg);
+      frag_align (SUB_SEGMENT_ALIGN (now_seg), NOP_OPCODE, 0);
+
+      /* frag_align will have left a new frag.
+	 Use this last frag for an empty ".fill".
+
+	 For this segment ...
+	 Create a last frag. Do not leave a "being filled in frag".  */
+
+      frag_wane (frag_now);
+      frag_now->fr_fix = 0;
+      know (frag_now->fr_next == NULL);
+    }
+}
+
+/* Write the object file.  */
+
 void
 write_object_file ()
 {
-  struct frchain *frchainP;	/* Track along all frchains. */
 #if ! defined (BFD_ASSEMBLER) || ! defined (WORKING_DOT_WORD)
   fragS *fragP;			/* Track along all frags. */
 #endif
@@ -1338,34 +1395,6 @@ write_object_file ()
      and if so -- fix it up so that it can be program entry point. */
   vms_check_for_main ();
 #endif /* OBJ_VMS */
-
-  /* After every sub-segment, we fake an ".align ...". This conforms to
-     BSD4.2 brane-damage. We then fake ".fill 0" because that is the kind of
-     frag that requires least thought. ".align" frags like to have a
-     following frag since that makes calculating their intended length
-     trivial.
-
-     @@ Is this really necessary??  */
-#ifndef SUB_SEGMENT_ALIGN
-#ifdef BFD_ASSEMBLER
-#define SUB_SEGMENT_ALIGN(SEG) (0)
-#else
-#define SUB_SEGMENT_ALIGN(SEG) (2)
-#endif
-#endif
-  for (frchainP = frchain_root; frchainP; frchainP = frchainP->frch_next)
-    {
-      subseg_set (frchainP->frch_seg, frchainP->frch_subseg);
-      frag_align (SUB_SEGMENT_ALIGN (now_seg), NOP_OPCODE, 0);
-      /* frag_align will have left a new frag.
-	 Use this last frag for an empty ".fill".
-
-	 For this segment ...
-	 Create a last frag. Do not leave a "being filled in frag".  */
-      frag_wane (frag_now);
-      frag_now->fr_fix = 0;
-      know (frag_now->fr_next == NULL);
-    }
 
   /* From now on, we don't care about sub-segments.  Build one frag chain
      for each segment. Linked thru fr_next.  */
@@ -1460,6 +1489,13 @@ write_object_file ()
 
   for (fragP = text_frag_root; fragP; fragP = fragP->fr_next)
     {
+      /* At this point we have linked all the frags into a single
+         chain.  However, cvt_frag_to_fill may call md_convert_frag
+         which may call fix_new.  We need to ensure that fix_new adds
+         the fixup to the right section.  */
+      if (fragP == data_frag_root)
+	subseg_change (SEG_DATA, 0);
+
       cvt_frag_to_fill (&headers, SEG_TEXT, fragP);
 
       /* Some assert macros don't work with # directives mixed in.  */
@@ -1704,7 +1740,7 @@ write_object_file ()
 
       for (symp = symbol_rootP; symp; symp = symbol_next (symp))
 	if (!symp->sy_resolved)
-	  resolve_symbol_value (symp);
+	  resolve_symbol_value (symp, 1);
     }
 
   PROGRESS (1);
@@ -1761,7 +1797,7 @@ write_object_file ()
 		  symp->sy_resolved = 1;
 		}
 	      else
-		resolve_symbol_value (symp);
+		resolve_symbol_value (symp, 1);
 	    }
 
 	  /* Skip symbols which were equated to undefined or common
@@ -2087,6 +2123,16 @@ relax_segment (segment_frag_root, segment)
 	  break;
 #endif
 
+	case rs_leb128:
+	  /* Initial guess is always 1; doing otherwise can result in 
+	     stable solutions that are larger than the minimum.  */
+	  address += fragP->fr_offset = 1;
+	  break;
+
+	case rs_cfa:
+	  address += eh_frame_estimate_size_before_relax (fragP);
+	  break;
+
 	default:
 	  BAD_CASE (fragP->fr_type);
 	  break;
@@ -2276,6 +2322,22 @@ relax_segment (segment_frag_root, segment)
 #endif
 		break;
 
+	      case rs_leb128:
+		{
+		  valueT value;
+		  int size;
+
+		  value = resolve_symbol_value (fragP->fr_symbol, 0);
+		  size = sizeof_leb128 (value, fragP->fr_subtype);
+		  growth = size - fragP->fr_offset;
+		  fragP->fr_offset = size;
+		}
+		break;
+
+	      case rs_cfa:
+		growth = eh_frame_relax_frag (fragP);
+		break;
+
 	      default:
 		BAD_CASE (fragP->fr_type);
 		break;
@@ -2383,7 +2445,7 @@ fixup_segment (fixP, this_segment_type)
 
       if (sub_symbolP)
 	{
-	  resolve_symbol_value (sub_symbolP);
+	  resolve_symbol_value (sub_symbolP, 1);
 	  if (add_symbolP == NULL || add_symbol_segment == absolute_section)
 	    {
 	      if (add_symbolP != NULL)
@@ -2581,9 +2643,11 @@ fixup_segment (fixP, this_segment_type)
 	      else
 		{
 		  seg_reloc_count++;
+#if !(defined (TC_V850) && defined (OBJ_ELF))
 #if !(defined (TC_M68K) && defined (OBJ_ELF))
-#if !defined (TC_I386) || !(defined (OBJ_ELF) || defined (OBJ_COFF))
+#if !defined (TC_I386) || !(defined (OBJ_ELF) || defined (OBJ_COFF)) || defined (TE_PE)
 		  add_number += S_GET_VALUE (add_symbolP);
+#endif
 #endif
 #endif
 		}
@@ -2607,7 +2671,7 @@ fixup_segment (fixP, this_segment_type)
 
       if (!fixP->fx_bit_fixP && !fixP->fx_no_overflow && size > 0)
 	{
-	  if (size < sizeof (valueT))
+	  if ((size_t) size < sizeof (valueT))
 	    {
 	      valueT mask, hibit;
 
@@ -2694,7 +2758,7 @@ number_to_chars_bigendian (buf, val, n)
      valueT val;
      int n;
 {
-  if (n > sizeof (val)|| n <= 0)
+  if ((size_t) n > sizeof (val) || n <= 0)
     abort ();
   while (n--)
     {
@@ -2709,7 +2773,7 @@ number_to_chars_littleendian (buf, val, n)
      valueT val;
      int n;
 {
-  if (n > sizeof (val) || n <= 0)
+  if ((size_t) n > sizeof (val) || n <= 0)
     abort ();
   while (n--)
     {
@@ -2774,6 +2838,9 @@ print_fixup (fixp)
       fprintf (stderr, ">");
     }
   fprintf (stderr, "\n");
+#ifdef TC_FIX_DATA_PRINT
+  TC_FIX_DATA_PRINT (stderr, fixp);
+#endif
 }
 
 /* end of write.c */

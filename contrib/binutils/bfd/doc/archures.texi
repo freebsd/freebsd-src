@@ -19,11 +19,11 @@ insert as many items into the list of architectures as it wants to;
 generally this would be one for each machine and one for the
 default case (an item with a machine field of 0). 
 
-BFD's idea of an architecture is implemented in	@file{archures.c}.
-@*
+BFD's idea of an architecture is implemented in @file{archures.c}.
+
 @subsection bfd_architecture
 
-@*
+
 @strong{Description}@*
 This enum gives the object file's CPU architecture, in a
 global sense---i.e., what processor family does it belong to?
@@ -38,6 +38,13 @@ enum bfd_architecture
   bfd_arch_unknown,    /* File arch not known */
   bfd_arch_obscure,    /* Arch known, not one of these */
   bfd_arch_m68k,       /* Motorola 68xxx */
+#define bfd_mach_m68000 1
+#define bfd_mach_m68008 2
+#define bfd_mach_m68010 3
+#define bfd_mach_m68020 4
+#define bfd_mach_m68030 5
+#define bfd_mach_m68040 6
+#define bfd_mach_m68060 7
   bfd_arch_vax,        /* DEC Vax */   
   bfd_arch_i960,       /* Intel 960 */
      /* The order of the following is important.
@@ -54,23 +61,37 @@ enum bfd_architecture
 #define bfd_mach_i960_mc        4
 #define bfd_mach_i960_xa        5
 #define bfd_mach_i960_ca        6
-#define bfd_mach_i960_jx	 7
+#define bfd_mach_i960_jx        7
 #define bfd_mach_i960_hx        8
 
   bfd_arch_a29k,       /* AMD 29000 */
   bfd_arch_sparc,      /* SPARC */
-#define bfd_mach_sparc			1
+#define bfd_mach_sparc                 1
  /* The difference between v8plus and v9 is that v9 is a true 64 bit env.  */
-#define bfd_mach_sparc_sparclet	2
-#define bfd_mach_sparc_sparclite	3
-#define bfd_mach_sparc_v8plus		4
-#define bfd_mach_sparc_v8plusa		5  /* with ultrasparc add'ns */
-#define bfd_mach_sparc_v9		6
-#define bfd_mach_sparc_v9a		7  /* with ultrasparc add'ns */
+#define bfd_mach_sparc_sparclet        2
+#define bfd_mach_sparc_sparclite       3
+#define bfd_mach_sparc_v8plus          4
+#define bfd_mach_sparc_v8plusa         5  /* with ultrasparc add'ns */
+#define bfd_mach_sparc_v9              6
+#define bfd_mach_sparc_v9a             7  /* with ultrasparc add'ns */
  /* Nonzero if MACH has the v9 instruction set.  */
 #define bfd_mach_sparc_v9_p(mach) \
   ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9a)
   bfd_arch_mips,       /* MIPS Rxxxx */
+#define bfd_mach_mips3000              3000
+#define bfd_mach_mips3900              3900
+#define bfd_mach_mips4000              4000
+#define bfd_mach_mips4010              4010
+#define bfd_mach_mips4100              4100
+#define bfd_mach_mips4300              4300
+#define bfd_mach_mips4400              4400
+#define bfd_mach_mips4600              4600
+#define bfd_mach_mips4650              4650
+#define bfd_mach_mips5000              5000
+#define bfd_mach_mips6000              6000
+#define bfd_mach_mips8000              8000
+#define bfd_mach_mips10000             10000
+#define bfd_mach_mips16                16
   bfd_arch_i386,       /* Intel 386 */
 #define bfd_mach_i386_i386 0
 #define bfd_mach_i386_i8086 1
@@ -91,24 +112,40 @@ enum bfd_architecture
   bfd_arch_hppa,       /* HP PA RISC */
   bfd_arch_d10v,       /* Mitsubishi D10V */
   bfd_arch_z8k,        /* Zilog Z8000 */
-#define bfd_mach_z8001		1
-#define bfd_mach_z8002		2
+#define bfd_mach_z8001         1
+#define bfd_mach_z8002         2
   bfd_arch_h8500,      /* Hitachi H8/500 */
   bfd_arch_sh,         /* Hitachi SH */
+#define bfd_mach_sh            0
+#define bfd_mach_sh3        0x30
+#define bfd_mach_sh3e       0x3e
+#define bfd_mach_sh4        0x40
   bfd_arch_alpha,      /* Dec Alpha */
   bfd_arch_arm,        /* Advanced Risc Machines ARM */
+#define bfd_mach_arm_2         1
+#define bfd_mach_arm_2a                2
+#define bfd_mach_arm_3         3
+#define bfd_mach_arm_3M        4
+#define bfd_mach_arm_4                 5
+#define bfd_mach_arm_4T        6
   bfd_arch_ns32k,      /* National Semiconductors ns32000 */
   bfd_arch_w65,        /* WDC 65816 */
+  bfd_arch_tic30,      /* Texas Instruments TMS320C30 */
+  bfd_arch_v850,       /* NEC V850 */
+#define bfd_mach_v850          0
+  bfd_arch_arc,        /* Argonaut RISC Core */
+#define bfd_mach_arc_base 0
   bfd_arch_m32r,       /* Mitsubishi M32R/D */
+#define bfd_mach_m32r          0  /* backwards compatibility */
   bfd_arch_mn10200,    /* Matsushita MN10200 */
   bfd_arch_mn10300,    /* Matsushita MN10300 */
   bfd_arch_last
   @};
 @end example
-@*
+
 @subsection bfd_arch_info
 
-@*
+
 @strong{Description}@*
 This structure contains information on architectures for use
 within BFD.
@@ -125,17 +162,17 @@ typedef struct bfd_arch_info
   const char *printable_name;
   unsigned int section_align_power;
   /* true if this is the default machine for the architecture */
-  boolean the_default;	
+  boolean the_default; 
   const struct bfd_arch_info * (*compatible)
-	PARAMS ((const struct bfd_arch_info *a,
-	         const struct bfd_arch_info *b));
+       PARAMS ((const struct bfd_arch_info *a,
+                const struct bfd_arch_info *b));
 
   boolean (*scan) PARAMS ((const struct bfd_arch_info *, const char *));
 
   const struct bfd_arch_info *next;
 @} bfd_arch_info_type;
 @end example
-@*
+
 @findex bfd_printable_name
 @subsubsection @code{bfd_printable_name}
 @strong{Synopsis}
@@ -145,7 +182,7 @@ const char *bfd_printable_name(bfd *abfd);
 @strong{Description}@*
 Return a printable string representing the architecture and machine
 from the pointer to the architecture info structure.
-@*
+
 @findex bfd_scan_arch
 @subsubsection @code{bfd_scan_arch}
 @strong{Synopsis}
@@ -156,7 +193,17 @@ const bfd_arch_info_type *bfd_scan_arch(const char *string);
 Figure out if BFD supports any cpu which could be described with
 the name @var{string}.  Return a pointer to an @code{arch_info}
 structure if a machine is found, otherwise NULL.
-@*
+
+@findex bfd_arch_list
+@subsubsection @code{bfd_arch_list}
+@strong{Synopsis}
+@example
+const char **bfd_arch_list(void);
+@end example
+@strong{Description}@*
+Return a freshly malloced NULL-terminated vector of the names
+of all the valid BFD architectures.  Do not modify the names.
+
 @findex bfd_arch_get_compatible
 @subsubsection @code{bfd_arch_get_compatible}
 @strong{Synopsis}
@@ -171,7 +218,7 @@ architectures and machine types are compatible.  Calculates
 the lowest common denominator between the two architectures
 and machine types implied by the BFDs and returns a pointer to
 an @code{arch_info} structure describing the compatible machine.
-@*
+
 @findex bfd_default_arch_struct
 @subsubsection @code{bfd_default_arch_struct}
 @strong{Description}@*
@@ -183,7 +230,7 @@ architecture of the file.
 @example
 extern const bfd_arch_info_type bfd_default_arch_struct;
 @end example
-@*
+
 @findex bfd_set_arch_info
 @subsubsection @code{bfd_set_arch_info}
 @strong{Synopsis}
@@ -192,7 +239,7 @@ void bfd_set_arch_info(bfd *abfd, const bfd_arch_info_type *arg);
 @end example
 @strong{Description}@*
 Set the architecture info of @var{abfd} to @var{arg}.
-@*
+
 @findex bfd_default_set_arch_mach
 @subsubsection @code{bfd_default_set_arch_mach}
 @strong{Synopsis}
@@ -206,7 +253,7 @@ Set the architecture and machine type in BFD @var{abfd}
 to @var{arch} and @var{mach}.  Find the correct
 pointer to a structure and insert it into the @code{arch_info}
 pointer.
-@*
+
 @findex bfd_get_arch
 @subsubsection @code{bfd_get_arch}
 @strong{Synopsis}
@@ -216,7 +263,7 @@ enum bfd_architecture bfd_get_arch(bfd *abfd);
 @strong{Description}@*
 Return the enumerated type which describes the BFD @var{abfd}'s
 architecture.
-@*
+
 @findex bfd_get_mach
 @subsubsection @code{bfd_get_mach}
 @strong{Synopsis}
@@ -226,7 +273,7 @@ unsigned long bfd_get_mach(bfd *abfd);
 @strong{Description}@*
 Return the long type which describes the BFD @var{abfd}'s
 machine.
-@*
+
 @findex bfd_arch_bits_per_byte
 @subsubsection @code{bfd_arch_bits_per_byte}
 @strong{Synopsis}
@@ -236,7 +283,7 @@ unsigned int bfd_arch_bits_per_byte(bfd *abfd);
 @strong{Description}@*
 Return the number of bits in one of the BFD @var{abfd}'s
 architecture's bytes.
-@*
+
 @findex bfd_arch_bits_per_address
 @subsubsection @code{bfd_arch_bits_per_address}
 @strong{Synopsis}
@@ -246,7 +293,7 @@ unsigned int bfd_arch_bits_per_address(bfd *abfd);
 @strong{Description}@*
 Return the number of bits in one of the BFD @var{abfd}'s
 architecture's addresses.
-@*
+
 @findex bfd_default_compatible
 @subsubsection @code{bfd_default_compatible}
 @strong{Synopsis}
@@ -257,7 +304,7 @@ const bfd_arch_info_type *bfd_default_compatible
 @end example
 @strong{Description}@*
 The default function for testing for compatibility.
-@*
+
 @findex bfd_default_scan
 @subsubsection @code{bfd_default_scan}
 @strong{Synopsis}
@@ -267,7 +314,7 @@ boolean bfd_default_scan(const struct bfd_arch_info *info, const char *string);
 @strong{Description}@*
 The default function for working out whether this is an
 architecture hit and a machine hit.
-@*
+
 @findex bfd_get_arch_info
 @subsubsection @code{bfd_get_arch_info}
 @strong{Synopsis}
@@ -276,7 +323,7 @@ const bfd_arch_info_type * bfd_get_arch_info(bfd *abfd);
 @end example
 @strong{Description}@*
 Return the architecture info struct in @var{abfd}.
-@*
+
 @findex bfd_lookup_arch
 @subsubsection @code{bfd_lookup_arch}
 @strong{Synopsis}
@@ -291,7 +338,7 @@ Look for the architecure info structure which matches the
 arguments @var{arch} and @var{machine}. A machine of 0 matches the
 machine/architecture structure which marks itself as the
 default.
-@*
+
 @findex bfd_printable_arch_mach
 @subsubsection @code{bfd_printable_arch_mach}
 @strong{Synopsis}
@@ -304,4 +351,4 @@ Return a printable string representing the architecture and
 machine type. 
 
 This routine is depreciated.
-@*
+

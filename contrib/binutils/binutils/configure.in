@@ -3,6 +3,12 @@ dnl
 AC_PREREQ(2.5)
 AC_INIT(ar.c)
 
+AC_CANONICAL_SYSTEM
+
+AM_INIT_AUTOMAKE(binutils, 2.9.1)
+
+AM_PROG_LIBTOOL
+
 AC_ARG_ENABLE(targets,
 [  --enable-targets        alternative target configurations],
 [case "${enableval}" in
@@ -10,17 +16,6 @@ AC_ARG_ENABLE(targets,
             ;;
   no)       enable_targets= ;;
   *)        enable_targets=$enableval ;;
-esac])dnl
-AC_ARG_ENABLE(shared,
-[  --enable-shared         build shared BFD library],
-[case "${enableval}" in
-  yes) shared=true shared_bfd=true shared_opcodes=true ;;
-  no)  shared=false ;;
-  *bfd*opcodes*) shared=true shared_bfd=true shared_opcodes=true ;;
-  *opcodes*bfd*) shared=true shared_bfd=true shared_opcodes=true ;;
-  *bfd*) shared=true shared_bfd=true ;;
-  *opcodes*) shared=true shared_opcodes=true ;;
-  *) shared=false ;;
 esac])dnl
 AC_ARG_ENABLE(commonbfdlib,
 [  --enable-commonbfdlib   build shared BFD/opcodes/libiberty library],
@@ -30,85 +25,36 @@ AC_ARG_ENABLE(commonbfdlib,
   *)   AC_MSG_ERROR([bad value ${enableval} for BFD commonbfdlib option]) ;;
 esac])dnl
 
-AC_CONFIG_HEADER(config.h:config.in)
+AM_CONFIG_HEADER(config.h:config.in)
 
-AC_CONFIG_AUX_DIR(`cd $srcdir/..; pwd`)
-AC_CANONICAL_SYSTEM
 if test -z "$target" ; then
     AC_MSG_ERROR(Unrecognized target system type; please check config.sub.)
 fi
 if test -z "$host" ; then
     AC_MSG_ERROR(Unrecognized host system type; please check config.sub.)
 fi
-AC_ARG_PROGRAM
+
+AC_PROG_CC
+
+AC_PROG_YACC
+AC_PROG_LEX
+AC_DECL_YYTEXT
+
+AM_MAINTAINER_MODE
+AM_CYGWIN32
+AM_EXEEXT
 
 # host-specific stuff:
 
 HDEFINES=
-HLDFLAGS=
-HLDENV=
-RPATH_ENVVAR=LD_LIBRARY_PATH
-
-AC_PROG_CC
 
 . ${srcdir}/../bfd/configure.host
 
 AC_SUBST(HDEFINES)
-AC_SUBST(HLDFLAGS)
-AC_SUBST(HLDENV)
-AC_SUBST(RPATH_ENVVAR)
 AR=${AR-ar}
 AC_SUBST(AR)
 AC_PROG_RANLIB
-AC_PROG_INSTALL
-
-# For most hosts we can use a simple definition to pick up the BFD and
-# opcodes libraries.  However, if we are building shared libraries, we
-# need to handle some hosts specially.
-BFDLIB='-L../bfd -lbfd'
-OPCODES='-L../opcodes -lopcodes'
-
-case "${host}" in
-*-*-sunos*)
-  # On SunOS, we must link against the name we are going to install,
-  # not -lbfd, since SunOS does not support SONAME.
-  if test "${shared_bfd}" = "true"; then
-    BFDLIB='-L../bfd -l`echo bfd | sed '"'"'$(program_transform_name)'"'"'`'
-  fi
-  if test "${shared_opcodes}" = "true"; then
-    OPCODES='-L../opcodes -l`echo opcodes | sed '"'"'$(program_transform_name)'"'"'`'
-  fi
-  ;;
-alpha*-*-osf*)
-  # On Alpha OSF/1, the native linker searches all the -L
-  # directories for any LIB.so files, and only then searches for any
-  # LIB.a files.  That means that if there is an installed
-  # libbfd.so, but this build is not done with --enable-shared, the
-  # link will wind up being against the install libbfd.so rather
-  # than the newly built libbfd.  To avoid this, we must explicitly
-  # link against libbfd.a when --enable-shared is not used.
-  if test "${shared_bfd}" != "true"; then
-    BFDLIB='../bfd/libbfd.a'
-  fi
-  if test "${shared_opcodes}" != "true"; then
-    OPCODES='../opcodes/libopcodes.a'
-  fi
-  ;;
-esac
-
-if test "${commonbfdlib}" = "true"; then
-  # when a shared libbfd is built with --enable-commonbfdlib,
-  # all of libopcodes is available in libbfd.so.  Unfortunately, on
-  # HP/UX, when using gcc -g, the linker does a static link, so we
-  # need to continue linking against opcodes on that platform.
-  case "${host}" in
-  *-*-hpux*) ;;
-  *) OPCODES= ;;
-  esac
-fi
-
-AC_SUBST(BFDLIB)
-AC_SUBST(OPCODES)
+AM_PROG_INSTALL
 
 BFD_CC_FOR_BUILD
 
@@ -116,13 +62,6 @@ AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h fcntl.h sys/file.h)
 AC_HEADER_SYS_WAIT
 AC_FUNC_ALLOCA
 AC_CHECK_FUNCS(sbrk utimes)
-dnl Temporary workaround for bug in autoconf 2.12.  When the bug is
-dnl fixed, we can just call AC_FUNC_VFORK in all cases.
-if test "x$cross_compiling" = "xno"; then
-  AC_FUNC_VFORK
-else
-  AC_CHECK_FUNC(vfork, , AC_DEFINE(vfork, fork))
-fi
 
 AC_MSG_CHECKING(for time_t in time.h)
 AC_CACHE_VAL(bu_cv_decl_time_t_time_h,
@@ -187,52 +126,56 @@ NLMCONV_DEFS=
 BUILD_SRCONV=
 BUILD_DLLTOOL=
 DLLTOOL_DEFS=
+BUILD_WINDRES=
 
 for targ in $target $canon_targets
 do
     if test "x$targ" = "xall"; then
         all_targets=true
-	BUILD_NLMCONV='$(NLMCONV_PROG)'
-	BUILD_SRCONV='$(SRCONV_PROG)'
+	BUILD_NLMCONV='$(NLMCONV_PROG)$(EXEEXT)'
+	BUILD_SRCONV='$(SRCONV_PROG)$(EXEEXT)'
 	NLMCONV_DEFS="-DNLMCONV_I386 -DNLMCONV_ALPHA -DNLMCONV_POWERPC -DNLMCONV_SPARC"
     else
 	case $targ in
 changequote(,)dnl
 	i[3456]86*-*-netware*) 
 changequote([,])dnl
-	  BUILD_NLMCONV='$(NLMCONV_PROG)'
+	  BUILD_NLMCONV='$(NLMCONV_PROG)$(EXEEXT)'
 	  NLMCONV_DEFS="$NLMCONV_DEFS -DNLMCONV_I386"
 	  ;;
 	alpha*-*-netware*)
-	  BUILD_NLMCONV='$(NLMCONV_PROG)'
+	  BUILD_NLMCONV='$(NLMCONV_PROG)$(EXEEXT)'
 	  NLMCONV_DEFS="$NLMCONV_DEFS -DNLMCONV_ALPHA"
 	  ;;
 	powerpc*-*-netware*)
-	  BUILD_NLMCONV='$(NLMCONV_PROG)'
+	  BUILD_NLMCONV='$(NLMCONV_PROG)$(EXEEXT)'
 	  NLMCONV_DEFS="$NLMCONV_DEFS -DNLMCONV_POWERPC"
 	  ;;
 	sparc*-*-netware*)
-	  BUILD_NLMCONV='$(NLMCONV_PROG)'
+	  BUILD_NLMCONV='$(NLMCONV_PROG)$(EXEEXT)'
 	  NLMCONV_DEFS="$NLMCONV_DEFS -DNLMCONV_SPARC"
 	  ;;
 	esac
 	case $targ in
-	*-*-hms*) BUILD_SRCONV='$(SRCONV_PROG)' ;;
+	*-*-hms*) BUILD_SRCONV='$(SRCONV_PROG)$(EXEEXT)' ;;
 	esac
 	case $targ in
 	arm-*pe*)
-  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
+  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
+	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	 ;;
 changequote(,)dnl
-	i[3-6]86-*pe* | i[3-6]86-*-cygwin32)
+	i[3-6]86-*pe* | i[3-6]86-*-cygwin32* | i[3-6]86-*-mingw32*)
 changequote([,])dnl
-  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
+  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
+	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	 ;;
 	powerpc*-*-*pe* | powerpc*-*-cygwin32)
-  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
+  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_PPC"
+	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	 ;;
 	esac
     fi
@@ -243,6 +186,9 @@ AC_SUBST(BUILD_NLMCONV)
 AC_SUBST(BUILD_SRCONV)
 AC_SUBST(BUILD_DLLTOOL)
 AC_SUBST(DLLTOOL_DEFS)
+AC_SUBST(BUILD_WINDRES)
+
+AC_DEFINE_UNQUOTED(TARGET, "${target}")
 
 targ=$target
 . $srcdir/../bfd/config.bfd
@@ -253,5 +199,4 @@ else
 fi
 AC_SUBST(UNDERSCORE)
 
-AC_OUTPUT(Makefile,
-[case x$CONFIG_HEADERS in xconfig.h:config.in) echo > stamp-h ;; esac])
+AC_OUTPUT(Makefile)

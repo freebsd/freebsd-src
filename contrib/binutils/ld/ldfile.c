@@ -1,4 +1,4 @@
-/* Copyright (C) 1991, 92, 93, 94 Free Software Foundation, Inc.
+/* Copyright (C) 1991, 92, 93, 94, 95, 1998 Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -13,8 +13,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GLD; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+along with GLD; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 /*
  ldfile.c
@@ -49,7 +50,11 @@ search_dirs_type *search_head;
 #ifdef VMS
 char *slash = "";
 #else
+#if defined (_WIN32) && ! defined (__CYGWIN32__)
+char *slash = "\\";
+#else
 char *slash = "/";
+#endif
 #endif
 #else /* MPW */
 /* The MPW path char is a colon. */
@@ -155,7 +160,13 @@ ldfile_open_file_search (arch, entry, lib, suffix)
       if (entry->is_archive)
 	sprintf (string, "%s%s%s%s%s%s", search->name, slash,
 		 lib, entry->filename, arch, suffix);
-      else if (entry->filename[0] == '/' || entry->filename[0] == '.')
+      else if (entry->filename[0] == '/' || entry->filename[0] == '.'
+#if defined (__MSDOS__) || defined (_WIN32)
+	       || entry->filename[0] == '\\' 
+	       || (isalpha (entry->filename[0]) 
+	           && entry->filename[1] == ':')
+#endif
+	  )
 	strcpy (string, entry->filename);
       else
 	sprintf (string, "%s%s%s", search->name, slash, entry->filename);
@@ -266,7 +277,7 @@ ldfile_find_command_file (name, extend)
     for (search = search_head;
 	 search != (search_dirs_type *)NULL;
 	 search = search->next) {
-      sprintf(buffer,"%s/%s", search->name, name);
+      sprintf(buffer,"%s%s%s", search->name, slash, name);
       result = try_open(buffer, extend);
       if (result)break;
     }
@@ -369,10 +380,12 @@ ldfile_add_arch (in_name)
 
   new->name = name;
   new->next = (search_arch_type*)NULL;
-  while (*name) {
-    if (isupper(*name)) *name = tolower(*name);
-    name++;
-  }
+  while (*name)
+    {
+      if (isupper ((unsigned char) *name))
+	*name = tolower ((unsigned char) *name);
+      name++;
+    }
   *search_arch_tail_ptr = new;
   search_arch_tail_ptr = &new->next;
 

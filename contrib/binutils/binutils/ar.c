@@ -1,5 +1,5 @@
 /* ar.c - Archive modify and extract.
-   Copyright 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -52,7 +52,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Kludge declaration from BFD!  This is ugly!  FIXME!  XXX */
 
 struct ar_hdr *
-  bfd_special_undocumented_glue PARAMS ((bfd * abfd, char *filename));
+  bfd_special_undocumented_glue PARAMS ((bfd * abfd, const char *filename));
 
 /* Static declarations */
 
@@ -146,7 +146,7 @@ enum pos
   } postype = pos_default;
 
 static bfd **
-get_pos_bfd PARAMS ((bfd **, enum pos));
+get_pos_bfd PARAMS ((bfd **, enum pos, const char *));
 
 /* Whether to truncate names of files stored in the archive.  */
 static boolean ar_truncate = false;
@@ -225,7 +225,7 @@ usage (help)
   s = help ? stdout : stderr;
   if (! is_ranlib)
     fprintf (s, "\
-Usage: %s [-]{dmpqrtx}[abcilosuvV] [member-name] archive-file file...\n\
+Usage: %s [-]{dmpqrtx}[abcilosSuvV] [member-name] archive-file file...\n\
        %s -M [<mri-script]\n",
 	     program_name, program_name);
   else
@@ -235,7 +235,7 @@ Usage: %s [-vV] archive\n", program_name);
   list_supported_targets (program_name, stderr);
 
   if (help)
-    fprintf (s, "Report bugs to bug-gnu-utils@prep.ai.mit.edu\n");
+    fprintf (s, "Report bugs to bug-gnu-utils@gnu.org\n");
 
   xexit (help ? 0 : 1);
 }
@@ -447,6 +447,9 @@ main (argc, argv)
 	  break;
 	case 's':
 	  write_armap = 1;
+	  break;
+	case 'S':
+	  write_armap = -1;
 	  break;
 	case 'u':
 	  newer_only = 1;
@@ -1003,12 +1006,25 @@ write_archive (iarch)
    and should be a pos value.  */
 
 static bfd **
-get_pos_bfd (contents, default_pos)
+get_pos_bfd (contents, default_pos, default_posname)
      bfd **contents;
      enum pos default_pos;
+     const char *default_posname;
 {
   bfd **after_bfd = contents;
-  enum pos realpos = (postype == pos_default ? default_pos : postype);
+  enum pos realpos;
+  const char *realposname;
+
+  if (postype == pos_default)
+    {
+      realpos = default_pos;
+      realposname = default_posname;
+    }
+  else
+    {
+      realpos = postype;
+      realposname = posname;
+    }
 
   if (realpos == pos_end)
     {
@@ -1018,7 +1034,7 @@ get_pos_bfd (contents, default_pos)
   else
     {
       for (; *after_bfd; after_bfd = &(*after_bfd)->next)
-	if (!strcmp ((*after_bfd)->filename, posname))
+	if (strcmp ((*after_bfd)->filename, realposname) == 0)
 	  {
 	    if (realpos == pos_after)
 	      after_bfd = &(*after_bfd)->next;
@@ -1111,7 +1127,7 @@ move_members (arch, files_to_move)
 	      *current_ptr_ptr = current_ptr->next;
 
 	      /* Now glue to end */
-	      after_bfd = get_pos_bfd (&arch->next, pos_end);
+	      after_bfd = get_pos_bfd (&arch->next, pos_end, NULL);
 	      link = *after_bfd;
 	      *after_bfd = current_ptr;
 	      current_ptr->next = link;
@@ -1179,17 +1195,19 @@ replace_members (arch, files_to_move, quick)
 			goto next_file;
 		    }
 
-		  /* snip out this entry from the chain */
-		  *current_ptr = current->next;
-
-		  after_bfd = get_pos_bfd (&arch->next, pos_end);
+		  after_bfd = get_pos_bfd (&arch->next, pos_after,
+					   current->filename);
 		  temp = *after_bfd;
+
 		  *after_bfd = bfd_openr (*files_to_move, NULL);
 		  if (*after_bfd == (bfd *) NULL)
 		    {
 		      bfd_fatal (*files_to_move);
 		    }
 		  (*after_bfd)->next = temp;
+
+		  /* snip out this entry from the chain */
+		  *current_ptr = (*current_ptr)->next;
 
 		  if (verbose)
 		    {
@@ -1206,7 +1224,7 @@ replace_members (arch, files_to_move, quick)
 
       /* Add to the end of the archive.  */
 
-      after_bfd = get_pos_bfd (&arch->next, pos_end);
+      after_bfd = get_pos_bfd (&arch->next, pos_end, NULL);
       temp = *after_bfd;
       *after_bfd = bfd_openr (*files_to_move, NULL);
       if (*after_bfd == (bfd *) NULL)

@@ -10,6 +10,10 @@
 #ifndef LIBIBERTY_H
 #define LIBIBERTY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "ansidecl.h"
 
 /* Build an argument vector from a string.  Allocates memory using
@@ -20,6 +24,12 @@ extern char **buildargv PARAMS ((char *));
 /* Free a vector returned by buildargv.  */
 
 extern void freeargv PARAMS ((char **));
+
+/* Duplicate an argument vector. Allocates memory using malloc.  Use
+   freeargv to free the vector.  */
+
+extern char **dupargv PARAMS ((char **));
+
 
 /* Return the last component of a path name.  Note that we can't use a
    prototype here because the parameter is declared inconsistently
@@ -140,5 +150,27 @@ extern void hex_init PARAMS ((void));
 /* If you change this, note well: Some code relies on side effects in
    the argument being performed exactly once.  */
 #define hex_value(c)	(_hex_value[(unsigned char) (c)])
+
+/* Definitions used by the pexecute routine.  */
+
+#define PEXECUTE_FIRST   1
+#define PEXECUTE_LAST    2
+#define PEXECUTE_ONE     (PEXECUTE_FIRST + PEXECUTE_LAST)
+#define PEXECUTE_SEARCH  4
+#define PEXECUTE_VERBOSE 8
+
+/* Execute a program.  */
+
+extern int pexecute PARAMS ((const char *, char * const *, const char *,
+			    const char *, char **, char **, int));
+
+/* Wait for pexecute to finish.  */
+
+extern int pwait PARAMS ((int, int *, int));
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* ! defined (LIBIBERTY_H) */

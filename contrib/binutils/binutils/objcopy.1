@@ -24,6 +24,8 @@ objcopy \- copy and translate object files
 .RB "[\|" \-\-strip\-unneeded\fR "\|]" 
 .RB "[\|" \-K\ \fIsymbolname\fR\ |\ \fB\-\-keep\-symbol=\fIsymbolname\fR "\|]" 
 .RB "[\|" \-N\ \fIsymbolname\fR\ |\ \fB\-\-strip\-symbol=\fIsymbolname\fR "\|]" 
+.RB "[\|" \-L\ \fIsymbolname\fR\ |\ \fB\-\-localize\-symbol=\fIsymbolname\fR "\|]" 
+.RB "[\|" \-W\ \fIsymbolname\fR\ |\ \fB\-\-weaken\-symbol=\fIsymbolname\fR "\|]" 
 .RB "[\|" \-x\fR\ |\ \fB\-\-discard\-all\fR "\|]" 
 .RB "[\|" \-X\fR\ |\ \fB\-\-discard\-locals\fR "\|]" 
 .RB "[\|" \-b\ \fIbyte\fR\ |\ \fB\-\-byte=\fIbyte\fR "\|]" 
@@ -139,8 +141,14 @@ may be given more than once.
 .TP
 .B \-N \fIsymbolname\fR, \fB\-\-strip\-symbol=\fIsymbolname
 Do not copy symbol \fIsymbolname\fP from the source file. This option
-may be given more than once, and may be combined with strip options
-other than \fB\-K\fR.
+may be given more than once.
+.TP
+.B \-L \fIsymbolname\fR, \fB\-\-localize\-symbol=\fIsymbolname
+Make symbol \fIsymbolname\fP local to the file, so that it is not
+visible externally.  This option may be given more than once.
+.TP
+.B \-W \fIsymbolname\fR, \fB\-\-weaken\-symbol=\fIsymbolname
+Make symbol \fIsymbolname\fP weak. This option may be given more than once.
 .TP
 .B \-x\fR, \fB \-\-discard\-all
 Do not copy non-global symbols from the source file.
@@ -170,12 +178,13 @@ because only certain debugging formats are supported, and the
 conversion process can be time consuming.
 .TP
 .B \-\-gap\-fill=\fIval
-Fill gaps between sections with \fIval\fP.  This is done by increasing
+Fill gaps between sections with \fIval\fP.  This operation applies to
+the \fIload address\fP (LMA) of the sections.  It is done by increasing
 the size of the section with the lower address, and filling in the extra
 space created with \fIval\fP.
 .TP
 .B \-\-pad\-to=\fIaddress
-Pad the output file up to the virtual address \fIaddress\fP.  This is
+Pad the output file up to the load address \fIaddress\fP.  This is
 done by increasing the size of the last section.  The extra space is
 filled in with the value specified by \fB\-\-gap\-fill\fP (default
 zero).

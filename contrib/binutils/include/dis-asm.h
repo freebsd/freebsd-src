@@ -51,14 +51,21 @@ typedef struct disassemble_info {
   unsigned long mach;
   /* Endianness (for bi-endian cpus).  Mono-endian cpus can ignore this.  */
   enum bfd_endian endian;
-  /* The symbol at the start of the function being disassembled.  This
-     is not set reliably, but if it is not NULL, it is correct.  */
-  asymbol *symbol;
+
+  /* An array of pointers to symbols either at the location being disassembled
+     or at the start of the function being disassembled.  The array is sorted
+     so that the first symbol is intended to be the one used.  The others are
+     present for any misc. purposes.  This is not set reliably, but if it is
+     not NULL, it is correct.  */
+  asymbol **symbols;
+  /* Number of symbols in array.  */
+  int num_symbols;
 
   /* For use by the disassembler.
      The top 16 bits are reserved for public use (and are documented here).
      The bottom 16 bits are for the internal use of the disassembler.  */
   unsigned long flags;
+#define INSN_HAS_RELOC	0x80000000
   PTR private_data;
 
   /* Function used to get bytes to disassemble.  MEMADDR is the
@@ -80,6 +87,16 @@ typedef struct disassemble_info {
   /* Function called to print ADDR.  */
   void (*print_address_func)
     PARAMS ((bfd_vma addr, struct disassemble_info *info));
+
+  /* Function called to determine if there is a symbol at the given ADDR.
+     If there is, the function returns 1, otherwise it returns 0.
+     This is used by ports which support an overlay manager where
+     the overlay number is held in the top part of an address.  In
+     some circumstances we want to include the overlay number in the
+     address, (normally because there is a symbol associated with
+     that address), but sometimes we want to mask out the overlay bits.  */
+  int (* symbol_at_address_func)
+    PARAMS ((bfd_vma addr, struct disassemble_info * info));
 
   /* These are for buffer_read_memory.  */
   bfd_byte *buffer;
@@ -135,6 +152,7 @@ extern int print_insn_h8300h		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_h8300s		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_h8500		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_alpha		PARAMS ((bfd_vma, disassemble_info*));
+extern disassembler_ftype arc_get_disassembler PARAMS ((int, int));
 extern int print_insn_big_arm		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_arm	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_sparc		PARAMS ((bfd_vma, disassemble_info*));
@@ -154,6 +172,8 @@ extern int print_insn_little_powerpc	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_rs6000		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_w65		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_d10v		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_tic30		PARAMS ((bfd_vma, disassemble_info*));
 
 /* Fetch the disassembler for a given BFD, if that support is available.  */
 extern disassembler_ftype disassembler	PARAMS ((bfd *));
@@ -178,6 +198,10 @@ extern void perror_memory PARAMS ((int, bfd_vma, struct disassemble_info *));
 extern void generic_print_address
   PARAMS ((bfd_vma, struct disassemble_info *));
 
+/* Always true.  */
+extern int generic_symbol_at_address
+  PARAMS ((bfd_vma, struct disassemble_info *));
+
 /* Macro to initialize a disassemble_info struct.  This should be called
    by all applications creating such a struct.  */
 #define INIT_DISASSEMBLE_INFO(INFO, STREAM, FPRINTF_FUNC) \
@@ -195,13 +219,15 @@ extern void generic_print_address
 #define INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC) \
   (INFO).fprintf_func = (FPRINTF_FUNC), \
   (INFO).stream = (STREAM), \
-  (INFO).symbol = NULL, \
+  (INFO).symbols = NULL, \
+  (INFO).num_symbols = 0, \
   (INFO).buffer = NULL, \
   (INFO).buffer_vma = 0, \
   (INFO).buffer_length = 0, \
   (INFO).read_memory_func = buffer_read_memory, \
   (INFO).memory_error_func = perror_memory, \
   (INFO).print_address_func = generic_print_address, \
+  (INFO).symbol_at_address_func = generic_symbol_at_address, \
   (INFO).flags = 0, \
   (INFO).bytes_per_line = 0, \
   (INFO).bytes_per_chunk = 0, \

@@ -1,5 +1,5 @@
 /* ELF executable support for BFD.
-   Copyright 1993, 1994, 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1993, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -305,6 +305,18 @@ bfd_elf_string_from_elf_section (abfd, shindex, strindex)
       && bfd_elf_get_str_section (abfd, shindex) == NULL)
     return NULL;
 
+  if (strindex >= hdr->sh_size)
+    {
+      (*_bfd_error_handler)
+	("%s: invalid string offset %u >= %lu for section `%s'",
+	 bfd_get_filename (abfd), strindex, (unsigned long) hdr->sh_size,
+	 ((shindex == elf_elfheader(abfd)->e_shstrndx
+	   && strindex == hdr->sh_name)
+	  ? ".shstrtab"
+	  : elf_string_from_elf_strtab (abfd, hdr->sh_name)));
+      return "";
+    }
+
   return ((char *) hdr->contents) + strindex;
 }
 
@@ -389,7 +401,7 @@ _bfd_elf_make_section_from_shdr (abfd, hdr, name)
 	      && phdr->p_vaddr <= hdr->sh_addr
 	      && phdr->p_vaddr + phdr->p_memsz >= hdr->sh_addr + hdr->sh_size
 	      && ((flags & SEC_LOAD) == 0
-		  || (phdr->p_offset <= hdr->sh_offset
+		  || (phdr->p_offset <= (bfd_vma) hdr->sh_offset
 		      && (phdr->p_offset + phdr->p_filesz
 			  >= hdr->sh_offset + hdr->sh_size))))
 	    {
@@ -928,6 +940,91 @@ bfd_elf_get_dt_soname (abfd)
       && bfd_get_format (abfd) == bfd_object)
     return elf_dt_name (abfd);
   return NULL;
+}
+
+/* Get the list of DT_NEEDED entries from a BFD.  This is a hook for
+   the ELF linker emulation code.  */
+
+boolean
+bfd_elf_get_bfd_needed_list (abfd, pneeded)
+     bfd *abfd;
+     struct bfd_link_needed_list **pneeded;
+{
+  asection *s;
+  bfd_byte *dynbuf = NULL;
+  int elfsec;
+  unsigned long link;
+  bfd_byte *extdyn, *extdynend;
+  size_t extdynsize;
+  void (*swap_dyn_in) PARAMS ((bfd *, const PTR, Elf_Internal_Dyn *));
+
+  *pneeded = NULL;
+
+  if (bfd_get_flavour (abfd) != bfd_target_elf_flavour
+      || bfd_get_format (abfd) != bfd_object)
+    return true;
+
+  s = bfd_get_section_by_name (abfd, ".dynamic");
+  if (s == NULL || s->_raw_size == 0)
+    return true;
+
+  dynbuf = (bfd_byte *) bfd_malloc (s->_raw_size);
+  if (dynbuf == NULL)
+    goto error_return;
+
+  if (! bfd_get_section_contents (abfd, s, (PTR) dynbuf, (file_ptr) 0,
+				  s->_raw_size))
+    goto error_return;
+
+  elfsec = _bfd_elf_section_from_bfd_section (abfd, s);
+  if (elfsec == -1)
+    goto error_return;
+
+  link = elf_elfsections (abfd)[elfsec]->sh_link;
+
+  extdynsize = get_elf_backend_data (abfd)->s->sizeof_dyn;
+  swap_dyn_in = get_elf_backend_data (abfd)->s->swap_dyn_in;
+
+  extdyn = dynbuf;
+  extdynend = extdyn + s->_raw_size;
+  for (; extdyn < extdynend; extdyn += extdynsize)
+    {
+      Elf_Internal_Dyn dyn;
+
+      (*swap_dyn_in) (abfd, (PTR) extdyn, &dyn);
+
+      if (dyn.d_tag == DT_NULL)
+	break;
+
+      if (dyn.d_tag == DT_NEEDED)
+	{
+	  const char *string;
+	  struct bfd_link_needed_list *l;
+
+	  string = bfd_elf_string_from_elf_section (abfd, link,
+						    dyn.d_un.d_val);
+	  if (string == NULL)
+	    goto error_return;
+
+	  l = (struct bfd_link_needed_list *) bfd_alloc (abfd, sizeof *l);
+	  if (l == NULL)
+	    goto error_return;
+
+	  l->by = abfd;
+	  l->name = string;
+	  l->next = *pneeded;
+	  *pneeded = l;
+	}
+    }
+
+  free (dynbuf);
+
+  return true;
+
+ error_return:
+  if (dynbuf != NULL)
+    free (dynbuf);
+  return false;
 }
 
 /* Allocate an ELF string table--force the first byte to be zero.  */
@@ -2106,10 +2203,17 @@ map_sections_to_segments (abfd)
 	  new_segment = true;
 	}
       else if (BFD_ALIGN (last_hdr->lma + last_hdr->_raw_size, maxpagesize)
-	       < hdr->lma)
+	       < BFD_ALIGN (hdr->lma, maxpagesize))
 	{
 	  /* If putting this section in this segment would force us to
              skip a page in the segment, then we need a new segment.  */
+	  new_segment = true;
+	}
+      else if ((last_hdr->flags & SEC_LOAD) == 0
+	       && (hdr->flags & SEC_LOAD) != 0)
+	{
+	  /* We don't want to put a loadable section after a
+             nonloadable section in the same segment.  */
 	  new_segment = true;
 	}
       else if ((abfd->flags & D_PAGED) == 0)
@@ -2118,13 +2222,6 @@ map_sections_to_segments (abfd)
              don't require the sections to be correctly aligned in the
              file, then there is no other reason for a new segment.  */
 	  new_segment = false;
-	}
-      else if ((last_hdr->flags & SEC_LOAD) == 0
-	       && (hdr->flags & SEC_LOAD) != 0)
-	{
-	  /* We don't want to put a loadable section after a
-             nonloadable section in the same segment.  */
-	  new_segment = true;
 	}
       else if (! writable
 	       && (hdr->flags & SEC_READONLY) == 0
@@ -2264,10 +2361,12 @@ elf_sort_sections (arg1, arg2)
 #define TOEND(x) (((x)->flags & SEC_LOAD) == 0)
 
   if (TOEND (sec1))
-    if (TOEND (sec2))
-      return sec1->target_index - sec2->target_index;
-    else 
-      return 1;
+    {
+      if (TOEND (sec2))
+	return sec1->target_index - sec2->target_index;
+      else 
+	return 1;
+    }
 
   if (TOEND (sec2))
     return -1;
@@ -2419,6 +2518,15 @@ assign_file_positions_for_segments (abfd)
 	  if (m->count > 0)
 	    {
 	      BFD_ASSERT (p->p_type == PT_LOAD);
+
+	      if (p->p_vaddr < (bfd_vma) off)
+		{
+		  _bfd_error_handler ("%s: Not enough room for program headers, try linking with -N",
+				      bfd_get_filename (abfd));
+		  bfd_set_error (bfd_error_bad_value);
+		  return false;
+		}
+	      
 	      p->p_vaddr -= off;
 	      if (! m->p_paddr_valid)
 		p->p_paddr -= off;
@@ -2491,29 +2599,42 @@ assign_file_positions_for_segments (abfd)
 	    {
 	      bfd_vma adjust;
 
-	      /* The section VMA must equal the file position modulo
-                 the page size.  */
-	      if ((flags & SEC_ALLOC) != 0)
+	      if ((flags & SEC_LOAD) != 0)
+		adjust = sec->lma - (p->p_paddr + p->p_memsz);
+	      else if ((flags & SEC_ALLOC) != 0)
 		{
+		  /* The section VMA must equal the file position
+		     modulo the page size.  FIXME: I'm not sure if
+		     this adjustment is really necessary.  We used to
+		     not have the SEC_LOAD case just above, and then
+		     this was necessary, but now I'm not sure.  */
 		  if ((abfd->flags & D_PAGED) != 0)
 		    adjust = (sec->vma - voff) % bed->maxpagesize;
 		  else
 		    adjust = (sec->vma - voff) % align;
-		  if (adjust != 0)
-		    {
-		      if (i == 0)
-			abort ();
-		      p->p_memsz += adjust;
-		      off += adjust;
-		      voff += adjust;
-		      if ((flags & SEC_LOAD) != 0)
-			p->p_filesz += adjust;
-		    }
+		}
+	      else
+		adjust = 0;
+
+	      if (adjust != 0)
+		{
+		  if (i == 0)
+		    abort ();
+		  p->p_memsz += adjust;
+		  off += adjust;
+		  voff += adjust;
+		  if ((flags & SEC_LOAD) != 0)
+		    p->p_filesz += adjust;
 		}
 
 	      sec->filepos = off;
 
-	      if ((flags & SEC_LOAD) != 0)
+	      /* We check SEC_HAS_CONTENTS here because if NOLOAD is
+                 used in a linker script we may have a section with
+                 SEC_LOAD clear but which is supposed to have
+                 contents.  */
+	      if ((flags & SEC_LOAD) != 0
+		  || (flags & SEC_HAS_CONTENTS) != 0)
 		off += sec->_raw_size;
 	      if ((flags & SEC_ALLOC) != 0)
 		voff += sec->_raw_size;
@@ -2853,6 +2974,16 @@ prep_headers (abfd)
     case bfd_arch_d10v:
       i_ehdrp->e_machine = EM_CYGNUS_D10V;
       break;
+    case bfd_arch_v850:
+      switch (bfd_get_mach (abfd))
+	{
+	default:
+	case 0:               i_ehdrp->e_machine = EM_CYGNUS_V850; break;
+	}
+      break;
+   case bfd_arch_arc:
+      i_ehdrp->e_machine = EM_CYGNUS_ARC;
+      break;
     case bfd_arch_m32r:
       i_ehdrp->e_machine = EM_CYGNUS_M32R;
       break;
@@ -3102,6 +3233,7 @@ copy_private_bfd_data (ibfd, obfd)
   Elf_Internal_Ehdr *iehdr;
   struct elf_segment_map *mfirst;
   struct elf_segment_map **pm;
+  struct elf_segment_map *m;
   Elf_Internal_Phdr *p;
   unsigned int i, c;
 
@@ -3122,7 +3254,6 @@ copy_private_bfd_data (ibfd, obfd)
     {
       unsigned int csecs;
       asection *s;
-      struct elf_segment_map *m;
       unsigned int isec;
 
       csecs = 0;
@@ -3192,6 +3323,19 @@ copy_private_bfd_data (ibfd, obfd)
       pm = &m->next;
     }
 
+  /* The Solaris linker creates program headers in which all the
+     p_paddr fields are zero.  When we try to objcopy or strip such a
+     file, we get confused.  Check for this case, and if we find it
+     reset the p_paddr_valid fields.  */
+  for (m = mfirst; m != NULL; m = m->next)
+    if (m->p_paddr != 0)
+      break;
+  if (m == NULL)
+    {
+      for (m = mfirst; m != NULL; m = m->next)
+	m->p_paddr_valid = 0;
+    }
+
   elf_tdata (obfd)->segment_map = mfirst;
 
   return true;
@@ -3223,10 +3367,12 @@ _bfd_elf_copy_private_section_data (ibfd, isec, obfd, osec)
     {
       asection *s;
 
-      /* Only set up the segments when all the sections have been set
-         up.  */
-      for (s = ibfd->sections; s != NULL; s = s->next)
-	if (s->output_section == NULL)
+      /* Only set up the segments if there are no more SEC_ALLOC
+         sections.  FIXME: This won't do the right thing if objcopy is
+         used to remove the last SEC_ALLOC section, since objcopy
+         won't call this routine in that case.  */
+      for (s = isec->next; s != NULL; s = s->next)
+	if ((s->flags & SEC_ALLOC) != 0)
 	  break;
       if (s == NULL)
 	{
@@ -3967,6 +4113,11 @@ _bfd_elf_find_nearest_line (abfd,
   bfd_vma low_func;
   asymbol **p;
 
+  if (_bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
+				     filename_ptr, functionname_ptr, 
+				     line_ptr))
+    return true;
+
   if (! _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset,
 					     &found, filename_ptr,
 					     functionname_ptr, line_ptr,
@@ -4173,4 +4324,17 @@ _bfd_elf_validate_reloc (abfd, areloc)
      bfd_get_filename (abfd), areloc->howto->name);
   bfd_set_error (bfd_error_bad_value);
   return false;
+}
+
+boolean
+_bfd_elf_close_and_cleanup (abfd)
+     bfd *abfd;
+{
+  if (bfd_get_format (abfd) == bfd_object)
+    {
+      if (elf_shstrtab (abfd) != NULL)
+	_bfd_stringtab_free (elf_shstrtab (abfd));
+    }
+
+  return _bfd_generic_close_and_cleanup (abfd);
 }

@@ -11,24 +11,15 @@
 #  host64		set to true if 64 bit types are as fast as 32 bit
 #  HOST_64BIT_TYPE	host 64 bit type
 #  HOST_U_64BIT_TYPE	unsigned 64 bit type (not needed if 64BIT_TYPE is long)
-#  SHLIB_CC		compiler to use when building shared library
-#  SHLIB_CFLAGS		flags to use when building shared library
-#  SHLIB_LIBS		libraries to use when building shared library
-#  PICFLAG		may be set to flag to use to compile PIC
-#  SHLINK		may be set to the name to link the shared library to
-#  ALLLIBS		may be set to libraries to build
-#  HLDFLAGS		LDFLAGS specific to the host
-#  HLDENV		environment variable to set when linking for the host
-#  RPATH_ENVVAR		environment variable used to find shared libraries
-#  INSTALL_SHLIB	install a shared library
 
 HDEFINES=
 host64=false
 HOST_64BIT_TYPE=
+HOST_U_64BIT_TYPE=
 
 case "${host}" in
 
-alpha-*-*)		host64=true; HOST_64BIT_TYPE=long ;;
+alpha*-*-*)		host64=true; HOST_64BIT_TYPE=long ;;
 
 hppa*-*-hpux*)		HDEFINES=-DHOST_HPPAHPUX ;;
 hppa*-*-hiux*)		HDEFINES=-DHOST_HPPAHPUX ;;
@@ -75,97 +66,4 @@ m68*-hp-hpux*)		HDEFINES=-DHOST_HP300HPUX ;;
 			ac_cv_header_sys_time_h=no
 			ac_cv_header_unistd_h=no
 			;;
-esac
-
-# If we are configuring with --enable-shared, adjust the shared
-# library support based on the host.  This support must work for both
-# the BFD and the opcodes libraries.
-HLDFLAGS=
-HLDENV=
-RPATH_ENVVAR=LD_LIBRARY_PATH
-SHLIB_CC='$(CC)'
-SHLIB_CFLAGS='-shared'
-SHLIB_LIBS=
-INSTALL_SHLIB='$(INSTALL_PROGRAM) $$f $(libdir)/$$tf;'
-if [ "${shared}" = "true" ]; then
-  case "${host}" in
-  hppa*-*-*)		picfrag=${srcdir}/../config/mh-papic ;;
-  i[34566]86-*-*)	picfrag=${srcdir}/../config/mh-x86pic ;;
-  *-*-*)		picfrag=${srcdir}/../config/mh-${host_cpu}pic ;;
-  esac
-  if [ -f "${picfrag}" ]; then
-    pic=`sed -n -e 's/^PICFLAG[ 	]*=[ 	]*\(.*\)$/\1/p' ${picfrag}`
-    if [ -n "${pic}" ]; then
-      PICFLAG=${pic}
-    fi
-  fi
-
-  case "${host}" in
-  *-dec-osf*)
-    # -fpic is not needed on the Alpha.
-    PICFLAG=
-    HLDFLAGS='-rpath $(libdir)'
-    SHLIB_CFLAGS='-shared -Wl,-soname,$(SONAME)'
-    ;;
-  *-*-hpux*)
-    # HP/UX uses .sl for shared libraries.
-    SHLINK=`echo ${SHLINK} | sed -e 's/so$/sl/'`
-    SHLIB_CFLAGS='-shared $(PICFLAG)'
-    HLDFLAGS='-Wl,+s,+b,$(libdir)'
-    RPATH_ENVVAR=SHLIB_PATH
-    INSTALL_SHLIB='$(INSTALL_PROGRAM) $$f $(libdir)/$$tf; chmod -w $(libdir)/$$tf;'
-    ;;
-  *-*-irix[56]*)
-    # -fpic is not needed on Irix 5 or 6.
-    PICFLAG=
-    SHLIB_CFLAGS='-shared -Wl,-soname,$(SONAME)'
-    HLDFLAGS='-Wl,-rpath,$(libdir)'
-    ;;
-  *-*-linux*aout*)
-    ;;
-  *-*-linux*)
-    SHLIB_CFLAGS='-shared -Wl,-soname,$(SONAME)'
-    case "${libdir}" in
-      /lib | /usr/lib) ;;
-      *) HLDFLAGS='-Wl,-rpath,$(libdir)' ;;
-    esac
-    # On Linux, apparently, linking against -lc lets ldconfig figure
-    # out which version of libc should be used.
-    SHLIB_LIBS=-lc
-    ;;
-  *-*-solaris*)
-    SHLIB_CFLAGS='-shared -h $(SONAME)'
-    HLDFLAGS='-R $(libdir)'
-    ;;
-  *-*-sysv4*)
-    SHLIB_CFLAGS='-shared -h $(SONAME)'
-    HLDENV='if test -z "$${LD_RUN_PATH}"; then LD_RUN_PATH=$(libdir); else LD_RUN_PATH=$${LD_RUN_PATH}:$(libdir); fi; export LD_RUN_PATH;'
-    ;;
-  *-*-sunos*)
-    # Build a libTARGET-bfd.so.VERSION symlink in the object directory.
-    ALLLIBS=`echo ${ALLLIBS} | sed -e 's/\$(SHLINK)/stamp-tshlink/'`
-    ;;
-  esac
-fi
-
-# On SunOS, if the linker supports the -rpath option, use it to
-# prevent ../bfd and ../opcodes from being included in the run time
-# search path.
-case "${host}" in
-  *-*-sunos*)
-    echo 'main () { }' > conftest.c
-    ${CC} -o conftest -Wl,-rpath= conftest.c >/dev/null 2>conftest.t
-    if grep 'unrecognized' conftest.t >/dev/null 2>&1; then
-      :
-    elif grep 'No such file' conftest.t >/dev/null 2>&1; then
-      :
-    elif grep 'do not mix' conftest.t >/dev/null 2>&1; then
-      :
-    elif [ "${shared}" = "true" ]; then
-      HLDFLAGS='-Wl,-rpath=$(libdir)'
-    else
-      HLDFLAGS='-Wl,-rpath='
-    fi
-    rm -f conftest.t conftest.c conftest
-    ;;
 esac

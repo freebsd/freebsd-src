@@ -1,5 +1,15 @@
 -*- text -*-
 
+Changes in binutils 2.9:
+
+* Added windres program, which can be used to manipulate resources in WIN32
+  files as used on Windows 95 and Windows NT.
+
+* The objcopy --gap-fill and --pad-to options operate on the LMA rather than
+  the VMA of the sections.
+
+* Added S modifier to ar to not build a symbol table.
+
 Changes in binutils 2.8:
 
 * The objdump disassembly format has been changed, and hopefully improved.  Use

@@ -47,7 +47,8 @@ typedef struct memory_region_struct
   bfd_size_type length;
   bfd_vma current;
   bfd_size_type old_length;
-  int flags;
+  flagword flags;
+  flagword not_flags;
   boolean had_full_message;
 } lang_memory_region_type ;
 
@@ -131,7 +132,7 @@ typedef struct lang_output_section_statement_struct
   boolean processed;
     
   asection *bfd_section;
-  int flags;			/* Or together of all input sections */
+  flagword flags;		/* Or together of all input sections */
   enum section_type sectype;
   struct memory_region_struct *region;
   size_t block_value;
@@ -375,8 +376,10 @@ extern boolean entry_from_cmdline;
 extern void lang_init PARAMS ((void));
 extern struct memory_region_struct *lang_memory_region_lookup
   PARAMS ((const char *const));
+extern struct memory_region_struct *lang_memory_region_default
+  PARAMS ((asection *));
 extern void lang_map PARAMS ((void));
-extern void lang_set_flags PARAMS ((int *, const char *));
+extern void lang_set_flags PARAMS ((lang_memory_region_type *, const char *));
 extern void lang_add_output PARAMS ((const char *, int from_script));
 extern void lang_enter_output_section_statement
   PARAMS ((const char *output_section_statement_name,

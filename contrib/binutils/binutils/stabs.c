@@ -1,5 +1,5 @@
 /* stabs.c -- Parse stabs debugging information
-   Copyright (C) 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -2944,7 +2944,7 @@ parse_stab_argtypes (dhandle, info, class_type, fieldname, tagname,
       *pphysname = physname;
     }
 
-  if (*argtypes == '\0')
+  if (*argtypes == '\0' || is_destructor)
     {
       args = (debug_type *) xmalloc (sizeof *args);
       *args = NULL;

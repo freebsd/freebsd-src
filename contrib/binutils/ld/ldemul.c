@@ -239,7 +239,7 @@ ldemul_choose_mode(target)
 	  }
       }
     einfo ("%P: unrecognised emulation mode: %s\n", target);
-    einfo ("Supported emulations: ", program_name);
+    einfo ("Supported emulations: ");
     ldemul_list_emulations (stderr);
     einfo ("%F\n");
 }

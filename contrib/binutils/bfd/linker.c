@@ -1319,14 +1319,14 @@ generic_link_add_symbol_list (abfd, info, symbol_count, symbols, collect)
 		  if (bfd_is_com_section (bfd_get_section (p)))
 		    p->flags |= BSF_OLD_COMMON;
 		}
-
-	      /* Store a back pointer from the symbol to the hash
-		 table entry for the benefit of relaxation code until
-		 it gets rewritten to not use asymbol structures.
-		 Setting this is also used to check whether these
-		 symbols were set up by the generic linker.  */
-	      p->udata.p = (PTR) h;
 	    }
+
+	  /* Store a back pointer from the symbol to the hash
+	     table entry for the benefit of relaxation code until
+	     it gets rewritten to not use asymbol structures.
+	     Setting this is also used to check whether these
+	     symbols were set up by the generic linker.  */
+	  p->udata.p = (PTR) h;
 	}
     }
 
@@ -1394,7 +1394,7 @@ static const enum link_action link_action[8][8] =
   /* UNDEFW_ROW	*/  {WEAK,  NOACT, NOACT, REF,   REF,   NOACT, REFC,  WARNC },
   /* DEF_ROW 	*/  {DEF,   DEF,   DEF,   MDEF,  DEF,   CDEF,  MDEF,  CYCLE },
   /* DEFW_ROW 	*/  {DEFW,  DEFW,  DEFW,  NOACT, NOACT, NOACT, NOACT, CYCLE },
-  /* COMMON_ROW	*/  {COM,   COM,   COM,   CREF,  CREF,  BIG,   CREF,  WARNC },
+  /* COMMON_ROW	*/  {COM,   COM,   COM,   CREF,  CREF,  BIG,   REFC,  WARNC },
   /* INDR_ROW	*/  {IND,   IND,   IND,   MDEF,  IND,   CIND,  MIND,  CYCLE },
   /* WARN_ROW   */  {MWARN, WARN,  WARN,  CWARN, CWARN, WARN,  CWARN, MWARN },
   /* SET_ROW	*/  {SET,   SET,   SET,   SET,   SET,   SET,   CYCLE, CYCLE }

@@ -265,8 +265,11 @@ input_scrub_include_sb (from, position)
   next_saved_file = input_scrub_push (position);
 
   sb_new (&from_sb);
-  /* Add the sentinel required by read.c.  */
-  sb_add_char (&from_sb, '\n');
+  if (from->len >= 1 && from->ptr[0] != '\n')
+    {
+      /* Add the sentinel required by read.c.  */
+      sb_add_char (&from_sb, '\n');
+    }
   sb_add_sb (&from_sb, from);
   sb_index = 1;
 
@@ -408,21 +411,27 @@ bump_line_counters ()
  * to support the .appfile pseudo-op inserted into the stream by
  * do_scrub_chars).
  * If the fname is NULL, we don't change the current logical file name.
+ * Returns nonzero if the filename actually changes.
  */
-void 
+int
 new_logical_line (fname, line_number)
      char *fname;		/* DON'T destroy it! We point to it! */
      int line_number;
 {
-  if (fname)
-    {
-      logical_input_file = fname;
-    }				/* if we have a file name */
-
   if (line_number >= 0)
     logical_input_line = line_number;
   else if (line_number == -2 && logical_input_line > 0)
     --logical_input_line;
+
+  if (fname
+      && (logical_input_file == NULL
+	  || strcmp (logical_input_file, fname)))
+    {
+      logical_input_file = fname;
+      return 1;
+    }
+  else
+    return 0;
 }				/* new_logical_line() */
 
 /*

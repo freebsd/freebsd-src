@@ -1,5 +1,5 @@
 /* BFD back end for NetBSD style core files
-   Copyright 1988, 1989, 1991, 1992, 1993, 1996 Free Software Foundation, Inc.
+   Copyright 1988, 89, 91, 92, 93, 96, 1998 Free Software Foundation, Inc.
    Written by Paul Kranenburg, EUR
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -41,10 +41,10 @@ struct netbsd_core_struct {
 
 /* forward declarations */
 
-static const bfd_target *	netbsd_core_core_file_p PARAMS ((bfd *abfd));
-static char *		netbsd_core_core_file_failing_command PARAMS ((bfd *abfd));
-static int 		netbsd_core_core_file_failing_signal PARAMS ((bfd *abfd));
-static boolean		netbsd_core_core_file_matches_executable_p
+static const bfd_target *	netbsd_core_file_p PARAMS ((bfd *abfd));
+static char *		netbsd_core_file_failing_command PARAMS ((bfd *abfd));
+static int 		netbsd_core_file_failing_signal PARAMS ((bfd *abfd));
+static boolean		netbsd_core_file_matches_executable_p
 			 PARAMS ((bfd *core_bfd, bfd *exec_bfd));
 static void		swap_abort PARAMS ((void));
 
@@ -52,7 +52,7 @@ static void		swap_abort PARAMS ((void));
 
 /* ARGSUSED */
 static const bfd_target *
-netbsd_core_core_file_p (abfd)
+netbsd_core_file_p (abfd)
      bfd *abfd;
 
 {
@@ -104,6 +104,7 @@ netbsd_core_core_file_p (abfd)
 		asect = (asection *) bfd_zalloc (abfd, sizeof(asection));
 		if (asect == NULL) {
 			bfd_set_error(bfd_error_no_memory);
+			goto punt;
 		}
 
 		asect->_raw_size = coreseg.c_size;
@@ -169,7 +170,7 @@ punt:	{
 }
 
 static char*
-netbsd_core_core_file_failing_command (abfd)
+netbsd_core_file_failing_command (abfd)
 	bfd *abfd;
 {
  /*return core_command (abfd);*/
@@ -178,7 +179,7 @@ netbsd_core_core_file_failing_command (abfd)
 
 /* ARGSUSED */
 static int
-netbsd_core_core_file_failing_signal (abfd)
+netbsd_core_file_failing_signal (abfd)
 	bfd *abfd;
 {
   /*return core_signal (abfd);*/
@@ -187,69 +188,12 @@ netbsd_core_core_file_failing_signal (abfd)
 
 /* ARGSUSED */
 static boolean
-netbsd_core_core_file_matches_executable_p  (core_bfd, exec_bfd)
+netbsd_core_file_matches_executable_p  (core_bfd, exec_bfd)
      bfd *core_bfd, *exec_bfd;
 {
-	return true;	/* FIXME, We have no way of telling at this point */
+  return true;		/* FIXME, We have no way of telling at this point */
 }
 
-/* No archive file support via this BFD */
-#define	netbsd_openr_next_archived_file	bfd_generic_openr_next_archived_file
-#define	netbsd_generic_stat_arch_elt		bfd_generic_stat_arch_elt
-#define	netbsd_slurp_armap			bfd_false
-#define	netbsd_slurp_extended_name_table	bfd_true
-#define	netbsd_write_armap			(boolean (*) PARAMS	\
-    ((bfd *arch, unsigned int elength, struct orl *map, \
-      unsigned int orl_count, int stridx))) bfd_false
-#define	netbsd_truncate_arname		bfd_dont_truncate_arname
-#define	aout_32_openr_next_archived_file	bfd_generic_openr_next_archived_file
-
-#define	netbsd_close_and_cleanup		bfd_generic_close_and_cleanup
-#define	netbsd_set_section_contents		(boolean (*) PARAMS	\
-        ((bfd *abfd, asection *section, PTR data, file_ptr offset,	\
-        bfd_size_type count))) bfd_false
-#define	netbsd_get_section_contents		bfd_generic_get_section_contents
-#define	netbsd_new_section_hook		(boolean (*) PARAMS	\
-	((bfd *, sec_ptr))) bfd_true
-#define	netbsd_get_symtab_upper_bound	bfd_0u
-#define	netbsd_get_symtab			(unsigned int (*) PARAMS \
-        ((bfd *, struct symbol_cache_entry **))) bfd_0u
-#define	netbsd_get_reloc_upper_bound		(unsigned int (*) PARAMS \
-	((bfd *, sec_ptr))) bfd_0u
-#define	netbsd_canonicalize_reloc		(unsigned int (*) PARAMS \
-	((bfd *, sec_ptr, arelent **, struct symbol_cache_entry**))) bfd_0u
-#define	netbsd_make_empty_symbol		(struct symbol_cache_entry * \
-	(*) PARAMS ((bfd *))) bfd_false
-#define	netbsd_print_symbol			(void (*) PARAMS	\
-	((bfd *, PTR, struct symbol_cache_entry  *,			\
-	bfd_print_symbol_type))) bfd_false
-#define	netbsd_get_symbol_info		(void (*) PARAMS	\
-	((bfd *, struct symbol_cache_entry  *,			\
-	symbol_info *))) bfd_false
-#define	netbsd_get_lineno			(alent * (*) PARAMS	\
-	((bfd *, struct symbol_cache_entry *))) bfd_nullvoidptr
-#define	netbsd_set_arch_mach			(boolean (*) PARAMS	\
-	((bfd *, enum bfd_architecture, unsigned long))) bfd_false
-#define	netbsd_find_nearest_line		(boolean (*) PARAMS	\
-        ((bfd *abfd, struct sec  *section,				\
-         struct symbol_cache_entry  **symbols,bfd_vma offset,		\
-         CONST char **file, CONST char **func, unsigned int *line))) bfd_false
-#define	netbsd_sizeof_headers		(int (*) PARAMS	\
-	((bfd *, boolean))) bfd_0
-
-#define netbsd_bfd_debug_info_start		bfd_void
-#define netbsd_bfd_debug_info_end		bfd_void
-#define netbsd_bfd_debug_info_accumulate	(void (*) PARAMS	\
-	((bfd *, struct sec *))) bfd_void
-#define netbsd_bfd_get_relocated_section_contents bfd_generic_get_relocated_section_contents
-#define netbsd_bfd_relax_section		bfd_generic_relax_section
-#define netbsd_bfd_seclet_link \
-  ((boolean (*) PARAMS ((bfd *, PTR, boolean))) bfd_false)
-#define netbsd_bfd_reloc_type_lookup \
-  ((CONST struct reloc_howto_struct *(*) PARAMS ((bfd *, bfd_reloc_code_real_type))) bfd_nullvoidptr)
-#define netbsd_bfd_make_debug_symbol \
-  ((asymbol *(*) PARAMS ((bfd *, void *, unsigned long))) bfd_nullvoidptr)
-
 /* If somebody calls any byte-swapping routines, shoot them.  */
 static void
 swap_abort()
@@ -259,17 +203,17 @@ swap_abort()
 #define	NO_GET	((bfd_vma (*) PARAMS ((   const bfd_byte *))) swap_abort )
 #define	NO_PUT	((void    (*) PARAMS ((bfd_vma, bfd_byte *))) swap_abort )
 #define	NO_SIGNED_GET \
-	((bfd_signed_vma (*) PARAMS ((    const bfd_byte *))) swap_abort )
+  ((bfd_signed_vma (*) PARAMS ((const bfd_byte *))) swap_abort )
 
 const bfd_target netbsd_core_vec =
   {
     "netbsd-core",
     bfd_target_unknown_flavour,
-    true,			/* target byte order */
-    true,			/* target headers byte order */
+    BFD_ENDIAN_UNKNOWN,		/* target byte order */
+    BFD_ENDIAN_UNKNOWN,		/* target headers byte order */
     (HAS_RELOC | EXEC_P |	/* object flags */
      HAS_LINENO | HAS_DEBUG |
-     HAS_SYMS | HAS_LOCALS | DYNAMIC | WP_TEXT | D_PAGED),
+     HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED),
     (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC), /* section flags */
     0,			                                   /* symbol prefix */
     ' ',						   /* ar_pad_char */
@@ -285,7 +229,7 @@ const bfd_target netbsd_core_vec =
      _bfd_dummy_target,		/* unknown format */
      _bfd_dummy_target,		/* object file */
      _bfd_dummy_target,		/* archive */
-     netbsd_core_core_file_p		/* a core file */
+     netbsd_core_file_p		/* a core file */
     },
     {				/* bfd_set_format */
      bfd_false, bfd_false,
@@ -298,7 +242,7 @@ const bfd_target netbsd_core_vec =
     
        BFD_JUMP_TABLE_GENERIC (_bfd_generic),
        BFD_JUMP_TABLE_COPY (_bfd_generic),
-       BFD_JUMP_TABLE_CORE (netbsd_core),
+       BFD_JUMP_TABLE_CORE (netbsd),
        BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
        BFD_JUMP_TABLE_SYMBOLS (_bfd_nosymbols),
        BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),

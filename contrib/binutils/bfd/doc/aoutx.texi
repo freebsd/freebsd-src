@@ -1,6 +1,6 @@
 @section a.out backends
 
-@*
+
 @strong{Description}@*
 BFD supports a number of different flavours of a.out format,
 though the major differences are only the sizes of the
@@ -29,33 +29,33 @@ As an example, this is what goes on to make the back end for a
 sun4, from @file{aout32.c}:
 
 @example
-	#define ARCH_SIZE 32
-	#include "aoutx.h"
+       #define ARCH_SIZE 32
+       #include "aoutx.h"
 @end example
 
 Which exports names:
 
 @example
-	...
-	aout_32_canonicalize_reloc
-	aout_32_find_nearest_line
-	aout_32_get_lineno
-	aout_32_get_reloc_upper_bound
-	...
+       ...
+       aout_32_canonicalize_reloc
+       aout_32_find_nearest_line
+       aout_32_get_lineno
+       aout_32_get_reloc_upper_bound
+       ...
 @end example
 
 from @file{sunos.c}:
 
 @example
-	#define TARGET_NAME "a.out-sunos-big"
-	#define VECNAME    sunos_big_vec
-	#include "aoutf1.h"
+       #define TARGET_NAME "a.out-sunos-big"
+       #define VECNAME    sunos_big_vec
+       #include "aoutf1.h"
 @end example
 
 requires all the names from @file{aout32.c}, and produces the jump vector
 
 @example
-	sunos_big_vec
+       sunos_big_vec
 @end example
 
 The file @file{host-aout.c} is a special case.  It is for a large set
@@ -86,18 +86,18 @@ ordinary a.out files on your host. To configure a new machine
 to use @file{host-aout.c}, specify:
 
 @example
-	TDEFAULTS = -DDEFAULT_VECTOR=host_aout_big_vec
-	TDEPFILES= host-aout.o trad-core.o
+       TDEFAULTS = -DDEFAULT_VECTOR=host_aout_big_vec
+       TDEPFILES= host-aout.o trad-core.o
 @end example
 
 in the @file{config/@var{XXX}.mt} file, and modify @file{configure.in}
 to use the
 @file{@var{XXX}.mt} file (by setting "@code{bfd_target=XXX}") when your
 configuration is selected.
-@*
+
 @subsection Relocations
 
-@*
+
 @strong{Description}@*
 The file @file{aoutx.h} provides for both the @emph{standard}
 and @emph{extended} forms of a.out relocation records.
@@ -106,15 +106,15 @@ The standard records contain only an
 address, a symbol index, and a type field. The extended records
 (used on 29ks and sparcs) also have a full integer for an
 addend.
-@*
+
 @subsection Internal entry points
 
-@*
+
 @strong{Description}@*
 @file{aoutx.h} exports several routines for accessing the
 contents of an a.out file, which are gathered and exported in
 turn by various format specific files (eg sunos.c).
-@*
+
 @findex aout_@var{size}_swap_exec_header_in
 @subsubsection @code{aout_@var{size}_swap_exec_header_in}
 @strong{Synopsis}
@@ -128,7 +128,7 @@ void aout_@var{size}_swap_exec_header_in,
 Swap the information in an executable header @var{raw_bytes} taken
 from a raw byte stream memory image into the internal exec header
 structure @var{execp}.
-@*
+
 @findex aout_@var{size}_swap_exec_header_out
 @subsubsection @code{aout_@var{size}_swap_exec_header_out}
 @strong{Synopsis}
@@ -141,7 +141,7 @@ void aout_@var{size}_swap_exec_header_out
 @strong{Description}@*
 Swap the information in an internal exec header structure
 @var{execp} into the buffer @var{raw_bytes} ready for writing to disk.
-@*
+
 @findex aout_@var{size}_some_aout_object_p
 @subsubsection @code{aout_@var{size}_some_aout_object_p}
 @strong{Synopsis}
@@ -156,7 +156,7 @@ checking is an a.out file.  Do some more checking, and set up
 for access if it really is.  Call back to the calling
 environment's "finish up" function just before returning, to
 handle any last-minute setup.
-@*
+
 @findex aout_@var{size}_mkobject
 @subsubsection @code{aout_@var{size}_mkobject}
 @strong{Synopsis}
@@ -165,7 +165,7 @@ boolean aout_@var{size}_mkobject, (bfd *abfd);
 @end example
 @strong{Description}@*
 Initialize BFD @var{abfd} for use with a.out files.
-@*
+
 @findex aout_@var{size}_machine_type
 @subsubsection @code{aout_@var{size}_machine_type}
 @strong{Synopsis}
@@ -173,7 +173,7 @@ Initialize BFD @var{abfd} for use with a.out files.
 enum machine_type  aout_@var{size}_machine_type
    (enum bfd_architecture arch,
     unsigned long machine));
-    @end example
+@end example
 @strong{Description}@*
 Keep track of machine architecture and machine type for
 a.out's. Return the @code{machine_type} for a particular
@@ -182,7 +182,7 @@ and machine can't be represented in a.out format.
 
 If the architecture is understood, machine type 0 (default)
 is always understood.
-@*
+
 @findex aout_@var{size}_set_arch_mach
 @subsubsection @code{aout_@var{size}_set_arch_mach}
 @strong{Synopsis}
@@ -191,12 +191,12 @@ boolean aout_@var{size}_set_arch_mach,
    (bfd *,
     enum bfd_architecture arch,
     unsigned long machine));
-    @end example
+@end example
 @strong{Description}@*
 Set the architecture and the machine of the BFD @var{abfd} to the
 values @var{arch} and @var{machine}.  Verify that @var{abfd}'s format
 can support the architecture required.
-@*
+
 @findex aout_@var{size}_new_section_hook
 @subsubsection @code{aout_@var{size}_new_section_hook}
 @strong{Synopsis}
@@ -204,8 +204,8 @@ can support the architecture required.
 boolean aout_@var{size}_new_section_hook,
    (bfd *abfd,
     asection *newsect));
-    @end example
+@end example
 @strong{Description}@*
 Called by the BFD in response to a @code{bfd_make_section}
 request.
-@*
+

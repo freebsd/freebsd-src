@@ -1,5 +1,5 @@
 /* BFD back-end for Intel Hex objects.
-   Copyright 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
    Written by Ian Lance Taylor of Cygnus Support <ian@cygnus.com>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -270,6 +270,7 @@ ihex_scan (abfd)
      bfd *abfd;
 {
   bfd_vma segbase;
+  bfd_vma extbase;
   asection *sec;
   int lineno;
   boolean error;
@@ -283,6 +284,7 @@ ihex_scan (abfd)
   abfd->start_address = 0;
 
   segbase = 0;
+  extbase = 0;
   sec = NULL;
   lineno = 1;
   error = false;
@@ -376,7 +378,7 @@ ihex_scan (abfd)
 	    case 0:
 	      /* This is a data record.  */
 	      if (sec != NULL
-		  && sec->vma + sec->_raw_size == segbase + addr)
+		  && sec->vma + sec->_raw_size == extbase + segbase + addr)
 		{
 		  /* This data goes at the end of the section we are
                      currently building.  */
@@ -396,8 +398,8 @@ ihex_scan (abfd)
 		  if (sec == NULL)
 		    goto error_return;
 		  sec->flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
-		  sec->vma = segbase + addr;
-		  sec->lma = segbase + addr;
+		  sec->vma = extbase + segbase + addr;
+		  sec->lma = extbase + segbase + addr;
 		  sec->_raw_size = len;
 		  sec->filepos = pos;
 		}
@@ -456,7 +458,7 @@ ihex_scan (abfd)
 		  goto error_return;
 		}
 
-	      segbase = HEX4 (buf) << 16;
+	      extbase = HEX4 (buf) << 16;
 
 	      sec = NULL;
 
@@ -791,9 +793,11 @@ ihex_write_object_contents (abfd)
      bfd *abfd;
 {
   bfd_vma segbase;
+  bfd_vma extbase;
   struct ihex_data_list *l;
 
   segbase = 0;
+  extbase = 0;
   for (l = abfd->tdata.ihex_data->head; l != NULL; l = l->next)
     {
       bfd_vma where;
@@ -811,13 +815,16 @@ ihex_write_object_contents (abfd)
 	  if (now > CHUNK)
 	    now = CHUNK;
 
-	  if (where > segbase + 0xffff)
+	  if (where > segbase + extbase + 0xffff)
 	    {
 	      bfd_byte addr[2];
 
 	      /* We need a new base address.  */
 	      if (where <= 0xfffff)
 		{
+		  /* The addresses should be sorted.  */
+		  BFD_ASSERT (extbase == 0);
+
 		  segbase = where & 0xf0000;
 		  addr[0] = (bfd_byte)(segbase >> 12) & 0xff;
 		  addr[1] = (bfd_byte)(segbase >> 4) & 0xff;
@@ -826,8 +833,23 @@ ihex_write_object_contents (abfd)
 		}
 	      else
 		{
-		  segbase = where & 0xffff0000;
-		  if (where > segbase + 0xffff)
+		  /* The extended address record and the extended
+                     linear address record are combined, at least by
+                     some readers.  We need an extended linear address
+                     record here, so if we've already written out an
+                     extended address record, zero it out to avoid
+                     confusion.  */
+		  if (segbase != 0)
+		    {
+		      addr[0] = 0;
+		      addr[1] = 0;
+		      if (! ihex_write_record (abfd, 2, 0, 2, addr))
+			return false;
+		      segbase = 0;
+		    }
+
+		  extbase = where & 0xffff0000;
+		  if (where > extbase + 0xffff)
 		    {
 		      char buf[20];
 
@@ -838,14 +860,15 @@ ihex_write_object_contents (abfd)
 		      bfd_set_error (bfd_error_bad_value);
 		      return false;
 		    }
-		  addr[0] = (bfd_byte)(segbase >> 24) & 0xff;
-		  addr[1] = (bfd_byte)(segbase >> 16) & 0xff;
+		  addr[0] = (bfd_byte)(extbase >> 24) & 0xff;
+		  addr[1] = (bfd_byte)(extbase >> 16) & 0xff;
 		  if (! ihex_write_record (abfd, 2, 0, 4, addr))
 		    return false;
 		}
 	    }
 
-	  if (! ihex_write_record (abfd, now, where - segbase, 0, p))
+	  if (! ihex_write_record (abfd, now, where - (extbase + segbase),
+				   0, p))
 	    return false;
 
 	  where += now;

@@ -1,3 +1,9 @@
+/* Name of package.  */
+#undef PACKAGE
+
+/* Version of package.  */
+#undef VERSION
+
 /* Should gas use high-level BFD interfaces?  */
 #undef BFD_ASSEMBLER
 
@@ -34,9 +40,9 @@
 
 #undef MANY_SEGMENTS
 
-/* Needed only for sparc configuration.  */
-#undef SPARC_V9
-#undef SPARC_ARCH64
+/* The configure script defines this for some targets based on the
+   target name used.  It is not always defined.  */
+#undef TARGET_BYTES_BIG_ENDIAN
 
 /* Needed only for some configurations that can produce multiple output
    formats.  */
@@ -59,3 +65,15 @@
 #undef I386COFF
 #undef M68KCOFF
 #undef M88KCOFF
+
+/* Using cgen code?  */
+#undef USING_CGEN
+
+/* Needed only for sparc configuration.  */
+#undef DEFAULT_ARCH
+
+/* Needed only for PowerPC Solaris.  */
+#undef TARGET_SOLARIS_COMMENT
+
+/* Needed only for SCO 5.  */
+#undef SCO_ELF

@@ -1,21 +1,20 @@
-This is a BETA release of a completely rewritten GNU linker.
-It is distributed with other "binary utilities" which should
-be in ../binutils.  See ../binutils/README for more general notes,
-including where to send bug reports.
+This is the GNU linker.  It is distributed with other "binary
+utilities" which should be in ../binutils.  See ../binutils/README for
+more general notes, including where to send bug reports.
 
-There are many new features of the linker:
+There are many features of the linker:
 
 * The linker uses a Binary File Descriptor library (../bfd)
   that it uses to read and write object files.  This helps
   insulate the linker itself from the format of object files.
 
-* The linker support a number of different object file
+* The linker supports a number of different object file
   formats.  It can even handle multiple formats at once:
   Read two input formats and write a third.
 
 * The linker can be configured for cross-linking.
 
-* The linker contains a control language.
+* The linker supports a control language.
 
 * There is a user manual (ld.texinfo), as well as the
   beginnings of an internals manual (ldint.texinfo).
@@ -29,7 +28,8 @@ If you want to make a cross-linker, you may want to specify
 a different search path of -lfoo libraries than the default.
 You can do this by setting the LIB_PATH variable in ./Makefile.
 
-To build just the linker, make the target all-ld.
+To build just the linker, make the target all-ld from the top level
+directory (one directory above this one).
 
 Porting to a new target
 =======================
@@ -38,10 +38,20 @@ See the ldint.texinfo manual.
 
 Reporting bugs etc
 ===========================
+
 See ../binutils/README.
 
 Known problems
 ==============
+
+The Solaris linker normally exports all dynamic symbols from an
+executable.  The GNU linker does not do this by default.  This is
+because the GNU linker tries to present the same interface for all
+similar targets (in this case, all native ELF targets).  This does not
+matter for normal programs, but it can make a difference for programs
+which try to dlopen an executable, such as PERL or Tcl.  You can make
+the GNU linker export all dynamic symbols with the -E or
+--export-dynamic command line option.
 
 HP/UX 9.01 has a shell bug that causes the linker scripts to be
 generated incorrectly.  The symptom of this appears to be "fatal error

@@ -1,5 +1,6 @@
 /* atof_ieee.c - turn a Flonum into an IEEE floating point number
-   Copyright (C) 1987, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1987, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -525,6 +526,22 @@ gen_to_words (words, precision, exponent_bits)
 		      carry >>= LITTLENUM_NUMBER_OF_BITS;
 		    }
 		}
+	      else
+		{
+		  /* This is an overflow of the denormal numbers.  We
+                     need to forget what we have produced, and instead
+                     generate the smallest normalized number.  */
+		  lp = words;
+		  word1 = ((generic_floating_point_number.sign == '+')
+			   ? 0
+			   : (1 << (LITTLENUM_NUMBER_OF_BITS - 1)));
+		  word1 |= (1
+			    << ((LITTLENUM_NUMBER_OF_BITS - 1)
+				- exponent_bits));
+		  *lp++ = word1;
+		  while (lp < words_end)
+		    *lp++ = 0;
+		}
 	    }
 	  else if ((*lp & mask[prec_bits]) != mask[prec_bits])
 	    *lp += 1;
@@ -532,7 +549,7 @@ gen_to_words (words, precision, exponent_bits)
 
       return return_value;
     }
-  else if (exponent_4 >= mask[exponent_bits])
+  else if ((unsigned long) exponent_4 >= mask[exponent_bits])
     {
       /*
        * Exponent overflow. Lose immediately.

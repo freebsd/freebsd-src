@@ -13,7 +13,7 @@ END-INFO-DIR-ENTRY
 @end ifinfo
 
 @ifinfo
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -41,7 +41,7 @@ into another language, under the above conditions for modified versions.
 @c This file documents the GNU binary utilities "ar", "ld", "objcopy",
 @c  "objdump", "nm", "size", "strings", "strip", and "ranlib".
 @c
-@c Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+@c Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 @c 
 @c This text may be freely distributed under the terms of the GNU
 @c General Public License.
@@ -66,7 +66,7 @@ into another language, under the above conditions for modified versions.
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -122,6 +122,9 @@ Convert addresses into file names and line numbers
 
 @item nlmconv
 Convert object code into a Netware Loadable Module
+
+@item windres
+Manipulate Windows resources
 @end table
 @end iftex
 
@@ -137,6 +140,7 @@ Convert object code into a Netware Loadable Module
 * c++filt::			Filter to demangle encoded C++ symbols
 * addr2line::			Convert addresses to file and line
 * nlmconv::                     Converts object code into an NLM
+* windres::			Manipulate Windows resources
 * Selecting The Target System:: How these utilities determine the target.
 * Reporting Bugs::              Reporting Bugs
 * Index::                       Index
@@ -263,7 +267,7 @@ printed.
 
 @item q
 @cindex quick append to archive
-@emph{Quick append}; add the files @var{member}@dots{} to the end of
+@emph{Quick append}; Historically, add the files @var{member}@dots{} to the end of
 @var{archive}, without checking for replacement.
 
 The modifiers @samp{a}, @samp{b}, and @samp{i} do @emph{not} affect this
@@ -274,6 +278,9 @@ The modifier @samp{v} makes @code{ar} list each file as it is appended.
 Since the point of this operation is speed, the archive's symbol table
 index is not updated, even if it already existed; you can use @samp{ar s} or
 @code{ranlib} explicitly to update the symbol table index.
+
+However, too many different systems assume quick append rebuilds the
+index, so GNU ar implements @code{q} as a synonym for @code{r}.
 
 @item r
 @cindex replacement in archive
@@ -380,6 +387,14 @@ Write an object-file index into the archive, or update an existing one,
 even if no other change is made to the archive.  You may use this modifier
 flag either with any operation, or alone.  Running @samp{ar s} on an
 archive is equivalent to running @samp{ranlib} on it.
+
+@item S
+@cindex not writing archive index
+Do not generate an archive symbol table.  This can speed up building a
+large library in several steps.  The resulting archive can not be used
+with the linker.  In order to build a symbol table, you must omit the
+@samp{S} modifier on the last execution of @samp{ar}, or you must run
+@samp{ranlib} on the archive.
 
 @item u
 @cindex updating an archive
@@ -809,6 +824,8 @@ objcopy [ -F @var{bfdname} | --target=@var{bfdname} ]
         [ -S | --strip-all ]  [ -g | --strip-debug ]
         [ -K @var{symbolname} | --keep-symbol=@var{symbolname} ]
         [ -N @var{symbolname} | --strip-symbol=@var{symbolname} ]
+        [ -L @var{symbolname} | --localize-symbol=@var{symbolname} ]
+        [ -W @var{symbolname} | --weaken-symbol=@var{symbolname} ]
         [ -x | --discard-all ]  [ -X | --discard-locals ]
         [ -b @var{byte} | --byte=@var{byte} ]
         [ -i @var{interleave} | --interleave=@var{interleave} ]
@@ -903,8 +920,16 @@ be given more than once.
 @item -N @var{symbolname}
 @itemx --strip-symbol=@var{symbolname}
 Do not copy symbol @var{symbolname} from the source file.  This option
-may be given more than once, and may be combined with strip options
-other than @code{-K}.
+may be given more than once.
+
+@item -L @var{symbolname}
+@itemx --localize-symbol=@var{symbolname}
+Make symbol @var{symbolname} local to the file, so that it is not
+visible externally.  This option may be given more than once.
+
+@item -W @var{symbolname}
+@itemx --weaken-symbol=@var{symbolname}
+Make symbol @var{symbolname} weak. This option may be given more than once.
 
 @item -x
 @itemx --discard-all
@@ -943,12 +968,13 @@ because only certain debugging formats are supported, and the
 conversion process can be time consuming.
 
 @item --gap-fill @var{val}
-Fill gaps between sections with @var{val}.  This is done by increasing
+Fill gaps between sections with @var{val}.  This operation applies to
+the @emph{load address} (LMA) of the sections.  It is done by increasing
 the size of the section with the lower address, and filling in the extra
 space created with @var{val}.
 
 @item --pad-to @var{address}
-Pad the output file up to the virtual address @var{address}.  This is
+Pad the output file up to the load address @var{address}.  This is
 done by increasing the size of the last section.  The extra space is
 filled in with the value specified by @samp{--gap-fill} (default zero).
 
@@ -987,9 +1013,12 @@ the named section does not exist.
 @item --set-section-flags @var{section}=@var{flags}
 Set the flags for the named section.  The @var{flags} argument is a
 comma separated string of flag names.  The recognized names are
-@samp{alloc}, @samp{load}, @samp{readonly}, @samp{code}, @samp{data},
-and @samp{rom}.  Not all flags are meaningful for all object file
-formats.
+@samp{alloc}, @samp{contents}, @samp{load}, @samp{readonly},
+@samp{code}, @samp{data}, and @samp{rom}.  You can set the
+@samp{contents} flag for a section which does not have contents, but it
+is not meaningful to clear the @samp{contents} flag of a section which
+does have contents--just remove the section instead.  Not all flags are
+meaningful for all object file formats.
 
 @item --add-section @var{sectionname}=@var{filename}
 Add a new section named @var{sectionname} while copying the file.  The
@@ -1297,7 +1326,7 @@ relocation entries.  Using @samp{-x} is equivalent to specifying all of
 @samp{-a -f -h -r -t}.
 
 @item -w
-@item --wide
+@itemx --wide
 @cindex wide output, printing
 Format some lines for output devices that have more than 80 columns.
 @end table
@@ -1343,7 +1372,7 @@ Show the version number of @code{ranlib}.
 size [ -A | -B | --format=@var{compatibility} ]
      [ --help ]  [ -d | -o | -x | --radix=@var{number} ]
      [ --target=@var{bfdname} ]  [ -V | --version ]  
-     @var{objfile}@dots{}
+     [ @var{objfile}@dots{} ]
 @end smallexample
 
 The @sc{gnu} @code{size} utility lists the section sizes---and the total
@@ -1352,6 +1381,7 @@ argument list.  By default, one line of output is generated for each
 object file or each module in an archive.
 
 @var{objfile}@dots{} are the object files to be examined.
+If none are specified, the file @code{a.out} will be used.
 
 The command line options have the following meanings:
 
@@ -1466,8 +1496,8 @@ Print the name of the file before each string.
 @item --help
 Print a summary of the program usage on the standard output and exit.
 
-@itemx -@var{min-len}
-@item -n @var{min-len}
+@item -@var{min-len}
+@itemx -n @var{min-len}
 @itemx --bytes=@var{min-len}
 Print sequences of characters that are at least @var{min-len} characters
 long, instead of the default 4.
@@ -1502,7 +1532,7 @@ Print the program version number on the standard output and exit.
 @cindex symbols, discarding
 
 @smallexample
-strip [ -F @var{bfdname} | --target=@var{bfdname} | --target=@var{bfdname} ]
+strip [ -F @var{bfdname} | --target=@var{bfdname} ]
       [ -I @var{bfdname} | --input-target=@var{bfdname} ]
       [ -O @var{bfdname} | --output-target=@var{bfdname} ]
       [ -s | --strip-all ] [ -S | -g | --strip-debug ]
@@ -1849,6 +1879,131 @@ Prints a usage summary.
 Prints the version number for @code{nlmconv}.
 @end table
 
+@node windres
+@chapter windres
+
+@code{windres} may be used to manipulate Windows resources.
+
+@quotation
+@emph{Warning:} @code{windres} is not always built as part of the binary
+utilities, since it is only useful for Windows targets.
+@end quotation
+
+@smallexample
+windres [options] [input-file] [output-file]
+@end smallexample
+
+@code{windres} reads resources from an input file and copies them into
+an output file.  Either file may be in one of three formats:
+
+@table @code
+@item rc
+A text format read by the Resource Compiler.
+
+@item res
+A binary format generated by the Resource Compiler.
+
+@item coff
+A COFF object or executable.
+@end table
+
+The exact description of these different formats is available in
+documentation from Microsoft.
+
+When @code{windres} converts from the @code{rc} format to the @code{res}
+format, it is acting like the Windows Resource Compiler.  When
+@code{windres} converts from the @code{res} format to the @code{coff}
+format, it is acting like the Windows @code{CVTRES} program.
+
+When @code{windres} generates an @code{rc} file, the output is similar
+but not identical to the format expected for the input.  When an input
+@code{rc} file refers to an external filename, an output @code{rc} file
+will instead include the file contents.
+
+If the input or output format is not specified, @code{windres} will
+guess based on the file name, or, for the input file, the file contents.
+A file with an extension of @file{.rc} will be treated as an @code{rc}
+file, a file with an extension of @file{.res} will be treated as a
+@code{res} file, and a file with an extension of @file{.o} or
+@file{.exe} will be treated as a @code{coff} file.
+
+If no output file is specified, @code{windres} will print the resources
+in @code{rc} format to standard output.
+
+The normal use is for you to write an @code{rc} file, use @code{windres}
+to convert it to a COFF object file, and then link the COFF file into
+your application.  This will make the resources described in the
+@code{rc} file available to Windows.
+
+@table @code
+@item -i @var{filename}
+@itemx --input @var{filename}
+The name of the input file.  If this option is not used, then
+@code{windres} will use the first non-option argument as the input file
+name.  If there are no non-option arguments, then @code{windres} will
+read from standard input.  @code{windres} can not read a COFF file from
+standard input.
+
+@item -o @var{filename}
+@itemx --output @var{filename}
+The name of the output file.  If this option is not used, then
+@code{windres} will use the first non-option argument, after any used
+for the input file name, as the output file name.  If there is no
+non-option argument, then @code{windres} will write to standard output.
+@code{windres} can not write a COFF file to standard output.
+
+@item -I @var{format}
+@itemx --input-format @var{format}
+The input format to read.  @var{format} may be @samp{res}, @samp{rc}, or
+@samp{coff}.  If no input format is specified, @code{windres} will
+guess, as described above.
+
+@item -O @var{format}
+@itemx --output-format @var{format}
+The output format to generate.  @var{format} may be @samp{res},
+@samp{rc}, or @samp{coff}.  If no output format is specified,
+@code{windres} will guess, as described above.
+
+@item -F @var{target}
+@itemx --target @var{target}
+Specify the BFD format to use for a COFF file as input or output.  This
+is a BFD target name; you can use the @code{--help} option to see a list
+of supported targets.  Normally @code{windres} will use the default
+format, which is the first one listed by the @code{--help} option.
+@ref{Target Selection}.
+
+@item --preprocessor @var{program}
+When @code{windres} reads an @code{rc} file, it runs it through the C
+preprocessor first.  This option may be used to specify the preprocessor
+to use, including any leading arguments.  The default preprocessor
+argument is @code{gcc -E -xc-header -DRC_INVOKED}.
+
+@item --include-dir @var{directory}
+Specify an include directory to use when reading an @code{rc} file.
+@code{windres} will pass this to the preprocessor as an @code{-I}
+option.  @code{windres} will also search this directory when looking for
+files named in the @code{rc} file.
+
+@item --define @var{sym[=val]}
+Specify a @code{-D} option to pass to the preprocessor when reading an
+@code{rc} file.
+
+@item --language @var{val}
+Specify the default language to use when reading an @code{rc} file.
+@var{val} should be a hexadecimal language code.  The low eight bits are
+the language, and the high eight bits are the sublanguage.
+
+@item --help
+Prints a usage summary.
+
+@item --version
+Prints the version number for @code{windres}.
+
+@item --yydebug
+If @code{windres} is compiled with @code{YYDEBUG} defined as @code{1},
+this will turn on parser debugging.
+@end table
+
 @node Selecting The Target System
 @chapter Selecting the target system
 
@@ -2162,7 +2317,7 @@ individuals in the file @file{etc/SERVICE} in the @sc{gnu} Emacs
 distribution.
 
 In any event, we also recommend that you send bug reports for the binary
-utilities to @samp{bug-gnu-utils@@prep.ai.mit.edu}.
+utilities to @samp{bug-gnu-utils@@gnu.org}.
 
 The fundamental principle of reporting bugs usefully is this:
 @strong{report all the facts}.  If you are not sure whether to state a
