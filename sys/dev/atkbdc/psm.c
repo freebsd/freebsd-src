@@ -77,7 +77,7 @@
 #include <sys/time.h>
 #include <sys/uio.h>
 
-#include <machine/limits.h>
+#include <sys/limits.h>
 #include <sys/mouse.h>
 #include <machine/resource.h>
 

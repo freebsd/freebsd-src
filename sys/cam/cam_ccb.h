@@ -35,7 +35,7 @@
 #include <sys/cdefs.h>
 #include <sys/time.h>
 #ifdef CAM_NEW_TRAN_CODE
-#include <machine/limits.h>
+#include <sys/limits.h>
 #endif /* CAM_NEW_TRAN_CODE */
 #ifndef _KERNEL
 #include <sys/callout.h>

@@ -39,7 +39,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ctype.h>
-#include <machine/limits.h>
+#include <sys/limits.h>
 
 /*
  * Convert a string to a quad integer.

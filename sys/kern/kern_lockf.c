@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -51,8 +52,6 @@
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
-
-#include <machine/limits.h>
 
 /*
  * This variable controls the maximum number of processes that will

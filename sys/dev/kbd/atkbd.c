@@ -34,6 +34,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/proc.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 
 #include <machine/bus.h>
@@ -166,8 +167,6 @@ atkbd_timeout(void *arg)
 }
 
 /* LOW-LEVEL */
-
-#include <machine/limits.h>
 
 #define ATKBD_DEFAULT	0
 

@@ -47,13 +47,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/time.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/ctype.h>
-
-#include <machine/limits.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>

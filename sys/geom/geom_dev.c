@@ -47,9 +47,9 @@
 #include <sys/time.h>
 #include <sys/disk.h>
 #include <sys/fcntl.h>
+#include <sys/limits.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#include <machine/limits.h>
 
 static d_open_t		g_dev_open;
 static d_close_t	g_dev_close;

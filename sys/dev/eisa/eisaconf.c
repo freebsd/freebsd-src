@@ -36,12 +36,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <machine/limits.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>

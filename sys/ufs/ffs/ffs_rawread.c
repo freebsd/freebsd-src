@@ -32,6 +32,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/proc.h>
+#include <sys/limits.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
@@ -44,7 +45,6 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ffs/fs.h>
 
-#include <machine/limits.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
