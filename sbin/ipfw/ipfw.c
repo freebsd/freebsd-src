@@ -2036,6 +2036,9 @@ badviacombo:
 				fill_tcpopts(&rule.fw_tcpopt,
 				    &rule.fw_tcpnopt, av);
 				av++; ac--;
+			} else {
+				errx(EX_USAGE, "unknown or out of order"
+                                     " argument ``%s''", *av);
 			}
 		} else if (rule.fw_prot == IPPROTO_ICMP) {
 			if (!strncmp(*av, "icmptypes", strlen(*av))) {
@@ -2046,6 +2049,9 @@ badviacombo:
 				fill_icmptypes(rule.fw_uar.fw_icmptypes,
 				    av, &rule.fw_flg);
 				av++; ac--;
+			} else {
+				errx(EX_USAGE, "unknown or out of order"
+                                     " argument ``%s''", *av);
 			}
 		} else {
 			errx(EX_USAGE, "unknown argument ``%s''", *av);
