@@ -441,7 +441,7 @@ sorthelp(const void *a, const void *b)
 
 	oa = a;
 	ob = b;
-	return (*oa - *ob);
+	return (*oa > *ob);
 }
 
 static void
