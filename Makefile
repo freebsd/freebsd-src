@@ -83,17 +83,52 @@
 TGTS =	afterdistribute all buildworld checkdpadd clean cleandepend cleandir \
 	depend distribute everything hierarchy includes install installmost \
 	installworld lint maninstall mk most obj objlink regress rerelease \
-	tags update world
+	tags update
+
+MAKE=	make -m ${.CURDIR}/share/mk -f Makefile.inc1
 
 #
 # Handle the user-driven targets, using the source relative mk files.
 #
 ${TGTS} : upgrade_checks
 	@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc1 -m ${.CURDIR}/share/mk ${.TARGET}
+		${MAKE} ${.TARGET}
 
 # Set a reasonable default
 .MAIN:	all
+
+STARTTIME!= LC_TIME=C date
+#
+# world
+#
+# Attempt to rebuild and reinstall *everything*, with reasonable chance of
+# success, regardless of how old your existing system is.
+#
+world: upgrade_checks
+	@echo "--------------------------------------------------------------"
+	@echo ">>> ${OBJFORMAT} make world started on ${STARTTIME}"
+	@echo "--------------------------------------------------------------"
+.if target(pre-world)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making 'pre-world' target"
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}; ${MAKE} pre-world
+.endif
+	@cd ${.CURDIR}; ${MAKE} buildworld
+	@cd ${.CURDIR}; ${MAKE} -B installworld
+.if target(post-world)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making 'post-world' target"
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}; ${MAKE} post-world
+.endif
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> ${OBJFORMAT} make world started on ${STARTTIME}"
+	@echo ">>> ${OBJFORMAT} make world completed on `LC_TIME=C date`"
+	@echo "--------------------------------------------------------------"
 
 #
 # Perform a few tests to determine if the installed tools are adequate
