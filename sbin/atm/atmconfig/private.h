@@ -51,6 +51,9 @@
 #ifndef FILE_HELP_OTHERS
 #define	FILE_HELP_OTHERS "atmconfig_*.help"
 #endif
+#ifndef PATH_ILMI_SOCK
+#define	PATH_ILMI_SOCK	"/var/run/ilmid.sock"
+#endif
 
 /*
  * Builtin commands
