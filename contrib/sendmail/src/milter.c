@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: milter.c,v 8.50.4.51 2001/07/20 00:53:01 gshapiro Exp $";
+static char id[] = "@(#)$Id: milter.c,v 8.50.4.53 2001/08/15 02:01:03 ca Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -1100,7 +1100,7 @@ milter_setup(line)
 	m->mf_name = newstr(line);
 	m->mf_state = SMFS_READY;
 	m->mf_sock = -1;
- 	m->mf_timeout[SMFTO_CONNECT] = (time_t) 0;
+	m->mf_timeout[SMFTO_CONNECT] = (time_t) 0;
 	m->mf_timeout[SMFTO_WRITE] = (time_t) 10;
 	m->mf_timeout[SMFTO_READ] = (time_t) 10;
 	m->mf_timeout[SMFTO_EOM] = (time_t) 300;
@@ -1132,10 +1132,6 @@ milter_setup(line)
 		/* install the field into the filter struct */
 		switch (fcode)
 		{
-		  case 'C':
-			m->mf_timeout[SMFTO_CONNECT] = convtime(p, 's');
-			break;
-
 		  case 'S':		/* socket */
 			if (p == NULL)
 				m->mf_conn = NULL;
@@ -1281,6 +1277,14 @@ milter_parse_timeouts(spec, m)
 		/* install the field into the filter struct */
 		switch (fcode)
 		{
+		  case 'C':
+			m->mf_timeout[SMFTO_CONNECT] = convtime(p, 's');
+			if (tTd(64, 5))
+				printf("X%s: %c=%ld\n",
+				       m->mf_name, fcode,
+				       (u_long) m->mf_timeout[SMFTO_CONNECT]);
+			break;
+
 		  case 'S':
 			m->mf_timeout[SMFTO_WRITE] = convtime(p, 's');
 			if (tTd(64, 5))
