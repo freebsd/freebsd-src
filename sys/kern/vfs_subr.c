@@ -76,12 +76,14 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 static void	addalias __P((struct vnode *vp, dev_t nvp_rdev));
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
 static void	vclean __P((struct vnode *vp, int flags, struct thread *td));
+static void	vlruvp(struct vnode *vp);
 
 /*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
  * allocates a new vnode, never decreased.
  */
 static unsigned long	numvnodes;
+
 SYSCTL_LONG(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 
 /*
@@ -543,6 +545,20 @@ vlrureclaim(struct mount *mp, int count)
 {
 	struct vnode *vp;
 	int done;
+	int trigger;
+	int usevnodes;
+
+	/*
+	 * Calculate the trigger point, don't allow user
+	 * screwups to blow us up.   This prevents us from
+	 * recycling vnodes with lots of resident pages.  We
+	 * aren't trying to free memory, we are trying to
+	 * free vnodes.
+	 */
+	usevnodes = desiredvnodes;
+	if (usevnodes <= 0)
+		usevnodes = 1;
+	trigger = cnt.v_page_count * 2 / usevnodes;
 
 	done = 0;
 	mtx_lock(&mntvnode_mtx);
@@ -553,6 +569,7 @@ vlrureclaim(struct mount *mp, int count)
 		if (vp->v_type != VNON &&
 		    vp->v_type != VBAD &&
 		    VMIGHTFREE(vp) &&           /* critical path opt */
+		    (vp->v_object == NULL || vp->v_object->resident_page_count < trigger) &&
 		    mtx_trylock(&vp->v_interlock)
 		) {
 			mtx_unlock(&mntvnode_mtx);
@@ -1658,6 +1675,8 @@ vget(vp, flags, td)
 			vp->v_usecount--;
 			if (VSHOULDFREE(vp))
 				vfree(vp);
+			else
+				vlruvp(vp);
 			mtx_unlock(&vp->v_interlock);
 		}
 		return (error);
@@ -1707,6 +1726,8 @@ vrele(vp)
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
+		else
+			vlruvp(vp);
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
@@ -1754,6 +1775,8 @@ vput(vp)
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
+		else
+			vlruvp(vp);
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
@@ -1802,6 +1825,8 @@ vdrop(vp)
 	vp->v_holdcnt--;
 	if (VSHOULDFREE(vp))
 		vfree(vp);
+	else
+		vlruvp(vp);
 	splx(s);
 }
 
@@ -1937,6 +1962,27 @@ loop:
 	for (; rootrefs > 0; rootrefs--)
 		vrele(rootvp);
 	return (0);
+}
+
+/*
+ * This moves a now (likely recyclable) vnode to the end of the
+ * mountlist.  XXX However, it is temporarily disabled until we
+ * can clean up ffs_sync() and friends, which have loop restart
+ * conditions which this code causes to operate O(N^2).
+ */
+static void
+vlruvp(struct vnode *vp)
+{
+#if 0
+	struct mount *mp;
+
+	if ((mp = vp->v_mount) != NULL) {
+		mtx_lock(&mntvnode_mtx);
+		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+		mtx_unlock(&mntvnode_mtx);
+	}
+#endif
 }
 
 /*
