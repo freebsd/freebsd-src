@@ -374,7 +374,7 @@ buck			dollar
 cable			720 ft
 caliber			1e-2 in
 calorie			cal
-carat			205 mg
+carat			205 milligram
 caratgold		1|24
 cent			centidollar
 cental			100 lb
@@ -468,7 +468,7 @@ mach			331.46 m/sec
 magnum			2 qt
 marineleague		3 nmile
 maxwell			1e-8 weber
-metriccarat		200 mg
+metriccarat		200 milligram
 mgd			megagal/day
 mh			millihenry
 mhz			1e+6 /sec
