@@ -817,6 +817,10 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	nfs_decode_args(nmp, argp);
 
+	if (nmp->nm_sotype == SOCK_STREAM)
+		mtx_init(&nmp->nm_nfstcpstate.mtx, "NFS/TCP state lock", 
+			 NULL, MTX_DEF);		
+
 	/*
 	 * For Connection based sockets (TCP,...) defer the connect until
 	 * the first request, in case the server is not responding.
@@ -862,6 +866,8 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	return (0);
 bad:
+	if (nmp->nm_sotype == SOCK_STREAM)
+		mtx_destroy(&nmp->nm_nfstcpstate.mtx);
 	nfs_disconnect(nmp);
 	uma_zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
@@ -903,6 +909,9 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	nfs_disconnect(nmp);
 	FREE(nmp->nm_nam, M_SONAME);
 
+	if (nmp->nm_sotype == SOCK_STREAM)
+		mtx_destroy(&nmp->nm_nfstcpstate.mtx);
+	
 	uma_zfree(nfsmount_zone, nmp);
 	return (0);
 }

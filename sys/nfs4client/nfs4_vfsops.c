@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
