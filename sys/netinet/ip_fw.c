@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.50 1996/10/12 19:38:50 alex Exp $
+ *	$Id: ip_fw.c,v 1.51 1996/10/12 19:49:36 bde Exp $
  */
 
 /*
@@ -320,11 +320,13 @@ ip_fw_chk(struct ip **pip, int hlen,
 			continue;
 
 		/* If src-addr doesn't match, not this rule. */
-		if ((src.s_addr & f->fw_smsk.s_addr) != f->fw_src.s_addr)
+		if ((f->fw_flg & IP_FW_F_INVSRC) != 0
+		  ^ (src.s_addr & f->fw_smsk.s_addr) != f->fw_src.s_addr)
 			continue;
 
 		/* If dest-addr doesn't match, not this rule. */
-		if ((dst.s_addr & f->fw_dmsk.s_addr) != f->fw_dst.s_addr)
+		if ((f->fw_flg & IP_FW_F_INVDST) != 0
+		  ^ (dst.s_addr & f->fw_dmsk.s_addr) != f->fw_dst.s_addr)
 			continue;
 
 		/* If a i/f name was specified, and we don't know */

@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.22 1996/08/13 19:43:41 pst Exp $
+ *	$Id: ip_fw.h,v 1.23 1996/08/21 21:36:57 sos Exp $
  */
 
 /*
@@ -64,6 +64,8 @@ struct ip_fw_chain {
 /*
  * Values for "flags" field .
  */
+#define IP_FW_F_INVSRC	0x0001	/* Invert sense of src check	      */
+#define IP_FW_F_INVDST	0x0002	/* Invert sense of dst check	      */
 #define IP_FW_F_IN	0x0004	/* Inbound 			      */
 #define IP_FW_F_OUT	0x0008	/* Outbound			      */
 
