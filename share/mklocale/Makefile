@@ -26,6 +26,7 @@ LOCALES=	am_ET.UTF-8 \
 		zh_CN.GB18030 \
 		zh_CN.GB2312 \
 		zh_CN.GBK \
+		zh_HK.Big5HKSCS \
 		zh_TW.Big5
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
