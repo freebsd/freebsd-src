@@ -8,10 +8,9 @@ FILES+=	bsd.port.mk bsd.port.post.mk  bsd.port.pre.mk bsd.port.subdir.mk
 FILES+=	bsd.prog.mk bsd.sgml.mk bsd.subdir.mk bsd.sys.mk
 FILES+=	sys.mk
 NOOBJ=	noobj
+FILESDIR=	${BINDIR}/mk
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FILES} \
-	    ${DESTDIR}${BINDIR}/mk
 	date '+%Y%m%d' > ${DESTDIR}/var/db/port.mkversion
 
 .include <bsd.prog.mk>

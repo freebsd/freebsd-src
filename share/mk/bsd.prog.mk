@@ -67,11 +67,11 @@ MAN1=	${MAN}
 .endif
 
 .MAIN: all
+all: objwarn ${PROG} ${SCRIPTS} ${FILES}
 .if !defined(NOMAN)
-all: objwarn ${PROG} ${SCRIPTS} all-man _SUBDIR
-.else
-all: objwarn ${PROG} ${SCRIPTS} _SUBDIR
+all: all-man 
 .endif
+all: _SUBDIR
 
 CLEANFILES+= ${PROG} ${OBJS}
 
@@ -150,12 +150,39 @@ SCRIPTSDIR_${script:T}?=	${SCRIPTSDIR}
 SCRIPTSOWN_${script:T}?=	${SCRIPTSOWN}
 SCRIPTSGRP_${script:T}?=	${SCRIPTSGRP}
 SCRIPTSMODE_${script:T}?=	${SCRIPTSMODE}
-_scriptsinstall: SCRIPTSINS_${script:T}
-SCRIPTSINS_${script:T}: ${script}
+_scriptsinstall: _SCRIPTSINS_${script:T}
+_SCRIPTSINS_${script:T}: ${script}
 	${INSTALL} ${COPY} -o ${SCRIPTSOWN_${.ALLSRC:T}} \
 	    -g ${SCRIPTSGRP_${.ALLSRC:T}} -m ${SCRIPTSMODE_${.ALLSRC:T}} \
 	    ${_INSTALLFLAGS} ${.ALLSRC} \
 	    ${DESTDIR}${SCRIPTSDIR_${.ALLSRC:T}}/${SCRIPTSNAME_${.ALLSRC:T}}
+.endfor
+.endif
+
+.if defined(FILES) && !empty(FILES)
+realinstall: _filesinstall
+
+FILESDIR?=	${BINDIR}
+FILESOWN?=	${SHAREOWN}
+FILESGRP?=	${SHAREGRP}
+FILESMODE?=	${SHAREMODE}
+
+.for file in ${FILES}
+.if defined(FILESNAME)
+FILESNAME_${file:T}?=	${FILESNAME}
+.else
+FILESNAME_${file:T}?=	${file:T}
+.endif
+FILESDIR_${file:T}?=	${FILESDIR}
+FILESOWN_${file:T}?=	${FILESOWN}
+FILESGRP_${file:T}?=	${FILESGRP}
+FILESMODE_${file:T}?=	${FILESMODE}
+_filesinstall: _FILESINS_${file:T}
+_FILESINS_${file:T}: ${file}
+	${INSTALL} ${COPY} -o ${FILESOWN_${.ALLSRC:T}} \
+	    -g ${FILESGRP_${.ALLSRC:T}} -m ${FILESMODE_${.ALLSRC:T}} \
+	    ${_INSTALLFLAGS} ${.ALLSRC} \
+	    ${DESTDIR}${FILESDIR_${.ALLSRC:T}}/${FILESNAME_${.ALLSRC:T}}
 .endfor
 .endif
 
