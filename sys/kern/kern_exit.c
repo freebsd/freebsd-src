@@ -178,7 +178,7 @@ exit1(td, rv)
 		 * from userret().  thread_exit() will unsuspend us
 		 * when the last other thread exits.
 		 */
-		if (thread_single(SNGLE_EXIT)) {
+		if (thread_single(SINGLE_EXIT)) {
 			panic ("Exit: Single threading fouled up");
 		}
 		/*

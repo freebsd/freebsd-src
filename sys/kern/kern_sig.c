@@ -1363,7 +1363,7 @@ psignal(p, sig)
 			 * an event, it goes back to run state.
 			 * Otherwise, process goes back to sleep state.
 			 */
-			p->p_flag &= ~P_STOPPED_SGNL;
+			p->p_flag &= ~P_STOPPED_SIG;
 			p->p_flag |= P_CONTINUED;
 			if (action == SIG_DFL) {
 				SIGDELSET(p->p_siglist, sig);
@@ -1395,7 +1395,7 @@ psignal(p, sig)
 			 * (If we did the shell could get confused).
 			 * Just make sure the signal STOP bit set.
 			 */
-			p->p_flag |= P_STOPPED_SGNL;
+			p->p_flag |= P_STOPPED_SIG;
 			SIGDELSET(p->p_siglist, sig);
 			goto out;
 		}
@@ -1770,7 +1770,7 @@ stop(p)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	p->p_flag |= P_STOPPED_SGNL;
+	p->p_flag |= P_STOPPED_SIG;
 	p->p_flag &= ~P_WAITED;
 	wakeup(p->p_pptr);
 }
