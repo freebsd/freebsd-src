@@ -383,7 +383,7 @@ unmount(td, uap)
 	 */
 	if (!mediate_subject_at_level("unmount", td->td_proc,
 	    LOMAC_HIGHEST_LEVEL) ||
-	    ((mp->mnt_stat.f_owner != td->td_ucred->cr_uid) &&
+	    ((mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) &&
 	    (error = suser(td)))) {
 		vput(vp);
 		return (error);
