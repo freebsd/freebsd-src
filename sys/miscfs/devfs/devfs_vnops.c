@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.12 1995/09/09 12:51:56 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.13 1995/09/19 07:32:01 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -180,6 +180,7 @@ DBPRINT(("errr, maybe not cached "));
 	if(new_nodename)
 	{
 		new_node = new_nodename->dnp;
+		new_node->last_lookup = new_nodename; /* for unlink */
 		goto found;
 	}
 	new_node = NULL; /* to be safe */
@@ -843,8 +844,10 @@ abortit:
 		return (error);
 	}
 	if ( error = devfs_vntodn(vp,&tp)) goto abortit;
-	tnp = dev_findname(tdp,cnp->cn_nameptr);
-	if(!tnp) panic("devfs_rename: target dissapeared");
+	/*
+	 * Assuming we are atomic, dev_lookup left this for us
+	 */
+	tnp = tp->last_lookup;
 	
 
 	/*
@@ -1045,12 +1048,10 @@ int devfs_rename(struct vop_rename_args *ap) /*proto*/
 	if ( error = devfs_vntodn(tdvp,&tdp)) goto abortit;
 	if ( error = devfs_vntodn(fdvp,&fdp)) goto abortit;
 	if ( error = devfs_vntodn(fvp,&fp)) goto abortit;
-	fnp = dev_findname(fdp,fcnp->cn_nameptr);
-	if(!fnp) panic("devfs_rename: source dissapeared");
+	fnp = fp->last_lookup;
 	if (tvp) {
 		if ( error = devfs_vntodn(tvp,&tp)) goto abortit;
-		tnp = dev_findname(tdp,tcnp->cn_nameptr);
-		if(!tnp) panic("devfs_rename: target dissapeared");
+		tnp = tp->last_lookup;
 	} else {
 		tp = NULL;
 		tnp = NULL;
@@ -1388,6 +1389,8 @@ int devfs_abortop(struct vop_abortop_args *ap) /*proto*/
         } */
 {
 DBPRINT(("abortop\n"));
+	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
+		FREE(ap->a_cnp->cn_pnbuf, M_NAMEI);
 	return 0;
 }
 
