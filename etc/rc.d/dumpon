@@ -26,7 +26,11 @@ dumpon_start()
 		while read dev mp type more ; do
 			[ "${type}" = "swap" ] || continue
 			[ -c "${dev}" ] || continue
-			/sbin/dumpon -v "${dev}" 2>/dev/null && return 0
+			if /sbin/dumpon -v "${dev}" 2>/dev/null; then
+				# Make a symlink in devfs for savecore
+				ln -s ${dev} /dev/dumpdev
+				return 0
+			fi
 		done </etc/fstab
 		echo "No suitable dump device was found." 1>&2
 		return 1
@@ -43,6 +47,7 @@ dumpon_stop()
 	[Nn][Oo] | '')
 		;;
 	*)
+		rm -f /dev/dumpdev
 		/sbin/dumpon -v off
 		;;
 	esac
