@@ -89,11 +89,8 @@ CFLAGS+=-DINET6 -DPIM -DIOCTL_OK_ON_RAW_SOCKET -DHAVE_GETIFADDRS
 CFLAGS+=-DHAVE_STDARG_H
 DPADD=	${LIBY} ${LIBL}
 LDADD=	-ly -ll
+SCRIPTS=pim6stat
 
 MAN=	pim6stat.1 pim6sd.conf.5 pim6sd.8
-
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/pim6stat ${DESTDIR}${BINDIR}
 
 .include <bsd.prog.mk>
