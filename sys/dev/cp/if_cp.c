@@ -96,7 +96,6 @@ SYSCTL_INT(_debug_cp, OID_AUTO, mpsafenet, CTLFLAG_RD, &cp_mpsafenet, 0,
 					mtx_assert (&(_bd)->cp_mtx, MA_OWNED); \
 				} while (0)
 
-#define CDEV_MAJOR	134
 
 static	int cp_probe		__P((device_t));
 static	int cp_attach		__P((device_t));
@@ -1808,7 +1807,6 @@ static struct cdevsw cp_cdevsw = {
 	.d_close    = cp_close,
 	.d_ioctl    = cp_ioctl,
 	.d_name     = "cp",
-	.d_maj      = CDEV_MAJOR,
 	.d_flags    = D_NEEDGIANT,
 };
 

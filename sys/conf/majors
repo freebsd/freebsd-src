@@ -55,7 +55,6 @@
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 115	dag		University of Waikato DAG network capture boards
 117	*acd		ATAPI CDROM
-119	*ast		ATAPI tape
 121	onew		Dallas Semiconductor One-Wire bus <phk@freebsd.org>
 124	ucdc		USB Communication Class Driver <n_hibma>
 125	digio		Advantech PCI-1750 IO card jen@vulture.dmem.strath.ac.uk
