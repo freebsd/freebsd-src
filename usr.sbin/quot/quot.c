@@ -30,7 +30,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: quot.c,v 1.2 1995/11/03 15:21:04 peter Exp $";
+static char rcsid[] = "$Id: quot.c,v 1.3 1995/11/03 17:04:02 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -94,7 +94,7 @@ static struct dinode *get_inode(fd,super,ino)
 			exit(1);
 		}
 		last = (ino / INOCNT(super)) * INOCNT(super);
-		if (lseek(fd,ino_to_fsba(super,last) << super->fs_fshift,0) < 0
+		if (lseek(fd, (off_t)ino_to_fsba(super, last) << super->fs_fshift, 0) < (off_t)0
 		    || read(fd,ip,INOSZ(super)) != INOSZ(super)) {
 			perror("read inodes");
 			exit(1);
