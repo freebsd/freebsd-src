@@ -921,16 +921,21 @@ arplookup(addr, create, proxy)
 		why = "gateway route is not ours";
 
 	if (why) {
-		if (create)
+		if (create) {
 			log(LOG_DEBUG, "arplookup %s failed: %s\n",
 			    inet_ntoa(sin.sin_addr), why);
-
-		/* If there are no references to this route, purge it */
-		if (rt->rt_refcnt <= 0 && (rt->rt_flags & RTF_WASCLONED)) {
-			rtrequest(RTM_DELETE,
-					(struct sockaddr *)rt_key(rt),
-					rt->rt_gateway, rt_mask(rt),
-					rt->rt_flags, 0);
+			/*
+			 * If there are no references to this Layer 2 route,
+			 * and it is a cloned route, and not static, and
+			 * arplookup() is creating the route, then purge
+			 * it from the routing table as it is probably bogus.
+			 */
+			if (((rt->rt_flags & (RTF_STATIC | RTF_WASCLONED)) ==
+			    RTF_WASCLONED) && (rt->rt_refcnt == 0))
+				rtrequest(RTM_DELETE,
+				    (struct sockaddr *)rt_key(rt),
+				    rt->rt_gateway, rt_mask(rt),
+				    rt->rt_flags, 0);
 		}
 		return (0);
 	}
