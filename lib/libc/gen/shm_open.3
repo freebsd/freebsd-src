@@ -47,13 +47,13 @@
 .Fn shm_unlink "const char *path"
 .Sh DESCRIPTION
 The
-.Nm shm_open
+.Fn shm_open
 function opens (or optionally creates) a
 .Tn POSIX
 shared memory object named
 .Fa path .
 The
-.Nm shm_unlink
+.Fn shm_unlink
 function removes a shared memory object named
 .Fa path .
 .Pp
@@ -63,9 +63,9 @@ implementation,
 .Tn POSIX
 shared memory objects are implemented as ordinary files.
 The
-.Nm shm_open
+.Fn shm_open
 and
-.Nm shm_unlink
+.Fn shm_unlink
 act as wrappers around the
 .Xr open 2
 and
@@ -87,7 +87,7 @@ In addition, the
 implementation causes
 .Fn mmap
 of a descriptor returned by
-.Nm shm_open
+.Fn shm_open
 to behave as if the
 .Dv MAP_NOSYNC
 flag had been specified to
@@ -96,7 +96,7 @@ flag had been specified to
 .Xr fcntl 2 . )
 .Pp
 The
-.Nm shm_unlink
+.Fn shm_unlink
 function makes no effort to ensure that
 .Fa path
 refers to a shared memory object.
@@ -173,16 +173,16 @@ specifies an access mode of
 .Xr unlink 2
 .Sh STANDARDS
 The
-.Nm shm_open
+.Fn shm_open
 and
-.Nm shm_unlink
+.Fn shm_unlink
 functions are believed to conform to
 .St -p1003.1b .
 .Sh HISTORY
 The
-.Nm shm_open
+.Fn shm_open
 and
-.Nm shm_unlink
+.Fn shm_unlink
 functions first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
@@ -191,4 +191,3 @@ functions first appeared in
 .Pp
 .An Matthew Dillon Aq dillon@FreeBSD.org
 .Pq Dv MAP_NOSYNC
-
