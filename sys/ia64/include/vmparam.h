@@ -54,15 +54,7 @@
  * kernel stack.
  */
 #define	USRTEXT		CLBYTES
-/* #define	USRSTACK	VM_MAXUSER_ADDRESS */
-
-/*
- * This stack location is suitable for OSF1 emulation.  Some OSF
- * programs are built as 32bit and assume that the stack is reachable
- * with a 32bit value.  OSF1 manages to have a variable location for
- * the user stack which we should probably also support.
- */
-#define USRSTACK	(0x12000000LL - (UPAGES*PAGE_SIZE))
+#define	USRSTACK	VM_MAXUSER_ADDRESS
 
 /*
  * Virtual memory related constants, all in bytes

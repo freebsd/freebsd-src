@@ -68,7 +68,7 @@
 /*
  * Not really a leaf but we can't return.
  */
-LEAF(locorestart, 1)
+ENTRY(locorestart, 1)
 
 	movl	r8=ia64_vector_table	// set up IVT early
 	movl	r9=ia64_vhpt+(1<<8)+(15<<2)+1 // and VHPT
@@ -122,7 +122,7 @@ LEAF(locorestart, 1)
  *      sp+16	pointer to sigframe
  */
 
-LEAF(sigcode,0)
+ENTRY(sigcode,0)
 	ld8	r8=[r17],8		// function address
 	;;
 	ld8	gp=[r17]		// function's gp value
@@ -172,7 +172,7 @@ LEAF(sigcode,0)
 	CALLSYS_NOERROR(sigreturn)	// and call sigreturn() with it.
 	mov	out0=ret0		// if that failed, get error code
 	CALLSYS_NOERROR(exit)		// and call exit() with it.
-XLEAF(esigcode)
+XENTRY(esigcode)
 	END(sigcode)
 
 	.data
@@ -189,7 +189,7 @@ XLEAF(esigcode)
  *	a0	'struct fpstate *' to save into
  */
 
-LEAF(savefpstate, 1)
+ENTRY(savefpstate, 1)
 #if 0
 	LDGP(pv)
 	/* save all of the FP registers */
@@ -246,7 +246,7 @@ LEAF(savefpstate, 1)
  *	a0	'struct fpstate *' to restore from
  */
 
-LEAF(restorefpstate, 1)
+ENTRY(restorefpstate, 1)
 #if 0
 	LDGP(pv)
 	/*
@@ -298,7 +298,7 @@ LEAF(restorefpstate, 1)
  * When starting init, call this to configure the process for user
  * mode.  This will be inherited by other processes.
  */
-	LEAF_NOPROFILE(prepare_usermode, 0)
+	ENTRY_NOPROFILE(prepare_usermode, 0)
 	END(prepare_usermode)
 
 	.data

@@ -308,7 +308,7 @@ pmap_bootstrap()
 	 * handlers. Here we just make sure that they have the largest 
 	 * possible page size to minimise TLB usage.
 	 */
-#if 0
+#if 1
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
 #endif

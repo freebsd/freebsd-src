@@ -158,10 +158,8 @@ cpu_initclocks()
 {
 	u_int32_t freq;
 
-#if 0
 	if (clockdev == NULL)
 		panic("cpu_initclocks: no clock attached");
-#endif
 
 	/*
 	 * We use cr.itc and cr.itm to implement a 1024hz clock.
@@ -194,12 +192,10 @@ cpu_initclocks()
 
 	stathz = 128;
 
-#if 0
 	/*
 	 * Get the clock started.
 	 */
 	CLOCK_INIT(clockdev);
-#endif
 }
 
 static u_int32_t

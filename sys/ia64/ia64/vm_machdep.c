@@ -110,6 +110,14 @@ vm_fault_quick(v, prot)
 	return(r);
 }
 
+struct ia64_fdesc {
+	u_int64_t	func;
+	u_int64_t	gp;
+};
+
+#define FDESC_FUNC(fn)	(((struct ia64_fdesc *) fn)->func)
+#define FDESC_GP(fn)	(((struct ia64_fdesc *) fn)->gp)
+
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -185,8 +193,8 @@ cpu_fork(p1, p2, flags)
 		 * Set up return-value registers as fork() libc stub expects.
 		 */
 		p2tf->tf_r[FRAME_R8] = 0; 	/* child's pid (linux) 	*/
-		p2tf->tf_r[FRAME_R9] = 0;	/* no error 		*/
-		p2tf->tf_r[FRAME_R10] = 1;	/* is child (FreeBSD) 	*/
+		p2tf->tf_r[FRAME_R9] = 1;	/* is child (FreeBSD) 	*/
+		p2tf->tf_r[FRAME_R10] = 0;	/* no error 		*/
 
 		/*
 		 * Turn off RSE for a moment and work out our current
@@ -249,12 +257,17 @@ cpu_fork(p1, p2, flags)
 		 * Arrange for continuation at child_return(), which
 		 * will return to exception_return().  Note that the child
 		 * process doesn't stay in the kernel for long!
+		 *
+		 * We should really deal with the function descriptor
+		 * for child_return in switch_trampoline so that a
+		 * kthread started from a loaded module can have the
+		 * right value for gp.
 		 */
 		up->u_pcb.pcb_sp = (u_int64_t)p2tf - 16;	
-		up->u_pcb.pcb_r4 = (u_int64_t)child_return;
-		up->u_pcb.pcb_r5 = (u_int64_t)exception_return;
+		up->u_pcb.pcb_r4 = FDESC_FUNC(child_return);
+		up->u_pcb.pcb_r5 = FDESC_FUNC(exception_return);
 		up->u_pcb.pcb_r6 = (u_int64_t)p2;
-		up->u_pcb.pcb_b0 = (u_int64_t)switch_trampoline;
+		up->u_pcb.pcb_b0 = FDESC_FUNC(switch_trampoline);
 	}
 }
 
@@ -270,7 +283,7 @@ cpu_set_fork_handler(p, func, arg)
 	void (*func) __P((void *));
 	void *arg;
 {
-	p->p_addr->u_pcb.pcb_r4 = (u_int64_t) func;
+	p->p_addr->u_pcb.pcb_r4 = FDESC_FUNC(func);
 	p->p_addr->u_pcb.pcb_r6 = (u_int64_t) arg;
 }
 
