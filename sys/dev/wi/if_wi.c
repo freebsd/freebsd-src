@@ -783,9 +783,10 @@ wi_init(void *arg)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
+	    ic->ic_opmode == IEEE80211_M_IBSS ||
 	    ic->ic_opmode == IEEE80211_M_MONITOR ||
 	    ic->ic_opmode == IEEE80211_M_HOSTAP)
-		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
+		ieee80211_create_ibss(ic, ic->ic_ibss_chan);
 
 	/* Enable interrupts */
 	CSR_WRITE_2(sc, WI_INT_EN, WI_INTRS);
@@ -1314,7 +1315,15 @@ wi_sync_bssid(struct wi_softc *sc, u_int8_t new_bssid[IEEE80211_ADDR_LEN])
 	                 WI_MAX_FALSE_SYNS))
 		return;
 
-	ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
+	sc->sc_false_syns = MAX(0, sc->sc_false_syns - 1);
+	/*
+	 * XXX hack; we should create a new node with the new bssid
+	 * and replace the existing ic_bss with it but since we don't
+	 * process management frames to collect state we cheat by
+	 * reusing the existing node as we know wi_newstate will be
+	 * called and it will overwrite the node state.
+	 */
+	ieee80211_sta_join(ic, ieee80211_ref_node(ni));
 }
 
 static void
@@ -2674,7 +2683,7 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct wi_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni = ic->ic_bss;
+	struct ieee80211_node *ni;
 	int buflen;
 	u_int16_t val;
 	struct wi_ssid ssid;
@@ -2684,9 +2693,14 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		ieee80211_state_name[ic->ic_state],
 		ieee80211_state_name[nstate]));
 
+	/*
+	 * Internal to the driver the INIT and RUN states are used
+	 * so bypass the net80211 state machine for other states.
+	 * Beware however that this requires use to net80211 state
+	 * management that otherwise would be handled for us.
+	 */
 	switch (nstate) {
 	case IEEE80211_S_INIT:
-		ic->ic_flags &= ~IEEE80211_F_SIBSS;
 		sc->sc_flags &= ~WI_FLAGS_OUTRANGE;
 		return (*sc->sc_newstate)(ic, nstate, arg);
 
@@ -2697,6 +2711,7 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_RUN:
+		ni = ic->ic_bss;
 		sc->sc_flags &= ~WI_FLAGS_OUTRANGE;
 		buflen = IEEE80211_ADDR_LEN;
 		IEEE80211_ADDR_COPY(old_bssid, ni->ni_bssid);
@@ -2713,20 +2728,7 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
 			htole16(ni->ni_chan->ic_flags);
 #endif
-
-		/* If not equal, then discount a false synchronization. */
-		if (!IEEE80211_ADDR_EQ(old_bssid, ni->ni_bssid))
-			sc->sc_false_syns = MAX(0, sc->sc_false_syns - 1);
-
-		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
-			ni->ni_esslen = ic->ic_des_esslen;
-			memcpy(ni->ni_essid, ic->ic_des_essid, ni->ni_esslen);
-			ni->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11B];
-			ni->ni_intval = ic->ic_lintval;
-			ni->ni_capinfo = IEEE80211_CAPINFO_ESS;
-			if (ic->ic_flags & IEEE80211_F_PRIVACY)
-				ni->ni_capinfo |= IEEE80211_CAPINFO_PRIVACY;
-		} else {
+		if (ic->ic_opmode != IEEE80211_M_HOSTAP) {
 			/*
 			 * XXX hack; unceremoniously clear 
 			 * IEEE80211_F_DROPUNENC when operating with
