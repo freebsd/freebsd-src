@@ -43,13 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#ifdef YP
-#include <rpc/rpc.h>
-#include <rpcsvc/yp_prot.h>
-#include <rpcsvc/ypclnt.h>
-#include <rpcsvc/yppasswd.h>
-#endif
-
 #include <login_cap.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -63,8 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <pw_util.h>
 
 #ifdef YP
-#include <pw_yp.h>
-#include "yppasswd_private.h"
+#include <ypclnt.h>
 #endif
 
 #define PAM_SM_AUTH
@@ -82,7 +74,6 @@ __FBSDID("$FreeBSD$");
 static void makesalt(char []);
 
 static char password_hash[] =		PASSWORD_HASH;
-static char colon[] =			":";
 
 enum {
 	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX,
@@ -99,16 +90,7 @@ static struct opttab other_options[] = {
 	{ NULL, 0 }
 };
 
-#ifdef YP
-int pam_use_yp = 0;
-int yp_errno = YP_TRUE;
-#endif
-
 char *tempname = NULL;
-static int local_passwd(const char *user, const char *pass);
-#ifdef YP
-static int yp_passwd(const char *user, const char *pass);
-#endif
 
 /*
  * authentication management
@@ -300,11 +282,17 @@ PAM_EXTERN int
 pam_sm_chauthtok(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
+#ifdef YP
+	struct ypclnt *ypclnt;
+	const char *yp_domain, *yp_server;
+#endif
 	struct options options;
+	char salt[SALTSIZE + 1];
+	login_cap_t * lc;
 	struct passwd *pwd;
-	const char *user, *pass, *new_pass;
-	char *encrypted, *usrdup;
-	int retval, res;
+	const char *user, *old_pass, *new_pass;
+	char *encrypted;
+	int pfd, tfd, retval;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -332,36 +320,21 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			 * by not prompting for a password?
 			 * XXX check PAM_DISALLOW_NULL_AUTHTOK
 			 */
-			PAM_LOG("Got password");
-			return (PAM_SUCCESS);
-		}
-		else {
+			old_pass = "";
+		} else {
 			retval = pam_get_authtok(pamh,
-			    PAM_OLDAUTHTOK, &pass, NULL);
+			    PAM_OLDAUTHTOK, &old_pass, NULL);
 			if (retval != PAM_SUCCESS)
 				return (retval);
-			PAM_LOG("Got password");
 		}
-		encrypted = crypt(pass, pwd->pw_passwd);
-		if (pass[0] == '\0' && pwd->pw_passwd[0] != '\0')
-			encrypted = colon;
-
-		if (strcmp(encrypted, pwd->pw_passwd) != 0) {
-			pam_set_item(pamh, PAM_OLDAUTHTOK, NULL);
-			return (PAM_AUTH_ERR);
-		}
-
-		return (PAM_SUCCESS);
-	}
-	else if (flags & PAM_UPDATE_AUTHTOK) {
-		PAM_LOG("UPDATE round; checking user password");
-
-		retval = pam_get_authtok(pamh, PAM_OLDAUTHTOK, &pass, NULL);
-		if (retval != PAM_SUCCESS)
-			return (retval);
-
 		PAM_LOG("Got old password");
+		/* always encrypt first */
+		encrypted = crypt(old_pass, pwd->pw_passwd);
+		if ((old_pass[0] == '\0' && pwd->pw_passwd[0] != '\0') ||
+		    strcmp(encrypted, pwd->pw_passwd) != 0)
+			return (PAM_PERM_DENIED);
 
+		/* get new password */
 		for (;;) {
 			retval = pam_get_authtok(pamh,
 			    PAM_AUTHTOK, &new_pass, NULL);
@@ -369,51 +342,68 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 				break;
 			pam_error(pamh, "Mismatch; try again, EOF to quit.");
 		}
-
-		if (retval != PAM_SUCCESS) {
+		PAM_LOG("Got new password");
+		if (retval != PAM_SUCCESS)
 			PAM_VERBOSE_ERROR("Unable to get new password");
-			return (PAM_PERM_DENIED);
-		}
+		return (retval);
+	}
+	else if (flags & PAM_UPDATE_AUTHTOK) {
+		PAM_LOG("UPDATE round");
 
-		PAM_LOG("Got new password: %s", new_pass);
+		retval = pam_get_item(pamh,
+		    PAM_OLDAUTHTOK, (const void **)&old_pass);
+		if (retval != PAM_SUCCESS)
+			return (retval);
+		PAM_LOG("Got old password");
 
+		retval = pam_get_item(pamh,
+		    PAM_AUTHTOK, (const void **)&new_pass);
+		if (retval != PAM_SUCCESS)
+			return (retval);
+		PAM_LOG("Got new password");
+
+		pwd->pw_change = 0;
+		lc = login_getclass(NULL);
+		if (login_setcryptfmt(lc, password_hash, NULL) == NULL)
+			openpam_log(PAM_LOG_ERROR,
+			    "can't set password cipher, relying on default");
+		login_close(lc);
+		makesalt(salt);
+		pwd->pw_passwd = crypt(new_pass, salt);
+		retval = PAM_SUCCESS;
 #ifdef YP
-		/* If NIS is set in the passwd database, use it */
-		if ((usrdup = strdup(user)) == NULL)
-			return (PAM_BUF_ERR);
-		res = use_yp(usrdup, 0, 0);
-		free(usrdup);
-		if (res == USER_YP_ONLY) {
-			if (!pam_test_option(&options, PAM_OPT_LOCAL_PASS,
-			    NULL))
-				retval = yp_passwd(user, new_pass);
-			else {
-				/* Reject 'local' flag if NIS is on and the user
-				 * is not local
-				 */
-				retval = PAM_PERM_DENIED;
-				PAM_LOG("Unknown local user: %s", user);
+		switch (pwd->pw_fields & _PWF_SOURCE) {
+		case _PWF_FILES:
+#endif
+			pfd = pw_lock();
+			tfd = pw_tmp();
+			pw_copy(pfd, tfd, pwd, NULL);
+			if (!pw_mkdb(user))
+				retval = PAM_SERVICE_ERR;
+#ifdef YP
+			break;
+		case _PWF_NIS:
+			yp_domain = yp_server = NULL;
+			(void)pam_get_data(pamh,
+			    "yp_domain", (const void **)&yp_domain);
+			(void)pam_get_data(pamh,
+			    "yp_server", (const void **)&yp_server);
+			ypclnt = ypclnt_new(yp_domain,
+			    "passwd.byname", yp_server);
+			if (ypclnt == NULL)
+				return (PAM_BUF_ERR);
+			if (ypclnt_connect(ypclnt) == -1 ||
+			    ypclnt_passwd(ypclnt, pwd, old_pass) == -1) {
+				openpam_log(PAM_LOG_ERROR, "%s", ypclnt->error);
+				retval = PAM_SERVICE_ERR;
 			}
+			ypclnt_free(ypclnt);
+			break;
+		default:
+			openpam_log(PAM_LOG_ERROR, "unsupported source 0x%x",
+			    pwd->pw_fields & _PWF_SOURCE);
+			retval = PAM_SERVICE_ERR;
 		}
-		else if (res == USER_LOCAL_ONLY) {
-			if (!pam_test_option(&options, PAM_OPT_NIS_PASS, NULL))
-				retval = local_passwd(user, new_pass);
-			else {
-				/* Reject 'nis' flag if user is only local */
-				retval = PAM_PERM_DENIED;
-				PAM_LOG("Unknown NIS user: %s", user);
-			}
-		}
-		else if (res == USER_YP_AND_LOCAL) {
-			if (pam_test_option(&options, PAM_OPT_NIS_PASS, NULL))
-				retval = yp_passwd(user, new_pass);
-			else
-				retval = local_passwd(user, new_pass);
-		}
-		else
-			retval = PAM_SERVICE_ERR; /* Bad juju */
-#else
-		retval = local_passwd(user, new_pass);
 #endif
 	}
 	else {
@@ -438,165 +428,6 @@ to64(char *s, long v, int n)
 		v >>= 6;
 	}
 }
-
-static int
-local_passwd(const char *user, const char *pass)
-{
-	login_cap_t * lc;
-	struct passwd *pwd;
-	int pfd, tfd;
-	const char *crypt_type;
-	char salt[SALTSIZE + 1];
-
-	pwd = getpwnam(user);
-	if (pwd == NULL)
-		return(PAM_SERVICE_ERR); /* Really bad things */
-
-#ifdef YP
-	pwd = (struct passwd *)&local_password;
-#endif
-	pw_init();
-
-	pwd->pw_change = 0;
-	lc = login_getclass(NULL);
-	crypt_type = login_getcapstr(lc, "passwd_format",
-		password_hash, password_hash);
-	if (login_setcryptfmt(lc, crypt_type, NULL) == NULL)
-		syslog(LOG_ERR, "cannot set password cipher");
-	login_close(lc);
-	makesalt(salt);
-	pwd->pw_passwd = crypt(pass, salt);
-
-	pfd = pw_lock();
-	tfd = pw_tmp();
-	pw_copy(pfd, tfd, pwd, NULL);
-
-	if (!pw_mkdb(user))
-		pw_error((char *)NULL, 0, 1);
-
-	return (PAM_SUCCESS);
-}
-
-#ifdef YP
-/* Stolen from src/usr.bin/passwd/yp_passwd.c, carrying copyrights of:
- * Copyright (c) 1992/3 Theo de Raadt <deraadt@fsa.ca>
- * Copyright (c) 1994 Olaf Kirch <okir@monad.swb.de>
- * Copyright (c) 1995 Bill Paul <wpaul@ctr.columbia.edu>
- */
-int
-yp_passwd(const char *user __unused, const char *pass)
-{
-	struct yppasswd yppwd;
-	struct master_yppasswd master_yppwd;
-	struct passwd *pwd;
-	struct rpc_err err;
-	CLIENT *clnt;
-	login_cap_t *lc;
-	int    *status;
-	uid_t uid;
-	char   *master, sockname[] = YP_SOCKNAME, salt[SALTSIZE + 1];
-
-	_use_yp = 1;
-
-	uid = getuid();
-
-	master = get_yp_master(1);
-	if (master == NULL)
-		return (PAM_SERVICE_ERR); /* Major disaster */
-
-	/*
-	 * It is presumed that by the time we get here, use_yp()
-	 * has been called and that we have verified that the user
-	 * actually exists. This being the case, the yp_password
-	 * stucture has already been filled in for us.
-	 */
-
-	/* Use the correct password */
-	pwd = (struct passwd *)&yp_password;
-
-	pwd->pw_change = 0;
-
-	/* Initialize password information */
-	if (suser_override) {
-		master_yppwd.newpw.pw_passwd = strdup(pwd->pw_passwd);
-		master_yppwd.newpw.pw_name = strdup(pwd->pw_name);
-		master_yppwd.newpw.pw_uid = pwd->pw_uid;
-		master_yppwd.newpw.pw_gid = pwd->pw_gid;
-		master_yppwd.newpw.pw_expire = pwd->pw_expire;
-		master_yppwd.newpw.pw_change = pwd->pw_change;
-		master_yppwd.newpw.pw_fields = pwd->pw_fields;
-		master_yppwd.newpw.pw_gecos = strdup(pwd->pw_gecos);
-		master_yppwd.newpw.pw_dir = strdup(pwd->pw_dir);
-		master_yppwd.newpw.pw_shell = strdup(pwd->pw_shell);
-		master_yppwd.newpw.pw_class = pwd->pw_class != NULL ?
-					strdup(pwd->pw_class) : strdup("");
-		master_yppwd.oldpass = strdup("");
-		master_yppwd.domain = yp_domain;
-	} else {
-		yppwd.newpw.pw_passwd = strdup(pwd->pw_passwd);
-		yppwd.newpw.pw_name = strdup(pwd->pw_name);
-		yppwd.newpw.pw_uid = pwd->pw_uid;
-		yppwd.newpw.pw_gid = pwd->pw_gid;
-		yppwd.newpw.pw_gecos = strdup(pwd->pw_gecos);
-		yppwd.newpw.pw_dir = strdup(pwd->pw_dir);
-		yppwd.newpw.pw_shell = strdup(pwd->pw_shell);
-		yppwd.oldpass = strdup("");
-	}
-
-	if (login_setcryptfmt(lc, "md5", NULL) == NULL)
-		syslog(LOG_ERR, "cannot set password cipher");
-	login_close(lc);
-
-	makesalt(salt);
-	if (suser_override)
-		master_yppwd.newpw.pw_passwd = crypt(pass, salt);
-	else
-		yppwd.newpw.pw_passwd = crypt(pass, salt);
-
-	if (suser_override) {
-		if ((clnt = clnt_create(sockname, MASTER_YPPASSWDPROG,
-		    MASTER_YPPASSWDVERS, "unix")) == NULL) {
-			syslog(LOG_ERR,
-			    "Cannot contact rpc.yppasswdd on host %s: %s",
-			    master, clnt_spcreateerror(""));
-			return (PAM_SERVICE_ERR);
-		}
-	}
-	else {
-		if ((clnt = clnt_create(master, YPPASSWDPROG,
-		    YPPASSWDVERS, "udp")) == NULL) {
-			syslog(LOG_ERR,
-			    "Cannot contact rpc.yppasswdd on host %s: %s",
-			    master, clnt_spcreateerror(""));
-			return (PAM_SERVICE_ERR);
-		}
-	}
-	/*
-	 * The yppasswd.x file said `unix authentication required',
-	 * so I added it. This is the only reason it is in here.
-	 * My yppasswdd doesn't use it, but maybe some others out there
-	 * do.					--okir
-	 */
-	clnt->cl_auth = authunix_create_default();
-
-	if (suser_override)
-		status = yppasswdproc_update_master_1(&master_yppwd, clnt);
-	else
-		status = yppasswdproc_update_1(&yppwd, clnt);
-
-	clnt_geterr(clnt, &err);
-
-	auth_destroy(clnt->cl_auth);
-	clnt_destroy(clnt);
-
-	if (err.re_status != RPC_SUCCESS || status == NULL || *status)
-		return (PAM_SERVICE_ERR);
-
-	if (err.re_status || status == NULL || *status)
-		return (PAM_SERVICE_ERR);
-	return (PAM_SUCCESS);
-}
-#endif /* YP */
 
 /* Salt suitable for traditional DES and MD5 */
 void
