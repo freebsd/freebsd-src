@@ -1,9 +1,6 @@
-#
-#
 # ===================================
 # HARP  |  Host ATM Research Platform
 # ===================================
-#
 #
 # This Host ATM Research Platform ("HARP") file (the "Software") is
 # made available by Network Computing Services, Inc. ("NetworkCS")
@@ -25,16 +22,16 @@
 #
 #	@(#) $FreeBSD$
 #
-#
 
 PROG=	atm
 SRCS=	atm.c atm_fore200.c atm_eni.c atm_inet.c atm_print.c \
 	atm_set.c atm_show.c atm_subr.c
 MAN=	atm.8
 
-CFLAGS+=	-I${.CURDIR}/../../../sys
-WARNS=		6
-LDADD+=		-latm
-DPADD+=		 ${LIBATM}
+WARNS?=	6
+CFLAGS+= -I${.CURDIR}/../../../sys
+
+DPADD=	${LIBATM}
+LDADD=	-latm
 
 .include <bsd.prog.mk>
