@@ -344,6 +344,17 @@ hw.ata.atapi_dma="1"</programlisting>
       down immediately after performing heavy filesystem activities,
       such as installing a new kernel or other software.</quote></para>
 
+    <para>Due to an omission, <command>pkg_add -r</command> on
+      &release.prev; or &release.point; may attempt to fetch packages
+      built for &os; -STABLE, rather than for the appropriate release.
+      As a workaround, set the <varname>PACKAGESITE</varname>
+      environment variable appropriately before invoking
+      &man.pkg.add.1;.  For example, a &man.csh.1; user on
+      &release.point; could use:</para>
+
+    <programlisting>&prompt.user; <userinput>setenv PACKAGESITE \</userinput>
+<userinput>ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/i386/packages-4.6.2-release/Latest/</userinput></programlisting>
+
 ]]>
   </sect1>
 </article>
