@@ -88,8 +88,7 @@ static void
 g_dev_init(struct g_class *mp)
 {
 
-	/* XXX: should have a #define MAX_UNIT_MINOR */
-	unithdr = new_unrhdr(0, 0xffffff);
+	unithdr = new_unrhdr(0, minor2unit(MAXMINOR), NULL);
 }
 
 void
