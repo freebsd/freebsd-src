@@ -75,11 +75,14 @@
  *	         prove 'interesting' to say the least :-)
  *             Added radiolist option
  *	     - Version 0.4 released.
+ *
+ * $FreeBSD$
  */
 
 #define __DIALOG_MAIN__
 
 #include <dialog.h>
+#include <err.h>
 #include "dialog.priv.h"
 #ifdef HAVE_NCURSES
 #include "colors.h"
@@ -98,6 +101,11 @@ int DialogInputAttrs;
  */
 void init_dialog(void)
 {
+
+  if (issetugid()) {
+	errx(1, "libdialog is unsafe to use in setugid applications");
+  }
+
 #if defined(LOCALE)
   (void) setlocale(LC_ALL, "");
 #endif
