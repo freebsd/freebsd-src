@@ -1,3 +1,9 @@
+2000-05-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* filenames.h: New file.
+	(HAVE_DOS_BASED_FILE_SYSTEM, IS_DIR_SEPARATOR)
+	(IS_ABSOLUTE_PATH, FILENAME_CMP): New macros.
+
 2000-04-04  Alan Modra  <alan@linuxcare.com.au>
 
 	* bin-bugs.h (REPORT_BUGS_TO): Remove translated part.

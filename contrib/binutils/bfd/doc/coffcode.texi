@@ -96,7 +96,7 @@ coff which has a varying field size not catered to at the
 moment. To port BFD, that person will have to add more @code{#defines}.
 Three of the bit twiddling routines are exported to
 @code{gdb}; @code{coff_swap_aux_in}, @code{coff_swap_sym_in}
-and @code{coff_swap_linno_in}. @code{GDB} reads the symbol
+and @code{coff_swap_lineno_in}. @code{GDB} reads the symbol
 table on its own, but uses BFD to fix things up.  More of the
 bit twiddlers are exported for @code{gas};
 @code{coff_swap_aux_out}, @code{coff_swap_sym_out},
@@ -266,6 +266,25 @@ boolean done_lineno;
 @end example
 @findex bfd_coff_backend_data
 @subsubsection @code{bfd_coff_backend_data}
+
+@example
+/* COFF symbol classifications.  */
+
+enum coff_symbol_classification
+@{
+  /* Global symbol.  */
+  COFF_SYMBOL_GLOBAL,
+  /* Common symbol.  */
+  COFF_SYMBOL_COMMON,
+  /* Undefined symbol.  */
+  COFF_SYMBOL_UNDEFINED,
+  /* Local symbol.  */
+  COFF_SYMBOL_LOCAL,
+  /* PE section symbol.  */
+  COFF_SYMBOL_PE_SECTION
+@};
+
+@end example
 Special entry points for gdb to swap in coff symbol table parts:
 @example
 typedef struct
@@ -342,6 +361,7 @@ dependent COFF routines:
  unsigned int _bfd_auxesz;
  unsigned int _bfd_relsz;
  unsigned int _bfd_linesz;
+ unsigned int _bfd_filnmlen;
  boolean _bfd_coff_long_filenames;
  boolean _bfd_coff_long_section_names;
  unsigned int _bfd_coff_default_section_alignment_power;
@@ -374,7 +394,8 @@ dependent COFF routines:
  flagword (*_bfd_styp_to_sec_flags_hook) PARAMS ((
        bfd     *abfd,
        PTR     internal_scnhdr,
-       const char *name));
+       const char *name,
+       asection *section));
  void (*_bfd_set_alignment_hook) PARAMS ((
        bfd     *abfd,
        asection *sec,
@@ -411,7 +432,7 @@ dependent COFF routines:
        arelent *r,
        unsigned int shrink,
        struct bfd_link_info *link_info));
- boolean (*_bfd_coff_sym_is_global) PARAMS ((
+ enum coff_symbol_classification (*_bfd_coff_classify_symbol) PARAMS ((
        bfd *abfd,
        struct internal_syment *));
  boolean (*_bfd_coff_compute_section_file_positions) PARAMS ((
@@ -455,7 +476,8 @@ dependent COFF routines:
        struct bfd_link_hash_entry **hashp));
 
  boolean (*_bfd_coff_link_output_has_begun) PARAMS ((
-       bfd * abfd ));
+       bfd * abfd,
+       struct coff_final_link_info * pfinfo));
  boolean (*_bfd_coff_final_link_postscript) PARAMS ((
        bfd * abfd,
        struct coff_final_link_info * pfinfo));
@@ -501,6 +523,7 @@ dependent COFF routines:
 #define bfd_coff_auxesz(abfd) (coff_backend_info (abfd)->_bfd_auxesz)
 #define bfd_coff_relsz(abfd)  (coff_backend_info (abfd)->_bfd_relsz)
 #define bfd_coff_linesz(abfd) (coff_backend_info (abfd)->_bfd_linesz)
+#define bfd_coff_filnmlen(abfd) (coff_backend_info (abfd)->_bfd_filnmlen)
 #define bfd_coff_long_filenames(abfd) (coff_backend_info (abfd)->_bfd_coff_long_filenames)
 #define bfd_coff_long_section_names(abfd) \
         (coff_backend_info (abfd)->_bfd_coff_long_section_names)
@@ -526,8 +549,9 @@ dependent COFF routines:
 #define bfd_coff_mkobject_hook(abfd, filehdr, aouthdr)\
         ((coff_backend_info (abfd)->_bfd_coff_mkobject_hook) (abfd, filehdr, aouthdr))
 
-#define bfd_coff_styp_to_sec_flags_hook(abfd, scnhdr, name)\
-        ((coff_backend_info (abfd)->_bfd_styp_to_sec_flags_hook) (abfd, scnhdr, name))
+#define bfd_coff_styp_to_sec_flags_hook(abfd, scnhdr, name, section)\
+        ((coff_backend_info (abfd)->_bfd_styp_to_sec_flags_hook)\
+         (abfd, scnhdr, name, section))
 
 #define bfd_coff_set_alignment_hook(abfd, sec, scnhdr)\
         ((coff_backend_info (abfd)->_bfd_set_alignment_hook) (abfd, sec, scnhdr))
@@ -550,8 +574,8 @@ dependent COFF routines:
         ((coff_backend_info (abfd)->_bfd_coff_reloc16_estimate)\
          (abfd, section, reloc, shrink, link_info))
 
-#define bfd_coff_sym_is_global(abfd, sym)\
-        ((coff_backend_info (abfd)->_bfd_coff_sym_is_global)\
+#define bfd_coff_classify_symbol(abfd, sym)\
+        ((coff_backend_info (abfd)->_bfd_coff_classify_symbol)\
          (abfd, sym))
 
 #define bfd_coff_compute_section_file_positions(abfd)\
@@ -574,8 +598,8 @@ dependent COFF routines:
         ((coff_backend_info (abfd)->_bfd_coff_link_add_one_symbol)\
          (info, abfd, name, flags, section, value, string, cp, coll, hashp))
 
-#define bfd_coff_link_output_has_begun(a) \
-        ((coff_backend_info (a)->_bfd_coff_link_output_has_begun) (a))
+#define bfd_coff_link_output_has_begun(a,p) \
+        ((coff_backend_info (a)->_bfd_coff_link_output_has_begun) (a,p))
 #define bfd_coff_final_link_postscript(a,p) \
         ((coff_backend_info (a)->_bfd_coff_final_link_postscript) (a,p))
 
@@ -600,6 +624,9 @@ is marked as having a line number of 0. Each line within the
 function is an offset from the first line in the function. The
 base of the line number information for the table is stored in
 the symbol associated with the function.
+
+Note: The PE format uses line number 0 for a flag indicating a
+new source file.
 
 The information is copied from the external to the internal
 table, and each symbol which marks a function is marked by

@@ -1,5 +1,5 @@
 /* objcopy.c -- copy object file from input to output, optionally massaging it.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -25,6 +25,7 @@
 #include "getopt.h"
 #include "libiberty.h"
 #include "budbg.h"
+#include "filenames.h"
 #include <sys/stat.h>
 
 /* A list of symbols to explicitly strip out, or to keep.  A linked
@@ -2248,7 +2249,15 @@ main (argc, argv)
   if (is_strip < 0)
     {
       int i = strlen (program_name);
-      is_strip = (i >= 5 && strcmp (program_name + i - 5, "strip") == 0);
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+      /* Drop the .exe suffix, if any.  */
+      if (i > 4 && FILENAME_CMP (program_name + i - 4, ".exe") == 0)
+	{
+	  i -= 4;
+	  program_name[i] = '\0';
+	}
+#endif
+      is_strip = (i >= 5 && FILENAME_CMP (program_name + i - 5, "strip") == 0);
     }
 
   if (is_strip)

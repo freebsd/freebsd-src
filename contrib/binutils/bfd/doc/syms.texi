@@ -183,7 +183,7 @@ typedef struct symbol_cache_entry
           @code{BSF_GLOBAL} */
 
        /* The symbol is a debugging record. The value has an arbitary
-          meaning. */
+          meaning, unless BSF_DEBUGGING_RELOC is also set.  */
 #define BSF_DEBUGGING  0x08
 
        /* The symbol denotes a function entry point.  Used in ELF,
@@ -240,6 +240,11 @@ typedef struct symbol_cache_entry
        /* The symbol denotes a data object.  Used in ELF, and perhaps
           others someday.  */
 #define BSF_OBJECT        0x10000
+
+       /* This symbol is a debugging symbol.  The value is the offset
+          into the section of the data.  BSF_DEBUGGING should be set
+          as well.  */
+#define BSF_DEBUGGING_RELOC 0x20000
 
   flagword flags;
 
@@ -370,6 +375,17 @@ class of @var{symbol}, or '?' for an unknown class.
 @strong{Synopsis}
 @example
 int bfd_decode_symclass(asymbol *symbol);
+@end example
+@findex bfd_is_undefined_symclass 
+@subsubsection @code{bfd_is_undefined_symclass }
+@strong{Description}@*
+Returns non-zero if the class symbol returned by
+bfd_decode_symclass represents an undefined symbol.
+Returns zero otherwise.
+
+@strong{Synopsis}
+@example
+boolean bfd_is_undefined_symclass (int symclass);
 @end example
 @findex bfd_symbol_info
 @subsubsection @code{bfd_symbol_info}
