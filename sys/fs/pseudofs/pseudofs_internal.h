@@ -42,6 +42,8 @@ SYSCTL_DECL(_vfs_pfs);
 struct pfs_vdata {
 	struct pfs_node	*pvd_pn;
 	pid_t		 pvd_pid;
+	struct vnode	*pvd_vnode;
+	struct pfs_vdata*pvd_prev, *pvd_next;
 };
 
 /*
