@@ -108,7 +108,7 @@ if ($#ARGV == 0) {
     # Username was given as a parameter
     $login_name = pop(@ARGV);
     die "Sorry, login name must contain alphanumeric characters only.\n"
-	if ($login_name !~ /^[a-zA-Z0-9_]{1,}$/);
+	if ($login_name !~ /^[a-zA-Z0-9_]\w*$/);
 } else {
     if ($affirm) {
 	print STDERR "${whoami}: Error: -y option given without username!\n";
