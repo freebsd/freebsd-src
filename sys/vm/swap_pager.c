@@ -2449,7 +2449,7 @@ swapgeom_close_ev(void *arg, int flags)
 	struct g_consumer *cp;
 
 	cp = arg;
-	g_access_rel(cp, -1, -1, 0);
+	g_access(cp, -1, -1, 0);
 	g_detach(cp);
 	g_destroy_consumer(cp);
 }
@@ -2509,7 +2509,7 @@ swapongeom_ev(void *arg, int flags)
 	 * savecore(8) wants to write to our swapdev so we cannot
 	 * set an exclusive count :-(
 	 */
-	error = g_access_rel(cp, 1, 1, 0);
+	error = g_access(cp, 1, 1, 0);
 	if (error) {
 		g_detach(cp);
 		g_destroy_consumer(cp);

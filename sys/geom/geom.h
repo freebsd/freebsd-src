@@ -202,8 +202,10 @@ void g_orphan_provider(struct g_provider *pp, int error);
 void g_waitidle(void);
 
 /* geom_subr.c */
-int g_access_abs(struct g_consumer *cp, int nread, int nwrite, int nexcl);
-int g_access_rel(struct g_consumer *cp, int nread, int nwrite, int nexcl);
+int g_access(struct g_consumer *cp, int nread, int nwrite, int nexcl);
+#ifndef BURN_BRIDGES
+#define g_access_rel(a, b, c, d) g_access(a, b, c, d)
+#endif
 int g_attach(struct g_consumer *cp, struct g_provider *pp);
 void g_destroy_consumer(struct g_consumer *cp);
 void g_destroy_geom(struct g_geom *pp);

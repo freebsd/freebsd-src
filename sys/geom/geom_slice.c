@@ -119,7 +119,7 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	/* ... and let go of it on last close */
 	if ((cp->acr + dr) == 0 && (cp->acw + dw) == 0 && (cp->ace + de) == 1)
 		de--;
-	error = g_access_rel(cp, dr, dw, de);
+	error = g_access(cp, dr, dw, de);
 	return (error);
 }
 
@@ -463,7 +463,7 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	if (error == 0)
-		error = g_access_rel(cp, 1, 0, 0);
+		error = g_access(cp, 1, 0, 0);
 	if (error) {
 		g_wither_geom(gp, ENXIO);
 		return (NULL);

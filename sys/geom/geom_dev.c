@@ -213,7 +213,7 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 	if (dev->si_devsw == NULL)
 		error = ENXIO;		/* We were orphaned */
 	else
-		error = g_access_rel(cp, r, w, e);
+		error = g_access(cp, r, w, e);
 	g_topology_unlock();
 	g_waitidle();
 	if (!error)
@@ -245,7 +245,7 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 	if (dev->si_devsw == NULL)
 		error = ENXIO;		/* We were orphaned */
 	else
-		error = g_access_rel(cp, r, w, e);
+		error = g_access(cp, r, w, e);
 	for (i = 0; i < 10 * hz;) {
 		if (cp->acr != 0 || cp->acw != 0)
 			break;
@@ -434,7 +434,7 @@ g_dev_orphan(struct g_consumer *cp)
 		msleep(&dev, NULL, PRIBIO, "gdevorphan", hz / 10);
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
-		g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
+		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 
 	g_detach(cp);
 	g_destroy_consumer(cp);
