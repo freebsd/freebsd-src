@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.163 1995/05/16 10:31:25 asami Exp $
+# $Id: bsd.port.mk,v 1.164 1995/05/29 13:46:38 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -305,10 +305,11 @@ PKGNAME?=		${DISTNAME}
 # Documentation
 MAINTAINER?=	ports@FreeBSD.ORG
 CATEGORIES?=	orphans
-CATEGORIES+=	all
 KEYWORDS+=		${CATEGORIES}
 
-PKGREPOSITORYSUBDIR?=	.packages
+# Note this has to start with a capital letter (or more accurately, it
+#  shouldn't match "[a-z]*"), see the target "delete-package-links" below.
+PKGREPOSITORYSUBDIR?=	All
 PKGREPOSITORY?=		${PACKAGES}/${PKGREPOSITORYSUBDIR}
 .if exists(${PACKAGES})
 PKGFILE?=		${PKGREPOSITORY}/${PKGNAME}${PKG_SUFX}
@@ -975,7 +976,7 @@ package-links:
 
 .if !target(delete-package-links)
 delete-package-links:
-	@rm -f ${PACKAGES}/*/${PKGNAME}${PKG_SUFX};
+	@rm -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX};
 .endif
 
 .if !target(delete-package)
