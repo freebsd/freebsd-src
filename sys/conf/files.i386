@@ -61,6 +61,16 @@ opt_ah.h			optional	ath_hal			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"opt_ah.h"
 #
+nvenetlib.o			optional	nve pci			\
+	dependency	"$S/contrib/dev/nve/i386/nvenetlib.o.bz2.uu"	\
+	compile-with	"uudecode $S/contrib/dev/nve/i386/nvenetlib.o.bz2.uu ; bzip2 -df nvenetlib.o.bz2" \
+	no-implicit-rule
+#
+os+%DIKED-nve.h		optional	nve pci			\
+	dependency	"$S/contrib/dev/nve/os.h"			\
+	compile-with	"sed -e 's/^.*#include.*phy\.h.*$$//' $S/contrib/dev/nve/os.h > os+%DIKED-nve.h" \
+	no-implicit-rule no-obj before-depend
+#
 hptmvraid.o			optional	hptmv			\
 	dependency	"$S/dev/hptmv/i386-elf.raid.o.uu"	\
 	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu" \
@@ -176,6 +186,7 @@ dev/lnc/if_lnc_isa.c		optional lnc isa
 dev/mem/memutil.c		optional mem
 dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
+dev/nve/if_nve.c		optional nve pci
 dev/ppc/ppc.c			optional ppc
 dev/ppc/ppc_puc.c		optional ppc puc pci
 dev/random/nehemiah.c		optional random
