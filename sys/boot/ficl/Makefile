@@ -43,7 +43,6 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 
 .if defined(REALLY_AMD64)
 CFLAGS+=	-m32 -I.
-LDFLAGS=	-m elf_i386_fbsd
 .endif
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}/../common
