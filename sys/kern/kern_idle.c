@@ -83,7 +83,9 @@ idle_setup(void *dummy)
 		td = FIRST_THREAD_IN_PROC(p);
 		TD_SET_CAN_RUN(td);
 		td->td_flags |= TDF_IDLETD;
-		td->td_priority = PRI_MAX_IDLE;
+		sched_class(td->td_ksegrp, PRI_IDLE);
+		td->td_ksegrp->kg_user_pri = PRI_MAX_IDLE;
+		sched_prio(td, PRI_MAX_IDLE);
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 #ifdef SMP
