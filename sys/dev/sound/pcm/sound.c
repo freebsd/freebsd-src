@@ -33,6 +33,7 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
+#ifndef	PCM_DEBUG_MTX
 struct snddev_channel {
 	SLIST_ENTRY(snddev_channel) link;
 	struct pcm_channel *channel;
@@ -52,6 +53,7 @@ struct snddev_info {
 	struct sysctl_oid *sysctl_tree_top;
 	struct mtx *lock;
 };
+#endif
 
 devclass_t pcm_devclass;
 
@@ -157,6 +159,7 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 	return bus_setup_intr(dev, res, flags, hand, param, cookiep);
 }
 
+#ifndef	PCM_DEBUG_MTX
 void
 pcm_lock(struct snddev_info *d)
 {
@@ -168,6 +171,7 @@ pcm_unlock(struct snddev_info *d)
 {
 	snd_mtxunlock(d->lock);
 }
+#endif
 
 struct pcm_channel *
 pcm_getfakechan(struct snddev_info *d)
@@ -244,8 +248,17 @@ pcm_chnref(struct pcm_channel *c, int ref)
 int
 pcm_inprog(struct snddev_info *d, int delta)
 {
+	int r;
+
+	if (delta == 0)
+		return d->inprog;
+
+	/* backtrace(); */
+	pcm_lock(d);
 	d->inprog += delta;
-	return d->inprog;
+	r = d->inprog;
+	pcm_unlock(d);
+	return r;
 }
 
 static void
@@ -277,7 +290,9 @@ pcm_setmaxautovchans(struct snddev_info *d, int num)
 				c = sce->channel;
 				if ((c->flags & CHN_F_VIRTUAL) && !(c->flags & CHN_F_BUSY)) {
 					done = 0;
+					snd_mtxlock(d->lock);
 					err = vchan_destroy(c);
+					snd_mtxunlock(d->lock);
 					if (err)
 						device_printf(d->dev, "vchan_destroy(%s) == %d\n", c->name, err);
 					break;		/* restart */
@@ -460,13 +475,20 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev)
 {
     	struct snddev_channel *sce;
     	int unit = device_get_unit(d->dev);
+	int ourlock;
 
-	snd_mtxlock(d->lock);
+	ourlock = 0;
+	if (!mtx_owned(d->lock)) {
+		snd_mtxlock(d->lock);
+		ourlock = 1;
+	}
+
 	SLIST_FOREACH(sce, &d->channels, link) {
 		if (sce->channel == ch)
 			goto gotit;
 	}
-	snd_mtxunlock(d->lock);
+	if (ourlock)
+		snd_mtxunlock(d->lock);
 	return EINVAL;
 gotit:
 	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
@@ -483,7 +505,8 @@ gotit:
 	else
 		d->playcount--;
 
-	snd_mtxunlock(d->lock);
+	if (ourlock)
+		snd_mtxunlock(d->lock);
 	free(sce, M_DEVBUF);
 
 	return 0;
@@ -745,12 +768,17 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				""
 #endif
 				);
-		if (verbose <= 1)
-			goto skipverbose;
+
+		if (verbose <= 1) {
+			snd_mtxunlock(d->lock);
+			return 0;
+		}
+
 		SLIST_FOREACH(sce, &d->channels, link) {
 			c = sce->channel;
 			sbuf_printf(s, "\n\t");
 
+			/* it would be bettet to indent child channels */
 			sbuf_printf(s, "%s[%s]: ", c->parentchannel? c->parentchannel->name : "", c->name);
 			sbuf_printf(s, "spd %d", c->speed);
 			if (c->speed != sndbuf_getspd(c->bufhard))
@@ -758,7 +786,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			sbuf_printf(s, ", fmt 0x%08x", c->format);
 			if (c->format != sndbuf_getfmt(c->bufhard))
 				sbuf_printf(s, "/0x%08x", sndbuf_getfmt(c->bufhard));
-			sbuf_printf(s, ", flags %08x", c->flags);
+			sbuf_printf(s, ", flags 0x%08x, 0x%08x", c->flags, c->feederflags);
 			if (c->pid != -1)
 				sbuf_printf(s, ", pid %d", c->pid);
 			sbuf_printf(s, "\n\t");
@@ -794,7 +822,6 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		}
 	} else
 		sbuf_printf(s, " (mixer only)");
-skipverbose:
 	snd_mtxunlock(d->lock);
 
 	return 0;
@@ -809,36 +836,38 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 	struct snddev_info *d;
     	struct snddev_channel *sce;
 	struct pcm_channel *c;
-	int err, newcnt, cnt;
+	int err, newcnt, cnt, busy;
+	int x;
 
 	d = oidp->oid_arg1;
 
-	pcm_lock(d);
+	x = pcm_inprog(d, 1);
+	if (x != 1) {
+		printf("x: %d\n", x);
+		pcm_inprog(d, -1);
+		return EINPROGRESS;
+	}
+
+	busy = 0;
 	cnt = 0;
 	SLIST_FOREACH(sce, &d->channels, link) {
 		c = sce->channel;
-		if ((c->direction == PCMDIR_PLAY) && (c->flags & CHN_F_VIRTUAL))
+		if ((c->direction == PCMDIR_PLAY) && (c->flags & CHN_F_VIRTUAL)) {
 			cnt++;
+			if (c->flags & CHN_F_BUSY)
+				busy++;
+		}
 	}
+
 	newcnt = cnt;
 
-	pcm_unlock(d);
 	err = sysctl_handle_int(oidp, &newcnt, sizeof(newcnt), req);
-	pcm_lock(d);
-	/*
-	 * Since we dropped the pcm_lock, reload cnt now as it may
-	 * have changed.
-	 */
-	cnt = 0;
-	SLIST_FOREACH(sce, &d->channels, link) {
-		c = sce->channel;
-		if ((c->direction == PCMDIR_PLAY) && (c->flags & CHN_F_VIRTUAL))
-			cnt++;
-	}
+
 	if (err == 0 && req->newptr != NULL) {
+
 		if (newcnt < 0 || newcnt > SND_MAXVCHANS) {
-			pcm_unlock(d);
-			return EINVAL;
+			pcm_inprog(d, -1);
+			return E2BIG;
 		}
 
 		if (newcnt > cnt) {
@@ -863,7 +892,7 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 				 */
 				goto addok;
 			}
-			pcm_unlock(d);
+			pcm_inprog(d, -1);
 			return EBUSY;
 addok:
 			c->flags |= CHN_F_BUSY;
@@ -875,23 +904,31 @@ addok:
 			if (SLIST_EMPTY(&c->children))
 				c->flags &= ~CHN_F_BUSY;
 		} else if (newcnt < cnt) {
+			if (busy > newcnt) {
+				printf("cnt %d, newcnt %d, busy %d\n", cnt, newcnt, busy);
+				pcm_inprog(d, -1);
+				return EBUSY;
+			}
+
+			snd_mtxlock(d->lock);
 			while (err == 0 && newcnt < cnt) {
 				SLIST_FOREACH(sce, &d->channels, link) {
 					c = sce->channel;
 					if ((c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL)) == CHN_F_VIRTUAL)
 						goto remok;
 				}
-				pcm_unlock(d);
+				snd_mtxunlock(d->lock);
+				pcm_inprog(d, -1);
 				return EINVAL;
 remok:
 				err = vchan_destroy(c);
 				if (err == 0)
 					cnt--;
 			}
+			snd_mtxunlock(d->lock);
 		}
 	}
-
-	pcm_unlock(d);
+	pcm_inprog(d, -1);
 	return err;
 }
 #endif
