@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.46 1996/09/15 19:35:23 phk Exp $
+ **      $Id: userconfig.c,v 1.47 1996/09/19 08:32:37 phk Exp $
  **/
 
 /**
@@ -104,12 +104,13 @@
  **/
 
 #include "opt_userconfig.h"
+#include "pci.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <machine/clock.h>
 #include <machine/cons.h>
 #include <machine/md_var.h>
 
@@ -380,9 +381,9 @@ getdevs(void)
     {
 	if (pcidevice_set.ls_items[i])
 	{
-	    if (((struct pci_device *)pcidevice_set.ls_items[i])->pd_name)
+	    if (((const struct pci_device *)pcidevice_set.ls_items[i])->pd_name)
 	    {
-		strcpy(scratch.dev,((struct pci_device *)pcidevice_set.ls_items[i])->pd_name);
+		strcpy(scratch.dev,((const struct pci_device *)pcidevice_set.ls_items[i])->pd_name);
 		scratch.iobase = -2;			/* mark as PCI for future reference */
 		scratch.irq = -2;
 		scratch.drq = -2;
@@ -2154,7 +2155,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.46 1996/09/15 19:35:23 phk Exp $
+ *      $Id: userconfig.c,v 1.47 1996/09/19 08:32:37 phk Exp $
  */
 
 #include "scbus.h"
