@@ -99,7 +99,7 @@ struct nlist dump_nl[] = {	/* Name list for dumped system. */
 };
 
 /* Types match kernel declarations. */
-long	dumplo;				/* where dump starts on dumpdev */
+off_t	dumplo;				/* where dump starts on dumpdev */
 int	dumpmag;			/* magic number in dump */
 int	dumpsize;			/* amount of memory dumped */
 
@@ -210,6 +210,7 @@ kmem_setup()
 	FILE *fp;
 	int kmem, i;
 	const char *dump_sys;
+	long kdumplo;		/* block number where dump starts on dumpdev */
 
 	/*
 	 * Some names we need for the currently running system, others for
@@ -247,13 +248,13 @@ kmem_setup()
 		exit(1);
 	}
 	Lseek(kmem, (off_t)current_nl[X_DUMPLO].n_value, L_SET);
-	(void)Read(kmem, &dumplo, sizeof(dumplo));
+	(void)Read(kmem, &kdumplo, sizeof(kdumplo));
+	dumplo = (off_t)kdumplo * DEV_BSIZE;
 	if (verbose)
-		(void)printf("dumplo = %ld (%ld * %d)\n",
-		    dumplo, dumplo/DEV_BSIZE, DEV_BSIZE);
+		void)printf("dumplo = %lld (%ld * %d)\n",
+		    (long long)dumplo, kdumplo, DEV_BSIZE);
 	Lseek(kmem, (off_t)current_nl[X_DUMPMAG].n_value, L_SET);
 	(void)Read(kmem, &dumpmag, sizeof(dumpmag));
-	dumplo *= DEV_BSIZE;
 	ddname = find_dev(dumpdev, S_IFBLK);
 	dumpfd = Open(ddname, O_RDWR);
 	fp = fdopen(kmem, "r");
