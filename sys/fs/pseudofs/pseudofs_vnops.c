@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/dirent.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -93,7 +94,7 @@ pfs_access(struct vop_access_args *va)
 static int
 pfs_close(struct vop_close_args *va)
 {
-	return (0);
+	PFS_RETURN (0);
 }
 
 /*
@@ -130,10 +131,8 @@ pfs_getattr(struct vop_getattr_args *va)
 		vap->va_mode = 0555;
 		break;
 	case pfstype_file:
-		vap->va_mode = 0444;
-		break;
 	case pfstype_symlink:
-		vap->va_mode = 0777;
+		vap->va_mode = 0444;
 		break;
 	default:
 		printf("shouldn't be here!\n");
@@ -185,7 +184,7 @@ pfs_lookup(struct vop_lookup_args *va)
 	 * the file does not exist.
 	 */
 	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
-		return (EOPNOTSUPP);
+		PFS_RETURN (EOPNOTSUPP);
 
 	/* shortcut: check if the name is too long */
 	if (cnp->cn_namelen >= PFS_NAMELEN)
@@ -248,7 +247,7 @@ pfs_lookup(struct vop_lookup_args *va)
 			goto got_pnode;
 	}
 		
-	return (ENOENT);
+	PFS_RETURN (ENOENT);
  got_pnode:
 	if (!pn->pn_parent)
 		pn->pn_parent = pd;
@@ -270,21 +269,32 @@ pfs_open(struct vop_open_args *va)
 	struct vnode *vn = va->a_vp;
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pn = pvd->pvd_pn;
+	int mode = va->a_mode;
 	struct proc *proc;
 	int error;
 
-	PFS_TRACE((pn->pn_name));
+	PFS_TRACE(("%s (mode 0x%x)", pn->pn_name, mode));
+
+	/* check if the requested mode is permitted */
+	if (((mode & FREAD) && !(mode & PFS_RD)) ||
+	    ((mode & FWRITE) && !(mode & PFS_WR)))
+		PFS_RETURN (EPERM);
+
+	/* we don't support locking */
+	if ((mode & O_SHLOCK) || (mode & O_EXLOCK))
+		PFS_RETURN (EOPNOTSUPP);
 	
 	error = 0;
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-		        return (ENOENT);
+		        PFS_RETURN (ENOENT);
+		/* XXX should lock va->a_td->td_proc? */
 		if (p_cansee(va->a_td->td_proc, proc) != 0)
 			error = ENOENT;
 		PROC_UNLOCK(proc);
 	}
 
-	return (error);
+	PFS_RETURN (error);
 }
 
 /*
@@ -305,14 +315,14 @@ pfs_read(struct vop_read_args *va)
 	PFS_TRACE((pn->pn_name));
 	
 	if (vn->v_type != VREG)
-		return (EINVAL);
+		PFS_RETURN (EINVAL);
 
-	if (pn->pn_flags & PFS_WRONLY)
-		return (EBADF);
+	if (!(pn->pn_flags & PFS_RD))
+		PFS_RETURN (EBADF);
 
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-			return (EIO);
+			PFS_RETURN (EIO);
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
@@ -321,14 +331,14 @@ pfs_read(struct vop_read_args *va)
 		error = (pn->pn_func)(curthread, proc, pn, NULL, uio);
 		if (proc != NULL)
 			PRELE(proc);
-		return (error);
+		PFS_RETURN (error);
 	}
 	
 	sb = sbuf_new(sb, NULL, uio->uio_offset + uio->uio_resid, 0);
 	if (sb == NULL) {
 		if (proc != NULL)
 			PRELE(proc);
-		return (EIO);
+		PFS_RETURN (EIO);
 	}
 
 	error = (pn->pn_func)(curthread, proc, pn, sb, uio);
@@ -338,7 +348,7 @@ pfs_read(struct vop_read_args *va)
 
 	if (error) {
 		sbuf_delete(sb);
-		return (error);
+		PFS_RETURN (error);
 	}
 	
 	/* XXX we should possibly detect and handle overflows */
@@ -348,7 +358,7 @@ pfs_read(struct vop_read_args *va)
 	xlen = imin(xlen, uio->uio_resid);
 	error = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
 	sbuf_delete(sb);
-	return (error);
+	PFS_RETURN (error);
 }
 
 /*
@@ -399,14 +409,14 @@ pfs_readdir(struct vop_readdir_args *va)
 	PFS_TRACE((pd->pn_name));
 	
 	if (vn->v_type != VDIR)
-		return (ENOTDIR);
+		PFS_RETURN (ENOTDIR);
 	uio = va->a_uio;
 
 	/* only allow reading entire entries */
 	offset = uio->uio_offset;
 	resid = uio->uio_resid;
 	if (offset < 0 || offset % PFS_DELEN != 0 || resid < PFS_DELEN)
-		return (EINVAL);
+		PFS_RETURN (EINVAL);
 
 	/* skip unwanted entries */
 	sx_slock(&allproc_lock);
@@ -456,7 +466,7 @@ pfs_readdir(struct vop_readdir_args *va)
 		}
 		if ((error = uiomove((caddr_t)&entry, PFS_DELEN, uio))) {
 			sx_sunlock(&allproc_lock);
-			return (error);
+			PFS_RETURN (error);
 		}
 		offset += PFS_DELEN;
 		resid -= PFS_DELEN;
@@ -464,7 +474,7 @@ pfs_readdir(struct vop_readdir_args *va)
 
 	sx_sunlock(&allproc_lock);
 	uio->uio_offset += offset;
-	return (0);
+	PFS_RETURN (0);
 }
 
 /*
@@ -485,11 +495,11 @@ pfs_readlink(struct vop_readlink_args *va)
 	PFS_TRACE((pn->pn_name));
 	
 	if (vn->v_type != VLNK)
-		return (EINVAL);
+		PFS_RETURN (EINVAL);
 
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-			return (EIO);
+			PFS_RETURN (EIO);
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
@@ -504,7 +514,7 @@ pfs_readlink(struct vop_readlink_args *va)
 	
 	if (error) {
 		sbuf_delete(&sb);
-		return (error);
+		PFS_RETURN (error);
 	}
 	
 	/* XXX we should detect and handle overflows */
@@ -514,7 +524,7 @@ pfs_readlink(struct vop_readlink_args *va)
 	xlen = imin(xlen, uio->uio_resid);
 	error = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
 	sbuf_delete(&sb);
-	return (error);
+	PFS_RETURN (error);
 }
 
 /*
@@ -532,10 +542,16 @@ pfs_reclaim(struct vop_reclaim_args *va)
 static int
 pfs_setattr(struct vop_setattr_args *va)
 {
+	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
+
+	PFS_TRACE((pn->pn_name));
+	
 	if (va->a_vap->va_flags != (u_long)VNOVAL)
-		return (EOPNOTSUPP);
+		PFS_RETURN (EOPNOTSUPP);
 	/* XXX it's a bit more complex than that, really... */
-	return (0);
+	PFS_RETURN (0);
 }
 
 /*
@@ -555,14 +571,14 @@ pfs_write(struct vop_read_args *va)
 	PFS_TRACE((pn->pn_name));
 	
 	if (vn->v_type != VREG)
-		return (EINVAL);
+		PFS_RETURN (EINVAL);
 
-	if (pn->pn_flags & PFS_RDONLY)
-		return (EBADF);
+	if (!(pn->pn_flags & PFS_WR))
+		PFS_RETURN (EBADF);
 
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-			return (EIO);
+			PFS_RETURN (EIO);
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
@@ -571,12 +587,12 @@ pfs_write(struct vop_read_args *va)
 		error = (pn->pn_func)(curthread, proc, pn, NULL, uio);
 		if (proc != NULL)
 			PRELE(proc);
-		return (error);
+		PFS_RETURN (error);
 	}
 
 	sbuf_uionew(&sb, uio, &error);
 	if (error)
-		return (error);
+		PFS_RETURN (error);
 	
 	error = (pn->pn_func)(curthread, proc, pn, &sb, uio);
 
@@ -584,7 +600,7 @@ pfs_write(struct vop_read_args *va)
 		PRELE(proc);
 	
 	sbuf_delete(&sb);
-	return (error);
+	PFS_RETURN (error);
 }
 
 /*
