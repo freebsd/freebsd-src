@@ -36,7 +36,7 @@
 #ifndef _SYS_IMGACT_H_
 #define	_SYS_IMGACT_H_
 
-#define MAXSHELLCMDLEN	64
+#define MAXSHELLCMDLEN	128
 
 struct image_params {
 	struct proc *proc;	/* our process struct */
