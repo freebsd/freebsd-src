@@ -63,6 +63,7 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/intrq.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -137,7 +138,6 @@ extern	struct ipprotosw inetsw[];
 u_char	ip_protox[IPPROTO_MAX];
 static int	ipqmaxlen = IFQ_MAXLEN;
 struct	in_ifaddrhead in_ifaddrhead; /* first inet address */
-struct	ifqueue ipintrq;
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_queue_maxlen, CTLFLAG_RW,
     &ipintrq.ifq_maxlen, 0, "Maximum size of the IP input queue");
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
@@ -157,6 +157,7 @@ SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RD,
 static struct ipq ipq[IPREASS_NHASH];
 static int    nipq = 0;         /* total # of reass queues */
 static int    maxnipq;
+const  int    ipintrq_present = 1;
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,

@@ -85,6 +85,7 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/intrq.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -123,11 +124,12 @@ extern struct	ip6protosw inet6sw[];
 u_char	ip6_protox[IPPROTO_MAX];
 static int	ip6qmaxlen = IFQ_MAXLEN;
 struct	in6_ifaddr *in6_ifaddr;
-struct	ifqueue ip6intrq;
 
 int	ip6_forward_srcrt;			/* XXX */
 int	ip6_sourcecheck;			/* XXX */
 int	ip6_sourcecheck_interval;		/* XXX */
+
+const int	int6intrq_present = 1;
 
 #ifdef IPV6FIREWALL
 /* firewall hooks */
