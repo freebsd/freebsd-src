@@ -1930,6 +1930,7 @@ ata_sis_ident(device_t dev)
      { ATA_SIS733,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 733" }, /* 1chip */
      { ATA_SIS730,  0x00, SIS100OLD, 0, ATA_UDMA5, "SiS 730" }, /* 1chip */
 
+     { ATA_SIS661,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 661" }, /* ext south */
      { ATA_SIS658,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 658" }, /* ext south */
      { ATA_SIS655,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 655" }, /* ext south */
      { ATA_SIS652,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 652" }, /* unknown */
