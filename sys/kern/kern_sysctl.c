@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.30 1995/10/28 13:07:23 phk Exp $
+ * $Id: kern_sysctl.c,v 1.31 1995/11/06 16:18:52 phk Exp $
  */
 
 /*
@@ -57,7 +57,11 @@
 #include <sys/sysctl.h>
 #include <sys/user.h>
 
+extern struct linker_set sysctl_;
+
 /* BEGIN_MIB */
+SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0, 
+	"Sysctl internal magic");
 SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW, 0, 
 	"High kernel, proc, limits &c");
 SYSCTL_NODE(, CTL_VM,	  vm,     CTLFLAG_RW, 0, 
@@ -122,7 +126,7 @@ SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
 
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
-SYSCTL_STRING(_hw, HW_MACHINE, model, CTLFLAG_RD, cpu_model, 0, "");
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
 
 SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, 0, 1, "");
 
@@ -165,6 +169,103 @@ sysctl_kern_hostname SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname, CTLTYPE_STRING|CTLFLAG_RW,
 	&hostname, sizeof(hostname), sysctl_kern_hostname, "");
 
+static int
+sysctl_order_cmp(void *a, void *b)
+{
+	struct sysctl_oid **pa,**pb;
+	pa = (struct sysctl_oid**) a;
+	pb = (struct sysctl_oid**) b;
+	if (!*pa) return 1;
+	if (!*pb) return -1;
+	return ((*pa)->oid_number - (*pb)->oid_number);
+}
+
+static void
+sysctl_order(void *arg)
+{
+	int j,k;
+	struct linker_set *l = (struct linker_set *) arg;
+	struct sysctl_oid **oidpp;
+
+	j = l->ls_length;
+	oidpp = (struct sysctl_oid **) l->ls_items;
+	for (; j--; oidpp++) {
+		if (!*oidpp)
+			continue;
+		if ((*oidpp)->oid_arg1 == arg) {
+			*oidpp = 0;
+			continue;
+		}
+		if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) 
+			if (!(*oidpp)->oid_handler)
+				sysctl_order((*oidpp)->oid_arg1);
+	}
+	qsort(l->ls_items, l->ls_length, sizeof l->ls_items[0],
+		sysctl_order_cmp);
+}
+
+SYSINIT(sysctl,SI_SUB_KMEM,SI_ORDER_ANY,sysctl_order,&sysctl_);
+
+static void
+sysctl_sysctl_debug_dump_node(struct linker_set *l,int i)
+{
+	int j,k;
+	struct sysctl_oid **oidpp;
+
+	j = l->ls_length;
+	oidpp = (struct sysctl_oid **) l->ls_items;
+	for (; j--; oidpp++) {
+
+		if (!*oidpp)
+			continue;
+
+		for (k=0; k<i; k++)
+			printf(" ");
+
+		if ((*oidpp)->oid_number > 100) {
+			printf("Junk! %p nm %x # %x k %x a1 %x a2 %x h %x\n",
+				*oidpp,
+		 		(*oidpp)->oid_number, (*oidpp)->oid_name,
+		 		(*oidpp)->oid_kind, (*oidpp)->oid_arg1,
+		 		(*oidpp)->oid_arg2, (*oidpp)->oid_handler);
+			continue;
+		}
+		printf("%d %s ", (*oidpp)->oid_number, (*oidpp)->oid_name);
+
+		printf("%c%c",
+			(*oidpp)->oid_kind & CTLFLAG_RD ? 'R':' ',
+			(*oidpp)->oid_kind & CTLFLAG_WR ? 'W':' ');
+
+		switch ((*oidpp)->oid_kind & CTLTYPE) {
+			case CTLTYPE_NODE:   
+				if ((*oidpp)->oid_handler) {
+					printf(" Node(proc)\n"); 
+				} else {
+					printf(" Node\n"); 
+					sysctl_sysctl_debug_dump_node(
+						(*oidpp)->oid_arg1,i+2);
+				}
+				break;
+			case CTLTYPE_INT:    printf(" Int\n"); break;
+			case CTLTYPE_STRING: printf(" String\n"); break;
+			case CTLTYPE_QUAD:   printf(" Quad\n"); break;
+			case CTLTYPE_OPAQUE: printf(" Opaque/struct\n"); break;
+			default:	     printf("\n");
+		}
+
+	}
+}
+
+
+static int
+sysctl_sysctl_debug SYSCTL_HANDLER_ARGS
+{
+	sysctl_sysctl_debug_dump_node(&sysctl_,0);
+	return ENOENT;
+}
+
+SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD,
+	0, 0, sysctl_sysctl_debug, "");
 
 char domainname[MAXHOSTNAMELEN];
 int domainnamelen;
@@ -287,9 +388,6 @@ struct sysctl_args {
  * We work entirely in kernel-space at this time.
  */
 
-extern struct linker_set sysctl_;
-
-int sysctl_dummy;
 
 int
 sysctl_root SYSCTL_HANDLER_ARGS
@@ -305,9 +403,7 @@ sysctl_root SYSCTL_HANDLER_ARGS
 
 	indx = 0;
 	while (j-- && indx < CTL_MAXNAME) {
-		if (*oidpp &&
-		    ((void *)&sysctl_dummy != (void *)*oidpp) &&
-		    ((*oidpp)->oid_number == name[indx])) {
+		if (*oidpp && ((*oidpp)->oid_number == name[indx])) {
 			indx++;
 			if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 				if ((*oidpp)->oid_handler)
@@ -396,14 +492,6 @@ __sysctl(p, uap, retval)
 
 	error = sysctl_root(0, name, uap->namelen, oldp, &oldlen, 
 	newp, uap->newlen);
-#if 0
-	if (error) {
-		printf("SYSCTL_ROOT: ");
-		for(i=0;i<uap->namelen;i++)
-			printf("%d ", name[i]);
-		printf("= %d\n", error);
-	}
-#endif
 
         if (!error || error == ENOMEM) {
 		if (uap->oldlenp) {
@@ -440,12 +528,6 @@ __sysctl(p, uap, retval)
 		fn = vm_sysctl;
 		break;
 	case CTL_NET:
-#if 0
-		printf("SYSCTL_NET: ");
-		for(i=0;i<uap->namelen;i++)
-			printf("%d ", name[i]);
-		printf("\n");
-#endif
 		fn = net_sysctl;
 		break;
 	case CTL_FS:
@@ -490,6 +572,14 @@ __sysctl(p, uap, retval)
 			wakeup((caddr_t)&memlock);
 		}
 	}
+#if 0
+	if (error) {
+		printf("SYSCTL_ERROR: ");
+		for(i=0;i<uap->namelen;i++)
+			printf("%d ", name[i]);
+		printf("= %d\n", error);
+	}
+#endif
 	if (error)
 		return (error);
 	if (uap->oldlenp)
