@@ -41,7 +41,10 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 
@@ -52,13 +55,43 @@ static const char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
+
+#define	KILO_SZ(n) (n)
+#define	MEGA_SZ(n) ((n) * (n))
+#define	GIGA_SZ(n) ((n) * (n) * (n))
+#define	TERA_SZ(n) ((n) * (n) * (n) * (n))
+#define	PETA_SZ(n) ((n) * (n) * (n) * (n) * (n))
+
+#define	KILO_2_SZ (KILO_SZ(1024ULL))
+#define	MEGA_2_SZ (MEGA_SZ(1024ULL))
+#define	GIGA_2_SZ (GIGA_SZ(1024ULL))
+#define	TERA_2_SZ (TERA_SZ(1024ULL))
+#define	PETA_2_SZ (PETA_SZ(1024ULL))
+
+#define	KILO_SI_SZ (KILO_SZ(1000ULL))
+#define	MEGA_SI_SZ (MEGA_SZ(1000ULL))
+#define	GIGA_SI_SZ (GIGA_SZ(1000ULL))
+#define	TERA_SI_SZ (TERA_SZ(1000ULL))
+#define	PETA_SI_SZ (PETA_SZ(1000ULL))
+
+unsigned long long vals_si [] = {1, KILO_SI_SZ, MEGA_SI_SZ, GIGA_SI_SZ, TERA_SI_SZ, PETA_SI_SZ};
+unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
+unsigned long long *valp;
+
+typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
+
+int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
 int		linkchk __P((FTSENT *));
 static void	usage __P((void));
+void		prthumanval __P((double));
+unit_t		unit_adjust __P((double *));
 
 int
 main(argc, argv)
@@ -71,16 +104,16 @@ main(argc, argv)
 	int		ftsoptions;
 	int		listall;
 	int		depth;
-	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag, ch, notused, rval;
+	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag, hflag, ch, notused, rval;
 	char 		**save;
 
-	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = 0;
+	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag = 0;
 	
 	save = argv;
 	ftsoptions = 0;
 	depth = INT_MAX;
 	
-	while ((ch = getopt(argc, argv, "HLPad:ksxc")) != -1)
+	while ((ch = getopt(argc, argv, "HLPasd:chkrx")) != -1)
 		switch (ch) {
 			case 'H':
 				Hflag = 1;
@@ -98,14 +131,8 @@ main(argc, argv)
 			case 'a':
 				aflag = 1;
 				break;
-			case 'k':
-				putenv("BLOCKSIZE=1024");
-				break;
 			case 's':
 				sflag = 1;
-				break;
-			case 'x':
-				ftsoptions |= FTS_XDEV;
 				break;
 			case 'd':
 				dflag = 1;
@@ -118,6 +145,19 @@ main(argc, argv)
 				break;
 			case 'c':
 				cflag = 1;
+				break;
+			case 'h':
+				putenv("BLOCKSIZE=512");
+				hflag = 1;
+				valp = vals_base2;
+				break;
+			case 'k':
+				putenv("BLOCKSIZE=1024");
+				break;
+			case 'r':		 /* Compatibility. */
+				break;
+			case 'x':
+				ftsoptions |= FTS_XDEV;
 				break;
 			case '?':
 			default:
@@ -190,9 +230,14 @@ main(argc, argv)
 				    p->fts_number += p->fts_statp->st_blocks;
 				
 				if (p->fts_level <= depth)
+					if (hflag) {
+						(void) prthumanval(howmany(savednumber, blocksize));
+						(void) printf("\t%s\n", p->fts_path);
+					} else {
 					(void) printf("%ld\t%s\n",
 					    howmany(p->fts_number, blocksize),
 					    p->fts_path);
+					}
 				break;
 			case FTS_DC:			/* Ignore. */
 				break;
@@ -207,9 +252,15 @@ main(argc, argv)
 					break;
 				
 				if (listall || p->fts_level == 0)
-					(void) printf("%qd\t%s\n",
-					    howmany(p->fts_statp->st_blocks, blocksize),
-					    p->fts_path);
+					if (hflag) {
+						(void) prthumanval(howmany(p->fts_statp->st_blocks,
+							blocksize));
+						(void) printf("\t%s\n", p->fts_path);
+					} else {
+						(void) printf("%qd\t%s\n",
+							howmany(p->fts_statp->st_blocks, blocksize),
+							p->fts_path);
+					}
 
 				p->fts_parent->fts_number += p->fts_statp->st_blocks;
 		}
@@ -220,7 +271,12 @@ main(argc, argv)
 		err(1, "fts_read");
 
 	if (cflag)
-		(void) printf("%ld\ttotal\n", howmany(savednumber, blocksize));
+		if (hflag) {
+			(void) prthumanval(howmany(savednumber, blocksize));
+			(void) printf("\ttotal\n");
+		} else {
+			(void) printf("%ld\ttotal\n", howmany(savednumber, blocksize));
+		}
 
 	exit(rval);
 }
@@ -258,10 +314,55 @@ linkchk(p)
 	return (0);
 }
 
+/*
+ * Output in "human-readable" format.  Uses 3 digits max and puts
+ * unit suffixes at the end.  Makes output compact and easy to read,
+ * especially on huge disks.
+ *
+ */
+unit_t
+unit_adjust(val)
+	double *val;
+{
+	double abval;
+	unit_t unit;
+	unsigned int unit_sz;
+
+	abval = fabs(*val);
+
+	unit_sz = abval ? ilogb(abval) / 10 : 0;
+
+	if (unit_sz >= UNIT_MAX) {
+		unit = NONE;
+	} else {
+		unit = unitp[unit_sz];
+		*val /= (double)valp[unit_sz];
+	}
+
+	return (unit);
+}
+
+void
+prthumanval(bytes)
+	double bytes;
+{
+	unit_t unit;
+
+	bytes *= 512;
+	unit = unit_adjust(&bytes);
+
+	if (bytes == 0)
+		(void)printf("  0B");
+	else if (bytes > 10)
+		(void)printf("%3.0f%c", bytes, "BKMGTPE"[unit]);
+	else
+		(void)printf("%3.1f%c", bytes, "BKMGTPE"[unit]);
+}
+
 static void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-k] [-x] [file ...]\n");
-	exit(1);
+		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-h | -k] [-x] [file ...]\n");
+	exit(EX_USAGE);
 }
