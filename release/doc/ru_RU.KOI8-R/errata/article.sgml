@@ -4,7 +4,7 @@
    $FreeBSD$
    $FreeBSDru$
 
-   Original revision: 1.69.2.15
+   Original revision: 1.69.2.16
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -86,6 +86,12 @@
 
   <sect1 id="security">
     <title>Сообщения безопасности</title>
+
+    <para>(1 декабря 2004) Была исправлена ошибка в &man.procfs.5; и &man.linprocfs.5;,
+      позволявшая злонамеренному локальному пользователю читать части
+      памяти ядра или выполнять локальную DoS атаку путем вызова паники
+      системы.  За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.</para>
 
     <para>(18 ноября 2004) Была исправлена ошибка в утилите
       &man.fetch.1;; она позволяла злонамеренному HTTP серверу

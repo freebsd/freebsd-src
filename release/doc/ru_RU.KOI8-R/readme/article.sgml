@@ -4,7 +4,7 @@
    $FreeBSD$
    $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.9 2004/09/13 09:24:01 den Exp $
 
-   Original revision: 1.35
+   Original revision: 1.31.2.2
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -299,11 +299,10 @@
 	  </listitem>
 
 	  <listitem>
-	    <para><filename>EARLY.TXT</filename>: Руководство для
-	      новых пользователей &os; &release.current;.  Настоятельно
-	      рекомендуется к прочтению новыми пользователями &os;
-	      &release.branch; и/или серии релизов
-	      6.<replaceable>X</replaceable>.</para>
+	    <para><filename>EARLY.TXT</filename>: Руководство по
+	      миграции для пользователей &os; 4.<replaceable>X</replaceable>,
+	      переходящих на серию релизов &os;
+	      5.<replaceable>X</replaceable>.</para>
 	  </listitem>
 
 	  <listitem>
