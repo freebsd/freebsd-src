@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.76 1996/11/17 03:57:08 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.77 1996/11/23 04:06:10 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -471,6 +471,10 @@
             America
                 Indiana
                 ..
+            ..
+            Antarctica
+            ..
+            Arctic
             ..
             Asia
             ..
