@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.23 1994/09/04 00:33:00 davidg Exp $
+ *	$Id: locore.s,v 1.24 1994/09/04 19:59:13 pst Exp $
  */
 
 /*
@@ -535,16 +535,12 @@ reloc_gdt:
 	call	_init386			/* wire 386 chip for unix operation */
 	popl	%esi
 
-#if 0
-	movl	$0,_PTD
-#endif
-
 	.globl	__ucodesel,__udatasel
 
 	pushl	$0				/* unused */
 	pushl	__udatasel			/* ss */
 	pushl	$0				/* esp - filled in by execve() */
-	pushl	$0x3200				/* eflags (ring 3, int enab) */
+	pushl	$PSL_USERSET			/* eflags (ring 0, int enab) */
 	pushl	__ucodesel			/* cs */
 	pushl	$0				/* eip - filled in by execve() */
 	subl	$(12*4),%esp			/* space for rest of registers */
