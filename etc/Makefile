@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.143.2.8 1997/08/13 12:58:51 danny Exp $
+#	$Id: Makefile,v 1.143.2.9 1997/08/14 07:02:07 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -111,7 +111,7 @@ distribution:
 	    ${MAKE} all; \
 	    ${MAKE} install; \
 	 cd ../cf/cf; \
-	    ${MAKE} objlink; \
+	    ${MAKE} obj OBJLINK=YES; \
 	    ${MAKE} ${SENDMAILCF}; \
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 obj/${SENDMAILCF} \
 		${DESTDIR}/etc/sendmail.cf)
