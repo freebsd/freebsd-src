@@ -200,7 +200,8 @@ ida_pci_probe(device_t dev)
 
 	if (id == IDA_DEVICEID_SMART)
 		board = ida_pci_match(pci_get_subdevice(dev));
-	if (id == IDA_DEVICEID_DEC_SMART)
+	if (id == IDA_DEVICEID_DEC_SMART ||
+	    id == IDA_DEVICEID_NCR_53C1510)
 		board = ida_pci_match(id);
 	if (board != NULL) {
 		device_set_desc(dev, board->desc);
