@@ -1,6 +1,40 @@
 /*
-** stub main for testing FICL under Win32
-** $Id: testmain.c,v 1.6 2000-06-17 07:43:50-07 jsadler Exp jsadler $
+** stub main for testing FICL under userland
+** $Id: testmain.c,v 1.13 2001/12/05 07:21:34 jsadler Exp $
+*/
+/*
+** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
+** All rights reserved.
+**
+** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please
+** contact me by email at the address above.
+**
+** L I C E N S E  and  D I S C L A I M E R
+** 
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions
+** are met:
+** 1. Redistributions of source code must retain the above copyright
+**    notice, this list of conditions and the following disclaimer.
+** 2. Redistributions in binary form must reproduce the above copyright
+**    notice, this list of conditions and the following disclaimer in the
+**    documentation and/or other materials provided with the distribution.
+**
+** THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+** ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+** ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+** FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+** OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+** HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+** SUCH DAMAGE.
 */
 
 /* $FreeBSD$ */
@@ -24,7 +58,7 @@ static void ficlGetCWD(FICL_VM *pVM)
 {
     char *cp;
 
-   cp = getcwd(NULL, 80);
+    cp = getcwd(NULL, 80);
     vmTextOut(pVM, cp, 1);
     free(cp);
     return;
@@ -62,7 +96,7 @@ static void ficlChDir(FICL_VM *pVM)
 ** Gets a newline (or NULL) delimited string from the input
 ** and feeds it to system()
 ** Example:
-**    system del *.*
+**    system rm -rf /
 **    \ ouch!
 */
 static void ficlSystem(FICL_VM *pVM)
@@ -150,10 +184,10 @@ static void ficlLoad(FICL_VM *pVM)
         result = ficlExecC(pVM, cp, len);
         if (result != VM_QUIT && result != VM_USEREXIT && result != VM_OUTOFTEXT )
         {
-            pVM->sourceID = id;
-            fclose(fp);
-            vmThrowErr(pVM, "Error loading file <%s> line %d", pFilename->text, nLine);
-            break; 
+                pVM->sourceID = id;
+                fclose(fp);
+                vmThrowErr(pVM, "Error loading file <%s> line %d", pFilename->text, nLine);
+                break; 
         }
     }
     /*
@@ -166,6 +200,9 @@ static void ficlLoad(FICL_VM *pVM)
     pVM->sourceID = id;
     fclose(fp);
 
+    /* handle "bye" in loaded files. --lch */
+    if (result == VM_USEREXIT)
+        vmThrow(pVM, VM_USEREXIT);
     return;
 }
 
@@ -175,7 +212,7 @@ static void ficlLoad(FICL_VM *pVM)
 */
 static void spewHash(FICL_VM *pVM)
 {
-    FICL_HASH *pHash = ficlGetDict()->pForthWords;
+    FICL_HASH *pHash = vmGetDict(pVM)->pForthWords;
     FICL_WORD *pFW;
     FILE *pOut;
     unsigned i;
@@ -252,18 +289,18 @@ static void execxt(FICL_VM *pVM)
 }
 
 
-void buildTestInterface(void)
+void buildTestInterface(FICL_SYSTEM *pSys)
 {
-    ficlBuild("break",    ficlBreak,    FW_DEFAULT);
-    ficlBuild("clock",    ficlClock,    FW_DEFAULT);
-    ficlBuild("cd",       ficlChDir,    FW_DEFAULT);
-    ficlBuild("execxt",   execxt,       FW_DEFAULT);
-    ficlBuild("load",     ficlLoad,     FW_DEFAULT);
-    ficlBuild("pwd",      ficlGetCWD,   FW_DEFAULT);
-    ficlBuild("system",   ficlSystem,   FW_DEFAULT);
-    ficlBuild("spewhash", spewHash,     FW_DEFAULT);
-    ficlBuild("clocks/sec", 
-                          clocksPerSec, FW_DEFAULT);
+    ficlBuild(pSys, "break",    ficlBreak,    FW_DEFAULT);
+    ficlBuild(pSys, "clock",    ficlClock,    FW_DEFAULT);
+    ficlBuild(pSys, "cd",       ficlChDir,    FW_DEFAULT);
+    ficlBuild(pSys, "execxt",   execxt,       FW_DEFAULT);
+    ficlBuild(pSys, "load",     ficlLoad,     FW_DEFAULT);
+    ficlBuild(pSys, "pwd",      ficlGetCWD,   FW_DEFAULT);
+    ficlBuild(pSys, "system",   ficlSystem,   FW_DEFAULT);
+    ficlBuild(pSys, "spewhash", spewHash,     FW_DEFAULT);
+    ficlBuild(pSys, "clocks/sec", 
+                                clocksPerSec, FW_DEFAULT);
 
     return;
 }
@@ -273,12 +310,13 @@ int main(int argc, char **argv)
 {
     char in[256];
     FICL_VM *pVM;
+	FICL_SYSTEM *pSys;
 
-    ficlInitSystem(10000);
-    buildTestInterface();
-    pVM = ficlNewVM();
+    pSys = ficlInitSystem(10000);
+    buildTestInterface(pSys);
+    pVM = ficlNewVM(pSys);
 
-    ficlExec(pVM, ".ver .( " __DATE__ " ) cr quit");
+    ficlEvaluate(pVM, ".ver .( " __DATE__ " ) cr quit");
 
     /*
     ** load file from cmd line...
@@ -286,7 +324,7 @@ int main(int argc, char **argv)
     if (argc  > 1)
     {
         sprintf(in, ".( loading %s ) cr load %s\n cr", argv[1], argv[1]);
-        ficlExec(pVM, in);
+        ficlEvaluate(pVM, in);
     }
 
     for (;;)
@@ -297,7 +335,7 @@ int main(int argc, char **argv)
         ret = ficlExec(pVM, in);
         if (ret == VM_USEREXIT)
         {
-            ficlTermSystem();
+            ficlTermSystem(pSys);
             break;
         }
     }

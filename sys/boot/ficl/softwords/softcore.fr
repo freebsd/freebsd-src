@@ -2,12 +2,11 @@
 \ ** FICL soft extensions
 \ ** John Sadler (john_sadler@alum.mit.edu)
 \ ** September, 1998
-
+\
 \ $FreeBSD$
 
 \ ** Ficl USER variables
 \ ** See words.c for primitive def'n of USER
-
 \ #if FICL_WANT_USER
 variable nUser  0 nUser ! 
 : user   \ name ( -- )  
@@ -35,7 +34,6 @@ decimal 32 constant bl
     state @ if
         postpone if
         postpone ."
-\        postpone type
         postpone cr
         -2
         postpone literal
@@ -60,7 +58,11 @@ false invert constant true
 : <>   = 0= ; 
 : 0<>  0= 0= ; 
 : compile,  , ; 
+: convert   char+ 65535 >number drop ;  \ cribbed from DPANS A.6.2.0970
 : erase   ( addr u -- )    0 fill ; 
+variable span
+: expect  ( c-addr u1 -- ) accept span ! ;
+\ see marker.fr for MARKER implementation
 : nip     ( y x -- x )     swap drop ; 
 : tuck    ( y x -- x y x)  swap over ; 
 : within  ( test low high -- flag )   over - >r - r>  u<  ;
@@ -168,7 +170,35 @@ set-current   \ stop hiding words
    ." Compile: " get-current list-wid cr  
 ; 
 
-: debug  ' debug-xt ;
+: debug  ' debug-xt ; immediate
+: on-step   ." S: " .s cr ;
+
+
+\ Submitted by lch.
+: strdup ( c-addr length -- c-addr2 length2 ior )
+	0 locals| addr2 length c-addr | end-locals
+	length 1 + allocate
+	0= if
+		to addr2
+		c-addr addr2 length move
+		addr2 length 0
+	else
+		0  -1
+	endif
+	;
+
+: strcat ( 2:a 2:b -- 2:new-a )
+	0 locals|  b-length b-u b-addr a-u a-addr | end-locals
+	b-u  to b-length
+	b-addr a-addr a-u + b-length  move
+	a-addr a-u b-length +
+	;
+
+: strcpy ( 2:a 2:b -- 2:new-a )
+	locals| b-u b-addr a-u a-addr | end-locals
+	a-addr 0  b-addr b-u  strcat
+	;
+
 
 previous   \ lose hidden words from search order
 

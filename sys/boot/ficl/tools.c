@@ -3,26 +3,18 @@
 ** Forth Inspired Command Language - programming tools
 ** Author: John Sadler (john_sadler@alum.mit.edu)
 ** Created: 20 June 2000
-** $Id: tools.c,v 1.4 2001-04-26 21:41:24-07 jsadler Exp jsadler $
+** $Id: tools.c,v 1.11 2001/12/05 07:21:34 jsadler Exp $
 *******************************************************************/
-/*
-** NOTES:
-** SEE needs information about the addresses of functions that
-** are the CFAs of colon definitions, constants, variables, DOES>
-** words, and so on. It gets this information from a table and supporting
-** functions in words.c.
-** colonParen doDoes createParen variableParen userParen constantParen
-**
-** Step and break debugger for Ficl
-** debug  ( xt -- )   Start debugging an xt
-** Set a breakpoint
-** Specify breakpoint default action
-*/
 /*
 ** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
 ** All rights reserved.
 **
 ** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please
+** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
 ** 
@@ -46,13 +38,20 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ** SUCH DAMAGE.
+*/
+
+/*
+** NOTES:
+** SEE needs information about the addresses of functions that
+** are the CFAs of colon definitions, constants, variables, DOES>
+** words, and so on. It gets this information from a table and supporting
+** functions in words.c.
+** colonParen doDoes createParen variableParen userParen constantParen
 **
-** I am interested in hearing from anyone who uses ficl. If you have
-** a problem, a success story, a defect, an enhancement request, or
-** if you would like to contribute to the ficl release, please send
-** contact me by email at the address above.
-**
-** $Id: tools.c,v 1.4 2001-04-26 21:41:24-07 jsadler Exp jsadler $
+** Step and break debugger for Ficl
+** debug  ( xt -- )   Start debugging an xt
+** Set a breakpoint
+** Specify breakpoint default action
 */
 
 /* $FreeBSD$ */
@@ -74,51 +73,45 @@
 ** for the STEP command. The rest are user programmable. 
 */
 #define nBREAKPOINTS 32
+
 #endif
 
-/*
-** BREAKPOINT record.
-** origXT - if NULL, this breakpoint is unused. Otherwise it stores the xt 
-** that the breakpoint overwrote. This is restored to the dictionary when the
-** BP executes or gets cleared
-** address - the location of the breakpoint (address of the instruction that
-**           has been replaced with the breakpoint trap
-** origXT  - The original contents of the location with the breakpoint
-** Note: address is NULL when this breakpoint is empty
-*/
-typedef struct breakpoint
-{
-    void      *address;
-    FICL_WORD *origXT;
-} BREAKPOINT;
 
-static BREAKPOINT bpStep = {NULL, NULL};
-
-/*
-** vmSetBreak - set a breakpoint at the current value of IP by
+/**************************************************************************
+                        v m S e t B r e a k
+** Set a breakpoint at the current value of IP by
 ** storing that address in a BREAKPOINT record
-*/
-static void vmSetBreak(FICL_VM *pVM, BREAKPOINT *pBP)
+**************************************************************************/
+static void vmSetBreak(FICL_VM *pVM, FICL_BREAKPOINT *pBP)
 {
-    FICL_WORD *pStep = ficlLookup("step-break");
+    FICL_WORD *pStep = ficlLookup(pVM->pSys, "step-break");
     assert(pStep);
+
     pBP->address = pVM->ip;
     pBP->origXT = *pVM->ip;
     *pVM->ip = pStep;
 }
 
 
-/*
-** isAFiclWord
+/**************************************************************************
+**                      d e b u g P r o m p t
+**************************************************************************/
+static void debugPrompt(FICL_VM *pVM)
+{
+        vmTextOut(pVM, "dbg> ", 0);
+}
+
+
+/**************************************************************************
+**                      i s A F i c l W o r d
 ** Vet a candidate pointer carefully to make sure
 ** it's not some chunk o' inline data...
 ** It has to have a name, and it has to look
 ** like it's in the dictionary address range.
 ** NOTE: this excludes :noname words!
-*/
-int isAFiclWord(FICL_WORD *pFW)
+**************************************************************************/
+int isAFiclWord(FICL_DICT *pd, FICL_WORD *pFW)
 {
-    FICL_DICT *pd  = ficlGetDict();
 
     if (!dictIncludes(pd, pFW))
        return 0;
@@ -126,14 +119,55 @@ int isAFiclWord(FICL_WORD *pFW)
     if (!dictIncludes(pd, pFW->name))
         return 0;
 
-    return ((pFW->nName > 0) && (pFW->name[pFW->nName] == '\0'));
+	if ((pFW->link != NULL) && !dictIncludes(pd, pFW->link))
+		return 0;
+
+    if ((pFW->nName <= 0) || (pFW->name[pFW->nName] != '\0'))
+		return 0;
+
+	if (strlen(pFW->name) != pFW->nName)
+		return 0;
+
+	return 1;
 }
 
 
+#if 0
 static int isPrimitive(FICL_WORD *pFW)
 {
     WORDKIND wk = ficlWordClassify(pFW);
     return ((wk != COLON) && (wk != DOES));
+}
+#endif
+
+
+/**************************************************************************
+                        f i n d E n c l o s i n g W o r d
+** Given a pointer to something, check to make sure it's an address in the 
+** dictionary. If so, search backwards until we find something that looks
+** like a dictionary header. If successful, return the address of the 
+** FICL_WORD found. Otherwise return NULL.
+** nSEARCH_CELLS sets the maximum neighborhood this func will search before giving up
+**************************************************************************/
+#define nSEARCH_CELLS 100
+
+static FICL_WORD *findEnclosingWord(FICL_VM *pVM, CELL *cp)
+{
+    FICL_WORD *pFW;
+    FICL_DICT *pd = vmGetDict(pVM);
+    int i;
+
+    if (!dictIncludes(pd, (void *)cp))
+        return NULL;
+
+    for (i = nSEARCH_CELLS; i > 0; --i, --cp)
+    {
+        pFW = (FICL_WORD *)(cp + 1 - (sizeof (FICL_WORD) / sizeof (CELL)));
+        if (isAFiclWord(pd, pFW))
+            return pFW;
+    }
+
+    return NULL;
 }
 
 
@@ -144,8 +178,6 @@ static int isPrimitive(FICL_WORD *pFW)
 ** The source of the representation (object-code decompilation, source
 ** block, etc.) and the particular form of the display is implementation
 ** defined. 
-** NOTE: these funcs come late in the file because they reference all
-** of the word-builder funcs without declaring them again. Call me lazy.
 **************************************************************************/
 /*
 ** seeColon (for proctologists only)
@@ -154,17 +186,24 @@ static int isPrimitive(FICL_WORD *pFW)
 */
 static void seeColon(FICL_VM *pVM, CELL *pc)
 {
-    static FICL_WORD *pSemiParen = NULL;
-
-    if (!pSemiParen)
-        pSemiParen = ficlLookup("(;)");
+	char *cp;
+    CELL *param0 = pc;
+    FICL_DICT *pd = vmGetDict(pVM);
+	FICL_WORD *pSemiParen = ficlLookup(pVM->pSys, "(;)");
     assert(pSemiParen);
 
     for (; pc->p != pSemiParen; pc++)
     {
         FICL_WORD *pFW = (FICL_WORD *)(pc->p);
 
-        if (isAFiclWord(pFW))
+        cp = pVM->pad;
+		if ((void *)pc == (void *)pVM->ip)
+			*cp++ = '>';
+		else
+			*cp++ = ' ';
+        cp += sprintf(cp, "%3d   ", pc-param0);
+        
+        if (isAFiclWord(pd, pFW))
         {
             WORDKIND kind = ficlWordClassify(pFW);
             CELL c;
@@ -173,65 +212,72 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
             {
             case LITERAL:
                 c = *++pc;
-                if (isAFiclWord(c.p))
+                if (isAFiclWord(pd, c.p))
                 {
                     FICL_WORD *pLit = (FICL_WORD *)c.p;
-                    sprintf(pVM->pad, "    literal %.*s (%#lx)", 
+                    sprintf(cp, "%.*s ( %#lx literal )", 
                         pLit->nName, pLit->name, c.u);
                 }
                 else
-                    sprintf(pVM->pad, "    literal %ld (%#lx)", c.i, c.u);
+                    sprintf(cp, "literal %ld (%#lx)", c.i, c.u);
                 break;
             case STRINGLIT:
                 {
                     FICL_STRING *sp = (FICL_STRING *)(void *)++pc;
                     pc = (CELL *)alignPtr(sp->text + sp->count + 1) - 1;
-                    sprintf(pVM->pad, "    s\" %.*s\"", sp->count, sp->text);
+                    sprintf(cp, "s\" %.*s\"", sp->count, sp->text);
+                }
+                break;
+            case CSTRINGLIT:
+                {
+                    FICL_STRING *sp = (FICL_STRING *)(void *)++pc;
+                    pc = (CELL *)alignPtr(sp->text + sp->count + 1) - 1;
+                    sprintf(cp, "c\" %.*s\"", sp->count, sp->text);
                 }
                 break;
             case IF:
                 c = *++pc;
                 if (c.i > 0)
-                    sprintf(pVM->pad, "    if / while (branch rel %ld)", c.i);
+                    sprintf(cp, "if / while (branch %d)", pc+c.i-param0);
                 else
-                    sprintf(pVM->pad, "    until (branch rel %ld)", c.i);
-                break;
+                    sprintf(cp, "until (branch %d)",      pc+c.i-param0);
+                break;                                                           
             case BRANCH:
                 c = *++pc;
                 if (c.i > 0)
-                    sprintf(pVM->pad, "    else (branch rel %ld)", c.i);
+                    sprintf(cp, "else (branch %d)",       pc+c.i-param0);
                 else
-                    sprintf(pVM->pad, "    repeat (branch rel %ld)", c.i);
+                    sprintf(cp, "repeat (branch %d)",     pc+c.i-param0);
                 break;
 
             case QDO:
                 c = *++pc;
-                sprintf(pVM->pad, "    ?do (leave abs %#lx)", c.u);
+                sprintf(cp, "?do (leave %d)",  (CELL *)c.p-param0);
                 break;
             case DO:
                 c = *++pc;
-                sprintf(pVM->pad, "    do (leave abs %#lx)", c.u);
+                sprintf(cp, "do (leave %d)", (CELL *)c.p-param0);
                 break;
             case LOOP:
                 c = *++pc;
-                sprintf(pVM->pad, "    loop (branch rel %#ld)", c.i);
+                sprintf(cp, "loop (branch %d)", pc+c.i-param0);
                 break;
             case PLOOP:
                 c = *++pc;
-                sprintf(pVM->pad, "    +loop (branch rel %#ld)", c.i);
+                sprintf(cp, "+loop (branch %d)", pc+c.i-param0);
                 break;
             default:
-                sprintf(pVM->pad, "    %.*s", pFW->nName, pFW->name);
+                sprintf(cp, "%.*s", pFW->nName, pFW->name);
                 break;
             }
  
-            vmTextOut(pVM, pVM->pad, 1);
         }
         else /* probably not a word - punt and print value */
         {
-            sprintf(pVM->pad, "    %ld (%#lx)", pc->i, pc->u);
-            vmTextOut(pVM, pVM->pad, 1);
+            sprintf(cp, "%ld ( %#lx )", pc->i, pc->u);
         }
+
+		vmTextOut(pVM, pVM->pad, 1);
     }
 
     vmTextOut(pVM, ";", 1);
@@ -275,17 +321,20 @@ static void seeXT(FICL_VM *pVM)
         vmTextOut(pVM, pVM->pad, 1);
         break;
 
+#if FICL_WANT_USER
     case USER:
         sprintf(pVM->pad, "user variable %ld (%#lx)", pFW->param->i, pFW->param->u);
         vmTextOut(pVM, pVM->pad, 1);
         break;
+#endif
 
     case CONSTANT:
         sprintf(pVM->pad, "constant = %ld (%#lx)", pFW->param->i, pFW->param->u);
         vmTextOut(pVM, pVM->pad, 1);
 
     default:
-        vmTextOut(pVM, "primitive", 1);
+        sprintf(pVM->pad, "%.*s is a primitive", pFW->nName, pFW->name);
+        vmTextOut(pVM, pVM->pad, 1);
         break;
     }
 
@@ -323,9 +372,6 @@ void ficlDebugXT(FICL_VM *pVM)
 {
     FICL_WORD *xt    = stackPopPtr(pVM->pStack);
     WORDKIND   wk    = ficlWordClassify(xt);
-    FICL_WORD *pStep = ficlLookup("step-break");
-
-    assert(pStep);
 
     stackPushPtr(pVM->pStack, xt);
     seeXT(pVM);
@@ -338,9 +384,7 @@ void ficlDebugXT(FICL_VM *pVM)
         ** Run the colon code and set a breakpoint at the next instruction
         */
         vmExecute(pVM, xt);
-        bpStep.address = pVM->ip;
-        bpStep.origXT = *pVM->ip;
-        *pVM->ip = pStep;
+        vmSetBreak(pVM, &(pVM->pSys->bpStep));
         break;
 
     default:
@@ -370,7 +414,7 @@ void stepIn(FICL_VM *pVM)
     /*
     ** Now set a breakpoint at the next instruction
     */
-    vmSetBreak(pVM, &bpStep);
+    vmSetBreak(pVM, &(pVM->pSys->bpStep));
     
     return;
 }
@@ -387,7 +431,7 @@ void stepOver(FICL_VM *pVM)
 {
     FICL_WORD *pFW;
     WORDKIND kind;
-    FICL_WORD *pStep = ficlLookup("step-break");
+    FICL_WORD *pStep = ficlLookup(pVM->pSys, "step-break");
     assert(pStep);
 
     pFW = *pVM->ip;
@@ -401,8 +445,8 @@ void stepOver(FICL_VM *pVM)
         ** assume that the next cell holds an instruction 
         ** set a breakpoint there and return to the inner interp
         */
-        bpStep.address = pVM->ip + 1;
-        bpStep.origXT =  pVM->ip[1];
+        pVM->pSys->bpStep.address = pVM->ip + 1;
+        pVM->pSys->bpStep.origXT =  pVM->ip[1];
         pVM->ip[1] = pStep;
         break;
 
@@ -439,37 +483,37 @@ void stepBreak(FICL_VM *pVM)
 
     if (!pVM->fRestart)
     {
-
-        assert(bpStep.address != NULL);
+        assert(pVM->pSys->bpStep.address);
+        assert(pVM->pSys->bpStep.origXT);
         /*
         ** Clear the breakpoint that caused me to run
         ** Restore the original instruction at the breakpoint, 
         ** and restore the IP
         */
-        assert(bpStep.address);
-        assert(bpStep.origXT);
-
-        pVM->ip = (IPTYPE)bpStep.address;
-        *pVM->ip = bpStep.origXT;
+        pVM->ip = (IPTYPE)(pVM->pSys->bpStep.address);
+        *pVM->ip = pVM->pSys->bpStep.origXT;
 
         /*
         ** If there's an onStep, do it
         */
-        pOnStep = ficlLookup("on-step");
+        pOnStep = ficlLookup(pVM->pSys, "on-step");
         if (pOnStep)
             ficlExecXT(pVM, pOnStep);
 
         /*
         ** Print the name of the next instruction
         */
-        pFW = bpStep.origXT;
+        pFW = pVM->pSys->bpStep.origXT;
         sprintf(pVM->pad, "next: %.*s", pFW->nName, pFW->name);
+#if 0
         if (isPrimitive(pFW))
         {
-            strcat(pVM->pad, " primitive");
+            strcat(pVM->pad, " ( primitive )");
         }
+#endif
 
         vmTextOut(pVM, pVM->pad, 1);
+        debugPrompt(pVM);
     }
     else
     {
@@ -486,21 +530,60 @@ void stepBreak(FICL_VM *pVM)
     {
         return;
     }
+    else if (!strincmp(si.cp, "l", si.count))
+    {
+        FICL_WORD *xt;
+        xt = findEnclosingWord(pVM, (CELL *)(pVM->ip));
+        if (xt)
+        {
+            stackPushPtr(pVM->pStack, xt);
+            seeXT(pVM);
+        }
+        else
+        {
+            vmTextOut(pVM, "sorry - can't do that", 1);
+        }
+        vmThrow(pVM, VM_RESTART);
+    }
     else if (!strincmp(si.cp, "o", si.count))
     {
         stepOver(pVM);
     }
     else if (!strincmp(si.cp, "q", si.count))
     {
+        ficlTextOut(pVM, FICL_PROMPT, 0);
         vmThrow(pVM, VM_ABORT);
+    }
+    else if (!strincmp(si.cp, "x", si.count))
+    {
+        /*
+        ** Take whatever's left in the TIB and feed it to a subordinate ficlExec
+        */ 
+        int ret;
+        char *cp = pVM->tib.cp + pVM->tib.index;
+        int count = pVM->tib.end - cp; 
+        FICL_WORD *oldRun = pVM->runningWord;
+
+        ret = ficlExecC(pVM, cp, count);
+
+        if (ret == VM_OUTOFTEXT)
+        {
+            ret = VM_RESTART;
+            pVM->runningWord = oldRun;
+            vmTextOut(pVM, "", 1);
+        }
+
+        vmThrow(pVM, ret);
     }
     else
     {
         vmTextOut(pVM, "i -- step In", 1);
         vmTextOut(pVM, "o -- step Over", 1);
         vmTextOut(pVM, "g -- Go (execute to completion)", 1);
+        vmTextOut(pVM, "l -- List source code", 1);
         vmTextOut(pVM, "q -- Quit (stop debugging and abort)", 1);
-        vmTextOut(pVM, "x -- eXecute a single word", 1);
+        vmTextOut(pVM, "x -- eXecute the rest of the line as ficl words", 1);
+        debugPrompt(pVM);
         vmThrow(pVM, VM_RESTART);
     }
 
@@ -526,9 +609,10 @@ static void bye(FICL_VM *pVM)
 ** TOOLS 
 ** Display the parameter stack (code for ".s")
 **************************************************************************/
-static void displayStack(FICL_VM *pVM)
+static void displayPStack(FICL_VM *pVM)
 {
-    int d = stackDepth(pVM->pStack);
+    FICL_STACK *pStk = pVM->pStack;
+    int d = stackDepth(pStk);
     int i;
     CELL *pCell;
 
@@ -538,34 +622,58 @@ static void displayStack(FICL_VM *pVM)
         vmTextOut(pVM, "(Stack Empty) ", 0);
     else
     {
-        pCell = pVM->pStack->base;
+        pCell = pStk->base;
         for (i = 0; i < d; i++)
         {
             vmTextOut(pVM, ltoa((*pCell++).i, pVM->pad, pVM->base), 0);
             vmTextOut(pVM, " ", 0);
         }
     }
+    return;
 }
 
 
 static void displayRStack(FICL_VM *pVM)
 {
-    int d = stackDepth(pVM->rStack);
+    FICL_STACK *pStk = pVM->rStack;
+    int d = stackDepth(pStk);
     int i;
     CELL *pCell;
+    FICL_DICT *dp = vmGetDict(pVM);
 
-    vmTextOut(pVM, "Return Stack: ", 0);
+    vmCheckStack(pVM, 0, 0);
+
     if (d == 0)
-        vmTextOut(pVM, "Empty ", 0);
+        vmTextOut(pVM, "(Stack Empty) ", 0);
     else
     {
-        pCell = pVM->rStack->base;
+        pCell = pStk->base;
         for (i = 0; i < d; i++)
         {
-            vmTextOut(pVM, ultoa((*pCell++).i, pVM->pad, 16), 0);
+            CELL c = *pCell++;
+            /*
+            ** Attempt to find the word that contains the
+            ** stacked address (as if it is part of a colon definition).
+            ** If this works, print the name of the word. Otherwise print
+            ** the value as a number.
+            */
+            if (dictIncludes(dp, c.p))
+            {
+                FICL_WORD *pFW = findEnclosingWord(pVM, c.p);
+                if (pFW)
+                {
+                    int offset = (CELL *)c.p - &pFW->param[0];
+                    sprintf(pVM->pad, "%s+%d ", pFW->name, offset);
+                    vmTextOut(pVM, pVM->pad, 0);
+                    continue;  /* no need to print the numeric value */
+                }
+            }
+            vmTextOut(pVM, ltoa(c.i, pVM->pad, pVM->base), 0);
             vmTextOut(pVM, " ", 0);
         }
     }
+
+    return;
 }
 
 
@@ -575,7 +683,7 @@ static void displayRStack(FICL_VM *pVM)
 **************************************************************************/
 static void forgetWid(FICL_VM *pVM)
 {
-    FICL_DICT *pDict = ficlGetDict();
+    FICL_DICT *pDict = vmGetDict(pVM);
     FICL_HASH *pHash;
 
     pHash = (FICL_HASH *)stackPopPtr(pVM->pStack);
@@ -600,7 +708,7 @@ static void forgetWid(FICL_VM *pVM)
 static void forget(FICL_VM *pVM)
 {
     void *where;
-    FICL_DICT *pDict = ficlGetDict();
+    FICL_DICT *pDict = vmGetDict(pVM);
     FICL_HASH *pHash = pDict->pCompile;
 
     ficlTick(pVM);
@@ -619,7 +727,7 @@ static void forget(FICL_VM *pVM)
 #define nCOLWIDTH 8
 static void listWords(FICL_VM *pVM)
 {
-    FICL_DICT *dp = ficlGetDict();
+    FICL_DICT *dp = vmGetDict(pVM);
     FICL_HASH *pHash = dp->pSearch[dp->nLists - 1];
     FICL_WORD *wp;
     int nChars = 0;
@@ -696,7 +804,7 @@ static void listWords(FICL_VM *pVM)
 **************************************************************************/
 static void listEnv(FICL_VM *pVM)
 {
-    FICL_DICT *dp = ficlGetEnv();
+    FICL_DICT *dp = pVM->pSys->envp;
     FICL_HASH *pHash = dp->pForthWords;
     FICL_WORD *wp;
     unsigned i;
@@ -732,7 +840,7 @@ static void envConstant(FICL_VM *pVM)
 
     vmGetWordToPad(pVM);
     value = POPUNS();
-    ficlSetEnv(pVM->pad, (FICL_UNS)value);
+    ficlSetEnv(pVM->pSys, pVM->pad, (FICL_UNS)value);
     return;
 }
 
@@ -747,7 +855,7 @@ static void env2Constant(FICL_VM *pVM)
     vmGetWordToPad(pVM);
     v2 = POPUNS();
     v1 = POPUNS();
-    ficlSetEnvD(pVM->pad, v1, v2);
+    ficlSetEnvD(pVM->pSys, pVM->pad, v1, v2);
     return;
 }
 
@@ -765,8 +873,7 @@ void ficlCompileTools(FICL_SYSTEM *pSys)
     /*
     ** TOOLS and TOOLS EXT
     */
-    dictAppendWord(dp, ".r",        displayRStack,  FW_DEFAULT); /* guy carver */
-    dictAppendWord(dp, ".s",        displayStack,   FW_DEFAULT);
+    dictAppendWord(dp, ".s",        displayPStack,  FW_DEFAULT);
     dictAppendWord(dp, "bye",       bye,            FW_DEFAULT);
     dictAppendWord(dp, "forget",    forget,         FW_DEFAULT);
     dictAppendWord(dp, "see",       see,            FW_DEFAULT);
@@ -775,12 +882,13 @@ void ficlCompileTools(FICL_SYSTEM *pSys)
     /*
     ** Set TOOLS environment query values
     */
-    ficlSetEnv("tools",            FICL_TRUE);
-    ficlSetEnv("tools-ext",        FICL_FALSE);
+    ficlSetEnv(pSys, "tools",            FICL_TRUE);
+    ficlSetEnv(pSys, "tools-ext",        FICL_FALSE);
 
     /*
     ** Ficl extras
     */
+    dictAppendWord(dp, "r.s",       displayRStack,  FW_DEFAULT); /* guy carver */
     dictAppendWord(dp, ".env",      listEnv,        FW_DEFAULT);
     dictAppendWord(dp, "env-constant",
                                     envConstant,    FW_DEFAULT);
@@ -793,7 +901,6 @@ void ficlCompileTools(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "step-break",stepBreak,      FW_DEFAULT);
     dictAppendWord(dp, "forget-wid",forgetWid,      FW_DEFAULT);
     dictAppendWord(dp, "see-xt",    seeXT,          FW_DEFAULT);
-    dictAppendWord(dp, ".r",        displayRStack,  FW_DEFAULT);
 
     return;
 }

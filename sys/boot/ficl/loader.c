@@ -591,7 +591,7 @@ static void fkey(FICL_VM *pVM)
 
 static void freeHeap(FICL_VM *pVM)
 {
-    stackPushINT(pVM->pStack, dictCellsAvail(ficlGetDict()));
+    stackPushINT(pVM->pStack, dictCellsAvail(ficlGetDict(pVM->pSys)));
 }
 
 
@@ -653,17 +653,17 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
 #endif
 
 #if defined(__i386__)
-    ficlSetEnv("arch-i386",         FICL_TRUE);
-    ficlSetEnv("arch-alpha",        FICL_FALSE);
-    ficlSetEnv("arch-ia64",         FICL_FALSE);
+    ficlSetEnv(pSys, "arch-i386",         FICL_TRUE);
+    ficlSetEnv(pSys, "arch-alpha",        FICL_FALSE);
+    ficlSetEnv(pSys, "arch-ia64",         FICL_FALSE);
 #elif defined(__alpha__)
-    ficlSetEnv("arch-i386",         FICL_FALSE);
-    ficlSetEnv("arch-alpha",        FICL_TRUE);
-    ficlSetEnv("arch-ia64",         FICL_FALSE);
+    ficlSetEnv(pSys, "arch-i386",         FICL_FALSE);
+    ficlSetEnv(pSys, "arch-alpha",        FICL_TRUE);
+    ficlSetEnv(pSys, "arch-ia64",         FICL_FALSE);
 #elif defined(__ia64__)
-    ficlSetEnv("arch-i386",         FICL_FALSE);
-    ficlSetEnv("arch-alpha",        FICL_FALSE);
-    ficlSetEnv("arch-ia64",         FICL_TRUE);
+    ficlSetEnv(pSys, "arch-i386",         FICL_FALSE);
+    ficlSetEnv(pSys, "arch-alpha",        FICL_FALSE);
+    ficlSetEnv(pSys, "arch-ia64",         FICL_TRUE);
 #endif
 
     return;

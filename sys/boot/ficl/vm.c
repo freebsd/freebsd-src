@@ -3,7 +3,7 @@
 ** Forth Inspired Command Language - virtual machine methods
 ** Author: John Sadler (john_sadler@alum.mit.edu)
 ** Created: 19 July 1997
-** $Id: vm.c,v 1.8 2001-04-26 21:41:23-07 jsadler Exp jsadler $
+** $Id: vm.c,v 1.13 2001/12/05 07:21:34 jsadler Exp $
 *******************************************************************/
 /*
 ** This file implements the virtual machine of FICL. Each virtual
@@ -17,6 +17,11 @@
 ** All rights reserved.
 **
 ** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please
+** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
 ** 
@@ -40,13 +45,6 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ** SUCH DAMAGE.
-**
-** I am interested in hearing from anyone who uses ficl. If you have
-** a problem, a success story, a defect, an enhancement request, or
-** if you would like to contribute to the ficl release, please send
-** contact me by email at the address above.
-**
-** $Id: vm.c,v 1.8 2001-04-26 21:41:23-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
@@ -165,6 +163,99 @@ void vmInnerLoop(FICL_VM *pVM)
     M_INNER_LOOP(pVM);
 }
 #endif
+#if 0
+/*
+** Recast inner loop that inlines tokens for control structures, arithmetic and stack operations, 
+** as well as create does> : ; and various literals
+*/
+typedef enum
+{
+    PATCH = 0,
+    L0,
+    L1,
+    L2,
+    LMINUS1,
+    LMINUS2,
+    DROP,
+    SWAP,
+    DUP,
+    PICK,
+    ROLL,
+    FETCH,
+    STORE,
+    BRANCH,
+    CBRANCH,
+    LEAVE,
+    TO_R,
+    R_FROM,
+    EXIT;
+} OPCODE;
+
+typedef CELL *IPTYPE;
+
+void vmInnerLoop(FICL_VM *pVM)
+{
+    IPTYPE ip = pVM->ip;
+    FICL_STACK *pStack = pVM->pStack;
+
+    for (;;)
+    {
+        OPCODE o = (*ip++).i;
+        CELL c;
+        switch (o)
+        {
+        case L0:
+            stackPushINT(pStack, 0);
+            break;
+        case L1:
+            stackPushINT(pStack, 1);
+            break;
+        case L2:
+            stackPushINT(pStack, 2);
+            break;
+        case LMINUS1:
+            stackPushINT(pStack, -1);
+            break;
+        case LMINUS2:
+            stackPushINT(pStack, -2);
+            break;
+        case DROP:
+            stackDrop(pStack, 1);
+            break;
+        case SWAP:
+            stackRoll(pStack, 1);
+            break;
+        case DUP:
+            stackPick(pStack, 0);
+            break;
+        case PICK:
+            c = *ip++;
+            stackPick(pStack, c.i);
+            break;
+        case ROLL:
+            c = *ip++;
+            stackRoll(pStack, c.i);
+            break;
+        case EXIT:
+            return;
+        }
+    }
+
+    return;
+}
+#endif
+
+
+
+/**************************************************************************
+                        v m G e t D i c t
+** Returns the address dictionary for this VM's system
+**************************************************************************/
+FICL_DICT  *vmGetDict(FICL_VM *pVM)
+{
+	assert(pVM);
+	return pVM->pSys->dp;
+}
 
 
 /**************************************************************************
@@ -437,18 +528,6 @@ void vmSetTextOut(FICL_VM *pVM, OUTFUNC textOut)
 
     return;
 }
-
-
-/**************************************************************************
-                        v m S t e p
-** Single step the vm - equivalent to "step into" - used for debugging
-**************************************************************************/
-#if FICL_WANT_DEBUGGER
-void vmStep(FICL_VM *pVM)
-{
-    M_VM_STEP(pVM);
-}
-#endif
 
 
 /**************************************************************************
