@@ -37,10 +37,6 @@
 #define	CE_NTYPES			3
 #define	CE_RECORD(com, errnum)		(++(com)->delta_error_counts[errnum])
 
-#ifdef SMP
-#define DIGI_LOCK_INTR
-#endif
-
 /*#define DIGI_INTERRUPT*/
 
 #ifndef DEBUG
@@ -196,9 +192,6 @@ struct digi_softc {
 	u_char *(*setwin)(struct digi_softc *_sc, unsigned _addr);
 	void	(*hidewin)(struct digi_softc *_sc);
 	void	(*towin)(struct digi_softc *_sc, int _win);
-#ifdef DIGI_LOCK_INTR
-	struct mtx intr_mutex[1];
-#endif
 #ifdef DEBUG
 	int	intr_count;
 #endif
