@@ -938,7 +938,7 @@ configInetd(dialogMenuItem *self)
                    "inetd.conf(5) leaves all services disabled by default, so they must be\n"
                    "specifically enabled in the configuration file before they will\n"
                    "function, even once inetd(8) is enabled.  Note that services for\n"
-		   "IPv6 must be seperately enabled from IPv4 services.\n\n"
+		   "IPv6 must be separately enabled from IPv4 services.\n\n"
                    "Select [Yes] now to invoke an editor on /etc/inetd.conf, or [No] to\n"
                    "use the current settings.\n")) {
             sprintf(cmd, "%s /etc/inetd.conf", variable_get(VAR_EDITOR));
