@@ -49,7 +49,7 @@
 #include <machine/vmparam.h>
 
 /* XXX this is to fake out the console routines, while booting. */
-struct consdev promcons = { NULL, NULL, promcngetc, promcncheckc, promcnputc,
+struct consdev promcons = { NULL, NULL, NULL, promcngetc, promcncheckc, promcnputc,
 			    NULL, 0 /* makedev(97,0) */, CN_NORMAL };
 
 struct rpb	*hwrpb;
@@ -98,8 +98,6 @@ init_prom_interface(rpb)
         prom_dispatch_v.routine_arg = c->crb_v_dispatch;
         prom_dispatch_v.routine = c->crb_v_dispatch->entry_va;
 }
-
-extern struct consdev* cn_tab;
 
 void
 init_bootstrap_console()
