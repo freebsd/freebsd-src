@@ -78,15 +78,14 @@ main(int argc, char *argv[])
 		usage();
 
 	for (errors = 0; *argv; argv++) {
-		if (pflag) {
-			errors |= rm_path(*argv);
+		if (rmdir(*argv) < 0) {
+			warn("%s", *argv);
+			errors = 1;
 		} else {
-			if (rmdir(*argv) < 0) {
-				warn("%s", *argv);
-				errors = 1;
-			}
 			if (vflag)
 				printf("%s\n", *argv);
+			if (pflag)
+				errors |= rm_path(*argv);
 		}
 	}
 
