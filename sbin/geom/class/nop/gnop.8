@@ -35,6 +35,8 @@
 .Cm create
 .Op Fl v
 .Op Fl f Ar failprob
+.Op Fl o Ar offset
+.Op Fl s Ar size
 .Ar dev1
 .Op Ar dev2 Op Ar ...
 .Nm
@@ -103,6 +105,10 @@ Additional options:
 Force the removal of the specified provider.
 .It Fl f Ar failprob
 Specifies failure probability in percentage.
+.It Fl o Ar offset
+Where to begin on the original provider.
+.It Fl o Ar size
+Size of the transparent provider.
 .It Fl v
 Be more verbose.
 .El
