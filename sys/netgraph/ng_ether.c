@@ -75,6 +75,7 @@ struct private {
 	u_char		lowerOrphan;	/* whether lower is lower or orphan */
 	u_char		autoSrcAddr;	/* always overwrite source address */
 	u_char		promisc;	/* promiscuous mode enabled */
+	u_long		hwassist;	/* hardware checksum capabilities */
 	u_int		flags;		/* flags e.g. really die */
 };
 typedef struct private *priv_p;
@@ -317,6 +318,7 @@ ng_ether_attach(struct ifnet *ifp)
 	priv->ifp = ifp;
 	IFP2NG(ifp) = node;
 	priv->autoSrcAddr = 1;
+	priv->hwassist = ifp->if_hwassist;
 
 	/* Try to give the node the same name as the interface */
 	if (ng_name_node(node, name) != 0) {
@@ -467,6 +469,10 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	/* Check if already connected (shouldn't be, but doesn't hurt) */
 	if (*hookptr != NULL)
 		return (EISCONN);
+
+	/* Disable hardware checksums while 'upper' hook is connected */
+	if (hookptr == &priv->upper)
+		priv->ifp->if_hwassist = 0;
 
 	/* OK */
 	*hookptr = hook;
@@ -715,9 +721,10 @@ ng_ether_disconnect(hook_p hook)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
-	if (hook == priv->upper)
+	if (hook == priv->upper) {
 		priv->upper = NULL;
-	else if (hook == priv->lower) {
+		priv->ifp->if_hwassist = priv->hwassist;  /* restore h/w csum */
+	} else if (hook == priv->lower) {
 		priv->lower = NULL;
 		priv->lowerOrphan = 0;
 	} else
