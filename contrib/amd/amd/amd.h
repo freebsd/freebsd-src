@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.h,v 1.3 1999/02/04 07:24:14 ezk Exp $
+ * $Id: amd.h,v 1.4 1999/09/30 21:01:29 ezk Exp $
  *
  */
 
@@ -106,8 +106,10 @@ struct amu_global_options {
   char *cluster;		/* cluster name */
   char *karch;			/* kernel architecture */
   char *logfile;		/* amd log file */
-  char *op_sys;			/* operating system name */
-  char *op_sys_ver;		/* OS version */
+  char *op_sys;			/* operating system name ${os} */
+  char *op_sys_ver;		/* OS version ${osver} */
+  char *op_sys_full;		/* full OS name ${full_os} */
+  char *op_sys_vendor;		/* name of OS vendor ${vendor} */
   char *pid_file;		/* PID file */
   char *sub_domain;		/* local domain */
   char *map_options;		/* global map options */
@@ -163,6 +165,7 @@ struct mnt_map {
   short flags;                  /* Allocation flags */
   short alloc;                  /* Allocation mode */
   time_t modify;                /* Modify time of map */
+  u_int reloads;		/* Number of times map was reloaded */
   char *map_name;               /* Name of this map */
   char *wildcard;               /* Wildcard value */
   reload_fn *reload;            /* Function to be used for reloads */
