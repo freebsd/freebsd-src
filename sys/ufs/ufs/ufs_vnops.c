@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.68 1997/11/18 14:20:09 phk Exp $
+ * $Id: ufs_vnops.c,v 1.69 1997/11/20 16:08:56 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -1275,21 +1275,21 @@ ufs_mkdir(ap)
 		ucp = cnp->cn_cred;
 #endif			I
 		/*
-		 * if we are hacking owners here, (only do this where told to)
+		 * If we are hacking owners here, (only do this where told to)
 		 * and we are not giving it TOO root, (would subvert quotas)
 		 * then go ahead and give it to the other user.
-		 * The new directory also inherits the SUID bit. 
+		 * The new directory also inherits the SUID bit.
 		 * If user's UID an ddir UID are the same,
 		 * 'give it away' so that the SUID is still forced on.
 		 */
-		if ( (dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
-		   (dp->i_mode & ISUID) && dp->i_uid) {
+		if ((dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
+		    (dp->i_mode & ISUID) && dp->i_uid) {
 			dmode |= ISUID;
 			ip->i_uid = dp->i_uid;
 #ifdef QUOTA
 			if (pdir->i_uid != cnp->cn_cred->cr_uid) {
 				/*
-				 * make sure the correct user gets charged
+				 * Make sure the correct user gets charged
 				 * for the space.
 				 * Make a dummy credential for the victim.
 				 * XXX This seems to never be accessed out of
@@ -1301,13 +1301,12 @@ ufs_mkdir(ap)
 				ucred.cr_groups[0] = dp->i_gid;
 				ucp = *ucred;
 			}
-#endif			I
-		} else {
+#endif
+		} else
 			ip->i_uid = cnp->cn_cred->cr_uid;
-		}
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
-	    	(error = chkiq(ip, 1, ucp, 0))) {
+	    	    (error = chkiq(ip, 1, ucp, 0))) {
 			free(cnp->cn_pnbuf, M_NAMEI);
 			VOP_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
@@ -1316,7 +1315,7 @@ ufs_mkdir(ap)
 		}
 #endif
 	}
-#else
+#else	/* !SUIDDIR */
 	ip->i_uid = cnp->cn_cred->cr_uid;
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
@@ -1328,7 +1327,7 @@ ufs_mkdir(ap)
 		return (error);
 	}
 #endif
-#endif
+#endif	/* !SUIDDIR */
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	ip->i_mode = dmode;
 	tvp->v_type = VDIR;	/* Rest init'd in getnewvnode(). */
@@ -1966,21 +1965,20 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		ucp = cnp->cn_cred;
 #endif			I
 		/*
-		 * if we are
-		 * not the owner of the directory,
+		 * If we are not the owner of the directory,
 		 * and we are hacking owners here, (only do this where told to)
 		 * and we are not giving it TOO root, (would subvert quotas)
 		 * then go ahead and give it to the other user.
 		 * Note that this drops off the execute bits for security.
 		 */
-		if ( (dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
-		     (pdir->i_mode & ISUID) &&
-		     (pdir->i_uid != cnp->cn_cred->cr_uid) && pdir->i_uid) {
+		if ((dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
+		    (pdir->i_mode & ISUID) &&
+		    (pdir->i_uid != cnp->cn_cred->cr_uid) && pdir->i_uid) {
 			ip->i_uid = pdir->i_uid;
 			mode &= ~07111;
 #ifdef QUOTA
 			/*
-			 * make sure the correct user gets charged
+			 * Make sure the correct user gets charged
 			 * for the space.
 			 * Quickly knock up a dummy credential for the victim.
 			 * XXX This seems to never be accessed out of our
@@ -1991,14 +1989,13 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			ucred.cr_ngroups = 1;
 			ucred.cr_groups[0] = pdir->i_gid;
 			ucp = *ucred;
-#endif			I
-		} else {
+#endif
+		} else
 			ip->i_uid = cnp->cn_cred->cr_uid;
-		}
-	
+
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
-	    	(error = chkiq(ip, 1, ucp, 0))) {
+	    	    (error = chkiq(ip, 1, ucp, 0))) {
 			free(cnp->cn_pnbuf, M_NAMEI);
 			VOP_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
@@ -2007,7 +2004,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		}
 #endif
 	}
-#else
+#else	/* !SUIDDIR */
 	ip->i_uid = cnp->cn_cred->cr_uid;
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
@@ -2019,7 +2016,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		return (error);
 	}
 #endif
-#endif
+#endif	/* !SUIDDIR */
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	ip->i_mode = mode;
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
