@@ -24,9 +24,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"     last edit-date: [Mon May 21 11:20:26 2001]
+.\"     last edit-date: [Sat Jul 21 13:27:41 2001]
 .\"
-.Dd May 21, 2001
+.Dd July 21, 2001
 .Dt ISDND.RC 5
 .Os
 .Sh NAME
@@ -156,8 +156,7 @@ This keyword is used to specify the email address of someone to notify
 in case of a fatal error exit of
 .Nm .
 (See also keyword
-.Em mailer
-).
+.Em mailer ) .
 (optional)
 .It Li monitor-allowed
 If this parameter is set to
@@ -259,8 +258,7 @@ This keyword is optional; if not specified the process priority of
 .Nm isdnd
 is not touched in any way.
 ( See also
-.Xr rtprio 1
-).
+.Xr rtprio 1 ) .
 This keyword is only available if
 .Nm
 was compiled with -DUSE_RTPRIO.
@@ -304,7 +302,8 @@ This keyword is supported for all controller types,
 and causes
 .Dv I4B_CTRL_DOWNLOAD
 ioctl to be invoked with the specified file
-as an argument. In systems equipped with both active and passive adapters,
+as an argument.
+In systems equipped with both active and passive adapters,
 and the passive cards being detected first, dummy
 .Ql controller
 entries
@@ -597,6 +596,16 @@ Its purpose is to
 use this name in the full-screen display for easy identification of a link
 to a remote site and for accounting purposes.
 (mandatory)
+.It Li maxconnecttime
+Specify a maximum connection time in seconds.
+Use this to define an absolute
+upper limit for a connection on the B-channel to last.
+.Em CAUTION:
+This feature is used to limit the connection time, _not_ number of attempts
+to establish a connection: when using this please take care to also enable
+the use of budgets to limit the connection establish attempts (otherwise
+the line will cycle thru an endless loop of connections and reconnections
+which will have an undesired effect on your telco bill)!
 .It Li ppp-auth-paranoid
 If set to
 .Em no ,
