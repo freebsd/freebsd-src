@@ -867,8 +867,9 @@ migrate:
 static struct kse *
 kseq_choose(struct kseq *kseq)
 {
-	struct kse *ke;
 	struct runq *swap;
+	struct kse *ke;
+	int nice;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	swap = NULL;
@@ -891,7 +892,8 @@ kseq_choose(struct kseq *kseq)
 		 * TIMESHARE kse group and its nice was too far out
 		 * of the range that receives slices. 
 		 */
-		if (ke->ke_slice == 0) {
+		nice = ke->ke_proc->p_nice + (0 - kseq->ksq_nicemin);
+		if (ke->ke_slice == 0 || nice > SCHED_SLICE_NTHRESH) {
 			runq_remove(ke->ke_runq, ke);
 			sched_slice(ke);
 			ke->ke_runq = kseq->ksq_next;
