@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.19 1995/12/17 21:17:47 phk Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.20 1996/03/28 14:27:52 scrappy Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.19 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.20 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -74,7 +74,7 @@ ityattach(int ap)
 	devfs_token[next_if] = 
 		devfs_add_devswf(&ity_cdevsw, next_if, DV_CHR, 0, 0, 
 				 0600, "isdn/ity%d", next_if);
-	devfs_token[next_if] = 
+	devfs_token_out[next_if] = 
 		devfs_add_devswf(&ity_cdevsw,(next_if | 0x80), DV_CHR, 0, 0, 
 				 0600, "isdn/Oity%d", next_if);
 #endif
