@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.2 1993/10/16 14:15:08 rgrimes Exp $
+ *	$Id: microtime.s,v 1.3 1994/04/02 07:00:27 davidg Exp $
  */
 
 #include "machine/asmacros.h"
@@ -44,31 +44,25 @@
  */
 #ifndef HZ
 ENTRY(microtime)
-	pushl %edi
+	pushl %edi			# save registers
 	pushl %esi
 	pushl %ebx
 
-	movl $_time,%ebx
+	movl 	$_time, %ebx		# get timeval ptr
+	movl	(%ebx), %edi		# sec = time.tv_sec
+	movl	4(%ebx), %esi		# usec = time.tv_usec
 
 	cli				# disable interrupts
 
-	movl	(%ebx),%edi		# sec = time.tv_sec
-	movl	4(%ebx),%esi		# usec = time.tv_usec
+	movl	$(TIMER_SEL0|TIMER_LATCH), %eax
+	outb	%al, $TIMER_MODE	# latch timer 0's counter
 
-	movl	$(TIMER_SEL0|TIMER_LATCH),%eax
-	outb	%al,$TIMER_MODE		# latch timer 0's counter
+	xorl	%ebx, %ebx		# clear ebx
+	inb	$TIMER_CNTR0, %al	# Read counter value, LSB first
+	movb	%al, %bl
+	inb	$TIMER_CNTR0, %al
+	movb	%al, %bh
 
-	#	
-	# Read counter value into ebx, LSB first
-	#
-	inb	$TIMER_CNTR0,%al
-	movzbl	%al,%ebx
-	inb	$TIMER_CNTR0,%al
-	movzbl	%al,%eax
-	sall	$8,%eax
-	orl	%eax,%ebx
-
-	#
 	# Now check for counter overflow.  This is tricky because the
 	# timer chip doesn't let us atomically read the current counter
 	# value and the output state (i.e., overflow state).  We have
@@ -96,42 +90,45 @@ ENTRY(microtime)
 	# we're called from an ipl less than the clock.  Otherwise,
 	# it might not work.  Currently, only gettimeofday and bpf
 	# call microtime so it's not a problem.
-	#
-	cmpl	$11890,%ebx
-	jle	2f
-#if 0 /* rest of kernel guarantees to keep IRR selected */
-	movl	$0x0a,%eax	# tell ICU we want IRR
-	outb	%al,$IO_ICU1
-#endif
 
-	inb	$IO_ICU1,%al	# read IRR in ICU
-	testb	$1,%al		# is a timer interrupt pending?
+	movl	_timer0_prescale, %eax	# adjust value if timer is
+        addl	_timer0_divisor, %eax	#  reprogrammed
+	addl	$-11932, %eax
+	subl	%eax, %ebx
+
+	cmpl	$11890, %ebx	# do we have a possible overflow condition
+	jle	1f
+
+	inb	$IO_ICU1, %al	# read IRR in ICU
+	testb	$1, %al		# is a timer interrupt pending?
 	je	1f
-	addl	$-11932,%ebx	# yes, subtract one clock period
+	addl	$-11932, %ebx	# yes, subtract one clock period
 1:
-#if 0 /* rest of kernel doesn't expect ISR */
-	movl	$0x0b,%eax	# tell ICU we want ISR 
-	outb	%al,$IO_ICU1	#   (rest of kernel expects this)
-#endif
-2:
 	sti			# enable interrupts
 
-	movl	$11932,%eax	# subtract counter value from 11932 since
-	subl	%ebx,%eax	#   it is a count-down value
-	imull	$1000,%eax,%eax
-	movl	$0,%edx		# zero extend eax for div
-	movl	$1193,%ecx
+	movl	$11932, %eax	# subtract counter value from 11932 since
+	subl	%ebx, %eax	#  it is a count-down value
+
+	movl	%eax, %ebx	# this really is a "imull $1000, %eax, %eax"
+	sall	$10, %eax	#  instruction, but this saves us 
+	sall	$3, %ebx	#  33/23 clocks on a 486/386 CPU
+	subl 	%ebx, %eax	#
+	sall	$1, %ebx	#			/sos
+	subl	%ebx, %eax	#
+
+	movl	$0, %edx	# zero extend eax into edx for div
+	movl	$1193, %ecx
 	idivl	%ecx		# convert to usecs: mult by 1000/1193
 
-	addl	%eax,%esi	# add counter usecs to time.tv_usec
-	cmpl	$1000000,%esi	# carry in timeval?
-	jl	3f
-	subl	$1000000,%esi	# adjust usec
+	addl	%eax, %esi	# add counter usecs to time.tv_usec
+	cmpl	$1000000, %esi	# carry in timeval?
+	jl	2f
+	subl	$1000000, %esi	# adjust usec
 	incl	%edi		# bump sec
-3:
-	movl	16(%esp),%ecx	# load timeval pointer arg
-	movl	%edi,(%ecx)	# tvp->tv_sec = sec
-	movl	%esi,4(%ecx)	# tvp->tv_usec = usec
+2:
+	movl	16(%esp), %ecx	# load timeval pointer arg
+	movl	%edi, (%ecx)	# tvp->tv_sec = sec
+	movl	%esi, 4(%ecx)	# tvp->tv_usec = usec
 
 	popl	%ebx		# restore regs
 	popl	%esi
