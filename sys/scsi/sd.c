@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.126 1998/04/27 11:36:06 des Exp $
+ *      $Id: sd.c,v 1.127 1998/05/06 22:14:46 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -725,18 +725,24 @@ bad:
  * Perform special action on behalf of the user
  * Knows about the internals of this device
  */
+#ifdef	SLICE
+static int
+sdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+#else	/* SLICE */
 static errval
 sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
+#endif	/* !SLICE */
 {
-	/* struct sd_cmd_buf *args; */
-	errval  error;
-	struct scsi_data *sd;
+#ifdef	SLICE
+	struct scsi_data *sd = private;
+	struct scsi_link *sc_link = sd->sc_link;
+	dev_t dev = makedev(0,sd->mynor);
 
-	/*
-	 * Find the device that the user is talking about
-	 */
-	sd = sc_link->sd;
+#else	/* SLICE */
+	errval  error;
+	struct scsi_data *sd = sc_link->sd;
+#endif	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB1, ("sdioctl (0x%x)", cmd));
 
 #if 0
@@ -1047,32 +1053,40 @@ sd_sense_handler(struct scsi_xfer *xs)
 	return SCSIRET_DO_RETRY;
 }
 
-#ifndef	SLICE
 /*
  * dump all of physical memory into the partition specified, starting
  * at offset 'dumplo' into the partition.
+ * XXX for SLICE starts at argument 'start'.
  */
+#ifndef SLICE
 static errval
 sddump(dev_t dev)
+#else
+static int
+sdsdump(void *private, int32_t start, int32_t num)
+#endif /* SLICE */
 {				/* dump core after a system crash */
+#ifndef SLICE
 	struct disklabel *lp;
-	register struct scsi_data *sd;	/* disk unit to do the IO */
-	struct scsi_link *sc_link;
 	int32_t	num;		/* number of sectors to write */
 	u_int32_t	unit, part;
-	int32_t	blkoff, blknum, blkcnt = MAXTRANSFER;
 	int32_t	nblocks;
+	int32_t	blkoff;
+	static	int sddoingadump = 0;
+#endif /* SLICE */
+	register struct scsi_data *sd;	/* disk unit to do the IO */
+	struct scsi_link *sc_link;
+	int32_t	blknum, blkcnt = MAXTRANSFER;
 	char	*addr;
 	struct	scsi_rw_big cmd;
-	static	int sddoingadump = 0;
 	struct	scsi_xfer *xs = &sx;
 	errval	retval;
 
 	addr = (char *) 0;	/* starting address */
 
+#ifndef SLICE
 	/* toss any characters present prior to dump */
-	while (cncheckc() != -1)
-		;
+	while (cncheckc() != -1) ;
 
 	/* size of memory to dump */
 	num = Maxmem;
@@ -1085,19 +1099,25 @@ sddump(dev_t dev)
 		return ENXIO;
 
 	sd = sc_link->sd;
+#else
+	sd = private;
+	sc_link = sd->sc_link;
+#endif /* SLICE */
 
 	/* was it ever initialized etc. ? */
 	if (!(sd->flags & SDINIT))
 		return (ENXIO);
 	if ((sc_link->flags & SDEV_MEDIA_LOADED) != SDEV_MEDIA_LOADED)
 		return (ENXIO);
+#ifndef SLICE
 	if (sd->dk_slices == NULL)
 		Debugger("sddump: no slices");
 	if ((lp = dsgetlabel(dev, sd->dk_slices)) == NULL)
 		return (ENXIO);
 
 	/* Convert to disk sectors */
-	num = (u_int32_t) num * PAGE_SIZE / sd->params.secsiz;	/* XXX it must be 512 */
+	/* XXX it must be 512 */
+	num = (u_int32_t) num * PAGE_SIZE / sd->params.secsiz;
 
 	/* check if controller active */
 	if (sddoingadump)
@@ -1115,6 +1135,9 @@ sddump(dev_t dev)
 	sddoingadump = 1;
 
 	blknum = dumplo + blkoff;
+#else
+	blknum = start;
+#endif /* SLICE */
 	while (num > 0) {
 		if (is_physical_memory((vm_offset_t)addr))
 		    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
@@ -1188,7 +1211,6 @@ sddump(dev_t dev)
 	}
 	return (0);
 }
-#endif	/* !SLICE */
 
 #ifndef SLICE
 static sd_devsw_installed = 0;
@@ -1208,7 +1230,6 @@ SYSINIT(sddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sd_drvinit,NULL)
 #ifdef SLICE
 
 /*
- * Read/write routine for a buffer.  Finds the proper unit, range checks
  * arguments, and schedules the transfer.  Does not wait for the transfer
  * to complete.  Multi-page transfers are supported.  All I/O requests must
  * be a multiple of a sector in length.
@@ -1305,111 +1326,4 @@ sdsclose(void *private, int flags, int mode, struct proc *p)
 	return;
 }
 #endif 	/* 0 */
-static int
-sdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
-{
-	struct scsi_data *sd;
-
-	sd = private;
-
-	return(sdioctl(makedev(0,sd->mynor), cmd, addr, flag, p));
-}
-
-static int
-sdsdump(void *private, int32_t start, int32_t num)
-{				/* dump core after a system crash */
-	register struct scsi_data *sd;	/* disk unit to do the IO */
-	struct scsi_link *sc_link;
-	int32_t	blkoff, blknum, blkcnt = MAXTRANSFER;
-	char	*addr;
-	struct	scsi_rw_big cmd;
-	struct	scsi_xfer *xs = &sx;
-	errval	retval;
-
-	addr = (char *) 0;	/* starting address */
-
-	sd = private;
-	sc_link = sd->sc_link;
-
-	/* was it ever initialized etc. ? */
-	if (!(sd->flags & SDINIT))
-		return (ENXIO);
-	if ((sc_link->flags & SDEV_MEDIA_LOADED) != SDEV_MEDIA_LOADED)
-		return (ENXIO);
-
-	blknum = start;
-	while (num > 0) {
-		if (is_physical_memory((vm_offset_t)addr))
-		    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-		 	       trunc_page(addr), VM_PROT_READ, TRUE);
-		else
-		    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-			       trunc_page(0), VM_PROT_READ, TRUE);
-		/*
-		 *  Fill out the scsi command
-		 */
-		bzero(&cmd, sizeof(cmd));
-		cmd.op_code = WRITE_BIG;
-		cmd.addr_3 = (blknum & 0xff000000) >> 24;
-		cmd.addr_2 = (blknum & 0xff0000) >> 16;
-		cmd.addr_1 = (blknum & 0xff00) >> 8;
-		cmd.addr_0 = blknum & 0xff;
-		cmd.length2 = (blkcnt & 0xff00) >> 8;
-		cmd.length1 = (blkcnt & 0xff);
-		/*
-		 * Fill out the scsi_xfer structure
-		 *    Note: we cannot sleep as we may be an interrupt
-		 * don't use scsi_scsi_cmd() as it may want
-		 * to wait for an xs.
-		 */
-		bzero(xs, sizeof(sx));
-		xs->flags |= SCSI_NOMASK | SCSI_NOSLEEP | INUSE | SCSI_DATA_OUT;
-		xs->sc_link = sc_link;
-		xs->retries = SD_RETRIES;
-		xs->timeout = 10000;	/* 10000 millisecs for a disk ! */
-		xs->cmd = (struct scsi_generic *) &cmd;
-		xs->cmdlen = sizeof(cmd);
-		xs->resid = 0;
-		xs->error = XS_NOERROR;
-		xs->bp = 0;
-		xs->data = (u_char *) CADDR1;	/* XXX use pmap_enter() */
-		xs->datalen = blkcnt * sd->params.secsiz;
-
-		/*
-		 * Pass all this info to the scsi driver.
-		 */
-		retval = (*(sc_link->adapter->scsi_cmd)) (xs);
-		switch (retval) {
-		case SUCCESSFULLY_QUEUED:
-		case HAD_ERROR:
-			return (ENXIO);		/* we said not to sleep! */
-		case COMPLETE:
-			break;
-		default:
-			return (ENXIO);		/* we said not to sleep! */
-		}
-
-		/*
-		 * If we are dumping core, it may take a while.
-		 * So reassure the user and hold off any watchdogs.
-		 */
-		if ((unsigned)addr % (1024 * 1024) == 0) {
-#ifdef	HW_WDOG
-			if (wdog_tickler)
-				(*wdog_tickler)();
-#endif /* HW_WDOG */
-			printf("%ld ", num / 2048);
-		}
-		/* update block count */
-		num -= blkcnt;
-		blknum += blkcnt;
-		(int) addr += blkcnt * sd->params.secsiz;
-
-		/* operator aborting dump? */
-		if (cncheckc() != -1)
-			return (EINTR);
-	}
-	return (0);
-}
-
 #endif
