@@ -1,10 +1,10 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.15 -->
+<!-- Original revision: 1.16 -->
 
 <chapt><heading>Linux エミュレーション<label id="linuxemu"></heading>
 
-<p><em>原作: &a.brian and &a.rich;</em>
+<p><em>原作: &a.handy and &a.rich;</em>
 <p><em>訳: &a.kiroh;.<newline>24 September 1996.</em>
 
 <sect><heading>Linux エミュレータのインストール</heading>
