@@ -57,6 +57,7 @@ void	f_all __P((struct info *));
 void	f_cbreak __P((struct info *));
 void	f_columns __P((struct info *));
 void	f_dec __P((struct info *));
+void	f_ek __P((struct info *));
 void	f_everything __P((struct info *));
 void	f_extproc __P((struct info *));
 void	f_ispeed __P((struct info *));
@@ -83,6 +84,7 @@ static struct key {
 	{ "columns",	f_columns,	F_NEEDARG },
 	{ "cooked", 	f_sane,		0 },
 	{ "dec",	f_dec,		0 },
+	{ "ek",		f_ek,		0 },
 	{ "everything",	f_everything,	0 },
 	{ "extproc",	f_extproc,	F_OFFOK },
 	{ "ispeed",	f_ispeed,	F_NEEDARG },
@@ -180,6 +182,16 @@ f_dec(ip)
 	ip->t.c_lflag &= ~ECHOPRT;
 	ip->t.c_lflag |= ECHOE|ECHOKE|ECHOCTL;
 	ip->t.c_iflag &= ~IXANY;
+	ip->set = 1;
+}
+
+void
+f_ek(ip)
+	struct info *ip;
+{
+
+	ip->t.c_cc[VERASE] = CERASE;
+	ip->t.c_cc[VKILL] = CKILL;
 	ip->set = 1;
 }
 
