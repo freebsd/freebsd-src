@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1986, 1989, 1991, 1993
+ * Copyright (c) 1986, 1989, 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
+ *	@(#)lfs_vnops.c	8.13 (Berkeley) 6/10/95
  */
 
 #include <sys/param.h>
@@ -67,6 +67,7 @@ struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, ufs_lookup },		/* lookup */
 	{ &vop_create_desc, ufs_create },		/* create */
+	{ &vop_whiteout_desc, ufs_whiteout },		/* whiteout */
 	{ &vop_mknod_desc, ufs_mknod },			/* mknod */
 	{ &vop_open_desc, ufs_open },			/* open */
 	{ &vop_close_desc, lfs_close },			/* close */
@@ -75,8 +76,10 @@ struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
 	{ &vop_read_desc, lfs_read },			/* read */
 	{ &vop_write_desc, lfs_write },			/* write */
+	{ &vop_lease_desc, ufs_lease_check },		/* lease */
 	{ &vop_ioctl_desc, ufs_ioctl },			/* ioctl */
 	{ &vop_select_desc, ufs_select },		/* select */
+	{ &vop_revoke_desc, ufs_revoke },		/* revoke */
 	{ &vop_mmap_desc, ufs_mmap },			/* mmap */
 	{ &vop_fsync_desc, lfs_fsync },			/* fsync */
 	{ &vop_seek_desc, ufs_seek },			/* seek */
@@ -89,8 +92,8 @@ struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc, ufs_readdir },		/* readdir */
 	{ &vop_readlink_desc, ufs_readlink },		/* readlink */
 	{ &vop_abortop_desc, ufs_abortop },		/* abortop */
-	{ &vop_inactive_desc, lfs_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
+	{ &vop_inactive_desc, ufs_inactive },		/* inactive */
+	{ &vop_reclaim_desc, lfs_reclaim },		/* reclaim */
 	{ &vop_lock_desc, ufs_lock },			/* lock */
 	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
 	{ &vop_bmap_desc, ufs_bmap },			/* bmap */
@@ -123,8 +126,10 @@ struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
 	{ &vop_read_desc, ufsspec_read },		/* read */
 	{ &vop_write_desc, ufsspec_write },		/* write */
+	{ &vop_lease_desc, spec_lease_check },		/* lease */
 	{ &vop_ioctl_desc, spec_ioctl },		/* ioctl */
 	{ &vop_select_desc, spec_select },		/* select */
+	{ &vop_revoke_desc, spec_revoke },		/* revoke */
 	{ &vop_mmap_desc, spec_mmap },			/* mmap */
 	{ &vop_fsync_desc, spec_fsync },		/* fsync */
 	{ &vop_seek_desc, spec_seek },			/* seek */
@@ -137,8 +142,8 @@ struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_readdir_desc, spec_readdir },		/* readdir */
 	{ &vop_readlink_desc, spec_readlink },		/* readlink */
 	{ &vop_abortop_desc, spec_abortop },		/* abortop */
-	{ &vop_inactive_desc, lfs_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
+	{ &vop_inactive_desc, ufs_inactive },		/* inactive */
+	{ &vop_reclaim_desc, lfs_reclaim },		/* reclaim */
 	{ &vop_lock_desc, ufs_lock },			/* lock */
 	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
 	{ &vop_bmap_desc, spec_bmap },			/* bmap */
@@ -172,8 +177,10 @@ struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
 	{ &vop_read_desc, ufsfifo_read },		/* read */
 	{ &vop_write_desc, ufsfifo_write },		/* write */
+	{ &vop_lease_desc, fifo_lease_check },		/* lease */
 	{ &vop_ioctl_desc, fifo_ioctl },		/* ioctl */
 	{ &vop_select_desc, fifo_select },		/* select */
+	{ &vop_revoke_desc, fifo_revoke },		/* revoke */
 	{ &vop_mmap_desc, fifo_mmap },			/* mmap */
 	{ &vop_fsync_desc, fifo_fsync },		/* fsync */
 	{ &vop_seek_desc, fifo_seek },			/* seek */
@@ -186,8 +193,8 @@ struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_readdir_desc, fifo_readdir },		/* readdir */
 	{ &vop_readlink_desc, fifo_readlink },		/* readlink */
 	{ &vop_abortop_desc, fifo_abortop },		/* abortop */
-	{ &vop_inactive_desc, lfs_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
+	{ &vop_inactive_desc, ufs_inactive },		/* inactive */
+	{ &vop_reclaim_desc, lfs_reclaim },		/* reclaim */
 	{ &vop_lock_desc, ufs_lock },			/* lock */
 	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
 	{ &vop_bmap_desc, fifo_bmap },			/* bmap */
@@ -371,10 +378,10 @@ lfs_link(ap)
 {
 	int ret;
 
-	SET_DIROP(VTOI(ap->a_vp)->i_lfs);
-	MARK_VNODE(ap->a_vp);
+	SET_DIROP(VTOI(ap->a_tdvp)->i_lfs);
+	MARK_VNODE(ap->a_tdvp);
 	ret = ufs_link(ap);
-	SET_ENDOP(VTOI(ap->a_vp)->i_lfs);
+	SET_ENDOP(VTOI(ap->a_tdvp)->i_lfs);
 	return (ret);
 }
 
@@ -422,9 +429,12 @@ lfs_getattr(ap)
 	vap->va_gid = ip->i_gid;
 	vap->va_rdev = (dev_t)ip->i_rdev;
 	vap->va_size = ip->i_din.di_size;
-	vap->va_atime = ip->i_atime;
-	vap->va_mtime = ip->i_mtime;
-	vap->va_ctime = ip->i_ctime;
+	vap->va_atime.ts_sec = ip->i_atime;
+	vap->va_atime.ts_nsec = ip->i_atimensec;
+	vap->va_mtime.ts_sec = ip->i_mtime;
+	vap->va_mtime.ts_nsec = ip->i_mtimensec;
+	vap->va_ctime.ts_sec = ip->i_ctime;
+	vap->va_ctime.ts_nsec = ip->i_ctimensec;
 	vap->va_flags = ip->i_flags;
 	vap->va_gen = ip->i_gen;
 	/* this doesn't belong here */
@@ -460,28 +470,33 @@ lfs_close(ap)
 	register struct inode *ip = VTOI(vp);
 	int mod;
 
-	if (vp->v_usecount > 1 && !(ip->i_flag & IN_LOCKED)) {
+	simple_lock(&vp->v_interlock);
+	if (vp->v_usecount > 1) {
 		mod = ip->i_flag & IN_MODIFIED;
 		ITIMES(ip, &time, &time);
 		if (!mod && ip->i_flag & IN_MODIFIED)
 			ip->i_lfs->lfs_uinodes++;
 	}
+	simple_unlock(&vp->v_interlock);
 	return (0);
 }
 
 /*
- * Stub inactive routine that avoid calling ufs_inactive in some cases.
+ * Reclaim an inode so that it can be used for other purposes.
  */
-int lfs_no_inactive = 0;
-
 int
-lfs_inactive(ap)
-	struct vop_inactive_args /* {
+lfs_reclaim(ap)
+	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
-	
-	if (lfs_no_inactive)
-		return (0);
-	return (ufs_inactive(ap));
+	register struct vnode *vp = ap->a_vp;
+	int error;
+
+	if (error = ufs_reclaim(vp, ap->a_p))
+		return (error);
+	FREE(vp->v_data, M_LFSNODE);
+	vp->v_data = NULL;
+	return (0);
 }

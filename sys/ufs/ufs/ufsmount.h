@@ -30,9 +30,30 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufsmount.h	8.2 (Berkeley) 1/12/94
+ *	@(#)ufsmount.h	8.6 (Berkeley) 3/30/95
  */
 
+/*
+ * Arguments to mount UFS-based filesystems
+ */
+struct ufs_args {
+	char	*fspec;			/* block special device to mount */
+	struct	export_args export;	/* network export information */
+};
+
+#ifdef MFS
+/*
+ * Arguments to mount MFS
+ */
+struct mfs_args {
+	char	*fspec;			/* name to export for statfs */
+	struct	export_args export;	/* if exported MFSes are supported */
+	caddr_t	base;			/* base of file system in memory */
+	u_long	size;			/* size of file system */
+};
+#endif /* MFS */
+
+#ifdef KERNEL
 struct buf;
 struct inode;
 struct nameidata;
@@ -47,12 +68,14 @@ struct ufsmount {
 	struct	mount *um_mountp;		/* filesystem vfs structure */
 	dev_t	um_dev;				/* device mounted */
 	struct	vnode *um_devvp;		/* block device mounted vnode */
+
 	union {					/* pointer to superblock */
 		struct	lfs *lfs;		/* LFS */
 		struct	fs *fs;			/* FFS */
 	} ufsmount_u;
 #define	um_fs	ufsmount_u.fs
 #define	um_lfs	ufsmount_u.lfs
+
 	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
 	u_long	um_nindir;			/* indirect ptrs per block */
@@ -62,7 +85,9 @@ struct ufsmount {
 	time_t	um_itime[MAXQUOTAS];		/* inode quota time limit */
 	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
 	struct	netexport um_export;		/* export information */
+	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
 };
+
 /*
  * Flags describing the state of quotas.
  */
@@ -76,8 +101,7 @@ struct ufsmount {
  * Macros to access file system parameters in the ufsmount structure.
  * Used by ufs_bmap.
  */
-#define	blkptrtodb(ump, b)	((b) << (ump)->um_bptrtodb)
-#define	is_sequential(ump, a, b) ((b) == (a) + ump->um_seqinc)
-#define MNINDIR(ump)	((ump)->um_nindir)
-
-
+#define MNINDIR(ump)			((ump)->um_nindir)
+#define	blkptrtodb(ump, b)		((b) << (ump)->um_bptrtodb)
+#define	is_sequential(ump, a, b)	((b) == (a) + ump->um_seqinc)
+#endif /* KERNEL */

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_vfsops.c	8.4 (Berkeley) 4/16/94
+ *	@(#)ufs_vfsops.c	8.8 (Berkeley) 5/20/95
  */
 
 #include <sys/param.h>
@@ -52,11 +52,6 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
-
-/*
- * Flag to permit forcible unmounting.
- */
-int doforce = 1;
 
 /*
  * Make a filesystem operational.
@@ -111,8 +106,9 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 	cmd = cmds >> SUBCMDSHIFT;
 
 	switch (cmd) {
-	case Q_GETQUOTA:
 	case Q_SYNC:
+		break;
+	case Q_GETQUOTA:
 		if (uid == p->p_cred->p_ruid)
 			break;
 		/* fall through */
@@ -121,43 +117,64 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 			return (error);
 	}
 
-	type = cmd & SUBCMDMASK;
+	type = cmds & SUBCMDMASK;
 	if ((u_int)type >= MAXQUOTAS)
 		return (EINVAL);
+	if (vfs_busy(mp, LK_NOWAIT, 0, p))
+		return (0);
 
 	switch (cmd) {
 
 	case Q_QUOTAON:
-		return (quotaon(p, mp, type, arg));
+		error = quotaon(p, mp, type, arg);
+		break;
 
 	case Q_QUOTAOFF:
-		if (vfs_busy(mp))
-			return (0);
 		error = quotaoff(p, mp, type);
-		vfs_unbusy(mp);
-		return (error);
+		break;
 
 	case Q_SETQUOTA:
-		return (setquota(mp, uid, type, arg));
+		error = setquota(mp, uid, type, arg);
+		break;
 
 	case Q_SETUSE:
-		return (setuse(mp, uid, type, arg));
+		error = setuse(mp, uid, type, arg);
+		break;
 
 	case Q_GETQUOTA:
-		return (getquota(mp, uid, type, arg));
+		error = getquota(mp, uid, type, arg);
+		break;
 
 	case Q_SYNC:
-		if (vfs_busy(mp))
-			return (0);
 		error = qsync(mp);
-		vfs_unbusy(mp);
-		return (error);
+		break;
 
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
-	/* NOTREACHED */
+	vfs_unbusy(mp, p);
+	return (error);
 #endif
+}
+
+/*
+ * Initial UFS filesystems, done only once.
+ */
+int
+ufs_init(vfsp)
+	struct vfsconf *vfsp;
+{
+	static int done;
+
+	if (done)
+		return (0);
+	done = 1;
+	ufs_ihashinit();
+#ifdef QUOTA
+	dqinit();
+#endif
+	return (0);
 }
 
 /*

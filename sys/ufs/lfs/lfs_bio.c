@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lfs_bio.c	8.4 (Berkeley) 12/30/93
+ *	@(#)lfs_bio.c	8.10 (Berkeley) 6/10/95
  */
 
 #include <sys/param.h>
@@ -76,7 +76,7 @@ lfs_bwrite(ap)
 	register struct buf *bp = ap->a_bp;
 	struct lfs *fs;
 	struct inode *ip;
-	int error, s;
+	int db, error, s;
 
 	/*
 	 * Set the delayed write flag and use reassignbuf to move the buffer
@@ -94,10 +94,12 @@ lfs_bwrite(ap)
 	 */
 	if (!(bp->b_flags & B_LOCKED)) {
 		fs = VFSTOUFS(bp->b_vp->v_mount)->um_lfs;
-		while (!LFS_FITS(fs, fsbtodb(fs, 1)) && !IS_IFILE(bp) &&
+		db = fragstodb(fs, numfrags(fs, bp->b_bcount));
+		while (!LFS_FITS(fs, db) && !IS_IFILE(bp) &&
 		    bp->b_lblkno > 0) {
 			/* Out of space, need cleaner to run */
 			wakeup(&lfs_allclean_wakeup);
+			wakeup(&fs->lfs_nextseg);
 			if (error = tsleep(&fs->lfs_avail, PCATCH | PUSER,
 			    "cleaner", NULL)) {
 				brelse(bp);
@@ -108,7 +110,7 @@ lfs_bwrite(ap)
 		if (!(ip->i_flag & IN_MODIFIED))
 			++fs->lfs_uinodes;
 		ip->i_flag |= IN_CHANGE | IN_MODIFIED | IN_UPDATE;
-		fs->lfs_avail -= fsbtodb(fs, 1);
+		fs->lfs_avail -= db;
 		++locked_queue_count;
 		bp->b_flags |= B_DELWRI | B_LOCKED;
 		bp->b_flags &= ~(B_READ | B_ERROR);
@@ -131,7 +133,8 @@ lfs_bwrite(ap)
 void
 lfs_flush()
 {
-	register struct mount *mp;
+	register struct mount *mp, *nmp;
+	struct proc *p = curproc;	/* XXX */
 
 #ifdef DOSTATS
 	++lfs_stats.write_exceeded;
@@ -139,10 +142,14 @@ lfs_flush()
 	if (lfs_writing)
 		return;
 	lfs_writing = 1;
-	for (mp = mountlist.tqh_first; mp != NULL; mp = mp->mnt_list.tqe_next) {
-		/* The lock check below is to avoid races with unmount. */
-		if (mp->mnt_stat.f_type == MOUNT_LFS &&
-		    (mp->mnt_flag & (MNT_MLOCK|MNT_RDONLY|MNT_UNMOUNT)) == 0 &&
+	simple_lock(&mountlist_slock);
+	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = nmp) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
+			nmp = mp->mnt_list.cqe_next;
+			continue;
+		}
+		if (mp->mnt_stat.f_type == lfs_mount_type &&
+		    (mp->mnt_flag & MNT_RDONLY) == 0 &&
 		    !((((struct ufsmount *)mp->mnt_data))->ufsmount_u.lfs)->lfs_dirops ) {
 			/*
 			 * We set the queue to 0 here because we are about to
@@ -156,14 +163,18 @@ lfs_flush()
 #endif
 			lfs_segwrite(mp, 0);
 		}
+		simple_lock(&mountlist_slock);
+		nmp = mp->mnt_list.cqe_next;
+		vfs_unbusy(mp, p);
 	}
+	simple_unlock(&mountlist_slock);
 	lfs_writing = 0;
 }
 
 int
 lfs_check(vp, blkno)
 	struct vnode *vp;
-	daddr_t blkno;
+	ufs_daddr_t blkno;
 {
 	extern int lfs_allclean_wakeup;
 	int error;

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
+ *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
  */
 
 #include <sys/param.h>
@@ -51,12 +51,6 @@
 #include <ufs/mfs/mfsiom.h>
 #include <ufs/mfs/mfs_extern.h>
 
-#if !defined(hp300) && !defined(i386) && !defined(mips) && !defined(sparc) && !defined(luna68k)
-static int mfsmap_want;		/* 1 => need kernel I/O resources */
-struct map mfsmap[MFS_MAPSIZE];
-extern char mfsiobuf[];
-#endif
-
 /*
  * mfs vnode operations.
  */
@@ -75,6 +69,7 @@ struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_write_desc, mfs_write },			/* write */
 	{ &vop_ioctl_desc, mfs_ioctl },			/* ioctl */
 	{ &vop_select_desc, mfs_select },		/* select */
+	{ &vop_revoke_desc, mfs_revoke },		/* revoke */
 	{ &vop_mmap_desc, mfs_mmap },			/* mmap */
 	{ &vop_fsync_desc, spec_fsync },		/* fsync */
 	{ &vop_seek_desc, mfs_seek },			/* seek */
@@ -189,85 +184,6 @@ mfs_strategy(ap)
 	return (0);
 }
 
-#if defined(vax) || defined(tahoe)
-/*
- * Memory file system I/O.
- *
- * Essentially play ubasetup() and disk interrupt service routine by
- * doing the copies to or from the memfs process. If doing physio
- * (i.e. pagein), we must map the I/O through the kernel virtual
- * address space.
- */
-void
-mfs_doio(bp, base)
-	register struct buf *bp;
-	caddr_t base;
-{
-	register struct pte *pte, *ppte;
-	register caddr_t vaddr;
-	int off, npf, npf2, reg;
-	caddr_t kernaddr, offset;
-
-	/*
-	 * For phys I/O, map the b_data into kernel virtual space using
-	 * the Mfsiomap pte's.
-	 */
-	if ((bp->b_flags & B_PHYS) == 0) {
-		kernaddr = bp->b_data;
-	} else {
-		if (bp->b_flags & (B_PAGET | B_UAREA | B_DIRTY))
-			panic("swap on memfs?");
-		off = (int)bp->b_data & PGOFSET;
-		npf = btoc(bp->b_bcount + off);
-		/*
-		 * Get some mapping page table entries
-		 */
-		while ((reg = rmalloc(mfsmap, (long)npf)) == 0) {
-			mfsmap_want++;
-			sleep((caddr_t)&mfsmap_want, PZERO-1);
-		}
-		reg--;
-		pte = vtopte(bp->b_proc, btop(bp->b_data));
-		/*
-		 * Do vmaccess() but with the Mfsiomap page table.
-		 */
-		ppte = &Mfsiomap[reg];
-		vaddr = &mfsiobuf[reg * NBPG];
-		kernaddr = vaddr + off;
-		for (npf2 = npf; npf2; npf2--) {
-			mapin(ppte, (u_int)vaddr, pte->pg_pfnum,
-				(int)(PG_V|PG_KW));
-#if defined(tahoe)
-			if ((bp->b_flags & B_READ) == 0)
-				mtpr(P1DC, vaddr);
-#endif
-			ppte++;
-			pte++;
-			vaddr += NBPG;
-		}
-	}
-	offset = base + (bp->b_blkno << DEV_BSHIFT);
-	if (bp->b_flags & B_READ)
-		bp->b_error = copyin(offset, kernaddr, bp->b_bcount);
-	else
-		bp->b_error = copyout(kernaddr, offset, bp->b_bcount);
-	if (bp->b_error)
-		bp->b_flags |= B_ERROR;
-	/*
-	 * Release pte's used by physical I/O.
-	 */
-	if (bp->b_flags & B_PHYS) {
-		rmfree(mfsmap, (long)npf, (long)++reg);
-		if (mfsmap_want) {
-			mfsmap_want = 0;
-			wakeup((caddr_t)&mfsmap_want);
-		}
-	}
-	biodone(bp);
-}
-#endif	/* vax || tahoe */
-
-#if defined(hp300) || defined(i386) || defined(mips) || defined(sparc) || defined(luna68k)
 /*
  * Memory file system I/O.
  *
@@ -288,7 +204,6 @@ mfs_doio(bp, base)
 		bp->b_flags |= B_ERROR;
 	biodone(bp);
 }
-#endif
 
 /*
  * This is a noop, simply returning what one has been given.
@@ -297,9 +212,9 @@ int
 mfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
-		daddr_t  a_bn;
+		ufs_daddr_t  a_bn;
 		struct vnode **a_vpp;
-		daddr_t *a_bnp;
+		ufs_daddr_t *a_bnp;
 		int *a_runp;
 	} */ *ap;
 {
@@ -308,6 +223,8 @@ mfs_bmap(ap)
 		*ap->a_vpp = ap->a_vp;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
 	return (0);
 }
 
@@ -368,13 +285,16 @@ int
 mfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
-	register struct mfsnode *mfsp = VTOMFS(ap->a_vp);
+	struct vnode *vp = ap->a_vp;
+	struct mfsnode *mfsp = VTOMFS(vp);
 
 	if (mfsp->mfs_buflist && mfsp->mfs_buflist != (struct buf *)(-1))
 		panic("mfs_inactive: not inactive (mfs_buflist %x)",
 			mfsp->mfs_buflist);
+	VOP_UNLOCK(vp, 0, ap->a_p);
 	return (0);
 }
 
@@ -387,9 +307,10 @@ mfs_reclaim(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
+	register struct vnode *vp = ap->a_vp;
 
-	FREE(ap->a_vp->v_data, M_MFSNODE);
-	ap->a_vp->v_data = NULL;
+	FREE(vp->v_data, M_MFSNODE);
+	vp->v_data = NULL;
 	return (0);
 }
 
@@ -423,10 +344,9 @@ mfs_badop()
 /*
  * Memory based filesystem initialization.
  */
-mfs_init()
+mfs_init(vfsp)
+	struct vfsconf *vfsp;
 {
 
-#if !defined(hp300) && !defined(i386) && !defined(mips) && !defined(sparc) && !defined(luna68k)
-	rminit(mfsmap, (long)MFS_MAPREG, (long)1, "mfs mapreg", MFS_MAPSIZE);
-#endif
+	return;
 }

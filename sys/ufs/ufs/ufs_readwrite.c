@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
+ *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
  */
 
 #ifdef LFS_READWRITE
-#define	BLKSIZE(a, b, c)	blksize(a)
+#define	BLKSIZE(a, b, c)	blksize(a, b, c)
 #define	FS			struct lfs
 #define	I_FS			i_lfs
 #define	READ			lfs_read
@@ -70,7 +70,7 @@ READ(ap)
 	register struct uio *uio;
 	register FS *fs;
 	struct buf *bp;
-	daddr_t lbn, nextlbn;
+	ufs_daddr_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error;
@@ -92,7 +92,7 @@ READ(ap)
 		panic("%s: type %d", READ_S, vp->v_type);
 #endif
 	fs = ip->I_FS;
-	if ((u_quad_t)uio->uio_offset > fs->fs_maxfilesize)
+	if ((u_int64_t)uio->uio_offset > fs->fs_maxfilesize)
 		return (EFBIG);
 
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
@@ -112,7 +112,7 @@ READ(ap)
 		(void)lfs_check(vp, lbn);
 		error = cluster_read(vp, ip->i_size, lbn, size, NOCRED, &bp);
 #else
-		if (lblktosize(fs, nextlbn) > ip->i_size)
+		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if (doclusterread)
 			error = cluster_read(vp,
@@ -173,7 +173,7 @@ WRITE(ap)
 	register FS *fs;
 	struct buf *bp;
 	struct proc *p;
-	daddr_t lbn;
+	ufs_daddr_t lbn;
 	off_t osize;
 	int blkoffset, error, flags, ioflag, resid, size, xfersize;
 
@@ -206,7 +206,7 @@ WRITE(ap)
 
 	fs = ip->I_FS;
 	if (uio->uio_offset < 0 ||
-	    (u_quad_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
+	    (u_int64_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
 		return (EFBIG);
 	/*
 	 * Maybe this should be above the vnode op call, but so long as
@@ -232,7 +232,7 @@ WRITE(ap)
 			xfersize = uio->uio_resid;
 #ifdef LFS_READWRITE
 		(void)lfs_check(vp, lbn);
-		error = lfs_balloc(vp, xfersize, lbn, &bp);
+		error = lfs_balloc(vp, blkoffset, xfersize, lbn, &bp);
 #else
 		if (fs->fs_bsize > xfersize)
 			flags |= B_CLRBUF;

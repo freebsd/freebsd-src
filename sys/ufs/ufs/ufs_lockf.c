@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
+ *	@(#)ufs_lockf.c	8.4 (Berkeley) 10/26/94
  */
 
 #include <sys/param.h>
@@ -57,7 +57,10 @@
 int maxlockdepth = MAXDEPTH;
 
 #ifdef LOCKF_DEBUG
+#include <vm/vm.h>
+#include <sys/sysctl.h>
 int	lockf_debug = 0;
+struct ctldebug debug4 = { "lockf_debug", &lockf_debug };
 #endif
 
 #define NOLOCKF (struct lockf *)0
@@ -149,7 +152,7 @@ lf_setlock(lock)
 		 * Remember who blocked us (for deadlock detection).
 		 */
 		lock->lf_next = block;
-		lf_addblock(block, lock);
+		TAILQ_INSERT_TAIL(&block->lf_blkhd, lock, lf_block);
 #ifdef LOCKF_DEBUG
 		if (lockf_debug & 1) {
 			lf_print("lf_setlock: blocking on", block);
@@ -158,23 +161,16 @@ lf_setlock(lock)
 #endif /* LOCKF_DEBUG */
 		if (error = tsleep((caddr_t)lock, priority, lockstr, 0)) {
 			/*
-			 * Delete ourselves from the waiting to lock list.
+			 * We may have been awakened by a signal (in
+			 * which case we must remove ourselves from the
+			 * blocked list) and/or by another process
+			 * releasing a lock (in which case we have already
+			 * been removed from the blocked list and our
+			 * lf_next field set to NOLOCKF).
 			 */
-			for (block = lock->lf_next;
-			     block != NOLOCKF;
-			     block = block->lf_block) {
-				if (block->lf_block != lock)
-					continue;
-				block->lf_block = block->lf_block->lf_block;
-				break;
-			}
-			/*
-			 * If we did not find ourselves on the list, but
-			 * are still linked onto a lock list, then something
-			 * is very wrong.
-			 */
-			if (block == NOLOCKF && lock->lf_next != NOLOCKF)
-				panic("lf_setlock: lost lock");
+			if (lock->lf_next)
+				TAILQ_REMOVE(&lock->lf_next->lf_blkhd, lock,
+				    lf_block);
 			free(lock, M_LOCKF);
 			return (error);
 		}
@@ -250,9 +246,12 @@ lf_setlock(lock)
 			    overlap->lf_type == F_WRLCK) {
 				lf_wakelock(overlap);
 			} else {
-				ltmp = lock->lf_block;
-				lock->lf_block = overlap->lf_block;
-				lf_addblock(lock, ltmp);
+				while (ltmp = overlap->lf_blkhd.tqh_first) {
+					TAILQ_REMOVE(&overlap->lf_blkhd, ltmp,
+					    lf_block);
+					TAILQ_INSERT_TAIL(&lock->lf_blkhd,
+					    ltmp, lf_block);
+				}
 			}
 			/*
 			 * Add the new lock if necessary and delete the overlap.
@@ -548,34 +547,6 @@ lf_findoverlap(lf, lock, type, prev, overlap)
 }
 
 /*
- * Add a lock to the end of the blocked list.
- */
-void
-lf_addblock(lock, blocked)
-	struct lockf *lock;
-	struct lockf *blocked;
-{
-	register struct lockf *lf;
-
-	if (blocked == NOLOCKF)
-		return;
-#ifdef LOCKF_DEBUG
-	if (lockf_debug & 2) {
-		lf_print("addblock: adding", blocked);
-		lf_print("to blocked list of", lock);
-	}
-#endif /* LOCKF_DEBUG */
-	if ((lf = lock->lf_block) == NOLOCKF) {
-		lock->lf_block = blocked;
-		return;
-	}
-	while (lf->lf_block != NOLOCKF)
-		lf = lf->lf_block;
-	lf->lf_block = blocked;
-	return;
-}
-
-/*
  * Split a lock and a contained region into
  * two or three locks as necessary.
  */
@@ -613,7 +584,7 @@ lf_split(lock1, lock2)
 	MALLOC(splitlock, struct lockf *, sizeof *splitlock, M_LOCKF, M_WAITOK);
 	bcopy((caddr_t)lock1, (caddr_t)splitlock, sizeof *splitlock);
 	splitlock->lf_start = lock2->lf_end + 1;
-	splitlock->lf_block = NOLOCKF;
+	TAILQ_INIT(&splitlock->lf_blkhd);
 	lock1->lf_end = lock2->lf_start - 1;
 	/*
 	 * OK, now link it in
@@ -630,28 +601,23 @@ void
 lf_wakelock(listhead)
 	struct lockf *listhead;
 {
-        register struct lockf *blocklist, *wakelock;
+	register struct lockf *wakelock;
 
-	blocklist = listhead->lf_block;
-	listhead->lf_block = NOLOCKF;
-        while (blocklist != NOLOCKF) {
-                wakelock = blocklist;
-                blocklist = blocklist->lf_block;
-		wakelock->lf_block = NOLOCKF;
+	while (wakelock = listhead->lf_blkhd.tqh_first) {
+		TAILQ_REMOVE(&listhead->lf_blkhd, wakelock, lf_block);
 		wakelock->lf_next = NOLOCKF;
 #ifdef LOCKF_DEBUG
 		if (lockf_debug & 2)
 			lf_print("lf_wakelock: awakening", wakelock);
 #endif /* LOCKF_DEBUG */
-                wakeup((caddr_t)wakelock);
-        }
+		wakeup((caddr_t)wakelock);
+	}
 }
 
 #ifdef LOCKF_DEBUG
 /*
  * Print out a lock.
  */
-void
 lf_print(tag, lock)
 	char *tag;
 	register struct lockf *lock;
@@ -670,18 +636,17 @@ lf_print(tag, lock)
 		lock->lf_type == F_WRLCK ? "exclusive" :
 		lock->lf_type == F_UNLCK ? "unlock" :
 		"unknown", lock->lf_start, lock->lf_end);
-	if (lock->lf_block)
-		printf(" block 0x%x\n", lock->lf_block);
+	if (lock->lf_blkhd.tqh_first)
+		printf(" block 0x%x\n", lock->lf_blkhd.tqh_first);
 	else
 		printf("\n");
 }
 
-void
 lf_printlist(tag, lock)
 	char *tag;
 	struct lockf *lock;
 {
-	register struct lockf *lf;
+	register struct lockf *lf, *blk;
 
 	printf("%s: Lock list for ino %d on dev <%d, %d>:\n",
 		tag, lock->lf_inode->i_number,
@@ -698,10 +663,23 @@ lf_printlist(tag, lock)
 			lf->lf_type == F_WRLCK ? "exclusive" :
 			lf->lf_type == F_UNLCK ? "unlock" :
 			"unknown", lf->lf_start, lf->lf_end);
-		if (lf->lf_block)
-			printf(" block 0x%x\n", lf->lf_block);
-		else
-			printf("\n");
+		for (blk = lf->lf_blkhd.tqh_first; blk;
+		     blk = blk->lf_block.tqe_next) {
+			printf("\n\t\tlock request 0x%lx for ", blk);
+			if (blk->lf_flags & F_POSIX)
+				printf("proc %d",
+				    ((struct proc *)(blk->lf_id))->p_pid);
+			else
+				printf("id 0x%x", blk->lf_id);
+			printf(", %s, start %d, end %d",
+				blk->lf_type == F_RDLCK ? "shared" :
+				blk->lf_type == F_WRLCK ? "exclusive" :
+				blk->lf_type == F_UNLCK ? "unlock" :
+				"unknown", blk->lf_start, blk->lf_end);
+			if (blk->lf_blkhd.tqh_first)
+				panic("lf_printlist: bad list");
+		}
+		printf("\n");
 	}
 }
 #endif /* LOCKF_DEBUG */

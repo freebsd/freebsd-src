@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lockf.h	8.1 (Berkeley) 6/11/93
+ *	@(#)lockf.h	8.2 (Berkeley) 10/26/94
  */
 
 /*
@@ -42,15 +42,18 @@
  * the inode structure. Locks are sorted by the starting byte of the lock for
  * efficiency.
  */
+TAILQ_HEAD(locklist, lockf);
+
 struct lockf {
-	short	lf_flags;	 /* Lock semantics: F_POSIX, F_FLOCK, F_WAIT */
-	short	lf_type;	 /* Lock type: F_RDLCK, F_WRLCK */
-	off_t	lf_start;	 /* The byte # of the start of the lock */
-	off_t	lf_end;		 /* The byte # of the end of the lock (-1=EOF)*/
-	caddr_t	lf_id;		 /* The id of the resource holding the lock */
-	struct	inode *lf_inode; /* Back pointer to the inode */
-	struct	lockf *lf_next;	 /* A pointer to the next lock on this inode */
-	struct	lockf *lf_block; /* The list of blocked locks */
+	short	lf_flags;	    /* Semantics: F_POSIX, F_FLOCK, F_WAIT */
+	short	lf_type;	    /* Lock type: F_RDLCK, F_WRLCK */
+	off_t	lf_start;	    /* Byte # of the start of the lock */
+	off_t	lf_end;		    /* Byte # of the end of the lock (-1=EOF) */
+	caddr_t	lf_id;		    /* Id of the resource holding the lock */
+	struct	inode *lf_inode;    /* Back pointer to the inode */
+	struct	lockf *lf_next;	    /* Pointer to the next lock on this inode */
+	struct	locklist lf_blkhd;  /* List of requests blocked on this lock */
+	TAILQ_ENTRY(lockf) lf_block;/* A request waiting for a lock */
 };
 
 /* Maximum length of sleep chains to traverse to try and detect deadlock. */

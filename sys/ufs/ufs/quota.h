@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)quota.h	8.1 (Berkeley) 6/11/93
+ *	@(#)quota.h	8.3 (Berkeley) 8/19/94
  */
 
 #ifndef _QUOTA_
@@ -48,8 +48,8 @@
  * failure). The timer is started when the user crosses their soft limit, it
  * is reset when they go below their soft limit.
  */
-#define	MAX_IQ_TIME	(7*24*60*60)	/* 1 week */
-#define	MAX_DQ_TIME	(7*24*60*60)	/* 1 week */
+#define	MAX_IQ_TIME	(7*24*60*60)	/* seconds in 1 week */
+#define	MAX_DQ_TIME	(7*24*60*60)	/* seconds in 1 week */
 
 /*
  * The following constants define the usage of the quota file array in the
@@ -96,15 +96,15 @@
  * the vnode for each quota file (a pointer is retained in the ufsmount
  * structure).
  */
-struct	dqblk {
-	u_long	dqb_bhardlimit;	/* absolute limit on disk blks alloc */
-	u_long	dqb_bsoftlimit;	/* preferred limit on disk blks */
-	u_long	dqb_curblocks;	/* current block count */
-	u_long	dqb_ihardlimit;	/* maximum # allocated inodes + 1 */
-	u_long	dqb_isoftlimit;	/* preferred inode limit */
-	u_long	dqb_curinodes;	/* current # allocated inodes */
-	time_t	dqb_btime;	/* time limit for excessive disk use */
-	time_t	dqb_itime;	/* time limit for excessive files */
+struct dqblk {
+	u_int32_t dqb_bhardlimit;	/* absolute limit on disk blks alloc */
+	u_int32_t dqb_bsoftlimit;	/* preferred limit on disk blks */
+	u_int32_t dqb_curblocks;	/* current block count */
+	u_int32_t dqb_ihardlimit;	/* maximum # allocated inodes + 1 */
+	u_int32_t dqb_isoftlimit;	/* preferred inode limit */
+	u_int32_t dqb_curinodes;	/* current # allocated inodes */
+	time_t	  dqb_btime;		/* time limit for excessive disk use */
+	time_t	  dqb_itime;		/* time limit for excessive files */
 };
 
 /*
@@ -113,14 +113,14 @@ struct	dqblk {
  * filesystem for the current user or group. A cache is kept of recently
  * used entries.
  */
-struct	dquot {
-	struct	dquot *dq_forw, **dq_back; /* hash list */
-	struct	dquot *dq_freef, **dq_freeb; /* free list */
-	short	dq_flags;		/* flags, see below */
-	short	dq_cnt;			/* count of active references */
-	short	dq_spare;		/* unused spare padding */
-	short	dq_type;		/* quota type of this dquot */
-	u_long	dq_id;			/* identifier this applies to */
+struct dquot {
+	LIST_ENTRY(dquot) dq_hash;	/* hash list */
+	TAILQ_ENTRY(dquot) dq_freelist;	/* free list */
+	u_int16_t dq_flags;		/* flags, see below */
+	u_int16_t dq_cnt;		/* count of active references */
+	u_int16_t dq_spare;		/* unused spare padding */
+	u_int16_t dq_type;		/* quota type of this dquot */
+	u_int32_t dq_id;		/* identifier this applies to */
 	struct	ufsmount *dq_ump;	/* filesystem that this is taken from */
 	struct	dqblk dq_dqb;		/* actual usage & quotas */
 };
@@ -146,11 +146,11 @@ struct	dquot {
 #define	dq_itime	dq_dqb.dqb_itime
 
 /*
- * If the system has never checked for a quota for this file, then it is set
- * to NODQUOT.  Once a write attempt is made the inode pointer is set to
- * reference a dquot structure.
+ * If the system has never checked for a quota for this file, then it is
+ * set to NODQUOT.  Once a write attempt is made the inode pointer is set
+ * to reference a dquot structure.
  */
-#define	NODQUOT		((struct dquot *) 0)
+#define	NODQUOT		NULL
 
 /*
  * Flags to chkdq() and chkiq()

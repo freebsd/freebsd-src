@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
+ *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
  */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/dir.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/ffs/fs.h>
@@ -66,6 +67,7 @@ struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, ufs_lookup },		/* lookup */
 	{ &vop_create_desc, ufs_create },		/* create */
+	{ &vop_whiteout_desc, ufs_whiteout },		/* whiteout */
 	{ &vop_mknod_desc, ufs_mknod },			/* mknod */
 	{ &vop_open_desc, ufs_open },			/* open */
 	{ &vop_close_desc, ufs_close },			/* close */
@@ -74,8 +76,10 @@ struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
 	{ &vop_read_desc, ffs_read },			/* read */
 	{ &vop_write_desc, ffs_write },			/* write */
+	{ &vop_lease_desc, ufs_lease_check },		/* lease */
 	{ &vop_ioctl_desc, ufs_ioctl },			/* ioctl */
 	{ &vop_select_desc, ufs_select },		/* select */
+	{ &vop_revoke_desc, ufs_revoke },		/* revoke */
 	{ &vop_mmap_desc, ufs_mmap },			/* mmap */
 	{ &vop_fsync_desc, ffs_fsync },			/* fsync */
 	{ &vop_seek_desc, ufs_seek },			/* seek */
@@ -89,7 +93,7 @@ struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_readlink_desc, ufs_readlink },		/* readlink */
 	{ &vop_abortop_desc, ufs_abortop },		/* abortop */
 	{ &vop_inactive_desc, ufs_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
+	{ &vop_reclaim_desc, ffs_reclaim },		/* reclaim */
 	{ &vop_lock_desc, ufs_lock },			/* lock */
 	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
 	{ &vop_bmap_desc, ufs_bmap },			/* bmap */
@@ -123,8 +127,10 @@ struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
 	{ &vop_read_desc, ufsspec_read },		/* read */
 	{ &vop_write_desc, ufsspec_write },		/* write */
+	{ &vop_lease_desc, spec_lease_check },		/* lease */
 	{ &vop_ioctl_desc, spec_ioctl },		/* ioctl */
 	{ &vop_select_desc, spec_select },		/* select */
+	{ &vop_revoke_desc, spec_revoke },		/* revoke */
 	{ &vop_mmap_desc, spec_mmap },			/* mmap */
 	{ &vop_fsync_desc, ffs_fsync },			/* fsync */
 	{ &vop_seek_desc, spec_seek },			/* seek */
@@ -138,7 +144,7 @@ struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_readlink_desc, spec_readlink },		/* readlink */
 	{ &vop_abortop_desc, spec_abortop },		/* abortop */
 	{ &vop_inactive_desc, ufs_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
+	{ &vop_reclaim_desc, ffs_reclaim },		/* reclaim */
 	{ &vop_lock_desc, ufs_lock },			/* lock */
 	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
 	{ &vop_bmap_desc, spec_bmap },			/* bmap */
@@ -173,8 +179,10 @@ struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
 	{ &vop_read_desc, ufsfifo_read },		/* read */
 	{ &vop_write_desc, ufsfifo_write },		/* write */
+	{ &vop_lease_desc, fifo_lease_check },		/* lease */
 	{ &vop_ioctl_desc, fifo_ioctl },		/* ioctl */
 	{ &vop_select_desc, fifo_select },		/* select */
+	{ &vop_revoke_desc, fifo_revoke },		/* revoke */
 	{ &vop_mmap_desc, fifo_mmap },			/* mmap */
 	{ &vop_fsync_desc, ffs_fsync },			/* fsync */
 	{ &vop_seek_desc, fifo_seek },			/* seek */
@@ -188,7 +196,7 @@ struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_readlink_desc, fifo_readlink },		/* readlink */
 	{ &vop_abortop_desc, fifo_abortop },		/* abortop */
 	{ &vop_inactive_desc, ufs_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
+	{ &vop_reclaim_desc, ffs_reclaim },		/* reclaim */
 	{ &vop_lock_desc, ufs_lock },			/* lock */
 	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
 	{ &vop_bmap_desc, fifo_bmap },			/* bmap */
@@ -210,20 +218,11 @@ struct vnodeopv_desc ffs_fifoop_opv_desc =
 	{ &ffs_fifoop_p, ffs_fifoop_entries };
 #endif /* FIFO */
 
-#ifdef DEBUG
 /*
  * Enabling cluster read/write operations.
  */
-#include <sys/sysctl.h>
 int doclusterread = 1;
-struct ctldebug debug11 = { "doclusterread", &doclusterread };
 int doclusterwrite = 1;
-struct ctldebug debug12 = { "doclusterwrite", &doclusterwrite };
-#else
-/* XXX for ufs_readwrite */
-#define doclusterread 1
-#define doclusterwrite 1
-#endif
 
 #include <ufs/ufs/ufs_readwrite.c>
 
@@ -285,4 +284,25 @@ loop:
 	splx(s);
 	tv = time;
 	return (VOP_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
+}
+
+/*
+ * Reclaim an inode so that it can be used for other purposes.
+ */
+int
+ffs_reclaim(ap)
+	struct vop_reclaim_args /* {
+		struct vnode *a_vp;
+		struct proc *a_p;
+	} */ *ap;
+{
+	register struct vnode *vp = ap->a_vp;
+	int error;
+
+	if (error = ufs_reclaim(vp, ap->a_p))
+		return (error);
+	FREE(vp->v_data, VFSTOUFS(vp->v_mount)->um_devvp->v_tag == VT_MFS ?
+	    M_MFSNODE : M_FFSNODE);
+	vp->v_data = NULL;
+	return (0);
 }
