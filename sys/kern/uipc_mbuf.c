@@ -114,6 +114,21 @@ static void	m_reclaim(void);
 #define NMB_INIT	16
 #define REF_INIT	NMBCLUSTERS 
 
+static void
+tunable_mbinit(void *dummy)
+{
+
+	/*
+	 * Sanity checks and pre-initialization for non-constants.
+	 * This has to be done before VM initialization.
+	 */
+	if (nmbufs < nmbclusters * 2)
+		nmbufs = nmbclusters * 2;
+	if (nmbcnt == 0)
+		nmbcnt = EXT_COUNTERS;
+}
+SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
+
 /*
  * Full mbuf subsystem initialization done here.
  *
@@ -125,12 +140,6 @@ mbinit(void *dummy)
 {
 	vm_offset_t maxaddr;
 	vm_size_t mb_map_size;
-
-	/* Sanity checks and pre-initialization for non-constants */
-	if (nmbufs < nmbclusters * 2)
-		nmbufs = nmbclusters * 2;
-	if (nmbcnt == 0)
-		nmbcnt = EXT_COUNTERS;
 
 	/*
 	 * Setup the mb_map, allocate requested VM space.
