@@ -10,7 +10,7 @@ NEWVERSWHAT=	"EFI boot" ${MACHINE_ARCH}
 SRCS+=		main.c conf.c
 
 # Enable BootForth
-#BOOT_FORTH=	yes
+BOOT_FORTH=	yes
 CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/alpha
 .if BOOT_FORTH
 CFLAGS+=	-DBOOT_FORTH
