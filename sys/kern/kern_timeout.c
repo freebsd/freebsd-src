@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.26 1996/07/30 16:59:22 bde Exp $
+ * $Id: kern_clock.c,v 1.27 1996/10/10 10:25:03 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -76,6 +76,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
+#define CLOCK_HAIR		/* XXX */
 #include <machine/clock.h>
 
 #ifdef GPROF
