@@ -226,7 +226,7 @@ mlxd_attach(device_t dev)
     sc->mlxd_disk.d_close = mlxd_close;
     sc->mlxd_disk.d_ioctl = mlxd_ioctl;
     sc->mlxd_disk.d_strategy = mlxd_strategy;
-    sc->mlxd_disk.d_name = "mxld";
+    sc->mlxd_disk.d_name = "mlxd";
     sc->mlxd_disk.d_drv1 = sc;
     sc->mlxd_disk.d_sectorsize = MLX_BLKSIZE;
     sc->mlxd_disk.d_mediasize = MLX_BLKSIZE * (off_t)sc->mlxd_drive->ms_size;
