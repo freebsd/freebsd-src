@@ -128,8 +128,6 @@ struct cisco_packet {
 
 struct sppp *spppq;
 
-extern void if_down (struct ifnet *ifp);
-
 /*
  * The following disgusting hack gets around the problem that IP TOS
  * can't be set yet.  We want to put "interactive" traffic on a high
@@ -142,7 +140,7 @@ static unsigned short interactive_ports[8] = {
 };
 #define INTERACTIVE(p) (interactive_ports[(p) & 7] == (p))
 
-void sppp_keepalive (caddr_t dummy1, int dummy2);
+void sppp_keepalive (void *dummy1);
 void sppp_cp_send (struct sppp *sp, unsigned short proto, unsigned char type,
 	unsigned char ident, unsigned short len, void *data);
 void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2);
@@ -153,7 +151,7 @@ void sppp_ipcp_input (struct sppp *sp, struct mbuf *m);
 void sppp_lcp_open (struct sppp *sp);
 void sppp_ipcp_open (struct sppp *sp);
 int sppp_lcp_conf_unknown_options (int len, unsigned char *p);
-void sppp_cp_timeout (caddr_t arg, int dummy);
+void sppp_cp_timeout (void *arg);
 char *sppp_lcp_type_name (unsigned char type);
 char *sppp_ipcp_type_name (unsigned char type);
 void sppp_print_bytes (unsigned char *p, unsigned short len);
@@ -418,7 +416,7 @@ void sppp_attach (struct ifnet *ifp)
 
 	/* Initialize keepalive handler. */
 	if (! spppq)
-		timeout (sppp_keepalive, 0, hz * 10);
+		timeout (sppp_keepalive, (void *)0, hz * 10);
 
 	/* Insert new entry into the keepalive list. */
 	sp->pp_next = spppq;
@@ -448,8 +446,8 @@ void sppp_detach (struct ifnet *ifp)
 
 	/* Stop keepalive handler. */
 	if (! spppq)
-		untimeout (sppp_keepalive, 0);
-	untimeout (sppp_cp_timeout, (caddr_t) sp);
+		untimeout (sppp_keepalive, (void *)0);
+	untimeout (sppp_cp_timeout, (void *)sp);
 }
 
 /*
@@ -482,7 +480,8 @@ struct mbuf *sppp_dequeue (struct ifnet *ifp)
 /*
  * Send keepalive packets, every 10 seconds.
  */
-void sppp_keepalive (caddr_t dummy1, int dummy2)
+void
+sppp_keepalive (void *dummy1)
 {
 	struct sppp *sp;
 	int s = splimp ();
@@ -517,7 +516,7 @@ void sppp_keepalive (caddr_t dummy1, int dummy2)
 		}
 	}
 	splx (s);
-	timeout (sppp_keepalive, 0, hz * 10);
+	timeout (sppp_keepalive, (void *)0, hz * 10);
 }
 
 /*
@@ -611,7 +610,7 @@ void sppp_lcp_input (struct sppp *sp, struct mbuf *m)
 	case LCP_CONF_ACK:
 		if (h->ident != sp->pp_seq)
 			return;
-		untimeout (sppp_cp_timeout, (caddr_t) sp);
+		untimeout (sppp_cp_timeout, (void *)sp);
 		switch (sp->lcp.state) {
 		case LCP_STATE_CLOSED:
 			sp->lcp.state = LCP_STATE_ACK_RCVD;
@@ -650,7 +649,7 @@ void sppp_lcp_input (struct sppp *sp, struct mbuf *m)
 	case LCP_CONF_REJ:
 		if (h->ident != sp->pp_seq)
 			return;
-		untimeout (sppp_cp_timeout, (caddr_t) sp);
+		untimeout (sppp_cp_timeout, (void *)sp);
 		/* Initiate renegotiation. */
 		sppp_lcp_open (sp);
 		if (sp->lcp.state != LCP_STATE_ACK_SENT) {
@@ -1050,7 +1049,7 @@ void sppp_ipcp_input (struct sppp *sp, struct mbuf *m)
 		}
 		break;
 	case IPCP_CONF_ACK:
-		untimeout (sppp_cp_timeout, (caddr_t) sp);
+		untimeout (sppp_cp_timeout, (void *)sp);
 		switch (sp->ipcp.state) {
 		case IPCP_STATE_CLOSED:
 			sp->ipcp.state = IPCP_STATE_ACK_RCVD;
@@ -1070,7 +1069,7 @@ void sppp_ipcp_input (struct sppp *sp, struct mbuf *m)
 		break;
 	case IPCP_CONF_NAK:
 	case IPCP_CONF_REJ:
-		untimeout (sppp_cp_timeout, (caddr_t) sp);
+		untimeout (sppp_cp_timeout, (void *)sp);
 		/* Initiate renegotiation. */
 		sppp_ipcp_open (sp);
 		if (sp->lcp.state == LCP_STATE_OPENED)
@@ -1119,19 +1118,20 @@ void sppp_lcp_open (struct sppp *sp)
 	opt[5] = sp->lcp.magic;
 	sppp_cp_send (sp, PPP_LCP, LCP_CONF_REQ, ++sp->pp_seq,
 		sizeof (opt), &opt);
-	timeout (sppp_cp_timeout, (caddr_t) sp, hz * 5);
+	timeout (sppp_cp_timeout, (void *)sp, hz * 5);
 }
 
 void sppp_ipcp_open (struct sppp *sp)
 {
 	sppp_cp_send (sp, PPP_IPCP, IPCP_CONF_REQ, ++sp->pp_seq, 0, 0);
-	timeout (sppp_cp_timeout, (caddr_t) sp, hz * 5);
+	timeout (sppp_cp_timeout, (void *)sp, hz * 5);
 }
 
 /*
  * Process PPP control protocol timeouts.
  */
-void sppp_cp_timeout (caddr_t arg, int dummy)
+void
+sppp_cp_timeout (void * arg)
 {
 	struct sppp *sp = (struct sppp*) arg;
 	struct ifnet *ifp = &sp->pp_if;
