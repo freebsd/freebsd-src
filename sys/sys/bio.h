@@ -75,16 +75,17 @@ struct bio {
 	void	*bio_caller1;		/* Private use by the caller. */
 	void	*bio_caller2;		/* Private use by the caller. */
 	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
+	const char *bio_attribute;	/* Attribute for BIO_[GS]ETATTR */
+	struct g_consumer *bio_from;	/* GEOM linkage */
+	struct g_provider *bio_to;	/* GEOM linkage */
+	off_t	bio_length;		/* Like bio_bcount */
+	off_t	bio_completed;		/* Inverse of bio_resid */
+	u_int	bio_children;		/* Number of spawned bios */
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
 	struct	iodone_chain *bio_done_chain;
 	struct bio *bio_linkage;
-	off_t	bio_length;
-	const char *bio_attribute;
-	off_t	bio_completed;
-	struct g_consumer *bio_from;
-	struct g_provider *bio_to;
 };
 
 /* bio_cmd */
