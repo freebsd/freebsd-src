@@ -7,6 +7,7 @@ TMACGRP?=	${BINGRP}
 TMACMODE?=	${NOBINMODE}
 TMACDIR?=	/usr/share/tmac
 MDOCDIR?=	${TMACDIR}/mdoc
+LOCALEDIR?=     ${TMACDIR}/locale
 
 MAN7=           groff_ms.7 me.7 msafer.7
 MLINKS=         groff_ms.7 ms.7 me.7 groff_me.7 msafer.7 groff_msafer.7
@@ -20,6 +21,7 @@ FILES=          tmac.andoc tmac.pic tmac.ps tmac.psnew tmac.psold\
 		troffrc
 STRIPFILES=     tmac.e tmac.s tmac.doc
 MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms
+LOCALEFILES=    locale-list koi8-r
 
 all: ${MDOCFILES} ${STRIPFILES} tmac.groff_an
 
@@ -39,6 +41,9 @@ beforeinstall:
 	cd ${DIST_DIR}; \
 	    ${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    ${FILES} ${DESTDIR}${TMACDIR}
+	cd ${DIST_DIR}/locale; \
+	    ${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+	    ${LOCALEFILES} ${DESTDIR}${LOCALEDIR}
 .if !exists(${DESTDIR}${TMACDIR}/man.local)
 	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    ${DIST_DIR}/man.local ${DESTDIR}${TMACDIR}
