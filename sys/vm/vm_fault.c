@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.19 1995/02/22 09:15:26 davidg Exp $
+ * $Id: vm_fault.c,v 1.20 1995/03/01 23:29:55 davidg Exp $
  */
 
 /*
@@ -806,8 +806,17 @@ RetryCopy:
 	 * won't find us (yet).
 	 */
 
-	if (prot & VM_PROT_WRITE)
+	if (prot & VM_PROT_WRITE) {
 		m->flags |= PG_WRITEABLE;
+		/*
+		 * If the fault is a write, we know that this page is being
+		 * written NOW. This will save on the pmap_is_modified() calls
+		 * later.
+		 */
+		if (fault_type & VM_PROT_WRITE) {
+			m->dirty = VM_PAGE_BITS_ALL;
+		}
+	}
 	m->flags |= PG_MAPPED;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
