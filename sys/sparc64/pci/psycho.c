@@ -77,9 +77,6 @@ static void psycho_set_intr(struct psycho_softc *, int, device_t, bus_addr_t,
 static int psycho_find_intrmap(struct psycho_softc *, int, bus_addr_t *,
     bus_addr_t *, u_long *);
 static void psycho_intr_stub(void *);
-#ifdef PSYCHO_STRAY
-static void psycho_intr_stray(void *);
-#endif
 static bus_space_tag_t psycho_alloc_bus_tag(struct psycho_softc *, int);
 
 
@@ -322,12 +319,9 @@ psycho_attach(device_t dev)
 	u_long mlen;
 	int psycho_br[2];
 	int n, i, nreg, rid;
-#if defined(PSYCHO_DEBUG) || defined(PSYCHO_STRAY)
+#ifdef PSYCHO_DEBUG
 	bus_addr_t map, clr;
 	u_int64_t mr;
-#endif
-#ifdef PSYCHO_STRAY
-	struct psycho_strayclr *sclr;
 #endif
 
 	node = nexus_get_node(dev);
@@ -564,21 +558,15 @@ psycho_attach(device_t dev)
 	/* XXX: register as root dma tag (kludge). */
 	sparc64_root_dma_tag = sc->sc_dmat;
 
+#ifdef PSYCHO_DEBUG
 	/*
-	 * Enable all interrupts, clear all interrupt states, and install an
-	 * interrupt handler for OBIO interrupts, which can be ISA ones
-	 * (to frob the interrupt clear registers).
-	 * This aids the debugging of interrupt routing problems, and is needed
-	 * for isa drivers that use isa_irq_pending (otherwise the registers
-	 * will never be cleared).
+	 * Enable all interrupts and clear all interrupt states.
+	 * This aids the debugging of interrupt routing problems.
 	 */
-#if defined(PSYCHO_DEBUG) || defined(PSYCHO_STRAY)
 	for (map = PSR_PCIA0_INT_MAP, clr = PSR_PCIA0_INT_CLR, n = 0;
 	     map <= PSR_PCIB3_INT_MAP; map += 8, clr += 32, n++) {
 		mr = PSYCHO_READ8(sc, map);
-#ifdef PSYCHO_DEBUG
 		device_printf(dev, "intr map (pci) %d: %#lx\n", n, (u_long)mr);
-#endif
 		PSYCHO_WRITE8(sc, map, mr & ~INTMAP_V);
 		for (i = 0; i < 4; i++)
 			PCICTL_WRITE8(sc, clr + i * 8, 0);
@@ -587,30 +575,13 @@ psycho_attach(device_t dev)
 	for (map = PSR_SCSI_INT_MAP, clr = PSR_SCSI_INT_CLR, n = 0;
 	     map <= PSR_SERIAL_INT_MAP; map += 8, clr += 8, n++) {
 		mr = PSYCHO_READ8(sc, map);
-#ifdef PSYCHO_DEBUG
 		device_printf(dev, "intr map (obio) %d: %#lx, clr: %#lx\n", n,
 		    (u_long)mr, (u_long)clr);
-#endif
 		PSYCHO_WRITE8(sc, map, mr & ~INTMAP_V);
 		PSYCHO_WRITE8(sc, clr, 0);
-#ifdef PSYCHO_STRAY
-		/*
-		 * This can cause interrupt storms, and is therefore disabled
-		 * by default.
-		 * XXX: use intr_setup() to not confuse higher level code
-		 */
-		if (INTVEC(mr) != 0x7e6 && INTVEC(mr) != 0x7e7 &&
-		    INTVEC(mr) != 0) {
-			sclr = malloc(sizeof(*sclr), M_DEVBUF, M_WAITOK);
-			sclr->psc_sc = sc;
-			sclr->psc_clr = clr;
-			intr_setup(PIL_LOW, intr_fast, INTVEC(mr),
-			    psycho_intr_stray, sclr);
-		}
-#endif
 		PSYCHO_WRITE8(sc, map, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	}
-#endif
+#endif /* PSYCHO_DEBUG */
 
 	/*
 	 * Get the bus range from the firmware; it is used solely for obtaining
@@ -1031,21 +1002,6 @@ psycho_intr_stub(void *arg)
 	pc->pci_handler(pc->pci_arg);
 	PSYCHO_WRITE8(pc->pci_sc, pc->pci_clr, 0);
 }
-
-#ifdef PSYCHO_STRAY
-/*
- * Write to the correct clr register and return. arg is the address of the clear
- * register to be used.
- * XXX: print a message?
- */
-static void
-psycho_intr_stray(void *arg)
-{
-	struct psycho_strayclr *sclr = arg;
-
-	PSYCHO_WRITE8(sclr->psc_sc, sclr->psc_clr, 0);
-}
-#endif
 
 static int
 psycho_setup_intr(device_t dev, device_t child,
