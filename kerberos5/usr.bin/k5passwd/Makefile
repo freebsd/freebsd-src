@@ -14,9 +14,9 @@ _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
 .endif
 LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${ROKENOBJDIR} -lroken ${_krb4libs} \
-		-L${ASN1OBJDIR} -lasn1 -ldes -lcrypt -lcom_err
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBROKEN} ${_krb4deps} \
-		${LIBASN1} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}
+		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR}
 
 .include <bsd.prog.mk>
 
