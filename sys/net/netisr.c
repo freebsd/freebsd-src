@@ -84,7 +84,7 @@ struct netisr {
 static void *net_ih;
 
 /*
- * Note all network code is currently capable of running MPSAFE; however,
+ * Not all network code is currently capable of running MPSAFE; however,
  * most of it is.  Since those sections that are not are generally optional
  * components not shipped with default kernels, we provide a basic way to
  * determine whether MPSAFE operation is permitted: based on a default of
