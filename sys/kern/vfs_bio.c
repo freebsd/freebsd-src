@@ -949,20 +949,6 @@ vfs_backgroundwritedone(struct buf *bp)
 	BO_LOCK(bp->b_bufobj);
 	if ((origbp = gbincore(bp->b_bufobj, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
-
-	/*
-	 * Clear the BV_BKGRDINPROG flag in the original buffer
-	 * and awaken it if it is waiting for the write to complete.
-	 * If BV_BKGRDINPROG is not set in the original buffer it must
-	 * have been released and re-instantiated - which is not legal.
-	 */
-	KASSERT((origbp->b_vflags & BV_BKGRDINPROG),
-	    ("backgroundwritedone: lost buffer2"));
-	origbp->b_vflags &= ~BV_BKGRDINPROG;
-	if (origbp->b_vflags & BV_BKGRDWAIT) {
-		origbp->b_vflags &= ~BV_BKGRDWAIT;
-		wakeup(&origbp->b_xflags);
-	}
 	BO_UNLOCK(bp->b_bufobj);
 	/*
 	 * Process dependencies then return any unfinished ones.
@@ -982,6 +968,21 @@ vfs_backgroundwritedone(struct buf *bp)
 	bp->b_flags &= ~(B_CACHE | B_DONE);
 	bp->b_iodone = 0;
 	bufdone(bp);
+	BO_LOCK(origbp->b_bufobj);
+	/*
+	 * Clear the BV_BKGRDINPROG flag in the original buffer
+	 * and awaken it if it is waiting for the write to complete.
+	 * If BV_BKGRDINPROG is not set in the original buffer it must
+	 * have been released and re-instantiated - which is not legal.
+	 */
+	KASSERT((origbp->b_vflags & BV_BKGRDINPROG),
+	    ("backgroundwritedone: lost buffer2"));
+	origbp->b_vflags &= ~BV_BKGRDINPROG;
+	if (origbp->b_vflags & BV_BKGRDWAIT) {
+		origbp->b_vflags &= ~BV_BKGRDWAIT;
+		wakeup(&origbp->b_xflags);
+	}
+	BO_UNLOCK(origbp->b_bufobj);
 }
 
 /*
