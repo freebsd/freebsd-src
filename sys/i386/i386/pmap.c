@@ -1048,17 +1048,9 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 static int
 pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 {
-	unsigned ptepindex;
-	pd_entry_t ptepa;
 
 	if (va >= VM_MAXUSER_ADDRESS)
 		return 0;
-
-	if (mpte == NULL) {
-		ptepindex = (va >> PDRSHIFT);
-		ptepa = pmap->pm_pdir[ptepindex];
-		mpte = PHYS_TO_VM_PAGE(ptepa);
-	}
 
 	return pmap_unwire_pte_hold(pmap, mpte);
 }
@@ -1601,7 +1593,7 @@ static int
 pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 {
 	pt_entry_t oldpte;
-	vm_page_t m;
+	vm_page_t m, mpte;
 
 	oldpte = pte_load_clear(ptq);
 	if (oldpte & PG_W)
@@ -1630,10 +1622,9 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 			vm_page_flag_set(m, PG_REFERENCED);
 		return pmap_remove_entry(pmap, m, va);
 	} else {
-		return pmap_unuse_pt(pmap, va, NULL);
+		mpte = PHYS_TO_VM_PAGE(*pmap_pde(pmap, va));
+		return pmap_unuse_pt(pmap, va, mpte);
 	}
-
-	return 0;
 }
 
 /*
