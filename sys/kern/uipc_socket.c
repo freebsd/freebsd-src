@@ -221,12 +221,8 @@ sobind(so, nam, td)
 	struct sockaddr *nam;
 	struct thread *td;
 {
-	int s = splnet();
-	int error;
 
-	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td);
-	splx(s);
-	return (error);
+	return ((*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td));
 }
 
 void
@@ -263,24 +259,19 @@ solisten(so, backlog, td)
 	int backlog;
 	struct thread *td;
 {
-	int s, error;
+	int error;
 
 	/*
 	 * XXXRW: Ordering issue here -- perhaps we need to set
 	 * SO_ACCEPTCONN before the call to pru_listen()?
 	 * XXXRW: General atomic test-and-set concerns here also.
 	 */
-	s = splnet();
 	if (so->so_state & (SS_ISCONNECTED | SS_ISCONNECTING |
-			    SS_ISDISCONNECTING)) {
-		splx(s);
+			    SS_ISDISCONNECTING))
 		return (EINVAL);
-	}
 	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, td);
-	if (error) {
-		splx(s);
+	if (error)
 		return (error);
-	}
 	ACCEPT_LOCK();
 	if (TAILQ_EMPTY(&so->so_comp)) {
 		SOCK_LOCK(so);
@@ -291,7 +282,6 @@ solisten(so, backlog, td)
 		backlog = somaxconn;
 	so->so_qlimit = backlog;
 	ACCEPT_UNLOCK();
-	splx(s);
 	return (0);
 }
 
@@ -375,7 +365,6 @@ int
 soclose(so)
 	struct socket *so;
 {
-	int s = splnet();		/* conservative */
 	int error = 0;
 
 	funsetown(&so->so_sigio);
@@ -433,7 +422,6 @@ discard:
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;
 	sorele(so);
-	splx(s);
 	return (error);
 }
 
@@ -476,12 +464,10 @@ soconnect(so, nam, td)
 	struct sockaddr *nam;
 	struct thread *td;
 {
-	int s;
 	int error;
 
 	if (so->so_options & SO_ACCEPTCONN)
 		return (EOPNOTSUPP);
-	s = splnet();
 	/*
 	 * If protocol is connection-based, can only connect once.
 	 * Otherwise, if connected, try to disconnect first.
@@ -494,7 +480,6 @@ soconnect(so, nam, td)
 		error = EISCONN;
 	else
 		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
-	splx(s);
 	return (error);
 }
 
@@ -503,12 +488,8 @@ soconnect2(so1, so2)
 	struct socket *so1;
 	struct socket *so2;
 {
-	int s = splnet();
-	int error;
 
-	error = (*so1->so_proto->pr_usrreqs->pru_connect2)(so1, so2);
-	splx(s);
-	return (error);
+	return ((*so1->so_proto->pr_usrreqs->pru_connect2)(so1, so2));
 }
 
 int
@@ -572,7 +553,7 @@ sosend(so, addr, uio, top, control, flags, td)
 	struct mbuf **mp;
 	struct mbuf *m;
 	long space, len = 0, resid;
-	int clen = 0, error, s, dontroute;
+	int clen = 0, error, dontroute;
 	int atomic = sosendallatonce(so) || top;
 #ifdef ZERO_COPY_SOCKETS
 	int cow_send;
@@ -604,7 +585,7 @@ sosend(so, addr, uio, top, control, flags, td)
 		td->td_proc->p_stats->p_ru.ru_msgsnd++;
 	if (control != NULL)
 		clen = control->m_len;
-#define	snderr(errno)	{ error = (errno); splx(s); goto release; }
+#define	snderr(errno)	{ error = (errno); goto release; }
 
 	SOCKBUF_LOCK(&so->so_snd);
 restart:
@@ -614,13 +595,11 @@ restart:
 		goto out_locked;
 	do {
 		SOCKBUF_LOCK_ASSERT(&so->so_snd);
-		s = splnet();
 		if (so->so_snd.sb_state & SBS_CANTSENDMORE)
 			snderr(EPIPE);
 		if (so->so_error) {
 			error = so->so_error;
 			so->so_error = 0;
-			splx(s);
 			goto release;
 		}
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
@@ -651,13 +630,11 @@ restart:
 				snderr(EWOULDBLOCK);
 			sbunlock(&so->so_snd);
 			error = sbwait(&so->so_snd);
-			splx(s);
 			if (error)
 				goto out_locked;
 			goto restart;
 		}
 		SOCKBUF_UNLOCK(&so->so_snd);
-		splx(s);
 		mp = &top;
 		space -= clen;
 		do {
@@ -795,7 +772,6 @@ restart:
 			/* If there is more to send set PRUS_MORETOCOME */
 			(resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
 			top, addr, control, td);
-		    splx(s);
 		    if (dontroute) {
 			    SOCK_LOCK(so);
 			    so->so_options &= ~SO_DONTROUTE;
@@ -853,7 +829,7 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 	int *flagsp;
 {
 	struct mbuf *m, **mp;
-	int flags, len, error, s, offset;
+	int flags, len, error, offset;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
 	int moff, type = 0;
@@ -917,7 +893,6 @@ restart:
 	error = sblock(&so->so_rcv, SBLOCKWAIT(flags));
 	if (error)
 		goto out;
-	s = splnet();
 
 	m = so->so_rcv.sb_mb;
 	/*
@@ -974,7 +949,6 @@ restart:
 		SBLASTMBUFCHK(&so->so_rcv);
 		sbunlock(&so->so_rcv);
 		error = sbwait(&so->so_rcv);
-		splx(s);
 		if (error)
 			goto out;
 		goto restart;
@@ -1086,7 +1060,6 @@ dontblock:
 			SBLASTRECORDCHK(&so->so_rcv);
 			SBLASTMBUFCHK(&so->so_rcv);
 			SOCKBUF_UNLOCK(&so->so_rcv);
-			splx(s);
 #ifdef ZERO_COPY_SOCKETS
 			if (so_zero_copy_receive) {
 				vm_page_t pg;
@@ -1111,7 +1084,6 @@ dontblock:
 #endif /* ZERO_COPY_SOCKETS */
 			error = uiomove(mtod(m, char *) + moff, (int)len, uio);
 			SOCKBUF_LOCK(&so->so_rcv);
-			s = splnet();
 			if (error)
 				goto release;
 		} else
@@ -1237,7 +1209,6 @@ dontblock:
 	if (orig_resid == uio->uio_resid && orig_resid &&
 	    (flags & MSG_EOR) == 0 && (so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0) {
 		sbunlock(&so->so_rcv);
-		splx(s);
 		goto restart;
 	}
 
@@ -1248,7 +1219,6 @@ release:
 	sbunlock(&so->so_rcv);
 out:
 	SOCKBUF_UNLOCK(&so->so_rcv);
-	splx(s);
 	return (error);
 }
 
@@ -1892,7 +1862,6 @@ sopoll(struct socket *so, int events, struct ucred *active_cred,
     struct thread *td)
 {
 	int revents = 0;
-	int s = splnet();
 
 	if (events & (POLLIN | POLLRDNORM))
 		if (soreadable(so))
@@ -1929,7 +1898,6 @@ sopoll(struct socket *so, int events, struct ucred *active_cred,
 		}
 	}
 
-	splx(s);
 	return (revents);
 }
 
