@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: pfkeyv2.h,v 1.26 2001/06/27 10:49:49 sakane Exp $	*/
+/*	$KAME: pfkeyv2.h,v 1.37 2003/09/06 05:15:43 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -213,7 +213,7 @@ struct sadb_x_sa2 {
   u_int8_t sadb_x_sa2_mode;
   u_int8_t sadb_x_sa2_reserved1;
   u_int16_t sadb_x_sa2_reserved2;
-  u_int32_t sadb_x_sa2_sequence;
+  u_int32_t sadb_x_sa2_sequence;	/* lowermost 32bit of sequence number */
   u_int32_t sadb_x_sa2_reqid;
 };
 
@@ -240,9 +240,7 @@ struct sadb_x_policy {
  * This structure is aligned 8 bytes.
  */
 struct sadb_x_ipsecrequest {
-  u_int16_t sadb_x_ipsecrequest_len;	/* structure length aligned to 8 bytes.
-					 * This value is true length of bytes.
-					 * Not in units of 64 bits. */
+  u_int16_t sadb_x_ipsecrequest_len;	/* structure length in 64 bits. */
   u_int16_t sadb_x_ipsecrequest_proto;	/* See ipsec.h */
   u_int8_t sadb_x_ipsecrequest_mode;	/* See IPSEC_MODE_XX in ipsec.h. */
   u_int8_t sadb_x_ipsecrequest_level;	/* See IPSEC_LEVEL_XX in ipsec.h */
