@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)getservent.3	8.3 (Berkeley) 1/12/94
-.\"	$Id$
+.\"	$Id: getservent.3,v 1.5 1997/02/22 15:00:13 peter Exp $
 .\"
 .Dd July 9, 1995
 .Dt GETSERVENT 3
@@ -118,7 +118,8 @@ functions
 sequentially search from the beginning
 of the file until a matching
 protocol name or
-port number is found,
+port number (which must be specified in
+network byte order) is found,
 or until
 .Dv EOF
 is encountered.
