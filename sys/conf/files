@@ -153,6 +153,15 @@ contrib/dev/acpica/utinit.c	 optional acpica
 contrib/dev/acpica/utmisc.c	 optional acpica
 contrib/dev/acpica/utobject.c	 optional acpica
 contrib/dev/acpica/utxface.c	 optional acpica
+contrib/ipfilter/netinet/fil.c		optional ipfilter inet
+contrib/ipfilter/netinet/ip_auth.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_fil.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_frag.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_log.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_nat.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_proxy.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_state.c	optional ipfilter inet
+contrib/ipfilter/netinet/mlfk_ipl.c	optional ipfilter inet
 crypto/blowfish/bf_cbc.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_cbc_m.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional ipsec ipsec_esp
@@ -1031,7 +1040,6 @@ netgraph/ng_vjc.c	optional netgraph_vjc
 net/slcompress.c	optional netgraph_vjc
 netinet/accf_data.c		optional accept_filter_data
 netinet/accf_http.c		optional accept_filter_http
-netinet/fil.c		optional ipfilter inet
 netinet/if_atm.c	optional atm
 netinet/if_ether.c	optional ether
 netinet/igmp.c		optional inet
@@ -1042,26 +1050,18 @@ netinet/ip_id.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
-netinet/ip_auth.c	optional ipfilter inet
 netinet/ip_divert.c	optional ipdivert
 netinet/ip_dummynet.c	optional dummynet
 netinet/ip_ecn.c	optional inet
 netinet/ip_ecn.c	optional inet6
 netinet/ip_encap.c	optional inet
 netinet/ip_encap.c	optional inet6
-netinet/ip_fil.c	optional ipfilter inet
 netinet/ip_flow.c	optional inet
-netinet/ip_frag.c	optional ipfilter inet
 netinet/ip_fw.c		optional ipfirewall
 netinet/ip_icmp.c	optional inet
 netinet/ip_input.c	optional inet
-netinet/ip_log.c	optional ipfilter inet
 netinet/ip_mroute.c	optional inet
-netinet/ip_nat.c	optional ipfilter inet
 netinet/ip_output.c	optional inet
-netinet/ip_proxy.c	optional ipfilter inet
-netinet/ip_state.c	optional ipfilter inet
-netinet/mlfk_ipl.c	optional ipfilter inet
 netinet/raw_ip.c	optional inet
 netinet/tcp_debug.c	optional tcpdebug
 netinet/tcp_input.c	optional inet
