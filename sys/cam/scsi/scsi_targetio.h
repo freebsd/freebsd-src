@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_targetio.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #ifndef _CAM_SCSI_SCSI_TARGETIO_H_
@@ -100,4 +100,20 @@ struct ioc_initiator_state {
 #define TARGIOCGETISTATE	_IOWR('C', 6, struct ioc_initiator_state)
 #define TARGIOCSETISTATE	_IOW('C', 5, struct ioc_initiator_state)
 
+struct ioc_alloc_unit {
+	path_id_t	path_id;
+	target_id_t	target_id;
+	lun_id_t	lun_id;
+	u_int		unit;
+};
+
+/*
+ * Allocate and Free a target mode instance.  For allocation, the path_id,
+ * target_id, and lun_id fields must be set.  On successful completion
+ * of the ioctl, the unit field will indicate the unit number of the
+ * newly created instance.  For de-allocation, all fields must match
+ * an instance in the inactive (i.e. closed) state.
+ */
+#define TARGCTLIOALLOCUNIT	_IOWR('C', 7, struct ioc_alloc_unit)
+#define TARGCTLIOFREEUNIT	_IOW('C', 8, struct ioc_alloc_unit)
 #endif /* _CAM_SCSI_SCSI_TARGETIO_H_ */

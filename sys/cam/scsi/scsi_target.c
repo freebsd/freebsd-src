@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.7 1999/01/14 05:57:32 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.8 1999/02/11 07:08:58 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -79,6 +79,9 @@ typedef enum {
 #define MAX_INITIATORS	16	/* XXX More for Fibre-Channel */
 
 #define MIN(a, b) ((a > b) ? b : a)
+
+#define TARG_CONTROL_UNIT 0xffff00ff
+#define TARG_IS_CONTROL_DEV(unit) ((unit) == TARG_CONTROL_UNIT)
 
 /* Offsets into our private CCB area for storing accept information */
 #define ccb_type	ppriv_field0
@@ -159,6 +162,8 @@ static int		targsendccb(struct cam_periph *periph, union ccb *ccb,
 static periph_init_t	targinit;
 static void		targasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
+static int		targallocinstance(struct ioc_alloc_unit *alloc_unit);
+static int		targfreeinstance(struct ioc_alloc_unit *alloc_unit);
 static cam_status	targenlun(struct cam_periph *periph);
 static cam_status	targdislun(struct cam_periph *periph);
 static periph_ctor_t	targctor;
@@ -191,8 +196,7 @@ static struct extend_array *targperiphs;
 static void
 targinit(void)
 {
-	cam_status status;
-	struct cam_path *path;
+	dev_t dev;
 
 	/*
 	 * Create our extend array for storing the devices we attach to.
@@ -202,37 +206,10 @@ targinit(void)
 		printf("targ: Failed to alloc extend array!\n");
 		return;
 	}
-	
-	/*
-	 * Install a global async callback.  This callback will
-	 * receive async callbacks like "new path registered".
-	 */
-	status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
-				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 
-	if (status == CAM_REQ_CMP) {
-		struct ccb_setasync csa;
-
-		xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = AC_PATH_REGISTERED;
-		csa.callback = targasync;
-		csa.callback_arg = NULL;
-		xpt_action((union ccb *)&csa);
-		status = csa.ccb_h.status;
-		xpt_free_path(path);
-        }
-
-	if (status != CAM_REQ_CMP) {
-		printf("targ: Failed to attach master async callback "
-		       "due to status 0x%x!\n", status);
-	} else {
-		/* If we were successfull, register our devsw */
-		dev_t dev;
-
-		dev = makedev(TARG_CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&targ_cdevsw, NULL);
-	}
+	/* If we were successfull, register our devsw */
+	dev = makedev(TARG_CDEV_MAJOR, 0);
+	cdevsw_add(&dev,&targ_cdevsw, NULL);
 }
 
 static void
@@ -243,42 +220,6 @@ targasync(void *callback_arg, u_int32_t code,
 
 	periph = (struct cam_periph *)callback_arg;
 	switch (code) {
-	case AC_PATH_REGISTERED:
-	{
-		struct ccb_pathinq *cpi;
-		struct cam_path *new_path;
-		cam_status status;
- 
-		cpi = (struct ccb_pathinq *)arg;
-
-		/* Only attach to controllers that support target mode */
-		if ((cpi->target_sprt & PIT_PROCESSOR) == 0)
-			break;
-
-		/*
-		 * Allocate a peripheral instance for
-		 * this target instance.
-		 */
-		status = xpt_create_path(&new_path, NULL,
-					 xpt_path_path_id(path),
-					 cpi->initiator_id, /*lun*/0);
-		if (status != CAM_REQ_CMP) {
-			printf("targasync: Unable to create path "
-				"due to status 0x%x\n", status);
-			break;
-		}
-		status = cam_periph_alloc(targctor, NULL, targdtor, targstart,
-					  "targ", CAM_PERIPH_BIO,
-					  new_path, targasync,
-					  AC_PATH_REGISTERED,
-					  cpi);
-		xpt_free_path(new_path);
-		if (status != CAM_REQ_CMP
-		 && status != CAM_REQ_INPROG)
-			printf("targasync: Unable to attach to new device "
-				"due to status 0x%x\n", status);
-		break;
-	}
 	case AC_PATH_DEREGISTERED:
 	{
 		/* XXX Implement */
@@ -353,6 +294,8 @@ targenlun(struct cam_periph *periph)
 		xpt_action((union ccb *)atio);
 		status = atio->ccb_h.status;
 		if (status != CAM_REQ_INPROG) {
+			xpt_print_path(periph->path);
+			printf("Queue of atio failed\n");
 			freedescr(atio->ccb_h.ccb_descr);
 			free(atio, M_DEVBUF);
 			break;
@@ -391,6 +334,7 @@ targenlun(struct cam_periph *periph)
 		xpt_action((union ccb *)inot);
 		status = inot->ccb_h.status;
 		if (status != CAM_REQ_INPROG) {
+			printf("Queue of inot failed\n");
 			free(inot, M_DEVBUF);
 			break;
 		}
@@ -425,7 +369,7 @@ targdislun(struct cam_periph *periph)
 
 	/* Kill off all ACCECPT and IMMEDIATE CCBs */
 	while ((atio = softc->accept_tio_list) != NULL) {
-		
+
 		softc->accept_tio_list =
 		    ((struct targ_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link;
 		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
@@ -505,6 +449,7 @@ targctor(struct cam_periph *periph, void *arg)
 	if (softc->inq_data == NULL) {
 		printf("targctor - Unable to malloc inquiry data\n");
 		targdtor(periph);
+		return (CAM_RESRC_UNAVAIL);
 	}
 	bzero(softc->inq_data, softc->inq_data_len);
 	softc->inq_data->device = T_PROCESSOR | (SID_QUAL_LU_CONNECTED << 5);
@@ -532,6 +477,8 @@ targdtor(struct cam_periph *periph)
 
 	targdislun(periph);
 
+	cam_extend_release(targperiphs, periph->unit_number);
+
 	switch (softc->init_level) {
 	default:
 		/* FALLTHROUGH */
@@ -550,12 +497,17 @@ static int
 targopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct cam_periph *periph;
+	struct	targ_softc *softc;
 	u_int unit;
 	cam_status status;
 	int error;
 	int s;
 
 	unit = minor(dev);
+
+	/* An open of the control device always succeeds */
+	if (TARG_IS_CONTROL_DEV(unit))
+		return 0;
 
 	s = splsoftcam();
 	periph = cam_extend_get(targperiphs, unit);
@@ -566,6 +518,15 @@ targopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
 		splx(s);
 		return (error);
+	}
+
+	softc = (struct targ_softc *)periph->softc;
+	if ((softc->flags & TARG_FLAG_LUN_ENABLED) == 0) {
+		if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+			splx(s);
+			cam_periph_unlock(periph);
+			return(ENXIO);
+		}
 	}
         splx(s);
 	
@@ -598,6 +559,11 @@ targclose(dev_t dev, int flag, int fmt, struct proc *p)
 	int	error;
 
 	unit = minor(dev);
+
+	/* A close of the control device always succeeds */
+	if (TARG_IS_CONTROL_DEV(unit))
+		return 0;
+
 	s = splsoftcam();
 	periph = cam_extend_get(targperiphs, unit);
 	if (periph == NULL) {
@@ -612,8 +578,158 @@ targclose(dev_t dev, int flag, int fmt, struct proc *p)
 	targdislun(periph);
 
 	cam_periph_unlock(periph);
+	cam_periph_release(periph);
 
 	return (0);
+}
+
+static int
+targallocinstance(struct ioc_alloc_unit *alloc_unit)
+{
+	struct ccb_pathinq cpi;
+	struct cam_path *path;
+	struct cam_periph *periph;
+	cam_status status;
+	int free_path_on_return;
+	int error;
+ 
+	free_path_on_return = 0;
+	status = xpt_create_path(&path, /*periph*/NULL,
+				 alloc_unit->path_id,
+				 alloc_unit->target_id,
+				 alloc_unit->lun_id);
+	free_path_on_return++;
+
+	if (status != CAM_REQ_CMP) {
+		printf("Couldn't Allocate Path %x\n", status);
+		goto fail;
+	}
+
+	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+	status = cpi.ccb_h.status;
+
+	if (status != CAM_REQ_CMP) {
+		printf("Couldn't CPI %x\n", status);
+		goto fail;
+	}
+
+	/* Can only alloc units on controllers that support target mode */
+	if ((cpi.target_sprt & PIT_PROCESSOR) == 0) {
+		printf("Controller does not support target mode%x\n", status);
+		status = CAM_PATH_INVALID;
+		goto fail;
+	}
+
+	/* Ensure that we don't already have an instance for this unit. */
+	if ((periph = cam_periph_find(path, "targ")) != NULL) { 
+		printf("Lun already enabled%x\n", status);
+		status = CAM_LUN_ALRDY_ENA;
+		goto fail;
+	}
+
+	/*
+	 * Allocate a peripheral instance for
+	 * this target instance.
+	 */
+	status = cam_periph_alloc(targctor, NULL, targdtor, targstart,
+				  "targ", CAM_PERIPH_BIO, path, targasync,
+				  0, &cpi);
+
+fail:
+	if (free_path_on_return != 0)
+		xpt_free_path(path);
+
+	switch (status) {
+	case CAM_REQ_CMP:
+	{
+		struct cam_periph *periph;
+
+		if ((periph = cam_periph_find(path, "targ")) == NULL)
+			panic("targallocinstance: Succeeded but no periph?");
+		error = 0;
+		alloc_unit->unit = periph->unit_number;
+		break;
+	}
+	case CAM_RESRC_UNAVAIL:
+		error = ENOMEM;
+		break;
+	case CAM_LUN_ALRDY_ENA:
+		error = EADDRINUSE;
+		break;
+	default:
+		printf("targallocinstance: Unexpected CAM status %x\n", status);
+		/* FALLTHROUGH */
+	case CAM_PATH_INVALID:
+		error = ENXIO;
+		break;
+	case CAM_PROVIDE_FAIL:
+		error = ENODEV;
+		break;
+	}
+	return (error);
+}
+
+static int
+targfreeinstance(struct ioc_alloc_unit *alloc_unit)
+{
+	struct cam_path *path;
+	struct cam_periph *periph;
+	struct targ_softc *softc;
+	cam_status status;
+	int free_path_on_return;
+	int error;
+ 
+	periph = NULL;
+	free_path_on_return = 0;
+	status = xpt_create_path(&path, /*periph*/NULL,
+				 alloc_unit->path_id,
+				 alloc_unit->target_id,
+				 alloc_unit->lun_id);
+	free_path_on_return++;
+
+	if (status != CAM_REQ_CMP)
+		goto fail;
+
+	/* Find our instance. */
+	if ((periph = cam_periph_find(path, "targ")) == NULL) {
+		xpt_print_path(path);
+		status = CAM_PATH_INVALID;
+		goto fail;
+	}
+
+        softc = (struct targ_softc *)periph->softc;
+                                 
+        if ((softc->flags & TARG_FLAG_LUN_ENABLED) != 0) {
+		status = CAM_BUSY;
+		goto fail;
+	}
+
+fail:
+	if (free_path_on_return != 0)
+		xpt_free_path(path);
+
+	switch (status) {
+	case CAM_REQ_CMP:
+		if (periph != NULL)
+			cam_periph_invalidate(periph);
+		error = 0;
+		break;
+	case CAM_RESRC_UNAVAIL:
+		error = ENOMEM;
+		break;
+	case CAM_LUN_ALRDY_ENA:
+		error = EADDRINUSE;
+		break;
+	default:
+		printf("targfreeinstance: Unexpected CAM status %x\n", status);
+		/* FALLTHROUGH */
+	case CAM_PATH_INVALID:
+		error = ENODEV;
+		break;
+	}
+	return (error);
 }
 
 static int
@@ -625,11 +741,26 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	int    error;
 
 	unit = minor(dev);
+	error = 0;
+	if (TARG_IS_CONTROL_DEV(unit)) {
+		switch (cmd) {
+		case TARGCTLIOALLOCUNIT:
+			error = targallocinstance((struct ioc_alloc_unit*)addr);
+			break;
+		case TARGCTLIOFREEUNIT:
+			error = targfreeinstance((struct ioc_alloc_unit*)addr);
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		return (error);
+	}
+
 	periph = cam_extend_get(targperiphs, unit);
 	if (periph == NULL)
 		return (ENXIO);
 	softc = (struct targ_softc *)periph->softc;
-	error = 0;
 	switch (cmd) {
 	case TARGIOCFETCHEXCEPTION:
 		*((targ_exception *)addr) = softc->exceptions;
@@ -817,6 +948,11 @@ targpoll(dev_t dev, int poll_events, struct proc *p)
 	int    s;
 
 	unit = minor(dev);
+
+	/* ioctl is the only supported operation of the control device */
+	if (TARG_IS_CONTROL_DEV(unit))
+		return EINVAL;
+
 	periph = cam_extend_get(targperiphs, unit);
 	if (periph == NULL)
 		return (ENXIO);
@@ -851,16 +987,21 @@ targpoll(dev_t dev, int poll_events, struct proc *p)
 static int
 targread(dev_t dev, struct uio *uio, int ioflag)
 {
+	u_int  unit;
+
+	unit = minor(dev);
+	/* ioctl is the only supported operation of the control device */
+	if (TARG_IS_CONTROL_DEV(unit))
+		return EINVAL;
+
 	if (uio->uio_iovcnt == 0
 	 || uio->uio_iov->iov_len == 0) {
 		/* EOF */
 		struct cam_periph *periph;
 		struct targ_softc *softc;
-		u_int  unit;
 		int    s;
 	
 		s = splcam();
-		unit = minor(dev);
 		periph = cam_extend_get(targperiphs, unit);
 		if (periph == NULL)
 			return (ENXIO);
@@ -876,16 +1017,21 @@ targread(dev_t dev, struct uio *uio, int ioflag)
 static int
 targwrite(dev_t dev, struct uio *uio, int ioflag)
 {
+	u_int  unit;
+
+	unit = minor(dev);
+	/* ioctl is the only supported operation of the control device */
+	if (TARG_IS_CONTROL_DEV(unit))
+		return EINVAL;
+
 	if (uio->uio_iovcnt == 0
 	 || uio->uio_iov->iov_len == 0) {
 		/* EOF */
 		struct cam_periph *periph;
 		struct targ_softc *softc;
-		u_int  unit;
 		int    s;
 	
 		s = splcam();
-		unit = minor(dev);
 		periph = cam_extend_get(targperiphs, unit);
 		if (periph == NULL)
 			return (ENXIO);
@@ -912,10 +1058,17 @@ targstrategy(struct buf *bp)
 	int    s;
 	
 	unit = minor(bp->b_dev);
+
+	/* ioctl is the only supported operation of the control device */
+	if (TARG_IS_CONTROL_DEV(unit)) {
+		bp->b_error = EINVAL;
+		goto bad;
+	}
+
 	periph = cam_extend_get(targperiphs, unit);
 	if (periph == NULL) {
 		bp->b_error = ENXIO;
-		goto bad;		
+		goto bad;
 	}
 	softc = (struct targ_softc *)periph->softc;
 
@@ -1154,7 +1307,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		cdb = atio->cdb_io.cdb_bytes;
 		if (softc->state == TARG_STATE_TEARDOWN
 		 || atio->ccb_h.status == CAM_REQ_ABORTED) {
-			printf("Freed an accept tio\n");
 			freedescr(descr);
 			free(done_ccb, M_DEVBUF);
 			return;
@@ -1272,6 +1424,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				atio->ccb_h.flags |= CAM_DIR_NONE;
 				descr->data_resid = 0;
 				descr->data_increment = 0;
+				descr->timeout = 5 * 1000;
 				descr->status = SCSI_STATUS_OK;
 				break;
 			case REQUEST_SENSE:
@@ -1398,6 +1551,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			     periph_links.tqe);
 
 		/* XXX Check for errors */
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			
+		}
 		desc->data_resid -= desc->data_increment;
 		if ((bp = desc->bp) != NULL) {
 
@@ -1473,12 +1629,15 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	case XPT_IMMED_NOTIFY:
 	{
 		if (softc->state == TARG_STATE_TEARDOWN
-		 || done_ccb->ccb_h.status == CAM_REQ_ABORTED) {
-			printf("Freed an immediate notify\n");
+		 || done_ccb->ccb_h.status == CAM_REQ_ABORTED)
 			free(done_ccb, M_DEVBUF);
-		}
 		break;
 	}
+	default:
+		panic("targdone: Impossible xpt opcode %x encountered.",
+		      done_ccb->ccb_h.func_code);
+		/* NOTREACHED */
+		break;
 	}
 }
 
