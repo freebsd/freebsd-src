@@ -79,8 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-extern const char freebsd32_emul_path[];
-
 /*
  * [ taken from the linux emulator ]
  * Search an alternate path before passing pathname arguments on
