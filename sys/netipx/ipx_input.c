@@ -165,8 +165,11 @@ ipxintr(struct mbuf *m)
 	IPX_LIST_LOCK();
 	LIST_FOREACH(ipxp, &ipxrawpcb_list, ipxp_list) {
 		struct mbuf *m1 = m_copy(m, 0, (int)M_COPYALL);
-		if (m1 != NULL)
+		if (m1 != NULL) {
+			IPX_LOCK(ipxp);
 			ipx_input(m1, ipxp);
+			IPX_UNLOCK(ipxp);
+		}
 	}
 	IPX_LIST_UNLOCK();
 
@@ -278,7 +281,9 @@ ours:
 				IPX_LIST_UNLOCK();
 				return;
 			}
+		IPX_LOCK(ipxp);
 		ipx_input(m, ipxp);
+		IPX_UNLOCK(ipxp);
 	} else
 		m_freem(m);
 	IPX_LIST_UNLOCK();
@@ -507,7 +512,9 @@ struct ifnet *ifp;
 				}
 			    }
 			ipx->ipx_len = ntohl(m0->m_pkthdr.len);
+			IPX_LOCK(ipxp);
 			ipx_input(m0, ipxp);
+			IPX_UNLOCK(ipxp);
 		}
 	}
 	IPX_LIST_UNLOCK();
