@@ -619,14 +619,6 @@ struct rl_stats {
 
 #define RL_JUMBO_FRAMELEN	9018
 #define RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
-#define RL_JSLOTS		128
-  
-#define RL_JRAWLEN (RL_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
-#define RL_JLEN (RL_JRAWLEN + (sizeof(u_int64_t) - \
-	(RL_JRAWLEN % sizeof(u_int64_t))))
-#define RL_JPAGESZ PAGE_SIZE
-#define RL_RESID (RL_JPAGESZ - (RL_JLEN * RL_JSLOTS) % RL_JPAGESZ)
-#define RL_JMEM ((RL_JLEN * RL_JSLOTS) + RL_RESID)
 
 struct rl_softc;
 
