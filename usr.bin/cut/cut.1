@@ -103,7 +103,7 @@ The
 .Ar list
 specifies character positions.
 .It Fl d Ar delim
-Use the first character of
+Use
 .Ar delim
 as the field delimiter character instead of the tab character.
 .It Fl f Ar list
@@ -156,11 +156,3 @@ command appeared in
 .Tn AT&T
 System III
 .Ux .
-.Sh BUGS
-When operating on fields
-.Fl ( f
-option is specified),
-.Nm
-does not recognise multibyte characters, and the
-.Ar delim
-character is recognised in the middle of multibyte sequences.
