@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.4 1996/05/03 05:44:45 asami Exp $
+$Id: majors.i386,v 1.5 1996/05/04 08:40:13 peter Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -113,3 +113,4 @@ chrdev	name		comments
 73	qcam		quickcam
 74	ccd		concatenated disk
 75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
+76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
