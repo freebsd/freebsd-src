@@ -1,3 +1,6 @@
+/*	$OpenBSD: value.c,v 1.7 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: value.c,v 1.6 1997/02/11 09:24:09 mrg Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -31,12 +34,14 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)value.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: value.c,v 1.7 2001/10/24 18:38:58 millert Exp $";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
 #include "tip.h"
@@ -44,10 +49,6 @@ static const char rcsid[] =
 #define MIDDLE	35
 
 static value_t *vlookup();
-int vstring __P((char *, char *));
-void vlex __P((char *));
-void vassign __P((value_t *, char *));
-
 static int col = 0;
 
 /*
@@ -56,38 +57,39 @@ static int col = 0;
 void
 vinit()
 {
-	register value_t *p;
-	register char *cp;
+	value_t *p;
+	char *cp;
 	FILE *f;
-	char file[256];
+	char file[FILENAME_MAX];
 
 	for (p = vtable; p->v_name != NULL; p++) {
 		if (p->v_type&ENVIRON)
 			if ((cp = getenv(p->v_name)))
 				p->v_value = cp;
 		if (p->v_type&IREMOTE)
-			if (p->v_type&STRING)
-				p->v_value = *(char **) address(p->v_value);
-			else
-				number(p->v_value) = *address(p->v_value);
+			setnumber(p->v_value, *address(p->v_value));
 	}
 	/*
 	 * Read the .tiprc file in the HOME directory
 	 *  for sets
 	 */
-	strcpy(file, value(HOME));
-	strcat(file, "/.tiprc");
-	if ((f = fopen(file, "r")) != NULL) {
-		register char *tp;
+	if (strlen(value(HOME)) + sizeof("/.tiprc") > sizeof(file)) {
+		(void)fprintf(stderr, "Home directory path too long: %s\n",
+			value(HOME));
+	} else {
+		snprintf(file, sizeof file, "%s/.tiprc", value(HOME));
+		if ((f = fopen(file, "r")) != NULL) {
+			char *tp;
 
-		while (fgets(file, sizeof(file)-1, f) != NULL) {
-			if (vflag)
-				printf("set %s", file);
-			if ((tp = rindex(file, '\n')))
-				*tp = '\0';
-			vlex(file);
+			while (fgets(file, sizeof(file)-1, f) != NULL) {
+				if (vflag)
+					printf("set %s", file);
+				if ((tp = strrchr(file, '\n')))
+					*tp = '\0';
+				vlex(file);
+			}
+			fclose(f);
 		}
-		fclose(f);
 	}
 	/*
 	 * To allow definition of exception prior to fork
@@ -100,7 +102,7 @@ static int vaccess();
 /*VARARGS1*/
 void
 vassign(p, v)
-	register value_t *p;
+	value_t *p;
 	char *v;
 {
 
@@ -115,49 +117,48 @@ vassign(p, v)
 			return;
 		if (!(p->v_type&(ENVIRON|INIT)))
 			free(p->v_value);
-		if ((p->v_value = malloc(size(v)+1)) == NOSTR) {
+		if ((p->v_value = strdup(v)) == NOSTR) {
 			printf("out of core\r\n");
 			return;
 		}
 		p->v_type &= ~(ENVIRON|INIT);
-		strcpy(p->v_value, v);
 		break;
 
 	case NUMBER:
 		if (number(p->v_value) == number(v))
 			return;
-		number(p->v_value) = number(v);
+		setnumber(p->v_value, number(v));
 		break;
 
 	case BOOL:
 		if (boolean(p->v_value) == (*v != '!'))
 			return;
-		boolean(p->v_value) = (*v != '!');
+		setboolean(p->v_value, (*v != '!'));
 		break;
 
 	case CHAR:
 		if (character(p->v_value) == *v)
 			return;
-		character(p->v_value) = *v;
+		setcharacter(p->v_value, *v);
 	}
 	p->v_access |= CHANGED;
 }
 
 static void vprint();
+static void vtoken();
 
 void
 vlex(s)
-	register char *s;
+	char *s;
 {
-	register value_t *p;
-	static void vtoken();
+	value_t *p;
 
 	if (equal(s, "all")) {
 		for (p = vtable; p->v_name; p++)
 			if (vaccess(p->v_access, READ))
 				vprint(p);
 	} else {
-		register char *cp;
+		char *cp;
 
 		do {
 			if ((cp = vinterp(s, ' ')))
@@ -174,18 +175,18 @@ vlex(s)
 
 static void
 vtoken(s)
-	register char *s;
+	char *s;
 {
-	register value_t *p;
-	register char *cp;
+	value_t *p;
+	char *cp;
 	char *expand();
 
-	if ((cp = index(s, '='))) {
+	if ((cp = strchr(s, '='))) {
 		*cp = '\0';
 		if ((p = vlookup(s))) {
 			cp++;
 			if (p->v_type&NUMBER)
-				vassign(p, (char *) atoi(cp));
+				vassign(p, atoi(cp));
 			else {
 				if (strcmp(s, "record") == 0)
 					cp = expand(cp);
@@ -193,7 +194,7 @@ vtoken(s)
 			}
 			return;
 		}
-	} else if ((cp = index(s, '?'))) {
+	} else if ((cp = strchr(s, '?'))) {
 		*cp = '\0';
 		if ((p = vlookup(s)) && vaccess(p->v_access, READ)) {
 			vprint(p);
@@ -214,9 +215,9 @@ vtoken(s)
 
 static void
 vprint(p)
-	register value_t *p;
+	value_t *p;
 {
-	register char *cp;
+	char *cp;
 	extern char *interp(), *ctrl();
 
 	if (col > 0 && col < MIDDLE)
@@ -245,7 +246,7 @@ vprint(p)
 
 	case NUMBER:
 		col += 6;
-		printf("%s=%-5d", p->v_name, number(p->v_value));
+		printf("%s=%-5ld", p->v_name, number(p->v_value));
 		break;
 
 	case CHAR:
@@ -268,7 +269,7 @@ vprint(p)
 
 static int
 vaccess(mode, rw)
-	register unsigned mode, rw;
+	unsigned mode, rw;
 {
 	if (mode & (rw<<PUBLIC))
 		return (1);
@@ -279,9 +280,9 @@ vaccess(mode, rw)
 
 static value_t *
 vlookup(s)
-	register char *s;
+	char *s;
 {
-	register value_t *p;
+	value_t *p;
 
 	for (p = vtable; p->v_name; p++)
 		if (equal(p->v_name, s) || (p->v_abrev && equal(p->v_abrev, s)))
@@ -291,10 +292,10 @@ vlookup(s)
 
 char *
 vinterp(s, stop)
-	register char *s;
+	char *s;
 	char stop;
 {
-	register char *p = s, c;
+	char *p = s, c;
 	int num;
 
 	while ((c = *s++) && c != stop)
@@ -313,7 +314,7 @@ vinterp(s, stop)
 			if (c >= '0' && c <= '7')
 				num = (num<<3)+(c-'0');
 			else {
-				register char *q = "n\nr\rt\tb\bf\f";
+				char *q = "n\nr\rt\tb\bf\f";
 
 				for (; *q; q++)
 					if (c == *q++) {
@@ -345,20 +346,19 @@ vinterp(s, stop)
 /*
  * assign variable s with value v (for NUMBER or STRING or CHAR types)
  */
-
 int
 vstring(s,v)
-	register char *s;
-	register char *v;
+	char *s;
+	char *v;
 {
-	register value_t *p;
+	value_t *p;
 	char *expand();
 
-	p = vlookup(s);
+	p = vlookup(s); 
 	if (p == 0)
 		return (1);
 	if (p->v_type&NUMBER)
-		vassign(p, (char *) atoi(v));
+		vassign(p, atoi(v));
 	else {
 		if (strcmp(s, "record") == 0)
 			v = expand(v);

@@ -1,3 +1,6 @@
+/*	$OpenBSD: cmdtab.c,v 1.3 2001/09/09 17:58:41 millert Exp $	*/
+/*	$NetBSD: cmdtab.c,v 1.3 1994/12/08 09:30:46 jtc Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -31,20 +34,21 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: cmdtab.c,v 1.3 2001/09/09 17:58:41 millert Exp $";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
-#include "tipconf.h"
 #include "tip.h"
 
 extern	int shell(), getfl(), sendfile(), chdirectory();
-extern	int finish(), help(), pipefile(), pipeout(), variable();
-extern	int cu_take(), cu_put(), dollar(), genbrk(), suspend();
+extern	int finish(), help(), pipefile(), pipeout(), consh(), variable();
+extern	int cu_take(), cu_put(), dollar(), genbrk(), suspend(), listvariables();
 
 esctable_t etable[] = {
 	{ '!',	NORM,	"shell",			 shell },
@@ -54,7 +58,7 @@ esctable_t etable[] = {
 	{ 'p',	NORM,	"put file to remote UNIX",	 cu_put },
 	{ '|',	NORM,	"pipe remote file",		 pipefile },
 	{ '$',	NORM,	"pipe local command to remote host", pipeout },
-#if CONNECT
+#ifdef CONNECT
 	{ 'C',  NORM,	"connect program to remote host",consh },
 #endif
 	{ 'c',	NORM,	"change directory",		 chdirectory },
@@ -63,6 +67,7 @@ esctable_t etable[] = {
 	{CTRL('y'),NORM,"suspend tip (local+remote)",	 suspend },
 	{CTRL('z'),NORM,"suspend tip (local only)",	 suspend },
 	{ 's',	NORM,	"set variable",			 variable },
+	{ 'v',	NORM,	"list variables",		 listvariables },
 	{ '?',	NORM,	"get this summary",		 help },
 	{ '#',	NORM,	"send break",			 genbrk },
 	{ 0, 0, 0 }

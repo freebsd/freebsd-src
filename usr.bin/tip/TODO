@@ -1,22 +1,4 @@
-x Fix "hangup failed" in unidialer
-x Genericize tty code and/or support termios
-x Fixup uucplock conventions for FreeBSD (including reference in tip man pages).
-Sanity check for ttys
-x Rename pathnames.h
-x Qualify on USR
-Use select call to merge tipin / tipout
-
-x Finish table-driven modem driver
-x Move HAVE_USLEEP to pathhnames.h
-x Add variable for login and logout scripts (connect with Perl???)
-x redials / redial delay (see dial shell script)
-
-Add debug log capabilities for table-driven modem driver (command mode modem I/Owith timestamps).
-
-Use select in modem drivers.
-Consolidate consh()-derived code in cmds.c
-Screen-oriented command menu?
-Add external file-transfer protocol implementations to command menu (rz, sz, others?)
+# $FreeBSD$
 
 1. Rethink protection glitches on REMOTE & PHONES
    files (setuid/setgid??).

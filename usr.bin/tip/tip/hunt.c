@@ -1,3 +1,6 @@
+/*	$OpenBSD: hunt.c,v 1.8 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: hunt.c,v 1.6 1997/04/20 00:02:10 mellon Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -31,22 +34,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)hunt.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: hunt.c,v 1.8 2001/10/24 18:38:58 millert Exp $";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <err.h>
-#include <libutil.h>
-#include "tipconf.h"
 #include "tip.h"
 
 extern char *getremote();
-extern char *rindex();
 
 static	jmp_buf deadline;
 static	int deadfl;
@@ -58,23 +58,24 @@ dead()
 	longjmp(deadline, 1);
 }
 
-int
+long
 hunt(name)
 	char *name;
 {
-	register char *cp;
+	char *cp;
 	sig_t f;
-	int res;
 
 	f = signal(SIGALRM, dead);
 	while ((cp = getremote(name))) {
 		deadfl = 0;
-		uucplock = rindex(cp, '/')+1;
-		if ((res = uu_lock(uucplock)) != UU_LOCK_OK) {
-			if (res != UU_LOCK_INUSE)
-				fprintf(stderr, "uu_lock: %s\n", uu_lockerr(res));
+		uucplock = strrchr(cp, '/');
+		if (uucplock == NULL)
+			uucplock = cp;
+		else
+			uucplock++;
+
+		if (uu_lock(uucplock) < 0)
 			continue;
-		}
 		/*
 		 * Straight through call units, such as the BIZCOMP,
 		 * VADIC and the DF, must indicate they're hardwired in
@@ -86,33 +87,27 @@ hunt(name)
 			break;
 		if (setjmp(deadline) == 0) {
 			alarm(10);
-			FD = open(cp, O_RDWR);
+			FD = open(cp, (O_RDWR |
+				       (boolean(value(DC)) ? O_NONBLOCK : 0)));
 		}
 		alarm(0);
 		if (FD < 0) {
-			warn("%s", cp);
+			perror(cp);
 			deadfl = 1;
 		}
 		if (!deadfl) {
+			struct termios cntrl;
+
+			tcgetattr(FD, &cntrl);
+			if (!boolean(value(DC)))
+				cntrl.c_cflag |= HUPCL;
+			tcsetattr(FD, TCSAFLUSH, &cntrl);
 			ioctl(FD, TIOCEXCL, 0);
-#if HAVE_TERMIOS
-			{
-				struct termios t;
-				if (tcgetattr(FD, &t) == 0) {
-					t.c_cflag |= HUPCL;
-					(void)tcsetattr(FD, TCSANOW, &t);
-				}
-			}
-#else /* HAVE_TERMIOS */
-#ifdef TIOCHPCL
-			ioctl(FD, TIOCHPCL, 0);
-#endif
-#endif /* HAVE_TERMIOS */
 			signal(SIGALRM, SIG_DFL);
-			return ((int)cp);
+			return ((long)cp);
 		}
 		(void)uu_unlock(uucplock);
 	}
 	signal(SIGALRM, f);
-	return (deadfl ? -1 : (int)cp);
+	return (deadfl ? -1 : (long)cp);
 }

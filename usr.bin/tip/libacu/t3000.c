@@ -1,3 +1,6 @@
+/*	$OpenBSD: t3000.c,v 1.9 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: t3000.c,v 1.5 1997/02/11 09:24:18 mrg Exp $	*/
+
 /*
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -31,20 +34,24 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
+#if 0
+static char sccsid[] = "@(#)t3000.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: t3000.c,v 1.9 2001/10/24 18:38:58 millert Exp $";
 #endif
+#endif /* not lint */
 
 /*
  * Routines for calling up on a Telebit T3000 modem.
  * Derived from Courier driver.
  */
-#include "tipconf.h"
 #include "tip.h"
-#include "acucommon.h"
+
+#include <sys/ioctl.h>
 #include <stdio.h>
-#include <unistd.h>
 
 #define	MAXRETRY	5
 
@@ -52,29 +59,33 @@ static	void sigALRM();
 static	int timeout = 0;
 static	int connected = 0;
 static	jmp_buf timeoutbuf, intbuf;
-static	int t3000_sync();
+static	int t3000_sync(), t3000_connect(), t3000_swallow();
+static	void t3000_nap();
 
+int
 t3000_dialer(num, acu)
-	register char *num;
+	char *num;
 	char *acu;
 {
-	register char *cp;
-#if ACULOG
+	char *cp;
+	struct termios cntrl;
+#ifdef ACULOG
 	char line[80];
 #endif
-	static int t3000_connect(), t3000_swallow();
 
 	if (boolean(value(VERBOSE)))
 		printf("Using \"%s\"\n", acu);
 
-	acu_hupcl ();
+	tcgetattr(FD, &cntrl);
+	cntrl.c_cflag |= HUPCL;
+	tcsetattr(FD, TCSANOW, &cntrl);
 	/*
 	 * Get in synch.
 	 */
 	if (!t3000_sync()) {
 badsynch:
 		printf("can't synchronize with t3000\n");
-#if ACULOG
+#ifdef ACULOG
 		logent(value(HOST), num, "t3000", "can't synch up");
 #endif
 		return (0);
@@ -85,7 +96,7 @@ badsynch:
 	if (boolean(value(VERBOSE)))
 		t3000_verbose_read();
 #endif
-	ioctl(FD, TIOCFLUSH, 0);	/* flush any clutter */
+	tcflush(FD, TCIOFLUSH);
 	t3000_write(FD, "AT E0 H0 Q0 X4 V1\r", 18);
 	if (!t3000_swallow("\r\nOK\r\n"))
 		goto badsynch;
@@ -97,9 +108,9 @@ badsynch:
 	t3000_write(FD, num, strlen(num));
 	t3000_write(FD, "\r", 1);
 	connected = t3000_connect();
-#if ACULOG
+#ifdef ACULOG
 	if (timeout) {
-		sprintf(line, "%d second dial timeout",
+		(void)sprintf(line, "%ld second dial timeout",
 			number(value(DIALTIMEOUT)));
 		logent(value(HOST), num, "t3000", line);
 	}
@@ -109,6 +120,7 @@ badsynch:
 	return (connected);
 }
 
+void
 t3000_disconnect()
 {
 	 /* first hang up the modem*/
@@ -119,6 +131,7 @@ t3000_disconnect()
 	close(FD);
 }
 
+void
 t3000_abort()
 {
 	t3000_write(FD, "\r", 1);	/* send anything to abort the call */
@@ -135,8 +148,8 @@ sigALRM()
 
 static int
 t3000_swallow(match)
-  register char *match;
-  {
+	char *match;
+{
 	sig_t f;
 	char c;
 
@@ -237,8 +250,12 @@ again:
 			for (bm = tbaud_msg ; bm->msg ; bm++)
 				if (strcmp(bm->msg,
 				    dialer_buf+sizeof("CONNECT")-1) == 0) {
-					if (!(acu_setspeed (bm->baud) || (bm->baud2 && acu_setspeed (bm->baud2))))
-						goto error;
+					struct termios	cntrl;
+
+					tcgetattr(FD, &cntrl);
+					cfsetospeed(&cntrl, bm->baud);
+					cfsetispeed(&cntrl, bm->baud);
+					tcsetattr(FD, TCSAFLUSH, &cntrl);
 					signal(SIGALRM, f);
 #ifdef DEBUG
 					if (boolean(value(VERBOSE)))
@@ -254,9 +271,7 @@ again:
 			putchar(c);
 #endif
 	}
-error1:
 	printf("%s\r\n", dialer_buf);
-error:
 	signal(SIGALRM, f);
 	return (0);
 }
@@ -273,7 +288,7 @@ t3000_sync()
 	char buf[40];
 
 	while (already++ < MAXRETRY) {
-		ioctl(FD, TIOCFLUSH, 0);	/* flush any clutter */
+		tcflush(FD, TCIOFLUSH);
 		t3000_write(FD, "\rAT Z\r", 6);	/* reset modem */
 		bzero(buf, sizeof(buf));
 		sleep(2);
@@ -287,8 +302,8 @@ if (len == 0) len = 1;
 			buf[len] = '\0';
 			printf("t3000_sync: (\"%s\")\n\r", buf);
 #endif
-			if (index(buf, '0') ||
-		   	   (index(buf, 'O') && index(buf, 'K')))
+			if (strchr(buf, '0') || 
+		   	   (strchr(buf, 'O') && strchr(buf, 'K')))
 				return(1);
 		}
 		/*
@@ -310,6 +325,7 @@ if (len == 0) len = 1;
 	return (0);
 }
 
+static int
 t3000_write(fd, cp, n)
 int fd;
 char *cp;
@@ -317,13 +333,13 @@ int n;
 {
 #ifdef notdef
 	if (boolean(value(VERBOSE)))
-		write(STDOUT_FILENO, cp, n);
+		write(1, cp, n);
 #endif
-	acu_flush ();
+	tcdrain(fd);
 	t3000_nap();
 	for ( ; n-- ; cp++) {
 		write(fd, cp, 1);
-		acu_flush ();
+		tcdrain(fd);
 		t3000_nap();
 	}
 }
@@ -340,13 +356,18 @@ t3000_verbose_read()
 		return;
 	if (read(FD, buf, n) != n)
 		return;
-	write(STDOUT_FILENO, buf, n);
+	write(1, buf, n);
 }
 #endif
 
+/* Give the t3000 50 milliseconds between characters */
+void
 t3000_nap()
 {
-	acu_nap (50);
-}
+	struct timespec ts;
 
-/* end of t3000.c */
+	ts.tv_sec = 0;
+	ts.tv_nsec = 50 * 1000000;
+
+	nanosleep(&ts, NULL);
+}
