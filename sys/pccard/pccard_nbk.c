@@ -28,7 +28,7 @@
 
 /*
  * This file contains various kludges to allow the legacy pccard system to
- * work in the newbus system until the pccard system can be converted 
+ * work in the newbus system until the pccard system can be converted
  * wholesale to newbus.  As that is a while off, I'm providing this glue to
  * allow newbus drivers to have pccard attachments.
  *
@@ -136,7 +136,7 @@ pccard_print_child(device_t dev, device_t child)
 		    PCCARD_NMEM, "%#lx");
 		pccard_print_resources(rl, "irq", SYS_RES_IRQ, PCCARD_NIRQ,
 		    "%ld");
-		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ, 
+		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ,
 		    "%ld");
 		retval += printf(" slot %d", devi->slt->slotnum);
 	}
@@ -148,7 +148,7 @@ pccard_print_child(device_t dev, device_t child)
 
 static int
 pccard_set_resource(device_t dev, device_t child, int type, int rid,
-		 u_long start, u_long count)
+    u_long start, u_long count)
 {
 	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
@@ -168,7 +168,7 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 		return EINVAL;
 
 	resource_list_add(rl, type, rid, start, start + count - 1, count);
- 
+
 	return 0;
 }
 
@@ -209,14 +209,17 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * irq, 0-3 for memory and 0-1 for ports
 	 */
 	int passthrough = (device_get_parent(child) != bus);
-	int isdefault = (start == 0UL && end == ~0UL);
+	int isdefault;
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
 	struct resource *res;
 
-	/* XXX Do I need to add a special case here for the cis memory? XXX */
-
+	if (start == 0 && end == ~0 && type == SYS_RES_MEMORY && count != 1) {
+		start = 0xd0000;
+		end = 0xdffff;
+	}
+	isdefault = (start == 0UL && end == ~0UL);
 	if (!passthrough && !isdefault) {
 		rle = resource_list_find(rl, type, *rid);
 		if (!rle) {
@@ -245,10 +248,9 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			resource_list_add(rl, type, *rid, start, end, count);
 		}
 	}
-
-	res = resource_list_alloc(rl, bus, child, type, rid, start, end, 
+	res = resource_list_alloc(rl, bus, child, type, rid, start, end,
 	    count, flags);
-	return res;
+	return (res);
 }
 
 static int
@@ -295,8 +297,8 @@ static int
 pccard_set_memory_offset(device_t bus, device_t child, int rid, 
     u_int32_t offset)
 {
-	return CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid, 
-	    offset);	
+	return CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
+	    offset);
 }
 
 static device_method_t pccard_methods[] = {
