@@ -188,7 +188,7 @@ afd_describe(struct afd_softc *fdp)
 		   fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors,
 		   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
 		   fdp->cap.sector_size);
-	ata_prtdev(fdp->device, "%dKB/s,", fdp->lun, fdp->cap.transfer_rate/8);
+	ata_prtdev(fdp->device, "%dKB/s,", fdp->cap.transfer_rate / 8);
 	if (fdp->transfersize)
 	    printf(" transfer limit %d blks,", fdp->transfersize);
 	printf(" %s\n", ata_mode2str(fdp->device->mode));
