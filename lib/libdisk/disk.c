@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.38 1998/10/06 11:57:08 dfr Exp $
+ * $Id: disk.c,v 1.39 1998/12/19 18:48:33 phk Exp $
  *
  */
 
@@ -143,6 +143,7 @@ Int_Open_Disk(const char *name, u_long size)
 		{}
 #endif
 
+#ifdef __i386__
 	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
 		char sname[20];
 		chunk_e ce;
@@ -241,6 +242,67 @@ Int_Open_Disk(const char *name, u_long size)
 		}
 		}
 	}
+#endif /* __i386__ */
+#ifdef __alpha__
+	{
+		struct disklabel dl;
+		char pname[20];
+		int j,k;
+
+		strcpy(pname,"/dev/r");
+		strcat(pname,name);
+		j = open(pname,O_RDONLY);
+		if (j < 0) {
+#ifdef DEBUG
+			warn("open(%s)",pname);
+#endif
+			goto nolabel;
+		}
+		k = ioctl(j,DIOCGDINFO,&dl);
+		if (k < 0) {
+#ifdef DEBUG
+			warn("ioctl(%s,DIOCGDINFO)",pname);
+#endif
+			close(j);
+			goto nolabel;
+		}
+		close(j);
+		All_FreeBSD(d, 1);
+
+		for(j=0; j <= dl.d_npartitions; j++) {
+			if (j == RAW_PART)
+				continue;
+			if (j == 3)
+				continue;
+			if (j == dl.d_npartitions) {
+				j = 3;
+				dl.d_npartitions=0;
+			}
+			if (!dl.d_partitions[j].p_size)
+				continue;
+			if (dl.d_partitions[j].p_size +
+			    dl.d_partitions[j].p_offset >
+			    ds.dss_slices[WHOLE_DISK_SLICE].ds_size)
+				continue;
+			sprintf(pname,"%s%c",name,j+'a');
+			if (Add_Chunk(d,
+				      dl.d_partitions[j].p_offset,
+				      dl.d_partitions[j].p_size,
+				      pname,part,
+				      dl.d_partitions[j].p_fstype,
+				      0) && j != 3)
+#ifdef DEBUG
+				warn(
+					"Failed to add chunk for partition %c [%lu,%lu]",
+					j + 'a',dl.d_partitions[j].p_offset,
+					dl.d_partitions[j].p_size);
+#else
+			{}
+#endif
+		}
+	nolabel:;
+	}
+#endif /* __alpha__ */
 	close(fd);
 	Fixup_Names(d);
 	Bios_Limit_Chunk(d->chunks,1024*d->bios_hd*d->bios_sect);
