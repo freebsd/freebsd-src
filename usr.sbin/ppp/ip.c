@@ -450,7 +450,7 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
   struct dns_header header;
   const u_short *pktptr;
   const u_char *ptr;
-  u_short *hptr;
+  u_short *hptr, tmp;
   int len;
 
   ptr = (const char *)uh + sizeof *uh;
@@ -489,11 +489,16 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
       n += len;
     }
     *n = '\0';
-    qtype = dns_Qtype2Txt(ntohs(*(const u_short *)end));
-    qclass = dns_Qclass2Txt(ntohs(*(const u_short *)(end + 2)));
 
-    log_Printf(LogDNS, "%sbound query %s %s %s\n",
-               direction, qclass, qtype, namewithdot);
+    if (log_IsKept(LogDNS)) {
+      memcpy(&tmp, end, sizeof tmp);
+      qtype = dns_Qtype2Txt(ntohs(tmp));
+      memcpy(&tmp, end + 2, sizeof tmp);
+      qclass = dns_Qclass2Txt(ntohs(tmp));
+
+      log_Printf(LogDNS, "%sbound query %s %s %s\n",
+                 direction, qclass, qtype, namewithdot);
+    }
   }
 }
 
