@@ -55,10 +55,10 @@ entirely within a single page.
 The
 .Fn pmap_zero_page_idle
 interface is used by the
-.Em vm_pagezero
+.Nm vm_pagezero
 process.
 The system-wide
-.Fa Giant
+.Va Giant
 lock should not be required to be held in order to call this interface.
 .Sh IMPLEMENTATION NOTES
 This function is required to be implemented for each architecture supported by

@@ -35,8 +35,9 @@
 .In vm/vm.h
 .In vm/pmap.h
 .Ft vm_offset_t
-.Fn pmap_map "vm_offset_t *virt" "vm_paddr_t start" "vm_paddr_t end" \
-"int prot"
+.Fo pmap_map
+.Fa "vm_offset_t *virt" "vm_paddr_t start" "vm_paddr_t end" "int prot"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pmap_map

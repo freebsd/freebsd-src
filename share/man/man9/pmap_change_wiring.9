@@ -44,10 +44,11 @@ function changes the wiring attribute for the page at virtual address
 in the physical map
 .Fa pmap .
 A wired page gets its name from being
-.Sq wired
+.Dq wired
 into the system page tables so that it will not be paged out.
 .Pp
-The mapping must already exist in the pmap.
+The mapping must already exist in the
+.Fa pmap .
 If
 .Fa wired
 is
