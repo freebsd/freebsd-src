@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.34 1997/09/13 19:42:12 joerg Exp $
+ * $Id: kern_sig.c,v 1.35 1997/11/06 19:29:14 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -49,6 +49,7 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
+#include <sys/pioctl.h>
 #include <sys/systm.h>
 #include <sys/acct.h>
 #include <sys/fcntl.h>
@@ -743,15 +744,19 @@ psignal(p, signum)
 	register sig_t action;
 	int mask;
 
-	if ((u_int)signum >= NSIG || signum == 0)
+	if ((u_int)signum >= NSIG || signum == 0) {
+		printf("psignal: signum %d\n", signum);
 		panic("psignal signal number");
+	}
 	mask = sigmask(signum);
 	prop = sigprop[signum];
 
 	/*
-	 * If proc is traced, always give parent a chance.
+	 * If proc is traced, always give parent a chance;
+	 * if signal event is tracked by procfs, give *that*
+	 * a chance, as well.
 	 */
-	if (p->p_flag & P_TRACED)
+	if ((p->p_flag & P_TRACED) || (p->p_stops & S_SIG))
 		action = SIG_DFL;
 	else {
 		/*
@@ -948,6 +953,8 @@ issignal(p)
 	register int signum, mask, prop;
 
 	for (;;) {
+		int traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
+
 		mask = p->p_siglist & ~p->p_sigmask;
 		if (p->p_flag & P_PPWAIT)
 			mask &= ~stopsigmask;
@@ -956,11 +963,14 @@ issignal(p)
 		signum = ffs((long)mask);
 		mask = sigmask(signum);
 		prop = sigprop[signum];
+
+		STOPEVENT(p, S_SIG, signum);
+
 		/*
 		 * We should see pending but ignored signals
 		 * only if P_TRACED was on when they were posted.
 		 */
-		if (mask & p->p_sigignore && (p->p_flag & P_TRACED) == 0) {
+		if ((mask & p->p_sigignore) && (traced == 0)) {
 			p->p_siglist &= ~mask;
 			continue;
 		}
@@ -974,7 +984,8 @@ issignal(p)
 			do {
 				stop(p);
 				mi_switch();
-			} while (!trace_req(p) && p->p_flag & P_TRACED);
+			} while (!trace_req(p)
+				 && p->p_flag & P_TRACED);
 
 			/*
 			 * If the traced bit got turned off, go back up
@@ -1118,6 +1129,8 @@ postsig(signum)
 		    signum, action, ps->ps_flags & SAS_OLDMASK ?
 		    ps->ps_oldmask : p->p_sigmask, 0);
 #endif
+	STOPEVENT(p, S_SIG, signum);
+
 	if (action == SIG_DFL) {
 		/*
 		 * Default action, where the default is to kill
@@ -1235,6 +1248,8 @@ coredump(p)
 	struct vattr vattr;
 	int error, error1;
 	char name[MAXCOMLEN+6];		/* progname.core */
+
+	STOPEVENT(p, S_CORE, 0);
 
 	if (p->p_flag & P_SUGID)
 		return (EFAULT);

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.42 1997/11/07 08:53:15 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.43 1997/12/05 19:55:47 bde Exp $
  */
 
 /*
@@ -56,6 +56,7 @@
 #include <sys/dirent.h>
 #include <machine/reg.h>
 #include <miscfs/procfs/procfs.h>
+#include <sys/pioctl.h>
 
 static int	procfs_abortop __P((struct vop_abortop_args *));
 static int	procfs_access __P((struct vop_access_args *));
@@ -64,6 +65,7 @@ static int	procfs_bmap __P((struct vop_bmap_args *));
 static int	procfs_close __P((struct vop_close_args *));
 static int	procfs_getattr __P((struct vop_getattr_args *));
 static int	procfs_inactive __P((struct vop_inactive_args *));
+static int	procfs_ioctl __P((struct vop_ioctl_args *));
 static int	procfs_lookup __P((struct vop_lookup_args *));
 static int	procfs_open __P((struct vop_open_args *));
 static int	procfs_print __P((struct vop_print_args *));
@@ -182,6 +184,79 @@ procfs_close(ap)
 	}
 
 	return (0);
+}
+
+/*
+ * do an ioctl operation on a pfsnode (vp).
+ * (vp) is not locked on entry or exit.
+ */
+static int
+procfs_ioctl(ap)
+	struct vop_ioctl_args *ap;
+{
+	struct pfsnode *pfs = VTOPFS(ap->a_vp);
+	struct proc *procp;
+	int error;
+	int signo;
+	struct procfs_status *psp;
+
+	procp = pfind(pfs->pfs_pid);
+	if (procp == NULL) {
+		return ENOTTY;
+	}
+
+	switch (ap->a_command) {
+	case PIOCBIS:
+	  procp->p_stops |= *(unsigned int*)ap->a_data;
+	  break;
+	case PIOCBIC:
+	  procp->p_stops &= ~*(unsigned int*)ap->a_data;
+	  break;
+	case PIOCSFL:
+	  procp->p_pfsflags = (unsigned char)*(unsigned int*)ap->a_data;
+	  *(unsigned int*)ap->a_data = procp->p_stops;
+	  break;
+	case PIOCSTATUS:
+	  psp = (struct procfs_status *)ap->a_data;
+	  psp->state = (procp->p_step == 0);
+	  psp->flags = procp->p_pfsflags;
+	  psp->events = procp->p_stops;
+	  if (procp->p_step) {
+	    psp->why = procp->p_stype;
+	    psp->val = procp->p_xstat;
+	  } else {
+	    psp->why = psp->val = 0;	/* Not defined values */
+	  }
+	  break;
+	case PIOCWAIT:
+	  psp = (struct procfs_status *)ap->a_data;
+	  if (procp->p_step == 0) {
+	    error = tsleep(&procp->p_stype, PWAIT | PCATCH, "piocwait", 0);
+	    if (error)
+	      return error;
+	  }
+	  psp->state = 1;	/* It stopped */
+	  psp->flags = procp->p_pfsflags;
+	  psp->events = procp->p_stops;
+	  psp->why = procp->p_stype;	/* why it stopped */
+	  psp->val = procp->p_xstat;	/* any extra info */
+	  break;
+	case PIOCCONT:	/* Restart a proc */
+	  if (procp->p_step == 0)
+	    return EINVAL;	/* Can only start a stopped process */
+	  if (ap->a_data && (signo = *(int*)ap->a_data)) {
+	    if (signo >= NSIG || signo <= 0)
+	      return EINVAL;
+	    if (error = psignal(procp, signo))
+	      return error;
+	  }
+	  procp->p_step = 0;
+	  wakeup(&procp->p_step);
+	  break;
+	default:
+	  return (ENOTTY);
+	}
+	return 0;
 }
 
 /*
@@ -909,6 +984,7 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) procfs_setattr },
 	{ &vop_symlink_desc,		(vop_t *) procfs_badop },
 	{ &vop_write_desc,		(vop_t *) procfs_rw },
+	{ &vop_ioctl_desc,		(vop_t *) procfs_ioctl },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc procfs_vnodeop_opv_desc =
