@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.24 1997/05/10 01:25:50 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.25 1997/05/10 20:41:11 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -338,13 +338,13 @@ sub html2html {
 	      $st_parent[0] = -1;
 	      $t = $st_header[0];
 	      $t =~ s|<[a-zA-Z/][^>]*>||g;
-	      print tocfile "<HEAD>\n<TITLE>$t</TITLE>\n" .
-	      	  $html_encoding . "</HEAD>\n";
+	      print tocfile "<HEAD>\n$html_encoding\n<TITLE>$t</TITLE>\n" .
+	      	  "</HEAD>\n";
 	      print tocfile "<H1>$st_header[0]</H1>\n";
 
 	      $header[$st_ol[$sc]] = 
-		  "$doctype\n<HTML>\n<HEAD>\n<TITLE>$t</TITLE>\n" . 
-		      $html_encoding . "</HEAD>\n$BODY\n";
+	          "$doctype\n<HTML>\n<HEAD>\n$html_encoding\n<TITLE>$t</TITLE>\n" . 
+		      "</HEAD>\n$BODY\n";
     	      $header[$st_ol[$sc]] .= $html_header;
 	      $header[$st_ol[$sc]] .= "\n<H1>$st_header[0]</H1>\n"; 
 
@@ -372,8 +372,8 @@ sub html2html {
     	    	  $t = $_;
 	          $t =~ s|<[a-zA-Z/][^>]*>||g;
 		  $header[$st_ol[$sc]] = 
-		      "$doctype\n<HTML>\n<HEAD>\n<TITLE>$t</TITLE>\n" .
-		      $html_encoding . "</HEAD>\n$BODY\n";
+		      "$doctype\n<HTML>\n<HEAD>\n$html_encoding\n<TITLE>$t</TITLE>\n" .
+		      	"</HEAD>\n$BODY\n";
 		  $header[$st_ol[$sc]] .= $html_header;
 		  $header[$st_ol[$sc]] .= "\n$navbar[$st_ol[$sc]]\n<HR NOSHADE>\n";
 		  $footer[$st_ol[$sc]] = "<HR NOSHADE>\n$navbar[$st_ol[$sc]]\n";
@@ -679,7 +679,7 @@ sub main {
     	    $opt_e = "iso-8859-1";
     	}
     	$html_encoding = "<META HTTP-EQUIV=\"Content-Type\" " .
-    	    "CONTENT=\"text/html; charset=" . $opt_e . "\">\n";
+    	    "CONTENT=\"text/html; charset=" . $opt_e . "\">";
 
     	if ($dtd eq "docbook") {
     	    if ($opt_hdr) {$instantopts .= " -D \"inchdr=${opt_hdr}\"";}
