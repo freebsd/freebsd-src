@@ -254,7 +254,7 @@ ipxipoutput(ifp, m, dst, rt)
 	if (len & 1)
 		len++;		/* Preserve Garbage Byte */
 	/* following clause not necessary on vax */
-	if (3 & (int)m->m_data) {
+	if (3 & (intptr_t)m->m_data) {
 		/* force longword alignment of ip hdr */
 		struct mbuf *m0 = m_gethdr(MT_HEADER, M_DONTWAIT);
 		if (m0 == NULL) {
