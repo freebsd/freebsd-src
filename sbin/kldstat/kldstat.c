@@ -38,6 +38,12 @@ static const char rcsid[] =
 #include <sys/module.h>
 #include <sys/linker.h>
 
+#if defined(__alpha__)
+#define	POINTER_WIDTH	18
+#else
+#define	POINTER_WIDTH	10
+#endif
+
 static void
 printmod(int modid)
 {
@@ -111,7 +117,7 @@ main(int argc, char** argv)
 	    err(1, "can't find file %s", filename);
     }
 
-    printf("Id Refs Address    Size     Name\n");
+    printf("Id Refs Address%*c Size     Name\n", POINTER_WIDTH - 7, ' ');
     if (fileid)
 	printfile(fileid, verbose);
     else
