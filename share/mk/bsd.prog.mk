@@ -6,6 +6,7 @@
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .ln .s .S .asm
 
 CFLAGS+=${COPTS} ${DEBUG_FLAGS}
+CFLAGS+=${CRUNCH_CFLAGS}
 
 .if !defined(DEBUG_FLAGS)
 STRIP?=	-s
