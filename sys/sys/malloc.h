@@ -44,11 +44,10 @@
 /*
  * flags to malloc.
  */
-
 #define	M_WAITOK	0x0000
-#define	M_NOWAIT	0x0001		/* do not block			*/
-#define M_USE_RESERVE	0x0002		/* can alloc out of reserve memory  */
-#define M_ASLEEP	0x0004		/* async sleep on failure	*/
+#define	M_NOWAIT	0x0001		/* do not block */
+#define	M_USE_RESERVE	0x0002		/* can alloc out of reserve memory */
+#define	M_ASLEEP	0x0004		/* async sleep on failure */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
@@ -67,10 +66,6 @@ struct malloc_type {
 };
 
 #ifdef KERNEL
-
-void	malloc_init __P((void *));
-void	malloc_uninit __P((void *));
-
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
 	struct malloc_type type[1] = { \
 		{ NULL, 0, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, 0, 0 } \
@@ -84,7 +79,7 @@ void	malloc_uninit __P((void *));
 MALLOC_DECLARE(M_CACHE);
 MALLOC_DECLARE(M_DEVBUF);
 MALLOC_DECLARE(M_TEMP);
-#endif	/* KERNEL */
+#endif /* KERNEL */
 
 /*
  * Array of descriptors that describe the contents of each page
@@ -114,7 +109,6 @@ struct kmembuckets {
 };
 
 #ifdef KERNEL
-
 #define	MINALLOCSIZE	(1 << MINBUCKET)
 #define BUCKETINDX(size) \
 	((size) <= (MINALLOCSIZE * 128) \
@@ -208,14 +202,15 @@ extern struct kmembuckets bucket[];
 MALLOC_DECLARE(M_IOV);
 
 /* XXX struct malloc_type is unused for contig*(). */
-void	*contigmalloc __P((unsigned long size, struct malloc_type *type,
-			   int flags,
-			   unsigned long low, unsigned long high,
-			   unsigned long alignment, unsigned long boundary));
 void	contigfree __P((void *addr, unsigned long size,
-			   struct malloc_type *type));
+			struct malloc_type *type));
+void	*contigmalloc __P((unsigned long size, struct malloc_type *type,
+			   int flags, unsigned long low, unsigned long high,
+			   unsigned long alignment, unsigned long boundary));
 void	free __P((void *addr, struct malloc_type *type));
 void	*malloc __P((unsigned long size, struct malloc_type *type, int flags));
+void	malloc_init __P((void *));
+void	malloc_uninit __P((void *));
 #endif /* KERNEL */
 
 #endif /* !_SYS_MALLOC_H_ */
