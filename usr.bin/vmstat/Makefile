@@ -3,7 +3,6 @@
 
 PROG=	vmstat
 MAN=	vmstat.8
-CFLAGS+=-I${.CURDIR}/../../sys
 BINGRP=	kmem
 BINMODE=2555
 DPADD=	${LIBKVM} ${LIBDEVSTAT}

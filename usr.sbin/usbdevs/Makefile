@@ -3,6 +3,5 @@
 
 PROG=	usbdevs
 MAN=	usbdevs.8
-CFLAGS+=-I${.CURDIR}/../../sys
 
 .include <bsd.prog.mk>
