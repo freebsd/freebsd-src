@@ -67,7 +67,8 @@ struct image_params {
 #ifdef _KERNEL
 int	exec_check_permissions(struct image_params *);
 int	exec_extract_strings(struct image_params *);
-int	exec_new_vmspace(struct image_params *);
+int	exec_new_vmspace(struct image_params *, vm_offset_t, vm_offset_t,
+    vm_offset_t);
 int	exec_shell_imgact(struct image_params *);
 #endif
 

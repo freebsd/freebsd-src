@@ -26,9 +26,49 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/linker.h>
+#include <sys/sysent.h>
+#include <sys/imgact_elf.h>
+#include <sys/syscall.h>
+#include <sys/signalvar.h>
+#include <sys/vnode.h>
 #include <machine/elf.h>
+#include <machine/md_var.h>
+
+struct sysentvec elf32_freebsd_sysvec = {
+	SYS_MAXSYSCALL,
+	sysent,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	elf32_freebsd_fixup,
+	sendsig,
+	sigcode,
+	&szsigcode,
+	0,
+	"FreeBSD ELF32",
+	__elfN(coredump),
+	NULL,
+	MINSIGSTKSZ
+};
+
+static Elf32_Brandinfo freebsd_brand_info = {
+						ELFOSABI_FREEBSD,
+						EM_386,
+						"FreeBSD",
+						"",
+						"/usr/libexec/ld-elf.so.1",
+						&elf32_freebsd_sysvec
+					  };
+
+SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,
+	(sysinit_cfunc_t) elf32_insert_brand_entry,
+	&freebsd_brand_info);
 
 /* Process one elf relocation with addend. */
 int

@@ -22,8 +22,9 @@ ia64/acpica/acpi_machdep.c	optional	acpica
 ia64/acpica/acpi_wakeup.c	optional	acpica
 ia64/acpica/OsdEnvironment.c	optional	acpica
 ia64/acpica/madt.c		optional	acpica
+ia64/ia32/ia32_misc.c		optional	ia32
 ia64/ia32/ia32_sysent.c		optional	ia32
-ia64/ia32/imgact_ia32.c		optional	ia32
+ia64/ia32/ia32_sysvec.c		optional	ia32
 ia64/ia64/ia64-gdbstub.c	optional	ddb
 ia64/ia64/autoconf.c		standard
 ia64/ia64/busdma_machdep.c	standard
