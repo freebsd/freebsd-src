@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.48 1997/06/13 07:11:20 jkh Exp $
+ * $Id: install.c,v 1.134.2.49 1997/06/18 05:12:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -445,6 +445,7 @@ installExpress(dialogMenuItem *self)
     if (DITEM_STATUS((i = diskLabelEditor(self))) == DITEM_FAILURE)
 	return i;
 
+    dialog_clear_norefresh();
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
 	/* Give user the option of one last configuration spree */
@@ -482,6 +483,7 @@ installNovice(dialogMenuItem *self)
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
+    dialog_clear_norefresh();
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
 	dialog_clear_norefresh();
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
@@ -623,6 +625,7 @@ installCustomCommit(dialogMenuItem *self)
 {
     int i;
 
+    dialog_clear_norefresh();
     i = installCommit(self);
     if (DITEM_STATUS(i) == DITEM_SUCCESS) {
 	/* Give user the option of one last configuration spree */
