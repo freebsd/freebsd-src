@@ -22,7 +22,7 @@ BINUTIL_ARCH=${TARGET_ARCH}
 # added to it as we descend into subdirectories.
 RELTOP:=	..
 
-RELSRC=		${RELTOP}/../../../contrib/binutils
+RELSRC=		${RELTOP}/../../../contrib/binutils.291
 SRCDIR=		${.CURDIR}/${RELSRC}
 
 CFLAGS+=	-D_GNU_SOURCE
