@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.386 1998/09/15 13:15:18 jhay Exp $
+#	$Id: Makefile,v 1.387 1998/09/17 11:25:48 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -41,7 +41,7 @@ NODOC=  YES
 #NOPORTS=  YES
 # Comment the following if you want the release documentation to be
 # in English only.
-ALLLANG= yes
+#ALLLANG= yes
 DOCPORTS= archivers/unzip textproc/jade textproc/iso8879 \
           textproc/linuxdoc textproc/docbook textproc/sgmlformat
 
