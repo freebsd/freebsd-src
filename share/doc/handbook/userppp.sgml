@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.3 1995/08/29 01:42:52 jfieber Exp $ -->
+<!-- $Id: userppp.sgml,v 1.4 1995/12/04 17:58:52 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -174,7 +174,7 @@ namedflags="NO"
      foo.bar.com with the IP address 10.0.0.1, <tt>/etc/hosts</tt> should
      contain:
 <tscreen><verb>
-127.0.0.0    localhost
+127.0.0.1    localhost
 10.0.0.1     foo.bar.com	       foo
 </verb></tscreen>
      The first line defines the alias ``localhost'' as a synonym for the
