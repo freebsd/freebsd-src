@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.28 1997/07/15 23:25:32 julian Exp $
+ *	$Id: rtsock.c,v 1.29 1997/07/16 14:55:14 julian Exp $
  */
 
 
@@ -529,6 +529,11 @@ rt_xaddrs(cp, cplim, rtinfo)
 		 */
 		if ( (cp + sa->sa_len) > cplim )
 			return;
+
+		/* accept it */
+		rtinfo->rti_info[i] = sa;
+		ADVANCE(cp, sa);
+
 		/*
 		 * there are no more.. quit now
 		 * If there are more bits, they are in error.
@@ -537,8 +542,6 @@ rt_xaddrs(cp, cplim, rtinfo)
 		 */
 		if (sa->sa_len == 0)
 			return;
-		rtinfo->rti_info[i] = sa;
-		ADVANCE(cp, sa);
 	}
 }
 
