@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.16 1997/09/04 00:38:21 brian Exp $
+ * $Id: systems.c,v 1.17 1997/10/26 01:03:48 brian Exp $
  *
  *  TODO:
  */
@@ -139,7 +139,7 @@ SelectSystem(char *name, char *file)
 {
   FILE *fp;
   char *cp, *wp;
-  int n;
+  int n, len;
   u_char olauth;
   char line[200];
   char filename[200];
@@ -189,12 +189,19 @@ SelectSystem(char *name, char *file)
 	  if (*cp == ' ' || *cp == '\t') {
 	    n = strspn(cp, " \t");
 	    cp += n;
+            len = strlen(cp);
+            if (!len)
+              continue;
+            if (cp[len-1] == '\n')
+              cp[--len] = '\0';
+            if (!len)
+              continue;
 	    LogPrintf(LogCOMMAND, "%s: %s\n", name, cp);
 	    SetPppId();
 	    olauth = VarLocalAuth;
 	    if (VarLocalAuth == LOCAL_NO_AUTH)
 	      VarLocalAuth = LOCAL_AUTH;
-	    DecodeCommand(cp, strlen(cp), 0);
+	    DecodeCommand(cp, len, 0);
 	    VarLocalAuth = olauth;
 	    SetUserId();
 	  } else if (*cp == '#') {
