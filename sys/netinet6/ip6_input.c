@@ -1129,13 +1129,7 @@ ip6_savecontrol(in6p, mp, ip6, m)
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 {
-	struct proc *p = curproc;	/* XXX */
-	int privileged = 0;
 	int rthdr_exist = 0;
-
-
-	if (p && !suser(p))
- 		privileged++;
 
 #ifdef SO_TIMESTAMP
 	if ((in6p->in6p_socket->so_options & SO_TIMESTAMP) != 0) {
@@ -1175,12 +1169,13 @@ ip6_savecontrol(in6p, mp, ip6, m)
 	}
 
 	/*
-	 * IPV6_HOPOPTS socket option. We require super-user privilege
-	 * for the option, but it might be too strict, since there might
-	 * be some hop-by-hop options which can be returned to normal user.
-	 * See RFC 2292 section 6.
+	 * IPV6_HOPOPTS socket option.  Recall that we required super-user
+	 * privilege for the option (see ip6_ctloutput), but it might be too
+	 * strict, since there might be some hop-by-hop options which can be
+	 * returned to normal user.
+	 * See also RFC 2292 section 6.
 	 */
-	if ((in6p->in6p_flags & IN6P_HOPOPTS) != 0 && privileged) {
+	if ((in6p->in6p_flags & IN6P_HOPOPTS) != 0) {
 		/*
 		 * Check if a hop-by-hop options header is contatined in the
 		 * received packet, and if so, store the options as ancillary
@@ -1326,14 +1321,6 @@ ip6_savecontrol(in6p, mp, ip6, m)
 			switch (nxt) {
 			case IPPROTO_DSTOPTS:
 				if ((in6p->in6p_flags & IN6P_DSTOPTS) == 0)
-					break;
-
-				/*
-				 * We also require super-user privilege for
-				 * the option.
-				 * See the comments on IN6_HOPOPTS.
-				 */
-				if (!privileged)
 					break;
 
 				*mp = sbcreatecontrol((caddr_t)ip6e, elen,
