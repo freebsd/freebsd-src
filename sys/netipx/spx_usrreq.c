@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.23 1999/01/27 22:42:26 dillon Exp $
+ * $Id: spx_usrreq.c,v 1.24 1999/01/28 00:57:51 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -1335,13 +1335,13 @@ spx_attach(so, proto, p)
 	ipxp = sotoipxpcb(so);
 
 	MALLOC(cb, struct spxpcb *, sizeof *cb, M_PCB, M_NOWAIT);
-	bzero(cb, sizeof *cb);
-	sb = &so->so_snd;
 
 	if (cb == NULL) {
 		error = ENOBUFS;
 		goto spx_attach_end;
 	}
+	bzero(cb, sizeof *cb);
+	sb = &so->so_snd;
 
 	mm = m_getclr(M_DONTWAIT, MT_HEADER);
 	if (mm == NULL) {
