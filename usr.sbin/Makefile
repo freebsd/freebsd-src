@@ -9,22 +9,22 @@ SUBDIR=	XNSrouted accton amd arp chown chroot dev_mkdb diskpart \
 	sliplogin sysctl syslogd traceroute trpt trsp vipw
 
 .if   make(clean) || make(cleandir)
-SUBDIR+=bad144 config config.new eeprom iostat timed update
+SUBDIR+=bad144 config config.new eeprom iostat timed 
 .elif ${MACHINE} == "hp300"
-SUBDIR+=config iostat timed update
+SUBDIR+=config iostat timed 
 .elif ${MACHINE} == "i386"
 SUBDIR+=bad144 config timed
 # iostat
 .elif ${MACHINE} == "luna68k"
-SUBDIR+=config iostat timed update
+SUBDIR+=config iostat timed 
 .elif ${MACHINE} == "mips"
-SUBDIR+=config iostat timed update
+SUBDIR+=config iostat timed 
 .elif ${MACHINE} == "sparc"
-SUBDIR+=config.new eeprom timed update
+SUBDIR+=config.new eeprom timed 
 .elif ${MACHINE} == "tahoe"
-SUBDIR+=config iostat timed update
+SUBDIR+=config iostat timed 
 .elif ${MACHINE} == "vax"
-SUBDIR+=bad144 config iostat timed update
+SUBDIR+=bad144 config iostat timed 
 .endif
 
 .include <bsd.subdir.mk>

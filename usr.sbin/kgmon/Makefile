@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
 PROG=	kgmon
-MAN8=	kgmon.0
+MAN8=	kgmon.8
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 #

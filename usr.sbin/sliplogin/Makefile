@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
 
 PROG=	sliplogin
-MAN8=	sliplogin.0
+MAN8=	sliplogin.8
 BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
