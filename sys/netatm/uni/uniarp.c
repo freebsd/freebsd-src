@@ -35,13 +35,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -74,7 +75,13 @@ struct uniarp		*uniarp_nomaptab = NULL;
 struct uniarp		*uniarp_pvctab = NULL;
 struct atm_time		uniarp_timer = {0, 0};		/* Aging timer */
 struct uniarp_stat	uniarp_stat = {0};
+
+/*
+ * net.harp.uni.uniarp_print
+ */
 int			uniarp_print = 0;
+SYSCTL_INT(_net_harp_uni, OID_AUTO, uniarp_print, CTLFLAG_RW,
+    &uniarp_print, 0, "dump UNI/ARP messages");
 
 Atm_endpoint	uniarp_endpt = {
 	NULL,

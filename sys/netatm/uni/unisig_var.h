@@ -320,5 +320,10 @@ int		unisig_vc_state(struct unisig *,
 extern uma_zone_t	unisig_vc_zone;
 extern uma_zone_t	unisig_msg_zone;
 extern uma_zone_t	unisig_ie_zone;
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_harp_uni);
+#endif
+
 #endif	/* _KERNEL */
 #endif	/* _UNISIG_VAR_H */
