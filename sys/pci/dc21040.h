@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994 Matt Thomas (thomas@lkg.dec.com)
+ * Copyright (c) 1994, 1995 Matt Thomas (thomas@lkg.dec.com)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.1 1994/10/01 20:16:45 wollman Exp $
+ * $Id: dc21040.h,v 1.2 1995/04/09 04:46:14 davidg Exp $
  *
  * $Log: dc21040.h,v $
+ * Revision 1.2  1995/04/09  04:46:14  davidg
+ * From Matt Thomas: Added support for 100Mb cards (such as the DEC DE-500-XA
+ * and SMC 9332).
+ *
  * Revision 1.1  1994/10/01  20:16:45  wollman
  * Add Matt Thomas's DC21040 PCI Ethernet driver.  (This is turning out
  * to be quite a popular chip, so expect to see a number of products
@@ -187,10 +191,12 @@ typedef struct {
 /*
  * CSR6 -- Command (Operation Mode) Register
  */
-#define	TULIP_CMD_SCRAMBLER	0x00400000L		/* (RW)  Scrambler Mode (DC21140) */
-#define	TULIP_CMD_PCSFUNCTION	0x00200000L		/* (RW)  PCS Function (DC21140) */
-#define	TULIP_CMD_TXTHRSHLDCTL	0x00100000L		/* (RW)  Transmit Threshold Mode (DC21140) */
-#define	TULIP_CMD_STOREFWD	0x00080000L		/* (RW)  Store and Foward (DC21140) */
+#define	TULIP_CMD_MUSTBEONE	0x02000000L		/* (RW)  Must Be One (DC21140) */
+#define	TULIP_CMD_SCRAMBLER	0x01000000L		/* (RW)  Scrambler Mode (DC21140) */
+#define	TULIP_CMD_PCSFUNCTION	0x00800000L		/* (RW)  PCS Function (DC21140) */
+#define	TULIP_CMD_TXTHRSHLDCTL	0x00400000L		/* (RW)  Transmit Threshold Mode (DC21140) */
+#define	TULIP_CMD_STOREFWD	0x00200000L		/* (RW)  Store and Foward (DC21140) */
+#define	TULIP_CMD_NOHEARTBEAT	0x00080000L		/* (RW)  No Heartbeat (DC21140) */
 #define	TULIP_CMD_PORTSELECT	0x00040000L		/* (RW)  Post Select (100Mb) (DC21140) */
 #define	TULIP_CMD_CAPTREFFCT	0x00020000L		/* (RW)  Capture Effect (!802.3) */
 #define	TULIP_CMD_BACKPRESSURE	0x00010000L		/* (RW)  Back Pressure (!802.3) (DC21040) */
@@ -241,10 +247,24 @@ typedef struct {
 #define	TULIP_BUSMODE_TXPOLL_1600us	0x00060000L
 
 
-#define	TULIP_GP_FASTMODE	0x00000040	/* 100 Mb/sec Signal Detect gep<6> */
-#define	TULIP_GP_PINS		0x0000013F	/* General Purpose Pin directions */
-#define	TULIP_GP_INIT		0x0000000B	/* No loopback --- point-to-point */
+/*
+ * These are the defintitions used for the DEC DC21140
+ * evaluation board.
+ */
+#define	TULIP_GP_EB_PINS	0x0000011F	/* General Purpose Pin directions */
+#define	TULIP_GP_EB_OK10	0x00000080	/* 10 Mb/sec Signal Detect gep<7> */
+#define	TULIP_GP_EB_OK100	0x00000040	/* 100 Mb/sec Signal Detect gep<6> */
+#define	TULIP_GP_EB_INIT	0x0000000B	/* No loopback --- point-to-point */
 
+/*
+ * There are the definitions used for the DEC DE500-XA
+ * 10/100 board
+ */
+#define	TULIP_GP_DE500_PINS		0x0000010FL
+#define	TULIP_GP_DE500_NOTOK_10		0x00000080L
+#define	TULIP_GP_DE500_NOTOK_100	0x00000040L
+#define	TULIP_GP_DE500_HALFDUPLEX	0x00000008L
+#define	TULIP_GP_DE500_FORCE_100	0x00000001L
 /*
  * SROM definitions for the DC21140 and DC21041.
  */
