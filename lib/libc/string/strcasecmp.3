@@ -58,8 +58,19 @@ functions
 compare the null-terminated strings
 .Fa s1
 and
-.Fa s2
-and return an integer greater than, equal to, or less than 0,
+.Fa s2 .
+.Pp
+The
+.Fn strncasecmp
+compares at most
+.Fa len
+characters.
+.Sh RETURN VALUES
+The
+.Fn strcasecmp
+and
+.Fn strncasecmp
+return an integer greater than, equal to, or less than 0,
 according as
 .Fa s1
 is lexicographically greater than, equal to, or less than
@@ -70,12 +81,6 @@ The comparison is done using unsigned characters, so that
 .Sq Li \e200
 is greater than
 .Ql \e0 .
-.Pp
-The
-.Fn strncasecmp
-compares at most
-.Fa len
-characters.
 .Sh SEE ALSO
 .Xr bcmp 3 ,
 .Xr memcmp 3 ,
