@@ -745,7 +745,7 @@ dointr()
 	kread(X_INTRNAMES, intrname, (size_t)inamlen);
 	nintr /= sizeof(u_long);
 	tintrname = intrname;
-	istrnamlen = 12;
+	istrnamlen = strlen("interrupt");
 	for (i = 0; i < nintr; i++) {
 		clen = strlen(tintrname);
 		if (clen > istrnamlen)
