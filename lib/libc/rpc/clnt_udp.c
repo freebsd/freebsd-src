@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_udp.c,v 1.1 1993/10/27 05:40:25 paul Exp $";
+static char *rcsid = "$Id: clnt_udp.c,v 1.1 1994/08/07 18:35:48 wollman Exp $";
 #endif
 
 /*
@@ -258,10 +258,20 @@ call_again:
 		return (cu->cu_error.re_status = RPC_CANTENCODEARGS);
 	outlen = (int)XDR_GETPOS(xdrs);
 
+	/*
+	 * Give error (ECONNREFUSED/EHOSTUNREACH) instead of timeout.
+	 * Gives much faster NIS rebinding.
+	 * Errors are not detected here, but in the recvfrom()
+	 * following the select().
+	 */
+	if (connect(cu->cu_sock, (struct sockaddr *)(&cu->cu_raddr),
+	    cu->cu_rlen) != 0) {
+		cu->cu_error.re_errno = errno;
+		return (cu->cu_error.re_status = RPC_CANTSEND);
+	}
+
 send_again:
-	if (sendto(cu->cu_sock, cu->cu_outbuf, outlen, 0,
-	    (struct sockaddr *)&(cu->cu_raddr), cu->cu_rlen)
-	    != outlen) {
+	if (send(cu->cu_sock, cu->cu_outbuf, outlen, 0) != outlen) {
 		cu->cu_error.re_errno = errno;
 		return (cu->cu_error.re_status = RPC_CANTSEND);
 	}
