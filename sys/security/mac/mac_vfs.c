@@ -181,7 +181,7 @@ mac_copy_vnode_label(struct label *src, struct label *dest)
 
 int
 mac_externalize_vnode_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen, int flags)
+    char *outbuf, size_t outbuflen)
 {
 	int error;
 

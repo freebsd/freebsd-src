@@ -101,7 +101,7 @@ int	mac_allocate_slot(void);
 int	mac_check_cred_relabel(struct ucred *cred, struct label *newlabel);
 void	mac_destroy_cred_label(struct label *label);
 int	mac_externalize_cred_label(struct label *label, char *elements, 
-	    char *outbuf, size_t outbuflen, int flags);
+	    char *outbuf, size_t outbuflen);
 void	mac_init_cred_label(struct label *label);
 int	mac_internalize_cred_label(struct label *label, char *string);
 void	mac_relabel_cred(struct ucred *cred, struct label *newlabel);
@@ -109,12 +109,12 @@ void	mac_relabel_cred(struct ucred *cred, struct label *newlabel);
 void	mac_copy_pipe_label(struct label *src, struct label *dest);
 void	mac_destroy_pipe_label(struct label *label);
 int	mac_externalize_pipe_label(struct label *label, char *elements,
-	    char *outbuf, size_t outbuflen, int flags);
+	    char *outbuf, size_t outbuflen);
 void	mac_init_pipe_label(struct label *label);
 int	mac_internalize_pipe_label(struct label *label, char *string);
 
 int	mac_externalize_vnode_label(struct label *label, char *elements,
-	    char *outbuf, size_t outbuflen, int flags);
+	    char *outbuf, size_t outbuflen);
 int	mac_internalize_vnode_label(struct label *label, char *string);
 void	mac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
 	    int *prot);
