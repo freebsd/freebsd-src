@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.44 1997/07/30 10:05:18 jmg Exp $
+ * $Id: tty_pty.c,v 1.45 1997/09/02 20:05:55 bde Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/poll.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
@@ -74,19 +75,19 @@ static	d_open_t	ptcopen;
 static	d_close_t	ptcclose;
 static	d_read_t	ptcread;
 static	d_write_t	ptcwrite;
-static	d_select_t	ptcselect;
+static	d_poll_t	ptcpoll;
 
 #define CDEV_MAJOR_S 5
 #define CDEV_MAJOR_C 6
 static struct cdevsw pts_cdevsw = 
 	{ ptsopen,	ptsclose,	ptsread,	ptswrite,	/*5*/
 	  ptyioctl,	ptsstop,	nullreset,	ptydevtotty,/* ttyp */
-	  ttselect,	nommap,		NULL,	"pts",	NULL,	-1 };
+	  ttpoll,	nommap,		NULL,	"pts",	NULL,	-1 };
 
 static struct cdevsw ptc_cdevsw = 
 	{ ptcopen,	ptcclose,	ptcread,	ptcwrite,	/*6*/
 	  ptyioctl,	nullstop,	nullreset,	ptydevtotty,/* ptyp */
-	  ptcselect,	nommap,		NULL,	"ptc",	NULL,	-1 };
+	  ptcpoll,	nommap,		NULL,	"ptc",	NULL,	-1 };
 
 
 #if NPTY == 1
@@ -459,58 +460,53 @@ ptsstop(tp, flush)
 }
 
 static	int
-ptcselect(dev, rw, p)
+ptcpoll(dev, events, p)
 	dev_t dev;
-	int rw;
+	int events;
 	struct proc *p;
 {
 	register struct tty *tp = &pt_tty[minor(dev)];
 	struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
+	int revents = 0;
 	int s;
 
 	if ((tp->t_state & TS_CONNECTED) == 0)
-		return (1);
-	switch (rw) {
+		return (seltrue(dev, events, p) | POLLHUP);
 
-	case FREAD:
-		/*
-		 * Need to block timeouts (ttrstart).
-		 */
-		s = spltty();
-		if ((tp->t_state&TS_ISOPEN) &&
-		     tp->t_outq.c_cc && (tp->t_state&TS_TTSTOP) == 0) {
-			splx(s);
-			return (1);
-		}
-		splx(s);
-		/* FALLTHROUGH */
+	/*
+	 * Need to block timeouts (ttrstart).
+	 */
+	s = spltty();
 
-	case 0:					/* exceptional */
-		if ((tp->t_state&TS_ISOPEN) &&
-		    ((pti->pt_flags&PF_PKT && pti->pt_send) ||
-		     (pti->pt_flags&PF_UCNTL && pti->pt_ucntl)))
-			return (1);
-		selrecord(p, &pti->pt_selr);
-		break;
+	if (events & (POLLIN | POLLRDNORM))
+		if ((tp->t_state & TS_ISOPEN) &&
+		    ((tp->t_outq.c_cc && (tp->t_state & TS_TTSTOP) == 0) ||
+		     ((pti->pt_flags & PF_PKT) && pti->pt_send) ||
+		     ((pti->pt_flags & PF_UCNTL) && pti->pt_ucntl)))
+			revents |= events & (POLLIN | POLLRDNORM);
 
+	if (events & (POLLOUT | POLLWRNORM))
+		if (tp->t_state & TS_ISOPEN &&
+		    ((pti->pt_flags & PF_REMOTE) ?
+		     (tp->t_canq.c_cc == 0) : 
+		     ((tp->t_rawq.c_cc + tp->t_canq.c_cc < TTYHOG - 2) ||
+		      (tp->t_canq.c_cc == 0 && (tp->t_iflag & ICANON)))))
+			revents |= events & (POLLOUT | POLLWRNORM);
 
-	case FWRITE:
-		if (tp->t_state&TS_ISOPEN) {
-			if (pti->pt_flags & PF_REMOTE) {
-			    if (tp->t_canq.c_cc == 0)
-				return (1);
-			} else {
-			    if (tp->t_rawq.c_cc + tp->t_canq.c_cc < TTYHOG-2)
-				    return (1);
-			    if (tp->t_canq.c_cc == 0 && (tp->t_iflag&ICANON))
-				    return (1);
-			}
-		}
-		selrecord(p, &pti->pt_selw);
-		break;
+	if (events & POLLHUP)
+		if ((tp->t_state & TS_CARR_ON) == 0)
+			revents |= POLLHUP;
 
+	if (revents == 0) {
+		if (events & (POLLIN | POLLRDNORM))
+			selrecord(p, &pti->pt_selr);
+
+		if (events & (POLLOUT | POLLWRNORM)) 
+			selrecord(p, &pti->pt_selw);
 	}
-	return (0);
+	splx(s);
+
+	return (revents);
 }
 
 static	int
