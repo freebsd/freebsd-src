@@ -94,7 +94,7 @@ static char let;
 		return;
 	}
 	if(prevx >= 0 && cansee(prevx,prevy)) {
-		delay_output();
+		delay_output(50);
 		prl(prevx, prevy);	/* in case there was a monster */
 		at(prevx, prevy, levl[prevx][prevy].scrsym);
 	}
@@ -136,7 +136,7 @@ register xx,yy;
 	}
 	/* normal call */
 	if(cansee(x,y)) {
-		if(cnt) delay_output();
+		if(cnt) delay_output(50);
 		at(x,y,let);
 		tc[cnt].x = x;
 		tc[cnt].y = y;
