@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.48 1995/07/15 16:01:46 davidg Exp $
+ * $Id: vfs_bio.c,v 1.49 1995/07/17 06:26:07 davidg Exp $
  */
 
 /*
@@ -859,10 +859,8 @@ loop:
 		 * created while the getnewbuf routine is blocked.
 		 * Normally the vnode is locked so this isn't a problem.
 		 * VBLK type I/O requests, however, don't lock the vnode.
-		 * VOP_ISLOCKED would be much better but is also much
-		 * slower.
 		 */
-		if ((vp->v_type == VBLK) && incore(vp, blkno)) {
+		if (!VOP_ISLOCKED(vp) && incore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
