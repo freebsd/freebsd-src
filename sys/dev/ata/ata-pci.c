@@ -68,18 +68,15 @@ void ata_via686b(device_t);
 int
 ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
 {
-    device_t *children, child;
+    device_t *children;
     int nchildren, i;
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
 	return 0;
 
     for (i = 0; i < nchildren; i++) {
-	child = children[i];
-
-	/* check that it's on the same silicon and the device we want */
-	if (pci_get_slot(dev) == pci_get_slot(child) &&
-	    pci_get_devid(child) == devid && pci_get_revid(child) >= revid) {
+	if (pci_get_devid(children[i]) == devid &&
+	    pci_get_revid(children[i]) >= revid) {
 	    free(children, M_TEMP);
 	    return 1;
 	}
@@ -170,6 +167,18 @@ ata_pci_match(device_t dev)
 	return "VIA Apollo ATA controller";
 
     case 0x55131039:
+	if (ata_find_dev(dev, 0x06301039, 0x30) ||
+	    ata_find_dev(dev, 0x06331039, 0x00) ||
+	    ata_find_dev(dev, 0x06351039, 0x00) ||
+	    ata_find_dev(dev, 0x07301039, 0x00) ||
+	    ata_find_dev(dev, 0x07331039, 0x00) ||
+	    ata_find_dev(dev, 0x07351039, 0x00))
+	    return "SiS 5591 ATA100 controller";
+	if (ata_find_dev(dev, 0x05301039, 0x00) ||
+	    ata_find_dev(dev, 0x05401039, 0x00) ||
+	    ata_find_dev(dev, 0x06201039, 0x00) ||
+	    ata_find_dev(dev, 0x06301039, 0x00))
+	    return "SiS 5591 ATA66 controller";
 	return "SiS 5591 ATA33 controller";
 
     case 0x06491095:
