@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.16 1995/10/15 15:45:20 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.17 1995/10/16 07:31:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -427,14 +427,14 @@ extern void	mediaShutdownFTP(Device *dev);
 extern void	globalsInit(void);
 
 /* index.c */
-int	index_read(char *fname, PkgNodePtr papa);
-int	index_fread(FILE *fp, PkgNodePtr papa);
-int	index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll);
-void	index_init(PkgNodePtr top, PkgNodePtr plist);
-void	index_node_free(PkgNodePtr top, PkgNodePtr plist);
-void	index_sort(PkgNodePtr top);
-void	index_print(PkgNodePtr top, int level);
-int	index_extract(Device *dev, PkgNodePtr plist);
+int		index_get(char *fname, PkgNodePtr papa);
+int		index_read(int fd, PkgNodePtr papa);
+int		index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll);
+void		index_init(PkgNodePtr top, PkgNodePtr plist);
+void		index_node_free(PkgNodePtr top, PkgNodePtr plist);
+void		index_sort(PkgNodePtr top);
+void		index_print(PkgNodePtr top, int level);
+int		index_extract(Device *dev, PkgNodePtr plist);
 
 /* install.c */
 extern int	installCommit(char *str);

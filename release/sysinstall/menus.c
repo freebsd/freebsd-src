@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.19 1995/10/15 12:41:04 jkh Exp $
+ * $Id: menus.c,v 1.42.2.20 1995/10/16 07:31:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -690,7 +690,7 @@ aspects of your system's network configuration.",
 	DMENU_SET_VARIABLE,	"anon_ftp=YES", 0, 0, dmenuVarCheck			},
   { "WEB Server",		"This machine wishes to be a WWW server.",
 	DMENU_SET_VARIABLE,	"apache_httpd=YES", 0, 0, dmenuVarCheck			},
-  { "Samba",			"Install Samba for NETBUI client filesharing.",
+  { "Samba",			"Install Samba for LanManager (NETBUI) access.",
 	DMENU_SET_VARIABLE,	"samba=YES", 0, 0, dmenuVarCheck			},
   { "PCNFSD",			"Run authentication server for clients with PC-NFS.",
 	DMENU_SET_VARIABLE,	"pcnfsd=YES", 0, 0, dmenuVarCheck			},

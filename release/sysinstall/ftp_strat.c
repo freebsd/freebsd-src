@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.7 1995/10/14 19:13:20 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.8 1995/10/15 04:37:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,7 +62,7 @@ get_new_host(Device *dev)
     Boolean i;
     char *oldTitle = MenuMediaFTP.title;
 
-    MenuMediaFTP.title = "Connection timed out - please select another site";
+    MenuMediaFTP.title = "Request failed - please select another site";
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
     if (i) {
@@ -71,9 +71,14 @@ get_new_host(Device *dev)
 	if (cp && *cp)
 	    (void)mediaSetFtpUserPass(NULL);
     }
-    /* Bounce the link */
-    dev->shutdown(dev);
-    i = dev->init(dev);
+
+    if (dev) {
+	/* Bounce the link */
+	dev->shutdown(dev);
+	i = dev->init(dev);
+    }
+    else
+	i = TRUE;
     return i;
 }
 
@@ -145,7 +150,7 @@ mediaInitFTP(Device *dev)
     retries = i = 0;
 retry:
     if (i && ++retries > max_retries) {
-	if (optionIsSet(OPT_FTP_ABORT) || !get_new_host(dev))
+	if (optionIsSet(OPT_FTP_ABORT) || !get_new_host(NULL))
 	    return FALSE;
 	retries = 0;
     }
@@ -162,15 +167,22 @@ retry:
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgNotify("CD to distribution in ~ftp/%s", dir);
-	if ((i = FtpChdir(ftp, dir)) == -2)
+	if ((i = FtpChdir(ftp, dir)) == -2) {
+	    msgNotify("Unable to CD to distribution in %s, retrying..", dir);
+	    FtpClose(ftp);
+	    ftp = NULL;
 	    goto retry;
+	}
     }
 
     if (FtpChdir(ftp, variable_get(RELNAME))) {
 	msgConfirm("Unable to CD to release directory: %s.\n"
 		   "Perhaps a different FTP site is needed for this release?",
 		   variable_get(RELNAME));
-	goto punt;
+	FtpClose(ftp);
+	ftp = NULL;
+	goto retry;
+
     }
 
     if (!FtpChdir(ftp, "dists")) {
