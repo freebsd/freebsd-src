@@ -453,7 +453,8 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 */
 	gettimeofday(&to, NULL);
 	to.tv_sec += tv.tv_sec;
-	if ((to.tv_usec += tv.tv_usec) >= 1000000) {
+	to.tv_usec += tv.tv_usec;
+	if (to.tv_usec >= 1000000) {
 		to.tv_usec -= 1000000;
 		to.tv_sec++;
 	}
@@ -519,7 +520,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 * so right here we are only setting the ports.
 	 */
 	if (ss[0].ss_family != ss[1].ss_family)
-		iderror(lport, fport, s, errno);
+		iderror(lport, fport, s, EINVAL);
 	size = sizeof(uc);
 	switch (ss[0].ss_family) {
 	case AF_INET:
@@ -529,7 +530,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		sin[1].sin_port = htons(fport);
 		if (sysctlbyname("net.inet.tcp.getcred", &uc, &size, sin,
 				 sizeof(sin)) == -1)
-			getcredfail = 1;
+			getcredfail = errno;
 		break;
 #ifdef INET6
 	case AF_INET6:
@@ -539,23 +540,24 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		sin6[1].sin6_port = htons(fport);
 		if (sysctlbyname("net.inet6.tcp6.getcred", &uc, &size, sin6,
 				 sizeof(sin6)) == -1)
-			getcredfail = 1;
+			getcredfail = errno;
 		break;
 #endif
 	default: /* should not reach here */
-		getcredfail = 1;
+		getcredfail = EAFNOSUPPORT;
 		break;
 	}
 	if (getcredfail != 0) {
 		if (fallback == NULL)		/* Use a default, if asked to */
-			iderror(lport, fport, s, errno);
+			iderror(lport, fport, s, getcredfail);
 		usedfallback = 1;
 	} else {
 		/* Look up the pw to get the username */
+		errno = 0;
 		pw = getpwuid(uc.cr_uid);
 	}
 	if (pw == NULL && !usedfallback)		/* No such user... */
-		iderror(lport, fport, s, errno);
+		iderror(lport, fport, s, errno != 0 ? errno : ENOENT);
 	/*
 	 * If enabled, we check for a file named ".noident" in the user's
 	 * home directory. If found, we return HIDDEN-USER.
@@ -589,23 +591,23 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			iderror(lport, fport, s, errno);
 		seteuid(pw->pw_uid);
 		/*
-		 * If we were to lstat() here, it would do no good, since it
-		 * would introduce a race condition and could be defeated.
+		 * We can't stat() here since that would be a race
+		 * condition.
 		 * Therefore, we open the file we have permissions to open
 		 * and if it's not a regular file, we close it and end up
 		 * returning the user's real username.
 		 */
 		fakeid_fd = open(p, O_RDONLY | O_NONBLOCK);
 		free(p);
-		if ((fakeid = fdopen(fakeid_fd, "r")) != NULL &&
-		    fstat(fileno(fakeid), &sb) != -1 && S_ISREG(sb.st_mode)) {
+		if (fakeid_fd != -1 && fstat(fakeid_fd, &sb) != -1 &&
+		    S_ISREG(sb.st_mode) &&
+		    (fakeid = fdopen(fakeid_fd, "r")) != NULL) {
 			buf[sizeof(buf) - 1] = '\0';
 			if (fgets(buf, sizeof(buf), fakeid) == NULL) {
 				cp = pw->pw_name;
 				fclose(fakeid);
 				goto printit;
 			}
-			fclose(fakeid);
 			/*
 			 * Usually, the file will have the desired identity
 			 * in the form "identity\n", so we use strcspn() to
@@ -628,14 +630,18 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			 */
 			
 			if (!*cp || getpwnam(cp)) {
+				errno = 0;
 				pw = getpwuid(uc.cr_uid);
 				if (pw == NULL)
-					iderror(lport, fport, s, errno);
+					iderror(lport, fport, s,
+					    errno != 0 ? errno : ENOENT);
 				cp = pw->pw_name;
 			}
 		} else
 			cp = pw->pw_name;
-		if (fakeid_fd != -1)
+		if (fakeid != NULL)
+			fclose(fakeid);
+		else if (fakeid_fd != -1)
 			close(fakeid_fd);
 	} else if (!usedfallback)
 		cp = pw->pw_name;
