@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.33 1997/03/10 06:21:00 ache Exp $
+ * $Id: command.c,v 1.34 1997/03/10 08:04:15 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -655,7 +655,7 @@ char **argv;
       VarRedialTimeout = -1;
       printf("Using random redial timeout.\n");
       if (!randinit) {
-	srandom((unsigned)(time(NULL) ^ getpid()));
+	srandom((unsigned long)(time(NULL) ^ getpid()));
 	randinit = 1;
       }
     }
