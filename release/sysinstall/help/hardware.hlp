@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.28 1997/08/30 10:42:21 helbig Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.29 1997/10/15 04:37:24 jkh Exp $
 
 Contents last changed:  Jan 14th, 1997
 
@@ -483,5 +483,16 @@ Q: I have this CMD640 IDE controller that is said to be broken.
 A: Yes, it is.  There's a workaround available now and it is enabled
    automatically if this chip is used on your system.
    For the details refer to the manual page of the disk driver (man 4 wd).
+
+
+Q: When I go to boot my Intel AL440LX ("Atlanta") -based system from the
+   hard disk the first time, it stops with a "Read Error" message.
+
+A: There appears to be a bug in the BIOS on at least some of these boards,
+   this bug results in the FreeBSD bootloader thinking that it is booting
+   from a floppy disk.
+   This is only a problem if you are not using the BootEasy boot manager.
+   Slice the disk in 'compatible' mode and install BootEasy during the
+   FreeBSD installation to avoid the bug.
 
 [ Please add more hardware tips to this Q&A section! ]
