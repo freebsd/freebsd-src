@@ -29,7 +29,7 @@
 
 # PROVIDE: pcvt
 # REQUIRE: LOGIN
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -7,7 +7,6 @@
 # PROVIDE: ldconfig
 # REQUIRE: mountcritremote
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 # PROVIDE: localpkg
 # REQUIRE: abi
 # BEFORE:  securelevel
-# KEYWORD: FreeBSD shutdown
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 

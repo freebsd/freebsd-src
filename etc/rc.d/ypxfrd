@@ -5,7 +5,6 @@
 
 # PROVIDE: ypxfrd
 # REQUIRE: rpcbind
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

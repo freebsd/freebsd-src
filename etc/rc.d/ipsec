@@ -7,7 +7,7 @@
 # PROVIDE: ipsec
 # REQUIRE: root mountcritlocal
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 #	it does not really require beforenetlkm.
 

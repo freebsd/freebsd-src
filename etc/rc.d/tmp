@@ -29,7 +29,6 @@
 
 # PROVIDE: tmp
 # REQUIRE: mountcritlocal
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

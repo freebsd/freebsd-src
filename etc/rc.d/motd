@@ -7,7 +7,6 @@
 # PROVIDE: motd
 # REQUIRE: mountcritremote
 # BEFORE:  LOGIN
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

@@ -8,7 +8,7 @@
 # PROVIDE: addswap
 # REQUIRE: mountcritlocal
 # BEFORE: sysctl
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

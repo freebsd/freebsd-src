@@ -6,7 +6,7 @@
 # PROVIDE: ike
 # REQUIRE: root beforenetlkm mountcritlocal
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

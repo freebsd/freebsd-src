@@ -6,7 +6,6 @@
 # PROVIDE: rcconf
 # REQUIRE: initdiskless
 # BEFORE:  disks initrandom
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

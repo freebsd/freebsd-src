@@ -29,7 +29,6 @@
 
 # PROVIDE: var
 # REQUIRE: mountcritlocal
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

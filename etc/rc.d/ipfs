@@ -7,7 +7,7 @@
 # PROVIDE: ipfs
 # REQUIRE: ipnat
 # BEFORE:  netif
-# KEYWORD: FreeBSD nojail shutdown
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

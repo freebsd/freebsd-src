@@ -7,7 +7,7 @@
 # PROVIDE: ipmon
 # REQUIRE: mountcritlocal hostname sysctl cleanvar ipfilter
 # BEFORE:  SERVERS
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

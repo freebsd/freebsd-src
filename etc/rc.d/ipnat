@@ -7,7 +7,7 @@
 # PROVIDE: ipnat
 # REQUIRE: ipfilter
 # BEFORE:  DAEMON netif
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

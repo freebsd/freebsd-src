@@ -28,8 +28,7 @@
 
 # PROVIDE: nsswitch
 # REQUIRE: root
-# BEFORE:  network
-# KEYWORD: FreeBSD
+# BEFORE:  NETWORK
 
 . /etc/rc.subr
 

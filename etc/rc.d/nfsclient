@@ -5,7 +5,7 @@
 
 # PROVIDE: nfsclient
 # REQUIRE: NETWORKING mountcritremote rpcbind
-# KEYWORD: FreeBSD nojail shutdown
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
