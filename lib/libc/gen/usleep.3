@@ -52,30 +52,29 @@ of time.
 System activity or time spent in processing the
 call may lengthen the sleep slightly.
 .Pp
-If a timer is already running on the process its state is saved.
+If a timer is already running on the process its state is unaltered by
+this
+.Fn usleep
+implementation.
 If the value
 .Fa microseconds
-is more than or equal to the remaining clock time for the saved timer,
+is more than or equal to the remaining clock time for the running timer,
 the sleep time is set to
 the remaining clock time.
-The state of the previous timer
-is restored after
-.Fa microseconds
-has passed.
 .Pp
-This routine is implemented using 
-.Xr setitimer 2 ;
-it requires eight system calls each time it is invoked.
-A similar but less compatible function can be obtained with a single
-.Xr select 2 ;
-such a function would not restart after signals, but would not interfere
-with other uses of
-.Xr setitimer .
+This function is implemented using
+.Xr signanosleep 2
+by pausing for
+.Fa microseconds
+of time or until SIGALRM signal occurse.
+.Sh NOTES
+.Pp
+A microsecond is 0.000001 seconds.
 .Sh SEE ALSO
-.Xr getitimer 2 ,
-.Xr setitimer 2 ,
-.Xr sigpause 2 ,
 .Xr alarm 3 ,
+.Xr setitimer 2 ,
+.Xr signal 3 ,
+.Xr signanosleep 2 ,
 .Xr sleep 3 ,
 .Xr ualarm 3
 .Sh HISTORY

@@ -53,7 +53,9 @@ System activity or time spent in processing the
 call may lengthen the sleep by a second.
 .Pp
 If a timer is already running on the process its state is unaltered by
-this sleep implementation.
+this
+.Fn sleep
+implementation.
 If the value
 .Fa seconds
 is more than or equal to the remaining clock time for the running timer,
@@ -65,10 +67,10 @@ This function is implemented using
 by pausing for
 .Fa seconds
 of time or until any signal occurse.
-For compatibility reasons during
+For compatibility reasons SIGALRM signal unblocked and handled
+internally during
 .Fn sleep
-call SIGALRM handler is temporary set to the
-function which does nothing but returns.
+call.
 .Sh RETURN VALUES
 The
 .Fn sleep
@@ -79,8 +81,11 @@ needed to be passed to a subsequent sleep to complete the necessary delay.
 repeatedly until it returns zero may busy-wait until a timer
 is available.
 .Sh SEE ALSO
+.Xr alarm 3 ,
+.Xr setitimer 2 ,
 .Xr signal 3 ,
 .Xr signanosleep 2 ,
+.Xr ualarm 3 ,
 .Xr usleep 3
 .Sh HISTORY
 A
