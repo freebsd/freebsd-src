@@ -37,6 +37,7 @@
 .Os
 .Sh NAME
 .Nm chflags ,
+.Nm lchflags ,
 .Nm fchflags
 .Nd set file flags
 .Sh LIBRARY
@@ -47,6 +48,8 @@
 .Ft int
 .Fn chflags "const char *path"  "u_long flags"
 .Ft int
+.Fn lchflags "const char *path" "int flags"
+.Ft int
 .Fn fchflags "int fd" "u_long flags"
 .Sh DESCRIPTION
 The file whose name
@@ -56,6 +59,16 @@ or referenced by the descriptor
 .Fa fd
 has its flags changed to
 .Fa flags .
+.Pp
+The
+.Fn lchflags
+system call is like
+.Fn chflags
+except in the case where the named file is a symbolic link,
+in which case
+.Fn lchflags
+will change the flags of the link itself,
+rather than the file it points to.
 .Pp
 The flags specified are formed by
 .Em or Ns 'ing
