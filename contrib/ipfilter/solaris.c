@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident   "$Id: solaris.c,v 2.0.2.3 1997/03/27 13:45:28 darrenr Exp $";
+#pragma ident   "$Id: solaris.c,v 2.0.2.5 1997/05/08 10:11:04 darrenr Exp $";
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -177,18 +177,18 @@ ddi_attach_cmd_t cmd;
 #ifdef	IPFDEBUG
 		cmn_err(CE_NOTE, "IP Filter: attach ipf instace %d", instance);
 #endif
-		if (ddi_create_minor_node(dip, "ipf", S_IFCHR, instance,
+		if (ddi_create_minor_node(dip, "ipf", S_IFCHR, IPL_LOGIPF,
 					  DDI_PSEUDO, 0) == DDI_FAILURE) {
 			ddi_remove_minor_node(dip, NULL);
 			goto attach_failed;
 		}
-		if (ddi_create_minor_node(dip, "ipnat", S_IFCHR, instance,
-					  DDI_PSEUDO, 1) == DDI_FAILURE) {
+		if (ddi_create_minor_node(dip, "ipnat", S_IFCHR, IPL_LOGNAT,
+					  DDI_PSEUDO, 0) == DDI_FAILURE) {
 			ddi_remove_minor_node(dip, NULL);
 			goto attach_failed;
 		}
-		if (ddi_create_minor_node(dip, "ipstate", S_IFCHR, instance,
-					  DDI_PSEUDO, 2) == DDI_FAILURE) {
+		if (ddi_create_minor_node(dip, "ipstate", S_IFCHR,IPL_LOGSTATE,
+					  DDI_PSEUDO, 0) == DDI_FAILURE) {
 			ddi_remove_minor_node(dip, NULL);
 			goto attach_failed;
 		}
@@ -942,7 +942,11 @@ frdest_t *fdp;
 	else
 		dst = fin->fin_fi.fi_dst;
 
+#if SOLARIS2 > 5
+	if (dir = ire_cache_lookup(dst.s_addr))
+#else
 	if (dir = ire_lookup(dst.s_addr))
+#endif
 		if (!dir->ire_ll_hdr_mp || !dir->ire_ll_hdr_length)
 			dir = NULL;
 

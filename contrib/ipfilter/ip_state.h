@@ -1,18 +1,24 @@
 /*
- * (C)opyright 1995 by Darren Reed.
+ * (C)opyright 1995-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * $Id: ip_state.h,v 2.0.2.5 1997/03/31 10:05:32 darrenr Exp $
+ * $Id: ip_state.h,v 2.0.2.9 1997/05/24 07:35:11 darrenr Exp $
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
 
 #define	IPSTATE_SIZE	257
 #define	IPSTATE_MAX	2048	/* Maximum number of states held */
+
+#define	PAIRS(s1,d1,s2,d2)	((((s1) == (s2)) && ((d1) == (d2))) ||\
+				 (((s1) == (d2)) && ((d1) == (s2))))
+#define	IPPAIR(s1,d1,s2,d2)	PAIRS((s1).s_addr, (d1).s_addr, \
+				      (s2).s_addr, (d2).s_addr)
+
 
 typedef struct udpstate {
 	u_short	us_sport;
@@ -106,6 +112,14 @@ typedef	struct	ips_stat {
 	ipstate_t **iss_table;
 } ips_stat_t;
 
+
+extern u_long fr_tcpidletimeout;
+extern u_long fr_tcpclosewait;
+extern u_long fr_tcplastack;
+extern u_long fr_tcptimeout;
+extern u_long fr_tcpclosed;
+extern u_long fr_udptimeout;
+extern u_long fr_icmptimeout;
 extern int fr_tcpstate __P((ipstate_t *, fr_info_t *, ip_t *,
 			    tcphdr_t *, u_short));
 extern ips_stat_t *fr_statetstats __P((void));
@@ -115,4 +129,5 @@ extern void fr_timeoutstate __P((void));
 extern void fr_tcp_age __P((u_long *, u_char *, ip_t *, fr_info_t *, int));
 extern void fr_stateunload __P((void));
 extern void ipstate_log __P((struct ipstate *, u_short));
+extern int fr_state_ioctl __P((caddr_t, int, int));
 #endif /* __IP_STATE_H__ */

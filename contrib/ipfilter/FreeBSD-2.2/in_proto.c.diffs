@@ -1,5 +1,5 @@
-*** in_proto.c.orig	Wed Apr  2 19:50:00 1997
---- in_proto.c	Wed Apr  2 19:51:21 1997
+*** /sys/netinet/in_proto.c.orig	Sat May 24 13:42:26 1997
+--- /sys/netinet/in_proto.c	Sat May 24 13:42:36 1997
 ***************
 *** 89,94 ****
 --- 89,99 ----

@@ -27,6 +27,9 @@ static	char	sccsid[] = "%W% %G% (C)1995 Darren Reed";
 #endif
 #include <kvm.h>
 #include <sys/socket.h>
+#if defined(solaris)
+# include <sys/stream.h>
+#endif
 #include <sys/socketvar.h>
 #ifdef sun
 #include <sys/systm.h>

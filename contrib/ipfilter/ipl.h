@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1993-1996 by Darren Reed.
+ * (C)opyright 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -8,9 +8,9 @@
  * @(#)ipl.h	1.21 6/5/96
  */
 
-#ifndef	__IPL_H_
+#ifndef	__IPL_H__
 #define	__IPL_H__
 
-#define	IPL_VERSION	"IP Filter v3.2alpha4"
+#define	IPL_VERSION	"IP Filter v3.2alpha7"
 
 #endif

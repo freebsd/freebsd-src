@@ -1,13 +1,16 @@
 /*
- * (C)opyright 1993-1996 by Darren Reed.
+ * (C)opyright 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
  * @(#)ipf.h	1.12 6/5/96
- * $Id: ipf.h,v 2.0.2.4 1997/03/27 13:45:18 darrenr Exp $
+ * $Id: ipf.h,v 2.0.2.6 1997/04/30 13:49:05 darrenr Exp $
  */
+
+#ifndef	__IPF_H__
+#define	__IPF_H__
 
 #ifndef	SOLARIS
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
@@ -46,12 +49,6 @@ extern	void	binprint __P((struct frentry *)), initparse __P((void));
 extern	u_short	portnum __P((char *));
 
 
-#if defined(__SVR4) || defined(__svr4__)
-#define	index	strchr
-#define	bzero(a,b)	memset(a, 0, b)
-#define	bcopy(a,b,c)	memmove(b,a,c)
-#endif
-
 struct	ipopt_names	{
 	int	on_value;
 	int	on_bit;
@@ -79,3 +76,4 @@ extern	char	*sys_errlist[];
 #define	MIN(a,b)	((a) > (b) ? (b) : (a))
 #endif
 
+#endif /* __IPF_H__ */

@@ -1,5 +1,5 @@
-*** ip_input.c.orig	Wed Apr  2 19:41:44 1997
---- /sys/netinet/ip_input.c	Wed Apr  2 19:28:53 1997
+*** /sys/netinet/ip_input.c.orig	Sat May 24 13:37:16 1997
+--- /sys/netinet/ip_input.c	Sat May 24 13:38:58 1997
 ***************
 *** 74,79 ****
 --- 74,82 ----
@@ -13,7 +13,7 @@
   int rsvp_on = 0;
   static int ip_rsvp_on;
 ***************
-*** 310,316 ****
+*** 310,315 ****
 --- 313,327 ----
   	 * - Wrap: fake packet's addr/port <unimpl.>
   	 * - Encapsulate: put it in another IP and send out. <unimp.>
@@ -21,12 +21,12 @@
 + #if defined(IPFILTER_LKM) || defined(IPFILTER)
 + 	if (fr_checkp) {
 + 		struct mbuf *m1 = m;
-  
++ 
 + 		if ((*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m1) || !m1)
 + 			return;
 + 		ip = mtod(m = m1, struct ip *);
 + 	}
 + #endif
+  
   #ifdef COMPAT_IPFW
   	if (ip_fw_chk_ptr) {
-  		int action;
