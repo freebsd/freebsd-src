@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002, 2003 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,9 +32,24 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <wchar.h>
 
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+
 size_t
-mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
-    mbstate_t * __restrict ps __unused)
+mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
+    size_t n, mbstate_t * __restrict ps)
+{
+
+	return (__mbrtowc(pwc, s, n, ps));
+}
+
+/*
+ * Emulate the ISO C mbrtowc() function in terms of the deprecated
+ * 4.4BSD sgetrune() function.
+ */
+size_t
+__emulated_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
+    size_t n, mbstate_t * __restrict ps __unused)
 {
         const char *e;
         rune_t r;
