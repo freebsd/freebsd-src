@@ -165,7 +165,7 @@ proc_dtor(void *mem, int size, void *arg)
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
 	/* INVARIANTS checks go here */
-#if 0	/* See comment in proc_ctor about seperating things */
+#if 0	/* See comment in proc_ctor about separating things */
 	mtx_destroy(&p->p_mtx);
 #endif
 	active_procs--;
@@ -239,7 +239,7 @@ ksegrp_link(struct ksegrp *kg, struct proc *p)
 	kg->kg_kses = 0;
 	kg->kg_idle_kses = 0;
 	kg->kg_runq_kses = 0; /* XXXKSE change name */
-/* link it in now that it's consitant */
+/* link it in now that it's consistent */
 	p->p_numksegrps++;
 	TAILQ_INSERT_HEAD(&p->p_ksegrps, kg, kg_ksegrp);
 }
@@ -295,7 +295,7 @@ int kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 
 /* 
  * No new KSEG: first call: use current KSE, don't schedule an upcall
- * All other situations, do alloate a new KSE and schedule an upcall on it.
+ * All other situations, do allocate a new KSE and schedule an upcall on it.
  */
 /* struct kse_new_args {
 	struct kse_mailbox *mbx;
@@ -358,7 +358,7 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 		thread_schedule_upcall(td, newkse);
 	} else {
 		/*
-		 * Don't set this until we are truely ready, because
+		 * Don't set this until we are truly ready, because
 		 * things will start acting differently.  Return to the
 		 * calling code for the first time.  Assuming we set up
 		 * the mailboxes right, all syscalls after this will be
@@ -841,7 +841,7 @@ fill_kinfo_proc(p, kp)
 			}
 		}
 
-		if (p->p_state == PRS_NORMAL) { /*  XXXKSE very aproximate */
+		if (p->p_state == PRS_NORMAL) { /*  XXXKSE very approximate */
 			if ((td->td_state == TDS_RUNQ) ||
 			    (td->td_state == TDS_RUNNING)) {
 				kp->ki_stat = SRUN;

@@ -114,7 +114,7 @@ static int f_singlecol;		/* use single column output */
        int f_slash;		/* similar to f_type, but only for dirs */
        int f_sortacross;	/* sort across rows, not down columns */ 
        int f_statustime;	/* use time of last mode change */
-       int f_stream;		/* stream the output, seperate with commas */
+       int f_stream;		/* stream the output, separate with commas */
 static int f_timesort;		/* sort by time vice name */
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
