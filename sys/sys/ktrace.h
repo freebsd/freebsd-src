@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ktrace.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: ktrace.h,v 1.12 1997/02/22 09:45:26 peter Exp $
  */
 
 #ifndef _SYS_KTRACE_H_
@@ -169,7 +169,7 @@ void	ktrsysret __P((struct vnode *, int, int, int));
 
 __BEGIN_DECLS
 int	ktrace __P((const char *, int, int, pid_t));
-int	utrace __P((const caddr_t , size_t));
+int	utrace __P((const void *, size_t));
 __END_DECLS
 
 #endif	/* !KERNEL */
