@@ -27,25 +27,25 @@
 .\"
 .\"
 .Dd May 14, 2001
-.Os FreeBSD
+.Os
 .Dt FDREAD 1
 .Sh NAME
 .Nm fdread
 .Nd read floppy disks
 .Sh SYNOPSIS
 .Nm
-.Op Fl q
-.Op Fl r
+.Op Fl qr
 .Op Fl d Ar device
 .Op Fl f Ar fillbyte
 .Op Fl o Ar file
 .Sh DESCRIPTION
-.Nm Fdread
-reads floppy disks.  Effective read blocking based on the track
+The
+.Nm
+utility reads floppy disks.  Effective read blocking based on the track
 size is performed, and floppy-specific error recovery of otherwise
 bad blocks can be enabled.
 .Pp
-.Nm Fdread
+.Nm
 will always read an entire floppy medium, and write its contents to
 the respective output file.  Unlike other tools like
 .Xr dd 1 ,
@@ -58,9 +58,11 @@ While
 .Nm
 is working, kernel error reporting for floppy errors is turned off, so
 the console and/or syslog are not flooded with kernel error messages.
-.Sh Options
-The options are as follows:
-.Bl -tag -width XXXX -offset indent
+.Pp
+The
+.Nm
+utility accepts the following options:
+.Bl -tag -width indent
 .It Fl q
 Turn on quiet mode.  By default, the medium parameters of the device
 are being written to standard error output, progress will be indicated
@@ -75,13 +77,15 @@ stops after the first unrecovered read error, much like
 .Xr dd 1
 does.  In recovery mode, however, one of two recovery actions will be
 taken:
-.Bl -bullet -offset indent
+.Bl -bullet
 .It
 If the error was a CRC error in the data field, the
 kernel is told to ignore the error, and data are transferred to the
 output file anyway.
-.Em Note that this will cause the erroneous data
-.Em to be included in the output file !
+.Bf -emphasis
+Note that this will cause the erroneous data
+to be included in the output file!
+.Ef
 Still, this is the best recovery action that can be taken at all.
 .It
 All other errors are really fatal (usually, the FDC didn't find the
@@ -111,15 +115,16 @@ Specify the output file to be
 By default, the data will be written to standard output.
 .El
 .Sh FILES
-.Bl -tag -width XXXXXXXX -offset indent
+.Bl -tag -width /dev/fd0
 .It Pa /dev/fd0
 Default device to read from.
+.El
 .Sh DIAGNOSTICS
-.Nm Fdread
+.Nm
 sets the exit value according to
 .Xr sysexits 3 .
 In recovery mode, the exit value will be set to
-.Sy EX_IOERR
+.Dv EX_IOERR
 if any error occurred during processing (even in quiet mode).
 .Pp
 Unless running in quiet mode, upon encountering an error, the status
@@ -146,13 +151,14 @@ location of the bad block in the output file is indicated by its
 of transfer errors will be printed before exiting.
 .Sh SEE ALSO
 .Xr dd 1 ,
-.Xr fdc 4 ,
-.Xr fdcontrol 8 ,
 .Xr fdwrite 1 ,
-.Xr sysexits 3
+.Xr sysexits 3 ,
+.Xr fdc 4 ,
+.Xr fdcontrol 8
 .Sh HISTORY
-.Nm Fdread
-was written mainly to provide a means of recovering at least some of
+The
+.Nm
+utility was written mainly to provide a means of recovering at least some of
 the data on bad media, and to obviate the need to invoke
 .Xr dd 1
 with too many hard to memorize options that might be useful to handle
@@ -162,8 +168,7 @@ The command appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 Program and man page by
-.ie t J\(:org Wunsch.
-.el Joerg Wunsch.
+.An J\(:org Wunsch .
 .Sh BUGS
 Concurrent traffic on the second floppy drive located at the same FDC
 will make error recovery attempts pointless, since the FDC status
@@ -181,4 +186,4 @@ without errors by trying multiple times.
 .Pp
 Bits that are (no longer) available on the floppy medium cannot be
 guessed by
-.Nm fdread .
+.Nm .
