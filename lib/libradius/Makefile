@@ -35,7 +35,7 @@ MAN3+=		libradius.3
 MAN5+=		radius.conf.5
 
 beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/radlib.h ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
