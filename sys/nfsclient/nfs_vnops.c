@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.51 1997/05/20 08:06:31 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.52 1997/06/03 10:03:40 dfr Exp $
  */
 
 
@@ -1249,6 +1249,8 @@ nfs_writerpc(vp, uiop, cred, iomode, must_commit)
 		tsiz -= len;
 	}
 nfsmout:
+	if (vp->v_mount->mnt_flag & MNT_ASYNC)
+		committed = NFSV3WRITE_FILESYNC;
 	*iomode = committed;
 	if (error)
 		uiop->uio_resid = tsiz;
