@@ -397,12 +397,12 @@ expari(flag)
 	CHECKSTRSPACE(12 - 2, expdest);
 	USTPUTC('\0', expdest);
 	start = stackblock();
-	p = expdest;
-	while (*p != CTLARI && p >= start)
+	p = expdest - 2;
+	while (p >= start && *p != CTLARI)
 		--p;
-	if (*p != CTLARI)
+	if (p < start || *p != CTLARI)
 		error("missing CTLARI (shouldn't happen)");
-	if (p > start && *(p-1) == CTLESC)
+	if (p > start && *(p - 1) == CTLESC)
 		for (p = start; *p != CTLARI; p++)
 			if (*p == CTLESC)
 				p++;
