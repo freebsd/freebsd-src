@@ -6,11 +6,17 @@
 
 .PATH:	${.CURDIR}/../../../contrib/awk
 
+.if ${MACHINE_ARCH} == "sparc64"
+PROG=	gawk
+.else
 PROG=	awk
+.endif
 SRCS=	array.c awkgram.y builtin.c eval.c field.c gawkmisc.c io.c main.c \
 	msg.c node.c re.c version.c dfa.c getopt.c getopt1.c ext.c profile.c
 MAN=	doc/gawk.1
+.if ${MACHINE_ARCH} != "sparc64"
 MLINKS=	gawk.1 awk.1
+.endif
 
 YFLAGS=
 
@@ -19,6 +25,7 @@ CFLAGS+=        -funsigned-char
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../../contrib/awk
 CFLAGS+=	-DHAVE_CONFIG_H -DGAWK -DDEFPATH=\".\"
+WARNS=	0
 
 SUBDIR+= doc
 
