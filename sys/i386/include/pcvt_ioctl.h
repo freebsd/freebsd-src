@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
+ * Copyright (c) 1992, 2000 Hellmuth Michaelis
+ *
+ * Copyright (c) 1992, 1995 Joerg Wunsch.
  *
  * Copyright (c) 1992, 1993 Brian Dunford-Shore and Holger Veit.
  *
@@ -42,23 +44,17 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Fri Apr  7 10:17:13 1995]
- * $FreeBSD$
  */
-
+ 
 /*---------------------------------------------------------------------------
  *
  *	pcvt_ioctl.h	ioctl's for the VT220 video driver 'pcvt'
  *	---------------------------------------------------------
- *	-hm	------------ Release 3.00 --------------
- *	-hm	some new PCVT_xxx (and CONF_xxx) values
- *	-hm	version definitions moved to begin of file
- *	-hm	removed PCVT_FAKE_SYSCONS10
- *	-hm	accept KERNEL or _KERNEL
- *	-hm	changed _IOCTL_PCVT_H_ to _MACHINE_PCVT_IOCTL_H_ (bde)
  *
+ *	Last Edit-Date: [Mon Mar 27 16:04:14 2000]
+ *
+ * $FreeBSD$
+ * 
  *---------------------------------------------------------------------------*/
 
 #ifndef	_MACHINE_PCVT_IOCTL_H_
@@ -66,9 +62,9 @@
 
 /* pcvt version information for VGAPCVTID ioctl */
 
-#define PCVTIDNAME    "pcvt-b24"	/* driver id - string		*/
+#define PCVTIDNAME    "pcvt"		/* driver id - string		*/
 #define PCVTIDMAJOR   3			/* driver id - major release	*/
-#define PCVTIDMINOR   20		/* driver id - minor release	*/
+#define PCVTIDMINOR   60		/* driver id - minor release	*/
 
 #if !defined(_KERNEL)
 #include <sys/types.h>
@@ -191,21 +187,6 @@ struct kbd_ovlkey				/* complete definition of a key */
 
 #define KBDRMKEY	_IOW('K',19, int)	/* remove a key assignment */
 #define KBDDEFAULT	_IO('K',20)		/* remove all key assignments */
-
-/* mouse emulator definitions */
-
-struct mousedefs {
-	int leftbutton;		/* (PC) scan code for "left button" key */
-	int middlebutton;	/* (PC) scan code for "mid button" key */
-	int rightbutton;	/* (PC) scan code for "right button" key */
-	int stickybuttons;	/* if true, the buttons are "sticky" */
-	int acceltime;		/* timeout in microseconds to start pointer */
-				/* movement acceleration */
-	/* defaults to: scan(F1), scan(F2), scan(F3), false, 500000 */
-};
-
-#define KBDMOUSEGET	_IOR('K', 25, struct mousedefs)	/* read defs */
-#define KBDMOUSESET	_IOW('K', 26, struct mousedefs)	/* set defs */
 
 /*---------------------------------------------------------------------------*
  *		IOCTLs for Video Adapter
@@ -410,12 +391,6 @@ struct pcvtid {				/* THIS STRUCTURE IS NOW FROZEN !!! */
 #define VGAPCVTINFO	_IOWR('V',114, struct pcvtinfo)	/* get driver info */
 
 struct pcvtinfo {			/* compile time option values */
-	u_int opsys;			/* PCVT_xxx(x)BSD */
-#define CONF_UNKNOWNOPSYS	0
-#define CONF_386BSD		1	/* unsupported */
-#define CONF_NETBSD		2
-#define CONF_FREEBSD		3
-	u_int opsysrel;			/* Release */
 	u_int nscreens;			/* PCVT_NSCREENS */
 	u_int scanset;			/* PCVT_SCANSET */
 	u_int updatefast;		/* PCVT_UPDATEFAST */
@@ -434,46 +409,21 @@ struct pcvtinfo {			/* compile time option values */
 #define CONF_CTRL_ALT_DEL	0x00000008
 #define CONF_USEKBDSEC		0x00000010
 #define CONF_24LINESDEF		0x00000020
-#define CONF_EMU_MOUSE		0x00000040
-#define CONF_SHOWKEYS		0x00000080
-#define CONF_KEYBDID		0x00000100
-#define CONF_SIGWINCH		0x00000200
-#define CONF_NULLCHARS		0x00000400
-#define CONF_BACKUP_FONTS	0x00000800
-#define CONF_SW0CNOUTP		0x00001000	/* was FORCE8BIT */
-				                /* 0x00002000 was NEEDPG */
-#define CONF_SETCOLOR		0x00004000
-#define CONF_132GENERIC		0x00008000
-#define CONF_PALFLICKER		0x00010000
-#define CONF_WAITRETRACE	0x00020000
-#define CONF_XSERVER		0x00040000
-#define CONF_USL_VT_COMPAT	0x00080000
-#define CONF_PORTIO_DELAY	0x00100000 	/* was FAKE_SYSCONS10 */
-#define CONF_INHIBIT_NUMLOCK	0x00200000
-#define CONF_META_ESC		0x00400000
-#define CONF_NOFASTSCROLL	0x00800000
-#define CONF_SLOW_INTERRUPT	0x01000000
-#define CONF_KBD_FIFO		0x02000000
-#define CONF_NO_LED_UPDATE	0x04000000
+#define CONF_SHOWKEYS		0x00000040
+#define CONF_NULLCHARS		0x00000080
+#define CONF_SETCOLOR		0x00000100
+#define CONF_132GENERIC		0x00000200
+#define CONF_XSERVER		0x00000400
+#define CONF_INHIBIT_NUMLOCK	0x00000800
+#define CONF_META_ESC		0x00001000
+#define CONF_SLOW_INTERRUPT	0x00002000
+#define CONF_NO_LED_UPDATE	0x00004000
 };
 
 #define VGASETCOLMS	_IOW('V', 115, int) /* set number of columns (80/132)*/
 
 /*
- * only useful if compiled with ``XSERVER'' defined, but always here:
- * WARNING: DO NOT CHANGE THESE DEFINITIONS, the X server relies on
- * it since it's defining its own values and doesn't know nothing about
- * this header file.
- */
-
-#define CONSOLE_X_MODE_ON   _IO('t', 121) /* turn off pcvt, grant IOPL for X */
-
-#define CONSOLE_X_MODE_OFF  _IO('t', 122) /* back to pcvt */
-
-#define CONSOLE_X_BELL      _IOW('t', 123, int[2]) /* set bell behaviour */
-
-/*
- * start of USL VT compatibility stuff
+ * start of USL VT compatibility stuff (in case XSERVER defined)
  * these definitions must match those ones used by syscons
  *
  * Note that some of the ioctl command definitions below break the Berkeley
