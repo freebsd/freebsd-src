@@ -27,15 +27,15 @@
 .\"     %beginstrip%
 .
 .\" локализация .Dt
-.ds doc-volume-ds-1 Справочник основных команд FreeBSD
-.ds doc-volume-ds-2 Справочник системных вызовов FreeBSD
-.ds doc-volume-ds-3 Справочник библиотечных функций FreeBSD
-.ds doc-volume-ds-4 Справочник интерфейсов ядра FreeBSD
-.ds doc-volume-ds-5 Справочник форматов файлов FreeBSD
-.ds doc-volume-ds-6 Справочник игр FreeBSD
-.ds doc-volume-ds-7 Справочник разной информации FreeBSD
+.ds doc-volume-ds-1 Справочник основных команд
+.ds doc-volume-ds-2 Справочник системных вызовов
+.ds doc-volume-ds-3 Справочник библиотечных функций
+.ds doc-volume-ds-4 Справочник интерфейсов ядра
+.ds doc-volume-ds-5 Справочник форматов файлов
+.ds doc-volume-ds-6 Справочник игр
+.ds doc-volume-ds-7 Справочник разной информации
 .ds doc-volume-ds-8 Справочник системного администратора
-.ds doc-volume-ds-9 Справочник разработчика ядра FreeBSD
+.ds doc-volume-ds-9 Справочник разработчика ядра
 .
 .ds doc-volume-ds-USD   Дополнительные документы для пользователя
 .ds doc-volume-ds-PS1   Дополнительные документы для программиста
@@ -47,42 +47,6 @@
 .ds doc-volume-ds-IND   Основной предметный указатель справочника
 .ds doc-volume-ds-LOCAL Локальный справочник
 .ds doc-volume-ds-CON   Справочник по дополнительному ПО
-.
-.ds doc-volume-as-alpha    (архитектура Alpha)
-.ds doc-volume-as-amiga    (архитектура Amiga)
-.ds doc-volume-as-arc      (архитектура Arc)
-.ds doc-volume-as-arm26    (архитектура ARM26)
-.ds doc-volume-as-arm32    (архитектура ARM32)
-.ds doc-volume-as-atari    (архитектура Atari)
-.ds doc-volume-as-bebox    (архитектура BEbox)
-.ds doc-volume-as-cobalt   (архитектура Cobalt)
-.ds doc-volume-as-evbsh3   (архитектура Evbsh3)
-.ds doc-volume-as-hp300    (архитектура HP300)
-.ds doc-volume-as-hpcmips  (архитектура HPcmips)
-.ds doc-volume-as-i386     (архитектура i386)
-.ds doc-volume-as-luna68k  (архитектура luna68k)
-.ds doc-volume-as-m68k     (архитектура m68k)
-.ds doc-volume-as-mac68k   (архитектура mac68k)
-.ds doc-volume-as-macppc   (архитектура macppc)
-.ds doc-volume-as-mips     (архитектура MIPS)
-.ds doc-volume-as-mmeye    (архитектура mmeye)
-.ds doc-volume-as-mvme68k  (архитектура mvme68k)
-.ds doc-volume-as-news68k  (архитектура news68k)
-.ds doc-volume-as-newsmips (архитектура newsmips)
-.ds doc-volume-as-next68k  (архитектура next68k)
-.ds doc-volume-as-ofppc    (архитектура ofppc)
-.ds doc-volume-as-pc532    (архитектура pc532)
-.ds doc-volume-as-pmax     (архитектура pmax)
-.ds doc-volume-as-powerpc  (архитектура powerpc)
-.ds doc-volume-as-prep     (архитектура prep)
-.ds doc-volume-as-sgimips  (архитектура sgimips)
-.ds doc-volume-as-sh3      (архитектура sh3)
-.ds doc-volume-as-sparc    (архитектура SPARC)
-.ds doc-volume-as-sparc64  (архитектура sparc64)
-.ds doc-volume-as-sun3     (архитектура sun3)
-.ds doc-volume-as-tahoe    (архитектура Tahoe)
-.ds doc-volume-as-vax      (архитектура VAX)
-.ds doc-volume-as-x68k     (архитектура x68k)
 .
 .\" локализация .Os
 .ds doc-operating-system-ATT-7    7я\~редакция
