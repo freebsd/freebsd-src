@@ -321,6 +321,7 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 			}
 
 			p->p_blocked = m;	/* Who we're blocked on */
+			p->p_mtxname = m->mtx_description;
 			p->p_stat = SMTX;
 #if 0
 			propagate_priority(p);
@@ -419,6 +420,7 @@ mtx_exit_hard(struct mtx *m, int type)
 		CTR2(KTR_LOCK, "mtx_exit: 0x%p contested setrunqueue 0x%p",
 		    m, p1);
 		p1->p_blocked = NULL;
+		p1->p_mtxname = NULL;
 		p1->p_stat = SRUN;
 		setrunqueue(p1);
 		if ((type & MTX_NOSWITCH) == 0 && p1->p_priority < pri) {
