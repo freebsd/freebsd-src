@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <netinet/in.h>
 
+#include <rpc/rpcclnt.h>
+
 #include <nfs/rpcv2.h>
 #include <nfsclient/krpc.h>
 #include <nfs/xdr_subs.h>

@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
+#include <rpc/rpcclnt.h>
+
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
@@ -72,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
+
+#include <nfs4client/nfs4.h>
 
 #define	TRUE	1
 #define	FALSE	0
@@ -874,6 +878,8 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 		return (ESTALE);
 	}
 	nmp = VFSTONFS(vp->v_mount);
+	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
+		return nfs4_request(vp, mrest, procnum, td, cred, mrp, mdp, dposp);
 	MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
 	rep->r_nmp = nmp;
 	rep->r_vp = vp;
@@ -1235,6 +1241,8 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 	struct proc *p;
 	sigset_t tmpset;
 
+	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
+		return nfs4_sigintr(nmp, rep, td);
 	if (rep && (rep->r_flags & R_SOFTTERM))
 		return (EINTR);
 	/* Terminate all requests while attempting a forced unmount. */

@@ -1562,6 +1562,15 @@ nfsclient/nfs_nfsiod.c		optional nfsclient
 nfsclient/nfs_vfsops.c		optional nfsclient
 nfsclient/nfs_vnops.c		optional nfsclient
 nfsclient/nfs_lock.c		optional nfsclient
+nfs4client/nfs4_socket.c	optional nfsclient
+nfs4client/nfs4_vfsops.c	optional nfsclient
+nfs4client/nfs4_vnops.c		optional nfsclient
+nfs4client/nfs4_subs.c		optional nfsclient
+nfs4client/nfs4_vfs_subs.c	optional nfsclient
+nfs4client/nfs4_vn_subs.c	optional nfsclient
+nfs4client/nfs4_dev.c		optional nfsclient
+nfs4client/nfs4_idmap.c		optional nfsclient
+rpc/rpcclnt.c			optional nfsclient
 nfsserver/nfs_serv.c		optional nfsserver
 nfsserver/nfs_srvsock.c		optional nfsserver
 nfsserver/nfs_srvcache.c	optional nfsserver

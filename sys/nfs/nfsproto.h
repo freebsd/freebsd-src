@@ -55,17 +55,19 @@
 #define	NFS_PROG	100003
 #define NFS_VER2	2
 #define	NFS_VER3	3
+#define NFS_VER4	4
+
 #define NFS_V2MAXDATA	8192
 #define	NFS_MAXDGRAMDATA 16384
 #define	NFS_MAXDATA	32768
 #define	NFS_MAXPATHLEN	1024
 #define	NFS_MAXNAMLEN	255
-#define	NFS_MAXPKTHDR	404
+#define	NFS_MAXPKTHDR	404	/* XXXv4 this needs to be adjust for v4 */
 #define NFS_MAXPACKET	(NFS_MAXPKTHDR + NFS_MAXDATA)
 #define	NFS_MINPACKET	20
 #define	NFS_FABLKSIZE	512	/* Size in bytes of a block wrt fa_blocks */
 
-/* Stat numbers for rpc returns (version 2 and 3) */
+/* Stat numbers for rpc returns (version 2, 3 and 4) */
 #define	NFS_OK			0
 #define	NFSERR_PERM		1
 #define	NFSERR_NOENT		2
@@ -88,7 +90,7 @@
 #define	NFSERR_STALE		70
 #define	NFSERR_REMOTE		71	/* Version 3 only */
 #define	NFSERR_WFLUSH		99	/* Version 2 only */
-#define	NFSERR_BADHANDLE	10001	/* The rest Version 3 only */
+#define	NFSERR_BADHANDLE	10001	/* The rest Version 3, 4 only */
 #define	NFSERR_NOT_SYNC		10002
 #define	NFSERR_BAD_COOKIE	10003
 #define	NFSERR_NOTSUPP		10004
@@ -97,7 +99,47 @@
 #define	NFSERR_BADTYPE		10007
 #define	NFSERR_JUKEBOX		10008
 #define NFSERR_TRYLATER		NFSERR_JUKEBOX
+#define	NFSERR_SAME		10009   /* The rest Version 4 only */
+#define	NFSERR_DENIED		10010
+#define	NFSERR_EXPIRED		10011
+#define	NFSERR_LOCKED		10012
+#define	NFSERR_GRACE		10013
+#define	NFSERR_FHEXPIRED	10014
+#define	NFSERR_SHARDE_DENIED	10015
+#define	NFSERR_WRONGSEC		10016
+#define	NFSERR_CLID_INUSE	10017
+#define	NFSERR_RESOURCE		10018
+#define	NFSERR_MOVED		10019
+#define	NFSERR_NOFILEHANDLE	10020
+#define	NFSERR_MINOR_VERS_MISMATCH 10021
+#define	NFSERR_STALE_CLIENTID	10022
+#define	NFSERR_STALE_STATEID	10023
+#define	NFSERR_OLD_STATEID	10024
+#define	NFSERR_BAD_STATEID	10025
+#define	NFSERR_BAD_SEQID	10026
+#define	NFSERR_NOT_SAME		10027
+#define	NFSERR_LOCK_RANGE	10028
+#define	NFSERR_SYMLINK		10029
+#define	NFSERR_READDIR_NOSPC	10030
+#define	NFSERR_LEASE_MOVED	10031
+#define	NFSERR_ATTRNOTSUPP	10032
+#define	NFSERR_NO_GRACE		10033
+#define	NFSERR_RECLAIM_BAD	10034
+#define	NFSERR_RECLAIM_CONFLICT	10035
+#define	NFSERR_BADXDR		10036
+#define	NFSERR_LOCKS_HELD	10037
+#define	NFSERR_OPENMODE		10038
+#define	NFSERR_BADOWNER		10039
+#define	NFSERR_BADCHAR		10040
+#define	NFSERR_BADNAME		10041
+#define	NFSERR_BAD_RANGE	10042
+#define	NFSERR_LOCK_NOTSUPP	10043
+#define	NFSERR_OP_ILLEGAL	10044
+#define	NFSERR_DEADLOCK		10045
+#define	NFSERR_FILE_OPEN	10046
 #define	NFSERR_STALEWRITEVERF	30001	/* Fake return for nfs_commit() */
+
+
 
 #define NFSERR_RETVOID		0x20000000 /* Return void, not error */
 #define NFSERR_AUTHERR		0x40000000 /* Mark an authentication error */
@@ -127,6 +169,11 @@
 #define NFSX_V3STATFS		52
 #define NFSX_V3FSINFO		48
 #define NFSX_V3PATHCONF		24
+
+/* specific to NFS Version 4 */
+#define NFSX_V4VERF		8
+#define NFSX_V4FH		128
+#define NFSX_V4STATEID		16
 
 /* variants for both versions */
 #define NFSX_FH(v3)		((v3) ? (NFSX_V3FHMAX + NFSX_UNSIGNED) : \
@@ -193,6 +240,48 @@
 #define	NFSV2PROC_READDIR	16
 #define	NFSV2PROC_STATFS	17
 
+/* Version 4 procedure numbers */
+#define NFSV4PROC_NULL         0
+#define NFSV4PROC_COMPOUND     1
+
+/* Version 4 operation numbers */
+#define NFSV4OP_ACCESS		3
+#define NFSV4OP_CLOSE		4
+#define NFSV4OP_COMMIT		5
+#define NFSV4OP_CREATE		6
+#define NFSV4OP_DELEGPURGE	7
+#define NFSV4OP_DELEGRETURN	8
+#define NFSV4OP_GETATTR		9
+#define NFSV4OP_GETFH		10
+#define NFSV4OP_LINK		11
+#define NFSV4OP_LOCK		12
+#define NFSV4OP_LOCKT		13
+#define NFSV4OP_LOCKU		14
+#define NFSV4OP_LOOKUP		15
+#define NFSV4OP_LOOKUPP		16
+#define NFSV4OP_NVERIFY		17
+#define NFSV4OP_OPEN		18
+#define NFSV4OP_OPENATTR	19
+#define NFSV4OP_OPEN_CONFIRM	20
+#define NFSV4OP_OPEN_DOWNGRADE	21
+#define NFSV4OP_PUTFH		22
+#define NFSV4OP_PUTPUBFH	23
+#define NFSV4OP_PUTROOTFH	24
+#define NFSV4OP_READ		25
+#define NFSV4OP_READDIR		26
+#define NFSV4OP_READLINK	27
+#define NFSV4OP_REMOVE		28
+#define NFSV4OP_RENAME		29
+#define NFSV4OP_RENEW		30
+#define NFSV4OP_RESTOREFH	31
+#define NFSV4OP_SAVEFH		32
+#define NFSV4OP_SECINFO		33
+#define NFSV4OP_SETATTR		34
+#define NFSV4OP_SETCLIENTID	35
+#define NFSV4OP_SETCLIENTID_CONFIRM 36
+#define NFSV4OP_VERIFY		37
+#define NFSV4OP_WRITE		38
+
 /*
  * Constants used by the Version 3 protocol for various RPCs
  */
@@ -220,11 +309,65 @@
 #define NFSV3FSINFO_HOMOGENEOUS		0x08
 #define NFSV3FSINFO_CANSETTIME		0x10
 
+/*
+ * Constants used by the Version 4 protocol for various RPCs
+ */
+
+#define NFSV4ACCESS_READ		0x01
+#define NFSV4ACCESS_LOOKUP		0x02
+#define NFSV4ACCESS_MODIFY		0x04
+#define NFSV4ACCESS_EXTEND		0x08
+#define NFSV4ACCESS_DELETE		0x10
+#define NFSV4ACCESS_EXECUTE		0x20
+
+#define NFSV4OPENRES_MLOCK		0x01
+#define NFSV4OPENRES_CONFIRM		0x02
+
+#define NFSV4OPENSHARE_ACCESS_READ	0x01
+#define NFSV4OPENSHARE_ACCESS_WRITE	0x02
+#define NFSV4OPENSHARE_ACCESS_BOTH	0x03
+#define NFSV4OPENSHARE_DENY_NONE	0x00
+#define NFSV4OPENSHARE_DENY_READ	0x01
+#define NFSV4OPENSHARE_DENY_WRITE	0x02
+#define NFSV4OPENSHARE_DENY_BOTH	0x03
+
 /* File types */
-typedef enum { NFNON=0, NFREG=1, NFDIR=2, NFBLK=3, NFCHR=4, NFLNK=5,
-	NFSOCK=6, NFFIFO=7 } nfstype;
+typedef enum {
+	NFNON=0,
+	NFREG=1,
+	NFDIR=2,
+	NFBLK=3,
+	NFCHR=4,
+	NFLNK=5,
+	NFSOCK=6,
+	NFFIFO=7,
+	NFATTRDIR = 8,
+	NFNAMEDATTR = 9,
+	NFBAD = 10,
+} nfstype;	
+
+/* NFSv4 claim type */
+typedef enum {
+	NCLNULL = 0,
+	NCLPREV = 1,
+	NCLDELEGCUR = 2,
+	NCLDELEGPREV = 3,
+} nfsv4cltype;
+
+/* Other NFSv4 types */
+typedef enum {
+	NSHUNSTABLE = 0,
+	NSHDATASYNC = 1,
+	NSHFILESYNC = 2,
+} nfsv4stablehow;
+
+typedef enum { OTNOCREATE = 0, OTCREATE = 1 } nfsv4opentype;
+typedef enum { CMUNCHECKED = 0, CMGUARDED = 1, CMEXCLUSIVE = 2 } nfsv4createmode;
+typedef enum { THSERVERTIME = 0, THCLIENTTIME = 1 } nfsv4timehow;
+typedef enum { ODNONE = 0, ODREAD = 1, ODWRITE = 2 } nfsv4opendelegtype;
 
 /* Structs for common parts of the rpc's */
+
 /*
  * File Handle (32 bytes for version 2), variable up to 64 for version 3.
  * File Handles of up to NFS_SMALLFH in size are stored directly in the
@@ -233,7 +376,7 @@ typedef enum { NFNON=0, NFREG=1, NFDIR=2, NFBLK=3, NFCHR=4, NFLNK=5,
  * NFS_SMALLFH should be in the range of 32 to 64 and be divisible by 4.
  */
 #ifndef NFS_SMALLFH
-#define NFS_SMALLFH	64
+#define NFS_SMALLFH	128
 #endif
 union nfsfh {
 	fhandle_t	fh_generic;
@@ -279,6 +422,22 @@ struct nfsv3_spec {
 	u_int32_t	specdata2;
 };
 typedef	struct nfsv3_spec	nfsv3spec;
+
+/*
+ * NFS Version 4 bitmap.
+ */
+struct nfsv4_bitmap {
+	uint32_t	bmlen;
+	uint32_t	*bmval;
+};
+typedef struct nfsv4_bitmap nfsv4bitmap;
+
+struct nfsv4_changeinfo {
+	u_int		ciatomic;
+	uint64_t	cibefore;
+	uint64_t	ciafter;
+};
+typedef struct nfsv4_changeinfo nfsv4changeinfo;
 
 /*
  * File attributes and setable attributes. These structures cover both
@@ -338,6 +497,126 @@ struct nfs_fattr {
 #define	fa3_atime		fa_un.fa_nfsv3.nfsv3fa_atime
 #define	fa3_mtime		fa_un.fa_nfsv3.nfsv3fa_mtime
 #define	fa3_ctime		fa_un.fa_nfsv3.nfsv3fa_ctime
+
+struct nfsv4_fattr {
+	u_int		fa4_valid;
+	nfstype		fa4_type;
+	off_t		fa4_size;
+	uint64_t	fa4_fsid_major;
+	uint64_t	fa4_fsid_minor;
+	uint64_t	fa4_fileid;
+	mode_t		fa4_mode;
+	nlink_t		fa4_nlink;
+	uid_t		fa4_uid;
+	gid_t		fa4_gid;
+	uint32_t	fa4_rdev_major;
+	uint32_t	fa4_rdev_minor;
+	struct timespec	fa4_atime;
+	struct timespec	fa4_ctime;
+	struct timespec	fa4_mtime;
+	uint64_t	fa4_maxread;
+	uint64_t	fa4_maxwrite;
+	uint64_t	fa4_ffree;
+	uint64_t	fa4_ftotal;
+	uint32_t	fa4_maxname;
+	uint64_t	fa4_savail;
+	uint64_t	fa4_sfree;
+	uint64_t	fa4_stotal;
+	uint64_t	fa4_changeid;
+	uint32_t	fa4_lease_time;
+	uint64_t	fa4_maxfilesize;
+};
+
+/* Flags for fa4_valid */
+#define FA4V_SIZE	0x00000001
+#define FA4V_FSID	0x00000002
+#define FA4V_FILEID	0x00000004
+#define FA4V_MODE	0x00000008
+#define FA4V_NLINK	0x00000010
+#define FA4V_UID	0x00000020
+#define FA4V_GID	0x00000040
+#define FA4V_RDEV	0x00000080
+#define FA4V_ATIME	0x00000100
+#define FA4V_CTIME	0x00000200
+#define FA4V_MTIME	0x00000400
+#define FA4V_MAXREAD	0x00000800
+#define FA4V_MAXWRITE	0x00001000
+#define FA4V_TYPE	0x00002000
+#define FA4V_FFREE	0x00004000
+#define FA4V_FTOTAL	0x00008000
+#define FA4V_MAXNAME	0x00010000
+#define FA4V_SAVAIL	0x00020000
+#define FA4V_SFREE	0x00040000
+#define FA4V_STOTAL	0x00080000
+#define FA4V_CHANGEID	0x00100000
+#define FA4V_LEASE_TIME	0x00200000
+#define FA4V_MAXFILESIZE 0x00400000
+#define FA4V_ACL	0x00800000
+
+/* Offsets into bitmask */
+#define FA4_SUPPORTED_ATTRS	0
+#define FA4_TYPE		1
+#define FA4_FH_EXPIRE_TYPE	2
+#define FA4_CHANGE		3
+#define FA4_SIZE		4
+#define FA4_LINK_SUPPORT	5
+#define FA4_SYMLINK_SUPPORT	6
+#define FA4_NAMED_ATTR		7
+#define FA4_FSID		8
+#define FA4_UNIQUE_HANDLES	9
+#define FA4_LEASE_TIME		10
+#define FA4_RDATTR_ERROR	11
+#define FA4_ACL			12
+#define FA4_ACLSUPPORT		13
+#define FA4_ARCHIVE		14
+#define FA4_CANSETTIME		15
+#define FA4_CASE_INSENSITIVE	16
+#define FA4_CASE_PRESERVING	17 
+#define FA4_CHOWN_RESTRICTED	18
+#define FA4_FILEHANDLE		19
+#define FA4_FILEID		20
+#define FA4_FILES_AVAIL		21
+#define FA4_FILES_FREE		22
+#define FA4_FILES_TOTAL		23
+#define FA4_FS_LOCATIONS	24
+#define FA4_HIDDEN		25
+#define FA4_HOMOGENEOUS		26
+#define FA4_MAXFILESIZE		27
+#define FA4_MAXLINK		28
+#define FA4_MAXNAME		29
+#define FA4_MAXREAD		30
+#define FA4_MAXWRITE		31
+#define FA4_MIMETYPE		32
+#define FA4_MODE		33
+#define FA4_NO_TRUNC		34
+#define FA4_NUMLINKS		35
+#define FA4_OWNER		36
+#define FA4_OWNER_GROUP		37
+#define FA4_QUOTA_HARD		38
+#define FA4_QUOTA_SOFT		39
+#define FA4_QUOTA_USED		40
+#define FA4_RAWDEV		41
+#define FA4_SPACE_AVAIL		42
+#define FA4_SPACE_FREE		43
+#define FA4_SPACE_TOTAL		44
+#define FA4_SPACE_USED		45
+#define FA4_SYSTEM		46
+#define FA4_TIME_ACCESS		47
+#define FA4_TIME_ACCESS_SET	48
+#define FA4_TIME_BACKUP		49
+#define FA4_TIME_CREATE		50
+#define FA4_TIME_DELTA		51
+#define FA4_TIME_METADATA	52
+#define FA4_TIME_MODIFY		53
+#define FA4_TIME_MODIFY_SET	54
+#define FA4_ATTR_MAX		55
+
+/* Macros for v4 fattr manipulation */
+#define FA4_SET(n, p)	((p)[(n)/32] |= (1 << ((n) % 32)))
+#define FA4_CLR(n, p)	((p)[(n)/32] &= ~(1 << ((n) % 32)))
+#define FA4_ISSET(n, p)	((p)[(n)/32] & (1 << ((n) % 32)))
+#define FA4_ZERO(p)	bzero((p), 8)
+#define FA4_SKIP(p)	((p) += 2)
 
 struct nfsv2_sattr {
 	u_int32_t	sa_mode;

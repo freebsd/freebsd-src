@@ -51,6 +51,7 @@
 struct sillyrename {
 	struct	ucred *s_cred;
 	struct	vnode *s_dvp;
+	int	(*s_removeit)(struct sillyrename *sp);
 	long	s_namlen;
 	char	s_name[20];
 };
@@ -68,8 +69,14 @@ struct sillyrename {
 struct nfsdmap {
 	LIST_ENTRY(nfsdmap)	ndm_list;
 	int			ndm_eocookie;
-	nfsuint64		ndm_cookies[NFSNUMCOOKIES];
+	union {
+		nfsuint64	ndmu3_cookies[NFSNUMCOOKIES];
+		uint64_t	ndmu4_cookies[NFSNUMCOOKIES];
+	} ndm_un1;
 };
+
+#define ndm_cookies	ndm_un1.ndmu3_cookies
+#define ndm4_cookies	ndm_un1.ndmu4_cookies
 
 /*
  * The nfsnode is the nfs equivalent to ufs's inode. Any similarity
@@ -99,11 +106,13 @@ struct nfsnode {
 	time_t			n_expiry;	/* Lease expiry time */
 	nfsfh_t			*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
+	struct vnode		*n_dvp;		/* parent vnode */
 	struct lockf		*n_lockf;	/* Locking record of file */
 	int			n_error;	/* Save write error value */
 	union {
 		struct timespec	nf_atim;	/* Special file times */
 		nfsuint64	nd_cookieverf;	/* Cookie verifier (dir only) */
+		u_char		nd4_cookieverf[NFSX_V4VERF];
 	} n_un1;
 	union {
 		struct timespec	nf_mtim;
@@ -117,12 +126,21 @@ struct nfsnode {
 	short			n_flag;		/* Flag for locking.. */
 	nfsfh_t			n_fh;		/* Small File Handle */
 	struct lock		n_rslock;
+	struct nfs4_fctx	n_rfc;
+	struct nfs4_fctx	n_wfc;
+	/*
+	 * The last component name is needed for the NFSv4 OPEN
+	 * operation.
+	 */
+	u_char			*n_name;
+	uint32_t		n_namelen;
 };
 
 #define n_atim		n_un1.nf_atim
 #define n_mtim		n_un2.nf_mtim
 #define n_sillyrename	n_un3.nf_silly
 #define n_cookieverf	n_un1.nd_cookieverf
+#define n4_cookieverf	n_un1.nd4_cookieverf
 #define n_direofoffset	n_un2.nd_direof
 #define n_cookies	n_un3.nd_cook
 
@@ -137,6 +155,8 @@ struct nfsnode {
 #define	NACC		0x0100	/* Special file accessed */
 #define	NUPD		0x0200	/* Special file updated */
 #define	NCHG		0x0400	/* Special file times changed */
+#define	NCREATED	0x0800	/* Opened by nfs_create() */
+#define	NTRUNCATE	0x1000	/* Opened by nfs_setattr() */
 
 /*
  * Convert between nfsnode pointers and vnode pointers
@@ -182,6 +202,10 @@ extern	vop_t	**fifo_nfsnodeop_p;
 extern	vop_t	**nfs_vnodeop_p;
 extern	vop_t	**spec_nfsnodeop_p;
 
+extern	vop_t	**fifo_nfs4nodeop_p;
+extern	vop_t	**nfs4_vnodeop_p;
+extern	vop_t	**spec_nfs4nodeop_p;
+
 /*
  * Prototypes for NFS vnode operations
  */
@@ -193,9 +217,12 @@ int	nfs_reclaim(struct vop_reclaim_args *);
 
 /* other stuff */
 int	nfs_removeit(struct sillyrename *);
+int	nfs4_removeit(struct sillyrename *);
 int	nfs_nget(struct mount *, nfsfh_t *, int, struct nfsnode **);
 nfsuint64 *nfs_getcookie(struct nfsnode *, off_t, int);
+uint64_t *nfs4_getcookie(struct nfsnode *, off_t, int);
 void	nfs_invaldir(struct vnode *);
+void	nfs4_invaldir(struct vnode *);
 
 #endif /* _KERNEL */
 

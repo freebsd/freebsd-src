@@ -58,11 +58,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
+#include <rpc/rpcclnt.h>
+
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
+
+#include <nfs4client/nfs4.h>
 
 /*
  * Just call nfs_writebp() with the force argument set to 1.
@@ -70,11 +74,23 @@ __FBSDID("$FreeBSD$");
  * NOTE: B_DONE may or may not be set in a_bp on call.
  */
 static int
+nfs4_bwrite(struct buf *bp)
+{
+
+	return (nfs4_writebp(bp, 1, curthread));
+}
+
+static int
 nfs_bwrite(struct buf *bp)
 {
 
 	return (nfs_writebp(bp, 1, curthread));
 }
+
+struct buf_ops buf_ops_nfs4 = {
+	"buf_ops_nfs4",
+	nfs4_bwrite
+};
 
 struct buf_ops buf_ops_nfs = {
 	"buf_ops_nfs",
@@ -118,6 +134,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
+		/* We'll never get here for v4, because we always have fsinfo */
 		(void)nfs_fsinfo(nmp, vp, cred, td);
 	}
 
@@ -170,7 +187,10 @@ nfs_getpages(struct vop_getpages_args *ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
 
-	error = nfs_readrpc(vp, &uio, cred);
+	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
+		error = nfs4_readrpc(vp, &uio, cred);
+	else
+		error = nfs_readrpc(vp, &uio, cred);
 	pmap_qremove(kva, npages);
 
 	relpbuf(bp, &nfs_pbuf_freecnt);
@@ -332,7 +352,10 @@ nfs_putpages(struct vop_putpages_args *ap)
 	else
 	    iomode = NFSV3WRITE_FILESYNC;
 
-	error = nfs_writerpc(vp, &uio, cred, &iomode, &must_commit);
+	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
+		error = nfs4_writerpc(vp, &uio, cred, &iomode, &must_commit);
+	else
+		error = nfs_writerpc(vp, &uio, cred, &iomode, &must_commit);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &nfs_pbuf_freecnt);
@@ -837,7 +860,10 @@ again:
 				allocbuf(bp, bcount);
 				bp->b_flags |= save;
 				bp->b_magic = B_MAGIC_NFS;
-				bp->b_op = &buf_ops_nfs;
+				if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
+					bp->b_op = &buf_ops_nfs4;
+				else
+					bp->b_op = &buf_ops_nfs;
 			}
 		} else {
 			/*
@@ -996,7 +1022,10 @@ again:
 				break;
 		} else if ((n + on) == biosize) {
 			bp->b_flags |= B_ASYNC;
-			(void)nfs_writebp(bp, 0, 0);
+			if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
+				(void)nfs4_writebp(bp, 0, 0);
+			else
+				(void)nfs_writebp(bp, 0, 0);
 		} else {
 			bdwrite(bp);
 		}
@@ -1339,13 +1368,17 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 	    case VDIR:
 		nfsstats.readdir_bios++;
 		uiop->uio_offset = ((u_quad_t)bp->b_lblkno) * NFS_DIRBLKSIZ;
-		if (nmp->nm_flag & NFSMNT_RDIRPLUS) {
-			error = nfs_readdirplusrpc(vp, uiop, cr);
-			if (error == NFSERR_NOTSUPP)
-				nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
+		if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
+			error = nfs4_readdirrpc(vp, uiop, cr);
+		else {
+			if ((nmp->nm_flag & NFSMNT_RDIRPLUS) != 0) {
+				error = nfs_readdirplusrpc(vp, uiop, cr);
+				if (error == NFSERR_NOTSUPP)
+					nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
+			}
+			if ((nmp->nm_flag & NFSMNT_RDIRPLUS) == 0)
+				error = nfs_readdirrpc(vp, uiop, cr);
 		}
-		if ((nmp->nm_flag & NFSMNT_RDIRPLUS) == 0)
-			error = nfs_readdirrpc(vp, uiop, cr);
 		/*
 		 * end-of-directory sets B_INVAL but does not generate an
 		 * error.

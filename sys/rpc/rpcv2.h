@@ -1,3 +1,7 @@
+/* $FreeBSD$ */
+/*	$OpenBSD: rpcv2.h,v 1.5 2002/06/11 15:45:44 hin Exp $	*/
+/*	$NetBSD: rpcv2.h,v 1.8 1996/02/18 11:54:11 fvdl Exp $	*/
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,7 +38,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.2 (Berkeley) 3/30/95
- * $FreeBSD$
  */
 
 
@@ -53,60 +56,46 @@
 #define	RPCAUTH_NULL	0
 #define	RPCAUTH_UNIX	1
 #define	RPCAUTH_SHORT	2
-#define	RPCAUTH_KERB4	4
+#define RPCAUTH_KERB4	4
 #define	RPCAUTH_MAXSIZ	400
 #define	RPCVERF_MAXSIZ	12	/* For Kerb, can actually be 400 */
 #define	RPCAUTH_UNIXGIDS 16
 
-/*
- * Constants associated with authentication flavours.
- */
-#define RPCAKN_FULLNAME	0
-#define RPCAKN_NICKNAME	1
+/* Rpc Constants */
 
 /* msg type */
 #define	RPC_CALL	0
 #define	RPC_REPLY	1
 
-/* reply status */
+/* reply stat */
 #define	RPC_MSGACCEPTED	0
 #define	RPC_MSGDENIED	1
 
-/* accepted status */
-#define	RPC_SUCCESS	0
+/* accepted stat: */
+#define RPC_SUCCESS	0
 #define	RPC_PROGUNAVAIL	1
 #define	RPC_PROGMISMATCH	2
 #define	RPC_PROCUNAVAIL	3
 #define	RPC_GARBAGE	4		/* I like this one */
-#define	RPC_SYSTEMERR	5
+#define RPC_SYSTEMERR	5
 
-/* rejected status */
+/* reject stat */
 #define	RPC_MISMATCH	0
 #define	RPC_AUTHERR	1
 
 /* Authentication failures */
-#define	AUTH_OK		0
+#define AUTH_OK		0
 #define	AUTH_BADCRED	1
 #define	AUTH_REJECTCRED	2
 #define	AUTH_BADVERF	3
 #define	AUTH_REJECTVERF	4
 #define	AUTH_TOOWEAK	5		/* Give em wheaties */
 
+
 /* Sizes of rpc header parts */
 #define	RPC_SIZ		24
 #define	RPC_REPLYSIZ	28
 
-/* RPC Prog definitions */
-#define	RPCPROG_MNT	100005
-#define	RPCMNT_VER1	1
-#define RPCMNT_VER3	3
-#define	RPCMNT_MOUNT	1
-#define	RPCMNT_DUMP	2
-#define	RPCMNT_UMOUNT	3
-#define	RPCMNT_UMNTALL	4
-#define	RPCMNT_EXPORT	5
-#define	RPCMNT_NAMELEN	255
-#define	RPCMNT_PATHLEN	1024
-#define	RPCPROG_NFS	100003
+typedef u_char			NFSKERBKEY_T[2];
 
 #endif
