@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.20 1998/10/09 07:32:38 jkh Exp $
+ * $Id: libutil.h,v 1.21 1998/12/16 17:52:15 bde Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -37,6 +37,7 @@ typedef struct _property {
 struct termios;
 struct winsize;
 struct utmp;
+struct in_addr;
 
 __BEGIN_DECLS
 void	setproctitle __P((const char *_fmt, ...)) __printf0like(1, 2);
@@ -58,6 +59,7 @@ properties properties_read __P((int fd));
 void	properties_free __P((properties list));
 char	*property_find __P((properties list, const char *name));
 char	*auth_getval __P((const char *name));
+int	realhostname __P((char *host, size_t hsize, const struct in_addr *ip));
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
@@ -69,5 +71,11 @@ __END_DECLS
 #define UU_LOCK_LINK_ERR (-5)
 #define UU_LOCK_TRY_ERR (-6)
 #define UU_LOCK_OWNER_ERR (-7)
+
+/* return values from realhostname() */
+#define HOSTNAME_FOUND		(0)
+#define HOSTNAME_INCORRECTNAME	(1)
+#define HOSTNAME_INVALIDADDR	(2)
+#define HOSTNAME_INVALIDNAME	(3)
 
 #endif /* !_LIBUTIL_H_ */
