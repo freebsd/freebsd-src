@@ -492,7 +492,7 @@ mountmsdosfs(devvp, mp, p, argp)
 #endif
 		/* XXX - We should probably check more values here */
 		if (!pmp->pm_BytesPerSec || !SecPerClust
-			|| !pmp->pm_Heads || pmp->pm_Heads > 255
+			|| !pmp->pm_Heads
 #ifdef PC98
 	    		|| !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 255) {
 #else
