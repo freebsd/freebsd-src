@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.h
  *
- * $Id: spx_debug.h,v 1.4 1995/11/04 09:03:35 julian Exp $
+ * $Id: spx_debug.h,v 1.5 1995/11/24 12:25:13 bde Exp $
  */
 
 #ifndef _NETIPX_SPX_DEBUG_H_
@@ -61,8 +61,11 @@ char	*spxnames[] =
 #endif
 
 #define	SPX_NDEBUG 100
+#ifndef KERNEL
+/* XXX common variables for broken applications. */
 struct	spx_debug spx_debug[SPX_NDEBUG];
 int	spx_debx;
+#endif
 
 #ifdef KERNEL
 extern char *prurequests[];

@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.6 1995/11/24 12:01:08 bde Exp $
+ * $Id: spx_usrreq.c,v 1.7 1995/12/16 02:14:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,6 @@
 
 struct spx spx_savesi;
 int traceallspxs = 0;
-extern int spxconsdebug;
 int spx_hardnosed;
 int spx_use_delack = 0;
 u_short spx_newchecks[50];

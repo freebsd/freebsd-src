@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id: spx_debug.c,v 1.4 1996/02/13 18:16:26 wollman Exp $
+ * $Id: spx_debug.c,v 1.5 1996/03/11 15:13:58 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,12 @@
 #define	SANAMES
 #include <netipx/spx_debug.h>
 
-int	spxconsdebug = 0;
+#ifdef TCPDEBUG
+static int	spxconsdebug = 0;
+static struct spx_debug spx_debug[SPX_NDEBUG];
+static int	spx_debx;
+#endif
+
 /*
  * spx debug routines
  */
