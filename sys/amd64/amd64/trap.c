@@ -189,7 +189,6 @@ userret(p, frame, oticks)
 		 * mi_switch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
-		clear_resched();
 		DROP_GIANT_NOSWITCH();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;

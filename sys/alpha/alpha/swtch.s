@@ -85,7 +85,6 @@ Lsavectx1: LDGP(pv)
 /**************************************************************************/
 
 IMPORT(Lev1map, 8)
-IMPORT(sched_lock, 72)
 
 /*
  * cpu_switch()
@@ -96,8 +95,6 @@ LEAF(cpu_switch, 1)
 	/* do an inline savectx(), to save old context */
 	ldq	a0, GD_CURPROC(globalp)
 	ldq	a1, P_ADDR(a0)
-	ldl	t0, sched_lock+MTX_RECURSE	/* save sched_lock state */
-	stl	t0, U_PCB_SCHEDNEST(a1)
 	/* NOTE: ksp is stored by the swpctx */
 	stq	s0, U_PCB_CONTEXT+(0 * 8)(a1)	/* store s0 - s6 */
 	stq	s1, U_PCB_CONTEXT+(1 * 8)(a1)
@@ -173,7 +170,6 @@ Lcs7:
 	 * in which case curproc would be NULL.
 	 */
 	stq	s2, GD_CURPROC(globalp)		/* curproc = p */
-	CALL	(alpha_clear_resched)		/* we've rescheduled */
 
 	/*
 	 * Now running on the new u struct.
@@ -190,10 +186,6 @@ Lcs7:
 	ldq	s5, U_PCB_CONTEXT+(5 * 8)(t0)
 	ldq	s6, U_PCB_CONTEXT+(6 * 8)(t0)
 	ldq	ra, U_PCB_CONTEXT+(7 * 8)(t0)		/* restore ra */
-	ldl	t1, U_PCB_SCHEDNEST(t0)
-	stl	t1, sched_lock+MTX_RECURSE		/* restore lock */
-	ldq	t1, GD_CURPROC(globalp)
-	stq	t1, sched_lock+MTX_LOCK
 
 	ldiq	v0, 1				/* possible ret to savectx() */
 	RET

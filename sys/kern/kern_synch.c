@@ -848,6 +848,7 @@ mi_switch()
 	register struct rlimit *rlim;
 #endif
 	int x;
+	u_int sched_nest;
 
 	/*
 	 * XXX this spl is almost unnecessary.  It is partly to allow for
@@ -922,7 +923,14 @@ mi_switch()
 	PCPU_SET(switchtime, new_switchtime);
 	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
+	sched_nest = sched_lock.mtx_recurse;
+	curproc->p_lastcpu = curproc->p_oncpu;
+	curproc->p_oncpu = NOCPU;
+	clear_resched();
 	cpu_switch();
+	curproc->p_oncpu = PCPU_GET(cpuid);
+	sched_lock.mtx_recurse = sched_nest;
+	sched_lock.mtx_lock = curproc;
 	CTR4(KTR_PROC, "mi_switch: new proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	if (PCPU_GET(switchtime.tv_sec) == 0)

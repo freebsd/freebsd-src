@@ -85,10 +85,6 @@ ENTRY(cpu_switch)
 	testl	%ecx,%ecx
 	jz	sw1
 
-	movb	P_ONCPU(%ecx), %al		/* save "last" cpu */
-	movb	%al, P_LASTCPU(%ecx)
-	movb	$0xff, P_ONCPU(%ecx)		/* "leave" the cpu */
-
 	movl	P_VMSPACE(%ecx), %edx
 	movl	PCPU(CPUID), %eax
 	btrl	%eax, VM_PMAP+PM_ACTIVE(%edx)
@@ -123,10 +119,6 @@ ENTRY(cpu_switch)
 	movl    %dr0,%eax
 	movl    %eax,PCB_DR0(%edx)
 1:
- 
-	/* save sched_lock recursion count */
-	movl	_sched_lock+MTX_RECURSECNT,%eax
-	movl    %eax,PCB_SCHEDNEST(%edx)
  
 #ifdef SMP
 	/* XXX FIXME: we should be saving the local APIC TPR */
@@ -242,9 +234,6 @@ sw1b:
 #endif /** CHEAP_TPR */
 #endif /** GRAB_LOPRIO */
 #endif /* SMP */
-	movl	PCPU(CPUID),%eax
-	movb	%al, P_ONCPU(%ecx)
-
 	movl	%edx, PCPU(CURPCB)
 	movl	%ecx, PCPU(CURPROC)		/* into next process */
 
@@ -289,17 +278,6 @@ cpu_switch_load_gs:
 	movl    PCB_DR7(%edx),%eax
 	movl    %eax,%dr7
 1:
-
-	/*
-	 * restore sched_lock recursion count and transfer ownership to
-	 * new process
-	 */
-	movl	PCB_SCHEDNEST(%edx),%eax
-	movl	%eax,_sched_lock+MTX_RECURSECNT
-
-	movl	PCPU(CURPROC),%eax
-	movl	%eax,_sched_lock+MTX_LOCK
-
 	ret
 
 CROSSJUMPTARGET(sw1a)
