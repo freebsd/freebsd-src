@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.39.4.1 1997/01/12 22:09:53 joerg Exp $
+ *      $Id: scsi_base.c,v 1.39.4.2 1997/01/30 22:49:29 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -615,7 +615,9 @@ retry:
 	 * check if anyone else needs to be started up.
 	 */
 bad:
+	s = splbio();
 	free_xs(xs, sc_link, flags);	/* includes the 'start' op */
+	splx(s);
 	if (bp && retval) {
 		bp->b_error = retval;
 		bp->b_flags |= B_ERROR;

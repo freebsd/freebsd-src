@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.15 1996/05/18 03:37:47 dyson Exp $
+ * $Id: vm_meter.c,v 1.16 1996/09/08 20:44:39 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -179,7 +179,7 @@ vmtotal SYSCTL_HANDLER_ARGS
 		paging = 0;
 		for (map = &p->p_vmspace->vm_map, entry = map->header.next;
 		    entry != &map->header; entry = entry->next) {
-			if (entry->is_a_map || entry->is_sub_map ||
+			if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) ||
 			    entry->object.vm_object == NULL)
 				continue;
 			entry->object.vm_object->flags |= OBJ_ACTIVE;

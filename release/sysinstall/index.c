@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38.2.4 1997/01/29 21:46:10 jkh Exp $
+ * $Id: index.c,v 1.38.2.6 1997/03/25 02:45:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,12 +56,11 @@ _strdup(char *ptr)
 }
 
 static char *descrs[] = {
-    "Package Selection", "To mark a package or select a category, move to it and press SPACE.\n"
-    "To unmark a package, press SPACE again.  To go to a previous menu,\n"
-    "select the Cancel button.  To search for a package by name, press ESC.\n"
-    "To finally extract packages, you should Cancel all the way out of any\n"
-    "submenus and then this top menu.  NOTE:  The All category selection\n"
-    "creates a very large submenu. If you select it, please be patient.",
+    "Package Selection", "To mark a package, move to it and press SPACE.  If the package is\n"
+    "already marked, it will be unmarked or deleted (if installed).\n"
+    "To search for a package by name, press ESC.  To select a category,\n"
+    "press RETURN.  NOTE:  The All category selection creates a very large\n"
+    "submenu.  If you select it, please be patient while it comes up.",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
     "If you're sure of these choices, select OK.\n"
     "If not, select Cancel to go back to the package selection menu.\n",
@@ -85,6 +84,7 @@ static char *descrs[] = {
     "games", "Various and sundry amusements.",
     "graphics", "Graphics libraries and utilities.",
     "japanese", "Ported software for the Japanese market.",
+    "korean", "Ported software for the Korean market.",
     "lang", "Computer languages.",
     "languages", "Computer languages.",
     "libraries", "Software development libraries.",
@@ -482,12 +482,22 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     while (1) {
 	n = 0;
 	curr = max = 0;
+	use_helpline(NULL);
+	use_helpfile(NULL);
 	kp = top->kids;
+	if (!hasPackages && plist) {
+	    nitems = item_add(nitems, "OK", NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
+	    nitems = item_add(nitems, "Install", NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
+	}
 	while (kp && kp->name) {
 	    char buf[256];
+	    IndexEntryPtr ie = kp->data;
 
 	    /* Brutally adjust description to fit in menu */
-	    SAFE_STRCPY(buf, kp->desc);
+	    if (kp->type == PACKAGE)
+		snprintf(buf, sizeof buf, "[%s]", ie->path ? ie->path : "External vendor");
+	    else
+		SAFE_STRCPY(buf, kp->desc);
 	    if (strlen(buf) > (_MAX_DESC - maxname))
 		buf[_MAX_DESC - maxname] = '\0';
 	    nitems = item_add(nitems, kp->name, buf, pkg_checked, pkg_fire, pkg_selected, kp, (int)plist, &curr, &max);
@@ -501,9 +511,8 @@ recycle:
 	dialog_clear_norefresh();
 	if (hasPackages)
 	    rval = dialog_checklist(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, -n, nitems, NULL);
-	else	/* It's a categories menu */
-	    rval = dialog_menu(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, -n,
-			       nitems, NULL, pos, scroll);
+	else
+	    rval = dialog_menu(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, -n, nitems + (plist ? 2 : 0), (char *)plist, pos, scroll);
 	if (rval == -1 && plist) {
 	    static char *cp;
 	    PkgNodePtr menu;

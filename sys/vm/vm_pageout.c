@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.86 1996/09/28 03:33:40 dyson Exp $
+ * $Id: vm_pageout.c,v 1.86.2.1 1997/02/13 08:17:32 bde Exp $
  */
 
 /*
@@ -221,6 +221,7 @@ vm_pageout_clean(m, sync)
 	if (!sync && object->backing_object) {
 		vm_object_collapse(object);
 	}
+
 	mc[vm_pageout_page_count] = m;
 	pageout_count = 1;
 	page_base = vm_pageout_page_count;
@@ -517,7 +518,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 */
 	tmpe = map->header.next;
 	while (tmpe != &map->header) {
-		if ((tmpe->is_sub_map == 0) && (tmpe->is_a_map == 0)) {
+		if ((tmpe->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
 			obj = tmpe->object.vm_object;
 			if ((obj != NULL) && (obj->shadow_count <= 1) &&
 				((bigobj == NULL) ||
@@ -539,7 +540,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	while (tmpe != &map->header) {
 		if (vm_map_pmap(map)->pm_stats.resident_count <= desired)
 			break;
-		if ((tmpe->is_sub_map == 0) && (tmpe->is_a_map == 0)) {
+		if ((tmpe->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
 			obj = tmpe->object.vm_object;
 			if (obj)
 				vm_pageout_object_deactivate_pages(map, obj, desired, 0);
@@ -810,10 +811,12 @@ rescan0:
 			if (vm_pageout_algorithm_lru ||
 				(m->object->ref_count == 0) || (m->act_count == 0)) {
 				--page_shortage;
-				vm_page_protect(m, VM_PROT_NONE);
-				if ((m->dirty == 0) &&
-					(m->object->ref_count == 0)) {
-					vm_page_cache(m);
+				if (m->object->ref_count == 0) {
+					vm_page_protect(m, VM_PROT_NONE);
+					if (m->dirty == 0)
+						vm_page_cache(m);
+					else
+						vm_page_deactivate(m);
 				} else {
 					vm_page_deactivate(m);
 				}
@@ -1010,6 +1013,15 @@ vm_pageout()
 		vm_pageout_scan();
 		vm_pager_sync();
 		wakeup(&cnt.v_free_count);
+	}
+}
+
+void
+pagedaemon_wakeup()
+{
+	if (!vm_pages_needed && curproc != pageproc) {
+		vm_pages_needed++;
+		wakeup(&vm_pages_needed);
 	}
 }
 

@@ -1,7 +1,7 @@
                                  RELEASE NOTES
-                              FreeBSD 2.2-RELEASE
+                             FreeBSD 2.2.1-RELEASE
 
-o For information about the layout of the 2.2-RELEASE directory, see
+o For information about the layout of the 2.2.1-RELEASE directory, see
   the ABOUT.TXT file.
 
 o For general information about FreeBSD, see README.TXT.
@@ -9,11 +9,35 @@ o For general information about FreeBSD, see README.TXT.
 o For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
   files.
 
+2.2.1 is a small incremental fix release to 2.2, primarily aimed at
+fixing:
+
+o Some recently discovered problems with the Adaptec 2940 driver
+  which could cause instability in very heavily loaded systems (like news
+  servers).
+
+o A bug which made the package installer fail from CDROM media.
+
+o Allow the Intel EtherExpress Pro/100B to work in full-duplex mode.
+
+Since the 2.2.1. release follows 2.2 by just over a week, other
+documentation still refers to this release as simply "2.2" since it is
+a complete *replacement* for 2.2.0-RELEASE, not simply another point
+release following it.
+
+For even more up-to-date releases along the RELENG_2_2 branch (which
+is now proceeding onwards toward release 2.2.5), please install from:
+
+        ftp://releng22.freebsd.org/pub/FreeBSD/
+
+This is a snapshot made of RELENG_2_2 on a daily basis (and containing
+all the latest 2.2 fixes as of that date).
+
 
 1. What's new since 2.1.7
 -------------------------
 
-Lots of installation bugs fixed, more pc98 changes syncronized, geeze,
+Lots of installation bugs fixed, more pc98 changes synchronized, geeze,
 what else?
 
 gdb 4.16 has been merged from -current, most of the third-party source
@@ -30,10 +54,12 @@ their `libm' previously.
 Javier Martin Rueda's `ex' driver has been merged, bringing support
 for the Intel EtherExpress Pro/10 network cards.
 
+The Intel EtherExpress Pro/100B now works in full-duplex mode.
+
 The `de' driver now recognizes cards using the DE21140A chip, like the
 popular SMC9332BDT (10/100 Mbit/s) one.
 
-There's now a workaround for the brokeness of the frequently used
+There's now a workaround for the brokenness of the frequently used
 CMD640 PCI IDE chip in the sources, albeit still disabled by default
 in 2.2.
 
@@ -65,7 +91,10 @@ Support for SNMP-style interface MIBs, including full RFC
 drivers.
 
 /stand/sysinstall moved even more towards becoming a more general
-system management tool.
+system management tool.  You can actually add a new, from-scratch
+formatted disk with it now, from partition label to filesystem
+creation (though it still doesn't modify your /etc/fstab file to
+make it permanent).
 
 The syscons and psm drivers now have a new underlying shared keyboard
 driver, eliminating many of the previously existing problems with
@@ -94,7 +123,7 @@ freed area with junk in order to detect semantical problems in
 programs that use malloc.
 
 The `netatalk' implementation of AppleTalk has been integrated into
-the sources, most of the integration work courtesy Wistle Communic-
+the sources, most of the integration work courtesy Whistle Communic-
 ations Corp.
 
 The mount option `async' allows asynchronous metadata updates on UFS
@@ -205,12 +234,12 @@ Buslogic 956c PCI SCSI controller
 
 SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
 controllers:
-	ASUS SC-200
-  	Data Technology DTC3130 (all variants)
-	NCR cards (all)
-	Symbios cards (all)
-	Tekram DC390W, 390U and 390F
-	Tyan S1365
+        ASUS SC-200
+        Data Technology DTC3130 (all variants)
+        NCR cards (all)
+        Symbios cards (all)
+        Tekram DC390W, 390U and 390F
+        Tyan S1365
 
 Tekram DC390 and DC390T controllers (maybe other cards based on the
 AMD 53c974 as well).
@@ -368,7 +397,7 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 2.1.6-RELEASE and 2.2-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 2.1.7-RELEASE and 2.2-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite D
@@ -489,8 +518,8 @@ Special mention to:
         Larry Altneu and Wilko Bulte for providing us with Wangtek
         and Archive QIC-02 tape drives for testing and driver hacking.
 
-	CalWeb Internet Services for the loan of a P6/200 machine for
-	speedy package building.
+        CalWeb Internet Services for the loan of a P6/200 machine for
+        speedy package building.
 
         Everyone at Montana State University for their initial support.
 

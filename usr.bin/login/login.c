@@ -126,6 +126,7 @@ main(argc, argv)
 	struct stat st;
 	struct timeval tp;
 	struct utmp utmp;
+	int rootok;
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
 	int changepass;
 	uid_t uid;
@@ -224,6 +225,7 @@ main(argc, argv)
 			getloginname();
 		}
 		rootlogin = 0;
+		rootok = rootterm(tty);
 #ifdef	KERBEROS
 		if ((instance = strchr(username, '.')) != NULL) {
 			if (strncmp(instance, ".root", 5) == 0)
@@ -266,9 +268,11 @@ main(argc, argv)
 				/* already authenticated */
 				break;
 			} else if (pwd->pw_passwd[0] == '\0') {
-				/* pretend password okay */
-				rval = 0;
-				goto ttycheck;
+				if (rootlogin && !rootok) {
+					/* pretend password okay */
+					rval = 0;
+					goto ttycheck;
+				}
 			}
 		}
 
@@ -320,36 +324,35 @@ main(argc, argv)
 		 * If trying to log in as root without Kerberos,
 		 * but with insecure terminal, refuse the login attempt.
 		 */
+		if (pwd && !rval) {
 #ifdef KERBEROS
-		if (authok == 0)
+			if (authok == 0 && rootlogin && !rootok) {
+#else
+			if (rootlogin && !rootok) {
 #endif
-		if (pwd && !rval && rootlogin && !rootterm(tty)) {
-			/*
-			 * Fall through to standard failure message
-			 * and standard backoff behaviour
-			 */
-			#if 0
-			(void)fprintf(stderr,
-			    "%s login refused on this terminal.\n",
-			    pwd->pw_name);
-			#endif
-			if (hostname)
-				syslog(LOG_NOTICE,
-				    "LOGIN %s REFUSED FROM %s ON TTY %s",
-				    pwd->pw_name, full_hostname, tty);
-			else
-				syslog(LOG_NOTICE,
-				    "LOGIN %s REFUSED ON TTY %s",
-				     pwd->pw_name, tty);
-			#if 0
-			continue;
-			#endif
-		} else if (pwd && !rval)
-			break;
+				/*
+				 * Fall through to standard failure message
+				 * and standard backoff behaviour
+				 */
+				if (hostname)
+					syslog(LOG_NOTICE,
+					"LOGIN %s REFUSED FROM %s ON TTY %s",
+					pwd->pw_name, full_hostname, tty);
+				else
+					syslog(LOG_NOTICE,
+					"LOGIN %s REFUSED ON TTY %s",
+					pwd->pw_name, tty);
+			}
+			else	/* valid password & authenticated */
+				break;
+		}
 
 		(void)printf("Login incorrect\n");
 		failures++;
-		/* we allow 10 tries, but after 3 we start backing off */
+
+		/*
+		 * we allow 10 tries, but after 3 we start backing off
+		 */
 		if (++cnt > DEFAULT_BACKOFF) {
 			if (cnt >= DEFAULT_RETRIES) {
 				badlogin(username);
@@ -426,7 +429,8 @@ main(argc, argv)
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
 
-	term = getenv("TERM");
+	if ((term = getenv("TERM")) != NULL)
+		term = strdup(term);
 	/* Destroy environment unless user has requested its preservation. */
 	if (!pflag)
 		environ = envinit;
