@@ -20,8 +20,6 @@
 #  if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
 #   include "opt_ipfilter.h"
 #  endif
-# else
-#  include <osreldate.h>
 # endif
 #endif
 #ifdef	IPFILTER_LOG
