@@ -86,10 +86,10 @@ static sc_term_input_t	scterm_input;
 
 static sc_term_sw_t sc_term_sc = {
 	{ NULL, NULL },
-	"sc",				/* emulator name */
-	"syscons terminal",		/* description */
-	"*",				/* matching renderer, any :-) */
-	sizeof(term_stat),		/* softc size */
+	"sc",					/* emulator name */
+	"syscons terminal",			/* description */
+	"*",					/* matching renderer, any :-) */
+	sizeof(term_stat),			/* softc size */
 	0,
 	scterm_init,
 	scterm_term,
@@ -180,394 +180,407 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 	sc_softc_t *sc;
 	int i, n;
 
-    i = n = 0;
-    sc = scp->sc; 
-    if (tcp->esc == 1) {	/* seen ESC */
-	switch (c) {
+	i = n = 0;
+	sc = scp->sc; 
+	if (tcp->esc == 1) {	/* seen ESC */
+		switch (c) {
 
-	case '7':   /* Save cursor position */
-	    tcp->saved_xpos = scp->xpos;
-	    tcp->saved_ypos = scp->ypos;
-	    break;
+		case '7':	/* Save cursor position */
+			tcp->saved_xpos = scp->xpos;
+			tcp->saved_ypos = scp->ypos;
+			break;
 
-	case '8':   /* Restore saved cursor position */
-	    if (tcp->saved_xpos >= 0 && tcp->saved_ypos >= 0)
-		sc_move_cursor(scp, tcp->saved_xpos, tcp->saved_ypos);
-	    break;
+		case '8':	/* Restore saved cursor position */
+			if (tcp->saved_xpos >= 0 && tcp->saved_ypos >= 0)
+				sc_move_cursor(scp, tcp->saved_xpos,
+					       tcp->saved_ypos);
+			break;
 
-	case '[':   /* Start ESC [ sequence */
-	    tcp->esc = 2;
-	    tcp->last_param = -1;
-	    for (i = tcp->num_param; i < MAX_ESC_PAR; i++)
-		tcp->param[i] = 1;
-	    tcp->num_param = 0;
-	    return;
+		case '[':	/* Start ESC [ sequence */
+			tcp->esc = 2;
+			tcp->last_param = -1;
+			for (i = tcp->num_param; i < MAX_ESC_PAR; i++)
+				tcp->param[i] = 1;
+			tcp->num_param = 0;
+			return;
 
-	case 'M':   /* Move cursor up 1 line, scroll if at top */
-	    sc_term_up_scroll(scp, 1, sc->scr_map[0x20], tcp->cur_attr, 0, 0);
-	    break;
+		case 'M':	/* Move cursor up 1 line, scroll if at top */
+			sc_term_up_scroll(scp, 1, sc->scr_map[0x20],
+					  tcp->cur_attr, 0, 0);
+			break;
 #if notyet
-	case 'Q':
-	    tcp->esc = 4;
-	    return;
+		case 'Q':
+			tcp->esc = 4;
+			return;
 #endif
-	case 'c':   /* Clear screen & home */
-	    sc_clear_screen(scp);
-	    break;
+		case 'c':	/* Clear screen & home */
+			sc_clear_screen(scp);
+			break;
 
-	case '(':   /* iso-2022: designate 94 character set to G0 */
-	    tcp->esc = 5;
-	    return;
-	}
-    }
-    else if (tcp->esc == 2) {	/* seen ESC [ */
-	if (c >= '0' && c <= '9') {
-	    if (tcp->num_param < MAX_ESC_PAR) {
-		if (tcp->last_param != tcp->num_param) {
-		    tcp->last_param = tcp->num_param;
-		    tcp->param[tcp->num_param] = 0;
-		} else {
-		    tcp->param[tcp->num_param] *= 10;
+		case '(':	/* iso-2022: designate 94 character set to G0 */
+			tcp->esc = 5;
+			return;
 		}
-		tcp->param[tcp->num_param] += c - '0';
-		return;
-	    }
-	}
-	tcp->num_param = tcp->last_param + 1;
-	switch (c) {
-
-	case ';':
-	    if (tcp->num_param < MAX_ESC_PAR)
-		return;
-	    break;
-
-	case '=':
-	    tcp->esc = 3;
-	    tcp->last_param = -1;
-	    for (i = tcp->num_param; i < MAX_ESC_PAR; i++)
-		tcp->param[i] = 1;
-	    tcp->num_param = 0;
-	    return;
-
-	case 'A':   /* up n rows */
-	    sc_term_up(scp, tcp->param[0], 0);
-	    break;
-
-	case 'B':   /* down n rows */
-	    sc_term_down(scp, tcp->param[0], 0);
-	    break;
-
-	case 'C':   /* right n columns */
-	    sc_term_right(scp, tcp->param[0]);
-	    break;
-
-	case 'D':   /* left n columns */
-	    sc_term_left(scp, tcp->param[0]);
-	    break;
-
-	case 'E':   /* cursor to start of line n lines down */
-	    n = tcp->param[0]; if (n < 1) n = 1;
-	    sc_move_cursor(scp, 0, scp->ypos + n);
-	    break;
-
-	case 'F':   /* cursor to start of line n lines up */
-	    n = tcp->param[0]; if (n < 1) n = 1;
-	    sc_move_cursor(scp, 0, scp->ypos - n);
-	    break;
-
-	case 'f':   /* Cursor move */
-	case 'H':
-	    if (tcp->num_param == 0)
-		sc_move_cursor(scp, 0, 0);
-	    else if (tcp->num_param == 2)
-		sc_move_cursor(scp, tcp->param[1] - 1, tcp->param[0] - 1);
-	    break;
-
-	case 'J':   /* Clear all or part of display */
-	    if (tcp->num_param == 0)
-		n = 0;
-	    else
-		n = tcp->param[0];
-	    sc_term_clr_eos(scp, n, sc->scr_map[0x20], tcp->cur_attr);
-	    break;
-
-	case 'K':   /* Clear all or part of line */
-	    if (tcp->num_param == 0)
-		n = 0;
-	    else
-		n = tcp->param[0];
-	    sc_term_clr_eol(scp, n, sc->scr_map[0x20], tcp->cur_attr);
-	    break;
-
-	case 'L':   /* Insert n lines */
-	    sc_term_ins_line(scp, scp->ypos, tcp->param[0],
-			     sc->scr_map[0x20], tcp->cur_attr, 0);
-	    break;
-
-	case 'M':   /* Delete n lines */
-	    sc_term_del_line(scp, scp->ypos, tcp->param[0],
-			     sc->scr_map[0x20], tcp->cur_attr, 0);
-	    break;
-
-	case 'P':   /* Delete n chars */
-	    sc_term_del_char(scp, tcp->param[0],
-			     sc->scr_map[0x20], tcp->cur_attr);
-	    break;
-
-	case '@':   /* Insert n chars */
-	    sc_term_ins_char(scp, tcp->param[0],
-			     sc->scr_map[0x20], tcp->cur_attr);
-	    break;
-
-	case 'S':   /* scroll up n lines */
-	    sc_term_del_line(scp, 0, tcp->param[0],
-			     sc->scr_map[0x20], tcp->cur_attr, 0);
-	    break;
-
-	case 'T':   /* scroll down n lines */
-	    sc_term_ins_line(scp, 0, tcp->param[0],
-			     sc->scr_map[0x20], tcp->cur_attr, 0);
-	    break;
-
-	case 'X':   /* erase n characters in line */
-	    n = tcp->param[0]; if (n < 1)  n = 1;
-	    if (n > scp->xsize - scp->xpos)
-		n = scp->xsize - scp->xpos;
-	    sc_vtb_erase(&scp->vtb, scp->cursor_pos, n,
-			 sc->scr_map[0x20], tcp->cur_attr);
-	    mark_for_update(scp, scp->cursor_pos);
-	    mark_for_update(scp, scp->cursor_pos + n - 1);
-	    break;
-
-	case 'Z':   /* move n tabs backwards */
-	    sc_term_backtab(scp, tcp->param[0]);
-	    break;
-
-	case '`':   /* move cursor to column n */
-	    sc_term_col(scp, tcp->param[0]);
-	    break;
-
-	case 'a':   /* move cursor n columns to the right */
-	    sc_term_right(scp, tcp->param[0]);
-	    break;
-
-	case 'd':   /* move cursor to row n */
-	    sc_term_row(scp, tcp->param[0]);
-	    break;
-
-	case 'e':   /* move cursor n rows down */
-	    sc_term_down(scp, tcp->param[0], 0);
-	    break;
-
-	case 'm':   /* change attribute */
-	    if (tcp->num_param == 0) {
-		tcp->attr_mask = NORMAL_ATTR;
-		tcp->cur_color = tcp->std_color;
-		tcp->cur_attr = mask2attr(tcp);
-		break;
-	    }
-	    for (i = 0; i < tcp->num_param; i++) {
-		switch (n = tcp->param[i]) {
-		case 0: /* back to normal */
-		    tcp->attr_mask = NORMAL_ATTR;
-		    tcp->cur_color = tcp->std_color;
-		    tcp->cur_attr = mask2attr(tcp);
-		    break;
-		case 1: /* bold */
-		    tcp->attr_mask |= BOLD_ATTR;
-		    tcp->cur_attr = mask2attr(tcp);
-		    break;
-		case 4: /* underline */
-		    tcp->attr_mask |= UNDERLINE_ATTR;
-		    tcp->cur_attr = mask2attr(tcp);
-		    break;
-		case 5: /* blink */
-		    tcp->attr_mask |= BLINK_ATTR;
-		    tcp->cur_attr = mask2attr(tcp);
-		    break;
-		case 7: /* reverse video */
-		    tcp->attr_mask |= REVERSE_ATTR;
-		    tcp->cur_attr = mask2attr(tcp);
-		    break;
-		case 30: case 31: /* set fg color */
-		case 32: case 33: case 34:
-		case 35: case 36: case 37:
-		    tcp->attr_mask |= FG_CHANGED;
-		    tcp->cur_color.fg = ansi_col[n - 30];
-		    tcp->cur_attr = mask2attr(tcp);
-		    break;
-		case 40: case 41: /* set bg color */
-		case 42: case 43: case 44:
-		case 45: case 46: case 47:
-		    tcp->attr_mask |= BG_CHANGED;
-		    tcp->cur_color.bg = ansi_col[n - 40];
-		    tcp->cur_attr = mask2attr(tcp);
-		    break;
+	} else if (tcp->esc == 2) {	/* seen ESC [ */
+		if (c >= '0' && c <= '9') {
+			if (tcp->num_param < MAX_ESC_PAR) {
+				if (tcp->last_param != tcp->num_param) {
+					tcp->last_param = tcp->num_param;
+					tcp->param[tcp->num_param] = 0;
+				} else {
+					tcp->param[tcp->num_param] *= 10;
+				}
+				tcp->param[tcp->num_param] += c - '0';
+				return;
+			}
 		}
-	    }
-	    break;
+		tcp->num_param = tcp->last_param + 1;
+		switch (c) {
 
-	case 's':   /* Save cursor position */
-	    tcp->saved_xpos = scp->xpos;
-	    tcp->saved_ypos = scp->ypos;
-	    break;
+		case ';':
+			if (tcp->num_param < MAX_ESC_PAR)
+				return;
+			break;
 
-	case 'u':   /* Restore saved cursor position */
-	    if (tcp->saved_xpos >= 0 && tcp->saved_ypos >= 0)
-		sc_move_cursor(scp, tcp->saved_xpos, tcp->saved_ypos);
-	    break;
+		case '=':
+			tcp->esc = 3;
+			tcp->last_param = -1;
+			for (i = tcp->num_param; i < MAX_ESC_PAR; i++)
+				tcp->param[i] = 1;
+			tcp->num_param = 0;
+			return;
 
-	case 'x':
-	    if (tcp->num_param == 0)
-		n = 0;
-	    else
-		n = tcp->param[0];
-	    switch (n) {
-	    case 0:     /* reset attributes */
-		tcp->attr_mask = NORMAL_ATTR;
-		tcp->cur_color = tcp->std_color = tcp->dflt_std_color;
-		tcp->rev_color = tcp->dflt_rev_color;
-		tcp->cur_attr = mask2attr(tcp);
-		break;
-	    case 1:     /* set ansi background */
-		tcp->attr_mask &= ~BG_CHANGED;
-		tcp->cur_color.bg = tcp->std_color.bg =
-		    ansi_col[tcp->param[1] & 0x0f];
-		tcp->cur_attr = mask2attr(tcp);
-		break;
-	    case 2:     /* set ansi foreground */
-		tcp->attr_mask &= ~FG_CHANGED;
-		tcp->cur_color.fg = tcp->std_color.fg =
-		    ansi_col[tcp->param[1] & 0x0f];
-		tcp->cur_attr = mask2attr(tcp);
-		break;
-	    case 3:     /* set ansi attribute directly */
-		tcp->attr_mask &= ~(FG_CHANGED | BG_CHANGED);
-		tcp->cur_color.fg = tcp->std_color.fg =
-		    tcp->param[1] & 0x0f;
-		tcp->cur_color.bg = tcp->std_color.bg =
-		    (tcp->param[1] >> 4) & 0x0f;
-		tcp->cur_attr = mask2attr(tcp);
-		break;
-	    case 5:     /* set ansi reverse video background */
-		tcp->rev_color.bg = ansi_col[tcp->param[1] & 0x0f];
-		tcp->cur_attr = mask2attr(tcp);
-		break;
-	    case 6:     /* set ansi reverse video foreground */
-		tcp->rev_color.fg = ansi_col[tcp->param[1] & 0x0f];
-		tcp->cur_attr = mask2attr(tcp);
-		break;
-	    case 7:     /* set ansi reverse video directly */
-		tcp->rev_color.fg = tcp->param[1] & 0x0f;
-		tcp->rev_color.bg = (tcp->param[1] >> 4) & 0x0f;
-		tcp->cur_attr = mask2attr(tcp);
-		break;
-	    }
-	    break;
+		case 'A':	/* up n rows */
+			sc_term_up(scp, tcp->param[0], 0);
+			break;
 
-	case 'z':   /* switch to (virtual) console n */
-	    if (tcp->num_param == 1)
-		sc_switch_scr(sc, tcp->param[0]);
-	    break;
-	}
-    }
-    else if (tcp->esc == 3) {	/* seen ESC [0-9]+ = */
-	if (c >= '0' && c <= '9') {
-	    if (tcp->num_param < MAX_ESC_PAR) {
-		if (tcp->last_param != tcp->num_param) {
-		    tcp->last_param = tcp->num_param;
-		    tcp->param[tcp->num_param] = 0;
-		} else {
-		    tcp->param[tcp->num_param] *= 10;
+		case 'B':	/* down n rows */
+			sc_term_down(scp, tcp->param[0], 0);
+			break;
+
+		case 'C':	/* right n columns */
+			sc_term_right(scp, tcp->param[0]);
+			break;
+
+		case 'D':	/* left n columns */
+			sc_term_left(scp, tcp->param[0]);
+			break;
+
+		case 'E':	/* cursor to start of line n lines down */
+			n = tcp->param[0];
+			if (n < 1)
+				n = 1;
+			sc_move_cursor(scp, 0, scp->ypos + n);
+			break;
+
+		case 'F':	/* cursor to start of line n lines up */
+			n = tcp->param[0];
+			if (n < 1)
+				n = 1;
+			sc_move_cursor(scp, 0, scp->ypos - n);
+			break;
+
+		case 'f':	/* Cursor move */
+		case 'H':
+			if (tcp->num_param == 0)
+				sc_move_cursor(scp, 0, 0);
+			else if (tcp->num_param == 2)
+				sc_move_cursor(scp, tcp->param[1] - 1,
+					       tcp->param[0] - 1);
+			break;
+
+		case 'J':	/* Clear all or part of display */
+			if (tcp->num_param == 0)
+				n = 0;
+			else
+				n = tcp->param[0];
+			sc_term_clr_eos(scp, n, sc->scr_map[0x20],
+					tcp->cur_attr);
+			break;
+
+		case 'K':	/* Clear all or part of line */
+			if (tcp->num_param == 0)
+				n = 0;
+			else
+				n = tcp->param[0];
+			sc_term_clr_eol(scp, n, sc->scr_map[0x20],
+					tcp->cur_attr);
+			break;
+
+		case 'L':	/* Insert n lines */
+			sc_term_ins_line(scp, scp->ypos, tcp->param[0],
+					 sc->scr_map[0x20], tcp->cur_attr, 0);
+			break;
+
+		case 'M':	/* Delete n lines */
+			sc_term_del_line(scp, scp->ypos, tcp->param[0],
+					 sc->scr_map[0x20], tcp->cur_attr, 0);
+			break;
+
+		case 'P':	/* Delete n chars */
+			sc_term_del_char(scp, tcp->param[0],
+					 sc->scr_map[0x20], tcp->cur_attr);
+			break;
+
+		case '@':	/* Insert n chars */
+			sc_term_ins_char(scp, tcp->param[0],
+					 sc->scr_map[0x20], tcp->cur_attr);
+			break;
+
+		case 'S':	/* scroll up n lines */
+			sc_term_del_line(scp, 0, tcp->param[0],
+					 sc->scr_map[0x20], tcp->cur_attr, 0);
+			break;
+
+		case 'T':	/* scroll down n lines */
+			sc_term_ins_line(scp, 0, tcp->param[0],
+					 sc->scr_map[0x20], tcp->cur_attr, 0);
+			break;
+
+		case 'X':	/* erase n characters in line */
+			n = tcp->param[0];
+			if (n < 1)
+				n = 1;
+			if (n > scp->xsize - scp->xpos)
+				n = scp->xsize - scp->xpos;
+			sc_vtb_erase(&scp->vtb, scp->cursor_pos, n,
+				     sc->scr_map[0x20], tcp->cur_attr);
+			mark_for_update(scp, scp->cursor_pos);
+			mark_for_update(scp, scp->cursor_pos + n - 1);
+			break;
+
+		case 'Z':	/* move n tabs backwards */
+			sc_term_backtab(scp, tcp->param[0]);
+			break;
+
+		case '`':	/* move cursor to column n */
+			sc_term_col(scp, tcp->param[0]);
+			break;
+
+		case 'a':	/* move cursor n columns to the right */
+			sc_term_right(scp, tcp->param[0]);
+			break;
+
+		case 'd':	/* move cursor to row n */
+			sc_term_row(scp, tcp->param[0]);
+			break;
+
+		case 'e':	/* move cursor n rows down */
+			sc_term_down(scp, tcp->param[0], 0);
+			break;
+
+		case 'm':	/* change attribute */
+			if (tcp->num_param == 0) {
+				tcp->attr_mask = NORMAL_ATTR;
+				tcp->cur_color = tcp->std_color;
+				tcp->cur_attr = mask2attr(tcp);
+				break;
+			}
+			for (i = 0; i < tcp->num_param; i++) {
+				switch (n = tcp->param[i]) {
+				case 0:	/* back to normal */
+					tcp->attr_mask = NORMAL_ATTR;
+					tcp->cur_color = tcp->std_color;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 1:	/* bold */
+					tcp->attr_mask |= BOLD_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 4:	/* underline */
+					tcp->attr_mask |= UNDERLINE_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 5:	/* blink */
+					tcp->attr_mask |= BLINK_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 7:	/* reverse video */
+					tcp->attr_mask |= REVERSE_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 30: case 31: /* set fg color */
+				case 32: case 33: case 34:
+				case 35: case 36: case 37:
+					tcp->attr_mask |= FG_CHANGED;
+					tcp->cur_color.fg = ansi_col[n - 30];
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 40: case 41: /* set bg color */
+				case 42: case 43: case 44:
+				case 45: case 46: case 47:
+					tcp->attr_mask |= BG_CHANGED;
+					tcp->cur_color.bg = ansi_col[n - 40];
+					tcp->cur_attr = mask2attr(tcp);
+		    			break;
+				}
+			}
+			break;
+
+		case 's':	/* Save cursor position */
+			tcp->saved_xpos = scp->xpos;
+			tcp->saved_ypos = scp->ypos;
+			break;
+
+		case 'u':	/* Restore saved cursor position */
+			if (tcp->saved_xpos >= 0 && tcp->saved_ypos >= 0)
+				sc_move_cursor(scp, tcp->saved_xpos,
+					       tcp->saved_ypos);
+			break;
+
+		case 'x':
+			if (tcp->num_param == 0)
+				n = 0;
+			else
+				n = tcp->param[0];
+			switch (n) {
+			case 0:	/* reset attributes */
+				tcp->attr_mask = NORMAL_ATTR;
+				tcp->cur_color = tcp->std_color
+					       = tcp->dflt_std_color;
+				tcp->rev_color = tcp->dflt_rev_color;
+				tcp->cur_attr = mask2attr(tcp);
+				break;
+			case 1:	/* set ansi background */
+				tcp->attr_mask &= ~BG_CHANGED;
+				tcp->cur_color.bg = tcp->std_color.bg
+						  = ansi_col[tcp->param[1] & 0x0f];
+				tcp->cur_attr = mask2attr(tcp);
+				break;
+			case 2:	/* set ansi foreground */
+				tcp->attr_mask &= ~FG_CHANGED;
+				tcp->cur_color.fg = tcp->std_color.fg
+						  = ansi_col[tcp->param[1] & 0x0f];
+				tcp->cur_attr = mask2attr(tcp);
+				break;
+			case 3:	/* set ansi attribute directly */
+				tcp->attr_mask &= ~(FG_CHANGED | BG_CHANGED);
+				tcp->cur_color.fg = tcp->std_color.fg
+						  = tcp->param[1] & 0x0f;
+				tcp->cur_color.bg = tcp->std_color.bg
+						  = (tcp->param[1] >> 4) & 0x0f;
+				tcp->cur_attr = mask2attr(tcp);
+				break;
+			case 5:	/* set ansi reverse video background */
+				tcp->rev_color.bg = ansi_col[tcp->param[1] & 0x0f];
+				tcp->cur_attr = mask2attr(tcp);
+				break;
+			case 6:	/* set ansi reverse video foreground */
+				tcp->rev_color.fg = ansi_col[tcp->param[1] & 0x0f];
+				tcp->cur_attr = mask2attr(tcp);
+				break;
+			case 7:	/* set ansi reverse video directly */
+				tcp->rev_color.fg = tcp->param[1] & 0x0f;
+				tcp->rev_color.bg = (tcp->param[1] >> 4) & 0x0f;
+				tcp->cur_attr = mask2attr(tcp);
+				break;
+			}
+			break;
+
+		case 'z':	/* switch to (virtual) console n */
+			if (tcp->num_param == 1)
+				sc_switch_scr(sc, tcp->param[0]);
+			break;
 		}
-		tcp->param[tcp->num_param] += c - '0';
-		return;
-	    }
-	}
-	tcp->num_param = tcp->last_param + 1;
-	switch (c) {
+	} else if (tcp->esc == 3) {	/* seen ESC [0-9]+ = */
+		if (c >= '0' && c <= '9') {
+			if (tcp->num_param < MAX_ESC_PAR) {
+				if (tcp->last_param != tcp->num_param) {
+					tcp->last_param = tcp->num_param;
+					tcp->param[tcp->num_param] = 0;
+				} else {
+					tcp->param[tcp->num_param] *= 10;
+				}
+				tcp->param[tcp->num_param] += c - '0';
+				return;
+			}
+		}
+		tcp->num_param = tcp->last_param + 1;
+		switch (c) {
 
-	case ';':
-	    if (tcp->num_param < MAX_ESC_PAR)
-		return;
-	    break;
+		case ';':
+			if (tcp->num_param < MAX_ESC_PAR)
+				return;
+			break;
 
-	case 'A':   /* set display border color */
-	    if (tcp->num_param == 1) {
-		scp->border=tcp->param[0] & 0xff;
-		if (scp == sc->cur_scp)
-		    sc_set_border(scp, scp->border);
-            }
-	    break;
+		case 'A':   /* set display border color */
+			if (tcp->num_param == 1) {
+				scp->border=tcp->param[0] & 0xff;
+				if (scp == sc->cur_scp)
+					sc_set_border(scp, scp->border);
+			}
+			break;
 
-	case 'B':   /* set bell pitch and duration */
-	    if (tcp->num_param == 2) {
-		scp->bell_pitch = tcp->param[0];
-		scp->bell_duration = tcp->param[1];
-	    }
-	    break;
+		case 'B':   /* set bell pitch and duration */
+			if (tcp->num_param == 2) {
+				scp->bell_pitch = tcp->param[0];
+				scp->bell_duration = tcp->param[1];
+			}
+			break;
 
-	case 'C':   /* set cursor type & shape */
-	    i = spltty();
-	    if (!ISGRAPHSC(sc->cur_scp))
-		sc_remove_cursor_image(sc->cur_scp);
-	    if (tcp->num_param == 1) {
-		if (tcp->param[0] & 0x01)
-		    sc->flags |= SC_BLINK_CURSOR;
-		else
-		    sc->flags &= ~SC_BLINK_CURSOR;
-		if (tcp->param[0] & 0x02) 
-		    sc->flags |= SC_CHAR_CURSOR;
-		else
-		    sc->flags &= ~SC_CHAR_CURSOR;
-	    } else if (tcp->num_param == 2) {
-		sc->cursor_base = scp->font_size 
-					- (tcp->param[1] & 0x1F) - 1;
-		sc->cursor_height = (tcp->param[1] & 0x1F) 
-					- (tcp->param[0] & 0x1F) + 1;
-	    }
-	    /* 
-	     * The cursor shape is global property; all virtual consoles
-	     * are affected. Update the cursor in the current console...
-	     */
-	    if (!ISGRAPHSC(sc->cur_scp)) {
-		sc_set_cursor_image(sc->cur_scp);
-		sc_draw_cursor_image(sc->cur_scp);
-	    }
-	    splx(i);
-	    break;
+		case 'C':   /* set cursor type & shape */
+			i = spltty();
+			if (!ISGRAPHSC(sc->cur_scp))
+				sc_remove_cursor_image(sc->cur_scp);
+			if (tcp->num_param == 1) {
+				if (tcp->param[0] & 0x01)
+					sc->flags |= SC_BLINK_CURSOR;
+				else
+					sc->flags &= ~SC_BLINK_CURSOR;
+				if (tcp->param[0] & 0x02) 
+					sc->flags |= SC_CHAR_CURSOR;
+				else
+					sc->flags &= ~SC_CHAR_CURSOR;
+			} else if (tcp->num_param == 2) {
+				sc->cursor_base = scp->font_size 
+						- (tcp->param[1] & 0x1F) - 1;
+				sc->cursor_height = (tcp->param[1] & 0x1F) 
+						- (tcp->param[0] & 0x1F) + 1;
+			}
+			/* 
+			 * The cursor shape is global property; 
+			 * all virtual consoles are affected. 
+			 * Update the cursor in the current console...
+			 */
+			if (!ISGRAPHSC(sc->cur_scp)) {
+				sc_set_cursor_image(sc->cur_scp);
+				sc_draw_cursor_image(sc->cur_scp);
+			}
+			splx(i);
+			break;
 
-	case 'F':   /* set ansi foreground */
-	    if (tcp->num_param == 1) {
-		tcp->attr_mask &= ~FG_CHANGED;
-		tcp->cur_color.fg = tcp->std_color.fg = tcp->param[0] & 0x0f;
-		tcp->cur_attr = mask2attr(tcp);
-	    }
-	    break;
+		case 'F':   /* set ansi foreground */
+			if (tcp->num_param == 1) {
+				tcp->attr_mask &= ~FG_CHANGED;
+				tcp->cur_color.fg = tcp->std_color.fg
+						  = tcp->param[0] & 0x0f;
+				tcp->cur_attr = mask2attr(tcp);
+			}
+			break;
 
-	case 'G':   /* set ansi background */
-	    if (tcp->num_param == 1) {
-		tcp->attr_mask &= ~BG_CHANGED;
-		tcp->cur_color.bg = tcp->std_color.bg = tcp->param[0] & 0x0f;
-		tcp->cur_attr = mask2attr(tcp);
-	    }
-	    break;
+		case 'G':   /* set ansi background */
+			if (tcp->num_param == 1) {
+				tcp->attr_mask &= ~BG_CHANGED;
+				tcp->cur_color.bg = tcp->std_color.bg
+						  = tcp->param[0] & 0x0f;
+				tcp->cur_attr = mask2attr(tcp);
+			}
+			break;
 
-	case 'H':   /* set ansi reverse video foreground */
-	    if (tcp->num_param == 1) {
-		tcp->rev_color.fg = tcp->param[0] & 0x0f;
-		tcp->cur_attr = mask2attr(tcp);
-	    }
-	    break;
+		case 'H':   /* set ansi reverse video foreground */
+			if (tcp->num_param == 1) {
+				tcp->rev_color.fg = tcp->param[0] & 0x0f;
+				tcp->cur_attr = mask2attr(tcp);
+			}
+			break;
 
-	case 'I':   /* set ansi reverse video background */
-	    if (tcp->num_param == 1) {
-		tcp->rev_color.bg = tcp->param[0] & 0x0f;
-		tcp->cur_attr = mask2attr(tcp);
-	    }
-	    break;
-	}
-
+		case 'I':   /* set ansi reverse video background */
+			if (tcp->num_param == 1) {
+				tcp->rev_color.bg = tcp->param[0] & 0x0f;
+				tcp->cur_attr = mask2attr(tcp);
+			}
+			break;
+		}
 #if notyet
 	} else if (tcp->esc == 4) {	/* seen ESC Q */
 		/* to be filled */
@@ -576,7 +589,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 		switch (c) {
 		case 'B':   /* iso-2022: desginate ASCII into G0 */
 			break;
-			/* other items to be filled */
+		/* other items to be filled */
 		default:
 			break;
 		}
