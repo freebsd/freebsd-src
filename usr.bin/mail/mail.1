@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail.1	8.2 (Berkeley) 12/30/93
-.\"	$Id$
+.\"	$Id: mail.1,v 1.7 1996/08/29 18:05:57 wosch Exp $
 .\"
 .Dd December 30, 1993
 .Dt MAIL 1
@@ -985,7 +985,11 @@ utilizes the
 .Ev HOME
 and
 .Ev USER
-environment variables.
+environment variables.  Also, if the
+.Ev MAIL
+environment variable is set, it is used as the
+location of the user's mailbox instead of the
+default in /var/mail.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/Mail.help* -compact
 .It Pa /var/mail/*
