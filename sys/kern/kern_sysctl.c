@@ -211,7 +211,7 @@ sysctl_ctx_entry_add(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
 
 	if (clist == NULL || oidp == NULL)
 		return(NULL);
-	e = malloc (sizeof(struct sysctl_ctx_entry), M_SYSCTLOID, M_WAITOK);
+	e = malloc(sizeof(struct sysctl_ctx_entry), M_SYSCTLOID, M_WAITOK);
 	e->entry = oidp;
 	TAILQ_INSERT_HEAD(clist, e, link);
 	return (e);
@@ -301,7 +301,8 @@ sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse)
 		}
 		sysctl_unregister_oid(oidp);
 		if (del) {
-			free ((char *)oidp->oid_name, M_SYSCTLOID);
+			free((void *)(uintptr_t)(const void *)oidp->oid_name,
+			     M_SYSCTLOID);
 			free(oidp, M_SYSCTLOID);
 		}
 	}
@@ -319,6 +320,7 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 {
 	struct sysctl_oid *oidp;
 	ssize_t len;
+	char *newname;
 
 	/* You have to hook up somewhere.. */
 	if (parent == NULL)
@@ -344,9 +346,10 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	oidp->oid_number = number;
 	oidp->oid_refcnt = 1;
 	len = strlen(name);
-	oidp->oid_name = (const char *)malloc(len + 1, M_SYSCTLOID, M_WAITOK);
-	bcopy(name, (char *)oidp->oid_name, len + 1);
-	(char)oidp->oid_name[len] = '\0';
+	newname = malloc(len + 1, M_SYSCTLOID, M_WAITOK);
+	bcopy(name, newname, len + 1);
+	newname[len] = '\0';
+	oidp->oid_name = newname;
 	oidp->oid_handler = handler;
 	oidp->oid_kind = CTLFLAG_DYN | kind;
 	if ((kind & CTLTYPE) == CTLTYPE_NODE) {
@@ -520,7 +523,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD, sysctl_sysctl_name, "");
 
 static int
-sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen, 
+sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
 	int *next, int *len, int level, struct sysctl_oid **oidpp)
 {
 	struct sysctl_oid *oidp;
@@ -537,7 +540,7 @@ sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen,
 				/* We really should call the handler here...*/
 				return 0;
 			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
-			if (!sysctl_sysctl_next_ls (lsp, 0, 0, next+1, 
+			if (!sysctl_sysctl_next_ls(lsp, 0, 0, next+1, 
 				len, level+1, oidpp))
 				return 0;
 			goto next;
@@ -552,7 +555,7 @@ sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			if (oidp->oid_handler)
 				return 0;
 			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
-			if (!sysctl_sysctl_next_ls (lsp, name+1, namelen-1, 
+			if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, 
 				next+1, len, level+1, oidpp))
 				return (0);
 			goto next;
@@ -564,7 +567,7 @@ sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			continue;
 
 		lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
-		if (!sysctl_sysctl_next_ls (lsp, name+1, namelen-1, next+1, 
+		if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, next+1, 
 			len, level+1, oidpp))
 			return (0);
 	next:
@@ -584,7 +587,7 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid_list *lsp = &sysctl__children;
 	int newoid[CTL_MAXNAME];
 
-	i = sysctl_sysctl_next_ls (lsp, name, namelen, newoid, &j, 1, &oid);
+	i = sysctl_sysctl_next_ls(lsp, name, namelen, newoid, &j, 1, &oid);
 	if (i)
 		return ENOENT;
 	error = SYSCTL_OUT(req, newoid, j * sizeof (int));
