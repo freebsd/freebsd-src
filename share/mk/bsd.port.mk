@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.9 1996/12/17 12:24:24 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.10 1996/12/18 02:28:53 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1237,7 +1237,7 @@ checksum: fetch
 		(cd ${DISTDIR}; OK="true"; \
 		  for file in ${_CKSUMFILES}; do \
 			CKSUM=`${MD5} < $$file`; \
-			CKSUM2=`${GREP} "($$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
+			CKSUM2=`${GREP} "^MD5 ($$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 			if [ "$$CKSUM2" = "" ]; then \
 				${ECHO_MSG} ">> No checksum recorded for $$file."; \
 				OK="false"; \
@@ -1245,9 +1245,11 @@ checksum: fetch
 				${ECHO_MSG} ">> Checksum for $$file is set to IGNORE in md5 file even though"; \
 				${ECHO_MSG} "   the file is not in the "'$$'"{IGNOREFILES} list."; \
 				OK="false"; \
-			elif [ "$$CKSUM" != "$$CKSUM2" ]; then \
+			elif [ "$$CKSUM" = "$$CKSUM2" ]; then \
+				${ECHO_MSG} ">> Checksum OK for $$file."; \
+			else \
 				${ECHO_MSG} ">> Checksum mismatch for $$file."; \
-				exit 1; \
+				OK="false"; \
 			fi; \
 		  done; \
 		  for file in ${_IGNOREFILES}; do \
@@ -1261,11 +1263,11 @@ checksum: fetch
 				OK="false"; \
 			fi; \
 		  done; \
-		  if [ "$$OK" = "true" ]; then \
-			${ECHO_MSG} "Checksums OK."; \
-		  else \
-			${ECHO_MSG} "There may be some inconsistencies, make sure the Makefile and md5 file"; \
-			${ECHO_MSG} "(\"${MD5_FILE}\") are up to date."; \
+		  if [ "$$OK" != "true" ]; then \
+			${ECHO_MSG} "Make sure the Makefile and md5 file (${MD5_FILE})"; \
+			${ECHO_MSG} "are up to date.  If you want to override this check, type"; \
+			${ECHO_MSG} "\"make NO_CHECKSUM=yes [other args]\"."; \
+			exit 1; \
 		  fi) ; \
 	fi
 .endif
