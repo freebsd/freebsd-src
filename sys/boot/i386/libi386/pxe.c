@@ -32,10 +32,18 @@
 
 #include <stand.h>
 
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/udp.h>
+#include <netinet/ip.h>
+
 #include <sys/reboot.h>
 #include <string.h>
 #include <sys/reboot.h>
 #include <arpa/tftp.h>
+
+#include <net.h>
+#include <netif.h>
 
 #include <stdarg.h>
 
@@ -53,34 +61,59 @@
 static char	scratch_buffer[PXE_BUFFER_SIZE];
 static char	data_buffer[PXE_BUFFER_SIZE];
 
-static uint32_t	myip;		/* my IP address */
-static uint32_t	serverip;	/* where I got my initial bootstrap from */
-static uint32_t	secondip;	/* where I should go to get the rest of my boot files */
-static char	*servername = NULL;	/* name of server I DHCP'd from */
-static char	*bootfile = NULL;	/* name of file that I booted with */
-static uint16_t	pxe_return_status;
-static uint16_t pxe_open_status;
 static pxenv_t  *pxenv_p = NULL;        /* PXENV+ */
-static pxe_t    *pxe_p = NULL;          /* !PXE */
+static BOOTPLAYER	bootplayer;	/* PXE Cached information. */
+
+static int 	debug = 0;
+static int	pxe_sock = -1;
+static int	pxe_opens = 0;
 
 void		pxe_enable(void *pxeinfo);
+void		pxe_call(int func);
+
 static int	pxe_init(void);
-static int	pxe_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
-			     void *buf, size_t *rsize);
+static int	pxe_strategy(void *devdata, int flag, daddr_t dblk,
+			     size_t size, void *buf, size_t *rsize);
 static int	pxe_open(struct open_file *f, ...);
 static int	pxe_close(struct open_file *f);
 static void	pxe_print(int verbose);
 
 static void	pxe_perror(int error);
-void		pxe_call(int func);
+static int	pxe_netif_match(struct netif *nif, void *machdep_hint);
+static int	pxe_netif_probe(struct netif *nif, void *machdep_hint);
+static void	pxe_netif_init(struct iodesc *desc, void *machdep_hint);
+static int	pxe_netif_get(struct iodesc *desc, void *pkt, size_t len,
+			      time_t timeout);
+static int	pxe_netif_put(struct iodesc *desc, void *pkt, size_t len);
+static void	pxe_netif_end(struct netif *nif);
 
-static int	pxe_fs_open(const char *path, struct open_file *f);
-static int	pxe_fs_close(struct open_file *f);
-static int	pxe_fs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
-static int	pxe_fs_write(struct open_file *f, void *buf, size_t size, size_t *resid);
-static off_t	pxe_fs_seek(struct open_file *f, off_t offset, int where);
-static int	pxe_fs_stat(struct open_file *f, struct stat *sb);
+extern struct netif_stats	pxe_st[];
+extern struct in_addr		rootip;
+extern char 	rootpath[FNAME_SIZE];
 
+struct netif_dif pxe_ifs[] = {
+/*      dif_unit        dif_nsel        dif_stats       dif_private     */
+	{0,             1,              &pxe_st[0],     0}
+};
+
+struct netif_stats pxe_st[NENTS(pxe_ifs)];
+
+struct netif_driver pxenetif = {
+	"pxenet",
+	pxe_netif_match,
+	pxe_netif_probe,
+	pxe_netif_init,
+	pxe_netif_get,
+	pxe_netif_put,
+	pxe_netif_end,
+	pxe_ifs,
+	NENTS(pxe_ifs)
+};
+
+struct netif_driver *netif_drivers[] = {
+	&pxenetif,
+	NULL
+};
 
 struct devsw pxedisk = {
 	"pxe", 
@@ -91,16 +124,6 @@ struct devsw pxedisk = {
 	pxe_close, 
 	noioctl,
 	pxe_print
-};
-
-struct fs_ops pxe_fsops = {
-	"pxe",
-	pxe_fs_open,
-	pxe_fs_close,
-	pxe_fs_read,
-	pxe_fs_write,
-	pxe_fs_seek,
-	pxe_fs_stat
 };
 
 /*
@@ -122,7 +145,6 @@ static int
 pxe_init(void)
 {
 	t_PXENV_GET_CACHED_INFO	*gci_p;
-	BOOTPLAYER	*bootplayer;
 	int	counter;
 	uint8_t checksum;
 	uint8_t *checkptr;
@@ -168,80 +190,112 @@ pxe_init(void)
 		pxenv_p = NULL;
 		return (0);
 	}
-	bootplayer = (BOOTPLAYER *) 
-		PTOV((gci_p->Buffer.segment << 4) + gci_p->Buffer.offset);
-	serverip = bootplayer->sip;
-	servername = strdup(bootplayer->Sname);
-	bootfile = strdup(bootplayer->bootfile);
-	myip = bootplayer->yip;
-	secondip = bootplayer->sip;
+	bcopy(PTOV((gci_p->Buffer.segment << 4) + gci_p->Buffer.offset),
+	      &bootplayer, gci_p->BufferSize);
+
+	/*
+	 * XXX - This is a major cop out.  We should request this
+	 * from DHCP, but we can't do that until we have full UNDI
+	 * support.
+	 *
+	 * Also set the nfs server's IP.
+	 */
+	strcpy(rootpath, PXENFSROOTPATH);
+	rootip.s_addr = bootplayer.sip;
 
 	return (1);
 }
 
-int
-pxe_tftpopen(uint32_t srcip, uint32_t gateip, char *filename, uint16_t port,
-             uint16_t pktsize)
-{
-	t_PXENV_TFTP_OPEN *tftpo_p;
 
-	tftpo_p = (t_PXENV_TFTP_OPEN *)scratch_buffer;
-	bzero(tftpo_p, sizeof(*tftpo_p));
-	tftpo_p->ServerIPAddress	= srcip;
-	tftpo_p->GatewayIPAddress	= gateip;
-	tftpo_p->TFTPPort		= port;
-	tftpo_p->PacketSize		= pktsize;
-	bcopy(filename, tftpo_p->FileName, strlen(filename));
-	pxe_call(PXENV_TFTP_OPEN);
-	pxe_return_status = tftpo_p->Status;
-	if (tftpo_p->Status != 0)
-		return (-1);
-	return (tftpo_p->PacketSize);
+static int
+pxe_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
+		void *buf, size_t *rsize)
+{
+	return (EIO);
 }
 
-int
-pxe_tftpclose(void)
+static int
+pxe_open(struct open_file *f, ...)
 {
-	t_PXENV_TFTP_CLOSE *tftpc_p;
+    va_list args;
+    char *devname;		/* Device part of file name (or NULL). */
+    int error = 0;
 
-	tftpc_p = (t_PXENV_TFTP_CLOSE *)scratch_buffer;
-	bzero(tftpc_p, sizeof(*tftpc_p));
-	pxe_call(PXENV_TFTP_CLOSE);
-	pxe_return_status = tftpc_p->Status;
-	if (tftpc_p->Status != 0)
-		return (-1);
-	return (1);
+    va_start(args, f);
+    devname = va_arg(args, char*);
+    va_end(args);
+
+    /* On first open, do netif open, mount, etc. */
+    if (pxe_opens == 0) {
+	/* Find network interface. */
+	if (pxe_sock < 0) {
+	    pxe_sock = netif_open(devname);
+	    if (pxe_sock < 0) {
+		printf("pxe_open: netif_open() failed\n");
+		return (ENXIO);
+	    }
+	    if (debug)
+		printf("pxe_open: netif_open() succeeded\n");
+	}
+    }
+    pxe_opens++;
+    f->f_devdata = &pxe_sock;
+    return (error);
 }
 
-int
-pxe_tftpread(void *buf)
+static int
+pxe_close(struct open_file *f)
 {
-	t_PXENV_TFTP_READ *tftpr_p;
 
-	tftpr_p = (t_PXENV_TFTP_READ *)scratch_buffer;
-	bzero(tftpr_p, sizeof(*tftpr_p));
-        
-	tftpr_p->Buffer.segment	= VTOPSEG(data_buffer);
-	tftpr_p->Buffer.offset	= VTOPOFF(data_buffer);
+#ifdef	PXE_DEBUG
+    if (debug)
+	printf("pxe_close: opens=%d\n", pxe_opens);
+#endif
 
-	pxe_call(PXENV_TFTP_READ);
-
-	/* XXX - I don't know why we need this. */
-	delay(1000);
-
-	pxe_return_status = tftpr_p->Status;
-	if (tftpr_p->Status != 0)
-		return (-1);
-	bcopy(data_buffer, buf, tftpr_p->BufferSize);
-	return (tftpr_p->BufferSize);
+    /* On last close, do netif close, etc. */
+    f->f_devdata = NULL;
+    /* Extra close call? */
+    if (pxe_opens <= 0)
+	return (0);
+    pxe_opens--;
+    /* Not last close? */
+    if (pxe_opens > 0)
+	return(0);
+    rootip.s_addr = 0;
+    if (pxe_sock >= 0) {
+#ifdef PXE_DEBUG
+	if (debug)
+	    printf("pxe_close: calling netif_close()\n");
+#endif
+	netif_close(pxe_sock);
+	pxe_sock = -1;
+    }
+    return (0);
 }
+
+static void
+pxe_print(int verbose)
+{
+	if (pxenv_p != NULL) {
+		if (*bootplayer.Sname == '\0') {
+			printf("      "IP_STR":%s\n",
+			       IP_ARGS(htonl(bootplayer.sip)),
+			       bootplayer.bootfile);
+		} else {
+			printf("      %s:%s\n", bootplayer.Sname,
+			       bootplayer.bootfile);
+		}
+	}
+
+	return;
+}
+
 
 void
 pxe_perror(int err)
 {
 	return;
 }
-
 
 void
 pxe_call(int func)
@@ -259,251 +313,109 @@ pxe_call(int func)
 	v86.ctl = V86_FLAGS;
 }
 
-static int
-pxe_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
-		void *buf, size_t *rsize)
+
+time_t
+getsecs()
 {
-	return (EIO);
+	time_t n = 0;
+	time(&n);
+	return n;
 }
 
 static int
-pxe_open(struct open_file *f, ...)
+pxe_netif_match(struct netif *nif, void *machdep_hint)
 {
-	return (0);
+	return 1;
 }
 
+
 static int
-pxe_close(struct open_file *f)
+pxe_netif_probe(struct netif *nif, void *machdep_hint)
 {
-	return (0);
+	t_PXENV_UDP_OPEN *udpopen_p = (t_PXENV_UDP_OPEN *)scratch_buffer;
+	bzero(udpopen_p, sizeof(*udpopen_p));
+
+	udpopen_p->src_ip = bootplayer.yip;
+	pxe_call(PXENV_UDP_OPEN);
+
+	if (udpopen_p->status != 0)
+		printf("pxe_netif_probe: failed %x\n", udpopen_p->status);
+	return 0;
 }
 
 static void
-pxe_print(int verbose)
+pxe_netif_end(struct netif *nif)
 {
-	if (pxenv_p != NULL) {
-		if (*servername == '\0') {
-			printf("      "IP_STR":/%s\n", IP_ARGS(htonl(serverip)),
-			       bootfile);
-		} else {
-			printf("      %s:/%s\n", servername, bootfile);
-		}
-	}
+	t_PXENV_UDP_CLOSE *udpclose_p = (t_PXENV_UDP_CLOSE *)scratch_buffer;
+	bzero(udpclose_p, sizeof(*udpclose_p));
 
-	return;
+	pxe_call(PXENV_UDP_CLOSE);
+	if (udpclose_p->status != 0)
+		printf("pxe_end failed %x\n", udpclose_p->status);
 }
 
-
-/*
- * Most of this code was ripped from libstand/tftp.c and
- * modified to work with pxe. :)
- */
-#define RSPACE 520              /* max data packet, rounded up */
-
-struct tftp_handle {
-        int             currblock;      /* contents of lastdata */
-        int             islastblock;    /* flag */
-        int             validsize;
-        int             off;
-	int		opened;
-        char           *path;   /* saved for re-requests */
-	u_char		space[RSPACE];
-};
-
-static int 
-tftp_makereq(h)
-        struct tftp_handle *h;
+static void
+pxe_netif_init(struct iodesc *desc, void *machdep_hint)
 {
-        ssize_t         res;
-	char *p;
+}
+
+static int
+pxe_netif_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
+{
+	return len;
+}
+
+static int
+pxe_netif_put(struct iodesc *desc, void *pkt, size_t len)
+{
+	return len;
+}
+
+ssize_t
+sendudp(struct iodesc *h, void *pkt, size_t len)
+{
+	t_PXENV_UDP_WRITE *udpwrite_p = (t_PXENV_UDP_WRITE *)scratch_buffer;
+	bzero(udpwrite_p, sizeof(*udpwrite_p));
 	
-	p = h->path;
+	udpwrite_p->ip             = bootplayer.sip;
+	udpwrite_p->dst_port       = h->destport;
+	udpwrite_p->src_port       = h->myport;
+	udpwrite_p->buffer_size    = len;
+	udpwrite_p->buffer.segment = VTOPSEG(pkt);
+	udpwrite_p->buffer.offset  = VTOPOFF(pkt);
 
-	if (*p == '/')
-		++p;
-	if (h->opened)
-		pxe_tftpclose();
+	pxe_call(PXENV_UDP_WRITE);
+
+	/* XXX - I dont know why we need this. */
+	delay(1000);
+	if (udpwrite_p->status != 0)
+		printf("sendudp failed %x\n", udpwrite_p->status);
+
+	return len;
+}
+
+ssize_t
+readudp(struct iodesc *h, void *pkt, size_t len, time_t timeout)
+{
+	t_PXENV_UDP_READ *udpread_p = (t_PXENV_UDP_READ *)scratch_buffer;
+	struct udphdr *uh = NULL;
 	
-	if (pxe_tftpopen(serverip, 0, p, htons(69), PXE_TFTP_BUFFER_SIZE) < 0)
-		return(ENOENT);
-	pxe_open_status = pxe_return_status;
-	res = pxe_tftpread(h->space);
+	uh = (struct udphdr *) pkt - 1;
+	bzero(udpread_p, sizeof(*udpread_p));
 	
-        if (res == -1)
-                return (errno);
-        h->currblock = 1;
-        h->validsize = res;
-        h->islastblock = 0;
-        if (res < SEGSIZE)
-                h->islastblock = 1;     /* very short file */
-        return (0);
-}
+	udpread_p->dest_ip        = bootplayer.yip;
+	udpread_p->d_port         = h->myport;
+	udpread_p->buffer_size    = len;
+	udpread_p->buffer.segment = VTOPSEG(data_buffer);
+	udpread_p->buffer.offset  = VTOPOFF(data_buffer);
 
-/* ack block, expect next */
-static int 
-tftp_getnextblock(h)
-        struct tftp_handle *h;
-{
-	int res;
+	pxe_call(PXENV_UDP_READ);
 
-	res = pxe_tftpread(h->space);
-
-        if (res == -1)          /* 0 is OK! */
-                return (errno);
-
-        h->currblock++;
-        h->validsize = res;
-        if (res < SEGSIZE)
-                h->islastblock = 1;     /* EOF */
-        return (0);
-}
-
-static int
-pxe_fs_open(const char *path, struct open_file *f)
-{
-        struct tftp_handle *tftpfile;
-	int             res;
-
-	/* make sure the device is a PXE device */
-	if(f->f_dev != &pxedisk)
-		return (EINVAL);
-
-	tftpfile = (struct tftp_handle *) malloc(sizeof(*tftpfile));
-        if (!tftpfile)
-                return (ENOMEM);
-
-        tftpfile->off = 0;
-        tftpfile->path = strdup(path);
-        if (tftpfile->path == NULL) {
-        	free(tftpfile);
-        	return(ENOMEM);
-        }
-
-        res = tftp_makereq(tftpfile);
-
-        if (res) {
-                free(tftpfile->path);
-                free(tftpfile);
-                return (res);
-        }
-	tftpfile->opened = 1;
-        f->f_fsdata = (void *) tftpfile;
-	return(0);
-}
-
-static int
-pxe_fs_close(struct open_file *f)
-{
-	struct tftp_handle *tftpfile;
-        tftpfile = (struct tftp_handle *) f->f_fsdata;
-
-	if (tftpfile) {
-		if (tftpfile->opened) 
-			pxe_tftpclose();
-		free(tftpfile->path);
-                free(tftpfile);
-        }
-	return (0);
-}
-
-static int
-pxe_fs_read(struct open_file *f, void *addr, size_t size, size_t *resid)
-{
-        struct tftp_handle *tftpfile;
-        static int      tc = 0;
-	char *dest = (char *)addr;
-        tftpfile = (struct tftp_handle *) f->f_fsdata;
-
-	while (size > 0) {
-                int needblock, count;
-
-                if (!(tc++ % 16))
-                        twiddle();
-
-                needblock = tftpfile->off / SEGSIZE + 1;
-
-                if (tftpfile->currblock > needblock)    /* seek backwards */
-                        tftp_makereq(tftpfile); /* no error check, it worked
-                                                 * for open */
-
-                while (tftpfile->currblock < needblock) {
-                        int res;
-
-                        res = tftp_getnextblock(tftpfile);
-                        if (res) {      /* no answer */
-                                return (res);
-                        }
-                        if (tftpfile->islastblock)
-                                break;
-                }
-
-                if (tftpfile->currblock == needblock) {
-                        int offinblock, inbuffer;
-                        offinblock = tftpfile->off % SEGSIZE;
-			
-                        inbuffer = tftpfile->validsize - offinblock;
-                        if (inbuffer < 0) {
-                                return (EINVAL);
-                        }
-                        count = (size < inbuffer ? size : inbuffer);
-                        bcopy(tftpfile->space + offinblock,
-                            dest, count);
-
-                        dest += count;
-                        tftpfile->off += count;
-                        size -= count;
-
-                        if ((tftpfile->islastblock) && (count == inbuffer))
-                                break;  /* EOF */
-                } else {
-                        printf("tftp: block %d not found\n", needblock);
-                        return (EINVAL);
-                }
-
-        }
-
-	if (resid)
-	        *resid = size;
-	return(0);
-}
-
-static int
-pxe_fs_write(struct open_file *f, void *buf, size_t size, size_t *resid)
-{
-	return 0;
-}
-
-static off_t
-pxe_fs_seek(struct open_file *f, off_t offset, int where)
-{
-	struct tftp_handle *tftpfile;
-        tftpfile = (struct tftp_handle *) f->f_fsdata;
-
-        switch (where) {
-        case SEEK_SET:
-                tftpfile->off = offset;
-                break;
-        case SEEK_CUR:
-                tftpfile->off += offset;
-                break;
-        default:
-                errno = EOFFSET;
-                return (-1);
-        }
-        return (tftpfile->off);
-}
-
-static int
-pxe_fs_stat(struct open_file *f, struct stat *sb)
-{
-	if (pxe_open_status != 0)
-		return -1;
-	
-	sb->st_mode = 0444 | S_IFREG;
-        sb->st_nlink = 1;
-        sb->st_uid = 0;
-        sb->st_gid = 0;
-        sb->st_size = -1;
-
-	return 0;
+	/* XXX - I dont know why we need this. */
+	delay(1000);
+	if (udpread_p->status > 1)
+		printf("readudp failed %x\n", udpread_p->status);
+	bcopy(data_buffer, pkt, udpread_p->buffer_size);
+	uh->uh_sport = udpread_p->s_port;
+	return udpread_p->buffer_size;
 }
