@@ -1071,8 +1071,8 @@ acdstrategy(struct bio *bp)
 
     s = splbio();
     bioqdisksort(&cdp->queue, bp);
-    ata_start(cdp->device->channel);
     splx(s);
+    ata_start(cdp->device->channel);
 }
 
 void 

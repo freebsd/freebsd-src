@@ -266,6 +266,20 @@ void ata_dmastart(struct ata_channel *, int, struct ata_dmaentry *, int);
 int ata_dmastatus(struct ata_channel *);
 int ata_dmadone(struct ata_channel *);
 
+/* macros for locking a channel */
+#define ATA_LOCK_CH(ch, value)\
+	atomic_cmpset_int(&(ch)->active, ATA_IDLE, (value))
+
+#define ATA_SLEEPLOCK_CH(ch, value)\
+	while (!atomic_cmpset_int(&(ch)->active, ATA_IDLE, (value)))\
+	    tsleep((caddr_t)&(ch), PRIBIO, "atalck", 1);
+
+#define ATA_FORCELOCK_CH(ch, value)\
+	(ch)->active = value;
+
+#define ATA_UNLOCK_CH(ch)\
+	(ch)->active = ATA_IDLE
+
 /* macros to hide busspace uglyness */
 #define ATA_INB(res, offset) \
 	bus_space_read_1(rman_get_bustag((res)), \
