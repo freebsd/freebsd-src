@@ -159,7 +159,6 @@ i386/i386/db_interface.c	optional	ddb
 i386/i386/db_trace.c		optional	ddb
 i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
-i386/i386/globals.s		standard
 i386/i386/i386-gdbstub.c	optional	ddb
 i386/i386/i686_mem.c		standard
 i386/i386/identcpu.c		standard
