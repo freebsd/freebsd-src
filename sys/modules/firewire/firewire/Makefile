@@ -9,15 +9,7 @@ SRCS	= bus_if.h device_if.h pci_if.h \
 	  firewire.c firewire.h firewire_phy.h firewirebusreg.h firewirereg.h \
 	  fwohci.c fwohci_pci.c fwohcireg.h fwohcivar.h \
 	  iec13213.h iec68113.h \
-	  fwmem.c fwmem.h
-
-#EXPORT_SYMS= fw_asybusy	\
-#	fw_asyreq	\
-#	fw_bindadd	\
-#	fw_bindremove	\
-#	getcsrdata	\
-#	fw_xfer_alloc	\
-#	fw_xfer_free	\
+	  fwmem.c fwmem.h fwdev.c
 
 EXPORT_SYMS= YES
 
