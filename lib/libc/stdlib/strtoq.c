@@ -105,7 +105,7 @@ strtoq(nptr, endptr, base)
 	 * overflow.
 	 */
 	qbase = (unsigned)base;
-	cutoff = neg ? -(u_quad_t)QUAD_MIN : QUAD_MAX;
+	cutoff = neg ? (u_quad_t)-(QUAD_MIN + QUAD_MAX) + QUAD_MAX : QUAD_MAX;
 	cutlim = cutoff % qbase;
 	cutoff /= qbase;
 	for (acc = 0, any = 0;; c = *s++) {
