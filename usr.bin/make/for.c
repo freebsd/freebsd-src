@@ -174,7 +174,7 @@ For_Eval (line)
 #define ADDWORD() \
 	Buf_AddBytes(buf, ptr - wrd, (Byte *) wrd), \
 	Buf_AddByte(buf, (Byte) '\0'), \
-	Lst_AtEnd(forLst, (ClientData) Buf_GetAll(buf, &varlen)), \
+	Lst_AtFront(forLst, (ClientData) Buf_GetAll(buf, &varlen)), \
 	Buf_Destroy(buf, FALSE)
 
 	for (ptr = sub; *ptr && isspace((unsigned char) *ptr); ptr++)
