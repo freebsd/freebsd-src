@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if !defined(NOCRYPT) && !defined(MAKE_KERBEROS5) && !defined(NO_OPENSSL)
+.if !defined(NO_OPENSSL) && !defined(MAKE_KERBEROS5)
 SUBDIR= telnetd
 .endif
 .if !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
