@@ -1872,7 +1872,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 				printf("%s: free %s inodes %d-%d\n",
 				    mp->mnt_stat.f_mntonname,
 				    filetype == IFDIR ? "directory" : "file",
-				    (ino_t)cmd.value);
+				    (ino_t)cmd.value,
 				    (ino_t)cmd.value + cmd.size - 1);
 		}
 #endif /* DEBUG */
