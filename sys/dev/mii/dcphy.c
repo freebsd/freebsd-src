@@ -86,6 +86,13 @@ static const char rcsid[] =
 
 #define MIIF_AUTOTIMEOUT	0x0004
 
+/*
+ * This is the subsystem ID for the built-in 21143 ethernet
+ * in several Compaq Presario systems. Apparently these are
+ * 10Mbps only, so we need to treat them specially.
+ */
+#define COMPAQ_PRESARIO_ID	0xb0bb0e11
+
 static int dcphy_probe		__P((device_t));
 static int dcphy_attach		__P((device_t));
 static int dcphy_detach		__P((device_t));
@@ -161,9 +168,6 @@ static int dcphy_attach(dev)
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
 	    BMCR_ISO);
 
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
-
 	/*dcphy_reset(sc);*/
 	dc_sc = mii->mii_ifp->if_softc;
 	CSR_WRITE_4(dc_sc, DC_10BTSTAT, 0);
@@ -171,11 +175,14 @@ static int dcphy_attach(dev)
 
 	switch(pci_read_config(device_get_parent(sc->mii_dev),
 	    DC_PCI_CSID, 4)) {
-	case 0x99999999:
+	case COMPAQ_PRESARIO_ID:
 		/* Example of how to only allow 10Mbps modes. */
-		sc->mii_capabilities = BMSR_10TFDX|BMSR_10THDX;
+		sc->mii_capabilities = BMSR_ANEG|BMSR_10TFDX|BMSR_10THDX;
 		break;
 	default:
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
+		    sc->mii_inst), BMCR_LOOP|BMCR_S100);
+
 		sc->mii_capabilities =
 		    BMSR_ANEG|BMSR_100TXFDX|BMSR_100TXHDX|
 		    BMSR_10TFDX|BMSR_10THDX;
@@ -418,11 +425,14 @@ dcphy_status(sc)
 
 		if (CSR_READ_4(dc_sc, DC_10BTSTAT) & DC_TSTAT_LP_CAN_NWAY) {
 			anlpar = CSR_READ_4(dc_sc, DC_10BTSTAT) >> 16;
-			if (anlpar & ANLPAR_T4)
+			if (anlpar & ANLPAR_T4 &&
+			    sc->mii_capabilities & BMSR_100TXHDX)
 				mii->mii_media_active |= IFM_100_T4;
-			else if (anlpar & ANLPAR_TX_FD)
+			else if (anlpar & ANLPAR_TX_FD &&
+			    sc->mii_capabilities & BMSR_100TXHDX)
 				mii->mii_media_active |= IFM_100_TX|IFM_FDX;
-			else if (anlpar & ANLPAR_TX)
+			else if (anlpar & ANLPAR_TX &&
+			    sc->mii_capabilities & BMSR_100TXHDX)
 				mii->mii_media_active |= IFM_100_TX;
 			else if (anlpar & ANLPAR_10_FD)
 				mii->mii_media_active |= IFM_10_T|IFM_FDX;
@@ -478,7 +488,10 @@ dcphy_auto(mii, waitfor)
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_FULLDUPLEX);
 		DC_CLRBIT(sc, DC_SIARESET, DC_SIA_RESET);
-		CSR_WRITE_4(sc, DC_10BTCTRL, 0x3FFFF);
+		if (mii->mii_capabilities & BMSR_100TXHDX)
+			CSR_WRITE_4(sc, DC_10BTCTRL, 0x3FFFF);
+		else
+			CSR_WRITE_4(sc, DC_10BTCTRL, 0xFFFF);
 		DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
 		DC_SETBIT(sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 		DC_SETBIT(sc, DC_10BTSTAT, DC_ASTAT_TXDISABLE);
