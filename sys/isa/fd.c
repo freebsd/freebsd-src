@@ -1171,6 +1171,7 @@ fd_clone(void *arg, char *name, int namelen, dev_t *dev)
 						UID_ROOT, GID_OPERATOR, 0640,
 						name);
 				fd->clonedevs[i] = *dev;
+				fd->clonedevs[i]->si_drv1 = fd;
 				return;
 			}
 	}
@@ -1336,6 +1337,7 @@ fd_attach(device_t dev)
 #endif
 	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
 				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
+	fd->masterdev->si_drv1 = fd;
 #ifdef GONE_IN_5
 	{
 	int i;
@@ -1562,13 +1564,13 @@ out_fdc(struct fdc_data *fdc, int x)
 static int
 fdopen(dev_t dev, int flags, int mode, struct thread *td)
 {
- 	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
 	fd_p	fd;
 	fdc_p	fdc;
  	int rv, unitattn, dflags;
 
-	if ((fd = devclass_get_softc(fd_devclass, fdu)) == 0)
+	fd = dev->si_drv1;
+	if (fd == NULL)
 		return (ENXIO);
 	fdc = fd->fdc;
 	if ((fdc == NULL) || (fd->type == FDT_NONE))
@@ -1664,10 +1666,9 @@ fdopen(dev_t dev, int flags, int mode, struct thread *td)
 static int
 fdclose(dev_t dev, int flags, int mode, struct thread *td)
 {
- 	fdu_t fdu = FDUNIT(minor(dev));
 	struct fd_data *fd;
 
-	fd = devclass_get_softc(fd_devclass, fdu);
+	fd = dev->si_drv1;
 	fd->flags &= ~(FD_OPEN | FD_NONBLOCK);
 	fd->options &= ~(FDOPT_NORETRY | FDOPT_NOERRLOG | FDOPT_NOERROR);
 
@@ -1685,8 +1686,8 @@ fdstrategy(struct bio *bp)
 	size_t	fdblk;
 
  	fdu = FDUNIT(minor(bp->bio_dev));
-	fd = devclass_get_softc(fd_devclass, fdu);
-	if (fd == 0)
+	fd = bp->bio_dev->si_drv1;
+	if (fd == NULL)
 		panic("fdstrategy: buf for nonexistent device (%#lx, %#lx)",
 		      (u_long)major(bp->bio_dev), (u_long)minor(bp->bio_dev));
 	fdc = fd->fdc;
@@ -1883,7 +1884,7 @@ fdautoselect(dev_t dev)
 	int i, n, oopts, rv;
 
  	fdu = FDUNIT(minor(dev));
-	fd = devclass_get_softc(fd_devclass, fdu);
+	fd = dev->si_drv1;
 
 	switch (fd->type) {
 	default:
@@ -2010,7 +2011,7 @@ fdstate(fdc_p fdc)
  		return (0);
 	}
 	fdu = FDUNIT(minor(bp->bio_dev));
-	fd = devclass_get_softc(fd_devclass, fdu);
+	fd = bp->bio_dev->si_drv1;
 	fdblk = 128 << fd->ft->secsize;
 	if (fdc->fd && (fd != fdc->fd))
 		device_printf(fd->dev, "confused fd pointers\n");
@@ -2513,7 +2514,7 @@ retrier(struct fdc_data *fdc)
 
 	/* XXX shouldn't this be cached somewhere?  */
 	fdu = FDUNIT(minor(bp->bio_dev));
-	fd = devclass_get_softc(fd_devclass, fdu);
+	fd = bp->bio_dev->si_drv1;
 	if (fd->options & FDOPT_NORETRY)
 		goto fail;
 
@@ -2584,7 +2585,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	int error;
 
  	fdu = FDUNIT(minor(dev));
-	fd = devclass_get_softc(fd_devclass, fdu);
+	fd = dev->si_drv1;
 	fdblk = 128 << fd->ft->secsize;
 	finfo = (struct fd_formb *)data;
 	idfield = (struct fdc_readid *)data;
@@ -2636,7 +2637,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 
  	fdu = FDUNIT(minor(dev));
 	type = FDTYPE(minor(dev));
- 	fd = devclass_get_softc(fd_devclass, fdu);
+ 	fd = dev->si_drv1;
 
 	/*
 	 * First, handle everything that could be done with
