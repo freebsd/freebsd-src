@@ -514,7 +514,7 @@ hpfs_vget(
 	hp->h_devvp = hpmp->hpm_devvp;
 
 	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
-	if (error || *vpp) {
+	if (error || *vpp != NULL) {
 		vput(vp);
 		return (error);
 	}
