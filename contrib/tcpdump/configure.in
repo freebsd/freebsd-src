@@ -1,0 +1,227 @@
+dnl @(#) $Header: configure.in,v 1.53 96/07/17 15:27:31 leres Exp $ (LBL)
+dnl
+dnl Copyright (c) 1994, 1995, 1996
+dnl	The Regents of the University of California.  All rights reserved.
+dnl
+dnl Process this file with autoconf to produce a configure script.
+dnl
+
+AC_INIT(tcpdump.c)
+
+AC_CANONICAL_SYSTEM
+
+umask 002
+
+if test -z "$PWD" ; then
+	PWD=`pwd`
+fi
+
+AC_LBL_C_INIT(V_CCOPT, V_INCLS)
+
+AC_CHECK_HEADERS(fcntl.h net/slip.h rpc/rpcent.h)
+AC_HEADER_TIME
+
+AC_REPLACE_FUNCS(vfprintf strcasecmp)
+AC_CHECK_FUNCS(ether_ntoa setlinebuf)
+
+AC_CHECK_LIB(dnet, main)
+AC_CHECK_LIB(rpc, main)
+AC_CHECK_LIB(nsl, main)
+AC_CHECK_LIB(str, main)
+
+dnl -lsocket is broken for snoop under IRIX 5.2 and earlier
+case "$target_os" in
+irix5.0*)
+	;;
+
+irix5.1*)
+	;;
+
+irix5.2*)
+	;;
+
+*)
+	AC_CHECK_LIB(socket, main)
+	;;
+esac
+
+AC_LBL_LIBPCAP(V_PCAPDEP, V_INCLS)
+
+V_GROUP=0
+case "$target_os" in
+
+aix*)
+	dnl Workaround to enable certain features
+	AC_DEFINE(_SUN)
+	;;
+
+irix*)
+	V_GROUP=sys
+	;;
+
+osf*)
+	V_GROUP=system
+	case "$target_os" in
+
+	osf3*)
+		dnl Workaround around ip_hl vs. ip_vhl problem in netinet/ip.h
+		AC_DEFINE(__STDC__,2)
+		;;
+	esac
+	;;
+
+solaris*)
+	V_GROUP=sys
+	;;
+esac
+
+if test -f /dev/bpf0 ; then
+	V_GROUP=bpf
+fi
+
+AC_CHECK_TYPE(int32_t, int)
+AC_CHECK_TYPE(u_int32_t, u_int)
+
+AC_LBL_TYPE_SIGNAL
+
+AC_LBL_DEVEL(V_CCOPT)
+
+AC_LBL_SOCKADDR_SA_LEN
+
+AC_MSG_CHECKING(if altzone is available)
+AC_CACHE_VAL(ac_cv_decl_altzone,
+    AC_TRY_COMPILE([
+#	include <sys/types.h>
+#	include <sys/time.h>
+#	ifdef TIME_WITH_SYS_TIME
+#	include <time.h>
+#	endif],
+	[long i = -altzone],
+	ac_cv_decl_altzone=yes,
+	ac_cv_decl_altzone=no))
+AC_MSG_RESULT($ac_cv_decl_altzone)
+if test $ac_cv_decl_altzone = yes ; then
+	AC_DEFINE(HAVE_ALTZONE)
+fi
+
+AC_MSG_CHECKING(if timezone and daylight are available)
+AC_CACHE_VAL(ac_cv_decl_timezone,
+    AC_TRY_LINK([
+#	include <sys/types.h>
+#	include <sys/time.h>
+#	ifdef TIME_WITH_SYS_TIME
+#	include <time.h>
+#	endif],
+	[long i;
+	tzset();
+	i = -timezone + daylight ? 3600 : 0],
+	ac_cv_decl_timezone=yes,
+	ac_cv_decl_timezone=no))
+AC_MSG_RESULT($ac_cv_decl_timezone)
+if test $ac_cv_decl_timezone = yes ; then
+	AC_DEFINE(HAVE_TIMEZONE)
+fi
+
+if test $ac_cv_decl_altzone = no ; then
+	AC_MSG_CHECKING(if tm struct has tm_gmtoff member)
+	AC_CACHE_VAL(ac_cv_tm_has_tm_gmtoff,
+	    AC_TRY_COMPILE([
+#		include <sys/types.h>
+#		include <sys/time.h>
+#		ifdef TIME_WITH_SYS_TIME
+#		include <time.h>
+#		endif],
+		[u_int i = sizeof(((struct tm *)0)->tm_gmtoff)],
+		ac_cv_tm_has_tm_gmtoff=yes,
+		ac_cv_tm_has_tm_gmtoff=no))
+	AC_MSG_RESULT($ac_cv_tm_has_tm_gmtoff)
+	if test $ac_cv_tm_has_tm_gmtoff = yes ; then
+		AC_DEFINE(HAVE_TM_GMTOFF)
+	fi
+fi
+
+AC_MSG_CHECKING(if ether_header uses ether_addr structs)
+AC_CACHE_VAL(ac_cv_ether_header_has_ea,
+    AC_TRY_COMPILE([
+#	include <sys/types.h>
+#	if __STDC__
+	/* osf3 has REALLY good prototyes */
+	struct mbuf;
+	struct rtentry;
+#	endif
+#	include <sys/socket.h>
+#	include <net/if.h>
+#	include <netinet/in.h>
+#	include <netinet/if_ether.h>],
+	[u_int i =
+	    sizeof(((struct ether_header *)0)->ether_dhost.ether_addr_octet)],
+	ac_cv_ether_header_has_ea=yes,
+	ac_cv_ether_header_has_ea=no))
+AC_MSG_RESULT($ac_cv_ether_header_has_ea)
+if test $ac_cv_ether_header_has_ea = yes ; then
+	AC_DEFINE(ETHER_HEADER_HAS_EA)
+fi
+
+AC_MSG_CHECKING(if ether_arp uses ether_addr structs)
+AC_CACHE_VAL(ac_cv_ether_arp_has_ea,
+    AC_TRY_COMPILE([
+#	include <sys/types.h>
+#	if __STDC__
+	/* osf3 has REALLY good prototyes */
+	struct mbuf;
+	struct rtentry;
+#	endif
+#	include <sys/socket.h>
+#	include <net/if.h>
+#	include <netinet/in.h>
+#	include <netinet/if_ether.h>],
+	[u_int i =
+	    sizeof(((struct ether_arp *)0)->arp_sha.ether_addr_octet)],
+	ac_cv_ether_arp_has_ea=yes,
+	ac_cv_ether_arp_has_ea=no))
+AC_MSG_RESULT($ac_cv_ether_arp_has_ea)
+if test $ac_cv_ether_arp_has_ea = yes ; then
+	AC_DEFINE(ETHER_ARP_HAS_EA)
+fi
+
+AC_MSG_CHECKING(if ether_arp uses erp_xsha member)
+AC_CACHE_VAL(ac_cv_struct_ether_arp_x,
+    AC_TRY_COMPILE([
+#	include <sys/types.h>
+#	include <sys/socket.h>
+#	if __STDC__
+	/* osf3 has REALLY good prototyes */
+	struct mbuf;
+	struct rtentry;
+#	endif
+#	include <net/if.h>
+#	include <netinet/in.h>
+#	include <netinet/if_ether.h>],
+	[u_int i = sizeof( ((struct ether_arp *)0)->arp_xsha)],
+	ac_cv_struct_ether_arp_x=yes,
+	ac_cv_struct_ether_arp_x=no))
+AC_MSG_RESULT($ac_cv_struct_ether_arp_x)
+if test $ac_cv_struct_ether_arp_x = yes ; then
+	AC_DEFINE(ETHER_ARP_HAS_X)
+fi
+
+AC_LBL_UNALIGNED_ACCESS
+
+if test -r lbl/gnuc.h ; then
+	rm -f gnuc.h
+	ln -s lbl/gnuc.h gnuc.h
+fi
+
+AC_SUBST(V_CCOPT)
+AC_SUBST(V_GROUP)
+AC_SUBST(V_INCLS)
+AC_SUBST(V_PCAPDEP)
+
+AC_PROG_INSTALL
+
+AC_OUTPUT(Makefile)
+
+if test -f .devel ; then
+	make depend
+fi
+exit 0

@@ -1,0 +1,1216 @@
+.\" @(#) $Header: tcpdump.1,v 1.61 96/07/14 19:45:00 leres Exp $ (LBL)
+.\"
+.\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH TCPDUMP 1  "14 July 1996"
+.SH NAME
+tcpdump \- dump traffic on a network
+.SH SYNOPSIS
+.na
+.B tcpdump
+[
+.B \-deflnNOpqStvx
+] [
+.B \-c
+.I count
+] [
+.B \-F
+.I file
+]
+.br
+.ti +8
+[
+.B \-i
+.I interface
+] [
+.B \-r
+.I file
+]
+[
+.B \-s
+.I snaplen
+]
+.br
+.ti +8
+[
+.B \-T
+.I type
+]
+[
+.B \-w
+.I file
+]
+[
+.I expression
+]
+.br
+.ad
+.SH DESCRIPTION
+.LP
+\fITcpdump\fP prints out the headers of packets on a network interface
+that match the boolean \fIexpression\fP.
+.B Under SunOS with nit or bpf:
+To run
+.I tcpdump
+you must have read access to
+.I /dev/net
+or
+.IR /dev/bpf* .
+.B Under Solaris with dlpi:
+You must have read access to the network pseudo device, e.g.
+.IR /dev/le .
+.B Under HP-UX with dlpi:
+You must be root or it must be installed setuid to root.
+.B Under IRIX with snoop:
+You must be root or it must be installed setuid to root.
+.B Under Ultrix:
+Once the super-user has enabled
+promiscuous-mode operation using
+.IR pfconfig (8),
+any user may run
+.BR tcpdump .
+.B Under BSD:
+You must have read access to
+.IR /dev/bpf* .
+.SH OPTIONS
+.TP
+.B \-c
+Exit after receiving \fIcount\fP packets.
+.TP
+.B \-d
+Dump the compiled packet-matching code in a human readable form to
+standard output and stop.
+.TP
+.B \-dd
+Dump packet-matching code as a
+.B C
+program fragment.
+.TP
+.B \-ddd
+Dump packet-matching code as decimal numbers (preceded with a count).
+.TP
+.B \-e
+Print the link-level header on each dump line.
+.TP
+.B \-f
+Print `foreign' internet addresses numerically rather than symbolically
+(this option is intended to get around serious brain damage in
+Sun's yp server \(em usually it hangs forever translating non-local
+internet numbers).
+.TP
+.B \-F
+Use \fIfile\fP as input for the filter expression.
+An additional expression given on the command line is ignored.
+.TP
+.B \-i
+Listen on \fIinterface\fP.
+If unspecified, \fItcpdump\fP searches the system interface list for the
+lowest numbered, configured up interface (excluding loopback).
+Ties are broken by choosing the earliest match.
+.TP
+.B \-l
+Make stdout line buffered.  Useful if you want to see the data
+while capturing it.  E.g.,
+.br
+``tcpdump\ \ \-l\ \ |\ \ tee dat'' or
+``tcpdump\ \ \-l \ \ > dat\ \ &\ \ tail\ \ \-f\ \ dat''.
+.TP
+.B \-n
+Don't convert addresses (i.e., host addresses, port numbers, etc.) to names.
+.TP
+.B \-N
+Don't print domain name qualification of host names.  E.g.,
+if you give this flag then \fItcpdump\fP will print ``nic''
+instead of ``nic.ddn.mil''.
+.TP
+.B \-O
+Do not run the packet-matching code optimizer.  This is useful only
+if you suspect a bug in the optimizer.
+.TP
+.B \-p
+\fIDon't\fP put the interface
+into promiscuous mode.  Note that the interface might be in promiscuous
+mode for some other reason; hence, `-p' cannot be used as an abbreviation for
+`ether host {local-hw-addr} or ether broadcast'.
+.TP
+.B \-q
+Quick (quiet?) output.  Print less protocol information so output
+lines are shorter.
+.TP
+.B \-r
+Read packets from \fIfile\fR (which was created with the -w option).
+Standard input is used if \fIfile\fR is ``-''.
+.TP
+.B \-s
+Snarf \fIsnaplen\fP bytes of data from each packet rather than the
+default of 68 (with SunOS's NIT, the minimum is actually 96).
+68 bytes is adequate for IP, ICMP, TCP
+and UDP but may truncate protocol information from name server and NFS
+packets (see below).  Packets truncated because of a limited snapshot
+are indicated in the output with ``[|\fIproto\fP]'', where \fIproto\fP
+is the name of the protocol level at which the truncation has occurred.
+Note that taking larger snapshots both increases
+the amount of time it takes to process packets and, effectively,
+decreases the amount of packet buffering.  This may cause packets to be
+lost.  You should limit \fIsnaplen\fP to the smallest number that will
+capture the protocol information you're interested in.
+.TP
+.B \-T
+Force packets selected by "\fIexpression\fP" to be interpreted the
+specified \fItype\fR. Currently known types are
+\fBrpc\fR (Remote Procedure Call),
+\fBrtp\fR (Real-Time Applications protocol),
+\fBrtcp\fR (Real-Time Applications control protocol),
+\fBvat\fR (Visual Audio Tool),
+and
+\fBwb\fR (distributed White Board).
+.TP
+.B \-S
+Print absolute, rather than relative, TCP sequence numbers.
+.TP
+.B \-t
+\fIDon't\fP print a timestamp on each dump line.
+.TP
+.B \-tt
+Print an unformatted timestamp on each dump line.
+.TP
+.B \-v
+(Slightly more) verbose output.  For example, the time to live
+and type of service information in an IP packet is printed.
+.TP
+.B \-vv
+Even more verbose output.  For example, additional fields are
+printed from NFS reply packets.
+.TP
+.B \-w
+Write the raw packets to \fIfile\fR rather than parsing and printing
+them out.  They can later be printed with the \-r option.
+Standard output is used if \fIfile\fR is ``-''.
+.TP
+.B \-x
+Print each packet (minus its link level header) in hex.
+The smaller of the entire packet or
+.I snaplen
+bytes will be printed.
+.IP "\fI expression\fP"
+.RS
+selects which packets will be dumped.  If no \fIexpression\fP
+is given, all packets on the net will be dumped.  Otherwise,
+only packets for which \fIexpression\fP is `true' will be dumped.
+.LP
+The \fIexpression\fP consists of one or more
+.I primitives.
+Primitives usually consist of an
+.I id
+(name or number) preceded by one or more qualifiers.  There are three
+different kinds of qualifier:
+.IP \fItype\fP
+qualifiers say what kind of thing the id name or number refers to.
+Possible types are
+.BR host ,
+.B net
+and
+.BR port .
+E.g., `host foo', `net 128.3', `port 20'.  If there is no type
+qualifier,
+.B host
+is assumed.
+.IP \fIdir\fP
+qualifiers specify a particular transfer direction to and/or from
+.I id.
+Possible directions are
+.BR src ,
+.BR dst ,
+.B "src or dst"
+and
+.B "src and"
+.BR dst .
+E.g., `src foo', `dst net 128.3', `src or dst port ftp-data'.  If
+there is no dir qualifier,
+.B "src or dst"
+is assumed.
+For `null' link layers (i.e. point to point protocols such as slip) the
+.B inbound
+and
+.B outbound
+qualifiers can be used to specify a desired direction.
+.IP \fIproto\fP
+qualifiers restrict the match to a particular protocol.  Possible
+protos are:
+.BR ether ,
+.BR fddi ,
+.BR ip ,
+.BR arp ,
+.BR rarp ,
+.BR decnet ,
+.BR lat ,
+.BR sca ,
+.BR moprc ,
+.BR mopdl ,
+.B tcp
+and
+.BR udp .
+E.g., `ether src foo', `arp net 128.3', `tcp port 21'.  If there is
+no proto qualifier, all protocols consistent with the type are
+assumed.  E.g., `src foo' means `(ip or arp or rarp) src foo'
+(except the latter is not legal syntax), `net bar' means `(ip or
+arp or rarp) net bar' and `port 53' means `(tcp or udp) port 53'.
+.LP
+[`fddi' is actually an alias for `ether'; the parser treats them
+identically as meaning ``the data link level used on the specified
+network interface.''  FDDI headers contain Ethernet-like source
+and destination addresses, and often contain Ethernet-like packet
+types, so you can filter on these FDDI fields just as with the
+analogous Ethernet fields.  FDDI headers also contain other fields,
+but you cannot name them explicitly in a filter expression.]
+.LP
+In addition to the above, there are some special `primitive' keywords
+that don't follow the pattern:
+.BR gateway ,
+.BR broadcast ,
+.BR less ,
+.B greater
+and arithmetic expressions.  All of these are described below.
+.LP
+More complex filter expressions are built up by using the words
+.BR and ,
+.B or
+and
+.B not
+to combine primitives.  E.g., `host foo and not port ftp and not port ftp-data'.
+To save typing, identical qualifier lists can be omitted.  E.g.,
+`tcp dst port ftp or ftp-data or domain' is exactly the same as
+`tcp dst port ftp or tcp dst port ftp-data or tcp dst port domain'.
+.LP
+Allowable primitives are:
+.IP "\fBdst host \fIhost\fR"
+True if the IP destination field of the packet is \fIhost\fP,
+which may be either an address or a name.
+.IP "\fBsrc host \fIhost\fR"
+True if the IP source field of the packet is \fIhost\fP.
+.IP "\fBhost \fIhost\fP
+True if either the IP source or destination of the packet is \fIhost\fP.
+Any of the above host expressions can be prepended with the keywords,
+\fBip\fP, \fBarp\fP, or \fBrarp\fP as in:
+.in +.5i
+.nf
+\fBip host \fIhost\fR
+.fi
+.in -.5i
+which is equivalent to:
+.in +.5i
+.nf
+\fBether proto \fI\\ip\fB and host \fIhost\fR
+.fi
+.in -.5i
+If \fIhost\fR is a name with multiple IP addresses, each address will
+be checked for a match.
+.IP "\fBether dst \fIehost\fP
+True if the ethernet destination address is \fIehost\fP.  \fIEhost\fP
+may be either a name from /etc/ethers or a number (see
+.IR ethers (3N)
+for numeric format).
+.IP "\fBether src \fIehost\fP
+True if the ethernet source address is \fIehost\fP.
+.IP "\fBether host \fIehost\fP
+True if either the ethernet source or destination address is \fIehost\fP.
+.IP "\fBgateway\fP \fIhost\fP
+True if the packet used \fIhost\fP as a gateway.  I.e., the ethernet
+source or destination address was \fIhost\fP but neither the IP source
+nor the IP destination was \fIhost\fP.  \fIHost\fP must be a name and
+must be found in both /etc/hosts and /etc/ethers.  (An equivalent
+expression is
+.in +.5i
+.nf
+\fBether host \fIehost \fBand not host \fIhost\fR
+.fi
+.in -.5i
+which can be used with either names or numbers for \fIhost / ehost\fP.)
+.IP "\fBdst net \fInet\fR"
+True if the IP destination address of the packet has a network
+number of \fInet\fP. \fINet\fP may be either a name from /etc/networks
+or a network number (see \fInetworks(4)\fP for details).
+.IP "\fBsrc net \fInet\fR"
+True if the IP source address of the packet has a network
+number of \fInet\fP.
+.IP "\fBnet \fInet\fR"
+True if either the IP source or destination address of the packet has a network
+number of \fInet\fP.
+.IP "\fBnet \fInet\fR \fBmask \fImask\fR"
+True if the IP address matches \fInet\fR with the specific netmask.
+May be qualified with \fBsrc\fR or \fBdst\fR.
+.IP "\fBnet \fInet\fR/\fIlen\fR"
+True if the IP address matches \fInet\fR a netmask \fIlen\fR bits wide.
+May be qualified with \fBsrc\fR or \fBdst\fR.
+.IP "\fBdst port \fIport\fR"
+True if the packet is ip/tcp or ip/udp and has a
+destination port value of \fIport\fP.
+The \fIport\fP can be a number or a name used in /etc/services (see
+.IR tcp (4P)
+and
+.IR udp (4P)).
+If a name is used, both the port
+number and protocol are checked.  If a number or ambiguous name is used,
+only the port number is checked (e.g., \fBdst port 513\fR will print both
+tcp/login traffic and udp/who traffic, and \fBport domain\fR will print
+both tcp/domain and udp/domain traffic).
+.IP "\fBsrc port \fIport\fR"
+True if the packet has a source port value of \fIport\fP.
+.IP "\fBport \fIport\fR"
+True if either the source or destination port of the packet is \fIport\fP.
+Any of the above port expressions can be prepended with the keywords,
+\fBtcp\fP or \fBudp\fP, as in:
+.in +.5i
+.nf
+\fBtcp src port \fIport\fR
+.fi
+.in -.5i
+which matches only tcp packets whose source port is \fIport\fP.
+.IP "\fBless \fIlength\fR"
+True if the packet has a length less than or equal to \fIlength\fP.
+This is equivalent to:
+.in +.5i
+.nf
+\fBlen <= \fIlength\fP.
+.fi
+.in -.5i
+.IP "\fBgreater \fIlength\fR"
+True if the packet has a length greater than or equal to \fIlength\fP.
+This is equivalent to:
+.in +.5i
+.nf
+\fBlen >= \fIlength\fP.
+.fi
+.in -.5i
+.IP "\fBip proto \fIprotocol\fR"
+True if the packet is an ip packet (see
+.IR ip (4P))
+of protocol type \fIprotocol\fP.
+\fIProtocol\fP can be a number or one of the names
+\fIicmp\fP, \fIigrp\fP, \fIudp\fP, \fInd\fP, or \fItcp\fP.
+Note that the identifiers \fItcp\fP, \fIudp\fP, and \fIicmp\fP are also
+keywords and must be escaped via backslash (\\), which is \\\\ in the C-shell.
+.IP "\fBether broadcast\fR"
+True if the packet is an ethernet broadcast packet.  The \fIether\fP
+keyword is optional.
+.IP "\fBip broadcast\fR"
+True if the packet is an IP broadcast packet.  It checks for both
+the all-zeroes and all-ones broadcast conventions, and looks up
+the local subnet mask.
+.IP "\fBether multicast\fR"
+True if the packet is an ethernet multicast packet.  The \fIether\fP
+keyword is optional.
+This is shorthand for `\fBether[0] & 1 != 0\fP'.
+.IP "\fBip multicast\fR"
+True if the packet is an IP multicast packet.
+.IP  "\fBether proto \fIprotocol\fR"
+True if the packet is of ether type \fIprotocol\fR.
+\fIProtocol\fP can be a number or a name like
+\fIip\fP, \fIarp\fP, or \fIrarp\fP.
+Note these identifiers are also keywords
+and must be escaped via backslash (\\).
+[In the case of FDDI (e.g., `\fBfddi protocol arp\fR'), the
+protocol identification comes from the 802.2 Logical Link Control
+(LLC) header, which is usually layered on top of the FDDI header.
+\fITcpdump\fP assumes, when filtering on the protocol identifier,
+that all FDDI packets include an LLC header, and that the LLC header
+is in so-called SNAP format.]
+.IP "\fBdecnet src \fIhost\fR"
+True if the DECNET source address is
+.IR host ,
+which may be an address of the form ``10.123'', or a DECNET host
+name.  [DECNET host name support is only available on Ultrix systems
+that are configured to run DECNET.]
+.IP "\fBdecnet dst \fIhost\fR"
+True if the DECNET destination address is
+.IR host .
+.IP "\fBdecnet host \fIhost\fR"
+True if either the DECNET source or destination address is
+.IR host .
+.IP "\fBip\fR, \fBarp\fR, \fBrarp\fR, \fBdecnet\fR"
+Abbreviations for:
+.in +.5i
+.nf
+\fBether proto \fIp\fR
+.fi
+.in -.5i
+where \fIp\fR is one of the above protocols.
+.IP "\fBlat\fR, \fBmoprc\fR, \fBmopdl\fR"
+Abbreviations for:
+.in +.5i
+.nf
+\fBether proto \fIp\fR
+.fi
+.in -.5i
+where \fIp\fR is one of the above protocols.
+Note that
+\fItcpdump\fP does not currently know how to parse these protocols.
+.IP  "\fBtcp\fR, \fBudp\fR, \fBicmp\fR"
+Abbreviations for:
+.in +.5i
+.nf
+\fBip proto \fIp\fR
+.fi
+.in -.5i
+where \fIp\fR is one of the above protocols.
+.IP  "\fIexpr relop expr\fR"
+True if the relation holds, where \fIrelop\fR is one of >, <, >=, <=, =, !=,
+and \fIexpr\fR is an arithmetic expression composed of integer constants
+(expressed in standard C syntax), the normal binary operators
+[+, -, *, /, &, |], a length operator, and special packet data accessors.
+To access
+data inside the packet, use the following syntax:
+.in +.5i
+.nf
+\fIproto\fB [ \fIexpr\fB : \fIsize\fB ]\fR
+.fi
+.in -.5i
+\fIProto\fR is one of \fBether, fddi,
+ip, arp, rarp, tcp, udp, \fRor \fBicmp\fR, and
+indicates the protocol layer for the index operation.
+The byte offset, relative to the indicated protocol layer, is
+given by \fIexpr\fR.
+\fISize\fR is optional and indicates the number of bytes in the
+field of interest; it can be either one, two, or four, and defaults to one.
+The length operator, indicated by the keyword \fBlen\fP, gives the
+length of the packet.
+
+For example, `\fBether[0] & 1 != 0\fP' catches all multicast traffic.
+The expression `\fBip[0] & 0xf != 5\fP'
+catches all IP packets with options. The expression
+`\fBip[6:2] & 0x1fff = 0\fP'
+catches only unfragmented datagrams and frag zero of fragmented datagrams.
+This check is implicitly applied to the \fBtcp\fP and \fBudp\fP
+index operations.
+For instance, \fBtcp[0]\fP always means the first
+byte of the TCP \fIheader\fP, and never means the first byte of an
+intervening fragment.
+.LP
+Primitives may be combined using:
+.IP
+A parenthesized group of primitives and operators
+(parentheses are special to the Shell and must be escaped).
+.IP
+Negation (`\fB!\fP' or `\fBnot\fP').
+.IP
+Concatenation (`\fB&&\fP' or `\fBand\fP').
+.IP
+Alternation (`\fB||\fP' or `\fBor\fP').
+.LP
+Negation has highest precedence.
+Alternation and concatenation have equal precedence and associate
+left to right.  Note that explicit \fBand\fR tokens, not juxtaposition,
+are now required for concatenation.
+.LP
+If an identifier is given without a keyword, the most recent keyword
+is assumed.
+For example,
+.in +.5i
+.nf
+\fBnot host vs and ace\fR
+.fi
+.in -.5i
+is short for
+.in +.5i
+.nf
+\fBnot host vs and host ace\fR
+.fi
+.in -.5i
+which should not be confused with
+.in +.5i
+.nf
+\fBnot ( host vs or ace )\fR
+.fi
+.in -.5i
+.LP
+Expression arguments can be passed to tcpdump as either a single argument
+or as multiple arguments, whichever is more convenient.
+Generally, if the expression contains Shell metacharacters, it is
+easier to pass it as a single, quoted argument.
+Multiple arguments are concatenated with spaces before being parsed.
+.SH EXAMPLES
+.LP
+To print all packets arriving at or departing from \fIsundown\fP:
+.RS
+.nf
+\fBtcpdump host sundown\fP
+.fi
+.RE
+.LP
+To print traffic between \fIhelios\fR and either \fIhot\fR or \fIace\fR:
+.RS
+.nf
+\fBtcpdump host helios and \\( hot or ace \\)\fP
+.fi
+.RE
+.LP
+To print all IP packets between \fIace\fR and any host except \fIhelios\fR:
+.RS
+.nf
+\fBtcpdump ip host ace and not helios\fP
+.fi
+.RE
+.LP
+To print all traffic between local hosts and hosts at Berkeley:
+.RS
+.nf
+.B
+tcpdump net ucb-ether
+.fi
+.RE
+.LP
+To print all ftp traffic through internet gateway \fIsnup\fP:
+(note that the expression is quoted to prevent the shell from
+(mis-)interpreting the parentheses):
+.RS
+.nf
+.B
+tcpdump 'gateway snup and (port ftp or ftp-data)'
+.fi
+.RE
+.LP
+To print traffic neither sourced from nor destined for local hosts
+(if you gateway to one other net, this stuff should never make it
+onto your local net).
+.RS
+.nf
+.B
+tcpdump ip and not net \fIlocalnet\fP
+.fi
+.RE
+.LP
+To print the start and end packets (the SYN and FIN packets) of each
+TCP conversation that involves a non-local host.
+.RS
+.nf
+.B
+tcpdump 'tcp[13] & 3 != 0 and not src and dst net \fIlocalnet\fP'
+.fi
+.RE
+.LP
+To print IP packets longer than 576 bytes sent through gateway \fIsnup\fP:
+.RS
+.nf
+.B
+tcpdump 'gateway snup and ip[2:2] > 576'
+.fi
+.RE
+.LP
+To print IP broadcast or multicast packets that were
+.I not
+sent via ethernet broadcast or multicast:
+.RS
+.nf
+.B
+tcpdump 'ether[0] & 1 = 0 and ip[16] >= 224'
+.fi
+.RE
+.LP
+To print all ICMP packets that are not echo requests/replies (i.e., not
+ping packets):
+.RS
+.nf
+.B
+tcpdump 'icmp[0] != 8 and icmp[0] != 0"
+.fi
+.RE
+.SH OUTPUT FORMAT
+.LP
+The output of \fItcpdump\fP is protocol dependent.  The following
+gives a brief description and examples of most of the formats.
+.de HD
+.sp 1.5
+.B
+..
+.HD
+Link Level Headers
+.LP
+If the '-e' option is given, the link level header is printed out.
+On ethernets, the source and destination addresses, protocol,
+and packet length are printed.
+.LP
+On FDDI networks, the  '-e' option causes \fItcpdump\fP to print
+the `frame control' field,  the source and destination addresses,
+and the packet length.  (The `frame control' field governs the
+interpretation of the rest of the packet.  Normal packets (such
+as those containing IP datagrams) are `async' packets, with a priority
+value between 0 and 7; for example, `\fBasync4\fR'.  Such packets
+are assumed to contain an 802.2 Logical Link Control (LLC) packet;
+the LLC header is printed if it is \fInot\fR an ISO datagram or a
+so-called SNAP packet.
+.LP
+\fI(N.B.: The following description assumes familiarity with
+the SLIP compression algorithm described in RFC-1144.)\fP
+.LP
+On SLIP links, a direction indicator (``I'' for inbound, ``O'' for outbound),
+packet type, and compression information are printed out.
+The packet type is printed first.
+The three types are \fIip\fP, \fIutcp\fP, and \fIctcp\fP.
+No further link information is printed for \fIip\fR packets.
+For TCP packets, the connection identifier is printed following the type.
+If the packet is compressed, its encoded header is printed out.
+The special cases are printed out as
+\fB*S+\fIn\fR and \fB*SA+\fIn\fR, where \fIn\fR is the amount by which
+the sequence number (or sequence number and ack) has changed.
+If it is not a special case,
+zero or more changes are printed.
+A change is indicated by U (urgent pointer), W (window), A (ack),
+S (sequence number), and I (packet ID), followed by a delta (+n or -n),
+or a new value (=n).
+Finally, the amount of data in the packet and compressed header length
+are printed.
+.LP
+For example, the following line shows an outbound compressed TCP packet,
+with an implicit connection identifier; the ack has changed by 6,
+the sequence number by 49, and the packet ID by 6; there are 3 bytes of
+data and 6 bytes of compressed header:
+.RS
+.nf
+\fBO ctcp * A+6 S+49 I+6 3 (6)\fP
+.fi
+.RE
+.HD
+ARP/RARP Packets
+.LP
+Arp/rarp output shows the type of request and its arguments.  The
+format is intended to be self explanatory.
+Here is a short sample taken from the start of an `rlogin' from
+host \fIrtsg\fP to host \fIcsam\fP:
+.RS
+.nf
+.sp .5
+\f(CWarp who-has csam tell rtsg
+arp reply csam is-at CSAM\fP
+.sp .5
+.fi
+.RE
+The first line says that rtsg sent an arp packet asking
+for the ethernet address of internet host csam.  Csam
+replies with its ethernet address (in this example, ethernet addresses
+are in caps and internet addresses in lower case).
+.LP
+This would look less redundant if we had done \fBtcpdump \-n\fP:
+.RS
+.nf
+.sp .5
+\f(CWarp who-has 128.3.254.6 tell 128.3.254.68
+arp reply 128.3.254.6 is-at 02:07:01:00:01:c4\fP
+.fi
+.RE
+.LP
+If we had done \fBtcpdump \-e\fP, the fact that the first packet is
+broadcast and the second is point-to-point would be visible:
+.RS
+.nf
+.sp .5
+\f(CWRTSG Broadcast 0806  64: arp who-has csam tell rtsg
+CSAM RTSG 0806  64: arp reply csam is-at CSAM\fP
+.sp .5
+.fi
+.RE
+For the first packet this says the ethernet source address is RTSG, the
+destination is the ethernet broadcast address, the type field
+contained hex 0806 (type ETHER_ARP) and the total length was 64 bytes.
+.HD
+TCP Packets
+.LP
+\fI(N.B.:The following description assumes familiarity with
+the TCP protocol described in RFC-793.  If you are not familiar
+with the protocol, neither this description nor tcpdump will
+be of much use to you.)\fP
+.LP
+The general format of a tcp protocol line is:
+.RS
+.nf
+.sp .5
+\fIsrc > dst: flags data-seqno ack window urgent options\fP
+.sp .5
+.fi
+.RE
+\fISrc\fP and \fIdst\fP are the source and destination IP
+addresses and ports.  \fIFlags\fP are some combination of S (SYN),
+F (FIN), P (PUSH) or R (RST) or a single `.' (no flags).
+\fIData-seqno\fP describes the portion of sequence space covered
+by the data in this packet (see example below).
+\fIAck\fP is sequence number of the next data expected the other
+direction on this connection.
+\fIWindow\fP is the number of bytes of receive buffer space available
+the other direction on this connection.
+\fIUrg\fP indicates there is `urgent' data in the packet.
+\fIOptions\fP are tcp options enclosed in angle brackets (e.g., <mss 1024>).
+.LP
+\fISrc, dst\fP and \fIflags\fP are always present.  The other fields
+depend on the contents of the packet's tcp protocol header and
+are output only if appropriate.
+.LP
+Here is the opening portion of an rlogin from host \fIrtsg\fP to
+host \fIcsam\fP.
+.RS
+.nf
+.sp .5
+\s-2\f(CWrtsg.1023 > csam.login: S 768512:768512(0) win 4096 <mss 1024>
+csam.login > rtsg.1023: S 947648:947648(0) ack 768513 win 4096 <mss 1024>
+rtsg.1023 > csam.login: . ack 1 win 4096
+rtsg.1023 > csam.login: P 1:2(1) ack 1 win 4096
+csam.login > rtsg.1023: . ack 2 win 4096
+rtsg.1023 > csam.login: P 2:21(19) ack 1 win 4096
+csam.login > rtsg.1023: P 1:2(1) ack 21 win 4077
+csam.login > rtsg.1023: P 2:3(1) ack 21 win 4077 urg 1
+csam.login > rtsg.1023: P 3:4(1) ack 21 win 4077 urg 1\fP\s+2
+.sp .5
+.fi
+.RE
+The first line says that tcp port 1023 on rtsg sent a packet
+to port \fIlogin\fP
+on csam.  The \fBS\fP indicates that the \fISYN\fP flag was set.
+The packet sequence number was 768512 and it contained no data.
+(The notation is `first:last(nbytes)' which means `sequence
+numbers \fIfirst\fP
+up to but not including \fIlast\fP which is \fInbytes\fP bytes of user data'.)
+There was no piggy-backed ack, the available receive window was 4096
+bytes and there was a max-segment-size option requesting an mss of
+1024 bytes.
+.LP
+Csam replies with a similar packet except it includes a piggy-backed
+ack for rtsg's SYN.  Rtsg then acks csam's SYN.  The `.' means no
+flags were set.
+The packet contained no data so there is no data sequence number.
+Note that the ack sequence
+number is a small integer (1).  The first time \fBtcpdump\fP sees a
+tcp `conversation', it prints the sequence number from the packet.
+On subsequent packets of the conversation, the difference between
+the current packet's sequence number and this initial sequence number
+is printed.  This means that sequence numbers after the
+first can be interpreted
+as relative byte positions in the conversation's data stream (with the
+first data byte each direction being `1').  `-S' will override this
+feature, causing the original sequence numbers to be output.
+.LP
+On the 6th line, rtsg sends csam 19 bytes of data (bytes 2 through 20
+in the rtsg \(-> csam side of the conversation).
+The PUSH flag is set in the packet.
+On the 7th line, csam says it's received data sent by rtsg up to
+but not including byte 21.  Most of this data is apparently sitting in the
+socket buffer since csam's receive window has gotten 19 bytes smaller.
+Csam also sends one byte of data to rtsg in this packet.
+On the 8th and 9th lines,
+csam sends two bytes of urgent, pushed data to rtsg.
+.HD
+.B
+UDP Packets
+.LP
+UDP format is illustrated by this rwho packet:
+.RS
+.nf
+.sp .5
+\f(CWactinide.who > broadcast.who: udp 84\fP
+.sp .5
+.fi
+.RE
+This says that port \fIwho\fP on host \fIactinide\fP sent a udp
+datagram to port \fIwho\fP on host \fIbroadcast\fP, the Internet
+broadcast address.  The packet contained 84 bytes of user data.
+.LP
+Some UDP services are recognized (from the source or destination
+port number) and the higher level protocol information printed.
+In particular, Domain Name service requests (RFC-1034/1035) and Sun
+RPC calls (RFC-1050) to NFS.
+.HD
+UDP Name Server Requests
+.LP
+\fI(N.B.:The following description assumes familiarity with
+the Domain Service protocol described in RFC-1035.  If you are not familiar
+with the protocol, the following description will appear to be written
+in greek.)\fP
+.LP
+Name server requests are formatted as
+.RS
+.nf
+.sp .5
+\fIsrc > dst: id op? flags qtype qclass name (len)\fP
+.sp .5
+\f(CWh2opolo.1538 > helios.domain: 3+ A? ucbvax.berkeley.edu. (37)\fP
+.sp .5
+.fi
+.RE
+Host \fIh2opolo\fP asked the domain server on \fIhelios\fP for an
+address record (qtype=A) associated with the name \fIucbvax.berkeley.edu.\fP
+The query id was `3'.  The `+' indicates the \fIrecursion desired\fP flag
+was set.  The query length was 37 bytes, not including the UDP and
+IP protocol headers.  The query operation was the normal one, \fIQuery\fP,
+so the op field was omitted.  If the op had been anything else, it would
+have been printed between the `3' and the `+'.
+Similarly, the qclass was the normal one,
+\fIC_IN\fP, and omitted.  Any other qclass would have been printed
+immediately after the `A'.
+.LP
+A few anomalies are checked and may result in extra fields enclosed in
+square brackets:  If a query contains an answer, name server or
+authority section,
+.IR ancount ,
+.IR nscount ,
+or
+.I arcount
+are printed as `[\fIn\fPa]', `[\fIn\fPn]' or  `[\fIn\fPau]' where \fIn\fP
+is the appropriate count.
+If any of the response bits are set (AA, RA or rcode) or any of the
+`must be zero' bits are set in bytes two and three, `[b2&3=\fIx\fP]'
+is printed, where \fIx\fP is the hex value of header bytes two and three.
+.HD
+UDP Name Server Responses
+.LP
+Name server responses are formatted as
+.RS
+.nf
+.sp .5
+\fIsrc > dst:  id op rcode flags a/n/au type class data (len)\fP
+.sp .5
+\f(CWhelios.domain > h2opolo.1538: 3 3/3/7 A 128.32.137.3 (273)
+helios.domain > h2opolo.1537: 2 NXDomain* 0/1/0 (97)\fP
+.sp .5
+.fi
+.RE
+In the first example, \fIhelios\fP responds to query id 3 from \fIh2opolo\fP
+with 3 answer records, 3 name server records and 7 authority records.
+The first answer record is type A (address) and its data is internet
+address 128.32.137.3.  The total size of the response was 273 bytes,
+excluding UDP and IP headers.  The op (Query) and response code
+(NoError) were omitted, as was the class (C_IN) of the A record.
+.LP
+In the second example, \fIhelios\fP responds to query 2 with a
+response code of non-existent domain (NXDomain) with no answers,
+one name server and no authority records.  The `*' indicates that
+the \fIauthoritative answer\fP bit was set.  Since there were no
+answers, no type, class or data were printed.
+.LP
+Other flag characters that might appear are `\-' (recursion available,
+RA, \fInot\fP set) and `|' (truncated message, TC, set).  If the
+`question' section doesn't contain exactly one entry, `[\fIn\fPq]'
+is printed.
+.LP
+Note that name server requests and responses tend to be large and the
+default \fIsnaplen\fP of 68 bytes may not capture enough of the packet
+to print.  Use the \fB\-s\fP flag to increase the snaplen if you
+need to seriously investigate name server traffic.  `\fB\-s 128\fP'
+has worked well for me.
+
+.HD
+NFS Requests and Replies
+.LP
+Sun NFS (Network File System) requests and replies are printed as:
+.RS
+.nf
+.sp .5
+\fIsrc.xid > dst.nfs: len op args\fP
+\fIsrc.nfs > dst.xid: reply stat len op results\fP
+.sp .5
+\f(CW
+sushi.6709 > wrl.nfs: 112 readlink fh 21,24/10.73165
+wrl.nfs > sushi.6709: reply ok 40 readlink "../var"
+sushi.201b > wrl.nfs:
+	144 lookup fh 9,74/4096.6878 "xcolors"
+wrl.nfs > sushi.201b:
+	reply ok 128 lookup fh 9,74/4134.3150
+\fP
+.sp .5
+.fi
+.RE
+In the first line, host \fIsushi\fP sends a transaction with id \fI6709\fP
+to \fIwrl\fP (note that the number following the src host is a
+transaction id, \fInot\fP the source port).  The request was 112 bytes,
+excluding the UDP and IP headers.  The operation was a \fIreadlink\fP
+(read symbolic link) on file handle (\fIfh\fP) 21,24/10.731657119.
+(If one is lucky, as in this case, the file handle can be interpreted
+as a major,minor device number pair, followed by the inode number and
+generation number.)
+\fIWrl\fP replies `ok' with the contents of the link.
+.LP
+In the third line, \fIsushi\fP asks \fIwrl\fP to lookup the name
+`\fIxcolors\fP' in directory file 9,74/4096.6878.  Note that the data printed
+depends on the operation type.  The format is intended to be self
+explanatory if read in conjunction with
+an NFS protocol spec.
+.LP
+If the \-v (verbose) flag is given, additional information is printed.
+For example:
+.RS
+.nf
+.sp .5
+\f(CW
+sushi.1372a > wrl.nfs:
+	148 read fh 21,11/12.195 8192 bytes @ 24576
+wrl.nfs > sushi.1372a:
+	reply ok 1472 read REG 100664 ids 417/0 sz 29388
+\fP
+.sp .5
+.fi
+.RE
+(\-v also prints the IP header TTL, ID, and fragmentation fields,
+which have been omitted from this example.)  In the first line,
+\fIsushi\fP asks \fIwrl\fP to read 8192 bytes from file 21,11/12.195,
+at byte offset 24576.  \fIWrl\fP replies `ok'; the packet shown on the
+second line is the first fragment of the reply, and hence is only 1472
+bytes long (the other bytes will follow in subsequent fragments, but
+these fragments do not have NFS or even UDP headers and so might not be
+printed, depending on the filter expression used).  Because the \-v flag
+is given, some of the file attributes (which are returned in addition
+to the file data) are printed: the file type (``REG'', for regular file),
+the file mode (in octal), the uid and gid, and the file size.
+.LP
+If the \-v flag is given more than once, even more details are printed.
+.LP
+Note that NFS requests are very large and much of the detail won't be printed
+unless \fIsnaplen\fP is increased.  Try using `\fB\-s 192\fP' to watch
+NFS traffic.
+.LP
+NFS reply packets do not explicitly identify the RPC operation.  Instead,
+\fItcpdump\fP keeps track of ``recent'' requests, and matches them to the
+replies using the transaction ID.  If a reply does not closely follow the
+corresponding request, it might not be parsable.
+.HD
+KIP Appletalk (DDP in UDP)
+.LP
+Appletalk DDP packets encapsulated in UDP datagrams are de-encapsulated
+and dumped as DDP packets (i.e., all the UDP header information is
+discarded).  The file
+.I /etc/atalk.names
+is used to translate appletalk net and node numbers to names.
+Lines in this file have the form
+.RS
+.nf
+.sp .5
+\fInumber	name\fP
+
+\f(CW1.254		ether
+16.1		icsd-net
+1.254.110	ace\fP
+.sp .5
+.fi
+.RE
+The first two lines give the names of appletalk networks.  The third
+line gives the name of a particular host (a host is distinguished
+from a net by the 3rd octet in the number \-
+a net number \fImust\fP have two octets and a host number \fImust\fP
+have three octets.)  The number and name should be separated by
+whitespace (blanks or tabs).
+The
+.I /etc/atalk.names
+file may contain blank lines or comment lines (lines starting with
+a `#').
+.LP
+Appletalk addresses are printed in the form
+.RS
+.nf
+.sp .5
+\fInet.host.port\fP
+
+\f(CW144.1.209.2 > icsd-net.112.220
+office.2 > icsd-net.112.220
+jssmag.149.235 > icsd-net.2\fP
+.sp .5
+.fi
+.RE
+(If the
+.I /etc/atalk.names
+doesn't exist or doesn't contain an entry for some appletalk
+host/net number, addresses are printed in numeric form.)
+In the first example, NBP (DDP port 2) on net 144.1 node 209
+is sending to whatever is listening on port 220 of net icsd node 112.
+The second line is the same except the full name of the source node
+is known (`office').  The third line is a send from port 235 on
+net jssmag node 149 to broadcast on the icsd-net NBP port (note that
+the broadcast address (255) is indicated by a net name with no host
+number \- for this reason it's a good idea to keep node names and
+net names distinct in /etc/atalk.names).
+.LP
+NBP (name binding protocol) and ATP (Appletalk transaction protocol)
+packets have their contents interpreted.  Other protocols just dump
+the protocol name (or number if no name is registered for the
+protocol) and packet size.
+
+\fBNBP packets\fP are formatted like the following examples:
+.RS
+.nf
+.sp .5
+\s-2\f(CWicsd-net.112.220 > jssmag.2: nbp-lkup 190: "=:LaserWriter@*"
+jssmag.209.2 > icsd-net.112.220: nbp-reply 190: "RM1140:LaserWriter@*" 250
+techpit.2 > icsd-net.112.220: nbp-reply 190: "techpit:LaserWriter@*" 186\fP\s+2
+.sp .5
+.fi
+.RE
+The first line is a name lookup request for laserwriters sent by net icsd host
+112 and broadcast on net jssmag.  The nbp id for the lookup is 190.
+The second line shows a reply for this request (note that it has the
+same id) from host jssmag.209 saying that it has a laserwriter
+resource named "RM1140" registered on port 250.  The third line is
+another reply to the same request saying host techpit has laserwriter
+"techpit" registered on port 186.
+
+\fBATP packet\fP formatting is demonstrated by the following example:
+.RS
+.nf
+.sp .5
+\s-2\f(CWjssmag.209.165 > helios.132: atp-req  12266<0-7> 0xae030001
+helios.132 > jssmag.209.165: atp-resp 12266:0 (512) 0xae040000
+helios.132 > jssmag.209.165: atp-resp 12266:1 (512) 0xae040000
+helios.132 > jssmag.209.165: atp-resp 12266:2 (512) 0xae040000
+helios.132 > jssmag.209.165: atp-resp 12266:3 (512) 0xae040000
+helios.132 > jssmag.209.165: atp-resp 12266:4 (512) 0xae040000
+helios.132 > jssmag.209.165: atp-resp 12266:5 (512) 0xae040000
+helios.132 > jssmag.209.165: atp-resp 12266:6 (512) 0xae040000
+helios.132 > jssmag.209.165: atp-resp*12266:7 (512) 0xae040000
+jssmag.209.165 > helios.132: atp-req  12266<3,5> 0xae030001
+helios.132 > jssmag.209.165: atp-resp 12266:3 (512) 0xae040000
+helios.132 > jssmag.209.165: atp-resp 12266:5 (512) 0xae040000
+jssmag.209.165 > helios.132: atp-rel  12266<0-7> 0xae030001
+jssmag.209.133 > helios.132: atp-req* 12267<0-7> 0xae030002\fP\s+2
+.sp .5
+.fi
+.RE
+Jssmag.209 initiates transaction id 12266 with host helios by requesting
+up to 8 packets (the `<0-7>').  The hex number at the end of the line
+is the value of the `userdata' field in the request.
+.LP
+Helios responds with 8 512-byte packets.  The `:digit' following the
+transaction id gives the packet sequence number in the transaction
+and the number in parens is the amount of data in the packet,
+excluding the atp header.  The `*' on packet 7 indicates that the
+EOM bit was set.
+.LP
+Jssmag.209 then requests that packets 3 & 5 be retransmitted.  Helios
+resends them then jssmag.209 releases the transaction.  Finally,
+jssmag.209 initiates the next request.  The `*' on the request
+indicates that XO (`exactly once') was \fInot\fP set.
+
+.HD
+IP Fragmentation
+.LP
+Fragmented Internet datagrams are printed as
+.RS
+.nf
+.sp .5
+\fB(frag \fIid\fB:\fIsize\fB@\fIoffset\fB+)\fR
+\fB(frag \fIid\fB:\fIsize\fB@\fIoffset\fB)\fR
+.sp .5
+.fi
+.RE
+(The first form indicates there are more fragments.  The second
+indicates this is the last fragment.)
+.LP
+\fIId\fP is the fragment id.  \fISize\fP is the fragment
+size (in bytes) excluding the IP header.  \fIOffset\fP is this
+fragment's offset (in bytes) in the original datagram.
+.LP
+The fragment information is output for each fragment.  The first
+fragment contains the higher level protocol header and the frag
+info is printed after the protocol info.  Fragments
+after the first contain no higher level protocol header and the
+frag info is printed after the source and destination addresses.
+For example, here is part of an ftp from arizona.edu to lbl-rtsg.arpa
+over a CSNET connection that doesn't appear to handle 576 byte datagrams:
+.RS
+.nf
+.sp .5
+\s-2\f(CWarizona.ftp-data > rtsg.1170: . 1024:1332(308) ack 1 win 4096 (frag 595a:328@0+)
+arizona > rtsg: (frag 595a:204@328)
+rtsg.1170 > arizona.ftp-data: . ack 1536 win 2560\fP\s+2
+.sp .5
+.fi
+.RE
+There are a couple of things to note here:  First, addresses in the
+2nd line don't include port numbers.  This is because the TCP
+protocol information is all in the first fragment and we have no idea
+what the port or sequence numbers are when we print the later fragments.
+Second, the tcp sequence information in the first line is printed as if there
+were 308 bytes of user data when, in fact, there are 512 bytes (308 in
+the first frag and 204 in the second).  If you are looking for holes
+in the sequence space or trying to match up acks
+with packets, this can fool you.
+.LP
+A packet with the IP \fIdon't fragment\fP flag is marked with a
+trailing \fB(DF)\fP.
+.HD
+Timestamps
+.LP
+By default, all output lines are preceded by a timestamp.  The timestamp
+is the current clock time in the form
+.RS
+.nf
+\fIhh:mm:ss.frac\fP
+.fi
+.RE
+and is as accurate as the kernel's clock.
+The timestamp reflects the time the kernel first saw the packet.  No attempt
+is made to account for the time lag between when the
+ethernet interface removed the packet from the wire and when the kernel
+serviced the `new packet' interrupt.
+.SH "SEE ALSO"
+traffic(1C), nit(4P), bpf(4), pcap(3)
+.SH AUTHORS
+Van Jacobson (van@ee.lbl.gov),
+Craig Leres (leres@ee.lbl.gov) and
+Steven McCanne (mccanne@ee.lbl.gov), all of the
+Lawrence Berkeley Laboratory, University of California, Berkeley, CA.
+.SH BUGS
+Please send bug reports to tcpdump@ee.lbl.gov or libpcap@ee.lbl.gov.
+.LP
+NIT doesn't let you watch your own outbound traffic, BPF will.
+We recommend that you use the latter.
+.LP
+\fItcpdump\fP for Ultrix requires Ultrix version 4.0 or later; the kernel
+has to have been built with the \fIpacketfilter\fP pseudo-device driver
+(see
+.IR packetfilter (4)).
+In order to watch either your own outbound or inbound traffic,
+you will need to use Ultrix version 4.2 or later, and you will have
+to have used the
+.IR pfconfig (8)
+command to enable ``copyall'' mode.
+.LP
+Under SunOS 4.1, the packet capture code (or Streams NIT) is not what
+you'd call efficient.  Don't plan on doing much with your Sun while
+you're monitoring a busy network.
+.LP
+On Sun systems prior to release 3.2, NIT is very buggy.
+If run on an old system, tcpdump may crash the machine.
+.LP
+Some attempt should be made to reassemble IP fragments or, at least
+to compute the right length for the higher level protocol.
+.LP
+Name server inverse queries are not dumped correctly: The (empty)
+question section is printed rather than real query in the answer
+section.  Some believe that inverse queries are themselves a bug and
+prefer to fix the program generating them rather than tcpdump.
+.LP
+Apple Ethertalk DDP packets could be dumped as easily as KIP DDP
+packets but aren't.
+Even if we were inclined to do anything to promote the use of
+Ethertalk (we aren't), LBL doesn't allow Ethertalk on any of its
+networks so we'd would have no way of testing this code.
+.LP
+A packet trace that crosses a daylight savings time change will give
+skewed time stamps (the time change is ignored).
+.LP
+Filters expressions that manipulate FDDI headers assume that all FDDI
+packets are encapsulated Ethernet packets.  This is true for IP, ARP,
+and DECNET Phase IV, but is not true for protocols such as ISO CLNS.
+Therefore, the filter may inadvertently accept certain packets that
+do not properly match the filter expression.
