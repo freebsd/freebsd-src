@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000-2002, 2004 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $')
+VERSIONID(`$Id: msp.m4,v 1.33 2004/02/09 22:32:38 ca Exp $')
 divert(-1)
 undefine(`ALIAS_FILE')
 define(`confDELIVERY_MODE', `i')
@@ -21,7 +21,9 @@ define(`confDONT_PROBE_INTERFACES', `True')
 dnl ---------------------------------------------
 dnl run as this user (even if called by root)
 ifdef(`confRUN_AS_USER',,`define(`confRUN_AS_USER', `smmsp')')
-ifdef(`confTRUSTED_USER',,`define(`confTRUSTED_USER', confRUN_AS_USER)')
+ifdef(`confTRUSTED_USER',,`define(`confTRUSTED_USER',
+`ifelse(index(confRUN_AS_USER,`:'), -1, `confRUN_AS_USER',
+`substr(confRUN_AS_USER,0,index(confRUN_AS_USER,`:'))')')')
 dnl ---------------------------------------------
 dnl This queue directory must have the same group
 dnl as sendmail and it must be group-writable.

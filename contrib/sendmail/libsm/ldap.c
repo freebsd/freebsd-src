@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.44.2.5 2003/12/23 21:21:56 gshapiro Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.59 2003/12/23 21:20:15 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -52,14 +52,10 @@ sm_ldap_clear(lmap)
 	if (lmap == NULL)
 		return;
 
-	lmap->ldap_target = NULL;
+	lmap->ldap_host = NULL;
 	lmap->ldap_port = LDAP_PORT;
-#if _FFR_LDAP_URI
-	lmap->ldap_uri = false;
-#endif /* _FFR_LDAP_URI */
-#  if _FFR_LDAP_SETVERSION
+	lmap->ldap_uri = NULL;
 	lmap->ldap_version = 0;
-#  endif /* _FFR_LDAP_SETVERSION */
 	lmap->ldap_deref = LDAP_DEREF_NEVER;
 	lmap->ldap_timelimit = LDAP_NO_LIMIT;
 	lmap->ldap_sizelimit = LDAP_NO_LIMIT;
@@ -80,10 +76,8 @@ sm_ldap_clear(lmap)
 	lmap->ldap_ld = NULL;
 	lmap->ldap_filter = NULL;
 	lmap->ldap_attr[0] = NULL;
-#if _FFR_LDAP_RECURSION
 	lmap->ldap_attr_type[0] = SM_LDAP_ATTR_NONE;
 	lmap->ldap_attr_needobjclass[0] = NULL;
-#endif /* _FFR_LDAP_RECURSION */
 	lmap->ldap_res = NULL;
 	lmap->ldap_next = NULL;
 	lmap->ldap_pid = 0;
@@ -133,39 +127,79 @@ sm_ldap_start(name, lmap)
 {
 	int bind_result;
 	int save_errno;
+	char *id;
 	SM_EVENT *ev = NULL;
-	LDAP *ld;
+	LDAP *ld = NULL;
 
 	if (sm_debug_active(&SmLDAPTrace, 2))
 		sm_dprintf("ldapmap_start(%s)\n", name == NULL ? "" : name);
 
-	if (sm_debug_active(&SmLDAPTrace, 9))
-		sm_dprintf("ldapmap_start(%s, %d)\n",
-			   lmap->ldap_target == NULL ? "localhost" : lmap->ldap_target,
-			   lmap->ldap_port);
-
-# if USE_LDAP_INIT
-#  if _FFR_LDAP_URI
-	if (lmap->ldap_uri)
-		errno = ldap_initialize(&ld, lmap->ldap_target);
+	if (lmap->ldap_host != NULL)
+		id = lmap->ldap_host;
+	else if (lmap->ldap_uri != NULL)
+		id = lmap->ldap_uri;
 	else
-#  endif /* _FFR_LDAP_URI */
-		ld = ldap_init(lmap->ldap_target, lmap->ldap_port);
-	save_errno = errno;
+		id = "localhost";
+
+	if (sm_debug_active(&SmLDAPTrace, 9))
+	{
+		/* Don't print a port number for LDAP URIs */
+		if (lmap->ldap_uri != NULL)
+			sm_dprintf("ldapmap_start(%s)\n", id);
+		else
+			sm_dprintf("ldapmap_start(%s, %d)\n", id,
+				   lmap->ldap_port);
+	}
+
+	if (lmap->ldap_uri != NULL)
+	{
+#if SM_CONF_LDAP_INITIALIZE
+		/* LDAP server supports URIs so use them directly */
+		save_errno = ldap_initialize(&ld, lmap->ldap_uri);
+#else /* SM_CONF_LDAP_INITIALIZE */
+		int err;
+		LDAPURLDesc *ludp = NULL;
+
+		/* Blast apart URL and use the ldap_init/ldap_open below */
+		err = ldap_url_parse(lmap->ldap_uri, &ludp);
+		if (err != 0)
+		{
+			errno = err + E_LDAPURLBASE;
+			return false;
+		}
+		lmap->ldap_host = sm_strdup_x(ludp->lud_host);
+		if (lmap->ldap_host == NULL)
+		{
+			save_errno = errno;
+			ldap_free_urldesc(ludp);
+			errno = save_errno;
+			return false;
+		}
+		lmap->ldap_port = ludp->lud_port;
+		ldap_free_urldesc(ludp);
+#endif /* SM_CONF_LDAP_INITIALIZE */
+	}
+
+	if (ld == NULL)
+	{
+# if USE_LDAP_INIT
+		ld = ldap_init(lmap->ldap_host, lmap->ldap_port);
+		save_errno = errno;
 # else /* USE_LDAP_INIT */
-	/*
-	**  If using ldap_open(), the actual connection to the server
-	**  happens now so we need the timeout here.  For ldap_init(),
-	**  the connection happens at bind time.
-	*/
+		/*
+		**  If using ldap_open(), the actual connection to the server
+		**  happens now so we need the timeout here.  For ldap_init(),
+		**  the connection happens at bind time.
+		*/
 
-	SM_LDAP_SETTIMEOUT(lmap->ldap_timeout.tv_sec);
-	ld = ldap_open(lmap->ldap_target, lmap->ldap_port);
-	save_errno = errno;
+		SM_LDAP_SETTIMEOUT(lmap->ldap_timeout.tv_sec);
+		ld = ldap_open(lmap->ldap_host, lmap->ldap_port);
+		save_errno = errno;
 
-	/* clear the event if it has not sprung */
-	SM_LDAP_CLEARTIMEOUT();
+		/* clear the event if it has not sprung */
+		SM_LDAP_CLEARTIMEOUT();
 # endif /* USE_LDAP_INIT */
+	}
 
 	errno = save_errno;
 	if (ld == NULL)
@@ -232,7 +266,7 @@ ldaptimeout(unused)
 }
 
 /*
-**  SM_LDAP_SEARCH -- iniate LDAP search
+**  SM_LDAP_SEARCH -- initiate LDAP search
 **
 **	Initiate an LDAP search, return the msgid.
 **	The calling function must collect the results.
@@ -319,7 +353,6 @@ sm_ldap_search(lmap, key)
 	return msgid;
 }
 
-# if _FFR_LDAP_RECURSION
 /*
 **  SM_LDAP_HAS_OBJECTCLASS -- determine if an LDAP entry is part of a
 **			       particular objectClass
@@ -509,6 +542,8 @@ sm_ldap_add_recurse(top, item, type, rpool)
 
 		newe->lr_search = sm_rpool_strdup_x(rpool, item);
 		newe->lr_type = type;
+		newe->lr_ludp = NULL;
+		newe->lr_attrs = NULL;
 		newe->lr_done = false;
 
 		((*top)->lr_data)[insertat] = newe;
@@ -941,6 +976,16 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 
 			/* mark this DN as done */
 			rl->lr_done = true;
+			if (rl->lr_ludp != NULL)
+			{
+				ldap_free_urldesc(rl->lr_ludp);
+				rl->lr_ludp = NULL;
+			}
+			if (rl->lr_attrs != NULL)
+			{
+				free(rl->lr_attrs);
+				rl->lr_attrs = NULL;
+			}
 
 			/* We don't want multiple values and we have one */
 			if ((char) delim == '\0' && *result != NULL)
@@ -1050,10 +1095,71 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 			}
 			else if (rl->lr_type == SM_LDAP_ATTR_URL)
 			{
-				/* do new URL search */
-				sid = ldap_url_search(lmap->ldap_ld,
-						      rl->lr_search,
-						      lmap->ldap_attrsonly);
+				/* Parse URL */
+				sid = ldap_url_parse(rl->lr_search,
+						     &rl->lr_ludp);
+
+				if (sid != 0)
+				{
+					errno = sid + E_LDAPURLBASE;
+					return EX_TEMPFAIL;
+				}
+
+				/* We need to add objectClass */
+				if (rl->lr_ludp->lud_attrs != NULL)
+				{
+					int attrnum = 0;
+
+					while (rl->lr_ludp->lud_attrs[attrnum] != NULL)
+					{
+						if (strcasecmp(rl->lr_ludp->lud_attrs[attrnum],
+							       "objectClass") == 0)
+						{
+							/* already requested */
+							attrnum = -1;
+							break;
+						}
+						attrnum++;
+					}
+
+					if (attrnum >= 0)
+					{
+						int i;
+
+						rl->lr_attrs = (char **)malloc(sizeof(char *) * (attrnum + 2));
+						if (rl->lr_attrs == NULL)
+						{
+							save_errno = errno;
+							ldap_free_urldesc(rl->lr_ludp);
+							errno = save_errno;
+							return EX_TEMPFAIL;
+						}
+						for (i = 0 ; i < attrnum; i++)
+						{
+							rl->lr_attrs[i] = rl->lr_ludp->lud_attrs[i];
+						}
+						rl->lr_attrs[i++] = "objectClass";
+						rl->lr_attrs[i++] = NULL;
+					}
+				}
+
+				/*
+				**  Use the existing connection
+				**  for this search.  It really
+				**  should use lud_scheme://lud_host:lud_port/
+				**  instead but that would require
+				**  opening a new connection.
+				**  This should be fixed ASAP.
+				*/
+
+				sid = ldap_search(lmap->ldap_ld,
+						  rl->lr_ludp->lud_dn,
+						  rl->lr_ludp->lud_scope,
+						  rl->lr_ludp->lud_filter,
+						  rl->lr_attrs,
+						  lmap->ldap_attrsonly);
+
+				/* Use the attributes specified by URL */
 				newflags |= SM_LDAP_USE_ALLATTR;
 			}
 			else
@@ -1100,6 +1206,16 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 
 			/* Mark as done */
 			rl->lr_done = true;
+			if (rl->lr_ludp != NULL)
+			{
+				ldap_free_urldesc(rl->lr_ludp);
+				rl->lr_ludp = NULL;
+			}
+			if (rl->lr_attrs != NULL)
+			{
+				free(rl->lr_attrs);
+				rl->lr_attrs = NULL;
+			}
 
 			/* Reset rlidx as new items may have been added */
 			rlidx = -1;
@@ -1107,7 +1223,6 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 	}
 	return statp;
 }
-#endif /* _FFR_LDAP_RECURSION */
 
 /*
 **  SM_LDAP_CLOSE -- close LDAP connection
@@ -1151,13 +1266,11 @@ sm_ldap_setopts(ld, lmap)
 	SM_LDAP_STRUCT *lmap;
 {
 # if USE_LDAP_SET_OPTION
-#  if _FFR_LDAP_SETVERSION
 	if (lmap->ldap_version != 0)
 	{
 		ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION,
 				&lmap->ldap_version);
 	}
-#  endif /* _FFR_LDAP_SETVERSION */
 	ldap_set_option(ld, LDAP_OPT_DEREF, &lmap->ldap_deref);
 	if (bitset(LDAP_OPT_REFERRALS, lmap->ldap_options))
 		ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_ON);

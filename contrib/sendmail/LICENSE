@@ -33,7 +33,7 @@ each of the following conditions is met:
    forth as paragraph 6 below, in the documentation and/or other materials
    provided with the distribution.  For the purposes of binary distribution
    the "Copyright Notice" refers to the following language:
-   "Copyright (c) 1998-2003 Sendmail, Inc.  All rights reserved."
+   "Copyright (c) 1998-2004 Sendmail, Inc.  All rights reserved."
 
 4. Neither the name of Sendmail, Inc. nor the University of California nor
    the names of their contributors may be used to endorse or promote
@@ -76,4 +76,4 @@ each of the following conditions is met:
    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
    THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-$Revision: 8.11.2.1 $, Last updated $Date: 2003/04/19 14:30:36 $
+$Revision: 8.13 $, Last updated $Date: 2004/05/11 23:57:57 $

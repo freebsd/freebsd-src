@@ -19,16 +19,15 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: knecht.mc,v 8.55 2001/08/01 22:20:40 eric Exp $')
+VERSIONID(`$Id: knecht.mc,v 8.58 2004/01/28 00:54:41 eric Exp $')
 OSTYPE(bsd4.4)
 DOMAIN(generic)
 
-define(`ALIAS_FILE', ``/etc/mail/aliases, /var/listmanager/aliases'')
+define(`ALIAS_FILE', ``/etc/mail/aliases, /etc/mail/lists/sendmail.org/aliases, /var/listmanager/aliases'')
 define(`confFORWARD_PATH', `$z/.forward.$w:$z/.forward+$h:$z/.forward')
 define(`confDEF_USER_ID', `mailnull')
 define(`confHOST_STATUS_DIRECTORY', `.hoststat')
 define(`confTO_ICONNECT', `10s')
-define(`confCOPY_ERRORS_TO', `Postmaster')
 define(`confTO_QUEUEWARN', `8h')
 define(`confMIN_QUEUE_AGE', `27m')
 define(`confTRUSTED_USERS', ``www listmgr'')
@@ -42,9 +41,12 @@ define(`confSERVER_KEY', `CERT_DIR/MYkey.pem')
 define(`confCLIENT_CERT', `CERT_DIR/MYcert.pem')
 define(`confCLIENT_KEY', `CERT_DIR/MYkey.pem')
 
+define(`CYRUS_MAILER_PATH', `/usr/local/cyrus/bin/deliver')
+
 FEATURE(access_db)
 FEATURE(local_lmtp)
 FEATURE(virtusertable)
+FEATURE(mailertable)
 
 FEATURE(`nocanonify', `canonify_hosts')
 CANONIFY_DOMAIN(`sendmail.org')
@@ -61,8 +63,17 @@ define(`confFAST_SPLIT', `10')
 dnl #  10 runners, split into at most 15 recipients per envelope
 QUEUE_GROUP(`mqueue', `P=/var/spool/mqueue, R=5, r=15, F=f')
 
+
+dnl # enable spam assassin
+INPUT_MAIL_FILTER(`spamassassin', `S=local:/var/run/spamass-milter.sock, F=, T=C:15m;S:4m;R:4m;E:10m')
+
 MAILER(local)
 MAILER(smtp)
+MAILER(cyrus)
+
+LOCAL_RULE_0
+Rcyrus.$+ + $+ < @ $=w . >	$#cyrus $@ $2 $: $1
+Rcyrus.$+ < @ $=w . >		$#cyrus $: $1
 
 LOCAL_CONFIG
 #
@@ -73,6 +84,7 @@ LOCAL_CONFIG
 Kcheckaddress regex -a@MATCH
    ^([0-9]+<@(aol|msn)\.com|[0-9][^<]*<@juno\.com)\.?>
 
+######################################################################
 #
 #  Names that won't be allowed in a To: line (local-part and domains)
 #
@@ -86,18 +98,42 @@ SCheckTo
 R$={RejectToLocalparts}@$*	$#error $: "553 Header error"
 R$*@$={RejectToDomains}		$#error $: "553 Header error"
 
+######################################################################
 HMessage-Id: $>CheckMessageId
 
 SCheckMessageId
+# Record the presence of the header
+R$*			$: $(storage {MessageIdCheck} $@ OK $) $1
+
+# validate syntax
 R< $+ @ $+ >			$@ OK
 R$*				$#error $: "554 Header error"
 
+
+######################################################################
 HReceived: $>CheckReceived
 
 SCheckReceived
+# Record the presence of any Received header
+R$*			$: $(storage {ReceivedCheck} $@ OK $) $1
+
+# check syntax
 R$* ......................................................... $*
 				$#error $: "554 Header error"
 
+######################################################################
+#
+#  Reject advertising subjects
+#
+
+Kadvsubj regex -b -a@MATCH ±?°í
+HSubject: $>+CheckSubject
+SCheckSubject
+R$*			$: $(advsubj $&{currHeader} $: OK $)
+ROK			$@ OK
+R$*			$#error $@ 5.7.0 $: 550 5.7.0 spam rejected.
+
+######################################################################
 #
 # Reject certain senders
 #	Regex match to catch things in quotes
@@ -159,13 +195,65 @@ LOCAL_RULESETS
 KSirCamWormMarker regex -f -aSUSPECT multipart/mixed;boundary=----.+_Outlook_Express_message_boundary
 HContent-Type:		$>CheckContentType
 
+######################################################################
 SCheckContentType
 R$+			$: $(SirCamWormMarker $1 $)
 RSUSPECT		$#error $: "553 Possible virus, see http://www.symantec.com/avcenter/venc/data/w32.sircam.worm@mm.html"
 
 HContent-Disposition:	$>CheckContentDisposition
 
+######################################################################
 SCheckContentDisposition
 R$-			$@ OK
 R$- ; $+		$@ OK
 R$*			$#error $: "553 Illegal Content-Disposition"
+
+
+#
+#  Sobig.F
+#
+
+LOCAL_CONFIG
+Kstorage macro
+
+LOCAL_RULESETS
+######################################################################
+### check for the existance of the X-MailScanner Header
+HX-MailScanner:		$>+CheckXMSc
+D{SobigFPat}Found to be clean
+D{SobigFMsg}This message may contain the Sobig.F virus.
+
+SCheckXMSc
+### if it exists, and the defined value is set, record the presence
+R${SobigFPat} $*	$: $(storage {SobigFCheck} $@ SobigF $) $1
+R$*			$@ OK
+
+######################################################################
+Scheck_eoh
+# Check if a Message-Id was found
+R$*			$: < $&{MessageIdCheck} >
+
+# If Message-Id was found clear the X-MailScanner store and return with OK
+R< $+ >			$@ OK $>ClearStorage
+
+# Are we the first Hop?
+R$*			$: < $&{ReceivedCheck} >
+R< $+ >			$@ OK $>ClearStorage
+
+# no Message-Id->check X-Mailscanner presence, too
+R$*			$: < $&{SobigFCheck} >
+
+# clear store
+R$*			$: $>ClearStorage $1
+# no msgid, first hop and Header found? -> reject the message
+R < SobigF >		$#error $: 553 ${SobigFMsg}
+
+# No Header! Fine, take the message
+R$*			$@ OK
+
+######################################################################
+SClearStorage
+R$*			$: $(storage {SobigFCheck} $) $1
+R$*			$: $(storage {ReceivedCheck} $) $1
+R$*			$: $(storage {MessageIdCheck} $) $1
+R$*			$@ $1
