@@ -5,9 +5,9 @@ MAN1=   id.1 groups.1 whoami.1
 
 # XXX BROKEN:	afterinstall:
 afterinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${.CURDIR}/groups.sh ${DESTDIR}/usr/bin/groups
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${.CURDIR}/whoami.sh ${DESTDIR}/usr/bin/whoami
 
 .include <bsd.prog.mk>

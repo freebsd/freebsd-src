@@ -6,7 +6,7 @@ MAN1=	install.1
 .PATH:	${.CURDIR}/../../bin/ls
 
 install: maninstall
-	install ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${PROG} ${DESTDIR}${BINDIR}/install
 
 .include <bsd.prog.mk>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.29 1995/04/20 18:36:13 phk Exp $
+#	$Id: Makefile,v 1.30 1995/04/20 23:15:03 joerg Exp $
 #
 
 PROG=	boot
@@ -58,9 +58,9 @@ boot2:		boot.nohdr
 all:		boot1 boot2
 
 install:
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		boot1 ${DESTDIR}${BINDIR}/boot1
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		boot2 ${DESTDIR}${BINDIR}/boot2
 	for i in sd fd wd ; do \
 		( cd ${DESTDIR}${BINDIR} ; \

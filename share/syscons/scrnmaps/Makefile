@@ -9,7 +9,7 @@ NOMAN = noman
 all: ${SCRMAPS}
 
 install:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SCRMAPS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SCRMAPS} \
 		${DESTDIR}${SCRDIR}
 
 ${SCRMAPS}: ${.TARGET:R}.mk

@@ -19,7 +19,7 @@ beforeinstall:
 		chown ${BINOWN}.${BINGRP} ${DESTDIR}${TMLIB}/$$i; \
 		chmod 444 ${DESTDIR}${TMLIB}/$$i; \
 	done
-	cd ${.CURDIR}; install -c -o ${BINOWN} -g ${BINGRP} -m 444 revisions \
-	    ${DESTDIR}${MELIB}/revisions
+	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    revisions ${DESTDIR}${MELIB}/revisions
 
 .include <bsd.prog.mk>

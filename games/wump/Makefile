@@ -5,7 +5,7 @@ MAN6=	wump.6
 HIDEGAME=hidegame
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/wump.info \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/wump.info \
 	    ${DESTDIR}/usr/share/games
 
 .include <bsd.prog.mk>

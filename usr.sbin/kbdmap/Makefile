@@ -1,5 +1,5 @@
 # Makefile for kbdmap / vidfont
-# $Id: Makefile,v 1.3 1995/04/06 14:41:50 ache Exp $
+# $Id: Makefile,v 1.4 1995/07/17 14:43:06 jkh Exp $
 
 SCRIPT=	${.CURDIR}/kbdmap.pl
 LINKS=	${BINDIR}/kbdmap ${BINDIR}/vidfont
@@ -10,7 +10,7 @@ all:
 	@echo -n
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${SCRIPT} ${DESTDIR}${BINDIR}/kbdmap
 
 .include <bsd.prog.mk>
