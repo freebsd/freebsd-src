@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.97 1998/04/08 18:31:57 wosch Exp $
+ * $Id: vfs_syscalls.c,v 1.99 1998/04/19 22:20:32 des Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -1042,6 +1042,7 @@ mknod(p, uap)
 		} else {
 			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp,
 						&nd.ni_cnd, &vattr);
+			vput(nd.ni_dvp);
 		}
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
@@ -1095,7 +1096,9 @@ mkfifo(p, uap)
 	vattr.va_type = VFIFO;
 	vattr.va_mode = (SCARG(uap, mode) & ALLPERMS) &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
-	return (VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr));
+	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+	vput(nd.ni_dvp);
+	return (error);
 }
 
 /*
@@ -1132,10 +1135,6 @@ link(p, uap)
 		if (!error) {
 			if (nd.ni_vp != NULL) {
 				VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-				if (nd.ni_dvp == nd.ni_vp)
-					vrele(nd.ni_dvp);
-				else
-					vput(nd.ni_dvp);
 				if (nd.ni_vp)
 					vrele(nd.ni_vp);
 				error = EEXIST;
@@ -1145,6 +1144,10 @@ link(p, uap)
 				VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 			}
+			if (nd.ni_dvp == nd.ni_vp)
+				vrele(nd.ni_dvp);
+			else
+				vput(nd.ni_dvp);
 		}
 	}
 	vrele(vp);
@@ -1196,6 +1199,7 @@ symlink(p, uap)
 	vattr.va_mode = ACCESSPERMS &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, path);
+	vput(nd.ni_dvp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");
 out:
@@ -1287,13 +1291,13 @@ unlink(p, uap)
 		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		if (nd.ni_dvp == vp)
-			vrele(nd.ni_dvp);
-		else
-			vput(nd.ni_dvp);
-		if (vp != NULLVP)
-			vput(vp);
 	}
+	if (nd.ni_dvp == vp)
+		vrele(nd.ni_dvp);
+	else
+		vput(nd.ni_dvp);
+	if (vp != NULLVP)
+		vput(vp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "unlink");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "unlink");
 	return (error);
@@ -2334,6 +2338,7 @@ mkdir(p, uap)
 	vattr.va_mode = (SCARG(uap, mode) & ACCESSPERMS) &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+	vput(nd.ni_dvp);
 	if (!error)
 		vput(nd.ni_vp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "mkdir");
@@ -2389,12 +2394,13 @@ out:
 		error = VOP_RMDIR(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		if (nd.ni_dvp == vp)
-			vrele(nd.ni_dvp);
-		else
-			vput(nd.ni_dvp);
-		vput(vp);
 	}
+	if (nd.ni_dvp == vp)
+		vrele(nd.ni_dvp);
+	else
+		vput(nd.ni_dvp);
+	if (vp != NULLVP)
+		vput(vp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "rmdir");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "rmdir");
 	return (error);

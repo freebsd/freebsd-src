@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.58 1998/02/09 06:10:35 eivind Exp $
+ * $Id: nfs_serv.c,v 1.59 1998/03/30 09:53:56 phk Exp $
  */
 
 /*
@@ -1458,6 +1458,7 @@ nfsrv_create(nfsd, slp, procp, mrq)
 			vrele(nd.ni_startdir);
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 			error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
+			vput(nd.ni_dvp);
 			if (!error) {
 			    	nfsrv_object_create(nd.ni_vp);
 				zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
@@ -1485,7 +1486,9 @@ nfsrv_create(nfsd, slp, procp, mrq)
 			} else
 				vap->va_rdev = (dev_t)rdev;
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
-			if (error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap)) {
+			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
+			vput(nd.ni_dvp);
+			if (error) {
 				vrele(nd.ni_startdir);
 				nfsm_reply(0);
 			}
@@ -1666,6 +1669,7 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 		vrele(nd.ni_startdir);
 		nqsrv_getl(nd.ni_dvp, ND_WRITE);
 		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
+		vput(nd.ni_dvp);
 		if (!error)
 			zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
 	} else {
@@ -1677,7 +1681,9 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 			goto out;
 		}
 		nqsrv_getl(nd.ni_dvp, ND_WRITE);
-		if (error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap)) {
+		error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
+		vput(nd.ni_dvp);
+		if (error) {
 			vrele(nd.ni_startdir);
 			goto out;
 		}
@@ -1800,12 +1806,13 @@ out:
 
 		} else {
 			VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-			if (nd.ni_dvp == vp)
-				vrele(nd.ni_dvp);
-			else
-				vput(nd.ni_dvp);
-			vput(vp);
 		}
+		if (nd.ni_dvp == vp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
+		if (vp != NULLVP);
+			vput(vp);
 	}
 	if (dirp && v3) {
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, procp);
@@ -2098,6 +2105,7 @@ out:
 		nqsrv_getl(vp, ND_WRITE);
 		nqsrv_getl(xp, ND_WRITE);
 		error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
+		vput(nd.ni_dvp);
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 		if (nd.ni_dvp == nd.ni_vp)
@@ -2209,6 +2217,7 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 	}
 	nqsrv_getl(nd.ni_dvp, ND_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap, pathcp);
+	vput(nd.ni_dvp);
 	if (error)
 		vrele(nd.ni_startdir);
 	else {
@@ -2343,6 +2352,7 @@ nfsrv_mkdir(nfsd, slp, procp, mrq)
 	}
 	nqsrv_getl(nd.ni_dvp, ND_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
+	vput(nd.ni_dvp);
 	if (!error) {
 		vp = nd.ni_vp;
 		bzero((caddr_t)fhp, sizeof(nfh));
@@ -2459,12 +2469,13 @@ out:
 		error = VOP_RMDIR(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		if (nd.ni_dvp == nd.ni_vp)
-			vrele(nd.ni_dvp);
-		else
-			vput(nd.ni_dvp);
-		vput(vp);
 	}
+	if (nd.ni_dvp == nd.ni_vp)
+		vrele(nd.ni_dvp);
+	else
+		vput(nd.ni_dvp);
+	if (vp != NULLVP)
+		vput(vp);
 	if (dirp) {
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, procp);
 		vrele(dirp);

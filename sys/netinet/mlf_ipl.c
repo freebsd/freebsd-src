@@ -242,6 +242,12 @@ static int if_ipl_remove __P((void))
 		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 		(void) VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
+		if (nd.ni_dvp == nd.ni_vp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
+		if (nd.ni_vp != NULLVP)
+			vput(nd.ni_vp);
 	}
 
 	return 0;
@@ -294,6 +300,7 @@ int cmd;
 		vattr.va_rdev = (ipl_major << 8) | i;
 		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 		error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+		vput(nd.ni_dvp);
 		if (error)
 			return error;
 	}

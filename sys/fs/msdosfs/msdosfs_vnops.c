@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.66 1998/03/20 02:33:42 kato Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.67 1998/03/26 20:52:58 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -187,13 +187,11 @@ msdosfs_create(ap)
 		goto bad;
 	if ((cnp->cn_flags & SAVESTART) == 0)
 		zfree(namei_zone, cnp->cn_pnbuf);
-	vput(ap->a_dvp);
 	*ap->a_vpp = DETOV(dep);
 	return (0);
 
 bad:
 	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(ap->a_dvp);
 	return (error);
 }
 
@@ -218,7 +216,6 @@ msdosfs_mknod(ap)
 
 	default:
 		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-		vput(ap->a_dvp);
 		return (EINVAL);
 	}
 	/* NOTREACHED */
@@ -872,9 +869,9 @@ msdosfs_remove(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	int error;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct denode *ddep = VTODE(ap->a_dvp);
+	int error;
 
 	if (ap->a_vp->v_type == VDIR)
 		error = EPERM;
@@ -883,12 +880,6 @@ msdosfs_remove(ap)
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_remove(), dep %p, v_usecount %d\n", dep, ap->a_vp->v_usecount);
 #endif
-	if (ddep == dep)
-		vrele(ap->a_vp);
-	else
-		vput(ap->a_vp);	/* causes msdosfs_inactive() to be called
-				 * via vrele() */
-	vput(ap->a_dvp);
 	return (error);
 }
 
@@ -906,8 +897,7 @@ msdosfs_link(ap)
 	} */ *ap;
 {
 	VOP_ABORTOP(ap->a_tdvp, ap->a_cnp);
-	vput(ap->a_tdvp);
-	return EOPNOTSUPP;
+	return (EOPNOTSUPP);
 }
 
 /*
@@ -1324,15 +1314,15 @@ msdosfs_mkdir(ap)
 	} */ *ap;
 {
 	struct componentname *cnp = ap->a_cnp;
-	struct denode ndirent;
 	struct denode *dep;
 	struct denode *pdep = VTODE(ap->a_dvp);
-	int error;
-	int bn;
-	u_long newcluster, pcl;
 	struct direntry *denp;
 	struct msdosfsmount *pmp = pdep->de_pmp;
 	struct buf *bp;
+	u_long newcluster, pcl;
+	int bn;
+	int error;
+	struct denode ndirent;
 	struct timespec ts;
 
 	/*
@@ -1419,7 +1409,6 @@ msdosfs_mkdir(ap)
 		goto bad;
 	if ((cnp->cn_flags & SAVESTART) == 0)
 		zfree(namei_zone, cnp->cn_pnbuf);
-	vput(ap->a_dvp);
 	*ap->a_vpp = DETOV(dep);
 	return (0);
 
@@ -1427,7 +1416,6 @@ bad:
 	clusterfree(pmp, newcluster, NULL);
 bad2:
 	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(ap->a_dvp);
 	return (error);
 }
 
@@ -1443,6 +1431,7 @@ msdosfs_rmdir(ap)
 	register struct vnode *dvp = ap->a_dvp;
 	register struct componentname *cnp = ap->a_cnp;
 	register struct denode *ip, *dp;
+	struct proc *p = cnp->cn_proc;
 	int error;
 	
 	ip = VTODE(vp);
@@ -1474,20 +1463,18 @@ msdosfs_rmdir(ap)
 	/*
 	 * This is where we decrement the link count in the parent
 	 * directory.  Since dos filesystems don't do this we just purge
-	 * the name cache and let go of the parent directory denode.
+	 * the name cache.
 	 */
 	cache_purge(dvp);
-	vput(dvp);
-	dvp = NULL;
+	VOP_UNLOCK(dvp, 0, p);
 	/*
 	 * Truncate the directory that is being deleted.
 	 */
-	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, cnp->cn_proc);
+	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, p);
 	cache_purge(vp);
+
+	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, p);
 out:
-	if (dvp)
-		vput(dvp);
-	vput(vp);
 	return (error);
 }
 
@@ -1506,7 +1493,6 @@ msdosfs_symlink(ap)
 {
 	zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	/* VOP_ABORTOP(ap->a_dvp, ap->a_cnp); ??? */
-	vput(ap->a_dvp);
 	return (EOPNOTSUPP);
 }
 
