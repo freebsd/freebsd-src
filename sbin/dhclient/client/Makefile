@@ -8,11 +8,10 @@ DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 PROG=	dhclient
 SRCS=	clparse.c dhclient.c
 
-CFLAGS+= -I${DIST_DIR}/includes -I${DIST_DIR}
 CFLAGS+= -DCLIENT_PATH='"PATH=/sbin:/bin:/usr/sbin:/usr/bin"' -Dwarn=dhcp_warn
 
-DPADD=  ${LIBDHCP} ${LIBRES} ${LIBOMAPI} ${LIBDST}
-LDADD=  ${LIBDHCP} ${LIBRES} ${LIBOMAPI} ${LIBDST} 
+DPADD=	${LIBDHCP} ${LIBRES} ${LIBOMAPI} ${LIBDST}
+LDADD=	${LIBDHCP} ${LIBRES} ${LIBOMAPI} ${LIBDST} 
 
 SCRIPTS=	scripts/freebsd
 SCRIPTSNAME=	dhclient-script
