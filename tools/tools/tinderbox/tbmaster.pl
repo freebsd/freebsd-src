@@ -74,6 +74,7 @@ sub tinderbox($$$$) {
     push(@args, @TARGETS);
 
     print(STDERR join(' ', @args), "\n");
+    rename($logfile, "$logfile.old");
     if (system(@args) != 0) {
 	my $messages = "";
 	my @accumulate;
