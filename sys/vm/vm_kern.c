@@ -261,8 +261,6 @@ kmem_suballoc(parent, min, max, size)
 	int ret;
 	vm_map_t result;
 
-	GIANT_REQUIRED;
-
 	size = round_page(size);
 
 	*min = (vm_offset_t) vm_map_min(parent);
