@@ -13,7 +13,7 @@
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
 #	-DNOINFO do not make or install info files
-#	-DNOLIBC_R do not build libc_r.
+#	-DNO_LIBC_R do not build libc_r.
 #	-DNO_FORTRAN do not build g77 and related libraries.
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
