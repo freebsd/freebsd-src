@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.16 1994/04/13 20:52:40 ats Exp $
+ *	$Id: rtld.c,v 1.17 1994/06/15 22:41:15 rich Exp $
  */
 
 #include <sys/param.h>
@@ -162,6 +162,7 @@ static void		init_map __P((struct so_map *, char *));
 static char		*rtfindlib __P((char *, int, int, int *));
 void			binder_entry __P((void));
 long			binder __P((jmpslot_t *));
+static void		unmaphints __P((void));
 static struct nzlist	*lookup __P((char *, struct so_map **, int));
 static inline struct rt_symbol	*lookup_rts __P((char *));
 static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t,
@@ -292,6 +293,9 @@ struct _dynamic		*dp;
 		if (link_map_head)
 			ddp->dd_sym_loaded = 1;
 	}
+
+	/* Forget hints so that hints file can go away if it is unlinked */
+	unmaphints();
 
 	/* Close our file descriptor */
 	(void)close(crtp->crt_ldfd);
@@ -949,6 +953,7 @@ xprintf(" BINDER: %s located at = %#x in %s\n", sym, addr, src_map->som_path);
 
 
 static struct hints_header	*hheader;
+static long			hmsize;
 static struct hints_bucket	*hbuckets;
 static char			*hstrtab;
 
@@ -970,6 +975,7 @@ maphints()
 	addr = mmap(0, msize, PROT_READ, MAP_FILE|MAP_COPY, fd, 0);
 
 	if (addr == (caddr_t)-1) {
+		close(fd);
 		hheader = (struct hints_header *)-1;
 		return;
 	}
@@ -977,22 +983,27 @@ maphints()
 	hheader = (struct hints_header *)addr;
 	if (HH_BADMAG(*hheader)) {
 		munmap(addr, msize);
+		close(fd);
 		hheader = (struct hints_header *)-1;
 		return;
 	}
 
 	if (hheader->hh_version != LD_HINTS_VERSION_1) {
 		munmap(addr, msize);
+		close(fd);
 		hheader = (struct hints_header *)-1;
 		return;
 	}
 
+	hmsize = msize;
 	if (hheader->hh_ehints > msize) {
+		hmsize = hheader->hh_ehints;
 		if (mmap(addr+msize, hheader->hh_ehints - msize,
 				PROT_READ, MAP_FILE|MAP_COPY|MAP_FIXED,
 				fd, msize) != (caddr_t)(addr+msize)) {
 
 			munmap((caddr_t)hheader, msize);
+			close(fd);
 			hheader = (struct hints_header *)-1;
 			return;
 		}
@@ -1001,6 +1012,15 @@ maphints()
 
 	hbuckets = (struct hints_bucket *)(addr + hheader->hh_hashtab);
 	hstrtab = (char *)(addr + hheader->hh_strtab);
+}
+
+	static void
+unmaphints()
+{
+	if (HINTS_VALID) {
+		munmap((caddr_t)hheader, hmsize);
+		hheader = NULL;
+	}
 }
 
 	int
