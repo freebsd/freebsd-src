@@ -35,11 +35,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.5 1994/10/01 02:56:08 davidg Exp $
+ *	$Id: segments.h,v 1.6 1994/11/14 14:18:15 bde Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
-#define _MACHINE_SEGMENTS_H_ 1
+#define	_MACHINE_SEGMENTS_H_
 
 /*
  * 386 Segmentation Data Structures and definitions
@@ -231,8 +231,12 @@ struct region_descriptor {
 #define NLDT		(LUDATA_SEL + 1)
 
 #ifdef KERNEL
+extern int	currentldt;
+extern int	_default_ldt;
 extern union descriptor gdt[NGDT];
+extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor idt[NIDT];
+extern union descriptor ldt[NLDT];
 
 void	lgdt		__P((struct region_descriptor *rdp));
 void	lidt		__P((struct region_descriptor *rdp));
