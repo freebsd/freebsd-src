@@ -421,7 +421,6 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_detach(cp);
 	g_destroy_consumer(cp);
-	g_free(gp->softc);
 	g_destroy_geom(gp);
 	return (NULL);
 }
