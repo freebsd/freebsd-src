@@ -1,6 +1,6 @@
 .\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
 .\"
-.Dd 15 January 1999
+.Dd 28 March 1999
 .Dt vinum 8
 .Sh NAME
 .Nm vinum
@@ -961,11 +961,7 @@ This can only be done if no objects are active, In particular, the
 flag does not override this requirement.  This command can only work if
 .Nm
 has been loaded as a kld, since it is not possible to unload a statically
-configured driver,
-.\" XXX why?
-and it must be issued at a command prompt: the command
-.Nm vinum stop
-will not work.
+configured driver.
 .Nm
 .Nm stop
 will fail if
@@ -1544,7 +1540,7 @@ flag tells
 .Nm
 to list the file as it configures.  Subsequently it lists the current
 configuration in the same format as the
-.Nm list
+.Nm list Fl v
 command.
 .Ss Creating more volumes
 Once you have created the
@@ -1609,7 +1605,60 @@ you only need to mention the other two:
       sd size 2g drive d3
       sd size 2g drive d4
 .Ed
-
+.Pp
+With this configuration file, we get:
+.Bd -literal
+  # vinum create newconfig
+  Configuration summary
+  
+  Drives:         4 (4 configured)
+  Volumes:        2 (4 configured)
+  Plexes:         5 (8 configured)
+  Subdisks:       8 (16 configured)
+  
+  D d1                    State: up       Device /dev/da2e        Avail: 51176/57320 MB (89%)
+  D d2                    State: up       Device /dev/da3e        Avail: 53220/57320 MB (89%)
+  D d3                    State: up       Device /dev/da1e        Avail: 53224/57320 MB (92%)
+  D d4                    State: up       Device /dev/da4e        Avail: 53224/57320 MB (92%)
+  
+  V mirror                State: down     Plexes:       4 Size:       2048 MB
+  V raid                  State: down     Plexes:       1 Size:       6144 MB
+  
+  P mirror.p0           C State: init     Subdisks:     1 Size:       2048 MB
+  P mirror.p1           C State: init     Subdisks:     1 Size:       2048 MB
+  P mirror.p2           C State: init     Subdisks:     1 Size:       2048 MB
+  P mirror.p3           C State: init     Subdisks:     1 Size:       2048 MB
+  P raid.p0            R5 State: init     Subdisks:     4 Size:       6144 MB
+  
+  S mirror.p0.s0          State: up       PO:        0  B Size:       2048 MB
+  S mirror.p1.s0          State: up       PO:        0  B Size:       2048 MB
+  S mirror.p2.s0          State: up       PO:        0  B Size:       2048 MB
+  S mirror.p3.s0          State: up       PO:        0  B Size:       2048 MB
+  S raid.p0.s0            State: empty    PO:        0  B Size:       2048 MB
+  S raid.p0.s1            State: empty    PO:      512 kB Size:       2048 MB
+  S raid.p0.s2            State: empty    PO:     1024 kB Size:       2048 MB
+  S raid.p0.s3            State: empty    PO:     1536 kB Size:       2048 MB
+.Ed
+.Pp
+Note the size of the RAID-5 plex: it is only 6 GB, although together its
+components use 8 GB of disk space.  This is because the equivalent of one
+subdisk is used for storing parity data.
+.Ss Restarting Vinum
+On rebooting the system, start
+.Nm
+with the 
+.Nm start 
+command:
+.Bd -literal
+  # vinum start
+.Ed
+.Pp
+This will start all the
+.Nm
+drives in the system.  If for some reason you wish to start only some of them,
+use the
+.Nm read
+command.
 .Ss Performance considerations
 A number of misconceptions exist about how to set up a RAID array for best
 performance.  In particular, most systems use far too small a stripe size.  The
