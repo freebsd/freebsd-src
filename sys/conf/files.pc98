@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.52 1998/02/16 09:38:37 kato Exp $
+#	$Id: files.pc98,v 1.53 1998/02/18 12:34:01 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -162,8 +162,6 @@ i386/isa/pnp.c			optional	pnp	device-driver
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/ppc.c			optional	ppc	device-driver
 pc98/pc98/psm.c			optional	psm	device-driver
-i386/isa/qcam.c			optional	qcam	device-driver
-i386/isa/qcamio.c		optional	qcam	device-driver
 i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc	device-driver
 i386/isa/rp.c			optional	rp	device-driver
