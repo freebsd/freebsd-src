@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.12 1995/12/15 05:00:30 peter Exp $ */
+/*	$Id: sysv_sem.c,v 1.13 1995/12/27 15:24:19 joerg Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -877,7 +877,7 @@ done:
  * Go through the undo structures for this process and apply the adjustments to
  * semaphores.
  */
-static void
+void
 semexit(p)
 	struct proc *p;
 {
