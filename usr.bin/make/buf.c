@@ -194,6 +194,16 @@ Buf_ReplaceLastByte(Buffer *bp, Byte byte)
 }
 
 /**
+ * Append characters in str to Buffer object
+ */
+void
+Buf_Append(Buffer *bp, const char str[])
+{
+
+	Buf_AddBytes(bp, strlen(str), str);
+}
+
+/**
  * Clear the contents of the buffer.
  */
 void
