@@ -808,7 +808,7 @@ ext2_unmount(mp, mntflags, td)
 
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(ump->um_gp, ENXIO);
+	g_wither_geom_close(ump->um_cp->geom, ENXIO);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);
