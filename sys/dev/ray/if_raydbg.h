@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_raydbg.h,v 1.7 2000/06/11 13:54:59 dmlb Exp $
+ * $FreeBSD$
  *
  */
 

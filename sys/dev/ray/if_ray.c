@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.42 2000/07/07 19:13:11 dmlb Exp $
+ * $FreeBSD$
  *
  */
 
@@ -99,7 +99,7 @@
  * ================================
  * 
  * Currently we only support the Webgear encapsulation
- *	802.11	header <net/if_ieee80211.h>struct ieee80211_header
+ *	802.11	header <net/if_ieee80211.h>struct ieee80211_frame
  *	802.3	header <net/ethernet.h>struct ether_header
  *	802.2	LLC header
  *	802.2	SNAP header
@@ -111,7 +111,7 @@
  * also whatever we can divine from the NDC Access points and Kanda's boxes.
  *
  * Most drivers appear to have a RFC1042 framing. The incoming packet is
- *	802.11	header <net/if_ieee80211.h>struct ieee80211_header
+ *	802.11	header <net/if_ieee80211.h>struct ieee80211_frame
  *	802.2	LLC header
  *	802.2	SNAP header
  *
@@ -148,7 +148,6 @@
  * ***error handling of ECF command completions
  * ***can't seem to create a n/w that Win95 wants to see.
  * ***need decent association code
- * use /sys/net/if_ieee80211.h and update it
  * write up driver structure in comments above
  * UPDATE_PARAMS seems to return via an interrupt - maybe the timeout
  *	is needed for wrong values?
@@ -209,7 +208,7 @@
 #define XXX_INFRA	0
 #define RAY_DEBUG	(				\
  			/* RAY_DBG_SUBR		| */ 	\
-			   RAY_DBG_BOOTPARAM	|    	\
+			/* RAY_DBG_BOOTPARAM	| */ 	\
 			/* RAY_DBG_STARTJOIN	| */ 	\
 			/* RAY_DBG_CCS		| */	\
                         /* RAY_DBG_IOCTL	| */	\
@@ -239,11 +238,6 @@
 #define RAY_DEBUG 		0x0000
 #endif /* RAY_DEBUG */
 
-#include "ray.h"
-#include "opt_inet.h"
-
-#if NRAY > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -264,18 +258,12 @@
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/if_ether.h>
-#endif /* INET */
-
 #include <machine/limits.h>
 
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"
 
-#include <dev/ray/if_ieee80211.h>
+#include <net/if_ieee80211.h>
 #include <dev/ray/if_rayreg.h>
 #include <dev/ray/if_raymib.h>
 #include <dev/ray/if_raydbg.h>
@@ -511,17 +499,17 @@ ray_attach(device_t dev)
 		ifp->if_unit = device_get_unit(dev);
 		ifp->if_timer = 0;
 		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
-		ifp->if_hdrlen = sizeof(struct ieee80211_header) + 
+		ifp->if_hdrlen = sizeof(struct ieee80211_frame) + 
 		    sizeof(struct ether_header);
 		ifp->if_baudrate = 1000000; /* Is this baud or bps ;-) */
 		ifp->if_output = ether_output;
 		ifp->if_start = ray_tx;
 		ifp->if_ioctl = ray_ioctl;
 		ifp->if_watchdog = ray_watchdog;
+		ifp->if_init = ray_init_user;
 		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-		if_attach(ifp);
-		ether_ifattach(ifp);
+		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	}
 
 	/*
@@ -640,7 +628,6 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	struct ray_param_req pr;
 	struct ray_stats_req sr;
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct ifaddr *ifa = (struct ifaddr *)data;
 	int s, error, error2;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_IOCTL, "");
@@ -655,21 +642,11 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCGIFADDR:
 	case SIOCSIFMTU:
+	case SIOCSIFADDR:
 		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GIFADDR/SIFMTU");
 		error = ether_ioctl(ifp, command, data);
+/* XXX SIFADDR used to fall through to SIOCSIFFLAGS */
 		break;
-
-	case SIOCSIFADDR:
-		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFADDR");
-		ifp->if_flags |= IFF_UP;
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			arp_ifinit((struct arpcom *)ifp, ifa);
-			break;
-#endif
-		}
-		/* FALLTHROUGH */
 
 	case SIOCSIFFLAGS:
 		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFFLAGS 0x%0x", ifp->if_flags);
@@ -1402,7 +1379,7 @@ ray_tx(struct ifnet *ifp)
 	if (sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
 		bufp = ray_tx_wrhdr(sc, bufp,
 		    IEEE80211_FC0_TYPE_DATA,
-		    IEEE80211_FC1_STA_TO_STA,
+		    IEEE80211_FC1_DIR_NODS,
 		    eh->ether_dhost,
 		    eh->ether_shost,
 		    sc->sc_c.np_bss_id);
@@ -1410,14 +1387,14 @@ ray_tx(struct ifnet *ifp)
 		if (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL)
 			bufp = ray_tx_wrhdr(sc, bufp,
 			    IEEE80211_FC0_TYPE_DATA,
-			    IEEE80211_FC1_STA_TO_AP,
+			    IEEE80211_FC1_DIR_TODS,
 			    sc->sc_c.np_bss_id,
 			    eh->ether_shost,
 			    eh->ether_dhost);
 		else
 			bufp = ray_tx_wrhdr(sc, bufp,
 			    IEEE80211_FC0_TYPE_DATA,
-			    IEEE80211_FC1_AP_TO_STA,
+			    IEEE80211_FC1_DIR_FROMDS,
 			    eh->ether_dhost,
 			    sc->sc_c.np_bss_id,
 			    eh->ether_shost);
@@ -1467,7 +1444,7 @@ ray_tx(struct ifnet *ifp)
 	 * bytes. We don't have 530 bytes of headers etc. so something
 	 * must be fubar.
 	 */
-	pktlen = sizeof(struct ieee80211_header);
+	pktlen = sizeof(struct ieee80211_frame);
 	for (m = m0; m != NULL; m = m->m_next) {
 		pktlen += m->m_len;
 		if ((len = m->m_len) == 0)
@@ -1518,12 +1495,12 @@ ray_tx_timo(void *xsc)
 static size_t
 ray_tx_wrhdr(struct ray_softc *sc, size_t bufp, u_int8_t type, u_int8_t fc1, u_int8_t *addr1, u_int8_t *addr2, u_int8_t *addr3)
 {
-	struct ieee80211_header header;
+	struct ieee80211_frame header;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
 	RAY_MAP_CM(sc);
 
-	bzero(&header, sizeof(struct ieee80211_header));
+	bzero(&header, sizeof(struct ieee80211_frame));
 	header.i_fc[0] = (IEEE80211_FC0_VERSION_0 | type);
 	header.i_fc[1] = fc1;
 	bcopy(addr1, header.i_addr1, ETHER_ADDR_LEN);
@@ -1531,9 +1508,9 @@ ray_tx_wrhdr(struct ray_softc *sc, size_t bufp, u_int8_t type, u_int8_t fc1, u_i
 	bcopy(addr3, header.i_addr3, ETHER_ADDR_LEN);
 
 	SRAM_WRITE_REGION(sc, bufp, (u_int8_t *)&header,
-	    sizeof(struct ieee80211_header));
+	    sizeof(struct ieee80211_frame));
 
-	return (bufp + sizeof(struct ieee80211_header));
+	return (bufp + sizeof(struct ieee80211_frame));
 }
 
 /*
@@ -1639,7 +1616,7 @@ ray_tx_done(struct ray_softc *sc, size_t ccs)
 static void
 ray_rx(struct ray_softc *sc, size_t rcs)
 {
-	struct ieee80211_header *header;
+	struct ieee80211_frame *header;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct mbuf *m0;
 	size_t pktlen, fraglen, readlen, tmplen;
@@ -1665,7 +1642,7 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 	siglev = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_siglev);
 	antenna = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_antenna);
 
-	if ((pktlen > MCLBYTES) || (pktlen < sizeof(struct ieee80211_header))) {
+	if ((pktlen > MCLBYTES) || (pktlen < sizeof(struct ieee80211_frame))) {
 		RAY_RECERR(sc, "packet too big or too small");
 		ifp->if_ierrors++;
 		goto skip_read;
@@ -1758,7 +1735,7 @@ skip_read:
 	 * Check the 802.11 packet type and hand off to
 	 * appropriate functions.
 	 */
-	header = mtod(m0, struct ieee80211_header *);
+	header = mtod(m0, struct ieee80211_frame *);
 	if ((header->i_fc[0] & IEEE80211_FC0_VERSION_MASK)
 	    != IEEE80211_FC0_VERSION_0) {
 		RAY_RECERR(sc, "header not version 0 fc0 0x%x",
@@ -1795,7 +1772,7 @@ static void
 ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t antenna)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
+	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
 	struct ether_header *eh;
 	u_int8_t *sa, *da, *ra, *ta;
 
@@ -1807,17 +1784,17 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 	 */
 	switch (header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
 
-	case IEEE80211_FC0_SUBTYPE_DATA_DATA:
-	case IEEE80211_FC0_SUBTYPE_DATA_DATA_CFACK:
-	case IEEE80211_FC0_SUBTYPE_DATA_DATA_CFPOLL:
-	case IEEE80211_FC0_SUBTYPE_DATA_DATA_CFACPL:
+	case IEEE80211_FC0_SUBTYPE_DATA:
+	case IEEE80211_FC0_SUBTYPE_CF_ACK:
+	case IEEE80211_FC0_SUBTYPE_CF_POLL:
+	case IEEE80211_FC0_SUBTYPE_CF_ACPL:
 		RAY_DPRINTF(sc, RAY_DBG_RX, "DATA packet");
 		break;
 
-	case IEEE80211_FC0_SUBTYPE_DATA_NULL:
-	case IEEE80211_FC0_SUBTYPE_DATA_CFACK:
-	case IEEE80211_FC0_SUBTYPE_DATA_CFPOLL:
-	case IEEE80211_FC0_SUBTYPE_DATA_CFACK_CFACK:
+	case IEEE80211_FC0_SUBTYPE_NODATA:
+	case IEEE80211_FC0_SUBTYPE_CFACK:
+	case IEEE80211_FC0_SUBTYPE_CFPOLL:
+	case IEEE80211_FC0_SUBTYPE_CF_ACK_CF_ACK:
 		RAY_DPRINTF(sc, RAY_DBG_RX, "NULL packet");
 	    	m_freem(m0);
 		return;
@@ -1839,9 +1816,9 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 	 * XXX At present this information is unused, although it is
 	 * XXX available for translation routines to use.
 	 */
-	switch (header->i_fc[1] & IEEE80211_FC1_DS_MASK) {
+	switch (header->i_fc[1] & IEEE80211_FC1_DIR_MASK) {
 
-	case IEEE80211_FC1_STA_TO_STA:
+	case IEEE80211_FC1_DIR_NODS:
 		da = header->i_addr1;
 		sa = header->i_addr2;
 	    	ra = ta = NULL;
@@ -1849,7 +1826,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 		    sa, ":", da, ":");
 		break;
 
-	case IEEE80211_FC1_AP_TO_STA:
+	case IEEE80211_FC1_DIR_FROMDS:
 		da = header->i_addr1;
 		ta = header->i_addr2;
 		sa = header->i_addr3;
@@ -1858,7 +1835,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 		    ta, ":", sa, ":", da, ":");
 		break;
 
-	case IEEE80211_FC1_STA_TO_AP:
+	case IEEE80211_FC1_DIR_TODS:
 	    	ra = header->i_addr1;
 		sa = header->i_addr2;
 		da = header->i_addr3;
@@ -1867,7 +1844,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 		    sa, ":", da, ":", ra, ":");
 		break;
 
-	case IEEE80211_FC1_AP_TO_AP:
+	case IEEE80211_FC1_DIR_DSTODS:
 		ra = header->i_addr1;
 		ta = header->i_addr2;
 		da = header->i_addr3;
@@ -1888,7 +1865,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 
     	case SC_FRAMING_WEBGEAR:
 		/* Nice and easy - just trim the 802.11 header */
-		m_adj(m0, sizeof(struct ieee80211_header));
+		m_adj(m0, sizeof(struct ieee80211_frame));
 		break;
 
 	default:
@@ -1916,14 +1893,14 @@ static void
 ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
+	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_MGT, "");
 
-	if ((header->i_fc[1] & IEEE80211_FC1_DS_MASK) !=
-	    IEEE80211_FC1_STA_TO_STA) {
+	if ((header->i_fc[1] & IEEE80211_FC1_DIR_MASK) !=
+	    IEEE80211_FC1_DIR_NODS) {
 		RAY_RECERR(sc, "MGT TODS/FROMDS wrong fc1 0x%x",
-		    header->i_fc[1] & IEEE80211_FC1_DS_MASK);
+		    header->i_fc[1] & IEEE80211_FC1_DIR_MASK);
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
@@ -1940,63 +1917,63 @@ ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
    	 *   INFRA STA process or junk
     	 *    INFRA AP process or jumk
 	 * 
- 	 * +PPP	IEEE80211_FC0_SUBTYPE_MGT_BEACON
- 	 * +EEE	IEEE80211_FC0_SUBTYPE_MGT_PROBE_REQ
- 	 * +EEE	IEEE80211_FC0_SUBTYPE_MGT_PROBE_RESP
- 	 *  PPP	IEEE80211_FC0_SUBTYPE_MGT_AUTH
- 	 *  PPP	IEEE80211_FC0_SUBTYPE_MGT_DEAUTH
- 	 *  JJP	IEEE80211_FC0_SUBTYPE_MGT_ASSOC_REQ
- 	 *  JPJ	IEEE80211_FC0_SUBTYPE_MGT_ASSOC_RESP
- 	 *  JPP	IEEE80211_FC0_SUBTYPE_MGT_DISASSOC
- 	 *  JJP	IEEE80211_FC0_SUBTYPE_MGT_REASSOC_REQ
- 	 *  JPJ	IEEE80211_FC0_SUBTYPE_MGT_REASSOC_RESP
- 	 * +EEE	IEEE80211_FC0_SUBTYPE_MGT_ATIM
+ 	 * +PPP	IEEE80211_FC0_SUBTYPE_BEACON
+ 	 * +EEE	IEEE80211_FC0_SUBTYPE_PROBE_REQ
+ 	 * +EEE	IEEE80211_FC0_SUBTYPE_PROBE_RESP
+ 	 *  PPP	IEEE80211_FC0_SUBTYPE_AUTH
+ 	 *  PPP	IEEE80211_FC0_SUBTYPE_DEAUTH
+ 	 *  JJP	IEEE80211_FC0_SUBTYPE_ASSOC_REQ
+ 	 *  JPJ	IEEE80211_FC0_SUBTYPE_ASSOC_RESP
+ 	 *  JPP	IEEE80211_FC0_SUBTYPE_DISASSOC
+ 	 *  JJP	IEEE80211_FC0_SUBTYPE_REASSOC_REQ
+ 	 *  JPJ	IEEE80211_FC0_SUBTYPE_REASSOC_RESP
+ 	 * +EEE	IEEE80211_FC0_SUBTYPE_ATIM
 	 */
 	RAY_MBUF_DUMP(sc, RAY_DBG_RX, m0, "MGT packet");
 	switch (header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
 
- 	case IEEE80211_FC0_SUBTYPE_MGT_BEACON:
+ 	case IEEE80211_FC0_SUBTYPE_BEACON:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "BEACON MGT packet");
 		/* XXX furtle anything interesting out */
 		/* XXX Note that there are rules governing what beacons to
 		   read, see 8802 S7.2.3, S11.1.2.3 */
 		break;
 
- 	case IEEE80211_FC0_SUBTYPE_MGT_AUTH:
+ 	case IEEE80211_FC0_SUBTYPE_AUTH:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "AUTH MGT packet");
 		ray_rx_mgt_auth(sc, m0);
 		break;
 
- 	case IEEE80211_FC0_SUBTYPE_MGT_DEAUTH:
+ 	case IEEE80211_FC0_SUBTYPE_DEAUTH:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "DEAUTH MGT packet");
 		/* XXX ray_rx_mgt_deauth(sc, m0); */
 		break;
 
-	case IEEE80211_FC0_SUBTYPE_MGT_ASSOC_REQ:
-	case IEEE80211_FC0_SUBTYPE_MGT_REASSOC_REQ:
+	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
+	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "(RE)ASSOC_REQ MGT packet");
 		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
 		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_AP))
 			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
 		break;
 			
- 	case IEEE80211_FC0_SUBTYPE_MGT_ASSOC_RESP:
-	case IEEE80211_FC0_SUBTYPE_MGT_REASSOC_RESP:
+ 	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "(RE)ASSOC_RESP MGT packet");
 		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
 		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL))
 			RAY_PANIC(sc, "can't be in INFRA yet"); /* XXX_INFRA */
 		break;
 
-	case IEEE80211_FC0_SUBTYPE_MGT_DISASSOC:
+	case IEEE80211_FC0_SUBTYPE_DISASSOC:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "DISASSOC MGT packet");
 		if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA)
 			RAY_PANIC(sc, "can't be in INFRA yet"); /* XXX_INFRA */
 		break;
 
- 	case IEEE80211_FC0_SUBTYPE_MGT_PROBE_REQ:
- 	case IEEE80211_FC0_SUBTYPE_MGT_PROBE_RESP:
-	case IEEE80211_FC0_SUBTYPE_MGT_ATIM:
+ 	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
+ 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
+	case IEEE80211_FC0_SUBTYPE_ATIM:
 		RAY_RECERR(sc, "unexpected MGT packet subtype 0x%0x",
 		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 		ifp->if_ierrors++;
@@ -2017,7 +1994,7 @@ ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
 static void
 ray_rx_mgt_auth(struct ray_softc *sc, struct mbuf *m0)
 {
-	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
+	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
 	ieee80211_mgt_auth_t auth = (u_int8_t *)(header+1);
 	size_t ccs, bufp;
 	int pktlen;
@@ -2027,7 +2004,7 @@ ray_rx_mgt_auth(struct ray_softc *sc, struct mbuf *m0)
 
 	switch (IEEE80211_AUTH_ALGORITHM(auth)) {
 	    
-	case IEEE80211_AUTH_OPENSYSTEM:
+	case IEEE80211_AUTH_ALG_OPEN:
 		RAY_RECERR(sc, "open system authentication request");
 		if (IEEE80211_AUTH_TRANSACTION(auth) == 1) {
 
@@ -2045,15 +2022,15 @@ RAY_DPRINTF(sc, RAY_DBG_MGT, "bufp %x", bufp);
 
 			bufp = ray_tx_wrhdr(sc, bufp,
 			    IEEE80211_FC0_TYPE_MGT |
-				IEEE80211_FC0_SUBTYPE_MGT_AUTH,
-			    IEEE80211_FC1_STA_TO_STA,
+				IEEE80211_FC0_SUBTYPE_AUTH,
+			    IEEE80211_FC1_DIR_NODS,
 			    header->i_addr2,
 			    header->i_addr1,
 			    header->i_addr3);
 
 			for (pktlen = 0; pktlen < 6; pktlen++)
 			    SRAM_WRITE_1(sc, bufp+pktlen, 0);
-			pktlen += sizeof(struct ieee80211_header);
+			pktlen += sizeof(struct ieee80211_frame);
 			SRAM_WRITE_1(sc, bufp+2, 2);
 
 RAY_DPRINTF(sc, RAY_DBG_MGT, "dump start %x", bufp-pktlen+6);
@@ -2075,7 +2052,7 @@ RAY_DHEX8(sc, RAY_DBG_MGT, bufp-pktlen+6, pktlen, "AUTH MGT response to Open Sys
 		}
 		break;
 
-	case IEEE80211_AUTH_SHAREDKEYS:
+	case IEEE80211_AUTH_ALG_SHARED:
 		RAY_RECERR(sc, "shared key authentication request");
 		break;
 	
@@ -2094,14 +2071,14 @@ static void
 ray_rx_ctl(struct ray_softc *sc, struct mbuf *m0)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
+	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CTL, "");
 
-	if ((header->i_fc[1] & IEEE80211_FC1_DS_MASK) !=
-	    IEEE80211_FC1_STA_TO_STA) {
+	if ((header->i_fc[1] & IEEE80211_FC1_DIR_MASK) !=
+	    IEEE80211_FC1_DIR_NODS) {
 		RAY_RECERR(sc, "CTL TODS/FROMDS wrong fc1 0x%x",
-		    header->i_fc[1] & IEEE80211_FC1_DS_MASK);
+		    header->i_fc[1] & IEEE80211_FC1_DIR_MASK);
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
@@ -2116,18 +2093,18 @@ ray_rx_ctl(struct ray_softc *sc, struct mbuf *m0)
 	RAY_MBUF_DUMP(sc, RAY_DBG_CTL, m0, "CTL packet");
 	switch (header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
 
-	case IEEE80211_FC0_SUBTYPE_CTL_PS_POLL:
+	case IEEE80211_FC0_SUBTYPE_PS_POLL:
 		RAY_DPRINTF(sc, RAY_DBG_CTL, "PS_POLL CTL packet");
 		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
 		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_AP))
 			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
 		break;
 
-	case IEEE80211_FC0_SUBTYPE_CTL_RTS:
-	case IEEE80211_FC0_SUBTYPE_CTL_CTS:
-	case IEEE80211_FC0_SUBTYPE_CTL_ACK:
-	case IEEE80211_FC0_SUBTYPE_CTL_CFEND:
-	case IEEE80211_FC0_SUBTYPE_CTL_CFEND_CFACK:
+	case IEEE80211_FC0_SUBTYPE_RTS:
+	case IEEE80211_FC0_SUBTYPE_CTS:
+	case IEEE80211_FC0_SUBTYPE_ACK:
+	case IEEE80211_FC0_SUBTYPE_CF_END:
+	case IEEE80211_FC0_SUBTYPE_CF_END_ACK:
 		RAY_RECERR(sc, "unexpected CTL packet subtype 0x%0x",
 		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 		ifp->if_ierrors++;
@@ -3662,5 +3639,3 @@ ray_dump_mbuf(struct ray_softc *sc, struct mbuf *m, char *s)
 		printf("  %s\n", p);
 }
 #endif /* RAY_DEBUG & RAY_DBG_MBUF */
-
-#endif /* NRAY */

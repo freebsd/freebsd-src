@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_rayreg.h,v 1.7 2000/03/21 14:26:38 dmlb Exp $
+ * $FreeBSD$
  *
  */
 
