@@ -1,7 +1,7 @@
 /* macro.c -- user-defined macros for Texinfo.
-   $Id: macro.c,v 1.12 2002/03/02 15:05:21 karl Exp $
+   $Id: macro.c,v 1.1 2002/08/25 23:38:38 karl Exp $
 
-   Copyright (C) 1998, 99, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

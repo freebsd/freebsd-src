@@ -1,7 +1,7 @@
 /* footnote.c -- footnotes for Texinfo.
-   $Id: footnote.c,v 1.13 2002/03/02 15:05:21 karl Exp $
+   $Id: footnote.c,v 1.4 2002/11/05 03:04:26 karl Exp $
 
-   Copyright (C) 1998, 99, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -237,7 +237,7 @@ cm_footnote ()
      `fn-<n>', though that's unlikely. */
   if (html)
     {
-      add_html_elt ("<a rel=footnote href=");
+      add_html_elt ("<a rel=\"footnote\" href=");
       add_word_args ("\"#fn-%d\"><sup>%s</sup></a>",
 		     current_footnote_number, marker);
     }
@@ -294,7 +294,7 @@ output_pending_notes ()
          out there doesn't use numbers by default.  Since we rely on the
          browser to produce the footnote numbers, we need to make sure
          they ARE indeed numbers.  Pre-HTML4 browsers seem to not care.  */
-      add_word ("<hr><h4>");
+      add_word ("<div class=\"footnote\">\n<hr>\n<h4>");
       add_word (_("Footnotes"));
       add_word ("</h4>\n<ol type=\"1\">\n");
     }
@@ -372,7 +372,7 @@ output_pending_notes ()
       }
 
     if (html)
-      add_word ("</ol><hr>");
+      add_word ("</ol><hr></div>");
     close_paragraph ();
     free (array);
   }

@@ -1,3 +1,12 @@
+$Id: README,v 1.2 2002/09/11 16:32:09 karl Exp $
+texinfo/info/README
+
+  Copyright (C) 2002 Free Software Foundation, Inc.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
 Info 2.0 is a complete rewrite of the original standalone Info I wrote in
 1987, the first program I wrote for rms.  That program was something like
 my second Unix program ever, and my die-hard machine language coding habits
