@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.10.2.2 1995/06/09 18:06:53 davidg Exp $
+ *	$Id: aic7870.c,v 1.11 1995/06/11 19:31:48 rgrimes Exp $
  */
 
 #include <pci.h>
@@ -35,6 +35,7 @@
 #include <i386/scsi/aic7xxx.h>
 
 #define PCI_BASEADR0	PCI_MAP_REG_START
+#define PCI_DEVICE_ID_ADAPTEC_3940	0x72789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7870	0x70789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x70759004ul
@@ -58,8 +59,11 @@ static  char*
 aic7870_probe (pcici_t tag, pcidi_t type)
 {
 	switch(type) {
+		case PCI_DEVICE_ID_ADAPTEC_3940:
+			return ("Adaptec 3940 SCSI host adapter");
+			break;
 		case PCI_DEVICE_ID_ADAPTEC_2940:
-			return ("Adaptec 294X SCSI host adapter");
+			return ("Adaptec 2940 SCSI host adapter");
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
 			return ("Adaptec aic7870 SCSI host adapter");
@@ -93,6 +97,9 @@ aic7870_attach(config_id, unit)
 	io_port -= 0xc01ul;
 
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
+		case PCI_DEVICE_ID_ADAPTEC_3940:
+			ahc_t = AHC_394;
+			break;
 		case PCI_DEVICE_ID_ADAPTEC_2940:
 			ahc_t = AHC_294;
 			break;
