@@ -1,12 +1,7 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
 # $FreeBSD$
 
-.if !target(__initialized__)
-__initialized__:
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
-.endif
+.include <bsd.init.mk>
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S
 
@@ -62,7 +57,6 @@ MAN1=	${MAN}
 .endif
 .endif
 
-.MAIN: all
 all: objwarn ${PROG} ${SCRIPTS}
 .if !defined(NOMAN)
 all: _manpages

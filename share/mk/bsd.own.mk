@@ -124,21 +124,8 @@
 #
 # INCLUDEDIR	Base path for standard C include files [/usr/include]
 
-# This is only here for bootstrapping and is not officially exported
-# from here.  It has normally already been defined in sys.mk.
-MACHINE_ARCH?=	i386
-
-#
-# The build tools are indirected by /usr/bin/objformat which determines the
-# object format from the OBJFORMAT environment variable and if this is not
-# defined, it reads /etc/objformat.
-#
-.if exists(/etc/objformat) && !defined(OBJFORMAT)
-.include "/etc/objformat"
-.endif
-
-# Default executable format
-OBJFORMAT?=	elf
+.if !target(__<bsd.own.mk>__)
+__<bsd.own.mk>__:
 
 # Binaries
 BINOWN?=	root
@@ -206,3 +193,5 @@ STRIP?=		-s
 COPY?=		-c
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
+
+.endif !target(__<bsd.own.mk>__)

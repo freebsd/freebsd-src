@@ -27,6 +27,9 @@
 #		Create a (GLOBAL) gtags file for the source files.
 #		If HTML is defined, htags is also run after gtags.
 
+.if !target(__<bsd.init.mk>__)
+.error bsd.dep.mk cannot be included directly.
+.endif
 
 MKDEPCMD?=	mkdep
 DEPENDFILE?=	.depend

@@ -21,7 +21,7 @@ SRCS=	itime.c main.c optr.c dumprmt.c tape.c traverse.c unctime.c
 MAN=	dump.8
 MLINKS+=dump.8 rdump.8
 
-.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
 DPADD=	${LIBKRB} ${LIBCRYPTO}

@@ -4,6 +4,9 @@
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
 # file where necessary.
 
+.if !target(__<bsd.init.mk>__)
+.error bsd.libnames.mk cannot be included directly.
+.endif
 
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 LIBKZHEAD?=	${DESTDIR}${LIBDIR}/kzhead.o

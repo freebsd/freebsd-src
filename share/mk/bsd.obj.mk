@@ -38,6 +38,10 @@
 #		create build directory.
 #
 
+.if !target(__<bsd.obj.mk>__)
+__<bsd.obj.mk>__:
+.include <bsd.own.mk>
+
 .if defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .else
@@ -125,3 +129,5 @@ clean:
 cleandir: cleanobj
 
 .include <bsd.subdir.mk>
+
+.endif !target(__<bsd.obj.mk>__)

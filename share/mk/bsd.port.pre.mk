@@ -2,6 +2,6 @@
 
 BEFOREPORTMK=	yes
 
-.include "bsd.port.mk"
+.include <bsd.port.mk>
 
 .undef BEFOREPORTMK

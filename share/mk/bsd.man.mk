@@ -49,6 +49,10 @@
 #		Install the manual pages and their links.
 #
 
+.if !target(__<bsd.init.mk>__)
+.error bsd.man.mk cannot be included directly.
+.endif
+
 MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
