@@ -90,17 +90,17 @@ kernel-depend:
 	if [ -f .depend ]; then mv .depend .olddep; fi
 	${MAKE} _kernel-depend
 
-# The argument list can be very long, use make -V and xargs to
+# The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
 _kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} \
 	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	    ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
-	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | xargs \
-	    env MKDEP_CPP="${CC} -E" CC="${CC}" mkdep -a -f .newdep ${CFLAGS}
-	${MAKE} -V SFILES -V SYSTEM_SFILES | xargs \
-	    env MKDEP_CPP="${CC} -E" mkdep -a -f .newdep ${ASM_CFLAGS}
+	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | \
+	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
+	${MAKE} -V SFILES -V SYSTEM_SFILES | \
+	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
 
