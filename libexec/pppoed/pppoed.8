@@ -33,7 +33,7 @@
 .Nd handle incoming PPP over Ethernet connections
 .Sh SYNOPSIS
 .Nm
-.Op Fl Fd
+.Op Fl Fd\&
 .Op Fl P Ar pidfile
 .Op Fl a Ar name
 .Op Fl e Ar exec
@@ -158,12 +158,12 @@ It is sometimes useful to add the following to
 .Pa /etc/syslog.conf :
 .Pp
 .Dl !pppoed
-.Dl *.*				/var/log/pppoed.log
+.Dl "*.*				/var/log/pppoed.log
 .Pp
 and the following to
 .Pa /etc/newsyslog.conf :
 .Pp
-.Dl /var/log/pppoed.log			640  3	   100	*     Z
+.Dl "/var/log/pppoed.log			640  3	   100	*     Z
 .Pp
 .Sh SEE ALSO
 .Xr NgSetDebug 3 ,
