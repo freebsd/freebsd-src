@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.27 1997/12/16 17:40:21 eivind Exp $
+ * $Id: kern_xxx.c,v 1.28 1998/08/24 08:39:38 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -85,7 +85,7 @@ osethostname(p, uap)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	if ((error = suser(p->p_ucred, &p->p_acflag)))
+	if ((error = suser(p)))
 		return (error);
 	return (userland_sysctl(p, name, 2, 0, 0, 0,
 		uap->hostname, uap->len, 0));
@@ -122,7 +122,7 @@ osethostid(p, uap)
 {
 	int error;
 
-	if ((error = suser(p->p_ucred, &p->p_acflag)))
+	if ((error = suser(p)))
 		return (error);
 	hostid = uap->hostid;
 	return (0);
@@ -244,7 +244,7 @@ setdomainname(p, uap)
 {
         int error, domainnamelen;
 
-        if ((error = suser(p->p_ucred, &p->p_acflag)))
+        if ((error = suser(p)))
                 return (error);
         if ((u_int)uap->len > sizeof (domainname) - 1)
                 return EINVAL;

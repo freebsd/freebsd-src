@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.47 1999/02/18 09:19:41 dfr Exp $
+ * $Id: nfs_syscalls.c,v 1.48 1999/02/25 00:03:51 peter Exp $
  */
 
 #include <sys/param.h>
@@ -145,7 +145,7 @@ getfh(p, uap)
 	/*
 	 * Must be super user
 	 */
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if(error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->fname, p);
@@ -199,7 +199,7 @@ nfssvc(p, uap)
 	/*
 	 * Must be super user
 	 */
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if(error)
 		return (error);
 	while (nfssvc_sockhead_flag & SLP_INIT) {

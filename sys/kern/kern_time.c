@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.63 1999/04/07 17:32:21 mjacob Exp $
+ * $Id: kern_time.c,v 1.64 1999/04/07 19:48:09 nsayer Exp $
  */
 
 #include <sys/param.h>
@@ -173,7 +173,7 @@ clock_settime(p, uap)
 	struct timespec ats;
 	int error;
 
-	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if ((error = suser(p)) != 0)
 		return (error);
 	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
@@ -329,7 +329,7 @@ settimeofday(p, uap)
 	struct timezone atz;
 	int error;
 
-	if ((error = suser(p->p_ucred, &p->p_acflag)))
+	if ((error = suser(p)))
 		return (error);
 	/* Verify all parameters before changing time. */
 	if (uap->tv) {
@@ -369,7 +369,7 @@ adjtime(p, uap)
 	register long ndelta, ntickdelta, odelta;
 	int s, error;
 
-	if ((error = suser(p->p_ucred, &p->p_acflag)))
+	if ((error = suser(p)))
 		return (error);
 	if ((error =
 	    copyin((caddr_t)uap->delta, (caddr_t)&atv, sizeof(struct timeval))))

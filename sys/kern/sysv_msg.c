@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.19 1999/01/30 12:21:48 phk Exp $ */
+/*	$Id: sysv_msg.c,v 1.20 1999/04/21 13:30:01 sada Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -253,7 +253,7 @@ msgctl(p, uap)
 		if ((eval = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
 			return(eval);
 		if (msqbuf.msg_qbytes > msqptr->msg_qbytes) {
-			eval = suser(cred, &p->p_acflag);
+			eval = suser_xxx(cred, &p->p_acflag);
 			if (eval)
 				return(eval);
 		}

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.114 1999/02/19 14:25:34 luoqi Exp $
+ * $Id: tty.c,v 1.115 1999/02/19 19:34:49 luoqi Exp $
  */
 
 /*-
@@ -809,7 +809,7 @@ ttioctl(tp, cmd, data, flag)
 			    ISSET(constty->t_state, TS_CONNECTED))
 				return (EBUSY);
 #ifndef	UCONSOLE
-			if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+			if ((error = suser(p)) != 0)
 				return (error);
 #endif
 			constty = tp;
@@ -981,9 +981,9 @@ ttioctl(tp, cmd, data, flag)
 		splx(s);
 		break;
 	case TIOCSTI:			/* simulate terminal input */
-		if ((flag & FREAD) == 0 && suser(p->p_ucred, &p->p_acflag))
+		if ((flag & FREAD) == 0 && suser(p))
 			return (EPERM);
-		if (!isctty(p, tp) && suser(p->p_ucred, &p->p_acflag))
+		if (!isctty(p, tp) && suser(p))
 			return (EACCES);
 		s = spltty();
 		(*linesw[tp->t_line].l_rint)(*(u_char *)data, tp);
@@ -1035,7 +1035,7 @@ ttioctl(tp, cmd, data, flag)
 		}
 		break;
 	case TIOCSDRAINWAIT:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 		tp->t_timeout = *(int *)data * hz;

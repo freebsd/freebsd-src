@@ -767,7 +767,7 @@ again:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p->p_ucred, &p->p_acflag)) {
+		    suser(p)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -1144,7 +1144,7 @@ struct proc     *p;
 		break;
 
 	    case TIOCMSDTRWAIT:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error != 0) {
 			splx(s);
 			return (error);

@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.30 1998/09/26 00:55:53 des Exp $
+ * $Id: ibcs2_misc.c,v 1.31 1999/01/28 01:59:52 dillon Exp $
  */
 
 /*
@@ -993,7 +993,7 @@ ibcs2_plock(p, uap)
 #define IBCS2_DATALOCK	4
 
 	
-        if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+        if ((error = suser(p)) != 0)
                 return EPERM;
 	switch(SCARG(uap, cmd)) {
 	case IBCS2_UNLOCK:
@@ -1028,7 +1028,7 @@ ibcs2_uadmin(p, uap)
 #define SCO_AD_GETBMAJ      0
 #define SCO_AD_GETCMAJ      1
 
-        if (suser(p->p_ucred, &p->p_acflag))
+        if (suser(p))
                 return EPERM;
 
 	switch(SCARG(uap, cmd)) {

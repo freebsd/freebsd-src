@@ -1,4 +1,4 @@
-/* $Id: promcons.c,v 1.3 1998/07/12 16:15:02 dfr Exp $ */
+/* $Id: promcons.c,v 1.4 1999/01/30 12:17:22 phk Exp $ */
 /* $NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $ */
 
 /*
@@ -117,7 +117,7 @@ promopen(dev, flag, mode, p)
 
 		setuptimeout = 1;
 	} else if (tp->t_state & TS_XCLUDE &&
-	    suser(p->p_ucred, &p->p_acflag)) {
+	    suser(p)) {
 		splx(s);
 		return EBUSY;
 	}

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.53 1999/03/02 00:28:07 julian Exp $
+ *  $Id: linux_misc.c,v 1.54 1999/04/19 14:14:14 peter Exp $
  */
 
 #include <sys/param.h>
@@ -1104,7 +1104,7 @@ linux_iopl(struct proc *p, struct linux_iopl_args *args)
 {
 	int error;
 
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error != 0)
 		return error;
 	if (securelevel > 0)
@@ -1134,7 +1134,7 @@ linux_setgroups(p, uap)
   gid_t *bsd_gidset;
   int ngrp, error;
 
-  if ((error = suser(pc->pc_ucred, &p->p_acflag)))
+  if ((error = suser_xxx(pc->pc_ucred, &p->p_acflag)))
     return error;
 
   if (uap->gidsetsize > NGROUPS)

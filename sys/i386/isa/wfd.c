@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.19 1999/02/10 00:03:37 ken Exp $
+ *      $Id: wfd.c,v 1.20 1999/04/13 19:38:11 peter Exp $
  */
 
 /*
@@ -675,21 +675,21 @@ int wfdioctl (dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		}
 	switch (cmd) {
 	case CDIOCSETDEBUG:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 		t->flags |= F_DEBUG;
 		atapi_debug (t->ata, 1);
 		return 0;
 	case CDIOCCLRDEBUG:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 		t->flags &= ~F_DEBUG;
 		atapi_debug (t->ata, 0);
 		return 0;
 	case CDIOCRESET:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 		return wfd_request_wait (t, ATAPI_TEST_UNIT_READY,

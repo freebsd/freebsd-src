@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.54 1999/02/02 14:14:05 bde Exp $
+ *	$Id: mem.c,v 1.55 1999/04/07 03:57:45 msmith Exp $
  */
 
 /*
@@ -185,7 +185,7 @@ mmopen(dev, flags, fmt, p)
 		return ENODEV;
 #endif
 	case 14:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error != 0)
 			return (error);
 		if (securelevel > 0)
@@ -552,7 +552,7 @@ random_ioctl(dev, cmd, data, flags, p)
 	 * Even inspecting the state is privileged, since it gives a hint
 	 * about how easily the randomness might be guessed.
 	 */
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error != 0)
 		return (error);
 

@@ -169,7 +169,7 @@ ibcs2_setipdomainname(p, uap)
 	char hname[MAXHOSTNAMELEN], *ptr;
 	int error, sctl[2], hlen;
 
-	if ((error = suser(p->p_ucred, &p->p_acflag)))
+	if ((error = suser(p)))
 		return (error);
 
 	/* W/out a hostname a domain-name is nonsense */
