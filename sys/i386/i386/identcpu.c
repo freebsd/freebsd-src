@@ -506,21 +506,17 @@ printcpuinfo(void)
 #endif
 #if defined(I586_CPU)
 	case CPUCLASS_586:
-#ifndef SMP
 		printf("%d.%02d-MHz ",
 		       (tsc_freq + 4999) / 1000000,
 		       ((tsc_freq + 4999) / 10000) % 100);
-#endif
 		printf("586");
 		break;
 #endif
 #if defined(I686_CPU)
 	case CPUCLASS_686:
-#ifndef SMP
 		printf("%d.%02d-MHz ",
 		       (tsc_freq + 4999) / 1000000,
 		       ((tsc_freq + 4999) / 10000) % 100);
-#endif
 		printf("686");
 		break;
 #endif
