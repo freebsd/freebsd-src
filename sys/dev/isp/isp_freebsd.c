@@ -1,5 +1,4 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd.c,v 1.4 1998/09/16 16:42:40 mjacob Exp $ */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -213,11 +212,6 @@ isp_action(sim, ccb)
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			break;
 		case CMD_EAGAIN:
-#if	0
-			printf("%s: EAGAINed %d.%d\n", isp->isp_name,
-			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
-			printf("%s: %d EAGAIN\n", __FILE__, __LINE__);
-#endif
 			if (isp->isp_osinfo.simqfrozen == 0) {
 				xpt_freeze_simq(sim, 1);
 				isp->isp_osinfo.simqfrozen = 1;
@@ -227,12 +221,13 @@ isp_action(sim, ccb)
 			xpt_done(ccb);
 			break;
 		case CMD_COMPLETE:
-			printf("%s: COMPLETEd for %d.%d with cam status 0%x\n",
-			    isp->isp_name, ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun, ccb->ccb_h.status);
-			if ((ccb->ccb_h.status & CAM_STATUS_MASK) !=
+			/*
+			 * Just make sure that we didn't get it returned
+			 * as completed, but with the request still in
+			 * progress. In theory, 'cannot happen'.
+			 */
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
 			    CAM_REQ_INPROG) {
-				/* XXX: Cannot Happen */
 				ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 				ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 			}
