@@ -30,7 +30,7 @@ FREEBSD= CONTRIB.386BSD CONTRIB.FreeBSD RELNOTES.FreeBSD ${COPYRIGHT}
 #
 # Floppy drive name and files for building FreeBSD Floppies
 FLOPPY?=	fd0
-MOUNT=		/mnt
+MOUNT?=		/mnt
 #
 MDEC=		usr/mdec/bootfd usr/mdec/fdboot
 MDEC+=		usr/mdec/bootsd usr/mdec/sdboot
