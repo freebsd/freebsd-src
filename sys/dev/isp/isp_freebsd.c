@@ -249,6 +249,46 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		return (ENXIO);
 	
 	switch (cmd) {
+#ifdef	ISP_FW_CRASH_DUMP
+	case ISP_GET_FW_CRASH_DUMP:
+	{
+		u_int16_t *ptr = FCPARAM(isp)->isp_dump_data;
+		size_t sz;
+
+		retval = 0;
+		if (IS_2200(isp))
+			sz = QLA2200_RISC_IMAGE_DUMP_SIZE;
+		else
+			sz = QLA2300_RISC_IMAGE_DUMP_SIZE;
+		ISP_LOCK(isp);
+		if (ptr && *ptr) {
+			void *uaddr = *((void **) addr);
+			if (copyout(ptr, uaddr, sz)) {
+				retval = EFAULT;
+			} else {
+				*ptr = 0;
+			}
+		} else {
+			retval = ENXIO;
+		}
+		ISP_UNLOCK(isp);
+		break;
+	}
+
+	case ISP_FORCE_CRASH_DUMP:
+		ISP_LOCK(isp);
+		if ((isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN) == 0) {
+			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
+			ISPLOCK_2_CAMLOCK(isp);
+			xpt_freeze_simq(isp->isp_sim, 1);
+			CAMLOCK_2_ISPLOCK(isp);
+		}
+		isp_fw_dump(isp);
+		isp_reinit(isp);
+		ISP_UNLOCK(isp);
+		retval = 0;
+		break;
+#endif
 	case ISP_SDBLEV:
 	{
 		int olddblev = isp->isp_dblev;

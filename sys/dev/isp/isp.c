@@ -5814,7 +5814,7 @@ static void isp2300_fw_dump(struct ispsoftc *);
 static void
 isp2200_fw_dump(struct ispsoftc *isp)
 {
-	int i, j, k;
+	int i, j;
 	mbreg_t mbs;
 	u_int16_t *ptr;
 
@@ -5957,7 +5957,7 @@ isp2200_fw_dump(struct ispsoftc *isp)
 static void
 isp2300_fw_dump(struct ispsoftc *isp)
 {
-	int i, j, k;
+	int i, j;
 	mbreg_t mbs;
 	u_int16_t *ptr;
 
@@ -6121,7 +6121,7 @@ isp_fw_dump(struct ispsoftc *isp)
 {
 	if (IS_2200(isp))
 		isp2200_fw_dump(isp);
-	else if (IS_2300(isp))
+	else if (IS_23XX(isp))
 		isp2300_fw_dump(isp);
 }
 #endif
