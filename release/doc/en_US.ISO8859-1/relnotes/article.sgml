@@ -295,7 +295,7 @@
 	Fast Ethernet and Gigabit Ethernet controllers.</para>
 
       <para>&man.sk.4; now supports SK-9521 V2.0 and 3COM 3C940 based Gigabit
-        Ethernet NICs.</para>
+        Ethernet NICs. &merged;</para>
 
       <para>The &man.uart.4; driver has been added to support various
 	classes of UART (Universal Asynchronous Receiver/Transmitter)
