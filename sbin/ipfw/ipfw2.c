@@ -1734,6 +1734,8 @@ list(int ac, char *av[], int show_counters)
 	const int ocmd = do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
 	int nalloc = 1024;	/* start somewhere... */
 
+	last = 0;
+
 	if (test_only) {
 		fprintf(stderr, "Testing only, list disabled\n");
 		return;
