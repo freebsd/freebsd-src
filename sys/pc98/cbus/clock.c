@@ -76,6 +76,7 @@
 #include <machine/ipl.h>
 #include <machine/limits.h>
 #include <machine/md_var.h>
+#include <machine/mutex.h>
 #include <machine/psl.h>
 #ifdef APIC_IO
 #include <machine/segments.h>
@@ -140,9 +141,7 @@ static void setup_8254_mixed_mode __P((void));
 int	adjkerntz;		/* local offset from GMT in seconds */
 int	clkintr_pending;
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
-volatile u_int	idelayed;
 int	statclock_disable;
-u_int	stat_imask = SWI_LOW_MASK;
 #ifndef TIMER_FREQ
 #ifdef PC98
 #define	TIMER_FREQ	2457600;
@@ -155,11 +154,9 @@ int	timer0_max_count;
 u_int	tsc_freq;
 int	tsc_is_broken;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
+struct	mtx clock_lock;
 
 static	int	beeping = 0;
-#if 0
-static	u_int	clk_imask = HWI_MASK | SWI_MASK;
-#endif
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	u_int	hardclock_max_count;
 static	u_int32_t i8254_lastcount;
@@ -228,12 +225,9 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, i8254_timecounter, CTLFLAG_RD,
 static void
 clkintr(struct clockframe frame)
 {
-	int intrsave;
 
 	if (timecounter->tc_get_timecount == i8254_get_timecount) {
-		intrsave = save_intr();
-		disable_intr();
-		CLOCK_LOCK();
+		mtx_enter(&clock_lock, MTX_SPIN);
 		if (i8254_ticked)
 			i8254_ticked = 0;
 		else {
@@ -241,8 +235,7 @@ clkintr(struct clockframe frame)
 			i8254_lastcount = 0;
 		}
 		clkintr_pending = 0;
-		CLOCK_UNLOCK();
-		restore_intr(intrsave);
+		mtx_exit(&clock_lock, MTX_SPIN);
 	}
 	timer_func(&frame);
 	switch (timer0_state) {
@@ -261,17 +254,14 @@ clkintr(struct clockframe frame)
 		break;
 
 	case ACQUIRE_PENDING:
-		intrsave = save_intr();
-		disable_intr();
-		CLOCK_LOCK();
+		mtx_enter(&clock_lock, MTX_SPIN);
 		i8254_offset = i8254_get_timecount(NULL);
 		i8254_lastcount = 0;
 		timer0_max_count = TIMER_DIV(new_rate);
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
-		CLOCK_UNLOCK();
-		restore_intr(intrsave);
+		mtx_exit(&clock_lock, MTX_SPIN);
 		timer_func = new_function;
 		timer0_state = ACQUIRED;
 		setdelayed();
@@ -280,9 +270,7 @@ clkintr(struct clockframe frame)
 	case RELEASE_PENDING:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
-			intrsave = save_intr();
-			disable_intr();
-			CLOCK_LOCK();
+			mtx_enter(&clock_lock, MTX_SPIN);
 			i8254_offset = i8254_get_timecount(NULL);
 			i8254_lastcount = 0;
 			timer0_max_count = hardclock_max_count;
@@ -290,8 +278,7 @@ clkintr(struct clockframe frame)
 			     TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 			outb(TIMER_CNTR0, timer0_max_count & 0xff);
 			outb(TIMER_CNTR0, timer0_max_count >> 8);
-			CLOCK_UNLOCK();
-			restore_intr(intrsave);
+			mtx_exit(&clock_lock, MTX_SPIN);
 			timer0_prescaler_count = 0;
 			timer_func = hardclock;
 			timer0_state = RELEASED;
@@ -475,11 +462,9 @@ DB_SHOW_COMMAND(rtc, rtc)
 static int
 getit(void)
 {
-	int high, low, intrsave;
+	int high, low;
 
-	intrsave = save_intr();
-	disable_intr();
-	CLOCK_LOCK();
+	mtx_enter(&clock_lock, MTX_SPIN);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -487,8 +472,7 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
-	CLOCK_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&clock_lock, MTX_SPIN);
 	return ((high << 8) | low);
 }
 
@@ -599,7 +583,6 @@ sysbeepstop(void *chan)
 int
 sysbeep(int pitch, int period)
 {
-	int intrsave;
 	int x = splclock();
 
 #ifdef PC98
@@ -626,13 +609,10 @@ sysbeep(int pitch, int period)
 			splx(x);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
-	intrsave = save_intr();
-	disable_intr();
-	CLOCK_LOCK();
+	mtx_enter(&clock_lock, MTX_SPIN);
 	outb(TIMER_CNTR2, pitch);
 	outb(TIMER_CNTR2, (pitch>>8));
-	CLOCK_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&clock_lock, MTX_SPIN);
 	if (!beeping) {
 		/* enable counter2 output to speaker */
 		outb(IO_PPI, inb(IO_PPI) | 3);
@@ -878,12 +858,9 @@ fail:
 static void
 set_timer_freq(u_int freq, int intr_freq)
 {
-	int intrsave;
 	int new_timer0_max_count;
 
-	intrsave = save_intr();
-	disable_intr();
-	CLOCK_LOCK();
+	mtx_enter(&clock_lock, MTX_SPIN);
 	timer_freq = freq;
 	new_timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
 	if (new_timer0_max_count != timer0_max_count) {
@@ -892,8 +869,7 @@ set_timer_freq(u_int freq, int intr_freq)
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
 	}
-	CLOCK_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&clock_lock, MTX_SPIN);
 }
 
 /*
@@ -907,16 +883,12 @@ set_timer_freq(u_int freq, int intr_freq)
 void
 i8254_restore(void)
 {
-	int intrsave;
 
-	intrsave = save_intr();
-	disable_intr();
-	CLOCK_LOCK();
+	mtx_enter(&clock_lock, MTX_SPIN);
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 	outb(TIMER_CNTR0, timer0_max_count & 0xff);
 	outb(TIMER_CNTR0, timer0_max_count >> 8);
-	CLOCK_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&clock_lock, MTX_SPIN);
 }
 
 /*
@@ -1323,8 +1295,8 @@ void
 cpu_initclocks()
 {
 #ifdef APIC_IO
-	int apic_8254_trial, num_8254_ticks;
-	struct intrec *clkdesc, *rtcdesc;
+	int apic_8254_trial;
+	struct intrec *clkdesc;
 #endif /* APIC_IO */
 #ifndef PC98
 	int diag;
@@ -1336,7 +1308,6 @@ cpu_initclocks()
 		 * flag which would normally cause the RTC to generate
 		 * interrupts.
 		 */
-		stat_imask = HWI_MASK | SWI_MASK;
 		rtc_statusb = RTCSB_24HR;
 	} else {
 	        /* Setting stathz to nonzero early helps avoid races. */
@@ -1361,6 +1332,11 @@ cpu_initclocks()
 		} else 
 			panic("APIC_IO: Cannot route 8254 interrupt to CPU");
 	}
+
+	clkdesc = inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr,
+			      NULL, PI_REALTIME, INTR_FAST);
+	INTREN(1 << apic_8254_intr);
+
 #else /* APIC_IO */
 
 	/*
@@ -1368,9 +1344,8 @@ cpu_initclocks()
 	 * couldn't find anything suitable in the BSD/OS code (grog,
 	 * 19 July 2000).
 	 */
-	/* Setup the PIC clk handler.  The APIC handler is setup later */
 	inthand_add("clk", 0, (driver_intr_t *)clkintr, NULL, PI_REALTIME,
-		    INTR_EXCL);
+		    INTR_FAST);
 	INTREN(IRQ0);
 
 #endif /* APIC_IO */
@@ -1381,66 +1356,46 @@ cpu_initclocks()
 	writertc(RTC_STATUSB, RTCSB_24HR);
 
 	/* Don't bother enabling the statistics clock. */
-	if (statclock_disable) {
-#ifdef APIC_IO
-		/*
-		 * XXX - if statclock is disabled, don't attempt the APIC
-		 * trial.  Not sure this is sane for APIC_IO.
-		 */
-		inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr,
-			    NULL, PI_REALTIME, INTR_EXCL);
-		INTREN(1 << apic_8254_intr);
-#endif /* APIC_IO */
+	if (statclock_disable)
 		return;
-	}
 	diag = rtcin(RTC_DIAG);
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
 #endif /* !PC98 */
 
-#ifdef APIC_IO
 #ifndef PC98
+#ifdef APIC_IO
 	if (isa_apic_irq(8) != 8)
 		panic("APIC RTC != 8");
-#endif
+#endif /* APIC_IO */
 
+	inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL, PI_REALTIME,
+		    INTR_FAST);
+
+#ifdef APIC_IO
+	INTREN(APIC_IRQ8);
+#else
+	INTREN(IRQ8);
+#endif /* APIC_IO */
+
+	writertc(RTC_STATUSB, rtc_statusb);
+#endif /* PC98 */
+
+#ifdef APIC_IO
 	if (apic_8254_trial) {
-		/*
-		 * XXX - We use fast interrupts for clk and rtc long enough to
-		 * perform the APIC probe and then revert to exclusive
-		 * interrupts.
-		 */
-		clkdesc = inthand_add("clk", apic_8254_intr,
-		    (driver_intr_t *)clkintr, NULL, PI_REALTIME, INTR_FAST);
-		INTREN(1 << apic_8254_intr);
-
-		rtcdesc = inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL,
-		    PI_REALTIME, INTR_FAST);	    /* XXX */
-		INTREN(APIC_IRQ8);
-		writertc(RTC_STATUSB, rtc_statusb);
 
 		printf("APIC_IO: Testing 8254 interrupt delivery\n");
 		while (read_intr_count(8) < 6)
 			;	/* nothing */
-		num_8254_ticks = read_intr_count(apic_8254_intr);
-
-		/* disable and remove our fake handlers */
-		INTRDIS(1 << apic_8254_intr);
-		inthand_remove(clkdesc);
-
-		writertc(RTC_STATUSA, rtc_statusa);
-		writertc(RTC_STATUSB, RTCSB_24HR);
-
-		INTRDIS(APIC_IRQ8);
-		inthand_remove(rtcdesc);
-
-		if (num_8254_ticks < 3) {
+		if (read_intr_count(apic_8254_intr) < 3) {
 			/* 
 			 * The MP table is broken.
 			 * The 8254 was not connected to the specified pin
 			 * on the IO APIC.
 			 * Workaround: Limited variant of mixed mode.
 			 */
+			INTRDIS(1 << apic_8254_intr);
+			inthand_remove(clkdesc);
 			printf("APIC_IO: Broken MP table detected: "
 			       "8254 is not connected to "
 			       "IOAPIC #%d intpin %d\n",
@@ -1459,29 +1414,13 @@ cpu_initclocks()
 			}
 			apic_8254_intr = apic_irq(0, 0);
 			setup_8254_mixed_mode();
+			inthand_add("clk", apic_8254_intr,
+				    (driver_intr_t *)clkintr, NULL,
+				    PI_REALTIME, INTR_FAST);
+			INTREN(1 << apic_8254_intr);
 		}
 		
 	}
-
-	/* Finally, setup the real clock handlers */
-	inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr, NULL,
-		    PI_REALTIME, INTR_EXCL);
-	INTREN(1 << apic_8254_intr);
-#endif
-
-#ifndef PC98
-	inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL, PI_REALTIME,
-		    INTR_EXCL);
-#ifdef APIC_IO
-	INTREN(APIC_IRQ8);
-#else
-	INTREN(IRQ8);
-#endif
-
-	writertc(RTC_STATUSB, rtc_statusb);
-#endif
-
-#ifdef APIC_IO
 	if (apic_int_type(0, 0) != 3 ||
 	    int_to_apicintpin[apic_8254_intr].ioapic != 0 ||
 	    int_to_apicintpin[apic_8254_intr].int_pin != 0)
@@ -1594,12 +1533,11 @@ static unsigned
 i8254_get_timecount(struct timecounter *tc)
 {
 	u_int count;
-	int intrsave;
 	u_int high, low;
+	u_int eflags;
 
-	intrsave = save_intr();
-	disable_intr();
-	CLOCK_LOCK();
+	eflags = read_eflags();
+	mtx_enter(&clock_lock, MTX_SPIN);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -1609,7 +1547,7 @@ i8254_get_timecount(struct timecounter *tc)
 	count = timer0_max_count - ((high << 8) | low);
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
-	    ((count < 20 || (!(intrsave & PSL_I) && count < timer0_max_count / 2u)) &&
+	    ((count < 20 || (!(eflags & PSL_I) && count < timer0_max_count / 2u)) &&
 #ifdef APIC_IO
 #define	lapic_irr1	((volatile u_int *)&lapic)[0x210 / 4]	/* XXX XXX */
 	    /* XXX this assumes that apic_8254_intr is < 24. */
@@ -1623,8 +1561,7 @@ i8254_get_timecount(struct timecounter *tc)
 	}
 	i8254_lastcount = count;
 	count += i8254_offset;
-	CLOCK_UNLOCK();
-	restore_intr(intrsave);
+	mtx_exit(&clock_lock, MTX_SPIN);
 	return (count);
 }
 
