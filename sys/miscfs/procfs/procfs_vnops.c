@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.9 1995/04/15 02:30:17 davidg Exp $
+ *	$Id: procfs_vnops.c,v 1.10 1995/04/15 02:50:13 davidg Exp $
  */
 
 /*
@@ -432,7 +432,15 @@ procfs_getattr(ap)
 			ctob(procp->p_vmspace->vm_tsize +
 				    procp->p_vmspace->vm_dsize +
 				    procp->p_vmspace->vm_ssize);
-		vap->va_uid = procp->p_ucred->cr_uid;
+		/*
+		 * If we denied owner access earlier, then we have to
+		 * change the owner to root - otherwise 'ps' and friends
+		 * will break even though they are setgid kmem. *SIGH*
+		 */
+		if (procp->p_flag & P_SUGID)
+			vap->va_uid = 0;
+		else
+			vap->va_uid = procp->p_ucred->cr_uid;
 		vap->va_gid = KMEM_GROUP;
 		break;
 
