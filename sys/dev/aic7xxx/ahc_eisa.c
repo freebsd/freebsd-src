@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahc_eisa.c#8 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahc_eisa.c#9 $
  *
  * $FreeBSD$
  */
