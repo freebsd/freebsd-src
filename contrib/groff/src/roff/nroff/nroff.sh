@@ -17,7 +17,7 @@ case "`#locale charmap 2>/dev/null`" in
     case "${LC_ALL-${LC_CTYPE-${LANG}}}" in
       *.UTF-8)
         T=-Tutf8 ;;
-      iso_8859_1 | *.ISO-8859-1 | *.ISO_8859-1)
+      iso_8859_1 | *.ISO*8859-1 | *.ISO*8859-15)
         T=-Tlatin1 ;;
       *.IBM-1047)
         T=-Tcp1047 ;;
