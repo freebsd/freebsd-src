@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.22 1997/08/03 08:25:00 peter Exp $
+ *	$Id: print.c,v 1.23 1997/08/03 08:28:36 peter Exp $
  */
 
 #ifndef lint
@@ -411,8 +411,7 @@ vsize(k, ve)
 
 	v = ve->var;
 	(void)printf("%*d", v->width,
-	    pgtok(KI_EPROC(k)->e_vm.vm_dsize + KI_EPROC(k)->e_vm.vm_ssize +
-		KI_EPROC(k)->e_vm.vm_tsize));
+	    (KI_EPROC(k)->e_vm.vm_map.size/1024));
 }
 
 void
