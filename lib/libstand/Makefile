@@ -93,10 +93,6 @@ __reml.S: ${.CURDIR}/../libc/alpha/gen/divrem.m4
 		${.ALLSRC} > ${.TARGET}
 .endif
 
-# network support from libc
-.PATH:	${.CURDIR}/../libc/net
-SRCS+=	inet_ntoa.c inet_addr.c
-
 # _setjmp/_longjmp
 .PATH:	${.CURDIR}/${MACHINE_ARCH}
 SRCS+=	_setjmp.S
@@ -114,7 +110,7 @@ SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
 	fstat.c close.c lseek.c open.c read.c write.c readdir.c
 
 # network routines
-SRCS+=	arp.c ether.c in_cksum.c net.c udp.c netif.c rpc.c
+SRCS+=	arp.c ether.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
 
 # network info services:
 SRCS+=	bootp.c rarp.c bootparam.c
