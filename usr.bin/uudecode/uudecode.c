@@ -172,7 +172,7 @@ decode()
 				}
 			}
 	}
-	if (!fgets(buf, sizeof(buf), stdin) || strcmp(buf, "end\n")) {
+	if (!fgets(buf, sizeof(buf), stdin) || strcmp(buf, "end") || (buf[3] && buf[3] != '\n')) {
 		(void)fprintf(stderr, "uudecode: %s: no \"end\" line.\n",
 		    filename);
 		return(1);
