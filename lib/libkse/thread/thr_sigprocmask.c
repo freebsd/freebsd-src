@@ -46,9 +46,10 @@ _sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
 	int ret;
 
-	if (_kse_isthreaded() == 0)
-		ret = __sys_sigprocmask(how, set, oset);
-	else
-		ret = pthread_sigmask(how, set, oset);
+	ret = pthread_sigmask(how, set, oset);
+	if (ret) {
+		errno = ret;
+		ret = -1;
+	}
 	return (ret);
 }

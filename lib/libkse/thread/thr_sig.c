@@ -310,24 +310,6 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 
 	DBG_MSG(">>> _thr_sig_handler(%d)\n", sig);
 
-	curkse = _get_curkse();
-	if ((curkse == NULL) || ((curkse->k_flags & KF_STARTED) == 0)) {
-		/* Upcalls are not yet started; just call the handler. */
-		sigfunc = _thread_sigact[sig - 1].sa_sigaction;
-		if (((__sighandler_t *)sigfunc != SIG_DFL) &&
-		    ((__sighandler_t *)sigfunc != SIG_IGN) &&
-		    (sigfunc != (__siginfohandler_t *)_thr_sig_handler)) {
-			if (((_thread_sigact[sig - 1].sa_flags & SA_SIGINFO)
-			    != 0) || (info == NULL))
-				(*(sigfunc))(sig, info, ucp);
-			else
-				(*(sigfunc))(sig,
-				    (siginfo_t*)(intptr_t)info->si_code, ucp);
-		}
-
-		return;
-	}
-
 	curthread = _get_curthread();
 	if (curthread == NULL)
 		PANIC("No current thread.\n");
@@ -359,11 +341,11 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	}
 
 	/* It is now safe to invoke signal handler */
-	err_save = curthread->error;
+	err_save = errno;
 	timeout_save = curthread->timeout;
 	intr_save = curthread->interrupted;
-	/* Get a fresh copy of signal mask from kernel, for thread dump only */
-	__sys_sigprocmask(SIG_SETMASK, NULL, &curthread->sigmask);
+	/* Get a fresh copy of signal mask, for thread dump only */
+	curthread->sigmask = ucp->uc_sigmask;
 	_kse_critical_enter();
 	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
 	sigfunc = _thread_sigact[sig - 1].sa_sigaction;
@@ -389,15 +371,20 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 				 ucp);
 	} else {
 		if ((__sighandler_t *)sigfunc == SIG_DFL) {
-			if (sigprop(sig) & SA_KILL)
-				kse_thr_interrupt(NULL, KSE_INTR_SIGEXIT, sig);
+			if (sigprop(sig) & SA_KILL) {
+				if (_kse_isthreaded())
+					kse_thr_interrupt(NULL,
+						 KSE_INTR_SIGEXIT, sig);
+				else
+					kill(getpid(), sig);
+			}
 #ifdef NOTYET
 			else if (sigprop(sig) & SA_STOP)
 				kse_thr_interrupt(NULL, KSE_INTR_JOBSTOP, sig);
 #endif
 		}
 	}
-	curthread->error = err_save;
+	errno = err_save;
 	curthread->timeout = timeout_save;
 	curthread->interrupted = intr_save;
 	_kse_critical_enter();
@@ -445,13 +432,13 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	}
 	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
-	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
 	/*
 	 * We are processing buffered signals, synchronize working
 	 * signal mask into kernel.
 	 */
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
+	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
 	ucp->uc_sigmask = sigmask;
 	if (((__sighandler_t *)sigfunc != SIG_DFL) &&
 	    ((__sighandler_t *)sigfunc != SIG_IGN)) {
@@ -462,8 +449,13 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 			    ucp);
 	} else {
 		if ((__sighandler_t *)sigfunc == SIG_DFL) {
-			if (sigprop(sig) & SA_KILL)
-				kse_thr_interrupt(NULL, KSE_INTR_SIGEXIT, sig);
+			if (sigprop(sig) & SA_KILL) {
+				if (_kse_isthreaded())
+					kse_thr_interrupt(NULL,
+						 KSE_INTR_SIGEXIT, sig);
+				else
+					kill(getpid(), sig);
+			}
 #ifdef NOTYET
 			else if (sigprop(sig) & SA_STOP)
 				kse_thr_interrupt(NULL, KSE_INTR_JOBSTOP, sig);
@@ -1049,7 +1041,6 @@ thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf)
 		PANIC("invalid pthread_sigframe\n");
 	thread->flags = psf->psf_flags;
 	thread->interrupted = psf->psf_interrupted;
-	thread->signo = psf->psf_signo;
 	thread->state = psf->psf_state;
 	thread->data = psf->psf_wait_data;
 	thread->wakeup_time = psf->psf_wakeup_time;
@@ -1062,7 +1053,6 @@ thr_sigframe_save(struct pthread *thread, struct pthread_sigframe *psf)
 	psf->psf_flags =
 	    thread->flags & (THR_FLAGS_PRIVATE | THR_FLAGS_IN_TDLIST);
 	psf->psf_interrupted = thread->interrupted;
-	psf->psf_signo = thread->signo;
 	psf->psf_state = thread->state;
 	psf->psf_wait_data = thread->data;
 	psf->psf_wakeup_time = thread->wakeup_time;
@@ -1074,7 +1064,10 @@ _thr_signal_init(void)
 	struct sigaction act;
 	__siginfohandler_t *sigfunc;
 	int i;
+	sigset_t sigset;
 
+	SIGFILLSET(sigset);
+	__sys_sigprocmask(SIG_SETMASK, &sigset, &_thr_initial->sigmask);
 	/* Enter a loop to get the existing signal status: */
 	for (i = 1; i <= _SIG_MAXSIG; i++) {
 		/* Check for signals which cannot be trapped: */
@@ -1111,11 +1104,13 @@ _thr_signal_init(void)
 	act.sa_flags = SA_SIGINFO | SA_RESTART;
 	act.sa_sigaction = (__siginfohandler_t *)&_thr_sig_handler;
 	if (__sys_sigaction(SIGINFO, &act, NULL) != 0) {
+		__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask, NULL);
 		/*
 		 * Abort this process if signal initialisation fails:
 		 */
 		PANIC("Cannot initialize signal handler");
 	}
+	__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask, NULL);
 }
 
 void
