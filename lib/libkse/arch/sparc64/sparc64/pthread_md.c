@@ -76,6 +76,9 @@ _kcb_ctor(struct kse *kse)
 	kcb = malloc(sizeof(struct kcb));
 	if (kcb != NULL) {
 		bzero(kcb, sizeof(struct kcb));
+		kcb->kcb_faketcb.tcb_isfake = 1;
+		kcb->kcb_faketcb.tcb_tmbx.tm_flags = TMF_NOUPCALL;
+		kcb->kcb_curtcb = &kcb->kcb_faketcb;
 		kcb->kcb_kse = kse;
 	}
 	return (kcb);
