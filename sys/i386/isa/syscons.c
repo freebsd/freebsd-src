@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.36 1998/09/24 13:41:18 yokota Exp $
+ *  $Id: syscons.c,v 1.182.2.37 1998/11/02 13:10:17 yokota Exp $
  */
 
 #include "sc.h"
@@ -1024,10 +1024,12 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	 * are affected. Update the cursor in the current console...
 	 */
 	if (!(cur_console->status & UNKNOWN_MODE)) {
+	    s = spltty();
             remove_cursor_image(cur_console);
 	    if (flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
 	    draw_cursor_image(cur_console);
+	    splx(s);
 	}
 	return 0;
 
@@ -3046,10 +3048,12 @@ scan_esc(scr_stat *scp, u_char c)
 	     * are affected. Update the cursor in the current console...
 	     */
 	    if (!(cur_console->status & UNKNOWN_MODE)) {
+		i = spltty();
 		remove_cursor_image(cur_console);
 		if (crtc_vga && (flags & CHAR_CURSOR))
 	            set_destructive_cursor(cur_console);
 		draw_cursor_image(cur_console);
+		splx(i);
 	    }
 	    break;
 
