@@ -417,7 +417,8 @@ mac_none_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
 static void
 mac_none_execve_transition(struct ucred *old, struct ucred *new,
     struct vnode *vp, struct label *vnodelabel,
-    struct label *interpvnodelabel, struct image_params *imgp)
+    struct label *interpvnodelabel, struct image_params *imgp,
+    struct label *execlabel)
 {
 
 }
@@ -425,7 +426,7 @@ mac_none_execve_transition(struct ucred *old, struct ucred *new,
 static int
 mac_none_execve_will_transition(struct ucred *old, struct vnode *vp,
     struct label *vnodelabel, struct label *interpvnodelabel,
-    struct image_params *imgp)
+    struct image_params *imgp, struct label *execlabel)
 {
 
 	return (0);
@@ -689,7 +690,8 @@ mac_none_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_none_check_vnode_exec(struct ucred *cred, struct vnode *vp,
-    struct label *label, struct image_params *imgp)
+    struct label *label, struct image_params *imgp,
+    struct label *execlabel)
 {
 
 	return (0);

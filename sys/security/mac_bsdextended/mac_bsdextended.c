@@ -394,7 +394,8 @@ mac_bsdextended_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_bsdextended_check_vnode_exec(struct ucred *cred, struct vnode *vp,
-    struct label *label, struct image_params *imgp)
+    struct label *label, struct image_params *imgp,
+    struct label *execlabel)
 {
 	struct vattr vap;
 	int error;
