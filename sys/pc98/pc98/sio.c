@@ -779,36 +779,42 @@ static bus_addr_t port_table_1[] =
 	{0x000, 0x002, 0x004, 0x006, 0x008, 0x00a, 0x00c, 0x00e};
 static bus_addr_t port_table_8[] =
 	{0x000, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0x700};
-static bus_addr_t port_table_rsa[] =
-	{0x008, 0x009, 0x00a, 0x00b, 0x00c, 0x00d, 0x00e, 0x00f};
+static bus_addr_t port_table_rsa[] = {
+	0x008, 0x009, 0x00a, 0x00b, 0x00c, 0x00d, 0x00e, 0x00f,
+	0x000, 0x001, 0x002, 0x003, 0x004, 0x005, 0x006, 0x007
+};
 
 struct {
 	char		*name;
 	short		irr_read;
 	short		irr_write;
-	bus_addr_t	*port_table;
+	bus_addr_t	*iat;
+	bus_size_t	iatsz;
 	struct speedtab	*speedtab;
 } if_16550a_type[] = {
 	/* COM_IF_RSA98 */
-	{ " (RSA-98)", -1, -1, port_table_0, comspeedtab },
+	{" (RSA-98)", -1, -1, port_table_0, IO_COMSIZE, comspeedtab},
 	/* COM_IF_NS16550 */
-	{ "", -1, -1, port_table_0, comspeedtab },
+	{"", -1, -1, port_table_0, IO_COMSIZE, comspeedtab},
 	/* COM_IF_SECOND_CCU */
-	{ "", -1, -1, port_table_0, comspeedtab },
+	{"", -1, -1, port_table_0, IO_COMSIZE, comspeedtab},
 	/* COM_IF_MC16550II */
-	{ " (MC16550II)", -1, 0x1000, port_table_8, comspeedtab_mc16550 },
+	{" (MC16550II)", -1, 0x1000, port_table_8, IO_COMSIZE,
+	 comspeedtab_mc16550},
 	/* COM_IF_MCRS98 */
-	{ " (MC-RS98)", -1, 0x1000, port_table_8, comspeedtab_mc16550 },
+	{" (MC-RS98)", -1, 0x1000, port_table_8, IO_COMSIZE,
+	 comspeedtab_mc16550},
 	/* COM_IF_RSB3000 */
-	{ " (RSB-3000)", 0xbf, -1, port_table_1, comspeedtab_rsb384 },
+	{" (RSB-3000)", 0xbf, -1, port_table_1, IO_COMSIZE,
+	 comspeedtab_rsb384},
 	/* COM_IF_RSB384 */
-	{ " (RSB-384)", 0xbf, -1, port_table_1, comspeedtab_rsb384 },
+	{" (RSB-384)", 0xbf, -1, port_table_1, IO_COMSIZE, comspeedtab_rsb384},
 	/* COM_IF_MODEM_CARD */
-	{ "", -1, -1, port_table_0, comspeedtab },
+	{"", -1, -1, port_table_0, IO_COMSIZE, comspeedtab},
 	/* COM_IF_RSA98III */
-	{ " (RSA-98III)", -1, -1, port_table_rsa, comspeedtab_rsa },
+	{" (RSA-98III)", -1, -1, port_table_rsa, 16, comspeedtab_rsa},
 	/* COM_IF_ESP98 */
-	{ " (ESP98)", -1, -1, port_table_1, comspeedtab_mc16550 },
+	{" (ESP98)", -1, -1, port_table_1, IO_COMSIZE, comspeedtab_mc16550},
 };
 #endif /* PC98 */
 
@@ -1083,13 +1089,14 @@ sioprobe(dev)
 	if (IS_8251(iod.if_type)) {
 		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 					  0, ~0, 1, RF_ACTIVE);
-	} else if (isa_get_vendorid(dev)) {
-		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					  0, ~0, IO_COMSIZE, RF_ACTIVE);
+	} else if (iod.if_type == COM_IF_RSA98III ||
+		   isa_get_vendorid(dev)) {
+		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+			if_16550a_type[iod.if_type & 0x0f].iatsz, RF_ACTIVE);
 	} else {
 		port = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
-			if_16550a_type[iod.if_type & 0x0f].port_table,
-			IO_COMSIZE, RF_ACTIVE);
+			if_16550a_type[iod.if_type & 0x0f].iat,
+			if_16550a_type[iod.if_type & 0x0f].iatsz, RF_ACTIVE);
 	}
 #else
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -1100,8 +1107,8 @@ sioprobe(dev)
 #ifdef PC98
 	if (!IS_8251(iod.if_type)) {
 		if (isa_load_resourcev(port,
-			if_16550a_type[iod.if_type & 0x0f].port_table,
-			IO_COMSIZE) != 0) {
+			if_16550a_type[iod.if_type & 0x0f].iat,
+			if_16550a_type[iod.if_type & 0x0f].iatsz) != 0) {
 		    bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		    return ENXIO;
 		}
@@ -1143,7 +1150,7 @@ sioprobe(dev)
 			    if (IS_8251(xiftype))
 				outb((xioport & 0xff00) | PC98SIO_cmd_port(xiftype & 0x0f), 0xf2);
 			    else
-				outb(xioport + if_16550a_type[xiftype & 0x0f].port_table[com_mcr], 0);
+				outb(xioport + if_16550a_type[xiftype & 0x0f].iat[com_mcr], 0);
 			}
 		}
 #else
@@ -1616,13 +1623,14 @@ sioattach(dev)
 	if (IS_8251(if_type)) {
 		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 					  0, ~0, 1, RF_ACTIVE);
-	} else if (isa_get_vendorid(dev)) {
-		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					  0, ~0, IO_COMSIZE, RF_ACTIVE);
+	} else if (if_type == COM_IF_RSA98III ||
+		   isa_get_vendorid(dev)) {
+		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+			if_16550a_type[if_type & 0x0f].iatsz, RF_ACTIVE);
 	} else {
 		port = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
-		    if_16550a_type[if_type & 0x0f].port_table,
-		    IO_COMSIZE, RF_ACTIVE);
+			if_16550a_type[if_type & 0x0f].iat,
+			if_16550a_type[if_type & 0x0f].iatsz, RF_ACTIVE);
 	}
 #else
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -1633,8 +1641,8 @@ sioattach(dev)
 #ifdef PC98
 	if (!IS_8251(if_type)) {
 		if (isa_load_resourcev(port,
-			if_16550a_type[if_type & 0x0f].port_table,
-			IO_COMSIZE) != 0) {
+			if_16550a_type[if_type & 0x0f].iat,
+			if_16550a_type[if_type & 0x0f].iatsz) != 0) {
 		    bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		    return ENXIO;
 		}
@@ -1701,7 +1709,7 @@ sioattach(dev)
 		com->pc98_8251fifo_enable = 0;
 	    }
 	} else {
-	    bus_addr_t	*iat = if_16550a_type[if_type & 0x0f].port_table;
+	    bus_addr_t	*iat = if_16550a_type[if_type & 0x0f].iat;
 
 	    com->data_port = iobase + iat[com_data];
 	    com->int_id_port = iobase + iat[com_iir];
