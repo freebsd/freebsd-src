@@ -1791,10 +1791,10 @@ validate(sin, hname)
 		/* traditional behaviour, allow everything */
 		return 1;
 
-	strncpy(name, hname, sizeof name);
+	strlcpy(name, hname, sizeof name);
 	if (strchr(name, '.') == NULL) {
-		strncat(name, ".", sizeof name - strlen(name) - 1);
-		strncat(name, LocalDomain, sizeof name - strlen(name) - 1);
+		strlcat(name, ".", sizeof name);
+		strlcat(name, LocalDomain, sizeof name);
 	}
 	dprintf("validate: dgram from IP %s, port %d, name %s;\n",
 		addr2ascii(AF_INET, &sin->sin_addr, sizeof(struct in_addr), 0),
