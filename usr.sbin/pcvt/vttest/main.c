@@ -15,6 +15,8 @@ choice to the address below.
 
 */
 
+/* $FreeBSD$ */
+
 #include "header.h"
 
 char inchar(), *instr(), *lookup();
@@ -1846,7 +1848,7 @@ initterminal(pn) int pn; {
   stty(0,&sgttyNew);
 #ifdef SIII
   close(2);
-  open("/dev/tty",O_RDWR|O_NDELAY);
+  open(_PATH_TTY,O_RDWR|O_NDELAY);
 #endif
 #endif
 #ifdef SARG10

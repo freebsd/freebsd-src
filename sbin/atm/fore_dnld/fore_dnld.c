@@ -52,6 +52,7 @@
 
 #include <ctype.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +74,7 @@ extern int pca200e_microcode_size;
 #define	DEV_NAME "/dev/sbus%d"
 #endif	/* sun */
 #if (defined(BSD) && (BSD >= 199103))
-#define	DEV_NAME "/dev/kmem"
+#define	DEV_NAME _PATH_KMEM
 #endif	/* BSD */
 
 #define	MAX_CHECK	60
@@ -1056,7 +1057,7 @@ char *argv[];
 			 * If comm_mode, setup terminal for single char I/O
 			 */
 			if ( comm_mode ) {
-				tty = open ( "/dev/tty", O_RDWR );
+				tty = open ( _PATH_TTY, O_RDWR );
 				ioctl ( tty, TCGETA, &sgtty );
 				sgtty.c_lflag &= ~( ICANON | ECHO );
 				vmin = sgtty.c_cc[VMIN];

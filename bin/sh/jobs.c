@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <paths.h>
 #endif
 #include <sys/ioctl.h>
 
@@ -635,9 +636,9 @@ forkshell(jp, n, mode)
 			if ((jp == NULL || jp->nprocs == 0) &&
 			    ! fd0_redirected_p ()) {
 				close(0);
-				if (open("/dev/null", O_RDONLY) != 0)
-					error("Can't open /dev/null: %s", 
-					    strerror(errno));
+				if (open(_PATH_DEVNULL, O_RDONLY) != 0)
+					error("Can't open %s: %s",
+					    _PATH_DEVNULL, strerror(errno));
 			}
 		}
 #else
@@ -647,9 +648,9 @@ forkshell(jp, n, mode)
 			if ((jp == NULL || jp->nprocs == 0) &&
 			    ! fd0_redirected_p ()) {
 				close(0);
-				if (open("/dev/null", O_RDONLY) != 0)
-					error("Can't open /dev/null: %s", 
-					    strerror(errno));
+				if (open(_PATH_DEVNULL, O_RDONLY) != 0)
+					error("Can't open %s: %s", 
+					    _PATH_DEVNULL, strerror(errno));
 			}
 		}
 #endif

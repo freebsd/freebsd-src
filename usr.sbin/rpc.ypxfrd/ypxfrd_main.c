@@ -38,6 +38,7 @@ static const char rcsid[] =
 #include "ypxfrd.h"
 #include <err.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h> /* getenv, exit */
 #include <unistd.h>
@@ -240,10 +241,10 @@ main(argc, argv)
 		size = getdtablesize();
 		for (i = 0; i < size; i++)
 			(void) close(i);
-		i = open("/dev/console", 2);
+		i = open(_PATH_CONSOLE, 2);
 		(void) dup2(i, 1);
 		(void) dup2(i, 2);
-		i = open("/dev/tty", 2);
+		i = open(_PATH_TTY, 2);
 		if (i >= 0) {
 			(void) ioctl(i, TIOCNOTTY, (char *)NULL);
 			(void) close(i);

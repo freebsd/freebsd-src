@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -263,7 +264,7 @@ config(vnp)
 	 * Operate on vnp->dev because it is used later.
 	 */
 	if (vnp->dev[0] != '/' && vnp->dev[0] != '.')
-		(void)asprintf(&vnp->dev, "/dev/%s", vnp->dev);
+		(void)asprintf(&vnp->dev, "%s%s", _PATH_DEV, vnp->dev);
 	dev = vnp->dev;
 	file = vnp->file;
 	flags = vnp->flags;

@@ -9,11 +9,14 @@
  * For copyright information, see copyright.h.
  */
 
+/* $FreeBSD$ */
+
 #include "ss_internal.h"
 #include "copyright.h"
 #include <errno.h>
 #include <stdio.h>
 #include <sys/file.h>
+#include <paths.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -61,7 +64,7 @@ int ss_pager_create()
 int ss_pager_create()
 {
     int fd;
-    fd = open("/dev/tty", O_WRONLY, 0);
+    fd = open(_PATH_TTY, O_WRONLY, 0);
     return fd;
 }
 #endif

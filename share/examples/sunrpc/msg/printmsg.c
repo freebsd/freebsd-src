@@ -1,7 +1,9 @@
 /* @(#)printmsg.c	2.1 88/08/11 4.0 RPCSRC */
+/* $FreeBSD$ */
 /*
  * printmsg.c: print a message on the console
  */
+#include <paths.h>
 #include <stdio.h>
 
 main(argc, argv)
@@ -33,7 +35,7 @@ printmessage(msg)
 {
 	FILE *f;
 
-	f = fopen("/dev/console", "w");
+	f = fopen(_PATH_CONSOLE, "w");
 	if (f == NULL) {
 		return (0);
 	}

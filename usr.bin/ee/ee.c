@@ -80,6 +80,7 @@ char *version = "@(#) ee, version 1.3";
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -577,7 +578,7 @@ char *argv[];
 	scr_pos =0;
 	scr_vert = 0;
 	scr_horz = 0;
-	bit_bucket = fopen("/dev/null", "w");
+	bit_bucket = fopen(_PATH_DEVNULL, "w");
 	edit = TRUE;
 	gold = case_sen = FALSE;
 	shell_fork = TRUE;

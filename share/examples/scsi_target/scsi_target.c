@@ -138,7 +138,7 @@ main(int argc, char *argv[])
 		exit(EX_SOFTWARE);
 	}
 
-	snprintf(targdevname, sizeof(targdevname), "/dev/targ%d",
+	snprintf(targdevname, sizeof(targdevname), "%starg%d", _PATH_DEV,
 		 alloc_unit.unit);
 
 	if ((targfd = open(targdevname, O_RDWR)) == -1) {

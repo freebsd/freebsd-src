@@ -1,6 +1,8 @@
 /* portnm.c
    Get the port name of stdin.  */
 
+/* $FreeBSD$ */
+
 #include "uucp.h"
 
 #include "sysdep.h"
@@ -12,6 +14,7 @@
 #endif
 #include <sys/socket.h>
 #endif
+#include <paths.h>
 
 #ifndef ttyname
 extern char *ttyname ();
@@ -44,8 +47,8 @@ zsysdep_port_name (ftcp_port)
   z = ttyname (0);
   if (z == NULL)
     return NULL;
-  if (strncmp (z, "/dev/", sizeof "/dev/" - 1) == 0)
-    return z + sizeof "/dev/" - 1;
+  if (strncmp (z, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
+    return z + sizeof _PATH_DEV - 1;
   else
     return z;
 }

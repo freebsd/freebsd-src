@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -569,7 +570,7 @@ main(argc,argv)
 		for (; --cnt >= 0; mp++) {
 			if (!strncmp(mp->f_fstypename, "ufs", MFSNAMELEN)) {
 				if ((nm = strrchr(mp->f_mntfromname,'/'))) {
-					sprintf(dev,"/dev/%s",nm + 1);
+					sprintf(dev,"%s%s",_PATH_DEV,nm + 1);
 					nm = dev;
 				} else
 					nm = mp->f_mntfromname;

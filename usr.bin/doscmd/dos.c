@@ -44,6 +44,7 @@
 #include <glob.h>
 #include <errno.h>
 #include <ctype.h>
+#include <paths.h>
 #include <stddef.h>
 
 #include "dispatch.h"
@@ -273,7 +274,7 @@ translate_filename(u_char *dname, u_char *uname, int *drivep)
 
     if (!strcasecmp(dname, "con")) {
 	*drivep = -1;
-	strcpy(uname, "/dev/tty");
+	strcpy(uname, _PATH_TTY);
 	return (0);
     }
 
@@ -281,7 +282,7 @@ translate_filename(u_char *dname, u_char *uname, int *drivep)
     /* Really need a better way to handle devices */
     if (!strcasecmp(dname, "emmxxxx0")) {
 	*drivep = -1;
-	strcpy(uname, "/dev/null");
+	strcpy(uname, _PATH_DEVNULL);
 	return (0);
     }
 
