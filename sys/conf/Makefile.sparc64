@@ -18,14 +18,16 @@
 
 MACHINE_ARCH=	sparc64
 
-AR=		sparc64-ar
-CC=		sparc64-unknown-elf-gcc -D__sparc64__
-LD=		sparc64-ld
-NM=		sparc64-nm
-OBJCOPY=	sparc64-objcopy
-OBJDUMP=	sparc64-objdump
-RANLIB=		sparc64-ranlib
-SIZE=		sparc64-size
+AR=		/arch/sparc64/usr/bin/sparc64-ar
+CC=		/arch/sparc64/usr/bin/sparc64-unknown-elf-gcc -D__sparc64__ -D__FreeBSD__=5
+LD=		/arch/sparc64/usr/bin/sparc64-ld
+NM=		/arch/sparc64/usr/bin/sparc64-nm
+OBJCOPY=	/arch/sparc64/usr/bin/sparc64-objcopy
+OBJDUMP=	/arch/sparc64/usr/bin/sparc64-objdump
+RANLIB=		/arch/sparc64/usr/bin/sparc64-ranlib
+SIZE=		/arch/sparc64/usr/bin/sparc64-size
+
+COPT+=	-B/arch/sparc64/usr/sparc64-deo-freebsd5/bin/
 
 CWARNFLAGS=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
