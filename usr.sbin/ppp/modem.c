@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.101 1999/01/28 01:56:33 brian Exp $
+ * $Id: modem.c,v 1.102 1999/02/16 00:16:56 brian Exp $
  *
  *  TODO:
  */
@@ -393,19 +393,14 @@ OpenConnection(const char *name, char *host, char *port)
 {
   struct sockaddr_in dest;
   int sock;
-  struct hostent *hp;
   struct servent *sp;
 
   dest.sin_family = AF_INET;
   dest.sin_addr.s_addr = inet_addr(host);
+  dest.sin_addr = GetIpAddr(host);
   if (dest.sin_addr.s_addr == INADDR_NONE) {
-    hp = gethostbyname(host);
-    if (hp) {
-      memcpy(&dest.sin_addr.s_addr, hp->h_addr_list[0], 4);
-    } else {
-      log_Printf(LogWARN, "%s: %s: unknown host\n", name, host);
-      return (-1);
-    }
+    log_Printf(LogWARN, "%s: %s: unknown host\n", name, host);
+    return (-1);
   }
   dest.sin_port = htons(atoi(port));
   if (dest.sin_port == 0) {
