@@ -54,6 +54,13 @@ with the kernel by calling
 for each resource (refer to
 .Xr bus_set_resource 9
 for more information).
+.Pp
+Since the device tree and the device driver tree are disjoint, the
+.Nm
+routine needs to take this into account.
+If you load and unload your device driver that has the identify
+routine, the child node has the potential for adding the same node
+multiple times.
 .Sh EXAMPLES
 The following pseudo-code shows an example of a function that
 probes for a piece of hardware and registers it and its resource
