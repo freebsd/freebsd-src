@@ -168,13 +168,6 @@
       <para></para>
 
     </sect3>
-
-    <sect3>
-      <title>Contributed Software</title>
-
-      <para></para>
-
-    </sect3>
   </sect2>
 
   <sect2 id="userland">
@@ -184,21 +177,22 @@
 
 <!-- Above this line, order userland changes by manpage/variable name-->
 
-    <sect3>
+  </sect2>
+
+    <sect2>
       <title>Contributed Software</title>
 
       <para><application>sendmail</application> has been updated to
         version 8.12.9.</para>
 
-    </sect3>
+    </sect2>
 
-    <sect3>
-      <title>Ports/Packages Collection</title>
+    <sect2>
+      <title>Ports/Packages Collection Infrastructure</title>
 
       <para></para>
 
-    </sect3>
-  </sect2>
+    </sect2>
 
   <sect2>
     <title>Release Engineering and Integration</title>
