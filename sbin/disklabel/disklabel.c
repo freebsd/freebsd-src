@@ -99,22 +99,22 @@ static const char rcsid[] =
 #endif
 #endif
 
-void	makelabel	__P((char *, char *, struct disklabel *));
-int	writelabel	__P((int, char *, struct disklabel *));
-void	l_perror	__P((char *));
-struct disklabel * readlabel __P((int));
-struct disklabel * makebootarea __P((char *, struct disklabel *, int));
-void	display		__P((FILE *, struct disklabel *));
-int	edit		__P((struct disklabel *, int));
-int	editit		__P((void));
-char *	skip		__P((char *));
-char *	word		__P((char *));
-int	getasciilabel	__P((FILE *, struct disklabel *));
-int	checklabel	__P((struct disklabel *));
-void	setbootflag	__P((struct disklabel *));
-void	Warning		(char *, ...);
-void	usage		__P((void));
-struct disklabel * getvirginlabel __P((void));
+void	makelabel(const char *, const char *, struct disklabel *);
+int	writelabel(int, const char *, struct disklabel *);
+void	l_perror(const char *);
+struct disklabel *readlabel(int);
+struct disklabel *makebootarea(char *, struct disklabel *, int);
+void	display(FILE *, const struct disklabel *);
+int	edit(struct disklabel *, int);
+int	editit(void);
+char	*skip(char *);
+char	*word(char *);
+int	getasciilabel(FILE *, struct disklabel *);
+int	checklabel(struct disklabel *);
+void	setbootflag(struct disklabel *);
+void	Warning(const char *, ...) __printflike(1, 2);
+void	usage(void);
+struct disklabel *getvirginlabel(void);
 
 #define	DEFEDITOR	_PATH_VI
 #define	streq(a,b)	(strcmp(a,b) == 0)
@@ -127,8 +127,6 @@ char	namebuf[BBSIZE], *np = namebuf;
 struct	disklabel lab;
 char	bootarea[BBSIZE];
 
-/* partition 'c' is the full disk and is special */
-#define FULL_DISK_PART 2
 #define MAX_PART ('z')
 #define MAX_NUM_PARTS (1 + MAX_PART - 'a')
 char    part_size_type[MAX_NUM_PARTS];
@@ -160,11 +158,9 @@ int	debug;
 #endif
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register struct disklabel *lp;
+	struct disklabel *lp;
 	FILE *t;
 	int ch, f = 0, flag, error = 0;
 	char *name = 0;
@@ -357,11 +353,9 @@ main(argc, argv)
  * if specified.
  */
 void
-makelabel(type, name, lp)
-	char *type, *name;
-	register struct disklabel *lp;
+makelabel(const char *type, const char *name, struct disklabel *lp)
 {
-	register struct disklabel *dp;
+	struct disklabel *dp;
 
 	if (strcmp(type, "auto") == 0)
 		dp = getvirginlabel();
@@ -404,10 +398,7 @@ makelabel(type, name, lp)
 }
 
 int
-writelabel(f, boot, lp)
-	int f;
-	char *boot;
-	register struct disklabel *lp;
+writelabel(int f, const char *boot, struct disklabel *lp)
 {
 	int flag;
 #ifdef __alpha__
@@ -497,8 +488,7 @@ writelabel(f, boot, lp)
 }
 
 void
-l_perror(s)
-	char *s;
+l_perror(const char *s)
 {
 	switch (errno) {
 
@@ -532,10 +522,9 @@ l_perror(s)
  * Use ioctl to get label unless -r flag is given.
  */
 struct disklabel *
-readlabel(f)
-	int f;
+readlabel(int f)
 {
-	register struct disklabel *lp;
+	struct disklabel *lp;
 
 	if (rflag) {
 		if (read(f, bootarea, BBSIZE) < BBSIZE)
@@ -564,13 +553,10 @@ readlabel(f)
  * Returns a pointer to the disklabel portion of the bootarea.
  */
 struct disklabel *
-makebootarea(boot, dp, f)
-	char *boot;
-	register struct disklabel *dp;
-	int f;
+makebootarea(char *boot, struct disklabel *dp, int f)
 {
 	struct disklabel *lp;
-	register char *p;
+	char *p;
 	int b;
 #if NUMBOOT > 0
 	char *dkbasename;
@@ -735,12 +721,10 @@ makebootarea(boot, dp, f)
 }
 
 void
-display(f, lp)
-	FILE *f;
-	register struct disklabel *lp;
+display(FILE *f, const struct disklabel *lp)
 {
-	register int i, j;
-	register struct partition *pp;
+	int i, j;
+	const struct partition *pp;
 
 	fprintf(f, "# %s:\n", specname);
 	if ((unsigned) lp->d_type < DKMAXTYPES)
@@ -838,11 +822,9 @@ display(f, lp)
 }
 
 int
-edit(lp, f)
-	struct disklabel *lp;
-	int f;
+edit(struct disklabel *lp, int f)
 {
-	register int c, fd;
+	int c, fd;
 	struct disklabel label;
 	FILE *fp;
 
@@ -884,10 +866,11 @@ edit(lp, f)
 }
 
 int
-editit()
+editit(void)
 {
-	register int pid, xpid;
+	int pid, xpid;
 	int stat, omask;
+	char *ed;
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
 	while ((pid = fork()) < 0) {
@@ -902,8 +885,6 @@ editit()
 		sleep(1);
 	}
 	if (pid == 0) {
-		register char *ed;
-
 		sigsetmask(omask);
 		setgid(getgid());
 		setuid(getuid());
@@ -920,22 +901,20 @@ editit()
 }
 
 char *
-skip(cp)
-	register char *cp;
+skip(char *cp)
 {
 
 	while (*cp != '\0' && isspace(*cp))
 		cp++;
 	if (*cp == '\0' || *cp == '#')
-		return ((char *)NULL);
+		return (NULL);
 	return (cp);
 }
 
 char *
-word(cp)
-	register char *cp;
+word(char *cp)
 {
-	register char c;
+	char c;
 
 	while (*cp != '\0' && !isspace(*cp) && *cp != '#')
 		cp++;
@@ -944,7 +923,7 @@ word(cp)
 		if (c != '#')
 			return (skip(cp));
 	}
-	return ((char *)NULL);
+	return (NULL);
 }
 
 /*
@@ -953,15 +932,15 @@ word(cp)
  * and fill in lp.
  */
 int
-getasciilabel(f, lp)
-	FILE	*f;
-	register struct disklabel *lp;
+getasciilabel(FILE *f, struct disklabel *lp)
 {
-	register char **cpp, *cp;
-	register struct partition *pp;
+	char *cp;
+	char **cpp;
+	struct partition *pp;
 	unsigned int part;
-	char *tp, *s, line[BUFSIZ];
+	char *tp, line[BUFSIZ];
 	int v, lineno = 0, errors = 0;
+	int i;
 
 	lp->d_bbsize = BBSIZE;				/* XXX */
 	lp->d_sbsize = SBSIZE;				/* XXX */
@@ -984,7 +963,7 @@ getasciilabel(f, lp)
 				tp = "unknown";
 			cpp = dktypenames;
 			for (; cpp < &dktypenames[DKMAXTYPES]; cpp++)
-				if ((s = *cpp) && streq(s, tp)) {
+				if (*cpp && streq(*cpp, tp)) {
 					lp->d_type = cpp - dktypenames;
 					goto next;
 				}
@@ -1015,8 +994,6 @@ getasciilabel(f, lp)
 			continue;
 		}
 		if (streq(cp, "drivedata")) {
-			register int i;
-
 			for (i = 0; (cp = tp) && *cp != '\0' && i < NDDATA;) {
 				lp->d_drivedata[i++] = atoi(cp);
 				tp = word(cp);
@@ -1229,7 +1206,7 @@ getasciilabel(f, lp)
 					cp = tp, tp = word(cp);
 					cpp = fstypenames;
 					for (; cpp < &fstypenames[FSMAXTYPES]; cpp++)
-						if ((s = *cpp) && streq(s, cp)) {
+						if (*cpp && streq(*cpp, cp)) {
 							pp->p_fstype = cpp -
 							    fstypenames;
 							goto gottype;
@@ -1323,10 +1300,9 @@ getasciilabel(f, lp)
  * derived fields according to supplied values.
  */
 int
-checklabel(lp)
-	register struct disklabel *lp;
+checklabel(struct disklabel *lp)
 {
-	register struct partition *pp;
+	struct partition *pp;
 	int i, errors = 0;
 	char part;
 	unsigned long total_size, total_percent, current_offset;
@@ -1380,8 +1356,7 @@ checklabel(lp)
 		pp = &lp->d_partitions[i];
 		if (part_set[i]) {
 			if (part_size_type[i] == '*') {
-				/* partition 2 ('c') is special */
-				if (i == FULL_DISK_PART) {
+				if (i == RAW_PART) {
 					pp->p_size = lp->d_secperunit;
 				} else {
 					if (hog_part != -1)
@@ -1430,8 +1405,7 @@ checklabel(lp)
 						pp->p_size = size;
 					}
 					/* else already in sectors */
-					/* partition 2 ('c') is special */
-					if (i != FULL_DISK_PART)
+					if (i != RAW_PART)
 						total_size += size;
 				}
 			}
@@ -1441,7 +1415,7 @@ checklabel(lp)
 	if (total_percent != 0) {
 		long free_space = lp->d_secperunit - total_size;
 		if (total_percent > 100) {
-			fprintf(stderr,"total percentage %d is greater than 100\n",
+			fprintf(stderr,"total percentage %lu is greater than 100\n",
 			    total_percent);
 			errors++;
 		}
@@ -1460,7 +1434,7 @@ checklabel(lp)
 			}
 		} else {
 			fprintf(stderr,
-			    "%ld sectors available to give to '*' and '%' partitions\n",
+			    "%ld sectors available to give to '*' and '%%' partitions\n",
 			    free_space);
 			errors++;
 			/* fix?  set all % partitions to size 0? */
@@ -1480,8 +1454,7 @@ checklabel(lp)
 		pp = &lp->d_partitions[i];
 		if (part_set[i]) {
 			if (part_offset_type[i] == '*') {
-				/* partition 2 ('c') is special */
-				if (i == FULL_DISK_PART) {
+				if (i == RAW_PART) {
 					pp->p_offset = 0;
 				} else {
 					pp->p_offset = current_offset;
@@ -1489,28 +1462,26 @@ checklabel(lp)
 				}
 			} else {
 				/* allow them to be out of order for old-style tables */
-				/* partition 2 ('c') is special */
 				if (pp->p_offset < current_offset && 
-				    seen_default_offset && i != FULL_DISK_PART) {
+				    seen_default_offset && i != RAW_PART) {
 					fprintf(stderr,
-"Offset %ld for partition %c overlaps previous partition which ends at %ld\n",
-					    pp->p_offset,i+'a',current_offset);
+"Offset %ld for partition %c overlaps previous partition which ends at %lu\n",
+					    (long)pp->p_offset,i+'a',current_offset);
 					fprintf(stderr,
 "Labels with any *'s for offset must be in ascending order by sector\n");
 					errors++;
 				} else if (pp->p_offset != current_offset &&
-				    i != FULL_DISK_PART && seen_default_offset) {
+				    i != RAW_PART && seen_default_offset) {
 					/* 
 					 * this may give unneeded warnings if 
 					 * partitions are out-of-order
 					 */
 					Warning(
 "Offset %ld for partition %c doesn't match expected value %ld",
-					    pp->p_offset, i + 'a', current_offset);
+					    (long)pp->p_offset, i + 'a', current_offset);
 				}
 			}
-			/* partition 2 ('c') is special */
-			if (i != FULL_DISK_PART)
+			if (i != RAW_PART)
 				current_offset = pp->p_offset + pp->p_size; 
 		}
 	}
@@ -1540,7 +1511,7 @@ checklabel(lp)
 			    part);
 			errors++;
 		}
-		if (i == FULL_DISK_PART)
+		if (i == RAW_PART)
 		{
 			if (pp->p_fstype != FS_UNUSED)
 				Warning("partition %c is not marked as unused!",part);
@@ -1559,8 +1530,7 @@ checklabel(lp)
 		/* check for overlaps */
 		/* this will check for all possible overlaps once and only once */
 		for (j = 0; j < i; j++) {
-			/* partition 2 ('c') is special */
-			if (j != FULL_DISK_PART && i != FULL_DISK_PART &&
+			if (j != RAW_PART && i != RAW_PART &&
 			    part_set[i] && part_set[j]) {
 				pp2 = &lp->d_partitions[j];
 				if (pp2->p_offset < pp->p_offset + pp->p_size &&
@@ -1633,10 +1603,9 @@ getvirginlabel(void)
  * clobber bootstrap code.
  */
 void
-setbootflag(lp)
-	register struct disklabel *lp;
+setbootflag(struct disklabel *lp)
 {
-	register struct partition *pp;
+	struct partition *pp;
 	int i, errors = 0;
 	char part;
 	u_long boffset;
@@ -1671,7 +1640,7 @@ setbootflag(lp)
 
 /*VARARGS1*/
 void
-Warning(char *fmt, ...)
+Warning(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -1683,7 +1652,7 @@ Warning(char *fmt, ...)
 }
 
 void
-usage()
+usage(void)
 {
 #if NUMBOOT > 0
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
