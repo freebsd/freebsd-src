@@ -1,6 +1,6 @@
-<!-- $Id: ports.sgml,v 1.6 1997/02/22 13:01:40 peter Exp $ -->
+<!-- $Id: ports.sgml,v 1.7 1997/02/25 14:24:28 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.23 -->
+<!-- Original revision: 1.24 -->
 
 <sect><heading>ports コレクション <label id="ports"></heading>
 
@@ -94,7 +94,7 @@ name="スケルトン"> を使用して収めているものです.
 <p>
 もしあなたが (<htmlurl url="file://localhost/usr/ports/shells/bash" 
 name="あなたの FreeBSD システム"> または 
-<htmlurl url="ftp://www.freebsd.org/pub/FreeBSD/ports/shells/bash" 
+<htmlurl url="ftp://ftp.freebsd.org/pub/FreeBSD/ports/shells/bash" 
 name="FTP サイト"> にある) ports スケルトンを見ていて, そこに潜んでいる
 あらゆる種類の先端的なロケット工学的なものを見つけられると期待していると, 
 つまらなそうなファイルやディレクトリがそこにあるだけなのを見て, 
