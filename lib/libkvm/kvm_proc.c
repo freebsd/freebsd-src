@@ -188,7 +188,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		kp->ki_addr = proc.p_uarea;
 		/* kp->ki_kstack = proc.p_thread.td_kstack; XXXKSE */
 		kp->ki_args = proc.p_args;
-		kp->ki_tracep = proc.p_tracep;
+		kp->ki_tracep = proc.p_tracevp;
 		kp->ki_textvp = proc.p_textvp;
 		kp->ki_fd = proc.p_fd;
 		kp->ki_vmspace = proc.p_vmspace;
