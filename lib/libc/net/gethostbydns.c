@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.13 1996/12/22 22:05:43 wpaul Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.14 1996/12/24 02:10:24 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -414,7 +414,6 @@ __dns_getanswer(answer, anslen, qname, qtype)
 		host.h_addrtype = AF_INET;
 		host.h_length = INADDRSZ;
 		break;
-		return(NULL);
 	}
 
 	return(gethostanswer((const querybuf *)answer, anslen, qname, qtype));
