@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.39 1998/01/11 02:59:22 brian Exp $
+ * $Id: route.c,v 1.40 1998/01/11 04:45:36 brian Exp $
  *
  */
 
@@ -54,7 +54,6 @@
 #include "route.h"
 
 static int IfIndex;
-static const char *Index2Nam(int);
 
 struct rtmsg {
   struct rt_msghdr m_rtm;
@@ -308,7 +307,7 @@ p_flags(u_long f, int max)
   }
 }
 
-static const char *
+const char *
 Index2Nam(int idx)
 {
   static char **ifs;

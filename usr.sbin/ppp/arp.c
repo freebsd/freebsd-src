@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.20 1997/12/24 09:28:49 brian Exp $
+ * $Id: arp.c,v 1.21 1998/01/11 04:02:57 brian Exp $
  *
  */
 
@@ -37,9 +37,11 @@
 
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <unistd.h>
 
@@ -47,11 +49,37 @@
 #include "mbuf.h"
 #include "log.h"
 #include "id.h"
+#include "route.h"
 #include "arp.h"
+
+#ifdef DEBUG
+/*
+ * To test the proxy arp stuff, put the following in your Makefile:
+ * 
+ * arp-test: arp.c
+ * 	cp ${.CURDIR}/arp.c arp-test.c
+ * 	echo 'const char *' >>arp-test.c
+ * 	awk '/^Index2Nam/,/^}/' ${.CURDIR}/route.c >>arp-test.c
+ * 	cc -I${.CURDIR} -DDEBUG arp-test.c -o arp-test
+ *
+ * and type ``make arp-test''.
+ *
+ */
+#define LogIsKept(x) 0
+#define LogPrintf fprintf
+#undef LogDEBUG
+#define LogDEBUG stderr
+#undef LogERROR
+#define LogERROR stderr
+#undef LogPHASE
+#define LogPHASE stdout
+#define ID0socket socket
+#define ID0ioctl ioctl
+#endif
 
 static int rtm_seq;
 
-static int get_ether_addr(int, u_long, struct sockaddr_dl *);
+static int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);
 
 /*
  * SET_SA_FAMILY - set the sa_family field of a struct sockaddr,
@@ -78,7 +106,7 @@ static struct {
 static int arpmsg_valid;
 
 int
-sifproxyarp(int unit, u_long hisaddr)
+sifproxyarp(int unit, struct in_addr hisaddr)
 {
   int routes;
 
@@ -105,7 +133,7 @@ sifproxyarp(int unit, u_long hisaddr)
   arpmsg.hdr.rtm_inits = RTV_EXPIRE;
   arpmsg.dst.sin_len = sizeof(struct sockaddr_inarp);
   arpmsg.dst.sin_family = AF_INET;
-  arpmsg.dst.sin_addr.s_addr = hisaddr;
+  arpmsg.dst.sin_addr.s_addr = hisaddr.s_addr;
   arpmsg.dst.sin_other = SIN_PROXY;
 
   arpmsg.hdr.rtm_msglen = (char *) &arpmsg.hwa - (char *) &arpmsg
@@ -124,7 +152,7 @@ sifproxyarp(int unit, u_long hisaddr)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(int unit, u_long hisaddr)
+cifproxyarp(int unit, struct in_addr hisaddr)
 {
   int routes;
 
@@ -156,7 +184,7 @@ cifproxyarp(int unit, u_long hisaddr)
  * sifproxyarp - Make a proxy ARP entry for the peer.
  */
 int
-sifproxyarp(int unit, u_long hisaddr)
+sifproxyarp(int unit, struct in_addr hisaddr)
 {
   struct arpreq arpreq;
   struct {
@@ -178,7 +206,7 @@ sifproxyarp(int unit, u_long hisaddr)
   arpreq.arp_ha.sa_family = AF_UNSPEC;
   memcpy(arpreq.arp_ha.sa_data, LLADDR(&dls.sdl), dls.sdl.sdl_alen);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
-  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
+  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr.s_addr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
   if (ID0ioctl(unit, SIOCSARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): %s\n", strerror(errno));
@@ -191,13 +219,13 @@ sifproxyarp(int unit, u_long hisaddr)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(int unit, u_long hisaddr)
+cifproxyarp(int unit, struct in_addr hisaddr)
 {
   struct arpreq arpreq;
 
   memset(&arpreq, '\0', sizeof arpreq);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
-  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
+  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr.s_addr;
   if (ID0ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): %s\n", strerror(errno));
     return 0;
@@ -215,96 +243,102 @@ cifproxyarp(int unit, u_long hisaddr)
 #define MAX_IFS		32
 
 static int
-get_ether_addr(int s, u_long ipaddr, struct sockaddr_dl *hwaddr)
+get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
 {
-  struct ifreq *ifr, *ifend, *ifp;
-  u_long ina, mask;
-  struct sockaddr_dl *dla;
-  struct ifreq ifreq;
-  struct ifconf ifc;
-  struct ifreq ifs[MAX_IFS];
+  int idx;
+  const char *got;
+  char *sp, *ep, *cp, *wp;
+  struct ifreq ifrq;
+  struct in_addr addr, mask;
+  struct rt_msghdr *rtm;
+  struct sockaddr *sa_dst, *sa_gw;
+  struct sockaddr_dl *dl;
+  size_t needed;
+  int mib[6];
 
-  ifc.ifc_len = sizeof ifs;
-  ifc.ifc_req = ifs;
-  if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
-    LogPrintf(LogERROR, "get_ether_addr: ioctl(SIOCGIFCONF): %s\n",
-	      strerror(errno));
+  idx = 1;
+  while (strcmp(got = Index2Nam(idx), "???")) {
+    strncpy(ifrq.ifr_name, got, sizeof ifrq.ifr_name - 1);
+    ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
+    if (ID0ioctl(s, SIOCGIFADDR, &ifrq) == 0 &&
+        ifrq.ifr_addr.sa_family == AF_INET) {
+      addr = ((struct sockaddr_in *)&ifrq.ifr_addr)->sin_addr;
+      if (ID0ioctl(s, SIOCGIFNETMASK, &ifrq) == 0) {
+        mask = ((struct sockaddr_in *)&ifrq.ifr_broadaddr)->sin_addr;
+        if ((ipaddr.s_addr & mask.s_addr) == (addr.s_addr & mask.s_addr))
+          break;
+      }
+    }
+    idx++;
+  }
+
+  if (!strcmp(got, "???"))
+    return 0;
+
+  LogPrintf(LogPHASE, "Found interface %s for proxy arp\n", got);
+
+  mib[0] = CTL_NET;
+  mib[1] = PF_ROUTE;
+  mib[2] = 0;
+  mib[3] = 0;
+  mib[4] = NET_RT_DUMP;
+  mib[5] = 0;
+  if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+    LogPrintf(LogERROR, "get_ether_addr: sysctl: estimate: %s\n",
+              strerror(errno));
     return 0;
   }
-
-  /*
-   * Scan through looking for an interface with an Internet address on the
-   * same subnet as `ipaddr'.
-   */
-  ifend = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-  for (ifr = ifc.ifc_req; ifr < ifend;) {
-    if (ifr->ifr_addr.sa_family == AF_INET) {
-      ina = ((struct sockaddr_in *) & ifr->ifr_addr)->sin_addr.s_addr;
-      strncpy(ifreq.ifr_name, ifr->ifr_name, sizeof ifreq.ifr_name - 1);
-      ifreq.ifr_name[sizeof ifreq.ifr_name - 1] = '\0';
-
-      /*
-       * Check that the interface is up, and not point-to-point or loopback.
-       */
-      if (ioctl(s, SIOCGIFFLAGS, &ifreq) < 0)
-	continue;
-      if ((ifreq.ifr_flags &
-      (IFF_UP | IFF_BROADCAST | IFF_POINTOPOINT | IFF_LOOPBACK | IFF_NOARP))
-	  != (IFF_UP | IFF_BROADCAST))
-	goto nextif;
-
-      /*
-       * Get its netmask and check that it's on the right subnet.
-       */
-      if (ioctl(s, SIOCGIFNETMASK, &ifreq) < 0)
-	continue;
-      mask = ((struct sockaddr_in *) & ifreq.ifr_addr)->sin_addr.s_addr;
-      if ((ipaddr & mask) != (ina & mask))
-	goto nextif;
-
-      break;
-    }
-nextif:
-    ifr = (struct ifreq *) ((char *) &ifr->ifr_addr + ifr->ifr_addr.sa_len);
-  }
-
-  if (ifr >= ifend)
+  if (needed < 0)
     return 0;
-  LogPrintf(LogPHASE, "Found interface %s for proxy arp\n", ifr->ifr_name);
-
-  /*
-   * Now scan through again looking for a link-level address for this
-   * interface.
-   */
-  ifp = ifr;
-  for (ifr = ifc.ifc_req; ifr < ifend;) {
-    if (strcmp(ifp->ifr_name, ifr->ifr_name) == 0
-	&& ifr->ifr_addr.sa_family == AF_LINK) {
-
-      /*
-       * Found the link-level address - copy it out
-       */
-      dla = (struct sockaddr_dl *) & ifr->ifr_addr;
-      memcpy(hwaddr, dla, dla->sdl_len);
-      return 1;
-    }
-    ifr = (struct ifreq *) ((char *) &ifr->ifr_addr + ifr->ifr_addr.sa_len);
+  if ((sp = malloc(needed)) == NULL)
+    return 0;
+  if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
+    LogPrintf(LogERROR, "ShowRoute: sysctl: getroute: %s\n", strerror(errno));
+    free(sp);
+    return (1);
   }
+  ep = sp + needed;
 
+  for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
+    rtm = (struct rt_msghdr *) cp;
+    if (rtm->rtm_index == idx) {
+      wp = (char *)(rtm+1);
+
+      if (rtm->rtm_addrs & RTA_DST) {
+        sa_dst = (struct sockaddr *)wp;
+        wp += sa_dst->sa_len;
+      } else
+        sa_dst = NULL;
+
+      if (rtm->rtm_addrs & RTA_GATEWAY) {
+        sa_gw = (struct sockaddr *)wp;
+        if (sa_gw->sa_family == AF_LINK) {
+          dl = (struct sockaddr_dl *)wp;
+          if (dl->sdl_alen && dl->sdl_type == IFT_ETHER) {
+            memcpy(hwaddr, dl, dl->sdl_len);
+            free(sp);
+            return 1;
+          }
+        }
+      }
+    }
+  }
+  free(sp);
   return 0;
 }
 
-
 #ifdef DEBUG
 int
-main()
+main(int argc, char **argv)
 {
-  u_long ipaddr;
-  int s;
+  struct in_addr ipaddr;
+  int s, f;
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
-  ipaddr = inet_addr("192.168.1.32");
-  sifproxyarp(s, ipaddr);
+  for (f = 1; f < argc; f++) {
+    if (inet_aton(argv[f], &ipaddr))
+      sifproxyarp(s, ipaddr);
+  }
   close(s);
 }
 #endif
