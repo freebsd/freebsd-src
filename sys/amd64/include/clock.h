@@ -5,11 +5,7 @@
  */
 
 #ifndef _MACHINE_CLOCK_H_
-#define _MACHINE_CLOCK_H_ 1
-
-void inittodr(time_t base);
-
-extern int pentium_mhz;
+#define	_MACHINE_CLOCK_H_
 
 #ifdef I586_CPU
 	/*
@@ -48,4 +44,48 @@ extern int pentium_mhz;
 		(*(otime) = *(ntime))
 #endif
 
-#endif /* _MACHINE_CLOCK_H_ */
+#if defined(KERNEL) && !defined(LOCORE)
+#include <sys/cdefs.h>
+#include <machine/frame.h>
+
+/*
+ * Kernel to clock driver interface.
+ */
+void	inittodr __P((time_t base));
+void	resettodr __P((void));
+void	startrtclock __P((void));
+
+/*
+ * i386 to clock driver interface.
+ * XXX almost all of it is misplaced.  i586 stuff is done in isa/clock.c
+ * and isa stuff is done in i386/microtime.s and i386/support.s.
+ */
+extern int	adjkerntz;
+extern int	disable_rtc_set;
+#ifdef I586_CPU
+extern int	pentium_mhz;
+#endif
+extern int 	timer0_max_count;
+extern u_int 	timer0_overflow_threshold;
+extern u_int 	timer0_prescaler_count;
+
+#ifdef I586_CPU
+void	calibrate_cyclecounter __P((void));
+#endif
+void	clkintr __P((struct clockframe frame));
+void	rtcintr __P((struct clockframe frame));
+
+/*
+ * Driver to clock driver interface.
+ */
+void	DELAY __P((int usec));
+int	acquire_timer0 __P((int rate,
+			    void (*function)(struct clockframe *frame)));
+int	acquire_timer2 __P((int mode));
+int	release_timer0 __P((void));
+int	release_timer2 __P((void));
+int	sysbeep __P((int pitch, int period));
+
+#endif /* KERNEL && !LOCORE */
+
+#endif /* !_MACHINE_CLOCK_H_ */
