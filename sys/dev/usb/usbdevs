@@ -329,6 +329,7 @@ vendor BOCASYSTEMS	0x0a43	Boca Systems
 vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor GEOCAST		0x0a79	Geocast Network Systems
+vendor NEODIO		0x0aec  Neodio
 vendor TODOS		0x0b0c	Todos Data System
 vendor NEC2		0x0b62	NEC
 vendor ATI2		0x0b6f	ATI
@@ -865,6 +866,9 @@ product NATIONAL BEARPAW2400	0x1001	BearPaw 2400
 /* NEC products */
 product NEC HUB			0x55aa	hub
 product NEC HUB_B		0x55ab	hub
+
+/* NEODIO products */
+product NEODIO ND5010		0x5010	Multi-format Flash Controller
 
 /* NetChip Technology Products */
 product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
