@@ -1,0 +1,330 @@
+.\" Copyright (c) 2002 Murray Stokely <murray@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 12, 2002
+.Dt RELEASE 7
+.Os
+.Sh NAME
+.Nm release
+.Nd "release building infrastructure"
+.Sh DESCRIPTION
+.Fx
+provides a complete build environment suitable for users to make
+full releases of the
+.Fx
+operating system.
+All of the tools necessary to build a release are available from the
+CVS repository in
+.Pa src/release .
+A complete release can actually be built with only a single command,
+including the creation of ISO images suitable for burning to CDROM,
+installation floppies, and an FTP install directory.
+This command is aptly named
+.Dq Li "make release" .
+.Pp
+Before attempting to build a release, the user is expected to be
+familiar with the contents of
+.Xr build 7 ,
+and should have experience upgrading systems from source with
+.Dq Li "make world" .
+The release build process requires that
+.Pa /usr/obj
+be populated with the output of
+.Dq Li "make buildworld" .
+This is necessary so that the object files for a complete system can
+be installed into a clean
+.Xr chroot 8
+environment.
+The release procedure also requires that the
+.Xr md 4
+(memory disk) device driver be present in the kernel
+(either by being compiled in or loaded as a module).
+.Pp
+This document does not cover source code management, quality
+assurance, or other aspects of the release engineering process.
+.Sh TARGETS
+The release makefile
+.Pq Pa src/release/Makefile
+is fairly abstruse.
+Most developers will only be concerned with the
+.Cm release
+target.
+.\" XXX: Some sort of introduction to this list?  All the others have one.
+.Bl -tag -width ".Cm rerelease"
+.It Cm release
+Uses
+.Dq Li "make installworld"
+to install a clean system into a
+.Xr chroot 8
+environment on the filesystem.
+Checks out the specified version of the source code and then rebuilds
+the entire system in the clean environment with
+.Dq Li "make world" .
+The detailed steps that follow are then executed to package up the
+different distributions, build the installation floppy disks, build
+release documentation, and so on.
+.It Cm rerelease
+Assumes that the output of a release build has been manually modified,
+and performs the minimal number of steps to rebuild the release using
+the intermediate output of the previous
+.Dq Li "make release" .
+.El
+.Pp
+Targets called by
+.Dq Li "make release" :
+.Bl -tag -width ".Cm release.9"
+.It Cm release.1
+Cleans out the
+.Pa ${CHROOTDIR}/R
+directory and uses
+.Xr mtree 8
+to build the directory hierarchy for the system.
+.It Cm release.2
+Installs the system into the distribution directories.
+.It Cm release.3
+.\" XXX: This should either be "GENERIC kernel" (singular) or
+.\" XXX: "GENERIC and <some other> kernels".
+Makes and installs the
+.Pa GENERIC
+kernel.
+.It Cm release.4
+Uses
+.Xr crunchgen 1
+to build
+.Dq crunched
+binaries to live on the installation floppies.
+.It Cm release.5
+Builds synthetic distributions, and cleans up the previously built
+distribution trees.
+.It Cm release.6
+Creates tarballs of the assembled distribution trees.
+.It Cm release.7
+Makes source distributions.
+.It Cm release.8
+Creates the boot and MFS root floppies.
+.It Cm release.9
+Creates the fixit floppy.
+.It Cm ftp.1
+Sets up a suitable area for FTP installations.
+.It Cm cdrom.1
+Sets up a suitable area to build CDROM images.
+.It Cm iso.1
+Builds two ISO images (installation and
+.Dq live
+filesystem) from the CDROM release area
+(Disabled by default, see
+.Pa MAKE_ISOS
+below).
+.It Cm doc.1
+Builds all of the necessary tools to turn the
+.Fx
+Documentation Project source documents (SGML, XML) into HTML
+and text documents that will accompany the release.
+Also, builds and installs the actual user documentation.
+This includes the Handbook, FAQ, articles, and so on.
+.It Cm doc.2
+Builds the release documentation.
+This includes the release notes,
+hardware guide, and installation instructions.
+.El
+.Sh ENVIRONMENT
+Variables that must be specified:
+.Bl -tag -width ".Va RELEASETAG"
+.It Ev CHROOTDIR
+The directory to be used as the
+.Xr chroot 8
+environment for the entire release build.
+.\" XXX: I recommend against hardcoding specific numbers like "2.3" here;
+.\" XXX: perhaps it should be replaced with something to the effect of
+.\" XXX: "we don't know how much space you'll need, but make sure you have
+.\" XXX: at least 3 GB to be safe" (I know i'm still hardcoding a number,
+.\" XXX: but at least it looks less like a decree and more like an estimate.
+This filesystem should have at least 2.3 gigabytes of free space on the
+i386 architecture.
+.It Ev BUILDNAME
+The name of the release to be built.
+This is used to set the
+.Dv RELEASE
+value in
+.Pa sys/conf/newvers.sh ,
+which affects the output of
+.Xr uname 1 .
+.It Ev CVSROOT
+The location of the
+.Fx
+CVS repository.
+.It Ev RELEASETAG
+The CVS tag corresponding to the release that is to be built.
+If undefined, the release will be built from the
+.Dv HEAD
+of the CVS tree
+(a
+.Dq -CURRENT snapshot ) .
+.El
+.Pp
+Optional variables:
+.Bl -tag -width ".Ev RELEASEDISTFILES"
+.It Ev LOCAL_PATCHES
+A patch file against
+.Pa /usr/src
+that will be applied in the
+.Xr chroot 8
+environment before the release build begins.
+.It Ev PATCH_FLAGS
+Arguments for the
+.Xr patch 1
+command used to apply
+.Ev LOCAL_PATCHES
+patch file.
+.It Ev MAKE_ISOS
+If defined, bootable ISO CDROM images will be created from the
+contents of the CDROM stage directory.
+.It Ev NODOC
+If set to
+.Dq Li YES
+then the documentation will not be built.
+Due to the SGML-based
+toolchain and multiple languages supported by the
+.Fx
+Documentation Project, this may speed up the release build considerably.
+.It Ev NOPORTS
+If set to
+.Dq Li YES
+then the ports tree will be omitted from the release.
+.It Ev RELEASEDISTFILES
+The directory where the distribution files for ports required by the
+release build can be found.
+This may save a significant amount of time over downloading the
+distfiles through a slow link.
+.It Ev RELEASENOUPDATE
+If this variable is defined for
+.Dq Li "make rerelease" ,
+the source code will not be updated with
+.Dq Li "cvs update" .
+.El
+.Sh FILES
+.Bl -tag -compact
+.It Pa /etc/make.conf
+.It Pa /usr/doc/Makefile
+.It Pa /usr/doc/share/mk/doc.project.mk
+.It Pa /usr/ports/Mk/bsd.port.mk
+.It Pa /usr/ports/Mk/bsd.sites.mk
+.It Pa /usr/share/examples/etc/make.conf
+.It Pa /usr/src/Makefile
+.It Pa /usr/src/Makefile.inc1
+.It Pa /usr/src/release/Makefile
+.It Pa /usr/src/release/${arch}/drivers.conf
+.It Pa /usr/src/release/${arch}/boot_crunch.conf
+.It Pa /usr/src/release/${arch}/fixit_crunch.conf
+.El
+.Sh EXAMPLES
+The following sequence of commands was used to build the
+.Fx 4.5
+release:
+.Bd -literal -offset indent
+cd /usr
+cvs co -rRELENG_4_5_0_RELEASE src
+cd src
+make buildworld
+cd release
+make release CHROOTDIR=/local3/release BUILDNAME=4.5-RELEASE \\
+  CVSROOT=/host/cvs/usr/home/ncvs RELEASETAG=RELENG_4_5_0_RELEASE
+.Ed
+.Pp
+After running these commands, a complete system suitable for FTP or
+CDROM distribution is available in the
+.Pa /local3/release/R
+directory.
+.Pp
+The following sequence of commands can be used to build a
+.Dq -CURRENT snapshot
+of a
+locally modified source tree:
+.Bd -literal -offset indent
+cd /usr/src
+cvs diff -u > /path/to/local.patch
+make buildworld
+cd release
+make release CHROOTDIR=/local3/release BUILDNAME=5.0-SNAPSHOT \\
+  CVSROOT=/host/cvs/usr/home/ncvs LOCAL_PATCHES=/path/to/local.patch
+.Ed
+.Sh SEE ALSO
+.Xr cc 1 ,
+.Xr crunchgen 1 ,
+.Xr cvs 1 ,
+.Xr install 1 ,
+.Xr make 1 ,
+.Xr patch 1 ,
+.Xr uname 1 ,
+.Xr md 4 ,
+.Xr make.conf 5 ,
+.Xr build 7 ,
+.Xr ports 7 ,
+.Xr chroot 8 ,
+.Xr mtree 8
+.Rs
+.%T FreeBSD Release Engineering
+.%O http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/
+.Re
+.Rs
+.%T FreeBSD Release Engineering of Third Party Packages
+.%O http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng-packages/
+.Re
+.Rs
+.%T FreeBSD Developers' Handbook
+.%O http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/developers-handbook/
+.Re
+.Sh HISTORY
+.Fx
+1.x
+used a manual checklist, compiled by Rod Grimes, to produce a release.
+Apart from being incomplete, the list put a lot of specific demands on
+available filesystems and was quite torturous to execute.
+.Pp
+As part of the
+.Fx 2.0
+release engineering effort, significant
+effort was spent getting
+.Pa src/release/Makefile
+into a shape where it could at least automate most of the tediousness
+of building a release in a sterile environment.
+.Pp
+With its almost 1000 revisions spread over multiple branches, the 
+.Xr cvs 1
+log of
+.Pa src/release/Makefile
+contains a vivid historical record of some
+of the hardships release engineers go through.
+.Sh AUTHORS
+.Pa src/release/Makefile
+was originally written by 
+.An -nosplit
+.An Rod Grimes ,
+.An Jordan Hubbard ,
+and
+.An Poul-Henning Kamp .
+This manual page was written by
+.An Murray Stokely Aq murray@FreeBSD.org .
