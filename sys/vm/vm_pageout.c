@@ -1111,7 +1111,6 @@ unlock_and_continue:
 		object = m->object;
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 		vm_page_busy(m);
-		pmap_remove_all(m);
 		vm_page_free(m);
 		VM_OBJECT_UNLOCK(object);
 		cnt.v_dfree++;
