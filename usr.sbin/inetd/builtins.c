@@ -238,7 +238,7 @@ daytime_stream(int s, struct servtab *sep __unused)
 /* Discard service -- ignore data */
 /* ARGSUSED */
 void
-discard_dg(int s, struct servtab *sep)
+discard_dg(int s, struct servtab *sep __unused)
 {
 	char buffer[BUFSIZE];
 
@@ -723,7 +723,7 @@ machtime_dg(int s, struct servtab *sep)
 
 /* ARGSUSED */
 void
-machtime_stream(int s, struct servtab *sep)
+machtime_stream(int s, struct servtab *sep __unused)
 {
 	unsigned long result;
 
