@@ -255,10 +255,7 @@ set_charset(struct iso_args *args, const char *localcs)
 	strncpy(args->cs_disk, ENCODING_UNICODE, ICONV_CSNMAXLEN);
 	strncpy(args->cs_local, kiconv_quirkcs(localcs, KICONV_VENDOR_MICSFT),
 	    ICONV_CSNMAXLEN);
-	error = kiconv_add_xlat16_cspair(args->cs_local, args->cs_disk, 0);
-	if (error)
-		return (-1);
-	error = kiconv_add_xlat16_cspair(args->cs_disk, args->cs_local, 0);
+	error = kiconv_add_xlat16_cspairs(args->cs_disk, args->cs_local);
 	if (error)
 		return (-1);
 
