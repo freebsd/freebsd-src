@@ -34,13 +34,13 @@
  * $FreeBSD$
  */
 
-#ifndef _UFS_UFS_UFSMOUNT_H_
-#define _UFS_UFS_UFSMOUNT_H_
+#ifndef _SYS_GNU_EXT2FS_EXT2_MOUNT_H_
+#define _SYS_GNU_EXT2FS_EXT2_MOUNT_H_
 
 /*
- * Arguments to mount UFS-based filesystems
+ * Arguments to mount ext2fs filesystems
  */
-struct ufs_args {
+struct ext2_args {
 	char	*fspec;			/* block special device to mount */
 	struct	export_args export;	/* network export information */
 };
@@ -48,67 +48,27 @@ struct ufs_args {
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_UFSMNT);
+MALLOC_DECLARE(M_EXT2NODE);
 #endif
 
-struct buf;
-struct inode;
-struct nameidata;
-struct timeval;
-struct ucred;
-struct uio;
 struct vnode;
-struct ufs_extattr_per_mount;
 
-/* This structure describes the UFS specific mount structure data. */
-struct ufsmount {
+/* This structure describes the ext2fs specific mount structure data. */
+struct ext2mount {
 	struct	mount *um_mountp;		/* filesystem vfs structure */
 	dev_t	um_dev;				/* device mounted */
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 
-	union {					/* pointer to superblock */
-		struct	fs *fs;			/* FFS */
-		struct	ext2_sb_info *e2fs;	/* EXT2FS */
-	} ufsmount_u;
-#define	um_fs	ufsmount_u.fs
-#define	um_e2fs	ufsmount_u.e2fs
-#define um_e2fsb ufsmount_u.e2fs->s_es
+	struct	ext2_sb_info *um_e2fs;		/* EXT2FS */
+#define em_e2fsb um_e2fs->s_es
 
-	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
-	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
-	struct	ufs_extattr_per_mount um_extattr;	/* extended attrs */
 	u_long	um_nindir;			/* indirect ptrs per block */
 	u_long	um_bptrtodb;			/* indir ptr to disk block */
 	u_long	um_seqinc;			/* inc between seq blocks */
-	time_t	um_btime[MAXQUOTAS];		/* block quota time limit */
-	time_t	um_itime[MAXQUOTAS];		/* inode quota time limit */
-	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
-	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
-	struct malloc_type *um_malloctype;	/* The inodes malloctype */
-	int	um_i_effnlink_valid;		/* i_effnlink valid? */
-	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *, int, struct buf **);
-	int	(*um_blkatoff)(struct vnode *, off_t, char **, struct buf **);
-	int	(*um_truncate)(struct vnode *, off_t, int, struct ucred *, struct thread *);
-	int	(*um_update)(struct vnode *, int);
-	int	(*um_valloc)(struct vnode *, int, struct ucred *, struct vnode **);
-	int	(*um_vfree)(struct vnode *, ino_t, int);
 };
 
-#define UFS_BALLOC(aa, bb, cc, dd, ee, ff) VFSTOUFS((aa)->v_mount)->um_balloc(aa, bb, cc, dd, ee, ff)
-#define UFS_BLKATOFF(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_blkatoff(aa, bb, cc, dd)
-#define UFS_TRUNCATE(aa, bb, cc, dd, ee) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd, ee)
-#define UFS_UPDATE(aa, bb) VFSTOUFS((aa)->v_mount)->um_update(aa, bb)
-#define UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
-#define UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
-
-/*
- * Flags describing the state of quotas.
- */
-#define	QTF_OPENING	0x01			/* Q_QUOTAON in progress */
-#define	QTF_CLOSING	0x02			/* Q_QUOTAOFF in progress */
-
-/* Convert mount ptr to ufsmount ptr. */
-#define VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))
+/* Convert mount ptr to ext2fsmount ptr. */
+#define VFSTOEXT2(mp)	((struct ext2mount *)((mp)->mnt_data))
 
 /*
  * Macros to access file system parameters in the ufsmount structure.
