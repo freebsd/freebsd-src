@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
@@ -57,9 +57,9 @@ int main(argc, argv)
 	struct tm local, utc;
 	struct timeval tv, *stv;
 	struct timezone tz, *stz;
-	/* Avoid time_t here, can be unsigned long */
+	/* Avoid time_t here, can be unsigned long or worse */
 	long offset, oldoffset, utcsec, localsec, diff;
-	time_t final_sec;
+	time_t initial_sec, final_sec;
 	int ch, init = -1, verbose = 0;
 	FILE *f;
 
@@ -99,7 +99,8 @@ int main(argc, argv)
 			return 1;
 		}
 		if (fscanf(f, "%ld", &oldoffset) != 1) {
-			fprintf(stderr, "Incorrect offset in %s\n", storage);
+			fprintf(stderr, "Misformatted offset in %s\n",
+				storage);
 			return 1;
 		}
 		(void) fclose(f);
@@ -116,8 +117,9 @@ int main(argc, argv)
 	}
 
 	/* get the actual local timezone difference */
-	local = *localtime(&tv.tv_sec);
-	utc = *gmtime(&tv.tv_sec);
+	initial_sec = tv.tv_sec;
+	local = *localtime(&initial_sec);
+	utc = *gmtime(&initial_sec);
 	utc.tm_isdst = local.tm_isdst; /* Use current timezone for mktime(), */
 				       /* because it assumed local time */
 
@@ -126,7 +128,13 @@ int main(argc, argv)
 	utcsec = mktime(&utc);
 	localsec = mktime(&local);
 	if (utcsec == -1 || localsec == -1) {
-		fprintf(stderr, "Wrong initial hour to call\n");
+		/*
+		 * XXX user can only control local time, and it is
+		 * unacceptable to fail here for -i.  2:30 am in the
+		 * middle of the nonexistent hour means 3:30 am.
+		 */
+		fprintf(stderr,
+			"Nonexistent local time - try again in an hour\n");
 		return 1;
 	}
 	offset = utcsec - localsec;
@@ -151,7 +159,12 @@ int main(argc, argv)
 		utcsec = mktime(&utc);
 		localsec = mktime(&local);
 		if (utcsec == -1 || localsec == -1) {
-			fprintf(stderr, "Wrong final hour to call\n");
+			/*
+			 * XXX as above.  The user has even less control,
+			 * but perhaps we never get here.
+			 */
+			fprintf(stderr,
+		"Nonexistent (final) local time - try again in an hour\n");
 			return 1;
 		}
 		offset = utcsec - localsec;
@@ -189,7 +202,8 @@ int main(argc, argv)
 /****** End of critical section ******/
 
 	if (verbose)
-		printf("Calculated zone offset diffs: %ld seconds\n", diff);
+		printf("Calculated zone offset difference: %ld seconds\n",
+		       diff);
 
 	if (offset != oldoffset) {
 		(void) umask(022);
