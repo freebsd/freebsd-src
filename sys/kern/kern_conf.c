@@ -365,7 +365,7 @@ prep_cdevsw(struct cdevsw *devsw)
 
 	dev_lock();
 
-	if (devsw->d_version != D_VERSION_00) {
+	if (devsw->d_version != D_VERSION_01) {
 		printf(
 		    "WARNING: Device driver \"%s\" has wrong version %s\n",
 		    devsw->d_name, "and is disabled.  Recompile KLD module.");
@@ -419,8 +419,15 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 	KASSERT((minornr & ~MAXMINOR) == 0,
 	    ("Invalid minor (0x%x) in make_dev", minornr));
 
-	if (!(devsw->d_flags & D_INIT))
+	if (!(devsw->d_flags & D_INIT)) {
 		prep_cdevsw(devsw);
+		if (devsw->d_uid == 0)
+			devsw->d_uid = uid;
+		if (devsw->d_gid == 0)
+			devsw->d_gid = gid;
+		if (devsw->d_mode == 0)
+			devsw->d_mode = perms;
+	}
 	dev = allocdev();
 	dev_lock();
 	dev = newdev(devsw->d_maj, minornr, dev);
@@ -448,9 +455,6 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 	va_end(ap);
 		
 	dev->si_devsw = devsw;
-	dev->si_uid = uid;
-	dev->si_gid = gid;
-	dev->si_mode = perms;
 	dev->si_flags |= SI_NAMED;
 
 	LIST_INSERT_HEAD(&devsw->d_devs, dev, si_list);
