@@ -5,11 +5,13 @@ PROG=	rshd
 SRCS=	rshd.c
 MAN8=	rshd.8
 
-.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
-CFLAGS+=-DKERBEROS -DCRYPT
-DPADD=	${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}
-LDADD=	-lkrb -ldes -lcrypt -lcom_err
-DISTRIBUTION=	krb
+.if defined(NOPAM)
+CFLAGS+= -DNO_PAM
+.else
+#CFLAGS+= -DCRYPT
+SRCS+=	auth_pam.c
+DPADD+= ${LIBPAM}
+LDADD+= ${MINUSLPAM}
 .endif
 
 # For login_cap handling
@@ -18,3 +20,5 @@ DPADD+=	${LIBUTIL}
 LDADD+= -lutil
 
 .include <bsd.prog.mk>
+
+.PATH:	${.CURDIR}/../rlogind
