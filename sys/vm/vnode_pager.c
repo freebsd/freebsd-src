@@ -823,7 +823,10 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	cnt.v_vnodepgsin += count;
 
 	/* do the input */
-	VOP_SPECSTRATEGY(bp->b_vp, bp);
+	if (dp->v_type == VCHR)
+		VOP_SPECSTRATEGY(bp->b_vp, bp);
+	else
+		VOP_STRATEGY(bp->b_vp, bp);
 
 	s = splvm();
 	/* we definitely need to be at splvm here */
