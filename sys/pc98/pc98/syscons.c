@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.62 1997/11/07 12:54:00 kato Exp $
+ *  $Id: syscons.c,v 1.63 1997/11/25 09:51:43 kato Exp $
  */
 
 #include "sc.h"
@@ -1063,7 +1063,7 @@ int
 scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
     int error;
-    u_int i;
+    u_int i = 0;
     struct tty *tp;
     scr_stat *scp;
     u_short *usp;
@@ -1688,6 +1688,13 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		    copy_font(LOAD, FONT_16, font_16);
 		load_palette(palette);
 	    }
+
+	    /* move hardware cursor out of the way */
+	    outb(crtc_addr, 14);
+	    outb(crtc_addr + 1, 0xff);
+	    outb(crtc_addr, 15);
+	    outb(crtc_addr + 1, 0xff);
+
 	    /* FALL THROUGH */
 #endif
 	case KD_TEXT1:  	/* switch to TEXT (known) mode */
