@@ -68,13 +68,14 @@ MALLOC_DEFINE(M_NTFSDIR,"NTFS dir",  "NTFS dir buffer");
 struct sockaddr;
 
 static int	ntfs_mountfs(register struct vnode *, struct mount *, 
-				  struct ntfs_args *, struct thread *);
+				  struct thread *);
 
 static vfs_init_t       ntfs_init;
 static vfs_uninit_t     ntfs_uninit;
 static vfs_vget_t       ntfs_vget;
 static vfs_fhtovp_t     ntfs_fhtovp;
-static vfs_omount_t     ntfs_omount;
+static vfs_cmount_t     ntfs_cmount;
+static vfs_mount_t      ntfs_mount;
 static vfs_root_t       ntfs_root;
 static vfs_statfs_t     ntfs_statfs;
 static vfs_unmount_t    ntfs_unmount;
@@ -99,28 +100,57 @@ ntfs_uninit (
 }
 
 static int
-ntfs_omount ( 
-	struct mount *mp,
-	char *path,
-	caddr_t data,
+ntfs_cmount ( 
+	struct mntarg *ma,
+	void *data,
+	int flags,
 	struct thread *td )
 {
-	size_t		size;
-	int		err = 0;
-	struct vnode	*devvp;
+	int error;
 	struct ntfs_args args;
+
+	error = copyin(data, (caddr_t)&args, sizeof args);
+	if (error)
+		return (error);
+	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
+	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_argf(ma, "uid", "%d", args.uid);
+	ma = mount_argf(ma, "gid", "%d", args.gid);
+	ma = mount_argf(ma, "mode", "%d", args.mode);
+	ma = mount_argb(ma, args.flag & NTFS_MFLAG_CASEINS, "nocaseins");
+	ma = mount_argb(ma, args.flag & NTFS_MFLAG_ALLNAMES, "noallnames");
+	if (args.flag & NTFS_MFLAG_KICONV) {
+		ma = mount_argsu(ma, "cs_ntfs", args.cs_ntfs, 64);
+		ma = mount_argsu(ma, "cs_local", args.cs_local, 64);
+	}
+
+	error = kernel_mount(ma, flags);
+
+	return (error);
+}
+
+static const char *ntfs_opts[] = {
+	"from", "export", "uid", "gid", "mode", "caseins", "allnames",
+	"kiconv", "cs_ntfs", "cs_local", NULL
+};
+
+static int
+ntfs_mount ( 
+	struct mount *mp,
+	struct thread *td )
+{
+	int		err = 0, error;
+	struct vnode	*devvp;
 	struct nameidata ndp;
+	char *from;
+	struct export_args export;
 
-	/*
-	 ***
-	 * Mounting non-root filesystem or updating a filesystem
-	 ***
-	 */
+	if (vfs_filteropt(mp->mnt_optnew, ntfs_opts))
+		return (EINVAL);
 
-	/* copy in user arguments*/
-	err = copyin(data, (caddr_t)&args, sizeof (struct ntfs_args));
-	if (err)
-		goto error_1;		/* can't get arguments*/
+	from = vfs_getopts(mp->mnt_optnew, "from", &error);
+	if (error)	
+		return (error);
 
 	/*
 	 * If updating, check whether changing from read-only to
@@ -128,12 +158,16 @@ ntfs_omount (
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		/* if not updating name...*/
-		if (args.fspec == 0) {
+		if (from == NULL) {
+			error = vfs_copyopt(mp->mnt_optnew, "export",	
+			    &export, sizeof export);
+			if (error) 
+				return (error);
 			/*
 			 * Process export requests.  Jumping to "success"
 			 * will return the vfs_export() error code.
 			 */
-			err = vfs_export(mp, &args.export);
+			err = vfs_export(mp, &export);
 			goto success;
 		}
 
@@ -146,7 +180,7 @@ ntfs_omount (
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, from, td);
 	err = namei(&ndp);
 	if (err) {
 		/* can't get devvp!*/
@@ -169,17 +203,6 @@ ntfs_omount (
 			err = EINVAL;	/* needs translation */
 		else
 			vrele(devvp);
-		/*
-		 * Update device name only on success
-		 */
-		if( !err) {
-			/* Save "mounted from" info for mount point (NULL pad)*/
-			copyinstr(	args.fspec,
-					mp->mnt_stat.f_mntfromname,
-					MNAMELEN - 1,
-					&size);
-			bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-		}
 #endif
 	} else {
 		/*
@@ -198,25 +221,13 @@ ntfs_omount (
 		 * to something other than "path" for some rason.
 		 */
 		/* Save "mounted from" info for mount point (NULL pad)*/
-		copyinstr(	args.fspec,			/* device name*/
-				mp->mnt_stat.f_mntfromname,	/* save area*/
-				MNAMELEN - 1,			/* max size*/
-				&size);				/* real size*/
-		bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+		vfs_mountedfrom(mp, from);
 
-		err = ntfs_mountfs(devvp, mp, &args, td);
+		err = ntfs_mountfs(devvp, mp, td);
 	}
 	if (err) {
 		goto error_2;
 	}
-
-	/*
-	 * Initialize FS stat information in mount struct; uses both
-	 * mp->mnt_stat.f_mntonname and mp->mnt_stat.f_mntfromname
-	 *
-	 * This code is common to root and non-root mounts
-	 */
-	(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 
 	goto success;
 
@@ -237,18 +248,18 @@ success:
  * Common code for mount and mountroot
  */
 int
-ntfs_mountfs(devvp, mp, argsp, td)
+ntfs_mountfs(devvp, mp, td)
 	register struct vnode *devvp;
 	struct mount *mp;
-	struct ntfs_args *argsp;
 	struct thread *td;
 {
 	struct buf *bp;
 	struct ntfsmount *ntmp;
 	struct cdev *dev = devvp->v_rdev;
-	int error, ronly, i;
+	int error, ronly, i, v;
 	struct vnode *vp;
 	struct g_consumer *cp;
+	char *cs_ntfs, *cs_local;
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -300,22 +311,29 @@ ntfs_mountfs(devvp, mp, argsp, td)
 
 	ntmp->ntm_mountp = mp;
 	ntmp->ntm_devvp = devvp;
-	ntmp->ntm_uid = argsp->uid;
-	ntmp->ntm_gid = argsp->gid;
-	ntmp->ntm_mode = argsp->mode;
-	ntmp->ntm_flag = argsp->flag;
+	if (1 == vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v))
+		ntmp->ntm_uid = v;
+	if (1 == vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v))
+		ntmp->ntm_gid = v;
+	if (1 == vfs_scanopt(mp->mnt_optnew, "mode", "%d", &v))
+		ntmp->ntm_mode = v;
+	vfs_flagopt(mp->mnt_optnew,
+	    "caseins", &ntmp->ntm_flag, NTFS_MFLAG_CASEINS);
+	vfs_flagopt(mp->mnt_optnew,
+	    "allnames", &ntmp->ntm_flag, NTFS_MFLAG_ALLNAMES);
 	ntmp->ntm_cp = cp;
 	ntmp->ntm_bo = &devvp->v_bufobj;
 
+	cs_local = vfs_getopts(mp->mnt_optnew, "cs_local", &error);
+	if (error)
+		goto out;
+	cs_ntfs = vfs_getopts(mp->mnt_optnew, "cs_ntfs", &error);
+	if (error)
+		goto out;
 	/* Copy in the 8-bit to Unicode conversion table */
 	/* Initialize Unicode to 8-bit table from 8toU table */
-	if (argsp->flag & NTFS_MFLAG_KICONV) {
-		ntfs_82u_init(ntmp, argsp->cs_local, argsp->cs_ntfs);
-		ntfs_u28_init(ntmp, NULL, argsp->cs_local, argsp->cs_ntfs);
-	} else {
-		ntfs_82u_init(ntmp, NULL, NULL);
-		ntfs_u28_init(ntmp, ntmp->ntm_82u, NULL, NULL);
-	}
+	ntfs_82u_init(ntmp, cs_local, cs_ntfs);
+	ntfs_u28_init(ntmp, NULL, cs_local, cs_ntfs);
 
 	mp->mnt_data = (qaddr_t)ntmp;
 
@@ -735,7 +753,8 @@ ntfs_vget(
 static struct vfsops ntfs_vfsops = {
 	.vfs_fhtovp =	ntfs_fhtovp,
 	.vfs_init =	ntfs_init,
-	.vfs_omount =	ntfs_omount,
+	.vfs_cmount =	ntfs_cmount,
+	.vfs_mount =	ntfs_mount,
 	.vfs_root =	ntfs_root,
 	.vfs_statfs =	ntfs_statfs,
 	.vfs_uninit =	ntfs_uninit,
