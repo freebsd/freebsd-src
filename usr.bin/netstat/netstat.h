@@ -78,11 +78,9 @@ void	ip6_stats __P((u_long, char *));
 void	ip6_ifstats __P((char *));
 void	icmp6_stats __P((u_long, char *));
 void	icmp6_ifstats __P((char *));
-#ifdef notyet
 void	pim6_stats __P((u_long, char *));
 void	mroute6pr __P((u_long, u_long));
 void	mrt6_stats __P((u_long));
-#endif
 #endif /*INET6*/
 
 void	bdg_stats __P((u_long, char *));
