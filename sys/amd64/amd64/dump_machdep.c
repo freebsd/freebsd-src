@@ -44,6 +44,8 @@
 #include <vm/pmap.h>
 #include <machine/md_var.h>
 
+CTASSERT(sizeof(struct kerneldumpheader) == 512);
+
 static struct kerneldumpheader kdh;
 
 void
@@ -57,21 +59,14 @@ dumpsys(struct dumperinfo *di)
 
 	printf("Dumping %u MB\n", Maxmem / (1024*1024 / PAGE_SIZE));
 
-	if (sizeof kdh != 512) {
-		printf(
-		    "Compiled struct kerneldumpheader is %d, not %d bytes\n",
-		    sizeof kdh, 512);
-		return;
-	}
-
 	/* Fill in the kernel dump header */
 	strcpy(kdh.magic, KERNELDUMPMAGIC);
 	strcpy(kdh.architecture, "i386");
-	kdh.version = KERNELDUMPVERSION;
-	kdh.architectureversion = KERNELDUMP_I386_VERSION;
-	kdh.dumplength = Maxmem * (off_t)PAGE_SIZE;
-	kdh.blocksize = di->blocksize;
-	kdh.dumptime = time_second;
+	kdh.version = htod32(KERNELDUMPVERSION);
+	kdh.architectureversion = htod32(KERNELDUMP_I386_VERSION);
+	kdh.dumplength = htod64(Maxmem * (off_t)PAGE_SIZE);
+	kdh.dumptime = htod64(time_second);
+	kdh.blocksize = htod32(di->blocksize);
 	strncpy(kdh.hostname, hostname, sizeof kdh.hostname);
 	strncpy(kdh.versionstring, version, sizeof kdh.versionstring);
 	if (panicstr != NULL)

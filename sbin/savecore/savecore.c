@@ -48,24 +48,28 @@
 #include <sys/kerneldump.h>
 
 static void
-printheader(FILE *f, const struct kerneldumpheader *h, const char *devname, const char *md5)
+printheader(FILE *f, const struct kerneldumpheader *h, const char *devname,
+    const char *md5)
 {
+	uint64_t dumplen;
 	time_t t;
 
 	fprintf(f, "Good dump found on device %s\n", devname);
 	fprintf(f, "  Architecture: %s\n", h->architecture);
-	fprintf(f, "  Architecture version: %d\n", h->architectureversion);
-	fprintf(f, "  Dump length: %lldB (%lld MB)\n", 
-	    (long long)h->dumplength, (long long)h->dumplength / (1024 * 1024));
-	fprintf(f, "  Blocksize: %d\n", h->blocksize);
-	t = h->dumptime;
+	fprintf(f, "  Architecture version: %d\n",
+	    dtoh32(h->architectureversion));
+	dumplen = dtoh64(h->dumplength);
+	fprintf(f, "  Dump length: %lldB (%lld MB)\n", (long long)dumplen,
+	    (long long)(dumplen >> 20));
+	fprintf(f, "  Blocksize: %d\n", dtoh32(h->blocksize));
+	t = dtoh64(h->dumptime);
 	fprintf(f, "  Dumptime: %s", ctime(&t));
 	fprintf(f, "  Hostname: %s\n", h->hostname);
 	fprintf(f, "  Versionstring: %s", h->versionstring);
 	fprintf(f, "  Panicstring: %s\n", h->panicstring);
 	fprintf(f, "  MD5: %s\n", md5);
 }
-		
+
 
 static void
 DoFile(const char *devname)
@@ -109,12 +113,13 @@ DoFile(const char *devname)
 		warnx("Magic mismatch on last dump header on %s\n", devname);
 		return;
 	}
-	if (kdhl.version != KERNELDUMPVERSION) {
+	if (dtoh32(kdhl.version) != KERNELDUMPVERSION) {
 		warnx("Unknown version (%d) in last dump header on %s\n",
-		    kdhl.version, devname);
+		    dtoh32(kdhl.version), devname);
 		return;
 	}
-	firsthd = lasthd - kdhl.dumplength - sizeof kdhf;
+	dumpsize = dtoh64(kdhl.dumplength);
+	firsthd = lasthd - dumpsize - sizeof kdhf;
 	lseek(fd, firsthd, SEEK_SET);
 	error = read(fd, &kdhf, sizeof kdhf);
 	if (error != sizeof kdhf) {
@@ -146,7 +151,6 @@ DoFile(const char *devname)
 	info = fdopen(fdinfo, "w");
 	printheader(stdout, &kdhl, devname, md5);
 	printheader(info, &kdhl, devname, md5);
-	dumpsize = kdhl.dumplength;
 	printf("Saving dump to file...\n");
 	while (dumpsize > 0) {
 		wl = sizeof(buf);
