@@ -148,8 +148,8 @@ static void movefile(char *from, char *to, int perm, uid_t owner_uid,
 		gid_t group_gid);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
-static time_t parse8601(char *s, char *errline);
-static time_t parseDWM(char *s, char *errline);
+static time_t parse8601(char *s);
+static time_t parseDWM(char *s);
 
 /*
  * All the following are defined to work on an 'int', in the
@@ -984,15 +984,18 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			    *ep != '$')
 				errx(1, "malformed interval/at:\n%s", errline);
 			if (*ep == '@') {
-				if ((working->trim_at = parse8601(ep + 1, errline))
-				    == (time_t) - 1)
-					errx(1, "malformed at:\n%s", errline);
+				working->trim_at = parse8601(ep + 1);
 				working->flags |= CE_TRIMAT;
 			} else if (*ep == '$') {
-				if ((working->trim_at = parseDWM(ep + 1, errline))
-				    == (time_t) - 1)
-					errx(1, "malformed at:\n%s", errline);
+				working->trim_at = parseDWM(ep + 1);
 				working->flags |= CE_TRIMAT;
+			}
+			if (ent->flags & CE_TRIMAT) {
+				if (working->trim_at == (time_t)-1)
+					errx(1, "malformed at:\n%s", errline);
+				if (working->trim_at == (time_t)-2)
+					errx(1, "nonexistent time:\n%s",
+					    errline);
 			}
 		}
 
@@ -1729,7 +1732,7 @@ createlog(const struct conf_entry *ent)
  * are defaulted to the current date but time zero.
  */
 static time_t
-parse8601(char *s, char *errline)
+parse8601(char *s)
 {
 	char *t;
 	time_t tsecs;
@@ -1800,8 +1803,14 @@ parse8601(char *s, char *errline)
 		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
 			return (-1);
 	}
-	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline);
+
+	tsecs = mktime(&tm);
+	/*
+	 * Check for invalid times, including things like the missing
+	 * hour when switching from "daylight savings" to "standard".
+	 */
+	if (tsecs == (time_t)-1)
+		tsecs = (time_t)-2;
 	return (tsecs);
 }
 
@@ -1820,7 +1829,7 @@ parse8601(char *s, char *errline)
  * are defaulted to the current date but time zero.
  */
 static time_t
-parseDWM(char *s, char *errline)
+parseDWM(char *s)
 {
 	char *t;
 	time_t tsecs;
@@ -1917,7 +1926,13 @@ parseDWM(char *s, char *errline)
 		else
 			s = t;
 	}
-	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline);
+
+	tsecs = mktime(&tm);
+	/*
+	 * Check for invalid times, including things like the missing
+	 * hour when switching from "daylight savings" to "standard".
+	 */
+	if (tsecs == (time_t)-1)
+		tsecs = (time_t)-2;
 	return (tsecs);
 }
