@@ -636,6 +636,14 @@ static void nge_miibus_statchg(dev)
 		NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
 	}
 
+	/* If we have a 1000Mbps link, set the mode_1000 bit. */
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX ||
+	    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) {
+		NGE_SETBIT(sc, NGE_CFG, NGE_CFG_MODE_1000);
+	} else {
+		NGE_CLRBIT(sc, NGE_CFG, NGE_CFG_MODE_1000);
+	}
+
 	return;
 }
 
@@ -1774,7 +1782,7 @@ static void nge_init(xsc)
 	 * extsts field in the DMA descriptors (needed for
 	 * TCP/IP checksum offload on transmit).
 	 */
-	NGE_SETBIT(sc, NGE_CFG, NGE_CFG_PHYINTR_SPD|NGE_CFG_MODE_1000|
+	NGE_SETBIT(sc, NGE_CFG, NGE_CFG_PHYINTR_SPD|
 	    NGE_CFG_PHYINTR_LNK|NGE_CFG_PHYINTR_DUP|NGE_CFG_EXTSTS_ENB);
 
 	/*
