@@ -110,7 +110,7 @@ read_random_phony(void *buf, int count)
 		srandom((u_long)get_cyclecount());
 
 	/* Fill buf[] with random(9) output */
-	for (i = 0; i < count; i+= (size_t)sizeof(u_long)) {
+	for (i = 0; i < count; i+= (int)sizeof(u_long)) {
 		randval = random();
 		size = (count - i) < (int)sizeof(u_long)
 		    ? (count - i)
