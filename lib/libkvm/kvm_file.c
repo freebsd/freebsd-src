@@ -122,7 +122,8 @@ kvm_getfiles(kd, op, arg, cnt)
 	int op, arg;
 	int *cnt;
 {
-	int mib[2], size, st, nfiles;
+	int mib[2], st, nfiles;
+	size_t size;
 	struct file *fp, *fplim;
 	struct filelist filehead;
 
