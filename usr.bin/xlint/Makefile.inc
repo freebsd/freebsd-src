@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile.inc,v 1.8 2002/02/04 00:18:32 thorpej Exp $
 # $FreeBSD$
 
-WARNS=		0
+WARNS?=		0
 
 .PATH:		${.CURDIR}/../common
 

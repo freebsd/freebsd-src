@@ -32,6 +32,6 @@ LDADD=	-lipx
 
 CFLAGS+=-DNS -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings \
 	-Wnested-externs -I..
-WARNS=	0
+WARNS?=	0
 
 .include <bsd.prog.mk>

@@ -3,7 +3,7 @@
 
 PROG=	bdes
 
-WARNS=	2
+WARNS?=	2
 
 DPADD=	${LIBCRYPTO}
 LDADD=	-lcrypto

@@ -6,7 +6,7 @@ MAN=	route.8
 SRCS=	route.c keywords.h
 CFLAGS+=-I. -Wall -DNS
 CFLAGS+=-DINET6
-WARNS=	0
+WARNS?=	0
 CLEANFILES+=keywords.h _keywords.tmp
 
 keywords.h: keywords

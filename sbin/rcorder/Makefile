@@ -8,7 +8,7 @@ MAN=	rcorder.8
 LDADD=	-lutil
 DPADD=	${LIBUTIL}
 
-WARNS=	0
+WARNS?=	0
 # XXX hack for make's hash.[ch]
 CFLAGS+= -DORDER -I.
 
