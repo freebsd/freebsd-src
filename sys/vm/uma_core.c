@@ -821,6 +821,9 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
  * Returns:
  *	A pointer to the alloced memory or possibly 
  *	NULL if M_NOWAIT is set.
+ *
+ * TODO: If we fail during a multi-page allocation release the pages that have
+ *	 already been allocated.
  */
 static void *
 obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
