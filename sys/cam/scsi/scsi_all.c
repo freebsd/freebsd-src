@@ -2531,6 +2531,13 @@ scsi_inquiry(struct ccb_scsiio *csio, u_int32_t retries,
 		scsi_cmd->byte2 |= SI_EVPD;
 		scsi_cmd->page_code = page_code;		
 	}
+	/*
+	 * A 'transfer units' count of 256 is coded as
+	 * zero for all commands with a single byte count
+	 * field. 
+	 */
+	if (inq_len == 256)
+		inq_len = 0;
 	scsi_cmd->length = inq_len;
 }
 
