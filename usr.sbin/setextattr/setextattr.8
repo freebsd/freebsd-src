@@ -57,15 +57,19 @@ and appropriate privilege may be required.
 .Pp
 .Dl # setextattr md5 /kernel `md5 -q /kernel`
 .Pp
-Set the ``md5'' extended attribute on the file /kernel to the string
-containing the output of ``md5 -q /kernel''.
+Set the
+.Dq md5
+extended attribute on the file /kernel to the string
+containing the output of
+.Dq md5 -q /kernel .
 .Sh SEE ALSO
 .Xr extattrctl 8 ,
 .Xr getextattr 8 ,
 .Xr extattr 9
 .Sh HISTORY
 Extended attribute support was developed as part of the TrustedBSD Project,
-and introduced in FreeBSD 5.0.
+and introduced in
+.Fx 5.0 .
 It was developed to support security extensions requiring additional labels
 to be associated with each file or directory.
 .Sh AUTHORS
