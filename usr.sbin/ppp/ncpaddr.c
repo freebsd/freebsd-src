@@ -718,7 +718,7 @@ ncprange_getsa(const struct ncprange *range, struct sockaddr_storage *host,
     if (mask4) {
       mask4->sin_family = AF_INET;
       mask4->sin_len = sizeof(*host4);
-      mask4->sin_addr = bits2mask4(range->ncprange_ip4width);
+      mask4->sin_addr = range->ncprange_ip4mask;
     }
     break;
 
@@ -933,14 +933,13 @@ ncprange_aton(struct ncprange *range, struct ncp *ncp, const char *data)
     if (range->ncprange_ip4addr.s_addr == INADDR_ANY) {
       range->ncprange_ip4mask.s_addr = INADDR_ANY;
       range->ncprange_ip4width = 0;
-    } else if (data[len] == '\0') {
+    } else if (bits == -1) {
       range->ncprange_ip4mask.s_addr = INADDR_BROADCAST;
       range->ncprange_ip4width = 32;
+    } else if (bits > 32) {
+      log_Printf(LogWARN, "ncprange_aton: bad mask width.\n");
+      return 0;
     } else {
-      if (bits > 32) {
-        log_Printf(LogWARN, "ncprange_aton: bad mask width.\n");
-        return 0;
-      }
       range->ncprange_ip4mask = bits2mask4(bits);
       range->ncprange_ip4width = bits;
     }
