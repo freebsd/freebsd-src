@@ -1396,12 +1396,12 @@ config_plex(int update)
 	sprintf(plexsuffix, ".p%d", pindex);		    /* form the suffix */
 	strcat(plex->name, plexsuffix);			    /* and add it to the name */
     }
-    if (isparity(plex)) {
+    if (isstriped (plex)) {
 	plex->lock = (struct rangelock *)
 	    Malloc(PLEX_LOCKS * sizeof(struct rangelock));
 	CHECKALLOC(plex->lock, "vinum: Can't allocate lock table\n");
 	bzero((char *) plex->lock, PLEX_LOCKS * sizeof(struct rangelock));
-	mtx_init(&plex->lockmtx, plex->name, MTX_DEF);
+        mtx_init(&plex->lockmtx, plex->name, MTX_DEF);
     }
     /* Note the last plex we configured */
     current_plex = plexno;
@@ -1784,7 +1784,7 @@ remove_plex_entry(int plexno, int force, int recurse)
 	}
     }
     log(LOG_INFO, "vinum: removing %s\n", plex->name);
-    if (isparity(plex))
+    if (isstriped(plex))
 	mtx_destroy(&plex->lockmtx);
     free_plex(plexno);
     vinum_conf.plexes_used--;				    /* one less plex */
