@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile,v 1.2 1995/07/03 21:25:05 cgd Exp $
 
 #LIBS=	llib-lposix.ln llib-lstdc.ln
-LIBS=	llib-lc.ln
+LIBS=	llib-lstdc.ln
 
 all:	${LIBS}
 
@@ -15,7 +15,7 @@ clean cleanall:
 llib-lposix.ln: llib-lposix
 	lint -Cposix ${.ALLSRC}
 
-llib-lc.ln: llib-lc
+llib-lstdc.ln: llib-lstdc
 	lint -Cc ${.ALLSRC}
 
 .include <bsd.prog.mk>
