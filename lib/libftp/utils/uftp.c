@@ -241,7 +241,7 @@ execute (char *cmd)
   if ( *cmd == '!' ) 
     {
       int pid,_pid;
-      union wait status;
+      int status;
       
       if (!(pid=fork()))
 	{
