@@ -47,7 +47,6 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 	struct __sFILEX ext;
 	mbstate_t mbs;
 	char *mbp;
-	size_t mbresult;
 	int ret, sverrno;
 
 	if (n == 0) {
