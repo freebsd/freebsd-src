@@ -44,11 +44,11 @@
 .Nd nodename-to-address translation in protocol-independent manner
 .\"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <netdb.h>
 .Ft int
-.Fn getaddrinfo "const char *nodename" "const char *servname" \
-"const struct addrinfo *hints" "struct addrinfo **res"
+.Fn getaddrinfo "const char *nodename" "const char *servname" "const struct addrinfo *hints" "struct addrinfo **res"
 .Ft void
 .Fn freeaddrinfo "struct addrinfo *ai"
 .Ft "char *"

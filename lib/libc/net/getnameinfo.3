@@ -42,11 +42,11 @@
 .Nd address-to-nodename translation in protocol-independent manner
 .\"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <netdb.h>
 .Ft int
-.Fn getnameinfo "const struct sockaddr *sa" "socklen_t salen" \
-"char *host" "size_t hostlen" "char *serv" "size_t servlen" "int flags"
+.Fn getnameinfo "const struct sockaddr *sa" "socklen_t salen" "char *host" "size_t hostlen" "char *serv" "size_t servlen" "int flags"
 .\"
 .Sh DESCRIPTION
 The
