@@ -210,10 +210,10 @@ stricoll(s1, s2)
 	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
 
 	for (p = line1; *s1; s1++)
-		*p++ = toupper((unsigned char)*s1);
+		*p++ = tolower((unsigned char)*s1);
 	*p = '\0';
 	for (p = line2; *s2; s2++)
-		*p++ = toupper((unsigned char)*s2);
+		*p++ = tolower((unsigned char)*s2);
 	*p = '\0';
 	return strcoll(s1, s2);
 }
