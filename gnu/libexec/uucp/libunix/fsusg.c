@@ -24,8 +24,13 @@
 #include "fsusg.h"
 
 #if STAT_STATFS2_BSIZE
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#include <sys/mount.h>
+#else
 #ifndef _IBMR2			/* 4.3BSD, SunOS 4, HP-UX, AIX PS/2.  */
 #include <sys/vfs.h>
+#endif
 #endif
 #endif
 
