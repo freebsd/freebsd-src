@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_periph.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -1422,9 +1422,15 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		break;
 	case CAM_SEL_TIMEOUT:
 	{
+		/*
+		 * XXX
+		 * A single selection timeout should not be enough
+		 * to invalidate a device.  We should retry for multiple
+		 * seconds assuming this isn't a probe.  We'll probably
+		 * need a special flag for that.
+		 */
+#if 0
 		struct cam_path *newpath;
-
-		error = ENXIO;
 
 		/* Should we do more if we can't create the path?? */
 		if (xpt_create_path(&newpath, xpt_path_periph(ccb->ccb_h.path),
@@ -1438,7 +1444,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 */
 		xpt_async(AC_LOST_DEVICE, newpath, NULL);
 		xpt_free_path(newpath);
-
+#endif
+		error = ENXIO;
 		break;
 	}
 	case CAM_REQ_INVALID:
