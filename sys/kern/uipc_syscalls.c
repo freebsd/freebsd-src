@@ -255,7 +255,7 @@ accept1(td, uap, compat)
 	struct file *nfp = NULL;
 	struct sockaddr *sa;
 	socklen_t namelen;
-	int error, s;
+	int error;
 	struct socket *head, *so;
 	int fd;
 	u_int fflag;
@@ -266,20 +266,25 @@ accept1(td, uap, compat)
 	if (uap->name) {
 		error = copyin(uap->anamelen, &namelen, sizeof (namelen));
 		if(error)
-			goto done3;
-		if (namelen < 0) {
-			error = EINVAL;
-			goto done3;
-		}
+			return (error);
+		if (namelen < 0)
+			return (EINVAL);
 	}
 	NET_LOCK_GIANT();
 	error = fgetsock(td, uap->s, &head, &fflag);
 	if (error)
 		goto done2;
-	s = splnet();
 	if ((head->so_options & SO_ACCEPTCONN) == 0) {
-		splx(s);
 		error = EINVAL;
+		goto done;
+	}
+	error = falloc(td, &nfp, &fd);
+	if (error)
+		goto done;
+	ACCEPT_LOCK();
+	if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->so_comp)) {
+		ACCEPT_UNLOCK();
+		error = EWOULDBLOCK;
 		goto done;
 	}
 	while (TAILQ_EMPTY(&head->so_comp) && head->so_error == 0) {
@@ -287,63 +292,43 @@ accept1(td, uap, compat)
 			head->so_error = ECONNABORTED;
 			break;
 		}
-		if ((head->so_state & SS_NBIO) != 0) {
-			head->so_error = EWOULDBLOCK;
-			break;
-		}
-		error = tsleep(&head->so_timeo, PSOCK | PCATCH,
+		error = msleep(&head->so_timeo, &accept_mtx, PSOCK | PCATCH,
 		    "accept", 0);
 		if (error) {
-			splx(s);
+			ACCEPT_UNLOCK();
 			goto done;
 		}
 	}
 	if (head->so_error) {
 		error = head->so_error;
 		head->so_error = 0;
-		splx(s);
+		ACCEPT_UNLOCK();
 		goto done;
 	}
-
-	/*
-	 * At this point we know that there is at least one connection
-	 * ready to be accepted. Remove it from the queue prior to
-	 * allocating the file descriptor for it since falloc() may
-	 * block allowing another process to accept the connection
-	 * instead.
-	 */
 	so = TAILQ_FIRST(&head->so_comp);
+	KASSERT(!(so->so_qstate & SQ_INCOMP), ("accept1: so SQ_INCOMP"));
+	KASSERT(so->so_qstate & SQ_COMP, ("accept1: so not SQ_COMP"));
+
+	soref(so);			/* file descriptor reference */
+	
 	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	head->so_qlen--;
+	so->so_qstate &= ~SQ_COMP;
+	so->so_head = NULL;
 
-	error = falloc(td, &nfp, &fd);
-	if (error) {
-		/*
-		 * Probably ran out of file descriptors. Put the
-		 * unaccepted connection back onto the queue and
-		 * do another wakeup so some other process might
-		 * have a chance at it.
-		 */
-		TAILQ_INSERT_HEAD(&head->so_comp, so, so_list);
-		head->so_qlen++;
-		wakeup_one(&head->so_timeo);
-		splx(s);
-		goto done;
-	}
+	ACCEPT_UNLOCK();
+
 	/* An extra reference on `nfp' has been held for us by falloc(). */
 	td->td_retval[0] = fd;
 
 	/* connection has been removed from the listen queue */
 	KNOTE(&head->so_rcv.sb_sel.si_note, 0);
 
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
 	pgid = fgetown(&head->so_sigio);
 	if (pgid != 0)
 		fsetown(pgid, &so->so_sigio);
 
 	FILE_LOCK(nfp);
-	soref(so);			/* file descriptor reference */
 	nfp->f_data = so;	/* nfp has ref count from falloc */
 	nfp->f_flag = fflag;
 	nfp->f_ops = &socketops;
@@ -372,7 +357,6 @@ accept1(td, uap, compat)
 		namelen = 0;
 		if (uap->name)
 			goto gotnoname;
-		splx(s);
 		error = 0;
 		goto done;
 	}
@@ -410,7 +394,6 @@ noconnection:
 			FILEDESC_UNLOCK(fdp);
 		}
 	}
-	splx(s);
 
 	/*
 	 * Release explicitly held references before returning.
@@ -421,7 +404,6 @@ done:
 	fputsock(head);
 done2:
 	NET_UNLOCK_GIANT();
-done3:
 	return (error);
 }
 

@@ -60,7 +60,7 @@ struct socket {
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
 	short	so_state;		/* internal state flags SS_* */
-	int	so_qstate;		/* internal state flags SQ_* */
+	int	so_qstate;		/* (e) internal state flags SQ_* */
 	void	*so_pcb;		/* protocol control block */
 	struct	protosw *so_proto;	/* (a) protocol handle */
 /*
@@ -74,14 +74,14 @@ struct socket {
  * We allow connections to queue up based on current queue lengths
  * and limit on number of queued connections for this socket.
  */
-	struct	socket *so_head;	/* back pointer to accept socket */
-	TAILQ_HEAD(, socket) so_incomp;	/* queue of partial unaccepted connections */
-	TAILQ_HEAD(, socket) so_comp;	/* queue of complete unaccepted connections */
-	TAILQ_ENTRY(socket) so_list;	/* list of unaccepted connections */
-	short	so_qlen;		/* number of unaccepted connections */
-	short	so_incqlen;		/* number of unaccepted incomplete
+	struct	socket *so_head;	/* (e) back pointer to accept socket */
+	TAILQ_HEAD(, socket) so_incomp;	/* (e) queue of partial unaccepted connections */
+	TAILQ_HEAD(, socket) so_comp;	/* (e) queue of complete unaccepted connections */
+	TAILQ_ENTRY(socket) so_list;	/* (e) list of unaccepted connections */
+	short	so_qlen;		/* (e) number of unaccepted connections */
+	short	so_incqlen;		/* (e) number of unaccepted incomplete
 					   connections */
-	short	so_qlimit;		/* max number queued connections */
+	short	so_qlimit;		/* (e) max number queued connections */
 	short	so_timeo;		/* connection timeout */
 	u_short	so_error;		/* error affecting connection */
 	struct	sigio *so_sigio;	/* [sg] information for async I/O or
@@ -139,6 +139,16 @@ struct socket {
 		(sb)->sb_lastrecord = NULL;				\
 	}								\
 } while (/*CONSTCOND*/0)
+
+/*
+ * Global accept mutex to serialize access to accept queues and
+ * fields associated with multiple sockets.  This allows us to
+ * avoid defining a lock order between listen and accept sockets
+ * until such time as it proves to be a good idea.
+ */
+extern struct mtx accept_mtx;
+#define ACCEPT_LOCK()			mtx_lock(&accept_mtx)
+#define ACCEPT_UNLOCK()			mtx_unlock(&accept_mtx)
 
 /*
  * Socket state bits.
