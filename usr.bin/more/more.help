@@ -31,6 +31,7 @@
   :n, N        *  Examine the next file.
   :p, P        *  Examine the previous file.
   :t [tag]        Examine the tag.
+  t, T            Move forward or backward N tags in the gtags queue.
   v               Run an editor on the current file.
 
   =, ^G           Print current file name and stats.

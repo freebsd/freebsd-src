@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)decode.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-        "$Id$";
+        "$Id: decode.c,v 1.2 1999/05/30 18:06:53 hoek Exp $";
 #endif /* not lint */
 
 /*
@@ -133,6 +133,8 @@ static char cmdtable[] = {
 	'q',0,				A_QUIT,
 	':','q',0,			A_QUIT,
 	':','t',0,			A_TAGFILE,
+	'T',0,				A_PREVTAG,
+	't',0,				A_NEXTTAG,
 	':', 'a', 0,			A_FILE_LIST,
 	'Z','Z',0,			A_QUIT,
 };

@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/7/93";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.11 1999/05/30 18:06:56 hoek Exp $";
 #endif /* not lint */
 
 /*
@@ -82,7 +82,8 @@ extern int	tagoption;
 /*
  * Edit a new file.
  * Filename "-" means standard input.
- * No filename means the "current" file, from the command line.
+ * No filename means the "current" file, from the command line.  If called
+ * with the same filename in succession, filename will be closed and reopened.
  */
 edit(filename)
 	register char *filename;
