@@ -25,56 +25,98 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 1999
-.Dt KLDUNLOAD 2
+.Dd September 28, 2000
+.Dt MODSTAT 2
 .Os FreeBSD
 .Sh NAME
-.Nm kldunload
-.Nd unload kld files
+.Nm kldstat
+.Nd get status of kernel module
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
-.Fd #include <sys/linker.h>
+.Fd #include <sys/module.h>
 .Ft int
-.Fn kldunload "int fileid"
+.Fn modstat "int modid" "struct module_stat *stat"
 .Sh DESCRIPTION
-The function
-.Fn kldunload
-unloads a kld file from the kernel that was previously linked via
-.Xr kldload 2 .
+The
+.Fn modstat
+function writes the info for the kernel module referred to by
+.Fa modid
+into
+.Fa stat .
+.Bd -literal
+struct module_stat {
+	int         version;        /* set to sizeof(module_stat) */
+	char        name[MAXPATHLEN];
+	int         refs;
+	int         id;
+	modspecific_t data;
+};
+typedef union modspecific {
+	int         intval;
+	u_int       u_intval;
+	long        longval;
+	u_long      u_longval;
+} modspecific_t;
+.Ed
+.Pp
+.Bl -tag -width XXXaddress
+.It version
+This field is set to the size of the structure mentioned above by the code
+calling
+.Fn modstat ,
+and not
+.Fn modstat
+itself.
+.It name
+The name of the module referred to by
+.Fa modid .
+.It refs
+The number of modules referenced by
+.Fa modid .
+.It id
+The id of the module specified in
+.Fa modid .
+.It data
+Module specific data.
 .Sh RETURN VALUES
-The function
-.Fn kldunload
-returns the fileid of the kld file which was previously loaded into memory via
-.Fn kldload .
-If an error occurs,
-.Fn kldunload
-will return -1 and set
-.Va errno
-to indicate the error.
+.Fn modstat
+seems to always return 0.
 .Sh ERRORS
-The file referred to by
-.Fa fileid
-is unloaded unless:
+The information for the module referred to by
+.Fa modid
+is filled into the structure pointed to by
+.Fa stat
+unless:
 .Bl -tag -width Er
-.It Bq Er EPERM
-You don't have access to unlink the file from the kernel.
 .It Bq Er ENOENT
-The file was not found.
-.It Bq Er EBUSY
-You attempted to unload a file linked by the kernel.
+The module was not found (probably not loaded).
+.It Bq Er EINVAL
+The version specified in the
+.Fa version
+field of stat is not the proper version.  You would need to rebuild world, the
+kernel, or your application, if this error occurs, given that you did properly
+fill in the
+.Fa version
+field.
+.It Bq Er EFAULT
+There was a problem copying one, some, or all of the fields into
+.Fa stat
+in the
+.Fn copyout
+function.
 .Sh SEE ALSO
 .Xr kldfind 2 ,
 .Xr kldfirstmod 2 ,
 .Xr kldload 2 ,
 .Xr kldnext 2 ,
-.Xr kldstat 2 ,
-.Xr modfind 2 ,
+.Xr kldunload 2 ,
 .Xr modnext 2 ,
-.Xr modstat 2 ,
+.Xr modfind 2 ,
+.Xr modfnext 2 ,
 .Xr kld 4 ,
-.Xr kldunload 8
+.Xr kldstat 8
 .Sh HISTORY
 The
 .Nm kld
