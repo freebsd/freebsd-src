@@ -27,13 +27,13 @@ SUBDIR=	IPXrouted \
 	digictl \
 	edquota \
 	elf2aout \
+	extattr \
 	extattrctl \
 	faithd \
 	fdcontrol \
 	fdformat \
 	fdread \
 	fdwrite \
-	getextattr \
 	ifmcstat \
 	inetd \
 	iostat \
@@ -93,7 +93,6 @@ SUBDIR=	IPXrouted \
 	rtsold \
 	rwhod \
 	sa \
-	setextattr \
 	setkey \
 	sliplogin \
 	slstat \
