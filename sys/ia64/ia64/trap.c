@@ -699,10 +699,9 @@ trap(int vector, struct trapframe *framep)
 		/*
 		 * Additionally check the privilege level. We don't want to
 		 * panic when we're in the gateway page, running at user
-		 * level.
+		 * level. This happens for the signal trampolines.
 		 */
-		if (!user && (framep->tf_special.psr & IA64_PSR_CPL)
-		    == IA64_PSR_CPL_KERN) {
+		if (!TRAPF_USERMODE(framep)) {
 			/* Check for copyin/copyout fault. */
 			if (td != NULL && td->td_pcb->pcb_onfault != 0) {
 				framep->tf_special.iip =
