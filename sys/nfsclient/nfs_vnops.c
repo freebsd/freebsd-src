@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.90 1998/05/30 16:33:57 peter Exp $
+ * $Id: nfs_vnops.c,v 1.91 1998/05/31 01:03:07 peter Exp $
  */
 
 
@@ -275,8 +275,12 @@ nfs_access(ap)
 	 */
 	if ((ap->a_mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (vp->v_type) {
-		case VREG: case VDIR: case VLNK:
+		case VREG:
+		case VDIR:
+		case VLNK:
 			return (EROFS);
+		default:
+			break;
 		}
 	}
 	/*
@@ -296,17 +300,17 @@ nfs_access(ap)
 			mode = NFSV3ACCESS_READ;
 		else
 			mode = 0;
-		if (vp->v_type == VDIR) {
+		if (vp->v_type != VDIR) {
+			if (ap->a_mode & VWRITE)
+				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND);
+			if (ap->a_mode & VEXEC)
+				mode |= NFSV3ACCESS_EXECUTE;
+		} else {
 			if (ap->a_mode & VWRITE)
 				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND |
 					 NFSV3ACCESS_DELETE);
 			if (ap->a_mode & VEXEC)
 				mode |= NFSV3ACCESS_LOOKUP;
-		} else {
-			if (ap->a_mode & VWRITE)
-				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND);
-			if (ap->a_mode & VEXEC)
-				mode |= NFSV3ACCESS_EXECUTE;
 		}
 		*tl = txdr_unsigned(mode);
 		nfsm_request(vp, NFSPROC_ACCESS, ap->a_p, ap->a_cred);
@@ -392,10 +396,10 @@ nfs_open(ap)
 	struct vattr vattr;
 	int error;
 
-	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
-{ printf("open eacces vtyp=%d\n",vp->v_type);
+	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK) {
+		printf("open eacces vtyp=%d\n",vp->v_type);
 		return (EACCES);
-}
+	}
 	/*
 	 * Get a valid lease. If cached data is stale, flush it.
 	 */
@@ -545,8 +549,9 @@ nfs_getattr(ap)
 	nfsm_reqhead(vp, NFSPROC_GETATTR, NFSX_FH(v3));
 	nfsm_fhtom(vp, v3);
 	nfsm_request(vp, NFSPROC_GETATTR, ap->a_p, ap->a_cred);
-	if (!error)
+	if (!error) {
 		nfsm_loadattr(vp, ap->a_vap);
+	}
 	nfsm_reqdone;
 	return (error);
 }
@@ -756,14 +761,14 @@ nfs_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	register struct componentname *cnp = ap->a_cnp;
-	register struct vnode *dvp = ap->a_dvp;
-	register struct vnode **vpp = ap->a_vpp;
-	register int flags = cnp->cn_flags;
-	register struct vnode *newvp;
-	register u_long *tl;
-	register caddr_t cp;
-	register long t1, t2;
+	struct componentname *cnp = ap->a_cnp;
+	struct vnode *dvp = ap->a_dvp;
+	struct vnode **vpp = ap->a_vpp;
+	int flags = cnp->cn_flags;
+	struct vnode *newvp;
+	u_long *tl;
+	caddr_t cp;
+	long t1, t2;
 	struct nfsmount *nmp;
 	caddr_t bpos, dpos, cp2;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
@@ -858,7 +863,8 @@ nfs_lookup(ap)
 			m_freem(mrep);
 			return (EISDIR);
 		}
-		if (error = nfs_nget(dvp->v_mount, fhp, fhsize, &np)) {
+		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
+		if (error) {
 			m_freem(mrep);
 			return (error);
 		}
@@ -893,7 +899,8 @@ nfs_lookup(ap)
 		VREF(dvp);
 		newvp = dvp;
 	} else {
-		if (error = nfs_nget(dvp->v_mount, fhp, fhsize, &np)) {
+		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
+		if (error) {
 			m_freem(mrep);
 			return (error);
 		}
@@ -1146,8 +1153,7 @@ nfs_writerpc(vp, uiop, cred, iomode, must_commit)
 				else if (committed == NFSV3WRITE_DATASYNC &&
 					commit == NFSV3WRITE_UNSTABLE)
 					committed = commit;
-				if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0)
-				{
+				if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0){
 				    bcopy((caddr_t)tl, (caddr_t)nmp->nm_verf,
 					NFSX_V3WRITEVERF);
 				    nmp->nm_state |= NFSSTA_HASWRITEVERF;
@@ -2291,8 +2297,9 @@ nfs_readdirplusrpc(vp, uiop, cred)
 				    newvp = vp;
 				    np = dnp;
 				} else {
-				    if (error = nfs_nget(vp->v_mount, fhp,
-					fhsize, &np))
+				    error = nfs_nget(vp->v_mount, fhp,
+					fhsize, &np);
+				    if (error)
 					doit = 0;
 				    else
 					newvp = NFSTOV(np);
@@ -2416,7 +2423,8 @@ nfs_sillyrename(dvp, vp, cnp)
 			goto bad;
 		}
 	}
-	if (error = nfs_renameit(dvp, cnp, sp))
+	error = nfs_renameit(dvp, cnp, sp);
+	if (error)
 		goto bad;
 	error = nfs_lookitup(dvp, sp->s_name, sp->s_namlen, sp->s_cred,
 		cnp->cn_proc, &np);
@@ -3069,8 +3077,12 @@ nfsspec_access(ap)
 	 */
 	if ((mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (vp->v_type) {
-		case VREG: case VDIR: case VLNK:
+		case VREG:
+		case VDIR:
+		case VLNK:
 			return (EROFS);
+		default:
+			break;
 		}
 	}
 	/*

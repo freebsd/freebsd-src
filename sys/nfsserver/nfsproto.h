@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfsproto.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ *	@(#)nfsproto.h  8.2 (Berkeley) 3/30/95
+ * $Id: nfsproto.h,v 1.3 1997/02/22 09:42:50 peter Exp $
  */
 
 #ifndef _NFS_NFSPROTO_H_

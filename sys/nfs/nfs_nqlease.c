@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.34 1998/05/19 07:11:23 peter Exp $
+ * $Id: nfs_nqlease.c,v 1.35 1998/05/24 14:41:51 peter Exp $
  */
 
 
@@ -199,8 +199,7 @@ nqsrv_getlease(vp, duration, flags, slp, procp, nam, cachablep, frev, cred)
 	tlp = vp->v_lease;
 	if ((flags & ND_CHECK) == 0)
 		nfsstats.srvnqnfs_getleases++;
-	if (tlp == (struct nqlease *)0) {
-
+	if (tlp == 0) {
 		/*
 		 * Find the lease by searching the hash list.
 		 */
@@ -224,7 +223,7 @@ nqsrv_getlease(vp, duration, flags, slp, procp, nam, cachablep, frev, cred)
 			}
 	} else
 		lp = tlp;
-	if (lp) {
+	if (lp != 0) {
 		if ((lp->lc_flag & LC_NONCACHABLE) ||
 		    (lp->lc_morehosts == (struct nqm *)0 &&
 		     nqsrv_cmpnam(slp, nam, &lp->lc_host)))
@@ -820,7 +819,7 @@ nqnfsrv_vacated(nfsd, slp, procp, mrq)
 			tlp = lp;
 			break;
 		}
-	if (tlp) {
+	if (tlp != 0) {
 		lp = tlp;
 		len = 1;
 		i = 0;
