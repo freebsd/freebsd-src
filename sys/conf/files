@@ -498,7 +498,6 @@ dev/joy/joy_isa.c	optional joy isa
 dev/joy/joy_pccard.c	optional joy pccard
 dev/led/led.c		optional cpu_soekris
 dev/lge/if_lge.c	optional lge
-dev/lmc/if_lmc.c	optional lmc nowerror
 dev/lnc/if_lnc.c	optional lnc
 dev/lnc/if_lnc_pci.c	optional lnc pci
 dev/ncv/ncr53c500.c	optional ncv
