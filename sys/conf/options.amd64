@@ -1,7 +1,6 @@
 # $FreeBSD$
 # Options specific to the AMD x86-64 platform kernels
 
-PANIC_REBOOT_WAIT_TIME	opt_panic.h
 MAXMEM
 PERFMON			opt_perfmon.h
 
