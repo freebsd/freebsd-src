@@ -4,6 +4,7 @@ OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 
 PROG=	opiepasswd
 
+CFLAGS+=-I${.CURDIR}/../../lib/libopie
 CFLAGS+=-I${OPIE_DIST}
 
 DPADD=	${LIBOPIE} ${LIBMD}
