@@ -120,6 +120,19 @@
       resolver-using application.  See security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
       for more information and a fix.</para>
+
+    <para>Badly-formed NFS packets could trigger a buffer overflow in
+      &man.tcpdump.1;.  For a fix to this problem, see security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>.</para>
+
+    <para>&man.ktrace.1; can be used to trace the operation of
+      formerly-privileged processes.  This is undesirable, as it is
+      then possible to leak information obtained while these processes
+      had elevated privileges.  See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      for a workaround and a fix.</para>
+
 ]]>
   </sect1>
 
