@@ -755,9 +755,9 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 	 * Note the truncation.
 	 */
 
-	mtx_lock(&vm_mtx);
 	sc->secsize = PAGE_SIZE;
 	sc->nsect = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
+	mtx_lock(&vm_mtx);
 	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, sc->secsize * (vm_offset_t)sc->nsect, VM_PROT_DEFAULT, 0);
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
