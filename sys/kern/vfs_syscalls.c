@@ -2546,6 +2546,9 @@ fsync(p, uap)
 	if (vp->v_object)
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
 	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p);
+	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP))
+	    error = softdep_fsync(vp);
+
 	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
