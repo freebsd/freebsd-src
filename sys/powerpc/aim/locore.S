@@ -86,7 +86,7 @@ GLOBAL(ofmsr)
 GLOBAL(powersave)
 	.long	0
 
-#define	INTSTK		8192		/* 8K interrupt stack */
+#define	INTSTK		16384		/* 16K interrupt stack */
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 GLOBAL(intrnames)
 	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
