@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.80 1998/03/21 11:34:11 peter Exp $
+ * $Id: ip_input.c,v 1.81 1998/03/30 09:52:56 phk Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -553,6 +553,8 @@ found:
 			ip = ip_reass((struct ipasfrag *)ip, fp, &ipq[sum]);
 			if (ip == 0)
 				return;
+			/* Get the length of the reassembled packets header */
+			hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 			ipstat.ips_reassembled++;
 			m = dtom(ip);
 #ifdef IPDIVERT
