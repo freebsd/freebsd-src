@@ -30,10 +30,12 @@
 #include <sys/kthread.h>
 #include <machine/stdarg.h>	/* for use by isp_prt below */
 #include <sys/conf.h>
+#include <sys/module.h>
 #include <sys/ioccom.h>
 #include <dev/isp/isp_ioctl.h>
 
 
+MODULE_VERSION(isp, 1);
 int isp_announced = 0;
 ispfwfunc *isp_get_firmware_p = NULL;
 
