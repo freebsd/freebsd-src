@@ -218,6 +218,3 @@ HIDE_BSD(ftruncate)
 HIDE_BSD(__sysctl)
 HIDE_BSD(mlock)
 HIDE_BSD(munlock)
-#ifdef LKM
-#else
-#endif

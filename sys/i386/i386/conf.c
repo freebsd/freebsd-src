@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.32 1994/09/08 18:02:35 jkh Exp $
+ *	$Id: conf.c,v 1.33 1994/09/21 01:33:00 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,6 @@ typedef int d_mmap_t __P((/* XXX */));
 d_rdwr_t rawread, rawwrite;
 d_strategy_t swstrategy;
 
-#ifdef LKM
 int lkmenodev();
 #define	lkmopen		(d_open_t *)lkmenodev
 #define	lkmclose	(d_close_t *)lkmenodev
@@ -83,20 +82,6 @@ int lkmenodev();
 #define lkmreset	(d_reset_t *)lkmenodev
 #define lkmmmap		(d_mmap_t *)lkmenodev
 #define lkmselect	(d_select_t *)lkmenodev
-#else
-#define	lkmopen		(d_open_t *)enxio
-#define	lkmclose	(d_close_t *)enxio
-#define lkmread		(d_rdwr_t *)enxio
-#define lkmwrite	(d_rdwr_t *)enxio
-#define	lkmstrategy	(d_strategy_t *)enxio
-#define	lkmioctl	(d_ioctl_t *)enxio
-#define	lkmdump		(d_dump_t *)enxio
-#define	lkmsize		(d_psize_t *)0
-#define lkmstop		(d_stop_t *)enxio
-#define lkmreset	(d_reset_t *)enxio
-#define lkmmmap		(d_mmap_t *)enxio
-#define lkmselect	(d_select_t *)enxio
-#endif
 
 #include "wd.h"
 #if (NWD > 0)
@@ -255,7 +240,6 @@ struct bdevsw	bdevsw[] =
 	  cddump,	cdsize,		0 },
 	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
 	  mcddump,	mcdsize,	0 },
-#ifdef LKM
 	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*8*/
 	  lkmdump,	lkmsize,	NULL },
 	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*9*/
@@ -268,7 +252,6 @@ struct bdevsw	bdevsw[] =
 	  lkmdump,	lkmsize,	NULL },
 	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*13*/
 	  lkmdump,	lkmsize,	NULL },
-#endif
 	/* block device 14 is reserved for local use */
 	{ (d_open_t *)enxio,		(d_close_t *)enxio,
 	  (d_strategy_t *)enxio,	(d_ioctl_t *)enxio,		/*14*/
@@ -544,15 +527,9 @@ d_ioctl_t ukioctl;
 #define	ukioctl		(d_ioctl_t *)enxio
 #endif
 
-#ifdef LKM
 d_open_t lkmcopen;
 d_close_t lkmcclose;
 d_ioctl_t lkmcioctl;
-#else
-#define	lkmcopen	(d_open_t *)enxio
-#define lkmcclose	(d_close_t *)enxio
-#define lkmcioctl	(d_ioctl_t *)enxio
-#endif
 
 #define noopen		(d_open_t *)enodev
 #define noclose		(d_close_t *)enodev

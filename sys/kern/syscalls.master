@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.8 1994/09/13 14:46:54 dfr Exp $
+	$Id: syscalls.master,v 1.9 1994/09/18 20:39:50 wollman Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -290,7 +290,6 @@
 ;
 ; The following are reserved for loadable syscalls
 ;
-#ifdef LKM
 210	NODEF	0 NOHIDE lkmnosys
 211	NODEF	0 NOHIDE lkmnosys
 212	NODEF	0 NOHIDE lkmnosys
@@ -301,15 +300,3 @@
 217	NODEF	0 NOHIDE lkmnosys
 218	NODEF	0 NOHIDE lkmnosys
 219	NODEF	0 NOHIDE lkmnosys
-#else
-210	UNIMPL	0 NOHIDE nosys
-211	UNIMPL	0 NOHIDE nosys
-212	UNIMPL	0 NOHIDE nosys
-213	UNIMPL	0 NOHIDE nosys
-214	UNIMPL	0 NOHIDE nosys
-215	UNIMPL	0 NOHIDE nosys
-216	UNIMPL	0 NOHIDE nosys
-217	UNIMPL	0 NOHIDE nosys
-218	UNIMPL	0 NOHIDE nosys
-219	UNIMPL	0 NOHIDE nosys
-#endif
