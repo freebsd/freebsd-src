@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.3 (Berkeley) 8/10/94
- * $Id$
+ * $Id: dirent.h,v 1.7 1997/02/22 09:45:02 peter Exp $
  */
 
-#ifndef _SYS_DIRENT_H_
-#define _SYS_DIRENT_H_
+#ifndef	_SYS_DIRENT_H_
+#define	_SYS_DIRENT_H_
 
 /*
  * The dirent structure defines the format of directory entries returned by
@@ -80,4 +80,17 @@ struct dirent {
 #define	IFTODT(mode)	(((mode) & 0170000) >> 12)
 #define	DTTOIF(dirtype)	((dirtype) << 12)
 
+/*
+ * The _GENERIC_DIRSIZ macro gives the minimum record length which will hold
+ * the directory entry.  This requires the amount of space in struct direct
+ * without the d_name field, plus enough space for the name with a terminating
+ * null byte (dp->d_namlen+1), rounded up to a 4 byte boundary.
+ */
+#define	_GENERIC_DIRSIZ(dp) \
+    ((sizeof (struct dirent) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3))
+
+#ifdef KERNEL
+#define	GENERIC_DIRSIZ(dp)	_GENERIC_DIRSIZ(dp)
 #endif
+
+#endif /* !_SYS_DIRENT_H_ */
