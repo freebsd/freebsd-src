@@ -539,11 +539,6 @@ int	 undelete(const char *);
 int	 unwhiteout(const char *);
 void	*valloc(size_t);			/* obsoleted by malloc() */
 
-extern char *suboptarg;			/* getsubopt(3) external variable */
-#ifndef _GETSUBOPT_DECLARED
-int	 getsubopt(char **, char * const *, char **);
-#define	_GETSUBOPT_DECLARED
-#endif
 extern int optreset;			/* getopt(3) external variable */
 #endif /* __BSD_VISIBLE */
 __END_DECLS
