@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount_null.8	8.4 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: mount_null.8,v 1.5 1996/10/05 22:26:59 wosch Exp $
 .\"
 .Dd April 19, 1994
 .Dt MOUNT_NULL 8
@@ -54,11 +54,8 @@ The
 command creates a
 null layer, duplicating a sub-tree of the file system
 name space under another part of the global file system namespace.
-In this respect, it is
-similar to the loopback file system (see
-.Xr mount_lofs 8 ) .
 It differs from
-the loopback file system in two respects: it is implemented using
+the historic loopback file system in two respects: it is implemented using
 a stackable layers techniques, and it's 
 .Do
 null-node
