@@ -56,18 +56,17 @@ struct acpi_pci_devinfo {
 	ACPI_HANDLE		ap_handle;
 };
 
-static int	acpi_pci_probe(device_t dev);
 static int	acpi_pci_attach(device_t dev);
-static int	acpi_pci_read_ivar(device_t dev, device_t child, int which,
-		    uintptr_t *result);
 static int	acpi_pci_child_location_str_method(device_t cbdev,
 		    device_t child, char *buf, size_t buflen);
-
-
-static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
-		    int state);
+static int	acpi_pci_probe(device_t dev);
+static int	acpi_pci_read_ivar(device_t dev, device_t child, int which,
+		    uintptr_t *result);
 static ACPI_STATUS acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level,
 		    void *context, void **status);
+static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
+		    int state);
+static void	acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child);
 
 static device_method_t acpi_pci_methods[] = {
 	/* Device interface */
@@ -205,6 +204,40 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 		return (0);
 }
 
+static void
+acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child)
+{
+	ACPI_STATUS status;
+	device_t child;
+
+	/*
+	 * Lookup and remove the unused device that acpi0 creates when it walks
+	 * the namespace creating devices.
+	 */
+	child = acpi_get_device(handle);
+	if (child != NULL) {
+		KASSERT(!device_is_alive(child), ("%s: deleting alive child %s",
+		    __func__, device_get_nameunit(child)));
+		KASSERT(device_get_parent(child) ==
+		    devclass_get_device(devclass_find("acpi"), 0),
+		    ("%s: child (%s)'s parent is not acpi0", __func__,
+		    acpi_name(handle)));
+		device_delete_child(device_get_parent(child), child);
+	}
+
+	/*
+	 * Update ACPI-CA to use the PCI enumerated device_t for this handle.
+	 */
+	status = AcpiDetachData(handle, acpi_fake_objhandler);
+	if (ACPI_FAILURE(status))
+		printf("WARNING: Unable to detach object data from %s - %s\n",
+		    acpi_name(handle), AcpiFormatException(status));
+	status = AcpiAttachData(handle, acpi_fake_objhandler, child);
+	if (ACPI_FAILURE(status))
+		printf("WARNING: Unable to attach object data to %s - %s\n",
+		    acpi_name(handle), AcpiFormatException(status));
+}
+
 static ACPI_STATUS
 acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
     void **status)
@@ -227,6 +260,7 @@ acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
 		if (dinfo->ap_dinfo.cfg.func == func &&
 		    dinfo->ap_dinfo.cfg.slot == slot) {
 			dinfo->ap_handle = handle;
+			acpi_pci_update_device(handle, devlist[i]);
 			free(devlist, M_TEMP);
 			return_ACPI_STATUS (AE_OK);
 		}
