@@ -2113,7 +2113,7 @@ umass_cam_rescan(void *addr)
 	struct umass_softc *sc = (struct umass_softc *) addr;
 #endif
 	struct cam_path *path;
-	union ccb *ccb = malloc(sizeof(union ccb), M_USBDEV, M_WAITOK);
+	union ccb *ccb = malloc(sizeof(union ccb), M_USBDEV, 0);
 
 	memset(ccb, 0, sizeof(union ccb));
 

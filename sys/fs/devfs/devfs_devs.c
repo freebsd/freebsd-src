@@ -153,11 +153,11 @@ devfs_attemptoverflow(int insist)
 	or = NULL;
 	n = devfs_noverflowwant;
 	nb = sizeof (dev_t *) * n;
-	MALLOC(ot, dev_t **, nb, M_DEVFS, (insist ? M_WAITOK : M_NOWAIT) | M_ZERO);
+	MALLOC(ot, dev_t **, nb, M_DEVFS, (insist ? 0 : M_NOWAIT) | M_ZERO);
 	if (ot == NULL)
 		goto bail;
 	nb = sizeof (int) * n;
-	MALLOC(or, int *, nb, M_DEVFS, (insist ? M_WAITOK : M_NOWAIT) | M_ZERO);
+	MALLOC(or, int *, nb, M_DEVFS, (insist ? 0 : M_NOWAIT) | M_ZERO);
 	if (or == NULL)
 		goto bail;
 	if (!atomic_cmpset_ptr(&devfs_overflow, NULL, ot))
@@ -200,7 +200,7 @@ devfs_newdirent(char *name, int namelen)
 
 	d.d_namlen = namelen;
 	i = sizeof (*de) + GENERIC_DIRSIZ(&d);
-	MALLOC(de, struct devfs_dirent *, i, M_DEVFS, M_WAITOK | M_ZERO);
+	MALLOC(de, struct devfs_dirent *, i, M_DEVFS, M_ZERO);
 	de->de_dirent = (struct dirent *)(de + 1);
 	de->de_dirent->d_namlen = namelen;
 	de->de_dirent->d_reclen = GENERIC_DIRSIZ(&d);
@@ -295,7 +295,7 @@ devfs_populate(struct devfs_mount *dm)
 	if (devfs_noverflow && dm->dm_overflow == NULL) {
 		i = devfs_noverflow * sizeof (struct devfs_dirent *);
 		MALLOC(dm->dm_overflow, struct devfs_dirent **, i,
-			M_DEVFS, M_WAITOK | M_ZERO);
+			M_DEVFS, M_ZERO);
 	}
 	while (dm->dm_generation != devfs_generation) {
 		dm->dm_generation = devfs_generation;
@@ -353,7 +353,7 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_dirent->d_type = DT_LNK;
 				pdev = dev->si_parent;
 				j = strlen(pdev->si_name) + 1;
-				MALLOC(de->de_symlink, char *, j, M_DEVFS, M_WAITOK);
+				MALLOC(de->de_symlink, char *, j, M_DEVFS, 0);
 				bcopy(pdev->si_name, de->de_symlink, j);
 			} else {
 				de->de_inode = i;

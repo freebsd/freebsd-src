@@ -120,7 +120,7 @@ namei(ndp)
 	 * name into the buffer.
 	 */
 	if ((cnp->cn_flags & HASBUF) == 0)
-		cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
+		cnp->cn_pnbuf = uma_zalloc(namei_zone, 0);
 	if (ndp->ni_segflg == UIO_SYSSPACE)
 		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
@@ -224,7 +224,7 @@ namei(ndp)
 		}
 #endif
 		if (ndp->ni_pathlen > 1)
-			cp = uma_zalloc(namei_zone, M_WAITOK);
+			cp = uma_zalloc(namei_zone, 0);
 		else
 			cp = cnp->cn_pnbuf;
 		aiov.iov_base = cp;

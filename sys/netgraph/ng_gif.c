@@ -309,7 +309,7 @@ ng_gif_glue_af(struct mbuf **mp, int af)
 	 * hopefully everything after that will not
 	 * need one. So let's just use M_PREPEND.
 	 */
-	M_PREPEND(m, sizeof (tmp_af), M_DONTWAIT);
+	M_PREPEND(m, sizeof (tmp_af), M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto done;

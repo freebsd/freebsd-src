@@ -215,7 +215,7 @@ iobus_attach(device_t dev)
 
                 cdev = device_add_child(dev, NULL, -1);
                 if (cdev != NULL) {
-                        dinfo = malloc(sizeof(*dinfo), M_IOBUS, M_WAITOK);
+                        dinfo = malloc(sizeof(*dinfo), M_IOBUS, 0);
 			memset(dinfo, 0, sizeof(*dinfo));
 			resource_list_init(&dinfo->id_resources);
                         dinfo->id_node = child;

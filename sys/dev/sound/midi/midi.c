@@ -282,7 +282,7 @@ create_mididev_info_unit(int type, mididev_info *mdinf, synthdev_info *syninf)
 	}
 
 	/* As malloc(9) might block, allocate mididev_info now. */
-	mdnew = malloc(sizeof(mididev_info), M_DEVBUF, M_WAITOK | M_ZERO);
+	mdnew = malloc(sizeof(mididev_info), M_DEVBUF, M_ZERO);
 	if (mdnew == NULL)
 		return NULL;
 	bcopy(mdinf, mdnew, sizeof(mididev_info));
@@ -607,7 +607,7 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 	len = buf->uio_resid;
 	lenr = 0;
 
-	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_ZERO);
 	if (uiobuf == NULL)
 		return (ENOMEM);
 
@@ -659,7 +659,7 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
 	len = buf->uio_resid;
 	lenw = 0;
 
-	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_ZERO);
 	if (uiobuf == NULL)
 		return (ENOMEM);
 

@@ -268,7 +268,7 @@ in_control(so, cmd, data, ifp, td)
 			return (EADDRNOTAVAIL);
 		if (ia == (struct in_ifaddr *)0) {
 			ia = (struct in_ifaddr *)
-				malloc(sizeof *ia, M_IFADDR, M_WAITOK | M_ZERO);
+				malloc(sizeof *ia, M_IFADDR, M_ZERO);
 			if (ia == (struct in_ifaddr *)NULL)
 				return (ENOBUFS);
 			/*
@@ -837,7 +837,7 @@ in_addmulti(ap, ifp)
 		return ifma->ifma_protospec;
 	}
 
-	/* XXX - if_addmulti uses M_WAITOK.  Can this really be called
+	/* XXX - if_addmulti does not use N_NOWAIT.  Can this really be called
 	   at interrupt time?  If so, need to fix if_addmulti. XXX */
 	inm = (struct in_multi *)malloc(sizeof(*inm), M_IPMADDR,
 	    M_NOWAIT | M_ZERO);

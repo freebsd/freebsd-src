@@ -922,12 +922,12 @@ an_rxeof(sc)
 			/* dump raw 802.11 packet to bpf and skip ip stack */
 			BPF_TAP(ifp, bpf_buf, len);
 		} else {
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				ifp->if_ierrors++;
 				return;
 			}
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if (!(m->m_flags & M_EXT)) {
 				m_freem(m);
 				ifp->if_ierrors++;
@@ -1007,12 +1007,12 @@ an_rxeof(sc)
 			if (an_rx_desc.an_done && !an_rx_desc.an_valid) {
 				buf = sc->an_rx_buffer[count].an_dma_vaddr;
 
-				MGETHDR(m, M_DONTWAIT, MT_DATA);
+				MGETHDR(m, M_NOWAIT, MT_DATA);
 				if (m == NULL) {
 					ifp->if_ierrors++;
 					return;
 				}
-				MCLGET(m, M_DONTWAIT);
+				MCLGET(m, M_NOWAIT);
 				if (!(m->m_flags & M_EXT)) {
 					m_freem(m);
 					ifp->if_ierrors++;
@@ -3580,7 +3580,7 @@ flashcard(ifp, l_ioctl)
 			free(sc->an_flash_buffer, M_DEVBUF);
 			sc->an_flash_buffer = NULL;
 		}
-		sc->an_flash_buffer = malloc(FLASH_SIZE, M_DEVBUF, M_WAITOK);
+		sc->an_flash_buffer = malloc(FLASH_SIZE, M_DEVBUF, 0);
 		if (sc->an_flash_buffer)
 			return setflashmode(ifp);
 		else

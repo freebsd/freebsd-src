@@ -294,7 +294,7 @@ unisig_send_setup(usp, uvp)
 	/*
 	 * Get memory for a SETUP message
 	 */
-	setup = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
+	setup = uma_zalloc(unisig_msg_zone, M_ZERO);
 	if (setup == NULL) {
 		err = ENOMEM;
 		goto done;
@@ -320,7 +320,7 @@ unisig_send_setup(usp, uvp)
 	 * specify one in the attribute block
 	 */
 	if (ap->calling.tag != T_ATM_PRESENT) {
-		setup->msg_ie_cgad = uma_zalloc(unisig_ie_zone, M_WAITOK); 
+		setup->msg_ie_cgad = uma_zalloc(unisig_ie_zone, 0);
 		if (setup->msg_ie_cgad == NULL) {
 			err = ENOMEM;
 			goto done;
@@ -379,11 +379,11 @@ unisig_send_release(usp, uvp, msg, cause)
 	/*
 	 * Get memory for a RELEASE message
 	 */
-	rls_msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
+	rls_msg = uma_zalloc(unisig_msg_zone, M_ZERO);
 	if (rls_msg == NULL) {
 		return(ENOMEM);
 	}
-	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_ZERO);
 	if (cause_ie == NULL) {
 		uma_zfree(unisig_msg_zone, rls_msg);
 		return(ENOMEM);
@@ -455,11 +455,11 @@ unisig_send_release_complete(usp, uvp, msg, cause)
 	/*
 	 * Get memory for a RELEASE COMPLETE message
 	 */
-	rls_cmp = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
+	rls_cmp = uma_zalloc(unisig_msg_zone, M_ZERO);
 	if (rls_cmp == NULL) {
 		return(ENOMEM);
 	}
-	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_ZERO);
 	if (cause_ie == NULL) {
 		uma_zfree(unisig_msg_zone, rls_cmp);
 		return(ENOMEM);
@@ -534,16 +534,16 @@ unisig_send_status(usp, uvp, msg, cause)
 	/*
 	 * Get memory for a STATUS message
 	 */
-	stat_msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
+	stat_msg = uma_zalloc(unisig_msg_zone, M_ZERO);
 	if (stat_msg == NULL) {
 		return(ENOMEM);
 	}
-	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_ZERO);
 	if (cause_ie == NULL) {
 		uma_zfree(unisig_msg_zone, stat_msg);
 		return(ENOMEM);
 	}
-	clst_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO); 
+	clst_ie = uma_zalloc(unisig_ie_zone, M_ZERO);
 	if (clst_ie == NULL) {
 		uma_zfree(unisig_msg_zone, stat_msg);
 		uma_zfree(unisig_ie_zone, cause_ie);
@@ -679,7 +679,7 @@ unisig_rcv_restart(usp, msg)
 	/*
 	 * Get memory for a RESTART ACKNOWLEDGE message
 	 */
-	rsta_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
+	rsta_msg = uma_zalloc(unisig_msg_zone, 0);
 	if (rsta_msg == NULL) {
 		return;
 	}
@@ -772,7 +772,7 @@ unisig_rcv_setup(usp, msg)
 	/*
 	 * Get a new VCCB for the connection
 	 */
-	uvp = uma_zalloc(unisig_vc_zone, M_WAITOK | M_ZERO);
+	uvp = uma_zalloc(unisig_vc_zone, M_ZERO);
 	if (uvp == NULL) {
 		return;
 	}
@@ -842,7 +842,7 @@ unisig_rcv_msg(usp, m)
 	/*
 	 * Get storage for the message
 	 */
-	msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
+	msg = uma_zalloc(unisig_msg_zone, M_ZERO);
 	if (msg == NULL) {
 		err = ENOMEM;
 		goto done;

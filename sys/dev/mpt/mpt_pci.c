@@ -478,7 +478,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 
 	len = sizeof (request_t *) * MPT_REQ_MEM_SIZE(mpt);
 #ifdef	RELENG_4
-	mpt->request_pool = (request_t *) malloc(len, M_DEVBUF, M_WAITOK);
+	mpt->request_pool = (request_t *) malloc(len, M_DEVBUF, 0);
 	if (mpt->request_pool == NULL) {
 		device_printf(dev, "cannot allocate request pool\n");
 		return (1);
@@ -486,7 +486,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	bzero(mpt->request_pool, len);
 #else
 	mpt->request_pool = (request_t *)
-	    malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	    malloc(len, M_DEVBUF, M_ZERO);
 	if (mpt->request_pool == NULL) {
 		device_printf(dev, "cannot allocate request pool\n");
 		return (1);

@@ -317,7 +317,7 @@ arprequest(ifp, sip, tip, enaddr)
 				   LLC_UI, 0x00, 0x00, 0x00, 0x08, 0x06 };
 	u_short ar_hrd;
 
-	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
+	if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 		return;
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC

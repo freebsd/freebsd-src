@@ -255,7 +255,7 @@ i4biprattach(void *dummy)
 
 #ifdef IPR_VJ_USEBUFFER
 		if(!((sc->sc_cbuf =
-		   (u_char *)malloc(I4BIPRMAXMTU+128, M_DEVBUF, M_WAITOK))))
+		   (u_char *)malloc(I4BIPRMAXMTU+128, M_DEVBUF, 0))))
 		{
 			panic("if_ipr.c, ipr_attach: VJ malloc failed");
 		}

@@ -254,7 +254,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 		cnp.cn_flags |= LOCKPARENT;
 	cnp.cn_thread = td;
 	cnp.cn_cred = td->td_ucred;
-	cnp.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
+	cnp.cn_pnbuf = uma_zalloc(namei_zone, 0);
 	cnp.cn_nameptr = cnp.cn_pnbuf;
 	error = copystr(dirname, cnp.cn_pnbuf, MAXPATHLEN,
 	    (size_t *) &cnp.cn_namelen);
@@ -383,7 +383,7 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
 
-	MALLOC(dirbuf, char *, DIRBLKSIZ, M_TEMP, M_WAITOK);
+	MALLOC(dirbuf, char *, DIRBLKSIZ, M_TEMP, 0);
 
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
@@ -594,7 +594,7 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 		return (EINVAL);
 
 	MALLOC(attribute, struct ufs_extattr_list_entry *,
-	    sizeof(struct ufs_extattr_list_entry), M_UFS_EXTATTR, M_WAITOK);
+	    sizeof(struct ufs_extattr_list_entry), M_UFS_EXTATTR, 0);
 	if (attribute == NULL)
 		return (ENOMEM);
 

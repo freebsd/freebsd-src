@@ -686,9 +686,9 @@ ffs_mountfs(devvp, mp, td)
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
-	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK | M_ZERO);
+	ump = malloc(sizeof *ump, M_UFSMNT, M_ZERO);
 	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT,
-	    M_WAITOK);
+	    0);
 	if (fs->fs_magic == FS_UFS1_MAGIC) {
 		ump->um_fstype = UFS1;
 		ump->um_balloc = ffs_balloc_ufs1;
@@ -715,7 +715,7 @@ ffs_mountfs(devvp, mp, td)
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
 	size += fs->fs_ncg * sizeof(u_int8_t);
-	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
+	space = malloc((u_long)size, M_UFSMNT, 0);
 	fs->fs_csp = space;
 	for (i = 0; i < blks; i += fs->fs_frag) {
 		size = fs->fs_bsize;
@@ -1248,7 +1248,7 @@ ffs_vget(mp, ino, flags, vpp)
 	 * which will cause a panic because ffs_sync() blindly
 	 * dereferences vp->v_data (as well it should).
 	 */
-	ip = uma_zalloc(uma_inode, M_WAITOK);
+	ip = uma_zalloc(uma_inode, 0);
 
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode("ufs", mp, ffs_vnodeop_p, &vp);
@@ -1315,9 +1315,9 @@ ffs_vget(mp, ino, flags, vpp)
 		return (error);
 	}
 	if (ip->i_ump->um_fstype == UFS1)
-		ip->i_din1 = uma_zalloc(uma_ufs1, M_WAITOK);
+		ip->i_din1 = uma_zalloc(uma_ufs1, 0);
 	else
-		ip->i_din2 = uma_zalloc(uma_ufs2, M_WAITOK);
+		ip->i_din2 = uma_zalloc(uma_ufs2, 0);
 	ffs_load_inode(bp, ip, fs, ino);
 	if (DOINGSOFTDEP(vp))
 		softdep_load_inodeblock(ip);

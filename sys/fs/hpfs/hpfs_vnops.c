@@ -1038,7 +1038,7 @@ readdone:
 		     ((caddr_t)uio->uio_iov->iov_base -
 			 (uio->uio_offset - off));
 		MALLOC(cookies, u_long *, ncookies * sizeof(u_long),
-		       M_TEMP, M_WAITOK);
+		       M_TEMP, 0);
 		for (dp = dpStart, cookiep = cookies, i=0;
 		     i < ncookies;
 		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen), i++) {

@@ -2594,7 +2594,7 @@ ttymalloc(struct tty *tp)
 
 	if (tp)
 		return(tp);
-	tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
+	tp = malloc(sizeof *tp, M_TTYS, M_ZERO);
 	ttyregister(tp);
 	return (tp);
 }

@@ -315,7 +315,7 @@ sowakeup(so, sb)
 	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGIO, 0);
 	if (sb->sb_flags & SB_UPCALL)
-		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
+		(*so->so_upcall)(so, so->so_upcallarg, M_NOWAIT);
 	if (sb->sb_flags & SB_AIO)
 		aio_swake(so, sb);
 	KNOTE(&sb->sb_sel.si_note, 0);
@@ -626,7 +626,7 @@ sbappendaddr(sb, asa, m0, control)
 		return (0);
 	if (asa->sa_len > MLEN)
 		return (0);
-	MGET(m, M_DONTWAIT, MT_SONAME);
+	MGET(m, M_NOWAIT, MT_SONAME);
 	if (m == 0)
 		return (0);
 	m->m_len = asa->sa_len;
@@ -833,10 +833,10 @@ sbcreatecontrol(p, size, type, level)
 
 	if (CMSG_SPACE((u_int)size) > MCLBYTES)
 		return ((struct mbuf *) NULL);
-	if ((m = m_get(M_DONTWAIT, MT_CONTROL)) == NULL)
+	if ((m = m_get(M_NOWAIT, MT_CONTROL)) == NULL)
 		return ((struct mbuf *) NULL);
 	if (CMSG_SPACE((u_int)size) > MLEN) {
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			return ((struct mbuf *) NULL);
@@ -924,7 +924,7 @@ dup_sockaddr(sa, canwait)
 	struct sockaddr *sa2;
 
 	MALLOC(sa2, struct sockaddr *, sa->sa_len, M_SONAME, 
-	       canwait ? M_WAITOK : M_NOWAIT);
+	       canwait ? 0 : M_NOWAIT);
 	if (sa2)
 		bcopy(sa, sa2, sa->sa_len);
 	return sa2;

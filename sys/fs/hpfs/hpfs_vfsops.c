@@ -252,7 +252,7 @@ hpfs_mountfs(devvp, mp, argsp, td)
 	/*
 	 * Do actual mount
 	 */
-	hpmp = malloc(sizeof(struct hpfsmount), M_HPFSMNT, M_WAITOK | M_ZERO);
+	hpmp = malloc(sizeof(struct hpfsmount), M_HPFSMNT, M_ZERO);
 
 	/* Read in SuperBlock */
 	error = bread(devvp, SUBLOCK, SUSIZE, NOCRED, &bp);
@@ -494,7 +494,7 @@ hpfs_vget(
 	 * check for it).
 	 */
 	MALLOC(hp, struct hpfsnode *, sizeof(struct hpfsnode), 
-		M_HPFSNO, M_WAITOK);
+		M_HPFSNO, 0);
 
 	error = getnewvnode("hpfs", hpmp->hpm_mp, hpfs_vnodeop_p, &vp);
 	if (error) {

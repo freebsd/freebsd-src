@@ -934,7 +934,7 @@ ds_pci_attach(device_t dev)
 	struct ac97_info *codec = NULL;
 	char 		status[SND_STATUSLEN];
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
+	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}

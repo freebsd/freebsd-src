@@ -557,7 +557,7 @@ i686_mrinit(struct mem_range_softc *sc)
 
     sc->mr_desc = 
 	(struct mem_range_desc *)malloc(nmdesc * sizeof(struct mem_range_desc), 
-					M_MEMDESC, M_WAITOK | M_ZERO);
+					M_MEMDESC, M_ZERO);
     sc->mr_ndesc = nmdesc;
 
     mrd = sc->mr_desc;

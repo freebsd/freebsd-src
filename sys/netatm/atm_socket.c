@@ -596,7 +596,7 @@ atm_sock_sockaddr(so, addr)
 	/*
 	 * Return local interface address, if known
 	 */
-	satm = malloc(sizeof(*satm), M_SONAME, M_WAITOK | M_ZERO);
+	satm = malloc(sizeof(*satm), M_SONAME, M_ZERO);
 	if (satm == NULL)
 		return (ENOMEM);
 
@@ -654,7 +654,7 @@ atm_sock_peeraddr(so, addr)
 	/*
 	 * Return remote address, if known
 	 */
-	satm = malloc(sizeof(*satm), M_SONAME, M_WAITOK | M_ZERO);
+	satm = malloc(sizeof(*satm), M_SONAME, M_ZERO);
 	if (satm == NULL)
 		return (ENOMEM);
 

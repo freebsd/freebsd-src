@@ -610,7 +610,7 @@ nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 
 	if ((ddmat->dt_maxsize <= PAGE_SIZE)) {
 		*vaddr = malloc(ddmat->dt_maxsize, M_DEVBUF,
-		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
+		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : 0);
 	} else {
 		/*
 		 * XXX: Use contigmalloc until it is merged into this facility
@@ -618,7 +618,7 @@ nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 		 * allocations yet though.
 		 */
 		*vaddr = contigmalloc(ddmat->dt_maxsize, M_DEVBUF,
-		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
+		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : 0,
 		    0ul, ddmat->dt_lowaddr,
 		    ddmat->dt_alignment ? ddmat->dt_alignment : 1UL,
 		    ddmat->dt_boundary);

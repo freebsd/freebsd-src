@@ -135,7 +135,7 @@ ns_error(om, type, param)
 	/*
 	 * First, formulate ns_err message
 	 */
-	m = m_gethdr(M_DONTWAIT, MT_HEADER);
+	m = m_gethdr(M_NOWAIT, MT_HEADER);
 	if (m == NULL)
 		goto freeit;
 	m->m_len = sizeof(*ep);

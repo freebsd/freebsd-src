@@ -244,7 +244,7 @@ ipx_output_type20(m)
 			if(ipx->ipx_sum != 0xffff)
 				ipx->ipx_sum = ipx_cksum(m, ntohs(ipx->ipx_len));
 
-			m1 = m_copym(m, 0, M_COPYALL, M_DONTWAIT);
+			m1 = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 			if(m1) {
 				error = (*ifp->if_output)(ifp, m1,
 					(struct sockaddr *)&dst, NULL);

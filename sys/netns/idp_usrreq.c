@@ -160,7 +160,7 @@ idp_output(nsp, m0)
 			(m->m_len + m->m_data < &m->m_dat[MLEN])) {
 			m->m_len++;
 		} else {
-			struct mbuf *m1 = m_get(M_DONTWAIT, MT_DATA);
+			struct mbuf *m1 = m_get(M_NOWAIT, MT_DATA);
 
 			if (m1 == 0) {
 				m_freem(m0);
@@ -181,7 +181,7 @@ idp_output(nsp, m0)
 	if (nsp->nsp_flags & NSP_RAWOUT) {
 		idp = mtod(m, struct idp *);
 	} else {
-		M_PREPEND(m, sizeof (struct idp), M_DONTWAIT);
+		M_PREPEND(m, sizeof (struct idp), M_NOWAIT);
 		if (m == 0)
 			return (ENOBUFS);
 		idp = mtod(m, struct idp *);
@@ -273,7 +273,7 @@ idp_ctloutput(req, so, level, name, value)
 	case PRCO_GETOPT:
 		if (value==NULL)
 			return (EINVAL);
-		m = m_get(M_DONTWAIT, MT_DATA);
+		m = m_get(M_NOWAIT, MT_DATA);
 		if (m==NULL)
 			return (ENOBUFS);
 		switch (name) {

@@ -500,7 +500,7 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 			return 0;
 	}
 
-	mem = malloc(sizeof *mem, M_AGP, M_WAITOK);
+	mem = malloc(sizeof *mem, M_AGP, 0);
 	mem->am_id = sc->agp.as_nextid++;
 	mem->am_size = size;
 	mem->am_type = type;

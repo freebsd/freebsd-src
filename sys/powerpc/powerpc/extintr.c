@@ -452,7 +452,7 @@ intr_establish(int irq, int type, int level, int (*ih_fun)(void *),
 	irq = mapirq(irq);
 
 	/* no point in sleeping unless someone can free memory. */
-	ih = malloc(sizeof *ih, M_DEVBUF, cold ? M_NOWAIT : M_WAITOK);
+	ih = malloc(sizeof *ih, M_DEVBUF, cold ? M_NOWAIT : 0);
 	if (ih == NULL)
 		panic("intr_establish: can't malloc handler info");
 

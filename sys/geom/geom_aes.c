@@ -148,7 +148,7 @@ g_aes_read_done(struct bio *bp)
 
 	gp = bp->bio_from->geom;
 	sc = gp->softc;
-	sb = g_malloc(sc->sectorsize, M_WAITOK);
+	sb = g_malloc(sc->sectorsize, 0);
 	b = bp->bio_data;
 	e = bp->bio_data;
 	e += bp->bio_length;
@@ -211,7 +211,7 @@ g_aes_start(struct bio *bp)
 		}
 		bp2->bio_done = g_aes_write_done;
 		bp2->bio_offset += sc->sectorsize;
-		bp2->bio_data = g_malloc(bp->bio_length, M_WAITOK);
+		bp2->bio_data = g_malloc(bp->bio_length, 0);
 		b = bp->bio_data;
 		e = bp->bio_data;
 		e += bp->bio_length;
@@ -322,7 +322,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (buf == NULL || error != 0) {
 			break;
 		}
-		sc = g_malloc(sizeof(struct g_aes_softc), M_WAITOK | M_ZERO);
+		sc = g_malloc(sizeof(struct g_aes_softc), M_ZERO);
 		if (!memcmp(buf, aes_magic, strlen(aes_magic))) {
 			sc->keying = KEY_ZERO;
 		} else if (!memcmp(buf, aes_magic_random, 

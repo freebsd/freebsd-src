@@ -366,7 +366,7 @@ ngfrm_rcvdata(hook_p hook, item_p item)
 	alen = sc->addrlen;
 	if (alen == 0)
 		alen = 2;	/* default value for transmit */
-	M_PREPEND(m, alen, M_DONTWAIT);
+	M_PREPEND(m, alen, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto bad;

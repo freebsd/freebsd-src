@@ -214,7 +214,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			g_topology_unlock();
 			break;
 		}
-		gp->softc = g_malloc(sizeof(struct g_mirror_softc), M_WAITOK);
+		gp->softc = g_malloc(sizeof(struct g_mirror_softc), 0);
 		sc = gp->softc;
 		memcpy(sc->magic, buf + 16, sizeof sc->magic);
 		g_topology_lock();

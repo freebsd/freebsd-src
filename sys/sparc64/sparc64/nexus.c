@@ -234,7 +234,7 @@ nexus_probe(device_t dev)
 		}
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev != NULL) {
-			dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_WAITOK);
+			dinfo = malloc(sizeof(*dinfo), M_NEXUS, 0);
 			dinfo->ndi_node = child;
 			dinfo->ndi_name = name;
 			dinfo->ndi_device_type = type;

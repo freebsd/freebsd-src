@@ -260,7 +260,7 @@ USB_ATTACH(uplcom)
 	usbd_status err;
 	int i;
 
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
+	devinfo = malloc(1024, M_USBDEV, 0);
 	ucom = &sc->sc_ucom;
 
 	bzero(sc, sizeof (struct uplcom_softc));
@@ -685,7 +685,7 @@ uplcom_open(void *addr, int portno)
 
 	if (sc->sc_intr_number != -1 && sc->sc_intr_pipe == NULL) {
 		sc->sc_status = 0; /* clear status bit */
-		sc->sc_intr_buf = malloc(sc->sc_isize, M_USBDEV, M_WAITOK);
+		sc->sc_intr_buf = malloc(sc->sc_isize, M_USBDEV, 0);
 		err = usbd_open_pipe_intr(sc->sc_intr_iface,
 					  sc->sc_intr_number,
 					  USBD_SHORT_XFER_OK,

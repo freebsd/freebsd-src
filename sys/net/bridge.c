@@ -246,7 +246,7 @@ add_cluster(u_int16_t cluster_id, struct arpcom *ac)
     }
     c[n_clusters].ht = (struct hash_table *)
 	    malloc(HASH_SIZE * sizeof(struct hash_table),
-		M_IFADDR, M_WAITOK | M_ZERO);
+		M_IFADDR, M_ZERO);
     if (c[n_clusters].ht == NULL) {
 	printf("-- bridge: cannot allocate hash table for new cluster\n");
 	free(c, M_IFADDR);
@@ -254,7 +254,7 @@ add_cluster(u_int16_t cluster_id, struct arpcom *ac)
     }
     c[n_clusters].my_macs = (struct bdg_addr *)
 	    malloc(BDG_MAX_PORTS * sizeof(struct bdg_addr),
-		M_IFADDR, M_WAITOK | M_ZERO);
+		M_IFADDR, M_ZERO);
     if (c[n_clusters].my_macs == NULL) {
         printf("-- bridge: cannot allocate mac addr table for new cluster\n");
 	free(c[n_clusters].ht, M_IFADDR);
@@ -799,7 +799,7 @@ static struct mbuf *
 bdg_forward(struct mbuf *m0, struct ifnet *dst)
 {
 #define	EH_RESTORE(_m) do {						   \
-    M_PREPEND((_m), ETHER_HDR_LEN, M_DONTWAIT);			   	   \
+    M_PREPEND((_m), ETHER_HDR_LEN, M_NOWAIT);			   	   \
     if ((_m) == NULL) {							   \
 	bdg_dropped++;							   \
 	return NULL;							   \
@@ -975,7 +975,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    struct mbuf *m ;
 
 	    if (shared) {
-		m = m_copypacket(m0, M_DONTWAIT);
+		m = m_copypacket(m0, M_NOWAIT);
 		if (m == NULL) {	/* copy failed, give up */
 		    bdg_dropped++;
 		    return NULL;
@@ -1041,7 +1041,7 @@ forward:
 		m = m0 ;
 		m0 = NULL ; /* original is gone */
 	    } else {
-		m = m_copypacket(m0, M_DONTWAIT);
+		m = m_copypacket(m0, M_NOWAIT);
 		if (m == NULL) {
 		    IFNET_RUNLOCK();
 		    printf("bdg_forward: sorry, m_copypacket failed!\n");
@@ -1090,7 +1090,7 @@ bdginit(void)
     printf("BRIDGE 020214 loaded\n");
 
     ifp2sc = malloc(BDG_MAX_PORTS * sizeof(struct bdg_softc),
-		M_IFADDR, M_WAITOK | M_ZERO );
+		M_IFADDR, M_ZERO );
     if (ifp2sc == NULL)
 	return ENOMEM ;
 

@@ -621,7 +621,7 @@ static void
 mac_lomac_init_label(struct label *label)
 {
 
-	SLOT(label) = lomac_alloc(M_WAITOK);
+	SLOT(label) = lomac_alloc(0);
 }
 
 static int
@@ -640,7 +640,7 @@ mac_lomac_init_proc_label(struct label *label)
 {
 
 	PSLOT(label) = malloc(sizeof(struct mac_lomac_proc), M_MACLOMAC,
-	    M_ZERO | M_WAITOK);
+	    M_ZERO);
 	mtx_init(&PSLOT(label)->mtx, "MAC/Lomac proc lock", NULL, MTX_DEF);
 }
 

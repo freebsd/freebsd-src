@@ -184,7 +184,7 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 	    limit)
 		return (EFAULT);
 	tempuser = malloc(ctob(uarea_pages + kstack_pages), M_TEMP,
-	    M_WAITOK | M_ZERO);
+	    M_ZERO);
 	if (tempuser == NULL)
 		return (ENOMEM);
 	PROC_LOCK(p);
@@ -393,7 +393,7 @@ pecoff_load_file(struct thread * td, const char *file, u_long * addr, u_long * e
 		goto fail;
 	if ((error = pecoff_signature(td, imgp->vp, &dh) != 0))
 		goto fail;
-	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, M_WAITOK);
+	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, 0);
 	peofs = dh.d_peofs + sizeof(signature) - 1;
 	if ((error = pecoff_read_from(td, imgp->vp, peofs, (caddr_t) fp, PECOFF_HDR_SIZE) != 0))
 		goto fail;
@@ -405,7 +405,7 @@ pecoff_load_file(struct thread * td, const char *file, u_long * addr, u_long * e
 	wp = (void *) ((char *) ap + sizeof(struct coff_aouthdr));
 	/* read section header */
 	scnsiz = sizeof(struct coff_scnhdr) * fp->f_nscns;
-	sh = malloc(scnsiz, M_TEMP, M_WAITOK);
+	sh = malloc(scnsiz, M_TEMP, 0);
 	if ((error = pecoff_read_from(td, imgp->vp, peofs + PECOFF_HDR_SIZE,
 				      (caddr_t) sh, scnsiz)) != 0)
 		goto fail;
@@ -481,7 +481,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	struct vmspace *vmspace;
 	struct pecoff_args *argp = NULL;
 
-	sh = malloc(scnsiz, M_TEMP, M_WAITOK);
+	sh = malloc(scnsiz, M_TEMP, 0);
 
 	wp = (void *) ((char *) ap + sizeof(struct coff_aouthdr));
 	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc), imgp->vp,
@@ -529,7 +529,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	vmspace->vm_taddr = (caddr_t) (uintptr_t) text_addr;
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
 	vmspace->vm_daddr = (caddr_t) (uintptr_t) data_addr;
-	argp = malloc(sizeof(struct pecoff_args), M_TEMP, M_WAITOK);
+	argp = malloc(sizeof(struct pecoff_args), M_TEMP, 0);
 	if (argp == NULL) {
 		error = ENOMEM;
 		goto fail;
@@ -659,7 +659,7 @@ imgact_pecoff(struct image_params * imgp)
 	VOP_UNLOCK(imgp->vp, 0, td);
 
 	peofs = dp->d_peofs + sizeof(signature) - 1;
-	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, M_WAITOK);
+	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, 0);
 	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc),
 	     imgp->vp, peofs, (caddr_t) fp, PECOFF_HDR_SIZE);
 	if (error)

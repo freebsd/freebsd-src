@@ -116,7 +116,7 @@ ng_hci_send_command(ng_hci_unit_p unit)
 
 	ng_hci_mtap(unit, m0);
 
-	m = m_dup(m0, M_DONTWAIT);
+	m = m_dup(m0, M_NOWAIT);
 	if (m != NULL)
 		NG_SEND_DATA_ONLY(error, unit->drv, m);
 	else

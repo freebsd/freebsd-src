@@ -774,7 +774,7 @@ in6_ifattach(ifp, altifp)
 
 		/* grow in6_ifstat */
 		n = if_indexlim * sizeof(struct in6_ifstat *);
-		q = (caddr_t)malloc(n, M_IFADDR, M_WAITOK);
+		q = (caddr_t)malloc(n, M_IFADDR, 0);
 		bzero(q, n);
 		if (in6_ifstat) {
 			bcopy((caddr_t)in6_ifstat, q,
@@ -786,7 +786,7 @@ in6_ifattach(ifp, altifp)
 
 		/* grow icmp6_ifstat */
 		n = if_indexlim * sizeof(struct icmp6_ifstat *);
-		q = (caddr_t)malloc(n, M_IFADDR, M_WAITOK);
+		q = (caddr_t)malloc(n, M_IFADDR, 0);
 		bzero(q, n);
 		if (icmp6_ifstat) {
 			bcopy((caddr_t)icmp6_ifstat, q,
@@ -864,12 +864,12 @@ statinit:
 
 	if (in6_ifstat[ifp->if_index] == NULL) {
 		in6_ifstat[ifp->if_index] = (struct in6_ifstat *)
-			malloc(sizeof(struct in6_ifstat), M_IFADDR, M_WAITOK);
+			malloc(sizeof(struct in6_ifstat), M_IFADDR, 0);
 		bzero(in6_ifstat[ifp->if_index], sizeof(struct in6_ifstat));
 	}
 	if (icmp6_ifstat[ifp->if_index] == NULL) {
 		icmp6_ifstat[ifp->if_index] = (struct icmp6_ifstat *)
-			malloc(sizeof(struct icmp6_ifstat), M_IFADDR, M_WAITOK);
+			malloc(sizeof(struct icmp6_ifstat), M_IFADDR, 0);
 		bzero(icmp6_ifstat[ifp->if_index], sizeof(struct icmp6_ifstat));
 	}
 

@@ -78,10 +78,10 @@ devfs_nmount(mp, ndp, td)
 		return (EOPNOTSUPP);
 
 	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount),
-	    M_DEVFS, M_WAITOK | M_ZERO);
+	    M_DEVFS, M_ZERO);
 	MALLOC(fmp->dm_dirent, struct devfs_dirent **,
 	    sizeof(struct devfs_dirent *) * NDEVFSINO,
-	    M_DEVFS, M_WAITOK | M_ZERO);
+	    M_DEVFS, M_ZERO);
 	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, LK_NOPAUSE);
 
 	mp->mnt_flag |= MNT_LOCAL;

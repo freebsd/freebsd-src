@@ -91,7 +91,7 @@ snd_mtxcreate(const char *desc, const char *type)
 #ifdef USING_MUTEX
 	struct mtx *m;
 
-	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
+	m = malloc(sizeof(*m), M_DEVBUF, M_ZERO);
 	if (m == NULL)
 		return NULL;
 	mtx_init(m, desc, type, MTX_RECURSE);
@@ -364,11 +364,11 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 		return NULL;
 	}
 
-	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
+	ch = malloc(sizeof(*ch), M_DEVBUF, M_ZERO);
 	if (!ch)
 		return NULL;
 
-	ch->methods = kobj_create(cls, M_DEVBUF, M_WAITOK);
+	ch->methods = kobj_create(cls, M_DEVBUF, 0);
 	if (!ch->methods) {
 		free(ch, M_DEVBUF);
 
@@ -426,7 +426,7 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
     	int unit = device_get_unit(d->dev);
 	int x = -1;
 
-	sce = malloc(sizeof(*sce), M_DEVBUF, M_WAITOK | M_ZERO);
+	sce = malloc(sizeof(*sce), M_DEVBUF, M_ZERO);
 	if (!sce) {
 		return ENOMEM;
 	}

@@ -211,7 +211,7 @@ ah4_output(m, isr)
 		panic("ah4_output: assumption failed (first mbuf length)");
 	if (M_LEADINGSPACE(m->m_next) < ahlen) {
 		struct mbuf *n;
-		MGET(n, M_DONTWAIT, MT_DATA);
+		MGET(n, M_NOWAIT, MT_DATA);
 		if (!n) {
 			ipseclog((LOG_DEBUG, "ENOBUFS in ah4_output %d\n",
 			    __LINE__));
@@ -390,13 +390,13 @@ ah6_output(m, nexthdrp, md, isr)
 		return EINVAL;
 	}
 
-	MGET(mah, M_DONTWAIT, MT_DATA);
+	MGET(mah, M_NOWAIT, MT_DATA);
 	if (!mah) {
 		m_freem(m);
 		return ENOBUFS;
 	}
 	if (ahlen > MLEN) {
-		MCLGET(mah, M_DONTWAIT);
+		MCLGET(mah, M_NOWAIT);
 		if ((mah->m_flags & M_EXT) == 0) {
 			m_free(mah);
 			m_freem(m);

@@ -90,7 +90,7 @@ smb_strdup(const char *s)
 	int len;
 
 	len = s ? strlen(s) + 1 : 1;
-	p = malloc(len, M_SMBSTR, M_WAITOK);
+	p = malloc(len, M_SMBSTR, 0);
 	if (s)
 		bcopy(s, p, len);
 	else
@@ -116,7 +116,7 @@ smb_strdupin(char *s, int maxlen)
 		if (bt == 0)
 			break;
 	}
-	p = malloc(len, M_SMBSTR, M_WAITOK);
+	p = malloc(len, M_SMBSTR, 0);
 	copyin(s, p, len);
 	return p;
 }
@@ -131,7 +131,7 @@ smb_memdupin(void *umem, int len)
 
 	if (len > 8 * 1024)
 		return NULL;
-	p = malloc(len, M_SMBSTR, M_WAITOK);
+	p = malloc(len, M_SMBSTR, 0);
 	if (copyin(umem, p, len) == 0)
 		return p;
 	free(p, M_SMBSTR);
@@ -148,7 +148,7 @@ smb_memdup(const void *umem, int len)
 
 	if (len > 8 * 1024)
 		return NULL;
-	p = malloc(len, M_SMBSTR, M_WAITOK);
+	p = malloc(len, M_SMBSTR, 0);
 	if (p == NULL)
 		return NULL;
 	bcopy(umem, p, len);

@@ -402,7 +402,7 @@ loranwrite(dev_t dev, struct uio * uio, int ioflag)
 
 	idx = minor(dev);
 
-	MALLOC(this, struct datapoint *, sizeof *this, M_LORAN, M_WAITOK);
+	MALLOC(this, struct datapoint *, sizeof *this, M_LORAN, 0);
 	c = imin(uio->uio_resid, (int)sizeof *this);
 	err = uiomove((caddr_t)this, c, uio);        
 	if (err) {

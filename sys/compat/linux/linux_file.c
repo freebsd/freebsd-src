@@ -297,7 +297,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 
 	buflen = max(LINUX_DIRBLKSIZ, nbytes);
 	buflen = min(buflen, MAXBSIZE);
-	buf = malloc(buflen, M_TEMP, M_WAITOK);
+	buf = malloc(buflen, M_TEMP, 0);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 again:

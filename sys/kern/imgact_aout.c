@@ -276,7 +276,7 @@ aout_coredump(td, vp, limit)
 	    + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
 	tempuser = malloc(ctob(uarea_pages + kstack_pages), M_TEMP,
-	    M_WAITOK | M_ZERO);
+	    M_ZERO);
 	if (tempuser == NULL)
 		return (ENOMEM);
 	PROC_LOCK(p);

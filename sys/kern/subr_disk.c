@@ -176,7 +176,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	}
 
 	bzero(dp, sizeof(*dp));
-	dp->d_label = malloc(sizeof *dp->d_label, M_DEVBUF, M_WAITOK|M_ZERO);
+	dp->d_label = malloc(sizeof *dp->d_label, M_DEVBUF, M_ZERO);
 
 	if (proto->d_open != diskopen) {
 		*proto = *cdevsw;
