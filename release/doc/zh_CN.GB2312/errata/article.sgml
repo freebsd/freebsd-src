@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.69.2.16
+	Original Revision: 1.69.2.17
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -19,8 +19,8 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "5.3-RELEASE">
-<!ENTITY release.bugfix.next "5.4-RELEASE">
+<!ENTITY release.bugfix "5.4-RELEASE">
+<!ENTITY release.bugfix.next "5.5-RELEASE">
 ]>
 
 <article>
@@ -39,7 +39,8 @@
       <year>2002</year>
       <year>2003</year>
       <year>2004</year>
-      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+      <year>2005</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
     <legalnotice id="trademarks" role="trademarks">
