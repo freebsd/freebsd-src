@@ -2592,7 +2592,6 @@ static struct isa_device *search_devtable(struct isa_device *, char *, int);
 static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
 static int parse_args(const char *, CmdParm *);
-static unsigned long strtoul(const char *, const char **, int);
 static int save_dev(struct isa_device *);
 
 static int list_devices(CmdParm *);
@@ -3459,88 +3458,6 @@ cngets(char *input, int maxin)
     }
 }
 
-
-/*
- * Kludges to get the library sources of strtoul.c to work in our
- * environment.  isdigit() and isspace() could be used above too.
- */
-#define	isalpha(c)	(((c) >= 'A' && (c) <= 'Z') \
-			 || ((c) >= 'a' && (c) <= 'z'))		/* unsafe */
-#define	isdigit(c)	((unsigned)((c) - '0') <= '9' - '0')
-#define	isspace(c)	((c) == ' ' || (c) == '\t')		/* unsafe */
-#define	isupper(c)	((unsigned)((c) - 'A') <= 'Z' - 'A')
-
-static int errno;
-
-/*
- * The following should be identical with the library sources for strtoul.c.
- */
-
-/*
- * Convert a string to an unsigned long integer.
- *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
- * alphabets and digits are each contiguous.
- */
-static unsigned long
-strtoul(nptr, endptr, base)
-	const char *nptr;
-	const char **endptr;
-	register int base;
-{
-	register const char *s = nptr;
-	register unsigned long acc;
-	register int c;
-	register unsigned long cutoff;
-	register int neg = 0, any, cutlim;
-
-	/*
-	 * See strtol for comments as to the logic used.
-	 */
-	do {
-		c = *s++;
-	} while (isspace(c));
-	if (c == '-') {
-		neg = 1;
-		c = *s++;
-	} else if (c == '+')
-		c = *s++;
-	if ((base == 0 || base == 16) &&
-	    c == '0' && (*s == 'x' || *s == 'X')) {
-		c = s[1];
-		s += 2;
-		base = 16;
-	}
-	if (base == 0)
-		base = c == '0' ? 8 : 10;
-	cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
-	cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
-	for (acc = 0, any = 0;; c = *s++) {
-		if (isdigit(c))
-			c -= '0';
-		else if (isalpha(c))
-			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
-		else
-			break;
-		if (c >= base)
-			break;
-		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
-			any = -1;
-		else {
-			any = 1;
-			acc *= base;
-			acc += c;
-		}
-	}
-	if (any < 0) {
-		acc = ULONG_MAX;
-		errno = ERANGE;
-	} else if (neg)
-		acc = -acc;
-	if (endptr != 0)
-		*endptr = (const char *)(any ? s - 1 : nptr);
-	return (acc);
-}
 
 #if 0
 /* scsi: Support for displaying configured SCSI devices.
