@@ -54,6 +54,7 @@ enum busTypes {
     CBUS = 1,
     CBUSII = 2,
     EISA = 3,
+    MCA = 4,
     ISA = 6,
     PCI = 13,
     XPRESS = 18,
