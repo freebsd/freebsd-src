@@ -200,7 +200,7 @@ mdopen(dev_t dev, int flag, int fmt, struct proc *p)
 	dl = &sc->disk.d_label;
 	bzero(dl, sizeof(*dl));
 	dl->d_secsize = sc->secsize;
-	dl->d_nsectors = sc->nsect > 1024 ? 1024 : sc->nsect;
+	dl->d_nsectors = sc->nsect > 63 ? 63 : sc->nsect;
 	dl->d_ntracks = 1;
 	dl->d_secpercyl = dl->d_nsectors * dl->d_ntracks;
 	dl->d_secperunit = sc->nsect;
