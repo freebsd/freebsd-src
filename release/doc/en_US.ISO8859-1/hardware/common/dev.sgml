@@ -47,7 +47,7 @@
 
   <sect2>
     <title>Disk Controllers</title>
-      <para>IDE/ATA controllers (&man.ata.4 driver)
+      <para arch="i386,alpha">IDE/ATA controllers (&man.ata.4 driver)
         <itemizedlist>
 	   <listitem>
 	     <para>Acerlabs Aladdin</para>
@@ -561,7 +561,7 @@
       </itemizedlist>
     </para>
 
-    <para>Qlogic controllers and variants (&man.isp.4; driver)
+    <para arch="i386,alpha">Qlogic controllers and variants (&man.isp.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Qlogic 1020, 1040 SCSI and Ultra SCSI host
@@ -1249,7 +1249,7 @@
 	  <para>Intel EtherExpress Pro/10 and Pro/10+ Ethernet
 	  (&man.ex.4; driver)</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Intel EtherExpress Pro/100B PCI Fast Ethernet
 	  (&man.fxp.4; driver)</para>
         </listitem>
