@@ -1359,7 +1359,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
 		strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
-		ifa = TAILQ_FIRST(&ifp->if_addrhead);
+		ifa = ifaddr_byindex(ifp->if_index);
 		IFA_LOCK(ifa);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		namelen = strlen(new_name);
