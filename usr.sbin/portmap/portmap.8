@@ -107,13 +107,26 @@ to be printed to the standard error output.
 .It Fl v
 Enable verbose logging of access control checks.
 .It Fl h
-Specify specific ip addresses to bind to for UDP requests.  This option
+Specify specific IP addresses to bind to for UDP requests.
+This option
 may be specified multiple times and is typically necessary when running
-portmap on a multi-homed host.  If no -h option is specified, portmap will
-bind to INADDR_ANY, which could lead to problems on a multi-homed host due
-to portmap returning a udp packet from a different IP address then it was
-sent to.  Note that when specifying ip addresses with -h,
-portmap will automatically add 127.0.0.1 to the list so you don't have to.
+on a multi-homed host.
+If no
+.Fl h
+option is specified,
+.Nm
+will bind to
+.Dv INADDR_ANY ,
+which could lead to problems on a multi-homed host due to
+.Nm
+returning a UDP packet from a different IP address than it was
+sent to.
+Note that when specifying IP addresses with
+.Fl h ,
+.Nm
+will automatically add
+.Li 127.0.0.1
+to the list.
 .El
 .Sh SEE ALSO
 .Xr hosts_access 5 ,
