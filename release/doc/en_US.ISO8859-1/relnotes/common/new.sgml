@@ -121,7 +121,18 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para>The &man.ng.hub.4; Netgraph node type, which supports
+        a simple packet distribution that acts like an Ethernet hub
+        has been added.</para>
+
+      <para>The &man.vr.4; driver now supports &man.polling.4;.</para>
+
+      <para>The per-interface &man.polling.4; support has been
+	implemented.  All of the network drivers that support &man.polling.4;
+	(&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
+	&man.rl.4;, &man.sis.4;, &man.ste.4;, and &man.vr.4;)
+	now also support this capability and it can be controlled
+	via &man.ifconfig.8;.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -130,8 +141,10 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
-
+      <para>The random ephemeral port allocation, which come from OpenBSD
+	has been implemented.  This is enabled by default and can be disabled
+	using the <varname>net.inet.ip.portrange.randomized</varname>
+	sysctl.</para>
     </sect3>
 
     <sect3 id="disks">
