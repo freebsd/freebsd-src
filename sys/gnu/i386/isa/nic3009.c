@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.1 1995/02/14 15:00:14 jkh Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.2 1995/02/15 06:28:20 jkh Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.1 1995/02/14 15:00:14 jkh E
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.2  1995/02/15  06:28:20  jkh
+ * Fix up include paths, nuke some warnings.
+ *
  * Revision 1.1  1995/02/14  15:00:14  jkh
  * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
  * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
@@ -38,7 +41,7 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.1 1995/02/14 15:00:14 jkh E
 #include "kernel.h"
 #include "systm.h"
 
-#include "gnu/i386/isa/isa_device.h"
+#include "i386/isa/isa_device.h"
 #include "gnu/i386/isa/nic3009.h"
 #include "gnu/i386/isa/niccyreg.h"
 #include "gnu/isdn/isdn_ioctl.h"
@@ -62,8 +65,7 @@ extern u_short isdn_state;
 extern isdn_ctrl_t isdn_ctrl[];
 extern int     ispy_applnr;
 extern int Isdn_Appl, Isdn_Ctrl, Isdn_Typ;
-extern int hz;
-extern isdn_start_out();
+extern void isdn_start_out();
 
 static old_spy= 0;
 
@@ -202,8 +204,9 @@ nnicattach(struct isa_device * is)
 
 /* If the Niccy card wants it: Interupt it. */
 static void
-make_intr(struct nnic_softc * sc)
+make_intr(void *gen)
 {
+	struct nnic_softc * sc = (struct nnic_softc *)gen;
 	dpr_type       *dpr = sc->sc_dpr;
 
 	dpr->watchdog_cnt = 0xFF;
@@ -1110,7 +1113,7 @@ up_intr(unsigned unit, struct nnic_softc * sc)
 		{
 			chan->state = IDLE;
 			ctrl->o_len = 0;
-			timeout(isdn_start_out,chan->ctrl,hz/5);
+			timeout(isdn_start_out,(void *)chan->ctrl,hz/5);
 		}
 		break;
 
@@ -1195,12 +1198,13 @@ printf("E?%x",error);
 		return;
 	}
 	msg->msg_flag= 0;
-	timeout(make_intr,sc,1);
+	timeout(make_intr, (void *)sc,1);
 }
 
 static void
-nnnicintr(unsigned unit)
+nnnicintr(void *gen)
 {
+	unsigned int unit = (int)gen;
 	register struct nnic_softc *sc = &nnic_sc[unit];
 	dpr_type       *dpr = sc->sc_dpr;
 
@@ -1212,7 +1216,7 @@ nnnicintr(unsigned unit)
 void
 nnicintr(unsigned unit)
 {
-        timeout(nnnicintr,unit,1);
+        timeout(nnnicintr, (void *)unit,1);
 }
 
 #endif				/* NNNIC > 0 */
