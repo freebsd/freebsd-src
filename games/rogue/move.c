@@ -54,7 +54,7 @@ static char sccsid[] = "@(#)move.c	8.1 (Berkeley) 5/31/93";
 
 short m_moves = 0;
 boolean jump = 0;
-char *you_can_move_again = "you can move again";
+const char *you_can_move_again = "you can move again";
 
 extern short cur_room, halluc, blind, levitate;
 extern short cur_level, max_level;

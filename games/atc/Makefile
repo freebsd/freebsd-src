@@ -13,7 +13,5 @@ HIDEGAME=hidegame
 beforeinstall:
 	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 440 \
 	    ${GAMES} ${DESTDIR}${SHAREDIR}/games/atc)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 ${.CURDIR}/games/ATC_scores \
-	    ${DESTDIR}/var/games/atc_score
 
 .include <bsd.prog.mk>

@@ -122,10 +122,11 @@ init_gr()
 }
 
 setup_screen(scp)
-	C_SCREEN	*scp;
+	const C_SCREEN	*scp;
 {
 	register int	i, j;
-	char		str[3], *airstr;
+	char		str[3];
+	const char	*airstr;
 
 	str[2] = '\0';
 
@@ -213,8 +214,9 @@ setup_screen(scp)
 }
 
 draw_line(w, x, y, lx, ly, s)
-	WINDOW	*w;
-	char	*s;
+	WINDOW		*w;
+	int		x, y, lx, ly;
+	const char	*s;
 {
 	int	dx, dy;
 
@@ -246,7 +248,7 @@ iomove(pos)
 }
 
 ioaddstr(pos, str)
-	char	*str;
+	const char	*str;
 {
 	wmove(input, 0, pos);
 	waddstr(input, str);
@@ -262,7 +264,7 @@ ioclrtobot()
 }
 
 ioerror(pos, len, str)
-	char	*str;
+	const char	*str;
 {
 	int	i;
 
@@ -359,8 +361,8 @@ planewin()
 }
 
 loser(p, s)
-	PLANE	*p;
-	char	*s;
+	const PLANE	*p;
+	const char	*s;
 {
 	int			c;
 #ifdef BSD

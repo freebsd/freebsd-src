@@ -66,10 +66,10 @@ static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 5/31/93";
 #define NUMTOKEN	257
 
 typedef struct {
-	int	token;
-	int	to_state;
-	char	*str;
-	char	*(*func)();
+	int		token;
+	int		to_state;
+	const char	*str;
+	const char	*(*func)();
 } RULE;
 
 typedef struct {
@@ -95,7 +95,7 @@ typedef struct {
 
 #define NUMSTATES	NUMELS(st)
 
-char	*setplane(), *circle(), *left(), *right(), *Left(), *Right(),
+const char	*setplane(), *circle(), *left(), *right(), *Left(), *Right(),
 	*beacon(), *ex_it(), *climb(), *descend(), *setalt(), *setrelalt(),
 	*benum(), *to_dir(), *rel_dir(), *delayb(), *mark(), *unmark(),
 	*airport(), *turn(), *ignore();
@@ -241,9 +241,9 @@ push(ruleno, ch)
 
 getcommand()
 {
-	int	c, i, done;
-	char	*s, *(*func)();
-	PLANE	*pp;
+	int		c, i, done;
+	const char	*s, *(*func)();
+	PLANE		*pp;
 
 	rezero();
 
@@ -368,7 +368,7 @@ gettoken()
 		return (tval);
 }
 
-char	*
+const char	*
 setplane(c)
 {
 	PLANE	*pp;
@@ -381,7 +381,7 @@ setplane(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 turn(c)
 {
 	if (p.altitude == 0)
@@ -389,7 +389,7 @@ turn(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 circle(c)
 {
 	if (p.altitude == 0)
@@ -398,7 +398,7 @@ circle(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 left(c)
 {
 	dir = D_LEFT;
@@ -408,7 +408,7 @@ left(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 right(c)
 {
 	dir = D_RIGHT;
@@ -418,7 +418,7 @@ right(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 Left(c)
 {
 	p.new_dir = p.dir - 2;
@@ -427,7 +427,7 @@ Left(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 Right(c)
 {
 	p.new_dir = p.dir + 2;
@@ -436,7 +436,7 @@ Right(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 delayb(c)
 {
 	int	xdiff, ydiff;
@@ -481,42 +481,42 @@ delayb(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 beacon(c)
 {
 	dest_type = T_BEACON;
 	return (NULL);
 }
 
-char	*
+const char	*
 ex_it(c)
 {
 	dest_type = T_EXIT;
 	return (NULL);
 }
 
-char	*
+const char	*
 airport(c)
 {
 	dest_type = T_AIRPORT;
 	return (NULL);
 }
 
-char	*
+const char	*
 climb(c)
 {
 	dir = D_UP;
 	return (NULL);
 }
 
-char	*
+const char	*
 descend(c)
 {
 	dir = D_DOWN;
 	return (NULL);
 }
 
-char	*
+const char	*
 setalt(c)
 {
 	if ((p.altitude == c - '0') && (p.new_altitude == p.altitude))
@@ -525,7 +525,7 @@ setalt(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 setrelalt(c)
 {
 	if (c == 0)
@@ -549,7 +549,7 @@ setrelalt(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 benum(c)
 {
 	dest_no = c -= '0';
@@ -580,14 +580,14 @@ benum(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 to_dir(c)
 {
 	p.new_dir = dir_no(c);
 	return (NULL);
 }
 
-char	*
+const char	*
 rel_dir(c)
 {
 	int	angle;
@@ -611,7 +611,7 @@ rel_dir(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 mark(c)
 {
 	if (p.altitude == 0)
@@ -622,7 +622,7 @@ mark(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 unmark(c)
 {
 	if (p.altitude == 0)
@@ -633,7 +633,7 @@ unmark(c)
 	return (NULL);
 }
 
-char	*
+const char	*
 ignore(c)
 {
 	if (p.altitude == 0)

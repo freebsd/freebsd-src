@@ -55,7 +55,7 @@ static char sccsid[] = "@(#)monster.c	8.1 (Berkeley) 5/31/93";
 object level_monsters;
 boolean mon_disappeared;
 
-char *m_names[] = {
+const char *const m_names[] = {
 	"aquator",
 	"bat",
 	"centaur",
@@ -171,7 +171,7 @@ register mn;
 
 mv_mons()
 {
-	register object *monster, *next_monster;
+	register object *monster, *next_monster, *test_mons;
 	boolean flew;
 
 	if (haste_self % 2) {
@@ -210,7 +210,17 @@ mv_mons()
 		if (!(flew && mon_can_go(monster, rogue.row, rogue.col))) {
 			mv_1_monster(monster, rogue.row, rogue.col);
 		}
-NM:		monster = next_monster;
+NM:		test_mons = level_monsters.next_monster;
+		monster = NULL;
+		while(test_mons)
+		{
+			if(next_monster == test_mons)
+			{
+				monster = next_monster;
+				break;
+			}
+			test_mons = test_mons->next_monster;
+		}
 	}
 }
 
@@ -488,7 +498,7 @@ register short row, col;
 }
 
 mon_can_go(monster, row, col)
-register object *monster;
+const object *monster;
 register short row, col;
 {
 	object *obj;
@@ -572,9 +582,9 @@ short row, col;
 	}
 }
 
-char *
+const char *
 mon_name(monster)
-object *monster;
+const object *monster;
 {
 	short ch;
 
@@ -790,7 +800,7 @@ object *monster;
 gr_obj_char()
 {
 	short r;
-	char *rs = "%!?]=/):*";
+	const char *rs = "%!?]=/):*";
 
 	r = get_rand(0, 8);
 
@@ -832,7 +842,8 @@ aggravate()
 
 boolean
 mon_sees(monster, row, col)
-object *monster;
+const object *monster;
+int row, col;
 {
 	short rn, rdif, cdif, retval;
 

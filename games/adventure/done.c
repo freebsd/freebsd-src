@@ -109,6 +109,7 @@ int entry;      /* entry=2 means goto 20000 */ /* 3=19000 */
 }
 
 
+void
 die(entry)                                      /* label 90             */
 int entry;
 {       register int i;
@@ -135,5 +136,4 @@ int entry;
 	}
 	loc=3;
 	oldloc=loc;
-	return(2000);
 }

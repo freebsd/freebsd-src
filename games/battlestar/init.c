@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 5/31/93";
 initialize(startup)
 	char startup;
 {
-	register struct objs *p;
+	const struct objs *p;
 	void die();
 
 	puts("Version 4.2, fall 1984.");
@@ -79,7 +79,7 @@ getutmp(uname)
 	strcpy(uname, ptr ? ptr->pw_name : "");
 }
 
-char *list[] = {	/* hereditary wizards */
+const char *const list[] = {	/* hereditary wizards */
 	"riggle",
 	"chris",
 	"edward",
@@ -90,15 +90,16 @@ char *list[] = {	/* hereditary wizards */
 	0
 };
 
-char *badguys[] = {
+const char *const badguys[] = {
 	"wnj",
 	"root",
 	"ted",
 	0
 };
 
+int
 wizard(uname)
-	char *uname;
+	const char *uname;
 {
 	char flag;
 
@@ -107,10 +108,11 @@ wizard(uname)
 	return flag;
 }
 
+int
 checkout(uname)
-	register char *uname;
+	const char *uname;
 {
-	register char **ptr;
+	const char *const *ptr;
 
 	for (ptr = list; *ptr; ptr++)
 		if (strcmp(*ptr, uname) == 0)

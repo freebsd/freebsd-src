@@ -35,15 +35,16 @@
 static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
-#include <sgtty.h>
+#include <sys/cdefs.h>
+#include <termios.h>
 
 /*
  * variable initialization.
  */
 
 				/* name of executable object programs */
-char	EXEC[] = "/usr/games/backgammon";
-char	TEACH[] = "/usr/games/teachgammon";
+const char	EXEC[] = "/usr/games/backgammon";
+const char	TEACH[] = "/usr/games/teachgammon";
 
 int	pnum	= 2;		/* color of player:
 					-1 = white
@@ -62,4 +63,37 @@ int	tflag	= 0;		/* cursor addressing flag */
 int	iroll	= 0;		/* special flag for inputting rolls */
 int	rfl	= 0;
 
-char	*color[] = {"White","Red","white","red"};
+const char	*const color[] = {"White","Red","white","red"};
+
+const char	*const *Colorptr;
+const char	*const *colorptr;
+int	*inopp;
+int	*inptr;
+int	*offopp;
+int	*offptr;
+char	args[100];
+int	bar;
+int	begscr;
+int	board[26];
+char	cin[100];
+int	colen;
+int	cturn;
+int	curc;
+int	curr;
+int	d0;
+int	dice[2];
+int	dlast;
+int	g[5];
+int	gvalue;
+int	h[4];
+int	home;
+int	in[2];
+int	mvl;
+int	mvlim;
+int	ncin;
+int	off[2];
+int	p[5];
+int	rscore;
+int	table[6][6];
+int	wscore;
+struct termios	tty, old, noech, raw;

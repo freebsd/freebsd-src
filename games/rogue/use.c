@@ -61,7 +61,7 @@ boolean see_invisible = 0;
 short extra_hp = 0;
 boolean detect_monster = 0;
 boolean con_mon = 0;
-char *strange_feeling = "you have a strange feeling for a moment, then it passes";
+const char *strange_feeling = "you have a strange feeling for a moment, then it passes";
 
 extern short bear_trap;
 extern char hunger_str[];
@@ -580,7 +580,7 @@ go_blind()
 	mvaddch(rogue.row, rogue.col, rogue.fchar);
 }
 
-char *
+const char *
 get_ench_color()
 {
 	if (halluc) {

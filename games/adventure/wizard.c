@@ -56,9 +56,15 @@ int *d,*t;
 
 	time(&tvec);
 	tptr=localtime(&tvec);
-	*d=tptr->tm_yday+365*(tptr->tm_year-77); /* day since 1977  (mod leap)   */
-	*t=tptr->tm_hour*60+tptr->tm_min; /* and minutes since midnite    */
-}                                         /* pretty painless              */
+	/* day since 1977 */
+	*d = (tptr->tm_yday + 365 * (tptr->tm_year - 77)
+		+ (tptr->tm_year - 77) / 4 - (tptr->tm_year - 1) / 100
+		+ (tptr->tm_year + 299) / 400);
+	/* bug: this will overflow in the year 2066 AD (with 16 bit int) */
+	/* it will be attributed to Wm the C's millenial celebration    */
+	/* and minutes since midnite */
+	*t=tptr->tm_hour*60+tptr->tm_min;
+}
 
 
 char magic[6];
@@ -69,7 +75,7 @@ poof()
 	latncy = 45;
 }
 
-Start(n)
+Start()
 {       int d,t,delay;
 
 	datime(&d,&t);
@@ -100,7 +106,7 @@ wizard()                /* not as complex as advent/10 (for now)        */
 	if (!yesm(16,0,7)) return(FALSE);
 	mspeak(17);
 	getin(&word,&x);
-	if (!weq(word,magic))
+	if (strncmp(word,magic,5))
 	{       mspeak(20);
 		return(FALSE);
 	}
@@ -108,16 +114,21 @@ wizard()                /* not as complex as advent/10 (for now)        */
 	return(TRUE);
 }
 
-ciao(cmdfile)
-char *cmdfile;
+ciao()
 {       register char *c;
 	register int outfd, size;
 	char fname[80], buf[512];
 	extern unsigned filesize;
 
 	printf("What would you like to call the saved version?\n");
-	for (c=fname;; c++)
-		if ((*c=getchar())=='\n') break;
+	/* XXX - should use fgetln to avoid arbitrary limit */
+	for (c = fname; c < fname + sizeof fname - 1; c++) {
+		int ch;
+		ch = getchar();
+		if (ch == '\n' || ch == EOF)
+			break;
+		*c = ch;
+	}
 	*c=0;
 	if (save(fname) != 0) return;           /* Save failed */
 	printf("To resume, say \"adventure %s\".\n", fname);

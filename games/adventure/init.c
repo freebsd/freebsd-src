@@ -197,14 +197,14 @@ linkdata()                              /*  secondary data manipulation */
 
 
 trapdel()                               /* come here if he hits a del   */
-{	delhit++;			/* main checks, treats as QUIT  */
+{	delhit = 1;			/* main checks, treats as QUIT  */
 	signal(2,trapdel);		/* catch subsequent DELs        */
 }
 
 
 startup()
 {
-	demo=Start(0);
+	demo=Start();
 	srandomdev();
 	hinted[3]=yes(65,1,0);
 	newloc=1;

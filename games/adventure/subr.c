@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)subr.c	8.1 (Berkeley) 5/31/93";
 /*      Re-coding of advent in C: subroutines from main                 */
 
 #include <stdio.h>
+#include <string.h>
 # include "hdr.h"
 
 /*              Statement functions     */
@@ -69,7 +70,7 @@ int pbotl;
 {       return((1-pbotl)*water+(pbotl/2)*(water+oil));
 }
 
-liq(foo)
+liq()
 {       register int i;
 	i=prop[bottle];
 	if (i>-1-i) return(liq2(i));
@@ -98,7 +99,7 @@ int locc;
 	return(FALSE);
 }
 
-dark(foo)
+dark()
 {       if ((cond[loc]%2)==0 && (prop[lamp]==0 || !here(lamp)))
 		return(TRUE);
 	return(FALSE);
@@ -373,6 +374,7 @@ trbridge()                                      /* 30300                */
 }
 
 
+int
 badmove()                                       /* 20                   */
 {       spk=12;
 	if (k>=43 && k<=50) spk=9;
@@ -383,16 +385,17 @@ badmove()                                       /* 20                   */
 	if (k==62||k==65) spk=42;
 	if (k==17) spk=80;
 	rspeak(spk);
-	return(2);
 }
 
+int
 bug(n)
 int n;
 {       printf("Please tell jim@rand.org that fatal bug %d happened.\n",n);
-	exit(0);
+	exit(1);
 }
 
 
+void
 checkhints()                                    /* 2600 &c              */
 {       register int hint;
 	for (hint=4; hint<=hntmax; hint++)
@@ -433,7 +436,7 @@ checkhints()                                    /* 2600 &c              */
 
 trsay()                                         /* 9030                 */
 {       register int i;
-	if (*wd2!=0) copystr(wd2,wd1);
+	if (*wd2!=0) strcpy(wd1,wd2);
 	i=vocab(wd1,-1);
 	if (i==62||i==65||i==71||i==2025)
 	{       *wd2=0;
@@ -454,7 +457,7 @@ trtake()                                        /* 9010                 */
 	if (obj==chain&&prop[bear]!=0) spk=170;
 	if (fixed[obj]!=0) return(2011);
 	if (obj==water||obj==oil)
-	{       if (here(bottle)&&liq(0)==obj)
+	{       if (here(bottle)&&liq()==obj)
 		{       obj=bottle;
 			goto l9017;
 		}
@@ -484,14 +487,14 @@ l9017:  if (holdng>=7)
 l9014:  if ((obj==bird||obj==cage)&&prop[bird]!=0)
 		carry(bird+cage-obj,loc);
 	carry(obj,loc);
-	k=liq(0);
+	k=liq();
 	if (obj==bottle && k!=0) place[k] = -1;
 	return(2009);
 }
 
 
 dropper()                                       /* 9021                 */
-{       k=liq(0);
+{       k=liq();
 	if (k==obj) obj=bottle;
 	if (obj==bottle&&k!=0) place[k]=0;
 	if (obj==cage&&prop[bird]!=0) drop(bird,loc);
@@ -640,7 +643,7 @@ trkill()                                /* 9120                         */
 	verb=0;
 	obj=0;
 	getin(&wd1,&wd2);
-	if (!weq(wd1,"y")&&!weq(wd1,"yes")) return(2608);
+	if (strncmp(wd1,"y",1)&&strncmp(wd1,"yes",3)) return(2608);
 	pspeak(dragon,1);
 	prop[dragon]=2;
 	prop[rug]=0;
@@ -764,16 +767,17 @@ trfill()                                        /* 9220 */
 	if (obj==0&&!here(bottle)) return(8000);
 	spk=107;
 	if (liqloc(loc)==0) spk=106;
-	if (liq(0)!=0) spk=105;
+	if (liq()!=0) spk=105;
 	if (spk!=107) return(2011);
 	prop[bottle]=((cond[loc]%4)/2)*2;
-	k=liq(0);
+	k=liq();
 	if (toting(bottle)) place[k]= -1;
 	if (k==oil) spk=108;
 	return(2011);
 }
 
 
+void
 closing()                               /* 10000 */
 {       register int i;
 
@@ -795,10 +799,10 @@ closing()                               /* 10000 */
 	rspeak(129);
 	clock1 = -1;
 	closng=TRUE;
-	return(19999);
 }
 
 
+void
 caveclose()                             /* 11000 */
 {       register int i;
 	prop[bottle]=put(bottle,115,1);
@@ -825,5 +829,4 @@ caveclose()                             /* 11000 */
 		if (toting(i)) dstroy(i);
 	rspeak(132);
 	closed=TRUE;
-	return(2);
 }

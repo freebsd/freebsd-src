@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)version.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
-char	*message[] = {
+const char	*const message[] = {
 	"Last updated on Saturday, January 11, 1986.",
 	0
 };

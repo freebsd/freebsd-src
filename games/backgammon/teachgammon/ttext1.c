@@ -37,10 +37,10 @@ static char sccsid[] = "@(#)ttext1.c	8.1 (Berkeley) 5/31/93";
 
 #include "back.h"
 
-char	*opts = " QIMRHEDSPT";
-char	*prompt = "-->";
+const char	*opts = " QIMRHEDSPT";
+const char	*prompt = "-->";
 
-char *list[] = {
+const char *const list[] = {
     "\n\n\tI\tIntroduction to Backgammon",
     "\tM\tMoves and Points",
     "\tR\tRemoving Men from the Board",
@@ -56,7 +56,7 @@ char *list[] = {
     0
 };
 
-char	*hello[] = {
+const char	*const hello[] = {
     "\n\032   These rules consist of text describing how to play Backgammon",
     "followed by a tutorial session where you play a practice game",
     "against the computer.  When using this program, think carefuly",
@@ -74,7 +74,7 @@ char	*hello[] = {
     0
 };
 
-char	*intro1[] = {
+const char	*const intro1[] = {
     "\nIntroduction:",
     "\n   Backgammon is a game involving the skill of two players and",
     "the luck of two dice.  There are two players, red and white, and",
@@ -85,7 +85,7 @@ char	*intro1[] = {
     "",
     0};
 
-char	*intro2[] = {
+const char	*const intro2[] = {
     "",
     "\n   Although not indicated on the board, the players' homes are",
     "located just to the right of the board.  A player's men are placed",
@@ -99,7 +99,7 @@ char	*intro2[] = {
     "",
     0};
 
-char	*moves[] = {
+const char	*const moves[] = {
     "\nMoves and Points:",
     "\n   Moves are made along the positions on the board according to",
     "their numbers.  Red moves in the positive direction (clockwise",
@@ -130,7 +130,7 @@ char	*moves[] = {
     "",
     0};
 
-char	*remove[] = {
+const char	*const remove[] = {
     "\nRemoving Men from the Board:",
     "\n   The most important part of the game is removing men, since",
     "that is how you win the game.  Once a man is removed, he stays",
@@ -154,7 +154,7 @@ char	*remove[] = {
     "",
     0};
 
-char	*hits[] = {
+const char	*const hits[] = {
     "\nHitting Blots:",
     "\n   Although two men on a position form an impenetrable point, a",
     "lone man is not so secure.  Such a man is called a 'blot' and has",
@@ -171,7 +171,7 @@ char	*hits[] = {
     "",
     0};
 
-char	*endgame[] = {
+const char	*const endgame[] = {
     "\nEnding the Game and Scoring:",
     "\n   Winning a game usually wins one point, the normal value of a",
     "game.  However, if the losing player has not removed any men yet,",

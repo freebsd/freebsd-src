@@ -52,13 +52,14 @@ static char sccsid[] = "@(#)pack.c	8.1 (Berkeley) 5/31/93";
 
 #include "rogue.h"
 
-char *curse_message = "you can't, it appears to be cursed";
+const char *curse_message = "you can't, it appears to be cursed";
 
 extern short levitate;
 
 object *
 add_to_pack(obj, pack, condense)
 object *obj, *pack;
+int condense;
 {
 	object *op;
 
@@ -99,6 +100,7 @@ object *obj, *pack;
 
 object *
 pick_up(row, col, status)
+int row, col;
 short *status;
 {
 	object *obj;
@@ -270,7 +272,7 @@ wait_for_ack()
 }
 
 pack_letter(prompt, mask)
-char *prompt;
+const char *prompt;
 unsigned short mask;
 {
 	short ch;
@@ -460,7 +462,7 @@ call_it()
 }
 
 pack_count(new_obj)
-object *new_obj;
+const object *new_obj;
 {
 	object *obj;
 	short count = 0;
@@ -488,7 +490,7 @@ object *new_obj;
 
 boolean
 mask_pack(pack, mask)
-object *pack;
+const object *pack;
 unsigned short mask;
 {
 	while (pack->next_object) {
