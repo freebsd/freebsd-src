@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.19 1998/05/06 17:36:16 andreas Exp $
+.\"     $Id: rc.conf.5,v 1.20 1998/06/14 20:04:45 ahasty Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -808,6 +808,19 @@ to be cleaned at startup.
 NOTE:
 .Pa /usr/lib
 will always be added first, so it need not appear in this list.
+.It Ar kern_securelevel_enable
+(bool) Set to 
+.Ar YES
+if you wish to set the kernel security level at system startup.
+.It Ar kern_securelevel
+(int) The kernel security level to set at startup.
+The allowed range of 
+.Ar value
+ranges from -1 (the compile time default) to 2 (the
+most secure).  See
+.Xr init 8
+for the list of possible security levels and their effect
+on system operation.
 
 .Sh SEE ALSO
 .Xr gdb 1 ,
@@ -838,6 +851,7 @@ will always be added first, so it need not appear in this list.
 .Xr rpc.statd 8 ,
 .Xr rwhod 8 ,
 .Xr sendmail 8 ,
+.Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr swapon 8 ,
 .Xr tickadj 8 ,
