@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.113 1998/02/09 06:11:30 eivind Exp $
+ * $Id: vm_object.c,v 1.114 1998/02/25 03:55:50 dyson Exp $
  */
 
 /*
@@ -334,20 +334,19 @@ vm_object_deallocate(object)
 					robject->ref_count++;
 
 			retry:
-					if (robject->paging_in_progress || object->paging_in_progress) {
+					if (robject->paging_in_progress ||
+							object->paging_in_progress) {
 						vm_object_pip_sleep(robject, "objde1");
-						if (robject->paging_in_progress) {
-							if (robject->type == OBJT_SWAP) {
-								swap_pager_sync();
-								goto retry;
-							}
+						if (robject->paging_in_progress &&
+							robject->type == OBJT_SWAP) {
+							swap_pager_sync();
+							goto retry;
 						}
 
 						vm_object_pip_sleep(object, "objde2");
-						if (object->paging_in_progress) {
-							if (object->type == OBJT_SWAP) {
-								swap_pager_sync();
-							}
+						if (object->paging_in_progress &&
+							object->type == OBJT_SWAP) {
+							swap_pager_sync();
 						}
 						goto retry;
 					}
@@ -569,7 +568,7 @@ rescan:
 
 		s = splvm();
 		while ((p->flags & PG_BUSY) || p->busy) {
-			p->flags |= PG_WANTED|PG_REFERENCED;
+			p->flags |= PG_WANTED | PG_REFERENCED;
 			tsleep(p, PVM, "vpcwai", 0);
 			if (object->generation != curgeneration) {
 				splx(s);
@@ -581,7 +580,8 @@ rescan:
 		for(i=1;i<vm_pageout_page_count;i++) {
 			if (tp = vm_page_lookup(object, pi + i)) {
 				if ((tp->flags & PG_BUSY) ||
-					(tp->flags & PG_CLEANCHK) == 0)
+					(tp->flags & PG_CLEANCHK) == 0 ||
+					(tp->busy != 0))
 					break;
 				if((tp->queue - tp->pc) == PQ_CACHE) {
 					tp->flags &= ~PG_CLEANCHK;
@@ -605,7 +605,8 @@ rescan:
 			for(i = 1; i < chkb;i++) {
 				if (tp = vm_page_lookup(object, pi - i)) {
 					if ((tp->flags & PG_BUSY) ||
-						(tp->flags & PG_CLEANCHK) == 0)
+						(tp->flags & PG_CLEANCHK) == 0 ||
+						(tp->busy != 0))
 						break;
 					if((tp->queue - tp->pc) == PQ_CACHE) {
 						tp->flags &= ~PG_CLEANCHK;
@@ -810,15 +811,8 @@ shadowlookup:
 			continue;
 		}
 
-		if (m->busy || (m->flags & PG_BUSY)) {
-			s = splvm();
-			if (m->busy || (m->flags & PG_BUSY)) {
-				m->flags |= PG_WANTED;
-				tsleep(m, PVM, "madvpw", 0);
-			}
-			splx(s);
-			goto relookup;
-		}
+ 		if (vm_page_sleep(m, "madvpo", &m->busy))
+  			goto relookup;
 
 		if (advise == MADV_WILLNEED) {
 			vm_page_activate(m);
@@ -1200,9 +1194,8 @@ vm_object_collapse(object)
 			for (p = TAILQ_FIRST(&backing_object->memq); p;
 					p = TAILQ_NEXT(p, listq)) {
 
-				p->flags |= PG_BUSY;
-
 				new_pindex = p->pindex - backing_offset_index;
+				p->flags |= PG_BUSY;
 
 				/*
 				 * If the parent has a page here, or if this
@@ -1317,16 +1310,9 @@ again:
 				 * The busy flags are only cleared at
 				 * interrupt -- minimize the spl transitions
 				 */
-				if ((p->flags & PG_BUSY) || p->busy) {
-					s = splvm();
-					if ((p->flags & PG_BUSY) || p->busy) {
-						p->flags |= PG_WANTED;
-						tsleep(p, PVM, "vmopar", 0);
-						splx(s);
-						goto again;
-					}
-					splx(s);
-				}
+
+ 				if (vm_page_sleep(p, "vmopar", &p->busy))
+ 					goto again;
 
 				if (clean_only) {
 					vm_page_test_dirty(p);
@@ -1355,16 +1341,8 @@ again:
 				 * The busy flags are only cleared at
 				 * interrupt -- minimize the spl transitions
 				 */
-				if ((p->flags & PG_BUSY) || p->busy) {
-					s = splvm();
-					if ((p->flags & PG_BUSY) || p->busy) {
-						p->flags |= PG_WANTED;
-						tsleep(p, PVM, "vmopar", 0);
-						splx(s);
-						goto again;
-					}
-					splx(s);
-				}
+ 				if (vm_page_sleep(p, "vmopar", &p->busy))
+ 					goto again;
 
 				if (clean_only) {
 					vm_page_test_dirty(p);
