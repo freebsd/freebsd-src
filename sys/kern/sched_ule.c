@@ -418,7 +418,7 @@ sched_balance(void *arg)
 	if (smp_started == 0)
 		goto out;
 
-	for (i = 0; i < mp_maxid; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
 			continue;
 		kseq = KSEQ_CPU(i);
