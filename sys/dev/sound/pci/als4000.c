@@ -334,7 +334,7 @@ als_playback_start(struct sc_chinfo *ch)
 	struct	sc_info *sc = ch->parent;
 	u_int32_t	buf, bufsz, count, dma_prog;
 
-	buf = vtophys(sndbuf_getbuf(ch->buffer));
+	buf = sndbuf_getbufaddr(ch->buffer);
 	bufsz = sndbuf_getsize(ch->buffer);
 	count = bufsz / 2;
 	if (ch->format & AFMT_16BIT)
@@ -428,7 +428,7 @@ als_capture_start(struct sc_chinfo *ch)
 	struct	sc_info *sc = ch->parent;
 	u_int32_t	buf, bufsz, count, dma_prog;
 
-	buf = vtophys(sndbuf_getbuf(ch->buffer));
+	buf = sndbuf_getbufaddr(ch->buffer);
 	bufsz = sndbuf_getsize(ch->buffer);
 	count = bufsz / 2;
 	if (ch->format & AFMT_16BIT)

@@ -51,6 +51,7 @@ struct snd_dbuf {
 	u_int32_t flags;
 	bus_dmamap_t dmamap;
 	bus_dma_tag_t dmatag;
+	u_int32_t buf_addr;
 	struct selinfo sel;
 	char name[SNDBUF_NAMELEN];
 };
@@ -74,6 +75,8 @@ int sndbuf_setfmt(struct snd_dbuf *b, u_int32_t fmt);
 unsigned int sndbuf_getspd(struct snd_dbuf *b);
 void sndbuf_setspd(struct snd_dbuf *b, unsigned int spd);
 unsigned int sndbuf_getbps(struct snd_dbuf *b);
+
+bus_addr_t sndbuf_getbufaddr(struct snd_dbuf *buf);
 
 void *sndbuf_getbuf(struct snd_dbuf *b);
 void *sndbuf_getbufofs(struct snd_dbuf *b, unsigned int ofs);
