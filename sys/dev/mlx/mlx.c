@@ -325,7 +325,6 @@ mlx_attach(struct mlx_softc *sc)
 	sc->mlx_fw_handshake	= mlx_v5_fw_handshake;
 	break;
     default:
-	mlx_free(sc);
 	return(ENXIO);		/* should never happen */
     }
 
@@ -350,7 +349,6 @@ mlx_attach(struct mlx_softc *sc)
 	    hscode = mlx_fw_message(sc, hserror, hsparam1, hsparam2);
 	    /* fatal initialisation error? */
 	    if (hscode != 0) {
-		mlx_free(sc);
 		return(ENXIO);
 	    }
 	}
@@ -366,13 +364,11 @@ mlx_attach(struct mlx_softc *sc)
         RF_SHAREABLE | RF_ACTIVE);
     if (sc->mlx_irq == NULL) {
 	device_printf(sc->mlx_dev, "can't allocate interrupt\n");
-	mlx_free(sc);
 	return(ENXIO);
     }
     error = bus_setup_intr(sc->mlx_dev, sc->mlx_irq, INTR_TYPE_BIO | INTR_ENTROPY,  mlx_intr, sc, &sc->mlx_intr);
     if (error) {
 	device_printf(sc->mlx_dev, "can't set up interrupt\n");
-	mlx_free(sc);
 	return(ENXIO);
     }
 
@@ -392,7 +388,6 @@ mlx_attach(struct mlx_softc *sc)
 			       &sc->mlx_buffer_dmat);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't allocate buffer DMA tag\n");
-	mlx_free(sc);
 	return(ENOMEM);
     }
 
@@ -403,7 +398,6 @@ mlx_attach(struct mlx_softc *sc)
     error = mlx_sglist_map(sc);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't make initial s/g list mapping\n");
-	mlx_free(sc);
 	return(error);
     }
 
@@ -417,7 +411,6 @@ mlx_attach(struct mlx_softc *sc)
      */
     if ((sc->mlx_enq2 = mlx_enquire(sc, MLX_CMD_ENQUIRY2, sizeof(struct mlx_enquiry2), NULL)) == NULL) {
 	device_printf(sc->mlx_dev, "ENQUIRY2 failed\n");
-	mlx_free(sc);
 	return(ENXIO);
     }
 
@@ -430,7 +423,6 @@ mlx_attach(struct mlx_softc *sc)
 	/* These controllers don't report the firmware version in the ENQUIRY2 response */
 	if ((meo = mlx_enquire(sc, MLX_CMD_ENQUIRY_OLD, sizeof(struct mlx_enquiry_old), NULL)) == NULL) {
 	    device_printf(sc->mlx_dev, "ENQUIRY_OLD failed\n");
-	    mlx_free(sc);
 	    return(ENXIO);
 	}
 	sc->mlx_enq2->me_firmware_id = ('0' << 24) | (0 << 16) | (meo->me_fwminor << 8) | meo->me_fwmajor;
@@ -463,7 +455,6 @@ mlx_attach(struct mlx_softc *sc)
 	}
 	break;
     default:
-	mlx_free(sc);
 	return(ENXIO);		/* should never happen */
     }
 
@@ -473,7 +464,6 @@ mlx_attach(struct mlx_softc *sc)
     error = mlx_sglist_map(sc);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't make final s/g list mapping\n");
-	mlx_free(sc);
 	return(error);
     }
 
