@@ -61,24 +61,29 @@ u_int mp_maxid;
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
 
 int smp_active = 0;	/* are the APs allowed to run? */
-SYSCTL_INT(_kern_smp, OID_AUTO, active, CTLFLAG_RW, &smp_active, 0, "");
+SYSCTL_INT(_kern_smp, OID_AUTO, active, CTLFLAG_RW, &smp_active, 0,
+    "Number of Auxillary Processors (APs) that were successfully started");
 
 int smp_disabled = 0;	/* has smp been disabled? */
-SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RD, &smp_disabled, 0, "");
+SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RD, &smp_disabled, 0,
+    "SMP has been disabled from the loader");
 TUNABLE_INT("kern.smp.disabled", &smp_disabled);
 
 int smp_cpus = 1;	/* how many cpu's running */
-SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0, "");
+SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0,
+    "Number of CPUs online");
 
 /* Enable forwarding of a signal to a process running on a different CPU */
 static int forward_signal_enabled = 1;
 SYSCTL_INT(_kern_smp, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
-	   &forward_signal_enabled, 0, "");
+	   &forward_signal_enabled, 0,
+	   "Forwarding of a signal to a process on a different CPU");
 
 /* Enable forwarding of roundrobin to all other cpus */
 static int forward_roundrobin_enabled = 1;
 SYSCTL_INT(_kern_smp, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
-	   &forward_roundrobin_enabled, 0, "");
+	   &forward_roundrobin_enabled, 0,
+	   "Forwarding of roundrobin to all other CPUs");
 
 /* Variables needed for SMP rendezvous. */
 static void (*smp_rv_setup_func)(void *arg);
