@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rwhod/Makefile,v 1.7 2003/04/04 17:49:19 obrien Exp $
 
 PROG=	rwhod
 MAN=	rwhod.8

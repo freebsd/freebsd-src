@@ -568,5 +568,5 @@ main(argc, argv)
 	exit(0);
 }
 
-	@(#) $FreeBSD$
+	@(#) $FreeBSD: src/share/examples/atm/atm-sockets.txt,v 1.3 1999/08/28 00:19:07 peter Exp $
 

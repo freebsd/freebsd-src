@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/digi/digi_isa.c,v 1.12 2003/08/24 17:46:03 obrien Exp $");
 
 /*-
  * TODO:

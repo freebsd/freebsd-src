@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/killall/killall.c,v 1.24 2003/09/27 08:14:37 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/jail.h>

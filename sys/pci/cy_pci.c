@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/cy_pci.c,v 1.31 2003/12/02 12:47:08 bde Exp $");
 
 #include "opt_cy_pci_fastintr.h"
 

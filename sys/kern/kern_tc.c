@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_tc.c,v 1.158 2003/11/13 10:03:58 phk Exp $");
 
 #include "opt_ntp.h"
 

@@ -1,6 +1,6 @@
 # Common defines for all of /sys/boot/i386/
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/Makefile.inc,v 1.4 2003/06/26 03:51:57 peter Exp $
 
 LOADER_ADDRESS?=	0x200000
 CFLAGS+=		-ffreestanding -mpreferred-stack-boundary=2

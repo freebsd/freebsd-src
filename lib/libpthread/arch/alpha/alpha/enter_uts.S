@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/arch/alpha/alpha/enter_uts.S,v 1.1 2003/08/09 05:44:27 deischen Exp $
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/alpha/alpha/enter_uts.S,v 1.1 2003/08/09 05:44:27 deischen Exp $");
 
 /*
  * _alpha_enter_uts(struct kse_mailbox *km, kse_func_t uts, void *stack,

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/wctob.c,v 1.2 2003/08/07 07:45:35 tjr Exp $");
 
 #include <limits.h>
 #include <stdio.h>

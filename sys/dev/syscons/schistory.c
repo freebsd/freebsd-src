@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/syscons/schistory.c,v 1.18 2003/08/24 18:17:23 obrien Exp $");
 
 #include "opt_syscons.h"
 

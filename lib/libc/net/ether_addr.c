@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/ether_addr.c,v 1.15 2002/04/08 07:51:10 ru Exp $");
 
 #include <stdio.h>
 #include <paths.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/compat/Makefile.inc,v 1.9 2002/04/18 06:46:34 ru Exp $
 
 # Suck in ${SHLIBDIR} definition.
 .include <bsd.own.mk>

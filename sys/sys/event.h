@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/event.h,v 1.22 2003/02/02 19:39:51 nectar Exp $
  */
 
 #ifndef _SYS_EVENT_H_

@@ -87,7 +87,7 @@ static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1.4.8 2002/12/06 11:40:35 da
 #endif
 #endif
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/ipfilter/ipsend/iptests.c,v 1.9 2003/02/15 06:32:48 darrenr Exp $");
 
 
 #ifdef	USE_NANOSLEEP

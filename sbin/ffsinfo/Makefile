@@ -1,7 +1,7 @@
 # @(#)Makefile    8.8 (Berkeley) 6/21/2000
 #
 # $TSHeader: src/sbin/ffsinfo/Makefile,v 1.3 2000/12/05 19:45:10 tomsoft Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/ffsinfo/Makefile,v 1.6 2003/08/14 18:55:31 rwatson Exp $
 #
 
 MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG

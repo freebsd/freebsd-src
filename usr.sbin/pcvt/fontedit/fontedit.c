@@ -20,7 +20,7 @@
  *      Nov 21, 1987 - Fixed man page to say "Fontedit" instead of "Top"
  *      Nov 22, 1987 - Added BSD Compatible ioctl, turned cursor on/off
  *                     - eap@bucsf.bu.edu
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pcvt/fontedit/fontedit.c,v 1.6 2002/05/28 21:52:10 alfred Exp $
  */
 
 void clear_screen();

@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lnc/if_lnc.c,v 1.100 2003/11/14 17:16:56 obrien Exp $");
 
 /*
 #define DIAGNOSTIC

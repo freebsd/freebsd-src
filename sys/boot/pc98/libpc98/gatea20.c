@@ -3,7 +3,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/libpc98/gatea20.c,v 1.4 2003/09/08 09:11:20 obrien Exp $");
 
 /* extracted from freebsd:sys/i386/boot/biosboot/io.c */
 

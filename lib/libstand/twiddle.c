@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/twiddle.c,v 1.3 2001/09/30 22:28:01 dillon Exp $");
 
 #include <sys/types.h>
 #include "stand.h"

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/i386/Makefile,v 1.42 2002/07/29 09:40:10 ru Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer \
 		-I${.CURDIR}/../../libc/include

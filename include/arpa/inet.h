@@ -50,7 +50,7 @@
  *
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
  *	From: Id: inet.h,v 8.5 1997/01/29 08:48:09 vixie Exp $
- * $FreeBSD$
+ * $FreeBSD: src/include/arpa/inet.h,v 1.25 2002/08/21 16:19:56 mike Exp $
  */
 
 #ifndef _ARPA_INET_H_

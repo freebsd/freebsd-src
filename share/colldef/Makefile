@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/Makefile,v 1.61 2003/11/05 23:39:02 davidxu Exp $
 #
 
 NOMAN=YES

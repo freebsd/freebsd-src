@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-# $FreeBSD$
+# $FreeBSD: src/libexec/ftpd/Makefile,v 1.52 2003/01/26 19:02:56 yar Exp $
 
 PROG=	ftpd
 MAN=	ftpd.8 ftpchroot.5

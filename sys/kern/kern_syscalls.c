@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_syscalls.c,v 1.10 2003/06/11 00:56:56 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/sysproto.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/setlocale.h,v 1.6 2003/07/06 02:03:37 ache Exp $
  */
 
 #ifndef _SETLOCALE_H_

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/kpasswdd,v 1.2 2003/05/06 02:28:03 mtm Exp $
 #
 
 # PROVIDE: kpasswdd

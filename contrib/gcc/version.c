@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/version.c,v 1.10 2003/11/07 03:19:35 kan Exp $ */
 
 #include "ansidecl.h"
 #include "version.h"

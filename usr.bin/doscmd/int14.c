@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/int14.c,v 1.9 2002/03/30 13:51:40 dwmalone Exp $");
 
 #include <sys/ioctl.h>
 #include <sys/types.h>

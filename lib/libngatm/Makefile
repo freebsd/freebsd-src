@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libngatm/Makefile,v 1.3 2003/11/07 09:10:25 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #

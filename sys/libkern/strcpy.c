@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/strcpy.c,v 1.10 2003/06/11 05:23:04 obrien Exp $");
 
 #include <sys/libkern.h>
 

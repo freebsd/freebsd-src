@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/gen/makecontext.c,v 1.2 2003/12/05 01:36:44 peter Exp $");
 
 #include <sys/types.h>
 #include <sys/ucontext.h>

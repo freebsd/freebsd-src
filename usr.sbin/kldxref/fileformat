@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.sbin/kldxref/fileformat,v 1.1 2001/09/11 01:13:15 peter Exp $
 
     linker.hints file consists from the one or more records. First record of
 file is special and determines its version:

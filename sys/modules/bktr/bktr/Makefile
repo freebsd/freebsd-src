@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/bktr/bktr/Makefile,v 1.6 2003/08/12 09:45:34 alex Exp $
 
 # Makefile for the bktr Brooktree Bt848/Bt878 PCI video capture device
 

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/ofw/ofw_pcib_pci.c,v 1.2 2003/08/22 07:39:05 imp Exp $
  */
 
 #include <sys/param.h>

@@ -40,7 +40,7 @@
  * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
  * ``http://www.nominum.com''.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/isc-dhcp/includes/dhcpd.h,v 1.8 2003/09/02 11:13:21 mbr Exp $
  */
 
 #ifndef __CYGWIN32__

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/cam_periph.c,v 1.56 2003/11/08 10:56:57 scottl Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

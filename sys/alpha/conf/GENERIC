@@ -18,7 +18,7 @@
 #
 # For hardware specific information check HARDWARE.TXT
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/conf/GENERIC,v 1.164.2.3 2004/01/26 19:42:11 nectar Exp $
 
 machine		alpha
 cpu		EV4

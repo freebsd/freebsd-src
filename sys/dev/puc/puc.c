@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/puc/puc.c,v 1.27 2003/09/26 04:44:55 marcel Exp $");
 
 /*
  * Copyright (c) 1996, 1998, 1999
@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/puc/puc.c,v 1.27 2003/09/26 04:44:55 marcel Exp $");
 
 /*
  * PCI "universal" communication card device driver, glues com, lpt,

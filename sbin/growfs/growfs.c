@@ -48,7 +48,7 @@ All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/growfs/growfs.c,v 1.16 2003/10/30 05:43:56 trhodes Exp $";
 #endif /* not lint */
 
 /* ********************************************************** INCLUDES ***** */

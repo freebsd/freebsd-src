@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_freelist.h,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_freelist.h,v 1.6 2002/08/08 02:53:01 oster Exp $	*/
 /*
  * rf_freelist.h

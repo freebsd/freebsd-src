@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/Makefile,v 1.76 2003/08/29 10:35:00 phk Exp $
 
 SUBDIR= bc ${_binutils} ${_cc} cpio dc dialog diff diff3 \
 	${_gperf} grep gzip man patch rcs sdiff send-pr sort tar texinfo

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/majors,v 1.183 2003/12/02 04:40:33 imp Exp $
 #
 # This list is semi-obsoleted by DEVFS, but for now it still contains
 # the current allocation of device major numbers.

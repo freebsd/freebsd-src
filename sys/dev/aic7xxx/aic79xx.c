@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aic7xxx/aic79xx.c,v 1.25 2003/08/24 17:48:02 obrien Exp $");
 
 #ifdef __linux__
 #include "aic79xx_osm.h"

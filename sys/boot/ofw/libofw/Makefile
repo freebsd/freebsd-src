@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ofw/libofw/Makefile,v 1.8 2002/11/10 19:17:36 jake Exp $
 
 LIB=		ofw
 INTERNALLIB=	true

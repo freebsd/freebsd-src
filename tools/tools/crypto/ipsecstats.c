@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/crypto/ipsecstats.c,v 1.1 2003/03/19 01:53:55 sam Exp $
  */
 #include <stdio.h>
 #include <sys/types.h>

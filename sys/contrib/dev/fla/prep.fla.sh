@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sys/contrib/dev/fla/prep.fla.sh,v 1.2 1999/09/08 12:42:15 phk Exp $
 
 dev=fla0
 

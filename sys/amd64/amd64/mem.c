@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/mem.c,v 1.112 2003/12/06 23:19:47 peter Exp $");
 
 /*
  * Memory special file

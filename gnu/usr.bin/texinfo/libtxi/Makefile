@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/texinfo/libtxi/Makefile,v 1.8 2002/05/13 11:09:04 ru Exp $
 
 LIB=	txi
 INTERNALLIB= true

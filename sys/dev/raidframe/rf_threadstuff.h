@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_threadstuff.h,v 1.2 2003/03/20 21:17:39 jhb Exp $ */
 /*	$NetBSD: rf_threadstuff.h,v 1.10 2001/01/27 20:42:21 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

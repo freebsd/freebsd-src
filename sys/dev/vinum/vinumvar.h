@@ -38,7 +38,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumvar.h,v 1.33 2003/05/23 01:09:23 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumvar.h,v 1.46 2003/09/29 08:19:06 grog Exp $
  */
 
 #include <sys/time.h>

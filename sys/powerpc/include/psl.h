@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: psl.h,v 1.5 2000/11/19 19:52:37 matt Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/psl.h,v 1.2 2002/05/19 04:03:11 benno Exp $
  */
 
 #ifndef	_MACHINE_PSL_H_

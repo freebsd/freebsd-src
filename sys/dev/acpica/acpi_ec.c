@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/acpica/acpi_ec.c,v 1.41 2003/09/26 05:24:55 njl Exp $
  */
 /******************************************************************************
  *
@@ -137,7 +137,7 @@
  *****************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/acpi_ec.c,v 1.41 2003/09/26 05:24:55 njl Exp $");
 
 #include "opt_acpi.h"
 #include <sys/param.h>

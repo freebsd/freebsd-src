@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/Makefile.fe,v 1.2 2002/05/10 08:54:43 obrien Exp $
 
 #	Front-end-only bits
 

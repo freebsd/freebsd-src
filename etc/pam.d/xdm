@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/xdm,v 1.8 2003/04/30 21:57:54 markm Exp $
 #
 # PAM configuration for the "xdm" service
 #

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/scd/scdvar.h,v 1.2 2002/11/05 09:50:15 mdodd Exp $
  */
 
 struct scd_mbx {

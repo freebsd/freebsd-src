@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/ip_addr.c,v 1.11 2003/07/29 13:51:53 harti Exp $");
 
 /*
  * User Space Library Functions

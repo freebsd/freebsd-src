@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/amd64/amd64/enter_uts.S,v 1.4 2003/12/05 01:41:43 peter Exp $");
 
 
 /*

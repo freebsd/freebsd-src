@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hfa/fore_load.c,v 1.30 2003/08/24 17:46:08 obrien Exp $");
 
 #ifdef COMPILING_LINT 
 #warning "The fore pci driver is broken and is not compiled with LINT"
@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hfa/fore_load.c,v 1.30 2003/08/24 17:46:08 obrien Exp $");
 #endif
 
 static int fore_probe(device_t);

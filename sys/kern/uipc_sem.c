@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_sem.c,v 1.9 2003/06/11 00:56:58 obrien Exp $");
 
 #include "opt_posix.h"
 

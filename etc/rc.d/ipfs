@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: ipfs,v 1.3 2002/02/11 13:55:42 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ipfs,v 1.2 2003/04/24 08:20:47 mtm Exp $
 #
 
 # PROVIDE: ipfs

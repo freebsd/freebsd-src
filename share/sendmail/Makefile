@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/sendmail/Makefile,v 1.8 2003/07/07 03:54:03 gshapiro Exp $
 #
 # Doing a make install builds /usr/share/sendmail/
 

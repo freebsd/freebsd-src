@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ips/ips_ioctl.c,v 1.4 2003/08/24 17:49:14 obrien Exp $");
 
 #include <dev/ips/ips.h>
 #include <dev/ips/ips_ioctl.h>

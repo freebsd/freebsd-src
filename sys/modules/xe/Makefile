@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/xe/Makefile,v 1.1 2002/02/20 15:00:34 shiba Exp $
 
 .PATH: ${.CURDIR}/../../dev/xe
 

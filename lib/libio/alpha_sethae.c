@@ -26,7 +26,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libio/alpha_sethae.c,v 1.5 2001/09/30 21:41:46 dillon Exp $");
 
 #include <sys/types.h>
 #include <machine/sysarch.h>

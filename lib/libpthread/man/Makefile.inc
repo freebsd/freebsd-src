@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpthread/man/Makefile.inc,v 1.16 2003/03/03 22:40:20 phantom Exp $
 
 # POSIX thread man files
 

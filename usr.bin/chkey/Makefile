@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/chkey/Makefile,v 1.7 2002/02/08 22:31:36 markm Exp $
 
 .PATH: ${.CURDIR}/../newkey
 

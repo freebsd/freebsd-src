@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ufs/ufs_ihash.c,v 1.37 2003/10/04 14:03:28 jeff Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

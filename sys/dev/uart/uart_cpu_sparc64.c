@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/uart/uart_cpu_sparc64.c,v 1.7 2003/11/11 06:52:04 jake Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

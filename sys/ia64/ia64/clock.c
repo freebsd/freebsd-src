@@ -42,7 +42,7 @@
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/clock.c,v 1.22 2003/08/04 05:13:17 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/lockf/lockf.c,v 1.10 2002/06/30 05:25:04 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/wait.h>

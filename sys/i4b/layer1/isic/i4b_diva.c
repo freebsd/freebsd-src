@@ -31,7 +31,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/isic/i4b_diva.c,v 1.3 2003/06/10 23:45:23 obrien Exp $");
 
 #include "opt_i4b.h"
 

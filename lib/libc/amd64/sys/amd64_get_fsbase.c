@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/sys/amd64_get_fsbase.c,v 1.1 2003/10/23 06:07:09 peter Exp $");
 
 #include <machine/sysarch.h>
 

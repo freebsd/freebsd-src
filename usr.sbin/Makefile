@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/Makefile,v 1.280 2003/12/02 21:52:14 brooks Exp $
 
 .if ${MACHINE_ARCH} != "powerpc"
 _sysinstall=sysinstall

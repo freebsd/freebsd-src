@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/geom_disk.c,v 1.80.2.1 2003/12/30 12:00:40 phk Exp $");
 
 #include "opt_geom.h"
 

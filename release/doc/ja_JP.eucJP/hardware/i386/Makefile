@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/ja_JP.eucJP/hardware/i386/Makefile,v 1.1 2002/03/03 14:31:34 hrs Exp $
 # Original revision: 1.5
 
 RELN_ROOT?= ${.CURDIR}/../../..

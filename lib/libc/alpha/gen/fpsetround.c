@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/fpsetround.c,v 1.5 2001/11/07 22:12:52 obrien Exp $");
 
 #include <sys/types.h>
 #include <ieeefp.h>

@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_memory_debug.h,v 1.2 2003/10/24 01:48:16 anholt Exp $
  */
 
 #include "drmP.h"

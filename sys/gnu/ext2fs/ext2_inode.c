@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_inode.c,v 1.43 2003/10/18 14:10:25 phk Exp $
  */
 
 #include <sys/param.h>

@@ -22,4 +22,4 @@ There is one mandatory argument, which is the event number to be
 monitored, defined in <machine/perfmon.h>.  All numbers can be
 specified in any format acceptable to strtol(3).
 
-$FreeBSD$
+$FreeBSD: src/share/examples/perfmon/README,v 1.5 2001/04/29 03:54:48 dd Exp $

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/freebsd32/freebsd32.h,v 1.3 2003/10/30 02:40:30 peter Exp $
  */
 
 #ifndef _COMPAT_FREEBSD32_FREEBSD32_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ctm/ctm_dequeue/Makefile,v 1.3 2001/07/20 06:19:43 obrien Exp $
 
 .PATH: ${.CURDIR}/../ctm_rmail
 

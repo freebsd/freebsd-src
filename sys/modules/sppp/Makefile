@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sppp/Makefile,v 1.5 2002/06/17 05:40:49 jhay Exp $
 
 .PATH: ${.CURDIR}/../../net
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/psd/Makefile,v 1.20 2002/06/30 02:18:50 jmallett Exp $
 
 # The following modules do not build/install:
 # 10.gdb

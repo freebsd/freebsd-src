@@ -29,7 +29,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ypcat/ypcat.c,v 1.8 2003/10/26 05:28:01 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/acpica/acpi_machdep.c,v 1.12 2003/09/22 22:12:46 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

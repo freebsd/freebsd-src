@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/demo/Makefile,v 1.9 2001/07/20 06:20:08 obrien Exp $
 
 PROG=	playvt
 NOMAN=	#true

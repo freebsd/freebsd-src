@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/awi/am79c930.c,v 1.5 2003/08/24 17:48:06 obrien Exp $");
 
 /*
  * Am79c930 chip driver.

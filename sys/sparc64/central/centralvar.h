@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/central/centralvar.h,v 1.1 2003/02/18 09:01:01 jake Exp $
  */
 
 #ifndef _SPARC64_CENTRAL_CENTRALVAR_H_

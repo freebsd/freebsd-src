@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdd.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/m4/stdd.h,v 1.4 2002/07/15 02:15:12 jmallett Exp $
  */
 
 /*

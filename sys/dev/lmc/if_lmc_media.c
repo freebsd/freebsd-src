@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lmc/if_lmc_media.c,v 1.4 2003/08/24 17:49:15 obrien Exp $");
 
 /*
  * For lack of a better place, put the SSI cable stuff here.

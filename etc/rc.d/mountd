@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: mountd,v 1.11 2002/01/31 01:26:06 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/mountd,v 1.9 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: mountd

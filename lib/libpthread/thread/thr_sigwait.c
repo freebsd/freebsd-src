@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_sigwait.c,v 1.33 2003/08/18 03:58:29 davidxu Exp $
  */
 #include <signal.h>
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_fsync.c,v 1.13 2003/04/18 05:04:15 deischen Exp $
  */
 #include <unistd.h>
 #include <pthread.h>

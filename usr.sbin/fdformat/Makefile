@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/fdformat/Makefile,v 1.11 2001/07/20 06:19:47 obrien Exp $
 
 .PATH: ${.CURDIR}/../fdread
 

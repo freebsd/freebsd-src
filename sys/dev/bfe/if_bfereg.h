@@ -1,5 +1,5 @@
 /* Copyright (c) 2003 Stuart Walsh */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/bfe/if_bfereg.h,v 1.1 2003/09/09 18:17:22 wpaul Exp $ */
 
 #ifndef _BFE_H
 #define _BFE_H

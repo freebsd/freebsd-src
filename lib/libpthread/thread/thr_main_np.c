@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libpthread/thread/thr_main_np.c,v 1.5 2003/04/18 05:04:16 deischen Exp $
  */
 
 #include <pthread.h>

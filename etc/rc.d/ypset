@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ypset,v 1.5 2003/07/09 03:21:03 mtm Exp $
 #
 
 # PROVIDE: ypset

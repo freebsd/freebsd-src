@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/iptest/Makefile,v 1.11 2003/06/06 11:30:50 guido Exp $
 
 MAINTAINER=	darrenr@freebsd.org
 

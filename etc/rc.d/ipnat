@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: ipnat,v 1.6 2000/09/19 13:04:38 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ipnat,v 1.10 2003/11/03 17:03:01 mux Exp $
 #
 
 # PROVIDE: ipnat

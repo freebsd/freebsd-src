@@ -5,7 +5,7 @@
 # use tools are included as uuencoded files.
 # To use this makefile you must have Bruce Evans bcc package installed
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/doscmd/Makefile.dos,v 1.2 2001/07/24 11:50:23 tg Exp $
 
 AS86 = as86
 LD86 = ld86

@@ -1,7 +1,7 @@
 /*	$NetBSD: rf_pqdeg.c,v 1.5 2000/01/07 03:41:04 oster Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/raidframe/rf_pqdeg.c,v 1.2 2003/08/24 17:54:18 obrien Exp $");
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.

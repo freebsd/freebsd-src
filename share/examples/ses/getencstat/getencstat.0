@@ -1,4 +1,4 @@
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/share/examples/ses/getencstat/getencstat.0,v 1.2 2003/09/14 13:41:58 ru Exp $
 .\"
 .\" Copyright (c) 2000 Matthew Jacob
 .\" All rights reserved.

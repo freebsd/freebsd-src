@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_mbuf.c,v 1.56 2003/10/21 18:28:34 silby Exp $");
 
 #include "opt_mac.h"
 #include "opt_param.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/machdep.c,v 1.172 2003/11/20 16:42:39 marcel Exp $
  */
 
 #include "opt_compat.h"

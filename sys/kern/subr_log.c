@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_log.c,v 1.59 2003/11/09 09:17:24 tanimura Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: amq_subr.c,v 1.6.2.4 2002/12/27 22:44:33 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/amd/amq_subr.c,v 1.7 2003/09/02 15:42:56 mbr Exp $
  *
  */
 /*

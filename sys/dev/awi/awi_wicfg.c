@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/awi/awi_wicfg.c,v 1.10 2003/08/24 17:48:06 obrien Exp $");
 
 /*
  * WaveLAN compatible configuration support routines for the awi driver.

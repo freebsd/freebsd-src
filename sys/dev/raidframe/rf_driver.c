@@ -1,7 +1,7 @@
 /*	$NetBSD: rf_driver.c,v 1.39 2000/12/15 02:12:58 oster Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/raidframe/rf_driver.c,v 1.2 2003/08/24 17:54:18 obrien Exp $");
 /*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.

@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/zs/zs.c,v 1.15 2003/11/09 09:17:23 tanimura Exp $");
 /*-
  * Copyright (c) 2003 Jake Burkholder.
  * All rights reserved.

@@ -32,7 +32,7 @@
  *
  *	from: @(#)exec.h	8.1 (Berkeley) 6/11/93
  * from: FreeBSD: src/sys/sys/imgact_aout.h,v 1.18 2002/09/05 07:54:03 bde Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kgzip/i386_a.out.h,v 1.1 2003/03/11 11:45:43 ru Exp $
  */
 
 #ifndef	_I386_AOUT_H_

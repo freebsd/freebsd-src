@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/getnameinfo.c,v 1.14 2003/05/01 19:03:14 nectar Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

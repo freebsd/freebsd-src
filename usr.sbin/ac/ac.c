@@ -14,7 +14,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ac/ac.c,v 1.25 2002/10/17 13:19:47 charnier Exp $");
 
 #include <sys/types.h>
 #include <sys/time.h>

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/capi/iavc/iavc_lli.c,v 1.7 2003/07/23 17:58:41 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/info-make.sh,v 1.4 2002/04/23 22:16:40 obrien Exp $
 #
 
 # Move the info files out to their own dist

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/fhc/fhc.c,v 1.5 2003/02/19 19:40:40 jake Exp $
  */
 
 #include <sys/param.h>

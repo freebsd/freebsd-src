@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/wds/wd7000.c,v 1.8 2003/08/24 17:55:57 obrien Exp $");
 
 /* All bugs are subject to removal without further notice */
 

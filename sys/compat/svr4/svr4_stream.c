@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_stream.c,v 1.46 2003/10/20 10:38:48 tjr Exp $");
 
 #define COMPAT_43 1
 

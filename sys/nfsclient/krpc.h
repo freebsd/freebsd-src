@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc.h,v 1.4 1995/12/19 23:07:11 cgd Exp $	*/
-/* $FreeBSD$	*/
+/* $FreeBSD: src/sys/nfsclient/krpc.h,v 1.8 2001/09/18 23:31:50 peter Exp $	*/
 
 #include <sys/cdefs.h>
 

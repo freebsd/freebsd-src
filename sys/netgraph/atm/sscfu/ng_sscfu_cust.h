@@ -28,7 +28,7 @@
  *
  * Customisation of the SSCFU code to ng_sscfu.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/atm/sscfu/ng_sscfu_cust.h,v 1.1 2003/10/24 07:39:11 harti Exp $
  */
 #include <sys/param.h>
 #include <sys/types.h>

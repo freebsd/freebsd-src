@@ -82,7 +82,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_witness.c,v 1.165 2003/11/20 15:35:48 markm Exp $");
 
 #include "opt_ddb.h"
 #include "opt_witness.h"

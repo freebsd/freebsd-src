@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/osf1/Makefile,v 1.2 2000/01/15 19:40:08 bde Exp $
 
 # Makefile for syscall tables.
 

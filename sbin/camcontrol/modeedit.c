@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/camcontrol/modeedit.c,v 1.16 2003/08/22 01:56:17 imp Exp $");
 
 #include <sys/queue.h>
 #include <sys/types.h>

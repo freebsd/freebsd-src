@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/crypto-install.sh,v 1.3 2003/04/30 17:54:19 markm Exp $
 #
 
 if [ "`id -u`" != "0" ]; then

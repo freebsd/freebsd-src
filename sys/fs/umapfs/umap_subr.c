@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.9 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/umapfs/umap_subr.c,v 1.32 2003/02/19 05:47:19 imp Exp $
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/trap.c,v 1.13 2002/08/25 13:22:38 charnier Exp $");
 
 #include <machine/trap.h>
 

@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinummemory.c,v 1.34 2003/08/24 17:55:56 obrien Exp $");
 
 #include <dev/vinum/vinumhdr.h>
 

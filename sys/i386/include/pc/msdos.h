@@ -3,7 +3,7 @@
  * [obtained from mtools -wfj]
  * how to decipher DOS disk structures in coexisting with DOS
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/pc/msdos.h,v 1.6 2002/10/02 03:29:00 bde Exp $
  */
 
 #define MSECTOR_SIZE	512		/* MSDOS sector size in bytes */

@@ -69,4 +69,4 @@ have to go edit a couple of files... So, here's the checklist:
 	if you like it, change your /etc/{rc,rc.local} to use it instead of
 		the old one.
 
-$FreeBSD$
+$FreeBSD: src/usr.sbin/cron/doc/README,v 1.4 1999/08/28 01:15:53 peter Exp $

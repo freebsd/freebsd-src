@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $FreeBSD$
+ *  dgreg.h $FreeBSD: src/sys/dev/dgb/dgreg.h,v 1.11 2003/08/07 15:04:24 jhb Exp $
  *
  *  Digiboard driver.
  *

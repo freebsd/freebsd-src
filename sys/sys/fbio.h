@@ -36,7 +36,7 @@
  *
  *	@(#)fbio.h	8.2 (Berkeley) 10/30/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/fbio.h,v 1.13 2003/06/18 17:49:52 jake Exp $
  */
 
 #ifndef _SYS_FBIO_H_

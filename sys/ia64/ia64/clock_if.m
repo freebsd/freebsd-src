@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/ia64/clock_if.m,v 1.2 2001/10/04 15:27:35 dfr Exp $
 #
 
 #include <sys/bus.h>

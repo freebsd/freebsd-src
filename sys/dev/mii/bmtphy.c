@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/bmtphy.c,v 1.6 2003/09/09 18:17:23 wpaul Exp $");
 
 /*
  * Copyright (c) 1997 Manuel Bouyer.  All rights reserved.

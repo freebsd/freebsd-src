@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/puc/puc_pci.c,v 1.9 2003/11/28 05:28:28 imp Exp $");
 
 /*
  * Copyright (c) 1996, 1998, 1999
@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/puc/puc_pci.c,v 1.9 2003/11/28 05:28:28 imp Exp $");
 
 #include "opt_puc.h"
 

@@ -10,7 +10,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/ctx.c,v 1.47 2003/06/02 16:32:54 obrien Exp $");
 
 /*
  *	Device Driver for CORTEX-I Frame Grabber

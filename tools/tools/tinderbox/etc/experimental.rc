@@ -1,7 +1,7 @@
 #
 # Tinderbox setup for experimental platforms.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/etc/experimental.rc,v 1.7 2003/08/01 21:17:43 des Exp $
 #
 
 comment		= Experimental platforms

@@ -38,7 +38,7 @@
 /* Copyright (c)  1990, 1991 Sun Microsystems, Inc. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/key_prot_xdr.c,v 1.4 2002/03/22 23:18:36 obrien Exp $");
 
 /* 
  * Compiled from key_prot.x using rpcgen.

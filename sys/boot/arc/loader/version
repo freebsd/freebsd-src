@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/boot/arc/loader/version,v 1.2 1999/08/28 00:39:43 peter Exp $
 
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/arch/i386/include/atomic_ops.h,v 1.3 2003/09/03 17:56:26 deischen Exp $
  */
 
 #ifndef	_ATOMIC_OPS_H_

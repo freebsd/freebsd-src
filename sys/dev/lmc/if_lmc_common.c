@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lmc/if_lmc_common.c,v 1.5 2003/08/24 17:49:15 obrien Exp $");
 
 /*
  * the dec chip has its own idea of what a receive error is, but we don't

@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/awi/awi.c,v 1.28 2003/08/24 17:48:06 obrien Exp $");
 
 /*
  * Driver for AMD 802.11 PCnetMobile firmware.

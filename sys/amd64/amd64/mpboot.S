@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/mpboot.S,v 1.24 2003/11/17 08:58:12 peter Exp $
  */
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/net/floppy.tree/etc/mfs.rc,v 1.4 2000/04/25 19:00:06 dwhite Exp $
 ### WARNING !!!!!! #####
 # We remove this file during execution (see EOF).
 # Awful things happen if its size is > 1024B

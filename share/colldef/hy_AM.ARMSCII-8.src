@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/hy_AM.ARMSCII-8.src,v 1.1 2003/07/05 12:03:16 ache Exp $
 #
 # LC_COLLATE source for Armenian/ARMSCII-8 (backward compatible with ASCII)
 # Made available by Vahe Khachikyan <vahe@khachikyan.de>

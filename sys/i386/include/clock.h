@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/clock.h,v 1.49 2003/11/12 18:13:57 jhb Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_

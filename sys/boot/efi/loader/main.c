@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/efi/loader/main.c,v 1.20 2003/08/02 08:22:03 marcel Exp $");
 
 #include <stand.h>
 #include <string.h>

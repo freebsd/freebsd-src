@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/Makefile,v 1.1 2000/12/31 23:26:34 mjacob Exp $
 
 # Makefile for alpha tags file
 

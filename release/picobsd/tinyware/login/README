@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/release/picobsd/tinyware/login/README,v 1.1 2001/10/01 16:58:28 luigi Exp $
 
 This is a modified login version for PicoBSD purposes, which does
 not demand PAM.

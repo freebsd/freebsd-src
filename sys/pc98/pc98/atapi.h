@@ -12,7 +12,7 @@
  * all derivative works or modified versions.
  *
  * Version 1.9, Thu Oct 12 15:53:50 MSK 1995
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/atapi.h,v 1.19 2000/01/24 17:15:59 peter Exp $
  */
 
 #define atapi_attach wdc_atapi_attach

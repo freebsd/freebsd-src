@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/dpt/dpt_scsi.c,v 1.45 2003/08/24 17:46:04 obrien Exp $");
 
 /*
  * dpt_scsi.c: SCSI dependant code for the DPT driver
@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sys/dev/dpt/dpt_scsi.c,v 1.45 2003/08/24 17:46:04 obrien Exp $"
 
 #define _DPT_C_
 

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_poll.c,v 1.15 2003/11/08 22:28:39 sam Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

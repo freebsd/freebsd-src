@@ -11,7 +11,7 @@
 # PARTICULAR PURPOSE.
 
 
-# $FreeBSD$
+# $FreeBSD: src/contrib/binutils/ld/Makefile.in,v 1.14 2002/10/11 06:13:00 obrien Exp $
 
 
 SHELL = @SHELL@

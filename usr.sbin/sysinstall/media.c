@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/media.c,v 1.121 2003/02/27 03:57:17 jwd Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

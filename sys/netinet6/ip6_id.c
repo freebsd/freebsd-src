@@ -1,6 +1,6 @@
 /*	$KAME: ip6_id.c,v 1.13 2003/09/16 09:11:19 itojun Exp $	*/
 /*	$OpenBSD: ip_id.c,v 1.6 2002/03/15 18:19:52 millert Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/netinet6/ip6_id.c,v 1.5 2003/10/01 21:45:57 ume Exp $ */
 
 /*
  * Copyright (C) 2003 WIDE Project.

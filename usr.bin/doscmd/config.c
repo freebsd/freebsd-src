@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/config.c,v 1.8 2002/04/22 13:44:36 des Exp $");
 
 #include <sys/types.h>
 #include <sys/uio.h>

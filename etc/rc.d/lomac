@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/lomac,v 1.2 2002/11/26 17:51:03 rwatson Exp $
 #
 
 # PROVIDE: lomac

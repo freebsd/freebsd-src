@@ -55,7 +55,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/amr/amr_pci.c,v 1.20 2003/09/02 17:30:34 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

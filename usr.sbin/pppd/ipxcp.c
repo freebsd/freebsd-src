@@ -19,7 +19,7 @@
 
 #ifdef IPX_CHANGE
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/usr.sbin/pppd/ipxcp.c,v 1.6 2003/01/01 18:49:02 schweikh Exp $";
 #endif
 
 /*

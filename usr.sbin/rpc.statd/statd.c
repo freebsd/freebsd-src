@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/rpc.statd/statd.c,v 1.11 2003/01/16 07:27:30 mbr Exp $";
 #endif /* not lint */
 
 /* main() function for status monitor daemon.  Some of the code in this	*/

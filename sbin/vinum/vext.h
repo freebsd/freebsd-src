@@ -36,7 +36,7 @@
 
 /*
  * $Id: vext.h,v 1.22 2003/04/28 06:19:06 grog Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/vinum/vext.h,v 1.27 2003/05/01 01:40:16 grog Exp $
  */
 
 #define MAXARGS 64					    /* maximum number of args on a line */

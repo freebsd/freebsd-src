@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/atm_cm.c,v 1.31 2003/07/26 14:20:37 harti Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

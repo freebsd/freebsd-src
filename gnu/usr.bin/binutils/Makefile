@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/Makefile,v 1.25 2003/06/14 19:32:51 obrien Exp $
 
 SUBDIR=		libiberty libbfd libopcodes libbinutils \
 		addr2line ar as gasp ld nm objcopy objdump ranlib readelf \

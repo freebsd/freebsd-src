@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/acpi/iasl/Makefile,v 1.3 2003/08/11 15:49:14 njl Exp $
 
 PROG=	iasl
 SRCS+=	aslcompilerparse.c aslcompilerlex.c aslanalyze.c aslcodegen.c \

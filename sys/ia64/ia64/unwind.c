@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/unwind.c,v 1.10 2003/10/09 03:11:37 marcel Exp $");
 
 #include "opt_ddb.h"
 

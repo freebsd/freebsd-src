@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/geom/ConfCmp/ConfCmp.c,v 1.9 2003/03/04 19:20:52 phk Exp $
  */
 
 #include <stdio.h>

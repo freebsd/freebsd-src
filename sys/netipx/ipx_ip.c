@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netipx/ipx_ip.c,v 1.36 2003/10/31 18:32:12 brooks Exp $");
 
 /*
  * Software interface driver for encapsulating IPX in IP.

@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/misc/mdoc.template,v 1.4 2001/04/17 12:51:21 ru Exp $
 .\"
 .\" The following requests are required for all man pages.
 .Dd Month day, year

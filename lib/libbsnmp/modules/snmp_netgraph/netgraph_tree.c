@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libbsnmp/modules/snmp_netgraph/netgraph_tree.c,v 1.1 2003/11/10 09:17:34 harti Exp $ */
 /* generated file, don't edit - use ./genfiles */
 #include <sys/types.h>
 #include <stdio.h>

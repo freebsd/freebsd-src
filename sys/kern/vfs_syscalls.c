@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_syscalls.c,v 1.333 2003/11/12 08:01:39 mckusick Exp $");
 
 /* For 4.3 integer FS ID compatibility */
 #include "opt_compat.h"

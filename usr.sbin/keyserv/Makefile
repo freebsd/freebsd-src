@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/keyserv/Makefile,v 1.12 2002/09/17 01:49:00 peter Exp $
 
 PROG=	keyserv
 MAN=	keyserv.8

@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_physio.c,v 1.62 2003/11/15 09:28:08 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

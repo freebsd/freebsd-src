@@ -1,5 +1,5 @@
 #!/usr/local/bin/wish -f
-#$FreeBSD$
+#$FreeBSD: src/usr.sbin/pkg_install/tkpkg,v 1.7 1999/08/29 15:54:49 peter Exp $
 #
 #$Log: tkpkg,v $
 #Revision 1.2  1994/12/06 00:51:21  jkh

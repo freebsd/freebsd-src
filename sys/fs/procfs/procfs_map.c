@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs_map.c,v 1.34 2003/10/19 14:33:00 mux Exp $
  */
 
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/nwfs/nwfs_mount.h,v 1.7 2002/05/16 21:25:42 trhodes Exp $
  */
 #ifndef _NWFS_MOUNT_H_
 #define	_NWFS_MOUNT_H_

@@ -84,7 +84,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_blist.c,v 1.16 2003/08/12 23:24:04 imp Exp $");
 
 #ifdef _KERNEL
 

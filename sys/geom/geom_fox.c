@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_fox.c,v 1.3 2003/10/24 18:46:23 phk Exp $
  *
  * This is a GEOM module for handling path selection for multi-path
  * storage devices.  It is named "fox" because it, like they, prefer

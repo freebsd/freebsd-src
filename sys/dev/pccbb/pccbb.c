@@ -73,7 +73,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pccbb/pccbb.c,v 1.99 2003/11/12 05:21:06 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

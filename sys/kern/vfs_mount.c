@@ -63,7 +63,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_mount.c,v 1.117.2.1 2004/02/10 14:11:32 nectar Exp $");
 
 #include <sys/param.h>
 #include <sys/conf.h>

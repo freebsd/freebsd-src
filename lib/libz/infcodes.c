@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/infcodes.c,v 1.4 2002/03/31 23:47:52 kris Exp $");
 
 #include "zutil.h"
 #include "inftrees.h"

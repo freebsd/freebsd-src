@@ -26,7 +26,7 @@
                 Western Washington University
                 Bellingham, WA 98226-9062
 
-$FreeBSD$
+$FreeBSD: src/contrib/bc/bc/main.c,v 1.5 2001/02/26 07:17:00 kris Exp $
        
 *************************************************************************/
 

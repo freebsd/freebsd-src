@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lmc/if_lmc.c,v 1.21 2003/08/24 17:49:15 obrien Exp $");
 
 #ifdef COMPILING_LINT
 #warning "The lmc driver is broken and is not compiled with LINT"

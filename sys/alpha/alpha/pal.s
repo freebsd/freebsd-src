@@ -40,7 +40,7 @@
 #include <machine/asm.h>
 
 __KERNEL_RCSID(1, "$NetBSD: pal.s,v 1.12 1998/02/27 03:44:53 thorpej Exp $");
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/pal.s,v 1.8 2002/04/15 23:28:10 obrien Exp $");
 
 	.text
 	.loc	1 __LINE__

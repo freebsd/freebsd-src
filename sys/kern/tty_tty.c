@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/tty_tty.c,v 1.51 2003/09/27 12:01:00 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

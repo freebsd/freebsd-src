@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/cvs/Makefile,v 1.41 2003/05/05 16:50:42 nectar Exp $
 
 MAINTAINER=	peter@FreeBSD.org
 

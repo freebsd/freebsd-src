@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: status.c,v 1.2 2003/05/21 22:40:30 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/hccontrol/status.c,v 1.4 2003/10/12 22:04:23 emax Exp $
  */
 
 #include <sys/types.h>

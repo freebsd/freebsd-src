@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/harp/Makefile,v 1.1 2003/07/21 13:56:22 harti Exp $
 #
 # Author: Harti Brandt <brandt@fokus.gmd.de>
 #

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/tlsb/zs_tlsb.c,v 1.39 2003/09/26 19:35:49 phk Exp $");
 
 #include "opt_ddb.h"
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/creator/creator_upa.c,v 1.2 2003/11/11 06:47:00 jake Exp $
  */
 
 #include <sys/param.h>

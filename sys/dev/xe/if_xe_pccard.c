@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/xe/if_xe_pccard.c,v 1.14 2003/11/04 21:09:37 rsm Exp $");
 
 /* xe pccard interface driver */
 

@@ -29,7 +29,7 @@
  *
  *	BSDI vparams.h,v 2.2 1996/04/08 19:33:13 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/vparams.h,v 1.2 2001/07/24 11:44:20 tg Exp $
  */
 
 /* Collect some default parameters for the VGA emulator in this file. This is

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mpt/Makefile,v 1.1 2002/10/31 19:39:23 jhb Exp $
 
 .PATH: ${.CURDIR}/../../dev/mpt
 

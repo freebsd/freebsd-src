@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_balloc.c,v 1.43 2003/08/15 20:03:19 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

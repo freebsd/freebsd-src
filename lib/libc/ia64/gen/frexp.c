@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/gen/frexp.c,v 1.2 2002/03/22 21:52:14 obrien Exp $");
 
 #include <sys/types.h>
 #include <machine/ieee.h>

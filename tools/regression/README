@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/README,v 1.10 2003/07/31 12:40:56 pb Exp $
 
 This directory is for regression test programs.
 

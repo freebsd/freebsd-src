@@ -1,5 +1,5 @@
 # Makefile
-# $FreeBSD$
+# $FreeBSD: src/libexec/bootpd/bootpgw/Makefile,v 1.4 1999/08/28 00:09:22 peter Exp $
 
 PROG=	bootpgw
 NOMAN=  true

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/asmacros.h,v 1.17 2003/07/16 00:08:43 jmg Exp $
  */
 
 #ifndef	_MACHINE_ASMACROS_H_

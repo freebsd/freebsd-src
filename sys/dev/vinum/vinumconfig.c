@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinumconfig.c,v 1.62 2003/09/29 08:50:03 grog Exp $");
 
 #define STATIC static
 

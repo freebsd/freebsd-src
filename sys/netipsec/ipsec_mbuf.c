@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipsec/ipsec_mbuf.c,v 1.9 2003/09/29 22:57:42 sam Exp $
  */
 
 /*

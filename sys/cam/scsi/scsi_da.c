@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/scsi/scsi_da.c,v 1.160 2003/10/08 07:12:30 thomas Exp $");
 
 #ifdef _KERNEL
 #include "opt_da.h"

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/raidctl/Makefile,v 1.1 2002/10/20 08:17:34 scottl Exp $
 #	$NetBSD: Makefile,v 1.7 2000/05/23 00:46:53 thorpej Exp $
 PROG=	raidctl 
 SRCS=	rf_configure.c raidctl.c

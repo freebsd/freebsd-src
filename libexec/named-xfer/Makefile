@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/named-xfer/Makefile,v 1.15 2003/06/17 20:07:49 dougb Exp $
 
 USE_LIBBIND=	true
 .include "${.CURDIR}/../../usr.sbin/named/Makefile.inc"

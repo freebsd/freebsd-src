@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/nmdm/nmdm.c,v 1.17 2003/11/09 09:17:21 tanimura Exp $");
 
 /*
  * Pseudo-nulmodem driver

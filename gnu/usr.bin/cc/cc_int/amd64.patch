@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/cc_int/amd64.patch,v 1.1 2003/05/24 20:58:47 peter Exp $
 # The first chunk is to stop gcc generating stupid assembler output
 # for jump tables.  This change is already in gcc-3.3.
 # The second chunk is to stop gcc doing an ICE on libc/stdio/vfprintf.c.

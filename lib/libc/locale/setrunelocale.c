@@ -38,7 +38,7 @@
 #define	OBSOLETE_IN_6
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/setrunelocale.c,v 1.33.2.1 2003/12/11 20:06:22 tjr Exp $");
 
 #include <rune.h>
 #include <errno.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/conf/GENERIC.hints,v 1.6 2003/11/08 23:19:13 marcel Exp $
 hint.uart.0.baud="115200"
 hint.uart.0.flags="0x10"
 hint.uart.0.port="0x3f8"

@@ -1,7 +1,7 @@
 /*	$NetBSD: rf_map.c,v 1.5 2000/06/29 00:22:27 oster Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/raidframe/rf_map.c,v 1.2 2003/08/24 17:54:18 obrien Exp $");
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/talk/Makefile,v 1.10 2002/02/08 23:07:35 markm Exp $
 
 PROG=	talk
 SRCS=	ctl.c ctl_transact.c display.c get_addrs.c get_iface.c get_names.c \

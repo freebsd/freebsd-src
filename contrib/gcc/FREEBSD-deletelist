@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/gcc/FREEBSD-deletelist,v 1.4 2001/04/11 00:12:19 obrien Exp $
 CVS
 .cvsignore
 ABOUT*NLS

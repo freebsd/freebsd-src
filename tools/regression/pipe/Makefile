@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/pipe/Makefile,v 1.1 2003/07/31 12:40:56 pb Exp $
 #
 # "make" then "make regress".
 #

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/busdma_machdep.c,v 1.18 2003/07/27 13:52:10 mux Exp $");
 
 /*
  * MacPPC bus dma support routines

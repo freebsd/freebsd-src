@@ -27,7 +27,7 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r128_cce.c,v 1.9 2003/11/12 20:56:30 anholt Exp $
  */
 
 #include "dev/drm/r128.h"

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_mcpair.h,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_mcpair.h,v 1.6 2000/09/21 01:45:46 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

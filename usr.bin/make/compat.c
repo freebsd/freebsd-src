@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/compat.c,v 1.36 2003/10/03 21:33:39 ru Exp $");
 
 /*-
  * compat.c --

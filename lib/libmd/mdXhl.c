@@ -7,7 +7,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libmd/mdXhl.c,v 1.18 2002/09/08 15:10:04 phk Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

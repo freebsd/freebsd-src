@@ -29,7 +29,7 @@
  *
  *	BSDI trap.h,v 2.2 1996/04/08 19:33:09 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/trap.h,v 1.3 2001/07/24 11:50:23 tg Exp $
  */
 
 #define	CLI	0xfa

@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)utf2.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/param.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/utf2.c,v 1.8 2003/06/13 07:13:54 tjr Exp $");
 
 #include <rune.h>
 #include <stddef.h>

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.9 (Berkeley) 12/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/unionfs/union.h,v 1.27 2003/06/14 23:27:29 das Exp $
  */
 
 #define UNMNT_ABOVE	0x0001		/* Target appears above mount point */

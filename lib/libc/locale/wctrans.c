@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/wctrans.c,v 1.3 2003/11/01 08:20:58 tjr Exp $");
 
 #include <errno.h>
 #include <string.h>

@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/capi/iavc/iavc_isa.c,v 1.7 2003/06/10 23:10:44 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -32,7 +32,7 @@
  * Compatibility shims for the GNU C Library-style nsswitch interface.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/nss_compat.c,v 1.1.4.1 2004/01/25 06:00:42 scottl Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

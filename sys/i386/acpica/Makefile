@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/acpica/Makefile,v 1.5 2003/11/01 00:18:29 njl Exp $
 
 # Correct path for kernel builds
 # Don't rely on the kernel's .depend file

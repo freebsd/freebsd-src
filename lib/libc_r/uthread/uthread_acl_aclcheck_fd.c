@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_acl_aclcheck_fd.c,v 1.3 2001/05/20 23:08:32 jasone Exp $
  */
 
 #include <sys/types.h>

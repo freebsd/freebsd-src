@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/if_le.c,v 1.77 2003/11/04 14:02:12 nyan Exp $");
 
 /*
  * DEC EtherWORKS 2 Ethernet Controllers

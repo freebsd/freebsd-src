@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_elf.c,v 1.17 2003/09/28 06:02:33 bde Exp $");
 
 #include "opt_ddb.h"
 

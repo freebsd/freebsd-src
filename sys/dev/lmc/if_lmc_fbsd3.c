@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lmc/if_lmc_fbsd3.c,v 1.6 2003/08/24 17:49:15 obrien Exp $");
 
 /*
  * This file is INCLUDED (gross, I know, but...)

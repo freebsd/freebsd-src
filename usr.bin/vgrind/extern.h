@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/vgrind/extern.h,v 1.4 2002/03/22 01:42:41 imp Exp $
  */
 
 typedef int boolean;

@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/wt.c,v 1.75 2003/08/05 20:11:50 bde Exp $");
 
 /*
  * Code for MTERASE added by John Lind (john@starfire.mn.org) 95/09/02.

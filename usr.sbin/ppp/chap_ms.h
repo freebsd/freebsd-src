@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/chap_ms.h,v 1.8 2002/06/15 08:03:29 brian Exp $
  */
 
 /* Max # of (Unicode) chars in an NT password */

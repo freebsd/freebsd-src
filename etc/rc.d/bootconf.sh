@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: bootconf.sh,v 1.5 2002/03/25 03:22:10 wiz Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/bootconf.sh,v 1.4 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: bootconf

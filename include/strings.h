@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/strings.h,v 1.3 2002/08/21 16:19:55 mike Exp $
  */
 
 #ifndef _STRINGS_H_

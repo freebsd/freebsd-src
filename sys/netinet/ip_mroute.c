@@ -17,7 +17,7 @@
  * and PIM-SMv2 and PIM-DM support, advanced API support,
  * bandwidth metering and signaling
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_mroute.c,v 1.96.2.1 2003/12/23 19:21:16 sam Exp $
  */
 
 #include "opt_mac.h"

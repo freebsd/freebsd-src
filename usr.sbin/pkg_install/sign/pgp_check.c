@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/sign/pgp_check.c,v 1.2 2002/04/01 09:39:07 obrien Exp $");
 
 #include <stdio.h>
 #include <errno.h>

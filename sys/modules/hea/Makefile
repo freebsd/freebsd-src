@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/hea/Makefile,v 1.1 2002/06/03 09:13:53 mdodd Exp $
 
 .PATH:	${.CURDIR}/../../dev/hea
   

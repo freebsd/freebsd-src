@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/amd64/Makefile.inc,v 1.1 2003/07/22 06:34:57 peter Exp $
 #
 # Machine dependent definitions for the amd64 architecture.
 #

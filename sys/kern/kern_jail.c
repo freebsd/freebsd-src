@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_jail.c,v 1.34.2.1 2004/02/19 23:26:39 nectar Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

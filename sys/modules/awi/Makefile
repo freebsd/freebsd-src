@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/awi/Makefile,v 1.1 2001/11/19 06:41:04 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/awi
 

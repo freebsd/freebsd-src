@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/portalfs/Makefile,v 1.12 2002/01/11 15:48:56 ru Exp $
 
 .PATH: ${.CURDIR}/../../fs/portalfs
 

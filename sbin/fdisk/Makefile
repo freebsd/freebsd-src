@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/fdisk/Makefile,v 1.10 2003/04/13 21:34:16 phk Exp $
 
 PROG=	fdisk
 SRCS=	fdisk.c geom_mbr_enc.c

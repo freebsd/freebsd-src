@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_concurrency.c,v 1.7 2003/08/30 12:09:16 deischen Exp $
  */
 #include <errno.h>
 #include <pthread.h>

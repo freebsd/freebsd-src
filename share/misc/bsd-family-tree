@@ -449,4 +449,4 @@ Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 Copyright (c) 1997-2003 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: http://cvsweb.freebsd.org/src/share/misc/bsd-family-tree
 
-$FreeBSD$
+$FreeBSD: src/share/misc/bsd-family-tree,v 1.75.2.1 2004/02/23 05:44:37 scottl Exp $

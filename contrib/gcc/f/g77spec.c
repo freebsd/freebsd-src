@@ -19,7 +19,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/f/g77spec.c,v 1.3 2003/07/11 04:03:28 kan Exp $ */
 
 /* This file contains a filter for the main `gcc' driver, which is
    replicated for the `g77' driver by adding this filter.  The purpose

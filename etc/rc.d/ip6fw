@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ip6fw,v 1.3 2003/06/29 05:15:57 mtm Exp $
 #
 
 # PROVIDE: ip6fw

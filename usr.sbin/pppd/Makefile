@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pppd/Makefile,v 1.27 2003/10/29 19:24:03 peter Exp $
 
 # I once used this extensively, but no longer have a modem.  Feel free
 # to ask me questions about it, but I disclaim ownership now.  -Peter

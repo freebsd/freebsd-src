@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/isofs/cd9660/cd9660_util.c,v 1.21 2003/09/26 20:26:23 fjoe Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

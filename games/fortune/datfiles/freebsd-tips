@@ -1,5 +1,5 @@
 This fortune brought to you by:
-$FreeBSD$
+$FreeBSD: src/games/fortune/datfiles/freebsd-tips,v 1.31 2003/08/02 20:36:28 schweikh Exp $
 %
 Having trouble using fetch through a firewall? Try setting the environment
 variable FTP_PASSIVE_MODE to yes, and see fetch(3) for more details.

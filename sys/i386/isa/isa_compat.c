@@ -27,7 +27,7 @@
 #ifndef BURN_BRIDGES
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/isa_compat.c,v 1.30 2003/11/04 19:04:54 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

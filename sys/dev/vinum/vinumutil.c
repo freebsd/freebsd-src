@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinumutil.c,v 1.18 2003/08/24 17:55:57 obrien Exp $");
 
 /* This file contains utility routines used both in kernel and user context */
 

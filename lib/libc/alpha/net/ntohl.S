@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/net/ntohl.S,v 1.3 2003/01/19 00:17:02 obrien Exp $");
 
 #define	ALIAS	ntohl
 #define	NAME	__ntohl

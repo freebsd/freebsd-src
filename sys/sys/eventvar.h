@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/sys/eventvar.h,v 1.4 2000/07/18 19:31:48 jlemon Exp $
  */
 
 #ifndef _SYS_EVENTVAR_H_

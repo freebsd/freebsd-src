@@ -113,7 +113,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/mrouted/mtrace.c,v 1.20 2002/09/09 15:45:28 nectar Exp $";
 #endif
 
 #include <ctype.h>

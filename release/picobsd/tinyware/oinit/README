@@ -120,4 +120,4 @@ The overall framework was taken from FreeBSD /sbin/init.
 Andrzej Bialecki
 <abial@freebsd.org>
 
-$FreeBSD$
+$FreeBSD: src/release/picobsd/tinyware/oinit/README,v 1.3 1999/08/28 01:33:58 peter Exp $

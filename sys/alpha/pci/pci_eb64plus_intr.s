@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/pci/pci_eb64plus_intr.s,v 1.3 2001/06/14 19:33:16 mjacob Exp $ */
 /* $NetBSD: pci_eb64plus_intr.s,v 1.2 1997/09/02 13:19:43 thorpej Exp $ */
 
 /*

@@ -19,7 +19,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gdb/gdb/gdbserver/gdbreplay.c,v 1.6 2002/10/12 17:56:57 mp Exp $ */
 
 #include "config.h"
 #include <stdio.h>

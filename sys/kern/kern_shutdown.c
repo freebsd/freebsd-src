@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_shutdown.c,v 1.146 2003/08/16 16:57:57 marcel Exp $");
 
 #include "opt_ddb.h"
 #include "opt_ddb_trace.h"

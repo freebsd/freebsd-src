@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/gem/Makefile,v 1.1 2003/01/08 20:40:29 tmm Exp $
 
 .PATH: ${.CURDIR}/../../dev/gem
 

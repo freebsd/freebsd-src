@@ -20,7 +20,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/cp/decl.c,v 1.17 2003/11/07 03:13:51 kan Exp $ */
 
 
 /* Process declarations and symbol lookup for C front end.

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_vfsops.c,v 1.114 2003/11/05 11:56:58 bde Exp $
  */
 
 #include <sys/param.h>

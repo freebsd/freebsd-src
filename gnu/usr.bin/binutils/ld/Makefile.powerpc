@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.powerpc,v 1.14 2003/08/19 17:30:46 obrien Exp $
 
 TARGET_TUPLE?=	powerpc-unknown-freebsd
 

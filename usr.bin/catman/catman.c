@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/catman/catman.c,v 1.9 2003/06/10 02:18:00 ache Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

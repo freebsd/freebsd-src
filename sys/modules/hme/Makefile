@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/hme/Makefile,v 1.1 2003/01/09 16:29:03 obrien Exp $
 
 .PATH: ${.CURDIR}/../../dev/hme
 

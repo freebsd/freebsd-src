@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_proc.c,v 1.197 2003/10/16 08:39:15 jeff Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_proc.c,v 1.197 2003/10/16 08:39:15 jeff Exp $");
 
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"

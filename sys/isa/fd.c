@@ -53,7 +53,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/isa/fd.c,v 1.262 2003/10/23 05:52:52 peter Exp $");
 
 #include "opt_fdc.h"
 #include "card.h"

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/cpu.c,v 1.8 2002/05/10 10:37:57 tg Exp $");
 
 #include "doscmd.h"
 #include "video.h"

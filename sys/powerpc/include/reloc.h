@@ -29,5 +29,5 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/reloc.h,v 1.1 2001/06/16 07:14:04 benno Exp $
  */

@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/bios/apm.c,v 1.137 2003/11/09 09:17:23 tanimura Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

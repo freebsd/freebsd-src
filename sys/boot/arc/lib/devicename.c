@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arc/lib/devicename.c,v 1.3 2003/04/16 21:09:41 phk Exp $
  */
 
 #include <stand.h>

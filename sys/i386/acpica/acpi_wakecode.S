@@ -26,7 +26,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/acpica/acpi_wakecode.S,v 1.8 2003/11/01 01:05:53 njl Exp $");
 
 #define LOCORE
 

@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netnatm/natm_pcb.c,v 1.14 2003/08/06 13:46:15 harti Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -46,7 +46,7 @@
  * device parameters, then call the board-specific routines if
  * available, or try to perform the task using the default code.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/midi/midi.c,v 1.13 2003/03/03 12:15:46 phk Exp $
  *
  */
 

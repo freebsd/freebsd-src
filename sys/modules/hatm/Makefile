@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/hatm/Makefile,v 1.1 2003/06/17 16:12:49 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #

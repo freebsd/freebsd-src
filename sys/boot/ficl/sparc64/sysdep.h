@@ -48,7 +48,7 @@
 ** $Id: sysdep.h,v 1.6 2001-04-26 21:41:55-07 jsadler Exp jsadler $
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/sparc64/sysdep.h,v 1.1 2002/05/19 23:20:56 jake Exp $ */
 
 #if !defined (__SYSDEP_H__)
 #define __SYSDEP_H__ 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fvwrite.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/fvwrite.h,v 1.3 2002/05/28 16:59:39 alfred Exp $
  */
 
 /*

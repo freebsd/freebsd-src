@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/gdb/FREEBSD-Xlist,v 1.5 2002/10/12 21:33:49 mp Exp $
 */gettext.m4
 */libtool.m4
 */md5.sum

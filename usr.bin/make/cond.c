@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/cond.c,v 1.27 2003/09/07 02:16:10 imp Exp $");
 
 /*-
  * cond.c --

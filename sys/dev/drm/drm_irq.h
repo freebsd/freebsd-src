@@ -26,7 +26,7 @@
  * Authors:
  *    Eric Anholt <anholt@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_irq.h,v 1.2 2003/11/12 20:56:30 anholt Exp $
  */
 
 int DRM(irq_by_busid)( DRM_IOCTL_ARGS )

@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/lxtphy.c,v 1.12 2003/08/24 17:54:10 obrien Exp $");
  
 /*
  * Copyright (c) 1997 Manuel Bouyer.  All rights reserved.
@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/lxtphy.c,v 1.12 2003/08/24 17:54:10 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

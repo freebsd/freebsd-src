@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hfa/fore_init.c,v 1.15 2003/08/22 06:00:26 imp Exp $
  *
  */
 
@@ -63,7 +63,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hfa/fore_init.c,v 1.15 2003/08/22 06:00:26 imp Exp $");
 #endif
 
 

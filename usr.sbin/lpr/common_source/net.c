@@ -39,7 +39,7 @@
  */
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/common_source/net.c,v 1.8 2003/07/14 05:15:21 gad Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

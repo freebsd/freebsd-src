@@ -38,7 +38,7 @@
 
 #ifndef lint
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstInit.c,v 1.9 2002/10/09 02:00:22 jmallett Exp $");
 #endif /* not lint */
 
 /*-

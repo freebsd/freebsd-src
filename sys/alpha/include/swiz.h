@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/swiz.h,v 1.4 2000/08/28 21:48:01 dfr Exp $
  */
 
 #ifndef _MACHINE_SWIZ_H_

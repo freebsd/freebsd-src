@@ -2,7 +2,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/pcvt/vttest/esc.c,v 1.6 2001/07/27 04:40:04 brooks Exp $";
 #endif
 
 println(s) char *s; {

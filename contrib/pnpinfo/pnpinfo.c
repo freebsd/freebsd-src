@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/pnpinfo/pnpinfo.c,v 1.8 2002/08/09 22:04:54 iedowse Exp $
  */
 
 #include <sys/time.h>

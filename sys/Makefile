@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/Makefile,v 1.28 2003/06/26 03:52:48 peter Exp $
 
 # The boot loader
 SUBDIR=	boot

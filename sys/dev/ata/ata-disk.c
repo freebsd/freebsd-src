@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ata/ata-disk.c,v 1.164.2.2 2004/02/11 08:47:21 scottl Exp $");
 
 #include "opt_ata.h"
 #include <sys/param.h>

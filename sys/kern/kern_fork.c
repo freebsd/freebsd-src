@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_fork.c,v 1.208 2003/10/29 15:23:09 bde Exp $");
 
 #include "opt_ktrace.h"
 #include "opt_mac.h"

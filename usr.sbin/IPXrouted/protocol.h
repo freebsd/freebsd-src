@@ -37,7 +37,7 @@
  *
  *	@(#)protocol.h	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/protocol.h,v 1.5 1999/08/28 01:15:03 peter Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_reconstruct.h,v 1.1 2002/10/20 08:17:37 scottl Exp $ */
 /*	$NetBSD: rf_reconstruct.h,v 1.5 2000/05/28 00:48:30 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

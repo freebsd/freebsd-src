@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_ktr.c,v 1.43 2003/09/10 01:09:32 jhb Exp $");
 
 #include "opt_ddb.h"
 #include "opt_ktr.h"

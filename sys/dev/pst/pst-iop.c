@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pst/pst-iop.c,v 1.6 2003/08/24 17:54:17 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

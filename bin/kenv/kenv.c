@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/kenv/kenv.c,v 1.5 2003/01/20 17:56:25 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>

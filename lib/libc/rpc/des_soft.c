@@ -2,7 +2,7 @@
 static char sccsid[] = "@(#)des_soft.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02/08 SMI";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/des_soft.c,v 1.2 2002/03/22 23:18:36 obrien Exp $");
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for

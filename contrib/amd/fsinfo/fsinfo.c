@@ -40,7 +40,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: fsinfo.c,v 1.5.2.5 2003/07/18 04:50:20 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/fsinfo/fsinfo.c,v 1.5 2003/09/02 15:42:56 mbr Exp $
  *
  */
 

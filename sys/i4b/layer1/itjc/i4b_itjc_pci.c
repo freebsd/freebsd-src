@@ -37,7 +37,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/itjc/i4b_itjc_pci.c,v 1.12 2003/09/02 17:30:40 jhb Exp $");
 
 #include "opt_i4b.h"
 

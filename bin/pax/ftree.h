@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ftree.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/ftree.h,v 1.6 2001/05/08 06:19:06 kris Exp $
  */
 
 /*

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/iconv.c,v 1.7 2003/09/26 20:26:24 fjoe Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

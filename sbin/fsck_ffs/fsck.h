@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fsck.h	8.4 (Berkeley) 5/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sbin/fsck_ffs/fsck.h,v 1.29 2003/02/14 21:05:35 mckusick Exp $
  */
 
 #include <unistd.h>

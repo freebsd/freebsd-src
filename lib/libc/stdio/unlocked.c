@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/unlocked.c,v 1.1 2003/01/10 04:35:08 tjr Exp $");
 
 #include <stdio.h>
 

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/if_rdp.c,v 1.25 2003/11/04 14:02:13 nyan Exp $");
 
 /*
  * Device driver for RealTek RTL 8002 (`REDP') based pocket-ethernet

@@ -1,7 +1,7 @@
 /*	$NetBSD: rf_decluster.c,v 1.6 2001/01/26 04:40:03 oster Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/raidframe/rf_decluster.c,v 1.4 2003/09/29 14:23:59 scottl Exp $");
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.

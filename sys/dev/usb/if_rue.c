@@ -56,7 +56,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/if_rue.c,v 1.7 2003/11/13 20:55:51 obrien Exp $");
 
 /*
  * RealTek RTL8150 USB to fast ethernet controller driver.

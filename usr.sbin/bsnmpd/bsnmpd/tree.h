@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/bsnmpd/bsnmpd/tree.h,v 1.1 2003/11/10 09:22:40 harti Exp $ */
 /* generated file, don't edit - use ./genfiles */
 int	op_system_group(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp_op);
 # define LEAF_sysDescr 1

@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_l3.h,v 1.11 2000/04/27 09:25:21 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer3/i4b_l3.h,v 1.7 2000/10/09 13:18:16 hm Exp $
  *
  *      last edit-date: [Thu Apr 27 11:07:01 2000]
  *

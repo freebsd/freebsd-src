@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/amr/amr_compat.h,v 1.6 2003/03/08 08:01:27 phk Exp $
  */
 /*
  * Backwards compatibility support.

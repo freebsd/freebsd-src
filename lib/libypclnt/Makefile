@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libypclnt/Makefile,v 1.11 2003/03/09 19:56:21 obrien Exp $
 
 LIB=	ypclnt
 SHLIB_MAJOR= 1

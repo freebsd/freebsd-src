@@ -1,7 +1,7 @@
 /*
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ispfw/ispfw.c,v 1.10 2003/08/24 17:49:14 obrien Exp $");
  * ISP Firmware Helper Pseudo Device for FreeBSD
  *
  * Copyright (c) 2000, 2001, by Matthew Jacob

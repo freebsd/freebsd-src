@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/sys/sigaction.S,v 1.1 2002/09/03 14:55:29 jake Exp $");
 
 #include "SYS.h"
 

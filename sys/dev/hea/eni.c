@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hea/eni.c,v 1.23 2003/08/24 17:46:08 obrien Exp $");
 
 /*
  * Efficient ENI adapter support
@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hea/eni_var.h>
 
 #ifndef	lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hea/eni.c,v 1.23 2003/08/24 17:46:08 obrien Exp $");
 #endif
 
 /*

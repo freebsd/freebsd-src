@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/top/Makefile,v 1.10 2002/02/08 23:07:35 markm Exp $
 PROG=	top
 
 TOPDIR=	${.CURDIR}/../../contrib/top

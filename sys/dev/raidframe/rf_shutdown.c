@@ -1,7 +1,7 @@
 /*	$NetBSD: rf_shutdown.c,v 1.6 2000/01/13 23:41:18 oster Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/raidframe/rf_shutdown.c,v 1.4 2003/08/24 17:54:18 obrien Exp $");
 /*
  * rf_shutdown.c
  */

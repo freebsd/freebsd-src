@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ncv/ncr53c500.c,v 1.8 2003/08/24 17:54:12 obrien Exp $");
 #include "opt_ddb.h"
 
 #include <sys/param.h>

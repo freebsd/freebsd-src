@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/sigpvc/sigpvc_subr.c,v 1.13 2003/06/11 07:06:31 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

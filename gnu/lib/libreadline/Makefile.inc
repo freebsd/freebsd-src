@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libreadline/Makefile.inc,v 1.9 2003/08/31 19:15:34 ache Exp $
 
 SHLIB_MAJOR=4
 RL_LIBRARY_VERSION=4.3

@@ -37,7 +37,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)wwterminfo.c	8.1 (Berkeley) 6/6/93";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/window/wwterminfo.c,v 1.6 2001/05/17 09:38:49 obrien Exp $";
 #endif /* not lint */
 
 #ifdef TERMINFO

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/ds1-fw.h,v 1.3 2001/05/30 22:46:40 cg Exp $
  */
 #ifndef _HWMCODE_
 #define _HWMCODE_

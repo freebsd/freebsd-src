@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkvm/kvm_getswapinfo.c,v 1.25 2003/07/31 21:42:12 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

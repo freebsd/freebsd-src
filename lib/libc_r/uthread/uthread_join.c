@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_join.c,v 1.21 2002/11/13 18:13:26 deischen Exp $
  */
 #include <errno.h>
 #include "namespace.h"

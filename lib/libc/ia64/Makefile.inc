@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/ia64/Makefile.inc,v 1.2 2001/03/05 10:00:57 obrien Exp $
 #
 # Machine dependent definitions for the alpha architecture.
 #

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/esp_aesctr.h,v 1.1 2003/10/13 14:57:41 ume Exp $
  */
 
 extern int esp_aesctr_mature __P((struct secasvar *));

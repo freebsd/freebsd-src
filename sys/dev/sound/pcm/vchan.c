@@ -28,7 +28,7 @@
 #include <dev/sound/pcm/vchan.h>
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/vchan.c,v 1.13.2.2 2004/02/15 00:16:53 truckman Exp $");
 
 struct vchinfo {
 	u_int32_t spd, fmt, blksz, bps, run;

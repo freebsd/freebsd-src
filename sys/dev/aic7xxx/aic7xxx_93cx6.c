@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aic7xxx/aic7xxx_93cx6.c,v 1.18 2003/08/24 17:48:03 obrien Exp $");
 
 /*
  *   The instruction set of the 93C66/56/46/26/06 chips are as follows:

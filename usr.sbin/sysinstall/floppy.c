@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/floppy.c,v 1.38 2002/10/14 13:04:21 nyan Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -26,7 +26,7 @@
  *
  *	from: NetBSD: profile.h,v 1.9 1997/04/06 08:47:37 cgd Exp
  *	from: FreeBSD: src/sys/alpha/include/profile.h,v 1.4 1999/12/29
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/profile.h,v 1.1 2003/01/18 11:31:58 grehan Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_

@@ -86,7 +86,7 @@ reassigned to keep this true.
 ***/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_switch.c,v 1.63 2003/11/17 08:58:16 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

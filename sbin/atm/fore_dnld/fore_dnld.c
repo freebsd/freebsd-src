@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sbin/atm/fore_dnld/fore_dnld.c,v 1.15 2003/07/31 14:26:07 harti Exp $
  *
  */
 
@@ -65,7 +65,7 @@
 #include <unistd.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/fore_dnld/fore_dnld.c,v 1.15 2003/07/31 14:26:07 harti Exp $");
 #endif
 
 extern u_char pca200e_microcode_3[];

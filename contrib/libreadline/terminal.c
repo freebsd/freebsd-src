@@ -19,7 +19,7 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/terminal.c,v 1.5 2003/08/31 18:29:38 ache Exp $ */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)

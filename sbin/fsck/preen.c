@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/fsck/preen.c,v 1.27 2002/12/17 19:33:44 phk Exp $
  */
 
 #include <sys/cdefs.h>
