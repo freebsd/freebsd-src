@@ -276,6 +276,25 @@ associated with ``root'';
 it is exported to all hosts on network ``cis-net'' allowing mounts at any
 directory within /u2 and mapping all uids to credentials for the principal
 that is authenticated by a Kerberos ticket.
+.Pp
+The
+.Xr mountd 8
+utility can be made to re-read the
+.Nm
+file by sending it a hangup signal as follows:
+.Bd -literal -offset indet
+kill -s HUP `cat /var/run/mountd.pid`
+.Ed
+.Pp
+After sending the
+.Dv SIGHUP ,
+check the
+.Xr syslogd 8
+output to see whether
+.Xr mountd 8
+logged any parsing errors in the
+.Nm
+file.
 .Sh FILES
 .Bl -tag -width /etc/exports -compact
 .It Pa /etc/exports
