@@ -43,8 +43,10 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)basename.c	8.4 (Berkeley) 5/4/95";
 #endif /* not lint */
 
+#include <err.h>
 #include <libgen.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 void usage __P((void));
@@ -54,6 +56,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
+	char *p, *q;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
@@ -68,7 +71,11 @@ main(argc, argv)
 	if (argc != 1 && argc != 2)
 		usage();
 
-	(void)printf("%s\n", basename(*argv));
+	if ((p = basename(argv[0])) == NULL)
+		err(1, "%s", argv[0]);
+	if (*++argv && (q = strstr(p, *argv)) && strcmp(q, *argv) == 0)
+		*q = '\0';
+	(void)printf("%s\n", p);
 	exit(0);
 }
 

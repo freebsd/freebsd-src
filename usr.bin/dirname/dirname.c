@@ -43,6 +43,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)dirname.c	8.4 (Berkeley) 5/4/95";
 #endif /* not lint */
 
+#include <err.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -54,6 +55,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
+	char *p;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
@@ -68,7 +70,9 @@ main(argc, argv)
 	if (argc != 1)
 		usage();
 
-	(void)printf("%s\n", dirname(*argv));
+	if ((p = dirname(*argv)) == NULL)
+		err(1, "%s", *argv);
+	(void)printf("%s\n", p);
 	exit(0);
 }
 
