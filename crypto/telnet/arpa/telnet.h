@@ -121,10 +121,14 @@ extern char *telcmds[];
 #define	TELOPT_AUTHENTICATION 37/* Authenticate */
 #define	TELOPT_ENCRYPT	38	/* Encryption option */
 #define TELOPT_NEW_ENVIRON 39	/* New - Environment variables */
+#define	TELOPT_TN3270E	40	/* RFC2355 - TN3270 Enhancements */
+#define	TELOPT_CHARSET	42	/* RFC2066 - Charset */
+#define	TELOPT_COMPORT	44	/* RFC2217 - Com Port Control */
+#define	TELOPT_KERMIT	47	/* RFC2840 - Kermit */
 #define	TELOPT_EXOPL	255	/* extended-options-list */
 
 
-#define	NTELOPTS	(1+TELOPT_NEW_ENVIRON)
+#define	NTELOPTS	(1+TELOPT_KERMIT)
 #ifdef TELOPTS
 const char *telopts[NTELOPTS+1] = {
 	"BINARY", "ECHO", "RCP", "SUPPRESS GO AHEAD", "NAME",
@@ -136,11 +140,12 @@ const char *telopts[NTELOPTS+1] = {
 	"TACACS UID", "OUTPUT MARKING", "TTYLOC",
 	"3270 REGIME", "X.3 PAD", "NAWS", "TSPEED", "LFLOW",
 	"LINEMODE", "XDISPLOC", "OLD-ENVIRON", "AUTHENTICATION",
-	"ENCRYPT", "NEW-ENVIRON",
+	"ENCRYPT", "NEW-ENVIRON", "TN3270E", "CHARSET", "COM-PORT",
+	"KERMIT",
 	0
 };
 #define	TELOPT_FIRST	TELOPT_BINARY
-#define	TELOPT_LAST	TELOPT_NEW_ENVIRON
+#define	TELOPT_LAST	TELOPT_KERMIT
 #define	TELOPT_OK(x)	((unsigned int)(x) <= TELOPT_LAST)
 #define	TELOPT(x)	telopts[(x)-TELOPT_FIRST]
 #endif
