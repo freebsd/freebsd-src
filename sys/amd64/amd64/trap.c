@@ -286,7 +286,7 @@ trap(frame)
 				 */
 				if (kdb_on_nmi) {
 					printf ("NMI ... going to debugger\n");
-					kdb_trap (type, 0, &frame);
+					kdb_trap(type, 0, &frame);
 				}
 #endif /* KDB */
 				goto userout;
@@ -747,6 +747,9 @@ syscall(frame)
 		ktrsyscall(code, narg, argp);
 #endif
 
+	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame.tf_rdx;
@@ -809,6 +812,9 @@ syscall(frame)
 	 * Handle reschedule and other end-of-syscall issues
 	 */
 	userret(td, &frame, sticks);
+
+	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
