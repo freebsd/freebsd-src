@@ -40,7 +40,6 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <sys/disklabel.h>
-#include <sys/device.h>
 #include <sys/stat.h>
 #include <sys/module.h>
 #include <ctype.h>
