@@ -68,6 +68,7 @@
 /*
  * Device interface.
  */
+static void		hrowpic_identify(driver_t *, device_t);
 static int		hrowpic_probe(device_t);
 static int		hrowpic_attach(device_t);
 
@@ -108,6 +109,7 @@ static struct hrowpic_softc  *hpicsoftc;
  */
 static device_method_t  hrowpic_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	hrowpic_identify),
 	DEVMETHOD(device_probe,         hrowpic_probe),
 	DEVMETHOD(device_attach,        hrowpic_attach),
 
@@ -130,21 +132,36 @@ static devclass_t hrowpic_devclass;
 
 DRIVER_MODULE(hrowpic, nexus, hrowpic_driver, hrowpic_devclass, 0, 0);
 
+static void
+hrowpic_identify(driver_t *driver, device_t parent)
+{
+	phandle_t chosen, pic;
+	char type[40];
+
+	chosen = OF_finddevice("/chosen");
+	if (chosen == -1)
+		return;
+
+	if (OF_getprop(chosen, "interrupt-controller", &pic, 4) != 4)
+		return;
+
+	OF_getprop(pic, "compatible", type, sizeof(type));
+	if (strcmp(type, "heathrow"))
+		return;
+
+	BUS_ADD_CHILD(parent, 0, "hrowpic", 0);
+}
+
 static int
 hrowpic_probe(device_t dev)
 {
-	char    *type, *compatible;
+	char    *name;
 
-	type = nexus_get_device_type(dev);
-	compatible = nexus_get_compatible(dev);
+	name = nexus_get_name(dev);
 
-	if (strcmp(type, "interrupt-controller"))
+	if (strcmp(name, "hrowpic"))
 		return (ENXIO);
-
-	if (strcmp(compatible, "heathrow")) {
-		return (ENXIO);
-	}
-
+	
 	device_set_desc(dev, "Heathrow interrupt controller");
 	return (0);
 }
@@ -165,6 +182,7 @@ hrowpic_attach(device_t dev)
 		return (ENXIO);
         }	
 
+	nexus_install_intcntlr(dev);
 	intr_init(hrowpic_intr, HROWPIC_IRQMAX, hrowpic_ext_enable_irq, 
 	    hrowpic_ext_disable_irq);
 
