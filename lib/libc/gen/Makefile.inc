@@ -1,11 +1,11 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.42 1998/02/09 06:05:22 jdp Exp $
+#	$Id: Makefile.inc,v 1.43 1998/02/12 23:52:23 bde Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
 
 SRCS+=  _rand48.c alarm.c arc4random.c assert.c \
-	clock.c closedir.c config.c confstr.c \
+	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c disklabel.c \
 	dlfcn.c drand48.c erand48.c err.c errlst.c \
 	exec.c fnmatch.c fstab.c fts.c getbootfile.c getbsize.c \
@@ -43,7 +43,7 @@ errlst.o errlst.po:
 .endif
 
 .if ${LIB} == "c"
-MAN3+=  alarm.3 arc4random.3 clock.3 config_open.3 \
+MAN3+=  alarm.3 arc4random.3 clock.3 \
 	confstr.3 crypt.3 ctermid.3 daemon.3 \
 	devname.3 directory.3 dladdr.3 dlopen.3 \
 	err.3 exec.3 fnmatch.3 frexp.3 fts.3 \
@@ -63,8 +63,6 @@ MAN3+=  alarm.3 arc4random.3 clock.3 config_open.3 \
 	valloc.3 vis.3
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3
-MLINKS+=config_open.3 config_close.3 config_open.3 config_next.3 \
-	config_open.3 config_skip.3
 MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3 crypt.3 encrypt.3 \
 	crypt.3 setkey.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
