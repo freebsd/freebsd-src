@@ -80,10 +80,10 @@ sflag_print()
 	 *		remote host
 	 */
 #define	MAXREALNAME	20
-#define	MAXHOSTNAME	20	/* in reality, hosts are never longer than 16 */
+#define MAXHOSTNAME     17      /* in reality, hosts are never longer than 16 */
 	(void)printf("%-*s %-*s%s  %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
 	    "Name", " TTY  Idle  Login Time",
-	    oflag ? " Office     Office Phone" : " Where");
+	    oflag ? " Office  Phone" : " Where");
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
 		r = (*db->seq)(db, &key, &data, sflag);
@@ -132,12 +132,12 @@ sflag_print()
 				(void)printf(" %.5s", p + 11);
 office:			if (oflag) {
 				if (pn->office)
-				(void)printf(" %-10.10s", pn->office);
-			else if (pn->officephone)
-				(void)printf(" %-10.10s", " ");
-			if (pn->officephone)
-				(void)printf(" %-.15s",
-				    prphone(pn->officephone));
+					(void)printf(" %-7.7s", pn->office);
+				else if (pn->officephone)
+					(void)printf(" %-7.7s", " ");
+				if (pn->officephone)
+					(void)printf(" %-.9s",
+					    prphone(pn->officephone));
 			} else
 				(void)printf(" %.*s", MAXHOSTNAME, w->host);
 			putchar('\n');
