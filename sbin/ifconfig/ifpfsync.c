@@ -47,7 +47,7 @@
 void setpfsync_syncif(const char *, int, int, const struct afswtch *rafp);
 void unsetpfsync_syncif(const char *, int, int, const struct afswtch *rafp);
 void setpfsync_maxupd(const char *, int, int, const struct afswtch *rafp);
-void pfsync_status(int, const struct rt_addrinfo *);
+void pfsync_status(int);
 
 void
 setpfsync_syncif(const char *val, int d, int s, const struct afswtch *rafp)
@@ -104,7 +104,7 @@ setpfsync_maxupd(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 void
-pfsync_status(int s, const struct rt_addrinfo *info __unused)
+pfsync_status(int s)
 {
 	struct pfsyncreq preq;
 
@@ -128,7 +128,7 @@ static struct cmd pfsync_cmds[] = {
 static struct afswtch af_pfsync = {
 	.af_name	= "af_pfsync",
 	.af_af		= AF_UNSPEC,
-	.af_status	= pfsync_status,
+	.af_other_status = pfsync_status,
 };
 
 static __constructor void

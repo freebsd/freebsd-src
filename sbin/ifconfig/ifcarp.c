@@ -52,14 +52,14 @@
 
 static const char *carp_states[] = { CARP_STATES };
 
-void carp_status(int s, const struct rt_addrinfo *);
+void carp_status(int s);
 void setcarp_advbase(const char *,int, int, const struct afswtch *rafp);
 void setcarp_advskew(const char *, int, int, const struct afswtch *rafp);
 void setcarp_passwd(const char *, int, int, const struct afswtch *rafp);
 void setcarp_vhid(const char *, int, int, const struct afswtch *rafp);
 
 void
-carp_status(int s, const struct rt_addrinfo *info __unused)
+carp_status(int s)
 {
 	const char *state;
 	struct carpreq carpr;
@@ -183,7 +183,7 @@ static struct cmd carp_cmds[] = {
 static struct afswtch af_carp = {
 	.af_name	= "af_carp",
 	.af_af		= AF_UNSPEC,
-	.af_status	= carp_status,
+	.af_other_status = carp_status,
 };
 
 static __constructor void
