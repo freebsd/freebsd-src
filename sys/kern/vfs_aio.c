@@ -923,52 +923,36 @@ aio_qphysio(p, aiocbe)
 	int fd;
 	int s;
 	int cnt;
-	struct cdevsw *cdev;
 
 	cb = &aiocbe->uaiocb;
 	fdp = p->p_fd;
 	fd = cb->aio_fildes;
 	fp = fdp->fd_ofiles[fd];
 
-	if (fp->f_type != DTYPE_VNODE) {
-		return -1;
-	}
+	if (fp->f_type != DTYPE_VNODE) 
+		return (-1);
 
 	vp = (struct vnode *)fp->f_data;
-	if (vp->v_type != VCHR || ((cb->aio_nbytes & (DEV_BSIZE - 1)) != 0)) {
-		return -1;
-	}
 
-	if ((cb->aio_nbytes > MAXPHYS) && (num_buf_aio >= max_buf_aio)) {
-		return -1;
-	}
+	/* XXX: use vn_isdisk() when VBLK and VCHR are unified */
+	if (vp->v_type != VCHR)
+		return (-1);
+	if (!(devsw(vp->v_rdev)->d_flags & D_DISK))
+		return (-1);
 
-	if ((vp->v_rdev == NULL) || (vp->v_flag & VISTTY)) {
-		return -1;
-	}
+ 	if (cb->aio_nbytes % vp->v_rdev->si_bsize_phys)
+		return (-1);
 
-	if (vp->v_rdev == NODEV) {
-		return -1;
-	}
-
-	cdev = devsw(vp->v_rdev);
-	if (cdev == NULL) {
-		return -1;
-	}
-
-	if (cdev->d_bmaj == -1) {
-		return -1;
-	}
+	if ((cb->aio_nbytes > MAXPHYS) && (num_buf_aio >= max_buf_aio))
+		return (-1);
 
 	ki = p->p_aioinfo;
-	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) {
-		return -1;
-	}
+	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) 
+		return (-1);
 
 	cnt = cb->aio_nbytes;
-	if (cnt > MAXPHYS) {
-		return -1;
-	}
+	if (cnt > MAXPHYS) 
+		return (-1);
 
 	/*
 	 * Physical I/O is charged directly to the process, so we don't have
