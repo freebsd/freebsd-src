@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.114 (Berkeley) 8/2/97";
+static char sccsid[] = "@(#)savemail.c	8.121 (Berkeley) 10/22/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -85,7 +85,6 @@ savemail(e, sendbody)
 	int flags;
 	char buf[MAXLINE+1];
 	extern char *ttypath();
-	typedef int (*fnptr)();
 	extern bool writable();
 
 	if (tTd(6, 1))
@@ -254,8 +253,29 @@ savemail(e, sendbody)
 			}
 			if (!emptyaddr(&e->e_from))
 			{
-				(void) sendtolist(e->e_from.q_paddr,
-					  NULLADDR, &e->e_errorqueue, 0, e);
+				char from[TOBUFSIZE];
+				extern bool pruneroute __P((char *));
+
+				if (strlen(e->e_from.q_paddr) + 1 > sizeof from)
+				{
+					state = ESM_POSTMASTER;
+					break;
+				}
+				strcpy(from, e->e_from.q_paddr);
+
+				if (!DontPruneRoutes && pruneroute(from))
+				{
+					ADDRESS *a;
+
+					for (a = e->e_errorqueue; a != NULL;
+					     a = a->q_next)
+					{
+						if (sameaddr(a, &e->e_from))
+							a->q_flags |= QDONTSEND;
+					}
+				}
+				(void) sendtolist(from, NULLADDR,
+						  &e->e_errorqueue, 0, e);
 			}
 
 			/*
@@ -379,7 +399,7 @@ savemail(e, sendbody)
 				break;
 			}
 
-			flags = SFF_NOLINK|SFF_CREAT|SFF_REGONLY|SFF_OPENASROOT|SFF_MUSTOWN;
+			flags = SFF_NOLINK|SFF_CREAT|SFF_REGONLY|SFF_ROOTOK|SFF_OPENASROOT|SFF_MUSTOWN;
 			if (!writable(DeadLetterDrop, NULL, flags) ||
 			    (fp = safefopen(DeadLetterDrop, O_WRONLY|O_APPEND,
 					    FileMode, flags)) == NULL)
@@ -519,25 +539,11 @@ returntosender(msg, returnq, flags, e)
 	initsys(ee);
 	for (q = returnq; q != NULL; q = q->q_next)
 	{
-		extern bool pruneroute __P((char *));
-
 		if (bitset(QBADADDR, q->q_flags))
 			continue;
 
 		q->q_flags &= ~(QHASNOTIFY|Q_PINGFLAGS);
 		q->q_flags |= QPINGONFAILURE;
-
-		if (!DontPruneRoutes && pruneroute(q->q_paddr))
-		{
-			register ADDRESS *p;
-
-			parseaddr(q->q_paddr, q, RF_COPYPARSE, '\0', NULL, e);
-			for (p = returnq; p != NULL; p = p->q_next)
-			{
-				if (p != q && sameaddr(p, q))
-					q->q_flags |= QDONTSEND;
-			}
-		}
 
 		if (!bitset(QDONTSEND, q->q_flags))
 			ee->e_nrcpts++;
@@ -650,7 +656,7 @@ returntosender(msg, returnq, flags, e)
 		return 0;
 	for (q = ee->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (bitset(QSENT, q->q_flags))
+		if (bitset(QQUEUEUP|QSENT, q->q_flags))
 			return 0;
 	}
 	return -1;
@@ -681,7 +687,7 @@ errbody(mci, e, separator)
 {
 	register FILE *xfile;
 	char *p;
-	register ADDRESS *q;
+	register ADDRESS *q = NULL;
 	bool printheader;
 	bool sendbody;
 	bool pm_notify;
@@ -1001,17 +1007,23 @@ errbody(mci, e, separator)
 				p = "rfc822";
 			for (r = q; r->q_alias != NULL; r = r->q_alias)
 				continue;
-			if (strchr(r->q_user, '@') == NULL)
-			{
-				(void) snprintf(buf, sizeof buf,
-					"Final-Recipient: %s; %.700s@%.100s",
-					p, r->q_user, MyHostName);
-			}
-			else
+			if (strchr(r->q_user, '@') != NULL)
 			{
 				(void) snprintf(buf, sizeof buf,
 					"Final-Recipient: %s; %.800s",
 					p, r->q_user);
+			}
+			else if (strchr(r->q_paddr, '@') != NULL)
+			{
+				(void) snprintf(buf, sizeof buf,
+					"Final-Recipient: %s; %.800s",
+					p, r->q_paddr);
+			}
+			else
+			{
+				(void) snprintf(buf, sizeof buf,
+					"Final-Recipient: %s; %.700s@%.100s",
+					p, r->q_user, MyHostName);
 			}
 			putline(buf, mci);
 

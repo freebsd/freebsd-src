@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.154 (Berkeley) 8/2/97 (with SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.159 (Berkeley) 10/19/97 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.154 (Berkeley) 8/2/97 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.159 (Berkeley) 10/19/97 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -153,7 +153,7 @@ smtp(nullserver, e)
 	volatile int n_noop = 0;	/* count of NOOP/VERB/ONEX etc cmds */
 	volatile int n_helo = 0;	/* count of HELO/EHLO commands */
 	bool ok;
-	int lognullconnection = TRUE;
+	volatile int lognullconnection = TRUE;
 	register char *q;
 	char inp[MAXLINE];
 	char cmdbuf[MAXLINE];
@@ -252,6 +252,18 @@ smtp(nullserver, e)
 				sm_syslog(LOG_NOTICE, e->e_id,
 					"lost input channel from %.100s",
 					CurSmtpClient);
+			if (lognullconnection && LogLevel > 5)
+				sm_syslog(LOG_INFO, NULL,
+				"Null connection from %.100s",
+				CurSmtpClient);
+
+			/*
+			** If have not accepted mail (DATA), do not bounce
+			** bad addresses back to sender.
+			*/
+			if (bitset(EF_CLRQUEUE, e->e_flags))
+				e->e_sendqueue = NULL;
+
 			if (InChild)
 				ExitStat = EX_QUIT;
 			finis();
@@ -872,6 +884,7 @@ smtp(nullserver, e)
 					shortenstring(inp, 203));
 			if (setjmp(TopFrame) > 0)
 				goto undo_subproc;
+			QuickAbort = TRUE;
 			vrfyqueue = NULL;
 			if (vrfy)
 				e->e_flags |= EF_VRFYONLY;
@@ -917,16 +930,17 @@ smtp(nullserver, e)
 			/* crude way to avoid denial-of-service attacks */
 			checksmtpattack(&n_etrn, MAXETRNCOMMANDS, "ETRN", e);
 
+			if (LogLevel > 5)
+				sm_syslog(LOG_INFO, e->e_id,
+					"%.100s: ETRN %s",
+					CurSmtpClient,
+					shortenstring(p, 203));
+
 			id = p;
 			if (*id == '@')
 				id++;
 			else
 				*--id = '@';
-			if (LogLevel > 5)
-				sm_syslog(LOG_INFO, e->e_id,
-					"%.100s: ETRN %s",
-					CurSmtpClient,
-					shortenstring(id, 203));
 			QueueLimitRecipient = id;
 			ok = runqueue(TRUE, TRUE);
 			QueueLimitRecipient = NULL;

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)collect.c	8.71 (Berkeley) 6/30/97";
+static char sccsid[] = "@(#)collect.c	8.72 (Berkeley) 10/6/97";
 #endif /* not lint */
 
 # include <errno.h>
@@ -567,7 +567,7 @@ readerr:
 	/* check for message too large */
 	if (MaxMessageSize > 0 && e->e_msgsize > MaxMessageSize)
 	{
-		e->e_flags |= EF_NO_BODY_RETN;
+		e->e_flags |= EF_NO_BODY_RETN|EF_CLRQUEUE;
 		e->e_status = "5.2.3";
 		usrerr("552 Message exceeds maximum fixed size (%ld)",
 			MaxMessageSize);
