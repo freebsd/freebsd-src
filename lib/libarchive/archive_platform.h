@@ -48,24 +48,24 @@
 #include <inttypes.h>  /* For int64_t, etc. */
 
 #if __FreeBSD__ > 4
-#define HAVE_POSIX_ACL 1
+#define	HAVE_POSIX_ACL 1
 #endif
 
-#define HAVE_CHFLAGS 1
-#define HAVE_LUTIMES 1
-#define HAVE_LCHMOD 1
-#define HAVE_STRERROR_R 1
-#define ARCHIVE_ERRNO_FILE_FORMAT EFTYPE
-#define ARCHIVE_ERRNO_PROGRAMMER EINVAL
-#define ARCHIVE_ERRNO_MISC (-1)
+#define	HAVE_CHFLAGS 1
+#define	HAVE_LUTIMES 1
+#define	HAVE_LCHMOD 1
+#define	HAVE_STRERROR_R 1
+#define	ARCHIVE_ERRNO_FILE_FORMAT EFTYPE
+#define	ARCHIVE_ERRNO_PROGRAMMER EINVAL
+#define	ARCHIVE_ERRNO_MISC (-1)
 
 /* Fetch/set high-resolution time data through a struct stat pointer. */
-#define ARCHIVE_STAT_ATIME_NANOS(st)	(st)->st_atimespec.tv_nsec
-#define ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctimespec.tv_nsec
-#define ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
-#define ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atimespec.tv_nsec = (n)
-#define ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctimespec.tv_nsec = (n)
-#define ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtimespec.tv_nsec = (n)
+#define	ARCHIVE_STAT_ATIME_NANOS(st)	(st)->st_atimespec.tv_nsec
+#define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctimespec.tv_nsec
+#define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
+#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atimespec.tv_nsec = (n)
+#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctimespec.tv_nsec = (n)
+#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtimespec.tv_nsec = (n)
 
 /*
  * Older versions of inttypes.h don't have INT64_MAX, etc.  Since
@@ -76,11 +76,11 @@
 #ifndef INT64_MAX
 /* XXX Is this really necessary? XXX */
 #ifdef __i386__
-#define INT64_MAX 0x7fffffffffffffffLL
-#define UINT64_MAX 0xffffffffffffffffULL
+#define	INT64_MAX 0x7fffffffffffffffLL
+#define	UINT64_MAX 0xffffffffffffffffULL
 #else /* __alpha__ */
-#define INT64_MAX 0x7fffffffffffffffL
-#define UINT64_MAX 0xffffffffffffffffUL
+#define	INT64_MAX 0x7fffffffffffffffL
+#define	UINT64_MAX 0xffffffffffffffffUL
 #endif
 #endif /* ! INT64_MAX */
 
@@ -88,35 +88,35 @@
 
 /* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifndef __FreeBSD__
-#define __FBSDID(a)     /* null */
+#define	__FBSDID(a)     /* null */
 #endif
 
 /* Linux */
 #ifdef LINUX
-#define _FILE_OFFSET_BITS	64  /* Needed for 64-bit file size handling. */
+#define	_FILE_OFFSET_BITS	64  /* Needed for 64-bit file size handling. */
 #include <inttypes.h>
-#define ARCHIVE_ERRNO_FILE_FORMAT EILSEQ
-#define ARCHIVE_ERRNO_PROGRAMMER EINVAL
-#define ARCHIVE_ERRNO_MISC (-1)
-#define HAVE_STRERROR_R 1
-#define STRERROR_R_CHAR_P 1
+#define	ARCHIVE_ERRNO_FILE_FORMAT EILSEQ
+#define	ARCHIVE_ERRNO_PROGRAMMER EINVAL
+#define	ARCHIVE_ERRNO_MISC (-1)
+#define	HAVE_STRERROR_R 1
+#define	STRERROR_R_CHAR_P 1
 
 #ifdef HAVE_STRUCT_STAT_TIMESPEC
 /* Fetch the nanosecond portion of the timestamp from a struct stat pointer. */
-#define ARCHIVE_STAT_ATIME_NANOS(pstat)	(pstat)->st_atim.tv_nsec
-#define ARCHIVE_STAT_CTIME_NANOS(pstat)	(pstat)->st_ctim.tv_nsec
-#define ARCHIVE_STAT_MTIME_NANOS(pstat)	(pstat)->st_mtim.tv_nsec
-#define ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atim.tv_nsec = (n)
-#define ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctim.tv_nsec = (n)
-#define ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtim.tv_nsec = (n)
+#define	ARCHIVE_STAT_ATIME_NANOS(pstat)	(pstat)->st_atim.tv_nsec
+#define	ARCHIVE_STAT_CTIME_NANOS(pstat)	(pstat)->st_ctim.tv_nsec
+#define	ARCHIVE_STAT_MTIME_NANOS(pstat)	(pstat)->st_mtim.tv_nsec
+#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atim.tv_nsec = (n)
+#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctim.tv_nsec = (n)
+#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtim.tv_nsec = (n)
 #else
 /* High-res timestamps aren't available, so just use stubs here. */
-#define ARCHIVE_STAT_ATIME_NANOS(pstat)	0
-#define ARCHIVE_STAT_CTIME_NANOS(pstat)	0
-#define ARCHIVE_STAT_MTIME_NANOS(pstat)	0
-#define ARCHIVE_STAT_SET_ATIME_NANOS(st, n)
-#define ARCHIVE_STAT_SET_CTIME_NANOS(st, n)
-#define ARCHIVE_STAT_SET_MTIME_NANOS(st, n)
+#define	ARCHIVE_STAT_ATIME_NANOS(pstat)	0
+#define	ARCHIVE_STAT_CTIME_NANOS(pstat)	0
+#define	ARCHIVE_STAT_MTIME_NANOS(pstat)	0
+#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n)
+#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n)
+#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n)
 #endif
 
 #endif

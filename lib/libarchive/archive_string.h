@@ -51,7 +51,7 @@ struct archive_string {
 };
 
 /* Initialize an archive_string object on the stack or elsewhere. */
-#define archive_string_init(a)	\
+#define	archive_string_init(a)	\
 	do { (a)->s = NULL; (a)->length = 0; (a)->buffer_length = 0; } while(0)
 
 /* Append a C char to an archive_string, resizing as necessary. */
@@ -102,11 +102,11 @@ void	__archive_string_free(struct archive_string *);
 /* Like 'vsprintf', but resizes the underlying string as necessary. */
 void	__archive_string_vsprintf(struct archive_string *, const char *,
 	    va_list);
-#define archive_string_vsprintf	__archive_string_vsprintf
+#define	archive_string_vsprintf	__archive_string_vsprintf
 
 /* Like 'sprintf', but resizes the underlying string as necessary. */
 void	__archive_string_sprintf(struct archive_string *, const char *, ...);
-#define archive_string_sprintf	__archive_string_sprintf
+#define	archive_string_sprintf	__archive_string_sprintf
 
 
 #endif
