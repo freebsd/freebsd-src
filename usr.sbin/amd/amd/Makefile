@@ -23,7 +23,6 @@ CFLAGS+=-DOS_REP=\"${OS}\"
 CFLAGS+=-DOS_HDR=\"os-${OS}.h\"
 CFLAGS+=${CONFIG}
 CFLAGS+=-D_NEW_VFSCONF
-LDADD= ${XLIBDIR} ${RESOLV}
 CLEANFILES+=vers.${PROG}.c vers.${PROG}.o version.amd
 CLEANFILES+=mount.h mount_xdr.c nfs_prot.h nfs_prot_xdr.c nfs_prot_svc.c
 RPCCOM = rpcgen
