@@ -336,7 +336,9 @@ archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
 	}
 	set_ownership(a, entry, flags);
 	set_time(a, entry, flags);
-	set_perm(a, entry, archive_entry_mode(entry), flags);
+	/* Always restore permissions for regular files. */
+	set_perm(a, entry, archive_entry_mode(entry),
+	    flags | ARCHIVE_EXTRACT_PERM);
 	set_extended_perm(a, entry, flags);
 	close(fd);
 	return (r);
