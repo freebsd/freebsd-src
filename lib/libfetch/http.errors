@@ -17,6 +17,7 @@
 303 MOVED	See Other
 304 OK		Not Modified
 305 INFO	Use Proxy
+307 MOVED	Temporary Redirect
 400 PROTO	Bad Request
 401 AUTH	Unauthorized
 402 AUTH	Payment Required
@@ -33,6 +34,8 @@
 413 PROTO	Request Entity Too Large
 414 PROTO	Request-URI Too Large
 415 PROTO	Unsupported Media Type
+416 UNAVAIL	Requested Range Not Satisfiable
+417 SERVER	Expectation Failed
 500 SERVER	Internal Server Error
 501 PROTO	Not Implemented
 502 SERVER	Bad Gateway

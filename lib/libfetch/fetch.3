@@ -64,61 +64,61 @@
 .Fd #include <stdio.h>
 .Fd #include <fetch.h>
 .Ft struct url *
-.Fn fetchMakeURL "char *scheme" "char *host" "int port" "char *doc" "char *user" "char *pwd"
+.Fn fetchMakeURL "const char *scheme" "const char *host" "int port" "const char *doc" "const char *user" "const char *pwd"
 .Ft struct url *
-.Fn fetchParseURL "char *URL"
+.Fn fetchParseURL "const char *URL"
 .Ft void
-.Fn fetchFreeURL "struct url *URL"
+.Fn fetchFreeURL "struct url *u"
 .Ft FILE *
-.Fn fetchXGetURL "char *URL" "struct url_stat *us" "char *flags"
+.Fn fetchXGetURL "const char *URL" "struct url_stat *us" "const char *flags"
 .Ft FILE *
-.Fn fetchGetURL "char *URL" "char *flags"
+.Fn fetchGetURL "const char *URL" "const char *flags"
 .Ft FILE *
-.Fn fetchPutURL "char *URL" "char *flags"
+.Fn fetchPutURL "const char *URL" "const char *flags"
 .Ft int
-.Fn fetchStatURL "char *URL" "struct url_stat *us" "char *flags"
+.Fn fetchStatURL "const char *URL" "struct url_stat *us" "const char *flags"
 .Ft struct url_ent *
-.Fn fetchListURL "char *URL" "char *flags"
+.Fn fetchListURL "const char *URL" "const char *flags"
 .Ft FILE *
-.Fn fetchXGet "struct url *URL" "struct url_stat *us" "char *flags"
+.Fn fetchXGet "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft FILE *
-.Fn fetchGet "struct url *URL" "char *flags"
+.Fn fetchGet "struct url *u" "const char *flags"
 .Ft FILE *
-.Fn fetchPut "struct url *URL" "char *flags"
+.Fn fetchPut "struct url *u" "const char *flags"
 .Ft int
-.Fn fetchStat "struct url *URL" "struct url_stat *us" "char *flags"
+.Fn fetchStat "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft struct url_ent *
-.Fn fetchList "struct url *" "char *flags"
+.Fn fetchList "struct url *u" "const char *flags"
 .Ft FILE *
-.Fn fetchXGetFile "struct url *u" "struct url_stat *us" "char *flags"
+.Fn fetchXGetFile "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft FILE *
-.Fn fetchGetFile "struct url *u" "char *flags"
+.Fn fetchGetFile "struct url *u" "const char *flags"
 .Ft FILE *
-.Fn fetchPutFile "struct url *u" "char *flags"
+.Fn fetchPutFile "struct url *u" "const char *flags"
 .Ft int
-.Fn fetchStatFile "struct url *URL" "struct url_stat *us" "char *flags"
+.Fn fetchStatFile "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft struct url_ent *
-.Fn fetchListFile "struct url *" "char *flags"
+.Fn fetchListFile "struct url *u" "const char *flags"
 .Ft FILE *
-.Fn fetchXGetHTTP "struct url *u" "struct url_stat *us" "char *flags"
+.Fn fetchXGetHTTP "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft FILE *
-.Fn fetchGetHTTP "struct url *u" "char *flags"
+.Fn fetchGetHTTP "struct url *u" "const char *flags"
 .Ft FILE *
-.Fn fetchPutHTTP "struct url *u" "char *flags"
+.Fn fetchPutHTTP "struct url *u" "const char *flags"
 .Ft int
-.Fn fetchStatHTTP "struct url *URL" "struct url_stat *us" "char *flags"
+.Fn fetchStatHTTP "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft struct url_ent *
-.Fn fetchListHTTP "struct url *" "char *flags"
+.Fn fetchListHTTP "struct url *u" "const char *flags"
 .Ft FILE *
-.Fn fetchXGetFTP "struct url *u" "struct url_stat *us" "char *flags"
+.Fn fetchXGetFTP "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft FILE *
-.Fn fetchGetFTP "struct url *u" "char *flags"
+.Fn fetchGetFTP "struct url *u" "const char *flags"
 .Ft FILE *
-.Fn fetchPutFTP "struct url *u" "char *flags"
+.Fn fetchPutFTP "struct url *u" "const char *flags"
 .Ft int
-.Fn fetchStatFTP "struct url *URL" "struct url_stat *us" "char *flags"
+.Fn fetchStatFTP "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft struct url_ent *
-.Fn fetchListFTP "struct url *" "char *flags"
+.Fn fetchListFTP "struct url *u" "const char *flags"
 .Sh DESCRIPTION
 .Pp
 These functions implement a high-level library for retrieving and

@@ -70,7 +70,7 @@ static struct fetcherr _url_errlist[] = {
  * Also fill out the struct url_stat.
  */
 FILE *
-fetchXGet(struct url *URL, struct url_stat *us, char *flags)
+fetchXGet(struct url *URL, struct url_stat *us, const char *flags)
 {
     int direct;
 
@@ -92,7 +92,7 @@ fetchXGet(struct url *URL, struct url_stat *us, char *flags)
  * read-only stream connected to the document referenced by the URL.
  */
 FILE *
-fetchGet(struct url *URL, char *flags)
+fetchGet(struct url *URL, const char *flags)
 {
     return fetchXGet(URL, NULL, flags);
 }
@@ -102,7 +102,7 @@ fetchGet(struct url *URL, char *flags)
  * write-only stream connected to the document referenced by the URL.
  */
 FILE *
-fetchPut(struct url *URL, char *flags)
+fetchPut(struct url *URL, const char *flags)
 {
     int direct;
 
@@ -124,7 +124,7 @@ fetchPut(struct url *URL, char *flags)
  * size of the document referenced by the URL if it exists.
  */
 int
-fetchStat(struct url *URL, struct url_stat *us, char *flags)
+fetchStat(struct url *URL, struct url_stat *us, const char *flags)
 {
     int direct;
 
@@ -146,7 +146,7 @@ fetchStat(struct url *URL, struct url_stat *us, char *flags)
  * list of files in the directory pointed to by the URL.
  */
 struct url_ent *
-fetchList(struct url *URL, char *flags)
+fetchList(struct url *URL, const char *flags)
 {
     int direct;
 
@@ -167,7 +167,7 @@ fetchList(struct url *URL, char *flags)
  * Attempt to parse the given URL; if successful, call fetchXGet().
  */
 FILE *
-fetchXGetURL(char *URL, struct url_stat *us, char *flags)
+fetchXGetURL(const char *URL, struct url_stat *us, const char *flags)
 {
     struct url *u;
     FILE *f;
@@ -185,7 +185,7 @@ fetchXGetURL(char *URL, struct url_stat *us, char *flags)
  * Attempt to parse the given URL; if successful, call fetchGet().
  */
 FILE *
-fetchGetURL(char *URL, char *flags)
+fetchGetURL(const char *URL, const char *flags)
 {
     return fetchXGetURL(URL, NULL, flags);
 }
@@ -194,7 +194,7 @@ fetchGetURL(char *URL, char *flags)
  * Attempt to parse the given URL; if successful, call fetchPut().
  */
 FILE *
-fetchPutURL(char *URL, char *flags)
+fetchPutURL(const char *URL, const char *flags)
 {
     struct url *u;
     FILE *f;
@@ -212,7 +212,7 @@ fetchPutURL(char *URL, char *flags)
  * Attempt to parse the given URL; if successful, call fetchStat().
  */
 int
-fetchStatURL(char *URL, struct url_stat *us, char *flags)
+fetchStatURL(const char *URL, struct url_stat *us, const char *flags)
 {
     struct url *u;
     int s;
@@ -230,7 +230,7 @@ fetchStatURL(char *URL, struct url_stat *us, char *flags)
  * Attempt to parse the given URL; if successful, call fetchList().
  */
 struct url_ent *
-fetchListURL(char *URL, char *flags)
+fetchListURL(const char *URL, const char *flags)
 {
     struct url *u;
     struct url_ent *ue;
@@ -248,8 +248,8 @@ fetchListURL(char *URL, char *flags)
  * Make a URL
  */
 struct url *
-fetchMakeURL(char *scheme, char *host, int port, char *doc,
-    char *user, char *pwd)
+fetchMakeURL(const char *scheme, const char *host, int port, const char *doc,
+    const char *user, const char *pwd)
 {
     struct url *u;
 
@@ -292,9 +292,10 @@ fetchMakeURL(char *scheme, char *host, int port, char *doc,
  * This almost, but not quite, RFC1738 URL syntax.
  */
 struct url *
-fetchParseURL(char *URL)
+fetchParseURL(const char *URL)
 {
-    char *doc, *p, *q;
+    char *doc;
+    const char *p, *q;
     struct url *u;
     int i;
 

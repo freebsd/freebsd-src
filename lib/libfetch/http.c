@@ -300,7 +300,7 @@ typedef enum {
 /* Names of interesting headers */
 static struct {
     hdr		 num;
-    char	*name;
+    const char	*name;
 } hdr_names[] = {
     { hdr_content_length,	"Content-Length" },
     { hdr_content_range,	"Content-Range" },
@@ -318,7 +318,7 @@ static size_t	 reply_length;
  * Send a formatted line; optionally echo to terminal
  */
 static int
-_http_cmd(int fd, char *fmt, ...)
+_http_cmd(int fd, const char *fmt, ...)
 {
     va_list ap;
     size_t len;
@@ -386,8 +386,8 @@ _http_get_reply(int fd)
  * Check a header; if the type matches the given string, return a
  * pointer to the beginning of the value.
  */
-static char *
-_http_match(char *str, char *hdr)
+static const char *
+_http_match(const char *str, const char *hdr)
 {
     while (*str && *hdr && tolower(*str++) == tolower(*hdr++))
 	/* nothing */;
@@ -402,7 +402,7 @@ _http_match(char *str, char *hdr)
  * Get the next header and return the appropriate symbolic code.
  */
 static hdr
-_http_next_header(int fd, char **p)
+_http_next_header(int fd, const char **p)
 {
     int i;
     
@@ -429,7 +429,7 @@ _http_next_header(int fd, char **p)
  * Parse a last-modified header
  */
 static int
-_http_parse_mtime(char *p, time_t *mtime)
+_http_parse_mtime(const char *p, time_t *mtime)
 {
     char locale[64], *r;
     struct tm tm;
@@ -453,7 +453,7 @@ _http_parse_mtime(char *p, time_t *mtime)
  * Parse a content-length header
  */
 static int
-_http_parse_length(char *p, off_t *length)
+_http_parse_length(const char *p, off_t *length)
 {
     off_t len;
     
@@ -468,7 +468,7 @@ _http_parse_length(char *p, off_t *length)
  * Parse a content-range header
  */
 static int
-_http_parse_range(char *p, off_t *offset, off_t *length, off_t *size)
+_http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 {
     int first, last, len;
 
@@ -559,7 +559,7 @@ _http_base64(char *src)
  * Encode username and password
  */
 static int
-_http_basic_auth(int fd, char *hdr, char *usr, char *pwd)
+_http_basic_auth(int fd, const char *hdr, const char *usr, const char *pwd)
 {
     char *upw, *auth;
     int r;
@@ -579,7 +579,7 @@ _http_basic_auth(int fd, char *hdr, char *usr, char *pwd)
  * Send an authorization header
  */
 static int
-_http_authorize(int fd, char *hdr, char *p)
+_http_authorize(int fd, const char *hdr, const char *p)
 {
     /* basic authorization */
     if (strncasecmp(p, "basic:", 6) == 0) {
@@ -612,7 +612,7 @@ _http_authorize(int fd, char *hdr, char *p)
  * Connect to the correct HTTP server or proxy. 
  */
 static int
-_http_connect(struct url *URL, struct url *purl, char *flags)
+_http_connect(struct url *URL, struct url *purl, const char *flags)
 {
     int verbose;
     int af, fd;
@@ -646,7 +646,7 @@ _http_connect(struct url *URL, struct url *purl, char *flags)
 }
 
 static struct url *
-_http_get_proxy()
+_http_get_proxy(void)
 {
     struct url *purl;
     char *p;
@@ -673,15 +673,15 @@ _http_get_proxy()
  * Send a request and process the reply
  */
 FILE *
-_http_request(struct url *URL, char *op, struct url_stat *us,
-	      struct url *purl, char *flags)
+_http_request(struct url *URL, const char *op, struct url_stat *us,
+	      struct url *purl, const char *flags)
 {
     struct url *url, *new;
     int chunked, direct, need_auth, noredirect, verbose;
     int code, fd, i, n;
     off_t offset, clength, length, size;
     time_t mtime;
-    char *p;
+    const char *p;
     FILE *f;
     hdr h;
     char *host;
@@ -960,7 +960,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us,
  * Retrieve and stat a file by HTTP
  */
 FILE *
-fetchXGetHTTP(struct url *URL, struct url_stat *us, char *flags)
+fetchXGetHTTP(struct url *URL, struct url_stat *us, const char *flags)
 {
     return _http_request(URL, "GET", us, _http_get_proxy(), flags);
 }
@@ -969,7 +969,7 @@ fetchXGetHTTP(struct url *URL, struct url_stat *us, char *flags)
  * Retrieve a file by HTTP
  */
 FILE *
-fetchGetHTTP(struct url *URL, char *flags)
+fetchGetHTTP(struct url *URL, const char *flags)
 {
     return fetchXGetHTTP(URL, NULL, flags);
 }
@@ -978,7 +978,7 @@ fetchGetHTTP(struct url *URL, char *flags)
  * Store a file by HTTP
  */
 FILE *
-fetchPutHTTP(struct url *URL, char *flags)
+fetchPutHTTP(struct url *URL, const char *flags)
 {
     warnx("fetchPutHTTP(): not implemented");
     return NULL;
@@ -988,7 +988,7 @@ fetchPutHTTP(struct url *URL, char *flags)
  * Get an HTTP document's metadata
  */
 int
-fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
+fetchStatHTTP(struct url *URL, struct url_stat *us, const char *flags)
 {
     FILE *f;
     
@@ -1002,7 +1002,7 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
  * List a directory
  */
 struct url_ent *
-fetchListHTTP(struct url *url, char *flags)
+fetchListHTTP(struct url *url, const char *flags)
 {
     warnx("fetchListHTTP(): not implemented");
     return NULL;
