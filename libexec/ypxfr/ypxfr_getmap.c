@@ -59,11 +59,9 @@ extern enum ypstat yp_errno;
  * talking to one of the slaves instead. We do need to dig into libc
  * a little though, since it contains the magic XDR function we need.
  */
-int ypxfr_get_map(map, domain, host, callback)
-	char *map;
-	char *domain;
-	char *host;
-	int (*callback)();
+int
+ypxfr_get_map(char *map, char *domain, char *host,
+    int (*callback)(int, char *, int, char *, int, char*))
 {
 	CLIENT *clnt;
 	ypreq_nokey req;

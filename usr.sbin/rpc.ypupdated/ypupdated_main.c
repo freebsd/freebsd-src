@@ -79,8 +79,8 @@ extern int _rpcsvcstate;	 /* Set when a request is serviced */
 char *progname = "rpc.ypupdated";
 char *yp_dir = "/var/yp/";
 
-static
-void _msgout(char* msg)
+static void
+_msgout(char* msg)
 {
 #ifdef RPC_SVC_FG
 	if (_rpcpmstart)
@@ -119,7 +119,7 @@ closedown(int sig)
 }
 
 static void
-ypupdated_svc_run()
+ypupdated_svc_run(void)
 {
 #ifdef FD_SETSIZE
 	fd_set readfds;
@@ -157,8 +157,8 @@ ypupdated_svc_run()
 	}
 }
 
-static void reaper(sig)
-	int sig;
+static void
+reaper(int sig)
 {
 	int status;
 
@@ -178,16 +178,15 @@ static void reaper(sig)
 	}
 }
 
-void usage()
+void
+usage(void)
 {
 	fprintf(stderr, "rpc.ypupdatedd [-p path]\n");
 	exit(0);
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register SVCXPRT *transp = NULL;
 	int sock;

@@ -50,16 +50,14 @@ struct dom_binding{};
 extern bool_t xdr_domainname();
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: ypset [-h host] [-d domain] server\n");
 	exit(1);
 }
 
 int
-bind_tohost(sin, dom, server)
-struct sockaddr_in *sin;
-char *dom, *server;
+bind_tohost(struct sockaddr_in *sin, char *dom, char *server)
 {
 	struct ypbind_setdom ypsd;
 	struct timeval tv;
@@ -113,8 +111,7 @@ char *dom, *server;
 }
 
 int
-main(argc, argv)
-char **argv;
+main(int argc, char *argv[])
 {
 	struct sockaddr_in sin;
 	struct hostent *hent;

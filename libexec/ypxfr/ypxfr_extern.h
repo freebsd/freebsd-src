@@ -54,7 +54,7 @@ extern DB	*yp_open_db_rw(const char *, const char *, const int);
 extern void	yp_init_dbs(void);
 extern int	yp_put_record(DB *, DBT *, DBT *, int);
 extern int	yp_get_record(const char *, const char *, const DBT *, DBT *, int);
-extern int	ypxfr_get_map(char *, char *, char *, int (*)());
+extern int	ypxfr_get_map(char *, char *, char *, int (*)(int, char *, int, char *, int, char*));
 extern char	*ypxfr_get_master(char *, char *, char *, const int);
 extern unsigned	long ypxfr_get_order(char *, char *, char *, const int);
 extern int	ypxfr_match(char *, char *, char *, char *, unsigned long);

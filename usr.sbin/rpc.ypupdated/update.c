@@ -85,14 +85,9 @@ static int _openchild(char *, FILE **, FILE **);
  * and update it if so. Returns the yp status, which is zero
  * if there is no access violation.
  */
-mapupdate(requester, mapname, op, keylen, key, datalen, data)
-	char *requester;
-	char *mapname;
-	u_int op;
-	u_int keylen;
-	char *key;
-	u_int datalen;
-	char *data;
+int
+mapupdate(char *requester, char *mapname, u_int op, u_int keylen, char *key,
+    u_int datalen, char *data)
 {
 	char updater[MAXMAPNAMELEN + 40];
 	FILE *childargs;
@@ -137,23 +132,19 @@ mapupdate(requester, mapname, op, keylen, key, datalen, data)
 
 	(void)wait(&status);
 #ifdef WEXITSTATUS
-	if (WEXITSTATUS(status) != 0) {
+	if (WEXITSTATUS(status) != 0)
 #else
-	if (status.w_retcode != 0) {
+	if (status.w_retcode != 0)
 #endif
 		return (YPERR_YPERR);
-	}
 	return (yperrno);
 }
 
 /*
  * returns pid, or -1 for failure
  */
-static
-_openchild(command, fto, ffrom)
-	char *command;
-	FILE **fto;
-	FILE **ffrom;
+static int
+_openchild(char *command, FILE **fto, FILE **ffrom)
 {
 	int i;
 	pid_t pid;
@@ -168,11 +159,7 @@ _openchild(command, fto, ffrom)
 	if (pipe(pdfrom) < 0) {
 		goto error2;
 	}
-#ifdef VFORK
-	switch (pid = vfork()) {
-#else
 	switch (pid = fork()) {
-#endif
 	case -1:
 		goto error3;
 
@@ -222,8 +209,7 @@ error1:
 }
 
 static char *
-basename(path)
-	char *path;
+basename(char *path)
 {
 	char *p;
 
@@ -237,16 +223,6 @@ basename(path)
 
 #else /* YP */
 
-#ifdef foo
-#define	ERR_ACCESS	1
-#define	ERR_MALLOC	2
-#define	ERR_READ	3
-#define	ERR_WRITE	4
-#define	ERR_DBASE	5
-#define	ERR_KEY		6
-extern char *malloc();
-#endif
-
 static int match(char *, char *);
 
 /*
@@ -256,14 +232,8 @@ static int match(char *, char *);
  * the local file and then shuts up.
  */
 int
-localupdate(name, filename, op, keylen, key, datalen, data)
-	char *name;	/* Name of the requestor */
-	char *filename;
-	u_int op;
-	u_int keylen;	/* Not used */
-	char *key;
-	u_int datalen;	/* Not used */
-	char *data;
+localupdate(char *name, char *filename, u_int op, u_int keylen __unused,
+    char *key, u_int datalen __unused, char *data)
 {
 	char line[256];
 	FILE *rf;
@@ -349,9 +319,7 @@ localupdate(name, filename, op, keylen, key, datalen, data)
 }
 
 static int
-match(line, name)
-	char *line;
-	char *name;
+match(char *line, char *name)
 {
 	int len;
 

@@ -67,7 +67,7 @@ int pstat;
 pid_t pid;
 
 void
-pw_init()
+pw_init(void)
 {
 	struct rlimit rlim;
 
@@ -99,7 +99,7 @@ pw_init()
 static int lockfd;
 
 int
-pw_lock()
+pw_lock(void)
 {
 	/*
 	 * If the master password file doesn't exist, the system is hosed.
@@ -120,7 +120,7 @@ pw_lock()
 }
 
 int
-pw_tmp()
+pw_tmp(void)
 {
 	static char path[MAXPATHLEN];
 	int fd;
@@ -141,8 +141,7 @@ pw_tmp()
 }
 
 int
-pw_mkdb(username)
-	const char *username;
+pw_mkdb(const char *username)
 {
 
 	yp_error("rebuilding the database...");
@@ -172,9 +171,7 @@ pw_mkdb(username)
 }
 
 void
-pw_error(name, err, eval)
-	const char *name;
-	int err, eval;
+pw_error(const char *name, int err, int eval)
 {
 	if (err && name != NULL)
 		yp_error("%s", name);

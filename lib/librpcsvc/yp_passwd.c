@@ -50,9 +50,8 @@ __FBSDID("$FreeBSD$");
  * fooling gcc.
  */
 
-int _yppasswd(oldpass, newpw)
-	char *oldpass;
-	struct x_passwd *newpw;
+int
+_yppasswd(char *oldpass, struct x_passwd *newpw)
 {
 	char *server;
 	char *domain;
