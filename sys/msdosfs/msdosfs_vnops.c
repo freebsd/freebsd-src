@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.60 1998/02/23 16:44:36 ache Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.61 1998/02/24 14:13:16 ache Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1539,8 +1539,6 @@ msdosfs_readdir(ap)
 	long n;
 	int blsize;
 	long on;
-	long lost;
-	long count;
 	u_long cn;
 	u_long fileno;
 	u_long dirsperblk;
@@ -1581,13 +1579,10 @@ msdosfs_readdir(ap)
 	 * entry or the file offset is not a multiple of the size of a
 	 * directory entry, then we fail the read.
 	 */
-	count = uio->uio_resid & ~(sizeof(struct direntry) - 1);
-	offset = uio->uio_offset;
-	if (count < sizeof(struct direntry) ||
+	off = offset = uio->uio_offset;
+	if (uio->uio_resid < sizeof(struct direntry) ||
 	    (offset & (sizeof(struct direntry) - 1)))
 		return (EINVAL);
-	lost = uio->uio_resid - count;
-	uio->uio_resid = count;
 
 	if (ap->a_ncookies) {
 		ncookies = uio->uio_resid / 16;
@@ -1640,12 +1635,13 @@ msdosfs_readdir(ap)
 						dirbuf.d_reclen, uio);
 				if (error)
 					goto out;
+				offset += sizeof(struct direntry);
+				off = offset;
 				if (cookies) {
 					*cookies++ = offset;
 					if (--ncookies <= 0)
 						goto out;
 				}
-				offset += sizeof(struct direntry);
 			}
 		}
 	}
@@ -1763,13 +1759,13 @@ msdosfs_readdir(ap)
 				goto out;
 			}
 			if (cookies) {
-				*cookies++ = off;
-				off = offset + sizeof(struct direntry);
+				*cookies++ = offset + sizeof(struct direntry);
 				if (--ncookies <= 0) {
 					brelse(bp);
 					goto out;
 				}
 			}
+			off = offset + sizeof(struct direntry);
 		}
 		brelse(bp);
 	}
@@ -1778,8 +1774,7 @@ out:
 	if (ap->a_ncookies)
 		*ap->a_ncookies -= ncookies;
 
-	uio->uio_offset = offset;
-	uio->uio_resid += lost;
+	uio->uio_offset = off;
 
 	/*
 	 * Set the eofflag (NFS uses it)

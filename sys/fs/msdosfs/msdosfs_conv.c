@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.22 1998/02/23 16:44:27 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.23 1998/02/24 14:13:11 ache Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -995,10 +995,22 @@ winSlotCnt(un, unlen)
 	const u_char *un;
 	int unlen;
 {
-	for (un += unlen; unlen > 0; unlen--)
-		if (*--un != ' ' && *un != '.')
-			break;
+	unlen = winLenFixup(un, unlen);
 	if (unlen > WIN_MAXLEN)
 		return 0;
 	return howmany(unlen, WIN_CHARS);
+}
+
+/*
+ * Determine the number of bytes neccesary for Win95 names
+ */
+int
+winLenFixup(un, unlen)
+	const u_char* un;
+	int unlen;
+{
+	for (un += unlen; unlen > 0; unlen--)
+		if (*--un != ' ' && *un != '.')
+			break;
+	return unlen;
 }
