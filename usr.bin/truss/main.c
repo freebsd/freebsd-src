@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.9 1998/07/06 21:01:47 bde Exp $";
+	"$Id: main.c,v 1.10 1998/08/24 10:17:20 cracauer Exp $";
 #endif /* not lint */
 
 /*
@@ -78,6 +78,10 @@ usage(void)
   exit(1);
 }
 
+/*
+ * WARNING! "FreeBSD a.out" must be first, or set_etype will not
+ * work correctly.
+ */
 struct ex_types {
   char *type;
   void (*enter_syscall)(int, int);
@@ -115,6 +119,11 @@ set_etype() {
     if (!strcmp(funcs->type, progtype))
       break;
 
+  if (funcs == NULL) {
+    warn("Execution type %s is not supported -- using FreeBSD a.out\n",
+      progtype);
+    funcs = &ex_types[0];
+  }
   return funcs;
 }
 
