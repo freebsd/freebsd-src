@@ -91,23 +91,13 @@ static int	log_redirect = 0;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW, 
 	&log_redirect, 0, "");
 
-#ifdef ICMP_BANDLIM 
- 
-/*    
- * ICMP error-response bandwidth limiting sysctl.  If not enabled, sysctl
- *      variable content is -1 and read-only.
- */     
-    
 static int      icmplim = 200;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
 	&icmplim, 0, "");
-#else
 
-static int      icmplim = -1;
-SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RD,
-	&icmplim, 0, "");
-	
-#endif 
+static int	icmplim_output = 1;
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
+	&icmplim_output, 0, "");
 
 /*
  * ICMP broadcast echo sysctl
@@ -800,7 +790,6 @@ ip_next_mtu(mtu, dir)
 }
 #endif
 
-#ifdef ICMP_BANDLIM
 
 /*
  * badport_bandlim() - check for ICMP bandwidth limit
@@ -842,13 +831,11 @@ badport_bandlim(int which)
 	 */
 
 	if ((unsigned int)dticks > hz) {
-		if (lpackets[which] > icmplim) {
-#ifndef ICMP_BANDLIM_SUPPRESS_OUTPUT
+		if (lpackets[which] > icmplim && icmplim_output) {
 			printf("icmp-response bandwidth limit %d/%d pps\n",
 				lpackets[which],
 				icmplim
 			);
-#endif
 		}
 		lticks[which] = ticks;
 		lpackets[which] = 0;
@@ -863,7 +850,4 @@ badport_bandlim(int which)
 	}
 	return(0);
 }
-
-#endif
-
 

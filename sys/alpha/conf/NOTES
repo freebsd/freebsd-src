@@ -64,7 +64,6 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options		P1003_1B		#Posix P1003_1B real-time extentions
 options 	_KPOSIX_PRIORITY_SCHEDULING
-options		ICMP_BANDLIM		#Rate limit bad replies
 
 # Standard busses
 device		isa

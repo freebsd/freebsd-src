@@ -87,8 +87,6 @@ MSGSEG		opt_sysvipc.h
 MSGSSZ		opt_sysvipc.h
 MSGTQL		opt_sysvipc.h
 UCONSOLE
-ICMP_BANDLIM
-ICMP_BANDLIM_SUPPRESS_OUTPUT	opt_icmp_bandlim.h
 VFS_AIO
 
 # POSIX kernel options

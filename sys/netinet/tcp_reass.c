@@ -60,7 +60,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>	/* for ICMP_BANDLIM		*/
+#include <netinet/ip_icmp.h>	
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet/in_var.h>
@@ -75,7 +75,7 @@
 #ifdef INET6
 #include <netinet6/ip6_var.h>
 #endif
-#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM		*/
+#include <netinet/icmp_var.h>	
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -2251,10 +2251,8 @@ dropafterack:
 	 * we think we are under attack or not.
 	 */
 maybedropwithreset:
-#ifdef ICMP_BANDLIM
 	if (badport_bandlim(1) < 0)
 		goto drop;
-#endif
 	/* fall through */
 dropwithreset:
 #ifdef TCP_RESTRICT_RST
