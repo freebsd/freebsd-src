@@ -312,16 +312,23 @@ main(argc, argv)
 	socklen_t len;
 
 	while ((ch = getopt(argc, argv, "a:dl:f:m:p:rsuv")) != -1)
-		switch(ch) {
-		case 'd':		/* debug */
-			Debug++;
-			break;
+		switch (ch) {
 		case 'a':		/* allow specific network addresses only */
 			if (allowaddr(optarg) == -1)
 				usage();
 			break;
+		case 'd':		/* debug */
+			Debug++;
+			break;
 		case 'f':		/* configuration file */
 			ConfFile = optarg;
+			break;
+		case 'l':
+			if (nfunix < MAXFUNIX)
+				funixn[nfunix++] = optarg;
+			else
+				warnx("out of descriptors, ignoring %s",
+					optarg);
 			break;
 		case 'm':		/* mark interval */
 			MarkInterval = atoi(optarg) * 60;
@@ -334,13 +341,6 @@ main(argc, argv)
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
-			break;
-		case 'l':
-			if (nfunix < MAXFUNIX)
-				funixn[nfunix++] = optarg;
-			else
-				warnx("out of descriptors, ignoring %s",
-					optarg);
 			break;
 		case 'u':		/* only log specified priority */
 		        UniquePriority++;
@@ -713,7 +713,7 @@ logmsg(pri, msg, from, flags)
 	}
 
 	/* skip leading blanks */
-	while(isspace(*msg)) {
+	while (isspace(*msg)) {
 		msg++;
 		msglen--;
 	}
@@ -726,8 +726,8 @@ logmsg(pri, msg, from, flags)
 	prilev = LOG_PRI(pri);
 
 	/* extract program name */
-	for(i = 0; i < NAME_MAX; i++) {
-		if(!isalnum(msg[i]))
+	for (i = 0; i < NAME_MAX; i++) {
+		if (!isalnum(msg[i]))
 			break;
 		prog[i] = msg[i];
 	}
@@ -764,18 +764,18 @@ logmsg(pri, msg, from, flags)
 		if (f->f_host)
 			switch (f->f_host[0]) {
 			case '+':
-				if((strcmp(from, f->f_host + 1) != 0) )
+				if (strcmp(from, f->f_host + 1) != 0)
 					continue;
 				break;
 			case '-':
-				if((strcmp(from, f->f_host + 1) == 0) )
+				if (strcmp(from, f->f_host + 1) == 0)
 					continue;
 				break;
 			}
 
 		/* skip messages with the incorrect program name */
-		if(f->f_program)
-			if(strcmp(prog, f->f_program) != 0)
+		if (f->f_program)
+			if (strcmp(prog, f->f_program) != 0)
 				continue;
 
 		if (f->f_type == F_CONSOLE && (flags & IGN_CONS))
@@ -1292,7 +1292,7 @@ init(signo)
 			break;
 		}
 		next = f->f_next;
-		if(f->f_program) free(f->f_program);
+		if (f->f_program) free(f->f_program);
 		if (f->f_host) free(f->f_host);
 		free((char *)f);
 	}
@@ -1326,7 +1326,7 @@ init(signo)
 			continue;
 		if (*p == 0)
 			continue;
-		if(*p == '#') {
+		if (*p == '#') {
 			p++;
 			if (*p != '!' && *p != '+' && *p != '-')
 				continue;
@@ -1348,15 +1348,15 @@ init(signo)
 			host[i] = '\0';
 			continue;
 		}
-		if(*p=='!') {
+		if (*p == '!') {
 			p++;
-			while(isspace(*p)) p++;
-			if((!*p) || (*p == '*')) {
+			while (isspace(*p)) p++;
+			if ((!*p) || (*p == '*')) {
 				strcpy(prog, "*");
 				continue;
 			}
-			for(i = 0; i < NAME_MAX; i++) {
-				if(!isalnum(p[i]))
+			for (i = 0; i < NAME_MAX; i++) {
+				if (!isalnum(p[i]))
 					break;
 				prog[i] = p[i];
 			}
@@ -1408,9 +1408,8 @@ init(signo)
 					printf("%s, ", f->f_un.f_uname[i]);
 				break;
 			}
-			if(f->f_program) {
+			if (f->f_program)
 				printf(" (%s)", f->f_program);
-			}
 			printf("\n");
 		}
 	}
@@ -1444,14 +1443,16 @@ cfline(line, f, prog, host)
 		f->f_pmask[i] = INTERNAL_NOPRI;
 
 	/* save hostname if any */
-	if (host && *host == '*') host = NULL;
+	if (host && *host == '*')
+		host = NULL;
 	if (host)
 		f->f_host = strdup(host);
 
 	/* save program name if any */
-	if(prog && *prog=='*') prog = NULL;
-	if(prog)
-		f->f_program = strdup(host);
+	if (prog && *prog == '*')
+		prog = NULL;
+	if (prog)
+		f->f_program = strdup(prog);
 
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
