@@ -147,7 +147,7 @@ main(int argc, char **argv)
 			if (!strncmp(optarg, "/dev/", 5))
 				optarg += 5;
 			if (!strncmp(optarg, MD_NAME, sizeof(MD_NAME) - 1))
-				optarg += 2;
+				optarg += sizeof(MD_NAME) - 1;
 			mdio.md_unit = strtoul(optarg, &p, 0);
 			if ((unsigned)mdio.md_unit == ULONG_MAX || *p != '\0')
 				errx(1, "bad unit: %s", optarg);
@@ -214,7 +214,7 @@ list(const int fd)
 	     (p2 = strsep(&p, " ")) != NULL;) {
 		if (strncmp(p2, MD_NAME, sizeof(MD_NAME) - 1) != 0)
 			continue;
-		p2 += 2;
+		p2 += sizeof(MD_NAME) - 1;
 		unit = strtoul(p2, &p3, 10);
 		if (p2 == p3)
 			continue;
