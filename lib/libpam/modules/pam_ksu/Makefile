@@ -29,8 +29,7 @@ SRCS=	pam_ksu.c
 MAN=	pam_ksu.8
 
 DISTRIBUTION= crypto
-DPADD=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
-	${LIBCOM_ERR} ${LIBROKEN}
-LDADD=	-lkrb5 -lasn1 -lcrypto -lcrypt -lcom_err -lroken
+DPADD=	${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO}
+LDADD=	-lkrb5 -lasn1 -lroken -lcom_err -lcrypt -lcrypto
 
 .include <bsd.lib.mk>
