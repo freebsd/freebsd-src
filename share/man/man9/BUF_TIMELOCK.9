@@ -27,15 +27,15 @@
 .\" $FreeBSD$
 .\"
 .Dd July 9, 2001
-.Dt BUF_LOCK 9
+.Dt BUF_TIMELOCK 9
 .Os
 .Sh NAME
-.Nm BUF_LOCK
+.Nm BUF_TIMELOCK
 .Nd "Locks a buffer"
 .Sh SYNOPSIS
 .Fd #include <sys/buf.h>
 .Ft int
-.Fo BUF_LOCK
+.Fo BUF_TIMELOCK
 .Fa "struct buf *bp"
 .Fa "int locktype"
 .Fa "char *wmesg"
@@ -73,7 +73,7 @@ details on non-zero return values.
 .Sh SEE ALSO
 .Xr buf 9
 .Xr lockmgr 9
+.Xr BUF_LOCK 9
 .Xr BUF_UNLOCK 9
-.Xr BUF_TIMELOCK 9
 .Sh AUTHORS
 This man page was written by Chad David.
