@@ -125,8 +125,12 @@ all-man: _SUBDIR
 maninstall: _SUBDIR
 .endif
 
+DISTRIBUTION?=	bin
 .if !target(distribute)
 distribute:
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR}; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
+.endfor
 .endif
 
 .if !target(beforeinstall)
