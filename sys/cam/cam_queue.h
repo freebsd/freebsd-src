@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_queue.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id: cam_queue.h,v 1.2 1998/12/15 08:12:03 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_QUEUE_H
@@ -98,8 +98,6 @@ void		cam_ccbq_free(struct cam_ccbq *ccbq);
 
 void		cam_ccbq_fini(struct cam_ccbq *ccbq);
 
-void		cam_ccbq_regen(struct cam_ccbq *ccbq);
-
 /*
  * Allocate and initialize a cam_queue structure.
  */
@@ -145,8 +143,6 @@ cam_pinfo	*camq_remove(struct camq *queue, int index);
  */
 void		camq_change_priority(struct camq *queue, int index,
 				     u_int32_t new_priority);
-
-void		camq_regen(struct camq *queue);
 
 static __inline int
 cam_ccbq_pending_ccb_count(struct cam_ccbq *ccbq);
