@@ -1,8 +1,8 @@
-*** /sys/conf/files.orig	Sat May 24 14:05:28 1997
---- /sys/conf/files	Sat May 24 14:06:44 1997
+*** files.orig	Tue Sep  9 16:58:40 1997
+--- files	Sat Apr  4 10:52:58 1998
 ***************
-*** 217,222 ****
---- 217,230 ----
+*** 222,227 ****
+--- 222,236 ----
   netinet/tcp_timer.c	optional inet
   netinet/tcp_usrreq.c	optional inet
   netinet/udp_usrreq.c	optional inet
@@ -17,4 +17,4 @@
 + netinet/ip_log.c	optional ipfilter inet
   netipx/ipx.c		optional ipx
   netipx/ipx_cksum.c	optional ipx
-  netipx/ipx_error.c	optional ipx
+  netipx/ipx_input.c	optional ipx

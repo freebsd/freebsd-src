@@ -41,8 +41,9 @@ To build a kernel with the IP filter, follow these steps:
 	      mknod /dev/ipl c 20 0
 	      mknod /dev/ipnat c 20 1
 	      mknod /dev/ipstate c 20 2
+	      mknod /dev/ipauth c 20 3
 
 	6. install and reboot with the new kernel
 
 Darren Reed
-darrenr@cyber.com.au
+darrenr@pobox.com

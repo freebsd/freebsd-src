@@ -41,8 +41,14 @@ To build a kernel with the IP filter, follow these steps:
 
 	4. build a new kernel
 
-	5. create /dev/ipl with "mknod /dev/ipl c 59 0".
-	   (for NetBSD-1.2, use "mknod /dev/ipl c 49 0")
+	5. Create device files.  For NetBSD-1.2 (or later), use 49 as the
+	   major number. For NetBSD-1.1 or earlier, use 59.  Run these
+	   commands as root, substituting <major> for the appropriate number:
+
+		mknod /dev/ipl c <major> 0
+		mknod /dev/ipnat c <major> 1
+		mknod /dev/ipstate c <major> 2
+		mknod /dev/ipauth c <major> 3
 
 	   ** NOTE: both the numbers 49 and 59 should be substituted with
 		    whatever number you inserted it into conf.c as.
@@ -50,4 +56,4 @@ To build a kernel with the IP filter, follow these steps:
 	6. install and reboot with the new kernel
 
 Darren Reed
-darrenr@cyber.com.au
+darrenr@pobox.com

@@ -19,11 +19,12 @@ The first step is to make the IP Filter binaries.  Do this with a
 "make linux" from the ip_fil3.2.x directory.  If this completes with
 no errors, install IP Filter with a "make install-linux".
 
-Now that the user part of it is complete, it is time to work on the
-kernel.  To start this off, run "Linux/kinstall".  This will patch your
-kernel source code and configuration files so you can enabled IP Filter.
-You must now go to /usr/src/linux and configure your kernel using one of
-the available interfaces to enable IP Filter.  IP Filter will be presented
+Now that the user part of it is complete, it is time to work on the kernel.
+To start this off, run "Linux/minstall".  This will configure the devices
+you will need for the IP Filter.  Then run "Linux/kinstall".  This will
+patch your kernel source code and configuration files so you can enabled IP
+Filter.  You must now go to /usr/src/linux and configure your kernel using one
+of the available interfaces to enable IP Filter.  IP Filter will be presented
 as a three way choice "y/m/n" - select "m" to enable it.  Save your kernel
 configuration file, rebuild, install and reboot with the new kernel.
 
