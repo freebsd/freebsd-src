@@ -99,11 +99,11 @@ device		isp		# Qlogic family
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
-device		adv
-device		adw
-device		aha	1
-device		aic
-device		bt
+device		adv		# Advansys scsi adapters
+device		adw		# Advansys wide scsi adapters
+device		aha	1	# Adaptec 154x scsi adapters
+device		aic		# Adaptec 15[012]x scsi adapters, AIC-6[23]60.
+device		bt		# Buslogic/Mylex MultiMaster scsi adapters
 
 device		ncv		# NCR 53C500
 device		nsp		# Workbit Ninja SCSI-3
@@ -129,11 +129,11 @@ device		mlx		# Mylex DAC960 family
 device		twe		# 3ware ATA RAID
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-device		atkbdc	1
-device		atkbd
-device		psm
+device		atkbdc	1	# At keyboard controller
+device		atkbd		# at keyboard
+device		psm		# psm mouse
 
-device		vga
+device		vga		# VGA screen
 
 # splash screen/screen saver
 device		splash
@@ -154,12 +154,12 @@ device		npx
 # Power management support (see NOTES for more options)
 device		apm
 
-# PCCARD (PCMCIA) support
-device		pcic
-device		pccbb
+# Pcmcia and cardbus bridge support
+device		pcic			# pcmcia bridge
+device		pccbb			# cardbus (yenta) bridge
 
 # Serial (COM) ports
-device		sio
+device		sio		# 8250, 16[45]50 based serial ports
 
 # Parallel port
 device		ppc
@@ -191,32 +191,25 @@ device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
-# ISA Ethernet NICs.
-device		cs
-device		ed
-device		ex
-device		ep
-device		fe
-device		sn
-# WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
-# exists only as a PCMCIA device, so there is no ISA attatement needed
-# and resources will always be dynamically assigned by the pccard code.
-device		wi
-# Aironet 4500/4800 802.11 wireless NICs. Note: the declaration below will
-# work for PCMCIA and PCI cards, as well as ISA cards set to ISA PnP
-# mode (the factory default). If you set the switches on your ISA
-# card for a manually chosen I/O address and IRQ, you must specify
-# those paremeters here.
-device		an
-# BayStack 660 and others
-device		awi
-# Xircom pccard ethernet
-device		xe
+# ISA Ethernet NICs.  pccard nics included.
+device		cs		# Crystal Semiconductor CS89x0 NIC
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
+device		ex		# Intel EtherExpress Pro/10 and Pro/10+
+device		ep		# Etherlink III based cards
+device		fe		# Fujitsu MB8696x based cards
+device		sn		# SMC's 9000 series of ethernet chips
+device		xe		# Xircom pccard ethernet
 
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie
 device		le
 device		lnc
+
+# Wireless NIC cards
+device		an		# Aironet 4500/4800 802.11 wireless NICs. 
+device		awi		# BayStack 660 and others
+device		wi		# WaveLAN/IEEE 802.11 wireless NICs. 
+#device		wl		# Older non 802.11 Wavelan wireless NIC.
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		random		# Entropy device
