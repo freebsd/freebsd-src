@@ -410,12 +410,12 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		if (status != PAM_SUCCESS)
 			return status;
 		if (!newpass || (check_max(&params, pamh, newpass) && enforce))
-			return PAM_AUTHTOK_RECOVERY_ERR;
+			return PAM_AUTHTOK_ERR;
 		reason = _passwdqc_check(&params.qc, newpass, oldpass, pw);
 		if (reason) {
 			say(pamh, PAM_ERROR_MSG, MESSAGE_WEAKPASS, reason);
 			if (enforce)
-				status = PAM_AUTHTOK_RECOVERY_ERR;
+				status = PAM_AUTHTOK_ERR;
 		}
 		return status;
 	}
@@ -469,12 +469,12 @@ retry:
 	if (randomonly) {
 		say(pamh, PAM_ERROR_MSG, getuid() != 0 ?
 		    MESSAGE_MISCONFIGURED : MESSAGE_RANDOMFAILED);
-		return PAM_AUTHTOK_RECOVERY_ERR;
+		return PAM_AUTHTOK_ERR;
 	}
 
 	status = converse(pamh, PAM_PROMPT_ECHO_OFF, PROMPT_NEWPASS1, &resp);
 	if (status == PAM_SUCCESS && (!resp || !resp->resp))
-		status = PAM_AUTHTOK_RECOVERY_ERR;
+		status = PAM_AUTHTOK_ERR;
 
 	if (status != PAM_SUCCESS) {
 		if (randompass) _pam_overwrite(randompass);
@@ -487,11 +487,11 @@ retry:
 
 	if (!newpass) {
 		if (randompass) _pam_overwrite(randompass);
-		return PAM_AUTHTOK_RECOVERY_ERR;
+		return PAM_AUTHTOK_ERR;
 	}
 
 	if (check_max(&params, pamh, newpass) && enforce) {
-		status = PAM_AUTHTOK_RECOVERY_ERR;
+		status = PAM_AUTHTOK_ERR;
 		retry_wanted = 1;
 	}
 
@@ -505,7 +505,7 @@ retry:
 		else
 			say(pamh, PAM_ERROR_MSG, MESSAGE_WEAKPASS, reason);
 		if (enforce) {
-			status = PAM_AUTHTOK_RECOVERY_ERR;
+			status = PAM_AUTHTOK_ERR;
 			retry_wanted = 1;
 		}
 	}
@@ -519,13 +519,13 @@ retry:
 				status = say(pamh,
 				    PAM_ERROR_MSG, MESSAGE_MISTYPED);
 				if (status == PAM_SUCCESS) {
-					status = PAM_AUTHTOK_RECOVERY_ERR;
+					status = PAM_AUTHTOK_ERR;
 					retry_wanted = 1;
 				}
 			}
 			_pam_drop_reply(resp, 1);
 		} else
-			status = PAM_AUTHTOK_RECOVERY_ERR;
+			status = PAM_AUTHTOK_ERR;
 	}
 
 	if (status == PAM_SUCCESS)
