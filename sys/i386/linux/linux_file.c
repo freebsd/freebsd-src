@@ -199,14 +199,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
     } */ fcntl_args; 
     struct linux_flock linux_flock;
     struct flock *bsd_flock;
-    struct filedesc *fdp;
-    struct file *fp;
-    struct vnode *vp;
-    long pgid;
-    struct pgrp *pgrp;
-    struct tty *tp;
     caddr_t sg;
-    dev_t dev;
 
     sg = stackgap_init();
     bsd_flock = (struct flock *)stackgap_alloc(&sg, sizeof(struct flock));
@@ -287,49 +280,14 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	fcntl_args.arg = (int)bsd_flock;
 	return fcntl(p, &fcntl_args);
 
-    case LINUX_F_SETOWN:
     case LINUX_F_GETOWN:
-	/*
-	 * We need to route around the normal fcntl() for these calls,
-	 * since it uses TIOC{G,S}PGRP, which is too restrictive for
-	 * Linux F_{G,S}ETOWN semantics. For sockets, this problem
-	 * does not exist.
-	 */
-	fdp = p->p_fd;
-	if ((u_int)args->fd >= fdp->fd_nfiles ||
-		(fp = fdp->fd_ofiles[args->fd]) == NULL)
-	    return EBADF;
-	if (fp->f_type == DTYPE_SOCKET) {
-	    fcntl_args.cmd = args->cmd == LINUX_F_SETOWN ? F_SETOWN : F_GETOWN;
-    	    fcntl_args.arg = args->arg;
-	    return fcntl(p, &fcntl_args); 
-	}
-	vp = (struct vnode *)fp->f_data;
-	dev = vn_todev(vp);
-	if (dev == NODEV)
-	    return EINVAL;
-	if (!(devsw(dev)->d_flags & D_TTY))
-	    return EINVAL;
-	tp = dev->si_tty;
-	if (!tp)
-	    return EINVAL;
-	if (args->cmd == LINUX_F_GETOWN) {
-	    p->p_retval[0] = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
-	    return 0;
-	}
-	if ((long)args->arg <= 0) {
-	    pgid = -(long)args->arg;
-	} else {
-	    struct proc *p1 = pfind((long)args->arg);
-	    if (p1 == 0)
-		return (ESRCH);
-	    pgid = (long)p1->p_pgrp->pg_id;
-	}
-	pgrp = pgfind(pgid);
-	if (pgrp == NULL || pgrp->pg_session != p->p_session)
-	    return EPERM;
-	tp->t_pgrp = pgrp;
-	return 0;
+	fcntl_args.cmd = F_GETOWN;
+	return fcntl(p, &fcntl_args);
+
+    case LINUX_F_SETOWN:
+	fcntl_args.cmd = F_SETOWN;
+	fcntl_args.arg = args->arg;
+	return fcntl(p, &fcntl_args);
     }
     return EINVAL;
 }
