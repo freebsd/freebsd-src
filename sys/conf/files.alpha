@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.19 1999/05/26 23:22:13 gallatin Exp $
+#	$Id: files.alpha,v 1.20 1999/06/05 13:29:57 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -98,8 +98,8 @@ alpha/tc/am7990.c		optional	le device-driver
 alpha/tc/tcds.c			optional	tcds device-driver
 alpha/tc/tcds_dma.c		optional	tcds device-driver
 alpha/tc/esp.c			optional	esp device-driver
-dev/dec/mcclock.c		standard	device-driver
-mcclock_if.o			standard				\
+dev/dec/mcclock.c		optional	mcclock device-driver
+mcclock_if.o			optional	mcclock			\
 	dependency	"mcclock_if.c"					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
@@ -108,7 +108,7 @@ mcclock_if.c			standard				\
 	compile-with	"perl $S/kern/makedevops.pl -c $S/dev/dec/mcclock_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"mcclock_if.c"
-mcclock_if.h			standard				\
+mcclock_if.h			optional	mcclock			\
 	dependency	"$S/kern/makedevops.pl $S/dev/dec/mcclock_if.m"	\
 	compile-with	"perl $S/kern/makedevops.pl -h $S/dev/dec/mcclock_if.m" \
 	no-obj no-implicit-rule before-depend				\
