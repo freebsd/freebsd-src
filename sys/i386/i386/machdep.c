@@ -107,9 +107,6 @@
 #include <machine/perfmon.h>
 #endif
 
-#ifdef OLD_BUS_ARCH
-#include <i386/isa/isa_device.h>
-#endif
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 #include <isa/rtc.h>
