@@ -1,6 +1,6 @@
 /* Close standard output.
 
-   Copyright (C) 1998, 2000, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1998, 2000, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,15 @@
 #ifndef CLOSEOUT_H
 # define CLOSEOUT_H 1
 
+# ifdef __cplusplus
+extern "C" {
+# endif
+
 void close_stdout_set_file_name (const char *file);
 void close_stdout (void);
+
+# ifdef __cplusplus
+}
+# endif
 
 #endif

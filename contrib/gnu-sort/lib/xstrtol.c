@@ -1,6 +1,6 @@
 /* A more useful interface to strtol.
 
-   Copyright (C) 1995, 1996, 1998, 1999, 2000, 2001, 2003 Free
+   Copyright (C) 1995, 1996, 1998, 1999, 2000, 2001, 2003, 2004 Free
    Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -37,15 +37,10 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <errno.h>
-#ifndef errno
-extern int errno;
-#endif
-
-#include <limits.h>
 
 /* The extra casts work around common compiler bugs.  */
 #define TYPE_SIGNED(t) (! ((t) 0 < (t) -1))
@@ -121,9 +116,10 @@ __xstrtol (const char *s, char **ptr, int strtol_base,
   if (! TYPE_SIGNED (__strtol_t))
     {
       const char *q = s;
-      while (ISSPACE ((unsigned char) *q))
-	++q;
-      if (*q == '-')
+      unsigned char ch = *q;
+      while (ISSPACE (ch))
+	ch = *++q;
+      if (ch == '-')
 	return LONGINT_INVALID;
     }
 

@@ -92,6 +92,10 @@ you must include <sys/types.h> before including this file
 #endif
 #undef HAVE_MAJOR
 
+#if ! defined makedev && defined mkdev
+# define makedev(maj, min)  mkdev (maj, min)
+#endif
+
 #if HAVE_UTIME_H
 # include <utime.h>
 #endif
@@ -115,16 +119,10 @@ void *memrchr (const void *, int, size_t);
 #endif
 
 #include <errno.h>
-#ifndef errno
-extern int errno;
-#endif
 
 /* Some systems don't define the following symbols.  */
 #ifndef ENOSYS
 # define ENOSYS (-1)
-#endif
-#ifndef ENOTSUP
-# define ENOTSUP (-1)
 #endif
 #ifndef EISDIR
 # define EISDIR (-1)
@@ -193,6 +191,14 @@ initialize_exit_failure (int status)
 # define O_TEXT _O_TEXT
 #endif
 
+#if !defined O_DIRECT
+# define O_DIRECT 0
+#endif
+
+#if !defined O_DSYNC
+# define O_DSYNC 0
+#endif
+
 #if !defined O_NDELAY
 # define O_NDELAY 0
 #endif
@@ -203,6 +209,18 @@ initialize_exit_failure (int status)
 
 #if !defined O_NOCTTY
 # define O_NOCTTY 0
+#endif
+
+#if !defined O_NOFOLLOW
+# define O_NOFOLLOW 0
+#endif
+
+#if !defined O_RSYNC
+# define O_RSYNC 0
+#endif
+
+#if !defined O_SYNC
+# define O_SYNC 0
 #endif
 
 #ifdef __BEOS__
@@ -231,7 +249,9 @@ initialize_exit_failure (int status)
 # define SET_MODE(_f, _m) (void)0
 # define SET_BINARY(f) (void)0
 # define SET_BINARY2(f1,f2) (void)0
-# define O_BINARY 0
+# ifndef O_BINARY
+#  define O_BINARY 0
+# endif
 # define O_TEXT 0
 #endif /* O_BINARY */
 
@@ -298,7 +318,7 @@ initialize_exit_failure (int status)
 			      ? (statbuf).st_blksize : DEV_BSIZE)
 # if defined hpux || defined __hpux__ || defined __hpux
 /* HP-UX counts st_blocks in 1024-byte units.
-   This loses when mixing HP-UX and BSD filesystems with NFS.  */
+   This loses when mixing HP-UX and BSD file systems with NFS.  */
 #  define ST_NBLOCKSIZE 1024
 # else /* !hpux */
 #  if defined _AIX && defined _I386
@@ -329,213 +349,7 @@ initialize_exit_failure (int status)
 # define initialize_main(ac, av)
 #endif
 
-#ifndef S_IFMT
-# define S_IFMT 0170000
-#endif
-
-#if STAT_MACROS_BROKEN
-# undef S_ISBLK
-# undef S_ISCHR
-# undef S_ISDIR
-# undef S_ISDOOR
-# undef S_ISFIFO
-# undef S_ISLNK
-# undef S_ISNAM
-# undef S_ISMPB
-# undef S_ISMPC
-# undef S_ISNWK
-# undef S_ISREG
-# undef S_ISSOCK
-#endif
-
-
-#ifndef S_ISBLK
-# ifdef S_IFBLK
-#  define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
-# else
-#  define S_ISBLK(m) 0
-# endif
-#endif
-
-#ifndef S_ISCHR
-# ifdef S_IFCHR
-#  define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
-# else
-#  define S_ISCHR(m) 0
-# endif
-#endif
-
-#ifndef S_ISDIR
-# ifdef S_IFDIR
-#  define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
-# else
-#  define S_ISDIR(m) 0
-# endif
-#endif
-
-#ifndef S_ISDOOR /* Solaris 2.5 and up */
-# ifdef S_IFDOOR
-#  define S_ISDOOR(m) (((m) & S_IFMT) == S_IFDOOR)
-# else
-#  define S_ISDOOR(m) 0
-# endif
-#endif
-
-#ifndef S_ISFIFO
-# ifdef S_IFIFO
-#  define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
-# else
-#  define S_ISFIFO(m) 0
-# endif
-#endif
-
-#ifndef S_ISLNK
-# ifdef S_IFLNK
-#  define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
-# else
-#  define S_ISLNK(m) 0
-# endif
-#endif
-
-#ifndef S_ISMPB /* V7 */
-# ifdef S_IFMPB
-#  define S_ISMPB(m) (((m) & S_IFMT) == S_IFMPB)
-#  define S_ISMPC(m) (((m) & S_IFMT) == S_IFMPC)
-# else
-#  define S_ISMPB(m) 0
-#  define S_ISMPC(m) 0
-# endif
-#endif
-
-#ifndef S_ISNAM /* Xenix */
-# ifdef S_IFNAM
-#  define S_ISNAM(m) (((m) & S_IFMT) == S_IFNAM)
-# else
-#  define S_ISNAM(m) 0
-# endif
-#endif
-
-#ifndef S_ISNWK /* HP/UX */
-# ifdef S_IFNWK
-#  define S_ISNWK(m) (((m) & S_IFMT) == S_IFNWK)
-# else
-#  define S_ISNWK(m) 0
-# endif
-#endif
-
-#ifndef S_ISREG
-# ifdef S_IFREG
-#  define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
-# else
-#  define S_ISREG(m) 0
-# endif
-#endif
-
-#ifndef S_ISSOCK
-# ifdef S_IFSOCK
-#  define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
-# else
-#  define S_ISSOCK(m) 0
-# endif
-#endif
-
-
-#ifndef S_TYPEISSEM
-# ifdef S_INSEM
-#  define S_TYPEISSEM(p) (S_ISNAM ((p)->st_mode) && (p)->st_rdev == S_INSEM)
-# else
-#  define S_TYPEISSEM(p) 0
-# endif
-#endif
-
-#ifndef S_TYPEISSHM
-# ifdef S_INSHD
-#  define S_TYPEISSHM(p) (S_ISNAM ((p)->st_mode) && (p)->st_rdev == S_INSHD)
-# else
-#  define S_TYPEISSHM(p) 0
-# endif
-#endif
-
-#ifndef S_TYPEISMQ
-# define S_TYPEISMQ(p) 0
-#endif
-
-
-/* If any of the following are undefined,
-   define them to their de facto standard values.  */
-#if !S_ISUID
-# define S_ISUID 04000
-#endif
-#if !S_ISGID
-# define S_ISGID 02000
-#endif
-
-/* S_ISVTX is a common extension to POSIX.  */
-#ifndef S_ISVTX
-# define S_ISVTX 01000
-#endif
-
-#if !S_IRUSR && S_IREAD
-# define S_IRUSR S_IREAD
-#endif
-#if !S_IRUSR
-# define S_IRUSR 00400
-#endif
-#if !S_IRGRP
-# define S_IRGRP (S_IRUSR >> 3)
-#endif
-#if !S_IROTH
-# define S_IROTH (S_IRUSR >> 6)
-#endif
-
-#if !S_IWUSR && S_IWRITE
-# define S_IWUSR S_IWRITE
-#endif
-#if !S_IWUSR
-# define S_IWUSR 00200
-#endif
-#if !S_IWGRP
-# define S_IWGRP (S_IWUSR >> 3)
-#endif
-#if !S_IWOTH
-# define S_IWOTH (S_IWUSR >> 6)
-#endif
-
-#if !S_IXUSR && S_IEXEC
-# define S_IXUSR S_IEXEC
-#endif
-#if !S_IXUSR
-# define S_IXUSR 00100
-#endif
-#if !S_IXGRP
-# define S_IXGRP (S_IXUSR >> 3)
-#endif
-#if !S_IXOTH
-# define S_IXOTH (S_IXUSR >> 6)
-#endif
-
-#if !S_IRWXU
-# define S_IRWXU (S_IRUSR | S_IWUSR | S_IXUSR)
-#endif
-#if !S_IRWXG
-# define S_IRWXG (S_IRGRP | S_IWGRP | S_IXGRP)
-#endif
-#if !S_IRWXO
-# define S_IRWXO (S_IROTH | S_IWOTH | S_IXOTH)
-#endif
-
-/* S_IXUGO is a common extension to POSIX.  */
-#if !S_IXUGO
-# define S_IXUGO (S_IXUSR | S_IXGRP | S_IXOTH)
-#endif
-
-#ifndef S_IRWXUGO
-# define S_IRWXUGO (S_IRWXU | S_IRWXG | S_IRWXO)
-#endif
-
-/* All the mode bits that can be affected by chmod.  */
-#define CHMOD_MODE_BITS \
-  (S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO)
+#include "stat-macros.h"
 
 #include "timespec.h"
 
@@ -550,29 +364,35 @@ initialize_exit_failure (int status)
 # include <sys/exceptn.h>
 #endif
 
+#if HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
 
-#if HAVE_INTTYPES_H
-# include <inttypes.h> /* for the definition of UINTMAX_MAX */
+#if ULONG_MAX < ULLONG_MAX
+# define LONGEST_MODIFIER "ll"
+#else
+# define LONGEST_MODIFIER "l"
 #endif
-
-#if !defined PRIdMAX || PRI_MACROS_BROKEN
+#if PRI_MACROS_BROKEN
 # undef PRIdMAX
-# define PRIdMAX (sizeof (uintmax_t) == sizeof (long) ? "ld" : "lld")
-#endif
-#if !defined PRIoMAX || PRI_MACROS_BROKEN
 # undef PRIoMAX
-# define PRIoMAX (sizeof (uintmax_t) == sizeof (long) ? "lo" : "llo")
-#endif
-#if !defined PRIuMAX || PRI_MACROS_BROKEN
 # undef PRIuMAX
-# define PRIuMAX (sizeof (uintmax_t) == sizeof (long) ? "lu" : "llu")
-#endif
-#if !defined PRIxMAX || PRI_MACROS_BROKEN
 # undef PRIxMAX
-# define PRIxMAX (sizeof (uintmax_t) == sizeof (long) ? "lx" : "llx")
+#endif
+#ifndef PRIdMAX
+# define PRIdMAX LONGEST_MODIFIER "d"
+#endif
+#ifndef PRIoMAX
+# define PRIoMAX LONGEST_MODIFIER "o"
+#endif
+#ifndef PRIuMAX
+# define PRIuMAX LONGEST_MODIFIER "u"
+#endif
+#ifndef PRIxMAX
+# define PRIxMAX LONGEST_MODIFIER "x"
 #endif
 
 #include <ctype.h>
@@ -642,7 +462,12 @@ initialize_exit_failure (int status)
    POSIX says that only '0' through '9' are digits.  Prefer ISDIGIT to
    ISDIGIT_LOCALE unless it's important to use the locale's definition
    of `digit' even when the host does not conform to POSIX.  */
-#define ISDIGIT(c) ((unsigned) (c) - '0' <= 9)
+#define ISDIGIT(c) ((unsigned int) (c) - '0' <= 9)
+
+/* Convert a possibly-signed character to an unsigned character.  This is
+   a bit safer than casting to unsigned char, since it catches some type
+   errors that the cast doesn't.  */
+static inline unsigned char to_uchar (char ch) { return ch; }
 
 /* Take care of NLS matters.  */
 
@@ -754,6 +579,18 @@ uid_t getuid ();
   (Basename[0] == '.' && (Basename[1] == '\0' \
 			  || (Basename[1] == '.' && Basename[2] == '\0')))
 
+/* A wrapper for readdir so that callers don't see entries for `.' or `..'.  */
+static inline struct dirent const *
+readdir_ignoring_dot_and_dotdot (DIR *dirp)
+{
+  while (1)
+    {
+      struct dirent const *dp = readdir (dirp);
+      if (dp == NULL || ! DOT_OR_DOTDOT (dp->d_name))
+	return dp;
+    }
+}
+
 #if SETVBUF_REVERSED
 # define SETVBUF(Stream, Buffer, Type, Size) \
     setvbuf (Stream, Type, Buffer, Size)
@@ -793,7 +630,7 @@ enum
 
 #define case_GETOPT_VERSION_CHAR(Program_name, Authors)			\
   case GETOPT_VERSION_CHAR:						\
-    version_etc (stdout, Program_name, PACKAGE, VERSION, Authors,	\
+    version_etc (stdout, Program_name, GNU_PACKAGE, VERSION, Authors,	\
                  (char *) NULL);					\
     exit (EXIT_SUCCESS);						\
     break;
@@ -804,10 +641,6 @@ enum
 
 #ifndef MIN
 # define MIN(a,b) (((a) < (b)) ? (a) : (b))
-#endif
-
-#ifndef CHAR_BIT
-# define CHAR_BIT 8
 #endif
 
 /* The extra casts work around common compiler bugs.  */
@@ -859,16 +692,24 @@ enum
 # define INT_MIN TYPE_MINIMUM (int)
 #endif
 
+#ifndef INTMAX_MAX
+# define INTMAX_MAX TYPE_MAXIMUM (intmax_t)
+#endif
+
+#ifndef INTMAX_MIN
+# define INTMAX_MIN TYPE_MINIMUM (intmax_t)
+#endif
+
 #ifndef UINT_MAX
 # define UINT_MAX TYPE_MAXIMUM (unsigned int)
 #endif
 
 #ifndef LONG_MAX
-# define LONG_MAX TYPE_MAXIMUM (long)
+# define LONG_MAX TYPE_MAXIMUM (long int)
 #endif
 
 #ifndef ULONG_MAX
-# define ULONG_MAX TYPE_MAXIMUM (unsigned long)
+# define ULONG_MAX TYPE_MAXIMUM (unsigned long int)
 #endif
 
 #ifndef SIZE_MAX
@@ -944,7 +785,47 @@ enum
 #endif
 
 #if ! HAVE_FSEEKO && ! defined fseeko
-# define fseeko(s, o, w) ((o) == (long) (o)		\
+# define fseeko(s, o, w) ((o) == (long int) (o)		\
 			  ? fseek (s, o, w)		\
 			  : (errno = EOVERFLOW, -1))
 #endif
+
+/* Compute the greatest common divisor of U and V using Euclid's
+   algorithm.  U and V must be nonzero.  */
+
+static inline size_t
+gcd (size_t u, size_t v)
+{
+  do
+    {
+      size_t t = u % v;
+      u = v;
+      v = t;
+    }
+  while (v);
+
+  return u;
+}
+
+/* Compute the least common multiple of U and V.  U and V must be
+   nonzero.  There is no overflow checking, so callers should not
+   specify outlandish sizes.  */
+
+static inline size_t
+lcm (size_t u, size_t v)
+{
+  return u * (v / gcd (u, v));
+}
+
+/* Return PTR, aligned upward to the next multiple of ALIGNMENT.
+   ALIGNMENT must be nonzero.  The caller must arrange for ((char *)
+   PTR) through ((char *) PTR + ALIGNMENT - 1) to be addressable
+   locations.  */
+
+static inline void *
+ptr_align (void *ptr, size_t alignment)
+{
+  char *p0 = ptr;
+  char *p1 = p0 + alignment - 1;
+  return p1 - (size_t) p1 % alignment;
+}

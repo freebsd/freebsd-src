@@ -1,7 +1,7 @@
 /* human.c -- print human readable file size
 
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free
-   Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+   Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -300,8 +300,8 @@ human_readable (uintmax_t n, char *buf, int opts,
 	  {
 	    do
 	      {
-		unsigned r10 = (amt % base) * 10 + tenths;
-		unsigned r2 = (r10 % base) * 2 + (rounding >> 1);
+		unsigned int r10 = (amt % base) * 10 + tenths;
+		unsigned int r2 = (r10 % base) * 2 + (rounding >> 1);
 		amt /= base;
 		tenths = r10 / base;
 		rounding = (r2 < base
@@ -428,7 +428,9 @@ humblock (char const *spec, uintmax_t *block_size, int *options)
   int i;
   int opts = 0;
 
-  if (! spec && ! (spec = getenv ("BLOCK_SIZE")))
+  if (! spec
+      && ! (spec = getenv ("BLOCK_SIZE"))
+      && ! (spec = getenv ("BLOCKSIZE")))
     *block_size = default_block_size ();
   else
     {
