@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.4 1998/09/16 08:23:51 dfr Exp $
+ *	$Id: isa.c,v 1.119 1999/04/16 21:22:23 peter Exp $
  */
 
 /*
@@ -183,6 +183,8 @@ isa_probe(device_t dev)
 	for (i = resource_query_string(-1, "at", buf);
 	     i != -1;
 	     i = resource_query_string(i, "at", buf)) {
+		if (strcmp(resource_query_name(i), "atkbd") == 0)
+			continue;	/* old GENERIC kludge */
 		isa_add_device(dev, resource_query_name(i),
 			       resource_query_unit(i));
 	}
@@ -193,6 +195,8 @@ isa_probe(device_t dev)
 	for (i = resource_query_string(-1, "at", "isa");
 	     i != -1;
 	     i = resource_query_string(i, "at", "isa")) {
+		if (strcmp(resource_query_name(i), "atkbd") == 0)
+			continue;	/* old GENERIC kludge */
 		isa_add_device(dev, resource_query_name(i),
 			       resource_query_unit(i));
 	}
