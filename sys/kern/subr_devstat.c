@@ -41,7 +41,7 @@ static long devstat_generation;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 
-static STAILQ_HEAD(devstatlist, devstat) device_statq;
+static struct devstatlist device_statq;
 
 /*
  * Take a malloced and zeroed devstat structure given to us, fill it in 
