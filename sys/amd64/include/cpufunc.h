@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.19 1994/08/23 13:41:37 paul Exp $
+ *	$Id: cpufunc.h,v 1.20 1994/09/02 04:12:16 davidg Exp $
  */
 
 /*
@@ -70,26 +70,18 @@ enable_intr(void)
 	__asm __volatile("sti");
 }
 
-static inline u_char
-inb(u_int port)
+static inline u_long
+read_eflags()
 {
-	u_char	data;
-	/*
-	 * We use %%dx and not %1 here because i/o is done at %dx and not at
-	 * %edx, while gcc-2.2.2 generates inferior code (movw instead of movl)
-	 * if we tell it to load (u_short) port.
-	 */
-	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
-	return data;
+	u_long ef;
+	__asm __volatile("pushf; popl %0" : "=a" (ef)); 
+	return(ef);
 }
 
 static inline void
-outb(u_int port, u_char data)
+write_eflags(u_long ef)
 {
-	u_char	al;
-
-	al = data;		/* help gcc-1.40's register allocator */
-	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
+	__asm __volatile("pushl %0; popf" : : "a" ((u_long) ef));
 }
 
 static inline void
