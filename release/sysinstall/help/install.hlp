@@ -48,36 +48,35 @@ guide is not for you, eh?  No problem.  First off, you need to get
 yourself into the FreeBSD installation procedure.  Assuming that you
 have either a supported CDROM drive and an installation CD, or you
 have a fast, reliable Internet connection to one of the FreeBSD mirror
-sites, then this can be easily accomplished in one of two ways:
+sites, then this can be easily accomplished in one of three ways:
 
-        1. If you have a FreeBSD distribution CD which you can see
-           from DOS, turn off any fancy memory managers you may have
-           running and do this:
+        1. If your system supports bootable CDROM media (usually an option
+           which can be selectively enabled in the controller's setup menu
+           or in the PC BIOS for some systems) and you have it enabled,
+           FreeBSD 2.2.1 and later CDs support the "El Torrito" bootable
+           CD standard and simply having the 1st CD in your CDROM drive
+           during system boot will cause the installation to be executed.
+
+
+        2. If you have a FreeBSD distribution CD which you can see
+           from DOS, first disable any fancy memory managers you may
+           have configured and do this:
 
                 E> install
 
            You should boot directly into the FreeBSD installation
            screen.
 
-           NOTE: If this fails for some reason, OR IF YOU NEED TO
-           CONFIGURE YOUR KERNEL, go to step 2:
+           NOTE: If this fails for any reason, go to step 3:
 
 
-        2. Build a FreeBSD boot floppy from the floppies/boot.flp
+        3. Build a FreeBSD boot floppy from the floppies/boot.flp
            file in a FreeBSD distribution.  If you have a CD distribution,
            simply run the ``makeflp.bat'' script, otherwise read
            floppies/README.TXT for information on how to "image copy"
            this file onto a floppy.  Then simply boot directly from the
            floppy and you should go into the installation after making a
            stop at the kernel configuration menu.
-
-           This approach also has a big advantage over the
-           ``install.bat'' method if you need to configure your
-           kernel to match your hardware (see HARDWARE.TXT for
-           a table listing where everything expects to be found).
-           It allows you to drop into visual userconfig mode
-           where the direct-from-DOS installation (fbsdboot.exe)
-           currently does not.
 
 
 Once you're in the installation screen, you should be able to follow
