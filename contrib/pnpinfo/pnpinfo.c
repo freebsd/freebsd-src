@@ -534,8 +534,8 @@ dump_resdata(u_char *data, int csn)
 	printf("\nLogical device #%d\n", pnp_read(PNP_SET_LDN) );
 	printf("IO: ");
 	for (j=0; j<8; j++)
-	    printf(" 0x%02x%02x", pnp_read(PNP_IO_BASE_HIGH(i)),
-		pnp_read(PNP_IO_BASE_LOW(i)));
+	    printf(" 0x%02x%02x", pnp_read(PNP_IO_BASE_HIGH(j)),
+		pnp_read(PNP_IO_BASE_LOW(j)));
 	printf("\nIRQ %d %d\n",
 	    pnp_read(PNP_IRQ_LEVEL(0)), pnp_read(PNP_IRQ_LEVEL(1)) );
 	printf("DMA %d %d\n",
