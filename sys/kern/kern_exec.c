@@ -629,8 +629,6 @@ interpret:
 	 * to locking the proc lock.
 	 */
 	textvp = p->p_textvp;
-	if (textvp)
-		VN_KNOTE_LOCKED(textvp, NOTE_STOPEXEC | p->p_pid);
 	p->p_textvp = ndp->ni_vp;
 
 	/*
@@ -638,7 +636,6 @@ interpret:
 	 * as we're now a bona fide freshly-execed process.
 	 */
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXEC);
-	VN_KNOTE_LOCKED(p->p_textvp, NOTE_STARTEXEC | p->p_pid);
 	p->p_flag &= ~P_INEXEC;
 
 	/*
