@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.136 1996/11/07 15:45:59 jkh Exp $
+ * $Id: install.c,v 1.134.2.4 1996/11/08 05:39:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -265,6 +265,10 @@ installFixitFloppy(dialogMenuItem *self)
     while (1) {
 	msgConfirm("Please insert a writable fixit floppy and press return");
 	if (mount(MOUNT_UFS, "/mnt2", 0, (caddr_t)&args) != -1)
+	    break;
+	msgConfirm("An attempt to mount the fixit floppy failed, maybe the filesystem\n"
+		   "is unclean.  Trying a forcible mount as a last resort...");
+	if (mount(MOUNT_UFS, "/mnt2", MNT_FORCE, (caddr_t)&args) != -1)
 	    break;
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?") != 0)
 	    return DITEM_FAILURE;
