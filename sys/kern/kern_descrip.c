@@ -956,9 +956,11 @@ fdalloc(td, want, result)
 		fdp->fd_nfiles = nfiles;
 		fdexpand++;
 		if (oldofile != NULL) {
+			FILEDESC_UNLOCK(fdp);
 			mtx_lock(&Giant);
 			FREE(oldofile, M_FILEDESC);
 			mtx_unlock(&Giant);
+			FILEDESC_LOCK(fdp);
 		}
 	}
 	return (0);
