@@ -93,7 +93,11 @@ static void	tbr_timeout(void *);
 int (*altq_input)(struct mbuf *, int) = NULL;
 static struct mbuf *tbr_dequeue(struct ifaltq *, int);
 static int tbr_timer = 0;	/* token bucket regulator timer */
+#if !defined(__FreeBSD__) || (__FreeBSD_version < 600000)
 static struct callout tbr_callout = CALLOUT_INITIALIZER;
+#else
+static struct callout tbr_callout;
+#endif
 
 #ifdef ALTQ3_CLFIER_COMPAT
 static int 	extract_ports4(struct mbuf *, struct ip *, struct flowinfo_in *);
@@ -932,6 +936,9 @@ init_machclk(void)
 #ifdef __FreeBSD__
 #if (__FreeBSD_version > 300000)
 	machclk_freq = tsc_freq;
+#if (__FreeBSD_version >= 600000)
+	callout_init(&tbr_callout, 0);
+#endif
 #else
 	machclk_freq = i586_ctr_freq;
 #endif
