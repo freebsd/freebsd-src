@@ -953,3 +953,26 @@ vn_extattr_set(struct vnode *vp, int ioflg, const char *attrname, int buflen,
 
 	return (error);
 }
+
+int
+vn_extattr_rm(struct vnode *vp, int ioflg, const char *attrname, struct proc *p)
+{
+	struct mount	*mp;
+	int	error;
+
+	if ((ioflg & IO_NODELOCKED) == 0) {
+		if ((error = vn_start_write(vp, &mp, V_WAIT)) != 0)
+			return (error);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	}
+
+	/* authorize attribute removal as kernel */
+	error = VOP_SETEXTATTR(vp, attrname, NULL, NULL, p);
+
+	if ((ioflg & IO_NODELOCKED) == 0) {
+		vn_finished_write(mp);
+		VOP_UNLOCK(vp, 0, p);
+	}
+
+	return (error);
+}
