@@ -241,7 +241,7 @@ int AliasHandleUdpNbt(
 		sptr = (u_short *) alias_address;
 		acc -= *sptr++;
 		acc -= *sptr;
-		ADJUST_CHECKSUM(acc, uh->uh_sum)
+		ADJUST_CHECKSUM(acc, uh->uh_sum);
 	}
     ndh->source_ip = *alias_address;
     ndh->source_port = alias_port;
@@ -358,7 +358,7 @@ AliasHandleResourceNB(
             	sptr = (u_short *) &(nbtarg->newaddr);
             	acc -= *sptr++;
             	acc -= *sptr;
-            	ADJUST_CHECKSUM(acc, *nbtarg->uh_sum)
+            	ADJUST_CHECKSUM(acc, *nbtarg->uh_sum);
 			}
 
 			nb->addr = nbtarg->newaddr;
@@ -426,7 +426,7 @@ AliasHandleResourceA(
             	sptr = (u_short *) &nbtarg->newaddr; /* New */
             	acc -= *sptr++;
             	acc -= *sptr;
-            	ADJUST_CHECKSUM(acc, *nbtarg->uh_sum)
+            	ADJUST_CHECKSUM(acc, *nbtarg->uh_sum);
 			}
 
 			a->addr = nbtarg->newaddr;
