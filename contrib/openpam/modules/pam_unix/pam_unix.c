@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/modules/pam_unix/pam_unix.c#3 $
+ * $P4: //depot/projects/openpam/modules/pam_unix/pam_unix.c#5 $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifdef __GLIBC__
+#include <crypt.h>
+#endif
 
 #include <security/pam_modules.h>
 #include <security/pam_appl.h>

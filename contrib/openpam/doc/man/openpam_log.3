@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -33,12 +33,12 @@
 .\"
 .\" $P4$
 .\"
-.Dd May 2, 2003
+.Dd June 1, 2003
 .Dt OPENPAM_LOG 3
 .Os
 .Sh NAME
 .Nm openpam_log
-.Nd it).  Do the next best thing
+.Nd log a message through syslog
 .Sh LIBRARY
 .Lb libpam
 .Sh SYNOPSIS
@@ -48,9 +48,56 @@
 .Ft void
 .Fn openpam_log "int level" "const char *fmt" "..."
 .Sh DESCRIPTION
-No description available.
+The
+.Nm
+function logs messages using
+.Xr syslog 3 .
+It is primarily
+intended for internal use by the library and modules.
+.Pp
+The
+.Va level
+argument indicates the importance of the message.  The
+following levels are defined:
+.Bl -tag -width 18n
+.It Dv PAM_LOG_DEBUG
+Debugging messages.  These messages are normally not
+logged unless the global integer variable
+.Va _openpam_debug
+is set to a non-zero value, in which case they are logged
+with a
+.Xr syslog 3
+priority of
+.Dv LOG_DEBUG .
+.It Dv PAM_LOG_VERBOSE
+Information about the progress of the authentication
+process, or other non-essential messages.  These messages
+are logged with a
+.Xr syslog 3
+priority of
+.Dv LOG_INFO .
+.It Dv PAM_LOG_NOTICE
+Messages relating to non-fatal errors.  These messages are
+logged with a
+.Xr syslog 3
+priority of
+.Dv LOG_NOTICE .
+.It Dv PAM_LOG_ERROR
+Messages relating to serious errors.  These messages are
+logged with a
+.Xr syslog 3
+priority of
+.Dv LOG_ERR .
+.El
+.Pp
+The remaining arguments are a
+.Xr printf 3
+format string and the
+corresponding arguments.
 .Sh SEE ALSO
-.Xr pam 3
+.Xr pam 3 ,
+.Xr printf 3 ,
+.Xr syslog 3
 .Sh STANDARDS
 The
 .Nm

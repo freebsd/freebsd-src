@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_info.c#7 $
+ * $P4: //depot/projects/openpam/lib/pam_info.c#9 $
  */
 
 #include <stdarg.h>
@@ -40,6 +40,8 @@
 
 #include <security/pam_appl.h>
 #include <security/openpam.h>
+
+#include "openpam_impl.h"
 
 /*
  * OpenPAM extension
@@ -59,7 +61,7 @@ pam_info(pam_handle_t *pamh,
 	va_start(ap, fmt);
 	r = pam_vprompt(pamh, PAM_TEXT_INFO, &rsp, fmt, ap);
 	va_end(ap);
-	free(rsp); /* ignore response */
+	FREE(rsp); /* ignore response */
 	return (r);
 }
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,13 +31,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/bin/su/su.c#8 $
+ * $P4: //depot/projects/openpam/bin/su/su.c#12 $
  */
 
 #include <sys/param.h>
 #include <sys/wait.h>
 
 #include <err.h>
+#include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,9 +82,17 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (argc > 0) {
+		user = *argv;
+		--argc;
+		++argv;
+	} else {
+		user = "root";
+	}
+
 	/* initialize PAM */
 	pamc.conv = &openpam_ttyconv;
-	pam_start("su", argc ? *argv : "root", &pamc, &pamh);
+	pam_start("su", user, &pamc, &pamh);
 
 	/* set some items */
 	gethostname(hostname, sizeof(hostname));
@@ -117,20 +126,6 @@ main(int argc, char *argv[])
 	if (pam_err != PAM_SUCCESS || (pwd = getpwnam(user)) == NULL)
 		goto pamerr;
 
-	/* set uid and groups */
-	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1) {
-		warn("initgroups()");
-		goto err;
-	}
-	if (setgid(pwd->pw_gid) == -1) {
-		warn("setgid()");
-		goto err;
-	}
-	if (setuid(pwd->pw_uid) == -1) {
-		warn("setuid()");
-		goto err;
-	}
-
 	/* export PAM environment */
 	if ((pam_envlist = pam_getenvlist(pamh)) != NULL) {
 		for (pam_env = pam_envlist; *pam_env != NULL; ++pam_env) {
@@ -154,7 +149,21 @@ main(int argc, char *argv[])
 		warn("fork()");
 		goto err;
 	case 0:
-		/* child: start a shell */
+		/* child: give up privs and start a shell */
+
+		/* set uid and groups */
+		if (initgroups(pwd->pw_name, pwd->pw_gid) == -1) {
+			warn("initgroups()");
+			_exit(1);
+		}
+		if (setgid(pwd->pw_gid) == -1) {
+			warn("setgid()");
+			_exit(1);
+		}
+		if (setuid(pwd->pw_uid) == -1) {
+			warn("setuid()");
+			_exit(1);
+		}
 		execve(*args, args, environ);
 		warn("execve()");
 		_exit(1);
@@ -170,9 +179,7 @@ main(int argc, char *argv[])
 	}
 
 pamerr:
-	pam_end(pamh, pam_err);
 	fprintf(stderr, "Sorry\n");
-	exit(1);
 err:
 	pam_end(pamh, pam_err);
 	exit(1);

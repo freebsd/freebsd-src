@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_get_option.c#6 $
+ * $P4: //depot/projects/openpam/lib/openpam_get_option.c#10 $
  */
 
 #include <sys/param.h>
@@ -73,12 +73,10 @@ openpam_get_option(pam_handle_t *pamh,
 	RETURNS(NULL);
 }
 
-/*
- * NOLIST
- */
-
 /**
  * The =openpam_get_option function returns the value of the specified
  * option in the context of the currently executing service module, or
  * =NULL if the option is not set or no module is currently executing.
+ *
+ * >openpam_set_option
  */

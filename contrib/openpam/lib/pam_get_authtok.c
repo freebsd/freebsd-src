@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#21 $
+ * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#25 $
  */
 
 #include <sys/param.h>
@@ -109,19 +109,17 @@ pam_get_authtok(pam_handle_t *pamh,
 	if (twice) {
 		r = pam_prompt(pamh, style, &resp2, "Retype %s", prompt);
 		if (r != PAM_SUCCESS) {
-			free(resp);
+			FREE(resp);
 			RETURNC(r);
 		}
-		if (strcmp(resp, resp2) != 0) {
-			free(resp);
-			resp = NULL;
-		}
-		free(resp2);
+		if (strcmp(resp, resp2) != 0)
+			FREE(resp);
+		FREE(resp2);
 	}
 	if (resp == NULL)
 		RETURNC(PAM_TRY_AGAIN);
 	r = pam_set_item(pamh, item, resp);
-	free(resp);
+	FREE(resp);
 	if (r != PAM_SUCCESS)
 		RETURNC(r);
 	r = pam_get_item(pamh, item, (const void **)authtok);
