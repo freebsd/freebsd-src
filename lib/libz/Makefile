@@ -17,7 +17,8 @@ CFLAGS+=	-DHAS_snprintf -DHAS_vsnprintf
 CLEANFILES+=	example.o example foo.gz minigzip.o minigzip
 
 SRCS = adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c \
-       zutil.c inflate.c infblock.c inftrees.c infcodes.c infutil.c inffast.c
+       zutil.c inflate.c infblock.c inftrees.c infcodes.c infutil.c \
+       inffast.c zopen.c
 INCS=		zconf.h zlib.h
 
 minigzip:	all minigzip.o
