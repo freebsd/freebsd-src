@@ -35,11 +35,34 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: e_exp.S,v 1.2 1994/08/19 11:14:14 jkh Exp $")
+RCSID("$Id: e_exp.S,v 1.3 1996/06/01 18:00:07 bde Exp $")
 
 /* e^x = 2^(x * log2(e)) */
 ENTRY(__ieee754_exp)
+	/*
+	 * If x is +-Inf, then the subtraction would give Inf-Inf = NaN.
+	 * Avoid this.  Also avoid it if x is NaN for convenience.
+	 */
+	movl	8(%esp),%eax
+	andl	$0x7fffffff,%eax
+	cmpl	$0x7ff00000,%eax
+	jae	x_Inf_or_NaN
+
 	fldl	4(%esp)
+
+	/*
+	 * Ensure that the rounding mode is to nearest (to give the smallest
+	 * possible fraction) and that the precision is as high as possible.
+	 * We may as well mask interrupts if we switch the mode.
+	 */
+	fstcw	4(%esp)
+	movl	4(%esp),%eax
+	andl	$0x0300,%eax
+	cmpl	$0x0300,%eax		/* RC == 0 && PC == 3? */
+	je	1f			/* jump if mode is good */
+	movl	$0x137f,8(%esp)
+	fldcw	8(%esp)
+1:
 	fldl2e
 	fmulp				/* x * log2(e) */
 	fstl	%st(1)
@@ -51,4 +74,23 @@ ENTRY(__ieee754_exp)
 	faddp				/* 2^(fract(x * log2(e))) */
 	fscale				/* e^x */
 	fstpl	%st(1)
+	je	1f
+	fldcw	4(%esp)
+1:
+	ret
+
+x_Inf_or_NaN:
+	/*
+	 * Return 0 if x is -Inf.  Otherwise just return x, although the
+	 * C version would return (x + x) (Real Indefinite) if x is a NaN.
+	 */
+	cmpl	$0xfff00000,8(%esp)
+	jne	x_not_minus_Inf
+	cmpl	$0,4(%esp)
+	jne	x_not_minus_Inf
+	fldz
+	ret
+
+x_not_minus_Inf:
+	fldl	4(%esp)
 	ret
