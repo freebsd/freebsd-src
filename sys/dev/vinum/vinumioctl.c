@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.13 2000/04/26 04:10:20 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.12 2000/02/29 02:20:31 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -603,7 +603,6 @@ attachobject(struct vinum_ioctl_msg *msg)
 	    give_sd_to_plex(plex->plexno, sd->sdno);	    /* and give it to the plex */
 	    update_sd_config(sd->sdno, 0);
 	    save_config();
-	    reply->error = 0;
 	}
 	if (sd->state == sd_reviving)
 	    reply->error = EAGAIN;			    /* need to revive it */
