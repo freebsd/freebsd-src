@@ -26,6 +26,8 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/msg.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
@@ -263,6 +265,8 @@ MODULE_VERSION(sysvmsg, 1);
 
 /*
  * Entry point for all MSG calls
+ *
+ * MPSAFE
  */
 int
 msgsys(p, uap)
@@ -277,13 +281,22 @@ msgsys(p, uap)
 		int	a6;
 	} */ *uap;
 {
+	int error;
 
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
-		return (ENOSYS);
+	mtx_lock(&Giant);
 
-	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
-		return (EINVAL);
-	return ((*msgcalls[uap->which])(p, &uap->a2));
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+		error = ENOSYS;
+		goto done2;
+	}
+	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0])) {
+		error = EINVAL;
+		goto done2;
+	}
+	error = (*msgcalls[uap->which])(p, &uap->a2);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 static void
@@ -318,6 +331,9 @@ struct msgctl_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 msgctl(p, uap)
 	struct proc *p;
@@ -326,16 +342,19 @@ msgctl(p, uap)
 	int msqid = uap->msqid;
 	int cmd = uap->cmd;
 	struct msqid_ds *user_msqptr = uap->buf;
-	int rval, eval;
+	int rval, error;
 	struct msqid_ds msqbuf;
 	register struct msqid_ds *msqptr;
 
 #ifdef MSG_DEBUG_OK
 	printf("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, user_msqptr);
 #endif
+	mtx_lock(&Giant);
 
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
-		return (ENOSYS);
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+		error = ENOSYS;
+		goto done2;
+	}
 
 	msqid = IPCID_TO_IX(msqid);
 
@@ -344,7 +363,8 @@ msgctl(p, uap)
 		printf("msqid (%d) out of range (0<=msqid<%d)\n", msqid,
 		    msginfo.msgmni);
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 
 	msqptr = &msqids[msqid];
@@ -353,16 +373,18 @@ msgctl(p, uap)
 #ifdef MSG_DEBUG_OK
 		printf("no such msqid\n");
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 	if (msqptr->msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
 #ifdef MSG_DEBUG_OK
 		printf("wrong sequence number\n");
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 
-	eval = 0;
+	error = 0;
 	rval = 0;
 
 	switch (cmd) {
@@ -370,8 +392,8 @@ msgctl(p, uap)
 	case IPC_RMID:
 	{
 		struct msg *msghdr;
-		if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_M)))
-			return(eval);
+		if ((error = ipcperm(p, &msqptr->msg_perm, IPC_M)))
+			goto done2;
 		/* Free the message headers */
 		msghdr = msqptr->msg_first;
 		while (msghdr != NULL) {
@@ -398,14 +420,14 @@ msgctl(p, uap)
 		break;
 
 	case IPC_SET:
-		if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_M)))
-			return(eval);
-		if ((eval = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
-			return(eval);
+		if ((error = ipcperm(p, &msqptr->msg_perm, IPC_M)))
+			goto done2;
+		if ((error = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
+			goto done2;
 		if (msqbuf.msg_qbytes > msqptr->msg_qbytes) {
-			eval = suser(p);
-			if (eval)
-				return(eval);
+			error = suser(p);
+			if (error)
+				goto done2;
 		}
 		if (msqbuf.msg_qbytes > msginfo.msgmnb) {
 #ifdef MSG_DEBUG_OK
@@ -418,7 +440,8 @@ msgctl(p, uap)
 #ifdef MSG_DEBUG_OK
 			printf("can't reduce msg_qbytes to 0\n");
 #endif
-			return(EINVAL);		/* non-standard errno! */
+			error = EINVAL;		/* non-standard errno! */
+			goto done2;
 		}
 		msqptr->msg_perm.uid = msqbuf.msg_perm.uid;	/* change the owner */
 		msqptr->msg_perm.gid = msqbuf.msg_perm.gid;	/* change the owner */
@@ -429,13 +452,13 @@ msgctl(p, uap)
 		break;
 
 	case IPC_STAT:
-		if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_R))) {
+		if ((error = ipcperm(p, &msqptr->msg_perm, IPC_R))) {
 #ifdef MSG_DEBUG_OK
 			printf("requester doesn't have read access\n");
 #endif
-			return(eval);
+			goto done2;
 		}
-		eval = copyout((caddr_t)msqptr, user_msqptr,
+		error = copyout((caddr_t)msqptr, user_msqptr,
 		    sizeof(struct msqid_ds));
 		break;
 
@@ -443,12 +466,15 @@ msgctl(p, uap)
 #ifdef MSG_DEBUG_OK
 		printf("invalid command %d\n", cmd);
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 
-	if (eval == 0)
+	if (error == 0)
 		p->p_retval[0] = rval;
-	return(eval);
+done2:
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -458,12 +484,15 @@ struct msgget_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 msgget(p, uap)
 	struct proc *p;
 	register struct msgget_args *uap;
 {
-	int msqid, eval;
+	int msqid, error = 0;
 	int key = uap->key;
 	int msgflg = uap->msgflg;
 	struct ucred *cred = p->p_ucred;
@@ -473,8 +502,12 @@ msgget(p, uap)
 	printf("msgget(0x%x, 0%o)\n", key, msgflg);
 #endif
 
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
-		return (ENOSYS);
+	mtx_lock(&Giant);
+
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+		error = ENOSYS;
+		goto done2;
+	}
 
 	if (key != IPC_PRIVATE) {
 		for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
@@ -491,14 +524,15 @@ msgget(p, uap)
 #ifdef MSG_DEBUG_OK
 				printf("not exclusive\n");
 #endif
-				return(EEXIST);
+				error = EEXIST;
+				goto done2;
 			}
-			if ((eval = ipcperm(p, &msqptr->msg_perm, msgflg & 0700 ))) {
+			if ((error = ipcperm(p, &msqptr->msg_perm, msgflg & 0700 ))) {
 #ifdef MSG_DEBUG_OK
 				printf("requester doesn't have 0%o access\n",
 				    msgflg & 0700);
 #endif
-				return(eval);
+				goto done2;
 			}
 			goto found;
 		}
@@ -524,7 +558,8 @@ msgget(p, uap)
 #ifdef MSG_DEBUG_OK
 			printf("no more msqid_ds's available\n");
 #endif
-			return(ENOSPC);
+			error = ENOSPC;
+			goto done2;
 		}
 #ifdef MSG_DEBUG_OK
 		printf("msqid %d is available\n", msqid);
@@ -551,13 +586,16 @@ msgget(p, uap)
 #ifdef MSG_DEBUG_OK
 		printf("didn't find it and wasn't asked to create it\n");
 #endif
-		return(ENOENT);
+		error = ENOENT;
+		goto done2;
 	}
 
 found:
 	/* Construct the unique msqid */
 	p->p_retval[0] = IXSEQ_TO_IPCID(msqid, msqptr->msg_perm);
-	return(0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -569,6 +607,9 @@ struct msgsnd_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 msgsnd(p, uap)
 	struct proc *p;
@@ -578,7 +619,7 @@ msgsnd(p, uap)
 	void *user_msgp = uap->msgp;
 	size_t msgsz = uap->msgsz;
 	int msgflg = uap->msgflg;
-	int segs_needed, eval;
+	int segs_needed, error = 0;
 	register struct msqid_ds *msqptr;
 	register struct msg *msghdr;
 	short next;
@@ -587,9 +628,12 @@ msgsnd(p, uap)
 	printf("call to msgsnd(%d, 0x%x, %d, %d)\n", msqid, user_msgp, msgsz,
 	    msgflg);
 #endif
+	mtx_lock(&Giant);
 
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
-		return (ENOSYS);
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+		error = ENOSYS;
+		goto done2;
+	}
 
 	msqid = IPCID_TO_IX(msqid);
 
@@ -598,7 +642,8 @@ msgsnd(p, uap)
 		printf("msqid (%d) out of range (0<=msqid<%d)\n", msqid,
 		    msginfo.msgmni);
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 
 	msqptr = &msqids[msqid];
@@ -606,20 +651,22 @@ msgsnd(p, uap)
 #ifdef MSG_DEBUG_OK
 		printf("no such message queue id\n");
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 	if (msqptr->msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
 #ifdef MSG_DEBUG_OK
 		printf("wrong sequence number\n");
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 
-	if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_W))) {
+	if ((error = ipcperm(p, &msqptr->msg_perm, IPC_W))) {
 #ifdef MSG_DEBUG_OK
 		printf("requester doesn't have write access\n");
 #endif
-		return(eval);
+		goto done2;
 	}
 
 	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
@@ -639,7 +686,8 @@ msgsnd(p, uap)
 #ifdef MSG_DEBUG_OK
 			printf("msgsz > msqptr->msg_qbytes\n");
 #endif
-			return(EINVAL);
+			error = EINVAL;
+			goto done2;
 		}
 
 		if (msqptr->msg_perm.mode & MSG_LOCKED) {
@@ -674,7 +722,8 @@ msgsnd(p, uap)
 #ifdef MSG_DEBUG_OK
 				printf("need more resources but caller doesn't want to wait\n");
 #endif
-				return(EAGAIN);
+				error = EAGAIN;
+				goto done2;
 			}
 
 			if ((msqptr->msg_perm.mode & MSG_LOCKED) != 0) {
@@ -694,18 +743,19 @@ msgsnd(p, uap)
 #ifdef MSG_DEBUG_OK
 			printf("goodnight\n");
 #endif
-			eval = tsleep((caddr_t)msqptr, (PZERO - 4) | PCATCH,
+			error = tsleep((caddr_t)msqptr, (PZERO - 4) | PCATCH,
 			    "msgwait", 0);
 #ifdef MSG_DEBUG_OK
-			printf("good morning, eval=%d\n", eval);
+			printf("good morning, error=%d\n", error);
 #endif
 			if (we_own_it)
 				msqptr->msg_perm.mode &= ~MSG_LOCKED;
-			if (eval != 0) {
+			if (error != 0) {
 #ifdef MSG_DEBUG_OK
 				printf("msgsnd:  interrupted system call\n");
 #endif
-				return(EINTR);
+				error = EINTR;
+				goto done2;
 			}
 
 			/*
@@ -716,7 +766,8 @@ msgsnd(p, uap)
 #ifdef MSG_DEBUG_OK
 				printf("msqid deleted\n");
 #endif
-				return(EIDRM);
+				error = EIDRM;
+				goto done2;
 			}
 
 		} else {
@@ -787,15 +838,15 @@ msgsnd(p, uap)
 	 * Copy in the message type
 	 */
 
-	if ((eval = copyin(user_msgp, &msghdr->msg_type,
+	if ((error = copyin(user_msgp, &msghdr->msg_type,
 	    sizeof(msghdr->msg_type))) != 0) {
 #ifdef MSG_DEBUG_OK
-		printf("error %d copying the message type\n", eval);
+		printf("error %d copying the message type\n", error);
 #endif
 		msg_freehdr(msghdr);
 		msqptr->msg_perm.mode &= ~MSG_LOCKED;
 		wakeup((caddr_t)msqptr);
-		return(eval);
+		goto done2;
 	}
 	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
 
@@ -810,7 +861,8 @@ msgsnd(p, uap)
 #ifdef MSG_DEBUG_OK
 		printf("mtype (%d) < 1\n", msghdr->msg_type);
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 
 	/*
@@ -828,15 +880,15 @@ msgsnd(p, uap)
 			panic("next too low #2");
 		if (next >= msginfo.msgseg)
 			panic("next out of range #2");
-		if ((eval = copyin(user_msgp, &msgpool[next * msginfo.msgssz],
+		if ((error = copyin(user_msgp, &msgpool[next * msginfo.msgssz],
 		    tlen)) != 0) {
 #ifdef MSG_DEBUG_OK
-			printf("error %d copying in message segment\n", eval);
+			printf("error %d copying in message segment\n", error);
 #endif
 			msg_freehdr(msghdr);
 			msqptr->msg_perm.mode &= ~MSG_LOCKED;
 			wakeup((caddr_t)msqptr);
-			return(eval);
+			goto done2;
 		}
 		msgsz -= tlen;
 		user_msgp = (char *)user_msgp + tlen;
@@ -858,7 +910,8 @@ msgsnd(p, uap)
 	if (msqptr->msg_qbytes == 0) {
 		msg_freehdr(msghdr);
 		wakeup((caddr_t)msqptr);
-		return(EIDRM);
+		error = EIDRM;
+		goto done2;
 	}
 
 	/*
@@ -881,7 +934,9 @@ msgsnd(p, uap)
 
 	wakeup((caddr_t)msqptr);
 	p->p_retval[0] = 0;
-	return(0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -894,6 +949,9 @@ struct msgrcv_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 msgrcv(p, uap)
 	struct proc *p;
@@ -907,7 +965,7 @@ msgrcv(p, uap)
 	size_t len;
 	register struct msqid_ds *msqptr;
 	register struct msg *msghdr;
-	int eval;
+	int error = 0;
 	short next;
 
 #ifdef MSG_DEBUG_OK
@@ -915,8 +973,12 @@ msgrcv(p, uap)
 	    msgsz, msgtyp, msgflg);
 #endif
 
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
-		return (ENOSYS);
+	mtx_lock(&Giant);
+
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+		error = ENOSYS;
+		goto done2;
+	}
 
 	msqid = IPCID_TO_IX(msqid);
 
@@ -925,7 +987,8 @@ msgrcv(p, uap)
 		printf("msqid (%d) out of range (0<=msqid<%d)\n", msqid,
 		    msginfo.msgmni);
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 
 	msqptr = &msqids[msqid];
@@ -933,20 +996,22 @@ msgrcv(p, uap)
 #ifdef MSG_DEBUG_OK
 		printf("no such message queue id\n");
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 	if (msqptr->msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
 #ifdef MSG_DEBUG_OK
 		printf("wrong sequence number\n");
 #endif
-		return(EINVAL);
+		error = EINVAL;
+		goto done2;
 	}
 
-	if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_R))) {
+	if ((error = ipcperm(p, &msqptr->msg_perm, IPC_R))) {
 #ifdef MSG_DEBUG_OK
 		printf("requester doesn't have read access\n");
 #endif
-		return(eval);
+		goto done2;
 	}
 
 	msghdr = NULL;
@@ -960,7 +1025,8 @@ msgrcv(p, uap)
 					printf("first message on the queue is too big (want %d, got %d)\n",
 					    msgsz, msghdr->msg_ts);
 #endif
-					return(E2BIG);
+					error = E2BIG;
+					goto done2;
 				}
 				if (msqptr->msg_first == msqptr->msg_last) {
 					msqptr->msg_first = NULL;
@@ -999,7 +1065,8 @@ msgrcv(p, uap)
 						printf("requested message on the queue is too big (want %d, got %d)\n",
 						    msgsz, msghdr->msg_ts);
 #endif
-						return(E2BIG);
+						error = E2BIG;
+						goto done2;
 					}
 					*prev = msghdr->msg_next;
 					if (msghdr == msqptr->msg_last) {
@@ -1045,7 +1112,8 @@ msgrcv(p, uap)
 			    msgtyp);
 #endif
 			/* The SVID says to return ENOMSG. */
-			return(ENOMSG);
+			error = ENOMSG;
+			goto done2;
 		}
 
 		/*
@@ -1055,17 +1123,18 @@ msgrcv(p, uap)
 #ifdef MSG_DEBUG_OK
 		printf("msgrcv:  goodnight\n");
 #endif
-		eval = tsleep((caddr_t)msqptr, (PZERO - 4) | PCATCH, "msgwait",
+		error = tsleep((caddr_t)msqptr, (PZERO - 4) | PCATCH, "msgwait",
 		    0);
 #ifdef MSG_DEBUG_OK
-		printf("msgrcv:  good morning (eval=%d)\n", eval);
+		printf("msgrcv:  good morning (error=%d)\n", error);
 #endif
 
-		if (eval != 0) {
+		if (error != 0) {
 #ifdef MSG_DEBUG_OK
 			printf("msgsnd:  interrupted system call\n");
 #endif
-			return(EINTR);
+			error = EINTR;
+			goto done2;
 		}
 
 		/*
@@ -1077,7 +1146,8 @@ msgrcv(p, uap)
 #ifdef MSG_DEBUG_OK
 			printf("msqid deleted\n");
 #endif
-			return(EIDRM);
+			error = EIDRM;
+			goto done2;
 		}
 	}
 
@@ -1109,15 +1179,15 @@ msgrcv(p, uap)
 	 * Return the type to the user.
 	 */
 
-	eval = copyout((caddr_t)&(msghdr->msg_type), user_msgp,
+	error = copyout((caddr_t)&(msghdr->msg_type), user_msgp,
 	    sizeof(msghdr->msg_type));
-	if (eval != 0) {
+	if (error != 0) {
 #ifdef MSG_DEBUG_OK
-		printf("error (%d) copying out message type\n", eval);
+		printf("error (%d) copying out message type\n", error);
 #endif
 		msg_freehdr(msghdr);
 		wakeup((caddr_t)msqptr);
-		return(eval);
+		goto done2;
 	}
 	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
 
@@ -1137,16 +1207,16 @@ msgrcv(p, uap)
 			panic("next too low #3");
 		if (next >= msginfo.msgseg)
 			panic("next out of range #3");
-		eval = copyout((caddr_t)&msgpool[next * msginfo.msgssz],
+		error = copyout((caddr_t)&msgpool[next * msginfo.msgssz],
 		    user_msgp, tlen);
-		if (eval != 0) {
+		if (error != 0) {
 #ifdef MSG_DEBUG_OK
 			printf("error (%d) copying out message segment\n",
-			    eval);
+			    error);
 #endif
 			msg_freehdr(msghdr);
 			wakeup((caddr_t)msqptr);
-			return(eval);
+			goto done2;
 		}
 		user_msgp = (char *)user_msgp + tlen;
 		next = msgmaps[next].next;
@@ -1159,7 +1229,9 @@ msgrcv(p, uap)
 	msg_freehdr(msghdr);
 	wakeup((caddr_t)msqptr);
 	p->p_retval[0] = msgsz;
-	return(0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 static int
