@@ -1108,6 +1108,8 @@
     <para arch="i386">DEC EtherWORKS III NICs (DE203, DE204, and DE205)
     (&man.le.4; driver)</para>
 
+    <para arch="i386">DEC Etherworks NICs (DE305) (&man.ed.4; driver)</para>
+
     <para>DEC DC21040, DC21041, DC21140, DC21141, DC21142, and DC21143
     based NICs (&man.de.4; driver)
       <itemizedlist>
