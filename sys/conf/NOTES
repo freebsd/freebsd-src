@@ -110,7 +110,7 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 #
 # The root device and filesystem type can be compiled in;
 # this provides a fallback option if the root device cannot
-# be correctly guesst by the bootstrap code, or an override if
+# be correctly guessed by the bootstrap code, or an override if
 # the RB_DFLTROOT flag (-r) is specified when booting the kernel.
 #
 options 	ROOTDEVNAME=\"ufs:da0s2e\"
