@@ -905,7 +905,7 @@ void	kse_free(struct kse *ke);
 void	kse_stash(struct kse *ke);
 void	cpu_set_upcall(struct thread *td, void *pcb);
 void	cpu_set_upcall_kse(struct thread *td, struct kse *ke);
-void	cpu_thread_dtor(struct thread *);
+void	cpu_thread_clean(struct thread *);
 void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);
 void	kse_reassign(struct kse *ke);
@@ -935,6 +935,7 @@ void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
 void	thread_user_enter(struct proc *p, struct thread *td);
+void	thread_wait(struct proc *p);
 int	thread_add_ticks_intr(int user, uint ticks);
 
 void	thread_sanity_check(struct thread *td, char *);

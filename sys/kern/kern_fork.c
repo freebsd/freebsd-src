@@ -834,9 +834,15 @@ fork_exit(callout, arg, frame)
 	void *arg;
 	struct trapframe *frame;
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
+	struct thread *td;
+	struct proc *p;
 
+	if ((td = PCPU_GET(deadthread))) {
+		PCPU_SET(deadthread, NULL);
+		thread_stash(td);
+	}
+	td = curthread;
+	p = td->td_proc;
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
 	p->p_state = PRS_NORMAL;
 	/*
