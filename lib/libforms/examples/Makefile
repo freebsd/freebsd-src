@@ -1,7 +1,7 @@
-PROG = test
+PROG = example
 NOMAN = yet
 
-SRCS = test.c
+SRCS = example.c frm.tab.h
 
 CFLAGS = 
 
@@ -12,5 +12,10 @@ FORMDIR=${.CURDIR}/..
 .endif
 
 LDADD = -L${FORMDIR} -lforms -lncurses -lmytinfo
+
+CLEANFILES += frm.tab.h
+
+frm.tab.h:
+	fib example.frm
 
 .include <bsd.prog.mk>
