@@ -183,7 +183,7 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
 	ea->aarp_spnode = AA_SAT( aa )->sat_addr.s_node;
 	ea->aarp_tpnode = sat->sat_addr.s_node;
     } else {
-	bcopy((caddr_t)ac->ac_if.if_broadcastaddr, (caddr_t)eh->ether_dhost,
+	bcopy(ac->ac_if.if_broadcastaddr, (caddr_t)eh->ether_dhost,
 		sizeof( eh->ether_dhost ));
 	eh->ether_type = htons( ETHERTYPE_AARP );
 
@@ -224,7 +224,7 @@ aarpresolve( ac, m, destsat, desten )
 	    bcopy( (caddr_t)atmulticastaddr, (caddr_t)desten,
 		    sizeof( atmulticastaddr ));
 	} else {
-	    bcopy( (caddr_t)ac->ac_if.if_broadcastaddr, (caddr_t)desten,
+	    bcopy( ac->ac_if.if_broadcastaddr, (caddr_t)desten,
 		    sizeof( ac->ac_if.if_addrlen ));
 	}
 	return( 1 );
@@ -599,7 +599,7 @@ aarpprobe( void *arg )
 		sizeof( ea->aarp_tpnet ));
 	ea->aarp_spnode = ea->aarp_tpnode = AA_SAT( aa )->sat_addr.s_node;
     } else {
-	bcopy((caddr_t)ac->ac_if.if_broadcastaddr, (caddr_t)eh->ether_dhost,
+	bcopy(ac->ac_if.if_broadcastaddr, (caddr_t)eh->ether_dhost,
 		sizeof( eh->ether_dhost ));
 	eh->ether_type = htons( ETHERTYPE_AARP );
 	ea->aarp_spa = ea->aarp_tpa = AA_SAT( aa )->sat_addr.s_node;
