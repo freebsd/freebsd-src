@@ -60,7 +60,7 @@ MLINKS+=	pam.8 pam.conf.5 pam.8 pam.d.5
 HDRS0=		pam_client.h
 
 # Files from ${PAMDIR}/libpam_misc:
-SRCS+=		help_env.c misc_conv.c xstrdup.c
+SRCS+=		help_env.c misc_conv.c
 HDRS2=		pam_misc.h
 
 # Files from ${.CURDIR}:
@@ -86,7 +86,9 @@ STATIC_MODULES+= ${MODOBJDIR}/pam_radius/libpam_radius.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_rootok/libpam_rootok.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_securetty/libpam_securetty.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_self/libpam_self.a
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
 STATIC_MODULES+= ${MODOBJDIR}/pam_ssh/libpam_ssh.a
+.endif
 STATIC_MODULES+= ${MODOBJDIR}/pam_tacplus/libpam_tacplus.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_unix/libpam_unix.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_wheel/libpam_wheel.a
