@@ -756,13 +756,12 @@ main(int argc, char **argv)
 	if (source != NULL) {
 		source = savestr(getsin(&from, source));
 		outip->ip_src = from.sin_addr;
-#ifndef IP_HDRINCL
+		/* Check source address for validity */
 		if (bind(sndsock, (struct sockaddr *)&from, sizeof(from)) < 0) {
 			Fprintf(stderr, "%s: bind: %s\n",
 			    prog, strerror(errno));
 			exit (1);
 		}
-#endif
 	}
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
