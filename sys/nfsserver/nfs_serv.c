@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.70 1998/10/31 15:39:31 peter Exp $
+ * $Id: nfs_serv.c,v 1.71 1998/12/08 23:11:24 eivind Exp $
  */
 
 /*
@@ -1776,8 +1776,7 @@ out:
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
-		if (vp != NULLVP)
-			vput(vp);
+		vput(vp);
 	}
 	if (dirp && v3) {
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, procp);
