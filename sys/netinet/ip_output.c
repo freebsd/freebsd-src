@@ -96,8 +96,7 @@ static struct mbuf *ip_insertoptions(struct mbuf *, struct mbuf *, int *);
 static struct ifnet *ip_multicast_if(struct in_addr *, int *);
 static void	ip_mloopback
 	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
-static int	ip_getmoptions
-	(struct sockopt *, struct ip_moptions *);
+static int	ip_getmoptions(struct inpcb *, struct sockopt *);
 static int	ip_pcbopts(struct inpcb *, int, struct mbuf *);
 static int	ip_setmoptions
 	(struct sockopt *, struct ip_moptions **);
@@ -1390,7 +1389,7 @@ ip_ctloutput(so, sopt)
 		case IP_MULTICAST_LOOP:
 		case IP_ADD_MEMBERSHIP:
 		case IP_DROP_MEMBERSHIP:
-			error = ip_getmoptions(sopt, inp->inp_moptions);
+			error = ip_getmoptions(inp, sopt);
 			break;
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
@@ -1862,14 +1861,16 @@ ip_setmoptions(sopt, imop)
  * Return the IP multicast options in response to user getsockopt().
  */
 static int
-ip_getmoptions(sopt, imo)
-	struct sockopt *sopt;
-	register struct ip_moptions *imo;
+ip_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
+	struct ip_moptions *imo;
 	struct in_addr addr;
 	struct in_ifaddr *ia;
 	int error, optval;
 	u_char coptval;
+
+	INP_LOCK(inp);
+	imo = inp->inp_moptions;
 
 	error = 0;
 	switch (sopt->sopt_name) {
@@ -1878,6 +1879,7 @@ ip_getmoptions(sopt, imo)
 			optval = imo->imo_multicast_vif;
 		else
 			optval = -1;
+		INP_UNLOCK(inp);
 		error = sooptcopyout(sopt, &optval, sizeof optval);
 		break;
 
@@ -1892,6 +1894,7 @@ ip_getmoptions(sopt, imo)
 			addr.s_addr = (ia == NULL) ? INADDR_ANY
 				: IA_SIN(ia)->sin_addr.s_addr;
 		}
+		INP_UNLOCK(inp);
 		error = sooptcopyout(sopt, &addr, sizeof addr);
 		break;
 
@@ -1900,6 +1903,7 @@ ip_getmoptions(sopt, imo)
 			optval = coptval = IP_DEFAULT_MULTICAST_TTL;
 		else
 			optval = coptval = imo->imo_multicast_ttl;
+		INP_UNLOCK(inp);
 		if (sopt->sopt_valsize == 1)
 			error = sooptcopyout(sopt, &coptval, 1);
 		else
@@ -1911,6 +1915,7 @@ ip_getmoptions(sopt, imo)
 			optval = coptval = IP_DEFAULT_MULTICAST_LOOP;
 		else
 			optval = coptval = imo->imo_multicast_loop;
+		INP_UNLOCK(inp);
 		if (sopt->sopt_valsize == 1)
 			error = sooptcopyout(sopt, &coptval, 1);
 		else
@@ -1918,9 +1923,12 @@ ip_getmoptions(sopt, imo)
 		break;
 
 	default:
+		INP_UNLOCK(inp);
 		error = ENOPROTOOPT;
 		break;
 	}
+	INP_UNLOCK_ASSERT(inp);
+
 	return (error);
 }
 
