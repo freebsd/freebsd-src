@@ -105,7 +105,7 @@ CRUNCH_SRCDIRS+= sbin
 CRUNCH_PROGS_sbin= atm atacontrol badsect bsdlabel camcontrol 		\
 	ccdconfig clri devfs dmesg dump					\
 	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
-	fsirand gbde ifconfig ilmid init ip6fw 				\
+	fsirand gbde ifconfig ilmid init 				\
 	kldconfig kldload kldstat kldunload ldconfig 			\
 	md5 mdconfig mdmfs mknod mount mount_cd9660 mount_ext2fs	\
 	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
