@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI AsyncIO.c,v 2.2 1996/04/08 19:32:10 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>

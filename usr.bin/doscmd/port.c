@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI port.c,v 2.2 1996/04/08 19:33:03 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
 #include <machine/sysarch.h>

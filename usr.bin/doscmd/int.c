@@ -1,9 +1,6 @@
 /*
 ** No copyright?!
-**
-** $FreeBSD$
 */
-
 /*
  * Notes:
  *   1) Second PIC is not implemented.
@@ -22,6 +19,9 @@
  *   void set_eoir(int irql, void (*eoir)(void *), void *arg);
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "doscmd.h"
 
