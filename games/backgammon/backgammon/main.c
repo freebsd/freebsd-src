@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <stdio.h>
+#include <unistd.h>
 #include "back.h"
 
 #define MVPAUSE	5				/* time to sleep when stuck */
@@ -105,6 +106,7 @@ char	**argv;
 
 	/* initialization */
 	bflag = 2;					/* default no board */
+	acnt = 1;                                       /* Nuber of args */
 	signal (2,getout);				/* trap interrupts */
 	if (gtty (0,&tty) == -1)			/* get old tty mode */
 		errexit ("backgammon(gtty)");
@@ -138,13 +140,8 @@ char	**argv;
 	t = time(0);
 	srandom(t);					/* 'random' seed */
 
-#ifdef V7
-	while (*++argv != 0)				/* process arguments */
-#else
-	while (*++argv != -1)				/* process arguments */
-#endif
-		getarg (&argv);
-	args[acnt] = '\0';
+        getarg (argc, argv);
+	args[acnt] = NULL;
 	if (tflag)  {					/* clear screen */
 		noech &= ~(CRMOD|XTABS);
 		raw &= ~(CRMOD|XTABS);
@@ -174,7 +171,8 @@ char	**argv;
 			if (yorn(0))  {
 
 				fixtty (old);		/* restore tty */
-				execl (TEACH,"teachgammon",args,0);
+				args[0] = strdup("teachgammon");
+				execv (TEACH,args);
 
 				tflag = 0;		/* error! */
 				writel (noteach);
@@ -188,6 +186,9 @@ char	**argv;
 				}
 			}
 		}
+
+		for (i = 0; i < acnt; i++)
+		    free(args[i]);
 
 		init();					/* initialize board */
 
