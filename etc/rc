@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.90 1996/05/19 22:30:26 ache Exp $
+#	$Id: rc,v 1.91 1996/06/15 17:04:48 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -118,12 +118,29 @@ rm -rf /var/spool/uucp/.Temp/*
 rm -f /dev/log
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
+#
+# Clearing /tmp at boot-time is essentially stupid, but seems to have
+# a long tradition.  It doesn't help in any way for long-living systems,
+# and it might accidentally clobber files you would rather like to have
+# preserved after a crash (if not using mfs /tmp anyway).
+#
+# See also the commented out example of another cleanup policy in
+# /etc/daily.
+#
 echo clearing /tmp
 
 # prune quickly with one rm, then use find to clean up /tmp/[lq]*
 # (not needed with mfs /tmp, but doesn't hurt there...)
 (cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
     find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
+
+# The above is even more stupid since it prevents you from restarting
+# X11 after a system crash.  If you disable the above, make sure to
+# uncomment the line below.
+#
+# clean up leftover X lock files and local connection sockets
+#rm -f /tmp/.X*-lock /tmp/.X11-unix/*
+
 
 # enable dumpdev so that savecore can see it
 if [ "X${dumpdev}" != X"NO" ]; then
