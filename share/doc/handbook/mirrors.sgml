@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.31 1996/03/21 17:53:44 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.32 1996/05/09 23:04:47 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -10,7 +10,7 @@
 <p>The official sources for FreeBSD available via anonymous FTP from:
 <quote>
 <htmlurl url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
-name="ftp://ftp.FreeBSD.org/pub/FreeBSD">
+name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
 </quote> 
 and on CD-ROM from Walnut Creek CDROM:
 <quote>
@@ -73,6 +73,12 @@ for this domain.
 <item>
 <htmlurl url="ftp://ftp5.br.FreeBSD.ORG/pub/FreeBSD"
 	name="ftp://ftp5.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp6.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp6.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp7.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp7.br.FreeBSD.ORG/pub/FreeBSD"><newline>
 </itemize>
 
 <tag>Canada</tag>
@@ -104,13 +110,15 @@ for this domain.
 
 <tag>Finland</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@fi.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
-<htmlurl url="ftp://nic.funet.fi/pub/unix/FreeBSD"
-	name="ftp://nic.funet.fi/pub/unix/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:count@nic.funet.fi"
-	name="count@nic.funet.fi">.
+<htmlurl url="ftp://ftp.fi.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.fi.freebsd.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -171,6 +179,10 @@ for this domain.
 </itemize>
 
 <tag>Ireland</tag>
+
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@ie.FreeBSD.ORG" name="hostmaster">
+for this domain.
 
 <itemize>
 
@@ -246,20 +258,22 @@ for this domain.
 
 <tag>Netherlands</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@nl.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.nl.net/pub/os/FreeBSD"
-	name="ftp://ftp.nl.net/pub/os/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:archive@nl.net"
-	name="archive@nl.net">.
+<htmlurl url="ftp://ftp.nl.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.nl.freebsd.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
 <tag>Poland</tag>
 
 <itemize>
-     
+ 
 <item>
 <htmlurl url="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"
 	name="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"><newline>
@@ -311,13 +325,15 @@ for this domain.
 
 <tag>Sweden</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@se.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.luth.se/pub/FreeBSD"
-	name="ftp://ftp.luth.se/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ragge@ludd.luth.se"
-	name="ragge@ludd.luth.se">.
+<htmlurl url="ftp://ftp.se.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.se.freebsd.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -384,6 +400,10 @@ for this domain.
 
 <tag>UK</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@uk.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
@@ -397,6 +417,7 @@ for this domain.
 	name="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"><newline>
 
 </itemize>
+
 </descrip>
 
 The latest versions of export-restricted code for FreeBSD (2.0C or later)
@@ -447,4 +468,5 @@ for this domain.
 	name="count@nic.funet.fi">.
 
 </itemize>
+
 </descrip>
