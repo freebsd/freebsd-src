@@ -1,0 +1,86 @@
+.\" Copyright (c) 2003 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 1, 2004
+.Os
+.Dt CLEAN_ENVIRONMENT 3
+.Sh NAME
+.Nm clean_environment
+.Nd sanitize environment variables
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In libutil.h
+.Ft void
+.Fn clean_environment "const char * const *whitelist" "const char * const *extra_whitelist"
+.Sh DESCRIPTION
+The
+.Fn clean_environment
+function removes unsafe environment variables from the current
+process environment.
+It scans the current environment and discards any environment variable
+that does not occur in one of the two NULL-terminated lists.
+.Pp
+If the first argument is
+.Dv NULL ,
+a built-in default whitelist will be used.
+Most callers will use
+.Dv NULL
+for both arguments to obtain the default environment screening.
+Callers who need to make minor adjustments to the built-in
+whitelist can set the first argument to
+.Dv NULL
+and use the second argument to, in effect,
+add elements to the built-in whitelist.
+.Sh EXAMPLES
+The first example illustrates the typical usage.
+In this case, the default built-in environment screen
+will be used, which removes all environment variables
+that are not on the built-in whitelist.
+.Bd -literal -offset indent
+  clean_environment(NULL, NULL);
+.Ed
+.Pp
+The following example applies the default environment screens
+except that the environment variables
+.Cm MYCUSTOM
+and
+.Cm MYCUSTOM2
+will also be kept and the
+.Cm TERM
+and
+.Cm TERMCAP
+environment variables will be removed.
+.Bd -literal -offset indent
+  const char *keep[] = { "MYCUSTOM", "MYCUSTOM2", NULL };
+  const char *remove[] = { "TERM", "TERMCAP", NULL };
+
+  clean_environment(NULL, keep);
+  for (p = remove; *p != NULL; p++)
+	unsetenv(*p);
+.Ed
+.Sh SEE ALSO
+.Xr unsetenv 3
