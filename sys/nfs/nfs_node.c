@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.8.4.2 1996/06/12 03:42:38 davidg Exp $
+ * $Id: nfs_node.c,v 1.8.4.3 1999/06/07 01:08:27 peter Exp $
  */
 
 #include <sys/param.h>
@@ -167,6 +167,10 @@ loop:
 		    bcmp((caddr_t)fhp, (caddr_t)&np2->n_fh, NFSX_FH))
 			continue;
 		vrele(vp);
+		if (nfs_node_hash_lock < 0)
+			wakeup(&nfs_node_hash_lock);
+		nfs_node_hash_lock = 0;
+		FREE(np, M_NFSNODE);
 		goto retry;
 	}
 	np->n_flag = 0;
