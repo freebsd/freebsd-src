@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.18 1997/04/12 17:35:02 joerg Exp $
+ *	$Id: db_input.c,v 1.19 1997/08/17 21:21:50 joerg Exp $
  */
 
 /*
@@ -337,7 +337,7 @@ db_readline(lstart, lsize)
 	db_printf("\n");	/* synch output position */
 	*db_le = 0;
 
-	if (db_le - db_lbuf_start > 1) {
+	if (db_lhistory && (db_le - db_lbuf_start > 1)) {
 	    /* Maintain input line history for non-empty lines. */
 	    if (++db_lhistidx == DB_LHIST_NLINES) {
 		/* Rotate history. */
