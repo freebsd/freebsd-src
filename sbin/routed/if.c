@@ -42,7 +42,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #include <sys/cdefs.h>
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 1.4 $"
+#ident "$FreeBSD$"
 
 struct interface *ifnet;		/* all interfaces */
 
