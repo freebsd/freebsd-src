@@ -42,6 +42,7 @@
  */
 
 #define HIFN_DEBUG
+#define HIFN_NO_RNG
 
 /*
  * Driver for the Hifn 7751 encryption processor.
@@ -54,8 +55,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -134,7 +133,9 @@ static	int hifn_writeramaddr(struct hifn_softc *, int, u_int8_t *);
 static	int hifn_dmamap_load_src(struct hifn_softc *, struct hifn_command *);
 static	int hifn_dmamap_load_dst(struct hifn_softc *, struct hifn_command *);
 static	int hifn_init_pubrng(struct hifn_softc *);
+#ifndef HIFN_NO_RNG
 static	void hifn_rng(void *);
+#endif
 static	void hifn_tick(void *);
 static	void hifn_abort(struct hifn_softc *);
 static	void hifn_alloc_slot(struct hifn_softc *, int *, int *, int *, int *);
@@ -244,8 +245,6 @@ hifn_attach(device_t dev)
 	KASSERT(sc != NULL, ("hifn_attach: null software carrier!"));
 	bzero(sc, sizeof (*sc));
 	sc->sc_dev = dev;
-
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "crypto driver", MTX_DEF);
 
 	/* XXX handle power management */
 
@@ -472,7 +471,7 @@ hifn_attach(device_t dev)
 		hifn_init_pubrng(sc);
 
 	/* NB: 1 means the callout runs w/o Giant locked */
-	callout_init(&sc->sc_tickto, 1);
+	callout_init(&sc->sc_tickto);
 	callout_reset(&sc->sc_tickto, hz, hifn_tick, sc);
 
 	return (0);
@@ -496,7 +495,6 @@ fail_io1:
 fail_io0:
 	bus_release_resource(dev, SYS_RES_MEMORY, HIFN_BAR0, sc->sc_bar0res);
 fail_pci:
-	mtx_destroy(&sc->sc_mtx);
 	return (ENXIO);
 }
 
@@ -507,10 +505,11 @@ static int
 hifn_detach(device_t dev)
 {
 	struct hifn_softc *sc = device_get_softc(dev);
+	int s;
 
 	KASSERT(sc != NULL, ("hifn_detach: null software carrier!"));
 
-	HIFN_LOCK(sc);
+	s = splimp();
 
 	/*XXX other resources */
 	callout_stop(&sc->sc_tickto);
@@ -536,9 +535,7 @@ hifn_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_MEMORY, HIFN_BAR1, sc->sc_bar1res);
 	bus_release_resource(dev, SYS_RES_MEMORY, HIFN_BAR0, sc->sc_bar0res);
 
-	HIFN_UNLOCK(sc);
-
-	mtx_destroy(&sc->sc_mtx);
+	splx(s);
 
 	return (0);
 }
@@ -616,7 +613,6 @@ hifn_resume(device_t dev)
 static int
 hifn_init_pubrng(struct hifn_softc *sc)
 {
-	u_int32_t r;
 	int i;
 
 	if ((sc->sc_flags & HIFN_IS_7811) == 0) {
@@ -637,6 +633,7 @@ hifn_init_pubrng(struct hifn_softc *sc)
 		}
 	}
 
+#ifndef HIFN_NO_RNG
 	/* Enable the rng, if available */
 	if (sc->sc_flags & HIFN_HAS_RNG) {
 		if (sc->sc_flags & HIFN_IS_7811) {
@@ -660,9 +657,10 @@ hifn_init_pubrng(struct hifn_softc *sc)
 		else
 			sc->sc_rnghz = 1;
 		/* NB: 1 means the callout runs w/o Giant locked */
-		callout_init(&sc->sc_rngto, 1);
+		callout_init(&sc->sc_rngto);
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, hifn_rng, sc);
 	}
+#endif
 
 	/* Enable public key engine, if available */
 	if (sc->sc_flags & HIFN_HAS_PUBLIC) {
@@ -674,6 +672,7 @@ hifn_init_pubrng(struct hifn_softc *sc)
 	return (0);
 }
 
+#ifndef HIFN_NO_RNG
 static void
 hifn_rng(void *vsc)
 {
@@ -718,6 +717,7 @@ hifn_rng(void *vsc)
 	callout_reset(&sc->sc_rngto, sc->sc_rnghz, hifn_rng, sc);
 #undef RANDOM_BITS
 }
+#endif
 
 static void
 hifn_puc_wait(struct hifn_softc *sc)
@@ -1912,8 +1912,9 @@ static void
 hifn_tick(void* vsc)
 {
 	struct hifn_softc *sc = vsc;
+	int s;
 
-	HIFN_LOCK(sc);
+	s = splimp();
 	if (sc->sc_active == 0) {
 		struct hifn_dma *dma = sc->sc_dma;
 		u_int32_t r = 0;
@@ -1938,7 +1939,7 @@ hifn_tick(void* vsc)
 			WRITE_REG_1(sc, HIFN_1_DMA_CSR, r);
 	} else
 		sc->sc_active--;
-	HIFN_UNLOCK(sc);
+	splx(s);
 	callout_reset(&sc->sc_tickto, hz, hifn_tick, sc);
 }
 
@@ -1950,7 +1951,6 @@ hifn_intr(void *arg)
 	u_int32_t dmacsr, restart;
 	int i, u;
 
-	HIFN_LOCK(sc);
 	dma = sc->sc_dma;
 
 	dmacsr = READ_REG_1(sc, HIFN_1_DMA_CSR);
@@ -1969,7 +1969,6 @@ hifn_intr(void *arg)
 	/* Nothing in the DMA unit interrupted */
 	if ((dmacsr & sc->sc_dmaier) == 0) {
 		hifnstats.hst_noirq++;
-		HIFN_UNLOCK(sc);
 		return;
 	}
 
@@ -1997,7 +1996,6 @@ hifn_intr(void *arg)
 		device_printf(sc->sc_dev, "abort, resetting.\n");
 		hifnstats.hst_abort++;
 		hifn_abort(sc);
-		HIFN_UNLOCK(sc);
 		return;
 	}
 
@@ -2092,7 +2090,6 @@ hifn_intr(void *arg)
 		sc->sc_needwakeup &= ~wakeup;
 		crypto_unblock(sc->sc_cid, wakeup);
 	}
-	HIFN_UNLOCK(sc);
 }
 
 /*
