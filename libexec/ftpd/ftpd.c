@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.13 1995/11/29 19:52:30 guido Exp $
+ *	$Id: ftpd.c,v 1.14 1996/01/01 08:35:11 peter Exp $
  */
 
 #ifndef lint
@@ -1538,6 +1538,10 @@ passive()
 	u_short port;
 	char *p, *a;
 
+	if (pw == NULL) {
+		reply(530, "Please login with USER and PASS");
+		return;
+	}
 	pdata = socket(AF_INET, SOCK_STREAM, 0);
 	if (pdata < 0) {
 		perror_reply(425, "Can't open passive connection");
