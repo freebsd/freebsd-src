@@ -156,7 +156,7 @@ an_attach_pci(dev)
 	if (pci_get_vendor(dev) == AIRONET_VENDORID &&
 	    pci_get_device(dev) == AIRONET_DEVICEID_MPI350) {
 		sc->mpi350 = 1;
-		sc->port_rid = PCIR_MAPS;
+		sc->port_rid = PCIR_BAR(0);
 	} else {
 		/*
 		 * Map control/status registers.
@@ -186,7 +186,7 @@ an_attach_pci(dev)
 	/* Allocate memory for MPI350 */
 	if (sc->mpi350) {
 		/* Allocate memory */
-		sc->mem_rid = PCIR_MAPS + 4;
+		sc->mem_rid = PCIR_BAR(1);
 		error = an_alloc_memory(dev, sc->mem_rid, 1);
 		if (error) {
 			printf("an%d: couldn't map memory\n", unit);
@@ -196,7 +196,7 @@ an_attach_pci(dev)
 		sc->an_mem_bhandle = rman_get_bushandle(sc->mem_res);
 
 		/* Allocate aux. memory */
-		sc->mem_aux_rid = PCIR_MAPS + 8;
+		sc->mem_aux_rid = PCIR_BAR(2);
 		error = an_alloc_aux_memory(dev, sc->mem_aux_rid, 
 		    AN_AUX_MEM_SIZE);
 		if (error) {

@@ -468,7 +468,7 @@ avma1pp2_attach_avma1pp(device_t dev)
 
 	ifpi2_scp[unit] = sc;
 
-	sc->sc_resources.io_rid[0] = PCIR_MAPS+4;
+	sc->sc_resources.io_rid[0] = PCIR_BAR(1);
 	sc->sc_resources.io_base[0] = bus_alloc_resource(dev, SYS_RES_IOPORT,
 		&sc->sc_resources.io_rid[0],
 		0, ~0, 1, RF_ACTIVE);
@@ -488,7 +488,7 @@ avma1pp2_attach_avma1pp(device_t dev)
 		&sc->sc_resources.irq_rid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->sc_resources.irq == NULL) {
-		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS+4, sc->sc_resources.io_base[0]);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(1), sc->sc_resources.io_base[0]);
 		printf("ifpi2-%d: couldn't map interrupt\n", unit);
 		error = ENXIO;
 		goto fail;
@@ -498,7 +498,7 @@ avma1pp2_attach_avma1pp(device_t dev)
 
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_resources.irq);
-		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS+4, sc->sc_resources.io_base[0]);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(1), sc->sc_resources.io_base[0]);
 		printf("ifpi2-%d: couldn't set up irq\n", unit);
 		goto fail;
 	}

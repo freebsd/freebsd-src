@@ -49,8 +49,8 @@
  * Some PCI configuration space offset defines.  The names were made
  * identical to the names used by the Linux kernel.
  */
-#define	HIFN_BAR0		(PCIR_MAPS+0x0)	/* PUC register map */
-#define	HIFN_BAR1		(PCIR_MAPS+0x4)	/* DMA register map */
+#define	HIFN_BAR0		PCIR_BAR(0)	/* PUC register map */
+#define	HIFN_BAR1		PCIR_BAR(1)	/* DMA register map */
 #define	HIFN_TRDY_TIMEOUT	0x40
 #define	HIFN_RETRY_TIMEOUT	0x41
 

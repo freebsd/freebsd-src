@@ -608,7 +608,7 @@ nm_pci_probe(device_t dev)
 					 PCIM_CMD_PORTEN | PCIM_CMD_MEMEN |
 					 PCIM_CMD_BUSMASTEREN, 2);
 
-			sc->regid = PCIR_MAPS + 4;
+			sc->regid = PCIR_BAR(1);
 			sc->reg = bus_alloc_resource(dev, SYS_RES_MEMORY,
 						     &sc->regid, 0, ~0, 1,
 						     RF_ACTIVE);
@@ -675,10 +675,10 @@ nm_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
-	sc->bufid = PCIR_MAPS;
+	sc->bufid = PCIR_BAR(0);
 	sc->buf = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->bufid,
 				     0, ~0, 1, RF_ACTIVE);
-	sc->regid = PCIR_MAPS + 4;
+	sc->regid = PCIR_BAR(1);
 	sc->reg = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->regid,
 				     0, ~0, 1, RF_ACTIVE);
 

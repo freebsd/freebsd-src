@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/aic7xxx/aic7xxx_93cx6.h>
 #endif
 
-#define AHC_PCI_IOADDR	PCIR_MAPS	/* I/O Address */
-#define AHC_PCI_MEMADDR	(PCIR_MAPS + 4)	/* Mem I/O Address */
+#define AHC_PCI_IOADDR	PCIR_BAR(0)	/* I/O Address */
+#define AHC_PCI_MEMADDR	PCIR_BAR(1)	/* Mem I/O Address */
 
 static __inline uint64_t
 ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)

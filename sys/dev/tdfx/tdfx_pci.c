@@ -158,7 +158,7 @@ tdfx_attach(device_t dev) {
 	u_long	val;
 	/* rid value tells bus_alloc_resource where to find the addresses of ports or
 	 * of memory ranges in the PCI config space*/
-	int rid = PCIR_MAPS;
+	int rid = PCIR_BAR(0);
 
 	/* Increment the card counter (for the ioctl code) */
 	tdfx_count++;

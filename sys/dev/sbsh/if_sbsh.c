@@ -227,7 +227,7 @@ sbsh_attach(device_t dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
-	rid = PCIR_MAPS + 4;
+	rid = PCIR_BAR(1);
 	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 					0, ~0, 4096, RF_ACTIVE);
 
@@ -244,7 +244,7 @@ sbsh_attach(device_t dev)
 	if (sc->irq_res == NULL) {
 		printf("sbsh%d: couldn't map interrupt\n", unit);
 		bus_release_resource(dev, SYS_RES_MEMORY,
-					PCIR_MAPS + 4, sc->mem_res);
+					PCIR_BAR(1), sc->mem_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -257,7 +257,7 @@ sbsh_attach(device_t dev)
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY,
-					PCIR_MAPS + 4, sc->mem_res);
+					PCIR_BAR(1), sc->mem_res);
 		printf("sbsh%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
@@ -304,7 +304,7 @@ sbsh_detach(device_t dev)
 
 	bus_teardown_intr(dev, sc->irq_res, sc->intr_hand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
-	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_MAPS + 4, sc->mem_res);
+	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(1), sc->mem_res);
 
 	splx(s);
 	return (0);

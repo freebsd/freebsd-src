@@ -950,7 +950,7 @@ agg_attach(device_t dev)
 	struct agg_info	*ess = NULL;
 	u_int32_t	data;
 	int	mapped = 0;
-	int	regid = PCIR_MAPS;
+	int	regid = PCIR_BAR(0);
 	struct resource	*reg = NULL;
 	struct ac97_info	*codec = NULL;
 	int	irqid = 0;

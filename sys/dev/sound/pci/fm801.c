@@ -587,7 +587,7 @@ fm801_pci_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	for (i = 0; (mapped == 0) && (i < PCI_MAXMAPS_0); i++) {
-		fm801->regid = PCIR_MAPS + i*4;
+		fm801->regid = PCIR_BAR(i);
 		fm801->regtype = SYS_RES_MEMORY;
 		fm801->reg = bus_alloc_resource(dev, fm801->regtype, &fm801->regid,
 						0, ~0, 1, RF_ACTIVE);
@@ -712,7 +712,7 @@ fm801_pci_probe( device_t dev )
 		pci_write_config(dev, PCIR_COMMAND, data, 2);
 		data = pci_read_config(dev, PCIR_COMMAND, 2);
 
-		regid = PCIR_MAPS;
+		regid = PCIR_BAR(0);
 		regtype = SYS_RES_IOPORT;
 		reg = bus_alloc_resource(dev, regtype, &regid, 0, ~0, 1,
 		    RF_ACTIVE);
@@ -760,7 +760,7 @@ fm801_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	fm801 = pcm_getdevinfo(bus);
 
-	if (type == SYS_RES_IOPORT && *rid == PCIR_MAPS)
+	if (type == SYS_RES_IOPORT && *rid == PCIR_BAR(0))
 		return (fm801->reg);
 
 	return (NULL);

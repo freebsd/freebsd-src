@@ -582,7 +582,7 @@ au_pci_attach(device_t dev)
 			printf("at 0x%x...", config_id->map[i].base);
 		}
 #endif
-		regid[j] = PCIR_MAPS + i*4;
+		regid[j] = PCIR_BAR(i);
 		type[j] = SYS_RES_MEMORY;
 		reg[j] = bus_alloc_resource(dev, type[j], &regid[j],
 					    0, ~0, 1, RF_ACTIVE);

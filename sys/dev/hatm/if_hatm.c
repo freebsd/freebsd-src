@@ -1693,7 +1693,7 @@ hatm_attach(device_t dev)
 		error = ENXIO;
 		goto failed;
 	}
-	sc->memid = PCIR_MAPS;
+	sc->memid = PCIR_BAR(0);
 	sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->memid,
 	    0, ~0, 1, RF_ACTIVE);
 	if (sc->memres == NULL) {

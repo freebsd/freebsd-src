@@ -762,8 +762,8 @@ pcmcsa_attach(device_t dev)
 
 	/* Allocate the resources. */
 	resp = &csa->res;
-	resp->io_rid = PCIR_MAPS;
-	resp->mem_rid = PCIR_MAPS + 4;
+	resp->io_rid = PCIR_BAR(0);
+	resp->mem_rid = PCIR_BAR(1);
 	resp->irq_rid = 0;
 	if (csa_allocres(csa, dev)) {
 		csa_releaseres(csa, dev);

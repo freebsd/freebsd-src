@@ -64,11 +64,8 @@ extern struct i4b_l1mux_func iwic_l1mux_func;
 
 /* Winbond PCI Configuration Space */
 
-#define BASEREG0_MAPOFF 0x00
-#define BASEREG1_MAPOFF 0x04
-
-#define BADDR0 (PCIR_MAPS + BASEREG0_MAPOFF)
-#define BADDR1 (PCIR_MAPS + BASEREG1_MAPOFF)
+#define BADDR0 PCIR_BAR(0)
+#define BADDR1 PCIR_BAR(1)
 
 
 static void iwic_pci_intr(struct iwic_softc *sc);

@@ -653,11 +653,11 @@ mpt_read_config_regs(mpt_softc_t *mpt)
 	mpt->pci_cfg.Command = pci_read_config(mpt->dev, PCIR_COMMAND, 2);
 	mpt->pci_cfg.LatencyTimer_LineSize =
 	    pci_read_config(mpt->dev, PCIR_CACHELNSZ, 2);
-	mpt->pci_cfg.IO_BAR = pci_read_config(mpt->dev, PCIR_MAPS, 4);
-	mpt->pci_cfg.Mem0_BAR[0] = pci_read_config(mpt->dev, PCIR_MAPS+0x4, 4);
-	mpt->pci_cfg.Mem0_BAR[1] = pci_read_config(mpt->dev, PCIR_MAPS+0x8, 4);
-	mpt->pci_cfg.Mem1_BAR[0] = pci_read_config(mpt->dev, PCIR_MAPS+0xC, 4);
-	mpt->pci_cfg.Mem1_BAR[1] = pci_read_config(mpt->dev, PCIR_MAPS+0x10, 4);
+	mpt->pci_cfg.IO_BAR = pci_read_config(mpt->dev, PCIR_BAR(0), 4);
+	mpt->pci_cfg.Mem0_BAR[0] = pci_read_config(mpt->dev, PCIR_BAR(1), 4);
+	mpt->pci_cfg.Mem0_BAR[1] = pci_read_config(mpt->dev, PCIR_BAR(2), 4);
+	mpt->pci_cfg.Mem1_BAR[0] = pci_read_config(mpt->dev, PCIR_BAR(3), 4);
+	mpt->pci_cfg.Mem1_BAR[1] = pci_read_config(mpt->dev, PCIR_BAR(4), 4);
 	mpt->pci_cfg.ROM_BAR = pci_read_config(mpt->dev, PCIR_BIOS, 4);
 	mpt->pci_cfg.IntLine = pci_read_config(mpt->dev, PCIR_INTLINE, 1);
 	mpt->pci_cfg.PMCSR = pci_read_config(mpt->dev, 0x44, 4);
@@ -680,11 +680,11 @@ mpt_set_config_regs(mpt_softc_t *mpt)
 	if (mpt->verbose) {
 		MPT_CHECK(Command, PCIR_COMMAND, 2);
 		MPT_CHECK(LatencyTimer_LineSize, PCIR_CACHELNSZ, 2);
-		MPT_CHECK(IO_BAR, PCIR_MAPS, 4);
-		MPT_CHECK(Mem0_BAR[0], PCIR_MAPS+0x4, 4);
-		MPT_CHECK(Mem0_BAR[1], PCIR_MAPS+0x8, 4);
-		MPT_CHECK(Mem1_BAR[0], PCIR_MAPS+0xC, 4);
-		MPT_CHECK(Mem1_BAR[1], PCIR_MAPS+0x10, 4);
+		MPT_CHECK(IO_BAR, PCIR_BAR(0), 4);
+		MPT_CHECK(Mem0_BAR[0], PCIR_BAR(1), 4);
+		MPT_CHECK(Mem0_BAR[1], PCIR_BAR(2), 4);
+		MPT_CHECK(Mem1_BAR[0], PCIR_BAR(3), 4);
+		MPT_CHECK(Mem1_BAR[1], PCIR_BAR(4), 4);
 		MPT_CHECK(ROM_BAR, PCIR_BIOS, 4);
 		MPT_CHECK(IntLine, PCIR_INTLINE, 1);
 		MPT_CHECK(PMCSR, 0x44, 4);
@@ -694,11 +694,11 @@ mpt_set_config_regs(mpt_softc_t *mpt)
 	pci_write_config(mpt->dev, PCIR_COMMAND, mpt->pci_cfg.Command, 2);
 	pci_write_config(mpt->dev, PCIR_CACHELNSZ,
 	    mpt->pci_cfg.LatencyTimer_LineSize, 2);
-	pci_write_config(mpt->dev, PCIR_MAPS, mpt->pci_cfg.IO_BAR, 4);
-	pci_write_config(mpt->dev, PCIR_MAPS+0x4, mpt->pci_cfg.Mem0_BAR[0], 4);
-	pci_write_config(mpt->dev, PCIR_MAPS+0x8, mpt->pci_cfg.Mem0_BAR[1], 4);
-	pci_write_config(mpt->dev, PCIR_MAPS+0xC, mpt->pci_cfg.Mem1_BAR[0], 4);
-	pci_write_config(mpt->dev, PCIR_MAPS+0x10, mpt->pci_cfg.Mem1_BAR[1], 4);
+	pci_write_config(mpt->dev, PCIR_BAR(0), mpt->pci_cfg.IO_BAR, 4);
+	pci_write_config(mpt->dev, PCIR_BAR(1), mpt->pci_cfg.Mem0_BAR[0], 4);
+	pci_write_config(mpt->dev, PCIR_BAR(2), mpt->pci_cfg.Mem0_BAR[1], 4);
+	pci_write_config(mpt->dev, PCIR_BAR(3), mpt->pci_cfg.Mem1_BAR[0], 4);
+	pci_write_config(mpt->dev, PCIR_BAR(4), mpt->pci_cfg.Mem1_BAR[1], 4);
 	pci_write_config(mpt->dev, PCIR_BIOS, mpt->pci_cfg.ROM_BAR, 4);
 	pci_write_config(mpt->dev, PCIR_INTLINE, mpt->pci_cfg.IntLine, 1);
 	pci_write_config(mpt->dev, 0x44, mpt->pci_cfg.PMCSR, 4);

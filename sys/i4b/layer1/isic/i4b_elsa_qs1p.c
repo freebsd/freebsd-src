@@ -58,12 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_ipac.h>
 
-#define MEM0_MAPOFF	0
-#define PORT0_MAPOFF	4
-#define PORT1_MAPOFF	12
+#define MEM0_BAR	0
+#define PORT0_BAR	1
+#define PORT1_BAR	3
 
-#define ELSA_PORT0_MAPOFF	(PCIR_MAPS+PORT0_MAPOFF)
-#define ELSA_PORT1_MAPOFF	(PCIR_MAPS+PORT1_MAPOFF)
+#define ELSA_PORT0_MAPOFF	PCIR_BAR(PORT0_BAR)
+#define ELSA_PORT1_MAPOFF	PCIR_BAR(PORT1_BAR)
 
 #define PCI_QS1000_DID	0x1000
 #define PCI_QS1000_VID	0x1048

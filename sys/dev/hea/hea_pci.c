@@ -157,7 +157,7 @@ hea_pci_attach (dev)
 
 	pci_enable_busmaster(dev);
 
-	sc->mem_rid = PCIR_MAPS;
+	sc->mem_rid = PCIR_BAR(0);
 	sc->mem_type = SYS_RES_MEMORY;
 	sc->irq_rid = 0;
 
