@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 Peter Wemm <peter@FreeBSD.org>
  * All rights reserved.
  *
@@ -27,14 +27,14 @@
  */
 
 #ifndef _SYS_KTHREAD_H_
-#define _SYS_KTHREAD_H_
+#define	_SYS_KTHREAD_H_
 
-struct proc;
+#include <sys/cdefs.h>
 
-/* 
- * A kernel process descriptor; used to start "internal" daemons
- * 
- * Note: global_procpp may be NULL for no global save area
+/*-
+ * A kernel process descriptor; used to start "internal" daemons.
+ *
+ * Note: global_procpp may be NULL for no global save area.
  */
 struct kproc_desc {
 	char		*arg0;			/* arg 0 (for 'ps' listing) */
@@ -42,8 +42,8 @@ struct kproc_desc {
 	struct proc	**global_procpp;	/* ptr to proc ptr save area */
 };
 
-void	kproc_start __P((const void *));
 void	kproc_shutdown __P((void *, int));
+void	kproc_start __P((const void *));
 int     kthread_create __P((void (*)(void *), void *, struct proc **,
 	    int flags, const char *, ...)) __printflike(5, 6);
 void    kthread_exit __P((int)) __dead2;
@@ -51,4 +51,4 @@ int	kthread_resume __P((struct proc *));
 int	kthread_suspend __P((struct proc *, int));
 void	kthread_suspend_check __P((struct proc *));
 
-#endif
+#endif /* !_SYS_KTHREAD_H_ */
