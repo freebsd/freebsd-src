@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
-.\"	$Id: du.1,v 1.5 1996/08/29 18:05:49 wosch Exp $
+.\"	$Id: du.1,v 1.6 1996/10/23 06:53:55 scrappy Exp $
 .\"
 .Dd April 1, 1994
 .Dt DU 1
@@ -39,14 +39,15 @@
 .Nm du
 .Nd display disk usage statistics
 .Sh SYNOPSIS
-.Nm du
+.Nm
 .Op Fl H | Fl L | Fl P
 .Op Fl a | s | d Ar depth
+.Op Fl k
 .Op Fl x
 .Op Ar file ...
 .Sh DESCRIPTION
 The
-.Nm du
+.Nm
 utility displays the file system block usage for each file argument
 and for each directory in the file hierarchy rooted in each directory
 argument.
@@ -55,6 +56,10 @@ the current directory is displayed.
 The number of blocks are in the same units as that returned by the
 .Xr stat 2
 system call, i.e. 512-byte blocks.
+If the
+.Fl k
+flag is specified, the number displayed is the number of 1024-byte
+blocks.
 Partial numbers of blocks are rounded up.
 .Pp
 The options are as follows:
@@ -106,14 +111,17 @@ by the last one specified.
 .Pp
 Files having multiple hard links are counted (and displayed) a single
 time per
-.Nm du
+.Nm
 execution.
-.Sh ENVIRONMENTAL VARIABLES
+.Sh ENVIRONMENT VARIABLES
 .Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE
-If the environmental variable
+If the environment variable
 .Ev BLOCKSIZE
-is set, the block counts will be displayed in units of that size block.
+is set, and the
+.Fl k
+option is not specified, the block counts will be displayed in units of that
+size block.
 .El
 .Sh SEE ALSO
 .Xr df 1 ,
@@ -122,6 +130,6 @@ is set, the block counts will be displayed in units of that size block.
 .Xr quot 8
 .Sh HISTORY
 A
-.Nm du
-command appeared in
+.Nm
+utility appeared in
 .At v1 .
