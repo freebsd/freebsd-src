@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.7 1995/10/20 07:02:51 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.8 1995/10/20 15:40:52 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -192,13 +192,13 @@ tcpInstallDevice(char *str)
 
 	    di = dp->private = (DevInfo *)malloc(sizeof(DevInfo));
 
-	    if ((ipaddr = variable_get(string_concat3(dp->name, "_", VAR_IPADDR))) == NULL)
+	    if ((ipaddr = variable_get(string_concat3(VAR_IPADDR, "_", dp->name))) == NULL)
 		ipaddr = variable_get(VAR_IPADDR);
 
-	    if ((netmask = variable_get(string_concat3(dp->name, "_", VAR_NETMASK))) != NULL)
+	    if ((netmask = variable_get(string_concat3(VAR_NETMASK, "_", dp->name))) == NULL)
 	        netmask = variable_get(VAR_NETMASK);
 
-	    if ((extras = variable_get(string_concat3(dp->name, "_", VAR_EXTRAS))) != NULL)
+	    if ((extras = variable_get(string_concat3(VAR_EXTRAS, "_", dp->name))) == NULL)
 		extras = variable_get(VAR_EXTRAS);
 
 	    string_copy(di->ipaddr, ipaddr);
@@ -208,7 +208,7 @@ tcpInstallDevice(char *str)
 	    if (ipaddr) {
 		char *ifaces;
 
-		sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
+		sprintf(temp, "inet %s %s netmask %s", ipaddr, extras ? extras : "", netmask);
 		sprintf(ifn, "%s%s", VAR_IFCONFIG, dp->name);
 		variable_set2(ifn, temp);
 		ifaces = variable_get(VAR_INTERFACES);

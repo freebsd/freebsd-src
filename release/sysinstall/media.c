@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.14 1995/10/20 14:24:59 jkh Exp $
+ * $Id: media.c,v 1.25.2.15 1995/10/20 15:40:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -280,8 +280,8 @@ mediaSetFTP(char *str)
     }
     strcpy(ftpDevice.name, cp);
 
-    /* If str == NULL, we were called just to change FTP sites, not network devices */
-    if (str && !tcpDeviceSelect())
+    /* If str == NULL || "script", we were called just to change FTP sites, not network devices */
+    if (str && strcmp(str, "script") && !tcpDeviceSelect())
 	return RET_FAIL;
 
     ftpDevice.type = DEVICE_TYPE_FTP;
@@ -346,7 +346,7 @@ mediaSetNFS(char *str)
     }
     strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
     /* str == NULL means we were just called to change NFS paths, not network interfaces */
-    if (str && !tcpDeviceSelect())
+    if (str && strcmp(str, "script") && !tcpDeviceSelect())
 	return RET_FAIL;
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
