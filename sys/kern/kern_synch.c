@@ -902,7 +902,7 @@ setrunnable(struct thread *td)
 {
 	struct proc *p = td->td_proc;
 
-	mtx_lock_spin(&sched_lock);
+	mtx_assert(&sched_lock, MA_OWNED);
 	switch (p->p_state) {
 	case PRS_ZOMBIE:
 		panic("setrunnable(1)");
@@ -941,7 +941,6 @@ setrunnable(struct thread *td)
 			setrunqueue(td); /* XXXKSE */
 		maybe_resched(td);
 	}
-	mtx_unlock_spin(&sched_lock);
 }
 
 /*
