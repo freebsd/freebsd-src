@@ -219,8 +219,6 @@ fore_interface_free(fup)
 	}
 
 	if (fup->fu_flags & FUF_STATCMD) {
-		DMA_FREE_ADDR(fup->fu_stats, fup->fu_statsd,
-			sizeof(Fore_cp_stats), 0);
 		fup->fu_flags &= ~FUF_STATCMD;
 	}
 	return;
