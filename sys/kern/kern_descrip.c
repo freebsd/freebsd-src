@@ -2070,13 +2070,11 @@ fdrop_locked(fp, td)
 	FILE_UNLOCK(fp);
 	if (fp->f_count < 0)
 		panic("fdrop: count < 0");
-	mtx_lock(&Giant);
 	if (fp->f_ops != &badfileops)
 		error = fo_close(fp, td);
 	else
 		error = 0;
 	ffree(fp);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
