@@ -485,17 +485,6 @@ main(int argc, char **argv)
 		}
 	}
 #endif
-	/*
-	 * Find where we are...
-	 * All this code is so that we know where we are when we start up
-	 * on a different machine with pmake.
-	 */
-	curdir = cdpath;
-	if (getcwd(curdir, MAXPATHLEN) == NULL)
-		err(2, NULL);
-
-	if (stat(curdir, &sa) == -1)
-	    err(2, "%s", curdir);
 
 	/*
 	 * PC-98 kernel sets the `i386' string to the utsname.machine and
@@ -557,7 +546,88 @@ main(int argc, char **argv)
 		else
 			machine_cpu = "unknown";
 	}
-	
+
+	create = Lst_Init(FALSE);
+	makefiles = Lst_Init(FALSE);
+	envFirstVars = Lst_Init(FALSE);
+	expandVars = TRUE;
+	variables = Lst_Init(FALSE);
+	beSilent = FALSE;		/* Print commands as executed */
+	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
+	noExecute = FALSE;		/* Execute all commands */
+	keepgoing = FALSE;		/* Stop on error */
+	allPrecious = FALSE;		/* Remove targets when interrupted */
+	queryFlag = FALSE;		/* This is not just a check-run */
+	noBuiltins = FALSE;		/* Read the built-in rules */
+	touchFlag = FALSE;		/* Actually update targets */
+	usePipes = TRUE;		/* Catch child output in pipes */
+	debug = 0;			/* No debug verbosity, please. */
+	jobsRunning = FALSE;
+
+	maxLocal = DEFMAXLOCAL;		/* Set default local max concurrency */
+#ifdef REMOTE
+	maxJobs = DEFMAXJOBS;		/* Set default max concurrency */
+#else
+	maxJobs = maxLocal;
+#endif
+	forceJobs = FALSE;              /* No -j flag */
+	compatMake = FALSE;		/* No compat mode */
+
+
+	/*
+	 * Initialize the parsing, directory and variable modules to prepare
+	 * for the reading of inclusion paths and variable settings on the
+	 * command line
+	 */
+	Dir_Init();		/* Initialize directory structures so -I flags
+				 * can be processed correctly */
+	Parse_Init();		/* Need to initialize the paths of #include
+				 * directories */
+	Var_Init();		/* As well as the lists of variables for
+				 * parsing arguments */
+        str_init();
+
+	/*
+	 * Initialize various variables.
+	 *	MAKE also gets this name, for compatibility
+	 *	.MAKEFLAGS gets set to the empty string just in case.
+	 *	MFLAGS also gets initialized empty, for compatibility.
+	 */
+	Var_Set("MAKE", argv[0], VAR_GLOBAL);
+	Var_Set(MAKEFLAGS, "", VAR_GLOBAL);
+	Var_Set("MFLAGS", "", VAR_GLOBAL);
+	Var_Set("MACHINE", machine, VAR_GLOBAL);
+	Var_Set("MACHINE_ARCH", machine_arch, VAR_GLOBAL);
+	Var_Set("MACHINE_CPU", machine_cpu, VAR_GLOBAL);
+#ifdef MAKE_VERSION
+	Var_Set("MAKE_VERSION", MAKE_VERSION, VAR_GLOBAL);
+#endif
+
+	/*
+	 * First snag any flags out of the MAKE environment variable.
+	 * (Note this is *not* MAKEFLAGS since /bin/make uses that and it's
+	 * in a different format).
+	 */
+#ifdef POSIX
+	Main_ParseArgLine(getenv("MAKEFLAGS"));
+#else
+	Main_ParseArgLine(getenv("MAKE"));
+#endif
+
+	MainParseArgs(argc, argv);
+
+	/*
+	 * Find where we are...
+	 * All this code is so that we know where we are when we start up
+	 * on a different machine with pmake.
+	 */
+	curdir = cdpath;
+	if (getcwd(curdir, MAXPATHLEN) == NULL)
+		err(2, NULL);
+
+	if (stat(curdir, &sa) == -1)
+	    err(2, "%s", curdir);
+
 	/*
 	 * The object directory location is determined using the
 	 * following order of preference:
@@ -599,79 +669,11 @@ main(int argc, char **argv)
 		if (!(objdir = chdir_verify_path(mdpath, obpath)))
 			objdir = curdir;
 	}
-
-	create = Lst_Init(FALSE);
-	makefiles = Lst_Init(FALSE);
-	envFirstVars = Lst_Init(FALSE);
-	expandVars = TRUE;
-	variables = Lst_Init(FALSE);
-	beSilent = FALSE;		/* Print commands as executed */
-	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
-	noExecute = FALSE;		/* Execute all commands */
-	keepgoing = FALSE;		/* Stop on error */
-	allPrecious = FALSE;		/* Remove targets when interrupted */
-	queryFlag = FALSE;		/* This is not just a check-run */
-	noBuiltins = FALSE;		/* Read the built-in rules */
-	touchFlag = FALSE;		/* Actually update targets */
-	usePipes = TRUE;		/* Catch child output in pipes */
-	debug = 0;			/* No debug verbosity, please. */
-	jobsRunning = FALSE;
-
-	maxLocal = DEFMAXLOCAL;		/* Set default local max concurrency */
-#ifdef REMOTE
-	maxJobs = DEFMAXJOBS;		/* Set default max concurrency */
-#else
-	maxJobs = maxLocal;
-#endif
-	forceJobs = FALSE;              /* No -j flag */
-	compatMake = FALSE;		/* No compat mode */
-
-
-	/*
-	 * Initialize the parsing, directory and variable modules to prepare
-	 * for the reading of inclusion paths and variable settings on the
-	 * command line
-	 */
-	Dir_Init();		/* Initialize directory structures so -I flags
-				 * can be processed correctly */
-	Parse_Init();		/* Need to initialize the paths of #include
-				 * directories */
-	Var_Init();		/* As well as the lists of variables for
-				 * parsing arguments */
-        str_init();
+	Dir_InitDot();		/* Initialize the "." directory */
 	if (objdir != curdir)
 		Dir_AddDir(dirSearchPath, curdir);
 	Var_Set(".CURDIR", curdir, VAR_GLOBAL);
 	Var_Set(".OBJDIR", objdir, VAR_GLOBAL);
-
-	/*
-	 * Initialize various variables.
-	 *	MAKE also gets this name, for compatibility
-	 *	.MAKEFLAGS gets set to the empty string just in case.
-	 *	MFLAGS also gets initialized empty, for compatibility.
-	 */
-	Var_Set("MAKE", argv[0], VAR_GLOBAL);
-	Var_Set(MAKEFLAGS, "", VAR_GLOBAL);
-	Var_Set("MFLAGS", "", VAR_GLOBAL);
-	Var_Set("MACHINE", machine, VAR_GLOBAL);
-	Var_Set("MACHINE_ARCH", machine_arch, VAR_GLOBAL);
-	Var_Set("MACHINE_CPU", machine_cpu, VAR_GLOBAL);
-#ifdef MAKE_VERSION
-	Var_Set("MAKE_VERSION", MAKE_VERSION, VAR_GLOBAL);
-#endif
-
-	/*
-	 * First snag any flags out of the MAKE environment variable.
-	 * (Note this is *not* MAKEFLAGS since /bin/make uses that and it's
-	 * in a different format).
-	 */
-#ifdef POSIX
-	Main_ParseArgLine(getenv("MAKEFLAGS"));
-#else
-	Main_ParseArgLine(getenv("MAKE"));
-#endif
-
-	MainParseArgs(argc, argv);
 
 	/*
 	 * Be compatible if user did not specify -j and did not explicitly
