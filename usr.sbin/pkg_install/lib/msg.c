@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: msg.c,v 1.9 1997/10/08 07:48:09 charnier Exp $";
+	"$Id: msg.c,v 1.10 1997/10/13 15:03:55 jkh Exp $";
 #endif
 
 /*
@@ -31,8 +31,8 @@ static const char rcsid[] =
 void
 upchuck(const char *err)
 {
-    warn("fatal error during execution: %s", err);
     cleanup(0);
+    errx(1, "fatal error during execution: %s", err);
 }
 
 /*
@@ -53,8 +53,8 @@ y_or_n(Boolean def, const char *msg, ...)
      */
     tty = fopen("/dev/tty", "r");
     if (!tty) {
-	warnx("can't open /dev/tty!");
 	cleanup(0);
+	errx(2, "can't open /dev/tty!");
     }
     while (ch != 'Y' && ch != 'N') {
 	vfprintf(stderr, msg, args);
