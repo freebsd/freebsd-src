@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.46 1996/03/21 06:32:48 jkh Exp $
+ * $Id: menus.c,v 1.47 1996/03/30 16:19:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -271,10 +271,10 @@ guaranteed to carry the full range of possible distributions.",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.luth.se/pub/FreeBSD/", 0, 0			},
   { "Taiwan",			"ftp.tw.freebsd.org",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.tw.freebsd.org/pub/FreeBSD", 0, 0	},
-  { "Taiwan #2",		"NCTUCCCA.edu.tw",
-	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://NCTUCCCA.edu.tw/Operating-Systems/FreeBSD", 0, 0	},
-  { "Taiwan #3",		"netbsd.csie.nctu.edu.tw",
-	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/", 0, 0	},
+  { "Taiwan #2",		"ftp2.tw.freebsd.org",
+	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp2.tw.freebsd.org/pub/FreeBSD", 0, 0	},
+  { "Taiwan #3",		"ftp3.tw.freebsd.org",
+	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp3.tw.freebsd.org/pub/FreeBSD/", 0, 0	},
   { "Thailand",			"ftp.nectec.or.th",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.nectec.or.th/pub/mirrors/FreeBSD/", 0, 0	},
   { "UK",			"ftp.uk.freebsd.org",
