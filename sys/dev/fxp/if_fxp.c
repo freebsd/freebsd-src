@@ -1385,9 +1385,10 @@ fxp_start(struct ifnet *ifp)
 		 * This could cause us to overwrite the completion status.
 		 */
 		atomic_clear_short(&sc->fxp_desc.tx_last->tx_cb->cb_command,
-		    FXP_CB_COMMAND_S);
+		    htole16(FXP_CB_COMMAND_S));
 #else
-		sc->fxp_desc.tx_last->tx_cb->cb_command &= ~FXP_CB_COMMAND_S;
+		sc->fxp_desc.tx_last->tx_cb->cb_command &=
+		    htole16(~FXP_CB_COMMAND_S);
 #endif /*__alpha__*/
 		sc->fxp_desc.tx_last = txp;
 
@@ -1625,7 +1626,7 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 			 * upon completion), and drop the packet in case
 			 * of bogus length or CRC errors.
 			 */
-			total_len = le16toh(rfa->actual_size & 0x3fff);
+			total_len = le16toh(rfa->actual_size) & 0x3fff;
 			if (total_len < sizeof(struct ether_header) ||
 			    total_len > MCLBYTES - RFA_ALIGNMENT_FUDGE -
 				sc->rfa_size ||
@@ -2375,11 +2376,11 @@ fxp_mc_addrs(struct fxp_softc *sc)
 				break;
 			}
 			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			    &sc->mcsp->mc_addr[nmcasts][0], 6);
+			    &sc->mcsp->mc_addr[nmcasts][0], ETHER_ADDR_LEN);
 			nmcasts++;
 		}
 	}
-	mcsp->mc_cnt = htole16(nmcasts * 6);
+	mcsp->mc_cnt = htole16(nmcasts * ETHER_ADDR_LEN);
 	return (nmcasts);
 }
 
