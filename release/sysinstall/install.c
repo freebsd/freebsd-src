@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.228 1999/02/14 21:26:28 jkh Exp $
+ * $Id: install.c,v 1.229 1999/02/15 00:49:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -314,14 +314,21 @@ installFixitCDROM(dialogMenuItem *self)
 	}
     }
 
-    /* Yet another iggly hardcoded pathname. */
+    /* Yet more iggly hardcoded pathnames. */
+    Mkdir("/usr/libexec");
     if (!file_readable("/usr/libexec/ld.so")) {
-	Mkdir("/usr/libexec");
-	if (symlink("/mnt2/usr/libexec/ld.so", "/usr/libexec/ld.so")) {
-	    msgConfirm("Warning: could not create the symlink for ld.so.\n"
+	if (symlink("/mnt2/usr/libexec/ld.so", "/usr/libexec/ld.so"))
+	    msgDebug("Couldn't link to ld.so - not necessarily a problem for ELF\n");
+    }
+    if (!file_readable("/usr/libexec/ld-elf.so.1")) {
+	if (symlink("/mnt2/usr/libexec/ld-elf.so.1", "/usr/libexec/ld-elf.so.1")) {
+	    msgConfirm("Warning: could not create the symlink for ld-elf.so.1\n"
 		       "Dynamic executables from the CDROM likely won't work.");
 	}
     }
+    /* optional nicety */
+    if (!file_readable("/usr/bin/vi"))
+	symlink("/mnt2/usr/bin/vi", "/usr/bin/vi");
     fixit_common();
     mediaClose();
     msgConfirm("Please remove the FreeBSD fixit CDROM now.");
