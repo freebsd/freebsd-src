@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.9 1996/04/23 01:29:35 jkh Exp $
+ * $Id: variable.c,v 1.10 1996/04/29 06:47:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -102,8 +102,14 @@ void
 variable_unset(char *var)
 {
     Variable *vp;
+    char name[VAR_NAME_MAX + 1], *cp;
 
     unsetenv(var);
+    if ((cp = index(var, '=')) != NULL) {
+	strncpy(name, cp, cp - var);
+	name[cp - var] = '\0';
+	var = name;
+    }
 
     /* Now search to see if it's in our list, if we have one.. */
     if (!VarHead)

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.62 1996/05/16 13:30:24 jkh Exp $
+ * $Id: menus.c,v 1.63 1996/05/16 13:39:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -382,6 +382,8 @@ guaranteed to carry the full range of possible distributions.",
     VAR_FTP_PATH "=ftp://ftp.ca.freebsd.org/pub/FreeBSD/" },
   { "Czech Republic",	"sunsite.mff.cuni.cz", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://sunsite.mff.cuni.cz/OS/FreeBSD/" },
+  { "Estonia",		"ftp.ee.freebsd.org", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp.ee.freebsd.org/pub/FreeBSD/" },
   { "Finland",		"nic.funet.fi", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://nic.funet.fi/pub/unix/FreeBSD/" },
   { "France",		"ftp.ibp.fr", NULL, dmenuSetVariable, NULL,
@@ -400,6 +402,8 @@ guaranteed to carry the full range of possible distributions.",
     VAR_FTP_PATH "=ftp://ftp6.de.freebsd.org/pub/FreeBSD/" },
   { "Germany #7",	"ftp7.de.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp7.de.freebsd.org/pub/FreeBSD/" },
+  { "Holland",	 	"ftp.nl.freebsd.ort", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp.nl.freebsd.org/pub/os/FreeBSD/cdrom/" },
   { "Hong Kong",	"ftp.hk.super.net", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.hk.super.net/pub/FreeBSD/" },
   { "Ireland",		"ftp.ie.freebsd.org", NULL, dmenuSetVariable, NULL,

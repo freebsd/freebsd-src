@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.98 1996/05/29 01:35:28 jkh Exp $
+ * $Id: install.c,v 1.99 1996/06/11 10:16:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -787,7 +787,15 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_RELNAME,			RELEASE_NAME);
     variable_set2(VAR_CPIO_VERBOSITY,		"high");
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
-    variable_set2(VAR_EDITOR,			RunningAsInit ? "/stand/ee" : "/usr/bin/ee");
+    if (RunningAsInit)
+    	variable_set2(VAR_EDITOR,		"/stand/ee");
+    else {
+	char *cp = getenv("EDITOR");
+
+	if (!cp)
+	    cp = "/usr/bin/ee";
+    	variable_set2(VAR_EDITOR,		cp);
+    }
     variable_set2(VAR_FTP_USER,			"ftp");
     variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.4fm");
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
