@@ -552,7 +552,7 @@ sb16_dsp_init (long mem_start, struct address_info *hw_config)
     {
       dsp_devs[my_dev = num_dspdevs++] = &sb16_dsp_operations;
       sound_dsp_dmachan[my_dev] = hw_config->dma;
-      sound_buffcounts[my_dev] = 1;
+      sound_buffcounts[my_dev] = DSP_BUFFCOUNT;
       sound_buffsizes[my_dev] = DSP_BUFFSIZE;
       sound_dma_automode[my_dev] = 1;
     }
