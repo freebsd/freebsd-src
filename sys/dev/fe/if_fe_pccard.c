@@ -62,36 +62,15 @@ static const struct fe_pccard_product {
         u_int32_t mpp_ioalign;                  /* required alignment */
         int mpp_enet_maddr;
 } fe_pccard_products[] = {
-        { { PCMCIA_STR_TDK_LAK_CD021BX,         PCMCIA_VENDOR_TDK,
-            PCMCIA_PRODUCT_TDK_LAK_CD021BX,     0 },
-          0, -1 }, 
-
-        { { PCMCIA_STR_TDK_LAK_CF010,           PCMCIA_VENDOR_TDK,
-            PCMCIA_PRODUCT_TDK_LAK_CF010,       0 },
-          0, -1 },
-
+        { PCMCIA_CARD(TDK, LAK_CD021BX, 0), 0, -1 }, 
+        { PCMCIA_CARD(TDK, LAK_CF010, 0), 0, -1 }, 
 #if 0 /* XXX 86960-based? */
-        { { PCMCIA_STR_TDK_LAK_DFL9610,         PCMCIA_VENDOR_TDK,
-            PCMCIA_PRODUCT_TDK_LAK_DFL9610,     1 },
-          0, -1 },
+        { PCMCIA_CARD(TDK, LAK_DFL9610, 1), 0, -1 }, 
 #endif
-
-        { { PCMCIA_STR_CONTEC_CNETPC,           PCMCIA_VENDOR_CONTEC,
-            PCMCIA_PRODUCT_CONTEC_CNETPC,       0 },
-          0, -1 },
-
-        { { PCMCIA_STR_FUJITSU_LA501,           PCMCIA_VENDOR_FUJITSU,
-            PCMCIA_PRODUCT_FUJITSU_LA501,       0 },
-          0x20, -1 },
-
-        { { PCMCIA_STR_FUJITSU_LA10S,           PCMCIA_VENDOR_FUJITSU,
-            PCMCIA_PRODUCT_FUJITSU_LA10S,       0 },
-          0, -1 },
-
-        { { PCMCIA_STR_RATOC_REX_R280,          PCMCIA_VENDOR_RATOC,
-            PCMCIA_PRODUCT_RATOC_REX_R280,      0 },
-          0, 0x1fc },
-
+        { PCMCIA_CARD(CONTEC, CNETPC, 0), 0, -1 },
+	{ PCMCIA_CARD(FUJITSU, LA501, 0), 0x20, -1 },
+	{ PCMCIA_CARD(FUJITSU, LA10S, 0), 0, -1 },
+	{ PCMCIA_CARD(RATOC, REX_R280, 0), 0, 0x1fc },
         { { NULL } }
 };
 
