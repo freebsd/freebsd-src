@@ -43,7 +43,6 @@
 %#include <sys/errno.h>
 %#include <sys/param.h>
 %#include <sys/syslimits.h>
-%#include <sys/ucred.h>
 #else
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)bootparam_prot.x 1.2 87/06/24 Copyr 1987 Sun Micro";*/
