@@ -529,7 +529,7 @@ acpi_toshiba_video_probe(device_t dev)
 	if (!acpi_disabled("toshiba") &&
 	    acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
 	    device_get_unit(dev) == 0 &&
-	     acpi_MatchHid(device_get_handle(dev), "TOS6201")) {
+	     acpi_MatchHid(acpi_get_handle(dev), "TOS6201")) {
 		device_quiet(dev);
 		device_set_desc(dev, "Toshiba Video");
 		ret = 0;
