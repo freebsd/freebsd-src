@@ -89,11 +89,6 @@ int	maxfiles = NPROC*2;			/* system wide open files limit */
 int	maxfilesperproc = NPROC*2;		/* per-process open files limit */
 int	ncallout = 16 + NPROC;			/* maximum # of timer events */
 
-#ifndef EXTRAVNODES
-#define EXTRAVNODES 0
-#endif
-int	extravnodes = EXTRAVNODES;		/* spare vnodes to allocate */
-
 /* maximum # of mbuf clusters */
 #ifndef NMBCLUSTERS
 #define	NMBCLUSTERS (512 + MAXUSERS * 16)

@@ -34,7 +34,7 @@ UMAPFS		opt_dontuse.h
 UNION
 
 # Options used only in param.c.
-EXTRAVNODES	opt_param.h
+EXTRAVNODES	opt_defunct.h
 MSGMAX		opt_param.h
 MSGMNB		opt_param.h
 MSGMNI		opt_param.h
