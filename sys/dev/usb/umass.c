@@ -1037,8 +1037,6 @@ umass_bbb_transfer(struct umass_softc *sc, int lun, void *cmd, int cmdlen,
 		    void *data, int datalen, int dir,
 		    transfer_cb_f cb, void *priv)
 {
-	static int dCBWtag = 42;	/* unique for CBW of transfer */
-
 	KASSERT(sc->proto & PROTO_BBB,
 		("sc->proto == 0x%02x wrong for umass_bbb_transfer\n",
 		sc->proto));
@@ -1104,10 +1102,12 @@ umass_bbb_transfer(struct umass_softc *sc, int lun, void *cmd, int cmdlen,
 	 *               1 = data In from device to host
 	 */
 
-	/* Fill in the Command Block Wrapper */
+	/* Fill in the Command Block Wrapper
+	 * We fill in all the fields, so there is no need to bzero it first.
+	 */
 	USETDW(sc->cbw.dCBWSignature, CBWSIGNATURE);
-	USETDW(sc->cbw.dCBWTag, dCBWtag);
-	dCBWtag++;	/* cannot be done in macro (it will be done 4 times) */
+	/* We don't care what the initial value was, as long as the values are unique */
+	sc->cbw.dCBWTag++;					/* Increase the tag number */
 	USETDW(sc->cbw.dCBWDataTransferLength, datalen);
 	/* DIR_NONE is treated as DIR_OUT (0x00) */
 	sc->cbw.bCBWFlags = (dir == DIR_IN? CBWFLAGS_IN:CBWFLAGS_OUT);
