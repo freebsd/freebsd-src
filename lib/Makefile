@@ -12,7 +12,7 @@ SUBDIR=csu/${MACHINE}
 SUBDIR+=libalias libc libcompat libcom_err libcurses libdisk libedit \
 	libf2c libftpio libgnumalloc libipx libkvm libmd libmytinfo \
 	libncurses libopie libpcap libresolv librpcsvc \
-	libscsi libskey libss libtermcap libutil libxpg4 liby libz
+	libscsi libskey libss libtermcap libutil libvgl libxpg4 liby libz
 	
 .if !defined(NOLIBC_R)
 SUBDIR+= libc_r
