@@ -495,13 +495,15 @@ void
 g_std_done(struct bio *bp)
 {
 	struct bio *bp2;
-	int error;
 
 	bp2 = bp->bio_linkage;
-	error = bp->bio_error;
-	bp2->bio_completed = bp->bio_completed;
+	if (bp2->bio_error == 0)
+		bp2->bio_error = bp->bio_error;
+	bp2->bio_completed += bp->bio_completed;
 	g_destroy_bio(bp);
-	g_io_deliver(bp2, error);
+	bp2->bio_children--;	/* XXX: atomic ? */
+	if (bp2->bio_children == 0)
+		g_io_deliver(bp2, bp2->bio_error);
 }
 
 /* XXX: maybe this is only g_slice_spoiled */

@@ -151,6 +151,7 @@ g_clone_bio(struct bio *bp)
 		bp2->bio_offset = bp->bio_offset;
 		bp2->bio_data = bp->bio_data;
 		bp2->bio_attribute = bp->bio_attribute;
+		bp->bio_children++;	/* XXX: atomic ? */
 	}
 	g_trace(G_T_BIO, "g_clone_bio(%p) = %p", bp, bp2);
 	return(bp2);
