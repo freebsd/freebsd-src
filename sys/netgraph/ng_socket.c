@@ -264,8 +264,8 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 printf("err=%d\n",error);
 			break;						
 		}							
-		if (((error) = ng_address_path((pcbp->sockdata->node), (item),		
-					(path), (NULL))) == 0) {	
+		if ((error = ng_address_path((pcbp->sockdata->node), (item),		
+					(path), 0)) == 0) {	
 printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
 item->el_dest->nd_ID,
 msg->header.typecookie,
