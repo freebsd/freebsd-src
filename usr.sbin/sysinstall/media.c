@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.28 1996/03/18 15:28:01 jkh Exp $
+ * $Id: media.c,v 1.29 1996/03/19 12:02:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -92,15 +92,6 @@ mediaSetCDROM(char *str)
     Device **devs;
     int cnt;
 
-    if (!file_readable("/cdrom/kernel")) {
-	vsystem("mount /cdrom");
-	if (!file_readable("/cdrom/kernel")) {
-	    msgConfirm("Can't find a FreeBSD CD in /cdrom?");
-	    return RET_FAIL;
-	}
-	else
-	    return RET_SUCCESS;
-    }
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
     if (!cnt) {
