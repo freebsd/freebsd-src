@@ -133,6 +133,7 @@ The other commands have the following syntax:
 .Ar command
 .Op Fl net No \&| Fl host
 .Ar destination gateway
+.Op Ar netmask
 .Ed
 .Pp
 where
@@ -142,7 +143,8 @@ is the destination host or network,
 is the next-hop intermediary via which packets should be routed.
 Routes to a particular host may be distinguished from those to
 a network by interpreting the Internet address specified as the
-.Ar destination argument .
+.Ar destination
+argument.
 The optional modifiers
 .Fl net
 and
@@ -160,6 +162,11 @@ or if the
 is the symbolic name of a network, then the route is
 assumed to be to a network; otherwise, it is presumed to be a
 route to a host.
+Optionally, the
+.Ar destination
+could also be specified in the
+.Ar host Ns / Ns Ar bits
+format.
 .Pp
 For example,
 .Li 128.32
@@ -171,10 +178,13 @@ is interpreted as
 .Fl net Li 128.32
 is interpreted as
 .Li 128.32.0.0;
-and 
 .Fl net Li 128.32.130
 is interpreted as
-.Li 128.32.130.0 .
+.Li 128.32.130.0;
+and
+.Li 192.168.0.0/16
+is interpreted as
+.Li 192.168.0.0 Fl netmask Li 255.255.0.0 .
 .Pp
 A
 .Ar destination
