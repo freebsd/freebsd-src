@@ -208,7 +208,7 @@ icmp6type_match(struct icmp6_hdr *icmp6, struct ip6_fw *f)
 	int type;
 
 	if (!(f->fw_flg & IPV6_FW_F_ICMPBIT))
-		return(1);
+		return (1);
 
 	type = icmp6->icmp6_type;
 
@@ -216,9 +216,9 @@ icmp6type_match(struct icmp6_hdr *icmp6, struct ip6_fw *f)
 	if (type < IPV6_FW_ICMPTYPES_DIM * sizeof(unsigned) * 8 &&
 		(f->fw_icmp6types[type / (sizeof(unsigned) * 8)] &
 		(1U << (type % (8 * sizeof(unsigned))))))
-		return(1);
+		return (1);
 
-	return(0); /* no match */
+	return (0); /* no match */
 }
 
 static int
@@ -235,9 +235,9 @@ is_icmp6_query(struct ip6_hdr *ip6, int off)
 	    icmp6_type == ICMP6_WRUREQUEST ||
 	    icmp6_type == ICMP6_FQDN_QUERY ||
 	    icmp6_type == ICMP6_NI_QUERY)
-		return(1);
+		return (1);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -327,11 +327,11 @@ iface_match(struct ifnet *ifp, union ip6_fw_if *ifu, int byname)
 		/* Check unit number (-1 is wildcard) */
 		if (ifu->fu_via_if.unit != -1
 		    && ifp->if_unit != ifu->fu_via_if.unit)
-			return(0);
+			return (0);
 		/* Check name */
 		if (strncmp(ifp->if_name, ifu->fu_via_if.name, IP6FW_IFNLEN))
-			return(0);
-		return(1);
+			return (0);
+		return (1);
 	} else if (!IN6_IS_ADDR_UNSPECIFIED(&ifu->fu_via_ip6)) {	/* Zero == wildcard */
 		struct ifaddr *ia;
 
@@ -346,11 +346,11 @@ iface_match(struct ifnet *ifp, union ip6_fw_if *ifu, int byname)
 			    &(((struct sockaddr_in6 *)
 			    (ia->ifa_addr))->sin6_addr)))
 				continue;
-			return(1);
+			return (1);
 		}
-		return(0);
+		return (0);
 	}
-	return(1);
+	return (1);
 }
 
 static void
@@ -712,7 +712,7 @@ got_match:
 		/* Take appropriate action */
 		switch (f->fw_flg & IPV6_FW_F_COMMAND) {
 		case IPV6_FW_F_ACCEPT:
-			return(0);
+			return (0);
 		case IPV6_FW_F_COUNT:
 			continue;
 		case IPV6_FW_F_DIVERT:
@@ -721,7 +721,7 @@ got_match:
 #else
 			*cookie = htons(f->fw_divert_port);
 #endif /* IP6FW_DIVERT_RESTART */
-			return(f->fw_divert_port);
+			return (f->fw_divert_port);
 		case IPV6_FW_F_TEE:
 			/*
 			 * XXX someday tee packet here, but beware that you
@@ -832,7 +832,7 @@ dropit:
 		m_freem(*m);
 		*m = NULL;
 	}
-	return(0);
+	return (0);
 }
 
 static int
@@ -863,7 +863,7 @@ add_entry6(struct ip6_fw_head *chainptr, struct ip6_fw *frwl)
 	if (!chainptr->lh_first) {
 		LIST_INSERT_HEAD(chainptr, fwc, chain);
 		splx(s);
-		return(0);
+		return (0);
         } else if (ftmp->fw_number == (u_short)-1) {
 		if (fwc)  free(fwc, M_IP6FW);
 		if (ftmp) free(ftmp, M_IP6FW);
@@ -937,7 +937,7 @@ zero_entry6(struct mbuf *m)
 
 	if (m && m->m_len != 0) {
 		if (m->m_len != sizeof(struct ip6_fw))
-			return(EINVAL);
+			return (EINVAL);
 		frwl = mtod(m, struct ip6_fw *);
 	}
 	else
@@ -965,7 +965,7 @@ zero_entry6(struct mbuf *m)
 			    "ip6fw: Accounting cleared.\n");
 	}
 
-	return(0);
+	return (0);
 }
 
 static struct ip6_fw *
@@ -977,7 +977,7 @@ check_ip6fw_mbuf(struct mbuf *m)
 		    sizeof(struct ip6_fw)));
 		return (NULL);
 	}
-	return(check_ip6fw_struct(mtod(m, struct ip6_fw *)));
+	return (check_ip6fw_struct(mtod(m, struct ip6_fw *)));
 }
 
 static struct ip6_fw *
@@ -1035,7 +1035,7 @@ check_ip6fw_struct(struct ip6_fw *frwl)
 	    (IPV6_FW_GETNSRCP(frwl) || IPV6_FW_GETNDSTP(frwl))) {
 		dprintf(("%s port(s) specified for non TCP/UDP rule\n",
 		    err_prefix));
-		return(NULL);
+		return (NULL);
 	}
 
 	/*
@@ -1052,19 +1052,19 @@ check_ip6fw_struct(struct ip6_fw *frwl)
 		(frwl->fw_dst.s6_addr32[2] & (~frwl->fw_dmsk.s6_addr32[2])) ||
 		(frwl->fw_dst.s6_addr32[3] & (~frwl->fw_dmsk.s6_addr32[3]))) {
 		dprintf(("%s rule never matches\n", err_prefix));
-		return(NULL);
+		return (NULL);
 	}
 
 	if ((frwl->fw_flg & IPV6_FW_F_FRAG) &&
 		(frwl->fw_prot == IPPROTO_UDP || frwl->fw_prot == IPPROTO_TCP)) {
 		if (frwl->fw_nports) {
 			dprintf(("%s cannot mix 'frag' and ports\n", err_prefix));
-			return(NULL);
+			return (NULL);
 		}
 		if (frwl->fw_prot == IPPROTO_TCP &&
 			frwl->fw_tcpf != frwl->fw_tcpnf) {
 			dprintf(("%s cannot mix 'frag' with TCP flags\n", err_prefix));
-			return(NULL);
+			return (NULL);
 		}
 	}
 
@@ -1076,7 +1076,7 @@ check_ip6fw_struct(struct ip6_fw *frwl)
 		    && !(frwl->fw_prot == IPPROTO_TCP
 		      && frwl->fw_reject_code == IPV6_FW_REJECT_RST)) {
 			dprintf(("%s unknown reject code\n", err_prefix));
-			return(NULL);
+			return (NULL);
 		}
 		break;
 	case IPV6_FW_F_DIVERT:		/* Diverting to port zero is invalid */
@@ -1093,7 +1093,7 @@ check_ip6fw_struct(struct ip6_fw *frwl)
 		break;
 	default:
 		dprintf(("%s invalid command\n", err_prefix));
-		return(NULL);
+		return (NULL);
 	}
 
 	return frwl;
@@ -1109,12 +1109,12 @@ ip6_fw_ctl(int stage, struct mbuf **mm)
 		struct ip6_fw_chain *fcp = ip6_fw_chain.lh_first;
 		*mm = m = m_get(M_TRYWAIT, MT_DATA); /* XXX */
 		if (!m)
-			return(ENOBUFS);
+			return (ENOBUFS);
 		if (sizeof *(fcp->rule) > MLEN) {
 			MCLGET(m, M_TRYWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_free(m);
-				return(ENOBUFS);
+				return (ENOBUFS);
 			}
 		}
 		for (; fcp; fcp = fcp->chain.le_next) {
@@ -1123,14 +1123,14 @@ ip6_fw_ctl(int stage, struct mbuf **mm)
 			m->m_next = m_get(M_TRYWAIT, MT_DATA); /* XXX */
 			if (!m->m_next) {
 				m_freem(*mm);
-				return(ENOBUFS);
+				return (ENOBUFS);
 			}
 			m = m->m_next;
 			if (sizeof *(fcp->rule) > MLEN) {
 				MCLGET(m, M_TRYWAIT);
 				if ((m->m_flags & M_EXT) == 0) {
 					m_freem(*mm);
-					return(ENOBUFS);
+					return (ENOBUFS);
 				}
 			}
 			m->m_len = 0;
@@ -1144,7 +1144,7 @@ ip6_fw_ctl(int stage, struct mbuf **mm)
 			(void)m_freem(m);
 			*mm = 0;
 		}
-		return(EPERM);
+		return (EPERM);
 	}
 	if (stage == IPV6_FW_FLUSH) {
 		while (ip6_fw_chain.lh_first != NULL &&

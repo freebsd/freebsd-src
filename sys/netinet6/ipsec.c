@@ -3451,10 +3451,10 @@ ipsec_copypkt(m)
 		mpp = &n->m_next;
 	}
 
-	return(m);
+	return (m);
   fail:
 	m_freem(m);
-	return(NULL);
+	return (NULL);
 }
 
 void

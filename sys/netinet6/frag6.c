@@ -149,7 +149,7 @@ frag6_input(mp, offp, proto)
 #else
 	IP6_EXTHDR_GET(ip6f, struct ip6_frag *, m, offset, sizeof(*ip6f));
 	if (ip6f == NULL)
-		return IPPROTO_DONE;
+		return (IPPROTO_DONE);
 #endif
 
 	dstifp = NULL;
@@ -275,7 +275,7 @@ frag6_input(mp, offp, proto)
 				    offset - sizeof(struct ip6_frag) +
 					offsetof(struct ip6_frag, ip6f_offlg));
 			frag6_doing_reass = 0;
-			return(IPPROTO_DONE);
+			return (IPPROTO_DONE);
 		}
 	}
 	else if (fragoff + frgpartlen > IPV6_MAXPACKET) {
@@ -283,7 +283,7 @@ frag6_input(mp, offp, proto)
 			    offset - sizeof(struct ip6_frag) +
 				offsetof(struct ip6_frag, ip6f_offlg));
 		frag6_doing_reass = 0;
-		return(IPPROTO_DONE);
+		return (IPPROTO_DONE);
 	}
 	/*
 	 * If it's the first fragment, do the above check for each
