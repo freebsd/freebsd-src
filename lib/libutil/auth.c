@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <syslog.h>
+#include <sys/types.h>
 #include <libutil.h>
 
 static properties P;
