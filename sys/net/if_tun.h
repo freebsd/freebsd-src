@@ -30,7 +30,7 @@ struct tun_softc {
 #define	TUN_ASYNC	0x0080
 #define	TUN_NBIO	0x0100
 
-#define TUN_READY       (TUN_OPEN | TUN_INITED | TUN_DSTADDR)
+#define TUN_READY       (TUN_OPEN | TUN_INITED)
 
 	struct	ifnet tun_if;		/* the interface */
 	int	tun_pgrp;		/* the process group - if any */
