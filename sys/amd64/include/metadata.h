@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,17 +29,6 @@
 #ifndef _MACHINE_METADATA_H_
 #define	_MACHINE_METADATA_H_
 
-#define	MODINFOMD_ENVP		0x1001
-#define	MODINFOMD_HOWTO		0x1002
-#define	MODINFOMD_KERNEND	0x1003
-#define	MODINFOMD_DTLB_SLOTS	0x1004
-#define	MODINFOMD_ITLB_SLOTS	0x1005
-#define	MODINFOMD_DTLB		0x1006
-#define	MODINFOMD_ITLB		0x1007
-
-struct tlb_entry {
-	vm_offset_t te_pa;
-	vm_offset_t te_va;
-};
+#define	MODINFOMD_SMAP		0x1001
 
 #endif /* !_MACHINE_METADATA_H_ */
