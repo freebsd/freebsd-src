@@ -4,7 +4,6 @@ BIND_DIR=	${.CURDIR}/../../contrib/bind
 
 LIB=		isc
 SHLIB_MAJOR=	1
-SHLIB_MINOR=	0
 
 .PATH:		${BIND_DIR}/lib/isc
 SRCS=		assertions.c ev_connects.c ev_files.c ev_streams.c \

@@ -6,7 +6,6 @@ INCS=	dialog.h
 MAN=	dialog.3
 
 SHLIB_MAJOR= 4
-SHLIB_MINOR= 0
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 	lineedit.c radiolist.c textbox.c yesno.c prgbox.c raw_popen.c \
 	fselect.c ui_objects.c dir.c notify.c help.c gauge.c tree.c
