@@ -1,0 +1,17 @@
+# $FreeBSD$
+#
+# Bug trhodes@ and des@ to actually throw some text in here.
+#
+
+while read pattern ; do rm -rf $pattern ; done <FREEBSD-Xlist
+
+sed -i.orig -e '/\/tests/d; /docutil/d;' configure.in Makefile.in */Makefile.in
+
+autoconf253
+
+autoheader253
+
+./configure --prefix=/usr --infodir=/usr/share/info --mandir=/usr/share/man \
+	--enable-threads --enable-libbind --disable-ipv6 \
+	--enable-getifaddrs --disable-linux-caps \
+	--with-openssl=/usr --with-randomdev=/dev/random
