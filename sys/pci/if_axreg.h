@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_axreg.h,v 1.3 1999/01/07 02:59:08 wpaul Exp $
+ *	$Id: if_axreg.h,v 1.4 1999/01/16 20:33:34 wpaul Exp $
  */
 
 /*
@@ -304,7 +304,6 @@ struct ax_chain_onefrag {
 };
 
 struct ax_chain_data {
-	u_int8_t		ax_pad[AX_MIN_FRAMELEN];
 	struct ax_chain_onefrag	ax_rx_chain[AX_RX_LIST_CNT];
 	struct ax_chain		ax_tx_chain[AX_TX_LIST_CNT];
 

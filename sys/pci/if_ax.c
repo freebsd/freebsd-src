@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.7 1999/01/16 01:23:56 wpaul Exp $
+ *	$Id: if_ax.c,v 1.8 1999/01/16 20:33:34 wpaul Exp $
  */
 
 /*
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.7 1999/01/16 01:23:56 wpaul Exp $";
+	"$Id: if_ax.c,v 1.8 1999/01/16 20:33:34 wpaul Exp $";
 #endif
 
 /*
@@ -1744,15 +1744,6 @@ static int ax_encap(sc, c, m_head)
 		f->ax_ctl = total_len = m_new->m_len;
 		f->ax_ctl |= AX_TXCTL_FIRSTFRAG;
 		frag = 1;
-	}
-
-
-	if (total_len < AX_MIN_FRAMELEN) {
-		f = &c->ax_ptr->ax_frag[frag];
-		f->ax_ctl = AX_MIN_FRAMELEN - total_len;
-		f->ax_data = vtophys(&sc->ax_cdata.ax_pad);
-		f->ax_status = AX_TXSTAT_OWN;
-		frag++;
 	}
 
 	c->ax_mbuf = m_head;
