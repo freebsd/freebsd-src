@@ -83,9 +83,9 @@
 
 #define	ISP_SCSI_XFER_T		struct ccb_scsiio
 struct isposinfo {
+	u_int64_t		default_wwn;
 	char			name[8];
 	int			unit;
-	int			seed;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct cam_sim		*sim2;
@@ -210,7 +210,7 @@ extern void isp_uninit(struct ispsoftc *);
 #define	ISP_SWIZZLE_SNS_REQ(a, b)
 #define	ISP_UNSWIZZLE_SNS_RSP(a, b, c)
 
-#define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
+#define	IDPRINTF(lev, x)	if (isp->isp_dblev >= (u_int8_t) lev) printf x
 #define	PRINTF			printf
 #define	CFGPRINTF		if (bootverbose || DFLT_DBLEVEL > 0) printf
 
@@ -218,7 +218,7 @@ extern void isp_uninit(struct ispsoftc *);
 
 #define	FC_FW_READY_DELAY	(5 * 1000000)
 #define	DEFAULT_LOOPID(x)	109
-#define	DEFAULT_WWN(x)		(0x0000feeb00000000LL + (x)->isp_osinfo.seed)
+#define	DEFAULT_WWN(x)		(x)->isp_osinfo.default_wwn
 
 #define	INLINE	__inline
 #include <dev/isp/isp_inline.h>
