@@ -817,11 +817,15 @@ doit(who)
 #endif	/* _SC_CRAY_SECURE_SYS */
 
 	/* get name of connected client */
-	if (realhostname(remote_hostname, utmp_len,
+	if (realhostname(remote_hostname, sizeof(remote_hostname) - 1,
 	    &who->sin_addr) == HOSTNAME_INVALIDADDR && registerd_host_only)
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
          Please contact your net administrator");
-	remote_hostname[utmp_len] = '\0';
+	remote_hostname[sizeof(remote_hostname) - 1] = '\0';
+
+	if (!isdigit(remote_hostname[0]) && strlen(remote_hostname) > utmp_len)
+		strncpy(remote_hostname, inet_ntoa(who->sin_addr),
+			sizeof(remote_hostname) - 1);
 
 	(void) gethostname(host_name, sizeof(host_name) - 1);
 	host_name[sizeof(host_name) - 1] = '\0';
