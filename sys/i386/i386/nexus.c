@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.12 1999/07/16 01:00:24 msmith Exp $
+ *	$Id: nexus.c,v 1.13 1999/07/29 01:02:52 mdodd Exp $
  */
 
 /*
@@ -132,7 +132,6 @@ DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 static int
 nexus_probe(device_t dev)
 {
-	device_t	child;
 
 	device_quiet(dev);	/* suppress attach message for neatness */
 
@@ -187,29 +186,41 @@ nexus_probe(device_t dev)
 	    || rman_manage_region(&mem_rman, 0, ~0))
 		panic("nexus_probe mem_rman");
 
-	child = device_add_child(dev, "npx", 0, 0);
-	if (child == 0)
-		panic("nexus_probe npx");
+	return bus_generic_probe(dev);
+}
 
-	child = device_add_child(dev, "apm", 0, 0);
-	if (child == 0)
-		panic("nexus_probe apm");
+static int
+nexus_attach(device_t dev)
+{
+	device_t	child;
+	int		rv;
 
-	bus_generic_probe(dev);
-#if 0
-	child = device_add_child(dev, "pcib", 0, 0);
-	if (child == 0)
-		panic("nexus_probe pcib");
-#endif
-
-	child = device_add_child(dev, "eisa", 0, 0);
-	if (child == 0)
-		panic("nexus_probe eisa");
-
-	child = device_add_child(dev, "isa", 0, 0);
-	if (child == 0)
-		panic("nexus_probe isa");
-
+	/*
+	 * First, deal with the children we know about already
+	 */
+	rv = bus_generic_attach(dev);
+	if (rv)
+		return rv;
+	/*
+	 * And if we didn't see EISA or ISA on a pci bridge, create some
+	 * connection points now so they show up "on motherboard".
+	 */
+	if (!devclass_get_device(devclass_find("eisa"), 0)) {
+		child = device_add_child(dev, "eisa", 0, 0);
+		if (child == NULL)
+			panic("nexus_attach eisa");
+		rv = device_probe_and_attach(child);
+		if (rv)
+			return rv;
+	}
+	if (!devclass_get_device(devclass_find("isa"), 0)) {
+		child = device_add_child(dev, "isa", 0, 0);
+		if (child == NULL)
+			panic("nexus_attach isa");
+		rv = device_probe_and_attach(child);
+		if (rv)
+			return rv;
+	}
 	return 0;
 }
 
