@@ -78,55 +78,55 @@ main() {
 
 	printf("char **_sboolnames[] = {\n");
 	for(i = 0; i < NUM_OF_BOOLS; i++)
-		printf("\tboolnames + %d,\n", sboolnames[i] - boolnames);
+		printf("\tboolnames + %ld,\n", (long) (sboolnames[i] - boolnames));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 
 	printf("char **_sboolcodes[] = {\n");
 	for(i = 0; i < NUM_OF_BOOLS; i++)
-		printf("\tboolcodes + %d,\n", sboolcodes[i] - boolcodes);
+		printf("\tboolcodes + %ld,\n", (long) (sboolcodes[i] - boolcodes));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 
 	printf("char **_sboolfnames[] = {\n");
 	for(i = 0; i < NUM_OF_BOOLS; i++)
-		printf("\tboolfnames + %d,\n", sboolfnames[i] - boolfnames);
+		printf("\tboolfnames + %ld,\n", (long) (sboolfnames[i] - boolfnames));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 
 	printf("char **_snumnames[] = {\n");
 	for(i = 0; i < NUM_OF_NUMS; i++)
-		printf("\tnumnames + %d,\n", snumnames[i] - numnames);
+		printf("\tnumnames + %ld,\n", (long) (snumnames[i] - numnames));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 
 	printf("char **_snumcodes[] = {\n");
 	for(i = 0; i < NUM_OF_NUMS; i++)
-		printf("\tnumcodes + %d,\n", snumcodes[i] - numcodes);
+		printf("\tnumcodes + %ld,\n", (long) (snumcodes[i] - numcodes));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 
 	printf("char **_snumfnames[] = {\n");
 	for(i = 0; i < NUM_OF_NUMS; i++)
-		printf("\tnumfnames + %d,\n", snumfnames[i] - numfnames);
+		printf("\tnumfnames + %ld,\n", (long) (snumfnames[i] - numfnames));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 
 	printf("char **_sstrnames[] = {\n");
 	for(i = 0; i < NUM_OF_STRS; i++)
-		printf("\tstrnames + %d,\n", sstrnames[i] - strnames);
+		printf("\tstrnames + %ld,\n", (long) (sstrnames[i] - strnames));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 
 	printf("char **_sstrcodes[] = {\n");
 	for(i = 0; i < NUM_OF_STRS; i++)
-		printf("\tstrcodes + %d,\n", sstrcodes[i] - strcodes);
+		printf("\tstrcodes + %ld,\n", (long) (sstrcodes[i] - strcodes));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 
 	printf("char **_sstrfnames[] = {\n");
 	for(i = 0; i < NUM_OF_STRS; i++)
-		printf("\tstrfnames + %d,\n", sstrfnames[i] - strfnames);
+		printf("\tstrfnames + %ld,\n", (long) (sstrfnames[i] - strfnames));
 	printf("	(char **) 0\n");
 	printf("};\n\n");
 

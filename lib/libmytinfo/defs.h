@@ -190,9 +190,6 @@ extern char _mytinfo_version[];
 
 /* for quit.c */
 extern int sys_nerr;
-#if __FreeBSD__ != 2
-extern char *sys_errlist[];
-#endif
 extern char *prg_name;
 
 #endif /* _DEFS_H_ */
