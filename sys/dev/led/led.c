@@ -216,7 +216,7 @@ led_create(led_t *func, void *priv, char const *name)
 	struct sbuf *sb;
 
 	if (next_minor == 0) {
-		mtx_init(&led_mtx, "LED mtx", MTX_DEF, 0);
+		mtx_init(&led_mtx, "LED mtx", NULL, MTX_DEF);
 		timeout(led_timeout, NULL, hz / 10);
 	}
 
