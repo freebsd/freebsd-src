@@ -1054,10 +1054,8 @@ uniarp_ioctl(code, data, arg1)
 					AF_INET;
 				SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr =
 					uap->ua_dstip.s_addr;
-				(void) snprintf(aar.aap_intf,
-				    sizeof(aar.aap_intf), "%s%d",
-					nip->nif_if.if_name,
-					nip->nif_if.if_unit);
+				strlcpy(aar.aap_intf, nip->nif_if.if_xname,
+				    sizeof(aar.aap_intf));
 				aar.aap_flags = uap->ua_flags;
 				aar.aap_origin = uap->ua_origin;
 				if (uap->ua_flags & UAF_VALID)
@@ -1109,9 +1107,8 @@ uniarp_ioctl(code, data, arg1)
 			 */
 			SATOSIN(&aar.aap_arp_addr)->sin_family = AF_INET;
 			SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr = 0;
-			(void) snprintf(aar.aap_intf,
-			    sizeof(aar.aap_intf), "%s%d",
-				nip->nif_if.if_name, nip->nif_if.if_unit);
+			strlcpy(aar.aap_intf, nip->nif_if.if_xname,
+				sizeof(aar.aap_intf));
 			aar.aap_flags = 0;
 			aar.aap_origin = uap->ua_origin;
 			aar.aap_age = 0;
@@ -1190,9 +1187,8 @@ updbuf:
 			/*
 			 * Fill in info to be returned
 			 */
-			(void) snprintf(asr.asp_intf,
-			    sizeof(asr.asp_intf), "%s%d",
-				nip->nif_if.if_name, nip->nif_if.if_unit);
+			strlcpy(asr.asp_intf, nip->nif_if.if_xname,
+				sizeof(asr.asp_intf));
 			asr.asp_state = uip->uip_arpstate;
 			if (uip->uip_arpstate == UIAS_SERVER_ACTIVE) {
 				asr.asp_addr.address_format = T_ATM_ABSENT;

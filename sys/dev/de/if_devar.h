@@ -431,6 +431,7 @@ typedef struct {
  */
 struct _tulip_softc_t {
     struct ifmedia tulip_ifmedia;
+    int tulip_unit;
 #if defined(TULIP_BUS_DMA)
     bus_dma_tag_t tulip_dmatag;		/* bus DMA tag */
 #if !defined(TULIP_BUS_DMA_NOTX)
@@ -850,10 +851,7 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 #ifndef	tulip_if
 #define	tulip_if	tulip_ac.ac_if
 #endif
-#ifndef tulip_unit
-#define	tulip_unit	tulip_if.if_unit
-#endif
-#define	tulip_name	tulip_if.if_name
+#define	tulip_xname	tulip_if.if_xname
 #ifndef tulip_enaddr
 #define	tulip_enaddr	tulip_ac.ac_enaddr
 #endif

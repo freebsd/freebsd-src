@@ -68,7 +68,7 @@ union ip6_fw_if {
     struct {			/* Specified by interface name */
 #define IP6FW_IFNLEN     IFNAMSIZ
 	    char  name[IP6FW_IFNLEN];
-	    short unit;		/* -1 means match any unit */
+	    short glob;		/* Is name a pattern or a name? */
     } fu_via_if;
 };
 

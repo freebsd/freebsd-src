@@ -250,8 +250,7 @@ vlan_clone_create(struct if_clone *ifc, int unit)
 	SLIST_INIT(&ifv->vlan_mc_listhead);
 
 	ifp->if_softc = ifv;
-	ifp->if_name = VLANNAME;
-	ifp->if_unit = unit;
+	if_initname(ifp, ifc->ifc_name, unit);
 	/* NB: flags are not set here */
 	ifp->if_linkmib = &ifv->ifv_mib;
 	ifp->if_linkmiblen = sizeof ifv->ifv_mib;
@@ -787,8 +786,8 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		bzero(&vlr, sizeof vlr);
 		VLAN_LOCK();
 		if (ifv->ifv_p) {
-			snprintf(vlr.vlr_parent, sizeof(vlr.vlr_parent),
-			    "%s%d", ifv->ifv_p->if_name, ifv->ifv_p->if_unit);
+			strlcpy(vlr.vlr_parent, ifv->ifv_p->if_xname,
+			    sizeof(vlr.vlr_parent));
 			vlr.vlr_tag = ifv->ifv_tag;
 		}
 		VLAN_UNLOCK();

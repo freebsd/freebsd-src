@@ -187,15 +187,9 @@ print_port(prot, port, comma)
 static void
 print_iface(char *key, union ip6_fw_if *un, int byname)
 {
-	char ifnb[IP6FW_IFNLEN+1];
 
 	if (byname) {
-		strncpy(ifnb, un->fu_via_if.name, IP6FW_IFNLEN);
-		ifnb[IP6FW_IFNLEN]='\0';
-		if (un->fu_via_if.unit == -1)
-			printf(" %s %s*", key, ifnb);
-		else
-			printf(" %s %s%d", key, ifnb, un->fu_via_if.unit);
+		printf(" %s %s", key, un->fu_via_if.name);
 	} else if (!IN6_IS_ADDR_UNSPECIFIED(&un->fu_via_ip6)) {
 		printf(" %s %s", key, inet_ntop(AF_INET6,&un->fu_via_ip6,ntop_buf,sizeof(ntop_buf)));
 	} else
@@ -825,13 +819,7 @@ verify_interface(union ip6_fw_if *ifu)
 {
 	struct ifreq ifr;
 
-	/*
-	 *	If a unit was specified, check for that exact interface.
-	 *	If a wildcard was specified, check for unit 0.
-	 */
-	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s%d",
-			 ifu->fu_via_if.name,
-			 ifu->fu_via_if.unit == -1 ? 0 : ifu->fu_via_if.unit);
+	strlcpy(ifr.ifr_name, ifu->fu_via_if.name, sizeof(ifr.ifr_name));
 
 	if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0)
 		warnx("warning: interface ``%s'' does not exist", ifr.ifr_name);
@@ -851,14 +839,17 @@ fill_iface(char *which, union ip6_fw_if *ifu, int *byname, int ac, char *arg)
 		char *q;
 
 		*byname = 1;
-		strncpy(ifu->fu_via_if.name, arg, sizeof(ifu->fu_via_if.name));
-		ifu->fu_via_if.name[sizeof(ifu->fu_via_if.name) - 1] = '\0';
-		for (q = ifu->fu_via_if.name;
-		    *q && !isdigit(*q) && *q != '*'; q++)
-			continue;
-		ifu->fu_via_if.unit = (*q == '*') ? -1 : atoi(q);
-		*q = '\0';
-		verify_interface(ifu);
+		strlcpy(ifu->fu_via_if.name, arg, sizeof(ifu->fu_via_if.name));
+		/*
+		 * We assume that strings containing '*', '?', or '['
+		 * are ment to be shell pattern.
+		 */
+		if (strpbrk(arg, "*?[") != NULL) {
+			ifu->fu_via_if.glob = 1;
+		} else {
+			ifu->fu_via_if.glob = 0;
+			verify_interface(ifu);
+		}
 	} else if (inet_pton(AF_INET6, arg, &ifu->fu_via_ip6) != 1) {
 		show_usage("bad ip6 address ``%s''", arg);
 	} else

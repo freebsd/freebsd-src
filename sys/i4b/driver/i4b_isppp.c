@@ -68,9 +68,9 @@ __FBSDID("$FreeBSD$");
 #include <i4b/layer4/i4b_l4.h>
 
 #define ISPPP_FMT	"isp%d: "
-#define	ISPPP_ARG(sc)	((sc)->sc_if.if_unit)
+#define	ISPPP_ARG(sc)	((sc)->sc_if.if_dunit)
 #define	PDEVSTATIC	static
-#define IFP2UNIT(ifp)	(ifp)->if_unit
+#define IFP2UNIT(ifp)	(ifp)->if_dunit
 		
 #  define CALLOUT_INIT(chan)		callout_handle_init(chan)
 #  define TIMEOUT(fun, arg, chan, tick)	chan = timeout(fun, arg, tick)
@@ -170,8 +170,7 @@ i4bispppattach(void *dummy)
 		i4bisppp_init_linktab(i);
 		
 		sc->sc_if.if_softc = sc;
-		sc->sc_if.if_name = "isp";
-		sc->sc_if.if_unit = i;
+		if_initname(&sc->sc_if, "isp", i);
 		sc->sc_if.if_mtu = PP_MTU;
 		sc->sc_if.if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
 		sc->sc_if.if_type = IFT_ISDNBASIC;

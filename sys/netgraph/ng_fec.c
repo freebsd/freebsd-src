@@ -567,8 +567,7 @@ ng_fec_tick(void *arg)
 		error = (*ifp->if_ioctl)(ifp, SIOCGIFMEDIA, (caddr_t)&ifmr);
 		if (error) {
 			printf("fec%d: failed to check status "
-			    "of link %s%d\n", priv->unit, ifp->if_name,
-			    ifp->if_unit);
+			    "of link %s\n", priv->unit, ifp->if_xname);
 			continue;
 		}
 
@@ -578,17 +577,17 @@ ng_fec_tick(void *arg)
 				if (p->fec_ifstat == -1 ||
 				    p->fec_ifstat == 0) {
 					p->fec_ifstat = 1;
-					printf("fec%d: port %s%d in bundle "
+					printf("fec%d: port %s in bundle "
 					    "is up\n", priv->unit,
-					    ifp->if_name, ifp->if_unit);
+					    ifp->if_xname);
 				}
 			} else {
 				if (p->fec_ifstat == -1 ||
 				    p->fec_ifstat == 1) {
 					p->fec_ifstat = 0;
-					printf("fec%d: port %s%d in bundle "
+					printf("fec%d: port %s in bundle "
 					    "is down\n", priv->unit,
-					    ifp->if_name, ifp->if_unit);
+					    ifp->if_xname);
 				}
 			}
 		}
@@ -817,15 +816,15 @@ ng_fec_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 		else {
 #ifdef DEBUG
-			printf("fec%d: can't do inet aggregation of non "
-			    "inet packet\n", ifp->if_unit);
+			if_printf(ifp, "can't do inet aggregation of non "
+			    "inet packet\n");
 #endif
 			m->m_flags |= M_FEC_MAC;
 		}
 		break;
 #endif
 	default:
-		printf("fec%d: bogus hash type: %d\n", ifp->if_unit,
+		if_printf(ifp, "bogus hash type: %d\n",
 		    b->fec_btype);
 		m_freem(m);
 		return(EINVAL);
@@ -1029,8 +1028,8 @@ ng_fec_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 	default:
 		str = "IO??";
 	}
-	log(LOG_DEBUG, "%s%d: %s('%c', %d, char[%d])\n",
-	       ifp->if_name, ifp->if_unit,
+	log(LOG_DEBUG, "%s: %s('%c', %d, char[%d])\n",
+	       ifp->if_xname,
 	       str,
 	       IOCGROUP(command),
 	       command & 0xff,
@@ -1079,8 +1078,7 @@ ng_fec_constructor(node_p node)
 	priv->arpcom.ac_netgraph = node;
 
 	/* Initialize interface structure */
-	ifp->if_name = NG_FEC_FEC_NAME;
-	ifp->if_unit = priv->unit;
+	if_initname(ifp, NG_FEC_FEC_NAME, priv->unit);
 	ifp->if_start = ng_fec_start;
 	ifp->if_ioctl = ng_fec_ioctl;
 	ifp->if_init = ng_fec_init;
@@ -1096,7 +1094,7 @@ ng_fec_constructor(node_p node)
 
 	/* Give this node the same name as the interface (if possible) */
 	bzero(ifname, sizeof(ifname));
-	snprintf(ifname, sizeof(ifname), "%s%d", ifp->if_name, ifp->if_unit);
+	strlcpy(ifname, ifp->if_xname, sizeof(ifname));
 	if (ng_name_node(node, ifname) != 0)
 		log(LOG_WARNING, "%s: can't acquire netgraph name\n", ifname);
 
@@ -1182,17 +1180,13 @@ ng_fec_shutdown(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_fec_bundle *b;
 	struct ng_fec_portlist	*p;
-	char ifname[IFNAMSIZ];
 
 	b = &priv->fec_bundle;
 	ng_fec_stop(&priv->arpcom.ac_if);
 
 	while (!TAILQ_EMPTY(&b->ng_fec_ports)) {
 		p = TAILQ_FIRST(&b->ng_fec_ports);
-		sprintf(ifname, "%s%d",
-		    p->fec_if->if_name,
-		    p->fec_if->if_unit);
-		ng_fec_delport(priv, ifname);
+		ng_fec_delport(priv, p->fec_if->if_xname);
 	}
 
 	ether_ifdetach(&priv->arpcom.ac_if);

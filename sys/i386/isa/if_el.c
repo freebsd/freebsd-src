@@ -264,8 +264,7 @@ el_attach(device_t dev)
 
 	/* Initialize ifnet structure */
 	ifp->if_softc = sc;
-	ifp->if_unit = device_get_unit(dev);;
-	ifp->if_name = "el";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_start = el_start;
 	ifp->if_ioctl = el_ioctl;
@@ -765,7 +764,7 @@ el_ioctl(ifp, command, data)
 static void
 el_watchdog(struct ifnet *ifp)
 {
-	log(LOG_ERR,"el%d: device timeout\n", ifp->if_unit);
+	log(LOG_ERR,"%s: device timeout\n", ifp->if_xname);
 	ifp->if_oerrors++;
 	el_reset(ifp->if_softc);
 }

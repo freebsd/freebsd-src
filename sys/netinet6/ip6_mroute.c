@@ -584,7 +584,8 @@ add_m6if(mifcp)
 
 	if (mifcp->mif6c_flags & MIFF_REGISTER) {
 		if (reg_mif_num == (mifi_t)-1) {
-			multicast_register_if.if_name = "register_mif";
+			strlcpy(multicast_register_if.if_xname, "register_mif",
+			    IFNAMSIZ);
 			multicast_register_if.if_flags |= IFF_LOOPBACK;
 			multicast_register_if.if_index = mifcp->mif6c_mifi;
 			reg_mif_num = mifcp->mif6c_mifi;
@@ -626,9 +627,9 @@ add_m6if(mifcp)
 #ifdef MRT6DEBUG
 	if (mrt6debug)
 		log(LOG_DEBUG,
-		    "add_mif #%d, phyint %s%d\n",
+		    "add_mif #%d, phyint %s\n",
 		    mifcp->mif6c_mifi,
-		    ifp->if_name, ifp->if_unit);
+		    ifp->if_xname);
 #endif
 
 	return (0);

@@ -53,15 +53,5 @@ const char *
 if_name(ifp)
 	struct ifnet *ifp;
 {
-#define MAXNUMBUF	8
-	static char nam[MAXNUMBUF][IFNAMSIZ + 10];	/*enough?*/
-	static int ifbufround = 0;
-	char *cp;
-
-	ifbufround = (ifbufround + 1) % MAXNUMBUF;
-	cp = nam[ifbufround];
-
-	snprintf(cp, IFNAMSIZ + 10, "%s%d", ifp->if_name, ifp->if_unit);
-	return ((const char *)cp);
-#undef MAXNUMBUF
+	return ifp->if_xname;
 }

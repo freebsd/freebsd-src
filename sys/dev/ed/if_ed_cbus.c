@@ -277,7 +277,7 @@ ed_isa_attach(dev)
 		return (error);
 	}
 
-	return ed_attach(sc, device_get_unit(dev), flags);
+	return ed_attach(dev);
 }
 
 #ifdef PC98

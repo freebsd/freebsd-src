@@ -84,6 +84,8 @@ struct	ether_header;
 #include <sys/mutex.h>		/* XXX */
 #include <sys/event.h>		/* XXX */
 
+#define	IF_DUNIT_NONE	-1
+
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifprefixhead, ifprefix);
@@ -128,14 +130,15 @@ struct	ifqueue {
  */
 struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
-	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
+	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
+	const char *if_dname;		/* driver name */
+	int	if_dunit;		/* unit or IF_DUNIT_NONE */
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
 	struct	klist if_klist;		/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
-	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */
 	u_short	if_nvlans;		/* number of active vlans */
 	int	if_flags;		/* up/down, broadcast, etc. */
@@ -451,6 +454,7 @@ void	if_attach(struct ifnet *);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_detach(struct ifnet *);
 void	if_down(struct ifnet *);
+void	if_initname(struct ifnet *, const char *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
 void	if_route(struct ifnet *, int flag, int fam);
 int	if_setlladdr(struct ifnet *, const u_char *, int);

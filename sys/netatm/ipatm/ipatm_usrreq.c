@@ -446,10 +446,9 @@ ipatm_ioctl(code, data, arg1)
 					AF_INET;
 				SATOSIN(&aivr.aip_dst_addr)->sin_addr.s_addr = 
 					ivp->iv_dst.s_addr;
-				(void) snprintf(aivr.aip_intf,
-				    sizeof(aivr.aip_intf), "%s%d",
-					inp->inf_nif->nif_if.if_name,
-					inp->inf_nif->nif_if.if_unit);
+				strlcpy(aivr.aip_intf,
+				    inp->inf_nif->nif_if.if_xname,
+				    sizeof(aivr.aip_intf));
 				if ((ivp->iv_conn) &&
 				    (ivp->iv_conn->co_connvc) &&
 				    (vcp = ivp->iv_conn->co_connvc->cvc_vcc)) {

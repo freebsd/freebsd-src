@@ -156,8 +156,8 @@ sbni_attach_isa(device_t dev)
 			    dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
 			return (ENXIO);
 		} else {
-			printf(" shared irq with sbni%d\n",
-			       master->arpcom.ac_if.if_unit);
+			printf(" shared irq with %s\n",
+			       master->arpcom.ac_if.if_xname);
 		}
 	} 
 #endif	/* SBNI_DUAL_COMPOUND */

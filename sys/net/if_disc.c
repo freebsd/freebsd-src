@@ -93,8 +93,7 @@ disc_clone_create(struct if_clone *ifc, int unit)
 	ifp = &sc->sc_if;
 
 	ifp->if_softc = sc;
-	ifp->if_name = DISCNAME;
-	ifp->if_unit = unit;
+	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = DSMTU;
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
 	ifp->if_ioctl = discioctl;

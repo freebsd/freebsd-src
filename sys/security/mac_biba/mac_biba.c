@@ -1101,7 +1101,7 @@ mac_biba_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
 static void
 mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 {
-	char tifname[IFNAMSIZ], ifname[IFNAMSIZ], *p, *q;
+	char tifname[IFNAMSIZ], *p, *q;
 	char tiflist[sizeof(trusted_interfaces)];
 	struct mac_biba *dest;
 	int len, type;
@@ -1129,15 +1129,13 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 		if(*p != ' ' && *p != '\t')
 			*q = *p;
 
-	snprintf(ifname, IFNAMSIZ, "%s%d", ifnet->if_name, ifnet->if_unit);
-
 	for (p = q = tiflist;; p++) {
 		if (*p == ',' || *p == '\0') {
 			len = p - q;
 			if (len < IFNAMSIZ) {
 				bzero(tifname, sizeof(tifname));
 				bcopy(q, tifname, len);
-				if (strcmp(tifname, ifname) == 0) {
+				if (strcmp(tifname, ifnet->if_xname) == 0) {
 					type = MAC_BIBA_TYPE_HIGH;
 					break;
 				}

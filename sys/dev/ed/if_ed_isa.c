@@ -125,7 +125,6 @@ ed_isa_attach(dev)
 	device_t dev;
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	int flags = device_get_flags(dev);
 	int error;
 	
 	if (sc->port_used > 0)
@@ -142,7 +141,7 @@ ed_isa_attach(dev)
 		return (error);
 	}
 
-	return ed_attach(sc, device_get_unit(dev), flags);
+	return ed_attach(dev);
 }
 
 static device_method_t ed_isa_methods[] = {

@@ -2805,8 +2805,7 @@ fatm_attach(device_t dev)
 	 */
 	ifp = &sc->ifatm.ifnet;
 	ifp->if_softc = sc;
-	ifp->if_unit = unit;
-	ifp->if_name = "fatm";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_SIMPLEX;
 	ifp->if_ioctl = fatm_ioctl;
 	ifp->if_start = fatm_start;

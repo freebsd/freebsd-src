@@ -2187,8 +2187,7 @@ ti_attach(dev)
 	/* Set up ifnet structure */
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
-	ifp->if_unit = sc->ti_unit;
-	ifp->if_name = "ti";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	tis[unit] = sc;
 	ifp->if_ioctl = ti_ioctl;
@@ -2810,7 +2809,7 @@ static void ti_init2(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	/* Specify MTU and interface index. */
-	CSR_WRITE_4(sc, TI_GCR_IFINDEX, ifp->if_unit);
+	CSR_WRITE_4(sc, TI_GCR_IFINDEX, sc->ti_unit);
 	CSR_WRITE_4(sc, TI_GCR_IFMTU, ifp->if_mtu +
 	    ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN);
 	TI_DO_CMD(TI_CMD_UPDATE_GENCOM, 0, 0);

@@ -1218,7 +1218,7 @@ atm_sock_getopt(so, sopt, atp)
 
 			ifp = &ap->nif->nif_if;
 			(void) snprintf(netif.net_intf, sizeof(netif.net_intf),
-			    "%s%d", ifp->if_name, ifp->if_unit);
+			    "%s", ifp->if_xname);
 			return (sooptcopyout(sopt, &netif,
 					sizeof netif));
 		} else {

@@ -785,8 +785,8 @@ bpfioctl(dev, cmd, addr, flags, td)
 			struct ifnet *const ifp = d->bd_bif->bif_ifp;
 			struct ifreq *const ifr = (struct ifreq *)addr;
 
-			snprintf(ifr->ifr_name, sizeof(ifr->ifr_name),
-			    "%s%d", ifp->if_name, ifp->if_unit);
+			strlcpy(ifr->ifr_name, ifp->if_xname,
+			    sizeof(ifr->ifr_name));
 		}
 		break;
 
@@ -1425,8 +1425,7 @@ bpfdetach(ifp)
 	/* Interface wasn't attached */
 	if ((bp == NULL) || (bp->bif_ifp == NULL)) {
 		mtx_unlock(&bpf_mtx);
-		printf("bpfdetach: %s%d was not attached\n", ifp->if_name,
-		    ifp->if_unit);
+		printf("bpfdetach: %s was not attached\n", ifp->if_xname);
 		return;
 	}
 

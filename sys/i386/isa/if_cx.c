@@ -269,8 +269,7 @@ cxattach (struct isa_device *id)
 			bzero (c->ifp, IFSTRUCTSZ);
 			c->master = c->ifp;
 			c->ifp->if_softc = c;
-			c->ifp->if_unit = u;
-			c->ifp->if_name = "cx";
+			if_initname(c->ifp, "cx", u);
 			c->ifp->if_mtu = PP_MTU;
 			c->ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 			c->ifp->if_ioctl = cxsioctl;

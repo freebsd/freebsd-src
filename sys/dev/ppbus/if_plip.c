@@ -233,8 +233,7 @@ lp_attach (device_t dev)
 	struct ifnet *ifp = &lp->sc_if;
 
 	ifp->if_softc = lp;
-	ifp->if_name = "lp";
-	ifp->if_unit = device_get_unit(dev);
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = LPMTU;
 	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST;
 	ifp->if_ioctl = lpioctl;
@@ -295,7 +294,7 @@ lpinittables (void)
 static int
 lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-    device_t dev = UNITODEVICE(ifp->if_unit);
+    device_t dev = UNITODEVICE(ifp->if_dunit);
     device_t ppbus = device_get_parent(dev);
     struct lp_data *sc = DEVTOSOFTC(dev);
     struct ifaddr *ifa = (struct ifaddr *)data;
@@ -609,7 +608,7 @@ static int
 lpoutput (struct ifnet *ifp, struct mbuf *m,
 	  struct sockaddr *dst, struct rtentry *rt)
 {
-    device_t dev = UNITODEVICE(ifp->if_unit);
+    device_t dev = UNITODEVICE(ifp->if_dunit);
     device_t ppbus = device_get_parent(dev);
     int s, err;
     struct mbuf *mm;

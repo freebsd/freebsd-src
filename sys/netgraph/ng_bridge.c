@@ -600,8 +600,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 
 					if (ifp != NULL)
 						snprintf(suffix, sizeof(suffix),
-						    " (%s%d)", ifp->if_name,
-						    ifp->if_unit);
+						    " (%s)", ifp->if_xname);
 					else
 						*suffix = '\0';
 					log(LOG_WARNING, "ng_bridge: %s:"

@@ -219,8 +219,7 @@ xe_attach (device_t dev)
 
   /* Initialise the ifnet structure */
   scp->ifp->if_softc = scp;
-  scp->ifp->if_name = "xe";
-  scp->ifp->if_unit = device_get_unit(dev);
+  if_initname(scp->ifp, device_get_name(dev), device_get_unit(dev));
   scp->ifp->if_timer = 0;
   scp->ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
   scp->ifp->if_linkmib = &scp->mibdata;

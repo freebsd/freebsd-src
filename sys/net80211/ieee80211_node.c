@@ -86,7 +86,7 @@ ieee80211_node_attach(struct ifnet *ifp)
 	struct ieee80211com *ic = (void *)ifp;
 
 	/* XXX need unit */
-	IEEE80211_NODE_LOCK_INIT(ic, ifp->if_name);
+	IEEE80211_NODE_LOCK_INIT(ic, ifp->if_xname);
 	TAILQ_INIT(&ic->ic_node);
 	ic->ic_node_alloc = ieee80211_node_alloc;
 	ic->ic_node_free = ieee80211_node_free;

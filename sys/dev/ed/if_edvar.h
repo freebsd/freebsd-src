@@ -204,7 +204,7 @@ int	ed_probe_Novell		(device_t, int, int);
 int	ed_probe_Novell_generic	(device_t, int);
 int	ed_probe_HP_pclanp	(device_t, int, int);
 
-int	ed_attach		(struct ed_softc *, int, int);
+int	ed_attach		(device_t);
 void	ed_stop			(struct ed_softc *);
 void	ed_pio_readmem		(struct ed_softc *, int, unsigned char *,
 				     unsigned short);

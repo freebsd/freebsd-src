@@ -70,7 +70,7 @@ struct cs_softc {
 int	cs_alloc_port(device_t dev, int rid, int size);
 int	cs_alloc_memory(device_t dev, int rid, int size);
 int	cs_alloc_irq(device_t dev, int rid, int flags);
-int	cs_attach(struct cs_softc *, int, int);
+int	cs_attach(device_t dev);
 int	cs_cs89x0_probe(device_t dev);
 void	cs_release_resources(device_t dev);
 driver_intr_t	csintr;

@@ -141,10 +141,9 @@ awi_pccard_attach(device_t dev)
 	psc->sc_mem_res = 0;
 	psc->sc_intrhand = 0;
 
-	ifp->if_name = "awi";
-	ifp->if_unit = device_get_unit(dev);
-	snprintf(sc->sc_dev.dv_xname, sizeof(sc->sc_dev.dv_xname),
-	    "%s%d", ifp->if_name, ifp->if_unit);
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+	strlcpy(sc->sc_dev.dv_xname, ifp->if_xname,
+	    sizeof(sc->sc_dev.dv_xname));
 
 	psc->sc_port_rid = 0;
 	psc->sc_port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
