@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.8 1994/09/24 16:58:43 davidg Exp $
+ *	$Id: kern_exec.c,v 1.9 1994/09/25 19:33:36 phk Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,7 @@
 #include <sys/resourcevar.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/filedesc.h>
 #include <sys/file.h>
 #include <sys/acct.h>
 #include <sys/exec.h>
@@ -46,6 +47,7 @@
 #include <sys/mman.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/shm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -289,7 +291,7 @@ interpret:
 	p->p_acflag &= ~AFORK;
 
 	/* Set entry address */
-	setregs(p, iparams->entry_addr, stack_base);
+	setregs(p, iparams->entry_addr, (u_long)stack_base);
 
 	/*
 	 * free various allocated resources

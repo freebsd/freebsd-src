@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.8 1994/09/22 19:37:56 wollman Exp $
+ * $Id: vfs_syscalls.c,v 1.9 1994/09/28 16:45:11 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,6 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
-void	cvtstat		__P((struct stat *, struct ostat *));
 static int change_dir	__P((struct nameidata *ndp, struct proc *p));
 
 /*
@@ -87,13 +86,15 @@ mount(p, uap, retval)
 	/*
 	 * Must be super user
 	 */
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 	/*
 	 * Get vnode to be covered
 	 */
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (uap->flags & MNT_UPDATE) {
@@ -117,7 +118,8 @@ mount(p, uap, retval)
 		VOP_UNLOCK(vp);
 		goto update;
 	}
-	if (error = vinvalbuf(vp, V_SAVE, p->p_ucred, p, 0, 0))
+	error = vinvalbuf(vp, V_SAVE, p->p_ucred, p, 0, 0);
+	if (error)
 		return (error);
 	if (vp->v_type != VDIR) {
 		vput(vp);
@@ -136,7 +138,8 @@ mount(p, uap, retval)
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = vfssw[uap->type];
 	mp->mnt_vfc = vfsconf[uap->type];
-	if (error = vfs_lock(mp)) {
+	error = vfs_lock(mp);
+	if (error) {
 		free((caddr_t)mp, M_MOUNT);
 		vput(vp);
 		return (error);
@@ -219,7 +222,8 @@ unmount(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 
@@ -268,7 +272,8 @@ dounmount(mp, flags, p)
 	if (vfs_busy(mp))
 		return (EBUSY);
 	mp->mnt_flag |= MNT_UNMOUNT;
-	if (error = vfs_lock(mp))
+	error = vfs_lock(mp);
+	if (error)
 		return (error);
 
 	mp->mnt_flag &=~ MNT_ASYNC;
@@ -359,7 +364,8 @@ quotactl(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	mp = nd.ni_vp->v_mount;
 	vrele(nd.ni_vp);
@@ -386,12 +392,14 @@ statfs(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	mp = nd.ni_vp->v_mount;
 	sp = &mp->mnt_stat;
 	vrele(nd.ni_vp);
-	if (error = VFS_STATFS(mp, sp, p))
+	error = VFS_STATFS(mp, sp, p);
+	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	return (copyout((caddr_t)sp, (caddr_t)uap->buf, sizeof(*sp)));
@@ -416,11 +424,13 @@ fstatfs(p, uap, retval)
 	register struct statfs *sp;
 	int error;
 
-	if (error = getvnode(p->p_fd, uap->fd, &fp))
+	error = getvnode(p->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	sp = &mp->mnt_stat;
-	if (error = VFS_STATFS(mp, sp, p))
+	error = VFS_STATFS(mp, sp, p);
+	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	return (copyout((caddr_t)sp, (caddr_t)uap->buf, sizeof(*sp)));
@@ -492,7 +502,8 @@ fchdir(p, uap, retval)
 	struct file *fp;
 	int error;
 
-	if (error = getvnode(fdp, uap->fd, &fp))
+	error = getvnode(fdp, uap->fd, &fp);
+	if (error)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	VOP_LOCK(vp);
@@ -527,7 +538,8 @@ chdir(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = change_dir(&nd, p))
+	error = change_dir(&nd, p);
+	if (error)
 		return (error);
 	vrele(fdp->fd_cdir);
 	fdp->fd_cdir = nd.ni_vp;
@@ -551,10 +563,12 @@ chroot(p, uap, retval)
 	int error;
 	struct nameidata nd;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = change_dir(&nd, p))
+	error = change_dir(&nd, p);
+	if (error)
 		return (error);
 	if (fdp->fd_rdir != NULL)
 		vrele(fdp->fd_rdir);
@@ -573,7 +587,8 @@ change_dir(ndp, p)
 	struct vnode *vp;
 	int error;
 
-	if (error = namei(ndp))
+	error = namei(ndp);
+	if (error)
 		return (error);
 	vp = ndp->ni_vp;
 	if (vp->v_type != VDIR)
@@ -611,14 +626,16 @@ open(p, uap, retval)
 	struct nameidata nd;
 	extern struct fileops vnops;
 
-	if (error = falloc(p, &nfp, &indx))
+	error = falloc(p, &nfp, &indx);
+	if (error)
 		return (error);
 	fp = nfp;
 	flags = FFLAGS(uap->flags);
 	cmode = ((uap->mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
 	p->p_dupfd = -indx - 1;			/* XXX check for fdopen */
-	if (error = vn_open(&nd, flags, cmode)) {
+	error = vn_open(&nd, flags, cmode);
+	if (error) {
 		ffree(fp);
 		if ((error == ENODEV || error == ENXIO) &&
 		    p->p_dupfd >= 0 && 			/* XXX from fdopen */
@@ -650,7 +667,8 @@ open(p, uap, retval)
 		if ((flags & FNONBLOCK) == 0)
 			type |= F_WAIT;
 		VOP_UNLOCK(vp);
-		if (error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) {
+		error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type);
+		if (error) {
 			(void) vn_close(vp, fp->f_flag, fp->f_cred, p);
 			ffree(fp);
 			fdp->fd_ofiles[indx] = NULL;
@@ -707,10 +725,12 @@ mknod(p, uap, retval)
 	int error;
 	struct nameidata nd;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp != NULL)
@@ -769,7 +789,8 @@ mkfifo(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	if (nd.ni_vp != NULL) {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
@@ -806,7 +827,8 @@ link(p, uap, retval)
 	int error;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp->v_type != VDIR ||
@@ -814,7 +836,8 @@ link(p, uap, retval)
 		nd.ni_cnd.cn_nameiop = CREATE;
 		nd.ni_cnd.cn_flags = LOCKPARENT;
 		nd.ni_dirp = uap->link;
-		if ((error = namei(&nd)) == 0) {
+		error = namei(&nd);
+		if (!error) {
 			if (nd.ni_vp != NULL)
 				error = EEXIST;
 			if (!error) {
@@ -858,10 +881,12 @@ symlink(p, uap, retval)
 	struct nameidata nd;
 
 	MALLOC(path, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
-	if (error = copyinstr(uap->path, path, MAXPATHLEN, NULL))
+	error = copyinstr(uap->path, path, MAXPATHLEN, NULL);
+	if (error)
 		goto out;
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, uap->link, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		goto out;
 	if (nd.ni_vp) {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
@@ -900,7 +925,8 @@ unlink(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, DELETE, LOCKPARENT, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -962,8 +988,8 @@ lseek(p, uap, retval)
 		fp->f_offset += uap->offset;
 		break;
 	case L_XTND:
-		if (error =
-		    VOP_GETATTR((struct vnode *)fp->f_data, &vattr, cred, p))
+		error=VOP_GETATTR((struct vnode *)fp->f_data, &vattr, cred, p);
+		if (error)
 			return (error);
 		fp->f_offset = uap->offset + vattr.va_size;
 		break;
@@ -1028,7 +1054,8 @@ access(p, uap, retval)
 	cred->cr_uid = p->p_cred->p_ruid;
 	cred->cr_groups[0] = p->p_cred->p_rgid;
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		goto out1;
 	vp = nd.ni_vp;
 
@@ -1072,7 +1099,8 @@ ostat(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	error = vn_stat(nd.ni_vp, &sb, p);
 	vput(nd.ni_vp);
@@ -1105,7 +1133,8 @@ olstat(p, uap, retval)
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
 	    uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	/*
 	 * For symbolic links, always return the attributes of its
@@ -1193,7 +1222,8 @@ stat(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	error = vn_stat(nd.ni_vp, &sb, p);
 	vput(nd.ni_vp);
@@ -1224,7 +1254,8 @@ lstat(p, uap, retval)
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
 	    uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	/*
 	 * For symbolic links, always return the attributes of its
@@ -1280,7 +1311,8 @@ pathconf(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	error = VOP_PATHCONF(nd.ni_vp, uap->name, retval);
 	vput(nd.ni_vp);
@@ -1309,7 +1341,8 @@ readlink(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp->v_type != VLNK)
@@ -1351,7 +1384,8 @@ chflags(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -1386,7 +1420,8 @@ fchflags(p, uap, retval)
 	struct file *fp;
 	int error;
 
-	if (error = getvnode(p->p_fd, uap->fd, &fp))
+	error = getvnode(p->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -1422,7 +1457,8 @@ chmod(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -1457,7 +1493,8 @@ fchmod(p, uap, retval)
 	struct file *fp;
 	int error;
 
-	if (error = getvnode(p->p_fd, uap->fd, &fp))
+	error = getvnode(p->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -1494,7 +1531,8 @@ chown(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -1531,7 +1569,8 @@ fchown(p, uap, retval)
 	struct file *fp;
 	int error;
 
-	if (error = getvnode(p->p_fd, uap->fd, &fp))
+	error = getvnode(p->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -1573,10 +1612,14 @@ utimes(p, uap, retval)
 		microtime(&tv[0]);
 		tv[1] = tv[0];
 		vattr.va_vaflags |= VA_UTIMES_NULL;
-	} else if (error = copyin((caddr_t)uap->tptr, (caddr_t)tv, sizeof (tv)))
-  		return (error);
+	} else {
+		error = copyin((caddr_t)uap->tptr, (caddr_t)tv, sizeof (tv));
+		if (error)
+			return (error);
+	}
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -1617,7 +1660,8 @@ truncate(p, uap, retval)
 	if (uap->length < 0)
 		return(EINVAL);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
@@ -1656,7 +1700,8 @@ ftruncate(p, uap, retval)
 
 	if (uap->length < 0)
 		return(EINVAL);
-	if (error = getvnode(p->p_fd, uap->fd, &fp))
+	error = getvnode(p->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	if ((fp->f_flag & FWRITE) == 0)
 		return (EINVAL);
@@ -1735,7 +1780,8 @@ fsync(p, uap, retval)
 	struct file *fp;
 	int error;
 
-	if (error = getvnode(p->p_fd, uap->fd, &fp))
+	error = getvnode(p->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	VOP_LOCK(vp);
@@ -1765,12 +1811,14 @@ rename(p, uap, retval)
 
 	NDINIT(&fromnd, DELETE, WANTPARENT | SAVESTART, UIO_USERSPACE,
 		uap->from, p);
-	if (error = namei(&fromnd))
+	error = namei(&fromnd);
+	if (error)
 		return (error);
 	fvp = fromnd.ni_vp;
 	NDINIT(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART,
 		UIO_USERSPACE, uap->to, p);
-	if (error = namei(&tond)) {
+	error = namei(&tond);
+	if (error) {
 		VOP_ABORTOP(fromnd.ni_dvp, &fromnd.ni_cnd);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
@@ -1851,7 +1899,8 @@ mkdir(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp != NULL) {
@@ -1891,7 +1940,8 @@ rmdir(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, DELETE, LOCKPARENT | LOCKLEAF, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp->v_type != VDIR) {
@@ -1951,7 +2001,8 @@ ogetdirentries(p, uap, retval)
 	int error, readcnt;
 	long loff;
 
-	if (error = getvnode(p->p_fd, uap->fd, &fp))
+	error = getvnode(p->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0)
 		return (EBADF);
@@ -2048,7 +2099,8 @@ getdirentries(p, uap, retval)
 	long loff;
 	int error;
 
-	if (error = getvnode(p->p_fd, uap->fd, &fp))
+	error = getvnode(p->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0)
 		return (EBADF);
@@ -2158,14 +2210,16 @@ revoke(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp->v_type != VCHR && vp->v_type != VBLK) {
 		error = EINVAL;
 		goto out;
 	}
-	if (error = VOP_GETATTR(vp, &vattr, p->p_ucred, p))
+	error = VOP_GETATTR(vp, &vattr, p->p_ucred, p);
+	if (error)
 		goto out;
 	if (p->p_ucred->cr_uid != vattr.va_uid &&
 	    (error = suser(p->p_ucred, &p->p_acflag)))

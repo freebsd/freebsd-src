@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.3 1994/08/02 07:42:51 davidg Exp $
+ * $Id: tty_pty.c,v 1.4 1994/09/15 19:47:16 bde Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
+#include <sys/signalvar.h>
 
 #if NPTY == 1
 #undef NPTY
@@ -137,8 +138,9 @@ ptsopen(dev, flag, devtype, p)
 		tp->t_state |= TS_WOPEN;
 		if (flag&FNONBLOCK)
 			break;
-		if (error = ttysleep(tp, (caddr_t)&tp->t_rawq, TTIPRI | PCATCH,
-		    ttopen, 0))
+		error = ttysleep(tp, (caddr_t)&tp->t_rawq, TTIPRI | PCATCH,
+		    ttopen, 0);
+		if (error)
 			return (error);
 	}
 	error = (*linesw[tp->t_line].l_open)(dev, tp);
@@ -182,15 +184,17 @@ again:
 			    p->p_flag & P_PPWAIT)
 				return (EIO);
 			pgsignal(p->p_pgrp, SIGTTIN, 1);
-			if (error = ttysleep(tp, (caddr_t)&lbolt, 
-			    TTIPRI | PCATCH, ttybg, 0))
+			error = ttysleep(tp, (caddr_t)&lbolt, 
+			    TTIPRI | PCATCH, ttybg, 0);
+			if (error)
 				return (error);
 		}
 		if (tp->t_canq.c_cc == 0) {
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
-			if (error = ttysleep(tp, (caddr_t)&tp->t_canq,
-			    TTIPRI | PCATCH, ttyin, 0))
+			error = ttysleep(tp, (caddr_t)&tp->t_canq,
+			    TTIPRI | PCATCH, ttyin, 0);
+			if (error)
 				return (error);
 			goto again;
 		}
@@ -358,8 +362,9 @@ ptcread(dev, uio, flag)
 			return (0);	/* EOF */
 		if (flag & IO_NDELAY)
 			return (EWOULDBLOCK);
-		if (error = tsleep((caddr_t)&tp->t_outq.c_cf, TTIPRI | PCATCH,
-		    ttyin, 0))
+		error = tsleep((caddr_t)&tp->t_outq.c_cf, TTIPRI | PCATCH,
+		    ttyin, 0);
+		if (error)
 			return (error);
 	}
 	if (pti->pt_flags & (PF_PKT|PF_UCNTL))
@@ -433,8 +438,8 @@ ptcselect(dev, rw, p)
 
 	case 0:					/* exceptional */
 		if ((tp->t_state&TS_ISOPEN) &&
-		    (pti->pt_flags&PF_PKT && pti->pt_send ||
-		     pti->pt_flags&PF_UCNTL && pti->pt_ucntl))
+		    ((pti->pt_flags&PF_PKT && pti->pt_send) ||
+		     (pti->pt_flags&PF_UCNTL && pti->pt_ucntl)))
 			return (1);
 		selrecord(p, &pti->pt_selr);
 		break;
@@ -538,8 +543,8 @@ block:
 			return (EWOULDBLOCK);
 		return (0);
 	}
-	if (error = tsleep((caddr_t)&tp->t_rawq.c_cf, TTOPRI | PCATCH,
-	    ttyout, 0)) {
+	error = tsleep((caddr_t)&tp->t_rawq.c_cf, TTOPRI | PCATCH, ttyout, 0);
+	if (error) {
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;
 		return (error);

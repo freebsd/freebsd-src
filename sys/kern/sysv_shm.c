@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.1 1994/09/13 14:47:03 dfr Exp $ */
+/*	$Id: sysv_shm.c,v 1.2 1994/09/16 17:43:22 dfr Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -212,8 +212,9 @@ shmat(p, uap, retval)
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL)
 		return EINVAL;
-	if (error = ipcperm(cred, &shmseg->shm_perm,
-	    (uap->shmflg & SHM_RDONLY) ? IPC_R : IPC_R|IPC_W))
+	error = ipcperm(cred, &shmseg->shm_perm,
+	    (uap->shmflg & SHM_RDONLY) ? IPC_R : IPC_R|IPC_W);
+	if (error)
 		return error;
 	for (i = 0; i < shminfo.shmseg; i++) {
 		if (shmmap_s->shmid == -1)
@@ -277,7 +278,7 @@ oshmctl(p, uap, retval)
 	int *retval;
 {
 #ifdef COMPAT_43
-	int error, segnum;
+	int error;
 	struct ucred *cred = p->p_ucred;
 	struct shmid_ds *shmseg;
 	struct oshmid_ds outbuf;
@@ -287,7 +288,8 @@ oshmctl(p, uap, retval)
 		return EINVAL;
 	switch (uap->cmd) {
 	case IPC_STAT:
-		if (error = ipcperm(cred, &shmseg->shm_perm, IPC_R))
+		error = ipcperm(cred, &shmseg->shm_perm, IPC_R);
+		if (error)
 			return error;
 		outbuf.shm_perm = shmseg->shm_perm;
 		outbuf.shm_segsz = shmseg->shm_segsz;
@@ -298,7 +300,8 @@ oshmctl(p, uap, retval)
 		outbuf.shm_dtime = shmseg->shm_dtime;
 		outbuf.shm_ctime = shmseg->shm_ctime;
 		outbuf.shm_handle = shmseg->shm_internal;
-		if (error = copyout((caddr_t)&outbuf, uap->ubuf, sizeof(outbuf)))
+		error = copyout((caddr_t)&outbuf, uap->ubuf, sizeof(outbuf));
+		if (error)
 			return error;
 		break;
 	default:
@@ -321,7 +324,7 @@ shmctl(p, uap, retval)
 	struct shmctl_args *uap;
 	int *retval;
 {
-	int error, segnum;
+	int error;
 	struct ucred *cred = p->p_ucred;
 	struct shmid_ds inbuf;
 	struct shmid_ds *shmseg;
@@ -331,15 +334,19 @@ shmctl(p, uap, retval)
 		return EINVAL;
 	switch (uap->cmd) {
 	case IPC_STAT:
-		if (error = ipcperm(cred, &shmseg->shm_perm, IPC_R))
+		error = ipcperm(cred, &shmseg->shm_perm, IPC_R);
+		if (error)
 			return error;
-		if (error = copyout((caddr_t)shmseg, uap->ubuf, sizeof(inbuf)))
+		error = copyout((caddr_t)shmseg, uap->ubuf, sizeof(inbuf));
+		if (error)
 			return error;
 		break;
 	case IPC_SET:
-		if (error = ipcperm(cred, &shmseg->shm_perm, IPC_M))
+		error = ipcperm(cred, &shmseg->shm_perm, IPC_M);
+		if (error)
 			return error;
-		if (error = copyin(uap->ubuf, (caddr_t)&inbuf, sizeof(inbuf)))
+		error = copyin(uap->ubuf, (caddr_t)&inbuf, sizeof(inbuf));
+		if (error)
 			return error;
 		shmseg->shm_perm.uid = inbuf.shm_perm.uid;
 		shmseg->shm_perm.gid = inbuf.shm_perm.gid;
@@ -349,7 +356,8 @@ shmctl(p, uap, retval)
 		shmseg->shm_ctime = time.tv_sec;
 		break;
 	case IPC_RMID:
-		if (error = ipcperm(cred, &shmseg->shm_perm, IPC_M))
+		error = ipcperm(cred, &shmseg->shm_perm, IPC_M);
+		if (error)
 			return error;
 		shmseg->shm_perm.key = IPC_PRIVATE;
 		shmseg->shm_perm.mode |= SHMSEG_REMOVED;
@@ -393,12 +401,13 @@ shmget_existing(p, uap, mode, segnum, retval)
 		 * allocation failed or it was freed).
 		 */
 		shmseg->shm_perm.mode |= SHMSEG_WANTED;
-		if (error =
-		    tsleep((caddr_t)shmseg, PLOCK | PCATCH, "shmget", 0))
+		error = tsleep((caddr_t)shmseg, PLOCK | PCATCH, "shmget", 0);
+		if (error)
 			return error;
 		return EAGAIN;
 	}
-	if (error = ipcperm(cred, &shmseg->shm_perm, mode))
+	error = ipcperm(cred, &shmseg->shm_perm, mode);
+	if (error)
 		return error;
 	if (uap->size && uap->size > shmseg->shm_segsz)
 		return EINVAL;
@@ -490,7 +499,6 @@ shmget(p, uap, retval)
 	int *retval;
 {
 	int segnum, mode, error;
-	struct shmid_ds *shmseg;
 
 	mode = uap->shmflg & ACCESSPERMS;
 	if (uap->key != IPC_PRIVATE) {
@@ -546,7 +554,6 @@ shmexit(p)
 	struct proc *p;
 {
 	struct shmmap_state *shmmap_s;
-	struct shmid_ds *shmseg;
 	int i;
 
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;

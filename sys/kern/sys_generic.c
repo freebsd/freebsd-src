@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.5 1994/09/02 15:06:39 davidg Exp $
+ * $Id: sys_generic.c,v 1.6 1994/09/25 19:33:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,9 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/proc.h>
+#include <sys/stat.h>
+#include <sys/signalvar.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>

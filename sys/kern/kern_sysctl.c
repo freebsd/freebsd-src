@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.14 1994/09/21 03:46:46 wollman Exp $
+ * $Id: kern_sysctl.c,v 1.15 1994/09/23 19:07:17 wollman Exp $
  */
 
 /*
@@ -102,7 +102,8 @@ __sysctl(p, uap, retval)
 	 */
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
-	if (error = copyin(uap->name, &name, uap->namelen * sizeof(int)))
+ 	error = copyin(uap->name, &name, uap->namelen * sizeof(int));
+ 	if (error)
 		return (error);
 
 	switch (name[0]) {
@@ -571,7 +572,8 @@ sysctl_file(where, sizep)
 		*sizep = 0;
 		return (0);
 	}
-	if (error = copyout((caddr_t)&filehead, where, sizeof(filehead)))
+	error = copyout((caddr_t)&filehead, where, sizeof(filehead));
+	if (error)
 		return (error);
 	buflen -= sizeof(filehead);
 	where += sizeof(filehead);
@@ -584,7 +586,8 @@ sysctl_file(where, sizep)
 			*sizep = where - start;
 			return (ENOMEM);
 		}
-		if (error = copyout((caddr_t)fp, where, sizeof (struct file)))
+		error = copyout((caddr_t)fp, where, sizeof (struct file));
+		if (error)
 			return (error);
 		buflen -= sizeof(struct file);
 		where += sizeof(struct file);
@@ -661,11 +664,13 @@ again:
 		}
 		if (buflen >= sizeof(struct kinfo_proc)) {
 			fill_eproc(p, &eproc);
-			if (error = copyout((caddr_t)p, &dp->kp_proc,
-			    sizeof(struct proc)))
+			error = copyout((caddr_t)p, &dp->kp_proc, 
+			    sizeof(struct proc));
+			if (error)
 				return (error);
-			if (error = copyout((caddr_t)&eproc, &dp->kp_eproc,
-			    sizeof(eproc)))
+			error = copyout((caddr_t)&eproc, &dp->kp_eproc,
+			    sizeof(eproc));
+			if (error)
 				return (error);
 			dp++;
 			buflen -= sizeof(struct kinfo_proc);
