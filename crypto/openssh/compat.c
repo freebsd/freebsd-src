@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: compat.c,v 1.61 2002/03/06 00:24:39 markus Exp $");
+RCSID("$OpenBSD: compat.c,v 1.63 2002/04/10 08:21:47 markus Exp $");
 
 #include "buffer.h"
 #include "packet.h"
@@ -61,20 +61,26 @@ compat_datafellows(const char *version)
 		  "OpenSSH-2.1*,"
 		  "OpenSSH_2.1*,"
 		  "OpenSSH_2.2*",	SSH_OLD_SESSIONID|SSH_BUG_BANNER|
-					SSH_OLD_DHGEX|SSH_BUG_NOREKEY },
+					SSH_OLD_DHGEX|SSH_BUG_NOREKEY|
+					SSH_BUG_EXTEOF},
 		{ "OpenSSH_2.3.0*",	SSH_BUG_BANNER|SSH_BUG_BIGENDIANAES|
-					SSH_OLD_DHGEX|SSH_BUG_NOREKEY},
+					SSH_OLD_DHGEX|SSH_BUG_NOREKEY|
+					SSH_BUG_EXTEOF},
 		{ "OpenSSH_2.3.*",	SSH_BUG_BIGENDIANAES|SSH_OLD_DHGEX|
-					SSH_BUG_NOREKEY},
+					SSH_BUG_NOREKEY|SSH_BUG_EXTEOF},
 		{ "OpenSSH_2.5.0p1*,"
 		  "OpenSSH_2.5.1p1*",
 					SSH_BUG_BIGENDIANAES|SSH_OLD_DHGEX|
-					SSH_BUG_NOREKEY },
+					SSH_BUG_NOREKEY|SSH_BUG_EXTEOF},
 		{ "OpenSSH_2.5.0*,"
 		  "OpenSSH_2.5.1*,"
-		  "OpenSSH_2.5.2*",	SSH_OLD_DHGEX|SSH_BUG_NOREKEY },
-		{ "OpenSSH_2.5.3*",	SSH_BUG_NOREKEY },
-		{ "Sun_SSH_1.0*",	SSH_BUG_NOREKEY },
+		  "OpenSSH_2.5.2*",	SSH_OLD_DHGEX|SSH_BUG_NOREKEY|
+					SSH_BUG_EXTEOF},
+		{ "OpenSSH_2.5.3*",	SSH_BUG_NOREKEY|SSH_BUG_EXTEOF},
+		{ "OpenSSH_2.*,"
+		  "OpenSSH_3.0*,"
+		  "OpenSSH_3.1*",	SSH_BUG_EXTEOF},
+		{ "Sun_SSH_1.0*",	SSH_BUG_NOREKEY|SSH_BUG_EXTEOF},
 		{ "OpenSSH*",		0 },
 		{ "*MindTerm*",		0 },
 		{ "2.1.0*",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
@@ -121,8 +127,12 @@ compat_datafellows(const char *version)
 		  "1.2.19*,"
 		  "1.2.20*,"
 		  "1.2.21*,"
-		  "1.2.22*",		SSH_BUG_IGNOREMSG },
-		{ "1.3.2*",		SSH_BUG_IGNOREMSG },	/* f-secure */
+		  "1.2.22*",		SSH_BUG_IGNOREMSG|SSH_BUG_K5USER },
+		{ "1.3.2*",		/* F-Secure */
+					SSH_BUG_IGNOREMSG|SSH_BUG_K5USER },
+		{ "1.2.1*,"
+		  "1.2.2*,"
+		  "1.2.3*",		SSH_BUG_K5USER },
 		{ "*SSH Compatible Server*",			/* Netscreen */
 					SSH_BUG_PASSWORDPAD },
 		{ "*OSU_0*,"

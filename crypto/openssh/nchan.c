@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: nchan.c,v 1.44 2002/01/21 23:27:10 markus Exp $");
+RCSID("$OpenBSD: nchan.c,v 1.47 2002/06/19 00:27:55 deraadt Exp $");
 
 #include "ssh1.h"
 #include "ssh2.h"
@@ -302,6 +302,7 @@ static void
 chan_rcvd_eof2(Channel *c)
 {
 	debug("channel %d: rcvd eof", c->self);
+	c->flags |= CHAN_EOF_RCVD;
 	if (c->ostate == CHAN_OUTPUT_OPEN)
 		chan_set_ostate(c, CHAN_OUTPUT_WAIT_DRAIN);
 }
@@ -330,6 +331,7 @@ chan_send_eof2(Channel *c)
 		packet_start(SSH2_MSG_CHANNEL_EOF);
 		packet_put_int(c->remote_id);
 		packet_send();
+		c->flags |= CHAN_EOF_SENT;
 		break;
 	default:
 		error("channel %d: cannot send eof for istate %d",
@@ -365,7 +367,8 @@ chan_rcvd_ieof(Channel *c)
 	else
 		chan_rcvd_ieof1(c);
 	if (c->ostate == CHAN_OUTPUT_WAIT_DRAIN &&
-	    buffer_len(&c->output) == 0)
+	    buffer_len(&c->output) == 0 &&
+	    !CHANNEL_EFD_OUTPUT_ACTIVE(c))
 		chan_obuf_empty(c);
 }
 void
@@ -404,39 +407,30 @@ chan_is_dead(Channel *c, int send)
 		debug("channel %d: is dead", c->self);
 		return 1;
 	}
-	/*
-	 * we have to delay the close message if the efd (for stderr) is
-	 * still active
-	 */
-	if (((c->extended_usage != CHAN_EXTENDED_IGNORE) &&
-	    buffer_len(&c->extended) > 0)
-#if 0
-	    || ((c->extended_usage == CHAN_EXTENDED_READ) &&
-	    c->efd != -1)
-#endif
-	    ) {
-		debug2("channel %d: active efd: %d len %d type %s",
-		    c->self, c->efd, buffer_len(&c->extended),
-		    c->extended_usage==CHAN_EXTENDED_READ ?
-		    "read": "write");
-	} else {
-		if (!(c->flags & CHAN_CLOSE_SENT)) {
-			if (send) {
-				chan_send_close2(c);
-			} else {
-				/* channel would be dead if we sent a close */
-				if (c->flags & CHAN_CLOSE_RCVD) {
-					debug("channel %d: almost dead",
-					    c->self);
-					return 1;
-				}
+	if ((datafellows & SSH_BUG_EXTEOF) &&
+	    c->extended_usage == CHAN_EXTENDED_WRITE &&
+	    c->efd != -1 &&
+	    buffer_len(&c->extended) > 0) {
+		debug2("channel %d: active efd: %d len %d",
+		    c->self, c->efd, buffer_len(&c->extended));
+		return 0;
+	}
+	if (!(c->flags & CHAN_CLOSE_SENT)) {
+		if (send) {
+			chan_send_close2(c);
+		} else {
+			/* channel would be dead if we sent a close */
+			if (c->flags & CHAN_CLOSE_RCVD) {
+				debug("channel %d: almost dead",
+				    c->self);
+				return 1;
 			}
 		}
-		if ((c->flags & CHAN_CLOSE_SENT) &&
-		    (c->flags & CHAN_CLOSE_RCVD)) {
-			debug("channel %d: is dead", c->self);
-			return 1;
-		}
+	}
+	if ((c->flags & CHAN_CLOSE_SENT) &&
+	    (c->flags & CHAN_CLOSE_RCVD)) {
+		debug("channel %d: is dead", c->self);
+		return 1;
 	}
 	return 0;
 }

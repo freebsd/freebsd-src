@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh.h,v 1.64 2002/03/04 17:27:39 stevesk Exp $	*/
+/*	$OpenBSD: ssh.h,v 1.70 2002/06/03 12:04:07 deraadt Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -31,7 +31,7 @@
 #define SSH_MAX_IDENTITY_FILES		100
 
 /*
- * Major protocol version.  Different version indicates major incompatiblity
+ * Major protocol version.  Different version indicates major incompatibility
  * that prevents communication.
  *
  * Minor protocol version.  Different version indicates minor incompatibility
@@ -84,5 +84,15 @@
 
 /* Used to identify ``EscapeChar none'' */
 #define SSH_ESCAPECHAR_NONE		-2
+
+/*
+ * unprivileged user when UsePrivilegeSeparation=yes;
+ * sshd will change its privileges to this user and its
+ * primary group.
+ */
+#define SSH_PRIVSEP_USER		"sshd"
+
+/* Minimum modulus size (n) for RSA keys. */
+#define SSH_RSA_MINIMUM_MODULUS_SIZE	768
 
 #endif				/* SSH_H */

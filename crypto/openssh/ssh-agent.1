@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.31 2002/02/04 20:41:16 stevesk Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.33 2002/06/19 00:27:55 deraadt Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -42,6 +42,7 @@
 .Nd authentication agent
 .Sh SYNOPSIS
 .Nm ssh-agent
+.Op Fl a Ar bind_address
 .Op Fl c Li | Fl s
 .Op Fl d
 .Op Ar command Op Ar args ...
@@ -64,6 +65,11 @@ machines using
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl a Ar bind_address
+Bind the agent to the unix-domain socket
+.Ar bind_address .
+The default is
+.Pa /tmp/ssh-XXXXXXXX/agent.<pid> .
 .It Fl c
 Generate C-shell commands on
 .Dv stdout .
@@ -96,7 +102,7 @@ When executed without arguments,
 .Xr ssh-add 1
 adds the files
 .Pa $HOME/.ssh/id_rsa ,
-.Pa $HOME/.ssh/id_dsa 
+.Pa $HOME/.ssh/id_dsa
 and
 .Pa $HOME/.ssh/identity .
 If the identity has a passphrase,
@@ -135,7 +141,6 @@ by the agent, and the result will be returned to the requester.
 This way, private keys are not exposed to clients using the agent.
 .Pp
 A unix-domain socket is created
-.Pq Pa /tmp/ssh-XXXXXXXX/agent.<pid> ,
 and the name of this socket is stored in the
 .Ev SSH_AUTH_SOCK
 environment
