@@ -27,7 +27,6 @@
 LIB=		pam_nologin
 SHLIB_NAME=	pam_nologin.so
 SRCS=		pam_nologin.c
+MAN=		pam_nologin.8
 
 .include <bsd.lib.mk>
-
-.PATH:		${PAMDIR}/modules/pam_nologin

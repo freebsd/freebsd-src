@@ -30,5 +30,6 @@ SHLIB_NAME=	pam_opie.so
 SRCS=		pam_opie.c
 DPADD=		${LIBOPIE}
 LDADD=		-lopie
+MAN=		pam_opie.8
 
 .include <bsd.lib.mk>

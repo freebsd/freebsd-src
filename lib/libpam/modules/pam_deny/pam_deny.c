@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Mark R V Murray
+ * Copyright 2001 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,73 +26,84 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <pwd.h>
-#include <ttyent.h>
-#include <string.h>
-
 #define PAM_SM_AUTH
+#define PAM_SM_ACCOUNT
+#define PAM_SM_SESSION
+#define PAM_SM_PASSWORD
+
 #include <security/pam_modules.h>
-#include <pam_mod_misc.h>
+#include "pam_mod_misc.h"
 
-#define TTY_PREFIX	"/dev/"
-
-PAM_EXTERN int 
-pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
+PAM_EXTERN int
+pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	struct ttyent *ttyfileinfo;
-	struct passwd *user_pwd;
-	int retval;
-	const char *user, *ttyname;
 
 	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	retval = pam_get_user(pamh, &user, NULL);
-	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
-
-	PAM_LOG("Got user: %s", user);
-
-	retval = pam_get_item(pamh, PAM_TTY, (const void **)&ttyname);
-	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
-
-	PAM_LOG("Got TTY: %s", ttyname);
-
-	/* Ignore any "/dev/" on the PAM_TTY item */
-	if (strncmp(TTY_PREFIX, ttyname, sizeof(TTY_PREFIX) - 1) == 0)
-		ttyname += sizeof(TTY_PREFIX) - 1;
-
-	/* If the user is not root, secure ttys do not apply */
-	user_pwd = getpwnam(user);
-	if (user_pwd == NULL)
-		PAM_RETURN(PAM_IGNORE);
-	else if (user_pwd->pw_uid != 0)
-		PAM_RETURN(PAM_SUCCESS);
-
-	PAM_LOG("User is not root");
-
-	ttyfileinfo = getttynam(ttyname);
-	if (ttyfileinfo == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
-
-	PAM_LOG("Got ttyfileinfo");
-
-	if (ttyfileinfo->ty_status & TTY_SECURE)
-		PAM_RETURN(PAM_SUCCESS);
-	else
-		PAM_RETURN(PAM_PERM_DENIED);
+	PAM_RETURN(PAM_AUTH_ERR);
 }
 
-PAM_EXTERN
-int 
-pam_sm_setcred(pam_handle_t * pamh, int flags, int argc, const char **argv)
+PAM_EXTERN int
+pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_CRED_UNAVAIL);
 }
 
-PAM_MODULE_ENTRY("pam_securetty");
+PAM_EXTERN int
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_ACCT_EXPIRED);
+}
+
+PAM_EXTERN int
+pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_AUTHTOK_ERR);
+}
+
+PAM_EXTERN int
+pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SYSTEM_ERR);
+}
+
+PAM_EXTERN int
+pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SYSTEM_ERR);
+}
+
+PAM_MODULE_ENTRY("pam_deny");

@@ -27,5 +27,6 @@
 LIB=		pam_securetty
 SHLIB_NAME=	pam_securetty.so
 SRCS=		pam_securetty.c
+MAN=		pam_securetty.8
 
 .include <bsd.lib.mk>
