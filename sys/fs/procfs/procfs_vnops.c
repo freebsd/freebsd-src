@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.69 1999/06/13 20:53:16 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.70 1999/07/09 04:16:00 jlemon Exp $
  */
 
 /*
@@ -136,7 +136,7 @@ procfs_open(ap)
 	p2 = PFIND(pfs->pfs_pid);
 	if (p2 == NULL)
 		return (ENOENT);
-	if (!PRISON_CHECK(ap->a_p, p2))
+	if (pfs->pfs_pid && !PRISON_CHECK(ap->a_p, p2))
 		return (ENOENT);
 
 	switch (pfs->pfs_type) {
