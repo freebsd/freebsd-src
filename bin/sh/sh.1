@@ -115,7 +115,7 @@ of your home directory
 substituting for
 .Pa .shinit
 any filename you wish.
-If commandline arguments besides the options have been
+If command line arguments besides the options have been
 specified, then the shell treats the first argument as the
 name of a file from which to read commands (a shell script), and
 the remaining arguments are set as the positional parameters
@@ -135,13 +135,13 @@ scripts.
 All of the single letter options to
 .Nm
 have a corresponding name that can be used as an argument to the
-.Xr set 1
+.Dq set
 builtin (described later).  These names are provided next to the
 single letter option in the descriptions below.  Specifying a dash
 .Dq -
 enables the option, while using a plus
 .Dq +
-disables the option.  A 
+disables the option.  A
 .Dq --
 or plain
 .Dq -
@@ -156,12 +156,12 @@ completion.
 .Pq UNIMPLEMENTED
 .It Fl C Li noclobber
 Don't overwrite existing files with
-.Dq >.
+.Dq > .
 .Pq UNIMPLEMENTED
 .It Fl E Li emacs
 Enable the built-in
 .Xr emacs 1
-commandline editor (disables
+command line editor (disables
 .Fl V
 if it has been set).
 .It Fl e Li errexit
@@ -201,20 +201,21 @@ after
 and ignores the contents of the
 .Ev ENV
 variable.
-
 .It Fl s Li stdin
 Read commands from standard input (set automatically
 if no file arguments are present).  This option has
 no effect when set after the shell has already started
-running (i.e. with
-.Xr set 1 Ns ).
+running (i.e. when set with the
+.Dq set
+command).
 .It Fl T Li asynctraps
 When waiting for a child, execute traps immediately. If this option is
 not set, traps are executed after the child exits, as specified in
 .St -p1003.2
-This nonstandard option is useful to put guarding shells around childs
-that block signals. The surrounding shell may kill the child or it may
-just return control to the tty and leave the child alone, like this:
+This nonstandard option is useful for putting guarding shells around
+children that block signals.  The surrounding shell may kill the child
+or it may just return control to the tty and leave the child alone,
+like this:
 .Bd -literal -offset indent
 sh -T -c "trap 'exit 1' 2 ; some-blocking-program"
 .Ed
@@ -227,7 +228,7 @@ shell is not interactive, exit immediately.
 .It Fl V Li vi
 Enable the built-in
 .Xr vi 1
-commandline editor (disables
+command line editor (disables
 .Fl E
 if it has been set).
 .It Fl v Li verbose
@@ -246,7 +247,9 @@ argument, hence multi-word strings must be quoted.
 The shell reads input in terms of lines from a file and breaks
 it up into words at whitespace (blanks and tabs), and at
 certain sequences of
-characters that are special to the shell called ``operators''.
+characters called
+.Dq operators ,
+which are special to the shell.
 There are two types of operators: control operators and
 redirection operators (their meaning is discussed later).
 The following is a list of valid operators:
@@ -294,12 +297,15 @@ for     if      then    until   while
 .Ed
 .Ss Aliases
 An alias is a name and corresponding value set using the
-.Xr alias 1
+.Dq alias
 builtin command.  Whenever a reserved word may occur (see above),
 and after checking for reserved words, the shell
 checks the word to see if it matches an alias. If it does,
 it replaces it in the input stream with its value.  For example,
-if there is an alias called ``lf'' with the value ``ls -F'',
+if there is an alias called
+.Dq lf
+with the value
+.Dq ls -F ,
 then the input
 .Bd -literal -offset indent
 lf foobar <return>
@@ -329,18 +335,21 @@ If a simple command has been recognized, the shell performs
 the following actions:
 .Bl -enum
 .It
-Leading words of the form ``name=value'' are
-stripped off and assigned to the environment of
+Leading words of the form
+.Dq name=value
+are stripped off and assigned to the environment of
 the simple command.  Redirection operators and
 their arguments (as described below) are stripped
 off and saved for processing.
 .It
 The remaining words are expanded as described in
-the section called ``Expansions'', and the
-first remaining word is considered the command
+the section called
+.Sx Word Expansions ,
+and the first remaining word is considered the command
 name and the command is located.  The remaining
 words are considered the arguments of the command.
-If no command name resulted, then the ``name=value''
+If no command name resulted, then the
+.Dq name=value
 variable assignments recognized in 1) affect the
 current shell.
 .It
@@ -379,7 +388,8 @@ duplicate stdout (or n1) to n2.
 close stdout (or n)
 .El
 .Pp
-The following redirection is often called a ``here-document''.
+The following redirection is often called a
+.Dq here-document .
 .Bd -literal -offset indent
 [n]<< delimiter
 	here-doc-text...
@@ -392,8 +402,13 @@ input, or file descriptor n if it is specified.  If the delimiter
 as specified on the initial line is quoted, then the here-doc-text
 is treated literally, otherwise the text is subjected to
 parameter expansion, command substitution, and arithmetic
-expansion (as described in the section on ``Expansions'').  If
-the operator is ``<<-'' instead of ``<<'', then leading tabs
+expansion (as described in the section on
+.Sx Word Expansions ) .
+If the operator is
+.Dq <<-
+instead of
+.Dq << ,
+then leading tabs
 in the here-doc-text are stripped.
 .Ss Search and Execution
 There are three types of commands: shell functions,
@@ -421,13 +436,15 @@ program in the filesystem (as described in the next section).
 When a normal program is executed, the shell runs the program,
 passing the arguments and the environment to the
 program. If the program is not a normal executable file
-(i.e., if it does not begin with the "magic number" whose
+(i.e. if it does not begin with the
+.Qq magic number
+whose
 .Tn ASCII
-representation is "#!", so
-.Fn execve
-returns
-.Er ENOEXEC
-then) the shell
+representation is
+.Qq #! ,
+resulting in an ENOEXEC return value from
+.Fn execve )
+the shell
 will interpret the program in a subshell.  The child shell
 will reinitialize itself in this case, so that the effect will
 be as if a new shell had been invoked to handle the ad-hoc shell
@@ -437,7 +454,8 @@ the parent shell will be remembered by the child.
 Note that previous versions of this document
 and the source code itself misleadingly and sporadically
 refer to a shell script without a magic number
-as a "shell procedure".
+as a
+.Qq shell procedure .
 .Ss Path Search
 When locating a command, the shell first looks to see if
 it has a shell function by that name.  Then it looks for a
@@ -562,11 +580,19 @@ command and immediately proceed onto the next command;
 otherwise it waits for the command to terminate before
 proceeding to the next one.
 .Ss Short-Circuit List Operators
-``&&'' and ``||'' are AND-OR list operators.  ``&&'' executes
-the first command, and then executes the second command
-if the exit status of the first command is zero.  ``||''
+.Dq &&
+and
+.Dq ||
+are AND-OR list operators.
+.Dq &&
+executes the first command, and then executes the second command
+if the exit status of the first command is zero.
+.Dq ||
 is similar, but executes the second command if the exit
-status of the first command is nonzero.  ``&&'' and ``||''
+status of the first command is nonzero.
+.Dq &&
+and
+.Dq ||
 both have the same priority.
 .Ss Flow-Control Constructs -- if, while, for, case
 The syntax of the if command is
@@ -600,7 +626,10 @@ done
 .Pp
 The words are expanded, and then the list is executed
 repeatedly with the variable set to each word in turn.  do
-and done may be replaced with ``{'' and ``}''.
+and done may be replaced with
+.Dq {
+and
+.Dq } .
 .Pp
 The syntax of the break and continue command is
 .Bd -literal -offset indent
@@ -621,7 +650,9 @@ esac
 .Ed
 .Pp
 The pattern can actually be one or more patterns (see Shell
-Patterns described later), separated by ``|'' characters.
+Patterns described later), separated by
+.Dq |
+characters.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
 .Bd -literal -offset indent
@@ -652,7 +683,10 @@ name ( ) command
 A function definition is an executable statement; when
 executed it installs a function named name and returns an
 exit status of zero.  The command is normally a list
-enclosed between ``{'' and ``}''.
+enclosed between
+.Dq {
+and
+.Dq } .
 .Pp
 Variables may be declared to be local to a function by
 using a local command.  This should appear as the first
@@ -674,7 +708,10 @@ variable x declared inside f, not to the global variable
 named x.
 .Pp
 The only special parameter than can be made local is
-``-''.  Making ``-'' local any shell options that are
+.Dq - .
+Making
+.Dq -
+local causes any shell options that are
 changed via the set command inside the function to be
 restored to their original values when the function
 returns.
@@ -701,9 +738,9 @@ must not be numeric.  A parameter can also be denoted by a number
 or a special character as explained below.
 .Ss Positional Parameters
 A positional parameter is a parameter denoted by a number (n > 0).
-The shell sets these initially to the values of its commandline
+The shell sets these initially to the values of its command line
 arguments that follow the name of the shell script.  The
-.Xr set 1
+.Dq set
 builtin can also be used to set or reset them.
 .Ss Special Parameters
 A special parameter is a parameter denoted by one of the following
@@ -723,7 +760,13 @@ parameter expands as a separate argument.
 If there are no positional parameters, the
 expansion of @ generates zero arguments, even when @ is
 double-quoted.  What this basically means, for example, is
-if $1 is ``abc'' and $2 is ``def ghi'', then "$@" expands to
+if $1 is
+.Dq abc
+and $2 is
+.Dq def ghi ,
+then
+.Qq $@
+expands to
 the two arguments:
 .Bd -literal -offset indent
 "abc"   "def ghi"
@@ -896,7 +939,9 @@ the command is enclosed as follows:
 $(command)
 .Ed
 .Pp
-or (``backquoted'' version):
+or (
+.Dq backquoted
+version):
 .Bd -literal -offset indent
 `command`
 .Ed
@@ -946,23 +991,38 @@ a pattern cannot match a string starting with a period
 unless the first character of the pattern is a period.
 The next section describes the patterns used for both
 Pathname Expansion and the
-.Xr case 1
+.Dq case
 command.
 .Ss Shell Patterns
 A pattern consists of normal characters, which match themselves,
 and meta-characters.   The meta-characters are
-``!'', ``*'', ``?'', and ``[''.  These characters lose
-their special meanings if they are quoted.  When command
-or variable substitution is performed and the dollar sign
-or back quotes are not double quoted, the value of the
+.Dq ! ,
+.Dq * ,
+.Dq ? ,
+and
+.Dq [ .
+These characters lose their special meanings if they are quoted.
+When command or variable substitution is performed and the dollar sign
+or back quotes are not double-quoted, the value of the
 variable or the output of the command is scanned for these
 characters and they are turned into meta-characters.
 .Pp
-An asterisk (``*'') matches any string of characters.  A
+An asterisk
+.Dq *
+matches any string of characters.  A
 question mark matches any single character. A left
-bracket (``['') introduces a character class.  The end of
-the character class is indicated by a ``]''; if the ``]''
-is missing then the ``['' matches a ``['' rather than
+bracket
+.Dq [
+introduces a character class.  The end of
+the character class is indicated by a
+.Dq ] ;
+if the
+.Dq ]
+is missing then the
+.Dq [
+matches a
+.Dq [
+rather than
 introducing a character class.  A character class matches
 any of the characters between the square brackets.  A
 range of characters may be specified using a minus sign.
@@ -970,8 +1030,12 @@ The character class may be complemented by making an
 exclamation point the first character of the character
 class.
 .Pp
-To include a ``]'' in a character class, make it the first
-character listed (after the ``!'', if any).  To include a
+To include a
+.Dq ]
+in a character class, make it the first
+character listed (after the
+.Dq ! ,
+if any).  To include a
 minus sign, make it the first or last character listed.
 .Ss Builtins
 This section lists the builtin commands which
@@ -999,8 +1063,15 @@ for the file.  If it is not found in the
 it is sought in the current working directory.
 .It alias  [ name[=string] ...  ]
 If name=string is specified, the shell defines the
-alias ``name'' with value ``string''.  If just ``name''
-is specified, the value of the alias ``name'' is printed.
+alias
+.Dq name
+with value
+.Dq string .
+If just
+.Dq name
+is specified, the value of the alias
+.Dq name
+is printed.
 With no arguments, the alias builtin prints the
 names and values of all defined aliases (see unalias).
 .It bg [ job ] ...
@@ -1137,7 +1208,7 @@ it finds them.  The -r option causes the hash command
 to delete all the entries in the hash table except
 for functions.
 .It jobid [ job ]
-Print the process id's of the processes in the job. 
+Print the process id's of the processes in the job.
 If the job argument is omitted, use the current job.
 .It jobs
 This command lists out all the background processes
@@ -1200,15 +1271,19 @@ variables.
 .It
 If options are given, it sets the specified option
 flags, or clears them as described in the section
-called ``Argument List Processing''.
+called
+.Sx Argument List Processing .
 .It
 The third use of the set command is to set the values
 of the shell's positional parameters to the specified
 args.  To change the positional parameters without
-changing any options, use ``--'' as the first argument
+changing any options, use
+.Dq --
+as the first argument
 to set.  If no args are present, the set command
 will clear all the positional parameters (equivalent
-to executing ``shift $#''.
+to executing
+.Dq shift $# .
 .El
 .Pp
 .It setvar variable value
@@ -1243,19 +1318,31 @@ the command is printed.
 .It ulimit [ -HSacdflmnust ] [ limit ]
 Set or display resource limits (see
 .Xr getrlimit 2 ).
-If ``limit'' is specified, the named resource will be set;
+If
+.Dq limit
+is specified, the named resource will be set;
 otherwise the current resource value will be displayed.
 .Pp
-If ``-H'' is specified, the hard limits will be
+If
+.Dq -H
+is specified, the hard limits will be
 set or displayed.  While everybody is allowed to reduce a
-hard limit, only the superuser can increase it.  Option ``-S''
+hard limit, only the superuser can increase it.  Option
+.Dq -S
 specifies the soft limits instead.  When displaying limits,
-only one of ``-S'' or ``-H'' can be given.  The default is
+only one of
+.Dq -S
+or
+.Dq -H
+can be given.  The default is
 to display the soft limits, and to set both, the hard and
 the soft limits.
 .Pp
-Option ``-a'' requests to display all resources.  The parameter
-``limit'' is not acceptable in this mode.
+Option
+.Dq -a
+requests to display all resources.  The parameter
+.Dq limit
+is not acceptable in this mode.
 .Pp
 The remaining options specify which resource value is to be
 displayed or modified.  They are mutually exclusive.
@@ -1288,8 +1375,12 @@ to the specified
 octal value. If the argument is omitted, the
 umask value is printed.
 .It unalias [-a] [name]
-If ``name'' is specified, the shell removes that alias.
-If ``-a'' is specified, all aliases are removed.
+If
+.Dq name
+is specified, the shell removes that alias.
+If
+.Dq -a
+is specified, all aliases are removed.
 .It unset name ...
 The specified variables and functions are unset and
 unexported. If a given name corresponds to both a
@@ -1306,7 +1397,7 @@ When
 .Nm
 is being used interactively from a terminal, the current command
 and the command history (see fc in Builtins) can be edited using vi-mode
-commandline editing.  This mode uses commands similar
+command line editing.  This mode uses commands similar
 to a subset of those described in the vi man page.
 The command 'set -o vi' enables vi-mode editing and places
 .Nm
@@ -1316,7 +1407,7 @@ can be switched between insert mode and command mode by typing <ESC>.
 Hitting <return> while in command mode will pass the line to the shell.
 .Pp
 Similarly, the 'set -o emacs' command can be used to enable a subset of
-emacs-style commandline editing features.
+emacs-style command line editing features.
 .Sh SEE ALSO
 .Xr expr 1 ,
 .Xr test 1
