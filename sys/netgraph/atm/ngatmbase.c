@@ -75,7 +75,8 @@ static struct mtx ngatm_unilist_mtx;
 static void
 uni_msg_init(void)
 {
-	mtx_init(&ngatm_unilist_mtx, "netgraph UNI msg header lists", NULL, 0);
+	mtx_init(&ngatm_unilist_mtx, "netgraph UNI msg header lists", NULL,
+	    MTX_DEF);
 }
 
 /*

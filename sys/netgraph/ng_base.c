@@ -2981,10 +2981,14 @@ ngb_mod_event(module_t mod, int event, void *data)
 	case MOD_LOAD:
 		/* Register line discipline */
 		mtx_init(&ng_worklist_mtx, "ng_worklist", NULL, MTX_SPIN);
-		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL, 0);
-		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL, 0);
-		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", NULL, 0);
-		mtx_init(&ngq_mtx, "netgraph free item list mutex", NULL, 0);
+		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
+		    MTX_DEF);
+		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL,
+		    MTX_DEF);
+		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", NULL,
+		    MTX_DEF);
+		mtx_init(&ngq_mtx, "netgraph free item list mutex", NULL,
+		    MTX_DEF);
 		s = splimp();
 		/* XXX could use NETISR_MPSAFE but need to verify code */
 		netisr_register(NETISR_NETGRAPH, (netisr_t *)ngintr, NULL, 0);
