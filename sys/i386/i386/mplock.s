@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.7 1997/07/13 00:19:24 smp Exp smp $
+ * $Id: mplock.s,v 1.8 1997/07/15 00:09:53 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -32,6 +32,30 @@
 #endif
 #include <machine/apic.h>
 
+/*
+ * claim LOW PRIO, ie. accept ALL INTerrupts
+ */
+#ifdef TEST_LOPRIO
+
+#ifdef TEST_CPUSTOP
+#define TPR_TARGET		20(%esp)
+#else
+#define TPR_TARGET		lapic_tpr
+#endif /** TEST_CPUSTOP */
+
+#ifdef CHEAP_TPR
+#define ACCEPT_INTS \
+	movl	$0, TPR_TARGET			/* clear TPR */
+#else
+#define ACCEPT_INTS \
+	andl	$~APIC_TPR_PRIO, TPR_TARGET	/* clear TPR */
+#endif /** CHEAP_TPR */
+
+#else
+
+#define ACCEPT_INTS
+
+#endif /** TEST_LOPRIO */
 
 	.text
 /***********************************************************************
@@ -43,7 +67,7 @@
 NON_GPROF_ENTRY(MPgetlock)
 1:	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* Try to see if we have it already */
-	andl	$0x00ffffff, %eax	/* - get count */
+	andl	$COUNT_FIELD, %eax	/* - get count */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	orl	%ecx, %eax		/* - combine them */
 	movl	%eax, %ecx
@@ -52,27 +76,15 @@ NON_GPROF_ENTRY(MPgetlock)
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	2f			/* - miss */
 	ret
-2:	movl	$0xffffffff, %eax	/* Assume it's free */
+2:	movl	$FREE_LOCK, %eax	/* Assume it's free */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	incl	%ecx			/* - new count is one */
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	3f			/* ...do not collect $200 */
-#if defined(TEST_LOPRIO)
-	/* 1st acquire, claim LOW PRIO (ie, ALL INTerrupts) */
-#ifdef TEST_CPUSTOP
-#define TPR_STACKOFFSET		20(%esp)
-	movl	TPR_STACKOFFSET, %eax	/* saved copy */
-	andl	$0xffffff00, %eax	/* clear task priority field */
-	movl	%eax, TPR_STACKOFFSET	/* 're-save' it */
-#else
-	movl	lapic_tpr, %eax		/* Task Priority Register */
-	andl	$0xffffff00, %eax	/* clear task priority field */
-	movl	%eax, lapic_tpr		/* set it */
-#endif /** TEST_CPUSTOP */
-#endif /** TEST_LOPRIO */
+	ACCEPT_INTS			/* 1st acquire, accept INTs */
 	ret
-3:	cmpl	$0xffffffff, (%edx)	/* Wait for it to become free */
+3:	cmpl	$FREE_LOCK, (%edx)	/* Wait for it to become free */
 	jne	3b
 	jmp	2b			/* XXX 1b ? */
 
@@ -86,7 +98,7 @@ NON_GPROF_ENTRY(MPgetlock)
 NON_GPROF_ENTRY(MPtrylock)
 1:	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* Try to see if we have it already */
-	andl	$0x00ffffff, %eax	/* - get count */
+	andl	$COUNT_FIELD, %eax	/* - get count */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	orl	%ecx, %eax		/* - combine them */
 	movl	%eax, %ecx
@@ -96,12 +108,13 @@ NON_GPROF_ENTRY(MPtrylock)
 	jne	2f			/* - miss */
 	movl	$1, %eax
 	ret
-2:	movl	$0xffffffff, %eax	/* Assume it's free */
+2:	movl	$FREE_LOCK, %eax	/* Assume it's free */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	incl	%ecx			/* - new count is one */
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	3f			/* ...do not collect $200 */
+	ACCEPT_INTS			/* 1st acquire, accept INTs */
 	movl	$1, %eax
 	ret
 3:	movl	$0, %eax
@@ -118,17 +131,21 @@ NON_GPROF_ENTRY(MPrellock)
   	movl	(%edx), %eax		/* - get the value */
 	movl	%eax,%ecx
 	decl	%ecx			/* - new count is one less */
-	testl	$0x00ffffff, %ecx	/* - Unless it's zero... */
+	testl	$COUNT_FIELD, %ecx	/* - Unless it's zero... */
 	jnz	2f
 #if defined(TEST_LOPRIO)
 	/* last release, give up LOW PRIO (ie, arbitrate INTerrupts) */
+#ifdef CHEAP_TPR
+	movl	$LOPRIO_LEVEL, lapic_tpr	/* task prio to 'arbitrate' */
+#else
 	movl	lapic_tpr, %eax		/* Task Priority Register */
-	andl	$0xffffff00, %eax	/* clear task priority field */
-	orl	$0x00000010, %eax	/* set task priority to 'arbitrate' */
+	andl	$~APIC_TPR_PRIO, %eax	/* clear task priority field */
+	orl	$LOPRIO_LEVEL, %eax	/* set task priority to 'arbitrate' */
 	movl	%eax, lapic_tpr		/* set it */
   	movl	(%edx), %eax		/* - get the value AGAIN */
+#endif /* CHEAP_TPR */
 #endif /** TEST_LOPRIO */
-	movl	$0xffffffff, %ecx	/* - In which case we release it */
+	movl	$FREE_LOCK, %ecx	/* - In which case we release it */
 2:	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	1b			/* ...do not collect $200 */
@@ -153,14 +170,22 @@ NON_GPROF_ENTRY(get_mplock)
 	pushl	%eax
 
 #ifdef TEST_CPUSTOP
+#ifdef CHEAP_TPR
+	pushl	lapic_tpr		/* save current TPR */
+	pushfl				/* save current EFLAGS */
+	btl	$9, (%esp)		/* test EI bit */
+	jc	1f			/* INTs currently enabled */
+	movl	$TPR_BLOCK_HWI, lapic_tpr	/* set it */
+#else
 	movl	lapic_tpr, %eax		/* get current TPR */
 	pushl	%eax			/* save current TPR */
 	pushfl				/* save current EFLAGS */
 	btl	$9, (%esp)		/* test EI bit */
 	jc	1f			/* INTs currently enabled */
-	andl	$0xffffff00, %eax	/* clear task priority field */
+	andl	$~APIC_TPR_PRIO, %eax	/* clear task priority field */
 	orl	$TPR_BLOCK_HWI, %eax	/* only allow IPIs
 	movl	%eax, lapic_tpr		/* set it */
+#endif /* CHEAP_TPR */
 	sti				/* allow IPI (and only IPI) INTS */
 1:
 #endif /* TEST_CPUSTOP */
@@ -175,11 +200,10 @@ NON_GPROF_ENTRY(get_mplock)
 
 #ifdef TEST_CPUSTOP
 	popfl				/* restore original EFLAGS */
-	popl	%eax			/* get original/modified TPR value */
-	movl	%eax, lapic_tpr		/* restore TPR */
+	popl	lapic_tpr		/* restore TPR */
 #endif /* TEST_CPUSTOP */
 
-	popl	%eax
+	popl	%eax			/* restore scratch */
 	ret
 
 /***********************************************************************
