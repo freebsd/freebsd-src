@@ -122,9 +122,12 @@ extern	int	ip6_getpmtu(struct route_in6 *, struct route_in6 *,
 			    struct ifnet *, struct in6_addr *, u_long *);
 #endif
 
+#include <machine/in_cksum.h>
+
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.64 2002/12/06 11:45:45 darrenr Exp $";
+/*static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.60 2002/08/28 12:40:39 darrenr Exp $";*/
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
@@ -506,7 +509,7 @@ int ipldetach()
 # if __NetBSD_Version__ >= 105150000
         struct pfil_head *ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 #  ifdef USE_INET6
-        struct pfil_head *ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	struct pfil_head *ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 #  endif
 # endif
 #endif
@@ -651,7 +654,7 @@ int mode;
 	int error = 0, unit = 0, tmp;
 
 #if (BSD >= 199306) && defined(_KERNEL)
-	if ((securelevel >= 2) && (mode & FWRITE))
+	if ((securelevel >= 3) && (mode & FWRITE))
 		return EPERM;
 #endif
 #ifdef	_KERNEL
@@ -1323,7 +1326,6 @@ struct mbuf **mp;
 		error = ipfr_fastroute(m, mp, &frn, NULL);
 	else
 		error = EINVAL;
-
 	return error;
 }
 

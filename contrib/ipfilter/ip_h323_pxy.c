@@ -10,6 +10,8 @@
  * please email licensing@qnx.com.
  *
  * For more details, see QNX_OCL.txt provided with this distribution.
+ *
+ * $FreeBSD$
  */
 
 /*

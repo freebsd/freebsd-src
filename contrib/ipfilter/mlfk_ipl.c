@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mlfk_ipl.c,v 2.1.2.7 2001/08/27 21:14:04 darrenr Exp $
+ * $FreeBSD$
  */
 
 

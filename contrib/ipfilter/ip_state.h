@@ -62,6 +62,7 @@ typedef struct ipstate {
 	frentry_t	*is_rule;
 	U_QUAD_T	is_pkts;
 	U_QUAD_T	is_bytes;
+	U_QUAD_T	is_icmppkts;
 	union	i6addr	is_src;
 	union	i6addr	is_dst;
 	void	*is_ifp[4];

@@ -4,7 +4,8 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.29.2.34 2002/10/01 15:23:37 darrenr Exp $
+ * $Id: ip_fil.h,v 2.29.2.33 2002/06/04 14:46:28 darrenr Exp $
+ * $FreeBSD$
  */
 
 #ifndef	__IP_FIL_H__
@@ -151,7 +152,7 @@ typedef	struct	fr_info	{
 	u_short	fin_dlen;		/* length of data portion of packet */
 	u_short	fin_id;			/* IP packet id field */
 	u_int	fin_misc;
-	void	*fin_mp;		/* pointer to pointer to mbuf */
+	mb_t	**fin_mp;		/* pointer to pointer to mbuf */
 #if SOLARIS
 	void	*fin_qfm;		/* pointer to mblk where pkt starts */
 	void	*fin_qif;
@@ -505,6 +506,7 @@ typedef	struct	ipflog	{
 
 
 #ifndef	_KERNEL
+struct ifnet;
 extern	char	*get_ifname __P((struct ifnet *));
 extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
@@ -628,7 +630,7 @@ extern	void	fr_forgetifp __P((void *));
 extern	void	fr_getstat __P((struct friostat *));
 extern	int	fr_ifpaddr __P((int, void *, struct in_addr *));
 extern	int	fr_lock __P((caddr_t, int *));
-extern  void	fr_makefrip __P((int, ip_t *, fr_info_t *));
+extern  int	fr_makefrip __P((int, ip_t *, fr_info_t *));
 extern	u_short	fr_tcpsum __P((mb_t *, ip_t *, tcphdr_t *));
 extern	int	fr_scanlist __P((u_32_t, ip_t *, fr_info_t *, void *));
 extern	int	fr_tcpudpchk __P((frtuc_t *, fr_info_t *));

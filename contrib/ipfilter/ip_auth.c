@@ -104,7 +104,8 @@ extern struct ifqueue   ipintrq;		/* ip packet input queue */
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.24 2002/12/06 11:40:21 darrenr Exp $";
+/*static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.20 2002/06/04 14:40:42 darrenr Exp $";*/
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
@@ -418,7 +419,8 @@ fr_authioctlloop:
 
 			bzero((char *)&ro, sizeof(ro));
 #  if ((_BSDI_VERSION >= 199802) && (_BSDI_VERSION < 200005)) || \
-       defined(__OpenBSD__) || (defined(IRIX) && (IRIX >= 605))
+       defined(__OpenBSD__) || (defined(IRIX) && (IRIX >= 605)) || \
+       (__FreeBSD_version >= 470102)
 			error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL,
 					  NULL);
 #  else

@@ -3,7 +3,8 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_auth.h,v 2.3.2.6 2002/10/26 07:03:00 darrenr Exp $
+ * $Id: ip_auth.h,v 2.1 1999/08/04 17:29:54 darrenr Exp $
+ * $FreeBSD$
  *
  */
 #ifndef	__IP_AUTH_H__
