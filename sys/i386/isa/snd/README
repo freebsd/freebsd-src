@@ -1,8 +1,8 @@
-            --- A new  FreeBSD sound driver ---
-            by Luigi Rizzo (luigi@iet.unipi.it)
+	    --- A new  FreeBSD audio driver ---
+	    by Luigi Rizzo (luigi@iet.unipi.it)
 
 
-This is an experimental version of the sound driver for FreeBSD.
+This is an experimental version of the audio driver for FreeBSD.
 I have almost completely rewritten the main parts of the code,
 starting from the Voxware 3.5-alpha release with patches from
 Amancio Hasty. The only file which is largely similar to the original
@@ -20,14 +20,10 @@ For PnP cards, I also include the vendor_id and serial numbers of
 cards I have encountered.
 
 CS4236: PnP id 0x3642630e
+CS4237: PnP id 0x3742630e
 
     works like a charm. All modes, including full duplex, supported in
     MSS mode.
-
-CS4237: PnP id 0x3742630e
-
-    I had early reports of success with this board, which is almost
-    the same as the CS4236.
 
 CS4232: PnP id 0x3242630e
 
@@ -39,32 +35,66 @@ CS4232: PnP id 0x3242630e
 
 OPTi931: PnP id 0x3109143e
 
-    The data sheets of this chip are very cryptic. I have it working
-    in full duplex in all modes _except_ capture of uLAW/ALAW data.
-    I am strongly convinced of a bug in the chip. I have sent email
-    to OPTI but got no reply so far.  In SB emulation mode the
-    driver does not work yet (maybe I do not initialize it the
-    right way).
-
-    Another bug seems to affect full duplex operation -- it appears
-    that at times DMA transfer are requested but not counted by
-    the device. In normal DMA mode this causes deadlocks.  The only
-    solution I have found is to fetch the count from the ISA DMA
-    registers, but this does not seem to work very well either.
+    The data sheets of this chip are very cryptic and do not match
+    what the cards I have seem to do. I have it working
+    in WSS emulation, in full duplex and all modes.
+    In SB emulation mode the driver does not work yet (maybe I do
+    not initialize it the right way). It is not a major concern
+    anyways.
+    I am strongly convinced of a couple of bugs in the chip. I have
+    sent email to OPTI but got no reply so far. The bugs are:
+    - you cannot set both playback and capture format to use
+      a companded mode (ULAW, ALAW). If you do, the card will screw
+      up on the capture section.
+      The driver has a partial fix in software: when using ULAW, it
+      programs ULAW on the playback section, U8 on the capture, and
+      does a conversion in software (much like the SBPro). Of course
+      you lose 4-5 bits of dynamic range in the process.
+    - in full duplex (and single DMA mode), the card occasionally
+      misses interrupts, or generates spurious ones. Spurious ints are
+      not problematic since they can be ignored, but missed ones are
+      as you can imagine... This is fixed by auto-dma mode.
 
 SB16 PnP: PnP id 0xXX008c0e
 
     There are many such cards (plain SB16 PnP, AWE32, AWE64, Vibra16,
-    etc. all differing in the PnP id (and with different synthesis
-    devices, which we do not support anyways).
+    etc.) all differing in the PnP id. They have different synthesis
+    devices, which we do not support, so we are not affected by these
+    differences. Don't worry if the driver identifies the card as a
+    different SB16 than the one you have.
 
-    Since 970903 the driver supports them all, both capture and
-    playback, 8 and 16 bits.
+    Full duplex support of this card is tricky since one channel can
+    work in 16-bit and the other in 8-bit mode. You will need to use
+    the new set of ioctl to use separate data formats on the two
+    channels (the vat driver does this). Of course, quality in 8-bit
+    is much lower than in 16-bit.
+
+    Full duplex operation is unsupported by Creative. It seems to
+    work, although on my Vibra16 the command to stop DMA transfer
+    seems to erroneously affect both channels instead of the one
+    they are issued for. The driver has a workaround, but I cannot
+    guarantee that it works for everybody. I have had several
+    positive reports.
+
+Yamaha SA2
+
+    this card emulates a WSS or SB. Have reports that it works, although
+    it has mixer problems (maybe the driver has the wrong set of
+    parameters).
+
+Ensoniq Soundscape VIVO
+
+    this card emulates a WSS or SB. Have reports that it works.
 
 GusPnP: PnP id 0x0100561e
 
-    I have code to recognize the board as MSS, but have not tested it
-    since I don't own the board. Hopefully someone will test it soon.
+    I have code to recognize the board as MSS, but some initializations
+    of the IW chip is still missing, so the card is not supported yet.
+    I am working on this problem...
+
+OPTI924: PnP
+
+    I have this card but it is still unsupported.
 
 OPTI925: PnP id 0x2509143e
 
@@ -76,3 +106,21 @@ OPTI930:
     should work as an MSS clone, but support for it is not implemented
     yet.
 
+ESS1868
+
+    this card is not supported yet. It might work in SB emulation but
+    am not sure.
+
+ESS688
+
+    this card is used on many notebook. I don't have docs on this card
+    so I cannot support it. Pointers to the data sheets are welcome.
+
+PCI cards:
+
+    some vendors have PCI cards. This code _cannot_ work on these
+    cards as it is now, since they cannot obviously use the ISA DMA
+    controller. As there are no data sheets available for these PCI
+    cards, none of them is supported at the moment, although support
+    should be easy as soon as I can put my hands on the data sheets
+    and cards.
