@@ -1300,7 +1300,7 @@ witness_list_locks(struct lock_list_entry **lock_list)
 			    "exclusive" : "shared",
 			    lock->lo_class->lc_name, lock->lo_name);
 			if (lock->lo_type != lock->lo_name)
-				printf("(%s) ", lock->lo_type);
+				printf(" (%s)", lock->lo_type);
 			printf(" (%p) locked @ %s:%d\n", lock,
 			    instance->li_file, instance->li_line);
 			nheld++;
