@@ -55,6 +55,59 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
 
 #define REUSE_CIPHER_BUG
 #define NETSCAPE_HANG_BUG
@@ -69,6 +122,7 @@
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include "ssl_locl.h"
+#include "cryptlib.h"
 
 static SSL_METHOD *ssl3_get_server_method(int ver);
 static int ssl3_get_client_hello(SSL *s);
@@ -125,8 +179,8 @@ int ssl3_accept(SSL *s)
 		cb=s->ctx->info_callback;
 
 	/* init things to blank */
-	if (!SSL_in_init(s) || SSL_in_before(s)) SSL_clear(s);
 	s->in_handshake++;
+	if (!SSL_in_init(s) || SSL_in_before(s)) SSL_clear(s);
 
 	if (s->cert == NULL)
 		{
@@ -180,21 +234,23 @@ int ssl3_accept(SSL *s)
 				goto end;
 				}
 
-			/* Ok, we now need to push on a buffering BIO so that
-			 * the output is sent in a way that TCP likes :-)
-			 */
-			if (!ssl_init_wbio_buffer(s,1)) { ret= -1; goto end; }
-
 			s->init_num=0;
 
 			if (s->state != SSL_ST_RENEGOTIATE)
 				{
+				/* Ok, we now need to push on a buffering BIO so that
+				 * the output is sent in a way that TCP likes :-)
+				 */
+				if (!ssl_init_wbio_buffer(s,1)) { ret= -1; goto end; }
+				
 				ssl3_init_finished_mac(s);
 				s->state=SSL3_ST_SR_CLNT_HELLO_A;
 				s->ctx->stats.sess_accept++;
 				}
 			else
 				{
+				/* s->state == SSL_ST_RENEGOTIATE,
+				 * we will just send a HelloRequest */
 				s->ctx->stats.sess_accept_renegotiate++;
 				s->state=SSL3_ST_SW_HELLO_REQ_A;
 				}
@@ -215,9 +271,7 @@ int ssl3_accept(SSL *s)
 
 		case SSL3_ST_SW_HELLO_REQ_C:
 			s->state=SSL_ST_OK;
-			ret=1;
-			goto end;
-			/* break; */
+			break;
 
 		case SSL3_ST_SR_CLNT_HELLO_A:
 		case SSL3_ST_SR_CLNT_HELLO_B:
@@ -226,6 +280,7 @@ int ssl3_accept(SSL *s)
 			s->shutdown=0;
 			ret=ssl3_get_client_hello(s);
 			if (ret <= 0) goto end;
+			s->new_session = 2;
 			s->state=SSL3_ST_SW_SRVR_HELLO_A;
 			s->init_num=0;
 			break;
@@ -456,18 +511,24 @@ int ssl3_accept(SSL *s)
 			/* remove buffering on output */
 			ssl_free_wbio_buffer(s);
 
-			s->new_session=0;
 			s->init_num=0;
 
-			ssl_update_cache(s,SSL_SESS_CACHE_SERVER);
+			if (s->new_session == 2) /* skipped if we just sent a HelloRequest */
+				{
+				/* actually not necessarily a 'new' session  */
+				
+				s->new_session=0;
+				
+				ssl_update_cache(s,SSL_SESS_CACHE_SERVER);
+				
+				s->ctx->stats.sess_accept_good++;
+				/* s->server=1; */
+				s->handshake_func=ssl3_accept;
 
-			s->ctx->stats.sess_accept_good++;
-			/* s->server=1; */
-			s->handshake_func=ssl3_accept;
-			ret=1;
-
-			if (cb != NULL) cb(s,SSL_CB_HANDSHAKE_DONE,1);
-
+				if (cb != NULL) cb(s,SSL_CB_HANDSHAKE_DONE,1);
+				}
+			
+			ret = 1;
 			goto end;
 			/* break; */
 
@@ -500,9 +561,9 @@ int ssl3_accept(SSL *s)
 end:
 	/* BIO_flush(s->wbio); */
 
+	s->in_handshake--;
 	if (cb != NULL)
 		cb(s,SSL_CB_ACCEPT_EXIT,ret);
-	s->in_handshake--;
 	return(ret);
 	}
 
@@ -533,11 +594,17 @@ static int ssl3_check_client_hello(SSL *s)
 	int ok;
 	long n;
 
+	/* this function is called when we really expect a Certificate message,
+	 * so permit appropriate message length */
 	n=ssl3_get_message(s,
 		SSL3_ST_SR_CERT_A,
 		SSL3_ST_SR_CERT_B,
 		-1,
-		SSL3_RT_MAX_PLAIN_LENGTH,
+#if defined(MSDOS) && !defined(WIN32)
+		1024*30, /* 30k max cert list :-) */
+#else
+		1024*100, /* 100k max cert list :-) */
+#endif
 		&ok);
 	if (!ok) return((int)n);
 	s->s3->tmp.reuse_message = 1;
@@ -595,6 +662,18 @@ static int ssl3_get_client_hello(SSL *s)
 	s->client_version=(((int)p[0])<<8)|(int)p[1];
 	p+=2;
 
+	if (s->client_version < s->version)
+		{
+		SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_WRONG_VERSION_NUMBER);
+		if ((s->client_version>>8) == SSL3_VERSION_MAJOR) 
+			{
+			/* similar to ssl3_get_record, send alert using remote version number */
+			s->version = s->client_version;
+			}
+		al = SSL_AD_PROTOCOL_VERSION;
+		goto f_err;
+		}
+
 	/* load the client random */
 	memcpy(s->s3->client_random,p,SSL3_RANDOM_SIZE);
 	p+=SSL3_RANDOM_SIZE;
@@ -633,7 +712,7 @@ static int ssl3_get_client_hello(SSL *s)
 		SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO,SSL_R_NO_CIPHERS_SPECIFIED);
 		goto f_err;
 		}
-	if ((i+p) > (d+n))
+	if ((p+i) >= (d+n))
 		{
 		/* not enough data */
 		al=SSL_AD_DECODE_ERROR;
@@ -690,6 +769,13 @@ static int ssl3_get_client_hello(SSL *s)
 
 	/* compression */
 	i= *(p++);
+	if ((p+i) > (d+n))
+		{
+		/* not enough data */
+		al=SSL_AD_DECODE_ERROR;
+		SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO,SSL_R_LENGTH_MISMATCH);
+		goto f_err;
+		}
 	q=p;
 	for (j=0; j<i; j++)
 		{
@@ -737,7 +823,7 @@ static int ssl3_get_client_hello(SSL *s)
 	/* TLS does not mind if there is extra stuff */
 	if (s->version == SSL3_VERSION)
 		{
-		if (p > (d+n))
+		if (p < (d+n))
 			{
 			/* wrong number of bytes,
 			 * there could be more to follow */
@@ -863,6 +949,7 @@ static int ssl3_send_server_hello(SSL *s)
 			s->session->session_id_length=0;
 
 		sl=s->session->session_id_length;
+		die(sl <= sizeof s->session->session_id);
 		*(p++)=sl;
 		memcpy(p,s->session->session_id,sl);
 		p+=sl;
@@ -1262,7 +1349,7 @@ static int ssl3_get_client_key_exchange(SSL *s)
 		SSL3_ST_SR_KEY_EXCH_A,
 		SSL3_ST_SR_KEY_EXCH_B,
 		SSL3_MT_CLIENT_KEY_EXCHANGE,
-		400, /* ???? */
+		2048, /* ???? */
 		&ok);
 
 	if (!ok) return((int)n);
@@ -1322,14 +1409,15 @@ static int ssl3_get_client_key_exchange(SSL *s)
 
 		i=RSA_private_decrypt((int)n,p,p,rsa,RSA_PKCS1_PADDING);
 
+		al = -1;
+		
 		if (i != SSL_MAX_MASTER_KEY_LENGTH)
 			{
 			al=SSL_AD_DECODE_ERROR;
 			SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,SSL_R_BAD_RSA_DECRYPT);
-			goto f_err;
 			}
 
-		if (!((p[0] == (s->client_version>>8)) && (p[1] == (s->client_version & 0xff))))
+		if ((al == -1) && !((p[0] == (s->client_version>>8)) && (p[1] == (s->client_version & 0xff))))
 			{
 			/* The premaster secret must contain the same version number as the
 			 * ClientHello to detect version rollback attacks (strangely, the
@@ -1347,6 +1435,27 @@ static int ssl3_get_client_key_exchange(SSL *s)
 				}
 			}
 
+		if (al != -1)
+			{
+#if 0
+			goto f_err;
+#else
+			/* Some decryption failure -- use random value instead as countermeasure
+			 * against Bleichenbacher's attack on PKCS #1 v1.5 RSA padding
+			 * (see RFC 2246, section 7.4.7.1).
+			 * But note that due to length and protocol version checking, the
+			 * attack is impractical anyway (see section 5 in D. Bleichenbacher:
+			 * "Chosen Ciphertext Attacks Against Protocols Based on the RSA
+			 * Encryption Standard PKCS #1", CRYPTO '98, LNCS 1462, pp. 1-12).
+			 */
+			ERR_clear_error();
+			i = SSL_MAX_MASTER_KEY_LENGTH;
+			p[0] = s->client_version >> 8;
+			p[1] = s->client_version & 0xff;
+			RAND_pseudo_bytes(p+2, i-2); /* should be RAND_bytes, but we cannot work around a failure */
+#endif
+			}
+	
 		s->session->master_key_length=
 			s->method->ssl3_enc->generate_master_secret(s,
 				s->session->master_key,

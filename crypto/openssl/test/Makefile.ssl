@@ -81,7 +81,7 @@ HEADER=	$(EXHEADER)
 ALL=    $(GENERAL) $(SRC) $(HEADER)
 
 top:
-	(cd ..; $(MAKE) DIRS=$(DIR) all)
+	(cd ..; $(MAKE) DIRS=$(DIR) TESTS=$(TESTS) all)
 
 all:	exe
 
@@ -109,7 +109,7 @@ tests:	exe apps \
 	test_ss test_ca test_ssl
 
 apps:
-	@(cd ../apps; $(MAKE)  CC='${CC}' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' all)
+	@(cd ../apps; $(MAKE)  CC='${CC}' PLATFORM='${PLATFORM}' CFLAG='${CFLAG}' SDIRS='$(SDIRS)' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' TESTS='${TESTS}' EXE_EXT='${EXE_EXT}' SHARED_LIBS='${SHARED_LIBS}' SHLIB_EXT='${SHLIB_EXT}' SHLIB_TARGET='${SHLIB_TARGET}' all)
 
 test_des:
 	./$(DESTEST)
@@ -191,7 +191,7 @@ test_bn:
 	@./$(BNTEST) >tmp.bntest
 	@echo quit >>tmp.bntest
 	@echo "running bc"
-	@<tmp.bntest sh -c "`sh ./bctest || true`" | $(PERL) -e '$$i=0; while (<STDIN>) {if (/^test (.*)/) {print STDERR "\nverify $$1";} elsif (!/^0$$/) {die "\nFailed! bc: $$_";} else {print STDERR "."; $$i++;}} print STDERR "\n$$i tests passed\n"'
+	@<tmp.bntest sh -c "`sh ./bctest ignore`" | $(PERL) -e '$$i=0; while (<STDIN>) {if (/^test (.*)/) {print STDERR "\nverify $$1";} elsif (!/^0$$/) {die "\nFailed! bc: $$_";} else {print STDERR "."; $$i++;}} print STDERR "\n$$i tests passed\n"'
 	@echo 'test a^b%c implementations'
 	./$(EXPTEST)
 
@@ -243,10 +243,10 @@ clean:
 	rm -f .rnd tmp.bntest tmp.bctest *.o *.obj lib tags core .pure .nfs* *.old *.bak fluff $(EXE) *.ss log
 
 $(DLIBSSL):
-	(cd ../ssl; $(MAKE))
+	(cd ../ssl; $(MAKE) CC='${CC}' PLATFORM='${PLATFORM}' CFLAG='${CFLAG}' SDIRS='$(SDIRS)' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' TESTS='${TESTS}' EXE_EXT='${EXE_EXT}' SHARED_LIBS='${SHARED_LIBS}' SHLIB_EXT='${SHLIB_EXT}' SHLIB_TARGET='${SHLIB_TARGET}')
 
 $(DLIBCRYPTO):
-	(cd ../crypto; $(MAKE))
+	(cd ../crypto; $(MAKE) CC='${CC}' PLATFORM='${PLATFORM}' CFLAG='${CFLAG}' SDIRS='$(SDIRS)' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' TESTS='${TESTS}' EXE_EXT='${EXE_EXT}' SHARED_LIBS='${SHARED_LIBS}' SHLIB_EXT='${SHLIB_EXT}' SHLIB_TARGET='${SHLIB_TARGET}')
 
 $(RSATEST): $(RSATEST).o $(DLIBCRYPTO)
 	$(CC) -o $(RSATEST) $(CFLAGS) $(RSATEST).o $(PEX_LIBS) $(LIBCRYPTO) $(EX_LIBS)
@@ -344,6 +344,7 @@ destest.o: ../include/openssl/des.h ../include/openssl/e_os2.h
 destest.o: ../include/openssl/opensslconf.h
 dhtest.o: ../include/openssl/bio.h ../include/openssl/bn.h
 dhtest.o: ../include/openssl/crypto.h ../include/openssl/dh.h
+dhtest.o: ../include/openssl/err.h ../include/openssl/lhash.h
 dhtest.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 dhtest.o: ../include/openssl/rand.h ../include/openssl/safestack.h
 dhtest.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
