@@ -319,15 +319,6 @@ s_runame(KINFO *k)
 
 
 void
-rss(KINFO *k, VARENT *ve)
-{
-	VAR *v;
-
-	v = ve->var;
-	(void)printf("%*ld", v->width, (long)ps_pgtok(k->ki_p->ki_rssize));
-}
-
-void
 tdev(KINFO *k, VARENT *ve)
 {
 	VAR *v;
@@ -630,15 +621,6 @@ maxrss(KINFO *k __unused, VARENT *ve)
 }
 
 void
-tsize(KINFO *k, VARENT *ve)
-{
-	VAR *v;
-
-	v = ve->var;
-	(void)printf("%*ld", v->width, (long)ps_pgtok(k->ki_p->ki_tsize));
-}
-
-void
 priorityr(KINFO *k, VARENT *ve)
 {
 	VAR *v;
@@ -713,6 +695,9 @@ printval(void *bp, VAR *v)
 		break;
 	case KPTR:
 		(void)printf(ofmt, v->width, *(u_long *)bp);
+		break;
+	case PLONG:
+		(void)printf(ofmt, v->width, ps_pgtok(*(u_long *)bp));
 		break;
 	default:
 		errx(1, "unknown type %d", v->type);

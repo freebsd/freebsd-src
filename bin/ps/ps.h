@@ -35,7 +35,7 @@
  */
 
 #define	UNLIMITED	0	/* unlimited terminal width */
-enum type { CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR };
+enum type { CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PLONG };
 
 typedef struct kinfo {
 	struct kinfo_proc *ki_p;	/* kinfo_proc structure */
