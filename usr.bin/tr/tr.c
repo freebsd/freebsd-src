@@ -138,6 +138,8 @@ main(int argc, char **argv)
 				lastch = ch;
 				(void)putwchar(ch);
 			}
+		if (ferror(stdin))
+			err(1, NULL);
 		exit(0);
 	}
 
@@ -154,6 +156,8 @@ main(int argc, char **argv)
 		while ((ch = getwchar()) != WEOF)
 			if (!cset_in(delete, ch))
 				(void)putwchar(ch);
+		if (ferror(stdin))
+			err(1, NULL);
 		exit(0);
 	}
 
@@ -169,6 +173,8 @@ main(int argc, char **argv)
 				lastch = ch;
 				(void)putwchar(ch);
 			}
+		if (ferror(stdin))
+			err(1, NULL);
 		exit(0);
 	}
 
@@ -324,6 +330,8 @@ endloop:
 				ch = cmap_lookup(map, ch);
 			(void)putwchar(ch);
 		}
+	if (ferror(stdin))
+		err(1, NULL);
 	exit (0);
 }
 
