@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.7 1995/05/05 20:42:00 dufault Exp $
+ *	$Id: scsi.c,v 1.8 1995/05/30 06:09:58 rgrimes Exp $
  */
 
 #include <stdio.h>
@@ -51,6 +51,7 @@
 #include <sys/file.h>
 #include <scsi.h>
 #include <ctype.h>
+#include <signal.h>
 
 int	fd;
 int	debuglevel;
@@ -573,6 +574,7 @@ struct editinfo
 } editinfo[64];	/* XXX Bogus fixed size */
 
 static int editind;
+volatile int edit_opened;
 static FILE *edit_file;
 static char edit_name[L_tmpnam];
 
@@ -580,6 +582,30 @@ static inline void
 edit_rewind(void)
 {
 	editind = 0;
+}
+
+static void
+edit_done(void)
+{
+	int opened;
+
+	sigset_t all, prev;
+	sigfillset(&all);
+
+	(void)sigprocmask(SIG_SETMASK, &all, &prev);
+
+	opened = (int)edit_opened;
+	edit_opened = 0;
+
+	(void)sigprocmask(SIG_SETMASK, &prev, 0);
+
+	if (opened)
+	{
+		if (fclose(edit_file))
+			perror(edit_name);
+		if (unlink(edit_name))
+			perror(edit_name);
+	}
 }
 
 static void
@@ -594,6 +620,9 @@ edit_init(void)
 		perror(edit_name);
 		exit(errno);
 	}
+	edit_opened = 1;
+
+	atexit(edit_done);
 }
 
 static void
@@ -777,6 +806,8 @@ mode_edit(int fd, int page, int edit, int argc, char *argv[])
 		scsireq_buff_decode_visit(mode_pars,
 		mh->mdl, fmt, arg_put, 0);
 #endif
+
+		edit_done();
 
 		/* Make it permanent if pageselect is three.
 		 */
