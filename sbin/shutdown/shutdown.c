@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: shutdown.c,v 1.13 1998/08/03 06:22:43 charnier Exp $";
+	"$Id: shutdown.c,v 1.14 1998/12/10 23:54:02 msmith Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -151,8 +151,8 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
-	if ((doreboot + dohalt + dopower) > 1) {
-		warnx("incompatible switches -h, -p  and -r");
+	if (doreboot + dohalt + dopower > 1) {
+		warnx("incompatible switches -h, -p and -r");
 		usage();
 	}
 	getoffset(*argv++);
@@ -493,6 +493,7 @@ badtime()
 void
 usage()
 {
-	fprintf(stderr, "usage: shutdown [-hknr] shutdowntime [ message ]\n");
+	fprintf(stderr,
+	    "usage: shutdown [-] [-hknpr] time [warning-message ...]\n");
 	exit(1);
 }
