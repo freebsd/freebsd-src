@@ -58,12 +58,10 @@ int main(int argc, char *argv[])
 	}
 
 	if (argc == 2) {
-		if (ioctl(fd, TIOCMGBIDIR, &res) < 0) {
-			perror("TIOCMGBIDIR");
-			exit(1);
+		if (ioctl(fd, TIOCMGBIDIR, &res) >= 0) {
+			if (!res)  printf("-");
+			printf("bidir ");
 		}
-		if (!res)  printf("-");
-		printf("bidir ");
 		if (ioctl(fd, TIOCMGDTRWAIT, &dtrwait) < 0) {
 			perror("TIOCMGDTRWAIT");
 			exit(1);
