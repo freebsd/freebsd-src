@@ -197,7 +197,8 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 	     * required"
 	     */
 	    set->set_irq(dev, context, res->Data.Irq.Interrupts,
-			 res->Data.Irq.NumberOfInterrupts);
+		res->Data.Irq.NumberOfInterrupts, res->Data.Irq.EdgeLevel,
+		res->Data.Irq.ActiveHighLow);
 	    break;
 	case ACPI_RSTYPE_DMA:
 	    /*
@@ -350,7 +351,9 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 	case ACPI_RSTYPE_EXT_IRQ:
 	    /* XXX special handling? */
 	    set->set_irq(dev, context,res->Data.ExtendedIrq.Interrupts,
-			 res->Data.ExtendedIrq.NumberOfInterrupts);
+		res->Data.ExtendedIrq.NumberOfInterrupts,
+		res->Data.ExtendedIrq.EdgeLevel,
+		res->Data.ExtendedIrq.ActiveHighLow);
 	    break;
 	case ACPI_RSTYPE_VENDOR:
 	    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
@@ -383,7 +386,7 @@ static void	acpi_res_set_memoryrange(device_t dev, void *context,
 					 u_int32_t low, u_int32_t high, 
 					 u_int32_t length, u_int32_t align);
 static void	acpi_res_set_irq(device_t dev, void *context, u_int32_t *irq,
-				 int count);
+				 int count, int trig, int pol);
 static void	acpi_res_set_drq(device_t dev, void *context, u_int32_t *drq,
 				 int count);
 static void	acpi_res_set_start_dependant(device_t dev, void *context,
@@ -477,10 +480,11 @@ acpi_res_set_memoryrange(device_t dev, void *context, u_int32_t low,
 }
 
 static void
-acpi_res_set_irq(device_t dev, void *context, u_int32_t *irq, int count)
+acpi_res_set_irq(device_t dev, void *context, u_int32_t *irq, int count,
+    int trig, int pol)
 {
     struct acpi_res_context	*cp = (struct acpi_res_context *)context;
-    
+
     if (cp == NULL || irq == NULL)
 	return;
 
@@ -489,6 +493,9 @@ acpi_res_set_irq(device_t dev, void *context, u_int32_t *irq, int count)
 	return;
 
     bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, *irq, 1);
+    BUS_CONFIG_INTR(dev, *irq, (trig == ACPI_EDGE_SENSITIVE) ?
+	INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL, (pol == ACPI_ACTIVE_HIGH) ?
+	INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
 }
 
 static void
