@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mt.c,v 1.12 1997/07/29 06:49:16 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -99,6 +99,7 @@ struct commands {
 	{ "blocksize",	MTSETBSIZ, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED|IS_DENSITY },
 	{ "eom",	MTEOD, 1 },
+	{ "eod",	MTEOD, 1 },
 	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "retension",	MTRETENS, 1 },
 #endif /* defined(__FreeBSD__) */
