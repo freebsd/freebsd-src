@@ -34,7 +34,7 @@
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: defs.h,v 1.2 1995/10/27 10:48:25 julian Exp $
+ *	$Id: defs.h,v 1.3 1996/04/13 15:13:17 jhay Exp $
  */
 
 #include <sys/types.h>
@@ -96,11 +96,11 @@ extern char	**argv0;
 #define	DELETE	2
 #define CHANGE	3
 
-void	sndmsg(struct sockaddr *, int, struct interface *);
-void	supply(struct sockaddr *, int, struct interface *);
+void	sndmsg(struct sockaddr *, int, struct interface *, int);
+void	supply(struct sockaddr *, int, struct interface *, int);
 void	addrouteforif(struct interface *);
 void	ifinit(void);
-void	toall(void (*f)(struct sockaddr *, int, struct interface *),
-	      struct rt_entry *);
+void	toall(void (*f)(struct sockaddr *, int, struct interface *, int),
+	      struct rt_entry *, int);
 void	rip_input(struct sockaddr *, int);
 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_input.c,v 1.1 1995/10/26 21:28:23 julian Exp $
+ *	$Id: sap_input.c,v 1.2 1995/12/04 10:36:02 julian Exp $
  */
 
 /*
@@ -45,10 +45,11 @@ sap_input(from, size)
 	struct sockaddr *from;
 	int size;
 {
+	int newsize;
+	int sapchanged = 0;
 	struct sap_entry *sap;
 	struct sap_info *n;
 	struct interface *ifp = 0;
-	int newsize;
 	struct afswitch *afp;
 	struct sockaddr_ipx *ipxp;
 
@@ -106,7 +107,7 @@ sap_input(from, size)
 		if (ftrace)
 			fprintf(ftrace, "Received a sap REQ packet.\n");
 
-		sap_supply(from, 0, ifp, n->ServType);
+		sap_supply(from, 0, ifp, n->ServType, 0);
 		return;
 
 	case SAP_RESP_NEAR:
@@ -128,9 +129,24 @@ sap_input(from, size)
 		for (; size > 0; size -= sizeof (struct sap_info), n++) {
 			if (size < sizeof (struct netinfo))
 				break;
+			/*
+			 * The idea here is that if the hop count is more
+			 * than INFINITY it is bogus and should be discarded.
+			 * If it is equal to INFINITY it is a message to say
+			 * that a service went down. If we don't allready
+			 * have it in our tables discard it. Otherwise
+			 * update our table and set the timer to EXPIRE_TIME
+			 * so that it is removed next time we go through the
+			 * tables.
+			 */
+			if (ntohs(n->hops) > HOPCNT_INFINITY)
+				continue;
 			sap = sap_lookup(n->ServType, n->ServName);
 			if (sap == 0) {
+				if (ntohs(n->hops) == HOPCNT_INFINITY)
+					continue;
 				sap_add(n, from);
+				sapchanged = 1;
 				continue;
 			}
 
@@ -145,8 +161,6 @@ sap_input(from, size)
 			 * Update if from gateway and different,
 			 * from anywhere and less hops or
 			 * getting stale and equivalent.
-			 *
-			 * XXX I don't think this is quite right yet.
 			 */
 			if (((ifp != sap->ifp) ||
 			     !equal(&sap->source, from)) &&
@@ -167,14 +181,31 @@ sap_input(from, size)
 				}
 				continue;
 			}
-			if (((ifp == sap->ifp) &&
-			     equal(&sap->source, from) &&
-			    (n->hops != sap->sap.hops)) ||
-			    (ntohs(n->hops) < ntohs(sap->sap.hops)) ||
-			    (sap->timer > (EXPIRE_TIME*2/3) &&
-			    ntohs(sap->sap.hops) == ntohs(n->hops))) {
+			if ((ifp == sap->ifp) &&
+			    equal(&sap->source, from) &&
+			    (ntohs(n->hops) == ntohs(sap->sap.hops)))
+				sap->timer = 0;
+			else if (((ifp == sap->ifp) &&
+				  equal(&sap->source, from) &&
+				  (n->hops != sap->sap.hops)) ||
+				 (ntohs(n->hops) < ntohs(sap->sap.hops)) ||
+				 (sap->timer > (EXPIRE_TIME*2/3) &&
+				  ntohs(sap->sap.hops) == ntohs(n->hops) &&
+				  ntohs(n->hops) != HOPCNT_INFINITY)) {
 				sap_change(sap, n, from);
+				sapchanged = 1;
 			}
+		}
+		if (sapchanged) {
+			register struct sap_entry *sap;
+			register struct sap_hash *sh;
+			sap_supply_toall(1);
+
+			for (sh = sap_head; sh < &sap_head[SAPHASHSIZ]; sh++)
+				for (sap = sh->forw;
+				    sap != (struct sap_entry *)sh;
+				    sap = sap->forw)
+					sap->state &= ~RTS_CHANGED;
 		}
 		return;
 	}

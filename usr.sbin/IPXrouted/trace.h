@@ -37,7 +37,7 @@
  *
  *	@(#)trace.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: trace.h,v 1.2 1995/10/27 10:48:31 julian Exp $
+ *	$Id: trace.h,v 1.3 1996/04/13 15:13:30 jhay Exp $
  */
 
 /*
@@ -78,6 +78,10 @@ FILE	*ftrace;		/* output trace file */
 #define	TRACE_ACTION(action, route) { \
 	  if (tracing) \
 		traceaction(ftrace, "action", route); \
+	  traceactionlog(action, route); \
+	}
+#define TRACE_SAP_ACTION(action, service) { \
+	  tracesapactionlog(action, service); \
 	}
 #define	TRACE_INPUT(ifp, src, size) { \
 	  if (tracing) { \
@@ -121,6 +125,8 @@ void traceinit(struct interface *);
 void traceon(char *file);
 void traceoff(void);
 void traceaction(FILE *, char *, struct rt_entry *);
+void traceactionlog(char *, struct rt_entry *);
+void tracesapactionlog(char *action, struct sap_entry *sap);
 void trace(struct ifdebug *, struct sockaddr *, char *, int, int);
 void dumppacket(FILE *, char *, struct sockaddr *, char *, int);
 void dumpsappacket(FILE *, char *, struct sockaddr *, char *, int);
