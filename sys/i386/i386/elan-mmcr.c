@@ -34,6 +34,21 @@
 
 uint16_t *elan_mmcr;
 
+
+static unsigned
+elan_get_timecount(struct timecounter *tc)
+{
+	return (elan_mmcr[0xc84 / 2]);
+}
+
+static struct timecounter elan_timecounter = {
+	elan_get_timecount,
+	0,
+	0xffff,
+	33333333 / 4,
+	"ELAN"
+};
+
 void
 init_AMD_Elan_sc520(void)
 {
@@ -57,6 +72,10 @@ init_AMD_Elan_sc520(void)
 	    &new, sizeof new, 
 	    NULL);
 	printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
+
+	/* Start GP timer #2 and use it as timecounter, hz permitting */
+	elan_mmcr[0xc82 / 2] = 0xc001;
+	tc_init(&elan_timecounter);
 }
 
 
