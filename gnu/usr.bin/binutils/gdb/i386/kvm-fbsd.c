@@ -471,7 +471,7 @@ set_proc_cmd (arg, from_tty)
       kp = kvm_getprocs(core_kd, KERN_PROC_PID, paddr, &cnt);
       if (!cnt)
         error("invalid pid");
-      if (set_proc_context((CORE_ADDR)kp->kp_eproc.e_paddr))
+      if (set_proc_context((CORE_ADDR)kp->ki_paddr))
         error("invalid proc address");
   }
 }
@@ -707,7 +707,7 @@ struct proc *p;
             return (0);
        if (lp.p_pid != pid)
            continue;
-       kp.kp_eproc.e_paddr = p;
+       kp.ki_paddr = p;
        *cnt = 1;
        return (1);
   }
