@@ -355,11 +355,11 @@ static	ng_ID_t nextID = 1;
 
 /* Handy structure parse type defining macro */
 #define DEFINE_PARSE_STRUCT_TYPE(lo, up, args)				\
-static const struct ng_parse_struct_info				\
-	ng_ ## lo ## _type_info = NG_GENERIC_ ## up ## _INFO args;	\
+static const struct ng_parse_struct_field				\
+	ng_ ## lo ## _type_fields[] = NG_GENERIC_ ## up ## _INFO args;	\
 static const struct ng_parse_type ng_generic_ ## lo ## _type = {	\
 	&ng_parse_struct_type,						\
-	&ng_ ## lo ## _type_info					\
+	&ng_ ## lo ## _type_fields					\
 }
 
 DEFINE_PARSE_STRUCT_TYPE(mkpeer, MKPEER, ());

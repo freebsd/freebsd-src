@@ -67,13 +67,11 @@ struct ngm_vjc_config {
 
 /* Keep this in sync with the above structure definition */
 #define NG_VJC_CONFIG_TYPE_INFO	{				\
-	{							\
 	  { "enableComp",	&ng_parse_uint8_type	},	\
 	  { "enableDecomp",	&ng_parse_uint8_type	},	\
 	  { "maxChannel",	&ng_parse_uint8_type	},	\
 	  { "compressCID",	&ng_parse_uint8_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
  /* Netgraph commands */

@@ -76,11 +76,11 @@ static ng_rcvdata_t	ng_xxx_rcvdata;	 /* note these are both ng_rcvdata_t */
 static ng_disconnect_t	ng_xxx_disconnect;
 
 /* Parse type for struct ngxxxstat */
-static const struct ng_parse_struct_info
-	ng_xxx_stat_type_info = NG_XXX_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_xxx_stat_type_fields[]
+	= NG_XXX_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_xxx_stat_type = {
 	&ng_parse_struct_type,
-	&ng_xxx_stat_type_info
+	&ng_xxx_stat_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

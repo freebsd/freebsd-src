@@ -85,19 +85,19 @@ static ng_rcvdata_t	ngt_rcvdata;
 static ng_disconnect_t	ngt_disconnect;
 
 /* Parse type for struct ng_tee_hookstat */
-static const struct ng_parse_struct_info
-	ng_tee_hookstat_type_info = NG_TEE_HOOKSTAT_INFO;
+static const struct ng_parse_struct_field ng_tee_hookstat_type_fields[]
+	= NG_TEE_HOOKSTAT_INFO;
 static const struct ng_parse_type ng_tee_hookstat_type = {
 	&ng_parse_struct_type,
-	&ng_tee_hookstat_type_info,
+	&ng_tee_hookstat_type_fields
 };
 
 /* Parse type for struct ng_tee_stats */
-static const struct ng_parse_struct_info
-	ng_tee_stats_type_info = NG_TEE_STATS_INFO(&ng_tee_hookstat_type);
+static const struct ng_parse_struct_field ng_tee_stats_type_fields[]
+	= NG_TEE_STATS_INFO(&ng_tee_hookstat_type);
 static const struct ng_parse_type ng_tee_stats_type = {
 	&ng_parse_struct_type,
-	&ng_tee_stats_type_info,
+	&ng_tee_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

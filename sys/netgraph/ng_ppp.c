@@ -254,27 +254,27 @@ static const struct ng_parse_type ng_ppp_rseq_array_type = {
 	&ng_parse_fixedarray_type,
 	&ng_ppp_rseq_array_info,
 };
-static const struct ng_parse_struct_info ng_ppp_mp_state_type_info
+static const struct ng_parse_struct_field ng_ppp_mp_state_type_fields[]
 	= NG_PPP_MP_STATE_TYPE_INFO(&ng_ppp_rseq_array_type);
 static const struct ng_parse_type ng_ppp_mp_state_type = {
 	&ng_parse_struct_type,
-	&ng_ppp_mp_state_type_info,
+	&ng_ppp_mp_state_type_fields
 };
 
 /* Parse type for struct ng_ppp_link_conf */
-static const struct ng_parse_struct_info
-	ng_ppp_link_type_info = NG_PPP_LINK_TYPE_INFO;
+static const struct ng_parse_struct_field ng_ppp_link_type_fields[]
+	= NG_PPP_LINK_TYPE_INFO;
 static const struct ng_parse_type ng_ppp_link_type = {
 	&ng_parse_struct_type,
-	&ng_ppp_link_type_info,
+	&ng_ppp_link_type_fields
 };
 
 /* Parse type for struct ng_ppp_bund_conf */
-static const struct ng_parse_struct_info
-	ng_ppp_bund_type_info = NG_PPP_BUND_TYPE_INFO;
+static const struct ng_parse_struct_field ng_ppp_bund_type_fields[]
+	= NG_PPP_BUND_TYPE_INFO;
 static const struct ng_parse_type ng_ppp_bund_type = {
 	&ng_parse_struct_type,
-	&ng_ppp_bund_type_info,
+	&ng_ppp_bund_type_fields
 };
 
 /* Parse type for struct ng_ppp_node_conf */
@@ -286,19 +286,19 @@ static const struct ng_parse_type ng_ppp_link_array_type = {
 	&ng_parse_fixedarray_type,
 	&ng_ppp_array_info,
 };
-static const struct ng_parse_struct_info ng_ppp_conf_type_info
+static const struct ng_parse_struct_field ng_ppp_conf_type_fields[]
 	= NG_PPP_CONFIG_TYPE_INFO(&ng_ppp_bund_type, &ng_ppp_link_array_type);
 static const struct ng_parse_type ng_ppp_conf_type = {
 	&ng_parse_struct_type,
-	&ng_ppp_conf_type_info
+	&ng_ppp_conf_type_fields
 };
 
 /* Parse type for struct ng_ppp_link_stat */
-static const struct ng_parse_struct_info
-	ng_ppp_stats_type_info = NG_PPP_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_ppp_stats_type_fields[]
+	= NG_PPP_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_ppp_stats_type = {
 	&ng_parse_struct_type,
-	&ng_ppp_stats_type_info
+	&ng_ppp_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

@@ -171,11 +171,11 @@ ng_bridge_getTableLength(const struct ng_parse_type *type,
 }
 
 /* Parse type for struct ng_bridge_host_ary */
-static const struct ng_parse_struct_info ng_bridge_host_type_info
+static const struct ng_parse_struct_field ng_bridge_host_type_fields[]
 	= NG_BRIDGE_HOST_TYPE_INFO(&ng_ether_enaddr_type);
 static const struct ng_parse_type ng_bridge_host_type = {
 	&ng_parse_struct_type,
-	&ng_bridge_host_type_info
+	&ng_bridge_host_type_fields
 };
 static const struct ng_parse_array_info ng_bridge_hary_type_info = {
 	&ng_bridge_host_type,
@@ -185,11 +185,11 @@ static const struct ng_parse_type ng_bridge_hary_type = {
 	&ng_parse_array_type,
 	&ng_bridge_hary_type_info
 };
-static const struct ng_parse_struct_info ng_bridge_host_ary_type_info
+static const struct ng_parse_struct_field ng_bridge_host_ary_type_fields[]
 	= NG_BRIDGE_HOST_ARY_TYPE_INFO(&ng_bridge_hary_type);
 static const struct ng_parse_type ng_bridge_host_ary_type = {
 	&ng_parse_struct_type,
-	&ng_bridge_host_ary_type_info
+	&ng_bridge_host_ary_type_fields
 };
 
 /* Parse type for struct ng_bridge_config */
@@ -201,19 +201,19 @@ static const struct ng_parse_type ng_bridge_ipfwary_type = {
 	&ng_parse_fixedarray_type,
 	&ng_bridge_ipfwary_type_info
 };
-static const struct ng_parse_struct_info ng_bridge_config_type_info
+static const struct ng_parse_struct_field ng_bridge_config_type_fields[]
 	= NG_BRIDGE_CONFIG_TYPE_INFO(&ng_bridge_ipfwary_type);
 static const struct ng_parse_type ng_bridge_config_type = {
 	&ng_parse_struct_type,
-	&ng_bridge_config_type_info
+	&ng_bridge_config_type_fields
 };
 
 /* Parse type for struct ng_bridge_link_stat */
-static const struct ng_parse_struct_info
-	ng_bridge_stats_type_info = NG_BRIDGE_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_bridge_stats_type_fields[]
+	= NG_BRIDGE_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_bridge_stats_type = {
 	&ng_parse_struct_type,
-	&ng_bridge_stats_type_info
+	&ng_bridge_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
