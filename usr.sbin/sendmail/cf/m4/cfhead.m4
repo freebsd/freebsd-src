@@ -131,7 +131,8 @@ define(`confSMTP_LOGIN_MSG', `$j Sendmail $v/$Z; $b')
 define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)
 	$.by $j ($v/$Z)$?r with $r$. id $i$?u
 	for $u; $|;
-	$.$b')
+	$.$b$?g
+	(envelope-from $g)$.')
 define(`confSEVEN_BIT_INPUT', `False')
 define(`confEIGHT_BIT_HANDLING', `pass8')
 define(`confALIAS_WAIT', `10')
