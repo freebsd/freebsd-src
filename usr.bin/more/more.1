@@ -39,7 +39,7 @@
 .Nm more
 .Nd file perusal filter for crt viewing
 .Sh SYNOPSIS
-.Nm more
+.Nm
 .Op Fl ceinus
 .Op Fl t Ar tag
 .Op Fl x Ar tabs
@@ -65,19 +65,21 @@ line options will override them.
 .Bl -tag -width flag
 .It Fl c
 Normally,
-.Nm more
+.Nm
 will repaint the screen by scrolling from the bottom of the screen.
 If the
 .Fl c
 option is set, when
-.Nm more
+.Nm
 needs to change the entire display, it will paint from the top line down.
 .It Fl e
 Normally, if displaying a single file,
-.Nm more
+.Nm
 exits as soon as it reaches end-of-file.  The
 .Fl e
-option tells more to
+option tells
+.Nm
+to
 exit if it reaches end-of-file twice without an intervening operation.
 .It Fl i
 The
@@ -89,7 +91,7 @@ The
 .Fl n
 flag suppresses line numbers.
 The default (to use line numbers) may cause
-.Nm more
+.Nm
 to run more slowly in some cases, especially with a very large input file.
 Suppressing line numbers with the
 .Fl n
@@ -113,7 +115,7 @@ containing that tag.  For more information, see the
 command.
 .It Fl u
 By default,
-.Nm more
+.Nm
 treats backspaces and
 .Dv CR-LF
 sequences specially.  Backspaces which appear
@@ -143,7 +145,7 @@ option specifies a string that will be searched for before
 each file is displayed.
 .Sh COMMANDS
 Interactive commands for
-.Nm more
+.Nm
 are based on
 .Xr vi  1  .
 Some commands may be preceded by a decimal number, called N in the
@@ -187,7 +189,7 @@ Go to line N in the file, default the end of the file.
 .It Ic p No or Ic \&%
 Go to a position N percent into the file.  N should be between 0
 and 100.  (This works if standard input is being read, but only if
-.Nm more
+.Nm
 has already read to the end of the file.  It is always fast, but
 not always useful.)
 .It Ic r No or Ic \&^L
@@ -255,7 +257,7 @@ These options print out the number of the file currently being displayed
 relative to the total number of files there are to display, the current
 line number, the current byte number and the total bytes to display, and
 what percentage of the file has been displayed.  If
-.Nm more
+.Nm
 is reading from stdin, or the file is shorter than a single screen, some
 of these items may not be available.  Note, all of these items reference
 the first byte of the last line displayed on the screen.
@@ -295,6 +297,6 @@ This software is derived from software contributed to Berkeley
 by Mark Nudleman.
 .Sh HISTORY
 The
-.Nm more
+.Nm
 command appeared in
 .Bx 3.0 .
