@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.37 1996/03/10 08:42:54 sos Exp $
+ *	$Id: kern_exec.c,v 1.38 1996/04/08 01:21:59 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -248,7 +248,7 @@ interpret:
 	p->p_comm[len] = 0;
 
 	/*
-	 * mark as executable, wakeup any process that was vforked and tell
+	 * mark as execed, wakeup the process that vforked (if any) and tell
 	 * it that it now has it's own resources back
 	 */
 	p->p_flag |= P_EXEC;
