@@ -87,6 +87,8 @@ struct acpi_perf_softc {
 	(bus_space_write_4(rman_get_bustag((reg)), 	\
 	    rman_get_bushandle((reg)), 0, (val)))
 
+#define ACPI_NOTIFY_PERF_STATES		0x80	/* _PSS changed. */
+
 static void	acpi_perf_identify(driver_t *driver, device_t parent);
 static int	acpi_perf_probe(device_t dev);
 static int	acpi_perf_attach(device_t dev);
@@ -144,7 +146,7 @@ acpi_perf_identify(driver_t *driver, device_t parent)
 	if (ACPI_FAILURE(AcpiEvaluateObject(handle, "_PSS", NULL, NULL)))
 		return;
 	if (BUS_ADD_CHILD(parent, 0, "acpi_perf", 0) == NULL)
-		device_printf(parent, "acpi_perf: add child failed\n");
+		device_printf(parent, "add acpi_perf child failed\n");
 }
 
 static int
@@ -322,6 +324,9 @@ acpi_px_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	struct acpi_perf_softc *sc;
 
 	sc = context;
+	if (notify != ACPI_NOTIFY_PERF_STATES)
+		return;
+
 	acpi_px_available(sc);
 
 	/* TODO: Implement notification when frequency changes. */
