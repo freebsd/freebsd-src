@@ -159,6 +159,14 @@ do_module (db, mname, m_type, msg, callback_proc, where, shorten,
     }
 #endif
 
+    /* Similarly for directories that attempt to step above the root of the
+     * repository.
+     */
+    if (pathname_levels (mname) > 0)
+	error (1, 0, "up-level in module reference (`..') invalid: `%s'.",
+		mname);
+
+
     /* if this is a directory to ignore, add it to that list */
     if (mname[0] == '!' && mname[1] != '\0')
     {

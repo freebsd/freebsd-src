@@ -1054,6 +1054,19 @@ call_in_directory (pathname, func, data)
     char *rdirp;
     int reposdirname_absolute;
 
+    /* For security reasons, if PATHNAME is absolute or attemps to ascend
+     * outside of the current sanbbox, we abort.  The server should not send us
+     * anything but relative paths which remain inside the sandbox here.
+     * Anything less means a trojan CVS server could create and edit arbitrary
+     * files on the client.
+     */
+    if (isabsolute (pathname) || pathname_levels (pathname) > 0)
+    {
+	error (0, 0,
+		"Server attempted to update a file via an invalid pathname:");
+	error (1, 0, "`%s'.", pathname);
+    }
+
     reposname = NULL;
     read_line (&reposname);
     assert (reposname != NULL);
