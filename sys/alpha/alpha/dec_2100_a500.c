@@ -1,4 +1,3 @@
-/*
  * Copyright (c) 2000 Andrew Gallatin
  * All rights reserved.
  *
@@ -43,7 +42,6 @@
 #include <alpha/pci/t2var.h>
 #include <alpha/pci/t2reg.h>
 
-#include "sio.h"
 #include "sc.h"
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
