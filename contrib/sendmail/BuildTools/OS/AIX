@@ -1,0 +1,10 @@
+#	@(#)AIX	8.6	(Berkeley)	3/12/98
+define(`confMAPDEF', `-DNDBM -DNIS')
+define(`confENVDEF', `-D_AIX3 ')
+define(`confOPTIMIZE', `-g')
+define(`confLIBS', `-ldbm')
+define(`confEBINDIR', `/usr/lib')
+define(`confSBINGRP', `system')
+define(`confSTDIR', `/etc')
+define(`confHFDIR', `/usr/lib')
+define(`confINSTALL', `/usr/ucb/install')

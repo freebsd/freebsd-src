@@ -1,0 +1,15 @@
+#	@(#)SunOS.4.0	8.6	(Berkeley)	3/12/98
+define(`confBEFORE', `stdlib.h stddef.h limits.h')
+define(`confMAPDEF', `-DNDBM -DNIS')
+define(`confENVDEF', `-DSUNOS403 ')
+define(`confLDOPTS', `-Bstatic')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confUBINDIR', `/usr/ucb')
+define(`confEBINDIR', `/usr/lib')
+define(`confSTDIR', `/etc')
+define(`confHFDIR', `/usr/lib')
+PUSHDIVERT(3)
+stddef.h stdlib.h limits.h:
+	cp /dev/null $@
+POPDIVERT

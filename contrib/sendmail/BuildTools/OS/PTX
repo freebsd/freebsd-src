@@ -1,0 +1,10 @@
+#	@(#)PTX	8.6	(Berkeley)	3/12/98
+define(`confMAPDEF', `-DNDBM')
+define(`confOPTIMIZE', `-g')
+define(`confLIBS', `-lsocket -linet -lelf -lnsl -lseq')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confEBINDIR', `/usr/lib')
+define(`confSBINGRP', `sys')
+define(`confSTDIR', `/usr/lib')
+define(`confHFDIR', `/usr/lib')
