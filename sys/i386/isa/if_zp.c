@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.27 1996/11/11 17:11:08 bde Exp $
+ *	$Id: if_zp.c,v 1.28 1996/12/13 21:28:25 wollman Exp $
  */
 /*-
  * TODO:
@@ -99,6 +99,13 @@
  * Very small patch for IBM Ethernet PCMCIA Card II and IBM ThinkPad230Cs.
  *			ETO, Toshihisa <eto@osl.fujitsu.co.jp>
  */
+
+/* XXX - Don't mix different PCCARD support code */
+#include "pcic.h"
+#include "crd.h"
+#if NCRD > 0 || NPCIC > 0
+#error Dedicated PCMCIA drivers and generic PCMCIA support can't be mixed
+#endif
 
 #include "zp.h"
 
