@@ -283,27 +283,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return 0;
 
 	if (type == SYS_RES_MEMORY) {
-		caddr_t vaddr = 0;
-
-		if (rv->r_end < 1024 * 1024) {
-			/*
-			 * The first 1Mb is mapped at KERNBASE.
-			 */
-			vaddr = (caddr_t)(uintptr_t)(KERNBASE + rv->r_start);
-		} else {
-			u_int32_t paddr;
-			u_int32_t psize;
-			u_int32_t poffs;
-
-			paddr = rv->r_start;
-			psize = rv->r_end - rv->r_start;
-
-			poffs = paddr - trunc_page(paddr);
-			vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
-		}
-		rman_set_virtual(rv, vaddr);
 		rman_set_bustag(rv, I386_BUS_SPACE_MEM);
-		rman_set_bushandle(rv, (bus_space_handle_t) vaddr);
 	} else if (type == SYS_RES_IOPORT) {
 		rman_set_bustag(rv, I386_BUS_SPACE_IO);
 		rman_set_bushandle(rv, rv->r_start);
@@ -323,6 +303,31 @@ static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 			struct resource *r)
 {
+	/*
+	 * If this is a memory resource, map it into the kernel.
+	 */
+	if (rman_get_bustag(r) == I386_BUS_SPACE_MEM) {
+		caddr_t vaddr = 0;
+
+		if (r->r_end < 1024 * 1024) {
+			/*
+			 * The first 1Mb is mapped at KERNBASE.
+			 */
+			vaddr = (caddr_t)(uintptr_t)(KERNBASE + r->r_start);
+		} else {
+			u_int32_t paddr;
+			u_int32_t psize;
+			u_int32_t poffs;
+
+			paddr = r->r_start;
+			psize = r->r_end - r->r_start;
+
+			poffs = paddr - trunc_page(paddr);
+			vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
+		}
+		rman_set_virtual(r, vaddr);
+		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
+	}
 	return (rman_activate_resource(r));
 }
 
@@ -330,6 +335,16 @@ static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			  struct resource *r)
 {
+	/*
+	 * If this is a memory resource, unmap it.
+	 */
+	if ((rman_get_bustag(r) == I386_BUS_SPACE_MEM) && (rv->r_end >= 1024 * 1024)) {
+		u_int32_t psize;
+
+		psize = r->r_end - r->r_start;
+		pmap_unmapdev(rman_get_virtual(r), psize);
+	}
+		
 	return (rman_deactivate_resource(r));
 }
 
