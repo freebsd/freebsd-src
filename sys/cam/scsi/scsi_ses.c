@@ -286,14 +286,17 @@ sesasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 	{
 		cam_status status;
 		struct ccb_getdev *cgd;
+		int inq_len;
 
 		cgd = (struct ccb_getdev *)arg;
+
+		inq_len = cgd->inq_data.additional_length + 4;
 
 		/*
 		 * PROBLEM: WE NEED TO LOOK AT BYTES 48-53 TO SEE IF THIS IS
 		 * PROBLEM: IS A SAF-TE DEVICE.
 		 */
-		switch (ses_type(&cgd->inq_data, cgd->inq_len)) {
+		switch (ses_type(&cgd->inq_data, inq_len)) {
 		case SES_SES:
 		case SES_SES_SCSI2:
 		case SES_SES_PASSTHROUGH:
@@ -745,9 +748,6 @@ static enctyp
 ses_type(void *buf, int buflen)
 {
 	unsigned char *iqd = buf;
-
-	if (buflen == 0)
-		buflen = 256;	/* per SPC-2 */
 
 	if (buflen < 8+SEN_ID_LEN)
 		return (SES_NONE);
