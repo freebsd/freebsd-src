@@ -193,6 +193,9 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 
 	static char *login_dbarray[] = { NULL, NULL, NULL };
 
+#ifndef _FILE_LOGIN_CONF_WORKS
+	dir = NULL;
+#endif
 	/*
 	 * Switch to user mode before checking/reading its ~/.login_conf
 	 * - some NFSes have root read access disabled.
