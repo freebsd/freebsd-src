@@ -218,7 +218,6 @@ vprint(p)
 	value_t *p;
 {
 	char *cp;
-	extern char *interp();
 
 	if (col > 0 && col < MIDDLE)
 		while (col++ < MIDDLE)
@@ -238,7 +237,7 @@ vprint(p)
 		printf("%s=", p->v_name);
 		col++;
 		if (p->v_value) {
-			cp = interp(p->v_value, NULL);
+			cp = interp(p->v_value);
 			col += size(cp);
 			printf("%s", cp);
 		}
