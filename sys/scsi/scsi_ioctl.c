@@ -38,11 +38,9 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.8 1994/10/08 22:26:37 phk Exp $
+ * $Id: scsi_ioctl.c,v 1.9 1995/01/08 13:38:32 dufault Exp $
  *
  *
- * Note: The SCSIUSER option is required to support the user defined
- * ioctl calls.
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -132,7 +130,7 @@ struct	scsi_xfer *xs;
 		screq->retsts = SCCMD_UNKNOWN;
 		break;
 	}
-	biodone(bp); 	/* we're waiting on it in scsi_strategy() */
+	biodone(bp); 	/* we're waiting on it in scsistrategy() */
 	return;		/* it'll free the xs and restart any queue */
 }
 
@@ -252,7 +250,6 @@ struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 	SC_DEBUG(sc_link,SDEV_DB2,("scsi_do_ioctl(0x%x)\n",cmd));
 	switch(cmd)
 	{
-#ifdef SCSIUSER
 		case SCIOCCOMMAND:
 		{
 			/*
@@ -322,7 +319,6 @@ struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 			}
 			break;
 		}
-#endif /* SCSIUSER */
 		case SCIOCDEBUG:
 		{
 			int level = *((int *)addr);
