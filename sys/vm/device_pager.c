@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.19 1995/12/14 09:54:49 phk Exp $
+ * $Id: device_pager.c,v 1.20 1996/01/19 03:59:38 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -282,6 +282,7 @@ dev_pager_getfake(paddr)
 	m->queue = PQ_NONE;
 
 	m->wire_count = 1;
+	m->hold_count = 0;
 	m->phys_addr = paddr;
 
 	return (m);
