@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.8 1997/07/06 23:59:31 fsmp Exp $
+ *	$Id: mpapic.c,v 1.6 1997/07/08 23:42:28 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -39,9 +39,13 @@
 
 #include <i386/isa/intr_machdep.h>	/* Xspuriousint() */
 
+#if defined(TEST_CPUSTOP)
+void	db_printf __P((const char *fmt, ...));
+#endif  /* TEST_CPUSTOP */
+
 /* EISA Edge/Level trigger control registers */
-#define ELCR0	0x4d0		/* eisa irq 0-7 */
-#define ELCR1	0x4d1		/* eisa irq 8-15 */
+#define ELCR0	0x4d0			/* eisa irq 0-7 */
+#define ELCR1	0x4d1			/* eisa irq 8-15 */
 
 /*
  * pointers to pmapped apic hardware.
@@ -52,54 +56,71 @@ volatile ioapic_t	*ioapic[NAPIC];
 #endif	/* APIC_IO */
 
 /*
- * enable APIC, configure interrupts
+ * Enable APIC, configure interrupts.
+ *
+ * XXX FIXME: remove the magic numbers.
  */
 void
-apic_initialize(int is_bsp)
+apic_initialize(void)
 {
 	u_int   temp;
 
-	if (is_bsp) {
-		/* setup LVT1 as ExtINT */
-		temp = lapic.lvt_lint0;
-		temp &= 0xfffe58ff;
-		temp |= 0x00000700;
-		lapic.lvt_lint0 = temp;
-	}
-	/* setup LVT2 as NMI */
+	/* setup LVT1 as ExtINT */
+	temp = lapic.lvt_lint0;
+	temp &= 0xfffe58ff;		/* preserve undefined fields */
+	if (cpuid == 0)
+		temp |= 0x00000700;	/* process ExtInts */
+	else
+		temp |= 0x00010700;	/* mask ExtInts */
+	lapic.lvt_lint0 = temp;
+
+	/* setup LVT2 as NMI, masked till later... */
 	temp = lapic.lvt_lint1;
-	temp &= 0xfffe58ff;
-	temp |= 0xffff0400;
+	temp &= 0xfffe58ff;		/* preserve undefined fields */
+	temp |= 0x00010400;		/* masked, edge trigger, active hi */
+
 	lapic.lvt_lint1 = temp;
 
 	/* set the Task Priority Register as needed */
 	temp = lapic.tpr;
-	temp &= ~APIC_TPR_PRIO;	/* clear priority field */
+	temp &= ~APIC_TPR_PRIO;		/* clear priority field */
 
 #if defined(TEST_LOPRIO)
-	if (is_bsp)
-		temp |= 0x10;	/* allow INT arbitration */
+#if 1
+	/* The new order of startup since private pages makes this possible. */
+	temp |= 0x10;			/* allow INT arbitration */
+#else
+	if (cpuid == 0)
+		temp |= 0x10;		/* allow INT arbitration */
 	else
-		temp |= 0xff;	/* disallow INT arbitration */
+		temp |= 0xff;		/* disallow INT arbitration */
+#endif
 #endif	/* TEST_LOPRIO */
 
 	lapic.tpr = temp;
 
-	/* enable the beast */
+	/* enable the local APIC */
 	temp = lapic.svr;
-	temp |= APIC_SVR_SWEN;	/* software enable APIC */
-	temp &= ~APIC_SVR_FOCUS;/* enable 'focus processor' */
+	temp |= APIC_SVR_SWEN;		/* software enable APIC */
+	temp &= ~APIC_SVR_FOCUS;	/* enable 'focus processor' */
+
 #if defined(TEST_CPUSTOP)
-	if ((XSPURIOUSINT_OFFSET & 0xf) != 0xf)
+	if ((XSPURIOUSINT_OFFSET & APIC_SVR_VEC_FIX) != APIC_SVR_VEC_FIX)
 		panic("bad XSPURIOUSINT_OFFSET: 0x%08x", XSPURIOUSINT_OFFSET);
-	temp &= ~0xff;		/* clear vector field */
-	temp |= XSPURIOUSINT_OFFSET;
-	printf(">>> SVR: 0x%08x\n", temp);
+	temp &= ~APIC_SVR_VEC_PROG;	/* clear (programmable) vector field */
+	temp |= (XSPURIOUSINT_OFFSET & APIC_SVR_VEC_PROG);
 #endif  /* TEST_CPUSTOP */
-#if 0
-	temp |= 0x20;		/** FIXME: 2f == strayIRQ15 */
-#endif
+
 	lapic.svr = temp;
+
+#if defined(TEST_CPUSTOP)
+	printf(">>> CPU%02d apic_initialize()    lint0: 0x%08x\n",
+	       cpuid, lapic.lvt_lint0);
+	printf(">>>                            lint1: 0x%08x\n",
+	       lapic.lvt_lint1);
+	printf(">>>                            TPR:   0x%08x\n", lapic.tpr);
+	printf(">>>                            SVR:   0x%08x\n", lapic.svr);
+#endif  /* TEST_CPUSTOP */
 }
 
 
@@ -115,30 +136,6 @@ apic_initialize(int is_bsp)
 
 static int trigger __P((int apic, int pin, u_int32_t * flags));
 static void polarity __P((int apic, int pin, u_int32_t * flags, int level));
-
-
-/*
- * setup I/O APIC
- */
-
-#ifdef HOW_8259_IS_PROGRAMMED
-outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
-outb(IO_ICU1 + 1, NRSVIDT);	/* starting at this vector index */
-outb(IO_ICU1 + 1, 1 << 2);	/* slave on line 2 */
-outb(IO_ICU1 + 1, 1);		/* 8086 mode */
-
-outb(IO_ICU1 + 1, 0xff);	/* leave interrupts masked */
-outb(IO_ICU1, 0x0a);		/* default to IRR on read */
-outb(IO_ICU1, 0xc0 | (3 - 1));	/* pri order 3-7, 0-2 (com2 first) */
-
-outb(IO_ICU2, 0x11);		/* reset; program device, four bytes */
-outb(IO_ICU2 + 1, NRSVIDT + 8);	/* staring at this vector index */
-outb(IO_ICU2 + 1, 2);		/* my slave id is 2 */
-outb(IO_ICU2 + 1, 1);		/* 8086 mode */
-
-outb(IO_ICU2 + 1, 0xff);	/* leave interrupts masked */
-outb(IO_ICU2, 0x0a);		/* default to IRR on read */
-#endif	/* HOW_8259_IS_PROGRAMMED */
 
 
 #if defined(TEST_LOPRIO)
@@ -172,7 +169,7 @@ outb(IO_ICU2, 0x0a);		/* default to IRR on read */
 #endif	/* TEST_LOPRIO */
 
 /*
- *
+ * Setup the IO APIC.
  */
 int
 io_apic_setup(int apic)
@@ -191,7 +188,7 @@ io_apic_setup(int apic)
 #endif	/* TEST_LOPRIO */
 
 	if (apic == 0) {
-		maxpin = REDIRCNT_IOAPIC(apic);/* pins-1 in this part */
+		maxpin = REDIRCNT_IOAPIC(apic);		/* pins-1 in APIC */
 		for (pin = 0; pin < maxpin; ++pin) {
 			int bus, bustype;
 
@@ -218,13 +215,15 @@ io_apic_setup(int apic)
 			}
 
 			/* program the appropriate registers */
-			select = pin * 2 + IOAPIC_REDTBL0;/* register */
-			vector = NRSVIDT + pin;/* IDT vec */
+			select = pin * 2 + IOAPIC_REDTBL0;	/* register */
+			vector = NRSVIDT + pin;			/* IDT vec */
 			io_apic_write(apic, select, flags | vector);
 			io_apic_write(apic, select + 1, target);
 		}
         }
-        else {	/* program entry according to MP table. */
+
+	/* program entry according to MP table. */
+        else {
 #if defined(MULTIPLE_IOAPICS)
 #error MULTIPLE_IOAPICSXXX
 #else
@@ -248,7 +247,7 @@ io_apic_setup(int apic)
 	  IOART_DELEXINT))
 
 /*
- *
+ * Setup the source of External INTerrupts.
  */
 int
 ext_int_setup(int apic, int intr)
@@ -261,8 +260,8 @@ ext_int_setup(int apic, int intr)
 	if (apic_int_type(apic, intr) != 3)
 		return -1;
 
-/** FIXME: where should we steer ExtInts ??? */
-#if defined(BROADCAST_EXTINT)
+/** XXX FIXME: changed on 970708, make default if no complaints */
+#if 1
 	target = IOART_DEST;
 #else
 	target = boot_cpu_id << 24;
@@ -281,7 +280,7 @@ ext_int_setup(int apic, int intr)
 
 
 /*
- *
+ * Set the trigger level for an IO APIC pin.
  */
 static int
 trigger(int apic, int pin, u_int32_t * flags)
@@ -319,18 +318,23 @@ trigger(int apic, int pin, u_int32_t * flags)
 
 	case EISA:
 		eirq = apic_src_bus_irq(apic, pin);
+
 		if (eirq < 0 || eirq > 15) {
 			printf("EISA IRQ %d?!?!\n", eirq);
 			goto bad;
 		}
+
 		if (intcontrol == -1) {
 			intcontrol = inb(ELCR1) << 8;
 			intcontrol |= inb(ELCR0);
 			printf("EISA INTCONTROL = %08x\n", intcontrol);
 		}
-		/* EISA IRQ's are identical to ISA irq's, regardless of
-		 * whether they are edge or level since they go through the
-		 * level/polarity converter gadget. */
+
+		/*
+		 * EISA IRQ's are identical to ISA irq's, regardless of
+		 * whether they are edge or level since they go through
+		 * the level/polarity converter gadget.
+		 */
 		level = 0;
 
 		if (level)
@@ -355,7 +359,7 @@ bad:
 
 
 /*
- *
+ * Set the polarity value for an IO APIC pin.
  */
 static void
 polarity(int apic, int pin, u_int32_t * flags, int level)
@@ -400,10 +404,10 @@ polarity(int apic, int pin, u_int32_t * flags, int level)
 		 * whether they are edge or level since they go through the
 		 * level/polarity converter gadget. */
 
-		if (level == 1)	/* XXX Always false */
-			pol = 0;/* If level, active low */
+		if (level == 1)			/* XXX Always false */
+			pol = 0;		/* if level, active low */
 		else
-			pol = 1;/* If edge, high edge */
+			pol = 1;		/* if edge, high edge */
 
 		if (pol == 0)
 			*flags |= IOART_INTALO;
@@ -425,10 +429,11 @@ bad:
 	panic("bad APIC IO INT flags");
 }
 
+
 /*
- * set INT mask bit for each bit set in 'mask'.
- * clear INT mask bit for all others.
- * only consider lower 24 bits in mask.
+ * Set INT mask bit for each bit set in 'mask'.
+ * Clear INT mask bit for all others.
+ * Only consider lower 24 bits in mask.
  */
 #if defined(MULTIPLE_IOAPICS)
 #error MULTIPLE_IOAPICSXXX
@@ -440,19 +445,19 @@ void
 write_io_apic_mask24(int apic, u_int32_t mask)
 {
 	int     x, y;
-	u_char  select;		/* the select register is 8 bits */
-	u_int32_t low_reg;	/* the window register is 32 bits */
+	u_char  select;			/* the select register is 8 bits */
+	u_int32_t low_reg;		/* the window register is 32 bits */
 	u_int32_t diffs;
 
-	mask &= IO_FIELD;	/* safety valve, only use 24 bits */
-	if (mask == IO_MASK)	/* check for same value as current */
+	mask &= IO_FIELD;		/* safety valve, only use 24 bits */
+	if (mask == IO_MASK)		/* check for same value as current */
 		return;
 
-	diffs = mask ^ IO_MASK;	/* record differences */
+	diffs = mask ^ IO_MASK;		/* record differences */
 
 	for (x = 0, y = REDIRCNT_IOAPIC(apic); x < y; ++x) {
 		if (!(diffs & (1 << x)))
-			continue;	/* no change, skip */
+			continue;			/* no change, skip */
 
 		select = IOAPIC_REDTBL + (x * 2);	/* calculate addr */
 		low_reg = io_apic_read(apic, select);	/* read contents */
@@ -470,7 +475,7 @@ write_io_apic_mask24(int apic, u_int32_t mask)
 
 #if defined(READY)
 /*
- * read current IRQ0 -IRQ23 masks
+ * Read current IRQ0 -IRQ23 masks.
  */
 #if defined(MULTIPLE_IOAPICS)
 #error MULTIPLE_IOAPICSXXX
@@ -486,20 +491,20 @@ read_io_apic_mask24(int apic)
 
 #if defined(READY)
 /*
- * set INT mask bit for each bit set in 'mask'.
- * ignore INT mask bit for all others.
- * only consider lower 24 bits in mask.
+ * Set INT mask bit for each bit set in 'mask'.
+ * Ignore INT mask bit for all others.
+ * Only consider lower 24 bits in mask.
  */
 void
 set_io_apic_mask24(apic, u_int32_t bits)
 {
 	int     x, y;
-	u_char  select;		/* the select register is 8 bits */
-	u_int32_t low_reg;	/* the window register is 32 bits */
+	u_char  select;			/* the select register is 8 bits */
+	u_int32_t low_reg;		/* the window register is 32 bits */
 	u_int32_t diffs;
 
-	bits &= IO_FIELD;	/* safety valve, only use 24 bits */
-	diffs = bits & ~IO_MASK;/* clear AND needing 'set'ing */
+	bits &= IO_FIELD;		/* safety valve, only use 24 bits */
+	diffs = bits & ~IO_MASK;	/* clear AND needing 'set'ing */
 	if (!diffs)
 		return;
 
@@ -507,12 +512,12 @@ set_io_apic_mask24(apic, u_int32_t bits)
 
 	for (x = 0, y = REDIRCNT_IOAPIC(apic); x < y; ++x) {
 		if (!(diffs & (1 << x)))
-			continue;	/* no change, skip */
+			continue;			/* no change, skip */
 
 		select = IOAPIC_REDTBL + (x * 2);	/* calculate addr */
 		low_reg = io_apic_read(apic, select);	/* read contents */
 
-		lowReg |= IOART_INTMASK;	/* set mask */
+		lowReg |= IOART_INTMASK;		/* set mask */
 
 		io_apic_write(apic, select, low_reg);	/* new value */
 	}
@@ -522,20 +527,20 @@ set_io_apic_mask24(apic, u_int32_t bits)
 
 #if defined(READY)
 /*
- * clear INT mask bit for each bit set in 'mask'.
- * ignore INT mask bit for all others.
- * only consider lower 24 bits in mask.
+ * Clear INT mask bit for each bit set in 'mask'.
+ * Ignore INT mask bit for all others.
+ * Only consider lower 24 bits in mask.
  */
 void
 clr_io_apic_mask24(int apic, u_int32_t bits)
 {
 	int     x, y;
-	u_char  select;		/* the select register is 8 bits */
-	u_int32_t low_reg;	/* the window register is 32 bits */
+	u_char  select;			/* the select register is 8 bits */
+	u_int32_t low_reg;		/* the window register is 32 bits */
 	u_int32_t diffs;
 
-	bits &= IO_FIELD;	/* safety valve, only use 24 bits */
-	diffs = bits & IO_MASK;	/* set AND needing 'clr'ing */
+	bits &= IO_FIELD;		/* safety valve, only use 24 bits */
+	diffs = bits & IO_MASK;		/* set AND needing 'clr'ing */
 	if (!diffs)
 		return;
 
@@ -543,12 +548,12 @@ clr_io_apic_mask24(int apic, u_int32_t bits)
 
 	for (x = 0, y = REDIRCNT_IOAPIC(apic); x < y; ++x) {
 		if (!(diffs & (1 << x)))
-			continue;	/* no change, skip */
+			continue;			/* no change, skip */
 
 		select = IOAPIC_REDTBL + (x * 2);	/* calculate addr */
 		low_reg = io_apic_read(apic, select);	/* read contents */
 
-		low_reg &= ~IOART_INTMASK;	/* clear mask */
+		low_reg &= ~IOART_INTMASK;		/* clear mask */
 
 		io_apic_write(apic, select, low_reg);	/* new value */
 	}
@@ -565,7 +570,7 @@ clr_io_apic_mask24(int apic, u_int32_t bits)
 
 
 /*
- * send APIC IPI 'vector' to 'destType' via 'deliveryMode'
+ * Send APIC IPI 'vector' to 'destType' via 'deliveryMode'.
  *
  *  destType is 1 of: APIC_DEST_SELF, APIC_DEST_ALLISELF, APIC_DEST_ALLESELF
  *  vector is any valid SYSTEM INT vector
@@ -613,13 +618,13 @@ apic_ipi(int dest_type, int vector, int delivery_mode)
 		 /* spin */ ;
 #endif  /* DETECT_DEADLOCK */
 
-	/** FIXME: return result */
+	/** XXX FIXME: return result */
 	return 0;
 }
 
 
 /*
- * send APIC IPI 'vector' to 'target's via 'delivery_mode'
+ * Send APIC IPI 'vector' to 'target's via 'delivery_mode'.
  *
  *  target contains a bitfield with a bit set for selected APICs.
  *  vector is any valid SYSTEM INT vector
@@ -641,9 +646,9 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 			icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
 			icr_hi |= (CPU_TO_ID(x) << 24);
 			lapic.icr_hi = icr_hi;
-#if defined(DEBUG_CPUSTOP)
+#if defined(TEST_CPUSTOP)
 			db_printf( "icr_hi: 0x%08x\n", lapic.icr_hi );
-#endif /* DEBUG_CPUSTOP */
+#endif  /* TEST_CPUSTOP */
 			/* send the IPI */
 			if (apic_ipi(APIC_DEST_DESTFLD, vector,
 				     delivery_mode) == -1)
@@ -655,7 +660,7 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 
 #if defined(READY)
 /*
- * send an IPI INTerrupt containing 'vector' to CPU 'target'
+ * Send an IPI INTerrupt containing 'vector' to CPU 'target'
  *   NOTE: target is a LOGICAL APIC ID
  */
 int
@@ -678,7 +683,7 @@ selected_proc_ipi(int target, int vector)
 	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		/* spin */ ;
 
-	return 0;	/** FIXME: return result */
+	return 0;	/** XXX FIXME: return result */
 }
 #endif /* READY */
 
@@ -687,11 +692,11 @@ selected_proc_ipi(int target, int vector)
 
 
 /*
- * timer code, in development...
- * suggested by rgrimes@gndrsh.aac.dev.com
+ * Timer code, in development...
+ *  - suggested by rgrimes@gndrsh.aac.dev.com
  */
 
-/** FIXME: temp hack till we can determin bus clock */
+/** XXX FIXME: temp hack till we can determin bus clock */
 #ifndef BUS_CLOCK
 #define BUS_CLOCK	66000000
 #define bus_clock()	66000000
@@ -702,7 +707,7 @@ int acquire_apic_timer __P((void));
 int release_apic_timer __P((void));
 
 /*
- * acquire the APIC timer for exclusive use
+ * Acquire the APIC timer for exclusive use.
  */
 int
 acquire_apic_timer(void)
@@ -710,14 +715,14 @@ acquire_apic_timer(void)
 #if 1
 	return 0;
 #else
-	/** FIXME: make this really do something */
+	/** XXX FIXME: make this really do something */
 	panic("APIC timer in use when attempting to aquire");
 #endif
 }
 
 
 /*
- * return the APIC timer
+ * Return the APIC timer.
  */
 int
 release_apic_timer(void)
@@ -725,7 +730,7 @@ release_apic_timer(void)
 #if 1
 	return 0;
 #else
-	/** FIXME: make this really do something */
+	/** XXX FIXME: make this really do something */
 	panic("APIC timer was already released");
 #endif
 }
@@ -733,7 +738,7 @@ release_apic_timer(void)
 
 
 /*
- * load a 'downcount time' in uSeconds
+ * Load a 'downcount time' in uSeconds.
  */
 void
 set_apic_timer(int value)
@@ -741,10 +746,11 @@ set_apic_timer(int value)
 	u_long  lvtt;
 	long    ticks_per_microsec;
 
-	/* calculate divisor and count from value:
+	/*
+	 * Calculate divisor and count from value:
 	 * 
-	 * timeBase == CPU bus clock divisor == [1,2,4,8,16,32,64,128] value ==
-	 * time in uS
+	 *  timeBase == CPU bus clock divisor == [1,2,4,8,16,32,64,128]
+	 *  value == time in uS
 	 */
 	lapic.dcr_timer = APIC_TDCR_1;
 	ticks_per_microsec = bus_clock() / 1000000;
@@ -752,7 +758,7 @@ set_apic_timer(int value)
 	/* configure timer as one-shot */
 	lvtt = lapic.lvt_timer;
 	lvtt &= ~(APIC_LVTT_VECTOR | APIC_LVTT_DS | APIC_LVTT_M | APIC_LVTT_TM);
-	lvtt |= APIC_LVTT_M;	/* no INT, one-shot */
+	lvtt |= APIC_LVTT_M;			/* no INT, one-shot */
 	lapic.lvt_timer = lvtt;
 
 	/* */
@@ -761,13 +767,13 @@ set_apic_timer(int value)
 
 
 /*
- * read remaining time in timer
+ * Read remaining time in timer.
  */
 int
 read_apic_timer(void)
 {
 #if 0
-	/** FIXME: we need to return the actual remaining time,
+	/** XXX FIXME: we need to return the actual remaining time,
          *         for now we just return the remaining count.
          */
 #else
@@ -777,7 +783,7 @@ read_apic_timer(void)
 
 
 /*
- * spin-style delay, set delay time in uS, spin till it drains
+ * Spin-style delay, set delay time in uS, spin till it drains.
  */
 void
 u_sleep(int count)
