@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.37 1999/04/20 13:32:05 peter Exp $
+ *	$Id: ip_fw.h,v 1.38 1999/06/19 18:43:30 green Exp $
  */
 
 #ifndef _IP_FW_H
@@ -75,10 +75,12 @@ struct ip_fw {
 	struct sockaddr_in fu_fwd_ip;
     } fw_un;
     u_char fw_prot;			/* IP protocol */
-    u_char fw_nports;			/* N'of src ports and # of dst ports */
-					/* in ports array (dst ports follow */
-					/* src ports; max of 10 ports in all; */
-					/* count of 0 means match all ports) */
+	/*
+	 * N'of src ports and # of dst ports in ports array (dst ports
+	 * follow src ports; max of 10 ports in all; count of 0 means
+	 * match all ports)
+	 */
+    u_char fw_nports;
     void *pipe_ptr;                    /* Pipe ptr in case of dummynet pipe */
     void *next_rule_ptr ;              /* next rule in case of match */
     uid_t fw_uid;			/* uid to match */
