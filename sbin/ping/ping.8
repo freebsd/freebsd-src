@@ -42,24 +42,22 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl ADQRadfMnoqrv
+.Op Fl AaDdfMnoQqRrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
 .Op Fl m Ar ttl
-.Op Fl p Ar pattern
 .Op Fl P Ar policy
-.Op Fl s Ar packetsize
+.Op Fl p Ar pattern
 .Op Fl S Ar src_addr
+.Op Fl s Ar packetsize
 .Op Fl t Ar timeout
 .Op Fl z Ar tos
-.Bo
 .Ar host |
 .Op Fl L
 .Op Fl I Ar interface
 .Op Fl T Ar ttl
 .Ar mcast-group
-.Bc
 .Sh DESCRIPTION
 The
 .Nm
@@ -79,7 +77,8 @@ header, followed by a
 .Dq struct timeval
 and then an arbitrary number of
 .Dq pad
-bytes used to fill out the packet.  The options are as follows:
+bytes used to fill out the packet.
+The options are as follows:
 .Bl -tag -width indent
 .It Fl A
 Audible.
@@ -108,12 +107,12 @@ packets.
 If this option is not specified,
 .Nm
 will operate until interrupted.
+.It Fl D
+Set the Don't Fragment bit.
 .It Fl d
 Set the
 .Dv SO_DEBUG
 option on the socket being used.
-.It Fl D
-Set the Don't Fragment bit.
 .It Fl f
 Flood ping.
 Outputs packets as fast as they come back or one hundred times per second,
@@ -130,6 +129,9 @@ Only the super-user may use this option.
 .Bf -emphasis
 This can be very hard on a network and should be used with caution.
 .Ef
+.It Fl I Ar interface
+Source multicast packets with the given interface address.
+This flag only applies if the ping destination is a multicast address.
 .It Fl i Ar wait
 Wait
 .Ar wait
@@ -141,8 +143,8 @@ values less than 1 second.
 This option is incompatible with the
 .Fl f
 option.
-.It Fl I Ar interface
-Source multicast packets with the given interface address.
+.It Fl L
+Suppress loopback of multicast packets.
 This flag only applies if the ping destination is a multicast address.
 .It Fl l Ar preload
 If
@@ -152,24 +154,33 @@ is specified,
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
-.It Fl L
-Suppress loopback of multicast packets.
-This flag only applies if the ping destination is a multicast address.
+.It Fl M
+Use
+.Dv ICMP_MASKREQ
+instead of
+.Dv ICMP_ECHO .
+Print the netmask of the remote machine.
+Set the
+.Va net.inet.icmp.maskrepl
+MIB variable to enable
+.Dv ICMP_MASKREPLY .
 .It Fl m Ar ttl
 Set the IP Time To Live for outgoing packets.
 If not specified, the kernel uses the value of the
 .Va net.inet.ip.ttl
 MIB variable.
-.It Fl M
-Use ICMP_MASKREQ instead of ICMP_ECHO.  Print the netmask of the remote
-machine.  Set the
-.Va net.inet.icmp.maskrepl
-MIB variable to enable ICMP_MASKREPLY.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.
 .It Fl o
 Exit successfully after receiving one reply packet.
+.It Fl P Ar policy
+.Ar policy
+specifies IPsec policy for the ping session.
+For details please refer to
+.Xr ipsec 4
+and
+.Xr ipsec_set_policy 3 .
 .It Fl p Ar pattern
 You may specify up to 16
 .Dq pad
@@ -179,13 +190,6 @@ For example,
 .Dq Li \-p ff
 will cause the sent packet to be filled with all
 ones.
-.It Fl P Ar policy
-.Ar policy
-specifies IPsec policy for the ping session.
-For details please refer to
-.Xr ipsec 4
-and
-.Xr ipsec_set_policy 3 .
 .It Fl Q
 Somewhat quiet output.
 .No Don Ap t
@@ -194,8 +198,9 @@ Originally, the
 .Fl v
 flag was required to display such errors, but
 .Fl v
-displays all ICMP error messages.  On a busy machine, this output can
-be overbearing.  Without the
+displays all ICMP error messages.
+On a busy machine, this output can be overbearing.
+Without the
 .Fl Q
 flag,
 .Nm
@@ -232,6 +237,14 @@ This option can be used to ping a local host through an interface
 that has no route through it
 (e.g., after the interface was dropped by
 .Xr routed 8 ) .
+.It Fl S Ar src_addr
+Use the following IP address as the source address in outgoing packets.
+On hosts with more than one IP address, this option can be used to
+force the source address to be something other than the IP address
+of the interface the probe packet is sent on.
+If the IP address
+is not one of this machine's interface addresses, an error is
+returned and nothing is sent.
 .It Fl s Ar packetsize
 Specify the number of data bytes to be sent.
 The default is 56, which translates into 64
@@ -241,19 +254,12 @@ with the 8 bytes of
 .Tn ICMP
 header data.
 Only the super-user may specify values more than default.
-.It Fl S Ar src_addr
-Use the following IP address as the source address in outgoing packets.
-On hosts with more than one IP address, this option can be used to
-force the source address to be something other than the IP address
-of the interface the probe packet is sent on.  If the IP address
-is not one of this machine's interface addresses, an error is
-returned and nothing is sent.
-.It Fl t Ar timeout
-Specify a timeout, in seconds, before ping exits regardless of how
-many packets have been received.
 .It Fl T Ar ttl
 Set the IP Time To Live for multicasted packets.
 This flag only applies if the ping destination is a multicast address.
+.It Fl t Ar timeout
+Specify a timeout, in seconds, before ping exits regardless of how
+many packets have been received.
 .It Fl v
 Verbose output.
 .Tn ICMP
