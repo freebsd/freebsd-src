@@ -201,6 +201,7 @@
 #define CB_SM_CD		0x6	/* Socket MASK Card detect */
 #define CB_SM_POWER		0x8
 
+/* Socket State Register */
 #define CB_SS_CARDSTS		0x00000001 /* Card Status Change */
 #define CB_SS_CD1		0x00000002 /* Card Detect 1 */
 #define CB_SS_CD2		0x00000004 /* Card Detect 2 */
@@ -216,11 +217,13 @@
 #define CB_SS_3VCARD		0x00000800 /* 3.3 V Card */
 #define CB_SS_XVCARD		0x00001000 /* X.X V Card */
 #define CB_SS_YVCARD		0x00002000 /* Y.Y V Card */
+#define CB_SS_CARD_MASK		0x00003c00 /* *VCARD signal */
 #define CB_SS_5VSOCK		0x10000000 /* 5 V Socket */
 #define CB_SS_3VSOCK		0x20000000 /* 3.3 V Socket */
 #define CB_SS_XVSOCK		0x40000000 /* X.X V Socket */
 #define CB_SS_YVSOCK		0x80000000 /* Y.Y V Socket */
 
+/* Socket power register */
 #define CB_SP_CLKSTOP		0x80	/* Cardbus clock stop protocol */
 #define CB_SP_VCC_MASK		0x70
 #define CB_SP_VCC_0V		0x00
@@ -237,4 +240,18 @@
 #define CB_SP_VPP_3V		0x03
 #define CB_SP_VPP_XV		0x04
 #define CB_SP_VPP_YV		0x05
+
+/* Socket force register */
+#define CB_SF_INTCVS		(1 << 14)	/* Interregate CVS/CCD pins */
+#define CB_SF_5VCARD		(1 << 11)
+#define CB_SF_3VCARD		(1 << 10)
+#define CB_SF_BADVCC		(1 << 9)
+#define CB_SF_DATALOST		(1 << 8)
+#define CB_SF_NOTACARD		(1 << 7)
+#define CB_SF_CBCARD		(1 << 5)
+#define CB_SF_16CARD		(1 << 4)
+#define CB_SF_POWERCYCLE	(1 << 3)
+#define CB_SF_CCD2		(1 << 2)
+#define CB_SF_CCD1		(1 << 1)
+#define CB_SF_CSTCHG		(1 << 0)
 					/* 0x6 and 0x7 are reserved */
