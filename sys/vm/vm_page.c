@@ -102,19 +102,20 @@ static volatile int vm_page_bucket_generation;
 struct vpgqueues vm_page_queues[PQ_COUNT];
 
 static void
-vm_page_queue_init(void) {
+vm_page_queue_init(void) 
+{
 	int i;
 
-	for(i=0;i<PQ_L2_SIZE;i++) {
+	for (i = 0; i < PQ_L2_SIZE; i++) {
 		vm_page_queues[PQ_FREE+i].cnt = &cnt.v_free_count;
 	}
-	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
-
-	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
-	for(i=0;i<PQ_L2_SIZE;i++) {
+	for (i = 0; i < PQ_L2_SIZE; i++) {
 		vm_page_queues[PQ_CACHE+i].cnt = &cnt.v_cache_count;
 	}
-	for(i=0;i<PQ_COUNT;i++) {
+	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
+	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
+
+	for (i = 0; i < PQ_COUNT; i++) {
 		TAILQ_INIT(&vm_page_queues[i].pl);
 	}
 }
@@ -181,14 +182,14 @@ vm_add_new_page(pa)
 
 vm_offset_t
 vm_page_startup(starta, enda, vaddr)
-	register vm_offset_t starta;
+	vm_offset_t starta;
 	vm_offset_t enda;
 	vm_offset_t vaddr;
 {
-	register vm_offset_t mapped;
-	register struct vm_page **bucket;
+	vm_offset_t mapped;
+	struct vm_page **bucket;
 	vm_size_t npages, page_range;
-	register vm_offset_t new_end;
+	vm_offset_t new_end;
 	int i;
 	vm_offset_t pa;
 	int nblocks;
@@ -357,11 +358,11 @@ vm_page_hash(object, pindex)
 
 void
 vm_page_insert(m, object, pindex)
-	register vm_page_t m;
-	register vm_object_t object;
-	register vm_pindex_t pindex;
+	vm_page_t m;
+	vm_object_t object;
+	vm_pindex_t pindex;
 {
-	register struct vm_page **bucket;
+	struct vm_page **bucket;
 
 	GIANT_REQUIRED;
 
@@ -497,11 +498,11 @@ vm_page_remove(m)
 
 vm_page_t
 vm_page_lookup(object, pindex)
-	register vm_object_t object;
-	register vm_pindex_t pindex;
+	vm_object_t object;
+	vm_pindex_t pindex;
 {
-	register vm_page_t m;
-	register struct vm_page **bucket;
+	vm_page_t m;
+	struct vm_page **bucket;
 	int generation;
 
 	/*
@@ -549,8 +550,8 @@ retry:
 
 void
 vm_page_rename(m, new_object, new_pindex)
-	register vm_page_t m;
-	register vm_object_t new_object;
+	vm_page_t m;
+	vm_object_t new_object;
 	vm_pindex_t new_pindex;
 {
 	int s;
@@ -748,7 +749,7 @@ vm_page_alloc(object, pindex, page_req)
 	vm_pindex_t pindex;
 	int page_req;
 {
-	register vm_page_t m = NULL;
+	vm_page_t m = NULL;
 	int s;
 
 	GIANT_REQUIRED;
@@ -934,7 +935,7 @@ vm_await()
  */
 void
 vm_page_activate(m)
-	register vm_page_t m;
+	vm_page_t m;
 {
 	int s;
 
@@ -1154,7 +1155,7 @@ vm_page_unmanage(vm_page_t m)
  */
 void
 vm_page_wire(m)
-	register vm_page_t m;
+	vm_page_t m;
 {
 	int s;
 
@@ -1204,7 +1205,7 @@ vm_page_wire(m)
  */
 void
 vm_page_unwire(m, activate)
-	register vm_page_t m;
+	vm_page_t m;
 	int activate;
 {
 	int s;
@@ -1335,7 +1336,7 @@ vm_page_try_to_free(m)
  */
 void
 vm_page_cache(m)
-	register vm_page_t m;
+	vm_page_t m;
 {
 	int s;
 
@@ -1972,13 +1973,13 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 {
 	int i;
 	db_printf("PQ_FREE:");
-	for(i=0;i<PQ_L2_SIZE;i++) {
+	for (i = 0; i < PQ_L2_SIZE; i++) {
 		db_printf(" %d", vm_page_queues[PQ_FREE + i].lcnt);
 	}
 	db_printf("\n");
 		
 	db_printf("PQ_CACHE:");
-	for(i=0;i<PQ_L2_SIZE;i++) {
+	for (i = 0; i < PQ_L2_SIZE; i++) {
 		db_printf(" %d", vm_page_queues[PQ_CACHE + i].lcnt);
 	}
 	db_printf("\n");

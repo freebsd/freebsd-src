@@ -210,10 +210,10 @@ vsunlock(addr, len)
  */
 void
 vm_fork(p1, p2, flags)
-	register struct proc *p1, *p2;
+	struct proc *p1, *p2;
 	int flags;
 {
-	register struct user *up;
+	struct user *up;
 
 	GIANT_REQUIRED;
 
@@ -295,7 +295,7 @@ static void
 vm_init_limits(udata)
 	void *udata;
 {
-	register struct proc *p = udata;
+	struct proc *p = udata;
 	int rss_limit;
 
 	/*
@@ -359,8 +359,8 @@ static void
 scheduler(dummy)
 	void *dummy;
 {
-	register struct proc *p;
-	register int pri;
+	struct proc *p;
+	int pri;
 	struct proc *pp;
 	int ppri;
 
@@ -452,7 +452,7 @@ void
 swapout_procs(action)
 int action;
 {
-	register struct proc *p;
+	struct proc *p;
 	struct proc *outp, *outp2;
 	int outpri, outpri2;
 	int didswap = 0;
@@ -569,7 +569,7 @@ retry:
 
 static void
 swapout(p)
-	register struct proc *p;
+	struct proc *p;
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);

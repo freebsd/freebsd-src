@@ -77,8 +77,8 @@ static fixpt_t cexp[3] = {
 static void
 loadav(struct loadavg *avg)
 {
-	register int i, nrun;
-	register struct proc *p;
+	int i, nrun;
+	struct proc *p;
 
 	sx_slock(&allproc_lock);
 	for (nrun = 0, p = LIST_FIRST(&allproc); p != 0; p = LIST_NEXT(p, p_list)) {

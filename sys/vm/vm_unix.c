@@ -71,7 +71,7 @@ obreak(p, uap)
 	struct proc *p;
 	struct obreak_args *uap;
 {
-	register struct vmspace *vm = p->p_vmspace;
+	struct vmspace *vm = p->p_vmspace;
 	vm_offset_t new, old, base;
 	int rv;
 	int error = 0;

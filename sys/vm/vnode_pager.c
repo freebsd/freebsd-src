@@ -171,7 +171,7 @@ static void
 vnode_pager_dealloc(object)
 	vm_object_t object;
 {
-	register struct vnode *vp = object->handle;
+	struct vnode *vp = object->handle;
 
 	GIANT_REQUIRED;
 	if (vp == NULL)
@@ -531,7 +531,7 @@ vnode_pager_input_old(object, m)
 
 		error = VOP_READ(vp, &auio, 0, curproc->p_ucred);
 		if (!error) {
-			register int count = size - auio.uio_resid;
+			int count = size - auio.uio_resid;
 
 			if (count == 0)
 				error = EINVAL;
