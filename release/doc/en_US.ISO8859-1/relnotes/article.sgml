@@ -151,7 +151,7 @@
       can be used to reconfigure the size of the kernel virtual
       address space. &merged;</para>
 
-    <para>The &man.labpc.4; driver has been removed due to
+    <para>The labpc(4) driver has been removed due to
       <quote>bitrot</quote>.</para>
 
     <para>The loader and kernel linker now look for files named
@@ -355,7 +355,7 @@
       account the swap space used by processes when computing the
       process sizes. &merged;</para>
 
-    <para>Linker sets are now self-contained; &man.gensetdefs.8; is
+    <para>Linker sets are now self-contained; gensetdefs(8) is
       unnecessary and has been removed.</para>
 
     <para>Network device cloning has been implemented, and the
@@ -500,7 +500,7 @@
 	&os;.  The following machines are supported to at least some
 	degree:  Ultra 1/2/5/10/30/60, Enterprise 220R/420R, Netra T1 AC200/DC200, Netra T 105, and Blade
 	100.  SMP is supported, and has been tested on the
-	Ultra 2, Ultra 60, Enterprise 220R, and 
+	Ultra 2, Ultra 60, Enterprise 220R, and
 	Enterprise 420R.</para>
 
       <para arch="i386">On some systems, the BIOS does not activate
@@ -753,9 +753,9 @@
 	cards. &merged;</para>
 
       <para>The &man.wi.4; driver now supports using a &os; host as
-	a wireless access point.  This functionality can be enabled 
-	using the <literal>mediaopt hostap</literal> option of 
-	&man.ifconfig.8;.  This feature requires a wireless 
+	a wireless access point.  This functionality can be enabled
+	using the <literal>mediaopt hostap</literal> option of
+	&man.ifconfig.8;.  This feature requires a wireless
 	adapter based on the Prism II chipset. &merged;</para>
 
       <para>The &man.wi.4; driver now has support for
@@ -957,7 +957,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	increasing congestion, the default value for
 	<varname>net.inet.tcp.local_slowstart_flightsize</varname> has
 	been changed from infinity to 4. &merged;
- 
+
 	<note>
 	  <para>On busy hosts, the new larger buffer sizes may require
 	    manually increasing the
@@ -1668,7 +1668,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>A local root exploit in &man.sendmail.8; has been closed
       (see security advisory FreeBSD-SA-01:57). &merged;</para>
-   
+
     <para>A remote root vulnerability in &man.lpd.8; has been closed
       (see security advisory FreeBSD-SA-01:58). &merged;</para>
 
@@ -1784,10 +1784,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.
       &merged;</para>
 
-    <para>A bug has been fixed in the implementation of the TCP SYN 
+    <para>A bug has been fixed in the implementation of the TCP SYN
       cache (<quote>syncache</quote>), which could allow a remote
       attacker to deny access to a service when accept filters
-      (see &man.accept.filter.9;) were in use.  This bug has been 
+      (see &man.accept.filter.9;) were in use.  This bug has been
       fixed; for more information, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.
       &merged;</para>
@@ -1952,7 +1952,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       kilobytes, megabytes, or gigabytes, in addition to
       sectors. &merged;</para>
 
-    <para>&man.diskpart.8; has been declared obsolete, and has been
+    <para>diskpart(8) has been declared obsolete, and has been
       removed.</para>
 
     <para>&man.dmesg.8; now has a <option>-a</option> option to show
@@ -2137,8 +2137,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       unnecessary; their functionality has been completely folded into
       &man.id.1;. &merged;</para>
 
-    <para>The &man.ibcs2.8;, &man.linux.8;, &man.osf1.8;, and
-      &man.svr4.8; scripts, whose sole purpose was to load emulation
+    <para>The ibcs(8), linux(8), osf1(8), and
+      svr4(8) scripts, whose sole purpose was to load emulation
       kernel modules, have been removed.  The kernel module system
       will automatically load them as needed to fulfill
       dependencies.</para>
@@ -2235,7 +2235,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.keyinfo.1; is now a C program, rather than a Perl
       script. &merged;</para>
 
-    <para>The &man.kget.8; utility has been removed (it was only
+    <para>The kget(8) utility has been removed (it was only
       useful for UserConfig, which is not present in &os;
       &release.current;).</para>
 
@@ -2456,7 +2456,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/etc/rc.conf</filename> to the default options in
       <filename>/etc/defaults/rc.conf</filename>. &merged;</para>
 
-    <para>&man.mk.cmds.1; and the associated
+    <para>mk_cmds(1) and the associated
       <filename>libss</filename> have been removed; they have been
       unused for quite some time. &merged;</para>
 
@@ -3141,7 +3141,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para><application>GNATS</application> has been updated to
 	3.113. &merged;</para>
-     
+
       <para><application>GNU awk</application> has been updated to
 	3.1.0.  It is now available as <command>gawk</command>.</para>
 
@@ -3345,7 +3345,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  NDP entries, as described in RFC 2461 (Neighbor Discovery
 	  for IP Version 6 (IPv6)). &merged;</para>
 
-	<para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due
+	<para>pim6dd(8) and pim6sd(8) have been removed due
 	  to restrictive licensing conditions.  These programs are
 	  available in the ports collection as
 	  <filename role="package">net/pim6dd</filename> and
@@ -3385,7 +3385,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	      <listitem>
 	        <para>The <filename>*2</filename> files are obsolete
 		  (for example,
-		  <filename>~/.ssh/known_hosts</filename> can hold the 
+		  <filename>~/.ssh/known_hosts</filename> can hold the
 		  contents of
 		  <filename>~/.ssh/known_hosts2</filename>).</para>
 	      </listitem>
