@@ -167,6 +167,8 @@ struct aac_command
 #define AAC_ON_AACQ_BUSY	(1<<7)
 #define AAC_ON_AACQ_COMPLETE	(1<<8)
 #define AAC_ON_AACQ_MASK	((1<<5)|(1<<6)|(1<<7)|(1<<8))
+#define AAC_QUEUE_FRZN		(1<<9)		/* Freeze the processing of
+						 * commands on the queue. */
 
 	void			(* cm_complete)(struct aac_command *cm);
 	void			*cm_private;
