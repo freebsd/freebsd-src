@@ -23,6 +23,23 @@ ahead.
  *
  */
 
+struct mixer_def {
+    	u_int regno:7;
+    	u_int polarity:1;	/* 1 means reversed */
+    	u_int bitoffs:4;
+    	u_int nbits:4;
+};
+typedef struct mixer_def mixer_ent;
+typedef struct mixer_def mixer_tab[32][2];
+
+#define MIX_ENT(name, reg_l, pol_l, pos_l, len_l, reg_r, pol_r, pos_r, len_r) \
+    	{{reg_l, pol_l, pos_l, len_l}, {reg_r, pol_r, pos_r, len_r}}
+
+#define PMIX_ENT(name, reg_l, pos_l, len_l, reg_r, pos_r, len_r) \
+    	{{reg_l, 0, pos_l, len_l}, {reg_r, 0, pos_r, len_r}}
+
+#define MIX_NONE(name) MIX_ENT(name, 0,0,0,0, 0,0,0,0)
+
 /*
  * The four visible registers of the MSS :
  *
@@ -107,6 +124,7 @@ ahead.
 #define	BD_F_TMR_RUN	0x0004
 #define BD_F_MSS_OFFSET 0x0008	/* offset mss writes by -4 */
 #define BD_F_DUPLEX	0x0010
+#define BD_F_924PNP	0x0020	/* OPTi924 is in PNP mode */
 
 /*
  * sound/ad1848_mixer.h
@@ -152,8 +170,9 @@ ahead.
 
 /*
  * Table of mixer registers. There is a default table for the
- * AD1848/CS423x clones, and one for the OPTI931. As more MSS
- * clones come out, there ought to be more tables.
+ * AD1848/CS423x clones, one for the OPTI931 and one for the
+ * OPTi930. As more MSS clones come out, there ought to be
+ * more tables.
  *
  * Fields in the table are : polarity, register, offset, bits
  *
@@ -205,6 +224,30 @@ MIX_NONE(SOUND_MIXER_LINE3),
     (SOUND_MASK_SYNTH | SOUND_MASK_PCM    | SOUND_MASK_MIC     | \
      SOUND_MASK_CD    | SOUND_MASK_IMIX   | SOUND_MASK_IGAIN     )
 
+
+mixer_ent opti930_devices[32][2] = {
+MIX_ENT(SOUND_MIXER_VOLUME,	22, 1, 0, 4,	23, 1, 0, 4),
+MIX_NONE(SOUND_MIXER_BASS),
+MIX_NONE(SOUND_MIXER_TREBLE),
+MIX_ENT(SOUND_MIXER_SYNTH,	4,  1, 0, 4,    5,  1, 0, 4),
+MIX_ENT(SOUND_MIXER_PCM,	6,  1, 1, 5,	7,  1, 1, 5),
+MIX_ENT(SOUND_MIXER_LINE,	18, 1, 1, 4,	19, 1, 1, 4),
+MIX_NONE(SOUND_MIXER_SPEAKER),
+MIX_ENT(SOUND_MIXER_MIC,	21, 1, 0, 4,	22, 1, 0, 4),
+MIX_ENT(SOUND_MIXER_CD,		2,  1, 1, 4,	3,  1, 1, 4),
+MIX_NONE(SOUND_MIXER_IMIX),
+MIX_NONE(SOUND_MIXER_ALTPCM),
+MIX_NONE(SOUND_MIXER_RECLEV),
+MIX_NONE(SOUND_MIXER_IGAIN),
+MIX_NONE(SOUND_MIXER_OGAIN),
+MIX_NONE(SOUND_MIXER_LINE1),
+MIX_NONE(SOUND_MIXER_LINE2),
+MIX_NONE(SOUND_MIXER_LINE3),
+};
+
+#define OPTI930_MIXER_DEVICES	\
+    (SOUND_MASK_VOLUME | SOUND_MASK_SYNTH | SOUND_MASK_PCM | \
+     SOUND_MASK_LINE   | SOUND_MASK_MIC   | SOUND_MASK_CD )
 
 /*
  * entries for the opti931...

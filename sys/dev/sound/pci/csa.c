@@ -48,7 +48,12 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include <dev/sound/pci/csaimg.h>
+#include <gnu/dev/sound/pci/csaimg.h>
+
+/* This is the pci device id. */
+#define CS4610_PCI_ID 0x60011013
+#define CS4614_PCI_ID 0x60031013
+#define CS4615_PCI_ID 0x60041013
 
 /* Here is the parameter structure per a device. */
 struct csa_softc {
@@ -63,6 +68,7 @@ struct csa_softc {
 	void *midiintr_arg; /* midi intr arg */
 	void *ih; /* cookie */
 
+	struct csa_card *card;
 	struct csa_bridgeinfo binfo; /* The state of this bridge. */
 };
 
@@ -83,34 +89,147 @@ static driver_intr_t csa_intr;
 static int csa_initialize(sc_p scp);
 static void csa_resetdsp(csa_res *resp);
 static int csa_downloadimage(csa_res *resp);
-static int csa_transferimage(csa_res *resp, u_long *src, u_long dest, u_long len);
 
 static devclass_t csa_devclass;
+
+static void
+amp_none(void)
+{
+}
+
+static void
+amp_voyetra(void)
+{
+}
+
+static int
+clkrun_hack(int run)
+{
+#ifdef __i386__
+	devclass_t		pci_devclass;
+	device_t		*pci_devices, *pci_children, *busp, *childp;
+	int			pci_count = 0, pci_childcount = 0;
+	int			i, j, port;
+	u_int16_t		control;
+	bus_space_tag_t		btag;
+
+	if ((pci_devclass = devclass_find("pci")) == NULL) {
+		return ENXIO;
+	}
+
+	devclass_get_devices(pci_devclass, &pci_devices, &pci_count);
+
+	for (i = 0, busp = pci_devices; i < pci_count; i++, busp++) {
+		pci_childcount = 0;
+		device_get_children(*busp, &pci_children, &pci_childcount);
+		for (j = 0, childp = pci_children; j < pci_childcount; j++, childp++) {
+			if (pci_get_vendor(*childp) == 0x8086 && pci_get_device(*childp) == 0x7113) {
+				port = (pci_read_config(*childp, 0x41, 1) << 8) + 0x10;
+				/* XXX */
+				btag = I386_BUS_SPACE_IO;
+
+				control = bus_space_read_2(btag, 0x0, port);
+				control &= ~0x2000;
+				control |= run? 0 : 0x2000;
+				bus_space_write_2(btag, 0x0, port, control);
+				free(pci_devices, M_TEMP);
+				free(pci_children, M_TEMP);
+				return 0;
+			}
+		}
+		free(pci_children, M_TEMP);
+	}
+
+	free(pci_devices, M_TEMP);
+	return ENXIO;
+#else
+	return 0;
+#endif
+}
+
+static struct csa_card cards_4610[] = {
+	{0, 0, "Unknown/invalid SSID (CS4610)", NULL, NULL, NULL, 0},
+};
+
+static struct csa_card cards_4614[] = {
+	{0x1489, 0x7001, "Genius Soundmaker 128 value", amp_none, NULL, NULL, 0},
+	{0x5053, 0x3357, "Turtle Beach Santa Cruz", amp_voyetra, NULL, NULL, 1},
+	{0x1071, 0x6003, "Mitac MI6020/21", amp_voyetra, NULL, NULL, 0},
+	{0x14AF, 0x0050, "Hercules Game Theatre XP", NULL, NULL, NULL, 0},
+	{0x1681, 0x0050, "Hercules Game Theatre XP", NULL, NULL, NULL, 0},
+	/* Not sure if the 570 needs the clkrun hack */
+	{0x1014, 0x0132, "Thinkpad 570", amp_none, NULL, clkrun_hack, 0},
+	{0x1014, 0x0153, "Thinkpad 600X/A20/T20", amp_none, NULL, clkrun_hack, 0},
+	{0x1014, 0x1010, "Thinkpad 600E (unsupported)", NULL, NULL, NULL, 0},
+	{0, 0, "Unknown/invalid SSID (CS4614)", NULL, NULL, NULL, 0},
+};
+
+static struct csa_card cards_4615[] = {
+	{0, 0, "Unknown/invalid SSID (CS4615)", NULL, NULL, NULL, 0},
+};
+
+static struct csa_card nocard = {0, 0, "unknown", NULL, NULL, NULL, 0};
+
+struct card_type {
+	u_int32_t devid;
+	char *name;
+	struct csa_card *cards;
+};
+
+static struct card_type cards[] = {
+	{CS4610_PCI_ID, "CS4610/CS4611", cards_4610},
+	{CS4614_PCI_ID, "CS4280/CS4614/CS4622/CS4624/CS4630", cards_4614},
+	{CS4615_PCI_ID, "CS4615", cards_4615},
+	{0, NULL, NULL},
+};
+
+static struct card_type *
+csa_findcard(device_t dev)
+{
+	int i;
+
+	i = 0;
+	while (cards[i].devid != 0) {
+		if (pci_get_devid(dev) == cards[i].devid)
+			return &cards[i];
+		i++;
+	}
+	return NULL;
+}
+
+struct csa_card *
+csa_findsubcard(device_t dev)
+{
+	int i;
+	struct card_type *card;
+	struct csa_card *subcard;
+
+	card = csa_findcard(dev);
+	if (card == NULL)
+		return &nocard;
+	subcard = card->cards;
+	i = 0;
+	while (subcard[i].subvendor != 0) {
+		if (pci_get_subvendor(dev) == subcard[i].subvendor
+		    && pci_get_subdevice(dev) == subcard[i].subdevice) {
+			return &subcard[i];
+		}
+		i++;
+	}
+	return &subcard[i];
+}
 
 static int
 csa_probe(device_t dev)
 {
-	char *s;
+	struct card_type *card;
 
-	s = NULL;
-	switch (pci_get_devid(dev)) {
-	case CS4610_PCI_ID:
-		s = "Crystal Semiconductor CS4610/4611 Audio accelerator";
-		break;
-	case CS4614_PCI_ID:
-		s = "Crystal Semiconductor CS4614/4622/4624 Audio accelerator/4280 Audio controller";
-		break;
-	case CS4615_PCI_ID:
-		s = "Crystal Semiconductor CS4615 Audio accelerator";
-		break;
+	card = csa_findcard(dev);
+	if (card) {
+		device_set_desc(dev, card->name);
+		return 0;
 	}
-
-	if (s != NULL) {
-		device_set_desc(dev, s);
-		return (0);
-	}
-
-	return (ENXIO);
+	return ENXIO;
 }
 
 static int
@@ -137,12 +256,15 @@ csa_attach(device_t dev)
 
 	/* Allocate the resources. */
 	resp = &scp->res;
-	resp->io_rid = CS461x_IO_OFFSET;
-	resp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->io_rid, 0, ~0, CS461x_IO_SIZE, RF_ACTIVE);
+	scp->card = csa_findsubcard(dev);
+	scp->binfo.card = scp->card;
+	printf("csa: card is %s\n", scp->card->name);
+	resp->io_rid = PCIR_MAPS;
+	resp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->io_rid, 0, ~0, 1, RF_ACTIVE);
 	if (resp->io == NULL)
 		return (ENXIO);
-	resp->mem_rid = CS461x_MEM_OFFSET;
-	resp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->mem_rid, 0, ~0, CS461x_MEM_SIZE, RF_ACTIVE);
+	resp->mem_rid = PCIR_MAPS + 4;
+	resp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->mem_rid, 0, ~0, 1, RF_ACTIVE);
 	if (resp->mem == NULL)
 		goto err_io;
 	resp->irq_rid = 0;
@@ -151,10 +273,12 @@ csa_attach(device_t dev)
 		goto err_mem;
 
 	/* Enable interrupt. */
-	if (bus_setup_intr(dev, resp->irq, INTR_TYPE_TTY, csa_intr, scp, &scp->ih))
+	if (snd_setup_intr(dev, resp->irq, INTR_MPSAFE, csa_intr, scp, &scp->ih))
 		goto err_intr;
+#if 0
 	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)
 		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
+#endif
 
 	/* Initialize the chip. */
 	if (csa_initialize(scp))
@@ -206,6 +330,17 @@ err_io:
 	return (error);
 }
 
+static int
+csa_detach(device_t dev)
+{
+	sc_p scp;
+
+	scp = device_get_softc(dev);
+	device_delete_child(dev, scp->midi);
+	device_delete_child(dev, scp->pcm);
+	return bus_generic_detach(dev);
+}
+
 static struct resource *
 csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		      u_long start, u_long end, u_long count, u_int flags)
@@ -224,10 +359,10 @@ csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_MEMORY:
 		switch (*rid) {
-		case CS461x_IO_OFFSET:
+		case PCIR_MAPS:
 			res = resp->io;
 			break;
-		case CS461x_MEM_OFFSET:
+		case PCIR_MAPS + 4:
 			res = resp->mem;
 			break;
 		default:
@@ -347,7 +482,7 @@ csa_intr(void *arg)
 
 	/* Is this interrupt for us? */
 	hisr = csa_readio(resp, BA0_HISR);
-	if ((hisr & ~HISR_INTENA) == 0) {
+	if ((hisr & 0x7fffffff) == 0) {
 		/* Throw an eoi. */
 		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
 		return;
@@ -360,10 +495,14 @@ csa_intr(void *arg)
 	scp->binfo.hisr = hisr;
 
 	/* Invoke the handlers of the children. */
-	if ((hisr & (HISR_VC0 | HISR_VC1)) != 0 && scp->pcmintr != NULL)
+	if ((hisr & (HISR_VC0 | HISR_VC1)) != 0 && scp->pcmintr != NULL) {
 		scp->pcmintr(scp->pcmintr_arg);
-	if ((hisr & HISR_MIDI) != 0 && scp->midiintr != NULL)
+		hisr &= ~(HISR_VC0 | HISR_VC1);
+	}
+	if ((hisr & HISR_MIDI) != 0 && scp->midiintr != NULL) {
 		scp->midiintr(scp->midiintr_arg);
+		hisr &= ~HISR_MIDI;
+	}
 
 	/* Throw an eoi. */
 	csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
@@ -402,8 +541,10 @@ csa_initialize(sc_p scp)
 	 * there might be logic external to the CS461x that uses the ARST# line
 	 * for a reset.
 	 */
+	csa_writeio(resp, BA0_ACCTL, 1);
+	DELAY(50);
 	csa_writeio(resp, BA0_ACCTL, 0);
-	DELAY(100);
+	DELAY(50);
 	csa_writeio(resp, BA0_ACCTL, ACCTL_RSTN);
 
 	/*
@@ -425,6 +566,7 @@ csa_initialize(sc_p scp)
 	 * the clock control circuit gets its clock from the correct place.
 	 */
 	csa_writeio(resp, BA0_SERMC1, SERMC1_PTC_AC97);
+	DELAY(700000);
 
 	/*
 	 * Write the selected clock control setup to the hardware.  Do not turn on
@@ -443,7 +585,7 @@ csa_initialize(sc_p scp)
 	/*
 	 * Wait until the PLL has stabilized.
 	 */
-	DELAY(50000);
+	DELAY(5000);
 
 	/*
 	 * Turn on clocking of the core so that we can setup the serial ports.
@@ -558,7 +700,7 @@ csa_initialize(sc_p scp)
 	/*
 	 * Enable interrupts on the part.
 	 */
-#if notdef
+#if 0
 	csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
 #endif /* notdef */
 
@@ -649,48 +791,26 @@ csa_resetdsp(csa_res *resp)
 static int
 csa_downloadimage(csa_res *resp)
 {
-	int ret;
-	u_long ul, offset;
+	int i;
+	u_int32_t tmp, src, dst, count, data;
 
-	for (ul = 0, offset = 0 ; ul < INKY_MEMORY_COUNT ; ul++) {
-		/*
-		 * DMA this block from host memory to the appropriate
-		 * memory on the CSDevice.
-		 */
-		ret = csa_transferimage(
-			resp,
-			BA1Struct.BA1Array + offset,
-			BA1Struct.MemoryStat[ul].ulDestByteOffset,
-			BA1Struct.MemoryStat[ul].ulSourceByteSize);
-		if (ret)
-			return (ret);
-		offset += BA1Struct.MemoryStat[ul].ulSourceByteSize >> 2;
+	for (i = 0; i < CLEAR__COUNT; i++) {
+		dst = ClrStat[i].BA1__DestByteOffset;
+		count = ClrStat[i].BA1__SourceSize;
+		for (tmp = 0; tmp < count; tmp += 4)
+			csa_writemem(resp, dst + tmp, 0x00000000);
 	}
 
-	return (0);
-}
-
-static int
-csa_transferimage(csa_res *resp, u_long *src, u_long dest, u_long len)
-{
-	u_long ul;
-
-	/*
-	 * We do not allow DMAs from host memory to host memory (although the DMA
-	 * can do it) and we do not allow DMAs which are not a multiple of 4 bytes
-	 * in size (because that DMA can not do that).  Return an error if either
-	 * of these conditions exist.
-	 */
-	if ((len & 0x3) != 0)
-		return (EINVAL);
-
-	/* Check the destination address that it is a multiple of 4 */
-	if ((dest & 0x3) != 0)
-		return (EINVAL);
-
-	/* Write the buffer out. */
-	for (ul = 0 ; ul < len ; ul += 4)
-		csa_writemem(resp, dest + ul, src[ul >> 2]);
+	for (i = 0; i < FILL__COUNT; i++) {
+		src = 0;
+		dst = FillStat[i].Offset;
+		count = FillStat[i].Size;
+		for (tmp = 0; tmp < count; tmp += 4) {
+			data = FillStat[i].pFill[src];
+			csa_writemem(resp, dst + tmp, data);
+			src++;
+		}
+	}
 
 	return (0);
 }
@@ -868,7 +988,7 @@ csa_writeio(csa_res *resp, u_long offset, u_int32_t data)
 u_int32_t
 csa_readmem(csa_res *resp, u_long offset)
 {
-	return bus_space_read_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset) & 0xffffffff;
+	return bus_space_read_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset);
 }
 
 void
@@ -881,7 +1001,7 @@ static device_method_t csa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		csa_probe),
 	DEVMETHOD(device_attach,	csa_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	csa_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),

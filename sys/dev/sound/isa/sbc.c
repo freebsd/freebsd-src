@@ -35,9 +35,12 @@
 #define DRQ_MAX	2
 #define INTR_MAX	2
 
+struct sbc_softc;
+
 struct sbc_ihl {
 	driver_intr_t *intr[INTR_MAX];
 	void *intr_arg[INTR_MAX];
+	struct sbc_softc *parent;
 };
 
 /* Here is the parameter structure per a device. */
@@ -60,6 +63,8 @@ struct sbc_softc {
 	struct sbc_ihl ihl[IRQ_MAX];
 
 	void *ih[IRQ_MAX];
+
+	void *lock;
 
 	u_int32_t bd_ver;
 };
@@ -105,6 +110,30 @@ static int sb_dspready(struct resource *io);
 static int sb_cmd(struct resource *io, u_char val);
 static u_int sb_get_byte(struct resource *io);
 static void sb_setmixer(struct resource *io, u_int port, u_int value);
+
+static void
+sbc_lockinit(struct sbc_softc *scp)
+{
+	scp->lock = snd_mtxcreate(device_get_nameunit(scp->dev));
+}
+
+static void
+sbc_lockdestroy(struct sbc_softc *scp)
+{
+	snd_mtxfree(scp->lock);
+}
+
+void
+sbc_lock(struct sbc_softc *scp)
+{
+	snd_mtxlock(scp->lock);
+}
+
+void
+sbc_unlock(struct sbc_softc *scp)
+{
+	snd_mtxunlock(scp->lock);
+}
 
 static int
 sb_rd(struct resource *io, int reg)
@@ -311,6 +340,7 @@ sbc_attach(device_t dev)
 	scp = device_get_softc(dev);
 	bzero(scp, sizeof(*scp));
 	scp->dev = dev;
+	sbc_lockinit(scp);
 	err = "alloc_resource";
 	if (alloc_resource(scp)) goto bad;
 
@@ -396,7 +426,8 @@ sbc_attach(device_t dev)
 
 	err = "setup_intr";
 	for (i = 0; i < IRQ_MAX; i++) {
-		if (bus_setup_intr(dev, scp->irq[i], INTR_TYPE_TTY, sbc_intr, &scp->ihl[i], &scp->ih[i]))
+		scp->ihl[i].parent = scp;
+		if (snd_setup_intr(dev, scp->irq[i], INTR_MPSAFE, sbc_intr, &scp->ihl[i], &scp->ih[i]))
 			goto bad;
 	}
 
@@ -436,10 +467,12 @@ sbc_detach(device_t dev)
 {
 	struct sbc_softc *scp = device_get_softc(dev);
 
+	sbc_lock(scp);
 	device_delete_child(dev, scp->child_midi2);
 	device_delete_child(dev, scp->child_midi1);
 	device_delete_child(dev, scp->child_pcm);
 	release_resource(scp);
+	sbc_lockdestroy(scp);
 	return bus_generic_detach(dev);
 }
 
@@ -449,11 +482,13 @@ sbc_intr(void *p)
 	struct sbc_ihl *ihl = p;
 	int i;
 
+	/* sbc_lock(ihl->parent); */
 	i = 0;
 	while (i < INTR_MAX) {
 		if (ihl->intr[i] != NULL) ihl->intr[i](ihl->intr_arg[i]);
 		i++;
 	}
+	/* sbc_unlock(ihl->parent); */
 }
 
 static int
@@ -463,24 +498,27 @@ sbc_setup_intr(device_t dev, device_t child, struct resource *irq,
 {
 	struct sbc_softc *scp = device_get_softc(dev);
 	struct sbc_ihl *ihl = NULL;
-	int i;
+	int i, ret;
 
+	sbc_lock(scp);
 	i = 0;
 	while (i < IRQ_MAX) {
 		if (irq == scp->irq[i]) ihl = &scp->ihl[i];
 		i++;
 	}
-	if (ihl == NULL) return (EINVAL);
+	ret = 0;
+	if (ihl == NULL) ret = EINVAL;
 	i = 0;
-	while (i < INTR_MAX) {
+	while ((ret == 0) && (i < INTR_MAX)) {
 		if (ihl->intr[i] == NULL) {
 			ihl->intr[i] = intr;
 			ihl->intr_arg[i] = arg;
 			*cookiep = &ihl->intr[i];
-			return 0;
+			ret = -1;
 		} else i++;
 	}
-	return (EINVAL);
+	sbc_unlock(scp);
+	return (ret > 0)? EINVAL : 0;
 }
 
 static int
@@ -489,23 +527,26 @@ sbc_teardown_intr(device_t dev, device_t child, struct resource *irq,
 {
 	struct sbc_softc *scp = device_get_softc(dev);
 	struct sbc_ihl *ihl = NULL;
-	int i;
+	int i, ret;
 
+	sbc_lock(scp);
 	i = 0;
 	while (i < IRQ_MAX) {
 		if (irq == scp->irq[i]) ihl = &scp->ihl[i];
 		i++;
 	}
-	if (ihl == NULL) return (EINVAL);
+	ret = 0;
+	if (ihl == NULL) ret = EINVAL;
 	i = 0;
-	while (i < INTR_MAX) {
+	while ((ret == 0) && (i < INTR_MAX)) {
 		if (cookie == &ihl->intr[i]) {
 			ihl->intr[i] = NULL;
 			ihl->intr_arg[i] = NULL;
 			return 0;
 		} else i++;
 	}
-	return (EINVAL);
+	sbc_unlock(scp);
+	return (ret > 0)? EINVAL : 0;
 }
 
 static struct resource *

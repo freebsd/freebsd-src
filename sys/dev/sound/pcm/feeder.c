@@ -69,6 +69,7 @@ feeder_register(void *p)
 
 	i = 0;
 	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
+		/* printf("adding feeder %s, %x -> %x\n", fc->name, fc->desc[i].in, fc->desc[i].out); */
 		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 		fte->feederclass = fc;
 		fte->desc = &fc->desc[i];
@@ -105,20 +106,20 @@ cmpdesc(struct pcm_feederdesc *n, struct pcm_feederdesc *m)
 }
 
 static void
-feeder_destroy(pcm_feeder *f)
+feeder_destroy(struct pcm_feeder *f)
 {
 	FEEDER_FREE(f);
 	free(f->desc, M_FEEDER);
 	kobj_delete((kobj_t)f, M_FEEDER);
 }
 
-static pcm_feeder *
+static struct pcm_feeder *
 feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 {
-	pcm_feeder *f;
+	struct pcm_feeder *f;
 	int err;
 
-	f = (pcm_feeder *)kobj_create((kobj_class_t)fc, M_FEEDER, M_WAITOK | M_ZERO);
+	f = (struct pcm_feeder *)kobj_create((kobj_class_t)fc, M_FEEDER, M_WAITOK | M_ZERO);
 	f->align = fc->align;
 	f->desc = malloc(sizeof(*(f->desc)), M_FEEDER, M_WAITOK | M_ZERO);
 	if (desc)
@@ -132,8 +133,10 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 	}
 	f->data = fc->data;
 	f->source = NULL;
+	f->class = fc;
 	err = FEEDER_INIT(f);
 	if (err) {
+		printf("feeder_init(%p) on %s returned %d\n", f, fc->name, err);
 		feeder_destroy(f);
 		return NULL;
 	} else
@@ -155,9 +158,9 @@ feeder_getclass(struct pcm_feederdesc *desc)
 }
 
 int
-chn_addfeeder(pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
+chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
 {
-	pcm_feeder *nf;
+	struct pcm_feeder *nf;
 
 	nf = feeder_create(fc, desc);
 	if (nf == NULL)
@@ -176,9 +179,9 @@ chn_addfeeder(pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *de
 }
 
 int
-chn_removefeeder(pcm_channel *c)
+chn_removefeeder(struct pcm_channel *c)
 {
-	pcm_feeder *f;
+	struct pcm_feeder *f;
 
 	if (c->feeder == NULL)
 		return -1;
@@ -188,10 +191,10 @@ chn_removefeeder(pcm_channel *c)
 	return 0;
 }
 
-pcm_feeder *
-chn_findfeeder(pcm_channel *c, u_int32_t type)
+struct pcm_feeder *
+chn_findfeeder(struct pcm_channel *c, u_int32_t type)
 {
-	pcm_feeder *f;
+	struct pcm_feeder *f;
 
 	f = c->feeder;
 	while (f != NULL) {
@@ -203,7 +206,7 @@ chn_findfeeder(pcm_channel *c, u_int32_t type)
 }
 
 static int
-chainok(pcm_feeder *test, pcm_feeder *stop)
+chainok(struct pcm_feeder *test, struct pcm_feeder *stop)
 {
 	u_int32_t visited[MAXFEEDERS / 32];
 	u_int32_t idx, mask;
@@ -225,14 +228,13 @@ chainok(pcm_feeder *test, pcm_feeder *stop)
 	return 1;
 }
 
-static pcm_feeder *
-feeder_fmtchain(u_int32_t *to, pcm_feeder *source, pcm_feeder *stop, int maxdepth)
+static struct pcm_feeder *
+feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *stop, int maxdepth)
 {
 	struct feedertab_entry *fte;
-	pcm_feeder *try, *ret;
-	struct pcm_feederdesc trydesc;
+	struct pcm_feeder *try, *ret;
 
-	/* printf("trying %s...\n", source->name); */
+	/* printf("trying %s (%x -> %x)...\n", source->class->name, source->desc->in, source->desc->out); */
 	if (fmtvalid(source->desc->out, to)) {
 		/* printf("got it\n"); */
 		return source;
@@ -241,34 +243,31 @@ feeder_fmtchain(u_int32_t *to, pcm_feeder *source, pcm_feeder *stop, int maxdept
 	if (maxdepth < 0)
 		return NULL;
 
-	trydesc.type = FEEDER_FMT;
-	trydesc.in = source->desc->out;
-	trydesc.out = 0;
-	trydesc.flags = 0;
-	trydesc.idx = -1;
-
 	SLIST_FOREACH(fte, &feedertab, link) {
-		if ((fte->desc) && (fte->desc->in == source->desc->out)) {
-			trydesc.out = fte->desc->out;
-			trydesc.idx = fte->idx;
-			try = feeder_create(fte->feederclass, &trydesc);
-			if (try == NULL)
-				return NULL;
-			try->source = source;
-			ret = chainok(try, stop)? feeder_fmtchain(to, try, stop, maxdepth - 1) : NULL;
-			if (ret != NULL)
-				return ret;
-			feeder_destroy(try);
+		if (fte->desc == NULL)
+			goto no;
+		if (fte->desc->type != FEEDER_FMT)
+			goto no;
+		if (fte->desc->in == source->desc->out) {
+			try = feeder_create(fte->feederclass, fte->desc);
+			if (try) {
+				try->source = source;
+				ret = chainok(try, stop)? feeder_fmtchain(to, try, stop, maxdepth - 1) : NULL;
+				if (ret != NULL)
+					return ret;
+				feeder_destroy(try);
+			}
 		}
+no:
 	}
-	/* printf("giving up %s...\n", source->name); */
+	/* printf("giving up %s...\n", source->class->name); */
 	return NULL;
 }
 
 u_int32_t
-chn_fmtchain(pcm_channel *c, u_int32_t *to)
+chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 {
-	pcm_feeder *try, *stop;
+	struct pcm_feeder *try, *stop;
 	int max;
 
 	stop = c->feeder;
@@ -287,7 +286,7 @@ chn_fmtchain(pcm_channel *c, u_int32_t *to)
 #endif
 	while (try && (try != stop)) {
 #ifdef FEEDER_DEBUG
-		printf("%s [%d]", try->name, try->desc->idx);
+		printf("%s [%d]", try->class->name, try->desc->idx);
 		if (try->source)
 			printf(" -> ");
 #endif
@@ -298,7 +297,7 @@ chn_fmtchain(pcm_channel *c, u_int32_t *to)
 		try = try->source;
 	}
 #ifdef FEEDER_DEBUG
-	printf("%s [%d]\n", try->name, try->desc->idx);
+	printf("%s [%d]\n", try->class->name, try->desc->idx);
 #endif
 	return c->feeder->desc->out;
 }
@@ -306,21 +305,27 @@ chn_fmtchain(pcm_channel *c, u_int32_t *to)
 /*****************************************************************************/
 
 static int
-feed_root(pcm_feeder *feeder, pcm_channel *ch, u_int8_t *buffer, u_int32_t count, struct uio *stream)
+feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u_int32_t count, void *source)
 {
-	int ret, s;
+	struct snd_dbuf *src = source;
+	int l;
+	u_int8_t x;
 
-	KASSERT(count, ("feed_root: count == 0"));
-	count &= ~((1 << ch->align) - 1);
-	KASSERT(count, ("feed_root: aligned count == 0 (align = %d)", ch->align));
+	KASSERT(count > 0, ("feed_root: count == 0"));
+	/* count &= ~((1 << ch->align) - 1); */
+	KASSERT(count > 0, ("feed_root: aligned count == 0 (align = %d)", ch->align));
 
-	s = spltty();
-	count = min(count, stream->uio_resid);
-	if (count) {
-		ret = uiomove(buffer, count, stream);
-		KASSERT(ret == 0, ("feed_root: uiomove failed (%d)", ret));
-	}
-	splx(s);
+	l = min(count, sndbuf_getready(src));
+	sndbuf_dispose(src, buffer, l);
+
+/*
+	if (l < count)
+		printf("appending %d bytes\n", count - l);
+*/
+
+	x = (sndbuf_getfmt(src) & AFMT_SIGNED)? 0 : 0x80;
+	while (l < count)
+		buffer[l++] = x;
 
 	return count;
 }
@@ -332,7 +337,7 @@ static kobj_method_t feeder_root_methods[] = {
 static struct feeder_class feeder_root_class = {
 	name:		"feeder_root",
 	methods:	feeder_root_methods,
-	size:		sizeof(pcm_feeder),
+	size:		sizeof(struct pcm_feeder),
 	align:		0,
 	desc:		NULL,
 	data:		NULL,

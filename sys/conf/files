@@ -1206,8 +1206,11 @@ dev/sound/pcm/dsp.c	optional pcm
 dev/sound/pcm/fake.c	optional pcm
 dev/sound/pcm/feeder.c	optional pcm
 dev/sound/pcm/feeder_fmt.c	optional pcm
+dev/sound/pcm/feeder_rate.c	optional pcm
 dev/sound/pcm/mixer.c	optional pcm
+dev/sound/pcm/sndstat.c	optional pcm
 dev/sound/pcm/sound.c	optional pcm
+dev/sound/pcm/vchan.c	optional pcm
 #
 # These files in libkern/ are those needed by all architectures.  Some
 # of the files in libkern/ are only needed on some architectures, e.g.,

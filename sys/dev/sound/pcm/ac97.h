@@ -63,29 +63,12 @@
 #define AC97_REG_ID1	0x7c
 #define AC97_REG_ID2	0x7e
 
-struct ac97mixtable_entry {
-	int		reg:8;
-	unsigned	bits:4;
-	unsigned	ofs:4;
-	unsigned	stereo:1;
-	unsigned	mute:1;
-	unsigned	recidx:4;
-	unsigned        mask:1;
-	unsigned	enable:1;
-};
+#define	AC97_F_EAPD_INV		0x00000001
 
 #define AC97_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))
 #define AC97_CREATE(dev, devinfo, cls) ac97_create(dev, devinfo, &cls ## _class)
 
-struct ac97_info {
-	kobj_t methods;
-	device_t dev;
-	void *devinfo;
-	char *name;
-	char rev;
-	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
-	struct ac97mixtable_entry mix[32];
-};
+struct ac97_info;
 
 #include "ac97_if.h"
 
@@ -93,6 +76,8 @@ extern kobj_class_t ac97_getmixerclass(void);
 
 struct ac97_info *ac97_create(device_t dev, void *devinfo, kobj_class_t cls);
 void ac97_destroy(struct ac97_info *codec);
+void ac97_setflags(struct ac97_info *codec, u_int32_t val);
+u_int32_t ac97_getflags(struct ac97_info *codec);
 int ac97_setrate(struct ac97_info *codec, int which, int rate);
 int ac97_setextmode(struct ac97_info *codec, u_int16_t mode);
 u_int16_t ac97_getextmode(struct ac97_info *codec);

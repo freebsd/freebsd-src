@@ -40,15 +40,20 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+/* Buffer size on dma transfer. Fixed for CS416x. */
+#define CS461x_BUFFSIZE   (4 * 1024)
+
+#define GOF_PER_SEC 200
+
 /* device private data */
 struct csa_info;
 
 struct csa_chinfo {
 	struct csa_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir;
-	u_int32_t fmt;
+	u_int32_t fmt, spd;
 	int dma;
 };
 
@@ -57,7 +62,9 @@ struct csa_info {
 	void		*ih; /* Interrupt cookie */
 	bus_dma_tag_t	parent_dmat; /* DMA tag */
 	struct csa_bridgeinfo *binfo; /* The state of the parent. */
+	struct csa_card *card;
 
+	int active;
 	/* Contents of board's registers */
 	u_long		pfie;
 	u_long		pctl;
@@ -76,8 +83,6 @@ static void	csa_startplaydma(struct csa_info *csa);
 static void	csa_startcapturedma(struct csa_info *csa);
 static void	csa_stopplaydma(struct csa_info *csa);
 static void	csa_stopcapturedma(struct csa_info *csa);
-static void	csa_powerupadc(csa_res *resp);
-static void	csa_powerupdac(csa_res *resp);
 static int	csa_startdsp(csa_res *resp);
 static int	csa_allocres(struct csa_info *scp, device_t dev);
 static void	csa_releaseres(struct csa_info *scp, device_t dev);
@@ -93,14 +98,32 @@ static u_int32_t csa_playfmt[] = {
 	AFMT_STEREO | AFMT_S16_BE,
 	0
 };
-static pcmchan_caps csa_playcaps = {8000, 48000, csa_playfmt, 0};
+static struct pcmchan_caps csa_playcaps = {8000, 48000, csa_playfmt, 0};
 
 static u_int32_t csa_recfmt[] = {
 	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
+static struct pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
+
+/* -------------------------------------------------------------------- */
+
+static int
+csa_active(struct csa_info *csa, int run)
+{
+	int old, go;
+
+	old = csa->active;
+	csa->active += run;
+
+	if ((csa->active == 0 && old == 1) || (csa->active == 1 && old == 0)) {
+		go = csa->active;
+		if (csa->card->active)
+			return csa->card->active(go);
+	}
+	return 0;
+}
 
 /* -------------------------------------------------------------------- */
 /* ac97 codec */
@@ -111,8 +134,10 @@ csa_rdcd(kobj_t obj, void *devinfo, int regno)
 	u_int32_t data;
 	struct csa_info *csa = (struct csa_info *)devinfo;
 
+	csa_active(csa, 1);
 	if (csa_readcodec(&csa->res, regno + BA0_AC97_RESET, &data))
 		data = 0;
+	csa_active(csa, -1);
 
 	return data;
 }
@@ -122,7 +147,9 @@ csa_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
 	struct csa_info *csa = (struct csa_info *)devinfo;
 
+	csa_active(csa, 1);
 	csa_writecodec(&csa->res, regno + BA0_AC97_RESET, data);
+	csa_active(csa, -1);
 
 	return 0;
 }
@@ -380,86 +407,6 @@ csa_stopcapturedma(struct csa_info *csa)
 	}
 }
 
-static void
-csa_powerupdac(csa_res *resp)
-{
-	int i;
-	u_long ul;
-
-	/*
-	 * Power on the DACs on the AC97 codec.  We turn off the DAC
-	 * powerdown bit and write the new value of the power control
-	 * register.
-	 */
-	ul = csa_readio(resp, BA0_AC97_POWERDOWN);
-	ul &= 0xfdff;
-	csa_writeio(resp, BA0_AC97_POWERDOWN, ul);
-
-	/*
-	 * Now, we wait until we sample a DAC ready state.
-	 */
-	for (i = 0 ; i < 32 ; i++) {
-		/*
-		 * First, lets wait a short while to let things settle out a
-		 * bit, and to prevent retrying the read too quickly.
-		 */
-		DELAY(125);
-
-		/*
-		 * Read the current state of the power control register.
-		 */
-		ul = csa_readio(resp, BA0_AC97_POWERDOWN);
-
-		/*
-		 * If the DAC ready state bit is set, then stop waiting.
-		 */
-		if ((ul & 0x2) != 0)
-			break;
-	}
-	/*
-	 * The DACs are now calibrated, so we can unmute the DAC output.
-	 */
-	csa_writeio(resp, BA0_AC97_PCM_OUT_VOLUME, 0x0808);
-}
-
-static void
-csa_powerupadc(csa_res *resp)
-{
-	int i;
-	u_long ul;
-
-	/*
-	 * Power on the ADCs on the AC97 codec.  We turn off the ADC
-	 * powerdown bit and write the new value of the power control
-	 * register.
-	 */
-	ul = csa_readio(resp, BA0_AC97_POWERDOWN);
-	ul &= 0xfeff;
-	csa_writeio(resp, BA0_AC97_POWERDOWN, ul);
-
-	/*
-	 * Now, we wait until we sample a ADC ready state.
-	 */
-	for (i = 0 ; i < 32 ; i++) {
-		/*
-		 * First, lets wait a short while to let things settle out a
-		 * bit, and to prevent retrying the read too quickly.
-		 */
-		DELAY(125);
-
-		/*
-		 * Read the current state of the power control register.
-		 */
-		ul = csa_readio(resp, BA0_AC97_POWERDOWN);
-
-		/*
-		 * If the ADC ready state bit is set, then stop waiting.
-		 */
-		if ((ul & 0x1) != 0)
-			break;
-	}
-}
-
 static int
 csa_startdsp(csa_res *resp)
 {
@@ -486,11 +433,7 @@ csa_startdsp(csa_res *resp)
 		/*
 		 * Wait a little bit, so we don't issue PCI reads too frequently.
 		 */
-#if notdef
-		DELAY(1000);
-#else
-		DELAY(125);
-#endif /* notdef */
+		DELAY(50);
 		/*
 		 * Fetch the current value of the SP status register.
 		 */
@@ -511,11 +454,60 @@ csa_startdsp(csa_res *resp)
 	return (0);
 }
 
+static int
+csa_setupchan(struct csa_chinfo *ch)
+{
+	struct csa_info *csa = ch->parent;
+	csa_res *resp = &csa->res;
+	u_long pdtc, tmp;
+
+	if (ch->dir == PCMDIR_PLAY) {
+		/* direction */
+		csa_writemem(resp, BA1_PBA, vtophys(sndbuf_getbuf(ch->buffer)));
+
+		/* format */
+		csa->pfie = csa_readmem(resp, BA1_PFIE) & ~0x0000f03f;
+		if (!(ch->fmt & AFMT_SIGNED))
+			csa->pfie |= 0x8000;
+		if (ch->fmt & AFMT_BIGENDIAN)
+			csa->pfie |= 0x4000;
+		if (!(ch->fmt & AFMT_STEREO))
+			csa->pfie |= 0x2000;
+		if (ch->fmt & AFMT_8BIT)
+			csa->pfie |= 0x1000;
+		csa_writemem(resp, BA1_PFIE, csa->pfie);
+
+		tmp = 4;
+		if (ch->fmt & AFMT_16BIT)
+			tmp <<= 1;
+		if (ch->fmt & AFMT_STEREO)
+			tmp <<= 1;
+		tmp--;
+
+		pdtc = csa_readmem(resp, BA1_PDTC) & ~0x000001ff;
+		pdtc |= tmp;
+		csa_writemem(resp, BA1_PDTC, pdtc);
+
+		/* rate */
+		csa_setplaysamplerate(resp, ch->spd);
+	} else if (ch->dir == PCMDIR_REC) {
+		/* direction */
+		csa_writemem(resp, BA1_CBA, vtophys(sndbuf_getbuf(ch->buffer)));
+
+		/* format */
+		csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
+
+		/* rate */
+		csa_setcapturesamplerate(resp, ch->spd);
+	}
+	return 0;
+}
+
 /* -------------------------------------------------------------------- */
 /* channel interface */
 
 static void *
-csachan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+csachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct csa_info *csa = devinfo;
 	struct csa_chinfo *ch = (dir == PCMDIR_PLAY)? &csa->pch : &csa->rch;
@@ -523,59 +515,16 @@ csachan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = csa;
 	ch->channel = c;
 	ch->buffer = b;
+	ch->dir = dir;
 	if (sndbuf_alloc(ch->buffer, csa->parent_dmat, CS461x_BUFFSIZE) == -1) return NULL;
 	return ch;
-}
-
-static int
-csachan_setdir(kobj_t obj, void *data, int dir)
-{
-	struct csa_chinfo *ch = data;
-	struct csa_info *csa = ch->parent;
-	csa_res *resp;
-
-	resp = &csa->res;
-
-	if (dir == PCMDIR_PLAY)
-		csa_writemem(resp, BA1_PBA, vtophys(sndbuf_getbuf(ch->buffer)));
-	else
-		csa_writemem(resp, BA1_CBA, vtophys(sndbuf_getbuf(ch->buffer)));
-	ch->dir = dir;
-	return 0;
 }
 
 static int
 csachan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct csa_chinfo *ch = data;
-	struct csa_info *csa = ch->parent;
-	u_long pdtc;
-	csa_res *resp;
 
-	resp = &csa->res;
-
-	if (ch->dir == PCMDIR_REC)
-		csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
-	else {
-		csa->pfie = csa_readmem(resp, BA1_PFIE) & ~0x0000f03f;
-		if (format & AFMT_U8 || format & AFMT_U16_LE || format & AFMT_U16_BE)
-			csa->pfie |= 0x8000;
-		if (format & AFMT_S16_BE || format & AFMT_U16_BE)
-			csa->pfie |= 0x4000;
-		if (!(format & AFMT_STEREO))
-			csa->pfie |= 0x2000;
-		if (format & AFMT_U8 || format & AFMT_S8)
-			csa->pfie |= 0x1000;
-		csa_writemem(resp, BA1_PFIE, csa->pfie);
-		pdtc = csa_readmem(resp, BA1_PDTC) & ~0x000003ff;
-		if ((format & AFMT_S16_BE || format & AFMT_U16_BE || format & AFMT_S16_LE || format & AFMT_U16_LE) && (format & AFMT_STEREO))
-			pdtc |= 0x00f;
-		else if ((format & AFMT_S16_BE || format & AFMT_U16_BE || format & AFMT_S16_LE || format & AFMT_U16_LE) || (format & AFMT_STEREO))
-			pdtc |= 0x007;
-		else
-			pdtc |= 0x003;
-		csa_writemem(resp, BA1_PDTC, pdtc);
-	}
 	ch->fmt = format;
 	return 0;
 }
@@ -584,22 +533,9 @@ static int
 csachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct csa_chinfo *ch = data;
-	struct csa_info *csa = ch->parent;
-	csa_res *resp;
 
-	resp = &csa->res;
-
-	if (ch->dir == PCMDIR_PLAY)
-		csa_setplaysamplerate(resp, speed);
-	else if (ch->dir == PCMDIR_REC)
-		csa_setcapturesamplerate(resp, speed);
-
-	/* rec/play speeds locked together - should indicate in flags */
-#if 0
-	if (ch->direction == PCMDIR_PLAY) d->rec[0].speed = speed;
-	else d->play[0].speed = speed;
-#endif
-	return speed; /* XXX calc real speed */
+	ch->spd = speed;
+	return ch->spd; /* XXX calc real speed */
 }
 
 static int
@@ -617,16 +553,19 @@ csachan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	if (ch->dir == PCMDIR_PLAY) {
-		if (go == PCMTRIG_START)
+	if (go == PCMTRIG_START) {
+		csa_active(csa, 1);
+		csa_setupchan(ch);
+		if (ch->dir == PCMDIR_PLAY)
 			csa_startplaydma(csa);
 		else
-			csa_stopplaydma(csa);
-	} else {
-		if (go == PCMTRIG_START)
 			csa_startcapturedma(csa);
+	} else {
+		if (ch->dir == PCMDIR_PLAY)
+			csa_stopplaydma(csa);
 		else
 			csa_stopcapturedma(csa);
+		csa_active(csa, -1);
 	}
 	return 0;
 }
@@ -654,7 +593,7 @@ csachan_getptr(kobj_t obj, void *data)
 	return (ptr);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 csachan_getcaps(kobj_t obj, void *data)
 {
 	struct csa_chinfo *ch = data;
@@ -663,7 +602,6 @@ csachan_getcaps(kobj_t obj, void *data)
 
 static kobj_method_t csachan_methods[] = {
     	KOBJMETHOD(channel_init,		csachan_init),
-    	KOBJMETHOD(channel_setdir,		csachan_setdir),
     	KOBJMETHOD(channel_setformat,		csachan_setformat),
     	KOBJMETHOD(channel_setspeed,		csachan_setspeed),
     	KOBJMETHOD(channel_setblocksize,	csachan_setblocksize),
@@ -677,7 +615,7 @@ CHANNEL_DECLARE(csachan);
 /* -------------------------------------------------------------------- */
 /* The interrupt handler */
 static void
-csa_intr (void *p)
+csa_intr(void *p)
 {
 	struct csa_info *csa = p;
 
@@ -704,15 +642,12 @@ csa_init(struct csa_info *csa)
 	csa_stopplaydma(csa);
 	csa_stopcapturedma(csa);
 
-	/* Crank up the power on the DAC and ADC. */
-	csa_powerupadc(resp);
-	csa_powerupdac(resp);
-
-	csa_setplaysamplerate(resp, 8000);
-	csa_setcapturesamplerate(resp, 8000);
-
 	if (csa_startdsp(resp))
 		return (1);
+
+	/* Crank up the power on the DAC and ADC. */
+	csa_setplaysamplerate(resp, 8000);
+	csa_setcapturesamplerate(resp, 8000);
 
 	return 0;
 }
@@ -725,12 +660,12 @@ csa_allocres(struct csa_info *csa, device_t dev)
 
 	resp = &csa->res;
 	if (resp->io == NULL) {
-		resp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->io_rid, 0, ~0, CS461x_IO_SIZE, RF_ACTIVE);
+		resp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->io_rid, 0, ~0, 1, RF_ACTIVE);
 		if (resp->io == NULL)
 			return (1);
 	}
 	if (resp->mem == NULL) {
-		resp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->mem_rid, 0, ~0, CS461x_MEM_SIZE, RF_ACTIVE);
+		resp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->mem_rid, 0, ~0, 1, RF_ACTIVE);
 		if (resp->mem == NULL)
 			return (1);
 	}
@@ -781,9 +716,6 @@ csa_releaseres(struct csa_info *csa, device_t dev)
 	}
 }
 
-static int pcmcsa_probe(device_t dev);
-static int pcmcsa_attach(device_t dev);
-
 static int
 pcmcsa_probe(device_t dev)
 {
@@ -824,17 +756,20 @@ pcmcsa_attach(device_t dev)
 	 * respectively.
 	 */
 	csa->pch.dma = csa->rch.dma = 1;
+	csa->active = 0;
+	csa->card = csa->binfo->card;
 
 	/* Allocate the resources. */
 	resp = &csa->res;
-	resp->io_rid = CS461x_IO_OFFSET;
-	resp->mem_rid = CS461x_MEM_OFFSET;
+	resp->io_rid = PCIR_MAPS;
+	resp->mem_rid = PCIR_MAPS + 4;
 	resp->irq_rid = 0;
 	if (csa_allocres(csa, dev)) {
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
 
+	csa_active(csa, 1);
 	if (csa_init(csa)) {
 		csa_releaseres(csa, dev);
 		return (ENXIO);
@@ -844,6 +779,8 @@ pcmcsa_attach(device_t dev)
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
+	if (csa->card->inv_eapd)
+		ac97_setflags(codec, AC97_F_EAPD_INV);
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) {
 		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
@@ -853,13 +790,14 @@ pcmcsa_attach(device_t dev)
 	snprintf(status, SND_STATUSLEN, "at irq %ld", rman_get_start(resp->irq));
 
 	/* Enable interrupt. */
-	if (bus_setup_intr(dev, resp->irq, INTR_TYPE_TTY, csa_intr, csa, &csa->ih)) {
+	if (snd_setup_intr(dev, resp->irq, INTR_MPSAFE, csa_intr, csa, &csa->ih)) {
 		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
 	csa_writemem(resp, BA1_PFIE, csa_readmem(resp, BA1_PFIE) & ~0x0000f03f);
 	csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
+	csa_active(csa, -1);
 
 	if (pcm_register(dev, csa, 1, 1)) {
 		ac97_destroy(codec);
@@ -901,10 +839,8 @@ static device_method_t pcmcsa_methods[] = {
 static driver_t pcmcsa_driver = {
 	"pcm",
 	pcmcsa_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
-
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(snd_csapcm, csa, pcmcsa_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_csapcm, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);

@@ -37,8 +37,8 @@ struct ad1816_info;
 
 struct ad1816_chinfo {
 	struct ad1816_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir, blksz;
 };
 
@@ -53,6 +53,7 @@ struct ad1816_info {
     int		     drq2_rid;
     void 	    *ih;
     bus_dma_tag_t    parent_dmat;
+    void 	    *lock;
 
     struct ad1816_chinfo pch, rch;
 };
@@ -66,8 +67,6 @@ static int      	ad1816_wait_init(struct ad1816_info *ad1816, int x);
 static u_short		ad1816_read(struct ad1816_info *ad1816, u_int reg);
 static void     	ad1816_write(struct ad1816_info *ad1816, u_int reg, u_short data);
 
-static devclass_t pcm_devclass;
-
 static u_int32_t ad1816_fmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
@@ -80,9 +79,21 @@ static u_int32_t ad1816_fmt[] = {
 	0
 };
 
-static pcmchan_caps ad1816_caps = {4000, 55200, ad1816_fmt, 0};
+static struct pcmchan_caps ad1816_caps = {4000, 55200, ad1816_fmt, 0};
 
 #define AD1816_MUTE 31		/* value for mute */
+
+static void
+ad1816_lock(struct ad1816_info *ad1816)
+{
+	snd_mtxlock(ad1816->lock);
+}
+
+static void
+ad1816_unlock(struct ad1816_info *ad1816)
+{
+	snd_mtxunlock(ad1816->lock);
+}
 
 static int
 port_rd(struct resource *port, int off)
@@ -122,6 +133,7 @@ ad1816_intr(void *arg)
     	struct ad1816_info *ad1816 = (struct ad1816_info *)arg;
     	unsigned char   c, served = 0;
 
+	ad1816_lock(ad1816);
     	/* get interupt status */
     	c = io_rd(ad1816, AD1816_INT);
 
@@ -149,6 +161,7 @@ ad1816_intr(void *arg)
     	io_wr(ad1816, AD1816_INT, c);
     	c = io_rd(ad1816, AD1816_INT);
     	if (c != 0) printf("pcm: int clear failed (%x)\n", c);
+	ad1816_unlock(ad1816);
 }
 
 static int
@@ -166,37 +179,29 @@ ad1816_wait_init(struct ad1816_info *ad1816, int x)
 static unsigned short
 ad1816_read(struct ad1816_info *ad1816, unsigned int reg)
 {
-    	int             flags;
     	u_short         x = 0;
 
-    	/* we don't want to be blocked here */
-    	flags = spltty();
     	if (ad1816_wait_init(ad1816, 100) == -1) return 0;
     	io_wr(ad1816, AD1816_ALE, 0);
     	io_wr(ad1816, AD1816_ALE, (reg & AD1816_ALEMASK));
     	if (ad1816_wait_init(ad1816, 100) == -1) return 0;
     	x = (io_rd(ad1816, AD1816_HIGH) << 8) | io_rd(ad1816, AD1816_LOW);
-    	splx(flags);
     	return x;
 }
 
 static void
 ad1816_write(struct ad1816_info *ad1816, unsigned int reg, unsigned short data)
 {
-    	int             flags;
-
-    	flags = spltty();
     	if (ad1816_wait_init(ad1816, 100) == -1) return;
     	io_wr(ad1816, AD1816_ALE, (reg & AD1816_ALEMASK));
     	io_wr(ad1816, AD1816_LOW,  (data & 0x000000ff));
     	io_wr(ad1816, AD1816_HIGH, (data & 0x0000ff00) >> 8);
-    	splx(flags);
 }
 
 /* -------------------------------------------------------------------- */
 
 static int
-ad1816mix_init(snd_mixer *m)
+ad1816mix_init(struct snd_mixer *m)
 {
 	mix_setdevs(m, AD1816_MIXER_DEVICES);
 	mix_setrecdevs(m, AD1816_REC_DEVICES);
@@ -204,7 +209,7 @@ ad1816mix_init(snd_mixer *m)
 }
 
 static int
-ad1816mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+ad1816mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct ad1816_info *ad1816 = mix_getdevinfo(m);
     	u_short reg = 0;
@@ -219,6 +224,7 @@ ad1816mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
     	if (left == AD1816_MUTE)	reg |= 0x8000;
     	if (right == AD1816_MUTE)	reg |= 0x0080;
 
+	ad1816_lock(ad1816);
     	switch (dev) {
     	case SOUND_MIXER_VOLUME:	/* Register 14 master volume */
 		ad1816_write(ad1816, 14, reg);
@@ -257,6 +263,7 @@ ad1816mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 		printf("ad1816_mixer_set(): unknown device.\n");
 		break;
     	}
+	ad1816_unlock(ad1816);
 
     	left = ((AD1816_MUTE - left) * 100) / AD1816_MUTE;
     	right = ((AD1816_MUTE - right) * 100) / AD1816_MUTE;
@@ -265,7 +272,7 @@ ad1816mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-ad1816mix_setrecsrc(snd_mixer *m, u_int32_t src)
+ad1816mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct ad1816_info *ad1816 = mix_getdevinfo(m);
     	int dev;
@@ -288,7 +295,9 @@ ad1816mix_setrecsrc(snd_mixer *m, u_int32_t src)
     	}
 
     	dev |= dev << 8;
+	ad1816_lock(ad1816);
     	ad1816_write(ad1816, 20, (ad1816_read(ad1816, 20) & ~0x7070) | dev);
+	ad1816_unlock(ad1816);
     	return src;
 }
 
@@ -303,7 +312,7 @@ MIXER_DECLARE(ad1816mixer);
 /* -------------------------------------------------------------------- */
 /* channel interface */
 static void *
-ad1816chan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+ad1816chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct ad1816_info *ad1816 = devinfo;
 	struct ad1816_chinfo *ch = (dir == PCMDIR_PLAY)? &ad1816->pch : &ad1816->rch;
@@ -331,8 +340,9 @@ ad1816chan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct ad1816_chinfo *ch = data;
   	struct ad1816_info *ad1816 = ch->parent;
-
     	int fmt = AD1816_U8, reg;
+
+	ad1816_lock(ad1816);
     	if (ch->dir == PCMDIR_PLAY) {
         	reg = AD1816_PLAY;
         	ad1816_write(ad1816, 8, 0x0000);	/* reset base and current counter */
@@ -365,6 +375,7 @@ ad1816chan_setformat(kobj_t obj, void *data, u_int32_t format)
     	}
     	if (format & AFMT_STEREO) fmt |= AD1816_STEREO;
     	io_wr(ad1816, reg, fmt);
+	ad1816_unlock(ad1816);
     	return format;
 }
 
@@ -375,7 +386,9 @@ ad1816chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
     	struct ad1816_info *ad1816 = ch->parent;
 
     	RANGE(speed, 4000, 55200);
+	ad1816_lock(ad1816);
     	ad1816_write(ad1816, (ch->dir == PCMDIR_PLAY)? 2 : 3, speed);
+	ad1816_unlock(ad1816);
     	return speed;
 }
 
@@ -401,6 +414,7 @@ ad1816chan_trigger(kobj_t obj, void *data, int go)
 	sndbuf_isadma(ch->buffer, go);
     	wr = (ch->dir == PCMDIR_PLAY);
     	reg = wr? AD1816_PLAY : AD1816_CAPT;
+	ad1816_lock(ad1816);
     	switch (go) {
     	case PCMTRIG_START:
 		/* start only if not already running */
@@ -435,6 +449,7 @@ ad1816chan_trigger(kobj_t obj, void *data, int go)
 		}
 		break;
     	}
+	ad1816_unlock(ad1816);
     	return 0;
 }
 
@@ -445,7 +460,7 @@ ad1816chan_getptr(kobj_t obj, void *data)
 	return sndbuf_isadmaptr(ch->buffer);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 ad1816chan_getcaps(kobj_t obj, void *data)
 {
 	return &ad1816_caps;
@@ -495,6 +510,7 @@ ad1816_release_resources(struct ad1816_info *ad1816, device_t dev)
 		bus_dma_tag_destroy(ad1816->parent_dmat);
 		ad1816->parent_dmat = 0;
     	}
+	if (ad1816->lock) snd_mtxfree(ad1816->lock);
      	free(ad1816, M_DEVBUF);
 }
 
@@ -576,6 +592,7 @@ ad1816_attach(device_t dev)
 	ad1816 = (struct ad1816_info *)malloc(sizeof *ad1816, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!ad1816) return ENXIO;
 
+	ad1816->lock = snd_mtxcreate(device_get_nameunit(dev));
 	ad1816->io_rid = 2;
 	ad1816->irq_rid = 0;
 	ad1816->drq1_rid = 0;
@@ -585,7 +602,7 @@ ad1816_attach(device_t dev)
     	ad1816_init(ad1816, dev);
     	if (mixer_init(dev, &ad1816mixer_class, ad1816)) goto no;
 
-	bus_setup_intr(dev, ad1816->irq, INTR_TYPE_TTY, ad1816_intr, ad1816, &ad1816->ih);
+	snd_setup_intr(dev, ad1816->irq, INTR_MPSAFE, ad1816_intr, ad1816, &ad1816->ih);
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
@@ -612,6 +629,7 @@ ad1816_attach(device_t dev)
     	return 0;
 no:
     	ad1816_release_resources(ad1816, dev);
+
     	return ENXIO;
 
 }
@@ -643,7 +661,7 @@ static device_method_t ad1816_methods[] = {
 static driver_t ad1816_driver = {
 	"pcm",
 	ad1816_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_ad1816, isa, ad1816_driver, pcm_devclass, 0, 0);

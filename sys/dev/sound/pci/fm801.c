@@ -102,7 +102,7 @@
 #define DPRINT	 if(0) printf
 
 /*
-static int fm801ch_setup(pcm_channel *c);
+static int fm801ch_setup(struct pcm_channel *c);
 */
 
 static u_int32_t fmts[] = {
@@ -113,7 +113,7 @@ static u_int32_t fmts[] = {
 	0
 };
 
-static pcmchan_caps fm801ch_caps = {
+static struct pcmchan_caps fm801ch_caps = {
 	4000, 48000,
 	fmts, 0
 };
@@ -122,8 +122,8 @@ struct fm801_info;
 
 struct fm801_chinfo {
 	struct fm801_info 	*parent;
-	pcm_channel 		*channel;
-	snd_dbuf 		*buffer;
+	struct pcm_channel 		*channel;
+	struct snd_dbuf 		*buffer;
 	u_int32_t 		spd, dir, fmt;	/* speed, direction, format */
 	u_int32_t		shift;
 };
@@ -318,7 +318,7 @@ fm801_intr(void *p)
 /* -------------------------------------------------------------------- */
 /* channel interface */
 static void *
-fm801ch_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+fm801ch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct fm801_info *fm801 = (struct fm801_info *)devinfo;
 	struct fm801_chinfo *ch = (dir == PCMDIR_PLAY)? &fm801->pch : &fm801->rch;
@@ -504,7 +504,7 @@ fm801ch_getptr(kobj_t obj, void *data)
 	return result;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 fm801ch_getcaps(kobj_t obj, void *data)
 {
 	return &fm801ch_caps;
@@ -614,9 +614,7 @@ fm801_pci_attach(device_t dev)
 	fm801->irqid = 0;
 	fm801->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &fm801->irqid,
 				0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!fm801->irq ||
-		bus_setup_intr(dev, fm801->irq, INTR_TYPE_TTY,
-					fm801_intr, fm801, &fm801->ih)) {
+	if (!fm801->irq || snd_setup_intr(dev, fm801->irq, 0, fm801_intr, fm801, &fm801->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto oops;
 	}
@@ -702,9 +700,7 @@ static device_method_t fm801_methods[] = {
 static driver_t fm801_driver = {
 	"pcm",
 	fm801_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
-
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(fm801, pci, fm801_driver, pcm_devclass, 0, 0);

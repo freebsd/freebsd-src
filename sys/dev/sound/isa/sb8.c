@@ -44,30 +44,31 @@ static u_int32_t sb_fmt[] = {
 	AFMT_U8,
 	0
 };
-static pcmchan_caps sb200_playcaps = {4000, 23000, sb_fmt, 0};
-static pcmchan_caps sb200_reccaps = {4000, 13000, sb_fmt, 0};
-static pcmchan_caps sb201_playcaps = {4000, 44100, sb_fmt, 0};
-static pcmchan_caps sb201_reccaps = {4000, 15000, sb_fmt, 0};
+static struct pcmchan_caps sb200_playcaps = {4000, 23000, sb_fmt, 0};
+static struct pcmchan_caps sb200_reccaps = {4000, 13000, sb_fmt, 0};
+static struct pcmchan_caps sb201_playcaps = {4000, 44100, sb_fmt, 0};
+static struct pcmchan_caps sb201_reccaps = {4000, 15000, sb_fmt, 0};
 
 static u_int32_t sbpro_fmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
 	0
 };
-static pcmchan_caps sbpro_playcaps = {4000, 44100, sbpro_fmt, 0};
-static pcmchan_caps sbpro_reccaps = {4000, 44100, sbpro_fmt, 0};
+static struct pcmchan_caps sbpro_playcaps = {4000, 44100, sbpro_fmt, 0};
+static struct pcmchan_caps sbpro_reccaps = {4000, 44100, sbpro_fmt, 0};
 
 struct sb_info;
 
 struct sb_chinfo {
 	struct sb_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir;
 	u_int32_t fmt, spd, blksz;
 };
 
 struct sb_info {
+	device_t parent_dev;
     	struct resource *io_base;	/* I/O address for the board */
     	struct resource *irq;
    	struct resource *drq;
@@ -95,8 +96,6 @@ static int sb_speed(struct sb_chinfo *ch);
 static int sb_start(struct sb_chinfo *ch);
 static int sb_stop(struct sb_chinfo *ch);
 
-static devclass_t pcm_devclass;
-
 /*
  * Common code for the midi and pcm functions
  *
@@ -105,6 +104,18 @@ static devclass_t pcm_devclass;
  * sb_cmd2 write a CMD + 2 byte arg
  * sb_get_byte returns a single byte from the DSP data port
  */
+
+static void
+sb_lock(struct sb_info *sb) {
+
+	sbc_lock(device_get_softc(sb->parent_dev));
+}
+
+static void
+sb_unlock(struct sb_info *sb) {
+
+	sbc_unlock(device_get_softc(sb->parent_dev));
+}
 
 static int
 port_rd(struct resource *port, int off)
@@ -187,32 +198,27 @@ sb_cmd2(struct sb_info *sb, u_char cmd, int val)
 /*
  * in the SB, there is a set of indirect "mixer" registers with
  * address at offset 4, data at offset 5
+ *
+ * we don't need to interlock these, the mixer lock will suffice.
  */
 static void
 sb_setmixer(struct sb_info *sb, u_int port, u_int value)
 {
-    	u_long   flags;
-
-    	flags = spltty();
     	sb_wr(sb, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	sb_wr(sb, SB_MIX_DATA, (u_char) (value & 0xff));
     	DELAY(10);
-    	splx(flags);
 }
 
 static int
 sb_getmixer(struct sb_info *sb, u_int port)
 {
     	int val;
-    	u_long flags;
 
-    	flags = spltty();
     	sb_wr(sb, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	val = sb_rd(sb, SB_MIX_DATA);
     	DELAY(10);
-    	splx(flags);
 
     	return val;
 }
@@ -297,7 +303,7 @@ sb_alloc_resources(struct sb_info *sb, device_t dev)
 /************************************************************/
 
 static int
-sbpromix_init(snd_mixer *m)
+sbpromix_init(struct snd_mixer *m)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
 
@@ -312,7 +318,7 @@ sbpromix_init(snd_mixer *m)
 }
 
 static int
-sbpromix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+sbpromix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
     	int reg, max;
@@ -362,7 +368,7 @@ sbpromix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-sbpromix_setrecsrc(snd_mixer *m, u_int32_t src)
+sbpromix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
     	u_char recdev;
@@ -391,7 +397,7 @@ MIXER_DECLARE(sbpromix_mixer);
 /************************************************************/
 
 static int
-sbmix_init(snd_mixer *m)
+sbmix_init(struct snd_mixer *m)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
 
@@ -405,7 +411,7 @@ sbmix_init(snd_mixer *m)
 }
 
 static int
-sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+sbmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
     	int reg, max;
@@ -443,7 +449,7 @@ sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
+sbmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return 0;
 }
@@ -463,6 +469,7 @@ sb_intr(void *arg)
 {
     	struct sb_info *sb = (struct sb_info *)arg;
 
+	sb_lock(sb);
     	if (sndbuf_runsz(sb->pch.buffer) > 0)
 		chn_intr(sb->pch.channel);
 
@@ -470,6 +477,7 @@ sb_intr(void *arg)
 		chn_intr(sb->rch.channel);
 
 	sb_rd(sb, DSP_DATA_AVAIL); /* int ack */
+	sb_unlock(sb);
 }
 
 static int
@@ -496,6 +504,7 @@ sb_speed(struct sb_chinfo *ch)
 	if (speed > max)
 		speed = max;
 
+	sb_lock(sb);
 	sb->bd_flags &= ~BD_F_HISPEED;
 	if (speed > thresh)
 		sb->bd_flags |= BD_F_HISPEED;
@@ -508,6 +517,7 @@ sb_speed(struct sb_chinfo *ch)
 	speed = (256000000 / (65536 - tmp)) >> stereo;
 
 	ch->spd = speed;
+	sb_unlock(sb);
 	return speed;
 }
 
@@ -522,6 +532,7 @@ sb_start(struct sb_chinfo *ch)
 
 	l--;
 
+	sb_lock(sb);
 	if (play)
 		sb_cmd(sb, DSP_CMD_SPKON);
 
@@ -535,6 +546,7 @@ sb_start(struct sb_chinfo *ch)
        	sb_cmd(sb, i);
 
 	sb->bd_flags |= BD_F_DMARUN;
+	sb_unlock(sb);
 	return 0;
 }
 
@@ -544,6 +556,7 @@ sb_stop(struct sb_chinfo *ch)
 	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
 
+	sb_lock(sb);
     	if (sb->bd_flags & BD_F_HISPEED)
 		sb_reset_dsp(sb);
 	else
@@ -551,13 +564,14 @@ sb_stop(struct sb_chinfo *ch)
 
 	if (play)
 		sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
+	sb_unlock(sb);
 	sb->bd_flags &= ~BD_F_DMARUN;
 	return 0;
 }
 
 /* channel interface */
 static void *
-sbchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+sbchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sb_info *sb = devinfo;
 	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
@@ -623,7 +637,7 @@ sbchan_getptr(kobj_t obj, void *data)
 	return sndbuf_isadmaptr(ch->buffer);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 sbchan_getcaps(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
@@ -686,6 +700,7 @@ sb_attach(device_t dev)
     	if (!sb)
 		return ENXIO;
 
+	sb->parent_dev = device_get_parent(dev);
 	BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
 	sb->bd_id = ver & 0x0000ffff;
 	sb->bd_flags = (ver & 0xffff0000) >> 16;
@@ -696,7 +711,7 @@ sb_attach(device_t dev)
 		goto no;
     	if (mixer_init(dev, (sb->bd_id < 0x300)? &sbmix_mixer_class : &sbpromix_mixer_class, sb))
 		goto no;
-	if (bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih))
+	if (snd_setup_intr(dev, sb->irq, INTR_MPSAFE, sb_intr, sb, &sb->ih))
 		goto no;
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
@@ -756,11 +771,12 @@ static device_method_t sb_methods[] = {
 static driver_t sb_driver = {
 	"pcm",
 	sb_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_sb8, sbc, sb_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_sb8, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_sb8, snd_sbc, 1, 1, 1);
 MODULE_VERSION(snd_sb8, 1);
 
 

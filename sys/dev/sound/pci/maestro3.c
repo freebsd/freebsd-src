@@ -49,9 +49,9 @@
  *
  * Taku YAMAMOTO for his Maestro-1/2 FreeBSD driver and sanity reference.
  * <taku@cent.saitama-u.ac.jp>
- * 
+ *
  * ESS docs explained a few magic registers and numbers.
- * http://virgo.caltech.edu/~dmoore/maestro3.pdf.gz 
+ * http://virgo.caltech.edu/~dmoore/maestro3.pdf.gz
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -96,8 +96,8 @@ struct sc_info;
 struct sc_pchinfo {
 	u_int32_t	spd;
 	u_int32_t	fmt;
-	snd_dbuf	*buffer;
-	pcm_channel	*channel;
+	struct snd_dbuf	*buffer;
+	struct pcm_channel	*channel;
 	struct sc_info	*parent;
 	u_int32_t	bufsize;
 	u_int32_t	dac_data;
@@ -108,8 +108,8 @@ struct sc_pchinfo {
 struct sc_rchinfo {
 	u_int32_t	spd;
 	u_int32_t	fmt;
-	snd_dbuf	*buffer;
-	pcm_channel	*channel;
+	struct snd_dbuf	*buffer;
+	struct pcm_channel	*channel;
 	struct sc_info	*parent;
 	u_int32_t	bufsize;
 	u_int32_t	adc_data;
@@ -146,24 +146,24 @@ struct sc_info {
 /* -------------------------------------------------------------------- */
 
 /* play channel interface */
-static void *m3_pchan_init(kobj_t, void *, snd_dbuf *, pcm_channel *, int);
+static void *m3_pchan_init(kobj_t, void *, struct snd_dbuf *, struct pcm_channel *, int);
 static int m3_pchan_free(kobj_t, void *);
 static int m3_pchan_setformat(kobj_t, void *, u_int32_t);
 static int m3_pchan_setspeed(kobj_t, void *, u_int32_t);
 static int m3_pchan_setblocksize(kobj_t, void *, u_int32_t);
 static int m3_pchan_trigger(kobj_t, void *, int);
 static int m3_pchan_getptr(kobj_t, void *);
-static pcmchan_caps *m3_pchan_getcaps(kobj_t, void *);
+static struct pcmchan_caps *m3_pchan_getcaps(kobj_t, void *);
 
 /* record channel interface */
-static void *m3_rchan_init(kobj_t, void *, snd_dbuf *, pcm_channel *, int);
+static void *m3_rchan_init(kobj_t, void *, struct snd_dbuf *, struct pcm_channel *, int);
 static int m3_rchan_free(kobj_t, void *);
 static int m3_rchan_setformat(kobj_t, void *, u_int32_t);
 static int m3_rchan_setspeed(kobj_t, void *, u_int32_t);
 static int m3_rchan_setblocksize(kobj_t, void *, u_int32_t);
 static int m3_rchan_trigger(kobj_t, void *, int);
 static int m3_rchan_getptr(kobj_t, void *);
-static pcmchan_caps *m3_rchan_getcaps(kobj_t, void *);
+static struct pcmchan_caps *m3_rchan_getcaps(kobj_t, void *);
 
 /* talk to the codec - called from ac97.c */
 static int	 m3_initcd(kobj_t, void *);
@@ -201,7 +201,7 @@ static u_int32_t m3_playfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps m3_playcaps = {8000, 48000, m3_playfmt, 0};
+static struct pcmchan_caps m3_playcaps = {8000, 48000, m3_playfmt, 0};
 
 static kobj_method_t m3_pch_methods[] = {
 	KOBJMETHOD(channel_init,		m3_pchan_init),
@@ -223,7 +223,7 @@ static u_int32_t m3_recfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps m3_reccaps = {8000, 48000, m3_recfmt, 0};
+static struct pcmchan_caps m3_reccaps = {8000, 48000, m3_recfmt, 0};
 
 static kobj_method_t m3_rch_methods[] = {
 	KOBJMETHOD(channel_init,		m3_rchan_init),
@@ -265,7 +265,7 @@ m3_rd_assp(struct sc_info *sc, u_int16_t region, u_int16_t index)
 }
 
 static __inline void
-m3_wr_assp(struct sc_info *sc, u_int16_t region, u_int16_t index, 
+m3_wr_assp(struct sc_info *sc, u_int16_t region, u_int16_t index,
 	   u_int16_t data)
 {
         m3_wr_2(sc, DSP_PORT_MEMORY_TYPE, region & MEMTYPE_MASK);
@@ -315,7 +315,7 @@ m3_rdcd(kobj_t kobj, void *devinfo, int regno)
 		return -1;
 	}
 	m3_wr_1(sc, CODEC_COMMAND, (regno & 0x7f) | 0x80);
-	DELAY(21); /* ac97 cycle = 20.8 usec */
+	DELAY(50); /* ac97 cycle = 20.8 usec */
 	if (m3_wait(sc)) {
 		device_printf(sc->dev, "m3_rdcd timed out.\n");
 		return -1;
@@ -334,6 +334,7 @@ m3_wrcd(kobj_t kobj, void *devinfo, int regno, u_int32_t data)
 	}
 	m3_wr_2(sc, CODEC_DATA, data);
 	m3_wr_1(sc, CODEC_COMMAND, regno & 0x7f);
+	DELAY(50); /* ac97 cycle = 20.8 usec */
 	return 0;
 }
 
@@ -344,7 +345,7 @@ m3_wrcd(kobj_t kobj, void *devinfo, int regno, u_int32_t data)
 #define HI(x) (((x) & 0xffff0000) >> 16)
 
 static void *
-m3_pchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_pchinfo *ch;
@@ -395,13 +396,13 @@ m3_pchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	}
 	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_ADDRL, LO(bus_addr));
 	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_ADDRH, HI(bus_addr));
-	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_END_PLUS_1L, 
+	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_END_PLUS_1L,
 			LO(bus_addr + ch->bufsize));
-	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_END_PLUS_1H, 
+	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_END_PLUS_1H,
 			HI(bus_addr + ch->bufsize));
-	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTL, 
+	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTL,
 			LO(bus_addr));
-	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTH, 
+	m3_wr_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTH,
 			HI(bus_addr));
 
 	/* dsp buffers */
@@ -417,7 +418,7 @@ m3_pchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	m3_wr_assp_data(sc, ch->dac_data + CDATA_OUT_BUF_TAIL, dsp_out_buf);
 
 	/* some per client initializers */
-	m3_wr_assp_data(sc, ch->dac_data + SRC3_DIRECTION_OFFSET + 12, 
+	m3_wr_assp_data(sc, ch->dac_data + SRC3_DIRECTION_OFFSET + 12,
 			ch->dac_data + 40 + 8);
 	m3_wr_assp_data(sc, ch->dac_data + SRC3_DIRECTION_OFFSET + 19,
 			0x400 + MINISRC_COEF_LOC);
@@ -425,7 +426,7 @@ m3_pchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	m3_wr_assp_data(sc, ch->dac_data + SRC3_DIRECTION_OFFSET + 22, 0);
 	/* tell it which way dma is going? */
 	m3_wr_assp_data(sc, ch->dac_data + CDATA_DMA_CONTROL,
-			DMACONTROL_AUTOREPEAT + DMAC_PAGE3_SELECTOR + 
+			DMACONTROL_AUTOREPEAT + DMAC_PAGE3_SELECTOR +
 			DMAC_BLOCKF_SELECTOR);
 
 	/* set an armload of static initializers */
@@ -434,12 +435,12 @@ m3_pchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	}
 
 	/* put us in the packed task lists */
-	m3_wr_assp_data(sc, KDATA_INSTANCE0_MINISRC + 
-			(sc->pch_cnt + sc->rch_cnt), 
+	m3_wr_assp_data(sc, KDATA_INSTANCE0_MINISRC +
+			(sc->pch_cnt + sc->rch_cnt),
 			ch->dac_data >> DP_SHIFT_COUNT);
-	m3_wr_assp_data(sc, KDATA_DMA_XFER0 + (sc->pch_cnt + sc->rch_cnt), 
+	m3_wr_assp_data(sc, KDATA_DMA_XFER0 + (sc->pch_cnt + sc->rch_cnt),
 			ch->dac_data >> DP_SHIFT_COUNT);
-	m3_wr_assp_data(sc, KDATA_MIXER_XFER0 + sc->pch_cnt, 
+	m3_wr_assp_data(sc, KDATA_MIXER_XFER0 + sc->pch_cnt,
 			ch->dac_data >> DP_SHIFT_COUNT);
 
 	m3_pchan_trigger(NULL, ch, PCMTRIG_START); /* gotta start before stop */
@@ -461,9 +462,9 @@ m3_pchan_free(kobj_t kobj, void *chdata)
 	 * should remove this exact instance from the packed lists, but all
 	 * are released at once (and in a stopped state) so this is ok.
 	 */
-	m3_wr_assp_data(sc, KDATA_INSTANCE0_MINISRC + 
+	m3_wr_assp_data(sc, KDATA_INSTANCE0_MINISRC +
 			(sc->pch_cnt - 1) + sc->rch_cnt, 0);
-	m3_wr_assp_data(sc, KDATA_DMA_XFER0 + 
+	m3_wr_assp_data(sc, KDATA_DMA_XFER0 +
 			(sc->pch_cnt - 1) + sc->rch_cnt, 0);
 	m3_wr_assp_data(sc, KDATA_MIXER_XFER0 + (sc->pch_cnt-1), 0);
 
@@ -477,21 +478,21 @@ m3_pchan_setformat(kobj_t kobj, void *chdata, u_int32_t format)
 	struct sc_pchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	u_int32_t data;
-	
-	M3_DEBUG(CHANGE, 
-		 ("m3_pchan_setformat(dac=%d, format=0x%x{%s-%s})\n", 
+
+	M3_DEBUG(CHANGE,
+		 ("m3_pchan_setformat(dac=%d, format=0x%x{%s-%s})\n",
 		  ch->dac_idx, format,
 		  format & (AFMT_U8|AFMT_S8) ? "8bit":"16bit",
 		  format & AFMT_STEREO ? "STEREO":"MONO"));
-	
+
 	/* mono word */
         data = (format & AFMT_STEREO) ? 0 : 1;
         m3_wr_assp_data(sc, ch->dac_data + SRC3_MODE_OFFSET, data);
-	
+
         /* 8bit word */
         data = ((format & AFMT_U8) || (format & AFMT_S8)) ? 1 : 0;
         m3_wr_assp_data(sc, ch->dac_data + SRC3_WORD_LENGTH_OFFSET, data);
-	
+
         ch->fmt = format;
         return format;
 }
@@ -503,7 +504,7 @@ m3_pchan_setspeed(kobj_t kobj, void *chdata, u_int32_t speed)
 	struct sc_info *sc = ch->parent;
 	u_int32_t freq;
 
-	M3_DEBUG(CHANGE, ("m3_pchan_setspeed(dac=%d, speed=%d)\n", 
+	M3_DEBUG(CHANGE, ("m3_pchan_setspeed(dac=%d, speed=%d)\n",
 			  ch->dac_idx, speed));
 
         if ((freq = ((speed << 15) + 24000) / 48000) != 0) {
@@ -521,7 +522,7 @@ m3_pchan_setblocksize(kobj_t kobj, void *chdata, u_int32_t blocksize)
 {
 	struct sc_pchinfo *ch = chdata;
 
-	M3_DEBUG(CHANGE, ("m3_pchan_setblocksize(dac=%d, blocksize=%d)\n", 
+	M3_DEBUG(CHANGE, ("m3_pchan_setblocksize(dac=%d, blocksize=%d)\n",
 			  ch->dac_idx, blocksize));
 
 	return blocksize;
@@ -533,7 +534,7 @@ m3_pchan_trigger(kobj_t kobj, void *chdata, int go)
 	struct sc_pchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	u_int32_t data;
-	
+
 	M3_DEBUG(go == PCMTRIG_START ? CHANGE :
 		 go == PCMTRIG_STOP ? CHANGE :
 		 go == PCMTRIG_ABORT ? CHANGE :
@@ -550,15 +551,15 @@ m3_pchan_trigger(kobj_t kobj, void *chdata, int go)
 		}
 		ch->active = 1;
 		sc->pch_active_cnt++;
-		
+
 		/*[[inc_timer_users]]*/
                 m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 240);
                 m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 240);
                 data = m3_rd_2(sc, HOST_INT_CTRL);
                 m3_wr_2(sc, HOST_INT_CTRL, data | CLKRUN_GEN_ENABLE);
-		
+
                 m3_wr_assp_data(sc, ch->dac_data + CDATA_INSTANCE_READY, 1);
-                m3_wr_assp_data(sc, KDATA_MIXER_TASK_NUMBER, 
+                m3_wr_assp_data(sc, KDATA_MIXER_TASK_NUMBER,
 				sc->pch_active_cnt);
 		break;
 
@@ -576,9 +577,9 @@ m3_pchan_trigger(kobj_t kobj, void *chdata, int go)
                 m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 0);
                 data = m3_rd_2(sc, HOST_INT_CTRL);
                 m3_wr_2(sc, HOST_INT_CTRL, data & ~CLKRUN_GEN_ENABLE);
-		
+
                 m3_wr_assp_data(sc, ch->dac_data + CDATA_INSTANCE_READY, 0);
-                m3_wr_assp_data(sc, KDATA_MIXER_TASK_NUMBER, 
+                m3_wr_assp_data(sc, KDATA_MIXER_TASK_NUMBER,
 				sc->pch_active_cnt);
 		break;
 
@@ -604,13 +605,13 @@ m3_pchan_getptr(kobj_t kobj, void *chdata)
         lo = m3_rd_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTL);
         bus_crnt = lo | (hi << 16);
 
-	M3_DEBUG(CALL, ("m3_pchan_getptr(dac=%d) result=%d\n", 
+	M3_DEBUG(CALL, ("m3_pchan_getptr(dac=%d) result=%d\n",
 			ch->dac_idx, bus_crnt - bus_base));
 
 	return (bus_crnt - bus_base); /* current byte offset of channel */
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 m3_pchan_getcaps(kobj_t kobj, void *chdata)
 {
 	struct sc_pchinfo *ch = chdata;
@@ -624,7 +625,7 @@ m3_pchan_getcaps(kobj_t kobj, void *chdata)
 /* rec channel interface */
 
 static void *
-m3_rchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_rchinfo *ch;
@@ -666,7 +667,7 @@ m3_rchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 		return NULL;
 	}
 	ch->bufsize = sndbuf_getsize(ch->buffer);
-	
+
 	/* host dma buffer pointers */
 	bus_addr = vtophys(sndbuf_getbuf(ch->buffer));
 	if (bus_addr & 3) {
@@ -675,13 +676,13 @@ m3_rchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	}
 	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_ADDRL, LO(bus_addr));
 	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_ADDRH, HI(bus_addr));
-	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_END_PLUS_1L, 
+	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_END_PLUS_1L,
 			LO(bus_addr + ch->bufsize));
-	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_END_PLUS_1H, 
+	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_END_PLUS_1H,
 			HI(bus_addr + ch->bufsize));
-	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTL, 
+	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTL,
 			LO(bus_addr));
-	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTH, 
+	m3_wr_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTH,
 			HI(bus_addr));
 
 	/* dsp buffers */
@@ -697,10 +698,10 @@ m3_rchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	m3_wr_assp_data(sc, ch->adc_data + CDATA_OUT_BUF_TAIL, dsp_out_buf);
 
 	/* some per client initializers */
-	m3_wr_assp_data(sc, ch->adc_data + SRC3_DIRECTION_OFFSET + 12, 
+	m3_wr_assp_data(sc, ch->adc_data + SRC3_DIRECTION_OFFSET + 12,
 			ch->adc_data + 40 + 8);
 	m3_wr_assp_data(sc, ch->adc_data + CDATA_DMA_CONTROL,
-			DMACONTROL_DIRECTION + DMACONTROL_AUTOREPEAT + 
+			DMACONTROL_DIRECTION + DMACONTROL_AUTOREPEAT +
 			DMAC_PAGE3_SELECTOR + DMAC_BLOCKF_SELECTOR);
 
 	/* set an armload of static initializers */
@@ -709,17 +710,17 @@ m3_rchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	}
 
 	/* put us in the packed task lists */
-	m3_wr_assp_data(sc, KDATA_INSTANCE0_MINISRC + 
-			(sc->pch_cnt + sc->rch_cnt), 
+	m3_wr_assp_data(sc, KDATA_INSTANCE0_MINISRC +
+			(sc->pch_cnt + sc->rch_cnt),
 			ch->adc_data >> DP_SHIFT_COUNT);
 	m3_wr_assp_data(sc, KDATA_DMA_XFER0 + (sc->pch_cnt + sc->rch_cnt),
 			ch->adc_data >> DP_SHIFT_COUNT);
-	m3_wr_assp_data(sc, KDATA_ADC1_XFER0 + sc->rch_cnt, 
+	m3_wr_assp_data(sc, KDATA_ADC1_XFER0 + sc->rch_cnt,
 			ch->adc_data >> DP_SHIFT_COUNT);
 
 	m3_rchan_trigger(NULL, ch, PCMTRIG_START); /* gotta start before stop */
 	m3_rchan_trigger(NULL, ch, PCMTRIG_STOP); /* stop on init */
-	
+
 	sc->rch_cnt++;
 	return ch;
 }
@@ -736,9 +737,9 @@ m3_rchan_free(kobj_t kobj, void *chdata)
 	 * should remove this exact instance from the packed lists, but all
 	 * are released at once (and in a stopped state) so this is ok.
 	 */
-	m3_wr_assp_data(sc, KDATA_INSTANCE0_MINISRC + 
+	m3_wr_assp_data(sc, KDATA_INSTANCE0_MINISRC +
 			(sc->rch_cnt - 1) + sc->pch_cnt, 0);
-	m3_wr_assp_data(sc, KDATA_DMA_XFER0 + 
+	m3_wr_assp_data(sc, KDATA_DMA_XFER0 +
 			(sc->rch_cnt - 1) + sc->pch_cnt, 0);
 	m3_wr_assp_data(sc, KDATA_ADC1_XFER0 + (sc->rch_cnt - 1), 0);
 
@@ -752,21 +753,21 @@ m3_rchan_setformat(kobj_t kobj, void *chdata, u_int32_t format)
 	struct sc_rchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	u_int32_t data;
-	
-	M3_DEBUG(CHANGE, 
-		 ("m3_rchan_setformat(dac=%d, format=0x%x{%s-%s})\n", 
+
+	M3_DEBUG(CHANGE,
+		 ("m3_rchan_setformat(dac=%d, format=0x%x{%s-%s})\n",
 		  ch->adc_idx, format,
 		  format & (AFMT_U8|AFMT_S8) ? "8bit":"16bit",
 		  format & AFMT_STEREO ? "STEREO":"MONO"));
-	
+
 	/* mono word */
         data = (format & AFMT_STEREO) ? 0 : 1;
         m3_wr_assp_data(sc, ch->adc_data + SRC3_MODE_OFFSET, data);
-	
+
         /* 8bit word */
         data = ((format & AFMT_U8) || (format & AFMT_S8)) ? 1 : 0;
         m3_wr_assp_data(sc, ch->adc_data + SRC3_WORD_LENGTH_OFFSET, data);
-	
+
         ch->fmt = format;
         return format;
 }
@@ -777,8 +778,8 @@ m3_rchan_setspeed(kobj_t kobj, void *chdata, u_int32_t speed)
 	struct sc_rchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	u_int32_t freq;
-	
-	M3_DEBUG(CHANGE, ("m3_rchan_setspeed(adc=%d, speed=%d)\n", 
+
+	M3_DEBUG(CHANGE, ("m3_rchan_setspeed(adc=%d, speed=%d)\n",
 			  ch->adc_idx, speed));
 
         if ((freq = ((speed << 15) + 24000) / 48000) != 0) {
@@ -796,7 +797,7 @@ m3_rchan_setblocksize(kobj_t kobj, void *chdata, u_int32_t blocksize)
 {
 	struct sc_rchinfo *ch = chdata;
 
-	M3_DEBUG(CHANGE, ("m3_rchan_setblocksize(adc=%d, blocksize=%d)\n", 
+	M3_DEBUG(CHANGE, ("m3_rchan_setblocksize(adc=%d, blocksize=%d)\n",
 			  ch->adc_idx, blocksize));
 
 	return blocksize;
@@ -824,13 +825,13 @@ m3_rchan_trigger(kobj_t kobj, void *chdata, int go)
 			return 0;
 		}
 		ch->active = 1;
-		
+
 		/*[[inc_timer_users]]*/
                 m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 240);
                 m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 240);
                 data = m3_rd_2(sc, HOST_INT_CTRL);
                 m3_wr_2(sc, HOST_INT_CTRL, data | CLKRUN_GEN_ENABLE);
-		
+
                 m3_wr_assp_data(sc, KDATA_ADC1_REQUEST, 1);
                 m3_wr_assp_data(sc, ch->adc_data + CDATA_INSTANCE_READY, 1);
 		break;
@@ -847,7 +848,7 @@ m3_rchan_trigger(kobj_t kobj, void *chdata, int go)
                 m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 0);
                 data = m3_rd_2(sc, HOST_INT_CTRL);
                 m3_wr_2(sc, HOST_INT_CTRL, data & ~CLKRUN_GEN_ENABLE);
-		
+
                 m3_wr_assp_data(sc, ch->adc_data + CDATA_INSTANCE_READY, 0);
                 m3_wr_assp_data(sc, KDATA_ADC1_REQUEST, 0);
 		break;
@@ -874,13 +875,13 @@ m3_rchan_getptr(kobj_t kobj, void *chdata)
         lo = m3_rd_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTL);
         bus_crnt = lo | (hi << 16);
 
-	M3_DEBUG(CALL, ("m3_rchan_getptr(adc=%d) result=%d\n", 
+	M3_DEBUG(CALL, ("m3_rchan_getptr(adc=%d) result=%d\n",
 			ch->adc_idx, bus_crnt - bus_base));
 
 	return (bus_crnt - bus_base); /* current byte offset of channel */
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 m3_rchan_getcaps(kobj_t kobj, void *chdata)
 {
 	struct sc_rchinfo *ch = chdata;
@@ -898,7 +899,7 @@ m3_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
 	u_int32_t status, ctl, i;
-	
+
 	M3_DEBUG(INTR, ("m3_intr\n"));
 
 	status = m3_rd_1(sc, HOST_INT_STATUS);
@@ -928,7 +929,7 @@ m3_intr(void *p)
 			device_printf(sc->dev, "Unknown HWVOL event\n");
 		}
 		m3_wr_1(sc, HW_VOL_COUNTER_MASTER, 0x88);
-		
+
 	}
 
 	if (status & ASSP_INT_PENDING) {
@@ -936,13 +937,13 @@ m3_intr(void *p)
 		if (!(ctl & STOP_ASSP_CLOCK)) {
 			ctl = m3_rd_1(sc, ASSP_HOST_INT_STATUS);
 			if (ctl & DSP2HOST_REQ_TIMER) {
-				m3_wr_1(sc, ASSP_HOST_INT_STATUS, 
+				m3_wr_1(sc, ASSP_HOST_INT_STATUS,
 					DSP2HOST_REQ_TIMER);
 				/*[[ess_update_ptr]]*/
 			}
 		}
 	}
-	
+
 	for (i=0 ; i<sc->pch_cnt ; i++) {
 		if (sc->pch[i].active) {
 			chn_intr(sc->pch[i].channel);
@@ -987,7 +988,7 @@ m3_init(struct sc_info *sc)
 	pci_write_config(sc->dev, PCI_LEGACY_AUDIO_CTRL, data, 2);
 
 	m3_config(sc);
-	
+
 	reset_state = m3_assp_halt(sc);
 
 	m3_codec_reset(sc);
@@ -1004,12 +1005,12 @@ m3_init(struct sc_info *sc)
 		m3_wr_assp_data(sc, KDATA_BASE_ADDR2 + i, 0);
 	}
 	/* init dma pointer */
-	m3_wr_assp_data(sc, KDATA_CURRENT_DMA, 
+	m3_wr_assp_data(sc, KDATA_CURRENT_DMA,
 			KDATA_DMA_XFER0);
 	/* write kernel into code memory */
 	size = sizeof(assp_kernel_image);
 	for(i = 0 ; i < size / 2; i++) {
-		m3_wr_assp_code(sc, REV_B_CODE_MEMORY_BEGIN + i, 
+		m3_wr_assp_code(sc, REV_B_CODE_MEMORY_BEGIN + i,
 				assp_kernel_image[i]);
 	}
 	/*
@@ -1024,7 +1025,7 @@ m3_init(struct sc_info *sc)
 	/* write the coefficients for the low pass filter? */
 	size = sizeof(minisrc_lpf_image);
 	for(i = 0; i < size / 2 ; i++) {
-		m3_wr_assp_code(sc,0x400 + MINISRC_COEF_LOC + i, 
+		m3_wr_assp_code(sc,0x400 + MINISRC_COEF_LOC + i,
 				minisrc_lpf_image[i]);
 	}
 	m3_wr_assp_code(sc, 0x400 + MINISRC_COEF_LOC + size, 0x8000);
@@ -1037,7 +1038,7 @@ m3_init(struct sc_info *sc)
 	m3_wr_assp_data(sc, KDATA_DAC_RIGHT_VOLUME, ARB_VOLUME);
 
 	m3_amp_enable(sc);
-	
+
 	/* [m3_assp_client_init] (only one client at index 0) */
 	for (i=0x1100 ; i<0x1c00 ; i++) {
 		m3_wr_assp_data(sc, i, 0); /* zero entire dac/adc area */
@@ -1065,7 +1066,7 @@ static int
 m3_pci_probe(device_t dev)
 {
 	struct m3_card_type *card;
-        
+
 	M3_DEBUG(CALL, ("m3_pci_probe(0x%x)\n", pci_get_devid(dev)));
 
 	for (card = m3_card_types ; card->pci_id ; card++) {
@@ -1086,7 +1087,7 @@ m3_pci_attach(device_t dev)
 	char status[SND_STATUSLEN];
 	struct m3_card_type *card;
 	int len;
-	
+
 	M3_DEBUG(CALL, ("m3_pci_attach\n"));
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
@@ -1134,8 +1135,7 @@ m3_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, m3_intr, sc, 
-			   &sc->ih)) {
+	if (snd_setup_intr(dev, sc->irq, 0, m3_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto bad;
 	}
@@ -1144,7 +1144,7 @@ m3_pci_attach(device_t dev)
 			       /*lowaddr*/M3_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/M3_BUFSIZE, /*nsegments*/1, 
+			       /*maxsize*/M3_BUFSIZE, /*nsegments*/1,
 			       /*maxsegz*/0x3ffff,
 			       /*flags*/0, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
@@ -1193,9 +1193,10 @@ m3_pci_attach(device_t dev)
 		device_printf(dev, "attach: pcm_setstatus error\n");
 		goto bad;
 	}
+	mixer_hwvol_init(dev);
 
 	/* Create the buffer for saving the card state during suspend */
-	len = sizeof(u_int16_t) * (REV_B_CODE_MEMORY_LENGTH + 
+	len = sizeof(u_int16_t) * (REV_B_CODE_MEMORY_LENGTH +
 	    REV_B_DATA_MEMORY_LENGTH);
 	sc->savemem = (u_int16_t*)malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->savemem == NULL) {
@@ -1300,7 +1301,7 @@ m3_pci_resume(device_t dev)
 	m3_power(sc, 0);
 
 	m3_config(sc);
-	
+
 	reset_state = m3_assp_halt(sc);
 
 	/* Restore the ASSP state */
@@ -1338,7 +1339,7 @@ static int
 m3_pci_shutdown(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
-        
+
 	M3_DEBUG(CALL, ("m3_pci_shutdown\n"));
 
 	m3_power(sc, 3); /* power off */
@@ -1450,10 +1451,10 @@ m3_codec_reset(struct sc_info *sc)
 		m3_wr_2(sc, SDO_OUT_DEST_CTRL, data & ~COMMAND_ADDR_OUT);
 		data = m3_rd_2(sc, SDO_IN_DEST_CTRL);
 		m3_wr_2(sc, SDO_IN_DEST_CTRL, data & ~STATUS_ADDR_IN);
-		
+
 		m3_wr_2(sc, RING_BUS_CTRL_A, IO_SRAM_ENABLE);
 		DELAY(20);
-	
+
 		m3_wr_2(sc, GPIO_DIRECTION, dir & ~GPO_PRIMARY_AC97);
 		m3_wr_2(sc, GPIO_MASK, ~GPO_PRIMARY_AC97);
 		m3_wr_2(sc, GPIO_DATA, 0);
@@ -1461,11 +1462,11 @@ m3_codec_reset(struct sc_info *sc)
 		DELAY(sc->delay1 * 1000); /*delay1 (ALLEGRO:50, MAESTRO3:20)*/
 		m3_wr_2(sc, GPIO_DATA, GPO_PRIMARY_AC97);
 		DELAY(5);
-		m3_wr_2(sc, RING_BUS_CTRL_A, IO_SRAM_ENABLE | 
+		m3_wr_2(sc, RING_BUS_CTRL_A, IO_SRAM_ENABLE |
 		    SERIAL_AC_LINK_ENABLE);
 		m3_wr_2(sc, GPIO_MASK, ~0);
 		DELAY(sc->delay2 * 1000); /*delay2 (ALLEGRO:800, MAESTRO3:500)*/
-	
+
 		/* [[try read vendor]] */
 		data = m3_rdcd(NULL, sc, 0x7c);
 		if ((data == 0) || (data == 0xffff)) {
@@ -1492,10 +1493,8 @@ static device_method_t m3_methods[] = {
 static driver_t m3_driver = {
 	"pcm",
 	m3_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
-
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(snd_maestro3, pci, m3_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_maestro3, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
