@@ -303,7 +303,9 @@ extern int kern_giant_ucred;
  * Used to replace return with an exit Giant and return.
  *
  * Note that DROP_GIANT*() needs to be paired with PICKUP_GIANT() 
+ * The #ifndef is to allow lint-like tools to redefine DROP_GIANT.
  */
+#ifndef DROP_GIANT
 #define DROP_GIANT()							\
 do {									\
 	int _giantcnt;							\
@@ -328,6 +330,7 @@ do {									\
 		mtx_lock(&Giant);					\
 	if (mtx_owned(&Giant))						\
 		WITNESS_RESTORE(&Giant.mtx_object, Giant)
+#endif
 
 #define	UGAR(rval) do {							\
 	int _val = (rval);						\
@@ -343,9 +346,9 @@ struct mtx_args {
 
 #define	MTX_SYSINIT(name, mtx, desc, opts)				\
 	static struct mtx_args name##_args = {				\
-		mtx,							\
-		desc,							\
-		opts							\
+		(mtx),							\
+		(desc),							\
+		(opts)							\
 	};								\
 	SYSINIT(name##_mtx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    mtx_sysinit, &name##_args)
