@@ -565,6 +565,7 @@ Sorry, you don't have read/write access to the history file %s", path);
     (void) putenv (env);
     /* do not free env, as putenv has control of it */
 #endif
+    parseopts(CVSroot_directory);
 }
 
 static int max_dotdot_limit = 0;

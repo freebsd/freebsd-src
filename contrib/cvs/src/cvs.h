@@ -182,6 +182,7 @@ extern int errno;
 #define CVSROOTADM_READERS	"readers"
 #define CVSROOTADM_WRITERS	"writers"
 #define CVSROOTADM_PASSWD	"passwd"
+#define CVSROOTADM_OPTIONS	"options"
 
 #define CVSNULLREPOS		"Emptydir"	/* an empty directory */
 
@@ -360,6 +361,7 @@ extern int really_quiet, quiet;
 extern int use_editor;
 extern int cvswrite;
 extern mode_t cvsumask;
+extern char *RCS_citag;
 
 /* Access method specified in CVSroot. */
 typedef enum {
@@ -449,6 +451,7 @@ int isabsolute PROTO((const char *filename));
 char *last_component PROTO((char *path));
 char *get_homedir PROTO ((void));
 char *cvs_temp_name PROTO ((void));
+void parseopts PROTO ((const char *root));
 
 int numdots PROTO((const char *s));
 int unlink_file PROTO((const char *f));
