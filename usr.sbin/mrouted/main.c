@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: main.c,v 1.7 1996/01/06 21:09:51 peter Exp $
+ * $Id: main.c,v 1.8 1996/10/01 23:14:33 fenner Exp $
  */
 
 /*
@@ -34,7 +34,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"@(#) $Id: main.c,v 1.7 1996/01/06 21:09:51 peter Exp $";
+	"@(#) $Id: main.c,v 1.8 1996/10/01 23:14:33 fenner Exp $";
 #endif
 
 extern char *configfilename;
@@ -192,7 +192,7 @@ usage:	fprintf(stderr,
 #else
     (void)openlog("mrouted", LOG_PID);
 #endif
-    sprintf(versionstring, "mrouted version %d.%d",
+    sprintf(versionstring, "mrouted version %d.%da",
 			PROTOCOL_VERSION, MROUTED_VERSION);
 
     log(LOG_NOTICE, 0, "%s", versionstring);

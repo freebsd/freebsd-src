@@ -4,7 +4,7 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $Id: cfparse.y,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: cfparse.y,v 1.3 1996/01/06 21:09:36 peter Exp $
  */
 #include <stdio.h>
 #ifdef __STDC__
@@ -71,7 +71,7 @@ int numbounds = 0;			/* Number of named boundaries */
 %token CACHE_LIFETIME PRUNING
 %token PHYINT TUNNEL NAME
 %token DISABLE IGMPV1 SRCRT
-%token METRIC THRESHOLD RATE_LIMIT BOUNDARY NETMASK ALTNET
+%token METRIC THRESHOLD RATE_LIMIT BOUNDARY NETMASK ALTNET ADVERT_METRIC
 %token SYSNAM SYSCONTACT SYSVERSION SYSLOCATION
 %token <num> BOOLEAN
 %token <num> NUMBER
@@ -157,6 +157,7 @@ stmt	: error
 			v = &uvifs[numvifs];
 			v->uv_flags	= VIFF_TUNNEL;
 			v->uv_metric	= DEFAULT_METRIC;
+			v->uv_admetric  = 0;
 			v->uv_rate_limit= DEFAULT_TUN_RATE_LIMIT;
 			v->uv_threshold	= DEFAULT_THRESHOLD;
 			v->uv_lcl_addr	= $2;
@@ -292,6 +293,15 @@ mod	: THRESHOLD NUMBER	{ if ($2 < 1 || $2 > 255)
 	| METRIC		{
 
 		    warn("Expected number after metric keyword, ignored");
+
+				}
+	| ADVERT_METRIC NUMBER	{ if ($2 < 0 || $2 > UNREACHABLE - 1)
+				    fatal("Invalid advert_metric %d", $2);
+				  v->uv_admetric = $2;
+				}
+	| ADVERT_METRIC		{
+
+		    warn("Expected number after advert_metric keyword, ignored");
 
 				}
 	| RATE_LIMIT NUMBER	{ if ($2 > MAX_RATE_LIMIT)
@@ -504,6 +514,8 @@ yylex()
 		return DISABLE;
 	if (!strcmp(q,"metric"))
 		return METRIC;
+	if (!strcmp(q,"advert_metric"))
+		return ADVERT_METRIC;
 	if (!strcmp(q,"threshold"))
 		return THRESHOLD;
 	if (!strcmp(q,"rate_limit"))
@@ -528,8 +540,13 @@ yylex()
 		yylval.num = 0;
 		return BOOLEAN;
 	}
+	if (!strcmp(q,"default")) {
+		yylval.addrmask.mask = 0;
+		yylval.addrmask.addr = 0;
+		return ADDRMASK;
+	}
 	if (sscanf(q,"%[.0-9]/%d%c",s1,&n,s2) == 2) {
-		if ((addr = inet_parse(s1)) != 0xffffffff) {
+		if ((addr = inet_parse(s1,1)) != 0xffffffff) {
 			yylval.addrmask.mask = n;
 			yylval.addrmask.addr = addr;
 			return ADDRMASK;
@@ -537,7 +554,7 @@ yylex()
 		/* fall through to returning STRING */
 	}
 	if (sscanf(q,"%[.0-9]%c",s1,s2) == 1) {
-		if ((addr = inet_parse(s1)) != 0xffffffff &&
+		if ((addr = inet_parse(s1,4)) != 0xffffffff &&
 		    inet_valid_host(addr)) { 
 			yylval.addr = addr;
 			return ADDR;

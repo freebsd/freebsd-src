@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.h,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: vif.h,v 1.5 1996/01/06 21:10:30 peter Exp $
  */
 
 /*
@@ -20,6 +20,7 @@
 struct uvif {
     u_short	     uv_flags;	    /* VIFF_ flags defined below            */
     u_char	     uv_metric;     /* cost of this vif                     */
+    u_char	     uv_admetric;   /* advertised cost of this vif          */
     u_int	     uv_rate_limit; /* rate limit on this vif               */
     u_char	     uv_threshold;  /* min ttl required to forward on vif   */
     u_int32	     uv_lcl_addr;   /* local address of this vif            */
