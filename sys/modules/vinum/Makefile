@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.7 1999/01/21 00:25:47 grog Exp $ 
+#       $Id: Makefile,v 1.10 1999/01/30 01:45:44 grog Exp $ 
 
 MAINTAINER  =  grog@FreeBSD.org
 SOURCE=	${.CURDIR}/../../dev/vinum
@@ -12,6 +12,10 @@ SRCS=   vnode_if.h opt_vinum.h vinumstate.h vinumvar.h \
 	vinumrevive.c vinumioctl.c vinuminterrupt.c vinumdaemon.c
 
 NOMAN=
+
+# If you remove -DVINUMDEBUG here, you must also do it in src/sbin/Makefile.
+# Otherwise a number of ioctls will fail.
+CFLAGS+=	-DVINUMDEBUG -g -O
 
 CLEANFILES+=    vnode_if.h vnode_if.c opt_vinum.h
 
@@ -27,5 +31,3 @@ maketabs: maketabs.c
 	${CC} -g -o maketabs maketabs.c
 
 .include <bsd.kmod.mk>
-
-CFLAGS += -I${SOURCE} -g -DVINUMDEBUG -Wall -Wno-unused -Wno-parentheses
