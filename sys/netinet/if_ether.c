@@ -666,6 +666,32 @@ reply:
 			(void)memcpy(ea->arp_tha, ea->arp_sha, sizeof(ea->arp_sha));
 			(void)memcpy(ea->arp_sha, ac->ac_enaddr, sizeof(ea->arp_sha));
 			rtfree(rt);
+
+			/*
+			 * Also check that the node which sent the ARP packet
+			 * is on the the interface we expect it to be on. This
+			 * avoids ARP chaos if an interface is connected to the
+			 * wrong network.
+			 */
+			sin.sin_addr = isaddr;
+
+			rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
+			if (!rt) {
+				m_freem(m);
+				return;
+			}
+			if (rt->rt_ifp != &ac->ac_if) {
+				log(LOG_INFO, "arp_proxy: ignoring request"
+				    " from %s via %s%d, expecting %s%d\n",
+				    inet_ntoa(isaddr), ac->ac_if.if_name,
+				    ac->ac_if.if_unit, rt->rt_ifp->if_name,
+				    rt->rt_ifp->if_unit);
+				rtfree(rt);
+				m_freem(m);
+				return;
+			}
+			rtfree(rt);
+
 #ifdef DEBUG_PROXY
 			printf("arp: proxying for %s\n",
 			       inet_ntoa(itaddr));
