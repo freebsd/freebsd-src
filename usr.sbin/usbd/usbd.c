@@ -448,7 +448,7 @@ read_configuration(void)
 		}
 
 		/* skip initial spaces */
-		while (*line != '\0' && isspace(*line)) {
+		while (len > 0 && isspace(*line)) {
 			line++;
 			len--;
 		}
