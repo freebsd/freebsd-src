@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.90 1995/12/10 13:38:37 phk Exp $
+ *	$Id: if_ed.c,v 1.91 1995/12/15 00:54:07 bde Exp $
  */
 
 /*
@@ -160,12 +160,12 @@ static void	ed_xmit __P((struct ed_softc *));
 static char *	ed_ring_copy __P((struct ed_softc *, char *, char *,
 				  /* u_short */ int));
 
-static void	ed_pio_readmem __P((struct ed_softc *, /* u_short */ int,
-				    unsigned char *, /* u_short */ int));
+static void	ed_pio_readmem __P((struct ed_softc *, int, unsigned char *,
+				    /* u_short */ int));
 static void	ed_pio_writemem __P((struct ed_softc *, char *,
 				     /* u_short */ int, /* u_short */ int));
 static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
-					/* u_short */ int));
+					int));
 
 static void    ed_setrcr(struct ed_softc *);
 static u_long ds_crc(u_char *ep);
@@ -1881,7 +1881,7 @@ outloop:
 			}
 		}
 	} else {
-		len = ed_pio_write_mbufs(sc, m, buffer);
+		len = ed_pio_write_mbufs(sc, m, (int)buffer);
 		if (len == 0)
 			goto outloop;
 	}
@@ -1959,7 +1959,7 @@ ed_rint(sc)
 		if (sc->mem_shared)
 			packet_hdr = *(struct ed_ring *) packet_ptr;
 		else
-			ed_pio_readmem(sc, packet_ptr, (char *) &packet_hdr,
+			ed_pio_readmem(sc, (int)packet_ptr, (char *) &packet_hdr,
 				       sizeof(packet_hdr));
 		len = packet_hdr.count;
 		if (len > (ETHER_MAX_LEN + sizeof(struct ed_ring)) ||
@@ -2454,7 +2454,7 @@ ed_ring_copy(sc, src, dst, amount)
 		if (sc->mem_shared)
 			bcopy(src, dst, tmp_amount);
 		else
-			ed_pio_readmem(sc, src, dst, tmp_amount);
+			ed_pio_readmem(sc, (int)src, dst, tmp_amount);
 
 		amount -= tmp_amount;
 		src = sc->mem_ring;
@@ -2463,7 +2463,7 @@ ed_ring_copy(sc, src, dst, amount)
 	if (sc->mem_shared)
 		bcopy(src, dst, amount);
 	else
-		ed_pio_readmem(sc, src, dst, amount);
+		ed_pio_readmem(sc, (int)src, dst, amount);
 
 	return (src + amount);
 }
@@ -2565,7 +2565,7 @@ ed_get_packet(sc, buf, len, multicast)
 static void
 ed_pio_readmem(sc, src, dst, amount)
 	struct ed_softc *sc;
-	unsigned short src;
+	int src;
 	unsigned char *dst;
 	unsigned short amount;
 {
@@ -2647,7 +2647,7 @@ static u_short
 ed_pio_write_mbufs(sc, m, dst)
 	struct ed_softc *sc;
 	struct mbuf *m;
-	unsigned short dst;
+	int dst;
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	unsigned short total_len, dma_len;
