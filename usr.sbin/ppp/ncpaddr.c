@@ -725,7 +725,10 @@ ncprange_setsa(struct ncprange *range, const struct sockaddr *host,
   case AF_INET6:
     range->ncprange_family = AF_INET6;
     range->ncprange_ip6addr = host6->sin6_addr;
-    range->ncprange_ip6width = mask6 ? mask62bits(&mask6->sin6_addr) : 128;
+    if (IN6_IS_ADDR_UNSPECIFIED(&host6->sin6_addr))
+      range->ncprange_ip6width = 0;
+    else
+      range->ncprange_ip6width = mask6 ? mask62bits(&mask6->sin6_addr) : 128;
     break;
 #endif
 
