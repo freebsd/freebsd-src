@@ -510,9 +510,9 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
       printk ("sound: Invalid DMA mode for device %d\n", dev);
 
       isa_dmastart ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE,
-		    snd_raw_buf_phys[dev][0],
-		    sound_buffsizes[dev],
-		    chan);
+		    (caddr_t)snd_raw_buf_phys[dev][0],
+		    (unsigned)sound_buffsizes[dev],
+		    (unsigned)chan);
 #else
 #ifdef ISC
       printk ("sound: Invalid DMA mode for device %d\n", dev);
@@ -540,7 +540,7 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
 #else
 #ifdef __386BSD__
       isa_dmastart ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE,
-		    physaddr,
+		    (caddr_t)physaddr,
 		    count,
 		    chan);
 #else

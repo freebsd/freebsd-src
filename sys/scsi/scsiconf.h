@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 2.4 93/10/16 00:59:13 julian Exp Locker: julian $
+ *	$Id: scsiconf.h,v 1.7 1993/11/18 05:02:59 rgrimes Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -241,6 +241,8 @@ void show_mem(unsigned char * , u_int32);
 
 void	lto3b __P((int val, u_char *bytes));
 int	_3btol __P((u_char *bytes));
+
+extern void sc_print_addr(struct scsi_link *);
 
 #endif /*SCSI_SCSICONF_H*/
 /* END OF FILE */

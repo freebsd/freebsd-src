@@ -23,15 +23,16 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.3 1993/10/16 14:14:52 rgrimes Exp $
+ *	$Id: db_disasm.c,v 1.4 1993/11/25 01:30:51 wollman Exp $
  */
 
 /*
  * Instruction disassembler.
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>
+#include "ddb/ddb.h"
 
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>

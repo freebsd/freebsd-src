@@ -75,7 +75,7 @@ int             sndwrite (int dev, struct uio *uio);
 int             sndselect (int dev, int rw);
 static void	sound_mem_init(void);
 
-int
+long
 get_time()
 {
 extern struct timeval time;
@@ -393,7 +393,7 @@ sndattach (struct isa_device *dev)
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
   static int 	  generic_midi_initialized = 0; 
-  unsigned long	  mem_start = 0xefffffff;
+  unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
 
   hw_config.io_base = dev->id_iobase;
@@ -514,7 +514,7 @@ void
 sound_stop_timer (void)
 {
   if (timer_running)
-    untimeout (sequencer_timer, 0);
+    untimeout ((timeout_func_t)sequencer_timer, 0); /* XXX should fix */
   timer_running = 0;
 }
 
@@ -555,7 +555,7 @@ sound_mem_init (void)
 
 	  if (sound_buffsizes[dev] > dma_pagesize)
 	    sound_buffsizes[dev] = dma_pagesize;
-	  sound_buffsizes[dev] &= 0xfffff000;	/* Truncate to n*4k */
+	  sound_buffsizes[dev] &= ~0xfff;	/* Truncate to n*4k */
 	  if (sound_buffsizes[dev] < 4096)
 	    sound_buffsizes[dev] = 4096;
 

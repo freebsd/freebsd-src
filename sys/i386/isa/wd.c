@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.16 1993/11/23 21:36:37 nate Exp $
+ *	$Id: wd.c,v 1.17 1993/11/25 01:31:52 wollman Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -46,6 +46,7 @@
 #include "param.h"
 #include "dkbad.h"
 #include "systm.h"
+#include "kernel.h"
 #include "conf.h"
 #include "file.h"
 #include "stat.h"
@@ -532,7 +533,7 @@ RETRY:
 	}
 
 	/* then send it! */
-	outsw (wdc+wd_data, addr+du->dk_skip * DEV_BSIZE,
+	outsw (wdc + wd_data, (caddr_t)addr + du->dk_skip * DEV_BSIZE,
 		DEV_BSIZE/sizeof(short));
 	du->dk_bc -= DEV_BSIZE;
 	wdtimeout_status[unit] = 2;
@@ -634,11 +635,11 @@ outt:
 
 		/* suck in data */
 		insw (wdc+wd_data,
-			(int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE, chk);
+		      (caddr_t)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE, chk);
 		du->dk_bc -= chk * sizeof(short);
 
 		/* for obselete fractional sector reads */
-		while (chk++ < 256) insw (wdc+wd_data, &dummy, 1);
+		while (chk++ < 256) insw (wdc + wd_data, (caddr_t)&dummy, 1);
 	}
 
 	wdxfer[du->dk_unit]++;
@@ -1298,7 +1299,8 @@ wddump(dev_t dev)			/* dump core after a system crash */
 			blkcnt = secpercyl - (blknum % secpercyl);
 			    /* keep transfer within current cylinder */
 #endif
-		pmap_enter(kernel_pmap, CADDR1, trunc_page(addr), VM_PROT_READ, TRUE);
+		pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+			   trunc_page(addr), VM_PROT_READ, TRUE);
 
 		/* compute disk address */
 		cylin = blknum / secpercyl;

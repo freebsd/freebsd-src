@@ -110,12 +110,12 @@ typedef struct uio snd_rw_buf;
  * user space. The count is number of bytes to be moved.
  */
 #define COPY_FROM_USER(target, source, offs, count) \
-	do { if (uiomove(target, count, source)) { \
+	do { if (uiomove(target, count, (struct uio *)source)) { \
 		printf ("sb: Bad copyin()!\n"); \
 	} } while(0)
 /* Like COPY_FOM_USER but for writes. */
 #define COPY_TO_USER(target, offs, source, count) \
-	do { if (uiomove(source, count, target)) { \
+	do { if (uiomove(source, count, (struct uio *)target)) { \
 		printf ("sb: Bad copyout()!\n"); \
 	} } while(0)
 /* 
@@ -123,10 +123,10 @@ typedef struct uio snd_rw_buf;
  * short (16 bit) or long (32 bit) at a time.
  * The same restrictions apply than for COPY_*_USER
  */
-#define GET_BYTE_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 1, addr);}
-#define GET_SHORT_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 2, addr);}
-#define GET_WORD_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 4, addr);}
-#define PUT_WORD_TO_USER(addr, offs, data)	{uiomove((char*)&(data), 4, addr);}
+#define GET_BYTE_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 1, (struct uio *)addr);}
+#define GET_SHORT_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 2, (struct uio *)addr);}
+#define GET_WORD_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 4, (struct uio *)addr);}
+#define PUT_WORD_TO_USER(addr, offs, data)	{uiomove((char*)&(data), 4, (struct uio *)addr);}
 
 /*
  * The way how the ioctl arguments are passed is another nonportable thing.
@@ -224,6 +224,7 @@ typedef struct uio snd_rw_buf;
  * 
  */
 #define GET_TIME() get_time()
+extern long get_time(void);
 /*#define GET_TIME()	(lbolt)*/	/* Returns current time (1/HZ secs since boot) */
 
 /*

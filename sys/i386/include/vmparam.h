@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.7 1993/10/15 10:07:45 rgrimes Exp $
+ *	$Id: vmparam.h,v 1.8 1993/11/07 17:43:17 wollman Exp $
  */
 
 
@@ -56,27 +56,27 @@
  * Immediately after the user structure is the page table map, and then
  * kernal address space.
  */
-#define	USRTEXT		0
-#define	USRSTACK	0xFDBFE000
+#define	USRTEXT		0UL
+#define	USRSTACK	0xFDBFE000UL
 #define	BTOPUSRSTACK	(0xFDC00-(UPAGES))	/* btop(USRSTACK) */
-#define	LOWPAGES	0
+#define	LOWPAGES	0UL
 #define HIGHPAGES	UPAGES
 
 /*
  * Virtual memory related constants, all in bytes
  */
-#define	MAXTSIZ		(6*1024*1024)		/* max text size */
+#define	MAXTSIZ		(6UL*1024*1024)		/* max text size */
 #ifndef DFLDSIZ
-#define	DFLDSIZ		(16*1024*1024)		/* initial data size limit */
+#define	DFLDSIZ		(16UL*1024*1024) /* initial data size limit */
 #endif
 #ifndef MAXDSIZ
-#define	MAXDSIZ		(32*1024*1024)		/* max data size */
+#define	MAXDSIZ		(32UL*1024*1024)		/* max data size */
 #endif
 #ifndef	DFLSSIZ
-#define	DFLSSIZ		(512*1024)		/* initial stack size limit */
+#define	DFLSSIZ		(512UL*1024)		/* initial stack size limit */
 #endif
 #ifndef	MAXSSIZ
-#define	MAXSSIZ		(8*1024*1024)		/* max stack size */
+#define	MAXSSIZ		(8UL*1024*1024)		/* max stack size */
 #endif
 
 /*
@@ -211,15 +211,15 @@
 
 /* user/kernel map constants */
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
-#define VM_MAXUSER_ADDRESS	((vm_offset_t)0xFDBFE000)
-#define UPT_MIN_ADDRESS		((vm_offset_t)0xFDC00000)
-#define UPT_MAX_ADDRESS		((vm_offset_t)0xFDFF7000)
+#define VM_MAXUSER_ADDRESS	((vm_offset_t)0xFDBFE000UL)
+#define UPT_MIN_ADDRESS		((vm_offset_t)0xFDC00000UL)
+#define UPT_MAX_ADDRESS		((vm_offset_t)0xFDFF7000UL)
 #define VM_MAX_ADDRESS		UPT_MAX_ADDRESS
-#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)0xFDFF7000)
+#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)0xFDFF7000UL)
 #define UPDT			VM_MIN_KERNEL_ADDRESS
-#define KPT_MIN_ADDRESS		((vm_offset_t)0xFDFF8000)
-#define KPT_MAX_ADDRESS		((vm_offset_t)0xFDFFF000)
-#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)0xFF7FF000)
+#define KPT_MIN_ADDRESS		((vm_offset_t)0xFDFF8000UL)
+#define KPT_MAX_ADDRESS		((vm_offset_t)0xFDFFF000UL)
+#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)0xFF7FF000UL)
 
 /* virtual sizes (bytes) for various kernel submaps */
 #define VM_MBUF_SIZE		(NMBCLUSTERS*MCLBYTES)

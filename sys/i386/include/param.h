@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.9 1993/11/13 02:25:14 davidg Exp $
+ *	$Id: param.h,v 1.10 1993/11/18 05:02:05 rgrimes Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -71,8 +71,8 @@
  * defined in pmap.h which is included after this we can't do that
  * (YET!)
  */
-#define KERNBASE	0xFE000000	/* start of kernel virtual */
-#define BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
+#define KERNBASE	0xFE000000UL	/* start of kernel virtual */
+#define BTOPKERNBASE	(KERNBASE >> PGSHIFT)
 
 #define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #define DEV_BSIZE	(1 << DEV_BSHIFT)

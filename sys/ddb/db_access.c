@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.c,v 1.2 1993/10/16 16:47:04 rgrimes Exp $
+ *	$Id: db_access.c,v 1.3 1993/11/25 01:30:01 wollman Exp $
  */
 
 /*
@@ -31,8 +31,9 @@
  *	Date:	7/90
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>		/* type definitions */
+#include "ddb/ddb.h"
 
 /*
  * Access unaligned data items on aligned (longword)
