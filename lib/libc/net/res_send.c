@@ -415,7 +415,7 @@ res_send(buf, buflen, ans, anssiz)
 			do {
 				res_sendhookact act;
 
-				act = (*Qhook)((struct sockaddr_in **)&nsap,
+				act = (*Qhook)(&nsap,
 					       &buf, &buflen,
 					       ans, anssiz, &resplen);
 				switch (act) {
@@ -871,7 +871,7 @@ read_len:
 			do {
 				res_sendhookact act;
 
-				act = (*Rhook)((struct sockaddr_in *)nsap,
+				act = (*Rhook)(nsap,
 					       buf, buflen,
 					       ans, anssiz, &resplen);
 				switch (act) {
