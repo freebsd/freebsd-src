@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2001 Julian Cowley
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,18 +30,17 @@
 /* Cisco Hot Standby Router Protocol (HSRP). */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-hsrp.c,v 1.2 2001/10/08 16:12:37 fenner Exp $";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-hsrp.c,v 1.7.2.2 2003/11/16 08:51:24 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/types.h>
+#include <tcpdump-stdinc.h>
 
 #include <stdio.h>
-#include <netinet/in.h>
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -86,20 +85,20 @@ static struct tok states[] = {
 
 /* HSRP protocol header. */
 struct hsrp {
-	u_char		hsrp_version;
-	u_char		hsrp_op_code;
-	u_char		hsrp_state;
-	u_char		hsrp_hellotime;
-	u_char		hsrp_holdtime;
-	u_char		hsrp_priority;
-	u_char		hsrp_group;
-	u_char		hsrp_reserved;
-	u_char		hsrp_authdata[HSRP_AUTH_SIZE];
+	u_int8_t	hsrp_version;
+	u_int8_t	hsrp_op_code;
+	u_int8_t	hsrp_state;
+	u_int8_t	hsrp_hellotime;
+	u_int8_t	hsrp_holdtime;
+	u_int8_t	hsrp_priority;
+	u_int8_t	hsrp_group;
+	u_int8_t	hsrp_reserved;
+	u_int8_t	hsrp_authdata[HSRP_AUTH_SIZE];
 	struct in_addr	hsrp_virtaddr;
 };
 
 void
-hsrp_print(register const u_char *bp, register u_int len)
+hsrp_print(register const u_int8_t *bp, register u_int len)
 {
 	struct hsrp *hp = (struct hsrp *) bp;
 
@@ -119,7 +118,7 @@ hsrp_print(register const u_char *bp, register u_int len)
 	if (hp->hsrp_reserved != 0) {
 		printf("[reserved=%d!] ", hp->hsrp_reserved);
 	}
-	TCHECK2(hp->hsrp_virtaddr, sizeof(hp->hsrp_virtaddr));
+	TCHECK(hp->hsrp_virtaddr);
 	printf("addr=%s", ipaddr_string(&hp->hsrp_virtaddr));
 	if (vflag) {
 		printf(" hellotime=");

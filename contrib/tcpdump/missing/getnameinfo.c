@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -39,11 +39,11 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif 
+#endif
 
 #ifndef lint
-static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/missing/getnameinfo.c,v 1.8 2000/10/24 00:56:53 fenner Exp $";
+static const char rcsid[] _U_ =
+     "@(#) $Header: /tcpdump/master/tcpdump/missing/getnameinfo.c,v 1.9.2.2 2003/11/16 08:52:00 guy Exp $";
 #endif
 
 #include <sys/types.h>
@@ -124,7 +124,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	if (sa->sa_len != salen)
 		return ENI_SALEN;
 #endif
-	
+
 	family = sa->sa_family;
 	for (i = 0; afdl[i].a_af; i++)
 		if (afdl[i].a_af == family) {
@@ -132,11 +132,11 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 			goto found;
 		}
 	return ENI_FAMILY;
-	
+
  found:
 	if (salen != afd->a_socklen)
 		return ENI_SALEN;
-	
+
 	port = ((struct sockinet *)sa)->si_port; /* network byte order */
 	addr = (char *)sa + afd->a_off;
 
@@ -174,7 +174,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 			flags |= NI_NUMERICHOST;
 		v4a >>= IN_CLASSA_NSHIFT;
 		if (v4a == 0)
-			flags |= NI_NUMERICHOST;			
+			flags |= NI_NUMERICHOST;
 		break;
 #ifdef INET6
 	case AF_INET6:

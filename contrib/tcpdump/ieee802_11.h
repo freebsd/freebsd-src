@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ieee802_11.h,v 1.3 2001/06/14 09:50:01 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/ieee802_11.h,v 1.9 2003/07/22 17:36:57 guy Exp $ (LBL) */
 /*
  * Copyright (c) 2001
  *	Fortress Technologies
@@ -21,52 +21,87 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define IEEE802_11_FC_LEN	2
+/* Lengths of 802.11 header components. */
+#define	IEEE802_11_FC_LEN		2
+#define	IEEE802_11_DUR_LEN		2
+#define	IEEE802_11_DA_LEN		6
+#define	IEEE802_11_SA_LEN		6
+#define	IEEE802_11_BSSID_LEN		6
+#define	IEEE802_11_RA_LEN		6
+#define	IEEE802_11_TA_LEN		6
+#define	IEEE802_11_SEQ_LEN		2
+#define	IEEE802_11_IV_LEN		3
+#define	IEEE802_11_KID_LEN		1
 
-#define T_MGMT 0x0  /* management */
-#define T_CTRL 0x1  /* control */
-#define T_DATA 0x2 /* data */
-#define T_RESV 0x3  /* reserved */
+/* Frame check sequence length. */
+#define	IEEE802_11_FCS_LEN		4
 
-#define ST_ASSOC_REQUEST   	0x0 
-#define ST_ASSOC_RESPONSE 	0x1 
-#define ST_REASSOC_REQUEST   	0x2 
-#define ST_REASSOC_RESPONSE  	0x3 
-#define ST_PROBE_REQUEST   	0x4 
-#define ST_PROBE_RESPONSE   	0x5 
+/* Lengths of beacon components. */
+#define	IEEE802_11_TSTAMP_LEN		8
+#define	IEEE802_11_BCNINT_LEN		2
+#define	IEEE802_11_CAPINFO_LEN		2
+#define	IEEE802_11_LISTENINT_LEN	2
+
+#define	IEEE802_11_AID_LEN		2
+#define	IEEE802_11_STATUS_LEN		2
+#define	IEEE802_11_REASON_LEN		2
+
+/* Length of previous AP in reassocation frame */
+#define	IEEE802_11_AP_LEN		6
+
+#define	T_MGMT 0x0  /* management */
+#define	T_CTRL 0x1  /* control */
+#define	T_DATA 0x2 /* data */
+#define	T_RESV 0x3  /* reserved */
+
+#define	ST_ASSOC_REQUEST   	0x0
+#define	ST_ASSOC_RESPONSE 	0x1
+#define	ST_REASSOC_REQUEST   	0x2
+#define	ST_REASSOC_RESPONSE  	0x3
+#define	ST_PROBE_REQUEST   	0x4
+#define	ST_PROBE_RESPONSE   	0x5
 /* RESERVED 			0x6  */
 /* RESERVED 			0x7  */
-#define ST_BEACON   		0x8 
-#define ST_ATIM			0x9
-#define ST_DISASSOC		0xA
-#define ST_AUTH			0xB
-#define ST_DEAUTH		0xC
+#define	ST_BEACON   		0x8
+#define	ST_ATIM			0x9
+#define	ST_DISASSOC		0xA
+#define	ST_AUTH			0xB
+#define	ST_DEAUTH		0xC
 /* RESERVED 			0xD  */
 /* RESERVED 			0xE  */
 /* RESERVED 			0xF  */
 
 
-#define CTRL_PS_POLL	0xA 
-#define CTRL_RTS	0xB
-#define CTRL_CTS	0xC
-#define CTRL_ACK	0xD
-#define CTRL_CF_END	0xE
-#define CTRL_END_ACK	0xF
+#define	CTRL_PS_POLL	0xA
+#define	CTRL_RTS	0xB
+#define	CTRL_CTS	0xC
+#define	CTRL_ACK	0xD
+#define	CTRL_CF_END	0xE
+#define	CTRL_END_ACK	0xF
+
+#define	DATA_DATA		0x0
+#define	DATA_DATA_CF_ACK	0x1
+#define	DATA_DATA_CF_POLL	0x2
+#define	DATA_DATA_CF_ACK_POLL	0x3
+#define	DATA_NODATA		0x4
+#define	DATA_NODATA_CF_ACK	0x5
+#define	DATA_NODATA_CF_POLL	0x6
+#define	DATA_NODATA_CF_ACK_POLL	0x7
 
 /*
  * Bits in the frame control field.
  */
-#define FC_VERSION(fc)		((fc) & 0x3)
-#define FC_TYPE(fc)		(((fc) >> 2) & 0x3)
-#define FC_SUBTYPE(fc)		(((fc) >> 4) & 0xF)
-#define FC_TO_DS(fc)		((fc) & 0x0100)
-#define FC_FROM_DS(fc)		((fc) & 0x0200)
-#define FC_MORE_FLAG(fc)	((fc) & 0x0400)
-#define FC_RETRY(fc)		((fc) & 0x0800)
-#define FC_POWER_MGMT(fc)	((fc) & 0x1000)
-#define FC_MORE_DATA(fc)	((fc) & 0x2000)
-#define FC_WEP(fc)		((fc) & 0x4000)
-#define FC_ORDER(fc)		((fc) & 0x8000)
+#define	FC_VERSION(fc)		((fc) & 0x3)
+#define	FC_TYPE(fc)		(((fc) >> 2) & 0x3)
+#define	FC_SUBTYPE(fc)		(((fc) >> 4) & 0xF)
+#define	FC_TO_DS(fc)		((fc) & 0x0100)
+#define	FC_FROM_DS(fc)		((fc) & 0x0200)
+#define	FC_MORE_FLAG(fc)	((fc) & 0x0400)
+#define	FC_RETRY(fc)		((fc) & 0x0800)
+#define	FC_POWER_MGMT(fc)	((fc) & 0x1000)
+#define	FC_MORE_DATA(fc)	((fc) & 0x2000)
+#define	FC_WEP(fc)		((fc) & 0x4000)
+#define	FC_ORDER(fc)		((fc) & 0x8000)
 
 struct mgmt_header_t {
 	u_int16_t	fc;
@@ -77,19 +112,21 @@ struct mgmt_header_t {
 	u_int16_t	seq_ctrl;
 };
 
-#define MGMT_HEADER_LEN	(2+2+6+6+6+2)
+#define	MGMT_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
+			 IEEE802_11_DA_LEN+IEEE802_11_SA_LEN+\
+			 IEEE802_11_BSSID_LEN+IEEE802_11_SEQ_LEN)
 
-#define CAPABILITY_ESS(cap)	((cap) & 0x0001)
-#define CAPABILITY_IBSS(cap)	((cap) & 0x0002)
-#define CAPABILITY_CFP(cap)	((cap) & 0x0004)
-#define CAPABILITY_CFP_REQ(cap)	((cap) & 0x0008)
-#define CAPABILITY_PRIVACY(cap)	((cap) & 0x0010)
+#define	CAPABILITY_ESS(cap)	((cap) & 0x0001)
+#define	CAPABILITY_IBSS(cap)	((cap) & 0x0002)
+#define	CAPABILITY_CFP(cap)	((cap) & 0x0004)
+#define	CAPABILITY_CFP_REQ(cap)	((cap) & 0x0008)
+#define	CAPABILITY_PRIVACY(cap)	((cap) & 0x0010)
 
 struct ssid_t {
 	u_int8_t	element_id;
 	u_int8_t	length;
 	u_char		ssid[33];  /* 32 + 1 for null */
-} ;
+};
 
 struct rates_t {
 	u_int8_t	element_id;
@@ -135,13 +172,13 @@ struct tim_t {
 	u_int8_t	bitmap[251];
 };
 
-#define E_SSID 		0
-#define E_RATES 	1
-#define E_FH	 	2
-#define E_DS 		3
-#define E_CF	 	4
-#define E_TIM	 	5
-#define E_IBSS 		6
+#define	E_SSID 		0
+#define	E_RATES 	1
+#define	E_FH	 	2
+#define	E_DS 		3
+#define	E_CF	 	4
+#define	E_TIM	 	5
+#define	E_IBSS 		6
 /* reserved 		7 */
 /* reserved 		8 */
 /* reserved 		9 */
@@ -153,7 +190,7 @@ struct tim_t {
 /* reserved 		15 */
 /* reserved 		16 */
 
-#define E_CHALLENGE 	16	
+#define	E_CHALLENGE 	16
 /* reserved 		17 */
 /* reserved 		18 */
 /* reserved 		19 */
@@ -189,7 +226,8 @@ struct ctrl_rts_t {
 	u_int8_t	fcs[4];
 };
 
-#define CTRL_RTS_LEN	(2+2+6+6+4)
+#define	CTRL_RTS_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
+			 IEEE802_11_RA_LEN+IEEE802_11_TA_LEN)
 
 struct ctrl_cts_t {
 	u_int16_t	fc;
@@ -198,7 +236,7 @@ struct ctrl_cts_t {
 	u_int8_t	fcs[4];
 };
 
-#define CTRL_CTS_LEN	(2+2+6+4)
+#define	CTRL_CTS_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+IEEE802_11_RA_LEN)
 
 struct ctrl_ack_t {
 	u_int16_t	fc;
@@ -207,7 +245,7 @@ struct ctrl_ack_t {
 	u_int8_t	fcs[4];
 };
 
-#define CTRL_ACK_LEN	(2+2+6+4)
+#define	CTRL_ACK_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+IEEE802_11_RA_LEN)
 
 struct ctrl_ps_poll_t {
 	u_int16_t	fc;
@@ -217,7 +255,8 @@ struct ctrl_ps_poll_t {
 	u_int8_t	fcs[4];
 };
 
-#define CTRL_PS_POLL_LEN	(2+2+6+6+4)
+#define	CTRL_PS_POLL_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_AID_LEN+\
+				 IEEE802_11_BSSID_LEN+IEEE802_11_TA_LEN)
 
 struct ctrl_end_t {
 	u_int16_t	fc;
@@ -227,7 +266,8 @@ struct ctrl_end_t {
 	u_int8_t	fcs[4];
 };
 
-#define CTRL_END_LEN	(2+2+6+6+4)
+#define	CTRL_END_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
+			 IEEE802_11_RA_LEN+IEEE802_11_BSSID_LEN)
 
 struct ctrl_end_ack_t {
 	u_int16_t	fc;
@@ -237,8 +277,9 @@ struct ctrl_end_ack_t {
 	u_int8_t	fcs[4];
 };
 
-#define CTRL_END_ACK_LEN	(2+2+6+6+4)
+#define	CTRL_END_ACK_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
+				 IEEE802_11_RA_LEN+IEEE802_11_BSSID_LEN)
 
-#define IV_IV(iv)	((iv) & 0xFFFFFF)
-#define IV_PAD(iv)	(((iv) >> 24) & 0x3F)
-#define IV_KEYID(iv)	(((iv) >> 30) & 0x03)
+#define	IV_IV(iv)	((iv) & 0xFFFFFF)
+#define	IV_PAD(iv)	(((iv) >> 24) & 0x3F)
+#define	IV_KEYID(iv)	(((iv) >> 30) & 0x03)

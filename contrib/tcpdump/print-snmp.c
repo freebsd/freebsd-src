@@ -57,18 +57,16 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.50.4.2 2002/07/20 23:33:08 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.56.2.3 2004/03/23 06:59:59 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
+#include <tcpdump-stdinc.h>
 
-#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -83,7 +81,7 @@ static const char rcsid[] =
  * Universal ASN.1 types
  * (we only care about the tag values for those allowed in the Internet SMI)
  */
-char *Universal[] = {
+const char *Universal[] = {
 	"U-0",
 	"Boolean",
 	"Integer",
@@ -106,7 +104,7 @@ char *Universal[] = {
 /*
  * Application-wide ASN.1 types from the Internet SMI and their tags
  */
-char *Application[] = {
+const char *Application[] = {
 	"IpAddress",
 #define IPADDR 0
 	"Counter",
@@ -125,7 +123,7 @@ char *Application[] = {
 /*
  * Context-specific ASN.1 types for the SNMP PDUs and their tags
  */
-char *Context[] = {
+const char *Context[] = {
 	"GetRequest",
 #define GETREQ 0
 	"GetNextRequest",
@@ -155,7 +153,7 @@ char *Context[] = {
 /*
  * Context-specific ASN.1 types for the SNMP Exceptions and their tags
  */
-char *Exceptions[] = {
+const char *Exceptions[] = {
 	"noSuchObject",
 #define NOSUCHOBJECT 0
 	"noSuchInstance",
@@ -168,14 +166,14 @@ char *Exceptions[] = {
  * Private ASN.1 types
  * The Internet SMI does not specify any
  */
-char *Private[] = {
+const char *Private[] = {
 	"P-0"
 };
 
 /*
  * error-status values for any SNMP PDU
  */
-char *ErrorStatus[] = {
+const char *ErrorStatus[] = {
 	"noError",
 	"tooBig",
 	"noSuchName",
@@ -197,14 +195,14 @@ char *ErrorStatus[] = {
 	"inconsistentName"
 };
 #define DECODE_ErrorStatus(e) \
-	( e >= 0 && e < sizeof(ErrorStatus)/sizeof(ErrorStatus[0]) \
+	( e >= 0 && (size_t)e < sizeof(ErrorStatus)/sizeof(ErrorStatus[0]) \
 		? ErrorStatus[e] \
 		: (snprintf(errbuf, sizeof(errbuf), "err=%u", e), errbuf))
 
 /*
  * generic-trap values in the SNMP Trap-PDU
  */
-char *GenericTrap[] = {
+const char *GenericTrap[] = {
 	"coldStart",
 	"warmStart",
 	"linkDown",
@@ -212,10 +210,10 @@ char *GenericTrap[] = {
 	"authenticationFailure",
 	"egpNeighborLoss",
 	"enterpriseSpecific"
-#define GT_ENTERPRISE 7
+#define GT_ENTERPRISE 6
 };
 #define DECODE_GenericTrap(t) \
-	( t >= 0 && t < sizeof(GenericTrap)/sizeof(GenericTrap[0]) \
+	( t >= 0 && (size_t)t < sizeof(GenericTrap)/sizeof(GenericTrap[0]) \
 		? GenericTrap[t] \
 		: (snprintf(buf, sizeof(buf), "gt=%d", t), buf))
 
@@ -226,8 +224,8 @@ char *GenericTrap[] = {
  */
 #define defineCLASS(x) { "x", x, sizeof(x)/sizeof(x[0]) } /* not ANSI-C */
 struct {
-	char	*name;
-	char	**Id;
+	const char	*name;
+	const char	**Id;
 	    int	numIDs;
     } Class[] = {
 	defineCLASS(Universal),
@@ -245,7 +243,7 @@ struct {
 /*
  * defined forms for ASN.1 types
  */
-char *Form[] = {
+const char *Form[] = {
 	"Primitive",
 #define PRIMITIVE	0
 	"Constructed",
@@ -257,7 +255,7 @@ char *Form[] = {
  * This is stored as a general-order tree.
  */
 struct obj {
-	char	*desc;			/* name of object */
+	const char	*desc;		/* name of object */
 	u_char	oid;			/* sub-id following parent */
 	u_char	type;			/* object type (unused) */
 	struct obj *child, *next;	/* child and next sibling pointers */
@@ -279,9 +277,9 @@ struct obj {
  * private enterprises tree, and the experimental tree.
  */
 struct obj_abrev {
-	char *prefix;			/* prefix for this abrev */
+	const char *prefix;		/* prefix for this abrev */
 	struct obj *node;		/* pointer into object table */
-	char *oid;			/* ASN.1 encoded OID */
+	const char *oid;		/* ASN.1 encoded OID */
 } obj_abrev_list[] = {
 #ifndef NO_ABREV_MIB
 	/* .iso.org.dod.internet.mgmt.mib */
@@ -360,7 +358,7 @@ struct be {
 /*
  * SNMP versions recognized by this module
  */
-char *SnmpVersion[] = {
+const char *SnmpVersion[] = {
 	"SNMPv1",
 #define SNMP_VERSION_1	0
 	"SNMPv2c",
@@ -462,7 +460,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 	elem->asnlen = *p;
 	p++; len--; hdr++;
 	if (elem->asnlen & ASN_BIT8) {
-		int noct = elem->asnlen % ASN_BIT8;
+		u_int32_t noct = elem->asnlen % ASN_BIT8;
 		elem->asnlen = 0;
 		if (len < noct) {
 			ifNotTruncated printf("[asnlen? %d<%d]", len, noct);
@@ -559,7 +557,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 			        elem->type = BE_UNS64;
 				high = 0, low = 0;
 				for (i = elem->asnlen; i-- > 0; p++) {
-				        high = (high << 8) | 
+				        high = (high << 8) |
 					    ((low & 0xFF000000) >> 24);
 					low = (low << 8) | *p;
 				}
@@ -651,7 +649,7 @@ asn1_print(struct be *elem)
 {
 	u_char *p = (u_char *)elem->data.raw;
 	u_int32_t asnlen = elem->asnlen;
-	int i;
+	u_int32_t i;
 
 	switch (elem->type) {
 
@@ -685,7 +683,7 @@ asn1_print(struct be *elem)
 			o = (o << ASN_SHIFT7) + (*p & ~ASN_BIT8);
 			if (*p & ASN_LONGLEN)
 			        continue;
-			
+
 			/*
 			 * first subitem encodes two items with 1st*OIDMUX+2nd
 			 * (see X.690:1997 clause 8.19 for the details)
@@ -725,7 +723,7 @@ asn1_print(struct be *elem)
 		        break;
 		}
 		d = elem->data.uns64.high * 4294967296.0;	/* 2^32 */
-		if (elem->data.uns64.high <= 0x1fffff) { 
+		if (elem->data.uns64.high <= 0x1fffff) {
 		        d += elem->data.uns64.low;
 #if 0 /*is looks illegal, but what is the intention?*/
 			printf("%.f", d);
@@ -783,7 +781,7 @@ asn1_print(struct be *elem)
 	case BE_INETADDR:
 		if (asnlen != ASNLEN_INETADDR)
 			printf("[inetaddr len!=%d]", ASNLEN_INETADDR);
-		for (i = asnlen; i-- > 0; p++) {
+		for (i = asnlen; i-- != 0; p++) {
 			printf((i == asnlen-1) ? "%u" : ".%u", *p);
 		}
 		break;
@@ -876,7 +874,7 @@ static void smi_decode_oid(struct be *elem, unsigned int *oid,
 	        o = (o << ASN_SHIFT7) + (*p & ~ASN_BIT8);
 		if (*p & ASN_LONGLEN)
 		    continue;
-	    
+
 		/*
 		 * first subitem encodes two items with 1st*OIDMUX+2nd
 		 * (see X.690:1997 clause 8.19 for the details)
@@ -914,7 +912,7 @@ static int smi_check_a_range(SmiType *smiType, SmiRange *smiRange,
 			     struct be *elem)
 {
     int ok = 1;
-    
+
     switch (smiType->basetype) {
     case SMI_BASETYPE_OBJECTIDENTIFIER:
     case SMI_BASETYPE_OCTETSTRING:
@@ -931,12 +929,12 @@ static int smi_check_a_range(SmiType *smiType, SmiRange *smiRange,
 	ok = (elem->data.integer >= smiRange->minValue.value.integer32
 	      && elem->data.integer <= smiRange->maxValue.value.integer32);
 	break;
-	    
+
     case SMI_BASETYPE_UNSIGNED32:
 	ok = (elem->data.uns >= smiRange->minValue.value.unsigned32
 	      && elem->data.uns <= smiRange->maxValue.value.unsigned32);
 	break;
-	
+
     case SMI_BASETYPE_UNSIGNED64:
 	/* XXX */
 	break;
@@ -1066,7 +1064,7 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 	/* apply display hints (integer, octetstring) */
 
 	/* convert instance identifier to index type values */
-	
+
 	switch (elem->type) {
 	case BE_OID:
 	        if (smiType->basetype == SMI_BASETYPE_BITS) {
@@ -1083,7 +1081,7 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 				}
 				fputs(smiNode->name, stdout);
 				if (smiNode->oidlen < oidlen) {
-				        for (i = smiNode->oidlen; 
+				        for (i = smiNode->oidlen;
 					     i < oidlen; i++) {
 					        printf(".%u", oid[i]);
 					}
@@ -1169,7 +1167,7 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 		asn1_print(&elem);
 		return;
 	}
-	if (count < length)
+	if ((u_int)count < length)
 		printf("[%d extra after SEQ of varbind]", length - count);
 	/* descend */
 	length = elem.asnlen;
@@ -1422,7 +1420,7 @@ pdu_print(const u_char *np, u_int length, int version)
 		fputs("[no PDU]", stdout);
 		return;
 	}
-	if (count < length)
+	if ((u_int)count < length)
 		printf("[%d extra after PDU]", length - count);
 	if (vflag) {
 		fputs("{ ", stdout);
@@ -1434,7 +1432,7 @@ pdu_print(const u_char *np, u_int length, int version)
 	np = (u_char *)pdu.data.raw;
 
 	if (version == SNMP_VERSION_1 &&
-	    (pdu.id == GETBULKREQ || pdu.id == INFORMREQ || 
+	    (pdu.id == GETBULKREQ || pdu.id == INFORMREQ ||
 	     pdu.id == V2TRAP || pdu.id == REPORT)) {
 	        printf("[v2 PDU in v1 message]");
 		return;
@@ -1462,7 +1460,7 @@ pdu_print(const u_char *np, u_int length, int version)
 	}
 
 	if (vflag) {
-		fputs("} ", stdout);
+		fputs(" } ", stdout);
 	}
 }
 
@@ -1587,7 +1585,7 @@ usm_print(const u_char *np, u_int length)
 		asn1_print(&elem);
 		return;
 	}
-	if (vflag) 
+	if (vflag)
 	        printf("B=%d ", elem.data.integer);
 	length -= count;
 	np += count;
@@ -1600,7 +1598,7 @@ usm_print(const u_char *np, u_int length)
 		asn1_print(&elem);
 		return;
 	}
-	if (vflag) 
+	if (vflag)
 	        printf("T=%d ", elem.data.integer);
 	length -= count;
 	np += count;
@@ -1640,7 +1638,7 @@ usm_print(const u_char *np, u_int length)
 	length -= count;
         np += count;
 
-	if (count < length)
+	if ((u_int)count < length)
 		printf("[%d extra after usm SEQ]", length - count);
 }
 
@@ -1707,7 +1705,7 @@ v3msg_print(const u_char *np, u_int length)
 		return;
 	}
 	flags = elem.data.str[0];
-	if (flags != 0x00 && flags != 0x01 && flags != 0x03 
+	if (flags != 0x00 && flags != 0x01 && flags != 0x03
 	    && flags != 0x04 && flags != 0x05 && flags != 0x07) {
 		printf("[msgFlags=0x%02X]", flags);
 		return;
@@ -1733,7 +1731,7 @@ v3msg_print(const u_char *np, u_int length)
 	length -= count;
 	np += count;
 
-	if (count < length)
+	if ((u_int)count < length)
 		printf("[%d extra after message SEQ]", length - count);
 
 	if (vflag) {
@@ -1809,7 +1807,7 @@ snmp_print(const u_char *np, u_int length)
 		asn1_print(&elem);
 		return;
 	}
-	if (count < length)
+	if ((u_int)count < length)
 		printf("[%d extra after iSEQ]", length - count);
 	/* descend */
 	length = elem.asnlen;

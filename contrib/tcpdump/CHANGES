@@ -1,4 +1,64 @@
-$Header: /tcpdump/master/tcpdump/CHANGES,v 1.81.2.1 2003/02/26 07:08:58 fenner Exp $
+$Header: /tcpdump/master/tcpdump/CHANGES,v 1.84.2.3 2004/03/30 14:36:24 mcr Exp $
+
+Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
+
+	No changes from 3.8.2. Version bumped only to maintain consistency
+	with libpcap 0.8.3.
+
+Mon.   March 29, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.2 release
+
+	Fixes for print-isakmp.c      CVE:    CAN-2004-0183, CAN-2004-0184
+	  		     http://www.rapid7.com/advisories/R7-0017.html
+	IP-over-IEEE1394 printing.
+	some MINGW32 changes.
+	updates for autoconf 2.5
+	fixes for print-aodv.c - check for too short packets
+	formatting changes to print-ascii for hex output.
+	check for too short packets: print-bgp.c, print-bootp.c, print-cdp.c,
+		print-chdlc.c, print-domain.c, print-icmp.c, print-icmp6.c,
+		print-ip.c, print-lwres.c, print-ospf.c, print-pim.c,
+		print-ppp.c,print-pppoe.c, print-rsvp.c, print-wb.c
+	print-ether.c - better handling of unknown types.
+	print-isoclns.c - additional decoding of types.
+	print-llc.c - strings for LLC names added.
+	print-pfloc.c - various enhancements
+	print-radius.c - better decoding to strings.
+
+Wed.   November 12, 2003. mcr@sandelman.ottawa.on.ca. Summary for 3.8 release
+
+	changed syntax of -E argument so that multiple SAs can be decrypted
+	fixes for Digital Unix headers and Documentation
+	__attribute__ fixes
+	CDP changes from Terry Kennedy <terry@tmk.com>.	
+	IPv6 mobility updates from Kazushi Sugyo <sugyo@pb.jp.nec.com> 
+	Fixes for ASN.1 decoder for 2.100.3 forms.
+	Added a count of packets received and processed to clarify numbers.
+	Incorporated WinDUMP patches for Win32 builds.
+	PPPoE payload length headers.
+	Fixes for HP C compiler builds.
+	Use new pcap_breakloop() and pcap_findalldevs() if we can.
+	BGP output split into multiple lines.	
+	Fixes to 802.11 decoding.
+	Fixes to PIM decoder.
+	SuperH is a CPU that can't handle unaligned access. Many fixes for
+		unaligned access work.
+	Fixes to Frame-Relay decoder for Q.933/922 frames.
+	Clarified when Solaris can do captures as non-root.
+	Added tests/ subdir for examples/regression tests.	
+	New -U flag.	-flush stdout after every packet
+	New -A flag	-print ascii only
+	support for decoding IS-IS inside Cisco HDLC Frames	
+	more verbosity for tftp decoder
+	mDNS decoder
+	new BFD decoder
+	cross compilation patches
+	RFC 3561 AODV support.
+	UDP/TCP pseudo-checksum properly for source-route options.
+	sanitized all files to modified BSD license
+	Add support for RFC 2625 IP-over-Fibre Channel.	
+	fixes for DECnet support.
+	Support RFC 2684 bridging of Ethernet, 802.5 Token Ring, and FDDI.
+	RFC 2684 encapsulation of BPDUs.
 
 Tuesday, February 25, 2003. fenner@research.att.com.  3.7.2 release
 
@@ -672,5 +732,3 @@ v2.0.1 Sun Jan 26 21:10:10 PDT
 v2.0 Sun Jan 13 12:20:40 PST 1991
 
 - Initial public release.
-
-@(#) $Header: /tcpdump/master/tcpdump/CHANGES,v 1.81.2.1 2003/02/26 07:08:58 fenner Exp $ (LBL)

@@ -2,22 +2,22 @@
  * Copyright (c) 1995-1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,15 +31,15 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: snprintf.c,v 1.5 2001/01/12 10:14:40 guy Exp $ */
+/* $Id: snprintf.c,v 1.6.2.2 2003/11/16 08:52:02 guy Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
 #ifndef lint
-static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/missing/snprintf.c,v 1.5 2001/01/12 10:14:40 guy Exp $";
+static const char rcsid[] _U_ =
+     "@(#) $Header: /tcpdump/master/tcpdump/missing/snprintf.c,v 1.6.2.2 2003/11/16 08:52:02 guy Exp $";
 #endif
 
 #include <stdio.h>
@@ -214,7 +214,7 @@ append_number(struct state *state,
       state->s[-i-1] = state->s[-len+i];
       state->s[-len+i] = c;
     }
-    
+
   return 0;
 }
 
@@ -258,13 +258,13 @@ append_char(struct state *state,
   while(!(flags & minus_flag) && --width > 0)
     if((*state->append_char) (state, ' '))
       return 1;
-    
+
   if((*state->append_char) (state, arg))
     return 1;
   while((flags & minus_flag) && --width > 0)
     if((*state->append_char) (state, ' '))
       return 1;
-    
+
   return 0;
 }
 
@@ -313,7 +313,7 @@ xyzprintf (struct state *state, const char *char_format, va_list ap)
 	else
 	  break;
       }
-      
+
       if((flags & space_flag) && (flags & plus_flag))
 	flags ^= space_flag;
 
@@ -365,7 +365,7 @@ xyzprintf (struct state *state, const char *char_format, va_list ap)
 	if (append_string(state,
 			  va_arg(ap, unsigned char*),
 			  width,
-			  prec, 
+			  prec,
 			  flags))
 	  return -1;
 	break;
