@@ -184,6 +184,8 @@ acpi_tz_attach(device_t dev)
     sc->tz_dev = dev;
     sc->tz_handle = acpi_get_handle(dev);
     sc->tz_requested = TZ_ACTIVE_NONE;
+    sc->tz_active = TZ_ACTIVE_NONE;
+    sc->tz_thflags = TZ_THFLAG_NONE;
 
     /*
      * Parse the current state of the thermal zone and build control
@@ -508,9 +510,6 @@ acpi_tz_all_off(struct acpi_tz_softc *sc)
     /*
      * XXX revert any passive-cooling options.
      */
-
-    sc->tz_active = TZ_ACTIVE_NONE;
-    sc->tz_thflags = TZ_THFLAG_NONE;
 
     return_VOID;
 }
