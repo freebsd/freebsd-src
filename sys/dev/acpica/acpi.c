@@ -1381,7 +1381,7 @@ acpi_TimerDelta(uint32_t end, uint32_t start)
     if (end >= start)
 	delta = end - start;
     else if (AcpiGbl_FADT->TmrValExt == 0)
-	delta = (((0x00FFFFFF - start) + end + 1) & 0x00FFFFFF);
+	delta = ((0x00FFFFFF - start) + end + 1) & 0x00FFFFFF;
     else
 	delta = ((0xFFFFFFFF - start) + end + 1);
     return (delta);
