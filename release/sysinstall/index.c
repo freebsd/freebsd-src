@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.60 1999/01/11 12:45:18 asami Exp $
+ * $Id: index.c,v 1.61 1999/02/02 15:57:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -112,7 +112,8 @@ static char *descrs[] = {
     "numeric", "Mathematical computation software.",
     "offix", "An office automation suite of sorts.",
     "orphans", "Packages without a home elsewhere.",
-    "palm", "Software support for the 3Com Palm(tm) series.",
+    "palm", "Software support for the 3Com Palm Pilot(tm) series.",
+    "pilot", "Software support for the 3Com Palm Pilot(tm) series.",
     "perl5", "Utilities/modules for the PERL5 language.",
     "plan9", "Software from the Plan9 operating system.",
     "print", "Utilities for dealing with printing.",
