@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.20 1997/04/05 15:06:30 kato Exp $
+#	$Id: options.pc98,v 1.21 1997/04/27 13:21:57 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -35,9 +35,6 @@ NBUS			opt_smp.h
 NAPIC			opt_smp.h
 NINTR			opt_smp.h
 SMP_TIMER_NC		opt_smp.h
-
-# Should be working.  When one cpu flushes it's TLB, it's propagated to all.
-SMP_INVLTLB		opt_smp_invltlb.h
 
 # These three are known to be broken, don't enable them.
 SMP_PRIVPAGES		opt_smp_privpages.h
