@@ -122,7 +122,7 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 device		amr		# AMI MegaRAID
 device		ida		# Compaq Smart RAID
 #XXX trivial pointer/int warnings
-device		ips		# IBM (Adaptec) ServeRAID
+#device		ips		# IBM (Adaptec) ServeRAID
 device		mlx		# Mylex DAC960 family
 #XXX pointer/int warnings
 #device		pst		# Promise Supertrak SX6000
