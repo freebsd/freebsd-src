@@ -312,7 +312,7 @@ vlan_start(struct ifnet *ifp)
 		} else {
 			M_PREPEND(m, EVL_ENCAPLEN, M_DONTWAIT);
 			if (m == NULL) {
-				printf("vlan%d: M_PREPEND failed", ifp->if_unit);
+				if_printf(ifp, "M_PREPEND failed");
 				ifp->if_ierrors++;
 				continue;
 			}
@@ -320,7 +320,7 @@ vlan_start(struct ifnet *ifp)
 
 			m = m_pullup(m, ETHER_HDR_LEN + EVL_ENCAPLEN);
 			if (m == NULL) {
-				printf("vlan%d: m_pullup failed", ifp->if_unit);
+				if_printf(ifp, "m_pullup failed");
 				ifp->if_ierrors++;
 				continue;
 			}
