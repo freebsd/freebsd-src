@@ -140,8 +140,12 @@ _ftp_chkerr(int cd)
     }
     if (isftpinfo(last_reply)) {
 	while (!isftpreply(last_reply)) {
-	    if (_fetch_getln(cd, &last_reply, &lr_size, &lr_length) == -1) {
+	    switch (_fetch_getln(cd, &last_reply, &lr_size, &lr_length)) {
+	    case -1:
 		_fetch_syserr();
+		return -1;
+	    case 0:
+		_ftp_seterr(FTP_PROTOCOL_ERROR);
 		return -1;
 	    }
 	}
