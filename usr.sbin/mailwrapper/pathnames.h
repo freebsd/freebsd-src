@@ -1,4 +1,3 @@
-/*	$NetBSD: mailwrapper.c,v 1.3 1999/05/29 18:18:15 christos Exp $	*/
 /* $FreeBSD$ */
 
 /*
@@ -32,4 +31,4 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _PATH_MAILERCONF	"/etc/mailer.conf"
+#define _PATH_MAILERCONF	"/etc/mail/mailer.conf"
