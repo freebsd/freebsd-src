@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.28.2.4 1997/05/14 08:19:27 dfr Exp $
+ * $Id: nfs_bio.c,v 1.28.2.5 1997/05/28 18:26:45 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -460,7 +460,11 @@ again:
 			    }
 			}
 		}
-		n = min(uio->uio_resid, NFS_DIRBLKSIZ - bp->b_resid - on);
+		/*
+		 * Make sure we use a signed variant of min() since
+		 * the second term may be negative.
+		 */
+		n = lmin(uio->uio_resid, NFS_DIRBLKSIZ - bp->b_resid - on);
 		break;
 	    default:
 		printf(" nfs_bioread: type %x unexpected\n",vp->v_type);
