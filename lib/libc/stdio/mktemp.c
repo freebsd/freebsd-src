@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: mktemp.c,v 1.6 1997/02/22 15:02:16 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -109,7 +109,7 @@ _gettemp(path, doopen)
 			if (errno != EEXIST)
 				return(0);
 		}
-		else if (stat(path, &sbuf))
+		else if (lstat(path, &sbuf))
 			return(errno == ENOENT ? 1 : 0);
 
 		/* tricky little algorithm for backward compatibility */
