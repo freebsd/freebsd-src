@@ -166,7 +166,7 @@ routepr(rtree)
 			} else if (af == AF_UNSPEC || af == i) {
 				pr_family(i);
 				do_rtent = 1;
-				pr_rthdr();
+				pr_rthdr(i);
 				p_tree(head.rnh_treetop);
 			}
 		}
@@ -222,31 +222,43 @@ pr_family(af)
 }
 
 /* column widths; each followed by one space */
-#ifndef INET6
 #define	WID_DST 	18	/* width of destination column */
 #define	WID_GW		18	/* width of gateway column */
-#else
-#define	WID_DST	(lflag ? 39 : (nflag ? 33: 18)) /* width of dest column */
-#define	WID_GW	(lflag ? 31 : (nflag ? 29 : 18)) /* width of gateway column */
+#ifdef INET6
+#define	WID_DST6 (lflag ? 39 : (nflag ? 33: 18)) /* width of dest column */
+#define	WID_GW6	(lflag ? 31 : (nflag ? 29 : 18)) /* width of gateway column */
 #endif /*INET6*/
 
 /*
  * Print header for routing table columns.
  */
 void
-pr_rthdr()
+pr_rthdr(af)
 {
+	int wid_dst, wid_gw;
+
+	wid_dst =
+#ifdef INET6
+		af == AF_INET6 ? WID_DST6 :
+#endif
+		WID_DST;
+	wid_gw =
+#ifdef INET6
+		af == AF_INET6 ? WID_GW6 :
+#endif
+		WID_GW;
+
 	if (Aflag)
 		printf("%-8.8s ","Address");
 	if (lflag)
 		printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
-			WID_DST, WID_DST, "Destination",
-			WID_GW, WID_GW, "Gateway",
+			wid_dst, wid_dst, "Destination",
+			wid_gw, wid_gw, "Gateway",
 			"Flags", "Refs", "Use", "Netif", "Expire");
 	else
 		printf("%-*.*s %-*.*s %-6.6s  %8.8s %6s\n",
-			WID_DST, WID_DST, "Destination",
-			WID_GW, WID_GW, "Gateway",
+			wid_dst, wid_dst, "Destination",
+			wid_gw, wid_gw, "Gateway",
 			"Flags", "Netif", "Expire");
 }
 
@@ -585,8 +597,16 @@ p_rtentry(rt)
 	bzero(&mask, sizeof(mask));
 	if (rt_mask(rt) && (sa = kgetsa(rt_mask(rt))))
 		bcopy(sa, &mask, sa->sa_len);
-	p_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags, WID_DST);
-	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, WID_GW);
+	p_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags,
+#ifdef INET6
+		   addr.u_sa.sa_family == AF_INET6 ? WID_DST6 :
+#endif
+		   WID_DST);
+	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST,
+#ifdef INET6
+		   kgetsa(rt->rt_gateway)->sa_family == AF_INET6 ? WID_GW6 :
+#endif
+		   WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
 	if (lflag)
 		printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
