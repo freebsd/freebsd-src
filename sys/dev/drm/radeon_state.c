@@ -2400,7 +2400,7 @@ int radeon_cp_getparam( DRM_IOCTL_ARGS )
 		break;
 	case RADEON_PARAM_SAREA_HANDLE:
 		/* The lock is the first dword in the sarea. */
-		value = (int)dev->lock.hw_lock; 
+		value = (long)dev->lock.hw_lock; 
 		break;	
 	case RADEON_PARAM_GART_TEX_HANDLE:
 		value = dev_priv->gart_textures_offset;
@@ -2409,7 +2409,7 @@ int radeon_cp_getparam( DRM_IOCTL_ARGS )
 		return DRM_ERR(EINVAL);
 	}
 
-	if ( DRM_COPY_TO_USER( param.value, &value, sizeof(int) ) ) {
+	if ( DRM_COPY_TO_USER( param.value, &value, sizeof(&value) ) ) {
 		DRM_ERROR( "copy_to_user\n" );
 		return DRM_ERR(EFAULT);
 	}
