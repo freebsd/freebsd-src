@@ -47,19 +47,24 @@ The
 .Nm
 bridge driver allows the generic audio drivers including
 .Xr sound 4
-to attach to the following ISA sound cards:
-.Bl -bullet -width 2m
-.It
-Gravis UltraSound PnP
-.It
-Gravis UltraSound MAX
-.El
+to attach to Gravis UltraSound sound cards.
 .Pp
 The value of flags specifies the secondary DMA channel.
 If the secondary
 DMA channel is C, set the flags to (C | 0x10).
 For a sound card without the
 secondary DMA channel, the flags should be set to zero.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following soundcards:
+.Pp
+.Bl -bullet -compact
+.It
+Gravis UltraSound MAX
+.It
+Gravis UltraSound PnP
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It xxx: gus pcm not attached, out of memory
