@@ -231,6 +231,7 @@ mpt_free_request(mpt_softc_t *mpt, request_t *req)
 		panic("mpt_free_request bad req ptr\n");
 		return;
 	}
+	req->sequence = 0;
 	req->ccb = NULL;
 	req->debug = REQ_FREE;
 	SLIST_INSERT_HEAD(&mpt->request_free_list, req, link);
@@ -559,7 +560,7 @@ mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
 	return (0);
 }
 
-#define	CFG_DATA_OFF	40
+#define	CFG_DATA_OFF	128
 
 int
 mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
@@ -575,7 +576,7 @@ mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 
 	cfgp = req->req_vbuf;
  	amt = (cfgp->Header.PageLength * sizeof (uint32_t));
-	bzero(cfgp, sizeof *cfgp);
+	bzero(cfgp, MPT_REQUEST_AREA);
 	cfgp->Action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	cfgp->Function = MPI_FUNCTION_CONFIG;
 	cfgp->Header = *hdr;
