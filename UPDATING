@@ -4,6 +4,13 @@ major breakages in tracking -current.  Not all things will be listed
 here, and it only starts on Novemeber 18, 1998.  If you have an
 earlier version of FreeBSD, you are on your own.
 
+19981230:
+	You should install new bootblocks now.  The ELF kernel will
+	become default on Jan 6.  Instructions on upgrading will be
+	forth coming.  In addition, the aout buildworld will be
+	blocked at that time was well.  Upgrade to elf as described in
+	src/Makefile.
+
 19981202:
 	New groups from 19981201 commented out of mtree, so they
 	aren't strictly needed, but still a good idea to have.
@@ -26,4 +33,4 @@ earlier version of FreeBSD, you are on your own.
 YYYYMMDD:
 	What happened and what you need to do.
 
-$Id: UPDATING,v 1.1 1998/12/15 00:24:32 imp Exp $
+$Id: UPDATING,v 1.2 1998/12/24 02:02:09 imp Exp $
