@@ -100,9 +100,11 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 			return (-1);
 		}
 		fcntl(s, F_SETOWN, pid);
+		bzero(&sin, sizeof sin);
+		sin.sin_len = sizeof(struct sockaddr_in);
 		sin.sin_family = hp->h_addrtype;
-		bcopy(hp->h_addr_list[0], &sin.sin_addr, hp->h_length);
 		sin.sin_port = rport;
+		bcopy(hp->h_addr_list[0], &sin.sin_addr, hp->h_length);
 		if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
 			break;
 		(void)close(s);
@@ -159,6 +161,7 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 			(void)close(s2);
 			goto bad;
 		}
+again:
 		FD_ZERO(&reads);
 		FD_SET(s, &reads);
 		FD_SET(s2, &reads);
@@ -175,6 +178,14 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 			goto bad;
 		}
 		s3 = accept(s2, (struct sockaddr *)&from, &len);
+		/*
+		 * XXX careful for ftp bounce attacks. If discovered, shut them
+		 * down and check for the real auxiliary channel to connect.
+		 */
+		if (from.sin_family == AF_INET && from.sin_port == htons(20)) {
+			close(s3);
+			goto again;
+		}
 		(void)close(s2);
 		if (s3 < 0) {
 			(void)fprintf(stderr,
@@ -224,40 +235,31 @@ rresvport(alport)
 	int *alport;
 {
 	struct sockaddr_in sin;
-	int s, on, len;
+	int s;
 
+	bzero(&sin, sizeof sin);
+	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = INADDR_ANY;
-	sin.sin_port = 0;
-
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s < 0)
 		return (-1);
-
-	on = IP_PORTRANGE_LOW;
-	if (setsockopt(s, IPPROTO_IP, IP_PORTRANGE, (char*)&on, sizeof(on)) < 0)
-	{
-		(void)close(s);
-		return(-1);
-	}
-
-	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0) {
-		/* attempt to find the port that we were assigned */
-		len = sizeof(sin);
-		if (getsockname(s, (struct sockaddr *)&sin, &len) >= 0)
-			*alport = ntohs(sin.sin_port);
-		else {
-			(void)close(s);
-			return (-1);
-		}
-
+#if 0 /* compat_exact_traditional_rresvport_semantics */
+	sin.sin_port = htons((u_short)*alport);
+	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
 		return (s);
+	if (errno != EADDRINUSE) {
+		(void)close(s);
+		return (-1);
 	}
-	if (errno == EADDRNOTAVAIL) 	/* no available ports? */
-		errno = EAGAIN;		/* "official" return for this case */
-
-	(void)close(s);
-	return (-1);
+#endif
+	sin.sin_port = 0;
+	if (bindresvport(s, &sin) == -1) {
+		(void)close(s);
+		return (-1);
+	}
+	*alport = (int)ntohs(sin.sin_port);
+	return (s);
 }
 
 int	__check_rhosts_file = 1;
