@@ -3,7 +3,7 @@
 
 PROG=	gzip
 SRCS=	gzip.c zip.c deflate.c trees.c bits.c unzip.c inflate.c util.c \
-	crypt.c lzw.c unlzw.c unlzh.c unpack.c getopt.c
+	crypt.c lzw.c unlzw.c unlzh.c unpack.c
 CFLAGS+=-DSTDC_HEADERS=1 -DHAVE_UNISTD_H=1 -DDIRENT=1
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	match.S
