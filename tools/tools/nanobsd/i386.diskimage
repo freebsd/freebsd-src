@@ -39,7 +39,7 @@ echo p 3 165 `expr ${SC} + $sl + $sl` ${DATASLICE}
 cat ${TMPFILE1}
 fdisk -i -f ${TMPFILE1} ${MD}
 fdisk ${MD}
-boot0cfg -B -b /boot/boot0sio -s 1 -m 3 ${MD}
+boot0cfg -B -b ${WD}/boot/boot0sio -s 1 -m 3 ${MD}
 rm -f ${TMPFILE1}
 bsdlabel -w -B ${MD}s1
 newfs -O1 -U ${MD}s1a
