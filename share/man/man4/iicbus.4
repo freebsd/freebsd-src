@@ -59,11 +59,11 @@ Serial DAta line and SCL is the Serial CLock line.
 Every component hooked up to the bus has its own unique address whether it
 is a CPU, LCD driver, memory, or complex function chip.
 Each of these chips
-can act as a receiver and/or transmitter depending on it's functionality.
+can act as a receiver and/or transmitter depending on its functionality.
 Obviously an LCD driver is only a receiver, while a memory or I/O chip can
 both be transmitter and receiver.
 Furthermore there may be one or
-more BUS MASTER's.
+more BUS MASTERs.
 
 The BUS MASTER is the chip issuing the commands on the BUS.
 In the I2C protocol
@@ -92,7 +92,7 @@ Hardware interfaces are more intelligent and receive
 8-bit characters they write to the bus according to the I2C protocol.
 
 I2C interfaces may act on the bus as slave devices, allowing spontaneous
-bidirectional communications, thanks to the mutli-master capabilities of the
+bidirectional communications, thanks to the multi-master capabilities of the
 I2C protocol.
 
 Some I2C interfaces are available:
