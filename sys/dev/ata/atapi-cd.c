@@ -1229,7 +1229,7 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[7] = len>>8;
     ccb[8] = len;
     if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len,
-			ATPR_F_READ, 30, NULL, NULL)) {
+			ATPR_F_READ | ATPR_F_QUIET, 30, NULL, NULL)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
     }
@@ -1915,7 +1915,7 @@ acd_get_cap(struct acd_softc *cdp)
     cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
     cdp->cap.cur_read_speed = ntohs(cdp->cap.cur_read_speed);
     cdp->cap.max_write_speed = ntohs(cdp->cap.max_write_speed);
-    cdp->cap.cur_write_speed = ntohs(cdp->cap.cur_write_speed);
+    cdp->cap.cur_write_speed = max(ntohs(cdp->cap.cur_write_speed), 177);
     cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
     cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
 }
