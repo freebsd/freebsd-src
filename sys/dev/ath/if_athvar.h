@@ -95,6 +95,7 @@ struct ath_softc {
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
+	u_int8_t		sc_hwmap[32];	/* h/w rate ix to IEEE table */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
 
 	struct ath_desc		*sc_desc;	/* TX/RX descriptors */
