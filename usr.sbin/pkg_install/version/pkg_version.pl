@@ -37,7 +37,6 @@ use Getopt::Std;
 #
 # Configuration global variables
 #
-$Version = '0.1';
 $CurrentPackagesCommand = '/usr/sbin/pkg_info -aI';
 $CatProgram = "cat ";
 $FetchProgram = "fetch -o - ";
@@ -62,9 +61,7 @@ $PreventFlag = "";
 # This function returns -1, 0, or 1, in the same manner as <=> or cmp.
 #
 sub CompareNumbers {
-    local($v1, $v2);
-    $v1 = $_[0];
-    $v2 = $_[1];
+    my ($v1, $v2) = @_;
 
     # Short-cut in case of equality
     if ($v1 eq $v2) {
@@ -73,27 +70,88 @@ sub CompareNumbers {
 
     # Loop over different components (the parts separated by dots).
     # If any component differs, we have the basis for an inequality.
-    while (1) {
-	($p1, $v1) = split(/\./, $v1, 2);
-	($p2, $v2) = split(/\./, $v2, 2);
+    my @s1 = split(/\./, $v1);
+    my @s2 = split(/\./, $v2);
+    my ($c1, $c2);
+    do {
+	last unless @s1 || @s2;
+	$c1 = shift @s1;
+	$c2 = shift @s2;
+    } while ($c1 eq $c2);
 
-	# If we\'re out of components, they\'re equal (this probably won\'t
-	# happen, since the short-cut case above should get this).
-	if (($p1 eq "") && ($p2 eq "")) {
-	    return 0;
+    # Look at the first components of the arrays that are left.
+    # These will determine the result of the comparison.
+    # Note that if either version doesn't have any components left,
+    # it's implicitly treated as a "0".
+
+    # Our next set of checks looks to see if either component has a
+    # leading letter (there should be at most one leading letter per
+    # component, so that "4.0b1" is allowed, but "4.0beta1" is not).
+    if ($c1 =~ /^\D/) {
+	if ($c2 =~ /^\D/) {
+
+	    # Both have a leading letter, so do an alpha comparison
+	    # on the letters.  This isn't ideal, since we're assuming
+	    # that "1.0.b4" > "1.0.a2".  But it's about the best we can do, 
+	    # without encoding some explicit policy.
+	    my ($letter1, $letter2);
+	    $letter1 = substr($c1, 0, 1);
+	    $letter2 = substr($c2, 0, 1);
+
+	    if ($letter1 ne $letter2) {
+		return $letter1 cmp $letter2;
+	    }
+	    else {
+		# The letters matched equally.  Delete the leading
+		# letters and invoke ourselves on the remainining
+		# characters, which according to the Porters Handbook
+		# must be digits, so for example, "1.0.a9" < "1.0.a10".
+		substr($c1, 0, 1) = "";
+		substr($c2, 0, 1) = "";
+		return &CompareNumbers($c1, $c2);		
+	    }
+
 	}
-	# Check for numeric inequality.  We assume here that (for example)
-	# 3.09 < 3.10.
-	elsif ($p1 != $p2) {
-	    return $p1 <=> $p2;
-	}
-	# Check for string inequality, given numeric equality.  This
-	# handles version numbers of the form 3.4j < 3.4k.
-	elsif ($p1 ne $p2) {
-	    return $p1 cmp $p2;
+	else {
+	    # $c1 begins with a letter, but $c2 doesn't.  Let $c2
+	    # win the comparison, so that "1.0.b1" < "1.0.1".
+	    return -1;
 	}
     }
+    else {
+	if ($c2 =~ /^\D/) {
+	    # $c2 begins with a letter but $c1 doesn't.  Let $c1
+	    # win the comparison, as above.
+	    return 1;
+	}
+	else {
+	    # Neither component begins with a leading letter.
+	    # Check for numeric inequality.  We assume here that (for example)
+	    # "3.09" < "3.10", and that we aren't going to be asked to
+	    # decide between "3.010" and "3.10".
+	    if ($c1 != $c2) {
+		return $c1 <=> $c2;
+	    }
 
+	    # String comparison, given numeric equality.  This
+	    # handles comparisons of the form "3.4j" < "3.4k".  This form
+	    # technically isn't allowed by the Porter's Handbook, but a
+	    # number of ports in the FreeBSD Ports Collection as of this
+	    # writing use it (graphics/jpeg and graphics/xv).  So we need
+	    # to support it.
+	    #
+	    # What we actually do is to strip off the leading digits and
+	    # invoke ourselves on the remainder.  This allows us to handle
+	    # comparisons of the form "1.1p1" < "1.1p2".  Again, not
+	    # technically allowed by the Porters Handbook, but lots of ports
+	    # use it.
+	    else {
+		$c1 =~ s/\d+//;
+		$c2 =~ s/\d+//;
+		return &CompareNumbers($c1, $c2);
+	    }
+	}
+    }
 }
 
 #
@@ -194,10 +252,8 @@ sub GetNameAndVersion {
 #
 sub PrintHelp {
     print <<"EOF"
-pkg_version $Version
-Bruce A. Mah <bmah\@freebsd.org>
-
-Usage: pkg_version [-c] [-d debug] [-h] [-v] [index]
+Usage:	pkg_version [-c] [-d debug] [-h] [-l limchar] [-L limchar] [-v] [index]
+	pkg_version [-d debug] -t v1 v2
 -c              Show commands to update installed packages
 -d debug	Debugging output (debug controls level of output)
 -h		Help (this message)
@@ -206,13 +262,15 @@ Usage: pkg_version [-c] [-d debug] [-h] [-v] [index]
 -v		Verbose output
 index		URL or filename of index file
 		(Default is $IndexFile)
+
+-t v1 v2	Test two version strings
 EOF
 }
 
 #
 # Parse command-line arguments, deal with them
 #
-if (!getopts('cdhl:L:v') || ($opt_h)) {
+if (!getopts('cdhl:L:tv') || ($opt_h)) {
     &PrintHelp();
     exit;
 }
@@ -231,11 +289,34 @@ if ($opt_l) {
 if ($opt_L) {
     $PreventFlag = $opt_L;
 }
+if ($opt_t) {
+    $TestFlag = 1;
+}
 if ($opt_v) {
     $VerboseFlag = 1;
 }
 if ($#ARGV >= 0) {
-    $IndexFile = $ARGV[0];
+    if ($TestFlag) {
+	($test1, $test2) = @ARGV;
+    }
+    else {
+	$IndexFile = $ARGV[0];
+    }
+}
+
+# Handle test flag now
+if ($TestFlag) {
+    my $cmp = CompareVersions($test1, $test2);
+    if ($cmp < 0) {
+	print "<\n";
+    }
+    elsif ($cmp == 0) {
+	print "=\n";
+    }
+    else {
+	print ">\n";
+    }
+    exit(0);
 }
 
 # Determine what command to use to retrieve the index file.
