@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.40 1995/11/09 22:43:24 gibbs Exp $
+ *      $Id: aha1742.c,v 1.41 1995/11/29 10:12:28 phk Exp $
  */
 
 #include <sys/types.h>
@@ -28,8 +28,11 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
+
 #include <machine/clock.h>
+
+#include <vm/vm.h>
+
 #include <i386/eisa/eisaconf.h>
 #else
 #define	NAHB	1

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.49 1995/10/28 15:38:40 phk Exp $
+ *      $Id: aha1542.c,v 1.50 1995/11/04 17:07:00 bde Exp $
  */
 
 /*
@@ -30,11 +30,13 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
-#include <machine/clock.h>
-#include <i386/isa/isa_device.h>
+
 #include <machine/clock.h>
 #include <machine/cpu.h>	/* XXX for bootverbose: a funny place */
+
+#include <vm/vm.h>
+
+#include <i386/isa/isa_device.h>
 #endif	/* KERNEL */
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>

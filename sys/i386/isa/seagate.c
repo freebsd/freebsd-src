@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.11 1995/09/19 18:55:17 bde Exp $
+ * $Id: seagate.c,v 1.12 1995/11/04 17:07:44 bde Exp $
  */
 
 /*
@@ -121,10 +121,11 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/devconf.h>
 
 #include <machine/clock.h>
+
+#include <vm/vm.h>
 
 #include <i386/isa/isa_device.h>
 

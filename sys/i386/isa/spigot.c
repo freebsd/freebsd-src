@@ -54,9 +54,10 @@ error "Can only have 1 spigot configured."
 #include	<sys/param.h>
 #include	<sys/systm.h>
 #include	<sys/kernel.h>
+#include	<sys/conf.h>
 #include	<sys/ioctl.h>
 #include	<sys/proc.h>
-#include	<sys/user.h>
+#include	<sys/signalvar.h>
 #include	<sys/file.h>
 #include	<sys/uio.h>
 #include	<sys/malloc.h>
@@ -64,6 +65,7 @@ error "Can only have 1 spigot configured."
 #include	<sys/errno.h>
 #include	<sys/mman.h>
 
+#include	<machine/frame.h>
 #include	<machine/spigot.h>
 #include	<machine/psl.h>
 
