@@ -566,6 +566,7 @@ static driver_t fxp_driver = {
 static devclass_t fxp_devclass;
 
 DRIVER_MODULE(if_fxp, pci, fxp_driver, fxp_devclass, 0, 0);
+DRIVER_MODULE(if_fxp, cardbus, fxp_driver, fxp_devclass, 0, 0);
 
 /*
  * Do generic parts of attach.
