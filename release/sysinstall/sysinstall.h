@@ -345,6 +345,7 @@ typedef struct _devPriv {
 extern jmp_buf		BailOut;		/* Used to get the heck out */
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
+extern Boolean		Restarting;		/* Are we restarting sysinstall?		*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
 extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
