@@ -149,9 +149,9 @@ cd9660_ihashins(ip)
  */
 static void
 cd9660_ihashrem(ip)
-	register struct iso_node *ip;
+	struct iso_node *ip;
 {
-	register struct iso_node *iq;
+	struct iso_node *iq;
 
 	mtx_lock(&cd9660_ihash_mtx);
 	if ((iq = ip->i_next) != NULL)
@@ -177,7 +177,7 @@ cd9660_inactive(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
-	register struct iso_node *ip = VTOI(vp);
+	struct iso_node *ip = VTOI(vp);
 	int error = 0;
 
 	if (prtactive && vrefcnt(vp) != 0)
@@ -204,8 +204,8 @@ cd9660_reclaim(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct iso_node *ip = VTOI(vp);
+	struct vnode *vp = ap->a_vp;
+	struct iso_node *ip = VTOI(vp);
 
 	if (prtactive && vrefcnt(vp) != 0)
 		vprint("cd9660_reclaim: pushing active", vp);
@@ -262,7 +262,7 @@ cd9660_defattr(isodir, inop, bp, ftype)
 	}
 	if (bp) {
 		ap = (struct iso_extended_attributes *)bp->b_data;
-		
+
 		if (isonum_711(ap->version) == 1) {
 			if (!(ap->perm[0]&0x40))
 				inop->inode.iso_mode |= VEXEC >> 6;
@@ -314,7 +314,7 @@ cd9660_deftstamp(isodir,inop,bp,ftype)
 	}
 	if (bp) {
 		ap = (struct iso_extended_attributes *)bp->b_data;
-		
+
 		if (ftype != ISO_FTYPE_HIGH_SIERRA
 		    && isonum_711(ap->version) == 1) {
 			if (!cd9660_tstamp_conv17(ap->ftime,&inop->inode.iso_atime))
@@ -389,7 +389,7 @@ cd9660_chars2ui(begin,len)
 	int len;
 {
 	u_int rc;
-	
+
 	for (rc = 0; --len >= 0;) {
 		rc *= 10;
 		rc += *begin++ - '0';
@@ -403,7 +403,7 @@ cd9660_tstamp_conv17(pi,pu)
 	struct timespec *pu;
 {
 	u_char buf[7];
-	
+
 	/* year:"0001"-"9999" -> -1900  */
 	buf[0] = cd9660_chars2ui(pi,4) - 1900;
 

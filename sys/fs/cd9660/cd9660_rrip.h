@@ -34,13 +34,13 @@
  *	@(#)cd9660_rrip.h	8.2 (Berkeley) 12/5/94
  * $FreeBSD$
  */
-  
+
 typedef struct {
 	char   type			[ISODCL (  0,    1)];
 	u_char length			[ISODCL (  2,    2)]; /* 711 */
 	u_char version			[ISODCL (  3,    3)];
 } ISO_SUSP_HEADER;
-  
+
 typedef struct {
 	ISO_SUSP_HEADER			h;
 	char mode			[ISODCL (  4,   11)]; /* 733 */
@@ -48,13 +48,13 @@ typedef struct {
 	char uid			[ISODCL ( 20,   27)]; /* 733 */
 	char gid			[ISODCL ( 28,   35)]; /* 733 */
 } ISO_RRIP_ATTR;
-  
+
 typedef struct {
 	ISO_SUSP_HEADER			h;
 	char dev_t_high			[ISODCL (  4,   11)]; /* 733 */
 	char dev_t_low			[ISODCL ( 12,   19)]; /* 733 */
 } ISO_RRIP_DEVICE;
-  
+
 #define	ISO_SUSP_CFLAG_CONTINUE	0x01
 #define	ISO_SUSP_CFLAG_CURRENT	0x02
 #define	ISO_SUSP_CFLAG_PARENT	0x04

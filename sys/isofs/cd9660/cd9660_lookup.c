@@ -90,9 +90,9 @@ cd9660_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	register struct vnode *vdp;	/* vnode for directory being searched */
-	register struct iso_node *dp;	/* inode for directory being searched */
-	register struct iso_mnt *imp;	/* filesystem that directory is in */
+	struct vnode *vdp;		/* vnode for directory being searched */
+	struct iso_node *dp;		/* inode for directory being searched */
+	struct iso_mnt *imp;		/* filesystem that directory is in */
 	struct buf *bp;			/* a buffer of directory entries */
 	struct iso_directory_record *ep = 0;/* the current directory entry */
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
@@ -167,7 +167,7 @@ cd9660_lookup(ap)
 		nchstats.ncs_2passes++;
 	}
 	endsearch = dp->i_size;
-	
+
 searchloop:
 	while (dp->i_offset < endsearch) {
 		/*
@@ -188,7 +188,7 @@ searchloop:
 		 */
 		ep = (struct iso_directory_record *)
 			((char *)bp->b_data + entryoffsetinblock);
-		
+
 		reclen = isonum_711(ep->length);
 		if (reclen == 0) {
 			/* skip to next block, if any */
@@ -204,7 +204,7 @@ searchloop:
 		if (entryoffsetinblock + reclen > imp->logical_block_size)
 			/* entries are not allowed to cross boundaries */
 			break;
-		
+
 		namelen = isonum_711(ep->name_len);
 		isoflags = isonum_711(imp->iso_ftype == ISO_FTYPE_HIGH_SIERRA?
 				      &ep->date[6]: ep->flags);
@@ -212,7 +212,7 @@ searchloop:
 		if (reclen < ISO_DIRECTORY_RECORD_SIZE + namelen)
 			/* illegal entry, stop */
 			break;
-		
+
 		/*
 		 * Check for a name match.
 		 */
@@ -317,7 +317,7 @@ notfound:
 found:
 	if (numdirpasses == 2)
 		nchstats.ncs_pass2++;
-	
+
 	/*
 	 * Found component in pathname.
 	 * If the final component of path name, save information
@@ -408,7 +408,7 @@ cd9660_blkatoff(vp, offset, res, bpp)
 	struct buf **bpp;
 {
 	struct iso_node *ip;
-	register struct iso_mnt *imp;
+	struct iso_mnt *imp;
 	struct buf *bp;
 	daddr_t lbn;
 	int bsize, bshift, error;
