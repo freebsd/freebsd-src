@@ -148,6 +148,7 @@ main(int argc, char **argv)
 		case FTS_DEFAULT:	/* do default */
 		case FTS_F:		/* do regular */
 		case FTS_SL:		/* do symlink */
+		case FTS_SLNONE:	/* do symlink */
 		case FTS_W:		/* do whiteout */
 			if (apply_specs(specs, ftsent, hflag, vflag)) {
 				if (eflag) {
