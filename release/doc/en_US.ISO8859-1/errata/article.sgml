@@ -128,7 +128,20 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No advisories.</para>
+
+    <para>(30 Jan 2004) A bug in &man.mksnap.ffs.8; causes the creation of a
+      filesystem snapshot to reset the flags on the filesystem to
+      their default values.  The possible consequences depend on local
+      usage, but can include disabling extended access control lists
+      or enabling the use of setuid executables stored on an untrusted
+      filesystem.  This bug also affects the &man.dump.8;
+      <option>-L</option> option, which uses &man.mksnap.ffs.8;.  Note
+      that &man.mksnap.ffs.8; is normally only available to the
+      superuser and members of the <groupname>operator</groupname>
+      group.  This bug has been fixed on the &os; &release.current;
+      security fix branch.  For more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>.</para>
+
 ]]>
 
   </sect1>
