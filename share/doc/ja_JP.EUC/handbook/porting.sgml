@@ -1,6 +1,6 @@
-<!-- $Id: porting.sgml,v 1.19 1997/03/11 03:04:03 hanai Exp $ -->
+<!-- $Id: porting.sgml,v 1.1.1.1.2.3 1997/03/15 23:32:52 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.69 -->
+<!-- Original revision: 1.70 -->
 
 <sect1><heading>フリーソフトウェアの移植<label id="porting"></heading>
 
@@ -145,7 +145,12 @@ Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 2.1.6-RELEASE:                   199612
 2.1.7-RELEASE:                   199612
 2.2-RELEASE:                     220000
-3.0-current (1997年2月現在)      300000  (リリースが出る毎に変わります)
+2.2.1-RELEASE:                   220000 (2.2-RELEASE と同じです)
+2.2-STABLE (2.2.1-RELEASE 以後): 220000 (これも同じです)
+2.2-STABLE (texinfo-3.9 以後):   221001
+2.2-STABLE (top 導入以後):       221002
+2.2-RELEASE:                     222000
+3.0-current (1997年5月現在):     300000
 </verb></tscreen>
 	見ての通り, これは年・月というフォーマットになっていましたが,
 	バージョン 2.2 から, より直接的にメジャー/マイナー番号を使う

@@ -1,6 +1,6 @@
-<!-- $Id: mirrors.sgml,v 1.13 1997/03/12 04:25:20 hanai Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.1.1.1.2.1 1997/03/15 23:32:41 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.53 -->
+<!-- Original revision: 1.56 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -149,7 +149,7 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
 <item>
 <url url="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"
 	name="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"><newline>
-	Ï¢ÍíÀè: <url url="jj@sunsite.mff.cuni.cz"
+	Ï¢ÍíÀè: <url url="mailto:jj@sunsite.mff.cuni.cz"
 	name="jj@sunsite.mff.cuni.cz">.
 
 </itemize>
@@ -565,8 +565,8 @@ secure (DES) ¤È eBones (Kerberos) ¤ò
 
 <sect><heading>CTM ¥µ¥¤¥È<label id="mirrors-ctm"></heading>
 
-<p>CTM/FreeBSD ¤Ï°Ê²¼¤Î¥ß¥é¡¼¥µ¥¤¥È¤«¤é anonymous FTP ¤Ë¤è¤Ã¤Æ
-      Æþ¼ê¤Ç¤­¤Þ¤¹. ¤â¤· CTM ¤ò anonymous FTP ¤Ë¤è¤Ã¤Æ¼ê¤Ë¤¤¤ì¤ë¾ì¹ç¤Ï,
+<p><ref id="ctm" name="CTM">/FreeBSD ¤Ï°Ê²¼¤Î¥ß¥é¡¼¥µ¥¤¥È¤«¤é anonymous FTP
+      ¤Ë¤è¤Ã¤ÆÆþ¼ê¤Ç¤­¤Þ¤¹. ¤â¤· CTM ¤ò anonymous FTP ¤Ë¤è¤Ã¤Æ¼ê¤Ë¤¤¤ì¤ë¾ì¹ç¤Ï,
       ¶á¤¯¤Î¥µ¥¤¥È¤òÍøÍÑ¤¹¤ë¤è¤¦¤Ë¤·¤Æ¤¯¤À¤µ¤¤. 
 
 ²¿¤«ÌäÂê¤¬¤¢¤ë¾ì¹ç¤Ï, &a.phk;¤ËÏ¢Íí¤·¤Æ¤¯¤À¤µ¤¤. 
@@ -591,8 +591,8 @@ secure (DES) ¤È eBones (Kerberos) ¤ò
 <tag>¥É¥¤¥Ä, ¥È¥ê¥¨¥ë</tag>
 <itemize>
 <item>
-<url url="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM"
-	name="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM"><newline>
+<url url="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/CTM"
+	name="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/CTM"><newline>
 </itemize>
 
 
@@ -622,7 +622,7 @@ FTP search ¤Ï¥Î¥ë¥¦¥§¡¼¤Î Trondheim ¤Ë¤¢¤ë, ¥Õ¥ê¡¼¤ÎÁÇÀ²¤é¤·¤¤ ¥¢¡¼¥«¥¤¥Ö¥µ¡¼¥Ð¤
 
 <sect><heading>CVSup ¥µ¥¤¥È<label id="mirrors-cvsup"></heading>
 
-<p>FreeBSD ¤Î CVSup ¥µ¡¼¥Ð¤Ï°Ê²¼¤Î¥µ¥¤¥È¤Ç²ÔÆ¯¤·¤Æ¤¤¤Þ¤¹:
+<p>FreeBSD ¤Î <ref id="cvsup" name="CVSup"> ¥µ¡¼¥Ð¤Ï°Ê²¼¤Î¥µ¥¤¥È¤Ç²ÔÆ¯¤·¤Æ¤¤¤Þ¤¹:
 
 <descrip>
 

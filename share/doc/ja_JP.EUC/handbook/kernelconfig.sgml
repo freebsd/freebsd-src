@@ -1,6 +1,6 @@
-<!-- $Id: kernelconfig.sgml,v 1.12 1997/02/25 04:56:24 hanai Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.1.1.1.2.2 1997/03/15 23:32:28 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.27 -->
+<!-- Original revision: 1.28 -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>FreeBSDカーネルのコンフィグレーション <label id="kernelconfig"></heading>
 
@@ -647,8 +647,10 @@
       <sect1><heading>コンソール, バスマウス, Xサーバのサポート</heading>
 
 	<p>2つのタイプのコンソールからどちらか1つを選ぶ必要があります.
-	また X Window System を利用する場合, XSERVERオプションを有効に
-	します. またバスマウスとPS/2マウスのオプションもあります. 
+	標準ではない方の vt220 コンソールを選んだ場合, X Window System
+	を利用するには XSERVER オプションを有効にする必要があります
+	(訳注: sc0 には XSERVER オプション相当の機能が始めから入っています).
+	またバスマウスとPS/2マウスのオプションもあります. 
 	
 	  <descrip>
 
@@ -685,8 +687,9 @@
 
 		<tag>options XSERVER</tag> 
 
-		<p> これは <tt>XFree86</tt> X サーバを動かすのに必要な
-		コードを含めます. 
+		<p> <tt>vt0</tt> コンソールドライバを使う時のみ有効です.
+		これは <tt>vt0</tt> コンソールドライバのもとで
+		<tt>XFree86</tt> X サーバを動かすのに必要なコードを含めます. 
 	   
 	      </descrip>
 

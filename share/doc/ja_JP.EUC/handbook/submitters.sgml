@@ -1,11 +1,11 @@
-<!-- $Id: submitters.sgml,v 1.8 1997/03/03 04:51:24 hanai Exp $ -->
+<!-- $Id: submitters.sgml,v 1.1.1.1.2.2 1997/03/15 23:33:20 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.41 -->
+<!-- Original revision: 1.53 -->
 
 <chapt><heading>FreeBSD への貢献<label id="submitters"></heading>
 
 <p><em>原作: &a.jkh;.</em>
-<p><em>訳: &a.iwasaki;.<newline>27 February 1997.</em>
+<p><em>訳: &a.iwasaki;.<newline>27 April 1997.</em>
 
 <p>あなたも何か FreeBSD のために貢献したくなりましたか? 素晴らしい!
 私たちは常に支援を受ける用意がありますし, FreeBSD は生き残るためにユー
@@ -133,10 +133,10 @@ I/O にはこれが必要 (CD-R ライタ / スキャナ).
 
 <enum>
 <item>DOS エミュレータ (DOS の実行ファイル用) コーディネータ:
-<tt><htmlurl url="mailto:jr@jrw.org" name="J.R. Westmoreland"></tt>
+<tt><url url="mailto:jr@jrw.org" name="J.R. Westmoreland"></tt>
 
 <item>AFS (Andrew ファイルシステム) の FreeBSD への移植 コーディネータ:
-<tt><htmlurl url="mailto:ajones@ctron.com" name="Alexander Seth
+<tt><url url="mailto:ajones@ctron.com" name="Alexander Seth
 Jones"></tt>
 
 <item>MCA サポート?  これは続けるにしても止めてしまうにしても結論を出
@@ -292,7 +292,7 @@ Timer2, Timer0 そしてスピーカサービスを考慮する必要があります.
       メーリングリストに参加すると良いでしょう. 情報については <ref
       id="eresources:mail" name="メーリングリスト"> を参照してください.
 
-      <item>実際のバグ報告は send-pr(1) プログラムか <htmlurl 
+      <item>実際のバグ報告は send-pr(1) プログラムか <url 
       url="http://www.freebsd.org/send-pr.html" name="WEB ベースの 
       send-pr"> を使用して提出してください. これは色々な項目についての
       問い合わせをします. send-pr(1) プログラムの場合は, 単に 
@@ -304,7 +304,7 @@ Timer2, Timer0 そしてスピーカサービスを考慮する必要があります.
       <p>あなたはバグ報告の確認とトラッキング番号をメールで受け取る
       はずです. このトラッキング番号を覚えておき後々の連絡に使用して,
       他の人がその問題の詳細を素早く見つけられるようにしてください.
-      また, <htmlurl url="mailto:bug-followup@freebsd.org" 
+      また, <url url="mailto:bug-followup@freebsd.org" 
       name="bug-followup@freebsd.org"> にサブジェクト行に PR# を付けた
       メールを送って, より詳しい情報を既存のバグ報告に追加することも
       できます.
@@ -554,16 +554,16 @@ FreeBSD がサポートするすべてのコンポーネントのテストラボを設置しよう
 の情報を得てください. 
 
 <item>現在 FreeBSD にサポートされていないハードウェアで, サポートに追
-加して欲しいもの. 私たちがそれらの荷物を受けとる前にそのタスクを引き受け
-てくれる開発者を探す必要があるため, その部品を送る前に &a.core; 
+加して欲しいもの. 私たちが新しいハードウェアを受けとる前にそのタスクを
+引き受けてくれる開発者を探す必要があるため, その部品を送る前に &a.core; 
 にコンタクトを取ってください.
 
 </itemize>
 
 <sect2><heading>インターネットアクセスの寄付</heading>
 
-<p>私たちは常に FTP, WWW や sup の新しいミラーサイトを募集しています. 
-ミラーサイトになりたい場合には <htmlurl url="mailto:admin@FreeBSD.ORG"
+<p>私たちは常に FTP, WWW や cvsup の新しいミラーサイトを募集しています. 
+ミラーサイトになりたい場合には <url url="mailto:admin@FreeBSD.ORG"
 name="the FreeBSD project administrators"> にコンタクトを取って, 詳し
 い情報を手に入れてください.
 
@@ -573,49 +573,122 @@ name="the FreeBSD project administrators"> にコンタクトを取って, 詳し
 感謝の意を表したいと思います. 
 
 <itemize>
-	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
+<item><bf>セントラルサーバプロジェクトへの寄贈者:</bf>
+  <p>次に挙げる個人および企業からは, セントラルサーバマシンのための
+  部品の寄贈を頂いており, それによって <em>freefall.freebsd.org</em> 
+  をリプレースして新たに FreeBSD プロジェクトのセントラルサーバマシンを
+  構築することができました:
+
+  <itemize>
+	<item><url url="mailto:mbarkah@freebsd.org" name="Ade Barkah">
+	と彼の所属する <url url="http://www.hemi.com"
+	name="Hemisphere Online"> は, <bf>Pentium Pro (P6) 200Mhz CPU</bf>
+	を寄贈してくださいました.
+
+	<item><url url="http://www.asacomputers.com" name="ASA Computers">
+	は, <bf>Tyan 1662 マザーボード</bf> を寄贈してくださいました.
+
+	<item><url url="http://www.via.net" name="ViaNet Communications">
+	の <url url="mailto:joe@via.net" name="Joe McGuckin"> は,
+	<bf>Kingston イーサネットコントローラ</bf>を寄贈してくださいました.
+
+	<item><url url="mailto:jack@diamond.xtalwind.net"
+	name="Jack O'Neill"> は, <bf>NCR 53C875 SCSI コントローラカード</bf>
+	を寄贈してくださいました.
+
+	<item><url url="http://www.Alameda.net" name="Alameda Networks"> の
+	<url url="mailto:ulf@Alameda.net" name="Ulf Zimmermann"> は,
+	<bf>128MB のメモリ</bf>, そして <bf>4 GB のディスクドライブと匡体</bf>
+	を寄贈してくださいました.
+   </itemize>
+
+<item><bf>直接的な資金提供:</bf>
+  <p>次に挙げる個人および企業からは FreeBSD プロジェクトに対する直接的な
+  資金提供を頂いております:
+
+  <itemize>
+	<item><url url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
 	name="Annelise Anderson">
 
-    は, FreeBSD のさらなる開発のための資金を気前良く寄付してくださいま
-    した. 
+	<item><url url="http://www.epilogue.com/" name="Epilogue
+        Technology Corporation">
 
-	</item>
+	<item>Sean Eric Fagan
 
-	<item><htmlurl url="http://www.epilogue.com/" name="Epilogue
-        Technology Corporation"> は, FreeBSD の開発のための資金を気前
-        良く寄付してくださいました. 
+	<item><url url="mailto:gmarco@masternet.it"
+	name="Gianmarco Giovannelli">
 
-        </item>
+	<item><url url="mailto:joeg@truenorth.org" name="Josef C. Grosch">
 
-	<item><htmlurl url="mailto:gmarco@masternet.it" name="Gianmarco
-	Giovannelli"> は, FreeBSD の開発のための資金を気前良く寄付して
-	くださいました.
+	<item><url url="mailto:chuckr@freebsd.org" name="Chuck Robey">
 
-	</item>
+	<item><url url="http://www.imagescape.com" name="Imaginary Landscape, LLC.">
+	の <url url="mailto:ken@stox.sa.enteract.com" name="Kenneth P. Stox">
 
-        <item>日本の<htmlurl url="http://www.iijnet.or.jp/laser5/"
-        name="Laser5"> は, FreeBSD の NEC PC98 への移植である 
-        <em>FreeBSD for PC98</em> CD の販売利益の一部を, 気前良く寄付
-	してくださいました.
+	<item><url url="mailto:dk@dog.farm.org"
+	name="Dmitry S. Kohmanyuk">
 
-        </item>
+        <item>日本の <url url="http://www.iijnet.or.jp/laser5/"
+        name="Laser5"> (FreeBSD の NEC PC98 への移植である 
+        <em>FreeBSD for PC98</em> CD の販売利益の一部より寄付)
+   </itemize>
 
-	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM"> 
-	は, 言い表せないほど多くの寄付をしてくださいました (詳細は<ref
+<item><bf>ハードウェアの寄贈者:</bf>
+  <p>次に挙げる個人および企業からは, テストやデバイスドライバの開発 / サポート
+  のためのハードウェアの寄贈を頂いております:
+
+  <itemize>
+    <item>Walnut Creek CDROM は, ネットワークへのアクセスおよび
+      他のハードウェアリソースの寄贈はいうまでもなく, 開発に使うための
+      Pentium P5-90 と 486/DX2-66 EISA/VL のシステム数台を
+      提供してくださいました.
+
+    <item>TRW Financial Sysytems社は, PC 130台, 68 GB のファイルサーバ 3台,
+      12のイーサネット, ディスクレスコードのデバッグをおこなうための
+      ルータ 2台及び ATM スイッチを提供してくださいました. 
+      また, 彼らは 2, 3人の FreeBSD ハッカーを雇って, FreeBSD に専念させて
+      くださっております. ありがとうございます!
+
+    <item>Dermot McDonnell は, 東芝 XM3401B CD-ROM ドライブを
+      寄贈してくださいました. その CD-ROM ドライブは現在 freefall 
+      で使用されています.
+
+    <item>&a.chuck; は, 実験用のフロッピーテープストリーマを
+      寄付してくださいました.
+
+    <item> Larry Altneu &lt;larry@ALR.COM&gt; と &a.wilko;は,
+      <tt>wt</tt> ドライバを改良するために Wangtek と Archive の
+      QIC-02 テープドライブを提供してくださいました.
+
+    <item>Ernst Winter &lt;ewinter@lobo.muc.de&gt; は, このプロジェクトへ 
+      2.88 MB のフロッピードライブを提供してくださいました.
+      うまくいけば, これでフロッピーディスクドライバを書き直すための
+      プレッシャーが増えるでしょう. ;-)
+
+    <item><url url="mailto:kuku@freebsd.org" name="Christoph Kukulies"> は,
+    IDE CD-ROM ドライバ開発用の FX120 12 倍速 Mitsumi CD-ROM ドライブ
+    を提供してくださいました.
+   </itemize>
+
+<item><bf>特筆すべき寄贈者:</bf>
+  <p>
+  <itemize>
+	<item><url url="http://www.cdrom.com" name="Walnut Creek CDROM">
+	は, 言い表せないほど多くの寄付をしてくださいました (詳細は <ref
 	id="history" name="FreeBSD 小史">を参照). 
-	特に, 私たちのプライマリ開発マシンである
-	<em>freefall.FreeBSD.ORG</em>, 私たちのテストおよびビルドマシン
-	である<em>thud.FreeBSD.ORG</em> で使用しているハードウェアに対し
+	特に, 私たちのもともとのプライマリ開発マシンである
+	<em>freefall.FreeBSD.ORG</em>, テストおよびビルドマシンである
+	<em>thud.FreeBSD.ORG</em> で使用しているハードウェアに対し
 	感謝したいと思います.
-	また彼らには, 数年にわたる色々な貢献者への資金提供や, インターネッ
-	トへの T1 コネクションの無制限使用を提供してもらったという恩義があり
-	ます. 
-	</item>
+	また彼らには, 数年にわたる色々な貢献者への資金提供や, インターネット
+	への T1 コネクションの無制限使用を提供して頂いた恩義があります. </item>
 
-	<item><htmlurl url="http://www.interface-business.de" name="interface
-	business GmbH, Dresden"> は, &a.joerg; を根気良くサポートしてくださいました.
+	<item><url url="http://www.interface-business.de"
+	name="interface business GmbH, Dresden"> は, &a.joerg; を根気よく
+	サポートしてくださいました.
 	彼は本職より FreeBSD の仕事を好みがちであり, 彼個人の接続があまりに
 	遅くなったり途切れたりして仕事にならない時は必ず interface business の 
 	(非常に高価な) EUnet インターネット接続に頼ったものです...
 	</item>
+  </itemize>
 </itemize>

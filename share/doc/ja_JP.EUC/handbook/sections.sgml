@@ -1,6 +1,6 @@
-<!-- $Id: sections.sgml,v 1.8 1997/02/25 04:58:16 hanai Exp $ -->
+<!-- $Id: sections.sgml,v 1.1.1.1.2.3 1997/03/15 23:33:08 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.22 -->
+<!-- Original revision: 1.24 -->
 
 <!-- Entities containing all the pieces of the handbook are -->
 <!-- defined here -->
@@ -49,6 +49,7 @@
 <!ENTITY quotas SYSTEM "quotas.sgml">
 <!ENTITY relnotes SYSTEM "relnotes.sgml">
 <!ENTITY routing SYSTEM "routing.sgml">
+<!ENTITY russian SYSTEM "russian.sgml">
 <!ENTITY serial SYSTEM "serial.sgml">
 <!ENTITY scsi SYSTEM "scsi.sgml">
 <!ENTITY sio SYSTEM "sio.sgml">
@@ -59,6 +60,5 @@
 <!ENTITY submitters SYSTEM "submitters.sgml">
 <!ENTITY sup SYSTEM "sup.sgml">
 <!ENTITY synching SYSTEM "synching.sgml">
-<!ENTITY troubleshooting SYSTEM "troubleshooting.sgml">
 <!ENTITY uart SYSTEM "uart.sgml">
 <!ENTITY userppp SYSTEM "userppp.sgml">

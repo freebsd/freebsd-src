@@ -1,6 +1,6 @@
-<!-- $Id: userppp.sgml,v 1.6 1997/03/15 06:57:56 hanai Exp $ -->
+<!-- $Id: userppp.sgml,v 1.1.1.1.2.1 1997/03/15 23:33:29 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.13 -->
+<!-- Original revision: 1.15 -->
 
 <sect> ユーザ PPP のセットアップ <label id="userppp">
 
@@ -248,7 +248,7 @@ nameserver 158.152.1.65
 10       set timeout 120
 11       set ifaddr x.x.x.x y.y.y.y
 12       delete ALL
-13       add 0 0 HISADDR
+13       add 0 0 y.y.y.y
 14       set openmode active
 </verb></tscreen>
     行番号はファイルには含めないでください. これは説明のためのものです. 
@@ -342,11 +342,14 @@ x.x.x.x:
 <tscreen><verb>
     ifaddr 10.0.1.1/0 10.0.1.2/0
     delete ALL
-    add 0 0 HISADDR
+    add 0 0 10.0.1.2
 </verb></tscreen>
    どちらの IP アドレスに対しても 0 を指定するべきでは「ありません」. 
    もし 0 を指定すると, ppp が正しい初期エントリをルーティングテーブルに
    設定することができなくなるでしょう. 
+
+   <tt>ppp.conf</tt> を読み込んだ時点では, まだ HISADDR マクロは
+   使えないことに注意してください. 
 
    詳細なサンプルについては, <tt>/etc/ppp/ppp.conf.sample</tt> ファイルの 
    pmdemand エントリと <tt>/etc/ppp/ppp.linkup.sample</tt> とを

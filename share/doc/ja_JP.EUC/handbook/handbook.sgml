@@ -1,6 +1,6 @@
-<!-- $Id: handbook.sgml,v 1.1.1.1.2.5 1997/03/17 04:05:03 jkh Exp $ -->
+<!-- $Id: handbook.sgml,v 1.1.1.1.2.6 1997/03/21 06:50:10 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.68 -->
+<!-- Original revision: 1.76 -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
 
@@ -25,7 +25,7 @@
 %sections;
 
 <!-- The currently released version of FreeBSD -->
-<!ENTITY rel.current CDATA "2.2">
+<!ENTITY rel.current CDATA "2.2.2">
 
 ]>
 
@@ -36,11 +36,12 @@
       <author>
 	<name>FreeBSD ドキュメンテーションプロジェクト</name>
       </author>
-      <date>1997年3月</date>
+      <date>1997年5月</date>
 
 <abstract>FreeBSD へようこそ! このハンドブックは<bf>FreeBSD Release
 &rel.current;</bf>のインストールおよび, 日常での使い方について記述したもので, 
 FreeBSD ドキュメンテーションプロジェクトによって編集されています. 
+
 日本語版の作成は FreeBSD 日本語ドキュメンテーションプロジェクトがおこなって
 います. 本書は<bf>現在進行中の作業</bf>であって, 多くの個人の手からなる
 仕事です. 多くのセクションはまだ存在しませんし, いま存在するセクションの
@@ -67,10 +68,9 @@ postscript, HTML などの形式でダウンロードすることもできます.
 
 <!-- ************************************************************ -->
 
-<part><heading>基礎</heading>
+    <part><heading>導入</heading>
 
     <chapt><heading>はじめに</heading>
-
 <p>FreeBSD は, Intel アーキテクチャ (x86) ベースの PC のための 
 4.4BSD-Lite をベースとしたオペレーティングシステムです. 
 FreeBSD の概要については, 
@@ -91,17 +91,14 @@ FreeBSD プロジェクトへの何らかの貢献 (ソースコード, 機器, 資金の提供など)
     &install;
     &basics;
 
-<chapt><heading>アプリケーションのインストール</heading>
-      <sect><heading>* パッケージのインストール</heading>
-        &ports;
-
+    &ports;
 
 <!-- ************************************************************ -->
 
-       <part><heading>システム管理</heading>
+    <part><heading>システム管理</heading>
 
-&kernelconfig;
-    <chapt><heading>ユーザ, グループ, セキュリティ</heading>
+    &kernelconfig;
+    <chapt><heading>セキュリティ</heading>
       &crypt;
       &skey;
       &kerberos;
@@ -116,6 +113,9 @@ FreeBSD プロジェクトへの何らかの貢献 (ソースコード, 機器, 資金の提供など)
     から提供されるドキュメントを参考にしてください. 
 
     &hw;
+
+    <chapt><heading>ローカル化<label id="l10n"></heading>
+      &russian;
 
 <!-- ************************************************************ -->
 
@@ -145,7 +145,6 @@ PPP 接続には, 2 種類の方法が提供されています:
       &routing;
       &nfs;
       &diskless;
-      <sect><heading>* イエローページ/NIS</heading>
       &isdn;
 
     &mail;
@@ -153,13 +152,25 @@ PPP 接続には, 2 種類の方法が提供されています:
 <!-- ************************************************************ -->
 
     <part><heading>さらに進んだ話題</heading>
-    &current;
-    &stable;
-    &synching;
+    <chapt><heading>開発の最前線: FreeBSD-current と FreeBSD-stable</heading>
+    <p>あるリリースから次のリリースまでの期間にも, FreeBSD の開発は
+    休みなく続けられています. この開発の最前線に興味を持っている人のために, 
+    手元のシステムを最新の開発ツリーに同期させておくための, 
+    とても使いやすい仕掛けが何種類も用意されています. 
+    注意: 開発の最前線は, 誰でもが扱えるという性質のものではありません! 
+    もしもあなたが, 開発途中のシステムを追いかけようか, それともリリース
+    バージョンのどれかを使い続けようかと迷っているのなら, 
+    きっとこの章が参考になるでしょう. </p>
+
+      &current;
+      &stable;
+      &synching; 
+    </chapt>
+
     &submitters;
-    &troubleshooting;
-    &kerneldebug;
+    &policies;
     &kernelopts;
+    &kerneldebug;
     &linuxemu;
     <chapt><heading>FreeBSD の内部</heading>
       &booting;
@@ -175,7 +186,6 @@ PPP 接続には, 2 種類の方法が提供されています:
     &bibliography;
     &eresources;
     &contrib;
-    &policies;
     &pgpkeys;
     &jcontrib;
 

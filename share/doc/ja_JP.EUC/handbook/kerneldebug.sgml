@@ -1,12 +1,12 @@
-<!-- $Id: kerneldebug.sgml,v 1.5 1997/02/25 04:56:32 hanai Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.1.1.1.2.1 1997/03/15 23:32:30 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.12 -->
+<!-- Original revision: 1.14 -->
 
 <chapt><heading>カーネルデバッグ<label id="kerneldebug"></heading>
 
 <p><em>原作 &a.paul; and &a.joerg;</em>
 <p><em>訳: &a.yoshiaki;. <newline>
-	 2 November 1996. </em>
+	 18 March 1997. </em>
 
 <sect><heading>kgdbによるカーネルのクラッシュダンプのデバッグ</heading>
 
@@ -39,7 +39,9 @@
   カーネルデバッグモードで動かしていることを意味します. <tt>gdb</tt>を 
   <tt>-k</tt>オプションをつけて起動するか <tt>kgdb</tt>という名前でリン
   クして起動することでこのモードになります. デフォルトでは このリンク
-  は作られていません.</em>
+  は作られていません. また, このアイデアは GNU関係者たちが彼らのツール
+  を別の名前で呼び出した時に異なった動作をするということを好まない, と
+  いう点で不評です. あるいは将来この機能を廃止することになるかもしれません. </em> 
 
   カーネルを作った時にそのコピーを <tt>kernel.debug</tt>という名前で作
   りましょう. また, オリジナルに対して <tt>strip -d</tt>を実行します.
@@ -408,6 +410,108 @@ char (文字) /string (文字列) で表示します. カンマの後ろの数字はオブジェク
   マニュアルページのプリントアウトを用意しておくことを強くお奨めします.
   カーネルのシングルステップ中にオンラインマニュアルを読むことは難しい
   ということを覚えておいてください.
+
+<sect><heading>リモート GDB を使ったオンラインカーネルデバッグ</heading>
+
+<p>この機能は FreeBSD 2.2 からサポートされました. これは本当にすばらし
+い機能です. 
+
+  GDB はすでにかなり以前より <em/リモートデバッグ/ をサポートしてい
+  ます. これはシリアル回線を使い非常に単純なプロトコルで行ないます. 
+  もちろん, この方法では今までに示した方法とは違い, 2台のマシンが必
+  要になります. 1台はデバッグ環境のためのホストで, すべてのソースとす
+  べてのシンボルを含んだバイナリのコピーを持っています. もう 1台は
+  ターゲットマシンで, 同一のカーネルのコピー (ただしデバッグ情報は 
+  取り除いてあるもの) を単に実行するためのものです. 
+
+  この場合, カーネルのコンフィグレーションは <tt>config -g</tt> で行な
+  い, <em/DDB/ を含めなくてはなりません. そうして通常通りコンパイルし
+  ます. こうして作ったバイナリファイルはデバッグ情報のために非常に大き
+  くなります.  このカーネルをターゲットマシンにコピーして
+  <tt>strip -x</tt> でデバッグシンボルを取り除きます. そして <tt/-d/ 
+  ブートオプションを使いブートします. ターゲットマシンの 1番目の
+  シリアル回線をデバッグホストのいずれかのシリアル回線につないでおきま
+  しょう. それからデバッグ(訳注:ホスト)マシン上で, ターゲットとなって
+  いるカーネルのコンパイルディレクトリで gdb を起動します:
+
+<tscreen><verb>
+% gdb -k kernel
+GDB is free software and you are welcome to distribute copies of it
+ under certain conditions; type "show copying" to see the conditions.
+There is absolutely no warranty for GDB; type "show warranty" for details.
+GDB 4.16 (i386-unknown-freebsd), 
+Copyright 1996 Free Software Foundation, Inc...
+(kgdb) 
+</verb></tscreen>
+
+  リモートデバッグセッションの初期化 (1番目のシリアルポートを使用する
+  ことの設定) を以下のように行ないます. 
+
+<tscreen><verb>
+(kgdb) target remote /dev/cuaa0
+</verb></tscreen>
+
+  次にターゲットマシン (デバイスのプローブ直前で DDB に入っています)
+  で次のように入力します:
+
+<tscreen><verb>
+Debugger("Boot flags requested debugger")
+Stopped at	Debugger+0x35: movb	$0, edata+0x51bc
+db> gdb
+</verb></tscreen>
+
+  DDB は次のような出力を返すでしょう. 
+<tscreen><verb>
+Next trap will enter GDB remote protocol mode
+</verb></tscreen>
+
+  ``gdb''と入力するたびに リモート GDB とローカル DDB が交互に切り替わ
+  ります.  トラップをすぐに起こすために単に ``s'' (step) と入力して下
+  さい.  そうするとホストの GDB はターゲットのカーネルの制御を行なうよ
+  うになります. 
+
+<tscreen><verb>
+Remote debugging using /dev/cuaa0
+Debugger (msg=0xf01b0383 "Boot flags requested debugger")
+    at ../../i386/i386/db_interface.c:257
+(kgdb) 
+</verb></tscreen>
+
+  このセッションではソースコードへのフルアクセスや Emacs の window 上
+  の gud-mode (これは別の Emacs window に自動的にソースコードを表示し
+  ます) で動かすなど, 通常の GDB セッションでできることのほとんどのこ
+  とができます.
+
+<p>リモート GDB は LKM のデバッグも行なうことができます. 最初に LKM を
+ デバッグシンボルを含めた形で作ります. 
+<tscreen><verb>
+# cd /usr/src/lkm/linux
+# make clean; make COPTS=-g
+</verb></tscreen>
+
+ そしてターゲットマシン上でモジュールのこのバージョンをインストールし
+ ます. これをロードしてから, <tt>modstat</tt> を使ってロードされている
+ ことを確認してください:
+<tscreen><verb>
+# linux
+# modstat
+Type     Id Off Loadaddr Size Info     Rev Module Name
+EXEC      0   4 f5109000 001c f510f010   1 linux_mod
+</verb></tscreen>
+
+示されたロードアドレスに 0x20 (a.outのヘッダはおそらくこの大きさでしょ
+う) を加えます. それがモジュールコードの再配置されるアドレスです. 
+GDB の <tt>add-symbol-file</tt> コマンドを使ってデバッガにモジュールの
+情報をつたえます. 
+<tscreen><verb>
+(kgdb) add-symbol-file /usr/src/lkm/linux/linux_mod.o 0xf5109020
+add symbol table from file "/usr/src/lkm/linux/linux_mod.o" at
+text_addr = 0xf5109020?
+(y or n) y
+(kgdb)
+</verb></tscreen>
+
+これで LKM のすべてのシンボルにアクセスできるようになります. 
 
 <sect><heading>コンソールドライバのデバッグ</heading>
 

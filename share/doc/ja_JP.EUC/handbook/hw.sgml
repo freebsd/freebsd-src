@@ -1,6 +1,6 @@
-<!-- $Id: hw.sgml,v 1.11 1997/03/03 04:46:59 hanai Exp $ -->
+<!-- $Id: hw.sgml,v 1.1.1.1.2.2 1997/03/15 23:32:17 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.64 -->
+<!-- Original revision: 1.66 -->
 
 <!--
 <!DOCTYPE chapt PUBLIC "-//FreeBSD//DTD linuxdoc//EN"> -->
@@ -180,7 +180,7 @@ name="FreeBSD POWERED hardwares">
     ることができるのなら, 特に IDE を選ぶ理由はないでしょう.
 
   <sect2><heading>CD-R (CD Recordable: WORM) ドライブ<label
-     id="hw:worm">/heading> 
+     id="hw:worm"></heading> 
     <p>この原稿を書いている時点で, FreeBSDは 3種類の CDRドライブ
     (私は これらすべては結局は Phillips社のドライブであるのではない
     かと考えているのですが) をサポートしています : Phillips CDD 522
@@ -206,7 +206,7 @@ name="FreeBSD POWERED hardwares">
 
   <sect2><heading>ビデオカード<label id="hw:video"></heading>
     <p>もし (米国では) 99USドルをかけて商品の Xサーバを<htmlurl
-    url="http://www.xinside.com/" name="Xi Graphics, Inc. (以前の X
+    url="http://www.xig.com/" name="Xi Graphics, Inc. (以前の X
     Inside, Inc.)">から買うことができる 
     なら間違いなく <htmlurl url="http://www.matrox.com/" name="Matrox">
     <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
@@ -411,7 +411,7 @@ name="FreeBSD POWERED hardwares">
   <sect2><heading>* 486 クラス</heading>
   <sect2><heading>* 386 クラス</heading>
   <sect2><heading>286 クラス</heading>
-    <p>残念ながら, FreeBSDは 80286マシンでは動きません. 現在の巨大なフ
+    <p>FreeBSDは 80286マシンでは動きません. 現在の巨大なフ
        ルスペックの UNIXをこのようなハードウェアで動かすことはほとんど
        不可能でしょう.
 

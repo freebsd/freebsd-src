@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.13 1997/03/10 03:04:05 hanai Exp $ -->
+<!-- $Id: install.sgml,v 1.1.1.1.2.2 1997/03/15 23:32:19 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.53 -->
 
@@ -130,7 +130,7 @@ Boot:
 	での変更はずっと保持されますので, 立ち上げのたびに設定変更をする必要は
 	なくなりますが, あなたのシステムの性能を高めるために, 
 	カスタムカーネルを作るのが好ましいでしょう. カスタムカーネルの作成に関しては, 
-	<ref id="kernelconfig" name="FreeBSD カーネルのコンフィクレーション">
+	<ref id="kernelconfig" name="FreeBSD カーネルのコンフィグレーション">
 	の章をご覧ください. 
 
     <sect><heading>サポートされている設定一覧<label id="install:hw"></heading>
@@ -234,7 +234,7 @@ Boot:
 
 	    <item>DEC EtherWORKS III ネットワークインタフェースカード (DE203, DE204, DE205)
 	    <item>DEC EtherWORKS II ネットワークインタフェースカード (DE200, DE201, DE202, DE422)
-	    <item>DEC DC21140/DC21141/DC21140 ベースのネットワークインタフェースカード:
+	    <item>DEC DC21040/DC21041/DC21140 ベースのネットワークインタフェースカード:
 		<itemize>
 		<item>ASUS		PCI-L101-TB
 		<item>Accton		ENI1203

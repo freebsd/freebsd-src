@@ -1,4 +1,4 @@
-<!-- $Id: jmembers.sgml,v 1.7 1997/03/03 04:56:31 hanai Exp $ -->
+<!-- $Id: jmembers.sgml,v 1.1.1.1.2.3 1997/03/15 23:32:24 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 
 <!-- 
@@ -126,3 +126,7 @@
 <!ENTITY a.candy "¿ÀÅÄÉÒ¹­
   <tt><htmlurl url='mailto:candy@fct.kgc.co.jp' 
   name='&lt;candy@fct.kgc.co.jp&gt;'></tt>">
+
+<!ENTITY a.motoyuki "º£Ìî ¸µÇ·
+  <tt><htmlurl url='mailto:motoyuki@st.rim.or.jp' 
+  name='&lt;motoyuki@st.rim.or.jp&gt;'></tt>">
