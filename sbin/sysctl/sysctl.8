@@ -51,16 +51,17 @@ The
 .Nm
 utility retrieves kernel state and allows processes with appropriate
 privilege to set kernel state.
-The state to be retrieved or set is described using a ``Management
-Information Base'' (``MIB'') style name, described as a dotted set of
+The state to be retrieved or set is described using a
+.Dq Management Information Base
+.Pq Dq MIB
+style name, described as a dotted set of
 components.
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl A
 Equivalent to
-.Fl o
-.Fl a
+.Fl o a
 (for compatibility).
 .It Fl a
 List all the currently available non-opaque values.
@@ -77,25 +78,25 @@ completion.
 To enable completion of variable names in
 .Nm zsh ,
 use the following code:
-.Bd -literal -offset indent -compact
+.Bd -literal -offset indent
 listsysctls () { set -A reply $(sysctl -AN ${1%.*}) }
 compctl -K listsysctls sysctl
 .Ed
 .It Fl n
 Show only variable values, not their names.
 This option is useful for setting shell variables.
-For instance, to save the pagesize in variable psize, use:
-.Bd -literal -offset indent -compact
-set psize=`sysctl -n hw.pagesize`
-.Ed
+For instance, to save the pagesize in variable
+.Va psize ,
+use:
+.Pp
+.Dl "set psize=`sysctl -n hw.pagesize`"
 .It Fl o
 Show opaque variables (which are normally suppressed).
 The format and length are printed, as well as a hex dump of the first
 sixteen bytes of the value.
 .It Fl X
 Equivalent to
-.Fl x
-.Fl a
+.Fl x a
 (for compatibility).
 .It Fl x
 As
@@ -112,8 +113,7 @@ only knows about a couple of opaque types, and will resort to hexdumps
 for the rest.
 The opaque information is much more useful if retrieved by special
 purpose programs such as
-.Nm ps ,
-.Nm systat ,
+.Nm ps , systat ,
 and
 .Nm netstat .
 .Pp
@@ -190,46 +190,42 @@ privilege can change the value.
 .Sh EXAMPLES
 For example, to retrieve the maximum number of processes allowed
 in the system, one would use the following request:
-.Bd -literal -offset indent -compact
-sysctl kern.maxproc
-.Ed
+.Pp
+.Dl "sysctl kern.maxproc"
 .Pp
 To set the maximum number of processes allowed
 per uid to 1000, one would use the following request:
-.Bd -literal -offset indent -compact
-sysctl -w kern.maxprocperuid=1000
-.Ed
+.Pp
+.Dl "sysctl -w kern.maxprocperuid=1000"
 .Pp
 Information about the system clock rate may be obtained with:
-.Bd -literal -offset indent -compact
-sysctl kern.clockrate
-.Ed
+.Pp
+.Dl "sysctl kern.clockrate"
 .Pp
 Information about the load average history may be obtained with:
-.Bd -literal -offset indent -compact
-sysctl vm.loadavg
-.Ed
 .Pp
-More variables than these exist, and the best and likely only place 
+.Dl "sysctl vm.loadavg"
+.Pp
+More variables than these exist, and the best and likely only place
 to search for their deeper meaning is undoubtedly the source where
 they are defined.
 .Sh FILES
-.Bl -tag -width <netinet/icmpXvar.h> -compact
-.It Pa <sys/sysctl.h>
+.Bl -tag -xwidth ".Aq Pa netinet/icmp_var.h" -compact
+.It Aq Pa sys/sysctl.h
 definitions for top level identifiers, second level kernel and hardware
 identifiers, and user level identifiers
-.It Pa <sys/socket.h>
+.It Aq Pa sys/socket.h
 definitions for second level network identifiers
-.It Pa <sys/gmon.h>
+.It Aq Pa sys/gmon.h
 definitions for third level profiling identifiers
-.It Pa <vm/vm_param.h>
+.It Aq Pa vm/vm_param.h
 definitions for second level virtual memory identifiers
-.It Pa <netinet/in.h>
+.It Aq Pa netinet/in.h
 definitions for third level Internet identifiers and
 fourth level IP identifiers
-.It Pa <netinet/icmp_var.h>
+.It Aq Pa netinet/icmp_var.h
 definitions for fourth level ICMP identifiers
-.It Pa <netinet/udp_var.h>
+.It Aq Pa netinet/udp_var.h
 definitions for fourth level UDP identifiers
 .El
 .Sh SEE ALSO
@@ -238,15 +234,15 @@ definitions for fourth level UDP identifiers
 .Sh BUGS
 .Nm Sysctl
 presently exploits an undocumented interface to the kernel
-sysctl facility to traverse the sysctl tree and to retrieve format 
-and name information. 
+sysctl facility to traverse the sysctl tree and to retrieve format
+and name information.
 This correct interface is being thought about for the time being.
 .Sh HISTORY
 .Nm Sysctl
 first appeared in
 .Bx 4.4 .
 .Pp
-In 
+In
 .Fx 2.2 ,
 .Nm
 was significantly remodeled.
