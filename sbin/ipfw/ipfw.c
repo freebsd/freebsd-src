@@ -15,7 +15,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.20 1996/02/24 00:20:56 phk Exp $
+ * $Id: ipfw.c,v 1.21 1996/02/24 13:39:46 phk Exp $
  *
  */
 
@@ -175,7 +175,7 @@ show_ipfw(chain)
 	comma = " ";
 	for (i=0;i<chain->fw_ndp;i++) {
 		printf("%s%d",comma,chain->fw_pts[chain->fw_nsp+i]);
-		if (i==chain->fw_nsp && (chain->fw_flg & IP_FW_F_DRNG))
+		if (i==0 && (chain->fw_flg & IP_FW_F_DRNG))
 			comma = "-";
 		else
 		    comma = ",";
@@ -281,7 +281,7 @@ show_usage(str)
 "\t\tlist [number]\n"
 "\t\tzero [number]\n"
 "\trule:\taction proto src dst extras...\n"
-"\t\taction: {allow|deny|reject|count}[,log]\n"
+"\t\taction: {allow|deny|reject|count} [log]\n"
 "\t\tproto: {ip|tcp|udp|icmp}}\n"
 "\t\tsrc: {any|ip[{/bits|:mask}]} [{port|port-port},...]\n"
 "\t\tdst: {any|ip[{/bits|:mask}]} [{port|port-port},...]\n"
@@ -362,7 +362,7 @@ fill_port(cnt, ptr, off, av)
 		sc = 0;
 		i = 1;
 	}
-	while (1) {
+	while (*av != NULL) {
 		s = strchr(*av,',');
 		if (s) {
 			sc = *s;
