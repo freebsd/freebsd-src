@@ -41,27 +41,27 @@
 #ifndef _SETJMP_H_
 #define _SETJMP_H_
 
-#if defined(hp300) || defined(__hp300__) || defined(luna68k) || defined(__luna68k__)
+#if defined(__hp300__) || defined(__luna68k__)
 #define _JBLEN	17
 #endif
 
-#if defined(i386) || defined(__i386__)
+#if defined(__i386__)
 #define _JBLEN	8
 #endif
 
-#if defined(mips) || defined(__mips__)
+#if defined(__mips__)
 #define _JBLEN	83
 #endif
 
-#if defined(sparc) || defined(__sparc__)
+#if defined(__sparc__)
 #define _JBLEN	10
 #endif
 
-#if defined(tahoe) || defined(__tahoe__)
+#if defined(__tahoe__)
 #define _JBLEN	10
 #endif
 
-#if defined(vax) || defined(__vax__)
+#if defined(__vax__)
 #define _JBLEN	10
 #endif
 
