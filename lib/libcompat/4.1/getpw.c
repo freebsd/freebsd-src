@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1994 Christopher G. Demetriou
+ * Copyright (c) 1995 Joerg Wunsch
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,41 +13,46 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *      This product includes software developed by Christopher G. Demetriou.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
+ *	This product includes software developed by Joerg Wunsch
+ * 4. The name of the developer may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
  */
 
-#ifndef lint
-static char rcsid[] = "$Id: gtty.c,v 1.1.1.1 1994/05/27 10:33:22 rgrimes Exp $";
-#endif /* not lint */
-
-#include <sgtty.h>
-
-/*
- * Get tty modes.
- * This was defined in ioctl_compat.h as:
- *	#define	gtty(fd, tty)	ioctl(fd, TIOCGETP, tty)
- */
-
-#undef gtty
+#include <sys/types.h>
+#include <pwd.h>
+#include <string.h>
+#include <stdio.h>
 
 int
-gtty(fd, tty)
-	int fd;
-	struct sgttyb *tty;
+#if __STDC__
+getpw(uid_t uid, char *buf)
+#else
+getpw(uid, buf)
+     uid_t uid;
+     char *buf;
+#endif
 {
-
-	return (ioctl(fd, TIOCGETP, tty));
+  struct passwd *pw;
+  
+  pw = getpwuid(uid);
+  endpwent();
+  
+  if(pw == 0) return -1;
+  
+  strncpy(buf, pw->pw_name, L_cuserid);
+  return 0;
 }
