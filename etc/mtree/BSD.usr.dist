@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.40.4.13 1997/06/04 10:51:58 asami Exp $
+#	$Id: BSD.usr.dist,v 1.40.4.14 1997/07/16 13:27:14 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -187,8 +187,6 @@
 /set type=dir uname=games gname=bin mode=0755
         games           uname=bin
             atc
-            ..
-            boggle
             ..
             fortune
             ..
