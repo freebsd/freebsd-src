@@ -2081,6 +2081,7 @@ static struct debugtag	dbg_layer[] = {
     {"ACPI_CA_DEBUGGER",	ACPI_CA_DEBUGGER},
     {"ACPI_OS_SERVICES",	ACPI_OS_SERVICES},
     {"ACPI_CA_DISASSEMBLER",	ACPI_CA_DISASSEMBLER},
+    {"ACPI_ALL_COMPONENTS",	ACPI_ALL_COMPONENTS},
 
     {"ACPI_BUS",		ACPI_BUS},
     {"ACPI_SYSTEM",		ACPI_SYSTEM},
@@ -2092,9 +2093,7 @@ static struct debugtag	dbg_layer[] = {
     {"ACPI_PROCESSOR",		ACPI_PROCESSOR},
     {"ACPI_THERMAL",		ACPI_THERMAL},
     {"ACPI_FAN",		ACPI_FAN},
-
     {"ACPI_ALL_DRIVERS",	ACPI_ALL_DRIVERS},
-    {"ACPI_ALL_COMPONENTS",	ACPI_ALL_COMPONENTS},
     {NULL, 0}
 };
 
@@ -2107,6 +2106,7 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_ALL_EXCEPTIONS",	ACPI_LV_ALL_EXCEPTIONS},
 
     /* Trace verbosity level 1 [Standard Trace Level] */
+    {"ACPI_LV_INIT_NAMES",	ACPI_LV_INIT_NAMES},
     {"ACPI_LV_PARSE",		ACPI_LV_PARSE},
     {"ACPI_LV_LOAD",		ACPI_LV_LOAD},
     {"ACPI_LV_DISPATCH",	ACPI_LV_DISPATCH},
@@ -2120,7 +2120,6 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_RESOURCES",	ACPI_LV_RESOURCES},
     {"ACPI_LV_USER_REQUESTS",	ACPI_LV_USER_REQUESTS},
     {"ACPI_LV_PACKAGE",		ACPI_LV_PACKAGE},
-    {"ACPI_LV_INIT_NAMES",	ACPI_LV_INIT_NAMES},
     {"ACPI_LV_VERBOSITY1",	ACPI_LV_VERBOSITY1},
 
     /* Trace verbosity level 2 [Function tracing and memory allocation] */
