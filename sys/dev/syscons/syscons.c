@@ -477,7 +477,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	ttychars(tp);
         /* Use the current setting of the <-- key as default VERASE. */  
         /* If the Delete key is preferable, an stty is necessary     */
-	if (sc != NULL) {
+	if (sc->kbd != NULL) {
 	    key.keynum = KEYCODE_BS;
 	    kbd_ioctl(sc->kbd, GIO_KEYMAPENT, (caddr_t)&key);
             tp->t_cc[VERASE] = key.key.map[0];
