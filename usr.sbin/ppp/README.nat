@@ -1,4 +1,4 @@
-Copyright (c) 2001 Charles Mott <cmott@scientech.com>
+Copyright (c) 2001 Charles Mott <cm@linktel.net>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -272,7 +272,7 @@ host address, outgoing NAT and incoming de-NATing).
 
 5. Authors / Acknowledgements
 
-Charles Mott (cmott@srv.net)   <versions 1.0 - 1.8, 2.0, 2.1>
+Charles Mott (cm@linktel.net)   <versions 1.0 - 1.8, 2.0, 2.1>
 Eivind Eklund (perhaps@yes.no) <versions 1.8b - 1.9, new ppp commands>
 
 Listed below, in chronological order, are individuals who have provided
