@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 
@@ -45,6 +46,19 @@ struct eventhandler_entry_generic
     void			(* func)(void);
 };
 
+/*
+ * Initialize the eventhandler mutex and list.
+ */
+static void
+eventhandler_init(void *dummy __unused)
+{
+    TAILQ_INIT(&eventhandler_lists);
+    mtx_init(&eventhandler_mutex, "eventhandler", MTX_DEF);
+    eventhandler_lists_initted = 1;
+}
+SYSINIT(eventhandlers, SI_SUB_EVENTHANDLER, SI_ORDER_FIRST, eventhandler_init,
+    NULL)
+
 /* 
  * Insertion is O(n) due to the priority scan, but optimises to O(1)
  * if all priorities are identical.
@@ -56,12 +70,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     struct eventhandler_entry_generic	*eg;
     struct eventhandler_entry		*ep;
     
-    /* avoid the need for a SYSINIT just to init the list */
-    if (!eventhandler_lists_initted) {
-	TAILQ_INIT(&eventhandler_lists);
-	mtx_init(&eventhandler_mutex, "eventhandler", MTX_DEF);
-	eventhandler_lists_initted = 1;
-    }
+    KASSERT(eventhandler_lists_initted, ("eventhandler registered too early"));
 
     /* lock the eventhandler lists */
     mtx_enter(&eventhandler_mutex, MTX_DEF);
@@ -86,7 +95,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     }
     if (!(list->el_flags & EHE_INITTED)) {
 	TAILQ_INIT(&list->el_entries);
-	mtx_init(&list->el_mutex, name, MTX_DEF);
+	lockinit(&list->el_lock, PZERO, name, 0, 0);
 	list->el_flags = EHE_INITTED;
     }
     
@@ -101,7 +110,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     eg->ee.ee_priority = priority;
     
     /* sort it into the list */
-    mtx_enter(&list->el_mutex, MTX_DEF);
+    lockmgr(&list->el_lock, LK_EXCLUSIVE, NULL, CURPROC);
     for (ep = TAILQ_FIRST(&list->el_entries);
 	 ep != NULL; 
 	 ep = TAILQ_NEXT(ep, ee_link)) {
@@ -112,7 +121,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     }
     if (ep == NULL)
 	TAILQ_INSERT_TAIL(&list->el_entries, &eg->ee, ee_link);
-    mtx_exit(&list->el_mutex, MTX_DEF);
+    lockmgr(&list->el_lock, LK_RELEASE, NULL, CURPROC);
     mtx_exit(&eventhandler_mutex, MTX_DEF);
     return(&eg->ee);
 }
@@ -123,7 +132,7 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
     struct eventhandler_entry	*ep = tag;
 
     /* XXX insert diagnostic check here? */
-    mtx_enter(&list->el_mutex, MTX_DEF);
+    lockmgr(&list->el_lock, LK_EXCLUSIVE, NULL, CURPROC);
     if (ep != NULL) {
 	/* remove just this entry */
 	TAILQ_REMOVE(&list->el_entries, ep, ee_link);
@@ -136,7 +145,7 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
 	    free(ep, M_EVENTHANDLER);
 	}
     }
-    mtx_exit(&list->el_mutex, MTX_DEF);
+    lockmgr(&list->el_lock, LK_RELEASE, NULL, CURPROC);
 }
 
 struct eventhandler_list *
