@@ -845,7 +845,7 @@ tr_pci_attach(device_t dev)
 	tr->irqid = 0;
 	tr->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &tr->irqid,
 				 RF_ACTIVE | RF_SHAREABLE);
-	if (!tr->irq || snd_setup_intr(dev, tr->irq, INTR_MPSAFE, tr_intr, tr, &tr->ih)) {
+	if (!tr->irq || snd_setup_intr(dev, tr->irq, 0, tr_intr, tr, &tr->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}

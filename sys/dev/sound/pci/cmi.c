@@ -863,7 +863,7 @@ cmi_attach(device_t dev)
 	sc->irq   = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
 					   RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq ||
-	    snd_setup_intr(dev, sc->irq, INTR_MPSAFE, cmi_intr, sc, &sc->ih)) {
+	    snd_setup_intr(dev, sc->irq, 0, cmi_intr, sc, &sc->ih)) {
 		device_printf(dev, "cmi_attach: Unable to map interrupt\n");
 		goto bad;
 	}

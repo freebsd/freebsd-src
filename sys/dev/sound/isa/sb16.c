@@ -803,7 +803,7 @@ sb16_attach(device_t dev)
 		goto no;
 	if (mixer_init(dev, &sb16mix_mixer_class, sb))
 		goto no;
-	if (snd_setup_intr(dev, sb->irq, INTR_MPSAFE, sb_intr, sb, &sb->ih))
+	if (snd_setup_intr(dev, sb->irq, 0, sb_intr, sb, &sb->ih))
 		goto no;
 
 	if (sb->bd_flags & BD_F_SB16X)
