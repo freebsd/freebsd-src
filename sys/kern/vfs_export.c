@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.167 1998/10/25 16:11:49 bde Exp $
+ * $Id: vfs_subr.c,v 1.168 1998/10/25 17:44:52 phk Exp $
  */
 
 /*
@@ -2524,7 +2524,8 @@ retry:
 			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
 				goto retn;
 			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
-		} else if (major(vp->v_rdev) < nblkdev) {
+		} else if (major(vp->v_rdev) < nblkdev &&
+		    bdevsw[major(vp->v_rdev)] != NULL) {
 			/*
 			 * This simply allocates the biggest object possible
 			 * for a VBLK vnode.  This should be fixed, but doesn't
