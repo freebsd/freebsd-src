@@ -277,24 +277,12 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->bio_completed = 0;
 
 	if (g_collectstats) {
-		/* Collect statistics */
-		binuptime(&bp->bio_t0);
-		if (cp->stat->nop == cp->stat->nend) {   
-			/* Consumer is idle */
-			bt = bp->bio_t0;
-			bintime_sub(&bt, &cp->stat->wentidle);
-			bintime_add(&cp->stat->it, &bt);
-			if (pp->stat->nop == pp->stat->nend) {
-				/*
-				 * NB: Provider can only be idle if the
-				 * consumer is but we cannot trust them
-				 * to have gone idle at the same time.
-				 */
-				bt = bp->bio_t0;
-				bintime_sub(&bt, &pp->stat->wentidle);
-				bintime_add(&pp->stat->it, &bt);
-			}
-		}
+		binuptime(&bt);
+		bp->bio_t0 = bt;
+		if (cp->stat->nop == cp->stat->nend)
+			cp->stat->wentbusy = bt; /* Consumer is idle */
+		if (pp->stat->nop == pp->stat->nend)
+			pp->stat->wentbusy = bt; /* Provider is idle */
 	}
 	cp->stat->nop++;
 	pp->stat->nop++;
@@ -311,7 +299,7 @@ g_io_deliver(struct bio *bp, int error)
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	struct bintime t1;
+	struct bintime t1, dt;
 	int idx;
 
 	cp = bp->bio_from;
@@ -326,31 +314,33 @@ g_io_deliver(struct bio *bp, int error)
 	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd, error,
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
 
-	switch (bp->bio_cmd) {
-	case BIO_READ:    idx =  G_STAT_IDX_READ;    break;
-	case BIO_WRITE:   idx =  G_STAT_IDX_WRITE;   break;
-	case BIO_DELETE:  idx =  G_STAT_IDX_DELETE;  break;
-	case BIO_GETATTR: idx =  -1; break;
-	case BIO_SETATTR: idx =  -1; break;
-	default:
-		panic("unknown bio_cmd in g_io_deliver");
-		break;
-	}
-
-	/* Collect statistics */
 	if (g_collectstats) {
+		switch (bp->bio_cmd) {
+		case BIO_READ:    idx =  G_STAT_IDX_READ;    break;
+		case BIO_WRITE:   idx =  G_STAT_IDX_WRITE;   break;
+		case BIO_DELETE:  idx =  G_STAT_IDX_DELETE;  break;
+		case BIO_GETATTR: idx =  -1; break;
+		case BIO_SETATTR: idx =  -1; break;
+		default:
+			panic("unknown bio_cmd in g_io_deliver");
+			break;
+		}
 		binuptime(&t1);
-		pp->stat->wentidle = t1;
-		cp->stat->wentidle = t1;
-
+		/* Raise the "inconsistent" flag for userland */
+		atomic_set_acq_int(&cp->stat->updating, 1);
+		atomic_set_acq_int(&pp->stat->updating, 1);
 		if (idx >= 0) {
-			bintime_sub(&t1, &bp->bio_t0);
-			bintime_add(&cp->stat->ops[idx].dt, &t1);
-			bintime_add(&pp->stat->ops[idx].dt, &t1);
+			/* Account the service time */
+			dt = t1;
+			bintime_sub(&dt, &bp->bio_t0);
+			bintime_add(&cp->stat->ops[idx].dt, &dt);
+			bintime_add(&pp->stat->ops[idx].dt, &dt);
+			/* ... and the metrics */
 			pp->stat->ops[idx].nbyte += bp->bio_completed;
 			cp->stat->ops[idx].nbyte += bp->bio_completed;
 			pp->stat->ops[idx].nop++;
 			cp->stat->ops[idx].nop++;
+			/* ... and any errors */
 			if (error == ENOMEM) {
 				cp->stat->ops[idx].nmem++;
 				pp->stat->ops[idx].nmem++;
@@ -359,10 +349,22 @@ g_io_deliver(struct bio *bp, int error)
 				pp->stat->ops[idx].nerr++;
 			}
 		}
+		/* Account for busy time on the consumer */
+		dt = t1;
+		bintime_sub(&dt, &cp->stat->wentbusy);
+		bintime_add(&cp->stat->bt, &dt);
+		cp->stat->wentbusy = t1;
+		/* Account for busy time on the provider */
+		dt = t1;
+		bintime_sub(&dt, &pp->stat->wentbusy);
+		bintime_add(&pp->stat->bt, &dt);
+		pp->stat->wentbusy = t1;
+		/* Mark the structures as consistent again */
+		atomic_store_rel_int(&cp->stat->updating, 0);
+		atomic_store_rel_int(&pp->stat->updating, 0);
 	}
-
-	pp->stat->nend++; /* In reverse order of g_io_request() */
 	cp->stat->nend++;
+	pp->stat->nend++;
 
 	if (error == ENOMEM) {
 		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);

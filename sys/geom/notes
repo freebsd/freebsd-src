@@ -38,3 +38,51 @@ by cloning all children before I/O is request on any of them.
 Notice that cloning an "extra" child and calling g_std_done() on
 it directly opens another race since the assumption is that
 g_std_done() only is called in the g_up thread.
+
+-----------------------------------------------------------------------
+Statistics collection
+
+Statistics collection can run at three levels controlled by the
+"kern.geom.collectstats" sysctl.
+
+At level zero, only the number of transactions started and completed
+are counted, and this is only because GEOM internally uses the difference
+between these two as sanity checks.
+
+At level one we collect the full statistics.  Higher levels are
+reserved for future use.  Statistics are collected independently
+on both the provider and the consumer, because multiple consumers
+can be active against the same provider at the same time.
+
+The statistics collection falls in two parts:
+
+The first and simpler part consists of g_io_request() timestamping
+the struct bio when the request is first started and g_io_deliver()
+updating the consumer and providers statistics based on fields in
+the bio when it is completed.  There are no concurrency or locking
+concerns in this part.  The statistics collected consists of number
+of requests, number of bytes, number of ENOMEM errors, number of
+other errors and duration of the request for each of the three
+major request types: BIO_READ, BIO_WRITE and BIO_DELETE.
+
+The second part is trying to keep track of the "busy%".
+
+If in g_io_request() we find that there are no outstanding requests,
+(based on the counters for scheduled and completed requests being
+equal), we set a timestamp in the "wentbusy" field.  Since there
+are no outstanding requests, and as long as there is only one thread
+pushing the g_down queue, we cannot possibly conflict with
+g_io_deliver() until we ship the current request down.
+
+In g_io_deliver() we calculate the delta-T from wentbusy and add this
+to the "bt" field, and set wentbusy to the current timestamp.  We
+take care to do this before we increment the "requests completed"
+counter, since that prevents g_io_request() from touching the
+"wentbusy" timestamp concurrently.
+
+The statistics data is made available to userland through the use
+of a special allocator (in geom_stats.c) which through a device
+allows userland to mmap(2) the pages containing the statistics data.
+In order to indicate to userland when the data in a statstics
+structure might be inconsistent, g_io_deliver() atomically sets a
+flag "updating" and resets it when the structure is again consistent.

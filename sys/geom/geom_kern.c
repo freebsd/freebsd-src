@@ -58,7 +58,7 @@ struct sx topology_lock;
 static struct proc *g_up_proc;
 
 int g_debugflags;
-int g_collectstats;
+int g_collectstats = 1;
 
 /*
  * G_UP and G_DOWN are the two threads which push I/O through the
