@@ -67,7 +67,7 @@ char copyright[] =
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 1.5 1995/10/23 16:07:56 peter Exp $";
+static char rcsid[] = "$Id: host.c,v 1.6 1996/01/07 06:21:56 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -217,8 +217,8 @@ main(c, v)
 		_res.nscount = 1;
 		_res.retry = 2;
 	      }
-	if (strcmp (v[1], ".") == 0 ||
-	    !inet_aton(v[1], (struct in_addr *)&addr))
+	if (c > 1 && (strcmp (v[1], ".") == 0 ||
+	    !inet_aton(v[1], (struct in_addr *)&addr)))
 		addr = -1;
 	hp = NULL;
 	h_errno = TRY_AGAIN;
