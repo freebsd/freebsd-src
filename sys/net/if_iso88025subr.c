@@ -246,7 +246,7 @@ iso88025_output(ifp, m, dst, rt0)
 	struct iso88025_header gen_th;
 	struct sockaddr_dl *sdl = NULL;
 	struct rtentry *rt;
-	struct arpcom *ac = (struct arpcom *)ifp;
+	struct arpcom *ac = IFP2AC(ifp);
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
@@ -254,6 +254,8 @@ iso88025_output(ifp, m, dst, rt0)
 		senderr(error);
 #endif
 
+	if (ifp->if_flags & IFF_MONITOR)
+		senderr(ENETDOWN);
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
@@ -429,6 +431,23 @@ iso88025_input(ifp, m)
 	int isr;
 	int mac_hdr_len;
 
+	/*
+	 * Do consistency checks to verify assumptions
+	 * made by code past this point.
+	 */
+	if ((m->m_flags & M_PKTHDR) == 0) {
+		if_printf(ifp, "discard frame w/o packet header\n");
+		ifp->if_ierrors++;
+		m_freem(m);
+		return;
+	}
+	if (m->m_pkthdr.rcvif == NULL) {
+		if_printf(ifp, "discard frame w/o interface pointer\n");
+		ifp->if_ierrors++;
+ 		m_freem(m);
+		return;
+	}
+
 	m = m_pullup(m, ISO88025_HDR_LEN);
 	if (m == NULL) {
 		ifp->if_ierrors++;
@@ -442,6 +461,19 @@ iso88025_input(ifp, m)
 	 */
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		goto dropanyway;
+
+	/*
+	 * Give bpf a chance at the packet.
+	 */
+	BPF_MTAP(ifp, m);
+
+	/*
+	 * Interface marked for monitoring; discard packet.
+	 */
+	if (ifp->if_flags & IFF_MONITOR) {
+		m_freem(m);
+		return;
+	}
 
 #ifdef MAC
 	mac_create_mbuf_from_ifnet(ifp, m);
@@ -582,7 +614,7 @@ iso88025_input(ifp, m)
 			int i;
 			u_char c;
 
-			ac = (struct arpcom *)ifp;
+			ac = IFP2AC(ifp);
 			c = l->llc_dsap;
 
 			if (th->iso88025_shost[0] & TR_RII) { /* XXX */
