@@ -50,10 +50,10 @@ static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 #include "mtree.h"
 #include "extern.h"
 
-extern int crc_total;
+extern long int crc_total;
 
 int ftsoptions = FTS_PHYSICAL;
-int cflag, dflag, eflag, rflag, sflag, uflag;
+int cflag, dflag, eflag, iflag, nflag, rflag, sflag, uflag;
 u_short keys;
 char fullpath[MAXPATHLEN];
 
@@ -71,7 +71,7 @@ main(argc, argv)
 
 	dir = NULL;
 	keys = KEYDEFAULT;
-	while ((ch = getopt(argc, argv, "cdef:K:k:p:rs:ux")) != EOF)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:ux")) != EOF)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
@@ -86,6 +86,9 @@ main(argc, argv)
 			if (!(freopen(optarg, "r", stdin)))
 				err("%s: %s", optarg, strerror(errno));
 			break;
+		case 'i':
+			iflag = 1;
+			break;
 		case 'K':
 			while ((p = strsep(&optarg, " \t,")) != NULL)
 				if (*p != '\0')
@@ -96,6 +99,9 @@ main(argc, argv)
 			while ((p = strsep(&optarg, " \t,")) != NULL)
 				if (*p != '\0')
 					keys |= parsekey(p, NULL);
+			break;
+		case 'n':
+			nflag = 1;
 			break;
 		case 'p':
 			dir = optarg;
@@ -141,6 +147,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: mtree [-cderux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n");
+"usage: mtree [-cdeinrux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n");
 	exit(1);
 }
