@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.96 1998/05/06 22:14:40 julian Exp $
+ *	$Id: autoconf.c,v 1.97 1998/05/12 17:33:58 bde Exp $
  */
 
 /*
@@ -56,9 +56,10 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>
-#include <sys/diskslice.h> /* for BASE_SLICE, MAX_SLICES */
+#include <sys/diskslice.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 
@@ -70,7 +71,7 @@
 #include <machine/smp.h>
 #endif /* APIC_IO */
 
-#include <i386/isa/icu.h> /* For interrupts */
+#include <i386/isa/icu.h>
 
 #include "isa.h"
 #if NISA > 0
@@ -136,7 +137,6 @@ static struct {
 };
 
 static int	find_cdrom_root __P((void));
-
 
 static int
 find_cdrom_root()
@@ -383,7 +383,7 @@ cpu_rootconf()
 	setconf();
 }
 
-#endif
+#endif /* !SLICE */
 
 void
 cpu_dumpconf()
@@ -432,69 +432,73 @@ setdumpdev(dev)
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
-/* Name lookup for bootable majors XXX extend me */
-static char *devname[] = {
-  "wd",
-  "wfd",
 #define FDMAJOR 2
-  "fd",
-  "wt",
-  "sd",
-  "st",
-  "cd",
-};
-
-#define	PARTITIONMASK	0x7
-#define	PARTITIONSHIFT	3
 #define FDUNITSHIFT     6
-#define RAW_PART        2
 
 /*
  * Attempt to find the device from which we were booted.
  * If we can do so, and not instructed not to do so,
- * change rootdev to correspond to the load device.
+ * set rootdevs[] and rootdevnames[] to correspond to the
+ * boot device(s).
  */
 static void
 setroot()
 {
-	int  majdev, mindev, unit, part, adaptor, slice;
-	dev_t orootdev;
-	char *sname, partname[2];
+	int majdev, mindev, unit, slice, part;
+	dev_t newrootdev;
+	char partname[2];
+	char *sname;
 
-/*printf("howto %x bootdev %x ", boothowto, bootdev);*/
-	if (boothowto & RB_DFLTROOT ||
-	    (bootdev & B_MAGICMASK) != (u_long)B_DEVMAGIC)
+	if (boothowto & RB_DFLTROOT || (bootdev & B_MAGICMASK) != B_DEVMAGIC)
 		return;
-	majdev  = B_TYPE(bootdev);
-	adaptor = B_ADAPTOR(bootdev);
-	unit    = B_UNIT(bootdev);
-	slice   = B_SLICE(bootdev);
-	if ((slice < BASE_SLICE) || (slice >= MAX_SLICES))
+	majdev = B_TYPE(bootdev);
+	if (bdevsw[majdev] == NULL)
+		return;
+	unit = B_UNIT(bootdev);
+	slice = B_SLICE(bootdev);
+	if (slice == WHOLE_DISK_SLICE)
 		slice = COMPATIBILITY_SLICE;
-	if (majdev > sizeof(devname) / sizeof(devname[0]))
+	if (slice < 0 || slice >= MAX_SLICES)
 		return;
+
+	/*
+	 * XXX kludge for inconsistent unit numbering and lack of slice
+	 * support for floppies.
+	 */
 	if (majdev == FDMAJOR) {
+		slice = COMPATIBILITY_SLICE;
 		part = RAW_PART;
 		mindev = unit << FDUNITSHIFT;
-	}
-	else {
-		part = (bootdev >> B_PARTITIONSHIFT) & B_PARTITIONMASK;
+	} else {
+		part = B_PARTITION(bootdev);
 		mindev = dkmakeminor(unit, slice, part);
 	}
-	orootdev = rootdev;
-	rootdev = makedev(majdev, mindev);
+
+	newrootdev = makedev(majdev, mindev);
+	rootdevs[0] = newrootdev;
+	sname = dsname(bdevsw[majdev]->d_name, unit, slice, part, partname);
+	rootdevnames[0] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
+	sprintf(rootdevnames[0], "%s%s", sname, partname);
+
 	/*
-	 * If the original rootdev is the same as the one
-	 * just calculated modulo the slice number, don't print an otherwise
-	 * confusing diagnostic.
+	 * For properly dangerously dedicated disks (ones with a historical
+	 * bogus partition table), the boot blocks will give slice = 4, but
+	 * the kernel will only provide the compatibility slice since it
+	 * knows that slice 4 is not a real slice.  Arrange to try mounting
+	 * the compatibility slice as root if mounting the slice passed by
+	 * the boot blocks fails.  This handles the dangerously dedicated
+	 * case and perhaps others.
 	 */
-	if ((rootdev & ~0xff0000) == (orootdev & ~0xff0000))
+	if (slice == COMPATIBILITY_SLICE)
 		return;
-	sname = dsname(devname[majdev], unit, slice, part, partname);
-	printf("changing root device to %s%s\n", sname, partname);
+	slice = COMPATIBILITY_SLICE;
+	rootdevs[1] = dkmodslice(newrootdev, slice);
+	sname = dsname(bdevsw[majdev]->d_name, unit, slice, part, partname);
+	rootdevnames[1] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
+	sprintf(rootdevnames[1], "%s%s", sname, partname);
 }
 
-#endif
+#endif /* !SLICE */
 
 static int
 sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
