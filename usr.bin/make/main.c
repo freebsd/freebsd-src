@@ -455,10 +455,6 @@ main(argc, argv)
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
 	struct stat sa;
 	char *p, *p1, *path, *pathp;
-#ifdef WANT_ENV_PWD
-	struct stat sb;
-	char *pwd;
-#endif
 	char mdpath[MAXPATHLEN];
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
@@ -491,7 +487,7 @@ main(argc, argv)
 	}
 #endif
 	/*
-	 * Find where we are and take care of PWD for the automounter...
+	 * Find where we are...
 	 * All this code is so that we know where we are when we start up
 	 * on a different machine with pmake.
 	 */
@@ -501,14 +497,6 @@ main(argc, argv)
 
 	if (stat(curdir, &sa) == -1)
 	    err(2, "%s", curdir);
-
-#ifdef WANT_ENV_PWD
-	if ((pwd = getenv("PWD")) != NULL) {
-	    if (stat(pwd, &sb) == 0 && sa.st_ino == sb.st_ino &&
-		sa.st_dev == sb.st_dev)
-		(void) strcpy(curdir, pwd);
-	}
-#endif
 
 #if defined(__i386__) && defined(__FreeBSD_version) && \
     __FreeBSD_version > 300003
@@ -617,10 +605,6 @@ main(argc, argv)
 		if (!(objdir = chdir_verify_path(mdpath, obpath)))
 			objdir = curdir;
 	}
-
-#ifdef WANT_ENV_PWD
-	setenv("PWD", objdir, 1);
-#endif
 
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
