@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.37 1995/02/22 01:11:36 ache Exp $
+ *	$Id: mcd.c,v 1.38 1995/02/22 02:12:10 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -210,7 +210,7 @@ struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 #define RDELAY_WAITREAD	800
 
 #define MIN_DELAY       15
-#define DELAY_GETREPLY  1400000
+#define DELAY_GETREPLY  1500000
 
 static struct kern_devconf kdc_mcd[NMCD] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -1321,6 +1321,9 @@ mcd_read_toc(int unit)
 	if ((rc = mcd_toc_header(unit, &th)) != 0)
 		return rc;
 
+	if (mcd_send(unit, MCD_CMDSTOPAUDIO, MCD_RETRYS) < 0)
+		return EIO;
+
 	if (mcd_setmode(unit, MCD_MD_TOC) != 0)
 		return EIO;
 
@@ -1459,7 +1462,7 @@ mcd_getqchan(int unit, struct mcd_qchninfo *q)
 	if (mcd_get(unit, (char *) q, sizeof(struct mcd_qchninfo)) < 0)
 		return -1;
 	if (cd->debug) {
-		printf("mcd%d: getqchan ctl=%d trk=%d ind=%d ttm=%d:%d.%d dtm=%d:%d.%d\n",
+		printf("mcd%d: getqchan ctrl_adr=0x%x trk=%d ind=%d ttm=%d:%d.%d dtm=%d:%d.%d\n",
 		unit,
 		q->ctrl_adr, bcd2bin(q->trk_no), bcd2bin(q->idx_no),
 		bcd2bin(q->trk_size_msf[0]), bcd2bin(q->trk_size_msf[1]),
@@ -1482,7 +1485,8 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 			sc->address_format,
 			sc->data_format);
 
-	if (sc->address_format != CD_MSF_FORMAT)
+	if (sc->address_format != CD_MSF_FORMAT &&
+	    sc->address_format != CD_LBA_FORMAT)
 		return EINVAL;
 
 	if (sc->data_format != CD_CURRENT_POSITION)
@@ -1495,16 +1499,24 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 		return EIO;
 
 	data.header.audio_status = cd->audio_status;
-	data.what.position.data_format = CD_MSF_FORMAT;
+	data.what.position.data_format = CD_CURRENT_POSITION;
+	data.what.position.addr_type = q.ctrl_adr;
+	data.what.position.control = q.ctrl_adr >> 4;
 	data.what.position.track_number = bcd2bin(q.trk_no);
-	data.what.position.reladdr.msf.unused = 0;
-	data.what.position.reladdr.msf.minute = bcd2bin(q.trk_size_msf[0]);
-	data.what.position.reladdr.msf.second = bcd2bin(q.trk_size_msf[1]);
-	data.what.position.reladdr.msf.frame = bcd2bin(q.trk_size_msf[2]);
-	data.what.position.absaddr.msf.unused = 0;
-	data.what.position.absaddr.msf.minute = bcd2bin(q.hd_pos_msf[0]);
-	data.what.position.absaddr.msf.second = bcd2bin(q.hd_pos_msf[1]);
-	data.what.position.absaddr.msf.frame = bcd2bin(q.hd_pos_msf[2]);
+	data.what.position.index_number = bcd2bin(q.idx_no);
+	if (sc->address_format == CD_MSF_FORMAT) {
+		data.what.position.reladdr.msf.unused = 0;
+		data.what.position.reladdr.msf.minute = bcd2bin(q.trk_size_msf[0]);
+		data.what.position.reladdr.msf.second = bcd2bin(q.trk_size_msf[1]);
+		data.what.position.reladdr.msf.frame = bcd2bin(q.trk_size_msf[2]);
+		data.what.position.absaddr.msf.unused = 0;
+		data.what.position.absaddr.msf.minute = bcd2bin(q.hd_pos_msf[0]);
+		data.what.position.absaddr.msf.second = bcd2bin(q.hd_pos_msf[1]);
+		data.what.position.absaddr.msf.frame = bcd2bin(q.hd_pos_msf[2]);
+	} else if (sc->address_format == CD_LBA_FORMAT) {
+		data.what.position.reladdr.lba = msf2hsg(q.trk_size_msf);
+		data.what.position.absaddr.lba = msf2hsg(q.hd_pos_msf);
+	}
 
 	if (copyout(&data, sc->data, min(sizeof(struct cd_sub_channel_info), sc->data_len))!=0)
 		return EFAULT;
