@@ -96,10 +96,10 @@ struct alias_link *
 FindFragmentPtr(struct in_addr, u_short);
 
 struct alias_link *
-FindPptpIn(struct in_addr, struct in_addr);
+FindProtoIn(struct in_addr, struct in_addr, u_char);
 
 struct alias_link *
-FindPptpOut(struct in_addr, struct in_addr);
+FindProtoOut(struct in_addr, struct in_addr, u_char);
 
 struct alias_link *
 FindUdpTcpIn (struct in_addr, struct in_addr, u_short, u_short, u_char);
