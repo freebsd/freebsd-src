@@ -11,12 +11,14 @@
 
 .MAIN: all
 
-.for target in all clean cleandepend cleandir depend install obj reinstall tags
+.for target in all clean cleandepend cleandir clobber depend install \
+    obj reinstall tags
 ${target}: kernel-${target}
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
 ${target}: modules-${target}
 modules-${target}:
-	cd $S/modules; ${MKMODULESENV} ${MAKE} ${target:reinstall=install}
+	cd $S/modules; ${MKMODULESENV} ${MAKE} \
+	    ${target:S/^reinstall$/install/:S/^clobber$/cleandir/}
 .endif
 .endfor
 
@@ -24,7 +26,9 @@ modules-${target}:
 
 kernel-all: ${KERNEL_KO}
 
-kernel-cleandir:
+kernel-cleandir: kernel-clean
+
+kernel-clobber:
 	find . -maxdepth 1 ! -type d ! -name version -delete
 
 kernel-obj:
