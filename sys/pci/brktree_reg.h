@@ -369,6 +369,7 @@ struct bktr_softc {
     int		alloc_pages;	/* number of pages in bigbuf */
     struct proc	*proc;		/* process to receive raised signal */
     int		signal;		/* signal to send to process */
+    int		clr_on_start;	/* clear cap buf on capture start? */
 #define	METEOR_SIG_MODE_MASK	0xffff0000
 #define	METEOR_SIG_FIELD_MODE	0x00010000
 #define	METEOR_SIG_FRAME_MODE	0x00000000
@@ -451,7 +452,18 @@ struct bktr_softc {
     int                 yclip2;
     int                 max_clip_node;
     bktr_clip_t		clip_list[100];
+    int                 reverse_mute;
+    int                 bt848_tuner;
+    int                 bt848_card;
 };
 
 typedef struct bktr_softc bktr_reg_t;
 typedef struct bktr_softc* bktr_ptr_t;
+
+#define Bt848_MAX_SIGN 16
+
+struct bt848_card_sig {
+  int card;
+  int tuner;
+  u_char signature[Bt848_MAX_SIGN];
+};

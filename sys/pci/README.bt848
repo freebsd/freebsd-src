@@ -1,13 +1,11 @@
 -------------------------------------------------------------------------------
-Recent versions of 3.0-current have the bktr driver built in.
-Older versions of 3.0 and all versions of 2.2 need to have the driver
-files installed by hand.  If you find you have no /sys/pci/brooktree848.c
-file in your source tree, you will need to do the following:
+Recent versions of 3.0-current have the bktr driver built in.  Older versions
+of 3.0 and all versions of 2.2 need to have the driver files installed by hand:
 
 cp ioctl_bt848.h /sys/i386/include/
 cp brktree_reg.h brooktree848.c /sys/pci/
 
-And in /sys/conf/files add:
+In /sys/conf/files add:
 pci/brooktree848.c        optional bktr device-driver
 
 -------------------------------------------------------------------------------
@@ -24,13 +22,10 @@ driver.
 Finally you need to create nodes for the driver:
 
 Create a video device:
-mknod /dev/bktr0 c 92  0
+mknod /dev/bktr0 c 92 0
 
 Create a tuner device:
 mknod /dev/tuner0 c 92 16
-
-Or, if your /dev/MAKEDEV script is up to date (and you can copy the latest
-from /usr/src/etc/etc.i386/MAKEDEV) simply type: cd /dev && ./MAKEDEV bktr0
 
 -------------------------------------------------------------------------------
 The code attempts to auto-probe code to detect card/tuner types.
@@ -59,6 +54,26 @@ Access your tuner ioctl thru your tuner device handle and anything
 which controls the video capture process thru the video device handle.
 
 Certain ioctl()s such as video source are available thru both devices.
+
+-------------------------------------------------------------------------------
+If your tuner does not work properly or is not recognized properly
+try setting the tuner type via or card type:
+sysctl -w hw.bt848.card=<integer> current valid values are 0 to 5 inclusive
+sysctl -w hw.bt848.tuner=<integer> where integer is a value from 1 to 10
+systcl -w hw.bt848.reverse_mute=<1 | 0> to reverse the mute function in the
+                                driver set variable to 1.
+The exact format of the sysctl bt848 variable is:
+unit << 8 | value
+
+unit identifies the pci bt848 board to be affected 0 is the first bt848 
+board, 1 is the second bt848 board.
+value denotes the integer value for tuners is a value from 0 to 10 for
+reversing the mute function of the tuner the value is 1 or 0.
+
+to find out all the bt848 variables:
+sysctl hw.bt848
+
+
 
 -------------------------------------------------------------------------------
 The bt848 driver consists of:

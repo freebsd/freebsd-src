@@ -193,6 +193,11 @@ struct _bktr_clip {
 #define BT848SFMT		_IOW('x', 67, unsigned long )
 #define BT848GFMT		_IOR('x', 67, unsigned long )
 
+/* set clear-buffer-on-start */
+#define BT848SCBUF	_IOW('x', 68, int)
+#define BT848GCBUF	_IOR('x', 68, int)
+
+
 /* Read/Write the BT848's I2C bus directly
  * b7-b0:    data (read/write)
  * b15-b8:   internal peripheral register (write)   
