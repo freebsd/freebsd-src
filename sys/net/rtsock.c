@@ -429,10 +429,10 @@ route_output(m, so)
 				register struct ifaddr *oifa = rt->rt_ifa;
 				if (oifa != ifa) {
 				    if (oifa) {
-				        IFAFREE(oifa);
 					if (oifa->ifa_rtrequest)
 					    oifa->ifa_rtrequest(RTM_DELETE, rt,
 						&info);
+				        IFAFREE(oifa);
 				    }
 				    IFAREF(ifa);
 				    rt->rt_ifa = ifa;
