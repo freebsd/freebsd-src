@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.21 1998/05/01 19:24:24 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.22 1998/05/02 21:57:45 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -123,4 +123,4 @@ extern int datalink_Show(struct cmdargs const *);
 extern int datalink_SetRedial(struct cmdargs const *);
 extern int datalink_SetReconnect(struct cmdargs const *);
 extern const char *datalink_State(struct datalink *);
-extern void datalink_Rename(struct datalink *);
+extern char *datalink_NextName(struct datalink *);

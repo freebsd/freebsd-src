@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.73 1998/05/06 18:49:36 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.74 1998/05/06 18:50:02 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1265,13 +1265,24 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   ndl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, link_fd);
   if (ndl) {
     /* Make sure the name is unique ! */
+    char *oname;
+
+    oname = NULL;
     do {
       for (dl = bundle->links; dl; dl = dl->next)
         if (!strcasecmp(ndl->name, dl->name)) {
-          datalink_Rename(ndl);
-          break;
+          if (oname)
+            free(datalink_NextName(ndl));
+          else
+            oname = datalink_NextName(ndl);
+          break;	/* Keep renaming 'till we have no conflicts */
         }
     } while (dl);
+
+    if (oname) {
+      log_Printf(LogPHASE, "Rename link %s to %s\n", oname, ndl->name);
+      free(oname);
+    }
 
     ndl->next = bundle->links;
     bundle->links = ndl;

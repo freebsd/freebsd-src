@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.54 1998/05/02 21:57:44 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.55 1998/05/06 18:49:39 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1016,11 +1016,11 @@ datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov)
   return link_fd;
 }
 
-void
-datalink_Rename(struct datalink *dl)
+char *
+datalink_NextName(struct datalink *dl)
 {
   int f, n;
-  char *name;
+  char *name, *oname;
 
   n = strlen(dl->name);
   name = (char *)malloc(n+3);
@@ -1029,7 +1029,7 @@ datalink_Rename(struct datalink *dl)
       break;
   n = sprintf(name, "%.*s-", dl->name[f] == '-' ? f : f + 1, dl->name);
   sprintf(name + n, "%d", atoi(dl->name + f + 1) + 1);
-  log_Printf(LogPHASE, "Rename link %s to %s\n", dl->name, name);
-  free(dl->name);
+  oname = dl->name;
   dl->physical->link.name = dl->name = name;
+  return oname;
 }
