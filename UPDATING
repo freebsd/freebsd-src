@@ -62,7 +62,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 
 20010330:
 	fsck has changed the meaning of the pass column in /etc/fstab.
-	Please see the cvs commit to fsck.8 or the fsck.8 man page fora
+	Please see the cvs commit to fsck.8 or the fsck.8 man page for
 	details.  It is unclear if changes to /etc/fstab are necessary.
 
 20010319:
