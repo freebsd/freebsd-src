@@ -43,12 +43,11 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.17 1996/01/16 18:11:24 phk Exp $
+ *	$Id: subr_diskslice.c,v 1.18 1996/01/27 09:34:21 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/buf.h>
-#undef DEVFS /* XXX */
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -262,9 +261,6 @@ void
 dsgone(sspp)
 	struct diskslices **sspp;
 {
-#ifdef DEVFS
-	int	part;
-#endif
 	int	slice;
 	struct diskslice *sp;
 	struct diskslices *ssp;
@@ -786,10 +782,14 @@ free_label(ssp, slice)
 	lp = sp->ds_label;
 #ifdef DEVFS
 	for (part = 0; part < lp->d_npartitions; part++) {
-		if (sp->ds_bdevs[part] != NULL)
+		if (sp->ds_bdevs[part] != NULL) {
 			devfs_remove_dev(sp->ds_bdevs[part]);
-		if (sp->ds_cdevs[part] != NULL)
+			sp->ds_bdevs[part] = NULL;
+		}
+		if (sp->ds_cdevs[part] != NULL) {
 			devfs_remove_dev(sp->ds_cdevs[part]);
+			sp->ds_cdevs[part] = NULL;
+		}
 	}
 #endif
 	free(lp, M_DEVBUF);
