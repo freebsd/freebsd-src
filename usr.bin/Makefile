@@ -213,6 +213,7 @@ SUBDIR+=ar \
 	doscmd \
 	gcore \
 	gprof4 \
+	ncplist \
 	nm \
 	ranlib \
 	sasc \
