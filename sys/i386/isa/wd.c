@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.78 1995/04/30 15:14:16 bde Exp $
+ *	$Id: wd.c,v 1.79 1995/05/08 16:48:23 bde Exp $
  */
 
 /* TODO:
@@ -1297,7 +1297,7 @@ wdsetctlr(struct disk *du)
 		/* obtain parameters */
 		wp = &du->dk_params;
 		if (wp->wdp_heads > 0 && wp->wdp_heads <= 16) {
-			printf("(controller value %lu restored)\n",
+			printf("(controller value %u restored)\n",
 				wp->wdp_heads);
 			du->dk_dd.d_ntracks = wp->wdp_heads;
 		}

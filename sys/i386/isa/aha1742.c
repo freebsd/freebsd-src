@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.30 1995/03/28 07:55:23 bde Exp $
+ *      $Id: aha1742.c,v 1.31 1995/04/12 20:47:34 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -399,7 +399,7 @@ ahb_poll(int unit, int wait)
 		return (EIO);
 	}
 	if (cheat != ahb_ecb_phys_kv(ahb, inl(port + MBOXIN0))) {
-		printf("discarding %x ", inl(port + MBOXIN0));
+		printf("discarding 0x%lx ", inl(port + MBOXIN0));
 		outb(port + G2CNTRL, G2CNTRL_CLEAR_EISA_INT);
 		DELAY(50000);
 		goto retry;
@@ -619,12 +619,14 @@ ahbintr(unit)
 				ahb->immed_ecb = 0;
 				break;
 			case AHB_ASN:	/* for target mode */
-				printf("ahb%d: Unexpected ASN interrupt(%x)\n",
+				printf("ahb%d: "
+				    "Unexpected ASN interrupt(0x%lx)\n",
 				    unit, mboxval);
 				ecb = 0;
 				break;
 			case AHB_HW_ERR:
-				printf("ahb%d: Hardware error interrupt(%x)\n",
+				printf("ahb%d: "
+				    "Hardware error interrupt(0x%lx)\n",
 				    unit, mboxval);
 				ecb = 0;
 				break;
