@@ -250,11 +250,27 @@ struct ata_cmd {
 	} param;
 	struct raid_setup {
 	    int			type;
+#define	AR_RAID0			1
+#define	AR_RAID1			2
+#define	AR_SPAN				4
+
 	    int			total_disks;
 	    int			disks[16];
 	    int			interleave;
 	    int			unit;
 	} raid_setup;
+	struct raid_status {
+	    int			type;
+	    int			total_disks;
+	    int			disks[16];
+	    int			interleave;
+	    int			status;
+#define	AR_READY			1
+#define	AR_DEGRADED			2
+#define	AR_REBUILDING			4
+
+	    int			progress;
+	} raid_status;
 	struct {
 	    int			fan;
 	    int			temp;
