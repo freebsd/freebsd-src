@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000  Nick Sayer
  * All rights reserved.
  *
@@ -22,8 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * spic -- the Sony Programmable I/O Controller
+ */
+
+/* spic -- the Sony Programmable I/O Controller
  *
  * This device exists on most recent Sony laptops. It is the means by which
  * you can watch the Jog Dial and some other functions.

@@ -1,4 +1,4 @@
-/*
+/*-
  *   Copyright (c) 1996 Arne Helme. All rights reserved.
  *   Copyright (c) 1996 Gary Jennejohn. All rights reserved. 
  *   Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
@@ -29,8 +29,9 @@
  *   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *   SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *	isic - I4B Siemens ISDN Chipset Driver for Teles S0/16 and clones
  *	=================================================================
