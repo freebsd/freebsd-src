@@ -93,6 +93,9 @@ moduleInitialize(void)
 	    }
 	}
 	closedir(dirp);
+	msgDebug("Sleeping to allow device discovery...\n");
+	sleep(1);
+	msgDebug("Finished sleeping to allow device discovery\n");
     }
 }
 
