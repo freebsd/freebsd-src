@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)weekly	5.14 (Berkeley) 6/23/91
-#	$Id: $
+#	$Id: weekly,v 1.14 1996/05/12 21:10:34 wosch Exp $
 
 PATH=/bin:/sbin:/usr/sbin:/usr/bin:/usr/libexec
 export PATH
@@ -58,7 +58,7 @@ makewhatis.local "${MANPATH}"
 
 #echo ""
 #echo "Reformatting manual pages:"
-#echo catman "${MANPATH}" | su man
+#echo catman.local "${MANPATH}" | su -m man
 
 echo ""
 echo "Cleaning up kernel database files:"
