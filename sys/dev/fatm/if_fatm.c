@@ -2282,7 +2282,7 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op)
 	sc->open_vccs++;
 
 	error = fatm_load_vc(sc, vc);
-	if (error != NULL) {
+	if (error != 0) {
 		sc->vccs[op->param.vci] = NULL;
 		sc->open_vccs--;
 		goto done;
