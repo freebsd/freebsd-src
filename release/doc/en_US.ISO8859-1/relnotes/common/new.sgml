@@ -104,7 +104,7 @@
 
   <para>Typical release note items
     document recent security advisories issued after
-    &release.prev.historic;,
+    &release.prev;,
     new drivers or hardware support, new commands or options,
     major bug fixes, or contributed software upgrades.  They may also
     list changes to major ports/packages or release engineering
@@ -195,7 +195,7 @@
       is no longer needed when only a USB keyboard is connected.
       &merged;</para>
 
-    <para arch="i386">The &man.cx.4; driver for Cronyx Sigmal
+    <para arch="i386">The &man.cx.4; driver for Cronyx-Sigma
       serial interfaces has been overhauled.  As a part of this
       update, the cxconfig userland configuration utility has been
       replaced by a newer &man.sconfig.8; utility.</para>
@@ -207,7 +207,7 @@
 
     <para>The &man.dcons.4; <quote>dumb console</quote> driver has
       been added to provide a local and remote console.  It can be
-      accessed over Firewire using the &man.dcons.crom.4; driver.  A
+      accessed over FireWire using the &man.dcons.crom.4; driver.  A
       &man.dconschat.8; utility provides user access to &man.dcons.4;
       devices.</para>
 
@@ -228,9 +228,9 @@
       symmetric crypto for the 7955 and 7956 chipsets.
       &merged;</para>
 
-    <para arch="amd64,alpha,i386,ia64,pc98">The &man.puc.4;, 
+    <para arch="amd64,alpha,i386,ia64,pc98">The &man.puc.4;
       PCI Universal Communications driver now supports
-      to connect parallel ports to the &man.ppc.4; driver.</para>
+      connecting parallel ports to the &man.ppc.4; driver.</para>
 
     <para arch="i386,pc98">The &man.safe.4; driver has been added
       to support SafeNet 1141- and 1741-based crypto accelerators.
@@ -250,6 +250,13 @@
       be supported, and systems with Creator3D graphics cards
       (e.g. Ultra 30) can now run
       <application>XFree86</application>.</para>
+
+    <para>The &man.uart.4; driver has been added to support various
+      classes of UART (Universal Asynchronous Receiver/Transmitter)
+      devices.  It is an analog of the &man.sio.4; driver but
+      supports a wider range of devices.  This driver is necessary
+      to support serial ports on certain architectures, such as
+      ia64 and sparc64.</para>
 
     <para>A kernel software watchdog facility has been implemented.
       For more information, see &man.watchdog.4; and
@@ -291,6 +298,10 @@
         Typically these manifested themselves as memory corruption or
         unexplained crashes.</para>
 
+      <para arch="i386">Logical CPUs (with HyperThreading) are
+	now enabled according to BIOS settings (previously, they were
+	disabled by default and had to be enabled explicitly).</para>
+
     </sect3>
 
     <sect3 id="boot">
@@ -324,7 +335,7 @@
 
       <para arch="i386,pc98,sparc64">The &man.harp.4; driver has been added.
         This is a pseudo physical interface driver for HARP, 
-        which attaches to all netgraph ATM interface in the
+        which attaches to all NetGraph ATM interface in the
         system and presents a physical interface to the HARP stack
         for each of these interfaces.</para>
 
@@ -340,13 +351,6 @@
 
       <para>&man.sk.4; now supports SK-9521 V2.0 and 3COM 3C940 based Gigabit
         Ethernet NICs. &merged;</para>
-
-      <para>The &man.uart.4; driver has been added to support various
-	classes of UART (Universal Asynchronous Receiver/Transmitter)
-	devices.  It is an analog of the &man.sio.4; driver but
-	supports a wider range of devices.  This driver is necessary
-	to support serial ports on certain architectures, such as
-	ia64 and sparc64.</para>
 
       <para>A new &man.utopia.4; driver supports 25MBit/sec,
 	155MBit/sec and 622MBit/sec ATM physical layer configuration,
@@ -364,7 +368,7 @@
 	future growth and new features.</para>
 
       <para>The &man.xe.4; driver now supports CE2, CEM28, 
-        and CEM33 cards, and &man.multicast.4; datagram.  Also several
+        and CEM33 cards, and &man.multicast.4; datagrams.  Also several
         bugs in the driver have been fixed.</para>
 
       <para>A number of network drivers have had their interrupt
@@ -393,6 +397,10 @@
       <para>The <literal>IP_ONESBCAST</literal> option has been added
 	to enable undirected &man.ip.4; broadcasts to be sent to
 	specific network interfaces.</para>
+
+      <para>Enabling the <literal>options IPFILTER</literal> feature
+        also requires enabling <literal>options
+        PFIL_HOOKS</literal>.</para>
 
       <para>A bug in &man.ipfw.4; limit rule processing that could
         cause various panics has been fixed.
@@ -448,7 +456,7 @@
         </listitem>
 
         <listitem>
-          <para>A netgraph timeout problem in the &man.ng.hci.4; and
+          <para>A NetGraph timeout problem in the &man.ng.hci.4; and
             &man.ng.l2cap.4; kernel modules, which could cause
             access to a data structure that was already freed,
             has been fixed.</para>
@@ -510,7 +518,7 @@
 	&man.geom.4; providers.</para>
 
       <para>The &man.da.4; driver no longer tries to send 6-byte
-	commands to USB and Firewire devices.  The quirks for these
+	commands to USB and FireWire devices.  The quirks for these
 	devices (which hopefully are now unnecessary) have been
 	disabled; to restore the old behavior, add <literal>options
 	DA_OLD_QUIRKS</literal> to the kernel configuration. &merged;</para>
@@ -601,6 +609,12 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para arch="i386">The last bits of the i386-only, a.out compiler
+      toolchain have been removed.</para>
+
+    <para>&man.acpiconf.8; now supports a <option>-i</option> option
+      to print battery information.</para>
+
     <para>&man.acpidb.8;, an ACPI DSDT debugger, has been
       added.</para>
 
@@ -609,6 +623,10 @@
       on a particular interface.  This option applies to the display
       operations only.  It should be useful on routers with numerous
       network interfaces. &merged;</para>
+
+    <para arch="i386,pc98">The &man.asf.8; utility, which helps load
+      the symbol files from KLDs into a &man.gdb.1; debugging
+      environment, has been added.</para>
 
     <para>The &man.atmconfig.8; program has been added for
       configuration of the ATM drivers and IP-over-ATM
@@ -635,6 +653,15 @@
       directory of &man.fsck.8; is now <literal>0700</literal> instead
       of <literal>01777</literal>. &merged;</para>
 
+    <para>&man.fsck.ffs.8; and &man.newfs.8; now create a
+      <filename>.snap</filename> directory in the root directory of
+      each filesystem, with group <groupname>operator</groupname>.
+      &man.fsck.ffs.8;, &man.mksnap.ffs.8;, and &man.dump.8; will
+      write their filesystem snapshots to this directory.  This change
+      avoids locking access to the root directory of a filesystem
+      during snapshot creation and also helps
+      non-<username>root</username> users create snapshots.</para>
+
     <para>The &man.ffsinfo.8; utility has been updated to understand
       UFS2 filesystems and has been re-enabled.</para>
 
@@ -653,6 +680,13 @@
     <para>&man.ipfw.8; now supports a <option>-n</option> flag
       to test the syntax of commands without actually changing anything.
       &merged;</para>
+
+    <para>&man.kdump.1; now supports a <option>-p</option> option to
+      display only the trace events corresponding to a specific
+      process.</para>
+
+    <para>&man.last.1; now supports a <option>-n</option> flag to
+      limit the number of lines in its output report.</para>
 
     <para>The <filename>libalias</filename> library,
       &man.natd.8;, and &man.ppp.8; now support Cisco Skinny Station protocol,
@@ -675,6 +709,11 @@
 
     <para arch="i386,ia64">The <filename>libthr</filename> 1:1
       threading library is now built by default.</para>
+
+    <para><filename>libwrap</filename> and &man.tcpdchk.8; are now
+      configured to support the extended
+      <application>tcp_wrappers</application> syntax by
+      default.</para>
 
     <para>The &man.locale.1; utility has been re-implemented and is
       now POSIX-compliant.  A new <option>-m</option> option shows all
@@ -725,10 +764,17 @@
     <para>A bug that &man.rarpd.8; does not recognize removable Ethernet NICs
       has been fixed.</para>
 
+    <para>&man.repquota.8; now supports a <option>-n</option> flag to
+      display users and groups numerically.</para>
+
     <para>&man.rtld.1; now includes <quote>libmap</quote>
       functionality by default; the <varname>WITH_LIBMAP</varname>
       compile knob is unnecessary and has been retired.  More
       information can be found in &man.libmap.conf.5;.</para>
+
+    <para>&man.savecore.8; now supports a <option>-C</option> flag
+      that merely indicates the existence or absence of a coredump
+      file.</para>
 
     <para>The symorder utility has been removed.  It is unnecessary
       now that all kernels use ELF format and there is no a.out format
@@ -747,6 +793,10 @@
     <para>&man.systat.1; now includes displays for IPv6 and ICMPv6
       traffic. &merged;</para>
 
+    <para>&man.uname.1; now supports a <option>-i</option> flag to
+      return the kernel identification.  This name is also available
+      via the <varname>kern.ident</varname> sysctl variable.</para>
+
     <para arch="i386,alpha,amd64,sparc64,pc98">A number of utilities available in <filename>/bin</filename>
       and <filename>/sbin</filename> are now available as a
       statically-linked <quote>crunched</quote> binary that lives in
@@ -758,7 +808,7 @@
       &man.rescue.8;.
       </para>
 
-    <para>Executables in <filename>/bin</filename> and
+    <para>Many executables in <filename>/bin</filename> and
       <filename>/sbin</filename> are now built using dynamic, rather
       than static linking.  This feature brings support for
       loadable PAM and NSS modules to base system utilities located in
@@ -800,15 +850,6 @@
 	  <literal>CPUTYPE=p4</literal> has been removed.</para>
       </note>
       </para>
-
-    <para>The <application>GCC</application> <option>-pthread</option>
-      option, which formerly controlled linking of the threading
-      library, has been removed.  This flag is confusing in the
-      presence of multiple threading libraries (specifically
-      <filename>libc_r</filename>, <filename>libkse</filename>, and
-      <filename>libthr</filename>).  Ports should use the
-      <varname>PTHREAD_LIBS</varname> variable to select the correct
-      threading library.</para>
 
     <para><application>GNU Readline</application> has been updated
       from 4.2 to 4.3.</para>
@@ -887,7 +928,14 @@
   <sect2 id="doc">
     <title>Documentation</title>
 
-    <para></para>
+    <para>To reduce duplication of information (and subsequent
+      difficulty in maintaining consistency), many instances of
+      specific devices supported in the Hardware Notes have been moved
+      to system manual pages.  This project is ongoing as of this
+      release.</para>
+
+    <para>A Turkish (tr_TR.ISO8859-9) translation project has been
+      started.</para>
 
   </sect2>
 
