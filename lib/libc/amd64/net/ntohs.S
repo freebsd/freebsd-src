@@ -47,6 +47,6 @@ __FBSDID("$FreeBSD$");
         .weak CNAME(ntohs)
         .set CNAME(ntohs),CNAME(__ntohs)
 ENTRY(__ntohs)
-	movzwl	4(%esp),%eax
+	movl	%edi,%eax
 	xchgb	%al,%ah
 	ret
