@@ -175,19 +175,20 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	return (object);
 }
 
+/*
+ *	The object must be locked.
+ */
 static void
 vnode_pager_dealloc(object)
 	vm_object_t object;
 {
 	struct vnode *vp = object->handle;
 
-	GIANT_REQUIRED;
 	if (vp == NULL)
 		panic("vnode_pager_dealloc: pager already dealloced");
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	vm_object_pip_wait(object, "vnpdea");
-	VM_OBJECT_UNLOCK(object);
 
 	object->handle = NULL;
 	object->type = OBJT_DEAD;
