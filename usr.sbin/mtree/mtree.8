@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)mtree.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: mtree.8,v 1.11 1997/10/01 06:30:01 charnier Exp $
+.\"	$Id: mtree.8,v 1.12 1998/06/05 14:43:40 peter Exp $
 .\"
 .Dd February 9, 1995
 .Dt MTREE 8
@@ -137,9 +137,6 @@ Ignore any file hierarchy below this file.
 The file group as a numeric value.
 .It Cm gname
 The file group as a symbolic name.
-.It Cm nochange
-Make sure this file or directory exists but otherwise ignore all attributes.
-Ignore any hierarchy below this path.
 .It Cm md5digest
 The MD5 message digest of the file.
 .It Cm mode
@@ -147,6 +144,8 @@ The current file's permissions as a numeric (octal) or symbolic
 value.
 .It Cm nlink
 The number of hard links the file is expected to have.
+.It Cm nochange
+Make sure this file or directory exists but otherwise ignore all attributes.
 .It Cm uid
 The file owner as a numeric value.
 .It Cm uname
