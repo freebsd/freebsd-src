@@ -1527,6 +1527,9 @@ controller	miibus0
 # The `ahc' device provides support for the Adaptec 29/3940(U)(W)
 # and motherboard based AIC7870/AIC7880 adapters.
 #
+# The `amd' device provides support for the AMD 53C974 SCSI host
+# adapter chip as found on devices such as the Tekram DC-390(T).
+#
 # The `ncr' device provides support for the NCR 53C810 and 53C825
 # self-contained SCSI host adapters.
 #
@@ -1680,6 +1683,7 @@ controller	miibus0
 #
 controller	pci0
 controller	ahc1
+controller	amd0
 controller	ncr0
 controller	isp0
 #
