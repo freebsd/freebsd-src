@@ -87,36 +87,7 @@ __weak_reference(ERR_load_RSA_strings_stub, ERR_load_RSA_strings);
 
 #else	/* !PIC */
 
-RSA_METHOD *
-RSA_PKCS1_stub(void)
-{
-#ifdef VERBOSE_STUBS
-    static int whined;
-
-    if (!whined) {
-	fprintf(stderr, "** This program was statically linked without any RSA implemenation!\n\n");
-	whined = 1;
-    }
-#endif
-    return NULL;
-}
-__weak_reference(RSA_PKCS1_stub, RSA_PKCS1);
-__warn_references(RSA_PKCS1_stub, "Using stub RSA glue");
-
-void
-ERR_load_RSA_strings_stub(void)
-{
-#ifdef VERBOSE_STUBS
-    static int whined;
-
-    if (!whined) {
-	fprintf(stderr, "** This program was statically linked without any RSA implemenation!\n\n");
-	whined = 1;
-    }
-#endif
-}
-__weak_reference(ERR_load_RSA_strings_stub, ERR_load_RSA_strings);
-__warn_references(ERR_load_RSA_strings_stub, "Using stub RSA glue");
+/* Sigh, just get your own libs, ld(1) doesn't deal with weaks here */
 
 #endif	/* !PIC */
 #endif	/* NO_RSA */
