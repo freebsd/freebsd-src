@@ -59,7 +59,7 @@
 /*
  * Minimum partition sizes
  */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
+#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || defined(__amd64__)
 #define ROOT_MIN_SIZE			128
 #else
 #define ROOT_MIN_SIZE			118

@@ -54,12 +54,12 @@
 
 /*** Defines ***/
 
-#if defined(__i386__) || defined(__alpha__) || defined(__ia64__)
+#if defined(__i386__) || defined(__alpha__) || defined(__ia64__) || defined(__amd64__)
 #define	WITH_SYSCONS
 #define	WITH_MICE
 #endif
 
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
 #define	WITH_SLICES
 #endif
 
@@ -421,7 +421,7 @@ extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuFixit;		/* Fixit repair menu				*/
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 #ifdef PC98
 extern DMenu		MenuIPLType;		/* Type of IPL to write on the disk		*/
 #else

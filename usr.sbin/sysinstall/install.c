@@ -807,7 +807,7 @@ installFixupBase(dialogMenuItem *self)
 
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
 	    if (!kstat || !OnVTY)
 		fprintf(fp, "# -- sysinstall generated deltas -- #\n");
