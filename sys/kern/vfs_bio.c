@@ -972,7 +972,7 @@ bdwrite(struct buf * bp)
 	 * requesting a sync -- there might not be enough memory to do
 	 * the bmap then...  So, this is important to do.
 	 */
-	if (bp->b_lblkno == bp->b_blkno) {
+	if (bp->b_vp->v_type != VCHR && bp->b_lblkno == bp->b_blkno) {
 		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
 	}
 
