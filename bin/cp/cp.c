@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: cp.c,v 1.15 1998/05/06 06:50:22 charnier Exp $";
+	"$Id: cp.c,v 1.16 1998/05/13 07:25:14 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -257,6 +257,7 @@ copy(argv, type, fts_options)
 	for (rval = 0; (curr = fts_read(ftsp)) != NULL;) {
 		switch (curr->fts_info) {
 		case FTS_NS:
+		case FTS_DNR:
 		case FTS_ERR:
 			warnx("%s: %s",
 			    curr->fts_path, strerror(curr->fts_errno));
