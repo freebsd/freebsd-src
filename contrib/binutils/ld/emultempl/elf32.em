@@ -145,7 +145,7 @@ gld${EMULATION_NAME}_vercheck (s)
 
   soname = bfd_elf_get_dt_soname (s->the_bfd);
   if (soname == NULL)
-    soname = basename (bfd_get_filename (s->the_bfd));
+    soname = lbasename (bfd_get_filename (s->the_bfd));
 
   for (l = global_vercheck_needed; l != NULL; l = l->next)
     {
@@ -227,7 +227,7 @@ gld${EMULATION_NAME}_stat_needed (s)
 
   soname = bfd_elf_get_dt_soname (s->the_bfd);
   if (soname == NULL)
-    soname = basename (s->filename);
+    soname = lbasename (s->filename);
 
   if (strncmp (soname, global_needed->name,
 	       suffix - global_needed->name) == 0)
@@ -332,7 +332,7 @@ cat >>e${EMULATION_NAME}.c <<EOF
     einfo ("%F%P:%B: bfd_stat failed: %E\n", abfd);
 
   /* First strip off everything before the last '/'.  */
-  soname = basename (abfd->filename);
+  soname = lbasename (abfd->filename);
 
   if (trace_file_tries)
     info_msg (_("found %s at %s\n"), soname, name);
