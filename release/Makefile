@@ -303,7 +303,6 @@ rerelease release:
 
 clean:
 	rm -rf boot_crunch release.[0-9]
-	rm -rf ${.OBJDIR}/boot_crunch.conf ${.OBJDIR}/fixit_crunch.conf
 
 # Clean out ${_R} and make the directory structure.
 release.1:
@@ -376,13 +375,12 @@ release.4:
 	mkdir -p ${RD}/crunch
 	export RELEASE_BUILD_FIXIT=noway ; \
 	for j in ${CRUNCH_TARGETS} ; do \
-		sed -e "s:MACHINE:${MACHINE}:" \
-			${.CURDIR}/$${j}_crunch.conf > \
-			${.OBJDIR}/$${j}_crunch.conf && \
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
 		( cd $${j}_crunch && \
-		  crunchgen ${.OBJDIR}/$${j}_crunch.conf && \
+		  ( ( [ -f ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ] && \
+		    crunchgen ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ) || \
+		    ( crunchgen ${.CURDIR}/$${j}_crunch.conf ) ) && \
 		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
 		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
@@ -731,9 +729,15 @@ installCRUNCH:
 		ln -f ${RD}/crunch/${CRUNCH} ${DIR}/${CRUNCH}_crunch ; \
 	fi
 	@chmod 555 ${DIR}/${CRUNCH}_crunch
-	@for i in `crunchgen -l ${.OBJDIR}/${CRUNCH}_crunch.conf` ; do \
-		ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
-	done
+	@if [ -f ${.CURDIR}/${MACHINE}/${CRUNCH}_crunch.conf ] ; then \
+		for i in `crunchgen -l ${.CURDIR}/${MACHINE}/${CRUNCH}_crunch.conf` ; do \
+			ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
+		done \
+	else \
+		for i in `crunchgen -l ${.CURDIR}/${CRUNCH}_crunch.conf` ; do \
+			ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
+		done \
+	fi
 
 #
 # --==## Compile a kernel by name ${KERNEL} ##==--
