@@ -316,7 +316,7 @@ extern	void daemon_uid __P((void));
 extern	void disconnect __P((char *));
 extern	void shell_uid __P((void));
 extern	void unraw __P((void));
-extern	void pwrite __P((int, char *, int));
+extern	void xpwrite __P((int, char *, int));
 extern	int prompt __P((char *, char *, size_t));
 extern	void  consh __P((int));
 extern	void tipabort __P((char *));

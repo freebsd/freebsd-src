@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)acu.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: acu.c,v 1.4 1999/04/04 21:47:11 dt Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -77,7 +77,7 @@ connect()
 
 	if (!DU) {		/* regular connect message */
 		if (CM != NOSTR)
-			pwrite(FD, CM, size(CM));
+			xpwrite(FD, CM, size(CM));
 		logent(value(HOST), "", DV, "call completed");
 		return (NOSTR);
 	}
@@ -112,7 +112,7 @@ connect()
 
 			if ((conflag = (*acu->acu_dialer)(phnum, CU))) {
 				if (CM != NOSTR)
-					pwrite(FD, CM, size(CM));
+					xpwrite(FD, CM, size(CM));
 				logent(value(HOST), phnum, acu->acu_name,
 					"call completed");
 				return (NOSTR);
@@ -150,7 +150,7 @@ connect()
 			if ((conflag = (*acu->acu_dialer)(phnum, CU))) {
 				fclose(fd);
 				if (CM != NOSTR)
-					pwrite(FD, CM, size(CM));
+					xpwrite(FD, CM, size(CM));
 				logent(value(HOST), phnum, acu->acu_name,
 					"call completed");
 				return (NOSTR);

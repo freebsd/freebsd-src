@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: tip.c,v 1.8 1998/06/09 04:28:05 imp Exp $";
+	"$Id: tip.c,v 1.10 1999/04/04 21:47:11 dt Exp $";
 #endif /* not lint */
 
 /*
@@ -87,7 +87,7 @@ char	PNbuf[256];			/* This limits the size of a number */
 
 static void usage __P((void));
 void setparity __P((char *));
-void pwrite __P((int, char *, int));
+void xpwrite __P((int, char *, int));
 char escape __P((void));
 void tipin __P((void));
 int prompt __P((char *, char *, size_t));
@@ -451,7 +451,7 @@ tipin()
 			continue;
 		} else if (gch == '\r') {
 			bol = 1;
-			pwrite(FD, &gch, 1);
+			xpwrite(FD, &gch, 1);
 			if (boolean(value(HALFDUPLEX)))
 				printf("\r\n");
 			continue;
@@ -464,7 +464,7 @@ tipin()
 		bol = any(gch, value(EOL));
 		if (boolean(value(RAISE)) && islower(gch))
 			gch = toupper(gch);
-		pwrite(FD, &gch, 1);
+		xpwrite(FD, &gch, 1);
 		if (boolean(value(HALFDUPLEX)))
 			printf("%c", gch);
 	}
@@ -498,7 +498,7 @@ escape()
 		}
 	/* ESCAPE ESCAPE forces ESCAPE */
 	if (c != gch)
-		pwrite(FD, &c, 1);
+		xpwrite(FD, &c, 1);
 	return (gch);
 }
 
@@ -659,7 +659,7 @@ static int bits8;
  * with the right parity and output it.
  */
 void
-pwrite(fd, buf, n)
+xpwrite(fd, buf, n)
 	int fd;
 	char *buf;
 	register int n;

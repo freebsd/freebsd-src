@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: cmds.c,v 1.7 1998/06/09 04:28:02 imp Exp $";
+	"$Id: cmds.c,v 1.9 1999/04/04 21:47:11 dt Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -212,7 +212,7 @@ xfer(buf, fd, eofchars)
 			return;
 		}
 
-	pwrite(FD, buf, size(buf));
+	xpwrite(FD, buf, size(buf));
 	quit = 0;
 	kill(pid, SIGIOT);
 	read(repdes[0], (char *)&ccc, 1);  /* Wait until read process stops */
@@ -221,7 +221,7 @@ xfer(buf, fd, eofchars)
 	 * finish command
 	 */
 	r = '\r';
-	pwrite(FD, &r, 1);
+	xpwrite(FD, &r, 1);
 	do
 		read(FD, &c, 1);
 	while ((c&0177) != '\n');
@@ -298,7 +298,7 @@ transfer(buf, fd, eofchars)
 			return;
 		}
 
-	pwrite(FD, buf, size(buf));
+	xpwrite(FD, buf, size(buf));
 	quit = 0;
 	kill(pid, SIGIOT);
 	read(repdes[0], (char *)&ccc, 1);  /* Wait until read process stops */
@@ -307,7 +307,7 @@ transfer(buf, fd, eofchars)
 	 * finish command
 	 */
 	r = '\r';
-	pwrite(FD, &r, 1);
+	xpwrite(FD, &r, 1);
 	do
 		read(FD, &c, 1);
 	while ((c&0177) != '\n');
@@ -572,7 +572,7 @@ send(c)
 	int retry = 0;
 
 	cc = c;
-	pwrite(FD, &cc, 1);
+	xpwrite(FD, &cc, 1);
 #ifdef notdef
 	if (number(value(CDELAY)) > 0 && c != '\r')
 		nap(number(value(CDELAY)));
@@ -593,7 +593,7 @@ tryagain:
 		printf("\r\ntimeout error (%s)\r\n", ctrl(c));
 		if (retry++ > 3)
 			return;
-		pwrite(FD, &null, 1); /* poke it */
+		xpwrite(FD, &null, 1); /* poke it */
 		goto tryagain;
 	}
 }
