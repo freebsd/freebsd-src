@@ -97,7 +97,7 @@ struct ums_softc {
 	struct hid_location sc_loc_x, sc_loc_y, sc_loc_z;
 	struct hid_location *sc_loc_btn;
 
-	struct callout_handle	timeout_handle;	/* for spurious button ups */
+	usb_callout_t callout_handle;	/* for spurious button ups */
 
 	int sc_enabled;
 	int sc_disconnected;	/* device is gone */
@@ -470,12 +470,11 @@ ums_intr(xfer, addr, status)
 		 */
 		if (sc->flags & UMS_SPUR_BUT_UP &&
 		    dx == 0 && dy == 0 && dz == 0 && buttons == 0) {
-			usb_timeout(ums_add_to_queue_timeout, (void *) sc,
-				MS_TO_TICKS(50 /*msecs*/), sc->timeout_handle);
+			usb_callout(sc->callout_handle, MS_TO_TICKS(50 /*msecs*/),
+				    ums_add_to_queue_timeout, (void *) sc);
 		} else {
-			usb_untimeout(ums_add_to_queue_timeout, (void *) sc,
-				sc->timeout_handle);
-
+			usb_uncallout(sc->callout_handle,
+				      ums_add_to_queue_timeout, (void *) sc);
 			ums_add_to_queue(sc, dx, dy, dz, buttons);
 		}
 	}
@@ -556,7 +555,7 @@ ums_enable(v)
 	sc->status.button = sc->status.obutton = 0;
 	sc->status.dx = sc->status.dy = sc->status.dz = 0;
 
-	callout_handle_init(&sc->timeout_handle);
+	callout_handle_init((struct callout_handle *)&sc->callout_handle);
 
 	/* Set up interrupt pipe. */
 	err = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr, 
@@ -578,7 +577,7 @@ ums_disable(priv)
 {
 	struct ums_softc *sc = priv;
 
-	usb_untimeout(ums_add_to_queue_timeout, sc, sc->timeout_handle);
+	usb_uncallout(sc->callout_handle, ums_add_to_queue_timeout, sc);
 
 	/* Disable interrupts. */
 	usbd_abort_pipe(sc->sc_intrpipe);

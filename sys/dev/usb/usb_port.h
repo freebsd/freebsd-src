@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_port.h,v 1.15 1999/11/16 12:04:28 augustss Exp $	*/
+/*	$NetBSD: usb_port.h,v 1.23 2000/03/24 22:03:32 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -81,8 +81,10 @@ typedef struct device *device_ptr_t;
 		u_int offs; \
 	} usb_dma_t
 
-#define usb_timeout(f, d, t, h) timeout((f), (d), (t))
-#define usb_untimeout(f, d, h) untimeout((f), (d))
+typedef struct callout usb_callout_t;
+#define usb_callout_init(h) callout_handle_init(&(h))
+#define usb_callout(h, t, f, d) ((h) = timeout((f), (d), (t)))
+#define usb_uncallout(h, f, d) untimeout((f), (d))
 
 #define logprintf printf
 
@@ -203,8 +205,10 @@ typedef struct device device_ptr_t;
 		u_int offs; \
 	} usb_dma_t
 
-#define usb_timeout(f, d, t, h) timeout((f), (d), (t))
-#define usb_untimeout(f, d, h) untimeout((f), (d))
+typedef char usb_callout_t;
+#define usb_callout_init(h)
+#define usb_callout(h, t, f, d) timeout((f), (d), (t))
+#define usb_uncallout(h, f, d) untimeout((f), (d))
 
 #define USB_DECLARE_DRIVER(dname)  \
 int __CONCAT(dname,_match)(struct device *, void *, void *); \
@@ -320,8 +324,10 @@ typedef struct thread *usb_proc_ptr;
 #define	config_pending_incr()
 #define	config_pending_decr()
 
-#define usb_timeout(f, d, t, h) ((h) = timeout((f), (d), (t)))
-#define usb_untimeout(f, d, h) untimeout((f), (d), (h))
+typedef struct callout usb_callout_t;
+#define usb_callout_init(h)     callout_init(&(h), 0)
+#define usb_callout(h, t, f, d) callout_reset(&(h), (t), (f), (d))
+#define usb_uncallout(h, f, d)  callout_stop(&(h))
 
 #define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (s)), 0)
 #define clfree(p) clist_free_cblocks((p))
