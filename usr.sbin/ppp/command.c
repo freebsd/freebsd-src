@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.204 1999/08/02 21:45:35 brian Exp $
+ * $Id: command.c,v 1.205 1999/08/05 10:32:09 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -144,7 +144,7 @@
 #define NEG_VJCOMP	53
 
 const char Version[] = "2.23";
-const char VersionDate[] = "$Date: 1999/08/02 21:45:35 $";
+const char VersionDate[] = "$Date: 1999/08/05 10:32:09 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -478,10 +478,11 @@ ShellCommand(struct cmdargs const *arg, int bg)
                 _PATH_DEVNULL, strerror(errno));
       exit(1);
     }
-    for (i = 0; i < 3; i++)
-      dup2(fd, i);
-
-    fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
+    dup2(fd, STDIN_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    for (i = getdtablesize(); i > STDERR_FILENO; i--)
+      fcntl(i, F_SETFD, 1);
 
     setuid(geteuid());
     if (arg->argc > arg->argn) {
@@ -515,7 +516,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     log_Printf(LogWARN, "exec() of %s failed: %s\n",
               arg->argc > arg->argn ? arg->argv[arg->argn] : shell,
               strerror(errno));
-    exit(255);
+    _exit(255);
   }
 
   if (shpid == (pid_t) - 1)
