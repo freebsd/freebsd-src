@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.44 1998/12/28 23:03:00 msmith Exp $
+ * $Id: kern_shutdown.c,v 1.45 1999/01/30 19:28:30 msmith Exp $
  */
 
 #include "opt_ddb.h"
