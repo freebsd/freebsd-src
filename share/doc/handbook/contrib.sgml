@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.68 1996/04/19 07:44:17 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.69 1996/04/20 00:17:53 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -181,6 +181,7 @@
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
 	  <item>Don Whiteside &lt;dwhite@anshar.shadow.net&gt;
 	  <item>Donald Burr &lt;d_burr@ix.netcom.com&gt;
+	  <item>Doug Ambrisko &lt;ambrisko@ambrisko.roble.com&gt;
 	  <item>Frank Bartels &lt;knarf@camelot.de&gt;
 	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
