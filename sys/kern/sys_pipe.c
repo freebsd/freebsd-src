@@ -213,8 +213,10 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, pipeinit, NULL);
 static void
 pipeinit(void *dummy __unused)
 {
+
 	pipe_zone = uma_zcreate("PIPE", sizeof(struct pipe), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
 }
 
 /*
@@ -234,8 +236,6 @@ pipe(td, uap)
 	struct pipe *rpipe, *wpipe;
 	struct mtx *pmtx;
 	int fd, error;
-	
-	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
 
 	pmtx = malloc(sizeof(*pmtx), M_TEMP, M_WAITOK | M_ZERO);
 	
@@ -361,7 +361,6 @@ pipespace(cpipe, size)
 
 	/* free old resources if we're resizing */
 	pipe_free_kmem(cpipe);
-	cpipe->pipe_buffer.object = object;
 	cpipe->pipe_buffer.buffer = buffer;
 	cpipe->pipe_buffer.size = size;
 	cpipe->pipe_buffer.in = 0;
@@ -388,8 +387,6 @@ pipe_create(cpipep)
 
 	cpipe = *cpipep;
 	
-	/* so pipespace()->pipe_free_kmem() doesn't follow junk pointer */
-	cpipe->pipe_buffer.object = NULL;
 	/*
 	 * protect so pipeclose() doesn't follow a junk pointer
 	 * if pipespace() fails.
