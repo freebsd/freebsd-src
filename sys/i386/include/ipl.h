@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.9 1997/05/31 09:16:36 peter Exp $
+ *	$Id: ipl.h,v 1.1 1997/08/20 19:47:48 smp Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -93,6 +93,9 @@
 extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
 #endif
 extern	unsigned cpl;		/* current priority level mask */
+#ifdef SMP
+extern	unsigned cil;		/* current INTerrupt level mask */
+#endif
 extern	volatile unsigned idelayed;	/* interrupts to become pending */
 extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
 #ifdef notyet /* in <sys/interrupt.h> until pci drivers stop hacking on them */
