@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.c,v 1.6 1995/05/30 07:57:20 rgrimes Exp $
+ *	$Id: db_watch.c,v 1.7 1995/11/24 14:13:42 bde Exp $
  */
 
 /*
@@ -46,16 +46,26 @@
  * Watchpoints.
  */
 
-boolean_t	db_watchpoints_inserted = TRUE;
+static boolean_t	db_watchpoints_inserted = TRUE;
 
 #define	NWATCHPOINTS	100
 struct db_watchpoint	db_watch_table[NWATCHPOINTS];
-db_watchpoint_t		db_next_free_watchpoint = &db_watch_table[0];
-db_watchpoint_t		db_free_watchpoints = 0;
-db_watchpoint_t		db_watchpoint_list = 0;
+static db_watchpoint_t	db_next_free_watchpoint = &db_watch_table[0];
+static db_watchpoint_t	db_free_watchpoints = 0;
+static db_watchpoint_t	db_watchpoint_list = 0;
 
-extern db_watchpoint_t	db_watchpoint_alloc __P((void));
-extern void		db_watchpoint_free __P((db_watchpoint_t watch));
+static db_watchpoint_t	db_watchpoint_alloc __P((void));
+static void		db_watchpoint_free __P((db_watchpoint_t watch));
+static void		db_delete_watchpoint __P((vm_map_t map,
+					db_addr_t addr));
+#ifdef notused
+static boolean_t	db_find_watchpoint __P((vm_map_t map, db_addr_t addr,
+					db_regs_t *regs));
+#endif
+static void		db_list_watchpoints __P((void));
+static void		db_set_watchpoint __P((vm_map_t map, db_addr_t addr,
+				       vm_size_t size));
+
 
 db_watchpoint_t
 db_watchpoint_alloc()
@@ -84,7 +94,7 @@ db_watchpoint_free(watch)
 	db_free_watchpoints = watch;
 }
 
-void
+static void
 db_set_watchpoint(map, addr, size)
 	vm_map_t	map;
 	db_addr_t	addr;
@@ -127,7 +137,7 @@ db_set_watchpoint(map, addr, size)
 	db_watchpoints_inserted = FALSE;
 }
 
-void
+static void
 db_delete_watchpoint(map, addr)
 	vm_map_t	map;
 	db_addr_t	addr;
@@ -149,7 +159,7 @@ db_delete_watchpoint(map, addr)
 	db_printf("Not set.\n");
 }
 
-void
+static void
 db_list_watchpoints()
 {
 	register db_watchpoint_t	watch;
@@ -237,7 +247,8 @@ db_clear_watchpoints()
 	db_watchpoints_inserted = FALSE;
 }
 
-boolean_t
+#ifdef notused
+static boolean_t
 db_find_watchpoint(map, addr, regs)
 	vm_map_t	map;
 	db_addr_t	addr;
@@ -271,3 +282,4 @@ db_find_watchpoint(map, addr, regs)
 
 	return (FALSE);
 }
+#endif

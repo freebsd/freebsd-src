@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.6 1995/05/30 07:56:50 rgrimes Exp $
+ *	$Id: db_break.c,v 1.7 1995/11/24 14:13:31 bde Exp $
  */
 
 /*
@@ -45,11 +45,23 @@
 
 #define	NBREAKPOINTS	100
 struct db_breakpoint	db_break_table[NBREAKPOINTS];
-db_breakpoint_t		db_next_free_breakpoint = &db_break_table[0];
-db_breakpoint_t		db_free_breakpoints = 0;
-db_breakpoint_t		db_breakpoint_list = 0;
+static db_breakpoint_t		db_next_free_breakpoint = &db_break_table[0];
+static db_breakpoint_t		db_free_breakpoints = 0;
+static db_breakpoint_t		db_breakpoint_list = 0;
 
-db_breakpoint_t
+static db_breakpoint_t	db_breakpoint_alloc __P((void));
+static void	db_breakpoint_free __P((db_breakpoint_t bkpt));
+static void	db_delete_breakpoint __P((vm_map_t map, db_addr_t addr));
+static db_breakpoint_t	db_find_breakpoint __P((vm_map_t map, db_addr_t addr));
+static void	db_list_breakpoints __P((void));
+static void	db_set_breakpoint __P((vm_map_t map, db_addr_t addr,
+				       int count));
+#ifdef notused
+static db_breakpoint_t	db_set_temp_breakpoint __P((db_addr_t addr));
+static void	db_delete_temp_breakpoint __P((db_breakpoint_t bkpt));
+#endif
+
+static db_breakpoint_t
 db_breakpoint_alloc()
 {
 	register db_breakpoint_t	bkpt;
@@ -68,7 +80,7 @@ db_breakpoint_alloc()
 	return (bkpt);
 }
 
-void
+static void
 db_breakpoint_free(bkpt)
 	register db_breakpoint_t	bkpt;
 {
@@ -76,7 +88,7 @@ db_breakpoint_free(bkpt)
 	db_free_breakpoints = bkpt;
 }
 
-void
+static void
 db_set_breakpoint(map, addr, count)
 	vm_map_t	map;
 	db_addr_t	addr;
@@ -105,7 +117,7 @@ db_set_breakpoint(map, addr, count)
 	db_breakpoint_list = bkpt;
 }
 
-void
+static void
 db_delete_breakpoint(map, addr)
 	vm_map_t	map;
 	db_addr_t	addr;
@@ -130,7 +142,7 @@ db_delete_breakpoint(map, addr)
 	db_breakpoint_free(bkpt);
 }
 
-db_breakpoint_t
+static db_breakpoint_t
 db_find_breakpoint(map, addr)
 	vm_map_t	map;
 	db_addr_t	addr;
@@ -155,7 +167,7 @@ db_find_breakpoint_here(addr)
     return db_find_breakpoint(db_map_addr(addr), addr);
 }
 
-boolean_t	db_breakpoints_inserted = TRUE;
+static boolean_t	db_breakpoints_inserted = TRUE;
 
 void
 db_set_breakpoints()
@@ -196,12 +208,13 @@ db_clear_breakpoints()
 	}
 }
 
+#ifdef notused
 /*
  * Set a temporary breakpoint.
  * The instruction is changed immediately,
  * so the breakpoint does not have to be on the breakpoint list.
  */
-db_breakpoint_t
+static db_breakpoint_t
 db_set_temp_breakpoint(addr)
 	db_addr_t	addr;
 {
@@ -224,18 +237,19 @@ db_set_temp_breakpoint(addr)
 	return bkpt;
 }
 
-void
+static void
 db_delete_temp_breakpoint(bkpt)
 	db_breakpoint_t	bkpt;
 {
 	db_put_value(bkpt->address, BKPT_SIZE, bkpt->bkpt_inst);
 	db_breakpoint_free(bkpt);
 }
+#endif
 
 /*
  * List breakpoints.
  */
-void
+static void
 db_list_breakpoints()
 {
 	register db_breakpoint_t	bkpt;
