@@ -178,7 +178,13 @@ main(argc, argv)
 	data.data = (u_char *)buf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
-		if(pwd.pw_name[0] == '+') yp_enabled = 1;
+		if(pwd.pw_name[0] == '+') {
+			if(pwd.pw_name[1] && !yp_enabled) {
+				yp_enabled = 1;
+			} else if(!pwd.pw_name[1]) {
+				yp_enabled = -1;
+			}
+		}
 #define	COMPACT(e)	t = e; while (*p++ = *t++);
 		/* Create insecure data. */
 		p = buf;
@@ -230,6 +236,8 @@ main(argc, argv)
 	}
 	/* If YP enabled, set flag. */
 	if(yp_enabled) {
+		buf[0] = yp_enabled + 2;
+		data.size = 1;
 		tbuf[0] = _PW_KEYYPENABLED;
 		key.size = 1;
 		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
@@ -295,12 +303,13 @@ main(argc, argv)
 		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 	}
-
 	/* If YP enabled, set flag. */
 	if(yp_enabled) {
+		buf[0] = yp_enabled + 2;
+		data.size = 1;
 		tbuf[0] = _PW_KEYYPENABLED;
 		key.size = 1;
-		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
+		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 	}
 
