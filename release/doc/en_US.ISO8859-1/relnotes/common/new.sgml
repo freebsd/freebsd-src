@@ -259,7 +259,12 @@
       <listitem>
 	<para>From source code in <filename>/usr/src</filename>.  This
 	  route is more flexible, but requires more disk space, time,
-	  and more technical expertise.  Upgrading from very old
+	  and more technical expertise.  More information can be found
+	  in the <ulink
+	  url="http://www.FreeBSD.org/handbook/makeworld.html"><quote>Using
+	  <command>make world</command></quote></ulink> section of the <ulink
+	  url="http://www.FreeBSD.org/handbook/">FreeBSD
+	  Handbook</ulink>.  Upgrading from very old
 	  versions of &os; may be problematic; in cases like this, it
 	  is usually more effective to perform a binary upgrade or a
 	  complete reinstall.</para>
