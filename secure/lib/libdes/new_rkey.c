@@ -77,7 +77,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: new_rkey.c,v 1.1.1.3 1996/07/29 17:54:29 markm Exp $
+ * $Id$
  */
 
 /* 21-Nov-95 - eay - I've finally put this into libdes, I have made a
@@ -161,9 +161,8 @@ des_new_random_key(new_key)
  *                                     to a truly nasty sequence using system
  *                                     supplied volatile variables.
  */
-/* Name shortened for VMS - there is a macro for the old name */
 void
-des_init_random_num_generator(key)
+des_init_random_number_generator(key)
 	des_cblock *key;
 {
 	/* 64-bit structures */
