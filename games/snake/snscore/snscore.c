@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)snscore.c	8.1 (Berkeley) 7/19/93";
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "pathnames.h"
 
 char *recfile = _PATH_RAWSCORES;

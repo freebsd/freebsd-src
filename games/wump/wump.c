@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)wump.c	8.1 (Berkeley) 5/31/93";
 #include <sys/file.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "pathnames.h"
 
 /* some defines to spec out what our wumpus cave should look like */
