@@ -13,10 +13,11 @@ ttyv1	"/usr/libexec/getty Pc"		cons25	on  secure
 ttyv2	"/usr/libexec/getty Pc"		cons25	on  secure
 ttyv3	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
-ttyd0	"/usr/libexec/getty std.9600"	unknown	off secure
-ttyd1	"/usr/libexec/getty std.9600"	unknown	off secure
-ttyd2	"/usr/libexec/getty std.9600"	unknown	off secure
-ttyd3	"/usr/libexec/getty std.9600"	unknown	off secure
+# The 'dialup' keyword identifies dialin lines to login, fingerd etc.
+ttyd0	"/usr/libexec/getty std.9600"	dialup	off secure
+ttyd1	"/usr/libexec/getty std.9600"	dialup	off secure
+ttyd2	"/usr/libexec/getty std.9600"	dialup	off secure
+ttyd3	"/usr/libexec/getty std.9600"	dialup	off secure
 # Pseudo terminals
 ttyp0	none			network
 ttyp1	none			network
