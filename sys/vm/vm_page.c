@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.115 1999/01/08 17:31:27 eivind Exp $
+ *	$Id: vm_page.c,v 1.116 1999/01/10 01:58:29 eivind Exp $
  */
 
 /*
@@ -323,6 +323,12 @@ vm_page_startup(starta, enda, vaddr)
 	bzero((caddr_t) vm_page_array, page_range * sizeof(struct vm_page));
 	vm_page_array_size = page_range;
 
+	/*
+	 * Construct the free queue(s) in descending order (by physical
+	 * address) so that the first 16MB of physical memory is allocated
+	 * last rather than first.  On large-memory machines, this avoids
+	 * the exhaustion of low physical memory before isa_dmainit has run.
+	 */
 	cnt.v_page_count = 0;
 	cnt.v_free_count = 0;
 	for (i = 0; phys_avail[i + 1] && npages > 0; i += 2) {
@@ -338,7 +344,7 @@ vm_page_startup(starta, enda, vaddr)
 			m->flags = 0;
 			m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
 			m->queue = m->pc + PQ_FREE;
-			TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m, pageq);
+			TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
 			++(*vm_page_queues[m->queue].lcnt);
 			pa += PAGE_SIZE;
 		}
