@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsdefs.h,v 1.15 1998/07/04 22:30:22 julian Exp $
+ * $Id: devfsdefs.h,v 1.16 1998/07/05 23:10:22 julian Exp $
  */
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)
@@ -98,6 +98,7 @@ struct	devnode	/* the equivalent of an INODE */
 {
 	u_short type;
 	int	flags;		/* more inode compatible for now *//*XXXkill*/
+#define	IN_ACCESS		0x0001
 	u_short	mode;		/* basically inode compatible (drwxrwxrwx) */
 	u_short	uid;		/* basically inode compatible  */
 	u_short	gid;		/* basically inode compatible  */
