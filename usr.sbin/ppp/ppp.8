@@ -2351,11 +2351,18 @@ mode.
 These signals tell
 .Nm
 to exit.
+.It USR1
+This signal, tells
+.Nm
+to re-open any existing server socket, dropping all existing diagnostic
+connections.  Sockets that couldn't previously be opened will be retried.
 .It USR2
 This signal, tells
 .Nm
 to close any existing server socket, dropping all existing diagnostic
 connections.
+.Dv SIGUSR1
+can still be used to re-open the socket.
 .El
 .Pp
 .Sh MULTI-LINK PPP
@@ -5141,7 +5148,7 @@ The optimum value is just over twice the MTU value.
 If
 .Ar value
 is unspecified or zero, the default kernel controlled value is used.
-.It set server|socket Ar TcpPort|LocalName|none password Op Ar mask
+.It set server|socket Ar TcpPort|LocalName|none|open|closed Op password Op Ar mask
 This command tells
 .Nm
 to listen on the given socket or
@@ -5152,7 +5159,17 @@ The word
 .Ar none
 instructs
 .Nm
-to close any existing socket.
+to close any existing socket and clear the socket configuration.
+The word
+.Ar open
+instructs
+.Nm
+to attempt to re-open the port.
+The word
+.Ar closed
+instructs
+.Nm
+to close the open port.
 .Pp
 If you wish to specify a local domain socket,
 .Ar LocalName
@@ -5169,7 +5186,7 @@ for details of how to translate TCP port names.
 You must also specify the password that must be entered by the client
 (using the
 .Dq passwd
-command above) when connecting to this socket.
+variable above) when connecting to this socket.
 If the password is
 specified as an empty string, no password is required for connecting clients.
 .Pp
@@ -5194,7 +5211,13 @@ Currently,
 .Xr telnet 1
 can also be used, but link encryption may be implemented in the future, so
 .Xr telnet 1
-should not be relied upon.
+should be avoided.
+.Pp
+Note;
+.Dv SIGUSR1
+and
+.Dv SIGUSR2
+interact with the diagnostic socket.
 .It set speed Ar value
 This sets the speed of the serial device.
 If speed is specified as
