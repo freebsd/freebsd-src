@@ -33,6 +33,7 @@ makeoptions	WERROR=-Wno-error	#XXX: We don't want -Werror just now
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options		PSIM			#GDB PSIM ppc simulator
 
+options         SCHED_4BSD              #4BSD scheduler
 options		INET			#InterNETworking
 options		INET6			#IPv6 communications protocols
 options		FFS			#Berkeley Fast Filesystem
