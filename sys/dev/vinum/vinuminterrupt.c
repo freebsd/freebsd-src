@@ -74,7 +74,7 @@ complete_rqe(struct buf *bp)
 
 #ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_iodone, rqe, ubp);
+	logrq(loginfo_iodone, (union rqinfou) rqe, ubp);
 #endif
     if ((bp->b_flags & B_ERROR) != 0) {			    /* transfer in error */
 	if (bp->b_error != 0)				    /* did it return a number? */
@@ -143,7 +143,7 @@ complete_rqe(struct buf *bp)
 		ubp->b_flags |= B_ERROR;		    /* yes, propagate to user */
 		ubp->b_error = rq->error;
 	    } else					    /* try to recover */
-		queue_daemon_request(daemonrq_ioerror, rq); /* let the daemon complete */
+		queue_daemon_request(daemonrq_ioerror, (union daemoninfo) rq); /* let the daemon complete */
 	} else {
 	    ubp->b_resid = 0;				    /* completed our transfer */
 	    if (rq->isplex == 0)			    /* volume request, */

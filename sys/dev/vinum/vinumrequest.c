@@ -173,7 +173,7 @@ vinumstart(struct buf *bp, int reviveok)
 
 #if VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_user_bp, bp, bp);
+	logrq(loginfo_user_bp, (union rqinfou) bp, bp);
 #endif
 
     /*
@@ -364,7 +364,7 @@ launch_requests(struct request *rq, int reviveok)
     vinum_conf.lastrq = (int) rq;
     vinum_conf.lastbuf = rq->bp;
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_user_bpl, rq->bp, rq->bp);
+	logrq(loginfo_user_bpl, (union rqinfou) rq->bp, rq->bp);
 #endif
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
@@ -393,7 +393,7 @@ launch_requests(struct request *rq, int reviveok)
 			rqe->sdno,
 			rqe->b.b_vp->v_numoutput);
 		if (debug & DEBUG_LASTREQS)
-		    logrq(loginfo_rqe, rqe, rq->bp);
+		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
 		/* fire off the request */
 		s = splbio();
