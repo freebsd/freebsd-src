@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.13 1995/03/19 14:28:57 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.14 1995/04/11 18:32:17 ache Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -394,6 +394,11 @@ msdosfs_setattr(ap)
 			return error;
 	}
 	if (vap->va_mtime.ts_sec != VNOVAL) {
+		if (cred->cr_uid != dep->de_pmp->pm_uid &&
+		    (error = suser(cred, &ap->a_p->p_acflag)) &&
+		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 || 
+		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, &ap->a_p))))
+			return error;
 		dep->de_flag |= DE_UPDATE;
 		error = deupdat(dep, &vap->va_mtime, 1);
 		if (error)
@@ -406,6 +411,10 @@ msdosfs_setattr(ap)
 	 * attribute.
 	 */
 	if (vap->va_mode != (u_short) VNOVAL) {
+		if (cred->cr_uid != dep->de_pmp->pm_uid &&
+		    (error = suser(cred, &ap->a_p->p_acflag)))
+			return error;
+
 		/* We ignore the read and execute bits */
 		if (vap->va_mode & VWRITE)
 			dep->de_Attributes &= ~ATTR_READONLY;
