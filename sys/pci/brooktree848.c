@@ -1,4 +1,4 @@
-/* BT848 1.52 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.53 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -302,7 +302,10 @@
                            Submitted patch by Vsevolod Lobko <seva@alex-ua.com>
                            to correct SECAM B-Delay and add XUSSR channel set.
 
-
+1.53           9 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Changed METEORSINPUT for Hauppauge cards with bt878.
+                           Submitted by Fred Templin <templin@erg.sri.com>
+                           Also fixed video_open defines and 878 support.
 
 */
 
@@ -959,8 +962,8 @@ static const struct TUNER tuners[] = {
  */
 static const struct CARDTYPE cards[] = {
 
-	/* CARD_UNKNOWN */
-	{ "Unknown",				/* the 'name' */
+	{  CARD_UNKNOWN,			/* the card id */
+	  "Unknown",				/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx unknown */
 	   0,
@@ -968,8 +971,8 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* EEProm unknown */
 	   { 0, 0, 0, 0, 0 } },
 
-	/* CARD_MIRO */
-	{ "Miro TV",				/* the 'name' */
+	{  CARD_MIRO,				/* the card id */
+	  "Miro TV",				/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx unknown */
 	   0,
@@ -977,8 +980,8 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* size unknown */
 	   { 0x02, 0x01, 0x00, 0x0a, 1 } },	/* XXX ??? */
 
-	/* CARD_HAUPPAUGE */
-	{ "Hauppauge WinCast/TV",		/* the 'name' */
+	{  CARD_HAUPPAUGE,			/* the card id */
+	  "Hauppauge WinCast/TV",		/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx is optional */
 	   0,
@@ -986,8 +989,8 @@ static const struct CARDTYPE cards[] = {
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
 	   { 0x00, 0x02, 0x01, 0x01, 1 } },	/* audio MUX values */
 
-	/* CARD_STB */
-	{ "STB TV/PCI",				/* the 'name' */
+	{  CARD_STB,				/* the card id */
+	  "STB TV/PCI",				/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx is optional */
 	   0,
@@ -995,8 +998,8 @@ static const struct CARDTYPE cards[] = {
 	   (u_char)(128 / EEPROMBLOCKSIZE),	/* 128 bytes */
 	   { 0x00, 0x01, 0x02, 0x02, 1 } },	/* audio MUX values */
 
-	/* CARD_INTEL */
-	{ "Intel Smart Video III/VideoLogic Captivator PCI",		/* the 'name' */
+	{  CARD_INTEL,				/* the card id */
+	  "Intel Smart Video III/VideoLogic Captivator PCI", /* the 'name' */
 	   NULL,				/* the tuner */
 	   0,
 	   0,
@@ -1004,8 +1007,8 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   { 0, 0, 0, 0, 0 } },
 
-	/* CARD_IMS_TURBO */
-	{ "IMS TV Turbo",		/* the 'name' */
+	{  CARD_IMS_TURBO,			/* the card id */
+	  "IMS TV Turbo",			/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx is optional */
 	   0,
@@ -1013,8 +1016,8 @@ static const struct CARDTYPE cards[] = {
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
 	   { 0x01, 0x02, 0x01, 0x00, 1 } },     /* audio MUX values */
 
-        /* CARD_AVER_MEDIA */
-        { "AVer Media TV/FM",                   /* the 'name' */
+        {  CARD_AVER_MEDIA,			/* the card id */
+          "AVer Media TV/FM",                   /* the 'name' */
            NULL,                                /* the tuner */
            0,                                   /* dbx is optional */
            0,
@@ -1670,18 +1673,23 @@ video_open( bktr_ptr_t bktr )
 	  video_format = 1;
 
 	if (video_format == 1 ) {
-	  bt848->iform = BT848_IFORM_M_MUX1 |
-	    BT848_IFORM_X_XT0  |
-	    BT848_IFORM_F_NTSCM;
+	  bt848->iform = BT848_IFORM_F_NTSCM;
 	  bktr->format_params = BT848_IFORM_F_NTSCM;
 
 	} else {
-	  bt848->iform = BT848_IFORM_M_MUX1 |
-	    BT848_IFORM_X_XT1  |
-	    BT848_IFORM_F_PALBDGHI;
+	  bt848->iform = BT848_IFORM_F_PALBDGHI;
 	  bktr->format_params = BT848_IFORM_F_PALBDGHI;
 
 	}
+
+	bt848->iform |= format_params[bktr->format_params].iform_xtsel;
+
+	/* work around for new Hauppauge 878 cards */
+	if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
+	    (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) )
+		bt848->iform |= BT848_IFORM_M_MUX3;
+	else
+		bt848->iform |= BT848_IFORM_M_MUX1;
 
 	bt848->adelay = format_params[bktr->format_params].adelay;
 	bt848->bdelay = format_params[bktr->format_params].bdelay;
@@ -2883,15 +2891,32 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 	switch (cmd) {
 
 	case METEORSINPUT:	/* set input device */
+		/* Bt848 has 3 MUX Inputs. Bt848a/849/878/879 has 4 MUX Inputs*/
+		/* On the original bt848 boards, */
+		/*   Tuner is MUX0, RCA is MUX1, S-Video is MUX2 */
+		/* On the Hauppauge bt878 boards, */
+		/*   Tuner is MUX0, RCA is MUX4 */
+		/* Unfortunatly Meteor driver codes DEV_RCA as DEV_0, so we */
+		/* stick with this system in our Meteor Emulation */
+
 		switch(*(unsigned long *)arg & METEOR_DEV_MASK) {
 
 		/* this is the RCA video input */
 		case 0:		/* default */
 		case METEOR_INPUT_DEV0:
+		  /* METEOR_INPUT_DEV_RCA: */
 		        bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 			  | METEOR_DEV0;
 			bt848->iform &= ~BT848_IFORM_MUXSEL;
-			bt848->iform |= BT848_IFORM_M_MUX1;
+
+			/* work around for new Hauppauge 878 cards */
+			if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
+				(bktr->id==BROOKTREE_878_ID ||
+				 bktr->id==BROOKTREE_879_ID) )
+				bt848->iform |= BT848_IFORM_M_MUX3;
+			else
+				bt848->iform |= BT848_IFORM_M_MUX1;
+
 			bt848->e_control &= ~BT848_E_CONTROL_COMP;
 			bt848->o_control &= ~BT848_O_CONTROL_COMP;
 			set_audio( bktr, AUDIO_EXTERN );
@@ -2921,8 +2946,10 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 			break;
 
 		case METEOR_INPUT_DEV3:
-		  if (bktr->id == BROOKTREE_878_ID ||
-		      bktr->id == BROOKTREE_879_ID ) {
+		  /* how do I detect a bt848a ? */
+		  if ((bktr->id == BROOKTREE_849_ID) ||
+		      (bktr->id == BROOKTREE_878_ID) ||
+		      (bktr->id == BROOKTREE_879_ID) ) {
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV3;
 			bt848->iform &= ~BT848_IFORM_MUXSEL;

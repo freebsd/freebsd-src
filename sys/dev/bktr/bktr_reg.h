@@ -341,6 +341,7 @@ struct TUNER {
 /* description of the card */
 #define EEPROMBLOCKSIZE		32
 struct CARDTYPE {
+	unsigned int		card_id;	/* card id (from #define's) */
 	char*			name;
 	const struct TUNER*	tuner;
 	u_char			dbx;		/* Has DBX chip? */
@@ -428,6 +429,9 @@ struct bktr_softc {
 #define	METEOR_NTSC		0x00000100
 #define	METEOR_PAL		0x00000200
 #define	METEOR_SECAM		0x00000400
+#define	BROOKTREE_NTSC		0x00000100	/* used in video open() and */
+#define	BROOKTREE_PAL		0x00000200	/* in the kernel config */
+#define	BROOKTREE_SECAM		0x00000400	/* file */
 #define	METEOR_AUTOMODE		0x00000800
 #define	METEOR_FORM_MASK	0x00000f00
 #define	METEOR_DEV0		0x00001000
