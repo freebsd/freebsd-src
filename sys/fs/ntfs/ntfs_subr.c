@@ -1408,7 +1408,7 @@ ntfs_writentvattr_plain(
 		return ENOTTY;
 	}
 
-	ddprintf(("ntfs_writentvattr_plain: data in run: %d chains\n",
+	ddprintf(("ntfs_writentvattr_plain: data in run: %ld chains\n",
 		 vap->va_vruncnt));
 
 	off = roff;
@@ -1514,7 +1514,7 @@ ntfs_readntvattr_plain(
 		struct buf     *bp;
 		size_t          tocopy;
 
-		ddprintf(("ntfs_readntvattr_plain: data in run: %d chains\n",
+		ddprintf(("ntfs_readntvattr_plain: data in run: %ld chains\n",
 			 vap->va_vruncnt));
 
 		off = roff;

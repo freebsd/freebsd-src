@@ -836,8 +836,7 @@ ntfs_fhtovp(
 	struct ntfid *ntfhp = (struct ntfid *)fhp;
 	int error;
 
-	ddprintf(("ntfs_fhtovp(): %s: %d\n", mp->mnt_stat->f_mntonname,
-		ntfhp->ntfid_ino));
+	ddprintf(("ntfs_fhtovp(): %d\n", ntfhp->ntfid_ino));
 
 	if ((error = VFS_VGET(mp, ntfhp->ntfid_ino, &nvp)) != 0) {
 		*vpp = NULLVP;
@@ -858,8 +857,7 @@ ntfs_vptofh(
 	register struct ntnode *ntp;
 	register struct ntfid *ntfhp;
 
-	ddprintf(("ntfs_fhtovp(): %s: %p\n", vp->v_mount->mnt_stat->f_mntonname,
-		vp));
+	ddprintf(("ntfs_fhtovp(): %p\n", vp));
 
 	ntp = VTONT(vp);
 	ntfhp = (struct ntfid *)fhp;
