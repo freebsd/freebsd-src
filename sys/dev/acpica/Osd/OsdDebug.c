@@ -73,8 +73,7 @@ ACPI_STATUS
 AcpiOsSignal(UINT32 Function, void *Info)
 {
     ACPI_SIGNAL_FATAL_INFO	*fatal;
-    char			*message;
-    
+
     switch (Function) {
     case ACPI_SIGNAL_FATAL:
 	fatal = (ACPI_SIGNAL_FATAL_INFO *)Info;
@@ -82,10 +81,11 @@ AcpiOsSignal(UINT32 Function, void *Info)
 	      fatal->Type, fatal->Code, fatal->Argument);
 	kdb_enter("AcpiOsSignal");
 	break;
-	
+
     case ACPI_SIGNAL_BREAKPOINT:
-	message = (char *)Info;
-	kdb_enter(message);
+#ifdef ACPI_DEBUG
+	kdb_enter((char *)Info);
+#endif
 	break;
 
     default:
