@@ -22,16 +22,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 /*
  * Make an ARC firmware executable from an ELF file.
  */
 
-#include <sys/types.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
+#include <sys/types.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -154,6 +157,8 @@ find_shstrtable(int fileno, int sections, Elf64_Shdr *shdr)
 			shstrtabindex = i;
 
 			shstrtab = malloc(shdr[shstrtabindex].sh_size);
+			if (shstrtab == NULL)
+				errx(1, "malloc failed");
 			lseek(fileno, shdr[shstrtabindex].sh_offset, SEEK_SET);
 			read(fileno, shstrtab, shdr[shstrtabindex].sh_size);
 	  
@@ -243,6 +248,13 @@ section_fpos(Elf64_Shdr *shdr, int sections, char *name)
 	return shdr[i].sh_offset;
 }
 
+void
+usage(void)
+{
+	fprintf(stderr, "usage: elf2exe infile outfile\n");
+	exit(1);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -262,13 +274,13 @@ main(int argc, char** argv)
 	int sections;
 
 	if (argc != 3)
-		errx(1, "usage: elf2exe <infile> <outfile>");
+		usage();
 
 	infd = open_elffile(argv[1]);
 	ehdr = load_ehdr(infd);
 
 	if (ehdr == NULL)
-		errx(1, "can´t read Elf Header\n");
+		errx(1, "cannot read Elf Header\n");
 
 	sections = ehdr->e_shnum;
 	progentry = ehdr->e_entry;
@@ -361,6 +373,8 @@ main(int argc, char** argv)
 
 	lseek(outfd, textscn.s_scnptr, SEEK_SET);
 	p = malloc(ROUNDUP(textsize, 512));
+	if (p == NULL)
+		errx(1, "malloc failed");
 	memset(p, 0, ROUNDUP(textsize, 512));
 	lseek(infd, textfpos, SEEK_SET);
 	read(infd, p, textsize);
@@ -369,6 +383,8 @@ main(int argc, char** argv)
 
 	lseek(outfd, datascn.s_scnptr, SEEK_SET);
 	p = malloc(ROUNDUP(datasize, 512));
+	if (p == NULL)
+		errx(1, "malloc failed");
 	memset(p, 0, ROUNDUP(datasize, 512));
 	lseek(infd, datafpos, SEEK_SET);
 	read(infd, p, datasize);
