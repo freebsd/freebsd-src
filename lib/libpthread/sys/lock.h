@@ -51,9 +51,9 @@ struct lock {
 
 /* Try to make this >= CACHELINESIZE */
 struct lockreq {
-	volatile long	lr_locked;	/* lock granted = 0, busy otherwise */
 	struct lockuser	*lr_watcher;	/* only used for priority locks */
 	struct lockuser	*lr_owner;	/* only used for priority locks */
+	volatile int	lr_locked;	/* lock granted = 0, busy otherwise */
 	volatile int	lr_active;	/* non-zero if the lock is last lock for thread */
 };
 
