@@ -43,13 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <rune.h>
 #include <wchar.h>
-
-extern size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
-		    mbstate_t * __restrict);
-extern int	_none_mbsinit(const mbstate_t *);
-extern size_t	_none_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
-extern rune_t	__emulated_sgetrune(const char *, size_t, const char **);
-extern int	__emulated_sputrune(rune_t, char *, size_t, char **);
+#include "mblocal.h"
 
 _RuneLocale _DefaultRuneLocale = {
     _RUNE_MAGIC_1,

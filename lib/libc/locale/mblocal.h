@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2004 Tim J. Robbins.
+ * Copyright (c) 2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,17 +22,36 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _MBLOCAL_H_
+#define	_MBLOCAL_H_
 
-#include <wchar.h>
-#include "mblocal.h"
+#include <stddef.h>	/* XXX for rune_t */
 
-int
-mbsinit(const mbstate_t *ps)
-{
+/*
+ * Conversion function pointers for current encoding.
+ */
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
+extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
-	return (__mbsinit(ps));
-}
+/*
+ * Conversion functions for "NONE"/C/POSIX encoding.
+ */
+extern size_t _none_mbrtowc(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern int _none_mbsinit(const mbstate_t *);
+extern size_t _none_wcrtomb(char * __restrict, wchar_t,
+    mbstate_t * __restrict);
+
+/*
+ * Rune emulation functions.
+ */
+extern rune_t __emulated_sgetrune(const char *, size_t, const char **);
+extern int __emulated_sputrune(rune_t, char *, size_t, char **);
+
+#endif	/* _MBLOCAL_H_ */
