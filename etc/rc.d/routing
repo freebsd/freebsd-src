@@ -48,6 +48,14 @@ static_start()
 			route add ${route_args}
 		done
 	fi
+	# Now ATM static routes
+	#
+	if [ -n "${natm_static_routes}" ]; then
+		for i in ${natm_static_routes}; do
+			eval route_args=\$route_${i}
+			atmconfig natm add ${route_args}
+		done
+	fi
 }
 
 options_start()
