@@ -65,8 +65,8 @@
 #define ticks2usec(u) 	(((u) * 3433)>>12)
 
 
-#define joypart(d) minor(d)&1
-#define UNIT(d) minor(d)>>1&3
+#define joypart(d) (minor(d)&1)
+#define UNIT(d) ((minor(d)>>1)&3)
 #ifndef JOY_TIMEOUT
 #define JOY_TIMEOUT   2000 /* 2 milliseconds */
 #endif
