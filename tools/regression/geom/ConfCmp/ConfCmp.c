@@ -163,7 +163,7 @@ CharData(void *userData , const XML_Char *s , int len)
 		b++;
 	while (isspace(*e) && e > b)
 		e--;
-	if (e != b)
+	if (e != b || *b)
 		sbuf_bcat(mt->cur->cont, b, e - b + 1);
 }
 
