@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 struct z_file
 {
     int			zf_rawfd;
+    off_t		zf_dataoffset;
     z_stream		zf_zstream;
     char		zf_buf[Z_BUFSIZE];
 };
@@ -98,11 +99,12 @@ zf_fill(struct z_file *zf)
  * Returns 0 if the header is OK, nonzero if not.
  */
 static int
-get_byte(struct z_file *zf)
+get_byte(struct z_file *zf, off_t *curoffp)
 {
     if ((zf->zf_zstream.avail_in == 0) && (zf_fill(zf) == -1))
 	return(-1);
     zf->zf_zstream.avail_in--;
+    ++*curoffp;
     return(*(zf->zf_zstream.next_in)++);
 }
 
@@ -124,36 +126,37 @@ check_header(struct z_file *zf)
     uInt	len;
     int		c;
 
+    zf->zf_dataoffset = 0;
     /* Check the gzip magic header */
     for (len = 0; len < 2; len++) {
-	c = get_byte(zf);
+	c = get_byte(zf, &zf->zf_dataoffset);
 	if (c != gz_magic[len]) {
 	    return(1);
 	}
     }
-    method = get_byte(zf);
-    flags = get_byte(zf);
+    method = get_byte(zf, &zf->zf_dataoffset);
+    flags = get_byte(zf, &zf->zf_dataoffset);
     if (method != Z_DEFLATED || (flags & RESERVED) != 0) {
 	return(1);
     }
     
     /* Discard time, xflags and OS code: */
-    for (len = 0; len < 6; len++) (void)get_byte(zf);
+    for (len = 0; len < 6; len++) (void)get_byte(zf, &zf->zf_dataoffset);
 
     if ((flags & EXTRA_FIELD) != 0) { /* skip the extra field */
-	len  =  (uInt)get_byte(zf);
-	len += ((uInt)get_byte(zf))<<8;
+	len  =  (uInt)get_byte(zf, &zf->zf_dataoffset);
+	len += ((uInt)get_byte(zf, &zf->zf_dataoffset))<<8;
 	/* len is garbage if EOF but the loop below will quit anyway */
-	while (len-- != 0 && get_byte(zf) != -1) ;
+	while (len-- != 0 && get_byte(zf, &zf->zf_dataoffset) != -1) ;
     }
     if ((flags & ORIG_NAME) != 0) { /* skip the original file name */
-	while ((c = get_byte(zf)) != 0 && c != -1) ;
+	while ((c = get_byte(zf, &zf->zf_dataoffset)) != 0 && c != -1) ;
     }
     if ((flags & COMMENT) != 0) {   /* skip the .gz file comment */
-	while ((c = get_byte(zf)) != 0 && c != -1) ;
+	while ((c = get_byte(zf, &zf->zf_dataoffset)) != 0 && c != -1) ;
     }
     if ((flags & HEAD_CRC) != 0) {  /* skip the header crc */
-	for (len = 0; len < 2; len++) c = get_byte(zf);
+	for (len = 0; len < 2; len++) c = get_byte(zf, &zf->zf_dataoffset);
     }
     /* if there's data left, we're in business */
     return((c == -1) ? 1 : 0);
@@ -274,6 +277,20 @@ zf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
     return(0);
 }
 
+static int
+zf_rewind(struct open_file *f)
+{
+    struct z_file	*zf = (struct z_file *)f->f_fsdata;
+
+    if (lseek(zf->zf_rawfd, zf->zf_dataoffset, SEEK_SET) == -1)
+	return -1;
+    zf->zf_zstream.avail_in = 0;
+    zf->zf_zstream.next_in = NULL;
+    (void)inflateReset(&zf->zf_zstream);
+
+    return 0;
+}
+
 static off_t
 zf_seek(struct open_file *f, off_t offset, int where)
 {
@@ -292,11 +309,9 @@ zf_seek(struct open_file *f, off_t offset, int where)
 	target = -1;
     }
 
-    /* Can we get there from here? */
-    if (target < zf->zf_zstream.total_out) {
-	errno = EOFFSET;
+    /* rewind if required */
+    if (target < zf->zf_zstream.total_out && zf_rewind(f) != 0)
 	return -1;
-    } 
 
     /* skip forwards if required */
     while (target > zf->zf_zstream.total_out) {
