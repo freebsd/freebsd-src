@@ -202,8 +202,7 @@ ENTRY(cpu_throw)
 	str	r5, [r6]
 
 	/* Set the new tp */
-	ldr	r6, [r5, #(TD_MD)]
-	add	r6, r6, #(MD_TP)
+	ldr	r6, [r5, #(TD_MD + MD_TP)]
 	mov	r5, #ARM_TP_ADDRESS
 	str	r6, [r5]
 
@@ -300,6 +299,7 @@ ENTRY(cpu_switch)
 	ldr	r5, [r9, #(PCB_DACR)]		/* r5 = new DACR */
 	mov	r2, #DOMAIN_CLIENT
 	cmp     r5, r2, lsl #(PMAP_DOMAIN_KERNEL * 2) /* Sw to kernel thread? */
+	mcreq	p15, 0, r5, c3, c0, 0	/* Update DACR for new context */
 	beq     .Lcs_context_switched        /* Yup. Don't flush cache */
 	mrc	p15, 0, r0, c3, c0, 0		/* r0 = old DACR */
 	/*
