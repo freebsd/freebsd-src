@@ -34,6 +34,7 @@
 u_int read_random(char *, u_int);
 void write_random(char *, u_int);
 
+enum esource { RANDOM_KEYBOARD, RANDOM_MOUSE };
 void random_harvest(u_int64_t, u_int, u_int, u_int);
 
 #endif
