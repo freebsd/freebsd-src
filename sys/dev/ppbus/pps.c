@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.9 1998/06/21 18:02:32 bde Exp $
+ * $Id: pps.c,v 1.10 1998/08/03 19:14:31 msmith Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -41,7 +41,9 @@ static struct pps_data {
 
 static int ppscap =
 	PPS_CAPTUREASSERT |
+#ifdef PPS_SYNC
 	PPS_HARDPPSONASSERT | 
+#endif /* PPS_SYNC */
 	PPS_OFFSETASSERT | 
 	PPS_ECHOASSERT |
 	PPS_TSFMT_TSPEC;
@@ -167,11 +169,13 @@ ppsintr(int unit)
 	}
 	sc->ppsinfo.assert_timestamp = tc;
 	sc->ppsinfo.assert_sequence++;
+#ifdef PPS_SYNC
 	if (sc->ppsparam.mode & PPS_HARDPPSONASSERT) {
 		tv.tv_sec = tc.tv_sec;
 		tv.tv_usec = tc.tv_nsec / 1000;
 		hardpps(&tv, tv.tv_usec);
 	}
+#endif /* PPS_SYNC */
 	if (sc->ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(&sc->pps_dev, IRQENABLE);
 }
