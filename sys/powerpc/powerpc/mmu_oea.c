@@ -2217,7 +2217,7 @@ pmap_query_bit(vm_page_t m, int ptebit)
 		}
 	}
 
-	return (TRUE);
+	return (FALSE);
 }
 
 static u_int
