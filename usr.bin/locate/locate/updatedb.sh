@@ -28,6 +28,11 @@
 #
 # $FreeBSD$
 
+if [ "$(id -u)" = "0" ]; then
+	echo ">>> WARNING" 1>&2
+	echo ">>> Executing updatedb as root.  This WILL reveal all filenames" 1>&2
+	echo ">>> on your machine to all login users, which is a security risk." 1>&2
+fi
 : ${LOCATE_CONFIG="/etc/locate.rc"}
 if [ -f "$LOCATE_CONFIG" -a -r "$LOCATE_CONFIG" ]; then
        . $LOCATE_CONFIG
