@@ -515,7 +515,7 @@ sizevars(void)
 
 	for (vent = vhead; vent; vent = vent->next) {
 		v = vent->var;
-		i = strlen(v->header);
+		i = strlen(vent->header);
 		if (v->width < i)
 			v->width = i;
 		totwidth += v->width + 1;	/* +1 for space */
