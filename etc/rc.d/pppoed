@@ -6,7 +6,7 @@
 # PROVIDE: pppoed
 # REQUIRE: NETWORKING
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -7,7 +7,7 @@
 # PROVIDE: amd
 # REQUIRE: rpcbind ypbind nfsclient
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -30,7 +30,6 @@
 # PROVIDE: ramdisk-own
 # REQUIRE: ramdisk mountcritlocal
 # BEFORE: SERVERS
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

@@ -6,7 +6,6 @@
 # PROVIDE: kpasswdd
 # REQUIRE: kadmin
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

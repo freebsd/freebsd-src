@@ -7,7 +7,6 @@
 # PROVIDE: named
 # REQUIRE: SERVERS
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

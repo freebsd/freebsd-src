@@ -29,7 +29,7 @@
 
 # PROVIDE: syscons
 # REQUIRE: LOGIN usbd
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

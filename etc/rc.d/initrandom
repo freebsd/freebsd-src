@@ -6,7 +6,7 @@
 # PROVIDE: initrandom
 # REQUIRE: initdiskless
 # BEFORE: disks
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

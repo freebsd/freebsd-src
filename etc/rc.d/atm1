@@ -30,7 +30,7 @@
 # PROVIDE: atm1
 # REQUIRE: root
 # BEFORE: netif
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

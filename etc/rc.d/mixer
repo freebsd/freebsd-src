@@ -29,7 +29,7 @@
 
 # PROVIDE: mixer
 # REQUIRE: LOGIN usbd
-# KEYWORD: FreeBSD nojail shutdown
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

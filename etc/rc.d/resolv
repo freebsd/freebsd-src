@@ -29,7 +29,7 @@
 
 # PROVIDE: resolv
 # REQUIRE: initdiskless rcconf
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

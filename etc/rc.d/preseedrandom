@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: preseedrandom
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 feed_dev_random()
 {

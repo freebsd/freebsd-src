@@ -9,7 +9,6 @@
 # PROVIDE: keyserv
 # REQUIRE: ypbind
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

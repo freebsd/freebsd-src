@@ -6,7 +6,7 @@
 # PROVIDE: devfs
 # REQUIRE: LOGIN
 # BEFORE:  securelevel
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

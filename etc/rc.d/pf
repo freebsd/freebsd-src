@@ -6,7 +6,7 @@
 # PROVIDE: pf
 # REQUIRE: root mountcritlocal netif pflog
 # BEFORE:  DAEMON LOGIN
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -5,7 +5,6 @@
 
 # PROVIDE: ypset
 # REQUIRE: ypbind
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 # PROVIDE: kldxref
 # REQUIRE: root mountcritlocal
 # BEFORE:  netif
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 
