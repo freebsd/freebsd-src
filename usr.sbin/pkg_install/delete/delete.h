@@ -24,10 +24,12 @@
 #define _INST_DELETE_H_INCLUDE
 
 extern char	*Prefix;
-extern Boolean	NoDeInstall;
 extern Boolean	CleanDirs;
+extern Boolean	Interactive;
+extern Boolean	NoDeInstall;
 extern Boolean	Force;
 extern char	*Directory;
 extern char	*PkgName;
+extern match_t	MatchType;
 
 #endif	/* _INST_DELETE_H_INCLUDE */

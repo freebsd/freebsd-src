@@ -25,9 +25,12 @@
 .Nd a utility for deleting previously installed software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl vDdnf
+.Op Fl dDfGinvx
 .Op Fl p Ar prefix
 .Ar pkg-name ...
+.Nm
+.Fl a
+.Op Ar flags
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,6 +71,12 @@ The following command line options are supported:
 .Bl -tag -width indent
 .It Ar pkg-name ...
 The named packages are deinstalled.
+.It Fl a
+Unconditionally delete all currently installed packages.
+.It Fl i
+Request confirmation before attempting to delete each package,
+regardless whether or not the standard input device is a
+terminal.
 .It Fl v
 Turn on verbose output.
 .It Fl D
@@ -94,6 +103,22 @@ the package.
 .It Fl f
 Force removal of the package, even if a dependency is recorded or the
 deinstall or require script fails.
+.It Fl G
+Do not try to expand shell glob patterns in the
+.Ar pkg-name
+when selecting packages to be deleted (by default
+.Nm
+automatically expands shell glob patterns in the
+.Ar pkg-name ) .
+.It Fl x
+Treat the
+.Ar pkg-name
+as a regular expression and delete all packages whose names match
+that regular expression.  Multiple regular expressions could be
+provided, in that case
+.Nm
+deletes all packages that match at least one
+regular expression from the list.
 .El
 .Sh TECHNICAL DETAILS
 .Nm
