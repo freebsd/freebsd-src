@@ -1,11 +1,16 @@
-# $Id$
+# $Id: Makefile,v 1.7 1997/02/22 19:54:34 peter Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        de_DE.ISO_8859-1 es_ES.ISO_8859-1 is_IS.ISO_8859-1 \
+LOCALES=        de_DE.ISO_8859-1 \
+		es_ES.ISO_8859-1 \
+		is_IS.ISO_8859-1 \
 		lt_LN.ISO_8859-1 \
-		ru_SU.CP866 ru_SU.KOI8-R
+		lt_LN.ISO_8859-2 \
+		ru_SU.CP866 \
+		ru_SU.KOI8-R
+
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 .if exists(${.OBJDIR}/../colldef)
@@ -19,6 +24,8 @@ LATIN1LINKS = \
 	fr_BE fr_CA fr_CH fr_FR it_CH it_IT nl_BE nl_NL no_NO \
 	pt_PT sv_SE
 
+LATIN2LINKS = hr_HR
+
 DELINKS = de_AT de_CH
 
 .SUFFIXES: .src .out
@@ -31,21 +38,27 @@ all: ${LOCALES:S/$/.out/g}
 ru_SU.KOI8-R.out:       map.KOI8-R
 ru_SU.CP866.out:        map.CP866
 lt_LN.ISO_8859-1.out:   map.ISO_8859-1
+lt_LN.ISO_8859-2.out:   map.ISO_8859-2
 es_ES.ISO_8859-1.out:   map.ISO_8859-1
 de_DE.ISO_8859-1.out:   map.ISO_8859-1
 
 afterinstall:
-	for l in ${LOCALES}; do \
-		${INSTALL} -c -m 644 -o ${BINOWN} -g ${BINGRP} \
-		$$l.out ${LOCALEDIR}/$$l/LC_COLLATE; \
-	done
-	for l in ${LATIN1LINKS}; do \
-		ln -fs ../lt_LN.ISO_8859-1/LC_COLLATE \
-		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_COLLATE; \
-	done
-	for l in ${DELINKS}; do \
-		ln -fs ../de_DE.ISO_8859-1/LC_COLLATE \
-		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_COLLATE; \
-	done
+.for locale in ${LOCALES}
+	${INSTALL} -c -m 644 -o ${BINOWN} -g ${BINGRP} \
+		${locale}.out ${LOCALEDIR}/${locale}/LC_COLLATE
+.endfor
+.for link in ${LATIN1LINKS}
+	ln -fs ../lt_LN.ISO_8859-1/LC_COLLATE \
+	       ${LOCALEDIR}/${link}.ISO_8859-1/LC_COLLATE
+.endfor
+.for link in ${LATIN2LINKS}
+	ln -fs ../lt_LN.ISO_8859-2/LC_COLLATE \
+	       ${LOCALEDIR}/${link}.ISO_8859-2/LC_COLLATE
+.endfor
+.for link in ${DELINKS}
+	ln -fs ../de_DE.ISO_8859-1/LC_COLLATE \
+	       ${LOCALEDIR}/${link}.ISO_8859-1/LC_COLLATE
+.endfor
+
 
 .include <bsd.prog.mk>
