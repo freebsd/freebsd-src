@@ -157,6 +157,10 @@ acct(td, uap)
 	 * close the file, and (if no new file was specified, leave).
 	 */
 
+	/*
+	 * XXX arr: Should not hold lock over vnode operation.
+	 */
+
 	mtx_lock(&acct_mtx);
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		callout_stop(&acctwatch_callout);
@@ -167,8 +171,10 @@ acct(td, uap)
 		crfree(acctcred != NOCRED ? acctcred : savacctcred);
 		acctcred = savacctcred = NOCRED;
 	}
-	if (SCARG(uap, path) == NULL)
+	if (SCARG(uap, path) == NULL) {
+		mtx_unlock(&acct_mtx);
 		goto done2;
+	}
 
 	/*
 	 * Save the new accounting file vnode, and schedule the new
@@ -178,9 +184,9 @@ acct(td, uap)
 	acctcred = crhold(td->td_ucred);
 	acctflags = flags;
 	callout_init(&acctwatch_callout, 0);
+	mtx_unlock(&acct_mtx);
 	acctwatch(NULL);
 done2:
-	mtx_unlock(&acct_mtx);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -342,6 +348,11 @@ acctwatch(a)
 
 	mtx_lock(&acct_mtx);
 
+	/*
+	 * XXX arr: Need to fix the issue of holding acct_mtx over
+	 * the below vnode operations.
+	 */ 
+
 	if (savacctp != NULLVP) {
 		if (savacctp->v_type == VBAD) {
 			(void) vn_close(savacctp, savacctflags, savacctcred,
@@ -361,8 +372,10 @@ acctwatch(a)
 			log(LOG_NOTICE, "Accounting resumed\n");
 		}
 	} else {
-		if (acctp == NULLVP)
+		if (acctp == NULLVP) {
+			mtx_unlock(&acct_mtx);
 			return;
+		}
 		if (acctp->v_type == VBAD) {
 			(void) vn_close(acctp, acctflags, acctcred, NULL);
 			acctp = NULLVP;
