@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lex.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: lex.c,v 1.6 1997/02/22 14:02:01 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -142,9 +145,9 @@ static Char getCtmp;
 
 int
 lex(hp)
-    register struct wordent *hp;
+    struct wordent *hp;
 {
-    register struct wordent *wdp;
+    struct wordent *wdp;
     int     c;
 
     btell(&lineloc);
@@ -165,7 +168,7 @@ lex(hp)
      * be ready and rarin to go even if it is interrupted.
      */
     do {
-	register struct wordent *new;
+	struct wordent *new;
 
 	new = (struct wordent *) xmalloc((size_t) sizeof(*wdp));
 	new->word = 0;
@@ -184,7 +187,7 @@ prlex(fp, sp0)
     FILE *fp;
     struct wordent *sp0;
 {
-    register struct wordent *sp = sp0->next;
+    struct wordent *sp = sp0->next;
 
     for (;;) {
 	(void) fprintf(fp, "%s", vis_str(sp->word));
@@ -198,15 +201,15 @@ prlex(fp, sp0)
 
 void
 copylex(hp, fp)
-    register struct wordent *hp;
-    register struct wordent *fp;
+    struct wordent *hp;
+    struct wordent *fp;
 {
-    register struct wordent *wdp;
+    struct wordent *wdp;
 
     wdp = hp;
     fp = fp->next;
     do {
-	register struct wordent *new;
+	struct wordent *new;
 
 	new = (struct wordent *) xmalloc((size_t) sizeof(*wdp));
 	new->prev = wdp;
@@ -221,9 +224,9 @@ copylex(hp, fp)
 
 void
 freelex(vp)
-    register struct wordent *vp;
+    struct wordent *vp;
 {
-    register struct wordent *fp;
+    struct wordent *fp;
 
     while (vp->next != vp) {
 	fp = vp->next;
@@ -237,11 +240,11 @@ freelex(vp)
 static Char *
 word()
 {
-    register Char c, c1;
-    register Char *wp;
+    Char c, c1;
+    Char *wp;
     Char    wbuf[BUFSIZ];
-    register bool dolflg;
-    register int i;
+    bool dolflg;
+    int i;
 
     wp = wbuf;
     i = BUFSIZ - 4;
@@ -358,9 +361,9 @@ ret:
 
 static int
 getC1(flag)
-    register int flag;
+    int flag;
 {
-    register Char c;
+    Char c;
 
     while (1) {
 	if ((c = peekc) != '\0') {
@@ -416,9 +419,9 @@ getC1(flag)
 static void
 getdol()
 {
-    register Char *np, *ep;
+    Char *np, *ep;
     Char    name[4 * MAXVARLEN + 1];
-    register int c;
+    int c;
     int     sc;
     bool    special = 0, toolong;
 
@@ -650,9 +653,9 @@ static void
 getexcl(sc)
     int    sc;
 {
-    register struct wordent *hp, *ip;
+    struct wordent *hp, *ip;
     int     left, right, dol;
-    register int c;
+    int c;
 
     if (sc == 0) {
 	sc = getC(0);
@@ -727,9 +730,9 @@ static struct wordent *
 getsub(en)
     struct wordent *en;
 {
-    register Char *cp;
+    Char *cp;
     int     delim;
-    register int c;
+    int c;
     int     sc;
     bool global;
     Char    orhsb[sizeof(rhsb) / sizeof(Char)];
@@ -872,12 +875,12 @@ dosub(sc, en, global)
     struct wordent lexi;
     bool    didsub = 0, didone = 0;
     struct wordent *hp = &lexi;
-    register struct wordent *wdp;
-    register int i = exclc;
+    struct wordent *wdp;
+    int i = exclc;
 
     wdp = hp;
     while (--i >= 0) {
-	register struct wordent *new =
+	struct wordent *new =
 		(struct wordent *) xcalloc(1, sizeof *wdp);
 
 	new->word = 0;
@@ -924,8 +927,8 @@ subword(cp, type, adid)
     bool   *adid;
 {
     Char    wbuf[BUFSIZ];
-    register Char *wp, *mp, *np;
-    register int i;
+    Char *wp, *mp, *np;
+    int i;
 
     *adid = 0;
     switch (type) {
@@ -996,8 +999,8 @@ domod(cp, type)
     Char   *cp;
     int     type;
 {
-    register Char *wp, *xp;
-    register int c;
+    Char *wp, *xp;
+    int c;
 
     switch (type) {
 
@@ -1042,7 +1045,7 @@ domod(cp, type)
 
 static int
 matchs(str, pat)
-    register Char *str, *pat;
+    Char *str, *pat;
 {
     while (*str && *pat && *str == *pat)
 	str++, pat++;
@@ -1051,11 +1054,11 @@ matchs(str, pat)
 
 static int
 getsel(al, ar, dol)
-    register int *al, *ar;
+    int *al, *ar;
     int     dol;
 {
-    register int c = getC(0);
-    register int i;
+    int c = getC(0);
+    int i;
     bool    first = *al < 0;
 
     switch (c) {
@@ -1139,9 +1142,9 @@ static struct wordent *
 gethent(sc)
     int     sc;
 {
-    register struct Hist *hp;
-    register Char *np;
-    register int c;
+    struct Hist *hp;
+    Char *np;
+    int c;
     int     event;
     bool    back = 0;
 
@@ -1258,12 +1261,12 @@ findev(cp, anyarg)
     Char   *cp;
     bool    anyarg;
 {
-    register struct Hist *hp;
+    struct Hist *hp;
 
     for (hp = Histlist.Hnext; hp; hp = hp->Hnext) {
 	Char   *dp;
-	register Char *p, *q;
-	register struct wordent *lp = hp->Hlex.next;
+	Char *p, *q;
+	struct wordent *lp = hp->Hlex.next;
 	int     argno = 0;
 
 	/*
@@ -1307,7 +1310,7 @@ findev(cp, anyarg)
 
 static void
 setexclp(cp)
-    register Char *cp;
+    Char *cp;
 {
     if (cp && cp[0] == '\n')
 	return;
@@ -1325,7 +1328,7 @@ int
 readc(wanteof)
     bool    wanteof;
 {
-    register int c;
+    int c;
     static  sincereal;
 
     aret = F_SEEK;
@@ -1440,10 +1443,10 @@ reread:
 static int
 bgetc()
 {
-    register int buf, off, c;
+    int buf, off, c;
 
 #ifdef FILEC
-    register int numleft = 0, roomleft;
+    int numleft = 0, roomleft;
     Char    ttyline[BUFSIZ];
 #endif
     char    tbuf[BUFSIZ + 1];
@@ -1474,7 +1477,7 @@ bgetc()
 again:
     buf = (int) fseekp / BUFSIZ;
     if (buf >= fblocks) {
-	register Char **nfbuf =
+	Char **nfbuf =
 	(Char **) xcalloc((size_t) (fblocks + 2),
 			  sizeof(Char **));
 
@@ -1505,7 +1508,7 @@ again:
 		    goto again;
 		}
 		if (c > 0)
-		    bcopy(ttyline, fbuf[buf] + off, c * sizeof(Char));
+		    memcpy(fbuf[buf] + off, ttyline, c * sizeof(Char));
 		numleft = 0;
 	    }
 	    else {
@@ -1549,7 +1552,7 @@ again:
 static void
 bfree()
 {
-    register int sb, i;
+    int sb, i;
 
     if (cantell)
 	return;

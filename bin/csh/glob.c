@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)glob.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: glob.c,v 1.8 1997/02/22 14:01:58 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -553,10 +556,10 @@ ginit()
 
 void
 rscan(t, f)
-    register Char **t;
+    Char **t;
     void    (*f) ();
 {
-    register Char *p;
+    Char *p;
 
     while ((p = *t++) != NULL)
 	while (*p)
@@ -565,9 +568,9 @@ rscan(t, f)
 
 void
 trim(t)
-    register Char **t;
+    Char **t;
 {
-    register Char *p;
+    Char *p;
 
     while ((p = *t++) != NULL)
 	while (*p)
@@ -576,9 +579,9 @@ trim(t)
 
 void
 tglob(t)
-    register Char **t;
+    Char **t;
 {
-    register Char *p, c;
+    Char *p, c;
 
     while ((p = *t++) != NULL) {
 	if (*p == '~' || *p == '=')
@@ -622,7 +625,7 @@ dobackp(cp, literal)
     Char   *cp;
     bool    literal;
 {
-    register Char *lp, *rp;
+    Char *lp, *rp;
     Char   *ep, word[MAXPATHLEN];
 
     if (pargv) {
@@ -667,8 +670,8 @@ backeval(cp, literal)
     Char   *cp;
     bool    literal;
 {
-    register int icnt, c;
-    register Char *ip;
+    int icnt, c;
+    Char *ip;
     struct command faket;
     bool    hadnl;
     int     pvec[2], quoted;
@@ -851,9 +854,9 @@ Gmatch(string, pattern)
 
 static int
 pmatch(string, pattern)
-    register Char *string, *pattern;
+    Char *string, *pattern;
 {
-    register Char stringc, patternc;
+    Char stringc, patternc;
     int     match, negate_range;
     Char    rangec;
 
@@ -910,7 +913,7 @@ void
 Gcat(s1, s2)
     Char   *s1, *s2;
 {
-    register Char *p, *q;
+    Char *p, *q;
     int     n;
 
     for (p = s1; *p++;)
@@ -934,7 +937,7 @@ Gcat(s1, s2)
 #ifdef FILEC
 int
 sortscmp(a, b)
-    register const ptr_t a, b;
+    const ptr_t a, b;
 {
 #if defined(NLS) && !defined(NOSTRCOLL)
     char    buf[2048];
