@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: raw_cb.c,v 1.10 1997/02/22 09:41:13 peter Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,8 @@
  *	redo address binding to allow wildcards
  */
 
-struct rawcb rawcb;
+struct rawcb_list_head rawcb_list;
+
 static u_long	raw_sendspace = RAWSNDQ;
 static u_long	raw_recvspace = RAWRCVQ;
 
@@ -87,7 +88,7 @@ raw_attach(so, proto)
 	rp->rcb_socket = so;
 	rp->rcb_proto.sp_family = so->so_proto->pr_domain->dom_family;
 	rp->rcb_proto.sp_protocol = proto;
-	insque(rp, &rawcb);
+	LIST_INSERT_HEAD(&rawcb_list, rp, list);
 	return (0);
 }
 
@@ -103,7 +104,7 @@ raw_detach(rp)
 
 	so->so_pcb = 0;
 	sofree(so);
-	remque(rp);
+	LIST_REMOVE(rp, list);
 #ifdef notdef
 	if (rp->rcb_laddr)
 		m_freem(dtom(rp->rcb_laddr));
