@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.57 1999/05/30 16:53:40 phk Exp $
+ * $Id: conf.h,v 1.58 1999/05/31 11:29:08 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -218,15 +218,16 @@ static moduledata_t name##_mod = {					\
 };									\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+cmaj*256+bmaj)
 
-int	devsw_module_handler __P((struct module *mod, int what, void *arg));
 
+struct cdevsw *bdevsw __P((dev_t dev));
 int	cdevsw_add __P((struct cdevsw *new));
 dev_t	chrtoblk __P((dev_t dev));
+struct cdevsw *devsw __P((dev_t dev));
+int	devsw_module_handler __P((struct module *mod, int what, void *arg));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
+dev_t	makebdev __P((int maj, int min));
 void	setconf __P((void));
-struct cdevsw *bdevsw __P((dev_t dev));
-struct cdevsw *devsw __P((dev_t dev));
 #endif /* KERNEL */
 
 #endif /* !_SYS_CONF_H_ */
