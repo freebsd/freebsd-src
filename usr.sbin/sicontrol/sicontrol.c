@@ -48,7 +48,7 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 
-#include <machine/si.h>
+#include <dev/si/si.h>
 
 struct lv {
 	char	*lv_name;
