@@ -180,7 +180,7 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 		goto fmt;
 
 	p = pw->pw_shell;
-	if (root && *p)					/* empty == /bin/sh */
+	if (root && *p) {				/* empty == /bin/sh */
 		for (setusershell();;) {
 			if (!(sh = getusershell())) {
 				if (flags & _PWSCAN_WARN)
@@ -190,6 +190,8 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 			if (!strcmp(p, sh))
 				break;
 		}
+		endusershell();
+	}
 	if (p[0])
 		pw->pw_fields |= _PWF_SHELL;
 
