@@ -163,13 +163,13 @@ bufhash(struct vnode *vnp, daddr_t bn)
 {
 	u_int64_t hashkey64;
 	int hashkey; 
-	
+
 	/*
 	 * A variation on the Fibonacci hash that Knuth credits to
 	 * R. W. Floyd, see Knuth's _Art of Computer Programming,
 	 * Volume 3 / Sorting and Searching_
 	 *
-         * We reduce the argument to 32 bits before doing the hash to
+	 * We reduce the argument to 32 bits before doing the hash to
 	 * avoid the need for a slow 64x64 multiply on 32 bit platforms.
 	 *
 	 * sizeof(struct vnode) is 168 on i386, so toss some of the lower
