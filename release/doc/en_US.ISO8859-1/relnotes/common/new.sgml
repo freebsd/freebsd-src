@@ -558,13 +558,19 @@
     <para>&man.wall.1; now supports a <option>-g</option> flag to
     write a message to all users of a given group.</para>
 
+    <para>&man.whois.1; supports a <option>-c</option> option to
+    specify a country code to help direct queries towards a particular
+    whois server.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
       <para>The version of <application>IPFilter</application>
       provided with &os; now includes the &man.ipfs.8; program, which
       allows state information created for NAT entries and stateful
-      rules to be saved to disk and restored after a reboot.</para>
+      rules to be saved to disk and restored after a reboot.
+      Boot-time configuration of these features is supported by
+      &man.rc.conf.5;.</para>
 
       <para>The <application>NTP</application> suite of programs has been
       updated to 4.1.0.</para>
@@ -620,6 +626,9 @@
       <para>&man.pkg.create.1; now supports a <option>-b</option>
       option to create a package file from a locally-installed
       package.</para>
+
+      <para>&man.pkg.delete.1; now supports a <option>-r</option>
+      option for recursive package removal.</para>
     </sect3>
   </sect2>
 </sect1>
