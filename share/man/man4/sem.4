@@ -32,14 +32,17 @@
 .Nd POSIX semaphores
 .Sh SYNOPSIS
 To link into the kernel:
+.Bd -ragged -offset indent
 .Cd "options P1003_1B_SEMAPHORES"
+.Ed
 .Pp
 To load as a kernel loadable module:
-.Dl kldload sem
+.Pp
+.Dl "kldload sem"
 .Sh DESCRIPTION
 The
 .Nm
-facility provides system calls used by the C library
+facility provides system calls used by the standard C library
 .Pq Pa libc
 to implement
 .Tn POSIX

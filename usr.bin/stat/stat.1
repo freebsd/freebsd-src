@@ -46,13 +46,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl FLnq
-.Oo
-.Fl f Ar format |
-.Fl l |
-.Fl r |
-.Fl s |
-.Fl x
-.Oc
+.Op Fl f Ar format | Fl l | r | s | x
 .Op Fl t Ar timefmt
 .Op Ar
 .Nm readlink
@@ -82,14 +76,28 @@ The information displayed is obtained by calling
 with the given argument and evaluating the returned structure.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl F
 As in
-.Ic ls ,
-display a slash (/) immediately after each pathname that is a directory, an
-asterisk (*) after each that is executable, an at sign (@) after each symbolic
-link, a percent sign (%) after each whiteout, an equal sign (=) after each
-socket, and a vertical bar (|) after each that is a FIFO.
+.Xr ls 1 ,
+display a slash
+.Pq Ql /
+immediately after each pathname that is a directory,
+an asterisk
+.Pq Ql *
+after each that is executable,
+an at sign
+.Pq Ql @
+after each symbolic link,
+a percent sign
+.Pq Ql %
+after each whiteout,
+an equal sign
+.Pq Ql =
+after each socket,
+and a vertical bar
+.Pq Ql |
+after each that is a FIFO.
 The use of
 .Fl F
 implies
@@ -124,17 +132,22 @@ See the
 section for a description of valid formats.
 .It Fl l
 Display output in
-.Ic ls Fl lT
+.Nm ls Fl lT
 format.
 .It Fl r
 Display raw information.
-That is, for all the fields in the stat-structure,
+That is, for all the fields in the
+.Vt stat
+structure,
 display the raw, numerical value (for example, times in seconds since the
-epoch, etc.)
+epoch, etc.).
 .It Fl s
-Display information in ``shell output'', suitable for initializing variables.
+Display information in
+.Dq "shell output" ,
+suitable for initializing variables.
 .It Fl x
-Display information in a more verbose way as known from some Linux
+Display information in a more verbose way as known from some
+.Tn Linux
 distributions.
 .It Fl t Ar timefmt
 Display timestamps using the specified format.
@@ -142,20 +155,19 @@ This format is
 passed directly to
 .Xr strftime 3 .
 .El
-.Ss FORMATS
+.Ss Formats
 Format strings are similar to
 .Xr printf 3
 formats in that they start with
 .Cm % ,
 are then followed by a sequence of formatting characters, and end in
-a character that selects the field of the struct stat which is to be
-formatted.
+a character that selects the field of the
+.Vt "struct stat"
+which is to be formatted.
 If the
 .Cm %
 is immediately followed by one of
-.Cm n ,
-.Cm t ,
-.Cm % ,
+.Cm n , t , % ,
 or
 .Cm @ ,
 then a newline character, a tab character, a percent character,
@@ -163,11 +175,13 @@ or the current file number is printed, otherwise the string is
 examined for the following:
 .Pp
 Any of the following optional flags:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Cm #
 Selects an alternate output form for octal and hexadecimal output.
 Non-zero octal output will have a leading zero, and non-zero
-hexadecimal output will have ``0x'' prepended to it.
+hexadecimal output will have
+.Dq Li 0x
+prepended to it.
 .It Cm +
 Asserts that a sign indicating whether a number is positive or negative
 should always be printed.
@@ -176,8 +190,9 @@ with a sign.
 .It Cm -
 Aligns string output to the left of the field, instead of to the right.
 .It Cm 0
-Sets the fill character for left padding to the 0 character, instead of
-a space.
+Sets the fill character for left padding to the
+.Ql 0
+character, instead of a space.
 .It space
 Reserves a space at the front of non-negative signed output fields.
 A
@@ -186,31 +201,28 @@ overrides a space if both are used.
 .El
 .Pp
 Then the following fields:
-.Bl -tag -width Ds
-.It Cm size
+.Bl -tag -width indent
+.It Ar size
 An optional decimal digit string specifying the minimum field width.
-.It Cm prec
+.It Ar prec
 An optional precision composed of a decimal point
 .Sq Cm \&.
 and a decimal digit string that indicates the maximum string length,
 the number of digits to appear after the decimal point in floating point
 output, or the minimum number of digits to appear in numeric output.
-.It Cm fmt
+.It Ar fmt
 An optional output format specifier which is one of
-.Cm D ,
-.Cm O ,
-.Cm U ,
-.Cm X ,
-.Cm F ,
+.Cm D , O , U , X , F ,
 or
 .Cm S .
 These represent signed decimal output, octal output, unsigned decimal
 output, hexadecimal output, floating point output, and string output,
 respectively.
 Some output formats do not apply to all fields.
-Floating point output only applies to timespec fields (the
-.Cm a ,
-.Cm m ,
+Floating point output only applies to
+.Vt timespec
+fields (the
+.Cm a , m ,
 and
 .Cm c
 fields).
@@ -219,10 +231,12 @@ The special output specifier
 .Cm S
 may be used to indicate that the output, if
 applicable, should be in string format.
-May be used in combination with
-.Bl -tag -width Ds
+May be used in combination with:
+.Bl -tag -width indent
 .It Cm amc
-Display date in strftime(3) format.
+Display date in
+.Xr strftime 3
+format.
 .It Cm dr
 Display actual device name.
 .It Cm gu
@@ -231,7 +245,7 @@ Display group or user name.
 Display the mode of
 .Ar file
 as in
-.Ic ls -lTd .
+.Nm ls Fl lTd .
 .It Cm N
 Displays the name of
 .Ar file .
@@ -239,68 +253,92 @@ Displays the name of
 Displays the type of
 .Ar file .
 .It Cm Y
-Insert a `` -\*[Gt] '' into the output.
+Insert a
+.Dq Li " -\*[Gt] "
+into the output.
 Note that the default output format
 for
 .Cm Y
 is a string, but if specified explicitly, these four characters are
 prepended.
 .El
-.It Cm sub
+.It Ar sub
 An optional sub field specifier (high, middle, low).
 Only applies to
 the
-.Cm p ,
-.Cm d ,
-.Cm r ,
+.Cm p , d , r ,
 and
 .Cm T
 output formats.
 It can be one of the following:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Cm H
-``High'' -- specifies the major number for devices from
+.Dq High
+\[em]
+specifies the major number for devices from
 .Cm r
 or
 .Cm d ,
-the ``user'' bits for permissions from the string form of
+the
+.Dq user
+bits for permissions from the string form of
 .Cm p ,
-the file ``type'' bits from the numeric forms of
+the file
+.Dq type
+bits from the numeric forms of
 .Cm p ,
 and the long output form of
 .Cm T .
 .It Cm L
-``Low'' -- specifies the minor number for devices from
+.Dq Low
+\[em]
+specifies the minor number for devices from
 .Cm r
 or
 .Cm d ,
-the ``other'' bits for permissions from the string form of
+the
+.Dq other
+bits for permissions from the string form of
 .Cm p ,
-the ``user'', ``group'', and ``other'' bits from the numeric forms of
+the
+.Dq user ,
+.Dq group ,
+and
+.Dq other
+bits from the numeric forms of
 .Cm p ,
 and the
-.Ic ls -F
+.Nm ls Fl F
 style output character for file type when used with
 .Cm T
 (the use of
 .Cm L
 for this is optional).
 .It Cm M
-``Middle'' -- specifies the ``group'' bits for permissions from the
+.Dq Middle
+\[em]
+specifies the
+.Dq group
+bits for permissions from the
 string output form of
 .Cm p ,
-or the ``suid'', ``sgid'', and ``sticky'' bits for the numeric forms of
+or the
+.Dq suid ,
+.Dq sgid ,
+and
+.Dq sticky
+bits for the numeric forms of
 .Cm p .
 .El
-.It Cm datum
+.It Ar datum
 A required field specifier, being one of the following:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Cm d
 Device upon which
 .Ar file
 resides.
 .It Cm i
-.Ar file Ap s
+.Ar file Ns 's
 inode number.
 .It Cm p
 File type and permissions.
@@ -308,8 +346,8 @@ File type and permissions.
 Number of hard links to
 .Ar file .
 .It Cm u , g
-User-id and group-id of
-.Ar file Ap s
+User ID and group ID of
+.Ar file Ns 's
 owner.
 .It Cm r
 Device number for character and block device special files.
@@ -335,20 +373,28 @@ Inode generation number.
 .El
 .Pp
 The following four field specifiers are not drawn directly from the
-data in struct stat, but are
-.Bl -tag -width Ds
+data in
+.Vt "struct stat" ,
+but are:
+.Bl -tag -width indent
 .It Cm N
 The name of the file.
 .It Cm T
 The file type, either as in
-.Ic ls -F
-or in a more descriptive form if the sub field specifier
+.Nm ls Fl F
+or in a more descriptive form if the
+.Ar sub
+field specifier
 .Cm H
 is given.
 .It Cm Y
 The target of a symbolic link.
 .It Cm Z
-Expands to ``major,minor'' from the rdev field for character or block
+Expands to
+.Dq major,minor
+from the
+.Va rdev
+field for character or block
 special devices and gives size output for all others.
 .El
 .El
@@ -371,14 +417,19 @@ which default to
 and
 .Cm Y , T ,
 and
-.Cm N ,
+.Cm N
 which default to
 .Cm S .
 .Sh EXIT STATUS
-.Nm
-exits 0 on success, and \*[Gt]0 if an error occurred.
+.Ex -std stat readlink
 .Sh EXAMPLES
-Given a symbolic link ``foo'' that points from /tmp/foo to /, you would use
+Given a symbolic link
+.Pa foo
+that points from
+.Pa /tmp/foo
+to
+.Pa / ,
+you would use
 .Nm
 as follows:
 .Bd -literal -offset indent
@@ -389,7 +440,7 @@ lrwxrwxrwx 1 jschauma cs 1 Apr 24 16:37:28 2002 /tmp/foo@ -\*[Gt] /
 drwxr-xr-x 16 root wheel 512 Apr 19 10:57:54 2002 /tmp/foo/
 .Ed
 .Pp
-To initialize some shell-variables, you could use the
+To initialize some shell variables, you could use the
 .Fl s
 flag as follows:
 .Bd -literal -offset indent
@@ -460,6 +511,7 @@ The
 utility appeared in
 .Nx 1.6 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 utility was written by
