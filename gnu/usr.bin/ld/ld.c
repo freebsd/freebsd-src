@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.34 1996/06/08 04:52:57 wpaul Exp $
+ *	$Id: ld.c,v 1.35 1996/07/12 19:08:20 jkh Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -55,6 +56,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
 #include <string.h>
 
 #include "ld.h"
+#include "dynamic.h"
 
 /* Vector of entries for input files specified by arguments.
    These are all the input files except for members of specified libraries. */
@@ -120,6 +122,7 @@ int	set_sect_start;		/* start of set element vectors */
 int	set_sect_size;		/* size of above */
 
 int	link_mode;		/* Current link mode */
+int	pic_type;		/* PIC type */
 
 /*
  * When loading the text and data, we can avoid doing a close
@@ -427,6 +430,7 @@ classify_arg(arg)
 	case 'l':
 	case 'O':
 	case 'o':
+	case 'R':
 	case 'u':
 	case 'V':
 	case 'y':
@@ -724,6 +728,12 @@ decode_option(swt, arg)
 		relocatable_output = 1;
 		magic = OMAGIC;
 		text_start = 0;
+		return;
+
+	case 'R':
+		rrs_search_paths = (rrs_search_paths == NULL)
+			? strdup(arg)
+			: concat(rrs_search_paths, ":", arg);
 		return;
 
 	case 'S':
@@ -1891,7 +1901,14 @@ digest_pass1()
 			}
 		}
 
-		if (sp->defined) {
+		/*
+		 * If this symbol has acquired final definition, we're done.
+		 * Commons must be allowed to bind to shared object data
+		 * definitions.
+		 */
+		if (sp->defined &&
+		    (sp->common_size == 0 ||
+		     relocatable_output || building_shared_object)) {
 			if ((sp->defined & N_TYPE) == N_SETV)
 				/* Allocate zero entry in set vector */
 				setv_fill_count++;
@@ -1924,7 +1941,7 @@ digest_pass1()
 			continue;
 		}
 
-		spsave=sp;
+		spsave=sp; /*XXX*/
 	again:
 		for (lsp = sp->sorefs; lsp; lsp = lsp->next) {
 			register struct nlist *p = &lsp->nzlist.nlist;
@@ -1933,6 +1950,26 @@ digest_pass1()
 			if ((type & N_EXT) && type != (N_UNDF | N_EXT) &&
 			    (type & N_TYPE) != N_FN) {
 				/* non-common definition */
+				if (sp->common_size) {
+					/*
+					 * This common has an so defn; switch
+					 * to it iff defn is: data, first-class
+					 * and not weak.
+					 */
+					if (N_AUX(p) != AUX_OBJECT ||
+					    N_ISWEAK(p) ||
+					    (lsp->entry->flags & E_SECONDCLASS))
+						continue;
+
+					/*
+					 * Change common to so ref. First,
+					 * downgrade common to undefined.
+					 */
+					sp->common_size = 0;
+					sp->defined = 0;
+					common_defined_global_count--;
+					undefined_global_sym_count++;
+				}
 				sp->def_lsp = lsp;
 				sp->so_defined = type;
 				sp->aux = N_AUX(p);
@@ -1952,9 +1989,9 @@ printf("pass1: SO definition for %s, type %x in %s at %#x\n",
 	sp->def_lsp->nzlist.nz_value);
 #endif
 			sp->def_lsp->entry->flags |= E_SYMBOLS_USED;
-			if (sp->flags & GS_REFERENCED)
+			if (sp->flags & GS_REFERENCED) {
 				undefined_global_sym_count--;
-			else
+			} else
 				sp->flags |= GS_REFERENCED;
 			if (undefined_global_sym_count < 0)
 				errx(1, "internal error: digest_pass1,2: "
@@ -1965,8 +2002,19 @@ printf("pass1: SO definition for %s, type %x in %s at %#x\n",
 				sp = sp->alias;
 				goto again;
 			}
+		} else if (sp->defined) {
+			if (sp->common_size == 0)
+				errx(1, "internal error: digest_pass1,3: "
+					"%s: not a common: %x",
+					sp->name, sp->defined);
+			/*
+			 * Common not bound to shared object data; treat
+			 * it now like other defined symbols were above.
+			 */
+			if (!sp->alias)
+				defined_global_sym_count++;
 		}
-		sp=spsave;
+		sp=spsave; /*XXX*/
 	} END_EACH_SYMBOL;
 
 	if (setv_fill_count != set_sect_size/sizeof(long))
@@ -2053,6 +2101,11 @@ consider_relocation(entry, dataseg)
 
 			lsp = &entry->symbols[reloc->r_symbolnum];
 			alloc_rrs_gotslot(entry, reloc, lsp);
+			if (pic_type != PIC_TYPE_NONE &&
+			    RELOC_PIC_TYPE(reloc) != pic_type)
+				errx(1, "%s: illegal reloc type mix",
+					get_file_name(entry));
+			pic_type = RELOC_PIC_TYPE(reloc);
 
 		} else if (RELOC_EXTERN_P(reloc)) {
 
@@ -2222,7 +2275,7 @@ consider_file_section_lengths(entry)
 	entry->data_start_address = data_size;
 	data_size += entry->header.a_data;
 	entry->bss_start_address = bss_size;
-	bss_size += entry->header.a_bss;
+	bss_size += MALIGN(entry->header.a_bss);
 
 	text_reloc_size += entry->header.a_trsize;
 	data_reloc_size += entry->header.a_drsize;
@@ -2583,7 +2636,7 @@ write_header()
 	}
 
 	md_swapout_exec_hdr(&outheader);
-	mywrite(&outheader, sizeof (struct exec), 1, outstream);
+	mywrite(&outheader, 1, sizeof (struct exec), outstream);
 	md_swapin_exec_hdr(&outheader);
 
 	/*
@@ -2651,7 +2704,7 @@ copy_text(entry)
 			    entry->textrel, entry->ntextrel, entry, 0);
 
 	/* Write the relocated text to the output file.  */
-	mywrite(bytes, 1, entry->header.a_text, outstream);
+	mywrite(bytes, entry->header.a_text, 1, outstream);
 }
 
 /*
@@ -2722,7 +2775,7 @@ copy_data(entry)
 	perform_relocation(bytes, entry->header.a_data,
 			   entry->datarel, entry->ndatarel, entry, 1);
 
-	mywrite(bytes, 1, entry->header.a_data, outstream);
+	mywrite(bytes, entry->header.a_data, 1, outstream);
 }
 
 /*
@@ -2733,7 +2786,6 @@ copy_data(entry)
  * relocation info, in core. NRELOC says how many there are.
  */
 
-/* HACK: md.c may need access to this */
 int	pc_relocation;
 
 void
@@ -2753,9 +2805,9 @@ perform_relocation(data, data_size, reloc, nreloc, entry, dataseg)
 	int data_relocation = entry->data_start_address - entry->header.a_text;
 	int bss_relocation = entry->bss_start_address -
 				entry->header.a_text - entry->header.a_data;
-	pc_relocation = dataseg?
-			entry->data_start_address - entry->header.a_text:
-			entry->text_start_address;
+	pc_relocation = dataseg
+			? entry->data_start_address - entry->header.a_text
+			: entry->text_start_address;
 
 	for (; r < end; r++) {
 		int	addr = RELOC_ADDRESS(r);
@@ -3119,18 +3171,6 @@ coptxtrel(entry)
 				RELOC_SYMBOL(r) = (sp->defined & N_TYPE);
 			} else
 				RELOC_SYMBOL(r) = sp->symbolnum;
-#ifdef RELOC_ADD_EXTRA
-			/*
-			 * If we aren't going to be adding in the
-			 * value in memory on the next pass of the
-			 * loader, then we need to add it in from the
-			 * relocation entry, unless the symbol remains
-			 * external in our output. Otherwise the work we
-			 * did in this pass is lost.
-			 */
-			if (!RELOC_MEMORY_ADD_P(r) && !RELOC_EXTERN_P(r))
-				RELOC_ADD_EXTRA(r) += sp->value;
-#endif
 		} else
 			/*
 			 * Global symbols come first.
@@ -3269,7 +3309,7 @@ write_string_table()
 		err(1, "write_string_table: %s: fseek", output_filename);
 
 	for (i = 0; i < strtab_index; i++) {
-		mywrite(strtab_vector[i], 1, strtab_lens[i], outstream);
+		mywrite(strtab_vector[i], strtab_lens[i], 1, outstream);
 		strtab_len += strtab_lens[i];
 	}
 }

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.15 1996/05/27 18:06:02 jdp Exp $
+ *	$Id: rrs.c,v 1.16 1996/07/12 19:08:27 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -36,6 +36,7 @@
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -48,6 +49,7 @@
 #include <string.h>
 
 #include "ld.h"
+#include "dynamic.h"
 
 static struct _dynamic		rrs_dyn;		/* defined in link.h */
 static struct so_debug		rrs_so_debug;		/* defined in link.h */
@@ -59,6 +61,8 @@ static struct nzlist		*rrs_symbols;		/* RRS symbol table */
 static char			*rrs_strtab;		/* RRS strings */
 static struct rrs_hash		*rrs_hashtab;		/* RT hash table */
 static struct shobj		*rrs_shobjs;
+char				*rrs_search_paths;	/* `-L' RT search */
+static int			rrs_search_paths_size;
 
 static int	reserved_rrs_relocs;
 static int	claimed_rrs_relocs;
@@ -73,7 +77,10 @@ static int	rrs_symbol_size;
 
 static int	current_jmpslot_offset;
 static int	current_got_offset;
+static int	max_got_offset;
+static int	min_got_offset;
 static int	got_origin;
+static int	current_reloc_offset;
 static int	current_hash_index;
 int		number_of_shobjs;
 
@@ -428,7 +435,7 @@ claim_rrs_gotslot(entry, rp, lsp, addend)
 		/* GOT offset 0 is reserved */
 		current_got_offset += sizeof(got_t);
 
-	if (current_got_offset > MAX_GOTOFF)
+	if (current_got_offset > max_got_offset)
 		errx(1, "%s: GOT overflow on symbol `%s' at %#x",
 		      get_file_name(entry), sp->name, RELOC_ADDRESS(rp));
 
@@ -535,7 +542,7 @@ claim_rrs_internal_gotslot(entry, rp, lsp, addend)
 		/* GOT offset 0 is reserved */
 		current_got_offset += sizeof(got_t);
 
-	if (current_got_offset > MAX_GOTOFF)
+	if (current_got_offset > max_got_offset)
 		errx(1, "%s: GOT overflow for relocation at %#x",
 		      get_file_name(entry), RELOC_ADDRESS(rp));
 
@@ -816,6 +823,11 @@ consider_rrs_section_lengths()
 	rrs_text_size = reserved_rrs_relocs * sizeof(struct relocation_info);
 	rrs_text_size += number_of_rrs_hash_entries * sizeof(struct rrs_hash);
 	rrs_text_size += number_of_rrs_symbols * rrs_symbol_size;
+	rrs_search_paths_size = rrs_search_paths
+					? strlen(rrs_search_paths) + 1
+					: 0;
+	rrs_search_paths_size = MALIGN(rrs_search_paths_size);
+	rrs_text_size += rrs_search_paths_size;
 
 	/* Align strings size */
 	rrs_strtab_size = MALIGN(rrs_strtab_size);
@@ -839,6 +851,7 @@ consider_rrs_section_lengths()
 void
 relocate_rrs_addresses()
 {
+	int gotsize;
 
 	dynamic_symbol->value = 0;
 
@@ -849,16 +862,16 @@ relocate_rrs_addresses()
 	 */
 	current_jmpslot_offset = sizeof(jmpslot_t);
 	current_got_offset = 0;
+	max_got_offset = MAX_GOTOFF(pic_type);
+	min_got_offset = MIN_GOTOFF(pic_type);
+	gotsize = number_of_gotslots * sizeof(got_t);
 
-	if (1 /* Not "-fPIC" seen */) {
-		int gotsize = number_of_gotslots * sizeof(got_t);
+	if (gotsize + min_got_offset - (int)sizeof(got_t) > max_got_offset)
+		warnx("Global Offset Table overflow (use `-fPIC')");
 
-		if (gotsize + MIN_GOTOFF - (int)sizeof(got_t) > MAX_GOTOFF)
-			warnx("Global Offset Table overflow");
-		if (gotsize > MAX_GOTOFF)
-			/* Position at "two-complements" origin */
-			current_got_offset += MIN_GOTOFF;
-	}
+	if (gotsize > max_got_offset)
+		/* Position at "two-complements" origin */
+		current_got_offset += min_got_offset;
 
 	got_origin = -current_got_offset;
 
@@ -905,13 +918,17 @@ relocate_rrs_addresses()
 			number_of_rrs_hash_entries * sizeof(struct rrs_hash);
 	rrs_sdt.sdt_strings = rrs_sdt.sdt_nzlist +
 			number_of_rrs_symbols * rrs_symbol_size;
+	rrs_sdt.sdt_paths = rrs_search_paths
+				? rrs_sdt.sdt_strings + rrs_strtab_size
+				: 0;
+	rrs_sdt.sdt_sods = rrs_shobjs
+				? rrs_sdt.sdt_strings + rrs_strtab_size +
+				  rrs_search_paths_size
+				: 0;
+	rrs_sdt.sdt_filler2 = 0;
 	rrs_sdt.sdt_str_sz = rrs_strtab_size;
 	rrs_sdt.sdt_text_sz = text_size;
 	rrs_sdt.sdt_plt_sz = number_of_jmpslots * sizeof(jmpslot_t);
-
-	rrs_sdt.sdt_sods = rrs_shobjs ? rrs_sdt.sdt_strings+rrs_strtab_size : 0;
-	rrs_sdt.sdt_filler1 = 0;
-	rrs_sdt.sdt_filler2 = 0;
 
 	/*
 	 * Assign addresses to _GLOBAL_OFFSET_TABLE_ and __DYNAMIC.
@@ -1162,6 +1179,9 @@ write_rrs_text()
 
 	/* Write the strings */
 	mywrite(rrs_strtab, rrs_strtab_size, 1, outstream);
+
+	/* Write RT search path */
+	mywrite(rrs_search_paths, rrs_search_paths_size, 1, outstream);
 
 	/*
 	 * Write the names of the shared objects needed at run-time
