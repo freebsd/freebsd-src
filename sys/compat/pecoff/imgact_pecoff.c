@@ -318,10 +318,6 @@ pecoff_load_file(struct thread * td, const char *file, u_long * addr, u_long * e
 	 * Check permissions, modes, uid, etc on the file, and "open" it.
 	 */
 	error = exec_check_permissions(imgp);
-	if (error) {
-		VOP_UNLOCK(nd.ni_vp, 0, td);
-		goto fail;
-	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	if (error)
 		goto fail;
