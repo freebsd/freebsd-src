@@ -105,12 +105,15 @@ Start the file system at
 Normally, if the underlying device is a CD-ROM drive,
 .Nm
 will try to figure out the last track from the CD-ROM containing
-data, and start the file system there.  If the device is not a CD-ROM,
+data, and start the file system there.
+If the device is not a CD-ROM,
 or the table of contents cannot be examined, the file system will be
-started at sector 0.  This option can be used to override the behaviour.
+started at sector 0.
+This option can be used to override the behaviour.
 Note that
 .Ar startsector
-is measured in CD-ROM blocks, with 2048 bytes each.  This is the same
+is measured in CD-ROM blocks, with 2048 bytes each.
+This is the same
 as for example the
 .Cm info
 command of

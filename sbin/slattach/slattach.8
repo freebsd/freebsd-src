@@ -66,7 +66,8 @@ Autoenable the VJ header compression option, if the other end of the link
 is capable of VJ header compression then it will be used otherwise normal
 headers will be used.
 .It Fl c
-Enable the VJ header compression option.  Note that both ends of the link
+Enable the VJ header compression option.
+Note that both ends of the link
 must be able to use VJ header compression for this to work.
 .It Fl e Ar exit-command
 Specify a command to be invoked within a shell
@@ -83,7 +84,8 @@ Turn on cts/rts style flow control on the slip port, by default no flow
 control is done.
 .It Fl l
 Disable modem control (CLOCAL) and ignore carrier detect on the slip
-port.  By default the
+port.
+By default the
 .Ar redial-command
 is invoked upon carrier drop and
 .Nm
@@ -91,7 +93,8 @@ aborts if no
 .Ar redial-command
 is specified.
 .It Fl n
-Throw away ICMP packets.  The slip interface will ignore ICMP packets
+Throw away ICMP packets.
+The slip interface will ignore ICMP packets
 to prevent slow lines being saturated by ICMP responses.
 .It Fl r Ar redial-command
 Specify a command to be invoked within a shell
@@ -116,7 +119,8 @@ and
 .Ar new
 are the slip unit numbers when the line was
 last opened and the unit number of the current slip connection
-respectively.  The unit number can change after redialing if you are
+respectively.
+The unit number can change after redialing if you are
 using more than one slip line.
 When
 .Nm
@@ -150,7 +154,8 @@ If FRAME_END is not received in
 this amount of time, re-connect occurs.
 The default value is no timeout.
 .It Fl O Ar outfill
-Set SLIP "out fill" timeout in seconds.  It forces at least one FRAME_END
+Set SLIP "out fill" timeout in seconds.
+It forces at least one FRAME_END
 to be sent during this time period, which is necessary for the "keep alive"
 timeout on the remote side.
 The default value is no timeout.
@@ -185,7 +190,8 @@ To setup
 to redial the phone when carrier is lost, use the
 .Fl r Ar redial-command
 option to specify a script or executable that will reconnect the
-serial line to the slip server.  For example, the script could redial
+serial line to the slip server.
+For example, the script could redial
 the server and log in, etc.
 .Pp
 To reconfigure the network interface in case the slip unit number
@@ -198,8 +204,10 @@ where
 and
 .Ar new
 are the slip unit numbers before and after
-reconnecting the line.  The unit number can change if you have more
-than one line disconnect at the same time.  The first to succeed in
+reconnecting the line.
+The unit number can change if you have more
+than one line disconnect at the same time.
+The first to succeed in
 reconnecting will get the lowest unit number.
 .Pp
 To kill
@@ -240,7 +248,8 @@ The
 .Nm
 utility
 also logs failure to set the controlling terminal or failure to install
-signal handlers.  Upon connection and redial the ttyname and baud rate
+signal handlers.
+Upon connection and redial the ttyname and baud rate
 are logged and on shutdown the ttyname is logged.
 .Sh FILES
 .Bl -tag -width /usr/share/examples/slattach/* -compact

@@ -121,7 +121,8 @@ but also inhibits running
 while the system is multi-user.
 .Pp
 In addition, kernel time changes are restricted to less than or equal to one
-second.  Attempts to change the time by more than this will log the message
+second.
+Attempts to change the time by more than this will log the message
 .Dq Time adjustment clamped to +1 second .
 .It Ic 3
 Network secure mode \- same as highly secure mode, plus
@@ -189,7 +190,8 @@ program.
 The
 .Nm login
 program, when a valid user logs in,
-executes a shell for that user.  When this shell
+executes a shell for that user.
+When this shell
 dies, either because the user logged out
 or an abnormal termination occurred (a signal),
 the
@@ -330,7 +332,7 @@ If run as a user process as shown in the second synopsis line,
 .Nm
 will emulate
 .At V
-behavior, i.e. super-user can specify the desired
+behavior, i.e., super-user can specify the desired
 .Em run-level
 on a command line, and
 .Nm
@@ -413,7 +415,8 @@ behave as though they have security level \-1.
 Setting the security level above 1 too early in the boot sequence can
 prevent
 .Xr fsck 8
-from repairing inconsistent file systems.  The
+from repairing inconsistent file systems.
+The
 preferred location to set the security level is at the end of
 .Pa /etc/rc
 after all multi-user startup actions are complete.

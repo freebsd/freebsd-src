@@ -40,7 +40,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility makes a file to contain a bad sector.  Normally, bad sectors
+utility makes a file to contain a bad sector.
+Normally, bad sectors
 are made inaccessible by the standard formatter, which provides
 a forwarding table for bad sectors to the driver.
 If a driver supports the bad blocking standard it is much preferable to
@@ -83,8 +84,10 @@ relative sector numbers in its console error messages.)
 Then change back to the root directory, unmount the file system
 and run
 .Xr fsck 8
-on the file system.  The bad sectors should show up in two files
-or in the bad sector files and the free list.  Have
+on the file system.
+The bad sectors should show up in two files
+or in the bad sector files and the free list.
+Have
 .Xr fsck 8
 remove files containing the offending bad sectors, but
 .Em do not

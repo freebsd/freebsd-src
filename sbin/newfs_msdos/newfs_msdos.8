@@ -78,26 +78,32 @@ FAT type (one of 12, 16, or 32).
 .It Fl I Ar volid
 Volume ID.
 .It Fl L Ar label
-Volume label (up to 11 characters).  The label should consist of
+Volume label (up to 11 characters).
+The label should consist of
 only those characters permitted in regular DOS (8+3) filenames.
 .It Fl O Ar OEM
-OEM string (up to 8 characters).  The default is
+OEM string (up to 8 characters).
+The default is
 .Qq Li "BSD  4.4" .
 .It Fl S Ar sector-size
-Number of bytes per sector.  Acceptable values are powers of 2
+Number of bytes per sector.
+Acceptable values are powers of 2
 in the range 128 through 32768.
 .It Fl a Ar FAT-size
 Number of sectors per FAT.
 .It Fl b Ar block-size
-File system block size (bytes per cluster).  This should resolve to an
+File system block size (bytes per cluster).
+This should resolve to an
 acceptable number of sectors per cluster (see below).
 .It Fl c Ar cluster-size
-Sectors per cluster.  Acceptable values are powers of 2 in the range
+Sectors per cluster.
+Acceptable values are powers of 2 in the range
 1 through 128.
 .It Fl e Ar dirents
 Number of root directory entries (FAT12 and FAT16 only).
 .It Fl f Ar format
-Specify a standard (floppy disk) format.  The standard formats
+Specify a standard (floppy disk) format.
+The standard formats
 are (capacities in kilobytes): 160, 180, 320, 360, 640, 720, 1200,
 1232, 1440, 2880.
 .It Fl h Ar heads
@@ -106,12 +112,14 @@ Number of drive heads.
 Location of the file system info sector (FAT32 only).
 A value of 0xffff signifies no info sector.
 .It Fl k Ar backup
-Location of the backup boot sector (FAT32 only).  A value
+Location of the backup boot sector (FAT32 only).
+A value
 of 0xffff signifies no backup sector.
 .It Fl m Ar media
 Media descriptor (acceptable range 0xf0 to 0xff).
 .It Fl n Ar FATs
-Number of FATs.  Acceptable values are 1 to 16 inclusive.
+Number of FATs.
+Acceptable values are 1 to 16 inclusive.
 The default
 is 2.
 .It Fl o Ar hidden
@@ -126,7 +134,8 @@ Number of sectors per track.
 .Sh NOTES
 FAT file system parameters occupy a "Boot Sector BPB (BIOS Parameter
 Block)" in the first of the "reserved" sectors which precede the actual
-file system.  For reference purposes, this structure is presented
+file system.
+For reference purposes, this structure is presented
 below.
 .Bd -literal
 struct bsbpb {

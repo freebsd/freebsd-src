@@ -46,7 +46,8 @@
 The
 .Nm
 utility is used to manually manipulate the network
-routing tables.  It normally is not needed, as a
+routing tables.
+It normally is not needed, as a
 system routing table management daemon, such as
 .Xr routed 8 ,
 should tend to this task.
@@ -65,7 +66,8 @@ The following options are available:
 Run in debug-only mode, i.e., do not actually modify the routing table.
 .It Fl n
 Bypass attempts to print host and network names symbolically
-when reporting actions.  (The process of translating between symbolic
+when reporting actions.
+(The process of translating between symbolic
 names and numerical equivalents can be quite time consuming, and
 may require correct operation of the network; thus it may be expedient
 to forget this, especially when attempting to repair networking operations).
@@ -356,7 +358,8 @@ the routing tables.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "add [host \&| network ] %s: gateway %s flags %x"
-The specified route is being added to the tables.  The
+The specified route is being added to the tables.
+The
 values printed are from the routing table entry supplied
 in the
 .Xr ioctl 2

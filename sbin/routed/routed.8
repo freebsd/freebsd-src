@@ -211,9 +211,11 @@ It continues listening to RIP while using Router Discovery
 if multi-homed to ensure all interfaces are used.
 .Pp
 The Router Discovery standard requires that advertisements
-have a default "lifetime" of 30 minutes.  That means should
+have a default "lifetime" of 30 minutes.
+That means should
 something happen, a client can be without a good route for
-30 minutes.  It is a good idea to reduce the default to 45
+30 minutes.
+It is a good idea to reduce the default to 45
 seconds using
 .Fl P Cm rdisc_interval=45
 on the command line or
@@ -240,7 +242,7 @@ facility described below to support "legacy" systems
 that can handle neither RIPv2 nor Router Discovery.
 .Pp
 By default, neither Router Discovery advertisements nor solicitations
-are sent over point to point links (e.g. PPP).
+are sent over point to point links (e.g.\& PPP).
 The netmask associated with point-to-point links (such as SLIP
 or PPP, with the IFF_POINTOPOINT flag) is used by
 .Nm
@@ -286,7 +288,8 @@ This is typically used on a gateway to the Internet,
 or on a gateway that uses another routing protocol whose routes
 are not reported to other local routers.
 Notice that because a metric of 1 is used, this feature is
-dangerous.  It is more commonly accidentally used to create chaos with a
+dangerous.
+It is more commonly accidentally used to create chaos with a
 routing loop than to solve problems.
 .It Fl h
 cause host or point-to-point routes to not be advertised,
@@ -514,7 +517,7 @@ To set parameters for remote or external interfaces,
 a line starting with
 .Cm if=alias(Hname) ,
 .Cm if=remote(Hname) ,
-etc. should be used.
+etc.\& should be used.
 .Ss Parameters
 Lines that start with neither "net" nor "host" must consist of one
 or more of the following parameter settings, separated by commas or
@@ -535,7 +538,8 @@ This parameter must appear by itself on a line.
 The network number must specify a full, 32-bit value, as in 192.0.2.0
 instead of 192.0.2.
 .Pp
-Do not use this feature unless necessary.  It is dangerous.
+Do not use this feature unless necessary.
+It is dangerous.
 .It Cm ripv1_mask Ns = Ns Ar nname Ns / Ns Ar mask1 , Ns Ar mask2
 specifies that netmask of the network of which
 .Ar nname Ns / Ns Ar mask1
