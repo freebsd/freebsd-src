@@ -65,8 +65,7 @@
 /*
  * CCR registers, appearing in the attribute memory space
  */
-/* XXX sort these offsets out*/
-#define RAY_CCR		0xf00	/* CCR register offset */
+#define RAY_CCR		0xf00			/* CCR register offset */
 #define RAY_COR		(RAY_CCR + 0x00)	/* config option register */
 #define	RAY_CCSR	(RAY_CCR + 0x01)	/* config/status register */
 #define	RAY_PIN		(RAY_CCR + 0x02)	/* not in hw */
@@ -93,6 +92,7 @@
 #define RAY_COR_CFG_MASK	0x3f	/* mask for function */
 #define	RAY_COR_LEVEL_IRQ	0x40	/* currently ignored and set */
 #define	RAY_COR_RESET		0x80	/* soft-reset the card */
+#define RAY_COR_DEFAULT		(RAY_COR_CFG_NUM | RAY_COR_LEVEL_IRQ)
 
 /*
  * CCS register bits
