@@ -206,6 +206,8 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
+
+	/* Below a list of quirks for USB devices supported by umass. */
 	{
 		/*
 		 * This USB floppy drive uses the UFI command set. This
@@ -220,8 +222,24 @@ static struct da_quirk_entry da_quirk_table[] =
 		/* Another USB floppy */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MATSHITA", "FDD CF-VFDU*","*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Sony Memory Stick adapter MSAC-US1,
+		 * does not support READ_6 commands only READ_10. It also does
+		 * not support sync cache (0x35).
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "MSAC-US1", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Sony DSC cameras (DSC-S30, DSC-S50, DSC-S70)
+		 * do not support READ_6 commands, only READ_10. 
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	}
-
 };
 
 static	d_open_t	daopen;
