@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.32 1999/05/07 10:10:50 phk Exp $
+ * $Id: kern_conf.c,v 1.33 1999/05/08 06:39:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -106,9 +106,6 @@ cdevsw_add(dev_t *descrip,
 	return 0;
 } 
 
-/*
- * note must call cdevsw_add before bdevsw_add due to d_bmaj hack.
- */
 void
 cdevsw_add_generic(int bmaj, int cmaj, struct cdevsw *cdevsw)
 {
