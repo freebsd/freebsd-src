@@ -378,7 +378,7 @@ vm_object_reference(vm_object_t object)
 	if (object == NULL)
 		return;
 
-	mtx_lock(&Giant);
+	vm_object_lock(object);
 #if 0
 	/* object can be re-referenced during final cleaning */
 	KASSERT(!(object->flags & OBJ_DEAD),
@@ -391,7 +391,7 @@ vm_object_reference(vm_object_t object)
 			printf("vm_object_reference: delay in getting object\n");
 		}
 	}
-	mtx_unlock(&Giant);
+	vm_object_unlock(object);
 }
 
 /*
@@ -1025,7 +1025,7 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 	if (object == NULL)
 		return;
 
-	mtx_lock(&Giant);
+	vm_object_lock(object);
 
 	end = pindex + count;
 
@@ -1113,7 +1113,7 @@ shadowlookup:
 		if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
 			swap_pager_freespace(tobject, tpindex, 1);
 	}	
-	mtx_unlock(&Giant);
+	vm_object_unlock(object);
 }
 
 /*
@@ -1137,7 +1137,7 @@ vm_object_shadow(
 
 	source = *object;
 
-	mtx_lock(&Giant);
+	vm_object_lock(source);
 	/*
 	 * Don't create the new object if the old object isn't shared.
 	 */
@@ -1146,7 +1146,7 @@ vm_object_shadow(
 	    source->handle == NULL &&
 	    (source->type == OBJT_DEFAULT ||
 	     source->type == OBJT_SWAP)) {
-		mtx_unlock(&Giant);
+		vm_object_unlock(source);
 		return;
 	}
 
@@ -1194,7 +1194,7 @@ vm_object_shadow(
 	*offset = 0;
 	*object = result;
 
-	mtx_unlock(&Giant);
+	vm_object_unlock(source);
 }
 
 /*
@@ -1837,10 +1837,10 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 
 	if (prev_object == NULL)
 		return (TRUE);
-	mtx_lock(&Giant);
+	vm_object_lock(prev_object);
 	if (prev_object->type != OBJT_DEFAULT &&
 	    prev_object->type != OBJT_SWAP) {
-		mtx_unlock(&Giant);
+		vm_object_unlock(prev_object);
 		return (FALSE);
 	}
 
@@ -1855,7 +1855,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	 * pages not mapped to prev_entry may be in use anyway)
 	 */
 	if (prev_object->backing_object != NULL) {
-		mtx_unlock(&Giant);
+		vm_object_unlock(prev_object);
 		return (FALSE);
 	}
 
@@ -1865,7 +1865,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 
 	if ((prev_object->ref_count > 1) &&
 	    (prev_object->size != next_pindex)) {
-		mtx_unlock(&Giant);
+		vm_object_unlock(prev_object);
 		return (FALSE);
 	}
 
@@ -1888,7 +1888,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	if (next_pindex + next_size > prev_object->size)
 		prev_object->size = next_pindex + next_size;
 
-	mtx_unlock(&Giant);
+	vm_object_unlock(prev_object);
 	return (TRUE);
 }
 
