@@ -87,7 +87,7 @@
 
 #define	ALIGNBYTES		_ALIGNBYTES
 #define	ALIGN(p)		_ALIGN(p)
-#define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER((p),(t))
+#define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
 
 /* Size of the level 1 page table units */
