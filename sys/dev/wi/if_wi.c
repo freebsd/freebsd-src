@@ -776,7 +776,7 @@ static int wi_cmd(sc, cmd, val)
 		}
 		DELAY(10*1000);	/* 10 m sec */
 	}
-	if (i < 0) {
+	if (i == 0) {
 		return(ETIMEDOUT);
 	}
 
