@@ -37,7 +37,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_VJC 8
-.Os FreeBSD 3
+.Os FreeBSD 4.0
 .Sh NAME
 .Nm ng_vjc
 .Nd Van Jacobsen compression netgraph node type
@@ -60,6 +60,7 @@ nodes represent the compressed side of the node. Packets received on the
 .Dv ip
 will be compressed or passed through as appropriate. Packets received
 on the other three hooks will be uncompressed as appropriate.
+This node also supports ``always pass through'' mode in either direction.
 .Pp
 Van Jacobsen compression only applies to TCP packets.
 Only ``normal'' (i.e., common case) TCP packets are actually compressed.
@@ -75,6 +76,7 @@ Other non-TCP IP packets are forwarded unchanged to
 When connecting to a
 .Xr ng_ppp 8
 node, the
+.Dv ip ,
 .Dv vjuncomp ,
 .Dv vjcomp , 
 and
@@ -82,10 +84,11 @@ and
 nodes should be connected to the
 .Xr ng_ppp 8
 node's
-.Dv vjcomp ,
-.Dv vjuncomp ,
+.Dv vjc_ip ,
+.Dv vjc_vjcomp ,
+.Dv vjc_vjuncomp ,
 and
-.Dv ip
+.Dv vjc_ip
 nodes, respectively.
 .Sh HOOKS
 This node type supports the following hooks:
@@ -102,32 +105,45 @@ Downstream uncompressed IP packets.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_VJC_CONFIG
+.It Dv NGM_VJC_SET_CONFIG
 This command resets the compression state and configures it according
 to the supplied
 .Dv "struct ngm_vjc_config"
 argument. This structure contains the following fields:
 .Bd -literal -offset 4n
 struct ngm_vjc_config {
-  u_char   enabled;       /* Enable compression/decompression */
+  u_char   enableComp;    /* Enable compression */
+  u_char   enableDecomp;  /* Enable decompression */
   u_char   numChannels;   /* Number of outgoing channels */
   u_char   compressCID;   /* OK to compress outgoing CID's */
 };
 .Ed
 .Pp
 When
-.Dv enabled
-is set to zero, the node operates in ``pass through'' mode, only
-accepting packets on the
+.Dv enableComp
+is set to zero, all packets received on the
 .Dv ip
-and
+hook are forwarded unchanged out the
 .Dv vjip
+hook.  Similarly, when
+.Dv enableDecomp
+is set to zero, all packets received on the
+.Dv vjip
+hook are forwarded unchanged out the
+.Dv ip
+hook, and packets are not accepted on the
+.Dv vjcomp
+and
+.Dv vjuncomp
 hooks.
-.Dv numChannels
-should be set to the number of compression channels, and is a value
-between 3 and 16, inclusive.
+When a node is first created,
+both compression and decompression are disabled and the node is
+therefore operating in bi-directional ``pass through'' mode.
 .Pp
-The
+When enabling compression,
+.Dv numChannels
+should be set to the number of outgoing compression channels, and is a value
+between 3 and 16, inclusive. Also, the
 .Dv compressCID
 field indicates whether it is OK to compress the CID field for
 outgoing compressed TCP packets. This value should be zero unless
@@ -142,9 +158,11 @@ structure, which is defined in
 .Dv "net/slcompress.h" .
 .It Dv NGM_VJC_CLR_STATS
 Clears the node statistics counters. Statistics are also cleared whenever the
-.Dv enabled
-field is changed from zero to one by a
-.Dv NGM_VJC_CONFIG
+.Dv enableComp
+or
+.Dv enableDecomp
+fields are changed from zero to one by a
+.Dv NGM_VJC_SET_CONFIG
 control message.
 .It Dv NGM_VJC_RECV_ERROR
 When the
@@ -158,9 +176,9 @@ This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
 .Sh BUGS
-When used as a loadable kernel module, this node type requires that the file
+When used as a loadable kernel module, this node type requires the file
 .Dv "net/slcompress.c"
-was compiled into the kernel. Currently the only way to insure this
+to have been compiled into the kernel. Currently the only way to insure this
 is to include the
 .Dv slip ,
 .Dv ppp ,
@@ -169,6 +187,14 @@ or
 pseudo-devices in your kernel compilation. In the future there should
 be a kernel option that causes inclusion of this file without requiring
 one of these drivers.
+.Pp
+Because the initialization routine in the kernel implementation of
+Van Jacobsen compression initializes both compression and decompression
+at once, this node does not allow compression and decompression to
+be enabled in separate operations.  In order to enable one when
+the other is already enabled, first both must be disabled, then
+both enabled.  This of course resets the node state.  This restriction
+may be lifted in a later version.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_ppp 8 ,
