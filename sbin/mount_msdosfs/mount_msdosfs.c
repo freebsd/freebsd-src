@@ -29,7 +29,8 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: mount_msdos.c,v 1.2 1994/09/22 22:16:35 wollman Exp $";
+static const char rcsid[] =
+	"$Id: mount_msdos.c,v 1.3 1994/11/01 23:51:42 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -44,19 +45,20 @@ static char rcsid[] = "$Id: mount_msdos.c,v 1.2 1994/09/22 22:16:35 wollman Exp 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "mntopts.h"
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	{ NULL }
 };
 
-gid_t	a_gid __P((char *));
-uid_t	a_uid __P((char *));
-mode_t	a_mask __P((char *));
-void	usage __P((void));
+static gid_t	a_gid __P((char *));
+static uid_t	a_uid __P((char *));
+static mode_t	a_mask __P((char *));
+static __dead void	usage __P((void)) __dead2;
 
 int
 main(argc, argv)
@@ -102,13 +104,13 @@ main(argc, argv)
 	dev = argv[optind];
 	dir = argv[optind + 1];
 	if (dir[0] != '/') {
-		warnx("\"%s\" is a relative path.", dir);
+		warnx("\"%s\" is a relative path", dir);
 		if (getcwd(ndir, sizeof(ndir)) == NULL)
-			err(1, "getcwd");
+			err(EX_OSERR, "getcwd");
 		strncat(ndir, "/", sizeof(ndir) - strlen(ndir) - 1);
 		strncat(ndir, dir, sizeof(ndir) - strlen(ndir) - 1);
 		dir = ndir;
-		warnx("using \"%s\" instead.", dir);
+		warnx("using \"%s\" instead", dir);
 	}
 
 	args.fspec = dev;
@@ -119,7 +121,7 @@ main(argc, argv)
 		args.export.ex_flags = 0;
 	if (!set_gid || !set_uid || !set_mask) {
 		if (stat(dir, &sb) == -1)
-			err(1, "stat %s", dir);
+			err(EX_OSERR, "stat %s", dir);
 
 		if (!set_uid)
 			args.uid = sb.st_uid;
@@ -132,13 +134,15 @@ main(argc, argv)
 	vfc = getvfsbyname("msdos");
 	if(!vfc && vfsisloadable("msdos")) {
 		if(vfsload("msdos"))
-			err(1, "vfsload(msdos)");
+			err(EX_OSERR, "vfsload(msdos)");
 		endvfsent();	/* clear cache */
 		vfc = getvfsbyname("msdos");
 	}
+	if (!vfc)
+		errx(EX_OSERR, "msdos filesystem is not available");
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_MSDOS, dir, mntflags, &args) < 0)
-		err(1, "mount");
+	if (mount(vfc->vfc_index, dir, mntflags, &args) < 0)
+		err(EX_OSERR, "%s", dev);
 
 	exit (0);
 }
@@ -158,7 +162,7 @@ a_gid(s)
 		if (!*s)
 			gid = atoi(gname);
 		else
-			errx(1, "unknown group id: %s", gname);
+			errx(EX_NOUSER, "unknown group id: %s", gname);
 	}
 	return (gid);
 }
@@ -178,7 +182,7 @@ a_uid(s)
 		if (!*s)
 			uid = atoi(uname);
 		else
-			errx(1, "unknown user id: %s", uname);
+			errx(EX_NOUSER, "unknown user id: %s", uname);
 	}
 	return (uid);
 }
@@ -196,7 +200,7 @@ a_mask(s)
 		rv = strtol(optarg, &ep, 8);
 	}
 	if (!done || rv < 0 || *ep)
-		errx(1, "invalid file mode: %s", s);
+		errx(EX_USAGE, "invalid file mode: %s", s);
 	return (rv);
 }
 
@@ -204,5 +208,5 @@ void
 usage()
 {
 	fprintf(stderr, "usage: mount_msdos [-F flags] [-u user] [-g group] [-m mask] bdev dir\n");
-	exit(1);
+	exit(EX_USAGE);
 }
