@@ -119,7 +119,7 @@ struct hosttbl {
 	struct  hosttbl *l_fwd;
 	struct	netinfo *ntp;
 	struct	sockaddr_in addr;
-	char	name[MAXHOSTNAMELEN+1];
+	char	name[MAXHOSTNAMELEN];
 	u_char	head;			/* 1=head of hash chain */
 	u_char	good;			/* 0=trusted host, for averaging */
 	u_char	noanswer;		/* count of failures to answer */
