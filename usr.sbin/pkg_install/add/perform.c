@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.20 1995/04/26 06:56:05 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.21 1995/04/26 07:43:30 jkh Exp $";
 #endif
 
 /*
@@ -52,7 +52,11 @@ pkg_perform(char **pkgs)
 
 static Package Plist;
 
-/* This is seriously ugly code following.  Written very fast! */
+/*
+ * This is seriously ugly code following.  Written very fast!
+ * [And subsequently made even worse..  Sigh!  This code was just born
+ * to be hacked, I guess.. :) -jkh]
+ */
 static int
 pkg_do(char *pkg)
 {
@@ -64,12 +68,14 @@ pkg_do(char *pkg)
     int code = 0;
     PackingList p;
     struct stat sb;
+    char *isTMP = NULL;
 
     /* Reset some state */
     if (Plist.head)
 	free_plist(&Plist);
     LogDir[0] = '\0';
 
+    /* Are we coming in for a second pass, everything already extracted? */
     if (AddMode == SLAVE) {
 	char tmp_dir[FILENAME_MAX];
 
@@ -81,17 +87,35 @@ pkg_do(char *pkg)
 	}
 	read_plist(&Plist, stdin);
     }
+    /* Nope - do it now */
     else {
 	if (!getcwd(home, FILENAME_MAX))
 	    upchuck("getcwd"); 
 
-	if (pkg[0] == '/')	/* full pathname? */
-	    strcpy(pkg_fullname, pkg);
-	else
-	    sprintf(pkg_fullname, "%s/%s", home, pkg);
-	if (!fexists(pkg_fullname)) {
-	    whinge("Can't find package '%s'.", pkg_fullname);
-	    return 1;
+	if (isURL(pkg)) {
+	    char *newname = fileGetURL(pkg);
+
+	    if (!newname) {
+		whinge("Unable to fetch `%s' by URL.", pkg);
+		return 1;
+	    }
+	    strcpy(pkg_fullname, newname);
+	    isTMP = pkg_fullname;
+	}
+	else {
+	    if (pkg[0] == '/')	/* full pathname? */
+		strcpy(pkg_fullname, pkg);
+	    else
+		sprintf(pkg_fullname, "%s/%s", home, pkg);
+	    if (!fexists(pkg_fullname)) {
+		char *tmp = fileFindByPath(pkg);
+
+		if (!tmp) {
+		    whinge("Can't find package `%s'.", pkg);
+		    return 1;
+		}
+		strcpy(pkg_fullname, tmp);
+	    }
 	}
 	Home = make_playpen(PlayPen, 0);
 	sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
@@ -129,8 +153,7 @@ pkg_do(char *pkg)
 		    if (chdir(p->name)) {
 			whinge("Unable to change directory to `%s' - no permission?", p->name);
 			perror("chdir");
-			leave_playpen();
-			return 1;
+			goto bomb;
 		    }
 		}
 		where_to = p->name;
@@ -138,8 +161,7 @@ pkg_do(char *pkg)
 	    else {
 		whinge("No prefix specified in `%s' - this is a bad package!",
 		       pkg_fullname);
-		leave_playpen();
-		return 1;
+		goto bomb;
 	    }
 	}
 	else
@@ -151,7 +173,7 @@ pkg_do(char *pkg)
 	 */
 	if (stat(pkg_fullname, &sb) == FAIL) {
 	    whinge("Can't stat package file '%s'.", pkg_fullname);
-	    return 1;
+	    goto bomb;
 	}
 
 	if (min_free(where_to) < sb.st_size * 4) {
@@ -160,10 +182,6 @@ pkg_do(char *pkg)
 	    whinge("Not extracting %s, sorry!", pkg_fullname);
 	    goto bomb;
 	}
-
-	/* If this is a direct extract and we didn't want it, stop now */
-	if (where_to != PlayPen && Fake)
-	    goto success;
 
 	setenv(PKG_PREFIX_VNAME,
 	       (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
@@ -183,38 +201,44 @@ pkg_do(char *pkg)
 
 	/* Now check the packing list for dependencies */
 	for (p = Plist.head; p ; p = p->next) {
+	    char *isTMP = NULL;	/* local copy for depends only */
+
 	    if (p->type != PLIST_PKGDEP)
 		continue;
 	    if (Verbose)
 		printf("Package `%s' depends on `%s'", pkg, p->name);
 	    if (!Fake && vsystem("pkg_info -e %s", p->name)) {
-		char *cp, tmp[FILENAME_MAX], path[FILENAME_MAX*2];
+		char path[FILENAME_MAX], *cp = NULL;
 
 		if (Verbose)
 		    printf(" which is not currently loaded");
-		cp = getenv("PKG_PATH");
-		if (!cp)
-		    cp = Home;
-		strcpy(path, cp);
-		cp = path;
-		while (cp) {
-		    char *cp2 = strsep(&cp, ":");
-
-		    sprintf(tmp, "%s/%s.tgz", cp2 ? cp2 : cp, p->name);
-		    if (fexists(tmp))
-			break;
+		if (!isURL(p->name)) {
+		    snprintf(path, FILENAME_MAX, "%s/%s", Home, p->name);
+		    if (fexists(path))
+			cp = path;
+		    else
+			cp = fileFindByPath(p->name);
 		}
-		if (fexists(tmp)) {
+		else {
+		    cp = fileGetURL(p->name);
+		    isTMP = cp;
+		}
+		if (cp) {
 		    if (Verbose)
 			printf(" but was found - loading:\n");
-		    if (vsystem("pkg_add %s", tmp)) {
-			whinge("Autoload of dependency package `%s' failed!%s",
-			       p->name, Force ? " (proceeding anyway)" : "");
+		    if (!Fake && vsystem("pkg_add %s", cp)) {
+			whinge("Autoload of dependency `%s' failed%s",
+			       p->name, Force ? " (proceeding anyway)" : "!");
 			if (!Force)
 			    ++code;
 		    }
 		    else if (Verbose)
 			printf("\t`%s' loaded successfully.\n", p->name);
+		    /* Nuke the temporary URL copy */
+		    if (isTMP) {
+			unlink(isTMP);
+			isTMP = NULL;
+		    }
 		}
 		else {
 		    if (Verbose)
@@ -223,7 +247,7 @@ pkg_do(char *pkg)
 		    else
 			printf("Package dependency %s for %s not found%s\n",
 			       p->name, pkg,
-			       Force ? " (proceeding anyway)" : "");
+			       Force ? " (proceeding anyway)" : "!");
 		    if (!Force)
 			++code;
 		}
@@ -231,6 +255,10 @@ pkg_do(char *pkg)
 	    else if (Verbose)
 		printf(" - already installed.\n");
 	}
+
+	/* If this is a direct extract and we didn't want it, stop now */
+	if (where_to != PlayPen && Fake)
+	    goto success;
 
 	/* Finally unpack the whole mess */
 	if (unpack(pkg_fullname, NULL)) {
@@ -301,6 +329,7 @@ pkg_do(char *pkg)
 	unlink(MTREE_FNAME);
     }
 
+    /* Run the installation script one last time? */
     if (!NoInstall && fexists(INSTALL_FNAME)) {
 	if (Verbose)
 	    printf("Running install with POST-INSTALL for %s..\n", PkgName);
@@ -313,6 +342,7 @@ pkg_do(char *pkg)
 	unlink(INSTALL_FNAME);
     }
 
+    /* Time to record the deed? */
     if (!NoRecord && !Fake) {
 	char contents[FILENAME_MAX];
 	FILE *cfile;
@@ -407,7 +437,8 @@ pkg_do(char *pkg)
  success:
     /* delete the packing list contents */
     leave_playpen();
-
+    if (isTMP)
+	unlink(isTMP);
     return code;
 }
 
