@@ -109,7 +109,7 @@ struct	ifnethead ifnet;	/* depend on static init XXX */
 struct	mtx ifnet_lock;
 
 static int	if_indexlim = 8;
-static struct	klist ifklist;
+static struct	knlist ifklist;
 
 static void	filt_netdetach(struct knote *kn);
 static int	filt_netdev(struct knote *kn, long hint);
@@ -185,9 +185,17 @@ netioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 static int
 netkqfilter(struct cdev *dev, struct knote *kn)
 {
-	struct klist *klist;
+	struct knlist *klist;
 	struct ifnet *ifp;
 	int idx;
+
+	switch (kn->kn_filter) {
+	case EVFILT_NETDEV:
+		kn->kn_fop = &netdev_filtops;
+		break;
+	default:
+		return (1);
+	}
 
 	idx = minor(dev);
 	if (idx == 0) {
@@ -199,18 +207,9 @@ netkqfilter(struct cdev *dev, struct knote *kn)
 		klist = &ifp->if_klist;
 	}
 
-	switch (kn->kn_filter) {
-	case EVFILT_NETDEV:
-		kn->kn_fop = &netdev_filtops;
-		break;
-	default:
-		return (1);
-	}
-
 	kn->kn_hook = (caddr_t)klist;
 
-	/* XXX locking? */
-	SLIST_INSERT_HEAD(klist, kn, kn_selnext);
+	knlist_add(klist, kn, 0);
 
 	return (0);
 }
@@ -218,27 +217,30 @@ netkqfilter(struct cdev *dev, struct knote *kn)
 static void
 filt_netdetach(struct knote *kn)
 {
-	struct klist *klist = (struct klist *)kn->kn_hook;
+	struct knlist *klist = (struct knlist *)kn->kn_hook;
 
 	if (kn->kn_status & KN_DETACHED)
 		return;
-	SLIST_REMOVE(klist, kn, knote, kn_selnext);
+
+	knlist_remove(klist, kn, 0);
 }
 
 static int
 filt_netdev(struct knote *kn, long hint)
 {
+	struct knlist *klist = (struct knlist *)kn->kn_hook;
 
 	/*
 	 * Currently NOTE_EXIT is abused to indicate device detach.
 	 */
 	if (hint == NOTE_EXIT) {
 		kn->kn_data = NOTE_LINKINV;
-		kn->kn_status |= KN_DETACHED;
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+		knlist_remove_inevent(klist, kn);
 		return (1);
 	}
-	kn->kn_data = hint;			/* current status */
+	if (hint != 0)
+		kn->kn_data = hint;			/* current status */
 	if (kn->kn_sfflags & hint)
 		kn->kn_fflags |= hint;
 	return (kn->kn_fflags != 0);
@@ -257,7 +259,7 @@ if_init(void *dummy __unused)
 
 	IFNET_LOCK_INIT();
 	TAILQ_INIT(&ifnet);
-	SLIST_INIT(&ifklist);
+	knlist_init(&ifklist, NULL);
 	if_grow();				/* create initial table */
 	ifdev_byindex(0) = make_dev(&net_cdevsw, 0,
 	    UID_ROOT, GID_WHEEL, 0600, "network");
@@ -383,7 +385,7 @@ if_attach(struct ifnet *ifp)
 	TAILQ_INIT(&ifp->if_addrhead);
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
-	SLIST_INIT(&ifp->if_klist);
+	knlist_init(&ifp->if_klist, NULL);
 	getmicrotime(&ifp->if_lastchange);
 
 #ifdef MAC
@@ -620,7 +622,9 @@ if_detach(struct ifnet *ifp)
 #ifdef MAC
 	mac_destroy_ifnet(ifp);
 #endif /* MAC */
-	KNOTE(&ifp->if_klist, NOTE_EXIT);
+	KNOTE_UNLOCKED(&ifp->if_klist, NOTE_EXIT);
+	knlist_clear(&ifp->if_klist, 0);
+	knlist_destroy(&ifp->if_klist);
 	IFNET_WLOCK();
  	found = 0;
  	TAILQ_FOREACH(iter, &ifnet, if_link)

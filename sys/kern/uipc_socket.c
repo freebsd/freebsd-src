@@ -221,6 +221,8 @@ socreate(dom, aso, type, proto, cred, td)
 	mac_create_socket(cred, so);
 #endif
 	SOCK_LOCK(so);
+	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv));
+	knlist_init(&so->so_snd.sb_sel.si_note, SOCKBUF_MTX(&so->so_snd));
 	soref(so);
 	SOCK_UNLOCK(so);
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
@@ -378,6 +380,8 @@ sofree(so)
 	sbrelease_locked(&so->so_snd, so);
 	SOCKBUF_UNLOCK(&so->so_snd);
 	sorflush(so);
+	knlist_destroy(&so->so_rcv.sb_sel.si_note);
+	knlist_destroy(&so->so_snd.sb_sel.si_note);
 	sodealloc(so);
 }
 
@@ -2141,11 +2145,11 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 		sb = &so->so_snd;
 		break;
 	default:
-		return (1);
+		return (EINVAL);
 	}
 
 	SOCKBUF_LOCK(sb);
-	SLIST_INSERT_HEAD(&sb->sb_sel.si_note, kn, kn_selnext);
+	knlist_add(&sb->sb_sel.si_note, kn, 1);
 	sb->sb_flags |= SB_KNOTE;
 	SOCKBUF_UNLOCK(sb);
 	return (0);
@@ -2157,8 +2161,8 @@ filt_sordetach(struct knote *kn)
 	struct socket *so = kn->kn_fp->f_data;
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	SLIST_REMOVE(&so->so_rcv.sb_sel.si_note, kn, knote, kn_selnext);
-	if (SLIST_EMPTY(&so->so_rcv.sb_sel.si_note))
+	knlist_remove(&so->so_rcv.sb_sel.si_note, kn, 1);
+	if (knlist_empty(&so->so_rcv.sb_sel.si_note))
 		so->so_rcv.sb_flags &= ~SB_KNOTE;
 	SOCKBUF_UNLOCK(&so->so_rcv);
 }
@@ -2200,8 +2204,8 @@ filt_sowdetach(struct knote *kn)
 	struct socket *so = kn->kn_fp->f_data;
 
 	SOCKBUF_LOCK(&so->so_snd);
-	SLIST_REMOVE(&so->so_snd.sb_sel.si_note, kn, knote, kn_selnext);
-	if (SLIST_EMPTY(&so->so_snd.sb_sel.si_note))
+	knlist_remove(&so->so_snd.sb_sel.si_note, kn, 1);
+	if (knlist_empty(&so->so_snd.sb_sel.si_note))
 		so->so_snd.sb_flags &= ~SB_KNOTE;
 	SOCKBUF_UNLOCK(&so->so_snd);
 }

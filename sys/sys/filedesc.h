@@ -34,6 +34,7 @@
 #define	_SYS_FILEDESC_H_
 
 #include <sys/queue.h>
+#include <sys/event.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
@@ -71,11 +72,8 @@ struct filedesc {
 	u_short	fd_cmask;		/* mask for file creation */
 	u_short	fd_refcnt;		/* reference count */
 
-	int	fd_knlistsize;		/* size of knlist */
-	struct	klist *fd_knlist;	/* list of attached knotes */
-	u_long	fd_knhashmask;		/* size of knhash */
-	struct	klist *fd_knhash;	/* hash table for attached knotes */
 	struct	mtx fd_mtx;		/* protects members of this struct */
+	struct	kqlist fd_kqlist;	/* list of kqueues on this filedesc */
 	int	fd_holdleaderscount;	/* block fdfree() for shared close() */
 	int	fd_holdleaderswakeup;	/* fdfree() needs wakeup */
 };

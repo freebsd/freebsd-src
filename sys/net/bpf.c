@@ -353,6 +353,7 @@ bpfopen(dev, flags, fmt, td)
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
+	knlist_init(&d->bd_sel.si_note, &d->bd_mtx);
 
 	return (0);
 }
@@ -384,6 +385,7 @@ bpfclose(dev, flags, fmt, td)
 #ifdef MAC
 	mac_destroy_bpfdesc(d);
 #endif /* MAC */
+	knlist_destroy(&d->bd_sel.si_note);
 	bpf_freed(d);
 	dev->si_drv1 = 0;
 	free(d, M_BPF);
@@ -525,7 +527,7 @@ bpf_wakeup(d)
 		pgsigio(&d->bd_sigio, d->bd_sig, 0);
 
 	selwakeuppri(&d->bd_sel, PRINET);
-	KNOTE(&d->bd_sel.si_note, 0);
+	KNOTE_LOCKED(&d->bd_sel.si_note, 0);
 }
 
 static void
@@ -1089,9 +1091,7 @@ bpfkqfilter(dev, kn)
 
 	kn->kn_fop = &bpfread_filtops;
 	kn->kn_hook = d;
-	BPFD_LOCK(d);
-	SLIST_INSERT_HEAD(&d->bd_sel.si_note, kn, kn_selnext);
-	BPFD_UNLOCK(d);
+	knlist_add(&d->bd_sel.si_note, kn, 0);
 
 	return (0);
 }
@@ -1102,9 +1102,7 @@ filt_bpfdetach(kn)
 {
 	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
 
-	BPFD_LOCK(d);
-	SLIST_REMOVE(&d->bd_sel.si_note, kn, knote, kn_selnext);
-	BPFD_UNLOCK(d);
+	knlist_remove(&d->bd_sel.si_note, kn, 0);
 }
 
 static int

@@ -198,13 +198,7 @@ static struct cdevsw dead_cdevsw = {
 #define no_write	(d_write_t *)enodev
 #define no_ioctl	(d_ioctl_t *)enodev
 #define no_mmap		(d_mmap_t *)enodev
-
-static int
-no_kqfilter(struct cdev *dev __unused, struct knote *kn __unused)
-{
-
-	return (1);
-}
+#define no_kqfilter	(d_kqfilter_t *)enodev
 
 static void
 no_strategy(struct bio *bp)

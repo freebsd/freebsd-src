@@ -118,9 +118,16 @@ struct kevent {
  * This is currently visible to userland to work around broken
  * programs which pull in <sys/proc.h>.
  */
-#include <sys/queue.h>
+#include <sys/queue.h> 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 struct knote;
 SLIST_HEAD(klist, knote);
+struct knlist {
+	struct	mtx	*kl_lock;	/* lock to protect kll_list */
+	struct	klist	kl_list;
+};
+
 
 #ifdef _KERNEL
 
@@ -128,8 +135,14 @@ SLIST_HEAD(klist, knote);
 MALLOC_DECLARE(M_KQUEUE);
 #endif
 
-#define KNOTE(list, hint)	\
-	do { if ((list) != NULL) knote(list, hint); } while (0)
+struct kqueue;
+SLIST_HEAD(kqlist, kqueue);
+
+#define KNOTE(list, hist, lock)		knote(list, hist, lock)
+#define KNOTE_LOCKED(list, hint)	knote(list, hint, 1)
+#define KNOTE_UNLOCKED(list, hint)	knote(list, hint, 0)
+#define KNOTE_STATUS_BEGIN(kn)		knote_status(kn, 1)
+#define KNOTE_STATUS_END(kn)		knote_status(kn, 0)
 
 /*
  * Flag indicating hint is a signal.  Used by EVFILT_SIGNAL, and also
@@ -144,13 +157,28 @@ struct filterops {
 	int	(*f_event)(struct knote *kn, long hint);
 };
 
+/*
+ * Setting the KN_INFLUX flag enables you to unlock the kq that this knote
+ * is on, and modify kn_status as if you had the KQ lock.
+ *
+ * kn_sfflags, kn_sdata, and kn_kevent are protected by the knlist lock.
+ */
 struct knote {
-	SLIST_ENTRY(knote)	kn_link;	/* for fd */
+	SLIST_ENTRY(knote)	kn_link;	/* for kq */
 	SLIST_ENTRY(knote)	kn_selnext;	/* for struct selinfo */
+	struct			knlist *kn_knlist;	/* f_attach populated */
 	TAILQ_ENTRY(knote)	kn_tqe;
 	struct			kqueue *kn_kq;	/* which queue we are on */
 	struct 			kevent kn_kevent;
-	int			kn_status;
+	int			kn_status;	/* protected by kq lock */
+#define KN_ACTIVE	0x01			/* event has been triggered */
+#define KN_QUEUED	0x02			/* event is on queue */
+#define KN_DISABLED	0x04			/* event is disabled */
+#define KN_DETACHED	0x08			/* knote is detached */
+#define KN_INFLUX	0x10			/* knote is in flux */
+#define KN_MARKER	0x20			/* ignore this knote */
+#define KN_KQUEUE	0x40			/* this knote belongs to a kq */
+#define KN_HASKQLOCK	0x80			/* for _inevent */
 	int			kn_sfflags;	/* saved filter flags */
 	intptr_t		kn_sdata;	/* saved data field */
 	union {
@@ -159,10 +187,6 @@ struct knote {
 	} kn_ptr;
 	struct			filterops *kn_fop;
 	void			*kn_hook;
-#define KN_ACTIVE	0x01			/* event has been triggered */
-#define KN_QUEUED	0x02			/* event is on queue */
-#define KN_DISABLED	0x04			/* event is disabled */
-#define KN_DETACHED	0x08			/* knote is detached */
 
 #define kn_id		kn_kevent.ident
 #define kn_filter	kn_kevent.filter
@@ -174,12 +198,20 @@ struct knote {
 
 struct thread;
 struct proc;
+struct knlist;
 
-extern void	knote(struct klist *list, long hint);
-extern void	knote_remove(struct thread *p, struct klist *list);
+extern void	knote(struct knlist *list, long hint, int islocked);
+extern void	knote_status(struct knote *kn, int begin);
+extern void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
+extern void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
+extern void	knlist_remove_inevent(struct knlist *knl, struct knote *kn);
+extern int	knlist_empty(struct knlist *knl);
+extern void	knlist_init(struct knlist *knl, struct mtx *mtx);
+extern void	knlist_destroy(struct knlist *knl);
+extern void	knlist_clear(struct knlist *knl, int islocked);
 extern void	knote_fdclose(struct thread *p, int fd);
 extern int 	kqueue_register(struct kqueue *kq,
-		    struct kevent *kev, struct thread *p);
+		    struct kevent *kev, struct thread *p, int waitok);
 extern int	kqueue_add_filteropts(int filt, struct filterops *filtops);
 extern int	kqueue_del_filteropts(int filt);
 

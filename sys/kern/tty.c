@@ -281,6 +281,8 @@ tty_close(struct tty *tp)
 	tp->t_pgrp = NULL;
 	tp->t_session = NULL;
 	tp->t_state = 0;
+	knlist_clear(&tp->t_rsel.si_note, 0);
+	knlist_clear(&tp->t_wsel.si_note, 0);
 	ttyrel(tp);
 	splx(s);
 	return (0);
@@ -1259,7 +1261,7 @@ int
 ttykqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct tty *tp;
-	struct klist *klist;
+	struct knlist *klist;
 	int s;
 
 	KASSERT(devsw(dev)->d_flags & D_TTY,
@@ -1277,13 +1279,13 @@ ttykqfilter(struct cdev *dev, struct knote *kn)
 		kn->kn_fop = &ttywrite_filtops;
 		break;
 	default:
-		return (1);
+		return (EINVAL);
 	}
 
 	kn->kn_hook = (caddr_t)dev;
 
 	s = spltty();
-	SLIST_INSERT_HEAD(klist, kn, kn_selnext);
+	knlist_add(klist, kn, 0);
 	splx(s);
 
 	return (0);
@@ -1295,7 +1297,7 @@ filt_ttyrdetach(struct knote *kn)
 	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
 	int s = spltty();
 
-	SLIST_REMOVE(&tp->t_rsel.si_note, kn, knote, kn_selnext);
+	knlist_remove(&tp->t_rsel.si_note, kn, 0);
 	splx(s);
 }
 
@@ -1318,7 +1320,7 @@ filt_ttywdetach(struct knote *kn)
 	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
 	int s = spltty();
 
-	SLIST_REMOVE(&tp->t_wsel.si_note, kn, knote, kn_selnext);
+	knlist_remove(&tp->t_wsel.si_note, kn, 0);
 	splx(s);
 }
 
@@ -2365,7 +2367,7 @@ ttwakeup(struct tty *tp)
 	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
 		pgsigio(&tp->t_sigio, SIGIO, (tp->t_session != NULL));
 	wakeup(TSA_HUP_OR_INPUT(tp));
-	KNOTE(&tp->t_rsel.si_note, 0);
+	KNOTE_UNLOCKED(&tp->t_rsel.si_note, 0);
 }
 
 /*
@@ -2389,7 +2391,7 @@ ttwwakeup(struct tty *tp)
 		CLR(tp->t_state, TS_SO_OLOWAT);
 		wakeup(TSA_OLOWAT(tp));
 	}
-	KNOTE(&tp->t_wsel.si_note, 0);
+	KNOTE_UNLOCKED(&tp->t_wsel.si_note, 0);
 }
 
 /*
@@ -2754,6 +2756,8 @@ ttyrel(struct tty *tp)
 	TAILQ_REMOVE(&tty_list, tp, t_list);
 	mtx_unlock(&tp->t_mtx);
 	mtx_unlock(&tty_list_mutex);
+	knlist_destroy(&tp->t_rsel.si_note);
+	knlist_destroy(&tp->t_wsel.si_note);
 	mtx_destroy(&tp->t_mtx);
 	free(tp, M_TTYS);
 	return (i);
@@ -2789,6 +2793,8 @@ ttymalloc(struct tty *tp)
 	mtx_lock(&tty_list_mutex);
 	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
 	mtx_unlock(&tty_list_mutex);
+	knlist_init(&tp->t_rsel.si_note, &tp->t_mtx);
+	knlist_init(&tp->t_wsel.si_note, &tp->t_mtx);
 	return (tp);
 }
 

@@ -334,7 +334,7 @@ accept1(td, uap, compat)
 	td->td_retval[0] = fd;
 
 	/* connection has been removed from the listen queue */
-	KNOTE(&head->so_rcv.sb_sel.si_note, 0);
+	KNOTE_UNLOCKED(&head->so_rcv.sb_sel.si_note, 0);
 
 	pgid = fgetown(&head->so_sigio);
 	if (pgid != 0)

@@ -182,7 +182,7 @@ struct aiocblist {
 	struct	file *fd_file;		/* Pointer to file structure */
 	struct	aio_liojob *lio;	/* Optional lio job */
 	struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
-	struct	klist klist;		/* list of knotes */
+	struct	knlist klist;		/* list of knotes */
 	struct	aiocb uaiocb;		/* Kernel I/O control block */
 };
 
@@ -368,6 +368,7 @@ aio_onceonly(void)
 static int
 aio_unload(void)
 {
+	int error;
 
 	/*
 	 * XXX: no unloads by default, it's too dangerous.
@@ -377,11 +378,14 @@ aio_unload(void)
 	if (!unloadable)
 		return (EOPNOTSUPP);
 
+	error = kqueue_del_filteropts(EVFILT_AIO);
+	if (error)
+		return error;
+
 	async_io_version = 0;
 	aio_swake = NULL;
 	EVENTHANDLER_DEREGISTER(process_exit, exit_tag);
 	EVENTHANDLER_DEREGISTER(process_exec, exec_tag);
-	kqueue_del_filteropts(EVFILT_AIO);
 	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, -1);
 	p31b_setcfg(CTL_P1003_1B_AIO_MAX, -1);
 	p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, -1);
@@ -482,7 +486,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 	 * OWNING thread? (or maybe the running thread?)
 	 * There is a semantic problem here...
 	 */
-	knote_remove(FIRST_THREAD_IN_PROC(p), &aiocbe->klist); /* XXXKSE */
+	knlist_clear(&aiocbe->klist, 0); /* XXXKSE */
 
 	if ((ki->kaio_flags & KAIO_WAKEUP) || ((ki->kaio_flags & KAIO_RUNDOWN)
 	    && ((ki->kaio_buffer_count == 0) && (ki->kaio_queue_count == 0)))) {
@@ -933,7 +937,7 @@ aio_daemon(void *uproc)
 			TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
 			TAILQ_INSERT_TAIL(&ki->kaio_jobdone, aiocbe, plist);
 			splx(s);
-			KNOTE(&aiocbe->klist, 0);
+			KNOTE_UNLOCKED(&aiocbe->klist, 0);
 
 			if (aiocbe->jobflags & AIOCBLIST_RUNDOWN) {
 				wakeup(aiocbe);
@@ -1171,7 +1175,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	}
 	splx(s);
 	if (notify)
-		KNOTE(&aiocbe->klist, 0);
+		KNOTE_UNLOCKED(&aiocbe->klist, 0);
 	return (0);
 
 doerror:
@@ -1296,7 +1300,8 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
 	callout_handle_init(&aiocbe->timeouthandle);
-	SLIST_INIT(&aiocbe->klist);
+	/* XXX - need a lock */
+	knlist_init(&aiocbe->klist, NULL);
 
 	suword(&job->_aiocb_private.status, -1);
 	suword(&job->_aiocb_private.error, 0);
@@ -1415,7 +1420,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	kev.filter = EVFILT_AIO;
 	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
 	kev.data = (intptr_t)aiocbe;
-	error = kqueue_register(kq, &kev, td);
+	error = kqueue_register(kq, &kev, td, 1);
 aqueue_fail:
 	if (error) {
 		fdrop(fp, td);
@@ -2187,7 +2192,7 @@ aio_physwakeup(struct buf *bp)
 			TAILQ_REMOVE(&ki->kaio_bufqueue, aiocbe, plist);
 			TAILQ_INSERT_TAIL(&ki->kaio_bufdone, aiocbe, plist);
 
-			KNOTE(&aiocbe->klist, 0);
+			KNOTE_UNLOCKED(&aiocbe->klist, 0);
 			/* Do the wakeup. */
 			if (ki->kaio_flags & (KAIO_RUNDOWN|KAIO_WAKEUP)) {
 				ki->kaio_flags &= ~KAIO_WAKEUP;
@@ -2289,7 +2294,7 @@ filt_aioattach(struct knote *kn)
 		return (EPERM);
 	kn->kn_flags &= ~EV_FLAG1;
 
-	SLIST_INSERT_HEAD(&aiocbe->klist, kn, kn_selnext);
+	knlist_add(&aiocbe->klist, kn, 0);
 
 	return (0);
 }
@@ -2300,7 +2305,7 @@ filt_aiodetach(struct knote *kn)
 {
 	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_sdata;
 
-	SLIST_REMOVE(&aiocbe->klist, kn, knote, kn_selnext);
+	knlist_remove(&aiocbe->klist, kn, 0);
 }
 
 /* kqueue filter function */
