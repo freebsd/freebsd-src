@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)signal.h	8.2 (Berkeley) 1/21/94
- * $Id: signal.h,v 1.6 1996/01/22 12:31:15 mpp Exp $
+ *	@(#)signal.h	8.4 (Berkeley) 5/4/95
+ * $Id: signal.h,v 1.7 1996/03/02 19:38:13 peter Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
