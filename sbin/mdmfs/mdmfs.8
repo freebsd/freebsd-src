@@ -200,6 +200,17 @@ Set the file (directory) permissions of the mount point
 .Ar mount-point
 to
 .Ar permissions .
+The
+.Ar permissions
+argument can be in any of the mode formats recognized by
+.Xr chmod 1 .
+If symbolic permissions are specified,
+the operation characters
+.Dq +
+and
+.Dq -
+are interpreted relative to the initial permissions of
+.Dq a=rwx .
 .It Fl S
 Do not enable soft-updates on the file system.
 .It Fl s Ar size

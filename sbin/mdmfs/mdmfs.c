@@ -92,6 +92,7 @@ main(int argc, char **argv)
 	bool detach, softdep, autounit;
 	char *mtpoint, *unitstr;
 	char ch, *p;
+	void *set;
 
 	/* Misc. initialization. */
 	(void)memset(&mi, '\0', sizeof(mi));
@@ -191,11 +192,11 @@ main(int argc, char **argv)
 		case 'p':
 			if (compat)
 				usage();
-			if (*optarg >= '0' && *optarg <= '7')
-				mi.mi_mode = strtol(optarg, NULL, 8);
-			if ((mi.mi_mode & ~07777) != 0)
+			if ((set = setmode(optarg)) == NULL)
 				usage();
+			mi.mi_mode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
 			mi.mi_have_mode = true;
+			free(set);
 			break;
 		case 'S':
 			if (compat)
