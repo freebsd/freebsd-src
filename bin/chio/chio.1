@@ -69,20 +69,27 @@ to the desired changer device.
 .Pp
 A medium changer apparatus is made up of
 .Em elements .
-There are four element types:
+There are five element types:
 .Em picker
 (medium transport),
 .Em slot
 (storage),
 .Em portal
-(import/export), and
+(import/export),
 .Em drive
-(data transfer).  In this command description, the shorthand
+(data transfer), and
+.Em voltag
+(select by volume identifier).  The
+.Em voltag
+pseudo-element type allows the selection of tapes by their volume tag
+(typically a barcode on the tape).
+.Pp
+In this command description, the shorthand
 .Em ET
 will be used to represent an element type, and
 .Em EU
-will be used to represent an element unit.  For example, to represent
-the first robotic arm in the changer, the
+will be used to represent an element unit.
+For example, to represent the first robotic arm in the changer, the
 .Em ET
 would be
 .Dq picker
@@ -137,6 +144,15 @@ Note that not all medium changers support the
 .Ic exchange
 operation; the changer must have multiple free pickers or emulate
 multiple free pickers with transient storage.
+.It Xo Nm return
+.Ar <from ET> <from EU>
+.Xc
+Return the media unit to its source element.
+This command will query the status of the specified media unit, and
+will move it to the element specified in its source attribute.
+This is a convenient way to return media from a drive or portal
+to its previous element in the changer.
+.Pp
 .It Xo Nm position
 .Ar <to ET> <to EU>
 .Op Ar inv
@@ -246,6 +262,11 @@ Element supports receiving media (importing) from an outside human operator.
 .Bl -tag -width indent
 .It Nm chio move slot 3 drive 0
 Move the media in slot 3 (fourth slot) to drive 0 (first drive).
+.It Nm chio move voltag VOLUME01 drive 0
+Move the media with the barcode VOLUME01 to drive 0 (first drive).
+.It Nm chio return drive 0
+Remove the tape from drive 0 (first drive) and return it to its original
+location in the rack.
 .It Nm chio setpicker 2
 Configure the changer to use picker 2 (third picker) for operations.
 .El
@@ -265,4 +286,7 @@ program and SCSI changer driver were written by
 for And Communications, http://www.and.com/.
 .br
 Additional work by
-.An Hans Huebner Aq hans@artcom.de
+.An Hans Huebner
+.Aq hans@artcom.de
+and Steve Gunn
+.Aq csg@waterspout.com
