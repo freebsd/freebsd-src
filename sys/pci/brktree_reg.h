@@ -37,6 +37,8 @@
  */
 #define	BROOKTREE_848_ID			0x0350109E
 #define BROOKTREE_849_ID                        0x0351109E
+#define BROOKTREE_878_ID                        0x036E109E
+#define BROOKTREE_879_ID                        0x036F109E
 
 typedef volatile u_int 	bregister_t;
 /*
@@ -62,6 +64,7 @@ struct bt848_registers {
 # define BT848_IFORM_M_MUX1		(0x03<<5)
 # define BT848_IFORM_M_MUX0		(0x02<<5)
 # define BT848_IFORM_M_MUX2		(0x01<<5)
+# define BT848_IFORM_M_MUX3		(0x0)
 # define BT848_IFORM_M_RSVD		(0x00<<5)
 #define BT848_IFORM_XTSEL		(0x3<<3)
 # define BT848_IFORM_X_AUTO		(0x03<<3)
@@ -455,6 +458,7 @@ struct bktr_softc {
     int                 reverse_mute;
     int                 bt848_tuner;
     int                 bt848_card;
+    u_long              id;
 };
 
 typedef struct bktr_softc bktr_reg_t;
