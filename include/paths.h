@@ -65,7 +65,7 @@
 #define	_PATH_MAN	"/usr/share/man"
 #define	_PATH_MEM	"/dev/mem"
 #define	_PATH_NOLOGIN	"/var/run/nologin"
-#define	_PATH_RCP	"/usr/bin/rcp"
+#define	_PATH_RCP	"/bin/rcp"
 #define	_PATH_RLOGIN	"/usr/bin/rlogin"
 #define	_PATH_RSH	"/usr/bin/rsh"
 #define	_PATH_SENDMAIL	"/usr/sbin/sendmail"
