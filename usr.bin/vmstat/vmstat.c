@@ -149,7 +149,7 @@ static void	domem(void);
 static void	dointr(void);
 static void	dosum(void);
 static void	dosysctl(const char *);
-static void	dovmstat(u_int, int);
+static void	dovmstat(unsigned int, int);
 static void	dozmem(void);
 static void	kread(int, void *, size_t);
 static void	needhdr(int);
@@ -165,7 +165,7 @@ int
 main(int argc, char *argv[])
 {
 	int c, todo;
-	u_int interval;
+	unsigned int interval;
 	int reps;
 	char *memf, *nlistf;
 	char errbuf[_POSIX2_LINE_MAX];
@@ -494,7 +494,7 @@ fill_vmtotal(struct vmtotal *vmtp)
 static int hz, hdrcnt;
 
 static void
-dovmstat(u_int interval, int reps)
+dovmstat(unsigned int interval, int reps)
 {
 	struct vmtotal total;
 	time_t uptime, halfuptime;
@@ -586,24 +586,24 @@ dovmstat(u_int interval, int reps)
 		(void)printf(" %7ld %6ld ", (long)vmstat_pgtok(total.t_avm),
 			     (long)vmstat_pgtok(total.t_free));
 		(void)printf("%4lu ",
-		    (u_long)rate(sum.v_vm_faults - osum.v_vm_faults));
+		    (unsigned long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
-		    (u_long)rate(sum.v_reactivated - osum.v_reactivated));
+		    (unsigned long)rate(sum.v_reactivated - osum.v_reactivated));
 		(void)printf("%3lu ",
-		    (u_long)rate(sum.v_swapin + sum.v_vnodein -
+		    (unsigned long)rate(sum.v_swapin + sum.v_vnodein -
 		    (osum.v_swapin + osum.v_vnodein)));
 		(void)printf("%3lu ",
-		    (u_long)rate(sum.v_swapout + sum.v_vnodeout -
+		    (unsigned long)rate(sum.v_swapout + sum.v_vnodeout -
 		    (osum.v_swapout + osum.v_vnodeout)));
 		(void)printf("%3lu ",
-		    (u_long)rate(sum.v_tfree - osum.v_tfree));
+		    (unsigned long)rate(sum.v_tfree - osum.v_tfree));
 		(void)printf("%3lu ",
-		    (u_long)rate(sum.v_pdpages - osum.v_pdpages));
+		    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages));
 		devstats();
 		(void)printf("%4lu %4lu %3lu ",
-		    (u_long)rate(sum.v_intr - osum.v_intr),
-		    (u_long)rate(sum.v_syscall - osum.v_syscall),
-		    (u_long)rate(sum.v_swtch - osum.v_swtch));
+		    (unsigned long)rate(sum.v_intr - osum.v_intr),
+		    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
+		    (unsigned long)rate(sum.v_swtch - osum.v_swtch));
 		cpustats();
 		(void)printf("\n");
 		(void)fflush(stdout);
@@ -660,7 +660,7 @@ needhdr(int dummy __unused)
 static void
 dotimes(void)
 {
-	u_int pgintime, rectime;
+	unsigned int pgintime, rectime;
 
 	kread(X_REC, &rectime, sizeof(rectime));
 	kread(X_PGIN, &pgintime, sizeof(pgintime));
@@ -834,7 +834,7 @@ cpustats(void)
 static void
 dointr(void)
 {
-	u_long *intrcnt, uptime;
+	unsigned long *intrcnt, uptime;
 	u_int64_t inttotal;
 	size_t clen, nintr, inamlen, i, istrnamlen;
 	char *intrname, *tintrname;
@@ -866,7 +866,7 @@ dointr(void)
 				break;
 		}
 	}
-	nintr /= sizeof(u_long);
+	nintr /= sizeof(unsigned long);
 	tintrname = intrname;
 	istrnamlen = strlen("interrupt");
 	for (i = 0; i < nintr; i++) {
