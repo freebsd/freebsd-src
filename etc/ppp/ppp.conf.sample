@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.9 1997/09/01 22:22:08 brian Exp $
+# $Id: ppp.conf.sample,v 1.5.2.10 1997/09/07 01:06:43 brian Exp $
 #
 #################################################################
 
@@ -88,7 +88,7 @@ ondemand:
  set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
  set ifaddr 192.244.185.226 192.244.176.44 255.255.255.0
- add 0 0 192.244.176.44
+ add 0 0 HISADDR
 
 # Another on demand example
 #  If the peer assigns us an arbitrary IP and we can't predict what their
@@ -124,7 +124,6 @@ direct-client:
  set log Phase Chat LQM
  set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
- add 10.0.4.2 255.255.255.255 127.0.0.1
  enable lqr
  accept lqr
  
@@ -132,7 +131,6 @@ direct-server:
  set timeout 900 10 3
  set log Phase LQM
  set ifaddr 10.0.4.1 10.0.4.2
- add 10.0.4.1 255.255.255.255 127.0.0.1
  enable lqr
  accept lqr
 
