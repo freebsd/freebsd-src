@@ -696,8 +696,8 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
-			make  ${KERNEL} && \
-			cp ${KERNEL} ${RD}/kernels/${KERNEL}
+			make  kernel && \
+			cp kernel ${RD}/kernels/${KERNEL}
 
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
