@@ -56,7 +56,7 @@ DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 .endif
 
 DPADD+= ${LIBTERMCAP}
-LDADD+= -ltermcap -lmalloc
+LDADD+= -ltermcap
 
 .if exists(${.OBJDIR}/../libiberty)
 LDADD+=   -L${.OBJDIR}/../libiberty -liberty
