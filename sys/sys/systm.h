@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.11 1994/09/18 21:30:30 bde Exp $
+ * $Id: systm.h,v 1.12 1994/10/02 17:24:59 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -155,6 +155,7 @@ void	startprofclock __P((struct proc *));
 void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
 
+void	hardupdate __P((long));
 #include <libkern/libkern.h>
 
 /* Initialize the world */
@@ -182,5 +183,6 @@ typedef timeout_t *timeout_func_t; /* a pointer to this type */
 
 void timeout(timeout_func_t, void *, int);
 void untimeout(timeout_func_t, void *);
+void	logwakeup __P((void));
 
 #endif /* !_SYS_SYSTM_H_ */
