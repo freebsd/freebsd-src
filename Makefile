@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.123 1997/05/03 02:51:58 jb Exp $
+#	$Id: Makefile,v 1.124 1997/05/10 06:53:40 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -381,8 +381,7 @@ includes:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
-	cd ${.CURDIR}/include/rpcsvc &&		${MAKE} all
-	cd ${.CURDIR}/include &&		${MAKE} install
+	cd ${.CURDIR}/include &&		${MAKE} all install
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
