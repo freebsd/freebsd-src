@@ -179,7 +179,7 @@ struct trapframe;
  * execution is now, or was when it was suspended, why it was suspended,
  * and anything else that will be needed to restart it when it is
  * rescheduled. Always associated with a KSE when running, but can be
- * reassigned to an equivalent KSE  when being restarted for
+ * reassigned to an equivalent KSE when being restarted for
  * load balancing. Each of these is associated with a kernel stack
  * and a pcb.
  *
@@ -195,7 +195,7 @@ struct trapframe;
  * keeps a cached thread available to allow it to quickly
  * get one when it needs a new one. There is also a system
  * cache of free threads. Threads have priority and partake in priority
- * inherritance schemes.
+ * inheritance schemes.
  */
 struct thread;
 
