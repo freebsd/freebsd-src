@@ -458,7 +458,7 @@ get_off_t(const char *val)
 			mult = (quad_t)get_off_t(expr + 1);
 			prevnum = num;
 			num *= mult;
-			if ((prevnum > 0) != (num > 0) && num / mult == prevnum)
+			if ((prevnum > 0) == (num > 0) && num / mult == prevnum)
 				break;
 erange:
 			errx(1, "%s: %s", oper, strerror(ERANGE));
