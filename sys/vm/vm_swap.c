@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.57 1998/10/25 19:24:04 bde Exp $
+ * $Id: vm_swap.c,v 1.58 1999/01/21 08:29:12 dillon Exp $
  */
 
 #include "opt_devfs.h"
