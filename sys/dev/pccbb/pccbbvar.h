@@ -80,6 +80,7 @@ struct cbb_softc {
 #define	CB_CIRRUS	6		/* Cirrus Logic CLPD683x */
 #define	CB_TOPIC95	7		/* Toshiba ToPIC95 */
 #define	CB_TOPIC97	8		/* Toshiba ToPIC97/100 */
+#define	CB_O2MICRO	9		/* O2Micro chips */
 	SLIST_HEAD(, cbb_reslist) rl;
 	STAILQ_HEAD(, cbb_intrhand) intr_handlers;
 
