@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 460.status-mail-rejects,v 1.4 1998/01/26 02:26:29 brian Exp $
+# $Id: 460.status-mail-rejects,v 1.5 1998/02/05 15:33:54 wosch Exp $
 #
 
 if [ -d /etc/mail -a -f /var/log/maillog ]; then
@@ -12,5 +12,5 @@ if [ -d /etc/mail -a -f /var/log/maillog ]; then
 	perl -ne "print \"\$1\n\" 
 	    if (/^$start.*ruleset=check_mail, arg1=<.*@([^>]*)>.*reject=/o || 
                 /^$start.*ruleset=check_relay, arg1=([^, ]*), .*reject=/o)" | 
-	sort -u
+	sort | uniq -c | sort -nr
 fi
