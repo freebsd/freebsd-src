@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.15 1995/03/28 07:57:47 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.16 1995/04/09 06:03:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -633,6 +633,7 @@ ffs_sync(mp, waitfor, cred, p)
 	register struct inode *ip;
 	register struct ufsmount *ump = VFSTOUFS(mp);
 	register struct fs *fs;
+	struct timeval tv;
 	int error, allerror = 0;
 
 	fs = ump->um_fs;
@@ -675,16 +676,21 @@ loop:
 			vput(vp);
 		}
 			
-		if (((vp->v_type == VCHR) || ((ip->i_flag &
+		if ((((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)) &&
 		    vp->v_dirtyblkhd.lh_first == NULL)
 			continue;
-		if (vget(vp, 1))
-			goto loop;
-		error = VOP_FSYNC(vp, cred, waitfor, p);
-		if (error)
-			allerror = error;
-		vput(vp);
+		if (vp->v_type != VCHR) {
+			if (vget(vp, 1))
+				goto loop;
+			error = VOP_FSYNC(vp, cred, waitfor, p);
+			if (error)
+				allerror = error;
+			vput(vp);
+		} else {
+			tv = time;
+			VOP_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT);
+		}
 	}
 	/*
 	 * Force stale file system control information to be flushed.
