@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
@@ -34,8 +35,9 @@
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
-#if !defined(KLD_MODULE) && !defined(PFIL_HOOKS)
+#if !defined(PFIL_HOOKS)
 #error IPFIREWALL requires PFIL_HOOKS.
+#endif
 #endif
 
 #include <sys/param.h>
