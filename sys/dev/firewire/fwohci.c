@@ -1110,8 +1110,10 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		if (tr->xfer != NULL) {
 			xfer = tr->xfer;
 			if (xfer->state == FWXF_RCVD) {
+#if 0
 				if (firewire_debug)
 					printf("already rcvd\n");
+#endif
 				fw_xfer_done(xfer);
 			} else {
 				xfer->state = FWXF_SENT;

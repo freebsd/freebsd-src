@@ -1772,8 +1772,10 @@ fw_rcv(struct firewire_comm *fc, struct iovec *vec, int nvec, u_int sub, u_int s
 			fw_xfer_done(xfer);
 			break;
 		case FWXF_START:
+#if 0
 			if (firewire_debug)
 				printf("not sent yet tl=%x\n", xfer->tl);
+#endif
 			break;
 		default:
 			printf("unexpected state %d\n", xfer->state);
