@@ -855,6 +855,10 @@ send:
 	if (error) {
 out:
 		if (error == ENOBUFS) {
+	                if (!callout_active(tp->tt_rexmt) &&
+                            !callout_active(tp->tt_persist))
+	                        callout_reset(tp->tt_rexmt, tp->t_rxtcur,
+                                      tcp_timer_rexmt, tp);
 			tcp_quench(tp->t_inpcb, 0);
 			return (0);
 		}
