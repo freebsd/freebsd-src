@@ -93,7 +93,7 @@ fa *makedfa(char *s, int anchor)	/* returns dfa for reg expr s */
 		return mkdfa(s, anchor);
 	for (i = 0; i < nfatab; i++)	/* is it there already? */
 		if (fatab[i]->anchor == anchor
-		  && strcmp(fatab[i]->restr, s) == 0) {
+		  && strcmp((const char *) fatab[i]->restr, s) == 0) {
 			fatab[i]->use = now++;
 			return fatab[i];
 		}
@@ -683,6 +683,37 @@ Node *unary(Node *np)
 	}
 }
 
+/*
+ * Character class definitions conformant to the POSIX locale as
+ * defined in IEEE P1003.1 draft 7 of June 2001, assuming the source
+ * and operating character sets are both ASCII (ISO646) or supersets
+ * thereof.
+ *
+ * Note that to avoid overflowing the temporary buffer used in
+ * relex(), the expanded character class (prior to range expansion)
+ * must be less than twice the size of their full name.
+ */
+struct charclass {
+	const char *cc_name;
+	int cc_namelen;
+	const char *cc_expand;
+} charclasses[] = {
+	{ "alnum",	5,	"0-9A-Za-z" },
+	{ "alpha",	5,	"A-Za-z" },
+	{ "blank",	5,	" \t" },
+	{ "cntrl",	5,	"\000-\037\177" },
+	{ "digit",	5,	"0-9" },
+	{ "graph",	5,	"\041-\176" },
+	{ "lower",	5,	"a-z" },
+	{ "print",	5,	" \041-\176" },
+	{ "punct",	5,	"\041-\057\072-\100\133-\140\173-\176" },
+	{ "space",	5,	" \f\n\r\t\v" },
+	{ "upper",	5,	"A-Z" },
+	{ "xdigit",	6,	"0-9A-Fa-f" },
+	{ NULL,		0,	NULL },
+};
+
+
 int relex(void)		/* lexical analyzer for reparse */
 {
 	int c, n;
@@ -690,6 +721,8 @@ int relex(void)		/* lexical analyzer for reparse */
 	static uschar *buf = 0;
 	static int bufsz = 100;
 	uschar *bp;
+	struct charclass *cc;
+	const uschar *p;
 
 	switch (c = *prestr++) {
 	case '|': return OR;
@@ -719,7 +752,7 @@ int relex(void)		/* lexical analyzer for reparse */
 		}
 		else
 			cflag = 0;
-		n = 2 * strlen(prestr)+1;
+		n = 2 * strlen((const char *) prestr)+1;
 		if (!adjbuf((char **) &buf, &bufsz, n, n, (char **) &bp, 0))
 			FATAL("out of space for reg expr %.10s...", lastre);
 		for (; ; ) {
@@ -730,6 +763,18 @@ int relex(void)		/* lexical analyzer for reparse */
 				*bp++ = c;
 			/* } else if (c == '\n') { */
 			/* 	FATAL("newline in character class %.20s...", lastre); */
+			} else if (c == '[' && *prestr == ':') {
+				/* POSIX char class names, Dag-Erling Smorgrav, des@ofug.org */
+				for (cc = charclasses; cc->cc_name; cc++)
+					if (strncmp((const char *) prestr + 1, (const char *) cc->cc_name, cc->cc_namelen) == 0)
+						break;
+				if (cc->cc_name != NULL && prestr[1 + cc->cc_namelen] == ':' &&
+				    prestr[2 + cc->cc_namelen] == ']') {
+					prestr += cc->cc_namelen + 3;
+					for (p = (const uschar *) cc->cc_expand; *p; p++)
+						*bp++ = *p;
+				} else
+					*bp++ = c;
 			} else if (c == '\0') {
 				FATAL("nonterminated character class %.20s", lastre);
 			} else if (bp == buf) {	/* 1st char is special */

@@ -25,6 +25,38 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Feb 10, 2002:
+	changed types in posix chars structure to quiet solaris cc.
+
+Jan 1, 2002:
+	fflush() or fflush("") flushes all files and pipes.
+
+	length(arrayname) returns number of elements; thanks to 
+	arnold robbins for suggestion.
+
+	added a makefile.win to make it easier to build on windows.
+	based on dan allen's buildwin.bat.
+
+Nov 16, 2001:
+	added support for posix character class names like [:digit:],
+	which are not exactly shorter than [0-9] and perhaps no more
+	portable.  thanks to dag-erling smorgrav for code.
+
+Feb 16, 2001:
+	removed -m option; no longer needed, and it was actually
+	broken (noted thanks to volker kiefel).
+
+Feb 10, 2001:
+	fixed an appalling bug in gettok: any sequence of digits, +,-, E, e,
+	and period was accepted as a valid number if it started with a period.
+	this would never have happened with the lex version.
+
+	other 1-character botches, now fixed, include a bare $ and a
+	bare " at the end of the input.
+
+Feb 7, 2001:
+	more (const char *) casts in b.c and tran.c to silence warnings.
+
 Nov 15, 2000:
 	fixed a bug introduced in august 1997 that caused expressions
 	like $f[1] to be syntax errors.  thanks to arnold robbins for
