@@ -1,5 +1,7 @@
 set -e
 
+# $FreeBSD$
+
 # Build a list of headers that have ioctls in them.
 # XXX should we use an ANSI cpp?
 # XXX netipx conflicts with netns (leave out netns).
@@ -19,7 +21,6 @@ BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
 	print "#define COMPAT_43"
 	print "#include <sys/param.h>"
-	print "#include <sys/device.h>"
 	print "#include <sys/devicestat.h>"
 	print "#include <sys/disklabel.h>"
 	print "#include <sys/dkbad.h>"
