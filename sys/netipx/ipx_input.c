@@ -443,7 +443,7 @@ struct route *ro;
 	dst->sipx_family = AF_IPX;
 	dst->sipx_addr = *src;
 	dst->sipx_addr.x_port = 0;
-	rtalloc(ro);
+	rtalloc_ign(ro, 0);
 	if (ro->ro_rt == NULL || ro->ro_rt->rt_ifp == NULL) {
 		return (0);
 	}

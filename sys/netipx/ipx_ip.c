@@ -333,7 +333,7 @@ ipxip_route(so, sopt)
 	 */
 	bzero((caddr_t)&ro, sizeof(ro));
 	ro.ro_dst = *(struct sockaddr *)ip_dst;
-	rtalloc(&ro);
+	rtalloc_ign(&ro, 0);
 	if (ro.ro_rt == NULL || ro.ro_rt->rt_ifp == NULL) {
 		return (ENETUNREACH);
 	}

@@ -91,14 +91,14 @@ ipx_outputfl(m0, ro, flags)
 			ifp = ia->ia_ifp;
 			goto gotif;
 		}
-		rtalloc(ro);
+		rtalloc_ign(ro, 0);
 	} else if ((ro->ro_rt->rt_flags & RTF_UP) == 0) {
 		/*
 		 * The old route has gone away; try for a new one.
 		 */
 		RTFREE(ro->ro_rt);
 		ro->ro_rt = NULL;
-		rtalloc(ro);
+		rtalloc_ign(ro, 0);
 	}
 	if (ro->ro_rt == NULL || (ifp = ro->ro_rt->rt_ifp) == NULL) {
 		ipxstat.ipxs_noroute++;
