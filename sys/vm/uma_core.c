@@ -2119,6 +2119,13 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 				cachefree += cache->uc_freebucket->ub_ptr + 1;
 			CPU_UNLOCK(cpu);
 		}
+		/*
+		 * The "UMA Zones" zone (master zone) does not have pcpu
+		 * caches allocated for it, so the above computation is entirely
+		 * bogus.  Re-set cachefree to 0 in that case.
+		 */
+		if (z == zones)
+			cachefree = 0;
 		LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link) {
 			cachefree += bucket->ub_ptr + 1;
 		}
