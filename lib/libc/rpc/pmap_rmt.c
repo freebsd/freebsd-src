@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_rmt.c 1.21 87/08/27 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_rmt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_rmt.c,v 1.6 1996/06/10 00:49:17 jraynard Exp $";
+static char *rcsid = "$Id: pmap_rmt.c,v 1.7 1996/06/10 04:59:05 wpaul Exp $";
 #endif
 
 /*
@@ -285,6 +285,7 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 #endif /* def FD_SETSIZE */
 	nets = getbroadcastnets(addrs, sock, inbuf);
 	bzero((char *)&baddr, sizeof (baddr));
+	baddr.sin_len = sizeof(struct sockaddr_in);
 	baddr.sin_family = AF_INET;
 	baddr.sin_port = htons(PMAPPORT);
 	baddr.sin_addr.s_addr = htonl(INADDR_ANY);
