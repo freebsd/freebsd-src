@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.22 1997/02/22 14:33:20 peter Exp $
+ * $Id: startslip.c,v 1.23 1997/03/29 03:33:08 imp Exp $
  */
 
 #ifndef lint
@@ -60,6 +60,7 @@ static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #include <netinet/in.h>
 #include <net/if.h>
@@ -289,7 +290,10 @@ restart:
 	}
 	printd("open");
 	if (uucp_lock) {
-		if (uu_lock(dvname)) {
+		int res;
+		if ((res = uu_lock(dvname)) != UU_LOCK_OK) {
+			if (res != UU_LOCK_INUSE)
+				syslog(LOG_ERR, "uu_lock: %s", uu_lockerr(res));
 			syslog(LOG_ERR, "%s: can't lock %s", username, devicename);
 			goto restart;
 		}

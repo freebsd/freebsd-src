@@ -42,7 +42,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id: slattach.c,v 1.25 1997/02/22 14:33:19 peter Exp $";
+static char rcsid[] = "$Id: slattach.c,v 1.26 1997/03/29 03:33:07 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -61,6 +61,7 @@ static char rcsid[] = "$Id: slattach.c,v 1.25 1997/02/22 14:33:19 peter Exp $";
 #include <syslog.h>
 #include <termios.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #include <netinet/in.h>
 #include <net/if.h>
@@ -294,7 +295,10 @@ void acquire_line()
 
 	if (uucp_lock) {
 		/* unlock not needed here, always re-lock with new pid */
-		if (uu_lock(dvname)) {
+		int res;
+		if ((res = uu_lock(dvname)) != UU_LOCK_OK) {
+			if (res != UU_LOCK_INUSE)
+				syslog(LOG_ERR, "uu_lock: %s", uu_lockerr(res));
 			syslog(LOG_ERR, "can't lock %s", dev);
 			exit_handler(1);
 		}
@@ -474,7 +478,10 @@ again:
 		if (system(redial_cmd))
 			goto again;
 		if (uucp_lock) {
-			if (uu_lock(dvname)) {
+			int res;
+			if ((res = uu_lock(dvname)) != UU_LOCK_OK) {
+				if (res != UU_LOCK_INUSE)
+					syslog(LOG_ERR, "uu_lock: %s", uu_lockerr(res));
 				syslog(LOG_ERR, "can't relock %s after %s, aborting",
 					dev, redial_cmd);
 				exit_handler(1);
