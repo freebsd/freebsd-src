@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.34 1997/12/13 02:37:20 brian Exp $
+#	$Id: Makefile,v 1.35 1998/01/17 14:21:21 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c ccp.c chap.c chat.c command.c deflate.c \
@@ -13,6 +13,10 @@ MAN8=	ppp.8
 BINMODE=4550
 BINOWN=	root
 BINGRP=	network
+
+.if defined(RELEASE_CRUNCH)
+CFLAGS+=-DRELEASE_CRUNCH
+.endif
 
 .if defined(NOALIAS) || defined(RELEASE_CRUNCH)
 CFLAGS+=-DNOALIAS
