@@ -137,24 +137,25 @@ int	vswprintf(wchar_t * __restrict, size_t n, const wchar_t * __restrict,
 int	vwprintf(const wchar_t * __restrict, __va_list);
 size_t	wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 wchar_t	*wcscat(wchar_t * __restrict, const wchar_t * __restrict);
-wchar_t	*wcschr(const wchar_t *, wchar_t);
-int	wcscmp(const wchar_t *, const wchar_t *);
+wchar_t	*wcschr(const wchar_t *, wchar_t) __pure;
+int	wcscmp(const wchar_t *, const wchar_t *) __pure;
 int	wcscoll(const wchar_t *, const wchar_t *);
 wchar_t	*wcscpy(wchar_t * __restrict, const wchar_t * __restrict);
-size_t	wcscspn(const wchar_t *, const wchar_t *);
+size_t	wcscspn(const wchar_t *, const wchar_t *) __pure;
 size_t	wcsftime(wchar_t * __restrict, size_t, const wchar_t * __restrict,
 	    const struct tm * __restrict);
-size_t	wcslen(const wchar_t *);
+size_t	wcslen(const wchar_t *) __pure;
 wchar_t	*wcsncat(wchar_t * __restrict, const wchar_t * __restrict,
 	    size_t);
-int	wcsncmp(const wchar_t *, const wchar_t *, size_t);
+int	wcsncmp(const wchar_t *, const wchar_t *, size_t) __pure;
 wchar_t	*wcsncpy(wchar_t * __restrict , const wchar_t * __restrict, size_t);
-wchar_t	*wcspbrk(const wchar_t *, const wchar_t *);
-wchar_t	*wcsrchr(const wchar_t *, wchar_t);
+wchar_t	*wcspbrk(const wchar_t *, const wchar_t *) __pure;
+wchar_t	*wcsrchr(const wchar_t *, wchar_t) __pure;
 size_t	wcsrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 	    mbstate_t * __restrict);
-size_t	wcsspn(const wchar_t *, const wchar_t *);
-wchar_t	*wcsstr(const wchar_t * __restrict, const wchar_t * __restrict);
+size_t	wcsspn(const wchar_t *, const wchar_t *) __pure;
+wchar_t	*wcsstr(const wchar_t * __restrict, const wchar_t * __restrict)
+	    __pure;
 size_t	wcsxfrm(wchar_t * __restrict, const wchar_t * __restrict, size_t);
 int	wctob(wint_t);
 double	wcstod(const wchar_t * __restrict, wchar_t ** __restrict);
@@ -163,8 +164,8 @@ wchar_t	*wcstok(wchar_t * __restrict, const wchar_t * __restrict,
 long	 wcstol(const wchar_t * __restrict, wchar_t ** __restrict, int);
 unsigned long
 	 wcstoul(const wchar_t * __restrict, wchar_t ** __restrict, int);
-wchar_t	*wmemchr(const wchar_t *, wchar_t, size_t);
-int	wmemcmp(const wchar_t *, const wchar_t *, size_t);
+wchar_t	*wmemchr(const wchar_t *, wchar_t, size_t) __pure;
+int	wmemcmp(const wchar_t *, const wchar_t *, size_t) __pure;
 wchar_t	*wmemcpy(wchar_t * __restrict, const wchar_t * __restrict, size_t);
 wchar_t	*wmemmove(wchar_t *, const wchar_t *, size_t);
 wchar_t	*wmemset(wchar_t *, wchar_t, size_t);
