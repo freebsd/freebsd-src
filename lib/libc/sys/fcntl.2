@@ -295,10 +295,10 @@ This semantic means that applications must be aware of any files that
 a subroutine library may access.
 For example if an application for updating the password file locks the
 password file database while making the update, and then calls
-.Xr getpwname 3
+.Xr getpwnam 3
 to retrieve a record,
 the lock will be lost because 
-.Xr getpwname 3
+.Xr getpwnam 3
 opens, reads, and closes the password database.
 The database close will release all locks that the process has
 associated with the database, even if the library routine never
