@@ -465,15 +465,22 @@
 
 /* IMPLDEP1 for Sun UltraSparc */
 #define	IIDP1_EDGE8		0x00
+#define	IIDP1_EDGE8N		0x01	/* US-III */
 #define	IIDP1_EDGE8L		0x02
+#define	IIDP1_EDGE8LN		0x03	/* US-III */
 #define	IIDP1_EDGE16		0x04
+#define	IIDP1_EDGE16N		0x05	/* US-III */
 #define	IIDP1_EDGE16L		0x06
+#define	IIDP1_EDGE16LN		0x07	/* US-III */
 #define	IIDP1_EDGE32		0x08
+#define	IIDP1_EDGE32N		0x09	/* US-III */
 #define	IIDP1_EDGE32L		0x0a
+#define	IIDP1_EDGE32LN		0x0b	/* US-III */
 #define	IIDP1_ARRAY8		0x10
 #define	IIDP1_ARRAY16		0x12
 #define	IIDP1_ARRAY32		0x14
 #define	IIDP1_ALIGNADDRESS	0x18
+#define	IIDP1_BMASK		0x19	/* US-III */
 #define	IIDP1_ALIGNADDRESS_L	0x1a
 #define	IIDP1_FCMPLE16		0x20
 #define	IIDP1_FCMPNE16		0x22
@@ -496,6 +503,7 @@
 #define	IIDP1_PDIST		0x3e
 #define	IIDP1_FALIGNDATA	0x48
 #define	IIDP1_FPMERGE		0x4b
+#define	IIDP1_BSHUFFLE		0x4c	/* US-III */
 #define	IIDP1_FEXPAND		0x4d
 #define	IIDP1_FPADD16		0x50
 #define	IIDP1_FPADD16S		0x51
@@ -538,6 +546,7 @@
 #define	IIDP1_FONE		0x7e
 #define	IIDP1_FONES		0x7f
 #define	IIDP1_SHUTDOWN		0x80
+#define	IIDP1_SIAM		0x81	/* US-III */
 
 /*
  * Instruction modifiers
