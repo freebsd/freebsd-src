@@ -37,6 +37,8 @@
 #ifndef _NETINET_TCP_H_
 #define _NETINET_TCP_H_
 
+#include <sys/cdefs.h>
+
 #if __BSD_VISIBLE
 
 typedef	u_int32_t tcp_seq;
