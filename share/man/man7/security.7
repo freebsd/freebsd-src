@@ -2,7 +2,7 @@
 .\" the BSD Copyright as specified in the file "/usr/src/COPYRIGHT" in
 .\" the source tree.
 .\"
-.\"	$Id: security.7,v 1.5 1999/03/02 03:45:47 ghelmer Exp $
+.\"	$Id: security.7,v 1.6 1999/03/02 03:55:34 ghelmer Exp $
 .\"
 .Dd December 20, 1998
 .Dt SECURITY 7
@@ -484,7 +484,7 @@ feature of tcpwrappers for this reason.
 It is a very good idea to protect internal services from external access
 by firewalling them off at your border routers.  The idea here is to prevent
 saturation attacks from outside your LAN, not so much to protect internal 
-services from root network-based root compromise.  Always configure an exclusive
+services from network-based root compromise.  Always configure an exclusive
 firewall, i.e.
 .So
 firewall everything *except* ports A, B, C, D, and M-Z
@@ -560,7 +560,8 @@ less then rtminexpire.  There are two problems:  (1) The kernel does not react
 quickly enough when a lightly loaded server is suddenly attacked, and (2) The
 rtminexpire is not low enough for the kernel to survive a sustained attack.
 If your servers are connected to the internet via a T3 or better it may be 
-prudent to manually override both rtexpire and rtminexpire via sysctl(8).
+prudent to manually override both rtexpire and rtminexpire via
+.Xr sysctl 8 .
 Never set either parameter to zero
 .Pq unless you want to crash the machine :-) .
 Setting both parameters to 2 seconds should be sufficient to protect the route
@@ -585,5 +586,5 @@ manual page was originally written by
 .An Matthew Dillon
 and first appeared 
 in
-.Bx Free -3.0.1 ,
+.Fx 3.1 ,
 December 1998.
