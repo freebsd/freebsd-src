@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: rdp.4,v 1.1.1.1 1998/12/21 12:43:35 j Exp $
+.\" $Id: rdp.4,v 1.2 1999/02/10 02:45:06 des Exp $
 .\"
 .\"
 .\" " (emacs disconfusion)
@@ -77,7 +77,7 @@ flag
 might help in diagnosing the reason.  Since the RTL 8002 requires
 the availability of a working interrupt for the printer adapter (unlike
 the
-.Xr lpt 4
+.Xr ppc 4
 driver), the
 .Nm
 driver fails to attach if the ethernet adapter cannot assert an
@@ -90,8 +90,8 @@ The
 driver internally sets a flag so it gets probed very early.  This way,
 it is possible to configure both, an
 .Nm
-driver as well as an
-.Xr lpt 4
+driver as well as a
+.Xr ppc 4
 driver into the same kernel.  If no RTL 8002 hardware is present, probing
 will eventually detect the printer driver.
 .Sh DIAGNOSTICS
@@ -121,15 +121,15 @@ return a notification of the (successful or failed) transmission.  The
 hardware is likely to be wedged, and is being reset.
 .Pp
 .Sh SEE ALSO
-.Xr lpt 4 ,
+.Xr ppc 4 ,
 .Xr ifconfig 8
 .Sh AUTHORS
 This driver was written by
 .ie t J\(:org Wunsch,
 .el Joerg Wunsch,
 based on RealTek's packet driver for the RTL 8002, as well as on some
-description of the successor chip, RTL 8012, RealTek was gratefully
-providing.
+description of the successor chip, RTL 8012, gracefully provided by
+RealTek.
 .Sh BUGS
 There are certainly many of them.
 .Pp
