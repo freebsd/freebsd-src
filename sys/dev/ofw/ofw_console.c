@@ -129,7 +129,7 @@ ofw_dev_open(struct cdev *dev, int flag, int mode, struct thread *td)
 		ttychars(tp);
 		tp->t_iflag = TTYDEF_IFLAG;
 		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_cflag = TTYDEF_CFLAG;
+		tp->t_cflag = TTYDEF_CFLAG | CLOCAL;
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		ttsetwater(tp);
