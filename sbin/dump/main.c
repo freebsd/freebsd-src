@@ -368,11 +368,11 @@ main(argc, argv)
 			   Assume no erroneous blocks; this can be compensated
 			   for with an artificially low tape size. */
 			fetapes =
-			(	  tapesize	/* blocks */
+			(	  (double) tapesize	/* blocks */
 				* TP_BSIZE	/* bytes/block */
 				* (1.0/density)	/* 0.1" / byte " */
 			  +
-				  tapesize	/* blocks */
+				  (double) tapesize	/* blocks */
 				* (1.0/ntrec)	/* streaming-stops per block */
 				* 15.48		/* 0.1" / streaming-stop " */
 			) * (1.0 / tsize );	/* tape / 0.1" " */
@@ -381,11 +381,11 @@ main(argc, argv)
 			   tape */
 			int tenthsperirg = (density == 625) ? 3 : 7;
 			fetapes =
-			(	  tapesize	/* blocks */
+			(	  (double) tapesize	/* blocks */
 				* TP_BSIZE	/* bytes / block */
 				* (1.0/density)	/* 0.1" / byte " */
 			  +
-				  tapesize	/* blocks */
+				  (double) tapesize	/* blocks */
 				* (1.0/ntrec)	/* IRG's / block */
 				* tenthsperirg	/* 0.1" / IRG " */
 			) * (1.0 / tsize );	/* tape / 0.1" " */
