@@ -4,8 +4,6 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
- *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
  *
@@ -32,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include "sysinstall.h"
@@ -93,7 +92,7 @@ packageAdd(dialogMenuItem *self)
 }
 
 Boolean
-package_exists(char *name)
+package_installed(char *name)
 {
     char fname[FILENAME_MAX];
     int status /* = vsystem("pkg_info -e %s", name) */;
