@@ -65,5 +65,17 @@ enum {
 	NGM_ETHER_SET_AUTOSRC,		/* enable/disable src addr override */
 };
 
+/* Per-node private data */
+struct ng_ether_private {
+	struct ifnet	*ifp;		/* associated interface */
+	hook_p		upper;		/* upper hook connection */
+	hook_p		lower;		/* lower OR orphan hook connection */
+	u_char		lowerOrphan;	/* whether lower is lower or orphan */
+	u_char		autoSrcAddr;	/* always overwrite source address */
+	u_char		promisc;	/* promiscuous mode enabled */
+	u_long		hwassist;	/* hardware checksum capabilities */
+	u_int		flags;		/* flags e.g. really die */
+};
+
 #endif /* _NETGRAPH_NG_ETHER_H_ */
 
