@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.12 1995/12/10 19:07:55 bde Exp $
+ *	$Id: db_examine.c,v 1.13 1996/01/15 22:39:32 phk Exp $
  */
 
 /*
@@ -117,7 +117,7 @@ db_examine(addr, fmt, count)
 			    case 'r':	/* signed, current radix */
 				value = db_get_value(addr, size, TRUE);
 				addr += size;
-				db_printf("%-*r", width, value);
+				db_printf("%+-*n", width, value);
 				break;
 			    case 'x':	/* unsigned hex */
 				value = db_get_value(addr, size, FALSE);
