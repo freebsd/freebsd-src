@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.20 1993/12/03 05:07:43 alm Exp $
+ *	$Id: machdep.c,v 1.21 1993/12/12 12:22:56 davidg Exp $
  */
 
 #include "npx.h"
@@ -85,6 +85,7 @@ static unsigned int avail_remaining;
 #include "machine/psl.h"
 #include "machine/specialreg.h"
 #include "machine/sysarch.h"
+#include "machine/cons.h"
 
 #include "i386/isa/isa.h"
 #include "i386/isa/rtc.h"
@@ -156,10 +157,11 @@ cpu_startup()
 	/* avail_end was pre-decremented in pmap_bootstrap to compensate */
 	for (i = 0; i < btoc(sizeof (struct msgbuf)); i++)
 #ifndef MACHINE_NONCONTIG
-		pmap_enter(pmap_kernel(), msgbufp, avail_end + i * NBPG,
+		pmap_enter(pmap_kernel(), (vm_offset_t)msgbufp,
+			   avail_end + i * NBPG,
 			   VM_PROT_ALL, TRUE);
 #else
-		pmap_enter(pmap_kernel(), (caddr_t)msgbufp + i * NBPG,
+		pmap_enter(pmap_kernel(), (vm_offset_t)msgbufp + i * NBPG,
 			   avail_end + i * NBPG, VM_PROT_ALL, TRUE);
 #endif
 	msgbufmapped = 1;
@@ -664,7 +666,7 @@ die:
 	/*NOTREACHED*/
 }
 
-unsigned	dumpmag = 0x8fca0101;	/* magic number for savecore */
+unsigned long	dumpmag = 0x8fca0101UL;	/* magic number for savecore */
 int		dumpsize = 0;		/* also for savecore */
 /*
  * Doadump comes here after turning off memory management and
@@ -929,7 +931,7 @@ struct soft_segment_descriptor ldt_segs[] = {
 void
 setidt(idx, func, typ, dpl)
 	int idx;
-	caddr_t func;
+	void (*func)();
 	int typ;
 	int dpl;
 {
@@ -946,7 +948,10 @@ setidt(idx, func, typ, dpl)
 }
 
 #define	IDTVEC(name)	__CONCAT(X, name)
-extern	IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
+typedef void idtvec_t();
+
+extern idtvec_t
+	IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(dble), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(rsvd0),
@@ -955,7 +960,6 @@ extern	IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 	IDTVEC(rsvd9), IDTVEC(rsvd10), IDTVEC(rsvd11), IDTVEC(rsvd12),
 	IDTVEC(rsvd13), IDTVEC(rsvd14), IDTVEC(rsvd14), IDTVEC(syscall);
 
-int lcr0(), lcr3(), rcr0(), rcr2();
 int _gsel_tss;
 
 void
@@ -986,7 +990,7 @@ init386(first)
 	 * the address space
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(i386_round_page(&etext)) - 1;
-	gdt_segs[GDATA_SEL].ssd_limit = 0xffffffff;	/* XXX constant? */
+	gdt_segs[GDATA_SEL].ssd_limit = 0xffffffffUL;	/* XXX constant? */
 	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, gdt+x);
 	/* make ldt memory segments */
 	/*
@@ -1065,7 +1069,7 @@ init386(first)
 #if NDDB > 0
 	kdb_init();
 	if (boothowto & RB_KDB)
-		Debugger();
+		Debugger("Boot flags requested debugger");
 #endif
 
 	/* Use BIOS values stored in RTC CMOS RAM, since probing
@@ -1485,4 +1489,14 @@ copystr(fromaddr, toaddr, maxlength, lencopied) u_int *lencopied, maxlength;
 	if(lencopied) *lencopied = tally;
 	return(ENAMETOOLONG);
 }
+
 #endif
+
+#include "ddb.h"
+#if NDDB <= 0
+void
+Debugger(const char *msg)
+{
+	printf("Debugger(\"%s\") called.", msg);
+}
+#endif /* no DDB */

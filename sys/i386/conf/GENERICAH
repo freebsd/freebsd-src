@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.17 1993/11/03 20:02:20 ats Exp $
+#	$Id: GENERICAH,v 1.18 1993/12/12 12:22:25 davidg Exp $
 #
 
 machine		"i386"
@@ -16,7 +16,7 @@ options		INET			#InterNETworking
 options		ISOFS			#ISO File System
 options		NFS			#Network File System
 options		PCFS			#MSDOS File System
-options		PROCFS			#Proc File System
+#options		PROCFS			#Proc File System
 options		"COMPAT_43"		#Compatible with BSD 4.3
 options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		XSERVER			#Xserver

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.3 1993/11/07 17:41:34 wollman Exp $
+ *	$Id: db_interface.c,v 1.4 1993/11/25 01:30:52 wollman Exp $
  */
 
 /*
@@ -31,6 +31,7 @@
  */
 #include "param.h"
 #include "systm.h"
+#include "kernel.h"
 #include "proc.h"
 #include "ddb/ddb.h"
 
@@ -235,7 +236,7 @@ db_write_bytes(addr, size, data)
 
 void
 Debugger (msg)
-	char *msg;
+	const char *msg;
 {
 	asm ("int $3");
 }

@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.11 1993/11/18 05:02:15 rgrimes Exp $
+ *      $Id: aha1742.c,v 1.12 1993/11/25 01:31:25 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -46,11 +46,6 @@ int     Debugger();
 #  endif /* DDB */
 # else
 #include "ddb.h"
-#if     NDDB > 0
-int     Debugger();
-#else	/* NDDB */
-#define Debugger() panic("should call debugger here (adaptec.c)")
-#endif	/* NDDB */
 #endif /* netbsd */
 #else /* KERNEL */
 #define NAHB 1
@@ -61,7 +56,7 @@ typedef timeout_func_t timeout_t;
 #endif
 
 typedef unsigned long int physaddr;
-extern int hz;
+#include "kernel.h"
 
 #define KVTOPHYS(x)   vtophys(x)
 
@@ -360,7 +355,7 @@ ahb_send_mbox(int unit, int opcode, int target, struct ecb *ecb)
 	}
 	if (wait == 0) {
 		printf("ahb%d: board not responding\n", unit);
-		Debugger();
+		Debugger("aha1742");
 	}
 	outl(port + MBOXOUT0, KVTOPHYS(ecb));	/* don't know this will work */
 	outb(port + ATTN, opcode | target);
@@ -416,7 +411,7 @@ ahb_send_immed(int unit, int target, u_long cmd)
 		DELAY(10);
 	} if (wait == 0) {
 		printf("ahb%d: board not responding\n", unit);
-		Debugger();
+		Debugger("aha1742");
 	}
 	outl(port + MBOXOUT0, cmd);	/* don't know this will work */
 	outb(port + G2CNTRL, G2CNTRL_SET_HOST_READY);

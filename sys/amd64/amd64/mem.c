@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.4 1993/11/22 09:46:45 davidg Exp $
+ *	$Id: mem.c,v 1.5 1993/11/25 01:30:59 wollman Exp $
  */
 
 /*
@@ -59,8 +59,8 @@
 #include "vm/vm_param.h"
 #include "vm/lock.h"
 #include "vm/vm_statistics.h"
-#include "vm/pmap.h"
 #include "vm/vm_prot.h"
+#include "vm/pmap.h"
 
 extern        char *vmmap;            /* poor name! */
 /*ARGSUSED*/
@@ -128,7 +128,7 @@ mmrw(dev, uio, flags)
 /* minor device 0 is physical memory */
 		case 0:
 			v = uio->uio_offset;
-			pmap_enter(pmap_kernel(), vmmap, v,
+			pmap_enter(pmap_kernel(), (vm_offset_t)vmmap, v,
 				uio->uio_rw == UIO_READ ? VM_PROT_READ : VM_PROT_WRITE,
 				TRUE);
 			o = (int)uio->uio_offset & PGOFSET;
@@ -136,7 +136,8 @@ mmrw(dev, uio, flags)
 			c = MIN(c, (u_int)(NBPG - o));
 			c = MIN(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&vmmap[o], (int)c, uio);
-			pmap_remove(pmap_kernel(), vmmap, &vmmap[NBPG]);
+			pmap_remove(pmap_kernel(), (vm_offset_t)vmmap,
+				    (vm_offset_t)&vmmap[NBPG]);
 			continue;
 
 /* minor device 1 is kernel memory */

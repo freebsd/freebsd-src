@@ -502,7 +502,7 @@ is_start(ifp)
 
                         /* copy trailer_header into a data structure */
                         m_copydata(m0, off, sizeof(struct trailer_header),
-                                &trailer_header.ether_type);
+                                (caddr_t)&trailer_header.ether_type);
 
                         /* copy residual data */
 			resid = trailer_header.ether_residual -

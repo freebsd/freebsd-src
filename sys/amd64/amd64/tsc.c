@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.3 1993/11/04 01:56:31 ache Exp $
+ *	$Id: clock.c,v 1.4 1993/11/25 01:31:29 wollman Exp $
  */
 
 /*
@@ -233,7 +233,7 @@ resettodr()
  * Wire clock interrupt in.
  */
 #define V(s)	__CONCAT(V, s)
-extern V(clk)();
+extern void V(clk)();
 
 void
 enablertclock() 

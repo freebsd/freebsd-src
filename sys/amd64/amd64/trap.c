@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.10 1993/12/03 05:07:45 alm Exp $
+ *	$Id: trap.c,v 1.11 1993/12/12 12:22:57 davidg Exp $
  */
 
 /*
@@ -59,6 +59,7 @@
 #include "vm/vm_param.h"
 #include "vm/pmap.h"
 #include "vm/vm_map.h"
+#include "vm/vm_user.h"
 #include "sys/vmmeter.h"
 
 #include "machine/trap.h"
@@ -70,7 +71,7 @@
  * we omit the size from the mov instruction to avoid nonfatal bugs in gas.
  */
 #define	read_gs()	({ u_short gs; __asm("mov %%gs,%0" : "=r" (gs)); gs; })
-#define	write_gs(gs)	__asm("mov %0,%%gs" : : "r" ((u_short) gs))
+#define	write_gs(newgs)	__asm("mov %0,%%gs" : : "r" ((u_short) newgs))
 
 #else	/* not __GNUC__ */
 
@@ -81,7 +82,6 @@ void	write_gs	__P((/* promoted u_short */ int gs));
 
 struct	sysent sysent[];
 int	nsysent;
-unsigned rcr2();
 extern short cpl;
 
 #define MAX_TRAP_MSG		27
@@ -353,7 +353,8 @@ copyfault:
 					v = vm->vm_maxsaddr;
 					grow_amount = MAXSSIZ - (vm->vm_ssize << PGSHIFT);
 				}
-				if (vm_allocate(&vm->vm_map, &v, grow_amount, FALSE) !=
+				if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
+						grow_amount, FALSE) !=
 				    KERN_SUCCESS) {
 					goto nogo;
 				}
@@ -363,10 +364,11 @@ copyfault:
 		/* check if page table is mapped, if not, fault it first */
 		if (!pde_v(va)) {
 			v = (char *)trunc_page(vtopte(va));
-			rv = vm_fault(map, v, ftype, FALSE);
+			rv = vm_fault(map, (vm_offset_t)v, ftype, FALSE);
 			if (rv != KERN_SUCCESS) goto nogo;
 			/* check if page table fault, increment wiring */
-			vm_map_pageable(map, v, round_page(v+1), FALSE);
+			vm_map_pageable(map, (vm_offset_t)v,
+					round_page(v+1), FALSE);
 		} else v=0;
 		rv = vm_fault(map, va, ftype, FALSE);
 		if (rv == KERN_SUCCESS) {
@@ -543,8 +545,9 @@ int trapwrite(addr)
 				v = vm->vm_maxsaddr;
 				grow_amount = MAXSSIZ - (vm->vm_ssize << PGSHIFT);
 			}
-			if (vm_allocate(&vm->vm_map, &v, grow_amount, FALSE) !=
-			    KERN_SUCCESS) {
+			if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
+					grow_amount, FALSE)
+			    != KERN_SUCCESS) {
 				return(1);
 			}
 		}
@@ -613,13 +616,13 @@ syscall(frame)
 		frame.sf_eflags |= PSL_C;	/* carry bit */
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
-			ktrsyscall(p->p_tracep, code, callp->sy_narg, &args);
+			ktrsyscall(p->p_tracep, code, callp->sy_narg, args);
 #endif
 		goto done;
 	}
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, callp->sy_narg, &args);
+		ktrsyscall(p->p_tracep, code, callp->sy_narg, args);
 #endif
 	rval[0] = 0;
 	rval[1] = frame.sf_edx;

@@ -19,7 +19,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *      $Id: ultra14f.c,v 1.12 1993/11/18 05:02:20 rgrimes Exp $
+ *      $Id: ultra14f.c,v 1.13 1993/11/25 01:31:50 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -46,11 +46,6 @@
 
 #ifdef	KERNEL
 #include "ddb.h"
-#if     NDDB > 0
-int     Debugger();
-#else	/* NDDB */
-#define Debugger() panic("should call debugger here")
-#endif	/* NDDB */
 #else /*KERNEL */
 #define NUHA 1
 #endif /*KERNEL */
@@ -321,7 +316,7 @@ uha_send_mbox(int unit, struct mscp *mscp)
 	}
 	if (spincount == 0) {
 		printf("uha%d: uha_send_mbox, board not responding\n", unit);
-		Debugger();
+		Debugger("ultra14f");
 	}
 	outl(port + UHA_OGM0, KVTOPHYS(mscp));
 	outb(port + UHA_LINT, (UHA_OGMINT));
@@ -348,7 +343,7 @@ uha_abort(int unit, struct mscp *mscp)
 	if (spincount == 0);
 	{
 		printf("uha%d: uha_abort, board not responding\n", unit);
-		Debugger();
+		Debugger("ultra14f");
 	}
 	outl(port + UHA_OGM0, KVTOPHYS(mscp));
 	outb(port + UHA_LINT, UHA_ABORT);
@@ -360,7 +355,7 @@ uha_abort(int unit, struct mscp *mscp)
 	}
 	if (abortcount == 0) {
 		printf("uha%d: uha_abort, board not responding\n", unit);
-		Debugger();
+		Debugger("ultra14f");
 	}
 	if ((inb(port + UHA_SINT) & 0x10) != 0) {
 		outb(port + UHA_SINT, UHA_ABORT_ACK);
@@ -528,7 +523,7 @@ uhaintr(unit)
 			printf("uha: BAD MSCP RETURNED\n");
 			return (0);	/* whatever it was, it'll timeout */
 		}
-		untimeout(uha_timeout, mscp);
+		untimeout(uha_timeout, (caddr_t)mscp);
 
 		uha_done(unit, mscp);
 	}

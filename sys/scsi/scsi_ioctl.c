@@ -6,9 +6,9 @@
  *
  *
  */
-#include <sys/types.h>
-#include <sys/errno.h>
 #include <sys/param.h>
+#include "systm.h"
+#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #define	b_screq b_driver1	/* a patch in buf.h */
@@ -57,7 +57,7 @@ struct	scsi_xfer *xs;
 	SC_DEBUG(xs->sc_link,SDEV_DB2,("user-done\n"));
 	screq->retsts = 0;
 	screq->status = xs->status;
-	switch(xs->error) {
+	switch((int)xs->error) {
 	case	XS_NOERROR:
 		SC_DEBUG(xs->sc_link,SDEV_DB3,("no error\n"));
 		screq->datalen_used = xs->datalen - xs->resid; /* probably rubbish */
@@ -238,7 +238,7 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 			caddr_t	d_addr;
 			int	len;
 
-			if((unsigned int)screq < (unsigned int)0xfe000000)
+			if((unsigned int)screq < (unsigned int)0xfe000000UL)
 			{
 				screq = malloc(sizeof(scsireq_t),M_TEMP,M_WAITOK);
 				bcopy(screq2,screq,sizeof(scsireq_t));
@@ -269,7 +269,7 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 				ret =  bp->b_error;
 			}
 			free(bp,M_TEMP);
-			if((unsigned int)screq2 < (unsigned int)0xfe000000)
+			if((unsigned int)screq2 < (unsigned int)0xfe000000UL)
 			{
 				bcopy(screq,screq2,sizeof(scsireq_t));
 				free(screq,M_TEMP);

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.15 1993/11/18 05:02:12 rgrimes Exp $
+ *      $Id: aha1542.c,v 1.16 1993/11/25 01:31:22 wollman Exp $
  */
 
 /*
@@ -38,12 +38,7 @@
 
 #ifdef	KERNEL
 #include "ddb.h"
-#if	NDDB > 0
-int     Debugger();
-#else	/* NDDB */
-#define Debugger() panic("should call debugger here (adaptec.c)")
-#endif	/* NDDB */
-extern int hz;
+#include "kernel.h"
 #else /*KERNEL */
 #define NAHA 1
 #endif /*KERNEL */
@@ -686,7 +681,7 @@ ahaintr(unit)
 #endif /*AHADEBUG */
 			}
 			if (ccb) {
-				untimeout(aha_timeout, ccb);
+				untimeout(aha_timeout, (caddr_t)ccb);
 				aha_done(unit, ccb);
 			}
 			aha->aha_mbx.mbi[i].stat = AHA_MBI_FREE;
@@ -776,7 +771,7 @@ aha_done(unit, ccb)
 	 */
 	if (!(xs->flags & INUSE)) {
 		printf("aha%d: exiting but not in use!\n", unit);
-		Debugger();
+		Debugger("aha1542");
 	}
 	if (((ccb->host_stat != AHA_OK) || (ccb->target_stat != SCSI_OK))
 	    && ((xs->flags & SCSI_ERR_OK) == 0)) {
@@ -1252,7 +1247,7 @@ aha_poll(unit, xs, ccb)
 		 * because we are polling,
 		 * take out the timeout entry aha_timeout made
 		 */
-		untimeout(aha_timeout, ccb);
+		untimeout(aha_timeout, (caddr_t)ccb);
 		count = 2000;
 		while (count) {
 			/*
@@ -1428,7 +1423,7 @@ aha_timeout(caddr_t arg1, int arg2)
 	 */
 	if (ccb->mbx->cmd != AHA_MBO_FREE) {
 		printf("\nadapter not taking commands.. frozen?!\n");
-		Debugger();
+		Debugger("aha1542");
 	}
 	/*
 	 * If it has been through before, then

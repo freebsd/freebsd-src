@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.9 1993/11/17 00:21:03 ache Exp $
+ *	$Id: isa.c,v 1.10 1993/11/25 01:31:39 wollman Exp $
  */
 
 /*
@@ -322,19 +322,22 @@ config_isadev(isdp, mp)
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 /* default interrupt vector table entries */
-extern	IDTVEC(intr0), IDTVEC(intr1), IDTVEC(intr2), IDTVEC(intr3),
+typedef void inthand_t();
+typedef void (*inthand_func_t)();
+extern inthand_t
+	IDTVEC(intr0), IDTVEC(intr1), IDTVEC(intr2), IDTVEC(intr3),
 	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
 
-static *defvec[16] = {
+static inthand_func_t defvec[16] = {
 	&IDTVEC(intr0), &IDTVEC(intr1), &IDTVEC(intr2), &IDTVEC(intr3),
 	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
 	&IDTVEC(intr8), &IDTVEC(intr9), &IDTVEC(intr10), &IDTVEC(intr11),
 	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15) };
 
 /* out of range default interrupt vector gate entry */
-extern	IDTVEC(intrdefault);
+extern inthand_t IDTVEC(intrdefault);
 
 /*
  * Fill in default interrupt table (in case of spuruious interrupt

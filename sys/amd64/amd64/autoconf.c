@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.4 1993/10/16 14:14:48 rgrimes Exp $
+ *	$Id: autoconf.c,v 1.5 1993/11/25 01:30:46 wollman Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
 #include "conf.h"
 #include "dmap.h"
 #include "reboot.h"
+#include "kernel.h"
 
 #include "machine/pte.h"
 

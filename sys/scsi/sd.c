@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.12 1993/11/18 05:03:02 rgrimes Exp $
+ *      $Id: sd.c,v 1.13 1993/11/25 01:37:34 wollman Exp $
  */
 
 #define SPLSD splbio
@@ -48,9 +48,8 @@ int     Debugger();
 #else /* NetBSD */
 #include <ddb.h>
 #if	NDDB > 0
-int     Debugger();
 #else	/* NDDB > 0 */
-#define Debugger()
+#define Debugger(s)
 #endif	/* NDDB > 0 */
 #endif
 
@@ -271,7 +270,7 @@ sdopen(dev)
 	if (sd->params.secsiz != SECSIZE) {	/* XXX One day... */
 		printf("sd%d: Can't deal with %d bytes logical blocks\n",
 		    unit, sd->params.secsiz);
-		Debugger();
+		Debugger("sd");
 		errcode = ENXIO;
 		goto bad;
 	}
@@ -516,7 +515,7 @@ sdstart(unit)
 		bzero(&cmd, sizeof(cmd));
 		cmd.op_code = (bp->b_flags & B_READ)
 		    ? READ_BIG : WRITE_BIG;
-		cmd.addr_3 = (blkno & 0xff000000) >> 24;
+		cmd.addr_3 = (blkno & 0xff000000UL) >> 24;
 		cmd.addr_2 = (blkno & 0xff0000) >> 16;
 		cmd.addr_1 = (blkno & 0xff00) >> 8;
 		cmd.addr_0 = blkno & 0xff;

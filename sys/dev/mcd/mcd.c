@@ -34,7 +34,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.2 1993/10/16 13:46:13 rgrimes Exp $
+ *	$Id: mcd.c,v 1.3 1993/11/25 01:31:43 wollman Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -68,7 +68,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #undef MCD_TO_WARNING_ON
 #endif
 #else
-#define MCD_TRACE(fmt,a,b,c,d)	{if (mcd_data[unit].debug) {printf("mcd%d st=%02x: ",unit,mcd_data[unit].status); printf(fmt,a,b,c,d);}}
+#define MCD_TRACE(fmt,a,b,c,xd)	{if (mcd_data[unit].debug) {printf("mcd%d st=%02x: ",unit,mcd_data[unit].status); printf(fmt,a,b,c,xd);}}
 #endif
 
 #define mcd_part(dev)	((minor(dev)) & 7)
@@ -158,7 +158,7 @@ static	void	hsg2msf(int hsg, bcd_t *msf);
 static	int	msf2hsg(bcd_t *msf);
 static	int	mcd_volinfo(int unit);
 static	int	mcd_waitrdy(int port,int dly);
-static 	void	mcd_doread(int state, struct mcd_mbx *mbxin);
+static 	void	mcd_doread(caddr_t, int);
 #ifndef MCDMINI
 static	int 	mcd_setmode(int unit, int mode);
 static	int	mcd_getqchan(int unit, struct mcd_qchninfo *q);
@@ -397,7 +397,7 @@ static void mcd_start(int unit)
 	cd->mbx.p_offset = p->p_offset;
 
 	/* calling the read routine */
-	mcd_doread(MCD_S_BEGIN,&(cd->mbx));
+	mcd_doread((caddr_t)MCD_S_BEGIN, (int)&(cd->mbx));
 	/* triggers mcd_start, when successful finished */
 	return;
 }
@@ -811,8 +811,13 @@ mcdintr(unit)
  */
 static struct mcd_mbx *mbxsave;
 
-static void mcd_doread(int state, struct mcd_mbx *mbxin)
+/*
+ * Good thing Alphas come with real CD players...
+ */
+static void mcd_doread(caddr_t xstate, int xmbxin)
 {
+	int state = (int)xstate;
+	struct mcd_mbx *mbxin = (struct mcd_mbx *)xmbxin;
 	struct mcd_mbx *mbx = (state!=MCD_S_BEGIN) ? mbxsave : mbxin;
 	int	unit = mbx->unit;
 	int	port = mbx->port;
@@ -836,7 +841,7 @@ loop:
 		timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITSTAT:
-		untimeout(mcd_doread,MCD_S_WAITSTAT);
+		untimeout(mcd_doread, (caddr_t)MCD_S_WAITSTAT);
 		if (mbx->count-- >= 0) {
 			if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
 				timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
@@ -873,7 +878,7 @@ loop:
 		}
 
 	case MCD_S_WAITMODE:
-		untimeout(mcd_doread,MCD_S_WAITMODE);
+		untimeout(mcd_doread, (caddr_t)MCD_S_WAITMODE);
 		if (mbx->count-- < 0) {
 #ifdef MCD_TO_WARNING_ON
 			printf("mcd%d: timeout set mode\n",unit);
@@ -911,7 +916,7 @@ nextblock:
 		timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITREAD:
-		untimeout(mcd_doread,MCD_S_WAITREAD);
+		untimeout(mcd_doread,(caddr_t)MCD_S_WAITREAD);
 		if (mbx->count-- > 0) {
 			k = inb(port+mcd_xfer);
 			if ((k & 2)==0) {
