@@ -46,6 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include <err.h>
 #include <locale.h>
@@ -66,7 +67,7 @@ double avenrun[3];
 int     col;
 int	naptime = 5;
 int     verbose = 1;                    /* to report kvm read errs */
-struct clockinfo	clkinfo;
+struct	clockinfo clkinfo;
 double	hertz;
 char    c;
 char    *namp;
@@ -81,7 +82,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	char	errbuf[80];
+	char errbuf[80];
 	size_t	size;
 	int	err;
 
@@ -133,15 +134,13 @@ main(argc, argv)
 		die(0);
 	}
 	gethostname(hostname, sizeof (hostname));
-
 	size = sizeof(clkinfo);
 	err = sysctlbyname("kern.clockrate", &clkinfo, &size, NULL, 0);
 	if (err != 0 || size != sizeof(clkinfo)) {
-		perror("kern.clockrate");
+		error("kern.clockrate");
 		die(0);
 	}
-
-	hertz = clkinfo.stathz ? clkinfo.stathz : clkinfo.hz;
+	hertz = clkinfo.stathz;
 	(*curcmd->c_init)();
 	curcmd->c_flags |= CF_INIT;
 	labels();
