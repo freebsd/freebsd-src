@@ -87,8 +87,11 @@ struct conf_entry {
 	int permissions;	/* File permissions on the log */
 	int flags;		/* CE_COMPACT, CE_BZCOMPACT, CE_BINARY */
 	int sig;		/* Signal to send */
+	int def_cfg;		/* Using the <default> rule for this file */
 	struct conf_entry *next;/* Linked list pointer */
 };
+
+#define DEFAULT_MARKER "<default>"
 
 int archtodir = 0;		/* Archive old logfiles to other directory */
 int verbose = 0;		/* Print out what's going on */
@@ -109,11 +112,14 @@ static char *sob(char *p);
 static char *son(char *p);
 static char *missing_field(char *p, char *errline);
 static void do_entry(struct conf_entry * ent);
+static void free_entry(struct conf_entry *ent);
+static struct conf_entry *init_entry(const char *fname,
+		struct conf_entry *src_entry);
 static void PRS(int argc, char **argv);
 static void usage(void);
 static void dotrim(char *log, const char *pid_file, int numdays, int falgs,
-		int perm, int owner_uid, int group_gid, int sig);
-static int log_trim(char *log);
+		int perm, int owner_uid, int group_gid, int sig, int def_cfg);
+static int log_trim(char *log, int def_cfg);
 static void compress_log(char *log, int dowait);
 static void bzcompress_log(char *log, int dowait);
 static int sizefile(char *file);
@@ -129,6 +135,7 @@ int
 main(int argc, char **argv)
 {
 	struct conf_entry *p, *q;
+	char *savglob;
 	glob_t pglob;
 	int i;
 
@@ -144,20 +151,93 @@ main(int argc, char **argv)
 			if (glob(p->log, GLOB_NOCHECK, NULL, &pglob) != 0) {
 				warn("can't expand pattern: %s", p->log);
 			} else {
+				savglob = p->log;
 				for (i = 0; i < pglob.gl_matchc; i++) {
 					p->log = pglob.gl_pathv[i];
 					do_entry(p);
 				}
 				globfree(&pglob);
+				p->log = savglob;
 			}
 		}
 		p = p->next;
-		free((char *) q);
+		free_entry(q);
 		q = p;
 	}
 	while (wait(NULL) > 0 || errno == EINTR)
 		;
 	return (0);
+}
+
+static struct conf_entry *
+init_entry(const char *fname, struct conf_entry *src_entry)
+{
+	struct conf_entry *tempwork;
+
+	if (verbose > 4)
+		printf("\t--> [creating entry for %s]\n", fname);
+
+	tempwork = malloc(sizeof(struct conf_entry));
+	if (tempwork == NULL)
+		err(1, "malloc of conf_entry for %s", fname);
+
+	tempwork->log = strdup(fname);
+	if (tempwork->log == NULL)
+		err(1, "strdup for %s", fname);
+
+	if (src_entry != NULL) {
+		tempwork->pid_file = NULL;
+		if (src_entry->pid_file)
+			tempwork->pid_file = strdup(src_entry->pid_file);
+		tempwork->uid = src_entry->uid;
+		tempwork->gid = src_entry->gid;
+		tempwork->numlogs = src_entry->numlogs;
+		tempwork->size = src_entry->size;
+		tempwork->hours = src_entry->hours;
+		tempwork->trim_at = src_entry->trim_at;
+		tempwork->permissions = src_entry->permissions;
+		tempwork->flags = src_entry->flags;
+		tempwork->sig = src_entry->sig;
+		tempwork->def_cfg = src_entry->def_cfg;
+	} else {
+		/* Initialize as a "do-nothing" entry */
+		tempwork->pid_file = NULL;
+		tempwork->uid = NONE;
+		tempwork->gid = NONE;
+		tempwork->numlogs = 1;
+		tempwork->size = -1;
+		tempwork->hours = -1;
+		tempwork->trim_at = (time_t)0;
+		tempwork->permissions = 0;
+		tempwork->flags = 0;
+		tempwork->sig = SIGHUP;
+		tempwork->def_cfg = 0;
+	}
+	tempwork->next = NULL;
+
+	return (tempwork);
+}
+
+static void
+free_entry(struct conf_entry *ent)
+{
+
+	if (ent == NULL)
+		return;
+
+	if (ent->log != NULL) {
+		if (verbose > 4)
+			printf("\t--> [freeing entry for %s]\n", ent->log);
+		free(ent->log);
+		ent->log = NULL;
+	}
+
+	if (ent->pid_file != NULL) {
+		free(ent->pid_file);
+		ent->pid_file = NULL;
+	}
+
+	free(ent);
 }
 
 static void
@@ -223,7 +303,7 @@ do_entry(struct conf_entry * ent)
 			}
 			dotrim(ent->log, pid_file, ent->numlogs,
 			    ent->flags, ent->permissions, ent->uid, ent->gid,
-			    ent->sig);
+			    ent->sig, ent->def_cfg);
 		} else {
 			if (verbose)
 				printf("--> skipping\n");
@@ -279,7 +359,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: newsyslog [-Fnrv] [-f config-file] [-a directory]\n");
+	    "usage: newsyslog [-Fnrv] [-f config-file] [-a directory] [ filename ... ]\n");
 	exit(1);
 }
 
@@ -293,13 +373,13 @@ parse_file(char **files)
 	FILE *f;
 	char line[BUFSIZ], *parse, *q;
 	char *cp, *errline, *group;
-	char **p;
-	struct conf_entry *first, *working;
+	char **given;
+	struct conf_entry *defconf, *first, *working, *worklist;
 	struct passwd *pass;
 	struct group *grp;
 	int eol;
 
-	first = working = NULL;
+	defconf = first = working = worklist = NULL;
 
 	if (strcmp(conf, "-"))
 		f = fopen(conf, "r");
@@ -331,27 +411,55 @@ parse_file(char **files)
 			    errline);
 		*parse = '\0';
 
+		/*
+		 * If newsyslog was run with a list of specific filenames,
+		 * then this line of the config file should be skipped if
+		 * it is NOT one of those given files (except that we do
+		 * want any line that defines the <default> action).
+		 *
+		 * XXX - note that CE_GLOB processing is *NOT* done when
+		 *       trying to match a filename given on the command!
+		 */
 		if (*files) {
-			for (p = files; *p; ++p)
-				if (strcmp(*p, q) == 0)
-					break;
-			if (!*p)
+			if (strcasecmp(DEFAULT_MARKER, q) != 0) {
+				for (given = files; *given; ++given) {
+					if (strcmp(*given, q) == 0)
+						break;
+				}
+				if (!*given)
+					continue;
+			}
+			if (verbose > 2)
+				printf("\t+ Matched entry %s\n", q);
+		} else {
+			/*
+			 * If no files were specified on the command line,
+			 * then we can skip any line which defines the
+			 * default action.
+			 */
+			if (strcasecmp(DEFAULT_MARKER, q) == 0) {
+				if (verbose > 2)
+					printf("\t+ Ignoring entry for %s\n",
+					    q);
 				continue;
+			}
 		}
 
-		if (!first) {
-			if ((working = malloc(sizeof(struct conf_entry))) ==
-			    NULL)
-				err(1, "malloc");
-			first = working;
+		working = init_entry(q, NULL);
+		if (strcasecmp(DEFAULT_MARKER, q) == 0) {
+			if (defconf != NULL) {
+				warnx("Ignoring duplicate entry for %s!", q);
+				free_entry(working);
+				continue;
+			}
+			defconf = working;
 		} else {
-			if ((working->next = malloc(sizeof(struct conf_entry)))
-			    == NULL)
-				err(1, "malloc");
-			working = working->next;
+			if (!first)
+				first = working;
+			else
+				worklist->next = working;
+			worklist = working;
 		}
-		if ((working->log = strdup(q)) == NULL)
-			err(1, "strdup");
 
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
@@ -527,9 +635,57 @@ parse_file(char **files)
 		}
 		free(errline);
 	}
-	if (working)
-		working->next = (struct conf_entry *) NULL;
 	(void) fclose(f);
+
+	/*
+	 * The entire config file has been processed.  If there were
+	 * no specific files given on the run command, then the work
+	 * of this routine is done.
+	 */
+	if (*files == NULL)
+		return (first);
+
+	/*
+	 * If the program was given a specific list of files to process,
+	 * it may be that some of those files were not listed in the
+	 * config file.  Those unlisted files should get the default
+	 * rotation action.  First, create the default-rotation action
+	 * if none was found in the config file.
+	 */
+	if (defconf == NULL) {
+		working = init_entry(DEFAULT_MARKER, NULL);
+		working->numlogs = 3;
+		working->size = 50;
+		working->permissions = S_IRUSR|S_IWUSR;
+		defconf = working;
+	}
+
+	for (given = files; *given; ++given) {
+		for (working = first; working; working = working->next) {
+			if (strcmp(*given, working->log) == 0)
+				break;
+		}
+		if (working != NULL)
+			continue;
+		if (verbose > 2)
+			printf("\t+ No entry for %s  (will use %s)\n",
+			    *given, DEFAULT_MARKER);
+		/*
+		 * This given file was not found in the config file.
+		 * Add another item on to our work list, based on the
+		 * default entry.
+		 */
+		working = init_entry(*given, defconf);
+		if (!first)
+			first = working;
+		else
+			worklist->next = working;
+		/* This is a file that was *not* found in config file */
+		working->def_cfg = 1;
+		worklist = working;
+	}
+
+	free_entry(defconf);
 	return (first);
 }
 
@@ -544,7 +700,7 @@ missing_field(char *p, char *errline)
 
 static void
 dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
-    int owner_uid, int group_gid, int sig)
+    int owner_uid, int group_gid, int sig, int def_cfg)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
@@ -659,8 +815,10 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 			(void) chown(zfile2, owner_uid, group_gid);
 		}
 	}
-	if (!noaction && !(flags & CE_BINARY))
-		(void) log_trim(log);	/* Report the trimming to the old log */
+	if (!noaction && !(flags & CE_BINARY)) {
+		/* Report the trimming to the old log */
+		(void) log_trim(log, def_cfg);
+	}
 
 	if (!_numdays) {
 		if (noaction)
@@ -691,9 +849,11 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 		if (fchown(fd, owner_uid, group_gid))
 			err(1, "can't chmod new log file");
 		(void) close(fd);
-		if (!(flags & CE_BINARY))
-			if (log_trim(tfile))	/* Add status message */
+		if (!(flags & CE_BINARY)) {
+			/* Add status message to new log file */
+			if (log_trim(tfile, def_cfg))
 				err(1, "can't add status message to log");
+		}
 	}
 	if (noaction)
 		printf("chmod %o %s...\n", perm, log);
@@ -759,14 +919,18 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 
 /* Log the fact that the logs were turned over */
 static int
-log_trim(char *log)
+log_trim(char *log, int def_cfg)
 {
 	FILE *f;
+	const char *xtra;
 
 	if ((f = fopen(log, "a")) == NULL)
 		return (-1);
-	fprintf(f, "%s %s newsyslog[%d]: logfile turned over\n",
-	    daytime, hostname, (int) getpid());
+	xtra = "";
+	if (def_cfg)
+		xtra = " using <default> rule";
+	fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
+	    daytime, hostname, (int) getpid(), xtra);
 	if (fclose(f) == EOF)
 		err(1, "log_trim: fclose:");
 	return (0);
