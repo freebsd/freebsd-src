@@ -69,7 +69,7 @@ rsh_relay(int s_src, int s_dst)
 	if (error == -1)
 		exit_failure("select %d: %s", s_src, ERRSTR);
 	else if (error == 0)
-		exit_failure("connecion timeout");
+		exit_failure("connection timeout");
 
 	n = read(s_src, rshbuf, sizeof(rshbuf));
 	if (rshbuf[0] != 0) {
@@ -112,7 +112,7 @@ relay(int src, int dst)
 		close(dst);
 		close(s_ctl);
 		close(s_ctl6);			
-		exit_success("terminating rsh/contorol connections");
+		exit_success("terminating rsh/control connections");
 		break;
 	default:
 		write(s_snd, rshbuf, n);
@@ -180,7 +180,7 @@ rsh_dual_relay(int s_src, int s_dst)
 		if (error == -1)
 			exit_failure("select 4 sockets: %s", ERRSTR);
 		else if (error == 0)
-			exit_failure("connecion timeout");
+			exit_failure("connection timeout");
 
 		if (half == NO && FD_ISSET(s_src, &readfds)) {
 			s_rcv = s_src;
