@@ -59,7 +59,9 @@ is obtained with the
 system call and set with the
 .Fn setpriority
 system call.
-.Fa Which
+The
+.Fa which
+argument
 is one of
 .Dv PRIO_PROCESS ,
 .Dv PRIO_PGRP ,
@@ -79,7 +81,9 @@ and a user ID for
 A zero value of
 .Fa who
 denotes the current process, process group, or user.
-.Fa Prio
+The
+.Fa prio
+argument
 is a value in the range -20 to 20.  The default priority is 0;
 lower priorities cause more favorable scheduling.
 .Pp
@@ -116,7 +120,9 @@ and
 .Fa who
 values specified.
 .It Bq Er EINVAL
-.Fa Which
+The
+.Fa which
+argument
 was not one of
 .Dv PRIO_PROCESS ,
 .Dv PRIO_PGRP ,

@@ -101,7 +101,7 @@ send more data.
 .Pp
 The
 .Fa flags
-parameter may include one or more of the following:
+argument may include one or more of the following:
 .Bd -literal
 #define	MSG_OOB		0x1   /* process out-of-band data */
 #define	MSG_PEEK	0x2   /* peek at incoming message */
@@ -165,7 +165,7 @@ The argument
 .Fa s
 is not a socket.
 .It Bq Er EFAULT
-An invalid user space address was specified for a parameter.
+An invalid user space address was specified for an argument.
 .It Bq Er EMSGSIZE
 The socket requires that message be sent atomically,
 and the size of the message to be sent made this impossible.

@@ -79,10 +79,11 @@ should be set to the protocol number of
 see
 .Xr getprotoent 3 .
 .Pp
-The parameters
+The
 .Fa optval
 and
 .Fa optlen
+arguments
 are used to access option values for
 .Fn setsockopt .
 For
@@ -91,7 +92,7 @@ they identify a buffer in which the value for the
 requested option(s) are to be returned.  For
 .Fn getsockopt ,
 .Fa optlen
-is a value-result parameter, initially containing the
+is a value-result argument, initially containing the
 size of the buffer pointed to by
 .Fa optval ,
 and modified on return to indicate the actual size of
@@ -100,7 +101,9 @@ to be supplied or returned,
 .Fa optval
 may be NULL.
 .Pp
-.Fa Optname
+The
+.Fa optname
+argument
 and any specified options are passed uninterpreted to the appropriate
 protocol module for interpretation.
 The include file
@@ -113,17 +116,17 @@ section
 4 of the manual.
 .Pp
 Most socket-level options utilize an
-.Fa int
-parameter for
+.Vt int
+argument for
 .Fa optval .
 For
 .Fn setsockopt ,
-the parameter should be non-zero to enable a boolean option,
+the argument should be non-zero to enable a boolean option,
 or zero if the option is to be disabled.
 .Dv SO_LINGER
 uses a
-.Fa struct linger
-parameter, defined in
+.Vt "struct linger"
+argument, defined in
 .Ao Pa sys/socket.h Ac ,
 which specifies the desired state of the option and the
 linger interval (see below).
@@ -131,8 +134,8 @@ linger interval (see below).
 and
 .Dv SO_RCVTIMEO
 use a
-.Fa struct timeval
-parameter, defined in
+.Vt "struct timeval"
+argument, defined in
 .Ao Pa sys/time.h Ac .
 .Pp
 The following options are recognized at the socket level.
@@ -277,8 +280,8 @@ is different from that which was returned.
 .Dv SO_SNDTIMEO
 is an option to set a timeout value for output operations.
 It accepts a
-.Fa struct timeval
-parameter with the number of seconds and microseconds
+.Vt "struct timeval"
+argument with the number of seconds and microseconds
 used to limit waits for output operations to complete.
 If a send operation has blocked for this much time,
 it returns with a partial count
@@ -292,8 +295,8 @@ from the low water mark to the high water mark for output.
 .Dv SO_RCVTIMEO
 is an option to set a timeout value for input operations.
 It accepts a
-.Fa struct timeval
-parameter with the number of seconds and microseconds
+.Vt "struct timeval"
+argument with the number of seconds and microseconds
 used to limit waits for input operations to complete.
 In the current implementation, this timer is restarted each time additional
 data are received by the protocol,
@@ -325,16 +328,21 @@ struct  accept_filter_arg {
 };
 .Ed
 .Pp
+The
 .Fa optval
+argument
 should point to a
 .Fa struct accept_filter_arg
 that will select and configure the
 .Xr accept_filter 9 .
+The
 .Fa af_name
+argument
 should be filled with the name of the accept filter
 that the application wishes to place on the listening socket.
+The optional argument
 .Fa af_arg
-is an optional parameter that can be passed to the accept
+can be passed to the accept
 filter specified by
 .Fa af_name
 to provide additional configuration options at attach time.

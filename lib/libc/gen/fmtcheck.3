@@ -67,7 +67,7 @@ family of functions cannot verify the types of arguments that they are
 passed at run-time.  In some cases, like
 .Xr catgets 3 ,
 it is useful or necessary to use a user-supplied format string with no
-guarantee that the format string matches the specified parameters.
+guarantee that the format string matches the specified arguments.
 .Pp
 The
 .Fn fmtcheck
@@ -94,7 +94,7 @@ Otherwise, it will return
 .Fa fmt_default .
 .Sh SECURITY CONSIDERATIONS
 Note that the formats may be quite different as long as they accept the
-same parameters.  For example,
+same arguments.  For example,
 .Qq Li "%p %o %30s %#llx %-10.*e %n"
 is compatible with
 .Qq Li "This number %lu %d%% and string %s has %qd numbers and %.*g floats (%n)" .

@@ -137,8 +137,7 @@ The
 .Fn fdopen
 function associates a stream with the existing file descriptor,
 .Fa fildes .
-The
-.Fa mode
+The mode
 of the stream must be compatible with the mode of the file descriptor.
 When the stream is closed via
 .Xr fclose 3 ,
@@ -186,7 +185,8 @@ is set to indicate the error.
 .It Bq Er EINVAL
 The
 .Fa mode
-provided to
+argument
+to
 .Fn fopen ,
 .Fn fdopen ,
 or

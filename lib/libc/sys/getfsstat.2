@@ -51,7 +51,9 @@ The
 .Fn getfsstat
 system call
 returns information about all mounted file systems.
-.Fa Buf
+The
+.Fa buf
+argument
 is a pointer to
 .Xr statfs
 structures defined as follows:
@@ -160,7 +162,9 @@ system call
 fails if one or more of the following are true:
 .Bl -tag -width Er
 .It Bq Er EFAULT
-.Fa Buf
+The
+.Fa buf
+argument
 points to an invalid address.
 .It Bq Er EIO
 An

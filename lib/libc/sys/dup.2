@@ -130,9 +130,11 @@ and
 system calls fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
-.Fa Oldd
+The
+.Fa oldd
 or
 .Fa newd
+argument
 is not a valid active descriptor
 .It Bq Er EMFILE
 Too many descriptors are active.

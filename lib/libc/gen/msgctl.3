@@ -174,7 +174,9 @@ function
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
+The
 .Fa cmd
+argument
 is equal to IPC_SET or IPC_RMID and the caller is not the super-user, nor does
 the effective uid match either the
 .Va msg_perm.uid
@@ -190,13 +192,17 @@ but the caller is not the super-user.
 The command is IPC_STAT
 and the caller has no read permission for this message queue.
 .It Bq Er EINVAL
+The
 .Fa msqid
+argument
 is not a valid message queue identifier.
 .Pp
 .Va cmd
 is not a valid command.
 .It Bq Er EFAULT
+The
 .Fa buf
+argument
 specifies an invalid address.
 .El
 .Sh SEE ALSO

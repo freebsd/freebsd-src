@@ -163,7 +163,9 @@ An error return from
 indicates:
 .Bl -tag -width Er
 .It Bq Er EFAULT
-.Fa Fds
+The
+.Fa fds
+argument
 points outside the process's allocated address space.
 .It Bq Er EINTR
 A signal was delivered before the time limit expired and

@@ -72,8 +72,9 @@ This is the default authentication used by RPC.
 Create and return an RPC authentication handle that contains
 .Dv AUTH_SYS
 authentication information.
-The parameter
+The
 .Fa host
+argument
 is the name of the machine on which the information was
 created;
 .Fa uid
@@ -87,7 +88,7 @@ refer to a counted array of groups to which the user belongs.
 .It Fn authsys_create_default
 Call
 .Fn authsys_create
-with the appropriate parameters.
+with the appropriate arguments.
 .El
 .Sh SEE ALSO
 .Xr rpc 3 ,

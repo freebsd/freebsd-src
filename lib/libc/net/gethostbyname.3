@@ -92,7 +92,7 @@ referenced by name or by address, respectively.
 .Pp
 The
 .Fa name
-parameter passed to
+argument passed to
 .Fn gethostbyname
 or
 .Fn gethostbyname2
@@ -101,7 +101,7 @@ should point to a
 hostname.
 The
 .Fa addr
-parameter passed to
+argument passed to
 .Fn gethostbyaddr
 should point to an address which is
 .Fa len
@@ -112,7 +112,7 @@ in binary form
 form).
 The
 .Fa type
-parameter specifies the address family
+argument specifies the address family
 (e.g.\&
 .Dv AF_INET , AF_INET6 ,
 etc.) of this address.
@@ -217,8 +217,8 @@ connection.
 The
 .Fn herror
 function writes a message to the diagnostic output consisting of the
-string parameter
-.Fa s ,
+string argument
+.Fa string ,
 the constant string
 .Qq Li ":\ " ,
 and a message corresponding to the value of
@@ -229,7 +229,7 @@ The
 function returns a string which is the message text corresponding to the
 value of the
 .Fa err
-parameter.
+argument.
 .Sh FILES
 .Bl -tag -width /etc/nsswitch.conf -compact
 .It Pa /etc/hosts

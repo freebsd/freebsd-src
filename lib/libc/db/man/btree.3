@@ -172,7 +172,9 @@ is
 (no comparison function is specified), the keys are compared
 lexically, with shorter keys considered less than longer keys.
 .It Va prefix
-.Va Prefix
+The
+.Va prefix
+element
 is the prefix comparison function.
 If specified, this routine must return the number of bytes of the second key
 argument which are necessary to determine that it is greater than the first
@@ -206,10 +208,11 @@ is 0 (no order is specified) the current host order is used.
 If the file already exists (and the
 .Dv O_TRUNC
 flag is not specified), the
-values specified for the parameters
+values specified for the
 .Va flags , lorder
 and
 .Va psize
+arguments
 are ignored
 in favor of the values used when the tree was created.
 .Pp

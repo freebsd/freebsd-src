@@ -111,7 +111,7 @@ has global scope and ends all RPC server activity.
 .Vt fd_set Va svc_fdset
 .Xc
 A global variable reflecting the
-RPC server's read file descriptor bit mask; it is suitable as a parameter
+RPC server's read file descriptor bit mask; it is suitable as a argument
 to the
 .Xr select 2
 system call.
@@ -140,8 +140,9 @@ A function macro that decodes the arguments of an
 RPC request associated with the RPC
 service transport handle
 .Fa xprt .
-The parameter
+The
 .Fa in
+argument
 is the address where the arguments will be placed;
 .Fa inproc
 is the XDR
@@ -217,7 +218,7 @@ is an array of
 .Vt pollfd
 structures derived from
 .Va svc_fdset[] .
-It is suitable as a parameter to the
+It is suitable as an argument to the
 .Xr poll 2
 system call.
 The derivation of
@@ -242,8 +243,9 @@ system call to return.
 .It Fn svc_sendreply
 Called by an RPC service's dispatch routine to send the results of a
 remote procedure call.
-The parameter
+The
 .Fa xprt
+argument
 is the request's associated transport handle;
 .Fa outproc
 is the XDR

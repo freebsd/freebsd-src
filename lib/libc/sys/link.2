@@ -69,7 +69,9 @@ is not deleted and the link count of the
 underlying object is
 decremented.
 .Pp
-.Fa Name1
+The object pointed at by the
+.Fa name1
+argument
 must exist for the hard link to
 succeed and
 both
@@ -77,7 +79,9 @@ both
 and
 .Fa name2
 must be in the same file system.
+The
 .Fa name1
+argument
 may not be a directory.
 .Sh RETURN VALUES
 .Rv -std link

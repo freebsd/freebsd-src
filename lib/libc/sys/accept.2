@@ -79,16 +79,17 @@ remains open.
 .Pp
 The argument
 .Fa addr
-is a result parameter that is filled-in with
+is a result argument that is filled-in with
 the address of the connecting entity,
 as known to the communications layer.
 The exact format of the
 .Fa addr
-parameter is determined by the domain in which the communication
+argument is determined by the domain in which the communication
 is occurring.
 The
 .Fa addrlen
-is a value-result parameter; it should initially contain the
+argument
+is a value-result argument; it should initially contain the
 amount of space pointed to by
 .Fa addr ;
 on return it will contain the actual length (in bytes) of the
@@ -145,7 +146,7 @@ has not been called on the socket descriptor.
 .It Bq Er EFAULT
 The
 .Fa addr
-parameter is not in a writable part of the
+argument is not in a writable part of the
 user address space.
 .It Bq Er EWOULDBLOCK
 The socket is marked non-blocking and no connections

@@ -82,9 +82,11 @@ Programs that are not loaded with
 may selectively collect profiling statistics by calling
 .Fn monstartup
 with the range of addresses to be profiled.
+The
 .Fa lowpc
 and
 .Fa highpc
+arguments
 specify the address range that is to be sampled;
 the lowest address sampled is that of
 .Fa lowpc

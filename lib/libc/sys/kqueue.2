@@ -89,7 +89,9 @@ The
 system call
 is used to register events with the queue, and return any pending
 events to the user.
+The
 .Fa changelist
+argument
 is a pointer to an array of
 .Va kevent
 structures, as defined in
@@ -97,12 +99,18 @@ structures, as defined in
 All changes contained in the
 .Fa changelist
 are applied before any pending events are read from the queue.
+The
 .Fa nchanges
+argument
 gives the size of
 .Fa changelist .
+The
 .Fa eventlist
+argument
 is a pointer to an array of kevent structures.
+The
 .Fa nevents
+argument
 determines the size of
 .Fa eventlist .
 If

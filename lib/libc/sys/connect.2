@@ -46,8 +46,9 @@
 .Ft int
 .Fn connect "int s" "const struct sockaddr *name" "socklen_t namelen"
 .Sh DESCRIPTION
-The parameter
+The
 .Fa s
+argument
 is a socket.
 If it is of type
 .Dv SOCK_DGRAM ,
@@ -63,7 +64,7 @@ The other socket is specified by
 which is an address in the communications space of the socket.
 Each communications space interprets the
 .Fa name
-parameter in its own way.
+argument in its own way.
 Generally, stream sockets may successfully
 .Fn connect
 only once; datagram sockets may use
@@ -79,10 +80,14 @@ The
 system call fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa s
+argument
 is not a valid descriptor.
 .It Bq Er ENOTSOCK
+The
 .Fa s
+argument
 is a descriptor for a file, not a socket.
 .It Bq Er EADDRNOTAVAIL
 The specified address is not available on this machine.
@@ -101,7 +106,7 @@ The address is already in use.
 .It Bq Er EFAULT
 The
 .Fa name
-parameter specifies an area outside
+argument specifies an area outside
 the process address space.
 .It Bq Er EINPROGRESS
 The socket is non-blocking

@@ -93,7 +93,7 @@ Pages may be executed.
 .Pp
 The
 .Fa flags
-parameter specifies the type of the mapped object, mapping options and
+argument specifies the type of the mapped object, mapping options and
 whether modifications made to the mapped copy of the page are private
 to the process or are to be shared with other references.
 Sharing, mapping type and options are specified in the
@@ -109,7 +109,7 @@ The file descriptor used for creating
 must be \-1.
 The
 .Fa offset
-parameter is ignored.
+argument is ignored.
 .\".It Dv MAP_FILE
 .\"Mapped from a regular file or character-special device memory.
 .It Dv MAP_FIXED
@@ -212,7 +212,9 @@ implies
 and
 .Fa offset
 of 0.
+The
 .Fa fd
+argument
 must be -1 and
 .Fa prot
 must include at least
@@ -264,7 +266,7 @@ The flag
 .Dv PROT_READ
 was specified as part of the
 .Fa prot
-parameter and
+argument and
 .Fa fd
 was not open for reading.
 The flags
@@ -275,33 +277,39 @@ were specified as part of the
 .Fa flags
 and
 .Fa prot
-parameters and
+argument and
 .Fa fd
 was not open for writing.
 .It Bq Er EBADF
+The
 .Fa fd
+argument
 is not a valid open file descriptor.
 .It Bq Er EINVAL
 .Dv MAP_FIXED
 was specified and the
 .Fa addr
-parameter was not page aligned, or part of the desired address space
+argument was not page aligned, or part of the desired address space
 resides out of the valid address space for a user process.
 .It Bq Er EINVAL
-.Fa Len
+The
+.Fa len
+argument
 was negative.
 .It Bq Er EINVAL
 .Dv MAP_ANON
 was specified and the
 .Fa fd
-parameter was not -1.
+argument was not -1.
 .It Bq Er EINVAL
 .Dv MAP_ANON
 has not been specified and
 .Fa fd
 did not reference a regular or character special file.
 .It Bq Er EINVAL
-.Fa Offset
+The
+.Fa offset
+argument
 was not page-aligned.
 (See
 .Sx BUGS
@@ -310,7 +318,7 @@ below.)
 .Dv MAP_FIXED
 was specified and the
 .Fa addr
-parameter was not available.
+argument was not available.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
 The system has reached the per-process mmap limit specified in the
@@ -329,7 +337,9 @@ sysctl.
 .Xr getpagesize 3 ,
 .Xr make.conf 5
 .Sh BUGS
+The
 .Fa len
+argument
 is limited to 2GB.
 Mmapping slightly more than 2GB does not work, but
 it is possible to map a window of size (filesize % 2GB) for file sizes

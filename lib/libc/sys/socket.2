@@ -53,7 +53,7 @@ creates an endpoint for communication and returns a descriptor.
 .Pp
 The
 .Fa domain
-parameter specifies a communications domain within which
+argument specifies a communications domain within which
 communication will take place; this selects the protocol family
 which should be used.
 These families are defined in the include file
@@ -139,6 +139,7 @@ but not yet implemented, are not described here.
 .Pp
 The
 .Fa protocol
+argument
 specifies a particular protocol to be used with the socket.
 Normally only a single protocol exists to support a particular
 socket type within a given protocol family.  However, it is possible

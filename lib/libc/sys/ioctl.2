@@ -76,10 +76,10 @@ An
 .Fa request
 has encoded in it whether the argument is an
 .Dq in
-parameter
+argument
 or
 .Dq out
-parameter, and the size of the argument
+argument, and the size of the argument
 .Fa argp
 in bytes.
 Macros and defines used in specifying an ioctl
@@ -97,10 +97,14 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa d
+argument
 is not a valid descriptor.
 .It Bq Er ENOTTY
+The
 .Fa d
+argument
 is not associated with a character
 special device.
 .It Bq Er ENOTTY
@@ -109,12 +113,16 @@ of object that the descriptor
 .Fa d
 references.
 .It Bq Er EINVAL
+The
 .Fa request
 or
 .Fa argp
+argument
 is not valid.
 .It Bq Er EFAULT
+The
 .Fa argp
+argument
 points outside the process's allocated address space.
 .El
 .Sh SEE ALSO

@@ -53,7 +53,9 @@ special case noted below, all
 calls are made by the tracing process, and the
 .Fa pid
 argument specifies the process ID of the traced process.
+The
 .Fa request
+argument
 can be:
 .Bl -tag -width 12n
 .It Dv PT_TRACE_ME
@@ -137,21 +139,29 @@ The actual number of bytes read or written is stored in
 upon return.
 .It Dv PT_CONTINUE
 The traced process continues execution.
+The
 .Fa addr
+argument
 is an address specifying the place where execution is to be resumed
 (a new value for the program counter),
 or
 .Po Vt caddr_t Pc Ns 1
 to indicate that execution is to pick up where it left off.
+The
 .Fa data
+argument
 provides a signal number to be delivered to the traced process as it
 resumes execution, or 0 if no signal is to be sent.
 .It Dv PT_STEP
 The traced process is single stepped one instruction.
+The
 .Fa addr
+argument
 should be passed
 .Po Vt caddr_t Pc Ns 1 .
+The
 .Fa data
+argument
 is not used.
 .It Dv PT_KILL
 The traced process terminates, as if
@@ -272,6 +282,7 @@ on itself.
 .It
 The
 .Fa request
+argument
 was not one of the legal requests.
 .It
 The signal number

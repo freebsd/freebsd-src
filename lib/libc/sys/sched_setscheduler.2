@@ -47,7 +47,7 @@ of the process specified by
 to
 .Fa policy
 and the parameters specified in the
-.Fa sched_param
+.Vt sched_param
 structure pointed to by
 .Fa param ,
 respectively.
@@ -92,7 +92,7 @@ Round-robin scheduling across same priority processes.
 .El
 .Pp
 The
-.Fa sched_param
+.Vt sched_param
 structure is defined in
 .Fa <sched.h> :
 .Pp
@@ -146,7 +146,7 @@ No process can be found corresponding to that specified by
 .It Bq Er EINVAL
 The value of the
 .Fa policy
-parameter is invalid, or one or more of the parameters contained in
+argument is invalid, or one or more of the parameters contained in
 .Fa param
 is outside the valid range for the specified scheduling policy.
 .El

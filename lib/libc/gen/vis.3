@@ -67,7 +67,9 @@ thus, when
 encoding a set of characters into a buffer, the size of the buffer should
 be four times the number of characters encoded, plus one for the trailing
 .Dv NUL .
-The flag parameter is used for altering the default range of
+The
+.Fa flag
+argument is used for altering the default range of
 characters considered for encoding and for altering the visual
 representation.
 The additional character,
@@ -227,7 +229,9 @@ The following sequences are used to represent the indicated characters:
 .Li \e0 Tn  - NUL No (000)
 .Ed
 .Pp
-When using this format, the nextc parameter is looked at to determine
+When using this format, the
+.Fa nextc
+argument is looked at to determine
 if a
 .Dv NUL
 character can be encoded as
