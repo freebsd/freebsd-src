@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.217 1999/08/13 10:29:21 phk Exp $
+ * $Id: vfs_subr.c,v 1.218 1999/08/22 00:15:04 jdp Exp $
  */
 
 /*
@@ -78,7 +78,6 @@
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
-static struct vnode *checkalias2 __P((struct vnode *nvp, dev_t dev, struct mount *mp));
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static void	vfree __P((struct vnode *));
@@ -1318,7 +1317,7 @@ checkalias(nvp, nvp_rdev, mp)
 	return (checkalias2(nvp, dev, mp));
 }
 
-static struct vnode *
+struct vnode *
 checkalias2(nvp, dev, mp)
 	register struct vnode *nvp;
 	dev_t dev;
