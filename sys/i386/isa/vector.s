@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.15 1995/12/23 16:53:57 davidg Exp $
+ *	$Id: vector.s,v 1.16 1995/12/27 11:22:05 markm Exp $
  */
 
 #include <i386/isa/icu.h>
@@ -11,15 +11,29 @@
 #define	IRQ_BIT(irq_num)	(1 << ((irq_num) % 8))
 #define	IRQ_BYTE(irq_num)	((irq_num) / 8)
 
+#ifdef AUTO_EOI_1
+#define	ENABLE_ICU1		/* use auto-EOI to reduce i/o */
+#define	OUTB_ICU1
+#else
+#define	ENABLE_ICU1 \
+	movb	$ICU_EOI,%al ;	/* as soon as possible send EOI ... */ \
+	OUTB_ICU1		/* ... to clear in service bit */
+#define	OUTB_ICU1 \
+	FASTER_NOP ; \
+	outb	%al,$IO_ICU1
+#endif
+
 #ifdef AUTO_EOI_2
 /*
  * The data sheet says no auto-EOI on slave, but it sometimes works.
  */
-#define	ENABLE_ICU2
+#define	ENABLE_ICU1_AND_2	ENABLE_ICU1
 #else
-#define	ENABLE_ICU2 \
-	movb	$ICU_EOI,%al ;	\
-	outb	%al,$IO_ICU2 ;
+#define	ENABLE_ICU1_AND_2 \
+	movb	$ICU_EOI,%al ;	/* as above */ \
+	FASTER_NOP ; \
+	outb	%al,$IO_ICU2 ;	/* but do second icu first ... */ \
+	OUTB_ICU1		/* ... then first icu (if !AUTO_EOI_1) */
 #endif
 
 #ifdef FAST_INTR_HANDLER_USES_ES
@@ -154,6 +168,7 @@ IDTVEC(intr/**/irq_num) ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	orb	$IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
+	FASTER_NOP ; \
 	outb	%al,$icu+1 ; \
 	enable_icus ; \
 	incl	_cnt+V_INTR ;	/* tally interrupts */ \
@@ -176,6 +191,7 @@ Xresume/**/irq_num: ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	andb	$~IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
+	FASTER_NOP ; \
 	outb	%al,$icu+1 ; \
 	sti ;			/* XXX _doreti repeats the cli/sti */ \
 	MEXITCOUNT ; \
@@ -194,38 +210,38 @@ Xresume/**/irq_num: ; \
 	iret
 
 MCOUNT_LABEL(bintr)
-	FAST_INTR(0,)
-	FAST_INTR(1,)
-	FAST_INTR(2,)
-	FAST_INTR(3,)
-	FAST_INTR(4,)
-	FAST_INTR(5,)
-	FAST_INTR(6,)
-	FAST_INTR(7,)
-	FAST_INTR(8, ENABLE_ICU2)
-	FAST_INTR(9, ENABLE_ICU2)
-	FAST_INTR(10, ENABLE_ICU2)
-	FAST_INTR(11, ENABLE_ICU2)
-	FAST_INTR(12, ENABLE_ICU2)
-	FAST_INTR(13, ENABLE_ICU2)
-	FAST_INTR(14, ENABLE_ICU2)
-	FAST_INTR(15, ENABLE_ICU2)
-	INTR(0, IO_ICU1,, al)
-	INTR(1, IO_ICU1,, al)
-	INTR(2, IO_ICU1,, al)
-	INTR(3, IO_ICU1,, al)
-	INTR(4, IO_ICU1,, al)
-	INTR(5, IO_ICU1,, al)
-	INTR(6, IO_ICU1,, al)
-	INTR(7, IO_ICU1,, al)
-	INTR(8, IO_ICU2, ENABLE_ICU2, ah)
-	INTR(9, IO_ICU2, ENABLE_ICU2, ah)
-	INTR(10, IO_ICU2, ENABLE_ICU2, ah)
-	INTR(11, IO_ICU2, ENABLE_ICU2, ah)
-	INTR(12, IO_ICU2, ENABLE_ICU2, ah)
-	INTR(13, IO_ICU2, ENABLE_ICU2, ah)
-	INTR(14, IO_ICU2, ENABLE_ICU2, ah)
-	INTR(15, IO_ICU2, ENABLE_ICU2, ah)
+	FAST_INTR(0, ENABLE_ICU1)
+	FAST_INTR(1, ENABLE_ICU1)
+	FAST_INTR(2, ENABLE_ICU1)
+	FAST_INTR(3, ENABLE_ICU1)
+	FAST_INTR(4, ENABLE_ICU1)
+	FAST_INTR(5, ENABLE_ICU1)
+	FAST_INTR(6, ENABLE_ICU1)
+	FAST_INTR(7, ENABLE_ICU1)
+	FAST_INTR(8, ENABLE_ICU1_AND_2)
+	FAST_INTR(9, ENABLE_ICU1_AND_2)
+	FAST_INTR(10, ENABLE_ICU1_AND_2)
+	FAST_INTR(11, ENABLE_ICU1_AND_2)
+	FAST_INTR(12, ENABLE_ICU1_AND_2)
+	FAST_INTR(13, ENABLE_ICU1_AND_2)
+	FAST_INTR(14, ENABLE_ICU1_AND_2)
+	FAST_INTR(15, ENABLE_ICU1_AND_2)
+	INTR(0, IO_ICU1, ENABLE_ICU1, al)
+	INTR(1, IO_ICU1, ENABLE_ICU1, al)
+	INTR(2, IO_ICU1, ENABLE_ICU1, al)
+	INTR(3, IO_ICU1, ENABLE_ICU1, al)
+	INTR(4, IO_ICU1, ENABLE_ICU1, al)
+	INTR(5, IO_ICU1, ENABLE_ICU1, al)
+	INTR(6, IO_ICU1, ENABLE_ICU1, al)
+	INTR(7, IO_ICU1, ENABLE_ICU1, al)
+	INTR(8, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(9, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(10, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(11, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(12, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(13, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(14, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(15, IO_ICU2, ENABLE_ICU1_AND_2, ah)
 MCOUNT_LABEL(eintr)
 
 	.data
