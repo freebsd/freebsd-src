@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.36 1998/02/05 03:32:47 dyson Exp $
+ * $Id: vm_page.h,v 1.37 1998/03/01 04:18:26 dyson Exp $
  */
 
 /*
@@ -276,6 +276,16 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 	} \
 }
 
+#define PAGE_BWAKEUP(m) { \
+	(m)->busy--; \
+	if ((((m)->flags & (PG_WANTED | PG_BUSY)) == PG_WANTED) && \
+		((m)->busy == 0)) { \
+		(m)->flags &= ~PG_WANTED; \
+		wakeup((m)); \
+	} \
+}
+
+
 #if PAGE_SIZE == 4096
 #define VM_PAGE_BITS_ALL 0xff
 #endif
@@ -350,11 +360,11 @@ vm_page_protect(vm_page_t mem, int prot)
 {
 	if (prot == VM_PROT_NONE) {
 		if (mem->flags & (PG_WRITEABLE|PG_MAPPED)) {
-			pmap_page_protect(VM_PAGE_TO_PHYS(mem), prot);
+			pmap_page_protect(VM_PAGE_TO_PHYS(mem), VM_PROT_NONE);
 			mem->flags &= ~(PG_WRITEABLE|PG_MAPPED);
 		}
 	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
-		pmap_page_protect(VM_PAGE_TO_PHYS(mem), prot);
+		pmap_page_protect(VM_PAGE_TO_PHYS(mem), VM_PROT_READ);
 		mem->flags &= ~PG_WRITEABLE;
 	}
 }

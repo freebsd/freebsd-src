@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.114 1998/02/25 03:55:50 dyson Exp $
+ * $Id: vm_object.c,v 1.115 1998/03/01 04:18:22 dyson Exp $
  */
 
 /*
@@ -431,7 +431,7 @@ vm_object_terminate(object)
 		/*
 		 * Clean pages and flush buffers.
 		 */
-		vm_object_page_clean(object, 0, 0, TRUE);
+		vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 
 		vp = (struct vnode *) object->handle;
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
@@ -499,11 +499,11 @@ vm_object_dispose(object)
  */
 
 void
-vm_object_page_clean(object, start, end, syncio)
+vm_object_page_clean(object, start, end, flags)
 	vm_object_t object;
 	vm_pindex_t start;
 	vm_pindex_t end;
-	boolean_t syncio;
+	int flags;
 {
 	register vm_page_t p, np, tp;
 	register vm_offset_t tstart, tend;
@@ -515,6 +515,7 @@ vm_object_page_clean(object, start, end, syncio)
 	int chkb;
 	int maxb;
 	int i;
+	int pagerflags;
 	vm_page_t maf[vm_pageout_page_count];
 	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
@@ -524,6 +525,9 @@ vm_object_page_clean(object, start, end, syncio)
 	if (object->type != OBJT_VNODE ||
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
 		return;
+
+	pagerflags = (flags & (OBJPC_SYNC | OBJPC_INVAL)) ? VM_PAGER_PUT_SYNC : 0;
+	pagerflags |= (flags & OBJPC_INVAL) ? VM_PAGER_PUT_INVAL : 0;
 
 	vp = object->handle;
 
@@ -628,29 +632,23 @@ rescan:
 		for(i=0;i<maxb;i++) {
 			int index = (maxb - i) - 1;
 			ma[index] = mab[i];
-			ma[index]->flags |= PG_BUSY;
 			ma[index]->flags &= ~PG_CLEANCHK;
-			vm_page_protect(ma[index], VM_PROT_READ);
 		}
-		vm_page_protect(p, VM_PROT_READ);
-		p->flags |= PG_BUSY;
 		p->flags &= ~PG_CLEANCHK;
 		ma[maxb] = p;
 		for(i=0;i<maxf;i++) {
 			int index = (maxb + i) + 1;
 			ma[index] = maf[i];
-			ma[index]->flags |= PG_BUSY;
 			ma[index]->flags &= ~PG_CLEANCHK;
-			vm_page_protect(ma[index], VM_PROT_READ);
 		}
 		runlen = maxb + maxf + 1;
 		splx(s);
-		vm_pageout_flush(ma, runlen, 0);
+		vm_pageout_flush(ma, runlen, pagerflags);
 		if (object->generation != curgeneration)
 			goto rescan;
 	}
 
-	VOP_FSYNC(vp, NULL, syncio, curproc);
+	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?1:0, curproc);
 
 	object->flags &= ~OBJ_CLEANING;
 	return;
@@ -1314,7 +1312,7 @@ again:
  				if (vm_page_sleep(p, "vmopar", &p->busy))
  					goto again;
 
-				if (clean_only) {
+				if (clean_only && p->valid) {
 					vm_page_test_dirty(p);
 					if (p->valid & p->dirty)
 						continue;
@@ -1342,9 +1340,9 @@ again:
 				 * interrupt -- minimize the spl transitions
 				 */
  				if (vm_page_sleep(p, "vmopar", &p->busy))
- 					goto again;
+					goto again;
 
-				if (clean_only) {
+				if (clean_only && p->valid) {
 					vm_page_test_dirty(p);
 					if (p->valid & p->dirty) {
 						start += 1;

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.90 1998/02/25 03:55:47 dyson Exp $
+ * $Id: swap_pager.c,v 1.91 1998/03/01 04:18:14 dyson Exp $
  */
 
 /*
@@ -1578,9 +1578,7 @@ swap_pager_finish(spc)
 			printf("swap_pager_finish: I/O error, clean of page %lx failed\n",
 			    (u_long) VM_PAGE_TO_PHYS(ma[i]));
 			ma[i]->dirty = VM_PAGE_BITS_ALL;
-			ma[i]->flags |= PG_BUSY;
-			ma[i]->busy--;
-			PAGE_WAKEUP(ma[i]);
+			PAGE_BWAKEUP(ma[i]);
 		}
 
 		object->paging_in_progress -= spc->spc_count;
@@ -1651,9 +1649,7 @@ swap_pager_iodone(bp)
 			/*
 			 * we wakeup any processes that are waiting on these pages.
 			 */
-			ma[i]->flags |= PG_BUSY;
-			ma[i]->busy--;
-			PAGE_WAKEUP(ma[i]);
+			PAGE_BWAKEUP(ma[i]);
 		}
 	}
 

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.72 1998/02/04 22:33:48 eivind Exp $
+ * $Id: vm_mmap.c,v 1.73 1998/02/06 12:14:25 eivind Exp $
  */
 
 /*
@@ -641,13 +641,6 @@ mincore(p, uap)
 	pmap = &p->p_vmspace->vm_pmap;
 
 	vm_map_lock(map);
-
-	/*
-	 * Not needed here
-	 */
-#if 0
-	VM_MAP_RANGE_CHECK(map, addr, end);
-#endif
 
 	if (!vm_map_lookup_entry(map, addr, &entry))
 		entry = entry->next;

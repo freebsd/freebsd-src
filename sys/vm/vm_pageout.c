@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.116 1998/02/24 10:16:23 dyson Exp $
+ * $Id: vm_pageout.c,v 1.117 1998/03/01 04:18:28 dyson Exp $
  */
 
 /*
@@ -100,7 +100,7 @@
 
 /* the kernel process "vm_pageout"*/
 static void vm_pageout __P((void));
-static int vm_pageout_clean __P((vm_page_t, int));
+static int vm_pageout_clean __P((vm_page_t));
 static int vm_pageout_scan __P((void));
 static int vm_pageout_free_page_calc __P((vm_size_t count));
 struct proc *pageproc;
@@ -218,9 +218,8 @@ void pmap_collect(void);
  * move!)
  */
 static int
-vm_pageout_clean(m, sync)
+vm_pageout_clean(m)
 	vm_page_t m;
-	int sync;
 {
 	register vm_object_t object;
 	vm_page_t mc[2*vm_pageout_page_count];
@@ -234,22 +233,21 @@ vm_pageout_clean(m, sync)
 	 * If not OBJT_SWAP, additional memory may be needed to do the pageout.
 	 * Try to avoid the deadlock.
 	 */
-	if ((sync != VM_PAGEOUT_FORCE) &&
-	    (object->type == OBJT_DEFAULT) &&
+	if ((object->type == OBJT_DEFAULT) &&
 	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_pageout_free_min))
 		return 0;
 
 	/*
 	 * Don't mess with the page if it's busy.
 	 */
-	if ((!sync && m->hold_count != 0) ||
+	if ((m->hold_count != 0) ||
 	    ((m->busy != 0) || (m->flags & PG_BUSY)))
 		return 0;
 
 	/*
 	 * Try collapsing before it's too late.
 	 */
-	if (!sync && object->backing_object) {
+	if (object->backing_object) {
 		vm_object_collapse(object);
 	}
 
@@ -295,8 +293,7 @@ vm_pageout_clean(m, sync)
 				}
 				vm_page_test_dirty(p);
 				if ((p->dirty & p->valid) != 0 &&
-				    ((p->queue == PQ_INACTIVE) ||
-				     (sync == VM_PAGEOUT_FORCE)) &&
+				    (p->queue == PQ_INACTIVE) &&
 				    (p->wire_count == 0) &&
 				    (p->hold_count == 0)) {
 					mc[vm_pageout_page_count + i] = p;
@@ -330,8 +327,7 @@ do_backward:
 				}
 				vm_page_test_dirty(p);
 				if ((p->dirty & p->valid) != 0 &&
-				    ((p->queue == PQ_INACTIVE) ||
-				     (sync == VM_PAGEOUT_FORCE)) &&
+				    (p->queue == PQ_INACTIVE) &&
 				    (p->wire_count == 0) &&
 				    (p->hold_count == 0)) {
 					mc[vm_pageout_page_count - i] = p;
@@ -351,30 +347,30 @@ do_backward:
 	/*
 	 * we allow reads during pageouts...
 	 */
-	for (i = page_base; i < (page_base + pageout_count); i++) {
-		mc[i]->busy++;
-		vm_page_protect(mc[i], VM_PROT_READ);
-	}
-
-	return vm_pageout_flush(&mc[page_base], pageout_count, sync);
+	return vm_pageout_flush(&mc[page_base], pageout_count, 0);
 }
 
 int
-vm_pageout_flush(mc, count, sync)
+vm_pageout_flush(mc, count, flags)
 	vm_page_t *mc;
 	int count;
-	int sync;
+	int flags;
 {
 	register vm_object_t object;
 	int pageout_status[count];
 	int numpagedout = 0;
 	int i;
 
+	for (i = 0; i < count; i++) {
+		mc[i]->busy++;
+		vm_page_protect(mc[i], VM_PROT_READ);
+	}
+
 	object = mc[0]->object;
 	object->paging_in_progress += count;
 
 	vm_pager_put_pages(object, mc, count,
-	    ((sync || (object == kernel_object)) ? TRUE : FALSE),
+	    (flags | ((object == kernel_object) ? OBJPC_SYNC : 0)),
 	    pageout_status);
 
 	for (i = 0; i < count; i++) {
@@ -417,9 +413,7 @@ vm_pageout_flush(mc, count, sync)
 		 */
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
-			mt->flags |= PG_BUSY;
-			mt->busy--;
-			PAGE_WAKEUP(mt);
+			PAGE_BWAKEUP(mt);
 		}
 	}
 	return numpagedout;
@@ -840,7 +834,7 @@ rescan0:
 			 * laundry.  If it is still in the laundry, then we
 			 * start the cleaning operation.
 			 */
-			written = vm_pageout_clean(m, 0);
+			written = vm_pageout_clean(m);
 			if (vp)
 				vput(vp);
 

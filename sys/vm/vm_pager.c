@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.34 1998/02/06 12:14:29 eivind Exp $
+ * $Id: vm_pager.c,v 1.35 1998/02/23 08:22:40 dyson Exp $
  */
 
 /*
@@ -183,14 +183,14 @@ vm_pager_get_pages(object, m, count, reqpage)
 }
 
 int
-vm_pager_put_pages(object, m, count, sync, rtvals)
+vm_pager_put_pages(object, m, count, flags, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
 	int count;
-	boolean_t sync;
+	int flags;
 	int *rtvals;
 {
-	return ((*pagertab[object->type]->pgo_putpages)(object, m, count, sync, rtvals));
+	return ((*pagertab[object->type]->pgo_putpages)(object, m, count, flags, rtvals));
 }
 
 boolean_t

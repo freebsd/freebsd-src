@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.78 1998/02/25 13:08:06 bde Exp $
+ *	$Id: kern_exec.c,v 1.79 1998/03/02 05:47:55 peter Exp $
  */
 
 #include <sys/param.h>
@@ -389,8 +389,7 @@ exec_map_first_page(imgp)
 
 		if ((rv != VM_PAGER_OK) || (ma[0] == NULL)) {
 			vm_page_protect(ma[0], VM_PROT_NONE);
-			vm_page_deactivate(ma[0]);
-			PAGE_WAKEUP(ma[0]);
+			vm_page_free(ma[0]);
 			splx(s);
 			return EIO;
 		}
