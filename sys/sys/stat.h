@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $Id: stat.h,v 1.13 1997/06/02 06:24:51 julian Exp $
+ * $Id: stat.h,v 1.14 1998/02/25 02:00:44 bde Exp $
  */
 
 #ifndef _SYS_STAT_H_
@@ -98,6 +98,37 @@ struct stat {
 	int32_t	  st_lspare;
 	int64_t	  st_qspare[2];
 };
+
+#ifndef _POSIX_SOURCE
+struct nstat {
+	dev_t	  st_dev;		/* inode's device */
+	ino_t	  st_ino;		/* inode's number */
+	u_int32_t st_mode;		/* inode protection mode */
+	u_int32_t st_nlink;		/* number of hard links */
+	uid_t	  st_uid;		/* user ID of the file's owner */
+	gid_t	  st_gid;		/* group ID of the file's group */
+	dev_t	  st_rdev;		/* device type */
+#ifndef _POSIX_SOURCE
+	struct	timespec st_atimespec;	/* time of last access */
+	struct	timespec st_mtimespec;	/* time of last data modification */
+	struct	timespec st_ctimespec;	/* time of last file status change */
+#else
+	time_t	  st_atime;		/* time of last access */
+	long	  st_atimensec;		/* nsec of last access */
+	time_t	  st_mtime;		/* time of last data modification */
+	long	  st_mtimensec;		/* nsec of last data modification */
+	time_t	  st_ctime;		/* time of last file status change */
+	long	  st_ctimensec;		/* nsec of last file status change */
+#endif
+	off_t	  st_size;		/* file size, in bytes */
+	int64_t	  st_blocks;		/* blocks allocated for file */
+	u_int32_t st_blksize;		/* optimal blocksize for I/O */
+	u_int32_t st_flags;		/* user defined flags for file */
+	u_int32_t st_gen;		/* file generation number */
+	int64_t	  st_qspare[2];
+};
+#endif
+
 #ifndef _POSIX_SOURCE
 #define st_atime st_atimespec.tv_sec
 #define st_mtime st_mtimespec.tv_sec
@@ -206,6 +237,7 @@ int	mkdir __P((const char *, mode_t));
 int	mkfifo __P((const char *, mode_t));
 int	stat __P((const char *, struct stat *));
 mode_t	umask __P((mode_t));
+
 #ifndef _POSIX_SOURCE
 int	chflags __P((const char *, u_long));
 int	fchflags __P((int, u_long));

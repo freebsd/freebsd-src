@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.50 1998/02/06 12:13:22 eivind Exp $
+ * $Id: kern_descrip.c,v 1.51 1998/02/15 04:16:59 dyson Exp $
  */
 
 #include "opt_compat.h"
@@ -490,6 +490,56 @@ fstat(p, uap)
 	}
 	if (error == 0)
 		error = copyout((caddr_t)&ub, (caddr_t)uap->sb, sizeof (ub));
+	return (error);
+}
+
+/*
+ * Return status information about a file descriptor.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct nfstat_args {
+	int	fd;
+	struct	nstat *sb;
+};
+#endif
+/* ARGSUSED */
+int
+nfstat(p, uap)
+	struct proc *p;
+	register struct nfstat_args *uap;
+{
+	register struct filedesc *fdp = p->p_fd;
+	register struct file *fp;
+	struct stat ub;
+	struct nstat nub;
+	int error;
+
+	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
+		return (EBADF);
+	switch (fp->f_type) {
+
+	case DTYPE_FIFO:
+	case DTYPE_VNODE:
+		error = vn_stat((struct vnode *)fp->f_data, &ub, p);
+		break;
+
+	case DTYPE_SOCKET:
+		error = soo_stat((struct socket *)fp->f_data, &ub);
+		break;
+
+	case DTYPE_PIPE:
+		error = pipe_stat((struct pipe *)fp->f_data, &ub);
+		break;
+
+	default:
+		panic("fstat");
+		/*NOTREACHED*/
+	}
+	if (error == 0) {
+		cvtnstat(&ub, &nub);
+		error = copyout((caddr_t)&nub, (caddr_t)uap->sb, sizeof (nub));
+	}
 	return (error);
 }
 
