@@ -41,7 +41,7 @@
 #
 ##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.2 1995/08/23 03:51:50 davidg Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.3 1995/10/29 09:45:26 davidg Exp $"
 
 SCBMASK		= 0xff
 
@@ -485,7 +485,7 @@ data_phase_reinit:
 # Reads should not use WIDEODD since it may make the last byte for a SG segment
 # go to the next segment.
 p_datain:
-	mvi	DMAPARAMS,0x39			# SCSIEN|SDMAEN|HDMAEN|
+	mvi	DMAPARAMS,0x79			# WIDEODD|SCSIEN|SDMAEN|HDMAEN|
 						#   !DIRECTION|FIFORESET
 data_phase_init:
 	call	assert
@@ -1024,7 +1024,8 @@ dma4:
 #  actually off first lest we get an ILLSADDR.
 #
 dma5:
-	clr	DFCNTRL				# disable DMA
+	and	DFCNTRL, 0x40, SINDEX		# disable DMA, but maintain
+						# WIDEODD
 dma6:
 	test	DFCNTRL,0x38	jnz dma6	# SCSIENACK|SDMAENACK|HDMAENACK
 
