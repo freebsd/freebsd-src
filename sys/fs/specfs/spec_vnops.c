@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.28 1996/03/09 07:02:52 dyson Exp $
+ * $Id: spec_vnops.c,v 1.29 1996/03/19 05:13:17 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -823,7 +823,6 @@ spec_getpages(ap)
 	relpbuf(bp);
 
 	for (i = 0; i < pcount; i++) {
-		pmap_clear_modify(VM_PAGE_TO_PHYS(ap->a_m[i]));
 		ap->a_m[i]->dirty = 0;
 		ap->a_m[i]->valid = VM_PAGE_BITS_ALL;
 		ap->a_m[i]->flags &= ~PG_ZERO;
