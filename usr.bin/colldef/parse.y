@@ -242,7 +242,7 @@ main(ac, av)
 			break;
 
 		  case 'I':
-			strcpy(map_name, optarg);
+			strlcpy(map_name, optarg, sizeof(map_name));
 			break;
 
 		  default:
