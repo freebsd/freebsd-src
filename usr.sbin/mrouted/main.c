@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.12 1997/09/30 06:15:01 charnier Exp $";
+	"$Id: main.c,v 1.13 1998/01/16 07:17:43 charnier Exp $";
 #endif
 
 #include <err.h>
@@ -677,6 +677,7 @@ log(int severity, int syserr, char *format, ...)
     char *msg;
     char tbuf[20];
     struct timeval now;
+    time_t now_sec;
     struct tm *thyme;
 
     va_start(ap, format);
@@ -693,6 +694,7 @@ log(severity, syserr, format, va_alist)
     char *msg;
     char tbuf[20];
     struct timeval now;
+    time_t now_sec;
     struct tm *thyme;
 
     va_start(ap);
@@ -707,7 +709,8 @@ log(severity, syserr, format, va_alist)
 	case 2: if (severity > LOG_INFO  ) break;
 	default:
 	    gettimeofday(&now,NULL);
-	    thyme = localtime(&now.tv_sec);
+	    now_sec = now.tv_sec;
+	    thyme = localtime(&now_sec);
 	    strftime(tbuf, sizeof(tbuf), "%X.%%03d ", thyme);
 	    fprintf(stderr, tbuf, now.tv_usec / 1000);
 	    fprintf(stderr, "%s", msg);
