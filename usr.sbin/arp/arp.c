@@ -474,8 +474,7 @@ search(u_long addr, action_fn *action)
 	if (needed == 0)	/* empty table */
 		return 0;
 	buf = NULL;
-	do {
-		needed += needed / 2;
+	for (;;) {
 		newbuf = realloc(buf, needed);
 		if (newbuf == NULL) {
 			if (buf != NULL)
@@ -484,7 +483,10 @@ search(u_long addr, action_fn *action)
 		}
 		buf = newbuf;
 		st = sysctl(mib, 6, buf, &needed, NULL, 0);
-	} while (st == -1 && errno == ENOMEM);
+		if (st == 0 || errno != ENOMEM)
+			break;
+		needed += needed / 8;
+	}
 	if (st == -1)
 		err(1, "actual retrieval of routing table");
 	lim = buf + needed;
