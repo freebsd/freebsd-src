@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.20 1996/01/03 21:47:43 markm Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.21 1996/01/03 21:51:44 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -30,6 +30,10 @@ and on CD-ROM from Walnut Creek CDROM:
 <descrip>
 <tag>Australia</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@au.freebsd.org" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
@@ -46,6 +50,10 @@ and on CD-ROM from Walnut Creek CDROM:
 
 <tag>Brazil</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@br.freebsd.org" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
@@ -56,13 +64,15 @@ and on CD-ROM from Walnut Creek CDROM:
 
 <tag>Canada</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@ca.freebsd.org" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.synapse.net/contrib/FreeBSD"
-	name="ftp://ftp.synapse.net/contrib/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:evanc@synapse.net"
-	name="evanc@synapse.net">.
+<htmlurl url="ftp://ftp.ca.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.ca.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -104,6 +114,10 @@ and on CD-ROM from Walnut Creek CDROM:
 </itemize>
 
 <tag>Germany</tag>
+
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@de.freebsd.org" name="hostmaster">
+for this domain.
 
 <itemize>
 
@@ -163,6 +177,10 @@ and on CD-ROM from Walnut Creek CDROM:
 
 <tag>Japan</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@jp.freebsd.org" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
@@ -187,6 +205,10 @@ and on CD-ROM from Walnut Creek CDROM:
 </itemize>
 
 <tag>Korea</tag>
+
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@kr.freebsd.org" name="hostmaster">
+for this domain.
 
 <itemize>
 
@@ -237,11 +259,16 @@ and on CD-ROM from Walnut Creek CDROM:
 
 <tag>South Africa</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@za.freebsd.org" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
 <htmlurl url="ftp://ftp.za.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp.za.freebsd.org/pub/FreeBSD"><newline>
+<item>
 <htmlurl url="ftp://ftp2.za.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp2.za.freebsd.org/pub/FreeBSD"><newline>
 
@@ -291,37 +318,30 @@ and on CD-ROM from Walnut Creek CDROM:
 
 <tag>USA</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@freebsd.org" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.cs.uncc.edu/pub/FreeBSD"
-	name="ftp://ftp.cs.uncc.edu/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:jlrobins@zappa.cs.uncc.edu"
-	name="jlrobins@zappa.cs.uncc.edu">.
-
+<htmlurl url="ftp://ftp.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.neosoft.com/systems/FreeBSD"
-	name="ftp://ftp.neosoft.com/systems/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:smace@NeoSoft.COM"
-	name="smace@NeoSoft.COM">.
-
+<htmlurl url="ftp://ftp2.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://kryten.atinc.com/pub/FreeBSD"
-	name="ftp://kryten.atinc.com/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:jmb@kryten.atinc.com"
-	name="jmb@kryten.atinc.com">.
-
+<htmlurl url="ftp://ftp3.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.cps.cmich.edu/pub/ftp.freebsd.org"
-	name="ftp://ftp.cps.cmich.edu/pub/ftp.freebsd.org"><newline>
-	Contact: <htmlurl url="mailto:ftpadmin@cps.cmich.edu"
-	name="ftpadmin@cps.cmich.edu">.
-
+<htmlurl url="ftp://ftp4.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp4.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.cslab.vt.edu/pub/FreeBSD"
-	name="ftp://ftp.cslab.vt.edu/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp@ftp.cslab.vt.edu"
-	name="ftp@ftp.cslab.vt.edu">.
+<htmlurl url="ftp://ftp5.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp5.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp6.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp6.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -359,29 +379,31 @@ eBones (Kerberos) from one of the following foreign distribution sites:
 
 <tag>South Africa</tag>
 
+<htmlurl url="mailto:hostmaster@internat.freebsd.org" name="Hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
 <htmlurl url="ftp://ftp.internat.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp.internat.freebsd.org/pub/FreeBSD"><newline>
-	Contact: Mark Murray <htmlurl url="mailto:mark@grondar.za"
-	name="mark@grondar.za">.
 
 <item>
-<htmlurl url="ftp://ftp2.za.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.za.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.internat.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.internat.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
 <tag>Brazil</tag>
+
+<htmlurl url="mailto:hostmaster@br.freebsd.org" name="Hostmaster">
+for this domain.
 
 <itemize>
 
 <item>
 <htmlurl url="ftp://ftp.br.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp.br.freebsd.org/pub/FreeBSD"><newline>
-	Contact: Pedro A M Vazquez <htmlurl url="mailto:vazquez@iqm.unicamp.br"
-	name="vazquez@iqm.unicamp.br">.
 
 </itemize>
 
