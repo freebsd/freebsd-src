@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.25 1997/05/26 00:43:57 brian Exp $
+ * $Id: chat.c,v 1.26 1997/06/09 03:27:15 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -40,6 +40,7 @@
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <setjmp.h>
 #include "timeout.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -62,9 +63,7 @@ extern int ChangeParity(char *);
 #define	ABORT	-1
 
 static char *
-findblank(p, instring)
-char *p;
-int instring;
+findblank(char *p, int instring)
 {
   if (instring) {
     while (*p) {
@@ -87,10 +86,7 @@ int instring;
 }
 
 int
-MakeArgs(script, pvect, maxargs)
-char *script;
-char **pvect;
-int maxargs;
+MakeArgs(char *script, char **pvect, int maxargs)
 {
   int nargs, nb;
   int instring;
@@ -133,11 +129,7 @@ int maxargs;
  *  \U  Auth User
  */
 char *
-ExpandString(str, result, reslen, sendmode)
-char *str;
-char *result;
-int reslen;
-int sendmode;
+ExpandString(char *str, char *result, int reslen, int sendmode)
 {
   int addcr = 0;
   char *phone;
@@ -223,12 +215,14 @@ int sendmode;
 static char logbuff[MAXLOGBUFF];
 static int loglen = 0;
 
-static void clear_log() {
+static void clear_log()
+{
   memset(logbuff,0,MAXLOGBUFF);
   loglen = 0;
 }
 
-static void flush_log() {
+static void flush_log()
+{
   if (LogIsKept(LogCONNECT))
     LogPrintf(LogCONNECT,"%s", logbuff);
   else if (LogIsKept(LogCARRIER) && strstr(logbuff,"CARRIER"))
@@ -237,7 +231,8 @@ static void flush_log() {
   clear_log();
 }
 
-static void connect_log(char *str, int single_p) {
+static void connect_log(char *str, int single_p)
+{
   int space = MAXLOGBUFF - loglen - 1;
   
   while (space--) {
@@ -251,11 +246,8 @@ static void connect_log(char *str, int single_p) {
   if (!space) flush_log();
 }
 
-
-
 int
-WaitforString(estr)
-char *estr;
+WaitforString(char *estr)
 {
   struct timeval timeout;
   char *s, *str, ch;
@@ -388,8 +380,7 @@ char *estr;
 }
 
 void
-ExecStr(command, out)
-char *command, *out;
+ExecStr(char *command, char *out)
 {
   int pid;
   int fids[2];
@@ -466,8 +457,7 @@ char *command, *out;
 }
 
 void
-SendString(str)
-char *str;
+SendString(char *str)
 {
   char *cp;
   int on;
@@ -505,8 +495,7 @@ char *str;
 }
 
 int
-ExpectString(str)
-char *str;
+ExpectString(char *str)
 {
   char *minus;
   int state;
@@ -563,13 +552,33 @@ char *str;
   return(MATCH);
 }
 
+static jmp_buf ChatEnv;
+static void (*ohup)(int), (*oint)(int);
+
+static void
+StopDial(int sig)
+{
+  LogPrintf(LogPHASE, "DoChat: Caught signal %d, abort connect\n", sig);
+  longjmp(ChatEnv,1);
+}
+
 int
-DoChat(script)
-char *script;
+DoChat(char *script)
 {
   char *vector[40];
   char **argv;
   int argc, n, state;
+
+  /* While we're chatting, we want a HUP/INT to fail us */
+  if (setjmp(ChatEnv)) {
+    signal(SIGHUP, ohup);
+    signal(SIGINT, oint);
+    return(-1);
+  }
+  ohup = signal(SIGHUP, SIG_IGN);
+  oint = signal(SIGINT, SIG_IGN);
+  signal(SIGHUP, StopDial);
+  signal(SIGINT, StopDial);
 
   timeout_next = abort_next = 0;
   for (n = 0; AbortStrings[n]; n++) {
@@ -600,8 +609,12 @@ char *script;
       HangupModem();
 #endif
     case NOMATCH:
+      signal(SIGHUP, ohup);
+      signal(SIGINT, oint);
       return(NOMATCH);
     }
   }
+  signal(SIGHUP, ohup);
+  signal(SIGINT, oint);
   return(MATCH);
 }
