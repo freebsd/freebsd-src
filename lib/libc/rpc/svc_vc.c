@@ -312,12 +312,8 @@ again:
 		return (FALSE);
 	memcpy(xprt->xp_rtaddr.buf, &addr, len);
 	xprt->xp_rtaddr.len = len;
-	if (addr.ss_family == AF_LOCAL) {
-		xprt->xp_raddr = *(struct sockaddr_in *)xprt->xp_rtaddr.buf;
-		xprt->xp_addrlen = sizeof (struct sockaddr_in);
-	}
 #ifdef PORTMAP
-	if (addr.ss_family == AF_INET) {
+	if (addr.ss_family == AF_INET || addr.ss_family == AF_LOCAL) {
 		xprt->xp_raddr = *(struct sockaddr_in *)xprt->xp_rtaddr.buf;
 		xprt->xp_addrlen = sizeof (struct sockaddr_in);
 	}
