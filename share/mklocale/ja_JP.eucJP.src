@@ -42,6 +42,7 @@ TODIGIT       	< 'a' - 'f' : 10 >
  */
 
 SPACE		0xa1a1
+BLANK           0xa1a1
 PHONOGRAM	0xa1bc
 SPECIAL     	0xa1a2 - 0xa1fe
 PUNCT		0xa1a2 - 0xa1f8		/* A few too many in here... */
