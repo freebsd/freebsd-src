@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b daemon - curses fullscreen output
  *	-------------------------------------
  *
- *	$Id: curses.c,v 1.29 1999/12/13 21:25:24 hm Exp $ 
+ *	$Id: curses.c,v 1.36 2000/10/09 12:53:29 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:45:43 1999]
+ *      last edit-date: [Thu Jun  1 16:24:43 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -40,6 +40,10 @@
 #include "isdnd.h"
 
 #define CHPOS(cfgp) (((cfgp)->isdncontrollerused*2) + (cfgp)->isdnchannelused)
+
+static void display_budget(void);
+static void display_cards(void);
+static void menuexit(WINDOW *menu_w);
 
 /*---------------------------------------------------------------------------*
  *	init curses fullscreen display
@@ -118,9 +122,6 @@ init_screen(void)
 	addstr(buffer);
 	standend();
 	
-	move(uheight+5, 0);
-	addstr("Date     Time     Typ Information   Description");	
-
 	refresh();
 
 	for(i=0, j=0; i <= ncontroller; i++, j+=2)
@@ -161,8 +162,10 @@ do_menu(void)
 	{
 		"1 - (D)isplay refresh",
 		"2 - (H)angup (choose a channel)",
-		"3 - (R)eread config file",		
-		"4 - (Q)uit the program",		
+		"3 - (R)eread config file",
+		"4 - (S)how card types",
+		"5 - (B)udget information",				
+		"6 - (Q)uit the program",		
 	};
 
 	WINDOW *menu_w;
@@ -170,7 +173,7 @@ do_menu(void)
 	int mpos;
 	fd_set set;
 	struct timeval timeout;
-
+	
 	/* create a new window in the lower screen area */
 	
 	if((menu_w = newwin(WMENU_HGT, WMENU_LEN, WMENU_POSLN, WMENU_POSCO )) == NULL)
@@ -232,6 +235,12 @@ do_menu(void)
 				wstandend(menu_w);
 				break;
 
+			case ('0'+WBUDGET+1):	/* display budget info */
+			case 'B':
+			case 'b':
+				display_budget();
+				goto mexit;
+
 			case ('0'+WREFRESH+1):	/* display refresh */
 			case 'D':
 			case 'd':
@@ -241,6 +250,7 @@ do_menu(void)
 			case ('0'+WQUIT+1):	/* quit program */
 			case 'Q':
 			case 'q':
+				menuexit(menu_w);
 				do_exit(0);
 				goto mexit;
 
@@ -256,6 +266,12 @@ do_menu(void)
 				rereadconfig(42);
 				goto mexit;
 
+			case ('0'+WSHOW+1):	/* reread config file */
+			case 'S':
+			case 's':
+				display_cards();
+				goto mexit;
+
 			case '\n':
 			case '\r':	/* exec highlighted option */
 				switch(mpos)
@@ -265,6 +281,7 @@ do_menu(void)
 						break;
 
 					case WQUIT:
+						menuexit(menu_w);
 						do_exit(0);
 						break;
 
@@ -274,6 +291,14 @@ do_menu(void)
 
 					case WREREAD:
 						rereadconfig(42);
+						break;
+
+					case WBUDGET:
+						display_budget();
+						break;
+						
+					case WSHOW:
+						display_cards();
 						break;
 				}
 				goto mexit;
@@ -286,14 +311,53 @@ do_menu(void)
 	}
 
 mexit:
+	menuexit(menu_w);
+}
+
+static void
+menuexit(WINDOW *menu_w)
+{
+	int uheight = ncontroller * 2; /* cards * b-channels */
+	char buffer[512];
+
 	/* delete the menu window */
 
 	delwin(menu_w);
 
 	/* re-display the original lower window contents */
 	
+	touchwin(mid_w);
+	wrefresh(mid_w);
+
 	touchwin(lower_w);
 	wrefresh(lower_w);
+
+	touchwin(upper_w);
+	wrefresh(upper_w);
+
+	move(1, 0);
+	/*      01234567890123456789012345678901234567890123456789012345678901234567890123456789 */
+	addstr("c tei b remote                 iface  dir outbytes   obps inbytes    ibps  units");
+	
+	sprintf(buffer, "----- isdn userland interface state ------------------------------------------");	
+	while(strlen(buffer) < COLS)
+		strcat(buffer, "-");	
+
+	move(uheight+2, 0);
+	standout();
+	addstr(buffer);
+	standend();
+
+	sprintf(buffer, "----- isdnd logfile display --------------------------------------------------");
+	while(strlen(buffer) < COLS)
+		strcat(buffer, "-");	
+
+	move(uheight+4, 0);
+	standout();
+	addstr(buffer);
+	standend();
+		
+	refresh();
 }
 
 /*---------------------------------------------------------------------------*
@@ -628,6 +692,200 @@ display_chans(void)
 	/* delete the channels window */
 
 	delwin(chan_w);
+}
+
+/*---------------------------------------------------------------------------*
+ *	display card type information
+ *---------------------------------------------------------------------------*/
+static void
+display_cards(void)
+{
+	WINDOW *chan_w;
+	int nlines, ncols, pos_x, pos_y;
+	fd_set set;
+	struct timeval timeout;
+	int i;
+	
+	nlines = 6+ncontroller;
+	ncols = 60;
+	pos_y = WMENU_POSLN;
+	pos_x = WMENU_POSCO;
+
+	/* create a new window in the lower screen area */
+	
+	if((chan_w = newwin(nlines, ncols, pos_y, pos_x )) == NULL)
+	{
+		log(LL_WRN, "ERROR, curses init channel window!");
+		return;
+	}
+
+	/* create a border around the window */
+	
+	box(chan_w, '|', '-');
+
+	/* add a title */
+	
+	wstandout(chan_w);
+	mvwaddstr(chan_w, 0, (ncols / 2) - (strlen("Cards") / 2), "Cards");
+	wstandend(chan_w);
+
+	mvwprintw(chan_w, 2, 2, "ctrl description");
+	mvwprintw(chan_w, 3, 2, "---- ----------------------------------------------");
+	for (i = 0; i < ncontroller; i++)
+	{
+		mvwprintw(chan_w, 4+i, 2, " #%d  %s", i,
+			name_of_controller(isdn_ctrl_tab[i].ctrl_type,
+			isdn_ctrl_tab[i].card_type));
+	}
+
+	wrefresh(chan_w);
+	
+	FD_ZERO(&set);
+	FD_SET(STDIN_FILENO, &set);
+	timeout.tv_sec = WMTIMEOUT*2;
+	timeout.tv_usec = 0;
+
+	if((select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout)) <= 0)
+	{
+		delwin(chan_w);
+		return;
+	}
+
+	wgetch(chan_w);
+	delwin(chan_w);
+}
+
+/*---------------------------------------------------------------------------*
+ *	display budget info
+ *---------------------------------------------------------------------------*/
+static void
+display_budget(void)
+{
+	WINDOW *bud_w;
+	int nlines, ncols, pos_x, pos_y;
+	fd_set set;
+	struct timeval timeout;
+	int i, j;
+	cfg_entry_t *cep;
+	time_t now;
+	double uptime;
+	int minutes;
+	int hours;
+	int days;
+	
+	nlines = 0;
+	ncols = 73;
+	pos_y = WMENU_POSLN;
+	pos_x = WMENU_POSCO-3;
+
+	for(i=0, j=0; i < nentries; i++)	/* walk thru all entries */
+	{
+		cep = &cfg_entry_tab[i];	/* get ptr to entry */
+
+		if(cep->budget_callbackperiod && cep->budget_callbackncalls)
+			nlines++;
+		if(cep->budget_calloutperiod && cep->budget_calloutncalls)
+			nlines++;
+	}
+
+	if(nlines == 0)
+		return;
+		
+	nlines += 6;	
+
+	/* create a new window in the lower screen area */
+	
+	if((bud_w = newwin(nlines, ncols, pos_y, pos_x )) == NULL)
+	{
+		log(LL_WRN, "ERROR, curses init budget window!");
+		return;
+	}
+
+	now = time(NULL);
+	uptime = difftime(now, starttime);
+
+	minutes = (time_t) (uptime / 60) % 60;
+	hours = (time_t) (uptime / (60*60)) % (60*60);
+	days = (time_t) (uptime / (60*60*24)) % (60*60*24);	
+
+	uptime = uptime / (60*60);
+	
+	/* create a border around the window */
+	
+	box(bud_w, '|', '-');
+
+	/* add a title */
+	
+	wstandout(bud_w);
+	mvwaddstr(bud_w, 0, (ncols / 2) - (strlen("Budget") / 2), "Budget");
+	wstandend(bud_w);
+
+	mvwprintw(bud_w, 1, 2, "isdnd uptime: %d %s - %d %s - %d %s",
+		days,
+		days == 1 ? "day" : "days",
+		hours,
+		hours == 1 ? "hour" : "hours",
+		minutes,
+		minutes == 1 ? "minute" : "minutes");
+		
+	mvwprintw(bud_w, 2, 2, "name     t period rest   ncall rest  rqsts /hr  rdone /hr  rrjct /hr ");
+	mvwprintw(bud_w, 3, 2, "-------- - ------ ------ ----- ----- ----- ---- ----- ---- ----- ----");
+
+	for(i=0, j=4; i < nentries; i++)	/* walk thru all entries */
+	{
+		cep = &cfg_entry_tab[i];		/* get ptr to enry */
+
+		if(cep->budget_calloutperiod && cep->budget_calloutncalls)
+		{
+			mvwprintw(bud_w, j, 2, "%-8s %c %-6d %-6ld %-5d %-5d %-5d %-4.1f %-5d %-4.1f %-5d %-4.1f",
+				cep->name,
+				'o',
+				cep->budget_calloutperiod,
+				(long)(cep->budget_calloutperiod_time - now),
+				cep->budget_calloutncalls,
+				cep->budget_calloutncalls_cnt,
+				cep->budget_callout_req,
+				(double)cep->budget_callout_req / uptime,
+				cep->budget_callout_done,
+				(double)cep->budget_callout_done / uptime,
+				cep->budget_callout_rej,
+				(double)cep->budget_callout_rej / uptime);
+			j++;
+		}
+		if(cep->budget_callbackperiod && cep->budget_callbackncalls)
+		{
+			mvwprintw(bud_w, j, 2, "%-8s %c %-6d %-6ld %-5d %-5d %-5d %-4.1f %-5d %-4.1f %-5d %-4.1f",
+				(cep->budget_calloutperiod && cep->budget_calloutncalls) ? "" : cep->name,
+				'b',
+				cep->budget_callbackperiod,
+				(long)(cep->budget_callbackperiod_time - now),
+				cep->budget_callbackncalls,
+				cep->budget_callbackncalls_cnt,
+				cep->budget_callback_req,
+				(double)cep->budget_callback_req / uptime,
+				cep->budget_callback_done,
+				(double)cep->budget_callback_done / uptime,
+				cep->budget_callback_rej,
+				(double)cep->budget_callback_rej / uptime);
+			j++;
+		}
+	}
+
+	wrefresh(bud_w);
+	
+	FD_ZERO(&set);
+	FD_SET(STDIN_FILENO, &set);
+	timeout.tv_sec = WMTIMEOUT*3;
+	timeout.tv_usec = 0;
+
+	if((select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout)) <= 0)
+	{
+		delwin(bud_w);
+		return;
+	}
+
+	wgetch(bud_w);
+	delwin(bud_w);
 }
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,72 +24,70 @@
  *
  *---------------------------------------------------------------------------
  *
- *	isdntel - isdn4bsd telephone answering machine support
- *      ======================================================
+ *	isdnphone - some display operations
+ *      ===================================
  *
- *	$Id: display.c,v 1.9 2000/07/19 08:56:24 hm Exp $ 
+ *	$Id: display.c,v 1.4 1999/12/13 21:25:26 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jul 19 10:08:06 2000]
+ *      last edit-date: [Mon Dec 13 21:52:55 1999]
  *
  *----------------------------------------------------------------------------*/
 
 #include "defs.h"
 
-static char *helpstr = "Enter Control-D to exit program or RETURN for command window";
-
 /*---------------------------------------------------------------------------*
  *	init curses fullscreen display
  *---------------------------------------------------------------------------*/
 void
-init_screen(void)
+init_mainw(void)
 {
 	char buffer[512];
 	
 	initscr();			/* curses init */
 	
-	curses_ready = 1;
-	
 	if((COLS < 80) || (LINES < 24))
-		fatal("ERROR, minimal screensize must be 80x24, is %dx%d, terminating!", COLS, LINES);
+		fatal(0, "ERROR, minimal screensize must be 80x24, is %dx%d, terminating!", COLS, LINES);
 
 	
-	if((main_w = newwin(LINES-START_O-2, COLS, START_O, 0)) == NULL)
+	if((main_w = newwin(MW_HEIGHT, MW_WIDTH, MW_ROW, MW_COL)) == NULL)
 		fatal("ERROR, curses init main window, terminating!");
+
+	if(opt_d)
+	{
+		if((dbg_w = newwin(DB_HGT, DB_WID, DB_ROW, DB_COL)) == NULL)
+			fatal("ERROR, curses init debug window, terminating!");
+		scrollok(dbg_w, TRUE);
+	}
 
 	raw();					/* raw input */
 	noecho();				/* do not echo input */
 	keypad(stdscr, TRUE);			/* use special keys */
 	keypad(main_w, TRUE);			/* use special keys */
-	scrollok(main_w, TRUE);
 
-	sprintf(buffer, " isdntel %d.%d.%d ", VERSION, REL, STEP);
+	box(main_w, 0, 0);
 
-	move(0, 0);
-	standout();
-	hline(ACS_HLINE, 5);
-	move(0, 5);
-	addstr(buffer);
-	move(0, 5 + strlen(buffer));
-	hline(ACS_HLINE, 256);
-	standend();
+	sprintf(buffer, "isdnphone %d.%d ", VERSION, REL);
+
+	wstandout(main_w);	
+	mvwaddstr(main_w, 0,  (MW_WIDTH / 2) - (strlen(buffer) / 2), buffer);
+	wstandend(main_w);	
 	
-	move(1, 0);
-	addstr("Date     Time     Called Party     Calling Party    Alias                Length");	
-           /*   31.12.96 16:45:12 1234567890123456 1234567890123456 12345678901234567890 123456 */
-
-	move(2, 0);
-	hline(ACS_HLINE, 256);
-           
-	move(LINES-2, 0);
-	hline(ACS_HLINE, 256);
-
-	mvaddstr(LINES-1, (COLS / 2) - (strlen(helpstr) / 2), helpstr);
-
-	refresh();
+	mvwaddstr(main_w, MW_STATEY, MW_STATEX, "  state: ");
+	mvwprintw(main_w, MW_STATEY, MW_STX, "%s", states[state]);	
+	wmove(main_w, MW_STATEY+1, 1);
+	whline(main_w, 0, MW_WIDTH-2);
+	
+	mvwaddstr(main_w, MW_NUMY, MW_NUMX, " number: ");
+	wmove(main_w, MW_NUMY+1, 1);
+	whline(main_w, 0, MW_WIDTH-2);
+	
+	mvwaddstr(main_w, MW_MSGY, MW_MSGX, "message: ");
 
 	wrefresh(main_w);
+
+	curses_ready = 1;
 }
 
 /*---------------------------------------------------------------------------*
@@ -100,16 +98,14 @@ do_menu(void)
 {
 	static char *menu[WMITEMS] =
 	{
-		"Play   File",
-#define PLAY	0		
-		"Delete File",
-#define DELETE	1
-		"Re-Read Spool",
-#define REREAD	2
-		"Refresh Screen",
-#define REFRESH 3
-		"Exit Program",
-#define EXIT	4
+		"Hangup",
+#define HANGUP	0		
+		"Dial",
+#define DIAL	1
+		"Refresh",
+#define REFRESH	2
+		"Exit",
+#define EXIT	3
 	};
 
 	WINDOW *menu_w;
@@ -193,15 +189,14 @@ do_menu(void)
 				goto mexit;
 				break;
 
-			case 'P':
-			case 'p':
-				play(cur_file);
+			case 'H':
+			case 'h':
+				do_hangup();
 				goto mexit;
 				break;
 
 			case 'D':
 			case 'd':
-				delete(cur_file);
 				goto mexit;				
 				break;
 				
@@ -212,16 +207,11 @@ do_menu(void)
 #endif
 				switch(mpos)
 				{
-					case PLAY:
-						play(cur_file);
+					case DIAL:
 						goto mexit;
 						break;
-					case DELETE:
-						delete(cur_file);
-						goto mexit;
-						break;
-					case REREAD:
-						reread();
+					case HANGUP:
+						do_hangup();
 						goto mexit;
 						break;
 					case REFRESH:
@@ -243,6 +233,8 @@ do_menu(void)
 mexit:
 	/* delete the menu window */
 
+	wclear(menu_w);
+	wrefresh(menu_w);
 	delwin(menu_w);
 
 	/* re-display the original lower window contents */

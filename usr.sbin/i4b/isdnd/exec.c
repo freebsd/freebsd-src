@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	exec.h - supplemental program/script execution
  *	----------------------------------------------
  *
- *	$Id: exec.c,v 1.13 1999/12/13 21:25:24 hm Exp $ 
+ *	$Id: exec.c,v 1.23 2000/10/09 12:53:29 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:45:59 1999]
+ *      last edit-date: [Wed Sep 27 09:39:22 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -138,6 +138,19 @@ exec_prog(char *prog, char **arglist)
 	}
 
 	/* this is the child now */
+
+	/*
+	 * close files used only by isdnd, e.g.
+	 * 1. /dev/i4b
+	 * 2. /var/log/isdnd.acct (or similar, when used)
+	 * 3. /var/log/isdnd.log (or similar, when used)
+	 */
+	close(isdnfd);
+	if(useacctfile)
+		fclose(acctfp);
+	if(uselogfile)
+		fclose(logfp);
+	
 
 	if(execvp(path,arglist) < 0 )
 		_exit(127);
@@ -279,4 +292,115 @@ check_and_kill(cfg_entry_t *cep)
 	}
 }
 
+/*---------------------------------------------------------------------------*
+ *	update budget callout/callback statistics counter file
+ *---------------------------------------------------------------------------*/
+void
+upd_callstat_file(char *filename, int rotateflag)
+{
+	FILE *fp;
+	time_t s, l, now;
+	int n;
+	int ret;
+
+	now = time(NULL);
+	
+	fp = fopen(filename, "r+");
+
+	if(fp == NULL)
+	{
+		/* file not there, create it and exit */
+		
+		log(LL_WRN, "upd_callstat_file: creating %s", filename);
+
+		fp = fopen(filename, "w");
+		if(fp == NULL)
+		{
+			log(LL_ERR, "ERROR, upd_callstat_file: cannot create %s, %s", filename, strerror(errno));
+			return;
+		}
+
+		ret = fprintf(fp, "%ld %ld 1", now, now);
+		if(ret <= 0)
+			log(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
+		
+		fclose(fp);
+		return;
+	}
+
+	/* get contents */
+	
+	ret = fscanf(fp, "%ld %ld %d", &s, &l, &n);
+
+	/* reset fp */
+	
+	rewind(fp);
+		
+	if(ret != 3)
+	{
+		/* file corrupt ? anyway, initialize */
+		
+		log(LL_WRN, "upd_callstat_file: initializing %s", filename);
+
+		s = l = now;
+		n = 0;
+	}
+
+	if(rotateflag)
+	{
+		struct tm *stmp;
+		int dom;
+
+		/* get day of month for last timestamp */
+		stmp = localtime(&l);
+		dom = stmp->tm_mday;	
+
+		/* get day of month for just now */
+		stmp = localtime(&now);
+		
+		if(dom != stmp->tm_mday)
+		{
+			FILE *nfp;
+			char buf[MAXPATHLEN];
+
+			/* new day, write last days stats */
+
+			sprintf(buf, "%s-%02d", filename, stmp->tm_mday);
+
+			nfp = fopen(buf, "w");
+			if(nfp == NULL)
+			{
+				log(LL_ERR, "ERROR, upd_callstat_file: cannot open for write %s, %s", buf, strerror(errno));
+				return;
+			}
+
+			ret = fprintf(nfp, "%ld %ld %d", s, l, n);
+			if(ret <= 0)
+				log(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
+			
+			fclose(nfp);
+
+			/* init new days stats */
+			n = 0;
+			s = now;
+
+			log(LL_WRN, "upd_callstat_file: rotate %s, new s=%ld l=%ld n=%d", filename, s, l, n);
+		}				
+	}
+
+	n++;	/* increment call count */
+
+	/*
+	 * the "%-3d" is necessary to overwrite any
+	 * leftovers from previous contents!
+	 */
+
+	ret = fprintf(fp, "%ld %ld %-3d", s, now, n);	
+
+	if(ret <= 0)
+		log(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
+	
+	fclose(fp);
+}
+	
 /* EOF */

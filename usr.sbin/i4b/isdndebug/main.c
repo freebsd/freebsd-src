@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- *	$Id: main.c,v 1.23 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: main.c,v 1.27 2000/07/24 12:22:08 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:49:40 1999]
+ *      last edit-date: [Mon Jul 24 14:25:33 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -73,10 +73,9 @@ int opt_max = 0;
 int opt_err = 0;
 int opt_zero = 0;
 int opt_unit = 0;
-int opt_hscx = 0;
-int opt_rhscx = 0;
 int opt_lapd = 0;
 int opt_rlapd = 0;
+int opt_chipstat = 0;
 
 /*---------------------------------------------------------------------------*
  *	usage display and exit
@@ -86,18 +85,18 @@ usage(void)
 {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "isdndebug - i4b set debug level, version %d.%d.%d, compiled %s %s\n", VERSION, REL, STEP, __DATE__, __TIME__);
-	fprintf(stderr, "usage: isdndebug -e -g -h -l <layer> -m -q -r -s <value> -u <unit> -z -H -Q\n");
+	fprintf(stderr, "usage: isdndebug -c -e -g -l <layer> -m -q -r -s <value> -u <unit> -z -C -Q\n");
+	fprintf(stderr, "       -c            get chipset statistics\n");
 	fprintf(stderr, "       -e            set error only debugging output\n");
 	fprintf(stderr, "       -g            get current debugging values\n");
-	fprintf(stderr, "       -h            get HSCX event counters\n");	
 	fprintf(stderr, "       -l layer      specify layer (1...4)\n");
 	fprintf(stderr, "       -m            set maximum debugging output\n");
 	fprintf(stderr, "       -q            get Q.921 statistics\n");
 	fprintf(stderr, "       -r            reset values(s) to compiled in default\n");
 	fprintf(stderr, "       -s value      set new debugging value for layer\n");
-	fprintf(stderr, "       -u unit       unit number for -h, -q, -H and -Q commands\n");	
+	fprintf(stderr, "       -u unit       unit number for -c, -q, -C and -Q commands\n");	
 	fprintf(stderr, "       -z            set zero (=no) debugging output\n");
-	fprintf(stderr, "       -H            reset HSCX event counters to zero\n");	
+	fprintf(stderr, "       -C            reset chipset statistics\n");
 	fprintf(stderr, "       -Q            reset Q.921 statistics\n");
 	fprintf(stderr, "\n");
 	exit(1);
@@ -113,20 +112,20 @@ main(int argc, char **argv)
 	ctl_debug_t cdbg;
 	int ret;
 	
-	while ((c = getopt(argc, argv, "eghl:mqrs:u:zHQ")) != -1)
+	while ((c = getopt(argc, argv, "ceghl:mqrs:u:zCHQ")) != -1)
 	{
 		switch(c)
 		{
+			case 'c':
+				opt_chipstat = 1;
+				break;
+
 			case 'e':
 				opt_err = 1;
 				break;
 
 			case 'g':
 				opt_get = 1;
-				break;
-
-			case 'h':
-				opt_hscx = 1;
 				break;
 
 			case 'q':
@@ -163,10 +162,6 @@ main(int argc, char **argv)
 				opt_zero = 1;
 				break;
 
-			case 'H':
-				opt_rhscx = 1;
-				break;
-
 			case 'Q':
 				opt_rlapd = 1;
 				break;
@@ -179,14 +174,14 @@ main(int argc, char **argv)
 	}
 
 	if(opt_get == 0 && opt_set == 0 && opt_reset == 0 && opt_max == 0 &&
-	   opt_err == 0 && opt_zero == 0 && opt_hscx == 0 && opt_rhscx == 0 &&
-	   opt_lapd == 0 && opt_rlapd == 0)
+	   opt_err == 0 && opt_zero == 0 && opt_lapd == 0 && opt_rlapd == 0 &&
+	   opt_chipstat == 0)
 	{
 		usage();
 	}
 
 	if((opt_get + opt_set + opt_reset + opt_max + opt_err + opt_zero +
-		opt_hscx + opt_rhscx + opt_lapd + opt_rlapd) > 1)
+	    opt_lapd + opt_rlapd + opt_chipstat) > 1)
 	{
 		usage();
 	}
@@ -197,69 +192,80 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	if(opt_hscx)
+	if(opt_chipstat)
 	{
-		hscxstat_t hst;
-
-		hst.unit = opt_unit;
-		hst.chan = 0;
+		struct chipstat cst;
+		u_char *name;
 		
-		if((ret = ioctl(isdnfd, I4B_CTL_GET_HSCXSTAT, &hst)) < 0)
+		cst.driver_unit = opt_unit;
+		cst.driver_bchannel = 0; 
+		
+		if((ret = ioctl(isdnfd, I4B_CTL_GET_CHIPSTAT, &cst)) < 0)
 		{
-			fprintf(stderr, "ioctl I4B_CTL_GET_HSCXSTAT failed: %s", strerror(errno));
+			fprintf(stderr, "ioctl I4B_CTL_GET_CHIPSTAT failed: %s", strerror(errno));
 			exit(1);
 		}
 
-		printf("\nHSCX events:      VFR    RDO    CRC    RAB    XDU    RFO\n");
-
-		printf("unit %d chan %d: %6d %6d %6d %6d %6d %6d\n",
-			hst.unit, hst.chan,
-			hst.vfr, hst.rdo, hst.crc, hst.rab, hst.xdu, hst.rfo);
-
-		hst.unit = opt_unit;
-		hst.chan = 1;
-		
-		if((ret = ioctl(isdnfd, I4B_CTL_GET_HSCXSTAT, &hst)) < 0)
+		switch(cst.driver_type)
 		{
-			fprintf(stderr, "ioctl I4B_CTL_GET_HSCXSTAT failed: %s", strerror(errno));
-			exit(1);
-		}
+			case L1DRVR_ISIC:
+				name = "isic";
+				printf("\nisic-driver\nHSCX events:      VFR    RDO    CRC    RAB    XDU    RFO\n");
 
-		printf("unit %d chan %d: %6d %6d %6d %6d %6d %6d\n",
-			hst.unit, hst.chan,
-			hst.vfr, hst.rdo, hst.crc, hst.rab, hst.xdu, hst.rfo);
+				printf("unit %d chan %d: %6d %6d %6d %6d %6d %6d\n",
+					cst.stats.hscxstat.unit,
+					cst.stats.hscxstat.chan,
+					cst.stats.hscxstat.vfr,
+					cst.stats.hscxstat.rdo,
+					cst.stats.hscxstat.crc,
+					cst.stats.hscxstat.rab,
+					cst.stats.hscxstat.xdu,
+					cst.stats.hscxstat.rfo);
 
-		exit(0);
-	}
-
-	if(opt_rhscx)
-	{
-		hscxstat_t hst;
-
-		hst.unit = opt_unit;
-		hst.chan = 0;
+				cst.driver_unit = opt_unit;
+				cst.driver_bchannel = 1; 
 		
-		if((ret = ioctl(isdnfd, I4B_CTL_CLR_HSCXSTAT, &hst)) < 0)
-		{
-			fprintf(stderr, "ioctl I4B_CTL_CLR_HSCXSTAT failed: %s", strerror(errno));
-			exit(1);
+				if((ret = ioctl(isdnfd, I4B_CTL_GET_CHIPSTAT, &cst)) < 0)
+				{
+					fprintf(stderr, "ioctl I4B_CTL_GET_CHIPSTAT failed: %s", strerror(errno));
+					exit(1);
+				}
+
+				printf("HSCX events:      VFR    RDO    CRC    RAB    XDU    RFO\n");
+
+				printf("unit %d chan %d: %6d %6d %6d %6d %6d %6d\n",
+					cst.stats.hscxstat.unit,
+					cst.stats.hscxstat.chan,
+					cst.stats.hscxstat.vfr,
+					cst.stats.hscxstat.rdo,
+					cst.stats.hscxstat.crc,
+					cst.stats.hscxstat.rab,
+					cst.stats.hscxstat.xdu,
+					cst.stats.hscxstat.rfo);
+
+				break;
+	
+			case L1DRVR_IWIC:
+				name = "iwic";
+				break;
+	
+			case L1DRVR_IFPI:
+				name = "ifpi";
+				break;
+	
+			case L1DRVR_IHFC:
+				name = "ihfc";
+				break;
+	
+			case L1DRVR_IFPNP:
+				name = "ifpnp";
+				break;
+
+			default:
+				fprintf(stderr, "ioctl I4B_CTL_GET_CHIPSTAT, unknown driver %d\n",cst.driver_type);
+				exit(1);
+				break;
 		}
-
-		printf("HSCX event counters unit %d chan %d reset to zero!\n",
-			hst.unit, hst.chan);
-
-		hst.unit = opt_unit;
-		hst.chan = 1;
-		
-		if((ret = ioctl(isdnfd, I4B_CTL_CLR_HSCXSTAT, &hst)) < 0)
-		{
-			fprintf(stderr, "ioctl I4B_CTL_CLR_HSCXSTAT failed: %s", strerror(errno));
-			exit(1);
-		}
-
-		printf("HSCX event counters unit %d chan %d reset to zero!\n",
-			hst.unit, hst.chan);
-
 		exit(0);
 	}
 
@@ -536,22 +542,24 @@ void
 printl1(unsigned long val)
 {
 	printf("\nLayer 1: %s  =  0x%lX\n", bin_str(val, 32), val);
-	printf("                               || |||| |||| ||||\n"),
-	printf("                               || |||| |||| |||+- general error messages\n");
-	printf("                               || |||| |||| ||+-- PH primitives exchanged\n");
-	printf("                               || |||| |||| |+--- B channel actions\n");
-	printf("                               || |||| |||| +---- HSCX error messages\n");
-	printf("                               || |||| |||+------ HSCX IRQ messages\n");
-	printf("                               || |||| ||+------- ISAC error messages\n");
-	printf("                               || |||| |+-------- ISAC messages\n");
-	printf("                               || |||| +--------- ISAC setup messages\n");
-	printf("                               || |||+----------- FSM general messages\n");
-	printf("                               || ||+------------ FSM error messages\n");
-	printf("                               || |+------------- timer general messages\n");
-	printf("                               || +-------------- timer error messages\n");
-	printf("                               |+---------------- HSCX data xfer errors msgs\n");
-	printf("                               +----------------- ISAC CICO messages\n");
-	printf("         ++++-++++-++++-++++-++------------------ unassigned\n");
+	printf("                             |||| |||| |||| ||||\n"),
+	printf("                             |||| |||| |||| |||+- general error messages\n");
+	printf("                             |||| |||| |||| ||+-- PH primitives exchanged\n");
+	printf("                             |||| |||| |||| |+--- B channel actions\n");
+	printf("                             |||| |||| |||| +---- HSCX error messages\n");
+	printf("                             |||| |||| |||+------ HSCX IRQ messages\n");
+	printf("                             |||| |||| ||+------- ISAC error messages\n");
+	printf("                             |||| |||| |+-------- ISAC messages\n");
+	printf("                             |||| |||| +--------- ISAC setup messages\n");
+	printf("                             |||| |||+----------- FSM general messages\n");
+	printf("                             |||| ||+------------ FSM error messages\n");
+	printf("                             |||| |+------------- timer general messages\n");
+	printf("                             |||| +-------------- timer error messages\n");
+	printf("                             |||+---------------- HSCX data xfer errors msgs\n");
+	printf("                             ||+----------------- ISAC CICO messages\n");
+	printf("                             |+------------------ silent messages (soft-HDLC)\n");
+	printf("                             +------------------- error messages (soft-HDLC)\n");
+	printf("         ++++-++++-++++-++++--------------------- unassigned\n");
 }
 
 /*---------------------------------------------------------------------------*
@@ -598,7 +606,7 @@ printl3(unsigned long val)
 	printf("                                   ||+----------- facility messages\n");
 	printf("                                   |+------------ facility error messages\n");
 	printf("                                   +------------- Q.931 messages exchanged\n");	
-	printf("         ++++-++++-++++-++++-++++-++------------- unassigned\n");
+	printf("         ++++-++++-++++-++++-++++-+-------------- unassigned\n");
 }
 
 /*---------------------------------------------------------------------------*
@@ -608,20 +616,20 @@ void
 printl4(unsigned long val)
 {
 	printf("\nLayer 4: %s  =  0x%lX\n", bin_str(val, 32), val);
-	printf("                                   ||| |||| ||||\n"),
-	printf("                                   ||| |||| |||+- general error messages\n");
-	printf("                                   ||| |||| ||+-- general messages\n");
-	printf("                                   ||| |||| |+--- B-ch timeout messages\n");
-	printf("                                   ||| |||| +---- network driver dial state\n");
-	printf("                                   ||| |||+------ ipr driver debug messages\n");
-	printf("                                   ||| ||+------- rbch driver debug messages\n");
-	printf("                                   ||| |+-------- isp driver debug messages\n");
-	printf("                                   ||| +--------- tel driver debug messages\n");
-	printf("                                   ||+----------- tina driver debug messages\n");
-	printf("                                   |+------------ tina driver messages\n");
-	printf("                                   +------------- tina driver error messages\n");
-	printf("         ++++-++++-++++-++++-++++-+-------------- unassigned\n");
+	printf("                                  |||| |||| ||||\n"),
+	printf("                                  |||| |||| |||+- general error messages\n");
+	printf("                                  |||| |||| ||+-- general messages\n");
+	printf("                                  |||| |||| |+--- B-ch timeout messages\n");
+	printf("                                  |||| |||| +---- network driver dial state\n");
+	printf("                                  |||| |||+------ ipr driver debug messages\n");
+	printf("                                  |||| ||+------- rbch driver debug messages\n");
+	printf("                                  |||| |+-------- isp driver debug messages\n");
+	printf("                                  |||| +--------- tel driver debug messages\n");
+	printf("                                  |||+----------- tina driver debug messages\n");
+	printf("                                  ||+------------ tina driver messages\n");
+	printf("                                  |+------------- tina driver error messages\n");
+	printf("                                  +-------------- ing driver debug messages\n");
+	printf("         ++++-++++-++++-++++-++++---------------- unassigned\n");
 }
-
 
 /* EOF */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	q932_fac.h - facility header file
  *	---------------------------------
  *
- *	$Id: q932_fac.h,v 1.6 1999/12/13 21:25:26 hm Exp $ 
+ *	$Id: q932_fac.h,v 1.7 2000/02/18 16:27:39 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:57:18 1999]
+ *      last edit-date: [Fri Feb 18 17:26:07 2000]
  *
  *---------------------------------------------------------------------------
  *
@@ -168,6 +168,10 @@ enum states {
 	ST_EXP_RR_INV_ID,
 	ST_EXP_RR_OP_VAL,
 	ST_EXP_RR_RESULT,	
+
+	ST_EXP_REJ_INV_ID,
+	ST_EXP_REJ_OP_VAL,
+	ST_EXP_REJ_RESULT,	
 	
 	ST_EXP_NIX	
 };

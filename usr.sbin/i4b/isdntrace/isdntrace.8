@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,13 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdntrace.8,v 1.12 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: isdntrace.8,v 1.14 2000/02/13 15:26:52 hm Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:08:17 1999]
+.\"	last edit-date: [Sun Feb 13 14:38:42 2000]
 .\"
-.Dd October 19, 1998
+.Dd February, 13, 2000
 .Dt ISDNTRACE 8
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl p Ar filename
 .Op Fl r
 .Op Fl u Ar number
+.Op Fl x
 .Op Fl B
 .Op Fl F
 .Op Fl P
@@ -67,6 +68,18 @@ The
 .Nm
 utility is only available for passive supported cards.
 .Pp
+.Em Note
+.br
+All filenames, user specified or default, get a date and time stamp string 
+added in the form -yymmdd-hhmmss: a hyphen, two digits year, month, day,
+a hyphen and two digits hour, minutes and seconds. 
+Tracefiles no longer get overwritten. 
+In case a new filename is needed within a second, the filename-generating
+mechanism sleeps one second.
+.br
+In case the program is sent a USR1 signal, a new user specified or default
+filename with a new date and timestamp is generated and opened.
+.Pp
 The following options can be used:
 .Bl -tag -width Ds
 .It Fl a
@@ -75,11 +88,9 @@ Run
 in analyzer mode by using two passive cards and a custom cable which can
 be build as described in the file
 .Em cable.txt
-in the isdn4bsd source distribution.
-One card acts as a receiver for the
+in the isdn4bsd source distribution. One card acts as a receiver for the
 transmitting direction on the S0 bus while the other card acts as a receiver
-for the receiving direction on the S0 bus.
-Complete traffic monitoring is
+for the receiving direction on the S0 bus. Complete traffic monitoring is
 possible using this setup.
 .It Fl b
 switch B channel tracing on (default off).
@@ -98,8 +109,7 @@ print layer 1 (I.430) INFO signals to monitor layer 1 activity (default off).
 switch displaying of Layer 2 (Q.921) frames off (default on).
 .It Fl n
 This option takes a numeric argument specifying the minimum 
-frame size in octetts a frame must have to be displayed.
-(default 0)
+frame size in octetts a frame must have to be displayed. (default 0)
 .It Fl o
 switch off writing trace output to a file (default on).
 .It Fl p
@@ -114,13 +124,15 @@ the decoded protocol information (default on).
 Use 
 .Ar number
 as the unit number of the controller card to trace (default 0).
+.It Fl x
+Switch on printing of packets with a non-Q.931 protocol discriminator.
+(default off).
 .It Fl B
 Write undecoded binary trace data to a file for later or remote 
 analyzing (default off).
 .It Fl F
 This option can only be used when option -P (playback from binary data file)
-is used.
-The -F option causes playback not to stop at end of file but rather
+is used. The -F option causes playback not to stop at end of file but rather
 to wait for additional data to be available from the input file.
 .Pp
 This option is useful when trace data is accumulated in binary format (to
@@ -143,8 +155,7 @@ When the USR1 signal is sent to a
 process, the currently used logfiles are reopened, so that logfile
 rotation becomes possible.
 .Pp
-The trace output should be obvious.
-It is very handy to have the following
+The trace output should be obvious. It is very handy to have the following
 standard texts available when tracing ISDN protocols:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
@@ -155,8 +166,7 @@ ISDN D-channel layer 2 protocol description.
 .It Ar Q.931
 ISDN D-channel layer 3 protocol description.
 .It Ar 1TR6
-German-specific ISDN layer 3 protocol description.
-(NOTICE: decoding
+German-specific ISDN layer 3 protocol description. (NOTICE: decoding
 of the 1TR6 protocol is included but not supported since i dont have
 any longer access to a 1TR6 based ISDN installation.)
 .El
@@ -183,7 +193,8 @@ isdntrace -f /var/tmp/isdn.trace
 .Pp
 will start D channel tracing on passive controller 0 with all except B
 channel tracing enabled and logs everything into the output file 
-/tmp/isdn.trace.
+/var/tmp/isdn.trace-yymmdd-hhmmss (where yymmdd and hhmmss are replaced
+by the current date and time values).
 
 .Sh SEE ALSO
 .Xr isdnd 8

@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 2000 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,34 +22,56 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4btrc.4,v 1.9 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: iwic.4,v 1.2 2000/03/16 15:25:05 hm Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:14:19 1999]
+.\"	last edit-date: [Thu Mar 16 16:27:46 2000]
 .\"
 .Dd July 30, 1999
-.Dt I4BTRC 4
+.Dt IWIC 4
 .Os
 .Sh NAME
-.Nm i4btrc
-.Nd isdn4bsd ISDN interface driver for D and B channel tracing
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4btrc\&" Op count
-.Sh NetBSD SYNOPSIS
-none
+.Nm iwic
+.Nd isdn4bsd Winbond ISDN Chip device driver
+.Sh SYNOPSIS
+.Pp
+.Cd "device iwic0"
+.Pp
 .Sh DESCRIPTION
 The
 .Nm
-driver is used to add a header to the data got from the D and/or B channel
-and queues it to be read and further processed by the
-.Xr isdntrace 8
-utility.
+driver provides D-channel layer 1 supports as specified in ITU Recommendation
+I.430 and layer 1 support for the B-channel.
+.Pp
+The driver supports passive PCI ISDN cards from various manufacturers
+based on the Winbond W6692 chip.
+.Pp
+.Sh SUPPORTED CARDS
+.Pp
+.Bl -tag -width Ds -compact -offset
+.It Ar ASUSCOM P-IN100-ST-D
+.Pp
+.It Ar Dynalink IS64PPH
+.El
+.Pp
+.Sh CAVEATS
+The driver is still in a somewhat experimental state.
+.Pp
+.Sh BUGS
+Layer 1 persistent deactivation not yet implemented.
+.Sh STANDARDS
+CCITT Recommendation I.430
+
 .Sh SEE ALSO
-.Xr isdnd 8
-.Xr isdntrace 8
+.Xr i4bq921 4
+.Xr i4bq931 4
+
 .Sh AUTHOR
 The
 .Nm
-device driver and this manpage were written by 
+driver was written by
+.An Dave Boyce Aq dave@abyss.demon.co.uk .
+.Pp
+This manpage was written by 
 .An Hellmuth Michaelis Aq hm@kts.org .
