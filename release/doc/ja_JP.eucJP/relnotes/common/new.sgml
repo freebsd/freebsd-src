@@ -3174,6 +3174,9 @@ hw.pcic.irq="0"</programlisting>
       これは、FTP セションのログを &man.wtmp.5; に記録しないようにします。
       &merged;</para>
 
+    <para>FireWire サブシステムをユーザから操作・制御するための
+      &man.fwcontrol.8; ユーティリティが追加されました。</para>
+
     <para arch="i386,pc98" role="historic">&man.gdb.1;
       がハードウェアウォッチポイントに対応しました
       (カーネルデバッグレジスタおよび &os; 4.0 で導入された対応コードを利用)。
