@@ -16,60 +16,39 @@
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc"
 
 # Sources common to both syscall interfaces:
-SRCS+=	ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
-
-# Build __error() into libc, but not libc_r which has its own:
-.if ${LIB} == "c"
-SRCS+=	__error.c
-.endif
+SRCS+=	ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c __error.c
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
 
 # Look though the complete list of syscalls (MIASM) for names that are
 # not defined with machine dependent implementations (MDASM) and are
-# not declared for no generation of default code (NOASM). If the
-# syscall is not hidden, add it to the ASM list, otherwise add it
-# to the ASMR list.
+# not declared for no generation of default code (NOASM).  Add each
+# syscall that satisfies these conditions to the ASM list.
 .for _asm in ${MIASM}
 .if (${MDASM:R:M${_asm:R}} == "")
 .if (${NOASM:R:M${_asm:R}} == "")
-.if (${HIDDEN_SYSCALLS:R:M${_asm:R}} == "")
 ASM+=$(_asm)
-.else
-ASMR+=$(_asm)
-.endif
 .endif
 .endif
 .endfor
 
-OBJS+=	${ASM} ${ASMR} ${PSEUDO} ${PSEUDOR}
+OBJS+=	${ASM} ${PSEUDO}
 
 SASM=	${ASM:S/.o/.S/}
 
-SASMR=	${ASMR:S/.o/.S/}
-
 SPSEUDO= ${PSEUDO:S/.o/.S/}
 
-SPSEUDOR= ${PSEUDOR:S/.o/.S/}
-
-SRCS+=	${SASM} ${SASMR} ${SPSEUDO} ${SPSEUDOR}
+SRCS+=	${SASM} ${SPSEUDO}
 
 # Generated files
-CLEANFILES+=	${SASM} ${SASMR} ${SPSEUDO} ${SPSEUDOR}
+CLEANFILES+=	${SASM} ${SPSEUDO}
 
 ${SASM}:
 	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' > ${.TARGET}
 
-${SASMR}:
-	printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' > ${.TARGET}
-
 ${SPSEUDO}:
-	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' \
-	    > ${.TARGET}
-
-${SPSEUDOR}:
-	printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' \
+	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
 	    > ${.TARGET}
 
 .if ${LIB} == "c"

@@ -25,6 +25,8 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include "SYS.h"
@@ -35,4 +37,4 @@
  * (XXX PROFILING)
  */
 
-PRSYSCALL(sigreturn)
+RSYSCALL(sigreturn)
