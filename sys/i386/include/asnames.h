@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.18 1998/04/04 13:24:22 phk Exp $
+ * $Id: asnames.h,v 1.19 1998/04/06 15:33:02 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -272,6 +272,7 @@
 #define _main				main
 #define _mask8254			mask8254
 #define _maskRTC			maskRTC
+#define _microruntime			microruntime
 #define _mp_gdtbase			mp_gdtbase
 #define _mp_lock			mp_lock
 #define _mp_ncpus			mp_ncpus
@@ -362,6 +363,9 @@
 #define _vm86_prepcall			vm86_prepcall
 #define _vm86_sysarch			vm86_sysarch
 #define _vm86_trap			vm86_trap
+#define _vm86pa				vm86pa
+#define _vm86paddr			vm86paddr
+#define _vm86pcb			vm86pcb
 #define _vm_page_zero_idle		vm_page_zero_idle
 #define _want_resched			want_resched
 #define _whichidqs			whichidqs
