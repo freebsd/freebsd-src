@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.37 1996/05/23 16:34:29 jkh Exp $
+ * $Id: package.c,v 1.38 1996/05/27 22:12:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,8 +56,16 @@ package_add(char *name)
 Boolean
 package_exists(char *name)
 {
-    int status = vsystem("pkg_info -e %s", name);
+    char fname[FILENAME_MAX];
+    int status /* = vsystem("pkg_info -e %s", name) */;
 
+    /* XXX KLUDGE ALERT!  This makes evil assumptions about how XXX
+     * packages register themselves and should *really be done with
+     * `pkg_info -e <name>' except that this it's too slow for an
+     * item check routine.. :-(
+     */
+    snprintf(fname, FILENAME_MAX, "/var/db/pkg/%s", name);
+    status = access(fname, R_OK);
     msgDebug("package check for %s returns %s.\n", name,
 	     status ? "failure" : "success");
     return !status;
@@ -84,7 +92,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
 
     /* Check to make sure it's not already there */
-    msgNotify("Checking for existence of %s package", name);
     if (package_exists(name))
 	return DITEM_SUCCESS;
 
