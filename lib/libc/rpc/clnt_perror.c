@@ -78,7 +78,7 @@ clnt_sperror(rpch, s)
 		return (0);
 	CLNT_GETERR(rpch, &e);
 
-	(void) sprintf(str, "%s: %s", s, clnt_sperrno(e.re_status));
+	(void) snprintf(str, CLNT_PERROR_BUFLEN, "%s: %s", s, clnt_sperrno(e.re_status));
 	str += strlen(str);
 
 	switch (e.re_status) {
