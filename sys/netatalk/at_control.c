@@ -36,6 +36,7 @@ static int aa_dosingleroute(struct ifaddr *ifa, struct at_addr *addr,
 static int at_scrub( struct ifnet *ifp, struct at_ifaddr *aa );
 static int at_ifinit( struct ifnet *ifp, struct at_ifaddr *aa,
 					struct sockaddr_at *sat );
+static int aa_claim_addr(struct ifaddr *ifa, struct sockaddr *gw);
 
 # define sateqaddr(a,b)	((a)->sat_len == (b)->sat_len && \
 		    (a)->sat_family == (b)->sat_family && \
@@ -137,7 +138,6 @@ at_control(struct socket *so, int cmd, caddr_t data,
 	/*
 	 * If we failed to find an existing at_ifaddr entry, then we 
 	 * allocate a fresh one. 
-	 * XXX change this to use malloc
 	 */
 	if ( aa == (struct at_ifaddr *) 0 ) {
 	    aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR, M_WAITOK);
@@ -492,6 +492,12 @@ at_ifinit( ifp, aa, sat )
 	}
 
 	/* 
+	 * Copy the phase.
+	 */
+	AA_SAT( aa )->sat_range.r_netrange.nr_phase
+		= ((aa->aa_flags & AFA_PHASE2) ? 2:1);
+
+	/* 
 	 * step through the nets in the range
 	 * starting at the (possibly random) start point.
 	 */
@@ -632,6 +638,11 @@ at_ifinit( ifp, aa, sat )
 	error = aa_addsingleroute(&aa->aa_ifa, &rtaddr, &rtmask);
     }
 
+
+    /*
+     * set the address of our "check if this addr is ours" routine.
+     */
+    aa->aa_ifa.ifa_claim_addr = aa_claim_addr;
 
     /*
      * of course if we can't add these routes we back out, but it's getting
@@ -834,3 +845,34 @@ aa_clean(void)
 
 #endif
 
+static int
+aa_claim_addr(struct ifaddr *ifa, struct sockaddr *gw0)
+{
+	struct sockaddr_at *addr = (struct sockaddr_at *)ifa->ifa_addr;
+	struct sockaddr_at *gw = (struct sockaddr_at *)gw0;
+
+	switch (gw->sat_range.r_netrange.nr_phase) {
+	case 1:
+		if(addr->sat_range.r_netrange.nr_phase == 1)
+			return 1;
+	case 0:
+	case 2:
+		/*
+		 * if it's our net (including 0),
+		 * or netranges are valid, and we are in the range,
+		 * then it's ours.
+		 */
+		if ((addr->sat_addr.s_net == gw->sat_addr.s_net)
+		|| ((addr->sat_range.r_netrange.nr_lastnet)
+		  && (gw->sat_addr.s_net
+				>= addr->sat_range.r_netrange.nr_firstnet )
+		  && (gw->sat_addr.s_net
+				<= addr->sat_range.r_netrange.nr_lastnet ))) {
+			return 1;
+		} 
+		break;
+	default:
+		printf("atalk: bad phase\n");
+	}
+	return 0;
+}
