@@ -97,6 +97,10 @@ fe_isa_probe(device_t dev)
 	struct fe_softc * sc;
 	int error;
 
+	/* Check isapnp ids */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
+
 	/* Prepare for the softc struct.  */
 	sc = device_get_softc(dev);
 	sc->sc_unit = device_get_unit(dev);
