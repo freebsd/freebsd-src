@@ -922,6 +922,16 @@ pmap_dispose_proc(p)
 #ifdef I386_CPU
 	invltlb();
 #endif
+
+	/*
+	 * If the process got swapped out some of its UPAGES might have gotten
+	 * swapped.  Just get rid of the object to clean up the swap use
+	 * proactively.  NOTE! might block waiting for paging I/O to complete.
+	 */
+	if (upobj->type == OBJT_SWAP) {
+		p->p_upages_obj = NULL;
+		vm_object_deallocate(upobj);
+	}
 }
 
 /*
@@ -1107,6 +1117,16 @@ pmap_dispose_thread(td)
 #ifdef I386_CPU
 	invltlb();
 #endif
+
+	/*
+	 * If the thread got swapped out some of its KSTACK might have gotten
+	 * swapped.  Just get rid of the object to clean up the swap use
+	 * proactively.  NOTE! might block waiting for paging I/O to complete.
+	 */
+	if (ksobj->type == OBJT_SWAP) {
+		td->td_kstack_obj = NULL;
+		vm_object_deallocate(ksobj);
+	}
 }
 
 /*
