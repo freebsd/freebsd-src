@@ -391,7 +391,7 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 	sc->sc_maxsync = sc->sc_minsync;
 	sc->sc_maxoffset = 15;
 
-	sc->sc_extended_geometry = 1;
+	sc->sc_extended_geom = 1;
 
 	/*
 	 * Alas, we must now modify the value a bit, because it's
