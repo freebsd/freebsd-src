@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rtld.c,v 1.46 1997/02/22 15:46:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -204,9 +204,10 @@ static int		__dlclose __P((void *));
 static void		*__dlsym __P((void *, char *));
 static char		*__dlerror __P((void));
 static void		__dlexit __P((void));
+static void		*__dlsym3 __P((void *, char *, void *));
 
 static struct ld_entry	ld_entry = {
-	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit
+	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit, __dlsym3
 };
 
        void		xprintf __P((char *, ...));
@@ -411,7 +412,7 @@ struct _dynamic		*dp;
 	(void)close(crtp->crt_ldfd);
 	anon_close();
 
-	return LDSO_VERSION_HAS_DLEXIT;
+	return LDSO_VERSION_HAS_DLSYM3;
 }
 
 void
@@ -1896,26 +1897,77 @@ __dlclose(fd)
 	return 0;
 }
 
+/*
+ * This form of dlsym is obsolete.  Current versions of crt0 don't call
+ * it.  It can still be called by old executables that were linked with
+ * old versions of crt0.
+ */
 	static void *
 __dlsym(fd, sym)
 	void	*fd;
 	char	*sym;
 {
-	struct so_map	*smp = (struct so_map *)fd, *src_map = NULL;
+	if (fd == RTLD_NEXT) {
+		generror("RTLD_NEXT not supported by this version of"
+		    " /usr/lib/crt0.o");
+		return NULL;
+	}
+	return __dlsym3(fd, sym, NULL);
+}
+
+	static void *
+__dlsym3(fd, sym, retaddr)
+	void	*fd;
+	char	*sym;
+	void	*retaddr;
+{
+	struct so_map	*smp;
+	struct so_map	*src_map;
 	struct nzlist	*np;
 	long		addr;
 
-	/*
-	 * Restrict search to passed map if dlopen()ed.
-	 */
-	if (smp != NULL && LM_PRIVATE(smp)->spd_flags & RTLD_DL)
-		src_map = smp;
+	if (fd == RTLD_NEXT) {
+		/* Find the shared object that contains the caller. */
+		for (smp = link_map_head;  smp != NULL;  smp = smp->som_next) {
+			void *textbase = smp->som_addr + LM_TXTADDR(smp);
+			void *textlimit = LM_ETEXT(smp);
 
-	np = lookup(sym, &src_map, 1);
-	if (np == NULL)
+			if (textbase <= retaddr && retaddr < textlimit)
+				break;
+		}
+		if (smp == NULL) {
+			generror("Cannot determine caller's shared object");
+			return NULL;
+		}
+		smp = smp->som_next;
+		if (smp != NULL && LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
+			smp = smp->som_next;
+		if (smp == NULL) {
+			generror("No next shared object for RTLD_NEXT");
+			return NULL;
+		}
+		do {
+			src_map = smp;
+			np = lookup(sym, &src_map, 1);
+		} while (np == NULL && (smp = smp->som_next) != NULL);
+	} else {
+		smp = (struct so_map *)fd;
+		src_map = NULL;
+
+		/*
+		 * Restrict search to passed map if dlopen()ed.
+		 */
+		if (smp != NULL && LM_PRIVATE(smp)->spd_flags & RTLD_DL)
+			src_map = smp;
+
+		np = lookup(sym, &src_map, 1);
+	}
+
+	if (np == NULL) {
+		generror("Undefined symbol");
 		return NULL;
+	}
 
-	/* Fixup jmpslot so future calls transfer directly to target */
 	addr = np->nz_value;
 	if (src_map)
 		addr += (long)src_map->som_addr;
