@@ -99,6 +99,7 @@ David Dawes <dawes@physics.su.OZ.AU>
 Frank Maclachlan <fpm@crash.cts.com>
 Gary A. Browning <gab10@griffcd.amdahl.com>
 Gary Clark II <gclarkii@radon.gbdata.com>
+Gary Jennejohn <gj%pcs.dec.com@inet-gw-1.pa.dec.com>
 Gene Stark <stark@cs.sunysb.edu>
 Guido van Rooij <guido@gvr.win.tue.nl>
 Havard Eidnes <Havard.Eidnes@runit.sintef.no>
@@ -237,4 +238,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.16 1995/02/18 04:07:09 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.17 1995/02/18 09:31:16 jkh Exp $
