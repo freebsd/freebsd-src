@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.46 2002/12/01 12:11:23 ue Exp $
-	basiert auf: 1.116
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.47 2002/12/01 15:56:12 ue Exp $
+	basiert auf: 1.117
 -->
 
 <sect1>
@@ -3522,7 +3522,7 @@
   <sect2 id="usb">
     <title>USB Ger&auml;te</title>
 
-    <para>&os; unterst&uuml;tzt viele verschiedene Arten von
+    <para arch="alpha,i386,pc98">&os; unterst&uuml;tzt viele verschiedene Arten von
       USB-Ger&auml;ten; in den nachfolgenden Listen sind nur die
       Ger&auml;te aufgef&uuml;hrt, f&uuml;r die wir Erfolgsmeldungen
       erhalten haben.  Da sich die meisten USB-Ger&auml;te sehr
@@ -3531,10 +3531,15 @@
       aufgef&uuml;hrt sind.  Ausnahmen best&auml;tigen allerdings
       immer die Regel.</para>
 
-    <note>
+    <note arch="alpha,i386,pc98">
       <para>USB Netzwerkkarten finden Sie in einem eigenen Abschnitt
         im Kapitel <link
         linkend="ethernet">Netzwerkkarten</link>.</para>
+    </note>
+
+    <note arch="alpha,i386,pc98">
+      <para>Bluetooth-Adapter f&uuml;r USB finden Sie in im Abschnitt
+	<link linkend="bluetooth">Bluetooth</link>.</para>
     </note>
 
     <para arch="i386,pc98,alpha">Host Controllers (&man.ohci.4; und
@@ -3907,6 +3912,43 @@
 
 	<listitem>
 	  <para>Apple Macintosh G4 (Target Modus)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+  </sect2>
+
+  <sect2 id="bluetooth">
+    <title>Bluetooth Ger&auml;te</title>
+
+    <para arch="i386">PCCARD Host Kontroller (&man.ng.bt3c.4;
+      Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>3Com/HP 3CRWB6096-A PCCARD Adapter</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">USB Host Kontroller (&man.ng.ubt.4; Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>3Com 3CREB96</para>
+	</listitem>
+
+	<listitem>
+	  <para>EPoX BT-DG02</para>
+	</listitem>
+
+	<listitem>
+	  <para>Mitsumi USB Bluetooth Adapter</para>
+	</listitem>
+
+	<listitem>
+	  <para>MSI MS-6967</para>
+	</listitem>
+
+	<listitem>
+	  <para>TDK Bluetooth USB Adapter</para>
 	</listitem>
       </itemizedlist>
     </para>
