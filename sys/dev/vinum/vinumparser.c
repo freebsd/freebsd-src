@@ -114,6 +114,7 @@ struct _keywords keywords[] =
     keypair(state),
     keypair(round),
     keypair(prefer),
+    keypair(preferred),
     keypair(rename),
     keypair(detached),
 #ifndef _KERNEL						    /* for vinum(8) only */
