@@ -925,7 +925,7 @@ config(void)
 		if (sep != 0) {
 			int i;
 
-#define SWAP(a, b) { __typeof__(a) c = a; a = b; b = c; }
+#define SWAP(t,a, b) { t c = a; a = b; b = c; }
 			omask = sigblock(SIGBLOCK);
 			if (sep->se_nomapped != new->se_nomapped) {
 				sep->se_nomapped = new->se_nomapped;
@@ -939,7 +939,7 @@ config(void)
 				memcpy(new->se_pids, sep->se_pids,
 				    new->se_numchild * sizeof(*new->se_pids));
 			}
-			SWAP(sep->se_pids, new->se_pids);
+			SWAP(pid_t *, sep->se_pids, new->se_pids);
 			sep->se_maxchild = new->se_maxchild;
 			sep->se_numchild = new->se_numchild;
 			sep->se_maxcpm = new->se_maxcpm;
@@ -956,17 +956,17 @@ config(void)
 			      }
 			}
 			sep->se_accept = new->se_accept;
-			SWAP(sep->se_user, new->se_user);
-			SWAP(sep->se_group, new->se_group);
+			SWAP(char *, sep->se_user, new->se_user);
+			SWAP(char *, sep->se_group, new->se_group);
 #ifdef LOGIN_CAP
-			SWAP(sep->se_class, new->se_class);
+			SWAP(char *, sep->se_class, new->se_class);
 #endif
-			SWAP(sep->se_server, new->se_server);
-			SWAP(sep->se_server_name, new->se_server_name);
+			SWAP(char *, sep->se_server, new->se_server);
+			SWAP(char *, sep->se_server_name, new->se_server_name);
 			for (i = 0; i < MAXARGV; i++)
-				SWAP(sep->se_argv[i], new->se_argv[i]);
+				SWAP(char *, sep->se_argv[i], new->se_argv[i]);
 #ifdef IPSEC
-			SWAP(sep->se_policy, new->se_policy);
+			SWAP(char *, sep->se_policy, new->se_policy);
 			ipsecsetup(sep);
 #endif
 			sigsetmask(omask);
