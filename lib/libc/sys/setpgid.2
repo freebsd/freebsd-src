@@ -41,9 +41,9 @@
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft int
-.Fn setpgid pid_tpid pid_tpgrp
+.Fn setpgid "pid_t pid" "pid_t pgrp"
 .Ft int
-.Fn setpgrp pid_tpid pid_tpgrp
+.Fn setpgrp "pid_t pid" "pid_t pgrp"
 .Sh DESCRIPTION
 .Fn Setpgid
 sets the process group of the specified process
