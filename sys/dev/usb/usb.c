@@ -530,7 +530,7 @@ usbioctl(devt, cmd, data, flag, p)
 		dev = sc->sc_bus->devices[addr];
 		if (dev == 0)
 			return (ENXIO);
-		usbd_fill_deviceinfo(dev, di);
+		usbd_fill_deviceinfo(dev, di, 1);
 		break;
 	}
 
@@ -677,7 +677,7 @@ usbd_add_event(type, dev)
 	}
 	ueq->ue.ue_type = type;
 	ueq->ue.ue_cookie = dev->cookie;
-	usbd_fill_deviceinfo(dev, &ueq->ue.ue_device);
+	usbd_fill_deviceinfo(dev, &ueq->ue.ue_device, 0);
 	microtime(&thetime);
 	TIMEVAL_TO_TIMESPEC(&thetime, &ueq->ue.ue_time);
 	TAILQ_INSERT_TAIL(&usb_events, ueq, next);

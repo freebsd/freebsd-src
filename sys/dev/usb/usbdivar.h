@@ -134,7 +134,7 @@ struct usbd_device {
 	struct usbd_interface  *ifaces;        /* array of all interfaces */
 	usb_device_descriptor_t ddesc;         /* device descriptor */
 	usb_config_descriptor_t *cdesc;	       /* full config descr */
-	struct usbd_quirks     *quirks;        /* device quirks, always set */
+	const struct usbd_quirks *quirks;        /* device quirks, always set */
 	struct usbd_hub	       *hub;           /* only if this is a hub */
 	device_ptr_t	       *subdevs;       /* sub-devices, 0 terminated */
 };
@@ -210,7 +210,6 @@ void usbd_finish(void);
 /* Routines from usb_subr.c */
 int		usbctlprint(void *, const char *);
 void		usb_delay_ms(usbd_bus_handle, u_int);
-void		usbd_devinfo_vp(usbd_device_handle, char *, char *);
 usbd_status	usbd_reset_port(usbd_device_handle dev,
 				     int port, usb_port_status_t *ps);
 usbd_status	usbd_setup_pipe(usbd_device_handle dev,

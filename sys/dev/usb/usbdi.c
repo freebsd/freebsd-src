@@ -1047,7 +1047,7 @@ usbd_do_request_async(dev, req, data)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-struct usbd_quirks *
+const struct usbd_quirks *
 usbd_get_quirks(dev)
 	usbd_device_handle dev;
 {
