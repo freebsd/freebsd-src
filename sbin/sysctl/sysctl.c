@@ -168,7 +168,7 @@ parse(char *string)
 	
 		switch (kind & CTLTYPE) {
 			case CTLTYPE_INT:
-				intval = atoi(newval);
+				intval = (int) strtol(newval, NULL, 0);
 				newval = &intval;
 				newsize = sizeof intval;
 				break;
