@@ -799,10 +799,12 @@ fork_exit(callout, arg, frame)
 		kthread_exit(0);
 	}
 	PROC_UNLOCK(p);
+#ifdef	INVARIANTS
 	mtx_lock(&Giant);
 	crfree(td->td_ucred);
 	mtx_unlock(&Giant);
 	td->td_ucred = NULL;
+#endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
 

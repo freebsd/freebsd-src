@@ -1684,6 +1684,27 @@ crdup(cr)
 }
 
 /*
+ * small routine to swap a thread's current ucred for the correct one
+ * taken from the process.
+ */
+void
+cred_update_thread(struct thread *td)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+	if (td->td_ucred != NULL) {
+		mtx_lock(&Giant);
+		crfree(td->td_ucred);
+		mtx_unlock(&Giant);
+		td->td_ucred = NULL;
+	}
+	PROC_LOCK(p);
+	td->td_ucred = crhold(p->p_ucred);
+	PROC_UNLOCK(p);
+}
+
+/*
  * Get login name, if available.
  */
 #ifndef _SYS_SYSPROTO_H_
