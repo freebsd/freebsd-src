@@ -28,7 +28,7 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
+SYSTEM_LD= @${LD} -Bdynamic -T $S/conf/ldscript.$M \
 	-e locorestart \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
