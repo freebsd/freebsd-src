@@ -351,8 +351,8 @@ ncp_modify_file_or_subdir_dos_info(struct nwmount *nmp, struct vnode *vp,
 
 int
 ncp_setattr(vp, vap, cred, procp)
-	register struct vnode *vp;
-	register struct vattr *vap;
+	struct vnode *vp;
+	struct vattr *vap;
 	struct ucred *cred;
 	struct proc *procp;
 {

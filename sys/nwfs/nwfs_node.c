@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -257,10 +257,11 @@ nwfs_inactive(ap)
  * nwfs_attr_cacheenter: unpack np.i to va structure
  */
 void
-nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi) {
+nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi)
+{
 	struct nwnode *np = VTONW(vp);
 	struct nwmount *nmp = VTONWFS(vp);
-	register struct vattr *va = &np->n_vattr;
+	struct vattr *va = &np->n_vattr;
 
 	va->va_type = vp->v_type;		/* vnode type (for create) */
 	if (vp->v_type == VREG) {
@@ -303,7 +304,8 @@ nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi) {
 }
 
 int
-nwfs_attr_cachelookup(struct vnode *vp, struct vattr *va) {
+nwfs_attr_cachelookup(struct vnode *vp, struct vattr *va)
+{
 	struct nwnode *np = VTONW(vp);
 	int diff;
 
