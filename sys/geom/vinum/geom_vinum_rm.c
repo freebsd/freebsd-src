@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 
 static void	gv_cleanup_pp(void *, int);
 static void	gv_free_sd(struct gv_sd *);
+static int	gv_rm_drive(struct gv_softc *, struct gctl_req *,
+		    struct gv_drive *, int);
 static int	gv_rm_plex(struct gv_softc *, struct gctl_req *,
 		    struct gv_plex *, int);
 static int	gv_rm_sd(struct gv_softc *, struct gctl_req *, struct gv_sd *,
@@ -55,6 +57,7 @@ gv_remove(struct g_geom *gp, struct gctl_req *req)
 	struct gv_volume *v;
 	struct gv_plex *p;
 	struct gv_sd *s;
+	struct gv_drive *d;
 	int *argc, *flags;
 	char *argv, buf[20];
 	int i, type, err;
@@ -103,6 +106,16 @@ gv_remove(struct g_geom *gp, struct gctl_req *req)
 				return;
 			}
 			err = gv_rm_sd(sc, req, s, *flags);
+			if (err)
+				return;
+			break;
+		case GV_TYPE_DRIVE:
+			d = gv_find_drive(sc, argv);
+			if (d == NULL) {
+				gctl_error(req, "unknown drive '%s'", argv);
+				return;
+			}
+			err = gv_rm_drive(sc, req, d, *flags);
 			if (err)
 				return;
 			break;
@@ -260,6 +273,83 @@ gv_rm_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, int flags)
 	}
 
 	return (0);
+}
+
+/* Remove a drive. */
+static int
+gv_rm_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, int flags)
+{
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct gv_freelist *fl, *fl2;
+	struct gv_plex *p;
+	struct gv_sd *s, *s2;
+	struct gv_volume *v;
+	int err;
+
+	KASSERT(d != NULL, ("gv_rm_drive: NULL d"));
+	gp = d->geom;
+	KASSERT(gp != NULL, ("gv_rm_drive: NULL gp"));
+
+	/* We don't allow to remove open drives. */
+	if (gv_is_open(gp)) {
+		gctl_error(req, "drive '%s' is open", d->name);
+		return (-1);
+	}
+
+	/* A drive with subdisks needs a recursive removal. */
+	if (!LIST_EMPTY(&d->subdisks) && !(flags & GV_FLAG_R)) {
+		gctl_error(req, "drive '%s' still has subdisks", d->name);
+		return (-1);
+	}
+
+	cp = LIST_FIRST(&gp->consumer);
+	err = g_access(cp, 0, 1, 0);
+	if (err) {
+		printf("GEOM_VINUM: gv_rm_drive: couldn't access '%s', errno: "
+		    "%d\n", cp->provider->name, err);
+		return (err);
+	}
+
+	/* Clear the Vinum Magic. */
+	d->hdr->magic = GV_NOMAGIC;
+	g_topology_unlock();
+	err = g_write_data(cp, GV_HDR_OFFSET, d->hdr, GV_HDR_LEN);
+	if (err) {
+		printf("GEOM_VINUM: gv_rm_drive: couldn't write header to '%s'"
+		    ", errno: %d\n", cp->provider->name, err);
+		d->hdr->magic = GV_MAGIC;
+	}
+	g_topology_lock();
+	g_access(cp, 0, -1, 0);
+
+	/* Remove all associated subdisks, plexes, volumes. */
+	if (!LIST_EMPTY(&d->subdisks)) {
+		LIST_FOREACH_SAFE(s, &d->subdisks, from_drive, s2) {
+			p = s->plex_sc;
+			if (p != NULL) {
+				v = p->vol_sc;
+				if (v != NULL)
+					gv_rm_vol(sc, req, v, flags);
+			}
+		}
+	}
+
+	/* Clean up. */
+	LIST_FOREACH_SAFE(fl, &d->freelist, freelist, fl2) {
+		LIST_REMOVE(fl, freelist);
+		g_free(fl);
+	}
+	LIST_REMOVE(d, drive);
+
+	gp = d->geom;
+	d->geom = NULL;
+	g_free(d->hdr);
+	g_free(d);
+	gv_save_config_all(sc);
+	g_wither_geom(gp, ENXIO);
+
+	return (err);
 }
 
 /*
