@@ -420,7 +420,7 @@ static	void	siointr1	__P((struct com_s *com));
 static	void	siointr		__P((void *arg));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
-static	swihand_t siopoll;
+static	void	siopoll		__P((void *dummy));
 static	int	sioprobe	__P((device_t dev, int xrid));
 static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
@@ -3354,7 +3354,7 @@ sioioctl(dev, cmd, data, flag, p)
 
 /* software interrupt handler for SWI_TTY */
 static void
-siopoll()
+siopoll(void *dummy)
 {
 	int		unit;
 	int		intrsave;
