@@ -41,6 +41,10 @@ static char copyright[] =
 static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#define KERNEL
+extern int errno;
+#include <sys/errno.h>
+#undef KERNEL
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/time.h>
@@ -48,9 +52,6 @@ static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
 #include <sys/ptrace.h>
-#define KERNEL
-#include <sys/errno.h>
-#undef KERNEL
 #include <vis.h>
 #include <stdio.h>
 #include <stdlib.h>
