@@ -399,6 +399,7 @@ pci/if_sr_p.c		optional sr device-driver
 pci/if_tl.c		optional tl device-driver
 pci/if_tx.c		optional tx device-driver
 pci/if_vx_pci.c		optional vx device-driver
+pci/if_xl.c		optional xl device-driver
 pci/isp_pci.c		optional isp device-driver
 pci/meteor.c		optional meteor device-driver
 pci/ncr.c		optional ncr device-driver
