@@ -220,10 +220,9 @@ err:
 }
 
 void
-set_auth(
-	CLIENT *cl,
-	struct ucred *ucred
-)
+set_auth(cl, ucred)
+	CLIENT *cl;
+	struct ucred *ucred;
 {
         if (cl->cl_auth != NULL)
                 cl->cl_auth->ah_ops->ah_destroy(cl->cl_auth);
@@ -449,8 +448,8 @@ lock_answer(int pid, netobj *netcookie, int result, int *pid_p, int version)
 		ans.la_msg_ident.pid = pid;
 		ans.la_msg_ident.msg_seq = -1;
 	} else {
-		memcpy(&ans.la_msg_ident, netcookie->n_bytes, 
-							sizeof(ans.la_msg_ident));
+		memcpy(&ans.la_msg_ident, netcookie->n_bytes,
+		    sizeof(ans.la_msg_ident));
 	}
 
 	if (d_calls)
