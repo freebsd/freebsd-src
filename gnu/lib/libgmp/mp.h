@@ -1,60 +1,97 @@
 /* mp.h -- Definitions for Berkeley compatible multiple precision functions.
 
-Copyright (C) 1991, 1993 Free Software Foundation, Inc.
+Copyright (C) 1991, 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
 
 This file is part of the GNU MP Library.
 
 The GNU MP Library is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+it under the terms of the GNU Library General Public License as published by
+the Free Software Foundation; either version 2 of the License, or (at your
+option) any later version.
 
-The GNU MP Library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+The GNU MP Library is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
+License for more details.
 
-You should have received a copy of the GNU General Public License
-along with the GNU MP Library; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+You should have received a copy of the GNU Library General Public License
+along with the GNU MP Library; see the file COPYING.LIB.  If not, write to
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+MA 02111-1307, USA. */
 
 #ifndef __MP_H__
-#define __MP_H__
 
-#define __GNU_MP__
-
-#ifndef __GMP_H__
+#ifndef __GNU_MP__
+#define __GNU_MP__ 2
 #define __need_size_t
 #include <stddef.h>
+#undef __need_size_t
+
+#if defined (__STDC__) || defined (__cplusplus)
+#define __gmp_const const
+#else
+#define __gmp_const
 #endif
 
-#ifndef MP_INT
+#if defined (__GNUC__)
+#define __gmp_inline __inline__
+#else
+#define __gmp_inline
+#endif
+
+#ifndef _EXTERN_INLINE
+#ifdef __GNUC__
+#define _EXTERN_INLINE extern __inline__
+#else
+#define _EXTERN_INLINE static
+#endif
+#endif
+
+#ifdef _SHORT_LIMB
+typedef unsigned int		mp_limb_t;
+typedef int			mp_limb_signed_t;
+#else
+#ifdef _LONG_LONG_LIMB
+typedef unsigned long long int	mp_limb_t;
+typedef long long int		mp_limb_signed_t;
+#else
+typedef unsigned long int	mp_limb_t;
+typedef long int		mp_limb_signed_t;
+#endif
+#endif
+
+typedef mp_limb_t *		mp_ptr;
+typedef __gmp_const mp_limb_t *	mp_srcptr;
+typedef int			mp_size_t;
+typedef long int		mp_exp_t;
+
 #ifndef __MP_SMALL__
 typedef struct
 {
-  long int alloc;		/* Number of *limbs* allocated and pointed
+  mp_size_t _mp_alloc;		/* Number of *limbs* allocated and pointed
 				   to by the D field.  */
-  long int size;		/* abs(SIZE) is the number of limbs
+  mp_size_t _mp_size;		/* abs(SIZE) is the number of limbs
 				   the last field points to.  If SIZE
 				   is negative this is a negative
 				   number.  */
-  unsigned long int *d;		/* Pointer to the limbs.  */
-} __MP_INT;
+  mp_limb_t *_mp_d;			/* Pointer to the limbs.  */
+} __mpz_struct;
 #else
 typedef struct
 {
-  short int alloc;		/* Number of *limbs* allocated and pointed
+  short int _mp_alloc;		/* Number of *limbs* allocated and pointed
 				   to by the D field.  */
-  short int size;		/* abs(SIZE) is the number of limbs
+  short int _mp_size;		/* abs(SIZE) is the number of limbs
 				   the last field points to.  If SIZE
 				   is negative this is a negative
 				   number.  */
-  unsigned long int *d;		/* Pointer to the limbs.  */
-} __MP_INT;
+  mp_limb_t *_mp_d;		/* Pointer to the limbs.  */
+} __mpz_struct;
 #endif
-#endif
+#endif /* __GNU_MP__ */
 
-#define MINT __MP_INT
+/* User-visible types.  */
+typedef __mpz_struct MINT;
 
 #ifdef __STDC__
 void mp_set_memory_functions (void *(*) (size_t),
@@ -100,4 +137,5 @@ char *mtox ();
 void mfree ();
 #endif
 
+#define __MP_H__
 #endif /* __MP_H__ */
