@@ -30,38 +30,37 @@
 
 /* structure holding chipset config info */
 struct ata_chip_id {
-    u_int32_t		 chipid;
-    u_int8_t		 chiprev;
-    int			 cfg1;
-    int			 cfg2;
-    u_int8_t		 max_dma;
+    u_int32_t		chipid;
+    u_int8_t		chiprev;
+    int			cfg1;
+    int			cfg2;
+    u_int8_t		max_dma;
     char		*text;
 };
 
 /* structure describing a PCI ATA controller */
 struct ata_pci_controller {
-    int			 r_type1;
-    int			 r_rid1;
-    struct resource	 *r_res1;
-    int			 r_type2;
-    int			 r_rid2;
-    struct resource	 *r_res2;
-    struct resource	 *r_irq;
-    void		 *handle;
-    struct ata_chip_id	 *chip;
+    int			r_type1;
+    int			r_rid1;
+    struct resource	*r_res1;
+    int			r_type2;
+    int			r_rid2;
+    struct resource	*r_res2;
+    struct resource	*r_irq;
+    void		*handle;
+    struct ata_chip_id	*chip;
+    int			channels;
     int			(*chipinit)(device_t);
     int			(*allocate)(device_t, struct ata_channel *);
     void		(*reset)(struct ata_channel *);
     void		(*dmainit)(struct ata_channel *);
     void		(*setmode)(struct ata_device *, int);
-    void		(*locking)(struct ata_channel *, int);
-    int			  locked_ch;
-    int			  channels;
+    int			(*locking)(struct ata_channel *, int);
     struct {
     void		(*function)(void *);
-    void		 *argument;
+    void		*argument;
     } interrupt[8];	/* SOS max ch# for now XXX */
-    void		 *driver;
+    void		*driver;
 };
 
 /* defines for known chipset PCI id's */
@@ -122,6 +121,9 @@ struct ata_pci_controller {
 #define ATA_I6300ESB		0x25a28086
 #define ATA_I6300ESB_S1		0x25a38086
 #define ATA_I6300ESB_R1		0x25b08086
+#define ATA_I82801FB		0x266f8086
+#define ATA_I82801FB_S1		0x26518086
+#define ATA_I82801FB_R1		0x26528086
 
 #define ATA_NATIONAL_ID		0x100b
 #define ATA_SC1100		0x0502100b

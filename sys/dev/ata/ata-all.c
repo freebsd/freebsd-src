@@ -138,7 +138,8 @@ ata_attach(device_t dev)
     mtx_init(&ch->state_mtx, "ATA state lock", NULL, MTX_DEF);
 
     /* initialise device(s) on this channel */
-    ch->locking(ch, ATA_LF_LOCK);
+    while (ch->locking(ch, ATA_LF_LOCK) != ch->unit)
+	tsleep(&error, PRIBIO, "ataatch", 1);
     ch->hw.reset(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
 
@@ -243,6 +244,10 @@ ata_reinit(struct ata_channel *ch)
     if (bootverbose)
 	ata_printf(ch, -1, "reiniting channel ..\n");
 
+    /* poll for locking of this channel */
+    while (ch->locking(ch, ATA_LF_LOCK) != ch->unit)
+	tsleep(&devices, PRIBIO, "atarint", 1);
+
     /* grap the channel lock no matter what */
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_ACTIVE;
@@ -321,6 +326,7 @@ ata_reinit(struct ata_channel *ch)
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_IDLE;
     mtx_unlock(&ch->state_mtx);
+    ch->locking(ch, ATA_LF_UNLOCK);
 
     ata_start(ch);
     return 0;
@@ -335,17 +341,16 @@ ata_suspend(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    ch->locking(ch, ATA_LF_LOCK);
-
     while (!gotit) {
 	mtx_lock(&ch->state_mtx);
 	if (ch->state == ATA_IDLE) {
 	    ch->state = ATA_ACTIVE;
 	    gotit = 1;
 	}
-	tsleep(&gotit, PRIBIO, "atasusp", hz/10);
 	mtx_unlock(&ch->state_mtx);
+	tsleep(&gotit, PRIBIO, "atasusp", hz/10);
     }
+    ch->locking(ch, ATA_LF_UNLOCK);
     return 0;
 }
 
@@ -358,9 +363,7 @@ ata_resume(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    ch->locking(ch, ATA_LF_LOCK);
     error = ata_reinit(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
     ata_start(ch);
     return error;
 }
@@ -433,6 +436,7 @@ ata_interrupt(void *data)
 	    else
 		ch->state = ATA_IDLE;
 	    mtx_unlock(&ch->state_mtx);
+	    ch->locking(ch, ATA_LF_UNLOCK);
 	    ata_finish(request);
 	}
     }
@@ -676,16 +680,18 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 		*ptr = bswap16(*ptr);
 	    }
 #endif
-	    if (!((atacap->model[0] == 'N' && atacap->model[1] == 'E') ||
-		  (atacap->model[0] == 'F' && atacap->model[1] == 'X') ||
-		  (atacap->model[0] == 'P' && atacap->model[1] == 'i')))
+	    if (!(!strncmp(atacap->model, "FX", 2) ||
+		  !strncmp(atacap->model, "NEC", 3) ||
+		  !strncmp(atacap->model, "Pioneer", 7) ||
+		  !strncmp(atacap->model, "SHARP", 5))) {
 		bswap(atacap->model, sizeof(atacap->model));
+		bswap(atacap->revision, sizeof(atacap->revision));
+		bswap(atacap->serial, sizeof(atacap->serial));
+	    }
 	    btrim(atacap->model, sizeof(atacap->model));
 	    bpack(atacap->model, atacap->model, sizeof(atacap->model));
-	    bswap(atacap->revision, sizeof(atacap->revision));
 	    btrim(atacap->revision, sizeof(atacap->revision));
 	    bpack(atacap->revision, atacap->revision, sizeof(atacap->revision));
-	    bswap(atacap->serial, sizeof(atacap->serial));
 	    btrim(atacap->serial, sizeof(atacap->serial));
 	    bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
 	    if (bootverbose)

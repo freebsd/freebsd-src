@@ -120,7 +120,7 @@ static int ata_check_80pin(struct ata_device *, int);
 static struct ata_chip_id *ata_find_chip(device_t, struct ata_chip_id *, int);
 static struct ata_chip_id *ata_match_chip(device_t, struct ata_chip_id *);
 static int ata_setup_interrupt(device_t);
-static void ata_serialize(struct ata_channel *, int);
+static int ata_serialize(struct ata_channel *, int);
 static int ata_mode2idx(int);
 
 /* generic or unknown ATA chipset init code */
@@ -261,9 +261,9 @@ ata_acard_intr(void *data)
 
     /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < 2; unit++) {
-	if (ctlr->chip->cfg1 == ATPOLD && ctlr->locked_ch != unit)
-	    continue;
 	if (!(ch = ctlr->interrupt[unit].argument))
+	    continue;
+	if (ctlr->chip->cfg1 == ATPOLD && ch->locking(ch, ATA_LF_WHICH) != unit)
 	    continue;
 	if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 	    int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
@@ -833,6 +833,9 @@ ata_intel_ident(device_t dev)
      { ATA_I6300ESB,   0, 0, 0x00, ATA_UDMA5, "Intel 6300ESB" },
      { ATA_I6300ESB_S1,0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
      { ATA_I6300ESB_R1,0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
+     { ATA_I82801FB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH6" },
+     { ATA_I82801FB_S1,0, 0, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801FB_R1,0, 0, 0x00, ATA_SA150, "Intel ICH6" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -976,6 +979,7 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 	pci_write_config(parent, 0x48, reg48 & ~(0x0001 << devno), 2);
 	pci_write_config(parent, 0x4a, (reg4a & ~(0x3 << (devno << 2))), 2);
     }
+    reg54 |= 0x0400;
     if (mode >= ATA_UDMA2)
 	pci_write_config(parent, 0x54, reg54 | (0x1 << devno), 2);
     else
@@ -1973,7 +1977,7 @@ ata_serverworks_setmode(struct ata_device *atadev, int mode)
     device_t parent = device_get_parent(atadev->channel->dev);
     struct ata_pci_controller *ctlr = device_get_softc(parent);
     int devno = (atadev->channel->unit << 1) + ATA_DEV(atadev->unit);
-    int offset = devno ^ 0x01;
+    int offset = (devno ^ 0x01) << 3;
     int error;
     u_int8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20, 0x34, 0x22, 0x20,
 			      0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
@@ -1995,30 +1999,32 @@ ata_serverworks_setmode(struct ata_device *atadev, int mode)
 			     (pci_read_config(parent, 0x56, 2) &
 			      ~(0xf << (devno << 2))) |
 			     ((mode & ATA_MODE_MASK) << (devno << 2)), 2);
-
-	    pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 1) |
-					   (0x01 << devno), 1);
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) |
+			     (0x01 << devno), 1);
 	    pci_write_config(parent, 0x44, 
 			     (pci_read_config(parent, 0x44, 4) &
-			      ~(0xff << (offset << 8))) |
-			     (dmatimings[2] << (offset << 8)), 4);
+			      ~(0xff << offset)) |
+			     (dmatimings[2] << offset), 4);
 	}
 	else if (mode >= ATA_WDMA0) {
-	    pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 1) &
-					   ~(0x01 << devno), 1);
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) &
+			      ~(0x01 << devno), 1);
 	    pci_write_config(parent, 0x44, 
 			     (pci_read_config(parent, 0x44, 4) &
-			      ~(0xff << (offset << 8))) |
-			     (dmatimings[mode & ATA_MODE_MASK]<<(offset<<8)),4);
+			      ~(0xff << offset)) |
+			     (dmatimings[mode & ATA_MODE_MASK] << offset),4);
 	}
 	else
-	    pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 1) &
-					   ~(0x01 << devno), 1);
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) &
+			     ~(0x01 << devno), 1);
 
 	pci_write_config(parent, 0x40, 
 			 (pci_read_config(parent, 0x40, 4) &
-			  ~(0xff << (offset << 8))) |
-			 (piotimings[ata_mode2idx(mode)] << (offset << 8)), 4);
+			  ~(0xff << offset)) |
+			 (piotimings[ata_mode2idx(mode)] << offset), 4);
 	atadev->mode = mode;
     }
 }
@@ -2794,28 +2800,62 @@ ata_setup_interrupt(device_t dev)
     return 0;
 }
 
-static void
+struct ata_serialize {
+    struct mtx	locked_mtx;
+    int		locked_ch;
+    int		restart_ch;
+};
+
+static int
 ata_serialize(struct ata_channel *ch, int flags)
 {
-    struct ata_pci_controller *scp =
+    struct ata_pci_controller *ctlr =
 	device_get_softc(device_get_parent(ch->dev));
+    struct ata_serialize *serial;
+    static int inited = 0;
+    int res;
 
+    if (!inited) {
+	ctlr->driver = malloc(sizeof(struct ata_serialize),
+			      M_TEMP, M_NOWAIT | M_ZERO);
+	serial = ctlr->driver;
+	mtx_init(&serial->locked_mtx, "ATA serialize lock", NULL, MTX_DEF); 
+	serial->locked_ch = -1;
+	serial->restart_ch = -1;
+	inited = 1;
+    }
+    else
+	serial = ctlr->driver;
+
+    mtx_lock(&serial->locked_mtx);
     switch (flags) {
     case ATA_LF_LOCK:
-	if (scp->locked_ch == ch->unit)
-	    break;
-	while (!atomic_cmpset_acq_int(&scp->locked_ch, -1, ch->unit))
-	    tsleep(ch->locking, PRIBIO, "atasrl", 1);
+	if (serial->locked_ch == -1)
+	    serial->locked_ch = ch->unit;
+	if (serial->locked_ch != ch->unit)
+	    serial->restart_ch = ch->unit;
 	break;
 
     case ATA_LF_UNLOCK:
-	if (scp->locked_ch == -1 || scp->locked_ch != ch->unit)
-	    break;
-	atomic_store_rel_int(&scp->locked_ch, -1);
-	wakeup(ch->locking);
+        if (serial->locked_ch == ch->unit) {
+            serial->locked_ch = -1;
+            if (serial->restart_ch != -1) {
+                if (ctlr->interrupt[serial->restart_ch].argument) {
+                    mtx_unlock(&serial->locked_mtx);
+                    ata_start(ctlr->interrupt[serial->restart_ch].argument);
+                    mtx_lock(&serial->locked_mtx);
+                }
+                serial->restart_ch = -1;
+            }
+        }
+	break;
+
+    case ATA_LF_WHICH:
 	break;
     }
-    return;
+    res = serial->locked_ch;
+    mtx_unlock(&serial->locked_mtx);
+    return res;
 }
 
 static int

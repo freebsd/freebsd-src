@@ -366,10 +366,11 @@ struct ata_channel {
 #define		ATA_INTERRUPT		0x0002
 #define		ATA_TIMEOUT		0x0004
 
-    void (*reset)(struct ata_channel *);
-    void (*locking)(struct ata_channel *, int);
+    void			(*reset)(struct ata_channel *);
+    int				(*locking)(struct ata_channel *, int);
 #define		ATA_LF_LOCK		0x0001
 #define		ATA_LF_UNLOCK		0x0002
+#define		ATA_LF_WHICH		0x0004
 
     struct mtx			queue_mtx;	/* queue lock */
     TAILQ_HEAD(, ata_request)	ata_queue;	/* head of ATA queue */
