@@ -626,56 +626,76 @@ spkrioctl(dev, cmd, cmdarg, flags, td)
  * Install placeholder to claim the resources owned by the
  * AT tone generator.
  */
-static struct isa_pnp_id atspeaker_ids[] = {
-	{ 0x0008d041 /* PNP0800 */, "AT speaker" },
+static struct isa_pnp_id pcspeaker_ids[] = {
 	{ 0 }
 };
 
-static dev_t atspeaker_dev;
+static dev_t pcspeaker_dev;
 
 static int
-atspeaker_probe(device_t dev)
+pcspeaker_probe(device_t dev)
 {
-	return(ISA_PNP_PROBE(device_get_parent(dev), dev, atspeaker_ids));
+	int	error;
+
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pcspeaker_ids);
+	
+	/* PnP match */
+	if (error == 0)
+		return (0);
+
+	/* No match */
+	if (error == ENXIO)
+		return (ENXIO);
+
+	/* Not configured by hints. */
+	if (strncmp(device_get_name(dev), "pcspeaker", 9))
+		return (ENXIO);
+
+	device_set_desc(dev, "PC98 speaker");
+
+	return (0);
 }
 
 static int
-atspeaker_attach(device_t dev)
+pcspeaker_attach(device_t dev)
 {
-	atspeaker_dev = make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+
+	if (pcspeaker_dev) {
+		device_printf(dev, "Already attached!\n");
+		return (ENXIO);
+	}
+
+	pcspeaker_dev = make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "speaker");
 	return (0);
 }
 
 static int
-atspeaker_detach(device_t dev)
+pcspeaker_detach(device_t dev)
 {
-	destroy_dev(atspeaker_dev);
+	destroy_dev(pcspeaker_dev);
 	return (0);
 }
 
-static device_method_t atspeaker_methods[] = {
+static device_method_t pcspeaker_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		atspeaker_probe),
-	DEVMETHOD(device_attach,	atspeaker_attach),
-	DEVMETHOD(device_detach,	atspeaker_detach),
+	DEVMETHOD(device_probe,		pcspeaker_probe),
+	DEVMETHOD(device_attach,	pcspeaker_attach),
+	DEVMETHOD(device_detach,	pcspeaker_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 	{ 0, 0 }
 };
 
-static driver_t atspeaker_driver = {
-	"atspeaker",
-	atspeaker_methods,
+static driver_t pcspeaker_driver = {
+	"pcspeaker",
+	pcspeaker_methods,
 	1,		/* no softc */
 };
 
-static devclass_t atspeaker_devclass;
+static devclass_t pcspeaker_devclass;
 
-DRIVER_MODULE(atspeaker, isa, atspeaker_driver, atspeaker_devclass, 0, 0);
-#ifndef PC98
-DRIVER_MODULE(atspeaker, acpi, atspeaker_driver, atspeaker_devclass, 0, 0);
-#endif
+DRIVER_MODULE(pcspeaker, isa, pcspeaker_driver, pcspeaker_devclass, 0, 0);
 
 /* spkr.c ends here */
