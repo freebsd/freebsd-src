@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000 Robert N. M. Watson
+.\" Copyright (c) 2000, 2001 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -34,12 +34,17 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ls
+.Ar namespace
 .Ar attrname
 .Ar filename ...
 .Sh DESCRIPTION
 .Nm
 is a user tool to retrieve a named extended attribute on a file or
 directory.
+The
+.Ar namespace
+argument should be the namespace of the attribute to retrieve: legal
+values are "user" and "system".
 The
 .Ar attrname
 argument should be the name of the attribute, and
@@ -70,7 +75,7 @@ to succeed, the attribute service must be available on the file system,
 and the attribute must of defined for the file queried.
 .Sh EXAMPLES
 .Bd -literal -offset indent
-# getextattr md5 /kernel
+# getextattr system md5 /kernel
 /kernel:
   61 61 33 62 39 39 66 65    31 35 35 32 31 62 65 32 
   62 36 38 36 62 31 66 39    63 64 33 39 35 36 36 31 
