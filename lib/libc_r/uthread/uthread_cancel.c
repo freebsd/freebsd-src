@@ -37,6 +37,15 @@ pthread_cancel(pthread_t pthread)
 				pthread->cancelflags |= PTHREAD_CANCELLING;
 				break;
 
+			case PS_SUSPENDED:
+				/*
+				 * This thread isn't in any scheduling
+				 * queues; just change it's state:
+				 */
+				pthread->cancelflags |= PTHREAD_CANCELLING;
+				PTHREAD_SET_STATE(pthread, PS_RUNNING);
+				break;
+
 			case PS_SPINBLOCK:
 			case PS_FDR_WAIT:
 			case PS_FDW_WAIT:
@@ -52,7 +61,6 @@ pthread_cancel(pthread_t pthread)
 			case PS_WAIT_WAIT:
 			case PS_SIGSUSPEND:
 			case PS_SIGWAIT:
-			case PS_SUSPENDED:
 				/* Interrupt and resume: */
 				pthread->interrupted = 1;
 				pthread->cancelflags |= PTHREAD_CANCELLING;

@@ -282,8 +282,11 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			break;
 		}
 
-		if (interrupted != 0 && _thread_run->continuation != NULL)
-			_thread_run->continuation((void *) _thread_run);
+		if (interrupted != 0) {
+			if (_thread_run->continuation != NULL)
+				_thread_run->continuation((void *) _thread_run);
+			rval = EINTR;
+		}
 
 		_thread_leave_cancellation_point();
 	}
@@ -449,8 +452,11 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			break;
 		}
 
-		if (interrupted != 0 && _thread_run->continuation != NULL)
-			_thread_run->continuation((void *) _thread_run);
+		if (interrupted != 0) {
+			if (_thread_run->continuation != NULL)
+				_thread_run->continuation((void *) _thread_run);
+			rval = EINTR;
+		}
 
 		_thread_leave_cancellation_point();
 	}

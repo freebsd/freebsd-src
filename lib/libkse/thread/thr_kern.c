@@ -184,8 +184,10 @@ __asm__("fnsave %0": :"m"(*fdata));
 			switch (_thread_run->state) {
 			case PS_DEAD:
 			case PS_STATE_MAX: /* to silence -Wall */
+			case PS_SUSPENDED:
 				/*
-				 * Dead threads are not placed in any queue:
+				 * Dead and suspended threads are not placed
+				 * in any queue:
 				 */
 				break;
 
@@ -227,7 +229,6 @@ __asm__("fnsave %0": :"m"(*fdata));
 			case PS_SIGSUSPEND:
 			case PS_SIGTHREAD:
 			case PS_SIGWAIT:
-			case PS_SUSPENDED:
 			case PS_WAIT_WAIT:
 				/* No timeouts for these states: */
 				_thread_run->wakeup_time.tv_sec = -1;

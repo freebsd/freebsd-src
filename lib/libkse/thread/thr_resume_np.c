@@ -44,8 +44,11 @@ pthread_resume_np(pthread_t thread)
 
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(thread)) == 0) {
-		/* The thread exists. Is it suspended? */
-		if (thread->state != PS_SUSPENDED) {
+		/* Cancel any pending suspensions: */
+		thread->suspended = 0;
+
+		/* Is it currently suspended? */
+		if (thread->state == PS_SUSPENDED) {
 			/*
 			 * Defer signals to protect the scheduling queues
 			 * from access by the signal handler:
@@ -53,7 +56,8 @@ pthread_resume_np(pthread_t thread)
 			_thread_kern_sig_defer();
 
 			/* Allow the thread to run. */
-			PTHREAD_NEW_STATE(thread,PS_RUNNING);
+			PTHREAD_SET_STATE(thread,PS_RUNNING);
+			PTHREAD_PRIOQ_INSERT_TAIL(thread);
 
 			/*
 			 * Undefer and handle pending signals, yielding if
