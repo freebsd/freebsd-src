@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ualarm.3	8.2 (Berkeley) 4/19/94
-.\"     $Id: ualarm.3,v 1.5 1997/02/22 14:58:19 peter Exp $
+.\"     $Id: ualarm.3,v 1.6 1997/08/14 06:32:25 ache Exp $
 .\"
 .Dd April 19, 1994
 .Dt UALARM 3
@@ -67,6 +67,15 @@ to the process every
 microseconds after the timer expires (e.g. after
 .Fa value
 microseconds have passed).
+.Pp
+Due to
+.Xr setitimer 2
+restriction the maximum number of
+.Ar microseconds
+and
+.Ar interval
+is limited to 100000000000000
+(in case this value fit in the unsigned integer).
 .Sh RETURN VALUES
 When the signal has successfully been caught,
 .Fn ualarm
