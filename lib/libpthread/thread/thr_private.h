@@ -1099,6 +1099,8 @@ int	_pthread_rwlock_destroy (pthread_rwlock_t *);
 struct pthread *_pthread_self(void);
 int	_pthread_setspecific(pthread_key_t, const void *);
 void	_pthread_yield(void);
+void	_pthread_cleanup_push(void (*routine) (void *), void *routine_arg);
+void	_pthread_cleanup_pop(int execute);
 struct pthread *_thr_alloc(struct pthread *);
 void	_thr_exit(char *, int, char *);
 void	_thr_exit_cleanup(void);
