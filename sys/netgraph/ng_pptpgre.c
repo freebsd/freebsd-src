@@ -784,8 +784,8 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 		splx(s);
 		return;
 	}
-	ng_unref(node);
 	if (arg != a->rackTimerPtr) {	/* timer stopped race condition */
+		ng_unref(node);
 		splx(s);
 		return;
 	}
@@ -811,6 +811,7 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 	priv->recvAck = priv->xmitSeq;		/* pretend we got the ack */
 	a->xmitWin = (a->xmitWin + 1) / 2;	/* shrink transmit window */
 	a->winAck = priv->recvAck + a->xmitWin;	/* reset win expand time */
+	ng_unref(node);
 	splx(s);
 }
 
@@ -863,8 +864,8 @@ ng_pptpgre_send_ack_timeout(void *arg)
 		splx(s);
 		return;
 	}
-	ng_unref(node);
 	if (a->sackTimerPtr != arg) {	/* timer stopped race condition */
+		ng_unref(node);
 		splx(s);
 		return;
 	}
@@ -872,6 +873,7 @@ ng_pptpgre_send_ack_timeout(void *arg)
 
 	/* Send a frame with an ack but no payload */
   	ng_pptpgre_xmit(node, NULL, NULL);
+	ng_unref(node);
 	splx(s);
 }
 
