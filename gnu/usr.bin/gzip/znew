@@ -40,21 +40,15 @@ if test "$ext" = ".Z"; then
   exit 1
 fi
 
-A=
-fileno=0
-
 for arg
 do
   case "$arg" in
-  -*)     opt="$opt $arg";;
-   *)     fileno=`expr $fileno + 1`
-          eval A$fileno=\$arg
-          A="$A \"\$A$fileno\""
-	  ;;
+  -*)     opt="$opt $arg"; shift;;
+   *)     break;;
   esac
 done
 
-if test $fileno -eq 0; then
+if test $# -eq 0; then
   echo "recompress .Z files into $ext (gzip) files"
   echo usage: `echo $0 | sed 's,^.*/,,'` "[-tv9KP]" file.Z...
   echo "  -t tests the new files before deleting originals"
@@ -64,8 +58,6 @@ if test $fileno -eq 0; then
   echo "  -P use pipes for the conversion $warn"
   exit 1
 fi
-
-eval set "$A"                # the files are now in $1, $2, ...
 
 opt=`echo "$opt" | sed -e 's/ //g' -e 's/-//g'`
 case "$opt" in

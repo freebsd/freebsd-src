@@ -42,21 +42,21 @@ if test $# -eq 1; then
 
 elif test $# -eq 2; then
 	case "$1" in
-        *[-.]gz | *[-.][zZ] | *.t[ga]z)
+        *[-.]gz* | *[-.][zZ] | *.t[ga]z)
                 case "$2" in
-	        *[-.]gz | *[-.][zZ] | *.t[ga]z)
-			F=`echo "$2" | sed 's|.*/||;s|[-.][zZtga]*$||'`
-                        gzip -cd "$2" > /tmp/"$F".$$
-                        gzip -cd "$1" | $comp $OPTIONS - /tmp/"$F".$$
+	        *[-.]gz* | *[-.][zZ] | *.t[ga]z)
+			F=`echo "$2" | sed 's|.*/||;s|[-.][zZtga]*||'`
+                        gzip -cdfq "$2" > /tmp/"$F".$$
+                        gzip -cdfq "$1" | $comp $OPTIONS - /tmp/"$F".$$
                         STAT="$?"
 			/bin/rm -f /tmp/"$F".$$;;
 
-                *)      gzip -cd "$1" | $comp $OPTIONS - "$2"
+                *)      gzip -cdfq "$1" | $comp $OPTIONS - "$2"
                         STAT="$?";;
                 esac;;
         *)      case "$2" in
-	        *[-.]gz | *[-.][zZ] | *.t[ga]z)
-                        gzip -cd "$2" | $comp $OPTIONS "$1" -
+	        *[-.]gz* | *[-.][zZ] | *.t[ga]z)
+                        gzip -cdfq "$2" | $comp $OPTIONS "$1" -
                         STAT="$?";;
                 *)      $comp $OPTIONS "$1" "$2"
                         STAT="$?";;

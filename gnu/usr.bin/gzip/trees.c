@@ -58,7 +58,7 @@
 #include "tailor.h"
 #include "gzip.h"
 
-#ifndef lint
+#ifdef RCSID
 static char rcsid[] = "$Id: trees.c,v 0.12 1993/06/10 13:27:54 jloup Exp $";
 #endif
 

@@ -4,7 +4,7 @@
  * terms of the GNU General Public License, see the file COPYING.
  */
 
-#ifndef lint
+#ifdef RCSID
 static char rcsid[] = "$Id: util.c,v 0.15 1993/06/15 09:04:13 jloup Exp $";
 #endif
 
@@ -301,7 +301,7 @@ char *add_envopt(argcp, argvp, env)
 	if (*p) *p++ = '\0';		     /* mark it */
     }
     if (nargc == 0) {
-	free(env); env = NULL;
+	free(env);
 	return NULL;
     }
     *argcp += nargc;
