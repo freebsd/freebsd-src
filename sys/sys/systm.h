@@ -59,7 +59,6 @@ extern int nswap;		/* size of swap space */
 extern int selwait;		/* select timeout address */
 
 extern u_char curpriority;	/* priority of current process */
-extern u_char currtpriority;	/* realtime priority of current process */
 
 extern int physmem;		/* physical memory */
 
