@@ -29,7 +29,7 @@ man3pages: ${DYNALOADER} pod2man
 	for i in `find . -name \*.pm | grep -v Functions.pm` ; do \
 		j=`echo $$i | sed -e 's|./||' -e 's|/|::|g' -e 's|.pm|.3|'` ;\
 		echo Manifying $$j ;\
-		miniperl -I${.OBJDIR}/lib ${.OBJDIR}/pod2man $$i > $$j ;\
+		${MINIPERL} -I${.OBJDIR}/lib ${.OBJDIR}/pod2man $$i > $$j ;\
 		gzip -fn $$j ;\
 	done
 	@cd ${.OBJDIR}/ext ;\
@@ -40,13 +40,13 @@ man3pages: ${DYNALOADER} pod2man
 			-e 's|/|::|g' -e 's|.pm|.3|' -e 's|.pod|.3|'`;\
 		i=`echo $$i | sed -e 's|./||'` ;\
 		echo Manifying $$j ;\
-		miniperl -I${.OBJDIR}/lib ${.OBJDIR}/pod2man $$i > ../lib/$$j ;\
+		${MINIPERL} -I${.OBJDIR}/lib ${.OBJDIR}/pod2man $$i > ../lib/$$j ;\
 		gzip -fn ../lib/$$j ;\
 	done
 	@touch ${.TARGET}
 
 pod2man: scripts autosplit ${PERL5SRC}/pod/pod2man.PL
 	ln -sf ${PERL5SRC}/pod/pod2man.PL 
-	miniperl -I${.OBJDIR}/lib pod2man.PL
+	${MINIPERL} -I${.OBJDIR}/lib pod2man.PL
 
 .PATH:	${PERL5SRC}

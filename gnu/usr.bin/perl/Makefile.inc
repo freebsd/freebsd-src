@@ -2,6 +2,7 @@
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
 PERL5LIBSRC?= ${.CURDIR}/../libperl
+MINIPERL?=	${.OBJDIR}/../miniperl/miniperl
 
 BINDIR?=	/usr/bin
 
@@ -28,6 +29,8 @@ ${.OBJDIR}/${I}: ${I}
 CLEANFILES+= ${.OBJDIR}/${I}
 DEPEND_H+= ${.OBJDIR}/${I}
 .endfor
+
+LDFLAGS+=	-L${.OBJDIR}/../libperl
 
 links: ${DEPEND_H}
 	@for d in ${FARMDIRS} ; do \
@@ -61,7 +64,7 @@ scripts: links
 	@sh cflags.sh
 	@sh writemain.sh
 	@sh myconfig.SH
-	@miniperl -I. ${PERL5SRC}/configpm \
+	@${MINIPERL} ${PERL5SRC}/configpm \
 		Config.pm Porting/Glossary myconfig
 	@ln -sf ../Config.pm lib/Config.pm
 	@touch ${.TARGET}
@@ -81,7 +84,7 @@ FARMDIRS=	lib ext Porting hints
 
 MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
-		PERL=miniperl FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
+		PERL=${MINIPERL} FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
 		DEFINE=-DPERL_CORE
 
 PERL_THREADED?= no
@@ -96,7 +99,7 @@ CFLAGS+=        -DDEBUGGING
 .endif
 
 autosplit: scripts lib/*.pm lib/*/*.pm
-	miniperl -I${.OBJDIR}/lib \
+	${MINIPERL} -I${.OBJDIR}/lib \
 		-e 'use AutoSplit; autosplit_lib_modules(@ARGV)' \
 		lib/*.pm lib/*/*.pm
 	@touch ${.TARGET}
@@ -109,14 +112,14 @@ ${DYNALOADER}:	scripts \
 
 ext/DynaLoader/DynaLoader.pm: scripts ext/DynaLoader/DynaLoader_pm.PL
 	@cd ext/DynaLoader; \
-	miniperl -I${.OBJDIR} -I${.OBJDIR}/lib DynaLoader_pm.PL DynaLoader.pm
+	${MINIPERL} -I${.OBJDIR} -I${.OBJDIR}/lib DynaLoader_pm.PL DynaLoader.pm
 
 ext/DynaLoader/XSLoader.pm: scripts ext/DynaLoader/XSLoader_pm.PL
 	@cd ext/DynaLoader; \
-	miniperl -I${.OBJDIR} -I${.OBJDIR}/lib XSLoader_pm.PL XSLoader.pm
+	${MINIPERL} -I${.OBJDIR} -I${.OBJDIR}/lib XSLoader_pm.PL XSLoader.pm
 
 ext/DynaLoader/Makefile: scripts ext/DynaLoader/Makefile.PL
 	@cd ext/DynaLoader; \
-	miniperl -I${.OBJDIR} -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
+	${MINIPERL} -I${.OBJDIR} -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
 		LINKTYPE=static LIBS="-lperl -lm"; \
 	make -B config PERL_SRC=${.OBJDIR}
