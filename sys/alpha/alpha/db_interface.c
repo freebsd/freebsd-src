@@ -563,55 +563,44 @@ db_branch_taken(ins, pc, regs)
 	return (newpc);
 }
 
-#ifdef KTR
+#if defined(KTR)
 
-static struct {
-	int cur;
-	int first;
-} tstate[NCPUS];
+struct tstate {
+	int	cur;
+	int	first;
+};
+static struct tstate tstate;
 static struct timespec lastt;
-static int db_tcpu = 0xff;
 static int db_mach_vtrace(void);
 
 DB_COMMAND(tbuf, db_mach_tbuf)
 {
-	int i;
+	struct ktr_entry	*k1, *ck, *kend;
+	struct timespec		newk;
 
-	for (i = 0; i < NCPUS; i++) {
-		struct ktr_entry *k1, *ck, *kend;
-		struct globaldata *pp;
-		struct timespec newk;
-
-		if ((pp = globaldata_find(i)) == NULL)
-			continue;
-
-		k1 = (struct ktr_entry *)pp->gd_ktr_buf;
-		ck = k1;
-		timespecclear(&newk);
-		kend = (struct ktr_entry *)(pp->gd_ktr_buf + KTR_SIZE);
-		while (k1 != kend) {
-			if (timespecisset(&k1->ktr_tv) &&
-			    timespeccmp(&k1->ktr_tv, &newk, >)) {
-				newk = k1->ktr_tv;
-				ck = k1;
-			}
-			k1++;
+	k1 = ktr_buf;
+	ck = k1;
+	timespecclear(&newk);
+	kend = ktr_buf + KTR_ENTRIES;
+	while (k1 != kend) {
+		if (timespecisset(&k1->ktr_tv) &&
+		    timespeccmp(&k1->ktr_tv, &newk, >)) {
+			newk = k1->ktr_tv;
+			ck = k1;
 		}
-		tstate[i].cur = ((uintptr_t)(ck) -
-		    (uintptr_t)pp->gd_ktr_buf) & (KTR_ESIZE-1);
-		tstate[i].first = tstate[i].cur | 0x80000000;
+		k1++;
 	}
+	tstate.cur = ck - ktr_buf;
+	tstate.first = tstate.cur | 0x80000000;
 	timespecclear(&lastt);
 	db_mach_vtrace();
+
 	return;
 }
 
-/*
- * Print all trace entries
- */
 DB_COMMAND(tall, db_mach_tall)
 {
-	int c;
+	int	c;
 
 	db_mach_tbuf(addr, have_addr, count, modif);
 	while (db_mach_vtrace()) {
@@ -619,6 +608,7 @@ DB_COMMAND(tall, db_mach_tall)
 		if (c != -1)
 			break;
 	}
+
 	return;
 }
 
@@ -630,31 +620,16 @@ DB_COMMAND(tnext, db_mach_tnext)
 static int
 db_mach_vtrace(void)
 {
-	struct ktr_entry *kp;
-	struct ktr_entry *kpt;
-	char *d;
-	int i;
-	int wcpu;
-	struct globaldata *pp;
-	struct timespec ts;
+	struct ktr_entry	*kp;
+	struct timespec		ts;
+	char			*d;
 
-	/* Pick the newest trace entry from all CPU's */
 	kp = NULL;
-	wcpu = 0;
-	for (i = 0; i < NCPUS; i++) {
-		if (db_tcpu != 0xff && i != db_tcpu)
-			continue;
-		if (!(pp = globaldata_find(i)))
-			continue;
-		if (tstate[i].cur == tstate[i].first)
-			continue;
-		kpt = (struct ktr_entry *)((char *)pp->gd_ktr_buf +
-		    tstate[i].cur);
-		if (!kp || timespeccmp(&kp->ktr_tv, &kpt->ktr_tv, <)) {
-			kp = kpt;
-			wcpu = i;
-		}
-	}
+	if (tstate.cur != tstate.first)
+		kp = ktr_buf + tstate.cur;
+	else
+		kp = NULL;
+
 	if (!kp) {
 		db_printf("--- End of trace buffer ---\n");
 		return (0);
@@ -663,33 +638,27 @@ db_mach_vtrace(void)
 	d = kp->ktr_desc;
 	if (d == NULL) 
 		d = "*** Empty ***";
-#if 0
-	if (kernacc(d, 80, B_READ) == 0)
-		d = "*** Corrupt entry ***";
-#endif
 	else if (lastt.tv_sec == 0) {
-		db_printf("Newest entry at clock %d.%06ld\n",
+		db_printf("Newest entry at clock %ld.%06ld\n",
 			  kp->ktr_tv.tv_sec,
 			  kp->ktr_tv.tv_nsec / 1000);
 		lastt = kp->ktr_tv;
 	}
-	db_printf("\r%x %3x ", wcpu, tstate[wcpu].cur >> KTR_SHFT);
 	ts = lastt;
-	/* timespecsub(&ts, &kp->ktr_tv); */
-	db_printf("%4d.%06ld: ", ts.tv_sec, ts.tv_nsec / 1000);
+	db_printf("%4ld.%06ld: ", ts.tv_sec, ts.tv_nsec / 1000);
 	lastt = kp->ktr_tv;
+#ifdef KTR_EXTEND
+	db_printf("cpu%d %s.%d\t%s", kp->ktr_cpu, kp->ktr_filename,
+		  kp->ktr_line, kp->ktr_desc);
+#else
 	db_printf(d, kp->ktr_parm1, kp->ktr_parm2, kp->ktr_parm3,
 		    kp->ktr_parm4, kp->ktr_parm5);
-#if 0
-	if (kdebug_vflag)
-		db_printf("   p1=%x p2=%x p3=%x p4=%x p5=%x", (u_int)kp->ktr_parm1,
-		    (u_int)kp->ktr_parm2, (u_int)kp->ktr_parm3,
-		    (u_int)kp->ktr_parm4, (u_int)kp->ktr_parm5);
 #endif
 	db_printf("\n");
-	tstate[wcpu].first &= ~0x80000000;
-	tstate[wcpu].cur = (tstate[wcpu].cur - sizeof(struct ktr_entry)) &
-	    (KTR_ESIZE - 1);
+	tstate.first &= ~0x80000000;
+	if (--tstate.cur < 0)
+		tstate.cur = KTR_ENTRIES - 1;
+
 	return (1);
 }
 
