@@ -29,6 +29,7 @@ SUBDIR=	adjkerntz \
 	fsdb \
 	fsirand \
 	gbde \
+	gconcat \
 	${_gpt} \
 	growfs \
 	ifconfig \
