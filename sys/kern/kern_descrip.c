@@ -1416,8 +1416,7 @@ falloc(td, resultfp, resultfd)
  * Free a file descriptor.
  */
 void
-ffree(fp)
-	struct file *fp;
+ffree(struct file *fp)
 {
 
 	KASSERT(fp->f_count == 0, ("ffree: fp_fcount not 0!"));
@@ -1434,8 +1433,7 @@ ffree(fp)
  * Copy the current, root, and jail root vnode references.
  */
 struct filedesc *
-fdinit(fdp)
-	struct filedesc *fdp;
+fdinit(struct filedesc *fdp)
 {
 	struct filedesc0 *newfdp;
 
@@ -2301,15 +2299,15 @@ dupfdopen(td, fdp, indx, dfd, mode, error)
 			fdused(fdp, indx);
 		fhold_locked(wfp);
 		FILE_UNLOCK(wfp);
-		if (fp != NULL)
-			FILE_LOCK(fp);
 		FILEDESC_UNLOCK(fdp);
-		/*
-		 * We now own the reference to fp that the ofiles[] array
-		 * used to own.  Release it.
-		 */
-		if (fp != NULL)
+		if (fp != NULL) {
+			/*
+			 * We now own the reference to fp that the ofiles[]
+			 * array used to own.  Release it.
+			 */
+			FILE_LOCK(fp);
 			fdrop_locked(fp, td);
+		}
 		return (0);
 
 	case ENXIO:
