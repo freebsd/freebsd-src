@@ -43,15 +43,6 @@
 # VAR=${VAR:-value} construct for those variables which can
 # be overridden from the command line.
 
-# select the right memory disk name
-case `uname -r` in
-    5.*)
-	VN="md"
-	;;
-    *)
-	VN="vn"
-esac
-
 init_vars() {	# OK
     # if you include the floppy tree in the mfs, you
     # can boot from the image via diskless. Default to yes.
@@ -68,6 +59,17 @@ init_vars() {	# OK
     OBJ=${OBJ:-/usr/obj-pico}
     PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
     START_DIR=`pwd`
+
+    # select the right memory disk name
+    case `uname -r` in
+	5.*)
+	    VN="md"
+	    MAKEDEV="${SRC}/etc/MAKEDEV"
+	    ;;
+	*)
+	    VN="vn"
+	    MAKEDEV="/dev/MAKEDEV"
+    esac
 
     # Various temporary files and directories.
     # User replies will be put in $RISU
@@ -497,7 +499,7 @@ populate_mfs() {
 
     # XXX-fixme in -current, MAKEDEV is from /usr/src/etc/MAKEDEV
     if [ "${NO_DEVFS}" != "" ] ; then
-	(cd ${MFS_MOUNTPOINT}/dev ; ln -s /dev/MAKEDEV ;
+	(cd ${MFS_MOUNTPOINT}/dev ; ln -s ${MAKEDEV} ; chmod 555 MAKEDEV ;
 	    ./MAKEDEV ${MY_DEVS}; rm MAKEDEV)
     fi
 
