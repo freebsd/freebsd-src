@@ -100,6 +100,7 @@ enum e_args {
 	TEXT,			/* a c i */
 	NONSEL,			/* ! */
 	GROUP,			/* { */
+	ENDGROUP,		/* } */
 	COMMENT,		/* # */
 	BRANCH,			/* b t */
 	LABEL,			/* : */
