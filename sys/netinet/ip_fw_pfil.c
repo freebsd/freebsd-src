@@ -29,7 +29,6 @@
 #if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
-#include "opt_ipdivert.h"
 #include "opt_inet.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
@@ -67,10 +66,13 @@ static	int ipfw_pfil_hooked = 0;
 /* Dummynet hooks. */
 ip_dn_ruledel_t	*ip_dn_ruledel_ptr = NULL;
 
+/* Divert hooks. */
+ip_divert_packet_t *ip_divert_ptr = NULL;
+
+/* Forward declarations. */
+static int	ipfw_divert(struct mbuf **, int, int);
 #define	DIV_DIR_IN	1
 #define	DIV_DIR_OUT	0
-
-static int	ipfw_divert(struct mbuf **, int, int);
 
 int
 ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
@@ -255,12 +257,15 @@ ipfw_divert(struct mbuf **m, int incoming, int tee)
 	 * If tee is set, copy packet and return original.
 	 * If not tee, consume packet and send it to divert socket.
 	 */
-#ifdef IPDIVERT
 	struct mbuf *clone, *reass;
 	struct ip *ip;
 	int hlen;
 
 	reass = NULL;
+
+	/* Is divert module loaded? */
+	if (ip_divert_ptr == NULL)
+		goto nodivert;
 
 	/* Cloning needed for tee? */
 	if (tee)
@@ -309,8 +314,8 @@ ipfw_divert(struct mbuf **m, int incoming, int tee)
 	}
 
 	/* Do the dirty job... */
-	if (clone)
-		divert_packet(clone, incoming);
+	if (clone && ip_divert_ptr != NULL)
+		ip_divert_ptr(clone, incoming);
 
 teeout:
 	/*
@@ -322,10 +327,10 @@ teeout:
 
 	/* Packet diverted and consumed */
 	return 1;
-#else
+
+nodivert:
 	m_freem(*m);
 	return 1;
-#endif	/* ipdivert */
 }
 
 static int

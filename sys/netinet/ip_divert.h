@@ -36,9 +36,15 @@
 #define	_NETINET_IP_DIVERT_H_
 
 /*
+ * Sysctl declaration.
+ */
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet_divert);
+#endif
+
+/*
  * Divert socket definitions.
  */
-
 struct divert_tag {
 	u_int32_t	info;		/* port & flags */
 	u_int16_t	cookie;		/* ipfw rule number */
@@ -74,10 +80,10 @@ divert_find_info(struct mbuf *m)
 	return mtag ? divert_info(mtag) : 0;
 }
 
+typedef	void ip_divert_packet_t(struct mbuf *m, int incoming);
+extern	ip_divert_packet_t *ip_divert_ptr;
+
 extern	void div_init(void);
 extern	void div_input(struct mbuf *, int);
 extern	void div_ctlinput(int, struct sockaddr *, void *);
-extern	void divert_packet(struct mbuf *m, int incoming);
-extern	struct mbuf *divert_clone(struct mbuf *);
-extern struct pr_usrreqs div_usrreqs;
 #endif /* _NETINET_IP_DIVERT_H_ */

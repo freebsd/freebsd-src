@@ -30,7 +30,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ipdivert.h"
 #include "opt_ipx.h"
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
@@ -54,7 +53,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
-#include <netinet/ip_divert.h>
 #include <netinet/igmp_var.h>
 #ifdef PIM
 #include <netinet/pim_var.h>
@@ -215,14 +213,6 @@ struct protosw inetsw[] = {
   &rip_usrreqs
 },
 #endif
-#ifdef IPDIVERT
-{ SOCK_RAW,	&inetdomain,	IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
-  div_input,	0,		div_ctlinput,	ip_ctloutput,
-  0,
-  div_init,	0,		0,		0,
-  &div_usrreqs,
-},
-#endif
 #ifdef IPXIP
 { SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
   ipxip_input,	0,		ipxip_ctlinput,	0,
@@ -297,9 +287,6 @@ SYSCTL_NODE(_net_inet, IPPROTO_AH,	ipsec,	CTLFLAG_RW, 0,	"IPSEC");
 #endif /* IPSEC */
 #endif /* !FAST_IPSEC */
 SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
-#ifdef IPDIVERT
-SYSCTL_NODE(_net_inet, IPPROTO_DIVERT,	divert,	CTLFLAG_RW, 0,	"DIVERT");
-#endif
 #ifdef PIM
 SYSCTL_NODE(_net_inet, IPPROTO_PIM,    pim,    CTLFLAG_RW, 0,  "PIM");
 #endif
