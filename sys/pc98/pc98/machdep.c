@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.102 1998/12/11 08:04:33 kato Exp $
+ *	$Id: machdep.c,v 1.103 1998/12/16 16:28:57 bde Exp $
  */
 
 #include "apm.h"
@@ -538,7 +538,11 @@ sendsig(catcher, sig, mask, code)
 	 *	and the stack can not be grown. useracc will return FALSE
 	 *	if access is denied.
 	 */
+#ifdef VM_STACK
+	if ((grow_stack (p, (int)fp) == FALSE) ||
+#else
 	if ((grow(p, (int)fp) == FALSE) ||
+#endif
 	    (useracc((caddr_t)fp, sizeof(struct sigframe), B_WRITE) == FALSE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
