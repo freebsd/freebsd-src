@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.39 1999/01/28 00:57:47 dillon Exp $
+ * $Id: vfs_aio.c,v 1.40 1999/01/28 17:32:00 dillon Exp $
  */
 
 /*
@@ -1472,7 +1472,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 		/*
 		 * Get timespec struct
 		 */
-		if ((error = copyin((c_caddr_t) uap->timeout, (caddr_t) &ts, sizeof ts)) != 0) {
+		if ((error = copyin(uap->timeout, &ts, sizeof(ts))) != 0) {
 			return error;
 		}
 
