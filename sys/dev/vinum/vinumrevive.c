@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: revive.c,v 1.5 1998/12/28 04:56:23 peter Exp $
+ * $Id: vinumrevive.c,v 1.6 1998/12/28 16:28:23 peter Exp $
  */
 
 #define REALLYKERNEL
@@ -62,7 +62,7 @@ revive_block(int plexno)
 	else
 	    plex->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
     }
-    size = min(plex->revive_blocksize, (plex->length - plex->revived) << DEV_BSHIFT);
+    size = min(plex->revive_blocksize >> DEV_BSHIFT, plex->length - plex->revived) << DEV_BSHIFT;
 
     s = splbio();
     /* Get a buffer */
