@@ -150,8 +150,8 @@
 				struct linux_statfs_buf *buf); }
 100	STD	LINUX	{ int linux_fstatfs(int fd, \
 				struct linux_statfs_buf *buf); }
-101	STD	LINUX	{ int linux_ioperm(unsigned int lo, \
-				unsigned int hi, int val); }
+101	STD	LINUX	{ int linux_ioperm(unsigned int start, \
+				unsigned int length, int enable); }
 102	STD	LINUX	{ int linux_socketcall(int what, void *args); }
 103	STD	LINUX	{ int linux_ksyslog(int what); }
 104	STD	LINUX	{ int linux_setitimer(u_int which, \
