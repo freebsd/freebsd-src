@@ -1067,6 +1067,12 @@ hw.pcic.irq="0"</programlisting>
     <para>A race condition in &man.rmuser.8; that briefly exposed a
     world-readable <filename>/etc/master.passwd</filename> has been
     fixed (see security advisory FreeBSD-SA-01:59). &merged;</para>
+
+    <para>All non-<username>root</username>-owned binaries in standard
+    system paths now have the <literal>schg</literal> flag set to
+    prevent exploit vectors when run by &man.cron.8;, by
+    <username>root</username>, or by a user other then the one owning
+    the binary.</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
