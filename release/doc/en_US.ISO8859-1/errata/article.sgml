@@ -129,6 +129,20 @@
     <para>Due to licensing issues uncovered late in &os;
       &release.prev;'s release cycle, the &man.matcd.4; driver was
       removed.</para>
+
+    <para>The <filename>srelease</filename> distribution contains
+      object files for &man.sysinstall.8; in the
+      <filename>release/sysinstall</filename> directory.  These files
+      were generated during the release building process but, for some
+      reason, were not removed from the distribution files.  They are
+      harmless.</para>
+
+    <para>The <filename role="port">databases/rdfdb</filename> and
+      <filename role="port">mail/ssmtp</filename> packages
+      included in the &release.prev; package set cannot be
+      installed correctly.  A workaround is to build and install these
+      programs using the Ports Collection.</para>
+
 ]]>
   </sect1>
 </article>
