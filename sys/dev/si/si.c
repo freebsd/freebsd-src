@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.9 1995/09/22 20:00:12 peter Exp $
+ *	$Id: si.c,v 1.10 1995/10/21 09:10:49 peter Exp $
  */
 
 #ifndef lint
@@ -1198,11 +1198,9 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	volatile struct si_reg *regp;
 	struct si_tcsi *dp;
 	struct si_pstat *sps;
-	BYTE *bp;
-	int i, *ip, error = 0;
+	int *ip, error = 0;
 	int oldspl;
 	int card, port;
-	unsigned short *usp;
 	int mynor = minor(dev);
 
 	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%x,%x,%x,%x)\n",
@@ -1675,7 +1673,7 @@ siintr(int unit)
 	volatile struct si_channel *ccbp;
 	register struct tty *tp;
 	volatile caddr_t maddr;
-	BYTE op, ip, cc;
+	BYTE op, ip;
 	int x, card, port, n, i;
 	volatile BYTE *z;
 	BYTE c;

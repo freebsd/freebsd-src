@@ -190,16 +190,12 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 int
 spigot_write(dev_t dev, struct uio *uio, int ioflag)
 {
-struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
-
 	return ENXIO;
 }
 
 int
 spigot_read(dev_t dev, struct uio *uio, int ioflag)
 {
-struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
-
 	return ENXIO;
 }
 
@@ -244,9 +240,6 @@ struct	spigot_info	*info;
 int
 spigot_select(dev_t dev, int rw, struct proc *p)
 {
-struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
-int			s;
-int			r;
 
 	return ENXIO;
 }

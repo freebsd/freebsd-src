@@ -245,7 +245,8 @@ static int wcd_goaway (struct kern_devconf *kdc, int force)
 	return 0;
 }
 
-int wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
+static int 
+wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	struct kern_devconf *parent)
 {
 	struct wcd *t;
@@ -368,7 +369,8 @@ void wcd_describe (struct wcd *t)
 	printf ("\n");
 }
 
-int wcd_open (dev_t dev, int rawflag)
+static int 
+wcd_open (dev_t dev, int rawflag)
 {
 	int lun = UNIT(dev);
 	struct wcd *t;

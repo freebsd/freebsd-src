@@ -91,10 +91,6 @@ int
 gpprobe(struct isa_device *dvp)
 {
 	int	status;
-	short	port;
-	u_char	data;
-	u_char	mask;
-	int	i;
         struct gpib_softc *sc = &gpib_sc;
 
 
@@ -145,11 +141,8 @@ gpopen(dev, flags, fmt, p)
 	struct proc *p;
 {
 	struct gpib_softc *sc = &gpib_sc;
-	int delay;	/* slept time in 1/hz seconds of tsleep */
-	int err;
-	u_char sta, unit;
- int status;
- int counter;
+	u_char unit;
+	int status;
 
        unit= minor(dev);
 
@@ -468,7 +461,6 @@ void showregs() {
   National Instruments.  They should give you one if you call them*/
 
 int initgpib() {
- int counter;
   outb(CMDR,0x20);
   outb(CFG,0x16);
   outb(IMR3,0);
@@ -538,8 +530,7 @@ void closegpib() {
 void enableremote(unsigned char device)
 {
  int status;
- unsigned char bsrval;
- char c;
+
 status=EWOULDBLOCK;
   if (status==EWOULDBLOCK) do {
    status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",2);
@@ -606,10 +597,7 @@ outb(AUXMR,0x5E);  /*Clear SYNC*/
 
 void menableremote(unsigned char *device)
 {
- int status;
- unsigned char bsrval;
- char c;
- int counter=0;
+ int status, counter = 0;
 
 status=EWOULDBLOCK;
   if (status==EWOULDBLOCK) do {
@@ -1189,8 +1177,6 @@ outb(AUXMR,0x5E); /*Clear SYNC*/
 char spoll(unsigned char device)
  {
  int status=EWOULDBLOCK;
- int counter;
- int done;
  unsigned int statusbyte;
 
  if (!(inb(ISR2)&8)) do

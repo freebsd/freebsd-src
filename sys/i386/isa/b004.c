@@ -60,8 +60,8 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
-extern u_char d_inb(u_int port);
-extern void d_outb(u_int port, u_char data);
+static u_char d_inb(u_int port);
+static void d_outb(u_int port, u_char data);
 
 static struct kern_devconf kdc_bqu[NBQU] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -108,8 +108,8 @@ static struct kern_devconf kdc_bqu[NBQU] = { {
 #define DEB2(x)
 #endif
 
-int bquprobe(struct isa_device *idp);
-int bquattach(struct isa_device *idp);
+static int bquprobe(struct isa_device *idp);
+static int bquattach(struct isa_device *idp);
 
 
 struct isa_driver bqudriver = {
@@ -132,7 +132,7 @@ b004_base_addresses[B004_CHANCE] = {
 };
 
 
-void
+static void
 d_outb(u_int port, u_char data)
 {
 
@@ -140,7 +140,7 @@ d_outb(u_int port, u_char data)
 	outb(port,data);
 }
 
-u_char d_inb(u_int port)
+static u_char d_inb(u_int port)
 {
 u_char ap;
 	ap=inb(port);
@@ -533,7 +533,7 @@ bqu_registerdev(struct isa_device *id)
 	dev_attach(&kdc_bqu[id->id_unit]);
 }
 
-int
+static int
 bquattach(struct isa_device *idp)
 {
 	kdc_bqu[idp->id_unit].kdc_state = DC_IDLE;
@@ -547,7 +547,7 @@ bquattach(struct isa_device *idp)
  * and sets up all relevant data-structures.
  */
 
-int
+static int
 bquprobe(struct isa_device *idp)
 {
     unsigned int test;

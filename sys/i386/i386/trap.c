@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.60 1995/10/04 07:07:44 julian Exp $
+ *	$Id: trap.c,v 1.61 1995/10/09 04:36:01 bde Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ trap(frame)
 	struct proc *p = curproc;
 	u_quad_t sticks = 0;
 	int i = 0, ucode = 0, type, code;
-#ifdef DIAGNOSTIC
+#ifdef DEBUG
 	u_long eva;
 #endif
 
@@ -609,7 +609,6 @@ trap_pfault(frame, usermode)
 
 	if (map != kernel_map) {
 		vm_offset_t v;
-		vm_page_t ptepg;
 
 		/*
 		 * Keep swapout from messing with us during this
@@ -931,7 +930,6 @@ void
 linux_syscall(frame)
 	struct trapframe frame;
 {
-	int i;
 	struct proc *p = curproc;
 	struct sysent *callp;
 	u_quad_t sticks;

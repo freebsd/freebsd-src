@@ -81,7 +81,7 @@ static struct kern_devconf kdc_wds[NWDS] = { {
   DC_CLS_MISC			/* class */
 } };
 
-struct scsi_device wds_dev =
+static struct scsi_device wds_dev =
 {
  	NULL,
 	NULL,
@@ -211,7 +211,7 @@ struct wds_setup {
 #define WDS_NIMB	8
 #define MAXSIMUL	8
 
-int wdsunit=0;
+static int wdsunit=0;
 
 u_char wds_data[NWDS][BUFSIZ];
 u_char wds_data_in_use[NWDS];
@@ -223,17 +223,17 @@ struct wds {
   struct scsi_link sc_link;
 } wds[NWDS];
 
-int wdsprobe(struct isa_device *);
-void wds_minphys(struct buf *);
-struct wds_req *wdsr_alloc(int);
-int32 wds_scsi_cmd(struct scsi_xfer *);
-u_int32 wds_adapter_info(int);
+static int wdsprobe(struct isa_device *);
+static void wds_minphys(struct buf *);
+static struct wds_req *wdsr_alloc(int);
+static int32 wds_scsi_cmd(struct scsi_xfer *);
+static u_int32 wds_adapter_info(int);
 inthand2_t wdsintr;
-int wds_done(int, struct wds_cmd *, u_char);
-int wdsattach(struct isa_device *);
-int wds_init(struct isa_device *);
-int wds_cmd(int, u_char *, int);
-void wds_wait(int, int, int);
+static int wds_done(int, struct wds_cmd *, u_char);
+static int wdsattach(struct isa_device *);
+static int wds_init(struct isa_device *);
+static int wds_cmd(int, u_char *, int);
+static void wds_wait(int, int, int);
 
 struct isa_driver wdsdriver =
 {
@@ -242,7 +242,7 @@ struct isa_driver wdsdriver =
   "wds"
 };
 
-struct scsi_adapter wds_switch =
+static struct scsi_adapter wds_switch =
 {
 	wds_scsi_cmd,
 	wds_minphys,
@@ -550,7 +550,7 @@ wds_done(int unit, struct wds_cmd *c, u_char stat)
   return 0;
 }
 
-int
+static int
 wds_getvers(int unit)
 {
   struct wds_req *r;

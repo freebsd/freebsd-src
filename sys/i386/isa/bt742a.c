@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.40 1995/08/23 23:02:27 gibbs Exp $
+ *      $Id: bt742a.c,v 1.41 1995/09/19 18:55:08 bde Exp $
  */
 
 /*
@@ -389,22 +389,22 @@ struct bt_data {
 #define	BT_SHOWINTS 0x02
 #define	BT_SHOWCMDS 0x04
 #define	BT_SHOWMISC 0x08
-int     bt_debug = 0;
+static int		bt_debug = 0;
 
 #ifdef	KERNEL
-int     btprobe();
-int     btattach();
-inthand2_t btintr;
-int32   bt_scsi_cmd();
-int	bt_poll __P((int unit, struct scsi_xfer *xs, struct bt_ccb *ccb));
-void	bt_timeout(void *);
-int	bt_init __P((int unit));
-void	bt_inquire_setup_information();
-void    bt_done();
-void    btminphys();
-u_int32 bt_adapter_info();
-struct bt_ccb *bt_get_ccb();
-struct bt_ccb *bt_ccb_phys_kv();
+static int		btprobe();
+static int		btattach();
+inthand2_t		btintr;
+static int32		bt_scsi_cmd();
+static int		bt_poll __P((int unit, struct scsi_xfer *xs, struct bt_ccb *ccb));
+static void		bt_timeout(void *);
+static int		bt_init __P((int unit));
+static void		bt_inquire_setup_information();
+static void		bt_done();
+static void		btminphys();
+static u_int32		bt_adapter_info();
+static struct bt_ccb	*bt_get_ccb();
+static struct bt_ccb	*bt_ccb_phys_kv();
 
 static int btunit = 0;
 static int btprobing = 0;
@@ -416,7 +416,7 @@ struct isa_driver btdriver =
     "bt"
 };
 
-struct scsi_adapter bt_switch =
+static struct scsi_adapter bt_switch =
 {
     bt_scsi_cmd,
     btminphys,
@@ -428,7 +428,7 @@ struct scsi_adapter bt_switch =
 };
 
 /* the below structure is so we have a default dev struct for out link struct */
-struct scsi_device bt_dev =
+static struct scsi_device bt_dev =
 {
     NULL,			/* Use default error handler */
     NULL,			/* have a queue, served by this */
@@ -488,7 +488,7 @@ main()
  * scsi command, which is read in via the dma; one of the adapter commands
  * tells it to read in a scsi command.
  */
-int
+static int
 bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
 	int unit;
 	int icnt;
@@ -612,7 +612,7 @@ bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
  * as an argument, takes the isa_device structure from
  * autoconf.c
  */
-int
+static int
 btprobe(dev)
 	struct isa_device *dev;
 {
@@ -686,7 +686,7 @@ btprobe(dev)
 /*
  * Attach all the sub-devices we can find
  */
-int
+static int
 btattach(dev)
 	struct isa_device *dev;
 {
@@ -727,7 +727,7 @@ btattach(dev)
  * Return some information to the caller about the adapter and its
  * capabilities.
  */
-u_int32
+static u_int32
 bt_adapter_info(unit)
 	int	unit;
 {
@@ -868,7 +868,7 @@ btintr(unit)
 /*
  * A ccb is put onto the free list.
  */
-void
+static void
 bt_free_ccb(unit, ccb, flags)
 	int unit;
 	struct bt_ccb *ccb;
@@ -899,7 +899,7 @@ bt_free_ccb(unit, ccb, flags)
  * If there are none, see if we can allocate a new one.  If so, put it in
  * the hash table too otherwise either return an error or sleep.
  */
-struct bt_ccb *
+static struct bt_ccb *
 bt_get_ccb(unit, flags)
 	int unit;
 	int flags;
@@ -907,8 +907,6 @@ bt_get_ccb(unit, flags)
 	struct bt_data *bt = btdata[unit];
 	unsigned opri;
 	struct bt_ccb *ccbp;
-	struct bt_mbx *wmbx;	/* Mail Box pointer specified unit */
-	BT_MBO *wmbo;		/* Out Mail Box pointer */
 	int     hashnum;
 
 	opri = splbio();
@@ -960,7 +958,7 @@ bt_get_ccb(unit, flags)
  * given a physical address, find the ccb that
  * it corresponds to:
  */
-struct bt_ccb *
+static struct bt_ccb *
 bt_ccb_phys_kv(bt, ccb_phys)
 	struct bt_data *bt;
 	physaddr ccb_phys;
@@ -979,7 +977,7 @@ bt_ccb_phys_kv(bt, ccb_phys)
 /*
  * Get a MBO and then Send it
  */
-BT_MBO *
+static BT_MBO *
 bt_send_mbo(int unit, int flags, int cmd, struct bt_ccb *ccb)
 {
 	struct	bt_data *bt = btdata[unit];
@@ -1038,12 +1036,11 @@ bt_send_mbo(int unit, int flags, int cmd, struct bt_ccb *ccb)
  * adaptor, now we look to see how the operation
  * went. Wake up the owner if waiting
  */
-void
+static void
 bt_done(unit, ccb)
 	int	unit;
 	struct	bt_ccb *ccb;
 {
-	struct bt_data *bt = btdata[unit];
 	struct scsi_sense_data *s1, *s2;
 	struct scsi_xfer *xs = ccb->xfer;
 
@@ -1099,7 +1096,7 @@ bt_done(unit, ccb)
 /*
  * Start the board, ready for normal operation
  */
-int
+static int
 bt_init(unit)
 	int     unit;
 {
@@ -1294,12 +1291,11 @@ bt_init(unit)
 	return 0;
 }
 
-void
+static void
 bt_inquire_setup_information(
 	int     unit,
 	struct  bt_ext_info *info )
 {
-	struct	bt_data *bt = btdata[unit];
 	struct	bt_setup setup;
 	struct	bt_sync_value sync;
 	char	dummy[8];
@@ -1409,7 +1405,7 @@ bt_inquire_setup_information(
 #define min(x,y) (x < y ? x : y)
 #endif	/* min */
 
-void
+static void
 btminphys(bp)
 	struct buf *bp;
 {
@@ -1422,23 +1418,17 @@ btminphys(bp)
  * start a scsi operation given the command and the data address.  Also needs
  * the unit, target and lu.
  */
-int32
+static int32
 bt_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
-	struct	scsi_sense_data *s1, *s2;
 	struct	bt_ccb *ccb;
 	struct	bt_scat_gath *sg;
 	int	seg;		/* scatter gather seg being worked on */
-	int	i = 0;
-	int	c = 0;
 	int	thiskv;
 	physaddr thisphys, nextphys;
 	int	unit = xs->sc_link->adapter_unit;
 	int	bytes_this_seg, bytes_this_page, datalen, flags;
-	struct	iovec *iovp;
-	struct	bt_data *bt = btdata[unit];
-	BT_MBO	*mbo;
 
 	SC_DEBUG(xs->sc_link, SDEV_DB2, ("bt_scsi_cmd\n"));
 	/*
@@ -1603,14 +1593,13 @@ bt_scsi_cmd(xs)
 /*
  * Poll a particular unit, looking for a particular xs
  */
-int
+static int
 bt_poll(unit, xs, ccb)
 	int	unit;
 	struct	scsi_xfer *xs;
 	struct	bt_ccb *ccb;
 {
 	struct	bt_data *bt = btdata[unit];
-	int	done = 0;
 	int	count = xs->timeout;
 	u_char	stat;
 
@@ -1671,7 +1660,7 @@ bt_poll(unit, xs, ccb)
 	return (COMPLETE);
 }
 
-void
+static void
 bt_timeout(void *arg1)
 {
 	struct bt_ccb * ccb = (struct bt_ccb *)arg1;
@@ -1727,7 +1716,7 @@ bt_timeout(void *arg1)
 }
 
 #ifdef	UTEST
-void
+static void
 bt_print_ccb(ccb)
 	struct bt_ccb *ccb;
 {
@@ -1743,7 +1732,7 @@ bt_print_ccb(ccb)
 	    ,ccb->flags);
 }
 
-void
+static void
 bt_print_active_ccbs(int unit)
 {
 	struct bt_data *bt = btdata[unit];
