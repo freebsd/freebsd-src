@@ -275,7 +275,7 @@ _find_processes()
 			esac
 		done'
 
-	debug "in _find_processes: proccheck is ($_proccheck)."
+#	debug "in _find_processes: proccheck is ($_proccheck)."
 	eval $_proccheck
 }
 
