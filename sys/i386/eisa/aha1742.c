@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.38 1995/10/28 15:38:42 phk Exp $
+ *      $Id: aha1742.c,v 1.39 1995/11/04 17:07:03 bde Exp $
  */
 
 #include <sys/types.h>
@@ -30,8 +30,7 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <machine/clock.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
+#include <i386/eisa/eisaconf.h>
 #else
 #define	NAHB	1
 #endif /*KERNEL */
@@ -64,33 +63,24 @@ typedef unsigned long int physaddr;
 
 #define	AHB_NSEG	33	/* number of dma segments supported       */
 
-/*
- * AHA1740 standard EISA Host ID regs  (Offset from slot base)
- */
-#define HID0		0xC80	/* 0,1: msb of ID2, 3-7: ID1      */
-#define HID1		0xC81	/* 0-4: ID3, 4-7: LSB ID2         */
-#define HID2		0xC82	/* product, 0=174[20] 1 = 1744    */
-#define HID3		0xC83	/* firmware revision              */
-
-#define CHAR1(B1,B2) (((B1>>2) & 0x1F) | '@')
-#define CHAR2(B1,B2) (((B1<<3) & 0x18) | ((B2>>5) & 0x7)|'@')
-#define CHAR3(B1,B2) ((B2 & 0x1F) | '@')
+#define EISA_DEVICE_ID_ADAPTEC_1740  0x04900000
+#define	AHB_EISA_IOSIZE 0x100
 
 /* AHA1740 EISA board control registers (Offset from slot base) */
-#define	EBCTRL		0xC84
+#define	EBCTRL		0x084
 #define  CDEN		0x01
 /*
  * AHA1740 EISA board mode registers (Offset from slot base)
  */
-#define PORTADDR	0xCC0
+#define PORTADDR	0x0C0
 #define	 PORTADDR_ENHANCED	0x80
-#define BIOSADDR	0xCC1
-#define	INTDEF		0xCC2
-#define	SCSIDEF		0xCC3
-#define	BUSDEF		0xCC4
-#define	RESV0		0xCC5
-#define	RESV1		0xCC6
-#define	RESV2		0xCC7
+#define BIOSADDR	0x0C1
+#define	INTDEF		0x0C2
+#define	SCSIDEF		0x0C3
+#define	BUSDEF		0x0C4
+#define	RESV0		0x0C5
+#define	RESV1		0x0C6
+#define	RESV2		0x0C7
 /**** bit definitions for INTDEF ****/
 #define	INT9	0x00
 #define	INT10	0x01
@@ -110,22 +100,22 @@ typedef unsigned long int physaddr;
 /*
  * AHA1740 ENHANCED mode mailbox control regs (Offset from slot base)
  */
-#define MBOXOUT0	0xCD0
-#define MBOXOUT1	0xCD1
-#define MBOXOUT2	0xCD2
-#define MBOXOUT3	0xCD3
+#define MBOXOUT0	0x0D0
+#define MBOXOUT1	0x0D1
+#define MBOXOUT2	0x0D2
+#define MBOXOUT3	0x0D3
 
-#define	ATTN		0xCD4
-#define	G2CNTRL		0xCD5
-#define	G2INTST		0xCD6
-#define G2STAT		0xCD7
+#define	ATTN		0x0D4
+#define	G2CNTRL		0x0D5
+#define	G2INTST		0x0D6
+#define G2STAT		0x0D7
 
-#define	MBOXIN0		0xCD8
-#define	MBOXIN1		0xCD9
-#define	MBOXIN2		0xCDA
-#define	MBOXIN3		0xCDB
+#define	MBOXIN0		0x0D8
+#define	MBOXIN1		0x0D9
+#define	MBOXIN2		0x0DA
+#define	MBOXIN3		0x0DB
 
-#define G2STAT2		0xCDC
+#define G2STAT2		0x0DC
 
 /*
  * Bit definitions for the 5 control/status registers
@@ -250,6 +240,7 @@ struct ecb {
 };
 
 struct ahb_data {
+	int	unit;
 	int     flags;
 #define	AHB_INIT	0x01;
 	int     baseport;
@@ -262,9 +253,10 @@ struct ahb_data {
 	int     numecbs;
 }      *ahbdata[NAHB];
 
+static void		ahbintr __P((void *arg));
 static int		ahbprobe();
-static int		ahbprobe1 __P((struct isa_device *dev));
-static int		ahb_attach();
+static int		ahb_attach __P((struct eisa_device *dev));
+static int		ahb_bus_attach __P((struct ahb_data *ahb));
 static int 		ahb_init __P((int unit));
 static int32		ahb_scsi_cmd();
 static timeout_t	ahb_timeout;
@@ -275,9 +267,7 @@ static void		ahbminphys();
 static struct		ecb *ahb_ecb_phys_kv();
 static u_int32		ahb_adapter_info();
 
-#define	EISA_MAX_SLOTS	16	/* XXX This should go into a comon header */
-static  int		ahb_slot = 0;	/* slot last board was found in */
-static  int		ahb_unit = 0;
+static  u_long		ahb_unit = 0;
 static 	int		ahb_debug = 0;
 #define AHB_SHOWECBS 0x01
 #define AHB_SHOWINTS 0x02
@@ -288,12 +278,16 @@ static 	int		ahb_debug = 0;
 #define PAGESIZ 4096
 
 #ifdef	KERNEL
-struct isa_driver ahbdriver =
+struct eisa_driver ahb_eisa_driver =
 {
+	"ahb",
 	ahbprobe,
 	ahb_attach,
-	"ahb"
+	/*shutdown*/NULL,
+	&ahb_unit
 };
+
+DATA_SET (eisadriver_set, ahb_eisa_driver);
 
 static struct scsi_adapter ahb_switch =
 {
@@ -318,26 +312,17 @@ static struct scsi_device ahb_dev =
     { 0, 0 }
 };
 
-static struct kern_devconf kdc_ahb[NAHB] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"ahb", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start out here in probe */
-	"Adaptec 174x-series SCSI host adapter",
-	DC_CLS_MISC		/* host adapters aren't special */
-} };
+static struct kern_devconf kdc_ahb = {
+        0, 0, 0,                /* filled in by dev_attach */
+        "ahb", 0, { MDDT_EISA, 0, "bio" },
+        eisa_generic_externalize, 0, 0, EISA_EXTERNALLEN,
+        &kdc_eisa0,             /* parent */
+        0,                      /* parentdata */
+        DC_UNCONFIGURED,        /* always start out here */
+        NULL,
+        DC_CLS_MISC             /* host adapters aren't special */
+};
 
-static inline void
-ahb_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_ahb[id->id_unit] = kdc_ahb[0];
-	kdc_ahb[id->id_unit].kdc_unit = id->id_unit;
-	kdc_ahb[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_ahb[id->id_unit]);
-}
 
 #endif /*KERNEL */
 
@@ -404,7 +389,7 @@ ahb_poll(int unit, int wait)
 		goto retry;
 	}
 	/* don't know this will work */
-	ahbintr(unit);
+	ahbintr((void *)ahb);
 	return (0);
 }
 
@@ -435,109 +420,219 @@ ahb_send_immed(int unit, int target, u_long cmd)
 	splx(s);
 }
 
-/*
- * Check the slots looking for a board we recognise
- * If we find one, note it's address (slot) and call
- * the actual probe routine to check it out.
- */
-static int
-ahbprobe(dev)
-	struct isa_device *dev;
-{
-	int     port;
-	u_char  byte1, byte2, byte3;
-
-	ahb_slot++;
-	while (ahb_slot < EISA_MAX_SLOTS) {
-		port = 0x1000 * ahb_slot;
-		byte1 = inb(port + HID0);
-		byte2 = inb(port + HID1);
-		byte3 = inb(port + HID2);
-		if (byte1 == 0xff) {
-			ahb_slot++;
-			continue;
-		}
-		if ((CHAR1(byte1, byte2) == 'A')
-		    && (CHAR2(byte1, byte2) == 'D')
-		    && (CHAR3(byte1, byte2) == 'P')
-		    && ((byte3 == 0) || (byte3 == 1))) {
-			dev->id_iobase = port;
-			return ahbprobe1(dev);
-		}
-		ahb_slot++;
+static	char *
+ahbmatch(type)     
+	eisa_id_t type;
+{                         
+	switch(type & 0xfffffe00) {
+		case EISA_DEVICE_ID_ADAPTEC_1740:
+			return ("Adaptec 174x SCSI host adapter");
+			break;
+		default:
+			break;
 	}
-	return 0;
+	return (NULL);
+} 
+
+int
+ahbprobe(void)      
+{       
+	u_long iobase;
+	char intdef;      
+	u_long irq;
+	struct eisa_device *e_dev = NULL;
+	int count;      
+                
+	count = 0;      
+	while ((e_dev = eisa_match_dev(e_dev, ahbmatch))) {
+		iobase = e_dev->ioconf.iobase;
+                        
+		eisa_add_iospace(e_dev, iobase, AHB_EISA_IOSIZE);
+		intdef = inb(INTDEF + iobase);
+		switch (intdef & 0x7) {
+			case INT9:  
+				irq = 9;
+				break;
+			case INT10: 
+				irq = 10;
+				break;
+			case INT11:
+				irq = 11;
+				break;
+			case INT12:
+				irq = 12; 
+				break;
+			case INT14:
+		                irq = 14;
+				break;
+			case INT15:
+				irq = 15;
+				break;
+			default:
+			        printf("aha174X at slot %d: illegal "
+					"irq setting %d\n", e_dev->ioconf.slot,
+					(intdef & 0x7));
+                                continue;
+		}               
+		eisa_add_intr(e_dev, irq);
+		eisa_registerdev(e_dev, &ahb_eisa_driver, &kdc_ahb);
+		count++;        
+	}               
+	return count;   
 }
 
-/*
- * Check if the device can be found at the port given
- * and if so, set it up ready for further work
- * as an argument, takes the isa_device structure from
- * autoconf.c.
- */
-static int
-ahbprobe1(dev)
-	struct isa_device *dev;
+static struct ahb_data *
+ahb_alloc(unit, iobase, irq)
+	int	unit;
+	u_long	iobase;
+	int	irq;
 {
-	/*
-	 * find unit and check we have that many defined
-	 */
-	int	unit = ahb_unit;
 	struct	ahb_data *ahb;
 
 	if (unit >= NAHB) {
 		printf("ahb: unit number (%d) too high\n", unit);
-		return 0;
+		return NULL;
 	}
-	dev->id_unit = unit;
 
 	/*
 	 * Allocate a storage area for us
 	 */
 	if (ahbdata[unit]) {
 		printf("ahb%d: memory already allocated\n", unit);
-		return 0;
+		return NULL;
 	}
 	ahb = malloc(sizeof(struct ahb_data), M_TEMP, M_NOWAIT);
 	if (!ahb) {
 		printf("ahb%d: cannot malloc!\n", unit);
-		return 0;
+		return NULL;
 	}
 	bzero(ahb, sizeof(struct ahb_data));
 	ahbdata[unit] = ahb;
-	ahb->baseport = dev->id_iobase;
-#ifndef DEV_LKM
-	ahb_registerdev(dev);
-#endif /* DEV_LKM */
+	ahb->unit = unit;
+	ahb->baseport = iobase;
+	ahb->vect = irq;
 
-	/*
-	 * Try initialise a unit at this location
-	 * sets up dma and bus speed, loads ahb->vect
-	 */
-	if (ahb_init(unit) != 0) {
-		ahbdata[unit] = NULL;
-		free(ahb, M_TEMP);
+	return(ahb);
+}
+
+static void    
+ahb_free(ahb)   
+	struct ahb_data *ahb;  
+{
+	ahbdata[ahb->unit] = NULL; 
+	free(ahb, M_DEVBUF);
+	return; 
+}
+
+/*
+ * reset board, If it doesn't respond, return failure
+ */
+static int
+ahb_reset(port)
+	u_long port;
+{
+	u_char	i;
+	int	wait = 1000;	/* 1 sec enough? */
+	int	stport = port + G2STAT;
+
+	outb(port + EBCTRL, CDEN);	/* enable full card */
+	outb(port + PORTADDR, PORTADDR_ENHANCED);
+
+	outb(port + G2CNTRL, G2CNTRL_HARD_RESET);
+	DELAY(1000);
+	outb(port + G2CNTRL, 0);
+	DELAY(10000);
+	while (--wait) {
+		if ((inb(stport) & G2STAT_BUSY) == 0)
+			break;
+		DELAY(1000);
+	} if (wait == 0) {
+		printf("ahb_reset: No answer from aha1742 board\n");
 		return (0);
 	}
-	/*
-	 * If it's there, put in it's interrupt vectors
-	 */
-	dev->id_irq = (1 << ahb->vect);
-	dev->id_drq = -1;	/* use EISA dma */
-
-	ahb_unit++;
-	return IO_EISASIZE;
+	i = inb(port + MBOXIN0) & 0xff;
+	if (i) {
+		printf("ahb_reset: self test failed, val = 0x%x\n", i);
+		return (0);
+	}
+	while (inb(stport) & G2STAT_INT_PEND) {
+		printf(".");
+		outb(port + G2CNTRL, G2CNTRL_CLEAR_EISA_INT);
+		DELAY(10000);
+	}
+	outb(port + EBCTRL, CDEN);	/* enable full card */
+	outb(port + PORTADDR, PORTADDR_ENHANCED);
+	return (1);
 }
+
+/*
+ * Attach ourselves and the devices on our bus
+ */
+static int
+ahb_attach(e_dev)
+	struct eisa_device *e_dev;
+{
+	/*
+	 * find unit and check we have that many defined
+	 */
+	int	unit = e_dev->unit;
+	struct	ahb_data *ahb;
+	int	irq = ffs(e_dev->ioconf.irq) - 1;
+
+	if(!(ahb_reset(e_dev->ioconf.iobase)))
+		return -1;
+
+	eisa_reg_start(e_dev);
+	if(eisa_reg_iospace(e_dev, e_dev->ioconf.iobase, AHB_EISA_IOSIZE)) {
+		eisa_reg_end(e_dev);
+		return -1;
+	}
+
+	if(!(ahb = ahb_alloc(unit, e_dev->ioconf.iobase, irq))) {
+		ahb_free(ahb);
+		eisa_reg_end(e_dev);
+		return -1;
+	}
+
+	if(eisa_reg_intr(e_dev, irq, ahbintr, (void *)ahb, &bio_imask,
+			 /*shared ==*/TRUE)) {
+		ahb_free(ahb);
+		eisa_reg_end(e_dev);
+		return -1;
+	}
+	eisa_reg_end(e_dev);
+
+	/*
+	 * Now that we know we own the resources we need, do the full
+	 * card initialization.
+	 */
+	if(ahb_init(unit)){
+		ahb_free(ahb);
+		/*
+		 * The board's IRQ line will not be left enabled
+		 * if we can't intialize correctly, so its safe
+		 * to release the irq.
+		 */
+		eisa_release_intr(e_dev, irq, ahbintr);
+		return -1;
+        }
+	e_dev->kdc->kdc_state = DC_BUSY; /* host adapters always busy */
+
+	/* Attach sub-devices - always succeeds */
+	ahb_bus_attach(ahb);
+
+	return(eisa_enable_intr(e_dev, irq));
+}
+
 
 /*
  * Attach all the sub-devices we can find
  */
 static int
-ahb_attach(dev)
-	struct isa_device *dev;
+ahb_bus_attach(ahb)
+	struct ahb_data *ahb;
 {
-	int     unit = dev->id_unit;
-	struct ahb_data *ahb = ahbdata[unit];
+	int     unit = ahb->unit;
 	struct scsibus_data *scbus;
 
 	/*
@@ -557,7 +652,6 @@ ahb_attach(dev)
 		return 0;
 	scbus->adapter_link = &ahb->sc_link;
 
-	kdc_ahb[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	/*
 	 * ask the adapter what subunits are present
 	 */
@@ -580,18 +674,22 @@ ahb_adapter_info(unit)
 /*
  * Catch an interrupt from the adaptor
  */
-void
-ahbintr(unit)
-	int	unit;
+static void
+ahbintr(arg)
+	void	*arg;
 {
+	struct ahb_data *ahb;
 	struct ecb *ecb;
 	unsigned char stat;
 	u_char  ahbstat;
 	int     target;
 	long int mboxval;
-	struct ahb_data *ahb = ahbdata[unit];
+	int	port;
+	int	unit;
 
-	int	port = ahb->baseport;
+	ahb = (struct ahb_data *)arg;
+	unit = ahb->unit;
+	port = ahb->baseport;
 
 #ifdef	AHBDEBUG
 	printf("ahbintr ");
@@ -792,8 +890,7 @@ ahb_get_ecb(unit, flags)
 	struct ecb *ecbp;
 	int     hashnum;
 
-	if (!(flags & SCSI_NOMASK))
-		opri = splbio();
+	opri = splbio();
 	/*
 	 * If we can and have to, sleep waiting for one to come free
 	 * but only if we can't allocate a new one.
@@ -817,20 +914,24 @@ ahb_get_ecb(unit, flags)
 				ahb->ecbhash[hashnum] = ecbp;
 			} else {
 				printf("ahb%d: Can't malloc ECB\n", unit);
-			} goto gottit;
+			} 
+			break;
 		} else {
 			if (!(flags & SCSI_NOSLEEP)) {
 				tsleep((caddr_t)&ahb->free_ecb, PRIBIO,
 				    "ahbecb", 0);
+				continue;
 			}
+			break;
 		}
-	} if (ecbp) {
+	}
+	if (ecbp) {
 		/* Get ECB from from free list */
 		ahb->free_ecb = ecbp->next;
 		ecbp->flags = ECB_ACTIVE;
 	}
-gottit:	if (!(flags & SCSI_NOMASK))
-		splx(opri);
+
+	splx(opri);
 
 	return (ecbp);
 }
@@ -862,82 +963,17 @@ static int
 ahb_init(unit)
 	int     unit;
 {
+	u_char intdef;
 	struct ahb_data *ahb = ahbdata[unit];
 	int     port = ahb->baseport;
-	int     intdef;
-	int     wait = 1000;	/* 1 sec enough? */
 	int     i;
 	int     stport = port + G2STAT;
-#define	NO_NO 1
-#ifdef NO_NO
-	/*
-	 * reset board, If it doesn't respond, assume
-	 * that it's not there.. good for the probe
-	 */
-	outb(port + EBCTRL, CDEN);	/* enable full card */
-	outb(port + PORTADDR, PORTADDR_ENHANCED);
-
-	outb(port + G2CNTRL, G2CNTRL_HARD_RESET);
-	DELAY(1000);
-	outb(port + G2CNTRL, 0);
-	DELAY(10000);
-	while (--wait) {
-		if ((inb(stport) & G2STAT_BUSY) == 0)
-			break;
-		DELAY(1000);
-	} if (wait == 0) {
-#ifdef	AHBDEBUG
-		if (ahb_debug & AHB_SHOWMISC)
-			printf("ahb_init: No answer from aha1742 board\n");
-#endif /*AHBDEBUG */
-		return (ENXIO);
-	}
-	i = inb(port + MBOXIN0) & 0xff;
-	if (i) {
-		printf("self test failed, val = 0x%x\n", i);
-		return (EIO);
-	}
-#endif
-	while (inb(stport) & G2STAT_INT_PEND) {
-		printf(".");
-		outb(port + G2CNTRL, G2CNTRL_CLEAR_EISA_INT);
-		DELAY(10000);
-	}
-	outb(port + EBCTRL, CDEN);	/* enable full card */
-	outb(port + PORTADDR, PORTADDR_ENHANCED);
 	/*
 	 * Assume we have a board at this stage
 	 * setup dma channel from jumpers and save int
 	 * level
 	 */
-	printf("ahb%d: reading board settings, ", unit);
-
 	intdef = inb(port + INTDEF);
-	switch (intdef & 0x07) {
-	case INT9:
-		ahb->vect = 9;
-		break;
-	case INT10:
-		ahb->vect = 10;
-		break;
-	case INT11:
-		ahb->vect = 11;
-		break;
-	case INT12:
-		ahb->vect = 12;
-		break;
-	case INT14:
-		ahb->vect = 14;
-		break;
-	case INT15:
-		ahb->vect = 15;
-		break;
-	default:
-		printf("illegal int setting\n");
-		return (EIO);
-	}
-	printf("int=%d\n", ahb->vect);
-
 	outb(port + INTDEF, (intdef | INTEN));	/* make sure we can interrupt */
 
 	/* who are we on the scsi bus? */
