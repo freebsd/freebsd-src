@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)test.1	8.1 (Berkeley) 5/31/93
-.\"	$Id: test.1,v 1.4 1997/02/22 14:06:23 peter Exp $
+.\"	$Id: test.1,v 1.5 1997/06/02 06:33:51 charnier Exp $
 .\"
 .Dd May 31, 1993
 .Dt TEST 1
@@ -46,7 +46,7 @@
 .Ar expression
 .Sh DESCRIPTION
 The
-.Nm test
+.Nm
 utility evaluates the expression and, if it evaluates
 to true, returns a zero (true) exit status; otherwise
 it returns 1 (false).
@@ -54,11 +54,11 @@ If there is no expression, test also
 returns 1 (false).
 .Pp
 All operators and flags are separate arguments to the
-.Nm test
+.Nm
 utility.
 .Pp
 The following primaries are used to construct expression:
-.Bl -tag -width Ar
+.Bl -tag -width indent
 .It Fl b Ar file
 True if
 .Ar file
@@ -228,7 +228,7 @@ operator has higher precedence than the
 operator.
 .Sh GRAMMAR AMBIGUITY
 The 
-.Nm test
+.Nm
 grammar is inherently ambiguous.  In order to assure a degree of consistency,
 the cases described in the 
 .St -p1003.2 , 
@@ -238,7 +238,7 @@ standards document.  All other cases are subject to the ambiguity in the
 command semantics.
 .Sh RETURN VALUES
 The
-.Nm test
+.Nm
 utility exits with one of the following values:
 .Bl -tag -width Ds
 .It 0
@@ -251,7 +251,7 @@ An error occurred.
 .El
 .Sh STANDARDS
 The
-.Nm test
+.Nm
 function is expected to be
 .St -p1003.2
 compatible.

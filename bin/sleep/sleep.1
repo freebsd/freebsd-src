@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sleep.1	8.3 (Berkeley) 4/18/94
-.\"	$Id: sleep.1,v 1.6 1997/02/22 14:05:44 peter Exp $
+.\"	$Id: sleep.1,v 1.7 1997/08/12 21:20:12 ache Exp $
 .\"
 .Dd April 18, 1994
 .Dt SLEEP 1
@@ -46,17 +46,17 @@
 .Ar seconds
 .Sh DESCRIPTION
 The
-.Nm sleep
+.Nm
 command
 suspends execution for a minimum of
 .Ar seconds .
-.Nm
+.Nm Sleep
 is used to schedule the execution of other commands (see
 .Sx EXAMPLES
 below).
 .Pp
 If the
-.Nm sleep
+.Nm
 command
 receives a SIGALRM signal, it terminates normally with a zero exit status,
 for any other signal it takes the standard action.
@@ -117,7 +117,7 @@ awk job.
 .Xr sleep 3
 .Sh STANDARDS
 The
-.Nm sleep
+.Nm
 command is expected to be
 .St -p1003.2
 compatible.
