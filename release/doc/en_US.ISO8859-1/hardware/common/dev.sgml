@@ -74,7 +74,7 @@
 		<para>Intel PIIX, PIIX3, PIIX4</para>
 	   </listitem>
 	   <listitem>
-		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100</para>
+		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100, ICH5 SATA150</para>
 	   </listitem>
 	   <listitem>
 		<para>nVidia nForce ATA100</para>
@@ -113,7 +113,7 @@
 		<para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66, 82C686b ATA100</para>
 	   </listitem>
 	   <listitem>
-		<para>VIA 8233, 8235 ATA133</para>
+		<para>VIA 8233, 8235 ATA133, 8237 SATA150</para>
 	   </listitem>
       </itemizedlist>
     </para>
