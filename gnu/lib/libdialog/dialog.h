@@ -36,6 +36,14 @@
 #define VERSION "0.4"
 #define MAX_LEN 2048
 
+#ifndef TRUE
+#define TRUE (1)
+#endif
+#ifndef FALSE
+#define FALSE (0)
+#endif
+
+
 /* 
  * Attribute names
  */
@@ -88,7 +96,7 @@ int dialog_yesno(unsigned char *title, unsigned char *prompt, int height, int wi
 int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, int width, int pause, int use_shell);
 int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int width, int pause);
 int dialog_textbox(unsigned char *title, unsigned char *file, int height, int width);
-int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result);
+int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result, int *ch, int *sc);
 int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
 int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
 int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int width, unsigned char *result);
@@ -97,3 +105,10 @@ void dialog_clear(void);
 void dialog_update(void);
 void init_dialog(void);
 void end_dialog(void);
+
+/* Additions to libdialog */
+char *dialog_fselect(char *dir, char *fmask);
+void dialog_notify(char *msg);
+int  dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int width);
+void use_helpfile(char *helpfile);
+void use_helpline(char *helpline);

@@ -92,6 +92,8 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
   box_x = (width - box_width)/2;
   draw_box(dialog, y+1, box_x-1, 3, box_width+2, border_attr, dialog_attr);
 
+  display_helpline(dialog, height-1, width);
+
   x = width/2-11;
   y = height-2;
   print_button(dialog, "Cancel", y, x+14, FALSE);
@@ -175,6 +177,10 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
         return (button == -1 ? 0 : button);
       case ESC:
         break;
+    case KEY_F(1):
+    case '?':
+	display_helpfile();
+	break;
     }
   }
 
