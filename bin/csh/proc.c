@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)proc.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: proc.c,v 1.8 1998/02/28 10:49:59 jraynard Exp $";
+	"$Id: proc.c,v 1.9 1998/05/06 06:50:58 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -76,7 +76,7 @@ static void	 okpcntl __P((void));
  * pchild - called at interrupt level by the SIGCHLD signal
  *	indicating that at least one child has terminated or stopped
  *	thus at least one wait system call will definitely return a
- *	childs status.  Top level routines (like pwait) must be sure
+ *	child's status.  Top level routines (like pwait) must be sure
  *	to mask interrupts when playing with the proclist data structures!
  */
 /* ARGUSED */

@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 static const char rcsid[] =
-	"$Id: eval.c,v 1.17 1999/04/03 12:55:51 cracauer Exp $";
+	"$Id: eval.c,v 1.18 1999/04/21 11:52:39 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -122,7 +122,7 @@ SHELLPROC {
 
 
 /*
- * The eval commmand.
+ * The eval command.
  */
 
 int

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)csh.h	8.1 (Berkeley) 5/31/93
- *	$Id: csh.h,v 1.5 1997/08/07 21:42:04 steve Exp $
+ *	$Id: csh.h,v 1.6 1997/08/08 00:53:59 steve Exp $
  */
 
 /*
@@ -306,7 +306,7 @@ Char   *lap;
  *
  * Each command is parsed to a tree of command structures and
  * flags are set bottom up during this process, to be propagated down
- * as needed during the semantics/exeuction pass (sh.sem.c).
+ * as needed during the semantics/execution pass (sh.sem.c).
  */
 struct command {
     short   t_dtyp;		/* Type of node 		 */
@@ -535,7 +535,7 @@ Char  **evalvec;
 Char   *evalp;
 
 /* word_chars is set by default to WORD_CHARS but can be overridden by
-   the worchars variable--if unset, reverts to WORD_CHARS */
+   the wordchars variable--if unset, reverts to WORD_CHARS */
 
 Char   *word_chars;
 

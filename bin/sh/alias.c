@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)alias.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: alias.c,v 1.10 1998/05/18 06:43:25 charnier Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -90,7 +90,7 @@ setalias(name, val)
 	 * expanding an alias, the value of the alias is pushed back on the
 	 * input as a string and a pointer to the alias is stored with the
 	 * string.  The alias is marked as being in use.  When the input
-	 * routine finishes reading the string, it markes the alias not
+	 * routine finishes reading the string, it marks the alias not
 	 * in use.  The problem is synchronization with the parser.  Since
 	 * it reads ahead, the alias is marked not in use before the
 	 * resulting token(s) is next checked for further alias sub.  The

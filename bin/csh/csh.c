@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)csh.c	8.2 (Berkeley) 10/12/93";
 #else
 static const char rcsid[] =
-	"$Id: csh.c,v 1.12 1997/12/10 22:18:21 eivind Exp $";
+	"$Id: csh.c,v 1.13 1998/02/28 10:49:52 jraynard Exp $";
 #endif
 #endif /* not lint */
 
@@ -1223,7 +1223,7 @@ gethdir(home)
 
 /*
  * When didfds is set, we do I/O from 0, 1, 2 otherwise from 15, 16, 17
- * We also check if the shell has already changed the decriptor to point to
+ * We also check if the shell has already changed the descriptor to point to
  * 0, 1, 2 when didfds is set.
  */
 #define DESC(a) (*((int *) (a)) - (didfds && *((int *) a) >= FSHIN ? FSHIN : 0))

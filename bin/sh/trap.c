@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.17 1998/09/10 22:09:11 cracauer Exp $";
+	"$Id: trap.c,v 1.18 1999/04/01 13:27:36 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -70,7 +70,7 @@ static const char rcsid[] =
 #define S_DFL 1			/* default signal handling (SIG_DFL) */
 #define S_CATCH 2		/* signal is caught */
 #define S_IGN 3			/* signal is ignored (SIG_IGN) */
-#define S_HARD_IGN 4		/* signal is ignored permenantly */
+#define S_HARD_IGN 4		/* signal is ignored permanently */
 #define S_RESET 5		/* temporary - to reset a hard ignored sig */
 
 

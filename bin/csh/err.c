@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)err.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: err.c,v 1.7 1998/05/06 06:50:41 charnier Exp $";
+	"$Id: err.c,v 1.8 1998/05/13 07:28:55 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -327,7 +327,7 @@ seterror(id, va_alist)
  *		  in bname
  *
  * This routine always resets or exits.  The flag haderr
- * is set so the routine who catches the unwind can propogate
+ * is set so the routine who catches the unwind can propagate
  * it if they want.
  *
  * Note that any open files at the point of error will eventually

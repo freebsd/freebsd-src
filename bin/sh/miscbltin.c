@@ -39,11 +39,11 @@
 static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: miscbltin.c,v 1.17 1998/08/25 09:33:34 cracauer Exp $";
+	"$Id: miscbltin.c,v 1.18 1998/12/16 04:45:35 imp Exp $";
 #endif /* not lint */
 
 /*
- * Miscelaneous builtins.
+ * Miscellaneous builtins.
  */
 
 #include <sys/types.h>

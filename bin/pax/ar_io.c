@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)ar_io.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ar_io.c,v 1.10 1998/05/15 06:27:34 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -65,8 +65,8 @@ static const char rcsid[] =
 #define EXT_MODE	O_RDONLY	/* open mode for list/extract */
 #define AR_MODE		(O_WRONLY | O_CREAT | O_TRUNC)	/* mode for archive */
 #define APP_MODE	O_RDWR		/* mode for append */
-#define STDO		"<STDOUT>"	/* psuedo name for stdout */
-#define STDN		"<STDIN>"	/* psuedo name for stdin */
+#define STDO		"<STDOUT>"	/* pseudo name for stdout */
+#define STDN		"<STDIN>"	/* pseudo name for stdin */
 static int arfd = -1;			/* archive file descriptor */
 static int artyp = ISREG;		/* archive type: file/FIFO/tape */
 static int arvol = 1;			/* archive volume number */
@@ -263,7 +263,7 @@ ar_open(name)
 			if ((arsb.st_size % rdblksz) == 0)
 				break;
 		/*
-		 * When we cannont find a match, we may have a flawed archive.
+		 * When we cannot find a match, we may have a flawed archive.
 		 */
 		if (rdblksz <= 0)
 			rdblksz = FILEBLK;
@@ -690,7 +690,7 @@ ar_write(buf, bsz)
 	/*
 	 * Better tell the user the bad news...
 	 * if this is a block aligned archive format, we may have a bad archive
-	 * if the format wants the header to start at a BLKMULT boundry. While
+	 * if the format wants the header to start at a BLKMULT boundary. While
 	 * we can deal with the mis-aligned data, it violates spec and other
 	 * archive readers will likely fail. if the format is not block
 	 * aligned, the user may be lucky (and the archive is ok).
@@ -763,7 +763,7 @@ ar_rdsync()
 		 * if the last i/o was a successful data transfer, we assume
 		 * the fault is just a bad record on the tape that we are now
 		 * past. If we did not get any data since the last resync try
-		 * to move the tape foward one PHYSICAL record past any
+		 * to move the tape forward one PHYSICAL record past any
 		 * damaged tape section. Some tape drives are stubborn and need
 		 * to be pushed.
 		 */
@@ -870,7 +870,7 @@ ar_fow(sksz, skipped)
 		if (lseek(arfd, mpos, SEEK_SET) >= 0)
 			return(0);
 	}
-	sys_warn(1, errno, "Foward positioning operation on archive failed");
+	sys_warn(1, errno, "Forward positioning operation on archive failed");
 	lstrval = -1;
 	return(-1);
 }
