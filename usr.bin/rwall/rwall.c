@@ -102,8 +102,8 @@ main(int argc, char *argv[])
 
 	tv.tv_sec = 15;		/* XXX ?? */
 	tv.tv_usec = 0;
-	if (clnt_call(cl, WALLPROC_WALL, xdr_wrapstring, &mbuf, xdr_void,
-	    &res, tv) != RPC_SUCCESS) {
+	if (clnt_call(cl, WALLPROC_WALL, (xdrproc_t)xdr_wrapstring, &mbuf,
+	    (xdrproc_t)xdr_void, &res, tv) != RPC_SUCCESS) {
 		/*
 		 * An error occurred while calling the server.
 		 * Print error message and die.
