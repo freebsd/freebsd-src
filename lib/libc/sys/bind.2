@@ -30,37 +30,37 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)bind.2	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
 .Dd June 4, 1993
 .Dt BIND 2
 .Os BSD 4.2
 .Sh NAME
 .Nm bind
-.Nd bind a name to a socket
+.Nd assign a local protocol address to a socket.
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Ft int
-.Fn bind "int s" "const struct sockaddr *name" "int namelen"
+.Fn bind "int s" "const struct sockaddr *addr" "int addrlen"
 .Sh DESCRIPTION
 .Fn Bind
-assigns a name to an unnamed socket.
+assigns the local protocol address to a socket.
 When a socket is created 
 with
 .Xr socket 2
-it exists in a name space (address family)
-but has no name assigned.
+it exists in an address family space but has no protocol address assigned.
 .Fn Bind
 requests that
-.Fa name
+.Fa addr
 be assigned to the socket.
 .Sh NOTES
-Binding a name in the UNIX domain creates a socket in the file
+Binding an address in the UNIX domain creates a socket in the file
 system that must be deleted by the caller when it is no longer
 needed (using
 .Xr unlink 2 ) .
 .Pp
-The rules used in name binding vary between communication domains.
+The rules used in address binding vary between communication domains.
 Consult the manual entries in section 4 for detailed information.
 .Sh IMPLEMENTATION NOTES
 .Pp
@@ -109,12 +109,12 @@ The requested address is protected, and the current user
 has inadequate permission to access it.
 .It Bq Er EFAULT
 The
-.Fa name
+.Fa addr
 parameter is not in a valid part of the user
 address space.
 .El
 .Pp
-The following errors are specific to binding names in the UNIX domain.
+The following errors are specific to binding addresses in the UNIX domain.
 .Bl -tag -width EADDRNOTAVA
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
