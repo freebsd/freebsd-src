@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.9 1994/10/22 02:35:09 ache Exp $
+ * $Id: utils.c,v 1.10 1994/10/22 02:37:24 ache Exp $
  *
  */
 
@@ -91,11 +91,11 @@ Abort()
 void
 ExitSysinstall()
 {
+	if (dialog_active) {
+		clear();
+		dialog_update();
+	}
 	if (getpid() == 1) {
-		if (dialog_active) {
-			clear();
-			dialog_update();
-		}
 		if (reboot(RB_AUTOBOOT) == -1)
 			if (dialog_active) {
 				clear();
@@ -106,8 +106,8 @@ ExitSysinstall()
 			while(1);
 	} else {
 		if (dialog_active) {
-			dialog_update();
 			end_dialog();
+			dialog_active = 0;
 		}
 		exit(0);
 	}
