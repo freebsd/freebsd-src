@@ -295,7 +295,7 @@ get_client(host_addr, vers)
 	    host_addr->sa_len);
 	clnt_cache_vers[clnt_cache_next_to_use] = vers;
 	clnt_cache_time[clnt_cache_next_to_use] = time_now.tv_sec;
-	if (++clnt_cache_next_to_use > CLIENT_CACHE_SIZE)
+	if (++clnt_cache_next_to_use >= CLIENT_CACHE_SIZE)
 		clnt_cache_next_to_use = 0;
 
 	/*
@@ -386,7 +386,10 @@ nlmtonlm4(arg, arg4)
 	struct nlm_lock *arg;
 	struct nlm4_lock *arg4;
 {
-	memcpy(arg4, arg, sizeof(nlm_lock));
+	arg4->caller_name = arg->caller_name;
+	arg4->fh = arg->fh;
+	arg4->oh = arg->oh;
+	arg4->svid = arg->svid;
 	arg4->l_offset = arg->l_offset;
 	arg4->l_len = arg->l_len;
 }
