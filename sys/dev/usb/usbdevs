@@ -313,6 +313,7 @@ vendor ALATION		0x0910	Alation Systems
 vendor GOHUBS		0x0921	GoHubs
 vendor BIOMETRIC	0x0929	American Biometric Company
 vendor TOSHIBA		0x0930	Toshiba Corporation
+vendor PLEXTOR		0x093b  Plextor Corp.
 vendor YANO		0x094f	Yano
 vendor KINGSTON		0x0951	Kingston Technology
 vendor BLUEWATER	0x0956	BlueWater Systems
@@ -693,6 +694,7 @@ product GENERALINSTMNTS SB5100	0x5100	SURFboard SB5100 Cable modem
 /* Genesys Logic products */
 product	GENESYS GL650		0x0604	GL650 Hub
 product	GENESYS GL641USB	0x0700	GL641USB CompactFlash Card Reader
+product	GENESYS GL641USB2IDE_2	0x0701	GL641USB USB-IDE Bridge No 2
 product	GENESYS GL641USB2IDE	0x0702	GL641USB USB-IDE Bridge
 
 /* HAL Corporation products */
@@ -1039,6 +1041,9 @@ product PHILIPSSEMI HUB1122	0x1122	hub
 
 /* P.I. Engineering products */
 product PIENGINEERING PS2USB	0x020b	PS2 to Mac USB Adapter
+
+/* Plextor Corp. */
+product	PLEXTOR 40_12_40U	0x0011	PlexWriter 40/12/40U
 
 /* PLX products */
 product PLX TESTBOARD		0x9060	test board
