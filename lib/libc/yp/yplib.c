@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.20 1996/06/01 05:08:31 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.21 1996/06/03 13:19:10 jraynard Exp $";
 #endif
 
 #include <sys/param.h>
@@ -217,7 +217,8 @@ _yp_dobind(dom, ypdb)
 	struct ypbind_resp ypbr;
 	struct timeval tv;
 	struct sockaddr_in clnt_sin;
-	int clnt_sock, lfd, fd, gpid;
+	int clnt_sock, lfd, fd;
+	pid_t gpid;
 	CLIENT *client;
 	int new = 0, r;
 	int retries = 0;
