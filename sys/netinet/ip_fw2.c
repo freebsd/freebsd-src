@@ -1686,7 +1686,8 @@ check_body:
 				break;
 
 			case O_LOG:
-				ipfw_log(f, hlen, args->eh, m, oif);
+				if (fw_verbose)
+					ipfw_log(f, hlen, args->eh, m, oif);
 				match = 1;
 				break;
 
