@@ -1461,8 +1461,10 @@ function_key()				/* process function key		*/
 		left(TRUE);
 	else if (in == KEY_RIGHT)
 		right(TRUE);
-	else if ( in == KEY_HOME)
-		top();
+	else if (in == KEY_HOME)
+		bol();
+	else if (in == KEY_END)
+		eol();
 	else if ( in == KEY_UP)
 		up();
 	else if (in == KEY_DOWN)
