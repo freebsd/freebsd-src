@@ -609,7 +609,7 @@ GetNewPort(struct alias_link *link, int alias_port_param)
 
         if (go_ahead)
         {
-            if ((packetAliasMode && PKT_ALIAS_USE_SOCKETS)
+            if ((packetAliasMode & PKT_ALIAS_USE_SOCKETS)
              && (link->flags & LINK_PARTIALLY_SPECIFIED))
             {
                 if (GetSocket(port_net, &link->sockfd, link->link_type))
