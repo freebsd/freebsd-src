@@ -106,7 +106,7 @@ static int	icmplim_output = 1;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
 	&icmplim_output, 0, "");
 
-static char	reply_src[IFNAMSIZ+1];
+static char	reply_src[IFNAMSIZ];
 SYSCTL_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_RW,
 	&reply_src, IFNAMSIZ, "icmp reply source for non-local packets.");
 
