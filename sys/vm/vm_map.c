@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.22.4.3 1996/06/15 12:29:19 davidg Exp $
+ * $Id: vm_map.c,v 1.22.4.4 1996/06/15 14:03:33 davidg Exp $
  */
 
 /*
@@ -323,7 +323,7 @@ vm_map_entry_create(map)
 
 			m = vm_page_alloc(kernel_object,
 			        mapvm - VM_MIN_KERNEL_ADDRESS,
-				    (map == kmem_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
+				    (map == kmem_map || map == mb_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
 			if (m) {
 				int newentries;
 
@@ -347,7 +347,7 @@ vm_map_entry_create(map)
 		}
 		splx(s);
 	}
-	if (map == kernel_map || map == kmem_map || map == pager_map) {
+	if (map == kernel_map || map == kmem_map || map == mb_map || map == pager_map) {
 		s = splimp();
 		entry = kentry_free;
 		if (entry) {
@@ -775,14 +775,14 @@ vm_map_find(map, object, offset, addr, length, find_space)
 
 	start = *addr;
 
-	if (map == kmem_map)
+	if (map == kmem_map || map == mb_map)
 		s = splhigh();
 
 	vm_map_lock(map);
 	if (find_space) {
 		if (vm_map_findspace(map, start, length, addr)) {
 			vm_map_unlock(map);
-			if (map == kmem_map)
+			if (map == kmem_map || map == mb_map)
 				splx(s);
 			return (KERN_NO_SPACE);
 		}
@@ -791,7 +791,7 @@ vm_map_find(map, object, offset, addr, length, find_space)
 	result = vm_map_insert(map, object, offset, start, start + length);
 	vm_map_unlock(map);
 
-	if (map == kmem_map)
+	if (map == kmem_map || map == mb_map)
 		splx(s);
 
 	return (result);
@@ -1668,7 +1668,7 @@ vm_map_remove(map, start, end)
 {
 	register int result, s = 0;
 
-	if (map == kmem_map)
+	if (map == kmem_map || map == mb_map)
 		s = splhigh();
 
 	vm_map_lock(map);
@@ -1676,7 +1676,7 @@ vm_map_remove(map, start, end)
 	result = vm_map_delete(map, start, end);
 	vm_map_unlock(map);
 
-	if (map == kmem_map)
+	if (map == kmem_map || map == mb_map)
 		splx(s);
 
 	return (result);
