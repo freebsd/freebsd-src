@@ -2252,7 +2252,7 @@ QWordConstExpr
 ConstExprTerm
     : PARSEOP_ZERO                  {$$ = TrCreateValuedLeafNode (PARSEOP_ZERO, 0);}
     | PARSEOP_ONE                   {$$ = TrCreateValuedLeafNode (PARSEOP_ONE, 1);}
-    | PARSEOP_ONES                  {$$ = TrCreateValuedLeafNode (PARSEOP_ONES, 0xFFFFFFFFFFFFFFFFull);}
+    | PARSEOP_ONES                  {$$ = TrCreateValuedLeafNode (PARSEOP_ONES, ACPI_INTEGER_MAX);}
     ;
 
 /* OptionalCount must appear before ByteList or an incorrect reduction will result */

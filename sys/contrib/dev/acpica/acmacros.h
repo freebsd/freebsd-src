@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 150 $
+ *       $Revision: 151 $
  *
  *****************************************************************************/
 
@@ -125,6 +125,9 @@
 #define ACPI_HIWORD(l)                  ((UINT16)((((UINT32)(l)) >> 16) & 0xFFFF))
 #define ACPI_LOBYTE(l)                  ((UINT8)(UINT16)(l))
 #define ACPI_HIBYTE(l)                  ((UINT8)((((UINT16)(l)) >> 8) & 0xFF))
+
+#define ACPI_SET_BIT(target,bit)        ((target) |= (bit))
+#define ACPI_CLEAR_BIT(target,bit)      ((target) &= ~(bit))
 
 
 #if ACPI_MACHINE_WIDTH == 16

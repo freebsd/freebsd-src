@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 156 $
+ *       $Revision: 158 $
  *
  *****************************************************************************/
 
@@ -137,7 +137,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION                 0x20040514
+#define ACPI_CA_VERSION                 0x20040527
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -151,7 +151,7 @@
 
 /* Maximum objects in the various object caches */
 
-#define ACPI_MAX_STATE_CACHE_DEPTH      64          /* State objects for stacks */
+#define ACPI_MAX_STATE_CACHE_DEPTH      64          /* State objects */
 #define ACPI_MAX_PARSE_CACHE_DEPTH      96          /* Parse tree objects */
 #define ACPI_MAX_EXTPARSE_CACHE_DEPTH   64          /* Parse tree objects */
 #define ACPI_MAX_OBJECT_CACHE_DEPTH     64          /* Interpreter operand objects */
@@ -235,10 +235,11 @@
 
 /* Constants used in searching for the RSDP in low memory */
 
-#define ACPI_LO_RSDP_WINDOW_BASE        0           /* Physical Address */
-#define ACPI_HI_RSDP_WINDOW_BASE        0xE0000     /* Physical Address */
-#define ACPI_LO_RSDP_WINDOW_SIZE        0x400
-#define ACPI_HI_RSDP_WINDOW_SIZE        0x20000
+#define ACPI_EBDA_PTR_LOCATION          0x0000040E     /* Physical Address */
+#define ACPI_EBDA_PTR_LENGTH            2
+#define ACPI_EBDA_WINDOW_SIZE           1024
+#define ACPI_HI_RSDP_WINDOW_BASE        0x000E0000     /* Physical Address */
+#define ACPI_HI_RSDP_WINDOW_SIZE        0x00020000
 #define ACPI_RSDP_SCAN_STEP             16
 
 /* Operation regions */

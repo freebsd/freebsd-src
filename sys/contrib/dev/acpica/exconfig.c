@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 77 $
+ *              $Revision: 78 $
  *
  *****************************************************************************/
 
@@ -415,7 +415,7 @@ AcpiExLoadOp (
         for (i = 0; i < 8; i++)
         {
             Status = AcpiEvAddressSpaceDispatch (ObjDesc, ACPI_READ,
-                                (ACPI_PHYSICAL_ADDRESS) i + Address, 8,
+                                (ACPI_PHYSICAL_ADDRESS) (i + Address), 8,
                                 ((UINT8 *) &TableHeader) + i);
             if (ACPI_FAILURE (Status))
             {
@@ -443,7 +443,7 @@ AcpiExLoadOp (
         for (i = 0; i < TableHeader.Length; i++)
         {
             Status = AcpiEvAddressSpaceDispatch (ObjDesc, ACPI_READ,
-                                (ACPI_PHYSICAL_ADDRESS) i + Address, 8,
+                                (ACPI_PHYSICAL_ADDRESS) (i + Address), 8,
                                 ((UINT8 *) TablePtr + i));
             if (ACPI_FAILURE (Status))
             {
