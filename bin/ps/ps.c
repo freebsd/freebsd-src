@@ -124,7 +124,7 @@ struct listinfo {
 		dev_t	*ttys;
 		uid_t	*uids;
 		void	*ptr;
-	};
+	} l;
 };
 
 static int	 addelem_gid(struct listinfo *, const char *);
@@ -443,12 +443,12 @@ main(int argc, char *argv[])
 		parsefmt(dfmt, 0);
 
 	if (nselectors == 0) {
-		uidlist.ptr = malloc(sizeof(uid_t));
-		if (uidlist.ptr == NULL)
+		uidlist.l.ptr = malloc(sizeof(uid_t));
+		if (uidlist.l.ptr == NULL)
 			errx(1, "malloc failed");
 		nselectors = 1;
 		uidlist.count = uidlist.maxcount = 1;
-		*uidlist.uids = getuid();
+		*uidlist.l.uids = getuid();
 	}
 
 	/*
@@ -470,15 +470,15 @@ main(int argc, char *argv[])
 		/* XXX - Apparently there's no KERN_PROC_GID flag. */
 		if (pgrplist.count == 1) {
 			what = KERN_PROC_PGRP | showthreads;
-			flag = *pgrplist.pids;
+			flag = *pgrplist.l.pids;
 			nselectors = 0;
 		} else if (pidlist.count == 1) {
 			what = KERN_PROC_PID | showthreads;
-			flag = *pidlist.pids;
+			flag = *pidlist.l.pids;
 			nselectors = 0;
 		} else if (ruidlist.count == 1) {
 			what = KERN_PROC_RUID | showthreads;
-			flag = *ruidlist.uids;
+			flag = *ruidlist.l.uids;
 			nselectors = 0;
 #if 0
 		/*-
@@ -487,16 +487,16 @@ main(int argc, char *argv[])
 		 */
 		} else if (sesslist.count == 1) {
 			what = KERN_PROC_SESSION | showthreads;
-			flag = *sesslist.pids;
+			flag = *sesslist.l.pids;
 			nselectors = 0;
 #endif
 		} else if (ttylist.count == 1) {
 			what = KERN_PROC_TTY | showthreads;
-			flag = *ttylist.ttys;
+			flag = *ttylist.l.ttys;
 			nselectors = 0;
 		} else if (uidlist.count == 1) {
 			what = KERN_PROC_UID | showthreads;
-			flag = *uidlist.uids;
+			flag = *uidlist.l.uids;
 			nselectors = 0;
 		} else if (all) {
 			/* No need for this routine to select processes. */
@@ -523,7 +523,7 @@ main(int argc, char *argv[])
 			 */
 			if (pidlist.count > 0) {
 				for (elem = 0; elem < pidlist.count; elem++)
-					if (kp->ki_pid == pidlist.pids[elem])
+					if (kp->ki_pid == pidlist.l.pids[elem])
 						goto keepit;
 			}
 			/*
@@ -540,32 +540,34 @@ main(int argc, char *argv[])
 				goto keepit;
 			if (gidlist.count > 0) {
 				for (elem = 0; elem < gidlist.count; elem++)
-					if (kp->ki_rgid == gidlist.gids[elem])
+					if (kp->ki_rgid == gidlist.l.gids[elem])
 						goto keepit;
 			}
 			if (pgrplist.count > 0) {
 				for (elem = 0; elem < pgrplist.count; elem++)
-					if (kp->ki_pgid == pgrplist.pids[elem])
+					if (kp->ki_pgid ==
+					    pgrplist.l.pids[elem])
 						goto keepit;
 			}
 			if (ruidlist.count > 0) {
 				for (elem = 0; elem < ruidlist.count; elem++)
-					if (kp->ki_ruid == ruidlist.uids[elem])
+					if (kp->ki_ruid ==
+					    ruidlist.l.uids[elem])
 						goto keepit;
 			}
 			if (sesslist.count > 0) {
 				for (elem = 0; elem < sesslist.count; elem++)
-					if (kp->ki_sid == sesslist.pids[elem])
+					if (kp->ki_sid == sesslist.l.pids[elem])
 						goto keepit;
 			}
 			if (ttylist.count > 0) {
 				for (elem = 0; elem < ttylist.count; elem++)
-					if (kp->ki_tdev == ttylist.ttys[elem])
+					if (kp->ki_tdev == ttylist.l.ttys[elem])
 						goto keepit;
 			}
 			if (uidlist.count > 0) {
 				for (elem = 0; elem < uidlist.count; elem++)
-					if (kp->ki_uid == uidlist.uids[elem])
+					if (kp->ki_uid == uidlist.l.uids[elem])
 						goto keepit;
 			}
 			/*
@@ -667,7 +669,7 @@ addelem_gid(struct listinfo *inf, const char *elem)
 
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
-	inf->gids[(inf->count)++] = grp->gr_gid;
+	inf->l.gids[(inf->count)++] = grp->gr_gid;
 	return (1);
 }
 
@@ -698,7 +700,7 @@ addelem_pid(struct listinfo *inf, const char *elem)
 
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
-	inf->pids[(inf->count)++] = tempid;
+	inf->l.pids[(inf->count)++] = tempid;
 	return (1);
 }
 #undef	BSD_PID_MAX
@@ -733,7 +735,7 @@ addelem_tty(struct listinfo *inf, const char *elem)
 
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
-	inf->ttys[(inf->count)++] = sb.st_rdev;
+	inf->l.ttys[(inf->count)++] = sb.st_rdev;
 	return (1);
 }
 
@@ -779,7 +781,7 @@ addelem_uid(struct listinfo *inf, const char *elem)
 
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
-	inf->uids[(inf->count)++] = pwd->pw_uid;
+	inf->l.uids[(inf->count)++] = pwd->pw_uid;
 	return (1);
 }
 
@@ -871,14 +873,14 @@ expand_list(struct listinfo *inf)
 	int newmax;
 
 	newmax = (inf->maxcount + 1) << 1;
-	newlist = realloc(inf->ptr, newmax * inf->elemsize);
+	newlist = realloc(inf->l.ptr, newmax * inf->elemsize);
 	if (newlist == NULL) {
-		free(inf->ptr);
+		free(inf->l.ptr);
 		errx(1, "realloc to %d %ss failed", newmax,
 		    inf->lname);
 	}
 	inf->maxcount = newmax;
-	inf->ptr = newlist;
+	inf->l.ptr = newlist;
 
 	return (newlist);
 }
@@ -888,11 +890,11 @@ free_list(struct listinfo *inf)
 {
 
 	inf->count = inf->elemsize = inf->maxcount = 0;
-	if (inf->ptr != NULL)
-		free(inf->ptr);
+	if (inf->l.ptr != NULL)
+		free(inf->l.ptr);
 	inf->addelem = NULL;
 	inf->lname = NULL;
-	inf->ptr = NULL;
+	inf->l.ptr = NULL;
 }
 
 static void
@@ -904,7 +906,7 @@ init_list(struct listinfo *inf, addelem_rtn artn, int elemsize,
 	inf->elemsize = elemsize;
 	inf->addelem = artn;
 	inf->lname = lname;
-	inf->ptr = NULL;
+	inf->l.ptr = NULL;
 }
 
 VARENT *
