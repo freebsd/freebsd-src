@@ -8,7 +8,7 @@ TARGET_ARCH?=	${MACHINE_ARCH}
 .if (${TARGET_ARCH} == "alpha" \
   || ${TARGET_ARCH} == "i386" ) \
     && !defined(NO_GDB)
-SUBDIR+=	gdb gdbreplay
+#SUBDIR+=	gdb gdbreplay
 .endif
 
 .include <bsd.subdir.mk>
