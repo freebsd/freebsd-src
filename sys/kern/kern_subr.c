@@ -69,8 +69,7 @@ SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV,
 extern int so_zero_copy_receive;
 
 static int
-vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
-    vm_offset_t uaddr)
+vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 {
 	vm_map_t map = mapa;
 	vm_page_t kern_pg, user_pg;
@@ -236,8 +235,7 @@ userspaceco(void *cp, u_int cnt, struct uio *uio, struct vm_object *obj,
 			 * kernel page to the userland process.
 			 */
 			error =	vm_pgmoveco(&curproc->p_vmspace->vm_map,
-					    obj, (vm_offset_t)cp,
-					    (vm_offset_t)iov->iov_base);
+			    (vm_offset_t)cp, (vm_offset_t)iov->iov_base);
 
 			/*
 			 * If we get an error back, attempt
