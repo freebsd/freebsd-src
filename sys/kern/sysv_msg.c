@@ -397,26 +397,24 @@ msgctl(td, uap)
 	int msqid = uap->msqid;
 	int cmd = uap->cmd;
 	struct msqid_ds msqbuf;
-	struct msqid_ds *msqptr;
 	int error;
 
 	DPRINTF(("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, uap->buf));
 	if (cmd == IPC_SET &&
 	    (error = copyin(uap->buf, &msqbuf, sizeof(msqbuf))) != 0)
 		return (error);
-	error = kern_msgctl(td, msqid, cmd, &msqbuf, &msqptr);
+	error = kern_msgctl(td, msqid, cmd, &msqbuf);
 	if (cmd == IPC_STAT && error == 0)
-		error = copyout(msqptr, uap->buf, sizeof(struct msqid_ds));
+		error = copyout(&msqbuf, uap->buf, sizeof(struct msqid_ds));
 	return (error);
 }
 
 int
-kern_msgctl(td, msqid, cmd, msqbuf, msqptr)
+kern_msgctl(td, msqid, cmd, msqbuf)
 	struct thread *td;
 	int msqid;
 	int cmd;
 	struct msqid_ds *msqbuf;
-	struct msqid_ds **msqptr;
 {
 	int rval, error, msqix;
 	register struct msqid_kernel *msqkptr;
@@ -545,7 +543,7 @@ kern_msgctl(td, msqid, cmd, msqbuf, msqptr)
 			DPRINTF(("requester doesn't have read access\n"));
 			goto done2;
 		}
-		*msqptr = &(msqkptr->u);
+		*msqbuf = msqkptr->u;
 		break;
 
 	default:
@@ -558,7 +556,7 @@ kern_msgctl(td, msqid, cmd, msqbuf, msqptr)
 		td->td_retval[0] = rval;
 done2:
 	mtx_unlock(&msq_mtx);
-	return(error);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
