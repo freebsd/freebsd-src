@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.232 1999/04/27 14:33:25 jkh Exp $
+ * $Id: install.c,v 1.233 1999/04/28 10:51:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -751,7 +751,7 @@ installFixupBin(dialogMenuItem *self)
 		    msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
 			       "to it.  See the debug screen (ALT-F2) for details.");
 		}
-		else {
+		else if (file_readable("/boot/kernel.conf")) {
 		    FILE *fp;
 
 		    if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {

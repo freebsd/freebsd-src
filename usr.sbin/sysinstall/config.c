@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.127 1999/04/28 06:39:25 jkh Exp $
+ * $Id: config.c,v 1.128 1999/04/28 07:20:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -558,8 +558,12 @@ tryagain:
 		       "utility.");
 	dialog_clear();
 	systemExecute(execfile);
-	if (!file_readable("/etc/XF86Config") && !msgYesNo("The XFree86 configuration process seems to have\nfailed.  Would you like to try again?"))
-	    goto tryagain;
+	if (!file_readable("/etc/XF86Config")) {
+	    if (!msgYesNo("The XFree86 configuration process seems to have\nfailed.  Would you like to try again?"))
+		goto tryagain;
+	    else
+		return DITEM_FAILURE | DITEM_RESTORE;
+	}
 	configXDesktop(self);
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
