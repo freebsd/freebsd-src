@@ -2241,11 +2241,21 @@ makeoptions	UKBD_DFLT_KEYMAP=it.iso
 options		UVSCOM_DEFAULT_OPKTSIZE=8	# default output packet size
 
 #####################################################################
-# Firewire support
+# FireWire support
 
-device		firewire	# Firewire bus code
+device		firewire	# FireWire bus code
 device		sbp		# SCSI over Firewire (Requires scbus and da)
-device		fwe		# Ethernet over Firewire (non-standard!)
+device		fwe		# Ethernet over FireWire (non-standard!)
+
+#####################################################################
+# dcons support (Dumb Console Device)
+
+device		dcons			# dumb console driver
+device		dcons_crom		# FireWire attachment
+options		DCONS_BUF_SIZE=16384	# buffer size
+options		DCONS_POLL_HZ=100	# polling rate
+options		DCONS_FORCE_CONSOLE=0	# force to be the primary console
+options		DCONS_FORCE_GDB=1	# force to be the gdb device
 
 #####################################################################
 # crypto subsystem

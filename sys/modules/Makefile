@@ -32,6 +32,8 @@ SUBDIR=	accf_data \
 	${_cryptodev} \
 	cue \
 	dc \
+	dcons \
+	dcons_crom \
 	de \
 	digi \
 	dummynet \
