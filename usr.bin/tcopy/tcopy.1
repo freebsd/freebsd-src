@@ -38,7 +38,7 @@
 .Nm tcopy
 .Nd copy and/or verify mag tapes
 .Sh SYNOPSIS
-.Nm tcopy
+.Nm
 .Op Fl cvx
 .Op Fl s Ar maxblk
 .Oo Ar src Op Ar dest
@@ -49,7 +49,7 @@ is designed to copy magnetic tapes.  The only assumption made
 about the tape is that there are two tape marks at the end.
 .Nm Tcopy
 with only a source tape
-.Pf ( Ar rmt0
+.Pf ( Ar /dev/rst0
 by default) specified will print
 information about the sizes of records and tape files.  If a destination
 is specified a copy will be made of the source tape.  The blocking on the

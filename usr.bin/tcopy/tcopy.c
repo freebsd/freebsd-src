@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1985, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -46,6 +50,7 @@ static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -65,7 +70,7 @@ FILE	*msg = stdout;
 
 void	*getspace __P((int));
 void	 intr __P((int));
-void	 usage __P((void));
+static void	 usage __P((void));
 void	 verify __P((int, int, char *));
 void	 writeop __P((int, int));
 
@@ -89,7 +94,7 @@ main(argc, argv)
 		case 's':
 			maxblk = atoi(optarg);
 			if (maxblk <= 0) {
-				fprintf(stderr, "tcopy: illegal block size\n");
+				warnx("illegal block size");
 				usage();
 			}
 			guesslen = 0;
@@ -123,19 +128,15 @@ main(argc, argv)
 			op = COPY;
 		inf = argv[0];
 		if ((outp = open(argv[1], op == VERIFY ? O_RDONLY :
-		    op == COPY ? O_WRONLY : O_RDWR, DEFFILEMODE)) < 0) {
-			perror(argv[1]);
-			exit(3);
-		}
+		    op == COPY ? O_WRONLY : O_RDWR, DEFFILEMODE)) < 0)
+			err(3, "%s", argv[1]);
 		break;
 	default:
 		usage();
 	}
 
-	if ((inp = open(inf, O_RDONLY, 0)) < 0) {
-		perror(inf);
-		exit(1);
-	}
+	if ((inp = open(inf, O_RDONLY, 0)) < 0)
+		err(1, "%s", inf);
 
 	buff = getspace(maxblk);
 
@@ -155,10 +156,7 @@ main(argc, argv)
 				if (nread >= 0)
 					goto r1;
 			}
-			fprintf(stderr, "read error, file %d, record %ld: ",
-			    filen, record);
-			perror("");
-			exit(1);
+			err(1, "read error, file %d, record %ld", filen, record);
 		} else if (nread != lastnread) {
 			if (lastnread != 0 && lastnread != NOCOUNT) {
 				if (lastrec == 0 && nread == 0)
@@ -184,17 +182,13 @@ r1:		guesslen = 0;
 				}
 				nw = write(outp, buff, nread);
 				if (nw != nread) {
-				    fprintf(stderr,
-					"write error, file %d, record %ld: ",
-					filen, record);
-				    if (nw == -1)
-					perror("");
-				    else
-					fprintf(stderr,
-					    "write (%d) != read (%d)\n",
-					    nw, nread);
-				    fprintf(stderr, "copy aborted\n");
-				    exit(5);
+					if (nw == -1) {
+					warn("write error, file %d, record %ld", filen, record);
+					} else {
+					warnx("write error, file %d, record %ld", filen, record);
+					warnx("write (%d) != read (%d)", nw, nread);
+					}
+					errx(5, "copy aborted");
 				}
 			}
 			size += nread;
@@ -247,7 +241,7 @@ verify(inp, outp, outb)
 					if (inn >= 0)
 						goto r1;
 				}
-			perror("tcopy: read error");
+			warn("read error");
 			break;
 		}
 r1:		if ((outn = read(outp, outb, outmaxblk)) == -1) {
@@ -257,7 +251,7 @@ r1:		if ((outn = read(outp, outb, outmaxblk)) == -1) {
 					if (outn >= 0)
 						goto r2;
 				}
-			perror("tcopy: read error");
+			warn("read error");
 			break;
 		}
 r2:		if (inn != outn) {
@@ -303,10 +297,8 @@ getspace(blk)
 {
 	void *bp;
 
-	if ((bp = malloc((size_t)blk)) == NULL) {
-		fprintf(stderr, "tcopy: no memory\n");
-		exit(11);
-	}
+	if ((bp = malloc((size_t)blk)) == NULL)
+		errx(11, "no memory");
 	return (bp);
 }
 
@@ -318,15 +310,13 @@ writeop(fd, type)
 
 	op.mt_op = type;
 	op.mt_count = (daddr_t)1;
-	if (ioctl(fd, MTIOCTOP, (char *)&op) < 0) {
-		perror("tcopy: tape op");
-		exit(6);
-	}
+	if (ioctl(fd, MTIOCTOP, (char *)&op) < 0)
+		err(6, "tape op");
 }
 
-void
+static void
 usage()
 {
-	fprintf(stderr, "usage: tcopy [-cvx] [-s maxblk] src [dest]\n");
+	fprintf(stderr, "usage: tcopy [-cvx] [-s maxblk] [src [dest]]\n");
 	exit(1);
 }
