@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.3 1995/12/14 14:19:16 peter Exp $
+ *      $Id: bt.c,v 1.4 1996/01/07 19:24:36 gibbs Exp $
  */
 
 /*
@@ -247,7 +247,7 @@ static timeout_t
 		bt_timeout;
 
 u_long bt_unit = 0;
-static int btprobing = 0;
+static int btprobing = 1;
 
 /*
  * XXX
