@@ -203,10 +203,10 @@ struct	file_list *ftab, *conf_list, **confp, *comp_list, **compp;
 
 int	zone, hadtz;
 int	dst;
-int	hz;
 int	profiling;
 int	debugging;
 
 int	maxusers;
+u_int	loadaddress;
 
 #define eq(a,b)	(!strcmp(a,b))

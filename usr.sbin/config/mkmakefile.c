@@ -153,6 +153,7 @@ makefile()
 		perror(path("Makefile"));
 		exit(1);
 	}
+	fprintf(ofp, "KERN_IDENT=%s\n", raise(ident));
 	fprintf(ofp, "IDENT=-D%s", raise(ident));
 	if (profiling)
 		fprintf(ofp, " -DGPROF");
@@ -185,11 +186,11 @@ makefile()
 		maxusers = up->u_min;
 	} else if (maxusers > up->u_max)
 		printf("warning: maxusers > %d (%d)\n", up->u_max, maxusers);
-	fprintf(ofp, "PARAM=-DTIMEZONE=%d -DDST=%d -DMAXUSERS=%d",
+	fprintf(ofp, "PARAM=-DTIMEZONE=%d -DDST=%d -DMAXUSERS=%d\n",
 	    zone, dst, maxusers);
-	if (hz > 0)
-		fprintf(ofp, " -DHZ=%d", hz);
-	fprintf(ofp, "\n");
+	if (loadaddress != -1) {
+		fprintf(ofp, "LOAD_ADDRESS=%X\n", loadaddress);
+	}
 	for (op = mkopt; op; op = op->op_next)
 		fprintf(ofp, "%s=%s\n", op->op_name, op->op_value);
 	if (debugging)
@@ -241,6 +242,10 @@ openit:
 		perror(fname);
 		exit(1);
 	}
+	if(ident == NULL) {
+		printf("no ident line specified\n");
+		exit(1);
+	}
 next:
 	/*
 	 * filename	[ standard | optional ] [ config-dependent ]
@@ -266,6 +271,15 @@ next:
 	}
 	if (wd == 0)
 		goto next;
+	/*************************************************\
+	* If it's a comment ignore to the end of the line *
+	\*************************************************/
+	if(wd[0] == '#')
+	{
+		while( ((wd = get_word(fp)) != (char *)EOF) && wd)
+		;
+		goto next;
+	}
 	this = ns(wd);
 	next_word(fp, wd);
 	if (wd == 0) {
@@ -584,7 +598,7 @@ do_systemspec(f, fl, first)
 
 	fprintf(f, "%s: ${SYSTEM_DEP} swap%s.o", fl->f_needs, fl->f_fn);
 	if (first)
-		fprintf(f, " newvers");
+		fprintf(f, " vers.o");
 	fprintf(f, "\n\t${SYSTEM_LD_HEAD}\n");
 	fprintf(f, "\t${SYSTEM_LD} swap%s.o\n", fl->f_fn);
 	fprintf(f, "\t${SYSTEM_LD_TAIL}\n\n");
