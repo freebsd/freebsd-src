@@ -16,11 +16,12 @@ CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
 MKDEPCMD=	CC=${CC} MKDEP_CPP_OPTS="-M -DCRT_BEGIN" mkdep
-INTERNALLIB=	true
+NOLIB=		true
 
 .if ${TARGET_ARCH} == "sparc64"
 .PATH: ${GCCDIR}/config/${GCC_CPU}
-TGTOBJS=		crtfastmath.o
+TGTOBJS=	crtfastmath.o
+SRCS+=		crtfastmath.c
 .endif
 
 all: ${OBJS} ${SOBJS} ${TGTOBJS}
@@ -29,23 +30,23 @@ crtbegin.o crtbegin.So crtend.o crtend.So: ${SRCS}
 
 crtbegin.o:
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
 crtbegin.So:
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
 crtend.o:
 	${CC} ${CFLAGS} -g0 -DCRT_END \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
 crtend.So:
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
 CLEANFILES=	tconfig.h
 tconfig.h: ${CCDIR}/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} ${.TARGET}
+	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
 realinstall:
 .for file in ${OBJS} ${SOBJS} ${TGTOBJS}
