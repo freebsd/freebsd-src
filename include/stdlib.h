@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)stdlib.h	8.3 (Berkeley) 2/16/94
+ *	@(#)stdlib.h	8.5 (Berkeley) 5/19/95
  */
 
 #ifndef _STDLIB_H_
@@ -146,17 +146,10 @@ int	 daemon __P((int, int));
 char	*devname __P((int, int));
 int	 getloadavg __P((double [], int));
 
-extern char *optarg;			/* getopt(3) external variables */
-extern int opterr, optind, optopt;
-int	 getopt __P((int, char * const *, const char *));
-
-extern char *suboptarg;			/* getsubopt(3) external variable */
-int	 getsubopt __P((char **, char * const *, char **));
-
 char	*group_from_gid __P((unsigned long, int));
 int	 heapsort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
-char	*initstate __P((unsigned, char *, int));
+char	*initstate __P((unsigned long, char *, long));
 int	 mergesort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
 int	 radixsort __P((const unsigned char **, int, const unsigned char *,
@@ -166,7 +159,7 @@ int	 sradixsort __P((const unsigned char **, int, const unsigned char *,
 long	 random __P((void));
 char	*realpath __P((const char *, char resolved_path[]));
 char	*setstate __P((char *));
-void	 srandom __P((unsigned));
+void	 srandom __P((unsigned long));
 char	*user_from_uid __P((unsigned long, int));
 #ifndef __STRICT_ANSI__
 long long
