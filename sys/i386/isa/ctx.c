@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.24 1997/03/24 11:23:40 bde Exp $
+ *	$Id: ctx.c,v 1.25 1997/07/20 14:09:52 bde Exp $
  */
 
 /*
@@ -110,6 +110,8 @@
 
 #include "ctx.h"
 #if NCTX > 0
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

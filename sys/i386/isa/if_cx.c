@@ -20,6 +20,7 @@
 
 #include "cx.h"
 #include "bpfilter.h"
+#include "opt_devfs.h"
 
 #include "sppp.h"
 #if NSPPP <= 0

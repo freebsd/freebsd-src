@@ -4,12 +4,14 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.29 1997/02/22 09:37:11 peter Exp $
+ *    $Id: spkr.c,v 1.30 1997/12/02 21:06:28 phk Exp $
  */
 
 #include "speaker.h"
 
 #if NSPEAKER > 0
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

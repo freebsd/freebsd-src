@@ -30,6 +30,8 @@
 
 #if NJOY > 0
 
+#include "opt_devfs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

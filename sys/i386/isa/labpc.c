@@ -40,6 +40,7 @@
  */
 
 #include "labpc.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 

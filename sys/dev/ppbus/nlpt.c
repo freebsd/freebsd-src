@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.5 1997/08/29 00:30:11 msmith Exp $
+ *	$Id: nlpt.c,v 1.6 1997/12/02 21:06:09 phk Exp $
  */
 
 /*
@@ -62,6 +62,8 @@
 
 
 #ifdef KERNEL
+#include "opt_devfs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

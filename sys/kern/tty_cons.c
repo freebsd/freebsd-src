@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.54 1997/08/08 20:29:47 julian Exp $
+ *	$Id: cons.c,v 1.55 1997/09/14 03:19:01 peter Exp $
  */
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #ifdef DEVFS

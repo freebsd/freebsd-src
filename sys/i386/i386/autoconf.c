@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.82 1997/11/21 18:27:08 bde Exp $
+ *	$Id: autoconf.c,v 1.83 1998/01/09 03:20:53 eivind Exp $
  */
 
 /*
@@ -46,7 +46,11 @@
  * and the drivers are initialized.
  */
 #include "opt_bootp.h"
+#include "opt_ffs.h"
 #include "opt_cd9660.h"
+#include "opt_lfs.h"
+#include "opt_mfs.h"
+#include "opt_nfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -303,7 +307,7 @@ cpu_rootconf()
 	 * XXX NetBSD has a much cleaner approach to finding root.
 	 * XXX We should adopt their code.
 	 */
-#ifdef CD9660
+#if defined(CD9660) || defined(CD9660_ROOT)
 	if ((boothowto & RB_CDROM)) {
 		if (bootverbose)
 			printf("Considering CD-ROM root f/s.\n");
@@ -340,7 +344,7 @@ cpu_rootconf()
 		mountrootfsname = "nfs";
 	}
 #endif /* BOOTP_NFSROOT */
-#ifdef NFS
+#if defined(NFS) || defined(NFS_ROOT)
 	if (!mountrootfsname && nfs_diskless_valid) {
 		if (bootverbose)
 			printf("Considering NFS root f/s.\n");
@@ -348,7 +352,7 @@ cpu_rootconf()
 	}
 #endif /* NFS */
 
-#ifdef FFS
+#if defined(FFS) || defined(FFS_ROOT)
 	if (!mountrootfsname) {
 		mountrootfsname = "ufs";
 		if (bootverbose)
@@ -366,7 +370,7 @@ cpu_rootconf()
 	}
 #endif
 
-#ifdef LFS
+#if defined(LFS) || defined(LFS_ROOT)
 	if (!mountrootfsname) {
 		if (bootverbose)
 			printf("Considering LFS root f/s.\n");

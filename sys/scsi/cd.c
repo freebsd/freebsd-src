@@ -14,10 +14,11 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.87 1997/12/02 21:06:58 phk Exp $
+ *      $Id: cd.c,v 1.88 1997/12/14 00:32:33 jraynard Exp $
  */
 
 #include "opt_bounce.h"
+#include "opt_devfs.h"
 #include "opt_scsi.h"
 
 #define SPLCD splbio

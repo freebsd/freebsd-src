@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.48 1997/12/06 13:24:10 bde Exp $
+ * $Id: tty_pty.c,v 1.49 1997/12/16 17:40:28 eivind Exp $
  */
 
 /*
@@ -40,6 +40,7 @@
  */
 #include "pty.h"		/* XXX */
 #include "opt_compat.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

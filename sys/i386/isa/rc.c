@@ -34,6 +34,8 @@
 
 #if NRC > 0
 
+#include "opt_devfs.h"
+
 /*#define RCDEBUG*/
 
 #include <sys/param.h>

@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.41 1997/08/25 23:31:05 bde Exp $
+ * $Id: wt.c,v 1.42 1997/12/02 21:06:34 phk Exp $
  *
  */
 
@@ -59,6 +59,8 @@
 
 #include "wt.h"
 #if NWT > 0
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

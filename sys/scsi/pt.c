@@ -37,10 +37,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.25 1997/12/02 21:07:00 phk Exp $
+ *      $Id: pt.c,v 1.26 1998/01/06 08:28:46 julian Exp $
  */
 
 #include "opt_bounce.h"
+#include "opt_devfs.h"
 #include "opt_scsi.h"
 
 #include <sys/param.h>

@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.51 1997/10/21 09:51:47 kato Exp $
+ *	$Id: vn.c,v 1.52 1997/12/06 14:27:08 bde Exp $
  */
 
 /*
@@ -67,6 +67,8 @@
 #undef NVN
 #define	NVN	8
 #endif
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
