@@ -1068,7 +1068,7 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 }
 
 static int
-iommu_dvamamp_load_mbuf_sg(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
+iommu_dvmamap_load_mbuf_sg(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
     bus_dma_segment_t *segs, int *nsegs, int flags)
 {
 	struct iommu_state *is = dt->dt_cookie;
@@ -1267,7 +1267,7 @@ struct bus_dma_methods iommu_dma_methods = {
 	iommu_dvmamap_destroy,
 	iommu_dvmamap_load,
 	iommu_dvmamap_load_mbuf,
-	iommu_dvamamp_load_mbuf_sg,
+	iommu_dvmamap_load_mbuf_sg,
 	iommu_dvmamap_load_uio,
 	iommu_dvmamap_unload,
 	iommu_dvmamap_sync,
