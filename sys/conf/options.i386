@@ -199,8 +199,8 @@ DEV_NPX			opt_npx.h
 DEV_APM			opt_apm.h
 
 # SMB/CIFS requester
-NETSMB
-NETSMBCRYPTO
+NETSMB			opt_netsmb.h
+NETSMBCRYPTO		opt_netsmb.h
 
 # SMB/CIFS filesystem
 SMBFS
