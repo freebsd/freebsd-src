@@ -1444,3 +1444,10 @@ ia64_rse_previous_frame(u_int64_t *bsp, int size)
 	return bsp - size - rnats;
 }
 
+
+intptr_t
+casuptr(intptr_t *p, intptr_t old, intptr_t new)
+{
+	return (-1);
+}
+
