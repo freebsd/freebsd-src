@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdio.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 int
 wctob(wint_t c)
@@ -38,7 +39,7 @@ wctob(wint_t c)
 	mbstate_t mbs = initial;
 	char buf[MB_LEN_MAX];
 
-	if (c == WEOF || wcrtomb(buf, c, &mbs) != 1)
+	if (c == WEOF || __wcrtomb(buf, c, &mbs) != 1)
 		return (EOF);
 	return ((unsigned char)*buf);
 }

@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 size_t
 wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
@@ -50,7 +51,7 @@ wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
 		ps = &mbs;
 	if (dst == NULL) {
 		for (;;) {
-			if ((nb = (int)wcrtomb(buf, *s, ps)) < 0)
+			if ((nb = (int)__wcrtomb(buf, *s, ps)) < 0)
 				/* Invalid character - wcrtomb() sets errno. */
 				return ((size_t)-1);
 			else if (*s == L'\0')
@@ -64,7 +65,7 @@ wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
 	while (len > 0) {
 		if (len > (size_t)MB_CUR_MAX) {
 			/* Enough space to translate in-place. */
-			if ((nb = (int)wcrtomb(dst, *s, ps)) < 0) {
+			if ((nb = (int)__wcrtomb(dst, *s, ps)) < 0) {
 				*src = s;
 				return ((size_t)-1);
 			}
@@ -77,7 +78,7 @@ wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
 			 * character is too long for the buffer.
 			 */
 			mbsbak = *ps;
-			if ((nb = (int)wcrtomb(buf, *s, ps)) < 0) {
+			if ((nb = (int)__wcrtomb(buf, *s, ps)) < 0) {
 				*src = s;
 				return ((size_t)-1);
 			}

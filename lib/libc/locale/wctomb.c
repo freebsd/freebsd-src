@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 int
 wctomb(char *s, wchar_t wchar)
@@ -45,7 +46,7 @@ wctomb(char *s, wchar_t wchar)
 		mbs = initial;
 		return (0);
 	}
-	if ((rval = wcrtomb(s, wchar, &mbs)) == (size_t)-1)
+	if ((rval = __wcrtomb(s, wchar, &mbs)) == (size_t)-1)
 		return (-1);
 	if (rval > INT_MAX) {
 		errno = ERANGE;

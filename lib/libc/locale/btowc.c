@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 wint_t
 btowc(int c)
@@ -46,7 +47,7 @@ btowc(int c)
 	 * counts.
 	 */
 	cc = (char)c;
-	if (mbrtowc(&wc, &cc, 1, &mbs) > 1)
+	if (__mbrtowc(&wc, &cc, 1, &mbs) > 1)
 		return (WEOF);
 	return (wc);
 }
