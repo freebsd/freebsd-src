@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.3 1997/08/31 03:03:48 smp Exp smp $
+ *	$Id: lock.h,v 1.4 1997/09/01 07:37:58 smp Exp smp $
  */
 
 
@@ -143,7 +143,13 @@
 
 #ifdef SMP
 
-#include <machine/smptests.h>			/** XXX_MPINTR_LOCK */
+#include <machine/smptests.h>			/** xxx_LOCK */
+
+/*
+ * Locks regions protected in UP kernel via cli/sti.
+ */
+#define MPINTR_LOCK()	s_lock(&mpintr_lock)
+#define MPINTR_UNLOCK()	s_unlock(&mpintr_lock)
 
 /*
  * Protects cpl/cml/cil/ipending data as a critical region.
@@ -157,27 +163,50 @@
 #define SCPL_LOCK() 	ss_lock(&cpl_lock)	/* INT safe: top end */
 #define SCPL_UNLOCK() 	ss_unlock(&cpl_lock)
 
-/*
- * Locks regions protected in UP kernel via cli/sti.
- */
-#if defined(SIMPLE_MPINTRLOCK)
-#define MPINTR_LOCK() 	s_lock(&mpintr_lock)
-#define MPINTR_UNLOCK() s_unlock(&mpintr_lock)
-#elif defined(RECURSIVE_MPINTRLOCK)
-#define MPINTR_LOCK() 	get_mpintrlock()
-#define MPINTR_UNLOCK() rel_mpintrlock();
+/* sio/cy lock */
+#ifdef USE_COMLOCK
+#define COM_LOCK() 	s_lock(&com_lock)
+#define COM_UNLOCK() 	s_unlock(&com_lock)
+#define COM_DISABLE_INTR() \
+		{ __asm __volatile("cli" : : : "memory"); COM_LOCK(); }
+#define COM_ENABLE_INTR() \
+		{ COM_UNLOCK(); __asm __volatile("sti"); }
 #else
-#error whats up doc?
-#endif /* _MPINTRLOCK */
+#define COM_LOCK()
+#define COM_UNLOCK()
+#define COM_DISABLE_INTR()	disable_intr()
+#define COM_ENABLE_INTR()	enable_intr()
+#endif /* USE_COMLOCK */
+
+/* clock hardware/struct lock */
+#ifdef USE_CLOCKLOCK
+#define CLOCK_LOCK()	s_lock(&clock_lock)
+#define CLOCK_UNLOCK()	s_unlock(&clock_lock)
+#define CLOCK_DISABLE_INTR() \
+		{ __asm __volatile("cli" : : : "memory"); CLOCK_LOCK(); }
+#define CLOCK_ENABLE_INTR() \
+		{ CLOCK_UNLOCK(); __asm __volatile("sti"); }
+#else
+#define CLOCK_LOCK()
+#define CLOCK_UNLOCK()
+#define CLOCK_DISABLE_INTR()	disable_intr()
+#define CLOCK_ENABLE_INTR()	enable_intr()
+#endif /* USE_CLOCKLOCK */
 
 #else /* SMP */
+
+#define MPINTR_LOCK()
+#define MPINTR_UNLOCK()
 
 #define CPL_LOCK()
 #define CPL_UNLOCK()
 #define SCPL_LOCK()
 #define SCPL_UNLOCK()
-#define MPINTR_LOCK() 	
-#define MPINTR_UNLOCK() 
+
+#define COM_LOCK()
+#define COM_UNLOCK()
+#define CLOCK_LOCK()
+#define CLOCK_UNLOCK()
 
 #endif /* SMP */
 
@@ -204,10 +233,7 @@ extern struct simplelock	fast_intr_lock;
 extern struct simplelock	intr_lock;
 extern struct simplelock	clock_lock;
 extern struct simplelock	com_lock;
-
-#ifdef SIMPLE_MPINTRLOCK
 extern struct simplelock	mpintr_lock;
-#endif/* SIMPLE_MPINTRLOCK */
 
 #if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1
 /*

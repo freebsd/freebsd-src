@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.69 1997/07/17 04:33:46 dyson Exp $
+ *	$Id: cpufunc.h,v 1.2 1997/09/01 07:37:58 smp Exp smp $
  */
 
 /*
@@ -58,13 +58,17 @@ static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
- 	MPINTR_LOCK();
+#ifdef SMP
+	s_lock(&mpintr_lock);
+#endif
 }
 
 static __inline void
 enable_intr(void)
 {
- 	MPINTR_UNLOCK();
+#ifdef SMP
+	s_unlock(&mpintr_lock);
+#endif
 	__asm __volatile("sti");
 }
 

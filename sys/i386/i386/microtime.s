@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.29 1997/08/24 00:05:35 fsmp Exp $
+ *	$Id: microtime.s,v 1.8 1997/09/01 07:35:31 smp Exp smp $
  */
 
 #include "opt_cpu.h"
@@ -45,7 +45,7 @@
 #include <i386/isa/timerreg.h>
 
 #ifdef SMP
-#include <machine/smptests.h>			/** SIMPLE_MPINTRLOCK */
+#include <machine/smptests.h>			/** USE_CLOCKLOCK */
 #endif
 
 ENTRY(microtime)
@@ -62,7 +62,7 @@ ENTRY(microtime)
 
 	pushfl
 	cli			/* disable interrupts */
-#ifdef SIMPLE_MPINTRLOCK
+#ifdef USE_CLOCKLOCK
 	pushl	%eax			/* s_lock destroys %eax, %ecx */
 	pushl	%ecx
 	pushl	$_clock_lock
@@ -70,7 +70,7 @@ ENTRY(microtime)
 	addl	$4, %esp
 	popl	%ecx
 	popl	%eax
-#endif /* SIMPLE_MPINTRLOCK */
+#endif /* USE_CLOCKLOCK */
 	outb	%al, $TIMER_MODE	/* latch timer 0's counter */
 	inb	$TIMER_CNTR0, %al	/* read counter value, LSB first */
 	movb	%al, %cl
@@ -203,13 +203,13 @@ common_microtime:
 	addl	_time+4, %eax	/* usec += time.tv_sec */
 	movl	_time, %edx	/* sec = time.tv_sec */
 
-#ifdef SIMPLE_MPINTRLOCK
+#ifdef USE_CLOCKLOCK
 	pushl	%eax		/* s_lock destroys %eax, %ecx */
 	pushl	$_clock_lock
  	call	_s_unlock
 	addl	$4, %esp
 	popl	%eax
-#endif /* SIMPLE_MPINTRLOCK */
+#endif /* USE_CLOCKLOCK */
 	popfl			/* restore interrupt mask */
 
 	cmpl	$1000000, %eax	/* usec valid? */
