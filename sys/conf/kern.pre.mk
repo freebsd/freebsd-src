@@ -38,7 +38,7 @@ INCLUDES+= -I$S/../include
 INCLUDES+= -I/usr/include
 .endif
 
-COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
+COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -fno-common
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
@@ -50,18 +50,16 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 CFLAGS+=	${FMT}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-IDENT=	-DGPROF
+CFLAGS+=	-DGPROF -falign-functions=16
+.if ${PROFLEVEL} >= 2
+CFLAGS+=	-DGPROF4 -DGUPROF
+# XXX -Wno-inline is to break some warnings.
+PROF=	-finstrument-functions -Wno-inline
+.else
 PROF=	-pg
 .endif
-
+.endif
 DEFINED_PROF=	${PROF}
-.if defined(PROF)
-CFLAGS+=	-falign-functions=16
-.if ${PROFLEVEL} >= 2
-IDENT+=	-DGPROF4 -DGUPROF
-PROF+=	-mprofiler-epilogue
-.endif
-.endif
 
 .if defined(NO_WERROR)
 WERROR=
