@@ -818,15 +818,12 @@ vcanrecycle(struct vnode *vp, struct mount **vnmpp)
 	/* Don't recycle if we can't get the interlock */
 	if (!VI_TRYLOCK(vp))
 		return (EWOULDBLOCK);
-
-	/* We should be able to immediately acquire this */
-	/* XXX This looks like it should panic if it fails */
-	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0) {
-		if (VOP_ISLOCKED(vp, td))
-			panic("vcanrecycle: locked vnode");
+	/*
+	 * This vnode may found and locked via some other list, if so we
+	 * can't recycle it yet.
+	 */
+	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
 		return (EWOULDBLOCK);
-	}
-
 	/*
 	 * Don't recycle if its filesystem is being suspended.
 	 */
@@ -1008,7 +1005,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_dd = vp;
 		vp->v_vnlock = &vp->v_lock;
 		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
-		cache_purge(vp);
+		cache_purge(vp);		/* Sets up v_id. */
 		LIST_INIT(&vp->v_cache_src);
 		TAILQ_INIT(&vp->v_cache_dst);
 	}
@@ -1059,12 +1056,10 @@ insmntque(vp, mp)
 	/*
 	 * Insert into list of vnodes for the new mount point, if available.
 	 */
-	if ((vp->v_mount = mp) == NULL) {
-		mtx_unlock(&mntvnode_mtx);
-		return;
+	if ((vp->v_mount = mp) != NULL) {
+		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+		mp->mnt_nvnodelistsize++;
 	}
-	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
-	mp->mnt_nvnodelistsize++;
 	mtx_unlock(&mntvnode_mtx);
 }
 
@@ -1713,6 +1708,10 @@ sched_sync(void)
 			syncer_delayno = 0;
 
 		while ((vp = LIST_FIRST(slp)) != NULL) {
+			/*
+			 * XXX we have no guarantees about this vnodes
+			 * identity due to a lack of interlock.
+			 */
 			mtx_unlock(&sync_mtx);
 			if (VOP_ISLOCKED(vp, NULL) == 0 &&
 			    vn_start_write(vp, &mp, V_NOWAIT) == 0) {
@@ -2084,8 +2083,10 @@ vget(vp, flags, td)
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
 	if (vp->v_iflag & VI_XLOCK && vp->v_vxproc != curthread) {
-		vp->v_iflag |= VI_XWANT;
-		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
+		if ((flags & LK_NOWAIT) == 0) {
+			vp->v_iflag |= VI_XWANT;
+			msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
+		}
 		return (ENOENT);
 	}
 
@@ -2368,6 +2369,10 @@ loop:
 
 		VI_LOCK(vp);
 		mtx_unlock(&mntvnode_mtx);
+		/*
+		 * XXX Does not check vn_lock error.  Should restart loop if
+		 * error == ENOENT.
+		 */
 		vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, td);
 		/*
 		 * This vnode could have been reclaimed while we were
@@ -2530,9 +2535,7 @@ vclean(vp, flags, td)
 	 */
 	if (flags & DOCLOSE) {
 		struct buf *bp;
-		VI_LOCK(vp);
 		bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
-		VI_UNLOCK(vp);
 		if (bp != NULL)
 			(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
 		if (vinvalbuf(vp, V_SAVE, NOCRED, td, 0, 0) != 0)
@@ -2731,13 +2734,12 @@ vgonel(vp, td)
 	 * If special device, remove it from special device alias list
 	 * if it is on one.
 	 */
+	VI_LOCK(vp);
 	if (vp->v_type == VCHR && vp->v_rdev != NULL && vp->v_rdev != NODEV) {
-		VI_LOCK(vp);
 		mtx_lock(&spechash_mtx);
 		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
 		vp->v_rdev->si_usecount -= vp->v_usecount;
 		mtx_unlock(&spechash_mtx);
-		VI_UNLOCK(vp);
 		vp->v_rdev = NULL;
 	}
 
@@ -2751,7 +2753,6 @@ vgonel(vp, td)
 	 * incremented first, vgone would (incorrectly) try to
 	 * close the previous instance of the underlying object.
 	 */
-	VI_LOCK(vp);
 	if (vp->v_usecount == 0 && !(vp->v_iflag & VI_DOOMED)) {
 		mtx_lock(&vnode_free_list_mtx);
 		if (vp->v_iflag & VI_FREE) {
