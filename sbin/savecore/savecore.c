@@ -286,7 +286,6 @@ kmem_setup()
 void
 check_kmem()
 {
-	register char *cp;
 	char core_vers[1024], *p;
 
 	DumpRead(dumpfd, core_vers, sizeof(core_vers),
@@ -343,6 +342,8 @@ save_core()
 	register int bounds, ifd, nr, nw, ofd;
 	char *rawp, path[MAXPATHLEN];
 	mode_t oumask;
+
+	bounds = ifd = nr = nw = ofd = 0;
 
 	/*
 	 * Get the current number and update the bounds file.  Do the update
@@ -510,7 +511,7 @@ rawname(s)
 		    "can't make raw dump device name from %s", s);
 		return (s);
 	}
-	(void)snprintf(name, sizeof(name), "%.*s/r%s", sl - s, s, sl + 1);
+	(void)snprintf(name, sizeof(name), "%.*s/r%s", (int)(sl - s), s, sl + 1);
 	if ((sl = strdup(name)) == NULL) {
 		syslog(LOG_ERR, "%s", strerror(errno));
 		exit(1);
@@ -586,7 +587,8 @@ check_space()
 	needed = (dumpsize + kernelsize) / 1024;
  	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
 		syslog(LOG_WARNING,
-		    "no dump, not enough free space on device");
+		    "no dump, not enough free space on device (%ld available, need %ld",
+			(minfree > 0) ? spacefree : totfree, needed);
 		return (0);
 	}
 	if (spacefree - needed < 0)
