@@ -205,6 +205,8 @@ pkg_do(char *pkg)
 	    show_files("Files:\n", &plist);
 	if ((Flags & SHOW_SIZE) && installed)
 	    show_size("Package Size:\n", &plist);
+	if (Flags & SHOW_ORIGIN)
+	    show_origin("Origin:\n", &plist);
 	if (!Quiet)
 	    puts(InfoPrefix);
     }

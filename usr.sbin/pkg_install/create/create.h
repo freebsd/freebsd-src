@@ -37,6 +37,7 @@ extern char	*SrcDir;
 extern char	*ExcludeFrom;
 extern char	*Mtree;
 extern char	*Pkgdeps;
+extern char	*Origin;
 extern char	PlayPen[];
 extern int	Dereference;
 extern int	PlistOnly;
