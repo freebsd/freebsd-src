@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.15 1994/11/15 14:49:56 bde Exp $
+ *      $Id: scsi_base.c,v 1.16 1995/01/08 13:38:31 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -330,8 +330,6 @@ scsi_done(xs)
  	 * xs when the user returns. (and restarting the device's queue).
  	 */
 	if (xs->flags & SCSI_USER) {
-		biodone(xs->bp);
-
 		SC_DEBUG(sc_link, SDEV_DB3, ("calling user done()\n"));
 		scsi_user_done(xs); /* to take a copy of the sense etc. */
 		SC_DEBUG(sc_link, SDEV_DB3, ("returned from user done()\n "));
