@@ -213,7 +213,7 @@ again1:
 				goto again;
 			}
 		}
-
+		vm_page_lock_queues();
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			vm_page_t m = &pga[i];
 
@@ -233,7 +233,7 @@ again1:
 			m->object = NULL;
 			mtx_unlock_spin(&vm_page_queue_free_mtx);
 		}
-
+		vm_page_unlock_queues();
 		/*
 		 * We've found a contiguous chunk that meets are requirements.
 		 * Allocate kernel VM, unfree and assign the physical pages to it and
