@@ -568,8 +568,8 @@
       <para>The &man.txp.4; driver has been added to support NICs
       based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset. &merged;</para>
 
-      <para>The &man.vlan.4; device is now loadable, unloadable, and
-      clonable.</para>
+      <para>&man.vlan.4; devices are now loadable, unloadable, and
+      clonable. &merged;</para>
 
       <para>The &man.xl.4; driver now supports the 3Com 3C556 and 3C556B
       MiniPCI adapters used on some laptops. &merged;</para>
@@ -796,7 +796,7 @@
       <para>The ciss driver, for devices utilizing the Common
       Interface for SCSI-3 Support, has been added.  This driver
       supports the Compaq SmartRAID 5* family of RAID controllers
-      (5300, 532, 5i).</para>
+      (5300, 532, 5i). &merged;</para>
 
       <para>The ida disk driver now has crashdump support. &merged;</para>
 
