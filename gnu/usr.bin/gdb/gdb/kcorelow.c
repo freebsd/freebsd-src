@@ -31,7 +31,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/user.h>
-#include <sys/sysctl.h>
 #include "frame.h"  /* required by inferior.h */
 #include "inferior.h"
 #include "symtab.h"
@@ -68,8 +67,7 @@ static CORE_ADDR	kernel_start;
 #define kvread(addr, p) \
 	(target_read_memory((CORE_ADDR)(addr), (char *)(p), sizeof(*(p))))
 
-int read_pcb (int, CORE_ADDR);
-extern struct kinfo_proc* kvm_getprocs (int, int, CORE_ADDR, int*);
+extern read_pcb (int, CORE_ADDR);
 
 CORE_ADDR
 ksym_lookup(name)
@@ -324,8 +322,6 @@ set_proc_cmd(arg)
 	char *arg;
 {
 	CORE_ADDR paddr;
-	struct kinfo_proc *kp;
-	int cnt = 0;
 
 	if (!arg)
 		error_no_arg("proc address for new current process");
@@ -333,19 +329,8 @@ set_proc_cmd(arg)
 		error("not debugging kernel");
 
 	paddr = (CORE_ADDR)parse_and_eval_address(arg);
-fprintf(stderr, "paddr %#x kernel_start %#x ", paddr, kernel_start);
-	/* assume it's a proc pointer if it's in the kernel */
-	if (paddr >= kernel_start) {
-        	if (set_proc_context(paddr))
-        	        error("invalid proc address");
-	} else {
-		kp = kvm_getprocs(core_kd, KERN_PROC_PID, paddr, &cnt);
-fprintf(stderr, "cnt %d\n", cnt);
-		if (!cnt)
-        	        error("invalid pid");
-        	if (set_proc_context((CORE_ADDR)kp->kp_eproc.e_paddr))
-                	error("invalid proc address");
-	}
+        if (set_proc_context(paddr))
+                error("invalid proc address");
 }
 
 struct target_ops kcore_ops = {

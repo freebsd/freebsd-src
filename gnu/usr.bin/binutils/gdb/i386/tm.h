@@ -1,5 +1,5 @@
-/* Macro definitions for i386 running under BSD Unix.
-   Copyright 1986, 1987, 1989, 1991, 1992, 1993 Free Software Foundation, Inc.
+/* Macro definitions for x86 running under FreeBSD Unix.
+   Copyright 1996 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -15,43 +15,33 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#ifndef _FREEBSD_TM_H_
-#define _FREEBSD_TM_H_
-/* Override number of expected traps from sysv. */
-#define START_INFERIOR_TRAPS_EXPECTED 2
+#ifndef TM_FBSD_H
+#define TM_FBSD_H 1
 
-/* Most definitions from sysv could be used. */
-#include "tm-i386v.h"
+#include "i386/tm-i386bsd.h"
 
-/* 386BSD cannot handle the segment registers. */
-/* BSDI can't handle them either.  */
-/* FreeBSD cannot handle %fs or %gs.  */
 #undef NUM_REGS
-#ifdef __FreeBSD__
 #define NUM_REGS 14
-#else
-#define NUM_REGS 10
-#endif
 
-/* On 386 bsd, sigtramp is above the user stack and immediately below
-   the user area. Using constants here allows for cross debugging.
-   These are tested for BSDI but should work on 386BSD.  */
-#define SIGTRAMP_START	0xfdbfdfc0
-#define SIGTRAMP_END	0xfdbfe000
+extern struct frame_info *setup_arbitrary_frame PARAMS ((int, CORE_ADDR *));
 
-/* The following redefines make backtracing through sigtramp work.
-   They manufacture a fake sigtramp frame and obtain the saved pc in sigtramp
-   from the sigcontext structure which is pushed by the kernel on the
-   user stack, along with a pointer to it.  */
+#define	SETUP_ARBITRARY_FRAME(argc, argv) setup_arbitrary_frame (argc, argv)
+
+extern void i386_float_info PARAMS ((void));
+
+#define FLOAT_INFO i386_float_info ()
+
+#define IN_SOLIB_CALL_TRAMPOLINE(pc, name) STREQ (name, "_DYNAMIC")
 
 /* FRAME_CHAIN takes a frame's nominal address and produces the frame's
    chain-pointer.
    In the case of the i386, the frame's nominal address
    is the address of a 4-byte word containing the calling frame's address.  */
-#undef FRAME_CHAIN
+
 extern CORE_ADDR fbsd_kern_frame_chain (struct frame_info *);
+#undef FRAME_CHAIN
 #define FRAME_CHAIN(thisframe)  \
   (kernel_debugging ? fbsd_kern_frame_chain(thisframe) : \
   ((thisframe)->signal_handler_caller \
@@ -60,25 +50,10 @@ extern CORE_ADDR fbsd_kern_frame_chain (struct frame_info *);
       ? read_memory_integer ((thisframe)->frame, 4) \
       : 0)))
 
-/* A macro that tells us whether the function invocation represented
-   by FI does not have a frame on the stack associated with it.  If it
-   does not, FRAMELESS is set to 1, else 0.  */
-#undef FRAMELESS_FUNCTION_INVOCATION
-#define FRAMELESS_FUNCTION_INVOCATION(FI, FRAMELESS) \
-  do { \
-    if ((FI)->signal_handler_caller) \
-      (FRAMELESS) = 0; \
-    else \
-      (FRAMELESS) = frameless_look_for_prologue(FI); \
-  } while (0)
-
 /* Saved Pc.  Get it from sigcontext if within sigtramp.  */
 
-/* Offset to saved PC in sigcontext, from <sys/signal.h>.  */
-#define SIGCONTEXT_PC_OFFSET 20
-
-#undef FRAME_SAVED_PC
 extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
+#undef FRAME_SAVED_PC
 #define FRAME_SAVED_PC(FRAME) \
   (kernel_debugging ? fbsd_kern_frame_saved_pc(FRAME) : \
   (((FRAME)->signal_handler_caller \
@@ -86,9 +61,4 @@ extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
     : read_memory_integer ((FRAME)->frame + 4, 4)) \
    ))
 
-#undef SETUP_ARBITRARY_FRAME
-#include "frame.h"
-extern FRAME setup_arbitrary_frame ();
-#define SETUP_ARBITRARY_FRAME setup_arbitrary_frame
-
-#endif /* _FREEBSD_TM_H_ */
+#endif  /* TM_FBSD_H */
