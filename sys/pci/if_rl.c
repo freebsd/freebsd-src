@@ -2673,8 +2673,10 @@ rl_init(xsc)
 	 * register write enable" mode to modify the ID registers.
 	 */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
-	CSR_WRITE_4(sc, RL_IDR0, *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
-	CSR_WRITE_4(sc, RL_IDR4, *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
+	CSR_WRITE_STREAM_4(sc, RL_IDR0,
+	    *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
+	CSR_WRITE_STREAM_4(sc, RL_IDR4,
+	    *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/*
