@@ -781,7 +781,11 @@ retry_cmd:
 
 	result = pCmd->Result;
 	FreeCommand(_VBUS_P pCmd);
-	if (buffer) free(buffer, M_DEVBUF);
+	if (buffer) {
+		free(buffer, M_DEVBUF);
+		/* beware of goto retry_cmd below */
+		buffer = NULL;
+	}
 	KdPrintI(("cmd finished %d", result));
 
 	switch(result)
