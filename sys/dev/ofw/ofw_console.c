@@ -85,11 +85,20 @@ CONS_DRIVER(ofw, ofw_cons_probe, ofw_cons_init, NULL, ofw_cons_getc,
 static void
 cn_drvinit(void *unused)
 {
+	phandle_t options;
+	char output[32];
 
-	make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ofwcons");
+	if (ofw_consdev.cn_dev != NULL) {
+		if ((options = OF_finddevice("/options")) == -1 ||
+		    OF_getprop(options, "output-device", output,
+		    sizeof(output)) == -1)
+			return;
+		make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ofwcons");
+		make_dev_alias(ofw_consdev.cn_dev, "%s", output);
+	}
 }
 
-SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)
+SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE + CDEV_MAJOR, cn_drvinit, NULL)
 
 static int	stdin;
 static int	stdout;
@@ -260,16 +269,16 @@ ofw_cons_probe(struct consdev *cp)
 		return;
 	}
 
-	cp->cn_dev = makedev(CDEV_MAJOR, 0);
+	cp->cn_dev = NULL;
 	cp->cn_pri = CN_INTERNAL;
-	cp->cn_tp = ofw_tp;
 }
 
 static void
 ofw_cons_init(struct consdev *cp)
 {
 
-	return;
+	cp->cn_dev = makedev(CDEV_MAJOR, 0);
+	cp->cn_tp = ofw_tp;
 }
 
 static int
