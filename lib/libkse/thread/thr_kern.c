@@ -162,16 +162,6 @@ static void	thread_gc(struct pthread *thread);
 static void	kse_gc(struct pthread *thread);
 static void	kseg_gc(struct pthread *thread);
 
-static __inline void
-kse_set_curthread(struct kse *kse, struct pthread *td)
-{
-	kse->k_curthread = td;
-	if (td != NULL)
-		_tcb_set(kse->k_kcb, td->tcb);
-	else
-		_tcb_set(kse->k_kcb, NULL);
-}
-
 static void __inline
 thr_accounting(struct pthread *thread)
 {
@@ -633,6 +623,7 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 
 	/* We're in the scheduler, 5 by 5: */
 	curkse = _get_curkse();
+	_tcb_set(curkse->k_kcb, NULL);
 
 	curthread->need_switchout = 1;	/* The thread yielded on its own. */
 	curthread->critical_yield = 0;	/* No need to yield anymore. */
@@ -685,7 +676,7 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 		 	/* Choose another thread to run. */
 			td = KSE_RUNQ_FIRST(curkse);
 			KSE_RUNQ_REMOVE(curkse, td);
-			kse_set_curthread(curkse, td);
+			curkse->k_curthread = td;
 
 			/*
 			 * Make sure the current thread's kse points to
@@ -964,9 +955,12 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 		KSE_CLEAR_WAIT(curkse);
 	}
 
-	/*If this is an upcall; take the scheduler lock. */
-	if (curkse->k_switch == 0)
+	/* If this is an upcall; take the scheduler lock. */
+	if (curkse->k_switch == 0) {
+		/* Set fake kcb */
+		_tcb_set(curkse->k_kcb, NULL);
 		KSE_SCHED_LOCK(curkse, curkse->k_kseg);
+	}
 	curkse->k_switch = 0;
 
 	/*
@@ -1022,7 +1016,7 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 		curthread->active = 1;
 		if ((curthread->flags & THR_FLAGS_IN_RUNQ) != 0)
 			KSE_RUNQ_REMOVE(curkse, curthread);
-		kse_set_curthread(curkse, curthread);
+		curkse->k_curthread = curthread;
 		curthread->kse = curkse;
 		DBG_MSG("Continuing thread %p in critical region\n",
 		    curthread);
@@ -1034,7 +1028,7 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	}
 	else if ((curthread->flags & THR_FLAGS_IN_RUNQ) == 0)
 		kse_switchout_thread(curkse, curthread);
-	kse_set_curthread(curkse, NULL);
+	curkse->k_curthread = NULL;
 
 	kse_wakeup_multi(curkse);
 
@@ -1080,7 +1074,7 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	/*
 	 * Make the selected thread the current thread.
 	 */
-	kse_set_curthread(curkse, curthread);
+	curkse->k_curthread = curthread;
 
 	/*
 	 * Make sure the current thread's kse points to this kse.
@@ -1544,7 +1538,7 @@ kse_check_completed(struct kse *kse)
 					 * previous KSE so that it (the KSE)
 					 * doesn't think it is still active.
 					 */
-					kse_set_curthread(thread->kse, NULL);
+					thread->kse->k_curthread = NULL;
 					thread->active = 0;
 				}
 			}
