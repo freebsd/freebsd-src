@@ -33,7 +33,6 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/dirent.h>
-#include <sys/disklabel.h>
 
 #include <machine/prom.h>
 #include <machine/rpb.h>
