@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.204 1999/04/05 19:38:30 julian Exp $
+ * $Id: vfs_bio.c,v 1.205 1999/04/07 02:41:54 alc Exp $
  */
 
 /*
@@ -1391,12 +1391,9 @@ dosleep:
 			++rushjob;
 		needsbuffer |= flags;
 		while (needsbuffer & flags) {
-			tsleep(
-			    &needsbuffer, 
-			    (PRIBIO + 4) | slpflag, 
-			    "newbuf",
-			    slptimeo
-			);
+			if (tsleep(&needsbuffer, (PRIBIO + 4) | slpflag,
+			    "newbuf", slptimeo))
+				return (NULL);
 		}
 	} else {
 		/*
