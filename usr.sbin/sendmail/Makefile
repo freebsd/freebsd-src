@@ -17,6 +17,7 @@ SRCS=	alias.c arpadate.c bf_torek.c clock.c collect.c conf.c control.c \
 	readcf.c recipient.c savemail.c sfsasl.c shmticklib.c srvrsmtp.c \
 	stab.c stats.c sysexits.c timers.c trace.c udb.c usersmtp.c util.c \
 	version.c
+BINOWN=	root
 BINMODE=4555
 
 # Define the database format to use for aliases et al.
