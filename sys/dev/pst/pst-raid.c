@@ -215,9 +215,11 @@ pst_start(struct pst_softc *psc)
     if (psc->outstanding < (I2O_IOP_OUTBOUND_FRAME_COUNT - 1) &&
 	(bp = bioq_first(&psc->queue))) {
 	if ((mfa = iop_get_mfa(psc->iop)) != 0xffffffff) {
+	    bioq_remove(&psc->queue, bp);
 	    if (!(request = malloc(sizeof(struct pst_request),
 				   M_PSTRAID, M_NOWAIT | M_ZERO))) {
 		printf("pst: out of memory in start\n");
+		biofinish(request->bp, NULL, ENOMEM);
 		iop_free_mfa(psc->iop, mfa);
 		return;
 	    }
@@ -230,7 +232,6 @@ pst_start(struct pst_softc *psc)
 	    else
 		request->timeout_handle =
 		    timeout((timeout_t*)pst_timeout, request, 10 * hz);
-	    bioq_remove(&psc->queue, bp);
 	    if (pst_rw(request)) {
 		biofinish(request->bp, NULL, EIO);
 		iop_free_mfa(request->psc->iop, request->mfa);
