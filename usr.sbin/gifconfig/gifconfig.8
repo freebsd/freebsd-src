@@ -26,16 +26,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     $Id: gifconfig.8,v 1.2 1999/10/07 04:25:54 itojun Exp $
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd May 17, 1998
 .Dt GIFCONFIG 8
-.Os KAME
-.\"
+.Os
 .Sh NAME
 .Nm gifconfig
 .Nd configure generic IP tunnel
-.\"
 .Sh SYNOPSIS
 .Nm
 .Ar interface
@@ -43,7 +41,6 @@
 .Op Ar physsrc physdest
 .Nm gifconfig
 .Fl a
-.\"
 .Sh DESCRIPTION
 .Nm
 configures the physical address for the generic IP tunnel
@@ -81,7 +78,6 @@ when you configure tunnel over same address family
 .Po
 e.g. IPv4-over-IPv4
 .Pc .
-.\"
 .Sh EXAMPLES
 If you would like to configure IPv6 over IPv4
 .Pq aka IPv6 in IPv4
@@ -125,10 +121,8 @@ This is also possible to use IPv6 as outer proto, by replacing
 to
 .Li inet6 ,
 and IPv4 addresses to some appropriate IPv6 addresses in above example.
-.\"
 .Sh RETURN VALUES
 The command exits with exit status of 1 on errors, 0 on success.
-.\"
 .Sh SEE ALSO
 .Xr gif 4 ,
 .Xr ifconfig 8
@@ -136,5 +130,7 @@ The command exits with exit status of 1 on errors, 0 on success.
 The
 .Nm
 command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
-.\" .Sh BUGS
-.\" (to be written)
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initialy integrated into
+.Fx 4.0
