@@ -155,6 +155,7 @@ static int ep_pccard_init __P((struct pccard_devinfo *));
 static int ep_pccard_attach  __P((struct pccard_devinfo *));
 static void ep_unload __P((struct pccard_devinfo *));
 static int card_intr __P((struct pccard_devinfo *));
+static int ep_pccard_identify (struct ep_board *epb, int unit); 
 
 PCCARD_MODULE(ep, ep_pccard_init, ep_unload, card_intr, 0, net_imask);
 
@@ -182,26 +183,27 @@ ep_pccard_init(devi)
     /* get_e() requires these. */
     sc->ep_io_addr = is->id_iobase;
     sc->unit = is->id_unit;
-    epb->cmd_off = 0;
-    if (is->id_flags & EP_FLAGS_100TX) 
-	epb->cmd_off = 2;
-
     epb->epb_addr = is->id_iobase;
     epb->epb_used = 1;
-    epb->prod_id = get_e(sc, EEPROM_PROD_ID);
-    epb->mii_trans = 0;
 
-    /* product id */
-    switch (epb->prod_id) {
-      case 0x6055: /* 3C556 */
-      case 0x4057: /* 3C574 */
-	epb->mii_trans = 1;
-	break;
-      case 0x9058: /* 3C589 */
-	break;
-      default:
-	printf("ep%d: failed to come ready.\n", is->id_unit);
-	return (ENXIO);
+    /*
+     * XXX - Certain (newer?) 3Com cards need epb->cmd_off == 2. Sadly,
+     * you need to have a correct cmd_off in order to identify the card. 
+     * So we have to hit it with both and cross our virtual fingers. There's
+     * got to be a better way to do this. jyoung@accessus.net 09/11/1999
+     */
+
+    epb->cmd_off = 0;
+    epb->prod_id = get_e(sc, EEPROM_PROD_ID);
+    if (bootverbose) printf("ep%d: Pass 1 of 2 detection failed (nonfatal)\n", is->id_unit);
+    if (!ep_pccard_identify(epb, is->id_unit)) {
+	epb->cmd_off = 2;
+	epb->prod_id = get_e(sc, EEPROM_PROD_ID);
+	if (!ep_pccard_identify(epb, is->id_unit)) {
+	    if (bootverbose) printf("ep%d: Pass 2 of 2 detection failed (fatal!)\n", is->id_unit);
+	    printf("ep%d: Unit failed to come ready or product ID unknown! (id 0x%x)\n", is->id_unit, epb->prod_id);
+	    return (ENXIO);
+	}
     }
 
     epb->res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
@@ -212,6 +214,37 @@ ep_pccard_init(devi)
 	return (ENXIO);
 
     sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
+    return (0);
+}
+
+static int
+ep_pccard_identify(epb, unit)
+    struct ep_board *epb;
+    int unit;
+{
+    /* Determine device type and associated MII capabilities  */
+    switch (epb->prod_id) {
+	case 0x6055: /* 3C556 */
+	    if (bootverbose) printf("ep%d: 3Com 3C556\n", unit);
+	    epb->mii_trans = 1;
+	    return (1);
+	    break; /* NOTREACHED */
+	case 0x4057: /* 3C574 */
+	    if (bootverbose) printf("ep%d: 3Com 3C574\n", unit);
+	    epb->mii_trans = 1;
+	    return (1);
+	    break; /* NOTREACHED */
+	case 0x4b57: /* 3C574B */
+	    if (bootverbose) printf("ep%d: 3Com 3C574B, Megahertz 3CCFE574BT or Fast Etherlink 3C574-TX\n", unit);
+	    epb->mii_trans = 1;
+	    return (1);
+	    break; /* NOTREACHED */
+	case 0x9058: /* 3C589 */
+	    if (bootverbose) printf("ep%d: 3Com Etherlink III 3C589[B/C/D]\n", unit);
+	    epb->mii_trans = 0;
+	    return (1);
+	    break; /* NOTREACHED */
+    }
     return (0);
 }
 
@@ -232,7 +265,9 @@ ep_pccard_attach(devi)
 	sc->ep_connectors |= UTP;
     }
     if (!(sc->ep_connectors & 7))
-	printf("ep%d: No connectors or MII.\n", is->id_unit);
+	/* (Apparently) non-fatal */
+	if(bootverbose) printf("ep%d: No connectors or MII.\n", is->id_unit);
+
     sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
 
     /* ROM size = 0, ROM base = 0 */
@@ -246,7 +281,7 @@ ep_pccard_attach(devi)
 
     if (sc->epb->mii_trans) {
 	/*
-	 * turn on the MII tranceiver
+	 * turn on the MII transciever
 	 */
 	GO_WINDOW(3);
 	outw(BASE + EP_W3_OPTIONS, 0x8040);
