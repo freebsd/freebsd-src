@@ -670,7 +670,7 @@ fail:
 	if (sc->pcn_res)
 		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
 
-	if (mtx_initialized(&sc->mtx) != 0)
+	if (mtx_initialized(&sc->pcn_mtx) != 0)
 		mtx_destroy(&sc->pcn_mtx);
 
 	return(error);
