@@ -168,11 +168,18 @@ main(argc, argv)
 		case 'b':		/* blocks per tape write */
 			ntrec = numarg('b', "number of blocks per write",
 			    1L, 1000L, &argc, &argv);
-			/* XXX restore is unable to restore dumps that 
-			   were created  with a blocksize larger than 32K.
-			   Possibly a bug in the scsi tape driver. */
-			if ( ntrec > 32 ) {
-				msg("please choose a blocksize <= 32\n");
+			/*
+			 * XXX
+			 * physio(9) currently slices all requests to
+			 * 64 KB chunks.  So now, if somebody entered
+			 * e.g. 96 KB block size here, he would effectively
+			 * yield one 64 KB and one 32 KB block, which
+			 * restore cannot handle.
+			 * Thus we currently enforce pyhsio(9)'s limit
+			 * here, too.
+			 */
+			if ( ntrec > 64 ) {
+				msg("please choose a blocksize <= 64\n");
 				exit(X_ABORT);
 			}
 			break;
@@ -184,6 +191,10 @@ main(argc, argv)
 
 		case 'c':		/* Tape is cart. not 9-track */
 			cartridge = 1;
+			break;
+
+		case 'a':		/* `auto-size', Write to EOM. */
+			unlimited = 1;
 			break;
 
 		/* dump level */
@@ -235,7 +246,7 @@ main(argc, argv)
 
 	if (blocksperfile)
 		blocksperfile = blocksperfile / ntrec * ntrec; /* round down */
-	else {
+	else if (!unlimited) {
 		/*
 		 * Determine how to default tape size and density
 		 *
@@ -361,7 +372,7 @@ main(argc, argv)
 		anydirskipped = mapdirs(maxino, &tapesize);
 	}
 
-	if (pipeout) {
+	if (pipeout || unlimited) {
 		tapesize += 10;	/* 10 trailer blocks */
 		msg("estimated %ld tape blocks.\n", tapesize);
 	} else {
