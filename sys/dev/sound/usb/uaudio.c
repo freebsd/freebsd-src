@@ -3634,6 +3634,9 @@ uaudio_init_params(struct uaudio_softc *sc, struct chan *ch, int mode)
 	int i, j, enc;
 	int samples_per_frame, sample_size;
 
+	if ((sc->sc_playchan.pipe != NULL) || (sc->sc_recchan.pipe != NULL))
+		return (-1);
+
 	switch(ch->format & 0x0000FFFF) {
 	case AFMT_U8:
 		enc = AUDIO_ENCODING_ULINEAR_LE;
@@ -3680,7 +3683,6 @@ uaudio_init_params(struct uaudio_softc *sc, struct chan *ch, int mode)
 	}
 
 /*	for (mode =  ......	 */
-/*But this function is used for output only */
 		for (i = 0; i < sc->sc_nalts; i++) {
 			const struct usb_audio_streaming_type1_descriptor *a1d =
 				sc->sc_alts[i].asf1desc;
@@ -3722,7 +3724,10 @@ uaudio_init_params(struct uaudio_softc *sc, struct chan *ch, int mode)
 			}
 		}
 		/* return (EINVAL); */
-		printf("uaudio: This device can't play in rate=%d.\n", ch->sample_rate);
+		if (mode == AUMODE_PLAY) 
+			printf("uaudio: This device can't play in rate=%d.\n", ch->sample_rate);
+		else
+			printf("uaudio: This device can't record in rate=%d.\n", ch->sample_rate);
 		return (-1);
 
 	found:
@@ -3950,6 +3955,65 @@ uaudio_halt_out_dma(device_t dev)
 		uaudio_chan_free_buffers(sc, &sc->sc_playchan);
 	}
         return (0);
+}
+
+int
+uaudio_halt_in_dma(device_t dev)
+{
+	struct uaudio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->sc_dying)
+		return (EIO);
+
+	DPRINTF(("uaudio_halt_in_dma: enter\n"));
+	if (sc->sc_recchan.pipe != NULL) {
+		uaudio_chan_close(sc, &sc->sc_recchan);
+		sc->sc_recchan.pipe = NULL;
+		uaudio_chan_free_buffers(sc, &sc->sc_recchan);
+/*		sc->sc_recchan.intr = NULL; */
+	}
+	return (0);
+}
+
+int
+uaudio_trigger_input(device_t dev)
+{
+	struct uaudio_softc *sc;
+	struct chan *ch;
+	usbd_status err;
+	int i, s;
+
+	sc = device_get_softc(dev);
+	ch = &sc->sc_recchan;
+
+	if (sc->sc_dying)
+		return (EIO);
+
+/*	uaudio_chan_set_param(ch, start, end, blksize) */
+	if (uaudio_init_params(sc, ch, AUMODE_RECORD))
+		return (EIO);
+
+	err = uaudio_chan_alloc_buffers(sc, ch);
+	if (err)
+		return (EIO);
+
+	err = uaudio_chan_open(sc, ch);
+	if (err) {
+		uaudio_chan_free_buffers(sc, ch);
+		return (EIO);
+	}
+
+/*	ch->intr = intr;
+	ch->arg = arg; */
+
+	s = splusb();
+	for (i = 0; i < UAUDIO_NCHANBUFS-1; i++) /* XXX -1 shouldn't be needed */
+		uaudio_chan_rtransfer(ch);
+	splx(s);
+
+	return (0);
 }
 
 int
