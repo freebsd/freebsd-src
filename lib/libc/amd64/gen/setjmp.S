@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: setjmp.S,v 1.3 1995/01/23 01:27:08 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: setjmp.S,v 1.3 1995/01/23 01:27:08 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 /*
@@ -54,9 +54,17 @@
 #include "DEFS.h"
 #include "SYS.h"
 
+#ifdef _THREAD_SAFE
+ENTRY(_thread_sys_setjmp)
+#else
 ENTRY(setjmp)
+#endif
 	pushl	$0
+#ifdef _THREAD_SAFE
+	call	PIC_PLT(__thread_sys_sigblock)
+#else
 	call	PIC_PLT(_sigblock)
+#endif
 	popl	%edx
 	movl	4(%esp),%ecx 
 	movl	0(%esp),%edx
@@ -71,10 +79,18 @@ ENTRY(setjmp)
 	xorl	%eax,%eax
 	ret
 
+#ifdef _THREAD_SAFE
+ENTRY(_thread_sys_longjmp)
+#else
 ENTRY(longjmp)
+#endif
 	movl	4(%esp),%edx
 	pushl	24(%edx)
+#ifdef _THREAD_SAFE
+	call	PIC_PLT(__thread_sys_sigsetmask)
+#else
 	call	PIC_PLT(_sigsetmask)	/* XXX this is not reentrant */
+#endif
 	popl	%eax
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax

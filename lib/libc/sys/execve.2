@@ -178,6 +178,23 @@ and
 .Fa argv
 points to the array of character pointers
 to the arguments themselves.
+.Sh IMPLEMENTATION NOTES
+.Pp
+In the non-threaded library
+.Fn execve
+is implemented as the
+.Va execve
+syscall.
+.Pp
+In the threaded library, the
+.Va execve
+syscall is assembled to
+.Fn _thread_sys_execve
+and
+.Fn execve
+is implemented as a function which performs user-thread
+library re-initialization and then calls
+.Fn _thread_sys_execve .
 .Sh RETURN VALUES
 As the
 .Fn execve

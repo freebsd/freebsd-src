@@ -33,16 +33,39 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cerror.S,v 1.2 1994/08/13 14:00:26 davidg Exp $
+ *	$Id: cerror.S,v 1.3 1995/01/23 01:29:43 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: cerror.S,v 1.3 1995/01/23 01:29:43 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
+#ifdef _THREAD_SAFE
+	/*
+	 * Threaded version using __error().
+	 */
+	.globl	___error
+	.type	___error,@function
+cerror:
+	pushl	%eax
+#ifdef PIC
+	call	PIC_PLT(___error)
+#else
+	call	___error
+#endif
+	popl	%ecx
+	movl	%ecx,(%eax)
+	movl	$-1,%eax
+	movl	$-1,%edx
+	ret
+
+#else /* _THREAD_SAFE */
+	/*
+	 * Non-threaded version using global errno.
+	 */
 	.globl	_errno
 cerror:
 #ifdef PIC
@@ -56,3 +79,4 @@ cerror:
 	movl	$-1,%eax
 	movl	$-1,%edx
 	ret
+#endif /* _THREAD_SAFE */

@@ -37,12 +37,27 @@ static char sccsid[] = "@(#)isatty.c	8.1 (Berkeley) 6/4/93";
 
 #include <termios.h>
 #include <unistd.h>
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 int
 isatty(fd)
 	int fd;
 {
+	int retval;
 	struct termios t;
 
-	return(tcgetattr(fd, &t) != -1);
+#ifdef _THREAD_SAFE
+	if (_thread_fd_lock(fd, FD_READ, NULL,__FILE__,__LINE__) == 0) {
+#endif
+		retval = (tcgetattr(fd, &t) != -1);
+#ifdef _THREAD_SAFE
+        _thread_fd_unlock(fd, FD_READ);
+	} else {
+		retval = 0;
+	}
+#endif
+	return(retval);
 }
