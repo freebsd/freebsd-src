@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.10 1994/09/03 16:03:09 csgr Exp $
+ *	$Id: isa_device.h,v 1.11 1994/10/01 02:56:16 davidg Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -89,6 +89,7 @@ struct isa_driver {
 	int	(*attach) __P((struct isa_device *idp));
 					/* setup driver for a device */
 	char	*name;			/* device name */
+	int	sensitive_hw;		/* true if other probes confuse us */
 };
 
 extern char eintrnames[];	/* end of intrnames[] */

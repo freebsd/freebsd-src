@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.26 1994/09/30 05:35:55 swallace Exp $
+ *	$Id: isa.c,v 1.27 1994/10/01 02:56:14 davidg Exp $
  */
 
 /*
@@ -162,8 +162,6 @@ haveseen(dvp, tmpdvp, checkbits)
 	struct isa_device *tmpdvp;
 	u_int	checkbits;
 {
-	int	status = 0;
-
 	/*
 	 * Only check against devices that have already been found
 	 */
@@ -183,7 +181,7 @@ haveseen(dvp, tmpdvp, checkbits)
 				  (tmpdvp->id_iobase + tmpdvp->id_alive - 1))) {
 				conflict(dvp, tmpdvp, dvp->id_iobase, whatnot,
 					 "I/O address", "0x%x");
-				status = 1;
+				return 1;
 			}
 		}
 		/*
@@ -202,7 +200,7 @@ haveseen(dvp, tmpdvp, checkbits)
 			     (tmpdvp->id_maddr + tmpdvp->id_msize - 1))) {
 				conflict(dvp, tmpdvp, (int)dvp->id_maddr,
 					 whatnot, "maddr", "0x%x");
-				status = 1;
+				return 1;
 			}
 		}
 		/*
@@ -212,7 +210,7 @@ haveseen(dvp, tmpdvp, checkbits)
 			if (tmpdvp->id_irq == dvp->id_irq) {
 				conflict(dvp, tmpdvp, ffs(dvp->id_irq) - 1,
 					 whatnot, "irq", "%d");
-				status = 1;
+				return 1;
 			}
 		}
 		/*
@@ -222,11 +220,11 @@ haveseen(dvp, tmpdvp, checkbits)
 			if (tmpdvp->id_drq == dvp->id_drq) {
 				conflict(dvp, tmpdvp, dvp->id_drq, whatnot,
 					 "drq", "%d");
-				status = 1;
+				return 1;
 			}
 		}
 	}
-	return (status);
+	return 0;
 }
 
 /*
@@ -241,14 +239,26 @@ haveseen_isadev(dvp, checkbits)
 	struct isa_device *tmpdvp;
 	int	status = 0;
 
-	for (tmpdvp = isa_devtab_tty; tmpdvp->id_driver; tmpdvp++)
+	for (tmpdvp = isa_devtab_tty; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
-	for (tmpdvp = isa_devtab_bio; tmpdvp->id_driver; tmpdvp++)
+		if (status)
+			return status;
+	}
+	for (tmpdvp = isa_devtab_bio; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
-	for (tmpdvp = isa_devtab_net; tmpdvp->id_driver; tmpdvp++)
+		if (status)
+			return status;
+	}
+	for (tmpdvp = isa_devtab_net; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
-	for (tmpdvp = isa_devtab_null; tmpdvp->id_driver; tmpdvp++)
+		if (status)
+			return status;
+	}
+	for (tmpdvp = isa_devtab_null; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
+		if (status)
+			return status;
+	}
 	return(status);
 }
 
@@ -263,14 +273,34 @@ isa_configure() {
 	enable_intr();
 	INTREN(IRQ_SLAVE);
 	printf("Probing for devices on the ISA bus:\n");
+	/* First probe all the sensitive probes */
 	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
-		config_isadev(dvp, &tty_imask);
+		if (dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, &tty_imask);
 	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++)
-		config_isadev(dvp, &bio_imask);
+		if (dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, &bio_imask);
 	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
-		config_isadev(dvp, &net_imask);
+		if (dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, &net_imask);
 	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
-		config_isadev(dvp, (u_int *)NULL);
+		if (dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, (u_int *)NULL);
+
+	/* Then all the bad ones */
+	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
+		if (!dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, &tty_imask);
+	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++)
+		if (!dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, &bio_imask);
+	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
+		if (!dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, &net_imask);
+	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
+		if (!dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, (u_int *)NULL);
+
 	bio_imask |= SWI_CLOCK_MASK;
 	net_imask |= SWI_NET_MASK;
 	tty_imask |= SWI_TTY_MASK;
