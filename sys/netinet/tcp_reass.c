@@ -2990,6 +2990,7 @@ tcp_mss(tp, offer)
 	 * Make the socket buffers an integral number of mss units;
 	 * if the mss is larger than the socket buffer, decrease the mss.
 	 */
+	SOCKBUF_LOCK(&so->so_snd);
 	if ((so->so_snd.sb_hiwat == tcp_sendspace) && metrics.rmx_sendpipe)
 		bufsize = metrics.rmx_sendpipe;
 	else
@@ -3001,10 +3002,12 @@ tcp_mss(tp, offer)
 		if (bufsize > sb_max)
 			bufsize = sb_max;
 		if (bufsize > so->so_snd.sb_hiwat)
-			(void)sbreserve(&so->so_snd, bufsize, so, NULL);
+			(void)sbreserve_locked(&so->so_snd, bufsize, so, NULL);
 	}
+	SOCKBUF_UNLOCK(&so->so_snd);
 	tp->t_maxseg = mss;
 
+	SOCKBUF_LOCK(&so->so_rcv);
 	if ((so->so_rcv.sb_hiwat == tcp_recvspace) && metrics.rmx_recvpipe)
 		bufsize = metrics.rmx_recvpipe;
 	else
@@ -3014,8 +3017,9 @@ tcp_mss(tp, offer)
 		if (bufsize > sb_max)
 			bufsize = sb_max;
 		if (bufsize > so->so_rcv.sb_hiwat)
-			(void)sbreserve(&so->so_rcv, bufsize, so, NULL);
+			(void)sbreserve_locked(&so->so_rcv, bufsize, so, NULL);
 	}
+	SOCKBUF_UNLOCK(&so->so_rcv);
 	/*
 	 * While we're here, check the others too
 	 */
