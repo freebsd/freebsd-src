@@ -34,6 +34,10 @@ ident		LINT
 maxusers	10
 
 #
+# We want LINT to cover profiling as well
+profile 	1
+
+#
 # The `makeoptions' parameter allows variables to be passed to the
 # generated Makefile in the build area.
 #
