@@ -17,6 +17,19 @@
 # after which config should be rerun for all machines.
 #
 
+# The FSF cross tools don't understand -fformat-extensions
+CWARNFLAGS=     -Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
+                -Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
+                -ffreestanding -Wno-format -Wno-sign-compare
+CC=             x86_64-unknown-freebsd5.0-gcc -D__amd64__
+LD=             x86_64-unknown-freebsd5.0-ld
+NM=             x86_64-unknown-freebsd5.0-nm
+SIZE=           x86_64-unknown-freebsd5.0-size
+OBJCOPY=        x86_64-unknown-freebsd5.0-objcopy
+OBJDUMP=        x86_64-unknown-freebsd5.0-objdump
+MACHINE_ARCH=   amd64
+NO_CPU_COPTFLAGS= true	# minimize cross compile pain
+
 # Which version of config(8) is required.
 %VERSREQ=	500012
 
@@ -31,7 +44,7 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-MKMODULESENV+= MACHINE=x86_64
+MKMODULESENV+= MACHINE=amd64
 
 %BEFORE_DEPEND
 
