@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aicasm/aicasm_symbol.h#3 $
  *
  * $FreeBSD$
  */
@@ -117,7 +117,13 @@ typedef struct symbol_ref {
 typedef struct symbol_node {
 	SLIST_ENTRY(symbol_node) links;
 	symbol_t *symbol;
-}symbol_node_t;
+} symbol_node_t;
+
+typedef struct critical_section {
+	TAILQ_ENTRY(critical_section) links;
+	int begin_addr;
+	int end_addr;
+} critical_section_t;
 
 typedef enum {
 	SCOPE_ROOT,
@@ -143,6 +149,7 @@ typedef struct scope {
 	int func_num;
 } scope_t;
 
+TAILQ_HEAD(cs_tailq, critical_section);
 SLIST_HEAD(scope_list, scope);
 TAILQ_HEAD(scope_tailq, scope);
 
