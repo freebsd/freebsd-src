@@ -304,6 +304,9 @@ IDTVEC(int0x80_syscall)
 
 ENTRY(fork_trampoline)
  	MTX_EXIT(_sched_lock, %ecx)
+	sti				/* XXX: we need this for kernel threads
+					   created very early before interrupts
+					   are enabled */
 
 #ifdef SMP
 	cmpl	$0,_switchtime
