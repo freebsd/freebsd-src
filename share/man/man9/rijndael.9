@@ -36,9 +36,9 @@
 .Nm rijndael_padEncrypt ,
 .Nm rijndael_blockDecrypt ,
 .Nm rijndael_padDecrypt
-.Nd AES encryption.
+.Nd AES encryption
 .Sh SYNOPSIS
-.Fd #include <crypto/rijndael/rijndael.h>
+.In crypto/rijndael/rijndael.h
 .Ft int
 .Fo rijndael_makeKey
 .Fa "keyInstance *key"
@@ -86,40 +86,40 @@
 .Fc
 .Sh DESCRIPTION
 The
-.Nm rijndael_makeKey
+.Fn rijndael_makeKey
 function is used to set up the key schedule in
-.Ar key .
+.Fa key .
 The
-.Ar direction
+.Fa direction
 (which may be
 .Dv DIR_ENCRYPT
 or
 .Dv DIR_DECRYPT )
 specifies the intended use of the key.
 The length of the key (in bits) is given in
-.Ar keyLen ,
+.Fa keyLen ,
 and must be 128, 192 or 256.
 The actual key is supplied in the buffer pointed to by
-.Ar keyMaterial .
+.Fa keyMaterial .
 This material may be raw binary data,
-or an ascii string containing a hexadecimal rendition
+or an ASCII string containing a hexadecimal rendition
 of the raw binary data,
 dependent on a compile-time option in the
 .Nm
-sources -
+sources,
 .Dv BINARY_KEY_MATERIAL .
-.Pp
 .Sh RETURN VALUES
 The
-.Nm rijndael_makeKey
+.Fn rijndael_makeKey
 function will return
 .Dv BAD_KEY_INSTANCE
-if a null
-.Ar key
+if a
+.Dv NULL
+.Fa key
 is passed,
 .Dv BAD_KEY_DIR
 if
-.Ar direction
+.Fa direction
 is not
 .Dv DIR_ENCRYPT
 or
@@ -130,6 +130,5 @@ if the key materials are not a hexadecimal string
 and
 .Dv TRUE
 otherwise.
-.Pp
-.Sh AUTHOR
-.An Mark R V Murray .
+.Sh AUTHORS
+.An Mark R V Murray
