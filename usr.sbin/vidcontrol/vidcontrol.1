@@ -104,11 +104,6 @@ Use the
 command below to see available colors.
 .It Cm show
 See the supported colors on a given platform.
-.It Fl r Ar foreground background
-Change reverse mode colors to
-.Ar foreground 
-and 
-.Ar background .
 .It Fl b Ar color
 Set border color to 
 .Ar color .
@@ -124,28 +119,6 @@ Or it can be like the old hardware cursor
 The latter is actually a simulation.
 .It Fl d
 Print out current output screen map.
-.It Fl l Ar screen_map
-Install screen output map file from
-.Ar screen_map .
-See also
-.Xr syscons 4 .
-.It Fl L
-Install default screen output map.
-.It Fl i Cm adapter
-Shows info about the current video adapter.
-.It Fl i Cm mode
-Shows the possible video modes with the current video hardware.
-.It Fl M Ar char
-Sets the base character used to render the mouse pointer to
-.Ar char .
-.It Fl m Cm on | off
-Switch the mouse pointer
-.Cm on
-or
-.Cm off .
-Used together with the 
-.Xr moused 8
-daemon for text mode cut & paste functionality.
 .It Xo
 .Fl f
 .Op Ar size
@@ -190,6 +163,33 @@ See also
 and
 .Sx EXAMPLES
 below.
+.It Fl i Cm adapter
+Shows info about the current video adapter.
+.It Fl i Cm mode
+Shows the possible video modes with the current video hardware.
+.It Fl l Ar screen_map
+Install screen output map file from
+.Ar screen_map .
+See also
+.Xr syscons 4 .
+.It Fl L
+Install default screen output map.
+.It Fl M Ar char
+Sets the base character used to render the mouse pointer to
+.Ar char .
+.It Fl m Cm on | off
+Switch the mouse pointer
+.Cm on
+or
+.Cm off .
+Used together with the 
+.Xr moused 8
+daemon for text mode cut & paste functionality.
+.It Fl r Ar foreground background
+Change reverse mode colors to
+.Ar foreground 
+and 
+.Ar background .
 .It Fl s Ar number
 Set the current vty to
 .Ar number .
