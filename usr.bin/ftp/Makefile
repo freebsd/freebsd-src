@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1997/10/05 09:39:55 jkh Exp $
+#	$Id: Makefile,v 1.8 1997/12/13 20:38:12 pst Exp $
 #	$NetBSD: Makefile,v 1.15 1997/10/18 15:31:20 lukem Exp $
 #	from: @(#)Makefile	8.2 (Berkeley) 4/3/94
 
@@ -9,7 +9,6 @@
 PROG=	ftp
 SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c ruserpass.c \
 	util.c
-CFLAGS+=-I${.CURDIR}/../../contrib-crypto/telnet
 
 LDADD+=	-ledit -ltermcap
 DPADD+=	${LIBEDIT} ${LIBTERMCAP}
