@@ -53,6 +53,9 @@
 #include <alpha/osf1/osf1.h>
 
 MODULE_VERSION(osf1, 1);
+MODULE_DEPEND(osf1, sysvmsg, 1, 1, 1);
+MODULE_DEPEND(osf1, sysvsem, 1, 1, 1);
+MODULE_DEPEND(osf1, sysvshm, 1, 1, 1);
 
 int osf1_szsigcode;
 extern char sigcode[];
