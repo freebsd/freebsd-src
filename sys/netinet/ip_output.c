@@ -1011,7 +1011,8 @@ pass:
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, can just send directly.
 	 */
-	if (ip->ip_len <= ifp->if_mtu || ifp->if_hwassist & CSUM_FRAGMENT) {
+	if (ip->ip_len <= ifp->if_mtu || (ifp->if_hwassist & CSUM_FRAGMENT &&
+	    ((ip->ip_off & IP_DF) == 0))) {
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
