@@ -90,9 +90,13 @@ static devclass_t agp_devclass;
 
 /* Helper functions for implementing chipset mini drivers. */
 
+void
+agp_flush_cache()
+{
 #ifdef __i386__
-#define agp_flush_cache()	wbinvd()
+	wbinvd();
 #endif
+}
 
 u_int8_t
 agp_find_caps(device_t dev)
