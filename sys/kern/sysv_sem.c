@@ -848,14 +848,10 @@ done:
 	if (do_wakeup) {
 #ifdef SEM_DEBUG
 		printf("semop:  doing wakeup\n");
-#ifdef SEM_WAKEUP
-		sem_wakeup((caddr_t)semaptr);
-#else
-		wakeup((caddr_t)semaptr);
 #endif
-		printf("semop:  back from wakeup\n");
-#else
 		wakeup((caddr_t)semaptr);
+#ifdef SEM_DEBUG
+		printf("semop:  back from wakeup\n");
 #endif
 	}
 #ifdef SEM_DEBUG
@@ -944,11 +940,7 @@ semexit(p)
 			} else
 				semaptr->sem_base[semnum].semval += adjval;
 
-#ifdef SEM_WAKEUP
-			sem_wakeup((caddr_t)semaptr);
-#else
 			wakeup((caddr_t)semaptr);
-#endif
 #ifdef SEM_DEBUG
 			printf("semexit:  back from wakeup\n");
 #endif
