@@ -1,0 +1,7 @@
+$Id$
+
+NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
+file is important.  Make sure the current version number is on line 6.
+
+0.1:	Initial i386 version, inspiration and some structure from the
+	NetBSD version.
