@@ -409,9 +409,9 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		twa_dbg_dprint(3, sc, "XPT_PATH_INQ request");
 
 		path_inq->version_num = 1;
-		path_inq->hba_inquiry = PI_WIDE_16;
+		path_inq->hba_inquiry = 0;
 		path_inq->target_sprt = 0;
-		path_inq->hba_misc |= PIM_NOBUSRESET;
+		path_inq->hba_misc = 0;
 		path_inq->hba_eng_cnt = 0;
 		path_inq->max_target = TWA_MAX_UNITS;
 		path_inq->max_lun = 0;
