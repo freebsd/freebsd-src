@@ -1,35 +1,18 @@
 #
-# GENERICISA -- Generic ISA machine -- distribution floppy
+# SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#
-# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
-# --------------------         -----   ----------------------
-# CURRENT PATCH LEVEL:         3       00158
-# --------------------         -----   ----------------------
-#
-# 09 Feb 93	Nate Williams		Added options for X code to
-#					compiled in by default
-# 29 Mar 93	Rodney W. Grimes	Fixed com ports to be com0, com1
-#					Added com2, com3, lpt, lpa
-#					Replaced as0 with Julian SCSI
-#					Fixed secound wd0 to be wd1
-#					Cleaned up file, added comments
-#					Added ahb, order is important!
-#					Added pseudo-device speaker
-#					Note: All IO_xxx names are 1 based
-# 17 May 93	Rodney W. Grimes	Updated IRQ's 2 to IRQ 9's for
-#					intr-0.1 code.  Changed ahb0 from
-#					irq 12 to irq 11 the real default
+#	$Id$
 #
 
 machine		"i386"
 cpu		"i386"
-ident		GENERICISA
+ident		SYSCONS
 timezone	8 dst
 maxusers	10
 options		INET			#InterNETworking
 options		ISOFS			#ISO File System
 options		NFS			#Network File System
+options		PCFS			#MSDOS File System
 options		"COMPAT_43"		#Compatible with BSD 4.3
 options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		XSERVER			#Xserver
@@ -59,8 +42,6 @@ device		sd3
 
 device		st0
 device		st1
-device		st2
-device		st3
 
 device		cd0
 device		cd1
@@ -78,8 +59,8 @@ device		lpa0	at isa? port "IO_LPT1" tty
 device		lpa1	at isa? port "IO_LPT2" tty
 
 device ed0 at isa? port 0x280 net irq 9 iomem 0xd0000 vector edintr
+#device ec0 at isa? port 0x250 net irq 9 iomem 0xd8000 iosiz 8192 vector ecintr
 device ne0 at isa? port 0x300 net irq 9 vector neintr
-device ec0 at isa? port 0x250 net irq 9 iomem 0xd8000 iosiz 8192 vector ecintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
