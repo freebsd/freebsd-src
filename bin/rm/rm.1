@@ -190,22 +190,8 @@ not the standard error output.
 .Sh STANDARDS
 The
 .Nm
-command is almost
-.St -p1003.2
-compatible, except that
-.Tn POSIX
-requires
-.Nm
-to act like
-.Xr rmdir 1
-when the
-.Ar file
-specified is a directory.  This implementation requires the
-.Fl d
-option if such behavior is desired.  This follows the historical
-behavior of
-.Nm
-with respect to directories.
+command conforms to
+.St -p1003.2 .
 .Pp
 The simplified
 .Nm unlink
