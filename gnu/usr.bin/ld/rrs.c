@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.13 1994/12/23 22:30:48 nate Exp $
+ *	$Id: rrs.c,v 1.15 1996/05/27 18:06:02 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -1185,6 +1185,7 @@ write_rrs_text()
 			sodp[i].sod_library = 1;
 		} else
 			sodp[i].sod_library = 0;
+		sodp[i].sod_reserved = 0;
 
 		pos += 1 + strlen(name);
 		sodp[i].sod_next = (i == number_of_shobjs - 1) ? 0 :
