@@ -438,6 +438,8 @@ pcic_pci_oz68xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 	 * The 68xx datasheets make it hard to know what the right thing
 	 * to do here is.  We do what we know, which is nothing, and
 	 * hope for the best.
+	 *
+	 * XXX NEWCARD may have some useful code here.
 	 */
 	/* XXX */
 	return (0);
