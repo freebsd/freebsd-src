@@ -207,7 +207,7 @@ FILE	*rtlog = NULL;
 
 int logopened = 0;
 
-static	u_long	seq = 0;
+static	int	seq = 0;
 
 volatile sig_atomic_t seenalrm;
 volatile sig_atomic_t seenquit;
@@ -2842,7 +2842,7 @@ getroute(np, gw)
 	struct in6_addr *gw;
 {
 	u_char buf[BUFSIZ];
-	u_long myseq;
+	int myseq;
 	int len;
 	struct rt_msghdr *rtm;
 	struct sockaddr_in6 *sin6;
