@@ -39,6 +39,7 @@
  */
 
 #define EXTERN /* */
+#include <paths.h>
 #include "ctm.h"
 
 #define CTM_STATUS ".ctm_status"
@@ -64,6 +65,9 @@ main(int argc, char **argv)
     BackupFile = NULL;
     TarCmd = TARCMD;
     LastFilter = FilterList = NULL;
+    TmpDir = getenv("TMPDIR");
+    if (TmpDir == NULL)
+	TmpDir = strdup(_PATH_TMP);
     setbuf(stderr,0);
     setbuf(stdout,0);
 
@@ -224,18 +228,27 @@ Proc(char *filename, unsigned applied)
 
     /* If we cannot seek, we're doomed, so copy to a tmp-file in that case */
     if(!p &&  -1 == fseek(f,0,SEEK_END)) {
-	char *fn = tempnam(TmpDir,"CTMclient");
-	FILE *f2 = fopen(fn,"w+");
-	int i;
+	char *fn;
+	FILE *f2;
+	int fd;
 
-	if(!f2) {
-	    warn("%s", fn);
+	if (asprintf(&fn, "%s/CTMclient.XXXXXXXXXX", TmpDir) == -1) {
+	    fprintf(stderr, "Cannot allocate memory\n");
 	    fclose(f);
 	    return Exit_Broke;
 	}
+	if ((fd = mkstemp(fn)) == -1 || (f2 = fdopen(fd, "w+")) == NULL) {
+ 	    perror(fn);
+	    free(fn);
+	    if (fd != -1)
+		close(fd);
+ 	    fclose(f);
+ 	    return Exit_Broke;
+ 	}
 	unlink(fn);
 	if (Verbose > 0)
 	    fprintf(stderr,"Writing tmp-file \"%s\"\n",fn);
+	free(fn);
 	while(EOF != (i=getc(f)))
 	    if(EOF == putc(i,f2)) {
 		fclose(f2);
