@@ -261,7 +261,7 @@ again1:
 				OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
 			tmp_addr += PAGE_SIZE;
 		}
-		vm_map_pageable(map, addr, addr + size, FALSE);
+		vm_map_wire(map, addr, addr + size, FALSE);
 
 		splx(s);
 		return ((void *)addr);

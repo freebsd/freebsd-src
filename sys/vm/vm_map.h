@@ -245,8 +245,6 @@ void _vm_map_unlock_read(vm_map_t map, const char *file, int line);
 int _vm_map_trylock(vm_map_t map, const char *file, int line);
 int _vm_map_lock_upgrade(vm_map_t map, const char *file, int line);
 void _vm_map_lock_downgrade(vm_map_t map, const char *file, int line);
-void _vm_map_set_recursive(vm_map_t map, const char *file, int line);
-void _vm_map_clear_recursive(vm_map_t map, const char *file, int line);
 
 #define	vm_map_lock(map)	_vm_map_lock(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock(map)	_vm_map_unlock(map, LOCK_FILE, LOCK_LINE)
@@ -257,10 +255,6 @@ void _vm_map_clear_recursive(vm_map_t map, const char *file, int line);
 			_vm_map_lock_upgrade(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_lock_downgrade(map)	\
 			_vm_map_lock_downgrade(map, LOCK_FILE, LOCK_LINE)
-#define	vm_map_set_recursive(map)	\
-			_vm_map_set_recursive(map, LOCK_FILE, LOCK_LINE)
-#define	vm_map_clear_recursive(map)	\
-			_vm_map_clear_recursive(map, LOCK_FILE, LOCK_LINE)
 
 long vmspace_resident_count(struct vmspace *vmspace);
 #endif	/* _KERNEL */
@@ -306,8 +300,6 @@ int vm_map_lookup (vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_obje
     vm_pindex_t *, vm_prot_t *, boolean_t *);
 void vm_map_lookup_done (vm_map_t, vm_map_entry_t);
 boolean_t vm_map_lookup_entry (vm_map_t, vm_offset_t, vm_map_entry_t *);
-int vm_map_pageable (vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
-int vm_map_user_pageable (vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
 int vm_map_clean (vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
 int vm_map_protect (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
 int vm_map_remove (vm_map_t, vm_offset_t, vm_offset_t);
