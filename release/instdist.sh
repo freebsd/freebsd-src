@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.16 1994/11/20 12:16:48 jkh Exp $
+# $Id: instdist.sh,v 1.17 1994/11/20 15:18:56 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -32,6 +32,7 @@ media_set_defaults()
 	media_type=""
 	media_device=""
 	media_distribution=""
+	distrib_subdir=""
 	clear="--clear"
 	ipaddr=""
 	hostname=""
@@ -70,7 +71,7 @@ If the directory you specify does not exist, it will be created
 for you.  If you do not have enough free space to hold both the
 packed and unpacked distribution files, consider using the NFS
 or CDROM installation methods as they require no temporary
-storage.\n\n"; then return 1; fi
+storage."; then return 1; fi
 	tmp_dir=$answer
 	mkdir -p $tmp_dir
 	return 0
@@ -101,7 +102,7 @@ media_select_ftp_site()
 Please select the site closest to you or \"other\" if you'd like\n\
 to specify another choice.  Also note that not all sites carry\n\
 every possible distribution!  Distributions other than the basic\n\
-binary set are only guaranteed to be available from the Primary site.\n\n" \
+binary set are only guaranteed to be available from the Primary site." \
 -1 -1 10 \
    "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
    "U.S-2" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
@@ -164,7 +165,7 @@ distribution you wish to load.  This should be either a \"URL style\"
 specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
 the name of a host to connect to.  If only a host name is specified,
 the installation assumes that you will properly connect and \"mget\"
-the files yourself.\n\n"; then return 1; fi
+the files yourself."; then return 1; fi
 		ftp_path=$answer
 	;;
 	esac
@@ -178,6 +179,7 @@ media_extract_dist()
 			if [ -f extract.sh ]; then
 				message "Extracting distribution.  Please wait!"
 				sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
+				dialog $clear --title "Extraction Complete" --msgbox "Please press return to continue" -1 -1
 			else
 				error "No installation script found!"
 			fi
@@ -197,6 +199,7 @@ media_install_set()
 		cd ${media_device}/${media_distribution}
 		media_extract_dist
 		cd /
+		umount ${MNT}
 		return
 	;;
 
@@ -271,7 +274,7 @@ of installation.  With repeated passes through this screen,\n\
 you'll be given the chance to load one or all of them.  Mandatory \n\
 distributions MUST be loaded!  Please also note that the secrdist\n\
 is NOT FOR EXPORT from the U.S.  Please don't endanger U.S. ftp\n\
-sites by getting it illegally, thanks!  When finished, select Cancel\n\n" -1 -1 10 \
+sites by getting it illegally, thanks!  When finished, select Cancel" -1 -1 10 \
   "?diskfree"  "How much disk space do I have free?" \
   "bindist" "Binary base files (mandatory - $BINSIZE)" \
   "games" "Games and other frivolities (optional - $GAMESIZE)" \
@@ -302,14 +305,16 @@ sites by getting it illegally, thanks!  When finished, select Cancel\n\n" -1 -1 
 
 media_get_possible_subdir()
 {
-	default_value=""
+	default_value="$distrib_subdir"
 	title="Distribution Subdirectory"
 	if input \
 "If the distributions are in a subdirectory of the mount point,
 please enter it here (no leading slash - it should be relative
-to the mount point).\n\n"; then
+to the mount point).  The directory you enter should be the
+*parent* directory of any distribution subdirectories."; then
 		if [ "$answer" != "" ]; then
 			media_device=${media_device}/$answer
+			distrib_subdir=$answer
 		fi
 	fi
 }
@@ -327,8 +332,7 @@ a method of installation.  Please pick from one of the following options.\n\
 If none of the listed options works for you, then your best bet may be to\n\
 simply hit ESC twice to get a subshell and proceed manually on your own.\n\
 If you are already finished with the installation process, select cancel\n\
-to proceed.\n\n\
- Please choose one of the following:" -1 -1 7 \
+to proceed." -1 -1 7 \
 	"?Kern" "Please show me the kernel boot messages again!" \
 	"Tape" "Load distribution from SCSI, QIC or floppy tape" \
 	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
@@ -355,7 +359,7 @@ to proceed.\n\n\
 	Tape)
 		dialog $clear --title "Chose Tape Type" \
 --menu "Which type of tape drive do you have attached to your \n\
-system?  FreeBSD supports the following types:\n\n" -1 -1 3 \
+system?  FreeBSD supports the following types:\n" -1 -1 3 \
 		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
 		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
 		"floppy" "Floppy tape drive" \
@@ -381,7 +385,7 @@ system?  FreeBSD supports the following types:\n\n" -1 -1 3 \
 	CDROM)
 		dialog $clear --title "Chose CDROM Type" \
 --menu "Which type of CDROM drive do you have attached to your \n\
-system?  FreeBSD supports the following types:\n\n" -1 -1 2 \
+system?  FreeBSD supports the following types:\n" -1 -1 2 \
 		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
 		"Mitsumi" "Mitsumi CDROM drive" \
 			2> ${TMP}/menu.tmp.$$
@@ -414,7 +418,7 @@ system?  FreeBSD supports the following types:\n\n" -1 -1 2 \
 floppy media.  For a hard disk, this might be something like
 /dev/wd0h or /dev/sd0h (as identified in the disklabel editor).
 For the "A" floppy drive, it's /dev/fd0, for the "B" floppy
-drive it's /dev/fd1\n\n"; then
+drive it's /dev/fd1\n"; then
 			media_device=$answer
 			if echo $media_device | grep -q -v 'fd://'; then
 				if ! mount_msdos $media_device ${MNT} > /dev/ttyv1 2>&1; then
@@ -449,7 +453,7 @@ drive it's /dev/fd1\n\n"; then
 distribution you wish to load.  This must be in machine:dir
 format (e.g. zooey:/a/FreeBSD/${DISTNAME}).  The remote
 directory *must* be be exported to your machine (or globally)
-for this to work!\n\n"; then continue; fi
+for this to work!\n"; then continue; fi
 		default_value=""
 		if input \
 "Do you wish to specify any options to NFS?  If you're installing
