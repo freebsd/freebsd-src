@@ -119,6 +119,7 @@ MAN=	accept_filter.9 \
 	MODULE_VERSION.9 \
 	mtx_pool.9 \
 	mutex.9 \
+	MUTEX_PROFILING.9 \
 	namei.9 \
 	panic.9 \
 	pbuf.9 \
