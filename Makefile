@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.141 1997/08/26 14:15:25 peter Exp $
+#	$Id: Makefile,v 1.142 1997/08/31 21:06:40 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -223,9 +223,9 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}/usr/bin
 	cd ${.CURDIR}/usr.bin/make && \
-		${IBMAKE} -m${.CURDIR}/share/mk \
+		${IBMAKE} -I${.CURDIR}/share/mk \
 			${OBJDIR} clean cleandepend depend && \
-		${IBMAKE} -m${.CURDIR}/share/mk ${MK_FLAGS} \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} \
 			all install clean cleandepend
 	@echo
 	@echo "--------------------------------------------------------------"
