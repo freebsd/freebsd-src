@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.57 1998/05/19 00:00:14 tegge Exp $
+ *	$Id: procfs_vnops.c,v 1.58 1998/06/10 06:34:57 peter Exp $
  */
 
 /*
@@ -807,9 +807,7 @@ procfs_readdir(ap)
 	struct pfsdent d;
 	struct pfsdent *dp = &d;
 	struct pfsnode *pfs;
-	int error;
-	int count;
-	int i;
+	int count, error, i, off;
 
 	/*
 	 * We don't allow exporting procfs mounts, and currently local
@@ -820,16 +818,14 @@ procfs_readdir(ap)
 
 	pfs = VTOPFS(ap->a_vp);
 
-	if (uio->uio_resid < UIO_MX)
-		return (EINVAL);
-	if (uio->uio_offset & (UIO_MX-1))
-		return (EINVAL);
-	if (uio->uio_offset < 0)
+	off = (int)uio->uio_offset;
+	if (off != uio->uio_offset || off < 0 || (u_int)off % UIO_MX != 0 ||
+	    uio->uio_resid < UIO_MX)
 		return (EINVAL);
 
 	error = 0;
 	count = 0;
-	i = uio->uio_offset / UIO_MX;
+	i = (u_int)off / UIO_MX;
 
 	switch (pfs->pfs_type) {
 	/*
