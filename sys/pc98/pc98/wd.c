@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.5 1997/01/15 05:39:12 kato Exp $
+ *	$Id: wd.c,v 1.9.2.6 1997/02/11 14:24:55 kato Exp $
  */
 
 /* TODO:
@@ -487,7 +487,7 @@ wdattach(struct isa_device *dvp)
 "wd%d: %luMB (%lu sectors), %lu cyls, %lu heads, %lu S/T, %lu B/S\n",
 			       lunit,
 			       du->dk_dd.d_secperunit
-			       * du->dk_dd.d_secsize / (1024 * 1024),
+			       / ((1024L * 1024L) / du->dk_dd.d_secsize),
 			       du->dk_dd.d_secperunit,
 			       du->dk_dd.d_ncylinders,
 			       du->dk_dd.d_ntracks,
