@@ -1,13 +1,13 @@
 #	@(#)Makefile	8.3 (Berkeley) 1/7/94
 
-# XXX MISSING:		at bc dc deroff diction diff ex graph learn plot
+# XXX MISSING:		bc dc deroff diction diff ex graph learn plot
 #			ptx spell spline struct units xsend
 # XXX MISSING SOURCES:	file grep sort
 # XXX MISSING Makefile:	uucp
 # XXX Use GNU versions:	ld man apropos whatis patch
 # Moved to secure: bdes
 #
-SUBDIR=	apply ar banner basename biff cal calendar \
+SUBDIR=	apply ar at banner basename biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dirname du \
 	env error expand false find finger fmt fold fpr from \
