@@ -61,6 +61,7 @@ epson_insw(u_int port, void *addr, size_t cnt)
 	disable_intr();
 	insw((u_int)port, (void *)addr, (size_t)cnt);
 	outb(0x43f, 0x40);
+	enable_intr();
 	splx(s);
 }
 
@@ -74,6 +75,7 @@ epson_outsw(u_int port, void *addr, size_t cnt)
 	disable_intr();
 	outsw((u_int)port, (void *)addr, (size_t)cnt);
 	outb(0x43f, 0x40);
+	enable_intr();
 	splx(s);
 }
 
