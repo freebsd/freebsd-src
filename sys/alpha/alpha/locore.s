@@ -315,14 +315,6 @@ LEAF(restorefpstate, 1)
 	RET
 	END(restorefpstate)
 
-/*
- * When starting init, call this to configure the process for user
- * mode.  This will be inherited by other processes.
- */
-	LEAF_NOPROFILE(prepare_usermode, 0)
-	RET
-	END(prepare_usermode)
-
 	.data
 	EXPORT(proc0paddr)
 	.quad	0
