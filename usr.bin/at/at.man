@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.2 1995/06/24 17:15:55 joerg Exp $
+.\" $Id: at.man,v 1.3 1995/08/21 12:32:47 ache Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os "FreeBSD 2.1"
@@ -164,11 +164,11 @@ to use
 .Pp
 If neither exists, only the superuser is allowed use of
 .Nm at .
+This is the default configuration.
 .Pp
 An empty 
 .Pa _PERM_PATH/at.deny
-means that every user is allowed use these commands, this is the
-default configuration.
+means that every user is allowed use these commands.
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl V
