@@ -38,7 +38,7 @@ NORMALFILES=	mandoc.tmac andoc.tmac an-old.tmac \
 SPECIALFILES=	an.tmac man.tmac s.tmac ms.tmac
 STRIPFILES=	e.tmac doc.tmac mdoc.local
 MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms \
-		fr.ISO8859-1 koi8-r
+		fr.ISO8859-1 ru.KOI8-R
 
 all: ${MDOCFILES:S/$/-s/} ${STRIPFILES:S/$/-s/} ${SPECIALFILES:S/$/-s/}
 
