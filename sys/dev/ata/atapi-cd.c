@@ -39,7 +39,7 @@
 #include <sys/disklabel.h>
 #include <sys/devicestat.h>
 #include <sys/cdio.h>
-#include <sys/wormio.h>
+#include <sys/cdrio.h>
 #include <sys/dvdio.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
@@ -84,8 +84,7 @@ static int32_t acd_done(struct atapi_request *);
 static int32_t acd_read_toc(struct acd_softc *);
 static int32_t acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
-static int32_t acd_open_disk(struct acd_softc *, int32_t);
-static int32_t acd_open_track(struct acd_softc *, struct wormio_prepare_track *);
+static int32_t acd_open_track(struct acd_softc *, struct cdr_track *);
 static int32_t acd_close_track(struct acd_softc *);
 static int32_t acd_close_disk(struct acd_softc *);
 static int32_t acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info*);
@@ -205,7 +204,7 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
     bufq_init(&acd->buf_queue);
     acd->atp = atp;
     acd->lun = lun;
-    acd->flags &= ~(F_WRITTEN|F_TRACK_PREP|F_TRACK_PREPED);
+    acd->flags &= ~(F_WRITTEN|F_DISK_OPEN|F_TRACK_OPEN);
     acd->block_size = 2048;
     acd->refcnt = 0;
     acd->slot = -1;
@@ -471,16 +470,9 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	cdp->refcnt--;
 
     /* are we the last open ?? */
-    if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
-	/* yup, do we need to close any written tracks */
-	if ((flags & FWRITE) != 0) {
-	    if ((cdp->flags & F_TRACK_PREPED) != 0) {
-		acd_close_track(cdp);
-		cdp->flags &= ~(F_TRACK_PREPED | F_TRACK_PREP);
-	    }
-	}
-	acd_prevent_allow(cdp, 0);	/* allow the user eject */
-    }
+    if (!(cdp->flags & F_BOPEN) && !cdp->refcnt)
+	acd_prevent_allow(cdp, 0);
+
     cdp->flags &= ~(F_LOCKED | F_WRITING);
     return 0;
 }
@@ -918,6 +910,10 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	error = acd_setchan(cdp, CHANNEL_1, CHANNEL_1, 0, 0);
 	break;
 
+    case CDRIOCBLANK:
+	error = acd_blank(cdp);
+	break;
+
     case CDRIOCNEXTWRITEABLEADDR:
 	{
 	    struct acd_track_info track_info;
@@ -934,71 +930,62 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	}
 	break;
  
-    case WORMIOCPREPDISK:
-	{
-	    struct wormio_prepare_disk *w = (struct wormio_prepare_disk *)addr;
-
-	    if (w->dummy != 0 && w->dummy != 1)
-		error = EINVAL;
-	    else {
-		error = acd_open_disk(cdp, w->dummy);
-		if (error == 0) {
-		    cdp->flags |= F_DISK_PREPED;
-		    cdp->dummy = w->dummy;
-		}
-		/* set speed in KB/s (approximate) */
-		acd_set_speed(cdp, w->speed * 177);
-	    }
-	    break;
+    case CDRIOCOPENDISK:
+	if ((cdp->flags & F_WRITTEN) || (cdp->flags & F_DISK_OPEN)) {
+	    error = EINVAL;
+	    printf("acd%d: sequence error (disk already open)\n", cdp->lun);
 	}
-
-    case WORMIOCPREPTRACK:
-	{
-	    struct wormio_prepare_track *w =(struct wormio_prepare_track *)addr;
-
-	    if (w->audio != 0 && w->audio != 1)
-		error = EINVAL;
-	    else if (w->audio == 0 && w->preemp)
-		error = EINVAL;
-	    else if ((cdp->flags & F_DISK_PREPED) == 0) {
-		error = EINVAL;
-		printf("acd%d: sequence error (PREP_TRACK)\n", cdp->lun);
-	    } else {
-		cdp->flags |= F_TRACK_PREP;
-		cdp->preptrack = *w;
-	    }
-	    break;
-	}
-
-    case WORMIOCFINISHTRACK:
-	if ((cdp->flags & F_TRACK_PREPED) != 0)
-	    error = acd_close_track(cdp);
-	cdp->flags &= ~(F_TRACK_PREPED | F_TRACK_PREP);
+	cdp->next_writeable_addr = 0;
+	cdp->flags &= ~(F_WRITTEN | F_TRACK_OPEN);
+	cdp->flags |= F_DISK_OPEN;
 	break;
 
-    case WORMIOCFIXATION:
-	{
-	    struct wormio_fixation *w = (struct wormio_fixation *)addr;
-
-	    if ((cdp->flags & F_WRITTEN) == 0)
-		error = EINVAL;
-	    else if (w->toc_type < 0 /* WORM_TOC_TYPE_AUDIO */ ||
-		w->toc_type > 4 /* WORM_TOC_TYPE_CDI */ )
-		error = EINVAL;
-	    else if (w->onp != 0 && w->onp != 1)
-		error = EINVAL;
-	    else {
-		/* no fixation needed if dummy write */
-		if (cdp->dummy == 0)
-		    error = acd_close_disk(cdp);
-		cdp->flags &=
-		    ~(F_WRITTEN|F_DISK_PREPED|F_TRACK_PREP|F_TRACK_PREPED);
-	    }
-	    break;
+    case CDRIOCOPENTRACK:
+	if (!(cdp->flags & F_DISK_OPEN)) {
+	    error = EINVAL;
+	    printf("acd%d: sequence error (disk not open)\n", cdp->lun);
+	} 
+	else {
+	    if ((error = acd_open_track(cdp, (struct cdr_track *)addr)))
+		break;
+	    cdp->flags |= F_TRACK_OPEN;
 	}
+	break;
 
-    case CDRIOCBLANK:
-	error = acd_blank(cdp);
+    case CDRIOCCLOSETRACK:
+	if (!(cdp->flags & F_TRACK_OPEN)) {
+	    error = EINVAL;
+	    printf("acd%d: sequence error (no track open)\n", cdp->lun);
+	}
+	else {
+	    if (cdp->flags & F_WRITTEN) {
+		acd_close_track(cdp);
+		cdp->flags &= ~F_TRACK_OPEN;
+	    }
+	}
+	break;
+
+    case CDRIOCCLOSEDISK:
+	if (!(cdp->flags & F_WRITTEN) || !(cdp->flags & F_DISK_OPEN)) {
+	    error = EINVAL;
+	    printf("acd%d: sequence error (nothing to close)\n", cdp->lun);
+	}
+	else {
+	    error = acd_close_disk(cdp);
+	    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
+	}
+	break;
+
+    case CDRIOCWRITESPEED:
+	error = acd_set_speed(cdp, (*(int32_t *)addr) * 177);
+	break;
+
+    case CDRIOCGETBLOCKSIZE:
+	*(int32_t *)addr = cdp->block_size;
+	break;
+
+    case CDRIOCSETBLOCKSIZE:
+	cdp->block_size = *(int32_t *)addr;
 	break;
 
     case DVDIOCREPORTKEY:
@@ -1082,23 +1069,16 @@ acd_start(struct acd_softc *cdp)
     }
 
     acd_select_slot(cdp);
-    if ((bp->b_flags & B_READ) == B_WRITE) {
-	if ((cdp->flags & F_TRACK_PREPED) == 0) {
-	    if ((cdp->flags & F_TRACK_PREP) == 0) {
-		printf("acd%d: sequence error\n", cdp->lun);
-		bp->b_error = EIO;
-		bp->b_flags |= B_ERROR;
-		biodone(bp);
-		return;
-	    } else {
-		if (acd_open_track(cdp, &cdp->preptrack) != 0) {
-		    biodone(bp);
-		    return;
-		}
-		cdp->flags |= F_TRACK_PREPED;
-	    }
-	}
+
+    if (!(bp->b_flags & B_READ) &&
+	(!(cdp->flags & F_DISK_OPEN) || !(cdp->flags & F_TRACK_OPEN))) {
+	printf("acd%d: sequence error (no open)\n", cdp->lun);
+	bp->b_error = EIO;
+	bp->b_flags |= B_ERROR;
+	biodone(bp);
+	return;
     }
+
     bzero(ccb, sizeof(ccb));
     if (bp->b_flags & B_READ) {
 	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
@@ -1159,7 +1139,7 @@ acd_read_toc(struct acd_softc *cdp)
 
     atapi_test_ready(cdp->atp);
     if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED)
-	cdp->flags &= ~(F_WRITTEN | F_TRACK_PREP | F_TRACK_PREPED);
+	cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
 
     cdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
 
@@ -1271,13 +1251,6 @@ acd_select_slot(struct acd_softc *cdp)
 }
 
 static int32_t
-acd_open_disk(struct acd_softc *cdp, int32_t test)
-{
-    cdp->next_writeable_addr = 0;
-    return 0;
-}
-
-static int32_t
 acd_close_disk(struct acd_softc *cdp)
 {
     int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
@@ -1291,7 +1264,7 @@ acd_close_disk(struct acd_softc *cdp)
 }
 
 static int32_t
-acd_open_track(struct acd_softc *cdp, struct wormio_prepare_track *ptp)
+acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
 {
     struct write_param param;
     int32_t error;
@@ -1301,57 +1274,57 @@ acd_open_track(struct acd_softc *cdp, struct wormio_prepare_track *ptp)
 	return error;
     param.page_code = 0x05;
     param.page_length = 0x32;
-    param.test_write = cdp->dummy ? 1 : 0;
+    param.test_write = track->test_write ? 1 : 0;
     param.write_type = CDR_WTYPE_TRACK;
 
-    switch (ptp->track_type) {
+    switch (track->track_type) {
 
-    case BLOCK_RAW:
-	if (ptp->preemp)
-	    param.track_mode = CDR_TMODE_AUDIO;
+    case CDR_DB_RAW:
+	if (track->preemp)
+	    param.track_mode = CDR_TMODE_AUDIO_PREEMP;
 	else
-	    param.track_mode = 0;
+	    param.track_mode = CDR_TMODE_AUDIO;
 	cdp->block_size = 2352;
 	param.data_block_type = CDR_DB_RAW;
 	param.session_format = CDR_SESS_CDROM;
 	break;
 
-    case BLOCK_MODE_1:
+    case CDR_DB_ROM_MODE1:
 	cdp->block_size = 2048;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_ROM_MODE1;
 	param.session_format = CDR_SESS_CDROM;
 	break;
 
-    case BLOCK_MODE_2:
+    case CDR_DB_ROM_MODE2:
 	cdp->block_size = 2336;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_ROM_MODE2;
 	param.session_format = CDR_SESS_CDROM;
 	break;
 
-    case BLOCK_MODE_2_FORM_1:
+    case CDR_DB_XA_MODE1:
 	cdp->block_size = 2048;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_XA_MODE1;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
 
-    case BLOCK_MODE_2_FORM_1b:
+    case CDR_DB_XA_MODE2_F1:
 	cdp->block_size = 2056;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_XA_MODE2_F1;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
 
-    case BLOCK_MODE_2_FORM_2:
+    case CDR_DB_XA_MODE2_F2:
 	cdp->block_size = 2324;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_XA_MODE2_F2;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
 
-    case BLOCK_MODE_2_FORM_2b:
+    case CDR_DB_XA_MODE2_MIX:
 	cdp->block_size = 2332;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_XA_MODE2_MIX;
@@ -1374,22 +1347,11 @@ acd_close_track(struct acd_softc *cdp)
 {
     int8_t ccb1[16] = { ATAPI_SYNCHRONIZE_CACHE, 0x02, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0 };
-    int8_t ccb2[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x01, 0, 0, 0xff, 0, 0, 
-			0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
     error = atapi_queue_cmd(cdp->atp, ccb1, NULL, 0, 0, 10, NULL, NULL, NULL);
     if (error)
 	return error;
-
-    error = atapi_wait_ready(cdp->atp, 5*60);
-    if (error)
-	return error;
-
-    error = atapi_queue_cmd(cdp->atp, ccb2, NULL, 0, 0, 10, NULL, NULL, NULL);
-    if (error)
-	return error;
-
     return atapi_wait_ready(cdp->atp, 5*60);
 }
 
@@ -1683,7 +1645,7 @@ acd_eject(struct acd_softc *cdp, int32_t close)
 	return 0;
     acd_prevent_allow(cdp, 0);
     cdp->flags &= ~F_LOCKED;
-    cdp->flags &= ~(F_WRITTEN|F_TRACK_PREP|F_TRACK_PREPED);
+    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     return acd_start_stop(cdp, 2);
 }
@@ -1696,7 +1658,7 @@ acd_blank(struct acd_softc *cdp)
     int32_t error;
 
     error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL, NULL);
-    cdp->flags &= ~(F_WRITTEN|F_TRACK_PREP|F_TRACK_PREPED);
+    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     return error;
 }

@@ -556,19 +556,22 @@ atapi_read(struct atapi_request *request, int32_t length)
 	       request->device->devname, length, request->bytecount);
 #ifdef ATA_16BIT_ONLY
 	insw(request->device->controller->ioaddr + ATA_DATA, 
-	     (void *)((uintptr_t)*buffer), length / sizeof(int16_t));
+	     (void *)((uintptr_t)*buffer), request->bytecount/sizeof(int16_t));
 #else
 	insl(request->device->controller->ioaddr + ATA_DATA, 
-	     (void *)((uintptr_t)*buffer), length / sizeof(int32_t));
+	     (void *)((uintptr_t)*buffer), request->bytecount/sizeof(int32_t));
 #endif
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
 	     inw(request->device->controller->ioaddr + ATA_DATA);
+	*buffer += request->bytecount;
+	request->bytecount = 0;
     }			
-    else
+    else {
 	insw(request->device->controller->ioaddr + ATA_DATA,
 	     (void *)((uintptr_t)*buffer), length / sizeof(int16_t));
-    request->bytecount -= length;
-    *buffer += length;
+	*buffer += length;
+	request->bytecount -= length;
+    }
 }
 
 static void
@@ -585,19 +588,22 @@ atapi_write(struct atapi_request *request, int32_t length)
 	       request->device->devname, length, request->bytecount);
 #ifdef ATA_16BIT_ONLY
 	outsw(request->device->controller->ioaddr + ATA_DATA, 
-	      (void *)((uintptr_t)*buffer), length / sizeof(int16_t));
+	      (void *)((uintptr_t)*buffer), request->bytecount/sizeof(int16_t));
 #else
 	outsl(request->device->controller->ioaddr + ATA_DATA, 
-	      (void *)((uintptr_t)*buffer), length / sizeof(int32_t));
+	      (void *)((uintptr_t)*buffer), request->bytecount/sizeof(int32_t));
 #endif
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
 	     outw(request->device->controller->ioaddr + ATA_DATA, 0);
+        *buffer += request->bytecount;
+	request->bytecount = 0;
     }
-    else
+    else {
 	outsw(request->device->controller->ioaddr + ATA_DATA, 
 	      (void *)((uintptr_t)*buffer), length / sizeof(int16_t));
-    request->bytecount -= length;
-    *buffer += length;
+        *buffer += length;
+	request->bytecount -= length;
+    }
 }
 
 static void 
@@ -684,6 +690,7 @@ atapi_cmd2str(u_int8_t cmd)
     case 0xa5: return ("PLAY_BIG");
     case 0xad: return ("READ_DVD_STRUCTURE");
     case 0xb4: return ("PLAY_CD");
+    case 0xbb: return ("SET_SPEED");
     case 0xbd: return ("MECH_STATUS");
     case 0xbe: return ("READ_CD");
     default: {
