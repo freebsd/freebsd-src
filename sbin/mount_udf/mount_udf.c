@@ -142,11 +142,11 @@ main(int argc, char **argv)
 	iov[i++].iov_len = sizeof(udf_flags);
 	if (udf_flags & UDFMNT_KICONV) {
 		iov[i].iov_base = "cs_disk";
-		iov[i++].iov_len = sizeof("cs_disk") + 1;
+		iov[i++].iov_len = sizeof("cs_disk");
 		iov[i].iov_base = cs_disk;
 		iov[i++].iov_len = strlen(cs_disk) + 1;
 		iov[i].iov_base = "cs_local";
-		iov[i++].iov_len = sizeof("cs_local") + 1;
+		iov[i++].iov_len = sizeof("cs_local");
 		iov[i].iov_base = cs_local;
 		iov[i++].iov_len = strlen(cs_local) + 1;
 	}
