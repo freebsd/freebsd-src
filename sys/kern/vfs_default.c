@@ -610,12 +610,15 @@ retry:
 		VM_OBJECT_UNLOCK(object);
 		vrele(vp);
 	} else {
+		VM_OBJECT_LOCK(object);
 		if (object->flags & OBJ_DEAD) {
 			VOP_UNLOCK(vp, 0, td);
-			tsleep(object, PVM, "vodead", 0);
+			msleep(object, VM_OBJECT_MTX(object), PDROP | PVM,
+			    "vodead", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			goto retry;
 		}
+		VM_OBJECT_UNLOCK(object);
 	}
 
 	KASSERT(vp->v_object != NULL, ("vfs_object_create: NULL object"));
