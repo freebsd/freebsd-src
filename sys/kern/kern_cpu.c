@@ -900,6 +900,11 @@ cpufreq_unregister(device_t dev)
 	if (error)
 		return (error);
 	cf_dev = device_find_child(device_get_parent(dev), "cpufreq", -1);
+	if (cf_dev == NULL) {
+		device_printf(dev,
+	"warning: cpufreq_unregister called with no cpufreq device active\n");
+		return (0);
+	}
 	cfcount = 0;
 	for (i = 0; i < devcount; i++) {
 		if (!device_is_attached(devs[i]))
