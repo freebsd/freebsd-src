@@ -345,6 +345,9 @@ struct sigaction_args {
 	struct	sigaction *oact;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 sigaction(p, uap)
@@ -355,17 +358,21 @@ sigaction(p, uap)
 	register struct sigaction *actp, *oactp;
 	int error;
 
+	mtx_lock(&Giant);
+
 	actp = (uap->act != NULL) ? &act : NULL;
 	oactp = (uap->oact != NULL) ? &oact : NULL;
 	if (actp) {
 		error = copyin(uap->act, actp, sizeof(act));
 		if (error)
-			return (error);
+			goto done2;
 	}
 	error = do_sigaction(p, uap->sig, actp, oactp, 0);
 	if (oactp && !error) {
 		error = copyout(oactp, uap->oact, sizeof(oact));
 	}
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -377,6 +384,9 @@ struct osigaction_args {
 	struct	osigaction *osa;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 osigaction(p, uap)
@@ -390,12 +400,16 @@ osigaction(p, uap)
 
 	if (uap->signum <= 0 || uap->signum >= ONSIG)
 		return (EINVAL);
+
 	nsap = (uap->nsa != NULL) ? &nsa : NULL;
 	osap = (uap->osa != NULL) ? &osa : NULL;
+
+	mtx_lock(&Giant);
+
 	if (nsap) {
 		error = copyin(uap->nsa, &sa, sizeof(sa));
 		if (error)
-			return (error);
+			goto done2;
 		nsap->sa_handler = sa.sa_handler;
 		nsap->sa_flags = sa.sa_flags;
 		OSIG2SIG(sa.sa_mask, nsap->sa_mask);
@@ -407,6 +421,8 @@ osigaction(p, uap)
 		SIG2OSIG(osap->sa_mask, sa.sa_mask);
 		error = copyout(&sa, uap->osa, sizeof(sa));
 	}
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 #endif /* COMPAT_43 */
@@ -580,6 +596,9 @@ struct sigpending_args {
 	sigset_t	*set;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 sigpending(p, uap)
@@ -587,11 +606,15 @@ sigpending(p, uap)
 	struct sigpending_args *uap;
 {
 	sigset_t siglist;
+	int error;
 
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	siglist = p->p_siglist;
 	PROC_UNLOCK(p);
-	return (copyout(&siglist, uap->set, sizeof(sigset_t)));
+	mtx_unlock(&Giant);
+	error = copyout(&siglist, uap->set, sizeof(sigset_t));
+	return(error);
 }
 
 #ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
@@ -600,16 +623,20 @@ struct osigpending_args {
 	int	dummy;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 osigpending(p, uap)
 	struct proc *p;
 	struct osigpending_args *uap;
 {
-
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	SIG2OSIG(p->p_siglist, p->p_retval[0]);
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	return (0);
 }
 #endif /* COMPAT_43 */
@@ -625,6 +652,9 @@ struct osigvec_args {
 	struct	sigvec *osv;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 osigvec(p, uap)
@@ -652,7 +682,9 @@ osigvec(p, uap)
 		nsap->sa_flags |= SA_USERTRAMP;
 #endif
 	}
+	mtx_lock(&Giant);
 	error = do_sigaction(p, uap->signum, nsap, osap, 1);
+	mtx_unlock(&Giant);
 	if (osap && !error) {
 		vec.sv_handler = osap->sa_handler;
 		SIG2OSIG(osap->sa_mask, vec.sv_mask);
@@ -672,6 +704,9 @@ struct osigblock_args {
 	int	mask;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 osigblock(p, uap)
 	register struct proc *p;
@@ -681,10 +716,12 @@ osigblock(p, uap)
 
 	OSIG2SIG(uap->mask, set);
 	SIG_CANTMASK(set);
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	SIG2OSIG(p->p_sigmask, p->p_retval[0]);
 	SIGSETOR(p->p_sigmask, set);
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -693,6 +730,9 @@ struct osigsetmask_args {
 	int	mask;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 osigsetmask(p, uap)
 	struct proc *p;
@@ -702,10 +742,12 @@ osigsetmask(p, uap)
 
 	OSIG2SIG(uap->mask, set);
 	SIG_CANTMASK(set);
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	SIG2OSIG(p->p_sigmask, p->p_retval[0]);
 	SIGSETLO(p->p_sigmask, set);
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	return (0);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -720,6 +762,9 @@ struct sigsuspend_args {
 	const sigset_t *sigmask;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 sigsuspend(p, uap)
@@ -741,6 +786,7 @@ sigsuspend(p, uap)
 	 * save it here and mark the sigacts structure
 	 * to indicate this.
 	 */
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	p->p_oldsigmask = p->p_sigmask;
@@ -751,6 +797,7 @@ sigsuspend(p, uap)
 	while (msleep((caddr_t) ps, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
 }
@@ -761,6 +808,9 @@ struct osigsuspend_args {
 	osigset_t mask;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 osigsuspend(p, uap)
@@ -770,6 +820,7 @@ osigsuspend(p, uap)
 	sigset_t mask;
 	register struct sigacts *ps;
 
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	p->p_oldsigmask = p->p_sigmask;
@@ -780,6 +831,7 @@ osigsuspend(p, uap)
 	while (msleep((caddr_t) ps, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
 }
@@ -792,6 +844,9 @@ struct osigstack_args {
 	struct	sigstack *oss;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 osigstack(p, uap)
@@ -799,7 +854,9 @@ osigstack(p, uap)
 	register struct osigstack_args *uap;
 {
 	struct sigstack ss;
-	int error;
+	int error = 0;
+
+	mtx_lock(&Giant);
 
 	if (uap->oss != NULL) {
 		PROC_LOCK(p);
@@ -808,12 +865,12 @@ osigstack(p, uap)
 		PROC_UNLOCK(p);
 		error = copyout(&ss, uap->oss, sizeof(struct sigstack));
 		if (error)
-			return (error);
+			goto done2;
 	}
 
 	if (uap->nss != NULL) {
 		if ((error = copyin(uap->nss, &ss, sizeof(ss))) != 0)
-			return (error);
+			goto done2;
 		PROC_LOCK(p);
 		p->p_sigstk.ss_sp = ss.ss_sp;
 		p->p_sigstk.ss_size = 0;
@@ -821,7 +878,9 @@ osigstack(p, uap)
 		p->p_flag |= P_ALTSTACK;
 		PROC_UNLOCK(p);
 	}
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
 
@@ -831,6 +890,9 @@ struct sigaltstack_args {
 	stack_t	*oss;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 sigaltstack(p, uap)
@@ -838,7 +900,10 @@ sigaltstack(p, uap)
 	register struct sigaltstack_args *uap;
 {
 	stack_t ss;
-	int error, oonstack;
+	int oonstack;
+	int error = 0;
+
+	mtx_lock(&Giant);
 
 	oonstack = sigonstack(cpu_getstack(p));
 
@@ -849,19 +914,25 @@ sigaltstack(p, uap)
 		    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 		PROC_UNLOCK(p);
 		if ((error = copyout(&ss, uap->oss, sizeof(stack_t))) != 0)
-			return (error);
+			goto done2;
 	}
 
 	if (uap->ss != NULL) {
-		if (oonstack)
-			return (EPERM);
+		if (oonstack) {
+			error = EPERM;
+			goto done2;
+		}
 		if ((error = copyin(uap->ss, &ss, sizeof(ss))) != 0)
-			return (error);
-		if ((ss.ss_flags & ~SS_DISABLE) != 0)
-			return (EINVAL);
+			goto done2;
+		if ((ss.ss_flags & ~SS_DISABLE) != 0) {
+			error = EINVAL;
+			goto done2;
+		}
 		if (!(ss.ss_flags & SS_DISABLE)) {
-			if (ss.ss_size < p->p_sysent->sv_minsigstksz)
-				return (ENOMEM);
+			if (ss.ss_size < p->p_sysent->sv_minsigstksz) {
+				error = ENOMEM;
+				goto done2;
+			}
 			PROC_LOCK(p);
 			p->p_sigstk = ss;
 			p->p_flag |= P_ALTSTACK;
@@ -872,7 +943,9 @@ sigaltstack(p, uap)
 			PROC_UNLOCK(p);
 		}
 	}
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -948,6 +1021,9 @@ struct kill_args {
 	int	signum;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 kill(cp, uap)
@@ -955,31 +1031,40 @@ kill(cp, uap)
 	register struct kill_args *uap;
 {
 	register struct proc *p;
+	int error = 0;
 
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
+
+	mtx_lock(&Giant);
 	if (uap->pid > 0) {
 		/* kill single process */
-		if ((p = pfind(uap->pid)) == NULL)
-			return (ESRCH);
-		if (p_cansignal(cp, p, uap->signum)) {
+		if ((p = pfind(uap->pid)) == NULL) {
+			error = ESRCH;
+		} else if (p_cansignal(cp, p, uap->signum)) {
 			PROC_UNLOCK(p);
-			return (EPERM);
+			error = EPERM;
+		} else {
+			if (uap->signum)
+				psignal(p, uap->signum);
+			PROC_UNLOCK(p);
+			error = 0;
 		}
-		if (uap->signum)
-			psignal(p, uap->signum);
-		PROC_UNLOCK(p);
-		return (0);
+	} else {
+		switch (uap->pid) {
+		case -1:		/* broadcast signal */
+			error = killpg1(cp, uap->signum, 0, 1);
+			break;
+		case 0:			/* signal own process group */
+			error = killpg1(cp, uap->signum, 0, 0);
+			break;
+		default:		/* negative explicit process group */
+			error = killpg1(cp, uap->signum, -uap->pid, 0);
+			break;
+		}
 	}
-	switch (uap->pid) {
-	case -1:		/* broadcast signal */
-		return (killpg1(cp, uap->signum, 0, 1));
-	case 0:			/* signal own process group */
-		return (killpg1(cp, uap->signum, 0, 0));
-	default:		/* negative explicit process group */
-		return (killpg1(cp, uap->signum, -uap->pid, 0));
-	}
-	/* NOTREACHED */
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -989,16 +1074,23 @@ struct okillpg_args {
 	int	signum;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 okillpg(p, uap)
 	struct proc *p;
 	register struct okillpg_args *uap;
 {
+	int error;
 
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
-	return (killpg1(p, uap->signum, uap->pgid, 0));
+	mtx_lock(&Giant);
+	error = killpg1(p, uap->signum, uap->pgid, 0);
+	mtx_unlock(&Giant);
+	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
 
@@ -1852,16 +1944,20 @@ struct nosys_args {
 	int	dummy;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 nosys(p, args)
 	struct proc *p;
 	struct nosys_args *args;
 {
-
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	psignal(p, SIGSYS);
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	return (EINVAL);
 }
 
