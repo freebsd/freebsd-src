@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.2 1994/05/25 09:20:05 rgrimes Exp $
+ *	$Id: vm_page.c,v 1.3 1994/08/01 11:25:44 davidg Exp $
  */
 
 /*
@@ -387,7 +387,7 @@ void vm_page_insert(mem, object, offset)
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(object, offset)];
-	s = splimp();
+	s = splhigh();
 	simple_lock(&bucket_lock);
 	TAILQ_INSERT_TAIL(bucket, mem, hashq);
 	simple_unlock(&bucket_lock);
@@ -434,7 +434,7 @@ void vm_page_remove(mem)
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(mem->object, mem->offset)];
-	s = splimp();
+	s = splhigh();
 	simple_lock(&bucket_lock);
 	TAILQ_REMOVE(bucket, mem, hashq);
 	simple_unlock(&bucket_lock);
@@ -479,7 +479,7 @@ vm_page_t vm_page_lookup(object, offset)
 
 	bucket = &vm_page_buckets[vm_page_hash(object, offset)];
 
-	s = splimp();
+	s = splhigh();
 	simple_lock(&bucket_lock);
 	for (mem = bucket->tqh_first; mem != NULL; mem = mem->hashq.tqe_next) {
 		VM_PAGE_CHECK(mem);
@@ -534,7 +534,7 @@ vm_page_alloc(object, offset)
 	register vm_page_t	mem;
 	int		s;
 
-	s = splimp();
+	s = splhigh();
 	simple_lock(&vm_page_queue_free_lock);
 	if (	object != kernel_object &&
 		object != kmem_object	&&
@@ -596,7 +596,7 @@ void vm_page_free(mem)
 	register vm_page_t	mem;
 {
 	int s;
-	s = splimp();
+	s = splhigh();
 	vm_page_remove(mem);
 	if (mem->flags & PG_ACTIVE) {
 		TAILQ_REMOVE(&vm_page_queue_active, mem, pageq);
@@ -667,7 +667,7 @@ void vm_page_wire(mem)
 	VM_PAGE_CHECK(mem);
 
 	if (mem->wire_count == 0) {
-		s = splimp();
+		s = splhigh();
 		if (mem->flags & PG_ACTIVE) {
 			TAILQ_REMOVE(&vm_page_queue_active, mem, pageq);
 			cnt.v_active_count--;
@@ -698,7 +698,7 @@ void vm_page_unwire(mem)
 	int s;
 	VM_PAGE_CHECK(mem);
 
-	s = splimp();
+	s = splhigh();
 
 	if( mem->wire_count)
 		mem->wire_count--;
@@ -738,7 +738,7 @@ vm_page_deactivate(m)
 	 *	Paul Mackerras (paulus@cs.anu.edu.au) 9-Jan-93.
 	 */
 
-	spl = splimp();
+	spl = splhigh();
 	if (!(m->flags & PG_INACTIVE) && m->wire_count == 0 &&
 		m->hold_count == 0) {
 
@@ -781,7 +781,7 @@ void vm_page_deactivate(m)
 	int s;
 	VM_PAGE_CHECK(m);
 
-	s = splimp();
+	s = splhigh();
 	/*
 	 *	Only move active pages -- ignore locked or already
 	 *	inactive ones.
@@ -824,7 +824,7 @@ void vm_page_activate(m)
 	int s;
 	VM_PAGE_CHECK(m);
 
-	s = splimp();
+	s = splhigh();
 	if (m->flags & PG_INACTIVE) {
 		TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
 		cnt.v_inactive_count--;

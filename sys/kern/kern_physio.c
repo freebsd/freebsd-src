@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.3 1994/08/02 07:42:05 davidg Exp $
+ * $Id: kern_physio.c,v 1.4 1994/08/06 09:15:28 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -27,6 +27,7 @@
 #include <vm/vm.h>
 
 static void physwakeup();
+u_int minphys(struct buf *bp);
 
 int
 physio(strategy, bp, dev, rw, minp, uio)
@@ -78,6 +79,9 @@ physio(strategy, bp, dev, rw, minp, uio)
 			caddr_t adr;
 
 			bp->b_bcount = uio->uio_iov[i].iov_len;
+			bp->b_bcount = minp( bp);
+			if( minp != minphys)
+				bp->b_bcount = minphys( bp);
 			bp->b_bufsize = bp->b_bcount;
 			bp->b_flags = B_BUSY | B_PHYS | B_CALL | bufflags;
 			bp->b_iodone = physwakeup;

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.4 1994/08/02 07:55:13 davidg Exp $
+ * $Id: swap_pager.c,v 1.5 1994/08/06 09:15:36 davidg Exp $
  */
 
 /*
@@ -1366,17 +1366,6 @@ retrygetspace:
 	 * get a swap pager clean data structure, block until we get it
 	 */
 	if (swap_pager_free.tqh_first == NULL) {
-/*
-		if (flags & B_ASYNC) {
-			for(i=0;i<count;i++) {
-				rtvals[i] = VM_PAGER_AGAIN;
-				if( swb[i])
-					--swb[i]->swb_locked;
-			}
-			return VM_PAGER_AGAIN;
-		}
-*/
-
 		s = splbio();
 		if( curproc == pageproc)
 			(void) swap_pager_clean();
@@ -1442,9 +1431,11 @@ retrygetspace:
 	bp->b_flags = B_BUSY;
 	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
 	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
-	crhold(bp->b_rcred);
-	crhold(bp->b_wcred);
-	bp->b_un.b_addr = (caddr_t) kva;
+	if( bp->b_rcred != NOCRED)
+		crhold(bp->b_rcred);
+	if( bp->b_wcred != NOCRED)
+		crhold(bp->b_wcred);
+	bp->b_data = (caddr_t) kva;
 	bp->b_blkno = reqaddr[0];
 	bgetvp( swapdev_vp, bp);
 
