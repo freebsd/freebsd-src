@@ -85,14 +85,12 @@ static struct consdev gdbconsdev;
 
 static d_open_t		dcons_open;
 static d_close_t	dcons_close;
-static d_ioctl_t	dcons_ioctl;
 
 static struct cdevsw dcons_cdevsw = {
 #if __FreeBSD_version >= 500104
 	.d_version =	D_VERSION,
 	.d_open =	dcons_open,
 	.d_close =	dcons_close,
-	.d_ioctl =	dcons_ioctl,
 	.d_name =	"dcons",
 	.d_flags =	D_TTY | D_NEEDGIANT,
 #else
@@ -216,29 +214,6 @@ dcons_close(dev_t dev, int flag, int mode, struct THREAD *td)
 	}
 
 	return (0);
-}
-
-static int
-dcons_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct THREAD *td)
-{
-	int	unit;
-	struct	tty *tp;
-	int	error;
-
-	unit = minor(dev);
-	if (unit != 0)
-		return (ENXIO);
-
-	tp = dev->si_tty;
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error != ENOIOCTL)
-		return (error);
-
-	error = ttioctl(tp, cmd, data, flag);
-	if (error != ENOIOCTL)
-		return (error);
-
-	return (ENOTTY);
 }
 
 static int

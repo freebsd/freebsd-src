@@ -397,14 +397,7 @@ pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	if((error = vgaioctl(dev,cmd,data,flag)) >= 0)
 		return error;
 
-	if((error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td))
-	    != ENOIOCTL)
-		return (error);
-
-	if((error = ttioctl(tp, cmd, data, flag)) != ENOIOCTL)
-		return (error);
-
-	return (ENOTTY);
+	return (ttyioctl(dev, cmd, data, flag, td));
 }
 
 /*---------------------------------------------------------------------------*

@@ -68,13 +68,11 @@ struct zs_softc {
 
 static	d_open_t	zsopen;
 static	d_close_t	zsclose;
-static	d_ioctl_t	zsioctl;
 
 static struct cdevsw zs_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	zsopen,
 	.d_close =	zsclose,
-	.d_ioctl =	zsioctl,
 	.d_name =	"zs",
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
@@ -327,31 +325,6 @@ zsclose(dev_t dev, int flag, int mode, struct thread *td)
 	return (0);
 }
  
-static int
-zsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	struct zs_softc *sc = ZS_SOFTC(minor(dev));
-	struct tty *tp;
-	int error;
-	
-	if (sc == NULL)
-		return (ENXIO);
-
-	tp = ZS_SOFTC(minor(dev))->tp;
-
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-
-	if (error != ENOIOCTL)
-		return (error);
-
-	error = ttioctl(tp, cmd, data, flag);
-
-	if (error != ENOIOCTL)
-		return (error);
-	else
-		return (ENOTTY);
-}
-
 static int
 zsparam(struct tty *tp, struct termios *t)
 {
