@@ -7,6 +7,7 @@
 
 extern int kernel_debugging;
 extern int kernel_writablecore;
+extern struct target_so_ops kgdb_so_ops;
 
 #define ADDITIONAL_OPTIONS \
        {"kernel", no_argument, &kernel_debugging, 1}, \
