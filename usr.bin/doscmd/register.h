@@ -31,8 +31,6 @@
 **
 */
 
-#define NEW_REGISTERS
-
 #ifndef _MACHINE_VM86_H_
 
 /* standard register representation */
@@ -60,30 +58,30 @@ typedef union
 
 typedef struct
 {
-    int		pad[2];
-    reg86_t	esp;
-    reg86_t	ebp;
-    reg86_t	isp;
-    reg86_t	eip;
-    reg86_t	efl;
+    reg86_t	gs;
+    reg86_t	fs;
     reg86_t	es;
     reg86_t	ds;
-    reg86_t	cs;
-    reg86_t	ss;
     reg86_t	edi;
     reg86_t	esi;
+    reg86_t	ebp;
+    reg86_t	isp;
     reg86_t	ebx;
     reg86_t	edx;
     reg86_t	ecx;
     reg86_t	eax;
-    reg86_t	gs;
-    reg86_t	fs;
+    int		pad[2];
+    reg86_t	eip;
+    reg86_t	cs;
+    reg86_t	efl;
+    reg86_t	esp;
+    reg86_t	ss;
 } registers_t;
 
 typedef union 
 {
-    struct sigcontext	sc;
-    registers_t		r;
+    mcontext_t	sc;
+    registers_t	r;
 } regcontext_t;
 
 /* 
@@ -146,34 +144,29 @@ typedef union
 ** register manipulation macros 
 */
 
-#define	N_PUTVEC(s, o, x)	((s) = ((x) >> 16), (o) = (x) & 0xffff)
-#define MAKEVEC(s, o)		(((s) << 16) + (o))	/* XXX these two should be combined */
-#define N_GETVEC(s, o)		(((s) << 16) + (o))
+#define	PUTVEC(s, o, x)	((s) = ((x) >> 16), (o) = (x) & 0xffff)
+#define MAKEVEC(s, o)		(((s) << 16) + (o))
 
-#define N_PUTPTR(s, o, x)	(((s) = ((x) & 0xf0000) >> 4), (o) = (x) & 0xffff)
-#define MAKEPTR(s, o)		(((s) << 4) + (o))	/* XXX these two should be combined */
-#define N_GETPTR(s, o)		(((s) << 4) + (o))
+#define PUTPTR(s, o, x)	(((s) = ((x) & 0xf0000) >> 4), (o) = (x) & 0xffff)
+#define MAKEPTR(s, o)		(((s) << 4) + (o))
 
 #define VECPTR(x)		MAKEPTR((x) >> 16, (x) & 0xffff)
 
-#if 0
-#define N_REGISTERS		regcontext_t *_regcontext
-#define N_REGS			_regcontex
-#endif
+#define REGISTERS		regcontext_t *REGS
 
 inline static void
-N_PUSH(u_short x, regcontext_t *REGS)
+PUSH(u_short x, REGISTERS)
 {
     R_SP -= 2;
-    *(u_short *)N_GETPTR(R_SS, R_SP) = (x);
+    *(u_short *)MAKEPTR(R_SS, R_SP) = (x);
 }
 
 inline static u_short
-N_POP(regcontext_t *REGS)
+POP(REGISTERS)
 {
     u_short	x;
     
-    x = *(u_short *)N_GETPTR(R_SS, R_SP);
+    x = *(u_short *)MAKEPTR(R_SS, R_SP);
     R_SP += 2;
     return(x);
 }
@@ -181,42 +174,3 @@ N_POP(regcontext_t *REGS)
 # ifndef PSL_ALLCC	/* Grr, FreeBSD doesn't have this */
 # define PSL_ALLCC        (PSL_C|PSL_PF|PSL_AF|PSL_Z|PSL_N)
 # endif
-
-/******************************************************************************
-** older stuff below here
-*/
-
-#define REGISTERS	struct sigcontext *sc
-
-#define	GET16(x)	(x & 0xffff)
-#define	GET8L(x)	(x & 0xff)
-#define	GET8H(x)	((x >> 8) & 0xff)
-#define	SET16(x, y)	(x = (x & ~0xffff) | (y & 0xffff))
-#define	SET8L(x, y)	(x = (x & ~0xff) | (y & 0xff))
-#define	SET8H(x, y)	(x = (x & ~0xff00) | ((y & 0xff) << 8))
-
-#define	PUTVEC(s, o, x)	(SET16(s, x >> 16), SET16(o, x))
-#define	GETVEC(s, o)	MAKEVEC(GET16(s), GET16(o))
-
-#define	PUTPTR(s, o, x)	(SET16(s, (x & 0xf0000) >> 4), SET16(o, x))
-#define	GETPTR(s, o)	MAKEPTR(GET16(s), GET16(o))
-
-#define	VECPTR(x)	MAKEPTR((x) >> 16, (x) & 0xffff)
-
-inline static void
-PUSH(u_short x, struct sigcontext *sc)
-{
-    SET16(sc->sc_esp, GET16(sc->sc_esp) - 2);
-    *(u_short *)GETPTR(sc->sc_ss, sc->sc_esp) = x;
-}
-
-inline static u_short
-POP(struct sigcontext *sc)
-{
-    u_short x;
-
-    x = *(u_short *)GETPTR(sc->sc_ss, sc->sc_esp);
-    SET16(sc->sc_esp, GET16(sc->sc_esp) + 2);
-    return (x);
-}
-

@@ -54,102 +54,102 @@ int10(REGISTERS)
 	 */
 	reset_poll();
 
-	switch (GET8H(sc->sc_eax)) {
+	switch (R_AH) {
 	case 0x00: /* Set display mode */
-		debug(D_HALF, "Set video mode to %02x\n", GET8L(sc->sc_eax));
+		debug(D_HALF, "Set video mode to %02x\n", R_AL);
 		break;
 	case 0x01: /* Define cursor */
-		curs_start = GET8H(sc->sc_ecx);
-		curs_end = GET8L(sc->sc_ecx);
+		curs_start = R_CH;
+		curs_end = R_CL;
 		break;
 	case 0x02: /* Position cursor */
 		if (!xmode)
 			goto unsupported;
-		tty_move(GET8H(sc->sc_edx), GET8L(sc->sc_edx));
+		tty_move(R_DH, R_DL);
 		break;
 	case 0x03: /* Read cursor position */
 		if (!xmode)
 			goto unsupported;
 		tty_report(&i, &j);
-		SET8H(sc->sc_edx, i);
-		SET8L(sc->sc_edx, j);
-		SET8H(sc->sc_ecx, curs_start);
-		SET8L(sc->sc_ecx, curs_end);
+		R_DH = i;
+		R_DL = j;
+		R_CH = curs_start;
+		R_CL = curs_end;
 		break;
 	case 0x05:
-		debug(D_HALF, "Select current display page %d\n", GET8L(sc->sc_eax));
+		debug(D_HALF, "Select current display page %d\n", R_AL);
 		break;
 	case 0x06: /* initialize window/scroll text upward */
 		if (!xmode)
 			goto unsupported;
-		tty_scroll(GET8H(sc->sc_ecx), GET8L(sc->sc_ecx),
-			   GET8H(sc->sc_edx), GET8L(sc->sc_edx),
-			   GET8L(sc->sc_eax), GET8H(sc->sc_ebx) << 8);
+		tty_scroll(R_CH, R_CL,
+			   R_DH, R_DL,
+			   R_AL, R_BH << 8);
 		break;
 	case 0x07: /* initialize window/scroll text downward */
 		if (!xmode)
 			goto unsupported;
-		tty_rscroll(GET8H(sc->sc_ecx), GET8L(sc->sc_ecx),
-			    GET8H(sc->sc_edx), GET8L(sc->sc_edx),
-			    GET8L(sc->sc_eax), GET8H(sc->sc_ebx) << 8);
+		tty_rscroll(R_CH, R_CL,
+			    R_DH, R_DL,
+			    R_AL, R_BH << 8);
 		break;
 	case 0x08: /* read character/attribute */
 		if (!xmode)
 			goto unsupported;
 		i = tty_char(-1, -1);
-		SET16(sc->sc_eax, i);
+		R_AX = i;
 		break;
 	case 0x09: /* write character/attribute */
 		if (!xmode)
 			goto unsupported;
-		tty_rwrite(GET16(sc->sc_ecx), GET8L(sc->sc_eax), GET8L(sc->sc_ebx) << 8);
+		tty_rwrite(R_CX, R_AL, R_BL << 8);
 		break;
 	case 0x0a: /* write character */
 		if (!xmode)
 			goto unsupported;
-		tty_rwrite(GET16(sc->sc_ecx), GET8L(sc->sc_eax), -1);
+		tty_rwrite(R_CX, R_AL, -1);
 		break;
 	case 0x0b: /* set border color */
 		if (!xmode)
 			goto unsupported;
-		video_setborder(GET8L(sc->sc_ebx));
+		video_setborder(R_BL);
 		break;
 	case 0x0e: /* write character */
-		tty_write(GET8L(sc->sc_eax), -1);
+		tty_write(R_AL, -1);
 		break;
 	case 0x0f: /* get display mode */
-		SET8H(sc->sc_eax, 80); /* number of columns */
-		SET8L(sc->sc_eax, 3); /* color */
-		SET8H(sc->sc_ebx, 0); /* display page */
+		R_AH = 80; /* number of columns */
+		R_AL = 3; /* color */
+		R_BH = 0; /* display page */
 		break;
 	case 0x10:
-		switch (GET8L(sc->sc_eax)) {
+		switch (R_AL) {
 		case 0x01:
-			video_setborder(GET8H(sc->sc_ebx) & 0x0f);
+			video_setborder(R_BH & 0x0f);
 			break;
 		case 0x02:		/* Set pallete registers */
 			debug(D_HALF, "INT 10 10:02 Set all palette registers\n");
 			break;
 		case 0x03:		/* Enable/Disable blinking mode */
-			video_blink(GET8L(sc->sc_ebx) ? 1 : 0);
+			video_blink(R_BL ? 1 : 0);
 			break;
 		case 0x13:
 			debug(D_HALF,
 			      "INT 10 10:13 Select color or DAC (%02x, %02x)\n",
-				      GET8L(sc->sc_ebx), GET8H(sc->sc_ebx));
+				      R_BL, R_BH);
 			break;
 		case 0x1a: /* get video dac color-page state */
-			SET8H(sc->sc_ebx, 0);		/* Current page */
-			SET8L(sc->sc_ebx, 0);		/* four pages of 64... */
+			R_BH = 0;		/* Current page */
+			R_BL = 0;		/* four pages of 64... */
 			break;
 		default:
-			unknown_int3(0x10, 0x10, GET8L(sc->sc_eax), sc);
+			unknown_int3(0x10, 0x10, R_AL, REGS);
 			break;
 		}
 		break;
 #if 1
 	case 0x11:
-		switch (GET8L(sc->sc_eax)) {
+		switch (R_AL) {
 		case 0x00: printf("Tried to load user defined font.\n"); break;
 		case 0x01: printf("Tried to load 8x14 font.\n"); break;
 		case 0x02: printf("Tried to load 8x8 font.\n"); break;
@@ -160,14 +160,14 @@ int10(REGISTERS)
 		case 0x12: printf("Tried to load and activate 8x8 font.\n"); break;
 		case 0x14: printf("Tried to load and activate 8x16 font.\n"); break;
 		case 0x30:
-			SET16(sc->sc_ecx, 14);
-			SET8L(sc->sc_edx, 24);
-			switch(GET8H(sc->sc_ebx)) {
+			R_CX = 14;
+			R_DL = 24;
+			switch(R_BH) {
 			case 0:
-				PUTVEC(sc->sc_es, sc->sc_ebp, ivec[0x1f]);
+				PUTVEC(R_ES, R_BP, ivec[0x1f]);
 				break;
 			case 1:
-				PUTVEC(sc->sc_es, sc->sc_ebp, ivec[0x43]);
+				PUTVEC(R_ES, R_BP, ivec[0x43]);
 				break;
 			case 2:
 			case 3:
@@ -175,19 +175,19 @@ int10(REGISTERS)
 			case 5:
 			case 6:
 			case 7:
-				SET16(sc->sc_es, 0);
-				SET16(sc->sc_ebp, 0);
+				R_ES = 0;
+				R_BP = 0;
 				debug(D_HALF,
 				      "INT 10 11:30 Request font address %02x",
-				      GET8H(sc->sc_ebx));
+				      R_BH);
 				break;
 			default:
-				unknown_int4(0x10, 0x11, 0x30, GET8H(sc->sc_ebx), sc);
+				unknown_int4(0x10, 0x11, 0x30, R_BH, REGS);
 				break;
 			}
 			break;
 		default:
-			unknown_int3(0x10, 0x11, GET8L(sc->sc_eax), sc);
+			unknown_int3(0x10, 0x11, R_AL, REGS);
 			break;
 		}
 		break;
@@ -195,45 +195,45 @@ int10(REGISTERS)
 	case 0x12: /* Load multiple DAC color register */
 		if (!xmode)
 			goto unsupported;
-		switch (GET8L(sc->sc_ebx)) {
+		switch (R_BL) {
 		case 0x10:	/* Read EGA/VGA config */
-			SET8H(sc->sc_ebx, 0);	/* Color */
-			SET8L(sc->sc_ebx, 0);	/* 64K */
+			R_BH = 0;	/* Color */
+			R_BL = 0;	/* 64K */
 			break;
 		default:
-			unknown_int3(0x10, 0x12, GET8L(sc->sc_ebx), sc);
+			unknown_int3(0x10, 0x12, R_BL, REGS);
 			break;
 		}
 		break;
 	case 0x13: /* write character string */
 		if (!xmode)
 			goto unsupported;
-                addr = (char *)GETPTR(sc->sc_es, sc->sc_ebp);
-		switch (GET8L(sc->sc_eax) & 0x03) {
+                addr = (char *)MAKEPTR(R_ES, R_BP);
+		switch (R_AL & 0x03) {
 		case 0:
 			tty_report(&saved_row, &saved_col);
-			tty_move(GET8H(sc->sc_edx), GET8L(sc->sc_edx));
-			for (i = 0; i < GET16(sc->sc_ecx); ++i)
-				tty_write(*addr++, GET8L(sc->sc_ebx) << 8);
+			tty_move(R_DH, R_DL);
+			for (i = 0; i < R_CX; ++i)
+				tty_write(*addr++, R_BL << 8);
 			tty_move(saved_row, saved_col);
 			break;
 		case 1:
-			tty_move(GET8H(sc->sc_edx), GET8L(sc->sc_edx));
-			for (i = 0; i < GET16(sc->sc_ecx); ++i)
-				tty_write(*addr++, GET8L(sc->sc_ebx) << 8);
+			tty_move(R_DH, R_DL);
+			for (i = 0; i < R_CX; ++i)
+				tty_write(*addr++, R_BL << 8);
 			break;
 		case 2:
 			tty_report(&saved_row, &saved_col);
-			tty_move(GET8H(sc->sc_edx), GET8L(sc->sc_edx));
-			for (i = 0; i < GET16(sc->sc_ecx); ++i) {
+			tty_move(R_DH, R_DL);
+			for (i = 0; i < R_CX; ++i) {
 				tty_write(addr[0], addr[1]);
 				addr += 2;
 			}
 			tty_move(saved_row, saved_col);
 			break;
 		case 3:
-			tty_move(GET8H(sc->sc_edx), GET8L(sc->sc_edx));
-			for (i = 0; i < GET16(sc->sc_ecx); ++i) {
+			tty_move(R_DH, R_DL);
+			for (i = 0; i < R_CX; ++i) {
 				tty_write(addr[0], addr[1]);
 				addr += 2;
 			}
@@ -243,13 +243,13 @@ int10(REGISTERS)
 	case 0x1a:
 		if (!xmode)
 			goto unsupported;
-		SET8L(sc->sc_eax, 0x1a);	/* I am VGA */
-		SET8L(sc->sc_ebx, 8);		/* Color VGA */
-		SET8H(sc->sc_ebx, 0);		/* No other card */
+		R_AL = 0x1a;	/* I am VGA */
+		R_BL = 8;		/* Color VGA */
+		R_BH = 0;		/* No other card */
 		break;
 
 	case 0x4f:	/* get VESA information */
-	    SET8H(sc->sc_eax, 0x01);		/* no VESA support */
+	    R_AH = 0x01;		/* no VESA support */
 	    break;
 
 	case 0x1b:	/* Functionality state information */
@@ -258,7 +258,7 @@ int10(REGISTERS)
 		break;
 	case 0xfa:	/* Interrogate mouse driver */
 		if (xmode)
-			PUTPTR(sc->sc_es, sc->sc_ebx, (long)mouse_area);
+			PUTPTR(R_ES, R_BX, (long)mouse_area);
 		break;
     	case 0xff:	/* Update real screen from video buffer */
 		/* XXX - we should allow secondary buffer here and then
@@ -266,12 +266,12 @@ int10(REGISTERS)
 		break;
 
     	unsupported:
-		if (vflag) dump_regs(sc);
+		if (vflag) dump_regs(REGS);
 		fatal ("int10 function 0x%02x:%02x only available in X mode\n",
-			GET8H(sc->sc_eax), GET8L(sc->sc_eax));
+			R_AH, R_AL);
     	unknown:
 	default:
-		unknown_int2(0x10, GET8H(sc->sc_eax), sc);
+		unknown_int2(0x10, R_AH, REGS);
 		break;
 	}
 }

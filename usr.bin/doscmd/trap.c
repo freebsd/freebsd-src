@@ -88,7 +88,7 @@ user_int:
 
         R_CS = 0x2c7; 
         R_IP = 0x14f9;
-        addr = (char *)N_GETPTR(R_CS, R_IP);
+        addr = (char *)MAKEPTR(R_CS, R_IP);
 
         printf("\n");
         for (i = 0; i < 100; i++) {
@@ -125,11 +125,11 @@ user_int:
 	reset_poll();
 
     /* stack for and call the interrupt in vm86 space */
-    N_PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
-    N_PUSH(R_CS, REGS);
-    N_PUSH(R_IP, REGS);
+    PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
+    PUSH(R_CS, REGS);
+    PUSH(R_IP, REGS);
     R_EFLAGS &= ~PSL_VIF;		/* disable interrupts */
-    N_PUTVEC(R_CS, R_IP, ivec[intnum]);
+    PUTVEC(R_CS, R_IP, ivec[intnum]);
 }
 
 /* make this read a little more intuitively */
@@ -182,7 +182,7 @@ sigurg(struct sigframe *sf)
     case VM86_UNKNOWN:
 	/*XXXXX failed vector also gets here without IP adjust*/
 
-	addr = (u_char *)GETPTR(sc->sc_cs, sc->sc_eip);
+	addr = (u_char *)MAKEPTR(sc->sc_cs, sc->sc_eip);
 	rep = 1;
 
 	debug (D_TRAPS2, "%04x:%04x [%02x]", GET16(sc->sc_cs), 
@@ -289,18 +289,18 @@ sigbus(struct sigframe *sf)
     int			intnum;
     int			port;
     callback_t		func;
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_uc.uc_mcontext);
 
     if (!(R_EFLAGS && PSL_VM))
 	fatal("SIGBUS in the emulator\n");
 
-    if (sf->sf_arg2 != 0) {
+    if ((int)sf->sf_siginfo != 0) {
         fatal("SIGBUS code %d, trapno: %d, err: %d\n",
-	    sf->sf_arg2, sf->sf_siginfo.si_sc.sc_trapno, 
-	    sf->sf_siginfo.si_sc.sc_err); 
+	    (int)sf->sf_siginfo, sf->sf_uc.uc_mcontext.mc_tf.tf_trapno, 
+	    sf->sf_uc.uc_mcontext.mc_tf.tf_err);
     }
 
-    addr = (u_char *)GETPTR(R_CS, R_IP);
+    addr = (u_char *)MAKEPTR(R_CS, R_IP);
 
     if (tmode)
 	resettrace(REGS);
@@ -352,13 +352,13 @@ sigbus(struct sigframe *sf)
 	case PUSHF:
 	    debug (D_TRAPS2, "pushf <- 0x%x\n", R_EFLAGS);
 	    R_IP++;
-            N_PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), 
+            PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), 
 		REGS);
 	    break;
 
 	case IRET:
-	    R_IP = N_POP(REGS);		/* get new cs:ip off the stack */
-	    R_CS = N_POP(REGS);
+	    R_IP = POP(REGS);		/* get new cs:ip off the stack */
+	    R_CS = POP(REGS);
 	    debug (D_TRAPS2, "iret to %04x:%04x ", R_CS, R_IP);
 	    /* FALLTHROUGH */		/* 'safe' flag pop operation */
 
@@ -369,7 +369,7 @@ sigbus(struct sigframe *sf)
 	    if (addr[0] == POPF)
 		R_IP++;
 	    /* get flags from stack */
-	    tempflags = N_POP(REGS);
+	    tempflags = POP(REGS);
 	    /* flags we consider OK */
 	    okflags =  (PSL_ALLCC | PSL_T | PSL_D | PSL_V);
 	    /* keep state of non-OK flags */
@@ -475,7 +475,7 @@ sigbus(struct sigframe *sf)
 	    break;
 
 	case HLT:	/* BIOS entry points populated with HLT */
-	    func = find_callback(N_GETVEC(R_CS, R_IP));
+	    func = find_callback(MAKEVEC(R_CS, R_IP));
 	    if (func) {
 		R_IP++;					/* pass HLT opcode */
 		func(REGS);
@@ -509,7 +509,7 @@ void
 sigtrace(struct sigframe *sf)
 {
     int			x;
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_uc.uc_mcontext);
 
     if (R_EFLAGS & PSL_VM) {
 	debug(D_ALWAYS, "Currently in DOS\n");
@@ -528,7 +528,7 @@ sigtrap(struct sigframe *sf)
 {   
     int			intnum;
     int			trapno;
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_uc.uc_mcontext);
 
     if ((R_EFLAGS & PSL_VM) == 0) {
 	dump_regs(REGS);
@@ -540,7 +540,7 @@ sigtrap(struct sigframe *sf)
 	    goto doh;
 
 #ifdef __FreeBSD__
-    trapno = sf->sf_arg2;			/* XXX GROSTIC HACK ALERT */
+    trapno = (int)sf->sf_siginfo;			/* XXX GROSTIC HACK ALERT */
 #else
     trapno = sc->sc_trapno;
 #endif
@@ -549,11 +549,11 @@ sigtrap(struct sigframe *sf)
     else
 	intnum = 1;
 
-    N_PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
-    N_PUSH(R_CS, REGS);
-    N_PUSH(R_IP, REGS);
+    PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
+    PUSH(R_CS, REGS);
+    PUSH(R_IP, REGS);
     R_FLAGS &= ~PSL_T;
-    N_PUTVEC(R_CS, R_IP, ivec[intnum]);
+    PUTVEC(R_CS, R_IP, ivec[intnum]);
 
 doh:
     if (tmode)
@@ -563,7 +563,7 @@ doh:
 void
 breakpoint(struct sigframe *sf)
 {
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_uc.uc_mcontext);
 
     if (R_EFLAGS & PSL_VM)
 	printf("doscmd ");
@@ -581,7 +581,7 @@ breakpoint(struct sigframe *sf)
 void
 sigalrm(struct sigframe *sf)
 {
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_uc.uc_mcontext);
 
     if (tmode)
 	resettrace(REGS);
@@ -599,7 +599,7 @@ sigalrm(struct sigframe *sf)
 void
 sigill(struct sigframe *sf)
 {
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_uc.uc_mcontext);
 
     fprintf(stderr, "Signal %d from DOS program\n", sf->sf_signum);
     dump_regs(REGS);
@@ -610,7 +610,7 @@ sigill(struct sigframe *sf)
 void
 sigfpe(struct sigframe *sf)
 {
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_uc.uc_mcontext);
 
     if (R_EFLAGS & PSL_VM) {
 	dump_regs(REGS);

@@ -817,7 +817,7 @@ ems_entry(regcontext_t *REGS)
 	    /* Some checks */
 	    if (emvp->src_type == EMS_MOVE_CONV) {
 		/* Conventional memory source */
-		src_addr = N_GETPTR(emvp->src_seg, emvp->src_offset);
+		src_addr = MAKEPTR(emvp->src_seg, emvp->src_offset);
 		/* May not exceed conventional memory */
 		if ((src_addr + emvp->length) > 640 * 1024) {
 		    R_AH = EMS_SW_MALFUNC;
@@ -842,7 +842,7 @@ ems_entry(regcontext_t *REGS)
 
 	    if (emvp->dst_type == EMS_MOVE_CONV) {
 		/* Conventional memory source */
-		dst_addr = N_GETPTR(emvp->dst_seg, emvp->dst_offset);
+		dst_addr = MAKEPTR(emvp->dst_seg, emvp->dst_offset);
 		/* May not exceed conventional memory */
 		if ((dst_addr + emvp->length) > 640 * 1024) {
 		    R_AH = EMS_SW_MALFUNC;
@@ -1202,7 +1202,7 @@ static void
 *get_valid_pointer(u_short seg, u_short offs, u_long size)
 {
     u_long addr;
-    addr = N_GETPTR(seg, offs);
+    addr = MAKEPTR(seg, offs);
     /* Check bounds */
     if ((addr + size) >= (1024 * 1024) || addr < 1024)
 	return NULL;

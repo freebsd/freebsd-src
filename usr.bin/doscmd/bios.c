@@ -141,7 +141,7 @@ int15(regcontext_t *REGS)
 	break;
     case 0xc0:	/* get configuration */
 	debug (D_TRAPS|0x15, "Get configuration\n", R_DX);
-	N_PUTVEC(R_ES, R_BX, rom_config);
+	PUTVEC(R_ES, R_BX, rom_config);
         R_AH = 0;
 	break;
     case 0xc1:	/* get extended BIOS data area */

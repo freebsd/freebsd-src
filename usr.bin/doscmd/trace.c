@@ -99,7 +99,7 @@ tracetrap(regcontext_t *REGS)
     if ((R_EFLAGS & PSL_VM) == 0)
 	return;
     
-    addr = (u_char *)N_GETPTR(R_CS, R_IP);
+    addr = (u_char *)MAKEPTR(R_CS, R_IP);
 
     n = i386dis(R_CS, R_IP, addr, buf, 0);
     printtrace(REGS, buf);
@@ -129,9 +129,9 @@ tracetrap(regcontext_t *REGS)
 	saddr = (u_short *)MAKEPTR(R_SS, R_SP + 4);
 #if 0
 	printf("IRET: %04x %04x %04x\n",
-	       ((u_short *)N_GETPTR(R_SS, R_SP))[0],
-	       ((u_short *)N_GETPTR(R_SS, R_SP))[1],
-	       ((u_short *)N_GETPTR(R_SS, R_SP))[2]);
+	       ((u_short *)MAKEPTR(R_SS, R_SP))[0],
+	       ((u_short *)MAKEPTR(R_SS, R_SP))[1],
+	       ((u_short *)MAKEPTR(R_SS, R_SP))[2]);
 #endif	
 	break;
     case OPSIZ:
@@ -194,7 +194,7 @@ printtrace(regcontext_t *REGS, char *buf)
 {
 
     static int first = 1;
-    u_char *addr = (u_char *)N_GETPTR(R_CS, R_IP);
+    u_char *addr = (u_char *)MAKEPTR(R_CS, R_IP);
     char *bigfmt = "%04x:%04x "
 #if BIG_DEBUG
 	   	   "%02x %02x %02x %02x %02x %02x "
