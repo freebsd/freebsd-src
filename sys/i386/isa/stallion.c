@@ -53,6 +53,7 @@
 #include <machine/cpu.h>
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
+#include <i386/isa/comstats.h>
 #include <i386/isa/ic/scd1400.h>
 
 #include <pci.h>
@@ -106,7 +107,7 @@ static unsigned int	stl_irqshared = 0;
 #define	STL_MAXBRDS		8
 #define	STL_MAXPANELS		4
 #define	STL_PORTSPERPANEL	16
-#define	STL_PORTSPERBRD		32
+#define	STL_PORTSPERBRD		64
 
 /*
  *	Define the important minor number break down bits. These have been
@@ -117,6 +118,8 @@ static unsigned int	stl_irqshared = 0;
 #define	STL_CTRLLOCK		0x40
 #define	STL_CTRLINIT		0x20
 #define	STL_CTRLDEV		(STL_CTRLLOCK | STL_CTRLINIT)
+
+#define	STL_MEMDEV	0x07000000
 
 #define	STL_DEFSPEED	9600
 #define	STL_DEFCFLAG	(CS8 | CREAD | HUPCL)
@@ -140,7 +143,7 @@ static unsigned int	stl_irqshared = 0;
  */
 static char	*stl_drvname = "stl";
 static char	*stl_longdrvname = "Stallion Multiport Serial Driver";
-static char	*stl_drvversion = "0.0.4";
+static char	*stl_drvversion = "0.0.5";
 static int	stl_brdprobed[STL_MAXBRDS];
 
 static int	stl_nrbrds = 0;
@@ -149,16 +152,11 @@ static int	stl_doingtimeout = 0;
 static char	*__file__ = /*__FILE__*/ "stallion.c";
 
 /*
- *	Define the set of RX character error types.
+ *	Define global stats structures. Not used often, and can be
+ *	re-used for each stats call.
  */
-#define	STL_NRRXERRS	6
-
-#define	STL_RXPARITY	0
-#define	STL_RXFRAMING	1
-#define	STL_RXOVERRUN	2
-#define	STL_RXBREAK	3
-#define	STL_RXLOST	4
-#define	STL_RXLDLOST	5
+static combrd_t		stl_brdstats;
+static comstats_t	stl_comstats;
 
 /*****************************************************************************/
 
@@ -211,16 +209,17 @@ typedef struct {
 	int		waitopens;
 	int		hotchar;
 	unsigned int	state;
+	unsigned int	hwid;
 	unsigned int	sigs;
 	unsigned int	rxignoremsk;
 	unsigned int	rxmarkmsk;
-	unsigned int	rxerrs[STL_NRRXERRS];
 	unsigned long	clk;
 	struct termios	initintios;
 	struct termios	initouttios;
 	struct termios	lockintios;
 	struct termios	lockouttios;
 	struct timeval	timestamp;
+	comstats_t	stats;
 	stlrq_t		tx;
 	stlrq_t		rx;
 	stlrq_t		rxstatus;
@@ -232,6 +231,7 @@ typedef struct {
 	int		pagenr;
 	int		nrports;
 	int		iobase;
+	unsigned int	hwid;
 	unsigned int	ackmask;
 	stlport_t	*ports[STL_PORTSPERPANEL];
 } stlpanel_t;
@@ -239,6 +239,7 @@ typedef struct {
 typedef struct {
 	int		brdnr;
 	int		brdtype;
+	int		unitid;
 	int		state;
 	int		nrpanels;
 	int		nrports;
@@ -249,6 +250,7 @@ typedef struct {
 	unsigned int	iostatus;
 	unsigned int	ioctrl;
 	unsigned int	ioctrlval;
+	unsigned int	hwid;
 	unsigned long	clk;
 	stlpanel_t	*panels[STL_MAXPANELS];
 	stlport_t	*ports[STL_PORTSPERBRD];
@@ -416,14 +418,14 @@ static int	stl_cd1400clkdivs[] = {
  *	the device number. This gives us plenty of minor numbers to play
  *	with...
  */
-#define	MKDEV2BRD(m)		(((m) & 0x00070000) >> 16)
-#define	MKDEV2PORT(m)		((m) & 0x3f)
+#define	MKDEV2BRD(m)	(((m) & 0x00700000) >> 20)
+#define	MKDEV2PORT(m)	(((m) & 0x1f) | (((m) & 0x00010000) >> 11))
 
 /*
  *	Define some handy local macros...
  */
 #ifndef	MIN
-#define	MIN(a,b)		(((a) <= (b)) ? (a) : (b))
+#define	MIN(a,b)	(((a) <= (b)) ? (a) : (b))
 #endif
 
 /*****************************************************************************/
@@ -473,7 +475,7 @@ static void	stl_mdmisr(stlpanel_t *panelp, int ioaddr);
 static void	stl_setreg(stlport_t *portp, int regnr, int value);
 static int	stl_getreg(stlport_t *portp, int regnr);
 static int	stl_updatereg(stlport_t *portp, int regnr, int value);
-static void	stl_getsignals(stlport_t *portp);
+static int	stl_getsignals(stlport_t *portp);
 static void	stl_setsignals(stlport_t *portp, int dtr, int rts);
 static void	stl_flowcontrol(stlport_t *portp, int hw, int sw);
 static void	stl_ccrwait(stlport_t *portp);
@@ -482,6 +484,12 @@ static void	stl_startrxtx(stlport_t *portp, int rx, int tx);
 static void	stl_disableintrs(stlport_t *portp);
 static void	stl_sendbreak(stlport_t *portp, long len);
 static void	stl_flush(stlport_t *portp, int flag);
+static int	stl_memioctl(dev_t dev, int cmd, caddr_t data, int flag,
+			struct proc *p);
+static int	stl_getbrdstats(caddr_t data);
+static int	stl_getportstats(stlport_t *portp, caddr_t data);
+static int	stl_clrportstats(stlport_t *portp, caddr_t data);
+static stlport_t *stl_getport(int brdnr, int panelnr, int portnr);
 
 #if NPCI > 0
 static char	*stlpciprobe(pcici_t tag, pcidi_t type);
@@ -642,6 +650,7 @@ int stlattach(struct isa_device *idp)
 	if (brdp->brdnr >= stl_nrbrds)
 		stl_nrbrds = brdp->brdnr + 1;
 
+	brdp->unitid = idp->id_unit;
 	brdp->brdtype = stl_brdprobed[idp->id_unit];
 	brdp->ioaddr1 = idp->id_iobase;
 	brdp->ioaddr2 = stl_ioshared;
@@ -722,6 +731,7 @@ void stlpciattach(pcici_t tag, int unit)
 	if (brdp->brdnr >= stl_nrbrds)
 		stl_nrbrds = brdp->brdnr + 1;
 
+	brdp->unitid = 0;
 	brdp->brdtype = BRD_ECHPCI;
 	brdp->ioaddr1 = ((unsigned int) pci_conf_read(tag, 0x14)) & 0xfffc;
 	brdp->ioaddr2 = ((unsigned int) pci_conf_read(tag, 0x10)) & 0xfffc;
@@ -757,6 +767,9 @@ STATIC int stlopen(dev_t dev, int flag, int mode, struct proc *p)
 /*
  *	Firstly check if the supplied device number is a valid device.
  */
+	if (dev & STL_MEMDEV)
+		return(0);
+
 	portp = stl_dev2port(dev);
 	if (portp == (stlport_t *) NULL)
 		return(ENXIO);
@@ -865,6 +878,9 @@ STATIC int stlclose(dev_t dev, int flag, int mode, struct proc *p)
 	printf("stlclose(dev=%x,flag=%x,mode=%x,p=%x)\n", dev, flag, mode, p);
 #endif
 
+	if (dev & STL_MEMDEV)
+		return(0);
+
 	portp = stl_dev2port(dev);
 	if (portp == (stlport_t *) NULL)
 		return(ENXIO);
@@ -962,8 +978,11 @@ STATIC int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		data, flag, p);
 #endif
 
-	portp = stl_dev2port(dev);
 	dev = minor(dev);
+	if (dev & STL_MEMDEV)
+		return(stl_memioctl(dev, cmd, data, flag, p));
+
+	portp = stl_dev2port(dev);
 	if (portp == (stlport_t *) NULL)
 		return(ENODEV);
 	tp = &portp->tty;
@@ -1099,8 +1118,7 @@ STATIC int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			((i & TIOCM_RTS) ? 0 : -1));
 		break;
 	case TIOCMGET:
-		stl_getsignals(portp);
-		*((int *) data) = (portp->sigs | TIOCM_LE);
+		*((int *) data) = (stl_getsignals(portp) | TIOCM_LE);
 		break;
 	case TIOCMSDTRWAIT:
 		if ((error = suser(p->p_ucred, &p->p_acflag)) == 0)
@@ -1132,19 +1150,11 @@ STATIC int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 STATIC stlport_t *stl_dev2port(dev_t dev)
 {
 	stlbrd_t	*brdp;
-	int		brdnr, portnr;
 
-	dev = minor(dev);
-	brdnr = MKDEV2BRD(dev);
-	if ((brdnr < 0) || (brdnr >= STL_MAXBRDS))
-		return((stlport_t *) NULL);
-	brdp = stl_brds[brdnr];
+	brdp = stl_brds[MKDEV2BRD(dev)];
 	if (brdp == (stlbrd_t *) NULL)
 		return((stlport_t *) NULL);
-	portnr = MKDEV2PORT(dev);
-	if ((portnr < 0) || (portnr >= brdp->nrports))
-		return((stlport_t *) NULL);
-	return(brdp->ports[portnr]);
+	return(brdp->ports[MKDEV2PORT(dev)]);
 }
 
 /*****************************************************************************/
@@ -1162,7 +1172,7 @@ static int stl_rawopen(stlport_t *portp)
 		portp, portp->brdnr, portp->panelnr, portp->portnr);
 #endif
 	stl_param(&portp->tty, &portp->tty.t_termios);
-	stl_getsignals(portp);
+	portp->sigs = stl_getsignals(portp);
 	stl_setsignals(portp, 1, 1);
 	stl_enablerxtx(portp, 1, 1);
 	stl_startrxtx(portp, 1, 0);
@@ -1541,6 +1551,7 @@ static inline void stl_txisr(stlpanel_t *panelp, int ioaddr)
 		outb((ioaddr + EREG_DATA), srer);
 	} else {
 		len = MIN(len, CD1400_TXFIFOSIZE);
+		portp->stats.txtotal += len;
 		stlen = MIN(len, (portp->tx.endbuf - tail));
 		outb(ioaddr, (TDR + portp->uartaddr));
 		outsb((ioaddr + EREG_DATA), tail, stlen);
@@ -1620,6 +1631,7 @@ static inline void stl_rxisr(stlpanel_t *panelp, int ioaddr)
 			stl_setreg(portp, MCOR1,
 				(stl_getreg(portp, MCOR1) & 0xf0));
 			stl_setreg(portp, MSVR2, 0);
+			portp->stats.rxrtsoff++;
 		}
 	}
 
@@ -1633,9 +1645,11 @@ static inline void stl_rxisr(stlpanel_t *panelp, int ioaddr)
 		if (buflen == 0) {
 			outb(ioaddr, (RDSR + portp->uartaddr));
 			insb((ioaddr + EREG_DATA), &unwanted[0], len);
-			portp->rxerrs[STL_RXLOST] += len;
+			portp->stats.rxlost += len;
+			portp->stats.rxtotal += len;
 		} else {
 			len = MIN(len, buflen);
+			portp->stats.rxtotal += len;
 			stlen = MIN(len, stlen);
 			if (len > 0) {
 				outb(ioaddr, (RDSR + portp->uartaddr));
@@ -1654,13 +1668,20 @@ static inline void stl_rxisr(stlpanel_t *panelp, int ioaddr)
 		status = inb(ioaddr + EREG_DATA);
 		ch = inb(ioaddr + EREG_DATA);
 		if (status & ST_BREAK)
-			portp->rxerrs[STL_RXBREAK]++;
+			portp->stats.rxbreaks++;
 		if (status & ST_FRAMING)
-			portp->rxerrs[STL_RXFRAMING]++;
+			portp->stats.rxframing++;
 		if (status & ST_PARITY)
-			portp->rxerrs[STL_RXPARITY]++;
+			portp->stats.rxparity++;
 		if (status & ST_OVERRUN)
-			portp->rxerrs[STL_RXOVERRUN]++;
+			portp->stats.rxoverrun++;
+		if (status & ST_SCHARMASK) {
+			if ((status & ST_SCHARMASK) == ST_SCHAR1)
+				portp->stats.txxon++;
+			if ((status & ST_SCHARMASK) == ST_SCHAR2)
+				portp->stats.txxoff++;
+			goto stl_rxalldone;
+		}
 		if ((portp->rxignoremsk & status) == 0) {
 			if ((tp->t_state & TS_CAN_BYPASS_L_RINT) &&
 			    ((status & ST_FRAMING) ||
@@ -1682,6 +1703,7 @@ static inline void stl_rxisr(stlpanel_t *panelp, int ioaddr)
 	portp->state |= ASY_RXDATA;
 	stl_dotimeout();
 
+stl_rxalldone:
 	outb(ioaddr, (EOSRR + portp->uartaddr));
 	outb((ioaddr + EREG_DATA), 0);
 }
@@ -1716,6 +1738,7 @@ static inline void stl_mdmisr(stlpanel_t *panelp, int ioaddr)
 	misr = inb(ioaddr + EREG_DATA);
 	if (misr & MISR_DCD) {
 		portp->state |= ASY_DCDCHANGE;
+		portp->stats.modem++;
 		stl_dotimeout();
 	}
 
@@ -1935,7 +1958,7 @@ static void stl_poll(void *arg)
 				stl_rxprocess(portp);
 			if (portp->state & ASY_DCDCHANGE) {
 				portp->state &= ~ASY_DCDCHANGE;
-				stl_getsignals(portp);
+				portp->sigs = stl_getsignals(portp);
 				(*linesw[tp->t_line].l_modem)(tp,
 					(portp->sigs & TIOCM_CD));
 			}
@@ -2001,13 +2024,6 @@ static void stl_rxprocess(stlport_t *portp)
 					((portp->state & ASY_RTSFLOWMODE) ||
 					(tp->t_iflag & IXOFF)) &&
 					((tp->t_state & TS_TBLOCK) == 0)) {
-#if 1
-				if ((TTYHOG - tp->t_rawq.c_cc - 1) < 0)
-					printf("%s(%d): len < 0, len=%d "
-						"stlen=%d TTYHOG=%d cc=%d\n",
-						__file__, __LINE__, len,
-						stlen, TTYHOG, tp->t_rawq.c_cc);
-#endif
 				ch = TTYHOG - tp->t_rawq.c_cc - 1;
 				len = (ch > 0) ? ch : 0;
 				stlen = MIN(stlen, len);
@@ -2021,7 +2037,7 @@ static void stl_rxprocess(stlport_t *portp)
 				lostlen += b_to_q(tail, len, &tp->t_rawq);
 				tail += len;
 			}
-			portp->rxerrs[STL_RXLDLOST] += lostlen;
+			portp->stats.rxlost += lostlen;
 			ttwakeup(tp);
 			portp->rx.tail = tail;
 		}
@@ -2198,7 +2214,7 @@ static int stl_param(struct tty *tp, struct termios *tiosp)
  */
 	if (tiosp->c_iflag & IXON) {
 		cor2 |= COR2_TXIBE;
-		cor3 |= (COR3_FCT | COR3_SCD12);
+		cor3 |= COR3_SCD12;
 		if (tiosp->c_iflag & IXANY)
 			cor2 |= COR2_IXM;
 	}
@@ -2317,11 +2333,13 @@ static void stl_flowcontrol(stlport_t *portp, int hw, int sw)
 			stl_setreg(portp, MCOR1,
 				(stl_getreg(portp, MCOR1) & 0xf0));
 			stl_setreg(portp, MSVR2, 0);
+			portp->stats.rxrtsoff++;
 		} else if (hwflow > 0) {
 			portp->state &= ~ASY_RTSFLOW;
 			stl_setreg(portp, MSVR2, MSVR2_RTS);
 			stl_setreg(portp, MCOR1,
 				(stl_getreg(portp, MCOR1) | FIFO_RTSTHRESHOLD));
+			portp->stats.rxrtson++;
 		}
 		BRDDISABLE(portp->brdnr);
 		enable_intr();
@@ -2368,9 +2386,10 @@ static void stl_setsignals(stlport_t *portp, int dtr, int rts)
  *	Get the state of the signals.
  */
 
-static void stl_getsignals(stlport_t *portp)
+static int stl_getsignals(stlport_t *portp)
 {
 	unsigned char	msvr1, msvr2;
+	int		sigs;
 
 #if DEBUG
 	printf("stl_getsignals(portp=%x)\n", (int) portp);
@@ -2382,14 +2401,15 @@ static void stl_getsignals(stlport_t *portp)
 	msvr1 = stl_getreg(portp, MSVR1);
 	msvr2 = stl_getreg(portp, MSVR2);
 	BRDDISABLE(portp->brdnr);
-	portp->sigs = 0;
-	portp->sigs |= (msvr1 & MSVR1_DCD) ? TIOCM_CD : 0;
-	portp->sigs |= (msvr1 & MSVR1_CTS) ? TIOCM_CTS : 0;
-	portp->sigs |= (msvr1 & MSVR1_RI) ? TIOCM_RI : 0;
-	portp->sigs |= (msvr1 & MSVR1_DSR) ? TIOCM_DSR : 0;
-	portp->sigs |= (msvr1 & MSVR1_DTR) ? TIOCM_DTR : 0;
-	portp->sigs |= (msvr2 & MSVR2_RTS) ? TIOCM_RTS : 0;
+	sigs = 0;
+	sigs |= (msvr1 & MSVR1_DCD) ? TIOCM_CD : 0;
+	sigs |= (msvr1 & MSVR1_CTS) ? TIOCM_CTS : 0;
+	sigs |= (msvr1 & MSVR1_RI) ? TIOCM_RI : 0;
+	sigs |= (msvr1 & MSVR1_DSR) ? TIOCM_DSR : 0;
+	sigs |= (msvr1 & MSVR1_DTR) ? TIOCM_DTR : 0;
+	sigs |= (msvr2 & MSVR2_RTS) ? TIOCM_RTS : 0;
 	enable_intr();
+	return(sigs);
 }
 
 /*****************************************************************************/
@@ -2505,6 +2525,7 @@ static void stl_sendbreak(stlport_t *portp, long len)
 	} else {
 		portp->brklen = len;
 	}
+	portp->stats.txbreaks++;
 	enable_intr();
 }
 
@@ -2625,6 +2646,7 @@ static int stl_initports(stlbrd_t *brdp, stlpanel_t *panelp)
 		portp->ioaddr = ioaddr;
 		portp->uartaddr = (i & 0x4) << 5;
 		portp->pagenr = panelp->pagenr + (i >> 3);
+		portp->hwid = stl_getreg(portp, GFRCR);
 		stl_setreg(portp, CAR, (i & 0x3));
 		stl_setreg(portp, LIVR, (i << 3));
 		panelp->ports[i] = portp;
@@ -2726,8 +2748,10 @@ static int stl_initeio(stlbrd_t *brdp)
 	panelp->panelnr = 0;
 	panelp->nrports = brdp->nrports;
 	panelp->iobase = brdp->ioaddr1;
+	panelp->hwid = status;
 	brdp->panels[0] = panelp;
 	brdp->nrpanels = 1;
+	brdp->hwid = status;
 	brdp->state |= BRD_FOUND;
 	return(0);
 }
@@ -2760,6 +2784,7 @@ static int stl_initech(stlbrd_t *brdp)
 		status = inb(brdp->iostatus);
 		if ((status & ECH_IDBITMASK) != ECH_ID)
 			return(ENODEV);
+		brdp->hwid = status;
 
 		if ((brdp->irq < 0) || (brdp->irq > 15) ||
 				(stl_vecmap[brdp->irq] == (unsigned char) 0xff)) {
@@ -2780,6 +2805,7 @@ static int stl_initech(stlbrd_t *brdp)
 		status = inb(brdp->iostatus);
 		if ((status & ECH_IDBITMASK) != ECH_ID)
 			return(ENODEV);
+		brdp->hwid = status;
 
 		if ((brdp->irq < 0) || (brdp->irq > 15) ||
 				(stl_vecmap[brdp->irq] == (unsigned char) 0xff)) {
@@ -2823,6 +2849,7 @@ static int stl_initech(stlbrd_t *brdp)
 		panelp->panelnr = panelnr;
 		panelp->iobase = ioaddr;
 		panelp->pagenr = nxtid;
+		panelp->hwid = status;
 		if (status & ECH_PNL16PORT) {
 			if ((brdp->nrports + 16) > 32)
 				break;
@@ -2904,10 +2931,190 @@ static int stl_brdinit(stlbrd_t *brdp)
 		}
 	}
 
-	printf("stl(%d): %s (driver version %s) nrpanels=%d nrports=%d\n",
-		brdp->brdnr, stl_brdnames[brdp->brdtype], stl_drvversion,
-		brdp->nrpanels, brdp->nrports);
+	printf("stl%d: %s (driver version %s) unit=%d nrpanels=%d nrports=%d\n",
+		brdp->unitid, stl_brdnames[brdp->brdtype], stl_drvversion,
+		brdp->brdnr, brdp->nrpanels, brdp->nrports);
 	return(0);
+}
+
+/*****************************************************************************/
+
+/*
+ *	Return the board stats structure to user app.
+ */
+
+static int stl_getbrdstats(caddr_t data)
+{
+	stlbrd_t	*brdp;
+	stlpanel_t	*panelp;
+	int		i;
+
+	stl_brdstats = *((combrd_t *) data);
+	if (stl_brdstats.brd >= STL_MAXBRDS)
+		return(-ENODEV);
+	brdp = stl_brds[stl_brdstats.brd];
+	if (brdp == (stlbrd_t *) NULL)
+		return(-ENODEV);
+
+	bzero(&stl_brdstats, sizeof(combrd_t));
+	stl_brdstats.brd = brdp->brdnr;
+	stl_brdstats.type = brdp->brdtype;
+	stl_brdstats.hwid = brdp->hwid;
+	stl_brdstats.state = brdp->state;
+	stl_brdstats.ioaddr = brdp->ioaddr1;
+	stl_brdstats.ioaddr2 = brdp->ioaddr2;
+	stl_brdstats.irq = brdp->irq;
+	stl_brdstats.nrpanels = brdp->nrpanels;
+	stl_brdstats.nrports = brdp->nrports;
+	for (i = 0; (i < brdp->nrpanels); i++) {
+		panelp = brdp->panels[i];
+		stl_brdstats.panels[i].panel = i;
+		stl_brdstats.panels[i].hwid = panelp->hwid;
+		stl_brdstats.panels[i].nrports = panelp->nrports;
+	}
+
+	*((combrd_t *) data) = stl_brdstats;;
+	return(0);
+}
+
+/*****************************************************************************/
+
+/*
+ *	Resolve the referenced port number into a port struct pointer.
+ */
+
+static stlport_t *stl_getport(int brdnr, int panelnr, int portnr)
+{
+	stlbrd_t	*brdp;
+	stlpanel_t	*panelp;
+
+	if ((brdnr < 0) || (brdnr >= STL_MAXBRDS))
+		return((stlport_t *) NULL);
+	brdp = stl_brds[brdnr];
+	if (brdp == (stlbrd_t *) NULL)
+		return((stlport_t *) NULL);
+	if ((panelnr < 0) || (panelnr >= brdp->nrpanels))
+		return((stlport_t *) NULL);
+	panelp = brdp->panels[panelnr];
+	if (panelp == (stlpanel_t *) NULL)
+		return((stlport_t *) NULL);
+	if ((portnr < 0) || (portnr >= panelp->nrports))
+		return((stlport_t *) NULL);
+	return(panelp->ports[portnr]);
+}
+
+/*****************************************************************************/
+
+/*
+ *	Return the port stats structure to user app. A NULL port struct
+ *	pointer passed in means that we need to find out from the app
+ *	what port to get stats for (used through board control device).
+ */
+
+static int stl_getportstats(stlport_t *portp, caddr_t data)
+{
+	unsigned char	*head, *tail;
+
+	if (portp == (stlport_t *) NULL) {
+		stl_comstats = *((comstats_t *) data);
+		portp = stl_getport(stl_comstats.brd, stl_comstats.panel,
+			stl_comstats.port);
+		if (portp == (stlport_t *) NULL)
+			return(-ENODEV);
+	}
+
+	portp->stats.state = portp->state;
+	/*portp->stats.flags = portp->flags;*/
+	portp->stats.hwid = portp->hwid;
+	portp->stats.ttystate = portp->tty.t_state;
+	portp->stats.cflags = portp->tty.t_cflag;
+	portp->stats.iflags = portp->tty.t_iflag;
+	portp->stats.oflags = portp->tty.t_oflag;
+	portp->stats.lflags = portp->tty.t_lflag;
+
+	head = portp->tx.head;
+	tail = portp->tx.tail;
+	portp->stats.txbuffered = ((head >= tail) ? (head - tail) :
+		(STL_TXBUFSIZE - (tail - head)));
+
+	head = portp->rx.head;
+	tail = portp->rx.tail;
+	portp->stats.rxbuffered = (head >= tail) ? (head - tail) :
+		(STL_RXBUFSIZE - (tail - head));
+
+	portp->stats.signals = (unsigned long) stl_getsignals(portp);
+
+	*((comstats_t *) data) = portp->stats;
+	return(0);
+}
+
+/*****************************************************************************/
+
+/*
+ *	Clear the port stats structure. We also return it zeroed out...
+ */
+
+static int stl_clrportstats(stlport_t *portp, caddr_t data)
+{
+	int	rc;
+
+	if (portp == (stlport_t *) NULL) {
+		stl_comstats = *((comstats_t *) data);
+		portp = stl_getport(stl_comstats.brd, stl_comstats.panel,
+			stl_comstats.port);
+		if (portp == (stlport_t *) NULL)
+			return(-ENODEV);
+	}
+
+	bzero(&portp->stats, sizeof(comstats_t));
+	portp->stats.brd = portp->brdnr;
+	portp->stats.panel = portp->panelnr;
+	portp->stats.port = portp->portnr;
+	*((comstats_t *) data) = stl_comstats;
+	return(0);
+}
+
+/*****************************************************************************/
+
+/*
+ *	The "staliomem" device is used for stats collection in this driver.
+ */
+
+static int stl_memioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+{
+	stlbrd_t	*brdp;
+	int		brdnr, rc;
+
+#if DEBUG
+	printf("stl_memioctl(dev=%x,cmd=%x,data=%x,flag=%x)\n", (int) dev,
+		cmd, (int) data, flag);
+#endif
+
+	brdnr = dev & 0x7;
+	brdp = stl_brds[brdnr];
+	if (brdp == (stlbrd_t *) NULL)
+		return(ENODEV);
+	if (brdp->state == 0)
+		return(ENODEV);
+
+	rc = 0;
+
+	switch (cmd) {
+	case COM_GETPORTSTATS:
+		rc = stl_getportstats((stlport_t *) NULL, data);
+		break;
+	case COM_CLRPORTSTATS:
+		rc = stl_clrportstats((stlport_t *) NULL, data);
+		break;
+	case COM_GETBRDSTATS:
+		rc = stl_getbrdstats(data);
+		break;
+	default:
+		rc = ENOTTY;
+		break;
+	}
+
+	return(rc);
 }
 
 /*****************************************************************************/

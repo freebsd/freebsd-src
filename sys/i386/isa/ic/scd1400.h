@@ -276,6 +276,7 @@
 #define	ST_SCHAR3	0x30
 #define	ST_SCHAR4	0x40
 #define	ST_RANGE	0x70
+#define	ST_SCHARMASK	0x70
 #define	ST_TIMEOUT	0x80
 
 #define	MISR_DCD	0x80
