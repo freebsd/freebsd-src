@@ -51,7 +51,7 @@
 /*
  * FOR REFERENCE ONLY, the old definition of FXP_CSR_SCB_RUSCUS:
  *
- *	volatile u_int8_t	:2,
+ *	volatile uint8_t	:2,
  *				scb_rus:4,
  *				scb_cus:2;
  */
@@ -111,15 +111,15 @@
  * Command block definitions
  */
 struct fxp_cb_nop {
-	u_int16_t cb_status;
-	u_int16_t cb_command;
-	u_int32_t link_addr;
+	uint16_t cb_status;
+	uint16_t cb_command;
+	uint32_t link_addr;
 };
 struct fxp_cb_ias {
-	u_int16_t cb_status;
-	u_int16_t cb_command;
-	u_int32_t link_addr;
-	u_int8_t macaddr[6];
+	uint16_t cb_status;
+	uint16_t cb_command;
+	uint32_t link_addr;
+	uint8_t macaddr[6];
 };
 
 /* I hate bit-fields :-( */
@@ -142,14 +142,14 @@ struct fxp_cb_ias {
 #endif
 
 struct fxp_cb_config {
-	u_int16_t	cb_status;
-	u_int16_t	cb_command;
-	u_int32_t	link_addr;
+	uint16_t	cb_status;
+	uint16_t	cb_command;
+	uint32_t	link_addr;
 
 	/* Bytes 0 - 21 -- common to all i8255x */
 	u_int		__FXP_BITFIELD2(byte_count:6, :2);
 	u_int		__FXP_BITFIELD3(rx_fifo_limit:4, tx_fifo_limit:3, :1);
-	u_int8_t	adaptive_ifs;
+	uint8_t		adaptive_ifs;
 	u_int		__FXP_BITFIELD5(mwi_enable:1,		/* 8,9 */
 			    type_enable:1,			/* 8,9 */
 			    read_align_en:1,			/* 8,9 */
@@ -225,24 +225,24 @@ struct fxp_cb_config {
 	u_int		__FXP_BITFIELD3(gamla_rx:1,
 			    vlan_drop_en:1,
 			    :6);
-	u_int8_t	pad[9];
+	uint8_t		pad[9];
 };
 
 #define MAXMCADDR 80
 struct fxp_cb_mcs {
-	u_int16_t cb_status;
-	u_int16_t cb_command;
-	u_int32_t link_addr;
-	u_int16_t mc_cnt;
-	u_int8_t mc_addr[MAXMCADDR][6];
+	uint16_t cb_status;
+	uint16_t cb_command;
+	uint32_t link_addr;
+	uint16_t mc_cnt;
+	uint8_t mc_addr[MAXMCADDR][6];
 };
 
 #define MAXUCODESIZE 192
 struct fxp_cb_ucode {
-	u_int16_t cb_status;
-	u_int16_t cb_command;
-	u_int32_t link_addr;
-	u_int32_t ucode[MAXUCODESIZE];
+	uint16_t cb_status;
+	uint16_t cb_command;
+	uint32_t link_addr;
+	uint32_t ucode[MAXUCODESIZE];
 };
 
 /*
@@ -251,8 +251,8 @@ struct fxp_cb_ucode {
 #define FXP_NTXSEG	32
 
 struct fxp_tbd {
-	u_int32_t tb_addr;
-	u_int32_t tb_size;
+	uint32_t tb_addr;
+	uint32_t tb_size;
 };
 
 struct fxp_ipcb {
@@ -267,22 +267,22 @@ struct fxp_ipcb {
 	 * in the TBD array (see note below). This means we only
 	 * have to define 8 extra bytes here.
          */
-	u_int16_t ipcb_schedule_low;
-	u_int8_t ipcb_ip_schedule;
-	u_int8_t ipcb_ip_activation_high;
-	u_int16_t ipcb_vlan_id;
-	u_int8_t ipcb_ip_header_offset;
-	u_int8_t ipcb_tcp_header_offset;
+	uint16_t ipcb_schedule_low;
+	uint8_t ipcb_ip_schedule;
+	uint8_t ipcb_ip_activation_high;
+	uint16_t ipcb_vlan_id;
+	uint8_t ipcb_ip_header_offset;
+	uint8_t ipcb_tcp_header_offset;
 };
 
 struct fxp_cb_tx {
-	u_int16_t cb_status;
-	u_int16_t cb_command;
-	u_int32_t link_addr;
-	u_int32_t tbd_array_addr;
-	u_int16_t byte_count;
-	u_int8_t tx_threshold;
-	u_int8_t tbd_number;
+	uint16_t cb_status;
+	uint16_t cb_command;
+	uint32_t link_addr;
+	uint32_t tbd_array_addr;
+	uint16_t byte_count;
+	uint8_t tx_threshold;
+	uint8_t tbd_number;
 
 	/*
 	 * The following structure isn't actually part of the TxCB,
@@ -344,24 +344,24 @@ struct fxp_cb_tx {
  */
 
 struct fxp_rfa {
-	u_int16_t rfa_status;
-	u_int16_t rfa_control;
-	u_int32_t link_addr;
-	u_int32_t rbd_addr;
-	u_int16_t actual_size;
-	u_int16_t size;
+	uint16_t rfa_status;
+	uint16_t rfa_control;
+	uint32_t link_addr;
+	uint32_t rbd_addr;
+	uint16_t actual_size;
+	uint16_t size;
 
 	/*
 	 * The following fields are only available when using
 	 * extended receive mode on an 82550/82551 chipset.
 	 */
-	u_int16_t rfax_vlan_id;
-	u_int8_t rfax_rx_parser_sts;
-	u_int8_t rfax_rsvd0;
-	u_int16_t rfax_security_sts;
-	u_int8_t rfax_csum_sts;
-	u_int8_t rfax_zerocopy_sts;
-	u_int8_t rfax_pad[8];
+	uint16_t rfax_vlan_id;
+	uint8_t rfax_rx_parser_sts;
+	uint8_t rfax_rsvd0;
+	uint16_t rfax_security_sts;
+	uint8_t rfax_csum_sts;
+	uint8_t rfax_zerocopy_sts;
+	uint8_t rfax_pad[8];
 } __packed;
 #define FXP_RFAX_LEN 16
 
@@ -400,23 +400,23 @@ struct fxp_rfa {
  * Statistics dump area definitions
  */
 struct fxp_stats {
-	u_int32_t tx_good;
-	u_int32_t tx_maxcols;
-	u_int32_t tx_latecols;
-	u_int32_t tx_underruns;
-	u_int32_t tx_lostcrs;
-	u_int32_t tx_deffered;
-	u_int32_t tx_single_collisions;
-	u_int32_t tx_multiple_collisions;
-	u_int32_t tx_total_collisions;
-	u_int32_t rx_good;
-	u_int32_t rx_crc_errors;
-	u_int32_t rx_alignment_errors;
-	u_int32_t rx_rnr_errors;
-	u_int32_t rx_overrun_errors;
-	u_int32_t rx_cdt_errors;
-	u_int32_t rx_shortframes;
-	u_int32_t completion_status;
+	uint32_t tx_good;
+	uint32_t tx_maxcols;
+	uint32_t tx_latecols;
+	uint32_t tx_underruns;
+	uint32_t tx_lostcrs;
+	uint32_t tx_deffered;
+	uint32_t tx_single_collisions;
+	uint32_t tx_multiple_collisions;
+	uint32_t tx_total_collisions;
+	uint32_t rx_good;
+	uint32_t rx_crc_errors;
+	uint32_t rx_alignment_errors;
+	uint32_t rx_rnr_errors;
+	uint32_t rx_overrun_errors;
+	uint32_t rx_cdt_errors;
+	uint32_t rx_shortframes;
+	uint32_t completion_status;
 };
 #define FXP_STATS_DUMP_COMPLETE	0xa005
 #define FXP_STATS_DR_COMPLETE	0xa007
