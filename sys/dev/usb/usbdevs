@@ -1074,7 +1074,6 @@ product TEAC FD05PUB		0x0000	FD-05PUB floppy
 
 /* Telex Communications products */
 product TELEX MIC1		0x0001	Enhanced USB Microphone
-product TREK THUMBDRIVE_8MB	0x9988	ThumbDrive_8MB
 
 /* Texas Intel products */
 product TI UTUSB41		0x1446	UT-USB41 hub
@@ -1085,7 +1084,7 @@ product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
-product TREK THUMBDRIVE		0x9988	ThumbDrive
+product TREK THUMBDRIVE_8MB	0x9988	ThumbDrive_8MB
 
 /* Ultima products */
 product ULTIMA 1200UBPLUS	0x4002	1200 UB Plus scanner
