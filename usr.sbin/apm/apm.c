@@ -198,8 +198,60 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 		printf("Number of batteries: ");
 		if (aip->ai_batteries == (u_int) -1)
 			printf("unknown\n");
-		else
+		else {
+			int i;
+			struct apm_pwstatus aps;
+
 			printf("%d\n", aip->ai_batteries);
+			for (i = 0; i < aip->ai_batteries; ++i) {
+				bzero(&aps, sizeof(aps));
+				aps.ap_device = PMDV_BATT0 + i;
+				if (ioctl(fd, APMIO_GETPWSTATUS, &aps) == -1)
+					continue;
+				printf("Battery %d:\n", i);
+				printf("\tBattery status: ");
+				if (aps.ap_batt_flag != 255 &&
+				    (aps.ap_batt_flag & APM_BATT_NOT_PRESENT)) {
+					printf("not present\n");
+					continue;
+				}
+				if (aps.ap_batt_stat == 255)
+					printf("unknown\n");
+				else if (aps.ap_batt_stat > 3)
+					printf("invalid value (0x%x)\n",
+					       aps.ap_batt_stat);
+				else {
+					char *messages[] = { "high",
+							     "low",
+							     "critical",
+							     "charging" };
+					printf("%s\n",
+					       messages[aps.ap_batt_stat]);
+				}
+				printf("\tRemaining battery life: ");
+				if (aps.ap_batt_life == 255)
+					printf("unknown\n");
+				else if (aps.ap_batt_life <= 100)
+					printf("%d%%\n", aps.ap_batt_life);
+				else
+					printf("invalid value (0x%x)\n",
+					       aps.ap_batt_life);
+				printf("\tRemaining battery time: ");
+				if (aps.ap_batt_time == -1)
+					printf("unknown\n");
+				else {
+					int t, h, m, s;
+
+					t = aps.ap_batt_time;
+					s = t % 60;
+					t /= 60;
+					m = t % 60;
+					t /= 60;
+					h = t;
+					printf("%2d:%02d:%02d\n", h, m, s);
+				}
+			}
+		}
 	}
 
 	if (bioscall_available) {
