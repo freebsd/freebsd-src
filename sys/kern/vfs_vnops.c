@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ttycom.h>
 #include <sys/conf.h>
 #include <sys/syslog.h>
+#include <sys/unistd.h>
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
@@ -909,9 +910,25 @@ vn_closefile(fp, td)
 	struct file *fp;
 	struct thread *td;
 {
+	struct vnode *vp;
+	struct flock lf;
+
+	GIANT_REQUIRED;
+
+	KASSERT(fp->f_type == DTYPE_VNODE, ("vn_closefile: !DTYPE_VNODE"));
+	vp = fp->f_vnode;
+
+	if (fp->f_flag & FHASLOCK) {
+		lf.l_whence = SEEK_SET;
+		lf.l_start = 0;
+		lf.l_len = 0;
+		lf.l_type = F_UNLCK;
+		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
+	}
 
 	fp->f_ops = &badfileops;
-	return (vn_close(fp->f_vnode, fp->f_flag, fp->f_cred, td));
+
+	return (vn_close(vp, fp->f_flag, fp->f_cred, td));
 }
 
 /*

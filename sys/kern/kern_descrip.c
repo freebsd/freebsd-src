@@ -2052,8 +2052,6 @@ fdrop_locked(fp, td)
 	struct file *fp;
 	struct thread *td;
 {
-	struct flock lf;
-	struct vnode *vp;
 	int error;
 
 	FILE_LOCK_ASSERT(fp, MA_OWNED);
@@ -2064,17 +2062,9 @@ fdrop_locked(fp, td)
 	}
 	/* We have the last ref so we can proceed without the file lock. */
 	FILE_UNLOCK(fp);
-	mtx_lock(&Giant);
 	if (fp->f_count < 0)
 		panic("fdrop: count < 0");
-	if ((fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE) {
-		lf.l_whence = SEEK_SET;
-		lf.l_start = 0;
-		lf.l_len = 0;
-		lf.l_type = F_UNLCK;
-		vp = fp->f_vnode;
-		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
-	}
+	mtx_lock(&Giant);
 	if (fp->f_ops != &badfileops)
 		error = fo_close(fp, td);
 	else
