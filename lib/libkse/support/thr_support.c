@@ -54,5 +54,8 @@ __strong_reference(memcpy, _thr_memcpy);
 __strong_reference(strcpy, _thr_strcpy);
 __strong_reference(strlen, _thr_strlen);
 __strong_reference(bzero, _thr_bzero);
+__strong_reference(bcopy, _thr_bcopy);
 
 __strong_reference(__sys_write, _thr__sys_write);
+__strong_reference(__sys_sigtimedwait, _thr__sys_sigtimedwait);
+

@@ -54,8 +54,13 @@ _sigpending(sigset_t *set)
 		ret = EINVAL;
 	}
 	else {
-		*set = curthread->sigpend;
+		if (!_kse_isthreaded())
+			return __sys_sigpending(set);
+
 		crit = _kse_critical_enter();
+		KSE_SCHED_LOCK(curthread->kse, curthread->kseg);
+		*set = curthread->sigpend;
+		KSE_SCHED_UNLOCK(curthread->kse, curthread->kseg);
 		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_signal_lock);
 		SIGSETOR(*set, _thr_proc_sigpending);
 		KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);

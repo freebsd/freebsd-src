@@ -77,7 +77,7 @@ _thread_dump_info(void)
 	int fd, i;
 
 	for (i = 0; i < 100000; i++) {
-		snprintf(tmpfile, sizeof(tmpfile), "/tmp/uthread.dump.%u.%i",
+		snprintf(tmpfile, sizeof(tmpfile), "/tmp/pthread.dump.%u.%i",
 			getpid(), i);
 		/* Open the dump file for append and create it if necessary: */
 		if ((fd = __sys_open(tmpfile, O_RDWR | O_CREAT | O_EXCL,
@@ -166,10 +166,25 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 			strcpy(s, "This is the initial thread\n");
 			__sys_write(fd, s, strlen(s));
 		}
+		/* Check if this is the signal daemon thread: */
+		if (pthread == _thr_sig_daemon) {
+			/* Output a record for the signal thread: */
+			strcpy(s, "This is the signal daemon thread\n");
+			__sys_write(fd, s, strlen(s));
+		}
 		/* Process according to thread state: */
 		switch (pthread->state) {
 		case PS_SIGWAIT:
 			snprintf(s, sizeof(s), "sigmask (hi)");
+			__sys_write(fd, s, strlen(s));
+			for (i = _SIG_WORDS - 1; i >= 0; i--) {
+				snprintf(s, sizeof(s), "%08x\n",
+				    pthread->oldsigmask.__bits[i]);
+				__sys_write(fd, s, strlen(s));
+			}
+			snprintf(s, sizeof(s), "(lo)\n");
+			__sys_write(fd, s, strlen(s));
+			snprintf(s, sizeof(s), "waitset (hi)");
 			__sys_write(fd, s, strlen(s));
 			for (i = _SIG_WORDS - 1; i >= 0; i--) {
 				snprintf(s, sizeof(s), "%08x\n",

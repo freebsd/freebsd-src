@@ -138,6 +138,8 @@ global:
 	_sigprocmask;
 	_sigsuspend;
 	_sigwait;
+	_sigtimedwait;
+	_sigwaitinfo;
 	_sleep;
 	_spinlock;
 	_spinlock_debug;
@@ -271,6 +273,8 @@ global:
 	sigprocmask;
 	sigsuspend;
 	sigwait;
+	sigwaitinfo;
+	sigtimedwait;
 	sleep;
 	system;
 	tcdrain;
