@@ -43,7 +43,7 @@
  */
 
 #ifndef _SYS_KERNEL_H_
-#define _SYS_KERNEL_H_
+#define	_SYS_KERNEL_H_
 
 #include <sys/linker_set.h>
 
@@ -258,31 +258,34 @@ void	sysinit_add __P((struct sysinit **set));
  * in a SYSINIT function at SI_SUB_TUNABLES with SI_ORDER_LAST.
  */
 
-#define TUNABLE_INT_DECL(path, defval, var)	\
-static void __Tunable_ ## var (void *ignored)	\
-{						\
-    TUNABLE_INT_FETCH((path), (defval), (var))	\
-}						\
-SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL);
-
-#define TUNABLE_INT_FETCH(path, defval, var)	\
-    if (!getenv_int((path), &(var)))		\
-       (var) = (defval);
-
-#define TUNABLE_STR_DECL(path, defval, var, size)	\
+#define	TUNABLE_INT(path, var)				\
 static void __Tunable_ ## var (void *ignored)		\
 {							\
-    TUNABLE_STR_FETCH((path), (defval), (var), (size))	\
+	TUNABLE_INT_FETCH((path), (var));		\
 }							\
-SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL);
+SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL)
 
-#define TUNABLE_STR_FETCH(path, defval, var, size)	\
-    char *tmp;						\
-    tmp = getenv((path));				\
-    if (tmp == NULL)					\
-       tmp = (defval);					\
-    strncpy((var), tmp, (size));			\
-    (var)[(size) - 1] = 0;
+#define	TUNABLE_INT_FETCH(path, var)			\
+do {							\
+	getenv_int((path), (var));			\
+} while (0)
+
+#define	TUNABLE_STR(path, var, size)			\
+static void __Tunable_ ## var (void *ignored)		\
+{							\
+	TUNABLE_STR_FETCH((path), (var), (size));	\
+}							\
+SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL)
+
+#define	TUNABLE_STR_FETCH(path, var, size)		\
+do {							\
+	char *tmp;					\
+	tmp = getenv((path));				\
+	if (tmp != NULL) {				\
+		strncpy((var), tmp, (size));		\
+		(var)[(size) - 1] = 0;			\
+	}						\
+} while (0)
 
 struct intr_config_hook {
 	TAILQ_ENTRY(intr_config_hook) ich_links;

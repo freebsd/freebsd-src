@@ -144,8 +144,8 @@ static struct	lock_instance *find_instance(struct lock_list_entry *lock_list,
 
 MALLOC_DEFINE(M_WITNESS, "witness", "witness structure");
 
-static int witness_watch;
-TUNABLE_INT_DECL("debug.witness_watch", 1, witness_watch);
+static int witness_watch = 1;
+TUNABLE_INT("debug.witness_watch", &witness_watch);
 SYSCTL_INT(_debug, OID_AUTO, witness_watch, CTLFLAG_RD, &witness_watch, 0, "");
 
 #ifdef DDB
@@ -155,21 +155,21 @@ SYSCTL_INT(_debug, OID_AUTO, witness_watch, CTLFLAG_RD, &witness_watch, 0, "");
  *	- a lock heirarchy violation occurs
  *	- locks are held when going to sleep.
  */
-int	witness_ddb;
 #ifdef WITNESS_DDB
-TUNABLE_INT_DECL("debug.witness_ddb", 1, witness_ddb);
+int	witness_ddb = 1;
 #else
-TUNABLE_INT_DECL("debug.witness_ddb", 0, witness_ddb);
+int	witness_ddb = 0;
 #endif
+TUNABLE_INT("debug.witness_ddb", &witness_ddb);
 SYSCTL_INT(_debug, OID_AUTO, witness_ddb, CTLFLAG_RW, &witness_ddb, 0, "");
 #endif /* DDB */
 
-int	witness_skipspin;
 #ifdef WITNESS_SKIPSPIN
-TUNABLE_INT_DECL("debug.witness_skipspin", 1, witness_skipspin);
+int	witness_skipspin = 1;
 #else
-TUNABLE_INT_DECL("debug.witness_skipspin", 0, witness_skipspin);
+int	witness_skipspin = 0;
 #endif
+TUNABLE_INT("debug.witness_skipspin", &witness_skipspin);
 SYSCTL_INT(_debug, OID_AUTO, witness_skipspin, CTLFLAG_RD, &witness_skipspin, 0,
     "");
 

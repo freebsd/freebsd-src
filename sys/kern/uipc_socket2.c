@@ -1012,7 +1012,7 @@ SYSCTL_INT(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
  */
 static void init_maxsockets(void *ignored)
 {
-    TUNABLE_INT_FETCH("kern.ipc.maxsockets", 0, maxsockets);
-    maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
+	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
+	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
 }
 SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
