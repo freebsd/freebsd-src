@@ -1,0 +1,177 @@
+.Dd April 4, 1993
+.Dt FDISK 8
+.\".Os BSD 4
+.Sh NAME
+.Nm fdisk
+.Nd DOS partition maintainance program
+.Sh SYNOPSIS
+.Nm
+.Op Fl i
+.Op Fl u
+.Bl -tag -width time
+.It Fl i
+Initializes sector 0 of the disk.
+.It Fl u
+Is used for updating (editing) sector 0 of the disk.
+.El
+.Sh PROLOGUE
+In order for the BIOS to boot the kernel,
+certain conventions must be adhered to.
+Sector 0 of the disk must contain boot code,
+a partition table,
+and a magic number.
+BIOS partitions can be used to break the disk up into several pieces.
+The BIOS brings in sector 0
+(does it really use the code?)
+and verifies the magic number.
+It then searches the 4 BIOS partitions described by sector 0
+to determine which of them is
+.Em active.
+This boot then brings in the secondary boot block from the
+.Em active
+partition and runs it.
+Under DOS,
+you could have one or more partitions with one
+.Em active.
+The DOS
+.Nm
+program can be used to divide space on the disk into partitions and set one
+.Em active.
+.Sh DESCRIPTION
+The 386bsd program
+.Nm
+serves a similar purpose to the DOS program.
+When called with no arguments, it prints the sector 0 partition table.
+An example follows:
+
+.Bd -literal
+	******* Working on device /dev/rwd0d *******
+	parameters extracted from in-core disklabel are:
+	cylinders=769 heads=15 sectors/track=33 (495 blks/cyl)
+
+	parameters to be used for BIOS calculations are:
+	cylinders=769 heads=15 sectors/track=33 (495 blks/cyl)
+		
+	Warning: BIOS sector numbering starts with sector 1
+	Information from DOS bootblock is:
+	The data for partition 0 is:
+	sysid 165,(386BSD)
+    	    start 495, size 380160 (185 Meg), flag 0
+		beg: cyl 1/ sector 1/ head 0;
+		end: cyl 768/ sector 33/ head 14
+	The data for partition 1 is:
+	sysid 164,(unknown)
+    	    start 378180, size 2475 (1 Meg), flag 0
+		beg: cyl 764/ sector 1/ head 0;
+		end: cyl 768/ sector 33/ head 14
+	The data for partition 2 is:
+	<UNUSED>
+	The data for partition 3 is:
+	sysid 99,(ISC UNIX, other System V/386, GNU HURD or Mach)
+    	    start 380656, size 224234 (109 Meg), flag 80
+		beg: cyl 769/ sector 2/ head 0;
+		end: cyl 197/ sector 33/ head 14
+.Ed
+.Pp
+The disk is divided into three parititions that happen to fill the disk.
+The second partition overlaps the end of the first.
+(Used for debugging purposes)
+.Bl -tag -width "cyl, sector and head"
+.It Em "sysid"
+is used to label the partition.  386bsd reserves the
+magic number 165 decimal (A5 in hex).
+.It Em "start and size"
+fields provide the start address
+and size of a parition in sectors.
+.It Em "flag 80"
+specifies that this is the active partition.
+.It Em "cyl, sector and head"
+fields are used to specify the beginning address
+and end address for the parititon.
+.It Em "Note:"
+these numbers are calculated using BIOS's understanding of the disk geometry
+and saved in the bootblock.
+.El
+.Pp
+The flags
+.Fl i
+or
+.Fl u
+are used to indicate that the paritition data is to be updated.
+The
+.Nm
+program will enter a conversational mode.
+This mode is designed not to change any data unless you explicitly tell it to.
+.Nm
+selects defaults for its questions to guarantee the above behaviour.
+.Pp
+It displays each partition
+and ask if you want to edit it.
+If you say yes,
+it will step through each field showing the old value
+and asking for a new one.
+When you are done with a partition,
+.Nm
+will display it and ask if it is correct.
+.Nm
+will then procede to the next entry.
+.Pp
+Getting the
+.Em cyl, sector,
+and
+.Em head
+fields correct is tricky.
+So by default,
+they will be calculated for you;
+you can specify them if you choose.
+.Pp
+After all the partitions are processed,
+you are given the option to change the
+.Em active
+partition.
+Finally,
+when the all the data for the first sector has been accumulated,
+you are asked if you really want to rewrite sector 0.
+Only if you answer yes,
+will the data be written to disk.
+.Pp
+The difference between the
+.Fl u
+flag and
+.Fl i
+flag is that
+the
+.Fl u
+flag just edits the fields as they appear on the disk.
+While the
+.Fl i
+flag is used to "initialize" sector 0;
+it will setup the last BIOS partition to use the whole disk for 386bsd;
+and make it active.
+.Sh NOTES
+.Pp
+The automatic calculation of starting cylinder etc. uses
+a set of figures that represent what the BIOS thinks is the
+geometry of the drive.
+These figures are by default taken from the incore disklabel,
+but the program initially gives you an oportunity to change them.
+This allows the user to create a bootblock that can work with drives
+that use geometry translation under the BIOS.
+.Pp
+If you hand craft your disk layout,
+please make sure that the 386bsd partition starts on a cylinder boundary.
+A number of decisions made later may assume this.
+(This might not be necessary later.)
+.Pp
+Editing an existing partition will most likely cause you to
+lose all the data in that partition.
+.Pp
+You should run this program interactively once or twice to see how it works.
+This is completely safe as long as you answer the last question in the negative.
+There are subtleties
+that the program detects
+that are not fully explained in this manual page.
+.Sh SEE ALSO
+.Xr disklabel 8
+.Sh BUGS
+One less now, but probably more
