@@ -281,6 +281,9 @@ struct vattr {
 #define	IO_NORMAL	0x0800		/* operate on regular data */
 #define	IO_NOMACCHECK	0x1000		/* MAC checks unnecessary */
 
+#define IO_SEQMAX	0x7F		/* seq heuristic max value */
+#define IO_SEQSHIFT	16		/* seq heuristic in upper 16 bits */
+
 /*
  *  Modes.  Some values same as Ixxx entries from inode.h for now.
  */
