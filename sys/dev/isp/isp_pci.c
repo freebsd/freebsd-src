@@ -692,12 +692,7 @@ isp_pci_attach(device_t dev)
 	mtx_init(&isp->isp_osinfo.lock, "isp", NULL, MTX_DEF);
 	locksetup++;
 
-#ifdef	ISP_SMPLOCK
-#define	INTR_FLAGS	INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY
-#else
-#define	INTR_FLAGS	INTR_TYPE_CAM | INTR_ENTROPY
-#endif
-	if (bus_setup_intr(dev, irq, INTR_FLAGS, isp_pci_intr, isp, &pcs->ih)) {
+	if (bus_setup_intr(dev, irq, ISP_IFLAGS, isp_pci_intr, isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
@@ -1065,10 +1060,12 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		bl = BUS_SPACE_MAXADDR_24BIT;
 	}
 
+	ISP_UNLOCK(isp);
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE,
 	    ISP_NSEGS, bl, 0, &pcs->dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
+		ISP_LOCK(isp);
 		return(1);
 	}
 
@@ -1077,6 +1074,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
+		ISP_LOCK(isp);
 		return (1);
 	}
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
@@ -1084,6 +1082,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	if (pcs->dmaps == NULL) {
 		isp_prt(isp, ISP_LOGERR, "can't alloc dma map storage");
 		free(isp->isp_xflist, M_DEVBUF);
+		ISP_LOCK(isp);
 		return (1);
 	}
 
@@ -1103,6 +1102,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		    "cannot create a dma tag for control spaces");
 		free(pcs->dmaps, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
+		ISP_LOCK(isp);
 		return (1);
 	}
 
@@ -1113,6 +1113,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		bus_dma_tag_destroy(isp->isp_cdmat);
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pcs->dmaps, M_DEVBUF);
+		ISP_LOCK(isp);
 		return (1);
 	}
 
@@ -1144,6 +1145,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		base += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 		FCPARAM(isp)->isp_scratch = base;
 	}
+	ISP_LOCK(isp);
 	return (0);
 
 bad:
@@ -1151,6 +1153,7 @@ bad:
 	bus_dma_tag_destroy(isp->isp_cdmat);
 	free(isp->isp_xflist, M_DEVBUF);
 	free(pcs->dmaps, M_DEVBUF);
+	ISP_LOCK(isp);
 	isp->isp_rquest = NULL;
 	return (1);
 }
