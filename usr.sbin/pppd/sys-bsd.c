@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.2 1994/09/25 02:32:15 wollman Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.3 1995/05/30 03:51:16 rgrimes Exp $";
 #endif
 
 /*
@@ -639,6 +639,12 @@ cifproxyarp(unit, hisaddr)
 
 
 /*
+ * How to find the next ifreq structure in the stuff returned by SIOCGIFCONF.
+ */
+#define next_ifreq(ifr)	\
+    ((struct ifreq *) ((char *)&(ifr)->ifr_addr + (ifr)->ifr_addr.sa_len))
+
+/*
  * get_ether_addr - get the hardware address of an interface on the
  * the same subnet as ipaddr.
  */
@@ -668,7 +674,7 @@ get_ether_addr(ipaddr, hwaddr)
      * address on the same subnet as `ipaddr'.
      */
     ifend = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-    for (ifr = ifc.ifc_req; ifr < ifend; ) {
+    for (ifr = ifc.ifc_req; ifr < ifend; ifr = next_ifreq(ifr)) {
 	if (ifr->ifr_addr.sa_family == AF_INET) {
 	    ina = ((struct sockaddr_in *) &ifr->ifr_addr)->sin_addr.s_addr;
 	    strncpy(ifreq.ifr_name, ifr->ifr_name, sizeof(ifreq.ifr_name));
@@ -687,13 +693,12 @@ get_ether_addr(ipaddr, hwaddr)
 	     */
 	    if (ioctl(s, SIOCGIFNETMASK, &ifreq) < 0)
 		continue;
-	    mask = ((struct sockaddr_in *) &ifr->ifr_addr)->sin_addr.s_addr;
+	    mask = ((struct sockaddr_in *) &ifreq.ifr_addr)->sin_addr.s_addr;
 	    if ((ipaddr & mask) != (ina & mask))
 		continue;
 
 	    break;
 	}
-	ifr = (struct ifreq *) ((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len);
     }
 
     if (ifr >= ifend)
@@ -705,7 +710,7 @@ get_ether_addr(ipaddr, hwaddr)
      * for this interface.
      */
     ifp = ifr;
-    for (ifr = ifc.ifc_req; ifr < ifend; ) {
+    for (ifr = ifc.ifc_req; ifr < ifend; ifr = next_ifreq(ifr)) {
 	if (strcmp(ifp->ifr_name, ifr->ifr_name) == 0
 	    && ifr->ifr_addr.sa_family == AF_LINK) {
 	    /*
@@ -715,7 +720,6 @@ get_ether_addr(ipaddr, hwaddr)
 	    BCOPY(dla, hwaddr, dla->sdl_len);
 	    return 1;
 	}
-	ifr = (struct ifreq *) ((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len);
     }
 
     return 0;
