@@ -50,7 +50,8 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 #endif
 
 	for(i = 0; i < BBSIZE/512; i++) {
-		p = read_block(fd, WHERE(i + c1->offset, new), 512);
+		if (!(p = read_block(fd, WHERE(i + c1->offset, new), 512)))
+			return 1;
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
@@ -234,6 +235,13 @@ Write_Disk(struct disk *d1)
 #else
 	mbr = read_block(fd, WHERE(0, d1), d1->sector_size);
 #endif
+	if (!mbr) {
+#ifdef DEBUG
+                warn("read_block failed for %s", device);
+#endif
+		close(fd);
+		return 1;
+	}
 	dp = (struct dos_partition*)(mbr + DOSPARTOFF);
 	memcpy(work, dp, sizeof work);
 	dp = work;
@@ -367,7 +375,10 @@ Write_Disk(struct disk *d1)
 	if (d1->bootipl)
 		write_block(fd, WHERE(0, d1), d1->bootipl, d1->sector_size);
 
-	mbr = read_block(fd, WHERE(1, d1), d1->sector_size);
+	if (!(mbr = read_block(fd, WHERE(1, d1), d1->sector_size))) {
+		close(fd);
+		return 1;
+	}
 	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	/* XXX - for entire FreeBSD(98) */
 	for (c1 = d1->chunks->part; c1; c1 = c1->next)
@@ -381,7 +392,10 @@ Write_Disk(struct disk *d1)
 		for (i = 0; i * d1->sector_size < d1->bootmenu_size; i++)
 			write_block(fd, WHERE(2 + i, d1), &d1->bootmenu[i * d1->sector_size], d1->sector_size);
 #else
-	mbr = read_block(fd, WHERE(0, d1), d1->sector_size);
+	if (!(mbr = read_block(fd, WHERE(0, d1), d1->sector_size))) {
+		close(fd);
+		return 1;
+	}
 	if (d1->bootmgr) {
 		memcpy(mbr, d1->bootmgr, DOSPARTOFF);
 		Cfg_Boot_Mgr(mbr, need_edd);

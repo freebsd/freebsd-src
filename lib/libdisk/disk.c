@@ -128,9 +128,17 @@ Int_Open_Disk(const char *name, u_long size)
 		return NULL; /* could not determine sector size */
 
 #ifdef PC98
-	p = (unsigned char*)read_block(fd, 1, sector_size);
+	if (!(p = (unsigned char*)read_block(fd, 1, sector_size))) {
+		warn("Cannot read device %s", device);
+		close(fd);
+		return 0;
+	}
 #else
-	p = read_block(fd, 0, sector_size);
+	if (!(p = read_block(fd, 0, sector_size))) {
+		warn("Cannot read device %s", device);
+		close(fd);
+		return 0;
+	}
 	dp = (struct dos_partition*)(p + DOSPARTOFF);
 	for (i = 0; i < NDOSPART; i++) {
 		if (Read_Int32(&dp->dp_start) >= size)

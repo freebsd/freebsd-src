@@ -21,12 +21,12 @@ read_disklabel(int fd, daddr_t block, u_long sector_size)
 {
 	struct disklabel *dp;
 
-	dp = (struct disklabel *) read_block(fd, block, sector_size);
-	if (dp->d_magic != DISKMAGIC)
-		return 0;
-	if (dp->d_magic2 != DISKMAGIC)
-		return 0;
-	if (dkcksum(dp) != 0)
-		return 0;
+	if ((dp = (struct disklabel *) read_block(fd, block, sector_size))) {
+		if (dp->d_magic != DISKMAGIC || dp->d_magic2 != DISKMAGIC ||
+		    dkcksum(dp) != 0) {
+			free(dp);
+			dp = 0;
+		}
+	}
 	return dp;
 }
