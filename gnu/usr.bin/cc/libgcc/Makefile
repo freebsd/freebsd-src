@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.15 1997/02/22 15:45:08 peter Exp $
 #
 
 LIB=	gcc
@@ -14,23 +14,27 @@ INSTALL_PIC_ARCHIVE=  yes
 #
 # Normally, this does not make any difference, since we only have gcc, but
 # when bootstrapping from gcc-2.6.3, we have to use the freshly built 2.7.2
-# compiler for some of the libgcc2.c __attribute__ stuff.
+# compiler for some of the libgcc2.c __attribute__ stuff.  If there is no
+# freshly built compiler in a relative obj directory, then `make world'
+# must have recently installed it.
 #
-.if exists(${.OBJDIR}/../cc)
+.if exists(${.OBJDIR}/../cc/cc)
 XCC=	${.OBJDIR}/../cc/cc
-.else
+.elif exists(${.CURDIR}/../cc/cc)
 XCC=	${.CURDIR}/../cc/cc
+.else
+XCC=	cc
 .endif
 
-.if exists(${.OBJDIR}/../cc1)
+.if exists(${.OBJDIR}/../cc1/cc1)
 XCC+=	-B${.OBJDIR}/../cc1/
-.else
+.elif exists(${.CURDIR}/../cc1/cc1)
 XCC+=	-B${.CURDIR}/../cc1/
 .endif
 
-.if exists(${.OBJDIR}/../cpp)
+.if exists(${.OBJDIR}/../cpp/cpp)
 XCC+=	-B${.OBJDIR}/../cpp/
-.else
+.elif exists(${.CURDIR}/../cpp/cpp)
 XCC+=	-B${.CURDIR}/../cpp/
 .endif
 
@@ -55,14 +59,29 @@ LIB2FUNCS= _muldi3 _divdi3 _moddi3 _udivdi3 _umoddi3 _negdi2 \
 	   _op_vdel _bb _shtab _clear_cache _trampoline __main _exit _ctors \
 	   _eh _pure
 
-LIB1OBJS=${LIB1FUNCS:T:S@$@.o@}
-LIB2OBJS=${LIB2FUNCS:T:S@$@.o@}
-LIB1SOBJS=${LIB1FUNCS:T:S@$@.so@}
-LIB2SOBJS=${LIB2FUNCS:T:S@$@.so@}
-P1OBJS=${LIB1FUNCS:T:S@$@.po@}
-P2OBJS=${LIB2FUNCS:T:S@$@.po@}
+COMMONHDRS=	config.h tconfig.h tm.h
+CFLAGS+=	-I.
+CLEANFILES+=	${COMMONHDRS}
 
-OBJS= ${LIB1OBJS} ${LIB2OBJS}
+LIB1OBJS=	${LIB1FUNCS:S/$/.o/}
+LIB2OBJS=	${LIB2FUNCS:S/$/.o/}
+LIB1SOBJS=	${LIB1FUNCS:S/$/.so/}
+LIB2SOBJS=	${LIB2FUNCS:S/$/.so/}
+P1OBJS=		${LIB1FUNCS:S/$/.po/}
+P2OBJS=		${LIB2FUNCS:S/$/.po/}
+
+OBJS=		${LIB1OBJS} ${LIB2OBJS}
+
+config.h:
+	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"' > ${.TARGET}
+
+tconfig.h:
+	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > tconfig.h
+
+tm.h:
+	echo '#include "${MACHINE_ARCH}/freebsd.h"' > ${.TARGET}
+
+${OBJS}: ${COMMONHDRS}
 
 ${LIB1OBJS}: libgcc1.c
 	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/libgcc1.c
