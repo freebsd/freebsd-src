@@ -1296,7 +1296,7 @@ acd_read_toc(struct acd_softc *cdp)
     for (track = 1; track <= ntracks; track ++) {
 	char name[16];
 
-	sprintf(name, "acd%dt%d", cdp->lun, track);
+	sprintf(name, "acd%dt%02d", cdp->lun, track);
 	entry = malloc(sizeof(struct acd_devlist), M_ACD, M_NOWAIT | M_ZERO);
 	entry->dev = make_dev(&acd_cdevsw, (cdp->lun << 3) | (track << 16),
 			      0, 0, 0644, name, NULL);
