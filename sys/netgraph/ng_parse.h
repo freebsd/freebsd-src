@@ -396,6 +396,17 @@ struct ng_parse_fixedstring_info {
 };
 
 /*
+ * EXPLICITLY SIZED STRING TYPE
+ *
+ * These are strings that have a two byte length field preceding them.
+ * Parsed strings are NOT NUL-terminated.
+ *
+ *   Default value:		Empty string
+ *   Additional info:		None
+ */
+extern const struct ng_parse_type ng_parse_sizedstring_type;
+
+/*
  * COMMONLY USED BOUNDED LENGTH STRING TYPES
  */
 extern const struct ng_parse_type ng_parse_nodebuf_type;  /* NG_NODELEN + 1 */
@@ -506,16 +517,20 @@ extern enum	ng_parse_token ng_parse_get_token(const char *s,
  * the string value.  The string token must be enclosed in double quotes
  * and the normal C backslash escapes are recognized.  The caller must
  * eventually free() the returned result.  Returns NULL if token is
- * not a string token, or parse or other error.
+ * not a string token, or parse or other error. Otherwise, *lenp contains
+ * the number of characters parsed, and *slenp (if not NULL) contains
+ * the actual number of characters in the parsed string.
  */
-extern char	*ng_get_string_token(const char *s, int *startp, int *lenp);
+extern char	*ng_get_string_token(const char *s, int *startp,
+			int *lenp, int *slenp);
 
 /*
  * Convert a raw string into a doubly-quoted string including any
  * necessary backslash escapes.  Caller must free the result.
- * Returns NULL if ENOMEM.
+ * Returns NULL if ENOMEM. Normally "slen" should equal strlen(s)
+ * unless you want to encode NUL bytes.
  */
-extern char	*ng_encode_string(const char *s);
+extern char	*ng_encode_string(const char *s, int slen);
 
 #endif /* _NETGRAPH_PARSE_H_ */
 
