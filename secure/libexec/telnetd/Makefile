@@ -14,9 +14,8 @@ SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 		termstat.c utility.c authenc.c
 
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBDES} ${LIBMP} \
-                ${LIBCRYPT} ${LIBMD}
-LDADD=		-lutil -ltermcap -L${TELNETOBJDIR} -ltelnet -ldes -lcrypt \
-		-lmp -lmd
+                ${LIBCRYPT}
+LDADD=		-lutil -ltermcap -L${TELNETOBJDIR} -ltelnet -ldes -lcrypt -lmp
 
 .include <bsd.prog.mk>
 
