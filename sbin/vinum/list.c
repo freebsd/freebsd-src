@@ -86,13 +86,13 @@ roughlength(int64_t bytes, int lj)
     static char description[16];
 
     if (bytes > (int64_t) MEGABYTE * 10000)		    /* gigabytes */
-	sprintf(description, lj ? "%d GB" : "%10d GB", bytes / GIGABYTE);
+	sprintf(description, lj ? "%lld GB" : "%10d GB", bytes / GIGABYTE);
     else if (bytes > KILOBYTE * 10000)			    /* megabytes */
-	sprintf(description, lj ? "%d MB" : "%10d MB", bytes / MEGABYTE);
+	sprintf(description, lj ? "%lld MB" : "%10d MB", bytes / MEGABYTE);
     else if (bytes > 10000)				    /* kilobytes */
-	sprintf(description, lj ? "%d kB" : "%10d kB", bytes / KILOBYTE);
+	sprintf(description, lj ? "%lld kB" : "%10d kB", bytes / KILOBYTE);
     else						    /* bytes */
-	sprintf(description, lj ? "%d  B" : "%10d  B", bytes);
+	sprintf(description, lj ? "%lld  B" : "%10d  B", bytes);
     return description;
 }
 
