@@ -283,7 +283,7 @@ poly_l2p1(FPU_REG * arg, FPU_REG * result)
 	poly_div16(&Xsq);
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&(accum.sigl), (unsigned *) &Xsq, lterms, HIPOWER - 1);
+	polynomial((u_int *) &accum.sigl), (unsigned *) &Xsq, lterms, HIPOWER - 1);
 
 	accum.tag = TW_Valid;	/* set the tags to Valid */
 	accum.sign = SIGN_POS;	/* and make accum positive */

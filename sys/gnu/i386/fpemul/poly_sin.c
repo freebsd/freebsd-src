@@ -125,14 +125,14 @@ poly_sine(FPU_REG * arg, FPU_REG * result)
 	accum.exp = 0;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&(accum.sigl), &(Xx4.sigl), lterms, HIPOWER - 1);
+	polynomial((u_int *) &(accum.sigl), &(Xx4.sigl), lterms, HIPOWER - 1);
 
 	/* will be a valid positive nr with expon = 0 */
 	*(short *) &(negaccum.sign) = 0;
 	negaccum.exp = 0;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&(negaccum.sigl), &(Xx4.sigl), negterms, HIPOWER - 1);
+	polynomial((u_int *) &(negaccum.sigl), &(Xx4.sigl), negterms, HIPOWER - 1);
 	mul64((long long *) &(Xx2.sigl), (long long *) &(negaccum.sigl),
 	    (long long *) &(negaccum.sigl));
 
