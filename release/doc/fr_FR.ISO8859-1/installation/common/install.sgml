@@ -52,7 +52,7 @@ from {alpha,i386}/INSTALL.TXT.
     peut &ecirc;tre interessant lors de probl&egrave;mes au moment de
     l'installation.</para>
 
-    <para>Si vous avez des probl&egrave;mes, voyez <xref
+    <para>Si vous avez des probl&egrave;mes, voyez la <xref
     linkend="trouble">, qui contient certaines informations
     interessantes. Vous pouvez aussi lire une copie &agrave; jour du
     fichier <filename>ERRATA.TXT</filename> avant l'installation, qui
@@ -107,178 +107,202 @@ from {alpha,i386}/INSTALL.TXT.
   </sect2>
 
   <sect2 id="floppies">
-  <title>Floppy Disk Image Instructions</title>
+  <title>Installation depuis une disquette image</title>
 
-  <para>Depending on how you choose to install &os;, you may need to
-  create a set of floppy disks (usually two) to begin the installation
-  process.  This section briefly describes how to create these disks,
-  either from a CDROM installation or from the Internet.  Note that in
-  the common case of installing &os; from CDROM, on a machine that
-  supports bootable CDROMs, the steps outlined in this section will
-  not be needed and can be skipped.</para>
+  <para>Suivant la façon choisie pour l'installation de &os; vous
+  pourriez avoir à créer un jeu de disquettes
+  (généralement deux) pour commencer l'installation. Cette
+  section décrit brièvement la façon de créer ces
+  disquettes que cela soit depuis le CDROM d'installation ou depuis
+  Internet. Notez que la façon la plus courante d'installer &os est
+  par un CDROM, sur une machine supportant le démarrage sur CDROM,
+  et cette procédure ne sert donc à rien dans ce cas.</para>
 
-  <para>For a normal CDROM or network installation, all you need to
-  copy onto actual floppies from the <filename>floppies/</filename> directory are the
-  <filename>kern.flp</filename> and <filename>mfsroot.flp</filename>
-  images (for 1.44MB floppies).</para>
+  <para>Pour une installation standard depuis le réseau ou un
+  CDROM, tout ce que vous avez besoin d'effectuer est la copie sur des
+  disquettes les fichiers images <filename>kern.flp</filename> et
+  <filename>mfsroot.flp</filename> depuis le répertoire
+  <filename>floppies/</filename> (pour des disquettes 1.44Mo).</para>
 
-  <para>Getting these images over the network is easy.  Simply fetch
-  the
+  <para>Rapatrier ces images depuis le réseau, est très
+  simple. Rapatriez simplement les 
   <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>
-  and
+  et
   <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>
-  files from <ulink
+  fichiers depuis <ulink
   url="&release.url;"></ulink>
-  or one of the many mirrors listed at <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
-    Sites</ulink> section of the Handbook, or on the
-    <ulink url="http://www.freebsdmirrors.org/"></ulink> Web pages.
+  ou un des sites mirroirs listé à la section  <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">sites FTP
+    </ulink> du guide de régerence ou depuis les pages Web 
+    <ulink url="http://www.freebsdmirrors.org/"></ulink>.
   </para>
 
-  <para>Get two blank, freshly formatted floppies and image copy
-  <filename>kern.flp</filename> onto one and <filename>mfsroot.flp</filename> onto the other.  These images are
-  <emphasis>not</emphasis> DOS files.  You cannot simply copy them to a DOS or UFS floppy
-  as regular files, you need to <quote>image</quote> copy them to the floppy with
-  <filename>fdimage.exe</filename> under DOS (see the
-  <filename>tools</filename> directory on your CDROM or &os; FTP
-  mirror) or the &man.dd.1; command in UNIX.</para>
+  <para>Obtenez des disquette vierges formattées et copiez l'
+  image <filename>kern.flp</filename> sur une et
+  <filename>mfsroot.flp</filename> sur l'autre. Ces images
+  <emphasis>ne sont pas</emphasis> des fichiers DOS. Vous ne pouvez
+  pas simplement les copier sur une disquette DOS ou UFS comme des
+  fichiers standard, vous devez les copier comme une
+  <quote>image</quote> en utilisant <filename>fdimage.exe</filename>
+  sous DOS (voyez le répertoire <filename>tools</filename> sur le
+  CDROM ou site mirroir FTP de &os;) ou la commande UNIX
+  &man.dd.1;.</para>
 
-  <para>For example, to create the kernel floppy image from DOS, you'd
-  do something like this:</para>
+  <para>Par exemple, pour créer la disquette image du noyau depuis
+  DOS, vous devrez taper quelque chose comme:</para>
 
   <screen><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
 
-  <para>Assuming that you'd copied <filename>fdimage.exe</filename> and <filename>kern.flp</filename> into a directory
-  somewhere.  You would do the same for <filename>mfsroot.flp</filename>, of course.</para>
+  <para>En assumant que vous avez copié
+  <filename>fdimage.exe</filename> et <filename>kern.flp</filename>
+  dans un répertoire.  Vous devrez effectuer la même
+  opération pour <filename>mfsroot.flp</filename>.</para>
 
-  <para>If you're creating the boot floppy from a UNIX machine, you
-  may find that:</para>
+  <para>Si vous créez les disquettes de démarrage depuis une
+  machine UNIX, quelque chose comme:</para>
 
   <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
 
-  <para>or</para>
+  <para>ou</para>
 
   <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
 
-  <para>work well, depending on your hardware and operating system
-  environment (different versions of UNIX have different names
-  for the floppy drive).</para>
+  <para>fonctionne parfaitement, suivant votre matériel et
+  système d'exploitation (différentes version d'UNIX ont des
+  noms différents pour le lecteur de disquette).</para>
 
-  <para arch="alpha">If you're on an alpha machine that can network-boot its
-  floppy images or you have a 2.88MB or LS-120 floppy capable of
-  taking a 2.88MB image on an x86 machine, you may wish to use
-  the single (but twice as large) <filename>boot.flp</filename> image.
-  It contains the contents of <filename>kern.flp</filename> and <filename>mfsroot.flp</filename> on
-  a single floppy.  This file should also be used as the
-  boot file for those mastering <quote>El Torito</quote> bootable CD images.  See
-  the &man.mkisofs.8; command for more information.</para>
+  <para arch="alpha">Si vous disposez d'une machine alpha qui peut
+  démarrer les images depuis le réseau ou si vous disposez d'un
+  lecteur de disquette 2.88Mo ou LS-120 capable depuis une machine x86
+  de créer une image 2.88Mo, vous pouvez utiliser l'image unique
+  (mais deux fois plus grosse)  <filename>boot.flp</filename>. Ce
+  fichier contient <filename>kern.flp</filename> et 
+  <filename>mfsroot.flp</filename> sur une seule disquette. Ce fichier
+  peut aussi être utilisé comme une image de démarrage pour
+  ceux créeant des images de démarrage pour CD <quote>El
+  Torito</quote> Voyez la commande  &man.mkisofs.8; pour plus
+  d'informations.</para>
+
   </sect2>
 
   <sect2 id="start-installation">
-      <title>Installing &os; from CDROM or the Internet</title>
+      <title>Installation de &os; depuis un CDROM ou Internet</title>
 
-      <para arch="i386">The easiest type of installation is from
-      CDROM.  If you have a supported CDROM drive and a &os;
-      installation CDROM, there are 2 ways of starting the
-      installation from it:
+      <para arch="i386">La façon la plus simple d'effectuer
+      l'installation est d'utiliser un CDROM. Si vous disposez d'un
+      lecteur de CDROM supporté et du CDROM d'installation de &os;,
+      il y a deux façon de démarrer cette installation:
         <itemizedlist>
           <listitem>
-            <para>If your system supports bootable CDROM media
-            (usually an option which can be selectively enabled in the
-            controller's setup menu or in the PC BIOS for some
-            systems) and you have it enabled, &os; supports the
-            <quote>El Torito</quote> bootable CD standard.  Simply
-            put the installation CD in your CDROM drive and boot the
-            system to begin installation.</para>
+            <para>Si votre système supporte le démarrage depuis
+            un CDROM (souvent il s'agit d'une option qui peut être
+            sélectionnée via le menu d'un controleur ou depuis
+            le BIOS du PC sur certains systèmes) et que vous l'avez
+            activé, &os; supporte le standard de démarrage
+            <quote>El Torito</quote>. Insérez tout simplement le CD
+            dans le lecteur de CDROM et démarrez le système pour
+            commencer l'installation.</para>
 	  </listitem>
 	  <listitem>
-	    <para>Build a set of &os; boot floppies from the
-            <filename>floppies/</filename> directory in every &os;
-            distribution.  Either simply use the
-            <filename>makeflp.bat</filename> script from DOS or read
-            <xref linkend="floppies"> for more information on creating
-            the bootable floppies under different operating systems.
-            Then you simply boot from the first floppy and you should
-            soon be in the &os; installation.</para>
+	    <para>Créer un jeu de disquette de démarrage de &os;
+            depuis le répertoire <filename>floppies/</filename>. En
+            utilisant le script <filename>makeflp.bat</filename>
+            depuis DOS ou en lisant la 
+            <xref linkend="floppies"> pour plus d'informations sur la
+            création de disquettes de démarrage sous
+            différents systèmes. Vous démarrerez depuis la
+            première disquette et vous vous trouverez rapidement
+            dans l'installation de &os;.</para>
           </listitem>
         </itemizedlist>
       </para>
 
-      <para arch="i386">If you don't have a CDROM (or your computer does not
-      support booting from CDROM) and would like to simply install
-      over the net using PPP, SLIP or a dedicated connection.
-      You should start the installation by building
-      a set of &os; boot floppies from the files
-      <filename>floppies/kern.flp</filename> and
-      <filename>floppies/mfsroot.flp</filename> using the instructions
-      found in <xref linkend="floppies">.  Restart your computer using
-      the <filename>kern.flp</filename> disk; when prompted, insert
-      the <filename>mfsroot.flp</filename> disk.  Then, please go to
-      <xref linkend="ftpnfs"> for additional tips on installing
-      via FTP or NFS.</para>
+      <para arch="i386">Si vous ne disposez pas d'un CDROM (ou si
+      votre ordinateur ne supporte par le démarrage depuis un
+      CDROM) ou si vous désirez installer via le réseau en
+      utilisant PPP, SLIP ou une connexion dédié; vous devez
+      commencer par créer un jeu de disquette de démarrage &os;
+      depuis les fichiers <filename>floppies/kern.flp</filename> et
+      <filename>floppies/mfsroot.flp</filename> en suivant les
+      instructions que vous trouverez à la  
+      <xref linkend="floppies">. Redémarrez votre ordinateur en utilisant
+      la disquette <filename>kern.flp</filename> et lorsqu'on vous le
+      demande, inserez alors la disquette
+      <filename>mfsroot.flp</filename>. Allez à la <xref
+      linkend="ftpnfs"> pour plus d'information sur l'installation
+      via FTP ou NFS.</para>
 
-      <para arch="alpha">The easiest type of installation is from
-      CDROM.  If you have a supported CDROM drive and a &os;
-      installation CDROM, you can boot &os; directly from the
-      CDROM. Insert the CDROM into the drive and type the following
-      command to start the installation (substituting the name of the
-      appropriate CDROM drive if necessary):</para>
+      <para arch="alpha">La façon la plus simple d'effectuer
+      l'installation est d'utiliser un CDROM. Si vous disposez d'un
+      lecteur de CDROM supporté et du CDROM d'installation de &os;,
+      vous pouvez démarer &os; directement depuis le
+      CDROM. Insérez le CDROM dans le lecteur et tapez la commande
+      suivante pour démarrer l'installation (en substituant le nom
+      du lecteur de CDROM approprié):</para>
 
       <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dka0</userinput></screen>
 
-      <para arch="alpha">Alternatively you can boot the installation
-      from floppy disk. You should start the installation by building
-      a set of &os; boot floppies from the files
-      <filename>floppies/kern.flp</filename> and
-      <filename>floppies/mfsroot.flp</filename> using the instructions
-      found in <xref linkend="floppies">. From the SRM console prompt
-      (<literal>&gt;&gt;&gt;</literal>), just insert the
-      <filename>kern.flp</filename> floppy and type the following
-      command to start the installation:</para>
+      <para arch="alpha">Sinon, vous pouvez démarrer l'installation
+      depuis un lecteur de disquette. Vous devez donc commencer
+      l'installation en créeant un jeu de disquette de démarrage
+      de &os; depuis les fichiers <filename>floppies/kern.flp</filename> et
+      <filename>floppies/mfsroot.flp</filename> en suivant les
+      instructions que vous trouverez à la  <xref
+      linkend="floppies">. Depuis l'invite de console SRM
+      (<literal>&gt;&gt;&gt;</literal>), inserez la disquette
+      <filename>kern.flp</filename> et tapez la commande suivante pour
+      démarrer l'installation:</para>
 
       <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dva0</userinput></screen>
 
-      <para arch="alpha">Insert the <filename>mfsroot.flp</filename>
-      floppy when prompted and you will end up at the first screen of
-      the install program.</para>
+      <para arch="alpha">Insérez alors la disquette
+      <filename>mfsroot.flp</filename> au moment ou le système la
+      demande et vous finirez alors le premier écran
+      d'installation.</para>
+
   </sect2>
   <sect2>
-    <title>Detail on various installation types</title>
+    <title>Détails de différents types d'installation</title>
 
-    <para>Once you've gotten yourself to the initial installation
-    screen somehow, you should be able to follow the various menu
-    prompts and go from there.  If you've never used the &os;
-    installation before, you are also encouraged to read some of the
-    documentation in the Documentation submenu as well as the
-    general <quote>Usage</quote> instructions on the first menu.</para>
+    <para>Dès que vous arrivez à au premier écran
+    d'installation, vous devez pouvoir suivre les différents
+    menus. Si vous n'avez jamais utilisé l'installeur de &os;
+    précédemment, vous êtes encouragés à lire la
+    documentation dans le menu Documentation tout comme les
+    instructions <quote>d'usage</quote> général du premier
+    menu.</para>
 
     <note>
-      <para>If you get stuck at a screen, press the <keycap>F1</keycap> key for online
-      documentation relevant to that specific section.</para>
+      <para>Si vous êtes perdu sur un écran, pressez la touche
+      <keycap>F1</keycap> pour la documentation en ligne sur la section
+      courante.</para>
     </note>
 
-    <para>If you've never installed &os; before, or even if you
-    have, the <quote>Standard</quote> installation mode is the most recommended
-    since it makes sure that you'll visit all the various important
-    checklist items along the way.  If you're much more comfortable
-    with the &os; installation process and know <emphasis>exactly</emphasis> what you
-    want to do, use the <quote>Express</quote> or <quote>Custom</quote> installation options.  If
-    you're upgrading an existing system, use the <quote>Upgrade</quote> option.</para>
+    <para>Si vous n'avez jamais installé &os; précedemment, le
+    mode d'installation <quote>Standard</quote> est recommandé, car
+    il vérifie que vous visitez toutes les portions importantes
+    nécessaires. Si vous connaissez le processus d'installation de
+    &os; et que vous savez <emphasis>exactement</emphasis> ce que vous
+    faites, utilisez l'option d'installation <quote>Express</quote> ou
+    <quote>Custom</quote>. Si vous mettez à jour depuis un
+    système existant, utilisez l'option <quote>Upgrade</quote>.</para>
 
-    <para>The &os; installer supports the direct use of floppy,
-    DOS, tape, CDROM, FTP, NFS and UFS partitions as installation
-    media; further tips on installing from each type of media are listed
-    below.</para>
+    <para>L'installeur de &os; supporte l'utilisation de lecteur de
+    disquette, DOS, CDROM, FTP, lecteur de bande ou partitions NFS et
+    UFS comme média d'installation; plus d'informations sur
+    l'installagion depuis chaque type de média sont listés
+    ci-dessous.</para>
 
-    <para arch="alpha">Once the install procedure has finished, you will be able
-    to start &os;/&arch; by typing something like this to the SRM
-    prompt:</para>
+    <para arch="alpha">Une fois la procédure d'installation finit,
+    vous pourrez démarrer &os;/&arch; en tapant quelque chose comme
+    ceci à l'invite SRM:</para>
 
     <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dkc0</userinput></screen>
 
-    <para arch="alpha">This instructs the firmware to boot the specified disk. To
-    find the SRM names of disks in your machine, use the <literal>show
-    device</literal> command:</para>
+    <para arch="alpha">Cela demande au micro-code de démarrer
+    depuis le disque spécifié. Pour trouver le nom SRM des
+    disque de votre machine, utilisez la commande <literal>show
+    device</literal>:</para>
 
     <screen arch="alpha">&gt;&gt;&gt;<userinput>show device</userinput>
 dka0.0.0.4.0               DKA0           TOSHIBA CD-ROM XM-57  3476
@@ -290,77 +314,82 @@ pkc0.7.0.1009.0            PKC0                  SCSI Bus ID 7  5.27
 pqa0.0.0.4.0               PQA0                       PCI EIDE
 pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
-    <para arch="alpha">This example is from a Digital Personal Workstation 433au
-    and shows three disks attached to the machine. The first is a
-    CDROM called <devicename>dka0</devicename> and the other two are
-    disks and are called <devicename>dkc0</devicename> and
-    <devicename>dkc100</devicename> respectively.</para>
+    <para arch="alpha">Cet exemple est extrait d'une Digital Personal
+    Workstation 433au et montre trois disques attachés à cette
+    machine. Le premier est un CDROM appelé
+    <devicename>dka0</devicename> et les deux autres sont des disques
+    appelés respectivement <devicename>dkc0</devicename> et
+    <devicename>dkc100</devicename>.</para>
 
-    <para arch="alpha">You can specify which kernel file to load and what boot
-    options to use with the <option>-file</option> and
-    <option>-flags</option> options, for example:</para>
+    <para arch="alpha">Vous pouvez spécifier le noyau à charger
+    et quelles options de démarrage utiliser via les options
+    <option>-file</option> et <option>-flags</option>:</para>
 
     <screen arch="alpha"><prompt>&gt;&gt;&gt;</prompt> <userinput>boot -file kernel.old -flags s</userinput></screen>
 
-    <para arch="alpha">To make &os;/&arch; boot automatically, use these commands:</para>
+    <para arch="alpha">Pour démarrer automatiquement &os;/&arch;
+    utilisez les commandes:</para>
 
     <screen arch="alpha"><prompt>&gt;&gt;&gt;</prompt> <userinput>set boot_osflags a</userinput>
 <prompt>&gt;&gt;&gt;</prompt> <userinput>set bootdef_dev dkc0</userinput>
 <prompt>&gt;&gt;&gt;</prompt> <userinput>set auto_action BOOT</userinput></screen>
 
     <sect3>
-      <title>Installing from a Network CDROM</title>
+      <title>Installation depuis un CDROM réseau</title>
 
-      <para>If you simply wish to install from a local CDROM drive
-      then see <xref linkend="start-installation">.  If you don't have a CDROM
-      drive on your system and wish to use a &os; distribution CD
-      in the CDROM drive of another system to which you have network
-      connectivity, there are also several ways of going about it:</para>
+      <para>Si vous désirez installer depuis un lecteur de CDROM
+      local voyez la <xref linkend="start-installation">. Si vous ne
+      disposez pas d'un lecteur de CDROM sur votre système et que
+      vous désirez utiliser une distribution CD de &os; dans le
+      lecteur CDROM d'une autre machine que vous pouvez accéder via
+      le réseau, il y a plusieurs façon d'y arriver:</para>
 
       <itemizedlist>
         <listitem>
-          <para>If you would be able to FTP install &os; directly
-          from the CDROM drive in some &os; machine, it's quite
-          easy: You simply add the following line to the password file
-          (using the &man.vipw.8; command):</para>
+          <para>Si vous voulez pouvoir installer via FTP &os;,
+          directement depuis le lecteur de CDROM d'une machine &os;,
+          c'est très simple: Vous pouvez tout simplement ajouter la
+          ligne suivante à votre fichier des mots de passe (en
+          utilisant la commande &man.vipw.8;):</para>
 
           <screen>ftp:*:99:99::0:0:FTP:/cdrom:/sbin/nologin</screen>
 
-          <para>On the machine on which you are running the install,
-          go to the Options menu and set Release Name to
-          <literal>any</literal>.  You may then choose a Media type of
-          <literal>FTP</literal> and type in
+          <para>Sur la machine que vous voulez installer, allez dans
+          le menu Options et mettez le Release Name à
+          <literal>any</literal>. Vous pouvez alors choisir comme type
+          de média  <literal>FTP</literal> et taper
           <filename>ftp://<replaceable>machine</replaceable></filename>
-          after picking <quote>URL</quote> in the ftp sites
-          menu.</para>
+          après avoir choisi <quote>URL</quote> dans le menu des
+          sites ftp.</para>
 
           <warning>
-	    <para>This may allow anyone on the local network (or Internet) to
-            make <quote>anonymous FTP</quote> connections to this
-            machine, which may not be desirable.</para>
+	    <para>: Cela permet à n'importe qui depuis le réseau
+            local (ou Internet) de se connecter via <quote>FTP anonyme
+            </quote> à cette machine, ce qui peut ne pas être
+            voulu.</para>
 	  </warning>
 	</listitem>
 
 	<listitem>
-	  <para>If you would rather use NFS to export the CDROM
-          directly to the machine(s) you'll be installing from, you
-          need to first add an entry to the
-          <filename>/etc/exports</filename> file (on the machine with
-          the CDROM drive).  The example below allows the machine
-          <hostid role="hostname">ziggy.foo.com</hostid> to mount the
-          CDROM directly via NFS during installation:</para>
+	  <para>Si vous préférez utiliser NFS pour exporté le
+          CDROM sur la machine que vous installez, vous devez en
+          premier ajouter une ligne au fichier
+          <filename>/etc/exports</filename> (sur la machine disposant
+          du lecteur de CDROM). L'exemple ci-dessous autorise la
+          machine <hostid role="hostname">ziggy.foo.com</hostid> à
+          monter le CDROM via NFS lors de l'installation:</para>
 
 	  <screen>/cdrom          -ro             ziggy.foo.com</screen>
 
-	  <para>The machine
-          with the CDROM must also be configured as an NFS server, of
-          course, and if you're not sure how to do that then an NFS
-          installation is probably not the best choice for you unless
-          you're willing to read up on &man.rc.conf.5; and configure things
-          appropriately.  Assuming that this part goes smoothly, you
-          should be able to enter: <filename><replaceable>cdrom-host</replaceable>:/cdrom</filename> as the path for
-          an NFS installation when the target machine is installed,
-          e.g. <filename>wiggy:/cdrom</filename>.</para>
+	  <para>La machine contenant le CDROM doit, bien sur, être
+          configurée en serveur NFS, et si vous n'en êtes pas
+          sur, une installation via NFS n'est pas le meilleur des
+          choix, sauf si vous voulez lire &man.rc.conf.5; et
+          configurer les choses correctement. En assumant que cette
+          partie se passe bien, vous devriez être capable d'entrer:
+          <filename><replaceable>cdrom-host</replaceable>:/cdrom</filename> 
+          comme répertoire d'installation NFS pour la machine à
+          installer, e.g. <filename>wiggy:/cdrom</filename>.</para>
 	</listitem>
       </itemizedlist>
     </sect3>
