@@ -213,21 +213,21 @@ repquota(fs, type, qfpathname)
 		    fup->fu_dqblk.dqb_curblocks == 0)
 			continue;
 		printf("%-10s", fup->fu_name);
-		printf("%c%c%8d%8d%8d%7s",
+		printf("%c%c%8lu%8lu%8lu%7s",
 			fup->fu_dqblk.dqb_bsoftlimit && 
 			    fup->fu_dqblk.dqb_curblocks >= 
 			    fup->fu_dqblk.dqb_bsoftlimit ? '+' : '-',
 			fup->fu_dqblk.dqb_isoftlimit &&
 			    fup->fu_dqblk.dqb_curinodes >=
 			    fup->fu_dqblk.dqb_isoftlimit ? '+' : '-',
-			dbtob(fup->fu_dqblk.dqb_curblocks) / 1024,
-			dbtob(fup->fu_dqblk.dqb_bsoftlimit) / 1024,
-			dbtob(fup->fu_dqblk.dqb_bhardlimit) / 1024,
+			(u_long)(dbtob(fup->fu_dqblk.dqb_curblocks) / 1024),
+			(u_long)(dbtob(fup->fu_dqblk.dqb_bsoftlimit) / 1024),
+			(u_long)(dbtob(fup->fu_dqblk.dqb_bhardlimit) / 1024),
 			fup->fu_dqblk.dqb_bsoftlimit && 
 			    fup->fu_dqblk.dqb_curblocks >= 
 			    fup->fu_dqblk.dqb_bsoftlimit ?
 			    timeprt(fup->fu_dqblk.dqb_btime) : "");
-		printf("  %6d%6d%6d%7s\n",
+		printf("  %6lu%6lu%6lu%7s\n",
 			fup->fu_dqblk.dqb_curinodes,
 			fup->fu_dqblk.dqb_isoftlimit,
 			fup->fu_dqblk.dqb_ihardlimit,
@@ -343,7 +343,7 @@ addid(id, type, name)
 	if (name) {
 		bcopy(name, fup->fu_name, len + 1);
 	} else {
-		sprintf(fup->fu_name, "%u", id);
+		sprintf(fup->fu_name, "%lu", id);
 	}
 	return (fup);
 }
@@ -367,13 +367,13 @@ timeprt(seconds)
 	minutes = (seconds + 30) / 60;
 	hours = (minutes + 30) / 60;
 	if (hours >= 36) {
-		sprintf(buf, "%ddays", (hours + 12) / 24);
+		sprintf(buf, "%lddays", (hours + 12) / 24);
 		return (buf);
 	}
 	if (minutes >= 60) {
-		sprintf(buf, "%2d:%d", minutes / 60, minutes % 60);
+		sprintf(buf, "%2ld:%ld", minutes / 60, minutes % 60);
 		return (buf);
 	}
-	sprintf(buf, "%2d", minutes);
+	sprintf(buf, "%2ld", minutes);
 	return (buf);
 }
