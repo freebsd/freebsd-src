@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: shutdown.c,v 1.9 1998/01/08 02:21:30 alex Exp $
+ *	$Id: shutdown.c,v 1.10 1998/01/08 02:23:59 alex Exp $
  */
 
 #ifndef lint
@@ -327,12 +327,12 @@ die_you_gravy_sucking_pig_dog()
 	(void)printf("\nkill -HUP 1\n");
 #else
 	if (doreboot) {
-		execle(_PATH_REBOOT, "reboot", "-l", nosync, 0);
+		execle(_PATH_REBOOT, "reboot", "-l", nosync, NULL, NULL);
 		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_REBOOT);
 		perror("shutdown");
 	}
 	else if (dohalt) {
-		execle(_PATH_HALT, "halt", "-l", nosync, 0);
+		execle(_PATH_HALT, "halt", "-l", nosync, NULL, NULL);
 		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_HALT);
 		perror("shutdown");
 	}
