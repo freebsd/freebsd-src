@@ -138,7 +138,14 @@ import (argc, argv)
 	usage (import_usage);
 
     for (i = 1; i < argc; i++)		/* check the tags for validity */
+    {
+	int j;
+
 	RCS_check_tag (argv[i]);
+	for (j = 1; j < i; j++)
+	    if (strcmp (argv[j], argv[i]) == 0)
+		error (1, 0, "tag `%s' was specified more than once", argv[i]);
+    }
 
     /* XXX - this should be a module, not just a pathname */
     if (! isabsolute (argv[0]))
