@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.42 1995/12/10 13:39:22 phk Exp $
+ *      $Id: ultra14f.c,v 1.43 1995/12/15 00:11:27 bde Exp $
  */
 
 #include <sys/types.h>
@@ -252,39 +252,43 @@ struct mscp {
 };
 
 static struct uha_data {
-	int     flags;
+	int	flags;
 #define UHA_INIT        0x01
 #define UHA_24F		0x02
-	int     baseport;
-	struct mscp *mscphash[MSCP_HASH_SIZE];
-	struct mscp *free_mscp;
-	int     our_id;		/* our scsi id */
-	int     vect;
-	int     dma;
-	int     nummscps;
-	struct scsi_link sc_link;
+	int	baseport;
+	struct	mscp *mscphash[MSCP_HASH_SIZE];
+	struct	mscp *free_mscp;
+	int	unit;
+	int	our_id;		/* our scsi id */
+	int	vect;
+	int	dma;
+	int	nummscps;
+	struct	scsi_link sc_link;
+	struct	uha_reg *ur;
+	struct	uha_bits *ub;
 } *uhadata[NUHA];
 
-static int	uha_abort __P((int unit, struct mscp *mscp));
+static int	uha_abort __P((struct uha_data *uha, struct mscp *mscp));
 static u_int32	uha_adapter_info __P((int unit));
 static int	uha_attach __P((struct isa_device *dev));
-static void	uha_done __P((int unit, struct mscp *mscp));
-static void	uha_free_mscp __P((int unit, struct mscp *mscp, int flags));
+static void	uha_done __P((struct uha_data *uha, struct mscp *mscp));
+static void	uha_free_mscp __P((struct uha_data *uha, struct mscp *mscp,
+				   int flags));
 static struct mscp *
-		uha_get_mscp __P((int unit, int flags));
-static int	uha_init __P((int unit));
-static int	uha24_init __P((int unit));
+		uha_get_mscp __P((struct uha_data *uha, int flags));
+static int	uha_init __P((struct uha_data *uha));
+static int	uha24_init __P((struct uha_data *uha));
 static void	uhaminphys __P((struct buf *bp));
 static struct mscp *
 		uha_mscp_phys_kv __P((struct uha_data *uha, long mscp_phys));
-static int	uha_poll __P((int unit, int wait));
+static int	uha_poll __P((struct uha_data *uha, int wait));
 #ifdef UHADEBUG
-static void	uha_print_active_mscp __P((int unit));
+static void	uha_print_active_mscp __P((struct uha_data *uha));
 static void	uha_print_mscp __P((struct mscp *mscp));
 #endif
 static int	uhaprobe __P((struct isa_device *dev));
 static int32	uha_scsi_cmd __P((struct scsi_xfer *xs));
-static void	uha_send_mbox __P((int unit, struct mscp *mscp));
+static void	uha_send_mbox __P((struct uha_data *uha, struct mscp *mscp));
 static timeout_t
 		uha_timeout;
 
@@ -367,13 +371,12 @@ main()
  * Function to send a command out through a mailbox
  */
 static void
-uha_send_mbox(int unit, struct mscp *mscp)
+uha_send_mbox(struct uha_data *uha, struct mscp *mscp)
 {
-	struct uha_data *uha = uhadata[unit];
 	int     port = uha->baseport;
 	int     spincount = 100000;	/* 1s should be enough */
-	struct uha_reg *ur = uhareg[unit];
-	struct uha_bits *ub = uhabits[unit];
+	struct uha_reg *ur = uha->ur;
+	struct uha_bits *ub = uha->ub;
 	int     s = splbio();
 
 	while (--spincount) {
@@ -382,7 +385,8 @@ uha_send_mbox(int unit, struct mscp *mscp)
 		DELAY(100);
 	}
 	if (spincount == 0) {
-		printf("uha%d: uha_send_mbox, board not responding\n", unit);
+		printf("uha%d: uha_send_mbox, board not responding\n",
+			uha->unit);
 		Debugger("ultra14f");
 	}
 	outl(ur->ogmptr, KVTOPHYS(mscp));
@@ -395,14 +399,13 @@ uha_send_mbox(int unit, struct mscp *mscp)
  * Function to send abort to 14f
  */
 int
-uha_abort(int unit, struct mscp *mscp)
+uha_abort(struct uha_data *uha, struct mscp *mscp)
 {
-	struct uha_data *uha = uhadata[unit];
-	int     port = uha->baseport;
-	int     spincount = 100;	/* 1 mSec */
-	int     abortcount = 200000;	/*2 secs */
-	struct uha_reg *ur = uhareg[unit];
-	struct uha_bits *ub = uhabits[unit];
+	int	port = uha->baseport;
+	int	spincount = 100;	/* 1 mSec */
+	int	abortcount = 200000;	/*2 secs */
+	struct	uha_reg *ur = uha->ur;
+	struct	uha_bits *ub = uha->ub;
 	int     s = splbio();
 
 	while (--spincount) {
@@ -411,7 +414,7 @@ uha_abort(int unit, struct mscp *mscp)
 		DELAY(10);
 	}
 	if (spincount == 0) {
-		printf("uha%d: uha_abort, board not responding\n", unit);
+		printf("uha%d: uha_abort, board not responding\n", uha->unit);
 		Debugger("ultra14f");
 	}
 	outl(ur->ogmptr,KVTOPHYS(mscp));
@@ -424,7 +427,7 @@ uha_abort(int unit, struct mscp *mscp)
 		DELAY(10);
 	}
 	if (abortcount == 0) {
-		printf("uha%d: uha_abort, board not responding\n", unit);
+		printf("uha%d: uha_abort, board not responding\n", uha->unit);
 		Debugger("ultra14f");
 	}
 	if ((inb(ur->sint) & 0x10) != 0) {
@@ -444,12 +447,11 @@ uha_abort(int unit, struct mscp *mscp)
  *	wait = timeout in msec
  */
 static int
-uha_poll(int unit, int wait)
+uha_poll(struct uha_data *uha, int wait)
 {
-	struct	uha_data *uha = uhadata[unit];
 	int	port = uha->baseport;
-	struct uha_reg *ur = uhareg[unit];
-	struct uha_bits *ub = uhabits[unit];
+	struct	uha_reg *ur = uha->ur;
+	struct	uha_bits *ub = uha->ub;
 	int	stport = ur->sint;
 
       retry:
@@ -459,10 +461,10 @@ uha_poll(int unit, int wait)
 		DELAY(1000);	/* 1 mSec per loop */
 	}
 	if (wait == 0) {
-		printf("uha%d: uha_poll, board not responding\n", unit);
+		printf("uha%d: uha_poll, board not responding\n", uha->unit);
 		return (EIO);
 	}
-	uhaintr(unit);
+	uhaintr(uha->unit);
 	return (0);
 }
 
@@ -477,8 +479,6 @@ uhaprobe(dev)
 {
 	int     unit = uha_unit;
 	struct uha_data *uha;
-	struct uha_reg *ur;
-	struct uha_bits *ub;
 
 	dev->id_unit = unit;	/* XXX */
 
@@ -505,35 +505,34 @@ uhaprobe(dev)
 	}
 	bzero(uha, sizeof(struct uha_data));
 
-	ur = malloc(sizeof(struct uha_reg), M_TEMP, M_NOWAIT);
-	if (!ur) {
+	uha->ur = malloc(sizeof(struct uha_reg), M_TEMP, M_NOWAIT);
+	if (!uha->ur) {
 		printf("uha%d: cannot malloc!\n", unit);
 		return 0;
 	}
-	bzero(ur, sizeof(struct uha_reg));
+	bzero(uha->ur, sizeof(struct uha_reg));
 
-	ub = malloc(sizeof(struct uha_bits), M_TEMP, M_NOWAIT);
-	if (!ub) {
+	uha->ub = malloc(sizeof(struct uha_bits), M_TEMP, M_NOWAIT);
+	if (!uha->ub) {
 		printf("uha%d: cannot malloc!\n", unit);
 		return 0;
 	}
-	bzero(ub, sizeof(struct uha_bits));
+	bzero(uha->ub, sizeof(struct uha_bits));
 
 	uha_registerdev(dev);
 
-	uhareg[unit] = ur;
-	uhabits[unit] = ub;
 	uhadata[unit] = uha;
+	uha->unit = unit;
 	uha->baseport = dev->id_iobase;
 	/*
 	 * Try initialise a unit at this location
 	 * sets up dma and bus speed, loads uha->vect
 	 */
-	if (uha_init(unit) != 0 && uha24_init(unit) != 0) {
+	if (uha_init(uha) != 0 && uha24_init(uha) != 0) {
 		uhadata[unit] = NULL;
+		free(uha->ur, M_TEMP);
+		free(uha->ub, M_TEMP);
 		free(uha, M_TEMP);
-		free(ur, M_TEMP);
-		free(ub, M_TEMP);
 		return (0);
 	}
 	/* if it's there put in its interrupt and DRQ vectors */
@@ -561,6 +560,7 @@ uha_attach(dev)
 	 */
 	uha->sc_link.adapter_unit = unit;
 	uha->sc_link.adapter_targ = uha->our_id;
+	uha->sc_link.adapter_softc = uha;
 	uha->sc_link.adapter = &uha_switch;
 	uha->sc_link.device = &uha_dev;
 	uha->sc_link.flags = SDEV_BOUNCE;
@@ -605,10 +605,13 @@ uhaintr(unit)
 	struct mscp *mscp;
 	u_char  uhastat;
 	unsigned long int mboxval;
-	struct uha_reg *ur = uhareg[unit];
-	struct uha_bits *ub = uhabits[unit];
+	struct uha_reg *ur;
+	struct uha_bits *ub;
+	int     port;
 
-	int     port = uha->baseport;
+	ur = uha->ur;
+	ub = uha->ub;
+	port = uha->baseport;
 
 #ifdef	UHADEBUG
 	printf("uhaintr ");
@@ -637,7 +640,7 @@ uhaintr(unit)
 		}
 		untimeout(uha_timeout, (caddr_t)mscp);
 
-		uha_done(unit, mscp);
+		uha_done(uha, mscp);
 	}
 }
 
@@ -646,11 +649,10 @@ uhaintr(unit)
  * how the operation went.
  */
 void
-uha_done(unit, mscp)
-	int	unit;
+uha_done(uha, mscp)
+	struct	uha_data *uha;
 	struct	mscp *mscp;
 {
-	struct uha_data *uha = uhadata[unit];
 	struct scsi_sense_data *s1, *s2;
 	struct scsi_xfer *xs = mscp->xs;
 
@@ -682,7 +684,7 @@ uha_done(unit, mscp)
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
 				printf("uha%d: unexpected ha_status 0x%x (target status 0x%x)\n",
-					unit, mscp->ha_status,
+					uha->unit, mscp->ha_status,
 					mscp->targ_status);
 				break;
 			}
@@ -700,7 +702,7 @@ uha_done(unit, mscp)
 				break;
 			default:
 				printf("uha%d: unexpected targ_status 0x%x\n",
-					unit, mscp->targ_status);
+					uha->unit, mscp->targ_status);
 				xs->error = XS_DRIVER_STUFFUP;
 				break;
 			}
@@ -713,7 +715,7 @@ uha_done(unit, mscp)
 	}
     done:
 	xs->flags |= ITSDONE;
-	uha_free_mscp(unit, mscp, xs->flags);
+	uha_free_mscp(uha, mscp, xs->flags);
 	scsi_done(xs);
 }
 
@@ -721,12 +723,11 @@ uha_done(unit, mscp)
  * A mscp (and hence a mbx-out) is put onto the free list.
  */
 void
-uha_free_mscp(unit, mscp, flags)
-	int unit;
+uha_free_mscp(uha, mscp, flags)
+	struct uha_data *uha;
 	struct mscp *mscp;
 	int flags;
 {
-	struct uha_data *uha = uhadata[unit];
 	unsigned int opri = 0;
 
 	if (!(flags & SCSI_NOMASK))
@@ -753,10 +754,10 @@ uha_free_mscp(unit, mscp, flags)
  * hash table too otherwise either return an error or sleep.
  */
 static struct mscp *
-uha_get_mscp(unit, flags)
-	int	unit, flags;
+uha_get_mscp(uha, flags)
+	struct	uha_data *uha;
+	int	flags;
 {
-	struct uha_data *uha = uhadata[unit];
 	unsigned opri = 0;
 	struct mscp *mscpp;
 	int     hashnum;
@@ -784,7 +785,7 @@ uha_get_mscp(unit, flags)
 				mscpp->nexthash = uha->mscphash[hashnum];
 				uha->mscphash[hashnum] = mscpp;
 			} else {
-				printf("uha%d: Can't malloc MSCP\n", unit);
+				printf("uha%d: Can't malloc MSCP\n", uha->unit);
 			}
 			goto gottit;
 		} else {
@@ -829,10 +830,9 @@ uha_mscp_phys_kv(uha, mscp_phys)
  * Start the board, ready for normal operation
  */
 int
-uha_init(unit)
-	int     unit;
+uha_init(uha)
+	struct	uha_data *uha;
 {
-	struct uha_data *uha = uhadata[unit];
 	unsigned char ad[4];
 	volatile unsigned char model;
 	volatile unsigned char submodel;
@@ -844,8 +844,8 @@ uha_init(unit)
 	int     port = uha->baseport;
 	int     i;
 	int     resetcount = 4000;	/* 4 secs? */
-	struct uha_reg *ur = uhareg[unit];
-	struct uha_bits *ub = uhabits[unit];
+	struct uha_reg *ur = uha->ur;
+	struct uha_bits *ub = uha->ub;
 
 	/*
 	 *  Prepare to use a 14/34F.
@@ -878,7 +878,7 @@ uha_init(unit)
 	model = inb(ur->id);
 	submodel = inb(ur->id + 1);
 	if ((model != 0x56) & (submodel != 0x40)) return(ENXIO);
-	printf("uha%d: reading board settings, ", unit);
+	printf("uha%d: reading board settings, ", uha->unit);
 
 	config_reg1 = inb(ur->config);
 	config_reg2 = inb(ur->config + 1);
@@ -939,7 +939,7 @@ uha_init(unit)
 		DELAY(1000);	/* 1 mSec per loop */
 	}
 	if (resetcount == 0) {
-		printf("uha%d: board timed out during reset\n", unit);
+		printf("uha%d: board timed out during reset\n", uha->unit);
 		return (ENXIO);
 	}
 	outb(ur->smask, 0x81);		/* make sure interrupts are enabled */
@@ -952,16 +952,15 @@ uha_init(unit)
  *  Initialize an Ultrastor 24F
  */
 int
-uha24_init(unit)
-int	unit;
+uha24_init(uha)
+	struct uha_data *uha;
 {
   unsigned char p0, p1, p2, p3, p5, p7;
   unsigned char id[7], rev, haid;
   int port = 0, irq, i;
   int resetcount = 4000;
-  struct uha_data *uha = uhadata[unit];
-  struct uha_reg *ur = uhareg[unit];
-  struct uha_bits *ub = uhabits[unit];
+  struct uha_reg *ur = uha->ur;
+  struct uha_bits *ub = uha->ub;
 
   /* Search for the 24F's product ID */
   uha_slot++;
@@ -1037,12 +1036,12 @@ int	unit;
      case 0x40: irq = 11; break;
      case 0x80: irq = 10; break;
      default:
-	printf("uha%d: bad 24F irq\n", unit);
+	printf("uha%d: bad 24F irq\n", uha->unit);
 	return(ENXIO);
   }
 
   haid = (p7 & 0x07);
-  printf("uha%d: UltraStor 24F int=%d id=%d\n", unit, irq, haid);
+  printf("uha%d: UltraStor 24F int=%d id=%d\n", uha->unit, irq, haid);
 
   /* Issue SCSI and adapter reset */
   outb(ur->lint, ub->asrst);
@@ -1052,7 +1051,7 @@ int	unit;
 	DELAY(1000);	/* 1 mSec per loop */
   }
   if (resetcount == 0) {
-	printf("uha%d: board timed out during reset\n", unit);
+	printf("uha%d: board timed out during reset\n", uha->unit);
 	return (ENXIO);
   }
   outb(ur->smask, 0xc2);	/* make sure interrupts are enabled */
@@ -1093,15 +1092,15 @@ uha_scsi_cmd(xs)
 	int     rc = 0;
 	int     thiskv;
 	unsigned long int thisphys, nextphys;
-	int     unit = xs->sc_link->adapter_unit;
 	int     bytes_this_seg, bytes_this_page, datalen, flags;
-	struct iovec *iovp;
-	struct uha_data *uha = uhadata[unit];
+	struct	iovec *iovp;
+	struct	uha_data *uha;
 	int     s;
 	unsigned int stat;
 	int     port = uha->baseport;
 	unsigned long int templen;
 
+	uha = (struct uha_data *)xs->sc_link->adapter_softc;
 	SC_DEBUG(xs->sc_link, SDEV_DB2, ("uha_scsi_cmd\n"));
 	/*
 	 * get a mscp (mbox-out) to use. If the transfer
@@ -1112,14 +1111,14 @@ uha_scsi_cmd(xs)
 	if (xs->bp)
 		flags |= (SCSI_NOSLEEP);	/* just to be sure */
 	if (flags & ITSDONE) {
-		printf("uha%d: Already done?", unit);
+		printf("uha%d: Already done?", uha->unit);
 		xs->flags &= ~ITSDONE;
 	}
 	if (!(flags & INUSE)) {
-		printf("uha%d: Not in use?", unit);
+		printf("uha%d: Not in use?", uha->unit);
 		xs->flags |= INUSE;
 	}
-	if (!(mscp = uha_get_mscp(unit, flags))) {
+	if (!(mscp = uha_get_mscp(uha, flags))) {
 		xs->error = XS_DRIVER_STUFFUP;
 		return (TRY_AGAIN_LATER);
 	}
@@ -1146,7 +1145,7 @@ uha_scsi_cmd(xs)
 #ifdef	GOTTABEJOKING
 	if (xs->sc_link->lun != 0) {
 		xs->error = XS_DRIVER_STUFFUP;
-		uha_free_mscp(unit, mscp, flags);
+		uha_free_mscp(uha, mscp, flags);
 		return (HAD_ERROR);
 	}
 #endif
@@ -1274,9 +1273,9 @@ uha_scsi_cmd(xs)
 		SC_DEBUGN(xs->sc_link, SDEV_DB4, ("\n"));
 		if (datalen) {	/* there's still data, must have run out of segs! */
 			printf("uha%d: uha_scsi_cmd, more than %d DMA segs\n",
-			    unit, UHA_NSEG);
+			    uha->unit, UHA_NSEG);
 			xs->error = XS_DRIVER_STUFFUP;
-			uha_free_mscp(unit, mscp, flags);
+			uha_free_mscp(uha, mscp, flags);
 			return (HAD_ERROR);
 		}
 	} else {		/* No data xfer, use non S/G values */
@@ -1303,7 +1302,7 @@ uha_scsi_cmd(xs)
 	 */
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();
-		uha_send_mbox(unit, mscp);
+		uha_send_mbox(uha, mscp);
 		timeout(uha_timeout, (caddr_t)mscp, (xs->timeout * hz) / 1000);
 		splx(s);
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
@@ -1313,15 +1312,16 @@ uha_scsi_cmd(xs)
 	/*
 	 * If we can't use interrupts, poll on completion
 	 */
-	uha_send_mbox(unit, mscp);
+	uha_send_mbox(uha, mscp);
 	SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_wait\n"));
 	do {
-		if (uha_poll(unit, xs->timeout)) {
+		if (uha_poll(uha, xs->timeout)) {
 			if (!(xs->flags & SCSI_SILENT))
-				printf("uha%d: cmd fail\n", unit);
-			if (!(uha_abort(unit, mscp))) {
-				printf("uha%d: abort failed in wait\n", unit);
-				uha_free_mscp(unit, mscp, flags);
+				printf("uha%d: cmd fail\n", uha->unit);
+			if (!(uha_abort(uha, mscp))) {
+				printf("uha%d: abort failed in wait\n",
+					uha->unit);
+				uha_free_mscp(uha, mscp, flags);
 			}
 			xs->error = XS_DRIVER_STUFFUP;
 			return (HAD_ERROR);
@@ -1339,27 +1339,24 @@ uha_timeout(arg1)
 	void	*arg1;
 {
 	struct mscp *mscp = (struct mscp *)arg1;
-	int     unit;
 	struct uha_data *uha;
 	int     s = splbio();
-	/*int   port = uha->baseport; */
 
-	unit = mscp->xs->sc_link->adapter_unit;
-	uha = uhadata[unit];
-	printf("uha%d:%d:%d (%s%d) timed out ", unit
+	uha = (struct uha_data *)mscp->xs->sc_link->adapter_softc;
+	printf("uha%d:%d:%d (%s%d) timed out ", uha->unit
 	    ,mscp->xs->sc_link->target
 	    ,mscp->xs->sc_link->lun
 	    ,mscp->xs->sc_link->device->name
 	    ,mscp->xs->sc_link->dev_unit);
 
 #ifdef	UHADEBUG
-	uha_print_active_mscp(unit);
+	uha_print_active_mscp(uha);
 #endif /*UHADEBUG */
 
-	if ((uha_abort(unit, mscp) != 1) || (mscp->flags = MSCP_ABORTED)) {
+	if ((uha_abort(uha, mscp) != 1) || (mscp->flags = MSCP_ABORTED)) {
 		printf("AGAIN");
 		mscp->xs->retries = 0;	/* I MEAN IT ! */
-		uha_done(unit, mscp);
+		uha_done(uha, mscp);
 	} else {		/* abort the operation that has timed out */
 		printf("\n");
 		timeout(uha_timeout, (caddr_t)mscp, 2 * hz);
@@ -1389,9 +1386,8 @@ uha_print_mscp(mscp)
 }
 
 void
-uha_print_active_mscp(int unit)
+uha_print_active_mscp(struct uha_data *uha)
 {
-	struct uha_data *uha = uhadata[unit];
 	struct mscp *mscp;
 	int     i = 0;
 
