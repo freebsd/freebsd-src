@@ -84,7 +84,7 @@ static int	devinfo_generation = 0;
 
 #if 0
 # define debug(fmt, args...)	\
-	fprintf(stderr, "%s:" fmt "\n", __FUNCTION__ , ##args)
+	fprintf(stderr, "%s:" fmt "\n", __func__ , ##args)
 #else
 # define debug(fmt, args...)
 #endif
