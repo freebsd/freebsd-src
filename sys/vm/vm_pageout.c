@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.5 1996/06/15 09:58:43 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.6 1996/06/19 07:26:57 davidg Exp $
  */
 
 /*
@@ -352,11 +352,12 @@ vm_pageout_clean(m, sync)
  *	The object and map must be locked.
  */
 int
-vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
+vm_pageout_object_deactivate_pages(map, object, count, map_remove_only, recursion)
 	vm_map_t map;
 	vm_object_t object;
 	int count;
 	int map_remove_only;
+	int *recursion;
 {
 	register vm_page_t p, next;
 	int s, rcount, dcount;
@@ -365,14 +366,18 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 	if (count == 0)
 		count = 1;
 
+	(*recursion)++;
+	if (*recursion > 5)
+		return 0;
+
 	if (object->pager && (object->pager->pg_type == PG_DEVICE))
 		return 0;
 
 	if (object->shadow) {
 		if (object->shadow->ref_count == 1)
-			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, count / 2 + 1, map_remove_only);
+			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, count / 2 + 1, map_remove_only, recursion);
 		else
-			vm_pageout_object_deactivate_pages(map, object->shadow, count, 1);
+			vm_pageout_object_deactivate_pages(map, object->shadow, count, 1, recursion);
 	}
 	if (object->paging_in_progress || !vm_object_lock_try(object))
 		return dcount;
@@ -466,17 +471,18 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
  */
 
 void
-vm_pageout_map_deactivate_pages(map, entry, count, freeer)
+vm_pageout_map_deactivate_pages(map, entry, count, freeer, recursion)
 	vm_map_t map;
 	vm_map_entry_t entry;
 	int *count;
-	int (*freeer) (vm_map_t, vm_object_t, int);
+	int (*freeer) (vm_map_t, vm_object_t, int, int *);
+	int *recursion;
 {
 	vm_map_t tmpm;
 	vm_map_entry_t tmpe;
 	vm_object_t obj;
 
-	if (*count <= 0)
+	if ((*recursion > 5) || (*count <= 0))
 		return;
 	vm_map_reference(map);
 	if (!lock_try_read(&map->lock)) {
@@ -486,18 +492,18 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 	if (entry == 0) {
 		tmpe = map->header.next;
 		while (tmpe != &map->header && *count > 0) {
-			vm_pageout_map_deactivate_pages(map, tmpe, count, freeer, 0);
+			vm_pageout_map_deactivate_pages(map, tmpe, count, freeer, recursion);
 			tmpe = tmpe->next;
 		};
 	} else if (entry->is_sub_map || entry->is_a_map) {
 		tmpm = entry->object.share_map;
 		tmpe = tmpm->header.next;
 		while (tmpe != &tmpm->header && *count > 0) {
-			vm_pageout_map_deactivate_pages(tmpm, tmpe, count, freeer, 0);
+			vm_pageout_map_deactivate_pages(tmpm, tmpe, count, freeer, recursion);
 			tmpe = tmpe->next;
 		};
 	} else if ((obj = entry->object.vm_object) != 0) {
-		*count -= (*freeer) (map, obj, *count);
+		*count -= (*freeer) (map, obj, *count, recursion);
 	}
 	lock_read_done(&map->lock);
 	vm_map_deallocate(map);
@@ -656,7 +662,7 @@ rescan_active:
 		next = m->pageq.tqe_next;
 
 		if ((m->flags & PG_ACTIVE) == 0)
-			goto rescan_active;
+			break;
 
 		/*
 		 * Don't deactivate pages that are busy.
@@ -693,19 +699,8 @@ rescan_active:
 			 * if the page act_count is zero -- then we deactivate
 			 */
 			if (!m->act_count && (page_shortage > 0)) {
-				if (m->object->ref_count == 0) {
-					--page_shortage;
-					vm_page_test_dirty(m);
-					if ((m->bmapped == 0) && (m->dirty == 0) ) {
-						m->act_count = 0;
-						vm_page_cache(m);
-					} else {
-						vm_page_deactivate(m);
-					}
-				} else {
-					vm_page_deactivate(m);
-					--page_shortage;
-				}
+				vm_page_deactivate(m);
+				--page_shortage;
 			} else if (m->act_count) {
 				s = splbio();
 				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
@@ -901,7 +896,6 @@ vm_daemon()
 			swapout_threads();
 			vm_pageout_req_swapout = 0;
 		}
-#if 0
 		/*
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
@@ -909,6 +903,7 @@ vm_daemon()
 
 		for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
 			int overage;
+			int recursion;
 			quad_t limit;
 			vm_offset_t size;
 
@@ -943,11 +938,11 @@ vm_daemon()
 			size = p->p_vmspace->vm_pmap.pm_stats.resident_count * NBPG;
 			if (limit >= 0 && size >= limit) {
 				overage = (size - limit) / NBPG;
+				recursion = 0;
 				vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
-				    (vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
+				    (vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages, &recursion);
 			}
 		}
-#endif
 	}
 }
 #endif /* !NO_SWAPPING */
