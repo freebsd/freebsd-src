@@ -262,11 +262,13 @@ soo_close(fp, td)
 	int error = 0;
 	struct socket *so;
 
+	NET_LOCK_GIANT();
 	so = fp->f_data;
 	fp->f_ops = &badfileops;
 	fp->f_data = NULL;
 
 	if (so)
 		error = soclose(so);
+	NET_UNLOCK_GIANT();
 	return (error);
 }
