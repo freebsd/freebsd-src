@@ -2952,7 +2952,7 @@ again:
 		 */
 		for (i = 0; i < bvecpos; i++) {
 			bp = bvec[i];
-			bp->b_flags &= ~(B_NEEDCOMMIT | B_WRITEINPROG);
+			bp->b_flags &= ~(B_NEEDCOMMIT | B_WRITEINPROG | B_CLUSTEROK);
 			if (retv) {
 			    vfs_unbusy_pages(bp);
 			    brelse(bp);
@@ -2999,7 +2999,7 @@ loop:
 		if (passone || !commit)
 		    bp->b_flags |= (B_BUSY|B_ASYNC);
 		else
-		    bp->b_flags |= (B_BUSY|B_ASYNC|B_WRITEINPROG|B_NEEDCOMMIT);
+		    bp->b_flags |= (B_BUSY|B_ASYNC|B_WRITEINPROG);
 		splx(s);
 		VOP_BWRITE(bp);
 		goto loop;
@@ -3241,7 +3241,7 @@ nfs_writebp(bp, force)
 		bp->b_flags &= ~B_WRITEINPROG;
 		if (!retv) {
 			bp->b_dirtyoff = bp->b_dirtyend = 0;
-			bp->b_flags &= ~B_NEEDCOMMIT;
+			bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 			biodone(bp);
 		} else if (retv == NFSERR_STALEWRITEVERF)
 			nfs_clearcommit(bp->b_vp->v_mount);

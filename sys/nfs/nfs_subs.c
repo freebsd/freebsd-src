@@ -1906,7 +1906,7 @@ loop:
 			nbp = bp->b_vnbufs.le_next;
 			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
-				bp->b_flags &= ~B_NEEDCOMMIT;
+				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
 	}
 	splx(s);
