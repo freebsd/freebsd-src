@@ -66,7 +66,7 @@ getcwd(pt, size)
 	ino_t root_ino;
 	size_t ptsize, upsize;
 	int save_errno;
-	char *ept, *eup, *up;
+	char *ept, *eup, *up, c;
 
 	/*
 	 * If no buffer specified by the user, allocate one as necessary.
@@ -89,8 +89,7 @@ getcwd(pt, size)
 			return (NULL);
 		ept = pt + ptsize;
 	}
-	if (!__getcwd(pt,ptsize)) {
-		char c;
+	if (!__getcwd(pt, ept-pt)) {
 		bpt = pt;
 		ept = pt + strlen(pt) - 1;
 		while (bpt < ept) {
