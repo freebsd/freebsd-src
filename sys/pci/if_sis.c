@@ -1129,14 +1129,13 @@ static void sis_rxeof(sc)
 		}
 
 		/* No errors; receive the packet. */	
-		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-		    total_len + ETHER_ALIGN, 0, ifp, NULL);
+		m0 = m_devget(mtod(m, char *), total_len, ETHER_ALIGN, ifp,
+		    NULL);
 		sis_newbuf(sc, cur_rx, m);
 		if (m0 == NULL) {
 			ifp->if_ierrors++;
 			continue;
 		}
-		m_adj(m0, ETHER_ALIGN);
 		m = m0;
 
 		ifp->if_ipackets++;
