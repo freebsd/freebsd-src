@@ -85,7 +85,7 @@ initdumptimes()
 
 	if ((df = fopen(dumpdates, "r")) == NULL) {
 		if (errno != ENOENT) {
-			msg("cannot read %s: %s\n", dumpdates,
+			msg("WARNING: cannot read %s: %s\n", dumpdates,
 			    strerror(errno));
 			return;
 			/* NOTREACHED */
@@ -95,7 +95,7 @@ initdumptimes()
 		 */
 		msg("WARNING: no file `%s', making an empty one\n", dumpdates);
 		if ((df = fopen(dumpdates, "w")) == NULL) {
-			msg("cannot create %s: %s\n", dumpdates,
+			msg("WARNING: cannot create %s: %s\n", dumpdates,
 			    strerror(errno));
 			return;
 			/* NOTREACHED */
