@@ -229,10 +229,10 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 
 	/*
 	 * Fill in IP header.  If we are not allowing fragmentation,
-	 * then the ip_id field is meaningless, so send it as zero
-	 * to reduce information leakage.  Otherwise, if we are not
-	 * randomizing ip_id, then don't bother to convert it to network
-	 * byte order -- it's just a nonce.  Note that a 16-bit counter
+	 * then the ip_id field is meaningless, but we don't set it
+	 * to zero.  Doing so causes various problems when devices along
+	 * the path (routers, load balancers, firewalls, etc.) illegally
+	 * disable DF on our packet.  Note that a 16-bit counter
 	 * will wrap around in less than 10 seconds at 100 Mbit/s on a
 	 * medium with MTU 1500.  See Steven M. Bellovin, "A Technique
 	 * for Counting NATted Hosts", Proc. IMW'02, available at
@@ -241,17 +241,11 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
-		if ((ip->ip_off & IP_DF) == 0) {
-			ip->ip_off = 0;
 #ifdef RANDOM_IP_ID
-			ip->ip_id = ip_randomid();
+		ip->ip_id = ip_randomid();
 #else
-			ip->ip_id = ip_id++;
+		ip->ip_id = htons(ip_id++);
 #endif
-		} else {
-			ip->ip_off = IP_DF;
-			ip->ip_id = 0;
-		}
 		ipstat.ips_localout++;
 	} else {
 		hlen = ip->ip_hl << 2;
