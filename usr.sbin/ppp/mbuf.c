@@ -75,6 +75,22 @@ m_length(struct mbuf *bp)
   return len;
 }
 
+const char *
+mbuftype(int type)
+{
+  static const char * const mbufdesc[MB_MAX] = { 
+    "ip in", "ip out", "nat in", "nat out", "mp in", "mp out",
+    "vj in", "vj out", "icompd in", "icompd out", "compd in", "compd out",
+    "lqr in", "lqr out", "echo in", "echo out", "proto in", "proto out",
+    "acf in", "acf out", "sync in", "sync out", "hdlc in", "hdlc out",
+    "async in", "async out", "cbcp in", "cbcp out", "chap in", "chap out",
+    "pap in", "pap out", "ccp in", "ccp out", "ipcp in", "ipcp out",
+    "lcp in", "lcp out"
+  };
+
+  return type < 0 || type >= MB_MAX ? "unknown" : mbufdesc[type];
+}
+
 struct mbuf *
 m_get(size_t m_len, int type)
 {
@@ -88,7 +104,8 @@ m_get(size_t m_len, int type)
   }
   
   if (m_len > M_MAXLEN || m_len == 0) {
-    log_Printf(LogERROR, "Request for mbuf size %lu denied\n", (u_long)m_len);
+    log_Printf(LogERROR, "Request for mbuf size %lu (\"%s\") denied !\n",
+               (u_long)m_len, mbuftype(type));
     AbortProgram(EX_OSERR);
   }
 
@@ -293,27 +310,18 @@ int
 mbuf_Show(struct cmdargs const *arg)
 {
   int i;
-  static const char * const mbuftype[] = { 
-    "ip in", "ip out", "nat in", "nat out", "mp in", "mp out",
-    "vj in", "vj out", "icompd in", "icompd out", "compd in", "compd out",
-    "lqr in", "lqr out", "echo in", "echo out", "proto in", "proto out",
-    "acf in", "acf out", "sync in", "sync out", "hdlc in", "hdlc out",
-    "async in", "async out", "cbcp in", "cbcp out", "chap in", "chap out",
-    "pap in", "pap out", "ccp in", "ccp out", "ipcp in", "ipcp out",
-    "lcp in", "lcp out", "unknown"
-  };
 
   prompt_Printf(arg->prompt, "Fragments (octets) in use:\n");
   for (i = 0; i < MB_MAX; i += 2)
     prompt_Printf(arg->prompt, "%10.10s: %04lu (%06lu)\t"
                   "%10.10s: %04lu (%06lu)\n",
-	          mbuftype[i], (u_long)MemMap[i].fragments,
-                  (u_long)MemMap[i].octets, mbuftype[i+1],
+	          mbuftype(i), (u_long)MemMap[i].fragments,
+                  (u_long)MemMap[i].octets, mbuftype(i+1),
                   (u_long)MemMap[i+1].fragments, (u_long)MemMap[i+1].octets);
 
   if (i == MB_MAX)
     prompt_Printf(arg->prompt, "%10.10s: %04lu (%06lu)\n",
-                  mbuftype[i], (u_long)MemMap[i].fragments,
+                  mbuftype(i), (u_long)MemMap[i].fragments,
                   (u_long)MemMap[i].octets);
 
   prompt_Printf(arg->prompt, "Mallocs: %llu,   Frees: %llu\n",
