@@ -565,6 +565,7 @@ void sDisInterrupts(CHANNEL_T *ChP,Word_t Flags)
 **********************************************************************/
 
 static timeout_t rpdtrwakeup;
+struct callout_handle rp_callout_handle;
 
 static	d_open_t	rpopen;
 static	d_close_t	rpclose;
@@ -789,7 +790,8 @@ static void rp_do_poll(void *not_used)
 	}
 	}
 	if(rp_num_ports_open)
-		timeout(rp_do_poll, (void *)NULL, POLL_INTERVAL);
+		rp_callout_handle = timeout(rp_do_poll, 
+					    (void *)NULL, POLL_INTERVAL);
 }
 
 int
@@ -801,7 +803,6 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 	int	ChanStatus, line, i, count;
 	int	retval;
 	struct	rp_port *rp;
-	struct	tty	*tty;
 	struct cdev **dev_nodes;
 
 	unit = device_get_unit(ctlp->dev);
@@ -809,9 +810,10 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 	printf("RocketPort%d (Version %s) %d ports.\n", unit,
 		RocketPortVersion, num_ports);
 	rp_num_ports[unit] = num_ports;
+	callout_handle_init(&rp_callout_handle);
 
 	ctlp->rp = rp = (struct rp_port *)
-		malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT);
+		malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT | M_ZERO);
 	if (rp == NULL) {
 		device_printf(ctlp->dev, "rp_attachcommon: Could not malloc rp_ports structures.\n");
 		retval = ENOMEM;
@@ -823,15 +825,6 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 		minor_to_unit[i] = unit;
 
 	bzero(rp, sizeof(struct rp_port) * num_ports);
-	ctlp->tty = tty = (struct tty *)
-		malloc(sizeof(struct tty) * num_ports, M_TTYS,
-			M_NOWAIT | M_ZERO);
-	if(tty == NULL) {
-		device_printf(ctlp->dev, "rp_attachcommon: Could not malloc tty structures.\n");
-		retval = ENOMEM;
-		goto nogo;
-	}
-
 	oldspl = spltty();
 	rp_addr(unit) = rp;
 	splx(oldspl);
@@ -867,15 +860,15 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 	port = 0;
 	for(aiop=0; aiop < num_aiops; aiop++) {
 		num_chan = sGetAiopNumChan(ctlp, aiop);
-		for(chan=0; chan < num_chan; chan++, port++, rp++, tty++) {
-			rp->rp_tty = tty;
+		for(chan=0; chan < num_chan; chan++, port++, rp++) {
+			rp->rp_tty = ttymalloc(NULL);
 			rp->rp_port = port;
 			rp->rp_ctlp = ctlp;
 			rp->rp_unit = unit;
 			rp->rp_chan = chan;
 			rp->rp_aiop = aiop;
 
-			tty->t_line = 0;
+			rp->rp_tty->t_line = 0;
 	/*		tty->t_termios = deftermios;
 	*/
 			rp->dtr_wait = 3 * hz;
@@ -920,8 +913,19 @@ void
 rp_releaseresource(CONTROLLER_t *ctlp)
 {
 	int i, s, unit;
+	struct	rp_port *rp;
+
 
 	unit = device_get_unit(ctlp->dev);
+	if (rp_addr(unit) != NULL) {
+		for (i = 0; i < rp_num_ports[unit]; i++) {
+			rp = rp_addr(unit) + i;
+			s = ttyrel(rp->rp_tty);
+			if (s) {
+				printf("Detaching with active tty (%d refs)!\n", s);
+			}
+		}
+	}
 
 	if (ctlp->rp != NULL) {
 		s = spltty();
@@ -935,10 +939,6 @@ rp_releaseresource(CONTROLLER_t *ctlp)
 		free(ctlp->rp, M_DEVBUF);
 		ctlp->rp = NULL;
 	}
-	if (ctlp->tty != NULL) {
-		free(ctlp->tty, M_DEVBUF);
-		ctlp->tty = NULL;
-	}
 	if (ctlp->dev != NULL) {
 		for (i = 0 ; i < rp_num_ports[unit] * 6 ; i++)
 			destroy_dev(ctlp->dev_nodes[i]);
@@ -947,6 +947,11 @@ rp_releaseresource(CONTROLLER_t *ctlp)
 	}
 }
 
+void
+rp_untimeout(void)
+{
+	untimeout(rp_do_poll, (void *)NULL, rp_callout_handle);
+}
 static int
 rpopen(dev, flag, mode, td)
 	struct cdev *dev;
@@ -1072,8 +1077,8 @@ open_top:
 		}
 
 	if(rp_num_ports_open == 1)
-		timeout(rp_do_poll, (void *)NULL, POLL_INTERVAL);
-
+		rp_callout_handle = timeout(rp_do_poll, 
+					    (void *)NULL, POLL_INTERVAL);
 	}
 
 	if(!(flag&O_NONBLOCK) && !(tp->t_cflag&CLOCAL) &&
