@@ -1226,7 +1226,7 @@ mbnambuf_write(char *name, int id)
 		count = strlen(name);
 		nambuf_len = id * WIN_CHARS + count;
 		if (nambuf_len > MAXNAMLEN) {
-			printf("msdosfs: file name %d too long\n", nambuf_len);
+			printf("msdosfs: file name %zd too long\n", nambuf_len);
 			return;
 		}
 		nambuf_max_id = id;
