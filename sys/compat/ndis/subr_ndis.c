@@ -1069,7 +1069,8 @@ ndis_register_ioport(offset, adapter, port, numports)
 	if (sc->ndis_res_io == NULL)
 		return(NDIS_STATUS_FAILURE);
 
-	if (rman_get_size(sc->ndis_res_io) != numports)
+	/* Don't let the device map more ports than we have. */
+	if (rman_get_size(sc->ndis_res_io) < numports)
 		return(NDIS_STATUS_INVALID_LENGTH);
 
 	*offset = (void *)rman_get_start(sc->ndis_res_io);
