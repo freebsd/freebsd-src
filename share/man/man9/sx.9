@@ -40,7 +40,8 @@
 .Nm sx_sunlock ,
 .Nm sx_xunlock ,
 .Nm sx_try_upgrade ,
-.Nm sx_downgrade
+.Nm sx_downgrade ,
+.Nm sx_assert
 .Nd kernel shared/exclusive lock
 .Sh SYNOPSIS
 .In sys/param.h
@@ -67,6 +68,8 @@
 .Fn sx_try_upgrade "struct sx *sx"
 .Ft void
 .Fn sx_downgrade "struct sx *sx"
+.Ft void
+.Fn sx_assert "struct sx *sx" "int what"
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
@@ -116,9 +119,37 @@ will return 0 if the shared lock cannot be upgraded to an exclusive lock
 immediately; otherwise the exclusive lock will be acquired and a non-zero value
 will be returned.
 .Pp
+The
+.Fn sx_assert
+function tests specified conditions and panics if they are not met and the
+kernel is compiled with
+.Dv INVARIANTS .
+The following assertions are supported:
+.Bl -tag -width SX_XLOCKED
+.It Dv SX_LOCKED
+Assert that the current thread has either a shared or an exclusive lock on the
+sx lock pointed to by the first argument.
+.It Dv SX_SLOCKED
+Assert that the current thread has a shared lock on the sx lock pointed to by
+the first argument.
+.It Dv SX_XLOCKED
+Assert that the current thread has an exclusive lock on the sx lock pointed to
+by the first argument.
+.El
+.Pp
 A thread may not own a shared lock and an exclusive lock simultaneously;
 attempting to do so will result in deadlock.
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr mutex 9 ,
 .Xr sema 9
+.Sh BUGS
+Currently there is no way to assert that a lock is not held.
+This is not possible in the non-WITNESS case for asserting that this thread
+does not hold a shared lock.
+In the non-WITNESS case, the
+.Dv SX_LOCKED
+and
+.Dv SX_SLOCKED
+assertions merely check that some thread holds a shared lock.
+They do not ensure that the current thread holds a shared lock.
