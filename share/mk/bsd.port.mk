@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.261 1997/06/29 10:51:55 obrien Exp $
+#	$Id: bsd.port.mk,v 1.262 1997/07/10 02:29:51 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -355,8 +355,8 @@ RUN_DEPENDS+=	${EXEC_DEPENDS}
 BUILD_DEPENDS+=		gmake:${PORTSDIR}/devel/gmake
 .endif
 .if defined(USE_PERL5)
-BUILD_DEPENDS+=		perl5.004:${PORTSDIR}/lang/perl5
-RUN_DEPENDS+=		perl5.004:${PORTSDIR}/lang/perl5
+BUILD_DEPENDS+=		perl5.00401:${PORTSDIR}/lang/perl5
+RUN_DEPENDS+=		perl5.00401:${PORTSDIR}/lang/perl5
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
