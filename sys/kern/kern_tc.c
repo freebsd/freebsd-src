@@ -78,6 +78,7 @@ struct timecounter *timecounter = &dummy_timecounter;
 static struct timecounter *timecounters = &dummy_timecounter;
 
 time_t time_second = 1;
+time_t time_uptime = 0;
 
 static struct bintime boottimebin;
 struct timeval boottime;
@@ -435,6 +436,7 @@ tc_windup(void)
 
 	/* Go live with the new struct timehands. */
 	time_second = th->th_microtime.tv_sec;
+	time_uptime = th->th_offset.sec;
 	timehands = th;
 }
 

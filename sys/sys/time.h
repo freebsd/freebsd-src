@@ -259,6 +259,7 @@ struct clockinfo {
 
 #ifdef _KERNEL
 extern time_t	time_second;
+extern time_t	time_uptime;
 
 /*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()
