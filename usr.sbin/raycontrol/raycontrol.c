@@ -95,7 +95,7 @@ ray_getval(char *iface, struct ray_param_req *rreq)
 
         bzero((char *)&ifr, sizeof(ifr));
 
-        strcpy(ifr.ifr_name, iface);
+        strlcpy(ifr.ifr_name, iface, IFNAMSIZ);
         ifr.ifr_data = (caddr_t)rreq;
 
         s = socket(AF_INET, SOCK_DGRAM, 0);
