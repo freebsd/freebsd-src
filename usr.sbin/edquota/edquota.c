@@ -147,8 +147,8 @@ main(int argc, char **argv)
 			qup->dqblk.dqb_btime = 0;
 			qup->dqblk.dqb_itime = 0;
 		}
-		while (argc-- > 0) {
-			if (isdigit(*argv[0]) && 
+		for (; argc-- > 0; argv++) {
+			if (strspn(*argv, "0123456789-") == strlen(*argv) &&
 			    (cp = strchr(*argv, '-')) != NULL) {
 				*cp++ = '\0';
 				startuid = atoi(*argv);
@@ -166,7 +166,7 @@ main(int argc, char **argv)
 				}
 				continue;
 			}
-			if ((id = getentry(*argv++, quotatype)) < 0)
+			if ((id = getentry(*argv, quotatype)) < 0)
 				continue;
 			putprivs(id, quotatype, protoprivs);
 		}
