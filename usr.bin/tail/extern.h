@@ -48,5 +48,5 @@ int lines __P((FILE *, off_t));
 void ierr __P((void));
 void oerr __P((void));
 
-extern int fflag, rflag, rval;
+extern int Fflag, fflag, rflag, rval;
 extern char *fname;
