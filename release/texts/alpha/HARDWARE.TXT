@@ -1757,11 +1757,11 @@ For the UP1100 the kernel config file must contain:
 * Alpha Processor Inc. CS20
 *
 
-The CS20 is a 19", 1U high rackmount server based on the 21264a CPU. It can
+The CS20 is a 19", 1U high rackmount server based on the 21264[ab] CPU. It can
 have a maximum of 2 CPUs.
 
 Features:
-- 21264a Alpha CPU at 667 or 833 MHz (max. 2 CPUs)
+- 21264a Alpha CPU at 667 MHz or 21264b 833 MHz (max. 2 CPUs)
 - memory bus: 100MHz 256-bit wide
 - 21271 Core Logic chipset ("Tsunami")
 - Acer Labs M1533 PCI-ISA bridge controller / super-IO chip
@@ -1772,7 +1772,6 @@ Features:
 	  min 256 Mbytes / max 2 Gbytes of memory
 - 2x 16550A serial port
 - 1x ECP/EPP parallel port
-- floppy interface
 - ALI M1543C Ultra DMA66 IDE interface
 - embedded dual Intel 82559 10/100Mbit Ethernet
 - embedded Symbios 53C1000 Ultra160 SCSI controller
@@ -1791,7 +1790,7 @@ The CS20 needs ECC capable DIMMs. Note that it uses *buffered* DIMMs.
 
 Monitoring:
 The CS20 has an I2C based internal monitoring system for things like
-temperature, fans, voltages etc. 
+temperature, fans, voltages etc. The I2C also supports 'wake on LAN'.
 
 Expansion:
 Each PCI slot is connected to it's own independent PCI bus on the Tsunami.
@@ -1801,7 +1800,9 @@ The embedded Ultra DMA EIDE ports are bootable by the SRM console.
 
 Disks:
 The CS20 has an embedded slim-line IDE CD drive. There is a front-accessible
-bay for a 1" high 3.5" hard-disk drive.
+bay for a 1" high 3.5" SCSI hard-disk drive with SCA connector.
+
+Note that there is no floppy disk drive (or a connector to add one).
 
 The kernel config file must contain:
         options         DEC_ST6600
