@@ -92,7 +92,7 @@ SLIST_HEAD(listhead, list);
 
 struct kinfo_proc	*plist;
 char	*selected;
-char	*delim = "\n";
+const char	*delim = "\n";
 int	nproc;
 int	pgrep;
 int	signum = SIGTERM;
@@ -124,12 +124,13 @@ main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q;
-	char *execf, *coref, *swapf;
-	int i, j, ch, bestidx, rv, criteria, drop_privs;
+	const char *execf, *coref, *swapf;
+	int i, ch, bestidx, rv, criteria, drop_privs;
+	size_t jsz;
 	void (*action)(struct kinfo_proc *);
 	struct kinfo_proc *kp;
 	struct list *li;
-	u_int32_t bestsec, bestusec;
+	struct timeval best_tval;
 	regex_t reg;
 	regmatch_t regmatch;
 
@@ -291,9 +292,10 @@ main(int argc, char **argv)
 				if ((pargv = kvm_getargv(kd, kp, 0)) == NULL)
 					continue;
 
-				j = 0;
-				while (j < sizeof(buf) && *pargv != NULL) {
-					j += snprintf(buf + j, sizeof(buf) - j,
+				jsz = 0;
+				while (jsz < sizeof(buf) && *pargv != NULL) {
+					jsz += snprintf(buf + jsz,
+					    sizeof(buf) - jsz,
 					    pargv[1] != NULL ? "%s " : "%s",
 					    pargv[0]);
 					pargv++;
@@ -389,19 +391,19 @@ main(int argc, char **argv)
 	}
 
 	if (newest) {
-		bestsec = 0;
-		bestusec = 0;
+		best_tval.tv_sec = 0;
+		best_tval.tv_usec = 0;
 		bestidx = -1;
 
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
 			if (!selected[i])
 				continue;
 
-			if (kp->ki_start.tv_sec > bestsec ||
-			    (kp->ki_start.tv_sec == bestsec
-			    && kp->ki_start.tv_usec > bestusec)) {
-				bestsec = kp->ki_start.tv_sec;
-				bestusec = kp->ki_start.tv_usec;
+			if (kp->ki_start.tv_sec > best_tval.tv_sec ||
+			    (kp->ki_start.tv_sec == best_tval.tv_sec
+			    && kp->ki_start.tv_usec > best_tval.tv_usec)) {
+				best_tval.tv_sec = kp->ki_start.tv_sec;
+				best_tval.tv_usec = kp->ki_start.tv_usec;
 				bestidx = i;
 			}
 		}
@@ -489,6 +491,7 @@ makelist(struct listhead *head, enum listtype type, char *src)
 	struct passwd *pw;
 	struct group *gr;
 	struct stat st;
+	const char *cp;
 	char *sp, *p, buf[MAXPATHLEN];
 	int empty;
 
@@ -540,16 +543,16 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				li->li_number = -1;
 				break;
 			} else if (strcmp(sp, "co") == 0)
-				p = "console";
+				cp = "console";
 			else if (strncmp(sp, "tty", 3) == 0)
-				p = sp;
+				cp = sp;
 			else
-				p = NULL;
+				cp = NULL;
 
-			if (p == NULL)
+			if (cp == NULL)
 				snprintf(buf, sizeof(buf), "/dev/tty%s", sp);
 			else
-				snprintf(buf, sizeof(buf), "/dev/%s", p);
+				snprintf(buf, sizeof(buf), "/dev/%s", cp);
 
 			if (stat(buf, &st) < 0) {
 				if (errno == ENOENT)
