@@ -171,10 +171,11 @@ ENTRY(_setjmp, 1)
     mov     r3 = b4 
     ;;
     st8     [r11] = r2, J_B5-J_B3
-    st8     [r10] = r3
+    st8     [r10] = r3, J_GP-J_B4
     mov     r2 = b5 
     ;;
     st8     [r11] = r2
+    st8	    [r10] = r1
     ;;
     //
     // return
@@ -290,11 +291,12 @@ ENTRY(___longjmp, 2)
     mov     b1 = r2
     mov     b2 = r3
     ld8     r2 = [r10], J_B5-J_B3
-    ld8     r3 = [r11],
+    ld8     r3 = [r11], J_GP-J_B4
     ;;
     mov     b3 = r2
-    mov     b4 = r3 
+    mov     b4 = r3
     ld8     r2 = [r10]
+    ld8	    r1 = [r11]
     ld8     r21 = [r31]         // get user unat
     ;;
     mov     b5 = r2
