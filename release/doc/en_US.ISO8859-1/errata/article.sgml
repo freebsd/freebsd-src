@@ -211,6 +211,15 @@
       either be installed using the <filename role="package">net/samba</filename> port in the
       &os; Ports Collection or by downloading and installing its
       binary package from one of the &os; FTP servers.</para>
+
+    <para>A bug has been fixed in softupdates that can cause
+      occassional filesystem corruption if the system is shutdown
+      immediately after performing heavy filesystem activities,
+      such as when installing a new kernel or other software.
+      The system shutdown was unable to flush all buffers on
+      shutdown and would report the fact.  The problem can be
+      worked around by syncing a few times before rebooting, or
+      updating the system to a recent -stable snapshot.</para>
 ]]>
   </sect1>
 </article>
