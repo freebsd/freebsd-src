@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.19.2.11 1997/06/13 02:08:58 brian Exp $
+.\" $Id: ppp.8,v 1.19.2.12 1997/06/13 04:01:41 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -819,8 +819,8 @@ for the LAN.
 
 .Sh PACKET FILTERING
 
-This implementation supports packet filtering. There are three kinds of
-filters; ifilter, ofilter and dfilter.  Here are the basics:
+This implementation supports packet filtering. There are four kinds of
+filters; ifilter, ofilter, dfilter and afilter.  Here are the basics:
 
 .Bl -bullet -compact
 .It
@@ -831,7 +831,7 @@ set filter-name rule-no action [src_addr/src_width] [dst_addr/dst_width]
 .Bl -enum
 .It
 .Sq filter-name
-should be one of ifilter, ofilter, or dfilter.
+should be one of ifilter, ofilter, dfilter or afilter.
 .It
 There are two actions:
 .Sq permit
