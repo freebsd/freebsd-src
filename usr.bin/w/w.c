@@ -134,7 +134,7 @@ main(argc, argv)
 	struct hostent *hp;
 	struct stat *stp;
 	FILE *ut;
-	u_long l;
+	in_addr_t l;
 	time_t touched;
 	int ch, i, nentries, nusers, wcmd, longidle, dropgid;
 	char *memf, *nlistf, *p, *x;
