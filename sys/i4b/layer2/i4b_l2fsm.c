@@ -27,9 +27,9 @@
  *	i4b_l2fsm.c - layer 2 FSM
  *	-------------------------
  *
- *	$Id: i4b_l2fsm.c,v 1.14 1999/02/14 09:45:00 hm Exp $ 
+ *	$Id: i4b_l2fsm.c,v 1.15 1999/03/16 15:29:06 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:31:37 1999]
+ *      last edit-date: [Tue Mar 16 16:27:12 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -242,6 +242,7 @@ struct l2state_tab {
 void i4b_next_l2state(l2_softc_t *l2sc, int event)
 {
 	int currstate, newstate;
+	int (*savpostfsmfunc)(int) = NULL;
 
 	/* check event number */
 	if(event > N_EVENTS)
@@ -292,8 +293,10 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
 	if(l2sc->postfsmfunc != NULL)
 	{
 		DBGL2(L2_F_MSG, "i4b_next_l2state", ("FSM executing postfsmfunc!\n"));
-        	(*l2sc->postfsmfunc)(l2sc->postfsmarg);
+		/* try to avoid an endless loop */
+		savpostfsmfunc = l2sc->postfsmfunc;
 		l2sc->postfsmfunc = NULL;
+        	(*savpostfsmfunc)(l2sc->postfsmarg);
         }
 }
 

@@ -27,9 +27,9 @@
  *	i4b_l1.h - isdn4bsd layer 1 header file
  *	---------------------------------------
  *
- *	$Id: i4b_l1.h,v 1.2 1999/03/07 16:08:16 hm Exp $ 
+ *	$Id: i4b_l1.h,v 1.61 1999/04/21 07:50:31 hm Exp $ 
  *
- *      last edit-date: [Tue Mar 16 10:38:03 1999]
+ *      last edit-date: [Tue Mar 16 15:50:24 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -76,6 +76,7 @@
 #define	FLAG_ELSA_MLIMC		16	/* XXX - not needed, remove! */
 #define	FLAG_ELSA_MLMCALL	17	/* XXX - not needed, remove! */
 #define FLAG_ITK_IX1		18
+#define FLAG_ELSA_PCC16		19
 
 #define SEC_DELAY	1000000		/* one second DELAY for DELAY*/
 
@@ -383,7 +384,7 @@ extern struct isic_softc isic_sc[];
 extern void isic_recover(struct isic_softc *sc);
 extern int isic_realattach(struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_avma1 ( struct isa_device *dev );
-extern int isic_attach_fritz ( struct isa_device *dev );
+extern int isic_attach_fritzpcmcia ( struct isa_device *dev );
 extern int isic_attach_Cs0P ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_Dyn ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_s016 ( struct isa_device *dev );
@@ -397,6 +398,7 @@ extern int isic_attach_sws ( struct isa_device *dev );
 extern int isic_attach_Eqs1pi(struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_Eqs1pp(int unit, unsigned int iobase1, unsigned int iobase2);
 extern void isic_bchannel_setup (int unit, int hscx_channel, int bprot, int activate );
+extern int isic_hscx_fifo(isic_Bchan_t *, struct isic_softc *);
 extern void isic_hscx_init ( struct isic_softc *sc, int hscx_channel, int activate );
 extern void isic_hscx_irq ( struct isic_softc *sc, u_char ista, int hscx_channel, u_char ex_irq );
 extern int isic_hscx_silence ( unsigned char *data, int len );

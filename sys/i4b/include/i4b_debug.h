@@ -27,9 +27,9 @@
  *	i4b_debug.h - i4b debug header file
  *	-----------------------------------
  *
- *	$Id: i4b_debug.h,v 1.15 1999/02/14 09:45:02 hm Exp $ 
+ *	$Id: i4b_debug.h,v 1.18 1999/04/28 14:50:55 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:37:58 1999]
+ *      last edit-date: [Wed Apr 28 16:50:36 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -169,9 +169,14 @@ extern unsigned int i4b_l4_debug;
 #define L4_DIALST	0x0008		/* network driver dial states	*/
 #define L4_IPRDBG	0x0010		/* ipr driver debug messages	*/
 #define L4_RBCHDBG	0x0020		/* rbch driver debug messages	*/
+#define L4_ISPDBG	0x0040		/* isp driver debug messages	*/
+#define L4_TELDBG	0x0080		/* tel driver debug messages	*/
+#define L4_TINADBG	0x0100		/* tina driver debug messages	*/
+#define L4_TINAMSG	0x0200		/* tina driver messages		*/
+#define L4_TINAERR	0x0400		/* tina driver error messages	*/
 
-#define L4_DEBUG_MAX	0x003f		/* all messages on	*/
-#define L4_DEBUG_ERR	(L4_ERR)
+#define L4_DEBUG_MAX	0x07ff		/* all messages on	*/
+#define L4_DEBUG_ERR	(L4_ERR | L4_TINADBG |  L4_TINAMSG | L4_TINAERR)
 
 #ifndef L4_DEBUG_DEFAULT
 #ifdef DO_I4B_MAXDEBUG

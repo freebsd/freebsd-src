@@ -27,9 +27,9 @@
  *	i4b_l4timer.c - timer and timeout handling for layer 4
  *	--------------------------------------------------------
  *
- *	$Id: i4b_l4timer.c,v 1.11 1999/02/14 09:45:02 hm Exp $ 
+ *	$Id: i4b_l4timer.c,v 1.13 1999/04/21 07:50:31 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:35:20 1999]
+ *      last edit-date: [Wed Apr 21 09:49:08 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -78,9 +78,12 @@ T400_timeout(call_desc_t *cd)
 void
 T400_start(call_desc_t *cd)
 {
+	if (cd->T400 == TIMER_ACTIVE)
+		return;
+		
 	DBGL4(L4_MSG, "T400_start", ("cr = %d\n", cd->cr));
-	
 	cd->T400 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	cd->T400_callout = timeout((TIMEOUT_FUNC_T)T400_timeout, (void *)cd, T400DEF);
 #else
@@ -94,17 +97,20 @@ T400_start(call_desc_t *cd)
 void
 T400_stop(call_desc_t *cd)
 {
-	DBGL4(L4_MSG, "T400_stop", ("cr = %d\n", cd->cr));
+	CRIT_VAR;
+	CRIT_BEG;
 
 	if(cd->T400 == TIMER_ACTIVE)
 	{
-		cd->T400 = TIMER_IDLE;
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 		untimeout((TIMEOUT_FUNC_T)T400_timeout, (void *)cd, cd->T400_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)T400_timeout, (void *)cd);
 #endif
+		cd->T400 = TIMER_IDLE;
 	}
+	CRIT_END;
+	DBGL4(L4_MSG, "T400_stop", ("cr = %d\n", cd->cr));
 }
 
 #endif /* NI4B > 0 */

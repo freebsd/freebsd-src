@@ -1,12 +1,38 @@
 
-Doku: Anwahl von T-Offline mittels i4b und FreeBSD (german)
-===========================================================
+Download sites for isdn4bsd
+===========================
+
+        http://www.freebsd-support.de/i4b
+
+        ftp://isdn4bsd@ftp.consol.de/pub
+
+		On ftp.consol.de, you must log in as user "isdn4bsd" and
+		give your mail address as the password. Then change to the
+		"pub" directory. You will find the latest available isdn4bsd
+		package. Anonymous ftp as user "ftp" or "anonymous" will not
+		work.
+
+
+Bugfixes, improvements and patches for i4b
+==========================================
+
+	http://www.freebsd-support.de/i4b (in the "errata" section)
+
+
+Bob's ISDN BRI/PRI Signaling Guide
+==================================
+
+	http://veda-home.com/Blackshaw
+
+
+Anwahl von T-Offline mittels i4b und FreeBSD (german)
+=====================================================
 
 	http://www.de.freebsd.org/de/i4b-t-error.html
 
 
-Doku: PPP mit isdn4bsd (german)
-===============================
+PPP mit isdn4bsd (german)
+=========================
 
 	http://www.saargate.de/~domi/freebsd/i4b-ppp-newbie.html
 
@@ -17,11 +43,65 @@ ISDN Information:
 	http://www.alumni.caltech.edu/~dank/isdn/
 
 
-ITU Standards:
-==============
+Standards:
+==========
 
-	http://www-library.itsi.disa.mil/org/ituccitt.html
-	ftp://ftp.leo.org/pub/comp/doc/standards/itu
+	ETSI
+	----
+		http://webapp.etsi.org/publicationssearch
+		http://www.etsi.org
+
+	ITU
+	---
+		http://www-library.itsi.disa.mil/org/ituccitt.html
+		ftp://ftp.leo.org/pub/comp/doc/standards/itu
+		http://www.itu.ch
+
+	CAPI
+	----
+		http://www.capi.org
+
+
+ISDN Chips
+==========
+
+	Infineon (formerly Siemens)
+	---------------------------
+		general:
+		--------
+		http://www.infineon.com/products/ics/33/33.htm
+
+		ISAC:
+		-----
+		http://www.infineon.com/products/ics/33/isac_s.htm
+		http://www.infineon.com/products/ics/33/isac_ste.htm
+
+		HSCX:
+		-----
+		http://www.infineon.com/products/ics/33/hscx.htm
+		http://www.infineon.com/products/ics/33/hscx_te.htm
+
+		IPAC:
+		-----
+		http://www.infineon.com/products/ics/33/ipac.htm
+
+
+	Cologne Chip Design
+	-------------------
+		http://www.colognechip.de
+
+
+	AMD
+	---
+		http://www.amd.com/products/cpd/isdn/isdn.html
+
+	Winbond
+	-------
+		http://www.winbond.com/produ/isdn.htm
+
+	Motorola
+	--------
+		http://mot-sps.com/solutions/isdn/index.html
 
 
 SunShine Project - Implementation of the ISDN recommendations Q.921 & Q.931
@@ -30,37 +110,10 @@ SunShine Project - Implementation of the ISDN recommendations Q.921 & Q.931
 	http://www.tcm.hut.fi/~bos/ISDN/sunshine/SunShine.html
 
 
-CAPI 2.0 documentation
-======================
-
-	http://www.capi.org
-
-
-Siemens ISDN chips Databooks (ISAC/HSCX)
-========================================
-
-	general:
-	--------
-	http://w2.siemens.de/semiconductor/products/ICs/33/33.htm
-	http://www.smi.siemens.com/applications/comm/isdnte/index.html
-
-	ISAC:
-	-----
-	http://w2.siemens.de/semiconductor/products/ICs/33/isac_ste/iste_11m.pdf
-	http://www.smi.siemens.com/pdf/comm/peb2085_6um.pdf
-	http://www.smi.siemens.com/pdf/comm/psb2186um.pdf
-
-	HSCX:
-	-----
-	http://w2.siemens.de/semiconductor/products/ICs/33/hscx/sab82525.pdf
-	http://www.smi.siemens.com/pdf/comm/SAB82526_5.pdf
-	http://www.smi.siemens.com/pdf/comm/psb21525um.pdf
-
-
 CD's:
 =====
-	The Infomagic Standards CDROM:
-	http://www.infomagic.com/catalog5.htm#standards
+	The Infomagic Standards CDROM: http://www.infomagic.com
+
 
 Books:
 ======

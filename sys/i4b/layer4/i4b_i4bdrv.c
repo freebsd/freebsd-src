@@ -27,14 +27,21 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- *	$Id: i4b_i4bdrv.c,v 1.3 1999/03/07 16:08:20 hm Exp $ 
+ *	$Id: i4b_i4bdrv.c,v 1.44 1999/05/06 08:24:45 hm Exp $ 
  *
- *      last edit-date: [Mon Feb 15 10:36:25 1999]
+ *      last edit-date: [Thu May  6 10:05:01 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #include "i4b.h"
 #include "i4bipr.h"
+#include "i4btel.h"
+
+#ifdef __bsdi__
+#include "ibc.h"
+#else
+#include "i4bisppp.h"
+#endif
 
 #if NI4B > 1
 #error "only 1 (one) i4b device possible!"
@@ -86,9 +93,7 @@
 
 #include <i4b/layer4/i4b_l4.h>
 
-#if (defined(__FreeBSD__) && (!defined(__FreeBSD_version) || __FreeBSD_version < 300001)) || defined(__bsdi__)
-/* do nothing */
-#else
+#ifdef OS_USES_POLL
 #include <sys/poll.h>
 #endif
 
@@ -103,32 +108,37 @@ static void *devfs_token;
 #endif
 
 #ifndef __FreeBSD__
+
 #define	PDEVSTATIC	/* - not static - */
 PDEVSTATIC void i4battach __P((void));
 PDEVSTATIC int i4bopen __P((dev_t dev, int flag, int fmt, struct proc *p));
 PDEVSTATIC int i4bclose __P((dev_t dev, int flag, int fmt, struct proc *p));
 PDEVSTATIC int i4bread __P((dev_t dev, struct uio *uio, int ioflag));
+
 #ifdef __bsdi__
 PDEVSTATIC int i4bioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
 #else
 PDEVSTATIC int i4bioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
 #endif
+
+#ifdef OS_USES_POLL
 PDEVSTATIC int i4bpoll __P((dev_t dev, int events, struct proc *p));
-
-#if defined (__OpenBSD__) || defined(__bsdi__)
-PDEVSTATIC int i4bselect(dev_t dev, int rw, struct proc *p);
+#else
+PDEVSTATIC int i4bselect __P((dev_t dev, int rw, struct proc *p));
 #endif
 
-#endif
+#endif /* #ifndef __FreeBSD__ */
 
 #if BSD > 199306 && defined(__FreeBSD__)
+
 #define PDEVSTATIC	static
 
 PDEVSTATIC	d_open_t	i4bopen;
 PDEVSTATIC	d_close_t	i4bclose;
 PDEVSTATIC	d_read_t	i4bread;
 PDEVSTATIC	d_ioctl_t	i4bioctl;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+
+#ifdef OS_USES_POLL
 PDEVSTATIC	d_poll_t	i4bpoll;
 #else
 PDEVSTATIC	d_select_t	i4bselect;
@@ -138,7 +148,7 @@ PDEVSTATIC	d_select_t	i4bselect;
 static struct cdevsw i4b_cdevsw = 
 	{ i4bopen,	i4bclose,	i4bread,	nowrite,
 	  i4bioctl,	nostop,		nullreset,	nodevtotty,
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#ifdef OS_USES_POLL
 	  i4bpoll,	nommap,		NULL,	"i4b", NULL,	-1 };
 #else
 	  i4bselect,	nommap,		NULL,	"i4b", NULL,	-1 };
@@ -414,7 +424,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			cd->driver_unit = mcrsp->driver_unit;
 			cd->max_idle_time = mcrsp->max_idle_time;
 
-			cd->shorthold_data.shorthold_algorithm = msg_alg__fix_unit_size;
+			cd->shorthold_data.shorthold_algorithm = SHA_FIXU;
 			cd->shorthold_data.unitlen_time = 0;	/* this is incoming */
 			cd->shorthold_data.idle_time = 0;
 			cd->shorthold_data.earlyhup_time = 0;
@@ -482,18 +492,40 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		
 		case I4B_DIALOUT_RESP:
 		{
+			drvr_link_t *dlt = NULL;
 			msg_dialout_resp_t *mdrsp;
 			
 			mdrsp = (msg_dialout_resp_t *)data;
 
-#if NI4BIPR > 0
-			if(mdrsp->driver == BDRV_IPR)
+			switch(mdrsp->driver)
 			{
-				drvr_link_t *dlt;
-				dlt = ipr_ret_linktab(mdrsp->driver_unit);
-				(*dlt->dial_response)(mdrsp->driver_unit, mdrsp->stat);
-			}
+#if NI4BIPR > 0
+				case BDRV_IPR:
+					dlt = ipr_ret_linktab(mdrsp->driver_unit);
+					break;
+#endif					
+
+#if NI4BISPPP > 0
+				case BDRV_ISPPP:
+					dlt = i4bisppp_ret_linktab(mdrsp->driver_unit);
+					break;
 #endif
+
+#if NI4BTEL > 0
+				case BDRV_TEL:
+					dlt = tel_ret_linktab(mdrsp->driver_unit);
+					break;
+#endif
+
+#if NIBC > 0
+				case BDRV_IBC:
+					dlt = ibc_ret_linktab(mdrsp->driver_unit);
+					break;
+#endif
+			}
+
+			if(dlt != NULL)		
+				(*dlt->dial_response)(mdrsp->driver_unit, mdrsp->stat, mdrsp->cause);
 			break;
 		}
 		
@@ -509,6 +541,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			DBGL4(L4_TIMO, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, alg %d, unit %d, idle %d, early %d!\n",
 					mtu->shorthold_data.shorthold_algorithm, mtu->shorthold_data.unitlen_time,
 					mtu->shorthold_data.idle_time, mtu->shorthold_data.earlyhup_time )); 
+
 			if((cd = cd_by_cdid(mtu->cdid)) == NULL)/* get cd */
 			{
 				DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, cdid not found!\n")); 
@@ -518,53 +551,49 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 			switch( mtu->shorthold_data.shorthold_algorithm )
 			{
+				case SHA_FIXU:
+					/*
+					 * For this algorithm unitlen_time,
+					 * idle_time and earlyhup_time are used.
+					 */
 
-			case msg_alg__fix_unit_size:
-				/*
-				 *	For this algorithm
-				 *	unitlen_time, idle_time and earlyhup_time
-				 *	are used.
-				 */
-				if( mtu->shorthold_data.unitlen_time >= 0
-				    && mtu->shorthold_data.idle_time > 0
-				    && mtu->shorthold_data.earlyhup_time >= 0 )
-				{
+					if(!(mtu->shorthold_data.unitlen_time >= 0 &&
+					     mtu->shorthold_data.idle_time >= 0    &&
+					     mtu->shorthold_data.earlyhup_time >= 0))
+					{
+						DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid args for fix unit algorithm!\n")); 
+						error = EINVAL;
+					}
 					break;
-				}
+	
+				case SHA_VARU:
+					/*
+					 * For this algorithm unitlen_time and
+					 * idle_time are used. both must be
+					 * positive integers. earlyhup_time is
+					 * not used and must be 0.
+					 */
 
-				DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid args for fix unit algorithm!\n")); 
-				error = EINVAL;
-				break;
-
-			case msg_alg__var_unit_size:
-				/*
-				 *	For this algorithm
-				 *	unitlen_time and idle_time are used
-				 *	both must be positive integers
-				 *	earlyhup_time is not used and must be 0.
-				 */
-				if( mtu->shorthold_data.unitlen_time > 0
-				    && mtu->shorthold_data.idle_time > 0
-				    && mtu->shorthold_data.earlyhup_time == 0 )
-				{
+					if(!(mtu->shorthold_data.unitlen_time > 0 &&
+					     mtu->shorthold_data.idle_time >= 0   &&
+					     mtu->shorthold_data.earlyhup_time == 0))
+					{
+						DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid args for var unit algorithm!\n")); 
+						error = EINVAL;
+					}
 					break;
-				}
-
-				DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid args for var unit algorithm!\n")); 
-				error = EINVAL;
-				break;
-
-			default:
-				DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid algorithm!\n")); 
-				error = EINVAL;
-				break;
+	
+				default:
+					DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid algorithm!\n")); 
+					error = EINVAL;
+					break;
 			}
 
 			/*
 			 * any error set above requires us to break
-			 * out of the outter switch
+			 * out of the outer switch
 			 */
-			if( error != 0 )
+			if(error != 0)
 				break;
 
 			x = SPLI4B();
@@ -769,9 +798,7 @@ diag_done:
 	return(error);
 }
 
-#if (defined(__FreeBSD__) && \
-        (!defined(__FreeBSD_version) || (__FreeBSD_version < 300001))) \
-	|| defined (__OpenBSD__) || defined(__bsdi__)
+#ifdef OS_USES_SELECT
 
 /*---------------------------------------------------------------------------*
  *	i4bselect - device driver select routine
@@ -803,7 +830,7 @@ i4bselect(dev_t dev, int rw, struct proc *p)
 	return(0);
 }
 
-#else /* NetBSD and FreeBSD -current */
+#else /* OS_USES_SELECT */
 
 /*---------------------------------------------------------------------------*
  *	i4bpoll - device driver poll routine
@@ -835,7 +862,7 @@ i4bpoll(dev_t dev, int events, struct proc *p)
 	return(0);
 }
 
-#endif /* defined(__FreeBSD__) && __FreeBSD__ < 3 */
+#endif /* OS_USES_SELECT */
 
 /*---------------------------------------------------------------------------*
  *	i4bputqueue - put message into queue to userland

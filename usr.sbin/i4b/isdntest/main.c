@@ -27,9 +27,9 @@
  *	main.c - i4b selftest utility
  *	-----------------------------
  *
- *	$Id: main.c,v 1.10 1999/02/14 09:44:58 hm Exp $ 
+ *	$Id: main.c,v 1.11 1999/04/26 12:10:39 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:21:23 1999]
+ *      last edit-date: [Mon Apr 26 14:08:40 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -307,7 +307,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdntest - i4b selftest, compiled %s %s\n",__DATE__, __TIME__);
+	fprintf(stderr, "isdntest - i4b selftest, version %d.%d.%d, compiled %s %s\n",VERSION, REL, STEP, __DATE__, __TIME__);
 	fprintf(stderr, "usage: isdntest -c <ctrl> -h -i <telno> -o <telno>\n");
 	fprintf(stderr, "       -c <ctrl>     specify controller to use\n");		
 	fprintf(stderr, "       -h            use HDLC as Bchannel protocol\n");

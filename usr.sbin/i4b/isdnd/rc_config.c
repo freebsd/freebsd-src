@@ -27,9 +27,9 @@
  *	i4b daemon - config file processing
  *	-----------------------------------
  *
- *	$Id: rc_config.c,v 1.40 1999/02/23 16:25:49 hm Exp $ 
+ *	$Id: rc_config.c,v 1.42 1999/04/29 08:27:10 hm Exp $ 
  *
- *      last edit-date: [Tue Feb 23 16:43:56 1999]
+ *      last edit-date: [Thu Apr 29 08:49:46 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -380,11 +380,11 @@ cfg_setval(int keyword)
 
 			if(!(strcmp(yylval.str, "fix-unit-size")))
 			{
-				cfg_entry_tab[entrycount].shorthold_algorithm = msg_alg__fix_unit_size;
+				cfg_entry_tab[entrycount].shorthold_algorithm = SHA_FIXU;
 			}
 			else if(!(strcmp(yylval.str, "var-unit-size")))
 			{
-				cfg_entry_tab[entrycount].shorthold_algorithm = msg_alg__var_unit_size;
+				cfg_entry_tab[entrycount].shorthold_algorithm = SHA_VARU;
 			}
 			else
 			{
@@ -642,6 +642,11 @@ cfg_setval(int keyword)
 #else
 			rt_prio = RTPRIO_NOTUSED;
 #endif
+			break;
+
+		case TINAINITPROG:
+			strcpy(tinainitprog, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: tinainitprog = %s", yylval.str)));
 			break;
 
 		case UNITLENGTH:
@@ -1099,18 +1104,26 @@ print_config(void)
 		}
 
 		if(!((cep->inout == DIR_INONLY) || (cep->usrdevicename == BDRV_TEL)))
-			{
+		{
 			char *s;
 			fprintf(PFILE, "idletime-outgoing     = %d\t\t# outgoing call idle timeout\n", cep->idle_time_out);
 
 			switch( cep->shorthold_algorithm )
-				{
-			case msg_alg__fix_unit_size:	s = "fix-unit-size"; break;
-			case msg_alg__var_unit_size:	s = "var-unit-size"; break;
-			default:			s = "error!!!"; break;
-				}
-			fprintf(PFILE, "idle-algorithm-outgoing     = %s\t\t# outgoing call idle algorithm\n", s);
+			{
+				case SHA_FIXU:
+					s = "fix-unit-size";
+					break;
+				case SHA_VARU:
+					s = "var-unit-size";
+					break;
+				default:
+					s = "error!!!";
+					break;
 			}
+
+			fprintf(PFILE, "idle-algorithm-outgoing     = %s\t\t# outgoing call idle algorithm\n", s);
+		}
+
 		if(!(cep->inout == DIR_OUTONLY))
 			fprintf(PFILE, "idletime-incoming     = %d\t\t# incoming call idle timeout\n", cep->idle_time_in);
 

@@ -27,9 +27,9 @@
  *	isdntel - isdn4bsd telephone answering machine support
  *      ======================================================
  *
- *      $Id: main.c,v 1.7 1999/02/14 09:44:57 hm Exp $ 
+ *      $Id: main.c,v 1.8 1999/04/26 12:10:39 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:19:50 1999]
+ *      last edit-date: [Mon Apr 26 13:56:35 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -278,7 +278,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdntel - isdn telephone answering management support utility (version %s.%s)\n", VERSION, REL);
+	fprintf(stderr, "isdntel - isdn telephone answering management support utility (version %d.%d.%d)\n", VERSION, REL, STEP);
 	fprintf(stderr, "    usage: isdntel -a <filename> -d <directory> -p <command> -t <timeout>\n");
 	fprintf(stderr, "           -a <filename>   use filename as alias file\n");
 	fprintf(stderr, "           -d <directory>  use directory as spool directory\n");

@@ -27,9 +27,9 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- *	$Id: i4b_ctl.c,v 1.19 1999/02/14 19:51:01 hm Exp $
+ *	$Id: i4b_ctl.c,v 1.20 1999/04/26 10:16:54 hm Exp $
  *
- *	last edit-date: [Sun Feb 14 10:02:29 1999]
+ *	last edit-date: [Mon Apr 26 11:16:28 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -90,7 +90,8 @@ static int openflag = 0;
 static	d_open_t	i4bctlopen;
 static	d_close_t	i4bctlclose;
 static	d_ioctl_t	i4bctlioctl;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+
+#ifdef OS_USES_POLL
 static d_poll_t		i4bctlpoll;
 #endif
 
@@ -98,7 +99,7 @@ static d_poll_t		i4bctlpoll;
 static struct cdevsw i4bctl_cdevsw = 
 	{ i4bctlopen,	i4bctlclose,	noread,		nowrite,
 	  i4bctlioctl,	nostop,		nullreset,	nodevtotty,
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#ifdef OS_USES_POLL
 	  i4bctlpoll,	nommap,		NULL,	"i4bctl", NULL,	-1 };
 #else
 	  noselect,	nommap,		NULL,	"i4bctl", NULL,	-1 };
@@ -326,15 +327,17 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #endif DO_I4B_DEBUG
 }
 
+#if defined(__FreeBSD__) && defined(OS_USES_POLL)
+
 /*---------------------------------------------------------------------------*
  *	i4bctlpoll - device driver poll routine
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 static int
 i4bctlpoll (dev_t dev, int events, struct proc *p)
 {
 	return (ENODEV);
 }
+
 #endif
 
 #endif /* NI4BCTL > 0 */

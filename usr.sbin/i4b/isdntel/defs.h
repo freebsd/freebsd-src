@@ -27,9 +27,9 @@
  *	isdntel - isdn4bsd telephone answering support
  *      ==============================================
  *
- *	$Id: defs.h,v 1.7 1999/02/14 09:44:57 hm Exp $ 
+ *	$Id: defs.h,v 1.9 1999/04/26 12:10:39 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:19:26 1999]
+ *      last edit-date: [Mon Apr 26 13:55:35 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -51,15 +51,14 @@
 #endif
 #include <sys/param.h>
 
-#define VERSION	"1"		/* version number	*/
-#define REL	"11"		/* release number	*/
+#include <machine/i4b_ioctl.h>
 
 #define GOOD	0
 #define	ERROR	(-1)
 #define WARNING (-2)
 
 #define	SPOOLDIR	"/var/isdn"
-#define PLAYCMD		"cat %s | alaw2ulaw >/dev/audio"
+#define PLAYCMD		"cat %s | g711conv -a >/dev/audio"
 
 /* reread timeout in seconds */
 

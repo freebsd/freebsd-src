@@ -27,9 +27,9 @@
  *	i4b_isic_pci.c - PCI bus interface
  *	==================================
  *
- *	$Id: i4b_isic_pci.c,v 1.4 1999/04/24 20:24:02 peter Exp $
+ *	$Id: i4b_isic_pci.c,v 1.14 1999/04/28 04:12:51 hm Exp $
  *
- *      last edit-date: [Wed Feb 17 15:19:44 1999]
+ *      last edit-date: [Wed Apr 21 09:57:37 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -88,7 +88,7 @@
 #define PORT0_MAPOFF	4
 #define PORT1_MAPOFF	12
 
-static char* i4b_pci_probe(pcici_t tag, pcidi_t type);
+static const char *i4b_pci_probe(pcici_t tag, pcidi_t type);
 static void i4b_pci_attach(pcici_t config_id, int unit);
 static int isic_pciattach(int unit, u_long type, u_int iobase1, u_int iobase2);
 
@@ -102,7 +102,15 @@ static struct pci_device i4b_pci_driver = {
 	NULL
 };
 
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 400004
+#ifndef COMPAT_PCI_DRIVER
+DATA_SET (pcidevice_set, i4b_pci_driver);
+#else
 COMPAT_PCI_DRIVER (isic_pci, i4b_pci_driver);
+#endif /* COMPAT_PCI_DRIVER */
+#else /* __FreeBSD_version >= 400004 */
+DATA_SET (pcidevice_set, i4b_pci_driver);
+#endif /* __FreeBSD_version >= 400004 */
 
 static void isic_pci_intr_sc(struct isic_softc *sc);
 
@@ -114,7 +122,7 @@ extern void avma1pp_map_int(pcici_t, void *, unsigned *);
 /*---------------------------------------------------------------------------*
  *	PCI probe routine
  *---------------------------------------------------------------------------*/
-static char *
+static const char *
 i4b_pci_probe(pcici_t tag, pcidi_t type)
 {
 	switch(type)
@@ -151,7 +159,7 @@ i4b_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 
-	/* IMHO the all following should be done in the low-level driver - GJ */
+	/* IMHO all the following should be done in the low-level driver - GJ */
 	type = pci_conf_read(config_id, PCI_ID_REG);
 		
 	/* not all cards have their ports at the same location !!! */
