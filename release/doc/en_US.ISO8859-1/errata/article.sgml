@@ -1,4 +1,4 @@
-<!-- 
+<!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
 	the dollar FreeBSD dollar header has a meaningful modification
@@ -66,7 +66,7 @@
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
-      about &os; &release.current;.
+      about &os; &release.bugfix;
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
@@ -99,8 +99,134 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-    <para>No open issues.</para>
-  </sect1>
+    <para>(31 Oct 2004) <filename>/usr/share/examples/cvsup/standard-supfile</filename>,
+      a sample supfile for <application>CVSup</application> incorrectly
+      includes <literal>RELENG_5</literal> as the target branch.
+      The following line in the file:</para>
+
+    <programlisting>*default release=cvs tag=RELENG_5</programlisting>
+
+    <para>should be replaced with the following:</para>
+
+    <programlisting>*default release=cvs tag=RELENG_5_3</programlisting>
+
+    <para>(31 Oct 2004) Sometimes the performance of the &man.re.4; and &man.em.4;
+      drivers can become poor under heavy load.  Especially, there are
+      reports of &man.em.4; on the IBM ThinkPad T40 locking up
+      under such conditions.</para>
+
+    <para>(31 Oct 2004) There are reports of the &man.sk.4; driver locking up under heavy load.
+      As a workaround, bring the interface down then back up, and
+      it will clear the condition.</para>
+
+    <para>(31 Oct 2004) The &man.burncd.8; utility is functional but may behave erratically
+      on some systems.  Reported symptoms include that &man.burncd.8;
+      can appear to hang up and never complete while the operation actually
+      does complete, and the progress indicator does not show the correct value.
+      Workarounds include:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>Eject and re-insert a media after burning a CD.</para>
+      </listitem>
+
+      <listitem>
+	<para>Press Ctrl-C when &man.burncd.8; appears to hang up
+	  in spite the access LED goes inactive.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>(31 Oct 2004) When the user/group rule modificators in &man.pf.4; and &man.ipfw.4;
+      are used, the loader tunable <varname>debug.mpsafenet</varname>
+      must be set to <literal>0</literal> (this is <literal>1</literal> by
+      default).  For example, the following rules are affected:</para>
+
+    <para>for &man.ipfw.4;:</para>
+
+    <programlisting>count ip from any to 192.168.2.1 uid root</programlisting>
+
+    <para>for &man.pf.4;:</para>
+
+    <programlisting>block log quick proto { tcp, udp } all user root</programlisting>
+
+    <para>To set <varname>debug.mpsafenet</varname> to <literal>0</literal>
+      in every boot time, add the following line into
+      <filename>/boot/loader.conf</filename>:</para>
+
+    <programlisting>debug.mpsafenet=0</programlisting>
+
+    <para>More specifically, the <literal>group</literal> and <literal>user</literal>
+      filter parameters in &man.pf.4;, and the <literal>gid</literal>,
+      <literal>jail</literal>, and <literal>uid</literal> rule options
+      in &man.ipfw.4; are relevant.
+      If <varname>debug.mpsafenet</varname> is set to <literal>1</literal>,
+      the system can hang up when the rule is evaluated due to a lock order
+      reversal with the socket layer.  More details can be found in the
+      &man.ipfw.8; and &man.pf.conf.5; manual pages.</para>
+
+    <para>(31 Oct 2004) The &man.vinum.4; subsystem
+      works fine on 5.3, but it can cause a system panic on boot time.
+      As a workaround you can add <literal>vinum_load="YES"</literal>
+      in <filename>/boot/loader.conf</filename>.</para>
+
+    <para>Instead, you can also use the new, &man.geom.4;-based
+      &man.vinum.4; subsystem.  To activate the &man.geom.4;-aware
+      vinum on boot time, the following steps are needed:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>Add <literal>start_vinum="YES"</literal> to
+	  <filename>/etc/rc.conf</filename>.</para>
+      </listitem>
+
+      <listitem>
+	<para>Change <literal>start_cmd="vinum start"</literal> to
+	  <literal>start_cmd="gvinum start"</literal> in
+	  <filename>/etc/rc.d/vinum</filename>.</para>
+      </listitem>
+
+      <listitem>
+	<para>Add <literal>geom_vinum_load="YES"</literal>
+	  to <filename>/boot/loader.conf</filename>.</para>
+      </listitem>
+
+      <listitem>
+	<para>Change <filename>/dev/vinum/*</filename>
+	  to <filename>/dev/gvinum/*</filename> in <filename>/etc/fstab</filename></para>
+      </listitem>
+
+      <listitem>
+	<para>Reboot your system.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>While some sort of uncommon configurations such as
+      multiple vinum drivers in a disk are not supported,
+      it is basically backward compatible.
+      Note that for the &man.geom.4;-aware vinum the userland
+      control program, <command>gvinum</command> should be used,
+      and this still lacks a few functionality.</para>
+
+    <para>(31 Oct 2004) The results of <command>netstat -m</command>
+      can become incorrect on an SMP system when <varname>debug.mpsafenet</varname>
+      is set to <literal>1</literal> (default).  This is an error
+      in the statistics gathering because of a race condition in the
+      counters, not an actual memory leak.</para>
+
+    <para>(31 Oct 2004) When installing FreeBSD 5.3 onto a machine
+      without PS/2 ports using an USB keyboard, the keyboard will stop
+      working once the kernel boots.  As a workaround, select
+      <quote>Escape to loader prompt</quote> in the boot loader menu
+      and enter the following line to the prompt:</para>
+
+    <screen>set hint.atkbd.0.flags="0x1"
+boot</screen>
+
+    <para>After the installation, add the following line into
+      <filename>/boot/loader.conf</filename>:</para>
+
+    <programlisting>hint.atkbd.0.flags="0x1"</programlisting>
+</sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
