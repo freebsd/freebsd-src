@@ -107,7 +107,7 @@ typedef enum {
  * last two fields are stored in condInvert and condDefProc, respectively.
  */
 static void CondPushBack(Token);
-static int CondGetArg(char **, char **, char *, Boolean);
+static int CondGetArg(char **, char **, const char *, Boolean);
 static Boolean CondDoDefined(int, char *);
 static Boolean CondDoMake(int, char *);
 static Boolean CondDoExists(int, char *);
@@ -186,7 +186,7 @@ CondPushBack(Token t)
  *-----------------------------------------------------------------------
  */
 static int
-CondGetArg(char **linePtr, char **argPtr, char *func, Boolean parens)
+CondGetArg(char **linePtr, char **argPtr, const char *func, Boolean parens)
 {
     char	  *cp;
     size_t    	  argLen;
@@ -515,7 +515,7 @@ CondToken(Boolean doEval)
 	    case '$': {
 		char	*lhs;
 		char	*rhs;
-		char	*op;
+		const char *op;
 		size_t	varSpecLen;
 		Boolean	doFree;
 
