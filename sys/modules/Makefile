@@ -7,12 +7,12 @@ SUBDIR=	aha amr an aue ccd cd9660 coda cue dc fdesc fxp if_disc if_ef if_ppp \
 	md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
 	nwfs portal procfs rl sf sis sk ste ti tl tx \
 	ugen uhid ukbd ulpt umapfs umass umodem ums union urio usb \
-	vn vpo vr wb xl
+	vinum vn vpo vr wb xl
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=bktr coff fpu gnufpu ibcs2 linprocfs linux splash streams \
-	svr4 syscons vesa vinum wi
+	svr4 syscons vesa wi
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
