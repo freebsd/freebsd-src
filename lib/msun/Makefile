@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24 
-#  $Id: Makefile,v 1.2 1994/08/19 11:15:40 jkh Exp $
+#  $Id: Makefile,v 1.3 1994/09/08 10:40:23 bde Exp $
 # 
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -88,7 +88,12 @@ COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
 
-SRCS=${COMMON_SRCS} ${ARCH_SRCS}
+SRCS=${COMMON_SRCS}
+
+# Substitute common sources with any arch specific sources 
+.for i in ${ARCH_SRCS}
+    SRCS:=${SRCS:S/${i:S/.S/.c/}/$i/}
+.endfor
 
 MANSRC= ${.CURDIR}/man
 
