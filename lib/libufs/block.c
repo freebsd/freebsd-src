@@ -50,7 +50,7 @@ bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 	char *buf;
 	ssize_t cnt;
 
-	DEBUG(NULL);
+	ERROR(disk, NULL);
 
 	/*
 	 * For when we need to work with the data as a buffer.
@@ -62,8 +62,7 @@ bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 	 * In case of failure, zero data, which must be fs_bsize.
 	 */
 	if (cnt != size) {
-		DEBUG("short read");
-		disk->d_error = "short read from block device";
+		ERROR(disk, "short read from block device");
 		for (cnt = 0; cnt < disk->d_fs.fs_bsize; cnt++)
 			buf[cnt] = 0;
 		return -1;
@@ -76,12 +75,11 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 {
 	ssize_t cnt;
 
-	DEBUG(NULL);
+	ERROR(disk, NULL);
 
 	cnt = pwrite(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
 	if (cnt != size) {
-		DEBUG("short write");
-		disk->d_error = "short write to block device";
+		ERROR(disk, "short write to block device");
 		return -1;
 	}
 	
