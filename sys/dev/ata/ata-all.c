@@ -1258,7 +1258,7 @@ static void
 ata_init(void)
 {
     /* register controlling device */
-    make_dev(&ata_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0666, "ata");
+    make_dev(&ata_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0600, "ata");
 
     /* register boot attach to be run when interrupts are enabled */
     if (!(ata_delayed_attach = (struct intr_config_hook *)
