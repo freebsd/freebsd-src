@@ -45,6 +45,7 @@ static const char rcsid[] = "$FreeBSD$";
 #endif
 #endif /* not lint */
 
+#include <err.h>
 #include <stdio.h>
 
 int
