@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.42 1995/06/17 03:14:31 ache Exp $
+#	$Id: BSD.usr.dist,v 1.43 1995/09/08 19:46:31 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -30,14 +30,6 @@
     sbin
     ..
     share
-        FAQ
-            FreeBSD-1.X
-            ..
-            Text
-            ..
-            extras
-            ..
-        ..
         calendar
         ..
         dict
@@ -154,6 +146,8 @@
                 ..
                 sort
                 ..
+            ..
+            sup
             ..
             syscons
             ..
