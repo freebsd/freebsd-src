@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.11 1993/11/30 20:47:25 jkh Exp $
+ *	$Id: ld.c,v 1.10 1993/11/22 19:04:40 jkh Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -2111,13 +2111,13 @@ write_header ()
 	if (relocatable_output)
 		nsyms += set_symbol_count;
 
-#ifdef DEBUG
 printf("global symbols %d (defined %d, undefined %d), locals: %d, \
 debug symbols: %d, set_symbols %d, aliases %d --> nsyms %d\n",
 	global_sym_count,
 	defined_global_sym_count, undefined_global_sym_count,
 	local_sym_count, debugger_sym_count,
 	set_symbol_count, global_alias_count, nsyms);
+#ifdef DEBUG
 #endif
 
 	outheader.a_syms = nsyms * sizeof (struct nlist);
