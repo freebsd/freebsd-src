@@ -27,6 +27,9 @@
  * $FreeBSD$
  */
 
+#ifndef	__LIBUFS_H__
+#define	__LIBUFS_H__
+
 /*
  * libufs macros (internal, non-exported).
  */
@@ -74,6 +77,8 @@ struct uufsd {
 #define	d_sb	d_sbunion.d_sb
 };
 
+__BEGIN_DECLS
+
 /*
  * libufs prototypes.
  */
@@ -102,3 +107,7 @@ struct uufsd *ufs_disk_ctor(const char *);
 int ufs_disk_close(struct uufsd *);
 void ufs_disk_dtor(struct uufsd **);
 int ufs_disk_fillout(struct uufsd *, const char *);
+
+__END_DECLS
+
+#endif	/* __LIBUFS_H__ */
