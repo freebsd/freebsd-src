@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: vgl.h,v 1.14 1997/08/17 20:46:55 sos Exp sos $
+ *  $Id: vgl.h,v 1.1 1997/08/17 21:09:35 sos Exp $
  */
 
 #include <stdlib.h>
@@ -74,6 +74,9 @@ typedef struct VGLObject {
 #define VGL_DIR_UP		1
 #define VGL_DIR_LEFT		2
 #define VGL_DIR_DOWN		3
+#define VGL_RAWKEYS		1
+#define VGL_CODEKEYS		2
+#define VGL_XLATEKEYS		3
 
 extern VGLBitmap 	*VGLDisplay;
 
@@ -83,6 +86,10 @@ extern VGLBitmap 	*VGLDisplay;
 /* bitmap.c */
 int __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy, VGLBitmap *dst, int dstx, int dsty, int width, int hight);
 int VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy, VGLBitmap *dst, int dstx, int dsty, int width, int hight);
+/* keyboard.c */
+int VGLKeyboardInit(int mode);
+void VGLKeyboardEnd(void);
+int VGLKeyboardGetCh(void);
 /* main.c */
 void VGLEnd(void);
 int VGLInit(int mode);
