@@ -75,10 +75,13 @@
 #define	EX_DONE		6
 #define	EX_REBOOT	7
 #define	EX_ERRDEAD	8
-#define	EX_HANGUP	10
-#define	EX_TERM		11
-#define EX_NODIAL	12
-#define EX_NOLOGIN	13
+#define	EX_HANGUP	9
+#define	EX_TERM		10
+#define EX_NODIAL	11
+#define EX_NOLOGIN	12
+/* return values for -background mode, not really exits */
+#define EX_REDIAL	13
+#define EX_RECONNECT	14
 
 /* physical::type values (OR'd in bundle::phys_type) */
 #define PHYS_NONE		0
@@ -109,3 +112,4 @@ extern char *findblank(char *, int);
 extern int MakeArgs(char *, char **, int, int);
 extern const char *NumStr(long, char *, size_t);
 extern const char *HexStr(long, char *, size_t);
+extern const char *ex_desc(int);
