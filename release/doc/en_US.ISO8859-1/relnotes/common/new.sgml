@@ -200,10 +200,6 @@
         by the <command>ipfw flush</command> command.
         This implements a flexible form of <quote>persistent
           rules</quote>.  More details can be found in &man.ipfw.8;.</para>
-
-      <para>The proatm driver has been added to
-        support IDT77252 based ATM interfaces.</para>
-
     </sect3>
 
     <sect3 id="disks">
