@@ -227,28 +227,6 @@ IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 # kernel stage
 KMAKEENV=	${WMAKEENV}
 
-USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
-		usr/libexec usr/sbin usr/share/misc \
-		usr/share/dict \
-		usr/share/groff_font/devX100 \
-		usr/share/groff_font/devX100-12 \
-		usr/share/groff_font/devX75 \
-		usr/share/groff_font/devX75-12 \
-		usr/share/groff_font/devascii \
-		usr/share/groff_font/devcp1047 \
-		usr/share/groff_font/devdvi \
-		usr/share/groff_font/devhtml \
-		usr/share/groff_font/devkoi8-r \
-		usr/share/groff_font/devlatin1 \
-		usr/share/groff_font/devlbp \
-		usr/share/groff_font/devlj4 \
-		usr/share/groff_font/devps \
-		usr/share/groff_font/devutf8 \
-		usr/share/tmac/mdoc usr/share/tmac/mm
-
-INCDIRS=	arpa dev fs g++/backward g++/bits g++/ext isc isofs libmilter \
-		objc openssl protocols readline rpc rpcsvc security ufs
-
 #
 # buildworld
 #
@@ -276,16 +254,36 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/ioctl.c
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
-.for _dir in ${USRDIRS}
-	mkdir -p ${WORLDTMP}/${_dir} ${WORLDTMP}/legacy/${_dir}
+.for _dir in \
+    usr/bin usr/games usr/include/sys usr/lib \
+    usr/libexec usr/sbin usr/share/dict \
+    usr/share/groff_font/devX100 \
+    usr/share/groff_font/devX100-12 \
+    usr/share/groff_font/devX75 \
+    usr/share/groff_font/devX75-12 \
+    usr/share/groff_font/devascii \
+    usr/share/groff_font/devcp1047 \
+    usr/share/groff_font/devdvi \
+    usr/share/groff_font/devhtml \
+    usr/share/groff_font/devkoi8-r \
+    usr/share/groff_font/devlatin1 \
+    usr/share/groff_font/devlbp \
+    usr/share/groff_font/devlj4 \
+    usr/share/groff_font/devps \
+    usr/share/groff_font/devutf8 \
+    usr/share/tmac/mdoc usr/share/tmac/mm
+	mkdir -p ${WORLDTMP}/legacy/${_dir}
 .endfor
-.for _dir in ${INCDIRS}
+.for _dir in \
+    usr/bin usr/lib/compat/aout usr/libdata/ldscripts usr/libexec usr/share/misc
+	mkdir -p ${WORLDTMP}/${_dir}
+.endfor
+.for _dir in \
+    arpa dev fs g++/backward g++/bits g++/ext isc isofs libmilter \
+    objc openssl protocols readline rpc rpcsvc security ufs
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.for _dir in lib include/sys
-	mkdir -p ${WORLDTMP}/legacy/usr/${_dir}
-.endfor
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
