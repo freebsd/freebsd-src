@@ -79,7 +79,7 @@ static d_write_t	digiwrite;
 static d_ioctl_t	digiioctl;
 
 static void	digistop(struct tty *tp, int rw);
-static int	digibreak(struct tty *tp, int brk);
+static void	digibreak(struct tty *tp, int brk);
 static int	digimodem(struct tty *tp, int sigon, int sigoff);
 static void	digi_poll(void *ptr);
 static void	digi_freemoduledata(struct digi_softc *);
@@ -1308,7 +1308,7 @@ digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	return (0);
 }
 
-static int
+static void
 digibreak(struct tty *tp, int brk)
 {
 	int mynor;
@@ -1332,7 +1332,6 @@ digibreak(struct tty *tp, int brk)
 	 */
 	if (brk)
 		fepcmd_w(port, SENDBREAK, 400, 10);
-	return (0);
 }
 
 static int

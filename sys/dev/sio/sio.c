@@ -283,7 +283,7 @@ struct com_s {
 static	int	espattach(struct com_s *com, Port_t esp_port);
 #endif
 
-static	int	combreak(struct tty *tp, int sig);
+static	void	combreak(struct tty *tp, int sig);
 static	timeout_t siobusycheck;
 static	u_int	siodivisor(u_long rclk, speed_t speed);
 static	timeout_t siodtrwakeup;
@@ -2211,7 +2211,7 @@ repeat:
 		goto repeat;
 }
 
-static int
+static void
 combreak(tp, sig)
 	struct tty 	*tp;
 	int		sig;
@@ -2224,7 +2224,6 @@ combreak(tp, sig)
 		sio_setreg(com, com_cfcr, com->cfcr_image |= CFCR_SBREAK);
 	else
 		sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
-	return (0);
 }
 
 static int

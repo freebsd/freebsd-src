@@ -65,6 +65,14 @@ struct clist {
 	char	*c_cl;		/* Pointer to the last cblock. */
 };
 
+typedef void t_oproc_t(struct tty *);
+typedef void t_stop_t(struct tty *, int);
+typedef int t_param_t(struct tty *, struct termios *);
+typedef int t_modem_t(struct tty *, int, int);
+typedef void t_break_t(struct tty *, int);
+typedef int t_ioctl_t(struct tty *, u_long cmd, void * data,
+		      int fflag, struct thread *td);
+
 /*
  * Per-tty structure.
  *
@@ -91,17 +99,7 @@ struct tty {
 	struct	selinfo t_wsel;		/* Tty write select. */
 	struct	termios t_termios;	/* Termios state. */
 	struct	winsize t_winsize;	/* Window size. */
-					/* Start output. */
-	void	(*t_oproc)(struct tty *);
-					/* Stop output. */
-	void	(*t_stop)(struct tty *, int);
-					/* Set hardware state. */
-	int	(*t_param)(struct tty *, struct termios *);
-					/* Set modem state */
-	int	(*t_modem)(struct tty *, int, int);
-					/* Set break state */
-	int	(*t_break)(struct tty *, int);
-	void	*t_sc;			/* XXX: net/if_sl.c:sl_softc. */
+	void	*t_sc;			/* driver private softc pointer. */
 	int	t_column;		/* Tty output column. */
 	int	t_rocount, t_rocol;	/* Tty. */
 	int	t_ififosize;		/* Total size of upstream fifos. */
@@ -117,6 +115,14 @@ struct tty {
 	struct mtx t_mtx;
 	int	t_refcnt;
 	int	t_hotchar;		/* linedisc preferred hot char */
+
+	/* Driver supplied methods */
+	t_oproc_t *t_oproc;		/* Start output. */
+	t_stop_t *t_stop;		/* Stop output. */
+	t_param_t *t_param;		/* Set parameters. */
+	t_modem_t *t_modem;		/* Set modem state (optional). */
+	t_break_t *t_break;		/* Set break state (optional). */
+	t_ioctl_t *t_ioctl;		/* Set ioctl handling (optional). */
 };
 
 #define	t_cc		t_termios.c_cc
