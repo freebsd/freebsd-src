@@ -40,6 +40,9 @@
  
 #include <dev/acpica/acpivar.h>
 
+#define _COMPONENT	OS_DEPENDENT
+MODULE_NAME("INTERRUPT")
+
 /*
  * XXX this does not correctly free resources in the case of partically successful
  * attachment.
@@ -49,10 +52,12 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 {
     struct acpi_softc	*sc;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if ((InterruptNumber < 0) || (InterruptNumber > 255))
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     if (ServiceRoutine == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     if ((sc = devclass_get_softc(acpi_devclass, 0)) == NULL)
 	panic("can't find ACPI device to register interrupt");
@@ -65,22 +70,22 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
      */
     if (sc->acpi_irq != NULL) {
 	device_printf(sc->acpi_dev, "attempt to register more than one interrupt handler\n");
-	return(AE_EXIST);
+	return_ACPI_STATUS(AE_EXIST);
     }
     sc->acpi_irq_rid = 0;
     bus_set_resource(sc->acpi_dev, SYS_RES_IRQ, 0, InterruptNumber, 1);
     if ((sc->acpi_irq = bus_alloc_resource(sc->acpi_dev, SYS_RES_IRQ, &sc->acpi_irq_rid, 0, ~0, 1, 
 					   RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 	device_printf(sc->acpi_dev, "could not allocate SCI interrupt\n");
-	return(AE_EXIST);
+	return_ACPI_STATUS(AE_EXIST);
     }
     if (bus_setup_intr(sc->acpi_dev, sc->acpi_irq, INTR_TYPE_MISC, (driver_intr_t *)ServiceRoutine, Context, 
 		       &sc->acpi_irq_handle)) {
 	device_printf(sc->acpi_dev, "could not set up SCI interrupt\n");
-	return(AE_EXIST);
+	return_ACPI_STATUS(AE_EXIST);
     }
 	
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 
 ACPI_STATUS
@@ -88,16 +93,18 @@ AcpiOsRemoveInterruptHandler (UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 {
     struct acpi_softc	*sc;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if ((InterruptNumber < 0) || (InterruptNumber > 255))
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     if (ServiceRoutine == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     if ((sc = devclass_get_softc(acpi_devclass, 0)) == NULL)
 	panic("can't find ACPI device to deregister interrupt");
 
     if (sc->acpi_irq == NULL)
-	return(AE_NOT_EXIST);
+	return_ACPI_STATUS(AE_NOT_EXIST);
 
     bus_teardown_intr(sc->acpi_dev, sc->acpi_irq, sc->acpi_irq_handle);
     bus_release_resource(sc->acpi_dev, SYS_RES_IRQ, 0, sc->acpi_irq);
@@ -105,6 +112,6 @@ AcpiOsRemoveInterruptHandler (UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 
     sc->acpi_irq = NULL;
 
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 

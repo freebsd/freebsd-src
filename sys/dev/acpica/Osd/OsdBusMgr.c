@@ -37,6 +37,9 @@
 #include <sys/eventhandler.h>
 #include <sys/reboot.h>
 
+#define _COMPONENT	OS_DEPENDENT
+MODULE_NAME("BUSMGR")
+
 struct osd_eventhandle {
     eventhandler_tag	tag;
     OSD_IDLE_HANDLER	Function;
@@ -53,7 +56,10 @@ osd_idlehandler(void *arg, int junk)
 {
     struct osd_eventhandle	*oh = (struct osd_eventhandle *)arg;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     oh->Function(oh->Context);
+    return_VOID();
 }
 
 static void
@@ -61,7 +67,10 @@ osd_shutdownhandler(void *arg, int howto)
 {
     struct osd_eventhandle	*oh = (struct osd_eventhandle *)arg;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     oh->Function(oh->Context);
+    return_VOID();
 }
 
 ACPI_STATUS
@@ -69,18 +78,20 @@ AcpiOsInstallIdleHandler(OSD_IDLE_HANDLER Function, void *Context)
 {
     int	i;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if (Function == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     for (i = 0; i < NUM_IDLEHANDLERS; i++) {
 	if (idlehandlers[i].Function == NULL) {
 	    idlehandlers[i].Function = Function;
 	    idlehandlers[i].Context = Context;
 	    idlehandlers[i].tag = EVENTHANDLER_FAST_REGISTER(idle_event, osd_idlehandler, 
 							     &idlehandlers[i], IDLE_PRI_FIRST);
-	    return(AE_OK);
+	    return_ACPI_STATUS(AE_OK);
 	}
     }
-    return(AE_NO_MEMORY);
+    return_ACPI_STATUS(AE_NO_MEMORY);
 }
 
 ACPI_STATUS
@@ -88,16 +99,18 @@ AcpiOsRemoveIdleHandler(OSD_IDLE_HANDLER Function)
 {
     int i;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if (Function == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     for (i = 0; i < NUM_IDLEHANDLERS; i++) {
 	if (idlehandlers[i].Function == Function) {
 	    EVENTHANDLER_FAST_DEREGISTER(idle_event, idlehandlers[i].tag);
 	    idlehandlers[i].Function = NULL;
-	    return(AE_OK);
+	    return_ACPI_STATUS(AE_OK);
 	}
     }
-    return(AE_NOT_EXIST);
+    return_ACPI_STATUS(AE_NOT_EXIST);
 }
 
 /*
@@ -109,18 +122,20 @@ AcpiOsInstallShutdownHandler(OSD_SHUTDOWN_HANDLER Function, void *Context)
 {
     int	i;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if (Function == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     for (i = 0; i < NUM_SHUTDOWNHANDLERS; i++) {
 	if (shutdownhandlers[i].Function == NULL) {
 	    shutdownhandlers[i].Function = Function;
 	    shutdownhandlers[i].Context = Context;
 	    shutdownhandlers[i].tag = EVENTHANDLER_REGISTER(shutdown_final, osd_shutdownhandler, 
 							     &shutdownhandlers[i], SHUTDOWN_PRI_LAST);
-	    return(AE_OK);
+	    return_ACPI_STATUS(AE_OK);
 	}
     }
-    return(AE_NO_MEMORY);
+    return_ACPI_STATUS(AE_NO_MEMORY);
 }
 
 ACPI_STATUS
@@ -128,20 +143,25 @@ AcpiOsRemoveShutdownHandler(OSD_SHUTDOWN_HANDLER Function)
 {
     int i;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if (Function == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     for (i = 0; i < NUM_SHUTDOWNHANDLERS; i++) {
 	if (shutdownhandlers[i].Function == Function) {
 	    EVENTHANDLER_DEREGISTER(shutdown_final, shutdownhandlers[i].tag);
 	    shutdownhandlers[i].Function = NULL;
-	    return(AE_OK);
+	    return_ACPI_STATUS(AE_OK);
 	}
     }
-    return(AE_NOT_EXIST);
+    return_ACPI_STATUS(AE_NOT_EXIST);
 }
 
 ACPI_STATUS
 AcpiOsShutdown (void)
 {
+    FUNCTION_TRACE(__FUNCTION__);
+
     shutdown_nice(0);
+    return_VOID();
 }
