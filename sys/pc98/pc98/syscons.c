@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.56 1997/09/14 16:27:37 kato Exp $
+ *  $Id: syscons.c,v 1.57 1997/09/27 12:55:57 kato Exp $
  */
 
 #include "sc.h"
@@ -2344,10 +2344,6 @@ scan_esc(scr_stat *scp, u_char c)
 	case '$':	/* Kanji IN sequence */
 	    scp->kanji_type = 0x80;
 	    return;
-
-	case '(':	/* Kanji OUT sequence */
-	    scp->kanji_type = 0x40;
-	    return;
 #endif
 
 	case 'M':   /* Move cursor up 1 line, scroll if at top */
@@ -2382,6 +2378,9 @@ scan_esc(scr_stat *scp, u_char c)
 	    break;
 
 	case '(':   /* iso-2022: designate 94 character set to G0 */
+#ifdef KANJI
+	    scp->kanji_type = 0x40;
+#endif
 	    scp->term.esc = 5;
 	    return;
 	}
