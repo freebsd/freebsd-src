@@ -26,12 +26,9 @@
  * $FreeBSD$
  */
 
-struct ia64_unwind_table;
+int ia64_add_unwind_table(vm_offset_t, vm_offset_t, vm_offset_t);
+void ia64_delete_unwind_table(vm_offset_t);
 
-struct ia64_unwind_table *ia64_add_unwind_table(u_int64_t *base,
-						u_int64_t *start,
-						u_int64_t *end);
-void ia64_free_unwind_table(struct ia64_unwind_table *ut);
 struct ia64_unwind_state *ia64_create_unwind_state(struct trapframe *framep);
 void ia64_free_unwind_state(struct ia64_unwind_state *us);
 u_int64_t ia64_unwind_state_get_ip(struct ia64_unwind_state *us);
