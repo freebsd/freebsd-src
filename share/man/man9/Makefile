@@ -169,6 +169,7 @@ MLINKS+=spl.9 splnet.9 spl.9 splsoftclock.9 spl.9 splsofttty.9
 MLINKS+=spl.9 splstatclock.9 spl.9 spltty.9 spl.9 splvm.9 spl.9 splx.9
 MLINKS+=store.9 subyte.9 store.9 suswintr.9 store.9 susword.9 store.9 suword.9
 MLINKS+=swi.9 swi_sched.9 swi.9 swi_add.9
+MLINKS+=sx.9 sx_assert.9
 MLINKS+=sx.9 sx_init.9
 MLINKS+=sx.9 sx_destroy.9
 MLINKS+=sx.9 sx_slock.9
