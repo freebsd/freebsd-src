@@ -43,12 +43,10 @@
 .Nd perform actions according to USB HID controls
 .Sh SYNOPSIS
 .Nm
+.Op Fl diev
 .Fl c Ar config-file
-.Op Fl d
-.Op Fl i
 .Fl f Ar device
 .Op Fl p Ar pidfile
-.Op Fl v
 .Ar arg ...
 .Sh DESCRIPTION
 .Nm
@@ -60,12 +58,19 @@ die when the USB device is unplugged.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl c Ar config-file
-Specify a path name for the config file.
 .It Fl d
 Toggle the daemon flag.
+.It Fl e
+Instruct
+.Nm
+to die early.  Useful when specified with multiple
+verbose options to see how files are parsed.
 .It Fl i
 Ignore HID items in the config file that does not exist in the device.
+.It Fl v
+Be verbose, and do not become a daemon.
+.It Fl c Ar config-file
+Specify a path name for the config file.
 .It Fl f Ar device
 Specify a path name for the device to operate on.
 If
@@ -77,8 +82,6 @@ path, it is taken to be the name of the device under
 An absolute path is taken to be the literal device pathname.
 .It Fl p Ar pidfile
 Specify an alternate file in which to store the process ID.
-.It Fl v
-Be verbose, and do not become a daemon.
 .El
 .Pp
 The config file will be re-read if the process gets a HUP signal.
@@ -89,8 +92,8 @@ action; if a line begins with a whitespace it is considered a continuation
 of the previous line.
 Lines beginning with `#' are considered as comments.
 .Pp
-Each line has three parts: a name of a USB HID item, a value for that item,
-and an action.
+Each line has four parts: a name of a USB HID item, a value for that item,
+a debounce value, and an action.
 There must be whitespace between the parts.
 .Pp
 The item names are similar to those used by
@@ -102,6 +105,12 @@ When the item reports this value
 the action will be performed.
 If the value is `*' it will match any value.
 .Pp
+The debouce value is an integer not less than 0.  The value of 0
+indicates that no debouncing should occur. A value of 1 will only
+execute the action when the state changes. Values greater than one
+specify that an action should be performed only when the value
+changes by that amount.
+.Pp
 The action is a normal command that is executed with
 .Xr system 3 .
 Before it is executed some substitution will occur:
@@ -111,7 +120,7 @@ of the HID item, `$N' will be replaced by the name
 of the control, and `$H' will be replaced by the name
 of the HID device.
 .Sh FILES
-.Bl -tag -indent
+.Bl -tag -width indent
 .It Pa /usr/share/misc/usb_hid_usages
 The HID usage table.
 .It Pa /var/run/usbaction.pid
@@ -122,21 +131,25 @@ The following configuration file can be used to control a pair
 of Philips USB speakers with the HID controls on the speakers.
 .Bd -literal -offset indent
 # Configuration for various Philips USB speakers
-Consumer:Consumer_Control.Consumer:Volume_Up			   1
-	mixerctl -f $1 -n -w fea8-i7-master++
-Consumer:Consumer_Control.Consumer:Volume_Down			   1
-	mixerctl -f $1 -n -w fea8-i7-master--
-Consumer:Consumer_Control.Consumer:Mute				   1
-	mixerctl -f $1 -n -w fea8-i7-mute++
-Consumer:Consumer_Control.Consumer:Channel_Top.Microsoft:Base_Up   1
-	mixerctl -f $1 -n -w fea8-i7-bass++
-Consumer:Consumer_Control.Consumer:Channel_Top.Microsoft:Base_Down 1
-	mixerctl -f $1 -n -w fea8-i7-bass--
+Consumer:Volume_Up			 1 0 mixer -f $1 vol +1
+Consumer:Volume_Down			 1 0 mixer -f $1 vol -1
+# mute not supported
+#Consumer:Mute				 1 0 mixer -f $1 mute
+Consumer:Channel_Top.Microsoft:Base_Up	 1 0 mixer -f $1 bass +1
+Consumer:Channel_Top.Microsoft:Base_Down 1 0 mixer -f $1 bass -1
 .Ed
 .Pp
 A sample invocation using this configuration would be
 .Bd -literal -offset indent
 usbhidaction -f /dev/uhid1 -c conf /dev/mixer1
+.Ed
+.Pp
+The following example controls the mixer volume using a Logitech Wingman.  
+Notice the debouce of 1 for buttons and 5 for the slider.
+.Bd -literal -offset indent
+Button:Button_1	  1 1	mixer vol +10
+Button:Button_2	  1 1	mixer vol -10
+Generic_Desktop:Z * 5	mixer vol `echo $V | awk '{print int($$1/255*100)}'`
 .Ed
 .Sh SEE ALSO
 .Xr usbhidctl 1 ,
