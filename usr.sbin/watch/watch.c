@@ -18,7 +18,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/snoop.h>
@@ -49,6 +49,19 @@ static const char rcsid[] =
 #define CHR_SWITCH	24	/* Ctrl+X	 */
 #define CHR_CLEAR	23	/* Ctrl+V	 */
 
+static void	clear __P((void));
+static void	timestamp  __P((const char *));
+static void	set_tty __P((void));
+static void	unset_tty __P((void));
+static void	fatal __P((int, const char *));
+static int	open_snp __P((void));
+static void	cleanup __P((int));
+static void	usage __P((void));
+static void	setup_scr __P((void));
+static void	attach_snp __P((void));
+static void	detach_snp __P((void));
+static void	set_dev __P((const char *));
+static void	ask_dev __P((char *, const char *));
 
 int             opt_reconn_close = 0;
 int             opt_reconn_oflow = 0;
@@ -65,20 +78,20 @@ int             std_in = 0, std_out = 1;
 
 int             clear_ok = 0;
 struct termios  otty;
-char            tbuf[1024], buf[1024];
+char            tbuf[1024], gbuf[1024];
 
 
-void
+static void
 clear()
 {
 	if (clear_ok)
-		tputs(buf, 1, putchar);
+		tputs(gbuf, 1, putchar);
 	fflush(stdout);
 }
 
-void
+static void
 timestamp(buf)
-	char           *buf;
+	const char     *buf;
 {
 	time_t          t;
 	char            btmp[1024];
@@ -92,7 +105,7 @@ timestamp(buf)
 	fflush(stdout);
 }
 
-void
+static void
 set_tty()
 {
 	struct termios  ntty;
@@ -118,26 +131,26 @@ set_tty()
 	tcsetattr (std_in, TCSANOW, &ntty);
 }
 
-void
+static void
 unset_tty()
 {
 	tcsetattr (std_in, TCSANOW, &otty);
 }
 
 
-void
-fatal(err, buf)
-	unsigned int   err;
-	char           *buf;
+static void
+fatal(error, buf)
+	int		      error;
+	const char           *buf;
 {
 	unset_tty();
 	if (buf)
-		errx(err, "fatal: %s", buf);
+		errx(error, "fatal: %s", buf);
 	else
-		exit(err);
+		exit(error);
 }
 
-int
+static int
 open_snp()
 {
 	char            snp[] = {_PATH_DEV "snpX"};
@@ -160,8 +173,9 @@ open_snp()
 }
 
 
-void
-cleanup()
+static void
+cleanup(signo)
+	int		signo __unused;
 {
 	if (opt_timestamp)
 		timestamp("Logging Exited.");
@@ -178,10 +192,10 @@ usage()
 	exit(EX_USAGE);
 }
 
-void
+static void
 setup_scr()
 {
-	char           *cbuf = buf, *term;
+	char           *cbuf = gbuf, *term;
 	if (!opt_interactive)
 		return;
 	if ((term = getenv("TERM")))
@@ -192,32 +206,16 @@ setup_scr()
 	clear();
 }
 
-
-int
-ctoh(c)
-	char            c;
-{
-	if (c >= '0' && c <= '9')
-		return (int) (c - '0');
-
-	if (c >= 'a' && c <= 'f')
-		return (int) (c - 'a' + 10);
-
-	fatal(EX_DATAERR, "bad tty number");
-	return (0);
-}
-
-
-void
+static void
 detach_snp()
 {
 	dev_t		dev;
 
-	dev = -1;
+	dev = NODEV;
 	ioctl(snp_io, SNPSTTY, &dev);
 }
 
-void
+static void
 attach_snp()
 {
 	if (ioctl(snp_io, SNPSTTY, &snp_tty) != 0)
@@ -227,9 +225,9 @@ attach_snp()
 }
 
 
-void
+static void
 set_dev(name)
-	char           *name;
+	const char     *name;
 {
 	char            buf[DEV_NAME_LEN];
 	struct stat	sb;
@@ -255,8 +253,9 @@ set_dev(name)
 }
 
 void
-ask_dev(dev_name, msg)
-	char           *dev_name, *msg;
+ask_dev(dbuf, msg)
+        char	       *dbuf;
+        const char     *msg;
 {
 	char            buf[DEV_NAME_LEN];
 	int             len;
@@ -266,8 +265,8 @@ ask_dev(dev_name, msg)
 
 	if (msg)
 		printf("%s\n", msg);
-	if (dev_name)
-		printf("Enter device name [%s]:", dev_name);
+	if (dbuf)
+		printf("Enter device name [%s]:", dbuf);
 	else
 		printf("Enter device name:");
 
@@ -276,7 +275,7 @@ ask_dev(dev_name, msg)
 		if (buf[len - 1] == '\n')
 			buf[len - 1] = '\0';
 		if (buf[0] != '\0' && buf[0] != ' ')
-			strcpy(dev_name, buf);
+			strcpy(dbuf, buf);
 	}
 	set_tty();
 }
@@ -288,7 +287,8 @@ main(ac, av)
 	int             ac;
 	char          **av;
 {
-	int             res, nread, b_size = MIN_SIZE;
+	int             res, idata, rv;
+	size_t		nread, b_size = MIN_SIZE;
 	char            ch, *buf, chb[READB_LEN];
 	fd_set          fd_s;
 
@@ -356,7 +356,8 @@ main(ac, av)
 				fatal(EX_OSERR, "ioctl(FIONREAD)");
 			if (nread > READB_LEN)
 				nread = READB_LEN;
-			if (read(std_in,chb,nread)!=nread)
+			rv = read(std_in, chb, nread);
+			if (rv == -1 || (unsigned)rv != nread)
 				fatal(EX_IOERR, "read (stdin) failed");
 
 			switch (chb[0]) {
@@ -372,7 +373,8 @@ main(ac, av)
 				break;
 			default:
 				if (opt_write) {
-					if (write(snp_io,chb,nread) != nread) {
+					rv = write(snp_io, chb, nread);
+					if (rv == -1 || (unsigned)rv != nread) {
 						detach_snp();
 						if (opt_no_switch)
 							fatal(EX_IOERR, "write failed");
@@ -386,10 +388,10 @@ main(ac, av)
 		if (!FD_ISSET(snp_io, &fd_s))
 			continue;
 
-		if ((res = ioctl(snp_io, FIONREAD, &nread)) != 0)
+		if ((res = ioctl(snp_io, FIONREAD, &idata)) != 0)
 			fatal(EX_OSERR, "ioctl(FIONREAD)");
 
-		switch (nread) {
+		switch (idata) {
 		case SNP_OFLOW:
 			if (opt_reconn_oflow)
 				attach_snp();
@@ -397,7 +399,7 @@ main(ac, av)
 				ask_dev(dev_name, MSG_OFLOW);
 				set_dev(dev_name);
 			} else
-				cleanup();
+				cleanup(-1);
 		case SNP_DETACH:
 		case SNP_TTYCLOSE:
 			if (opt_reconn_close)
@@ -406,8 +408,9 @@ main(ac, av)
 				ask_dev(dev_name, MSG_CLOSED);
 				set_dev(dev_name);
 			} else
-				cleanup();
+				cleanup(-1);
 		default:
+			nread = (unsigned)idata;
 			if (nread < (b_size / 2) && (b_size / 2) > MIN_SIZE) {
 				free(buf);
 				if (!(buf = (char *) malloc(b_size / 2)))
@@ -420,9 +423,11 @@ main(ac, av)
 				if (!(buf = (char *) malloc(b_size)))
 					fatal(EX_UNAVAILABLE, "malloc failed");
 			}
-			if (read(snp_io, buf, nread) < nread)
+			rv = read(snp_io, buf, nread);
+			if (rv == -1 || (unsigned)rv != nread)
 				fatal(EX_IOERR, "read failed");
-			if (write(std_out, buf, nread) < nread)
+			rv = write(std_out, buf, nread);
+			if (rv == -1 || (unsigned)rv != nread)
 				fatal(EX_IOERR, "write failed");
 		}
 	}			/* While */
