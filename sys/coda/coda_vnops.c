@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.8 1998/10/28 20:31:13 rvb Exp $
+ *  $Id: coda_vnops.c,v 1.9 1998/11/16 19:48:26 rvb Exp $
  * 
  */
 
@@ -48,6 +48,9 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.9  1998/11/16 19:48:26  rvb
+ * A few bug fixes for Robert Watson
+ *
  * Revision 1.8  1998/10/28 20:31:13  rvb
  * Change the way unmounting happens to guarantee that the
  * client programs are allowed to finish up (coda_call is
@@ -1942,7 +1945,9 @@ coda_bmap(v)
 #endif
 		return ret;
 	} else {
+#if	0
 		printf("coda_bmap: no container\n");
+#endif
 		return(EOPNOTSUPP);
 	}
 }
