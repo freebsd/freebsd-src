@@ -37,6 +37,8 @@ up-to-date.  Many thanks.
 #include <sys/stat.h>
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "gencat.h"
 
