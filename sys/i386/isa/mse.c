@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.14 1995/09/08 11:07:50 bde Exp $
+ * $Id: mse.c,v 1.12.4.1 1995/09/14 07:09:20 davidg Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -57,6 +57,7 @@
 #include <sys/devconf.h>
 
 #include <machine/clock.h>
+#include <machine/cpu.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
@@ -441,7 +442,8 @@ mse_probelogi(idp)
 		outb(idp->id_iobase + MSE_PORTC, MSE_DISINTR);
 		return(1);
 	} else {
-		printf("mse%d: wrong signature %x\n",idp->id_unit,sig);
+		if (bootverbose)
+			printf("mse%d: wrong signature %x\n",idp->id_unit,sig);
 		return(0);
 	}
 }
