@@ -36,11 +36,12 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/elf64.h>
 #include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
-#include <fcntl.h>
 
 #define ALPHA_FMAGIC	0x184
 
@@ -99,6 +100,7 @@ int
 open_elffile(char *filename)
 {
 	int fileno = open(filename, O_RDONLY);
+
 	if (fileno < 0)
 		err(1, filename);
 	return (fileno);
@@ -109,7 +111,8 @@ Elf64_Ehdr *
 load_ehdr(int fileno)
 {
 	Elf64_Ehdr *ehdr;
-	int bytes = sizeof(*ehdr);
+	size_t bytes = sizeof(*ehdr);
+
 	ehdr = malloc(bytes);
 	if (ehdr) {
 		lseek(fileno, 0, SEEK_SET);
@@ -122,8 +125,9 @@ load_ehdr(int fileno)
 Elf64_Phdr *
 load_phdr(int fileno, Elf64_Ehdr *ehdr)
 {
-	int bytes = ehdr->e_phentsize * ehdr->e_phnum;
+	size_t bytes = ehdr->e_phentsize * ehdr->e_phnum;
 	Elf64_Phdr *phdr = malloc(bytes);
+
 	if (phdr) {
 		lseek(fileno, ehdr->e_phoff, SEEK_SET);
 		if (read(fileno, phdr, bytes) != bytes)
@@ -135,9 +139,9 @@ load_phdr(int fileno, Elf64_Ehdr *ehdr)
 Elf64_Shdr *
 load_shdr(int fileno, Elf64_Ehdr *ehdr)
 {
-	int bytes = ehdr->e_shentsize * ehdr->e_shnum;
-   
+	size_t bytes = ehdr->e_shentsize * ehdr->e_shnum;
 	Elf64_Shdr *shdr = malloc(bytes);
+
 	if (shdr) {
 		lseek(fileno, ehdr->e_shoff, SEEK_SET);
 		if (read(fileno, shdr, bytes) != bytes)
@@ -149,32 +153,35 @@ load_shdr(int fileno, Elf64_Ehdr *ehdr)
 char *
 find_shstrtable(int fileno, int sections, Elf64_Shdr *shdr)
 {
+	size_t bytes;
 	char *shstrtab = NULL;
-	int i;
-	int shstrtabindex;
+	int i, shstrtabindex;
+
 	for (i = 0; shstrtab == NULL && i < sections; i++) {
 		if (shdr[i].sh_type == 3 && shdr[i].sh_flags == 0) {
 			shstrtabindex = i;
 
-			shstrtab = malloc(shdr[shstrtabindex].sh_size);
+			bytes = shdr[shstrtabindex].sh_size;
+			shstrtab = malloc(bytes);
 			if (shstrtab == NULL)
 				errx(1, "malloc failed");
 			lseek(fileno, shdr[shstrtabindex].sh_offset, SEEK_SET);
-			read(fileno, shstrtab, shdr[shstrtabindex].sh_size);
-	  
+			read(fileno, shstrtab, bytes);
+
 			if (strcmp (shstrtab + shdr[i].sh_name, ".shstrtab")) {
 				free(shstrtab);
 				shstrtab = NULL;
 			}
 		}
 	}
-	return shstrtab;
+	return (shstrtab);
 }
 
 int
 open_exefile(char *filename)
 {
 	int fileno = open(filename, O_RDWR | O_TRUNC | O_CREAT, 0666);
+
 	if (fileno < 0)
 		err(1, filename);
 	return (fileno);
@@ -192,60 +199,60 @@ section_name(Elf64_Shdr *shdr, int i)
 	return (shstrtab + shdr[i].sh_name);
 }
 
-long
+int
 section_index(Elf64_Shdr *shdr, int sections, char *name)
 {
 	int i;
-   
+
 	for (i = 0; i < sections; i++)
 		if (strcmp (name, section_name(shdr, i)) == 0)
 			return (i);
-
-	return -1;
+	return (-1);
 }
 
 /* first byte of section */
-long
+u_int64_t
 section_start(Elf64_Shdr *shdr, int sections, char *name)
 {
 	int i = section_index(shdr, sections, name);
-	if (i < 0)
-		return -1;
 
-	return shdr[i].sh_addr;
+	if (i < 0)
+		return (-1);
+	return (shdr[i].sh_addr);
 }
 
 /* last byte of section */
-long
+u_int64_t
 section_end(Elf64_Shdr *shdr, int sections, char *name)
 {
 	int i = section_index(shdr, sections, name);
-	if (i < 0)
-		return -1;
 
-	return shdr[i].sh_addr + shdr[i].sh_size -1;
+	if (i < 0)
+		return (-1);
+	return (shdr[i].sh_addr + shdr[i].sh_size -1);
 }
 
 /* last byte of section */
-long
+u_int64_t
 section_size(Elf64_Shdr *shdr, int sections, char *name)
 {
 	int i = section_index(shdr, sections, name);
-	if (i < 0)
-		return -1;
 
-	return shdr[i].sh_size;
+	if (i < 0)
+		return (-1);
+
+	return (shdr[i].sh_size);
 }
 
 /* file position of section start */
-long
+u_int64_t
 section_fpos(Elf64_Shdr *shdr, int sections, char *name)
 {
 	int i = section_index(shdr, sections, name);
-	if (i < 0)
-		return -1;
 
-	return shdr[i].sh_offset;
+	if (i < 0)
+		return (-1);
+	return (shdr[i].sh_offset);
 }
 
 void
@@ -262,14 +269,13 @@ main(int argc, char** argv)
 	Elf64_Ehdr *ehdr;
 	Elf64_Phdr *phdr;
 	Elf64_Shdr *shdr;
-	int shstrtabindex;
 	FILHDR filehdr;
 	AOUTHDR aouthdr;
 	SCNHDR textscn, datascn;
-	long textstart, textsize, textsize2, textfsize, textfpos;
-	long datastart, datasize, datafsize, datafpos;
-	long bssstart, bsssize;
-	long progentry;
+	u_int64_t textstart, textsize, textsize2, textfsize, textfpos;
+	u_int64_t datastart, datasize, datafsize, datafpos;
+	u_int64_t bssstart, bsssize;
+	u_int64_t progentry;
 	char* p;
 	int sections;
 
@@ -293,11 +299,16 @@ main(int argc, char** argv)
 
 	for (i = 1; i < sections; i++) {
 		printf("section %d (%s): "
-		       "type=%x flags=0%x "
-		       "offs=%x size=%x addr=%x\n",
-		       i, shstrtab + shdr[i].sh_name,
-		       shdr[i].sh_type, shdr[i].sh_flags, 
-		       shdr[i].sh_offset, shdr[i].sh_size, shdr[i].sh_addr);
+#if defined(__alpha__)
+		    "type=%x flags=0%lx "
+		    "offs=%lx size=%lx addr=%lx\n",
+#else
+		    "type=%x flags=0%llx "
+		    "offs=%llx size=%llx addr=%llx\n",
+#endif
+		    i, shstrtab + shdr[i].sh_name,
+		    shdr[i].sh_type, shdr[i].sh_flags,
+		    shdr[i].sh_offset, shdr[i].sh_size, shdr[i].sh_addr);
 	}
 
 	textstart = section_start(shdr, sections, ".text");
@@ -316,10 +327,15 @@ main(int argc, char** argv)
 	bssstart  = section_start(shdr, sections, ".bss");
 	bsssize   = section_size(shdr, sections, ".bss");
 
-	printf ("text: %x(%x) @%x  data: %x(%x) @%x  bss: %x(%x)\n",
-		textstart, textsize, textfpos,
-		datastart, datasize, datafpos,
-		bssstart, bsssize);
+#if defined(__alpha__)
+	printf ("text: %lx(%lx) @%lx  data: %lx(%lx) @%lx  bss: %lx(%lx)\n",
+#else
+	printf("text: %llx(%llx) @%llx  data: %llx(%llx) @%llx  "
+	    "bss: %llx(%llx)\n",
+#endif
+	    textstart, textsize, textfpos,
+	    datastart, datasize, datafpos,
+	    bssstart, bsssize);
 
 	memset(&filehdr, 0, sizeof filehdr);
 	memset(&aouthdr, 0, sizeof aouthdr);
@@ -391,6 +407,5 @@ main(int argc, char** argv)
 	write(outfd, p, ROUNDUP(datasize, 512));
 	free(p);
 
-	return 0;
+	return (0);
 }
-
