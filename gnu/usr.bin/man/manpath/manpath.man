@@ -33,7 +33,6 @@ file, manpath looks for the subdirectories man or MAN.  If they exist,
 they are added to the search path.
 .Pp
 .Nm
-manpath
 is used by
 .Nm man
 to determine the search path, so user's normally don't need to set the
