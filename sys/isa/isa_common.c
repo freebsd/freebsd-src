@@ -519,6 +519,7 @@ isa_probe_children(device_t dev)
 static device_t
 isa_add_child(device_t dev, int order, const char *name, int unit)
 {
+	device_t child;
 	struct	isa_device *idev;
 
 	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT);
@@ -529,7 +530,10 @@ isa_add_child(device_t dev, int order, const char *name, int unit)
 	resource_list_init(&idev->id_resources);
 	TAILQ_INIT(&idev->id_configs);
 
-	return device_add_child_ordered(dev, order, name, unit, idev);
+	child = device_add_child_ordered(dev, order, name, unit);
+ 	device_set_ivars(child, idev);
+
+	return child;
 }
 
 static void

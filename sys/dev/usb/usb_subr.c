@@ -747,7 +747,8 @@ usbd_probe_and_attach(parent, dev, port, addr)
 	 * during probe and attach. Should be changed however.
 	 */
 	device_t bdev;
-	bdev = device_add_child(parent, NULL, -1, &uaa);
+	bdev = device_add_child(parent, NULL, -1);
+	device_set_ivars(bdev, &uaa);
 	if (!bdev) {
 	    printf("%s: Device creation failed\n", USBDEVNAME(dev->bus->bdev));
 	    return (USBD_INVAL);
@@ -828,8 +829,9 @@ usbd_probe_and_attach(parent, dev, port, addr)
 				ifaces[i] = 0; /* consumed */
 
 #if defined(__FreeBSD__)
-				/* create another child for the next iface */
-				bdev = device_add_child(parent, NULL, -1,&uaa);
+				/* create another device for the next iface */
+				bdev = device_add_child(parent, NULL, -1);
+				device_set_ivars(bdev, &uaa);
 				if (!bdev) {
 					printf("%s: Device creation failed\n",
 					USBDEVNAME(dev->bus->bdev));

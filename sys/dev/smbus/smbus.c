@@ -113,8 +113,8 @@ smbus_attach(device_t dev)
 		device_t child;
 
 		if (devclass_find(smbdev->smbd_name)) {
-			child = device_add_child(dev, smbdev->smbd_name,
-								-1, smbdev);
+			child = device_add_child(dev, smbdev->smbd_name, -1);
+			device_set_ivars(child, smbdev);
 			device_set_desc(child, smbdev->smbd_desc);
 		} else if (bootverbose)
 			printf("smbus: %s devclass not found\n",

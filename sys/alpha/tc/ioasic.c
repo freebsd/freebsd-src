@@ -173,6 +173,7 @@ ioasic_probe(device_t dev)
 static int
 ioasic_attach(device_t dev)
 {
+	device_t child;
 	struct ioasic_softc* sc = IOASIC_SOFTC(dev);
 	struct tc_attach_args *ta = device_get_ivars(dev);
 	device_t parent = device_get_parent(dev);
@@ -226,7 +227,10 @@ ioasic_attach(device_t dev)
 
         for (i = 0; i < ioasic_ndevs; i++) {
 		ioasic_devs[i].iada_addr = sc->sc_base + ioasic_devs[i].iad_offset;
-		device_probe_and_attach(device_add_child(dev, ioasic_devs[i].iad_modname, -1, &ioasic_devs[i]));
+
+		child = device_add_child(dev, ioasic_devs[i].iad_modname, -1);
+		device_set_ivars(child, &ioasic_devs[i]);
+		device_probe_and_attach(child);
 	}
 	return 0;
 }

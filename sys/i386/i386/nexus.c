@@ -202,25 +202,26 @@ nexus_attach(device_t dev)
 	 * connection points now so they show up "on motherboard".
 	 */
 	if (!devclass_get_device(devclass_find("eisa"), 0)) {
-		child = device_add_child(dev, "eisa", 0, 0);
+		child = device_add_child(dev, "eisa", 0);
 		if (child == NULL)
 			panic("nexus_attach eisa");
 		device_probe_and_attach(child);
 	}
 #if NMCA > 0
 	if (!devclass_get_device(devclass_find("mca"), 0)) {
-        	child = device_add_child(dev, "mca", 0, 0);
+        	child = device_add_child(dev, "mca", 0);
         	if (child == 0)
                 	panic("nexus_probe mca");
 		device_probe_and_attach(child);
 	}
 #endif
 	if (!devclass_get_device(devclass_find("isa"), 0)) {
-		child = device_add_child(dev, "isa", 0, 0);
+		child = device_add_child(dev, "isa", 0);
 		if (child == NULL)
 			panic("nexus_attach isa");
 		device_probe_and_attach(child);
 	}
+
 	return 0;
 }
 
@@ -238,7 +239,7 @@ nexus_print_child(device_t bus, device_t child)
 static device_t
 nexus_add_child(device_t bus, int order, const char *name, int unit)
 {
-	return device_add_child_ordered(bus, order, name, unit, 0);
+	return device_add_child_ordered(bus, order, name, unit);
 }
 
 /*

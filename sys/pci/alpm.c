@@ -281,7 +281,7 @@ alpm_pci_attach(pcici_t tag, int unit)
 		printf(" at 0x%x\n", alpm->smbsh);
 
 	/* XXX add the I2C interface to the root_bus until pcibus is ready */
-	device_add_child(root_bus, "alsmb", unit, NULL);
+	device_add_child(root_bus, "alsmb", unit);
 
 	return;
 }

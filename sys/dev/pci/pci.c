@@ -1115,8 +1115,8 @@ pci_add_children(device_t dev, int busno)
 					pcifunchigh = 7;
 
 				pci_print_verbose(dinfo);
-				dinfo->cfg.dev =
-					device_add_child(dev, NULL, -1, dinfo);
+				dinfo->cfg.dev = device_add_child(dev, NULL, -1);
+				device_set_ivars(dinfo->cfg.dev, dinfo);
 				pci_add_resources(dinfo->cfg.dev, &dinfo->cfg);
 			}
 		}

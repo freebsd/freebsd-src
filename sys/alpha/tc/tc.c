@@ -612,7 +612,8 @@ tc_attach(device_t dev)
                 ta->ta_cookie = builtin->tcb_cookie;
                 ta->ta_busspeed = sc->sc_speed;
 
-		child = device_add_child(dev, builtin->tcb_modname, 0, ta);
+		child = device_add_child(dev, builtin->tcb_modname, 0);
+		device_set_ivars(child, ta);
 		device_probe_and_attach(child);
 	}
 

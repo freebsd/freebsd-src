@@ -581,14 +581,12 @@ devclass_delete_device(devclass_t dc, device_t dev)
 }
 
 static device_t
-make_device(device_t parent, const char *name,
-	    int unit, void *ivars)
+make_device(device_t parent, const char *name, int unit)
 {
     device_t dev;
     devclass_t dc;
 
-    PDEBUG(("%s at %s as unit %d with%s ivars",
-    	    name, DEVICENAME(parent), unit, (ivars? "":"out")));
+    PDEBUG(("%s at %s as unit %d", name, DEVICENAME(parent), unit));
 
     if (name) {
 	dc = devclass_find_internal(name, TRUE);
@@ -622,7 +620,7 @@ make_device(device_t parent, const char *name,
 	dev->flags |= DF_FIXEDCLASS;
 	devclass_add_device(dc, dev);
     }
-    dev->ivars = ivars;
+    dev->ivars = NULL;
     dev->softc = NULL;
 
     dev->state = DS_NOTPRESENT;
@@ -644,22 +642,21 @@ device_print_child(device_t dev, device_t child)
 }
 
 device_t
-device_add_child(device_t dev, const char *name, int unit, void *ivars)
+device_add_child(device_t dev, const char *name, int unit)
 {
-    return device_add_child_ordered(dev, 0, name, unit, ivars);
+    return device_add_child_ordered(dev, 0, name, unit);
 }
 
 device_t
-device_add_child_ordered(device_t dev, int order,
-			 const char *name, int unit, void *ivars)
+device_add_child_ordered(device_t dev, int order, const char *name, int unit)
 {
     device_t child;
     device_t place;
 
-    PDEBUG(("%s at %s with order %d as unit %d with%s ivars",
-    	    name, DEVICENAME(dev), order, unit, (ivars? "":"out")));
+    PDEBUG(("%s at %s with order %d as unit %d",
+	    name, DEVICENAME(dev), order, unit));
 
-    child = make_device(dev, name, unit, ivars);
+    child = make_device(dev, name, unit);
     if (child == NULL)
 	return child;
     child->order = order;
@@ -982,6 +979,17 @@ void *
 device_get_ivars(device_t dev)
 {
     return dev->ivars;
+}
+
+void
+device_set_ivars(device_t dev, void * ivars)
+{
+    if (!dev)
+	return;
+
+    dev->ivars = ivars;
+
+    return;
 }
 
 device_state_t

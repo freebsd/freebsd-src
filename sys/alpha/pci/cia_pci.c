@@ -42,7 +42,7 @@ cia_pcib_probe(device_t dev)
 {
 	device_set_desc(dev, "2117x PCI host bus adapter");
 
-	device_add_child(dev, "pci", 0, 0);
+	device_add_child(dev, "pci", 0);
 
 	return 0;
 }

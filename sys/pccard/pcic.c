@@ -512,7 +512,7 @@ pcic_probe(device_t dev)
 		pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
 	if (validslots) {
 		for (i = 0; i < validslots; i++) {
-			device_add_child(dev, NULL, -1, NULL);
+			device_add_child(dev, NULL, -1);
 		}
 	}
 	return(validslots ? 0 : ENXIO);

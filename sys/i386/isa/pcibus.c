@@ -478,7 +478,7 @@ static int
 nexus_pcib_probe(device_t dev)
 {
 	if (pci_cfgopen() != 0) {
-		device_add_child(dev, "pci", device_get_unit(dev), 0);
+		device_add_child(dev, "pci", device_get_unit(dev));
 		return 0;
 	}
 	return ENXIO;

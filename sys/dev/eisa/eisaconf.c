@@ -152,6 +152,7 @@ eisa_probe(device_t dev)
 {
 	int i,slot;
 	struct eisa_device *e_dev;
+	device_t child;
 	int eisaBase = 0xc80;
 	eisa_id_t eisa_id;
 	int devices_found = 0;
@@ -188,7 +189,8 @@ eisa_probe(device_t dev)
 		LIST_INIT(&(e_dev->ioconf.maddrs));
 		TAILQ_INIT(&(e_dev->ioconf.irqs));
 
-		device_add_child(dev, NULL, -1, e_dev);
+		child = device_add_child(dev, NULL, -1);
+		device_set_ivars(child, e_dev);
 	}
 
 	/*

@@ -203,8 +203,8 @@ iicbus_attach(device_t dev)
 		}
 
 		if (iicdev->iicd_alive) {
-			child = device_add_child(dev, iicdev->iicd_name,
-								-1, iicdev);
+			child = device_add_child(dev, iicdev->iicd_name, -1);
+			device_set_ivars(child, iicdev);
 			device_set_desc(child, iicdev->iicd_desc);
 		}
 	}

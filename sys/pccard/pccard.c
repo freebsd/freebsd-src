@@ -366,8 +366,9 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
 	resource_list_init(&devi->resources);
 	child = devi->isahd.id_device = device_add_child(pccarddev, devi->name,
-	    desc->unit, devi);
+	    desc->unit);
 	device_set_flags(child, desc->flags);
+	device_set_ivars(child, devi);
 	err = bus_set_resource(child, SYS_RES_IOPORT, 0, desc->iobase,
 	    desc->iosize);
 	if (err)
