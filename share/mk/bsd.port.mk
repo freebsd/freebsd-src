@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.112 1995/02/06 08:52:19 hsu Exp $
+# $Id: bsd.port.mk,v 1.114 1995/02/17 08:52:55 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -240,7 +240,7 @@ HAS_CONFIGURE=		yes
 # and do _only_ the interactive ones that required your intervention.
 # This allows you to do both.
 #
-.if (defined(IS_INTERACTIVE) && defined(BATCH)) || (!defined(IS_INTERACTIVE) && defined(INTERACTIVE))
+.if defined(NO_${DISTNAME}) || (defined(IS_INTERACTIVE) && defined(BATCH)) || (!defined(IS_INTERACTIVE) && defined(INTERACTIVE))
 all:
 	@${DO_NADA}
 pre-build:
