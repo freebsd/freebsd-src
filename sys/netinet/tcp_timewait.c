@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.29 1996/06/05 16:57:37 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.30 1996/06/14 17:17:32 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@
 #include <net/route.h>
 #include <net/if.h>
 
+#define _IP_VHL
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -466,7 +467,8 @@ tcp_ctlinput(cmd, sa, vip)
 		 ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0))
 		return;
 	if (ip) {
-		th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+		th = (struct tcphdr *)((caddr_t)ip 
+				       + (IP_VHL_HL(ip->ip_vhl) << 2));
 		in_pcbnotify(&tcb, sa, th->th_dport, ip->ip_src, th->th_sport,
 			cmd, notify);
 	} else
