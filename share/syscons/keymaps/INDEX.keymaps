@@ -1,5 +1,5 @@
 #
-# $Id: INDEX.keymaps,v 1.7 1995/04/03 21:10:48 w Exp $
+# $Id: INDEX.keymaps,v 1.4 1996/04/14 17:22:43 wosch Exp $
 #
 # database for kbdmap(8) 
 #
@@ -50,8 +50,17 @@ german.cp850.kbd:en:German Codepage 850
 german.cp850.kbd:de:Deutsch Codeseite 850
 german.cp850.kbd:fr:Allemand Code page 850
 
+it.iso.kbd:en:Italian ISO-8859-1
+it.iso.kbd:de:Italienisch ISO-8859-1
+
+jp.106.kbd:en:Japanese 106
+jp.106.kbd:de:Japanisch 106
+
+jp.106x.kbd:en:Japanese 106x
+jp.106x.kbd:de:Japanisch 106x
+
 ru.cp866.kbd:en:Russian Codepage 866 (alternative)
-ru.cp866.kbd:de:Russian Codeseite 866 (alternativ)
+ru.cp866.kbd:de:Russisch Codeseite 866 (alternativ)
 ru.cp866.kbd:ru:Ú’””À…  Codepage 866 (alternative)
 ru.cp866.kbd:fr:Russe Code page 866 (alternative)
 
@@ -64,6 +73,9 @@ ru.koi8-r.shift.kbd:en:Russian koi8-r (shift)
 ru.koi8-r.shift.kbd:de:Russisch koi8-r (shift)
 ru.koi8-r.shift.kbd:ru:Ú’””À…  koi8-r (shift)
 ru.koi8-r.shift.kbd:fr:Russe koi8-r (shift)
+
+spanish.iso.kbd:en:Spanish ISO-8859-1
+spanish.iso.kbd:de:Spanisch ISO-8859-1
 
 swedish.iso.kbd:en:Swedish ISO-8859-1
 swedish.iso.kbd:de:Schwedisch ISO-8859-1
@@ -81,18 +93,15 @@ uk.cp850.kbd:en:United Kingdom of ... Codepage 850
 uk.cp850.kbd:de:Vereinigtes Kˆnigreich von GB und Nordirland Codeseite 850
 uk.cp850.kbd:fr:Royaume Uni Code page 850
 
-us.iso.emacs.kbd:en:United States of America ISO-8859-1 for Emacs
-us.iso.emacs.kbd:de:US-amerikanisch ISO-8859-1 f¸r Emacs
-us.iso.emacs.kbd:fr:…tats Unis  d'AmÈrique ISO-8859-1  Emacs
-
 us.iso.kbd:en:United States of America ISO-8859-1
 us.iso.kbd:de:US-amerikanisch ISO-8859-1
 us.iso.kbd:fr:…tats Unis  d'AmÈrique ISO-8859-1
 
-# Test
-#us.iso.kbd:en:United States of America ISO-8859-1
-#us.iso.kbd:fr:fr …tats Unis  d'AmÈrique ISO-8859-1
-#us.iso.kbd:de:de United States of America ISO-8859-1
-#us.iso.kbd:de_DE_ISO8859-1:de_DE United States of America ISO-8859-1
-#us.iso.kbd:de_CH_ISO8859-1:de_CH United States of America ISO-8859-1
-#us.iso.kbd:de_DE_CP850:cp850 United States of America ISO-8859-1
+us.dvorak.kbd:en:United States of America dvorak
+us.dvorak.kbd:de:US-amerikanisch dvorak
+us.dvorak.kbd:fr:…tats Unis  d'AmÈrique dvorak
+
+us.dvorakx.kbd:en:United States of America dvorakx
+us.dvorakx.kbd:de:US-amerikanisch dvorakx
+us.dvorakx.kbd:fr:…tats Unis  d'AmÈrique dvorakx
+
