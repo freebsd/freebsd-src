@@ -98,9 +98,10 @@ below for the meaning of these mode bits.
 .Pp
 This function will always return the packet aliasing engine to the same
 initial state.
+The
 .Fn PacketAliasSetAddress
-is normally called afterwards, and any desired changes from the default mode
-bits listed above require a call to
+function is normally called afterwards, and any desired changes from the
+default mode bits listed above require a call to
 .Fn PacketAliasSetMode .
 .Pp
 It is mandatory that this function be called at the beginning of a program
@@ -781,9 +782,10 @@ returns
 Once a fragment pointer is retrieved, it becomes the calling program's
 responsibility to free the dynamically allocated memory for the fragment.
 .Pp
+The
 .Fn PacketAliasGetFragment
-can be called sequentially until there are no more fragments available,
-at which time it returns
+function can be called sequentially until there are no more fragments
+available, at which time it returns
 .Dv NULL .
 .Ed
 .Pp
