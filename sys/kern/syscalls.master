@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.24 1996/01/13 23:27:26 phk Exp $
+	$Id: syscalls.master,v 1.25 1996/02/23 18:03:08 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -120,7 +120,7 @@
 65	STD	BSD	{ int msync(caddr_t addr, int len, int flags); }
 ; XXX should be		{ int msync(caddr_t addr, size_t len, int flags); }
 ; but man page and old args struct have `int len'.
-66	NOARGS	BSD	{ int vfork(void); } vfork fork_args int
+66	STD	BSD	{ int vfork(void); }
 67	OBSOL	NOHIDE	vread
 68	OBSOL	NOHIDE	vwrite
 69	STD	BSD	{ int sbrk(int incr); }
@@ -377,3 +377,25 @@
 			    struct shmid_ds *buf); }
 230	STD	BSD	{ int shmdt(void *shmaddr); }
 231	STD	BSD	{ int shmget(key_t key, int size, int shmflg); }
+;
+232	UNIMPL	NOHIDE	nosys
+233	UNIMPL	NOHIDE	nosys
+234	UNIMPL	NOHIDE	nosys
+235	UNIMPL	NOHIDE	nosys
+236	UNIMPL	NOHIDE	nosys
+237	UNIMPL	NOHIDE	nosys
+238	UNIMPL	NOHIDE	nosys
+239	UNIMPL	NOHIDE	nosys
+240	UNIMPL	NOHIDE	nosys
+241	UNIMPL	NOHIDE	nosys
+242	UNIMPL	NOHIDE	nosys
+243	UNIMPL	NOHIDE	nosys
+244	UNIMPL	NOHIDE	nosys
+245	UNIMPL	NOHIDE	nosys
+246	UNIMPL	NOHIDE	nosys
+247	UNIMPL	NOHIDE	nosys
+248	UNIMPL	NOHIDE	nosys
+249	UNIMPL	NOHIDE	nosys
+; syscall numbers initially used in OpenBSD
+250	STD	BSD	{ int minherit(caddr_t addr, size_t len, int inherit); }
+251	STD	BSD	{ int rfork(int flags); }
