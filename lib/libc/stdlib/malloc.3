@@ -34,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
-.\"     $Id: malloc.3,v 1.15 1997/09/18 06:51:22 charnier Exp $
+.\"     $Id: malloc.3,v 1.16 1998/09/14 20:34:34 imp Exp $
 .\"
 .Dd August 27, 1996
 .Dt MALLOC 3
@@ -50,12 +50,12 @@
 .Fn calloc "size_t number" "size_t size"
 .Ft void *
 .Fn realloc "void *ptr" "size_t size"
+.Ft void *
+.Fn reallocf "void *ptr" "size_t size"
 .Ft void
 .Fn free "void *ptr"
 .Ft char *
 .Va malloc_options;
-.Ft void *
-.Fn reallocf "void *ptr" "size_t size"
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -154,7 +154,7 @@ Each byte of new memory allocated by
 .Fn malloc ,
 .Fn realloc
 or
-.Fn freealloc
+.Fn reallocf
 as well as all memory returned by
 .Fn free ,
 .Fn realloc
