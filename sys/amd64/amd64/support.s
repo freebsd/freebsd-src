@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.5 1994/03/07 11:47:32 davidg Exp $
+ *	$Id: support.s,v 1.6 1994/04/02 07:00:29 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -99,6 +99,19 @@ ENTRY(insw)					/* insw(port, addr, cnt) */
 	popl	%edi
 	ret
 
+ENTRY(insl)					/* insl(port, addr, cnt) */
+	pushl	%edi
+	movw	8(%esp),%dx
+	movl	12(%esp),%edi
+	movl	16(%esp),%ecx
+	cld
+	rep
+	insl
+	NOP
+	movl	%edi,%eax
+	popl	%edi
+	ret
+
 ENTRY(rtcin)					/* rtcin(val) */
 	movl	4(%esp),%eax
 	outb	%al,$0x70
@@ -143,6 +156,19 @@ ENTRY(outsw)					/* outsw(port, addr, cnt) */
 	cld
 	rep
 	outsw
+	NOP
+	movl	%esi,%eax
+	popl	%esi
+	ret
+
+ENTRY(outsl)					/* outsl(port, addr, cnt) */
+	pushl	%esi
+	movw	8(%esp),%dx
+	movl	12(%esp),%esi
+	movl	16(%esp),%ecx
+	cld
+	rep
+	outsl
 	NOP
 	movl	%esi,%eax
 	popl	%esi
