@@ -51,8 +51,8 @@ main(int argc, char **argv)
 	struct stat st;
 	u_long forceaddr = 0, entry;
 	char *kernname;
-	char obj[BUFSIZ];
-	char out[BUFSIZ];
+	char obj[MAXPATHLEN + 1];
+	char out[MAXPATHLEN + 1];
 	char base[32];
 	
 	while ((c = getopt(argc, argv, "l:v")) != -1) {
@@ -78,6 +78,8 @@ main(int argc, char **argv)
 
 	kernname = argv[0];
 			
+	if (strlen(kernname) > MAXPATHLEN - 3)
+		errx(1, "%s: File name too long", kernname);
 	strcpy(obj, kernname); strcat(obj,".o");
 	strcpy(out, kernname); strcat(out,".kz");
 
