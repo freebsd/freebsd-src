@@ -55,7 +55,8 @@ struct pcpu {
 	struct timeval	pc_switchtime;	
 	int		pc_switchticks;
 	u_int		pc_cpuid;		/* This cpu number */
-	u_int		pc_other_cpus;		/* All other cpus */
+	u_int		pc_cpumask;		/* This cpu mask */
+	u_int		pc_other_cpus;		/* Mask of all other cpus */
 	SLIST_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
 #ifdef KTR_PERCPU
