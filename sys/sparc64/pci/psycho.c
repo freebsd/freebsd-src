@@ -571,7 +571,7 @@ psycho_attach(device_t dev)
 		sc->sc_is->is_sb[1] = 0;
 		if (OF_getproplen(sc->sc_node, "no-streaming-cache") < 0)
 			sc->sc_is->is_sb[0] = sc->sc_pcictl + PCR_STRBUF;
-		psycho_iommu_init(sc, 2);
+		psycho_iommu_init(sc, 3);
 	} else {
 		/* Just copy IOMMU state, config tag and address */
 		sc->sc_is = osc->sc_is;
