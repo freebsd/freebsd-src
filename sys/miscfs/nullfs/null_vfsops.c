@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.2 1994/09/21 03:47:01 wollman Exp $
+ * $Id: null_vfsops.c,v 1.3 1994/09/22 19:38:14 wollman Exp $
  */
 
 /*
@@ -88,7 +88,8 @@ nullfs_mount(mp, path, data, ndp, p)
 	/*
 	 * Get argument
 	 */
-	if (error = copyin(data, (caddr_t)&args, sizeof(struct null_args)))
+	error = copyin(data, (caddr_t)&args, sizeof(struct null_args));
+	if (error)
 		return (error);
 
 	/*
@@ -96,7 +97,8 @@ nullfs_mount(mp, path, data, ndp, p)
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT|LOCKLEAF,
 		UIO_USERSPACE, args.target, p);
-	if (error = namei(ndp))
+	error = namei(ndp);
+	if (error)
 		return (error);
 
 	/*
@@ -209,7 +211,8 @@ nullfs_unmount(mp, mntflags, p)
 #endif
 	if (nullm_rootvp->v_usecount > 1)
 		return (EBUSY);
-	if (error = vflush(mp, nullm_rootvp, flags))
+	error = vflush(mp, nullm_rootvp, flags);
+	if (error)
 		return (error);
 
 #ifdef NULLFS_DIAGNOSTIC
