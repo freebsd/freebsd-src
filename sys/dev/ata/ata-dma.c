@@ -490,12 +490,12 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	    int32_t timing;
 
 	    switch(ATA_PIO0 + apiomode) {
-	    case ATA_PIO0: timing = 0x006d0003;
-	    case ATA_PIO1: timing = 0x00580002;
-	    case ATA_PIO2: timing = 0x00440001;
-	    case ATA_PIO3: timing = 0x00330001;
-	    case ATA_PIO4: timing = 0x00310001;
-	    default:	   timing = 0x006d0003;
+	    case ATA_PIO0: timing = 0x006d0003; break;
+	    case ATA_PIO1: timing = 0x00580002; break;
+	    case ATA_PIO2: timing = 0x00440001; break;
+	    case ATA_PIO3: timing = 0x00330001; break;
+	    case ATA_PIO4: timing = 0x00310001; break;
+	    default:	   timing = 0x006d0003; break;
 	    }
 	    pci_write_config(parent, 0x58 + (channel << 2), timing, 4);
 	    word54 &= ~(0x000f000f << (devno << 2));
