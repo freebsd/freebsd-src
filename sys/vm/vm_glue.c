@@ -133,6 +133,11 @@ kernacc(addr, len, rw)
 
 	KASSERT((rw & ~VM_PROT_ALL) == 0,
 	    ("illegal ``rw'' argument to kernacc (%x)\n", rw));
+
+	if ((vm_offset_t)addr + len > kernel_map->max_offset ||
+	    (vm_offset_t)addr + len < (vm_offset_t)addr)
+		return (FALSE);
+
 	prot = rw;
 	saddr = trunc_page((vm_offset_t)addr);
 	eaddr = round_page((vm_offset_t)addr + len);
