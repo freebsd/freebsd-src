@@ -1,0 +1,115 @@
+.\" Author:	Juli Mallett <jmallett@FreeBSD.org>
+.\" Date:	June 04, 2003
+.\" Description:
+.\" 	Manual page for libufs functions:
+.\"		getino(3)
+.\"		putino(3)
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 04, 2003
+.Dt GETINO 3
+.Os
+.Sh NAME
+.Nm getino , putino
+.Nd get and put inodes to and from UFS disks
+.Sh LIBRARY
+.Lb libufs
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/param.h
+.In sys/mount.h
+.In ufs/ufs/ufsmount.h
+.In ufs/ufs/dinode.h
+.In ufs/ffs/fs.h
+.In libufs.h
+.Ft int
+.Fn getino "struct uufsd *disk" "void *dino" "ino_t inode"
+.Ft int
+.Fn putino "struct uufsd *disk" "void *dino" "ino_t inode"
+.Sh DESCRIPTION
+The
+.Fn getino
+and
+.Fn putino
+functions provide the ability to put an inode to disk or read an
+inode from disk for
+.Xr libufs 3
+consumers.
+The
+.Fn getino
+function reads the inode specified by
+.Fa inode ,
+and puts a pointer to an inode with the correct type into the memory
+pointed to by
+.Fa dino .
+It maintains a cache of nearby inodes, and may simply return pointers
+into memory that are in said cache.
+The pointer it returns may be modified as if it were of the type
+.Dq struct ufs1_dinode
+or
+.Dq struct ufs2_dinode
+depending on whether the disk being operated on is UFS1 or UFS2,
+respectively.
+.Pp
+The
+.Fn putino
+function puts an inode specified to be
+.Fa inode
+to disk, given memory passed in the
+.Fa dino
+pointer, in exactly the same manner as an inode is retrieved into
+.Fa dino
+by
+.Fn getino .
+Calls to
+.Fn putino
+immediately invalidate the inode cache.
+.Pp
+Both functions return 0 on success and -1 on error.
+.Sh ERRORS
+The function
+.Fn getino
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr bread 3
+and
+.Xr malloc 3 .
+Additionally, error may be returned if the inode format cannot be
+determined.
+Error reporting conventions for
+.Xr libufs 3
+functions are followed.
+.Pp
+The function
+.Fn putino
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr bwrite 3 .
+Additionally, error may be returned if the inode format cannot be
+determined, or if the
+.Fa dino
+parameter is
+.Dv NULL .
+In the latter case, where
+.Fa dino
+is unusable,
+.Va errno
+is set to
+.Er EDOOFUS .
+Error reporting conventions for
+.Xr libufs 3
+functions are followed.
+.Sh SEE ALSO
+.Xr bread 3 ,
+.Xr bwrite 3 ,
+.Xr libufs 3
+.Sh HISTORY
+These functions first appeared as part of
+.Xr libufs 3
+in
+.Fx 5.1 .
+.Sh AUTHORS
+.An Juli Mallett Aq jmallett@FreeBSD.org
