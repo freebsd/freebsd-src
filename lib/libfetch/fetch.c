@@ -286,9 +286,18 @@ fetchParseURL(char *URL)
     } else p = URL;
     
     /* hostname */
-    for (i = 0; *p && (*p != '/') && (*p != ':'); p++)
-	if (i < MAXHOSTNAMELEN)
-	    u->host[i++] = *p;
+#ifdef INET6
+    if (*p == '[' && (q = strchr(p + 1, ']')) != NULL &&
+	(*++q == '\0' || *q == '/' || *q == ':')) {
+	if ((i = q - p - 2) > MAXHOSTNAMELEN)
+	    i = MAXHOSTNAMELEN;
+	strncpy(u->host, ++p, i);
+	p = q;
+    } else
+#endif
+	for (i = 0; *p && (*p != '/') && (*p != ':'); p++)
+	    if (i < MAXHOSTNAMELEN)
+		u->host[i++] = *p;
 
     /* port */
     if (*p == ':') {

@@ -3,6 +3,7 @@
 MAINTAINER=	des@freebsd.org
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic
+CFLAGS+=	-DINET6
 .if !defined(DEBUG)
 CFLAGS+=	-DNDEBUG
 .endif
