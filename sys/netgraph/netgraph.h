@@ -382,10 +382,11 @@ int	ng_unref_node(node_p node); /* don't move this */
 typedef	int	ng_fn_eachhook(hook_p hook, void* arg);
 #define _NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)			\
 	do {								\
-		hook_p hook;						\
-		LIST_FOREACH(hook, &((node)->nd_hooks), hk_hooks) {	\
-			if ((fn)(hook, arg) == 0) {			\
-				(rethook) = hook;			\
+		hook_p _hook;						\
+		(rethook) = NULL;					\
+		LIST_FOREACH(_hook, &((node)->nd_hooks), hk_hooks) {	\
+			if ((fn)(_hook, arg) == 0) {			\
+				(rethook) = _hook;			\
 				break;					\
 			}						\
 		}							\
@@ -653,17 +654,17 @@ struct ng_item {
 #define	_NGI_HOOK(i) ((i)->el_hook)
 #define	_NGI_SET_HOOK(i,h) do { _NGI_HOOK(i) = h; h = NULL;} while (0)
 #define	_NGI_CLR_HOOK(i)   do {						\
-		hook_p hook = _NGI_HOOK(i);				\
-		if (hook) {						\
-			_NG_HOOK_UNREF(hook);				\
+		hook_p _hook = _NGI_HOOK(i);				\
+		if (_hook) {						\
+			_NG_HOOK_UNREF(_hook);				\
 			_NGI_HOOK(i) = NULL;				\
 		}							\
 	} while (0)
 #define	_NGI_SET_NODE(i,n) do { _NGI_NODE(i) = n; n = NULL;} while (0)
 #define	_NGI_CLR_NODE(i)   do {						\
-		node_p node = _NGI_NODE(i);				\
-		if (node) {						\
-			_NG_NODE_UNREF(node);				\
+		node_p _node = _NGI_NODE(i);				\
+		if (_node) {						\
+			_NG_NODE_UNREF(_node);				\
 			_NGI_NODE(i) = NULL;				\
 		}							\
 	} while (0)
@@ -872,9 +873,9 @@ _ngi_hook(item_p item, char *file, int line)
 /* Send a previously unpackaged mbuf when we have no metadata to send */
 #define NG_SEND_DATA_ONLY(error, hook, m)				\
 	do {								\
-		item_p item;						\
-		if ((item = ng_package_data((m), NULL))) {		\
-			NG_FWD_ITEM_HOOK(error, item, hook);		\
+		item_p _item;						\
+		if ((_item = ng_package_data((m), NULL))) {		\
+			NG_FWD_ITEM_HOOK(error, _item, hook);		\
 		} else {						\
 			(error) = ENOMEM;				\
 		}							\
@@ -884,9 +885,9 @@ _ngi_hook(item_p item, char *file, int line)
 /* Send previously unpackeged data and metadata. */
 #define NG_SEND_DATA(error, hook, m, meta)				\
 	do {								\
-		item_p item;						\
-		if ((item = ng_package_data((m), (meta)))) {		\
-			NG_FWD_ITEM_HOOK(error, item, hook);		\
+		item_p _item;						\
+		if ((_item = ng_package_data((m), (meta)))) {		\
+			NG_FWD_ITEM_HOOK(error, _item, hook);		\
 		} else {						\
 			(error) = ENOMEM;				\
 		}							\
@@ -924,48 +925,48 @@ _ngi_hook(item_p item, char *file, int line)
 
 #define NG_SEND_MSG_HOOK(error, here, msg, hook, retaddr)		\
 	do {								\
-		item_p item;						\
-		if ((item = ng_package_msg(msg)) == NULL) {		\
+		item_p _item;						\
+		if ((_item = ng_package_msg(msg)) == NULL) {		\
 			(msg) = NULL;					\
 			(error) = ENOMEM;				\
 			break;						\
 		}							\
-		if (((error) = ng_address_hook((here), (item),		\
+		if (((error) = ng_address_hook((here), (_item),		\
 					(hook), (retaddr))) == 0) {	\
-			SAVE_LINE(item);				\
-			(error) = ng_snd_item((item), 0);		\
+			SAVE_LINE(_item);				\
+			(error) = ng_snd_item((_item), 0);		\
 		}							\
 		(msg) = NULL;						\
 	} while (0)
 
 #define NG_SEND_MSG_PATH(error, here, msg, path, retaddr)		\
 	do {								\
-		item_p item;						\
-		if ((item = ng_package_msg(msg)) == NULL) {		\
+		item_p _item;						\
+		if ((_item = ng_package_msg(msg)) == NULL) {		\
 			(msg) = NULL;					\
 			(error) = ENOMEM;				\
 			break;						\
 		}							\
-		if (((error) = ng_address_path((here), (item),		\
+		if (((error) = ng_address_path((here), (_item),		\
 					(path), (retaddr))) == 0) {	\
-			SAVE_LINE(item);				\
-			(error) = ng_snd_item((item), 0);		\
+			SAVE_LINE(_item);				\
+			(error) = ng_snd_item((_item), 0);		\
 		}							\
 		(msg) = NULL;						\
 	} while (0)
 
 #define NG_SEND_MSG_ID(error, here, msg, ID, retaddr)			\
 	do {								\
-		item_p item;						\
-		if ((item = ng_package_msg(msg)) == NULL) {		\
+		item_p _item;						\
+		if ((_item = ng_package_msg(msg)) == NULL) {		\
 			(msg) = NULL;					\
 			(error) = ENOMEM;				\
 			break;						\
 		}							\
-		if (((error) = ng_address_ID((here), (item),		\
+		if (((error) = ng_address_ID((here), (_item),		\
 					(ID), (retaddr))) == 0) {	\
-			SAVE_LINE(item);				\
-			(error) = ng_snd_item((item), 0);		\
+			SAVE_LINE(_item);				\
+			(error) = ng_snd_item((_item), 0);		\
 		}							\
 		(msg) = NULL;						\
 	} while (0)
@@ -992,11 +993,11 @@ _ngi_hook(item_p item, char *file, int line)
 #define NG_RESPOND_MSG(error, here, item, resp)				\
 	do {								\
 		if (resp) {						\
-			ng_ID_t dest = NGI_RETADDR(item);		\
+			ng_ID_t _dest = NGI_RETADDR(item);		\
 			NGI_RETADDR(item) = NULL;			\
 			NGI_MSG(item) = resp;				\
 			if ((ng_address_ID((here), (item),		\
-					dest, NULL )) == 0) {		\
+					_dest, NULL )) == 0) {		\
 				SAVE_LINE(item);			\
 				(error) = ng_snd_item((item), 1);	\
 			} else {					\
