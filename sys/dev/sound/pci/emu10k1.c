@@ -31,7 +31,7 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
-#include <dev/sound/pci/emu10k1.h>
+#include <gnu/dev/sound/pci/emu10k1.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
