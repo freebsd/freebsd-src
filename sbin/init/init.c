@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.26 1997/08/06 16:34:51 ache Exp $
+ *		$Id: init.c,v 1.27 1997/08/18 01:40:12 davidn Exp $
  */
 
 #ifndef lint
@@ -634,7 +634,7 @@ single_user()
 			int num;
 
 #define	SHREQUEST \
-	"Enter pathname of shell or RETURN for sh: "
+	"Enter full pathname of shell or RETURN for " _PATH_BSHELL ": "
 			(void)write(STDERR_FILENO,
 			    SHREQUEST, sizeof(SHREQUEST) - 1);
 			while ((num = read(STDIN_FILENO, cp, 1)) != -1 &&
