@@ -225,6 +225,19 @@ float	__kernel_cosf(float,float);
 float	__kernel_tanf(float,float,int);
 int	__kernel_rem_pio2f(float*,float*,int,int,int,const int*);
 
+/* alpha and i386 provide arch specific copysign() */
+#if defined(__ia64__) || defined(__sparc64__) || \
+    defined(__powerpc__) || defined(__amd64__)
+#define	__generic_copysign		copysign
+#endif
+
+/* alpha provides arch specific copysignf() */
+#if defined(__i386__) || defined(__ia64__) || defined(__sparc64__) || \
+    defined(__powerpc__) || defined(__amd64__)
+#define	__generic_copysignf		copysignf
+#endif
+
+/* i386 provides lots of arch specific functions */
 #if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || \
     defined(__powerpc__) || defined(__amd64__)
 #define __generic___ieee754_acos	__ieee754_acos
@@ -239,7 +252,6 @@ int	__kernel_rem_pio2f(float*,float*,int,int,int,const int*);
 #define __generic___ieee754_sqrt	__ieee754_sqrt
 #define	__generic_atan			atan
 #define	__generic_ceil			ceil
-#define	__generic_copysign		copysign
 #define	__generic_cos			cos
 #define	__generic_finite		finite
 #define	__generic_floor			floor
