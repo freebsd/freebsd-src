@@ -1,4 +1,4 @@
-/*	$NetBSD: usb/usb.h,v 1.60 2001/12/29 15:44:11 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.63 2002/02/25 00:46:37 augustss Exp $	*/
 /*	$FreeBSD$    */
 
 /*
@@ -47,26 +47,13 @@
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/ioctl.h>
+#endif
 
 #if defined(_KERNEL)
 #include <dev/usb/usb_port.h>
 #endif /* _KERNEL */
 
-#elif defined(__FreeBSD__)
-#if defined(_KERNEL)
-#include <sys/malloc.h>
-
-MALLOC_DECLARE(M_USB);
-MALLOC_DECLARE(M_USBDEV);
-MALLOC_DECLARE(M_USBHC);
-
-#include <dev/usb/usb_port.h>
-#endif /* _KERNEL */
-#endif /* __FreeBSD__ */
-
-/* these three defines are used by usbd to autoload the usb kld */
-#define USB_KLD		"usb"		/* name of usb module */
-#define USB_UHUB	"usb/uhub"	/* root hub */
+#define USB_STACK_VERSION 2
 
 #define USB_MAX_DEVICES 128
 #define USB_START_ADDR 0
@@ -474,6 +461,7 @@ typedef struct {
 #define UICLASS_FIRM_UPD	0x0c
 
 #define UICLASS_APPL_SPEC	0xfe
+#define  UISUBCLASS_FIRMWARE_DOWNLOAD	1
 #define  UISUBCLASS_IRDA		2
 #define  UIPROTO_IRDA			0
 
