@@ -53,7 +53,7 @@ static char rcsid[] = "$OpenBSD: fsirand.c,v 1.9 1997/02/28 00:46:33 millert Exp
 #include <time.h>
 #include <unistd.h>
 
-void usage __P((int));
+static void usage __P((int));
 int fsirand __P((char *));
 
 int printonly = 0, force = 0, ignorelabel = 0;
@@ -284,11 +284,11 @@ fsirand(device)
 	return(0);
 }
 
-void
+static void
 usage(ex)
 	int ex;
 {
 	(void)fprintf(stderr, 
-"Usage: fsirand [ -b ] [ -f ] [ -p ] special [special ...]\n");
+"usage: fsirand [ -b ] [ -f ] [ -p ] special [special ...]\n");
 	exit(ex);
 }
