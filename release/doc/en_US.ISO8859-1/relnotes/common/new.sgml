@@ -32,728 +32,74 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>The <literal>O_DIRECT</literal> flag has been added to
-    &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
-    files will attempt to minimize the cache effects of reading and
-    writing.</para>
-
-    <para>An &man.orm.4; device has been added to claim the option
-    ROMs in the ISA memory I/O space, to prevent other drivers from
-    mistakenly assigning addresses that conflict with these ROMs.</para>
-
-    <para>The out-of-swap process termination code now begins killing
-    processes earlier to avoid deadlocks; it now also takes into
-    account the swap space used by processes when computing the
-    process sizes.</para>
-
-    <para>Network device cloning has been implemented, and the &man.gif.4;
-    device has been modified to take advantage of it.
-    Thus, instead of specifying how many &man.gif.4; interfaces
-    are available in kernel configuration files, &man.ifconfig.8;'s
-    <option>create</option> option should be used when another device
-    instance is desired.</para>
-
-    <para>Two new &man.ddb.4; commands, <command>hwatch</command> and
-    <command>dhwatch</command>, have been introduced.  Analogous to
-    <command>watch</command> and <command>dwatch</command>, they install
-    hardware watchpoints (as opposed to software watchpoints) if supported
-    by the architecture.</para>
-
-    <para>A &man.nmdm.4; null-modem terminal driver has been added.</para>
-
-    <para>The &man.stl.4; driver now supports the PCI and ISA EasyIO
-    multi-port serial cards from Stallion Technologies based on the
-    Signetics SC26C194/8 Intelligent Quad/Octal UART.</para>
-
-    <para>The <varname>maxusers</varname> kernel configuration
-    parameter is now a boot-time tunable variable.  The kernel
-    parameters derived from <varname>maxusers</varname> are now also
-    tunables and can be overridden at boot-time.  The
-    <varname>hz</varname> parameter is also now a tunable.</para>
-
-    <para arch="i386">The &os; boot loader now contains a workaround
-    to support CDROM booting on certain IBM BIOSs that expect the
-    first sector of the emulated floppy to contain a valid MS-DOS BPB
-    that they can modify.</para>
-
-    <para arch="alpha">A long standing bug in the &os; boot from CDROM has 
-    been fixed.  This means that machines like the AlphaServer 1200 can now
-    be booted from the installation and fixit CDROMs.</para>
-    
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para arch="i386">Detection for new processors, such as the
-      Transmeta Crusoe, and Transmeta Crusoe with LongRun, has been
-      added.</para>
-
-      <para arch="alpha">Because of space constraints on the boot floppy,
-      support for DEC3000 TurboChannel-based machines has been removed from
-      the installation kernel.  For the same reason, the following device 
-      drivers are no longer present in the installation kernel: 
-      &man.ncr.4;, &man.sa.4;, &man.amr.4;, &man.plip.4;, &man.le.4;, &man.pcn.4;, &man.wx.4;, and &man.sl.4;.  Note that most if not
-      all Symbios adapters are covered by the new &man.sym.4; driver.</para>
-
-      <para arch="i386">Support for Streaming <acronym>SIMD</acronym>
-      Extensions (<acronym>SSE</acronym>) has been introduced.  The
-      <literal>CPU_ENABLE_SSE</literal> kernel option controls whether
-      support is compiled into the kernel.</para>
-
-      <para arch="alpha">Whitebox (NT-only) AlphaServer 530x machines are
-      now supported by &os;.  &os; is, as always, booted from SRM, not from
-      AlphaBIOS. Make sure your SCSI adapters are on hose 0 for use with &os;.
-      </para>
+      <para></para>
     </sect3>
 
     <sect3>
       <title>Network Interface Support</title>
 
-      <para>The &man.fxp.4; driver now requires a <literal>device
-      miibus</literal> entry in the kernel configuration file.</para>
-
-      <para>The &man.wx.4; driver now supports the Intel PRO1000-F and
-      PRO1000-T (10/100/1000) adapters.</para>
-      
-      <para>The &man.an.4; driver now supports the Cisco Aironet 350
-      series of adaptors and has received a few bug fixes;
-      promiscuous mode now works, and it can be configured before being
-      brought <literal>up</literal>.</para>
-
-      <para>The &man.xl.4; driver now supports reception of VLAN
-      tagged frames (on the <quote>Cyclone</quote> or newer
-      chipsets).</para>
-
-      <para>The &man.ti.4; driver correctly masks VLAN tags.</para>
-
-      <para>Added the &man.nge.4; driver, which supports PCI Gigabit
-      Ethernet adapters based on the National Semiconductor DP83820
-      and DP83821 Gigabit Ethernet controller chips, including the
-      D-Link DGE-500T, SMC EZ Card 1000 (SMC9462TX), Asante
-      FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron
-      AEG320T.  This driver supports transmit and receive checksum
-      offloading.</para>
-
-      <para>The &man.lge.4; driver has been added to support the Level
-      1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
-      device is used on some fiber optic GigE cards from SMC, D-Link
-      and Addtron.  Jumbograms and TCP/IP checksum offload on receive
-      are supported, although hardware VLAN filtering is not.</para>
-
-      <para>The &man.tx.4; driver now supports the fiber-optic
-      SMC 9432FTX NICs.</para>
-
-      <para>The &man.ed.4; driver now has support for D-Link
-      DL10022 chips, necessary for the NetGear FA-410TX and other
-      cards.  As a result, <literal>device miibus</literal> is
-      required in kernel configurations using the &man.ed.4;
-      driver.</para>
-
-      <para>The &man.txp.4; driver has been added to support NICs
-      based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset.</para>
+      <para></para>
     </sect3>
 
     <sect3>
       <title>Network Protocols</title>
 
-      <para>TCP now has RFC 1323 extensions enabled by default in
-      &man.rc.conf.5;.</para>
-
-      <para>RFC 1323 and RFC 1644 TCP extensions are now disabled for a
-      connection in progress if no response has been received by the
-      third SYN segment sent.  This behavior tries to work around
-      (very old) terminal servers with buggy VJ header compression
-      implementations.</para>
-
-      <para>The <literal>TCP_RESTRICT_RST</literal> kernel option has
-      been removed.  Similar functionality can be achieved with the
-      <varname>net.inet.tcp.blackhole</varname> sysctl
-      variable.</para>
-
-      <para>The TCP implementation no longer requires the
-      allocation of a TCP template structure for each connection; this
-      should reduce the buffer usage on large systems handling many
-      connections.</para>
-
-      <para>A new sysctl <varname>net.inet.ip.check_interface</varname>,
-      which is off by default, causes IP to verify that an incoming
-      packet arrives on an interface that has an address matching the
-      packet's destination address.</para>
-
-      <para>A new <literal>options RANDOM_IP_ID</literal> kernel
-      option causes the ID field of IP packets to be randomized.  This
-      closes a minor information leak which allows a remote observer
-      to determine the rate at which the machine is generating
-      packets, since the default behavior is to increment a counter
-      for each packet sent.</para>
+      <para></para>
     </sect3>
 
     <sect3>
       <title>Disks and Storage</title>
 
-      <para arch="i386">The &man.asr.4; driver now supports the Adaptec
-      2000S and 2005S Zero-Channel RAID controllers.</para>
-
-      <para arch="i386">The &man.aac.4; driver now supports the Adaptec
-      SCSI RAID 5400S controller.</para>
-
-      <para>The &man.ata.4; driver again has write-caching enabled by 
-      default.</para>
-
-      <para>The &man.wd.4; compatibility devices were removed from the
-      &man.ata.4; driver.</para>
-
-      <para arch="alpha">Access to the floppy drive on the AlphaServer DS10
-      and AlphaServer DS20 is broken. On the DS10, various
-      errors are reported; on the DS20, the machine locks up.</para>
+      <para></para>
     </sect3>
 
     <sect3>
       <title>Filesystems</title>
 
-      <para arch="i386">smbfs (CIFS) support in kernel has been
-      added.  The corresponding userland filesystem mount utility can be found 
-      in the <port>net/smbfs</port> port in the &os; Ports 
-      Collection.</para>
-
-      <para>A simple hash-based lookup optimization for large directories
-      called <literal>dirhash</literal> has been added.  Conditional on the
-      <literal>UFS_DIRHASH</literal> kernel option, it improves the speed
-      of operations on very large directories at the expense of some
-      memory.</para>
-
+      <para></para>
     </sect3>
 
     <sect3>
       <title>PCCARD Support</title>
 
-      <para>On many modern hosts, PCCARD devices can be configured to
-      route their interrupts via either the ISA or PCI interrupt paths.
-      The &man.pcic.4; driver has been updated to support both interrupt
-      paths (formerly, only routing via ISA was supported).  In most
-      cases, configuration of PCMCIA devices in laptops is simpler and
-      more flexible.  In addition, various Cardbus bridge PCI cards
-      (such as those used by Orinoco PCI NICs) are now supported.  Some
-      hosts may experience problems, such as hangs or panics, with PCI
-      interrupt routing; they can frequently be made to work by forcing
-      the older-style ISA interrupt routing.  The following lines,
-      placed in <filename>/boot/loader.conf</filename>, may fix the 
-      problem:</para>
-
-      <programlisting>hw.pcic.intr_path="1"
-hw.pcic.irq="0"</programlisting>
-
-      <para>When installing &os; on such a system, typing the following
-      lines to the boot loader may be helpful in starting up &os; for
-      the first time:<para>
-
-      <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
-<prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
-
-      <para>PCCARD ejection can sometimes result in a hang; a workaround
-      for these cases is to perform a:</para>
-
-      <screen><prompt>#</prompt> <userinput>pccardc power 0 <replaceable>slot</replaceable></userinput></screen>
+      <para></para>
     </sect3>
 
     <sect3>
       <title>Multimedia Support</title>
 
-      <para arch="i386">A driver for the Advance Logic ALS4000 has
-      been added.</para>
-
+      <para></para>
     </sect3>
 
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>IPFilter</application> has been updated to
-      3.4.20.</para>
-
-      <sect4 arch="i386">
-        <title>isdn4bsd</title>
-
-	<para><application>isdn4bsd</application> has been updated to
-	version 1.0.1.  As a result of this update, users of the
-	&man.i4bisppp.4; (kernel PPP over ISDN) driver
-	<emphasis>must</emphasis> now use &man.ispppcontrol.8; instead
-	of &man.spppcontrol.8; to configure and control these
-	network interfaces.</para>
-
-	<para>The &man.ihfc.4; driver for supporting Cologne Chip
-        Designs HFC devices under <application>isdn4bsd</application>
-        has been added.</para>
-
-        <para>The &man.itjc.4; driver for supporting NETjet-S / Teles
-        PCI-TJ devices under <application>isdn4bsd</application> has
-        been added.</para>
-
-        <para>Experimental support for the Eicon.Diehl DIVA 2.0 and
-        2.02 ISA PnP ISDN cards has been added to the &man.isic.4;
-        <application>isdn4bsd</application> driver.</para> 
-
-	<para>Active CAPI-based ISDN cards manufacured by AVM are now
-	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver. The
-	supported cards are the AVM B1 PCI and AVM B1 ISA Basic Rate
-	cards and the AVM T1 Primary Rate cards.</para>
-
-	<para>A new <literal>maxconnecttime</literal> keyword is now
-	accepted in &man.isdnd.rc.5; files to limit the time a
-	connection may remain open.</para>
-      </sect4>
-
-      <sect4 id="kame-kernel">
-        <title>KAME</title>
-
-        <para>The IPv6 stack is now based on a snapshot based on the KAME
-	Project's IPv6 snapshot as of 28 May, 2001.  Most of the
-	items listed in this section are a result of this import.
-	<xref linkend="kame-userland"> lists userland updates to the
-	KAME IPv6 stack.</para>
-
-        <para>&man.gif.4; is now based on RFC 2893, rather than RFC
-	1933.  The <literal>IFF_LINK2</literal> interface flag can
-	be used to control ingress filtering.</para>
-
-	<para><application>IPSec</application> has received some
-	enhancements, including the ability to use the Rijndael and
-	SHA2 algorithms.  IPSec RC5 support has been removed due to
-	patent issues.</para>
-
-	<para>&man.stf.4; now conforms to RFC 3056; the
-	<literal>IFF_LINK2</literal> interface flag can be used to
-	control ingress filtering.</para>
-
-	<para>IPv6 has better checking of illegal addresses (such as
-	loopback addresses) on physical networks.</para>
-
-	<para>The <varname>IPV6_V6ONLY</varname> socket option is
-	now completely supported.  The kernel's default behavior
-	with respect to this option is controlled by the
-	<varname>net.inet6.ip6.v6only</varname> sysctl
-	variable.</para>
-
-	<para>RFC 3041 (Privacy Extensions for Stateless Address
-	Autoconfiguration) is now supported.  It can be enabled via
-	the <varname>net.inet6.ip6.use_tempaddr</varname> sysctl
-	variable.</para>
-      </sect4>
+      <para></para>
     </sect3>
   </sect2>
   <sect2 id="security">
     <title>Security-Related Changes</title>
 
-    <para>The security fix mentioned in security advisory
-    FreeBSD-SA-01:39, which governs initial sequence number generation
-    for TCP connections, has raised some possible compatibility
-    issues.  To mitigate this effect, the fix can now be enabled or
-    disabled using the
-    <varname>net.inet.tcp.tcp_seq_genscheme</varname> sysctl
-    variable.</para>
-
-    <para>A vulnerability in the &man.fts.3; routines (used by
-    applications for recursively traversing a filesystem) could
-    allow a program to operate on files outside the intended directory
-    hierarchy.  This bug has been fixed (see security advisory
-    FreeBSD-SA-01:40).</para>
-
-    <para>&man.portmap.8; is now turned off by default, although it
-    will be started automatically on machines that enable NFS serving,
-    NIS services, or &man.amd.8; through &man.rc.conf.5;.</para>
-
-    <para>A flaw allowed some signal handlers to remain in effect in a
-    child process after being exec-ed from its parent.  This allowed
-    an attacker to execute arbitrary code in the context of a setuid
-    binary.  This flaw has been corrected (see security advisory
-    FreeBSD-SA-01:42).</para>
-
-    <para>A remote buffer overflow in &man.tcpdump.1; has been fixed
-    (see security advisory FreeBSD-SA-01:48).</para>
-
-    <para>A remote buffer overflow in &man.telnetd.8; has been
-    fixed (see security advisory FreeBSD-SA-01:49).</para>
-
-    <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
-    and <varname>net.inet.ip6.maxfragpackets</varname> sysctl
-    variables limit the amount of memory that can be consumed by IPv4
-    and IPv6 packet fragments, which defends against some denial of service
-    attacks (see security advisory FreeBSD-SA-01:52).</para>
-
-    <para>The number of <quote>security profiles</quote> available in
-    &man.sysinstall.8; for new installations has been reduced to two.</para>
-
-    <para>All services in <filename>inetd.conf</filename> are now
-    disabled by default for new installations.  &man.sysinstall.8;
-    gives the option of enabling or disabling &man.inetd.8; on new
-    installations, as well as editing
-    <filename>inetd.conf</filename>.</para>
-
-    <para>A flaw in the implementation of the &man.ipfw.8;
-    <literal>me</literal> rules on point-to-point links has been
-    corrected.  Formerly, <literal>me</literal> filter rules would
-    match the remote IP address of a point-to-point interface in
-    addition to the intended local IP address (see security advisory
-    FreeBSD-SA-01:53).</para>
-
-    <para>A vulnerability in &man.procfs.5;, which could allow a
-    process to read sensitive information from another process's
-    memory space, has been closed (see security advisory
-    FreeBSD-SA-01:55).</para>
-
-    <para>The <literal>PARANOID</literal> hostname checking in
-    <application>tcp_wrappers</application> now works as advertised
-    (see security advisory FreeBSD-SA-01:56).</para>
-
-    <para>A local root exploit in &man.sendmail.8; has been closed
-    (see security advisory FreeBSD-SA-01:57).</para>
-
-    <para>A remote root vulnerability in &man.lpd.8; has been closed
-    (see security advisory FreeBSD-SA-01:58).</para>
-
-    <para>A race condition in &man.rmuser.8; that briefly exposed a
-    world-readable <filename>/etc/master.passwd</filename> has been
-    fixed (see security advisory FreeBSD-SA-01:59).</para>
-
-    <para>All non-<username>root</username>-owned binaries in standard
-    system paths now have the <literal>schg</literal> flag set to
-    prevent exploit vectors when run by &man.cron.8;, by
-    <username>root</username>, or by a user other then the one owning
-    the binary.  In addition, &man.uustat.1; is now run via
-    <filename>/etc/periodic/daily/410.status-uucp</filename> as
-    <username>uucp</username>, not <username>root</username>.</para>
-
-    <para>A security hole in the form of a buffer overflow in the
-    &man.semop.2; system call has been closed.</para>
+    <para></para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>&man.ip6fw.8; now has the ability to use a preprocessor and
-    use the <option>-q</option> (quiet) flag when reading from a file.</para>
-
-    <para>&man.ping.8; now supports a <option>-m</option> option to
-    set the TTL of outgoing packets.</para>
-
-    <para>&man.ln.1; now takes a <option>-h</option> flag to avoid
-    following a target that is a link, with a <option>-n</option> flag
-    for compatibility with other implementations.</para>
-
-    <para>&man.find.1; now has the <option>-anewer</option>,
-    <option>-cnewer</option>, <option>-mnewer</option>,
-    <option>-okdir</option>, and <option>-newer[acm][acmt]</option>
-    primaries for comparisons of file timestamps.</para>
-
-    <para>The performance of the ELF dynamic linker has been
-    improved.</para>
-
-    <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
-    notation.</para>
-
-    <para>&man.c89.1; has been converted from a shell script to a
-    binary executable, fixing some minor bugs.</para>
-
-    <para>&man.vidcontrol.1; now supports a <option>-p</option> option to
-    take a snapshot of a &man.syscons.4; video buffer.  These
-    snapshots can be manipulated by the
-    <port>graphics/scr2png</port> utility in the Ports
-    Collection.</para>
-
-    <para>&man.vidcontrol.1; now allows the user to omit the font size
-    specification when loading a font, and has some better
-    error-handling.</para>
-
-    <para>&man.telnet.1; now supports a <option>-u</option> flag to
-    allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
-    sockets.</para>
-
-    <para>&man.newfs.8; now takes a <option>-U</option> option to
-    enable softupdates on a new filesystem.</para>
-
-    <para><filename>libcrypt</filename> now has support for Blowfish
-    password hashing.</para>
-
-    <para>Ukrainian language support has been added to the &os;
-    console.</para>
-
-    <para>&man.savecore.8; now works correctly on machines with 2 GB
-    or more of RAM.</para>
-
-    <para>The syntax of &man.inetd.8;'s support for &man.faithd.8; is
-    now compatible with that of other BSDs.</para>
-
-    <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
-    been cleaned up and updated.</para>
-
-    <para>&man.inetd.8; now has the ability to manage UNIX-domain
-    sockets.</para>
-
-    <para>The &man.resolver.3; in &os; now implements EDNS0 support,
-    which will be necessary when working with IPv6 transport-ready
-    resolvers/DNS servers.</para>
-
-    <para>&man.df.1; now takes a <option>-l</option> option to only
-    display information about locally-mounted filesystems.</para>
-
-    <para>&man.whois.1; now directs queries for IP addresses to
-    ARIN.  If a query to ARIN references APNIC or RIPE, the
-    appropriate server will also be queried, provided that the
-    <option>-Q</option> option is not specified.</para>
-
-    <para>The <option>-T</option> option to &man.dump.8; no longer swallows
-    an extra argument.</para>
-
-    <para>&man.dump.8; has a new <option>-D</option> option, allowing
-    the path to the <filename>/etc/dumpdates</filename> file to be
-    changed.</para>
-
-    <para><filename>libfetch</filename> now has support for a
-    <envar>HTTP_USER_AGENT</envar> environment variable.</para>
-
-    <para>The &man.getprogname.3; and &man.setprogname.3; library
-    functions have been added to manipulate the name of the current
-    program.  They are used by error-reporting routines to produce
-    consistent output.</para>
-
-    <para>&man.xargs.1; now supports a <option>-J</option>
-    <replaceable>replstr</replaceable> option that allows the user to
-    tell &man.xargs.1; to insert the data read from standard input at
-    a specific point in the command line arguments, rather than at the
-    end.</para>
-
-    <para>&man.ifconfig.8; now has support for setting parameters for
-    IEEE 802.11 wireless network devices.  &man.wi.4; and
-    &man.an.4; devices are supported.</para>
-
-    <para>&man.ifconfig.8; no longer displays the list of supported
-    media by default.  Instead it displays it when the
-    <option>-m</option> option is given.</para>
-
-    <para>&man.lpd.8; now takes two new options:  <option>-c</option>
-    will log all connection errors to &man.syslogd.8;, while
-    <option>-W</option> will allow connections from non-reserved
-    ports.</para>
-
-    <para>&man.lpc.8; has been improved; <command>lpc clean</command>
-    is now somewhat safer, and a new <command>lpc tclean</command>
-    command has been added to check to see what files would be removed
-    by <command>lpc clean</command>.</para>
-
-    <para>&man.du.1; now takes a <option>-I</option> command-line flag
-    to ignore/skip files and subdirectories matching a specified
-    shell-glob mask.</para>
-
-    <para>&man.growfs.8;, a utility for growing FFS filesystems, has
-    been added.  &man.ffsinfo.8;, a utility for dump all the
-    meta-information of an existing filesystem, has also been
-    added.</para>
-
-    <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
-    sending messages with empty bodies.</para>
-
-    <para>&man.vidcontrol.1; now supports a <option>-C</option> option to
-    clear the history buffer for a given tty, as well as a
-    <option>-h</option> option to set the size of the history buffer.</para>
-
-    <para>&man.last.1; now implements a <option>-d</option> option that provides a
-    <quote>snapshot</quote> of who was logged in at a particular date and
-    time.</para>
-
-    <para><filename>libcrypt</filename> and
-    <filename>libdescrypt</filename> have been unified to provide a
-    configurable password authentication hash library.  Both the md5
-    and des hash methods are provided unless the des hash is
-    specifically compiled out.</para>
-
-    <para>&man.install.1; has a number of new features, including the
-    <option>-b</option> and <option>-B</option> options for backing up
-    existing target files and the <option>-S</option> option for
-    <quote>safe</quote> (atomic copy) operation.  The
-    <option>-c</option> (copy) flag is now the default, and the
-    <option>-D</option> (debugging) flag has been withdrawn.
-    &man.install.1; now issues a warning if <option>-d</option>
-    (create directories) and <option>-C</option> (copy changed files
-    only) are used together.</para>
-
-    <para>The &os; <filename>Makefile</filename> infrastructure now
-    supports the <varname>WARNS</varname> directive from NetBSD.  This
-    directive controls the addition of compiler warning flags to
-    <varname>CFLAGS</varname> in a relatively compiler-neutral
-    manner.</para>
-
-    <para>A new &man.fsck.msdosfs.8; utility has been added to check
-    the consistency of MS-DOS filesystems.</para>
-
-    <para>The &man.kldconfig.8; utility has been added to make it easier to
-    manipulate the kernel module search path.</para>
-
-    <para>&man.moused.8; now takes a <option>-a</option> option to control
-    mouse acceleration.</para>
-
-    <para>The <literal>tcpmssfixup</literal> &man.ppp.8; option now
-    adjusts the maximum receive segment size of incoming TCP SYN
-    segments as well as outgoing TCP SYN segments.</para>
-
-    <para>&man.sysctl.8; now supports a <option>-N</option> option to
-    print out variable names only.</para>
-
-    <para>&man.sysctl.8; has replaced the <option>-A</option> and
-    <option>-X</option> options with <option>-ao</option> and
-    <option>-ax</option> respectively; the former options are now
-    deprecated.  The <option>-w</option> flag is deprecated as well; it is
-    not needed to determine the user's intentions.</para>
-
-    <para>&man.cdcontrol.1; now supports <literal>next</literal> and
-    <literal>prev</literal> commands to skip forwards or backwards a
-    specified number of tracks while playing an audio CD.</para>
-
-    <para>&man.col.1; now takes a <option>-p</option> flag to force unknown
-    control sequences to be passed through unchanged.</para>
-
-    <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
-    environment variable, if set, to specify the location of temporary
-    files.</para>
-
-    <para>&man.rc.8; now deletes all non-directory files in
-    <filename>/var/run</filename> and
-    <filename>/var/spool/lock</filename> at boot time.</para>
-
-    <para>&man.fmtcheck.3;, a function for checking consistency of
-    format string arguments, has been added.</para>
-
-    <para>&man.apmd.8; now has the ability to monitor battery levels and
-    execute commands based on percentage or minutes of battery life
-    remaining via the <literal>apm_battery</literal> configuration
-    directive.  See the commented-out examples in
-    <filename>/etc/apmd.conf</filename> for the syntax.</para>
-
-    <para>&man.pppd.8; (the control program for kernel-level PPP) is
-    now installed mode <literal>4550</literal> and
-    <username>root</username><literal>:</literal><groupname>dialer</groupname>,
-    rather than mode <literal>4555</literal> (in other words, it is no
-    longer world-executable).  Users of &man.pppd.8; may need to
-    change their group settings.</para>
-
-    <para arch="alpha">&man.sysinstall.8; reports <literal>/: write failed, file 
-    system is full</literal> when navigating the menus. These messages do not
-    affect the operation of &man.sysinstall.8; or the actual installation process
-    and can safely be ignored.</para>
-
-    <para arch="alpha">&man.savecore.8; now works correctly on Alpha 
-    machines.</para>
+    <para></para>
 
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>BIND</application> is now built with the
-      <literal>NOADDITIONAL</literal> flag, which causes &man.named.8;
-      to operate in a more consistent fashion for certain common
-      misconfigurations.</para>
-
-      <para><application>BIND</application> has been updated to
-      8.2.4-REL.</para>
-
-      <para><application>Binutils</application> have been upgraded to
-      2.11.2.</para>
-
-      <para><application>bzip2</application> 1.0.1 has been imported; this
-      brings the &man.bzip2.1; program and the <filename>libbz2</filename>
-      library to the base system.</para>
-
-      <para>The &man.ee.1; <application>Easy Editor</application> has
-      been updated to 1.4.2.</para>
-
-      <para><application>file</application> has been updated to 3.36.</para>
-
-      <para>&man.gcc.1; now supports the environment variable
-      <envar>GCC_OPTIONS</envar>, which can hold a set of default
-      options for <application>GCC</application>.</para>
-
-      <para><application>GNATS</application> has been updated to
-      3.113.</para>
-
-      <para><application>groff</application> and its related utilities
-      have been updated to FSF version 1.17.2. This import brings in a
-      new &man.mdoc.7; macro package (sometimes referred to as
-      <literal>mdocNG</literal>), which removes many of the
-      limitations of its predecessor.</para>
-
-      <para><application>libpcap</application> has been updated to
-      0.6.2.</para>
-
-      <para><application>OpenSSL</application> has been upgraded to
-      0.9.6a.</para>
-
-      <para><application>sendmail</application> and associated utilities
-      have been upgraded to version 8.11.6.  See
-      <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
-      for more information.</para>
-
-      <para>&man.traceroute.8; now takes its default maximum TTL value
-      from the <varname>net.inet.ip.ttl</varname> sysctl
-      variable.</para>
-
-      <para><application>tcpdump</application> has been updated to
-      3.6.3.</para>
-
-      <sect4>
-        <title>CVSup</title>
-
-	<para><application>CVSup</application>, a frequently used
-	utility in the &os; Ports Collection, was formerly installable
-	using several ports and packages.  The
-	<port>net/cvsup-bin</port> and <port>net/cvsupd-bin</port>
-	ports/packages are no longer necessary or available; the
-	<port>net/cvsup</port> port should be used instead.</para>
-
-	<para><application>CVSup</application> has been updated to
-	16.1_3, which is available in the &os; Ports Collection as
-	<port>net/cvsup</port>.  This update fixes a long-standing
-	(but only recently encountered) bug which affects the
-	timestamps on all files after Sun Sep 9 01:46:40 UTC 2001
-	(1,000,000,000 seconds after the UNIX epoch).</para>
-      </sect4>
-
-      <sect4 id="kame-userland">
-        <title>KAME</title>
-
-        <para>The IPv6 stack is now based on a snapshot based on the KAME
-	Project's IPv6 snapshot as of 28 May, 2001.  Most of the
-	items listed in this section are a result of this import.
-	<xref linkend="kame-kernel"> lists kernel updates to the KAME
-	IPv6 stack.</para>
-
-	<para>&man.faithd.8; now supports a configuration file for
-	access control.</para>
-
-	<para>&man.ifconfig.8; can now perform the functions of
-	&man.gifconfig.8;.</para>
-
-	<para>&man.ifconfig.8; can now perform the functions of
-	&man.prefix.8;.  &man.prefix.8; is now a shell script for
-	partial backwards compatibility.</para>
-
-	<para>&man.ndp.8; now implements garbage collection for stale
-	NDP entries, as described in RFC 2461 (Neighbor Discovery for
-	IP Version 6 (IPv6)).</para>
-
-        <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
-        restrictive licensing conditions.  These programs are available
-        in the ports collection as <port>net/pim6dd</port> and
-        <port>net/pim6sd</port>.</para>
-
-	<para>&man.route6d.8; now supports an <option>-n</option> flag
-	to avoid updating the kernel forwarding table.</para>
-
-	<para>The <option>-R</option> (router renumbering) option to
-	&man.rtadvd.8; is currently ignored.</para>
-      </sect4>
+      <para></para>
     </sect3>
 
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para>&man.pkg.version.1; now takes a <option>-s</option> flag
-      to limit its operation to ports/packages matching a given
-      string.</para>
+      <para></para>
     </sect3>
   </sect2>
 </sect1>
