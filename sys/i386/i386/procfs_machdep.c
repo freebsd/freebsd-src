@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_machdep.c,v 1.4 1995/03/16 18:11:29 bde Exp $
+ *	$Id: procfs_machdep.c,v 1.5 1995/12/07 12:45:37 davidg Exp $
  */
 
 /*
@@ -62,8 +62,6 @@
  * procfs_sstep(proc)
  *	Arrange for the process to trap after executing a single instruction.
  *
- * procfs_fix_sstep(proc)
- *	Cleanup process state after executing a single-step instruction.
  */
 
 #include <sys/param.h>
@@ -142,10 +140,4 @@ procfs_sstep(p)
 	if ((p->p_flag & P_INMEM) == 0)
 		return (EIO);
 	return (ptrace_single_step(p));
-}
-
-void
-procfs_fix_sstep(p)
-	struct proc *p;
-{
 }
