@@ -706,7 +706,7 @@ assign_io(struct slot *sp)
 			sp->mem.cardaddr = 0x4000;
 			sp->mem.flags = MDF_ACTIVE | MDF_16BITS;
 		} else {
-			sp->mem.flags = MDF_ACTIVE;
+			sp->mem.flags = MDF_ACTIVE | MDF_16BITS;
 		}
 
 		if (sp->mem.flags & MDF_ACTIVE)
