@@ -1190,8 +1190,7 @@ epioctl(ifp, cmd, data)
 #ifdef INET
 	  case AF_INET:
 	    epinit(ifp->if_unit);	/* before arpwhohas */
-	    ((struct arpcom *) ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-	    arpwhohas((struct arpcom *) ifp, &IA_SIN(ifa)->sin_addr);
+	    arp_ifinit((struct arpcom *)ifp, ifa);
 	    break;
 #endif
 #ifdef NS

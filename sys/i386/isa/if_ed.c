@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.57 1994/11/24 14:29:16 davidg Exp $
+ * $Id: if_ed.c,v 1.58 1994/11/26 10:51:49 davidg Exp $
  */
 
 #include "ed.h"
@@ -1925,14 +1925,7 @@ ed_ioctl(ifp, command, data)
 #ifdef INET
 		case AF_INET:
 			ed_init(ifp->if_unit);	/* before arpwhohas */
-
-			/*
-			 * See if another station has *our* IP address. i.e.:
-			 * There is an address conflict! If a conflict exists,
-			 * a message is sent to the console.
-			 */
-			((struct arpcom *) ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-			arpwhohas((struct arpcom *) ifp, &IA_SIN(ifa)->sin_addr);
+			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
 #endif
 #ifdef NS

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.7 1994/11/02 00:58:29 wollman Exp $
+ * $Id: if_ether.c,v 1.8 1994/12/13 22:32:44 wollman Exp $
  */
 
 /*
@@ -631,4 +631,15 @@ arpioctl(cmd, data)
 	caddr_t data;
 {
 	return (EOPNOTSUPP);
+}
+
+void
+arp_ifinit(ac, ifa)
+	struct arpcom *ac;
+	struct ifaddr *ifa;
+{
+	ac->ac_ipaddr = IA_SIN(ifa)->sin_addr;
+	arpwhohas(ac, &ac->ac_ipaddr);
+	ifa->ifa_rtrequest = arp_rtrequest;
+	ifa->ifa_flags |= RTF_CLONING;
 }

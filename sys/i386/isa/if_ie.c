@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.18 1994/10/26 00:16:17 phk Exp $
+ *	$Id: if_ie.c,v 1.19 1994/11/24 14:29:20 davidg Exp $
  */
 
 /*
@@ -1887,9 +1887,7 @@ ieioctl(ifp, command, data)
 #ifdef INET
     case AF_INET:
       ieinit(ifp->if_unit);
-      ((struct arpcom *)ifp)->ac_ipaddr =
-	IA_SIN(ifa)->sin_addr;
-      arpwhohas((struct arpcom *)ifp, &IA_SIN(ifa)->sin_addr);
+      arp_ifinit((struct arpcom *)ifp, ifa);
       break;
 #endif /* INET */
 

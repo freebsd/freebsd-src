@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.8 1994/10/23 21:27:17 wollman Exp $
+ * $Id: if_el.c,v 1.9 1994/11/24 14:29:17 davidg Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -701,14 +701,7 @@ el_ioctl(ifp, command, data)
 #ifdef INET
 		case AF_INET:
 			el_init(ifp->if_unit);	/* before arpwhohas */
-			/*
-			 * See if another station has *our* IP address.
-			 * i.e.: There is an address conflict! If a
-			 * conflict exists, a message is sent to the
-			 * console.
-			 */
-			((struct arpcom *)ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-			arpwhohas((struct arpcom *)ifp, &IA_SIN(ifa)->sin_addr);
+			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
 #endif
 #ifdef NS
