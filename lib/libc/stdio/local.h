@@ -103,3 +103,10 @@ struct __sFILEX {
 	free((char *)(fp)->_lb._base); \
 	(fp)->_lb._base = NULL; \
 }
+
+#define	INITEXTRA(fp) { \
+	(fp)->_extra->_up = NULL; \
+	(fp)->_extra->fl_mutex = PTHREAD_MUTEX_INITIALIZER; \
+	(fp)->_extra->fl_owner = NULL; \
+	(fp)->_extra->fl_count = 0; \
+}

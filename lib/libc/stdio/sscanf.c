@@ -77,6 +77,7 @@ sscanf(str, fmt, va_alist)
 {
 	int ret;
 	va_list ap;
+	struct __sFILEX extra;
 	FILE f;
 
 	f._file = -1;
@@ -86,6 +87,8 @@ sscanf(str, fmt, va_alist)
 	f._read = eofread;
 	f._ub._base = NULL;
 	f._lb._base = NULL;
+	f._extra = &extra;
+	INITEXTRA(&f);
 #if __STDC__
 	va_start(ap, fmt);
 #else
