@@ -41,35 +41,49 @@
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
 
+#include "pcib_if.h"
+
 static int cfgmech;
 static int devmax;
 static int usebios;
 
-static int	pcibios_cfgread(pcicfgregs *cfg, int reg, int bytes);
-static void	pcibios_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes);
+static int	pcibios_cfgread(int bus, int slot, int func, int reg,
+				int bytes);
+static void	pcibios_cfgwrite(int bus, int slot, int func, int reg,
+				 int data, int bytes);
 static int	pcibios_cfgopen(void);
-static int	pcireg_cfgread(pcicfgregs *cfg, int reg, int bytes);
-static void	pcireg_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes);
+static int	pcireg_cfgread(int bus, int slot, int func, int reg,
+			       int bytes);
+static void	pcireg_cfgwrite(int bus, int slot, int func, int reg,
+				int data, int bytes);
 static int	pcireg_cfgopen(void);
 
 /* read configuration space register */
 
-int
-pci_cfgread(pcicfgregs *cfg, int reg, int bytes)
+static int
+nexus_pcib_maxslots(device_t dev)
+{
+	return 31;
+}
+
+static u_int32_t
+nexus_pcib_read_config(device_t dev, int bus, int slot, int func,
+		       int reg, int bytes)
 {
 	return(usebios ? 
-	       pcibios_cfgread(cfg, reg, bytes) : 
-	       pcireg_cfgread(cfg, reg, bytes));
+	       pcibios_cfgread(bus, slot, func, reg, bytes) : 
+	       pcireg_cfgread(bus, slot, func, reg, bytes));
 }
 
 /* write configuration space register */
 
-void
-pci_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
+static void
+nexus_pcib_write_config(device_t dev, int bus, int slot, int func,
+			int reg, u_int32_t data, int bytes)
 {
 	return(usebios ? 
-	       pcibios_cfgwrite(cfg, reg, data, bytes) : 
-	       pcireg_cfgwrite(cfg, reg, data, bytes));
+	       pcibios_cfgwrite(bus, slot, func, reg, data, bytes) : 
+	       pcireg_cfgwrite(bus, slot, func, reg, data, bytes));
 }
 
 /* initialise access to PCI configuration space */
@@ -89,7 +103,7 @@ pci_cfgopen(void)
 /* config space access using BIOS functions */
 
 static int
-pcibios_cfgread(pcicfgregs *cfg, int reg, int bytes)
+pcibios_cfgread(int bus, int slot, int func, int reg, int bytes)
 {
 	struct bios_regs args;
 	u_int mask;
@@ -110,7 +124,7 @@ pcibios_cfgread(pcicfgregs *cfg, int reg, int bytes)
 	default:
 		return(-1);
 	}
-	args.ebx = (cfg->bus << 8) | (cfg->slot << 3) | (cfg->func);
+	args.ebx = (bus << 8) | (slot << 3) | func;
 	args.edi = reg;
 	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
 	/* check call results? */
@@ -118,7 +132,7 @@ pcibios_cfgread(pcicfgregs *cfg, int reg, int bytes)
 }
 
 static void
-pcibios_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
+pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 {
 	struct bios_regs args;
     
@@ -135,7 +149,7 @@ pcibios_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
 	default:
 		return;
 	}
-	args.ebx = (cfg->bus << 8) | (cfg->slot << 3) | (cfg->func);
+	args.ebx = (bus << 8) | (slot << 3) | func;
 	args.ecx = data;
 	args.edi = reg;
 	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
@@ -200,12 +214,12 @@ pci_cfgdisable(void)
 }
 
 static int
-pcireg_cfgread(pcicfgregs *cfg, int reg, int bytes)
+pcireg_cfgread(int bus, int slot, int func, int reg, int bytes)
 {
 	int data = -1;
 	int port;
 
-	port = pci_cfgenable(cfg->bus, cfg->slot, cfg->func, reg, bytes);
+	port = pci_cfgenable(bus, slot, func, reg, bytes);
 
 	if (port != 0) {
 		switch (bytes) {
@@ -225,11 +239,11 @@ pcireg_cfgread(pcicfgregs *cfg, int reg, int bytes)
 }
 
 static void
-pcireg_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
+pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 {
 	int port;
 
-	port = pci_cfgenable(cfg->bus, cfg->slot, cfg->func, reg, bytes);
+	port = pci_cfgenable(bus, slot, func, reg, bytes);
 	if (port != 0) {
 		switch (bytes) {
 		case 1:
@@ -373,7 +387,7 @@ pcireg_cfgopen(void)
 static devclass_t	pcib_devclass;
 
 static const char *
-nexus_pcib_is_host_bridge(pcicfgregs *cfg,
+nexus_pcib_is_host_bridge(int bus, int slot, int func,
 			  u_int32_t id, u_int8_t class, u_int8_t subclass,
 			  u_int8_t *busnum)
 {
@@ -386,8 +400,8 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 	case 0x12258086:
 		s = "Intel 824?? host to PCI bridge";
 		/* XXX This is a guess */
-		/* *busnum = pci_cfgread(cfg, 0x41, 1); */
-		*busnum = cfg->bus;
+		/* *busnum = nexus_pcib_read_config(0, bus, slot, func, 0x41, 1); */
+		*busnum = bus;
 		break;
 	case 0x71208086:
 		s = "Intel 82810 (i810 GMCH) Host To Hub bridge";
@@ -421,7 +435,7 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		break;
 	case 0x84c48086:
 		s = "Intel 82454KX/GX (Orion) host to PCI bridge";
-		*busnum = pci_cfgread(cfg, 0x4a, 1);
+		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x4a, 1);
 		break;
 	case 0x84ca8086:
 		/*
@@ -435,13 +449,17 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		 * Since the MIOC doesn't have a pci bus attached, we
 		 * pretend it wasn't there.
 		 */
-		pxb[0] = pci_cfgread(cfg, 0xd0, 1); /* BUSNO[0] */
-		pxb[1] = pci_cfgread(cfg, 0xd1, 1) + 1;	/* SUBA[0]+1 */
-		pxb[2] = pci_cfgread(cfg, 0xd3, 1); /* BUSNO[1] */
-		pxb[3] = pci_cfgread(cfg, 0xd4, 1) + 1;	/* SUBA[1]+1 */
+		pxb[0] = nexus_pcib_read_config(0, bus, slot, func,
+						0xd0, 1); /* BUSNO[0] */
+		pxb[1] = nexus_pcib_read_config(0, bus, slot, func,
+						0xd1, 1) + 1;	/* SUBA[0]+1 */
+		pxb[2] = nexus_pcib_read_config(0, bus, slot, func,
+						0xd3, 1); /* BUSNO[1] */
+		pxb[3] = nexus_pcib_read_config(0, bus, slot, func,
+						0xd4, 1) + 1;	/* SUBA[1]+1 */
 		return NULL;
 	case 0x84cb8086:
-		switch (cfg->slot) {
+		switch (slot) {
 		case 0x12:
 			s = "Intel 82454NX PXB#0, Bus#A";
 			*busnum = pxb[0];
@@ -513,19 +531,19 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		/* RCC -- vendor 0x1166 */
 	case 0x00051166:
 		s = "RCC HE host to PCI bridge";
-		*busnum = pci_cfgread(cfg, 0x44, 1);
+		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 	
 	case 0x00061166:
 		/* FALLTHROUGH */
 	case 0x00081166:
 		s = "RCC host to PCI bridge";
-		*busnum = pci_cfgread(cfg, 0x44, 1);
+		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
 	case 0x00091166:
 		s = "RCC LE host to PCI bridge";
-		*busnum = pci_cfgread(cfg, 0x44, 1);
+		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
 		/* Integrated Micro Solutions -- vendor 0x10e0 */
@@ -549,7 +567,7 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 static void
 nexus_pcib_identify(driver_t *driver, device_t parent)
 {
-	pcicfgregs probe;
+	int bus, slot, func;
 	u_int8_t  hdrtype;
 	int found = 0;
 	int pcifunchigh;
@@ -557,19 +575,17 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 
 	if (pci_cfgopen() == 0)
 		return;
-	probe.hose = 0;
-	probe.bus = 0;
+	bus = 0;
  retry:
-	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
-		probe.func = 0;
-		hdrtype = pci_cfgread(&probe, PCIR_HEADERTYPE, 1);
+	for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
+		func = 0;
+		hdrtype = nexus_pcib_read_config(0, bus, slot, func,
+						 PCIR_HEADERTYPE, 1);
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = 7;
 		else
 			pcifunchigh = 0;
-		for (probe.func = 0;
-		     probe.func <= pcifunchigh;
-		     probe.func++) {
+		for (func = 0; func <= pcifunchigh; func++) {
 			/*
 			 * Read the IDs and class from the device.
 			 */
@@ -578,14 +594,17 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			device_t child;
 			const char *s;
 
-			id = pci_cfgread(&probe, PCIR_DEVVENDOR, 4);
+			id = nexus_pcib_read_config(0, bus, slot, func,
+						    PCIR_DEVVENDOR, 4);
 			if (id == -1)
 				continue;
-			class = pci_cfgread(&probe, PCIR_CLASS, 1);
-			subclass = pci_cfgread(&probe, PCIR_SUBCLASS, 1);
+			class = nexus_pcib_read_config(0, bus, slot, func,
+						       PCIR_CLASS, 1);
+			subclass = nexus_pcib_read_config(0, bus, slot, func,
+							  PCIR_SUBCLASS, 1);
 
-			s = nexus_pcib_is_host_bridge(&probe, id,
-						      class, subclass,
+			s = nexus_pcib_is_host_bridge(bus, slot, func,
+						      id, class, subclass,
 						      &busnum);
 			if (s) {
 				/*
@@ -601,8 +620,8 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			}
 		}
 	}
-	if (found824xx && probe.bus == 0) {
-		probe.bus++;
+	if (found824xx && bus == 0) {
+		bus++;
 		goto retry;
 	}
 
@@ -629,6 +648,17 @@ nexus_pcib_probe(device_t dev)
 	return ENXIO;
 }
 
+static int
+nexus_pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
+{
+	switch (which) {
+	case  PCIB_IVAR_BUS:
+		*result = 0;
+		return 0;
+	}
+	return ENOENT;
+}
+
 static device_method_t nexus_pcib_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	nexus_pcib_identify),
@@ -640,12 +670,18 @@ static device_method_t nexus_pcib_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,	nexus_pcib_read_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,	nexus_pcib_maxslots),
+	DEVMETHOD(pcib_read_config,	nexus_pcib_read_config),
+	DEVMETHOD(pcib_write_config,	nexus_pcib_write_config),
 
 	{ 0, 0 }
 };

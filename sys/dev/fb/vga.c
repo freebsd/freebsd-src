@@ -48,6 +48,7 @@
 
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
+#include <machine/bus.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/vgareg.h>

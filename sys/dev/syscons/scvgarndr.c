@@ -34,6 +34,7 @@
 #include <sys/kernel.h>
 
 #include <machine/console.h>
+#include <machine/bus.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/vgareg.h>

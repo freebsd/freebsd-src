@@ -29,74 +29,12 @@
 #ifndef _MACHINE_CHIPSET_H_
 #define _MACHINE_CHIPSET_H_
 
-typedef u_int8_t	alpha_chipset_inb_t(u_int32_t port);
-typedef u_int16_t	alpha_chipset_inw_t(u_int32_t port);
-typedef u_int32_t	alpha_chipset_inl_t(u_int32_t port);
-typedef void		alpha_chipset_outb_t(u_int32_t port, u_int8_t data);
-typedef void		alpha_chipset_outw_t(u_int32_t port, u_int16_t data);
-typedef void		alpha_chipset_outl_t(u_int32_t port, u_int32_t data);
-
-typedef u_int8_t	alpha_chipset_readb_t(u_int32_t pa);
-typedef u_int16_t	alpha_chipset_readw_t(u_int32_t pa);
-typedef u_int32_t	alpha_chipset_readl_t(u_int32_t pa);
-typedef void		alpha_chipset_writeb_t(u_int32_t pa, u_int8_t data);
-typedef void		alpha_chipset_writew_t(u_int32_t pa, u_int16_t data);
-typedef void		alpha_chipset_writel_t(u_int32_t pa, u_int32_t data);
-
-typedef int		alpha_chipset_maxdevs_t(u_int bus);
-typedef u_int8_t	alpha_chipset_cfgreadb_t(u_int, u_int, u_int, u_int, u_int);
-typedef u_int16_t	alpha_chipset_cfgreadw_t(u_int, u_int, u_int, u_int, u_int);
-typedef u_int32_t	alpha_chipset_cfgreadl_t(u_int, u_int, u_int, u_int, u_int);
-typedef void		alpha_chipset_cfgwriteb_t(u_int, u_int, u_int, u_int, u_int,
-						  u_int8_t);
-typedef void		alpha_chipset_cfgwritew_t(u_int, u_int, u_int, u_int, u_int,
-						  u_int16_t);
-typedef void		alpha_chipset_cfgwritel_t(u_int, u_int, u_int, u_int, u_int,
-						  u_int32_t);
-typedef vm_offset_t     alpha_chipset_addrcvt_t(vm_offset_t);
 typedef u_int64_t	alpha_chipset_read_hae_t(void);
 typedef void		alpha_chipset_write_hae_t(u_int64_t);
 
 struct sgmap;
 
 typedef struct alpha_chipset {
-    /*
-     * I/O port access
-     */
-    alpha_chipset_inb_t*	inb;
-    alpha_chipset_inw_t*	inw;
-    alpha_chipset_inl_t*	inl;
-    alpha_chipset_outb_t*	outb;
-    alpha_chipset_outw_t*	outw;
-    alpha_chipset_outl_t*	outl;
-
-    /*
-     * Memory access
-     */
-    alpha_chipset_readb_t*	readb;
-    alpha_chipset_readw_t*	readw;
-    alpha_chipset_readl_t*	readl;
-    alpha_chipset_writeb_t*	writeb;
-    alpha_chipset_writew_t*	writew;
-    alpha_chipset_writel_t*	writel;
-
-    /*
-     * PCI configuration access
-     */
-    alpha_chipset_maxdevs_t*	maxdevs;
-    alpha_chipset_cfgreadb_t*	cfgreadb;
-    alpha_chipset_cfgreadw_t*	cfgreadw;
-    alpha_chipset_cfgreadl_t*	cfgreadl;
-    alpha_chipset_cfgwriteb_t*	cfgwriteb;
-    alpha_chipset_cfgwritew_t*	cfgwritew;
-    alpha_chipset_cfgwritel_t*	cfgwritel;
-
-    /*
-     * PCI address space translation functions
-     */
-    alpha_chipset_addrcvt_t*	cvt_to_dense;
-    alpha_chipset_addrcvt_t*	cvt_to_bwx;
-
     /*
      * Access the HAE register
      */

@@ -26,5 +26,8 @@
  * $FreeBSD$
  */
 
-extern void apecs_init(void);
+struct device;
 
+extern void apecs_init(void);
+u_int32_t apecs_pcib_read_config(struct device *dev, int b, int s, int f,
+				 int reg, int width);

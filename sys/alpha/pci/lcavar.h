@@ -26,4 +26,8 @@
  * $FreeBSD$
  */
 
+struct device;
+
 extern void lca_init(void);
+u_int32_t lca_pcib_read_config(struct device *dev, int b, int s, int f,
+			       int reg, int width);

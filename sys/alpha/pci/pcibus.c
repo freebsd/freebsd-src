@@ -45,10 +45,14 @@
 #include <alpha/pci/pcibus.h>
 #include <alpha/isa/isavar.h>
 
+#include "alphapci_if.h"
 #include "isa.h"
 
 #define	ISA_IRQ_OFFSET	0xe0
 #define	ISA_IRQ_LEN	0x10
+
+struct alpha_busspace *busspace_isa_io;
+struct alpha_busspace *busspace_isa_mem;
 
 char chipset_type[10];
 int chipset_bwx = 0;
@@ -70,73 +74,6 @@ SYSCTL_LONG(_hw_chipset, OID_AUTO, dense, CTLFLAG_RD, &chipset_dense, 0,
 	    "PCI chipset dense memory address");
 SYSCTL_LONG(_hw_chipset, OID_AUTO, hae_mask, CTLFLAG_RD, &chipset_hae_mask, 0,
 	    "PCI chipset mask for HAE register");
-
-#ifdef notyet
-
-/* return max number of devices on the bus */
-int
-pci_maxdevs(pcicfgregs *cfg)
-{
-	return chipset.maxdevs(cfg->bus);
-}
-
-#endif
-
-/* read configuration space register */
-
-int
-pci_cfgread(pcicfgregs *cfg, int reg, int bytes)
-{
-	switch (bytes) {
-	case 1:
-		return chipset.cfgreadb(cfg->hose, cfg->bus, 
-					cfg->slot, cfg->func, reg);
-	case 2:
-		return chipset.cfgreadw(cfg->hose, cfg->bus, 
-					cfg->slot, cfg->func, reg);
-	case 4:
-		return chipset.cfgreadl(cfg->hose, cfg->bus, 
-					cfg->slot, cfg->func, reg);
-	}
-	return ~0;
-}		
-
-
-/* write configuration space register */
-
-void
-pci_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
-{
-	switch (bytes) {
-	case 1:
-		return chipset.cfgwriteb(cfg->hose, cfg->bus, 
-					 cfg->slot, cfg->func, reg, data);
-	case 2:
-		return chipset.cfgwritew(cfg->hose, cfg->bus, 
-					 cfg->slot, cfg->func, reg, data);
-	case 4:
-		return chipset.cfgwritel(cfg->hose, cfg->bus, 
-					 cfg->slot, cfg->func, reg, data);
-	}
-}
-
-vm_offset_t 
-pci_cvt_to_dense(vm_offset_t sparse)
-{
-	if(chipset.cvt_to_dense)
-		return ALPHA_PHYS_TO_K0SEG(chipset.cvt_to_dense(sparse));
-	else
-		return NULL;
-}
-
-vm_offset_t
-pci_cvt_to_bwx(vm_offset_t sparse)
-{
-	if(chipset.cvt_to_bwx)
-		return ALPHA_PHYS_TO_K0SEG(chipset.cvt_to_bwx(sparse));
-	else
-		return NULL;
-}
 
 void
 alpha_platform_assign_pciintr(pcicfgregs *cfg)
@@ -274,6 +211,7 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	struct	rman *rm;
 	struct	resource *rv;
+	void *va;
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -290,11 +228,8 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 
 	case SYS_RES_IOPORT:
-		rm = &port_rman;
-		break;
-
 	case SYS_RES_MEMORY:
-		rm = &mem_rman;
+		rm = ALPHAPCI_GET_RMAN(bus, type);
 		break;
 
 	default:
@@ -305,21 +240,19 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rv == 0)
 		return 0;
 
+	rman_set_bustag(rv, ALPHAPCI_GET_BUSTAG(bus, type));
+	rman_set_bushandle(rv, rv->r_start);
 	switch (type) {
 	case SYS_RES_MEMORY:
-		rman_set_bustag(rv, ALPHA_BUS_SPACE_MEM);
-		rman_set_bushandle(rv, rv->r_start);
+		va = 0;
 		if (flags & PCI_RF_DENSE)
-			rman_set_virtual(rv, (void *) pci_cvt_to_dense(rv->r_start));
+			va = ALPHAPCI_CVT_DENSE(bus, rv->r_start);
 		else if (flags & PCI_RF_BWX)
-			rman_set_virtual(rv, (void *) pci_cvt_to_bwx(rv->r_start));
+			va = ALPHAPCI_CVT_BWX(bus, rv->r_start);
 		else
-			rman_set_virtual(rv, (void *) rv->r_start); /* maybe NULL? */
-		break;
+			va = (void *) rv->r_start; /* maybe NULL? */
+		rman_set_virtual(rv, va);
 
-	case SYS_RES_IOPORT:
-		rman_set_bustag(rv, ALPHA_BUS_SPACE_IO);
-		rman_set_bushandle(rv, rv->r_start);
 		break;
 	}
 
@@ -347,54 +280,32 @@ pci_release_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_release_resource(r));
 }
 
-void
-memcpy_fromio(void *d, u_int32_t s, size_t size)
+struct alpha_busspace *
+pci_get_bustag(device_t dev, int type)
 {
-    char *cp = d;
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return busspace_isa_io;
 
-    while (size--)
-	*cp++ = readb(s++);
+	case SYS_RES_MEMORY:
+		return busspace_isa_mem;
+	}
+
+	return 0;
 }
 
-void
-memcpy_toio(u_int32_t d, void *s, size_t size)
+struct rman *
+pci_get_rman(device_t dev, int type)
 {
-    char *cp = s;
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return &port_rman;
 
-    while (size--)
-	writeb(d++, *cp++);
-}
+	case SYS_RES_MEMORY:
+		return &mem_rman;
+	}
 
-void
-memcpy_io(u_int32_t d, u_int32_t s, size_t size)
-{
-    while (size--)
-	writeb(d++, readb(s++));
-}
-
-void
-memset_io(u_int32_t d, int val, size_t size)
-{
-    while (size--)
-	writeb(d++, val);
-}
-
-void
-memsetw(void *d, int val, size_t size)
-{
-    u_int16_t *sp = d;
-
-    while (size--)
-	*sp++ = val;
-}
-
-void
-memsetw_io(u_int32_t d, int val, size_t size)
-{
-    while (size--) {
-	writew(d, val);
-	d += sizeof(u_int16_t);
-    }
+	return 0;
 }
 
 #include "opt_ddb.h"

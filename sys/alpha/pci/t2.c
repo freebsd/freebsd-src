@@ -66,110 +66,27 @@ struct t2_softc {
 
 #define T2_SOFTC(dev)	(struct t2_softc*) device_get_softc(dev)
 
-static alpha_chipset_inb_t	t2_inb;
-static alpha_chipset_inw_t	t2_inw;
-static alpha_chipset_inl_t	t2_inl;
-static alpha_chipset_outb_t	t2_outb;
-static alpha_chipset_outw_t	t2_outw;
-static alpha_chipset_outl_t	t2_outl;
-static alpha_chipset_readb_t	t2_readb;
-static alpha_chipset_readw_t	t2_readw;
-static alpha_chipset_readl_t	t2_readl;
-static alpha_chipset_writeb_t	t2_writeb;
-static alpha_chipset_writew_t	t2_writew;
-static alpha_chipset_writel_t	t2_writel;
-static alpha_chipset_maxdevs_t	t2_maxdevs;
-static alpha_chipset_cfgreadb_t	t2_cfgreadb;
-static alpha_chipset_cfgreadw_t	t2_cfgreadw;
-static alpha_chipset_cfgreadl_t	t2_cfgreadl;
-static alpha_chipset_cfgwriteb_t t2_cfgwriteb;
-static alpha_chipset_cfgwritew_t t2_cfgwritew;
-static alpha_chipset_cfgwritel_t t2_cfgwritel;
-static alpha_chipset_addrcvt_t   t2_cvt_dense;
 static alpha_chipset_read_hae_t	t2_read_hae;
 static alpha_chipset_write_hae_t t2_write_hae;
 
 static alpha_chipset_t t2_chipset = {
-	t2_inb,
-	t2_inw,
-	t2_inl,
-	t2_outb,
-	t2_outw,
-	t2_outl,
-	t2_readb,
-	t2_readw,
-	t2_readl,
-	t2_writeb,
-	t2_writew,
-	t2_writel,
-	t2_maxdevs,
-	t2_cfgreadb,
-	t2_cfgreadw,
-	t2_cfgreadl,
-	t2_cfgwriteb,
-	t2_cfgwritew,
-	t2_cfgwritel,
-	t2_cvt_dense,
-	NULL,
 	t2_read_hae,
 	t2_write_hae,
 };
-
-static u_int8_t
-t2_inb(u_int32_t port)
-{
-	alpha_mb();
-	return SPARSE_READ_BYTE(KV(T2_PCI_SIO), port);
-}
-
-static u_int16_t
-t2_inw(u_int32_t port)
-{
-	alpha_mb();
-	return SPARSE_READ_WORD(KV(T2_PCI_SIO), port);
-}
-
-static u_int32_t
-t2_inl(u_int32_t port)
-{
-	alpha_mb();
-	return SPARSE_READ_LONG(KV(T2_PCI_SIO), port);
-}
-
-static void
-t2_outb(u_int32_t port, u_int8_t data)
-{
-	SPARSE_WRITE_BYTE(KV(T2_PCI_SIO), port, data);
-	alpha_wmb();
-}
-
-static void
-t2_outw(u_int32_t port, u_int16_t data)
-{
-	SPARSE_WRITE_WORD(KV(T2_PCI_SIO), port, data);
-	alpha_wmb();
-}
-
-static void
-t2_outl(u_int32_t port, u_int32_t data)
-{
-	SPARSE_WRITE_LONG(KV(T2_PCI_SIO), port, data);
-	alpha_wmb();
-}
 
 static u_int32_t	t2_hae_mem;
 
 #define REG1 (1UL << 24)
 
-static __inline  void
-t2_set_hae_mem(u_int32_t *pa)
+static u_int32_t
+t2_set_hae_mem(void *arg, u_int32_t pa)
 {
 	int s; 
 	u_int32_t msb;
 
-	if(*pa >= REG1){
-		msb = *pa & 0xf8000000;
-		*pa -= msb;
+	if(pa >= REG1){
+		msb = pa & 0xf8000000;
+		pa -= msb;
 		msb >>= 27;	/* t2 puts high bits in the bottom of the register */
 		s = splhigh();
 		if (msb != t2_hae_mem) {
@@ -180,72 +97,7 @@ t2_set_hae_mem(u_int32_t *pa)
 		}
 		splx(s);
 	}
-}
-
-static u_int8_t
-t2_readb(u_int32_t pa)
-{
-	alpha_mb();
-	t2_set_hae_mem(&pa);
-	return SPARSE_READ_BYTE(KV(T2_PCI_SPARSE), pa);
-}
-
-static u_int16_t
-t2_readw(u_int32_t pa)
-{
-	alpha_mb();
-	t2_set_hae_mem(&pa);
-	return SPARSE_READ_WORD(KV(T2_PCI_SPARSE), pa);
-}
-
-static u_int32_t
-t2_readl(u_int32_t pa)
-{
-	alpha_mb();
-	t2_set_hae_mem(&pa);
-	return SPARSE_READ_LONG(KV(T2_PCI_SPARSE), pa);
-}
-
-static void
-t2_writeb(u_int32_t pa, u_int8_t data)
-{
-	t2_set_hae_mem(&pa);
-	SPARSE_WRITE_BYTE(KV(T2_PCI_SPARSE), pa, data);
-	alpha_wmb();
-}
-
-static void
-t2_writew(u_int32_t pa, u_int16_t data)
-{
-	t2_set_hae_mem(&pa);
-	SPARSE_WRITE_WORD(KV(T2_PCI_SPARSE), pa, data);
-	alpha_wmb();
-}
-
-static void
-t2_writel(u_int32_t pa, u_int32_t data)
-{
-	t2_set_hae_mem(&pa);
-	SPARSE_WRITE_LONG(KV(T2_PCI_SPARSE), pa, data);
-	alpha_wmb();
-}
-
-static int
-t2_maxdevs(u_int b)
-{
-	return 12;		/* XXX */
-}
-
-
-
-/* XXX config space access? */
-
-static vm_offset_t
-t2_cvt_dense(vm_offset_t addr)
-{
-	addr &= 0xffffffffUL;
-	return (addr | T2_PCI_DENSE);
-	
+	return pa;
 }
 
 static u_int64_t
@@ -258,94 +110,7 @@ static void
 t2_write_hae(u_int64_t hae)
 {
 	u_int32_t pa = hae;
-	t2_set_hae_mem(&pa);
-}
-
-#define T2_CFGOFF(b, s, f, r) \
-	((b) ? (((b) << 16) | ((s) << 11) | ((f) << 8) | (r)) \
-	 : ((1 << ((s) + 11)) | ((f) << 8) | (r)))
-
-#define T2_TYPE1_SETUP(b,s,old_hae3) if((b)) {			\
-        do {							\
-		(s) = splhigh();				\
-		(old_hae3) = REGVAL(T2_HAE0_3);			\
-		alpha_mb();					\
-		REGVAL(T2_HAE0_3) = (old_hae3) | (1<<30);	\
-		alpha_mb();					\
-        } while(0);						\
-}
-
-#define T2_TYPE1_TEARDOWN(b,s,old_hae3) if((b)) {	\
-        do {						\
-		alpha_mb();				\
-		REGVAL(T2_HAE0_3) = (old_hae3);		\
-		alpha_mb();				\
-		splx((s));				\
-        } while(0);					\
-}
-
-#define SWIZ_CFGREAD(b, s, f, r, width, type)					\
-	type val = ~0;								\
-	int ipl = 0;								\
-	u_int32_t old_hae3 = 0;							\
-	vm_offset_t off = T2_CFGOFF(b, s, f, r);				\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(T2_PCI_CONF), off);	\
-	alpha_mb();								\
-	T2_TYPE1_SETUP(b,ipl,old_hae3);						\
-	if (!badaddr((caddr_t)kv, sizeof(type))) {				\
-		val = SPARSE_##width##_EXTRACT(off, SPARSE_READ(kv));		\
-	}									\
-        T2_TYPE1_TEARDOWN(b,ipl,old_hae3);					\
-	return val;							
-
-#define SWIZ_CFGWRITE(b, s, f, r, data, width, type)				\
-	int ipl = 0;								\
-	u_int32_t old_hae3 = 0;							\
-	vm_offset_t off = T2_CFGOFF(b, s, f, r);				\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(T2_PCI_CONF), off);	\
-	alpha_mb();								\
-	T2_TYPE1_SETUP(b,ipl,old_hae3);						\
-	if (!badaddr((caddr_t)kv, sizeof(type))) {				\
-                SPARSE_WRITE(kv, SPARSE_##width##_INSERT(off, data));		\
-		alpha_wmb();							\
-	}									\
-        T2_TYPE1_TEARDOWN(b,ipl,old_hae3);					\
-	return;							
-
-static u_int8_t
-t2_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	SWIZ_CFGREAD(b, s, f, r, BYTE, u_int8_t);
-}
-
-static u_int16_t
-t2_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	SWIZ_CFGREAD(b, s, f, r, WORD, u_int16_t);
-}
-
-static u_int32_t
-t2_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	SWIZ_CFGREAD(b, s, f, r, LONG, u_int32_t);
-}
-
-static void
-t2_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
-{
-	SWIZ_CFGWRITE(b, s, f, r, data, BYTE, u_int8_t);
-}
-
-static void
-t2_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
-{
-	SWIZ_CFGWRITE(b, s, f, r, data, WORD, u_int16_t);
-}
-
-static void
-t2_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
-{
-	SWIZ_CFGWRITE(b, s, f, r, data, LONG, u_int32_t);
+	t2_set_hae_mem(0, pa);
 }
 
 static int t2_probe(device_t dev);
@@ -407,7 +172,7 @@ t2_sgmap_invalidate(void)
 }
 
 static void
-t2_sgmap_map(void *arg, vm_offset_t ba, vm_offset_t pa)
+t2_sgmap_map(void *arg, bus_addr_t ba, vm_offset_t pa)
 {
 	u_int64_t *sgtable = arg;
 	int index = alpha_btop(ba - T2_SGMAP_BASE);
@@ -468,9 +233,17 @@ void
 t2_init()
 {
 	static int initted = 0;
+	static struct swiz_space io_space, mem_space;
 
 	if (initted) return;
 	initted = 1;
+
+	swiz_init_space(&io_space, KV(T2_PCI_SIO));
+	swiz_init_space_hae(&mem_space, KV(T2_PCI_SPARSE),
+			    t2_set_hae_mem, 0);
+
+	busspace_isa_io = (kobj_t) &io_space;
+	busspace_isa_mem = (kobj_t) &mem_space;
 
 	chipset = t2_chipset;
 }

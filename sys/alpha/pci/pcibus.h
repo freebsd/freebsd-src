@@ -37,3 +37,5 @@ int pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			    struct resource *r);
 int pci_release_resource(device_t bus, device_t child, int type, int rid,
 			 struct resource *r);
+struct alpha_busspace *pci_get_bustag(device_t dev, int type);
+struct rman *pci_get_rman(device_t dev, int type);

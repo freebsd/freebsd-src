@@ -216,15 +216,6 @@ static struct ispmdvec mdvec_2200 = {
 static int isp_pci_probe (device_t);
 static int isp_pci_attach (device_t);
 
-/* This distinguishing define is not right, but it does work */
-#ifdef __alpha__
-#define IO_SPACE_MAPPING	ALPHA_BUS_SPACE_IO
-#define MEM_SPACE_MAPPING	ALPHA_BUS_SPACE_MEM
-#else
-#define IO_SPACE_MAPPING	I386_BUS_SPACE_IO
-#define MEM_SPACE_MAPPING	I386_BUS_SPACE_MEM
-#endif
-
 struct isp_pcisoftc {
 	struct ispsoftc			pci_isp;
 	device_t			pci_dev;

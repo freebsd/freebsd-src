@@ -222,12 +222,12 @@ mdstrategy_malloc(struct bio *bp)
 
 			if (secno < sc->nsecp) {
 				secpp = &sc->secp[secno];
-				if ((u_int)*secpp > 255) {
+				if ((uintptr_t)*secpp > 255) {
 					secp = *secpp;
 					secval = 0;
 				} else {
 					secp = 0;
-					secval = (u_int) *secpp;
+					secval = (uintptr_t) *secpp;
 				}
 			} else {
 				secpp = 0;
@@ -262,7 +262,7 @@ mdstrategy_malloc(struct bio *bp)
 					if (secp)
 						FREE(secp, M_MDSECT);
 					if (secpp)
-						*secpp = (u_char *)uc;
+						*secpp = (u_char *)(uintptr_t)uc;
 				} else {
 					if (!secpp) {
 						MALLOC(secpp, u_char **, (secno + nsec + 1) * sizeof(u_char *), M_MD, M_WAITOK);
@@ -276,7 +276,7 @@ mdstrategy_malloc(struct bio *bp)
 					if (i == DEV_BSIZE) {
 						if (secp)
 							FREE(secp, M_MDSECT);
-						*secpp = (u_char *)uc;
+						*secpp = (u_char *)(uintptr_t)uc;
 					} else {
 						if (!secp) 
 							MALLOC(secp, u_char *, DEV_BSIZE, M_MDSECT, M_WAITOK);
