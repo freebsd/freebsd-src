@@ -328,8 +328,10 @@ sub new_users_name_valid {
     local($name) = @_;
 
     if ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/ || $name eq "a-z0-9_-") {
-	warn "Wrong username. " .
-	    "Please use only lowercase characters or digits\a\n";
+	warn "Illegal username.\n" .
+	    "Please use only lowercase Roman, decimal, underscore, " .
+	    "or hyphen characters.\n" .
+	    "Additionally, a username should not start with a hyphen.\a\n";
 	return 0;
     } elsif ($username{$name}) {
 	warn "Username ``$name'' already exists!\a\n"; return 0;
