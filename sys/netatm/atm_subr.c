@@ -141,6 +141,7 @@ atm_initialize()
 	/*
 	 * Initialize subsystems
 	 */
+	atm_cm_init(NULL);
 	atm_aal5_init();
 
 	/*
