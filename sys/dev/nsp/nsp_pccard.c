@@ -38,18 +38,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
+#include <sys/bus.h>
 #include <sys/errno.h>
-
-#include <vm/vm.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/systm.h>
 
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 #include <compat/netbsd/dvcfg.h>
 
 #include <sys/device_port.h>
 
-#include "pccarddevs.h"
 #include <dev/pccard/pccardvar.h>
 
 #include <cam/scsi/scsi_low.h>
@@ -60,13 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #define	NSP_HOSTID	7
 
-#include	<sys/kernel.h>
-#include	<sys/module.h>
-#if !defined(__FreeBSD__) || __FreeBSD_version < 500014
-#include	<sys/select.h>
-#endif
-#include 	<pccard/cardinfo.h>
-#include	<pccard/slot.h>
+#include "pccarddevs.h"
 
 #define	PIO_MODE 0x100		/* pd_flags */
 

@@ -36,12 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/pccard/pccard_cis.h>
-#include "pccarddevs.h"
-#include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
+
+#include "pccarddevs.h"
 
 static	int	uart_pccard_match(device_t self);
 static	int	uart_pccard_probe(device_t dev);

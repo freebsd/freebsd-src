@@ -65,9 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_radiotap.h>
 
 #include <dev/pccard/pccardvar.h>
-#if __FreeBSD_version >= 500000
-#include "pccarddevs.h"
-#endif
 
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/wi/if_wireg.h>
@@ -77,22 +74,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "card_if.h"
+#include "pccarddevs.h"
 
 static int wi_pccard_probe(device_t);
 static int wi_pccard_attach(device_t);
 
-#if __FreeBSD_version < 500000
-static device_method_t wi_pccard_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		wi_pccard_probe),
-	DEVMETHOD(device_attach,	wi_pccard_attach),
-	DEVMETHOD(device_detach,	wi_detach),
-	DEVMETHOD(device_shutdown,	wi_shutdown),
-
-	{ 0, 0 }
-};
-
-#else
 static int wi_pccard_match(device_t);
 
 static device_method_t wi_pccard_methods[] = {
@@ -110,8 +96,6 @@ static device_method_t wi_pccard_methods[] = {
 	{ 0, 0 }
 };
 
-#endif
-
 static driver_t wi_pccard_driver = {
 	"wi",
 	wi_pccard_methods,
@@ -121,7 +105,6 @@ static driver_t wi_pccard_driver = {
 DRIVER_MODULE(wi, pccard, wi_pccard_driver, wi_devclass, 0, 0);
 MODULE_DEPEND(wi, wlan, 1, 1, 1);
 
-#if __FreeBSD_version >= 500000
 static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(3COM, 3CRWE737A, 0),
 	PCMCIA_CARD(3COM, 3CRWE777A, 0),
@@ -188,7 +171,6 @@ wi_pccard_match(dev)
 	}
 	return (ENXIO);
 }
-#endif
 
 static int
 wi_pccard_probe(dev)
@@ -231,7 +213,6 @@ wi_pccard_attach(device_t dev)
 		return (error);
 	}
 
-#if __FreeBSD_version > 500000 
 	/*
 	 * The cute little Symbol LA4100-series CF cards need to have
 	 * code downloaded to them.
@@ -253,7 +234,6 @@ wi_pccard_attach(device_t dev)
 		return (ENXIO);
 #endif
 	}
-#endif
 	retval = wi_attach(dev);
 	if (retval != 0)
 		wi_free(dev);

@@ -40,17 +40,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/systm.h>
 
 #include <machine/bus.h>
 #include <machine/bus_pio.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 #include <compat/netbsd/dvcfg.h>
 
 #include <sys/device_port.h>
 
-#include "pccarddevs.h"
 #include <dev/pccard/pccardvar.h>
 
 #include <cam/scsi/scsi_low.h>
@@ -63,13 +65,8 @@ __FBSDID("$FreeBSD$");
 #define KME_KXLC004_01 0x100
 #define OFFSET_KME_KXLC004_01 0x10
 
-#include	<sys/kernel.h>
-#include	<sys/module.h>
-#if !defined(__FreeBSD__) || __FreeBSD_version < 500014
-#include	<sys/select.h>
-#endif
-#include	<pccard/cardinfo.h>
-#include	<pccard/slot.h>
+
+#include "pccarddevs.h"
 
 static int ncvprobe(DEVPORT_PDEVICE devi);
 static int ncvattach(DEVPORT_PDEVICE devi);

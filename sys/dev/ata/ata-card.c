@@ -45,9 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 #include <dev/pccard/pccard_cis.h>
-#include "pccarddevs.h"
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
+
+#include "pccarddevs.h"
 
 static const struct pccard_product ata_pccard_products[] = {
 	PCMCIA_CARD(FREECOM, PCCARDIDE, 0),

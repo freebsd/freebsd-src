@@ -51,7 +51,6 @@
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 #include <dev/pccard/pccardvar.h>
-#include "pccarddevs.h"
 #ifndef ED_NO_MIIBUS
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -61,7 +60,10 @@
 #ifndef ED_NO_MIIBUS
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
+#endif
+#include "pccarddevs.h"
 
+#ifndef ED_NO_MIIBUS
 MODULE_DEPEND(ed, miibus, 1, 1, 1);
 #endif
 MODULE_DEPEND(ed, ether, 1, 1, 1);
