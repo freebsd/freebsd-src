@@ -903,7 +903,6 @@ void	thread_exit(void) __dead2;
 int	thread_export_context(struct thread *td, int willexit);
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct ksegrp *kg);
-lwpid_t	thread_new_tid(void);
 void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
 int	thread_single(int how);
