@@ -253,7 +253,7 @@ This action does not automatically disable routes using the interface.
 .It Cm eui64
 (Inet6 only.)
 Fill interface index
-.Pq lowermost 64bit of an IPv6 address
+(lowermost 64bit of an IPv6 address)
 automatically.
 .\" .It Cm ipdst
 .\" This is used to specify an Internet host who is willing to receive
@@ -598,8 +598,9 @@ It may be specified either as a plain
 string or as a string of hexadecimal digits proceeded by
 .Ql 0x .
 For maximum portability, hex keys are recommended;
-the mapping of text keys to WEP encryption is usually driver-specific.   
-In particular, the Windows drivers do this mapping differently to FreeBSD.
+the mapping of text keys to WEP encryption is usually driver-specific.
+In particular, the Windows drivers do this mapping differently to
+.Fx .
 A key may be cleared by setting it to
 .Ql - .
 If WEP is supported then there are at least four keys.
