@@ -171,20 +171,16 @@ of the 1TR6 protocol is included but not supported since i dont have
 any longer access to a 1TR6 based ISDN installation.)
 .El
 .Pp
-
 .Nm Isdntrace
 automatically detects the layer 3 protocol being used by looking at the
 Protocol Discriminator (see: Q.931/1993 pp. 53).
 .Pp
-
-
 .Sh FILES
 .Bl -tag -width daddeldi -compact
 .It Pa /dev/i4btrc<n>
 The devicefile(s) used to get the trace messages for ISDN card unit <n>
 out of the kernel.
 .El
-
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
@@ -195,13 +191,10 @@ will start D channel tracing on passive controller 0 with all except B
 channel tracing enabled and logs everything into the output file 
 /var/tmp/isdn.trace-yyyymmdd-hhmmss (where yyyymmdd and hhmmss are replaced
 by the current date and time values).
-
 .Sh SEE ALSO
 .Xr isdnd 8
-
 .Sh BUGS
 Still some or more left.
-
 .Sh STANDARDS
 ITU Recommendations I.430, Q.920, Q.921, Q.930, Q.931
 .Pp
@@ -214,15 +207,14 @@ ETSI Recommendation ETS 300 179 (10/92), ETS 300 180 (10/92)
 ETSI Recommendation ETS 300 181 (04/93), ETS 300 182 (04/93)
 .Pp
 ITU Recommendation X.208, X.209
-
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 utility was written by 
-.An Gary Jennejohn Aq gj@freebsd.org
+.An Gary Jennejohn Aq gj@FreeBSD.org
 and 
-.An Hellmuth Michaelis Aq hm@freebsd.org .
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .
 .Pp
 This manual page was written by 
 .An Hellmuth Michaelis .
-

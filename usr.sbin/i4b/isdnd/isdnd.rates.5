@@ -57,13 +57,11 @@ This field must start with the identifier
 .Dq ra
 followed by a digit in the range of zero to four.
 .Pp
-
 The second field, the
 .Pq Fa day-number
 selects the day of week for which this entry defines the rates, where 0 stands
 for Sunday, 1 for Monday and so on until the digit 6 which stands for Saturday.
 .Pp
-
 The rest of the line consists of one or more space separated fields which have
 the following syntax:
 .Bd -filled -offset indent
@@ -83,8 +81,6 @@ For example,
 .Pp
 defines, that between 2:00 PM and 6:00 PM the length of one charging unit
 lasts 90 seconds.
-.Pp
-
 .Sh FILES
 .Bl -tag -width /etc/isdn/isdnd.rates -compact
 .It Pa /etc/isdn/isdnd.rates
@@ -92,7 +88,6 @@ The default rates specification file for the
 .Nm isdnd
 ISDN daemon.
 .El
-
 .Sh EXAMPLES
 The line:
 .Bd -literal
@@ -100,12 +95,11 @@ ra0 0 00.00-05.00:240 05.00-21.00:150 21.00-24.00:240
 .Ed
 .Pp
 defines the unit lengths for a Sunday.
-
 .Sh SEE ALSO
-.Xr isdnd 8 ,
-.Xr isdnd.rc 5
-
+.Xr isdnd.rc 5 ,
+.Xr isdnd 8
 .Sh AUTHORS
+.An -nosplit
 The rates subsystem for the
 .Xr isdnd 8
 daemon to which
@@ -117,4 +111,3 @@ The
 .Xr isdnd 8
 daemon and this manual page were written by 
 .An Hellmuth Michaelis Aq hm@kts.org .
-
