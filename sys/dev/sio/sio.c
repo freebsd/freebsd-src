@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.35 1994/03/18 23:35:37 ache Exp $
+ *	$Id: sio.c,v 1.36 1994/03/21 15:18:27 ache Exp $
  */
 
 #include "sio.h"
@@ -772,6 +772,7 @@ sioclose(dev, flag, mode, p)
 	com = com_addr(UNIT(dev));
 	tp = com->tp;
 	(*linesw[tp->t_line].l_close)(tp, flag);
+	siostop(tp, FREAD|FWRITE);
 	ttyclose(tp);
 	comhardclose(com);
 	return (0);
