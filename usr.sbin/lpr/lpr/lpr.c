@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.8 1996/10/25 18:14:48 imp Exp $\n";
+	"\n$Id: lpr.c,v 1.9 1996/10/26 00:46:34 imp Exp $\n";
 #endif /* not lint */
 
 /*
@@ -113,7 +113,7 @@ static int	 nfile __P((char *));
 static int	 test __P((char *));
 static void	 usage __P((void));
 
-void
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -272,7 +272,7 @@ main(argc, argv)
 	/*
 	 * Check to make sure queuing is enabled if userid is not root.
 	 */
-	(void) sprintf(buf, "%s/%s", SD, LO);
+	(void) snprintf(buf, sizeof(buf), "%s/%s", SD, LO);
 	if (userid && stat(buf, &stb) == 0 && (stb.st_mode & 010))
 		fatal2("Printer queue is disabled");
 	/*
@@ -321,7 +321,8 @@ main(argc, argv)
 			continue;	/* file unreasonable */
 
 		if (sflag && (cp = linked(arg)) != NULL) {
-			(void) sprintf(buf, "%d %d", statb.st_dev, statb.st_ino);
+			(void) snprintf(buf, sizeof(buf), "%d %d", statb.st_dev,
+				statb.st_ino);
 			card('S', buf);
 			if (format == 'p')
 				card('T', title ? title : arg);
@@ -339,12 +340,12 @@ main(argc, argv)
 			printf("%s: %s: not linked, copying instead\n", name, arg);
 		if ((i = open(arg, O_RDONLY)) < 0) {
 			printf("%s: cannot open %s\n", name, arg);
-			continue;
+		} else {
+			copy(i, arg);
+			(void) close(i);
+			if (f && unlink(arg) < 0)
+				printf("%s: %s: not removed\n", name, arg);
 		}
-		copy(i, arg);
-		(void) close(i);
-		if (f && unlink(arg) < 0)
-			printf("%s: %s: not removed\n", name, arg);
 	}
 
 	if (nact) {
@@ -434,7 +435,7 @@ linked(file)
 	static char buf[BUFSIZ];
 
 	if (*file != '/') {
-		if (getwd(buf) == NULL)
+		if (getcwd(buf,sizeof(buf)) == NULL)
 			return(NULL);
 		while (file[0] == '.') {
 			switch (file[1]) {
@@ -693,7 +694,7 @@ mktemps()
 	register char *cp;
 	char buf[BUFSIZ];
 
-	(void) sprintf(buf, "%s/.seq", SD);
+	(void) snprintf(buf, sizeof(buf), "%s/.seq", SD);
 	if ((fd = open(buf, O_RDWR|O_CREAT, 0661)) < 0) {
 		printf("%s: cannot create %s\n", name, buf);
 		exit(1);
@@ -717,7 +718,7 @@ mktemps()
 	inchar = strlen(SD) + 3;
 	n = (n + 1) % 1000;
 	(void) lseek(fd, (off_t)0, 0);
-	sprintf(buf, "%03d\n", n);
+	snprintf(buf, sizeof(buf), "%03d\n", n);
 	(void) write(fd, buf, strlen(buf));
 	(void) close(fd);	/* unlocks as well */
 }
@@ -734,7 +735,7 @@ lmktemp(id, num, len)
 
 	if ((s = malloc(len)) == NULL)
 		fatal2("out of memory");
-	(void) sprintf(s, "%s/%sA%03d%s", SD, id, num, host);
+	(void) snprintf(s, len, "%s/%sA%03d%s", SD, id, num, host);
 	return(s);
 }
 
