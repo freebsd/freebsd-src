@@ -653,9 +653,9 @@ priorityr(KINFO *k, VARENT *ve)
 	struct priority *lpri;
 	char str[8];
 	unsigned class, level;
- 
+
 	v = ve->var;
-	lpri = (struct priority *) ((char *)k + v->off);
+	lpri = &k->ki_p->ki_pri;
 	class = lpri->pri_class;
 	level = lpri->pri_level;
 	switch (class) {
