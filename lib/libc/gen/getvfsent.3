@@ -1,4 +1,4 @@
-.\"	$Id: getvfsent.3,v 1.11 1998/03/23 13:02:37 bde Exp $
+.\"	$Id: getvfsent.3,v 1.12 1998/05/25 21:42:51 steve Exp $
 .\"	Written by Garrett A. Wollman, September 1994.
 .\"	This manual page is in the public domain.
 .\"
@@ -141,8 +141,8 @@ int error;
 /* setup code here */
 
 error = getvfsbyname("cd9660", &vfc);
-if(error && vfsisloadable("cd9660")) {
-	if(vfsload("cd9660"))
+if (error && vfsisloadable("cd9660")) {
+	if (vfsload("cd9660"))
 		err(EX_OSERR, "vfsload(cd9660)");
 	endvfsent();	/* flush cache */
 	error = getvfsbyname("cd9660", &vfc);
