@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	soelim
-WARNS?=	2
 
 .include <bsd.prog.mk>
