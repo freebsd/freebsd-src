@@ -219,7 +219,7 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 			int j;
 			FILE *F;
 			
-			if (p1[s1.st_size-1] != '\n') {
+			if (s1.st_size && p1[s1.st_size-1] != '\n') {
 				if (verbose > 0) 
 					fprintf(stderr,
 					    "last char != \\n in %s\n",
@@ -227,7 +227,7 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 				goto subst;
 			}
 
-			if (p2[s2.st_size-1] != '\n') {
+			if (s2.st_size && p2[s2.st_size-1] != '\n') {
 				if (verbose > 0) 
 					fprintf(stderr,
 					    "last char != \\n in %s\n",
