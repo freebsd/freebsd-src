@@ -469,7 +469,7 @@ struct proc {
 #define	P_KSES		0x08000	/* Process is using KSEs. */
 
 /* Should be moved to machine-dependent areas. */
-#define	P_BUFEXHAUST	0x100000 /* Dirty buffers flush is in progress. */
+#define	P_UNUSED100000	0x100000
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */

@@ -1880,7 +1880,6 @@ buf_daemon()
 	/*
 	 * This process is allowed to take the buffer cache to the limit
 	 */
-	curproc->p_flag |= P_BUFEXHAUST;
 	s = splbio();
 
 	for (;;) {
