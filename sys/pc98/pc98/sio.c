@@ -413,6 +413,22 @@ static struct cdevsw sio_cdevsw = {
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
+static	d_open_t	siocopen;
+static	d_close_t	siocclose;
+static	d_read_t	siocrdwr;
+static	d_ioctl_t	siocioctl;
+
+static struct cdevsw sioc_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_open =	siocopen,
+	.d_close =	siocclose,
+	.d_read =	siocrdwr,
+	.d_write =	siocrdwr,
+	.d_ioctl =	siocioctl,
+	.d_name =	sio_driver_name,
+	.d_flags =	D_TTY | D_NEEDGIANT,
+};
+
 int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
 static	u_long			comdefaultrclk = DEFAULT_RCLK;
@@ -1791,16 +1807,16 @@ determined_type: ;
 	minorbase = UNIT_TO_MINOR(unit);
 	com->devs[0] = make_dev(&sio_cdevsw, minorbase,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
-	com->devs[1] = make_dev(&sio_cdevsw, minorbase | CONTROL_INIT_STATE,
+	com->devs[1] = make_dev(&sioc_cdevsw, minorbase | CONTROL_INIT_STATE,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyid%r", unit);
-	com->devs[2] = make_dev(&sio_cdevsw, minorbase | CONTROL_LOCK_STATE,
+	com->devs[2] = make_dev(&sioc_cdevsw, minorbase | CONTROL_LOCK_STATE,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyld%r", unit);
 	com->devs[3] = make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK,
 	    UID_UUCP, GID_DIALER, 0660, "cuaa%r", unit);
-	com->devs[4] = make_dev(&sio_cdevsw,
+	com->devs[4] = make_dev(&sioc_cdevsw,
 	    minorbase | CALLOUT_MASK | CONTROL_INIT_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
-	com->devs[5] = make_dev(&sio_cdevsw,
+	com->devs[5] = make_dev(&sioc_cdevsw,
 	    minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 	for (rid = 0; rid < 6; rid++)
@@ -1846,6 +1862,23 @@ determined_type: ;
 }
 
 static int
+siocopen(dev, flag, mode, td)
+	struct cdev *dev;
+	int		flag;
+	int		mode;
+	struct thread	*td;
+{
+	struct com_s	*com;
+
+	com = dev->si_drv1;
+	if (com == NULL)
+		return (ENXIO);
+	if (com->gone)
+		return (ENXIO);
+	return (0);
+}
+
+static int
 sioopen(dev, flag, mode, td)
 	struct cdev *dev;
 	int		flag;
@@ -1861,13 +1894,11 @@ sioopen(dev, flag, mode, td)
 
 	mynor = minor(dev);
 	unit = MINOR_TO_UNIT(mynor);
-	com = com_addr(unit);
+	com = dev->si_drv1;
 	if (com == NULL)
 		return (ENXIO);
 	if (com->gone)
 		return (ENXIO);
-	if (mynor & CONTROL_MASK)
-		return (0);
 	tp = dev->si_tty = com->tp = ttymalloc(com->tp);
 	s = spltty();
 	/*
@@ -2079,6 +2110,17 @@ out:
 }
 
 static int
+siocclose(dev, flag, mode, td)
+	struct cdev *dev;
+	int		flag;
+	int		mode;
+	struct thread	*td;
+{
+
+	return (0);
+}
+
+static int
 sioclose(dev, flag, mode, td)
 	struct cdev *dev;
 	int		flag;
@@ -2091,9 +2133,7 @@ sioclose(dev, flag, mode, td)
 	struct tty	*tp;
 
 	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (0);
-	com = com_addr(MINOR_TO_UNIT(mynor));
+	com = dev->si_drv1;
 	if (com == NULL)
 		return (ENODEV);
 	tp = com->tp;
@@ -2220,18 +2260,24 @@ comhardclose(com)
 }
 
 static int
+siocrdwr(dev, uio, flag)
+	struct cdev *dev;
+	struct uio	*uio;
+	int		flag;
+{
+
+	return (ENODEV);
+}
+
+static int
 sioread(dev, uio, flag)
 	struct cdev *dev;
 	struct uio	*uio;
 	int		flag;
 {
-	int		mynor;
 	struct com_s	*com;
 
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-	com = com_addr(MINOR_TO_UNIT(mynor));
+	com = dev->si_drv1;
 	if (com == NULL || com->gone)
 		return (ENODEV);
 	return (ttyld_read(com->tp, uio, flag));
@@ -2248,8 +2294,6 @@ siowrite(dev, uio, flag)
 	int		unit;
 
 	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
 
 	unit = MINOR_TO_UNIT(mynor);
 	com = com_addr(unit);
@@ -2933,6 +2977,55 @@ txrdy:
 }
 
 static int
+siocioctl(dev, cmd, data, flag, td)
+	struct cdev *dev;
+	u_long		cmd;
+	caddr_t		data;
+	int		flag;
+	struct thread	*td;
+{
+	struct com_s	*com;
+	int		error;
+	int		mynor;
+	struct termios	*ct;
+
+	mynor = minor(dev);
+	com = com_addr(MINOR_TO_UNIT(mynor));
+	if (com == NULL || com->gone)
+		return (ENODEV);
+
+	switch (mynor & CONTROL_MASK) {
+	case CONTROL_INIT_STATE:
+		ct = mynor & CALLOUT_MASK ? &com->it_out : &com->it_in;
+		break;
+	case CONTROL_LOCK_STATE:
+		ct = mynor & CALLOUT_MASK ? &com->lt_out : &com->lt_in;
+		break;
+	default:
+		return (ENODEV);	/* /dev/nodev */
+	}
+	switch (cmd) {
+	case TIOCSETA:
+		error = suser(td);
+		if (error != 0)
+			return (error);
+		*ct = *(struct termios *)data;
+		return (0);
+	case TIOCGETA:
+		*(struct termios *)data = *ct;
+		return (0);
+	case TIOCGETD:
+		*(int *)data = TTYDISC;
+		return (0);
+	case TIOCGWINSZ:
+		bzero(data, sizeof(struct winsize));
+		return (0);
+	default:
+		return (ENOTTY);
+	}
+}
+
+static int
 sioioctl(dev, cmd, data, flag, td)
 	struct cdev *dev;
 	u_long		cmd;
@@ -2945,49 +3038,19 @@ sioioctl(dev, cmd, data, flag, td)
 	int		mynor;
 	int		s;
 	struct tty	*tp;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	u_long		oldcmd;
 	struct termios	term;
 #endif
+#endif
 
 	mynor = minor(dev);
-	com = com_addr(MINOR_TO_UNIT(mynor));
+	com = dev->si_drv1;
 	if (com == NULL || com->gone)
 		return (ENODEV);
-	if (mynor & CONTROL_MASK) {
-		struct termios	*ct;
-
-		switch (mynor & CONTROL_MASK) {
-		case CONTROL_INIT_STATE:
-			ct = mynor & CALLOUT_MASK ? &com->it_out : &com->it_in;
-			break;
-		case CONTROL_LOCK_STATE:
-			ct = mynor & CALLOUT_MASK ? &com->lt_out : &com->lt_in;
-			break;
-		default:
-			return (ENODEV);	/* /dev/nodev */
-		}
-		switch (cmd) {
-		case TIOCSETA:
-			error = suser(td);
-			if (error != 0)
-				return (error);
-			*ct = *(struct termios *)data;
-			return (0);
-		case TIOCGETA:
-			*(struct termios *)data = *ct;
-			return (0);
-		case TIOCGETD:
-			*(int *)data = TTYDISC;
-			return (0);
-		case TIOCGWINSZ:
-			bzero(data, sizeof(struct winsize));
-			return (0);
-		default:
-			return (ENOTTY);
-		}
-	}
 	tp = com->tp;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
@@ -2996,6 +3059,7 @@ sioioctl(dev, cmd, data, flag, td)
 		return (error);
 	if (cmd != oldcmd)
 		data = (caddr_t)&term;
+#endif
 #endif
 	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
 		int	cc;
