@@ -1,20 +1,20 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.11 1995/03/02 23:29:44 se Exp $
+**  $Id: pcisupport.c,v 1.12 1995/03/17 04:27:20 davidg Exp $
 **
-**  Device driver for INTEL PCI chipsets.
+**  Device driver for DEC/INTEL PCI chipsets.
 **
-**  386bsd / FreeBSD
+**  FreeBSD
 **
 **-------------------------------------------------------------------------
 **
-**  Written for 386bsd and FreeBSD by
-**	wolf@dentaro.gun.de	Wolfgang Stanglmeier
+**  Written for FreeBSD by
+**	wolf@cologne.de 	Wolfgang Stanglmeier
 **	se@mi.Uni-Koeln.de	Stefan Esser
 **
 **-------------------------------------------------------------------------
 **
-** Copyright (c) 1994 Stefan Esser.  All rights reserved.
+** Copyright (c) 1994,1995 Stefan Esser.  All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
@@ -41,28 +41,19 @@
 ***************************************************************************
 */
 
-#define	__PCISUPPORT_C_PATCHLEVEL__	"pl2 95/02/27"
-
-/*==========================================================
-**
-**      Include files
-**
-**==========================================================
-*/
+#define __PCISUPPORT_C__     "pl4 95/03/21"
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/devconf.h>
+
+#include <machine/cpu.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
-extern	void	printf();
-
-extern	int	bootverbose;
-
-
 /*---------------------------------------------------------
 **
 **	Intel chipsets for 486 / Pentium processor
@@ -74,7 +65,7 @@ static	char*	chipset_probe (pcici_t tag, pcidi_t type);
 static	void	chipset_attach(pcici_t tag, int unit);
 static	u_long	chipset_count;
 
-struct	pci_device chipset_device = {
+struct pci_device chipset_device = {
 	"chip",
 	chipset_probe,
 	chipset_attach,
@@ -84,8 +75,6 @@ struct	pci_device chipset_device = {
 
 DATA_SET (pcidevice_set, chipset_device);
 
-static	char	confread(pcici_t config_id, int port);
-
 struct condmsg {
     unsigned char	port;
     unsigned char	mask;
@@ -94,12 +83,11 @@ struct condmsg {
     char       *text;
 };
 
-#define M_EQ 0	/* mask and return true if equal */
-#define M_NE 1	/* mask and return true if not equal */
-#define TRUE 2	/* don't read config, always true */
-
-static	char*	chipset_probe (pcici_t tag, pcidi_t type)
+static char*
+chipset_probe (pcici_t tag, pcidi_t type)
 {
+	u_long data;
+
 	switch (type) {
 	case 0x04848086:
 		return ("Intel 82378IB PCI-ISA bridge");
@@ -109,11 +97,28 @@ static	char*	chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82375EB PCI-EISA bridge");
 	case 0x04a38086:
 		return ("Intel 82434LX PCI cache memory controller");
+	case 0x00011011:
+		return ("DEC 21050 PCI-PCI bridge");
+	};
+
+	/*
+	**	check classes
+	*/
+
+	data = pci_conf_read(tag, PCI_CLASS_REG);
+	switch (data & (PCI_CLASS_MASK|PCI_SUBCLASS_MASK)) {
+
+	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCI:
+		return ("PCI-PCI bridge");
 	};
 	return ((char*)0);
 }
 
-struct condmsg conf82424zx[] =
+#define M_EQ 0  /* mask and return true if equal */
+#define M_NE 1  /* mask and return true if not equal */
+#define TRUE 2  /* don't read config, always true */
+
+static const struct condmsg conf82424zx[] =
 {
     { 0x00, 0x00, 0x00, TRUE, "\tCPU: " },
     { 0x50, 0xe0, 0x00, M_EQ, "486DX" },
@@ -177,7 +182,7 @@ struct condmsg conf82424zx[] =
     { 0 }
 };
 
-struct condmsg conf82434lx[] =
+static const struct condmsg conf82434lx[] =
 {
     { 0x00, 0x00, 0x00, TRUE, "\tCPU: " },
     { 0x50, 0xe3, 0x82, M_EQ, "Pentium, 60MHz" },
@@ -246,7 +251,8 @@ static char confread (pcici_t config_id, int port)
     return (l >> ports);
 }
 
-static void writeconfig(pcici_t config_id, struct condmsg *tbl)
+static void
+writeconfig (pcici_t config_id, const struct condmsg *tbl)
 {
     while (tbl->text) {
 	int cond = 0;
@@ -268,10 +274,13 @@ static void writeconfig(pcici_t config_id, struct condmsg *tbl)
     }
 }
 
-void chipset_attach(pcici_t config_id, int unit)
+static void
+chipset_attach (pcici_t config_id, int unit)
 {
-    if (bootverbose) {
-	switch (pci_conf_read (config_id, 0)) {
+	if (!bootverbose)
+		return;
+
+	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 
 	case 0x04838086:
 		writeconfig (config_id, conf82424zx);
@@ -287,52 +296,11 @@ void chipset_attach(pcici_t config_id, int unit)
 			pci_conf_read (config_id, 0x54));
 		break;
 	};
-    }
-}
-
-/*---------------------------------------------------------
-**
-**	Catchall driver for pci-pci bridges.
-**
-**---------------------------------------------------------
-*/
-
-static	char*	ppb_probe (pcici_t tag, pcidi_t type);
-static	void	ppb_attach(pcici_t tag, int unit);
-static	u_long	ppb_count;
-
-struct	pci_device ppb_device = {
-	"ppb",
-	ppb_probe,
-	ppb_attach,
-	&ppb_count,
-	NULL
-};
-
-DATA_SET (pcidevice_set, ppb_device);
-
-static	char*	ppb_probe (pcici_t tag, pcidi_t type)
-{
-	int data = pci_conf_read(tag, PCI_CLASS_REG);
-
-	if ((data & (PCI_CLASS_MASK|PCI_SUBCLASS_MASK)) ==
-		(PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCI))
-		return ("PCI-PCI bridge");
-	return ((char*)0);
 }
 
-static	void	ppb_attach(pcici_t tag, int unit)
-{
-	/*
-	**	XXX should read bus number from device
-	*/
-	(void) pci_map_bus (tag, 1);
-}
-
 /*---------------------------------------------------------
 **
 **	Catchall driver for VGA devices
-**
 **
 **	By Garrett Wollman
 **	<wollman@halloran-eldar.lcs.mit.edu>
@@ -340,11 +308,11 @@ static	void	ppb_attach(pcici_t tag, int unit)
 **---------------------------------------------------------
 */
 
-static	char*	vga_probe (pcici_t tag, pcidi_t type);
-static	void	vga_attach(pcici_t tag, int unit);
+static	char*	vga_probe  (pcici_t tag, pcidi_t type);
+static	void	vga_attach (pcici_t tag, int unit);
 static	u_long	vga_count;
 
-struct	pci_device vga_device = {
+struct pci_device vga_device = {
 	"vga",
 	vga_probe,
 	vga_attach,
@@ -354,7 +322,7 @@ struct	pci_device vga_device = {
 
 DATA_SET (pcidevice_set, vga_device);
 
-static	char*	vga_probe (pcici_t tag, pcidi_t type)
+static char* vga_probe (pcici_t tag, pcidi_t type)
 {
 	int data = pci_conf_read(tag, PCI_CLASS_REG);
 
@@ -375,11 +343,11 @@ static	char*	vga_probe (pcici_t tag, pcidi_t type)
 	return ((char*)0);
 }
 
-static	void	vga_attach(pcici_t tag, int unit)
+static void vga_attach (pcici_t tag, int unit)
 {
 /*
-**	The assigned adresses may not be remapped,
-**	because certain values are assumed by the console driver.
+**	If the assigned addresses are remapped,
+**	the console driver has to be informed about the new address.
 */
 #if 0
 	vm_offset_t va;
@@ -389,7 +357,7 @@ static	void	vga_attach(pcici_t tag, int unit)
 		(void) pci_map_mem (tag, reg, &va, &pa);
 #endif
 }
-
+
 /*---------------------------------------------------------
 **
 **	Hook for loadable pci drivers
@@ -397,11 +365,11 @@ static	void	vga_attach(pcici_t tag, int unit)
 **---------------------------------------------------------
 */
 
-static	char*	lkm_probe (pcici_t tag, pcidi_t type);
-static	void	lkm_attach(pcici_t tag, int unit);
+static	char*	lkm_probe  (pcici_t tag, pcidi_t type);
+static	void	lkm_attach (pcici_t tag, int unit);
 static	u_long	lkm_count;
 
-struct	pci_device lkm_device = {
+struct pci_device lkm_device = {
 	"lkm",
 	lkm_probe,
 	lkm_attach,
@@ -411,19 +379,20 @@ struct	pci_device lkm_device = {
 
 DATA_SET (pcidevice_set, lkm_device);
 
-static	char*	lkm_probe (pcici_t tag, pcidi_t type)
+static char*
+lkm_probe (pcici_t tag, pcidi_t type)
 {
 	/*
-	**	Should try to load a matching driver.
-	**	XXX Not yet!
+	**	Not yet!
+	**	(Should try to load a matching driver)
 	*/
 	return ((char*)0);
 }
 
-static	void	lkm_attach(pcici_t tag, int unit)
-{
-}
-
+static void
+lkm_attach (pcici_t tag, int unit)
+{}
+
 /*---------------------------------------------------------
 **
 **	Devices to ignore
@@ -431,11 +400,11 @@ static	void	lkm_attach(pcici_t tag, int unit)
 **---------------------------------------------------------
 */
 
-static	char*	ign_probe (pcici_t tag, pcidi_t type);
-static	void	ign_attach(pcici_t tag, int unit);
+static	char*	ign_probe  (pcici_t tag, pcidi_t type);
+static	void	ign_attach (pcici_t tag, int unit);
 static	u_long	ign_count;
 
-struct	pci_device ign_device = {
+struct pci_device ign_device = {
 	NULL,
 	ign_probe,
 	ign_attach,
@@ -445,17 +414,17 @@ struct	pci_device ign_device = {
 
 DATA_SET (pcidevice_set, ign_device);
 
-static	char*	ign_probe (pcici_t tag, pcidi_t type)
+static char*
+ign_probe (pcici_t tag, pcidi_t type)
 {
 	switch (type) {
 
 	case 0x10001042ul:	/* wd */
 		return ("");
-
 	};
 	return ((char*)0);
 }
 
-static	void	ign_attach(pcici_t tag, int unit)
-{
-}
+static void
+ign_attach (pcici_t tag, int unit)
+{}
