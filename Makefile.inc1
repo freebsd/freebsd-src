@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.51 1998/12/28 17:03:50 peter Exp $
+#	$Id: Makefile.inc1,v 1.52 1998/12/30 11:26:24 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -677,11 +677,6 @@ _libm=	lib/msun
 _libperl=		gnu/usr.bin/perl/libperl
 .endif
 
-# biosboot is not a library, but must be built before libdisk.
-.if exists(sys/${MACHINE}/boot/biosboot)
-_biosboot=	sys/${MACHINE}/boot/biosboot
-.endif
-
 #
 # bootstrap-libraries - build just enough libraries for the bootstrap
 # tools, and install them under ${WORLDTMP}.
@@ -721,7 +716,7 @@ bootstrap-libraries:
 libraries:
 .for _lib in ${_csu} lib/libcom_err ${_libcrypt} ${_libm} lib/libmd \
     lib/libmytinfo lib/libncurses lib/libtermcap \
-    lib/libradius lib/libskey lib/libtacplus ${_biosboot} \
+    lib/libradius lib/libskey lib/libtacplus \
     ${_secure_lib} ${_kerberosIV_lib} \
     gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib 
 .if exists(${.CURDIR}/${_lib})

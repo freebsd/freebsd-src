@@ -1,14 +1,18 @@
-#	$Id: Makefile,v 1.14 1998/11/03 06:50:58 peter Exp $
+#	$Id: Makefile,v 1.15 1998/12/30 11:17:09 bde Exp $
 
-SUBDIR=	modules
-
-.if ${MACHINE_ARCH} == "alpha" || ${OBJFORMAT} == "elf"
-SUBDIR+=boot
+# This is the old aout only boot loader.
+.if	exists(${MACHINE}/boot) && ${OBJFORMAT} == "aout"
+SUBDIR=	${MACHINE}/boot
+.elif	exists(boot) && ${MACHINE} == "i386" && ${OBJFORMAT} == "elf"
+SUBDIR=	boot
 .endif
 
-.if exists(${.CURDIR}/${MACHINE}/boot)
-SUBDIR+=${MACHINE}/boot
+.if	exists(boot) && ${MACHINE_ARCH} == "alpha"
+SUBDIR= boot
 .endif
+
+# KLD modules build for both a.out and ELF
+SUBDIR+=modules
 
 HTAGSFLAGS+= -at `awk -F= '/^RELEASE *=/{release=$2}; END {print "FreeBSD", release, "kernel"}' < conf/newvers.sh`
 
