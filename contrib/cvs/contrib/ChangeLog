@@ -1,0 +1,193 @@
+Sun Apr 14 11:30:36 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+
+        * Removed pcl-cvs/ subdir; see tools/ subdir in the top-level from
+        now on.
+        Added elib/ subdir.
+        
+        * Makefile.in (dist-dir): Removed all references to pcl-cvs/
+        subdir.
+
+Wed Mar  6 10:20:28 1996  Greg A. Woods  <woods@most.weird.com>
+
+	* log_accum.pl: ($MAILER): use sendmail directly to allow other
+	headers to be included
+	* log_accum.pl (mail_notification): add support to allow settting
+	of Reply-To and Date header fields in the sent mail; remove $mailto
+	argument and use the global variable (as with $replyto).
+	* log_accum.pl: add -R option for mail_notification()'s optional
+	Reply-To value [default to $login]
+
+Fri Mar  1 01:51:56 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+
+	* listener.c: added as mentioned in ../README.VMS
+
+Mon Feb 19 13:37:36 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Don't just tell people "we don't want your script"; tell
+	them what to do instead.
+
+Thu Feb  1 14:28:16 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+
+        * Makefile.in (DISTFILES): added `rcs2sccs.sh', as mentioned in
+        README.
+
+Thu Jan 18 09:39:16 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Talk about submitting changes to contrib directory.
+
+Tue Nov 14 15:28:25 1995  Greg A. Woods  <woods@most.weird.com>
+
+	* README: fix some spelling and other typos
+
+	* Makefile.in: if I need reminding to run cvsinit....
+
+Tue Nov 14 13:47:40 1995  Greg A. Woods  <woods@most.weird.com>
+
+	* log_accum.pl:
+	- Fix 'cvs status' to use global -Qq options
+	- fix up a couple of comments, incl., my proper address
+
+	* log.pl: add a CVSid and fix a couple of comments
+
+Sun Oct  1 02:02:57 1995  Peter Wemm  <peter@haywire.dialix.com>
+
+	* Makefile.in: supply a suffix rule to deal with .sh "source"
+
+Sat Jul 29 17:29:13 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* log.pl: Use global options -Qq, not command options -Qq.
+
+	* Makefile.in (install): Look for $(PROGS) and
+	$(CONTRIB_PROGS) in build dir, not srcdir.
+
+Fri Jul 28 19:48:45 1995  Paul Eggert  <eggert@twinsun.com>
+
+	* rcs2log.sh: Sync with latest Emacs snapshot.
+
+Thu Jul 27 20:29:30 1995  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* rcs2log.sh: import of initial WNT port work
+
+Fri Jul 14 22:38:44 1995  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* rcs-to-cvs.sh: Changes from David J. Mackenzie.
+	Set permissions on new repository files correctly.
+	Ignore *~ files.
+
+Thu Jul 13 23:04:12 CDT 1995  Jim Meyering  (meyering@comco.com)
+
+	* Makefile.in (.pl, .csh): *Never* redirect output directly to
+	the target (usu $@) of a rule.  Instead, redirect to a temporary
+	file, and then move that temporary to the target.  I chose to
+	name temporary files $@-t.  Remember to be careful that the length
+	of the temporary file name not exceed the 14-character limit.
+
+Sun Jul  9 21:16:53 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        These are actually Greg Woods' changes:
+        
+        * clmerge.pl, cvscheck.sh, descend.sh, dirfns.shar, rcs-to-cvs.sh,
+        rcs2log.sh, sccs2rcs.csh: renamed from the corresponding files
+        sans extensions.
+        
+        * rcs2sccs.sh: new file.
+
+Sun Jul  9 19:03:00 1995  Greg A. Woods  <woods@most.weird.com>
+        
+        * rcs2log.sh: oops, one more thing that should not have been
+        there.
+        - fix interpreter file syntax.
+        - remove "fix" for separating filenames and comments
+
+	* Makefile.in: hmm... thought rcs2log was in RCS-5.7 for some
+        reason -- it's not, so we'll install it from here....
+        - fix typo -- that's what you get for re-doing changes by hand!
+        - updates to support proper transformation and installation of
+        renamed files (from previous local changes)
+
+	* .cvsignore: one more target noted...
+
+	* sccs2rcs.csh: set up the interpreter file for updating by
+        Makefile (from previous local changes)
+
+	* log_accum.pl, log.pl, commit_prep.pl:
+	- set up the interpreter file for updating by Makefile
+	- various modifications, updates, and enhancements
+	(from previous local changes)
+
+	* rcslock.pl, mfpipe.pl, cvs_acls.pl, cln_hist.pl, clmerge.pl:
+	- set up the interpreter file for updating by Makefile
+	(from previous local changes)
+	- include changes from 1.5 here too, if any
+
+	* README:
+	- remove extensions from filenames to match installed names
+	(from previous local changes)
+
+	* .cvsignore: - added $(CONTRIB_PROGS) (from previous local changes)
+
+        
+Thu Jun 29 10:43:07 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (distclean): Also remove pcl-cvs/Makefile.
+
+Thu Jun  8 15:32:29 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* intro.doc: Added.
+	* Makefile.in (DISTFILES): Add intro.doc.
+
+Sat May 27 08:46:00 1995  Jim Meyering  (meyering@comco.com)
+
+	* Makefile.in (Makefile): Regenerate only Makefile in current
+	directory when Makefile.in is out of date.  Depend on ../config.status.
+
+Mon May  8 13:06:29 1995  Bryan O'Sullivan  <bos@serpentine.com>
+
+	* README: added an entry for ccvs-rsh.pl.
+
+Sun Apr 30 23:50:32 1995  Bryan O'Sullivan  <bos@serpentine.com>
+
+	* ccvs-rsh.pl: fixed a typo and added more flexible use of
+	CVS_PROXY_USER.
+
+Sun Apr 30 14:56:21 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* clmerge: Changes from Tom Tromey --- fix bug in date comparison
+	function.
+
+Sat Apr 29 20:53:08 1995  Bryan O'Sullivan  <bos@serpentine.com>
+
+	* ccvs-rsh.pl: created.  See the file itself for documentation.
+
+	* Makefile.in (DISTFILES): added ccvs-rsh.pl to the list of
+	files to install.
+
+Fri Apr 28 22:32:45 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* Makefile.in (DISTFILES): Brought up-to-date with current
+	directory contents.
+	(dist-dir): Renamed from dist-dir; use DISTDIR variable, passed
+	from parent.
+
+Mon Feb 13 13:32:07 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* rcs2log: rcs2log was originally in this tree; how did it get
+	deleted?  Anyway, this is the version distributed with Emacs
+	19.28, hacked to support CVS and Remote CVS.
+
+Mon Jul 26 13:18:23 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* rcs-to-cvs: Rewrite in sh.
+
+Wed Jul 14 21:16:40 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* rcs-to-cvs: Don't source .cshrc or hardcode paths.
+	Make respository dir if needed.  Don't suppress errors
+	(such as prompts) from co.
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+
