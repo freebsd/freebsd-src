@@ -232,7 +232,9 @@ ProcessArgs(int argc, char **argv, struct switches *sw)
 #endif
           optc--;			/* this option isn't exclusive */
         } else if (strncmp(cp, "unit", 4) == 0) {
+          optc--;			/* this option isn't exclusive */
           if (cp[4] == '\0') {
+            optc--;			/* nor is the argument */
             if (++arg == argc) {
               fprintf(stderr, "-unit: Expected unit number\n");
               Usage();
@@ -240,7 +242,6 @@ ProcessArgs(int argc, char **argv, struct switches *sw)
               sw->unit = atoi(argv[arg]);
           } else
             sw->unit = atoi(cp + 4);
-          optc--;			/* this option isn't exclusive */
         } else if (strcmp(cp, "quiet") == 0) {
           sw->quiet = 1;
           optc--;			/* this option isn't exclusive */
