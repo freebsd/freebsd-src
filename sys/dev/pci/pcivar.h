@@ -55,7 +55,6 @@ typedef u_int32_t pci_addr_t;	/* u_int64_t for system with 64bit addresses */
 
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
-    void	*hdrspec;	/* pointer to header type specific data */
 
     u_int16_t	subvendor;	/* card vendor ID */
     u_int16_t	subdevice;	/* card device ID, assigned by card vendor */
@@ -86,8 +85,11 @@ typedef struct pcicfg {
     u_int8_t	slot;		/* config space slot address */
     u_int8_t	func;		/* config space function number */
 
-    u_int8_t	secondarybus;	/* bus on secondary side of bridge, if any */
-    u_int8_t	subordinatebus;	/* topmost bus number behind bridge, if any */
+    u_int16_t	pp_cap;		/* PCI power management capabilities */
+    u_int8_t	pp_status;	/* config space address of PCI power status reg */
+    u_int8_t	pp_pmcsr;	/* config space address of PMCSR reg */
+    u_int8_t	pp_data;	/* config space address of PCI power data reg */
+    
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
@@ -144,18 +146,10 @@ struct pci_devinfo {
 };
 #endif
 
-/* low level PCI config register functions provided by pcibus.c */
-
-int pci_cfgread (pcicfgregs *cfg, int reg, int bytes);
-void pci_cfgwrite (pcicfgregs *cfg, int reg, int data, int bytes);
-
 #ifdef __alpha__
 vm_offset_t pci_cvt_to_dense (vm_offset_t);
 vm_offset_t pci_cvt_to_bwx (vm_offset_t);
 #endif /* __alpha__ */
-
-/* low level devlist operations for the 2.2 compatibility code in pci.c */
-pcicfgregs * pci_devlist_get_parent(pcicfgregs *cfg);
 
 #ifdef _SYS_BUS_H_
 
@@ -169,22 +163,20 @@ pcicfgregs * pci_devlist_get_parent(pcicfgregs *cfg);
 #define PCI_RF_BWX	0x20000
 
 enum pci_device_ivars {
-	PCI_IVAR_SUBVENDOR,
-	PCI_IVAR_SUBDEVICE,
-	PCI_IVAR_VENDOR,
-	PCI_IVAR_DEVICE,
-	PCI_IVAR_DEVID,
-	PCI_IVAR_CLASS,
-	PCI_IVAR_SUBCLASS,
-	PCI_IVAR_PROGIF,
-	PCI_IVAR_REVID,
-	PCI_IVAR_INTPIN,
-	PCI_IVAR_IRQ,
-	PCI_IVAR_BUS,
-	PCI_IVAR_SLOT,
-	PCI_IVAR_FUNCTION,
-	PCI_IVAR_SECONDARYBUS,
-	PCI_IVAR_SUBORDINATEBUS,
+    PCI_IVAR_SUBVENDOR,
+    PCI_IVAR_SUBDEVICE,
+    PCI_IVAR_VENDOR,
+    PCI_IVAR_DEVICE,
+    PCI_IVAR_DEVID,
+    PCI_IVAR_CLASS,
+    PCI_IVAR_SUBCLASS,
+    PCI_IVAR_PROGIF,
+    PCI_IVAR_REVID,
+    PCI_IVAR_INTPIN,
+    PCI_IVAR_IRQ,
+    PCI_IVAR_BUS,
+    PCI_IVAR_SLOT,
+    PCI_IVAR_FUNCTION,
 };
 
 /*
@@ -194,15 +186,15 @@ enum pci_device_ivars {
 									\
 static __inline T pci_get_ ## A(device_t dev)				\
 {									\
-	uintptr_t v;							\
-	BUS_READ_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, &v);	\
-	return (T) v;							\
+    uintptr_t v;							\
+    BUS_READ_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, &v);	\
+    return (T) v;							\
 }									\
 									\
 static __inline void pci_set_ ## A(device_t dev, T t)			\
 {									\
-	uintptr_t v = (uintptr_t) t;					\
-	BUS_WRITE_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, v);	\
+    uintptr_t v = (uintptr_t) t;					\
+    BUS_WRITE_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, v);	\
 }
 
 PCI_ACCESSOR(subvendor,		SUBVENDOR,	u_int16_t)
@@ -219,11 +211,12 @@ PCI_ACCESSOR(irq,		IRQ,		u_int8_t)
 PCI_ACCESSOR(bus,		BUS,		u_int8_t)
 PCI_ACCESSOR(slot,		SLOT,		u_int8_t)
 PCI_ACCESSOR(function,		FUNCTION,	u_int8_t)
-PCI_ACCESSOR(secondarybus,	SECONDARYBUS,	u_int8_t)
-PCI_ACCESSOR(subordinatebus,	SUBORDINATEBUS,	u_int8_t)
 
 #undef PCI_ACCESSOR
 
+/*
+ * Operations on configuration space.
+ */
 static __inline u_int32_t
 pci_read_config(device_t dev, int reg, int width)
 {
@@ -249,77 +242,67 @@ enum pcib_device_ivars {
 									 \
 static __inline T pcib_get_ ## A(device_t dev)				 \
 {									 \
-	uintptr_t v;							 \
-	BUS_READ_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, &v); \
-	return (T) v;							 \
+    uintptr_t v;							 \
+    BUS_READ_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, &v);	 \
+    return (T) v;							 \
 }									 \
 									 \
 static __inline void pcib_set_ ## A(device_t dev, T t)			 \
 {									 \
-	uintptr_t v = (uintptr_t) t;					 \
-	BUS_WRITE_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, v); \
+    uintptr_t v = (uintptr_t) t;					 \
+    BUS_WRITE_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, v);	 \
 }
 
 PCIB_ACCESSOR(bus,		BUS,		u_int32_t)
 
 #undef PCIB_ACCESSOR
 
-#endif
+/*
+ * Convenience functions.
+ *
+ * These should be used in preference to manually manipulating
+ * configuration space.
+ */
+extern void	pci_enable_busmaster(device_t dev);
+extern void	pci_disable_busmaster(device_t dev);
+extern void	pci_enable_io(device_t dev, int space);
+extern void	pci_disable_io(device_t dev, int space);
 
-/* for compatibility to FreeBSD-2.2 and 3.x versions of PCI code */
+/*
+ * PCI power states are as defined by ACPI:
+ *
+ * D0	State in which device is on and running.  It is receiving full
+ *	power from the system and delivering full functionality to the user.
+ * D1	Class-specific low-power state in which device context may or may not
+ *	be lost.  Buses in D1 cannot do anything to the bus that would force
+ *	devices on that bus to loose context.
+ * D2	Class-specific low-power state in which device context may or may
+ *	not be lost.  Attains greater power savings than D1.  Buses in D2
+ *	can cause devices on that bus to loose some context.  Devices in D2
+ *	must be prepared for the bus to be in D2 or higher.
+ * D3	State in which the device is off and not running.  Device context is
+ *	lost.  Power can be removed from the device.
+ */
+#define PCI_POWERSTATE_D0	0
+#define PCI_POWERSTATE_D1	1
+#define PCI_POWERSTATE_D2	2
+#define PCI_POWERSTATE_D3	3
+#define PCI_POWERSTATE_UNKNOWN	-1
 
-#if defined(_KERNEL) && !defined(KLD_MODULE)
-#include "opt_compat_oldpci.h"
-#endif
+extern int	pci_set_powerstate(device_t dev, int state);
+extern int	pci_get_powerstate(device_t dev);
 
-#ifdef COMPAT_OLDPCI
+#endif	/* _SYS_BUS_H_ */
 
-/* all this is going some day */
+/*
+ * cdev switch for control device, initialised in generic PCI code
+ */
+extern struct cdevsw pcicdev;
 
-typedef pcicfgregs *pcici_t;
-typedef unsigned pcidi_t;
-typedef void pci_inthand_t(void *arg);
-
-#define pci_max_burst_len (3)
-
-/* just copied from old PCI code for now ... */
-
-struct pci_device {
-    char*    pd_name;
-    const char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
-    void   (*pd_attach) (pcici_t tag, int     unit);
-    u_long  *pd_count;
-    int    (*pd_shutdown) (int, int);
-};
-
-#ifdef __i386__
-typedef u_short pci_port_t;
-#else
-typedef u_int pci_port_t;
-#endif
-
-u_long pci_conf_read (pcici_t tag, u_long reg);
-void pci_conf_write (pcici_t tag, u_long reg, u_long data);
-int pci_map_port (pcici_t tag, u_long reg, pci_port_t* pa);
-int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
-int pci_map_int (pcici_t tag, pci_inthand_t *handler, void *arg,
-		 intrmask_t *maskptr);
-int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
-		      intrmask_t *maskptr, u_int flags);
-int pci_unmap_int (pcici_t tag);
-
-pcici_t pci_get_parent_from_tag(pcici_t tag);
-int     pci_get_bus_from_tag(pcici_t tag);
-
-struct module;
-int compat_pci_handler (struct module *, int, void *);
-#define COMPAT_PCI_DRIVER(name, pcidata)				\
-static moduledata_t name##_mod = {					\
-	#name,								\
-	compat_pci_handler,						\
-	&pcidata							\
-};									\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
-#endif /* COMPAT_OLDPCI */
+/*
+ * List of all PCI devices, generation count for the list.
+ */
+STAILQ_HEAD(devlist, pci_devinfo)	pci_devq;
+u_int32_t				pci_generation;
 
 #endif /* _PCIVAR_H_ */
