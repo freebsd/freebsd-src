@@ -753,8 +753,17 @@ network_pass3() {
 						;;
 					esac
 
-					amd -p ${amd_flags} > /var/run/amd.pid \
-						2> /dev/null &
+					case "${amd_flags}" in
+					'')
+						echo ''
+			echo 'Warning: amd will not load without arguments'
+						;;
+					*)
+						amd -p ${amd_flags} \
+							 >/var/run/amd.pid \
+							2>/dev/null &
+						;;
+					esac
 					;;
 				esac
 			else
