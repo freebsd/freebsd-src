@@ -1396,9 +1396,10 @@ vop_getextattr {
 {
 	struct inode *ip;
 	struct fs *fs;
-	u_char *eae, *p;
+	u_char *eae, *p, *pe, *pn;
 	struct ufs2_dinode *dp;
 	unsigned easize;
+	uint32_t ul;
 	int error, ealen;
 
 	ip = VTOI(ap->a_vp);
@@ -1412,15 +1413,38 @@ vop_getextattr {
 	if (error)
 		return (error);
 	easize = dp->di_extsize;
-	error = ENOATTR;
-	ealen = ffs_findextattr(eae, easize,
-	    ap->a_attrnamespace, ap->a_name, NULL, &p);
-	if (ealen != 0) {
+	if (strlen(ap->a_name) > 0) {
+		error = ENOATTR;
+		ealen = ffs_findextattr(eae, easize,
+		    ap->a_attrnamespace, ap->a_name, NULL, &p);
+		if (ealen != 0) {
+			error = 0;
+			if (ap->a_size != NULL)
+				*ap->a_size = ealen;
+			else if (ap->a_uio != NULL)
+				error = uiomove(p, ealen, ap->a_uio);
+		}
+	} else {
 		error = 0;
 		if (ap->a_size != NULL)
-			*ap->a_size = ealen;
-		else if (ap->a_uio != NULL)
-			error = uiomove(p, ealen, ap->a_uio);
+			*ap->a_size = 0;
+		pe = eae + easize;
+		for(p = eae; error == 0 && p < pe; p = pn) {
+			bcopy(p, &ul, sizeof(ul));
+			pn = p + ul;
+			if (pn > pe)
+				break;
+			p += sizeof(ul);
+			if (*p++ != ap->a_attrnamespace)
+				continue;
+			p++;	/* pad2 */
+			ealen = *p;
+			if (ap->a_size != NULL) {
+				*ap->a_size += ealen + 1;
+			} else if (ap->a_uio != NULL) {
+				error = uiomove(p, ealen + 1, ap->a_uio);
+			}
+		}
 	}
 	free(eae, M_TEMP);
 	return(error);
@@ -1465,7 +1489,7 @@ vop_setextattr {
 	dp = ip->i_din2;
 
 	/* Calculate the length of the EA entry */
-	if (ap->a_uio == NULL) {
+	if (ap->a_uio == NULL || ap->a_uio->uio_resid == 0) {
 		/* delete */
 		ealength = eapad1 = ealen = eapad2 = eacont = 0;
 	} else {
