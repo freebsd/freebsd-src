@@ -33,7 +33,7 @@
 # NO_MANCOMPRESS	If you do not want unformatted manual pages to be 
 #		compressed when they are installed. [not set]
 #
-# NOMLINKS	If you do not want install manual page links. [not set]
+# NO_MLINKS	If you do not want install manual page links. [not set]
 #
 # MANFILTER	command to pipe the raw man page through before compressing
 #		or installing.  Can be used to do sed substitution.
@@ -203,7 +203,7 @@ _maninstall: ${MAN}
 .endif
 .endif
 
-.if !defined(NOMLINKS) && defined(MLINKS) && !empty(MLINKS)
+.if !defined(NO_MLINKS) && defined(MLINKS) && !empty(MLINKS)
 	@set ${MLINKS:C/\.([^.]*)$/.\1 \1/}; \
 	while : ; do \
 		case $$# in \
