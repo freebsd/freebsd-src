@@ -319,7 +319,7 @@ vlan_start(struct ifnet *ifp)
 		 * knows how to find the VLAN tag to use, so we attach a
 		 * packet tag that holds it.
 		 */
-		if (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) {
+		if (p->if_capabilities & IFCAP_VLAN_HWTAGGING) {
 			struct m_tag *mtag = m_tag_alloc(MTAG_VLAN,
 							 MTAG_VLAN_TAG,
 							 sizeof (u_int),
@@ -409,7 +409,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 				("vlan_input: bad encapsulated protocols (%u)",
 				 ntohs(evl->evl_encap_proto)));
 
-			tag = EVL_VLANOFTAG(ntohs(evl->evl_tag));
+			tag = ntohs(evl->evl_tag);
 
 			/*
 			 * Restore the original ethertype.  We'll remove
