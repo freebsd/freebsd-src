@@ -114,11 +114,11 @@ then
 .Fn kobj_class_compile_static
 should be called with the class and a pointer to a statically
 allocated
-.Dv kobj_ops
+.Vt kobj_ops
 structure before the class is used to initialise any objects.
 .Pp
 To define a class, first define a simple array of
-.Dv kobj_method_t .
+.Vt kobj_method_t .
 Each method which the class implements should be entered into the
 table using the macro
 .Fn KOBJMETHOD
@@ -128,7 +128,7 @@ The table should be terminated with two zeros.
 The macro
 .Fn DEFINE_CLASS
 can then be used to initialise a
-.Dv kobj_class_t
+.Vt kobj_class_t
 structure.
 The size argument to
 .Fn DEFINE_CLASS

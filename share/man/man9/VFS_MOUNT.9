@@ -45,18 +45,18 @@ Mount a file system into the system's namespace.
 .Pp
 Its arguments are:
 .Bl -tag -width data
-.It Ar mp
+.It Fa mp
 Structure representing the file system.
-.It Ar path
+.It Fa path
 Pathname where the file system is being mounted.
-.It Ar data
+.It Fa data
 File system specific data.  This should be read into the kernel using
 .Xr copyin 9 .
-.It Ar ndp
+.It Fa ndp
 Contains the result of a
 .Xr namei 9
 call on the pathname of the mountpoint.
-.It Ar td
+.It Fa td
 Thread which is mounting the file system.
 .El
 .Pp

@@ -49,11 +49,11 @@ system calls.
 .Pp
 Its arguments are:
 .Bl -tag -width waitfor
-.It Ar vp
+.It Fa vp
 the vnode of the file
-.It Ar cred
+.It Fa cred
 the caller's credentials
-.It Ar waitfor
+.It Fa waitfor
 whether the function should wait for I/O to complete.
 Possible values are:
 .Bl -tag -width MNT_NOWAIT
@@ -64,7 +64,7 @@ start all I/O, but do not wait for it
 .It Dv MNT_LAZY
 push data not written by file system syncer
 .El
-.It Ar td
+.It Fa td
 the calling thread
 .El
 .Pp
