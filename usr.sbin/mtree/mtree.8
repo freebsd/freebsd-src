@@ -39,7 +39,7 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm mtree
-.Op Fl cderux
+.Op Fl cdeinrux
 .Op Fl f Ar spec
 .Op Fl K Ar keywords
 .Op Fl k Ar keywords
@@ -67,12 +67,26 @@ specification.
 Read the specification from
 .Ar file  ,
 instead of from the standard input.
+.It Fl i
+Indents the output 4 spaces each time a directory level is descended when
+create a specification with the
+.Fl c
+option.
+This does not effect either the /set statements or the comment before each
+directory.
+It does however effect the comment before the close of each directory.
 .It Fl K
 Add the specified (whitespace or comma separated) keywords to the current
 set of keywords.
 .It Fl k
 Use the ``type'' keyword plus the specified (whitespace or comma separated)
 keywords instead of the current set of keywords.
+.It Fl n
+Do not emit pathname comments when creating a specification.  Normally 
+a comment is emitted before each directory and before the close of that
+directory when using the 
+.Fl c
+option.
 .It Fl p
 Use the file hierarchy rooted in
 .Ar path  ,
