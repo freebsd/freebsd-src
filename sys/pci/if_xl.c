@@ -1416,12 +1416,14 @@ static int xl_attach(dev)
 	if (sc->xl_type == XL_TYPE_905B) {
 		ifp->if_start = xl_start_90xB;
 		ifp->if_hwassist = XL905B_CSUM_FEATURES;
+		ifp->if_capabilities = IFCAP_HWCSUM;
 	} else
 		ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = XL_TX_LIST_CNT - 1;
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
 	 * Now we have to see what sort of media we have.
