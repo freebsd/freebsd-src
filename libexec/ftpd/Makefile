@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-#	$Id: Makefile,v 1.23 1997/10/05 09:39:27 jkh Exp $
+#	$Id: Makefile,v 1.24 1998/05/04 18:20:18 bde Exp $
 
 PROG=	ftpd
 MAN8=	ftpd.8
@@ -20,7 +20,7 @@ CFLAGS+=-DINTERNAL_LS -Dmain=ls_main -I${.CURDIR}/${LSDIR}
 .endif
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
-.PATH:  ${.CURDIR}/../../usr.bin/login
+.PATH:  ${.CURDIR}/../../lib/libpam/modules/pam_kerberosIV
 SRCS+=	klogin.c
 LDADD+=	-lkrb -ldes
 DPADD+= ${LIBKRB} ${LIBDES}
