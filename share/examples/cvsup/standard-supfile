@@ -51,7 +51,7 @@
 *default host=CHANGE_THIS.FreeBSD.org
 *default base=/usr
 *default prefix=/usr
-*default release=cvs tag=RELENG_4_4
+*default release=cvs tag=RELENG_4
 *default delete use-rel-suffix
 
 # If your network link is a T1 or faster, comment out the following line.

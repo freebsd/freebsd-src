@@ -134,11 +134,7 @@ krb5_verify(struct passwd *login_info, struct passwd *su_info,
 #ifdef KRB5
     krb5_error_code ret;
     krb5_principal p;
-    char *login_name = NULL;
 	
-#if defined(HAVE_GETLOGIN) && !defined(POSIX_GETLOGIN)
-    login_name = getlogin();
-#endif
     ret = krb5_init_context (&context);
     if (ret) {
 #if 0
@@ -147,11 +143,9 @@ krb5_verify(struct passwd *login_info, struct passwd *su_info,
 	return 1;
     }
 	
-    if (login_name == NULL || strcmp (login_name, "root") == 0) 
-	login_name = login_info->pw_name;
     if (strcmp (su_info->pw_name, "root") == 0)
 	ret = krb5_make_principal(context, &p, NULL, 
-				  login_name,
+				  login_info->pw_name,
 				  kerberos_instance,
 				  NULL);
     else
@@ -270,6 +264,7 @@ main(int argc, char **argv)
     int i, optind = 0;
     char *su_user;
     struct passwd *su_info;
+    char *login_user = NULL;
     struct passwd *login_info;
 
     struct passwd *pwd;
@@ -310,6 +305,10 @@ main(int argc, char **argv)
     }
     su_info = make_info(pwd);
     
+#if defined(HAVE_GETLOGIN) && !defined(POSIX_GETLOGIN)
+    login_user = getlogin();
+#endif
+    if(login_user == NULL || (pwd = getpwnam(login_user)) == NULL)
 	pwd = getpwuid(getuid());
     if(pwd == NULL)
 	errx(1, "who are you?");
