@@ -218,7 +218,9 @@ ptrace(struct proc *p, struct ptrace_args *uap)
 	switch (uap->req) {
 	case PT_GETREGS:
 	case PT_GETFPREGS:
+#ifdef PT_GETDBREGS
 	case PT_GETDBREGS:
+#endif
 		break;
 	case PT_SETREGS:
 		error = copyin(uap->addr, &r.reg, sizeof r.reg);
@@ -226,9 +228,11 @@ ptrace(struct proc *p, struct ptrace_args *uap)
 	case PT_SETFPREGS:
 		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
 		break;
+#ifdef PT_SETDBREGS
 	case PT_SETDBREGS:
 		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
 		break;
+#endif
 	case PT_IO:
 		error = copyin(uap->addr, &r.piod, sizeof r.piod);
 		break;
@@ -252,9 +256,11 @@ ptrace(struct proc *p, struct ptrace_args *uap)
 	case PT_GETFPREGS:
 		error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
 		break;
+#ifdef PT_GETDBREGS
 	case PT_GETDBREGS:
 		error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);
 		break;
+#endif
 	}
 
 	return (error);
