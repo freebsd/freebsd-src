@@ -844,18 +844,6 @@ extern struct uma_zone *proc_zone;
 
 extern int lastpid;
 
-/*
- * XXX macros for scheduler.  Shouldn't be here, but currently needed for
- * bounding the dubious p_estcpu inheritance in wait1().
- * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
- * the range 100-256 Hz (approximately).
- */
-#define	ESTCPULIM(e) \
-    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) - \
-	     RQ_PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
-#define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
-#define	NICE_WEIGHT	1		/* Priorities per nice level. */
-
 struct	proc *pfind(pid_t);	/* Find process by id. */
 struct	pgrp *pgfind(pid_t);	/* Find process group by id. */
 struct	proc *zpfind(pid_t);	/* Find zombie process by id. */
