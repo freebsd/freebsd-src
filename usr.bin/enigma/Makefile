@@ -1,9 +1,7 @@
-all:	enigma makekey
+PROG=	enigma
+MAN1=	enigma.1
 
-install:	enigma makekey
-	cp enigma makekey /usr/brlcad/bin/.
-	cp makekey.8 /usr/brlcad/man/man1/.
-	ln -s enigma /usr/brlcad/bin/crypt
+LINKS=	${BINDIR}/enigma ${BINDIR}/crypt
+MLINKS=	enigma.1 crypt.1
 
-clean:
-	rm -f enigma makekey *.o
+.include <bsd.prog.mk>
