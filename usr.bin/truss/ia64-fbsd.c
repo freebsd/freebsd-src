@@ -117,7 +117,7 @@ ia64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   struct reg regs;
   int syscall_num;
   int i;
-  unsigned int parm_offset;
+  unsigned long *parm_offset;
   struct syscall *sc;
 
   if (fd == -1 || trussinfo->pid != cpid) {
@@ -136,7 +136,7 @@ ia64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
     return;
   }
-  parm_offset = regs.r_special.sp + 16;
+  parm_offset = &regs.r_scratch.gr16;
 
   /*
    * FreeBSD has two special kinds of system call redirctions --
@@ -144,18 +144,8 @@ ia64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
    * routine, basicly; the latter is for quad-aligned arguments.
    */
   syscall_num = regs.r_scratch.gr15;		/* XXX double-check. */
-  switch (syscall_num) {
-  case SYS_syscall:
-    lseek(Procfd, parm_offset, SEEK_SET);
-    read(Procfd, &syscall_num, sizeof(int));
-    parm_offset += sizeof(int);
-    break;
-  case SYS___syscall:
-    lseek(Procfd, parm_offset, SEEK_SET);
-    read(Procfd, &syscall_num, sizeof(int));
-    parm_offset += sizeof(quad_t);
-    break;
-  }
+  if (syscall_num == SYS_syscall || syscall_num == SYS___syscall)
+    syscall_num = (int)*parm_offset++;
 
   fsc.number = syscall_num;
   fsc.name = (syscall_num < 0 || syscall_num > nsyscalls)
@@ -176,9 +166,7 @@ ia64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     return;
 
   fsc.args = malloc((1+nargs) * sizeof(unsigned long));
-  lseek(Procfd, parm_offset, SEEK_SET);
-  if (read(Procfd, fsc.args, nargs * sizeof(unsigned long)) == -1)
-    return;
+  memcpy(fsc.args, parm_offset, nargs * sizeof(long));
 
   sc = get_syscall(fsc.name);
   if (sc) {
