@@ -404,17 +404,22 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
       for more details.</para>
 
-    <para>&new.461; A race condition in &man.pppd.8;, which could be used to
+    <para>&new.462; A race condition in &man.pppd.8;, which could be used to
       change the permissions of an arbitrary file, has been corrected.
       For more information, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
 
-    <para>&new.461; Multiple buffer overflows in
+    <para>&new.462; Multiple buffer overflows in
       <application>OpenSSL</application> have been corrected, by way
       of an upgrade to the base system version of
       <application>OpenSSL</application>.  More details can be found
       in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.</para>
+
+    <para>&new.462; A heap buffer overflow in the XDR decoder has been fixed.
+      For more details, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">

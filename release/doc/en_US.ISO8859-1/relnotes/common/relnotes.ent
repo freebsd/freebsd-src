@@ -7,6 +7,10 @@
 <!-- Notes new to our first point release (hopefully there'll only be one!) -->
 <!ENTITY new.461 "[4.6.1]">
 
+<!-- Well, we did all the work for two point releases, but the world -->
+<!-- will only see one of them. -->
+<!ENTITY new.462 "[4.6.2]">
+
 <!-- 
   -CURRENT defines a merged entity, which we use to indicate when a
   release notes item has been merged.  We remove it from any -STABLE
