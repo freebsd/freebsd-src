@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.28 1997/11/25 13:05:16 yokota Exp $
+ *  $Id: syscons.c,v 1.182.2.29 1998/01/20 03:51:30 yokota Exp $
  */
 
 #include "sc.h"
@@ -149,6 +149,7 @@ static  int        	blinkrate = 0;
 	char		crtc_type = KD_MONO;
 	char        	crtc_vga = FALSE;
 static  u_char      	shfts = 0, ctls = 0, alts = 0, agrs = 0, metas = 0;
+static  u_char		accents = 0;
 static  u_char      	nlkcnt = 0, clkcnt = 0, slkcnt = 0, alkcnt = 0;
 static  const u_int     n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
 static  int     	delayed_next_scr = FALSE;
@@ -649,7 +650,7 @@ fail:
 static int
 scresume(void *dummy)
 {
-	shfts = ctls = alts = agrs = metas = 0; 
+	shfts = ctls = alts = agrs = metas = accents = 0; 
 	return 0;
 }
 #endif
@@ -1810,7 +1811,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case K_XLATE:   	/* switch to XLT ascii mode */
 	    if (scp == cur_console && scp->status & KBD_RAW_MODE)
-		shfts = ctls = alts = agrs = metas = 0;
+		shfts = ctls = alts = agrs = metas = accents = 0;
 	    scp->status &= ~(KBD_RAW_MODE | KBD_CODE_MODE);
 	    return 0;
 	default:
@@ -1910,7 +1911,18 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case PIO_KEYMAP:    	/* set keyboard translation table */
+	accents = 0;
+	bzero(&accent_map, sizeof(accent_map));
 	bcopy(data, &key_map, sizeof(key_map));
+	return 0;
+
+    case GIO_DEADKEYMAP:    	/* get accent key translation table */
+	bcopy(&accent_map, data, sizeof(accent_map));
+	return 0;
+
+    case PIO_DEADKEYMAP:    	/* set accent key translation table */
+	accents = 0;
+	bcopy(data, &accent_map, sizeof(accent_map));
 	return 0;
 
     case PIO_FONT8x8:   	/* set 8x8 dot font */
@@ -2392,7 +2404,7 @@ exchange_scr(void)
 	load_palette(palette);
     if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE ||
         old_scp->status & KBD_CODE_MODE || new_scp->status & KBD_CODE_MODE)
-	shfts = ctls = alts = agrs = metas = 0;
+	shfts = ctls = alts = agrs = metas = accents = 0;
     set_border(new_scp->border);
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
@@ -3734,20 +3746,24 @@ next_code:
 		break;
 	    case SPSC:
 #ifdef SC_SPLASH_SCREEN
+		accents = 0;
 		toggle_splash_screen(cur_console);
 #endif
 		break;
 	    case RBT:
+		accents = 0;
 		shutdown_nice();
 		break;
 	    case SUSP:
 #if NAPM > 0
+		accents = 0;
 		apm_suspend();
 #endif
 		break;
 
 	    case DBG:
 #ifdef DDB          /* try to switch to console 0 */
+		accents = 0;
 		if (cur_console->smode.mode == VT_AUTO &&
 		    console[0]->smode.mode == VT_AUTO)
 		    switch_scr(cur_console, 0);
@@ -3783,6 +3799,7 @@ next_code:
 	    case NEXT:
 		{
 		int next, this = get_scr_num();
+		accents = 0;
 		for (next = this+1; next != this; next = (next+1)%MAXCONS) {
 		    struct tty *tp = VIRTUAL_TTY(next);
 		    if (tp->t_state & TS_ISOPEN) {
@@ -3793,8 +3810,40 @@ next_code:
 		}
 		break;
 	    case BTAB:
+		accents = 0;
 		return(BKEY);
 	    default:
+		if (action >= F_ACC && action <= L_ACC) {
+		    /* turn it into an index */
+		    action -= F_ACC - 1;
+		    if ((action > accent_map.n_accs) 
+			|| (accent_map.acc[action - 1].accchar == 0)) {
+			/* 
+			 * The index is out of range or pointing to an 
+			 * empty entry.
+			 */
+			accents = 0;
+			do_bell(cur_console, BELL_PITCH, BELL_DURATION);
+		    }
+		    /* 
+		     * If the same accent key has been hit twice,
+		     * produce the accent char itself.
+		     */
+		    if (action == accents) {
+			action = accent_map.acc[accents - 1].accchar;
+			accents = 0;
+			if (metas)
+			    action |= MKEY;
+			return (action);
+		    }
+		    /* remember the index and wait for the next key stroke */
+		    accents = action; 
+		    break;
+		}
+		if (accents > 0) {
+		    accents = 0;
+		    do_bell(cur_console, BELL_PITCH, BELL_DURATION);
+		}
 		if (action >= F_SCR && action <= L_SCR) {
 		    switch_scr(cur_console, action - F_SCR);
 		    break;
@@ -3805,6 +3854,35 @@ next_code:
 	    }
 	}
 	else {
+	    if (accents) {
+		struct acc_t *acc;
+		int i;
+
+		acc = &accent_map.acc[accents - 1];
+		accents = 0;
+		/* 
+		 * If the accent key is followed by the space key,
+		 * produce the accent char itself.
+		 */
+		if (action == ' ') {
+		    action = acc->accchar;
+		    if (metas)
+			action |= MKEY;
+		    return (action);
+		}
+		for (i = 0; i < NUM_ACCENTCHARS; ++i) {
+		    if (acc->map[i][0] == 0)	/* end of the map entry */
+			break;
+		    if (acc->map[i][0] == action) {
+			action = acc->map[i][1];
+			if (metas)
+			    action |= MKEY;
+			return (action);
+		    }
+		}
+		do_bell(cur_console, BELL_PITCH, BELL_DURATION);
+		goto next_code;
+	    }
 	    if (metas)
 		action |= MKEY;
 	    return(action);
