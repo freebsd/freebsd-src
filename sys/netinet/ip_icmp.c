@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.13 1995/12/05 17:45:59 wollman Exp $
+ * $Id: ip_icmp.c,v 1.14 1995/12/06 23:37:29 bde Exp $
  */
 
 #include <sys/param.h>
@@ -336,7 +336,11 @@ icmp_input(m, hlen)
 				if (!mtu)
 					mtu = ip_next_mtu(rt->rt_rmx.rmx_mtu,
 							  1);
-				if (!mtu || mtu < 296) {
+#ifdef DEBUG_MTUDISC
+				printf("MTU for %s reduced to %d\n",
+					inet_ntoa(icmpsrc.sin_addr), mtu);
+#endif
+				if (mtu < 296) {
 					/* rt->rt_rmx.rmx_mtu =
 						rt->rt_ifp->if_mtu; */
 					rt->rt_rmx.rmx_locks |= RTV_MTU;
