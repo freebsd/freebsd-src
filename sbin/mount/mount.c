@@ -203,6 +203,8 @@ main(argc, argv)
 				if (!(init_flags & MNT_UPDATE) &&
 				    ismounted(fs, mntbuf, mntsize))
 					continue;
+				options = update_options(options, fs->fs_mntops,
+				    mntbuf->f_flags);
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
 				    fs->fs_file, init_flags, options,
 				    fs->fs_mntops))
@@ -690,7 +692,7 @@ usage()
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 "usage: mount [-dfpruvw] [-o options] [-t ufs | external_type] special node",
-"       mount [-adfpruvw] [-t ufs | external_type]",
+"       mount [-adfpruvw] [-o options] [-t ufs | external_type]",
 "       mount [-dfpruvw] special | node");
 	exit(1);
 }
