@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.11 1998/11/10 06:44:42 gibbs Exp $
+ *      $Id: aha.c,v 1.12 1998/11/10 06:47:09 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -351,9 +351,18 @@ aha_probe(struct aha_softc* aha)
 	 * this register, and return 0xff, while buslogic cards will return
 	 * something different.
 	 *
-	 * XXX I'm not sure how this will impact other cloned cards.
+	 * It appears that for reasons unknow, for the for the
+	 * aha-1542B cards, we need to wait a little bit before trying
+	 * to read the geometry register.  I picked 10ms since we have
+	 * reports that a for loop to 1000 did the trick, and this
+	 * errs on the side of conservatism.  Besides, no one will
+	 * notice a 10mS delay here, even the 1542B card users :-)
+	 *
+	 * XXX I'm not sure how this will impact other cloned cards 
 	 */
 	if (aha->boardid <= 0x42) {
+		/* Wait 10ms before reading */
+		DELAY(10000);
 		status = aha_inb(aha, GEOMETRY_REG);
 		if (status != 0xff) {
 			PRVERB(("%s: Geometry Register test failed\n",
@@ -426,10 +435,10 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 			/*paramlen*/2, NULL, 0, DEFAULT_CMD_TIMEOUT);
 	}
 	if (aha->boardid < 0x41)
-		printf("%s: Likely aha 1542A, which might not work properly\n",
+		printf("%s: Warning: aha-1542A won't likely work.\n",
 			aha_name(aha));
 
-	aha->max_sg = 17;		/* Need 17 to do 64k I/O */
+	aha->max_sg = 17;		/* Need >= 17 to do 64k I/O */
 	aha->diff_bus = 0;
 	aha->extended_lun = 0;
 	aha->extended_trans = 0;
@@ -611,8 +620,8 @@ aha_attach(struct aha_softc *aha)
 	struct cam_devq *devq;
 
 	/*
-	 * We reserve 1 ccb for error recovery, so don't
-	 * tell the XPT about it.
+	 * We don't do tagged queueing, since the aha cards don't
+	 * support it.
 	 */
 	tagged_dev_openings = 0;
 
