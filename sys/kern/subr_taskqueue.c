@@ -40,6 +40,8 @@ MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 
 static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
 
+static struct intrhand *taskqueue_ih;
+
 struct taskqueue {
 	STAILQ_ENTRY(taskqueue)	tq_link;
 	STAILQ_HEAD(, task)	tq_queue;
@@ -191,14 +193,15 @@ taskqueue_run(struct taskqueue *queue)
 static void
 taskqueue_swi_enqueue(void *context)
 {
-	setsofttq();
+	sched_swi(taskqueue_ih, SWI_NOSWITCH);
 }
 
 static void
-taskqueue_swi_run(void)
+taskqueue_swi_run(void *dummy)
 {
 	taskqueue_run(taskqueue_swi);
 }
 
 TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
-		 register_swi(SWI_TQ, taskqueue_swi_run));
+		 taskqueue_ih = sinthand_add("task queue", NULL,
+		     taskqueue_swi_run, NULL, SWI_TQ, 0)); 

@@ -27,64 +27,9 @@
  */
 
 #include <sys/param.h>
-#include <sys/bus.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/ktr.h>
-#include <sys/interrupt.h>
-#include <machine/ipl.h>
-#include <machine/cpu.h>
-#include <machine/globaldata.h>
-#include <machine/globals.h>
-#include <machine/mutex.h>
-#include <net/netisr.h>
-
-#include "sio.h"
 
 unsigned int bio_imask;		/* XXX */
 unsigned int cam_imask;		/* XXX */
 unsigned int net_imask;		/* XXX */
 unsigned int tty_imask;		/* XXX */
-
-static void swi_net(void);
-
-void	(*netisrs[32]) __P((void));
-swihand_t *shandlers[32] = {	/* software interrupts */
-	swi_null,	swi_net,	swi_null,	swi_null,
-	swi_null,	swi_null,	softclock,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-};
-
-u_int32_t netisr;
-
-void
-swi_null()
-{
-    /* No interrupt registered, do nothing */
-}
-
-void
-swi_generic()
-{
-    /* Just a placeholder, we call swi_dispatcher directly */
-    panic("swi_generic() called");
-}
-
-static void
-swi_net()
-{
-    u_int32_t bits = atomic_readandclear_32(&netisr);
-    int i;
-
-    for (i = 0; i < 32; i++) {
-	if (bits & 1)
-	    netisrs[i]();
-	bits >>= 1;
-    }
-}

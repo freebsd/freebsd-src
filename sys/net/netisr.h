@@ -68,8 +68,10 @@
 #ifndef LOCORE
 #ifdef _KERNEL
 
+void legacy_setsoftnet __P((void));
+
 extern volatile unsigned int	netisr;	/* scheduling bits for network */
-#define	schednetisr(anisr)	{ netisr |= 1 << (anisr); setsoftnet(); }
+#define	schednetisr(anisr)	{ netisr |= 1 << (anisr); legacy_setsoftnet(); }
 
 typedef void netisr_t __P((void));
 

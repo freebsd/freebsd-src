@@ -1298,7 +1298,7 @@ cpu_initclocks()
 {
 #ifdef APIC_IO
 	int apic_8254_trial;
-	struct intrec *clkdesc;
+	struct intrhand *clkdesc;
 #endif /* APIC_IO */
 #ifndef PC98
 	int diag;
