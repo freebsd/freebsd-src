@@ -36,4 +36,6 @@ fi
 
 # Setup DEVFS, ie permissions, links etc.
 #
-ln -fs /dev/ttyv0 /dev/vga
+if [ -c /dev/ttyv0 ]; then
+	ln -fs /dev/ttyv0 /dev/vga
+fi
