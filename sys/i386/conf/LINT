@@ -1631,7 +1631,8 @@ controller	miibus0
 #
 # The `vr' device provides support for various fast ethernet adapters
 # based on the VIA Technologies VT3043 `Rhine I' and VT86C100A `Rhine II'
-# chips, including the D-Link DFE530TX.
+# chips, including the D-Link DFE530TX, the Hawking Technologies PN102TX,
+# and the AOpen/Acer ALN-320.
 #
 # The `vx' device provides support for the 3Com 3C590 and 3C595
 # early support
