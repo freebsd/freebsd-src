@@ -99,14 +99,6 @@ enum {
 	dev_unix_ord_stream	= 40
 };
 
-
-
-int soo_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
-int soo_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
-int soo_close __P((struct file *fp, struct proc *p));
-
 static struct fileops svr4_netops = {
 	soo_read, soo_write, soo_ioctl, soo_poll, svr4_soo_close
 };
