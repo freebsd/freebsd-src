@@ -72,7 +72,7 @@ struct ata_params {
 
 /*050*/	u_int16_t	capabilities2;
 /*051*/	u_int16_t	retired_piomode;	/* PIO modes 0-2 */
-#define ATA_RETIRED_PIO_MASK		0x0003
+#define ATA_RETIRED_PIO_MASK		0x0300
 
 /*052*/	u_int16_t	retired_dmamode;	/* DMA modes */
 #define ATA_RETIRED_DMA_MASK		0x0003
