@@ -36,7 +36,7 @@
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2001
+.Dd October 22, 2002
 .Dt STRERROR 3
 .Os
 .Sh NAME
@@ -150,6 +150,14 @@ should be used instead.
 .Sh SEE ALSO
 .Xr intro 2 ,
 .Xr psignal 3
+.Sh STANDARDS
+The
+.Fn perror ,
+.Fn strerror
+and
+.Fn strerror_r
+functions conform to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn strerror
@@ -168,6 +176,14 @@ For unknown error numbers, the
 .Fn strerror
 function will return its result in a static buffer which
 may be overwritten by subsequent calls.
+.Pp
+The
+.Fn perror
+function is implemented in terms of
+.Fn strerror ,
+hence it uses the same static buffer.
+This behaviour is forbidden by
+.St -isoC-99 .
 .Pp
 Programs that use the deprecated
 .Va sys_errlist
