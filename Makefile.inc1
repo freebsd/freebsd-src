@@ -2,11 +2,9 @@
 # $FreeBSD$
 #
 # Make command line options:
-#	-DCLOBBER will remove /usr/include
 #	-DMAKE_KERBEROS4 to build KerberosIV
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
-#	-DNOTOOLS do not rebuild any tools first
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
@@ -98,42 +96,14 @@ SUBDIR+= ${_DIR}
 .endfor
 .endif
 
-OBJDIR=		obj
-
-.if defined(NOCLEAN)
-CLEANDIR=
-.else
 .if defined(NOCLEANDIR)
 CLEANDIR=	clean cleandepend
 .else
 CLEANDIR=	cleandir
 .endif
-.endif
-
-.if !defined(NOCLEAN)
-_NODEPEND=	true
-.endif
-.if defined(_NODEPEND)
-_DEPEND=	cleandepend
-.else
-_DEPEND=	depend
-.endif
 
 SUP?=		cvsup
 SUPFLAGS?=	-g -L 2 -P -
-
-#
-# While building tools for bootstrapping, we don't need to waste time on
-# shared or profiled libraries, shared linkage, or documentation, except
-# when the tools won't get cleaned we must use the defaults for shared
-# libraries and shared linkage (and this doesn't waste time).
-# XXX actually, we do need to waste time building shared libraries.
-#
-.if defined(NOCLEAN)
-MK_FLAGS=	-DWORLD -DNOINFO -DNOMAN         -DNOPROFILE
-.else
-MK_FLAGS=	-DWORLD -DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
-.endif
 
 #
 # Define the location of the temporary installation directory. Note that
@@ -150,79 +120,31 @@ WORLDTMP=	${MAKEOBJDIRPREFIX}${.CURDIR}/tmp
 WORLDTMP=	/usr/obj${.CURDIR}/tmp
 .endif
 
-#
-# Define the PATH to the build tools.
-#
-# If not building tools, the PATH always points to the installed binaries.
-# The NOTOOLS option assumes that in installed tools are good enough and that
-# the user's PATH will locate to appropriate tools. This option is required
-# for a cross-compiled build environment.
-#
-# If building tools, then the PATH includes the world temporary directories
-# so that the bootstrapped tools are used as soon as they are built. The
-# strict path is for use after all tools are supposed to have been
-# bootstrapped. It doesn't allow any of the installed tools to be used.
-#
-.if	defined(NOTOOLS)
-# Default root of the tool tree
-TOOLROOT?=	
-# Choose the PATH relative to the root of the tool tree
-PATH=		${TOOLROOT}/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/sbin:${TOOLROOT}/usr/bin
-.else
-TOOLROOT=	${WORLDTMP}
-.endif
-STRICTTMPPATH=	${TOOLROOT}/sbin:${TOOLROOT}/usr/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/bin
+STRICTTMPPATH=	${WORLDTMP}/bin:${WORLDTMP}/usr/bin
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
-# XXX COMPILER_PATH is needed for finding cc1, ld and as
-# XXX GCC_EXEC_PREFIX is for *crt.o.  It is probably unnecessary now
-#	that LIBRARY_PATH is set.  We still can't use -nostdlib, since gcc
-#	wouldn't link *crt.o or libgcc if it were used.
-# XXX LD_LIBRARY_PATH is for ld.so.  It is also used by ld, although we don't
-#	want that - all compile-time library paths should be resolved by gcc.
-#	It fails for set[ug]id executables (are any used?).
-COMPILER_ENV=	BISON_SIMPLE=${TOOLROOT}/usr/share/misc/bison.simple \
-		COMPILER_PATH=${TOOLROOT}/usr/libexec:${TOOLROOT}/usr/bin \
-		GCC_EXEC_PREFIX=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib/ \
-		LD_LIBRARY_PATH=${TOOLROOT}${SHLIBDIR} \
-		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib
+BUILD_ARCH!=	sysctl -n hw.machine_arch
 
-BMAKEENV=	${COMPILER_ENV} NOEXTRADEPEND=t PATH=${TMPPATH} \
-		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec:/usr/libexec
-XTMAKEENV=	NOEXTRADEPEND=t
-.if defined(TARGET)
-XMAKEENV=	PATH=${TMPPATH}
-.else
-XMAKEENV=	PATH=${STRICTTMPPATH}
-.endif
-XMAKEENV+=	${COMPILER_ENV} \
+BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		TARGET_ARCH=${MACHINE_ARCH} \
+		MACHINE_ARCH=${BUILD_ARCH} \
+		PATH=${TMPPATH}
+
+XMAKEENV=	COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
+		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
+		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
+		CFLAGS="-nostdinc ${CFLAGS}" \
 		PERL5LIB=${DESTDIR}/usr/libdata/perl/5.00503 \
-		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec \
-		CFLAGS="-nostdinc ${CFLAGS}"	# XXX -nostdlib
+		PATH=${TMPPATH}
 
-# used to compile and install 'make' in temporary build tree
-MAKETMP=	${WORLDTMP}/make
-IBMAKE=	${BMAKEENV} MAKEOBJDIR=${MAKETMP} ${MAKE} DESTDIR=${WORLDTMP}
-
-.if	defined(NOTOOLS)
-# cross tools make
-XTMAKE=	${XTMAKEENV} ${MAKE} DESTDIR=${WORLDTMP}
 # bootstrap make
-BMAKE=	${BMAKEENV} ${MAKE} DESTDIR=${WORLDTMP}
+BMAKE=	${BMAKEENV} ${MAKE} DESTDIR=${WORLDTMP} -DNOMAN -DNOINFO
 # cross make used for compilation
-XMAKE=	${XMAKEENV} ${MAKE} DESTDIR=${WORLDTMP}
+XMAKE=	${XMAKEENV} ${MAKE} DESTDIR=${WORLDTMP} \
+		INSTALL="sh ${.CURDIR}/tools/install.sh"
+
 # cross make used for final installation
 IXMAKE=	${XMAKEENV} ${MAKE}
-.else
-# cross tools make
-XTMAKE=	${XTMAKEENV} ${WORLDTMP}/usr/bin/make DESTDIR=${WORLDTMP}
-# bootstrap make
-BMAKE=	${BMAKEENV} ${WORLDTMP}/usr/bin/make DESTDIR=${WORLDTMP}
-# cross make used for compilation
-XMAKE=	${XMAKEENV} ${WORLDTMP}/usr/bin/make DESTDIR=${WORLDTMP}
-# cross make used for final installation
-IXMAKE=	${XMAKEENV} ${WORLDTMP}/usr/bin/make
-.endif
 
 #
 # buildworld
@@ -230,111 +152,56 @@ IXMAKE=	${XMAKEENV} ${WORLDTMP}/usr/bin/make
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-buildworld: check-objformat
-.if !defined(NOCLEAN)
+USRDIRS=	usr/bin usr/lib/compat usr/games usr/libdata/ldscripts \
+		usr/libexec/${OBJFORMAT} usr/share/misc
+
+INCDIRS=	arpa cam/scsi g++/std isofs/cd9660 machine msdosfs net \
+		netatalk netatm netgraph netinet netinet6 netipx netkey \
+		netncp netns nfs ntfs nwfs objc pccard posix4 protocols \
+		readline rpc rpcsvc security ss sys ufs/ffs ufs/mfs ufs/ufs vm
+
+buildworld:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Cleaning up the temporary ${OBJFORMAT} build tree"
+	@echo ">>> Cleaning up the temporary build tree"
 	@echo "--------------------------------------------------------------"
-	mkdir -p ${WORLDTMP}
-	-chflags -R noschg ${WORLDTMP}/
 	rm -rf ${WORLDTMP}
-.endif
-.if !defined(NOTOOLS)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making make"
-	@echo "--------------------------------------------------------------"
-	mkdir -p ${WORLDTMP}/usr/bin ${MAKETMP}
-	( \
-	cd ${.CURDIR}/usr.bin/make; \
-		MAKEOBJDIRPREFIX=""; unset MAKEOBJDIRPREFIX; \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all; \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install; \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean \
-	)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making mtree"
-	@echo "--------------------------------------------------------------"
-	mkdir -p ${WORLDTMP}/usr/sbin ${WORLDTMP}/mtree
-	( \
-	cd ${.CURDIR}/usr.sbin/mtree; \
-		MAKEOBJDIRPREFIX=""; unset MAKEOBJDIRPREFIX; \
-		export MAKEOBJDIR=${WORLDTMP}/mtree; \
-		${BMAKE} ${MK_FLAGS} all; \
-		${BMAKE} ${MK_FLAGS} -B install clean \
-	)
-.endif
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making hierarchy"
-	@echo "--------------------------------------------------------------"
-	mkdir -p ${WORLDTMP}
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 hierarchy
+.for _dir in ${USRDIRS}
+	mkdir -p ${WORLDTMP}/${_dir}
+.endfor
+.for _dir in ${INCDIRS}
+	mkdir -p ${WORLDTMP}/usr/include/${_dir}
+.endfor
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Cleaning up the ${OBJFORMAT} obj tree"
+	@echo ">>> Cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding the ${OBJFORMAT} obj tree"
+	@echo ">>> Rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 par-${OBJDIR}
-.if defined(TARGET)
+	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 par-obj
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding toolchain for ${TARGET} buildworld"
+	@echo ">>> Rebuilding tools"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XTMAKE} -f Makefile.inc1 cross-toolchain
-.endif
-.if !defined(NOTOOLS) && !defined(TARGET)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding ${OBJFORMAT} bootstrap tools"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 bootstrap
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding tools necessary to build the include files"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 include-tools
-.endif
+	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 -DNOINFO -DNOMAN tools
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding ${DESTDIR}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; SHARED=copies ${BMAKE} -f Makefile.inc1 includes
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding bootstrap libraries"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 bootstrap-libraries
-.if !defined(NOTOOLS)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding tools needed to build libraries"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 lib-tools
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding all other tools needed to build the ${OBJFORMAT} world"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 build-tools
-.endif
-.if !defined(_NODEPEND)
+	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 par-depend
-.endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Building ${OBJFORMAT} libraries"
+	@echo ">>> Building libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} -DNOINFO -DNOMAN -f Makefile.inc1 libraries
 	@echo
@@ -374,13 +241,6 @@ reinstall:
 	@echo ">>> Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout" && !defined(DESTDIR)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Re-scanning the shared libraries.."
-	@echo "--------------------------------------------------------------"
-	-cd ${.CURDIR}; /sbin/ldconfig -R
-.endif
 .if !defined(NOMAN)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -479,69 +339,29 @@ installmost:
 #
 
 #
+# tools - Build tools needed to run the actual build.
+#
+tools:
+.for _tool in games/fortune/strfile gnu/usr.bin/binutils usr.bin/objformat \
+    usr.bin/yacc gnu/usr.bin/bison gnu/usr.bin/cc
+	cd ${.CURDIR}/${_tool}; \
+		${MAKE} depend; \
+		${MAKE} all; \
+		${MAKE} install; \
+		${MAKE} cleandir; \
+		${MAKE} obj
+.endfor
+
+#
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
 
 #
-# bootstrap - [re]build tools needed to run the actual build, this includes
-# tools needed by 'make depend', as some tools are needed to generate source
-# for the dependency information to be gathered from.
-#
-bootstrap:
-.if defined(DESTDIR)
-	rm -f ${DESTDIR}/usr/src/sys
-	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
-	cd ${.CURDIR}/include;	${MAKE} all
-	cd ${.CURDIR}/include;	${MAKE} beforeinstall
-.endif
-	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/xinstall; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/yacc; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/lex; ${MAKE} bootstrap; \
-		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} -DNOLIB all; \
-		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
-	cd ${.CURDIR}/usr.bin/lex; ${MAKE} ${OBJDIR}
-	cd ${.CURDIR}/usr.sbin/mtree; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.if defined(DESTDIR)
-	cd ${.CURDIR}/include && ${MAKE} copies
-.endif
-
-#
-# include-tools - generally the same as 'bootstrap', except that it's for
-# things that are specifically needed to generate include files.
-#
-# XXX should be merged with bootstrap, it's not worth keeeping them separate.
-# Well, maybe it is now.  We force 'cleandepend' here to avoid dependencies
-# on cleaned away headers in ${WORLDTMP}.
-#
-include-tools:
-.for d in usr.bin/compile_et usr.bin/rpcgen
-	cd ${.CURDIR}/$d; ${MAKE} cleandepend; \
-		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endfor
-
-#
 # includes - possibly generate and install the include files.
 #
 includes:
-.if defined(CLOBBER)
-	rm -rf ${DESTDIR}/usr/include/*
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
-		-p ${DESTDIR}/usr/include
-.endif
 	cd ${.CURDIR}/include;			${MAKE} -B all install
 	cd ${.CURDIR}/gnu/include;		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libmp;		${MAKE} beforeinstall
@@ -603,90 +423,48 @@ includes:
 	cd ${.CURDIR}/usr.bin/lex;		${MAKE} beforeinstall
 
 #
-# Declare tools if they are not required on all architectures.
+# libraries - build all libraries, and install them under ${DESTDIR}.
 #
-.if ${MACHINE_ARCH} == "i386"
-# aout tools:
-_aout_ar	= usr.bin/ar
-_aout_as	= gnu/usr.bin/as
-_aout_ld	= gnu/usr.bin/ld
-_aout_nm	= usr.bin/nm
-_aout_ranlib	= usr.bin/ranlib
-_aout_size	= usr.bin/size
-_aout_strip	= usr.bin/strip
-# boot block/loader tools:
-_btxld		= usr.sbin/btxld
-.endif
-
+# The following dependencies exist between the libraries:
 #
-# lib-tools - build tools to compile and install the libraries.
+# lib*: csu
+# libatm: libmd
+# libcrypt: libmd
+# libdialog: libncurses
+# libedit: libncurses
+# libg++: libm
+# libkrb: libcrypt
+# libopie: libmd
+# libpam: libcom_err libcrypt libdes libgcc_pic libkrb libradius libskey \
+#	  libtacplus libutil
+# libradius: libmd
+# libreadline: libncurses
+# libskey: libcrypt libmd
+# libss: libcom_err
+# libstc++: libm
+# libtacplus: libmd
 #
-# XXX gperf is required for cc
-# XXX a new ld and tsort is required for cc
-lib-tools:
-.for d in				\
-		gnu/usr.bin/gperf	\
-		${_aout_ld}		\
-		usr.bin/tsort		\
-		${_aout_as}		\
-		gnu/usr.bin/bison	\
-		gnu/usr.bin/cc		\
-		gnu/lib/libgcc		\
-		${_aout_ar}		\
-		usr.bin/env		\
-		usr.bin/lex/lib		\
-		usr.bin/mk_cmds		\
-		${_aout_nm}		\
-		${_aout_ranlib}		\
-		${_aout_strip}		\
-		gnu/usr.bin/binutils	\
-		usr.bin/uudecode	\
-		usr.bin/objformat
-	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install; \
-		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
-.endfor
-
+# Across directories this comes down to (rougly):
 #
-# We have to know too much about ordering and subdirs in the lib trees:
-#
-# To satisfy shared library linkage when only the libraries being built
-# are visible:
-#
-# csu must be built before all shared libaries for ELF.
-# libcom_err must be built before libss and libkrb.
-# libcrypt must be built before libkrb and libskey.
-# libdes must be built before libpam.
-# libkrb must be built before libpam.
-# libm must be built before libstdc++.
-# libmd must be built before libatm, libcrypt, libopie, libradius, libskey,
-# and libtacplus.
-# libncurses must be built before libdialog, libedit and libreadline.
-# libradius must be built before libpam.
-# libskey must be built before libpam.
-# libtacplus must be built before libpam.
-#
-# Some libraries are built conditionally and/or are in inconsistently
-# named directories:
+# gnu/lib: lib/libm lib/libncurses
+# kerberosIV/lib: lib/libcrypt
+# lib/libpam: secure/lib/libdes kerberosIV/lib/libkrb gnu/lib/libgcc
+# secure/lib: lib/libmd
 #
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}.pcc)
-_csu=lib/csu/${MACHINE_ARCH}.pcc
+_csu=	lib/csu/${MACHINE_ARCH}.pcc
 .elif ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf"
-_csu=lib/csu/i386-elf
+_csu=	lib/csu/i386-elf
 .else
-_csu=lib/csu/${MACHINE_ARCH}
+_csu=	lib/csu/${MACHINE_ARCH}
 .endif
 
 .if !defined(NOSECURE) && !defined(NOCRYPT)
-_libcrypt=	lib/libcrypt secure/lib/libcrypt
 _secure_lib=	secure/lib
-.else
-_libcrypt=	lib/libcrypt
 .endif
 
 .if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
-_kerberosIV_lib=kerberosIV/lib
+_kerberosIV_lib=	kerberosIV/lib
 .endif
 
 .if defined(WANT_CSRG_LIBM)
@@ -696,313 +474,20 @@ _libm=	lib/msun
 .endif
 
 .if !defined(NOPERL)
-_libperl=		gnu/usr.bin/perl/libperl
+_libperl=	gnu/usr.bin/perl/libperl
 .endif
 
-#
-# bootstrap-libraries - build just enough libraries for the bootstrap
-# tools, and install them under ${WORLDTMP}.
-#
-# Build csu early so that some tools get linked to the new
-# version (too late for the main tools, however).  Then build the
-# necessary prerequisite libraries.
-#
-# This is mostly wrong.  The build tools must run on the host system,
-# so they should use host libraries.  We depend on the target being
-# similar enough to the host for new target libraries to work on the
-# host.
-#
-bootstrap-libraries:
-.for _lib in ${_csu} lib/libc lib/libncurses \
-    gnu/lib/libregex gnu/lib/libreadline \
-    lib/libedit ${_libm} \
-    lib/libmd lib/libcrypt lib/libutil lib/libz usr.bin/lex/lib \
-    ${_libperl}
+libraries:
+.for _lib in ${_csu} lib/libmd lib/libcrypt ${_secure_lib} ${_kerberosIV_lib} \
+    gnu/lib/libgcc lib/libcom_err ${_libm} lib/libncurses lib/libradius \
+    lib/libskey lib/libtacplus lib/libutil lib gnu/lib ${_libperl} \
+    usr.bin/lex/lib usr.sbin/pcvt/keycap
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
-		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+		${MAKE} depend; \
+		${MAKE} all; \
+		${MAKE} install
 .endif
-.endfor
-
-#
-# libraries - build all libraries, and install them under ${DESTDIR}.
-#
-# The ordering is not as special as for bootstrap-libraries.  Build
-# the prerequisites first, then build almost everything else in
-# alphabetical order.
-#
-libraries:
-.for _lib in ${_csu} lib/libcom_err ${_libm} lib/libmd ${_libcrypt} \
-    lib/libradius lib/libskey lib/libtacplus \
-    ${_secure_lib} ${_kerberosIV_lib} \
-    gnu/lib ${_libperl} lib usr.bin/lex/lib \
-    usr.sbin/pcvt/keycap
-.if exists(${.CURDIR}/${_lib})
-	cd ${.CURDIR}/${_lib}; ${MAKE} all; ${MAKE} -B install
-.endif
-.endfor
-
-#
-# Exclude unused tools from build-tools.
-#
-.if !defined(NOGAMES) && exists(${.CURDIR}/games)
-_adventure=	games/adventure
-_caesar=	games/caesar
-_hack=		games/hack
-_phantasia=	games/phantasia
-_strfile=	games/fortune/strfile
-.endif
-.if !defined(NOPERL)
-_perl=		gnu/usr.bin/perl/miniperl
-.endif
-.if !defined(NOSHARE) && exists(${.CURDIR}/share)
-_scrnmaps=	share/syscons/scrnmaps
-.endif
-.if ${MACHINE_ARCH} == alpha
-_elf2exe=	usr.sbin/elf2exe
-.endif
-.if ${MACHINE_ARCH} == i386
-_kldlinux=	sys/modules/linux
-.endif
-.if ${OBJFORMAT} == "aout"
-_netboot=	sys/${MACHINE_ARCH}/boot/netboot
-.endif
-
-BTMAKEFLAGS=	${MK_FLAGS} -D_BUILD_TOOLS
-
-#
-# build-tools - build and install any other tools needed to complete the
-# compile and install.
-# ifdef stale
-# bc and cpp are required to build groff.  Otherwise, the order here is
-# mostly historical, i.e., bogus.
-# chmod is used to build gcc's tmpmultilib[2] at obscure times.
-# endif stale
-# XXX uname is a bug - the target should not depend on the host.
-#
-build-tools:
-.for d in				\
-		bin/cat 		\
-		bin/chmod		\
-		bin/cp 			\
-		bin/date		\
-		bin/dd			\
-		bin/echo		\
-		bin/expr		\
-		bin/hostname		\
-		bin/ln			\
-		bin/ls			\
-		bin/mkdir		\
-		bin/mv			\
-		bin/rm			\
-		bin/test		\
-		${_caesar}		\
-		${_strfile}		\
-		gnu/usr.bin/awk		\
-		gnu/usr.bin/bc		\
-		gnu/usr.bin/grep	\
-		gnu/usr.bin/groff	\
-		gnu/usr.bin/gzip	\
-		gnu/usr.bin/man/makewhatis	\
-		gnu/usr.bin/patch	\
-		${_perl}		\
-		gnu/usr.bin/sort	\
-		gnu/usr.bin/texinfo	\
-		usr.bin/basename	\
-		usr.bin/cap_mkdb	\
-		usr.bin/chflags		\
-		usr.bin/cmp		\
-		usr.bin/col		\
-		usr.bin/colldef		\
-		usr.bin/cpp		\
-		usr.bin/expand		\
-		usr.bin/file2c		\
-		usr.bin/find		\
-		usr.bin/gencat		\
-		usr.bin/gensetdefs	\
-		usr.bin/id		\
-		usr.bin/join		\
-		usr.bin/lorder		\
-		usr.bin/m4		\
-		usr.bin/mkdep		\
-		usr.bin/mklocale	\
-		usr.bin/paste		\
-		usr.bin/printf		\
-		usr.bin/sed		\
-		${_aout_size}		\
-		usr.bin/soelim		\
-		usr.bin/symorder	\
-		usr.bin/touch		\
-		usr.bin/tr		\
-		usr.bin/true		\
-		usr.bin/uname		\
-		usr.bin/uuencode	\
-		usr.bin/vgrind		\
-		usr.bin/vi		\
-		usr.bin/wc		\
-		usr.bin/xargs		\
-		usr.bin/yacc		\
-		${_btxld}		\
-		usr.sbin/chown		\
-		${_elf2exe}		\
-		usr.sbin/mtree		\
-		usr.sbin/zic		\
-		bin/sh
-	cd ${.CURDIR}/$d; ${MAKE} ${BTMAKEFLAGS} ${_DEPEND}; \
-		${MAKE} ${BTMAKEFLAGS} all; \
-		${MAKE} ${BTMAKEFLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endfor
-.if !defined(NOGAMES) && exists(${.CURDIR}/games)
-	cd ${DESTDIR}/usr/games; cp -p caesar strfile ${DESTDIR}/usr/bin
-.endif
-.for d in				\
-		bin/sh			\
-		${_adventure}		\
-		${_hack}		\
-		${_phantasia}		\
-		gnu/usr.bin/cc/cc_tools	\
-		${_linux}		\
-		${_kldlinux}		\
-		${_scrnmaps}		\
-		${_netboot}
-	cd ${.CURDIR}/$d; ${MAKE} ${BTMAKEFLAGS} build-tools
-.endfor
-
-#
-# Build aout versions of things that provide legacy support when all the
-# rest of the world is elf.
-#
-legacy-build:
-.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making hierarchy"
-	@echo "--------------------------------------------------------------"
-	mkdir -p ${WORLDTMP}
-	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 hierarchy
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding the ${OBJFORMAT} obj tree"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 par-${OBJDIR}
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding ${DESTDIR}/usr/include"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; SHARED=copies ${XMAKE} -f Makefile.inc1 includes
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building legacy libraries"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; \
-		${XMAKE} -DNOINFO -DNOMAN -f Makefile.inc1 bootstrap-libraries
-	cd ${.CURDIR}; \
-		${XMAKE} -DNOINFO -DNOMAN -f Makefile.inc1 libraries
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building legacy rtld"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/libexec/rtld-aout; \
-		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building legacy boot"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/${MACHINE_ARCH}/boot && \
-		${XMAKE} -DNOMAN -B obj depend; ${XMAKE} -DNOMAN all;
-.endif
-
-#
-# Install aout versions of things that provide legacy support when all the
-# rest of the world is elf.
-#
-legacy-install:
-.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing legacy libraries"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/lib; ${MAKE} -B -DNOMAN -DNOINFO install
-	cd ${.CURDIR}/gnu/lib; ${MAKE} -B -DNOMAN -DNOINFO install
-	cd ${.CURDIR}/gnu/lib/libgcc; \
-		${MAKE} -B -DNOMAN -DNOINFO install
-	cd ${.CURDIR}/usr.bin/lex/lib; \
-		${MAKE} -B -DNOMAN -DNOINFO install
-	cd ${.CURDIR}/usr.sbin/pcvt/keycap; \
-		${MAKE} -B -DNOMAN -DNOINFO install
-.if exists(${.CURDIR}/secure/lib) && !defined(NOCRYPT) && !defined(NOSECURE)
-	cd ${.CURDIR}/secure/lib; ${MAKE} -B -DNOMAN -DNOINFO install
-.endif
-.if exists(${.CURDIR}/kerberosIV/lib) && !defined(NOCRYPT) && \
-    defined(MAKE_KERBEROS4)
-	cd ${.CURDIR}/kerberosIV/lib; ${MAKE} -B -DNOMAN -DNOINFO install
-.endif
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing legacy rtld"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/libexec/rtld-aout; ${MAKE} -DNOMAN install
-	@echo
-.if ${MACHINE_ARCH} == "i386"
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing legacy boot"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/${MACHINE_ARCH}/boot && ${MAKE} -DNOMAN install
-.endif
-.endif
-
-
-# Get the object format that the tools see.
-#
-#
-.if exists(/usr/bin/objformat)
-__OBJFORMAT!=	objformat
-.else
-__OBJFORMAT=	${OBJFORMAT}
-.endif
-
-#
-# Check if the local /etc/make.conf or /etc/make.conf.local have attempted
-# to override the OBJFORMAT without updating the environment for the tools
-# to see.
-#
-check-objformat	:
-.if	${__OBJFORMAT} != ${OBJFORMAT}
-	@/bin/sh -c "echo \"It looks like you set OBJFORMAT=${OBJFORMAT} in /etc/make.conf. Don't do that!\" "
-	@/bin/sh -c "echo \"If you want to override the installed object format, you must set OBJFORMAT\" "
-	@/bin/sh -c "echo \"in your environment.\" "
-	@exit 1
-.endif
-.if	!defined(REALLY_WANT_DEPRECIATED_AOUT) && ${OBJFORMAT} == "aout"
-	@echo "==== NOTICE: a.out buildworld is depreciated and disabled! ====="
-	@echo "Read: http://www.freebsd.org/~peter/elfday.html for information."
-	@echo "You need to complete a 'make aout-to-elf' to bring your system"
-	@echo "up to date with ELF tools.  This requires a fair amount of disk"
-	@echo "space to complete.  Alternatively, you can do a binary upgrade"
-	@echo "using the 3.0-RELEASE binaries from CD or ftp.freebsd.org in"
-	@echo "/pub/FreeBSD/3.0-RELEASE/bin/ to convert your userland to ELF."
-	@exit 1
-.endif
-
-#
-# cross toolchain
-#
-# This is a subset of the tools built in lib-tools, build-tools, etc.  What
-# we are looking for here is to build the cross compilers, etc, with
-# the current host compiler.
-#
-cross-toolchain:
-.for d in				\
-		gnu/usr.bin/binutils	\
-		gnu/usr.bin/bison	\
-		gnu/usr.bin/cc		\
-		usr.bin/objformat
-	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${XTMAKE} ${MK_FLAGS} all; \
-		${XTMAKE} ${MK_FLAGS} -B install; \
-		${XTMAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
 .endfor
 
 .for __target in clean cleandepend cleandir depend obj

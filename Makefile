@@ -90,7 +90,7 @@ TGTS =	afterdistribute all buildworld checkdpadd clean cleandepend cleandir \
 #
 ${TGTS} : upgrade_checks
 	@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc0 -m ${.CURDIR}/share/mk ${.TARGET}
+		${MAKE} -f Makefile.inc1 -m ${.CURDIR}/share/mk ${.TARGET}
 
 # Set a reasonable default
 .MAIN:	all
