@@ -5242,10 +5242,11 @@ isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp, int nodelay)
 	unsigned int ibits, obits, box, opcode;
 	u_int16_t *mcp;
 
-	if (IS_FC(isp))
+	if (IS_FC(isp)) {
 		mcp = mbpfc;
-	else
+	} else {
 		mcp = mbpscsi;
+	}
 	opcode = mbp->param[0];
 	ibits = HIBYT(mcp[opcode]) & NMBOX_BMASK(isp);
 	obits = LOBYT(mcp[opcode]) & NMBOX_BMASK(isp);
