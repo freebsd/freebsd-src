@@ -39,27 +39,28 @@
 .Dt VOP_REVOKE 9
 .Sh NAME
 .Nm VOP_REVOKE
-revokes access to a device and its aliases
+.Nd "revoke access to a device and its aliases"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_INACTIVE "struct vnode *vp" "int flags"
+.Fn VOP_REVOKE "struct vnode *vp" "int flags"
 .Sh DESCRIPTION
-.Nm VOP_REVOKE
+.Fn VOP_REVOKE
 will administratively revoke access to the device specified by
-.Ar vp ,
+.Fa vp ,
 as well as any aliases created via
 .Xr make_dev_alias 9 .
-Further file operations on any of these devices by processes which have them open will nominally fail.
+Further file operations on any of these devices by processes
+which have them open will nominally fail.
 The
-.Ar flags
+.Fa flags
 must be set to
 .Dv REVOKEALL
 to signify that all access will be revoked; any other value is invalid.
 .Sh LOCKS
 The
-.Ar vp
+.Fa vp
 must be unlocked on entry, and will remain unlocked upon return.
 .Sh SEE ALSO
 .Xr make_dev_alias 9 ,
