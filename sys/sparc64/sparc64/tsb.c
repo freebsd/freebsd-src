@@ -207,19 +207,20 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
  * an optimization.
  */
 void
-tsb_foreach(pmap_t pm, vm_offset_t start, vm_offset_t end,
+tsb_foreach(pmap_t pm1, pmap_t pm2, vm_offset_t start, vm_offset_t end,
     tsb_callback_t *callback)
 {
 	vm_offset_t va;
 	struct tte *tp;
 	int i;
 
+	TSB_STATS_INC(tsb_nforeach);
 	for (i = 0; i < TSB_SIZE; i++) {
-		tp = &pm->pm_tsb[i];
+		tp = &pm1->pm_tsb[i];
 		if ((tp->tte_data & TD_V) != 0) {
 			va = tte_get_va(*tp);
 			if (va >= start && va < end) {
-				if (!callback(pm, tp, va))
+				if (!callback(pm1, pm2, tp, va))
 					break;
 			}
 		}
