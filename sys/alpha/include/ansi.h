@@ -94,11 +94,13 @@ typedef struct {
  * one (perhaps nonstandard) header are defined here.  Standard headers
  * use _BSD_XXX_T_ without undef'ing it.
  */
-#define	_BSD_CT_RUNE_T_	int			/* arg type for ctype funcs */
 #define	_BSD_OFF_T_	long			/* file offset */
 #define	_BSD_PID_T_	int			/* process [group] */
 
 /*
+ * NOTE: rune_t is not covered by ANSI nor other standards, and should not
+ * be instantiated outside of lib/libc/locale.  Use wchar_t.
+ *
  * Runes (wchar_t) is declared to be an ``int'' instead of the more natural
  * ``unsigned long'' or ``long''.  Two things are happening here.  It is not
  * unsigned so that EOF (-1) can be naturally assigned to it and used.  Also,
@@ -112,9 +114,20 @@ typedef struct {
  * and rune_t are typedef'd, _WCHAR_T_ will be undef'd, but _RUNE_T remains
  * defined for ctype.h.
  */
-#define	_BSD_WCHAR_T_	int			/* wchar_t */
-#define _BSD_WINT_T_	int			/* wint_t */
-#define	_BSD_RUNE_T_	int			/* rune_t */
+#define	_BSD_CT_RUNE_T_	int			/* arg type for ctype funcs */
+#define	_BSD_RUNE_T_	_BSD_CT_RUNE_T_		/* rune_t */
+#define	_BSD_WCHAR_T_	_BSD_CT_RUNE_T_		/* wchar_t */
+#define _BSD_WINT_T_	_BSD_CT_RUNE_T_		/* wint_t */
+
+/*
+ * mbstate_t is an opaque object to keep conversion state, during multibyte
+ * stream conversions.  The content must not be referenced by user programs.
+ */
+typedef union {
+	char		__mbstate8[128];
+	__int64_t	_mbstateL;		/* for alignment */
+ } __mbstate_t;
+#define	_BSD_MBSTATE_T_	__mbstate_t		/* mbstate_t */
 
 /*
  * Frequencies of the clock ticks reported by clock() and times().  They
