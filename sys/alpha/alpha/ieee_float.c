@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ieee_float.c,v 1.1 1998/12/04 10:52:47 dfr Exp $
+ *	$Id: ieee_float.c,v 1.2 1999/04/23 19:53:37 dt Exp $
  */
 
 /*
@@ -168,11 +168,12 @@ static __inline int
 getexp(fp_register_t f, int src)
 {
 	int minexp[] = { S_MINEXP, 0, T_MINEXP, 0 };
-	if (f.t.exponent == 0)
+	if (f.t.exponent == 0) {
 		if (f.t.fraction)
 			return minexp[src];
 		else
 			return 0;
+	}
 	return f.t.exponent - BIAS_EXP;
 }
 
