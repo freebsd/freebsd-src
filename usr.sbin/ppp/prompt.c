@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.20 1998/04/04 10:34:28 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.21 1998/04/05 18:25:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -37,7 +37,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -50,9 +49,6 @@
 #include "fsm.h"
 #include "lcp.h"
 #include "auth.h"
-#include "loadalias.h"
-#include "vars.h"
-#include "main.h"
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"

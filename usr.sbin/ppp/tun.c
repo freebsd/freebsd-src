@@ -23,20 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.10 1998/04/03 19:21:55 brian Exp $
+ *	$Id: tun.c,v 1.6.4.11 1998/04/03 19:24:05 brian Exp $
  */
 
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
-#include <net/if.h>
-#include <sys/select.h>
 #include <net/if_tun.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
@@ -48,8 +43,6 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "defs.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "fsm.h"
 #include "throughput.h"
 #include "iplist.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.18 1998/04/03 19:21:34 brian Exp $
+ * $Id: lqr.c,v 1.22.2.19 1998/04/03 19:26:35 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -31,7 +31,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <termios.h>
 

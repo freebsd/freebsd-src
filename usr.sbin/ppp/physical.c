@@ -16,17 +16,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.19 1998/03/20 19:48:16 brian Exp $
+ *  $Id: physical.c,v 1.1.2.20 1998/04/03 19:21:49 brian Exp $
  *
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <sys/tty.h>
-#include <sys/uio.h>
 
 #include <assert.h>
 #include <stdio.h>
@@ -38,7 +35,6 @@
 
 /* XXX Name space pollution from vars.h */
 #include <netinet/in.h>
-#include <alias.h>
 
 #include "defs.h"
 #include "command.h"
@@ -62,17 +58,6 @@
 #include "physical.h"
 
 #include "vars.h"
-#include "iplist.h"
-#include "slcompress.h"
-#include "ipcp.h"
-#include "filter.h"
-#include "mp.h"
-#include "auth.h"
-#include "chap.h"
-#include "pap.h"
-#include "chat.h"
-#include "datalink.h"
-#include "bundle.h"
 #include "log.h"
 #include "id.h"
 

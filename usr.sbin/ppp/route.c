@@ -17,12 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.14 1998/04/03 19:21:51 brian Exp $
+ * $Id: route.c,v 1.42.2.15 1998/04/03 19:25:52 brian Exp $
  *
  */
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -34,28 +33,21 @@
 #include <netinet/ip.h>
 
 #include <errno.h>
-#include <machine/endian.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <termios.h>
-#include <unistd.h>
 
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "loadalias.h"
 #include "defs.h"
-#include "vars.h"
-#include "id.h"
 #include "iplist.h"
 #include "timer.h"
 #include "throughput.h"
 #include "lqr.h"
 #include "hdlc.h"
-#include "async.h"
 #include "fsm.h"
 #include "lcp.h"
 #include "ccp.h"

@@ -23,25 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.4.5 1998/03/25 18:38:44 brian Exp $
+ *	$Id: defs.c,v 1.11.4.6 1998/04/03 19:25:29 brian Exp $
  */
 
-#include <sys/param.h>
-#include <netinet/in.h>
 
-#include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "defs.h"
-#include "command.h"
-#include "mbuf.h"
-#include "log.h"
-#include "loadalias.h"
-#include "vars.h"
 
 int mode = MODE_INTER;
 static char dstsystem[50];

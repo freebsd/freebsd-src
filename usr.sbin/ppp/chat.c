@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.18 1998/04/03 19:21:11 brian Exp $
+ *	$Id: chat.c,v 1.44.2.19 1998/04/03 19:24:43 brian Exp $
  */
 
 #include <sys/param.h>
@@ -31,15 +31,11 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <setjmp.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
@@ -49,9 +45,6 @@
 #include "log.h"
 #include "defs.h"
 #include "timer.h"
-#include "loadalias.h"
-#include "vars.h"
-#include "modem.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "throughput.h"
@@ -63,10 +56,8 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "chat.h"
-#include "prompt.h"
 #include "mp.h"
 #include "auth.h"
-#include "pap.h"
 #include "chap.h"
 #include "slcompress.h"
 #include "iplist.h"

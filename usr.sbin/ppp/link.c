@@ -23,14 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.15 1998/04/03 19:21:33 brian Exp $
+ *  $Id: link.c,v 1.1.2.16 1998/04/03 19:25:36 brian Exp $
  *
  */
 
 #include <sys/param.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <stdio.h>
 #include <termios.h>
@@ -38,26 +35,16 @@
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "timer.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "throughput.h"
 #include "lcpproto.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "fsm.h"
-#include "iplist.h"
-#include "slcompress.h"
-#include "ipcp.h"
-#include "filter.h"
 #include "descriptor.h"
-#include "async.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
-#include "mp.h"
-#include "bundle.h"
 #include "prompt.h"
 
 void

@@ -19,19 +19,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap_ms.c,v 1.5 1998/01/21 02:15:10 brian Exp $
+ * $Id: chap_ms.c,v 1.5.4.1 1998/03/16 22:53:08 brian Exp $
  *
  */
 
 #include <sys/types.h>
 
 #include <des.h>
-#include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
 
-#include "command.h"
-#include "mbuf.h"
 #include "chap_ms.h"
 
 /* unused, for documentation only */

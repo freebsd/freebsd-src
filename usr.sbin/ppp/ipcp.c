@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.30 1998/04/03 19:25:04 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.31 1998/04/03 19:25:33 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -29,7 +29,6 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <sys/time.h>
 #include <net/if.h>
 #include <sys/sockio.h>
 
@@ -57,8 +56,6 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "vjcomp.h"
-#include "ip.h"
-#include "route.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "async.h"

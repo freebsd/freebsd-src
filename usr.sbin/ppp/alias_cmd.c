@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.12.2.2 1998/02/10 03:23:05 brian Exp $
+ *	$Id: alias_cmd.c,v 1.12.2.3 1998/04/03 19:25:20 brian Exp $
  */
 
 #include <sys/param.h>
@@ -10,7 +10,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,7 +17,6 @@
 
 #include "defs.h"
 #include "command.h"
-#include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
 #include "vars.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.6.4.1 1998/02/08 11:07:30 brian Exp $
+ *	$Id: id.c,v 1.6.4.2 1998/02/19 02:08:44 brian Exp $
  */
 
 #include <sys/types.h>
@@ -36,14 +36,12 @@
 #include <sysexits.h>
 #include <unistd.h>
 #ifdef __OpenBSD__
-#include <util.h>
 #else
 #include <libutil.h>
 #endif
 #include <utmp.h>
 
 #include "command.h"
-#include "mbuf.h"
 #include "log.h"
 #include "main.h"
 #include "id.h"

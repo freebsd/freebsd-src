@@ -17,12 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.3 1998/02/09 19:24:03 brian Exp $
+ * $Id: systems.c,v 1.35.2.4 1998/04/03 19:25:58 brian Exp $
  *
  *  TODO:
  */
 #include <sys/param.h>
-#include <netinet/in.h>
 
 #include <ctype.h>
 #include <pwd.h>
@@ -32,17 +31,10 @@
 #include <unistd.h>
 
 #include "command.h"
-#include "mbuf.h"
 #include "log.h"
 #include "id.h"
 #include "defs.h"
-#include "timer.h"
-#include "fsm.h"
-#include "loadalias.h"
 #include "pathnames.h"
-#include "vars.h"
-#include "descriptor.h"
-#include "server.h"
 #include "systems.h"
 
 #define issep(ch) ((ch) == ' ' || (ch) == '\t')

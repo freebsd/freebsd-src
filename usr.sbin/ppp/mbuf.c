@@ -17,11 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.13.2.6 1998/04/03 19:21:38 brian Exp $
+ * $Id: mbuf.c,v 1.13.2.7 1998/04/03 19:25:43 brian Exp $
  *
  */
 #include <sys/param.h>
-#include <netinet/in.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,9 +31,6 @@
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "descriptor.h"
 #include "prompt.h"
 #include "main.h"

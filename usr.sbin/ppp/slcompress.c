@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.15.2.4 1998/04/03 19:21:52 brian Exp $
+ * $Id: slcompress.c,v 1.15.2.5 1998/04/03 19:25:56 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -38,8 +38,6 @@
 #include "log.h"
 #include "defs.h"
 #include "slcompress.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "descriptor.h"
 #include "prompt.h"
 #include "timer.h"

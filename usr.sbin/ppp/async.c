@@ -17,14 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.8 1998/03/13 00:43:50 brian Exp $
+ * $Id: async.c,v 1.15.2.9 1998/04/03 19:21:05 brian Exp $
  *
  */
 #include <sys/param.h>
-#include <netinet/in.h>
 
-#include <stdio.h>
-#include <string.h>
 #include <termios.h>
 
 #include "command.h"
@@ -37,9 +34,6 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "lcpproto.h"
-#include "modem.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "async.h"
 #include "throughput.h"
 #include "ccp.h"

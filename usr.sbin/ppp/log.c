@@ -23,11 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.3 1998/04/03 19:26:40 brian Exp $
+ *	$Id: log.c,v 1.25.2.4 1998/04/05 18:25:32 brian Exp $
  */
 
 #include <sys/param.h>
-#include <netinet/in.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -38,9 +37,6 @@
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "loadalias.h"
-#include "defs.h"
-#include "vars.h"
 #include "descriptor.h"
 #include "prompt.h"
 

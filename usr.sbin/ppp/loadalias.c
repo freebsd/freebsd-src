@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.13 1998/01/14 01:23:05 brian Exp $
+ *	$Id: loadalias.c,v 1.14 1998/01/19 22:59:57 brian Exp $
  */
 
 #include <sys/param.h>
@@ -34,16 +34,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
 #include "command.h"
-#include "mbuf.h"
 #include "log.h"
-#include "systems.h"
 #include "id.h"
 #include "loadalias.h"
-#include "defs.h"
 #include "vars.h"
 
 #define _PATH_ALIAS_PREFIX "/usr/lib/libalias.so.2."

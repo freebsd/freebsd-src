@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.24 1998/03/24 18:46:55 brian Exp $
+ * $Id: fsm.c,v 1.27.2.25 1998/04/03 19:21:20 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -25,10 +25,7 @@
  */
 #include <sys/param.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <termios.h>
 
@@ -43,7 +40,6 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
-#include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "throughput.h"
@@ -51,17 +47,6 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
-#include "iplist.h"
-#include "slcompress.h"
-#include "ipcp.h"
-#include "filter.h"
-#include "mp.h"
-#include "bundle.h"
-#include "auth.h"
-#include "chat.h"
-#include "chap.h"
-#include "pap.h"
-#include "datalink.h"
 
 static void FsmSendConfigReq(struct fsm *);
 static void FsmSendTerminateReq(struct fsm *);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.32 1998/04/03 19:26:20 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.33 1998/04/05 22:48:12 brian Exp $
  */
 
 #include <sys/param.h>
@@ -31,7 +31,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <alias.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,8 +40,6 @@
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "timer.h"
 #include "fsm.h"
 #include "lcp.h"
@@ -62,7 +59,6 @@
 #include "bundle.h"
 #include "chat.h"
 #include "auth.h"
-#include "main.h"
 #include "modem.h"
 #include "prompt.h"
 #include "lcpproto.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.4.4.2 1998/04/03 19:21:53 brian Exp $
+ *	$Id: throughput.c,v 1.4.4.3 1998/04/03 19:25:59 brian Exp $
  */
 
 #include <sys/param.h>
@@ -34,11 +34,9 @@
 #include <time.h>
 
 #include "command.h"
-#include "mbuf.h"
 #include "log.h"
 #include "timer.h"
 #include "throughput.h"
-#include "defs.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "descriptor.h"

@@ -17,28 +17,17 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.38 1998/04/03 19:26:21 brian Exp $
+ * $Id: lcp.c,v 1.55.2.39 1998/04/05 19:02:46 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
  */
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <sys/select.h>
-#include <net/if_tun.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -49,33 +38,18 @@
 #include "timer.h"
 #include "fsm.h"
 #include "lcp.h"
-#include "iplist.h"
 #include "throughput.h"
-#include "slcompress.h"
-#include "ipcp.h"
 #include "lcpproto.h"
-#include "filter.h"
 #include "descriptor.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "ccp.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "auth.h"
-#include "pap.h"
-#include "chap.h"
 #include "async.h"
-#include "main.h"
-#include "ip.h"
-#include "modem.h"
-#include "tun.h"
 #include "link.h"
 #include "physical.h"
-#include "mp.h"
-#include "bundle.h"
 #include "prompt.h"
-#include "chat.h"
-#include "datalink.h"
 
 /* for received LQRs */
 struct lqrreq {

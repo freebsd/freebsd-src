@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mp.c,v 1.1.2.1 1998/04/03 19:21:44 brian Exp $
  */
 
 #include <sys/types.h>
@@ -31,7 +31,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -62,7 +61,6 @@
 #include "lcpproto.h"
 #include "filter.h"
 #include "mp.h"
-#include "pap.h"
 #include "chap.h"
 #include "datalink.h"
 #include "bundle.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.10 1998/04/03 19:21:51 brian Exp $
+ *	$Id: server.c,v 1.16.2.11 1998/04/03 19:25:54 brian Exp $
  */
 
 #include <sys/param.h>
@@ -44,15 +44,12 @@
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "loadalias.h"
 #include "defs.h"
-#include "vars.h"
 #include "descriptor.h"
 #include "server.h"
 #include "id.h"
 #include "prompt.h"
 #include "timer.h"
-#include "auth.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "fsm.h"

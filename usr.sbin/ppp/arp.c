@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27.2.9 1998/03/20 19:47:38 brian Exp $
+ * $Id: arp.c,v 1.27.2.10 1998/04/03 19:21:04 brian Exp $
  *
  */
 
@@ -26,33 +26,27 @@
  */
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
-#include <net/if_types.h>
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/sysctl.h>
-#include <sys/uio.h>
 #include <unistd.h>
 
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "id.h"
-#include "route.h"
 #include "timer.h"
 #include "fsm.h"
 #include "defs.h"

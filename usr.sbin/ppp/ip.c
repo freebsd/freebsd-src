@@ -17,18 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.17 1998/04/03 19:21:24 brian Exp $
+ * $Id: ip.c,v 1.38.2.18 1998/04/03 19:25:02 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
  */
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <sys/select.h>
-#include <net/if_tun.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -44,7 +39,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include "command.h"
@@ -69,7 +63,6 @@
 #include "mp.h"
 #include "bundle.h"
 #include "vjcomp.h"
-#include "modem.h"
 #include "tun.h"
 #include "ip.h"
 

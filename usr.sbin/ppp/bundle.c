@@ -23,11 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.38 1998/04/04 13:01:19 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.39 1998/04/05 22:48:00 brian Exp $
  */
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
@@ -60,10 +59,6 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "loadalias.h"
-#include "vars.h"
-#include "arp.h"
-#include "systems.h"
 #include "route.h"
 #include "lcp.h"
 #include "ccp.h"
@@ -73,10 +68,8 @@
 #include "async.h"
 #include "physical.h"
 #include "modem.h"
-#include "main.h"
 #include "auth.h"
 #include "lcpproto.h"
-#include "pap.h"
 #include "chap.h"
 #include "tun.h"
 #include "prompt.h"

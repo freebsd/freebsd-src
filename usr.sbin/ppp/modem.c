@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.43 1998/04/03 19:25:45 brian Exp $
+ * $Id: modem.c,v 1.77.2.44 1998/04/03 19:26:22 brian Exp $
  *
  *  TODO:
  */
@@ -35,11 +35,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <unistd.h>
 #ifdef __OpenBSD__
-#include <util.h>
 #else
 #include <libutil.h>
 #endif
@@ -54,11 +52,7 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
-#include "ip.h"
 #include "modem.h"
-#include "loadalias.h"
-#include "vars.h"
-#include "main.h"
 #include "throughput.h"
 #include "async.h"
 #include "iplist.h"

@@ -17,32 +17,23 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.43 1998/04/03 19:25:42 brian Exp $
+ * $Id: main.c,v 1.121.2.44 1998/04/05 18:25:33 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
  *		o Add signal handler for misc controls.
  */
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/select.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <net/if_tun.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <arpa/inet.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -53,7 +44,6 @@
 #include "id.h"
 #include "timer.h"
 #include "fsm.h"
-#include "modem.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
@@ -74,12 +64,8 @@
 #include "ip.h"
 #include "sig.h"
 #include "main.h"
-#include "vjcomp.h"
-#include "async.h"
 #include "pathnames.h"
 #include "tun.h"
-#include "route.h"
-#include "physical.h"
 #include "server.h"
 #include "prompt.h"
 #include "chat.h"

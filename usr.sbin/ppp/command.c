@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.52 1998/04/04 10:34:27 brian Exp $
+ * $Id: command.c,v 1.131.2.53 1998/04/05 22:48:08 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -32,17 +32,14 @@
 #ifndef NOALIAS
 #include <alias.h>
 #endif
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <termios.h>
-#include <time.h>
 #include <unistd.h>
 
 #include "command.h"
@@ -70,7 +67,6 @@
 #include "main.h"
 #include "route.h"
 #include "ccp.h"
-#include "ip.h"
 #include "auth.h"
 #include "async.h"
 #include "link.h"

@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.21 1998/04/03 19:24:46 brian Exp $
+ * $Id: pap.c,v 1.20.2.22 1998/04/03 19:26:25 brian Exp $
  *
  *	TODO:
  */
@@ -27,16 +27,9 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <pwd.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
 #include <termios.h>
-#include <unistd.h>
 #ifdef __OpenBSD__
-#include <util.h>
 #else
-#include <libutil.h>
 #endif
 
 #include "command.h"
@@ -48,8 +41,6 @@
 #include "lcp.h"
 #include "auth.h"
 #include "pap.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcpproto.h"
