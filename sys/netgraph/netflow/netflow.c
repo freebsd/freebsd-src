@@ -701,7 +701,8 @@ ng_netflow_expire(void *arg)
 		if (used <= CACHELOWAT && !INACTIVE(fle))
 			goto finish;
 
-		if (INACTIVE(fle) && (SMALL(fle) || (used > CACHELOWAT))) {
+		if ((INACTIVE(fle) && (SMALL(fle) || (used > CACHELOWAT))) ||
+		    AGED(fle)) {
 
 			/* Detach flow entry from cache */
 			LIST_REMOVE(fle, fle_hash);
