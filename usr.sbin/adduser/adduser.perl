@@ -29,378 +29,724 @@
 #
 # /usr/sbin/adduser - add new user(s)
 #
-# Bugs: sure (my english!)
+# Bugs: my english, silly code
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser,v 1.40 1995/01/08 17:40:09 w Exp w $
+# $Id: adduser,v 1.57 1995/03/07 18:40:37 w Exp w $
 #
 
 # read variables
 sub variables {
-    $verbose = 1;                       # verbose = [0-2]
-    $defaultpasswd = "no";              # use password for new users
-    $dotdir = "/usr/share/skel";        # copy dotfiles from this dir
-    $send_message = "/etc/adduser.message";  # send message to new user
-    $config = "/etc/adduser.conf";      # config file for adduser
-    $config_read = 1;                   # read config file
-    $logfile = "/var/log/adduser";      # logfile
-    $home = "/home";                    # default HOME
+    $verbose = 1;		# verbose = [0-2]
+    $defaultpasswd = "yes";	# use password for new users
+    $dotdir = "/usr/share/skel"; # copy dotfiles from this dir
+    $dotdir_bak = $dotdir;
+    $send_message = "/etc/adduser.message"; # send message to new user
+    $send_message_bak = $send_message;
+    $config = "/etc/adduser.conf"; # config file for adduser
+    $config_read = 1;		# read config file
+    $logfile = "/var/log/adduser"; # logfile
+    $home = "/home";		# default HOME
     $etc_shells = "/etc/shells";
     $etc_passwd = "/etc/master.passwd";
     $group = "/etc/group";
-    $pwd_mkdb = "pwd_mkdb -p";          # program for building passwd database
+    $pwd_mkdb = "pwd_mkdb -p";	# program for building passwd database
 
-    if ($test) {
-    $home = "/home/w/tmp/adduser/home";
-    $etc_shells = "./shells";
-    $etc_passwd = "./master.passwd";
-    $group = "./group";
-    $pwd_mkdb = "pwd_mkdb -p -d .";
-    $config = "adduser.conf";
-    $send_message = "./adduser.message";
-    $logfile = "./log.adduser";
-    }
 
-    $ENV{'PATH'} = "/sbin:/bin:/usr/sbin:/usr/bin";
     # List of directories where shells located
     @path = ('/bin', '/usr/bin', '/usr/local/bin');
     # common shells, first element has higher priority
     @shellpref = ('bash', 'tcsh', 'ksh', 'csh', 'sh');
 
-    $defaultshell = 'bash'; # defaultshell if not empty
+    $defaultshell = 'bash';	# defaultshell if not empty
+    $group_uniq = 'USER';
+    $defaultgroup = $group_uniq;# login groupname, $group_uniq means username
 
-    $uid_start = 1000;      # new users get this uid
-    $uid_end   = 32000;     # max. uid
+    $uid_start = 1000;		# new users get this uid
+    $uid_end   = 32000;		# max. uid
 
     # global variables
-    $username = '';         # $username{username} = uid
-    $uid = '';              # $uid{uid} = username
-    $pwgid = '';            # $pwgid{pwgid} = username; gid from passwd db
-    $groupname ='';         # $groupname{groupname} = gid
-    $gid = '';              # $gid{gid} = groupname;    gid form group db
+    # passwd
+    $username = '';		# $username{username} = uid
+    $uid = '';			# $uid{uid} = username
+    $pwgid = '';		# $pwgid{pwgid} = username; gid from passwd db
+
+    $password = '';		# password for new users
+
+    # group
+    $groupname ='';		# $groupname{groupname} = gid
+    $groupmembers = '';		# $groupmembers{gid} = members of group/kommalist
+    $gid = '';			# $gid{gid} = groupname;    gid form group db
+
+    # shell
+    $shell = '';		# $shell{`basename sh`} = sh
+
+    # only for me (=Wolfram)
+    if ($test) {
+	$home = "/home/w/tmp/adduser/home";
+	$etc_shells = "./shells";
+	$etc_passwd = "./master.passwd";
+	$group = "./group";
+	$pwd_mkdb = "pwd_mkdb -p -d .";
+	$config = "adduser.conf";
+	$send_message = "./adduser.message";
+	$logfile = "./log.adduser";
+    }
+
+    umask 022;			# don't give login group write access
+
+    $ENV{'PATH'} = "/sbin:/bin:/usr/sbin:/usr/bin";
     @passwd_backup = '';
+    @group_backup = '';
     @message_buffer = '';
-    @user_variable_list = '';   # user variables in /etc/adduser.conf
+    @user_variable_list = '';	# user variables in /etc/adduser.conf
     $do_not_delete = '## DO NOT DELETE THIS LINE!';
 }
 
-# read shell databasem, see also: shells(5)
+# read shell database, see also: shells(5)
 sub shells_read {
-    local($s, @dummy);
-    open(S, $etc_shells) || die "$shells:$!\n";
+    local($sh);
+    local($err) = 0;
+
+    print "Check $etc_shells\n" if $verbose;
+    open(S, $etc_shells) || die "$etc_shells:$!\n";
+
     while(<S>) {
-        if (/^[ \t]*\//) {
-            ($s, @dummy) = split;
-            if (-x  $s) {
-                $shell{&basename($s)} = $s;
-            } else {
-                warn "Shell: $s not executable!\n";
-            }
-        }
+	if (/^\s*\//) {
+	    s/^\s*//; s/\s+.*//; # chop
+	    $sh = $_;
+	    if (-x  $sh) {
+		$shell{&basename($sh)} = $sh;
+	    } else {
+		warn "Shell: $sh not executable!\n";
+		$err++;
+	    }
+	}
     }
+    return $err;
 }
 
-# add new/local shells
+# add new shells if possible
 sub shells_add {
-    local($e,$dir,@list);
+    local($sh,$dir,@list);
 
-    foreach $e (@shellpref) {
-        if (!$shell{$e}) {
-            foreach $dir (@path) {
-                if (-x "$dir/$e") {
-                    if ($verbose) {
-                        if (&confirm_yn("Found shell: $dir/$e. Add to $etc_shells?", "yes")) {
-                            push(@list, "$dir/$e");
-                            push(@shellpref, "$dir/$e");
-                            $shell{&basename("$dir/$e")} = "$dir/$e";
-                            $changes++;
-                        }
-                    } else {
-                        print "Found unused shell: $dir/$e\n";
-                    }
-                }
-            }
-        }
+    return 1 unless $verbose;
+
+    foreach $sh (@shellpref) {
+	# all knowned shells
+	if (!$shell{$sh}) {
+	    # shell $sh is not defined as login shell
+	    foreach $dir (@path) {
+		if (-x "$dir/$sh") {
+		    # found shell
+		    if (&confirm_yn("Found shell: $dir/$sh. Add to $etc_shells?", "yes")) {
+			push(@list, "$dir/$sh");
+			push(@shellpref, "$sh");
+			$shell{&basename("$dir/$sh")} = "$dir/$sh";
+			$changes++;
+		    }
+		}
+	    }
+	}
     }
     &append_file($etc_shells, @list) if $#list >= 0;
 }
 
 # choise your favourite shell an return the shell
 sub shell_default {
-    local($e,$i,$s);
-    local($sh) = $defaultshell;
+    local($e,$i,$new_shell);
+    local($sh);
 
-    # $defaultshell is empty, looking for another shell
-    if (!$sh || !$shell{$sh}) {
-        $i = 0;
-        while($i < $#shellpref) {
-            last if $shell{$shellpref[$i]};
-            $i++;
-        }
-        $sh = $shellpref[$i];
+    $sh = &shell_default_valid($defaultshell);
+    return $sh unless $verbose;
 
-        if (!$sh || !$shell{$sh}) {
-            warn "No valid shell found in $etc_shells.\n";
-            $sh = '';
-        }
-    }
-    if ($verbose) {
-        $s = &confirm_list("Enter your default shell:", 0,
-                            $sh, sort(keys %shell));
-        print "Your default shell is: $s -> $shell{$s}\n"; 
-        $changes++ if $s ne $sh;
-        return $s;
-    } else {
-        return $sh;
-    }
+    $new_shell = &confirm_list("Enter your default shell:", 0,
+		       $sh, sort(keys %shell));
+    print "Your default shell is: $new_shell -> $shell{$new_shell}\n";
+    $changes++ if $new_shell ne $sh;
+    return $new_shell;
 }
 
-# return default home partition, create base directory if nesseccary
+sub shell_default_valid {
+    local($sh) = @_;
+    local($s,$e);
+
+    return $sh if $shell{$sh};
+
+    foreach $e (@shellpref) {
+	$s = $e;
+	last if defined($shell{$s});
+    }
+    $s = "sh" unless $s;
+    warn "Shell ``$sh'' is undefined, use ``$s''\n";
+    return $s;
+}
+
+# return default home partition (f.e. "/home")
+# create base directory if nesseccary
 sub home_partition {
-    local($h);
-    $oldverbose = $verbose if !defined $oldverbose;
+    local($home) = @_;
+    $home = &stripdir($home);
+    local($h) = $home;
 
-    if ($verbose) {
-        $h = &confirm_list("Enter your default HOME partition:", 1, $home, "");
-    } else {
-        $h = $home;
+    return $h if !$verbose && $h eq &home_partition_valid($h);
+
+    while(1) {
+	$h = &confirm_list("Enter your default HOME partition:", 1, $home, "");
+	$h = &stripdir($h);
+	last if $h eq &home_partition_valid($h);
     }
 
-    if ($h !~ "^/") {
-        warn "Please use absolute path for home: ``$h''.\n";
-        $verbose++;
-        $h =~ s|^[^/]+||;
-        $home = $h;
-        return &home_partition;
-    }
-
-    if (-e $h) {
-        if (!(-d _ || -l $h)) {
-            warn "$h exist, but is it not a directory or symlink!\n";
-            $verbose++;
-            return &home_partition;
-        }
-        if (! -w _) {
-            warn "$h is not writable!\n";
-            $verbose++;
-            return &home_partition;
-        }
-    } else {
-        $verbose++;
-        return &home_partition unless &mkdirhier($h);
-    }
-
-    $verbose = $oldverbose;
-    undef $oldverbose;
     $changes++ if $h ne $home;
     return $h;
 }
 
+sub home_partition_valid {
+    local($h) = @_;
+
+    $h = &stripdir($h);
+    # all right (I hope)
+    return $h if $h =~ "^/" && -e $h && -w $h && (-d $h || -l $h);
+
+    # Errors or todo
+    if ($h !~ "^/") {
+	warn "Please use absolute path for home: ``$h''.\a\n";
+	return 0;
+    }
+
+    if (-e $h) {
+	warn "$h exist, but is it not a directory or symlink!\n"
+	    unless -d $h || -l $h;
+	warn "$h is not writable!\n"
+	    unless -w $h;
+	return 0;
+    } else {
+	# create home partition
+	return $h if &mkdir_home($h);
+    }
+    return 0;
+}
+
 # check for valid passwddb
 sub passwd_check {
-    print "Check $etc_passwd\n" if $verbose > 0;
     system("$pwd_mkdb $etc_passwd");
     die "\nInvalid $etc_passwd - cannot add any users!\n" if $?;
 }
 
 # read /etc/passwd
 sub passwd_read {
-    local($un, $pw, $ui, $gi, $sh, %shlist);
+    local($p_username, $pw, $p_uid, $p_gid, $sh, %shlist);
 
-    print "Check $group\n" if $verbose;
-    foreach $sh (keys %shell) {
-        $shlist{$shell{$sh}} = $sh; #print "$sh $shell{$sh}\n";
-    }
-
+    print "Check $etc_passwd\n" if $verbose;
     open(P, "$etc_passwd") || die "$passwd: $!\n";
+
     while(<P>) {
-        chop;
-        push(@passwd_backup, $_);
-        ($un, $pw, $ui, $gi, $sh) = (split(/:/, $_))[0..3,9];
-        print "$un already exist with uid: $username{$un}!\n"
-            if $username{$un};
-        $username{$un} = $ui;
-        print "User $un: uid $ui exist twice: $uid{$ui}\n"
-            if $uid{$ui} && $verbose && $ui;    # don't warn for uid 0
-        print "User $un: illegal shell: ``$sh''\n" 
-            if ((!$shlist{$sh} && $sh) &&
-                ($un !~ /^(bin|uucp|falcon|nobody)$/));
-        $uid{$ui} = $un;
-        $pwgid{$gi} = $un;
+	chop;
+	push(@passwd_backup, $_);
+	($p_username, $pw, $p_uid, $p_gid, $sh) = (split(/:/, $_))[0..3,9];
+
+	print "$p_username already exist with uid: $username{$p_username}!\n"
+	    if $username{$p_username} && $verbose;
+	$username{$p_username} = $p_uid;
+	print "User $p_username: uid $p_uid exist twice: $uid{$p_uid}\n"
+	    if $uid{$p_uid} && $verbose && $p_uid;    # don't warn for uid 0
+	print "User $p_username: illegal shell: ``$sh''\n"
+	    if ($verbose && $sh &&
+		!$shell{&basename($sh)} &&
+		$p_username !~ /^(bin|uucp|falcon|nobody)$/ &&
+		$sh !~ /\/(pppd|sliplogin)$/);
+	$uid{$p_uid} = $p_username;
+	$pwgid{$p_gid} = $p_username;
     }
     close P;
 }
 
 # read /etc/group
 sub group_read {
-    local($gn,$pw,$gi);
+    local($g_groupname,$pw,$g_gid, $memb);
 
+    print "Check $group\n" if $verbose;
     open(G, "$group") || die "$group: $!\n";
     while(<G>) {
-        ($gn, $pw, $gi) = (split(/:/, $_))[0..2];
-        warn "Groupname exist twice: $gn:$gi -> $gn:$groupname{$gn}\n"
-            if $groupname{$gn};
-        $groupname{$gn} = $gi;
-        warn "Groupid exist twice:   $gn:$gi -> $gid{$gi}:$gi\n"
-            if $gid{$gi};
-        $gid{$gi} = $gn;
+	chop;
+	push(@group_backup, $_);
+	($g_groupname, $pw, $g_gid, $memb) = (split(/:/, $_))[0..3];
+
+	$groupmembers{$g_gid} = $memb;
+	warn "Groupname exist twice: $g_groupname:$g_gid ->  $g_groupname:$groupname{$g_groupname}\n"
+	    if $groupname{$g_groupname} && $verbose;
+	$groupname{$g_groupname} = $g_gid;
+	warn "Groupid exist twice:   $g_groupname:$g_gid -> $gid{$g_gid}:$g_gid\n"
+	    if $gid{$g_gid} && $verbose;
+	$gid{$g_gid} = $g_groupname;
     }
     close G;
 }
 
 # check gids /etc/passwd <-> /etc/group
 sub group_check {
-    local($e, $user, @list);
+    local($c_gid, $c_username, @list);
 
-    foreach $e (keys %pwgid) {
-        if (!$gid{$e}) {
-            $user = $pwgid{$e};
-            warn "User ``$user'' has gid $e but a group with this " .
-                 "gid does not exist.\n";
-            #warn "Gid $e is defined in $etc_passwd for user ``$user''\n";
-            #warn "but not in $group!\n";
-            if ($groupname{$user}) {
-                warn <<EOF;
-Maybe the gids ($e <-> $groupname{$user}) for user+group ``$user'' are wrong.
-EOF
-            } else {
-                push(@list, "$user:*:$e:$user")
-                if $verbose && 
-                    &confirm_yn("Add group``$user'' gid $e to $group?", "y");
-            }
-        }
+    foreach $c_gid (keys %pwgid) {
+	if (!$gid{$c_gid}) {
+	    $c_username = $pwgid{$c_gid};
+	    warn "User ``$c_username'' has gid $c_gid but a group with this " .
+		"gid does not exist.\n" if $verbose;
+	}
     }
-    &append_file($group, @list) if $#list >= 0;
 }
 
 #
 # main loop for creating new users
 #
-sub new_users {
-    local(@userlist) = @_;
+
+# return username
+sub new_users_name {
     local($name);
-    local($defaultname) = "a-z0-9";
+
+    while(1) {
+	$name = &confirm_list("Enter username", 1, "a-z0-9", "");
+	last if (&new_users_name_valid($name) eq $name);
+    }
+    return $name;
+}
+
+sub new_users_name_valid {
+    local($name) = @_;
+
+    if ($name !~ /^[a-z0-9]+$/) {
+	warn "Wrong username. " .
+	    "Please use only lowercase characters or digits\a\n";
+	return 0;
+    } elsif ($username{$name}) {
+	warn "Username ``$name'' already exists!\a\n"; return 0;
+    }
+    return $name;
+}
+
+# return full name
+sub new_users_fullname {
+    local($name) = @_;
+    local($fullname);
+
+    while(1) {
+	$fullname = &confirm_list("Enter full name", 1, "", "");
+	last if $fullname eq &new_users_fullname_valid($fullname);
+    }
+    $fullname = $name unless $fullname;
+    return $fullname;
+}
+
+sub new_users_fullname_valid {
+    local($fullname) = @_;
+
+    return $fullname if $fullname !~ /:/;
+
+    warn "``:'' is not allowed!\a\n";
+    return 0;
+}
+
+# return shell (full path) for user
+sub new_users_shell {
+    local($sh);
+
+    $sh = &confirm_list("Enter shell", 0, $defaultshell, keys %shell);
+    return $shell{$sh};
+}
+
+# return free uid and gid
+sub new_users_id {
+    local($name) = @_;
+    local($u_id, $g_id) = &next_id($name);
+    local($u_id_tmp, $e);
+
+    while(1) {
+	$u_id_tmp = &confirm_list("Uid", 1, $u_id, "");
+	last if $u_id_tmp =~ /^[0-9]+$/ && $u_id_tmp <= $uid_end &&
+		! $uid{$u_id_tmp};
+	if ($uid{$u_id_tmp}) {
+	    warn "Uid ``$u_id_tmp'' in use!\a\n";
+	} else {
+	    warn "Wrong uid.\a\n";
+	}
+    }
+    # use calculated uid
+    return ($u_id_tmp, $g_id) if $u_id_tmp eq $u_id;
+    # recalculate gid
+    $uid_start = $u_id_tmp;
+    return &next_id($name);
+}
+
+# add user to group
+sub add_group {
+    local($gid, $name) = @_;
+
+    return 0 if
+	$groupmembers{$gid} =~ /^(.+,)?$name(,.+)?$/;
+
+    $groupmembers_bak{$gid} = $groupmembers{$gid};
+    $groupmembers{$gid} .= "," if $groupmembers{$gid};
+    $groupmembers{$gid} .= "$name";
+
+    return $name;
+}
+
+
+# return login group
+sub new_users_grplogin {
+    local($name, $defaultgroup, $new_users_ok) = @_;
+    local($group_login, $group);
+
+    $group = $name;
+    $group = $defaultgroup if $defaultgroup ne $group_uniq;
+
+    if ($new_users_ok) {
+	# clean up backup
+	foreach $e (keys %groupmembers_bak) { delete $groupmembers_bak{$e}; }
+    } else {
+	# restore old groupmembers, user was not accept
+	foreach $e (keys %groupmembers_bak) {
+	    $groupmembers{$e} = $groupmembers_bak{$e};
+	}
+    }
+
+    while(1) {
+	$group_login = &confirm_list("Login group", 1, $group,
+				     ($name, $group));
+	last if $group_login eq $group;
+	last if $group_login eq $name;
+	last if defined $groupname{$group_login};
+	if ($group_login eq $group_uniq) {
+	    $group_login = $name; last;
+	}
+
+	if (defined $gid{$group_login}) {
+	    # convert numeric groupname (gid) to groupname
+	    $group_login = $gid{$group_login};
+	    last;
+	}
+	warn "Group does not exist!\a\n";
+    }
+
+    if (defined($groupname{$group_login})) {
+	&add_group($groupname{$group_login}, $name);
+    }
+
+    return ($group_login, $group_uniq) if $group_login eq $name;
+    return ($group_login, $group_login);
+}
+
+# return login group
+sub new_users_grplogin_batch {
+    local($name, $defaultgroup) = @_;
+    local($group_login, $group);
+
+    $group_login = $name;
+    $group_login = $defaultgroup if $defaultgroup ne $group_uniq;
+
+    if (defined $gid{$group_login}) {
+	# convert numeric groupname (gid) to groupname
+	$group_login = $gid{$group_login};
+    }
+
+    if (defined($groupname{$group_login})) {
+	&add_group($groupname{$group_login}, $name);
+    }
+
+    return $group_login
+	if defined($groupname{$group_login}) || $group_login eq $name;
+    warn "Group ``$group_login'' does not exist\a\n";
+    return 0;
+}
+
+# return other groups (string)
+sub new_users_groups {
+    local($name, $other_groups) = @_;
+    local($string) =
+	"Login group is ``$group_login''. Invite $name into other groups:";
+    local($e, $flag);
+    local($new_groups,$groups);
+
+    $other_groups = "no" unless $other_groups;
+
+    while(1) {
+	$groups = &confirm_list($string, 1, $other_groups,
+				("no", $other_groups, "guest"));
+	# no other groups
+	return "" if $groups eq "no";
+
+	($flag, $new_groups) = &new_users_groups_valid($groups);
+	last unless $flag;
+    }
+    $new_groups =~ s/\s*$//;
+    return $new_groups;
+}
+
+sub new_users_groups_valid {
+    local($groups) = @_;
+    local($e, $new_groups);
+    local($flag) = 0;
+
+    foreach $e (split(/[,\s]+/, $groups)) {
+	# convert numbers to groupname
+	if ($e =~ /^[0-9]+$/ && $gid{$e}) {
+	    $e = $gid{$e};
+	}
+	if (defined($groupname{$e})) {
+	    if (&add_group($groupname{$e}, $name)) {
+		$new_groups .= "$e ";
+	    } else {
+		warn "$name is already member of group ``$e''\n";
+	    }
+	} else {
+	    warn "Group ``$e'' does not exist\a\n"; $flag++;
+	}
+    }
+    return ($flag, $new_groups);
+}
+
+# your last change
+sub new_users_ok {
+
+    print <<EOF;
+
+Name:	  $name
+Password: $password
+Fullname: $fullname
+Uid:	  $u_id
+Gid:	  $g_id ($group_login)
+Groups:	  $group_login $new_groups
+HOME:	  $home/$name
+Shell:	  $sh
+EOF
+
+    return &confirm_yn("Ok?", "yes");
+}
+
+# make password database
+sub new_users_pwdmkdb {
+    local($last) = @_;
+
+    system("$pwd_mkdb $etc_passwd");
+    if ($?) {
+	local($crash) = "$etc_passwd.crash$$";
+	warn "$last\n";
+	warn "``$pwd_mkdb'' failed, try to restore ...\n";
+
+	open(R, "> $crash") || die "Sorry, give up\n";
+	$j = join("\n", @passwd_backup);
+	$j =~ s/\n//;
+	print R $j . "\n";
+	close R;
+
+	system("$pwd_mkdb $crash");
+	die "Sorry, give up\n" if $?;
+	die "Successfully restore $etc_passwd. Exit.\n";
+    }
+}
+
+# update group database
+sub new_users_group_update {
+    local($e, @a);
+
+    # Add *new* group
+    if (!defined($groupname{$group_login}) &&
+	!defined($gid{$groupname{$group_login}})) {
+	push(@group_backup, "$group_login:*:$g_id:$group_login");
+	$groupname{$group_login} = $g_id;
+	$gid{$g_id} = $group_login;
+	$groupmembers{$g_id} = $group_login;
+    }
+
+    if ($new_groups || defined($groupname{$group_login}) ||
+	defined($gid{$groupname{$group_login}})) {
+	# new user is member of some groups
+	# new login group is already in name space
+	rename($group, "$group.bak");
+	#warn "$group_login $groupname{$group_login} $groupmembers{$groupname{$group_login}}\n";
+	foreach $e (sort {$a <=> $b} (keys %gid)) {
+	    push(@a, "$gid{$e}:*:$e:$groupmembers{$e}");
+	}
+	&append_file($group, @a);
+    } else {
+	&append_file($group, "$group_login:*:$g_id:$group_login");
+    }
+
+}
+
+sub new_users_passwd_update {
+    # update passwd/group variables
+    push(@passwd_backup, $new_entry);
+    $username{$name} = $u_id;
+    $uid{$u_id} = $name;
+    $pwgid{$g_id} = $name;
+}
+
+# send message to new user
+sub new_users_sendmessage {
+    return 1 if $send_message eq "no";
+
+    local($cc) =
+	&confirm_list("Send message to ``$name'' and:",
+		      1, "no", ("root", "second_mail_address", "no"));
+    local($e);
+    $cc = "" if $cc eq "no";
+
+    foreach $e (@message_buffer) {
+	print eval "\"$e\"";
+    }
+    print "\n";
+
+    local(@message_buffer_append) = ();
+    if (!&confirm_yn("Add somethings to message", "no")) {
+	print "Finish with beginning ``.'' or ^D\n";
+	push(@message_buffer_append, "\n");
+	while($read = <STDIN>) {
+	    last if $read eq "\.\n";
+	    push(@message_buffer_append, $read);
+	}
+    }
+
+    &sendmessage("$name $cc", (@message_buffer, @message_buffer_append))
+	if (&confirm_yn("Send message", "yes"));
+}
+
+sub sendmessage {
+    local($to, @message) = @_;
+    local($e);
+
+    if (!open(M, "| mail -s Welcome $to")) {
+	warn "Cannot send mail to: $to!\n";
+	return 0;
+    } else {
+	foreach $e (@message) {
+	    print M eval "\"$e\"";
+	}
+	close M;
+    }
+}
+
+
+sub new_users_password {
+
+    # empty password
+    return "" if $defaultpasswd ne "yes";
+
+    local($password);
+
+    while(1) {
+	$password = &confirm_list("Enter password", 1, "", "");
+	last if $password ne "";
+	last if &confirm_yn("Use empty password?", "yes");
+    }
+
+    return $password;
+}
+
+
+sub new_users {
 
     print "\n" if $verbose;
     print "Ok, let's go.\n" .
-          "Don't worry about mistakes. I ask you later for " .
-          "correct input.\n" if $verbose;
+	  "Don't worry about mistakes. I ask you later for " .
+	  "correct input.\n" if $verbose;
+
+    # name: Username
+    # fullname: Full name
+    # sh: shell
+    # u_id: user id
+    # g_id: group id
+    # group_login: groupname of g_id
+    # new_groups: some other groups
+    local($name, $group_login, $fullname, $sh, $u_id, $g_id, $new_groups);
+    local($groupmembers_bak, $cryptpwd);
+    local($new_users_ok) = 1;
+
+
+    $new_groups = "no";
+    $new_groups = "no" unless $groupname{$new_groups};
 
     while(1) {
-        $name = &confirm_list("Enter username", 1, $defaultname, "");
-        if ($name !~ /^[a-z0-9]+$/) {
-            warn "Wrong username. " .
-                "Please use only lowercase characters or digits\n";
-        } elsif ($username{$name}) {
-            warn "Username ``$name'' already exists!\n";
-        } else {
-            last;
-        }
+	$name = &new_users_name;
+	$fullname = &new_users_fullname($name);
+	$sh = &new_users_shell;
+	($u_id, $g_id) = &new_users_id($name);
+	($group_login, $defaultgroup) =
+	    &new_users_grplogin($name, $defaultgroup, $new_users_ok);
+	# do not use uniq username and login group
+	$g_id = $groupname{$group_login} if (defined($groupname{$group_login}));
+
+	$new_groups = &new_users_groups($name, $new_groups);
+	$password = &new_users_password;
+
+
+	if (&new_users_ok) {
+	    $new_users_ok = 1;
+
+	    $cryptpwd = "";
+	    $cryptpwd = crypt($password, &salt) if $password ne "";
+	    # obskure perl bug
+	    $new_entry = "$name\:" . "$cryptpwd" .
+		"\:$u_id\:$g_id\::0:0:$fullname:$home/$name:$sh";
+	    &append_file($etc_passwd, "$new_entry");
+	    &new_users_pwdmkdb("$new_entry");
+	    &new_users_group_update;
+	    &new_users_passwd_update;  print "Added user ``$name''\n";
+	    &new_users_sendmessage;
+	    &adduser_log("$name:*:$u_id:$g_id($group_login):$fullname");
+	    &home_create($name, $group_login);
+	} else {
+	    $new_users_ok = 0;
+	}
+	if (!&confirm_yn("Continue with next user?", "yes")) {
+	    print "Good bye.\n" if $verbose;
+	    last;
+	}
+	print "\n" if !$verbose;
     }
-    local($fullname);
-    while(($fullname = &confirm_list("Enter full name", 1, "", "")) =~ /:/) {
-        warn "``:'' is not allowed!\n";
-    }
-    $fullname = $name unless $fullname;
-    local($sh) = &confirm_list("Enter shell", 0, $defaultshell, keys %shell);
-    $sh = $shell{$sh};
-    local($u_id, $g_id) = &next_id($name);
-    print <<EOF;
+}
 
-Name:     $name
-Passwd:   no, is empty
-Fullname: $fullname
-Uid:      $u_id
-Gid:      $g_id ($name)
-HOME:     $home/$name
-Shell:    $sh
-EOF
-    if (&confirm_yn("Ok?", "yes")) {
-        local($new_entry) =
-            "$name::$u_id:$g_id::0:0:$fullname:$home/$name:$sh";
+sub batch {
+    local($name, $groups, $fullname, $password) = @_;
+    local($sh);
 
-        &append_file($etc_passwd, $new_entry);
+    $defaultshell = &shell_default_valid($defaultshell);
+    return 0 unless $home = &home_partition_valid($home);
+    return 0 if $dotdir ne &dotdir_default_valid($dotdir);
+    $send_message = &message_default;
 
-        system("$pwd_mkdb $etc_passwd");
-        if ($?) {
-            local($crash) = "$etc_passwd.crash$$";
-            warn "$pwd_mkdb failed, try to restore ...\n";
+    return 0 if $name ne &new_users_name_valid($name);
+    $sh = $shell{$defaultshell};
+    ($u_id, $g_id) = &next_id($name);
+    $group_login = &new_users_grplogin_batch($name, $defaultgroup);
+    return 0 unless $group_login;
+    $g_id = $groupname{$group_login} if (defined($groupname{$group_login}));
+    ($flag, $new_groups) = &new_users_groups_valid($groups);
+    return 0 if $flag;
 
-            open(R, "> $crash") || die "Sorry, give up\n";
-            $j = join("\n", @passwd_backup);
-            $j =~ s/\n//;
-            print R $j . "\n";
-            close R;
-
-            system("$pwd_mkdb $crash");
-            die "Sorry, give up\n" if $?;
-            die "Successfully restore $etc_passwd. Exit.\n";
-        }
-        # Add new group
-        &append_file($group, "$name:*:$g_id:$name")
-            unless $groupname{$name};
-
-        # update passwd/group variables
-        push(@passwd_backup, $new_entry);
-        $username{$name} = $u_id;
-        $uid{$u_id} = $name;
-        $pwgid{$g_id} = $name;
-        $groupname{$name} = $g_id;
-        $gid{$g_id} = $name;
-
-        print "Added user ``$name''\n";
-
-        if ($send_message && $send_message ne "no") {
-            local($m) = &confirm_list("Send message to ``$name'' and:",
-                1, "no", ("second_mail_address", "no"));
-            if ($verbose) {
-                print "send message to: ``$name''";
-                if ($m eq "no") { print "\n" } 
-                    else { print " and ``$m''\n"}
-            }
-            $m = "" if $m eq "no";
-            local($e);
-            if (!open(M, "| mail -s Welcome $name $m")) {
-                warn "Cannot send mail to: $name $m!\n";
-            } else {
-                foreach $e (@message_buffer) {
-                    print M eval "\"$e\"";
-                }
-                close M;
-            }
-        }
-
-        local($a) = &confirm_yn("Change password", $defaultpasswd);
-        local($empty_password) = "";
-        if (($a && $defaultpasswd ne "no" && $defaultpasswd) || 
-            (!$a && $defaultpasswd eq "no")) {
-            while(1) {
-                system("passwd $name");
-                if (!$?) { $empty_password = "*"; last }
-                last unless
-                    &confirm_yn("Passwd $name failed. Try again?", "yes");
-            }
-        }
-        &adduser_log("$name:$empty_password:$u_id:$g_id($name):$fullname");
-        &home_create($name);
-    }
-    if (&confirm_yn("Continue with next user?", "yes")) {
-        print "\n" if !$verbose;
-        &new_users;
-    } else {
-        print "Good by.\n" if $verbose;
-    }
+    $cryptpwd = "";
+    $cryptpwd = crypt($password, &salt) if $password ne "";
+    # obskure perl bug
+    $new_entry = "$name\:" . "$cryptpwd" .
+	"\:$u_id\:$g_id\::0:0:$fullname:$home/$name:$sh";
+    &append_file($etc_passwd, "$new_entry");
+    &new_users_pwdmkdb("$new_entry");
+    &new_users_group_update;
+    &new_users_passwd_update;  print "Added user ``$name''\n";
+    &sendmessage($name, @message_buffer) if $send_message ne "no";
+    &adduser_log("$name:*:$u_id:$g_id($group_login):$fullname");
+    &home_create($name, $group_login);
 }
 
 # ask for password usage
 sub password_default {
     local($p) = $defaultpasswd;
     if ($verbose) {
-        $p = &confirm_yn("Use passwords", $defaultpasswd);
-        $changes++ unless $p;
+	$p = &confirm_yn("Use passwords", $defaultpasswd);
+	$changes++ unless $p;
     }
     return "yes" if (($defaultpasswd eq "yes" && $p) ||
-                     ($defaultpasswd eq "no" && !$p));
+		     ($defaultpasswd eq "no" && !$p));
     return "no";    # otherwise
 }
 
@@ -411,27 +757,59 @@ sub check_root {
 
 sub usage {
     warn <<USAGE;
+usage: adduser
+    [-batch username [group[,group]...] [fullname] [password]]
+    [-check_only]
+    [-config_create]
+    [-dotdir dotdir]
+    [-group login_group]
+    [-h|-help]
+    [-home home]
+    [-message message_file]
+    [-noconfig]
+    [-shell shell]
+    [-s|-silent|-q|-quit]
+    [-uid uid_start]
+    [-v|-verbose]
 
-usage: adduser [options]
-
-OPTIONS:
--help                   this help
--silent                 opposite of verbose
--verbose                verbose
--debug                  verbose verbose
--noconfig               don't read config-file
--home home              default HOME partition [$home]
--shell shell            default SHELL [$defaultshell]
--dotdir dir             copy files from dir, default [$dotdir]
--message file           send message to new users [$send_message]
--create_conf            create configuration/message file and exit
+home=$home shell=$defaultshell dotdir=$dotdir login_group=$defaultgroup
+message_file=$send_message uid_start=$uid_start
 USAGE
     exit 1;
 }
 
+# uniq(1)
+sub uniq {
+    local(@list) = @_;
+    local($e, $last, @array);
+
+    foreach $e (sort @list) {
+	push(@array, $e) unless $e eq $last;
+	$last = $e;
+    }
+    return @array;
+}
+
+# see /usr/src/usr.bin/passwd/local_passwd.c or librcypt
+sub salt {
+    local($salt) = '_';
+    local($i);
+
+    srand;
+
+    # to64
+    while(1) {
+	$i = sprintf("%c", rand(256));
+	$salt .= $i if $i =~ /[A-Za-z0-9]/;
+	last if length($salt) == 8;
+    }
+
+    return $salt;
+}
+
 # print banner
 sub copyright {
-    print <<EOF;
+    print <<'EOF';
 (c) Copyright 1995 Wolfram Schneider <wosch@cs.tu-berlin.de>
 EOF
 }
@@ -439,11 +817,11 @@ EOF
 # hints
 sub hints {
     if ($verbose) {
-        print "Use option ``-silent'' if you don't want see " .
-              "some warnings & questions.\n\n";
+	print "Use option ``-silent'' if you don't want see " .
+	      "some warnings & questions.\n\n";
     } else {
-        print "Use option ``-verbose'' if you want see more warnings & " .
-              "questions \nor try to repair bugs.\n\n";
+	print "Use option ``-verbose'' if you want see more warnings & " .
+	      "questions \nor try to repair bugs.\n\n";
     }
 }
 
@@ -452,37 +830,44 @@ sub parse_arguments {
     local(@argv) = @_;
 
     while ($_ = $argv[0], /^-/) {
-        shift @argv;
-        last if /^--$/;
-        if    (/^--?(verbose)$/)        { $verbose = 1 }
-        elsif (/^--?(silent|guru|wizard|quit)$/) { $verbose = 0 }
-        elsif (/^--?(debug)$/)          { $verbose = 2 }
-        elsif (/^--?(h|help|\?)$/)      { &usage }
-        elsif (/^--?(home)$/)           { $home = $argv[0]; shift @argv }
-        elsif (/^--?(shell)$/)          { $defaultshell = $argv[0]; 
-                                          shift @argv }
-        elsif (/^--?(dotdir)$/)         { $dotdir = $argv[0]; shift @argv }
-        elsif (/^--?(message)$/)        { $send_message = $argv[0]; shift @argv;
-                                          $sendmessage = 1; }
-        # see &config_read
-        elsif (/^--?(create_conf)$/)    { &create_conf; }
-        elsif (/^--?(noconfig)$/)       { $config_read = 0; }
-        else                            { &usage }
+	shift @argv;
+	last if /^--$/;
+	if    (/^--?(v|verbose)$/)	{ $verbose = 1 }
+	elsif (/^--?(s|silent|q|quit)$/)  { $verbose = 0 }
+	elsif (/^--?(debug)$/)	    { $verbose = 2 }
+	elsif (/^--?(h|help|\?)$/)	{ &usage }
+	elsif (/^--?(home)$/)	 { $home = $argv[0]; shift @argv }
+	elsif (/^--?(shell)$/)	 { $defaultshell = $argv[0]; shift @argv }
+	elsif (/^--?(dotdir)$/)	 { $dotdir = $argv[0]; shift @argv }
+	elsif (/^--?(uid)$/)	 { $uid_start = $argv[0]; shift @argv }
+	elsif (/^--?(group)$/)	 { $defaultgroup = $argv[0]; shift @argv }
+	elsif (/^--?(check_only)$/) { $check_only = 1 }
+	elsif (/^--?(message)$/) { $send_message = $argv[0]; shift @argv;
+				   $sendmessage = 1; }
+	elsif (/^--?(batch)$/)	 {
+	    @batch = splice(@argv, 0, 4); $verbose = 0;
+	    die "batch: to few arguments\n" if $#batch < 0;
+	}
+	# see &config_read
+	elsif (/^--?(config_create)$/)	{ &create_conf; }
+	elsif (/^--?(noconfig)$/)	{ $config_read = 0; }
+	else			    { &usage }
     }
     #&usage if $#argv < 0;
 }
 
 sub basename {
     local($name) = @_;
-    $name =~ s|.*/||;
+    $name =~ s|/+$||;
+    $name =~ s|.*/+||;
     return $name;
 }
 
 sub dirname {
     local($name) = @_;
-    $name =~ s|[/]+$||;             # delete any / at end 
-    $name =~ s|[^/]+$||;
-    $name = "/" unless $name;       # dirname of / is / 
+    $name = &stripdir($name);
+    $name =~ s|/+[^/]+$||;
+    $name = "/" unless $name;	# dirname of / is /
     return $name;
 }
 
@@ -491,14 +876,14 @@ sub filetest {
     local($file, $verb) = @_;
 
     if (-e $file) {
-        if (-f $file || -l $file) {
-            return 1 if -r _;
-            warn "$file unreadable\n" if $verb;
-        } else {
-            warn "$file is not a plain file or link\n" if $verb;
-        }
+	if (-f $file || -l $file) {
+	    return 1 if -r _;
+	    warn "$file unreadable\n" if $verbose;
+	} else {
+	    warn "$file is not a plain file or link\n" if $verbose;
+	}
     }
-    return 0; 
+    return 0;
 }
 
 # create configuration files and exit
@@ -520,8 +905,8 @@ sub adduser_log {
     $mon++;
 
     foreach $e ('sec', 'min', 'hour', 'mday', 'mon', 'year') {
-        # '7' -> '07'
-        eval "\$$e = 0 . \$$e" if (eval "\$$e" < 10);   
+	# '7' -> '07'
+	eval "\$$e = 0 . \$$e" if (eval "\$$e" < 10);
     }
 
     &append_file($logfile, "$year/$mon/$mday $hour:$min:$sec $string");
@@ -529,65 +914,110 @@ sub adduser_log {
 
 # create HOME directory, copy dotfiles from $dotdir to $HOME
 sub home_create {
-    local($name) = @_;
-    local(@list);
-    local($e,$from, $to);
+    local($name, $group) = @_;
+    local($homedir) = "$home/$name";
 
-    print "Create HOME directory\n" if $verbose;
-    if(!mkdir("$home/$name", 0755)) {
-        warn "Cannot create HOME directory for user ``$home/$name'': $!\n";
-        return 0;
+    if (-e "$homedir") {
+	warn "HOME Directory ``$homedir'' already exist\a\n";
+	return 0;
     }
-    push(@list, "$home/$name");
-    if ($dotdir && $dotdir ne "no") {
-        opendir(D, "$dotdir") || warn "$dotdir: $!\n";
-        foreach $from (readdir(D)) {
-            if ($from !~ /^(\.|\.\.)$/) {
-                $to = $from;
-                $to =~ s/^dot\././;
-                $to = "$home/$name/$to";
-                push(@list, $to);
-                &cp("$dotdir/$from", "$to", 1);
-            }
-        }
-        closedir D;
+
+    # copy files from  $dotdir to $homedir
+    # rename 'dot.foo' files to '.foo'
+    print "Copy files from $dotdir to $homedir\n" if $verbose;
+    system("cp -r $dotdir $homedir");
+    system("chmod -R u+wrX,go-w $homedir");
+    system("chown -R $name:$group $homedir");
+
+    # security
+    opendir(D, $homedir);
+    foreach $file (readdir(D)) {
+	if ($file =~ /^dot\./ && -f "$homedir/$file") {
+	    $file =~ s/^dot\././;
+	    rename("$homedir/dot$file", "$homedir/$file");
+	}
+	chmod(0600, "$homedir/$file")
+	    if ($file =~ /^\.(rhosts|Xauthority|kermrc|netrc)$/);
+	chmod(0700, "$homedir/$file")
+	    if ($file =~ /^(Mail|prv|\.(iscreen|term))$/);
     }
-    #warn "Chown: $name, $name, @list\n";
-    #chown in perl does not work 
-    system("chown $name:$name @list") || warn "$!\n" && return 0;
+    closedir D;
     return 1;
 }
 
 # makes a directory hierarchy
-sub mkdirhier {
+sub mkdir_home {
     local($dir) = @_;
+    $dir = &stripdir($dir);
+    local($user_partition) = "/usr";
+    local($dirname) = &dirname($dir);
 
-    if ($dir =~ "^/[^/]+$") {
-        print "Create /usr/$dir\n" if $verbose;
-        if (!mkdir("/usr$dir", 0755)) {
-            warn "/usr/$dir: $!\n"; return 0;
-        }
-        print "Create symlink: /usr$dir -> $dir\n" if $verbose;
-        if (!symlink("/usr$dir", $dir)) {
-            warn "$dir: $!\n"; return 0;
-        }
+
+    -e $dirname || &mkdirhier($dirname);
+
+    if (((stat($dirname))[0]) == ((stat("/"))[0])){
+	# home partition is on root partition
+	# create home partition on $user_partition and make
+	# a symlink from $dir to $user_partition/`basename $dir`
+	# For instance: /home -> /usr/home
+
+	local($basename) = &basename($dir);
+	local($d) = "$user_partition/$basename";
+
+
+	if (-d $d) {
+	    warn "Oops, $d already exist\n" if $verbose;
+	} else {
+	    print "Create $d\n" if $verbose;
+	    if (!mkdir("$d", 0755)) {
+		warn "$d: $!\a\n"; return 0;
+	    }
+	}
+
+	unlink($dir);		# symlink to nonexist file
+	print "Create symlink: $dir -> $d\n" if $verbose;
+	if (!symlink("$d", $dir)) {
+	    warn "Symlink $d: $!\a\n"; return 0;
+	}
     } else {
-        local($d,$p);
-        foreach $d (split('/', $dir)) {
-            $dir = "$p/$d";
-            $dir =~ s|^//|/|;
-            if (! -e "$dir") {
-                print "Create $dir\n" if $verbose;
-                if (!mkdir("$dir", 0755)) {
-                    warn "$dir: $!\n"; return 0;
-                }
-            }
-            $p .= "/$d";
-        }
+	print "Create $dir\n" if $verbose;
+	if (!mkdir("$dir", 0755)) {
+	    warn "Directory ``$dir'': $!\a\n"; return 0;
+	}
     }
     return 1;
 }
 
+sub mkdirhier {
+    local($dir) = @_;
+    local($d,$p);
+
+    $dir = &stripdir($dir);
+
+    foreach $d (split('/', $dir)) {
+	$dir = "$p/$d";
+	$dir =~ s|^//|/|;
+	if (! -e "$dir") {
+	    print "Create $dir\n" if $verbose;
+	    if (!mkdir("$dir", 0755)) {
+		warn "$dir: $!\n"; return 0;
+	    }
+	}
+	$p .= "/$d";
+    }
+    return 1;
+}
+
+# stript unused '/'
+# F.i.: //usr///home// -> /usr/home
+sub stripdir {
+    local($dir) = @_;
+
+    $dir =~ s|/+|/|g;		# delete double '/'
+    $dir =~ s|/$||;		# delete '/' at end
+    return $dir if $dir ne "";
+    return '/';
+}
 
 # Read one of the elements from @list. $confirm is default.
 # If !$allow accept only elements from @list.
@@ -595,151 +1025,136 @@ sub confirm_list {
     local($message, $allow, $confirm, @list) = @_;
     local($read, $c, $print);
 
-    $print = "$message " if $message;
-    $print .= "@list ";
+    $print = "$message" if $message;
+    $print .= " " unless $message =~ /\n$/ || $#list == 0;
+
+    $print .= join($", &uniq(@list)); #"
+    $print .= " " unless $message =~ /\n$/ && $#list == 0;
     print "$print";
-    print "\n " if length($print) > 50;
+    print "\n" if (length($print) + length($confirm)) > 60;
     print "[$confirm]: ";
 
     chop($read = <STDIN>);
-    $read =~ s/^[ \t]*//;
-    $read =~ s/[ \t\n]*$//;
-    return $confirm unless $read;
-    return $read if $allow;
+    $read =~ s/^\s*//;
+    $read =~ s/\s*$//;
+    return $confirm if $read eq "";
+    return "$read" if $allow;
 
     foreach $c (@list) {
-        return $read if $c eq $read;
+	return $read if $c eq $read;
     }
-    warn "$read: is not allowed!\n";
+    warn "$read: is not allowed!\a\n";
     return &confirm_list($message, $allow, $confirm, @list);
 }
 
 # YES or NO question
 # return 1 if &confirm("message", "yes") and answer is yes
-#       or if &confirm("message", "no") an answer is no
+#	or if &confirm("message", "no") an answer is no
 # otherwise 0
 sub confirm_yn {
     local($message, $confirm) = @_;
-    local($yes) = "^(yes|YES|y|Y)$";
-    local($no) = "^(no|NO|n|N)$";
+    local($yes) = '^(yes|YES|y|Y)$';
+    local($no) = '^(no|NO|n|N)$';
     local($read, $c);
 
     if ($confirm && ($confirm =~ "$yes" || $confirm == 1)) {
-        $confirm = "y";
+	$confirm = "y";
     } else {
-        $confirm = "n";
+	$confirm = "n";
     }
     print "$message (y/n) [$confirm]: ";
     chop($read = <STDIN>);
-    $read =~ s/^[ \t]*//;
-    $read =~ s/[ \t\n]*$//;
+    $read =~ s/^\s*//;
+    $read =~ s/\s*$//;
     return 1 unless $read;
 
     if (($confirm eq "y" && $read =~ "$yes") ||
-        ($confirm eq "n" && $read =~ "$no")) {
-        return 1;
+	($confirm eq "n" && $read =~ "$no")) {
+	return 1;
     }
 
     if ($read !~ "$yes" && $read !~ "$no") {
-        warn "Wrong value. Enter again!\a\n";
-        return &confirm_yn($message, $confirm);
+	warn "Wrong value. Enter again!\a\n";
+	return &confirm_yn($message, $confirm);
     }
     return 0;
 }
 
 # test if $dotdir exist
+# return "no" if $dotdir not exist or dotfiles should not copied
 sub dotdir_default {
-    #$dotdir = "no" unless $dotdir;
     local($dir) = $dotdir;
-    local($oldverbose) = $verbose;
 
-    if ($dir !~ "^/") {
-        warn "Please use absulote path for dotdir: ``$dir''\n";
-        $dir = "no";
-        $verbose++ unless $verbose;
-    }
+    return &dotdir_default_valid($dir) unless $verbose;
     while($verbose) {
-        $dir = &confirm_list("Copy dotfiles from:", 1, 
-            $dir, ("no", $dir));
-        last if $dir eq "no";
-        last if (-e $dir && -r _ && (-d _ || -l $dir));
-        last if !&confirm_yn("Dotdir ``$dir'' is not a dir. Try again", "yes");
+	$dir = &confirm_list("Copy dotfiles from:", 1,
+	    $dir, ("no", $dotdir_bak, $dir));
+	last if $dir eq &dotdir_default_valid($dir);
     }
-    unless (-e $dir && -r _ && (-d _ || -l $dir)) {
-        warn "Directory: $dir does not exist or unreadable.\n" 
-            if $dir ne "no";
-        warn "Do not copy dotfiles.\n"; 
-        $dir = "no";
-    }
+    warn "Do not copy dotfiles.\n" if $verbose && $dir eq "no";
+
     $changes++ if $dir ne $dotdir;
-    $verbose = $oldverbose;
     return $dir;
+}
+
+sub dotdir_default_valid {
+    local($dir) = @_;
+
+    return $dir if (-e $dir && -r _ && (-d _ || -l $dir) && $dir =~ "^/");
+    return $dir if $dir eq "no";
+    warn "Dotdir ``$dir'' is not a directory\a\n";
+    return "no";
 }
 
 # ask for messages to new users
 sub message_default {
     local($file) = $send_message;
-    local(@d); 
-
-    push(@d, $file);
-    push(@d, "no") if $file ne "no";
-    if (!&filetest($file, 1) && $file ne "no") {
-        if (! -e $file && 
-                &confirm_yn("Create message file ``$file''?", "yes")) {
-            &message_create($file);
-        } else {
-            $file = "no";
-        }
-    }
+    local(@d) = ($file, $send_message_bak, "no");
 
     while($verbose) {
-        $file = &confirm_list("Send message from file: ", 1, 
-            $file, @d);
-        last if $file eq "no";
-        if (&filetest($file, 1)) {
-            last;
-        } else {
-            &message_create($file) if ! -e $file &&
-                &confirm_yn("Create ``$file''?", "yes");
-            last if &filetest($file, 0);
-            last if !&confirm_yn(
-                "File ``$file'' does not exist, try again?", "yes");
-        }
-    }
-    if ($file eq "no" || !&filetest($file, 0)) {
-        warn "Do not send message\n" if $verbose;
-        $file = "no";
-    } else {
-        &message_read($file);
+	$file = &confirm_list("Send message from file:", 1, $file, @d);
+	last if $file eq "no";
+	last if &filetest($file, 1);
+
+	# maybe create message file
+	&message_create($file) if &confirm_yn("Create ``$file''?", "yes");
+	last if &filetest($file, 0);
+	last if !&confirm_yn("File ``$file'' does not exist, try again?",
+			     "yes");
     }
 
-    $changes++ if $file ne $send_message;
+    if ($file eq "no" || !&filetest($file, 0)) {
+	warn "Do not send message\n" if $verbose;
+	$file = "no";
+    } else {
+	&message_read($file);
+    }
+
+    $changes++ if $file ne $send_message && $verbose;
     return $file;
 }
 
 # create message file
 sub message_create {
     local($file) = @_;
-    local($dir) = &dirname($file);
 
-    if (! -d $dir) {
-        return 0 unless &mkdirhier($dir);
-    }
+    rename($file, "$file.bak");
     if (!open(M, "> $file")) {
-        warn "Messagefile ``$file'': $!\n"; return 0;
+	warn "Messagefile ``$file'': $!\n"; return 0;
     }
     print M <<EOF;
 #
 # Message file for adduser(8)
 #   comment: ``#''
-#   defaultvariables: \$name, \$fullname
-#   other variables:  see /etc/adduser.conf after 
-#                     line  ``$do_not_delete''
+#   defaultvariables: \$name, \$fullname, \$password
+#   other variables:  see /etc/adduser.conf after
+#		     line  ``$do_not_delete''
 #
 
 \$fullname,
 
-your account ``\$name'' was created. Have fun!
+your account ``\$name'' was created. Your password is ``\$password''.
+Please expire your password. Have fun!
 
 See also chpass(1), finger(1), passwd(1)
 EOF
@@ -753,11 +1168,12 @@ sub message_read {
     @message_buffer = '';
 
     if (!open(R, "$file")) {
-        warn "File ``$file'':$!\n"; return 0;
+	warn "File ``$file'':$!\n"; return 0;
     }
     while(<R>) {
-        push(@message_buffer, $_) unless /^[ \t]*#/;
+	push(@message_buffer, $_) unless /^\s*#/;
     }
+    close R;
 }
 
 # write @list to $file with file-locking
@@ -781,133 +1197,92 @@ sub append_file {
 sub next_id {
     local($group) = @_;
 
+    $uid_start = 1000 if ($uid_start <= 0 || $uid_start >= $uid_end);
     # looking for next free uid
     while($uid{$uid_start}) {
-        $uid_start++;
-        print "$uid_start\n" if $verbose > 1;
+	$uid_start++;
+	$uid_start = 1000 if $uid_start >= $uid_end;
+	print "$uid_start\n" if $verbose > 1;
     }
 
     local($gid_start) = $uid_start;
     # group for user (username==groupname) already exist
     if ($groupname{$group}) {
-        $gid_start = $groupname{$group};
+	$gid_start = $groupname{$group};
     }
     # gid is in use, looking for another gid.
     # Note: uid an gid are not equal
     elsif ($gid{$uid_start}) {
-        while($gid{$gid_start} || $uid{$gid_start}) {
-            $gid_start--;
-            $gid_start = $uid_end if $gid_start < 100;
-        }
+	while($gid{$gid_start} || $uid{$gid_start}) {
+	    $gid_start--;
+	    $gid_start = $uid_end if $gid_start < 100;
+	}
     }
     return ($uid_start, $gid_start);
-}
-
-# cp(1)
-sub cp {
-    local($from, $to, $tilde) = @_;
-
-    if (-e "$to") {
-        warn "cp: ``$to'' already exist, do not overwrite\n"; return 0;
-    } elsif (!(-f $from || -l $from)) {
-        warn "$from is not a file or symlink!\n"; return 0;
-    } elsif (!open(F, "$from")) {
-        warn "$from: $!\n"; return 0;
-    } elsif (!open(T, "> $to")) {
-        warn "$to: $!\n"; return 0;
-    }
-
-    if ($tilde) {
-        $tilde = $to;
-        $tilde =~ s|.*/([^/]+/[^/]+)$|~$1|;
-    } else {
-        $tilde = $to;
-    }
-    print "copy $from to $tilde\n" if $verbose;
-    while(<F>) {
-        print T $_;
-    }
-
-    close F;
-    close T;
-    return 1;
 }
 
 # read config file
 sub config_read {
     local($opt) = @_;
-    local($ev);     # evaluate variable or list
     local($user_flag) = 0;
-       
-    return 1 if $opt =~ /-(noconfig|create_conf)/;    # don't read config file
 
-    if ($config_read && -f $config) {
-        if(!open(C, "$config")) {
-            warn "$config: $!\n"; return 0;
-        }
-        print "Read config file: $config" if $verbose > 1;
-        while(<C>) {
-            chop;
-            /^$do_not_delete/ && $user_flag++;
-            if (/^[ \t]*[a-zA-Z_-]+[ \t]*=/) {
-                # prepare for evaluating
-                s/#.*$//;
-                s/^[ \t]+//;
-                s/[ \t;]+$//;
-                s/[ \t]*=[ \t]*/=/;
-                s/=(.*)/="$1"/ unless /=['"(]/;
+    # don't read config file
+    return 1 if $opt =~ /-(noconfig|config_create)/ || !$config_read;
 
-                print "$_\n" if $verbose > 1;
-                if (/=\(/) {    # perl list
-                    $ev = "\@";
-                } else {            # perl variable
-                    $ev = "\$";
-                }
-                eval "$ev$_" || warn "Ignore garbage: $ev $_\n";
-                push(@user_variable_list, "$_\n") if $user_flag;
-            }
-        }   
+    if(!open(C, "$config")) {
+	warn "$config: $!\n"; return 0;
     }
+
+    while(<C>) {
+	# user defined variables
+	/^$do_not_delete/ && $user_flag++;
+	# found @array or $variable
+	if (s/^(\w+\s*=\s*\()/\@$1/ || s/^(\w+\s*=)/\$$1/) {
+	    eval $_;
+	    #warn "$_";
+	}
+	# lines with '^##' are not saved
+	push(@user_variable_list, $_)
+	    if $user_flag && !/^##/ && (s/^[\$\@]// || /^[#\s]/);
+    }
+    #warn "X @user_variable_list X\n";
+    close C;
 }
+
 
 # write config file
 sub config_write {
     local($silent) = @_;
 
-    if (($changes || ! -e $config || !$config_read) || $silent) {
-        if (!$silent) {
-            if (-e $config) {
-                return 1 if 
-                    &confirm_yn("\nWrite your changes to $config?", "no");
-            } else {
-                return 1 unless
-            &confirm_yn("\nWrite your configuration to $config?", "yes");
-            }
-        }
+    # nothing to do
+    return 1 unless ($changes || ! -e $config || !$config_read || $silent);
 
-        local($dir) = &dirname($config);
-        if (! -d $dir && !&mkdirhier($dir)) {
-            warn "Cannot save your configuration\n";
-            return 0;
-        }
+    if (!$silent) {
+	if (-e $config) {
+	    return 1 if &confirm_yn("\nWrite your changes to $config?", "no");
+	} else {
+	    return 1 unless
+		&confirm_yn("\nWrite your configuration to $config?", "yes");
+	}
+    }
 
-        if(!open(C, "> $config")) {
-            warn "$config: $!\n"; return 0;
-        }
-        # prepare some variables
-        $send_message = "no" unless $send_message;
-        $defaultpasswd = "no" unless $defaultpasswd;
-        local($shpref) = "'" . join("', '", @shellpref) . "'";
-        local($shpath) = "'" . join("', '", @path) . "'";
-        local($user_var) = join('', @user_variable_list);
+    rename($config, "$config.bak");
+    open(C, "> $config") || die "$config: $!\n";
 
-        print C <<EOF;
+    # prepare some variables
+    $send_message = "no" unless $send_message;
+    $defaultpasswd = "no" unless $defaultpasswd;
+    local($shpref) = "'" . join("', '", @shellpref) . "'";
+    local($shpath) = "'" . join("', '", @path) . "'";
+    local($user_var) = join('', @user_variable_list);
+
+    print C <<EOF;
 #
 # $config - automatic generated by adduser(8)
 #
 # Note: adduser read *and* write this file.
-#       You may change values, but don't add new things befor the
-#       line ``## DO NOT DELETE THIS LINE!''
+#	You may change values, but don't add new things befor the
+#	line ``$do_not_delete''
 #
 
 # verbose = [0-2]
@@ -943,54 +1318,58 @@ shellpref = ($shpref)
 # defaultshell if not empty ("bash")
 defaultshell = "$defaultshell"
 
+# defaultgroup ('USER' for same as username or any other valid group
+defaultgroup = $defaultgroup
+
 # new users get this uid (1000)
 uid_start = 1000
 
 $do_not_delete
 ## your own variables, see /etc/adduser.message
-## Warning: this may be a security hole!
 $user_var
 
-# end
+## end
 EOF
-        close C;
-    }
+    close C;
 }
 
 ################
 # main
 #
-$test = 0;              # test mode, only for development
+$test = 0;	      # test mode, only for development
+$check_only = 0;
 
-# init
-#&usage if $ARGV[0] =~ /^--?(help|h|\?)$/; # help if you are not root
-&check_root;            # you must be root to run this script!
-&variables;             # initialize variables
-&config_read(@ARGV);    # read variables form config-file
+&check_root;	    # you must be root to run this script!
+&variables;	     # initialize variables
+&config_read(@ARGV);	# read variables form config-file
 &parse_arguments(@ARGV);    # parse arguments
 
-# 
-&copyright;
-&hints;
+if (!$check_only &&  $#batch < 0) {
+    &copyright; &hints;
+}
 
 # check
 $changes = 0;
-&passwd_check;          # check for valid passwdb
-&shells_read;           # read /etc/shells
-&passwd_read;           # read /etc/master.passwd
-&group_read;            # read /etc/group
-&group_check;           # check for incon*
+&passwd_check;			# check for valid passwdb
+&shells_read;			# read /etc/shells
+&passwd_read;			# read /etc/master.passwd
+&group_read;			# read /etc/group
+&group_check;			# check for incon*
+exit 0 if $check_only;		# only check consistence and exit
 
+exit(!&batch(@batch)) if $#batch >= 0; # batch mode
+
+# interactive
 # some questions
-&shells_add;                     # maybe add some new shells
-$defaultshell = &shell_default;  # enter default shell
-$home = &home_partition;         # find HOME partition
-$dotdir = &dotdir_default;       # check $dotdir
+&shells_add;			# maybe add some new shells
+$defaultshell = &shell_default;	# enter default shell
+$home = &home_partition($home);	# find HOME partition
+$dotdir = &dotdir_default;	# check $dotdir
 $send_message = &message_default;   # send message to new user
 $defaultpasswd = &password_default; # maybe use password
-&config_write(0);                   # write variables in file
+&config_write(0);		   # write variables in file
 
 # main loop for creating new users
-&new_users;             # add new users
+&new_users;	     # add new users
 
 #end
