@@ -3197,6 +3197,98 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 	bp->b_npages = newnpages;
 }
 
+/*
+ * Map an IO request into kernel virtual address space.
+ *
+ * All requests are (re)mapped into kernel VA space.
+ * Notice that we use b_bufsize for the size of the buffer
+ * to be mapped.  b_bcount might be modified by the driver.
+ */
+int
+vmapbuf(struct buf *bp)
+{
+	caddr_t addr, v, kva;
+	vm_offset_t pa;
+	int pidx;
+	int i;
+	struct vm_page *m;
+
+	if ((bp->b_flags & B_PHYS) == 0)
+		panic("vmapbuf");
+
+	for (v = bp->b_saveaddr,
+		     addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data),
+		     pidx = 0;
+	     addr < bp->b_data + bp->b_bufsize;
+	     addr += PAGE_SIZE, v += PAGE_SIZE, pidx++) {
+		/*
+		 * Do the vm_fault if needed; do the copy-on-write thing
+		 * when reading stuff off device into memory.
+		 */
+retry:
+		i = vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
+			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
+		if (i < 0) {
+			printf("vmapbuf: warning, bad user address during I/O\n");
+			for (i = 0; i < pidx; ++i) {
+			    vm_page_unhold(bp->b_pages[i]);
+			    bp->b_pages[i] = NULL;
+			}
+			return(-1);
+		}
+
+		/*
+		 * WARNING!  If sparc support is MFCd in the future this will
+		 * have to be changed from pmap_kextract() to pmap_extract()
+		 * ala -current.
+		 */
+#ifdef __sparc64__
+#error "If MFCing sparc support use pmap_extract"
+#endif
+		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
+		if (pa == 0) {
+			printf("vmapbuf: warning, race against user address during I/O");
+			goto retry;
+		}
+		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_hold(m);
+		bp->b_pages[pidx] = m;
+	}
+	if (pidx > btoc(MAXPHYS))
+		panic("vmapbuf: mapped more than MAXPHYS");
+	pmap_qenter((vm_offset_t)bp->b_saveaddr, bp->b_pages, pidx);
+	
+	kva = bp->b_saveaddr;
+	bp->b_npages = pidx;
+	bp->b_saveaddr = bp->b_data;
+	bp->b_data = kva + (((vm_offset_t) bp->b_data) & PAGE_MASK);
+	return(0);
+}
+
+/*
+ * Free the io map PTEs associated with this IO operation.
+ * We also invalidate the TLB entries and restore the original b_addr.
+ */
+void
+vunmapbuf(bp)
+	register struct buf *bp;
+{
+	int pidx;
+	int npages;
+	vm_page_t *m;
+
+	if ((bp->b_flags & B_PHYS) == 0)
+		panic("vunmapbuf");
+
+	npages = bp->b_npages;
+	pmap_qremove(trunc_page((vm_offset_t)bp->b_data),
+		     npages);
+	m = bp->b_pages;
+	for (pidx = 0; pidx < npages; pidx++)
+		vm_page_unhold(*m++);
+
+	bp->b_data = bp->b_saveaddr;
+}
 
 #include "opt_ddb.h"
 #ifdef DDB

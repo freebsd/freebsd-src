@@ -291,69 +291,6 @@ setredzone(pte, vaddr)
 #endif
 
 /*
- * Map an IO request into kernel virtual address space.
- *
- * All requests are (re)mapped into kernel VA space.
- * Notice that we use b_bufsize for the size of the buffer
- * to be mapped.  b_bcount might be modified by the driver.
- */
-void
-vmapbuf(bp)
-	register struct buf *bp;
-{
-	register caddr_t addr, v, kva;
-	vm_offset_t pa;
-
-	if ((bp->b_flags & B_PHYS) == 0)
-		panic("vmapbuf");
-
-	for (v = bp->b_saveaddr, addr = (caddr_t)trunc_page(bp->b_data);
-	    addr < bp->b_data + bp->b_bufsize;
-	    addr += PAGE_SIZE, v += PAGE_SIZE) {
-		/*
-		 * Do the vm_fault if needed; do the copy-on-write thing
-		 * when reading stuff off device into memory.
-		 */
-		vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
-			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
-		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
-		if (pa == 0)
-			panic("vmapbuf: page not present");
-		vm_page_hold(PHYS_TO_VM_PAGE(pa));
-		pmap_kenter((vm_offset_t) v, pa);
-	}
-
-	kva = bp->b_saveaddr;
-	bp->b_saveaddr = bp->b_data;
-	bp->b_data = kva + (((vm_offset_t) bp->b_data) & PAGE_MASK);
-}
-
-/*
- * Free the io map PTEs associated with this IO operation.
- * We also invalidate the TLB entries and restore the original b_addr.
- */
-void
-vunmapbuf(bp)
-	register struct buf *bp;
-{
-	register caddr_t addr;
-	vm_offset_t pa;
-
-	if ((bp->b_flags & B_PHYS) == 0)
-		panic("vunmapbuf");
-
-	for (addr = (caddr_t)trunc_page(bp->b_data);
-	    addr < bp->b_data + bp->b_bufsize;
-	    addr += PAGE_SIZE) {
-		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
-		pmap_kremove((vm_offset_t) addr);
-		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
-	}
-
-	bp->b_data = bp->b_saveaddr;
-}
-
-/*
  * Force reset the processor by invalidating the entire address space!
  */
 void
