@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.22 1994/09/29 08:24:45 sos Exp $
+ *	$Id: clock.c,v 1.23 1994/10/04 13:59:44 ache Exp $
  */
 
 /*
@@ -75,6 +75,7 @@ static	int beeping;
 int 	timer0_divisor = TIMER_DIV(100);	/* XXX should be hz */
 u_int 	timer0_prescale;
 int	adjkerntz = 0;	/* offset from CMOS clock */
+int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
 static 	char timer0_state = 0, timer2_state = 0;
 static 	char timer0_reprogram = 0;
 static 	void (*timer_func)() = hardclock;
@@ -465,6 +466,9 @@ void resettodr()
 	unsigned long	tm;
 	int		y, m, fd, r, s;
 
+	if (disable_rtc_set)
+		return;
+
 	s = splclock();
 	tm = time.tv_sec;
 	splx(s);
@@ -472,7 +476,7 @@ void resettodr()
 	/* First, disable clock	updates	*/
 	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 
-	/* Calculate local time	to put in CMOS */
+	/* Calculate local time	to put in RTC */
 
 	tm -= tz.tz_minuteswest * 60 + adjkerntz;
 
