@@ -412,8 +412,18 @@ tcp_ctloutput(op, so, level, optname, mp)
 	return (error);
 }
 
-u_long	tcp_sendspace = 1024*8;
-u_long	tcp_recvspace = 1024*8;
+/*
+ * tcp_sendspace and tcp_recvspace are the default send and receive window
+ * sizes, respectively.  These are obsolescent (this information should
+ * be set by the route).
+ */
+#ifdef TCP_SMALLSPACE
+u_long	tcp_sendspace = 1024*4;
+u_long	tcp_recvspace = 1024*4;
+#else
+u_long	tcp_sendspace = 1024*16;
+u_long	tcp_recvspace = 1024*16;
+#endif
 
 /*
  * Attach TCP protocol to socket, allocating
