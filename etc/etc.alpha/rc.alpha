@@ -15,3 +15,11 @@ case ${osf1_enable} in
 esac
 
 echo '.'
+
+# knob for wether or not we should print out unaligned access warnings
+#
+case ${unaligned_print} in
+[Nn][Oo])
+       sysctl -w machdep.unaligned_print=0
+       ;;
+esac
