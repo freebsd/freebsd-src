@@ -300,38 +300,6 @@ static const char *fstypenames[] = {
 #define DIOCWDINFO	_IOW('d', 103, struct disklabel)/* set, update disk */
 #define DIOCBSDBB	_IOW('d', 110, void *)	/* write bootblocks */
 
-#ifdef _KERNEL
-
-/*
- * XXX encoding of disk minor numbers, should be elsewhere.
- *
- * See <sys/reboot.h> for a possibly better encoding.
- *
- * "cpio -H newc" can be used to back up device files with large minor
- * numbers (but not ones >= 2^31).  Old cpio formats and all tar formats
- * don't have enough bits, and cpio and tar don't notice the lossage.
- * There are also some sign extension bugs.
- */
-
-/*
-       3                   2                   1                   0
-     1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
-    _________________________________________________________________
-    | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-    -----------------------------------------------------------------
-    |    SPARE    |UNIT_2 | SLICE   |  MAJOR?       |  UNIT   |PART |
-    -----------------------------------------------------------------
-*/
-
-#define	DKMAXUNIT	0x1ff
-
-#define	dkmakeminor(unit, slice, part) \
-				(((slice) << 16) | (((unit) & 0x1e0) << 16) | \
-				(((unit) & 0x1f) << 3) | (part))
-
-#endif /* _KERNEL */
-
-
 #ifndef _KERNEL
 __BEGIN_DECLS
 struct disklabel *getdiskbyname(const char *);
