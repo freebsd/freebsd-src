@@ -79,15 +79,6 @@ static driver_intr_t	pcicintr;
 static int		pcicintr1(void *);
 static timeout_t 	pcictimeout;
 
-static int pcic_override_irq = 0;
-TUNABLE_INT("machdep.pccard.pcic_irq", &pcic_override_irq);
-TUNABLE_INT("hw.pcic.irq", &pcic_override_irq);
-SYSCTL_DECL(_hw_pcic);
-SYSCTL_INT(_hw_pcic, OID_AUTO, override_irq, CTLFLAG_RD,
-    &pcic_override_irq, 0,
-    "Override the IRQ configured by the config system for all pcic devices");
-
-
 /*
  *	Look for an Intel PCIC (or compatible).
  *	For each available slot, allocate a PC-CARD slot.
