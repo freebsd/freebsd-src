@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.23 1995/10/06 19:30:43 wollman Exp $
+ * $Id: ip_mroute.c,v 1.24 1995/10/29 15:32:35 phk Exp $
  */
 
 
@@ -58,7 +58,7 @@
  */
 
 struct socket  *ip_mrouter  = NULL;
-u_int		ip_mrtproto = 0;
+static u_int		ip_mrtproto = 0;
 struct mrtstat	mrtstat;
 u_int		rsvpdebug = 0;
 
@@ -197,7 +197,7 @@ struct mrtstat	mrtstat;
 int		ip_mrtproto = IGMP_DVMRP;    /* for netstat only */
 #else /* MROUTE_LKM */
 extern struct mrtstat mrtstat;
-extern int ip_mrtproto;
+static int ip_mrtproto;
 #endif
 
 #define NO_RTE_FOUND 	0x1
@@ -206,13 +206,13 @@ extern int ip_mrtproto;
 struct mbuf    *mfctable[MFCTBLSIZ];
 u_char		nexpire[MFCTBLSIZ];
 struct vif	viftable[MAXVIFS];
-u_int		mrtdebug = 0;	  /* debug level 	*/
+static u_int	mrtdebug = 0;	  /* debug level 	*/
 #define		DEBUG_MFC	0x02
 #define		DEBUG_FORWARD	0x04
 #define		DEBUG_EXPIRE	0x08
 #define		DEBUG_XMIT	0x10
-u_int       	tbfdebug = 0;     /* tbf debug level 	*/
-u_int		rsvpdebug = 0;	  /* rsvp debug level   */
+static u_int  	tbfdebug = 0;     /* tbf debug level 	*/
+static u_int	rsvpdebug = 0;	  /* rsvp debug level   */
 
 #define		EXPIRE_TIMEOUT	(hz / 4)	/* 4x / second		*/
 #define		UPCALL_EXPIRE	6		/* number of timeouts	*/
@@ -239,7 +239,7 @@ struct ifnet multicast_decap_if[MAXVIFS];
 #define ENCAP_PROTO IPPROTO_IPIP	/* 4 */
 
 /* prototype IP hdr for encapsulated packets */
-struct ip multicast_encap_iphdr = {
+static struct ip multicast_encap_iphdr = {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	sizeof(struct ip) >> 2, IPVERSION,
 #else
@@ -257,7 +257,6 @@ struct ip multicast_encap_iphdr = {
  * Private variables.
  */
 static vifi_t	   numvifs = 0;
-static void (*encap_oldrawip)() = 0;
 static int have_encap_tunnel = 0;
 
 /*
@@ -269,7 +268,7 @@ static struct vif *last_encap_vif;
 
 static int get_sg_cnt(struct sioc_sg_req *);
 static int get_vif_cnt(struct sioc_vif_req *);
-int ip_mrouter_init(struct socket *, struct mbuf *);
+static int ip_mrouter_init(struct socket *, struct mbuf *);
 static int add_vif(struct vifctl *);
 static int del_vif(vifi_t *);
 static int add_mfc(struct mfcctl *);
@@ -367,7 +366,7 @@ static void collate(struct timeval *);
 /*
  * Handle MRT setsockopt commands to modify the multicast routing tables.
  */
-int
+static int
 X_ip_mrouter_set(cmd, so, m)
     int cmd;
     struct socket *so;
@@ -394,7 +393,7 @@ int (*ip_mrouter_set)(int, struct socket *, struct mbuf *) = X_ip_mrouter_set;
 /*
  * Handle MRT getsockopt commands
  */
-int
+static int
 X_ip_mrouter_get(cmd, so, m)
     int cmd;
     struct socket *so;
@@ -420,7 +419,7 @@ int (*ip_mrouter_get)(int, struct socket *, struct mbuf **) = X_ip_mrouter_get;
 /*
  * Handle ioctl commands to obtain information from the cache
  */
-int
+static int
 X_mrt_ioctl(cmd, data)
     int cmd;
     caddr_t data;
@@ -490,7 +489,7 @@ get_vif_cnt(req)
 /*
  * Enable multicast routing
  */
-int
+static int
 ip_mrouter_init(so, m)
 	struct socket *so;
 	struct mbuf *m;
@@ -531,7 +530,7 @@ ip_mrouter_init(so, m)
 /*
  * Disable multicast routing
  */
-int
+static int
 X_ip_mrouter_done()
 {
     vifi_t vifi;
@@ -1075,7 +1074,7 @@ socket_send(s, mm, src)
 #define IP_HDR_LEN  20	/* # bytes of fixed IP header (excluding options) */
 #define TUNNEL_LEN  12  /* # bytes of IP option for tunnel encapsulation  */
 
-int
+static int
 X_ip_mforward(ip, ifp, m, imo)
     register struct ip *ip;
     struct ifnet *ifp;
@@ -1118,7 +1117,7 @@ X_ip_mforward(ip, ifp, m, imo)
 		ip->ip_ttl++;	/* compensate for -1 in *_send routines */
 	if (rsvpdebug && ip->ip_p == IPPROTO_RSVP) {
 	    vifp = viftable + vifi;
-	    printf("Sending IPPROTO_RSVP from %x to %x on vif %d (%s%s%d)\n",
+	    printf("Sending IPPROTO_RSVP from %lx to %lx on vif %d (%s%s%d)\n",
 		ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr), vifi,
 		(vifp->v_flags & VIFF_TUNNEL) ? "tunnel on " : "",
 		vifp->v_ifp->if_name, vifp->v_ifp->if_unit);
@@ -1126,7 +1125,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	return (ip_mdq(m, ifp, rt, vifi));
     }
     if (rsvpdebug && ip->ip_p == IPPROTO_RSVP) {
-	printf("Warning: IPPROTO_RSVP from %x to %x without vif option\n",
+	printf("Warning: IPPROTO_RSVP from %lx to %lx without vif option\n",
 	    ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr));
 	if(!imo)
 		printf("In fact, no options were specified at all\n");
@@ -1482,7 +1481,7 @@ ip_mdq(m, ifp, rt, xmt_vif)
  * check if a vif number is legal/ok. This is used by ip_output, to export
  * numvifs there, 
  */
-int
+static int
 X_legal_vif_num(vif)
     int vif;
 {
@@ -1499,7 +1498,7 @@ int (*legal_vif_num)(int) = X_legal_vif_num;
 /*
  * Return the local address used by this vif
  */
-u_long
+static u_long
 X_ip_mcast_src(vifi)
     int vifi;
 {
@@ -2067,7 +2066,7 @@ ip_rsvp_vif_done(so, m)
     }
 
     if (rsvpdebug)
-	printf("ip_rsvp_vif_done: v_rsvpd = %x so = %x\n",
+	printf("ip_rsvp_vif_done: v_rsvpd = %p so = %p\n",
 	       viftable[i].v_rsvpd, so);
 
     viftable[i].v_rsvpd = NULL;
@@ -2190,7 +2189,7 @@ rsvp_input(m, iphlen)
     rsvp_src.sin_addr = ip->ip_src;
 
     if (rsvpdebug && m)
-	printf("rsvp_input: m->m_len = %d, sbspace() = %d\n",
+	printf("rsvp_input: m->m_len = %d, sbspace() = %ld\n",
 	       m->m_len,sbspace(&(viftable[vifi].v_rsvpd->so_rcv)));
 
     if (socket_send(viftable[vifi].v_rsvpd, m, &rsvp_src) < 0)

@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.24 1995/10/23 03:58:06 ugen Exp $
+ *	$Id: ip_fw.c,v 1.25 1995/10/29 15:32:31 phk Exp $
  */
 
 /*
@@ -75,7 +75,7 @@
 /*
  * Returns TRUE if the port is matched by the vector, FALSE otherwise
  */
-inline int 
+static inline int 
 port_match(portptr, nports, port, range_flag)
 	u_short *portptr;
 	int nports;
@@ -99,7 +99,7 @@ port_match(portptr, nports, port, range_flag)
 	return FALSE;
 }
 
-int
+static int
 tcpflg_match(tcp, f)
 	struct tcphdr		*tcp;
 	struct ip_fw		*f;
@@ -118,7 +118,7 @@ tcpflg_match(tcp, f)
 }
 
 
-int
+static int
 ipopts_match(ip, f)
 	struct ip 	*ip;
 	struct ip_fw	*f;
@@ -894,7 +894,7 @@ clr_entry(chainptr, frwl)
 		return (EINVAL);
 }
 
-struct ip_fw *
+static struct ip_fw *
 check_ipfw_struct(m)
 	struct mbuf *m;
 {

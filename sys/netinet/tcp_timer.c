@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.10 1995/11/03 22:19:50 olah Exp $
+ *	$Id: tcp_timer.c,v 1.11 1995/11/09 20:23:07 phk Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -68,16 +68,18 @@ int	tcp_keepidle = TCPTV_KEEP_IDLE;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle,
 	CTLFLAG_RW, &tcp_keepidle , 0, "");
 
-int	tcp_keepintvl = TCPTV_KEEPINTVL;
+static int	tcp_keepintvl = TCPTV_KEEPINTVL;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl,
 	CTLFLAG_RW, &tcp_keepintvl , 0, "");
 
-int	tcp_keepcnt = TCPTV_KEEPCNT;		/* max idle probes */
-int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;	/* max idle time in persist */
+static int	tcp_keepcnt = TCPTV_KEEPCNT;
+	/* max idle probes */
+static int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
+	/* max idle time in persist */
 int	tcp_maxidle;
 #else /* TUBA_INCLUDE */
 
-extern	int tcp_maxpersistidle;
+static	int tcp_maxpersistidle;
 #endif /* TUBA_INCLUDE */
 
 /*
@@ -175,7 +177,7 @@ tcp_canceltimers(tp)
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
 
-int tcp_totbackoff = 511;	/* sum of tcp_backoff[] */
+static int tcp_totbackoff = 511;	/* sum of tcp_backoff[] */
 
 /*
  * TCP timer processing.

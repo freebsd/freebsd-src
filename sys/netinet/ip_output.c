@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.23 1995/07/26 18:05:13 wollman Exp $
+ *	$Id: ip_output.c,v 1.24 1995/10/16 18:21:09 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -63,8 +63,14 @@
 u_short ip_id;
 
 static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
-static void ip_mloopback
+static void	ip_mloopback
 	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *));
+static int	ip_getmoptions
+	__P((int, struct ip_moptions *, struct mbuf **));
+static int	ip_optcopy __P((struct ip *, struct ip *));
+static int	ip_pcbopts __P((struct mbuf **, struct mbuf *));
+static int	ip_setmoptions
+	__P((int, struct ip_moptions **, struct mbuf *));
 
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
@@ -498,7 +504,7 @@ ip_insertoptions(m, opt, phlen)
  * Copy options from ip to jp,
  * omitting those not copied during fragmentation.
  */
-int
+static int
 ip_optcopy(ip, jp)
 	struct ip *ip, *jp;
 {
@@ -690,7 +696,7 @@ ip_ctloutput(op, so, level, optname, mp)
  * Store in mbuf with pointer in pcbopt, adding pseudo-option
  * with destination address if source routed.
  */
-int
+static int
 #ifdef notyet
 ip_pcbopts(optname, pcbopt, m)
 	int optname;
@@ -795,7 +801,7 @@ bad:
 /*
  * Set the IP multicast options in response to user setsockopt().
  */
-int
+static int
 ip_setmoptions(optname, imop, m)
 	int optname;
 	struct ip_moptions **imop;
@@ -1069,7 +1075,7 @@ ip_setmoptions(optname, imop, m)
 /*
  * Return the IP multicast options in response to user getsockopt().
  */
-int
+static int
 ip_getmoptions(optname, imo, mp)
 	int optname;
 	register struct ip_moptions *imo;

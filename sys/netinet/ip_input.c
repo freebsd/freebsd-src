@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.26 1995/07/18 09:56:44 peter Exp $
+ * $Id: ip_input.c,v 1.27 1995/11/01 17:18:27 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -82,24 +82,48 @@ struct socket *ip_rsvpd;
 #ifndef	DIRECTED_BROADCAST
 #define	DIRECTED_BROADCAST	0
 #endif
-int	ipforwarding = IPFORWARDING;
-int	ipsendredirects = IPSENDREDIRECTS;
-int	ipdirbroadcast = DIRECTED_BROADCAST;
+
+static int	ipforwarding = IPFORWARDING;
+SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
+	&ipforwarding, 0, "");
+
+static int	ipsendredirects = IPSENDREDIRECTS;
+SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
+	&ipsendredirects, 0, "");
+
+static int	ipdirbroadcast = DIRECTED_BROADCAST;
+SYSCTL_INT(_net_inet_ip, IPCTL_DIRECTEDBROADCAST, directed_broadcast,
+	CTLFLAG_RW, &ipdirbroadcast, 0, "");
+
 int	ip_defttl = IPDEFTTL;
-int	ip_dosourceroute = 0;
+SYSCTL_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
+	&ip_defttl, 0, "");
+
+static int	ip_dosourceroute = 0;
+SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute, CTLFLAG_RW,
+	&ip_dosourceroute, 0, "");
 #ifdef DIAGNOSTIC
-int	ipprintfs = 0;
+static int	ipprintfs = 0;
 #endif
 
 extern	struct domain inetdomain;
 extern	struct protosw inetsw[];
 u_char	ip_protox[IPPROTO_MAX];
-int	ipqmaxlen = IFQ_MAXLEN;
+static int	ipqmaxlen = IFQ_MAXLEN;
 struct	in_ifaddr *in_ifaddr;			/* first inet address */
 struct	ifqueue ipintrq;
+SYSCTL_INT(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_queue_maxlen, CTLFLAG_RD,
+	&ipintrq.ifq_maxlen, 0, "");
+SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
+	&ipintrq.ifq_drops, 0, "");
 
 struct ipstat ipstat;
 struct ipq ipq;
+
+#ifdef IPCTL_DEFMTU
+SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
+	&ip_mtu, 0, "");
+#endif
 
 /*
  * We need to save the IP options in case a protocol wants to respond
@@ -108,7 +132,7 @@ struct ipq ipq;
  * maintenance when the remote end is on a network that is not known
  * to us.
  */
-int	ip_nhops = 0;
+static int	ip_nhops = 0;
 static	struct ip_srcrt {
 	struct	in_addr dst;			/* final destination */
 	char	nop;				/* one NOP to align */
@@ -117,6 +141,16 @@ static	struct ip_srcrt {
 } ip_srcrt;
 
 static void save_rte __P((u_char *, struct in_addr));
+static void	 ip_deq __P((struct ipasfrag *));
+static int	 ip_dooptions __P((struct mbuf *));
+static void	 ip_enq __P((struct ipasfrag *, struct ipasfrag *));
+static void	 ip_forward __P((struct mbuf *, int));
+static void	 ip_freef __P((struct ipq *));
+static struct ip *
+	 ip_reass __P((struct ipasfrag *, struct ipq *));
+static struct in_ifaddr *
+	 ip_rtaddr __P((struct in_addr));
+static void	 ipintr __P((void));
 /*
  * IP initialization: fill in IP protocol switch table.
  * All protocols not implemented in kernel go to raw IP protocol handler.
@@ -142,14 +176,14 @@ ip_init()
 	ipintrq.ifq_maxlen = ipqmaxlen;
 }
 
-struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
+static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 struct	route ipforward_rt;
 
 /*
  * Ip input routine.  Checksum and byte swap header.  If fragmented
  * try to reassemble.  Process options.  Pass to next level.
  */
-void
+static void
 ipintr(void)
 {
 	register struct ip *ip;
@@ -444,7 +478,7 @@ NETISR_SET(NETISR_IP, ipintr);
  * reassembly of this datagram already exists, then it
  * is given as fp; otherwise have to make a chain.
  */
-struct ip *
+static struct ip *
 ip_reass(ip, fp)
 	register struct ipasfrag *ip;
 	register struct ipq *fp;
@@ -585,7 +619,7 @@ dropfrag:
  * Free a fragment reassembly header and all
  * associated datagrams.
  */
-void
+static void
 ip_freef(fp)
 	struct ipq *fp;
 {
@@ -604,7 +638,7 @@ ip_freef(fp)
  * Put an ip fragment on a reassembly chain.
  * Like insque, but pointers in middle of structure.
  */
-void
+static void
 ip_enq(p, prev)
 	register struct ipasfrag *p, *prev;
 {
@@ -618,7 +652,7 @@ ip_enq(p, prev)
 /*
  * To ip_enq as remque is to insque.
  */
-void
+static void
 ip_deq(p)
 	register struct ipasfrag *p;
 {
@@ -674,7 +708,7 @@ ip_drain()
  * Returns 1 if packet has been forwarded/freed,
  * 0 if the packet should be processed further.
  */
-int
+static int
 ip_dooptions(m)
 	struct mbuf *m;
 {
@@ -880,7 +914,7 @@ bad:
  * Given address of next destination (final or next hop),
  * return internet address info of interface to be used to get there.
  */
-struct in_ifaddr *
+static struct in_ifaddr *
 ip_rtaddr(dst)
 	 struct in_addr dst;
 {
@@ -1046,7 +1080,7 @@ u_char inetctlerrmap[PRC_NCMDS] = {
  * The srcrt parameter indicates whether the packet is being forwarded
  * via a source route.
  */
-void
+static void
 ip_forward(m, srcrt)
 	struct mbuf *m;
 	int srcrt;
@@ -1186,57 +1220,6 @@ ip_forward(m, srcrt)
 		break;
 	}
 	icmp_error(mcopy, type, code, dest, destifp);
-}
-
-int
-ip_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-{
-	/* All sysctl names at this level are terminal. */
-	if (namelen != 1)
-		return (ENOTDIR);
-
-	switch (name[0]) {
-	case IPCTL_FORWARDING:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &ipforwarding));
-	case IPCTL_SENDREDIRECTS:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-			&ipsendredirects));
-	case IPCTL_DIRECTEDBROADCAST:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-			&ipdirbroadcast));
-	case IPCTL_DEFTTL:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &ip_defttl));
-	case IPCTL_SOURCEROUTE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, 
-				   &ip_dosourceroute));
-#ifdef notyet
-	case IPCTL_DEFMTU:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &ip_mtu));
-#endif
-	case IPCTL_RTEXPIRE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, 
-				   &rtq_reallyold));
-	case IPCTL_RTMINEXPIRE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, 
-				   &rtq_minreallyold));
-	case IPCTL_RTMAXCACHE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-				   &rtq_toomany));
-	case IPCTL_INTRQMAXLEN:
-		return (sysctl_rdint(oldp, oldlenp, newp, 
-				     ipintrq.ifq_maxlen));
-	case IPCTL_INTRQDROPS:
-		return (sysctl_rdint(oldp, oldlenp, newp, ipintrq.ifq_drops));
-	default:
-		return (EOPNOTSUPP);
-	}
-	/* NOTREACHED */
 }
 
 int

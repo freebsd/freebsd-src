@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.31 1995/11/03 22:31:54 olah Exp $
+ *	$Id: tcp_input.c,v 1.32 1995/11/09 20:23:02 phk Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -68,15 +68,24 @@
 struct	tcpiphdr tcp_saveti;
 #endif
 
-int	tcprexmtthresh = 3;
+static int	tcprexmtthresh = 3;
 tcp_seq	tcp_iss;
 tcp_cc	tcp_ccgen;
+
 struct	tcpstat tcpstat;
 SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats,
 	CTLFLAG_RD, &tcpstat , tcpstat, "");
+
 u_long	tcp_now;
 struct inpcbhead tcb;
 struct inpcbinfo tcbinfo;
+
+static void	 tcp_dooptions __P((struct tcpcb *,
+	    u_char *, int, struct tcpiphdr *, struct tcpopt *));
+static void	 tcp_pulloutofband __P((struct socket *,
+	    struct tcpiphdr *, struct mbuf *));
+static int	 tcp_reass __P((struct tcpcb *, struct tcpiphdr *, struct mbuf *));
+static void	 tcp_xmit_timer __P((struct tcpcb *, int));
 
 #endif /* TUBA_INCLUDE */
 
@@ -130,7 +139,7 @@ struct inpcbinfo tcbinfo;
 #endif
 #ifndef TUBA_INCLUDE
 
-int
+static int
 tcp_reass(tp, ti, m)
 	register struct tcpcb *tp;
 	register struct tcpiphdr *ti;
@@ -1662,7 +1671,7 @@ drop:
 #ifndef TUBA_INCLUDE
 }
 
-void
+static void
 tcp_dooptions(tp, cp, cnt, ti, to)
 	struct tcpcb *tp;
 	u_char *cp;
@@ -1779,7 +1788,7 @@ tcp_dooptions(tp, cp, cnt, ti, to)
  * It is still reflected in the segment length for
  * sequencing purposes.
  */
-void
+static void
 tcp_pulloutofband(so, ti, m)
 	struct socket *so;
 	struct tcpiphdr *ti;
@@ -1810,7 +1819,7 @@ tcp_pulloutofband(so, ti, m)
  * Collect new round-trip time estimate
  * and update averages and current timeout.
  */
-void
+static void
 tcp_xmit_timer(tp, rtt)
 	register struct tcpcb *tp;
 	short rtt;

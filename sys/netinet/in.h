@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.11 1995/07/18 09:56:42 peter Exp $
+ * $Id: in.h,v 1.12 1995/11/01 17:18:26 wollman Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -260,8 +260,6 @@ int	 in_broadcast __P((struct in_addr, struct ifnet *));
 int	 in_canforward __P((struct in_addr));
 int	 in_cksum __P((struct mbuf *, int));
 int	 in_localaddr __P((struct in_addr));
-u_long	 in_netof __P((struct in_addr));
-void	 in_socktrim __P((struct sockaddr_in *));
 char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
 #endif
 
