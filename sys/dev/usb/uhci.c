@@ -1,7 +1,7 @@
 /*	$NetBSD: uhci.c,v 1.160 2002/05/28 12:42:39 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
-/*	Also incorporated from NetBSD:
+/*	Also already incorporated from NetBSD:
  *	$NetBSD: uhci.c,v 1.162 2002/07/11 21:14:28 augustss Exp $
  *	$NetBSD: uhci.c,v 1.163 2002/09/27 15:37:36 provos Exp $
  *	$NetBSD: uhci.c,v 1.164 2002/09/29 21:13:01 augustss Exp $
@@ -10,6 +10,7 @@
  *	$NetBSD: uhci.c,v 1.167 2003/01/01 16:25:59 augustss Exp $
  *	$NetBSD: uhci.c,v 1.168 2003/02/08 03:32:51 ichiro Exp $
  *	$NetBSD: uhci.c,v 1.169 2003/02/16 23:15:28 augustss Exp $
+ *	$NetBSD: uhci.c,v 1.170 2003/02/19 01:35:04 augustss Exp $
  */
 
 
@@ -2605,6 +2606,9 @@ uhci_device_isoc_done(usbd_xfer_handle xfer)
 
 	if (ii->xfer != xfer)
 		/* Not on interrupt list, ignore it. */
+		return;
+
+	if (!uhci_active_intr_info(ii))
 		return;
 
 #ifdef DIAGNOSTIC
