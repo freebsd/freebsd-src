@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: vgl.3,v 1.1 1997/08/17 21:09:35 sos Exp $
+.\" $Id: vgl.3,v 1.2 1997/10/16 09:12:31 sos Exp $
 
 .Dd August 13, 1997
 .Dt VGL 3
@@ -42,10 +42,10 @@ programming the actual video hardware, and provides a number of simple
 functions to do various graphic operations. There is also support for a
 mouse via the standard mouse system in FreeBSD, see
 .Fn moused
-, including the ability to transparantly have a mousepointer superimposed on
+, including the ability to transparently have a mouse pointer superimposed on
 the graphic image currently being worked on. 
-The library takes care of screenswitching by storing the current image in
-memory before swithing to another virtual console, and restoring when the
+The library takes care of screen switching by storing the current image in
+memory before switching to another virtual console, and restoring when the
 user switches back. This allows several graphic applications at once, but
 on different virtual consoles.
 
@@ -60,7 +60,7 @@ Below is a short description of the various functions:
 .Fn VGLInit "int mode"
 
 Initialize the library and set up the graphic mode
-.Em mode
+.Em mode .
 
 
 .Ft void 
@@ -84,45 +84,46 @@ the system to switch screens.
 
 Instruct the char/string functions to use the font in file
 .Em filename
-instead of the buildin font.
+instead of the builtin font.
 
 
 .Ft int 
 .Fn VGLMouseInit "int mode"
 
-Initialize the mouse. The optional onscreen mousepointer is shown if the
+Initialize the mouse. The optional on-screen mouse pointer is shown if the
 argument is 
-.Em VGL_MOUSESHOW
+.Em VGL_MOUSESHOW .
 
 
 .Ft void 
 .Fn VGLMouseMode "int mode"
 
-Either shows the mousepointer if the argument is
+Either shows the mouse pointer if the argument is
 .Em VGL_MOUSESHOW
-, or hide the mousepointer if the argument is
-.Em VGL_MOUSEHIDE
+, or hides the mouse pointer if the argument is
+.Em VGL_MOUSEHIDE .
 
 
 .Ft int 
 .Fn VGLMouseStatus "int *x" "int *y" "char *buttons"
 
-Returns the current mousepointer coordinates and button state in
-.Em x, y, buttons. The return value reflects if the mousepointer 
+Returns the current mouse pointer coordinates and button state in
+.Em x, y
+, buttons. The return value reflects if the mouse pointer 
 is currently shown on screen or not.
 
 
 .Ft void 
 .Fn VGLMouseSetImage "VGLBitmap *AndMask" "VGLBitmap *OrMask"
 
-With this function it is possible to change the image of the mousepointer
+With this function it is possible to change the image of the mouse pointer
 on screen.
 
 
 .Ft void 
 .Fn VGLMouseSetStdImage "void"
 
-This function restores the mousepointer to the standard arrow.
+This function restores the mouse pointer to the standard arrow.
 
 
 .Ft void 
@@ -133,7 +134,7 @@ Draw a line from
 to
 .Em x2, y2
 in color
-.Em color
+.Em color .
 
 
 .Ft void 
@@ -144,7 +145,7 @@ Draw a box with upper left hand corner at
 and lower right hand corner at
 .Em x2, y2
 in color
-.Em color
+.Em color .
 
 
 .Ft void 
@@ -155,7 +156,7 @@ Draw a filled (solid) box with upper left hand corner at
 and lower right hand corner at
 .Em x2, y2
 in color
-.Em color
+.Em color .
 
 
 .Ft void 
@@ -168,7 +169,7 @@ make it
 pixels wide, and 
 .Em b
 pixels high in color
-.Em color
+.Em color .
 
 
 .Ft void 
@@ -181,7 +182,7 @@ make it
 pixels wide, and 
 .Em b
 pixels high in color
-.Em color
+.Em color .
 
 
 .Ft int 
@@ -189,14 +190,14 @@ pixels high in color
 
 Copy a rectangle of pixels from bitmap
 .Em src
-upper lefthand corner at 
+upper left hand corner at 
 .Em srcx, srcy
 to bitmap
 .Em dst
 at 
 .Em dstx, dsty
 of the size
-.Em width, hight
+.Em width, height .
 
 
 .Ft void 
@@ -206,7 +207,7 @@ Write the character
 .Em ch
 at position
 .Em x, y
-in foregroundcolor 
+in foreground color 
 .Em fgcol.
 If 
 .Em fill
@@ -214,7 +215,7 @@ is != 0, use the color
 .Em bgcol
 as background otherwise the background is transparent.
 The character is drawn in the direction specified by the argument
-.Em dir
+.Em dir .
 
 
 .Ft void 
@@ -224,21 +225,21 @@ Write the string
 .Em str
 at position
 .Em x, y
-in foregroundcolor 
+in foreground color 
 .Em fgcol.
 If 
 .Em fill
 is != 0, use the color
 .Em bgcol
-as background otherwise the background is transparant.
+as background otherwise the background is transparent.
 The string is drawn in the direction specified by the argument
-.Em dir
+.Em dir .
 
 .Ft void 
 .Fn VGLClear "VGLBitmap *object" "byte color"
 
 Clears the entire bitmap to color
-.Em color
+.Em color .
 
 
 .Ft void 
@@ -260,8 +261,8 @@ to the specified RGB value.
 .Ft void 
 .Fn VGLSetBorder "byte color"
 
-Set the bordercolor to color
-.Em color
+Set the border color to color
+.Em color .
 
 
 .Ft void 
@@ -269,8 +270,8 @@ Set the bordercolor to color
 
 Blank the display if the argment
 .Em blank
-!= 0. This can be done to shut off the screen during diplay updates that
-the use hould first see when its done.
+!= 0. This can be done to shut off the screen during display updates that
+the user should first see when it's done.
 
 
 .Sh HISTORY
