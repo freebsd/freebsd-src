@@ -1,5 +1,5 @@
 LIB=	ipx
-#CFLAGS+=-DLIBC_SCCS -I/sys
+#CFLAGS+=-DLIBC_SCCS -I${DESTDIR}/sys
 SRCS=	ipx_addr.c ipx_ntoa.c
 
 MAN3=	ipx.3
