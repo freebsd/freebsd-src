@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.11 1995/05/20 10:33:04 jkh Exp $
+ * $Id: label.c,v 1.12 1995/05/20 19:22:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -178,13 +178,19 @@ record_label_chunks()
 
 /* A new partition entry */
 static PartInfo *
-new_part(char *mpoint, Boolean newfs)
+new_part(char *mpoint, Boolean newfs, u_long size)
 {
     PartInfo *ret;
+    u_long divisor;
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
     strcpy(ret->newfs_cmd, "newfs");
+    for(divisor = 4096 ; divisor > 17*4 ; divisor--) {
+	if (!(size % divisor)) { 
+		sprintf(ret->newfs_cmd+strlen(ret->newfs_cmd)," -u %ld",divisor);
+	}
+    }
     ret->newfs = newfs;
     return ret;
 }
@@ -217,7 +223,7 @@ get_mountpoint(struct chunk *old)
 	else if (old)
 	    old->flags &= ~CHUNK_IS_ROOT;
 	safe_free(old ? old->private : NULL);
-	tmp = new_part(val, TRUE);
+	tmp = new_part(val, TRUE, old->size);
 	if (old) {
 	    old->private = tmp;
 	    old->private_free = safe_free;
@@ -340,7 +346,8 @@ print_label_chunks(void)
 		     * Fill in a fake mountpoint and register it
 		     */
 		    sprintf(foo, "/mnt%d", mnt++);
-		    label_chunk_info[i].c->private = new_part(foo, FALSE);
+		    label_chunk_info[i].c->private = 
+			new_part(foo, FALSE,label_chunk_info[i].c->size);
 		    label_chunk_info[i].c->private_free = safe_free;
 		}
 		mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
@@ -579,8 +586,8 @@ diskLabelEditor(char *str)
 		    if (devs[i]->enabled)
 		    	slice_wizard(((Disk *)devs[i]->private));
 		}
-		dialog_clear();
 		DialogActive = TRUE;
+		dialog_clear();
 		record_label_chunks();
 	    }
 	    else
