@@ -37,6 +37,7 @@
 #include <ufs/ufs/inode.h>
 
 #include <sys/dirent.h>
+#include <sys/disklabel.h>
 
 #define COMPAT_UFS
 
