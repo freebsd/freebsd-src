@@ -258,4 +258,4 @@
 #define	SYS_sendfile	336
 #define	SYS_kldsym	337
 #define	SYS_jail	338
-#define	SYS_MAXSYSCALL	339
+#define	SYS_MAXSYSCALL	340
