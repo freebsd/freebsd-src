@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.197 1999/05/05 19:44:13 markm Exp $
+#	$Id: Makefile,v 1.198 1999/05/11 11:52:27 jkh Exp $
 
 SUBDIR=	sendmail
 
@@ -135,5 +135,12 @@ distrib-dirs:
 	done; \
 	rm -rf POSIX; \
 	ln -s C POSIX
+
+etc-examples:
+	(cd ${.CURDIR}; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${BIN1} ${BIN2} \
+	    ${DESTDIR}/usr/share/examples/etc; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/rc.conf \
+	    ${DESTDIR}/usr/share/examples/etc/defaults)
 
 .include <bsd.prog.mk>
