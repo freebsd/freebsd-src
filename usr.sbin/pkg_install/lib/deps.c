@@ -83,25 +83,43 @@ sortdeps(char **pkgs)
 int
 chkifdepends(const char *pkgname1, const char *pkgname2)
 {
+    char *cp1, *cp2;
     char pkgdir[FILENAME_MAX];
     int errcode;
     struct reqr_by_entry *rb_entry;
     struct reqr_by_head *rb_list;
 
+    cp2 = strchr(pkgname2, ':');
+    if (cp2 != NULL)
+	*cp2 = '\0';
+    cp1 = strchr(pkgname1, ':');
+    if (cp1 != NULL)
+	*cp1 = '\0';
+
+    errcode = 0;
     /* Check that pkgname2 is actually installed */
     snprintf(pkgdir, sizeof(pkgdir), "%s/%s", LOG_DIR, pkgname2);
     if (!isdir(pkgdir))
-	return 0;
+	goto exit;
 
     errcode = requiredby(pkgname2, &rb_list, FALSE, TRUE);
     if (errcode < 0)
-	return errcode;
+	goto exit;
 
-    STAILQ_FOREACH(rb_entry, rb_list, link)
-	if (strcmp(rb_entry->pkgname, pkgname1) == 0)	/* match */
-	    return 1;
+    errcode = 0;
+    STAILQ_FOREACH(rb_entry, rb_list, link) {
+	if (strcmp(rb_entry->pkgname, pkgname1) == 0) {	/* match */
+	    errcode = 1;
+	    break;
+	}
+    }
 
-    return 0;
+exit:
+    if (cp1 != NULL)
+	*cp1 = ':';
+    if (cp2 != NULL)
+	*cp2 = ':';
+    return errcode;
 }
 
 /*

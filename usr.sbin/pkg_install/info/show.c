@@ -150,7 +150,12 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 	    break;
 
 	case PLIST_PKGDEP:
-	    printf(Quiet ? "@pkgdep %s\n" : "\t%s\n", p->name);
+	    printf(Quiet ? "@pkgdep %s\n" : "Dependency: %s\n", p->name);
+	    break;
+
+	case PLIST_DEPORIGIN:
+	    printf(Quiet ? "@comment DEPORIGIN:%s\n" :
+		"\tdependency origin: %s\n", p->name);
 	    break;
 
 	case PLIST_MTREE:

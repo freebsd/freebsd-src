@@ -101,7 +101,7 @@ pkg_perform(char **pkgs)
 
     /* Stick the dependencies, if any, at the top */
     if (Pkgdeps) {
-	char **deps;
+	char **deps, *deporigin;
 	int i;
 	int ndeps = 0;
 
@@ -133,6 +133,11 @@ pkg_perform(char **pkgs)
 
 	    sortdeps(deps);
 	    for (i = 0; i < ndeps; i++) {
+		deporigin = strchr(deps[i], ':');
+		if (deporigin != NULL) {
+		    *deporigin = '\0';
+		    add_plist_top(&plist, PLIST_DEPORIGIN, ++deporigin);
+		}
 		add_plist_top(&plist, PLIST_PKGDEP, deps[i]);
 		if (Verbose && !PlistOnly)
 		    printf(" %s", deps[i]);
