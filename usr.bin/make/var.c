@@ -1755,15 +1755,15 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
     errorReported = FALSE;
 
     while (*str) {
-	if (var == NULL && (*str == '$') && (str[1] == '$')) {
+	if (var == NULL && (str[0] == '$') && (str[1] == '$')) {
 	    /*
 	     * A dollar sign may be escaped either with another dollar sign.
 	     * In such a case, we skip over the escape character and store the
 	     * dollar sign into the buffer directly.
 	     */
-	    str++;
-	    Buf_AddByte(buf, (Byte)*str);
-	    str++;
+	    Buf_AddByte(buf, (Byte)str[0]);
+	    str += 2;
+
 	} else if (str[0] != '$') {
 	    /*
 	     * Skip as many characters as possible -- either to the end of
@@ -1784,15 +1784,19 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 		int expand;
 		for (;;) {
 		    if (str[1] != OPEN_PAREN && str[1] != OPEN_BRACE) {
-			if (str[1] != var[0] || var[1] != '\0') {
+			/*
+			 * Single letter variable name
+			 */
+			if (var[1] != '\0' || var[0] != str[1]) {
 			    Buf_AddBytes(buf, 2, (const Byte *)str);
 			    str += 2;
 			    expand = FALSE;
-			} else
+			} else {
 			    expand = TRUE;
-			break;
+			}
 		    } else {
-			const char *p = str + 2;
+			size_t		ln;
+			const char	*p = str + 2;
 
 			/*
 			 * Scan up to the end of the variable name.
@@ -1816,23 +1820,23 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 			    continue;
 			}
 
-			if (strncmp(var, str + 2, p - str - 2) != 0 ||
-			    var[p - str - 2] != '\0') {
+			ln = p - (str + 2);
+			if (var[ln] != '\0' || strncmp(var, str + 2, ln) != 0) {
 			    /*
 			     * Not the variable we want to expand, scan
 			     * until the next variable
 			     */
-			    for (;*p != '$' && *p != '\0'; p++)
-				continue;
+			    while (*p != '$' && *p != '\0')
+				p++;
 
 			    Buf_AppendRange(buf, str, p);
 			    str = p;
 			    expand = FALSE;
-			}
-			else
+			} else {
 			    expand = TRUE;
-			break;
+			}
 		    }
+		    break;
 		}
 		if (!expand)
 		    continue;
