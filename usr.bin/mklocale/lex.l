@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)lex.l	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 
 #include "ldef.h"
-#include "y.tab.h"
+#include "yacc.tab.h"
 %}
 
 ODIGIT	[0-7]
