@@ -35,7 +35,7 @@
 # Bugs: sure
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: catman.perl,v 1.1 1995/03/15 22:47:38 joerg Exp $
+# $Id: catman.perl,v 1.2 1995/03/18 02:11:56 ache Exp $
 #
 
 sub usage {
@@ -69,7 +69,7 @@ sub variables {
     $SIG{'TERM'} = 'Exit';
     $tmp = '';			# tmp file
 
-    $ENV{'PATH'} = "/bin:/usr/bin:$ENV{'PATH'}";
+    $ENV{'PATH'} = "/bin:/usr/bin";
 }
 
 sub  Exit {
@@ -278,7 +278,7 @@ sub parse_subdir {
 
 sub nroff {
     local($man,$cat) = @_;
-    local($nroff) = "/usr/bin/nroff -Tascii -man | col";
+    local($nroff) = "nroff -Tascii -man | col";
     local($dev, $ino) = (stat($man))[01];
 
     # It's a link
