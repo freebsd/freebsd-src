@@ -2475,7 +2475,8 @@ ilmi_do_state(void)
 			bpp = (caddr_t)&buf[1];
 			Hdr = asn_get_header(&bpp);
 
-			print_pdu(PDU_RECV, intf, Hdr, n, buf);
+		        if ( Log && Debug_Level > 1 )
+			    print_pdu(PDU_RECV, intf, Hdr, n, buf);
 
 			if (Hdr == NULL)
 			    continue;
