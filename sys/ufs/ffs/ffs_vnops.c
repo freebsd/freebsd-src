@@ -197,10 +197,10 @@ ffs_fsync(ap)
 	s = splbio();
 	VI_LOCK(vp);
 loop:
-	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs)
+	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_bobufs)
 		bp->b_vflags &= ~BV_SCANNED;
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		nbp = TAILQ_NEXT(bp, b_bobufs);
 		/* 
 		 * Reasons to skip this buffer: it has already been considered
 		 * on this pass, this pass is the first time through on a
@@ -285,11 +285,7 @@ loop:
 	}
 
 	if (wait) {
-		while (vp->v_numoutput) {
-			vp->v_iflag |= VI_BWAIT;
-			msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
-			    PRIBIO + 4, "ffsfsn", 0);
-  		}
+		bufobj_wwait(&vp->v_bufobj, 3, 0);
 		VI_UNLOCK(vp);
 
 		/* 

@@ -539,6 +539,7 @@ vop_stdfsync(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct buf *bp;
+	struct bufobj *bo;
 	struct buf *nbp;
 	int s, error = 0;
 	int maxretry = 100;     /* large, arbitrarily chosen */
@@ -549,7 +550,7 @@ loop1:
 	 * MARK/SCAN initialization to avoid infinite loops.
 	 */
 	s = splbio();
-        TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
+        TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_bobufs) {
                 bp->b_vflags &= ~BV_SCANNED;
 		bp->b_error = 0;
 	}
@@ -561,7 +562,7 @@ loop1:
 loop2:
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp != NULL; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		nbp = TAILQ_NEXT(bp, b_bobufs);
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
 		bp->b_vflags |= BV_SCANNED;
@@ -589,18 +590,15 @@ loop2:
 	 * retry if dirty blocks still exist.
 	 */
 	if (ap->a_waitfor == MNT_WAIT) {
-		while (vp->v_numoutput) {
-			vp->v_iflag |= VI_BWAIT;
-			msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
-			    PRIBIO + 1, "fsync", 0);
-		}
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+		bo = &vp->v_bufobj;
+		bufobj_wwait(bo, 0, 0);
+		if (bo->bo_dirty.bv_cnt > 0) {
 			/*
 			 * If we are unable to write any of these buffers
 			 * then we fail now rather than trying endlessly
 			 * to write them out.
 			 */
-			TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs)
+			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
 				if ((error = bp->b_error) == 0)
 					continue;
 			if (error == 0 && --maxretry >= 0) {

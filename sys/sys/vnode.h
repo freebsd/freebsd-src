@@ -224,7 +224,6 @@ struct xvnode {
  */
 #define	VI_XLOCK	0x0001	/* vnode is locked to change vtype */
 #define	VI_XWANT	0x0002	/* thread is waiting for vnode */
-#define	VI_BWAIT	0x0004	/* waiting for output to complete */
 #define	VI_OLOCK	0x0008	/* vnode is locked waiting for an object */
 #define	VI_OWANT	0x0010	/* a thread is waiting for VOLOCK */
 #define	VI_MOUNT	0x0020	/* Mount in progress */

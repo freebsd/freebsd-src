@@ -2619,7 +2619,7 @@ again:
 		bveccount = 0;
 		VI_LOCK(vp);
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
+			nbp = TAILQ_NEXT(bp, b_bobufs);
 			if (BUF_REFCNT(bp) == 0 &&
 			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
@@ -2654,13 +2654,13 @@ again:
 			if (bvecpos >= bvecsize)
 				break;
 			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
-				nbp = TAILQ_NEXT(bp, b_vnbufs);
+				nbp = TAILQ_NEXT(bp, b_bobufs);
 				continue;
 			}
 			if ((bp->b_flags & (B_DELWRI | B_NEEDCOMMIT)) !=
 			    (B_DELWRI | B_NEEDCOMMIT)) {
 				BUF_UNLOCK(bp);
-				nbp = TAILQ_NEXT(bp, b_vnbufs);
+				nbp = TAILQ_NEXT(bp, b_bobufs);
 				continue;
 			}
 			VI_UNLOCK(vp);
@@ -2688,7 +2688,7 @@ again:
 			 * and vfs_busy_pages() may sleep.  We have to
 			 * recalculate nbp.
 			 */
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
+			nbp = TAILQ_NEXT(bp, b_bobufs);
 
 			/*
 			 * A list of these buffers is kept so that the
@@ -2760,9 +2760,7 @@ again:
 				 * into bundirty(). XXX
 				 */
 				s = splbio();
-				VI_LOCK(vp);
-				vp->v_numoutput++;
-				VI_UNLOCK(vp);
+				bufobj_wref(&vp->v_bufobj);
 				bp->b_flags |= B_ASYNC;
 				bundirty(bp);
 				bp->b_flags &= ~B_DONE;
@@ -2781,7 +2779,7 @@ loop:
 	s = splbio();
 	VI_LOCK(vp);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		nbp = TAILQ_NEXT(bp, b_bobufs);
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
 			if (waitfor != MNT_WAIT || passone)
 				continue;
@@ -2826,10 +2824,8 @@ loop:
 		goto again;
 	}
 	if (waitfor == MNT_WAIT) {
-		while (vp->v_numoutput) {
-			vp->v_iflag |= VI_BWAIT;
-			error = msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
-				slpflag | (PRIBIO + 1), "nfsfsync", slptimeo);
+		while (vp->v_bufobj.bo_numoutput) {
+			error = bufobj_wwait(&vp->v_bufobj, slpflag, slptimeo);
 			if (error) {
 			    VI_UNLOCK(vp);
 			    error = nfs_sigintr(nmp, NULL, td);
@@ -2924,9 +2920,7 @@ nfs_writebp(struct buf *bp, int force __unused, struct thread *td)
 	bp->b_ioflags &= ~BIO_ERROR;
 	bp->b_iocmd = BIO_WRITE;
 
-	VI_LOCK(bp->b_vp);
-	bp->b_vp->v_numoutput++;
-	VI_UNLOCK(bp->b_vp);
+	bufobj_wref(&bp->b_vp->v_bufobj);
 	curthread->td_proc->p_stats->p_ru.ru_oublock++;
 	splx(s);
 
