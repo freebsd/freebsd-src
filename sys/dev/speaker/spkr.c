@@ -17,6 +17,7 @@
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
+#include <sys/ctype.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/timerreg.h>
 #include <machine/clock.h>
