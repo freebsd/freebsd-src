@@ -165,6 +165,7 @@ streams_modevent(module_t mod, int type, void *unused)
 
 		return 0;
 	default:
+		return EOPNOTSUPP;
 		break;
 	}
 	return 0;

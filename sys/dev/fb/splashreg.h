@@ -55,6 +55,7 @@ typedef struct image_decoder	scrn_saver_t;
 		case MOD_UNLOAD:				\
 			return splash_unregister(&sw);		\
 		default:					\
+			return EOPNOTSUPP;			\
 			break;					\
 		}						\
 		return 0;					\
@@ -76,6 +77,7 @@ typedef struct image_decoder	scrn_saver_t;
 		case MOD_UNLOAD:				\
 			return splash_unregister(&sw);		\
 		default:					\
+			return EOPNOTSUPP;			\
 			break;					\
 		}						\
 		return 0;					\

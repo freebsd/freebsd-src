@@ -2080,6 +2080,7 @@ dummynet_modevent(module_t mod, int type, void *data)
 #endif
 		break ;
 	default:
+		return EOPNOTSUPP;
 		break ;
 	}
 	return 0 ;

@@ -105,6 +105,7 @@ int exec_unregister(const struct execsw *);
 				printf(__XSTRING(name) " unregister failed\n");\
 			break; \
 		default: \
+			error = EOPNOTSUPP; \
 			break; \
 		} \
 		return error; \

@@ -391,6 +391,7 @@ typedef struct sc_term_sw {
 				return EBUSY;			\
 			return sc_term_remove(&sw);		\
 		default:					\
+			return EOPNOTSUPP;			\
 			break;					\
 		}						\
 		return 0;					\
@@ -462,6 +463,7 @@ typedef struct sc_renderer {
 			}					\
 			break;					\
 		default:					\
+			return EOPNOTSUPP;			\
 			break;					\
 		}						\
 		return error;					\

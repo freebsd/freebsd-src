@@ -228,7 +228,7 @@ module_unload(module_t mod, int flags)
 	int error;
 
 	error = MOD_EVENT(mod, MOD_QUIESCE);
-	if (error == EOPNOTSUPP)
+	if (error == EOPNOTSUPP || error == EINVAL)
 		error = 0;
 	if (flags == LINKER_UNLOAD_NORMAL && error != 0)
 		return (error);

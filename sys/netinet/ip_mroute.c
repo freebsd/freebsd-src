@@ -3421,6 +3421,8 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	MFC_LOCK_DESTROY();
 	mtx_destroy(&mrouter_mtx);
 	break;
+    default:
+	return EOPNOTSUPP;
     }
     return 0;
 }

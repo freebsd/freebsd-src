@@ -1363,6 +1363,7 @@ union_modevent(module_t mod, int type, void *data)
 		union_dircheckp = NULL;
 		break;
 	default:
+		return EOPNOTSUPP;
 		break;
 	}
 	return 0;

@@ -90,9 +90,9 @@ codadev_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		break;
 	case MOD_UNLOAD:
-		break;
+		return (EBUSY);
 	default:
-		break;
+		return (EOPNOTSUPP);
 	}
 	return 0;
 }

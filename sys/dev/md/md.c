@@ -1237,6 +1237,7 @@ md_modevent(module_t mod, int type, void *data)
 		status_dev = 0;
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 	return (0);
