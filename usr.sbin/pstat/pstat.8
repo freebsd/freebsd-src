@@ -83,7 +83,8 @@ The core location of this table entry.
 The type of object the file table entry points to.
 .It FLG
 Miscellaneous state variables encoded thus:
-.Bl -tag -width indent
+.Pp
+.Bl -tag -width indent -compact
 .It R
 open for reading
 .It W
@@ -147,7 +148,8 @@ Number of delimiters (newlines) in canonicalized input queue.
 Calculated column position of terminal.
 .It STATE
 Miscellaneous state variables encoded thus:
-.Bl -tag -width indent
+.Pp
+.Bl -tag -width indent -compact
 .It T
 delay timeout in progress
 .It W
@@ -231,7 +233,6 @@ PPPDISC.
 Print the active vnodes.  Each group of vnodes corresponding
 to a particular filesystem is preceded by a two line header.  The
 first line consists of the following:
-.Pp
 .Bd -filled -offset indent
 .No *** MOUNT Em fstype from 
 on
@@ -260,43 +261,42 @@ Location of this vnode.
 .It TYP
 File type.
 .It VFLAG
-.Pp
 A list of letters representing vnode flags:
-.Bl -tag -width indent
-.It R
-\- VROOT
-.It T
-\- VTEXT
-.It S
-\- VSYSTEM
-.It t
-\- VISTTY
-.It L
-\- VXLOCK
-.It W
-\- VXWANT
-.It B
-\- VBWAIT
-.It V
-\- VOBJBUF
-.It C
-\- VCOPYONWRITE
-.It a
-\- VAGE
-.It l
-\- VOLOCK
-.It w
-\- VOWANT
-.It D
-\- VDOOMED
-.It F
-\- VFREE
-.It O
-\- VONWORKLST
-.It M
-\- VMOUNT
-.El
 .Pp
+.Bl -tag -width indent -compact
+.It R
+.Dv VROOT
+.It T
+.Dv VTEXT
+.It S
+.Dv VSYSTEM
+.It t
+.Dv VISTTY
+.It L
+.Dv VXLOCK
+.It W
+.Dv VXWANT
+.It B
+.Dv VBWAIT
+.It V
+.Dv VOBJBUF
+.It C
+.Dv VCOPYONWRITE
+.It a
+.Dv VAGE
+.It l
+.Dv VOLOCK
+.It w
+.Dv VOWANT
+.It D
+.Dv VDOOMED
+.It F
+.Dv VFREE
+.It O
+.Dv VONWORKLST
+.It M
+.Dv VMOUNT
+.El
 .It USE
 The number of references to this vnode.
 .It HOLD
@@ -311,7 +311,7 @@ Miscellaneous filesystem specific state variables encoded thus:
 .Bl -tag -width indent
 .It "For ufs:"
 .Pp
-.Bl -tag -width indent
+.Bl -tag -width indent -compact
 .It L
 locked
 .It U
@@ -338,7 +338,8 @@ inode is on hash list
 modified, but don't write key
 .El
 .It "For nfs:"
-.Bl -tag -width indent
+.Bl -tag -width indent -compact
+.Pp
 .It W
 waiting for I/O buffer flush to complete
 .It P
