@@ -96,6 +96,7 @@ fhc_central_attach(device_t dev)
 	bus_addr_t size;
 	bus_addr_t off;
 	phandle_t node;
+	int board;
 	int nreg;
 	int rid;
 	int i;
@@ -103,6 +104,7 @@ fhc_central_attach(device_t dev)
 	sc = device_get_softc(dev);
 	node = central_get_node(dev);
 	sc->sc_node = node;
+	sc->sc_flags |= FHC_CENTRAL;
 
 	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg != FHC_NREG) {
@@ -121,5 +123,10 @@ fhc_central_attach(device_t dev)
 		sc->sc_bh[i] = rman_get_bushandle(sc->sc_memres[i]);
 	}
 	free(reg, M_OFWPROP);
+
+	board = bus_space_read_4(sc->sc_bt[FHC_INTERNAL],
+	    sc->sc_bh[FHC_INTERNAL], FHC_BSR);
+	sc->sc_board = ((board >> 16) & 0x1) | ((board >> 12) & 0xe);
+
 	return (fhc_attach(dev));
 }

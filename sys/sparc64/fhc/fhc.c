@@ -31,6 +31,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/pcpu.h>
 
 #include <dev/ofw/openfirm.h>
 
@@ -46,12 +47,22 @@
 
 #define	INTIGN(map)	(((map) & INTMAP_IGN_MASK) >> INTMAP_IGN_SHIFT)
 
+struct fhc_clr {
+	driver_intr_t		*fc_func;
+	void			*fc_arg;
+	void			*fc_cookie;
+	bus_space_tag_t		fc_bt;
+	bus_space_handle_t	fc_bh;
+};
+
 struct fhc_devinfo {
 	char			*fdi_name;
 	char			*fdi_type;
 	phandle_t		fdi_node;
 	struct resource_list	fdi_rl;
 };
+
+static void fhc_intr_stub(void *);
 
 int
 fhc_probe(device_t dev)
@@ -71,7 +82,7 @@ fhc_attach(device_t dev)
 	bus_addr_t size;
 	bus_addr_t off;
 	device_t cdev;
-	uint64_t map;
+	uint32_t ctrl;
 	char *name;
 	int nreg;
 	int i;
@@ -79,17 +90,26 @@ fhc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	node = sc->sc_node;
 
-	sc->sc_ign = bus_space_read_4(sc->sc_bt[FHC_IGN],
-	    sc->sc_bh[FHC_IGN], 0x0);
 	for (i = FHC_FANFAIL; i <= FHC_TOD; i++) {
 		bus_space_write_4(sc->sc_bt[i], sc->sc_bh[i], FHC_ICLR, 0x0);
-		map = bus_space_read_4(sc->sc_bt[i], sc->sc_bh[i], FHC_IMAP);
-		bus_space_write_4(sc->sc_bt[i], sc->sc_bh[i], FHC_IMAP,
-		    map & ~INTMAP_V);
-		if (INTIGN(map) != sc->sc_ign)
-			panic("fhc_attach: map has wrong ign %#lx != %#x",
-			    INTIGN(map), sc->sc_ign);
+		bus_space_read_4(sc->sc_bt[i], sc->sc_bh[i], FHC_ICLR);
 	}
+
+	sc->sc_ign = sc->sc_board << 1;
+	bus_space_write_4(sc->sc_bt[FHC_IGN], sc->sc_bh[FHC_IGN], 0x0,
+	    sc->sc_ign);
+	sc->sc_ign = bus_space_read_4(sc->sc_bt[FHC_IGN],
+	    sc->sc_bh[FHC_IGN], 0x0);
+
+	ctrl = bus_space_read_4(sc->sc_bt[FHC_INTERNAL],
+	    sc->sc_bh[FHC_INTERNAL], FHC_CTRL);
+	if ((sc->sc_flags & FHC_CENTRAL) == 0)
+		ctrl |= FHC_CTRL_IXIST;
+	ctrl &= ~(FHC_CTRL_AOFF | FHC_CTRL_BOFF | FHC_CTRL_SLINE);
+	bus_space_write_4(sc->sc_bt[FHC_INTERNAL], sc->sc_bh[FHC_INTERNAL],
+	    FHC_CTRL, ctrl);
+	ctrl = bus_space_read_4(sc->sc_bt[FHC_INTERNAL],
+	    sc->sc_bh[FHC_INTERNAL], FHC_CTRL);
 
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
@@ -198,19 +218,66 @@ fhc_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 int
 fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-    driver_intr_t intr, void *arg, void **cookiep)
+    driver_intr_t *func, void *arg, void **cookiep)
 {
+	struct fhc_softc *sc;
+	struct fhc_clr *fc;
+	int error;
+	int rid;
 
-	return (bus_generic_setup_intr(bus, child, r, flags, intr, arg,
-	    cookiep));
+	sc = device_get_softc(bus);
+	rid = rman_get_rid(r);
+
+	fc = malloc(sizeof(*fc), M_DEVBUF, M_ZERO);
+	fc->fc_func = func;
+	fc->fc_arg = arg;
+	fc->fc_bt = sc->sc_bt[rid];
+	fc->fc_bh = sc->sc_bh[rid];
+
+	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP,
+	    r->r_start);
+	bus_space_read_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP);
+
+	error = bus_generic_setup_intr(bus, child, r, flags, fhc_intr_stub,
+	    fc, cookiep);
+	if (error != 0) {
+		free(fc, M_DEVBUF);
+		return (error);
+	}
+	fc->fc_cookie = *cookiep;
+	*cookiep = fc;
+
+	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_ICLR, 0x0);
+	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP,
+	    INTMAP_ENABLE(r->r_start, PCPU_GET(mid)));
+	bus_space_read_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP);
+
+	return (error);
 }
 
 int
 fhc_teardown_intr(device_t bus, device_t child, struct resource *r,
     void *cookie)
 {
+	struct fhc_clr *fc;
+	int error;
 
-	return (bus_generic_teardown_intr(bus, child, r, cookie));
+	fc = cookie;
+	error = bus_generic_teardown_intr(bus, child, r, fc->fc_cookie);
+	if (error != 0)
+		free(fc, M_DEVBUF);
+	return (error);
+}
+
+static void
+fhc_intr_stub(void *arg)
+{
+	struct fhc_clr *fc = arg;
+
+	fc->fc_func(fc->fc_arg);
+
+	bus_space_write_4(fc->fc_bt, fc->fc_bh, FHC_ICLR, 0x0);
+	bus_space_read_4(fc->fc_bt, fc->fc_bh, FHC_ICLR);
 }
 
 struct resource *
@@ -225,7 +292,8 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	bus_addr_t cend;
 	bus_addr_t phys;
 	int isdefault;
-	uint64_t map;
+	uint32_t map;
+	uint32_t vec;
 	int i;
 
 	isdefault = (start == 0UL && end == ~0UL);
@@ -236,10 +304,16 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (!isdefault || count != 1 || *rid < FHC_FANFAIL ||
 		    *rid > FHC_TOD)
 			break;
+
 		map = bus_space_read_4(sc->sc_bt[*rid], sc->sc_bh[*rid],
 		    FHC_IMAP);
+		vec = INTINO(map) | (sc->sc_ign << INTMAP_IGN_SHIFT);
+		bus_space_write_4(sc->sc_bt[*rid], sc->sc_bh[*rid],
+		    FHC_IMAP, vec);
+		bus_space_read_4(sc->sc_bt[*rid], sc->sc_bh[*rid], FHC_IMAP);
+
 		res = bus_generic_alloc_resource(bus, child, type, rid,
-		    INTVEC(map), INTVEC(map), 1, flags);
+		    vec, vec, 1, flags);
 		if (res != NULL)
 			rman_set_rid(res, *rid);
 		break;
