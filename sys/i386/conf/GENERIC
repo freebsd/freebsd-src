@@ -66,9 +66,10 @@ options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 # To make an SMP kernel, the next two are needed
-#options 	SMP			# Symmetric MultiProcessor Kernel
-#options 	APIC_IO			# Symmetric (APIC) I/O
+options 	SMP			# Symmetric MultiProcessor Kernel
+device		apic			# I/O APIC
 
+device		acpi
 device		isa
 device		eisa
 device		pci
