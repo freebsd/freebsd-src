@@ -92,11 +92,8 @@ closeswap(w)
 int
 initswap()
 {
-	int i;
 	char msgbuf[BUFSIZ];
-	char *cp;
 	static int once = 0;
-	u_long ptr;
 	struct kvm_swap dummy;
 
 	if (once)
@@ -124,7 +121,7 @@ fetchswap()
 void
 labelswap()
 {
-	char *header, *p;
+	char *header;
 	int row, i;
 
 	fetchswap();
