@@ -1,0 +1,129 @@
+# Makefile for gperf/doc
+
+# Copyright (C) 1998 Free Software Foundation, Inc.
+#
+# This file is part of GNU GPERF.
+#
+# GNU GPERF is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 1, or (at your option)
+# any later version.
+#
+# GNU GPERF is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GNU GPERF; see the file COPYING.  If not, write to the Free
+# Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.
+
+#### Start of system configuration section. ####
+
+# Directories used by "make":
+srcdir = @srcdir@
+
+# Directories used by "make install":
+prefix = @prefix@
+local_prefix = /usr/local
+exec_prefix = @exec_prefix@
+infodir = @infodir@
+mandir = @mandir@
+man1dir = $(mandir)/man1
+dvidir = $(mandir)/dvi
+htmldir = $(mandir)/html
+
+# Programs used by "make":
+RM = rm -f
+@SET_MAKE@
+
+# Programs used by "make" if you have changed the documentation files:
+TEX = tex
+TEXI2DVI = texi2dvi
+DVIPS = dvips -Pljfour
+MAKEINFO = LANGUAGE= makeinfo
+TEXI2HTML = texi2html
+
+# Programs used by "make install":
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+#### End of system configuration section. ####
+
+SHELL = /bin/sh
+
+VPATH = $(srcdir)
+
+all : info dvi ps html
+
+
+info : $(srcdir)/gperf.info
+
+$(srcdir)/gperf.info : $(srcdir)/gperf.texi
+	cd $(srcdir) && $(MAKEINFO) --no-split gperf.texi
+
+
+dvi : $(srcdir)/gperf.dvi
+
+$(srcdir)/gperf.dvi : $(srcdir)/gperf.texi
+	cd $(srcdir) && $(RM) gperf.aux gperf.toc gperf.cp gperf.fn gperf.ky gperf.pg gperf.tp gperf.vr gperf.log
+	cd $(srcdir) && $(TEXI2DVI) gperf.texi
+	cd $(srcdir) && $(RM) gperf.aux gperf.toc gperf.cp gperf.fn gperf.ky gperf.pg gperf.tp gperf.vr gperf.log
+
+
+ps : $(srcdir)/gperf.ps
+
+$(srcdir)/gperf.ps : $(srcdir)/gperf.dvi
+	$(DVIPS) -o $@ $<
+
+
+html : gperf.html gperf_toc.html
+
+gperf.html : $(srcdir)/gperf.texi
+	cd $(srcdir) && $(TEXI2HTML) -expandinfo -number -monolithic gperf.texi
+
+gperf_toc.html : $(srcdir)/gperf.texi
+	cd $(srcdir) && $(RM) gperf_*.html
+	cd $(srcdir) && $(TEXI2HTML) -expandinfo -number -split_chapter gperf.texi
+
+
+install : all force
+	if [ ! -d $(infodir) ] ; then mkdir $(infodir) ; fi
+	$(INSTALL_DATA) $(srcdir)/gperf.info $(infodir)/gperf.info
+	if [ ! -d $(mandir) ] ; then mkdir $(mandir) ; fi
+	if [ ! -d $(man1dir) ] ; then mkdir $(man1dir) ; fi
+	$(INSTALL_DATA) $(srcdir)/gperf.1 $(man1dir)/gperf.1
+	if [ ! -d $(dvidir) ] ; then mkdir $(dvidir) ; fi
+	$(INSTALL_DATA) $(srcdir)/gperf.dvi $(dvidir)/gperf.dvi
+	if [ ! -d $(htmldir) ] ; then mkdir $(htmldir) ; fi
+	$(INSTALL_DATA) $(srcdir)/gperf.html $(htmldir)/gperf.html
+
+installdirs : force
+	if [ ! -d $(infodir) ] ; then mkdir $(infodir) ; fi
+	if [ ! -d $(mandir) ] ; then mkdir $(mandir) ; fi
+	if [ ! -d $(man1dir) ] ; then mkdir $(man1dir) ; fi
+	if [ ! -d $(dvidir) ] ; then mkdir $(dvidir) ; fi
+	if [ ! -d $(htmldir) ] ; then mkdir $(htmldir) ; fi
+
+uninstall : force
+	$(RM) $(infodir)/gperf.info
+	$(RM) $(man1dir)/gperf.1
+	$(RM) $(dvidir)/gperf.dvi
+	$(RM) $(htmldir)/gperf.html
+
+check : all
+
+mostlyclean : clean
+
+clean : force
+	$(RM) *~ *.aux *.toc *.cp *.fn *.ky *.pg *.tp *.vr *.my *.log core
+
+distclean : clean
+	$(RM) config.status config.log config.cache Makefile
+
+maintainer-clean : distclean
+	$(RM) *.info *.dvi *.ps *.html
+
+force :
+
