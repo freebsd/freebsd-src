@@ -13,17 +13,18 @@
  */
 
 #include "cvs.h"
+#include "getline.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)patch.c 1.57 94/09/30 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)patch.c 1.57 94/09/30 $";
+USE(rcsid);
 #endif
 
 static RETSIGTYPE patch_cleanup PROTO((void));
 static Dtype patch_dirproc PROTO((char *dir, char *repos, char *update_dir));
 static int patch_fileproc PROTO((char *file, char *update_dir, char *repository,
 			   List * entries, List * srcfiles));
-static int patch_proc PROTO((int *pargc, char *argv[], char *xwhere,
+static int patch_proc PROTO((int *pargc, char **argv, char *xwhere,
 		       char *mwhere, char *mfile, int shorten,
 		       int local_specified, char *mname, char *msg));
 
@@ -39,11 +40,10 @@ static char *date2 = NULL;
 static char tmpfile1[L_tmpnam+1], tmpfile2[L_tmpnam+1], tmpfile3[L_tmpnam+1];
 static int unidiff = 0;
 
-static char *patch_usage[] =
+static const char *const patch_usage[] =
 {
-    "Usage: %s %s [-Qflq] [-c|-u] [-s|-t] [-V %%d]\n",
+    "Usage: %s %s [-fl] [-c|-u] [-s|-t] [-V %%d]\n",
     "    -r rev|-D date [-r rev2 | -D date2] modules...\n",
-    "\t-Q\tReally quiet.\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
     "\t-l\tLocal directory only, not recursive\n",
     "\t-c\tContext diffs (default)\n",
@@ -59,7 +59,7 @@ static char *patch_usage[] =
 int
 patch (argc, argv)
     int argc;
-    char *argv[];
+    char **argv;
 {
     register int i;
     int c;
@@ -75,10 +75,15 @@ patch (argc, argv)
 	switch (c)
 	{
 	    case 'Q':
-		really_quiet = 1;
-		/* FALL THROUGH */
 	    case 'q':
-		quiet = 1;
+#ifdef SERVER_SUPPORT
+		/* The CVS 1.5 client sends these options (in addition to
+		   Global_option requests), so we must ignore them.  */
+		if (!server_active)
+#endif
+		    error (1, 0,
+			   "-q or -Q must be specified before \"%s\"",
+			   command_name);
 		break;
 	    case 'f':
 		force_tag_match = 0;
@@ -162,12 +167,64 @@ patch (argc, argv)
     if (options == NULL)
 	options = xstrdup ("");
 
+#ifdef CLIENT_SUPPORT
+    if (client_active)
+    {
+	/* We're the client side.  Fire up the remote server.  */
+	start_server ();
+	
+	ign_setup ();
+
+	if (local)
+	    send_arg("-l");
+	if (force_tag_match)
+	    send_arg("-f");
+	if (toptwo_diffs)
+	    send_arg("-t");
+	if (patch_short)
+	    send_arg("-s");
+	if (unidiff)
+	    send_arg("-u");
+
+	if (rev1)
+	    option_with_arg ("-r", rev1);
+	if (date1)
+	    client_senddate (date1);
+	if (rev2)
+	    option_with_arg ("-r", rev2);
+	if (date2)
+	    client_senddate (date2);
+	if (options[0] != '\0')
+	    send_arg (options);
+
+	{
+	    int i;
+	    for (i = 0; i < argc; ++i)
+		send_arg (argv[i]);
+	}
+
+	if (fprintf (to_server, "rdiff\n") < 0)
+	    error (1, errno, "writing to server");
+        return get_responses_and_close ();
+    }
+#endif
+
     /* clean up if we get a signal */
+#ifdef SIGHUP
     (void) SIG_register (SIGHUP, patch_cleanup);
+#endif
+#ifdef SIGINT
     (void) SIG_register (SIGINT, patch_cleanup);
+#endif
+#ifdef SIGQUIT
     (void) SIG_register (SIGQUIT, patch_cleanup);
+#endif
+#ifdef SIGPIPE
     (void) SIG_register (SIGPIPE, patch_cleanup);
+#endif
+#ifdef SIGTERM
     (void) SIG_register (SIGTERM, patch_cleanup);
+#endif
 
     db = open_module ();
     for (i = 0; i < argc; i++)
@@ -188,7 +245,7 @@ static int
 patch_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	    mname, msg)
     int *pargc;
-    char *argv[];
+    char **argv;
     char *xwhere;
     char *mwhere;
     char *mfile;
@@ -255,8 +312,8 @@ patch_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	which = W_REPOS;
 
     /* start the recursion processor */
-    err = start_recursion (patch_fileproc, (int (*) ()) NULL, patch_dirproc,
-			   (int (*) ()) NULL, *pargc - 1, argv + 1, local,
+    err = start_recursion (patch_fileproc, (FILESDONEPROC) NULL, patch_dirproc,
+			   (DIRLEAVEPROC) NULL, *pargc - 1, argv + 1, local,
 			   which, 0, 1, where, 1, 1);
 
     return (err);
@@ -286,7 +343,9 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
     int isattic = 0;
     int retcode = 0;
     char file1[PATH_MAX], file2[PATH_MAX], strippath[PATH_MAX];
-    char line1[MAXLINELEN], line2[MAXLINELEN];
+    char *line1, *line2;
+    size_t line1_chars_allocated;
+    size_t line2_chars_allocated;
     char *cp1, *cp2, *commap;
     FILE *fp;
 
@@ -304,7 +363,7 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
     if (isattic && rev2 == NULL && date2 == NULL)
 	vers_head = NULL;
     else
-	vers_head = RCS_getversion (rcsfile, rev2, date2, force_tag_match);
+	vers_head = RCS_getversion (rcsfile, rev2, date2, force_tag_match, 0);
 
     if (toptwo_diffs)
     {
@@ -322,7 +381,7 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	    return (1);
 	}
     }
-    vers_tag = RCS_getversion (rcsfile, rev1, date1, force_tag_match);
+    vers_tag = RCS_getversion (rcsfile, rev1, date1, force_tag_match, 0);
 
     if (vers_tag == NULL && (vers_head == NULL || isattic))
 	return (0);			/* nothing known about specified revs */
@@ -336,8 +395,21 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	if (vers_tag == NULL)
 	    (void) printf ("%s is new; current revision %s\n", rcs, vers_head);
 	else if (vers_head == NULL)
+#ifdef DEATH_SUPPORT
+	{
+	    (void) printf ("%s is removed; not included in ", rcs);
+	    if (rev2 != NULL)
+		(void) printf ("release tag %s", rev2);
+	    else if (date2 != NULL)
+		(void) printf ("release date %s", date2);
+	    else
+		(void) printf ("current release");
+	    (void) printf ("\n");
+	}
+#else
 	    (void) printf ("%s is removed; not included in release %s\n",
 			   rcs, rev2 ? rev2 : date2);
+#endif
 	else
 	    (void) printf ("%s changed from revision %s to %s\n",
 			   rcs, vers_tag, vers_head);
@@ -396,6 +468,12 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
     run_setup ("%s -%c", DIFF, unidiff ? 'u' : 'c');
     run_arg (tmpfile1);
     run_arg (tmpfile2);
+
+    line1 = NULL;
+    line1_chars_allocated = 0;
+    line2 = NULL;
+    line2_chars_allocated = 0;
+
     switch (run_exec (RUN_TTY, tmpfile3, RUN_TTY, RUN_NORMAL))
     {
 	case -1:			/* fork/wait failure */
@@ -419,8 +497,8 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	    (void) fflush (stdout);
 
 	    fp = open_file (tmpfile3, "r");
-	    if (fgets (line1, sizeof (line1), fp) == NULL ||
-		fgets (line2, sizeof (line2), fp) == NULL)
+	    if (getline (&line1, &line1_chars_allocated, fp) < 0 ||
+		getline (&line2, &line2_chars_allocated, fp) < 0)
 	    {
 		error (0, errno, "failed to read diff file header %s for %s",
 		       tmpfile3, rcs);
@@ -488,14 +566,19 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	    if (update_dir[0] != '\0')
 		(void) printf ("%s/", update_dir);
 	    (void) printf ("%s%s", rcs, cp2);
-	    while (fgets (line1, sizeof (line1), fp) != NULL)
-		(void) printf ("%s", line1);
+	    /* spew the rest of the diff out */
+	    while (getline (&line1, &line1_chars_allocated, fp) >= 0)
+		(void) fputs (line1, stdout);
 	    (void) fclose (fp);
 	    break;
 	default:
 	    error (0, 0, "diff failed for %s", rcs);
     }
   out:
+    if (line1)
+        free (line1);
+    if (line2)
+        free (line2);
     (void) unlink_file (tmpfile1);
     (void) unlink_file (tmpfile2);
     (void) unlink_file (tmpfile3);

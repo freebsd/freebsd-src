@@ -5,8 +5,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)ignore.c 1.16 94/09/24 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)ignore.c 1.16 94/09/24 $";
+USE(rcsid);
 #endif
 
 /*
@@ -27,7 +27,7 @@ static int ign_size;			/* This many slots available (plus
 static int ign_hold;			/* Index where first "temporary" item
 					 * is held */
 
-char *ign_default = ". .. core RCSLOG tags TAGS RCS SCCS .make.state .nse_depinfo #* .#* cvslog.* ,* CVS* .del-* *.a *.o *.so *.Z *~ *.old *.elc *.ln *.bak *.BAK *.orig *.rej";
+const char *ign_default = ". .. core RCSLOG tags TAGS RCS SCCS .make.state .nse_depinfo #* .#* cvslog.* ,* CVS* .del-* *.a *.o *.so *.Z *~ *.old *.elc *.ln *.bak *.BAK *.orig *.rej";
 
 #define IGN_GROW 16			/* grow the list by 16 elements at a
 					 * time */
@@ -41,7 +41,6 @@ char *ign_default = ". .. core RCSLOG tags TAGS RCS SCCS .make.state .nse_depinf
 void
 ign_setup ()
 {
-    extern char *getenv ();
     struct passwd *pw;
     char file[PATH_MAX];
     char *tmp;
@@ -51,17 +50,26 @@ ign_setup ()
     ign_add (tmp, 0);
     free (tmp);
 
-    /* Then add entries found in repository, if it exists */
-    (void) sprintf (file, "%s/%s/%s", CVSroot, CVSROOTADM, CVSROOTADM_IGNORE);
-    if (isfile (file))
+#ifdef CLIENT_SUPPORT
+    /* Chances are we should have some way to provide this feature
+       client/server, but I'm not sure how (surely not by introducing
+       another network turnaround to each operation--perhaps by
+       putting a file in the CVS directory on checkout, or with some
+       sort of "slave cvsroot" on the client).  */
+    if (!client_active)
+#endif
+    {
+	/* Then add entries found in repository, if it exists */
+	(void) sprintf (file, "%s/%s/%s", CVSroot, CVSROOTADM,
+			CVSROOTADM_IGNORE);
 	ign_add_file (file, 0);
+    }
 
     /* Then add entries found in home dir, (if user has one) and file exists */
     if ((pw = (struct passwd *) getpwuid (getuid ())) && pw->pw_dir)
     {
 	(void) sprintf (file, "%s/%s", pw->pw_dir, CVSDOTIGNORE);
-	if (isfile (file))
-	    ign_add_file (file, 0);
+	ign_add_file (file, 0);
     }
 
     /* Then add entries found in CVSIGNORE environment variable. */
@@ -118,11 +126,17 @@ ign_add_file (file, hold)
     }
 
     /* load the file */
-    if (!(fp = fopen (file, "r")))
+    fp = fopen (file, "r");
+    if (fp == NULL)
+    {
+	if (! existence_error (errno))
+	    error (0, errno, "cannot open %s", file);
 	return;
+    }
     while (fgets (line, sizeof (line), fp))
 	ign_add (line, hold);
-    (void) fclose (fp);
+    if (fclose (fp) < 0)
+	error (0, errno, "cannot close %s", file);
 }
 
 /* Parse a line of space-separated wildcards and add them to the list. */

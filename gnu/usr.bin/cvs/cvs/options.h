@@ -53,26 +53,30 @@
 
 /*
  * The "diff" program to execute when creating patch output.  This "diff"
- * must support the "-c" option for context diffing.  Specify a full pathname
- * if your site wants to use a particular diff.  If you are using the GNU
- * version of diff (version 1.15 or later), this should be "diff -a".
+ * must support the "-c" option for context diffing.  Specify a full
+ * pathname if your site wants to use a particular diff.  If you are
+ * using the GNU version of diff (version 1.15 or later), this should
+ * be "diff -a".  
  * 
- * NOTE: this program is only used for the ``patch'' sub-command.  The other
- * commands use rcsdiff which will use whatever version of diff was specified
+ * NOTE: this program is only used for the ``patch'' sub-command (and
+ * for ``update'' if you are using the server).  The other commands
+ * use rcsdiff which will use whatever version of diff was specified
  * when rcsdiff was built on your system.
  */
+
 #ifndef DIFF
-#define	DIFF	"diff"
+#define	DIFF	"/usr/bin/diff -a"
 #endif
 
 /*
  * The "grep" program to execute when checking to see if a merged file had
- * any conflicts.  This "grep" must support the "-s" option and a standard
+ * any conflicts.  This "grep" must support a standard basic
  * regular expression as an argument.  Specify a full pathname if your site
  * wants to use a particular grep.
  */
+
 #ifndef GREP
-#define	GREP	"grep"
+#define GREP "grep"
 #endif
 
 /*
@@ -90,6 +94,15 @@
  */
 #ifndef SORT
 #define	SORT	"sort"
+#endif
+
+/*
+ * The "patch" program to run when using the CVS server and accepting
+ * patches across the network.  Specify a full pathname if your site
+ * wants to use a particular patch.
+ */
+#ifndef PATCH_PROGRAM
+#define PATCH_PROGRAM	"patch"
 #endif
 
 /*
@@ -117,6 +130,30 @@
  */
 #ifndef EDITOR_DFLT
 #define	EDITOR_DFLT	"vi"
+#endif
+
+/*
+ * The default umask to use when creating or otherwise setting file or
+ * directory permissions in the repository.  Must be a value in the
+ * range of 0 through 0777.  For example, a value of 002 allows group
+ * rwx access and world rx access; a value of 007 allows group rwx
+ * access but no world access.  This value is overridden by the value
+ * of the CVSUMASK environment variable, which is interpreted as an
+ * octal number.
+ */
+#ifndef UMASK_DFLT
+#define	UMASK_DFLT	002
+#endif
+
+/*
+ * The cvs admin command is restricted to the members of the group
+ * CVS_ADMIN_GROUP.  If this group does not exist, all users are
+ * allowed to run cvs admin.  To disable the cvs admin for all users,
+ * create an empty group CVS_ADMIN_GROUP.  To disable access control for
+ * cvs admin, comment out the define below.
+ */
+#ifndef CVS_ADMIN_GROUP
+#define CVS_ADMIN_GROUP "cvsadmin"
 #endif
 
 /*
@@ -175,6 +212,19 @@
 #endif
 
 /*
+ * The "cvs admin" command allows people to get around most of the logging
+ * and info procedures within CVS.  For exmaple, "cvs tag tagname filename"
+ * will perform some validity checks on the tag, while "cvs admin -Ntagname"
+ * will not perform those checks.  For this reason, some sites may wish to
+ * disable the admin function completely.
+ *
+ * To disable the admin function, uncomment the lines below.
+ */
+#ifndef CVS_NOADMIN
+/* #define CVS_NOADMIN */
+#endif
+
+/*
  * The "cvs diff" command accepts all the single-character options that GNU
  * diff (1.15) accepts.  Except -D.  GNU diff uses -D as a way to put
  * cpp-style #define's around the output differences.  CVS, by default, uses
@@ -184,6 +234,40 @@
  */
 #ifndef CVS_DIFFDATE
 #define	CVS_DIFFDATE
+#endif
+
+/*
+ * define this to enable the SETXID support (see FAQ 4D.13)
+ */
+#ifndef SETXID_SUPPORT
+/* #define SETXID_SUPPORT */
+#endif
+
+/*
+ * The authenticated client/server is under construction.  Don't
+ * define either of these unless you're testing them, in which case 
+ * you're me and you already know that.
+ */
+/* #undef AUTH_CLIENT_SUPPORT */
+/* #undef AUTH_SERVER_SUPPORT */
+
+/*
+ * If you are working with a large remote repository and a 'cvs checkout' is
+ * swamping your network and memory, define these to enable flow control.
+ * You will end up with even less guarantees of a consistant checkout,
+ * but that may be better than no checkout at all.  The master server process
+ * will monitor how far it is getting behind, if it reaches the high water
+ * mark, it will signal the child process to stop generating data when
+ * convenient (ie: no locks are held, currently at the beginning of a 
+ * new directory).  Once the buffer has drained sufficiently to reach the
+ * low water mark, it will be signalled to start again.
+ * -- EXPERIMENTAL! --  A better solution may be in the works.
+ * You may override the default hi/low watermarks here too.
+ */
+#ifndef SERVER_FLOWCONTROL
+# define SERVER_FLOWCONTROL
+# define SERVER_HI_WATER (2 * 1024 * 1024)
+# define SERVER_LO_WATER (1 * 1024 * 1024)
 #endif
 
 /* End of CVS configuration section */

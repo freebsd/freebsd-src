@@ -14,8 +14,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)mkmodules.c 1.45 94/09/30 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)mkmodules.c 1.45 94/09/30 $";
+USE(rcsid);
 #endif
 
 #ifndef DBLKSIZ
@@ -25,6 +25,7 @@ USE(rcsid)
 char *program_name, *command_name;
 
 char *Rcsbin = RCSBIN_DFLT;
+char *CVSroot = CVSROOT_DFLT;
 int noexec = 0;				/* Here only to satisfy use in subr.c */
 int trace = 0;				/* Here only to satisfy use in subr.c */
 
@@ -42,9 +43,8 @@ static void write_dbmfile PROTO((char *temp));
 int
 main (argc, argv)
     int argc;
-    char *argv[];
+    char **argv;
 {
-    extern char *getenv ();
     char temp[PATH_MAX];
     char *cp, *last, *fname;
 #ifdef MY_NDBM
@@ -64,19 +64,20 @@ main (argc, argv)
 	"a %s file can be used to validate log messages"},
     {CVSROOTADM_COMMITINFO,
 	"a %s file can be used to configure 'cvs commit' checking"},
+    {CVSROOTADM_TAGINFO,
+	"a %s file can be used to configure 'cvs tag' checking"},
     {CVSROOTADM_IGNORE,
 	"a %s file can be used to specify files to ignore"},
     {CVSROOTADM_CHECKOUTLIST,
 	"a %s file can specify extra CVSROOT files to auto-checkout"},
+    {CVSROOTADM_WRAPPER,
+	"a %s file can be used to specify files to treat as wrappers"},
     {NULL, NULL}};
 
     /*
      * Just save the last component of the path for error messages
      */
-    if ((program_name = strrchr (argv[0], '/')) == NULL)
-	program_name = argv[0];
-    else
-	program_name++;
+    program_name = last_component (argv[0]);
 
     if (argc != 2)
 	mkmodules_usage ();
@@ -164,9 +165,15 @@ main (argc, argv)
 	/*
 	 * File format:
 	 *  [<whitespace>]<filename><whitespace><error message><end-of-line>
+	 *
+	 * comment lines begin with '#'
 	 */
-	for (; fgets (line, sizeof (line), fp) != NULL;)
+	while (fgets (line, sizeof (line), fp) != NULL)
 	{
+	    /* skip lines starting with # */
+	    if (line[0] == '#')
+		continue;
+
 	    if ((last = strrchr (line, '\n')) != NULL)
 		*last = '\0';			/* strip the newline */
 
@@ -329,12 +336,14 @@ write_dbmfile (temp)
     (void) fclose (fp);
     if (err)
     {
-	char dotdir[50], dotpag[50];
+	char dotdir[50], dotpag[50], dotdb[50];
 
 	(void) sprintf (dotdir, "%s.dir", temp);
 	(void) sprintf (dotpag, "%s.pag", temp);
+	(void) sprintf (dotdb, "%s.db", temp);
 	(void) unlink_file (dotdir);
 	(void) unlink_file (dotpag);
+	(void) unlink_file (dotdb);
 	error (1, 0, "DBM creation failed; correct above errors");
     }
 }
@@ -343,29 +352,36 @@ static void
 rename_dbmfile (temp)
     char *temp;
 {
-    char newdir[50], newpag[50];
-    char dotdir[50], dotpag[50];
-    char bakdir[50], bakpag[50];
+    char newdir[50], newpag[50], newdb[50];
+    char dotdir[50], dotpag[50], dotdb[50];
+    char bakdir[50], bakpag[50], bakdb[50];
 
     (void) sprintf (dotdir, "%s.dir", CVSROOTADM_MODULES);
     (void) sprintf (dotpag, "%s.pag", CVSROOTADM_MODULES);
+    (void) sprintf (dotdb, "%s.db", CVSROOTADM_MODULES);
     (void) sprintf (bakdir, "%s%s.dir", BAKPREFIX, CVSROOTADM_MODULES);
     (void) sprintf (bakpag, "%s%s.pag", BAKPREFIX, CVSROOTADM_MODULES);
+    (void) sprintf (bakdb, "%s%s.db", BAKPREFIX, CVSROOTADM_MODULES);
     (void) sprintf (newdir, "%s.dir", temp);
     (void) sprintf (newpag, "%s.pag", temp);
+    (void) sprintf (newdb, "%s.db", temp);
 
     (void) chmod (newdir, 0666);
     (void) chmod (newpag, 0666);
+    (void) chmod (newdb, 0666);
 
     /* don't mess with me */
     SIG_beginCrSect ();
 
     (void) unlink_file (bakdir);	/* rm .#modules.dir .#modules.pag */
     (void) unlink_file (bakpag);
+    (void) unlink_file (bakdb);
     (void) rename (dotdir, bakdir);	/* mv modules.dir .#modules.dir */
     (void) rename (dotpag, bakpag);	/* mv modules.pag .#modules.pag */
+    (void) rename (dotdb, bakdb);	/* mv modules.db .#modules.db */
     (void) rename (newdir, dotdir);	/* mv "temp".dir modules.dir */
     (void) rename (newpag, dotpag);	/* mv "temp".pag modules.pag */
+    (void) rename (newdb, dotdb);	/* mv "temp".db modules.db */
 
     /* OK -- make my day */
     SIG_endCrSect ();
@@ -403,6 +419,14 @@ Lock_Cleanup ()
 {
 }
 
+int server_active = 0;
+
+void
+server_cleanup (sig)
+    int sig;
+{
+}
+
 static void
 mkmodules_usage ()
 {

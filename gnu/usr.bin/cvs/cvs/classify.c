@@ -10,11 +10,17 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)classify.c 1.17 94/10/07 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)classify.c 1.17 94/10/07 $";
+USE(rcsid);
 #endif
 
+#ifdef SERVER_SUPPORT
+static void sticky_ck PROTO((char *file, int aflag, Vers_TS * vers,
+			     List * entries,
+			     char *repository, char *update_dir));
+#else
 static void sticky_ck PROTO((char *file, int aflag, Vers_TS * vers, List * entries));
+#endif
 
 /*
  * Classify the state of a file
@@ -73,6 +79,25 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		ret = T_UNKNOWN;
 	    }
 	}
+#ifdef DEATH_SUPPORT
+	else if (RCS_isdead (vers->srcfile, vers->vn_rcs))
+	{
+	    if (vers->ts_user == NULL)
+		/*
+		 * Logically seems to me this should be T_UPTODATE.
+		 * But the joining code in update.c seems to expect
+		 * T_CHECKOUT, and that is what has traditionally been
+		 * returned for this case.
+		 */
+		ret = T_CHECKOUT;
+	    else
+	    {
+		error (0, 0, "use `cvs add' to create an entry for %s",
+		       fullname);
+		ret = T_UNKNOWN;
+	    }
+	}
+#endif
 	else
 	{
 	    /* there is an rcs file */
@@ -133,8 +158,28 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 	    if (vers->vn_rcs == NULL)
 		/* There is no RCS file, added file */
 		ret = T_ADDED;
+#ifdef DEATH_SUPPORT
+	    else if (RCS_isdead (vers->srcfile, vers->vn_rcs))
+		/* we are resurrecting. */
+		ret = T_ADDED;
+#endif /* DEATH_SUPPORT */
 	    else
 	    {
+#ifdef DEATH_SUPPORT
+		 if (vers->srcfile->flags & INATTIC
+		     && vers->srcfile->flags & VALID)
+		 {
+		     /* This file has been added on some branch other than
+			the one we are looking at.  In the branch we are
+			looking at, the file was already valid.  */
+		     if (!really_quiet)
+			 error (0, 0,
+				"conflict: %s has been added, but already exists",
+				fullname);
+		 }
+		 else
+		 {
+#endif /* DEATH_SUPPORT */
 		/*
 		 * There is an RCS file, so someone else must have checked
 		 * one in behind our back; conflict
@@ -143,6 +188,9 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		    error (0, 0,
 			"conflict: %s created independently by second party",
 			   fullname);
+#ifdef DEATH_SUPPORT
+		 }
+#endif
 		ret = T_CONFLICT;
 	    }
 	}
@@ -282,7 +330,12 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		    ret = T_CHECKOUT;
 		else
 		{
+#ifdef SERVER_SUPPORT
+		    sticky_ck (file, aflag, vers, entries,
+			       repository, update_dir);
+#else
 		    sticky_ck (file, aflag, vers, entries);
+#endif
 		    ret = T_UPTODATE;
 		}
 	    }
@@ -309,7 +362,12 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 			ret = T_NEEDS_MERGE;
 #else
 		    ret = T_MODIFIED;
+#ifdef SERVER_SUPPORT
+		    sticky_ck (file, aflag, vers, entries,
+			       repository, update_dir);
+#else
 		    sticky_ck (file, aflag, vers, entries);
+#endif /* SERVER_SUPPORT */
 #endif
 		}
 		else
@@ -352,7 +410,17 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		/*
 		 * The user file is still unmodified, so just get it as well
 		 */
+#ifdef SERVER_SUPPORT
+	        if (strcmp (vers->entdata->options ?
+			    vers->entdata->options : "", vers->options) != 0
+		    || (vers->srcfile != NULL
+			&& (vers->srcfile->flags & INATTIC) != 0))
+		    ret = T_CHECKOUT;
+		else
+		    ret = T_PATCH;
+#else
 		ret = T_CHECKOUT;
+#endif
 	    }
 	    else
 	    {
@@ -360,9 +428,21 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 				   repository, update_dir))
 		    /* really modified, needs to merge */
 		    ret = T_NEEDS_MERGE;
+#ifdef SERVER_SUPPORT
+	        else if ((strcmp (vers->entdata->options ?
+				  vers->entdata->options : "", vers->options)
+			  != 0)
+			 || (vers->srcfile != NULL
+			     && (vers->srcfile->flags & INATTIC) != 0))
+		    /* not really modified, check it out */
+		    ret = T_CHECKOUT;
+		else
+		    ret = T_PATCH;
+#else
 		else
 		    /* not really modified, check it out */
 		    ret = T_CHECKOUT;
+#endif
 	    }
 	}
     }
@@ -380,11 +460,19 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 }
 
 static void
+#ifdef SERVER_SUPPORT
+sticky_ck (file, aflag, vers, entries, repository, update_dir)
+#else
 sticky_ck (file, aflag, vers, entries)
+#endif
     char *file;
     int aflag;
     Vers_TS *vers;
     List *entries;
+#ifdef SERVER_SUPPORT
+    char *repository;
+    char *update_dir;
+#endif
 {
     if (aflag || vers->tag || vers->date)
     {
@@ -398,6 +486,19 @@ sticky_ck (file, aflag, vers, entries)
 	{
 	    Register (entries, file, vers->vn_user, vers->ts_rcs,
 		      vers->options, vers->tag, vers->date, vers->ts_conflict);
+
+#ifdef SERVER_SUPPORT
+	    if (server_active)
+	    {
+		/* We need to update the entries line on the client side.
+		   It is possible we will later update it again via
+		   server_updated or some such, but that is OK.  */
+		server_update_entries
+		  (file, update_dir, repository,
+		   strcmp (vers->ts_rcs, vers->ts_user) == 0 ?
+		   SERVER_UPDATED : SERVER_MERGED);
+	    }
+#endif
 	}
     }
 }
