@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.37 1994/04/10 11:17:13 csgr Exp $
+ *	$Id: wd.c,v 1.39 1994/05/25 09:00:19 rgrimes Exp $
  */
 
 /* TODO:
@@ -86,7 +86,9 @@ static int wdtest = 0;
 #define TIMEOUT		10000
 #define	RETRIES		5	/* number of retries before giving up */
 #define RECOVERYTIME	500000	/* usec for controller to recover after err */
-#define	MAXTRANSFER	256	/* max size of transfer in sectors */
+#define	MAXTRANSFER	255	/* max size of transfer in sectors */
+				/* correct max is 256 but some controllers */
+				/* can't handle that in all cases */
 #define BAD144_NO_CYL	0xffff	/* XXX should be in dkbad.h; bad144.c uses -1 */
 
 #ifdef notyet
@@ -515,9 +517,13 @@ loop:
 
 	if (du->dk_skip == 0) {
 		du->dk_bc = bp->b_bcount;
-		if (bp->b_flags & B_BAD) {
+		if (bp->b_flags & B_BAD
+		    /*
+		     * XXX handle large transfers inefficiently instead
+		     * of crashing on them.
+		     */
+		    || howmany(du->dk_bc, DEV_BSIZE) > MAXTRANSFER)
 			du->dk_flags |= DKFL_SINGLE;
-		}
 	}
 
 	if ((du->dk_flags & (DKFL_SINGLE|DKFL_BADSECT))		/* 19 Aug 92*/
