@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.58 1996/01/15 10:28:29 phk Exp $
+ *	$Id: mcd.c,v 1.59 1996/01/23 22:55:08 joerg Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1400,9 +1400,10 @@ mcd_read_toc(int unit)
 
 	/* add a fake last+1 */
 	idx = th.ending_track + 1;
-	cd->toc[idx].ctrl_adr = cd->toc[idx-1].ctrl_adr;
+	cd->toc[idx].control = cd->toc[idx-1].control;
+	cd->toc[idx].addr_type = cd->toc[idx-1].addr_type;
 	cd->toc[idx].trk_no = 0;
-	cd->toc[idx].idx_no = 0xAA;
+	cd->toc[idx].idx_no = MCD_LASTPLUS1;
 	cd->toc[idx].hd_pos_msf[0] = cd->volinfo.vol_msf[0];
 	cd->toc[idx].hd_pos_msf[1] = cd->volinfo.vol_msf[1];
 	cd->toc[idx].hd_pos_msf[2] = cd->volinfo.vol_msf[2];
@@ -1412,7 +1413,8 @@ mcd_read_toc(int unit)
 	for (i = th.starting_track; i <= idx; i++)
 		printf("mcd%d: trk %d idx %d pos %d %d %d\n",
 			unit, i,
-			cd->toc[i].idx_no,
+			cd->toc[i].idx_no > 0x99 ? cd->toc[i].idx_no :
+			bcd2bin(cd->toc[i].idx_no),
 			bcd2bin(cd->toc[i].hd_pos_msf[0]),
 			bcd2bin(cd->toc[i].hd_pos_msf[1]),
 			bcd2bin(cd->toc[i].hd_pos_msf[2]));
@@ -1429,55 +1431,60 @@ mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te)
 	struct mcd_data *cd = mcd_data + unit;
 	struct cd_toc_entry entries[MCD_MAXTOCS];
 	struct ioc_toc_header th;
-	int rc, i, len = te->data_len;
+	int rc, n, trk, len = te->data_len;
 
-	/* Make sure we have a valid toc */
-	if ((rc=mcd_read_toc(unit)) != 0)
-		return rc;
-
-	/* find the toc to copy*/
-	i = te->starting_track;
-	if (i == MCD_LASTPLUS1)
-		i = bcd2bin(cd->volinfo.trk_high) + 1;
-
-	/* verify starting track */
-	if (i < bcd2bin(cd->volinfo.trk_low) ||
-		i > bcd2bin(cd->volinfo.trk_high)+1) {
-		return EINVAL;
-	}
-
-	/* do we have room */
 	if (   len > sizeof(entries)
 	    || len < sizeof(struct cd_toc_entry)
 	    || (len % sizeof(struct cd_toc_entry)) != 0
 	   )
+		return EINVAL;
+	if (te->address_format != CD_MSF_FORMAT &&
+	    te->address_format != CD_LBA_FORMAT)
 		return EINVAL;
 
 	/* Copy the toc header */
 	if ((rc = mcd_toc_header(unit, &th)) != 0)
 		return rc;
 
-	do {
-		/* copy the toc data */
-		entries[i-1].control = cd->toc[i].ctrl_adr;
-		entries[i-1].addr_type = te->address_format;
-		entries[i-1].track = i;
-		if (te->address_format == CD_MSF_FORMAT) {
-			entries[i-1].addr.msf.unused = 0;
-			entries[i-1].addr.msf.minute = bcd2bin(cd->toc[i].hd_pos_msf[0]);
-			entries[i-1].addr.msf.second = bcd2bin(cd->toc[i].hd_pos_msf[1]);
-			entries[i-1].addr.msf.frame = bcd2bin(cd->toc[i].hd_pos_msf[2]);
+	/* verify starting track */
+	trk = te->starting_track;
+	if (trk == 0)
+		trk = th.starting_track;
+	else if (trk == MCD_LASTPLUS1)
+		trk = th.ending_track + 1;
+	else if (trk < th.starting_track || trk > th.ending_track + 1)
+		return EINVAL;
+
+	/* Make sure we have a valid toc */
+	if ((rc=mcd_read_toc(unit)) != 0)
+		return rc;
+
+	/* Copy the TOC data. */
+	for (n = 0; len > 0 && trk <= th.ending_track + 1; trk++) {
+		if (cd->toc[trk].idx_no == 0)
+			continue;
+		entries[n].control = cd->toc[trk].control;
+		entries[n].addr_type = cd->toc[trk].addr_type;
+		entries[n].track =
+			cd->toc[trk].idx_no > 0x99 ? cd->toc[trk].idx_no :
+			bcd2bin(cd->toc[trk].idx_no);
+		switch (te->address_format) {
+		case CD_MSF_FORMAT:
+			entries[n].addr.msf.unused = 0;
+			entries[n].addr.msf.minute = bcd2bin(cd->toc[trk].hd_pos_msf[0]);
+			entries[n].addr.msf.second = bcd2bin(cd->toc[trk].hd_pos_msf[1]);
+			entries[n].addr.msf.frame = bcd2bin(cd->toc[trk].hd_pos_msf[2]);
+			break;
+		case CD_LBA_FORMAT:
+			entries[n].addr.lba = msf2hsg(cd->toc[trk].hd_pos_msf);
+			break;
 		}
 		len -= sizeof(struct cd_toc_entry);
-		i++;
+		n++;
 	}
-	while (len > 0 && i <= th.ending_track + 2);
 
 	/* copy the data back */
-	if (copyout(entries, te->data, (i - 1) * sizeof(struct cd_toc_entry)) != 0)
-		return EFAULT;
-
-	return 0;
+	return copyout(entries, te->data, n * sizeof(struct cd_toc_entry));
 }
 
 static int
@@ -1509,9 +1516,10 @@ mcd_getqchan(int unit, struct mcd_qchninfo *q)
 	if (mcd_get(unit, (char *) q, sizeof(struct mcd_qchninfo)) < 0)
 		return -1;
 	if (cd->debug) {
-		printf("mcd%d: getqchan ctrl_adr=0x%x trk=%d ind=%d ttm=%d:%d.%d dtm=%d:%d.%d\n",
+		printf("mcd%d: getqchan control=0x%x addr_type=0x%x trk=%d ind=%d ttm=%d:%d.%d dtm=%d:%d.%d\n",
 		unit,
-		q->ctrl_adr, bcd2bin(q->trk_no), bcd2bin(q->idx_no),
+		q->control, q->addr_type, bcd2bin(q->trk_no),
+		bcd2bin(q->idx_no),
 		bcd2bin(q->trk_size_msf[0]), bcd2bin(q->trk_size_msf[1]),
 		bcd2bin(q->trk_size_msf[2]),
 		bcd2bin(q->hd_pos_msf[0]), bcd2bin(q->hd_pos_msf[1]),
@@ -1547,11 +1555,12 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 
 	data.header.audio_status = cd->audio_status;
 	data.what.position.data_format = CD_CURRENT_POSITION;
-	data.what.position.addr_type = q.ctrl_adr;
-	data.what.position.control = q.ctrl_adr >> 4;
+	data.what.position.control = q.control;
+	data.what.position.addr_type = q.addr_type;
 	data.what.position.track_number = bcd2bin(q.trk_no);
 	data.what.position.index_number = bcd2bin(q.idx_no);
-	if (sc->address_format == CD_MSF_FORMAT) {
+	switch (sc->address_format) {
+	case CD_MSF_FORMAT:
 		data.what.position.reladdr.msf.unused = 0;
 		data.what.position.reladdr.msf.minute = bcd2bin(q.trk_size_msf[0]);
 		data.what.position.reladdr.msf.second = bcd2bin(q.trk_size_msf[1]);
@@ -1560,14 +1569,14 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 		data.what.position.absaddr.msf.minute = bcd2bin(q.hd_pos_msf[0]);
 		data.what.position.absaddr.msf.second = bcd2bin(q.hd_pos_msf[1]);
 		data.what.position.absaddr.msf.frame = bcd2bin(q.hd_pos_msf[2]);
-	} else if (sc->address_format == CD_LBA_FORMAT) {
+		break;
+	case CD_LBA_FORMAT:
 		data.what.position.reladdr.lba = msf2hsg(q.trk_size_msf);
 		data.what.position.absaddr.lba = msf2hsg(q.hd_pos_msf);
+		break;
 	}
 
-	if (copyout(&data, sc->data, min(sizeof(struct cd_sub_channel_info), sc->data_len))!=0)
-		return EFAULT;
-	return 0;
+	return copyout(&data, sc->data, min(sizeof(struct cd_sub_channel_info), sc->data_len));
 }
 
 static int
