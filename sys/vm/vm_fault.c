@@ -97,6 +97,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
+#include <sys/mount.h>	/* XXX Temporary for VFS_LOCK_GIANT() */
+
 #define PFBAK 4
 #define PFFOR 4
 #define PAGEORDER_SIZE (PFBAK+PFFOR)
@@ -165,10 +167,12 @@ unlock_and_deallocate(struct faultstate *fs)
 	vm_object_deallocate(fs->first_object);
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
-		mtx_lock(&Giant);
+		int vfslocked;
+
+		vfslocked = VFS_LOCK_GIANT(fs->vp->v_mount);
 		vput(fs->vp);
-		mtx_unlock(&Giant);
 		fs->vp = NULL;
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (!fs->map->system_map)
 		VM_UNLOCK_GIANT();

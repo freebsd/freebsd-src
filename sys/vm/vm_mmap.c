@@ -1067,11 +1067,14 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	struct vattr va;
 	void *handle;
 	vm_object_t obj;
+	struct mount *mp;
 	int error, flags, type;
+	int vfslocked;
 
-	mtx_lock(&Giant);
+	mp = vp->v_mount;
+	vfslocked = VFS_LOCK_GIANT(mp);
 	if ((error = vget(vp, LK_EXCLUSIVE, td)) != 0) {
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 	flags = *flagsp;
@@ -1157,7 +1160,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	*flagsp = flags;
 done:
 	vput(vp);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
