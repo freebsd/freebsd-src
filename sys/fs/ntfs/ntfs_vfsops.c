@@ -71,7 +71,7 @@ static vfs_init_t       ntfs_init;
 static vfs_uninit_t     ntfs_uninit;
 static vfs_vget_t       ntfs_vget;
 static vfs_fhtovp_t     ntfs_fhtovp;
-static vfs_mount_t      ntfs_mount;
+static vfs_omount_t     ntfs_omount;
 static vfs_root_t       ntfs_root;
 static vfs_statfs_t     ntfs_statfs;
 static vfs_unmount_t    ntfs_unmount;
@@ -96,17 +96,17 @@ ntfs_uninit (
 }
 
 static int
-ntfs_mount ( 
+ntfs_omount ( 
 	struct mount *mp,
 	char *path,
 	caddr_t data,
-	struct nameidata *ndp,
 	struct thread *td )
 {
 	size_t		size;
 	int		err = 0;
 	struct vnode	*devvp, *rootvp;
 	struct ntfs_args args;
+	struct nameidata ndp;
 
 	/*
 	 * Use NULL path to flag a root mount
@@ -174,14 +174,14 @@ ntfs_mount (
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
-	err = namei(ndp);
+	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	err = namei(&ndp);
 	if (err) {
 		/* can't get devvp!*/
 		goto error_1;
 	}
-	NDFREE(ndp, NDF_ONLY_PNBUF);
-	devvp = ndp->ni_vp;
+	NDFREE(&ndp, NDF_ONLY_PNBUF);
+	devvp = ndp.ni_vp;
 
 	if (!vn_isdisk(devvp, &err)) 
 		goto error_2;
@@ -256,6 +256,7 @@ error_2:	/* error with devvp held*/
 	vrele(devvp);
 
 error_1:	/* no state to back out*/
+	/* XXX: missing NDFREE(&ndp, ...) */
 
 success:
 	return(err);
@@ -786,7 +787,7 @@ ntfs_vget(
 static struct vfsops ntfs_vfsops = {
 	.vfs_fhtovp =	ntfs_fhtovp,
 	.vfs_init =	ntfs_init,
-	.vfs_mount =	ntfs_mount,
+	.vfs_omount =	ntfs_omount,
 	.vfs_root =	ntfs_root,
 	.vfs_statfs =	ntfs_statfs,
 	.vfs_uninit =	ntfs_uninit,

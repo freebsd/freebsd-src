@@ -83,6 +83,8 @@ struct coda_op_stats coda_vfsopstats[CODA_VFSOPS_SIZE];
 extern int coda_nc_initialized;     /* Set if cache has been initialized */
 extern int vc_nb_open(struct cdev *, int, int, struct thread *);
 
+static vfs_omount_t coda_omount;
+
 int
 coda_vfsopstats_init(void)
 {
@@ -105,11 +107,10 @@ coda_vfsopstats_init(void)
  */
 /*ARGSUSED*/
 int
-coda_mount(vfsp, path, data, ndp, td)
+coda_omount(vfsp, path, data, td)
     struct mount *vfsp;		/* Allocated and initialized by mount(2) */
     char *path;			/* path covered: ignored by the fs-layer */
     caddr_t data;		/* Need to define a data type for this in netbsd? */
-    struct nameidata *ndp;	/* Clobber this to lookup the device name */
     struct thread *td;
 {
     struct vnode *dvp;
@@ -120,7 +121,7 @@ coda_mount(vfsp, path, data, ndp, td)
     CodaFid rootfid = INVAL_FID;
     CodaFid ctlfid = CTL_FID;
     int error;
-
+    struct nameidata ndp;
     ENTRY;
 
     coda_vfsopstats_init();
@@ -133,9 +134,9 @@ coda_mount(vfsp, path, data, ndp, td)
     }
     
     /* Validate mount device.  Similar to getmdev(). */
-    NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, data, td);
-    error = namei(ndp);
-    dvp = ndp->ni_vp;
+    NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, data, td);
+    error = namei(&ndp);
+    dvp = ndp.ni_vp;
 
     if (error) {
 	MARK_INT_FAIL(CODA_MOUNT_STATS);
@@ -144,12 +145,12 @@ coda_mount(vfsp, path, data, ndp, td)
     if (dvp->v_type != VCHR) {
 	MARK_INT_FAIL(CODA_MOUNT_STATS);
 	vrele(dvp);
-	NDFREE(ndp, NDF_ONLY_PNBUF);
+	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	return(ENXIO);
     }
     dev = dvp->v_rdev;
     vrele(dvp);
-    NDFREE(ndp, NDF_ONLY_PNBUF);
+    NDFREE(&ndp, NDF_ONLY_PNBUF);
 
     /*
      * See if the device table matches our expectations.
@@ -216,7 +217,7 @@ coda_mount(vfsp, path, data, ndp, td)
     /* error is currently guaranteed to be zero, but in case some
        code changes... */
     CODADEBUG(1,
-	     myprintf(("coda_mount returned %d\n",error)););
+	     myprintf(("coda_omount returned %d\n",error)););
     if (error)
 	MARK_INT_FAIL(CODA_MOUNT_STATS);
     else
@@ -300,10 +301,10 @@ coda_root(vfsp, vpp, td)
 	/*
 	 * Cache the root across calls. We only need to pass the request
 	 * on to Venus if the root vnode is the dummy we installed in
-	 * coda_mount() with all c_fid members zeroed.
+	 * coda_omount() with all c_fid members zeroed.
 	 *
-	 * XXX In addition, if we are called between coda_mount() and
-	 * coda_start(), we assume that the request is from vfs_mount()
+	 * XXX In addition, if we are called between coda_omount() and
+	 * coda_start(), we assume that the request is from vfs_omount()
 	 * (before the call to checkdirs()) and return the dummy root
 	 * node to avoid a deadlock. This bug is fixed in the Coda CVS
 	 * repository but not in any released versions as of 6 Mar 2003.
@@ -543,7 +544,7 @@ struct mount *devtomp(dev)
 }
 
 struct vfsops coda_vfsops = {
-    .vfs_mount =		coda_mount,
+    .vfs_omount =		coda_omount,
     .vfs_root = 		coda_root,
     .vfs_start =		coda_start,
     .vfs_statfs =		coda_nb_statfs,
