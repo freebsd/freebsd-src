@@ -31,11 +31,16 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id: procs.c,v 1.3 1997/10/13 11:13:22 charnier Exp $";
+#endif /* not lint */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <unistd.h>
 #include <rpc/rpc.h>
 #include <syslog.h>
 #include <netdb.h>	/* for gethostbyname()		*/
@@ -99,7 +104,7 @@ struct sm_stat_res *sm_mon_1_svc(mon *arg, struct svc_req *req)
   {
     syslog(LOG_ERR, "Invalid hostname to sm_mon: %s", arg->mon_id.mon_name);
   }
-  else if (hp = find_host(arg->mon_id.mon_name, TRUE))
+  else if ((hp = find_host(arg->mon_id.mon_name, TRUE)))
   {
     lp = (MonList *)malloc(sizeof(MonList));
     if (!lp)
@@ -185,7 +190,7 @@ struct sm_stat *sm_unmon_1_svc(mon_id *arg, struct svc_req *req)
       arg->my_id.my_vers, arg->my_id.my_proc);
   }
 
-  if (hp = find_host(arg->mon_name, FALSE))
+  if ((hp = find_host(arg->mon_name, FALSE)))
   {
     if (do_unmon(hp, &arg->my_id)) sync_file();
     else
@@ -214,7 +219,6 @@ struct sm_stat *sm_unmon_all_1_svc(my_id *arg, struct svc_req *req)
 {
   static sm_stat res;
   HostInfo *hp;
-  MonList *lp;
   int i;
 
   if (debug)
@@ -349,4 +353,3 @@ void *sm_notify_1_svc(stat_chge *arg, struct svc_req *req)
 
   exit (0);	/* Child quits	*/
 }
-

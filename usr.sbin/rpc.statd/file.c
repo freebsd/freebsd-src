@@ -31,11 +31,12 @@
  *
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/mman.h>		/* For mmap()				*/
 #include <rpc/rpc.h>
@@ -147,11 +148,7 @@ void init_file(char *filename)
     new_file = TRUE;
   }
   if (status_fd < 0)
-  {
-    perror("rpc.statd");
-    fprintf(stderr, "Unable to open status file %s\n", filename);
-    exit(1);
-  }
+    errx(1, "unable to open status file %s", filename);
 
   /* File now open.  mmap() it, with a generous size to allow for	*/
   /* later growth, where we will extend the file but not re-map it.	*/
@@ -159,10 +156,7 @@ void init_file(char *filename)
     mmap(NULL, 0x10000000, PROT_READ | PROT_WRITE, MAP_SHARED, status_fd, 0);
 
   if (status_info == (FileLayout *) -1)
-  {
-    perror("rpc.statd");
-    fprintf(stderr, "Unable to mmap() status file\n");
-  }
+    warn("unable to mmap() status file");
 
   status_file_len = lseek(status_fd, 0L, SEEK_END);
 
@@ -173,7 +167,7 @@ void init_file(char *filename)
     if ((status_file_len < HEADER_LEN) || (status_file_len
       < (HEADER_LEN + sizeof(HostInfo) * status_info->noOfHosts)) )
     {
-      fprintf(stderr, "rpc.statd: status file is corrupt\n");
+      warnx("status file is corrupt");
       new_file = TRUE;
     }
   }
