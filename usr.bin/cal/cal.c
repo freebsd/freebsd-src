@@ -96,8 +96,8 @@ char *month_names[12] = {
 	"July", "August", "September", "October", "November", "December",
 };
 
-char *day_headings = " S  M Tu  W Th  F  S";
-char *j_day_headings = "  S   M  Tu   W  Th   F   S";
+char *day_headings = "Su Mo Tu We Th Fr Sa";
+char *j_day_headings = " Su  Mo  Tu  We  Th  Fr  Sa";
 
 /* leap year -- account for gregorian reformation in 1752 */
 #define	leap_year(yr) \
