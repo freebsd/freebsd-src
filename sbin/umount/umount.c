@@ -87,7 +87,7 @@ main(argc, argv)
 	sync();
 
 	all = 0;
-	while ((ch = getopt(argc, argv, "aFfh:t:v")) != EOF)
+	while ((ch = getopt(argc, argv, "aFfh:t:v")) !=  -1)
 		switch (ch) {
 		case 'a':
 			all = 1;

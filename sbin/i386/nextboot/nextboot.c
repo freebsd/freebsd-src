@@ -66,7 +66,7 @@ main (int argc, char** argv)
 	int	part;
 
 	bflag = 0;
-	while ((ch = getopt(argc, argv, "bde")) != EOF) {
+	while ((ch = getopt(argc, argv, "bde")) !=  -1) {
         	switch(ch) {
         	case 'b':
                 	bflag = 1;

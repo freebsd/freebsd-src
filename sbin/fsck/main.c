@@ -69,7 +69,7 @@ main(argc, argv)
 	extern int optind;
 
 	sync();
-	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) != EOF) {
+	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) !=  -1) {
 		switch (ch) {
 		case 'p':
 			preen++;

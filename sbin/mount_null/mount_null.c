@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_null.c	8.5 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id: mount_null.c,v 1.4 1996/05/13 17:43:08 wollman Exp $";
+	"$Id: mount_null.c,v 1.5 1996/09/14 02:58:23 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ main(argc, argv)
 	struct vfsconf *vfc;
 
 	mntflags = 0;
-	while ((ch = getopt(argc, argv, "o:")) != EOF)
+	while ((ch = getopt(argc, argv, "o:")) !=  -1)
 		switch(ch) {
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);

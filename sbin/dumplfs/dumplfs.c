@@ -112,7 +112,7 @@ main(argc, argv)
 
 	do_allsb = 0;
 	do_ientries = 0;
-	while ((ch = getopt(argc, argv, "ais:")) != EOF)
+	while ((ch = getopt(argc, argv, "ais:")) !=  -1)
 		switch(ch) {
 		case 'a':		/* Dump all superblocks */
 			do_allsb = 1;

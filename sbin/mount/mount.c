@@ -117,7 +117,7 @@ main(argc, argv)
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "padfo:rwt:uv")) != EOF)
+	while ((ch = getopt(argc, argv, "padfo:rwt:uv")) !=  -1)
 		switch (ch) {
 		case 'p':
 			fstab_style = 1;
