@@ -48,7 +48,7 @@
  * Frequency of the clock ticks reported by times().  Deprecated - use
  * sysconf(_SC_CLK_TCK) instead.
  */
-#define	CLK_TCK		_BSD_CLOCKS_PER_SEC_
+#define	CLK_TCK		_BSD_CLK_TCK_
 #endif
 
 /* Frequency of the clock ticks reported by clock().  */
