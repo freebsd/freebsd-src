@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_SECA, "key mgmt", "security associations, key management");
 
-static void keydb_delsecasvar(struct secasvar *);
-
 /*
  * secpolicy management
  */
@@ -120,42 +118,13 @@ keydb_newsecasvar()
 	if (!p)
 		return p;
 	bzero(p, sizeof(*p));
-	p->refcnt = 1;
 	return p;
 }
 
 void
-keydb_refsecasvar(p)
-	struct secasvar *p;
-{
-	int s;
-
-	s = splnet();
-	p->refcnt++;
-	splx(s);
-}
-
-void
-keydb_freesecasvar(p)
-	struct secasvar *p;
-{
-	int s;
-
-	s = splnet();
-	p->refcnt--;
-	/* negative refcnt will cause panic intentionally */
-	if (p->refcnt <= 0)
-		keydb_delsecasvar(p);
-	splx(s);
-}
-
-static void
 keydb_delsecasvar(p)
 	struct secasvar *p;
 {
-
-	if (p->refcnt)
-		panic("keydb_delsecasvar called with refcnt != 0");
 
 	free(p, M_SECA);
 }
