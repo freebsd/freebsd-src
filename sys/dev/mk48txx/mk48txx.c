@@ -101,6 +101,13 @@ mk48txx_attach(device_t dev, bus_space_tag_t bt, bus_space_handle_t bh,
 	}
 	printf("\n");
 
+	if ((mk48txx_models[i].flags & MK48TXX_EXT_REGISTERS) &&
+	    (bus_space_read_1(bt, bh, clkoff + MK48TXX_FLAGS) &
+	    MK48TXX_FLAGS_BL)) {
+		device_printf(dev, "mk48txx_attach: battery low\n");
+		return (ENXIO);
+	}
+
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
 	sc->mk_bt = bt;
 	sc->mk_bh = bh;
@@ -133,14 +140,33 @@ mk48txx_gettime(device_t dev, struct timespec *ts)
 	csr |= MK48TXX_CSR_READ;
 	bus_space_write_1(bt, bh, clkoff + MK48TXX_ICSR, csr);
 
+#define	FROMREG(reg, mask)						\
+	(bus_space_read_1(bt, bh, clkoff + (reg)) & (mask))
+
 	ct.nsec = 0;
-	ct.sec = FROMBCD(bus_space_read_1(bt, bh, clkoff + MK48TXX_ISEC));
-	ct.min = FROMBCD(bus_space_read_1(bt, bh, clkoff + MK48TXX_IMIN));
-	ct.hour = FROMBCD(bus_space_read_1(bt, bh, clkoff + MK48TXX_IHOUR));
-	ct.day = FROMBCD(bus_space_read_1(bt, bh, clkoff + MK48TXX_IDAY));
-	ct.dow = FROMBCD(bus_space_read_1(bt, bh, clkoff + MK48TXX_IWDAY)) % 7;
-	ct.mon = FROMBCD(bus_space_read_1(bt, bh, clkoff + MK48TXX_IMON));
-	year = FROMBCD(bus_space_read_1(bt, bh, clkoff + MK48TXX_IYEAR));
+	ct.sec = FROMBCD(FROMREG(MK48TXX_ISEC, MK48TXX_SEC_MASK));
+	ct.min = FROMBCD(FROMREG(MK48TXX_IMIN, MK48TXX_MIN_MASK));
+	ct.hour = FROMBCD(FROMREG(MK48TXX_IHOUR, MK48TXX_HOUR_MASK));
+	ct.day = FROMBCD(FROMREG(MK48TXX_IDAY, MK48TXX_DAY_MASK));
+	/* Map dow from 1 - 7 to 0 - 6; FROMBCD() isn't necessary here. */
+	ct.dow = FROMREG(MK48TXX_IWDAY, MK48TXX_WDAY_MASK) - 1;
+	ct.mon = FROMBCD(FROMREG(MK48TXX_IMON, MK48TXX_MON_MASK));
+	year = FROMBCD(FROMREG(MK48TXX_IYEAR, MK48TXX_YEAR_MASK));
+
+	/*
+	 * XXX:	At least the MK48T59 (probably all MK48Txx models with
+	 *	extended registers) has a century bit in the MK48TXX_IWDAY
+	 *	register which should be used here to make up the century
+	 *	when mk48txx_auto_century_adjust (which actually means
+	 *	manually adjust the century in the driver) is set to 0.
+	 *	Sun/Solaris doesn't use this bit (probably for backwards
+	 *	compatibility with Sun hardware equipped with older MK48Txx
+	 *	models) and at present this driver is only used on sparc64
+	 *	so not respecting the century bit doesn't really matter at
+	 *	the moment but generally this should be implemented.
+	 */
+
+#undef FROMREG
 
 	year += mk->mk_year0;
 	if (year < POSIX_BASE_YEAR && mk48txx_auto_century_adjust != 0)
@@ -186,13 +212,26 @@ mk48txx_settime(device_t dev, struct timespec *ts)
 	csr |= MK48TXX_CSR_WRITE;
 	bus_space_write_1(bt, bh, clkoff + MK48TXX_ICSR, csr);
 
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_ISEC, TOBCD(ct.sec));
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_IMIN, TOBCD(ct.min));
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_IHOUR, TOBCD(ct.hour));
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_IWDAY, TOBCD(ct.dow));
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_IDAY, TOBCD(ct.day));
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_IMON, TOBCD(ct.mon));
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_IYEAR, TOBCD(year));
+#define	TOREG(reg, mask, val)						\
+	(bus_space_write_1(bt, bh, clkoff + (reg),			\
+	(bus_space_read_1(bt, bh, clkoff + (reg)) & ~(mask)) |		\
+	((val) & (mask))))
+
+	TOREG(MK48TXX_ISEC, MK48TXX_SEC_MASK, TOBCD(ct.sec));
+	TOREG(MK48TXX_IMIN, MK48TXX_MIN_MASK, TOBCD(ct.min));
+	TOREG(MK48TXX_IHOUR, MK48TXX_HOUR_MASK, TOBCD(ct.hour));
+	/* Map dow from 0 - 6 to 1 - 7; TOBCD() isn't necessary here. */
+	TOREG(MK48TXX_IWDAY, MK48TXX_WDAY_MASK, ct.dow + 1);
+	TOREG(MK48TXX_IDAY, MK48TXX_DAY_MASK, TOBCD(ct.day));
+	TOREG(MK48TXX_IMON, MK48TXX_MON_MASK, TOBCD(ct.mon));
+	TOREG(MK48TXX_IYEAR, MK48TXX_YEAR_MASK, TOBCD(year));
+
+	/*
+	 * XXX:	Use the century bit for storing the century when
+	 *	mk48txx_auto_century_adjust is set to 0.
+	 */
+
+#undef TOREG
 
 	/* load them up */
 	csr = bus_space_read_1(bt, bh, clkoff + MK48TXX_ICSR);
