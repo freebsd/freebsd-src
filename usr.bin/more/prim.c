@@ -36,19 +36,26 @@
 static char sccsid[] = "@(#)prim.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+        "$Id$";
+#endif /* not lint */
+
 /*
  * Primitives for displaying the file on the screen.
  */
 
 #include <sys/types.h>
-#include <stdio.h>
+
 #include <ctype.h>
-#include <regex.h>
 #include <limits.h>
-#include <less.h>
+#include <regex.h>
+#include <stdio.h>
+
+#include "less.h"
 
 int back_scroll = -1;
-int hit_eof;		/* keeps track of how many times we hit end of file */
+int hit_eof;		/* true if we're displaying the end of the input */
 int screen_trashed;
 
 static int squished;
@@ -56,6 +63,7 @@ static int squished;
 extern int sigs;
 extern int top_scroll;
 extern int sc_width, sc_height;
+extern int horiz_off;
 extern int caseless;
 extern int linenums;
 extern int tagoption;
@@ -68,6 +76,7 @@ off_t ch_length(), ch_tell();
 /*
  * Check to see if the end of file is currently "displayed".
  */
+static
 eof_check()
 {
 	off_t pos;
@@ -90,6 +99,7 @@ eof_check()
  * of the screen; this can happen when we display a short file
  * for the first time.
  */
+static
 squish_check()
 {
 	if (squished) {
@@ -103,6 +113,7 @@ squish_check()
  * input file.  "only_last" means display only the last screenful if
  * n > screen size.
  */
+static
 forw(n, pos, only_last)
 	register int n;
 	off_t pos;
@@ -204,6 +215,7 @@ forw(n, pos, only_last)
 /*
  * Display n lines, scrolling backward.
  */
+static
 back(n, pos, only_last)
 	register int n;
 	off_t pos;
@@ -494,7 +506,10 @@ jump_loc(pos)
  */
 #define	NMARKS		(27)		/* 26 for a-z plus one for quote */
 #define	LASTMARK	(NMARKS-1)	/* For quote */
-static off_t marks[NMARKS];
+static struct mark {
+	int	horiz_off;
+	off_t	pos;
+} marks[NMARKS];
 
 /*
  * Initialize the mark table to show no marks are set.
@@ -504,13 +519,13 @@ init_mark()
 	int i;
 
 	for (i = 0;  i < NMARKS;  i++)
-		marks[i] = NULL_POSITION;
+		marks[i].pos = NULL_POSITION;
 }
 
 /*
  * See if a mark letter is valid (between a and z).
  */
-	static int
+static int
 badmark(c)
 	int c;
 {
@@ -530,12 +545,14 @@ setmark(c)
 {
 	if (badmark(c))
 		return;
-	marks[c-'a'] = position(TOP);
+	marks[c-'a'].pos = position(TOP);
+	marks[c-'a'].horiz_off = horiz_off;
 }
 
 lastmark()
 {
-	marks[LASTMARK] = position(TOP);
+	marks[LASTMARK].pos = position(TOP);
+	marks[LASTMARK].horiz_off = horiz_off;
 }
 
 /*
@@ -545,22 +562,48 @@ gomark(c)
 	int c;
 {
 	off_t pos;
+	int new_horiz_off;
 
 	if (c == '\'') {
-		pos = marks[LASTMARK];
+		pos = marks[LASTMARK].pos;
 		if (pos == NULL_POSITION)
 			pos = 0;
+		new_horiz_off = marks[LASTMARK].horiz_off;
 	}
 	else {
 		if (badmark(c))
 			return;
-		pos = marks[c-'a'];
+		pos = marks[c-'a'].pos;
 		if (pos == NULL_POSITION) {
 			error("mark not set");
 			return;
 		}
+		new_horiz_off = marks[c-'a'].horiz_off;
 	}
-	jump_loc(pos);
+
+	/* Try to be nice about changing the horizontal scroll */
+	if (!(horiz_off == NO_HORIZ_OFF && new_horiz_off <= sc_width)) {
+		/*
+		 * We're going to have to change the horiz_off, even if
+		 * it's currently set to NO_HORIZ_OFF: if we don't change
+		 * horiz_off the bookmarked location won't show on the screen.
+		 */
+		if (horiz_off != new_horiz_off) {
+			/* We'll need to repaint(), too... */
+			horiz_off = new_horiz_off;
+			prepaint(pos);
+		} else {
+			/* No need to repaint. */
+			jump_loc(pos);
+		}
+	} else {
+		/*
+		 * The user doesn't want horizontal scrolling, and we can
+		 * fortunately honour the bookmark request without doing
+		 * any horizontal scrolling.
+		 */
+		jump_loc(pos);
+	}
 }
 
 /*
@@ -611,16 +654,21 @@ search(search_forward, pattern, n, wantmatch)
 			error(errbuf);
 			oncethru = 0;
 			regfree(&rx);
-			return 0;
+			return (0);
 		}
 		oncethru = 1;
 	} else if (!oncethru) {
 		error("No previous regular expression");
-		return 0;
+		return (0);
 	}
 
 	/*
 	 * Figure out where to start the search.
+	 *
+	 * XXX This should probably be adapted to handle horizontal
+	 * scrolling.  Consider a long line at the top of the screen
+	 * that might be hiding more matches to its right (when doing
+	 * successive searches).
 	 */
 
 	if (position(TOP) == NULL_POSITION) {
@@ -706,14 +754,6 @@ search(search_forward, pattern, n, wantmatch)
 			add_lnum(linenum, pos);
 
 		/*
-		 * If this is a caseless search, convert uppercase in the
-		 * input line to lowercase.
-		 */
-		if (caseless)
-			for (p = q = line;  *p;  p++, q++)
-				*q = isupper(*p) ? tolower(*p) : *p;
-
-		/*
 		 * Remove any backspaces along with the preceeding char.
 		 * This allows us to match text which is underlined or
 		 * overstruck.
@@ -746,4 +786,3 @@ search(search_forward, pattern, n, wantmatch)
 	jump_loc(linepos);
 	return(1);
 }
-
