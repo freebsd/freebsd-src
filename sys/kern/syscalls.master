@@ -97,7 +97,7 @@
 39	MSTD	POSIX	{ pid_t getppid(void); }
 40	COMPAT	POSIX	{ int lstat(char *path, struct ostat *ub); }
 41	MSTD	POSIX	{ int dup(u_int fd); }
-42	STD	POSIX	{ int pipe(void); }
+42	MSTD	POSIX	{ int pipe(void); }
 43	MSTD	POSIX	{ gid_t getegid(void); }
 44	MSTD	BSD	{ int profil(caddr_t samples, size_t size, \
 			    size_t offset, u_int scale); }
