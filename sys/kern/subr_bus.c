@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.17 1999/04/16 21:22:39 peter Exp $
+ *	$Id: subr_bus.c,v 1.18 1999/04/19 19:39:08 peter Exp $
  */
 
 #include <sys/param.h>
@@ -1298,6 +1298,8 @@ resource_find(const char *name, int unit, char *resname,
 	for (i = 0; i < devtab_count; i++) {
 		if (devtab[i].unit >= 0)
 			continue;
+		/* XXX should this `&& devtab[i].unit == unit' be here? */
+		/* XXX if so, then the generic match does nothing */
 		if (!strcmp(devtab[i].name, name) && devtab[i].unit == unit) {
 			res = devtab[i].resources;
 			for (j = 0; j < devtab[i].resource_count; j++, res++)
@@ -1430,15 +1432,12 @@ resource_create(char *name, int unit, char *resname, resource_type type,
 }
 
 int
-resource_set_int(int i, char *resname, int value)
+resource_set_int(char *name, int unit, char *resname, int value)
 {
 	int error;
 	struct config_resource *res;
 
-	if (i < 0 || i >= devtab_count)
-		return EINVAL;
-	error = resource_create(devtab[i].name, devtab[i].unit, resname,
-				RES_INT, &res);
+	error = resource_create(name, unit, resname, RES_INT, &res);
 	if (error)
 		return error;
 	if (res->type != RES_INT)
@@ -1448,15 +1447,12 @@ resource_set_int(int i, char *resname, int value)
 }
 
 int
-resource_set_long(int i, char *resname, long value)
+resource_set_long(char *name, int unit, char *resname, long value)
 {
 	int error;
 	struct config_resource *res;
 
-	if (i < 0 || i >= devtab_count)
-		return EINVAL;
-	error = resource_create(devtab[i].name, devtab[i].unit, resname,
-				RES_LONG, &res);
+	error = resource_create(name, unit, resname, RES_LONG, &res);
 	if (error)
 		return error;
 	if (res->type != RES_LONG)
@@ -1466,15 +1462,12 @@ resource_set_long(int i, char *resname, long value)
 }
 
 int
-resource_set_string(int i, char *resname, char *value)
+resource_set_string(char *name, int unit, char *resname, char *value)
 {
 	int error;
 	struct config_resource *res;
 
-	if (i < 0 || i >= devtab_count)
-		return EINVAL;
-	error = resource_create(devtab[i].name, devtab[i].unit, resname,
-				RES_STRING, &res);
+	error = resource_create(name, unit, resname, RES_STRING, &res);
 	if (error)
 		return error;
 	if (res->type != RES_STRING)
