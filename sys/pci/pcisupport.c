@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.104 1999/05/08 14:55:18 peter Exp $
+**  $Id: pcisupport.c,v 1.105 1999/05/08 15:45:25 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -867,7 +867,6 @@ eisab_match(device_t dev)
 		return ("Intel 82375EB PCI-EISA bridge");
 	}
 
-
 	return NULL;
 }
 
@@ -957,11 +956,12 @@ isab_probe(device_t dev)
 			is_eisa = 1;
 
 		/* For PCI-EISA bridge, add both eisa and isa */
-		/* Don't bother adding more than one EISA bus */
-		if (is_eisa && !devclass_get_device(devclass_find("isa"), 0))
+
+		/* Don't bother adding more than one EISA bus - yet! */
+		if (is_eisa && !devclass_get_device(devclass_find("eisa"), 0))
 			device_add_child(dev, "eisa", -1, 0);
 
-		/* Don't bother adding more than one ISA bus */
+		/* Don't bother adding more than one ISA bus - yet! */
 		if (!devclass_get_device(devclass_find("isa"), 0))
 			device_add_child(dev, "isa", -1, 0);
 		return 0;
