@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.62 1994/12/27 13:07:07 bde Exp $
+ *	$Id: sio.c,v 1.63 1995/01/05 00:00:37 ache Exp $
  */
 
 #include "sio.h"
@@ -1243,7 +1243,7 @@ sioioctl(dev, cmd, data, flag, p)
 		switch (cmd) {
 		case TIOCSETA:
 			error = suser(p->p_ucred, &p->p_acflag);
-			if (error)
+			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
 			return (0);
@@ -1368,12 +1368,12 @@ sioioctl(dev, cmd, data, flag, p)
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error != 0) {
 			splx(s);
-			return (EPERM);
+			return (error);
 		}
-		com->dtr_wait = *(int *)data * 100 / hz;
+		com->dtr_wait = *(int *)data * hz / 100;
 		break;
 	case TIOCMGDTRWAIT:
-		*(int *)data = com->dtr_wait;
+		*(int *)data = com->dtr_wait * 100 / hz;
 		break;
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
