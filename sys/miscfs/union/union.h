@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.9 (Berkeley) 12/10/94
- * $Id: union.h,v 1.11 1998/02/10 03:32:03 kato Exp $
+ * $Id: union.h,v 1.12 1998/02/26 03:23:51 kato Exp $
  */
 
 struct union_args {
@@ -113,6 +113,9 @@ extern int union_cn_close __P((struct vnode *, int, struct ucred *,
 extern void union_removed_upper __P((struct union_node *un));
 extern struct vnode *union_lowervp __P((struct vnode *));
 extern void union_newsize __P((struct vnode *, off_t, off_t));
+
+extern int (*union_dircheckp) __P((struct proc *, struct vnode **,
+				 struct file *));
 
 #define	MOUNTTOUNIONMOUNT(mp) ((struct union_mount *)((mp)->mnt_data))
 #define	VTOUNION(vp) ((struct union_node *)(vp)->v_data)
