@@ -165,6 +165,10 @@ struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
+#define	ASN_BITS	8
+#define	ASNGEN_BITS	(32 - ASN_BITS)
+#define	ASNGEN_MASK	((1 << ASNGEN_BITS) - 1)
+
 struct pmap {
 	pt_entry_t		*pm_lev1;	/* KVA of lev0map */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
@@ -172,11 +176,12 @@ struct pmap {
 	int			pm_count;	/* reference count */
 	u_int32_t		pm_active;	/* active cpus */
 	struct {
-		u_int32_t	asn:8;		/* address space number */
-		u_int32_t	gen:24;		/* generation number */
+		u_int32_t	asn:ASN_BITS;	/* address space number */
+		u_int32_t	gen:ASNGEN_BITS; /* generation number */
 	}			pm_asn[MAXCPU];
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
+	LIST_ENTRY(pmap)	pm_list;	/* list of all pmaps. */
 };
 
 #define pmap_resident_count(pmap) (pmap)->pm_stats.resident_count
