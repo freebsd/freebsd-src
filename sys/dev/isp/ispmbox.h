@@ -804,6 +804,7 @@ typedef struct {
 #define	SNS_GA_NXT	0x100
 #define	SNS_GPN_ID	0x112
 #define	SNS_GNN_ID	0x113
+#define	SNS_GFF_ID	0x11F
 #define	SNS_GID_FT	0x171
 #define	SNS_RFT_ID	0x217
 typedef struct {
@@ -902,6 +903,11 @@ typedef struct {
 } sns_gxn_id_rsp_t;
 #define	SNS_GXN_ID_RESP_SIZE	(sizeof (sns_gxn_id_rsp_t))
 
+typedef struct {
+	ct_hdr_t	snscb_cthdr;
+	u_int32_t	snscb_fc4_features[32];
+} sns_gff_id_rsp_t;
+#define	SNS_GFF_ID_RESP_SIZE	(sizeof (sns_gff_id_rsp_t))
 
 typedef struct {
 	ct_hdr_t	snscb_cthdr;

@@ -773,7 +773,7 @@ again:
 	 * of knowing how many luns we support.
 	 *
 	 * Expanded lun firmware gives you 32 luns for SCSI cards and
-	 * 65536 luns for Fibre Channel cards.
+	 * 16384 luns for Fibre Channel cards.
 	 *
 	 * It turns out that even for QLogic 2100s with ROM 1.10 and above
 	 * we do get a firmware attributes word returned in mailbox register 6.
@@ -796,7 +796,7 @@ again:
 			}
 		} else {
 			if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
-				isp->isp_maxluns = 65536;
+				isp->isp_maxluns = 16384;
 			} else {
 				isp->isp_maxluns = 16;
 			}
@@ -1819,7 +1819,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 		 * that has, in fact, gone away. And it hangs trying to
 		 * log it out.
 		 */
-		if (lp->loggedin &&
+		if (lp->loggedin && lp->force_logout == 0 &&
 		    isp_getpdb(isp, lp->loopid, &pdb) == 0) {
 			int nrole;
 			u_int64_t nwwnn, nwwpn;
@@ -1855,8 +1855,6 @@ isp_pdb_sync(struct ispsoftc *isp)
 			}
 		}
 
-		lp->force_logout = 0;
-
 		if (fcp->isp_fwstate != FW_READY ||
 		    fcp->isp_loopstate != LOOP_SYNCING_PDB) {
 			return (-1);
@@ -1866,18 +1864,18 @@ isp_pdb_sync(struct ispsoftc *isp)
 		 * Force a logout if we were logged in.
 		 */
 		if (lp->loggedin) {
-			if (isp_getpdb(isp, lp->loopid, &pdb) == 0) {
+			if (lp->force_logout ||
+			    isp_getpdb(isp, lp->loopid, &pdb) == 0) {
 				mbs.param[0] = MBOX_FABRIC_LOGOUT;
 				mbs.param[1] = lp->loopid << 8;
 				mbs.param[2] = 0;
 				mbs.param[3] = 0;
 				isp_mboxcmd(isp, &mbs, MBLOGNONE);
-				lp->loggedin = 0;
 				isp_prt(isp, ISP_LOGINFO, plogout,
 				    (int) (lp - fcp->portdb), lp->loopid,
 				    lp->portid);
 			}
-			lp->loggedin = 0;
+			lp->force_logout = lp->loggedin = 0;
 			if (fcp->isp_fwstate != FW_READY ||
 			    fcp->isp_loopstate != LOOP_SYNCING_PDB) {
 				return (-1);
@@ -1894,10 +1892,6 @@ isp_pdb_sync(struct ispsoftc *isp)
 			mbs.param[1] = loopid << 8;
 			mbs.param[2] = portid >> 16;
 			mbs.param[3] = portid & 0xffff;
-			if (IS_2200(isp) || IS_23XX(isp)) {
-				/* only issue a PLOGI if not logged in */
-				mbs.param[1] |= 0x1;
-			}
 			isp_mboxcmd(isp, &mbs, MBLOGALL & ~(MBOX_LOOP_ID_USED |
 			    MBOX_PORT_ID_USED | MBOX_COMMAND_ERROR));
 			if (fcp->isp_fwstate != FW_READY ||
@@ -2509,7 +2503,6 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 {
 	fcparam *fcp = FCPARAM(isp);
 	mbreg_t mbs;
-	u_int8_t sc[GIDLEN];	/* XXX USE ->tport */
 	int i;
 	sns_gid_ft_req_t *rq;
 	sns_gid_ft_rsp_t *rs0, *rs1;
@@ -2522,7 +2515,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 	FC_SCRATCH_ACQUIRE(isp);
 	fcp->isp_loopstate = LOOP_SCANNING_FABRIC;
 
-	rq = (sns_gid_ft_req_t *)sc;
+	rq = (sns_gid_ft_req_t *)fcp->tport;
 	MEMZERO((void *) rq, SNS_GID_FT_REQ_SIZE);
 	rq->snscb_rblen = GIDLEN >> 1;
 	rq->snscb_addr[RQRSP_ADDR0015] = DMA_WD0(fcp->isp_scdma+IGPOFF);
@@ -2557,7 +2550,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		return (-1);
 	}
 	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN);
-	rs1 = (sns_gid_ft_rsp_t *) sc;
+	rs1 = (sns_gid_ft_rsp_t *) fcp->tport;
 	rs0 = (sns_gid_ft_rsp_t *) ((u_int8_t *)fcp->isp_scratch+IGPOFF);
 	isp_get_gid_ft_response(isp, rs0, rs1, NGENT);
 	if (rs1->snscb_cthdr.ct_response != FS_ACC) {
@@ -2582,6 +2575,9 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		sns_gxn_id_req_t grqbuf, *gq = &grqbuf;
 		sns_gxn_id_rsp_t *gs0, grsbuf, *gs1 = &grsbuf;
 		struct lportdb lcl;
+#if	0
+		sns_gff_id_rsp_t *fs0, ffsbuf, *fs1 = &ffsbuf;
+#endif
 
 		i++;
 		MEMZERO(&lcl, sizeof (lcl));
@@ -2628,8 +2624,8 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		isp_get_gxn_id_response(isp, gs0, gs1);
 		if (gs1->snscb_cthdr.ct_response != FS_ACC) {
 			isp_prt(isp, ISP_LOGWARN, swrej, "GPN_ID",
-			    rs1->snscb_cthdr.ct_reason,
-			    rs1->snscb_cthdr.ct_explanation, lcl.portid);
+			    gs1->snscb_cthdr.ct_reason,
+			    gs1->snscb_cthdr.ct_explanation, lcl.portid);
 			if (fcp->isp_loopstate != LOOP_SCANNING_FABRIC) {
 				FC_SCRATCH_RELEASE(isp);
 				return (-1);
@@ -2683,8 +2679,8 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		isp_get_gxn_id_response(isp, gs0, gs1);
 		if (gs1->snscb_cthdr.ct_response != FS_ACC) {
 			isp_prt(isp, ISP_LOGWARN, swrej, "GNN_ID",
-			    rs1->snscb_cthdr.ct_reason,
-			    rs1->snscb_cthdr.ct_explanation, lcl.portid);
+			    gs1->snscb_cthdr.ct_reason,
+			    gs1->snscb_cthdr.ct_explanation, lcl.portid);
 			if (fcp->isp_loopstate != LOOP_SCANNING_FABRIC) {
 				FC_SCRATCH_RELEASE(isp);
 				return (-1);
@@ -2702,13 +2698,72 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		    (((u_int64_t)gs1->snscb_wwn[7]));
 
 		/*
-		 * XXX: Argh! I saw some PDF which I now can't find that
-		 * XXX: had proposed that the bottom nibble of CONTROL
-		 * XXX: would have the SCSI-FCP role flags, which would
-		 * XXX: be *awesome*.
-		 *
-		lcl.roles = rs1->snscb_port[i].control & 0xf;
+		 * The QLogic f/w is bouncing this with a parameter error.
 		 */
+#if	0
+		/*
+		 * Try and get FC4 Features (FC-GS-3 only).
+		 * We can use the sns_gxn_id_req_t for this request.
+		 */
+		MEMZERO((void *) gq, sizeof (sns_gxn_id_req_t));
+		gq->snscb_rblen = SNS_GFF_ID_RESP_SIZE >> 1;
+		gq->snscb_addr[RQRSP_ADDR0015] = DMA_WD0(fcp->isp_scdma+GXOFF);
+		gq->snscb_addr[RQRSP_ADDR1631] = DMA_WD1(fcp->isp_scdma+GXOFF);
+		gq->snscb_addr[RQRSP_ADDR3247] = DMA_WD2(fcp->isp_scdma+GXOFF);
+		gq->snscb_addr[RQRSP_ADDR4863] = DMA_WD3(fcp->isp_scdma+GXOFF);
+		gq->snscb_sblen = 6;
+		gq->snscb_cmd = SNS_GFF_ID;
+		gq->snscb_portid = lcl.portid;
+		isp_put_gxn_id_request(isp, gq,
+		    (sns_gxn_id_req_t *) fcp->isp_scratch);
+		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GXN_ID_REQ_SIZE);
+		mbs.param[0] = MBOX_SEND_SNS;
+		mbs.param[1] = SNS_GXN_ID_REQ_SIZE >> 1;
+		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
+		mbs.param[3] = DMA_WD0(fcp->isp_scdma);
+		/*
+		 * Leave 4 and 5 alone
+		 */
+		mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+		mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+		if (isp_fabric_mbox_cmd(isp, &mbs)) {
+			if (fcp->isp_loopstate >= LOOP_SCANNING_FABRIC) {
+				fcp->isp_loopstate = LOOP_PDB_RCVD;
+			}
+			FC_SCRATCH_RELEASE(isp);
+			return (-1);
+		}
+		if (fcp->isp_loopstate != LOOP_SCANNING_FABRIC) {
+			FC_SCRATCH_RELEASE(isp);
+			return (-1);
+		}
+		MEMORYBARRIER(isp, SYNC_SFORCPU, GXOFF, SNS_GFF_ID_RESP_SIZE);
+		fs0 = (sns_gff_id_rsp_t *) ((u_int8_t *)fcp->isp_scratch+GXOFF);
+		isp_get_gff_id_response(isp, fs0, fs1);
+		if (fs1->snscb_cthdr.ct_response != FS_ACC) {
+			isp_prt(isp, /* ISP_LOGDEBUG0 */ ISP_LOGWARN,
+			    swrej, "GFF_ID",
+			    fs1->snscb_cthdr.ct_reason,
+			    fs1->snscb_cthdr.ct_explanation, lcl.portid);
+			if (fcp->isp_loopstate != LOOP_SCANNING_FABRIC) {
+				FC_SCRATCH_RELEASE(isp);
+				return (-1);
+			}
+		} else {
+			int index = (ftype >> 3);
+			int bshft = (ftype & 0x7) * 4;
+			int fc4_fval =
+			    (fs1->snscb_fc4_features[index] >> bshft) & 0xf;
+			if (fc4_fval & 0x1) {
+				lcl.roles |=
+				    (SVC3_INI_ROLE >> SVC3_ROLE_SHIFT);
+			}
+			if (fc4_fval & 0x2) {
+				lcl.roles |=
+				    (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT);
+			}
+		}
+#endif
 
 		/*
 		 * If we really want to know what kind of port type this is,
@@ -3602,10 +3657,18 @@ again:
 		}
 		xs = isp_find_xs(isp, sp->req_handle);
 		if (xs == NULL) {
+			u_int8_t ts = sp->req_completion_status & 0xff;
 			MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			isp_prt(isp, ISP_LOGERR,
-			    "cannot find handle 0x%x in xflist",
-			    sp->req_handle);
+			/*
+			 * Only whine if this isn't the expected fallout of
+			 * aborting the command.
+			 */
+			if (sp->req_header.rqs_entry_type != RQSTYPE_RESPONSE ||
+			    ts != RQCS_ABORTED) {
+				isp_prt(isp, ISP_LOGERR,
+				    "cannot find handle 0x%x in xflist",
+				    sp->req_handle);
+			}
 			WRITE_RESPONSE_QUEUE_OUT_POINTER(isp, optr);
 			continue;
 		}
