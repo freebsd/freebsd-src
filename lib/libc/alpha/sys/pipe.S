@@ -29,9 +29,9 @@
 
 #include "SYS.h"
 
-SYSCALL(pipe)
+PSYSCALL(pipe)
 	stl	v0, 0(a0)
 	stl	a4, 4(a0)
 	mov	zero, v0
 	RET
-END(pipe)
+PEND(pipe)
