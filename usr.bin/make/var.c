@@ -1511,18 +1511,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freePtr)
 		}
 	}
 
-	if (v->flags & VAR_FROM_ENV) {
-		if (value == (char *)Buf_GetAll(v->val, (size_t *)NULL)) {
-			VarDestroy(v, FALSE);
-			*freePtr = TRUE;
-			return (value);
-		} else {
-			VarDestroy(v, TRUE);
-			return (value);
-		}
-	} else {
-		return (value);
-	}
+	return (value);
 }
 
 static char *
@@ -1537,37 +1526,28 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freePtr)
 
 	v = VarFind(vname, vp->ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
-		return (ParseModifier(vp, startc, v, freePtr));
+		value = ParseModifier(vp, startc, v, freePtr);
+
+		if (v->flags & VAR_FROM_ENV) {
+			VarDestroy(v, TRUE);
+		}
+		return (value);
 	}
 
 	if ((vp->ctxt == VAR_CMD) || (vp->ctxt == VAR_GLOBAL)) {
-		size_t		consumed;
+		size_t  consumed = vp->ptr - vp->input + 1;
+
 		/*
-		 * Still need to get to the end of the variable
-		 * specification, so kludge up a Var structure for
-		 * the modifications
+		 * If substituting a local variable in a non-local context,
+		 * assume it's for dynamic source stuff. We have to handle
+		 * this specially and return the longhand for the variable
+		 * with the dollar sign escaped so it makes it back to the
+		 * caller. Only four of the local variables are treated
+		 * specially as they are the only four that will be set when
+		 * dynamic sources are expanded.
 		 */
-		v = VarCreate(vname, NULL, VAR_JUNK);
-		value = ParseModifier(vp, startc, v, freePtr);
-		if (*freePtr) {
-			free(value);
-		}
-		VarDestroy(v, TRUE);
-
-		consumed = vp->ptr - vp->input + 1;
-
 		if ((vlen == 1) ||
 		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
-			/*
-			 * If substituting a local variable in a non-local
-			 * context, assume it's for dynamic source stuff. We
-			 * have to handle this specially and return the
-			 * longhand for the variable with the dollar sign
-			 * escaped so it makes it back to the caller. Only
-			 * four of the local variables are treated specially
-			 * as they are the only four that will be set when
-			 * dynamic sources are expanded.
-			 */
 			if (strchr("!%*@", vname[0]) != NULL) {
 				value = emalloc(consumed + 1);
 				strncpy(value, vp->input, consumed);
@@ -1593,6 +1573,18 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freePtr)
 			}
 		}
 
+		/*
+		 * Still need to get to the end of the variable
+		 * specification, so kludge up a Var structure for the
+		 * modifications
+		 */
+		v = VarCreate(vname, NULL, VAR_JUNK);
+		value = ParseModifier(vp, startc, v, freePtr);
+		if (*freePtr) {
+			free(value);
+		}
+		VarDestroy(v, TRUE);
+
 		*freePtr = FALSE;
 		return (vp->err ? var_Error : varNoError);
 	} else {
@@ -1605,22 +1597,20 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freePtr)
 		    (strchr("!%*<>@", vname[0]) != NULL)) {
 			char	name[2];
 
-			/*
-			 * Well, it's local -- go look for it.
-			 */
 			name[0] = vname[0];
 			name[1] = '\0';
 
 			v = VarFind(name, vp->ctxt, 0);
 			if (v != NULL) {
-				return (ParseModifier(vp, startc, v, freePtr));
+				value = ParseModifier(vp, startc, v, freePtr);
+				return (value);
 			}
 		}
 
 		/*
 		 * Still need to get to the end of the variable
-		 * specification, so kludge up a Var structure for
-		 * the modifications
+		 * specification, so kludge up a Var structure for the
+		 * modifications
 		 */
 		v = VarCreate(vname, NULL, VAR_JUNK);
 		value = ParseModifier(vp, startc, v, freePtr);
@@ -1641,7 +1631,6 @@ ParseRestEnd(VarParser *vp, Buffer *buf, Boolean *freePtr)
 	size_t		vlen;
 	Var		*v;
 	char		*value;
-	size_t		consumed = vp->ptr - vp->input;
 
 	vname = Buf_GetAll(buf, &vlen);
 
@@ -1658,14 +1647,15 @@ ParseRestEnd(VarParser *vp, Buffer *buf, Boolean *freePtr)
 	}
 
 	if ((vp->ctxt == VAR_CMD) || (vp->ctxt == VAR_GLOBAL)) {
+		size_t consumed = vp->ptr - vp->input + 1;
+
 		/*
-		 * If substituting a local variable in a non-local
-		 * context, assume it's for dynamic source stuff. We
-		 * have to handle this specially and return the
-		 * longhand for the variable with the dollar sign
-		 * escaped so it makes it back to the caller. Only
-		 * four of the local variables are treated specially
-		 * as they are the only four that will be set when
+		 * If substituting a local variable in a non-local context,
+		 * assume it's for dynamic source stuff. We have to handle
+		 * this specially and return the longhand for the variable
+		 * with the dollar sign escaped so it makes it back to the
+		 * caller. Only four of the local variables are treated
+		 * specially as they are the only four that will be set when
 		 * dynamic sources are expanded.
 		 */
 		if (((vlen == 1)) ||
@@ -1714,11 +1704,10 @@ ParseRestEnd(VarParser *vp, Buffer *buf, Boolean *freePtr)
 			if (v != NULL) {
 				char	*val;
 				/*
-				 * No need for nested expansion or
-				 * anything, as we're the only one
-				 * who sets these things and we sure
-				 * don't put nested invocations in
-				 * them...
+				 * No need for nested expansion or anything,
+				 * as we're the only one who sets these
+				 * things and we sure don't put nested
+				 * invocations in them...
 				 */
 				val = (char *)Buf_GetAll(v->val, NULL);
 
@@ -1762,8 +1751,8 @@ VarParseLong(VarParser *vp, Boolean *freePtr)
 
 	while (*vp->ptr != '\0') {
 		if (*vp->ptr == endc) {
-			vp->ptr++;	/* consume closing paren or brace */
 			result = ParseRestEnd(vp, buf, freePtr);
+			vp->ptr++;	/* consume closing paren or brace */
 			Buf_Destroy(buf, TRUE);
 			return (result);
 
@@ -1794,12 +1783,7 @@ VarParseLong(VarParser *vp, Boolean *freePtr)
 		}
 	}
 
-	/*
-	 * If we did not find the end character,
-	 * return var_Error right now, setting the
-	 * length to be the distance to the end of
-	 * the string, since that's what make does.
-	 */
+	/* If we did not find the end character, return var_Error */
 	Buf_Destroy(buf, TRUE);
 	*freePtr = FALSE;
 	return (var_Error);
