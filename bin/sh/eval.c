@@ -39,11 +39,12 @@
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 static const char rcsid[] =
-	"$Id: eval.c,v 1.15 1998/05/18 06:43:34 charnier Exp $";
+	"$Id: eval.c,v 1.16 1999/04/01 13:27:35 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h> /* For WIFSIGNALED(status) */
 
 /*
  * Evaluate a command.
@@ -862,6 +863,10 @@ parent:	/* parent process gets here (if we forked) */
 		INTOFF;
 		exitstatus = waitforjob(jp);
 		INTON;
+		if (iflag && loopnest > 0 && WIFSIGNALED(exitstatus)) {
+			evalskip = SKIPBREAK;
+			skipcount = loopnest;
+		}
 	} else if (mode == 2) {
 		backcmd->fd = pip[0];
 		close(pip[1]);
