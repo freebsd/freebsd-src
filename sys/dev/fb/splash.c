@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: splash.c,v 1.1 1999/01/09 02:44:49 yokota Exp $
+ * $Id: splash.c,v 1.2 1999/01/11 03:06:28 yokota Exp $
  */
 
 #include "splash.h"
@@ -133,9 +133,10 @@ splash_register(splash_decoder_t *decoder)
 			   	M_DEVBUF, M_NOWAIT);
 			if (p == NULL)
 				return ENOMEM;
-			if (decoder_set != NULL)
+			if (decoder_set != NULL) {
 				bcopy(decoder_set, p, sizeof(*p)*decoders);
-			free(decoder_set, M_DEVBUF);
+				free(decoder_set, M_DEVBUF);
+			}
 			decoder_set = p;
 			i = decoders++;
 		}
