@@ -132,4 +132,5 @@ static driver_t cm_isa_driver = {
 	sizeof(struct cm_softc)
 };
 
-DRIVER_MODULE(if_cm, isa, cm_isa_driver, cm_devclass, 0, 0);
+DRIVER_MODULE(cm, isa, cm_isa_driver, cm_devclass, 0, 0);
+MODULE_DEPEND(cm, isa, 1, 1, 1);

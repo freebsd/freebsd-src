@@ -126,5 +126,6 @@ static driver_t sn_pccard_driver = {
 
 extern devclass_t sn_devclass;
 
-DRIVER_MODULE(if_sn, pccard, sn_pccard_driver, sn_devclass, 0, 0);
-MODULE_DEPEND(if_sn, pccard, 1, 1, 1);
+DRIVER_MODULE(sn, pccard, sn_pccard_driver, sn_devclass, 0, 0);
+MODULE_DEPEND(sn, pccard, 1, 1, 1);
+MODULE_DEPEND(sn, ether, 1, 1, 1);

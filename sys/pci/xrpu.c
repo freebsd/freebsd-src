@@ -263,3 +263,4 @@ static driver_t xrpu_driver = {
  
  
 DRIVER_MODULE(xrpu, pci, xrpu_driver, xrpu_devclass, 0, 0);
+MODULE_DEPEND(xrpu, pci, 1, 1, 1);

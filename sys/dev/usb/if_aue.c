@@ -92,8 +92,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/if_auereg.h>
 
-MODULE_DEPEND(if_aue, miibus, 1, 1, 1);
-MODULE_DEPEND(if_aue, usb, 1, 1, 1);
+MODULE_DEPEND(aue, usb, 1, 1, 1);
+MODULE_DEPEND(aue, ether, 1, 1, 1);
+MODULE_DEPEND(aue, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
@@ -235,7 +236,7 @@ Static driver_t aue_driver = {
 
 Static devclass_t aue_devclass;
 
-DRIVER_MODULE(if_aue, uhub, aue_driver, aue_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(aue, uhub, aue_driver, aue_devclass, usbd_driver_load, 0);
 DRIVER_MODULE(miibus, aue, miibus_driver, miibus_devclass, 0, 0);
 
 #define AUE_SETBIT(sc, reg, x)				\

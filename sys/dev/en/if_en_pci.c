@@ -481,5 +481,5 @@ static driver_t en_driver = {
 
 static devclass_t en_devclass;
 
-DRIVER_MODULE(if_en, pci, en_driver, en_devclass, 0, 0);
+DRIVER_MODULE(en, pci, en_driver, en_devclass, 0, 0);
 

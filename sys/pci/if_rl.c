@@ -111,6 +111,8 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+MODULE_DEPEND(rl, pci, 1, 1, 1);
+MODULE_DEPEND(rl, ether, 1, 1, 1);
 MODULE_DEPEND(rl, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
@@ -241,8 +243,8 @@ static driver_t rl_driver = {
 
 static devclass_t rl_devclass;
 
-DRIVER_MODULE(if_rl, pci, rl_driver, rl_devclass, 0, 0);
-DRIVER_MODULE(if_rl, cardbus, rl_driver, rl_devclass, 0, 0);
+DRIVER_MODULE(rl, pci, rl_driver, rl_devclass, 0, 0);
+DRIVER_MODULE(rl, cardbus, rl_driver, rl_devclass, 0, 0);
 DRIVER_MODULE(miibus, rl, miibus_driver, miibus_devclass, 0, 0);
 
 #define EE_SET(x)					\

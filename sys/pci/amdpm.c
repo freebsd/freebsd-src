@@ -676,6 +676,7 @@ static driver_t nfpm_driver = {
 DRIVER_MODULE(amdpm, pci, amdpm_driver, amdpm_devclass, 0, 0);
 DRIVER_MODULE(nfpm, pci, nfpm_driver, nfpm_devclass, 0, 0);
 
+MODULE_DEPEND(amdpm, pci, 1, 1, 1);
 MODULE_DEPEND(amdpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(amdpm, 1);
 

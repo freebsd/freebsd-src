@@ -166,5 +166,6 @@ static driver_t an_isa_driver = {
 
 static devclass_t an_isa_devclass;
 
-DRIVER_MODULE(if_an, isa, an_isa_driver, an_isa_devclass, 0, 0);
-MODULE_DEPEND(if_an, wlan, 1, 1, 1);
+DRIVER_MODULE(an, isa, an_isa_driver, an_isa_devclass, 0, 0);
+MODULE_DEPEND(an, isa, 1, 1, 1);
+MODULE_DEPEND(an, wlan, 1, 1, 1);

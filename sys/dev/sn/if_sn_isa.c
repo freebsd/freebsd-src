@@ -87,4 +87,6 @@ static driver_t sn_isa_driver = {
 
 extern devclass_t sn_devclass;
 
-DRIVER_MODULE(if_sn, isa, sn_isa_driver, sn_devclass, 0, 0);
+DRIVER_MODULE(sn, isa, sn_isa_driver, sn_devclass, 0, 0);
+MODULE_DEPEND(sn, isa, 1, 1, 1);
+MODULE_DEPEND(sn, ether, 1, 1, 1);

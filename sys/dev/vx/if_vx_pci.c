@@ -69,7 +69,9 @@ static driver_t vx_driver = {
 
 static devclass_t vx_devclass;
 
-DRIVER_MODULE(if_vx, pci, vx_driver, vx_devclass, 0, 0);
+DRIVER_MODULE(vx, pci, vx_driver, vx_devclass, 0, 0);
+MODULE_DEPEND(vx, pci, 1, 1, 1);
+MODULE_DEPEND(vx, ether, 1, 1, 1);
 
 static void
 vx_pci_shutdown(

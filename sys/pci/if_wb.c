@@ -125,6 +125,8 @@ __FBSDID("$FreeBSD$");
 
 #include <pci/if_wbreg.h>
 
+MODULE_DEPEND(wb, pci, 1, 1, 1);
+MODULE_DEPEND(wb, ether, 1, 1, 1);
 MODULE_DEPEND(wb, miibus, 1, 1, 1);
 
 /*
@@ -218,7 +220,7 @@ static driver_t wb_driver = {
 
 static devclass_t wb_devclass;
 
-DRIVER_MODULE(if_wb, pci, wb_driver, wb_devclass, 0, 0);
+DRIVER_MODULE(wb, pci, wb_driver, wb_devclass, 0, 0);
 DRIVER_MODULE(miibus, wb, miibus_driver, miibus_devclass, 0, 0);
 
 #define WB_SETBIT(sc, reg, x)				\
