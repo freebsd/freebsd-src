@@ -76,20 +76,6 @@
 /* DEPCA specific defines */
 #define DEPCA_ADDR_ROM_SIZE 32
 
-#ifdef PC98
-/* C-NET(98)S port addresses */
-#define CNET98S_RDP    0x400     /* Register Data Port */
-#define CNET98S_RAP    0x402     /* Register Address Port */
-#define CNET98S_RESET  0x404
-#define CNET98S_IDP    0x406
-#define CNET98S_EEPROM 0x40e
-/*
- * XXX - The I/O address range is fragmented in the C-NET(98)S.
- *       This is the number of regs at iobase.
- */
-#define CNET98S_IOSIZE    16     /* # of i/o addresses used. */
-#endif
-
 /* Chip types */
 #define LANCE           1        /* Am7990   */
 #define C_LANCE         2        /* Am79C90  */
@@ -199,6 +185,30 @@ struct host_ring_entry {
 #define LNCSTATS(X)
 #endif
 
+struct lnc_softc {
+	struct arpcom arpcom;	            /* see ../../net/if_arp.h */
+	struct nic_info nic;	            /* NIC specific info */
+	int nrdre;
+	struct host_ring_entry *recv_ring;  /* start of alloc'd mem */
+	int recv_next;
+	int ntdre;
+	struct host_ring_entry *trans_ring;
+	int trans_next;
+	struct init_block *init_block;	    /* Initialisation block */
+	int pending_transmits;        /* No. of transmit descriptors in use */
+	int next_to_send;
+	struct mbuf *mbufs;
+	int mbuf_count;
+	int flags;
+	int rap;
+	int rdp;
+	int bdp;
+#ifdef DEBUG
+	int lnc_debug;
+#endif
+	LNCSTATS_STRUCT
+};
+
 #define NDESC(len2) (1 << len2)
 
 #define INC_MD_PTR(ptr, no_entries) \
@@ -211,3 +221,17 @@ struct host_ring_entry {
 
 #define RECV_NEXT (sc->recv_ring->base + sc->recv_next)
 #define TRANS_NEXT (sc->trans_ring->base + sc->trans_next)
+
+static __inline void
+write_csr(struct lnc_softc *sc, u_short port, u_short val)
+{
+	outw(sc->rap, port);
+	outw(sc->rdp, val);
+}
+
+static __inline u_short
+read_csr(struct lnc_softc *sc, u_short port)
+{
+	outw(sc->rap, port);
+	return (inw(sc->rdp));
+}
