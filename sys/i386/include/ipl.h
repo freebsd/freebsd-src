@@ -30,22 +30,73 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.7 1997/04/27 21:17:56 fsmp Exp $
+ *	$Id$
  */
 
-#ifndef _ISA_IPL_H_
-#define _ISA_IPL_H_
+#ifndef _MACHINE_IPL_H_
+#define	_MACHINE_IPL_H_
 
-#if defined(APIC_IO)
-
-#define	NHWI		24		/* number of h/w interrupts */
-#define	HWI_MASK	0x00ffffff	/* bits for h/w interrupts */
-
+#ifdef APIC_IO
+#include <i386/isa/apic_ipl.h>
 #else
+#include <i386/isa/icu_ipl.h>
+#endif
 
-#define	NHWI		16	/* number of h/w interrupts */
-#define	HWI_MASK	0xffff	/* bits corresponding to h/w interrupts */
+/*
+ * Software interrupt bit numbers in priority order.  The priority only
+ * determines which swi will be dispatched next; a higher priority swi
+ * may be dispatched when a nested h/w interrupt handler returns.
+ */
+#define	SWI_TTY		(NHWI + 0)
+#define	SWI_NET		(NHWI + 1)
+#define	SWI_CLOCK	30
+#define	SWI_AST		31
 
-#endif /* APIC_IO */
+/*
+ * Corresponding interrupt-pending bits for ipending.
+ */
+#define	SWI_TTY_PENDING		(1 << SWI_TTY)
+#define	SWI_NET_PENDING		(1 << SWI_NET)
+#define	SWI_CLOCK_PENDING	(1 << SWI_CLOCK)
+#define	SWI_AST_PENDING		(1 << SWI_AST)
 
-#endif /* _ISA_IPL_H_ */
+/*
+ * Corresponding interrupt-disable masks for cpl.  The ordering is now by
+ * inclusion (where each mask is considered as a set of bits). Everything
+ * except SWI_AST_MASK includes SWI_CLOCK_MASK so that softclock() doesn't
+ * run while other swi handlers are running and timeout routines can call
+ * swi handlers.  Everything includes SWI_AST_MASK so that AST's are masked
+ * until just before return to user mode.  SWI_TTY_MASK includes SWI_NET_MASK
+ * in case tty interrupts are processed at splsofttty() for a tty that is in
+ * SLIP or PPP line discipline (this is weaker than merging net_imask with
+ * tty_imask in isa.c - splimp() must mask hard and soft tty interrupts, but
+ * spltty() apparently only needs to mask soft net interrupts).
+ */
+#define	SWI_TTY_MASK	(SWI_TTY_PENDING | SWI_CLOCK_MASK | SWI_NET_MASK)
+#define	SWI_NET_MASK	(SWI_NET_PENDING | SWI_CLOCK_MASK)
+#define	SWI_CLOCK_MASK	(SWI_CLOCK_PENDING | SWI_AST_MASK)
+#define	SWI_AST_MASK	SWI_AST_PENDING
+#define	SWI_MASK	(~HWI_MASK)
+
+#ifndef	LOCORE
+
+/*
+ * cpl is preserved by interrupt handlers so it is effectively nonvolatile.
+ * ipending and idelayed are changed by interrupt handlers so they are
+ * volatile.
+ */
+#if 0
+extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
+#endif
+extern	unsigned cpl;		/* current priority level mask */
+extern	volatile unsigned idelayed;	/* interrupts to become pending */
+extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
+#if 0
+extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
+extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
+extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
+#endif
+
+#endif /* !LOCORE */
+
+#endif /* !_MACHINE_IPL_H_ */
