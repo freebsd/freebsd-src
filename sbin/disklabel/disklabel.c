@@ -1706,8 +1706,6 @@ usage(void)
 		"       disklabel -R -B [-n] [ -b bootprog ] disk protofile [ type ]",
 		"\t\t(to restore label and install boot program)",
 #endif
-		"       disklabel [-NW] disk",
-		"\t\t(to write disable/enable label)");
 #else
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: disklabel [-r] disk", "(to read label)",
