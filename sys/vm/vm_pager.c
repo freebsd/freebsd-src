@@ -92,6 +92,7 @@ extern struct pagerops defaultpagerops;
 extern struct pagerops swappagerops;
 extern struct pagerops vnodepagerops;
 extern struct pagerops devicepagerops;
+extern struct pagerops physpagerops;
 
 int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
@@ -173,6 +174,7 @@ struct pagerops *pagertab[] = {
 	&swappagerops,		/* OBJT_SWAP */
 	&vnodepagerops,		/* OBJT_VNODE */
 	&devicepagerops,	/* OBJT_DEVICE */
+	&physpagerops,		/* OBJT_PHYS */
 	&deadpagerops		/* OBJT_DEAD */
 };
 
