@@ -1,5 +1,5 @@
 /* Intel 80386/80486-specific support for 32-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -853,11 +853,10 @@ elf_i386_check_relocs (abfd, info, sec, relocs)
 		{
 		  const char *name;
 		  bfd *dynobj;
+		  unsigned int strndx = elf_elfheader (abfd)->e_shstrndx;
+		  unsigned int shnam = elf_section_data (sec)->rel_hdr.sh_name;
 
-		  name = (bfd_elf_string_from_elf_section
-			  (abfd,
-			   elf_elfheader (abfd)->e_shstrndx,
-			   elf_section_data (sec)->rel_hdr.sh_name));
+		  name = bfd_elf_string_from_elf_section (abfd, strndx, shnam);
 		  if (name == NULL)
 		    return false;
 
@@ -1257,9 +1256,14 @@ allocate_dynrelocs (h, inf)
   struct elf_i386_link_hash_entry *eh;
   struct elf_i386_dyn_relocs *p;
 
-  if (h->root.type == bfd_link_hash_indirect
-      || h->root.type == bfd_link_hash_warning)
+  if (h->root.type == bfd_link_hash_indirect)
     return true;
+
+  if (h->root.type == bfd_link_hash_warning)
+    /* When warning symbols are created, they **replace** the "real"
+       entry in the hash table, thus we never get to see the real
+       symbol in a hash traversal.  So look at it now.  */
+    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   info = (struct bfd_link_info *) inf;
   htab = elf_i386_hash_table (info);
@@ -1426,6 +1430,9 @@ readonly_dynrelocs (h, inf)
 {
   struct elf_i386_link_hash_entry *eh;
   struct elf_i386_dyn_relocs *p;
+
+  if (h->root.type == bfd_link_hash_warning)
+    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   eh = (struct elf_i386_link_hash_entry *) h;
   for (p = eh->dyn_relocs; p != NULL; p = p->next)
