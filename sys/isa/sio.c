@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.223 1999/04/17 00:37:01 peter Exp $
+ *	$Id: sio.c,v 1.224 1999/04/17 01:02:27 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.215
  */
@@ -349,7 +349,7 @@ static device_method_t sio_methods[] = {
 static driver_t sio_driver = {
 	driver_name,
 	sio_methods,
-	DRIVER_TYPE_TTY,
+	DRIVER_TYPE_TTY|DRIVER_TYPE_FAST,
 	sizeof(struct com_s),
 };
 
