@@ -4,8 +4,10 @@
  * modified for FreeBSD 2.1 by Gary Jennejohn - 12FEB95
  */
 
-#include <machine/cpufunc.h> /* for inb/outb */
-#include <sys/reboot.h> /* for RB_SERIAL */
+#include <sys/types.h>
+#include <sys/reboot.h>		/* for RB_SERIAL */
+
+#include <machine/cpufunc.h>	/* for inb/outb */
 
 short *videomem;
 int curs;

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/10/15 16:26:05 bde Exp $
+#	$Id: Makefile,v 1.3.2.1 1996/12/15 15:05:23 bde Exp $
 #
 
 PROG=	boot
@@ -58,9 +58,7 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT}
 # BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
 CLEANFILES+=	boot.nohdr boot.strip rawboot sizetest
-DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib
-LDADD=		-lc
 NOSHARED=	YES
 NOMAN=
 STRIP=
