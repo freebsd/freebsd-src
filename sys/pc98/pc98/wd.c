@@ -86,7 +86,7 @@
 #include <i386/isa/isa.h>
 #endif
 #include <i386/isa/isa_device.h>
-#include <i386/isa/wdreg.h>
+#include <pc98/pc98/wdreg.h>
 #include <sys/syslog.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
