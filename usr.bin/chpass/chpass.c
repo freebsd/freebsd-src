@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static char rcsid[] =
-	"$Id: chpass.c,v 1.11 1996/08/12 14:45:22 peter Exp $";
+	"$Id: chpass.c,v 1.11.2.1 1997/08/29 05:29:00 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -94,9 +94,9 @@ main(argc, argv)
 
 	op = EDITENTRY;
 #ifdef YP
-	while ((ch = getopt(argc, argv, "a:p:s:e:d:h:oly")) !=  -1)
+	while ((ch = getopt(argc, argv, "a:p:s:e:d:h:oly")) != -1)
 #else
-	while ((ch = getopt(argc, argv, "a:p:s:e:")) !=  -1)
+	while ((ch = getopt(argc, argv, "a:p:s:e:")) != -1)
 #endif
 		switch(ch) {
 		case 'a':

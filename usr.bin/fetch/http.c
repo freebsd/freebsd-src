@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.4.2.6 1997/11/18 03:28:50 jdp Exp $
+ *	$Id: http.c,v 1.4.2.7 1998/03/08 08:57:19 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -382,7 +382,7 @@ static void
 html_display(FILE *remote)
 {
 	char *line;
-	int linelen;
+	size_t linelen;
 	int inbracket = 0;
 
 
@@ -559,7 +559,7 @@ retry:
 			addstr(iov, n, format_http_date(stab.st_mtime));
 			addstr(iov, n, "\r\n");
 			sprintf(rangebuf, "Range: bytes=%qd-\r\n", 
-				(quad_t)stab.st_size);
+				(long long)stab.st_size);
 			addstr(iov, n, rangebuf);
 		} else if (errno != 0 || !S_ISREG(stab.st_mode)) {
 			if (errno != 0)
@@ -594,11 +594,14 @@ retry:
 	setup_sigalrm();
 	alarm(timo);
 
-	/* some hosts do not properly handle T/TCP connections.  If
-	 * sendmsg() is used to establish the connection, the OS may
-	 * choose to try to use one which could cause the transfer
-	 * to fail.  Doing a connect() first ensures that the OS
-	 * does not attempt T/TCP.
+	/*
+	 * Some hosts do not correctly handle data in SYN segments.
+	 * If no connect(2) is done, the TCP stack will send our
+	 * initial request as such a segment.  fs_use_connect works
+	 * around these broken server TCPs by avoiding this case.
+	 * It is not the default because we want to exercise this
+	 * code path, and in any case the majority of hosts handle
+	 * our default correctly.
 	 */
 	if (fs->fs_use_connect && (connect(s, (struct sockaddr *)&sin, 
                                    sizeof(struct sockaddr_in)) < 0)) {
@@ -1691,18 +1694,17 @@ basic_doauth(struct fetch_state *fs, struct http_auth *ha, int isproxy)
 	    (ha->ha_params == 0 || strchr(ha->ha_params, ':') == 0))
 		return EX_NOPERM;
 		
-	fp = fopen("/dev/tty", "r+");
-	if (fp == 0) {
-		warn("opening /dev/tty");
-		return EX_OSERR;
-	}
 	if (ha->ha_params == 0) {
+		fp = fopen("/dev/tty", "r+");
+		if (fp == 0) {
+			warn("opening /dev/tty");
+			return EX_OSERR;
+		}
 		fprintf(fp, "Enter `basic' user name for realm `%s': ",
 			ha->ha_realm);
 		fflush(fp);
-		user = fgetln(stdin, &userlen);
+		user = fgetln(fp, &userlen);
 		if (user == 0 || userlen < 1) { /* longer name? */
-			fclose(fp);
 			return EX_NOPERM;
 		}
 		if (user[userlen - 1] == '\n')
@@ -1710,6 +1712,7 @@ basic_doauth(struct fetch_state *fs, struct http_auth *ha, int isproxy)
 		else
 			user[userlen] = '\0';
 		user = safe_strdup(user);
+		fclose(fp);
 		pass = 0;
 	} else if ((pass = strchr(ha->ha_params, ':')) == 0) {
 		user = safe_strdup(ha->ha_params);

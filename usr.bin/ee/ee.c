@@ -52,7 +52,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ee.c,v 1.9 1998/01/12 07:51:07 charnier Exp $";
+	"$Id: ee.c,v 1.6.2.3 1998/03/08 08:09:00 jkh Exp $";
 #endif /* not lint */
 
 char *ee_copyright_message = 
@@ -64,7 +64,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.3  $Revision: 1.9 $";
+char *version = "@(#) ee, version 1.3  $Revision: 1.6.2.3 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -4864,7 +4864,7 @@ strings_init()
 
 #ifndef NO_CATGETS
 	setlocale(LC_ALL, "");
-	catalog = catopen("ee", 0);
+	catalog = catopen("ee", NL_CAT_LOCALE);
 #endif /* NO_CATGETS */
 
 	modes_menu[0].item_string = catgetlocal( 1, "modes menu");

@@ -51,7 +51,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: fsmagic.c,v 1.6 1997/03/18 19:37:19 mpp Exp $";
+	"@(#)$Id: fsmagic.c,v 1.3.2.1 1997/08/18 18:59:09 jdp Exp $";
 #endif	/* lint */
 
 int
@@ -76,7 +76,7 @@ struct stat *sb;
 		ckfprintf(stdout,
 			/* Yes, I do mean stdout. */
 			/* No \n, caller will provide. */
-			"can't stat `%s' (%s).", fn, strerror(errno));
+			"can't stat `%s': %s.", fn, strerror(errno));
 		return 1;
 	}
 
@@ -110,7 +110,7 @@ struct stat *sb;
 			struct stat tstatbuf;
 
 			if ((nch = readlink(fn, buf, BUFSIZ-1)) <= 0) {
-				ckfprintf(stdout, "unreadable symlink (%s).",
+				ckfprintf(stdout, "unreadable symlink: %s.",
 				      strerror(errno));
 				return 1;
 			}
@@ -165,7 +165,7 @@ struct stat *sb;
 	case S_IFREG:
 		break;
 	default:
-		error("invalid mode 0%o.\n", sb->st_mode);
+		err(1, "invalid mode 0%o", sb->st_mode);
 		/*NOTREACHED*/
 	}
 
@@ -178,4 +178,3 @@ struct stat *sb;
 	}
 	return 0;
 }
-

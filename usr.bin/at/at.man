@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.3 1995/08/21 12:32:47 ache Exp $
+.\" $Id: at.man,v 1.4 1995/10/05 06:18:48 joerg Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os "FreeBSD 2.1"
@@ -220,7 +220,7 @@ For
 shows completed but not yet deleted jobs in the queue; otherwise
 shows the time the job will be executed.
 .It Fl c
-Cats the jobs listed on the command line to standart output.
+Cats the jobs listed on the command line to standard output.
 .Sh FILES
 .Bl -tag -width _ATJOB_DIR/_LOCKFILE -compact
 .It Pa _ATJOB_DIR
@@ -263,6 +263,8 @@ resources.
 If this is the case for your site, you might want to consider another
 batch system, such as
 .Nm nqs .
-.Sh AUTHOR
-At was mostly written by Thomas Koenig, ig25@rz.uni-karlsruhe.de.
-The time parsing routines are by David Parsons, orc@pell.chi.il.us.
+.Sh AUTHORS
+At was mostly written by
+.An Thomas Koenig Aq ig25@rz.uni-karlsruhe.de .
+The time parsing routines are by
+.An David Parsons Aq orc@pell.chi.il.us .

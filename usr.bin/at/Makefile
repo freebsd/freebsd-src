@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/02/06 23:47:32 wosch Exp $
+#	$Id: Makefile,v 1.4 1996/02/25 20:25:05 bde Exp $
 
 .include "${.CURDIR}/Makefile.inc"
 
@@ -29,5 +29,5 @@ ${MAN1}: at.man
 		s@_LOADAVG_MX@$(LOADAVG_MX)@g; \
 		s@_PERM_PATH@$(PERM_PATH)@g; \
 		s@_LOCKFILE@$(LOCKFILE)@g" \
-		< $? > $@
+		< ${.OODATE} > ${.TARGET}
 

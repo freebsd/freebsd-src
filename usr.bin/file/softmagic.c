@@ -35,7 +35,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: softmagic.c,v 1.7 1997/03/18 19:37:22 mpp Exp $";
+	"@(#)$Id: softmagic.c,v 1.4.2.1 1997/08/18 18:59:23 jdp Exp $";
 #endif	/* lint */
 
 static int match	__P((unsigned char *, int));
@@ -105,7 +105,7 @@ int nbytes;
 
 	if (tmpoff == NULL)
 		if ((tmpoff = (int32 *) malloc(tmplen = 20)) == NULL)
-			error("out of memory\n");
+			errx(1, "out of memory");
 
 	for (magindex = 0; magindex < nmagic; magindex++) {
 		/* if main entry matches, print it... */
@@ -132,7 +132,7 @@ int nbytes;
 		if (++cont_level >= tmplen)
 			if ((tmpoff = (int32 *) realloc(tmpoff,
 						       tmplen += 20)) == NULL)
-				error("out of memory\n");
+				errx(1, "out of memory");
 		while (magic[magindex+1].cont_level != 0 && 
 		       ++magindex < nmagic) {
 			if (cont_level >= magic[magindex].cont_level) {
@@ -177,7 +177,7 @@ int nbytes;
 						if ((tmpoff = 
 						    (int32 *) realloc(tmpoff,
 						    tmplen += 20)) == NULL)
-							error("out of memory\n");
+						errx(1, "out of memory");
 				}
 				if (magic[magindex].flag & ADD) {
 					 magic[magindex].offset = oldoff;
@@ -252,7 +252,7 @@ struct magic *m;
 		break;
 
 	default:
-		error("invalid m->type (%d) in mprint().\n", m->type);
+		errx(1, "invalid m->type (%d) in mprint()", m->type);
 		/*NOTREACHED*/
 	}
 	return(t);
@@ -299,7 +299,7 @@ struct magic *m;
 		    ((p->hl[3]<<24)|(p->hl[2]<<16)|(p->hl[1]<<8)|(p->hl[0]));
 		return 1;
 	default:
-		error("invalid type %d in mconvert().\n", m->type);
+		errx(1, "invalid type %d in mconvert()", m->type);
 		return 0;
 	}
 }
@@ -432,7 +432,7 @@ struct magic *m;
 		}
 		break;
 	default:
-		error("invalid type %d in mcheck().\n", m->type);
+		errx(1, "invalid type %d in mcheck()", m->type);
 		return 0;/*NOTREACHED*/
 	}
 
@@ -505,7 +505,7 @@ struct magic *m;
 
 	default:
 		matched = 0;
-		error("mcheck: can't happen: invalid relation %d.\n", m->reln);
+		errx(1, "mcheck: can't happen: invalid relation %d", m->reln);
 		break;/*NOTREACHED*/
 	}
 
