@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.251 1999/06/29 17:34:16 yokota Exp $
+ *	$Id: sio.c,v 1.252 1999/07/04 14:58:35 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -398,12 +398,6 @@ static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
     = CALLOUT_HANDLE_INITIALIZER(&sio_timeout_handle);
-#if 0 /* XXX */
-static struct tty	*sio_tty[NSIOTOT];
-#else
-static struct tty	sio_tty[NSIOTOT];
-#endif
-static	const int	nsio_tty = NSIOTOT;
 
 static	struct speedtab comspeedtab[] = {
 	{ 0,		0 },
@@ -1186,11 +1180,7 @@ sioopen(dev, flag, mode, p)
 		return (ENXIO);
 	if (mynor & CONTROL_MASK)
 		return (0);
-#if 0 /* XXX */
-	tp = com->tp = sio_tty[unit] = ttymalloc(sio_tty[unit]);
-#else
-	tp = com->tp = &sio_tty[unit];
-#endif
+	tp = dev->si_tty_tty = com->tp = ttymalloc(com->tp);
 	s = spltty();
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick
@@ -2461,7 +2451,7 @@ siodevtotty(dev)
 	unit = MINOR_TO_UNIT(mynor);
 	if ((u_int) unit >= NSIOTOT)
 		return (NULL);
-	return (&sio_tty[unit]);
+	return (dev->si_tty_tty);
 }
 
 static int
