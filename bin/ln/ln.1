@@ -43,11 +43,11 @@
 .Nd make links
 .Sh SYNOPSIS
 .Nm ln
-.Op Fl fs
+.Op Fl fsv
 .Ar source_file
 .Op target_file
 .Nm ln
-.Op Fl fs
+.Op Fl fsv
 .Ar source_file ...
 .Op target_dir
 .Sh DESCRIPTION
@@ -72,6 +72,10 @@ The options are as follows:
 Unlink any already existing file, permitting the link to occur.
 .It Fl s
 Create a symbolic link.
+.It Fl v
+Cause
+.Nm
+to be verbose, showing files as they are processed.
 .El
 .Pp
 By default,
@@ -125,6 +129,10 @@ The links made will have the same name as the files being linked to.
 .Xr stat 2 ,
 .Xr symlink 2 ,
 .Xr symlink 7
+.Sh COMPATIBILITY
+The 
+.Fl v
+option is non-standard and its use in scripts is not recommended.
 .Sh HISTORY
 An
 .Nm
