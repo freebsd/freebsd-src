@@ -1056,6 +1056,8 @@ unp_internalize(control, p)
 		if ((unsigned)fd >= fdescp->fd_nfiles ||
 		    fdescp->fd_ofiles[fd] == NULL)
 			return (EBADF);
+		if (fdescp->fd_ofiles[fd]->f_type == DTYPE_KQUEUE)
+			return (EOPNOTSUPP);
 	}
 	/*
 	 * Now replace the integer FDs with pointers to
