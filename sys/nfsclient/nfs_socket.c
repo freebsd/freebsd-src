@@ -850,8 +850,8 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	int trylater_delay = NQ_TRYLATERDEL, trylater_cnt = 0;
 	u_int32_t xid;
 
-	/* Reject requests while attempting to unmount. */
-	if (vp->v_mount->mnt_kern_flag & MNTK_UNMOUNT) {
+	/* Reject requests while attempting a forced unmount. */
+	if (vp->v_mount->mnt_kern_flag & MNTK_UNMOUNTF) {
 		m_freem(mrest);
 		return (ESTALE);
 	}
@@ -1230,8 +1230,8 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct proc *p)
 
 	if (rep && (rep->r_flags & R_SOFTTERM))
 		return (EINTR);
-	/* Terminate all requests while attempting to unmount. */
-	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNT)
+	/* Terminate all requests while attempting a forced unmount. */
+	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
 		return (EINTR);
 	if (!(nmp->nm_flag & NFSMNT_INT))
 		return (0);
