@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.32 1997/02/22 09:42:35 peter Exp $
+ * $Id: nfs_bio.c,v 1.33 1997/03/09 10:21:26 bde Exp $
  */
 
 
@@ -293,6 +293,10 @@ again:
 		break;
 	    case VDIR:
 		nfsstats.biocache_readdirs++;
+		if (np->n_direofoffset
+		    && uio->uio_offset >= np->n_direofoffset) {
+		    return (0);
+		}
 		lbn = uio->uio_offset / NFS_DIRBLKSIZ;
 		on = uio->uio_offset & (NFS_DIRBLKSIZ - 1);
 		bp = nfs_getcacheblk(vp, lbn, NFS_DIRBLKSIZ, p);
@@ -315,6 +319,9 @@ again:
 			     * offset cookies.
 			     */
 			    for (i = 0; i <= lbn && !error; i++) {
+				if (np->n_direofoffset
+				    && (i * NFS_DIRBLKSIZ) >= np->n_direofoffset)
+				    return (0);
 				bp = nfs_getcacheblk(vp, i, NFS_DIRBLKSIZ, p);
 				if (!bp)
 				    return (EINTR);
