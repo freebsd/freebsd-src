@@ -99,7 +99,7 @@ char *	imalloc P((int n));
 void *	irealloc P((void * pointer, int size));
 void	icfree P((char * pointer));
 void	ifree P((char * pointer));
-char *	scheck P((const char *string, const char *format));
+const char * scheck P((const char *string, const char *format));
 
 /*
 ** Finally, some convenience items.
