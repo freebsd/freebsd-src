@@ -898,7 +898,6 @@ readrest:
 	}
 	mtx_unlock(&Giant);
 	vm_page_lock_queues();
-	vm_page_flag_clear(fs.m, PG_ZERO);
 	vm_page_flag_set(fs.m, PG_REFERENCED);
 
 	/*

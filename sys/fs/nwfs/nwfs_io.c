@@ -464,8 +464,6 @@ nwfs_getpages(ap)
 		nextoff = toff + PAGE_SIZE;
 		m = pages[i];
 
-		m->flags &= ~PG_ZERO;
-
 		if (nextoff <= size) {
 			m->valid = VM_PAGE_BITS_ALL;
 			m->dirty = 0;
