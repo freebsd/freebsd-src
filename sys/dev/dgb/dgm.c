@@ -95,9 +95,9 @@
 #error "The dgm device requires the old isa compatibility shims"
 #endif
 
-#include <gnu/i386/isa/dgmfep.h>
-#include <gnu/i386/isa/dgmbios.h>
-#include <gnu/i386/isa/dgmreg.h>
+#include <dev/dgb/dgmfep.h>
+#include <dev/dgb/dgmbios.h>
+#include <dev/dgb/dgmreg.h>
 
 #define	CALLOUT_MASK		0x40000
 #define	CONTROL_MASK		0xC0
