@@ -34,14 +34,13 @@
  * SUCH DAMAGE.
  *
  * From: @(#)mount.c	8.19 (Berkeley) 4/19/94
- * From: NetBSD: mount.c,v 1.24 1995/11/18 03:34:29 cgd Exp 
- * $FreeBSD$
- *
+ * From: $NetBSD: mount.c,v 1.24 1995/11/18 03:34:29 cgd Exp 
+ * $NetBSD: fsck.c,v 1.21 1999/04/22 04:20:53 abs Exp $
  */
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: fsck.c,v 1.21 1999/04/22 04:20:53 abs Exp $");
+__RCSID("$FreeBSD$");
 #endif /* not lint */
 
 #include <sys/param.h>
