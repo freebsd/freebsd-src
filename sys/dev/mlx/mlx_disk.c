@@ -35,16 +35,15 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 
-#include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
 #include <sys/disk.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <sys/rman.h>
 
+#include <dev/mlx/mlx_compat.h>
 #include <dev/mlx/mlxio.h>
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
@@ -59,7 +58,6 @@ static	d_close_t	mlxd_close;
 static	d_strategy_t	mlxd_strategy;
 static	d_ioctl_t	mlxd_ioctl;
 
-#define MLXD_BDEV_MAJOR	27
 #define MLXD_CDEV_MAJOR	131
 
 static struct cdevsw mlxd_cdevsw = {
@@ -76,11 +74,9 @@ static struct cdevsw mlxd_cdevsw = {
 		/* dump */	nodump,
 		/* psize */ 	nopsize,
 		/* flags */	D_DISK,
-		/* bmaj */	MLXD_BDEV_MAJOR
 };
 
 devclass_t		mlxd_devclass;
-static int		disks_registered = 0;
 static struct cdevsw	mlxddisk_cdevsw;
 
 static device_method_t mlxd_methods[] = {
@@ -165,59 +161,51 @@ mlxd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
  * be a multiple of a sector in length.
  */
 static void
-mlxd_strategy(struct buf *bp)
+mlxd_strategy(mlx_bio *bp)
 {
-    struct mlxd_softc	*sc = (struct mlxd_softc *)bp->b_dev->si_drv1;
+    struct mlxd_softc	*sc = (struct mlxd_softc *)MLX_BIO_SOFTC(bp);
 
     debug_called(1);
 
     /* bogus disk? */
     if (sc == NULL) {
-	bp->b_error = EINVAL;
+	MLX_BIO_SET_ERROR(bp, EINVAL);
 	goto bad;
     }
 
     /* XXX may only be temporarily offline - sleep? */
     if (sc->mlxd_drive->ms_state == MLX_SYSD_OFFLINE) {
-	bp->b_error = ENXIO;
+	MLX_BIO_SET_ERROR(bp, ENXIO);
 	goto bad;
     }
 
-    /* do-nothing operation */
-    if (bp->b_bcount == 0)
-	goto done;
-
-    devstat_start_transaction(&sc->mlxd_stats);
+    MLX_BIO_STATS_START(bp);
     mlx_submit_buf(sc->mlxd_controller, bp);
     return;
 
  bad:
-    bp->b_flags |= B_ERROR;
-
- done:
     /*
-     * Correctly set the buf to indicate a completed transfer
+     * Correctly set the bio to indicate a failed tranfer.
      */
-    bp->b_resid = bp->b_bcount;
-    biodone(bp);
+    MLX_BIO_RESID(bp) = MLX_BIO_LENGTH(bp);
+    MLX_BIO_DONE(bp);
     return;
 }
 
 void
 mlxd_intr(void *data)
 {
-    struct buf *bp = (struct buf *)data;
-    struct mlxd_softc	*sc = (struct mlxd_softc *)bp->b_dev->si_drv1;
+    mlx_bio 		*bp = (mlx_bio *)data;
 
     debug_called(1);
 	
-    if (bp->b_flags & B_ERROR)
-	bp->b_error = EIO;
+    if (MLX_BIO_HAS_ERROR(bp))
+	MLX_BIO_SET_ERROR(bp, EIO);
     else
-	bp->b_resid = 0;
+	MLX_BIO_RESID(bp) = 0;
 
-    devstat_end_transaction_buf(&sc->mlxd_stats, bp);
-    biodone(bp);
+    MLX_BIO_STATS_END(bp);
+    MLX_BIO_DONE(bp);
 }
 
 static int
@@ -237,6 +225,7 @@ mlxd_attach(device_t dev)
     device_t		parent;
     char		*state;
     dev_t		dsk;
+    int			s1, s2;
     
     debug_called(1);
 
@@ -271,10 +260,15 @@ mlxd_attach(device_t dev)
 
     dsk = disk_create(sc->mlxd_unit, &sc->mlxd_disk, 0, &mlxd_cdevsw, &mlxddisk_cdevsw);
     dsk->si_drv1 = sc;
-    disks_registered++;
+    sc->mlxd_dev_t = dsk;
 
-    /* set maximum I/O size */
-    dsk->si_iosize_max = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
+    /* 
+     * Set maximum I/O size to the lesser of the recommended maximum and the practical
+     * maximum.
+     */
+    s1 = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
+    s2 = (sc->mlxd_controller->mlx_enq2->me_max_sg - 1) * PAGE_SIZE;
+    dsk->si_iosize_max = imin(s1, s2);
 
     return (0);
 }
@@ -287,10 +281,7 @@ mlxd_detach(device_t dev)
     debug_called(1);
 
     devstat_remove_entry(&sc->mlxd_stats);
-
-    /* hack to handle lack of destroy_disk() */
-    if (--disks_registered == 0)
-	cdevsw_remove(&mlxddisk_cdevsw);
+    disk_destroy(sc->mlxd_dev_t);
 
     return(0);
 }
