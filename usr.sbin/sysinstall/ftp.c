@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.33 1997/10/03 03:32:03 jkh Exp $
+ * $Id: ftp.c,v 1.34 1997/10/03 14:00:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -207,8 +207,10 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 	    dev->shutdown(dev);
 	    if (!dev->init(dev)) {
 		netDown(dev);
-		fclose(OpenConn);
-		OpenConn = NULL;
+		if (OpenConn) {
+		    fclose(OpenConn);
+		    OpenConn = NULL;
+		}
 		variable_unset(VAR_FTP_PATH);
 		return NULL;
 	    }
