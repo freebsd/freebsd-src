@@ -32,11 +32,11 @@ modules-${target}:
 .if defined(SYSDIR)
 PORTSMODULESENV=SYSDIR=${SYSDIR}
 .endif
-.for target in all install clean
-${target}: ports-${target}
-ports-${target}:
+.for __target in all install clean
+${__target}: ports-${target}
+ports-${__target}:
 .for __i in ${PORTS_MODULES}
-	cd $${PORTSDIR:-/usr/ports/}${__i}; ${PORTSMODULESENV} ${MAKE} -B ${target}
+	cd $${PORTSDIR:-/usr/ports/}${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target}
 .endfor
 .endfor
 .endif
