@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.h,v 1.6 1995/03/04 20:36:45 phk Exp $
+ * $Id: ctm.h,v 1.7 1995/05/30 03:47:21 rgrimes Exp $
  *
  */
 
@@ -24,6 +24,9 @@
 #define VERSION "2.0"
 #define MAXSIZE (1024*1024*10)
 
+#define SUBSUFF ".ctm"
+#define TMPSUFF ".ctmtmp"
+
 /* The fields... */
 #define CTM_F_MASK		0xff
 #define CTM_F_Name		0x01
@@ -39,6 +42,7 @@
 #define CTM_Q_Name_File		0x0100
 #define CTM_Q_Name_Dir		0x0200
 #define CTM_Q_Name_New		0x0400
+#define CTM_Q_Name_Subst	0x0800
 #define CTM_Q_MD5_After		0x0100
 #define CTM_Q_MD5_Before	0x0200
 #define CTM_Q_MD5_Chunk		0x0400
@@ -53,6 +57,8 @@ extern struct CTM_Syntax Syntax[];
 
 #define Malloc malloc
 #define Free free
+#define Delete(foo) if (!foo) ; else {Free(foo); foo = 0; }
+#define String(foo) strdup(foo)
 
 #ifndef EXTERN
 #  define EXTERN extern
@@ -63,8 +69,9 @@ EXTERN u_char *Nbr;
 EXTERN u_char *TimeStamp;
 EXTERN u_char *Prefix;
 EXTERN u_char *FileName;
-EXTERN u_char *BaseDir;
 EXTERN u_char *TmpDir;
+EXTERN u_char *CatPtr;
+EXTERN u_char *Buffer;
 
 /*
  * Paranoid -- Just in case they should be after us...
@@ -108,13 +115,13 @@ EXTERN int CheckIt;
 #define Exit_Done	64
 #define Exit_Version	128
 
-char * String(char *s);
 void Fatal_(int ln, char *fn, char *kind);
 #define Fatal(foo) Fatal_(__LINE__,__FILE__,foo)
 #define Assert() Fatal_(__LINE__,__FILE__,"Assert failed.")
 #define WRONG {Assert(); return Exit_Mess;}
 
 u_char * Ffield(FILE *fd, MD5_CTX *ctx,u_char term);
+u_char * Fname(FILE *fd, MD5_CTX *ctx,u_char term,int qual, int verbose);
 
 int Fbytecnt(FILE *fd, MD5_CTX *ctx, u_char term);
 
@@ -124,6 +131,7 @@ u_char * Fdata(FILE *fd, int u_chars, MD5_CTX *ctx);
 #define GETFIELDCOPY(p,q) if(!((p)=Ffield(fd,&ctx,(q)))) return BADREAD; else p=String(p)
 #define GETBYTECNT(p,q) if(0 >((p)= Fbytecnt(fd,&ctx,(q)))) return BADREAD
 #define GETDATA(p,q) if(!((p) = Fdata(fd,(q),&ctx))) return BADREAD
+#define GETNAMECOPY(p,q,r,v) if(!((p)=Fname(fd,&ctx,(q),(r),(v)))) return BADREAD; else p=String(p)
 
 int Pass1(FILE *fd, unsigned applied);
 int Pass2(FILE *fd);
