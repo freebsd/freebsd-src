@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.38 1998/09/06 06:25:04 ache Exp $
+ * $Id: kern_shutdown.c,v 1.39 1998/09/15 08:49:52 gibbs Exp $
  */
 
 #include "opt_ddb.h"
@@ -262,7 +262,7 @@ boot(howto)
 	LIST_FOREACH(ep, &shutdown_lists[SHUTDOWN_POST_SYNC], links)
 		(*ep->function)(howto, ep->arg);
 	splhigh();
-	if ((howto & (RB_HALT|RB_DUMP) == RB_DUMP) && !cold) {
+	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold) {
 		savectx(&dumppcb);
 #ifdef __i386__
 		dumppcb.pcb_cr3 = rcr3();
