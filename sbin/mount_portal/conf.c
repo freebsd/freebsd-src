@@ -45,7 +45,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
-#include <regexp.h>
+#include <regex.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/syslog.h>
@@ -60,7 +60,8 @@ struct path {
 	int p_lno;		/* Line number of this record */
 	char *p_args;		/* copy of arg string (malloc) */
 	char *p_key;		/* Pathname to match (also p_argv[0]) */
-	regexp *p_re;		/* RE to match against pathname (malloc) */
+	regex_t p_rx;		/* RE to match against pathname () */
+	int p_rxvalid;		/* non-zero if valid regular expression */
 	int p_argc;		/* number of elements in arg string */
 	char **p_argv;		/* argv[] pointers into arg string (malloc) */
 };
@@ -133,13 +134,6 @@ qelem *q0;
 	
 }
 
-void regerror(s)
-const char *s;
-{
-	syslog(LOG_ERR, "%s:%s: regcomp %s: %s",
-			conf_file, curp->p_lno, curp->p_key, s);
-}
-
 static path *palloc(cline, lno)
 char *cline;
 int lno;
@@ -202,11 +196,23 @@ int lno;
 
 	p->p_key = p->p_argv[0];
 	if (strpbrk(p->p_key, RE_CHARS)) {
+		int val;
+
 		curp = p;			/* XXX */
-		p->p_re = regcomp(p->p_key);
+		val = regcomp(&p->p_rx, p->p_key, REG_EXTENDED | REG_NOSUB);
+		if (val) {
+			char errbuf[_POSIX2_LINE_MAX];
+			regerror(val, &p->p_rx, errbuf, sizeof errbuf);
+			syslog(LOG_ERR, "%s:%s: regcomp %s: %s",
+			       conf_file, curp->p_lno, curp->p_key, errbuf);
+			regfree(&p->p_rx);
+			p->p_rxvalid = 0;
+		} else {
+			p->p_rxvalid = 1;
+		}
 		curp = 0;			/* XXX */
 	} else {
-		p->p_re = 0;
+		p->p_rxvalid = 0;
 	}
 	p->p_lno = lno;
 
@@ -220,8 +226,9 @@ static void pfree(p)
 path *p;
 {
 	free(p->p_args);
-	if (p->p_re)
-		free((char *) p->p_re);
+	if (p->p_rxvalid) {
+		regfree(&p->p_rx);
+	}
 	free((char *) p->p_argv);
 	free((char *) p);
 }
@@ -316,9 +323,10 @@ char *key;
 
 	for (q = q0->q_forw; q != q0; q = q->q_forw) {
 		path *p = (path *) q;
-		if (p->p_re) {
-			if (regexec(p->p_re, key))
-				return (p->p_argv+1);
+		if (p->p_rxvalid) {
+			if (!regexec(&p->p_rx, key, 0, 0, 0)) {
+				return p->p_argv + 1;
+			}
 		} else {
 			if (strncmp(p->p_key, key, strlen(p->p_key)) == 0)
 				return (p->p_argv+1);
