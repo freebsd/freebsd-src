@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.15 1996/04/07 17:39:03 bde Exp $
+ * $Id: if_ethersubr.c,v 1.16 1996/05/24 01:35:08 julian Exp $
  */
 
 #include <sys/param.h>
@@ -590,6 +590,8 @@ ether_ifattach(ifp)
 	ifp->if_addrlen = 6;
 	ifp->if_hdrlen = 14;
 	ifp->if_mtu = ETHERMTU;
+	if (ifp->if_baudrate == 0)
+	    ifp->if_baudrate = 10000000;
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
 		if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&
 		    sdl->sdl_family == AF_LINK) {
