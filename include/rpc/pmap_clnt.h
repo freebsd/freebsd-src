@@ -28,7 +28,7 @@
  *
  *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI
  *	from: @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: pmap_clnt.h,v 1.3 1995/05/30 04:55:16 rgrimes Exp $
+ *	$Id: pmap_clnt.h,v 1.4 1996/01/30 23:31:59 mpp Exp $
  */
 
 /*
@@ -76,7 +76,8 @@ extern enum clnt_stat	pmap_rmtcall	__P((struct sockaddr_in *,
 extern enum clnt_stat	clnt_broadcast	__P((u_long, u_long, u_long,
 					     xdrproc_t, char *,
 					     xdrproc_t, char *,
-					     bool_t (*)()));
+					     bool_t (*) __P((caddr_t,
+						 struct sockaddr_in *))));
 extern u_short		pmap_getport	__P((struct sockaddr_in *,
 					     u_long, u_long, u_int));
 __END_DECLS
