@@ -279,6 +279,7 @@ void
 card_inserted(struct slot *sp)
 {
 	struct card *cp;
+	int err;
 
 	usleep(pccard_init_sleep);
 	sp->cis = readcis(sp->fd);
@@ -361,8 +362,27 @@ escape:
 	}
 	if ((sp->config = assign_driver(cp)) == NULL) 
 		return;
-	if (assign_io(sp)) {
-		logmsg("Resource allocation failure for %s", sp->cis->manuf);
+	if (err = assign_io(sp)) {
+		char *reason;
+
+		switch (err) {
+		case -1:
+			reason = "specified CIS was not found";
+			break;
+		case -2:
+			reason = "memory block allocation failed";
+			break;
+		case -3:
+			reason = "I/O block allocation failed";
+			break;
+		default:
+			reason = "Unknown";
+			break;
+		}
+                logmsg("Resource allocation failure for \"%s\"(\"%s\") "
+                       "[%s] [%s]; Reason %s\n",
+                    sp->cis->manuf, sp->cis->vers,
+                    sp->cis->add_info1, sp->cis->add_info2, reason);
 		return;
 	}
 
@@ -711,7 +731,7 @@ assign_io(struct slot *sp)
 						break;
 				}
 				if (j < 0) {
-					return (-1);
+					return (-3);
 				} else {
 					sio->addr = j;
 				}
