@@ -52,28 +52,31 @@
 char *
 acl_to_text(acl_t acl, ssize_t *len_p)
 {
-	char	*buf, *tmpbuf;
-	char	name_buf[UT_NAMESIZE+1];
-	char	perm_buf[_POSIX1E_ACL_STRING_PERM_MAXSIZE+1],
-		effective_perm_buf[_POSIX1E_ACL_STRING_PERM_MAXSIZE+1];
-	int	i, error, len;
-	uid_t	ae_id;
-	acl_tag_t	ae_tag;
-	acl_perm_t	ae_perm, effective_perm, mask_perm;
+	struct acl	*acl_int;
+	char		*buf, *tmpbuf;
+	char		 name_buf[UT_NAMESIZE+1];
+	char		 perm_buf[_POSIX1E_ACL_STRING_PERM_MAXSIZE+1],
+			 effective_perm_buf[_POSIX1E_ACL_STRING_PERM_MAXSIZE+1];
+	int		 i, error, len;
+	uid_t		 ae_id;
+	acl_tag_t	 ae_tag;
+	acl_perm_t	 ae_perm, effective_perm, mask_perm;
 
 	buf = strdup("");
 	if (!buf)
 		return(NULL);
 
-	mask_perm = ACL_PERM_BITS;	/* effective is regular if no mask */
-	for (i = 0; i < acl->acl_cnt; i++)
-		if (acl->acl_entry[i].ae_tag == ACL_MASK) 
-			mask_perm = acl->acl_entry[i].ae_perm;
+	acl_int = &acl->ats_acl;
 
-	for (i = 0; i < acl->acl_cnt; i++) {
-		ae_tag = acl->acl_entry[i].ae_tag;
-		ae_id = acl->acl_entry[i].ae_id;
-		ae_perm = acl->acl_entry[i].ae_perm;
+	mask_perm = ACL_PERM_BITS;	/* effective is regular if no mask */
+	for (i = 0; i < acl_int->acl_cnt; i++)
+		if (acl_int->acl_entry[i].ae_tag == ACL_MASK) 
+			mask_perm = acl_int->acl_entry[i].ae_perm;
+
+	for (i = 0; i < acl_int->acl_cnt; i++) {
+		ae_tag = acl_int->acl_entry[i].ae_tag;
+		ae_id = acl_int->acl_entry[i].ae_id;
+		ae_perm = acl_int->acl_entry[i].ae_perm;
 
 		switch(ae_tag) {
 		case ACL_USER_OBJ:

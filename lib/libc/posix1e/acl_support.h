@@ -34,7 +34,7 @@
 
 #define _POSIX1E_ACL_STRING_PERM_MAXSIZE 3       /* read, write, exec */
 
-int	_posix1e_acl_check(struct acl *acl);
+int	_posix1e_acl_check(acl_t acl);
 int	_posix1e_acl_sort(acl_t acl);
 int	_posix1e_acl(acl_t acl, acl_type_t type);
 int	_posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len,

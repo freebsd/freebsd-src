@@ -40,11 +40,12 @@
 int
 merge_acl(acl_t acl, acl_t *prev_acl)
 {
+	acl_entry_t entry, entry_new;
+	acl_permset_t permset;
 	acl_t acl_new;
-	int blank_acl_user, blank_acl_group, have_entry, i, j;
-	struct stat sb;
-
-	blank_acl_user = blank_acl_group = 0;
+	acl_tag_t tag, tag_new;
+	int entry_id, entry_id_new, have_entry;
+	uid_t *id, *id_new;
 
 	if (acl_type == ACL_TYPE_ACCESS)
 		acl_new = acl_dup(prev_acl[0]);
@@ -53,61 +54,99 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 	if (!acl_new)
 		err(EX_OSERR, "acl_dup() failed");
 
-	/* step through new ACL entries */
-	for (i = 0; i < acl->acl_cnt; i++) {
+	entry_id = ACL_FIRST_ENTRY;
+
+	while (acl_get_entry(acl, entry_id, &entry) == 1) {
+		entry_id = ACL_NEXT_ENTRY;
 		have_entry = 0;
 
-		/* oh look, we have an ACL_MASK entry */
-		if (acl->acl_entry[i].ae_tag == ACL_MASK)
+		/* keep track of existing ACL_MASK entries */
+		if (acl_get_tag_type(entry, &tag) == -1)
+			err(EX_OSERR,
+			    "acl_get_tag_type() failed - invalid ACL entry");
+		if (tag == ACL_MASK)
 			have_mask = 1;
 
 		/* check against the existing ACL entries */
-		for (j = 0; j < acl_new->acl_cnt && !have_entry; j++) {
-			if (acl_new->acl_entry[j].ae_tag ==
-			    acl->acl_entry[i].ae_tag) {
-				switch(acl->acl_entry[i].ae_tag) {
-				case ACL_USER_OBJ:
-					acl_new->acl_entry[j].ae_perm =
-					    acl->acl_entry[i].ae_perm;
-					acl_new->acl_entry[j].ae_id = sb.st_uid;
+		entry_id_new = ACL_FIRST_ENTRY;
+		while (!have_entry &&
+		    acl_get_entry(acl_new, entry_id_new, &entry_new) == 1) {
+			entry_id_new = ACL_NEXT_ENTRY;
+
+			if (acl_get_tag_type(entry, &tag) == -1)
+				err(EX_OSERR, "acl_get_tag_type() failed");
+			if (acl_get_tag_type(entry_new, &tag_new) == -1)
+				err(EX_OSERR, "acl_get_tag_type() failed");
+			if (tag != tag_new)
+				continue;
+
+			switch(tag) {
+			case ACL_USER:
+			case ACL_GROUP:
+				id = acl_get_qualifier(entry);
+				if (id == NULL)
+					err(EX_OSERR,
+					    "acl_get_qualifier() failed");
+				id_new = acl_get_qualifier(entry_new);
+				if (id_new == NULL)
+					err(EX_OSERR,
+					    "acl_get_qualifier() failed");
+				if (*id == *id_new) {
+					/* any other matches */
+					if (acl_get_permset(entry, &permset)
+					    == -1)
+						err(EX_OSERR,
+						    "acl_get_permset() failed");
+					if (acl_set_permset(entry_new, permset)
+					    == -1)
+						err(EX_OSERR,
+						    "acl_set_permset() failed");
 					have_entry = 1;
-					break;
-				case ACL_GROUP_OBJ:
-					acl_new->acl_entry[j].ae_perm =
-					    acl->acl_entry[i].ae_perm;
-					acl_new->acl_entry[j].ae_id = sb.st_gid;
-					have_entry = 1;
-					break;
-				default:
-					if (acl_new->acl_entry[j].ae_id == 
-					    acl->acl_entry[i].ae_id) {
-						/* any other matches */
-						acl_new->acl_entry[j].ae_perm =
-						    acl->acl_entry[i].ae_perm;
-						have_entry = 1;
-					}
-					break;
 				}
+				acl_free(id);
+				acl_free(id_new);
+				if (!have_entry)
+					break;
+				/* FALLTHROUGH */
+			case ACL_USER_OBJ:
+			case ACL_GROUP_OBJ:
+			case ACL_OTHER:
+			case ACL_MASK:
+				if (acl_get_permset(entry, &permset) == -1)
+					err(EX_OSERR,
+					    "acl_get_permset() failed");
+				if (acl_set_permset(entry_new, permset) == -1)
+					err(EX_OSERR,
+					    "acl_set_permset() failed");
+				have_entry = 1;
+				break;
+			default:
+				/* should never be here */
+				errx(EX_OSERR, "Invalid tag type: %i", tag);
+				break;
 			}
 		}
 
 		/* if this entry has not been found, it must be new */
 		if (!have_entry) {
-			if (acl_new->acl_cnt == ACL_MAX_ENTRIES) {
-				warn("too many ACL entries");
+			if (acl_create_entry(&acl_new, &entry_new) == -1) {
 				acl_free(acl_new);
 				return -1;
 			}
-			acl_new->acl_entry[acl_new->acl_cnt++] =
-			    acl->acl_entry[i];
+			if (acl_copy_entry(entry_new, entry) == -1)
+				err(EX_OSERR, "acl_copy_entry() failed");
 		}
 	}
 
-	if (acl_type == ACL_TYPE_ACCESS)
-		*prev_acl[0] = *acl_new;
-	else
-		*prev_acl[1] = *acl_new;
-	acl_free(acl_new);
+
+	if (acl_type == ACL_TYPE_ACCESS) {
+		acl_free(prev_acl[0]);
+		prev_acl[0] = acl_new;
+	} else {
+		acl_free(prev_acl[1]);
+		prev_acl[1] = acl_new;
+	}
+
 
 	return 0;
 }
