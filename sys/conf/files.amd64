@@ -45,9 +45,7 @@ x86_64/x86_64/i686_mem.c	standard
 x86_64/x86_64/identcpu.c	standard
 x86_64/x86_64/initcpu.c		standard
 x86_64/x86_64/k6_mem.c		standard
-# locore.s needs to be handled in Makefile to put it first.  Otherwise it's
-# now normal.
-# x86_64/x86_64/locore.s	standard
+x86_64/x86_64/locore.s		standard	no-obj
 x86_64/x86_64/machdep.c		standard
 x86_64/x86_64/mem.c		standard
 x86_64/x86_64/nexus.c		standard

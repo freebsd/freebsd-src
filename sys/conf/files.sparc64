@@ -45,19 +45,17 @@ sparc64/sparc64/db_trace.c	optional	ddb
 sparc64/sparc64/db_hwwatch.c	optional	ddb
 sparc64/sparc64/dump_machdep.c	standard
 sparc64/sparc64/elf_machdep.c	standard
-# locore.S and exception.S need to be handled in the Makefile to put them
-# first.  Otherwise they're normal.
-# sparc64/sparc64/locore.S	standard
-# sparc64/sparc64/exception.S	standard
-# sparc64/sparc64/interrupt.S	standard
+sparc64/sparc64/exception.S	standard	no-obj
 sparc64/sparc64/eeprom.c	optional	eeprom
 sparc64/sparc64/eeprom_ebus.c	optional	eeprom ebus
 sparc64/sparc64/eeprom_fhc.c	optional	eeprom fhc
 sparc64/sparc64/eeprom_sbus.c	optional	eeprom sbus
 sparc64/sparc64/identcpu.c	standard
 sparc64/sparc64/in_cksum.c	optional	inet
+sparc64/sparc64/interrupt.S	standard	no-obj
 sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/iommu.c		standard
+sparc64/sparc64/locore.S	standard	no-obj
 sparc64/sparc64/machdep.c	standard
 sparc64/sparc64/mem.c		standard
 sparc64/sparc64/mp_exception.S	optional	smp
