@@ -40,9 +40,11 @@
 .Nd tune up an existing file system
 .Sh SYNOPSIS
 .Nm
+.Op Fl a Cm enable | disable
 .Op Fl A
 .Op Fl e Ar maxbpg
 .Op Fl f Ar avgfilesize
+.Op Fl l Ar enable | disable
 .Op Fl m Ar minfree
 .Op Fl n Cm enable | disable
 .Op Fl o Cm space | time
@@ -63,6 +65,8 @@ it must be downgraded to read-only or unmounted.
 The parameters which are to be changed are indicated by the flags
 given below:
 .Bl -tag -width indent
+.It Fl a Cm enable | disable
+Turn on/off the administrative ACL enable flag.
 .It Fl A
 The file system has several backups of the super-block.
 Specifying
@@ -86,6 +90,8 @@ For file systems with exclusively large files,
 this parameter should be set higher.
 .It Fl f Ar avgfilesize
 Specify the expected average file size.
+.It Fl l Cm enable | disable
+Turn on/off MAC multilabel flag.
 .It Fl m Ar minfree
 Specify the percentage of space held back
 from normal users; the minimum free space threshold.
