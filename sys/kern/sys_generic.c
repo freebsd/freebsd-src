@@ -55,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
+#include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/buf.h>
@@ -70,7 +71,7 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
-static int	pollscan __P((struct proc *, struct pollfd *, int));
+static int	pollscan __P((struct proc *, struct pollfd *, u_int));
 static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
 static int	dofileread __P((struct proc *, struct file *, int, void *,
 		    size_t, off_t, int));
@@ -839,20 +840,27 @@ struct poll_args {
 #endif
 int
 poll(p, uap)
-	register struct proc *p;
-	register struct poll_args *uap;
+	struct proc *p;
+	struct poll_args *uap;
 {
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
 	struct timeval atv, rtv, ttv;
 	int s, ncoll, error = 0, timo;
+	u_int nfds;
 	size_t ni;
 
-	if (SCARG(uap, nfds) > p->p_fd->fd_nfiles) {
-		/* forgiving; slightly wrong */
-		SCARG(uap, nfds) = p->p_fd->fd_nfiles;
-	}
-	ni = SCARG(uap, nfds) * sizeof(struct pollfd);
+	nfds = SCARG(uap, nfds);
+	/*
+	 * This is kinda bogus.  We have fd limits, but that is not
+	 * really related to the size of the pollfd array.  Make sure
+	 * we let the process use at least FD_SETSIZE entries and at
+	 * least enough for the current limits.  We want to be reasonably
+	 * safe, but not overly restrictive.
+	 */
+	if (nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur && nfds > FD_SETSIZE)
+		return (EINVAL);
+	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
 		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
@@ -877,7 +885,7 @@ poll(p, uap)
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
-	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds));
+	error = pollscan(p, (struct pollfd *)bits, nfds);
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
@@ -921,7 +929,7 @@ static int
 pollscan(p, fds, nfd)
 	struct proc *p;
 	struct pollfd *fds;
-	int nfd;
+	u_int nfd;
 {
 	register struct filedesc *fdp = p->p_fd;
 	int i;
