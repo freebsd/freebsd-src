@@ -760,15 +760,13 @@ pmap_is_current(pmap_t pmap)
  *		with the given map/virtual_address pair.
  */
 vm_paddr_t 
-pmap_extract(pmap, va)
-	register pmap_t pmap;
-	vm_offset_t va;
+pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	vm_paddr_t rtval;
 	pt_entry_t *pte;
 	pd_entry_t pde, *pdep;
 
-	if (pmap == 0)
+	if (pmap == NULL)
 		return 0;
 	PMAP_LOCK(pmap);
 	pdep = pmap_pde(pmap, va);
@@ -781,7 +779,7 @@ pmap_extract(pmap, va)
 				return rtval;
 			}
 			pte = pmap_pte(pmap, va);
-			rtval = ((*pte & PG_FRAME) | (va & PAGE_MASK));
+			rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
 			PMAP_UNLOCK(pmap);
 			return rtval;
 		}
