@@ -352,6 +352,7 @@ sub manual {
 		    $list .= ' ';
 		}
 	    }
+	    while(<F>) { }	# skip remaining input to avoid pipe errors
 	    &out($list); close F; return 1;
  	} elsif (/^\.Sh/ && /^\.Sh[ \t]+["]?($section_name)["]?/) {
 	    # ``doc'' style pages
@@ -375,9 +376,11 @@ sub manual {
 		    $list .= ' ';
 		}
 	    }
+	    while(<F>) { }	# skip remaining input to avoid pipe errors
 	    &out($list); close F; return 1;
 
 	} elsif(/^\.so/ && /^\.so[ \t]+man/) {
+	    while(<F>) { }	# skip remaining input to avoid pipe errors
 	    close F; return 1;
 	}
     }
