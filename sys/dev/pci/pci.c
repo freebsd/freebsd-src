@@ -73,10 +73,9 @@ static int		pci_porten(device_t pcib, int b, int s, int f);
 static int		pci_memen(device_t pcib, int b, int s, int f);
 static int		pci_add_map(device_t pcib, int b, int s, int f, int reg, 
 				    struct resource_list *rl);
-static void		pci_add_resources(device_t pcib, int b, int s, int f, 
-					  device_t dev);
-static void		pci_add_children(device_t dev, int busno);
+static void		pci_add_resources(device_t pcib, device_t dev);
 static int		pci_probe(device_t dev);
+static int		pci_attach(device_t dev);
 static int		pci_describe_parse_line(char **ptr, int *vendor, 
 						int *device, char **desc);
 static char		*pci_describe_device(device_t dev);
@@ -85,7 +84,7 @@ static int		pci_modevent(module_t mod, int what, void *arg);
 static device_method_t pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pci_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	pci_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -127,7 +126,7 @@ static driver_t pci_driver = {
 	0,			/* no softc */
 };
 
-static devclass_t	pci_devclass;
+devclass_t	pci_devclass;
 DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
 DRIVER_MODULE(pci, acpi_pcib, pci_driver, pci_devclass, pci_modevent, 0);
 MODULE_VERSION(pci, 1);
@@ -741,14 +740,17 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 }
 
 static void
-pci_add_resources(device_t pcib, int b, int s, int f, device_t dev)
+pci_add_resources(device_t pcib, device_t dev)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list *rl = &dinfo->resources;
 	struct pci_quirk *q;
-	int i;
+	int b, i, f, s;
 
+	b = cfg->bus;
+	s = cfg->slot;
+	f = cfg->func;
 	for (i = 0; i < cfg->nummaps;) {
 		i += pci_add_map(pcib, b, s, f, PCIR_MAPS + i*4, rl);
 	}
@@ -773,44 +775,59 @@ pci_add_resources(device_t pcib, int b, int s, int f, device_t dev)
 	}
 }
 
-static void
-pci_add_children(device_t dev, int busno)
+void
+pci_add_children(device_t dev, int busno, size_t dinfo_size)
 {
 	device_t pcib = device_get_parent(dev);
+	struct pci_devinfo *dinfo;
 	int maxslots;
-	int s, f;
+	int s, f, pcifunchigh;
 
-	maxslots = PCIB_MAXSLOTS(pcib);
-	
+	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
+	    ("dinfo_size too small"));
+	maxslots = PCIB_MAXSLOTS(pcib);	
 	for (s = 0; s <= maxslots; s++) {
-		int pcifunchigh = 0;
+		pcifunchigh = 0;
 		for (f = 0; f <= pcifunchigh; f++) {
-			struct pci_devinfo *dinfo = pci_read_device(pcib,
-			    busno, s, f, sizeof(struct pci_devinfo));
+			dinfo = pci_read_device(pcib, busno, s, f, dinfo_size);
 			if (dinfo != NULL) {
 				if (dinfo->cfg.mfdev)
 					pcifunchigh = PCI_FUNCMAX;
-
-				dinfo->cfg.dev = device_add_child(dev, NULL, -1);
-				device_set_ivars(dinfo->cfg.dev, dinfo);
-				pci_add_resources(pcib, busno, s, f,
-						  dinfo->cfg.dev);
-				pci_print_verbose(dinfo);
+				pci_add_child(dev, dinfo);
 			}
 		}
 	}
 }
 
+void
+pci_add_child(device_t bus, struct pci_devinfo *dinfo)
+{
+	device_t pcib;
+
+	pcib = device_get_parent(bus);
+	dinfo->cfg.dev = device_add_child(bus, NULL, -1);
+	device_set_ivars(dinfo->cfg.dev, dinfo);
+	pci_add_resources(pcib, dinfo->cfg.dev);
+	pci_print_verbose(dinfo);
+}
+
 static int
 pci_probe(device_t dev)
 {
-	static int once, busno;
-	caddr_t vendordata, info;
 
+	if (pcib_get_bus(dev) < 0)
+		return (ENXIO);
+	
 	device_set_desc(dev, "PCI bus");
 
-	if (bootverbose)
-		device_printf(dev, "physical bus=%d\n", pcib_get_bus(dev));
+	/* Allow other subclasses to override this driver. */
+	return (-1000);
+}
+
+static int
+pci_attach(device_t dev)
+{
+	int busno;
 
 	/*
 	 * Since there can be multiple independantly numbered PCI
@@ -819,9 +836,20 @@ pci_probe(device_t dev)
 	 * pcib what our bus number is.
 	 */
 	busno = pcib_get_bus(dev);
-	if (busno < 0)
-		return (ENXIO);
-	pci_add_children(dev, busno);
+	if (bootverbose)
+		device_printf(dev, "physical bus=%d\n", busno);
+
+	pci_add_children(dev, busno, sizeof(struct pci_devinfo));
+
+	pci_load_vendor_data();
+	return (bus_generic_attach(dev));
+}
+
+void
+pci_load_vendor_data(void)
+{
+	caddr_t vendordata, info;
+	static int once;
 
 	if (!once) {
 		make_dev(&pcicdev, 0, UID_ROOT, GID_WHEEL, 0644, "pci");
@@ -836,8 +864,6 @@ pci_probe(device_t dev)
 		}
 		once++;
 	}
-
-	return (0);
 }
 
 int

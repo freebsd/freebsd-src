@@ -37,6 +37,10 @@
  * it with "subclass" busses.  A more generic subclassing mechanism would
  * be nice, but is not present in the tree at this time.
  */
+extern devclass_t pci_devclass;
+
+void		pci_add_children(device_t dev, int busno, size_t dinfo_size);
+void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
 int		pci_print_child(device_t dev, device_t child);
 void		pci_probe_nomatch(device_t dev, device_t child);
 int		pci_read_ivar(device_t dev, device_t child, int which,
@@ -64,5 +68,6 @@ struct pci_devinfo *pci_read_device(device_t pcib, int b, int s, int f,
 		    size_t size);
 void		pci_print_verbose(struct pci_devinfo *dinfo);
 int		pci_freecfg(struct pci_devinfo *dinfo);
+void		pci_load_vendor_data(void);
 
 #endif /* _PCI_PRIVATE_H_ */
