@@ -1,4 +1,5 @@
-/* $FreeBSD$ */
+/* $Id: $ */
+/* isp_freebsd_cam.h 1.10 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -115,7 +116,7 @@ struct isposinfo {
 #define	XS_STS(ccb)		(ccb)->scsi_status
 #define	XS_TIME(ccb)		(ccb)->ccb_h.timeout
 #define	XS_SNSP(ccb)		(&(ccb)->sense_data)
-#define	XS_SNSLEN(ccb)		imin((sizeof (ccb)->sense_data), ccb->sense_len)
+#define	XS_SNSLEN(ccb)		imin((sizeof((ccb)->sense_data)), ccb->sense_len)
 #define	XS_SNSKEY(ccb)		((ccb)->sense_data.flags & 0xf)
 
 /*
@@ -144,32 +145,8 @@ struct isposinfo {
 #define	XS_NOERR(ccb)		\
 	((ccb)->ccb_h.spriv_field0 == CAM_REQ_INPROG)
 
-#define	XS_CMD_DONE(sccb)	\
-	if (XS_NOERR((sccb))) \
-		XS_SETERR((sccb), CAM_REQ_CMP); \
-	(sccb)->ccb_h.status &= ~CAM_STATUS_MASK; \
-	(sccb)->ccb_h.status |= (sccb)->ccb_h.spriv_field0; \
-	if (((sccb)->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP && \
-	    (sccb)->scsi_status != SCSI_STATUS_OK) { \
-		(sccb)->ccb_h.status &= ~CAM_STATUS_MASK; \
-		(sccb)->ccb_h.status |= CAM_SCSI_STATUS_ERROR; \
-	} \
-	if (((sccb)->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) { \
-		if (((sccb)->ccb_h.status & CAM_DEV_QFRZN) == 0) { \
-			struct ispsoftc *isp = XS_ISP((sccb)); \
-			IDPRINTF(3, ("%s: freeze devq %d.%d ccbstat 0x%x\n",\
-			    isp->isp_name, (sccb)->ccb_h.target_id, \
-			    (sccb)->ccb_h.target_lun, (sccb)->ccb_h.status)); \
-			xpt_freeze_devq((sccb)->ccb_h.path, 1); \
-			(sccb)->ccb_h.status |= CAM_DEV_QFRZN; \
-		} \
-	} \
-	if ((XS_ISP((sccb)))->isp_osinfo.simqfrozen) { \
-		(sccb)->ccb_h.status |= CAM_RELEASE_SIMQ; \
-		(XS_ISP((sccb)))->isp_osinfo.simqfrozen = 0; \
-	} \
-	(sccb)->ccb_h.status &= ~CAM_SIM_QUEUED; \
-	xpt_done((union ccb *)(sccb))
+extern void isp_done(struct ccb_scsiio *);
+#define	XS_CMD_DONE(sccb)	isp_done(sccb)
 
 #define	XS_IS_CMD_DONE(ccb)	\
 	(((ccb)->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG)
