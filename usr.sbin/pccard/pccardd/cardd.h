@@ -23,13 +23,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: cardd.h,v 1.8 1997/02/22 16:08:56 peter Exp $
  *
  *	Common include file for PCMCIA daemon
  */
 #include <bitstring.h>
 
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 #include <pccard/cis.h>
 
 #include "readcis.h"
