@@ -54,6 +54,7 @@ typedef struct __mcontext {
 	register_t	mc_r14;
 	register_t	mc_r15;
 	register_t	mc_trapno;
+	register_t	mc_addr;
 	register_t	mc_err;
 	register_t	mc_rip;
 	register_t	mc_cs;
