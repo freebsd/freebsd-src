@@ -1037,23 +1037,9 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 		 *
 		 *	- no swap block at this index
 		 *	- swap block is not contiguous
-		 *	- we cross a physical disk boundry in the
-		 *	  stripe.
 		 */
-		if (
-		    nbp && (nbp->b_blkno + btoc(nbp->b_bcount) != blk ||
-		     ((nbp->b_blkno ^ blk) & dmmax_mask)
-		    )
-		) {
+		if (nbp && (nbp->b_blkno + btoc(nbp->b_bcount) != blk)) {
 			splx(s);
-			if (bp->bio_cmd == BIO_READ) {
-				++cnt.v_swapin;
-				cnt.v_swappgsin += btoc(nbp->b_bcount);
-			} else {
-				++cnt.v_swapout;
-				cnt.v_swappgsout += btoc(nbp->b_bcount);
-				nbp->b_dirtyend = nbp->b_bcount;
-			}
 			flushchainbuf(nbp);
 			s = splvm();
 			nbp = NULL;
@@ -1091,14 +1077,6 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 	splx(s);
 
 	if (nbp) {
-		if (nbp->b_iocmd == BIO_READ) {
-			++cnt.v_swapin;
-			cnt.v_swappgsin += btoc(nbp->b_bcount);
-		} else {
-			++cnt.v_swapout;
-			cnt.v_swappgsout += btoc(nbp->b_bcount);
-			nbp->b_dirtyend = nbp->b_bcount;
-		}
 		flushchainbuf(nbp);
 		/* nbp = NULL; */
 	}
@@ -2290,15 +2268,22 @@ static void
 flushchainbuf(struct buf *nbp)
 {
 	GIANT_REQUIRED;
-	if (nbp->b_bcount) {
-		nbp->b_bufsize = nbp->b_bcount;
-		if (nbp->b_iocmd == BIO_WRITE)
-			nbp->b_dirtyend = nbp->b_bcount;
-		BUF_KERNPROC(nbp);
-		VOP_STRATEGY(nbp->b_vp, nbp);
-	} else {
+	if (nbp->b_bcount == 0) {
 		bufdone(nbp);
+		return;
 	}
+	if (nbp->b_iocmd == BIO_READ) {
+		++cnt.v_swapin;
+		cnt.v_swappgsin += btoc(nbp->b_bcount);
+	} else {
+		++cnt.v_swapout;
+		cnt.v_swappgsout += btoc(nbp->b_bcount);
+	}
+	nbp->b_bufsize = nbp->b_bcount;
+	if (nbp->b_iocmd == BIO_WRITE)
+		nbp->b_dirtyend = nbp->b_bcount;
+	BUF_KERNPROC(nbp);
+	VOP_STRATEGY(nbp->b_vp, nbp);
 }
 
 
@@ -2489,8 +2474,14 @@ swaponvp(td, vp, dev, nblks)
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (sp->sw_vp == vp)
 			return (EBUSY);
-		if (sp->sw_end >= dvbase)
-			dvbase = sp->sw_end;
+		if (sp->sw_end >= dvbase) {
+			/*
+			 * We put one uncovered page between the devices
+			 * in order to definitively prevent any cross-device
+			 * I/O requests
+			 */
+			dvbase = sp->sw_end + 1;
+		}
 	}
     
 	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
