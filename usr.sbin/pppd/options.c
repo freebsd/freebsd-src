@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.40 1997/11/27 06:09:34 paulus Exp $";
+static char rcsid[] = "$Id: options.c,v 1.42 1998/03/26 04:46:06 paulus Exp $";
 #endif
 
 #include <ctype.h>
@@ -173,6 +173,7 @@ static int setcrtscts __P((char **));
 static int setnocrtscts __P((char **));
 static int setxonxoff __P((char **));
 static int setnodetach __P((char **));
+static int setupdetach __P((char **));
 static int setmodem __P((char **));
 static int setlocal __P((char **));
 static int setlock __P((char **));
@@ -215,6 +216,7 @@ static int setbsdcomp __P((char **));
 static int setnobsdcomp __P((char **));
 static int setdeflate __P((char **));
 static int setnodeflate __P((char **));
+static int setnodeflatedraft __P((char **));
 static int setdemand __P((char **));
 static int setpred1comp __P((char **));
 static int setnopred1comp __P((char **));
@@ -274,6 +276,7 @@ static struct cmd {
     {"-d", 0, setdebug},	/* Increase debugging level */
     {"nodetach", 0, setnodetach}, /* Don't detach from controlling tty */
     {"-detach", 0, setnodetach}, /* don't fork */
+    {"updetach", 0, setupdetach}, /* Detach once an NP has come up */
     {"noip", 0, noip},		/* Disable IP and IPCP */
     {"-ip", 0, noip},		/* Disable IP and IPCP */
     {"nomagic", 0, nomagicnumber}, /* Disable magic number negotiation */
@@ -368,6 +371,7 @@ static struct cmd {
     {"deflate", 1, setdeflate},		/* request Deflate compression */
     {"nodeflate", 0, setnodeflate},	/* don't allow Deflate compression */
     {"-deflate", 0, setnodeflate},	/* don't allow Deflate compression */
+    {"nodeflatedraft", 0, setnodeflatedraft}, /* don't use draft deflate # */
     {"predictor1", 0, setpred1comp},	/* request Predictor-1 */
     {"nopredictor1", 0, setnopred1comp},/* don't allow Predictor-1 */
     {"-predictor1", 0, setnopred1comp},	/* don't allow Predictor-1 */
@@ -1869,6 +1873,14 @@ setnodetach(argv)
 }
 
 static int
+setupdetach(argv)
+    char **argv;
+{
+    nodetach = -1;
+    return (1);
+}
+
+static int
 setdemand(argv)
     char **argv;
 {
@@ -2250,6 +2262,15 @@ setnodeflate(argv)
 }
 
 static int
+setnodeflatedraft(argv)
+    char **argv;
+{
+    ccp_wantoptions[0].deflate_draft = 0;
+    ccp_allowoptions[0].deflate_draft = 0;
+    return 1;
+}
+
+static int
 setpred1comp(argv)
     char **argv;
 {
@@ -2320,11 +2341,12 @@ setdnsaddr(argv)
 	dns = *(u_int32_t *)hp->h_addr;
     }
 
-    if (ipcp_allowoptions[0].dnsaddr[0] == 0) {
+    /* if there is no primary then update it. */
+    if (ipcp_allowoptions[0].dnsaddr[0] == 0)
 	ipcp_allowoptions[0].dnsaddr[0] = dns;
-    } else {
-	ipcp_allowoptions[0].dnsaddr[1] = dns;
-    }
+
+    /* always set the secondary address value to the same value. */
+    ipcp_allowoptions[0].dnsaddr[1] = dns;
 
     return (1);
 }
@@ -2351,11 +2373,12 @@ setwinsaddr(argv)
 	wins = *(u_int32_t *)hp->h_addr;
     }
 
-    if (ipcp_allowoptions[0].winsaddr[0] == 0) {
+    /* if there is no primary then update it. */
+    if (ipcp_allowoptions[0].winsaddr[0] == 0)
 	ipcp_allowoptions[0].winsaddr[0] = wins;
-    } else {
-	ipcp_allowoptions[0].winsaddr[1] = wins;
-    }
+
+    /* always set the secondary address value to the same value. */
+    ipcp_allowoptions[0].winsaddr[1] = wins;
 
     return (1);
 }
@@ -2451,6 +2474,7 @@ setipxanet(argv)
 {
     ipxcp_wantoptions[0].accept_network = 1;
     ipxcp_allowoptions[0].accept_network = 1;
+    return 1;
 }
 
 static int
@@ -2459,6 +2483,7 @@ setipxalcl(argv)
 {
     ipxcp_wantoptions[0].accept_local = 1;
     ipxcp_allowoptions[0].accept_local = 1;
+    return 1;
 }
 
 static int
@@ -2467,6 +2492,7 @@ setipxarmt(argv)
 {
     ipxcp_wantoptions[0].accept_remote = 1;
     ipxcp_allowoptions[0].accept_remote = 1;
+    return 1;
 }
 
 static u_char *
