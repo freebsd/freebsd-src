@@ -260,8 +260,8 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 	case ATA_ALTADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
-		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET-2;
-		count = 4;
+		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET;
+		count = ATA_ALTIOSIZE;
 		end = start + count - 1;
 	    }
 	    myrid = 0x14 + 8 * unit;
@@ -402,7 +402,7 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
 	ch->r_io[i].offset = i;
     }
     ch->r_io[ATA_ALTSTAT].res = altio;
-    ch->r_io[ATA_ALTSTAT].offset = 2;
+    ch->r_io[ATA_ALTSTAT].offset = 0;
     ch->r_io[ATA_IDX_ADDR].res = io;
 
     if (ctlr->r_res1) {
