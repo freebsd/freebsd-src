@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.21 1996/10/08 22:25:22 bde Exp $
+ *	$Id: disk.c,v 1.22 1996/10/08 22:31:31 bde Exp $
  */
 
 /*
@@ -114,7 +114,7 @@ devopen(void)
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
 #endif	EMBEDDED_DISKLABEL
 		if (dl->d_magic != DISKMAGIC) {
-			printf("bad disklabel");
+			printf("bad disklabel\n");
 			return 1;
 		}
 		if( (maj == 4) || (maj == 0) || (maj == 1))
@@ -132,8 +132,12 @@ devopen(void)
 		boff = dl->d_partitions[part].p_offset -
 			dl->d_partitions[2].p_offset + sector;
 
-		/* This is a good idea for all disks */
 		bsize = dl->d_partitions[part].p_size;
+		if (bsize == 0) {
+			printf("empty partition\n");
+			return 1;
+		}
+
 #ifdef DO_BAD144
 		do_bad144 = 0;
 		if (dl->d_flags & D_BADSECT) {
