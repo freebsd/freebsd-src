@@ -88,6 +88,39 @@ scattach(device_t dev)
 	return sc_attach_unit(device_get_unit(dev), device_get_flags(dev));
 }
 
+static int	sc_cur_scr;
+
+static int
+scsuspend(device_t dev)
+{
+	int		retry = 10;
+	static int	dummy;
+	sc_softc_t	*sc;
+
+	sc = &main_softc;
+	sc_cur_scr = sc->cur_scp->index;
+	do {
+		sc_switch_scr(sc, 0);
+		if (!sc->switch_in_progress) {
+			break;
+		}
+		tsleep(&dummy, 0, "scsuspend", 100);
+	} while (retry--);
+
+	return (0);
+}
+
+static int
+scresume(device_t dev)
+{
+	sc_softc_t	*sc;
+
+	sc = &main_softc;
+	sc_switch_scr(sc, sc_cur_scr);
+
+	return (0);
+}
+
 int
 sc_max_unit(void)
 {
@@ -230,6 +263,8 @@ static device_method_t sc_methods[] = {
 	DEVMETHOD(device_identify,	scidentify),
 	DEVMETHOD(device_probe,         scprobe),
 	DEVMETHOD(device_attach,        scattach),
+	DEVMETHOD(device_suspend,       scsuspend),
+	DEVMETHOD(device_resume,        scresume),
 	{ 0, 0 }
 };
 
