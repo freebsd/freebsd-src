@@ -71,6 +71,8 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -79,6 +81,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "auth.h"
 #include "systems.h"
@@ -413,7 +417,7 @@ main(int argc, char **argv)
     bundle_SetLabel(bundle, lastlabel);
 
   if (sw.mode == PHYS_AUTO &&
-      bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
+      ncprange_family(&bundle->ncp.ipcp.cfg.peer_range) == AF_UNSPEC) {
     prompt_Printf(prompt, "You must ``set ifaddr'' with a peer address "
                   "in auto mode.\n");
     AbortProgram(EX_START);

@@ -65,7 +65,10 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "mbuf.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
+#include "ipv6cp.h"
 #include "route.h"
 #include "command.h"
 #include "filter.h"
@@ -81,6 +84,7 @@
 #include "cbcp.h"
 #include "chap.h"
 #include "datalink.h"
+#include "ncp.h"
 #include "bundle.h"
 
 /*
@@ -91,12 +95,14 @@ radius_Process(struct radius *r, int got)
 {
   char *argv[MAXARGS], *nuke;
   struct bundle *bundle;
-  int argc, addrs;
+  int argc, addrs, width;
   size_t len;
-  struct in_range dest;
-  struct in_addr gw;
+  struct ncprange dest;
+  struct ncpaddr gw;
   const void *data;
   const char *stype;
+  u_int32_t ipaddr;
+  struct in_addr ip;
 
   r->cx.fd = -1;		/* Stop select()ing */
   stype = r->cx.auth ? "auth" : "acct";
@@ -199,8 +205,8 @@ radius_Process(struct radius *r, int got)
 
         log_Printf(LogPHASE, "        Route: %s\n", nuke);
         bundle = r->cx.auth->physical->dl->bundle;
-        dest.ipaddr.s_addr = dest.mask.s_addr = INADDR_ANY;
-        dest.width = 0;
+        ip.s_addr = INADDR_ANY;
+        ncprange_setip4host(&dest, ip);
         argc = command_Interpret(nuke, strlen(nuke), argv);
         if (argc < 0)
           log_Printf(LogWARN, "radius: %s: Syntax error\n",
@@ -209,15 +215,17 @@ radius_Process(struct radius *r, int got)
           log_Printf(LogWARN, "radius: %s: Invalid route\n",
                      argc == 1 ? argv[0] : "\"\"");
         else if ((strcasecmp(argv[0], "default") != 0 &&
-                  !ParseAddr(&bundle->ncp.ipcp, argv[0], &dest.ipaddr,
-                             &dest.mask, &dest.width)) ||
-                 !ParseAddr(&bundle->ncp.ipcp, argv[1], &gw, NULL, NULL))
+                  !ncprange_aton(&dest, &bundle->ncp, argv[0])) ||
+                 !ncpaddr_aton(&gw, &bundle->ncp, argv[1]))
           log_Printf(LogWARN, "radius: %s %s: Invalid route\n",
                      argv[0], argv[1]);
         else {
-          if (dest.width == 32 && strchr(argv[0], '/') == NULL)
+          ncprange_getwidth(&dest, &width);
+          if (width == 32 && strchr(argv[0], '/') == NULL) {
             /* No mask specified - use the natural mask */
-            dest.mask = addr2mask(dest.ipaddr);
+            ncprange_getip4addr(&dest, &ip);
+            ncprange_setip4mask(&dest, addr2mask(ip));
+          }
           addrs = 0;
 
           if (!strncasecmp(argv[0], "HISADDR", 7))
@@ -225,13 +233,13 @@ radius_Process(struct radius *r, int got)
           else if (!strncasecmp(argv[0], "MYADDR", 6))
             addrs = ROUTE_DSTMYADDR;
 
-          if (gw.s_addr == INADDR_ANY) {
+          if (ncpaddr_getip4addr(&gw, &ipaddr) && ipaddr == INADDR_ANY) {
             addrs |= ROUTE_GWHISADDR;
-            gw = bundle->ncp.ipcp.peer_ip;
+            ncpaddr_setip4(&gw, bundle->ncp.ipcp.peer_ip);
           } else if (strcasecmp(argv[1], "HISADDR") == 0)
             addrs |= ROUTE_GWHISADDR;
 
-          route_Add(&r->routes, addrs, dest.ipaddr, dest.mask, gw);
+          route_Add(&r->routes, addrs, &dest, &gw);
         }
         free(nuke);
         break;
