@@ -299,13 +299,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	/*
 	 * Setup packet header
 	 */
-	len = 0;
-	m = mhead;
-	while (m) {
-		len += m->m_len;
-		m = m->m_next;
-	}
-	mhead->m_pkthdr.len = len;
+	m_fixhdr(mhead);
 	mhead->m_pkthdr.rcvif = NULL;
 
 	/*
