@@ -866,7 +866,7 @@ _ftp_cached_connect(struct url *url, struct url *purl, const char *flags)
 	if (_ftp_isconnected(url)) {
 		e = _ftp_cmd(cached_connection, "NOOP");
 		if (e == FTP_OK || e == FTP_SYNTAX_ERROR)
-			return (cached_connection);
+			return (_fetch_ref(cached_connection));
 	}
 
 	/* connect to server */
