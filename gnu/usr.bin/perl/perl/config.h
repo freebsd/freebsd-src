@@ -12,19 +12,8 @@
  /*SUPPRESS 460*/
 
 
-/* EUNICE
- *	This symbol, if defined, indicates that the program is being compiled
- *	under the EUNICE package under VMS.  The program will need to handle
- *	things like files that don't go away the first time you unlink them,
- *	due to version numbering.  It will also need to compensate for lack
- *	of a respectable link() command.
- */
-/* VMS
- *	This symbol, if defined, indicates that the program is running under
- *	VMS.  It is currently only set in conjunction with the EUNICE symbol.
- */
-/*#undef	EUNICE		/**/
-/*#undef	VMS		/**/
+/*#undef	EUNICE		*/
+/*#undef	VMS		*/
 
 /* LOC_SED
  *     This symbol holds the complete pathname to the sed program.
@@ -112,13 +101,13 @@
  *	is up to the package author to declare sprintf correctly based on the
  *	symbol.
  */
-/*#undef	CHARSPRINTF 	/**/
+/*#undef	CHARSPRINTF 	*/
 
 /* HAS_CHSIZE
  *	This symbol, if defined, indicates that the chsize routine is available
  *	to truncate files.  You might need a -lx to get this routine.
  */
-/*#undef	HAS_CHSIZE		/**/
+/*#undef	HAS_CHSIZE		*/
 
 /* HAS_CRYPT
  *	This symbol, if defined, indicates that the crypt routine is available
@@ -145,7 +134,7 @@
  *	subprocesses to which it must pass the filename rather than the
  *	file descriptor of the script to be executed.
  */
-/*#undef DOSUID		/**/
+/*#undef DOSUID		*/
 
 /* HAS_DUP2
  *	This symbol, if defined, indicates that the dup2 routine is available
@@ -194,7 +183,7 @@
  *	This symbol, if defined, indicates that the gethostent() routine is
  *	available to lookup host names in some data base or other.
  */
-/*#undef	HAS_GETHOSTENT		/**/
+/*#undef	HAS_GETHOSTENT		*/
 
 /* HAS_GETPGRP
  *	This symbol, if defined, indicates that the getpgrp() routine is
@@ -206,7 +195,7 @@
  *	This symbol, if defined, indicates that the getpgrp2() (as in DG/UX)
  *	routine is available to get the current process group.
  */
-/*#undef	HAS_GETPGRP2		/**/
+/*#undef	HAS_GETPGRP2		*/
 
 /* HAS_GETPRIORITY
  *	This symbol, if defined, indicates that the getpriority() routine is
@@ -243,8 +232,6 @@
  *	This preprocessor symbol is defined, along with index, if the system
  *	uses the strchr and strrchr routines instead.
  */
-/*#undef	index strchr	/* cultural */
-/*#undef	rindex strrchr	/*  differences? */
 
 /* HAS_ISASCII
  *	This symbol, if defined, indicates that the isascii routine is available
@@ -305,35 +292,6 @@
  */
 #define	HAS_MKDIR		/**/
 
-/* HAS_MSG
- *	This symbol, if defined, indicates that the entire msg*(2) library is
- *	supported.
- */
-/*#undef	HAS_MSG		/**/
-
-/* HAS_MSGCTL
- *	This symbol, if defined, indicates that the msgctl() routine is
- *	available to control message passing.
- */
-/*#undef	HAS_MSGCTL		/**/
-
-/* HAS_MSGGET
- *	This symbol, if defined, indicates that the msgget() routine is
- *	available to get messages.
- */
-/*#undef	HAS_MSGGET		/**/
-
-/* HAS_MSGRCV
- *	This symbol, if defined, indicates that the msgrcv() routine is
- *	available to receive messages.
- */
-/*#undef	HAS_MSGRCV		/**/
-
-/* HAS_MSGSND
- *	This symbol, if defined, indicates that the msgsnd() routine is
- *	available to send messages.
- */
-/*#undef	HAS_MSGSND		/**/
 
 /* HAS_NDBM
  *	This symbol, if defined, indicates that ndbm.h exists and should
@@ -345,7 +303,6 @@
  *	This symbol, if defined, indicates that dbm.h exists and should
  *	be included.
  */
-/*#undef	HAS_ODBM		/**/
 
 /* HAS_OPEN3
  *	This manifest constant lets the C program know that the three
@@ -391,30 +348,6 @@
  */
 #define	HAS_SELECT	/**/
 
-/* HAS_SEM
- *	This symbol, if defined, indicates that the entire sem*(2) library is
- *	supported.
- */
-/*#undef	HAS_SEM		/**/
-
-/* HAS_SEMCTL
- *	This symbol, if defined, indicates that the semctl() routine is
- *	available to control semaphores.
- */
-/*#undef	HAS_SEMCTL		/**/
-
-/* HAS_SEMGET
- *	This symbol, if defined, indicates that the semget() routine is
- *	available to get semaphores ids.
- */
-/*#undef	HAS_SEMGET		/**/
-
-/* HAS_SEMOP
- *	This symbol, if defined, indicates that the semop() routine is
- *	available to perform semaphore operations.
- */
-/*#undef	HAS_SEMOP		/**/
-
 /* HAS_SETEGID
  *	This symbol, if defined, indicates that the setegid routine is available
  *	to change the effective gid of the current program.
@@ -437,7 +370,6 @@
  *	This symbol, if defined, indicates that the setpgrp2() (as in DG/UX)
  *	routine is available to set the current process group.
  */
-/*#undef	HAS_SETPGRP2		/**/
 
 /* HAS_SETPRIORITY
  *	This symbol, if defined, indicates that the setpriority() routine is
@@ -455,7 +387,6 @@
  *	program.
  */
 #define	HAS_SETREGID		/**/
-/*#undef	HAS_SETRESGID		/**/
 
 /* HAS_SETREUID
  *	This symbol, if defined, indicates that the setreuid routine is
@@ -467,7 +398,6 @@
  *	program.
  */
 #define	HAS_SETREUID		/**/
-/*#undef	HAS_SETRESUID		/**/
 
 /* HAS_SETRGID
  *	This symbol, if defined, indicates that the setrgid routine is available
@@ -481,41 +411,6 @@
  */
 #define	HAS_SETRUID		/**/
 
-/* HAS_SHM
- *	This symbol, if defined, indicates that the entire shm*(2) library is
- *	supported.
- */
-/*#undef	HAS_SHM		/**/
-
-/* HAS_SHMAT
- *	This symbol, if defined, indicates that the shmat() routine is
- *	available to attach a shared memory segment.
- */
-/* VOID_SHMAT
- *	This symbol, if defined, indicates that the shmat() routine
- *	returns a pointer of type void*.
- */
-/*#undef	HAS_SHMAT		/**/
-
-/*#undef	VOIDSHMAT		/**/
-
-/* HAS_SHMCTL
- *	This symbol, if defined, indicates that the shmctl() routine is
- *	available to control a shared memory segment.
- */
-/*#undef	HAS_SHMCTL		/**/
-
-/* HAS_SHMDT
- *	This symbol, if defined, indicates that the shmdt() routine is
- *	available to detach a shared memory segment.
- */
-/*#undef	HAS_SHMDT		/**/
-
-/* HAS_SHMGET
- *	This symbol, if defined, indicates that the shmget() routine is
- *	available to get a shared memory segment id.
- */
-/*#undef	HAS_SHMGET		/**/
 
 /* HAS_SOCKET
  *	This symbol, if defined, indicates that the BSD socket interface is
@@ -533,7 +428,6 @@
 
 #define	HAS_SOCKETPAIR	/**/
 
-/*#undef	OLDSOCKET	/**/
 
 /* STATBLOCKS
  *	This symbol is defined if this system has a stat structure declaring
@@ -545,7 +439,6 @@
  *	This symbol is defined if this system has a FILE structure declaring
  *	_ptr and _cnt in stdio.h.
  */
-/*#undef	STDSTDIO 	/**/
 
 /* STRUCTCOPY
  *	This symbol, if defined, indicates that this C compiler knows how
@@ -622,7 +515,6 @@
  *	symbol.
  */
 #define	HAS_VPRINTF	/**/
-/*#undef	CHARVSPRINTF 	/**/
 
 /* HAS_WAIT4
  *	This symbol, if defined, indicates that wait4() exists.
@@ -644,18 +536,16 @@
  *	This symbol has a value like gid_t, int, ushort, or whatever type is
  *	used in the return value of getgroups().
  */
-#define GROUPSTYPE int		/**/
+#define GROUPSTYPE gid_t		/**/
 
 /* I_FCNTL
  *	This manifest constant tells the C program to include <fcntl.h>.
  */
-/*#undef	I_FCNTL	/**/
 
 /* I_GDBM
  *	This symbol, if defined, indicates that gdbm.h exists and should
  *	be included.
  */
-/*#undef	I_GDBM		/**/
 
 /* I_GRP
  *	This symbol, if defined, indicates to the C program that it should
@@ -672,7 +562,6 @@
  *	include sys/in.h.
  */
 #define	I_NETINET_IN		/**/
-/*#undef	I_SYS_IN		/**/
 
 /* I_PWD
  *	This symbol, if defined, indicates to the C program that it should
@@ -703,12 +592,9 @@
  *	contains pw_comment.
  */
 #define	I_PWD		/**/
-/*#undef	PWQUOTA		/**/
-/*#undef	PWAGE		/**/
 #define	PWCHANGE	/**/
 #define	PWCLASS		/**/
 #define	PWEXPIRE	/**/
-/*#undef	PWCOMMENT	/**/
 
 /* I_SYS_FILE
  *	This manifest constant tells the C program to include <sys/file.h>.
@@ -734,10 +620,7 @@
 /* I_SYS_SELECT
  *	This symbol is defined if the program should include <sys/select.h>.
  */
-/*#undef	I_TIME	 	/**/
 #define	I_SYS_TIME 	/**/
-/*#undef	SYSTIMEKERNEL 	/**/
-/*#undef	I_SYS_SELECT 	/**/
 
 /* I_UTIME
  *	This symbol, if defined, indicates to the C program that it should
@@ -755,7 +638,6 @@
  *	This symbol, if defined, indicates to the C program that it should
  *	include vfork.h.
  */
-/*#undef	I_VFORK		/**/
 
 /* INTSIZE
  *	This symbol contains the size of an int, so that the C preprocessor
@@ -789,11 +671,6 @@
  *	you need to do strlen() on the d_name field.
  */
 #define	I_DIRENT	/**/
-/*#undef	I_SYS_DIR	/**/
-/*#undef	I_NDIR		/**/
-/*#undef	I_SYS_NDIR	/**/
-/*#undef	I_MY_DIR	/**/
-/*#undef	DIRNAMLEN	/**/
 
 /* MYMALLOC
  *	This symbol, if defined, indicates that we're using our own malloc.

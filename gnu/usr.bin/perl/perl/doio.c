@@ -1,4 +1,4 @@
-/* $RCSfile: doio.c,v $$Revision: 1.2 $$Date: 1994/03/09 22:24:27 $
+/* $RCSfile: doio.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: doio.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.2  1994/03/09  22:24:27  ache
  * (cast) added for last argument of semctl
  *
@@ -302,7 +305,7 @@ int len;
 #endif
 	) {
 	    int buflen = sizeof tokenbuf;
-	    if (getsockname(fileno(fp), tokenbuf, &buflen) >= 0
+	    if (getsockname(fileno(fp), (struct sockaddr * )tokenbuf, &buflen) >= 0
 		|| errno != ENOTSOCK)
 		stio->type = 's'; /* some OS's return 0 on fstat()ed socket */
 				/* but some return 0 for streams too, sigh */
@@ -1459,7 +1462,7 @@ int *arglast;
 #ifdef TAINT
     taintproper("Insecure dependency in bind");
 #endif
-    return bind(fileno(stio->ifp), addr, st[sp]->str_cur) >= 0;
+    return bind(fileno(stio->ifp), (struct sockaddr * ) addr, st[sp]->str_cur) >= 0;
 
 nuts:
     if (dowarn)
@@ -1490,7 +1493,7 @@ int *arglast;
 #ifdef TAINT
     taintproper("Insecure dependency in connect");
 #endif
-    return connect(fileno(stio->ifp), addr, st[sp]->str_cur) >= 0;
+    return connect(fileno(stio->ifp), (struct sockaddr *) addr, st[sp]->str_cur) >= 0;
 
 nuts:
     if (dowarn)
@@ -1681,11 +1684,11 @@ int *arglast;
     fd = fileno(stio->ifp);
     switch (optype) {
     case O_GETSOCKNAME:
-	if (getsockname(fd, st[sp]->str_ptr, (int*)&st[sp]->str_cur) < 0)
+	if (getsockname(fd, (struct sockaddr *) st[sp]->str_ptr, (int*)&st[sp]->str_cur) < 0)
 	    goto nuts2;
 	break;
     case O_GETPEERNAME:
-	if (getpeername(fd, st[sp]->str_ptr, (int*)&st[sp]->str_cur) < 0)
+	if (getpeername(fd, (struct sockaddr *) st[sp]->str_ptr, (int*)&st[sp]->str_cur) < 0)
 	    goto nuts2;
 	break;
     }
@@ -2095,9 +2098,9 @@ int *arglast;
 #if BYTEORDER == 0x1234 || BYTEORDER == 0x12345678
     nfound = select(
 	maxlen * 8,
-	st[sp+1]->str_ptr,
-	st[sp+2]->str_ptr,
-	st[sp+3]->str_ptr,
+	(fd_set *) st[sp+1]->str_ptr,
+	(fd_set *) st[sp+2]->str_ptr,
+	(fd_set *) st[sp+3]->str_ptr,
 	tbuf);
 #else
     nfound = select(
