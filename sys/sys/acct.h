@@ -69,6 +69,7 @@ struct acct {
 	__dev_t	  ac_tty;		/* controlling tty */
 
 #define	AFORK	0x01			/* forked but not exec'ed */
+/* ASU is no longer supported */
 #define	ASU	0x02			/* used super-user permissions */
 #define	ACOMPAT	0x04			/* used compatibility mode */
 #define	ACORE	0x08			/* dumped core */
