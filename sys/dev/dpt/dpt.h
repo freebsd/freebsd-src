@@ -894,7 +894,7 @@ typedef struct dpt_ccb {
 	u_int32_t	 transaction_id;
 	u_int32_t	 result;
 	caddr_t		 data;
-	SLIST_ENTRY(dpt_ccb) links;
+	SLIST_ENTRY(struct dpt_ccb) links;
 
 #ifdef DPT_MEASURE_PERFORMANCE
 	u_int32_t	 submitted_time;
@@ -1016,7 +1016,7 @@ struct sg_map_node {
 	bus_dmamap_t		 sg_dmamap;
 	bus_addr_t		 sg_physaddr;
 	dpt_sg_t*		 sg_vaddr;
-	SLIST_ENTRY(sg_map_node) links;
+	SLIST_ENTRY(struct sg_map_node) links;
 };
 
 /* Main state machine and interface structure */
@@ -1039,14 +1039,14 @@ typedef struct dpt_softc {
 	int	  pending_ccbs;
 	int	  completed_ccbs;
 
-	SLIST_HEAD(, dpt_ccb)	 free_dccb_list;
-	LIST_HEAD(, ccb_hdr)     pending_ccb_list;
+	SLIST_HEAD(, struct dpt_ccb)	 free_dccb_list;
+	LIST_HEAD(, struct ccb_hdr)     pending_ccb_list;
 
 	bus_dma_tag_t		  parent_dmat;
 	bus_dma_tag_t		  dccb_dmat;	/* dmat for our ccb array */
 	bus_dmamap_t		  dccb_dmamap;
 	bus_dma_tag_t		  sg_dmat;	/* dmat for our sg maps */
-	SLIST_HEAD(, sg_map_node) sg_maps;
+	SLIST_HEAD(, struct sg_map_node) sg_maps;
 
 	struct cam_sim		  *sims[MAX_CHANNELS];
 	struct cam_path		  *paths[MAX_CHANNELS];
@@ -1069,7 +1069,7 @@ typedef struct dpt_softc {
 	u_int8_t  irq;
 	u_int8_t  dma_channel;
 
-	TAILQ_ENTRY(dpt_softc) links;
+	TAILQ_ENTRY(struct dpt_softc) links;
 	int	  unit;
 	int	  init_level;
 
@@ -1266,7 +1266,7 @@ dpt_time_delta(struct timeval start,
 	     (end.tv_usec - start.tv_usec) );
 }
 
-extern TAILQ_HEAD(dpt_softc_list, dpt_softc) dpt_softcs;
+extern TAILQ_HEAD(dpt_softc_list, struct dpt_softc) dpt_softcs;
 
 extern int		dpt_controllers_present;
 

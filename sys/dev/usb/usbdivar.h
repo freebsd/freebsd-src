@@ -146,7 +146,7 @@ struct usbd_interface {
 	int			altindex;
 	struct usbd_endpoint   *endpoints;
 	void		       *priv;
-	LIST_HEAD(, usbd_pipe)	pipes;
+	LIST_HEAD(, struct usbd_pipe)	pipes;
 };
 
 struct usbd_pipe {
@@ -155,8 +155,8 @@ struct usbd_pipe {
 	struct usbd_endpoint   *endpoint;
 	int			refcnt;
 	char			running;
-	SIMPLEQ_HEAD(, usbd_xfer) queue;
-	LIST_ENTRY(usbd_pipe)	next;
+	SIMPLEQ_HEAD(, struct usbd_xfer) queue;
+	LIST_ENTRY(struct usbd_pipe)	next;
 
 	usbd_xfer_handle	intrxfer; /* used for repeating requests */
 	char			repeat;
@@ -194,7 +194,7 @@ struct usbd_xfer {
 #define URQ_AUTO_DMABUF	0x10
 #define URQ_DEV_DMABUF	0x20
 
-	SIMPLEQ_ENTRY(usbd_xfer) next;
+	SIMPLEQ_ENTRY(struct usbd_xfer) next;
 
 	void		       *hcpriv; /* private use by the HC driver */
 	int			hcprivint;

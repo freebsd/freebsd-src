@@ -32,7 +32,7 @@
 #define	VA_PRELOADED		0x0002
 
 struct ntvattr {
-	LIST_ENTRY(ntvattr) 	va_list;
+	LIST_ENTRY(struct ntvattr) 	va_list;
 
 	u_int32_t		va_vflag;
 	struct vnode	       *va_vp;

@@ -98,8 +98,8 @@ struct ida_qcb {
 	qcb_state	state;
 	short		flags;
 	union {
-		STAILQ_ENTRY(ida_qcb) stqe;
-		SLIST_ENTRY(ida_qcb) sle;
+		STAILQ_ENTRY(struct ida_qcb) stqe;
+		SLIST_ENTRY(struct ida_qcb) sle;
 	} link;
 	bus_dmamap_t	dmamap;
 	bus_addr_t	hwqcb_busaddr;
@@ -152,8 +152,8 @@ struct ida_softc {
 
 	struct		ida_hardware_qcb *hwqcbs;	/* HW QCB array */
 	struct		ida_qcb *qcbs;			/* kernel QCB array */
-	SLIST_HEAD(, ida_qcb)	free_qcbs;	
-	STAILQ_HEAD(, ida_qcb) 	qcb_queue;
+	SLIST_HEAD(, struct ida_qcb)	free_qcbs;	
+	STAILQ_HEAD(, struct ida_qcb) 	qcb_queue;
 	struct		bio_queue_head bio_queue;
 
 	struct		ida_access cmd;

@@ -1717,7 +1717,7 @@ filt_sigdetach(struct knote *kn)
 {
 	struct proc *p = kn->kn_ptr.p_proc;
 
-	SLIST_REMOVE(&p->p_klist, kn, knote, kn_selnext);
+	SLIST_REMOVE(&p->p_klist, kn, struct knote, kn_selnext);
 }
 
 /*

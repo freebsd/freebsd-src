@@ -339,7 +339,7 @@ struct hpfsnode {
 	struct simplelock h_interlock;
 #endif
 
-	LIST_ENTRY(hpfsnode)	h_hash;
+	LIST_ENTRY(struct hpfsnode)	h_hash;
 
 	struct hpfsmount *h_hpmp;
 	struct fnode 	h_fn;

@@ -66,14 +66,14 @@
 MODULE_VERSION(netgraph, 1);
 
 /* List of all nodes */
-static LIST_HEAD(, ng_node) nodelist;
+static LIST_HEAD(, struct ng_node) nodelist;
 
 /* List of installed types */
-static LIST_HEAD(, ng_type) typelist;
+static LIST_HEAD(, struct ng_type) typelist;
 
 /* Hash releted definitions */
 #define ID_HASH_SIZE 32 /* most systems wont need even this many */
-static LIST_HEAD(, ng_node) ID_hash[ID_HASH_SIZE];
+static LIST_HEAD(, struct ng_node) ID_hash[ID_HASH_SIZE];
 /* Don't nead to initialise them because it's a LIST */
 
 /* Internal functions */

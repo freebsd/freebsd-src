@@ -47,7 +47,7 @@
 struct ngpcb {
 	struct socket	 *ng_socket;	/* the socket */
 	struct ngsock	 *sockdata;	/* netgraph info */
-	LIST_ENTRY(ngpcb) socks;	/* linked list of sockets */
+	LIST_ENTRY(struct ngpcb) socks;	/* linked list of sockets */
 	int		  type;		/* NG_CONTROL or NG_DATA */
 };
 

@@ -1183,7 +1183,7 @@ objlist_remove(Objlist *list, Obj_Entry *obj)
     Objlist_Entry *elm;
 
     if ((elm = objlist_find(list, obj)) != NULL) {
-	STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
+	STAILQ_REMOVE(list, elm, struct Struct_Objlist_Entry, link);
 	free(elm);
     }
 }

@@ -131,7 +131,7 @@ struct ng_ppp_frag {
 	struct timeval			timestamp;	/* time of reception */
 	struct mbuf			*data;		/* Fragment data */
 	meta_p				meta;		/* Fragment meta */
-	CIRCLEQ_ENTRY(ng_ppp_frag)	f_qent;		/* Fragment queue */
+	CIRCLEQ_ENTRY(struct ng_ppp_frag) f_qent;	/* Fragment queue */
 };
 
 /* We use integer indicies to refer to the non-link hooks */
@@ -195,7 +195,7 @@ struct ng_ppp_private {
 	int			activeLinks[NG_PPP_MAX_LINKS];	/* indicies */
 	u_int			lastLink;		/* for round robin */
 	hook_p			hooks[HOOK_INDEX_MAX];	/* non-link hooks */
-	CIRCLEQ_HEAD(ng_ppp_fraglist, ng_ppp_frag)	/* fragment queue */
+	CIRCLEQ_HEAD(ng_ppp_fraglist, struct ng_ppp_frag) /* fragment queue */
 				frags;
 	int			qlen;			/* fraq queue length */
 	struct callout_handle	fragTimer;		/* fraq queue check */

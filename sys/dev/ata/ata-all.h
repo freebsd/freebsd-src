@@ -304,8 +304,8 @@ struct ata_softc {
 #define		ATA_ACTIVE_ATAPI	0x6
 #define		ATA_REINITING		0x7
 
-    TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
-    TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
+    TAILQ_HEAD(, struct ad_request)	ata_queue;	/* head of ATA queue */
+    TAILQ_HEAD(, struct atapi_request) atapi_queue;	/* head of ATAPI queue */
     void			*running;	/* currently running request */
 };
 

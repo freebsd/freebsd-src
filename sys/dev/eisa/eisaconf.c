@@ -53,19 +53,19 @@ typedef struct resvaddr {
         u_long	size;				/* size of reserved area */
 	int	flags;
 	struct resource *res;			/* resource manager handle */
-	LIST_ENTRY(resvaddr) links;		/* List links */
+	LIST_ENTRY(struct resvaddr) links;	/* List links */
 } resvaddr_t;
 
-LIST_HEAD(resvlist, resvaddr);
+LIST_HEAD(resvlist, struct resvaddr);
 
 struct irq_node {
 	int	irq_no;
 	int	irq_trigger;
 	void	*idesc;
-	TAILQ_ENTRY(irq_node) links;
+	TAILQ_ENTRY(struct irq_node) links;
 };
 
-TAILQ_HEAD(irqlist, irq_node);
+TAILQ_HEAD(irqlist, struct irq_node);
 
 struct eisa_ioconf {
 	int		slot;

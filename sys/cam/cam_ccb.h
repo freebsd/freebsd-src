@@ -202,10 +202,10 @@ typedef enum {
 #define XPT_FC_IS_QUEUED(ccb) 	\
     (((ccb)->ccb_h.func_code & XPT_FC_QUEUED) != 0)
 typedef union {
-	LIST_ENTRY(ccb_hdr) le;
-	SLIST_ENTRY(ccb_hdr) sle;
-	TAILQ_ENTRY(ccb_hdr) tqe;
-	STAILQ_ENTRY(ccb_hdr) stqe;
+	LIST_ENTRY(struct ccb_hdr) le;
+	SLIST_ENTRY(struct ccb_hdr) sle;
+	TAILQ_ENTRY(struct ccb_hdr) tqe;
+	STAILQ_ENTRY(struct ccb_hdr) stqe;
 } camq_entry;
 
 typedef union {

@@ -295,7 +295,7 @@ extern struct linker_set execsw_set;
 
 
 struct intr_config_hook {
-	TAILQ_ENTRY(intr_config_hook) ich_links;
+	TAILQ_ENTRY(struct intr_config_hook) ich_links;
 	void	(*ich_func) __P((void *arg));
 	void	*ich_arg;
 };

@@ -361,7 +361,7 @@ updatepri(p)
  * of 2.  Shift right by 8, i.e. drop the bottom 256 worth.
  */
 #define TABLESIZE	128
-static TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
+static TAILQ_HEAD(slpquehead, struct proc) slpque[TABLESIZE];
 #define LOOKUP(x)	(((intptr_t)(x) >> 8) & (TABLESIZE - 1))
 
 /*

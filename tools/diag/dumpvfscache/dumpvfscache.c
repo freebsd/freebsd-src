@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -54,7 +55,7 @@ main(int argc, char **argv)
 	int nchash, i, j, k, kn;
 	int nb, p1, p2;
 	u_long p;
-	LIST_HEAD(nchashhead, namecache) *nchashtbl;
+	LIST_HEAD(nchashhead, struct namecache) *nchashtbl;
 	struct namecache *nc;
 	struct vnode vn;
 

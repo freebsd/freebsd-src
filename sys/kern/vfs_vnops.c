@@ -685,7 +685,7 @@ filt_vndetach(struct knote *kn)
 
         simple_lock(&vp->v_pollinfo.vpi_lock);
 	SLIST_REMOVE(&vp->v_pollinfo.vpi_selinfo.si_note,
-	    kn, knote, kn_selnext);
+	    kn, struct knote, kn_selnext);
         simple_unlock(&vp->v_pollinfo.vpi_lock);
 }
 

@@ -64,8 +64,8 @@ static long desirednfsrvcache = NFSRVCACHESIZ;
 
 #define	NFSRCHASH(xid) \
 	(&nfsrvhashtbl[((xid) + ((xid) >> 24)) & nfsrvhash])
-static LIST_HEAD(nfsrvhash, nfsrvcache) *nfsrvhashtbl;
-static TAILQ_HEAD(nfsrvlru, nfsrvcache) nfsrvlruhead;
+static LIST_HEAD(nfsrvhash, struct nfsrvcache) *nfsrvhashtbl;
+static TAILQ_HEAD(nfsrvlru, struct nfsrvcache) nfsrvlruhead;
 static u_long nfsrvhash;
 
 #define TRUE	1

@@ -1763,7 +1763,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		frozen = (done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0;
 		if (softc->state == TARG_STATE_TEARDOWN) {
 			SLIST_REMOVE(&softc->immed_notify_slist,
-				     &done_ccb->ccb_h, ccb_hdr,
+				     &done_ccb->ccb_h, struct ccb_hdr,
 				     periph_links.sle);
 			free(done_ccb, M_DEVBUF);
 		} else if (done_ccb->ccb_h.status == CAM_REQ_ABORTED) {

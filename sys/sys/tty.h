@@ -102,7 +102,7 @@ struct tty {
 	int	t_olowat;		/* Low water mark for output. */
 	speed_t	t_ospeedwat;		/* t_ospeed override for watermarks. */
 	int	t_gen;			/* Generation number. */
-	SLIST_ENTRY(tty) t_list;	/* Global chain of ttys for pstat(8) */
+	SLIST_ENTRY(struct tty) t_list;	/* Global chain of ttys for pstat(8) */
 };
 
 #define	t_cc		t_termios.c_cc
