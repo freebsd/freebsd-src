@@ -54,7 +54,9 @@ static char lbuf[LBUF];
 
 #define RoundCyl(x) ((((x) + cylsecs - 1) / cylsecs) * cylsecs)
 
-#define SECSIZE 512
+#define MAX_SEC_SIZE 2048	/* maximum section size that is supported */
+#define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
+int secsize = 0;		/* the sensed sector size */
 
 const char *disk;
 const char *disks[] =
@@ -74,6 +76,8 @@ struct mboot
 	unsigned char bootinst[DOSPARTOFF];
 	struct	dos_partition parts[4];
 	unsigned short int	signature;
+	/* room to read in MBRs that are bigger then DEV_BSIZE */
+	unsigned char large_sector_overflow[MAX_SEC_SIZE-MIN_SEC_SIZE];
 };
 struct mboot mboot;
 
@@ -185,6 +189,7 @@ struct part_type
 	,{0x93, "Amoeba filesystem"}
 	,{0x94, "Amoeba bad block table"}
 	,{0xA5, "FreeBSD/NetBSD/386BSD"}
+	,{0xA6, "OpenBSD"}
 	,{0xA7, "NEXTSTEP"}
 	,{0xB7, "BSDI BSD/386 filesystem"}
 	,{0xB8, "BSDI BSD/386 swap"}
@@ -367,6 +372,7 @@ main(int argc, char *argv[])
 	    if (read_s0())
 		init_sector0(1);
 
+	    printf("Media sector size is %d\n", secsize);
 	    printf("Warning: BIOS sector numbering starts with sector 1\n");
 	    printf("Information from DOS bootblock is:\n");
 	    if (partition == -1)
@@ -436,12 +442,12 @@ print_part(int i)
 	 * Be careful not to overflow.
 	 */
 	part_mb = partp->dp_size;
-	part_mb *= 512;
+	part_mb *= secsize;
 	part_mb /= (1024 * 1024);
 	printf("sysid %d,(%s)\n", partp->dp_typ, get_type(partp->dp_typ));
 	printf("    start %ld, size %ld (%qd Meg), flag %x\n",
 		partp->dp_start,
-		partp->dp_size,
+		partp->dp_size, 
 		part_mb,
 		partp->dp_flag);
 	printf("\tbeg: cyl %d/ sector %d/ head %d;\n\tend: cyl %d/ sector %d/ head %d\n"
@@ -547,7 +553,7 @@ print_params()
 	printf("cylinders=%d heads=%d sectors/track=%d (%d blks/cyl)\n\n"
 			,cyls,heads,sectors,cylsecs);
 	if((dos_sectors > 63) || (dos_cyls > 1023) || (dos_heads > 255))
-		printf(" Figures below won't work with BIOS for partitions not in cyl 1\n");
+		printf("Figures below won't work with BIOS for partitions not in cyl 1\n");
 	printf("parameters to be used for BIOS calculations are:\n");
 	printf("cylinders=%d heads=%d sectors/track=%d (%d blks/cyl)\n\n"
 		,dos_cyls,dos_heads,dos_sectors,dos_cylsecs);
@@ -655,14 +661,28 @@ static ssize_t
 read_disk(off_t sector, void *buf)
 {
 	lseek(fd,(sector * 512), 0);
-	return read(fd, buf, 512);
+	if( secsize == 0 )
+		for( secsize = MIN_SEC_SIZE; secsize <= MAX_SEC_SIZE; secsize *= 2 )
+			{
+			/* try the read */
+			int size = read(fd, buf, secsize);
+			if( size == secsize )
+				/* it worked so return */
+				return secsize;
+			}
+	else
+		return read( fd, buf, secsize );
+
+	/* we failed to read at any of the sizes */
+	return -1;
 }
 
 static ssize_t
 write_disk(off_t sector, void *buf)
 {
 	lseek(fd,(sector * 512), 0);
-	return write(fd, buf, 512);
+	/* write out in the size that the read_disk found worked */
+	return write(fd, buf, secsize);
 }
 
 static int
