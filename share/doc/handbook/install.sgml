@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.21 1995/12/21 16:10:22 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.22 1996/01/31 14:26:09 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -405,11 +405,11 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 	  floppies for the install.
 
 
-	  The first floppy you'll need in addition to the boot.flp image is
-	  ``floppies/root.flp'', which is somewhat special in that it's not a
-	  DOS filesystem floppy at all, but rather a floppy "image" (it's
-	  actually a gzip'd cpio file).  You can create this floppy in the same
-	  way that you created the boot floppy <ref id="install"
+	  The first floppy that you will need in addition to the boot.flp 
+	  image is ``floppies/root.flp'', which is somewhat special in that 
+	  it's not a DOS filesystem floppy at all, but rather a floppy "image" 
+	  (it's actually a gzip'd cpio file).  You can create this floppy in 
+	  the same way that you created the boot floppy <ref id="install"
 	    name="the beginning of this guide">.  Once this floppy is
 	  made, you can go on to make the distribution set floppies
 	  using ordinary DOS or UFS (if you're preparing the floppies on

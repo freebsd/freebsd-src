@@ -1,4 +1,4 @@
-<!-- $Id: memoryuse.sgml,v 1.4 1995/10/22 00:42:13 jfieber Exp $ -->
+<!-- $Id: memoryuse.sgml,v 1.5 1995/12/19 10:21:07 gclarkii Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>PC memory utilization<label id="memoryuse"></heading>
@@ -30,7 +30,7 @@ The boot code itself uses segment selectors <tt>0x18</tt> and <tt>0x20</tt> for 
 kernel is finally started with <tt>%cs</tt> <tt>0x08</tt> and <tt>%ds/%es/%ss</tt> <tt>0x10</tt>, which
 refer to dummy descriptors covering the entire address space.
 
-The kernel will be started at its load point.  Since it's been linked
+The kernel will be started at its load point.  Since it has been linked
 for another (high) address, it will have to execute PIC until the page
 table and page directory stuff is setup properly, at which point
 paging will be enabled and the kernel will finally run at the address
