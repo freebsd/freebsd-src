@@ -71,9 +71,7 @@ static void usage(void);
 #define	EXIT_MISC	127
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int exit_status;
 
@@ -98,7 +96,7 @@ main(argc, argv)
 }
 
 static void
-dofile()
+dofile(void)
 {
 	int fd;
 	char path[MAXPATHLEN];
@@ -132,7 +130,7 @@ dupit:
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: nohup [--] utility [arguments]\n");
 	exit(EXIT_MISC);
