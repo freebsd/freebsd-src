@@ -69,6 +69,10 @@ static int	printaname __P((FTSENT *, u_long, u_long));
 static void	printlink __P((FTSENT *));
 static void	printtime __P((time_t));
 static int	printtype __P((u_int));
+#ifdef COLORLS
+static void     endcolor __P((int));
+static int      colortype __P((mode_t));
+#endif
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
 
@@ -166,7 +170,7 @@ printlong(dp)
 		else (void)printf("%s", p->fts_name);
 #ifdef COLORLS
 		if (f_color && color_printed)
-			endcolor();
+			endcolor(0);
 #endif
 		if (f_type)
 			(void)printtype(sp->st_mode);
@@ -290,7 +294,7 @@ printaname(p, inodefield, sizefield)
 	                                     : printf("%s", p->fts_name);
 #ifdef COLORLS
 	if (f_color && color_printed)
-		endcolor();
+		endcolor(0);
 #endif
 	if (f_type)
 		chcnt += printtype(sp->st_mode);
@@ -359,9 +363,18 @@ printtype(mode)
 int putch(c)
 	int c;
 {
-	return putc(c, stdout);
+	(void) putchar(c);
+	return 0;
 }
 
+int writech(c)
+	int c;
+{
+	char tmp = c;
+
+	(void) write(STDOUT_FILENO, &tmp, 1);
+	return 0;
+}
 
 void
 printcolor(c)
@@ -371,24 +384,25 @@ printcolor(c)
 
 	if (colors[c][0] != -1) {
 		ansiseq = tgoto(ansi_fgcol, 0, colors[c][0]);
-		if (ansiseq && *ansiseq != 'O') /* "OOPS" */
+		if (ansiseq)
 			tputs(ansiseq, 1, putch);
 	}
 
 	if (colors[c][1] != -1) {
 		ansiseq = tgoto(ansi_bgcol, 0, colors[c][1]);
-		if (ansiseq && *ansiseq != 'O') /* "OOPS" */
+		if (ansiseq)
 			tputs(ansiseq, 1, putch);
 	}
 }
 
-void
-endcolor()
+static void
+endcolor(sig)
+	int sig;
 {
-	tputs(ansi_coloff, 1, putch);
+	tputs(ansi_coloff, 1, sig ? writech : putch);
 }
 
-int
+static int
 colortype(mode)
        mode_t mode;
 {
@@ -436,6 +450,7 @@ char *cs;
 {
 	int i, j, len;
 	char c[2];
+
 	if (cs == NULL)    cs = ""; /* LSCOLORS not set */
 	len = strlen(cs);
 	for (i = 0 ; i < C_NUMCOLORS ; i++) {
@@ -455,7 +470,7 @@ char *cs;
 					c[j]);
 				c[j] = defcolors[2*i+j];
 			}
-			if (c[j] == 'x')
+			if (tolower((unsigned char)c[j]) == 'x')
 			    colors[i][j] = -1;
 			else
 			    colors[i][j] = c[j]-'0';
@@ -466,8 +481,7 @@ char *cs;
 void colorquit(sig)
 	int sig;
 {
-	endcolor();
-	fflush(stdout);
+	endcolor(sig);
 
 	(void) signal(sig, SIG_DFL);
 	(void) kill(getpid(), sig);
