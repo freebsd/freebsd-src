@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.3 1995/11/13 07:18:38 bde Exp $
+ *	$Id: linux.c,v 1.4 1995/11/14 07:34:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -34,14 +34,24 @@
 #include <sys/conf.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
+#include <sys/imgact_elf.h>
+#include "i386/linux/linux.h"
 
 extern const struct execsw linux_execsw;
 
 MOD_EXEC(linux, -1, (struct execsw*)&linux_execsw);
 
+static Elf32_Interp_info linux_interp = {
+						&elf_linux_sysvec,
+						"/lib/ld-linux.so.1",
+						"/compat/linux"
+					};
+
 static int
 linux_load(struct lkm_table *lkmtp, int cmd)
 {
+	if (elf_insert_interp(&linux_interp))
+		uprintf("Could not install ELF interpreter entry\n");
 	uprintf("Linux emulator installed\n");
 	return 0;
 }
@@ -49,6 +59,8 @@ linux_load(struct lkm_table *lkmtp, int cmd)
 static int
 linux_unload(struct lkm_table *lkmtp, int cmd)
 {
+	if (elf_remove_interp(&linux_interp))
+		uprintf("Could not deinstall ELF interpreter entry\n");
 	uprintf("Linux emulator removed\n");
 	return 0;
 }

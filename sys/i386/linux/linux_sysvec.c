@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1996 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysent.c,v 1.4 1996/01/14 10:59:57 sos Exp $
+ *  $Id: linux_sysvec.c,v 1.1 1996/03/02 19:38:01 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -36,7 +36,9 @@
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/imgact.h>
+#include <sys/imgact_elf.h>
 #include <sys/signalvar.h>
+#include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
@@ -59,62 +61,93 @@
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
-#include <i386/linux/linux_syscall.h>
+
+int	linux_fixup __P((int **stack_base, struct image_params *iparams));
+int	elf_linux_fixup __P((int **stack_base, struct image_params *iparams));
+void	linux_prepsyscall __P((struct trapframe *tf, int *args, u_int *code, caddr_t *params));
+void    linux_sendsig __P((sig_t catcher, int sig, int mask, unsigned code));
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  */
 int bsd_to_linux_errno[ELAST] = {
-      -0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
-     -10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
-     -20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
-     -30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
-     -90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
-    -100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
-    -110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
-    -116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-      -6, 
+  	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
+ 	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
+ 	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
+ 	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
+ 	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
+	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
+	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
+	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
+  	-6, 
 };
 
 int bsd_to_linux_signal[NSIG] = {
-    0, LINUX_SIGHUP, LINUX_SIGINT, LINUX_SIGQUIT,
-    LINUX_SIGILL, LINUX_SIGTRAP, LINUX_SIGABRT, 0,
-    LINUX_SIGFPE, LINUX_SIGKILL, LINUX_SIGBUS, LINUX_SIGSEGV, 
-    0, LINUX_SIGPIPE, LINUX_SIGALRM, LINUX_SIGTERM,
-    LINUX_SIGURG, LINUX_SIGSTOP, LINUX_SIGTSTP, LINUX_SIGCONT,	
-    LINUX_SIGCHLD, LINUX_SIGTTIN, LINUX_SIGTTOU, LINUX_SIGIO, 
-    LINUX_SIGXCPU, LINUX_SIGXFSZ, LINUX_SIGVTALRM, LINUX_SIGPROF, 
-    LINUX_SIGWINCH, 0, LINUX_SIGUSR1, LINUX_SIGUSR2
+	0, LINUX_SIGHUP, LINUX_SIGINT, LINUX_SIGQUIT,
+	LINUX_SIGILL, LINUX_SIGTRAP, LINUX_SIGABRT, 0,
+	LINUX_SIGFPE, LINUX_SIGKILL, LINUX_SIGBUS, LINUX_SIGSEGV, 
+	0, LINUX_SIGPIPE, LINUX_SIGALRM, LINUX_SIGTERM,
+	LINUX_SIGURG, LINUX_SIGSTOP, LINUX_SIGTSTP, LINUX_SIGCONT,	
+	LINUX_SIGCHLD, LINUX_SIGTTIN, LINUX_SIGTTOU, LINUX_SIGIO, 
+	LINUX_SIGXCPU, LINUX_SIGXFSZ, LINUX_SIGVTALRM, LINUX_SIGPROF, 
+	LINUX_SIGWINCH, 0, LINUX_SIGUSR1, LINUX_SIGUSR2
 };
 
 int linux_to_bsd_signal[LINUX_NSIG] = {
-    0, SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGTRAP, SIGABRT, SIGEMT,
-    SIGFPE, SIGKILL, SIGUSR1, SIGSEGV, SIGUSR2, SIGPIPE, SIGALRM, SIGTERM, 
-    SIGBUS, SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU, SIGIO,
-    SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH, SIGURG, SIGURG, 0
+	0, SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGTRAP, SIGABRT, SIGEMT,
+	SIGFPE, SIGKILL, SIGUSR1, SIGSEGV, SIGUSR2, SIGPIPE, SIGALRM, SIGTERM, 
+	SIGBUS, SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU, SIGIO,
+	SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH, SIGURG, SIGURG, 0
 };
 
 int linux_fixup(int **stack_base, struct image_params *imgp)
 {
-    int *argv, *envp;
+	int *argv, *envp;
 
-    argv = *stack_base;
-    envp = *stack_base + (imgp->argc + 1);
-    (*stack_base)--;
-    **stack_base = (int)envp;
-    (*stack_base)--;
-    **stack_base = (int)argv;
-    (*stack_base)--;
-    **stack_base = (int)imgp->argc;
-    return 0;			/* XXX */
+	argv = *stack_base;
+	envp = *stack_base + (imgp->argc + 1);
+	(*stack_base)--;
+	**stack_base = (int)envp;
+	(*stack_base)--;
+	**stack_base = (int)argv;
+	(*stack_base)--;
+	**stack_base = (int)imgp->argc;
+	return 0;
 }
 
-extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
+int elf_linux_fixup(int **stack_base, struct image_params *imgp)
+{
+	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
+	int *pos;
+             
+	pos = *stack_base + (imgp->argc + imgp->envc + 2);  
+    
+	if (args->trace) {
+		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
+	}
+	if (args->execfd != -1) {
+		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
+	}       
+	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
+	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
+	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
+	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
+	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
+	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
+	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+	AUXARGS_ENTRY(pos, AT_UID, imgp->proc->p_cred->p_ruid);
+	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_cred->p_svuid);
+	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_cred->p_rgid);
+	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_cred->p_svgid);
+	AUXARGS_ENTRY(pos, AT_NULL, 0);
+	
+	free(imgp->auxargs, M_TEMP);      
+	imgp->auxargs = NULL;
 
-static void linux_sendsig(sig_t action,
-			  int sig,
-			  int returnmask,
-			  unsigned code);
+	(*stack_base)--;
+	**stack_base = (int)imgp->argc;
+	return 0;
+}
 
 extern int _ucodesel, _udatasel;
 
@@ -129,12 +162,8 @@ extern int _ucodesel, _udatasel;
  * specified pc, psl.
  */
 
-static void
-linux_sendsig(catcher, sig, mask, code)
-	sig_t catcher;
-	int sig;
-	int mask;
-	unsigned code;
+void
+linux_sendsig(sig_t catcher, int sig, int mask, unsigned code)
 {
 	register struct proc *p = curproc;
 	register int *regs;
@@ -327,7 +356,7 @@ linux_sigreturn(p, args, retval)
 	return (EJUSTRETURN);
 }
 
-static void
+void
 linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
 {
 	int i;
@@ -339,20 +368,33 @@ linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
 	*params = NULL;		/* no copyin */
 }
 
-extern char linux_sigcode[];
-extern int linux_szsigcode;
-
 struct sysentvec linux_sysvec = {
-    sizeof (linux_sysent) / sizeof(linux_sysent[0]),
-    linux_sysent,
-    0xff,
-    NSIG,
-    bsd_to_linux_signal,
-    ELAST, 
-    bsd_to_linux_errno,
-    linux_fixup,
-    linux_sendsig,
-    linux_sigcode,	
-    &linux_szsigcode,
-    linux_prepsyscall,
+	LINUX_SYS_MAXSYSCALL,
+	linux_sysent,
+	0xff,
+	NSIG,
+	bsd_to_linux_signal,
+	ELAST, 
+	bsd_to_linux_errno,
+	linux_fixup,
+	linux_sendsig,
+	linux_sigcode,	
+	&linux_szsigcode,
+	linux_prepsyscall,
 };
+
+struct sysentvec elf_linux_sysvec = {
+        LINUX_SYS_MAXSYSCALL,
+        linux_sysent,
+        0xff,
+        NSIG,
+        bsd_to_linux_signal,
+        ELAST,
+        bsd_to_linux_errno,
+        elf_linux_fixup,
+        linux_sendsig,
+        linux_sigcode,
+        &linux_szsigcode,
+        linux_prepsyscall,
+};
+

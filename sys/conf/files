@@ -42,6 +42,7 @@ kdb/kdb_runpcs.c	optional kadb
 kdb/kdb_sym.c		optional kadb
 kdb/kdb_trap.c		optional kadb
 kern/imgact_aout.c	standard
+kern/imgact_elf.c	standard
 kern/imgact_gzip.c	optional gzip
 kern/imgact_shell.c	standard
 kern/inflate.c		optional gzip

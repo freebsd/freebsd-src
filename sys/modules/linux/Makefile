@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1996/01/27 23:57:06 rgrimes Exp $
+#	$Id: Makefile,v 1.6 1996/03/02 20:00:35 peter Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod
@@ -11,7 +11,7 @@ NOMAN=
 
 CFLAGS+= -DLKM -I. -DCOMPAT_43 -DCOMPAT_LINUX #-DDEBUG
 CPPFLAGS= -I. -I${.CURDIR}/../../sys
-
+EXPORT_SYMS=_linux_mod
 CLEANFILES+= vnode_if.h vnode_if.c linux_genassym.o linux_genassym machine \
 	linux_assym.h
 
