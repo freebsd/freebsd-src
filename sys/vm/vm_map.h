@@ -164,6 +164,7 @@ struct vm_map {
 	struct lock lock;		/* Lock for map data */
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
+	u_char needs_wakeup;
 	u_char system_map;		/* Am I a system map? */
 	u_char infork;			/* Am I in fork processing? */
 	vm_map_entry_t root;
@@ -245,6 +246,8 @@ void _vm_map_unlock_read(vm_map_t map, const char *file, int line);
 int _vm_map_trylock(vm_map_t map, const char *file, int line);
 int _vm_map_lock_upgrade(vm_map_t map, const char *file, int line);
 void _vm_map_lock_downgrade(vm_map_t map, const char *file, int line);
+int vm_map_unlock_and_wait(vm_map_t map, boolean_t user_wait);
+void vm_map_wakeup(vm_map_t map);
 
 #define	vm_map_lock(map)	_vm_map_lock(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock(map)	_vm_map_unlock(map, LOCK_FILE, LOCK_LINE)

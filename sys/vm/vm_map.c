@@ -418,7 +418,7 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 /*
  *	vm_map_unlock_and_wait:
  */
-static __inline int
+int
 vm_map_unlock_and_wait(vm_map_t map, boolean_t user_wait)
 {
 	int retval;
@@ -433,7 +433,7 @@ vm_map_unlock_and_wait(vm_map_t map, boolean_t user_wait)
 /*
  *	vm_map_wakeup:
  */
-static __inline void
+void
 vm_map_wakeup(vm_map_t map)
 {
 
@@ -482,6 +482,7 @@ _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 {
 
 	map->header.next = map->header.prev = &map->header;
+	map->needs_wakeup = FALSE;
 	map->system_map = 0;
 	map->min_offset = min;
 	map->max_offset = max;
