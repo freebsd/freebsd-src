@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.49 1997/04/25 07:24:02 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.50 1997/05/09 03:10:34 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.240 -->
+<!-- Original revision: 1.241 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -111,6 +111,7 @@
         <item>&a.ats;
         <item>&a.msmith;
         <item>&a.brian; 
+	<item>&a.stark;
         <item>&a.karl;
         <item>&a.pst;
         <item>&a.swallace;
@@ -250,7 +251,6 @@
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
 	  <item>FURUSAWA Kazuhisa &lt;furusawa@com.cs.osakafu-u.ac.jp&gt;
 	  <item>Gary A. Browning &lt;gab10@griffcd.amdahl.com&gt;
-	  <item>Gene Stark &lt;stark@cs.sunysb.edu&gt;
 	  <item>Greg Ungerer &lt;gerg@stallion.oz.au&gt;
 	  <item>Harlan Stenn &lt;Harlan.Stenn@pfcs.com&gt;
 	  <item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
