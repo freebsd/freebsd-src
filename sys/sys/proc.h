@@ -509,7 +509,6 @@ struct ksegrp {
 #define	kg_startcopy	kg_endzero
 	u_char		kg_pri_class;	/* (j) Scheduling class. */
 	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
-	signed char	kg_nice;	/* (c + j) Process "nice" value. */
 #define	kg_endcopy kg_numthreads
 	int		kg_numthreads;	/* (j) Num threads in total. */
 	int		kg_kses;	/* (j) Num KSEs in group. */
@@ -597,6 +596,7 @@ struct proc {
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
 	rlim_t		p_cpulimit;	/* (j) Current CPU limit in seconds. */
+	signed char	p_nice;		/* (c + j) Process "nice" value. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xstat
 

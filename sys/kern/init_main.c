@@ -382,8 +382,8 @@ proc0_init(void *dummy __unused)
 	p->p_flag = P_SYSTEM;
 	p->p_sflag = PS_INMEM;
 	p->p_state = PRS_NORMAL;
+	p->p_nice = NZERO;
 	td->td_state = TDS_RUNNING;
-	kg->kg_nice = NZERO;
 	kg->kg_pri_class = PRI_TIMESHARE;
 	kg->kg_user_pri = PUSER;
 	td->td_priority = PVM;

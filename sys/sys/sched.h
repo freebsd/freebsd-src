@@ -55,7 +55,7 @@ void	sched_fork(struct proc *p, struct proc *child);
 void	sched_class(struct ksegrp *kg, int class);
 void	sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child);
 void	sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child);
-void	sched_nice(struct ksegrp *kg, int nice);
+void	sched_nice(struct proc *p, int nice);
 
 /*
  * Threads are switched in and out, block on resources, have temporary
