@@ -28,7 +28,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	from: npx.4,v 1.1 1993/08/06 10:58:03 cgd Exp
-.\"	$Id: npx.4,v 1.4 1997/02/22 13:25:36 peter Exp $
+.\"	$Id: npx.4,v 1.5 1998/10/22 14:22:13 bde Exp $
 .\"
 .Dd August 28, 1993
 .Dt NPX 4 i386
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .Cd "options MATH_EMULATE"
 .\" XXX this is awful hackery to get it to work right... -- cgd
-.Cd "device npx0 at isa? port IO_NPX tty irq 13"
+.Cd "device npx0 at isa? port IO_NPX irq 13"
 .Sh DESCRIPTION
 The
 .Nm npx

@@ -10,7 +10,7 @@
 .\" this software for any purpose.  It is provided "as is"
 .\" without express or implied warranty.
 .\"
-.\"	$Id: mse.4,v 1.4 1997/12/07 08:46:53 yokota Exp $
+.\"	$Id: mse.4,v 1.5 1998/10/22 14:51:19 bde Exp $
 .\"
 .Dd December 3, 1997
 .Dt MSE 4 i386
@@ -20,7 +20,7 @@
 .Nd bus and InPort mice driver
 .Sh SYNOPSIS
 .\" .Cd "options" \&"MSE_XXX=N\&"
-.Cd "device mse0 at isa? port 0x23c tty irq 5"
+.Cd "device mse0 at isa? port 0x23c irq 5"
 .Sh DESCRIPTION
 The
 .Nm
@@ -328,13 +328,13 @@ movement counts as described in
 .Em devfs .
 .El
 .Sh EXAMPLE
-.Dl "device mse0 at isa? port 0x23c tty irq 5"
+.Dl "device mse0 at isa? port 0x23c irq 5"
 .Pp
 Add the 
 .Nm
 driver at the primary port address with the IRQ 5.
 .Pp
-.Dl "device mse1 at isa? port 0x238 tty flags 0x30 irq 4"
+.Dl "device mse1 at isa? port 0x238 flags 0x30 irq 4"
 .Pp
 Define the 
 .Nm
