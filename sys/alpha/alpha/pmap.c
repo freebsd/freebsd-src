@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.2 1998/07/05 11:58:35 dfr Exp $
+ *	$Id: pmap.c,v 1.3 1998/07/12 16:13:54 dfr Exp $
  */
 
 /*
@@ -185,6 +185,7 @@
 #define MINPV 2048
 
 #define PMAP_DIAGNOSTIC
+#define PMAP_DEBUG
 
 #if !defined(PMAP_DIAGNOSTIC)
 #define PMAP_INLINE __inline
@@ -195,7 +196,7 @@
 #if 1
 
 static void
-pmap_break()
+pmap_break(void)
 {
 }
 
@@ -1213,7 +1214,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	*pte = 0;
 	pmap->pm_stats.resident_count--;
 
-#if !defined(MAX_PERF)
+#ifdef PMAP_DEBUG
 	if (p->hold_count)  {
 		panic("pmap_release: freeing held page table page");
 	}
@@ -1227,6 +1228,16 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 
 	if (pmap->pm_ptphint && (pmap->pm_ptphint->pindex == p->pindex))
 		pmap->pm_ptphint = NULL;
+
+#ifdef PMAP_DEBUG
+	{
+	    u_long *lp = (u_long*) ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(p));
+	    u_long *ep = (u_long*) ((char*) lp + PAGE_SIZE);
+	    for (; lp < ep; lp++)
+		if (*lp != 0)
+		    panic("pmap_release_free_page: page not zero");
+	}
+#endif
 
 	vm_page_free_zero(p);
 	return 1;
@@ -1428,6 +1439,8 @@ pmap_growkernel(vm_offset_t addr)
 	vm_page_t nkpg;
 
 	s = splhigh();
+
+	printf("pmap_growkernel: growing to %lx\n", addr);
 
 	if (kernel_vm_end == 0) {
 		kernel_vm_end = VM_MIN_KERNEL_ADDRESS;;
