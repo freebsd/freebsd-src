@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jul 2, 2004
+.Dd July 2, 2004
 .Dt GLABEL 8
 .Os
 .Sh NAME
@@ -69,7 +69,7 @@
 The
 .Nm
 utility is used for GEOM providers labelization.
-A label can be setup on a GEOM provider in two ways:
+A label can be set up on a GEOM provider in two ways:
 .Dq manual
 or
 .Dq automatic .
@@ -85,7 +85,7 @@ the future.
 This class also provides volume label detection for file systems.
 Those labels cannot be set with
 .Nm ,
-but must be set with the appropriate file system utility, e.g. for UFS
+but must be set with the appropriate file system utility, e.g.\& for UFS
 the file system label is set with
 .Xr tunefs 8 .
 Currently supported file systems are:
@@ -123,7 +123,7 @@ The kernel module
 .Pa geom_label.ko
 will be loaded if it is not loaded already.
 .It Cm label
-Setup a label
+Set up a label
 .Ar name
 for the given provider.
 This is the
@@ -135,7 +135,7 @@ will be loaded if it is not loaded already.
 .It Cm stop
 Turn off the given label by its
 .Ar name .
-This command doesn't touch on-disk metadata!
+This command does not touch on-disk metadata!
 .It Cm destroy
 Same as
 .Cm stop .
@@ -161,7 +161,8 @@ Force the removal of the specified labels.
 Be more verbose.
 .El
 .Sh EXAMPLES
-The following example shows how to setup a label for disk da2,
+The following example shows how to set up a label for disk
+.Dq Li da2 ,
 create a file system on it, and mount it:
 .Bd -literal -offset indent
 glabel label -v usr /dev/da2
@@ -173,7 +174,7 @@ glabel stop usr
 glabel unload
 .Ed
 .Pp
-The next example shows how to setup a label for a UFS file system:
+The next example shows how to set up a label for a UFS file system:
 .Bd -literal -offset indent
 tunefs -L data /dev/da4s1a
 mount /dev/ufs/data /mnt/data
