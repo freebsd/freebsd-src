@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.131 1998/02/07 08:44:31 kato Exp $
+ * $Id: vfs_subr.c,v 1.132 1998/02/09 06:09:35 eivind Exp $
  */
 
 /*
@@ -919,8 +919,16 @@ vget(vp, flags, p)
 		   (vp->v_type == VREG) &&
 		   ((vp->v_object == NULL) ||
 			(vp->v_object->flags & OBJ_DEAD))) {
-		vfs_object_create(vp, curproc, curproc->p_ucred,
-		    VOP_ISLOCKED(vp));
+		/*
+		 * XXX
+		 * When the object is locked with shared lock, VOP_ISLOCKED()
+		 * returns true.
+		 */
+		if (VOP_ISLOCKED(vp)) {
+			simple_unlock(&vp->v_interlock);
+			vfs_object_create(vp, curproc, curproc->p_ucred, 1);
+		} else
+			vfs_object_create(vp, curproc, curproc->p_ucred, 0);
 		simple_lock(&vp->v_interlock);
 	}
 	if (flags & LK_TYPE_MASK) {
@@ -2137,6 +2145,8 @@ vfs_object_create(vp, p, cred, waslocked)
 	int error = 0;
 
 	if ((vp->v_type != VREG) && (vp->v_type != VBLK)) {
+		if (!waslocked)
+			simple_unlock(&vp->v_interlock);
 		return 0;
 	}
 
