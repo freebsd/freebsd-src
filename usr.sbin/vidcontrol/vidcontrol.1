@@ -68,7 +68,6 @@ Select a new video mode. The modes currently recognized are:
 .Ar EGA_80x25 ,
 .Ar EGA_80x43 ,
 .Ar VESA_132x25 ,
-.Ar VESA_132x30 ,
 .Ar VESA_132x43 ,
 .Ar VESA_132x50 ,
 .Ar VESA_132x60 .
@@ -83,8 +82,11 @@ See
 below.
 .It Ar foreground Op Ar background
 Change colors when displaying text. Specify the foreground color
-(e.g. ``vidcontrol white''), or both a foreground and background colors
-(e.g. ``vidcontrol yellow blue'').
+(e.g.
+.Dq vidcontrol white ) ,
+or both a foreground and background colors
+(e.g.
+.Dq vidcontrol yellow blue ) .
 Use the
 .Cm show
 command below to see available colors.
@@ -111,7 +113,7 @@ The latter is actually a simulation.
 Print out current output screen map.
 .It Fl l Ar screen_map
 Install screen output map file from
-.Ar screen_map
+.Ar screen_map .
 See also
 .Xr syscons 4 .
 .It Fl L
@@ -137,8 +139,7 @@ for
 .Cm 8x8 ,
 .Cm 8x14
 or
-.Cm 8x16
-).
+.Cm 8x16 ) .
 The font file can be either uuencoded or in raw binary format.
 You can also use the menu-driven
 .Xr vidfont 1
@@ -210,7 +211,7 @@ See below.
 If you want to use the raster text mode
 .Ar VESA_800x600 ,
 you need to recomile your kernel with the
-.Em SC_PIXLE_MODE
+.Em SC_PIXEL_MODE
 option.  See
 .Xr syscons 4
 for more details on this kernel option.
@@ -227,7 +228,7 @@ in order to configure the video output at boot time.
 Sets the timeout value for the 
 .Fl t
 option.
-.It Ar font8x16, font8x14, font8x8
+.It Ar font8x16 , font8x14 , font8x8
 Specifies font files for the
 .Fl f
 option.
@@ -282,6 +283,7 @@ The above command will load
 .Pa /usr/share/syscons/scrnmaps/iso-8859-1_to_cp437.scm .
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
+.Xr kldload 1 ,
 .Xr vidfont 1 ,
 .Xr keyboard 4 ,
 .Xr screen 4 ,
