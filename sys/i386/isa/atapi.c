@@ -1067,7 +1067,8 @@ static int atapi_unload (struct lkm_table *lkmtp, int cmd)
  */
 int atapi_mod (struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH (lkmtp, cmd, ver, atapi_load, atapi_unload, lkm_nullcmd);
+	MOD_DISPATCH (atapi, lkmtp, cmd, ver,
+		atapi_load, atapi_unload, lkm_nullcmd);
 }
 #endif /* ATAPI_MODULE */
 
