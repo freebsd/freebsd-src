@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *  
+ *
  *   1. Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
  *   2. Redistributions in binary form must reproduce the above copyright
@@ -15,7 +15,7 @@
  *   3. The names of the authors may not be used to endorse or promote
  *      products derived from this software without specific prior
  *      written permission.
- *  
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
@@ -33,8 +33,8 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rx.c,v 1.27.2.2 2002/07/10 07:17:57 guy Exp $";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rx.c,v 1.35.2.2 2003/11/16 08:51:43 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -44,15 +44,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
-#endif
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <tcpdump-stdinc.h>
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -79,7 +71,7 @@ static struct tok rx_types[] = {
 static struct double_tok {
 	int flag;		/* Rx flag */
 	int packetType;		/* Packet type */
-	char *s;		/* Flag string */
+	const char *s;		/* Flag string */
 } rx_flags[] = {
 	{ RX_CLIENT_INITIATED,	0,			"client-init" },
 	{ RX_REQUEST_ACK,	0,			"req-ack" },
@@ -351,7 +343,7 @@ static struct tok ubik_lock_types[] = {
 	{ 0,		NULL },
 };
 
-static char *voltype[] = { "read-write", "read-only", "backup" };
+static const char *voltype[] = { "read-write", "read-only", "backup" };
 
 static struct tok afs_fs_errors[] = {
 	{ 101,		"salvage volume" },
@@ -383,6 +375,7 @@ static struct tok rx_ack_reasons[] = {
 	{ 6,		"ping" },
 	{ 7,		"ping response" },
 	{ 8,		"delay" },
+	{ 9,		"idle" },
 	{ 0,		NULL },
 };
 
@@ -406,11 +399,10 @@ static struct rx_cache_entry	rx_cache[RX_CACHE_SIZE];
 
 static int	rx_cache_next = 0;
 static int	rx_cache_hint = 0;
-static void	rx_cache_insert(const u_char *, const struct ip *, int, int);
+static void	rx_cache_insert(const u_char *, const struct ip *, int);
 static int	rx_cache_find(const struct rx_header *, const struct ip *,
 			      int, int32_t *);
 
-static void ack_print(const u_char *, int);
 static void fs_print(const u_char *, int);
 static void fs_reply_print(const u_char *, int, int32_t);
 static void acl_print(u_char *, int, u_char *);
@@ -426,7 +418,7 @@ static void vol_print(const u_char *, int);
 static void vol_reply_print(const u_char *, int, int32_t);
 static void bos_print(const u_char *, int);
 static void bos_reply_print(const u_char *, int, int32_t);
-static void ubik_print(const u_char *, int);
+static void ubik_print(const u_char *);
 static void ubik_reply_print(const u_char *, int, int32_t);
 
 static void rx_ack_print(const u_char *, int);
@@ -446,7 +438,7 @@ rx_print(register const u_char *bp, int length, int sport, int dport,
 	int i;
 	int32_t opcode;
 
-	if (snapend - bp < sizeof (struct rx_header)) {
+	if (snapend - bp < (int)sizeof (struct rx_header)) {
 		printf(" [|rx] (%d)", length);
 		return;
 	}
@@ -497,9 +489,7 @@ rx_print(register const u_char *bp, int length, int sport, int dport,
 	 * as well.
 	 */
 
- 	if (rxh->type == RX_PACKET_TYPE_ACK)
- 	    ack_print(bp, length);
-	else if (rxh->type == RX_PACKET_TYPE_DATA &&
+	if (rxh->type == RX_PACKET_TYPE_DATA &&
 	    EXTRACT_32BITS(&rxh->seq) == 1 &&
 	    rxh->flags & RX_CLIENT_INITIATED) {
 
@@ -508,7 +498,7 @@ rx_print(register const u_char *bp, int length, int sport, int dport,
 		 * have a chance to print out replies
 		 */
 
-		rx_cache_insert(bp, (const struct ip *) bp2, dport, length);
+		rx_cache_insert(bp, (const struct ip *) bp2, dport);
 
 		switch (dport) {
 			case FS_RX_PORT:	/* AFS file service */
@@ -535,7 +525,7 @@ rx_print(register const u_char *bp, int length, int sport, int dport,
 			default:
 				;
 		}
-	
+
 	/*
 	 * If it's a reply (client-init is _not_ set, but seq is one)
 	 * then look it up in the cache.  If we find it, call the reply
@@ -594,20 +584,19 @@ rx_print(register const u_char *bp, int length, int sport, int dport,
  */
 
 static void
-rx_cache_insert(const u_char *bp, const struct ip *ip, int dport,
-		int length)
+rx_cache_insert(const u_char *bp, const struct ip *ip, int dport)
 {
 	struct rx_cache_entry *rxent;
 	const struct rx_header *rxh = (const struct rx_header *) bp;
 
-	if (snapend - bp + 1 <= sizeof(struct rx_header) + sizeof(int32_t))
+	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t)))
 		return;
 
 	rxent = &rx_cache[rx_cache_next];
 
 	if (++rx_cache_next >= RX_CACHE_SIZE)
 		rx_cache_next = 0;
-	
+
 	rxent->callnum = rxh->callNumber;
 	rxent->client = ip->ip_src;
 	rxent->server = ip->ip_dst;
@@ -639,7 +628,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 		rxent = &rx_cache[i];
 		if (rxent->callnum == rxh->callNumber &&
 		    rxent->client.s_addr == clip &&
-		    rxent->server.s_addr == sip && 
+		    rxent->server.s_addr == sip &&
 		    rxent->serviceId == rxh->serviceId &&
 		    rxent->dport == sport) {
 
@@ -712,18 +701,18 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			TCHECK2(bp[0], (sizeof(int32_t)*6)); \
 			mask = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
 			if (mask) printf (" StoreStatus"); \
-  		        if (mask & 1) { printf(" date"); DATEOUT(); } \
+		        if (mask & 1) { printf(" date"); DATEOUT(); } \
 			else bp += sizeof(int32_t); \
 			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-  		        if (mask & 2) printf(" owner %lu", i);  \
+		        if (mask & 2) printf(" owner %lu", i);  \
 			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-  		        if (mask & 4) printf(" group %lu", i); \
+		        if (mask & 4) printf(" group %lu", i); \
 			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-  		        if (mask & 8) printf(" mode %lo", i & 07777); \
+		        if (mask & 8) printf(" mode %lo", i & 07777); \
 			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-  		        if (mask & 16) printf(" segsize %lu", i); \
+		        if (mask & 16) printf(" segsize %lu", i); \
 			/* undocumented in 3.3 docu */ \
-  		        if (mask & 1024) printf(" fsync");  \
+		        if (mask & 1024) printf(" fsync");  \
 		}
 
 #define UBIK_VERSIONOUT() {int32_t epoch; int32_t counter; \
@@ -774,75 +763,6 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			printf("\""); \
 		}
 
-static void
-ack_print(register const u_char *bp, int length)
-{
-        u_char nAcks;
-	int i;
-
-	if (vflag <= 1)
-	        return;
-
- 	if (length <= sizeof(struct rx_header))
-		return;
-
-	bp += sizeof(struct rx_header);
-
-	/*
-	 * Packets < firstPacket are implicitly acknowledged and may
-	 * be discarded by the sender.
-	 *
-	 * Packets >= firstPacket+nAcks are implicitly NOT acknowledged.
-	 *
-	 * No packets with sequence numbers >= firstPacket should be
-	 * discarded by the sender (they may thrown out at any time by
-	 * the receiver)
-	 */
-#define RX_ACK_REASONS "RDOXSprn"
-	/* Requested, Duplicate, Out_of_sequence, eXceeds_window, no_Space,
-	 * Ping, ping_Response, No_{progress, particular_reason}.
-	 */
-#if 0
-	struct rx_ackPacket {
-	  u_short bufferSpace;	/* Skip! */
-	  u_short maxSkew;	/* Skip! */
-	  u_long  firstPacket;
-	  u_long  previousPacket; /* Obsolete! */
-	  u_long  serial;	/* Serial that prompted the ack, */
-	  u_char  reason;	/* and the reason why. */
-	  u_char  nAcks;
-	  u_char  acks[RX_MAXACKS]; /* Selective acks (not a bitmap). */
-	};
-#endif
-#define RX_ACK_TYPE_NACK 0
-
-	TCHECK2(bp[0], 8);	/* bufferSpace and maxSkew */
-	bp += 4;
-	printf(" fir %u", (unsigned)EXTRACT_32BITS(bp));
-	bp += 4;
-	TCHECK2(bp[0], 8);	/* previousPacket and serial */
-	bp += 4;
-	printf(" %u", (unsigned)EXTRACT_32BITS(bp));
-	bp += 4;
-	TCHECK2(bp[0], 1);
-	printf("%c", RX_ACK_REASONS[(*bp - 1) & 07u]);
-	bp += 1;		/* reason */
-	TCHECK2(bp[0], 1);
-	nAcks = *bp;
-	bp += 1;		/* nAcks */
-
-	for (i = 0; i < nAcks; i++) {
-	    TCHECK2(bp[0], 1);
-	    putchar(*bp == RX_ACK_TYPE_NACK? '-' : '*');
-	    bp += 1;
-	}
-	
-	return;
-
-trunc:
-	printf(" [|ack]");
-}
-
 /*
  * Handle calls to the AFS file service (fs)
  */
@@ -853,10 +773,10 @@ fs_print(register const u_char *bp, int length)
 	int fs_op;
 	unsigned long i;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= sizeof(struct rx_header) + sizeof(int32_t)) {
+	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
 		goto trunc;
 	}
 
@@ -1004,7 +924,7 @@ fs_reply_print(register const u_char *bp, int length, int32_t opcode)
 	unsigned long i;
 	struct rx_header *rxh;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
 	rxh = (struct rx_header *) bp;
@@ -1055,12 +975,12 @@ fs_reply_print(register const u_char *bp, int length, int32_t opcode)
 	} else if (rxh->type == RX_PACKET_TYPE_ABORT) {
 		int i;
 
- 		/*
- 		 * Otherwise, just print out the return code
- 		 */
-		TCHECK2(bp[0], sizeof(int32_t)); 
-		i = (int) EXTRACT_32BITS(bp); 
-		bp += sizeof(int32_t); 
+		/*
+		 * Otherwise, just print out the return code
+		 */
+		TCHECK2(bp[0], sizeof(int32_t));
+		i = (int) EXTRACT_32BITS(bp);
+		bp += sizeof(int32_t);
 
 		printf(" error %s", tok2str(afs_fs_errors, "#%d", i));
 	} else {
@@ -1080,7 +1000,7 @@ trunc:
  * <positive> <negative>
  * <uid1> <aclbits1>
  * ....
- * 
+ *
  * "positive" and "negative" are integers which contain the number of
  * positive and negative ACL's in the string.  The uid/aclbits pair are
  * ASCII strings containing the UID/PTS record and and a ascii number
@@ -1099,7 +1019,7 @@ acl_print(u_char *s, int maxsize, u_char *end)
 
 	if (sscanf((char *) s, "%d %d\n%n", &pos, &neg, &n) != 2)
 		goto finish;
-	
+
 	s += n;
 
 	if (s > end)
@@ -1168,10 +1088,10 @@ cb_print(register const u_char *bp, int length)
 	int cb_op;
 	unsigned long i;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= sizeof(struct rx_header) + sizeof(int32_t)) {
+	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
 		goto trunc;
 	}
 
@@ -1249,7 +1169,7 @@ cb_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
 	rxh = (struct rx_header *) bp;
@@ -1258,7 +1178,7 @@ cb_reply_print(register const u_char *bp, int length, int32_t opcode)
 	 * Print out the afs call we're invoking.  The table used here was
 	 * gleaned from fsint/afscbint.xg
 	 */
-	
+
 	printf(" cb reply %s", tok2str(cb_req, "op#%d", opcode));
 
 	bp += sizeof(struct rx_header);
@@ -1299,10 +1219,10 @@ prot_print(register const u_char *bp, int length)
 	unsigned long i;
 	int pt_op;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= sizeof(struct rx_header) + sizeof(int32_t)) {
+	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
 		goto trunc;
 	}
 
@@ -1316,7 +1236,7 @@ prot_print(register const u_char *bp, int length)
 	printf(" pt");
 
 	if (is_ubik(pt_op)) {
-		ubik_print(bp, length);
+		ubik_print(bp);
 		return;
 	}
 
@@ -1441,7 +1361,7 @@ prot_reply_print(register const u_char *bp, int length, int32_t opcode)
 	struct rx_header *rxh;
 	unsigned long i;
 
-	if (length < sizeof(struct rx_header))
+	if (length < (int)sizeof(struct rx_header))
 		return;
 
 	rxh = (struct rx_header *) bp;
@@ -1553,10 +1473,10 @@ vldb_print(register const u_char *bp, int length)
 	int vldb_op;
 	unsigned long i;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= sizeof(struct rx_header) + sizeof(int32_t)) {
+	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
 		goto trunc;
 	}
 
@@ -1570,7 +1490,7 @@ vldb_print(register const u_char *bp, int length)
 	printf(" vldb");
 
 	if (is_ubik(vldb_op)) {
-		ubik_print(bp, length);
+		ubik_print(bp);
 		return;
 	}
 	printf(" call %s", tok2str(vldb_req, "op#%d", vldb_op));
@@ -1646,7 +1566,7 @@ vldb_reply_print(register const u_char *bp, int length, int32_t opcode)
 	struct rx_header *rxh;
 	unsigned long i;
 
-	if (length < sizeof(struct rx_header))
+	if (length < (int)sizeof(struct rx_header))
 		return;
 
 	rxh = (struct rx_header *) bp;
@@ -1695,7 +1615,7 @@ vldb_reply_print(register const u_char *bp, int length, int32_t opcode)
 				TCHECK2(bp[0], sizeof(int32_t));
 				if (i < nservers)
 					printf(" %s",
-					   inet_ntoa(*((struct in_addr *) bp)));
+					   intoa(((struct in_addr *) bp)->s_addr));
 				bp += sizeof(int32_t);
 			}
 			printf(" partitions");
@@ -1742,7 +1662,7 @@ vldb_reply_print(register const u_char *bp, int length, int32_t opcode)
 				TCHECK2(bp[0], sizeof(int32_t));
 				if (i < nservers)
 					printf(" %s",
-					   inet_ntoa(*((struct in_addr *) bp)));
+					   intoa(((struct in_addr *) bp)->s_addr));
 				bp += sizeof(int32_t);
 			}
 			printf(" partitions");
@@ -1808,7 +1728,7 @@ vldb_reply_print(register const u_char *bp, int length, int32_t opcode)
 		default:
 			;
 		}
-			
+
 	else {
 		/*
 		 * Otherwise, just print out the return code
@@ -1832,10 +1752,10 @@ kauth_print(register const u_char *bp, int length)
 {
 	int kauth_op;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= sizeof(struct rx_header) + sizeof(int32_t)) {
+	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
 		goto trunc;
 	}
 
@@ -1849,7 +1769,7 @@ kauth_print(register const u_char *bp, int length)
 	printf(" kauth");
 
 	if (is_ubik(kauth_op)) {
-		ubik_print(bp, length);
+		ubik_print(bp);
 		return;
 	}
 
@@ -1925,7 +1845,7 @@ kauth_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
 	rxh = (struct rx_header *) bp;
@@ -1934,7 +1854,7 @@ kauth_reply_print(register const u_char *bp, int length, int32_t opcode)
 	 * Print out the afs call we're invoking.  The table used here was
 	 * gleaned from kauth/kauth.rg
 	 */
-	
+
 	printf(" kauth");
 
 	if (is_ubik(opcode)) {
@@ -1976,10 +1896,10 @@ vol_print(register const u_char *bp, int length)
 {
 	int vol_op;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= sizeof(struct rx_header) + sizeof(int32_t)) {
+	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
 		goto trunc;
 	}
 
@@ -2014,7 +1934,7 @@ vol_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
 	rxh = (struct rx_header *) bp;
@@ -2023,7 +1943,7 @@ vol_reply_print(register const u_char *bp, int length, int32_t opcode)
 	 * Print out the afs call we're invoking.  The table used here was
 	 * gleaned from volser/volint.xg
 	 */
-	
+
 	printf(" vol reply %s", tok2str(vol_req, "op#%d", opcode));
 
 	bp += sizeof(struct rx_header);
@@ -2058,10 +1978,10 @@ bos_print(register const u_char *bp, int length)
 {
 	int bos_op;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= sizeof(struct rx_header) + sizeof(int32_t)) {
+	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
 		goto trunc;
 	}
 
@@ -2149,7 +2069,7 @@ bos_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
-	if (length <= sizeof(struct rx_header))
+	if (length <= (int)sizeof(struct rx_header))
 		return;
 
 	rxh = (struct rx_header *) bp;
@@ -2158,7 +2078,7 @@ bos_reply_print(register const u_char *bp, int length, int32_t opcode)
 	 * Print out the afs call we're invoking.  The table used here was
 	 * gleaned from volser/volint.xg
 	 */
-	
+
 	printf(" bos reply %s", tok2str(bos_req, "op#%d", opcode));
 
 	bp += sizeof(struct rx_header);
@@ -2203,7 +2123,7 @@ is_ubik(u_int32_t opcode)
  */
 
 static void
-ubik_print(register const u_char *bp, int length)
+ubik_print(register const u_char *bp)
 {
 	int ubik_op;
 	int32_t temp;
@@ -2316,7 +2236,7 @@ ubik_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
-	if (length < sizeof(struct rx_header))
+	if (length < (int)sizeof(struct rx_header))
 		return;
 
 	rxh = (struct rx_header *) bp;
@@ -2333,7 +2253,7 @@ ubik_reply_print(register const u_char *bp, int length, int32_t opcode)
 	/*
 	 * If it was a data packet, print out the arguments to the Ubik calls
 	 */
-	
+
 	if (rxh->type == RX_PACKET_TYPE_DATA)
 		switch (opcode) {
 		case 10000:		/* Beacon */
@@ -2346,7 +2266,7 @@ ubik_reply_print(register const u_char *bp, int length, int32_t opcode)
 		default:
 			;
 		}
-	
+
 	/*
 	 * Otherwise, print out "yes" it it was a beacon packet (because
 	 * that's how yes votes are returned, go figure), otherwise
@@ -2380,7 +2300,7 @@ rx_ack_print(register const u_char *bp, int length)
 	struct rx_ackPacket *rxa;
 	int i, start, last;
 
-	if (length < sizeof(struct rx_header))
+	if (length < (int)sizeof(struct rx_header))
 		return;
 
 	bp += sizeof(struct rx_header);
@@ -2406,11 +2326,11 @@ rx_ack_print(register const u_char *bp, int length)
 		printf(" bufspace %d maxskew %d",
 		       (int) EXTRACT_16BITS(&rxa->bufferSpace),
 		       (int) EXTRACT_16BITS(&rxa->maxSkew));
-	
+
 	printf(" first %d serial %d reason %s",
 	       EXTRACT_32BITS(&rxa->firstPacket), EXTRACT_32BITS(&rxa->serial),
 	       tok2str(rx_ack_reasons, "#%d", (int) rxa->reason));
-	
+
 	/*
 	 * Okay, now we print out the ack array.  The way _this_ works
 	 * is that we start at "first", and step through the ack array.
@@ -2423,7 +2343,7 @@ rx_ack_print(register const u_char *bp, int length)
 	 * yield the start of the ack array (because RX_MAXACKS is 255
 	 * and the structure will likely get padded to a 2 or 4 byte
 	 * boundary).  However, this is the way it's implemented inside
-	 * of AFS - the start of the extra fields are at 
+	 * of AFS - the start of the extra fields are at
 	 * sizeof(struct rx_ackPacket) - RX_MAXACKS + nAcks, which _isn't_
 	 * the exact start of the ack array.  Sigh.  That's why we aren't
 	 * using bp, but instead use rxa->acks[].  But nAcks gets added
@@ -2492,7 +2412,7 @@ rx_ack_print(register const u_char *bp, int length)
 				 */
 			} else if (last == i - 1 && start != last)
 				printf("-%d", rxa->firstPacket + i - 1);
-		
+
 		/*
 		 * So, what's going on here?  We ran off the end of the
 		 * ack list, and if we got a range we need to finish it up.
@@ -2510,7 +2430,7 @@ rx_ack_print(register const u_char *bp, int length)
 		/*
 		 * Same as above, just without comments
 		 */
-		
+
 		for (i = 0, start = last = -2; i < rxa->nAcks; i++)
 			if (rxa->acks[i] == RX_ACK_TYPE_NACK) {
 				if (last == -2) {
@@ -2524,7 +2444,7 @@ rx_ack_print(register const u_char *bp, int length)
 				last = i;
 			} else if (last == i - 1 && start != last)
 				printf("-%d", rxa->firstPacket + i - 1);
-		
+
 		if (last == i - 1 && start != last)
 			printf("-%d", rxa->firstPacket + i - 1);
 
