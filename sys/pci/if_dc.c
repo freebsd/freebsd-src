@@ -93,6 +93,7 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -284,6 +285,12 @@ static driver_t dc_driver = {
 };
 
 static devclass_t dc_devclass;
+
+#ifdef __i386__
+static int dc_quick=1;
+SYSCTL_INT(_hw, OID_AUTO, dc_quick, CTLFLAG_RW,
+	&dc_quick,0,"do not mdevget in dc driver");
+#endif
 
 DRIVER_MODULE(if_dc, pci, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
@@ -2113,16 +2120,11 @@ static int dc_newbuf(sc, i, m)
 
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("dc%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->dc_unit);
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
 
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
-			printf("dc%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->dc_unit);
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
@@ -2316,7 +2318,6 @@ static void dc_rxeof(sc)
 	i = sc->dc_cdata.dc_rx_prod;
 
 	while(!(sc->dc_ldata->dc_rx_list[i].dc_status & DC_RXSTAT_OWN)) {
-		struct mbuf		*m0 = NULL;
 
 		cur_rx = &sc->dc_ldata->dc_rx_list[i];
 		rxstat = cur_rx->dc_status;
@@ -2362,16 +2363,36 @@ static void dc_rxeof(sc)
 		/* No errors; receive the packet. */	
 		total_len -= ETHER_CRC_LEN;
 
-		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-		    total_len + ETHER_ALIGN, 0, ifp, NULL);
-		dc_newbuf(sc, i, m);
-		DC_INC(i, DC_RX_LIST_CNT);
-		if (m0 == NULL) {
-			ifp->if_ierrors++;
-			continue;
+#ifdef __i386__
+		/*
+		 * On the x86 we do not have alignment problems, so try to
+		 * allocate a new buffer for the receive ring, and pass up
+		 * the one where the packet is already, saving the expensive
+		 * copy done in m_devget().
+		 * If we are on an architecture with alignment problems, or
+		 * if the allocation fails, then use m_devget and leave the
+		 * existing buffer in the receive ring.
+		 */
+		if (dc_quick && dc_newbuf(sc, i, NULL) == 0) {
+			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.len = m->m_len = total_len;
+			DC_INC(i, DC_RX_LIST_CNT);
+		} else
+#endif
+		{
+			struct mbuf *m0;
+
+			m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
+			    total_len + ETHER_ALIGN, 0, ifp, NULL);
+			dc_newbuf(sc, i, m);
+			DC_INC(i, DC_RX_LIST_CNT);
+			if (m0 == NULL) {
+				ifp->if_ierrors++;
+				continue;
+			}
+			m_adj(m0, ETHER_ALIGN);
+			m = m0;
 		}
-		m_adj(m0, ETHER_ALIGN);
-		m = m0;
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
@@ -2614,11 +2635,10 @@ static void dc_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
+	ifp = &sc->arpcom.ac_if;
 
 	if ( (CSR_READ_4(sc, DC_ISR) & DC_INTRS) == 0)
 		return ;
-
-	ifp = &sc->arpcom.ac_if;
 
 	/* Suppress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -2761,15 +2781,12 @@ static int dc_coal(sc, m_head)
 
 	m = *m_head;
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-	if (m_new == NULL) {
-		printf("dc%d: no memory for tx list", sc->dc_unit);
+	if (m_new == NULL)
 		return(ENOBUFS);
-	}
 	if (m->m_pkthdr.len > MHLEN) {
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
-			printf("dc%d: no memory for tx list", sc->dc_unit);
 			return(ENOBUFS);
 		}
 	}
