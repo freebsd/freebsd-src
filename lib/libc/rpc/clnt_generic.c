@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_generic.c 1.4 87/08/11 (C) 1987 SMI";*/
 /*static char *sccsid = "from: @(#)clnt_generic.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_generic.c,v 1.3 1995/10/22 14:51:12 phk Exp $";
+static char *rcsid = "$Id: clnt_generic.c,v 1.4 1996/08/12 14:00:18 peter Exp $";
 #endif
 
 /*
@@ -78,8 +78,7 @@ clnt_create(hostname, prog, vers, proto)
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = h->h_addrtype;
 	sin.sin_port = 0;
-	bzero(sin.sin_zero, sizeof(sin.sin_zero));
-	bcopy(h->h_addr, (char*)&sin.sin_addr, h->h_length);
+	memcpy((char*)&sin.sin_addr, h->h_addr, h->h_length);
 	p = getprotobyname(proto);
 	if (p == NULL) {
 		rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
@@ -95,17 +94,22 @@ clnt_create(hostname, prog, vers, proto)
 		if (client == NULL) {
 			return (NULL);
 		}
+#if 0	/* XXX do we need this? */
 		tv.tv_sec = 25;
+		tv.tv_usec = 0;
 		clnt_control(client, CLSET_TIMEOUT, &tv);
+#endif
 		break;
 	case IPPROTO_TCP:
 		client = clnttcp_create(&sin, prog, vers, &sock, 0, 0);
 		if (client == NULL) {
 			return (NULL);
 		}
+#if 0	/* XXX do we need this? */
 		tv.tv_sec = 25;
 		tv.tv_usec = 0;
 		clnt_control(client, CLSET_TIMEOUT, &tv);
+#endif
 		break;
 	default:
 		rpc_createerr.cf_stat = RPC_SYSTEMERROR;
