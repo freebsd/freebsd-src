@@ -62,6 +62,7 @@ dc	i386,pc98,alpha,sparc64,amd64
 de	i386,pc98,alpha,amd64
 dpt	i386,amd64
 el	i386
+em	i386,pc98,alpha,ia64,amd64
 ep	i386,pc98,amd64
 ex	i386,amd64
 fe	i386,pc98,amd64
