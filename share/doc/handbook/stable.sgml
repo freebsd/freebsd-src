@@ -1,0 +1,108 @@
+<!-- $Id: stable.sgml,v 1.1 1996/02/11 00:16:17 jkh Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+
+<chapt><heading>Staying stable with FreeBSD<label id="stable"></heading>
+
+<p><em>Contributed by &a.jkh;.</em>
+
+<!--
+
+                        THE FREEBSD STABLE POLICY 
+
+Last updated: $Date: 1996/02/11 00:16:17 $
+
+This document attempts to explain the rationale behind
+FreeBSD-stable, what you should expect should you decide to run it,
+and states some prerequisites for making sure the process goes as
+smoothly as possible.
+-->
+
+<sect><heading>What is FreeBSD-stable?</heading>
+
+<p>FreeBSD-stable is our development branch for a more low-key and
+conservative set of changes intended for our next mainstream release.
+Changes of an experimental or untested nature do not go into this
+branch (see <ref id="current" name="FreeBSD-current">).
+
+<sect><heading>Who needs FreeBSD-stable?</heading>
+
+<p>If you are a commercial user or someone who puts maximum stability of
+their FreeBSD system before all other concerns, you should consider tracking
+<em>stable</em>.  This is especially true if you have installed the most
+recent release (<htmlurl url="ftp://ftp.freebsd.org/pub/FreeBSD/2.1.0-RELEASE"
+name="2.1.0-RELEASE"> at the time of this writing) since the <em>stable</em>
+branch is effectively a bug-fix stream relative to the previous release.
+
+<p>Please note that the <em>stable</em> tree endevors, above all, to
+be fully compilable and stable at all times, but we do occasionally
+make mistakes (these are still active sources with quickly-transmitted
+updates, after all).  We also do our best to thoroughly test fixes in
+<em>current</em> before bringing them into <em>stable</em>, but sometimes
+our tests fail to catch every case.  If something breaks for you in
+<em>stable</em>, please let us know <em>immediately!</em> (see
+next section).
+
+<sect><heading>Using FreeBSD-stable</heading>
+
+    <p><enum><item> Join the freebsd-stable mailing list.  This will
+    keep you informed of build-dependencies that may appear in
+    <em>stable</em> or any other issues requring special attention.
+    Developers will also make announcements in this mailing list when
+    they are contemplating some contraversal fix or update, giving
+    the users a chance to respond if they have any issues to raise concerning
+    the proposed change.
+
+    To join this list, send mail to &a.majordomo and say:
+<verb>
+            subscribe freebsd-stable
+</verb>
+   In the body of your message.  Optionally, you can also say `help'
+   and Majordomo will send you full help on how to subscribe and
+   unsubscribe to the various other mailing lists we support.
+
+    <item>  Grab the sources from ftp.FreeBSD.ORG.  You can do this in
+        three ways:
+
+    <enum>
+	<item> Using the CTM facility described below.  Unless you 
+            have a good TCP/IP connection at a flat rate, this is 
+            the way to do it.
+
+        <item>  Use the CMU `sup' program (Software Update
+	     Protocol), also described below.
+            This is the second most recommended method, since it allows 
+	    you to grab the entire collection once and then only what has
+            changed from then on.  Many people run sup from cron
+            and keep their sources up-to-date automatically.
+
+        <item>  Use ftp.  The source tree for FreeBSD-stable is always
+            "exported" on:
+            <htmlurl url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-stable"
+            name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-stable">
+
+            <p>We also use `wu-ftpd' which allows compressed/tar'd grabbing
+            of whole trees.  e.g. you see:
+<verb>
+            usr.bin/lex
+</verb>
+            You can do:
+<verb>
+            ftp> cd usr.bin
+            ftp> get lex.tar.Z
+</verb>
+            And it will get the whole directory for you as a compressed
+            tar file.
+    </enum>
+
+    <item>  Essentially, if you need rapid on-demand access to the source and
+    communications bandwidth is not a consideration, use sup or ftp.
+    Otherwise, use CTM.
+
+    <item>  Before compiling stable, read the Makefile in /usr/src
+	carefully.  You should at least run a `make world' the first time
+        through as part of the upgrading process.
+        Reading freebsd-stable will keep you up-to-date on other bootstrapping
+        procedures that sometimes become necessary as we move towards the next
+        release.
+</enum>
