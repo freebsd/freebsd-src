@@ -1812,7 +1812,7 @@ setnetmask(argv)
 {
     struct in_addr mask;
 
-    if ((inet_aton(*argv, &mask)) == -1 || (netmask & ~mask.s_addr)) {
+    if (!inet_aton(*argv, &mask) || (netmask & ~mask.s_addr)) {
 	fprintf(stderr, "Invalid netmask %s\n", *argv);
 	return (0);
     }
