@@ -170,6 +170,9 @@ main(argc, argv)
 		case KTR_CSW:
 			ktrcsw((struct ktr_csw *)m);
 			break;
+		case KTR_USER:
+			ktruser((struct ktr_user *)m);
+			break;
 		}
 		if (tail)
 			(void)fflush(stdout);
@@ -214,6 +217,9 @@ dumpheader(kth)
 		break;
 	case KTR_CSW:
 		type = "CSW";
+		break;
+	case KTR_USER:
+		type = "USER";
 		break;
 	default:
 		(void)sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
@@ -433,9 +439,20 @@ ktrcsw(cs)
 		cs->user ? "user" : "kernel");
 }
 
+ktruser(cs)
+	struct ktr_user *cs;
+{
+	unsigned char *p = (unsigned char *)(cs + 1);
+	(void)printf("%d ", cs->len);
+	while (cs->len--)
+		(void)printf(" %02x", *p++);
+	(void)printf("\n");
+		
+}
+
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: kdump [-dnlRT] [-f trfile] [-m maxdata] [-t [cnis]]\n");
+	    "usage: kdump [-dnlRT] [-f trfile] [-m maxdata] [-t [cnisuw]]\n");
 	exit(1);
 }
