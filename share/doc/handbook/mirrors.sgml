@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.24 1996/01/16 18:27:03 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.25 1996/02/09 00:24:08 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -169,10 +169,8 @@ for this domain.
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.internet-eireann.ie/pub/FreeBSD"
-	name="ftp://ftp.internet-eireann.ie/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftpadmin@internet-eireann.ie"
-	name="ftpadmin@internet-eireann.ie">.
+<htmlurl url="ftp://ftp.ie.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.ie.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
