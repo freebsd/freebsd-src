@@ -89,12 +89,15 @@ accept_filters, a kernel feature to reduce overheads when accepting
 and reading new connections on listening sockets, has been added.
 [MERGED]
 
-The ata(4) driver now has support for ATA100 controllers. [MERGED]
-In addition, it now supports the ServerWorks ROSB4 ATA33 chipset,
-the CMD 648 ATA66 and CMD 649 ATA100 chipsets, and the Cyrix 5530.
+The ata(4) driver now has support for ATA100 controllers.  In
+addition, it now supports the ServerWorks ROSB4 ATA33 chipset, the CMD
+648 ATA66 and CMD 649 ATA100 chipsets, and the Cyrix 5530. [MERGED]
 
 The ata(4) driver now has support for tagged queueing, which is
-enabled by the ATA_ENABLE_TAGS option.
+enabled by the ATA_ENABLE_TAGS option. [MERGED]
+
+The ata(4) driver now has support for ATA "pseudo" RAID controllers as
+the Promise Fasttrak and HighPoint HPT370 controllers. [MERGED]
 
 AlphaServer 1200 ("Tincup") has been tested and works OK. Currently it does
 not want to boot from CD or floppy but a transplanted disk that was
@@ -161,6 +164,9 @@ The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs
 when unloading and reloading, and syncs with some NetBSD changes.
 
 Extremely large swap areas (>67 GB) no longer panic the system.
+
+The Inode Filesystem (IFS) has been added; more information can be
+found in /usr/src/sys/ufs/ifs/README.
 
 
 1.2. SECURITY FIXES
@@ -355,6 +361,11 @@ gperf has been updated to 2.7.2.
 
 style.perl.7, a style guide for Perl code in the FreeBSD base system,
 has been added.
+
+The ISC library from the BIND distribution is now built as libisc.
+
+The "in use" percentage metric displayed by netstat(1) now really
+reflects the percentage of network mbufs used. [MERGED]
 
 
 2. Supported Configurations
