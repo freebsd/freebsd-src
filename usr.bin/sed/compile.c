@@ -467,7 +467,7 @@ compile_subst(p, s)
 	static char lbuf[_POSIX2_LINE_MAX + 1];
 	int asize, ref, size;
 	char c, *text, *op, *sp;
-	int more = 0;
+	int more = 1;
 
 	c = *p++;			/* Terminator character */
 	if (c == '\0')
