@@ -1,6 +1,6 @@
 .\" Copyright (c) 1995-1996 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
 .\" All rights reserved.
-.\" Copyright (c) 2002 Michael Telahun Makonnen <makonnen@pacbell.net>
+.\" Copyright (c) 2002-2004 Michael Telahun Makonnen <mtm@FreeBSD.Org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 .Nd command for adding new users
 .Sh SYNOPSIS
 .Nm
-.Op Fl CENhq
+.Op Fl CDENShq
 .Op Fl G Ar groups
 .Op Fl L Ar login_class
 .Op Fl d Ar partition
@@ -164,6 +164,16 @@ option.
 Home partition.
 Default partition, under which all user directories
 will be located.
+The
+.Pa /nonexistant
+partition is considered special.
+The
+.Nm
+script will not create and populate a home directory by that name.
+Otherwise,
+by default it attempts to create a home directory.
+.It Fl D
+Do not attempt to create the home directory.
 .It Fl E
 Disable the account.
 This option will lock the account by prepending the string
@@ -243,6 +253,8 @@ It must exist in
 or be the special shell
 .Em nologin
 to be considered a valid shell.
+.It Fl S
+The existence or validity of the specified shell will not be checked.
 .It Fl u Ar uid
 Use UIDs from
 .Ar uid
@@ -353,6 +365,11 @@ Full name and other extra information about the user.
 Home directory.
 If this field is left empty, it will be automatically
 created by appending the username to the home partition.
+The
+.Pa /nonexistent
+home directory is considered special and
+is understood to mean that no home directory is to be
+created for the user.
 .It Ar shell
 Login shell.
 This field should contain the full path to a valid login shell.
