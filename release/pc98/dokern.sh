@@ -12,7 +12,6 @@ fi
 if [ "${FDSIZE}" = "SMALL" ]; then
 
 sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
-	-e '/maxusers/d' \
 	-e '/DEBUG/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
@@ -78,7 +77,6 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 else
 
 sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
-	-e '/maxusers/d' \
 	-e '/DEBUG/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
@@ -124,9 +122,6 @@ echo "options  NETGRAPH_ETHER"
 echo "options  NETGRAPH_PPPOE"
 echo "options  NETGRAPH_SOCKET"
 echo "options  NO_COMPAT_FREEBSD4"
-
-# reset maxusers to something lower
-echo "maxusers	5"
 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"

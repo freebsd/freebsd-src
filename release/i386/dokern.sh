@@ -38,7 +38,6 @@ sed	\
 	-e '/	ulpt	/d' \
 	-e '/	urio	/d' \
 	-e '/	uscanner	/d' \
-	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 echo "options  NETGRAPH"
@@ -46,9 +45,6 @@ echo "options  NETGRAPH_ETHER"
 echo "options  NETGRAPH_PPPOE"
 echo "options  NETGRAPH_SOCKET"
 echo "options  NO_COMPAT_FREEBSD4"
-
-# reset maxusers to something lower
-echo "maxusers	5"
 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
