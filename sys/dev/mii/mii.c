@@ -56,6 +56,8 @@
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
+MODULE_VERSION(miibus, 1);
+
 #include "miibus_if.h"
 
 #if !defined(lint)
