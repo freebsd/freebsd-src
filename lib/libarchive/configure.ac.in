@@ -17,7 +17,7 @@ AC_CHECK_TOOL([STRIP],[strip])
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([bzlib.h errno.h ext2fs/ext2_fs.h fcntl.h])
-AC_CHECK_HEADERS([inttypes.h limits.h linux/ext2_fs.h paths.h])
+AC_CHECK_HEADERS([inttypes.h limits.h linux/ext2_fs.h])
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h sys/acl.h sys/ioctl.h])
 AC_CHECK_HEADERS([sys/time.h unistd.h wchar.h zlib.h])
 
