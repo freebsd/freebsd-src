@@ -936,12 +936,12 @@ ng_atm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		switch (msg->header.cmd) {
 
 		  case NGM_ATM_GET_IFNAME:
-			NG_MKRESPONSE(resp, msg, IFNAMSIZ + 1, M_NOWAIT);
+			NG_MKRESPONSE(resp, msg, IFNAMSIZ, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			strlcpy(resp->data, priv->ifp->if_xname, IFNAMSIZ + 1);
+			strlcpy(resp->data, priv->ifp->if_xname, IFNAMSIZ);
 			break;
 
 		  case NGM_ATM_GET_CONFIG:
@@ -1259,24 +1259,21 @@ ng_atm_disconnect(hook_p hook)
 static void
 ng_atm_attach(struct ifnet *ifp)
 {
-	char name[IFNAMSIZ+1];
 	node_p node;
 	struct priv *priv;
 
 	KASSERT(IFP2NG(ifp) == 0, ("%s: node alreay exists?", __FUNCTION__));
 
-	strlcpy(name, ifp->if_xname, sizeof(name));
-
 	if (ng_make_node_common(&ng_atm_typestruct, &node) != 0) {
 		log(LOG_ERR, "%s: can't create node for %s\n",
-		    __FUNCTION__, name);
+		    __FUNCTION__, ifp->if_xname);
 		return;
 	}
 
 	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
 		log(LOG_ERR, "%s: can't allocate memory for %s\n",
-		    __FUNCTION__, name);
+		    __FUNCTION__, ifp->if_xname);
 		NG_NODE_UNREF(node);
 		return;
 	}
@@ -1285,9 +1282,9 @@ ng_atm_attach(struct ifnet *ifp)
 	LIST_INIT(&priv->vccs);
 	IFP2NG_SET(ifp, node);
 
-	if (ng_name_node(node, name) != 0) {
+	if (ng_name_node(node, ifp->if_xname) != 0) {
 		log(LOG_WARNING, "%s: can't name node %s\n",
-		    __FUNCTION__, name);
+		    __FUNCTION__, ifp->if_xname);
 	}
 }
 
