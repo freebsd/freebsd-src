@@ -1,203 +1,391 @@
-# This file is a shell script fragment that supplies the information
-# necessary for a configure script to process the program in
-# this directory.  For more information, look at ../configure.
+# Process this file with autoconf to produce a configure script, like so:
+# aclocal && autoconf && autoheader && automake
 
-# If the language specific compiler does not exist, but the "gcc" directory 
-# does, we do not build anything. Note, $r is set by the top-level Makefile.
-# Note that when we look for the compiler, we search both with and without
-# extension to handle cross and canadian cross builds. 
-# Note that if $norecursion is set we're being called from config.status,
-# so don't check for the compiler; we might be doing a make clean.
-compiler_name=cc1plus
-rm -f skip-this-dir
-if test -n "$r" && [ -z "$norecursion" ] ; then
-  if test -d "$r"/gcc; then
-    if test -f "$r"/gcc/$compiler_name \
-       || test -f "$r"/gcc/$compiler_name.exe; then
-      true
-    else
-      echo "rm -f multilib.out" > skip-this-dir
-    fi
-  fi
-fi
+AC_PREREQ(2.13)
+AC_INIT(src/ios.cc)
 
-if [ "${srcdir}" = "." ] ; then
-  if [ "${with_target_subdir}" != "." ] ; then
-    topsrcdir=${with_multisrctop}../..
+# This works around the fact that libtool configuration may change LD
+# for this particular configuration, but some shells, instead of
+# keeping the changes in LD private, export them just because LD is
+# exported.
+ORIGINAL_LD_FOR_MULTILIBS=$LD
+
+PACKAGE=libstdc++
+AC_SUBST(PACKAGE)
+# For typical GNU versioning info, format is MAJOR.MINOR.MICRO
+release_VERSION=3.1.0
+AC_SUBST(release_VERSION)
+# For libtool versioning info, format is CURRENT:REVISION:AGE
+libtool_VERSION=4:0:0
+AC_SUBST(libtool_VERSION)
+
+# Gets build, host, target, *_vendor, *_cpu, *_os, etc.
+# AC 2.5x sets target_alias iff the user specified --target, but we use it
+# everywhere, so we set it here just to be sure.  In AC 2.13
+# AC_CANONICAL_TARGET was known as AC_CANONICAL_SYSTEM.
+AC_CANONICAL_SYSTEM
+target_alias=${target_alias-$target}
+AC_SUBST(target_alias)
+
+AM_INIT_AUTOMAKE($PACKAGE, $release_VERSION)
+AM_CONFIG_HEADER(config.h)
+
+# Runs configure.host and configure.target, as well as finds CC, CXX
+# and assorted other critical bits.  Have to run this before the
+# GLIBCPP_ENABLE_* macros below.
+GLIBCPP_CONFIGURE(.)
+
+AC_LIBTOOL_DLOPEN
+AM_PROG_LIBTOOL
+AC_SUBST(enable_shared)
+AC_SUBST(enable_static)
+
+# Check for c++ or library specific bits that don't require linking.
+#GLIBCPP_CHECK_COMPILER_VERSION
+GLIBCPP_CHECK_GNU_MAKE
+
+# Enable all the variable C++ stuff.  C_MBCHAR must come early.
+GLIBCPP_ENABLE_DEBUG($USE_MAINTAINER_MODE)
+GLIBCPP_ENABLE_CSTDIO
+GLIBCPP_ENABLE_CLOCALE
+GLIBCPP_ENABLE_C_MBCHAR([yes])
+GLIBCPP_ENABLE_C99([yes])
+GLIBCPP_ENABLE_LONG_LONG([yes])
+GLIBCPP_ENABLE_CHEADERS([c_std])
+GLIBCPP_ENABLE_THREADS
+GLIBCPP_ENABLE_CXX_FLAGS([none])
+GLIBCPP_ENABLE_SJLJ_EXCEPTIONS
+GLIBCPP_ENABLE_LIBUNWIND_EXCEPTIONS
+GLIBCPP_ENABLE_CONCEPT_CHECKS
+
+
+if test -n "$with_cross_host" || test x"$build" != x"$host"; then
+
+  # This lets us hard-code the functionality we know
+  # we'll have in the cross target environment. "Let" is a
+  # sugar-coated word placed on an especially dull and tedious hack, actually.
+  # Here's why GLIBCPP_CHECK_MATH_SUPPORT, and other autoconf macros
+  # that involve linking can't be used:
+  # "cannot open sim-crt0.o"
+  # "cannot open crt0.o"
+  # etc. All this is because there currently exists no unified,
+  # consistent way for top level CC information to be passed down
+  # to target directories: newlib includes, newlib linking info,
+  # libgloss versus newlib crt0.o, etc. When all of this is done, all
+  # of this hokey, excessive AC_DEFINE junk for crosses can be removed.
+
+  # We are being configured with some form of cross compiler.
+  GLIBCPP_IS_CROSS_COMPILING=1
+
+  # If Canadian cross, then don't pick up tools from the build
+  # directory.
+  if test -n "$with_cross_host" && test x"$build" != x"$with_cross_host"; then
+    CANADIAN=yes
   else
-    topsrcdir=${with_multisrctop}..
+    CANADIAN=no
   fi
-else
-  topsrcdir=${srcdir}/..
-fi
 
-if [ -d ${topsrcdir}/gcc ] ; then
-  configdirs="tests testsuite"
-else
-  configdirs="tests"
-fi
-srctrigger=sinst.cc
-srcname="ANSI C++ library"
-package_makefile_frag=Make.pack
-package_makefile_rules_frag=Make.pack.r
+  # Construct crosses by hand, eliminating bits that need ld...
+  # GLIBCPP_CHECK_COMPILER_FEATURES
+  # GLIBCPP_CHECK_BUILTIN_MATH_SUPPORT
+  # GLIBCPP_CHECK_MATH_SUPPORT
 
-# per-host:
-
-# per-target:
-
-echo "# Warning: this fragment is automatically generated" > temp.mt
-frags=
-
-# If they didn't specify --enable-shared, don't generate shared libs.
-case "${enable_shared}" in
-  yes) shared=yes ;;
-  no) shared=no ;;
-  *libstdc++*) shared=yes ;;
-  *) shared=no ;;
-esac
-
-if [ "${shared}" = "yes" ]; then
-  case "${target}" in
-    alpha*-*-linux*)	frags=../../config/mh-elfalphapic ;;
-    arm*-*-*)		frags=../../config/mh-armpic ;;
-    hppa*-*-*)		frags=../../config/mh-papic ;;
-    i[3456]86-*-*)	frags=../../config/mh-x86pic ;;
-    powerpc*-*-aix*)	;;
-    powerpc*-*-*)	frags=../../config/mh-ppcpic ;;
-    *-*-*) 		frags=../../config/mh-${target_cpu}pic ;;
-  esac
-  case "${target}" in
-    *-dec-osf*)		frags="${frags} dec-osf.ml";;
-    *-*-hpux*)		frags="${frags} hpux.ml" ;;
-    *-*-irix[56]*)	frags="${frags} irix5.ml" ;;
-    *-*-linux*aout*)	;;
-    *-*-freebsd2*)	;;
-    *-*-freebsd*)	frags="${frags} freebsd.ml" ;;
-    *-*-linux*)		frags="${frags} linux.ml" ;;
-    *-*-openbsd*)		frags="${frags} openbsd.ml" ;;
-    *-*-sysv[45]*|*-*-udk*)	frags="${frags} elf.ml" ;;
-    *-*-solaris*)	frags="${frags} sol2shm.ml" ;;
-    *-*-sunos4*)	frags="${frags} sunos4.ml" ;;
-    *-*-aix*)		frags="${frags} aix.ml" ;;
-    i[3456]86-*-interix*)	frags="${frags} x86-interix.ml" ;;
-    *-*-gnu*)		frags="${frags} gnu.ml" ;;
-  esac
-fi
-
-# Make sure the right flags are defined for multi-threading.
-case "${target}" in
-  alpha*-*-linux-gnulibc1)	frags="${frags} linux.mt" ;;
-  powerpc*-*-linux-gnulibc1)	frags="${frags} linux.mt" ;;
-  *-*-linux-gnu)		frags="${frags} linux.mt" ;;
-  *-*-openbsd*)		
-  	case "x${enable_threads}" in
-		xyes|xposix)	frags="${frags} openbsd.mt" ;;
-	esac;;
-  m68k-motorola-sysv)		frags="${frags} delta.mt" ;;
-  *-*-solaris*)
-    case "x${enable_threads}" in
-      xposix)			frags="${frags} sol2pth.mt" ;;
-      xsolaris)			frags="${frags} sol2solth.mt" ;;
-    esac ;;
-  *)
-    case "x${enable_threads}" in
-      xposix)			frags="${frags} posix.mt" ;;
-    esac ;;
-esac
-
-for frag in ${frags}; do
-  case ${frag} in
-    ../* )
-      if [ ${srcdir} = . ]; then
-	[ -n "${with_target_subdir}" ] && frag=../${frag}
-	[ -n "${with_multisrctop}" ] && frag=${with_multisrctop}${frag}
+  case "$target_alias" in
+    *-linux*)
+      # Check for available headers.
+      AC_CHECK_HEADERS([nan.h ieeefp.h endian.h sys/isa_defs.h \
+	machine/endian.h machine/param.h sys/machine.h sys/types.h \
+	fp.h locale.h float.h inttypes.h])
+      SECTION_FLAGS='-ffunction-sections -fdata-sections'
+      AC_SUBST(SECTION_FLAGS)
+      GLIBCPP_CHECK_LINKER_FEATURES
+      GLIBCPP_CHECK_COMPLEX_MATH_SUPPORT
+      GLIBCPP_CHECK_WCHAR_T_SUPPORT
+      os_include_dir="config/os/gnu-linux"
+      AC_DEFINE(HAVE_COPYSIGN)
+      AC_DEFINE(HAVE_COPYSIGNF)
+      AC_DEFINE(HAVE_FINITEF)
+      AC_DEFINE(HAVE_FREXPF)
+      AC_DEFINE(HAVE_HYPOTF)
+      AC_DEFINE(HAVE_SINCOS)
+      AC_DEFINE(HAVE_SINCOSF)
+      if test x"long_double_math_on_this_cpu" = x"yes"; then
+	AC_DEFINE(HAVE_HYPOTL)
       fi
       ;;
-  esac
-  frag=${srcdir}/config/$frag
-  if [ -f ${frag} ]; then
-    echo "Appending ${frag} to target-mkfrag"
-    echo "# Following fragment copied from ${frag}" >> temp.mt
-    cat ${frag} >> temp.mt
-  fi
-done
-
-target_makefile_frag=target-mkfrag
-${moveifchange} temp.mt target-mkfrag
-
-LIBDIR=yes
-TO_TOPDIR=../
-ALL='libs'
-XCXXINCLUDES="-I${srcdir} -I${srcdir}/stl -I${TO_TOPDIR}libio -I${srcdir}/${TO_TOPDIR}libio"
-MOSTLYCLEAN='*.o pic stamp-picdir core so_locations $(MOSTLYCLEAN_JUNK)'
-CLEAN='$(CLEAN_JUNK)'
-EXTRA_DISTCLEAN='target-mkfrag'
-
-(. ${srcdir}/${TO_TOPDIR}libio/config.shared) >${package_makefile_frag} 2>${package_makefile_rules_frag}
-
-. ${topsrcdir}/config.if
-echo "
-LIBSTDCXX_INTERFACE=${libstdcxx_interface}
-CXX_INTERFACE=${cxx_interface}
-LIBC_INTERFACE=${libc_interface}
-" >> ${package_makefile_frag}
-
-# This duplicated the AC_PROG_LN_S macro in GNU autoconf.
-rm -f conttestdata
-if ln -s X conftestdata 2>/dev/null
-then
-  rm -f conftestdata
-  LN_S="ln -s"
-else
-  LN_S=ln
-fi
-echo "
-LN_S=$LN_S
-" >> ${package_makefile_frag}
-
-# post-target:
-
-# If cross-compiling, we install in $(tooldir)/lib or in $(libsubdir)
-# depending on --enable-version-specific-runtime-libs.
-if [ -n "${with_cross_host}" ] ; then
-    rm -f Makefile.tem
-    sed \
-        -e 's|^\([ 	]*INSTALLDIR[ 	]*=[ 	]*\)\$(libdir)|\1$(tooldir)/lib|' \
-        Makefile >Makefile.tem
-    mv -f Makefile.tem Makefile
-fi
-
-# enable multilib-ing by default.
-if [ -z "${enable_multilib}" ]; then
-    enable_multilib=yes
-fi
-
-. ${topsrcdir}/config-ml.in
-
-gxx_include_dir=
-# Specify the g++ header file directory
-# Check whether --with-gxx-include-dir or --without-gxx-include-dir was given.
-if test "${with_gxx_include_dir+set}" = set; then
-  withval="$with_gxx_include_dir"
-  case "${withval}" in
-    yes)
-      echo "configure.in: error: bad value ${withval} given for g++ include directory" 1>&2
-      exit 1
+    *-hpux*)
+      # Check for available headers.
+      AC_CHECK_HEADERS([nan.h ieeefp.h endian.h sys/isa_defs.h \
+	machine/endian.h machine/param.h sys/machine.h sys/types.h \
+	fp.h locale.h float.h inttypes.h])
+      SECTION_FLAGS='-ffunction-sections -fdata-sections'
+      AC_SUBST(SECTION_FLAGS)
+      GLIBCPP_CHECK_LINKER_FEATURES
+      GLIBCPP_CHECK_COMPLEX_MATH_SUPPORT
+      GLIBCPP_CHECK_WCHAR_T_SUPPORT
+      os_include_dir="config/os/hpux"
+      AC_DEFINE(HAVE_COPYSIGN)
+      AC_DEFINE(HAVE_COPYSIGNF)
+      AC_DEFINE(HAVE_FINITEF)
+      AC_DEFINE(HAVE_FREXPF)
+      AC_DEFINE(HAVE_HYPOT)
+      AC_DEFINE(HAVE_SINCOS)
+      AC_DEFINE(HAVE_SINCOSF)
       ;;
-    no)	;;
-    *)	gxx_include_dir=$with_gxx_include_dir ;;
+    *-netbsd*)
+      # Check for available headers.
+      AC_CHECK_HEADERS([nan.h ieeefp.h endian.h sys/isa_defs.h \
+	machine/endian.h machine/param.h sys/machine.h sys/types.h \
+	fp.h locale.h float.h inttypes.h])
+      SECTION_FLAGS='-ffunction-sections -fdata-sections'
+      AC_SUBST(SECTION_FLAGS) 
+      GLIBCPP_CHECK_LINKER_FEATURES
+      GLIBCPP_CHECK_COMPLEX_MATH_SUPPORT
+      GLIBCPP_CHECK_WCHAR_T_SUPPORT
+      os_include_dir="config/os/bsd/netbsd"
+      AC_DEFINE(HAVE_COPYSIGN)
+      AC_DEFINE(HAVE_COPYSIGNF)
+      AC_DEFINE(HAVE_FINITEF)
+      AC_DEFINE(HAVE_FREXPF)
+      AC_DEFINE(HAVE_HYPOTF)
+      ;;
+    *-mingw32*)
+      AC_CHECK_HEADERS([sys/types.h locale.h float.h])
+      GLIBCPP_CHECK_LINKER_FEATURES
+      GLIBCPP_CHECK_COMPLEX_MATH_SUPPORT
+      GLIBCPP_CHECK_WCHAR_T_SUPPORT
+      os_include_dir="config/os/mingw32"
+      ;;
+    *)
+      os_include_dir="config/os/newlib"
+      AC_DEFINE(HAVE_HYPOT)
+      ;;
   esac
-fi
 
-if test x${gxx_include_dir} = x; then
-  if test x${enable_version_specific_runtime_libs} = xyes; then
-    gxx_include_dir='${libsubdir}/include/g++'
-  else
-    gxx_include_dir='${prefix}/include/g++'-${libstdcxx_interface}
+  case "$target_alias" in
+    *-mingw32*)
+      ;;
+    *)
+      # GLIBCPP_CHECK_STDLIB_SUPPORT
+      AC_DEFINE(HAVE_STRTOF)        
+      AC_DEFINE(HAVE_STRTOLD)        
+      # AC_FUNC_MMAP
+      AC_DEFINE(HAVE_MMAP)
+
+      AC_DEFINE(HAVE_ACOSF)
+      AC_DEFINE(HAVE_ASINF)
+      AC_DEFINE(HAVE_ATAN2F)
+      AC_DEFINE(HAVE_ATANF)
+      AC_DEFINE(HAVE_CEILF)
+      AC_DEFINE(HAVE_COPYSIGN)
+      AC_DEFINE(HAVE_COPYSIGNF)
+      AC_DEFINE(HAVE_COSF)
+      AC_DEFINE(HAVE_COSHF)
+      AC_DEFINE(HAVE_EXPF)
+      AC_DEFINE(HAVE_FABSF)
+      AC_DEFINE(HAVE_FINITE)
+      AC_DEFINE(HAVE_FINITEF)
+      AC_DEFINE(HAVE_FLOORF)
+      AC_DEFINE(HAVE_FMODF)
+      AC_DEFINE(HAVE_FREXPF)
+      AC_DEFINE(HAVE_ISINF)
+      AC_DEFINE(HAVE_ISINFF)
+      AC_DEFINE(HAVE_ISNAN)
+      AC_DEFINE(HAVE_ISNANF)
+      AC_DEFINE(HAVE_LDEXPF)
+      AC_DEFINE(HAVE_LOG10F)
+      AC_DEFINE(HAVE_LOGF)
+      AC_DEFINE(HAVE_MODFF)
+      AC_DEFINE(HAVE_POWF)
+      AC_DEFINE(HAVE_SINF)
+      AC_DEFINE(HAVE_SINHF)
+      AC_DEFINE(HAVE_SQRTF)
+      AC_DEFINE(HAVE_TANF)
+      AC_DEFINE(HAVE_TANHF)
+      ;;
+  esac
+
+  # At some point, we should differentiate between architectures
+  # like x86, which have long double versions, and alpha/powerpc/etc.,
+  # which don't. For the time being, punt.
+  if test x"long_double_math_on_this_cpu" = x"yes"; then
+    AC_DEFINE(HAVE_ACOSL)
+    AC_DEFINE(HAVE_ASINL)
+    AC_DEFINE(HAVE_ATAN2L)
+    AC_DEFINE(HAVE_ATANL)
+    AC_DEFINE(HAVE_CEILL)
+    AC_DEFINE(HAVE_COPYSIGNL)
+    AC_DEFINE(HAVE_COSL)
+    AC_DEFINE(HAVE_COSHL)
+    AC_DEFINE(HAVE_EXPL)
+    AC_DEFINE(HAVE_FABSL)
+    AC_DEFINE(HAVE_FINITEL)
+    AC_DEFINE(HAVE_FLOORL)
+    AC_DEFINE(HAVE_FMODL)
+    AC_DEFINE(HAVE_FREXPL)
+    AC_DEFINE(HAVE_ISINFL)
+    AC_DEFINE(HAVE_ISNANL)
+    AC_DEFINE(HAVE_LDEXPL)
+    AC_DEFINE(HAVE_LOG10L)
+    AC_DEFINE(HAVE_LOGL)
+    AC_DEFINE(HAVE_MODFL)
+    AC_DEFINE(HAVE_POWL)
+    AC_DEFINE(HAVE_SINCOSL)
+    AC_DEFINE(HAVE_SINL)
+    AC_DEFINE(HAVE_SINHL)
+    AC_DEFINE(HAVE_SQRTL)
+    AC_DEFINE(HAVE_TANL)
+    AC_DEFINE(HAVE_TANHL)
   fi
+else
+
+  # We are being configured natively. We can do more elaborate tests
+  # that include AC_TRY_COMPILE now, as the linker is assumed to be
+  # working.
+  GLIBCPP_IS_CROSS_COMPILING=0
+  CANADIAN=no
+
+  # Check for available headers.
+  AC_CHECK_HEADERS([nan.h ieeefp.h endian.h sys/isa_defs.h machine/endian.h \
+  machine/param.h sys/machine.h fp.h locale.h float.h inttypes.h gconv.h])
+
+  GLIBCPP_CHECK_COMPILER_FEATURES
+  GLIBCPP_CHECK_LINKER_FEATURES
+  GLIBCPP_CHECK_BUILTIN_MATH_SUPPORT
+  GLIBCPP_CHECK_MATH_SUPPORT
+  GLIBCPP_CHECK_COMPLEX_MATH_SUPPORT
+  GLIBCPP_CHECK_WCHAR_T_SUPPORT
+  GLIBCPP_CHECK_STDLIB_SUPPORT
+  AC_LC_MESSAGES
+
+  AC_TRY_COMPILE([
+  #include <setjmp.h>
+  ], [sigjmp_buf env; while (! sigsetjmp (env, 1)) siglongjmp (env, 1);],
+  [AC_DEFINE(HAVE_SIGSETJMP, 1, [Define if sigsetjmp is available.  ])
+  ])
+
+  AC_FUNC_MMAP
+
+  # Establish limits on memory usage during 'make check'
+  GLIBCPP_CONFIGURE_TESTSUITE
 fi
 
-rm -f Makefile.tem
-sed -e "s%^gxx_include_dir[ 	]*=.*$%gxx_include_dir=${gxx_include_dir}%" \
-       Makefile >Makefile.tem
-mv -f Makefile.tem Makefile
+# This depends on the possibly-skipped linker test above.
+GLIBCPP_ENABLE_SYMVERS([yes])
+
+# Propagate the target-specific source directories through the build chain.
+OS_INC_SRCDIR=$os_include_dir/bits
+ATOMICITY_INC_SRCDIR=$ATOMICITYH/bits
+CPU_LIMITS_INC_SRCDIR=$CPULIMITSH/bits
+AC_SUBST(OS_INC_SRCDIR)
+AC_SUBST(ATOMICITY_INC_SRCDIR)
+AC_SUBST(CPU_LIMITS_INC_SRCDIR)
+
+# Set up cross-compile flags
+AC_SUBST(GLIBCPP_IS_CROSS_COMPILING)
+AM_CONDITIONAL(CANADIAN, test "$CANADIAN" = yes)
+ 
+AC_CACHE_SAVE
+
+if test "${multilib}" = "yes"; then
+  multilib_arg="--enable-multilib"
+else
+  multilib_arg=
+fi
+
+# Needed so that g++ can find the correct include subdir automatically.
+INTERFACE=v3
+
+# Export all the install information
+GLIBCPP_EXPORT_INSTALL_INFO
+
+# Export all the include and flag information to makefiles.
+GLIBCPP_EXPORT_INCLUDES
+GLIBCPP_EXPORT_FLAGS
+
+if ${CONFIG_SHELL-/bin/sh} ./libtool --tag CXX --features |
+   grep "enable shared" > /dev/null; then
+  LIBSUPCXX_PICFLAGS=-prefer-pic
+else
+  LIBSUPCXX_PICFLAGS=
+fi
+AC_SUBST(LIBSUPCXX_PICFLAGS)
+
+# Generate the various Makefiles, include files, and scripts.
+# NB: Multilibs need MULTISUBDIR defined correctly in src/Makefile.am
+# and libsupc++/Makefile.am so that multilib installs will end up
+# installed in the correct place. To work around this not being passed
+# down from config-ml.in -> top_srcdir/Makefile.am ->
+# top_srcdir/{src,libsupc++}/Makefile.am, manually append it here.
+AC_OUTPUT(Makefile \
+    include/Makefile src/Makefile \
+    libmath/Makefile libio/Makefile libsupc++/Makefile \
+    po/Makefile testsuite/Makefile mkcheck testsuite_flags,
+[if test -n "$CONFIG_FILES"; then
+  LD="${ORIGINAL_LD_FOR_MULTILIBS}"
+  ac_file=Makefile . ${glibcpp_basedir}/../config-ml.in
+  grep '^MULTISUBDIR =' Makefile >> src/Makefile
+  grep '^MULTISUBDIR =' Makefile >> libsupc++/Makefile
+fi
+chmod +x mkcheck
+chmod +x testsuite_flags
+],
+srcdir=${srcdir}
+host=${host}
+target=${target}
+with_multisubdir=${with_multisubdir}
+ac_configure_args="${multilib_arg} ${ac_configure_args}"
+CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
+glibcpp_basedir=${glibcpp_basedir}
+CC="${CC}"
+CXX="${CXX}"
+)
+dnl  In autoconf 2.5x, AC_OUTPUT is replaced by three AC_ macros:
+dnl  AC_CONFIG_FILES(Makefile \
+dnl      include/Makefile src/Makefile \
+dnl      libmath/Makefile libio/Makefile libsupc++/Makefile \
+dnl      po/Makefile testsuite/Makefile mkcheck testsuite_flags)
+dnl  AC_CONFIG_COMMANDS([default],
+dnl  [if test -n "$CONFIG_FILES"; then
+dnl    ac_file=Makefile . ${glibcpp_basedir}/../config-ml.in
+dnl    grep '^MULTISUBDIR =' Makefile >> src/Makefile
+dnl    grep '^MULTISUBDIR =' Makefile >> libsupc++/Makefile
+dnl  fi
+dnl  chmod +x mkcheck
+dnl  chmod +x testsuite_flags
+dnl  ],
+dnl  srcdir=${srcdir}
+dnl  host=${host}
+dnl  target=${target}
+dnl  with_multisubdir=${with_multisubdir}
+dnl  ac_configure_args="${multilib_arg} ${ac_configure_args}"
+dnl  CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
+dnl  glibcpp_basedir=${glibcpp_basedir}
+dnl  CC="${CC}"
+dnl  CXX="${CXX}"
+dnl  )
+dnl  AC_OUTPUT
+
+
+# Sanity checking & User-visible messages.
+# Checks down here, otherwise they get scrolled off before
+# the user will notice.
+
+# Trying to get more people to read documentation.  Possibly remove
+# check and warn all the time. There is no "informational" AC_MSG_
+# macro, so these are going to be printed even when --quiet/--silent
+# is given.
+if test ! -f stamp-sanity-warned; then
+  touch stamp-sanity-warned
+  echo ""
+  echo "Please make certain that you read the installation information here:"
+  echo "  faster => ${srcdir}/docs/install.html"
+  echo "  slower => <URL:http://gcc.gnu.org/onlinedocs/libstdc++/install.html>"
+  echo ""
+  echo "and the configuration information here:"
+  echo "  faster => ${srcdir}/docs/configopts.html"
+  echo "  slower => <URL:http://gcc.gnu.org/onlinedocs/libstdc++/configopts.html>"
+  echo ""
+  echo "before proceeding with ${_cv_gnu_make_command}."
+  echo ""
+fi
