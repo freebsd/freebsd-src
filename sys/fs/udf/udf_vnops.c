@@ -819,6 +819,8 @@ udf_strategy(struct vop_strategy_args *a)
 	vp = bp->b_vp;
 	node = VTON(vp);
 
+	KASSERT(a->a_vp == a->a_bp->b_vp, ("%s(%p != %p)",
+	    __func__, a->a_vp, a->a_bp->b_vp));
 	/* cd9660 has this test reversed, but it seems more logical this way */
 	if (bp->b_blkno != bp->b_lblkno) {
 		/*
