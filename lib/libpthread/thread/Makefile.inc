@@ -24,6 +24,7 @@ SRCS+= \
 	uthread_attr_setstacksize.c \
 	uthread_autoinit.cc \
 	uthread_bind.c \
+	uthread_cancel.c \
 	uthread_clean.c \
 	uthread_close.c \
 	uthread_cond.c \
@@ -37,6 +38,7 @@ SRCS+= \
 	uthread_equal.c \
 	uthread_execve.c \
 	uthread_exit.c \
+	uthread_fchflags.c \
 	uthread_fchmod.c \
 	uthread_fchown.c \
 	uthread_fcntl.c \
@@ -64,6 +66,7 @@ SRCS+= \
 	uthread_listen.c \
 	uthread_mattr_init.c \
 	uthread_mattr_kind_np.c \
+	uthread_msync.c \
 	uthread_multi_np.c \
 	uthread_mutex.c \
 	uthread_mutex_prioceiling.c \

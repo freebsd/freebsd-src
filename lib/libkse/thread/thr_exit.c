@@ -34,6 +34,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
@@ -101,17 +103,45 @@ _thread_exit(char *fname, int lineno, char *string)
 #endif
 }
 
+/*
+ * Only called when a thread is cancelled.  It may be more useful
+ * to call it from pthread_exit() if other ways of asynchronous or
+ * abnormal thread termination can be found.
+ */
+void
+_thread_exit_cleanup(void)
+{
+	/*
+	 * POSIX states that cancellation/termination of a thread should
+	 * not release any visible resources (such as mutexes) and that
+	 * it is the applications responsibility.  Resources that are
+	 * internal to the threads library, including file and fd locks,
+	 * are not visible to the application and need to be released.
+	 */
+	/* Unlock all owned fd locks: */
+	_thread_fd_unlock_owned(_thread_run);
+
+	/* Unlock all owned file locks: */
+	_funlock_owned(_thread_run);
+
+	/* Unlock all private mutexes: */
+	_mutex_unlock_private(_thread_run);
+
+	/*
+	 * This still isn't quite correct because we don't account
+	 * for held spinlocks (see libc/stdlib/malloc.c).
+	 */
+}
+
 void
 pthread_exit(void *status)
 {
-	int             sig;
-	long            l;
-	pthread_t       pthread;
+	pthread_t pthread;
 
 	/* Check if this thread is already in the process of exiting: */
 	if ((_thread_run->flags & PTHREAD_EXITING) != 0) {
 		char msg[128];
-		snprintf(msg,"Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",_thread_run);
+		snprintf(msg, sizeof(msg), "Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",_thread_run);
 		PANIC(msg);
 	}
 
@@ -134,7 +164,7 @@ pthread_exit(void *status)
 		_thread_cleanupspecific();
 	}
 
-	/* Free thread-specific poll_data structure, if allocated */
+	/* Free thread-specific poll_data structure, if allocated: */
 	if (_thread_run->poll_data.fds != NULL) {
 		free(_thread_run->poll_data.fds);
 		_thread_run->poll_data.fds = NULL;

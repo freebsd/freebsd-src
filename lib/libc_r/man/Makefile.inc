@@ -12,6 +12,7 @@ MAN3+=	pthread_cleanup_pop.3 \
 	pthread_cond_signal.3 \
 	pthread_cond_timedwait.3 \
 	pthread_cond_wait.3 \
+	pthread_cancel.3 \
 	pthread_create.3 \
 	pthread_detach.3 \
 	pthread_equal.3 \
@@ -36,4 +37,8 @@ MAN3+=	pthread_cleanup_pop.3 \
 	pthread_rwlockattr_init.3 \
 	pthread_rwlockattr_setpshared.3 \
 	pthread_self.3 \
-	pthread_setspecific.3
+	pthread_setspecific.3 \
+	pthread_testcancel.3
+
+MLINKS+=	pthread_cancel.3 pthread_setcancelstate.3 \
+	pthread_cancel.3 pthread_getcancelstate.3 
