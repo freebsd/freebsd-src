@@ -48,6 +48,7 @@ static const char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
 #include <sys/filio.h>
 
 #include <errno.h>
+#include <signal.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,6 +58,8 @@ static const char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
 #include "talk_ctl.h"
 
 #define A_LONG_TIME 10000000
+
+volatile sig_atomic_t gotwinch = 0;
 
 /*
  * The routine to do the actual talking
@@ -106,6 +109,10 @@ talk()
 		wait.tv_sec = A_LONG_TIME;
 		wait.tv_usec = 0;
 		nb = select(32, &read_set, 0, 0, &wait);
+		if (gotwinch) {
+			resize_display();
+			gotwinch = 0;
+		}
 		if (nb <= 0) {
 			if (errno == EINTR) {
 				read_set = read_template;
