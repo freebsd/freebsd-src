@@ -31,15 +31,19 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
-static char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
-#endif /* not lint */
+static const char copyright[] =
+"@(#) Copyright (c) 1993\n\
+	The Regents of the University of California.  All rights reserved.\n";
+#endif
+
+#ifndef lint
+static const char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
+#endif
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -64,7 +68,8 @@ main(argc, argv)
 	u_int flags;
 	int ch, mib[2];
 	size_t len, tlen;
-	char *p, *prefix, buf[1024];
+	char *p, buf[1024];
+	const char *prefix;
 
 	flags = 0;
 	while ((ch = getopt(argc, argv, "amnprsv")) != -1)
