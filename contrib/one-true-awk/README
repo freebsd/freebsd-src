@@ -73,6 +73,7 @@ This also compiles with Visual C++ on all flavors of Windows,
 missing95.c contains versions that can be used to get started
 with, though the underlying support has mysterious properties,
 the symptom of which can be truncated pipe output.  Beware.
+The file makefile.win gives hints on how to proceed.
 
 This is also said to compile on Macintosh systems, using the
 file "buildmac" provided by Dan Allen (danallen@microsoft.com),
