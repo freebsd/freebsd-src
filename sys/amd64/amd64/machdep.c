@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.28 1994/01/20 23:17:39 davidg Exp $
+ *	$Id: machdep.c,v 1.29 1994/01/21 09:56:05 davidg Exp $
  */
 
 #include "npx.h"
@@ -1165,54 +1165,6 @@ init386(first)
 	bcopy(&sigcode, proc0.p_addr->u_pcb.pcb_sigc, szsigcode);
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_ptd = IdlePTD;
-}
-
-extern struct pte	*CMAP1, *CMAP2;
-extern caddr_t		CADDR1, CADDR2;
-/*
- * zero out physical memory
- * specified in relocation units (NBPG bytes)
- */
-void
-clearseg(n) 
-	int n;
-{
-
-	*(int *)CMAP2 = PG_V | PG_KW | ctob(n);
-	load_cr3(rcr3());
-	bzero(CADDR2,NBPG);
-	*(int *) CADDR2 = 0;
-}
-
-/*
- * copy a page of physical memory
- * specified in relocation units (NBPG bytes)
- */
-void
-copyseg(frm, n) 
-	int frm;
-	int n;
-{
-
-	*(int *)CMAP2 = PG_V | PG_KW | ctob(n);
-	load_cr3(rcr3());
-	bcopy((void *)frm, (void *)CADDR2, NBPG);
-}
-
-/*
- * copy a page of physical memory
- * specified in relocation units (NBPG bytes)
- */
-void
-physcopyseg(frm, to) 
-	int frm;
-	int to;
-{
-
-	*(int *)CMAP1 = PG_V | PG_KW | ctob(frm);
-	*(int *)CMAP2 = PG_V | PG_KW | ctob(to);
-	load_cr3(rcr3());
-	bcopy(CADDR1, CADDR2, NBPG);
 }
 
 /*aston() {
