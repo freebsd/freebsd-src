@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_data.c#9 $
+ * $P4: //depot/projects/openpam/lib/pam_get_data.c#10 $
  */
 
 #include <string.h>
@@ -54,7 +54,7 @@ pam_get_data(pam_handle_t *pamh,
 {
 	pam_data_t *dp;
 
-	ENTER();
+	ENTERS(module_data_name);
 	if (pamh == NULL)
 		RETURNC(PAM_SYSTEM_ERR);
 	for (dp = pamh->module_data; dp != NULL; dp = dp->next)

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_impl.h#19 $
+ * $P4: //depot/projects/openpam/lib/openpam_impl.h#20 $
  */
 
 #ifndef _OPENPAM_IMPL_H_INCLUDED
@@ -42,6 +42,7 @@
 extern const char *_pam_func_name[PAM_NUM_PRIMITIVES];
 extern const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES];
 extern const char *_pam_err_name[PAM_NUM_ERRORS];
+extern const char *_pam_item_name[PAM_NUM_ITEMS];
 
 /*
  * Control flags
@@ -123,6 +124,21 @@ pam_module_t   *openpam_dynamic(const char *);
 
 #ifdef DEBUG
 #define ENTER() openpam_log(PAM_LOG_DEBUG, "entering")
+#define ENTERI(i) do { \
+	if ((i) > 0 && (i) < PAM_NUM_ITEMS) \
+		openpam_log(PAM_LOG_DEBUG, "entering: %s", _pam_item_name[i]); \
+	else \
+		openpam_log(PAM_LOG_DEBUG, "entering: %d", (i)); \
+} while (0);
+#define ENTERN(n) do { \
+	openpam_log(PAM_LOG_DEBUG, "entering: %d", (n)); \
+} while (0);
+#define ENTERS(s) do { \
+	if ((s) == NULL) \
+		openpam_log(PAM_LOG_DEBUG, "entering: NULL"); \
+	else \
+		openpam_log(PAM_LOG_DEBUG, "entering: '%s'", (s)); \
+} while (0);
 #define	RETURNV() openpam_log(PAM_LOG_DEBUG, "returning")
 #define RETURNC(c) do { \
 	if ((c) >= 0 && (c) < PAM_NUM_ERRORS) \
@@ -131,9 +147,9 @@ pam_module_t   *openpam_dynamic(const char *);
 		openpam_log(PAM_LOG_DEBUG, "returning %d!", (c)); \
 	return (c); \
 } while (0)
-#define	RETURNI(i) do { \
-	openpam_log(PAM_LOG_DEBUG, "returning %d", (i)); \
-	return (i); \
+#define	RETURNN(n) do { \
+	openpam_log(PAM_LOG_DEBUG, "returning %d", (n)); \
+	return (n); \
 } while (0)
 #define	RETURNP(p) do { \
 	if ((p) == NULL) \
@@ -151,9 +167,12 @@ pam_module_t   *openpam_dynamic(const char *);
 } while (0)
 #else
 #define ENTER()
+#define ENTERI(i)
+#define ENTERN(n)
+#define ENTERS(s)
 #define RETURNV() return
 #define RETURNC(c) return (c)
-#define RETURNI(i) return (i)
+#define RETURNN(n) return (n)
 #define RETURNP(p) return (p)
 #define RETURNS(s) return (s)
 #endif
