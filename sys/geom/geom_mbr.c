@@ -173,7 +173,7 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 }
 
 static void
-g_mbr_ioctl(void *arg, int flag __unused)
+g_mbr_ioctl(void *arg, int flag)
 {
 	struct bio *bp;
 	struct g_geom *gp;
@@ -184,8 +184,11 @@ g_mbr_ioctl(void *arg, int flag __unused)
 	u_char *sec0;
 	int error;
 
-	/* Get hold of the interesting bits from the bio. */
 	bp = arg;
+	if (flag == EV_CANCEL) {
+		g_io_deliver(bp, ENXIO);
+		return;
+	}
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
