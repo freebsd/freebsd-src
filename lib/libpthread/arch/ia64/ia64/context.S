@@ -339,13 +339,13 @@ ENTRY(_ia64_save_context, 1)
 END(_ia64_save_context)
 
 /*
- * void _ia64_break_setcontext(ucontext_t *ucp);
+ * void _ia64_break_setcontext(mcontext_t *mc);
  */
 ENTRY(_ia64_break_setcontext, 1)
-{	.mib
-	mov		r15=SYS_setcontext
-	break		0x100000
-	br.ret.sptk	rp
+{	.mmi
+	mov		r8=r32
+	break		0x180000
+	nop		0
 	;;
 }
 END(_ia64_break_setcontext)
