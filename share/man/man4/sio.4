@@ -36,7 +36,7 @@
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2000
+.Dd July 10, 2002
 .Dt SIO 4
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Nd "fast interrupt driven asynchronous serial communications interface"
 .Sh SYNOPSIS
 For standard ISA ports:
+.Bd -ragged -offset indent -compact
 .Cd "device sio"
 .Pp
 In
@@ -56,8 +57,10 @@ In
 .Cd hint.sio.1.port="0x2f8"
 .Cd hint.sio.1.flags="0x0"
 .Cd hint.sio.1.irq="3"
+.Ed
 .Pp
 For AST compatible multiport cards with 4 ports:
+.Bd -ragged -offset indent -compact
 .Cd "options COM_MULTIPORT"
 .Cd "device sio"
 .Pp
@@ -76,8 +79,10 @@ In
 .Cd hint.sio.7.port="0x2b8"
 .Cd hint.sio.7.flags="0x701"
 .Cd hint.sio.7.irq="12"
+.Ed
 .Pp
 For Boca Board compatible multiport cards with 8 ports:
+.Bd -ragged -offset indent -compact
 .Cd "options COM_MULTIPORT"
 .Cd "device sio"
 .Pp
@@ -91,8 +96,10 @@ In
 .Cd hint.sio.11.port="0x138"
 .Cd hint.sio.11.flags="0xb05"
 .Cd hint.sio.11.irq="12"
+.Ed
 .Pp
 For Netmos Nm9845 multiport cards with 6 ports:
+.Bd -ragged -offset indent -compact
 .Cd "options COM_MULTIPORT"
 .Cd "device sio"
 .Pp
@@ -117,20 +124,26 @@ In
 .Cd hint.sio.9.port="0xac00"
 .Cd hint.sio.9.flags="0x901"
 .Cd hint.sio.9.irq="12"
+.Ed
 .Pp
 For Hayes ESP cards:
+.Bd -ragged -offset indent -compact
 .Cd "options COM_ESP"
 .Cd "device sio"
 .Cd "..."
+.Ed
 .Pp
 For single port PCI and PCCARD cards:
+.Bd -ragged -offset indent -compact
 .Cd "device sio"
 .Pp
 No lines are required in
 .Pa /boot/device.hints
 for these cards.
+.Ed
 .Pp
 For dual port PCI cards that share an interrupt:
+.Bd -ragged -offset indent -compact
 .Cd "device sio"
 .Cd "options COM_MULTIPORT"
 .Pp
@@ -138,6 +151,7 @@ In
 .Pa /boot/device.hints :
 .Cd hint.sio.2.flags="0x201"
 .Cd hint.sio.3.flags="0x201"
+.Ed
 .Pp
 Meaning of
 .Ar flags :
@@ -165,7 +179,7 @@ device is assumed to use a 16650A-type (extended FIFO) chip
 .El
 .Pp
 Minor numbering:
-.Bd -literal -compact
+.Bd -literal -offset indent -compact
 0b\fIOLIMMMMM\fR
   call\fBO\fRut
    \fBL\fRock
