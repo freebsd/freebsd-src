@@ -91,7 +91,7 @@ y_entries()
 			in_rule = NO;
 			break;
 		default:
-			if (in_rule || !isalpha(c) && c != '.' && c != '_')
+			if (in_rule || (!isalpha(c) && c != '.' && c != '_'))
 				break;
 			sp = tok;
 			*sp++ = c;
