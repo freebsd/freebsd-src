@@ -31,11 +31,24 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
 
-#define	WR(p, size) \
+#define	WR(p, size) do { \
 	if (write(STDOUT_FILENO, p, size) != size) \
-		oerr();
+		oerr(); \
+	} while(0)
+
+#define TAILMAPLEN (4<<20)
+
+struct mapinfo {
+	off_t	mapoff;
+	off_t	maxoff;
+	size_t	maplen;
+	char	*start;
+	int	fd;
+};
 
 enum STYLE { NOTSET = 0, FBYTES, FLINES, RBYTES, RLINES, REVERSE };
 
@@ -47,6 +60,8 @@ int lines __P((FILE *, off_t));
 
 void ierr __P((void));
 void oerr __P((void));
+int mapprint __P((struct mapinfo *, off_t, off_t));
+int maparound __P((struct mapinfo *, off_t));
 
 extern int Fflag, fflag, rflag, rval;
 extern char *fname;
