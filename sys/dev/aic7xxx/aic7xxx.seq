@@ -37,7 +37,7 @@
  *OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.46.2.15 1997/04/05 22:04:28 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.46.2.16 1997/04/10 19:25:56 gibbs Exp $
  *
  *-M************************************************************************/
 
@@ -71,6 +71,8 @@ reset:
 	/* Always allow reselection */
 	mvi	SCSISEQ, ENRSELI|ENAUTOATNP;
 	call	clear_target_state;
+repoll_for_work:
+	and	SIMODE1, ~ENBUSFREE;
 poll_for_work:
 	test	SSTAT0,SELDO	jnz select;
 	test	SSTAT0,SELDI	jnz reselect;
@@ -207,6 +209,14 @@ initialize_scsiid:
  */
 reselect:
 	clr	MSG_LEN;	/* Don't have anything in the mesg buffer */
+	mvi	CLRSINT1,CLRBUSFREE;
+	or	SIMODE1, ENBUSFREE;		/*
+						 * We aren't expecting a
+						 * bus free, so interrupt
+						 * the kernel driver if it
+						 * happens.
+						 */
+	test	SSTAT0, SELDI jz repoll_for_work;/* False alarm? */
 	mvi	CLRSINT0, CLRSELDI;
 	/* XXX test for and handle ONE BIT condition */
 	and	SAVED_TCL, SELID_MASK, SELID;
@@ -220,14 +230,25 @@ reselect:
  * SCB is used, so don't bother with it now.
  */
 select:
-	/* Turn off the selection hardware */
+	mov	SCBPTR, WAITING_SCBH;
+	mvi	CLRSINT1,CLRBUSFREE;
 	mvi	SCSISEQ, ENRSELI|ENAUTOATNP;	/*
 						 * ATN on parity errors
 						 * for "in" phases
 						 */
-	mvi	CLRSINT0, CLRSELDO;
-	mov	SCBPTR, WAITING_SCBH;
+	or	SIMODE1, ENBUSFREE;		/*
+						 * We aren't expecting a
+						 * bus free, so interrupt
+						 * the kernel driver if it
+						 * happens.
+						 */
+	test	SSTAT0, SELDO	jnz select_good;
+	mvi	SCSISEQ, ENSELO|ENAUTOATNO|ENRSELI|ENAUTOATNP;
+	jmp	repoll_for_work;
+select_good:
 	mov	WAITING_SCBH,SCB_NEXT;
+	/* Turn off the selection hardware */
+	mvi	CLRSINT0, CLRSELDO;
 	mov	SAVED_TCL, SCB_TCL;
 /*
  * As soon as we get a successful selection, the target should go
@@ -264,13 +285,6 @@ mk_message:
 	mvi     INTSTAT,AWAITING_MSG;
 
 select2:
-	mvi	CLRSINT1,CLRBUSFREE;
-	or	SIMODE1, ENBUSFREE;		/*
-						 * We aren't expecting a
-						 * bus free, so interrupt
-						 * the kernel driver if it
-						 * happens.
-						 */
 /*
  * Initialize Ultra mode setting and clear the SCSI channel.
  */
@@ -547,13 +561,13 @@ p_mesgout_loop:
  * If the next bus phase after ATN drops is a message out, it means
  * that the target is requesting that the last message(s) be resent.
  */
-p_mesgout_dropatn:
-	cmp	DINDEX,1	jne p_mesgout_testretry;/* last byte? */
-	mvi	CLRSINT1,CLRATNO;			/* drop ATN */
 p_mesgout_testretry:
-	test	DINDEX,0xff	jnz p_mesgout_outb;
+	test	DINDEX,0xff	jnz p_mesgout_dropatn;
 	or	SCSISIGO,ATNO,LASTPHASE;/* turn on ATN for the retry */
 	jmp	p_mesgout_start;
+p_mesgout_dropatn:
+	cmp	DINDEX,1	jne p_mesgout_outb;	/* last byte? */
+	mvi	CLRSINT1,CLRATNO;			/* drop ATN */
 p_mesgout_outb:
 	dec	DINDEX;
 	mov	SCSIDATL,SINDIR;
