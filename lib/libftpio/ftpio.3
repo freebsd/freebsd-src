@@ -39,7 +39,10 @@
 .Nm ftpPassive ,
 .Nm ftpVerbose ,
 .Nm ftpGetURL ,
-.Nm ftpPutURL
+.Nm ftpPutURL ,
+.Nm ftpLoginAf ,
+.Nm ftpGetURLAf ,
+.Nm ftpPutURLAf
 .Nd FTPIO User library
 .Sh SYNOPSIS
 .Fd #include <ftpio.h>
@@ -71,6 +74,12 @@
 .Fn ftpGetURL "char *url, char *user, char *passwd, int *retcode"
 .Ft FILE *
 .Fn ftpPutURL "char *url, char *user, char *passwd, int *retcode"
+.Ft int
+.Fn ftpLoginAf "char *host" "int af" "char *user" "char *passwd" "int ftp_port" "int verbose" "int *retcode"
+.Ft FILE *
+.Fn ftpGetURLAf "char *url" "int af" "char *user" "char *passwd" "int *retcode"
+.Ft FILE *
+.Fn ftpPutURLAf "char *url" "int af" "char *user" "char *passwd" "int *retcode"
 
 .Sh DESCRIPTION
 These functions implement a high-level library for managing FTP connections.
@@ -186,6 +195,16 @@ operations except that no server stream is ever returned - the connection
 to the server closes when the file has been completely written.  Use the
 lower-level routines if multiple puts are required as it will be far more
 efficient.
+.Pp
+.Fn ftpLoginAf ,
+.Fn ftpGetURLAf ,
+.Fn ftpPutURLAf
+are same as
+.Fn ftpLogin ,
+.Fn ftpGetURL ,
+.Fn ftpPutURL
+except that they are able to specify address family
+.Fa af .
 .Sh ENVIRONMENT
 .Bl -tag -width FTP_PASSIVE_MODE -offset 123
 .It Ev FTP_TIMEOUT

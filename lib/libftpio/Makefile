@@ -1,12 +1,13 @@
 # $FreeBSD$
 
 LIB=		ftpio
-SHLIB_MAJOR=	5
+SHLIB_MAJOR=	6
 SHLIB_MINOR=	0
 
 SRCS=		ftpio.c ftperr.c
 INCS=		ftpio.h
 CFLAGS+=	-I${.CURDIR} -Wall
+CFLAGS+=	-DINET6
 MAN3=		ftpio.3
 CLEANFILES=	ftperr.c
 
