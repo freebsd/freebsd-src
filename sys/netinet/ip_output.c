@@ -175,7 +175,7 @@ ip_output(m0, opt, ro, flags, imo)
             ip = mtod(m, struct ip *);
             hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
             if (ro->ro_rt != NULL)
-                ia = (struct in_ifaddr *)ro->ro_rt->rt_ifa;
+                ia = ifatoia(ro->ro_rt->rt_ifa);
             goto sendit;
         } else
             rule = NULL ;
@@ -234,8 +234,6 @@ ip_output(m0, opt, ro, flags, imo)
 	 * If routing to interface only,
 	 * short circuit routing lookup.
 	 */
-#define ifatoia(ifa)	((struct in_ifaddr *)(ifa))
-#define sintosa(sin)	((struct sockaddr *)(sin))
 	if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == 0 &&
 		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst)))) == 0) {
@@ -403,6 +401,7 @@ ip_output(m0, opt, ro, flags, imo)
 	if ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
 		ifp->if_snd.ifq_maxlen) {
 			error = ENOBUFS;
+			ipstat.ips_odropped++;
 			goto bad;
 	}
 
@@ -688,7 +687,8 @@ skip_ipsec:
 			 * as the packet runs through ip_input() as
 			 * it is done through a ISR.
 			 */
-			TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+			LIST_FOREACH(ia,
+			    INADDR_HASH(dst->sin_addr.s_addr), ia_hash) {
 				/*
 				 * If the addr to forward to is one
 				 * of ours, we pretend to
