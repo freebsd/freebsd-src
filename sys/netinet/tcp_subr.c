@@ -2029,10 +2029,10 @@ tcpsignature_compute(struct mbuf *m, int off0, int len, int optlen,
 }
 
 int
-tcpsignature_apply(void *fstate, void *data, unsigned int len)
+tcpsignature_apply(void *fstate, void *data, u_int len)
 {
 
-	MD5Update((MD5_CTX *)fstate, (unsigned char *)data, len);
+	MD5Update((MD5_CTX *)fstate, (unsigned char *)data, (unsigned int)len);
 	return (0);
 }
 #endif /* TCP_SIGNATURE */
