@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.38 1998/07/21 21:47:51 dfr Exp $";
+	"$Id: mkioconf.c,v 1.39 1998/09/03 21:03:43 nsouch Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -701,6 +701,7 @@ i386_ioconf()
 	fprintf(fp, " * New bus architecture devices.\n");
 	fprintf(fp, " */\n");
 	fprintf(fp, "\n");
+	fprintf(fp, "#include <sys/queue.h>\n");
 	fprintf(fp, "#include <sys/bus_private.h>\n");
 	fprintf(fp, "\n");
 	count = 0;
