@@ -121,9 +121,10 @@ main(argc, argv)
 	struct sockaddr_in sin;
 	char *chroot_dir = NULL;
 	struct passwd *nobody;
+	char *chuser = "nobody";
 
 	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "lns:")) != -1) {
+	while ((ch = getopt(argc, argv, "lns:u:")) != -1) {
 		switch (ch) {
 		case 'l':
 			logging = 1;
@@ -133,6 +134,9 @@ main(argc, argv)
 			break;
 		case 's':
 			chroot_dir = optarg;
+			break;
+		case 'u':
+			chuser = optarg;
 			break;
 		default:
 			syslog(LOG_WARNING, "ignoring unknown option -%c", ch);
@@ -226,8 +230,8 @@ main(argc, argv)
 	 */
 	if (chroot_dir) {
 		/* Must get this before chroot because /etc might go away */
-		if ((nobody = getpwnam("nobody")) == NULL) {
-			syslog(LOG_ERR, "nobody: no such user");
+		if ((nobody = getpwnam(chuser)) == NULL) {
+			syslog(LOG_ERR, "%s: no such user", chuser);
 			exit(1);
 		}
 		if (chroot(chroot_dir)) {
