@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.7 1994/08/13 03:49:21 wollman Exp $
+ *	$Id: db_output.c,v 1.8 1994/08/27 16:14:09 davidg Exp $
  */
 
 /*
@@ -251,13 +251,14 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 		case 'b':
 			ul = va_arg(ap, int);
 			p = va_arg(ap, char *);
-			for (p = db_ksprintn(ul, *p++, NULL); ch = *p--;)
-				db_putchar(ch);
+			for (p = db_ksprintn(ul, *p++, NULL); *p;p--)
+				db_putchar(*p);
 
 			if (!ul)
 				break;
 
-			for (tmp = 0; n = *p++;) {
+			for (tmp = 0; *p;) {
+				n = *p++;
 				if (ul & (1 << (n - 1))) {
 					db_putchar(tmp ? ',' : '<');
 					for (; (n = *p) > ' '; ++p)
@@ -285,8 +286,8 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			if (!ladjust && width > 0)
 				while (width--)
 					db_putchar (padc);
-			while (ch = *p++)
-				db_putchar(ch);
+			for (;*p;p++)
+				db_putchar(*p);
 			if (ladjust && width > 0)
 				while (width--)
 					db_putchar (padc);
@@ -361,8 +362,8 @@ number:			p = (char *)db_ksprintn(ul, base, &tmp);
 				while (width--)
 					db_putchar(padc);
 
-			while (ch = *p--)
-				db_putchar(ch);
+			for (;*p;p--)
+				db_putchar(*p);
 			break;
 		default:
 			db_putchar('%');

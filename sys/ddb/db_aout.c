@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.7 1994/08/13 03:49:14 wollman Exp $
+ *	$Id: db_aout.c,v 1.8 1994/09/05 14:04:56 bde Exp $
  */
 
 /*
@@ -172,12 +172,14 @@ X_db_search_symbol(symtab, off, strategy, diffp)
 		if (off - sp->n_value < diff) {
 		    diff = off - sp->n_value;
 		    symp = sp;
-		    if (diff == 0 &&
-				(strategy == DB_STGY_PROC &&
-					sp->n_type == (N_TEXT|N_EXT)   ||
-				strategy == DB_STGY_ANY &&
-					(sp->n_type & N_EXT)))
-			break;
+		    if (diff == 0) {
+		        if (strategy == DB_STGY_PROC &&
+					sp->n_type == (N_TEXT|N_EXT))
+		 	    break;
+			if (strategy == DB_STGY_ANY &&
+					(sp->n_type & N_EXT))
+			    break;
+		    }
 		}
 		else if (off - sp->n_value == diff) {
 		    if (symp == 0)
@@ -225,7 +227,6 @@ X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 	db_expr_t	off;
 {
 	register struct nlist	*sp, *ep;
-	register struct nlist	*sym = (struct nlist *)cursym;
 	unsigned long		sodiff = -1UL, lndiff = -1UL, ln = 0;
 	char			*fname = NULL;
 

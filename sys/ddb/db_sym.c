@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.5 1994/08/13 03:49:23 wollman Exp $
+ *	$Id: db_sym.c,v 1.6 1994/08/20 03:48:26 davidg Exp $
  */
 
 /*
@@ -93,15 +93,11 @@ db_qualify(sym, symtabname)
 {
 	char		*symname;
 	static char     tmp[256];
-	register char	*s;
 
 	db_symbol_values(sym, &symname, 0);
-	s = tmp;
-	while (*s++ = *symtabname++) {
-	}
-	s[-1] = ':';
-	while (*s++ = *symname++) {
-	}
+	strcpy(tmp,symtabname);
+	strcat(tmp,":");
+	strcat(tmp,symname);
 	return tmp;
 }
 
@@ -176,7 +172,8 @@ db_lookup(symstr)
 	 * Return on first match.
 	 */
 	for (i = symtab_start; i < symtab_end; i++) {
-		if (sp = X_db_lookup(&db_symtabs[i], symstr)) {
+		sp = X_db_lookup(&db_symtabs[i], symstr);
+		if (sp) {
 			db_last_symtab = &db_symtabs[i];
 			return sp;
 		}
