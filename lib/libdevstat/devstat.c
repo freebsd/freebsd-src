@@ -115,7 +115,7 @@ struct devstat_args {
 	{ DSM_SKIP, DEVSTAT_ARG_SKIP }
 };
 
-static char *namelist[] = {
+static const char *namelist[] = {
 #define X_NUMDEVS	0
 	"_devstat_num_devs",
 #define X_GENERATION	1
@@ -132,7 +132,7 @@ static char *namelist[] = {
  */
 static int compare_select(const void *arg1, const void *arg2);
 static int readkmem(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes);
-static int readkmem_nl(kvm_t *kd, char *name, void *buf, size_t nbytes);
+static int readkmem_nl(kvm_t *kd, const char *name, void *buf, size_t nbytes);
 static char *get_devstat_kvm(kvm_t *kd);
 
 #define KREADNL(kd, var, val) \
@@ -143,7 +143,7 @@ devstat_getnumdevs(kvm_t *kd)
 {
 	size_t numdevsize;
 	int numdevs;
-	char *func_name = "devstat_getnumdevs";
+	const char *func_name = "devstat_getnumdevs";
 
 	numdevsize = sizeof(int);
 
@@ -161,6 +161,7 @@ devstat_getnumdevs(kvm_t *kd)
 		} else
 			return(numdevs);
 	} else {
+
 		if (KREADNL(kd, X_NUMDEVS, numdevs) == -1)
 			return(-1);
 		else
@@ -180,7 +181,7 @@ devstat_getgeneration(kvm_t *kd)
 {
 	size_t gensize;
 	long generation;
-	char *func_name = "devstat_getgeneration";
+	const char *func_name = "devstat_getgeneration";
 
 	gensize = sizeof(long);
 
@@ -215,7 +216,7 @@ devstat_getversion(kvm_t *kd)
 {
 	size_t versize;
 	int version;
-	char *func_name = "devstat_getversion";
+	const char *func_name = "devstat_getversion";
 
 	versize = sizeof(int);
 
@@ -247,7 +248,7 @@ devstat_getversion(kvm_t *kd)
 int
 devstat_checkversion(kvm_t *kd)
 {
-	char *func_name = "devstat_checkversion";
+	const char *func_name = "devstat_checkversion";
 	int buflen, res, retval = 0, version;
 
 	version = devstat_getversion(kd);
@@ -313,7 +314,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 	long oldgeneration;
 	int retval = 0;
 	struct devinfo *dinfo;
-	char *func_name = "devstat_getdevs";
+	const char *func_name = "devstat_getdevs";
 
 	dinfo = stats->dinfo;
 
@@ -900,7 +901,7 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 			 * device at index i in the old array.
 			 */
 			else {
-				int found = 0;
+				found = 0;
 
 				/*
 				 * Search through the old selection array
@@ -951,17 +952,17 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 static int
 compare_select(const void *arg1, const void *arg2)
 {
-	if ((((struct device_selection *)arg1)->selected)
-	 && (((struct device_selection *)arg2)->selected == 0))
+	if ((((const struct device_selection *)arg1)->selected)
+	 && (((const struct device_selection *)arg2)->selected == 0))
 		return(-1);
-	else if ((((struct device_selection *)arg1)->selected == 0)
-	      && (((struct device_selection *)arg2)->selected))
+	else if ((((const struct device_selection *)arg1)->selected == 0)
+	      && (((const struct device_selection *)arg2)->selected))
 		return(1);
-	else if (((struct device_selection *)arg2)->bytes <
-	         ((struct device_selection *)arg1)->bytes)
+	else if (((const struct device_selection *)arg2)->bytes <
+	         ((const struct device_selection *)arg1)->bytes)
 		return(-1);
-	else if (((struct device_selection *)arg2)->bytes >
-		 ((struct device_selection *)arg1)->bytes)
+	else if (((const struct device_selection *)arg2)->bytes >
+		 ((const struct device_selection *)arg1)->bytes)
 		return(1);
 	else
 		return(0);
@@ -979,7 +980,7 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 	char **tempstr;
 	int num_args;
 	register int i, j;
-	char *func_name = "devstat_buildmatch";
+	const char *func_name = "devstat_buildmatch";
 
 	/* We can't do much without a string to parse */
 	if (match_str == NULL) {
@@ -1163,7 +1164,7 @@ int
 devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			   long double etime, ...)
 {
-	char *func_name = "devstat_compute_statistics";
+	const char *func_name = "devstat_compute_statistics";
 	u_int64_t totalbytes, totalbytesread, totalbyteswrite;
 	u_int64_t totaltransfers, totaltransfersread, totaltransferswrite;
 	u_int64_t totaltransfersother, totalblocks, totalblocksread;
@@ -1450,7 +1451,7 @@ bailout:
 static int 
 readkmem(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes)
 {
-	char *func_name = "readkmem";
+	const char *func_name = "readkmem";
 
 	if (kvm_read(kd, addr, buf, nbytes) == -1) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
@@ -1462,10 +1463,13 @@ readkmem(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes)
 }
 
 static int
-readkmem_nl(kvm_t *kd, char *name, void *buf, size_t nbytes)
+readkmem_nl(kvm_t *kd, const char *name, void *buf, size_t nbytes)
 {
-	char *func_name = "readkmem_nl";
-	struct nlist nl[2] = { { name }, { NULL } };
+	const char *func_name = "readkmem_nl";
+	struct nlist nl[2];
+
+	(const char *)nl[0].n_name = name;
+	nl[1].n_name = NULL;
 
 	if (kvm_nlist(kd, nl) == -1) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
@@ -1490,7 +1494,7 @@ get_devstat_kvm(kvm_t *kd)
 	struct devstatlist dhead;
 	int num_devs;
 	char *rv = NULL;
-	char *func_name = "get_devstat_kvm";
+	const char *func_name = "get_devstat_kvm";
 
 	if ((num_devs = getnumdevs()) <= 0)
 		return(NULL);

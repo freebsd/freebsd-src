@@ -85,7 +85,7 @@ struct devstat_match {
 };
 
 struct devstat_match_table {
-	char 			*match_str;
+	const char *		match_str;
 	devstat_type_flags	type;
 	devstat_match_flags	match_field;
 };

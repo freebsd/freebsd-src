@@ -34,4 +34,6 @@ MLINKS+=devstat.3 compute_etime.3
 
 CFLAGS+=-I${.CURDIR}
 
+WARNS?=	2
+
 .include <bsd.lib.mk>
