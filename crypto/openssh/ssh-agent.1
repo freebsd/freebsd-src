@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.16 2000/09/07 20:27:54 deraadt Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.24 2001/04/10 09:13:21 itojun Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -10,9 +10,9 @@
 .\" incompatible with the protocol description in the RFC file, it must be
 .\" called by a name other than "ssh" or "Secure Shell".
 .\"
-.\" Copyright (c) 1999,2000 Markus Friedl. All rights reserved.
-.\" Copyright (c) 1999 Aaron Campbell. All rights reserved.
-.\" Copyright (c) 1999 Theo de Raadt. All rights reserved.
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -42,12 +42,12 @@
 .Nd authentication agent
 .Sh SYNOPSIS
 .Nm ssh-agent
-.Op Fl c Li | Fl s
-.Op Fl k
-.Oo
 .Ar command
-.Op Ar args ...
-.Oc
+.Ar args ...
+.Nm ssh-agent
+.Op Fl c Li | Fl s
+.Nm ssh-agent
+.Fl k
 .Sh DESCRIPTION
 .Nm
 is a program to hold private keys used for public key authentication
@@ -121,7 +121,7 @@ or
 syntax can be generated) which can be evalled in the calling shell.
 Later
 .Xr ssh 1
-look at these variables and use them to establish a connection to the agent.
+looks at these variables and uses them to establish a connection to the agent.
 .Pp
 A unix-domain socket is created
 .Pq Pa /tmp/ssh-XXXXXXXX/agent.<pid> ,
@@ -142,7 +142,7 @@ line terminates.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa $HOME/.ssh/identity
-Contains the RSA authentication identity of the user.
+Contains the protocol version 1 RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
@@ -153,42 +153,26 @@ but is normally added to the agent using
 .Xr ssh-add 1
 at login time.
 .It Pa $HOME/.ssh/id_dsa
-Contains the DSA authentication identity of the user.
-.Pq Pa /tmp/ssh-XXXXXXXX/agent.<pid> ,
+Contains the protocol version 2 DSA authentication identity of the user.
+.It Pa $HOME/.ssh/id_rsa
+Contains the protocol version 2 RSA authentication identity of the user.
+.It Pa /tmp/ssh-XXXXXXXX/agent.<pid>
 Unix-domain sockets used to contain the connection to the
 authentication agent.
 These sockets should only be readable by the owner.
 The sockets should get automatically removed when the agent exits.
 .El
-.Sh AUTHOR
-Tatu Ylonen <ylo@cs.hut.fi>
-.Pp
-OpenSSH
-is a derivative of the original (free) ssh 1.2.12 release, but with bugs
-removed and newer features re-added.
-Rapidly after the 1.2.12 release,
-newer versions bore successively more restrictive licenses.
-This version of OpenSSH
-.Bl -bullet
-.It
-has all components of a restrictive nature (i.e., patents, see
-.Xr ssl 8 )
-directly removed from the source code; any licensed or patented components
-are chosen from
-external libraries.
-.It
-has been updated to support ssh protocol 1.5.
-.It
-contains added support for
-.Xr kerberos 8
-authentication and ticket passing.
-.It
-supports one-time password authentication with
-.Xr skey 1 .
-.El
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-keygen 1 ,
-.Xr sshd 8 ,
-.Xr ssl 8
+.Xr sshd 8

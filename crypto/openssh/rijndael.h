@@ -1,3 +1,19 @@
+/*	$OpenBSD: rijndael.h,v 1.7 2001/03/01 03:38:33 deraadt Exp $	*/
+
+/* This is an independent implementation of the encryption algorithm:   */
+/*                                                                      */
+/*         RIJNDAEL by Joan Daemen and Vincent Rijmen                   */
+/*                                                                      */
+/* which is a candidate algorithm in the Advanced Encryption Standard   */
+/* programme of the US National Institute of Standards and Technology.  */
+/*                                                                      */
+/* Copyright in this implementation is held by Dr B R Gladman but I     */
+/* hereby give permission for its free direct or derivative use subject */
+/* to acknowledgment of its origin and compliance with any conditions   */
+/* that the originators of the algorithm place on its exploitation.     */
+/*                                                                      */
+/* Dr Brian Gladman (gladman@seven77.demon.co.uk) 14th January 1999     */
+
 #ifndef _RIJNDAEL_H_
 #define _RIJNDAEL_H_
 

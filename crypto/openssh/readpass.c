@@ -32,11 +32,58 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readpass.c,v 1.12 2000/10/11 20:14:39 markus Exp $");
+RCSID("$OpenBSD: readpass.c,v 1.15 2001/04/18 21:57:41 markus Exp $");
 
 #include "xmalloc.h"
-#include "ssh.h"
 #include "cli.h"
+#include "readpass.h"
+#include "pathnames.h"
+#include "log.h"
+#include "atomicio.h"
+#include "ssh.h"
+
+char *
+ssh_askpass(char *askpass, char *msg)
+{
+	pid_t pid;
+	size_t len;
+	char *nl, *pass;
+	int p[2], status;
+	char buf[1024];
+
+	if (fflush(stdout) != 0)
+		error("ssh_askpass: fflush: %s", strerror(errno));
+	if (askpass == NULL)
+		fatal("internal error: askpass undefined");
+	if (pipe(p) < 0)
+		fatal("ssh_askpass: pipe: %s", strerror(errno));
+	if ((pid = fork()) < 0)
+		fatal("ssh_askpass: fork: %s", strerror(errno));
+	if (pid == 0) {
+		seteuid(getuid());
+		setuid(getuid());
+		close(p[0]);
+		if (dup2(p[1], STDOUT_FILENO) < 0)
+			fatal("ssh_askpass: dup2: %s", strerror(errno));
+		execlp(askpass, askpass, msg, (char *) 0);
+		fatal("ssh_askpass: exec(%s): %s", askpass, strerror(errno));
+	}
+	close(p[1]);
+	len = read(p[0], buf, sizeof buf);
+	close(p[0]);
+	while (waitpid(pid, &status, 0) < 0)
+		if (errno != EINTR)
+			break;
+	if (len <= 1)
+		return xstrdup("");
+	nl = strchr(buf, '\n');
+	if (nl)
+		*nl = '\0';
+	pass = xstrdup(buf);
+	memset(buf, 0, sizeof(buf));
+	return pass;
+}
+
 
 /*
  * Reads a passphrase from /dev/tty with echo turned off.  Returns the
@@ -51,5 +98,27 @@ RCSID("$OpenBSD: readpass.c,v 1.12 2000/10/11 20:14:39 markus Exp $");
 char *
 read_passphrase(char *prompt, int from_stdin)
 {
+	char *askpass = NULL;
+	int use_askpass = 0, ttyfd;
+
+	if (from_stdin) {
+		if (!isatty(STDIN_FILENO))
+			use_askpass = 1;
+	} else {
+		ttyfd = open("/dev/tty", O_RDWR);
+		if (ttyfd >= 0)
+			close(ttyfd);
+		else
+			use_askpass = 1;
+	}
+
+	if (use_askpass && getenv("DISPLAY")) {
+		if (getenv(SSH_ASKPASS_ENV))
+			askpass = getenv(SSH_ASKPASS_ENV);
+		else
+			askpass = _PATH_SSH_ASKPASS_DEFAULT;
+		return ssh_askpass(askpass, prompt);
+	}
+
 	return cli_read_passphrase(prompt, from_stdin, 0);
 }
