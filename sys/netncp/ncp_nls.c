@@ -35,15 +35,8 @@
  */
 #include <sys/param.h>
 #include <sys/errno.h>
-#include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/time.h>
-#include <sys/lock.h>
 
 #include <netncp/ncp.h>
-#include <netncp/ncp_subr.h>
 #include <netncp/ncp_nls.h>
 
 /*

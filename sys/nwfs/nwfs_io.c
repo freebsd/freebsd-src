@@ -36,16 +36,11 @@
 #include <sys/systm.h>
 #include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
-#include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/fcntl.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
@@ -54,17 +49,13 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
-#include <sys/ioccom.h>
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
 #include <netncp/ncp_subr.h>
-#include <netncp/ncp_ncp.h>
-#include <netncp/ncp_rq.h>
 
 #include <nwfs/nwfs.h>
 #include <nwfs/nwfs_node.h>

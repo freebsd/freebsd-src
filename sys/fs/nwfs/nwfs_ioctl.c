@@ -33,16 +33,10 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
-#include <sys/dirent.h>
-#include <sys/signalvar.h>
 #include <sys/ioccom.h>
 
 #include <netncp/ncp.h>

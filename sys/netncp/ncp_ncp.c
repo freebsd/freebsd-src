@@ -38,13 +38,10 @@
 
 #include <sys/param.h>
 #include <sys/errno.h>
-#include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/kernel.h>
 #include <sys/poll.h>
 #include <sys/signalvar.h>
-#include <sys/socketvar.h>
 #include <sys/mbuf.h>
 
 #ifdef IPX

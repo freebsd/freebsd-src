@@ -34,24 +34,17 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
-#include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
-#include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
-#include <sys/dirent.h>
-#include <sys/signalvar.h>
-#include <sys/ioccom.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
-#include <vm/vnode_pager.h>
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
