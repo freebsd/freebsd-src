@@ -550,7 +550,7 @@ ata_boot_attach(void)
 #endif
     if (ata_delayed_attach) {
 	config_intrhook_disestablish(ata_delayed_attach);
-	free(ata_delayed_attach, M_ATA);
+	free(ata_delayed_attach, M_TEMP);
 	ata_delayed_attach = NULL;
     }
 }
