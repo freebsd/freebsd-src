@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.4 1995/08/29 01:42:43 jfieber Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.5 1995/10/07 04:31:38 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -383,7 +383,7 @@
 	    <tag>WD7000 driver</tag> Owner: Olof Johansson
 	      (offe@ludd.luth.se)
 	      
-	    <tag>Pcvt Console driver</tag> Owner: Joerg Wunsch
+	    <tag>Pcvt Console driver</tag> Owner: J&ouml;rg Wunsch
 	      (joerg@FreeBSD.org)
 
 	      Submitted by: Hellmuth Michaelis
