@@ -7,6 +7,7 @@ SUBDIR=	async \
 	bpf \
 	bridge \
 	cisco \
+	device \
 	echo \
 	eiface \
 	etf \
