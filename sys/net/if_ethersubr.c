@@ -604,7 +604,8 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 #endif
 
 	if (!(BDG_ACTIVE(ifp)) &&
-	    !(ether_type == ETHERTYPE_VLAN && ifp->if_nvlans > 0)) {
+	    !((ether_type == ETHERTYPE_VLAN || m->m_flags & M_VLANTAG) &&
+	    ifp->if_nvlans > 0)) {
 		/*
 		 * Discard packet if upper layers shouldn't see it because it
 		 * was unicast to a different Ethernet address. If the driver
@@ -618,7 +619,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		 * it's undesired.
 		 */
 		if ((ifp->if_flags & IFF_PROMISC) != 0
-		    && (eh->ether_dhost[0] & 1) == 0
+		    && !ETHER_IS_MULTICAST(eh->ether_dhost)
 		    && bcmp(eh->ether_dhost,
 		      IFP2AC(ifp)->ac_enaddr, ETHER_ADDR_LEN) != 0
 		    && (ifp->if_flags & IFF_PPROMISC) == 0) {
@@ -657,8 +658,7 @@ post_stats:
 	 * Check to see if the device performed the VLAN decapsulation and
 	 * provided us with the tag.
 	 */
-	if (m_tag_first(m) != NULL &&
-	    m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL) != NULL) {
+	if (m->m_flags & M_VLANTAG) {
 		/*
 		 * If no VLANs are configured, drop.
 		 */

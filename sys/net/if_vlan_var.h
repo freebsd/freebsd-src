@@ -80,8 +80,8 @@ struct	vlanreq {
  *
  * to mark the packet m with the specified VLAN tag.  The last
  * parameter provides code to execute in case of an error.  On
- * output the driver should check ifnet to see if any VLANs are
- * in use and only then check for a packet tag; this is done with:
+ * output the driver should check mbuf to see if a VLAN tag is
+ * present and only then check for a tag; this is done with:
  *
  *	struct m_tag *mtag;
  *	mtag = VLAN_OUTPUT_TAG(ifp, m);
@@ -107,10 +107,11 @@ struct	vlanreq {
 	}							\
 	*(u_int *)(mtag+1) = (_t);				\
 	m_tag_prepend((_m), mtag);				\
+	(_m)->m_flags |= M_VLANTAG;				\
 } while (0)
 
 #define	VLAN_OUTPUT_TAG(_ifp, _m)				\
-	((_ifp)->if_nvlans != 0 ?				\
+	((_m)->m_flags & M_VLANTAG ?				\
 		m_tag_locate((_m), MTAG_VLAN, MTAG_VLAN_TAG, NULL) : NULL)
 #define	VLAN_TAG_VALUE(_mt)	(*(u_int *)((_mt)+1))
 #endif /* _KERNEL */
