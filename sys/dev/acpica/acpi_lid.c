@@ -54,7 +54,8 @@ static int	acpi_lid_attach(device_t dev);
 static int	acpi_lid_suspend(device_t dev);
 static int	acpi_lid_resume(device_t dev);
 static void	acpi_lid_notify_status_changed(void *arg);
-static void 	acpi_lid_notify_handler(ACPI_HANDLE h,UINT32 notify, void *context);
+static void 	acpi_lid_notify_handler(ACPI_HANDLE h, UINT32 notify,
+					void *context);
 
 static device_method_t acpi_lid_methods[] = {
     /* Device interface */
@@ -149,6 +150,8 @@ acpi_lid_notify_status_changed(void *arg)
     ACPI_VPRINT(sc->lid_dev, acpi_sc, "Lid %s\n",
 		sc->lid_status ? "opened" : "closed");
 
+    acpi_UserNotify("Lid", sc->lid_handle, sc->lid_status);
+
     if (sc->lid_status == 0)
 	EVENTHANDLER_INVOKE(acpi_sleep_event, acpi_sc->acpi_lid_switch_sx);
     else
@@ -178,4 +181,3 @@ acpi_lid_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
     return_VOID;
 }
-
