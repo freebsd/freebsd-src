@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.132 1995/04/10 08:01:27 phk Exp $
+#	$Id: Makefile,v 1.133 1995/04/12 08:00:20 phk Exp $
 #
 # How to roll a release:
 #
@@ -142,7 +142,7 @@ release.3:
 			make depend && \
 			make kernel && \
 			cp kernel ${RD}/kernels/$$i ; \
-		rm -rf ${.CURDIR}/../sys/compile/$$i
+		rm -rf ${.CURDIR}/../sys/compile/$$i ; \
 	done
 	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
 	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
