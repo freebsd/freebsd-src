@@ -48,6 +48,7 @@
 
 #include "opt_atalk.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -585,6 +586,9 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		memcpy(&lifr->dstaddr, &si, sizeof(si));
 		break;
 	case SIOCGIFPSRCADDR:
+#ifdef INET6
+	case SIOCGIFPSRCADDR_IN6:
+#endif
 		if (sc->g_src.s_addr == INADDR_ANY) {
 			error = EADDRNOTAVAIL;
 			break;
@@ -596,6 +600,9 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		bcopy(&si, &ifr->ifr_addr, sizeof(ifr->ifr_addr));
 		break;
 	case SIOCGIFPDSTADDR:
+#ifdef INET6
+	case SIOCGIFPDSTADDR_IN6:
+#endif
 		if (sc->g_dst.s_addr == INADDR_ANY) {
 			error = EADDRNOTAVAIL;
 			break;
