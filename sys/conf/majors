@@ -35,7 +35,7 @@ chrdev	name		comments
 15	cd		SCSI "CDROM type"
 16	lpt		PC parallel printer port
 17	ch		SCSI changer
-18	su		SCSI universal type
+18	??		was su
 19	tw		X-10 power interface
 20	??		reserved for local use
 21	psm		PS/2 Mouse
@@ -66,7 +66,7 @@ chrdev	name		comments
 46	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
 47	gsc		Genius Scanner
 48	cy		Cyclades
-49	ssc		SCSI super device
+49	??		was ssc
 50	card		pcmcia cards
 51	joy		joystick
 52	tun		IP tunnel device
