@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.291 1997/04/13 20:20:25 joerg Exp $
+#	$Id: Makefile,v 1.292 1997/04/25 09:11:50 jkh Exp $
 #
 # How to roll a release:
 #
@@ -60,8 +60,8 @@ CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
 
 # ${BOOTSTRAPDIR} is for those utilities that refer to the hosting
-# environment, rather then the target environment.  This is specifically
-# intended for kernel-dependant utilities that are used during the build.
+# environment, rather than the target environment.  This is specifically
+# intended for kernel-dependent utilities that are used during the build.
 #
 # ${BOOTSTRAPDIR} is actually being used by prepending it to the normal
 # ${PATH}.  Thus, it's also available to outside utilities like doFS.sh.
