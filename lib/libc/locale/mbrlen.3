@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 16, 2002
+.Dd October 4, 2002
 .Dt MBRLEN 3
 .Os
 .Sh NAME
@@ -91,6 +91,27 @@ The byte sequence pointed to by
 .Fa s
 is an invalid multibyte sequence.
 .El
+.Sh EXAMPLES
+A function which calculates the number of characters in a multibyte
+character string:
+.Bd -literal -offset indent
+size_t
+nchars(const char *s)
+{
+	size_t charlen, chars;
+	mbstate_t mbs;
+
+	chars = 0;
+	memset(&mbs, 0, sizeof(mbs));
+	while ((charlen = mbrlen(s, MB_CUR_MAX, &mbs)) != 0 &&
+	    charlen != (size_t)-1 && charlen != (size_t)-2) {
+		s += charlen;
+		chars++;
+	}
+
+	return (chars);
+}
+.Ed
 .Sh ERRORS
 The
 .Fn mbrlen
