@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.26 1995/06/06 23:45:07 jkh Exp $
+ * $Id: menus.c,v 1.41.2.27 1995/06/07 05:50:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -590,6 +590,12 @@ clearFlags(char *str)
 }
 
 static char *
+userPassCheck(char *str)
+{
+    return getenv(FTP_USER) ? "ON" : "OFF";
+}
+
+static char *
 ftpFlagCheck(DMenuItem *item)
 {
     /* Verify that everything's sane */
@@ -632,7 +638,7 @@ be at various stages.",
       { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
 	DMENU_SET_FLAG,	&OptFlags, OPT_NO_CONFIRM, 0, dmenuFlagCheck	},
       { "FTP userpass", "Specify username and password instead of anonymous",
-	DMENU_CALL, mediaSetFtpUserPass, 0, 0			},
+	DMENU_CALL, mediaSetFtpUserPass, 0, userPassCheck		},
       { "Clear", "Clear All Option Flags",
 	DMENU_CALL,		clearFlags, 0, 0 },
       { "Exit", "Exit this menu (returning to previous)",

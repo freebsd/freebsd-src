@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.22 1995/06/05 23:13:52 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.23 1995/06/05 23:15:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,9 +56,6 @@ Boolean ftpInitted;
 static FTP_t ftp;
 extern int FtpPort;
 
-#define FTP_USER	"_ftpUser"
-#define FTP_PASS	"_ftpPass"
-
 int
 mediaSetFtpUserPass(char *str)
 {
@@ -84,6 +81,8 @@ get_new_host(Device *dev)
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
     if (i) {
+	if (getenv(FTP_USER))
+	    (void)mediaSetFtpUserPass(NULL);
 	netDev->flags |= OPT_LEAVE_NETWORK_UP;
 	(*dev->shutdown)(dev);
 	i = (*dev->init)(dev);
