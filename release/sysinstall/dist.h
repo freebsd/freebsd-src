@@ -1,24 +1,27 @@
+/*  $Id: dist.h,v 1.33 1999/04/21 07:42:02 obrien Exp $  */
+
 #ifndef _DIST_H_INCLUDE
 #define _DIST_H_INCLUDE
 
 /* Bitfields for distributions - hope we never have more than 32! :-) */
-#define DIST_BIN		0x0001
-#define DIST_GAMES		0x0002
-#define DIST_MANPAGES		0x0004
-#define DIST_PROFLIBS		0x0008
-#define DIST_DICT		0x0010
-#define DIST_SRC		0x0020
-#define DIST_DOC		0x0040
-#define DIST_INFO		0x0080
-#define DIST_COMPAT1X		0x0100
-#define DIST_COMPAT20		0x0200
-#define DIST_COMPAT21		0x0400
-#define DIST_COMPAT22		0x0800
-#define DIST_XF86		0x1000
-#define DIST_DES		0x2000
-#define DIST_CATPAGES		0x4000
-#define DIST_PORTS		0x8000
-#define DIST_ALL		0xFFFF
+#define DIST_BIN		0x00001
+#define DIST_GAMES		0x00002
+#define DIST_MANPAGES		0x00004
+#define DIST_PROFLIBS		0x00008
+#define DIST_DICT		0x00010
+#define DIST_SRC		0x00020
+#define DIST_DOC		0x00040
+#define DIST_INFO		0x00080
+#define DIST_COMPAT1X		0x00100
+#define DIST_COMPAT20		0x00200
+#define DIST_COMPAT21		0x00400
+#define DIST_COMPAT22		0x00800
+#define DIST_COMPAT3X		0x01000
+#define DIST_XF86		0x02000
+#define DIST_DES		0x04000
+#define DIST_CATPAGES		0x08000
+#define DIST_PORTS		0x10000
+#define DIST_ALL		0xFFFFF
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \

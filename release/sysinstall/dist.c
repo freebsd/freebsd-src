@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.132.2.3 1999/02/14 18:55:29 jkh Exp $
+ * $Id: dist.c,v 1.132.2.4 1999/03/19 21:48:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,6 +77,9 @@ static Distribution DistTable[] = {
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "compat22",	"/",			&Dists,		DIST_COMPAT22,		NULL		},
+#if __FreeBSD__ > 3
+{ "compat3x",	"/",			&Dists,		DIST_COMPAT3X,		NULL		},
+#endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "XF86333",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
