@@ -65,7 +65,7 @@ extern Distribution XF86ServerDistTable[];
 
 /* The top-level distribution categories */
 static Distribution DistTable[] = {
-{ "bin",	"/",			&Dists,		DIST_BIN,		NULL		},
+{ "base",	"/",			&Dists,		DIST_BASE,		NULL		},
 { "doc",	"/",			&Dists,		DIST_DOC,		NULL		},
 { "games",	"/",			&Dists,		DIST_GAMES,		NULL		},
 { "manpages",	"/",			&Dists,		DIST_MANPAGES,		NULL		},
@@ -359,7 +359,7 @@ int
 distSetMinimum(dialogMenuItem *self)
 {
     distReset(NULL);
-    Dists = DIST_BIN | DIST_CRYPTO;
+    Dists = DIST_BASE | DIST_CRYPTO;
     CRYPTODists |= DIST_CRYPTO_CRYPTO;
     distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
@@ -688,7 +688,7 @@ distExtract(char *parent, Distribution *me)
 	total = 0;
 	(void)gettimeofday(&start, (struct timezone *)0);
 
-	if (me[i].my_bit == DIST_BIN && RunningAsInit && !Fake) {
+	if (me[i].my_bit == DIST_BASE && RunningAsInit && !Fake) {
 		unmounted_dev = 1;
 		unmount("/dev", MNT_FORCE);
 	} else
@@ -904,7 +904,7 @@ distExtractAll(dialogMenuItem *self)
 
     dialog_clear_norefresh();
     /* Only do bin fixup if bin dist was successfully extracted */
-    if ((old_dists & DIST_BIN) && !(Dists & DIST_BIN))
+    if ((old_dists & DIST_BASE) && !(Dists & DIST_BASE))
 	status |= installFixupBin(self);
 #ifndef X_AS_PKG
     if (old_dists & DIST_XF86)
