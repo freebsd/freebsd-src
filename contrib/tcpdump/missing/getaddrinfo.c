@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -47,11 +47,11 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif 
+#endif
 
 #ifndef lint
-static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/missing/getaddrinfo.c,v 1.10 2000/10/24 00:56:53 fenner Exp $";
+static const char rcsid[] _U_ =
+     "@(#) $Header: /tcpdump/master/tcpdump/missing/getaddrinfo.c,v 1.11.2.2 2003/11/16 08:52:00 guy Exp $";
 #endif
 
 #include <sys/types.h>
@@ -76,11 +76,11 @@ static const char rcsid[] =
 
 #ifndef HAVE_U_INT32_T
 #include "bittypes.h"
-#endif 
+#endif
 
 #ifndef HAVE_SOCKADDR_STORAGE
 #include "sockstorage.h"
-#endif 
+#endif
 
 #ifdef NEED_ADDRINFO_H
 #include "addrinfo.h"
@@ -104,7 +104,7 @@ static const char in_addrany[] = { 0, 0, 0, 0 };
 static const char in6_addrany[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-static const char in_loopback[] = { 127, 0, 0, 1 }; 
+static const char in_loopback[] = { 127, 0, 0, 1 };
 static const char in6_loopback[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
 };
@@ -122,7 +122,7 @@ static const struct afd {
 	int a_socklen;
 	int a_off;
 	const char *a_addrany;
-	const char *a_loopback;	
+	const char *a_loopback;
 	int a_scoped;
 } afdl [] = {
 #ifdef INET6
@@ -323,7 +323,7 @@ getaddrinfo(hostname, servname, hints, res)
 	pai->ai_canonname = NULL;
 	pai->ai_addr = NULL;
 	pai->ai_next = NULL;
-	
+
 	if (hostname == NULL && servname == NULL)
 		return EAI_NONAME;
 	if (hints) {
@@ -813,7 +813,7 @@ explore_numeric(pai, hostname, servname, res)
 			}
 			while (cur && cur->ai_next)
 				cur = cur->ai_next;
-		} else 
+		} else
 			ERR(EAI_FAMILY);	/*xxx*/
 	}
 
@@ -948,7 +948,7 @@ get_name(addr, afd, res, numaddr, pai, servname)
 		GET_AI(cur, afd, numaddr);
 		GET_PORT(cur, servname);
 	}
-	
+
 #ifdef USE_GETIPNODEBY
 	if (hp)
 		freehostent(hp);

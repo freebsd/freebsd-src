@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.13 2001/06/04 05:47:13 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.16 2002/12/11 07:13:54 guy Exp $ (LBL)
  */
 
 /*
@@ -127,6 +127,27 @@ struct llc {
 
 #define	OUI_ENCAP_ETHER	0x000000	/* encapsulated Ethernet */
 #define	OUI_CISCO	0x00000c	/* Cisco protocols */
-#define	ETHERTYPE_CISCO_CDP	0x2000	/* Cisco Discovery Protocol */
 #define	OUI_CISCO_90	0x0000f8	/* Cisco bridging */
+#define OUI_RFC2684	0x0080c2	/* RFC 2684 bridged Ethernet */
 #define	OUI_APPLETALK	0x080007	/* Appletalk */
+
+/*
+ * PIDs for use with OUI_CISCO.
+ */
+#define	PID_CISCO_CDP		0x2000	/* Cisco Discovery Protocol */
+
+/*
+ * PIDs for use with OUI_RFC2684.
+ */
+#define PID_RFC2684_ETH_FCS	0x0001	/* Ethernet, with FCS */
+#define PID_RFC2684_ETH_NOFCS	0x0007	/* Ethernet, without FCS */
+#define PID_RFC2684_802_4_FCS	0x0002	/* 802.4, with FCS */
+#define PID_RFC2684_802_4_NOFCS	0x0008	/* 802.4, without FCS */
+#define PID_RFC2684_802_5_FCS	0x0003	/* 802.5, with FCS */
+#define PID_RFC2684_802_5_NOFCS	0x0009	/* 802.5, without FCS */
+#define PID_RFC2684_FDDI_FCS	0x0004	/* FDDI, with FCS */
+#define PID_RFC2684_FDDI_NOFCS	0x000a	/* FDDI, without FCS */
+#define PID_RFC2684_802_6_FCS	0x0005	/* 802.6, with FCS */
+#define PID_RFC2684_802_6_NOFCS	0x000b	/* 802.6, without FCS */
+#define PID_RFC2684_BPDU	0x000e	/* BPDUs */
+
