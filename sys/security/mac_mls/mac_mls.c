@@ -106,11 +106,11 @@ static int	mac_mls_check_vnode_open(struct ucred *cred, struct vnode *vp,
 		    struct label *vnodelabel, mode_t acc_mode);
 
 static struct mac_mls *
-mls_alloc(int how)
+mls_alloc(int flag)
 {
 	struct mac_mls *mac_mls;
 
-	mac_mls = malloc(sizeof(struct mac_mls), M_MACMLS, M_ZERO | how);
+	mac_mls = malloc(sizeof(struct mac_mls), M_MACMLS, M_ZERO | flag);
 
 	return (mac_mls);
 }
@@ -374,46 +374,17 @@ mac_mls_init(struct mac_policy_conf *conf)
  * Label operations.
  */
 static void
-mac_mls_init_bpfdesc(struct bpf_d *bpf_d, struct label *label)
-{
-
-	SLOT(label) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_init_cred(struct ucred *ucred, struct label *label)
-{
-
-	SLOT(label) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_init_devfsdirent(struct devfs_dirent *devfs_dirent,
-    struct label *label)
-{
-
-	SLOT(label) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_init_ifnet(struct ifnet *ifnet, struct label *label)
-{
-
-	SLOT(label) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_init_ipq(struct ipq *ipq, struct label *label)
+mac_mls_init_label(struct label *label)
 {
 
 	SLOT(label) = mls_alloc(M_WAITOK);
 }
 
 static int
-mac_mls_init_mbuf(struct mbuf *mbuf, int how, struct label *label)
+mac_mls_init_label_waitcheck(struct label *label, int flag)
 {
 
-	SLOT(label) = mls_alloc(how);
+	SLOT(label) = mls_alloc(flag);
 	if (SLOT(label) == NULL)
 		return (ENOMEM);
 
@@ -421,133 +392,7 @@ mac_mls_init_mbuf(struct mbuf *mbuf, int how, struct label *label)
 }
 
 static void
-mac_mls_init_mount(struct mount *mount, struct label *mntlabel,
-    struct label *fslabel)
-{
-
-	SLOT(mntlabel) = mls_alloc(M_WAITOK);
-	SLOT(fslabel) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_init_socket(struct socket *socket, struct label *label,
-    struct label *peerlabel)
-{
-
-	SLOT(label) = mls_alloc(M_WAITOK);
-	SLOT(peerlabel) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_init_pipe(struct pipe *pipe, struct label *label)
-{
-
-	SLOT(label) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_init_temp(struct label *label)
-{
-
-	SLOT(label) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_init_vnode(struct vnode *vp, struct label *label)
-{
-
-	SLOT(label) = mls_alloc(M_WAITOK);
-}
-
-static void
-mac_mls_destroy_bpfdesc(struct bpf_d *bpf_d, struct label *label)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-}
-
-static void
-mac_mls_destroy_cred(struct ucred *ucred, struct label *label)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-}
-
-static void
-mac_mls_destroy_devfsdirent(struct devfs_dirent *devfs_dirent,
-    struct label *label)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-}
-
-static void
-mac_mls_destroy_ifnet(struct ifnet *ifnet, struct label *label)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-}
-
-static void
-mac_mls_destroy_ipq(struct ipq *ipq, struct label *label)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-}
-
-static void
-mac_mls_destroy_mbuf(struct mbuf *mbuf, struct label *label)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-}
-
-static void
-mac_mls_destroy_mount(struct mount *mount, struct label *mntlabel,
-    struct label *fslabel)
-{
-
-	mls_free(SLOT(mntlabel));
-	SLOT(mntlabel) = NULL;
-	mls_free(SLOT(fslabel));
-	SLOT(fslabel) = NULL;
-}
-
-static void
-mac_mls_destroy_socket(struct socket *socket, struct label *label,
-    struct label *peerlabel)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-	mls_free(SLOT(peerlabel));
-	SLOT(peerlabel) = NULL;
-}
-
-static void
-mac_mls_destroy_pipe(struct pipe *pipe, struct label *label)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-}
-
-static void
-mac_mls_destroy_temp(struct label *label)
-{
-
-	mls_free(SLOT(label));
-	SLOT(label) = NULL;
-}
-
-static void
-mac_mls_destroy_vnode(struct vnode *vp, struct label *label)
+mac_mls_destroy_label(struct label *label)
 {
 
 	mls_free(SLOT(label));
@@ -2017,50 +1862,58 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_destroy },
 	{ MAC_INIT,
 	    (macop_t)mac_mls_init },
-	{ MAC_INIT_BPFDESC,
-	    (macop_t)mac_mls_init_bpfdesc },
-	{ MAC_INIT_CRED,
-	    (macop_t)mac_mls_init_cred },
-	{ MAC_INIT_DEVFSDIRENT,
-	    (macop_t)mac_mls_init_devfsdirent },
-	{ MAC_INIT_IFNET,
-	    (macop_t)mac_mls_init_ifnet },
-	{ MAC_INIT_IPQ,
-	    (macop_t)mac_mls_init_ipq },
-	{ MAC_INIT_MBUF,
-	    (macop_t)mac_mls_init_mbuf },
-	{ MAC_INIT_MOUNT,
-	    (macop_t)mac_mls_init_mount },
-	{ MAC_INIT_PIPE,
-	    (macop_t)mac_mls_init_pipe },
-	{ MAC_INIT_SOCKET,
-	    (macop_t)mac_mls_init_socket },
-	{ MAC_INIT_TEMP,
-	    (macop_t)mac_mls_init_temp },
-	{ MAC_INIT_VNODE,
-	    (macop_t)mac_mls_init_vnode },
-	{ MAC_DESTROY_BPFDESC,
-	    (macop_t)mac_mls_destroy_bpfdesc },
-	{ MAC_DESTROY_CRED,
-	    (macop_t)mac_mls_destroy_cred },
-	{ MAC_DESTROY_DEVFSDIRENT,
-	    (macop_t)mac_mls_destroy_devfsdirent },
-	{ MAC_DESTROY_IFNET,
-	    (macop_t)mac_mls_destroy_ifnet },
-	{ MAC_DESTROY_IPQ,
-	    (macop_t)mac_mls_destroy_ipq },
-	{ MAC_DESTROY_MBUF,
-	    (macop_t)mac_mls_destroy_mbuf },
-	{ MAC_DESTROY_MOUNT,
-	    (macop_t)mac_mls_destroy_mount },
-	{ MAC_DESTROY_PIPE,
-	    (macop_t)mac_mls_destroy_pipe },
-	{ MAC_DESTROY_SOCKET,
-	    (macop_t)mac_mls_destroy_socket },
-	{ MAC_DESTROY_TEMP,
-	    (macop_t)mac_mls_destroy_temp },
-	{ MAC_DESTROY_VNODE,
-	    (macop_t)mac_mls_destroy_vnode },
+	{ MAC_INIT_BPFDESC_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_CRED_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_DEVFSDIRENT_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_IFNET_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_IPQ_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_MBUF_LABEL,
+	    (macop_t)mac_mls_init_label_waitcheck },
+	{ MAC_INIT_MOUNT_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_MOUNT_FS_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_PIPE_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_SOCKET_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_SOCKET_PEER_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_TEMP_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_INIT_VNODE_LABEL,
+	    (macop_t)mac_mls_init_label },
+	{ MAC_DESTROY_BPFDESC_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_CRED_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_DEVFSDIRENT_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_IFNET_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_IPQ_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_MBUF_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_MOUNT_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_MOUNT_FS_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_PIPE_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_SOCKET_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_SOCKET_PEER_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_TEMP_LABEL,
+	    (macop_t)mac_mls_destroy_label },
+	{ MAC_DESTROY_VNODE_LABEL,
+	    (macop_t)mac_mls_destroy_label },
 	{ MAC_EXTERNALIZE,
 	    (macop_t)mac_mls_externalize },
 	{ MAC_INTERNALIZE,
