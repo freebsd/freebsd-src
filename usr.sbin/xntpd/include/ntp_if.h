@@ -44,4 +44,8 @@
 
 #endif /* SYS_SVR4 */
 
+#if defined(SYS_FREEBSD)
+#include <sys/time.h>
+#endif
+
 #include <net/if.h>

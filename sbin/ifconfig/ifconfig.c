@@ -42,13 +42,14 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ifconfig.c,v 1.20 1996/11/21 19:36:09 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>

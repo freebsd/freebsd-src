@@ -49,6 +49,7 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/mbuf.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <netinet/in.h>

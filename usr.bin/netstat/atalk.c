@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)atalk.c	1.1 (Whistle) 6/6/96";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: atalk.c,v 1.6 1996/10/28 18:56:31 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -46,9 +46,6 @@ static const char rcsid[] =
 #include <sys/protosw.h>
 
 #include <net/route.h>
-#include <net/if.h>
-
-#include <netinet/tcp_fsm.h>
 
 #include <netatalk/at.h>
 #include <netatalk/ddp_var.h>

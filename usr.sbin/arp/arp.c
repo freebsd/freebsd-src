@@ -42,7 +42,7 @@ static char const copyright[] =
 
 #ifndef lint
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
-static char const freebsdid[] = "$Id$";
+static char const freebsdid[] = "$Id: arp.c,v 1.4 1996/02/08 21:05:52 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -56,6 +56,7 @@ static char const freebsdid[] = "$Id$";
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -89,7 +90,6 @@ int rtmsg(int cmd);
 void quit(char *msg);
 int get_ether_addr(u_long ipaddr, u_char *hwaddr);
 
-extern int errno;
 static int pid;
 static int nflag;
 static int s = -1;
