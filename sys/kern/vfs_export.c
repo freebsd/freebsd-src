@@ -38,16 +38,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/dirent.h>
+#include <sys/domain.h>
 #include <sys/kernel.h>
-#include <sys/socket.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mount.h>
-#include <net/radix.h>
-#include <sys/domain.h>
-#include <sys/dirent.h>
+#include <sys/mutex.h>
+#include <sys/socket.h>
+#include <sys/systm.h>
 #include <sys/vnode.h>
+
+#include <net/radix.h>
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
