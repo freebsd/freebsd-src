@@ -1,4 +1,4 @@
-# @(#)southamerica	7.18
+# @(#)southamerica	7.25
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -6,8 +6,8 @@
 
 # From Paul Eggert <eggert@twinsun.com> (1996-11-22):
 # A good source for time zone historical data outside the U.S. is
-# Thomas G. Shanks, The International Atlas (3rd edition),
-# San Diego: ACS Publications, Inc. (1991).
+# Thomas G. Shanks, The International Atlas (4th edition),
+# San Diego: ACS Publications, Inc. (1995).
 #
 # Gwillim Law <LAW@encmail.encompass.com> writes that a good source
 # for recent time zone data is the International Air Transport
@@ -28,7 +28,6 @@
 #	-4:00	AST	ADT	Atlantic
 #	-5:00	AST	ADT	Acre
 #
-# See the `africa' file for time zone naming and abbreviation conventions.
 # Earlier editions of these tables used the North American style (e.g. ARST and
 # ARDT for Argentine Standard and Daylight Time), but the following quote
 # suggests that it's better to use European style (e.g. ART and ARST).
@@ -185,14 +184,6 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 
 # Brazil
 
-# From Guy Harris:
-# The OAG lists 1987-10-25 and 1988-02-12 as the starting and
-# ending dates, giving them as "estimated date(s) based on previous year".  We
-# infer a rule here from one example, always a dangerous practice....  Yes,
-# they really do switch on Saturday, according to the OAG.
-# "[America/Porto_Acre]" is for the Territory of Acre;
-# "[America/Noronha]" is for Fernando De Noronha.
-
 # From Paul Eggert <eggert@twinsun.com> (1993-11-18):
 # The mayor of Rio recently attempted to change the time zone rules
 # just in his city, in order to leave more summer time for the tourist trade.
@@ -243,35 +234,110 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # Sao Paulo (UTC-3) and Cuiaba (UTC-4) always observed DST.
 # Porto Acre (UTC-5) stopped observing DST in mid-1988.
 
+# From Rodrigo Feher <feher@pobox.com> (1998-01-17):
+# Reading "southamerica" file in timezone 7.55 I've found an
+# error. Line 193 say "Territory of Acre". It is not a territory anymore
+# but a state.
+
+# From Marcos Tadeu (1998-09-27):
+# <a href="http://pcdsh01.on.br/verao1.html">
+# Brazilian official page
+# </a>
+#
+# From Paul Eggert (1998-09-28):
+# The official decrees referenced below are taken from
+# <a href="http://pcdsh01.on.br/DecHV.html">
+# Decretos sobre o Horario de Verao no Brasil
+# </a> (1998-09-25, in Portuguese).
+# I don't read Portuguese, and haven't been able to verify them against
+# the Shanks and IATA data; there do seem to be minor discrepancies.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+# Decree <a href="http://pcdsh01.on.br/HV20466.htm">20.466</a> (1931-01-10)
+# Decree <a href="http://pcdsh01.on.br/HV21896.htm">21.896</a> (1932-01-10)
 Rule	Brazil	1931	only	-	Oct	 3	11:00	1:00	D
 Rule	Brazil	1932	1933	-	Apr	 1	 0:00	0	S
 Rule	Brazil	1932	only	-	Oct	 3	 0:00	1:00	D
+# Decree <a href="http://pcdsh01.on.br/HV23195.htm">23.195</a> (1933-10-10)
+# revoked DST.
+# Decree <a href="http://pcdsh01.on.br/HV27496.htm">27.496</a> (1949-11-24)
+# Decree <a href="http://pcdsh01.on.br/HV27998.htm">27.998</a> (1950-04-13)
+# Decree <a href="http://pcdsh01.on.br/HV32308.htm">32.308</a> (1953-02-24)
 Rule	Brazil	1949	1952	-	Dec	 1	 0:00	1:00	D
 Rule	Brazil	1950	only	-	Apr	16	 0:00	0	S
 Rule	Brazil	1951	1953	-	Apr	 1	 0:00	0	S
+# Decree <a href="http://pcdsh01.on.br/HV34724.htm">34.724</a> (1953-11-30)
+# revoked DST.
+# Decree <a href="http://pcdsh01.on.br/HV52700.htm">52.700</a> (1963-10-18)
+# Decree <a href="http://pcdsh01.on.br/HV53071.htm">53.071</a> (1963-12-03)
 Rule	Brazil	1963	only	-	Dec	 9	 0:00	1:00	D
+# Decree <a href="http://pcdsh01.on.br/HV53604.htm">53.604</a> (1964-02-25)
 Rule	Brazil	1964	only	-	Mar	 1	 0:00	0	S
+# Decree <a href="http://pcdsh01.on.br/HV55639.htm">55.639</a> (1965-01-27)
 Rule	Brazil	1965	only	-	Jan	31	 0:00	1:00	D
 Rule	Brazil	1965	only	-	Apr	 1	 0:00	0	S
+# Decree <a href="http://pcdsh01.on.br/HV57303.htm">57.303</a> (1965-11-22)
 Rule	Brazil	1965	only	-	Dec	 1	 0:00	1:00	D
+# Decree <a href="http://pcdsh01.on.br/HV57843.htm">57.843</a> (1966-02-18)
 Rule	Brazil	1966	1968	-	Mar	 1	 0:00	0	S
 Rule	Brazil	1966	1967	-	Nov	 1	 0:00	1:00	D
+# Decree <a href="http://pcdsh01.on.br/HV63429.htm">63.429</a> (1968-10-15)
+# Decree <a href="http://pcdsh01.on.br/HV91698.htm">91.698</a> (1985-09-27)
 Rule	Brazil	1985	only	-	Nov	 2	 0:00	1:00	D
+# Decree 92.310 (1986-01-21)
+# Decree 92.463 (1986-03-13)
 Rule	Brazil	1986	only	-	Mar	15	 0:00	0	S
+# Decree 93.316 (1986-10-01)
+# Decree <a href="http://pcdsh01.on.br/HV94922.htm">94.922</a> (1987-09-22)
 Rule	Brazil	1986	1987	-	Oct	Sat<=28	 0:00	1:00	D
 Rule	Brazil	1987	only	-	Feb	14	 0:00	0	S
 Rule	Brazil	1988	only	-	Feb	 7	 0:00	0	S
+# Decree <a href="http://pcdsh01.on.br/HV96676.htm">96.676</a> (1988-09-12)
+# Decree <a href="http://pcdsh01.on.br/HV98077.htm">98.077</a> (1989-08-21)
+# Decree <a href="http://pcdsh01.on.br/HV99530.htm">99.530</a> (1990-09-17)
+# Decree 99.629 (1990-10-19)
+# <a href="http://pcdsh01.on.br/HV1991.htm">Unnumbered decree</a> (1991-09-25):
+# <a href="http://pcdsh01.on.br/HV1992.htm">Unnumbered decree</a> (1992-10-16):
 Rule	Brazil	1989	only	-	Jan	22	 0:00	0	S
 Rule	Brazil	1988	1989	-	Oct	Sun>=10	 0:00	1:00	D
 Rule	Brazil	1990	1991	-	Feb	Sun>=11	 0:00	0	S
 Rule	Brazil	1990	1992	-	Oct	Sun>=20	 0:00	1:00	D
 Rule	Brazil	1992	only	-	Feb	 9	 0:00	0	S
+# Decree <a href="http://pcdsh01.on.br/HV942.htm">942</a> (1993-09-28)
+# Decree <a href="http://pcdsh01.on.br/HV1252.htm">1.252</a> (1994-09-22)
+# Decree <a href="http://pcdsh01.on.br/HV1636.htm">1.636</a> (1995-09-14)
+# Decree <a href="http://pcdsh01.on.br/HV1674.htm">1.674</a> (1995-10-13)
 Rule	Brazil	1993	1995	-	Oct	Sun>=11	 0:00	1:00	D
 Rule	Brazil	1993	only	-	Jan	31	 0:00	0	S
 Rule	Brazil	1994	1995	-	Feb	Sun>=15	 0:00	0	S
-Rule	Brazil	1996	max	-	Feb	Sun>=11	 0:00	0	S
-Rule	Brazil	1996	max	-	Oct	Sun>=1	 0:00	1:00	D
+# Decree <a href="http://pcdsh01.on.br/HV2000.htm">2.000</a> (1996-09-04)
+Rule	Brazil	1996	only	-	Feb	Sun>=11	 0:00	0	S
+Rule	Brazil	1996	only	-	Oct	Sun>=1	 0:00	1:00	D
+# From Daniel C. Sobral <dcs@gns.com.br> (1998-02-12):
+# In 1997, the DS began on October 6. The stated reason was that
+# because international television networks ignored Brazil's policy on DS,
+# they bought the wrong times on satellite for coverage of Pope's visit.
+# This year, the ending date of DS was postponed to March 1
+# to help dealing with the shortages of electric power.
+#
+# From Paul Eggert (1998-02-25):
+# <a href="http://churchnet.ucsm.ac.uk/news/files2/news165.htm">
+# Brazil Prepares for Papal Visit
+# </a>,
+# Church Net UK (1997-10-02).
+#
+# Decree 2.317 (1997-09-04)
+Rule	Brazil	1997	only	-	Oct	 6	 0:00	1:00	D
+# Decree <a href="http://pcdsh01.on.br/figuras/HV2495.JPG">2.495</a>
+# (1998-02-10)
+Rule	Brazil	1998	only	-	Mar	 1	 0:00	0	S
+# Decree <a href="http://pcdsh01.on.br/figuras/Hv98.jpg">2.780</a> (1998-09-11)
+# specifies only the 1998-10-11 and 1999-02-21 transitions;
+# after that, these rules are guesses and are quite possibly wrong,
+# but they are more likely than no DST at all.
+Rule	Brazil	1998	max	-	Oct	Sun>=11	 0:00	1:00	D
+Rule	Brazil	1999	max	-	Feb	Sun>=15	 0:00	0	S
+
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
@@ -289,6 +355,8 @@ Zone America/Fortaleza	-2:34:00 -	LMT	1914
 			-3:00	-	EST
 #
 # Alagoas, Sergipe, Tocantins
+# IATA SSIM (1996/1998) keeps bouncing back and forth as to whether
+# Alagoas and Sergipe observe DST.  For now, continue to assume that they do.
 Zone America/Maceio	-2:22:52 -	LMT	1914
 			-3:00	-	EST	1963 Dec 9
 			-3:00	Brazil	E%sT	1990 Jul
@@ -326,14 +394,20 @@ Zone America/Porto_Acre	-4:31:12 -	LMT	1914
 # From Eduardo Krell (1995-10-19):
 # The law says to switch to DST at midnight [24:00] on the second SATURDAY
 # of October....  The law is the same for March and October.
+# (1998-09-29):
+# Because of the drought this year, the government decided to go into
+# DST earlier (saturday 9/26 at 24:00). This is a one-time change only ...
+# (unless there's another dry season next year, I guess).
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Chile	1918	only	-	Sep	1	0:00	1:00	S
 Rule	Chile	1919	only	-	Jul	2	0:00	0	-
 Rule	Chile	1927	1931	-	Sep	1	0:00	1:00	S
 Rule	Chile	1928	1932	-	Apr	1	0:00	0	-
-Rule	Chile	1969	max	-	Oct	Sun>=9	0:00	1:00	S
+Rule	Chile	1969	1997	-	Oct	Sun>=9	0:00	1:00	S
 Rule	Chile	1970	max	-	Mar	Sun>=9	0:00	0	-
+Rule	Chile	1998	only	-	Sep	27	0:00	1:00	S
+Rule	Chile	1999	max	-	Oct	Sun>=9	0:00	1:00	S
 # IATA SSIM anomalies: (1990-09) says 1990-09-16; (1992-02) says 1992-03-14;
 # (1996-09) says 1998-03-08.  Ignore these for now.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -354,6 +428,7 @@ Zone Pacific/Easter	-7:17:28 -	LMT	1890	    # Mataveri
 # Colombia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	CO	1992	only	-	May	 2	0:00	1:00	S
+# Shanks (1995) estimates 1993-04-03 24:00 for this; go with IATA.
 Rule	CO	1992	only	-	Dec	31	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Bogota	-4:56:20 -	LMT	1884 Mar 13
@@ -363,6 +438,10 @@ Zone	America/Bogota	-4:56:20 -	LMT	1884 Mar 13
 # no information; probably like America/Bogota
 
 # Curacao
+# Shanks (1995) says that Bottom and Oranjestad have been at -4:00 since
+# standard time was introduced on 1912-03-02; and that Kralendijk and Rincon
+# used Kralendijk Mean Time (-4:33:08) from 1912-02-02 to 1965-01-01.
+# This all predates our 1970 cutoff, though.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Curacao	-4:35:44 -	LMT	1912 Feb 12	# Willemstad
 			-4:30	-	ANT	1965 # Netherlands Antilles Time
@@ -437,9 +516,11 @@ Rule	Para	1992	only	-	Oct	 5	0:00	1:00	S
 Rule	Para	1993	only	-	Mar	31	0:00	0	-
 Rule	Para	1993	1995	-	Oct	 1	0:00	1:00	S
 Rule	Para	1994	1995	-	Feb	lastSun	0:00	0	-
-Rule	Para	1996	max	-	Mar	 1	0:00	0	-
-Rule	Para	1996	only	-	Oct	 6	0:00	1:00	S
-Rule	Para	1997	max	-	Oct	 1	0:00	1:00	S
+Rule	Para	1996	1998	-	Mar	 1	0:00	0	-
+Rule	Para	1996	max	-	Oct	Sun>=1	0:00	1:00	S
+# IATA SSIM (1998-02) claims that the 1999 switch will be on 02-27.
+# Assume this is a typo, and that 02-28 was meant.
+Rule	Para	1999	max	-	Feb	lastSun	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Asuncion	-3:50:40 -	LMT	1890
 			-3:50:40 -	AMT	1931 Oct 10 # Asuncion Mean Time
