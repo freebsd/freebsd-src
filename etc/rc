@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.125 1997/06/01 23:33:00 ache Exp $
+#	$Id: rc,v 1.127 1997/06/04 19:20:04 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -95,9 +95,10 @@ fi
 
 adjkerntz -i
 
+rm -f /var/run/*
+
 # Keep a copy of the boot messages around
 dmesg > /var/run/dmesg.boot
-
 
 # Add additional swapfile, if configured.
 if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
@@ -130,7 +131,6 @@ chmod 666 /dev/tty[pqrsPQRS]*
 rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
-rm -f /var/run/*.pid
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
 # enable dumpdev so that savecore can see it
