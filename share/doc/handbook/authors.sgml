@@ -1,4 +1,4 @@
-<!-- $Id: authors.sgml,v 1.13 1995/12/19 12:29:52 gclarkii Exp $ -->
+<!-- $Id: authors.sgml,v 1.14 1996/01/03 12:59:37 gclarkii Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -276,6 +276,6 @@ and double quotes.
   name='&lt;jlrobin@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.jmb  "Jonathan M. Bresler
-  <tt><htmlurl url='mailto;jmb@FreeBSD.ORG'
+  <tt><htmlurl url='mailto:jmb@FreeBSD.ORG'
   name='&lt;jmb@FreeBSD.ORG&gt;'></tt>">
 
