@@ -438,6 +438,8 @@ ether_input(ifp, eh, m)
 		bpf_mtap(ifp, (struct mbuf *)&mh);
 	}
 
+	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
+
 	/* Handle ng_ether(4) processing, if any */
 	if (ng_ether_input_p != NULL) {
 		(*ng_ether_input_p)(ifp, &m, eh);
@@ -522,7 +524,6 @@ ether_demux(ifp, eh, m)
 		m_freem(m);
 		return;
 	}
-	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
 	if (eh->ether_dhost[0] & 1) {
 		if (bcmp((caddr_t)etherbroadcastaddr, (caddr_t)eh->ether_dhost,
 			 sizeof(etherbroadcastaddr)) == 0)
