@@ -67,7 +67,7 @@ struct random_systat random_yarrow = {
 	.read = random_yarrow_read,
 	.write = random_yarrow_write,
 	.reseed = random_yarrow_reseed,
-	.seeded = 0,
+	.seeded = 1,
 };
 
 MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers");
@@ -132,7 +132,7 @@ random_yarrow_init(void)
 	o = SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "seeded", CTLTYPE_INT | CTLFLAG_RW,
-	    &random_systat.seeded, 0, random_check_boolean, "I",
+	    &random_systat.seeded, 1, random_check_boolean, "I",
 	    "Seeded State");
 
 	o = SYSCTL_ADD_NODE(&random_clist,
