@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.16 1995/09/19 14:23:38 jfieber Exp $
+<date> $Id: freebsd-faq.sgml,v 1.17 1995/09/21 09:29:06 ats Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -23,7 +23,7 @@ Any entries with a &lt;XXX&gt; are under construction.
         send mail to:
 
         <url url="mailto:questions@FreeBSD.ORG" name="FreeBSD-questions
-          Mailling list"> or to <url url="mailto:faq@FreeBSD.ORG"
+          Mailing list"> or to <url url="mailto:faq@FreeBSD.ORG"
           name="FreeBSD FAQ mailing list">
 
         The latest released version is FreeBSD 2.0.5R. FreeBSD-current
@@ -1704,6 +1704,14 @@ disk        fd1   at fdc0 drive 1
           from a priviledged port; try
           <verb>
             mount -o -P sunbox:/blah /mnt
+          </verb>
+      <sect1><heading>I'm having problems with my NeXTStep machines and other FreeBSD ones accross PPP</heading>
+
+        <p>
+          Try disabling the TCP extentions in <tt>/etc/sysconfig</tt> by
+          changing the following variable to NO:
+          <verb>
+            tcp_extensions=NO
           </verb>
 
       <sect1>
