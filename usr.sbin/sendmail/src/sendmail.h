@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sendmail.h	8.219 (Berkeley) 1/14/97
+ *	@(#)sendmail.h	8.236 (Berkeley) 6/5/97
  */
 
 /*
@@ -41,7 +41,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.219		1/14/97";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.236		6/5/97";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -86,6 +86,13 @@ static char SmailSccsId[] =	"@(#)sendmail.h	8.219		1/14/97";
 # if NETX25
 # include <netccitt/x25.h>
 # endif
+
+#if NAMED_BIND
+# include <arpa/nameser.h>
+# ifdef NOERROR
+#  undef NOERROR		/* avoid <sys/streams.h> conflict */
+# endif
+#endif
 
 
 
@@ -391,6 +398,7 @@ struct hdrinfo
 {
 	char	*hi_field;	/* the name of the field */
 	u_short	hi_flags;	/* status bits, see below */
+	char	*hi_ruleset;	/* validity check ruleset */
 };
 
 extern struct hdrinfo	HdrInfo[];
@@ -726,7 +734,7 @@ MAPCLASS
 #define MCF_OPTFILE	0x0008		/* file name is optional */
 
 /* functions */
-extern char	*map_rewrite __P((MAP *, char *, int, char **));
+extern char	*map_rewrite __P((MAP *, const char *, int, char **));
 extern MAP	*makemapentry __P((char *));
 extern void	initmaps __P((bool, ENVELOPE *));
 /*
@@ -752,6 +760,7 @@ struct symtab
 		NAMECANON	sv_namecanon;	/* canonical name cache */
 		int		sv_macro;	/* macro name => id mapping */
 		int		sv_ruleset;	/* ruleset index */
+		struct hdrinfo	sv_header;	/* header metainfo */
 		char		*sv_service[MAXMAPSTACK]; /* service switch */
 	}	s_value;
 };
@@ -771,6 +780,7 @@ typedef struct symtab	STAB;
 # define ST_MACRO	9	/* macro name to id mapping */
 # define ST_RULESET	10	/* ruleset index */
 # define ST_SERVICE	11	/* service switch entry */
+# define ST_HEADER	12	/* special header flags */
 # define ST_MCI		16	/* mailer connection info (offset) */
 
 # define s_class	s_value.sv_class
@@ -785,6 +795,7 @@ typedef struct symtab	STAB;
 # define s_macro	s_value.sv_macro
 # define s_ruleset	s_value.sv_ruleset
 # define s_service	s_value.sv_service
+# define s_header	s_value.sv_header
 
 extern STAB		*stab __P((char *, int, int));
 extern void		stabapply __P((void (*)(STAB *, int), int));
@@ -916,6 +927,7 @@ EXTERN int		NoRecipientAction;
 #define PRIV_NOVRFY		0x0010	/* disallow VRFY command entirely */
 #define PRIV_AUTHWARNINGS	0x0020	/* flag possible authorization probs */
 #define PRIV_NORECEIPTS		0x0040	/* disallow return receipts */
+#define PRIV_NOETRN		0x0080	/* disallow ETRN command entirely */
 #define PRIV_RESTRICTMAILQ	0x1000	/* restrict mailq command */
 #define PRIV_RESTRICTQRUN	0x2000	/* restrict queue run */
 #define PRIV_GOAWAY		0x0fff	/* don't give no info, anyway, anyhow */
@@ -943,7 +955,7 @@ struct prival
 
 
 /*
-**  Flags passed to safefile.
+**  Flags passed to safefile/safedirpath.
 */
 
 #define SFF_ANYFILE		0	/* no special restrictions */
@@ -955,12 +967,25 @@ struct prival
 #define SFF_SETUIDOK		0x0020	/* setuid files are ok */
 #define SFF_CREAT		0x0040	/* ok to create file if necessary */
 #define SFF_REGONLY		0x0080	/* regular files only */
+#define SFF_SAFEDIRPATH		0x0100	/* no writable directories allowed */
+#define SFF_NOHLINK		0x0200	/* file cannot have hard links */
+#define SFF_NOWLINK		0x0400	/* links only in non-writable dirs */
+#define SFF_NOWFILES		0x0800	/* disallow world writable files */
 
-/* flags that are actually specific to safefopen */
+/* flags that are actually specific to safeopen/safefopen/dfopen */
 #define SFF_OPENASROOT		0x1000	/* open as root instead of real user */
+#define SFF_NOLOCK		0x2000	/* don't lock the file */
+
+/* pseudo-flags */
+#define SFF_NOLINK		(SFF_NOHLINK|SFF_NOSLINK)
 
 /* functions */
 extern int	safefile __P((char *, UID_T, GID_T, char *, int, int, struct stat *));
+extern int	safedirpath __P((char *, UID_T, GID_T, char *, int));
+extern int	safeopen __P((char *, int, int, int));
+extern FILE	*safefopen __P((char *, int, int, int));
+extern int	dfopen __P((char *, int, int, int));
+extern bool	filechanged __P((char *, int, struct stat *, int));
 
 
 /*
@@ -1077,7 +1102,6 @@ EXTERN bool	FromFlag;	/* if set, "From" person is explicit */
 EXTERN bool	MeToo;		/* send to the sender also */
 EXTERN bool	IgnrDot;	/* don't let dot end messages */
 EXTERN bool	SaveFrom;	/* save leading "From" lines */
-EXTERN bool	Verbose;	/* set if blow-by-blow desired */
 EXTERN bool	GrabTo;		/* if set, get recipients from msg */
 EXTERN bool	SuprErrs;	/* set if we are suppressing errors */
 EXTERN bool	HoldErrs;	/* only output errors to transcript */
@@ -1102,6 +1126,7 @@ EXTERN uid_t	DefUid;		/* default uid to run as */
 EXTERN gid_t	DefGid;		/* default gid to run as */
 EXTERN char	*DefUser;	/* default user to run as (from DefUid) */
 EXTERN MODE_T	OldUmask;	/* umask when sendmail starts up */
+EXTERN int	Verbose;	/* set if blow-by-blow desired */
 EXTERN int	Errors;		/* set if errors (local to single pass) */
 EXTERN int	ExitStat;	/* exit status code */
 EXTERN int	LineNumber;	/* line number in current input */
@@ -1123,6 +1148,7 @@ EXTERN char	*RealHostName;	/* name of host we are talking to */
 EXTERN char	*CurHostName;	/* current host we are dealing with */
 EXTERN jmp_buf	TopFrame;	/* branch-to-top-of-loop-on-error frame */
 EXTERN bool	QuickAbort;	/*  .... but only if we want a quick abort */
+EXTERN bool	OnlyOneError;	/*  .... or only want to give one SMTP reply */
 EXTERN bool	LogUsrErrs;	/* syslog user errors (e.g., SMTP RCPT cmd) */
 EXTERN bool	SendMIMEErrors;	/* send error messages in MIME format */
 EXTERN bool	MatchGecos;	/* look for user names in gecos field */
@@ -1163,11 +1189,16 @@ EXTERN bool	DontInitGroups;	/* avoid initgroups() because of NIS cost */
 EXTERN int	DefaultNotify;	/* default DSN notification flags */
 EXTERN bool	AllowBogusHELO;	/* allow syntax errors on HELO command */
 EXTERN bool	UserSubmission;	/* initial (user) mail submission */
+EXTERN char	*RunAsUserName;	/* user to become for bulk of run */
 EXTERN uid_t	RunAsUid;	/* UID to become for bulk of run */
 EXTERN gid_t	RunAsGid;	/* GID to become for bulk of run */
-#ifdef _FFR_DSN_RRT
+EXTERN int	MaxRcptPerMsg;	/* max recipients per SMTP message */
+EXTERN bool	DoQueueRun;	/* non-interrupt time queue run needed */
+#if _FFR_DSN_RRT_OPTION
 EXTERN bool	RrtImpliesDsn;	/* turn Return-Receipt-To: into DSN */
 #endif
+EXTERN bool	DontProbeInterfaces;	/* don't probe interfaces for names */
+EXTERN bool	ChownAlwaysSafe;	/* treat chown(2) as safe */
 EXTERN bool	IgnoreHostStatus;	/* ignore long term host status files */
 EXTERN bool	SingleThreadDelivery;	/* single thread hosts on delivery */
 EXTERN bool	UnsafeGroupWrites;	/* group-writable files are unsafe */
@@ -1194,6 +1225,7 @@ EXTERN char	*QueueLimitSender;	/* limit queue runs to this sender */
 EXTERN char	*QueueLimitId;		/* limit queue runs to this id */
 EXTERN FILE	*TrafficLogFile;	/* file in which to log all traffic */
 EXTERN char	*DoubleBounceAddr;	/* where to send double bounces */
+EXTERN bool	FatalWritableDirs;	/* no writable dirs in map paths */
 EXTERN char	**ExternalEnviron;	/* input environment */
 EXTERN char	*UserEnviron[MAXUSERENVIRON + 1];
 					/* saved user environment */
@@ -1249,6 +1281,12 @@ EXTERN u_char	tTdvect[100];
 */
 
 
+/*
+**  The "no queue id" queue id for sm_syslog
+*/
+
+#define NOQID		"*~*"
+
 
 /*
 **  Some in-line functions
@@ -1272,7 +1310,6 @@ EXTERN u_char	tTdvect[100];
 */
 
 extern char	*xalloc __P((int));
-extern FILE	*dfopen __P((char *, int, int));
 extern char	*sfgets __P((char *, int, FILE *, time_t, char *));
 extern char	*queuename __P((ENVELOPE *, int));
 extern time_t	curtime __P(());
@@ -1295,7 +1332,6 @@ extern void	rebuildaliases __P((MAP *, bool));
 extern void	readaliases __P((MAP *, FILE *, bool, bool));
 extern void	finis __P(());
 extern void	setsender __P((char *, ENVELOPE *, char **, int, bool));
-extern FILE	*safefopen __P((char *, int, int, int));
 extern void	xputs __P((const char *));
 extern void	logsender __P((ENVELOPE *, char *));
 extern void	smtprset __P((MAILER *, MCI *, ENVELOPE *));
@@ -1303,7 +1339,7 @@ extern void	smtpquit __P((MAILER *, MCI *, ENVELOPE *));
 extern void	setuserenv __P((const char *, const char *));
 extern char	*getextenv __P((const char *));
 extern void	disconnect __P((int, ENVELOPE *));
-extern void	putxline __P((char *, MCI *, int));
+extern void	putxline __P((char *, size_t, MCI *, int));
 extern void	dumpfd __P((int, bool, bool));
 extern void	makemailer __P((char *));
 extern void	putfromline __P((MCI *, ENVELOPE *));
@@ -1328,7 +1364,6 @@ extern void	proc_list_clear __P((void));
 extern void	buffer_errors __P((void));
 extern void	flush_errors __P((bool));
 extern void	putline __P((char *, MCI *));
-extern void	putxline __P((char *, MCI *, int));
 extern bool	xtextok __P((char *));
 extern char	*xtextify __P((char *, char *));
 extern char	*xuntextify __P((char *));
@@ -1341,7 +1376,7 @@ extern int	endmailer __P((MCI *, ENVELOPE *, char **));
 extern void	fixcrlf __P((char *, bool));
 extern int	dofork __P((void));
 extern void	initsys __P((ENVELOPE *));
-extern void	collect __P((FILE *, bool, bool, HDR **, ENVELOPE *));
+extern void	collect __P((FILE *, bool, HDR **, ENVELOPE *));
 extern void	stripquotes __P((char *));
 extern int	include __P((char *, bool, ADDRESS *, ADDRESS **, int, ENVELOPE  *));
 extern void	unlockqueue __P((ENVELOPE *));
@@ -1385,6 +1420,7 @@ extern void		usrerr(const char *, ...);
 extern void		message(const char *, ...);
 extern void		nmessage(const char *, ...);
 extern void		setproctitle(const char *fmt, ...);
+extern void		sm_syslog(int, const char *, const char *, ...);
 #else
 extern void		auth_warning();
 extern void		syserr();
@@ -1392,6 +1428,7 @@ extern void		usrerr();
 extern void		message();
 extern void		nmessage();
 extern void		setproctitle();
+extern void		sm_syslog();
 #endif
 
 #if !HASSNPRINTF

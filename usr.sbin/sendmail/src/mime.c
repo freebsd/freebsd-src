@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 1996 Eric P. Allman
+ * Copyright (c) 1994, 1996-1997 Eric P. Allman
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,7 +36,7 @@
 # include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.54 (Berkeley) 1/14/97";
+static char sccsid[] = "@(#)mime.c	8.59 (Berkeley) 5/6/97";
 #endif /* not lint */
 
 /*
@@ -259,10 +259,10 @@ mime8to7(mci, header, e, boundaries, flags)
 			if (strcasecmp(argv[i].field, "boundary") == 0)
 				break;
 		}
-		if (i >= argc)
+		if (i >= argc || argv[i].value == NULL)
 		{
-			syserr("mime8to7: Content-Type: \"%s\": missing boundary",
-				p);
+			syserr("mime8to7: Content-Type: \"%s\": %s boundary",
+				i >= argc ? "missing" : "bogus", p);
 			p = "---";
 
 			/* avoid bounce loops */
@@ -311,7 +311,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			bt = mimeboundary(buf, boundaries);
 			if (bt != MBT_NOTSEP)
 				break;
-			putxline(buf, mci, PXLF_MAPFROM|PXLF_STRIP8BIT);
+			putxline(buf, strlen(buf), mci, PXLF_MAPFROM|PXLF_STRIP8BIT);
 			if (tTd(43, 99))
 				printf("  ...%s", buf);
 		}
@@ -325,7 +325,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			putline(buf, mci);
 			if (tTd(43, 35))
 				printf("  ...%s\n", buf);
-			collect(e->e_dfp, FALSE, FALSE, &hdr, e);
+			collect(e->e_dfp, FALSE, &hdr, e);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
 			putheader(mci, hdr, e);
@@ -346,7 +346,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			bt = mimeboundary(buf, boundaries);
 			if (bt != MBT_NOTSEP)
 				break;
-			putxline(buf, mci, PXLF_MAPFROM|PXLF_STRIP8BIT);
+			putxline(buf, strlen(buf), mci, PXLF_MAPFROM|PXLF_STRIP8BIT);
 			if (tTd(43, 99))
 				printf("  ...%s", buf);
 		}
@@ -377,7 +377,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			putline("", mci);
 
 			mci->mci_flags |= MCIF_INMIME;
-			collect(e->e_dfp, FALSE, FALSE, &hdr, e);
+			collect(e->e_dfp, FALSE, &hdr, e);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
 			putheader(mci, hdr, e);
@@ -1048,8 +1048,8 @@ mime7to8(mci, header, e)
 				if (*--fbufp != '\n' ||
 				    (fbufp > fbuf && *--fbufp != '\r'))
 					fbufp++;
-				*fbufp = '\0';
-				putline((char *) fbuf, mci);
+				putxline((char *) fbuf, fbufp - fbuf,
+					 mci, PXLF_MAPFROM);
 				fbufp = fbuf;
 			}
 			if (c3 == '=')
@@ -1061,8 +1061,8 @@ mime7to8(mci, header, e)
 				if (*--fbufp != '\n' ||
 				    (fbufp > fbuf && *--fbufp != '\r'))
 					fbufp++;
-				*fbufp = '\0';
-				putline((char *) fbuf, mci);
+				putxline((char *) fbuf, fbufp - fbuf,
+					 mci, PXLF_MAPFROM);
 				fbufp = fbuf;
 			}
 			if (c4 == '=')
@@ -1074,8 +1074,8 @@ mime7to8(mci, header, e)
 				if (*--fbufp != '\n' ||
 				    (fbufp > fbuf && *--fbufp != '\r'))
 					fbufp++;
-				*fbufp = '\0';
-				putline((char *) fbuf, mci);
+				putxline((char *) fbuf, fbufp - fbuf,
+					 mci, PXLF_MAPFROM);
 				fbufp = fbuf;
 			}
 		}
@@ -1090,7 +1090,9 @@ mime7to8(mci, header, e)
 					&fbuf[MAXLINE] - fbufp) == 0)
 				continue;
 
-			putline((char *) fbuf, mci);
+			if (fbufp - fbuf > 0)
+				putxline((char *) fbuf, fbufp - fbuf - 1, mci,
+					 PXLF_MAPFROM);
 			fbufp = fbuf;
 		}
 	}
@@ -1099,7 +1101,7 @@ mime7to8(mci, header, e)
 	if (fbufp > fbuf)
 	{
 		*fbufp = '\0';
-		putline((char *) fbuf, mci);
+		putxline((char *) fbuf, fbufp - fbuf, mci, PXLF_MAPFROM);
 	}
 	if (tTd(43, 3))
 		printf("\t\t\tmime7to8 => %s to 8bit done\n", cte);

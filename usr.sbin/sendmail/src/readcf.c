@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.184 (Berkeley) 1/14/97";
+static char sccsid[] = "@(#)readcf.c	8.196 (Berkeley) 5/29/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -121,7 +121,7 @@ readcf(cfname, safe, e)
 	FileName = cfname;
 	LineNumber = 0;
 
-	cf = fopen(cfname, "r");
+	cf = safefopen(cfname, O_RDONLY, 0444, SFF_OPENASROOT|SFF_NOLOCK);
 	if (cf == NULL)
 	{
 		syserr("cannot open");
@@ -145,11 +145,10 @@ readcf(cfname, safe, e)
 		if (OpMode == MD_DAEMON || OpMode == MD_INITALIAS)
 			fprintf(stderr, "%s: WARNING: dangerous write permissions\n",
 				FileName);
-#ifdef LOG
 		if (LogLevel > 0)
-			syslog(LOG_CRIT, "%s: WARNING: dangerous write permissions",
+			sm_syslog(LOG_CRIT, NOQID,
+				"%s: WARNING: dangerous write permissions",
 				FileName);
-#endif
 	}
 
 #ifdef XLA
@@ -745,7 +744,7 @@ fileclass(class, filename, fmt, safe, optional)
 	else
 	{
 		pid = -1;
-		sff = SFF_REGONLY;
+		sff = SFF_REGONLY|SFF_NOWLINK;
 		if (safe)
 			sff |= SFF_OPENASROOT;
 		f = safefopen(filename, O_RDONLY, 0, sff);
@@ -761,7 +760,7 @@ fileclass(class, filename, fmt, safe, optional)
 	{
 		register char *p;
 # if SCANF
-		char wordbuf[MAXNAME+1];
+		char wordbuf[MAXLINE + 1];
 # endif
 
 		if (buf[0] == '#')
@@ -1482,13 +1481,29 @@ struct optioninfo
 	{ "SingleThreadDelivery",	O_SINGTHREAD,	FALSE	},
 #define O_RUNASUSER	0x9d
 	{ "RunAsUser",			O_RUNASUSER,	FALSE	},
-#ifdef _FFR_DSN_RRT
+#if _FFR_DSN_RRT_OPTION
 #define O_DSN_RRT	0x9e
 	{ "RrtImpliesDsn",		O_DSN_RRT,	FALSE	},
 #endif
-#ifdef _FFR_PIDFILE_OPT
+#if _FFR_PIDFILE_OPTION
 #define O_PIDFILE	0x9f
 	{ "PidFile",			O_PIDFILE,	FALSE	},
+#endif
+#if _FFR_WRITABLE_DIRECTORIES_ARE_FATAL_OPTION
+#define O_WDAF		0xa0
+	{ "WritableDirectoriesAreFatal", O_WDAF,	FALSE	},
+#endif
+#if _FFR_CHOWN_IS_ALWAYS_SAFE_OPTION
+#define O_CIAS		0xa1
+	{ "ChownIsAlwaysSafe",		O_CIAS,		FALSE	},
+#endif
+#if _FFR_DONT_PROBE_INTERFACES_OPTION
+#define O_DPI		0xa2
+	{ "DontProbeInterfaces",	O_DPI,		FALSE	},
+#endif
+#if _FFR_MAXRCPT_OPTION
+#define O_MAXRCPT	0xa3
+	{ "MaxRecipientPerMessage",	O_MAXRCPT,	FALSE	},
 #endif
 
 	{ NULL,				'\0',		FALSE	}
@@ -1575,9 +1590,9 @@ setoption(opt, val, safe, sticky, e)
 		}
 		if (strlen(val) != strlen(o->o_name))
 		{
-			bool oldVerbose = Verbose;
+			int oldVerbose = Verbose;
 
-			Verbose = TRUE;
+			Verbose = 1;
 			message("Option %s used as abbreviation for %s",
 				val, o->o_name);
 			Verbose = oldVerbose;
@@ -2061,7 +2076,7 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case 'v':		/* run in verbose mode */
-		Verbose = atobool(val);
+		Verbose = atobool(val) ? 1 : 0;
 		break;
 
 	  case 'w':		/* if we are best MX, try host directly */
@@ -2251,6 +2266,8 @@ setoption(opt, val, safe, sticky, e)
 				syserr("readcf: option RunAsUser: unknown user %s", val);
 			else
 			{
+				if (*p == '\0')
+					RunAsUserName = newstr(val);
 				RunAsUid = pw->pw_uid;
 				RunAsGid = pw->pw_gid;
 			}
@@ -2258,7 +2275,7 @@ setoption(opt, val, safe, sticky, e)
 		if (*p == '\0')
 			break;
 		if (isascii(*p) && isdigit(*p))
-			DefGid = atoi(p);
+			RunAsGid = atoi(p);
 		else
 		{
 			register struct group *gr;
@@ -2272,16 +2289,40 @@ setoption(opt, val, safe, sticky, e)
 		}
 		break;
 
-#ifdef _FFR_DSN_RRT
+#if _FFR_DSN_RRT_OPTION
 	  case O_DSN_RRT:
-		RrtImpliesDsn = atobool(p);
+		RrtImpliesDsn = atobool(val);
 		break;
 #endif
 
-#ifdef _FFR_PIDFILE_OPT
+#if _FFR_PIDFILE_OPTION
 	  case O_PIDFILE:
 		free(PidFile);
-		PidFile = newstr(p);
+		PidFile = newstr(val);
+		break;
+#endif
+
+#if _FFR_WRITABLE_DIRECTORIES_ARE_FATAL_OPTION
+	  case O_WDAF:
+		FatalWritableDirs = atobool(val);
+		break;
+#endif
+
+#if _FFR_CHOWN_IS_ALWAYS_SAFE_OPTION
+	  case O_CIAS:
+		ChownIsAlwaysSafe = atobool(val);
+		break;
+#endif
+
+#if _FFR_DONT_PROBE_INTERFACES_OPTION
+	  case O_DPI:
+		DontProbeInterfaces = atobool(val);
+		break;
+#endif
+
+#if _FFR_MAXRCPT_OPTION
+	  case O_MAXRCPT:
+		MaxRcptPerMsg = atoi(val);
 		break;
 #endif
 
