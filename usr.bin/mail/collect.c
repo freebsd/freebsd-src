@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)collect.c	8.2 (Berkeley) 4/19/94";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -74,10 +78,9 @@ collect(hp, printheaders)
 	int printheaders;
 {
 	FILE *fbuf;
-	int lc, cc, escape, eofcount;
+	int lc, cc, escape, eofcount, fd;
 	register int c, t;
-	char linebuf[LINESIZE], *cp;
-	extern char *tempMail;
+	char linebuf[LINESIZE], tempname[PATHSIZE], *cp;
 	char getsub;
 	int omask;
 	void collint(), collhup(), collstop();
@@ -96,17 +99,19 @@ collect(hp, printheaders)
 	savettou = signal(SIGTTOU, collstop);
 	savettin = signal(SIGTTIN, collstop);
 	if (setjmp(collabort) || setjmp(colljmp)) {
-		rm(tempMail);
+		rm(tempname);
 		goto err;
 	}
 	sigsetmask(omask & ~(sigmask(SIGINT) | sigmask(SIGHUP)));
 
 	noreset++;
-	if ((collf = Fopen(tempMail, "w+")) == NULL) {
-		perror(tempMail);
+	snprintf(tempname, sizeof(tempname), "%s/mail.RsXXXXXXXXXX", tmpdir);
+	if ((fd = mkstemp(tempname)) == -1 ||
+	    (collf = Fdopen(fd, "w+")) == NULL) {
+		warn("%s", tempname);
 		goto err;
 	}
-	unlink(tempMail);
+	rm(tempname);
 
 	/*
 	 * If we are going to prompt for a subject,
@@ -261,7 +266,11 @@ cont:
 			hp->h_bcc = cat(hp->h_bcc, extract(&linebuf[2], GBCC));
 			break;
 		case 'd':
-			strcpy(linebuf + 2, getdeadletter());
+			if (strlcpy(linebuf + 2, getdeadletter(), sizeof(linebuf) - 2)
+			    >= sizeof(linebuf) - 2) {
+				printf("Line buffer overflow\n");
+				break;
+			}
 			/* fall into . . . */
 		case 'r':
 			/*
@@ -284,7 +293,7 @@ cont:
 				break;
 			}
 			if ((fbuf = Fopen(cp, "r")) == NULL) {
-				perror(cp);
+				warn("%s", cp);
 				break;
 			}
 			printf("\"%s\" ", cp);
@@ -328,12 +337,12 @@ cont:
 			 * standard list processing garbage.
 			 * If ~f is given, we don't shift over.
 			 */
-			if (forward(linebuf + 2, collf, c) < 0)
+			if (forward(linebuf + 2, collf, tempname, c) < 0)
 				goto err;
 			goto cont;
 		case '?':
 			if ((fbuf = Fopen(_PATH_TILDE, "r")) == NULL) {
-				perror(_PATH_TILDE);
+				warn("%s", _PATH_TILDE);
 				break;
 			}
 			while ((t = getc(fbuf)) != EOF)
@@ -410,14 +419,14 @@ exwrite(name, fp, f)
 		printf("\"%s\" ", name);
 		fflush(stdout);
 	}
-	if (stat(name, &junk) >= 0 && (junk.st_mode & S_IFMT) == S_IFREG) {
+	if (stat(name, &junk) >= 0 && S_ISREG(junk.st_mode)) {
 		if (!f)
 			fprintf(stderr, "%s: ", name);
 		fprintf(stderr, "File exists\n");
 		return(-1);
 	}
 	if ((of = Fopen(name, "w")) == NULL) {
-		perror(NOSTR);
+		warn(NOSTR);
 		return(-1);
 	}
 	lc = 0;
@@ -428,7 +437,7 @@ exwrite(name, fp, f)
 			lc++;
 		(void) putc(c, of);
 		if (ferror(of)) {
-			perror(name);
+			warnx("%s", name);
 			Fclose(of);
 			return(-1);
 		}
@@ -471,15 +480,17 @@ mespipe(fp, cmd)
 	char cmd[];
 {
 	FILE *nf;
+	int fd;
 	sig_t sigint = signal(SIGINT, SIG_IGN);
-	extern char *tempEdit;
-	char *shell;
+	char *shell, tempname[PATHSIZE];
 
-	if ((nf = Fopen(tempEdit, "w+")) == NULL) {
-		perror(tempEdit);
+	snprintf(tempname, sizeof(tempname), "%s/mail.ReXXXXXXXXXX", tmpdir);
+	if ((fd = mkstemp(tempname)) == -1 ||
+	    (nf = Fdopen(fd, "w+")) == NULL) {
+		warn("%s", tempname);
 		goto out;
 	}
-	(void) unlink(tempEdit);
+	(void) rm(tempname);
 	/*
 	 * stdin = current message.
 	 * stdout = new message.
@@ -515,13 +526,13 @@ out:
  * should shift over and 'f' if not.
  */
 int
-forward(ms, fp, f)
+forward(ms, fp, fn, f)
 	char ms[];
 	FILE *fp;
+	char *fn;
 	int f;
 {
 	register int *msgvec;
-	extern char *tempMail;
 	struct ignoretab *ig;
 	char *tabst;
 
@@ -549,8 +560,8 @@ forward(ms, fp, f)
 
 		touch(mp);
 		printf(" %d", *msgvec);
-		if (send(mp, fp, ig, tabst) < 0) {
-			perror(tempMail);
+		if (sendmessage(mp, fp, ig, tabst) < 0) {
+			warnx("%s", fn);
 			return(-1);
 		}
 	}

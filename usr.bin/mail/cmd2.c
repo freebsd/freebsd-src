@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cmd2.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -187,14 +191,14 @@ save1(str, mark, cmd, ignore)
 	else
 		disp = "[New file]";
 	if ((obuf = Fopen(file, "a")) == NULL) {
-		perror(NOSTR);
+		warn(NOSTR);
 		return(1);
 	}
 	for (ip = msgvec; *ip && ip-msgvec < msgCount; ip++) {
 		mp = &message[*ip - 1];
 		touch(mp);
-		if (send(mp, obuf, ignore, NOSTR) < 0) {
-			perror(file);
+		if (sendmessage(mp, obuf, ignore, NOSTR) < 0) {
+			warnx("%s", file);
 			Fclose(obuf);
 			return(1);
 		}
@@ -203,7 +207,7 @@ save1(str, mark, cmd, ignore)
 	}
 	fflush(obuf);
 	if (ferror(obuf))
-		perror(file);
+		warn("%s", file);
 	Fclose(obuf);
 	printf("%s\n", disp);
 	return(0);
@@ -367,11 +371,11 @@ int
 core()
 {
 	int pid;
-	extern union wait wait_status;
+	extern int wait_status;
 
 	switch (pid = fork()) {
 	case -1:
-		perror("fork");
+		warn("fork");
 		return(1);
 	case 0:
 		abort();
@@ -380,7 +384,7 @@ core()
 	printf("Okie dokie");
 	fflush(stdout);
 	wait_child(pid);
-	if (wait_status.w_coredump)
+	if (WIFSIGNALED(wait_status) && WCOREDUMP(wait_status))
 		printf(" -- Core dumped.\n");
 	else
 		printf(" -- Can't dump core.\n");
@@ -467,7 +471,7 @@ ignore1(list, tab, which)
 	struct ignoretab *tab;
 	char *which;
 {
-	char field[BUFSIZ];
+	char field[LINESIZE];
 	register int h;
 	register struct ignore *igp;
 	char **ap;
@@ -475,7 +479,7 @@ ignore1(list, tab, which)
 	if (*list == NOSTR)
 		return igshow(tab, which);
 	for (ap = list; *ap != 0; ap++) {
-		istrcpy(field, *ap);
+		istrncpy(field, *ap, sizeof(field));
 		if (member(field, tab))
 			continue;
 		h = hash(field);
