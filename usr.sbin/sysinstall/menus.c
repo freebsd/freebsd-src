@@ -1607,7 +1607,8 @@ DMenu MenuSecurityProfile = {
     { { "X Exit",	"Exit this menu (returning to previous)", NULL, configSecurityModerate },
       { "Low",		"Fairly wide-open (little) security.", NULL, configSecurityLiberal },
       { "Medium",	"Moderate security settings [DEFAULT].", NULL, configSecurityModerate },
-      { "High",		"Very restrictive security settings.", NULL, configSecurityFascist },
+      { "High",		"Fairly safe security settings.", NULL, configSecurityHigh },
+      { "Extreme",	"Very restrictive security settings.", NULL, configSecurityFascist },
       { NULL } },
 };
 
