@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.28.2.2 1996/10/06 01:31:25 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.30 1996/10/25 06:42:53 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -97,23 +97,28 @@ struct ahc_dma_seg {
 };
 
 typedef enum {
-	AHC_NONE	= 0x000,
-	AHC_ULTRA	= 0x001,	/* Supports 20MHz Transfers */
-	AHC_WIDE  	= 0x002,	/* Wide Channel */
-	AHC_TWIN	= 0x008,	/* Twin Channel */
-	AHC_AIC7770	= 0x010,
-	AHC_AIC7850	= 0x020,
-	AHC_AIC7860	= 0x021,	/* ULTRA version of the aic7850 */
-	AHC_AIC7870	= 0x040,
-	AHC_AIC7880	= 0x041,
-	AHC_AIC78X0	= 0x060,	/* PCI Based Controller */
-	AHC_274		= 0x110,	/* EISA Based Controller */
-	AHC_284		= 0x210,	/* VL/ISA Based Controller */
-	AHC_294AU	= 0x421,	/* aic7860 based '2940' */
-	AHC_294		= 0x440,	/* PCI Based Controller */
-	AHC_294U	= 0x441,	/* ULTRA PCI Based Controller */
-	AHC_394		= 0x840,	/* Twin Channel PCI Controller */
-	AHC_394U	= 0x841,	/* Twin, ULTRA Channel PCI Controller */
+	AHC_NONE	= 0x0000,
+	AHC_ULTRA	= 0x0001,	/* Supports 20MHz Transfers */
+	AHC_WIDE  	= 0x0002,	/* Wide Channel */
+	AHC_TWIN	= 0x0008,	/* Twin Channel */
+	AHC_AIC7770	= 0x0010,
+	AHC_AIC7850	= 0x0020,
+	AHC_AIC7860	= 0x0021,	/* ULTRA version of the aic7850 */
+	AHC_AIC7870	= 0x0040,
+	AHC_AIC7880	= 0x0041,
+	AHC_AIC78X0	= 0x0060,	/* PCI Based Controller */
+	AHC_274		= 0x0110,	/* EISA Based Controller */
+	AHC_284		= 0x0210,	/* VL/ISA Based Controller */
+	AHC_294AU	= 0x0421,	/* aic7860 based '2940' */
+	AHC_294		= 0x0440,	/* PCI Based Controller */
+	AHC_294U	= 0x0441,	/* ULTRA PCI Based Controller */
+	AHC_394		= 0x0840,	/* Twin Channel PCI Controller */
+	AHC_394U	= 0x0841,	/* ULTRA, Twin Channel PCI Controller */
+	AHC_398		= 0x1040,	/* Multi Channel PCI RAID Controller */
+	AHC_398U	= 0x1041,	/* ULTRA, Multi Channel PCI
+					 * RAID Controller
+					 */
+	AHC_39X		= 0x1800	/* Multi Channel PCI Adapter */
 }ahc_type;
 
 typedef enum {
@@ -133,11 +138,16 @@ typedef enum {
 					 * settings.
 					 */
 	AHC_CHNLB		= 0x20,	/* 
-					 * Second controller on 3940 
+					 * Second controller on 3940/398X 
 					 * Also encodes the offset in the
 					 * SEEPROM for CHNLB info (32)
 					 */
-}ahc_flag;
+	AHC_CHNLC               = 0x40  /*
+					 * Third controller on 3985
+					 * Also encodes the offset in the
+					 * SEEPROM for CHNLC info (64)
+					 */
+} ahc_flag;
 
 typedef enum {
 	SCB_FREE		= 0x0000,
@@ -154,7 +164,7 @@ typedef enum {
 	SCB_SENTORDEREDTAG	= 0x0400,
 	SCB_MSGOUT_SDTR		= 0x0800,
 	SCB_MSGOUT_WDTR		= 0x1000
-}scb_flag;
+} scb_flag;
 
 /*
  * The driver keeps up to MAX_SCB scb structures per card in memory.  The SCB
@@ -198,8 +208,7 @@ struct hardware_scb {
 					 */
 };
 
-struct scb
-{
+struct scb {
 	struct	hardware_scb	*hscb;
 	STAILQ_ENTRY(scb)	links;	 /* for chaining */
 	struct	scsi_xfer	*xs;	 /* the scsi_xfer for this cmd */
@@ -209,7 +218,22 @@ struct scb
 	u_int8_t		position;/* Position in card's scbarray */
 };
 
-struct ahc_data {
+struct scb_data {
+	struct	hardware_scb	*hscbs;	    /* Array of hardware SCBs */
+	struct	scb *scbarray[AHC_SCB_MAX]; /* Array of kernel SCBs */
+	STAILQ_HEAD(, scb) free_scbs;	/*
+					 * Pool of SCBs ready to be assigned
+					 * commands to execute.
+					 */
+	u_int8_t	numscbs;
+	u_int8_t	maxhscbs;	/* Number of SCBs on the card */
+	u_int8_t	maxscbs;	/*
+					 * Max SCBs we allocate total including
+					 * any that will force us to page SCBs
+					 */
+};
+
+struct ahc_softc {
 #if defined(__FreeBSD__)
 	int	unit;
 #elif defined(__NetBSD__)
@@ -224,18 +248,14 @@ struct ahc_data {
 	u_int32_t	baseport;
 #endif
 	volatile u_int8_t *maddr;
-	struct	hardware_scb	*hscbs;	    /* Array of hardware SCBs */
-	struct	scb *scbarray[AHC_SCB_MAX]; /* Array of kernel SCBs */
-	STAILQ_HEAD(, scb) free_scbs;	/*
-					 * Pool of SCBs ready to be assigned
-					 * commands to execute.
-					 */
+	struct	scb_data *scb_data;
+	struct	scsi_link sc_link;
+	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
 	STAILQ_HEAD(, scb) waiting_scbs;/*
 					 * SCBs waiting ready to go but
 					 * waiting for space in the QINFIFO.
 					 */
-	struct	scsi_link sc_link;
-	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
+	u_int8_t	activescbs;
 	u_int16_t	needsdtr_orig;	/* Targets we initiate sync neg with */
 	u_int16_t	needwdtr_orig;	/* Targets we initiate wide neg with */
 	u_int16_t	needsdtr;	/* Current list of negotiated targets */
@@ -247,13 +267,6 @@ struct ahc_data {
 	u_int16_t	discenable;	/* Targets allowed to disconnect */
 	u_int8_t	our_id;		/* our scsi id */
 	u_int8_t	our_id_b;	/* B channel scsi id */
-	u_int8_t	numscbs;
-	u_int8_t	activescbs;
-	u_int8_t	maxhscbs;	/* Number of SCBs on the card */
-	u_int8_t	maxscbs;	/*
-					 * Max SCBs we allocate total including
-					 * any that will force us to page SCBs
-					 */
 	u_int8_t	qcntmask;	/*
 					 * Mask of valid registers in the
 					 * Q*CNT registers.
@@ -276,6 +289,11 @@ struct ahc_data {
 	u_int8_t	in_timeout;
 };
 
+struct full_ahc_softc {
+	struct ahc_softc softc;
+	struct scb_data  scb_data_storage;
+};
+
 /* #define AHC_DEBUG */
 #ifdef AHC_DEBUG
 /* Different debugging levels used when AHC_DEBUG is defined */
@@ -291,20 +309,22 @@ extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
 
 #if defined(__FreeBSD__)
 
-char *ahc_name __P((struct ahc_data *ahc));
+char *ahc_name __P((struct ahc_softc *ahc));
 
 void ahc_reset __P((u_int32_t iobase));
-struct ahc_data *ahc_alloc __P((int unit, u_int32_t io_base, vm_offset_t maddr, ahc_type type, ahc_flag flags));
+struct ahc_softc *ahc_alloc __P((int unit, u_int32_t io_base,
+				 vm_offset_t maddr, ahc_type type,
+				 ahc_flag flags, struct scb_data *scb_data));
 #elif defined(__NetBSD__)
 
 #define	ahc_name(ahc)	(ahc)->sc_dev.dv_xname
 
 void ahc_reset __P((char *devname, bus_chipset_tag_t bc, bus_io_handle_t ioh));
-void ahc_construct __P((struct ahc_data *ahc, bus_chipset_tag_t bc, bus_io_handle_t ioh, ahc_type type, ahc_flag flags));
+void ahc_construct __P((struct ahc_softc *ahc, bus_chipset_tag_t bc, bus_io_handle_t ioh, ahc_type type, ahc_flag flags));
 #endif
-void ahc_free __P((struct ahc_data *));
-int ahc_init __P((struct ahc_data *));
-int ahc_attach __P((struct ahc_data *));
+void ahc_free __P((struct ahc_softc *));
+int ahc_init __P((struct ahc_softc *));
+int ahc_attach __P((struct ahc_softc *));
 #if defined(__FreeBSD__)
 void ahc_intr __P((void *arg));
 #elif defined(__NetBSD__)
