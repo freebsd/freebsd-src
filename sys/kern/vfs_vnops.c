@@ -1147,6 +1147,8 @@ vn_extattr_get(struct vnode *vp, int ioflg, int attrnamespace,
 	if ((ioflg & IO_NODELOCKED) == 0)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
+	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
+
 	/* authorize attribute retrieval as kernel */
 	error = VOP_GETEXTATTR(vp, attrnamespace, attrname, &auio, NULL, NULL,
 	    td);
@@ -1190,6 +1192,8 @@ vn_extattr_set(struct vnode *vp, int ioflg, int attrnamespace,
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 
+	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
+
 	/* authorize attribute setting as kernel */
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, &auio, NULL, td);
 
@@ -1213,6 +1217,8 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 			return (error);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
+
+	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
 
 	/* authorize attribute removal as kernel */
 	error = VOP_DELETEEXTATTR(vp, attrnamespace, attrname, NULL, td);
