@@ -55,95 +55,89 @@ bindresvport(sd, sin)
 	int sd;
 	struct sockaddr_in *sin;
 {
-	struct sockaddr_in myaddr;
-	int sinlen = sizeof(struct sockaddr_in);
+	return bindresvport_sa(sd, (struct sockaddr *)sin);
+}
 
-	if (sin == (struct sockaddr_in *)0) {
-		sin = &myaddr;
-		memset(sin, 0, sinlen);
-		sin->sin_len = sinlen;
-		sin->sin_family = AF_INET;
-	} else if (sin->sin_family != AF_INET) {
+/*
+ * Bind a socket to a privileged port for whatever protocol.
+ */
+int
+bindresvport_sa(sd, sa)
+	int sd;
+	struct sockaddr *sa;
+{
+	int old, error, af;
+	struct sockaddr_storage myaddr;
+	struct sockaddr_in *sin;
+	struct sockaddr_in6 *sin6;
+	int proto, portrange, portlow;
+	u_int16_t port;
+	int salen;
+
+	if (sa == NULL) {
+		salen = sizeof(myaddr);
+		sa = (struct sockaddr *)&myaddr;
+
+		if (getsockname(sd, sa, &salen) == -1)
+			return -1;	/* errno is correctly set */
+
+		af = sa->sa_family;
+		memset(&myaddr, 0, salen);
+	} else
+		af = sa->sa_family;
+
+	if (af == AF_INET) {
+		proto = IPPROTO_IP;
+		portrange = IP_PORTRANGE;
+		portlow = IP_PORTRANGE_LOW;
+		sin = (struct sockaddr_in *)sa;
+		salen = sizeof(struct sockaddr_in);
+		port = sin->sin_port;
+	} else if (af == AF_INET6) {
+		proto = IPPROTO_IPV6;
+		portrange = IPV6_PORTRANGE;
+		portlow = IPV6_PORTRANGE_LOW;
+		sin6 = (struct sockaddr_in6 *)sa;
+		salen = sizeof(struct sockaddr_in6);
+		port = sin6->sin6_port;
+	} else {
 		errno = EPFNOSUPPORT;
 		return (-1);
 	}
-
-	return (bindresvport2(sd, sin, sinlen));
-}
-
-int
-bindresvport2(sd, sa, addrlen)
-	int sd;
-	struct sockaddr *sa;
-	socklen_t addrlen;
-{
-	int on, old, error, level, optname;
-	u_short port;
-
-	if (sa == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	switch (sa->sa_family) {
-	case AF_INET:
-		port = ntohs(((struct sockaddr_in *)sa)->sin_port);
-		level = IPPROTO_IP;
-		optname = IP_PORTRANGE;
-		on = IP_PORTRANGE_LOW;
-		break;
-#ifdef INET6
-	case AF_INET6:
-		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
-		level = IPPROTO_IPV6;
-		optname = IPV6_PORTRANGE;
-		on = IPV6_PORTRANGE_LOW;
-		break;
-#endif
-	default:
-		errno = EAFNOSUPPORT;
-		return (-1);
-	}
+	sa->sa_family = af;
+	sa->sa_len = salen;
 
 	if (port == 0) {
 		int oldlen = sizeof(old);
-		error = getsockopt(sd, level, optname, &old, &oldlen);
-		if (error < 0)
-			return(error);
 
-		error = setsockopt(sd, level, optname, &on, sizeof(on));
+		error = getsockopt(sd, proto, portrange, &old, &oldlen);
 		if (error < 0)
-			return(error);
+			return (error);
+
+		error = setsockopt(sd, proto, portrange, &portlow,
+		    sizeof(portlow));
+		if (error < 0)
+			return (error);
 	}
 
-	error = bind(sd, sa, addrlen);
+	error = bind(sd, sa, salen);
 
-	switch (sa->sa_family) {
-	case AF_INET:
-		port = ntohs(((struct sockaddr_in *)sa)->sin_port);
-		break;
-#ifdef INET6
-	case AF_INET6:
-		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
-		break;
-#endif
-	default: /* shoud not match here */
-		errno = EAFNOSUPPORT;
-		return (-1);
-	}
 	if (port == 0) {
 		int saved_errno = errno;
 
 		if (error) {
-			if (setsockopt(sd, level, optname,
-			    &old, sizeof(old)) < 0)
+			if (setsockopt(sd, proto, portrange, &old,
+			    sizeof(old)) < 0)
 				errno = saved_errno;
 			return (error);
 		}
 
-		/* Hmm, what did the kernel assign... */
-		if (getsockname(sd, (struct sockaddr *)sa, &addrlen) < 0)
-			errno = saved_errno;
-		return (error);
+		if (sa != (struct sockaddr *)&myaddr) {
+			/* Hmm, what did the kernel assign... */
+			if (getsockname(sd, sa, &salen) < 0)
+				errno = saved_errno;
+			return (error);
+		}
 	}
 	return (error);
 }
