@@ -54,6 +54,8 @@ __BEGIN_DECLS
 struct sbuf	*sbuf_new(struct sbuf *s, char *buf, int length, int flags);
 void		 sbuf_clear(struct sbuf *s);
 int		 sbuf_setpos(struct sbuf *s, int pos);
+int		 sbuf_bcat(struct sbuf *s, const char *str, size_t len);
+int		 sbuf_bcpy(struct sbuf *s, const char *str, size_t len);
 int		 sbuf_cat(struct sbuf *s, const char *str);
 int		 sbuf_cpy(struct sbuf *s, const char *str);
 int		 sbuf_printf(struct sbuf *s, char *fmt, ...);
@@ -63,6 +65,11 @@ void		 sbuf_finish(struct sbuf *s);
 char		*sbuf_data(struct sbuf *s);
 int		 sbuf_len(struct sbuf *s);
 void		 sbuf_delete(struct sbuf *s);
+
+#ifdef _KERNEL
+int		 sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len);
+int		 sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len);
+#endif
 __END_DECLS
 
 #endif
