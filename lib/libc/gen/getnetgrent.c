@@ -166,7 +166,7 @@ setnetgrent(group)
 		/* Presumed guilty until proven innocent. */
 		_use_only_yp = 0;
 		/*
-		 * IF /etc/netgroup doesn't exist or is empty,
+		 * If /etc/netgroup doesn't exist or is empty,
 		 * use NIS exclusively.
 		 */
 		if (((stat(_PATH_NETGROUP, &_yp_statp) < 0) &&
@@ -280,11 +280,12 @@ int len;
 {
 	char *ptr = list;
 
-	while (ptr != (char *)(list + len)) {
-		if (!strncmp(group, ptr, strlen(group)))
-			return(1);
-		ptr++;
-	}
+	if ((ptr = strstr(list, group)) == NULL)
+		return(0);
+
+	if (*(ptr + strlen(group)) == ',' || *(ptr + strlen(group)) == '\n')
+		return(1);
+
 	return(0);
 }
 
@@ -320,6 +321,7 @@ innetgr(group, host, user, dom)
 #ifdef YP
 	char *result;
 	int resultlen;
+	int rv;
 #endif
 	/* Sanity check */
 	
@@ -331,6 +333,7 @@ innetgr(group, host, user, dom)
 #endif
 	setnetgrent(group);
 #ifdef YP
+	_yp_innetgr = 0;
 	/*
 	 * If we're in NIS-only mode, do the search using
 	 * NIS 'reverse netgroup' lookups.
@@ -347,20 +350,20 @@ innetgr(group, host, user, dom)
 			    &resultlen))
 				free(result);
 			else {
-				if (_listmatch(result, group, resultlen)) {
-					free(result);
+				rv = _listmatch(result, group, resultlen);
+				free(result);
+				if (rv)
 					return(1);
-				}
+				else
+					return(0);
 			}
 		}
-		free(result);
 #ifdef CHARITABLE
 	}
 	/*
 	 * Couldn't match using NIS-exclusive mode -- try
 	 * standard mode.
 	 */
-	_yp_innetgr = 0;
 	setnetgrent(group);
 #else
 		return(0);
