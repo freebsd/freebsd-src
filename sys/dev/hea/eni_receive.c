@@ -833,10 +833,8 @@ finish:
 	 * the kernel to process the atm_intrq.
 	 */
 	if ( que )
-		SCHED_ATM;
-
+		schednetisr(NETISR_ATM);
 	return;
-
 }
 
 /*
