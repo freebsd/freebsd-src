@@ -1,0 +1,13 @@
+#       $Id: Makefile,v 1.30 1998/04/28 07:16:24 ache Exp $
+
+SHLIB_MAJOR= 4
+SHLIB_MINOR= 0
+RL_LIBRARY_VERSION= 4.0
+
+SRCDIR= ${.CURDIR}/../../../../contrib/libreadline
+.PATH: ${SRCDIR} ${.CURDIR}/..
+
+LOCAL_CFLAGS= -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
+CFLAGS+= -I${.CURDIR}/.. -I${SRCDIR} -DHAVE_CONFIG_H ${LOCAL_CFLAGS}
+
+HISTSRC=  history.c histexpand.c histfile.c histsearch.c shell.c
