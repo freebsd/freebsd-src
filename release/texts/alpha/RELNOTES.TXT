@@ -70,6 +70,15 @@ The ahc(4) driver has been updated.
 AlphaServer 2100A 'Lynx' support has not been finalised and Lynx is therefore
 not yet supported. 
 
+The ata(4) driver now supports the ServerWorks ROSB4 ATA33 chipset,
+the CMD 648 ATA66 and CMD 649 ATA100 chipsets, and the Cyrix 5530.
+
+The ata(4) driver now has support for tagged queueing, which is
+enabled by the ATA_ENABLE_TAGS option.
+
+The ata(4) driver now has support for ATA "pseudo" RAID controllers as
+the Promise Fasttrak and HighPoint HPT370 controllers.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -127,6 +136,9 @@ ncurses has been updated to ncurses-5.1-20001009.
 make(1) has gained the :C/// (regexp substitution), :L (lowercase),
 and :U (uppercase) variable modifiers.  These were added to reduce the
 differences between the FreeBSD and OpenBSD/NetBSD make programs.
+
+The "in use" percentage metric displayed by netstat(1) now really
+reflects the percentage of network mbufs used.
 
 
 2. Supported Configurations

@@ -67,6 +67,22 @@ maximum of 16, and the other, aforementioned options are now dynamic.
 
 The ahc(4) driver has been updated.
 
+The ata(4) driver now supports the ServerWorks ROSB4 ATA33 chipset,
+the CMD 648 ATA66 and CMD 649 ATA100 chipsets, and the Cyrix 5530.
+
+The ata(4) driver now has support for tagged queueing, which is
+enabled by the ATA_ENABLE_TAGS option.
+
+The ata(4) driver now has support for ATA "pseudo" RAID controllers as
+the Promise Fasttrak and HighPoint HPT370 controllers.
+
+The snc(4) driver for the National Semiconductor DP8393X (SONIC)
+Ethernet controller.  Curently, this driver is only used on the PC-98
+architecture.
+
+The ich(4) driver for the Intel 82801AA (ICH) SMBus controller and
+compatibles has been added. [MERGED]
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -124,6 +140,9 @@ ncurses has been updated to ncurses-5.1-20001009.
 make(1) has gained the :C/// (regexp substitution), :L (lowercase),
 and :U (uppercase) variable modifiers.  These were added to reduce the
 differences between the FreeBSD and OpenBSD/NetBSD make programs.
+
+The "in use" percentage metric displayed by netstat(1) now really
+reflects the percentage of network mbufs used.
 
 
 2. Supported Configurations
@@ -480,6 +499,11 @@ including the following:
   Telecom Device SuperSocket RE450T
 
 Megahertz X-Jack Ethernet PC-Card CC-10BT
+
+National Semiconductor DP8393X (SONIC) Ethernet cards
+    NEC PC-9801-83, -84, -103, and -104
+    NEC PC-9801N-25 and -J02R
+
 
 2.3. FDDI
 ---------
