@@ -813,11 +813,10 @@ es_pci_attach(device_t dev)
 	struct ac97_info *codec = 0;
 	kobj_class_t    ct = NULL;
 
-	if ((es = malloc(sizeof *es, M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((es = malloc(sizeof *es, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
-	bzero(es, sizeof *es);
 
 	es->dev = dev;
 	mapped = 0;

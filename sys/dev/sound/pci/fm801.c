@@ -568,12 +568,11 @@ fm801_pci_attach(device_t dev)
 	int 			mapped = 0;
 	char 			status[SND_STATUSLEN];
 
-	if ((fm801 = (struct fm801_info *)malloc(sizeof(*fm801),M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((fm801 = (struct fm801_info *)malloc(sizeof(*fm801), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
 
-	bzero(fm801, sizeof(*fm801));
 	fm801->type = pci_get_devid(dev);
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);

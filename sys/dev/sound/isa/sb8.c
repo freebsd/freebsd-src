@@ -682,10 +682,9 @@ sb_attach(device_t dev)
 	int bs = SB_BUFFSIZE;
 	uintptr_t ver;
 
-    	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
+    	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT | M_ZERO);
     	if (!sb)
 		return ENXIO;
-    	bzero(sb, sizeof *sb);
 
 	BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
 	sb->bd_id = ver & 0x0000ffff;
