@@ -60,7 +60,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: mii.c,v 1.1 1999/08/21 17:40:41 wpaul Exp $";
+  "$FreeBSD$";
 #endif
 
 static int miibus_readreg	__P((device_t, int, int));
