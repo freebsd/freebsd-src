@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.56 1997/08/31 22:43:39 bde Exp $
+#	$Id: options.i386,v 1.57 1997/08/31 23:08:19 bde Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -76,6 +76,7 @@ SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
 SLOW_VGA		opt_syscons.h
 STD8X16FONT		opt_syscons.h
+SC_HISTORY_SIZE		opt_syscons.h
 
 PSM_ACCEL		opt_psm.h
 PSM_EMULATION		opt_psm.h
