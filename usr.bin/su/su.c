@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: su.c,v 1.14.2.6 1998/02/18 12:16:03 markm Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -168,6 +168,11 @@ main(argc, argv)
 		break;
 	    }
 
+	if (strlen(user) > MAXLOGNAME) {
+		(void)fprintf(stderr, "su: username too long.\n");
+		exit(1);
+	}
+		
 	if (user == NULL)
 		usage();
 
