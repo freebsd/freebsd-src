@@ -79,8 +79,10 @@ struct acpi_asus_model {
 };
 
 struct acpi_asus_led {
+	struct acpi_asus_softc *sc;
 	struct cdev	*cdev;
-	device_t	dev;
+	int		busy;
+	int		state;
 	enum {
 		ACPI_ASUS_LED_MLED,
 		ACPI_ASUS_LED_TLED,
@@ -255,6 +257,7 @@ static int	acpi_asus_attach(device_t dev);
 static int	acpi_asus_detach(device_t dev);
 
 static void	acpi_asus_led(struct acpi_asus_led *led, int state);
+static void	acpi_asus_led_task(struct acpi_asus_led *led, int pending __unused);
 
 static int	acpi_asus_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_asus_sysctl_init(struct acpi_asus_softc *sc, int method);
@@ -401,21 +404,24 @@ acpi_asus_attach(device_t dev)
 
 	/* Attach leds */
 	if (sc->model->mled_set) {
-		sc->s_mled.dev = dev;
+		sc->s_mled.busy = 0;
+		sc->s_mled.sc = sc;
 		sc->s_mled.type = ACPI_ASUS_LED_MLED;
 		sc->s_mled.cdev =
 		    led_create((led_t *)acpi_asus_led, &sc->s_mled, "mled");
 	}
 
 	if (sc->model->tled_set) {
-		sc->s_tled.dev = dev;
+		sc->s_tled.busy = 0;
+		sc->s_tled.sc = sc;
 		sc->s_tled.type = ACPI_ASUS_LED_TLED;
 		sc->s_tled.cdev =
 		    led_create((led_t *)acpi_asus_led, &sc->s_tled, "tled");
 	}
 
 	if (sc->model->wled_set) {
-		sc->s_wled.dev = dev;
+		sc->s_wled.busy = 0;
+		sc->s_wled.sc = sc;
 		sc->s_wled.type = ACPI_ASUS_LED_WLED;
 		sc->s_wled.cdev =
 		    led_create((led_t *)acpi_asus_led, &sc->s_wled, "wled");
@@ -461,27 +467,30 @@ acpi_asus_detach(device_t dev)
 }
 
 static void
-acpi_asus_led(struct acpi_asus_led *led, int state)
+acpi_asus_led_task(struct acpi_asus_led *led, int pending __unused)
 {
 	struct acpi_asus_softc	*sc;
 	char			*method;
-
+	int			state;
+	
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	sc = device_get_softc(led->dev);
+	sc = led->sc;
 
 	switch (led->type) {
 	case ACPI_ASUS_LED_MLED:
 		method = sc->model->mled_set;
 
 		/* Note: inverted */
-		state = !state;
+		state = !led->state;
 		break;
 	case ACPI_ASUS_LED_TLED:
 		method = sc->model->tled_set;
+		state = led->state;
 		break;
 	case ACPI_ASUS_LED_WLED:
 		method = sc->model->wled_set;
+		state = led->state;
 		break;
 	default:
 		printf("acpi_asus_led: invalid LED type %d\n",
@@ -490,6 +499,23 @@ acpi_asus_led(struct acpi_asus_led *led, int state)
 	}
 
 	acpi_SetInteger(sc->handle, method, state);
+	led->busy = 0;
+}
+	
+static void
+acpi_asus_led(struct acpi_asus_led *led, int state)
+{
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	if (led->busy)
+		return;
+
+	led->busy = 1;
+	led->state = state;
+
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
+	    (void *)acpi_asus_led_task, led);
 }
 
 static int
