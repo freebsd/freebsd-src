@@ -1,0 +1,144 @@
+#ifndef lint
+static const char *rcsid = "$Id: perform.c,v 1.3 1993/08/26 08:47:06 jkh Exp $";
+#endif
+
+/*
+ * FreeBSD install - a package for the installation and maintainance
+ * of non-core utilities.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * Jordan K. Hubbard
+ * 23 Aug 1993
+ *
+ * This is the main body of the info module.
+ *
+ */
+
+#include "lib.h"
+#include "info.h"
+
+#include <signal.h>
+
+static int pkg_do(char *);
+
+int
+pkg_perform(char **pkgs)
+{
+    int i, err_cnt = 0;
+
+    signal(SIGINT, cleanup);
+
+    /* Overriding action? */
+    if (AllInstalled) {
+	if (isdir(LOG_DIR)) {
+	    DIR *dirp;
+	    struct dirent *dp;
+
+	    dirp = opendir(LOG_DIR);
+	    if (dirp) {
+		for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp)) {
+		    if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, ".."))
+			err_cnt += pkg_do(dp->d_name);
+		}
+		(void)closedir(dirp);
+	    }
+	    else
+		++err_cnt;
+	}
+    }
+    for (i = 0; pkgs[i]; i++)
+	err_cnt += pkg_do(pkgs[i]);
+    return err_cnt;
+}
+
+static int
+pkg_do(char *pkg)
+{
+    Boolean installed = FALSE;
+    char log_dir[FILENAME_MAX];
+    char *home;
+    Package plist;
+    FILE *fp;
+
+    if (fexists(pkg)) {
+	char fname[FILENAME_MAX];
+
+	home = make_playpen();
+	if (pkg[0] == '/')
+	    strcpy(fname, pkg);
+	else
+	    sprintf(fname, "%s/%s", home, pkg);
+	if (unpack(fname, "+*")) {
+	    whinge("Error during unpacking, no info for '%s' available.", pkg);
+	    return 1;
+	}
+    }
+    else {
+	sprintf(log_dir, "%s/%s", LOG_DIR, pkg);
+	if (!fexists(log_dir)) {
+	    whinge("Can't find package '%s' installed or in a file!", pkg);
+	    return 1;
+	}
+	if (chdir(log_dir) == FAIL) {
+	    whinge("Can't change directory to '%s'!", log_dir);
+	    return 1;
+	}
+	installed = TRUE;
+    }
+
+    /* Suck in the contents list */
+    plist.head = plist.tail = NULL;
+    fp = fopen(CONTENTS_FNAME, "r");
+    if (!fp) {
+	whinge("Unable to open %s file.", CONTENTS_FNAME);
+	return 1;
+    }
+    /* If we have a prefix, add it now */
+    read_plist(&plist, fp);
+    fclose(fp);
+
+    /*
+     * Index is special info type that has to override all others to make
+     * any sense.
+     */
+    if (Flags & SHOW_INDEX) {
+	char fname[FILENAME_MAX];
+
+	sprintf(fname, "%s\t", pkg);
+	show_file(fname, COMMENT_FNAME);
+    }
+    else {
+	/* Start showing the package contents */
+	printf("Information for %s:\n\n", pkg);
+	if (Flags & SHOW_COMMENT)
+	    show_file("Comment:\n", COMMENT_FNAME);
+	if (Flags & SHOW_DESC)
+	    show_file("Description:\n", DESC_FNAME);
+	if (Flags & SHOW_PLIST)
+	    show_plist("Packing list:\n", &plist, (plist_t)-1);
+	if ((Flags & SHOW_INSTALL) && fexists(INSTALL_FNAME))
+	    show_file("Install script:\n", INSTALL_FNAME);
+	if ((Flags & SHOW_DEINSTALL) && fexists(DEINSTALL_FNAME))
+	    show_file("De-Install script:\n", DEINSTALL_FNAME);
+	if (Flags & SHOW_PREFIX)
+	    show_plist("Prefix(s):\n", &plist, PLIST_CWD);
+	putchar('\014');
+    }
+    free_plist(&plist);
+    leave_playpen();
+    return 0;
+}
+
+void
+cleanup(int sig)
+{
+    leave_playpen();
+}
