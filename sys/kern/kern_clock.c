@@ -444,8 +444,7 @@ profclock(frame)
 		 * bother trying to count it.
 		 */
 		td = curthread;
-		if ((td->td_proc->p_sflag & PS_PROFIL) &&
-		    !(td->td_flags & TDF_UPCALLING))
+		if (td->td_proc->p_sflag & PS_PROFIL)
 			addupc_intr(td, CLKF_PC(frame), 1);
 	}
 #ifdef GPROF
