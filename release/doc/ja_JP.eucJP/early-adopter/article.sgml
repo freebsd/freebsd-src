@@ -25,7 +25,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.5
+    Original revision: 1.6
 -->
 
 <article>
@@ -407,7 +407,7 @@
     <para>&os; 5.0 には魅力的な機能がたくさん含まれています。
       しかし現時点では、それがすべての皆さんの期待に応えられるものではないかも知れません。
       この文書では、リリースエンジニアリングの背景と
-      5.0 系列の特筆すべき新機能の一部について、
+      5.<replaceable>X</replaceable> 系列の特筆すべき新機能の一部について、
       初期リリースを使う上でのいくつかの欠点についてとりあげました。
       また、将来の 4-STABLE 開発ブランチの計画と、
       初期リリースを利用する人向けのアップグレードのヒントも説明しています。</para>
