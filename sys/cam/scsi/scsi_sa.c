@@ -342,7 +342,6 @@ DATA_SET(periphdriver_set, sadriver);
 #endif
 
 #define SA_CDEV_MAJOR 14
-#define SA_BDEV_MAJOR 5
 
 static struct cdevsw sa_cdevsw = {
 	/* open */	saopen,
@@ -363,7 +362,7 @@ static struct cdevsw sa_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	D_TAPE,
 	/* maxio */	0,
-	/* bmaj */	SA_BDEV_MAJOR
+	/* bmaj */	-1
 };
 
 static struct extend_array *saperiphs;
