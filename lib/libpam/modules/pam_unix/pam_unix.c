@@ -151,7 +151,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	login_cap_t *lc;
 	time_t warntime;
 	int retval;
-	const char *rhost, *tty, *user;
+	const char *user;
+	const void *rhost, *tty;
 	char rhostip[MAXHOSTNAMELEN] = "";
 
 	retval = pam_get_user(pamh, &user, NULL);
@@ -163,11 +164,11 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got user: %s", user);
 
-	retval = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
+	retval = pam_get_item(pamh, PAM_RHOST, &rhost);
 	if (retval != PAM_SUCCESS)
 		return (retval);
 
-	retval = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	retval = pam_get_item(pamh, PAM_TTY, &tty);
 	if (retval != PAM_SUCCESS)
 		return (retval);
 
@@ -224,7 +225,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	 * PAM_NEW_AUTHTOK_REQD.
 	 */
 
-	if (rhost && *rhost) {
+	if (rhost && *(const char *)rhost != '\0') {
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
 		if (getaddrinfo(rhost, NULL, &hints, &res) == 0) {
@@ -261,7 +262,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 {
 #ifdef YP
 	struct ypclnt *ypclnt;
-	const char *yp_domain, *yp_server;
+	const void *yp_domain, *yp_server;
 #endif
 	char salt[SALTSIZE + 1];
 	login_cap_t * lc;
@@ -297,10 +298,8 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		    (pwd->pw_fields & _PWF_SOURCE) == _PWF_NIS) {
 
 			yp_domain = yp_server = NULL;
-			(void)pam_get_data(pamh,
-			    "yp_domain", (const void **)&yp_domain);
-			(void)pam_get_data(pamh,
-			    "yp_server", (const void **)&yp_server);
+			(void)pam_get_data(pamh, "yp_domain", &yp_domain);
+			(void)pam_get_data(pamh, "yp_server", &yp_server);
 
 			ypclnt = ypclnt_new(yp_domain, "passwd.byname", yp_server);
 			if (ypclnt == NULL)
@@ -402,10 +401,8 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			break;
 		case _PWF_NIS:
 			yp_domain = yp_server = NULL;
-			(void)pam_get_data(pamh,
-			    "yp_domain", (const void **)&yp_domain);
-			(void)pam_get_data(pamh,
-			    "yp_server", (const void **)&yp_server);
+			(void)pam_get_data(pamh, "yp_domain", &yp_domain);
+			(void)pam_get_data(pamh, "yp_server", &yp_server);
 			ypclnt = ypclnt_new(yp_domain,
 			    "passwd.byname", yp_server);
 			if (ypclnt == NULL) {

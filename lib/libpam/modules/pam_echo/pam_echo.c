@@ -48,7 +48,8 @@ _pam_echo(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
 	char msg[PAM_MAX_MSG_SIZE];
-	const char *str, *p, *q;
+	const void *str;
+	const char *p, *q;
 	int err, i, item;
 	size_t len;
 
@@ -89,7 +90,7 @@ _pam_echo(pam_handle_t *pamh, int flags,
 			}
 			if (item == -1)
 				continue;
-			err = pam_get_item(pamh, item, (const void **)&str);
+			err = pam_get_item(pamh, item, &str);
 			if (err != PAM_SUCCESS)
 				return (err);
 			if (str == NULL)

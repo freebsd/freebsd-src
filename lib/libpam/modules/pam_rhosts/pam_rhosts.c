@@ -54,7 +54,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 	struct passwd *pw;
-	const char *user, *ruser, *rhost;
+	const char *user;
+	const void *ruser, *rhost;
 	int err, superuser;
 
 	err = pam_get_user(pamh, &user, NULL);
@@ -67,11 +68,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	    openpam_get_option(pamh, OPT_ALLOW_ROOT) == NULL)
 		return (PAM_AUTH_ERR);
 
-	err = pam_get_item(pamh, PAM_RUSER, (const void **)&ruser);
+	err = pam_get_item(pamh, PAM_RUSER, &ruser);
 	if (err != PAM_SUCCESS)
 		return (PAM_AUTH_ERR);
 
-	err = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
+	err = pam_get_item(pamh, PAM_RHOST, &rhost);
 	if (err != PAM_SUCCESS)
 		return (PAM_AUTH_ERR);
 

@@ -56,11 +56,11 @@ PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
-	const char *rhost, *tty, *user;
+	const void *rhost, *tty, *user;
 	char hostname[MAXHOSTNAMELEN];
 	int pam_err;
 
-	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	pam_err = pam_get_item(pamh, PAM_USER, &user);
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 
@@ -69,17 +69,17 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got user: %s", user);
 
-	pam_err = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
+	pam_err = pam_get_item(pamh, PAM_RHOST, &rhost);
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 
-	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	pam_err = pam_get_item(pamh, PAM_TTY, &tty);
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 
 	gethostname(hostname, sizeof hostname);
 
-	if (rhost == NULL || *rhost == '\0') {
+	if (rhost == NULL || *(const char *)rhost == '\0') {
 		PAM_LOG("Checking login.access for user %s on tty %s",
 		    user, tty);
 		if (login_access(user, tty) != 0)
