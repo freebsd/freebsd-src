@@ -47,7 +47,6 @@
  */
 
 #define BLF_N	16			/* Number of Subkeys */
-#define BLF_MAXKEYLEN ((BLF_N-2)*4)	/* 448 bits */
 
 /* Blowfish context */
 typedef struct BlowfishContext {
@@ -61,26 +60,12 @@ typedef struct BlowfishContext {
  *	Blowfish_expand0state( state, key, keylen )
  */
 
-void Blowfish_encipher(blf_ctx *, u_int32_t *, u_int32_t *);
-void Blowfish_decipher(blf_ctx *, u_int32_t *, u_int32_t *);
 void Blowfish_initstate(blf_ctx *);
 void Blowfish_expand0state(blf_ctx *, const u_int8_t *, u_int16_t);
 void Blowfish_expandstate
    (blf_ctx *, const u_int8_t *, u_int16_t, const u_int8_t *, u_int16_t);
+u_int32_t Blowfish_stream2word(const u_int8_t *, u_int16_t, u_int16_t *);
 
-/* Standard Blowfish */
-
-void blf_key(blf_ctx *, const u_int8_t *, u_int16_t);
 void blf_enc(blf_ctx *, u_int32_t *, u_int16_t);
-void blf_dec(blf_ctx *, u_int32_t *, u_int16_t);
 
-void blf_ecb_encrypt(blf_ctx *, u_int8_t *, u_int32_t);
-void blf_ecb_decrypt(blf_ctx *, u_int8_t *, u_int32_t);
-
-void blf_cbc_encrypt(blf_ctx *, u_int8_t *, u_int8_t *, u_int32_t);
-void blf_cbc_decrypt(blf_ctx *, u_int8_t *, u_int8_t *, u_int32_t);
-
-/* Converts u_int8_t to u_int32_t */
-u_int32_t Blowfish_stream2word(const u_int8_t *, u_int16_t , u_int16_t *);
-
-#endif
+#endif /* _BLF_H_ */
