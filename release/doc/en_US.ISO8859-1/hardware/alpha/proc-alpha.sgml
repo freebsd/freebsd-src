@@ -566,7 +566,7 @@ cpu	EV4</programlisting>
       <programlisting>device pcm</programlisting>
 
       <para>The sound device lives at port 0x530, and uses irq 9 along
-      with drq 3. You also need to specify flags 0x15 in the hints file.</para>
+      with drq 3. You also need to specify flags 0x15 in the <filename>device.hints</filename> file.</para>
 
       <para>I have not yet been successful in getting my Multia with
       the AD1848 to play any sound.</para>
@@ -1506,7 +1506,7 @@ cpu             EV5</programlisting>
       <programlisting>device pcm</programlisting>
 
       <para>The sound device uses port 0x530, IRQ 9 and drq 0. You also need
-      to specify flags 0x10011 in the device.hints file.</para>
+      to specify flags 0x10011 in the <filename>device.hints</filename> file.</para>
 
       <para>AlphaStation 200 & 250 series have an automatic SCSI terminator. 
       This means that as soon as you plug a cable onto the external SCSI 
@@ -1712,7 +1712,7 @@ cd0: 250.000MB/s transfers (250.000MHz, offset 12)</programlisting>
 
       <para>Using the ECU I configured my AS500 to use IRQ 10, port 0x530,
       drq 0. Corresponding entries along with flags 0x10011 must go into
-      the device.hints file. Note that the flags value is rather non-standard.
+      the <filename>device.hints</filename> file. Note that the flags value is rather non-standard.
       </para>
 
       <para>AS600 has a peculiarity for its PCI slots. AS600 (or rather the 
