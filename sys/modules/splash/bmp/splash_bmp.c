@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.3 1999/01/13 09:59:30 yokota Exp $
+ * $Id: splash_bmp.c,v 1.4 1999/01/21 18:29:33 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -531,9 +531,7 @@ bmp_Draw(video_adapter_t *adp)
     bmp_info.vidmem = (u_char *)adp->va_window;
     bmp_info.adp = adp;
     /* XXX; the following line is correct only for 8bpp modes */
-    /*
     fill(&bmp_info, 0, 0, bmp_info.swidth, bmp_info.sheight);
-    */
     (*vidsw[adp->va_index]->set_win_org)(adp, 0);
     bmp_info.bank = 0;
 
