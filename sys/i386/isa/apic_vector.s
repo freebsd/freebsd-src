@@ -467,10 +467,12 @@ IDTVEC(cpustop)
 	pushl	%ecx
 	pushl	%edx
 	pushl	%ds			/* save current data segment */
+	pushl	%es
 	pushl	%fs
 
 	movl	$KDSEL, %eax
 	mov	%ax, %ds		/* use KERNEL data segment */
+	mov	%ax, %es
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
@@ -507,6 +509,7 @@ IDTVEC(cpustop)
 	call	*%eax
 2:
 	popl	%fs
+	popl	%es
 	popl	%ds			/* restore previous data segment */
 	popl	%edx
 	popl	%ecx
