@@ -27,7 +27,6 @@
 # $FreeBSD$
 
 machine		i386
-cpu		I386_CPU
 cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
