@@ -80,6 +80,7 @@ Research Laboratory (NRL).
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -111,6 +112,8 @@ Research Laboratory (NRL).
 #define hostname2addr(a, b, c) gethostbyname(a)
 #define addr2hostname(a, b, c, d) gethostbyaddr((a), (b), (c))
 #endif
+
+#include <arpa/inet.h>
 
 int parse7 __P((int, char **));
 int parse4 __P((int, char **));
@@ -268,7 +271,7 @@ pid_t mypid;
   help:   Print appropriate help message on stdout.
 
 ----------------------------------------------------------------------*/
-help(cmdname)
+int help(cmdname)
      char *cmdname;
 {
   int i;
@@ -279,7 +282,7 @@ help(cmdname)
 	break;
 
     if (!keycmds[i].name) {
-      fprintf(stderr, "Unknown command: %s\n", cmdname);
+      warnx("unknown command: %s", cmdname);
       return 0;
     }
 
@@ -301,14 +304,11 @@ help(cmdname)
   usage:  print suitable usage message on stdout.
 
 ----------------------------------------------------------------------*/
-usage(myname)
-     char *myname;
+static void
+usage()
 {
-  int i;
 
-  fprintf(stderr, "usage: %s <command> <args>\n", myname);
-  printf("where <command> is one of:\n");
-  help(NULL);
+  fprintf(stderr, "usage: keyadmin <command> <args>\n");
 }
 
 /*----------------------------------------------------------------------
@@ -397,7 +397,7 @@ int parsesockaddr(sockaddr, arg)
   struct in_addr6 in_addr6, *in_addr6p;
 #endif /* INET6 */
 
-  if (hostent = hostname2addr(arg, AF_INET, 0))
+  if ((hostent = hostname2addr(arg, AF_INET, 0)))
     if ((hostent->h_addrtype == AF_INET) && 
 	(hostent->h_length == sizeof(struct in_addr))) {
       in_addrp = ((struct in_addr *)hostent->h_addr_list[0]);
@@ -425,7 +425,7 @@ int parsesockaddr(sockaddr, arg)
   }
 #endif /* INET6 */
 
-  fprintf(stderr,"Unknown host \"%s\"\n", arg);
+  warnx("unknown host \"%s\"", arg);
   return 1;
 
  fillin4:
@@ -449,7 +449,7 @@ int parsesockaddr(sockaddr, arg)
   dummyfromaddr:  Creates a zeroed sockaddr of family af.
 
 ----------------------------------------------------------------------*/
-int dummyfromaddr(sa, af)
+void dummyfromaddr(sa, af)
      struct sockaddr *sa;
      int af;
 {
@@ -647,7 +647,7 @@ int load(filename)
 
   while(fgets(buf, left, fh)) {
     line++;
-    if (c = strchr(buffer, '\\')) {
+    if ((c = strchr(buffer, '\\'))) {
       left = (sizeof(buffer) - 1) - (--c - buffer);
       buf = c;
     } else {
@@ -657,9 +657,9 @@ int load(filename)
 	return i;
 
       if (!i) {
-	if (i = docmd(++largc, largv)) {
+	if ((i = docmd(++largc, largv))) {
 	  if (i > 0) {
-	    fprintf(stderr, "Parse error on line %d of %s.\n", line, filename);
+	    warnx("parse error on line %d of %s", line, filename);
 	    return 0;
 	  }
           return i;
@@ -694,7 +694,8 @@ parsedata(km, kip)
   cpmax = (caddr_t)km + km->key_msglen;
  
 #define NEXTDATA(x, n) \
-    { x += ROUNDUP(n); if (cp >= cpmax) { fprintf(stderr, "key: kernel returned a truncated message!\n"); return(-1); } }
+    { x += ROUNDUP(n); if (cp >= cpmax) { \
+    warnx("kernel returned a truncated message!"); return(-1); } }
  
   /* Grab src addr */
   kip->src = (struct sockaddr *)cp;
@@ -821,8 +822,6 @@ void printkeymsg(kmp, kdp)
      struct key_msghdr *kmp;
      struct key_msgdata *kdp;
 {
-  int i;
-  char *cp;
 
   printf("type=%d(%s) ",kmp->type, parsenumtoname(keytypes, kmp->type)); 
   printf("spi=%u ", kmp->spi);
@@ -898,7 +897,7 @@ int docmd(argc, argv)
     return -1;
 
   if (keycmds[i].parse)
-    if (j = keycmds[i].parse(argc - 1, &(argv[1])))
+    if ((j = keycmds[i].parse(argc - 1, &(argv[1]))))
       return j;
 
   ((struct key_msghdr *)key_message)->key_msglen = key_messageptr;
@@ -918,7 +917,7 @@ int docmd(argc, argv)
 
       if ((kmp->type == KEY_TYPE_AH || 
 	   kmp->type == KEY_TYPE_ESP) && (kmp->spi < 256)) {
-	fprintf(stderr, "add: spi must be greater than 255\n");
+	warnx("add: spi must be greater than 255");
 	return(0);
       }
 
@@ -929,18 +928,18 @@ int docmd(argc, argv)
 #endif
 	   )) {
 	if (kmp->keylen != 8) {
-	  fprintf(stderr, "add: key must be 8 bytes\n");
+	  warnx("add: key must be 8 bytes");
 	  return (0);
 	}
 	if (kmp->ivlen != 4 && kmp->ivlen != 8) {
-	  fprintf(stderr, "add: iv must be 4 or 8 bytes\n");
+	  warnx("add: iv must be 4 or 8 bytes");
 	  return (0);
 	}
       }
 
       if (kmp->type == KEY_TYPE_AH &&
 	  kmp->algorithm == IPSEC_ALGTYPE_AUTH_MD5 && kmp->keylen == 0) {
-	fprintf(stderr, "add: no key specified\n");
+	warnx("add: no key specified");
 	return (0);
       }
     }
@@ -950,9 +949,9 @@ int docmd(argc, argv)
 	      ((struct key_msghdr *)key_message)->key_msglen) != 
 	((struct key_msghdr *)key_message)->key_msglen) {
       if (errno == EEXIST)
-	fprintf(stderr, "add: security association already exists\n");
+	warnx("add: security association already exists");
       else
-	perror("add");
+	warn("add");
       return -1;
     }
     read(keysock, key_message, sizeof(key_message));
@@ -964,10 +963,10 @@ int docmd(argc, argv)
 	      ((struct key_msghdr *)key_message)->key_msglen) != 
 	((struct key_msghdr *)key_message)->key_msglen) {
       if (errno == ESRCH) {
-	fprintf(stderr, "delete: Security association not found\n");
+	warnx("delete: security association not found");
 	return 0;
       } else {
-	perror("delete");
+	warn("delete");
 	return -1;
       }
     }
@@ -982,10 +981,10 @@ int docmd(argc, argv)
 	      ((struct key_msghdr *)key_message)->key_msglen) != 
 	((struct key_msghdr *)key_message)->key_msglen) {
       if (errno == ESRCH) {
-	fprintf(stderr, "get: Security association not found\n");
+	warnx("get: security association not found");
 	return 0;
       } else {
-	perror("get");
+	warn("get");
 	return (-1);
       } /* endif ESRCH */
     } /* endif write() */
@@ -999,7 +998,7 @@ int docmd(argc, argv)
 
 readmesg:
       if (read(keysock, key_message, len) < 0) {
-	perror("read");
+	warn("read");
 	return -1;
       }
 
@@ -1030,7 +1029,7 @@ readmesg:
     if (write(keysock, key_message, 
 	      ((struct key_msghdr *)key_message)->key_msglen) != 
 	((struct key_msghdr *)key_message)->key_msglen) {
-      perror("write");
+      warn("write");
       return -1;
     }
     read(keysock, key_message, sizeof(key_message));
@@ -1075,10 +1074,10 @@ readmesg:
       fp = stdout;
     else if ((fd = open(argv[1], O_CREAT | O_RDWR | O_EXCL, 
 			S_IRUSR | S_IWUSR)) < 0) {
-      perror("open");
+      warn("open");
       return 1;
     } else if (!(fp = fdopen(fd, "w"))) {
-      perror("fdopen");
+      warn("fdopen");
       return 1;
     }
 
@@ -1087,7 +1086,7 @@ readmesg:
     if (write(keysock, key_message, 
 	      ((struct key_msghdr *)key_message)->key_msglen) != 
 	((struct key_msghdr *)key_message)->key_msglen) {
-      perror("write");
+      warn("write");
       return -1;
     }
 
@@ -1096,7 +1095,7 @@ readmesg:
 
 readmesg2:
       if (read(keysock, key_message, sizeof(key_message)) < 0) {
-	perror("read");
+	warn("read");
 	return -1;
       }
 
@@ -1158,13 +1157,11 @@ int main(argc, argv)
   int i, j;
   u_long rcvsize;
 
-  if (getuid()) {
-    fprintf(stderr, "This program is intended for the superuser only.\n");
-    exit(1);
-  }
+  if (getuid())
+    errx(1, "this program is intended for the superuser only");
 
   if (!(keysock = socket(PF_KEY, SOCK_RAW, 0))) {
-    perror("socket");
+    warn("socket");
     return -1;
   }
 
@@ -1176,7 +1173,7 @@ int main(argc, argv)
 
   mypid = getpid();
   if (mypid < 0) {
-    perror("getpid");
+    warn("getpid");
     return -1;
   }
 
@@ -1185,12 +1182,8 @@ int main(argc, argv)
      * Attempt to do a single command, based on command line arguments.
      */
     if (strcasecmp(argv[1], "add") == 0)
-      {
-        fprintf(stderr,
-	        "Cannot add keys from the command line.  RTFM for why.\n");
-	exit(1);
-      }
-    if (i = docmd(argc - 1, &(argv[1]))) {
+        errx(1, "cannot add keys from the command line. RTFM for why");
+    if ((i = docmd(argc - 1, &(argv[1])))) {
       if (i > 0) {
 	for (j = 0; keycmds[j].name; j++)
 	  if (!strcasecmp(keycmds[j].name, argv[1]))
@@ -1203,14 +1196,14 @@ int main(argc, argv)
 	  exit(1);
 	}
       }
-      usage(argv[0]);
+      usage();
     }
     return 0;
   }
 
   {
     char buffer[1024];
-    char *iargv[KEYCMD_ARG_MAX], *head;
+    char *iargv[KEYCMD_ARG_MAX];
     int iargc;
 
     while(1) {
@@ -1230,7 +1223,7 @@ int main(argc, argv)
        * given argc/argv, process argument as if it came from the command
        * line.
        */
-      if (i = docmd(iargc, iargv)) {
+      if ((i = docmd(iargc, iargv))) {
 	if (i > 0) {
 	  for (j = 0; keycmds[j].name; j++)
 	    if (!strcasecmp(keycmds[j].name, iargv[0]))
@@ -1245,10 +1238,10 @@ int main(argc, argv)
 	}
 	if (i < 0) {
 	  if (errno)
-	    perror("System error");
+	    warn("system error");
 	  else
-	    fprintf(stderr, "Unrecognized command; ");
-	  fprintf(stderr, "Type 'help' if you need help\n");
+	    warnx("unrecognized command");
+	  warnx("type 'help' if you need help");
 	};
       };
     };
