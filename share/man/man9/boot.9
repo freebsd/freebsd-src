@@ -94,9 +94,7 @@ Otherwise, reboots the system.
 .Pp
 If the system has not finished autoconfiguration,
 .Fn boot
-runs any shutdown hooks previously set by
-.Xr at_shutdown 9 ,
+runs any shutdown hooks previously registered,
 prints a message, and halts the system.
 .Sh SEE ALSO
-.Xr at_shutdown 9 ,
 .Xr vfs_unmountall 9
