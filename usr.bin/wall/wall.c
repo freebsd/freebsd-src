@@ -56,6 +56,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <grp.h>
 #include <locale.h>
 #include <paths.h>
 #include <pwd.h>
@@ -66,37 +67,53 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
-void	makemsg __P((char *));
-static void usage __P((void));
-char   *ttymsg __P((struct iovec *, int, char *, int));
+static void makemsg(char *);
+static void usage(void);
+char   *ttymsg(struct iovec *, int, const char *, int);
 
 #define	IGNOREUSER	"sleeper"
 
+struct wallgroup {
+	struct wallgroup *next;
+	char		*name;
+	gid_t		gid;
+} *grouplist;
 int nobanner;
 int mbufsize;
 char *mbuf;
 
-/* ARGSUSED */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
-	int ch;
 	struct iovec iov;
 	struct utmp utmp;
+	gid_t grps[NGROUPS_MAX];
+	int ch;
+	int ingroup, ngrps, i;
 	FILE *fp;
+	struct wallgroup *g;
+	struct group *grp;
 	char *p;
+	struct passwd *pw;
 	char line[sizeof(utmp.ut_line) + 1];
+	char username[sizeof(utmp.ut_name) + 1];
 
+	ingroup = 0;
 	(void)setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "n")) != -1)
+	while ((ch = getopt(argc, argv, "g:n")) != -1)
 		switch (ch) {
 		case 'n':
 			/* undoc option for shutdown: suppress banner */
 			if (geteuid() == 0)
 				nobanner = 1;
+			break;
+		case 'g':
+			g = (struct wallgroup *)malloc(sizeof *g);
+			g->next = grouplist;
+			g->name = optarg;
+			g->gid = -1;
+			grouplist = g;
 			break;
 		case '?':
 		default:
@@ -106,6 +123,12 @@ main(argc, argv)
 	argv += optind;
 	if (argc > 1)
 		usage();
+
+	for (g = grouplist; g; g = g->next) {
+		grp = getgrnam(g->name);
+		if (grp)
+			g->gid = grp->gr_gid;
+	}
 
 	makemsg(*argv);
 
@@ -118,6 +141,24 @@ main(argc, argv)
 		if (!utmp.ut_name[0] ||
 		    !strncmp(utmp.ut_name, IGNOREUSER, sizeof(utmp.ut_name)))
 			continue;
+		if (grouplist) {
+			strlcpy(username, utmp.ut_name, sizeof(utmp.ut_name));
+			pw = getpwnam(username);
+			if (!pw)
+				continue;
+			ngrps = getgroups(pw->pw_gid, grps);
+			for (g = grouplist; g && ingroup == 0; g = g->next) {
+				if (g->gid == -1)
+					continue;
+				if (g->gid == pw->pw_gid)
+					ingroup = 1;
+				for (i = 0; i < ngrps && ingroup == 0; i++)
+					if (g->gid == grps[i])
+						ingroup = 1;
+			}
+			if (ingroup == 0)
+				continue;
+		}
 		strncpy(line, utmp.ut_line, sizeof(utmp.ut_line));
 		line[sizeof(utmp.ut_line)] = '\0';
 		if ((p = ttymsg(&iov, 1, line, 60*5)) != NULL)
@@ -134,11 +175,10 @@ usage()
 }
 
 void
-makemsg(fname)
-	char *fname;
+makemsg(char *fname)
 {
-	register int cnt;
-	register unsigned char ch;
+	int cnt;
+	unsigned char ch;
 	struct tm *lt;
 	struct passwd *pw;
 	struct stat sbuf;
