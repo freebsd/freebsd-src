@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.52 1996/12/08 12:27:53 jkh Exp $
+ * $Id: devices.c,v 1.53 1996/12/09 08:22:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,18 +113,10 @@ dummyInit(Device *dev)
     return TRUE;
 }
 
-int
+FILE *
 dummyGet(Device *dev, char *dist, Boolean probe)
 {
-    return -1;
-}
-
-Boolean
-dummyClose(Device *dev, int fd)
-{
-    if (!close(fd))
-	return TRUE;
-    return FALSE;
+    return NULL;
 }
 
 void
@@ -152,8 +144,8 @@ deviceTry(char *name, char *try)
 /* Register a new device in the devices array */
 Device *
 deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-	       Boolean (*init)(Device *), int (*get)(Device *, char *, Boolean),
-	       Boolean (*close)(Device *, int), void (*shutdown)(Device *), void *private)
+	       Boolean (*init)(Device *), FILE * (*get)(Device *, char *, Boolean),
+	       void (*shutdown)(Device *), void *private)
 {
     Device *newdev = NULL;
 
@@ -167,7 +159,6 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
 	newdev->enabled = enabled;
 	newdev->init = init ? init : dummyInit;
 	newdev->get = get ? get : dummyGet;
-	newdev->close = close ? close : dummyClose;
 	newdev->shutdown = shutdown ? shutdown : dummyShutdown;
 	newdev->private = private;
 	Devices[numDevs] = newdev;
@@ -199,7 +190,7 @@ deviceGetAll(void)
 	    if (!d)
 		msgFatal("Unable to open disk %s", names[i]);
 
-	    (void)deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE, NULL, NULL, NULL, NULL, d);
+	    (void)deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE, NULL, NULL, NULL, d);
 	    msgDebug("Found a disk device named %s\n", names[i]);
 
 	    /* Look for existing DOS partitions to register */
@@ -211,7 +202,7 @@ deviceGetAll(void)
 		    /* Got one! */
 		    sprintf(devname, "/dev/%s", c1->name);
 		    dev = deviceRegister(c1->name, c1->name, strdup(devname), DEVICE_TYPE_DOS, TRUE,
-					 mediaInitDOS, mediaGetDOS, NULL, mediaShutdownDOS, NULL);
+					 mediaInitDOS, mediaGetDOS, mediaShutdownDOS, NULL);
 		    dev->private = c1;
 		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
 		}
@@ -259,7 +250,7 @@ deviceGetAll(void)
 	    descr = "<unknown network interface type>";
 
 	deviceRegister(ifptr->ifr_name, descr, strdup(ifptr->ifr_name), DEVICE_TYPE_NETWORK, TRUE,
-		       mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
+		       mediaInitNetwork, NULL, mediaShutdownNetwork, NULL);
 	msgDebug("Found a network device named %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -284,7 +275,7 @@ skipif:
 	    if (fd >= 0 || errno == EBUSY) {	/* EBUSY if already mounted */
 		if (fd >= 0) close(fd);
 		(void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM, NULL,
+				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM,
 				     mediaShutdownCDROM, NULL);
 		msgDebug("Found a CDROM device named %s\n", device_names[i].name);
 	    }
@@ -295,7 +286,7 @@ skipif:
 	    if (fd >= 0) {
 		if (fd) close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, NULL, mediaShutdownTape, NULL);
+			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaShutdownTape, NULL);
 		msgDebug("Found a TAPE device named %s\n", device_names[i].name);
 	    }
 	    break;
@@ -305,7 +296,7 @@ skipif:
 	    if (fd >= 0) {
 		if (fd) close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy, NULL,
+			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
 			       mediaShutdownFloppy, NULL);
 		msgDebug("Found a floppy device named %s\n", device_names[i].name);
 	    }
@@ -325,11 +316,11 @@ skipif:
 		newdesc = safe_malloc(strlen(cp) + 40);
 		sprintf(newdesc, cp, "SLIP interface");
 		deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-			       NULL, NULL, mediaShutdownNetwork, NULL);
+			       NULL, mediaShutdownNetwork, NULL);
 		newdesc = safe_malloc(strlen(cp) + 50);
 		sprintf(newdesc, cp, "PPP interface");
 		deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-			       NULL, NULL, mediaShutdownNetwork, NULL);
+			       NULL, mediaShutdownNetwork, NULL);
 		msgDebug("Found a serial network device named %s on %s\n", device_names[i].name, try);
 	    }
 	    break;
