@@ -1,6 +1,6 @@
-<!-- $Id: mirrors.sgml,v 1.9 1997/02/22 13:01:28 peter Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.10 1997/02/22 17:59:40 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.49 -->
+<!-- Original revision: 1.50 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -622,7 +622,7 @@ FTP search ¤Ï¥Î¥ë¥¦¥§¡¼¤Î Trondheim ¤Ë¤¢¤ë, ¥Õ¥ê¡¼¤ÎÁÇÀ²¤é¤·¤¤ ¥¢¡¼¥«¥¤¥Ö¥µ¡¼¥Ð¤
 <tag>¥ª¥é¥ó¥À</tag>
 <itemize>
 <item>cvsup.nl.FreeBSD.ORG
-(<url url="mailto:xaa@stack.urc.tue.nl" name="maintainer">)
+(<url url="mailto:xaa@stack.nl" name="maintainer">)
 </itemize>
 
 <tag>¥Î¥ë¥¦¥§¡¼</tag>
