@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.30 2002/04/02 05:46:10 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.31 2002/04/05 16:25:03 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.163 2002/03/04 16:41:50 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.85 2002/03/29 18:54:07 millert Exp $ */
@@ -146,6 +146,9 @@
 #define	PCMCIA_CIS_3COM_3C574	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_3COM_3C574	0x0574
 #define	PCMCIA_STR_3COM_3C574	"3Com 3c574-TX 10/100Mbps Ethernet"
+#define	PCMCIA_CIS_3COM_3CRWE777A	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_3COM_3CRWE777A	0x0777
+#define	PCMCIA_STR_3COM_3CRWE777A	"3Com 3CRWE777A Airconnect"
 #define	PCMCIA_CIS_3COM_3C1	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_3COM_3C1	0x0cf1
 #define	PCMCIA_STR_3COM_3C1	"3Com Megahertz 3C1 10Mbps LAN CF+ Card"
