@@ -69,8 +69,16 @@ typedef struct _ftsent {
 	struct _ftsent *fts_cycle;	/* cycle node */
 	struct _ftsent *fts_parent;	/* parent directory */
 	struct _ftsent *fts_link;	/* next file in directory */
-	long fts_number;	        /* local numeric value */
-	void *fts_pointer;	        /* local address value */
+	union {
+		struct {
+			long __fts_number;	/* local numeric value */
+			void *__fts_pointer;	/* local address value */
+		} __struct_ftsent;
+		int64_t __fts_bignum;
+	} __union_ftsent;
+#define	fts_number	__union_ftsent.__struct_ftsent.__fts_number
+#define	fts_pointer	__union_ftsent.__struct_ftsent.__fts_pointer
+#define	fts_bignum	__union_ftsent.__fts_bignum
 	char *fts_accpath;		/* access path */
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
