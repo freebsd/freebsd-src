@@ -108,23 +108,18 @@ to the maximum number of descriptors supported by the system.
 .Pp
 If
 .Fa timeout
-is not a
-.Dv NULL
-pointer, it specifies the maximum interval to wait for the
+is not a null pointer, it specifies the maximum interval to wait for the
 selection to complete.
 System activity can lengthen the interval by
 an indeterminate amount.
 .Pp
 If
 .Fa timeout
-is a
-.Dv NULL
-pointer, the select blocks indefinitely.
+is a null pointer, the select blocks indefinitely.
 .Pp
 To effect a poll, the
 .Fa timeout
-argument should not be
-.Dv NULL ,
+argument should not be a null pointer,
 but it should point to a zero-valued timeval structure.
 .Pp
 Any of
@@ -132,9 +127,7 @@ Any of
 .Fa writefds ,
 and
 .Fa exceptfds
-may be given as
-.Dv NULL
-pointers if no descriptors are of interest.
+may be given as null pointers if no descriptors are of interest.
 .Sh RETURN VALUES
 The
 .Fn select
