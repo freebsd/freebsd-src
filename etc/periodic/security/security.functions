@@ -63,7 +63,7 @@ check_diff() {
     cp ${tmpf} ${LOG}/${label}.today || rc=3
   fi
 
-  if ! cmp ${LOG}/${label}.today ${tmpf} >/dev/null; then
+  if ! cmp -s ${LOG}/${label}.today ${tmpf} >/dev/null; then
     [ $rc -lt 1 ] && rc=1
     echo ""
     echo "${msg}"
