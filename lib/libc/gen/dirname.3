@@ -78,7 +78,9 @@ The path component to be returned was larger than
 .Dv MAXPATHLEN .
 .El
 .Sh WARNINGS
+The
 .Fn dirname
+function
 returns a pointer to internal static storage space that will be overwritten
 by subsequent calls (each function has its own separate storage).
 .Pp

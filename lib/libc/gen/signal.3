@@ -50,7 +50,7 @@
 or in
 .Fx Ns 's
 equivalent but easier to read typedef'd version:
-.Ft typedef "void \*(lp*sig_t\*(rp \*(lpint\*(rp"
+.Ft typedef "void \*(lp*sig_t\*(rp \*(lpint\*(rp" ;
 .Ft sig_t
 .Fn signal "int sig" "sig_t func"
 .Sh DESCRIPTION
@@ -211,7 +211,9 @@ Otherwise, SIG_ERR is returned and  the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Signal
+The
+.Fn signal
+function
 will fail and no action will take place if one of the
 following occur:
 .Bl -tag -width Er

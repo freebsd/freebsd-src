@@ -45,7 +45,7 @@ In current releases it still exists, but only as a stub which does nothing.
 .Ef
 .Pp
 Threads packages can call
-.Nm
+.Fn dllockinit
 at initialization time to register locking functions for the dynamic
 linker to use.  This enables the dynamic linker to prevent multiple
 threads from entering its critical sections simultaneously.
@@ -58,7 +58,7 @@ dynamic linker will pass it to the
 function when creating the locks it needs.  When the dynamic linker
 is permanently finished using the locking functions (e.g., if the
 program makes a subsequent call to
-.Nm
+.Fn dllockinit
 to register new locking functions) it will call
 .Fa context_destroy
 to destroy the context.
@@ -89,7 +89,7 @@ parameter specifies a function to destroy the context.  It may be
 if the context does not need to be destroyed.
 .Pp
 Until
-.Nm
+.Fn dllockinit
 is called, the dynamic linker protects its critical sections using
 a default locking mechanism which works by blocking the
 .Dv SIGVTALRM ,
@@ -100,9 +100,9 @@ signals.  This is sufficient for many application level threads
 packages, which typically use one of these signals to implement
 preemption.  An application which has registered its own locking
 methods with
-.Nm
+.Fn dllockinit
 can restore the default locking by calling
-.Nm
+.Fn dllockinit
 with all arguments
 .Dv NULL .
 .Sh SEE ALSO
@@ -110,6 +110,6 @@ with all arguments
 .Xr signal 3
 .Sh HISTORY
 The
-.Nm
+.Fn dllockinit
 function first appeared in
 .Fx 4.0 .
