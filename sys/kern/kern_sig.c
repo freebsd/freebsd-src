@@ -73,9 +73,6 @@
 
 #include <machine/cpu.h>
 
-#if !defined(COMPAT_FREEBSD4) && !defined(NO_COMPAT_FREEBSD4)
-#error "You *really* want COMPAT_FREEBSD4 on -current for a while"
-#endif
 #if defined (__alpha__) && !defined(COMPAT_43)
 #error "You *really* need COMPAT_43 on the alpha for longjmp(3)"
 #endif
