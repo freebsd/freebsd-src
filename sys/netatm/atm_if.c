@@ -506,7 +506,7 @@ atm_physif_ioctl(code, data, arg)
 			/*
 			 * Set if_type and if_baudrate
 			 */
-			ifp->if_type = IFT_ATM;
+			ifp->if_type = IFT_IPOVERATM;
 			switch ( cup->cu_config.ac_media ) {
 			case MEDIA_TAXI_100:
 				ifp->if_baudrate = 100000000;
