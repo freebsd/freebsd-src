@@ -441,7 +441,9 @@ ok_to_export(const char *s)
 static void
 usage(void)
 {
-	errx(1, "usage: su [%s] [login [args]]", ARGSTR);
+
+	(void)fprintf(stderr, "usage: su [-] [-flm] [-c class] [login [args]]");
+	exit(1);
 }
 
 static int
