@@ -541,9 +541,10 @@ configPackages(dialogMenuItem *self)
 		       "(or path to media) and try again.  If your local site does not\n"
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
+	    mediaDevice->shutdown(mediaDevice);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
-	msgNotify("Got INDEX successfully, now building packages menu..");
+	msgNotify("Located INDEX, now reading package data from it...");
 	index_init(&top, &plist);
 	if (index_read(fp, &top)) {
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"

@@ -508,7 +508,6 @@ extern void	mediaShutdownFTP(Device *dev);
 extern void	globalsInit(void);
 
 /* index.c */
-int		index_get(char *fname, PkgNodePtr papa);
 int		index_read(FILE *fp, PkgNodePtr papa);
 int		index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll);
 void		index_init(PkgNodePtr top, PkgNodePtr plist);
