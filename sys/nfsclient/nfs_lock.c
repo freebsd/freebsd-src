@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include <machine/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -98,13 +99,12 @@ nfs_dolock(ap)
 
 	/*
 	 * the NLM protocol doesn't allow the server to return an error
-	 * on ranges, so we do it.  Note that we should be returning 
-	 * EOVERFLOW in some cases, but we don't have it.
+	 * on ranges, so we do it.
 	 */
-	if (fl->l_start < 0 || fl->l_len < 0 ||
-	    ((fl->l_len != 0 &&
-	     (fl->l_start + fl->l_len - 1) < 0)))
+	if (fl->l_start < 0 || fl->l_len < 0)
 		return (EINVAL);
+	if (fl->l_len != 0 && (fl->l_len - 1 > OFF_MAX - fl->l_start))
+		return (EOVERFLOW);
 
 	/*
 	 * Fill in the information structure.
