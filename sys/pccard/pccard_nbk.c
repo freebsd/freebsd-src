@@ -296,6 +296,14 @@ pccard_set_memory_offset(device_t bus, device_t child, int rid,
 	    offset);
 }
 
+static int
+pccard_get_memory_offset(device_t bus, device_t child, int rid, 
+    u_int32_t *offset)
+{
+	return CARD_GET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
+	    offset);
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -322,6 +330,7 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
 	DEVMETHOD(card_get_res_flags,	pccard_get_res_flags),
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
+	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
 
 	{ 0, 0 }
 };
