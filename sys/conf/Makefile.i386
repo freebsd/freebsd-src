@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.45 1994/10/03 23:03:38 rgrimes Exp $
+#	$Id: Makefile.i386,v 1.46 1994/10/18 19:45:46 wollman Exp $
 #
 # Makefile for FreeBSD
 #
@@ -27,12 +27,12 @@ CPP?=	cpp
 DBSYM?=	/usr/sbin/dbsym
 .if defined(DEBUG)
 .if defined(NOSTRIP)
-STRIP?=  echo '(skipping) strip'
+STRIP=  echo '(skipping) strip'
 .else
-STRIP?=  cp $@ $@.sym; strip
+STRIP=  cp $@ $@.sym; strip
 .endif
 .else
-STRIP?=  strip
+STRIP=  strip
 .endif
 
 .if exists(./@/.)
