@@ -6,7 +6,6 @@ CFLAGS+=-DGREP -DHAVE_STRING_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_UNISTD_H=1 \
 	-DHAVE_VALLOC=1
 
 
-#check: ${.CURDIR}/grep
 check: all
 	awk sh ${.CURDIR}/tests/check.sh ${.CURDIR}/tests
 
