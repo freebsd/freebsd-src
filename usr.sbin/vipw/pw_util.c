@@ -103,6 +103,9 @@ pw_init()
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGTERM, SIG_IGN);
 	(void)signal(SIGCONT, pw_cont);
+
+	/* Create with exact permissions. */
+	(void)umask(0);
 }
 
 int

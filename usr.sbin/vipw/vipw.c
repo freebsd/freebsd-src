@@ -100,8 +100,6 @@ main(argc, argv)
 		usage();
 
 	pw_init();
-	/* Create with exact permissions. */
-	(void)umask(0);
 	pfd = pw_lock();
 	tfd = pw_tmp();
 	copyfile(pfd, tfd);
