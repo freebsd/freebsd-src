@@ -141,7 +141,7 @@ ENTRY(tl_ipi_level)
 
 	mov	1, %g1
 	sllx	%g1, %g5, %g1
-	wr	%g1, 0, %asr20
+	wr	%g1, 0, %set_softint
 	retry
 END(tl_ipi_level)
 

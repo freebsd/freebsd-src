@@ -140,7 +140,7 @@ ENTRY(intr_vector)
 	 */
 	mov	1, %g1
 	sllx	%g1, %g6, %g1
-	wr	%g1, 0, %asr20
+	wr	%g1, 0, %set_softint
 
 	/*
 	 * Done, retry the instruction.
