@@ -187,6 +187,7 @@ static void rl_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 static int rl_ioctl		(struct ifnet *, u_long, caddr_t);
 static void rl_intr		(void *);
 static void rl_init		(void *);
+static void rl_init_locked	(struct rl_softc *sc);
 static void rl_mii_send		(struct rl_softc *, uint32_t, int);
 static void rl_mii_sync		(struct rl_softc *);
 static int rl_mii_readreg	(struct rl_softc *, struct rl_mii_frame *);
@@ -194,6 +195,12 @@ static int rl_mii_writereg	(struct rl_softc *, struct rl_mii_frame *);
 static int rl_miibus_readreg	(device_t, int, int);
 static void rl_miibus_statchg	(device_t);
 static int rl_miibus_writereg	(device_t, int, int, int);
+#ifdef DEVICE_POLLING
+static void rl_poll		(struct ifnet *ifp, enum poll_cmd cmd,
+				 int count);
+static void rl_poll_locked	(struct ifnet *ifp, enum poll_cmd cmd,
+				 int count);
+#endif
 static int rl_probe		(device_t);
 static void rl_read_eeprom	(struct rl_softc *, uint8_t *, int, int, int);
 static void rl_reset		(struct rl_softc *);
@@ -202,6 +209,7 @@ static void rl_rxeof		(struct rl_softc *);
 static void rl_setmulti		(struct rl_softc *);
 static void rl_shutdown		(device_t);
 static void rl_start		(struct ifnet *);
+static void rl_start_locked	(struct ifnet *);
 static void rl_stop		(struct rl_softc *);
 static int rl_suspend		(device_t);
 static void rl_tick		(void *);
@@ -1131,7 +1139,7 @@ rl_rxeof(struct rl_softc *sc)
 
 		if (!(rxstat & RL_RXSTAT_RXOK)) {
 			ifp->if_ierrors++;
-			rl_init(sc);
+			rl_init_locked(sc);
 			return;
 		}
 
@@ -1234,7 +1242,7 @@ rl_txeof(struct rl_softc *sc)
 			oldthresh = sc->rl_txthresh;
 			/* error recovery */
 			rl_reset(sc);
-			rl_init(sc);
+			rl_init_locked(sc);
 			/*
 			 * If there was a transmit underrun,
 			 * bump the TX threshold.
@@ -1269,11 +1277,21 @@ rl_tick(void *xsc)
 
 #ifdef DEVICE_POLLING
 static void
-rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
+rl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct rl_softc *sc = ifp->if_softc;
 
 	RL_LOCK(sc);
+	rl_poll_locked(ifp, cmd, count);
+	RL_UNLOCK(sc);
+}
+
+static void
+rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct rl_softc *sc = ifp->if_softc;
+
+	RL_LOCK_ASSERT(sc);
 
 	if (!(ifp->if_capenable & IFCAP_POLLING)) {
 		ether_poll_deregister(ifp);
@@ -1283,18 +1301,15 @@ rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (cmd == POLL_DEREGISTER) {
 		/* Final call; enable interrupts. */
 		CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
-		goto done;
+		return;
 	}
 
 	sc->rxcycles = count;
 	rl_rxeof(sc);
 	rl_txeof(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		RL_UNLOCK(sc);
-		rl_start(ifp);
-		RL_LOCK(sc);
-	}
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		rl_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		uint16_t	status;
@@ -1302,7 +1317,7 @@ rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 		/* We should also check the status register. */
 		status = CSR_READ_2(sc, RL_ISR);
 		if (status == 0xffff)
-			goto done;
+			return;
 		if (status != 0)
 			CSR_WRITE_2(sc, RL_ISR, status);
 
@@ -1310,13 +1325,9 @@ rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & RL_ISR_SYSTEM_ERR) {
 			rl_reset(sc);
-			RL_UNLOCK(sc);
-			rl_init(sc);
-			RL_LOCK(sc);
+			rl_init_locked(sc);
 		}
 	}
-done:
-	RL_UNLOCK(sc);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1329,23 +1340,19 @@ rl_intr(void *arg)
 
 	RL_LOCK(sc);
 
-	if (sc->suspended) {
-		RL_UNLOCK(sc);
-		return;
-	}
+	if (sc->suspended)
+		goto done_locked;
 
 #ifdef DEVICE_POLLING
-	if  (ifp->if_flags & IFF_POLLING) {
-		RL_UNLOCK(sc);
-		return;
-	}
+	if  (ifp->if_flags & IFF_POLLING)
+		goto done_locked;
+
 	if ((ifp->if_capenable & IFCAP_POLLING) &&
 	    ether_poll_register(rl_poll, ifp)) {
 		/* Disable interrupts. */
 		CSR_WRITE_2(sc, RL_IMR, 0x0000);
-		RL_UNLOCK(sc);
-		rl_poll(ifp, 0, 1);
-		return;
+		rl_poll_locked(ifp, 0, 1);
+		goto done_locked;
 	}
 #endif /* DEVICE_POLLING */
 
@@ -1366,16 +1373,15 @@ rl_intr(void *arg)
 			rl_txeof(sc);
 		if (status & RL_ISR_SYSTEM_ERR) {
 			rl_reset(sc);
-			RL_UNLOCK(sc);
-			rl_init(sc);
-			RL_LOCK(sc);
+			rl_init_locked(sc);
 		}
 	}
 
-	RL_UNLOCK(sc);
-
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		rl_start(ifp);
+		rl_start_locked(ifp);
+
+done_locked:
+	RL_UNLOCK(sc);
 }
 
 /*
@@ -1425,23 +1431,33 @@ rl_encap(struct rl_softc *sc, struct mbuf *m_head)
 /*
  * Main transmit routine.
  */
-
 static void
 rl_start(struct ifnet *ifp)
 {
 	struct rl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
 
 	RL_LOCK(sc);
+	rl_start_locked(ifp);
+	RL_UNLOCK(sc);
+}
+
+static void
+rl_start_locked(struct ifnet *ifp)
+{
+	struct rl_softc		*sc = ifp->if_softc;
+	struct mbuf		*m_head = NULL;
+
+	RL_LOCK_ASSERT(sc);
 
 	while (RL_CUR_TXMBUF(sc) == NULL) {
+
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+
 		if (m_head == NULL)
 			break;
 
-		if (rl_encap(sc, m_head)) {
+		if (rl_encap(sc, m_head))
 			break;
-		}
 
 		/* Pass a copy of this mbuf chain to the bpf subsystem. */
 		BPF_MTAP(ifp, RL_CUR_TXMBUF(sc));
@@ -1470,19 +1486,27 @@ rl_start(struct ifnet *ifp)
 	 */
 	if (RL_CUR_TXMBUF(sc) != NULL)
 		ifp->if_flags |= IFF_OACTIVE;
-
-	RL_UNLOCK(sc);
 }
 
 static void
 rl_init(void *xsc)
 {
 	struct rl_softc		*sc = xsc;
+
+	RL_LOCK(sc);
+	rl_init_locked(sc);
+	RL_UNLOCK(sc);
+}
+
+static void
+rl_init_locked(struct rl_softc *sc)
+{
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
 	uint32_t		rxcfg = 0;
 
-	RL_LOCK(sc);
+	RL_LOCK_ASSERT(sc);
+
 	mii = device_get_softc(sc->rl_miibus);
 
 	/*
@@ -1573,8 +1597,6 @@ rl_init(void *xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	sc->rl_stat_ch = timeout(rl_tick, sc, hz);
-
-	RL_UNLOCK(sc);
 }
 
 /*
@@ -1619,14 +1641,14 @@ rl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFFLAGS:
+		RL_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			rl_init(sc);
+			rl_init_locked(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
-				RL_LOCK(sc);
 				rl_stop(sc);
-				RL_UNLOCK(sc);
 		}
+		RL_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -1665,10 +1687,9 @@ rl_watchdog(struct ifnet *ifp)
 
 	rl_txeof(sc);
 	rl_rxeof(sc);
+	rl_init_locked(sc);
 
 	RL_UNLOCK(sc);
-
-	rl_init(sc);
 }
 
 /*
@@ -1745,12 +1766,14 @@ rl_resume(device_t dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
+	RL_LOCK(sc);
+
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
-		rl_init(sc);
+		rl_init_locked(sc);
 
-	RL_LOCK(sc);
 	sc->suspended = 0;
+
 	RL_UNLOCK(sc);
 
 	return (0);
