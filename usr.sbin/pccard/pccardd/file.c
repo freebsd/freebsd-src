@@ -37,7 +37,12 @@ static const char rcsid[] =
 
 static FILE *in;
 static int includes = 0;
-static FILE *files[MAXINCLUDES] = {NULL, };
+static struct {
+	FILE	*filep;
+	char	*filename;
+	int	lineno;
+} configfiles[MAXINCLUDES] = {{NULL, NULL, 0}, };
+
 static int pushc, pusht;
 static int lineno;
 static char *filename;
@@ -57,6 +62,7 @@ static char *keys[] = {
 	"iosize",		/* 12 */
 	"debuglevel",		/* 13 */
 	"include",		/* 14 */
+	"function",		/* 15 */
 	0
 };
 
@@ -74,6 +80,16 @@ static char *keys[] = {
 #define KWD_IOSIZE		12
 #define KWD_DEBUGLEVEL		13
 #define KWD_INCLUDE		14
+#define KWD_FUNCTION		15
+
+/* for keyword compatibility with PAO/plain FreeBSD */
+static struct {
+	char	*alias;
+	u_int	key;
+} key_aliases[] = {
+	{"generic", KWD_FUNCTION},
+	{0, 0}
+};
 
 struct flags {
 	char   *name;
@@ -88,6 +104,7 @@ static void    error(char *);
 static int     keyword(char *);
 static int     irq_tok(int);
 static int     config_tok(unsigned char *);
+static int     func_tok(void);
 static int     debuglevel_tok(int);
 static struct allocblk *ioblk_tok(int);
 static struct allocblk *memblk_tok(int);
@@ -96,7 +113,42 @@ static int     iosize_tok(void);
 static void    file_include(char *);
 
 static void    addcmd(struct cmd **);
-static void    parse_card(void);
+static void    parse_card(int);
+
+static void
+delete_card(struct card *cp)
+{
+	struct ether	*etherp, *ether_next;
+	struct card_config *configp, *config_next;
+	struct cmd	*cmdp, *cmd_next;
+
+	/* free characters */
+	if (cp->manuf[0] != NULL)
+		free(cp->manuf);
+	if (cp->version[0] != NULL)
+		free(cp->version);
+
+	/* free structures */
+	for (etherp = cp->ether; etherp; etherp = ether_next) {
+		ether_next = etherp->next;
+		free(etherp);
+	}
+	for (configp = cp->config; configp; configp = config_next) {
+		config_next = configp->next;
+		free(configp);
+	}
+	for (cmdp = cp->insert; cmdp; cmdp = cmd_next) {
+		cmd_next = cmdp->next;
+		free(cmdp->line);
+		free(cmdp);
+	}
+	for (cmdp = cp->remove; cmdp; cmdp = cmd_next) {
+		cmd_next = cmdp->next;
+		free(cmdp->line);
+		free(cmdp);
+	}
+	free(cp);
+}
 
 /*
  * Read a file and parse the pcmcia configuration data.
@@ -105,77 +157,197 @@ static void    parse_card(void);
 void
 readfile(char *name)
 {
-	int i;
-	struct card *cp;
+	int i, inuse;
+	struct card *cp, *card_next;
+	struct card *genericp, *tail_gp;
+	struct card_config *configp;
 
+	/* delete all card configuration data before we proceed */
+	genericp = 0;
+	cp = cards;
+	cards = last_card = 0;
+	while (cp) {
+		card_next = cp->next;
+
+		/* check whether this card is in use */
+		inuse = 0;
+		for (configp = cp->config; configp; configp = configp->next) {
+			if (configp->inuse) {
+				inuse = 1;
+				break;
+			}
+		}
+
+		/*
+		 * don't delete entry in use for consistency.
+		 * leave normal entry in the cards list,
+		 * insert generic entry into the list after re-loading config files.
+		 */
+		if (inuse == 1) {
+			cp->next = 0;	/* unchain from the cards list */
+			switch (cp->deftype) {
+			case DT_VERS:
+				/* don't delete this entry for consistency */
+				if (debug_level >= 1) {
+					logmsg("Card \"%s\"(\"%s\") is in use, "
+					    "can't change configuration\n",
+					    cp->manuf, cp->version);
+				}
+				/* add this to the card list */
+				if (!last_card) {
+					cards = last_card = cp;
+				} else {
+					last_card->next = cp;
+					last_card = cp;
+				}
+				break;
+
+			case DT_FUNC:
+				/* generic entry must be inserted to the list later */
+				if (debug_level >= 1) {
+					logmsg("Generic entry is in use, "
+					    "can't change configuration\n");
+				}
+				cp->next = genericp;
+				genericp = cp;
+				break;
+			}
+		} else {
+			delete_card(cp);
+		}
+
+		cp = card_next;
+	}
+
+	for (i = 0; i < MAXINCLUDES; i++) {
+		if (configfiles[i].filep) {
+			fclose(configfiles[i].filep);
+			configfiles[i].filep = NULL;
+			if (i > 0) {
+				free(configfiles[i].filename);
+			}
+		}
+	}
 	in = fopen(name, "r");
 	if (in == 0) {
 		logerr(name);
 		die("readfile");
 	}
-	for (i = 0; i < MAXINCLUDES; i++) {
-		if (files[i]) {
-			fclose(files[i]);
-			files[i] = NULL;
-		}
-	}
-	files[includes = 0] = in;
+	includes = 0;
+	configfiles[includes].filep = in;
+	filename = configfiles[includes].filename = name;
+
 	parsefile();
 	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
 			logmsg("warning: card %s(%s) has no valid configuration\n",
 			    cp->manuf, cp->version);
 	}
+
+	/* insert generic entries in use into the top of generic entries */
+	if (genericp) {
+		/* search tail of generic entries in use */
+		for (tail_gp = genericp; tail_gp->next; tail_gp = tail_gp->next)
+			;
+
+		/*
+		 * if the top of cards list is generic entry,
+		 * insert generic entries in use before it.
+		 */
+		if (cards && cards->deftype == DT_FUNC) {
+			tail_gp->next = cards;
+			cards = genericp;
+			goto generic_done;
+		}
+
+		/* search top of generic entries */
+		for (cp = cards; cp; cp = cp->next) {
+			if (cp->next && cp->next->deftype == DT_FUNC) {
+				break;
+			}
+		}
+
+		/*
+		 * if we have generic entry in the cards list,
+		 * insert generic entries in use into there.
+		 */
+		if (cp) {
+			tail_gp->next = cp->next;
+			cp->next = genericp;
+			goto generic_done;
+		}
+
+		/*
+		 * otherwise we don't have generic entries in
+		 * cards list, just add them to the list.
+		 */
+		if (!last_card) {
+			cards = genericp;
+		} else {
+			last_card->next = genericp;
+			last_card = tail_gp;
+		}
+generic_done:
+	}
+
+	/* save the initial state of resource pool */
+	bcopy(io_avail, io_init, bitstr_size(IOPORTS));
+	bcopy(mem_avail, mem_init, bitstr_size(MEMBLKS));
+	bcopy(pool_irq, irq_init, sizeof(pool_irq));
 }
 
 static void
 parsefile(void)
 {
 	int     i;
-	int     irq_init = 0;
-	int     io_init = 0;
-	struct allocblk *bp;
+	int     errors = 0;
+	struct allocblk *bp, *next;
 	char	*incl;
 
 	pushc = 0;
 	lineno = 1;
-	for (i = 0; i < 16 ; i++) 
-		if (pool_irq[i]) {
-			irq_init = 1;
-			break;
-		}
 	for (;;)
 		switch (keyword(next_tok())) {
 		case KWD_EOF:
 			/* EOF */
 			return;
 		case KWD_IO:
-			/* reserved I/O blocks */
-			while ((bp = ioblk_tok(0)) != 0) {
-				if (!io_init) {
-					if (bp->size == 0 || bp->addr == 0) {
-						free(bp);
-						continue;
-					}
-					bit_nset(io_avail, bp->addr,
-						 bp->addr + bp->size - 1);
-					bp->next = pool_ioblks;
-					pool_ioblks = bp;
-				}
+			/* override reserved I/O blocks */
+			bit_nclear(io_avail, 0, IOPORTS-1);
+			for (bp = pool_ioblks; bp; bp = next) {
+				next = bp->next;
+				free(bp);
 			}
-			io_init = 1;
+			pool_ioblks = NULL;
+
+			while ((bp = ioblk_tok(0)) != 0) {
+				if (bp->size == 0 || bp->addr == 0) {
+					free(bp);
+					continue;
+				}
+				bit_nset(io_avail, bp->addr,
+					 bp->addr + bp->size - 1);
+				bp->next = pool_ioblks;
+				pool_ioblks = bp;
+			}
 			pusht = 1;
 			break;
 		case KWD_IRQ:
-			/* reserved irqs */
+			/* override reserved irqs */
+			bzero(pool_irq, sizeof(pool_irq));
 			while ((i = irq_tok(0)) > 0)
-				if (!irq_init)
-					pool_irq[i] = 1;
-			irq_init = 1;
+				pool_irq[i] = 1;
 			pusht = 1;
 			break;
 		case KWD_MEMORY:
-			/* reserved memory blocks. */
+			/* override reserved memory blocks. */
+			bit_nclear(mem_avail, 0, MEMBLKS-1);
+			for (bp = pool_mem; bp; bp = next) {
+				next = bp->next;
+				free(bp);
+			}
+			pool_mem = NULL;
+
 			while ((bp = memblk_tok(0)) != 0) {
 				if (bp->size == 0 || bp->addr == 0) {
 					free(bp);
@@ -190,7 +362,11 @@ parsefile(void)
 			break;
 		case KWD_CARD:
 			/* Card definition. */
-			parse_card();
+			parse_card(DT_VERS);
+			break;
+		case KWD_FUNCTION:
+			/* Function definition. */
+			parse_card(DT_FUNC);
 			break;
 		case KWD_DEBUGLEVEL:
 			i = debuglevel_tok(0);
@@ -204,6 +380,10 @@ parsefile(void)
 		default:
 			error("syntax error");
 			pusht = 0;
+			if (errors++ >= MAXERRORS) {
+				error("too many errors, giving up");
+				return;
+			}
 			break;
 		}
 }
@@ -212,7 +392,7 @@ parsefile(void)
  *	Parse a card definition.
  */
 static void
-parse_card(void)
+parse_card(int deftype)
 {
 	char   *man, *vers, *tmp;
 	unsigned char index_type;
@@ -222,14 +402,33 @@ parse_card(void)
 	struct ether *ether;
 
 	confp = 0;
-	man = newstr(next_tok());
-	vers = newstr(next_tok());
 	cp = xmalloc(sizeof(*cp));
-	cp->manuf = man;
-	cp->version = vers;
+	cp->deftype = deftype;
+	switch (deftype) {
+	case DT_VERS:
+		man = newstr(next_tok());
+		vers = newstr(next_tok());
+		cp->manuf = man;
+		cp->version = vers;
+		cp->func_id = 0;
+		break;
+	case DT_FUNC:
+		cp->manuf = "";
+		cp->version = "";
+		cp->func_id = (u_char) func_tok();
+		break;
+	default:
+		fprintf(stderr, "parse_card: unknown deftype %d\n", deftype);
+		exit(1);
+	}
 	cp->reset_time = 50;
-	cp->next = cards;
-	cards = cp;
+	cp->next = 0;
+	if (!last_card) {
+		cards = last_card = cp;
+	} else {
+		last_card->next = cp;
+		last_card = cp;
+	}
 	for (;;) {
 		switch (keyword(next_tok())) {
 		case KWD_CONFIG:
@@ -367,6 +566,11 @@ ioblk_tok(int force)
 	struct allocblk *io;
 	int     i, j;
 
+	/* ignore the keyword to allow separete blocks in multiple lines */
+	if (keyword(next_tok()) != KWD_IO) {
+		pusht = 1;
+	}
+
 	if ((i = num_tok()) >= 0) {
 		if (strcmp("-", next_tok()) || (j = num_tok()) < 0 || j < i) {
 			error("I/O block format error");
@@ -398,6 +602,11 @@ memblk_tok(int force)
 {
 	struct allocblk *mem;
 	int     i, j;
+
+	/* ignore the keyword to allow separete blocks in multiple lines */
+	if (keyword(next_tok()) != KWD_MEMORY) {
+		pusht = 1;
+	}
 
 	if ((i = num_tok()) >= 0) {
 		if ((j = num_tok()) < 0)
@@ -431,6 +640,11 @@ irq_tok(int force)
 {
 	int     i;
 
+	/* ignore the keyword to allow separete blocks in multiple lines */
+	if (keyword(next_tok()) != KWD_IRQ) {
+		pusht = 1;
+	}
+
 	if (strcmp("?", next_tok()) == 0 && force)
 		return (0);
 	pusht = 1;
@@ -461,6 +675,21 @@ config_tok(unsigned char *index_type)
 	*index_type = NORMAL_INDEX;
 	return num_tok();
 }
+/*
+ *	Function ID token
+ */
+static int
+func_tok(void)
+{
+	if (strcmp("serial", next_tok()) == 0)	
+		return 2;
+	pusht = 1;
+	if (strcmp("fixed_disk", next_tok()) == 0)	
+		return 4;
+	pusht = 1;
+	return num_tok();
+}
+
 
 /*
  *	debuglevel token. Must be between 0 and 9.
@@ -512,6 +741,12 @@ keyword(char *str)
 	for (s = keys; *s; s++, i++)
 		if (strcmp(*s, str) == 0)
 			return (i);
+
+	/* search keyword aliases too */
+	for (i = 0; key_aliases[i].key ; i++)
+		if (strcmp(key_aliases[i].alias, str) == 0)
+			return (key_aliases[i].key);
+
 	return (0);
 }
 
@@ -731,8 +966,11 @@ _next_tok(void)
 		case EOF:
 			if (includes) {
 				fclose(in);
+				/* go back to previous config file */
 				includes--;
-				in = files[includes];
+				in = configfiles[includes].filep;
+				filename = configfiles[includes].filename;
+				lineno = configfiles[includes].lineno;
 				return _next_tok();	/* recursive */
 			}
 			if (p != buf) {
@@ -773,17 +1011,54 @@ getline(void)
  *	Include configuration file
  */
 static void
-file_include(char *filename)
+file_include(char *incl)
 {
-	FILE *fp;
+	int	i, included;
+	FILE	*fp;
 
-	includes++;
+	/* check nesting overflow */
 	if (includes >= MAXINCLUDES) {
-		error("include nesting overflow");
+		if (debug_level >= 1) {
+			logmsg("%s: include nesting overflow "
+			    "at line %d, near %s\n", filename, lineno, incl);
+		}
+		free(incl);
+		goto out;
 	}
-	if (!(fp = fopen(filename, "r"))) {
-		error("can't open include file");
-		includes--;
+
+	/* check recursive inclusion */
+	for (i = 0, included = 0; i <= includes; i++) {
+		if (strcmp(incl, configfiles[i].filename) == 0) {
+			included = 1;
+			break;
+		}
 	}
-	in = files[includes] = fp;
+	if (included == 1) {
+		if (debug_level >= 1) {
+			logmsg("%s: can't include the same file twice "
+			    "at line %d, near %s\n", filename, lineno, incl);
+		}
+		free(incl);
+		goto out;
+	}
+
+	if (!(fp = fopen(incl, "r"))) {
+		if (debug_level >= 1) {
+			logmsg("%s: can't open include file "
+			    "at line %d, near %s\n", filename, lineno, incl);
+		}
+		free(incl);
+		goto out;
+	}
+
+	/* save line number of the current config file */
+	configfiles[includes].lineno = lineno;
+	lineno = 1;
+
+	/* now we start parsing new config file */
+	includes++;
+	in = configfiles[includes].filep = fp;
+	filename = configfiles[includes].filename = incl;
+out:
+	return;
 }
