@@ -23,19 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppb_1284.c,v 1.1 1997/08/16 14:05:32 msmith Exp $
  *
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
-#include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/buf.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/uio.h>
-#include <sys/syslog.h>
 
 #include <machine/clock.h>
 
