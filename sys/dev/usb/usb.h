@@ -425,6 +425,9 @@ typedef struct {
 
 #define USB_BUS_RESET_DELAY	100 /* ms XXX?*/
 
+#define USB_UNCONFIG_NO		0
+#define USB_UNCONFIG_INDEX	(-1)
+
 /*** ioctl() related stuff ***/
 
 struct usb_ctl_request {
