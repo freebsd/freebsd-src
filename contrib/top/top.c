@@ -73,6 +73,10 @@ sigret_t tstop();
 sigret_t winch();
 #endif
 
+volatile sig_atomic_t leaveflag;
+volatile sig_atomic_t tstopflag;
+volatile sig_atomic_t winchflag;
+
 /* internal routines */
 void quit();
 
@@ -517,12 +521,7 @@ Usage: %s [-ISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
 	fputc('\n', stderr);
     }
 
-    /* setup the jump buffer for stops */
-    if (setjmp(jmp_int) != 0)
-    {
-	/* control ends up here after an interrupt */
-	reset_display();
-    }
+restart:
 
     /*
      *  main loop -- repeat while display count is positive or while it
@@ -664,6 +663,52 @@ Usage: %s [-ISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
 		FD_SET(1, &readfds);		/* for standard input */
 		timeout.tv_sec  = delay;
 		timeout.tv_usec = 0;
+
+		if (leaveflag) {
+		    end_screen();
+		    exit(0);
+		}
+
+		if (tstopflag) {
+		    /* move to the lower left */
+		    end_screen();
+		    fflush(stdout);
+
+		    /* default the signal handler action */
+		    (void) signal(SIGTSTP, SIG_DFL);
+
+		    /* unblock the signal and send ourselves one */
+#ifdef SIGRELSE
+		    sigrelse(SIGTSTP);
+#else
+		    (void) sigsetmask(sigblock(0) & ~(1 << (SIGTSTP - 1)));
+#endif
+		    (void) kill(0, SIGTSTP);
+
+		    /* reset the signal handler */
+		    (void) signal(SIGTSTP, tstop);
+
+		    /* reinit screen */
+		    reinit_screen();
+		    reset_display();
+		    tstopflag = 0;
+		    goto restart;
+		}
+
+		if (winchflag) {
+		    /* reascertain the screen dimensions */
+		    get_screensize();
+
+		    /* tell display to resize */
+		    max_topn = display_resize();
+
+		    /* reset the signal handler */
+		    (void) signal(SIGWINCH, winch);
+
+		    reset_display();
+		    winchflag = 0;
+		    goto restart;
+		}
 
 		/* wait for either input or the end of the delay period */
 		if (select(32, &readfds, (fd_set *)NULL, (fd_set *)NULL, &timeout) > 0)
@@ -949,8 +994,7 @@ reset_display()
 sigret_t leave()	/* exit under normal conditions -- INT handler */
 
 {
-    end_screen();
-    exit(0);
+    leaveflag = 1;
 }
 
 sigret_t tstop(i)	/* SIGTSTP handler */
@@ -958,31 +1002,7 @@ sigret_t tstop(i)	/* SIGTSTP handler */
 int i;
 
 {
-    /* move to the lower left */
-    end_screen();
-    fflush(stdout);
-
-    /* default the signal handler action */
-    (void) signal(SIGTSTP, SIG_DFL);
-
-    /* unblock the signal and send ourselves one */
-#ifdef SIGRELSE
-    sigrelse(SIGTSTP);
-#else
-    (void) sigsetmask(sigblock(0) & ~(1 << (SIGTSTP - 1)));
-#endif
-    (void) kill(0, SIGTSTP);
-
-    /* reset the signal handler */
-    (void) signal(SIGTSTP, tstop);
-
-    /* reinit screen */
-    reinit_screen();
-
-    /* jump to appropriate place */
-    longjmp(jmp_int, 1);
-
-    /*NOTREACHED*/
+    tstopflag = 1;
 }
 
 #ifdef SIGWINCH
@@ -991,17 +1011,7 @@ sigret_t winch(i)		/* SIGWINCH handler */
 int i;
 
 {
-    /* reascertain the screen dimensions */
-    get_screensize();
-
-    /* tell display to resize */
-    max_topn = display_resize();
-
-    /* reset the signal handler */
-    (void) signal(SIGWINCH, winch);
-
-    /* jump to appropriate place */
-    longjmp(jmp_int, 1);
+    winchflag = 1;
 }
 #endif
 
