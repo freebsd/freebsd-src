@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.185 1998/11/18 09:00:47 dg Exp $
+ * $Id: vfs_bio.c,v 1.186 1998/12/07 17:23:45 eivind Exp $
  */
 
 /*
@@ -1288,7 +1288,7 @@ inmem(struct vnode * vp, daddr_t blkno)
 	tinc = PAGE_SIZE;
 	if (tinc > vp->v_mount->mnt_stat.f_iosize)
 		tinc = vp->v_mount->mnt_stat.f_iosize;
-	off = blkno * vp->v_mount->mnt_stat.f_iosize;
+	off = (vm_ooffset_t)blkno * (vm_ooffset_t)vp->v_mount->mnt_stat.f_iosize;
 
 	for (toff = 0; toff < vp->v_mount->mnt_stat.f_iosize; toff += tinc) {
 
