@@ -127,6 +127,14 @@ static int uma_boot_free = 0;
 static int booted = 0;
 
 /*
+ * Rather than #ifdef SMP all over, just give us a bogus definition for
+ * this on UP.
+ */
+#ifndef SMP
+static int mp_maxid = 1;
+#endif
+
+/*
  * This is the handle used to schedule events that need to happen
  * outside of the allocation fast path.
  */
