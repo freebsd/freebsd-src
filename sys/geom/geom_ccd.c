@@ -564,6 +564,7 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 	caddr_t addr;
 	daddr_t bn;
 	int err;
+	int sent;
 
 	/*
 	 * Translate the partition-relative block number to an absolute.
@@ -574,11 +575,24 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 	 * Allocate component buffers and fire off the requests
 	 */
 	addr = bp->bio_data;
+	sent = 0;
 	for (bcount = bp->bio_bcount; bcount > 0; bcount -= rcount) {
 		err = ccdbuffer(cbp, cs, bp, bn, addr, bcount);
 		if (err) {
 			printf("ccdbuffer error %d\n", err);
-			biofinish(bp, NULL, err);
+			if (!sent)
+				biofinish(bp, NULL, err);
+			else {
+				/*
+				 * XXX: maybe a race where the partners
+				 * XXX: we sent already have been in 
+				 * XXX: ccdiodone().  Single-threaded g_down
+				 * XXX: may protect against this.
+				 */
+				bp->bio_resid -= bcount;
+				bp->bio_error = err;
+				bp->bio_flags |= BIO_ERROR;
+			}
 			return;
 		}
 		rcount = cbp[0]->cb_buf.bio_bcount;
@@ -596,6 +610,7 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 			if (cbp[0]->cb_buf.bio_cmd == BIO_WRITE) {
 				BIO_STRATEGY(&cbp[0]->cb_buf);
 				BIO_STRATEGY(&cbp[1]->cb_buf);
+				sent++;
 			} else {
 				int pick = cs->sc_pick;
 				daddr_t range = cs->sc_size / 16;
@@ -607,12 +622,14 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 				}
 				cs->sc_blk[pick] = bn + btodb(rcount);
 				BIO_STRATEGY(&cbp[pick]->cb_buf);
+				sent++;
 			}
 		} else {
 			/*
 			 * Not mirroring
 			 */
 			BIO_STRATEGY(&cbp[0]->cb_buf);
+			sent++;
 		}
 		bn += btodb(rcount);
 		addr += rcount;
