@@ -35,7 +35,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd July 29, 1994
+.Dd December 29, 2002
 .Dt LS 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHLPRTWabcdfgiklnoqrstu1
+.Op Fl ABCFGHLPRTWabcdfghiklnoqrstuw1
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -77,8 +77,9 @@ and
 .Pa .. .
 Always set for the super-user.
 .It Fl B
-Force printing of non-graphic characters
-in file names as
+Force printing of non-printable characters (as defined by
+.Xr ctype 3
+and current locale settings) in file names as
 .Li \e Ns Va xxx ,
 where
 .Va xxx
@@ -163,6 +164,12 @@ with
 it was used to display the group name in the long
 .Pq Fl l
 format output.
+.It Fl h
+When used wih the
+.Fl l
+option, use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte
+and Petabyte in order to reduce the number of digits to three or less
+using base 2 for sizes.
 .It Fl i
 For each file, print the file's file serial number (inode number).
 .It Fl k
@@ -215,6 +222,10 @@ of the file for sorting
 .Pq Fl t
 or printing
 .Pq Fl l .
+.It Fl w
+Force raw printing of non-printable characters.
+This is the default
+when output is not to a terminal.
 .It Fl 1
 (The numeric digit
 .Dq one . )
@@ -239,7 +250,7 @@ options override each other; the last one specified determines
 the file time used.
 .Pp
 The
-.Fl B , b
+.Fl B , b , w ,
 and
 .Fl q
 options all override each other; the last one specified determines
@@ -486,22 +497,38 @@ is the background color.
 The color designators are as follows:
 .Pp
 .Bl -tag -width 4n -offset indent -compact
-.It Sy 0
+.It Sy a
 black
-.It Sy 1
+.It Sy b
 red
-.It Sy 2
+.It Sy c
 green
-.It Sy 3
+.It Sy d
 brown
-.It Sy 4
+.It Sy e
 blue
-.It Sy 5
+.It Sy f
 magenta
-.It Sy 6
+.It Sy g
 cyan
-.It Sy 7
+.It Sy h
 light grey
+.It Sy A
+bold black, usually shows up as dark grey
+.It Sy B
+bold red
+.It Sy C
+bold green
+.It Sy D
+bold brown, usually shows up as yellow
+.It Sy E
+bold blue
+.It Sy F
+bold magenta
+.It Sy G
+bold cyan
+.It Sy H
+bold light grey; looks like bright white
 .It Sy x
 default foreground or background
 .El
@@ -540,7 +567,7 @@ directory writable to others, without sticky bit
 .El
 .Pp
 The default is
-.Qq "4x5x2x3x1x464301060203" ,
+.Qq "exfxcxdxbxegedabagacad" ,
 i.e. blue foreground and
 default background for regular directories, black foreground and red
 background for setuid executables, etc.

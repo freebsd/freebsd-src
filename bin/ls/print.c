@@ -49,9 +49,8 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
-#include <grp.h>
+#include <math.h>
 #include <langinfo.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,42 +65,69 @@ static const char rcsid[] =
 #include "ls.h"
 #include "extern.h"
 
-static int	printaname __P((FTSENT *, u_long, u_long));
-static void	printlink __P((FTSENT *));
-static void	printtime __P((time_t));
-static int	printtype __P((u_int));
+static int	printaname(FTSENT *, u_long, u_long);
+static void	printlink(FTSENT *);
+static void	printtime(time_t);
+static int	printtype(u_int);
+static void	printsize(size_t, off_t);
 #ifdef COLORLS
-static void     endcolor __P((int));
-static int      colortype __P((mode_t));
+static void	endcolor(int);
+static int	colortype(mode_t);
 #endif
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
 
+#define KILO_SZ(n) (n)
+#define MEGA_SZ(n) ((n) * (n))
+#define GIGA_SZ(n) ((n) * (n) * (n))
+#define TERA_SZ(n) ((n) * (n) * (n) * (n))
+#define PETA_SZ(n) ((n) * (n) * (n) * (n) * (n))
+
+#define KILO_2_SZ (KILO_SZ(1024ULL))
+#define MEGA_2_SZ (MEGA_SZ(1024ULL))
+#define GIGA_2_SZ (GIGA_SZ(1024ULL))
+#define TERA_2_SZ (TERA_SZ(1024ULL))
+#define PETA_2_SZ (PETA_SZ(1024ULL))
+
+static unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
+
+typedef enum {
+	NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX
+} unit_t;
+static unit_t unit_adjust(off_t *);
+
+static int unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
+
 #ifdef COLORLS
 /* Most of these are taken from <sys/stat.h> */
 typedef enum Colors {
-    C_DIR,     /* directory */
-    C_LNK,     /* symbolic link */
-    C_SOCK,    /* socket */
-    C_FIFO,    /* pipe */
-    C_EXEC,    /* executable */
-    C_BLK,     /* block special */
-    C_CHR,     /* character special */
-    C_SUID,    /* setuid executable */
-    C_SGID,    /* setgid executable */
-    C_WSDIR,   /* directory writeble to others, with sticky bit */
-    C_WDIR,    /* directory writeble to others, without sticky bit */
-    C_NUMCOLORS        /* just a place-holder */
-} Colors ;
+	C_DIR,			/* directory */
+	C_LNK,			/* symbolic link */
+	C_SOCK,			/* socket */
+	C_FIFO,			/* pipe */
+	C_EXEC,			/* executable */
+	C_BLK,			/* block special */
+	C_CHR,			/* character special */
+	C_SUID,			/* setuid executable */
+	C_SGID,			/* setgid executable */
+	C_WSDIR,		/* directory writeble to others, with sticky
+				 * bit */
+	C_WDIR,			/* directory writeble to others, without
+				 * sticky bit */
+	C_NUMCOLORS		/* just a place-holder */
+} Colors;
 
-char *defcolors = "4x5x2x3x1x464301060203";
+static const char *defcolors = "exfxcxdxbxegedabagacad";
 
-static int colors[C_NUMCOLORS][2];
+/* colors for file types */
+static struct {
+	int	num[2];
+	int	bold;
+} colors[C_NUMCOLORS];
 #endif
 
 void
-printscol(dp)
-	DISPLAY *dp;
+printscol(DISPLAY *dp)
 {
 	FTSENT *p;
 
@@ -117,8 +143,7 @@ printscol(dp)
  * print name in current style
  */
 static int
-printname(name)
-	const char *name;
+printname(const char *name)
 {
 	if (f_octal || f_octal_escape)
 		return prn_octal(name);
@@ -129,8 +154,7 @@ printname(name)
 }
 
 void
-printlong(dp)
-	DISPLAY *dp;
+printlong(DISPLAY *dp)
 {
 	struct stat *sp;
 	FTSENT *p;
@@ -150,9 +174,9 @@ printlong(dp)
 		if (f_inode)
 			(void)printf("%*lu ", dp->s_inode, (u_long)sp->st_ino);
 		if (f_size)
-			(void)printf("%*qd ",
+			(void)printf("%*lld ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
-		(void)strmode(sp->st_mode, buf);
+		strmode(sp->st_mode, buf);
 		np = p->fts_pointer;
 		(void)printf("%s %*u %-*s  %-*s  ", buf, dp->s_nlink,
 		    sp->st_nlink, dp->s_user, np->user, dp->s_group,
@@ -168,10 +192,10 @@ printlong(dp)
 				(void)printf("%3d, %3d ",
 				    major(sp->st_rdev), minor(sp->st_rdev));
 		else if (dp->bcfile)
-			(void)printf("%*s%*qd ",
+			(void)printf("%*s%*lld ",
 			    8 - dp->s_size, "", dp->s_size, sp->st_size);
 		else
-			(void)printf("%*qd ", dp->s_size, sp->st_size);
+			printsize(dp->s_size, sp->st_size);
 		if (f_accesstime)
 			printtime(sp->st_atime);
 		else if (f_statustime)
@@ -196,15 +220,22 @@ printlong(dp)
 }
 
 void
-printcol(dp)
-	DISPLAY *dp;
+printcol(DISPLAY *dp)
 {
 	extern int termwidth;
 	static FTSENT **array;
 	static int lastentries = -1;
 	FTSENT *p;
-	int base, chcnt, cnt, col, colwidth, num;
-	int endcol, numcols, numrows, row;
+	int base;
+	int chcnt;
+	int cnt;
+	int col;
+	int colwidth;
+	int endcol;
+	int num;
+	int numcols;
+	int numrows;
+	int row;
 	int tabwidth;
 
 	if (f_notabs)
@@ -241,7 +272,6 @@ printcol(dp)
 		printscol(dp);
 		return;
 	}
-
 	numcols = termwidth / colwidth;
 	numrows = num / numcols;
 	if (num % numcols)
@@ -257,7 +287,7 @@ printcol(dp)
 			if ((base += numrows) >= num)
 				break;
 			while ((cnt = ((chcnt + tabwidth) & ~(tabwidth - 1)))
-			    <= endcol){
+			    <= endcol) {
 				(void)putchar(f_notabs ? ' ' : '\t');
 				chcnt = cnt;
 			}
@@ -272,9 +302,7 @@ printcol(dp)
  * return # of characters printed, no trailing characters.
  */
 static int
-printaname(p, inodefield, sizefield)
-	FTSENT *p;
-	u_long sizefield, inodefield;
+printaname(FTSENT *p, u_long inodefield, u_long sizefield)
 {
 	struct stat *sp;
 	int chcnt;
@@ -287,7 +315,7 @@ printaname(p, inodefield, sizefield)
 	if (f_inode)
 		chcnt += printf("%*lu ", (int)inodefield, (u_long)sp->st_ino);
 	if (f_size)
-		chcnt += printf("%*qd ",
+		chcnt += printf("%*lld ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
 #ifdef COLORLS
 	if (f_color)
@@ -304,8 +332,7 @@ printaname(p, inodefield, sizefield)
 }
 
 static void
-printtime(ftime)
-	time_t ftime;
+printtime(time_t ftime)
 {
 	char longstring[80];
 	static time_t now;
@@ -332,8 +359,7 @@ printtime(ftime)
 }
 
 static int
-printtype(mode)
-	u_int mode;
+printtype(u_int mode)
 {
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
@@ -351,6 +377,7 @@ printtype(mode)
 	case S_IFWHT:
 		(void)putchar('%');
 		return (1);
+	default:
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		(void)putchar('*');
@@ -361,142 +388,156 @@ printtype(mode)
 
 #ifdef COLORLS
 static int
-putch(c)
-	int c;
+putch(int c)
 {
-	(void) putchar(c);
+	(void)putchar(c);
 	return 0;
 }
 
 static int
-writech(c)
-	int c;
+writech(int c)
 {
 	char tmp = c;
 
-	(void) write(STDOUT_FILENO, &tmp, 1);
+	(void)write(STDOUT_FILENO, &tmp, 1);
 	return 0;
 }
 
 static void
-printcolor(c)
-       Colors c;
+printcolor(Colors c)
 {
 	char *ansiseq;
 
-	if (colors[c][0] != -1) {
-		ansiseq = tgoto(ansi_fgcol, 0, colors[c][0]);
+	if (colors[c].bold)
+		tputs(enter_bold, 1, putch);
+
+	if (colors[c].num[0] != -1) {
+		ansiseq = tgoto(ansi_fgcol, 0, colors[c].num[0]);
 		if (ansiseq)
 			tputs(ansiseq, 1, putch);
 	}
-
-	if (colors[c][1] != -1) {
-		ansiseq = tgoto(ansi_bgcol, 0, colors[c][1]);
+	if (colors[c].num[1] != -1) {
+		ansiseq = tgoto(ansi_bgcol, 0, colors[c].num[1]);
 		if (ansiseq)
 			tputs(ansiseq, 1, putch);
 	}
 }
 
 static void
-endcolor(sig)
-	int sig;
+endcolor(int sig)
 {
 	tputs(ansi_coloff, 1, sig ? writech : putch);
+	tputs(attrs_off, 1, sig ? writech : putch);
 }
 
 static int
-colortype(mode)
-       mode_t mode;
+colortype(mode_t mode)
 {
-	switch(mode & S_IFMT) {
-	      case S_IFDIR:
+	switch (mode & S_IFMT) {
+	case S_IFDIR:
 		if (mode & S_IWOTH)
-		    if (mode & S_ISTXT)
-			printcolor(C_WSDIR);
-		    else
-			printcolor(C_WDIR);
+			if (mode & S_ISTXT)
+				printcolor(C_WSDIR);
+			else
+				printcolor(C_WDIR);
 		else
-		    printcolor(C_DIR);
-		return(1);
-	      case S_IFLNK:
+			printcolor(C_DIR);
+		return (1);
+	case S_IFLNK:
 		printcolor(C_LNK);
-		return(1);
-	      case S_IFSOCK:
+		return (1);
+	case S_IFSOCK:
 		printcolor(C_SOCK);
-		return(1);
-	      case S_IFIFO:
+		return (1);
+	case S_IFIFO:
 		printcolor(C_FIFO);
-		return(1);
-	      case S_IFBLK:
+		return (1);
+	case S_IFBLK:
 		printcolor(C_BLK);
-		return(1);
-	      case S_IFCHR:
+		return (1);
+	case S_IFCHR:
 		printcolor(C_CHR);
-		return(1);
+		return (1);
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		if (mode & S_ISUID)
-		    printcolor(C_SUID);
+			printcolor(C_SUID);
 		else if (mode & S_ISGID)
-		    printcolor(C_SGID);
+			printcolor(C_SGID);
 		else
-		    printcolor(C_EXEC);
-		return(1);
+			printcolor(C_EXEC);
+		return (1);
 	}
-	return(0);
+	return (0);
 }
 
 void
-parsecolors(cs)
-char *cs;
+parsecolors(const char *cs)
 {
-	int i, j, len;
+	int i;
+	int j;
+	int len;
 	char c[2];
+	short legacy_warn = 0;
 
-	if (cs == NULL)    cs = ""; /* LSCOLORS not set */
+	if (cs == NULL)
+		cs = "";	/* LSCOLORS not set */
 	len = strlen(cs);
-	for (i = 0 ; i < C_NUMCOLORS ; i++) {
-		if (len <= 2*i) {
-			c[0] = defcolors[2*i];
-			c[1] = defcolors[2*i+1];
+	for (i = 0; i < C_NUMCOLORS; i++) {
+		colors[i].bold = 0;
+
+		if (len <= 2 * i) {
+			c[0] = defcolors[2 * i];
+			c[1] = defcolors[2 * i + 1];
+		} else {
+			c[0] = cs[2 * i];
+			c[1] = cs[2 * i + 1];
 		}
-		else {
-			c[0] = cs[2*i];
-			c[1] = cs[2*i+1];
-		}
-		for (j = 0 ; j < 2 ; j++) {
-			if ((c[j] < '0' || c[j] > '7') &&
-			    tolower((unsigned char)c[j]) != 'x') {
+		for (j = 0; j < 2; j++) {
+			/* Legacy colours used 0-7 */
+			if (c[j] >= '0' && c[j] <= '7') {
+				colors[i].num[j] = c[j] - '0';
+				if (!legacy_warn) {
+					fprintf(stderr,
+					    "warn: LSCOLORS should use "
+					    "characters a-h instead of 0-9 ("
+					    "see the manual page)\n");
+				}
+				legacy_warn = 1;
+			} else if (c[j] >= 'a' && c[j] <= 'h')
+				colors[i].num[j] = c[j] - 'a';
+			else if (c[j] >= 'A' && c[j] <= 'H') {
+				colors[i].num[j] = c[j] - 'A';
+				colors[i].bold = 1;
+			} else if (tolower((unsigned char)c[j] == 'x'))
+				colors[i].num[j] = -1;
+			else {
 				fprintf(stderr,
-					"error: invalid character '%c' in LSCOLORS env var\n",
-					c[j]);
-				c[j] = defcolors[2*i+j];
+				    "error: invalid character '%c' in LSCOLORS"
+				    " env var\n", c[j]);
+				colors[i].num[j] = -1;
 			}
-			if (tolower((unsigned char)c[j]) == 'x')
-			    colors[i][j] = -1;
-			else
-			    colors[i][j] = c[j]-'0';
 		}
 	}
 }
 
 void
-colorquit(sig)
-	int sig;
+colorquit(int sig)
 {
 	endcolor(sig);
 
-	(void) signal(sig, SIG_DFL);
-	(void) kill(getpid(), sig);
+	(void)signal(sig, SIG_DFL);
+	(void)kill(getpid(), sig);
 }
-#endif /*COLORLS*/
- 
+
+#endif /* COLORLS */
+
 static void
-printlink(p)
-	FTSENT *p;
+printlink(FTSENT *p)
 {
 	int lnklen;
-	char name[MAXPATHLEN + 1], path[MAXPATHLEN + 1];
+	char name[MAXPATHLEN + 1];
+	char path[MAXPATHLEN + 1];
 
 	if (p->fts_level == FTS_ROOTLEVEL)
 		(void)snprintf(name, sizeof(name), "%s", p->fts_name);
@@ -509,5 +550,49 @@ printlink(p)
 	}
 	path[lnklen] = '\0';
 	(void)printf(" -> ");
-	printname(path);
+	(void)printname(path);
+}
+
+static void
+printsize(size_t width, off_t bytes)
+{
+	unit_t unit;
+
+	if (f_humanval) {
+		unit = unit_adjust(&bytes);
+
+		if (bytes == 0)
+			(void)printf("%*s ", width, "0B");
+		else
+			(void)printf("%*lld%c ", width - 1, bytes,
+			    "BKMGTPE"[unit]);
+	} else
+		(void)printf("%*lld ", width, bytes);
+}
+
+/*
+ * Output in "human-readable" format.  Uses 3 digits max and puts
+ * unit suffixes at the end.  Makes output compact and easy to read,
+ * especially on huge disks.
+ *
+ */
+unit_t
+unit_adjust(off_t *val)
+{
+	double abval;
+	unit_t unit;
+	unsigned int unit_sz;
+
+	abval = fabs((double)*val);
+
+	unit_sz = abval ? ilogb(abval) / 10 : 0;
+
+	if (unit_sz >= UNIT_MAX) {
+		unit = NONE;
+	} else {
+		unit = unitp[unit_sz];
+		*val /= (double)vals_base2[unit_sz];
+	}
+
+	return (unit);
 }

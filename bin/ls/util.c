@@ -57,14 +57,13 @@ static const char rcsid[] =
 #include "extern.h"
 
 int
-prn_printable(s)
-	const char *s;
+prn_printable(const char *s)
 {
-	unsigned char c;
+	char c;
 	int n;
 
 	for (n = 0; (c = *s) != '\0'; ++s, ++n)
-		if (isprint(c))
+		if (isprint((unsigned char)c))
 			putchar(c);
 		else
 			putchar('?');
@@ -84,27 +83,23 @@ prn_printable(s)
  *                                              DES 1998/04/23
  */
 
-int
-len_octal(s, len)
-        const char *s;
-	int len;
+size_t
+len_octal(const char *s, int len)
 {
-	int r = 0;
+	size_t r = 0;
 
 	while (len--)
-		if (isprint((unsigned char)*s++)) r++; else r += 4;
+		if (isprint((unsigned const char)*s++)) r++; else r += 4;
 	return r;
 }
 
 int
-prn_octal(s)
-        const char *s;
+prn_octal(const char *s)
 {
         unsigned char ch;
 	int len = 0;
 	
-        while ((ch = *s++))
-	{
+        while ((ch = (unsigned char)*s++)) {
 	        if (isprint(ch) && (ch != '\"') && (ch != '\\'))
 		        putchar(ch), len++;
 	        else if (f_octal_escape) {
@@ -158,13 +153,13 @@ prn_octal(s)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 #ifdef COLORLS
-	"usage: ls [-ABCFGHLPRTWabcdfgiklnoqrstu1]"
+	"usage: ls [-ABCFGHLPRTWabcdfghiklnoqrstu1]"
 #else
-	"usage: ls [-ABCFHLPRTWabcdfgiklnoqrstu1]"
+	"usage: ls [-ABCFHLPRTWabcdfghiklnoqrstu1]"
 #endif
 		      " [file ...]\n");
 	exit(1);

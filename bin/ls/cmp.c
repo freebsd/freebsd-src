@@ -53,57 +53,49 @@ static const char rcsid[] =
 #include "extern.h"
 
 int
-namecmp(a, b)
-	const FTSENT *a, *b;
+namecmp(const FTSENT *a, const FTSENT *b)
 {
 	return (strcoll(a->fts_name, b->fts_name));
 }
 
 int
-revnamecmp(a, b)
-	const FTSENT *a, *b;
+revnamecmp(const FTSENT *a, const FTSENT *b)
 {
 	return (strcoll(b->fts_name, a->fts_name));
 }
 
 int
-modcmp(a, b)
-	const FTSENT *a, *b;
+modcmp(const FTSENT *a, const FTSENT *b)
 {
 	return (b->fts_statp->st_mtime - a->fts_statp->st_mtime);
 }
 
 int
-revmodcmp(a, b)
-	const FTSENT *a, *b;
+revmodcmp(const FTSENT *a, const FTSENT *b)
 {
 	return (a->fts_statp->st_mtime - b->fts_statp->st_mtime);
 }
 
 int
-acccmp(a, b)
-	const FTSENT *a, *b;
+acccmp(const FTSENT *a, const FTSENT *b)
 {
 	return (b->fts_statp->st_atime - a->fts_statp->st_atime);
 }
 
 int
-revacccmp(a, b)
-	const FTSENT *a, *b;
+revacccmp(const FTSENT *a, const FTSENT *b)
 {
 	return (a->fts_statp->st_atime - b->fts_statp->st_atime);
 }
 
 int
-statcmp(a, b)
-	const FTSENT *a, *b;
+statcmp(const FTSENT *a, const FTSENT *b)
 {
 	return (b->fts_statp->st_ctime - a->fts_statp->st_ctime);
 }
 
 int
-revstatcmp(a, b)
-	const FTSENT *a, *b;
+revstatcmp(const FTSENT *a, const FTSENT *b)
 {
 	return (a->fts_statp->st_ctime - b->fts_statp->st_ctime);
 }
