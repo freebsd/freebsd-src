@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.281 1996/10/01 03:00:30 pst Exp $
+#	$Id: LINT,v 1.282 1996/10/05 11:01:24 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -78,6 +78,13 @@ options		FAILSAFE
 # type so the routine will never be invoked for a wrong architecture.
 # It will become the default after some testing period.
 options		"I586_FAST_BCOPY"
+
+# This is like I586_FAST_BCOPY except it actually controls bcopy().
+# It is a separate option because the code for it is newer.
+options		"I586_OPTIMIZED_BCOPY"
+
+# This is like I586_OPTIMIZED_BCOPY except it controls bzero().
+options		"I586_OPTIMIZED_BZERO"
 
 #
 # This directive defines a number of things:
@@ -967,10 +974,14 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 
 # More undocumented options for linting.
 
+options		CLK_CALIBRATION_LOOP
+options		"CLK_USE_I8254_CALIBRATION"
+options		"CLK_USE_I586_CALIBRATION"
 options		DEBUG
 options		"EXT2FS"
 options		"IBCS2"
 options		COMPAT_LINUX
 options		"SCSI_2_DEF"
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
+options		SI_DEBUG
 options		SPX_HACK
