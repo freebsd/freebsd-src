@@ -1,4 +1,9 @@
-26.12.2001	1.4.3
+16.04.2002	1.4.4
+    - Workaround for W2K bug in resource listing.
+    - Minor bug fixes.
+    - Manual pages updated. Thanks to Ruslan Ermilov.
+
+26.12.2001	1.4.3 (interim)
     - Additional cleanups for FreeBSD builds.
     - Charset specifications now accepted in the [default] section.
 

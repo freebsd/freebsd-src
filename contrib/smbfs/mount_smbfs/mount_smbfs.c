@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001, Boris Popov
+ * Copyright (c) 2000-2002, Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mount_smbfs.c,v 1.16 2001/12/26 04:09:57 bp Exp $
+ * $Id: mount_smbfs.c,v 1.17 2002/04/10 04:17:51 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/stat.h>
