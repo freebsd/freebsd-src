@@ -11,12 +11,15 @@
 flush
 .Nm ipfw
 zero
+.Oo
+.Ar number
+.Oc
 .Nm ipfw
 delete
 .Ar number
 .Nm ipfw
 .Oo
-.Fl aN
+.Fl atN
 .Oc
 list
 .Nm ipfw
@@ -64,7 +67,7 @@ One rule is always present:
 65535 deny all from any to any
 .Ed
 
-this is rule is the default policy, ie. don't allow anything at all.
+this rule is the default policy, ie. don't allow anything at all.
 Your job in setting up rules is to modify this policy to match your
 needs.
 .Pp
@@ -73,19 +76,23 @@ The following options are available:
 .It Fl a
 While listing, show counter values. This option is the only way to see
 accounting records.
+.It Fl t
+While listing, show last match timestamp.
 .It Fl N
-Try to resolve addresses.
+Try to resolve addresses and service names.
 .El
 .Pp
 .Ar action :
 .Bl -hang -offset flag -width 1234567890123456
-.It Nm accept
-Accept packets that match rule.
+.It Nm allow
+Allow packets that match rule.
 The search terminates.
 .It Nm pass
-same as accept.
+Same as allow.
+.It Nm accept
+Same as allow.
 .It Nm count
-update counters for all packets that match rule.
+Update counters for all packets that match rule.
 The search continues with next rule.
 .It Nm deny
 Discard packets that match this rule.
@@ -98,6 +105,12 @@ The search terminates.
 When a packet matches a rule with the
 .Nm log
 keyword, a message will be printed on the console.
+If the kernel was compiled with the
+.Nm IP_FIREWALL_VERBOSE_LIMIT
+option, then logging will cease after the number of packets
+specified by the option are recieved for that particular
+chain entry.  Logging may then be re-enabled by clearing
+the packet counter for that entry.
 .Pp
 .Ar proto :
 .Bl -hang -offset flag -width 1234567890123456
@@ -116,6 +129,14 @@ Only ICMP packets match.
 .Ar src 
 and
 .Ar dst :
+.Pp
+.Bl -hang -offset flag
+.It <address/mask> [ports]
+.El
+.Pp
+The
+.Em <address/mask>
+may be specified as:
 .Bl -hang -offset flag -width 1234567890123456
 .It Ar ipno
 An ipnumber of the form 1.2.3.4.
@@ -127,6 +148,25 @@ In this case all ip numbers from 1.2.3.0 to 1.2.3.255 will match.
 An ipnumber with a mask width of the form 1.2.3.4:255.255.240.0
 In this case all ip numbers from 1.2.0.0 to 1.2.15.255 will match.
 .El
+.Pp
+With the TCP and UDP
+.Em protocols ,
+an optional
+.Em port
+may be specified as:
+.Pp
+.Bl -hang -offset flag
+.It Ns {port|port:port} Ns Op ,port Ns Op ,...
+.El
+.Pp
+Service names (from 
+.Pa /etc/services )
+may not be used instead of a numeric port value.
+Also, note that a range may only be specified as the first value,
+and the port list is limited to
+.Nm IP_FW_MAX_PORTS
+(as defined in /usr/src/sys/netinet/ip_fw.h)
+ports.
 .Pp
 If ``via''
 .Ar name
@@ -145,14 +185,27 @@ will match this rule.
 .Ar options :
 .Bl -hang -offset flag -width 1234567890123456
 .It frag
-Matches is the packet is a fragment and this is not the first fragment
+Matches if the packet is a fragment and this is not the first fragment
 of the datagram.
 .It in
 Matches if this packet was on the way in.
 .It out
 Matches if this packet was on the way out.
 .It ipoptions Ar spec
-Not yet documented.  Look in the source: src/sys/netnet/ipfw.c.
+Matches if the IP header contains the comma separated list of 
+options specified in
+.Ar spec .
+The supported IP options are:
+.Nm ssrr 
+(strict source route),
+.Nm lsrr 
+(loose source route),
+.Nm rr 
+(record packet route), and
+.Nm ts 
+(timestamp).
+The absence of a particular option may be denoted
+with a ``!''.
 .It established
 Matches packets that do not have the SYN bit set.
 TCP packets only.
@@ -160,8 +213,24 @@ TCP packets only.
 Matches packets that have the SYN bit set but no ACK bit.
 TCP packets only.
 .It tcpflags Ar spec
-Not yet documented.  Look in the source: src/sys/netnet/ipfw.c.
-TCP packets only.
+Matches if the TCP header contains the comma separated list of
+flags specified in
+.Ar spec .
+The supported TCP flags are:
+.Nm fin ,
+.Nm syn ,
+.Nm rst ,
+.Nm psh ,
+.Nm ack ,
+and
+.Nm urg .
+The absence of a particular flag may be denoted
+with a ``!''.
+.It icmptypes Ar types
+Matches if the ICMP type is in the list
+.Ar types .
+The list may be specified as any combination of ranges
+or individual types separated by commas.
 .El
 .Sh CHECKLIST
 Here are some important points to consider when designing your
@@ -169,12 +238,16 @@ rules:
 .Bl -bullet -hang -offset flag -width 1234567890123456
 .It 
 Remember that you filter both packets going in and out.
-Most connections needs packets going in both directions.
+Most connections need packets going in both directions.
 .It
 Remember to test very carefully.
-It is a good idea to be near the console when doint this.
+It is a good idea to be near the console when doing this.
 .It
 Don't forget the loopback interface.
+.It
+Don't filter
+.Nm all
+if you are also specifying a port.
 .El
 .Sh FINE POINTS
 There is one kind of packet that the firewall will always discard,
@@ -191,226 +264,12 @@ modload /lkm/ipfw_mod.o && \e
 ipfw add 32000 allow all from any to any
 .Ed
 
-Along the same lines, doing a
+Along the same lines, doing an
 .Bd -literal -offset center
 ipfw flush
 .Ed
 
 in similar surroundings is also a bad idea.
-.Sh WARNING
-This manual page is out of date beyond this point!
-It is left here until some new text can be written.
-.Sh OLD 
-In the first synopsis form, 
-.Nm
-controls the firewall and accounting chains. In the second
-synopsis form,
-.Nm
-sets the global firewall / accounting properties and
-show the chain list's contents.
-.Pp
-.Pp
-These are the valid
-.Ar entry_actions :
-.Bl -hang -offset flag -width 1234567890123456
-.It Nm addf[irewall]
-add entry to firewall chain.
-.It Nm delf[irewall]
-remove entry from firewall chain.
-.It Nm adda[ccounting]
-add entry to accounting chain.
-.It Nm dela[ccounting]
-remove entry from accounting chain.
-.It Nm clr[accounting]
-clear counters for accounting chain entry.
-.El
-.Pp
-If no
-.Ar entry_action
-is specified, it will default to
-.Nm addf[irewall]
-or
-.Nm adda[ccounting] ,
-depending on the
-.Ar chain_entry_pattern
-specified.
-.Pp
-The valid
-.Ar chain_actions
-are:
-.Bl -hang -offset flag -width 123456789
-.It Nm f[lush]
-remove all entries in firewall / accounting chains.
-.It Nm l[ist]
-display all entries in firewall / accounting chains.
-.It Nm z[ero]
-clear chain counters (accounting only).
-.It Nm p[olicy]
-set default policy properties.
-.El
-.Pp
-The
-.Ar chain_entry_pattern
-structure is:
-.Pp
-.Dl [keyword] [protocol] [address pattern]
-.Pp
-For the firewall chain, valid
-.Em keywords
-are:
-.Bl -hang -offset flag -width 12345678
-.It Nm reject
-Reject the packet, and send an
-.Tn ICMP HOST_UNREACHABLE
-packet to the source.
-.It Nm lreject
-The same as
-.Nm reject ,
-but also log the packets details.
-.It Nm deny
-Reject the packet.
-.It Nm ldeny
-The same as
-.Nm deny ,
-but also log the packets details.
-.It Nm log
-Accept the packet, and log it.
-.It Nm accept
-Accept the packet (obviously).
-.It Nm pass
-A synonym for accept.
-.El
-
-.Pp
-For the accounting chain, valid
-.Em keywords
-are:
-.Bl -tag -width flag
-.It Nm single
-Log packets matching entry.
-.It Nm bidirectional
-Log packets matching entry and also those going in the
-opposite direction (from 
-.Dq dst
-to
-.Dq src ) .
-.El
-.Pp
-Each keyword will be recognized by the shortest unambiguous prefix.
-.Pp
-Recognized
-.Em protocols
-are:
-.Bl -hang -offset flag -width 123456
-.It Nm all
-Matches any IP packet.
-.It Nm icmp
-Matches ICMP packets.
-.It Nm tcp
-Matches TCP packets.
-.It Nm udp
-Matches UDP packets.
-.It Nm syn
-Matches the TCP SYN packet used in initiating a TCP connection. It
-does not match the packet returned from a destination machine which
-has the SYN and ACK bits set.
-.El
-.Pp
-The
-.Em address pattern
-is:
-.Pp
-.Dl from <address/mask>[ports] to <address/mask][ports] [via <interface>]
-.Pp
-You can only specify
-.Em ports
-with
-.Em protocols
-which actually have ports (TCP, UDP and SYN).
-.Pp
-The order of
-.Sq from/to/via
-keywords is unimportant. You can skip any of them, which will be
-then substituted by default entry matching any
-.Sq from/to/via
-packet kind.
-.Pp
-The
-.Em <address/mask>
-is defined as:
-.Pp
-.Dl <address|name>[/mask_bits|:mask_pattern]
-.Pp
-.Em mask bits
-is the decimal number of bits set in the address mask.
-.Em mask pattern
-has the form of an IP address to be AND'ed logically with the address
-given. The keyword
-.Em any
-can be used to specify 
-.Dq any IP .
-The IP address or name given is
-.Em NOT
-checked, and the wrong value
-causes the entry to not match anything.
-.Pp
-The
-.Em ports
-to be blocked are specified as:
-.Dl Ns port Ns Op ,port Ns Op ,...
-or:
-.Dl port:port
-.Pp
-to specify a range of ports. The name of a service (from 
-.Pa /etc/services )
-can be used instead of
-a numeric port value.
-.Pp 
-The
-.Em via <interface>
-entry is optional and may specify IP address/domain name of local IP
-interface, or interface name (e.g.
-.Em ed0 )
-to match only packets coming
-through this interface. The keyword
-.Em via
-can be substituted by
-.Em on ,
-for readability reasons.
-.Pp
-The
-.Em l[ist]
-command may be passed:
-.Pp
-.Dl f[irewall] | a[ccounting]
-.Pp
-to list specific chain or none to list all of chains. The long output
-format (default) is compatible with the syntax used by the
-.Nm
-utility.
-.Pp
-The
-.Em f[lush]
-command may be passed:
-.Pp
-.Dl f[irewall] | a[ccounting]
-.Pp
-to remove all entries from firewall or from accounting chain. Without
-an argument it will remove all entries from both chains.
-.Pp
-The
-.Em z[ero]
-command needs no arguments. This command clears all counters for the
-entire accounting chain.
-.Pp
-The
-.Em p[olicy]
-command can be given
-.Pp
-.Dl a[ccept] | d[eny]
-.Pp
-to set default policy as denial/acceptance. Without an argument, the
-current policy status is displayed.
 .Sh EXAMPLES
 This command adds an entry which denies all tcp packets from
 .Em hacker.evil.org
@@ -418,7 +277,7 @@ to the telnet port of
 .Em wolf.tambov.su
 from being forwarded by the host:
 .Pp
-.Dl ipfw addf deny tcp from hacker.evil.org to wolf.tambov.su telnet
+.Dl ipfw add deny tcp from hacker.evil.org to wolf.tambov.su 23
 .Pp 
 This one disallows any connection from the entire hackers network to
 my host:
@@ -427,15 +286,12 @@ my host:
 .Pp
 Here is good usage of list command to see accounting records:
 .Pp
-.Dl ipfw -sa list accounting
+.Dl ipfw -at l
 .Pp
 or in short form
 .Pp
-.Dl ipfw -sa l a
+.Dl ipfw -a l
 .Pp
-Many more examples can be found in the file:
-.Dl Pa /usr/share/FAQ/ipfw.FAQ
-(missing for the moment)
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
 .Xr getservbyport 3 ,
@@ -445,20 +301,6 @@ Many more examples can be found in the file:
 .Xr reboot 8 ,
 .Xr syslogd 8
 .Sh BUGS
-Currently there is no method for filtering out specific types of ICMP
-packets. Either you don't filter ICMP at all, or all ICMP packets are
-filtered.
-.Pp
-The system has an optional rule weighting system for the firewall chain.
-This means that rules are not used in the order that they are specified.
-To enable this feature, you need to recompile your kernel, see the
-.I LINT
-configuration for details.
-In general you do not want that.
-.Pp
-To see what rule ordering is used, use the
-.Em list
-command.
 .Pp
 .Em WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
 .Pp
@@ -468,14 +310,8 @@ do
 .Em NOT
 do anything you don't understand.
 .Pp
-Remember that 
-.Dq ipfw flush
-can solve all the problems.  Bear in mind that 
-.Dq ipfw policy deny
-combined with some wrong chain entry (possible the only entry, which
-is designed to deny some external packets), can close your computer
-from the outer world for good (or at least until you can get to the
-console).
+When manipulating/adding chain entries, service names are
+not accepted.
 .Sh HISTORY
 Initially this utility was written for BSDI by:
 .Pp
@@ -485,6 +321,5 @@ The FreeBSD version is written completely by:
 .Pp
 .Dl Ugen J.S.Antsilevich <ugen@FreeBSD.ORG>
 .Pp
-while the synopsis is partially compatible with the old one.
-.Pp
-This has all been extensively rearranged by Poul-Henning Kamp.
+This has all been extensively rearranged by Poul-Henning Kamp and
+Alex Nash.
