@@ -247,6 +247,12 @@ static u_int8_t
 mcpcia_readb(u_int32_t pa)
 {
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
+	if (pa < (8 << 20)) {
+		if (mcpcia_eisa == NULL) {
+			return (0xff);
+		}
+		return SPARSE_READ_BYTE(mcpcia_eisa->smem_base, pa);
+	}
 	return SPARSE_READ_BYTE(sc->smem_base, MCPCIA_ADDR(pa));
 }
 
@@ -254,6 +260,12 @@ static u_int16_t
 mcpcia_readw(u_int32_t pa)
 {
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
+	if (pa < (8 << 20)) {
+		if (mcpcia_eisa == NULL) {
+			return (0xffff);
+		}
+		return SPARSE_READ_WORD(mcpcia_eisa->smem_base, pa);
+	}
 	return SPARSE_READ_WORD(sc->smem_base, MCPCIA_ADDR(pa));
 }
 
@@ -268,7 +280,12 @@ static void
 mcpcia_writeb(u_int32_t pa, u_int8_t data)
 {
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
-	SPARSE_WRITE_BYTE(sc->smem_base, MCPCIA_ADDR(pa), data);
+	if (pa < (8 << 20)) {
+		if (mcpcia_eisa)
+			SPARSE_WRITE_BYTE(mcpcia_eisa->smem_base, pa, data);
+	} else {
+		SPARSE_WRITE_BYTE(sc->smem_base, MCPCIA_ADDR(pa), data);
+	}
 	alpha_mb();
 }
 
@@ -276,7 +293,12 @@ static void
 mcpcia_writew(u_int32_t pa, u_int16_t data)
 {
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
-	SPARSE_WRITE_WORD(sc->smem_base, MCPCIA_ADDR(pa), data);
+	if (pa < (8 << 20)) {
+		if (mcpcia_eisa)
+			SPARSE_WRITE_WORD(mcpcia_eisa->smem_base, pa, data);
+	} else {
+		SPARSE_WRITE_WORD(sc->smem_base, MCPCIA_ADDR(pa), data);
+	}
 	alpha_mb();
 }
 
