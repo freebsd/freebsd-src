@@ -106,17 +106,26 @@ g_enc_dos_partition(u_char *ptr, struct dos_partition *d)
 
 struct g_mbr_softc {
 	int		type [NDOSPART];
-	struct dos_partition dospart[NDOSPART];
+	u_char		sec0[512];
 };
 
 static int
-g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, struct dos_partition *dp)
+g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 {
 	int i, error;
 	off_t l[NDOSPART];
+	struct dos_partition ndp[NDOSPART], *dp;
 
 	g_topology_assert();
 
+	if (sec0[0x1fe] != 0x55 && sec0[0x1ff] != 0xaa)
+		return (EBUSY);
+
+	dp = ndp;
+	for (i = 0; i < NDOSPART; i++) 
+		g_dec_dos_partition(
+		    sec0 + DOSPARTOFF + i * sizeof(struct dos_partition),
+		    dp + i);
 	if ((!bcmp(dp, historical_bogus_partition_table,
 	    sizeof historical_bogus_partition_table)) ||
 	    (!bcmp(dp, historical_bogus_partition_table_fixed,
@@ -162,8 +171,42 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, struct dos_partition *dp
 		    (off_t)dp[i].dp_start << 9ULL, l[i], 512,
 		    "%ss%d", gp->name, 1 + i);
 	}
+	bcopy(sec0, ms->sec0, 512);
 	return (0);
 }
+
+static void
+g_mbr_ioctl(void *arg)
+{
+	struct bio *bp;
+	struct g_geom *gp;
+	struct g_slicer *gsp;
+	struct g_mbr_softc *ms;
+	struct g_ioctl *gio;
+	struct g_consumer *cp;
+	u_char *sec0;
+	int error;
+
+	/* Get hold of the interesting bits from the bio. */
+	bp = arg;
+	gp = bp->bio_to->geom;
+	gsp = gp->softc;
+	ms = gsp->softc;
+	gio = (struct g_ioctl *)bp->bio_data;
+
+	/* The disklabel to set is the ioctl argument. */
+	sec0 = gio->data;
+
+	error = g_mbr_modify(gp, ms, sec0);
+	if (error) {
+		g_io_deliver(bp, error);
+		return;
+	}
+	cp = LIST_FIRST(&gp->consumer);
+	error = g_write_data(cp, 0, sec0, 512);
+	g_io_deliver(bp, error);
+}
+
 
 static int
 g_mbr_start(struct bio *bp)
@@ -172,7 +215,8 @@ g_mbr_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_mbr_softc *mp;
 	struct g_slicer *gsp;
-	int idx;
+	struct g_ioctl *gio;
+	int idx, error;
 
 	pp = bp->bio_to;
 	idx = pp->index;
@@ -186,6 +230,40 @@ g_mbr_start(struct bio *bp)
 		    gsp->slices[idx].offset))
 			return (1);
 	}
+
+	/* We only handle ioctl(2) requests of the right format. */
+	if (strcmp(bp->bio_attribute, "GEOM::ioctl"))
+		return (0);
+	else if (bp->bio_length != sizeof(*gio))
+		return (0);
+
+	/* Get hold of the ioctl parameters. */
+	gio = (struct g_ioctl *)bp->bio_data;
+
+	switch (gio->cmd) {
+	case DIOCGMBR:
+		/* Return a copy of the disklabel to userland. */
+		bcopy(mp->sec0, gio->data, 512);
+		g_io_deliver(bp, 0);
+		return (1);
+	case DIOCSMBR:
+		/*
+		 * These we cannot do without the topology lock and some
+		 * some I/O requests.  Ask the event-handler to schedule
+		 * us in a less restricted environment.
+		 */
+		error = g_call_me(g_mbr_ioctl, bp);
+		if (error)
+			g_io_deliver(bp, error);
+		/*
+		 * We must return non-zero to indicate that we will deal
+		 * with this bio, even though we have not done so yet.
+		 */
+		return (1);
+	default:
+		return (0);
+	}
+
 	return (0);
 }
 
@@ -225,8 +303,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error, i;
-	struct dos_partition dp[NDOSPART];
+	int error;
 	struct g_mbr_softc *ms;
 	struct g_slicer *gsp;
 	u_int fwsectors, sectorsize;
@@ -253,30 +330,10 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
-		if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa) {
-			g_free(buf);
-			break;
-		}
-		for (i = 0; i < NDOSPART; i++) 
-			g_dec_dos_partition(
-			    buf + DOSPARTOFF + i * sizeof(struct dos_partition),
-			    dp + i);
-		g_free(buf);
-		if (bcmp(dp, historical_bogus_partition_table,
-		    sizeof historical_bogus_partition_table) == 0) {
-			if (bootverbose)
-				printf("Ignoring known bogus MBR #0\n");
-			break;
-		}
-		if (bcmp(dp, historical_bogus_partition_table_fixed,
-		    sizeof historical_bogus_partition_table_fixed) == 0) {
-			if (bootverbose)
-				printf("Ignoring known bogus MBR #1\n");
-			break;
-		}
 		g_topology_lock();
-		g_mbr_modify(gp, ms, dp);
+		g_mbr_modify(gp, ms, buf);
 		g_topology_unlock();
+		g_free(buf);
 		break;
 	}
 	g_topology_lock();
