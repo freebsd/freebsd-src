@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: brktree_reg.h,v 1.23.2.1 1999/01/23 12:00:20 roger Exp $
+ * $Id: brktree_reg.h,v 1.27 1999/05/10 10:08:50 roger Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -356,8 +356,10 @@ struct CARDTYPE {
 	u_char			msp3400c;	/* Has msp3400c chip? */
 	u_char			eepromAddr;
 	u_char			eepromSize;	/* bytes / EEPROMBLOCKSIZE */
-	u_char			audiomuxs[ 5 ];	/* tuner, ext, int/unused,
-						    mute, present */
+	u_int			audiomuxs[ 5 ];	/* tuner, ext (line-in) */
+						/* int/unused (radio) */
+						/* mute, present */
+	u_int			gpio_mux_bits;	/* GPIO mask for audio mux */
 };
 
 struct format_params {
@@ -373,9 +375,11 @@ struct format_params {
   u_char adelay, bdelay;
   /* Iform XTSEL value */
   int iform_xtsel;
+  /* VBI number of lines per field, and number of samples per line */
+  int vbi_num_lines, vbi_num_samples;
 };
 
-#ifdef __FreeBSD__
+#if ((defined(__FreeBSD__)) && (NSMBUS > 0))
 struct bktr_i2c_softc {
 	device_t iicbus;
 	device_t smbus;
@@ -393,7 +397,7 @@ struct bktr_softc {
     struct intrhand bktr_ih;	/* interrupt vectoring */
 #define pcici_t pci_devaddr_t
 #endif
-#ifdef __FreeBSD__
+#if ((defined(__FreeBSD__)) && (NSMBUS > 0))
     struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
 #endif
     bt848_ptr_t base;		/* Bt848 register physical address */
@@ -401,6 +405,11 @@ struct bktr_softc {
     pcici_t	tag;		/* PCI tag, for doing PCI commands */
     vm_offset_t bigbuf;		/* buffer that holds the captured image */
     int		alloc_pages;	/* number of pages in bigbuf */
+    vm_offset_t vbidata;	/* RISC program puts VBI data from the current frame here */
+    vm_offset_t vbibuffer;	/* Circular buffer holding VBI data for the user */
+    int         vbiinsert;      /* Position for next write into circular buffer */
+    int         vbistart;       /* Position of last read from circular buffer */
+    int         vbisize;        /* Number of bytes in the circular buffer */
     struct proc	*proc;		/* process to receive raised signal */
     int		signal;		/* signal to send to process */
     int		clr_on_start;	/* clear cap buf on capture start? */
@@ -473,9 +482,13 @@ struct bktr_softc {
 #define	METEOR_WANT_TS		0x08000000	/* time-stamp a frame */
 #define METEOR_RGB		0x20000000	/* meteor rgb unit */
 #define METEOR_FIELD_MODE	0x80000000
-    u_char	tflags;
+    u_char	tflags;				/* Tuner flags (/dev/tuner) */
 #define	TUNER_INITALIZED	0x00000001
 #define	TUNER_OPEN		0x00000002 
+    u_char      vbiflags;			/* VBI flags (/dev/vbi) */
+#define VBI_INITALIZED          0x00000001
+#define VBI_OPEN                0x00000002
+#define VBI_CAPTURE             0x00000004
     u_short	fps;		/* frames per second */
     struct meteor_video video;
     struct TVTUNER	tuner;
