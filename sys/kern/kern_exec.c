@@ -41,13 +41,14 @@
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/wait.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
-#include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -250,6 +251,27 @@ interpret:
 		p->p_fd = tmp;
 	}
 
+	/*
+	 * For security and other reasons, signal handlers cannot
+	 * be shared after an exec. The new proces gets a copy of the old
+	 * handlers. In execsigs(), the new process wll have its signals
+	 * reset.
+	 */
+	if (p->p_procsig->ps_refcnt > 1) {
+		struct procsig *newprocsig;
+
+		MALLOC(newprocsig, struct procsig *, sizeof(struct procsig),
+		       M_SUBPROC, M_WAITOK);
+		bcopy(p->p_procsig, newprocsig, sizeof(*newprocsig));
+		p->p_procsig->ps_refcnt--;
+		p->p_procsig = newprocsig;
+		p->p_procsig->ps_refcnt = 1;
+		if (p->p_sigacts == &p->p_addr->u_sigacts)
+			panic("shared procsig but private sigacts?\n");
+
+		p->p_addr->u_sigacts = *p->p_sigacts;
+		p->p_sigacts = &p->p_addr->u_sigacts;
+	}
 	/* Stop profiling */
 	stopprofclock(p);
 
