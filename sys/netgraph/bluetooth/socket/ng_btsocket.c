@@ -61,27 +61,17 @@ extern struct domain		ng_btsocket_domain;
  */
 
 static struct pr_usrreqs	ng_btsocket_hci_raw_usrreqs = {
-	ng_btsocket_hci_raw_abort,	/* abort */
-	pru_accept_notsupp,		/* accept */
-	ng_btsocket_hci_raw_attach,	/* attach */
-	ng_btsocket_hci_raw_bind,	/* bind */
-	ng_btsocket_hci_raw_connect,	/* connect */
-	pru_connect2_notsupp,		/* connect2 */
-	ng_btsocket_hci_raw_control,	/* control */
-	ng_btsocket_hci_raw_detach,	/* detach */
-	ng_btsocket_hci_raw_disconnect,	/* disconnect */
-	pru_listen_notsupp,		/* listen */
-	ng_btsocket_hci_raw_peeraddr,	/* peeraddr */
-	pru_rcvd_notsupp,		/* rcvd */
-	pru_rcvoob_notsupp,		/* rcvoob */
-	ng_btsocket_hci_raw_send,	/* send */
-	pru_sense_null,			/* send */
-	NULL,				/* shutdown */
-	ng_btsocket_hci_raw_sockaddr,	/* sockaddr */
-	sosend,
-	soreceive,
-	sopoll,
-	pru_sosetlabel_null
+	.pru_abort =		ng_btsocket_hci_raw_abort,
+	.pru_attach =		ng_btsocket_hci_raw_attach,
+	.pru_bind =		ng_btsocket_hci_raw_bind,
+	.pru_connect =		ng_btsocket_hci_raw_connect,
+	.pru_control =		ng_btsocket_hci_raw_control,
+	.pru_detach =		ng_btsocket_hci_raw_detach,
+	.pru_disconnect =	ng_btsocket_hci_raw_disconnect,
+	.pru_peeraddr =		ng_btsocket_hci_raw_peeraddr,
+	.pru_send =		ng_btsocket_hci_raw_send,
+	.pru_shutdown =		NULL,
+	.pru_sockaddr =		ng_btsocket_hci_raw_sockaddr,
 };
 
 /*
@@ -89,27 +79,17 @@ static struct pr_usrreqs	ng_btsocket_hci_raw_usrreqs = {
  */
 
 static struct pr_usrreqs	ng_btsocket_l2cap_raw_usrreqs = {
-	ng_btsocket_l2cap_raw_abort,	/* abort */
-	pru_accept_notsupp,		/* accept */
-	ng_btsocket_l2cap_raw_attach,	/* attach */
-	ng_btsocket_l2cap_raw_bind,	/* bind */
-	ng_btsocket_l2cap_raw_connect,	/* connect */
-	pru_connect2_notsupp,		/* connect2 */
-	ng_btsocket_l2cap_raw_control,	/* control */
-	ng_btsocket_l2cap_raw_detach,	/* detach */
-	ng_btsocket_l2cap_raw_disconnect, /* disconnect */
-        pru_listen_notsupp,		/* listen */
-	ng_btsocket_l2cap_raw_peeraddr,	/* peeraddr */
-	pru_rcvd_notsupp,		/* rcvd */
-	pru_rcvoob_notsupp,		/* rcvoob */
-	ng_btsocket_l2cap_raw_send,	/* send */
-	pru_sense_null,			/* send */
-	NULL,				/* shutdown */
-	ng_btsocket_l2cap_raw_sockaddr,	/* sockaddr */
-	sosend,
-	soreceive,
-	sopoll,
-	pru_sosetlabel_null
+	.pru_abort =		ng_btsocket_l2cap_raw_abort,
+	.pru_attach =		ng_btsocket_l2cap_raw_attach,
+	.pru_bind =		ng_btsocket_l2cap_raw_bind,
+	.pru_connect =		ng_btsocket_l2cap_raw_connect,
+	.pru_control =		ng_btsocket_l2cap_raw_control,
+	.pru_detach =		ng_btsocket_l2cap_raw_detach,
+	.pru_disconnect =	ng_btsocket_l2cap_raw_disconnect,
+	.pru_peeraddr =		ng_btsocket_l2cap_raw_peeraddr,
+	.pru_send =		ng_btsocket_l2cap_raw_send,
+	.pru_shutdown =		NULL,
+	.pru_sockaddr =		ng_btsocket_l2cap_raw_sockaddr,
 };
 
 /*
@@ -117,27 +97,19 @@ static struct pr_usrreqs	ng_btsocket_l2cap_raw_usrreqs = {
  */
 
 static struct pr_usrreqs	ng_btsocket_l2cap_usrreqs = {
-	ng_btsocket_l2cap_abort,	/* abort */
-	ng_btsocket_l2cap_accept,	/* accept */
-	ng_btsocket_l2cap_attach,	/* attach */
-	ng_btsocket_l2cap_bind,		/* bind */
-	ng_btsocket_l2cap_connect,	/* connect */
-	pru_connect2_notsupp,		/* connect2 */
-	ng_btsocket_l2cap_control,	/* control */
-	ng_btsocket_l2cap_detach,	/* detach */
-	ng_btsocket_l2cap_disconnect,	/* disconnect */
-        ng_btsocket_l2cap_listen,	/* listen */
-	ng_btsocket_l2cap_peeraddr,	/* peeraddr */
-	pru_rcvd_notsupp,		/* rcvd */
-	pru_rcvoob_notsupp,		/* rcvoob */
-	ng_btsocket_l2cap_send,		/* send */
-	pru_sense_null,			/* send */
-	NULL,				/* shutdown */
-	ng_btsocket_l2cap_sockaddr,	/* sockaddr */
-	sosend,
-	soreceive,
-	sopoll,
-	pru_sosetlabel_null
+	.pru_abort =		ng_btsocket_l2cap_abort,
+	.pru_accept =		ng_btsocket_l2cap_accept,
+	.pru_attach =		ng_btsocket_l2cap_attach,
+	.pru_bind =		ng_btsocket_l2cap_bind,
+	.pru_connect =		ng_btsocket_l2cap_connect,
+	.pru_control =		ng_btsocket_l2cap_control,
+	.pru_detach =		ng_btsocket_l2cap_detach,
+	.pru_disconnect =	ng_btsocket_l2cap_disconnect,
+        .pru_listen =		ng_btsocket_l2cap_listen,
+	.pru_peeraddr =		ng_btsocket_l2cap_peeraddr,
+	.pru_send =		ng_btsocket_l2cap_send,
+	.pru_shutdown =		NULL,
+	.pru_sockaddr =		ng_btsocket_l2cap_sockaddr,
 };
 
 /*
@@ -145,27 +117,19 @@ static struct pr_usrreqs	ng_btsocket_l2cap_usrreqs = {
  */
 
 static struct pr_usrreqs	ng_btsocket_rfcomm_usrreqs = {
-	ng_btsocket_rfcomm_abort,	/* abort */
-	ng_btsocket_rfcomm_accept,	/* accept */
-	ng_btsocket_rfcomm_attach,	/* attach */
-	ng_btsocket_rfcomm_bind,	/* bind */
-	ng_btsocket_rfcomm_connect,	/* connect */
-	pru_connect2_notsupp,		/* connect2 */
-	ng_btsocket_rfcomm_control,	/* control */
-	ng_btsocket_rfcomm_detach,	/* detach */
-	ng_btsocket_rfcomm_disconnect,	/* disconnect */
-        ng_btsocket_rfcomm_listen,	/* listen */
-	ng_btsocket_rfcomm_peeraddr,	/* peeraddr */
-	pru_rcvd_notsupp,		/* rcvd */
-	pru_rcvoob_notsupp,		/* rcvoob */
-	ng_btsocket_rfcomm_send,	/* send */
-	pru_sense_null,			/* send */
-	NULL,				/* shutdown */
-	ng_btsocket_rfcomm_sockaddr,	/* sockaddr */
-	sosend,
-	soreceive,
-	sopoll,
-	pru_sosetlabel_null
+	.pru_abort =		ng_btsocket_rfcomm_abort,
+	.pru_accept =		ng_btsocket_rfcomm_accept,
+	.pru_attach =		ng_btsocket_rfcomm_attach,
+	.pru_bind =		ng_btsocket_rfcomm_bind,
+	.pru_connect =		ng_btsocket_rfcomm_connect,
+	.pru_control =		ng_btsocket_rfcomm_control,
+	.pru_detach =		ng_btsocket_rfcomm_detach,
+	.pru_disconnect =	ng_btsocket_rfcomm_disconnect,
+        .pru_listen =		ng_btsocket_rfcomm_listen,
+	.pru_peeraddr =		ng_btsocket_rfcomm_peeraddr,
+	.pru_send =		ng_btsocket_rfcomm_send,
+	.pru_shutdown =		NULL,
+	.pru_sockaddr =		ng_btsocket_rfcomm_sockaddr,
 };
 
 /* 

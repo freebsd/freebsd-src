@@ -804,9 +804,16 @@ out:
 }
 
 struct pr_usrreqs udp6_usrreqs = {
-	udp6_abort, pru_accept_notsupp, udp6_attach, udp6_bind, udp6_connect,
-	pru_connect2_notsupp, in6_control, udp6_detach, udp6_disconnect,
-	pru_listen_notsupp, in6_mapped_peeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, udp6_send, pru_sense_null, udp_shutdown,
-	in6_mapped_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
+	.pru_abort =		udp6_abort,
+	.pru_attach =		udp6_attach,
+	.pru_bind =		udp6_bind,
+	.pru_connect =		udp6_connect,
+	.pru_control =		in6_control,
+	.pru_detach =		udp6_detach,
+	.pru_disconnect =	udp6_disconnect,
+	.pru_peeraddr =		in6_mapped_peeraddr,
+	.pru_send =		udp6_send,
+	.pru_shutdown =		udp_shutdown,
+	.pru_sockaddr =		in6_mapped_sockaddr,
+	.pru_sosetlabel =	in_pcbsosetlabel
 };

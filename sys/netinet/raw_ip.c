@@ -899,9 +899,16 @@ SYSCTL_PROC(_net_inet_raw, OID_AUTO/*XXX*/, pcblist, CTLFLAG_RD, 0, 0,
 	    rip_pcblist, "S,xinpcb", "List of active raw IP sockets");
 
 struct pr_usrreqs rip_usrreqs = {
-	rip_abort, pru_accept_notsupp, rip_attach, rip_bind, rip_connect,
-	pru_connect2_notsupp, in_control, rip_detach, rip_disconnect,
-	pru_listen_notsupp, rip_peeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, rip_send, pru_sense_null, rip_shutdown,
-	rip_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
+	.pru_abort =		rip_abort,
+	.pru_attach =		rip_attach,
+	.pru_bind =		rip_bind,
+	.pru_connect =		rip_connect,
+	.pru_control =		in_control,
+	.pru_detach =		rip_detach,
+	.pru_disconnect =	rip_disconnect,
+	.pru_peeraddr =		rip_peeraddr,
+	.pru_send =		rip_send,
+	.pru_shutdown =		rip_shutdown,
+	.pru_sockaddr =		rip_sockaddr,
+	.pru_sosetlabel =	in_pcbsosetlabel
 };

@@ -782,9 +782,15 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 }
 
 struct pr_usrreqs rip6_usrreqs = {
-	rip6_abort, pru_accept_notsupp, rip6_attach, rip6_bind, rip6_connect,
-	pru_connect2_notsupp, in6_control, rip6_detach, rip6_disconnect,
-	pru_listen_notsupp, in6_setpeeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, rip6_send, pru_sense_null, rip6_shutdown,
-	in6_setsockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort =		rip6_abort,
+	.pru_attach =		rip6_attach,
+	.pru_bind =		rip6_bind,
+	.pru_connect =		rip6_connect,
+	.pru_control =		in6_control,
+	.pru_detach =		rip6_detach,
+	.pru_disconnect =	rip6_disconnect,
+	.pru_peeraddr =		in6_setpeeraddr,
+	.pru_send =		rip6_send,
+	.pru_shutdown =		rip6_shutdown,
+	.pru_sockaddr =		in6_setsockaddr,
 };
