@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ncal.c,v 1.5 1998/01/07 07:46:33 charnier Exp $";
+	"$Id: ncal.c,v 1.6 1998/01/15 10:23:34 helbig Exp $";
 #endif /* not lint */
 
 #include <calendar.h>
@@ -88,7 +88,7 @@ static struct djswitch {
 	{"IT", "Italy",		{1582, 10,  4}, "%e %B %Y"},
 	{"JP", "Japan",		{1918, 12, 18}, "%Y\x94N %B%e"},
 	{"LI", "Lithuania",	{1918,  2,  1}, "%e %B %Y"},
-	{"LN", "Latin",		{9999, 31, 12}, "%e %B %Y"},
+	{"LN", "Latin",		{9999, 05, 31}, "%e %B %Y"},
 	{"LU", "Luxembourg",	{1582, 12, 14}, "%e %B %Y"},
 	{"LV", "Latvia",	{1918,  2,  1}, "%e %B %Y"},
 	{"NL", "Netherlands",	{1582, 12, 14}, "%e %B %Y"},
@@ -748,10 +748,9 @@ mkweekdays(struct weekdays *wds)
 }
 
 /*
- * Compute the day number of the first day in month.
- * The day y-m-1 might be dropped due to Gregorian Reformation,
- * so the answer is the smallest day number nd with sdate(nd) in
- * the month m.
+ * Compute the day number of the first
+ * existing date after the first day in month.
+ * (the first day in month and even the month might not exist!)
  */
 int
 firstday(int y, int m)
@@ -762,9 +761,15 @@ firstday(int y, int m)
 	dt.y = y;
 	dt.m = m;
 	dt.d = 1;
-	for (nd = sndays(&dt); sdate(nd, &dt)->m != m; nd++)
-		;
-	return (nd);
+	nd = sndays(&dt);
+	for (;;) {
+		sdate(nd, &dt);
+		if ((dt.m >= m && dt.y == y) || dt.y > y)
+			return (nd);
+		else
+			nd++;
+	}
+	/* NEVER REACHED */
 }
 
 /*
