@@ -292,6 +292,7 @@ objs: $(OUTMK)
 build-tools:
 .for _tool in bin/csh bin/sh 
 	cd $(.CURDIR)/../../${_tool}; \
+	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} obj; \
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} build-tools
 .endfor
 
