@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.23 1995/10/21 02:12:20 davidg Exp $
+ *	$Id: raw_ip.c,v 1.24 1995/11/14 20:34:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,8 +57,8 @@
 
 #include <netinet/ip_fw.h>
 
-struct inpcbhead ripcb;
-struct inpcbinfo ripcbinfo;
+static struct inpcbhead ripcb;
+static struct inpcbinfo ripcbinfo;
 
 /*
  * Nominal space allocated to a raw ip socket.
@@ -86,7 +86,7 @@ rip_init()
 	ripcbinfo.hashbase = phashinit(1, M_PCB, &ripcbinfo.hashsize);
 }
 
-struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
+static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
 /*
  * Setup generic address and protocol structures
  * for raw_input routine, then pass them along with

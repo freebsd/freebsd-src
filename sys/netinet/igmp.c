@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.13 1995/11/14 20:33:52 phk Exp $
+ * $Id: igmp.c,v 1.14 1995/12/02 19:37:52 bde Exp $
  */
 
 /*
@@ -67,11 +67,11 @@
 #include <netinet/igmp.h>
 #include <netinet/igmp_var.h>
 
-extern int	fill_rti __P((struct in_multi *inm));
-extern struct router_info *
+static int	fill_rti __P((struct in_multi *inm));
+static struct router_info *
 		find_rti __P((struct ifnet *ifp));
 
-struct igmpstat igmpstat;
+static struct igmpstat igmpstat;
 
 SYSCTL_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_RD,
 	&igmpstat, igmpstat, "");
@@ -100,7 +100,7 @@ igmp_init()
 	Head = (struct router_info *) 0;
 }
 
-int
+static int
 fill_rti(inm)
 	struct in_multi *inm;
 {
@@ -135,7 +135,7 @@ fill_rti(inm)
 	return IGMP_HOST_NEW_MEMBERSHIP_REPORT;
 }
 
-struct router_info *
+static struct router_info *
 find_rti(ifp)
 	struct ifnet *ifp;
 {
