@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.32 1997/06/26 14:49:25 kato Exp $
+ *	$Id: pc98.c,v 1.33 1997/07/10 10:22:34 kato Exp $
  */
 
 /*
@@ -55,11 +55,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
-#include <machine/segments.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
 #include <machine/apic.h>
@@ -77,9 +75,7 @@
 #else
 #include <i386/isa/isa.h>
 #endif
-#include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
-#include "vector.h"
 
 #include <sys/interrupt.h>
 

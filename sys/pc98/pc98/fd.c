@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.18 1997/03/23 03:48:59 bde Exp $
+ *	$Id: fd.c,v 1.19 1997/03/24 12:29:23 bde Exp $
  *
  */
 
@@ -64,7 +64,6 @@
 #include <machine/ioctl_fd.h>
 #include <sys/disklabel.h>
 #include <sys/buf.h>
-#include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/syslog.h>
