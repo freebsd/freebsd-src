@@ -72,6 +72,7 @@ struct g_event {
 
 #define EV_DONE		0x80000
 #define EV_WAKEUP	0x40000
+#define EV_CANCELED	0x20000
 
 void
 g_waitidle(void)
@@ -230,6 +231,7 @@ g_cancel_event(void *ref)
 				ep->func(ep->arg, EV_CANCEL);
 				if (ep->flag & EV_WAKEUP) {
 					ep->flag |= EV_DONE;
+					ep->flag |= EV_CANCELED;
 					wakeup(ep);
 				} else {
 					g_destroy_event(ep);
@@ -310,8 +312,10 @@ g_waitfor_event(g_event_t *func, void *arg, int flag, ...)
 	do 
 		tsleep(ep, PRIBIO, "g_waitfor_event", hz);
 	while (!(ep->flag & EV_DONE));
+	if (ep->flag & EV_CANCELED)
+		error = EAGAIN;
 	g_destroy_event(ep);
-	return (0);
+	return (error);
 }
 
 void
