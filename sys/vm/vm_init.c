@@ -74,8 +74,12 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
@@ -119,3 +123,88 @@ vm_mem_init(dummy)
 	pmap_init(avail_start, avail_end);
 	vm_pager_init();
 }
+
+void
+vm_ksubmap_init(struct kva_md_info *kmi)
+{
+	vm_offset_t firstaddr;
+	caddr_t v;
+	vm_size_t size = 0;
+	int physmem_est;
+	vm_offset_t minaddr;
+	vm_offset_t maxaddr;
+
+	/*
+	 * Allocate space for system data structures.
+	 * The first available kernel virtual address is in "v".
+	 * As pages of kernel virtual memory are allocated, "v" is incremented.
+	 * As pages of memory are allocated and cleared,
+	 * "firstaddr" is incremented.
+	 * An index into the kernel page table corresponding to the
+	 * virtual memory address maintained in "v" is kept in "mapaddr".
+	 */
+
+	/*
+	 * Make two passes.  The first pass calculates how much memory is
+	 * needed and allocates it.  The second pass assigns virtual
+	 * addresses to the various data structures.
+	 */
+	firstaddr = 0;
+again:
+	v = (caddr_t)firstaddr;
+
+	v = kern_timeout_callwheel_alloc(v);
+
+	/*
+	 * Discount the physical memory larger than the size of kernel_map
+	 * to avoid eating up all of KVA space.
+	 */
+	if (kernel_map->first_free == NULL) {
+		printf("Warning: no free entries in kernel_map.\n");
+		physmem_est = physmem;
+	} else {
+		physmem_est = min(physmem, btoc(kernel_map->max_offset -
+		    kernel_map->min_offset));
+	}
+
+	v = kern_vfs_bio_buffer_alloc(v, physmem_est);
+
+	/*
+	 * End of first pass, size has been calculated so allocate memory
+	 */
+	if (firstaddr == 0) {
+		size = (vm_size_t)((char *)v - firstaddr);
+		firstaddr = kmem_alloc(kernel_map, round_page(size));
+		if (firstaddr == 0)
+			panic("startup: no room for tables");
+		goto again;
+	}
+
+	/*
+	 * End of second pass, addresses have been assigned
+	 */
+	if ((vm_size_t)((char *)v - firstaddr) != size)
+		panic("startup: table size inconsistency");
+
+	clean_map = kmem_suballoc(kernel_map, &kmi->clean_sva, &kmi->clean_eva,
+			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) + pager_map_size);
+	buffer_map = kmem_suballoc(clean_map, &kmi->buffer_sva,
+			&kmi->buffer_eva, (nbuf*BKVASIZE));
+	buffer_map->system_map = 1;
+	pager_map = kmem_suballoc(clean_map, &kmi->pager_sva, &kmi->pager_eva,
+				(nswbuf*MAXPHYS) + pager_map_size);
+	pager_map->system_map = 1;
+	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
+				(16*(ARG_MAX+(PAGE_SIZE*3))));
+
+	/*
+	 * XXX: Mbuf system machine-specific initializations should
+	 *      go here, if anywhere.
+	 */
+
+	/*
+	 * Initialize the callouts we just allocated.
+	 */
+	kern_timeout_callwheel_init();
+}
+

@@ -547,7 +547,7 @@ pmap_nw_modified(pt_entry_t ptea)
 static PMAP_INLINE int
 pmap_track_modified(vm_offset_t va)
 {
-	if ((va < clean_sva) || (va >= clean_eva)) 
+	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva)) 
 		return 1;
 	else
 		return 0;
