@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.39 1995/05/09 23:06:59 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.40 1995/05/17 09:31:13 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -263,6 +263,8 @@
         mk
         ..
         nls
+	    C
+	    ..
             da_DK.ISO8859-1
             ..
             de_AT.ISO8859-1
