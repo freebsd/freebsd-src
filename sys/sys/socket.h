@@ -70,6 +70,7 @@ typedef u_int32_t	socklen_t;
 #define	SO_OOBINLINE	0x0100		/* leave received OOB data in line */
 #define	SO_REUSEPORT	0x0200		/* allow local address & port reuse */
 #define	SO_TIMESTAMP	0x0400		/* timestamp received dgram traffic */
+#define	SO_ACCEPTFILTER	0x1000		/* there is an accept filter */
 
 /*
  * Additional options, not kept in so_options.
@@ -90,6 +91,11 @@ typedef u_int32_t	socklen_t;
 struct	linger {
 	int	l_onoff;		/* option on/off */
 	int	l_linger;		/* linger time */
+};
+
+struct	accept_filter_arg {
+	char	af_name[16];
+	char	af_arg[256-16];
 };
 
 /*
