@@ -44,9 +44,15 @@ The
 driver provides support for Mass Storage devices that attach to the USB
 port.
 Supported are
+.Pp
 .Bl -tag -compact -width xxxxxx
-.It Iomega Zip 100 drive
+.It Iomega USB Zip 100 drive
+.It Iomega USB Zip 250 drive
+.It Y-E Data Flashbuster-U
+.It VAIO floppy drive
+.It Microtech International, Inc. USB-SCSI-HD 50 USB to SCSI cable.
 .El
+.Pp
 .Nm usb
 and one of
 .Nm uhci
@@ -57,10 +63,10 @@ Last but not least, support for
 SCSI drives,
 .Nm da
 .Sh EXAMPLE
-.Dl device umass0
-.Dl device scbus0
-.Dl device da0
-.Dl device pass0
+.Dl device umass
+.Dl device scbus
+.Dl device da
+.Dl device pass
 .Pp
 Add the
 .Nm umass
