@@ -83,7 +83,7 @@ int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0,
     "Number of CPUs online");
 
-#ifndef	__sparc64__
+#if !__sparc64__ && !__powerpc__
 static void	cpu_identify(driver_t *driver, device_t parent);
 static device_t	cpu_add_child(device_t bus, int order, const char *name,
 			int unit);
@@ -417,7 +417,7 @@ smp_rendezvous(void (* setup_func)(void *),
 }
 #endif /* SMP */
 
-#ifndef __sparc64__
+#if !__sparc64__ && !__powerpc__
 static void
 cpu_identify(driver_t *driver, device_t parent)
 {
