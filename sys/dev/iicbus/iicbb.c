@@ -96,13 +96,13 @@ static device_method_t iicbb_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t iicbb_driver = {
+driver_t iicbb_driver = {
 	"iicbb",
 	iicbb_methods,
 	sizeof(struct iicbb_softc),
 };
 
-static devclass_t iicbb_devclass;
+devclass_t iicbb_devclass;
 
 static int iicbb_probe(device_t dev)
 {

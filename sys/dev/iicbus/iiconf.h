@@ -132,6 +132,9 @@ extern u_char iicbus_get_addr(device_t);
 #define IICBUS_MAXVER	1
 #define IICBUS_PREFVER	IICBUS_MODVER
 
+extern driver_t iicbb_driver;
+extern devclass_t iicbb_devclass;
+
 #define IICBB_MODVER	1
 #define IICBB_MINVER	1
 #define IICBB_MAXVER	1
