@@ -162,6 +162,7 @@ controller	miibus0
 device		al0		# ADMtek AL981 (``Comet'')
 device		ax0		# ASIX AX88140A
 device		de0		# DEC/Intel DC21x4x (``Tulip'')
+device		dm0		# Davicom DM9100/DM9102
 device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
 device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		pn0		# Lite-On 82c168/82c169 (``PNIC'')

@@ -115,6 +115,7 @@ controller miibus0
 device al0
 device ax0
 device de0
+device dm0
 device fxp0
 device le0
 device mx0

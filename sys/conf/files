@@ -626,6 +626,7 @@ pci/ida_pci.c		optional ida pci
 pci/if_al.c		optional al
 pci/if_ax.c		optional ax
 pci/if_de.c		optional de
+pci/if_dm.c		optional dm
 pci/if_ed_p.c		optional ed pci
 pci/if_en_pci.c		optional en pci
 pci/if_fxp.c		optional fxp

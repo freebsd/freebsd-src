@@ -1542,6 +1542,10 @@ controller	miibus0
 # The `de' device provides support for the Digital Equipment DC21040
 # self-contained Ethernet adapter.
 #
+# The `dm' device provides support for PCI fast ethernet adapters
+# based on the the Davicom DM9100 and DM9102 controller chips, including
+# the Jaton Corporation XPressNet.
+# 
 # The `fxp' device provides support for the Intel EtherExpress Pro/100B
 # PCI Fast Ethernet adapters.
 #
@@ -1721,6 +1725,7 @@ options SCSI_ISP_FCDUPLEX=0x4		# isp2 is a Fibre Channel card
 device		al0
 device		ax0
 device		de0
+device		dm0
 device		fxp0
 device		mx0
 device		pn0

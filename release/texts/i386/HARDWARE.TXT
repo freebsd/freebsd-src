@@ -90,6 +90,7 @@ al0     dyn     dyn     n/a     dyn     ADMtek AL981 PCI based cards
 ax0     dyn     dyn     n/a     dyn     ASIX AX88140A PCI based cards
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
+dm0     n/a     n/a     n/a     n/a     Davicom DM9100/DM9102 PCI based cards
 ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
                                         NE2000; 3Com 3C503; HP PC Lan+
 eg0     310     5       dyn     dyn     3Com 3C505
@@ -513,6 +514,10 @@ DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
+
+Davicom DM9100 and DM9102 PCI fast ethernet NICs, including the
+following:
+  Jaton Corporation XPressNet
 
 Efficient ENI-155p ATM PCI
 
