@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.24 1995/03/21 11:21:01 dufault Exp $
+ *      $Id: scsi_base.c,v 1.25 1995/03/28 07:57:23 bde Exp $
  */
 
 #define SPLSD splbio
@@ -594,12 +594,11 @@ sc_err1(xs)
 				xs->flags &= ~ITSDONE;
 				goto retry;
 			}
+			retval = EIO;   /* Too many retries */
 		}
-		retval = EIO;	/* Too many retries */
 
 		if (bp) {
 			bp->b_error = 0;
-			bp->b_resid = 0;
 			if (retval) {
 				bp->b_flags |= B_ERROR;
 				bp->b_error = retval;
