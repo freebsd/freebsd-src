@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.141 1995/04/18 08:18:27 asami Exp $
+# $Id: bsd.port.mk,v 1.142 1995/04/18 08:24:18 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -69,6 +69,7 @@
 #				  (default: ${.CURDIR}/files)
 # PKGDIR 		- A direction containing any package creation files.
 #				  (default: ${.CURDIR}/pkg)
+# PKG_DBDIR		- Where package installation is recorded (default: /var/db/pkg)
 #
 # NO_EXTRACT	- Use a dummy (do-nothing) extract target.
 # NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
@@ -224,6 +225,11 @@ EXTRACT_BEFORE_ARGS?=   ${EXTRACT_ARGS}
 EXTRACT_BEFORE_ARGS?=   -xzf
 .endif
 
+# Figure out where the local mtree file is
+.if !defined(MTREE_LOCAL) && exists(/etc/mtree/BSD.local.dist)
+MTREE_LOCAL=	/etc/mtree/BSD.local.dist
+.endif
+
 PKG_CMD?=		pkg_create
 .if !defined(PKG_ARGS)
 PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX} -P "`${MAKE} package-depends|sort|uniq`"
@@ -236,14 +242,21 @@ PKG_ARGS+=		-k ${PKGDIR}/DEINSTALL
 .if exists(${PKGDIR}/REQ)
 PKG_ARGS+=		-r ${PKGDIR}/REQ
 .endif
+.if !defined(USE_X11) && !defined(USE_IMAKE) && defined(MTREE_LOCAL)
+PKG_ARGS+=		-m ${MTREE_LOCAL}
+.endif
 .endif
 PKG_SUFX?=		.tgz
+# where pkg_add records its dirty deeds.
+PKG_DBDIR?=		/var/db/pkg
 
+# Used to print all the '===>' style prompts - override this to turn them off.
 ECHO_MSG?=		echo
 
 ALL_TARGET?=		all
 INSTALL_TARGET?=	install
 
+# If the user has this set, go to the FreeBSD respository for everything.
 .if defined(MASTER_SITE_FREEBSD)
 MASTER_SITE_OVERRIDE=  ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles/ 
 .endif
@@ -416,6 +429,21 @@ ${INSTALL_COOKIE}:
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
 	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
+.endif
+.if !defined(NO_PACKAGE)
+	@if [ ! -f ${PKGDIR}/PLIST -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then echo "** Missing patch files for ${PKGNAME} - installation not recorded."; exit 1; fi
+	@if [ ! -d ${PKG_DBDIR} ]; then rm -f ${PKG_DBDIR}; mkdir -p ${PKG_DBDIR}; fi
+	@if [ ! -d ${PKG_DBDIR}/${PKGNAME} ]; then \
+		${ECHO_MSG} "===> Registering installation for ${PKGNAME}"; \
+		mkdir -p ${PKG_DBDIR}/${PKGNAME}; \
+		cp ${PKGDIR}/PLIST ${PKG_DBDIR}/${PKGNAME}/+CONTENTS; \
+		cp ${PKGDIR}/DESCR ${PKG_DBDIR}/${PKGNAME}/+DESC; \
+		cp ${PKGDIR}/COMMENT ${PKG_DBDIR}/${PKGNAME}/+COMMENT; \
+	else \
+		${ECHO_MSG} "===> ${PKGNAME} is already installed - perhaps an older version?"; \
+		${ECHO_MSG} "     If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
+		${ECHO_MSG} "     this port again to upgrade it properly."; \
+	fi
 .endif
 	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
 .endif
