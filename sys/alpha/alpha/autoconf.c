@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.26 1999/05/24 00:54:17 jb Exp $
+ *	$Id: autoconf.c,v 1.27 1999/05/29 19:23:20 gallatin Exp $
  */
 
 #include "opt_bootp.h"
@@ -281,7 +281,7 @@ setdumpdev(dev)
                 return (0);
         }
         maj = major(dev);
-        if (maj >= nblkdev || bdevsw(dev) == NULL)
+        if (bdevsw(dev) == NULL)
                 return (ENXIO);         /* XXX is this right? */
         if (bdevsw(dev)->d_psize == NULL)
                 return (ENXIO);         /* XXX should be ENODEV ? */
