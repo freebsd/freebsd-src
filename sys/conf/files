@@ -190,6 +190,7 @@ contrib/dev/acpica/utmath.c	 optional acpi
 contrib/dev/acpica/utmisc.c	 optional acpi
 contrib/dev/acpica/utobject.c	 optional acpi
 contrib/dev/acpica/utxface.c	 optional acpi
+contrib/dev/ath/freebsd/ah_osdep.c	optional ath_hal
 contrib/ipfilter/netinet/fil.c		optional ipfilter inet
 contrib/ipfilter/netinet/ip_auth.c	optional ipfilter inet
 contrib/ipfilter/netinet/ip_fil.c	optional ipfilter inet
@@ -316,6 +317,9 @@ dev/ata/atapi-cd.c	optional atapicd
 dev/ata/atapi-fd.c	optional atapifd
 dev/ata/atapi-tape.c	optional atapist
 dev/ata/atapi-cam.c	optional atapicam
+dev/ath/if_ath.c	optional ath
+dev/ath/if_ath_pci.c	optional ath pci
+dev/ath/if_ath_pci.c	optional ath card
 dev/awi/am79c930.c	optional awi
 dev/awi/awi.c		optional awi
 dev/awi/awi_wep.c	optional awi
