@@ -39,6 +39,8 @@ struct radius {
   struct in_addr ip;            /* FRAMED IP */
   struct in_addr mask;          /* FRAMED Netmask */
   unsigned long mtu;            /* FRAMED MTU */
+  unsigned long sessiontime;    /* Session-Timeout */
+  char *filterid;		/* FRAMED Filter Id */
   struct sticky_route *routes;  /* FRAMED Routes */
   struct {
     char file[PATH_MAX];	/* Radius config file */
