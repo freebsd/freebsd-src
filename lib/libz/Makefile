@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 MAINTAINER=peter@FreeBSD.org
