@@ -1069,10 +1069,10 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 	CTR0(KTR_PMAP, "pmap_init");
 
 	pmap_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	uma_zone_set_allocf(pmap_upvo_zone, pmap_pvo_allocf);
 	pmap_mpvo_zone = uma_zcreate("MPVO entry", sizeof(struct pvo_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	uma_zone_set_allocf(pmap_mpvo_zone, pmap_pvo_allocf);
 	pmap_initialized = TRUE;
 }
