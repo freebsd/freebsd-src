@@ -371,8 +371,15 @@ product AGATE QDRIVE		0x0378	Q-Drive
 
 /* AGFA products */
 product AGFA SNAPSCAN1212U	0x0001	SnapScan 1212U
+product AGFA SNAPSCAN1236U	0x0002	SnapScan 1236U
 product AGFA SNAPSCANTOUCH	0x0100	SnapScan Touch
 product AGFA SNAPSCAN1212U2	0x2061	SnapScan 1212U
+product AGFA SNAPSCANE40	0x208d	SnapScan e40
+product AGFA SNAPSCANE50	0x208f	SnapScan e50
+product AGFA SNAPSCANE20	0x2091	SnapScan e20
+product AGFA SNAPSCANE25	0x2095	SnapScan e25
+product AGFA SNAPSCANE26	0x2097	SnapScan e26
+product AGFA SNAPSCANE52	0x20fd	SnapScan e52
 
 /* Agiler products */
 product ELECOM MOUSE29UO	0x0002	mouse 29UO
