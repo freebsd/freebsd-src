@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.8 1995/01/14 13:19:38 bde Exp $
+ *	$Id: sys_process.c,v 1.9 1995/02/10 22:36:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -156,11 +156,11 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	 * Fault the page in...
 	 */
 
-	vm_map_pageable(map, (vm_offset_t) vtopte(kva),
-		(vm_offset_t) vtopte(kva) + PAGE_SIZE, FALSE);
+	vm_map_pageable(map, (vm_offset_t) vtopte(pageno),
+		(vm_offset_t) vtopte(pageno) + PAGE_SIZE, FALSE);
 	rv = vm_fault(map, pageno, VM_PROT_WRITE|VM_PROT_READ, FALSE);
-	vm_map_pageable (map, (vm_offset_t) vtopte(kva),
-		(vm_offset_t) vtopte(kva) + PAGE_SIZE, TRUE);
+	vm_map_pageable (map, (vm_offset_t) vtopte(pageno),
+		(vm_offset_t) vtopte(pageno) + PAGE_SIZE, TRUE);
 	if (rv != KERN_SUCCESS)
 		return EFAULT;
 
