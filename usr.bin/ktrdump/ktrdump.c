@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <limits.h>
 #include <nlist.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -101,14 +102,14 @@ main(int ac, char **av)
 			cflag = 1;
 			break;
 		case 'e':
-			strcpy(optarg, execfile);
+			strcpy(execfile, optarg);
 			eflag = 1;
 			break;
 		case 'f':
 			fflag = 1;
 			break;
 		case 'm':
-			strcpy(optarg, corefile);
+			strcpy(corefile, optarg);
 			mflag = 1;
 			break;
 		case 'o':
