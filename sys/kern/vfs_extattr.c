@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.128 1999/08/04 04:52:18 imp Exp $
+ * $Id: vfs_syscalls.c,v 1.129 1999/08/04 18:53:48 green Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -1020,8 +1020,9 @@ open(p, uap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		fp->f_flag |= FHASLOCK;
 	}
-	if (vn_canvmio(vp) == TRUE && vp->v_object == NULL)
-		vfs_object_create(vp, p, p->p_ucred);
+	/* assert that vn_open created a backing object if one is needed */
+	KASSERT(!vn_canvmio(vp) || vp->v_object != NULL,
+		("open: vmio vnode has no backing object after vn_open"));
 	VOP_UNLOCK(vp, 0, p);
 	p->p_retval[0] = indx;
 	return (0);
