@@ -39,7 +39,7 @@
 .Nm pwd_mkdb
 .Nd "generate the password databases"
 .Sh SYNOPSIS
-.Nm pwd_mkdb
+.Nm
 .Op Fl C
 .Op Fl N
 .Op Fl p
@@ -91,7 +91,7 @@ Specify in megabytes the size of the memory cache used by the
 hashing library.  On systems with a large user base, a small cache
 size can lead to prohibitively long database file rebuild times.
 As a rough guide, the memory usage of
-.Nm pwd_mkdb
+.Nm
 in megabytes will be a little bit more than twice the figure
 specified here.  The default is 2 megabytes.
 .El
@@ -143,7 +143,7 @@ There are the obvious races with multiple people running
 .Nm
 on different password files at the same time.
 The front-ends to 
-.Nm pwd_mkdb ,
+.Nm ,
 .Xr chpass 1 ,
 .Xr passwd 1
 and
@@ -151,7 +151,7 @@ and
 handle the locking necessary to avoid this problem.
 .Sh COMPATIBILITY
 Previous versions of the system had a program similar to
-.Nm pwd_mkdb ,
+.Nm ,
 .Xr mkpasswd 8 ,
 which built
 .Xr dbm 3

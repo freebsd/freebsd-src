@@ -39,7 +39,7 @@
 .Nm vipw
 .Nd edit the password file
 .Sh SYNOPSIS
-.Nm vipw
+.Nm
 .Op Fl d Ar directory
 .Sh DESCRIPTION
 .Nm Vipw
@@ -55,7 +55,7 @@ is
 .Xr vi 1 .
 .Pp
 When run without options, 
-.Nm vipw
+.Nm
 will work with the password files in
 .Pa /etc .
 The 
@@ -85,7 +85,7 @@ is completed, the password file is unavailable for other updates
 and the new information is not available to programs.
 .Sh ENVIRONMENT
 If the following environment variable exists it will be utilized by
-.Nm Ns :
+.Nm :
 .Bl -tag -width PW_SCAN_BIG_IDS
 .It Ev EDITOR
 The editor specified by the string

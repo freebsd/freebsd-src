@@ -35,7 +35,7 @@
 .Nm apmd
 .Nd Advanced Power Management monitor daemon
 .Sh SYNOPSIS
-.Nm apmd 
+.Nm
 .Op Fl d
 .Op Fl f file
 .Op Fl v
@@ -46,12 +46,12 @@ monitors the occurrence of the specified Advanced Power Management
 events and, if one of the events occurs, it executes the sequence of
 commands corresponding to the event.  Only the events specified in the
 configuration file are notified to
-.Nm apmd ;
+.Nm ;
 all other events are ignored.  For each event posted by the APM BIOS,
-.Nm apmd
+.Nm
 invokes the sequence of commands specified in the configuration file.
 When
-.Nm apmd
+.Nm
 is running with monitoring suspend/standby requests, 
 the kernel will not process those requests.  
 Therefore, if you wish action to be taken when these events
@@ -63,7 +63,7 @@ recognizes the following runtime options:
 .Bl -tag -width -f_file
 .It Fl d
 Starts in debug mode.  This causes 
-.Nm apmd
+.Nm
 to execute in the foreground instead of in daemon mode.
 .It Fl f Ar file
 Specifies a different configuration file
@@ -75,7 +75,7 @@ Verbose mode.
 .El
 .Pp
 When
-.Nm apmd
+.Nm
 starts, it reads the configuration file
 .Po
 .Pa /etc/apmd.conf
@@ -86,7 +86,7 @@ When it terminates, the APM device driver automatically cancels
 monitored events.
 .Pp
 If the 
-.Nm apmd
+.Nm
 process receives a SIGHUP, it will reread its configuration file and
 notify the APM device driver of any changes to its configuration.
 .Pp
@@ -97,34 +97,34 @@ to issue
 .Xr ioctl 2
 requests for monitoring events and for controlling the APM system.
 This device file is opened exclusively, so only a single
-.Nm apmd
+.Nm
 process can be running at any time.
 .Pp
 When 
-.Nm apmd
+.Nm
 receives an APM event, it forks a child process to execute the
 commands specified in the configuration file and then continues
 listening for more events.  The child process executes the commands
 specified, one at a time and in the order that they are listed.
 .Pp
 While 
-.Nm apmd
+.Nm
 is processing the command list for SUSPEND/STANDBY requests, the APM kernel
 device driver issues notifications to APM BIOS once per second so that the
 BIOS knows that there are still some commands pending, and that it should not
 complete the request just yet.
 .Pp
 The
-.Nm apmd
+.Nm
 daemon creates the file
 .Pa /var/run/apmd.pid ,
 and stores its process
 id there.
 This can be used to kill or reconfigure
-.Nm apmd .
+.Nm .
 .Sh CONFIGURATION FILE
 The structure of the
-.Nm apmd
+.Nm
 configuration file is quite simple.  For example:
 .Pp
 .Bd -literal
@@ -136,7 +136,7 @@ apm_event SUSPENDREQ {
 .Ed
 .Pp
 will cause
-.Nm apmd
+.Nm
 to receive the APM event
 .Ql SUSPENDREQ 
 (which may be posted by an LCD close), run the
@@ -162,7 +162,7 @@ valid event names:
 .Bl -item
 .It
 - Events ignored by the kernel if
-.Nm apmd
+.Nm
 is running:
 .Pp
 .Bl -tag -hang -width USERSUSPENDREQ -compact -offset indent
@@ -177,7 +177,7 @@ only zzz should be specified in the command list.
 .El
 .It
 - Events passed to
-.Nm apmd
+.Nm
 after kernel handling:
 .Pp
 .Bl -tag -hang -width USERSUSPENDREQ -compact -offset indent
@@ -190,7 +190,7 @@ after kernel handling:
 .El
 .Pp
 Other events will not be sent to 
-.Nm apmd .
+.Nm .
 .El
 .Ed
 .It
@@ -204,14 +204,14 @@ The command list for the event should be enclosed by
 .Ql {
 and
 .Ql } .
-.Nm apmd
+.Nm
 uses
 .Pa /bin/sh
 for double-quotation enclosed command execution, just as with
 .Xr system 3 .
 Each command is executed in order until the end of
 the list is reached or a command finishes with a non-zero status code. 
-.Nm apmd
+.Nm
 will report any failed command's status code via
 .Xr syslog 3 
 and will then reject the request event posted by the APM BIOS.
@@ -220,7 +220,7 @@ and will then reject the request event posted by the APM BIOS.
 Built-in functions
 .Bd -ragged -offset indent
 You can also specify
-.Nm apmd
+.Nm
 built-in functions instead of command lines.
 A built-in function name should be terminated with a semicolon,
 just as with a command line.
@@ -292,6 +292,6 @@ and
 .An Nick Hilliard Aq nick@foobar.org .
 .Sh HISTORY
 The
-.Nm apmd
+.Nm
 command appeared in
 .Fx 3.3 .

@@ -31,7 +31,7 @@
 .Nm fdformat
 .Nd format floppy disks
 .Sh SYNOPSIS
-.Nm fdformat
+.Nm
 .Op Fl q
 .Op Fl y
 .Op Fl v | Fl n
@@ -39,7 +39,7 @@
 .Op Fl c Ar cyls
 .Op Fl s Ar secs
 .Op Fl h Ar heads
-.Nm fdformat
+.Nm
 .Op Fl r Ar rate
 .Op Fl g Ar gap3len
 .Op Fl i Ar intleave
@@ -66,7 +66,7 @@ to the
 Note that any geometry constraints of the device node
 .Pq minor device number
 are meaningless, since they're overridden by
-.Nm Ns .
+.Nm .
 .Pp
 The options are as follows:
 .Bl -tag -width 10n -offset indent

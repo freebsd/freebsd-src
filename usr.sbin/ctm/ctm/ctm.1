@@ -19,7 +19,7 @@
 .Nm ctm
 .Nd source code mirror program
 .Sh SYNOPSIS
-.Nm ctm
+.Nm
 .Op Fl cFklquv
 .Op Fl b Ar basedir
 .Op Fl B Ar backup-file
@@ -106,7 +106,7 @@ and
 options are applied in order of appearance on the command line.  The last
 filter that matched a given file name determines whether the file would be 
 operated on or left alone by
-.Nm ctm .
+.Nm .
 
 .Nm Ctm
 will extract the file hierarchy below its working directory.  Absolute
@@ -270,7 +270,7 @@ flag.
 .Pa .ctm_status
 contains the sequence number of the last CTM delta applied.  Changing
 or removing this file will greatly confuse
-.Nm ctm .
+.Nm .
 
 Using the
 .Fl e

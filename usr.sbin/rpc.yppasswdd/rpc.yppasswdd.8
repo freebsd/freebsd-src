@@ -37,7 +37,7 @@
 .Nm rpc.yppasswdd
 .Nd "server for updating NIS passwords"
 .Sh SYNOPSIS
-.Nm rpc.yppasswdd
+.Nm
 .Op Fl t Ar master.passwd template file
 .Op Fl d Ar default domain
 .Op Fl p Ar path
@@ -283,7 +283,7 @@ flag will cause it to log informational messages for all updates.
 Many commercial
 .Xr yppasswd 1
 clients do not use a reserved port when sending requests to
-.Nm rpc.yppasswdd .
+.Nm .
 This is either because the
 .Xr yppasswd 1
 program is not installed set-uid root, or because the RPC
@@ -309,7 +309,7 @@ a certain small degree, but it might be necessary in cases where it
 is not possible to change the client behavior.
 .It Fl h
 Display the list of flags and options understood by
-.Nm rpc.yppasswdd .
+.Nm .
 .El
 .Sh FILES
 .Bl -tag -width Pa -compact

@@ -35,7 +35,7 @@
 .Nm isdnmonitor
 .Nd isdn4bsd / isdnd remote monitoring tool
 .Sh SYNOPSIS
-.Nm isdnmonitor
+.Nm
 .Op Fl c
 .Op Fl d Ar debuglevel
 .Op Fl f Ar filename
@@ -81,7 +81,7 @@ item to be executed or enter the capitalized character in the menu item
 description.
 .It Fl d
 If debugging support is compiled into
-.Nm isdnmonitor
+.Nm
 this option is used to specify the debugging level.
 .\" The debugging level is the sum of the
 .\" following values:
@@ -118,7 +118,7 @@ disable displaying debug messages on the full-screen display.
 .Pp
 .It Fl f
 Specifying this option causes
-.Nm isdnmonitor
+.Nm
 to write its normal output and - if enabled - debugging output to a file
 which name is specified as the argument.
 .It Fl l
@@ -126,7 +126,7 @@ is used to specify a Unix local domain socket name to be used for communication
 between
 .Xr isdnd 8
 and
-.Nm isdnmonitor .
+.Nm .
 .It Fl h
 is used to specify a hostname or a dotted-quad IP address of a machine
 where an 
@@ -141,7 +141,7 @@ option.
 
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
-.Nm isdnmonitor :
+.Nm :
 .Bl -tag -width Ds
 .It Ev TERM
 The terminal type when running in full-screen display mode.

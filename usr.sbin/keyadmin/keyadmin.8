@@ -63,7 +63,7 @@
 .Nm keyadmin
 .Nd manually manipulate the kernel key management database
 .Sh SYNOPSIS
-.Nm keyadmin
+.Nm
 .Op Ar command Op Ar args
 .Sh DESCRIPTION
 The
@@ -75,7 +75,7 @@ key/security association database.  (See
 Almost any operation offered in the
 .Xr key 4
 API is available to privileged users running
-.Nm Ns .
+.Nm .
 Until there is an implementation of an automated key management protocol,
 which will manipulate the key database in a manner similar to how
 .Xr routed 8
@@ -206,9 +206,9 @@ were allowed to be used straight from the command line.  Example:
 .It Ic quit
 .Pp
 Exit interaction with
-.Nm Ns .
+.Nm .
 An EOF will also end interaction with
-.Nm Ns .
+.Nm .
 .El
 .Sh SEE ALSO
 .Xr ipsec 4 ,

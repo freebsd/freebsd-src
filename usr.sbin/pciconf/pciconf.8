@@ -31,12 +31,16 @@
 .Nm pciconf
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
-.Nm pciconf Fl l
-.Nm pciconf Fl a Ar selector
-.Nm pciconf Fl r Ar selector 
+.Nm
+.Fl l
+.Nm
+.Fl a Ar selector
+.Nm
+.Fl r Ar selector
 .Op Fl b | Fl h
 .Ar reg
-.Nm pciconf Fl w Ar selector 
+.Nm
+.Fl w Ar selector
 .Op Fl b | Fl h
 .Ar reg value
 .Sh DESCRIPTION
@@ -186,7 +190,7 @@ The
 and 
 .Fl h
 options are implemented in 
-.Nm Ns ,
+.Nm ,
 but not in the underlying 
 .Xr ioctl 2 .
 .Pp
