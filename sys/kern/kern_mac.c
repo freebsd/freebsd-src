@@ -1301,6 +1301,71 @@ mac_destroy_devfsdirent(struct devfs_dirent *de)
 #endif
 }
 
+static int
+mac_externalize(struct label *label, struct mac *mac)
+{
+	int error;
+
+	mac_init_structmac(mac);
+	MAC_CHECK(externalize, label, mac);
+
+	return (error);
+}
+
+static int
+mac_internalize(struct label *label, struct mac *mac)
+{
+	int error;
+
+	mac_init_temp(label);
+	MAC_CHECK(internalize, label, mac);
+	if (error)
+		mac_destroy_temp(label);
+
+	return (error);
+}
+
+/*
+ * Initialize MAC label for the first kernel process, from which other
+ * kernel processes and threads are spawned.
+ */
+void
+mac_create_proc0(struct ucred *cred)
+{
+
+	MAC_PERFORM(create_proc0, cred);
+}
+
+/*
+ * Initialize MAC label for the first userland process, from which other
+ * userland processes and threads are spawned.
+ */
+void
+mac_create_proc1(struct ucred *cred)
+{
+
+	MAC_PERFORM(create_proc1, cred);
+}
+
+void
+mac_thread_userret(struct thread *td)
+{
+
+	MAC_PERFORM(thread_userret, td);
+}
+
+/*
+ * When a new process is created, its label must be initialized.  Generally,
+ * this involves inheritence from the parent process, modulo possible
+ * deltas.  This function allows that processing to take place.
+ */
+void
+mac_create_cred(struct ucred *parent_cred, struct ucred *child_cred)
+{
+
+	MAC_PERFORM(create_cred, parent_cred, child_cred);
+}
+
 void
 mac_update_devfsdirent(struct devfs_dirent *de, struct vnode *vp)
 {
@@ -1584,71 +1649,6 @@ mac_execve_will_transition(struct ucred *old, struct vnode *vp)
 	MAC_BOOLEAN(execve_will_transition, ||, old, vp, &vp->v_label);
 
 	return (result);
-}
-
-static int
-mac_externalize(struct label *label, struct mac *mac)
-{
-	int error;
-
-	mac_init_structmac(mac);
-	MAC_CHECK(externalize, label, mac);
-
-	return (error);
-}
-
-static int
-mac_internalize(struct label *label, struct mac *mac)
-{
-	int error;
-
-	mac_init_temp(label);
-	MAC_CHECK(internalize, label, mac);
-	if (error)
-		mac_destroy_temp(label);
-
-	return (error);
-}
-
-/*
- * Initialize MAC label for the first kernel process, from which other
- * kernel processes and threads are spawned.
- */
-void
-mac_create_proc0(struct ucred *cred)
-{
-
-	MAC_PERFORM(create_proc0, cred);
-}
-
-/*
- * Initialize MAC label for the first userland process, from which other
- * userland processes and threads are spawned.
- */
-void
-mac_create_proc1(struct ucred *cred)
-{
-
-	MAC_PERFORM(create_proc1, cred);
-}
-
-void
-mac_thread_userret(struct thread *td)
-{
-
-	MAC_PERFORM(thread_userret, td);
-}
-
-/*
- * When a new process is created, its label must be initialized.  Generally,
- * this involves inheritence from the parent process, modulo possible
- * deltas.  This function allows that processing to take place.
- */
-void
-mac_create_cred(struct ucred *parent_cred, struct ucred *child_cred)
-{
-
-	MAC_PERFORM(create_cred, parent_cred, child_cred);
 }
 
 int
