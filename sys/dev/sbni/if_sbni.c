@@ -228,8 +228,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	callout_handle_init(&sc->wch);
 	/* Initialize ifnet structure */
 	ifp->if_softc	= sc;
-	ifp->if_unit	= unit;
-	ifp->if_name	= "sbni";
+	if_initname(ifp, "sbni", unit);
 	ifp->if_init	= sbni_init;
 	ifp->if_start	= sbni_start;
 	ifp->if_output	= ether_output;
@@ -926,7 +925,7 @@ card_start(struct sbni_softc *sc)
 static void
 sbni_watchdog(struct ifnet *ifp)
 {
-	log(LOG_ERR, "sbni%d: device timeout\n", ifp->if_unit);
+	log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 	ifp->if_oerrors++;
 }
 

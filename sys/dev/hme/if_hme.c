@@ -268,8 +268,8 @@ hme_config(struct hme_softc *sc)
 
 	/* Initialize ifnet structure. */
 	ifp->if_softc = sc;
-	ifp->if_unit = device_get_unit(sc->sc_dev);
-	ifp->if_name = "hme";
+	if_initname(ifp, device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX |IFF_MULTICAST;
 	ifp->if_start = hme_start;

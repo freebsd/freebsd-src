@@ -201,8 +201,7 @@ ppp_clone_create(struct if_clone *ifc, int unit)
 
 	sc = malloc(sizeof(struct ppp_softc), M_PPP, M_WAITOK | M_ZERO);
 	sc->sc_if.if_softc = sc;
-	sc->sc_if.if_name = PPPNAME;
-	sc->sc_if.if_unit = unit;
+	if_initname(&sc->sc_if, ifc->ifc_name, unit);
 	sc->sc_if.if_mtu = PPP_MTU;
 	sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	sc->sc_if.if_type = IFT_PPP;
@@ -414,7 +413,7 @@ pppioctl(sc, cmd, data, flag, td)
 	break;
 
     case PPPIOCGUNIT:
-	*(int *)data = sc->sc_if.if_unit;
+	*(int *)data = sc->sc_if.if_dunit;
 	break;
 
     case PPPIOCGFLAGS:
@@ -850,7 +849,7 @@ pppoutput(ifp, m0, dst, rtp)
     len = m_length(m0, NULL);
 
     if (sc->sc_flags & SC_LOG_OUTPKT) {
-	printf("ppp%d output: ", ifp->if_unit);
+	printf("%s output: ", ifp->if_xname);
 	pppdumpm(m0);
     }
 
@@ -1214,7 +1213,7 @@ ppp_ccp(sc, m, rcvd)
 		if (sc->sc_xc_state != NULL
 		    && (*sc->sc_xcomp->comp_init)
 			(sc->sc_xc_state, dp + CCP_HDRLEN, slen - CCP_HDRLEN,
-			 sc->sc_if.if_unit, 0, sc->sc_flags & SC_DEBUG)) {
+			 sc->sc_if.if_dunit, 0, sc->sc_flags & SC_DEBUG)) {
 		    s = splimp();
 		    sc->sc_flags |= SC_COMP_RUN;
 		    splx(s);
@@ -1224,7 +1223,7 @@ ppp_ccp(sc, m, rcvd)
 		if (sc->sc_rc_state != NULL
 		    && (*sc->sc_rcomp->decomp_init)
 			(sc->sc_rc_state, dp + CCP_HDRLEN, slen - CCP_HDRLEN,
-			 sc->sc_if.if_unit, 0, sc->sc_mru,
+			 sc->sc_if.if_dunit, 0, sc->sc_mru,
 			 sc->sc_flags & SC_DEBUG)) {
 		    s = splimp();
 		    sc->sc_flags |= SC_DECOMP_RUN;

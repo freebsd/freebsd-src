@@ -169,7 +169,7 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 	short timer;
 	int drops;
 	struct sockaddr *sa = NULL;
-	char name[32], tname[16];
+	char name[IFNAMSIZ];
 	short network_layer;
 	short link_layer;
 
@@ -216,13 +216,10 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 
 		if (ifaddraddr == 0) {
 			ifnetfound = ifnetaddr;
-			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) ||
-			    kread((u_long)ifnet.if_name, tname, 16))
+			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
 				return;
-			tname[sizeof(tname) - 1] = '\0';
+			strlcpy(name, ifnet.if_xname, sizeof(name));
 			ifnetaddr = (u_long)TAILQ_NEXT(&ifnet, if_link);
-			snprintf(name, sizeof(name), "%s%d", tname,
-			    ifnet.if_unit);
 			if (interface != 0 && (strcmp(name, interface) != 0))
 				continue;
 			cp = index(name, '\0');
@@ -464,7 +461,7 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 
 struct	iftot {
 	SLIST_ENTRY(iftot) chain;
-	char	ift_name[16];		/* interface name */
+	char	ift_name[IFNAMSIZ];	/* interface name */
 	u_long	ift_ip;			/* input packets */
 	u_long	ift_ie;			/* input errors */
 	u_long	ift_op;			/* output packets */
@@ -508,14 +505,11 @@ sidewaysintpr(unsigned interval1, u_long off)
 	interesting = NULL;
 	interesting_off = 0;
 	for (off = firstifnet, ip = iftot; off;) {
-		char name[16], tname[16];
+		char name[IFNAMSIZ];
 
 		if (kread(off, (char *)&ifnet, sizeof ifnet))
 			break;
-		if (kread((u_long)ifnet.if_name, tname, sizeof(tname)))
-			break;
-		tname[sizeof(tname) - 1] = '\0';
-		snprintf(name, sizeof(name), "%s%d", tname, ifnet.if_unit);
+		strlcpy(name, ifnet.if_xname, sizeof(name));
 		if (interface && strcmp(name, interface) == 0) {
 			interesting = ip;
 			interesting_off = off;

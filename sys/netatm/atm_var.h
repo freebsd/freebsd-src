@@ -113,7 +113,7 @@ void		atm_dev_pdu_print(const Cmn_unit *, const Cmn_vcc *,
 		    const KBuffer *, const char *);
 
 	/* atm_if.c */
-int		atm_physif_register(Cmn_unit *, char *,
+int		atm_physif_register(Cmn_unit *, const char *,
 			struct stack_defn *);
 int		atm_physif_deregister(Cmn_unit *);
 void		atm_physif_freenifs(struct atm_pif *, uma_zone_t);

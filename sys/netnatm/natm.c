@@ -334,8 +334,8 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
     bzero(snatm, sizeof(*snatm));
     snatm->snatm_len = sizeof(*snatm);
     snatm->snatm_family = AF_NATM;
-    snprintf(snatm->snatm_if, sizeof(snatm->snatm_if),
-	"%s%d", npcb->npcb_ifp->if_name, npcb->npcb_ifp->if_unit);
+    strlcpy(snatm->snatm_if, npcb->npcb_ifp->if_xname,
+        sizeof(snatm->snatm_if));
     snatm->snatm_vci = npcb->npcb_vci;
     snatm->snatm_vpi = npcb->npcb_vpi;
     *nam = dup_sockaddr((struct sockaddr *)snatm, 0);

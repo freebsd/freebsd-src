@@ -144,8 +144,7 @@ lo_clone_create(ifc, unit)
 
 	MALLOC(sc, struct lo_softc *, sizeof(*sc), M_LO, M_WAITOK | M_ZERO);
 
-	sc->sc_if.if_name = LONAME;
-	sc->sc_if.if_unit = unit;
+	if_initname(&sc->sc_if, ifc->ifc_name, unit);
 	sc->sc_if.if_mtu = LOMTU;
 	sc->sc_if.if_flags = IFF_LOOPBACK | IFF_MULTICAST;
 	sc->sc_if.if_ioctl = loioctl;

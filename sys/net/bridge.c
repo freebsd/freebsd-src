@@ -390,8 +390,8 @@ bridge_off(void)
 	if ( b->flags & IFF_BDG_PROMISC ) {
 	    ifpromisc(ifp, 0);
 	    b->flags &= ~(IFF_BDG_PROMISC|IFF_MUTE) ;
-	    DPRINTF(("%s: %s%d promisc OFF if_flags 0x%x "
-		"bdg_flags 0x%x\n", __func__, ifp->if_name, ifp->if_unit,
+	    DPRINTF(("%s: %s promisc OFF if_flags 0x%x "
+		"bdg_flags 0x%x\n", __func__, ifp->if_xname,
 		ifp->if_flags, b->flags));
 	}
 	b->flags &= ~(IFF_USED) ;
@@ -433,12 +433,11 @@ bridge_on(void)
 	if ( !(b->flags & IFF_BDG_PROMISC) ) {
 	    (void) ifpromisc(ifp, 1);
 	    b->flags |= IFF_BDG_PROMISC ;
-	    DPRINTF(("%s: %s%d promisc ON if_flags 0x%x bdg_flags 0x%x\n",
-		__func__, ifp->if_name, ifp->if_unit, ifp->if_flags, b->flags));
+	    DPRINTF(("%s: %s promisc ON if_flags 0x%x bdg_flags 0x%x\n",
+		__func__, ifp->if_xname, ifp->if_flags, b->flags));
 	}
 	if (b->flags & IFF_MUTE) {
-	    DPRINTF(("%s: unmuting %s%d\n", __func__,
-		ifp->if_name, ifp->if_unit));
+	    DPRINTF(("%s: unmuting %s\n", __func__, ifp->if_xname));
 	    b->flags &= ~IFF_MUTE;
 	}
     }
@@ -522,23 +521,22 @@ parse_bdg_cfg(void)
 	 */
 	IFNET_RLOCK();		/* could sleep XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-	    char buf[IFNAMSIZ];
 
-	    snprintf(buf, sizeof(buf), "%s%d", ifp->if_name, ifp->if_unit);
-	    if (!strncmp(beg, buf, max(l, strlen(buf)))) {
+	    if (!strncmp(beg, ifp->if_xname, max(l, strlen(ifp->if_xname)))) {
 		struct bdg_softc *b = &ifp2sc[ifp->if_index];
 		if (ifp->if_type != IFT_ETHER && ifp->if_type != IFT_L2VLAN) {
-		    printf("%s is not an ethernet, continue\n", buf);
+		    printf("%s is not an ethernet, continue\n", ifp->if_xname);
 		    continue;
 		}
 		if (b->flags & IFF_USED) {
-		    printf("%s already used, skipping\n", buf);
+		    printf("%s already used, skipping\n", ifp->if_xname);
 		    break;
 		}
 		b->cluster = add_cluster(htons(cluster), (struct arpcom *)ifp);
 		b->flags |= IFF_USED ;
-		sprintf(bdg_stats.s[ifp->if_index].name,
-			"%s%d:%d", ifp->if_name, ifp->if_unit, cluster);
+		snprintf(bdg_stats.s[ifp->if_index].name,
+		    sizeof(bdg_stats.s[ifp->if_index].name),
+		    "%s:%d", ifp->if_xname, cluster);
 
 		DPRINTF(("%s: found %s next c %d\n", __func__,
 		    bdg_stats.s[ifp->if_index].name, c));
@@ -793,10 +791,9 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 	     * from the old interface.
 	     */
 	    bt->name = ifp;		/* relocate address */
-	    printf("-- loop (%d) %6D to %s%d from %s%d (%s)\n",
+	    printf("-- loop (%d) %6D to %s from %s (%s)\n",
 			bdg_loops, eh->ether_shost, ".",
-			ifp->if_name, ifp->if_unit,
-			old->if_name, old->if_unit,
+			ifp->if_xname, old->if_xname,
 			BDG_MUTED(old) ? "muted":"active");
 	    dropit = 1;
 	    if (!BDG_MUTED(old)) {
@@ -810,8 +807,8 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
      * now write the source address into the table
      */
     if (bt->name == NULL) {
-	DPRINTF(("%s: new addr %6D at %d for %s%d\n",
-	    __func__, eh->ether_shost, ".", index, ifp->if_name, ifp->if_unit));
+	DPRINTF(("%s: new addr %6D at %d for %s\n",
+	    __func__, eh->ether_shost, ".", index, ifp->if_xname));
 	ETHER_ADDR_COPY(bt->etheraddr, eh->ether_shost);
 	bt->name = ifp;
     }
@@ -853,13 +850,12 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 	if (dst == ifp)
 	    dst = BDG_DROP;
     }
-    DPRINTF(("%s: %6D ->%6D ty 0x%04x dst %s%d\n", __func__,
+    DPRINTF(("%s: %6D ->%6D ty 0x%04x dst %s\n", __func__,
 	eh->ether_shost, ".",
 	eh->ether_dhost, ".",
 	ntohs(eh->ether_type),
 	(dst <= BDG_FORWARD) ? bdg_dst_names[(uintptr_t)dst] :
-		dst->if_name,
-	(dst <= BDG_FORWARD) ? 0 : dst->if_unit));
+		dst->if_xname));
 
     return dst;
 }

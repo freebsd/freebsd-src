@@ -186,8 +186,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	DPRINTF(("ath_attach: devid 0x%x\n", devid));
 
 	/* set these up early for if_printf use */
-	ifp->if_unit = device_get_unit(sc->sc_dev);
-	ifp->if_name = "ath";
+	if_initname(ifp, device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev));
 
 	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh, &status);
 	if (ah == NULL) {

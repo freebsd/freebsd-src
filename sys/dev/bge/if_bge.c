@@ -2365,8 +2365,7 @@ bge_attach(dev)
 	/* Set up ifnet structure */
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
-	ifp->if_unit = sc->bge_unit;
-	ifp->if_name = "bge";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bge_ioctl;
 	ifp->if_output = ether_output;

@@ -227,16 +227,14 @@ ng_gif_input2(node_p node, struct mbuf **mp, int af)
 static void
 ng_gif_attach(struct ifnet *ifp)
 {
-	char name[IFNAMSIZ + 1];
 	priv_p priv;
 	node_p node;
 
 	/* Create node */
 	KASSERT(!IFP2NG(ifp), ("%s: node already exists?", __func__));
-	snprintf(name, sizeof(name), "%s%d", ifp->if_name, ifp->if_unit);
 	if (ng_make_node_common(&ng_gif_typestruct, &node) != 0) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
-		    __func__, "create node", name);
+		    __func__, "create node", ifp->if_xname);
 		return;
 	}
 
@@ -244,7 +242,7 @@ ng_gif_attach(struct ifnet *ifp)
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
-		    __func__, "allocate memory", name);
+		    __func__, "allocate memory", ifp->if_xname);
 		NG_NODE_UNREF(node);
 		return;
 	}
@@ -253,9 +251,9 @@ ng_gif_attach(struct ifnet *ifp)
 	IFP2NG(ifp) = node;
 
 	/* Try to give the node the same name as the interface */
-	if (ng_name_node(node, name) != 0) {
+	if (ng_name_node(node, ifp->if_xname) != 0) {
 		log(LOG_WARNING, "%s: can't name node %s\n",
-		    __func__, name);
+		    __func__, ifp->if_xname);
 	}
 }
 
@@ -410,8 +408,7 @@ ng_gif_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			snprintf(resp->data, IFNAMSIZ + 1,
-			    "%s%d", priv->ifp->if_name, priv->ifp->if_unit);
+			strlcpy(resp->data, priv->ifp->if_xname, IFNAMSIZ + 1);
 			break;
 		case NGM_GIF_GET_IFINDEX:
 			NG_MKRESPONSE(resp, msg, sizeof(u_int32_t), M_NOWAIT);

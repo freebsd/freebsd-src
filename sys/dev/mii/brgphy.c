@@ -199,7 +199,7 @@ brgphy_attach(dev)
 
 	bge_sc = mii->mii_ifp->if_softc;
 
-	if (strcmp(mii->mii_ifp->if_name, "bge") == 0 &&
+	if (strcmp(mii->mii_ifp->if_dname, "bge") == 0 &&
 	    pci_get_vendor(bge_sc->bge_dev) == BCOM_VENDORID &&
 	    (pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901 ||
 	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901A2))
@@ -613,7 +613,7 @@ brgphy_reset(struct mii_softc *sc)
 	 * on "bge" NICs, since other drivers may use this same
 	 * PHY subdriver.
 	 */
-	if (strcmp(ifp->if_name, "bge") == 0 &&
+	if (strcmp(ifp->if_dname, "bge") == 0 &&
 	    (bge_sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
 	    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A1 ||
 	    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A2))

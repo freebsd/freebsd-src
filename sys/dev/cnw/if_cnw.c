@@ -1632,8 +1632,7 @@ static int cnw_pccard_attach(device_t dev)
 		sc->arpcom.ac_enaddr, ":");
 
 	ifp->if_softc = sc;
-	ifp->if_name = "cnw";
-	ifp->if_unit = device_get_unit(dev);
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_timer = 0;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);

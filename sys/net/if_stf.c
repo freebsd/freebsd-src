@@ -180,8 +180,7 @@ stf_clone_create(ifc, unit)
 	struct stf_softc *sc;
 
 	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK | M_ZERO);
-	sc->sc_if.if_name = STFNAME;
-	sc->sc_if.if_unit = unit;
+	if_initname(&sc->sc_if, ifc->ifc_name, unit);
 
 	sc->encap_cookie = encap_attach_func(AF_INET, IPPROTO_IPV6,
 	    stf_encapcheck, &in_stf_protosw, sc);

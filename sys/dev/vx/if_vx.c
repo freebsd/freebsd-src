@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 
+#include <sys/bus.h>
+
 #include <net/bpf.h>
 
 #include <dev/vx/if_vxreg.h>
@@ -122,9 +124,10 @@ static void vxsetlink(struct vx_softc *);
 
 
 int
-vxattach(sc)
-    struct vx_softc *sc;
+vxattach(dev)
+    device_t dev;
 {
+    struct vx_softc *sc = device_get_softc(dev);
     struct ifnet *ifp = &sc->arpcom.ac_if;
     int i;
 
@@ -154,8 +157,7 @@ vxattach(sc)
 
     printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
-    ifp->if_unit = sc->unit;
-    ifp->if_name = "vx";
+    if_initname(ifp, device_get_name(dev), device_get_unit(dev));
     ifp->if_mtu = ETHERMTU;
     ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;

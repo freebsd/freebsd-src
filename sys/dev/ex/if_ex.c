@@ -221,7 +221,6 @@ ex_attach(device_t dev)
 	struct ex_softc *	sc = device_get_softc(dev);
 	struct ifnet *		ifp = &sc->arpcom.ac_if;
 	struct ifmedia *	ifm;
-	int			unit = device_get_unit(dev);
 	u_int16_t		temp;
 
 	/* work out which set of irq <-> internal tables to use */
@@ -239,8 +238,7 @@ ex_attach(device_t dev)
 	 * Initialize the ifnet structure.
 	 */
 	ifp->if_softc = sc;
-	ifp->if_unit = unit;
-	ifp->if_name = "ex";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_output = ether_output;
@@ -308,7 +306,7 @@ ex_init(void *xsc)
 	register int		iobase = sc->iobase;
 	unsigned short		temp_reg;
 
-	DODEBUG(Start_End, printf("ex_init%d: start\n", ifp->if_unit););
+	DODEBUG(Start_End, printf("%s: ex_init: start\n", ifp->if_xname););
 
 	if (TAILQ_FIRST(&ifp->if_addrhead) == NULL) {
 		return;
@@ -389,7 +387,7 @@ ex_init(void *xsc)
 	ex_start(ifp);
 	splx(s);
 
-	DODEBUG(Start_End, printf("ex_init%d: finish\n", ifp->if_unit););
+	DODEBUG(Start_End, printf("%s: ex_init: finish\n", ifp->if_xname););
 }
 
 
@@ -809,7 +807,7 @@ ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 	int			s;
 	int			error = 0;
 
-	DODEBUG(Start_End, printf("ex_ioctl%d: start ", ifp->if_unit););
+	DODEBUG(Start_End, printf("%s: ex_ioctl: start ", ifp->if_xname););
 
 	s = splimp();
 
@@ -854,7 +852,7 @@ ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	splx(s);
 
-	DODEBUG(Start_End, printf("\nex_ioctl%d: finish\n", ifp->if_unit););
+	DODEBUG(Start_End, printf("\n%s: ex_ioctl: finish\n", ifp->if_xname););
 
 	return(error);
 }
@@ -977,7 +975,7 @@ ex_watchdog(struct ifnet *ifp)
 {
 	struct ex_softc *	sc = ifp->if_softc;
 
-	DODEBUG(Start_End, printf("ex_watchdog%d: start\n", ifp->if_unit););
+	DODEBUG(Start_End, printf("%s: ex_watchdog: start\n", ifp->if_xname););
 
 	ifp->if_flags &= ~IFF_OACTIVE;
 
@@ -987,7 +985,7 @@ ex_watchdog(struct ifnet *ifp)
 	ex_reset(sc);
 	ex_start(ifp);
 
-	DODEBUG(Start_End, printf("ex_watchdog%d: finish\n", ifp->if_unit););
+	DODEBUG(Start_End, printf("%s: ex_watchdog: finish\n", ifp->if_xname););
 
 	return;
 }

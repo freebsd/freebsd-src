@@ -193,14 +193,13 @@ en_pci_attach(device_t dev)
 	struct en_softc *sc;
 	struct en_pci_softc *scp;
 	u_long val;
-	int rid, unit, error = 0;
+	int rid, error = 0;
 
 	sc = device_get_softc(dev);
 	scp = (struct en_pci_softc *)sc;
 
-	unit = device_get_unit(dev);
-	sc->ifatm.ifnet.if_unit = unit;
-	sc->ifatm.ifnet.if_name = "en";
+	if_initname(&(sc->ifatm.ifnet), device_get_name(dev),
+	    device_get_unit(dev));
 
 	/*
 	 * Enable bus mastering.

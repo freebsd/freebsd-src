@@ -1881,8 +1881,7 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 
 	/* Short-circuit non ethernet interfaces */
 	if (!IFP_IS_ETH(ifp))
-		return (snprintf(buffer, buflen, "%s%d", ifp->if_name,
-		    ifp->if_unit));
+		return (strlcpy(buffer, ifp->if_xname, buflen));
 
 	/* Determine the (relative) unit number for ethernet interfaces */
 	ethno = 0;
@@ -1932,15 +1931,14 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 		 * we never have an interface named "eth", so don't make
 		 * the test optional based on is_eth.
 		 */
-		if (ifp->if_unit == unit && ifp->if_name[len] == '\0' &&
-		    strncmp(ifp->if_name, lxname, len) == 0)
+		if (strncmp(ifp->if_xname, lxname, LINUX_IFNAMSIZ) == 0)
 			break;
 		if (is_eth && IFP_IS_ETH(ifp) && unit == index++)
 			break;
 	}
 	IFNET_RUNLOCK();
 	if (ifp != NULL)
-		snprintf(bsdname, IFNAMSIZ, "%s%d", ifp->if_name, ifp->if_unit);
+		strlcpy(bsdname, ifp->if_xname, IFNAMSIZ);
 	return (ifp);
 }
 
@@ -1988,8 +1986,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "eth%d",
 			    ethno++);
 		else
-			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "%s%d",
-			    ifp->if_name, ifp->if_unit);
+			strlcpy(ifr.ifr_name, ifp->if_xname, LINUX_IFNAMSIZ);
 
 		/* Walk the address list */
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {

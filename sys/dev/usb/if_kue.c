@@ -489,8 +489,7 @@ USB_ATTACH(kue)
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
-	ifp->if_unit = sc->kue_unit;
-	ifp->if_name = "kue";
+	if_initname(ifp, "kue", sc->kue_unit);
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = kue_ioctl;

@@ -87,7 +87,7 @@ struct cm_softc {
 	u_char	sc_retransmits[2];	/* unused at the moment */
 };
 
-int	cm_attach(struct cm_softc *, int unit);
+int	cm_attach(device_t dev);
 void	cmintr(void *);
 
 int	cm_probe(device_t dev);

@@ -503,9 +503,8 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 #ifdef DIAGNOSTIC
 	if (m->m_pkthdr.rcvif != ifp) {
-		if_printf(ifp, "Warning, frame marked as received on %s%u\n",
-			m->m_pkthdr.rcvif->if_name,
-			m->m_pkthdr.rcvif->if_unit);
+		if_printf(ifp, "Warning, frame marked as received on %s\n",
+			m->m_pkthdr.rcvif->if_xname);
 	}
 #endif
 

@@ -180,7 +180,7 @@ typedef struct atm_config	Atm_config;
  */
 struct	atm_pif {
 	struct atm_pif	*pif_next;	/* Next registered atm interface */
-	char		*pif_name;	/* Device name */
+	const char	*pif_name;	/* Device name */
 	short		pif_unit;	/* Device unit number */
 	u_char		pif_flags;	/* Interface flags (see below) */
 	struct sigmgr	*pif_sigmgr;	/* Signalling Manager for interface */

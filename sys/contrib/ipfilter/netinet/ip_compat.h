@@ -542,7 +542,8 @@ extern	ill_t	*get_unit __P((char *, int));
 #  ifndef	linux
 #   define	GETUNIT(n, v)	ifunit(n)
 #   if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-        (defined(OpenBSD) && (OpenBSD >= 199603))
+        (defined(OpenBSD) && (OpenBSD >= 199603)) || \
+	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 #    define	IFNAME(x)	((struct ifnet *)x)->if_xname
 #   else
 #    define	USE_GETIFNAME	1

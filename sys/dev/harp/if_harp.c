@@ -160,7 +160,7 @@ static const struct {
 static int
 harp_check_if(const struct ifnet *ifp)
 {
-	if (ifp->if_type == IFT_ATM && strcmp(ifp->if_name, "en"))
+	if (ifp->if_type == IFT_ATM && strcmp(ifp->if_dname, "en"))
 		return (0);
 	else
 		return (-1);
@@ -386,7 +386,7 @@ harp_attach(struct ifnet *parent)
 	sc = malloc(sizeof(*sc), M_HARP, M_WAITOK | M_ZERO);
 
 	sc->parent = parent;
-	sc->cmn.cu_unit = parent->if_unit;
+	sc->cmn.cu_unit = parent->if_dunit;
 	sc->cmn.cu_mtu = HARP_MTU;
 	sc->cmn.cu_ioctl = harp_ioctl;
 	sc->cmn.cu_instvcc = harp_instvcc;
@@ -469,10 +469,10 @@ harp_attach(struct ifnet *parent)
 	sc->cmn.cu_config.ac_macaddr.ma_data[5] =
 	    sc->cmn.cu_pif.pif_macaddr.ma_data[5] = mib->esi[5];
 
-	error = atm_physif_register(&sc->cmn, parent->if_name, harp_services);
+	error = atm_physif_register(&sc->cmn, parent->if_dname, harp_services);
 	if (error) {
 		log(LOG_ERR, "%s: pif registration failed %d\n",
-		    parent->if_name, error);
+		    parent->if_dname, error);
 		free(sc, M_HARP);
 		return;
 	}
@@ -498,7 +498,7 @@ harp_detach(struct ifnet *ifp)
 
 	error = atm_physif_deregister(&sc->cmn);
 	if (error)
-		log(LOG_ERR, "%s: de-registration failed %d\n", ifp->if_name,
+		log(LOG_ERR, "%s: de-registration failed %d\n", ifp->if_dname,
 		    error);
 
 	LIST_REMOVE(sc, link);

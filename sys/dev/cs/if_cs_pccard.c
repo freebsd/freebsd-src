@@ -81,7 +81,6 @@ static int
 cs_pccard_attach(device_t dev)
 {
         struct cs_softc *sc = device_get_softc(dev);
-        int flags = device_get_flags(dev);
         int error;
         
 	error = cs_alloc_port(dev, sc->port_rid, CS_89x0_IO_PORTS);
@@ -95,7 +94,7 @@ cs_pccard_attach(device_t dev)
         if (error != 0)
 		goto bad;
 
-        return (cs_attach(sc, device_get_unit(dev), flags));
+        return (cs_attach(dev));
 bad:
 	cs_release_resources(dev);
 	return (error);

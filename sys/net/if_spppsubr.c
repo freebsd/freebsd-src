@@ -264,7 +264,7 @@ static struct sppp *spppq;
 static struct callout_handle keepalive_ch;
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3 && __FreeBSD_version < 501113
 #define	SPP_FMT		"%s%d: "
 #define	SPP_ARGS(ifp)	(ifp)->if_name, (ifp)->if_unit
 #else

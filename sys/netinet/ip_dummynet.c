@@ -796,18 +796,17 @@ if_tx_rdy(struct ifnet *ifp)
 	if (p->ifp == ifp)
 	    break ;
     if (p == NULL) {
-	char buf[32];
-	sprintf(buf, "%s%d",ifp->if_name, ifp->if_unit);
 	for (p = all_pipes; p ; p = p->next )
-	    if (!strcmp(p->if_name, buf) ) {
+	    if (!strcmp(p->if_name, ifp->if_xname) ) {
 		p->ifp = ifp ;
-		DPRINTF(("dummynet: ++ tx rdy from %s (now found)\n", buf));
+		DPRINTF(("dummynet: ++ tx rdy from %s (now found)\n",
+			ifp->if_xname));
 		break ;
 	    }
     }
     if (p != NULL) {
-	DPRINTF(("dummynet: ++ tx rdy from %s%d - qlen %d\n", ifp->if_name,
-		ifp->if_unit, ifp->if_snd.ifq_len));
+	DPRINTF(("dummynet: ++ tx rdy from %s - qlen %d\n", ifp->if_xname,
+		ifp->if_snd.ifq_len));
 	p->numbytes = 0 ; /* mark ready for I/O */
 	ready_event_wfq(p);
     }

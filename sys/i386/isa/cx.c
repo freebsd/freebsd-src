@@ -285,11 +285,11 @@ cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			master = *o->master ? ifunit (o->master) : c->ifp;
 			if (! master)
 				return (EINVAL);
-			m = cxchan[master->if_unit];
+			m = cxchan[master->if_dunit];
 
 			/* Leave the previous master queue. */
 			if (c->master != c->ifp) {
-				cx_chan_t *p = cxchan[c->master->if_unit];
+				cx_chan_t *p = cxchan[c->master->if_dunit];
 
 				for (; p; p=p->slaveq)
 					if (p->slaveq == c)
@@ -355,9 +355,8 @@ cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			case 8: o->iftype = c->board->if8type; break;
 			}
 			if (c->master != c->ifp)
-				snprintf (o->master, sizeof(o->master),
-				    "%s%d", c->master->if_name,
-					c->master->if_unit);
+				strlcpy(o->master, c->master->if_xname,
+				    sizeof(o->master));
 			else
 				*o->master = 0;
 			break;

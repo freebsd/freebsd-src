@@ -2228,8 +2228,7 @@ dc_attach(device_t dev)
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
-	ifp->if_unit = unit;
-	ifp->if_name = "dc";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	/* XXX: bleah, MTU gets overwritten in ether_ifattach() */
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;

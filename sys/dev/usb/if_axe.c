@@ -509,8 +509,7 @@ USB_ATTACH(axe)
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
-	ifp->if_unit = sc->axe_unit;
-	ifp->if_name = "axe";
+	if_initname(ifp, "axe", sc->axe_unit);
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = axe_ioctl;

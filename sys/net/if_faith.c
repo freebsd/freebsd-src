@@ -163,8 +163,7 @@ faith_clone_create(ifc, unit)
 	bzero(sc, sizeof(struct faith_softc));
 
 	sc->sc_if.if_softc = sc;
-	sc->sc_if.if_name = FAITHNAME;
-	sc->sc_if.if_unit = unit;
+	if_initname(&sc->sc_if, ifc->ifc_name, unit);
 
 	sc->sc_if.if_mtu = FAITHMTU;
 	/* Change to BROADCAST experimentaly to announce its prefix. */
