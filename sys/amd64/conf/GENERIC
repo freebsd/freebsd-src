@@ -90,11 +90,11 @@ device		isp		# Qlogic family
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
 
-device		adv0	at isa? port ? irq ?
+device		adv0	at isa?
 device		adw
-device		bt0	at isa? port ? irq ?
-device		aha0	at isa? port ? irq ?
-device		aic0	at isa? port ? irq ?
+device		bt0	at isa?
+device		aha0	at isa?
+device		aic0	at isa?
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
@@ -112,7 +112,7 @@ device		atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 device		psm0	at atkbdc? irq 12
 
-device		vga0	at isa? port ? conflicts
+device		vga0	at isa? conflicts
 
 # splash screen/screen saver
 pseudo-device	splash
@@ -145,7 +145,7 @@ device		sio2	at isa? disable port IO_COM3 irq 5
 device		sio3	at isa? disable port IO_COM4 irq 9
 
 # Parallel port
-device		ppc0	at isa? port? irq 7
+device		ppc0	at isa? irq 7
 device		ppbus		# Parallel port bus (required)
 device		lpt		# Printer
 device		plip		# TCP/IP over parallel
@@ -188,13 +188,13 @@ device		wi
 device		an
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
-device		fe0	at isa? port 0x300 irq ?
+device		fe0	at isa? port 0x300
 device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
 device		lnc0	at isa? port 0x280 irq 10 drq 0
-device		cs0	at isa? port 0x300 irq ?
+device		cs0	at isa? port 0x300
 device		sn0	at isa? port 0x300 irq 10
 # requires PCCARD (PCMCIA) support to be activated
-#device		xe0	at isa? port? irq ?
+#device		xe0	at isa?
 
 # Pseudo devices - the number indicates how many units to allocated.
 pseudo-device	loop		# Network loopback
