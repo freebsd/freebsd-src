@@ -360,11 +360,17 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		break;
 	}
 	case PTRACE_SETFPXREGS:
+#ifdef CPU_ENABLE_SSA
+		error = copyin((caddr_t)uap->data, &r.fpxreg,
+		    sizeof(r.fpxreg));
+		if (error)
+			break;
+#endif
+		/* FALL THROUGH */
 	case PTRACE_GETFPXREGS: {	
 #ifdef CPU_ENABLE_SSE
 		struct proc *p;
 		struct thread *td2;
-		struct fpreg *bsd_r;
 
 		if (sizeof(struct linux_pt_fpxreg) != sizeof(struct savexmm)) {
 			static int once = 0;
@@ -376,21 +382,36 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			break;
 		}
 
-		/*
-		 * Use FreeBSD PT_GETFPREGS for permisson testing. If it
-		 * fails, PTRACE_GETFPXREGS should fail for the same reason.
-		 */
-		bsd_r = (struct fpreg*)stackgap_alloc(&sg, sizeof(*bsd_r));
-		bsd_args.req  = PT_GETFPREGS;
-		bsd_args.addr = (caddr_t)bsd_r;
-		bsd_args.data = 0;
-		error = ptrace(td, &bsd_args);
-		if (error != 0)
-			break;
-
 		if ((p = pfind(uap->pid)) == NULL) {
 			error = ESRCH;
 			break;
+		}
+
+		if ((error = p_candebug(td, p)) != 0)
+			goto fail;
+
+		/* System processes can't be debugged. */
+		if ((p->p_flag & P_SYSTEM) != 0) {
+			error = EINVAL;
+			goto fail;
+		}
+
+		/* not being traced... */
+		if ((p->p_flag & P_TRACED) == 0) {
+			error = EPERM;
+			goto fail;
+		}
+
+		/* not being traced by YOU */
+		if (p->p_pptr != td->td_proc) {
+			error = EBUSY;
+			goto fail;
+		}
+
+		/* not currently stopped */
+		if (p->p_stat != SSTOP || (p->p_flag & P_WAITED) == 0) {
+			error = EBUSY;
+			goto fail;
 		}
 
 		td2 = FIRST_THREAD_IN_PROC(p);
@@ -403,18 +424,17 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 				error = copyout(&r.fpxreg, (caddr_t)uap->data,
 				    sizeof(r.fpxreg));
 		} else {
-			error = copyin((caddr_t)uap->data, &r.fpxreg,
-			    sizeof(r.fpxreg));
-			if (error == 0) {
-				/* clear dangerous bits exactly as Linux does*/
-				r.fpxreg.mxcsr &= 0xffbf;
-				_PHOLD(p);
-				error = linux_proc_write_fpxregs(
-					td2, &r.fpxreg);
-				_PRELE(p);
-				PROC_UNLOCK(p);
-			}
+			/* clear dangerous bits exactly as Linux does*/
+			r.fpxreg.mxcsr &= 0xffbf;
+			_PHOLD(p);
+			error = linux_proc_write_fpxregs(td2, &r.fpxreg);
+			_PRELE(p);
+			PROC_UNLOCK(p);
 		}
+		break;
+
+	fail:
+		PROC_UNLOCK(p);
 #else
 		error = EIO;
 #endif
