@@ -19,10 +19,14 @@ gdb-cfg.texi: all-cfg.texi
 GDBvn.texi: version.in
 	echo "@set GDBVN `sed q ${.ALLSRC}`" > ${.TARGET}
 
-inc-hist.texinfo: hsuser.texinfo inc-hist.diff
-	cp ${.ALLSRC:M*.texinfo} ${.TARGET}
+inc-hist.texinfo: hsuser.texi inc-hist.diff
+	cp ${.ALLSRC:M*.texi} ${.TARGET}
 	patch < ${.ALLSRC:M*.diff}
 
-CLEANFILES= gdb-cfg.texi GDBvn.texi inc-hist.texinfo inc-hist.texinfo.orig
+rluser.texinfo: rluser.texi
+	cp ${.ALLSRC:M*.texi} ${.TARGET}
+
+CLEANFILES= gdb-cfg.texi GDBvn.texi inc-hist.texinfo inc-hist.texinfo.orig \
+	rluser.texinfo
 
 .include <bsd.info.mk>
