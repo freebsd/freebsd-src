@@ -482,26 +482,22 @@ ep_if_start(ifp)
 {
     struct ep_softc *sc = ifp->if_softc;
     u_int len;
-    struct mbuf *m;
-    struct mbuf *top;
+    struct mbuf *m, *m0;
     int s, pad;
 
-    if (sc->gone) {
+    if (sc->gone)
 	return;
-    }
 
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    if (ifp->if_flags & IFF_OACTIVE) {
+    if (ifp->if_flags & IFF_OACTIVE)
 	return;
-    }
 
 startagain:
     /* Sneak a peek at the next packet */
-    IF_DEQUEUE(&ifp->if_snd, m);
-    if (m == 0) {
+    IF_DEQUEUE(&ifp->if_snd, m0);
+    if (m0 == NULL)
 	return;
-    }
-    for (len = 0, top = m; m; m = m->m_next)
+    for (len = 0, m = m0; m; m = m->m_next)
 	len += m->m_len;
 
     pad = (4 - len) & 3;
@@ -514,7 +510,7 @@ startagain:
     if (len + pad > ETHER_MAX_LEN) {
 	/* packet is obviously too large: toss it */
 	++ifp->if_oerrors;
-	m_freem(top);
+	m_freem(m0);
 	goto readcheck;
     }
     if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
@@ -523,7 +519,7 @@ startagain:
 	/* make sure */
 	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
 	    ifp->if_flags |= IFF_OACTIVE;
-	    IF_PREPEND(&ifp->if_snd, top);
+	    IF_PREPEND(&ifp->if_snd, m0);
 	    return;
 	}
     } else {
@@ -536,7 +532,7 @@ startagain:
     outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
 
     if (EP_FTST(sc, F_ACCESS_32_BITS)) {
-        for (m = top; m != 0; m = m->m_next) {
+        for (m = m0; m != NULL; m = m->m_next) {
 	    if (m->m_len > 3)
 	    	outsl(BASE + EP_W1_TX_PIO_WR_1,
 			mtod(m, caddr_t), m->m_len / 4);
@@ -545,7 +541,7 @@ startagain:
 			mtod(m, caddr_t) + (m->m_len & (~3)), m->m_len & 3);
 	}
     } else {
-        for (m = top; m != 0; m = m->m_next) {
+        for (m = m0; m != NULL; m = m->m_next) {
 	    if (m->m_len > 1)
 	    	outsw(BASE + EP_W1_TX_PIO_WR_1,
 			mtod(m, caddr_t), m->m_len / 2);
@@ -560,11 +556,11 @@ startagain:
 
     splx(s);
 
-    BPF_MTAP(ifp, top);
+    BPF_MTAP(ifp, m0);
 
     ifp->if_timer = 2;
     ifp->if_opackets++;
-    m_freem(top);
+    m_freem(m0);
 
     /*
      * Is another packet coming in? We don't want to overflow the tiny RX
@@ -576,9 +572,8 @@ readcheck:
 	 * we check if we have packets left, in that case we prepare to come
 	 * back later
 	 */
-	if (ifp->if_snd.ifq_head) {
+	if (ifp->if_snd.ifq_head)
 	    outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
-	}
 	return;
     }
     goto startagain;
