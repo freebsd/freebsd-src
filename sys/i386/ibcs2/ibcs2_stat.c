@@ -232,15 +232,22 @@ ibcs2_utssys(p, uap, retval)
 	case 0:			/* uname(2) */
 	{
 		struct ibcs2_utsname sut;
-
 		bzero(&sut, ibcs2_utsname_len);
-		bcopy(ostype, sut.sysname, sizeof(sut.sysname) - 1);
-		bcopy(hostname, sut.nodename, sizeof(sut.nodename));
-		sut.nodename[sizeof(sut.nodename)-1] = '\0';
-		bcopy(osrelease, sut.release, sizeof(sut.release) - 1);
-		bcopy("1", sut.version, sizeof(sut.version) - 1);
-		bcopy(machine, sut.machine, sizeof(sut.machine) - 1);
 
+		strncpy(sut.sysname, IBCS2_UNAME_SYSNAME, sizeof(sut.sysname));
+		strncpy(sut.release, IBCS2_UNAME_RELEASE, sizeof(sut.release));
+		strncpy(sut.version, IBCS2_UNAME_VERSION, sizeof(sut.version));
+		strncpy(sut.nodename, hostname, sizeof(sut.nodename));
+		strncpy(sut.machine, machine, sizeof(sut.machine));
+		sut.sysname[sizeof(sut.sysname)-1] = '\0';
+		sut.release[sizeof(sut.release)-1] = '\0';
+		sut.version[sizeof(sut.version)-1] = '\0';
+		sut.nodename[sizeof(sut.nodename)-1] = '\0';
+		sut.machine[sizeof(sut.machine)-1] = '\0';
+
+		DPRINTF(("IBCS2 uname: sys=%s rel=%s ver=%s node=%s mach=%s\n",
+			 sut.sysname, sut.release, sut.version, sut.nodename,
+			 sut.machine));
 		return copyout((caddr_t)&sut, (caddr_t)SCARG(uap, a1),
 			       ibcs2_utsname_len);
 	}

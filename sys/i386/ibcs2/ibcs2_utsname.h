@@ -33,6 +33,18 @@
 #ifndef	_IBCS2_UTSNAME_H
 #define	_IBCS2_UTSNAME_H
 
+#ifndef IBCS2_UNAME_SYSNAME
+#define IBCS2_UNAME_SYSNAME ostype
+#endif
+
+#ifndef IBCS2_UNAME_RELEASE
+#define IBCS2_UNAME_RELEASE "3.2"
+#endif
+
+#ifndef IBCS2_UNAME_VERSION
+#define IBCS2_UNAME_VERSION "2.0"
+#endif
+
 struct ibcs2_utsname {
 	char	sysname[9];
 	char	nodename[9];
