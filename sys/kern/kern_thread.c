@@ -1066,7 +1066,7 @@ thread_unsuspend(struct proc *p)
 	mtx_assert(&sched_lock, MA_OWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!P_SHOULDSTOP(p)) {
-		while (( td = TAILQ_FIRST(&p->p_suspended))) {
+		while ((td = TAILQ_FIRST(&p->p_suspended))) {
 			thread_unsuspend_one(td);
 		}
 	} else if ((P_SHOULDSTOP(p) == P_STOPPED_SINGLE) &&
