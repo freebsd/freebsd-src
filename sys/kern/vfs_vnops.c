@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.68 1999/04/28 11:37:12 phk Exp $
+ * $Id: vfs_vnops.c,v 1.69 1999/07/02 16:29:15 phk Exp $
  */
 
 #include <sys/param.h>
@@ -334,10 +334,14 @@ vn_write(fp, uio, cred, flags)
 	struct ucred *cred;
 	int flags;
 {
-	struct vnode *vp = (struct vnode *)fp->f_data;
+	struct vnode *vp;
 	struct proc *p = uio->uio_procp;
 	int error, ioflag;
 
+	vp = (struct vnode *)fp->f_data;
+	if (vp->v_type == VREG)
+		bwillwrite();
+	vp = (struct vnode *)fp->f_data;	/* XXX needed? */
 	ioflag = IO_UNIT;
 	if (vp->v_type == VREG && (fp->f_flag & O_APPEND))
 		ioflag |= IO_APPEND;

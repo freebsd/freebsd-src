@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.57 1999/01/28 00:57:56 dillon Exp $
+ * $Id: ufs_readwrite.c,v 1.58 1999/04/05 19:38:30 julian Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -106,7 +106,8 @@ READ(ap)
 
 	if (object)
 		vm_object_reference(object);
-#if 1
+
+#ifdef ENABLE_VFS_IOOPT
 	/*
 	 * If IO optimisation is turned on,
 	 * and we are NOT a VM based IO request, 
@@ -150,7 +151,7 @@ READ(ap)
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
-#if 1
+#ifdef ENABLE_VFS_IOOPT
 		if ((ioflag & IO_VMIO) == 0 && (vfs_ioopt > 1) && object) {
 			/*
 			 * Obviously we didn't finish above, but we
@@ -276,6 +277,7 @@ READ(ap)
 			xfersize = size;
 		}
 
+#ifdef ENABLE_VFS_IOOPT
 		if (vfs_ioopt && object &&
 		    (bp->b_flags & B_VMIO) &&
 		    ((blkoffset & PAGE_MASK) == 0) &&
@@ -289,7 +291,9 @@ READ(ap)
 			error =
 				uiomoveco((char *)bp->b_data + blkoffset,
 					(int)xfersize, uio, object);
-		} else {
+		} else 
+#endif
+		{
 			/*
 			 * otherwise use the general form
 			 */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.352 1999/07/05 08:52:49 msmith Exp $
+ *	$Id: machdep.c,v 1.353 1999/07/06 07:13:33 cracauer Exp $
  */
 
 #include "apm.h"
@@ -355,7 +355,7 @@ again:
 
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
-
+	v = bufhashinit(v);
 
 	/*
 	 * End of first pass, size has been calculated so allocate memory

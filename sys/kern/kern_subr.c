@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.27 1999/02/22 18:39:49 bde Exp $
+ * $Id: kern_subr.c,v 1.28 1999/03/12 03:09:29 julian Exp $
  */
 
 #include <sys/param.h>
@@ -156,6 +156,7 @@ uiomoveco(cp, n, uio, obj)
 			if (ticks - switchticks >= hogticks)
 				uio_yield();
 			if (uio->uio_rw == UIO_READ) {
+#ifdef ENABLE_VFS_IOOPT
 				if (vfs_ioopt && ((cnt & PAGE_MASK) == 0) &&
 					((((intptr_t) iov->iov_base) & PAGE_MASK) == 0) &&
 					((uio->uio_offset & PAGE_MASK) == 0) &&
@@ -163,7 +164,9 @@ uiomoveco(cp, n, uio, obj)
 						error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
 								uio->uio_offset, cnt,
 								(vm_offset_t) iov->iov_base, NULL);
-				} else {
+				} else
+#endif
+				{
 					error = copyout(cp, iov->iov_base, cnt);
 				}
 			} else {
@@ -191,6 +194,8 @@ uiomoveco(cp, n, uio, obj)
 	}
 	return (0);
 }
+
+#ifdef ENABLE_VFS_IOOPT
 
 int
 uioread(n, uio, obj, nread)
@@ -257,6 +262,8 @@ uioread(n, uio, obj, nread)
 	}
 	return error;
 }
+
+#endif
 
 /*
  * Give next character to user as result of read.
