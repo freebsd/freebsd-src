@@ -14,21 +14,22 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ac.c,v 1.6 1997/02/22 16:01:11 peter Exp $";
-#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/time.h>
 #include <err.h>
 #include <errno.h>
+#include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <utmp.h>
 #include <unistd.h>
-#include <locale.h>
+#include <utmp.h>
 
 /*
  * this is for our list of currently logged in sessions
