@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 
 #include <i4b/layer4/i4b_l4.h>
 
+NET_NEEDS_GIANT("i4b_isppp");
+
 #define ISPPP_FMT	"isp%d: "
 #define	ISPPP_ARG(sc)	((sc)->sc_if.if_dunit)
 #define	PDEVSTATIC	static
