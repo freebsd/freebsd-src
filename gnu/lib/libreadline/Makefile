@@ -1,7 +1,5 @@
-#       $Id: Makefile,v 1.8 1994/05/13 15:47:02 ache Exp $
+#       $Id: Makefile,v 1.9 1994/05/14 01:18:01 ache Exp $
 
-SHLIB_MAJOR=1
-SHLIB_MINOR=0
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/readline -DVOID_SIGHANDLER \
 	 -DHAVE_UNISTD_H -DHAVE_STRING_H -DHAVE_STDLIB_H -DHAVE_VARARGS_H \
