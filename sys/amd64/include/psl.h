@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)psl.h	5.2 (Berkeley) 1/18/91
- *	$Id: psl.h,v 1.2 1993/10/16 14:39:26 rgrimes Exp $
+ *	$Id: psl.h,v 1.3 1993/11/07 17:43:04 wollman Exp $
  */
 
 #ifndef _MACHINE_PSL_H_
@@ -57,9 +57,9 @@
 #define	PSL_RF		0x00010000	/* restart flag bit */
 #define	PSL_VM		0x00020000	/* virtual 8086 mode bit */
 
-#define	PSL_MBZ		0xfffc7fb7	/* must be zero bits */
+#define	PSL_MBZ		0xffc08028	/* must be zero bits */
 #define	PSL_MBO		0x00000002	/* must be one bits */
 
-#define	PSL_USERSET	(PSL_IOPL)
-#define	PSL_USERCLR	(PSL_I|PSL_NT)
+#define	PSL_USERSET	(PSL_MBO | PSL_I)
+#define	PSL_USERCLR	(PSL_MBZ | PSL_NT)
 #endif /* _MACHINE_PSL_H_ */
