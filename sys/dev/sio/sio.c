@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.144 1996/07/17 22:07:23 julian Exp $
+ *	$Id: sio.c,v 1.145 1996/09/06 23:08:05 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2415,7 +2415,7 @@ siocncheckc(dev)
 	if (inb(iobase + com_lsr) & LSR_RXRDY)
 		c = inb(iobase + com_data);
 	else
-		c = 0;
+		c = -1;
 	siocnclose(&sp);
 	splx(s);
 	return (c);

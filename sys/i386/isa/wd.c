@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.116 1996/09/06 23:08:13 phk Exp $
+ *	$Id: wd.c,v 1.117 1996/09/06 23:32:41 pst Exp $
  */
 
 /* TODO:
@@ -1714,7 +1714,7 @@ wddump(dev_t dev)
 	static int wddoingadump = 0;
 
 	/* Toss any characters present prior to dump. */
-	while (cncheckc())
+	while (cncheckc() != -1)
 		;
 
 	/* Check for acceptable device. */
@@ -1875,7 +1875,7 @@ out:
 		blknum = blknext;
 
 		/* Operator aborting dump? */
-		if (cncheckc())
+		if (cncheckc() != -1)
 			return (EINTR);
 	}
 	return (0);
