@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.39 1998/08/17 06:16:59 jb Exp $";
+	"$Id: inetd.c,v 1.40 1998/08/18 02:10:05 jb Exp $";
 #endif /* not lint */
 
 /*
@@ -228,6 +228,7 @@ void		endconfig __P((void));
 struct servtab *enter __P((struct servtab *));
 void		freeconfig __P((struct servtab *));
 struct servtab *getconfigent __P((void));
+void		ident_stream __P((int, struct servtab *));
 void		machtime_dg __P((int, struct servtab *));
 void		machtime_stream __P((int, struct servtab *));
 char	       *newstr __P((char *));
@@ -275,6 +276,8 @@ struct biltin {
 	{ "chargen",	SOCK_DGRAM,	0, 0,	chargen_dg },
 
 	{ "tcpmux",	SOCK_STREAM,	1, 0,	(void (*)())tcpmux },
+
+	{ "ident",	SOCK_STREAM,	1, 0,	ident_stream },
 
 	{ NULL }
 };
@@ -1450,6 +1453,33 @@ inetd_setproctitle(a, s)
  */
 #define	BUFSIZE	8192
 
+#define IDENT_RESPONSE ":ERROR:HIDDEN-USER\r\n"
+
+/* ARGSUSED */
+void
+ident_stream(s, sep)		/* Ident service */
+	int s;
+	struct servtab *sep;
+{
+	char buffer[BUFSIZE];
+	int i, j;
+
+	inetd_setproctitle(sep->se_service, s);
+	j = 0;
+	while ((i = read(s, buffer + j, sizeof(buffer) - j)) > 0) {
+		j += i;
+		buffer[j] = '\0';
+		if (strchr(buffer, '\n'))
+			break;
+		if (strchr(buffer, '\r'))
+			break;
+	}
+	while (j > 0 && (buffer[j-1] == '\n' || buffer[j-1] == '\r'))
+		j--;
+	write(s, buffer, j);
+	write(s, IDENT_RESPONSE, strlen(IDENT_RESPONSE));
+	exit(0);
+}
 /* ARGSUSED */
 void
 echo_stream(s, sep)		/* Echo service -- echo data back */
