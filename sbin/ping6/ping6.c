@@ -1042,7 +1042,7 @@ main(argc, argv)
 		itimer.it_interval = interval;
 		itimer.it_value = interval;
 		(void)setitimer(ITIMER_REAL, &itimer, NULL);
-		if (ntransmitted)
+		if (ntransmitted == 0)
 			retransmit();
 	}
 
