@@ -528,7 +528,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 */
 	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
 	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
-	if (!md) {
+	if (md == NULL || mdcount == 0) {
 #ifdef SKI
 		static EFI_MEMORY_DESCRIPTOR ski_md[2];
 		/*
