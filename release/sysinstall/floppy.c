@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.13 1996/07/02 01:03:41 jkh Exp $
+ * $Id: floppy.c,v 1.14 1996/07/08 08:54:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,7 +54,7 @@
 static Device *floppyDev;
 static Boolean floppyMounted;
 
-static char *distWanted;
+char *distWanted;
 
 /* For finding floppies */
 static int
@@ -127,9 +127,9 @@ mediaInitFloppy(Device *dev)
     }
     msgDebug("Init floppy called for %s distribution.\n", distWanted ? distWanted : "some");
     if (!distWanted)
-    	msgConfirm("Please insert next floppy into %s", dev->description);
-    else
-	msgConfirm("Please insert floppy containing %s into %s", distWanted, dev->description);
+    	msgConfirm("Please insert floppy for %s", dev->description);
+    else if (distWanted != (char *)1)	/* 1 is kludge for "don't ask!" */
+	msgConfirm("Please insert floppy containing %s for %s", distWanted, dev->description);
 
     memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
@@ -141,7 +141,8 @@ mediaInitFloppy(Device *dev)
 
     if (mount(MOUNT_MSDOS, "/dist", MNT_RDONLY, (caddr_t)&dosargs) == -1) {
 	if (mount(MOUNT_UFS, "/dist", MNT_RDONLY, (caddr_t)&u_args) == -1) {
-	    msgConfirm("Error mounting floppy %s (%s) on /dist : %s", dev->name, dev->devname, strerror(errno));
+	    if (distWanted != (char *)1)
+		msgConfirm("Error mounting floppy %s (%s) on /dist : %s", dev->name, dev->devname, strerror(errno));
 	    return FALSE;
 	}
     }
