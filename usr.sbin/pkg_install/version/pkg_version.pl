@@ -37,7 +37,8 @@ use Getopt::Std;
 #
 # Configuration global variables
 #
-$CurrentPackagesCommand = '/usr/sbin/pkg_info -aI';
+$AllCurrentPackagesCommand = '/usr/sbin/pkg_info -aI';
+$SelectedCurrentPackagesCommand = '/usr/sbin/pkg_info -I';
 $CatProgram = "cat ";
 $FetchProgram = "fetch -o - ";
 $OriginCommand = '/usr/sbin/pkg_info -qo';
@@ -263,13 +264,15 @@ sub GetNameAndVersion {
 #
 sub PrintHelp {
     print <<"EOF"
-Usage:	pkg_version [-c] [-d debug] [-h] [-l limchar] [-L limchar] [-v] [index]
+Usage:	pkg_version [-c] [-d debug] [-h] [-l limchar] [-L limchar] [-s string] 
+		    [-v] [index]
 	pkg_version [-d debug] -t v1 v2
 -c              Show commands to update installed packages
 -d debug	Debugging output (debug controls level of output)
 -h		Help (this message)
 -l limchar	Limit output to status flags that match
 -L limchar	Limit output to status flags that DON\'T match
+-s string	Limit output to packages matching a string
 -v		Verbose output
 index		URL or filename of index file
 		(Default is $IndexFile)
@@ -281,7 +284,7 @@ EOF
 #
 # Parse command-line arguments, deal with them
 #
-if (!getopts('cdhl:L:tv') || ($opt_h)) {
+if (!getopts('cdhl:L:s:tv') || ($opt_h)) {
     &PrintHelp();
     exit;
 }
@@ -302,6 +305,9 @@ if ($opt_L) {
 }
 if ($opt_t) {
     $TestFlag = 1;
+}
+if ($opt_s) {
+    $StringFlag = $opt_s;
 }
 if ($opt_v) {
     $VerboseFlag = 1;
@@ -341,11 +347,17 @@ else {
 #
 # Get the current list of installed packages
 #
-if ($DebugFlag) {
-    print STDERR "$CurrentPackagesCommand\n";
+if ($StringFlag) {
+    if ($DebugFlag) {
+       print STDERR "$SelectedCurrentPackagesCommand *$StringFlag*\n";
+    }
+    open CURRENT, "$SelectedCurrentPackagesCommand \\*$StringFlag\\*|";
+} else {
+    if ($DebugFlag) {
+       print STDERR "$AllCurrentPackagesCommand\n";
+    }
+    open CURRENT, "$AllCurrentPackagesCommand|";
 }
-
-open CURRENT, "$CurrentPackagesCommand|";
 while (<CURRENT>) {
     ($packageString, $rest) = split;
 
