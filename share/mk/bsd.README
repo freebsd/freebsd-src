@@ -205,39 +205,19 @@ DPADD		Additional dependencies for the program.  Usually used for
 
 			SRCLIB=${LIBCOMPAT} ${LIBUTIL}
 
-		The following libraries are predefined for DPADD:
+		There is a predefined identifier for each (non-profiled,
+		non-shared) library and object.  Library file names are
+		transformed to identifiers by removing the extension and
+		converting to upper case.
 
-			LIBCRT0		/usr/lib/crt0.o (sic)
-			LIBC		/usr/lib/libc.a
-			LIBCOMPAT	/usr/lib/libcompat.a
-			LIBCRYPT	/usr/lib/libcrypt.a
-			LIBCURSES	/usr/lib/libcurses.a
-			LIBDES		/usr/lib/libdes.a
-			LIBDIALOG	/usr/lib/libdialog.a
-			LIBEDIT		/usr/lib/libedit.a
-			LIBGCC		/usr/lib/libgcc.a
-			LIBGNUMALLOC	/usr/lib/libgnumalloc.a
-			LIBGNUREGEX	/usr/lib/libgnuregex.a
-			LIBKDB		/usr/lib/libkdb.a
-			LIBKRB		/usr/lib/libkrb.a
-			LIBKVM		/usr/lib/libkvm.a
-			LIBL		/usr/lib/libl.a
-			LIBM		/usr/lib/libm.a
-			LIBMD		/usr/lib/libmd.a
-			LIBMP		/usr/lib/libmp.a
-			LIBMYTINFO	/usr/lib/libmytinfo.a
-			LIBNCURSES	/usr/lib/libncurses.a
-			LIBPC		/usr/lib/libpc.a
-			LIBPLOT		/usr/lib/libplot.a
-			LIBREADLINE	/usr/lib/libreadline.a
-			LIBRESOLV	/usr/lib/libresolv.a
-			LIBRPCSVC	/usr/lib/librpcsvc.a
-			LIBSCRYPT	/usr/lib/libscrypt.a
-			LIBSKEY		/usr/lib/libskey.a
-			LIBTELNET	/usr/lib/libtelnet.a
-			LIBTERMCAP	/usr/lib/libtermcap.a
-			LIBUTIL		/usr/lib/libutil.a
-			LIBY		/usr/lib/liby.a
+		There are no special identifiers for profiled or shared
+		libraries or objects.  The identifiers for the standard
+		libraries are used in DPADD.  This works correctly iff all
+		the libraries are built at the same time.  Unfortunately,
+		it causes unnecessary relinks to shared libraries when
+		only the static libraries have changed.  Dependencies on
+		shared libraries should be only on the library version
+		numbers.
 
 STRIP		The flag passed to the install program to cause the binary
 		to be stripped.
