@@ -273,7 +273,6 @@ ShowChunkFlags(struct chunk *c)
 	if (c->flags & CHUNK_ALIGN)		ret[i++] = '=';
 	if (c->flags & CHUNK_PAST_1024)		ret[i++] = '>';
 	if (c->flags & CHUNK_IS_ROOT)		ret[i++] = 'R';
-	if (c->flags & CHUNK_BAD144)		ret[i++] = 'B';
 	ret[i++] = '\0';
 	return ret;
 }
