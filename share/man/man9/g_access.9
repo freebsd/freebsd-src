@@ -73,6 +73,14 @@ The topology lock must be held.
 .Sh RETURN VALUES
 .Fn g_attach
 returns the value 0 if successful; otherwise an error code is returned.
+Note, that
+.Fn g_access
+function cannot failed when arguments
+.Fa dcr ,
+.Fa dcw
+and
+.Fa dce
+are less than or equal to 0.
 .Sh ERRORS
 Possible errors:
 .Bl -tag -width Er
