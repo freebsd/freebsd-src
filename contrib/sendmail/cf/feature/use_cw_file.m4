@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: use_cw_file.m4,v 8.11 2001/08/26 20:58:57 gshapiro Exp $')
+VERSIONID(`$Id: use_cw_file.m4,v 1.1.1.4 2002/02/17 21:56:44 gshapiro Exp $')
 divert(-1)
 
 # if defined, the sendmail.cf will read the /etc/mail/local-host-names file

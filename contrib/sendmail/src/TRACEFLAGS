@@ -1,4 +1,4 @@
-#	$Id: TRACEFLAGS,v 8.35 2001/11/28 01:01:25 gshapiro Exp $
+#	$Id: TRACEFLAGS,v 1.1.1.5 2002/02/17 21:56:38 gshapiro Exp $
 0, 1	main.c		main	skip background fork
 0, 4	main.c		main	canonical name, UUCP node name, a.k.a.s
 0, 15	main.c		main	print configuration

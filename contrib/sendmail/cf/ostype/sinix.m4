@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: sinix.m4,v 8.13 1999/04/24 05:37:43 gshapiro Exp $')
+VERSIONID(`$Id: sinix.m4,v 1.1.1.3 2000/08/12 21:55:41 gshapiro Exp $')
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
 define(`LOCAL_MAILER_PATH', `/bin/mail.local')dnl
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', `/var/sendmail.st')')dnl

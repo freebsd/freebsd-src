@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: darwin.m4,v 8.3 2002/03/05 01:55:40 ca Exp $')
+VERSIONID(`$Id: darwin.m4,v 1.1.1.3 2002/04/10 03:04:58 gshapiro Exp $')
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', `/var/log/sendmail.st')')dnl
 dnl turn on S flag for local mailer
 MODIFY_MAILER_FLAGS(`LOCAL', `+S')dnl

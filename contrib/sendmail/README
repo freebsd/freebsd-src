@@ -400,4 +400,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.81 $, Last updated $Date: 2001/09/26 16:22:19 $
+$Revision: 1.1.1.6 $, Last updated $Date: 2002/02/17 21:56:38 $

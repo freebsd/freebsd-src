@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.87 2002/04/02 08:11:52 gshapiro Exp $
+ *	$Id: conf.h,v 1.1.1.2 2002/04/10 03:04:54 gshapiro Exp $
  */
 
 /*

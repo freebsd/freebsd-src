@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: macro.c,v 8.86 2001/09/11 04:05:14 gshapiro Exp $")
+SM_RCSID("@(#)$Id: macro.c,v 1.1.1.7 2002/02/17 21:56:39 gshapiro Exp $")
 
 #if MAXMACROID != (BITMAPBITS - 1)
 	ERROR Read the comment in conf.h

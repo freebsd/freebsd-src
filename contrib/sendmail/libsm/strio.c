@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: strio.c,v 1.42 2002/02/11 23:05:50 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: strio.c,v 1.1.1.2 2002/04/10 03:04:56 gshapiro Exp $")
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>

@@ -32,7 +32,7 @@ POPDIVERT
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-VERSIONID(`$Id: local.m4,v 8.58 2000/10/26 01:58:29 ca Exp $')
+VERSIONID(`$Id: local.m4,v 1.1.1.5 2002/02/17 21:56:44 gshapiro Exp $')
 
 #
 #  Envelope sender rewriting

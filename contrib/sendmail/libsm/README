@@ -5,7 +5,7 @@
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-#	$Id: README,v 1.21 2002/01/23 17:30:48 gshapiro Exp $
+#	$Id: README,v 1.1.1.2 2002/04/10 03:04:55 gshapiro Exp $
 #
 
 Libsm is a library of generally useful C abstractions.
