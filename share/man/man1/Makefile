@@ -6,6 +6,7 @@ MAN=	builtin.1 intro.1
 # Create MLINKS for Shell built in commands for which there are no userland
 # utilities of the same name:
 MLINKS=	builtin.1 alias.1 builtin.1 alloc.1 builtin.1 bg.1 builtin.1 bindkey.1 \
+	builtin.1 bind.1 \
 	builtin.1 break.1 builtin.1 breaksw.1 builtin.1 builtins.1 \
 	builtin.1 case.1 builtin.1 cd.1 builtin.1 chdir.1 builtin.1 command.1 \
 	builtin.1 complete.1 \
