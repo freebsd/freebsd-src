@@ -501,9 +501,10 @@ void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
 int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
-void	procinit __P((void));
 int	p_can __P((const struct proc *p1, const struct proc *p2, int operation,
     int *privused));
+void	proc_reparent __P((struct proc *child, struct proc *newparent));
+void	procinit __P((void));
 
 void	resetpriority __P((struct proc *));
 int	roundrobin_interval __P((void));
