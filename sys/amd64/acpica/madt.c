@@ -200,7 +200,9 @@ madt_probe(void)
 	 */
 	if (AcpiOsGetRootPointer(ACPI_LOGICAL_ADDRESSING, &rsdp_ptr) != AE_OK)
 		return (ENXIO);
+#ifdef __i386__
 	KASSERT(rsdp_ptr.Pointer.Physical < KERNLOAD, ("RSDP too high"));
+#endif
 	rsdp = pmap_mapdev(rsdp_ptr.Pointer.Physical, sizeof(RSDP_DESCRIPTOR));
 	if (rsdp == NULL) {
 		if (bootverbose)
@@ -308,8 +310,8 @@ madt_setup_local(void)
 	madt = pmap_mapdev(madt_physaddr, madt_length);
 	lapic_init((uintptr_t)madt->LocalApicAddress);
 	printf("ACPI APIC Table: <%.*s %.*s>\n",
-	    sizeof(madt->Header.OemId), madt->Header.OemId,
-	    sizeof(madt->Header.OemTableId), madt->Header.OemTableId);
+	    (int)sizeof(madt->Header.OemId), madt->Header.OemId,
+	    (int)sizeof(madt->Header.OemTableId), madt->Header.OemTableId);
 
 	/*
 	 * We ignore 64-bit local APIC override entries.  Should we
@@ -419,7 +421,7 @@ madt_parse_apics(APIC_HEADER *entry, void *arg __unused)
 		if (bootverbose)
 			printf("MADT: Found IO APIC ID %d, Vector %d at %p\n",
 			    apic->IoApicId, apic->Vector,
-			    (void *)apic->IoApicAddress);
+			    (void *)(uintptr_t)apic->IoApicAddress);
 		if (apic->IoApicId >= NIOAPICS)
 			panic("%s: I/O APIC ID %d too high", __func__,
 			    apic->IoApicId);
