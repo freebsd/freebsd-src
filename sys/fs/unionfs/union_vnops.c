@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.32 1997/05/02 03:21:54 kato Exp $
+ * $Id: union_vnops.c,v 1.33 1997/05/03 01:55:19 kato Exp $
  */
 
 #include <sys/param.h>
@@ -64,47 +64,47 @@
 #define	SETKLOCK(un)	(un)->un_flags |= UN_KLOCK
 #define	CLEARKLOCK(un)	(un)->un_flags &= ~UN_KLOCK
 
-extern int	union_abortop __P((struct vop_abortop_args *ap));
-extern int	union_access __P((struct vop_access_args *ap));
-extern int	union_advlock __P((struct vop_advlock_args *ap));
-extern int	union_bmap __P((struct vop_bmap_args *ap));
-extern int	union_close __P((struct vop_close_args *ap));
-extern int	union_create __P((struct vop_create_args *ap));
+static int	union_abortop __P((struct vop_abortop_args *ap));
+static int	union_access __P((struct vop_access_args *ap));
+static int	union_advlock __P((struct vop_advlock_args *ap));
+static int	union_bmap __P((struct vop_bmap_args *ap));
+static int	union_close __P((struct vop_close_args *ap));
+static int	union_create __P((struct vop_create_args *ap));
 static void	union_fixup __P((struct union_node *un, struct proc *p));
-extern int	union_fsync __P((struct vop_fsync_args *ap));
-extern int	union_getattr __P((struct vop_getattr_args *ap));
-extern int	union_inactive __P((struct vop_inactive_args *ap));
-extern int	union_ioctl __P((struct vop_ioctl_args *ap));
-extern int	union_islocked __P((struct vop_islocked_args *ap));
-extern int	union_lease __P((struct vop_lease_args *ap));
-extern int	union_link __P((struct vop_link_args *ap));
-extern int	union_lock __P((struct vop_lock_args *ap));
-extern int	union_lookup __P((struct vop_lookup_args *ap));
+static int	union_fsync __P((struct vop_fsync_args *ap));
+static int	union_getattr __P((struct vop_getattr_args *ap));
+static int	union_inactive __P((struct vop_inactive_args *ap));
+static int	union_ioctl __P((struct vop_ioctl_args *ap));
+static int	union_islocked __P((struct vop_islocked_args *ap));
+static int	union_lease __P((struct vop_lease_args *ap));
+static int	union_link __P((struct vop_link_args *ap));
+static int	union_lock __P((struct vop_lock_args *ap));
+static int	union_lookup __P((struct vop_lookup_args *ap));
 static int	union_lookup1 __P((struct vnode *udvp, struct vnode **dvpp,
 				   struct vnode **vpp,
 				   struct componentname *cnp));
-extern int	union_mkdir __P((struct vop_mkdir_args *ap));
-extern int	union_mknod __P((struct vop_mknod_args *ap));
-extern int	union_mmap __P((struct vop_mmap_args *ap));
-extern int	union_open __P((struct vop_open_args *ap));
-extern int	union_pathconf __P((struct vop_pathconf_args *ap));
-extern int	union_print __P((struct vop_print_args *ap));
-extern int	union_read __P((struct vop_read_args *ap));
-extern int	union_readdir __P((struct vop_readdir_args *ap));
-extern int	union_readlink __P((struct vop_readlink_args *ap));
-extern int	union_reclaim __P((struct vop_reclaim_args *ap));
-extern int	union_remove __P((struct vop_remove_args *ap));
-extern int	union_rename __P((struct vop_rename_args *ap));
-extern int	union_revoke __P((struct vop_revoke_args *ap));
-extern int	union_rmdir __P((struct vop_rmdir_args *ap));
-extern int	union_seek __P((struct vop_seek_args *ap));
-extern int	union_select __P((struct vop_select_args *ap));
-extern int	union_setattr __P((struct vop_setattr_args *ap));
-extern int	union_strategy __P((struct vop_strategy_args *ap));
-extern int	union_symlink __P((struct vop_symlink_args *ap));
-extern int	union_unlock __P((struct vop_unlock_args *ap));
-extern int	union_whiteout __P((struct vop_whiteout_args *ap));
-extern int	union_write __P((struct vop_read_args *ap));
+static int	union_mkdir __P((struct vop_mkdir_args *ap));
+static int	union_mknod __P((struct vop_mknod_args *ap));
+static int	union_mmap __P((struct vop_mmap_args *ap));
+static int	union_open __P((struct vop_open_args *ap));
+static int	union_pathconf __P((struct vop_pathconf_args *ap));
+static int	union_print __P((struct vop_print_args *ap));
+static int	union_read __P((struct vop_read_args *ap));
+static int	union_readdir __P((struct vop_readdir_args *ap));
+static int	union_readlink __P((struct vop_readlink_args *ap));
+static int	union_reclaim __P((struct vop_reclaim_args *ap));
+static int	union_remove __P((struct vop_remove_args *ap));
+static int	union_rename __P((struct vop_rename_args *ap));
+static int	union_revoke __P((struct vop_revoke_args *ap));
+static int	union_rmdir __P((struct vop_rmdir_args *ap));
+static int	union_seek __P((struct vop_seek_args *ap));
+static int	union_select __P((struct vop_select_args *ap));
+static int	union_setattr __P((struct vop_setattr_args *ap));
+static int	union_strategy __P((struct vop_strategy_args *ap));
+static int	union_symlink __P((struct vop_symlink_args *ap));
+static int	union_unlock __P((struct vop_unlock_args *ap));
+static int	union_whiteout __P((struct vop_whiteout_args *ap));
+static int	union_write __P((struct vop_read_args *ap));
 
 static void
 union_fixup(un, p)
@@ -193,7 +193,7 @@ union_lookup1(udvp, dvpp, vpp, cnp)
 	return (0);
 }
 
-int
+static int
 union_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnodeop_desc *a_desc;
@@ -441,7 +441,7 @@ union_lookup(ap)
 	return (error);
 }
 
-int
+static int
 union_create(ap)
 	struct vop_create_args /* {
 		struct vnode *a_dvp;
@@ -482,7 +482,7 @@ union_create(ap)
 	return (EROFS);
 }
 
-int
+static int
 union_whiteout(ap)
 	struct vop_whiteout_args /* {
 		struct vnode *a_dvp;
@@ -501,7 +501,7 @@ union_whiteout(ap)
 	return (VOP_WHITEOUT(un->un_uppervp, cnp, ap->a_flags));
 }
 
-int
+static int
 union_mknod(ap)
 	struct vop_mknod_args /* {
 		struct vnode *a_dvp;
@@ -544,7 +544,7 @@ union_mknod(ap)
 	return (EROFS);
 }
 
-int
+static int
 union_open(ap)
 	struct vop_open_args /* {
 		struct vnodeop_desc *a_desc;
@@ -597,7 +597,7 @@ union_open(ap)
 	return (error);
 }
 
-int
+static int
 union_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -630,7 +630,7 @@ union_close(ap)
  * file permissions are given away simply because
  * the user caused an implicit file copy.
  */
-int
+static int
 union_access(ap)
 	struct vop_access_args /* {
 		struct vnodeop_desc *a_desc;
@@ -677,7 +677,7 @@ union_access(ap)
  * We handle getattr only to change the fsid and
  * track object sizes
  */
-int
+static int
 union_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -747,7 +747,7 @@ union_getattr(ap)
 	return (0);
 }
 
-int
+static int
 union_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnode *a_vp;
@@ -791,7 +791,7 @@ union_setattr(ap)
 	return (error);
 }
 
-int
+static int
 union_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -835,7 +835,7 @@ union_read(ap)
 	return (error);
 }
 
-int
+static int
 union_write(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -870,7 +870,7 @@ union_write(ap)
 	return (error);
 }
 
-int
+static int
 union_lease(ap)
 	struct vop_lease_args /* {
 		struct vnode *a_vp;
@@ -885,7 +885,7 @@ union_lease(ap)
 	return (VCALL(ovp, VOFFSET(vop_lease), ap));
 }
 
-int
+static int
 union_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -902,7 +902,7 @@ union_ioctl(ap)
 	return (VCALL(ovp, VOFFSET(vop_ioctl), ap));
 }
 
-int
+static int
 union_select(ap)
 	struct vop_select_args /* {
 		struct vnode *a_vp;
@@ -918,7 +918,7 @@ union_select(ap)
 	return (VCALL(ovp, VOFFSET(vop_select), ap));
 }
 
-int
+static int
 union_revoke(ap)
 	struct vop_revoke_args /* {
 		struct vnode *a_vp;
@@ -936,7 +936,7 @@ union_revoke(ap)
 	return (0);
 }
 
-int
+static int
 union_mmap(ap)
 	struct vop_mmap_args /* {
 		struct vnode *a_vp;
@@ -951,7 +951,7 @@ union_mmap(ap)
 	return (VCALL(ovp, VOFFSET(vop_mmap), ap));
 }
 
-int
+static int
 union_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
@@ -990,7 +990,7 @@ union_fsync(ap)
 	return (error);
 }
 
-int
+static int
 union_seek(ap)
 	struct vop_seek_args /* {
 		struct vnode *a_vp;
@@ -1005,7 +1005,7 @@ union_seek(ap)
 	return (VCALL(ovp, VOFFSET(vop_seek), ap));
 }
 
-int
+static int
 union_remove(ap)
 	struct vop_remove_args /* {
 		struct vnode *a_dvp;
@@ -1054,7 +1054,7 @@ union_remove(ap)
 	return (error);
 }
 
-int
+static int
 union_link(ap)
 	struct vop_link_args /* {
 		struct vnode *a_tdvp;
@@ -1110,7 +1110,7 @@ union_link(ap)
 	return (VOP_LINK(tdvp, vp, cnp));
 }
 
-int
+static int
 union_rename(ap)
 	struct vop_rename_args  /* {
 		struct vnode *a_fdvp;
@@ -1209,7 +1209,7 @@ bad:
 	return (error);
 }
 
-int
+static int
 union_mkdir(ap)
 	struct vop_mkdir_args /* {
 		struct vnode *a_dvp;
@@ -1250,7 +1250,7 @@ union_mkdir(ap)
 	return (EROFS);
 }
 
-int
+static int
 union_rmdir(ap)
 	struct vop_rmdir_args /* {
 		struct vnode *a_dvp;
@@ -1299,7 +1299,7 @@ union_rmdir(ap)
 	return (error);
 }
 
-int
+static int
 union_symlink(ap)
 	struct vop_symlink_args /* {
 		struct vnode *a_dvp;
@@ -1339,7 +1339,7 @@ union_symlink(ap)
  * down the union stack.  readdir(3) is responsible for
  * eliminating duplicate names from the returned data stream.
  */
-int
+static int
 union_readdir(ap)
 	struct vop_readdir_args /* {
 		struct vnode *a_vp;
@@ -1362,7 +1362,7 @@ union_readdir(ap)
 	return (VCALL(uvp, VOFFSET(vop_readdir), ap));
 }
 
-int
+static int
 union_readlink(ap)
 	struct vop_readlink_args /* {
 		struct vnode *a_vp;
@@ -1388,7 +1388,7 @@ union_readlink(ap)
 	return (error);
 }
 
-int
+static int
 union_abortop(ap)
 	struct vop_abortop_args /* {
 		struct vnode *a_dvp;
@@ -1417,7 +1417,7 @@ union_abortop(ap)
 	return (error);
 }
 
-int
+static int
 union_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -1457,7 +1457,7 @@ union_inactive(ap)
 	return (0);
 }
 
-int
+static int
 union_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -1469,7 +1469,7 @@ union_reclaim(ap)
 	return (0);
 }
 
-int
+static int
 union_lock(ap)
 	struct vop_lock_args *ap;
 {
@@ -1497,7 +1497,7 @@ start:
 	if (un->un_uppervp != NULLVP) {
 		if (((un->un_flags & (UN_ULOCK | UN_KLOCK)) == 0) &&
 		    (vp->v_usecount != 0)) {
-			if (VOP_ISLOCKED(un->un_uppervp)) {
+			if (0 && VOP_ISLOCKED(un->un_uppervp)) {
 				/*
 				 * XXX
 				 * Erm, we find race!
@@ -1549,7 +1549,7 @@ start:
  *
  * If UN_KLOCK isn't set, then the upper vnode is unlocked here.
  */
-int
+static int
 union_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
@@ -1588,7 +1588,7 @@ union_unlock(ap)
 	return (0);
 }
 
-int
+static int
 union_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -1616,7 +1616,7 @@ union_bmap(ap)
 	return (error);
 }
 
-int
+static int
 union_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -1634,7 +1634,7 @@ union_print(ap)
 	return (0);
 }
 
-int
+static int
 union_islocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
@@ -1644,7 +1644,7 @@ union_islocked(ap)
 	return ((VTOUNION(ap->a_vp)->un_flags & UN_LOCKED) ? 1 : 0);
 }
 
-int
+static int
 union_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -1669,7 +1669,7 @@ union_pathconf(ap)
 	return (error);
 }
 
-int
+static int
 union_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
@@ -1691,7 +1691,7 @@ union_advlock(ap)
  * vnode in its arguments.
  * This goes away with a merged VM/buffer cache.
  */
-int
+static int
 union_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
