@@ -259,7 +259,7 @@ main(argc, argv)
 		FILE *fp;
 
 		if ((fp = fopen(pidfilename, "w")) == NULL)
-			warnmsg(LOG_ERR, __FUNCTION__,
+			warnmsg(LOG_ERR, __func__,
 				"failed to open a log file(%s): %s",
 				pidfilename, strerror(errno));
 		else {
@@ -300,7 +300,7 @@ main(argc, argv)
 		e = select(maxfd + 1, &select_fd, NULL, NULL, timeout);
 		if (e < 1) {
 			if (e < 0 && errno != EINTR) {
-				warnmsg(LOG_ERR, __FUNCTION__, "select: %s",
+				warnmsg(LOG_ERR, __func__, "select: %s",
 				       strerror(errno));
 			}
 			continue;
@@ -325,19 +325,19 @@ ifconfig(char *ifname)
 	int flags;
 
 	if ((sdl = if_nametosdl(ifname)) == NULL) {
-		warnmsg(LOG_ERR, __FUNCTION__,
+		warnmsg(LOG_ERR, __func__,
 		       "failed to get link layer information for %s", ifname);
 		return(-1);
 	}
 	if (find_ifinfo(sdl->sdl_index)) {
-		warnmsg(LOG_ERR, __FUNCTION__,
+		warnmsg(LOG_ERR, __func__,
 			"interface %s was already configured", ifname);
 		free(sdl);
 		return(-1);
 	}
 
 	if ((ifinfo = malloc(sizeof(*ifinfo))) == NULL) {
-		warnmsg(LOG_ERR, __FUNCTION__, "memory allocation failed");
+		warnmsg(LOG_ERR, __func__, "memory allocation failed");
 		free(sdl);
 		return(-1);
 	}
@@ -435,7 +435,7 @@ make_packet(struct ifinfo *ifinfo)
 	size_t packlen = sizeof(struct nd_router_solicit), lladdroptlen = 0;
 
 	if ((lladdroptlen = lladdropt_length(ifinfo->sdl)) == 0) {
-		warnmsg(LOG_INFO, __FUNCTION__,
+		warnmsg(LOG_INFO, __func__,
 			"link-layer address option has null length"
 		       " on %s. Treat as not included.", ifinfo->ifname);
 	}
@@ -444,7 +444,7 @@ make_packet(struct ifinfo *ifinfo)
 
 	/* allocate buffer */
 	if ((buf = malloc(packlen)) == NULL) {
-		warnmsg(LOG_ERR, __FUNCTION__,
+		warnmsg(LOG_ERR, __func__,
 			"memory allocation failed for %s", ifinfo->ifname);
 		return(-1);
 	}
@@ -480,7 +480,7 @@ rtsol_check_timer()
 	for (ifinfo = iflist; ifinfo; ifinfo = ifinfo->next) {
 		if (TIMEVAL_LEQ(ifinfo->expire, now)) {
 			if (dflag > 1)
-				warnmsg(LOG_DEBUG, __FUNCTION__,
+				warnmsg(LOG_DEBUG, __func__,
 					"timer expiration on %s, "
 				       "state = %d", ifinfo->ifname,
 				       ifinfo->state);
@@ -506,7 +506,7 @@ rtsol_check_timer()
 					interface_status(ifinfo);
 
 				if (oldstatus != ifinfo->active) {
-					warnmsg(LOG_DEBUG, __FUNCTION__,
+					warnmsg(LOG_DEBUG, __func__,
 						"%s status is changed"
 						" from %d to %d",
 						ifinfo->ifname,
@@ -536,7 +536,7 @@ rtsol_check_timer()
 				if (ifinfo->probes < MAX_RTR_SOLICITATIONS)
 					sendpacket(ifinfo);
 				else {
-					warnmsg(LOG_INFO, __FUNCTION__,
+					warnmsg(LOG_INFO, __func__,
 						"No answer "
 						"after sending %d RSs",
 						ifinfo->probes);
@@ -553,7 +553,7 @@ rtsol_check_timer()
 	}
 
 	if (TIMEVAL_EQ(rtsol_timer, tm_max)) {
-		warnmsg(LOG_DEBUG, __FUNCTION__, "there is no timer");
+		warnmsg(LOG_DEBUG, __func__, "there is no timer");
 		return(NULL);
 	}
 	else if (TIMEVAL_LT(rtsol_timer, now))
@@ -563,7 +563,7 @@ rtsol_check_timer()
 		TIMEVAL_SUB(&rtsol_timer, &now, &returnval);
 
 	if (dflag > 1)
-		warnmsg(LOG_DEBUG, __FUNCTION__, "New timer is %ld:%08ld",
+		warnmsg(LOG_DEBUG, __func__, "New timer is %ld:%08ld",
 			(long)returnval.tv_sec, (long)returnval.tv_usec);
 
 	return(&returnval);
@@ -621,7 +621,7 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 		}
 		break;
 	default:
-		warnmsg(LOG_ERR, __FUNCTION__,
+		warnmsg(LOG_ERR, __func__,
 			"illegal interface state(%d) on %s",
 			ifinfo->state, ifinfo->ifname);
 		return;
@@ -630,7 +630,7 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 	/* reset the timer */
 	if (TIMEVAL_EQ(ifinfo->timer, tm_max)) {
 		ifinfo->expire = tm_max;
-		warnmsg(LOG_DEBUG, __FUNCTION__,
+		warnmsg(LOG_DEBUG, __func__,
 			"stop timer for %s", ifinfo->ifname);
 	}
 	else {
@@ -638,7 +638,7 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 		TIMEVAL_ADD(&now, &ifinfo->timer, &ifinfo->expire);
 
 		if (dflag > 1)
-			warnmsg(LOG_DEBUG, __FUNCTION__,
+			warnmsg(LOG_DEBUG, __func__,
 				"set timer for %s to %d:%d", ifinfo->ifname,
 			       (int)ifinfo->timer.tv_sec,
 			       (int)ifinfo->timer.tv_usec);
