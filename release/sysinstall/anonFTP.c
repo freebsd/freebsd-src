@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.15 1996/08/03 10:10:29 jkh Exp $
+ * $Id: anonFTP.c,v 1.16 1996/09/01 08:17:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -423,7 +423,7 @@ configAnonFTP(dialogMenuItem *self)
 	    vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
 	    vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd", tconf.homedir, tconf.homedir);
 	    vsystem("cp /etc/group %s/etc && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
-	    vsystem("chown -R %s.%s %s/pub", FTP_NAME, tconf.group, tconf.homedir);
+	    vsystem("chown -R root.%s %s/pub", tconf.group, tconf.homedir);
 	}
 	else {
 	    msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
