@@ -173,8 +173,8 @@ next:		for (start = fmt;; ++fmt) {
 			if (*fmt == '%') {
 				if (*++fmt != '%')
 					break;
-				*fmt++ = '\0';
-				(void)printf("%s", start);
+				(void)printf("%.*s", (int)(fmt - start), start);
+				fmt++;
 				goto next;
 			}
 		}
