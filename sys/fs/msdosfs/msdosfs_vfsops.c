@@ -546,8 +546,9 @@ mountmsdosfs(devvp, mp, td, argp)
 	 * Check and validate (or perhaps invalidate?) the fsinfo structure?
 	 */
 	if (pmp->pm_fsinfo && pmp->pm_nxtfree > pmp->pm_maxcluster) {
-		printf("Next free cluster in FSInfo (%u) exceeds maxcluster (%u)\n",
-				pmp->pm_nxtfree, pmp->pm_maxcluster);
+		printf(
+		"Next free cluster in FSInfo (%lu) exceeds maxcluster (%lu)\n",
+		    pmp->pm_nxtfree, pmp->pm_maxcluster);
 		error = EINVAL;
 		goto error_exit;
 	}
