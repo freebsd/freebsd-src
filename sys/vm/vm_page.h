@@ -307,11 +307,13 @@ extern struct mtx vm_page_queue_mtx;
 #define vm_page_unlock_queues() mtx_unlock(&vm_page_queue_mtx)
 
 #if PAGE_SIZE == 4096
-#define VM_PAGE_BITS_ALL 0xff
-#endif
-
-#if PAGE_SIZE == 8192
-#define VM_PAGE_BITS_ALL 0xffff
+#define VM_PAGE_BITS_ALL 0xffu
+#elif PAGE_SIZE == 8192
+#define VM_PAGE_BITS_ALL 0xffffu
+#elif PAGE_SIZE == 16384
+#define VM_PAGE_BITS_ALL 0xffffffffu
+#elif PAGE_SIZE == 32768
+#define VM_PAGE_BITS_ALL 0xfffffffffffffffflu
 #endif
 
 /* page allocation classes: */
