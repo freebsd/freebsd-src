@@ -29,21 +29,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.4 1994/09/22 22:35:53 wollman Exp $
+ *	$Id: modload.c,v 1.5 1994/09/24 03:18:32 wollman Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <errno.h>
+
 #include <err.h>
 #include <a.out.h>
+
 #include <sys/param.h>
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 #include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/lkm.h>
 #include <sys/file.h>
-#include <sys/errno.h>
+#include <sys/wait.h>
+#include <sys/signal.h>
 #include "pathnames.h"
 
 #ifndef DFLT_ENTRY
@@ -51,6 +56,13 @@
 #endif	/* !DFLT_ENTRY */
 
 #define	min(a, b)	((a) < (b) ? (a) : (b))
+
+int debug = 0;
+int verbose = 0;
+int quiet = 0;
+int dounlink = 0;
+
+extern char *sys_siglist[];
 
 /*
  * Expected linker options:
@@ -61,48 +73,52 @@
  * -T		address to link to in hex (assumes it's a page boundry)
  * <target>	object file
  */
-#define	LINKCMD		"ld -A %s -e _%s -o %s -T %x %s"
 
-int debug = 0;
-int verbose = 0;
-int quiet = 0;
-int dounlink = 0;
-
-int
+void
 linkcmd(kernel, entry, outfile, address, object)
 	char *kernel, *entry, *outfile;
 	u_int address;	/* XXX */
 	char *object;
 {
-	char cmdbuf[1024];
-	int error = 0;
+	char addrbuf[32], entrybuf[_POSIX2_LINE_MAX];
+	pid_t pid;
+	int status;
 
-	sprintf(cmdbuf, LINKCMD, kernel, entry, outfile, address, object);
+	snprintf(entrybuf, sizeof entrybuf, "_%s", entry);
+	snprintf(addrbuf, sizeof addrbuf, "%x", address);
 
 	if (debug)
-		printf("%s\n", cmdbuf);
+		printf("%s -A %s -e %s -o %s -T %s %s\n",
+		       _PATH_LD, kernel, entrybuf, outfile,
+		       addrbuf, object);
 
-	switch (system(cmdbuf)) {
-	case 0:				/* SUCCESS! */
-		break;
-	case 1:				/* uninformitive error */
-		/*
-		 * Someone needs to fix the return values from the FreeBSD
-		 * ld program -- it's totally uninformative.
-		 *
-		 * No such file		(4 on SunOS)
-		 * Can't write output	(2 on SunOS)
-		 * Undefined symbol	(1 on SunOS)
-		 * etc.
-		 */
-	case 127:			/* can't load shell */
-	case 32512:
-	default:
-		error = 1;
-		break;
+	pid = fork();
+	if(pid < 0) {
+		err(18, "fork");
 	}
 
-	return error;
+	if(pid == 0) {
+		execl(_PATH_LD, "ld", "-A", kernel, "-e", entrybuf, "-o",
+		      outfile, "-T", addrbuf, object, (char *)0);
+		exit(128 + errno);
+	}
+
+	waitpid(pid, &status, 0);
+
+	if(WIFSIGNALED(status)) {
+		errx(1, "%s got signal: %s", _PATH_LD, 
+		     sys_siglist[WTERMSIG(status)]);
+	}
+
+	if(WEXITSTATUS(status) > 128) {
+		errno = WEXITSTATUS(status) - 128;
+		err(1, "exec(%s)", _PATH_LD);
+	}
+
+	if(WEXITSTATUS(status) != 0) {
+		errx(1, "%s: return code %d", WEXITSTATUS(status));
+	}
+
 }
 
 void
@@ -223,11 +239,16 @@ main(argc, argv)
 		*p = 0;
 	}
 
+	modfd = open(out, O_RDWR | O_CREAT, 0666);
+	if(modfd < 0) {
+		err(1, "creating %s", out);
+	}
+	close(modfd);
+
 	/*
 	 * Prelink to get file size
 	 */
-	if (linkcmd(kname, entry, out, 0, modobj))
-		errx(1, "can't prelink `%s' creating `%s'", modobj, out);
+	linkcmd(kname, entry, out, 0, modobj);
 
 	/*
 	 * Pre-open the 0-linked module to get the size information
@@ -275,9 +296,7 @@ main(argc, argv)
 	/*
 	 * Relink at kernel load address
 	 */
-	if (linkcmd(kname, entry, out, resrv.addr, modobj))
-		errx(1, "can't link `%s' creating `%s' bound to 0x%08x",
-		    modobj, out, resrv.addr);
+	linkcmd(kname, entry, out, resrv.addr, modobj);
 
 	/*
 	 * Open the relinked module to load it...
