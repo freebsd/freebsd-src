@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.27 1997/04/30 03:16:20 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.28 1997/06/18 03:21:31 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -119,6 +119,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # BROKEN		- Port is broken.  Set this string to the reason why.
 # RESTRICTED	- Port is restricted.  Set this string to the reason why.
 # USE_GMAKE		- Says that the port uses gmake.
+# USE_PERL5		- Says that the port uses perl5 for building and running.
 # USE_IMAKE		- Says that the port uses imake.
 # USE_X11		- Says that the port uses X11 (i.e., installs in ${X11BASE}).
 # NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
@@ -302,7 +303,11 @@ BUILD_DEPENDS+=	${EXEC_DEPENDS}
 RUN_DEPENDS+=	${EXEC_DEPENDS}
 .endif
 .if defined(USE_GMAKE)
-BUILD_DEPENDS+=               gmake:${PORTSDIR}/devel/gmake
+BUILD_DEPENDS+=		gmake:${PORTSDIR}/devel/gmake
+.endif
+.if defined(USE_PERL5)
+BUILD_DEPENDS+=		perl5.004:${PORTSDIR}/lang/perl5
+RUN_DEPENDS+=		perl5.004:${PORTSDIR}/lang/perl5
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
