@@ -245,6 +245,7 @@ dev/ppbus/vpoio.c	optional vpo
 dev/randomdev/harvest.c	standard
 dev/randomdev/randomdev.c	optional randomdev
 dev/randomdev/yarrow.c	optional randomdev
+dev/randomdev/hash.c	optional randomdev
 crypto/blowfish/bf_cbc.c	optional randomdev
 crypto/blowfish/bf_enc.c	optional randomdev
 crypto/blowfish/bf_skey.c	optional randomdev
