@@ -37,10 +37,11 @@ CPUTYPE = athlon
 # Logic to set up correct gcc optimization flag.  This must be included
 # after /etc/make.conf so it can react to the local value of CPUTYPE
 # defined therein.  Consult:
-#	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86-64-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/DEC-Alpha-Options.html
-#	http://gcc.gnu.org/onlinedocs/gcc/SPARC-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/IA-64-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/SPARC-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86-64-Options.html
 
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
