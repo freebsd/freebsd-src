@@ -36,13 +36,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.42 1997/07/06 02:40:36 dyson Exp $
+ * $Id: proc.h,v 1.43 1997/09/13 19:42:27 joerg Exp $
  */
 
 #ifndef _SYS_PROC_H_
 #define	_SYS_PROC_H_
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
+#include <sys/callout.h>		/* For struct callout_handle. */
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/select.h>			/* For struct selinfo. */
 #include <sys/time.h>			/* For structs itimerval, timeval. */
@@ -108,6 +109,10 @@ struct	proc {
 	LIST_ENTRY(proc) p_sibling;	/* List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* Pointer to list of children. */
 
+	struct callout_handle p_ithandle; /*
+					      * Callout handle for scheduling
+					      * p_realtimer.
+					      */
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
 

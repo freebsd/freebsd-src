@@ -36,22 +36,38 @@
  * SUCH DAMAGE.
  *
  *	@(#)callout.h	8.2 (Berkeley) 1/21/94
- * $Id: callout.h,v 1.6 1997/02/22 09:44:50 peter Exp $
+ * $Id: callout.h,v 1.7 1997/09/07 05:26:57 bde Exp $
  */
 
 #ifndef _SYS_CALLOUT_H_
 #define _SYS_CALLOUT_H_
 
+#include <sys/queue.h>
+
+SLIST_HEAD(callout_list, callout);
+TAILQ_HEAD(callout_tailq, callout);
+
 struct callout {
-	struct	callout *c_next;		/* next callout in queue */
+	union {
+		SLIST_ENTRY(callout) sle;
+		TAILQ_ENTRY(callout) tqe;
+	} c_links;
+	struct	callout_tailq *c_bucket;
 	void	*c_arg;				/* function argument */
 	void	(*c_func) __P((void *));	/* function to call */
 	int	c_time;				/* ticks to the event */
 };
 
-#ifdef KERNEL
-extern struct	callout *callfree, *callout;
-extern int	ncallout;
-#endif
+struct callout_handle {
+	struct callout *callout;
+};
 
-#endif
+#ifdef KERNEL
+extern struct callout_list callfree;
+extern struct callout *callout;
+extern int	ncallout;
+extern struct callout_tailq *callwheel;
+extern int	callwheelsize, callwheelbits, callwheelmask;
+#endif /* KERNEL */
+
+#endif /* _SYS_CALLOUT_H_ */

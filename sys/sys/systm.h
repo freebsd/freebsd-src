@@ -36,13 +36,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.58 1997/09/07 16:20:55 bde Exp $
+ * $Id: systm.h,v 1.59 1997/09/16 14:19:46 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
 #define	_SYS_SYSTM_H_
 
 #include <machine/cpufunc.h>
+#include <sys/callout.h>
 
 extern int securelevel;		/* system security level (see init(8)) */
 
@@ -87,6 +88,8 @@ void	*phashinit __P((int count, int type, u_long *nentries));
 void	panic __P((const char *, ...)) __dead2;
 void	boot __P((int)) __dead2;
 void	cpu_boot __P((int));
+void	cpu_rootconf __P((void));
+void	cpu_dumpconf __P((void));
 void	tablefull __P((const char *));
 int	addlog __P((const char *, ...));
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
@@ -157,18 +160,25 @@ void	startrtclock __P((void));
 
 /* Timeouts */
 typedef void timeout_t __P((void *));	/* timeout function type */
+#define CALLOUT_HANDLE_INITIALIZER(handle)	\
+	{ NULL }
 
-void	timeout __P((timeout_t *, void *, int));
-void	untimeout __P((timeout_t *, void *));
+void	callout_handle_init __P((struct callout_handle *));
+struct	callout_handle timeout __P((timeout_t *, void *, int));
+void	untimeout __P((timeout_t *, void *, struct callout_handle));
 
 /* Interrupt management */
 void		setdelayed(void);
 void		setsoftast(void);
 void		setsoftclock(void);
 void		setsoftnet(void);
+void		setsoftcambio(void);
+void		setsoftcamnet(void);
 void		setsofttty(void);
 void		schedsoftnet(void);
 void		schedsofttty(void);
+void		schedsoftcamnet(void);
+void		schedsoftcambio(void);
 void		spl0(void);
 intrmask_t	softclockpending(void);
 intrmask_t	splbio(void);
@@ -179,6 +189,10 @@ intrmask_t	splnet(void);
 #ifdef SMP
 intrmask_t	splq(intrmask_t mask);
 #endif
+intrmask_t	splcam(void);
+intrmask_t	splsoftcam(void);
+intrmask_t	splsoftcambio(void);
+intrmask_t	splsoftcamnet(void);
 intrmask_t	splsoftclock(void);
 intrmask_t	splsofttty(void);
 intrmask_t	splstatclock(void);
@@ -194,6 +208,7 @@ void		splz(void);
  * implicitly causes these to be defined when it #included <machine/spl.h>
  */
 extern intrmask_t bio_imask;	/* group of interrupts masked with splbio() */
+extern intrmask_t cam_imask;	/* group of interrupts masked with splcam() */
 extern intrmask_t net_imask;	/* group of interrupts masked with splimp() */
 extern intrmask_t stat_imask;	/* interrupts masked with splstatclock() */
 extern intrmask_t tty_imask;	/* group of interrupts masked with spltty() */

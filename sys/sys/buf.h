@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.40 1997/09/07 16:56:34 bde Exp $
+ * $Id: buf.h,v 1.41 1997/09/16 11:44:02 bde Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -57,8 +57,6 @@ struct iodone_chain {
 		void	*ia_ptr;
 	}	ic_args[5];
 };
-
-typedef TAILQ_HEAD(buf_queue_head, buf) buf_queue_head, *buf_queue_head_t;
 
 /*
  * The buffer header describes an I/O operation in the kernel.
@@ -148,6 +146,72 @@ struct buf {
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
+
+typedef struct buf_queue_head {
+	TAILQ_HEAD(, buf) queue;
+	struct	buf *insert_point;
+	struct	buf *switch_point;
+} buf_queue_head, *buf_queue_head_t;
+
+static __inline void bufq_init __P((buf_queue_head *head));
+
+static __inline void bufq_insert_tail __P((buf_queue_head *head,
+						struct buf *bp));
+
+static __inline void bufq_remove __P((buf_queue_head *head,
+					   struct buf *bp));
+
+static __inline struct buf *bufq_first __P((buf_queue_head *head));
+
+static __inline void
+bufq_init(buf_queue_head *head)
+{
+	TAILQ_INIT(&head->queue);
+	head->insert_point = NULL;
+	head->switch_point = NULL;
+}
+
+static __inline void
+bufq_insert_tail(buf_queue_head *head, struct buf *bp)
+{
+	if ((bp->b_flags & B_ORDERED) != 0) {
+		head->insert_point = bp;
+		head->switch_point = NULL;
+	}
+	TAILQ_INSERT_TAIL(&head->queue, bp, b_act);
+}
+
+static __inline void
+bufq_remove(buf_queue_head *head, struct buf *bp)
+{
+	if (bp == TAILQ_FIRST(&head->queue)) {
+		if (bp == head->insert_point)
+			head->insert_point = NULL;
+		if (TAILQ_NEXT(bp, b_act) == head->switch_point)
+			head->switch_point = NULL;
+	} else {
+		if (bp == head->insert_point) {
+			/*
+			 * Not 100% correct (we really want the
+			 * previous bp), but it will ensure queue
+			 * ordering and is less expensive than
+			 * using a CIRCLEQ.
+			 */
+			head->insert_point == TAILQ_NEXT(bp, b_act);
+		}
+		if (bp == head->switch_point) {
+			head->switch_point == TAILQ_NEXT(bp, b_act);
+		}		
+	}
+	TAILQ_REMOVE(&head->queue, bp, b_act);
+}
+
+static __inline struct buf *
+bufq_first(buf_queue_head *head)
+{
+	return (TAILQ_FIRST(&head->queue));
+}
+
 
 /*
  * number of buffer hash entries
