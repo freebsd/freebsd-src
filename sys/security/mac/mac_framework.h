@@ -83,6 +83,7 @@ int	 mac_from_text(mac_t *_label, const char *_text);
 int	 mac_get_fd(int _fd, mac_t _label);
 int	 mac_get_file(const char *_path, mac_t _label);
 int	 mac_get_link(const char *_path, mac_t _label);
+int	 mac_get_peer(int _fd, mac_t _label);
 int	 mac_get_pid(pid_t _pid, mac_t _label);
 int	 mac_get_proc(mac_t _label);
 int	 mac_is_present(const char *_policyname);
