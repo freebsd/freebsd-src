@@ -143,7 +143,7 @@ nommap(dev, offset, nprot)
 }
 
 int
-nodump(dev_t dev, void *virtual __unused, vm_offset_t physical __unused, off_t offset __unused, size_t length __unused)
+nodump(void *arg, void *virtual __unused, vm_offset_t physical __unused, off_t offset __unused, size_t length __unused)
 {
 
 	return (ENODEV);
