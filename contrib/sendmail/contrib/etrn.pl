@@ -15,7 +15,7 @@ $sockaddr = 'S n a4 x8';
 # 	must have 'hostname' program.
 
 #############################################################################
-#  Copyright (c) 1996 John T. Beck <john@beck.org>
+#  Copyright (c) 1996-2000 John T. Beck <john@beck.org>
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ $0 = "$av0 - running hostname";
 chop($name = `hostname || uname -n`);
 
 $0 = "$av0 - lookup host FQDN and IP addr";
-($hostname,$aliases,$type,$len,$thisaddr) = gethostbyname($name);
+($hostname,$aliases,$type,$len,undef) = gethostbyname($name);
 
 $0 = "$av0 - parsing args";
 $usage = "Usage: $av0 [-wd] host [args]";
@@ -71,12 +71,13 @@ $server = shift(@ARGV);
 @hosts = @ARGV;
 die $usage unless $server;
 @cwfiles = ();
+$alarm_action = "";
 
 if (!@hosts) {
 	push(@hosts,$hostname);
 
 	$0 = "$av0 - parsing sendmail.cf";
-	open(CF, "</etc/sendmail.cf") || die "open /etc/sendmail.cf: $!";
+	open(CF, "</etc/mail/sendmail.cf") || die "open /etc/mail/sendmail.cf: $!";
 	while (<CF>){
 		if (/^Fw.*$/){			# look for a line starting with "Fw"
 			$cwfile = $_;
@@ -125,6 +126,7 @@ $0 = "$av0 - building local socket";
 $0 = "$av0 - gethostbyname($server)";
 
 ($name,$aliases,$type,$len,$thataddr) = gethostbyname($server);
+(!defined($name)) && die "gethostbyname failed, unknown host $server";
 				
 # get a connection
 $0 = "$av0 - socket to $server";
@@ -132,22 +134,24 @@ $that = pack($sockaddr, &AF_INET, $port, $thataddr);
 socket(S, &AF_INET, &SOCK_STREAM, $proto)
 	|| die "socket: $!";
 $0 = "$av0 - connect to $server";
-print "debug = $debug server = $server\n" if $debug > 8;
+print "debug = $debug server = $server\n" if (defined($debug) && $debug > 8);
+&alarm("connect to $server");
 if (! connect(S, $that)) {
-	$0 = "$av0 - $server: could not connect: $!\n";
+	die "cannot connect to $server: $!\n";
 }
+alarm(0);
 select((select(S),$| = 1)[0]); # don't buffer output to S
 
 # read the greeting
 $0 = "$av0 - talking to $server";
-&alarm("greeting with $server",'');
+&alarm("greeting with $server");
 while(<S>) {
 	alarm(0);
 	print if $watch;
 	if (/^(\d+)([- ])/) {
 		if ($1 != 220) {
 			$0 = "$av0 - bad numeric response from $server";
-			&alarm("giving up after bad response from $server",'');
+			&alarm("giving up after bad response from $server");
 			&read_response($2,$watch);
 			alarm(0);
 			print STDERR "$server: NOT 220 greeting: $_"
@@ -160,13 +164,13 @@ while(<S>) {
 			if ($debug || $watch);
 		close(S);
 	}
-	&alarm("greeting with $server",'');
+	&alarm("greeting with $server");
 }
 alarm(0);
 	
 # if this causes problems, remove it
 $0 = "$av0 - sending helo to $server";
-&alarm("sending ehlo to $server","");
+&alarm("sending ehlo to $server");
 &ps("ehlo $hostname");
 $etrn_support = 0;
 while(<S>) {
@@ -180,7 +184,7 @@ alarm(0);
 
 if ($etrn_support){
 	print "ETRN supported\n" if ($debug);
-	&alarm("sending etrn to $server",'');
+	&alarm("sending etrn to $server");
 	while (@hosts) {
 		$server = shift(@hosts);
 		&ps("etrn $server");
@@ -194,7 +198,7 @@ if ($etrn_support){
 	print "\nETRN not supported\n\n"
 }
 
-&alarm("sending 'quit' to $server",'');
+&alarm("sending 'quit' to $server");
 $0 = "$av0 - sending 'quit' to $server";
 &ps("quit");
 while(<S>) {
@@ -217,14 +221,25 @@ sub ps
 
 sub alarm
 {
-	local($alarm_action,$alarm_redirect,$alarm_user) = @_;
-	alarm(3600);
+	($alarm_action) = @_;
+	alarm(10);
 	$SIG{ALRM} = 'handle_alarm';
 }
 
 sub handle_alarm
 {
-	&giveup($alarm_redirect,"Timed out during $alarm_action",$alarm_user);
+	&giveup($alarm_action);
+}
+
+sub giveup
+{
+	local($reason) = @_;
+	local($pk,$file,$line);
+	($pk, $file, $line) = caller;
+
+	$0 = "$av0 - giving up on $server: $reason";
+	print "Timed out during $reason\n" if $debug;
+	exit(1);
 }
 
 # read the rest of the current smtp daemon's response (and toss it away)
@@ -241,9 +256,9 @@ sub read_response
 	return @resp;
 }
 # to pass perl -w:
-@tp;
-$flag_a;
-$flag_d;
+my $x;
+$x=$opt_d;
+$x=$opt_w;
 &handle_alarm;
 ################### BEGIN PERL/TROFF TRANSITION 
 .00 ;	
@@ -300,7 +315,7 @@ it is possible to eliminate bugs.
 .SH ENVIRONMENT
 No enviroment variables are used.
 .SH FILES
-.B /etc/sendmail.cf
+.B /etc/mail/sendmail.cf
 .SH SEE ALSO
 .BR sendmail (8),
 RFC 1985.

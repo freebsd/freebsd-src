@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+#
+#	$Id: Build,v 8.2.2.1 2000/04/10 06:41:07 gshapiro Exp $
+
+exec sh ../devtools/bin/Build $*

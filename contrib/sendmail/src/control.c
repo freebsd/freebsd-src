@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
@@ -8,10 +9,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)control.c	8.18 (Berkeley) 1/17/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: control.c,v 8.44.14.7 2000/07/03 21:49:05 geir Exp $";
+#endif /* ! lint */
 
-#include "sendmail.h"
+#include <sendmail.h>
+
 
 int ControlSocket = -1;
 
@@ -31,10 +33,10 @@ int ControlSocket = -1;
 int
 opencontrolsocket()
 {
-#ifdef NETUNIX
-# if _FFR_CONTROL_SOCKET
+#if NETUNIX
+	int save_errno;
 	int rval;
-	int sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_CREAT|SFF_MUSTOWN;
+	long sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_CREAT|SFF_MUSTOWN;
 	struct sockaddr_un controladdr;
 
 	if (ControlSocketName == NULL)
@@ -60,28 +62,26 @@ opencontrolsocket()
 	if (ControlSocket < 0)
 		return -1;
 
-	unlink(ControlSocketName);
-	bzero(&controladdr, sizeof controladdr);
+	(void) unlink(ControlSocketName);
+	memset(&controladdr, '\0', sizeof controladdr);
 	controladdr.sun_family = AF_UNIX;
-	strcpy(controladdr.sun_path, ControlSocketName);
+	(void) strlcpy(controladdr.sun_path, ControlSocketName,
+		       sizeof controladdr.sun_path);
 
 	if (bind(ControlSocket, (struct sockaddr *) &controladdr,
 		 sizeof controladdr) < 0)
 	{
-		int save_errno = errno;
-
+		save_errno = errno;
 		clrcontrol();
 		errno = save_errno;
 		return -1;
 	}
 
-#  if _FFR_TRUSTED_USER
 	if (geteuid() == 0 && TrustedUid != 0)
 	{
 		if (chown(ControlSocketName, TrustedUid, -1) < 0)
 		{
-			int save_errno = errno;
-
+			save_errno = errno;
 			sm_syslog(LOG_ALERT, NOQID,
 				  "ownership change on %s failed: %s",
 				  ControlSocketName, errstring(save_errno));
@@ -92,12 +92,10 @@ opencontrolsocket()
 			return -1;
 		}
 	}
-#  endif
 
 	if (chmod(ControlSocketName, S_IRUSR|S_IWUSR) < 0)
 	{
-		int save_errno = errno;
-
+		save_errno = errno;
 		closecontrolsocket(TRUE);
 		errno = save_errno;
 		return -1;
@@ -105,14 +103,12 @@ opencontrolsocket()
 
 	if (listen(ControlSocket, 8) < 0)
 	{
-		int save_errno = errno;
-
+		save_errno = errno;
 		closecontrolsocket(TRUE);
 		errno = save_errno;
 		return -1;
 	}
-# endif
-#endif
+#endif /* NETUNIX */
 	return 0;
 }
 /*
@@ -132,9 +128,8 @@ void
 closecontrolsocket(fullclose)
 	bool fullclose;
 {
-#ifdef NETUNIX
-# if _FFR_CONTROL_SOCKET
-	int sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_CREAT|SFF_MUSTOWN;
+#if NETUNIX
+	long sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_CREAT|SFF_MUSTOWN;
 
 	if (ControlSocket >= 0)
 	{
@@ -148,7 +143,7 @@ closecontrolsocket(fullclose)
 
 		rval = safefile(ControlSocketName, RunAsUid, RunAsGid, RunAsUserName,
 				sff, S_IRUSR|S_IWUSR, NULL);
-		
+
 		/* if not safe, don't unlink */
 		if (rval != 0)
 			return;
@@ -161,8 +156,7 @@ closecontrolsocket(fullclose)
 			return;
 		}
 	}
-# endif
-#endif
+#endif /* NETUNIX */
 	return;
 }
 /*
@@ -181,13 +175,11 @@ closecontrolsocket(fullclose)
 void
 clrcontrol()
 {
-#ifdef NETUNIX
-# if _FFR_CONTROL_SOCKET
+#if NETUNIX
 	if (ControlSocket >= 0)
 		(void) close(ControlSocket);
 	ControlSocket = -1;
-# endif
-#endif
+#endif /* NETUNIX */
 }
 
 #ifndef NOT_SENDMAIL
@@ -196,7 +188,7 @@ clrcontrol()
 **  CONTROL_COMMAND -- read and process command from named socket
 **
 **	Read and process the command from the opened socket.
-**	Return the results down the same socket.
+**	Exits when done since it is running in a forked child.
 **
 **	Parameters:
 **		sock -- the opened socket from getrequests()
@@ -208,11 +200,11 @@ clrcontrol()
 
 struct cmd
 {
-	char	*cmdname;	/* command name */
-	int	cmdcode;	/* internal code, see below */
+	char	*cmd_name;	/* command name */
+	int	cmd_code;	/* internal code, see below */
 };
 
-/* values for cmdcode */
+/* values for cmd_code */
 # define CMDERROR	0	/* bad command */
 # define CMDRESTART	1	/* restart daemon */
 # define CMDSHUTDOWN	2	/* end daemon */
@@ -228,12 +220,23 @@ static struct cmd	CmdTab[] =
 	{ NULL,		CMDERROR	}
 };
 
+static jmp_buf	CtxControlTimeout;
+
+static void
+controltimeout(timeout)
+	time_t timeout;
+{
+	longjmp(CtxControlTimeout, 1);
+}
+
 void
 control_command(sock, e)
 	int sock;
 	ENVELOPE *e;
 {
-	FILE *s;
+	volatile int exitstat = EX_OK;
+	FILE *s = NULL;
+	EVENT *ev = NULL;
 	FILE *traffic;
 	FILE *oldout;
 	char *cmd;
@@ -241,33 +244,45 @@ control_command(sock, e)
 	struct cmd *c;
 	char cmdbuf[MAXLINE];
 	char inp[MAXLINE];
-	extern char **SaveArgv;
-	extern void help __P((char *));
 
-	sm_setproctitle(FALSE, "control cmd read");
-		
+	sm_setproctitle(FALSE, e, "control cmd read");
+
+	if (TimeOuts.to_control > 0)
+	{
+		/* handle possible input timeout */
+		if (setjmp(CtxControlTimeout) != 0)
+		{
+			if (LogLevel > 2)
+				sm_syslog(LOG_NOTICE, e->e_id,
+					  "timeout waiting for input during control command");
+			exit(EX_IOERR);
+		}
+		ev = setevent(TimeOuts.to_control, controltimeout,
+			      TimeOuts.to_control);
+	}
+
 	s = fdopen(sock, "r+");
 	if (s == NULL)
 	{
 		int save_errno = errno;
 
-		close(sock);
+		(void) close(sock);
 		errno = save_errno;
-		return;
+		exit(EX_IOERR);
 	}
 	setbuf(s, NULL);
 
 	if (fgets(inp, sizeof inp, s) == NULL)
 	{
-		fclose(s);
-		return;
+		(void) fclose(s);
+		exit(EX_IOERR);
 	}
 	(void) fflush(s);
 
 	/* clean up end of line */
 	fixcrlf(inp, TRUE);
 
-	sm_setproctitle(FALSE, "control: %s", inp);
+	sm_setproctitle(FALSE, e, "control: %s", inp);
 
 	/* break off command */
 	for (p = inp; isascii(*p) && isspace(*p); p++)
@@ -278,72 +293,59 @@ control_command(sock, e)
 	       cmd < &cmdbuf[sizeof cmdbuf - 2])
 		*cmd++ = *p++;
 	*cmd = '\0';
-	
+
 	/* throw away leading whitespace */
 	while (isascii(*p) && isspace(*p))
 		p++;
-	
+
 	/* decode command */
-	for (c = CmdTab; c->cmdname != NULL; c++)
+	for (c = CmdTab; c->cmd_name != NULL; c++)
 	{
-		if (!strcasecmp(c->cmdname, cmdbuf))
+		if (strcasecmp(c->cmd_name, cmdbuf) == 0)
 			break;
 	}
 
-	switch (c->cmdcode)
+	switch (c->cmd_code)
 	{
 	  case CMDHELP:		/* get help */
 		traffic = TrafficLogFile;
 		TrafficLogFile = NULL;
 		oldout = OutChannel;
 		OutChannel = s;
-		help("control");
+		help("control", e);
 		TrafficLogFile = traffic;
 		OutChannel = oldout;
 		break;
-		
-	  case CMDRESTART:	/* restart the daemon */
-		if (SaveArgv[0][0] != '/')
-		{
-			fprintf(s, "ERROR: could not restart: need full path\r\n");
-			break;
-		}
-		if (LogLevel > 3)
-			sm_syslog(LOG_INFO, NOQID,
-				  "restarting %s on due to control command",
-				  SaveArgv[0]);
-		closecontrolsocket(FALSE);
-		if (drop_privileges(TRUE) != EX_OK)
-		{
-			if (LogLevel > 0)
-				sm_syslog(LOG_ALERT, NOQID,
-					  "could not set[ug]id(%d, %d): %m",
-					  RunAsUid, RunAsGid);
 
-			fprintf(s, "ERROR: could not set[ug]id(%d, %d): %s, exiting...\r\n",
-				(int)RunAsUid, (int)RunAsGid, errstring(errno));
-			finis(FALSE, EX_OSERR);
-		}
+	  case CMDRESTART:	/* restart the daemon */
 		fprintf(s, "OK\r\n");
-		clrcontrol();
-		(void) fcntl(sock, F_SETFD, 1);
-		execve(SaveArgv[0], (ARGV_T) SaveArgv, (ARGV_T) ExternalEnviron);
-		if (LogLevel > 0)
-			sm_syslog(LOG_ALERT, NOQID, "could not exec %s: %m",
-				  SaveArgv[0]);
-		fprintf(s, "ERROR: could not exec %s: %s, exiting...\r\n",
-			SaveArgv[0], errstring(errno));
-		finis(FALSE, EX_OSFILE);
+		exitstat = EX_RESTART;
 		break;
 
 	  case CMDSHUTDOWN:	/* kill the daemon */
 		fprintf(s, "OK\r\n");
-		finis(FALSE, EX_OK);
+		exitstat = EX_SHUTDOWN;
 		break;
 
 	  case CMDSTATUS:	/* daemon status */
 		proc_list_probe();
-		fprintf(s, "%d/%d\r\n", CurChildren, MaxChildren);
+		{
+			long bsize;
+			long free;
+
+			free = freediskspace(QueueDir, &bsize);
+
+			/*
+			**  Prevent overflow and don't lose
+			**  precision (if bsize == 512)
+			*/
+
+			free = (long)((double)free * ((double)bsize / 1024));
+
+			fprintf(s, "%d/%d/%ld/%d\r\n",
+				CurChildren, MaxChildren,
+				free, sm_getla(NULL));
+		}
 		proc_list_display(s);
 		break;
 
@@ -351,6 +353,10 @@ control_command(sock, e)
 		fprintf(s, "Bad command (%s)\r\n", cmdbuf);
 		break;
 	}
-	fclose(s);
+	(void) fclose(s);
+	if (ev != NULL)
+		clrevent(ev);
+	exit(exitstat);
 }
-#endif
+#endif /* ! NOT_SENDMAIL */
+

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,10 +12,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)trace.c	8.12 (Berkeley) 5/19/1998";
-#endif /* not lint */
+static char id[] = "@(#)$Id: trace.c,v 8.20.22.1 2000/05/25 18:56:18 gshapiro Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
+#include <sendmail.h>
 
 /*
 **  TtSETUP -- set up for trace package.
@@ -31,8 +32,8 @@ static char sccsid[] = "@(#)trace.c	8.12 (Berkeley) 5/19/1998";
 **		environment is set up.
 */
 
-u_char		*tTvect;
-int		tTsize;
+static u_char	*tTvect;
+static int	tTsize;
 static char	*DefFlags;
 
 void
@@ -62,7 +63,7 @@ void
 tTflag(s)
 	register char *s;
 {
-	unsigned int first, last;
+	int first, last;
 	register unsigned int i;
 
 	if (*s == '\0')

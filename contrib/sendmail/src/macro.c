@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,10 +12,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)macro.c	8.26 (Berkeley) 11/8/1998";
-#endif /* not lint */
+static char id[] = "@(#)$Id: macro.c,v 8.40.16.1 2000/05/25 18:56:15 gshapiro Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
+#include <sendmail.h>
 
 char	*MacroName[256];	/* macro id to name table */
 int	NextMacroId = 0240;	/* codes for long named macros */
@@ -55,9 +56,9 @@ expand(s, buf, bufsize, e)
 
 	if (tTd(35, 24))
 	{
-		printf("expand(");
+		dprintf("expand(");
 		xputs(s);
-		printf(")\n");
+		dprintf(")\n");
 	}
 
 	skipping = FALSE;
@@ -84,7 +85,12 @@ expand(s, buf, bufsize, e)
 			if (skipping)
 				skiplev++;
 			else
-				skipping = macvalue(c, e) == NULL;
+			{
+				char *mv;
+
+				mv = macvalue(c, e);
+				skipping = (mv == NULL || *mv == '\0');
+			}
 			continue;
 
 		  case CONDELSE:	/* change state of skipping */
@@ -142,9 +148,9 @@ expand(s, buf, bufsize, e)
 
 	if (tTd(35, 24))
 	{
-		printf("expand ==> ");
+		dprintf("expand ==> ");
 		xputs(xbuf);
-		printf("\n");
+		dprintf("\n");
 	}
 
 	/* recurse as appropriate */
@@ -163,9 +169,9 @@ expand(s, buf, bufsize, e)
 
 	/* copy results out */
 	i = xp - xbuf;
-	if (i >= bufsize)
+	if ((size_t)i >= bufsize)
 		i = bufsize - 1;
-	bcopy(xbuf, buf, i);
+	memmove(buf, xbuf, i);
 	buf[i] = '\0';
 }
 /*
@@ -239,14 +245,27 @@ define(n, v, e)
 	char *v;
 	register ENVELOPE *e;
 {
+	int m;
+
+	m = n & 0377;
 	if (tTd(35, 9))
 	{
-		printf("%sdefine(%s as ", 
-		    (e->e_macro[n & 0377] == NULL) ? "" : "re", macname(n));
+		dprintf("%sdefine(%s as ",
+			(e->e_macro[m] == NULL) ? ""
+						: "re", macname(n));
 		xputs(v);
-		printf(")\n");
+		dprintf(")\n");
 	}
-	e->e_macro[n & 0377] = v;
+	e->e_macro[m] = v;
+
+#if _FFR_RESET_MACRO_GLOBALS
+	switch (m)
+	{
+	  case 'j':
+		MyHostName = v;
+		break;
+	}
+#endif /* _FFR_RESET_MACRO_GLOBALS */
 }
 /*
 **  MACVALUE -- return uninterpreted value of a macro.
@@ -272,10 +291,10 @@ macvalue(n, e)
 		register char *p = e->e_macro[n];
 
 		if (p != NULL)
-			return (p);
+			return p;
 		e = e->e_parent;
 	}
-	return (NULL);
+	return NULL;
 }
 /*
 **  MACNAME -- return the name of a macro given its internal id
@@ -337,9 +356,9 @@ macid(p, ep)
 
 	if (tTd(35, 14))
 	{
-		printf("macid(");
+		dprintf("macid(");
 		xputs(p);
-		printf(") => ");
+		dprintf(") => ");
 	}
 
 	if (*p == '\0' || (p[0] == '{' && p[1] == '}'))
@@ -348,7 +367,7 @@ macid(p, ep)
 		if (ep != NULL)
 			*ep = p;
 		if (tTd(35, 14))
-			printf("NULL\n");
+			dprintf("NULL\n");
 		return '\0';
 	}
 	if (*p != '{')
@@ -357,7 +376,7 @@ macid(p, ep)
 		if (ep != NULL)
 			*ep = p + 1;
 		if (tTd(35, 14))
-			printf("%c\n", *p);
+			dprintf("%c\n", *p);
 		return *p;
 	}
 	bp = mbuf;
@@ -394,7 +413,7 @@ macid(p, ep)
 			mid = s->s_macro;
 		else
 		{
-			if (NextMacroId > 0377)
+			if (NextMacroId > MAXMACROID)
 			{
 				syserr("Macro/class {%s}: too many long names", mbuf);
 				s->s_macro = -1;
@@ -410,7 +429,7 @@ macid(p, ep)
 	if (ep != NULL)
 		*ep = p;
 	if (tTd(35, 14))
-		printf("0x%x\n", mid);
+		dprintf("0x%x\n", mid);
 	return mid;
 }
 /*

@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1996 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -14,14 +15,12 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)altos.m4	8.10 (Berkeley) 10/6/1998')
+VERSIONID(`$Id: altos.m4,v 8.15 1999/04/24 05:37:40 gshapiro Exp $')
 
-define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/lib/mail/aliases'))dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/usr/lib/sendmail.st'))')dnl
 ifdef(`UUCP_MAILER_PATH',, `define(`UUCP_MAILER_PATH', /usr/bin/uux)')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /usr/bin/lmail)')dnl
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', mPuhCE9)')dnl
+_DEFIFNOT(`LOCAL_MAILER_FLAGS', `mPuhCE9')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `lmail $u')')dnl
 ifdef(`LOCAL_SHELL_FLAGS',, `define(`LOCAL_SHELL_FLAGS', Peu)')dnl
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -a$g $h!rmail ($u)')')dnl

@@ -12,7 +12,7 @@ use IO::Socket;
 # system requirements:
 # 	must have 'nslookup' and 'hostname' programs.
 
-# $Header: /home/muir/bin/RCS/expn,v 3.11 1997/09/10 08:14:02 muir Exp muir $
+# $OrigHeader: /home/muir/bin/RCS/expn,v 3.11 1997/09/10 08:14:02 muir Exp muir $
 
 # TODO:
 #	less magic should apply to command-line addresses

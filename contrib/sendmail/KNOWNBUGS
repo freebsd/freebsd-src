@@ -1,12 +1,12 @@
 
 
 	     K N O W N   B U G S   I N   S E N D M A I L
-			     (for 8.9.0)
+			     (for 8.9.3)
 
 
 The following are bugs or deficiencies in sendmail that I am aware of
 but which have not been fixed in the current release.  You probably
-want to get the most up to date version of this from ftp.sendmail.org	
+want to get the most up to date version of this from ftp.sendmail.org
 in /pub/sendmail/KNOWNBUGS.  For descriptions of bugs that have been
 fixed, see the file RELEASE_NOTES (in the root directory of the sendmail
 distribution).
@@ -34,11 +34,6 @@ This list is not guaranteed to be complete.
   is always zero (or the value of the -c command line flag, if any).
   This macro will probably be removed entirely in a future release;
   I don't believe there are any mailers left that require it.
-
-* If you EXPN a list or user that has a program mailer, the output of
-  EXPN will include ``@local.host.name''.  You can't actually mail to
-  this address.  It's not clear what the right behavior is in this
-  circumstance.
 
 * \231 considered harmful.
 
@@ -134,10 +129,10 @@ This list is not guaranteed to be complete.
 
 * MIME encoded full name phrases in the From: header
 
-  If a full name phrase includes characters from MustQuoteChars, sendmail  
-  will quote the entire full name phrase. If MustQuoteChars includes  
-  characters which are not special characters according to STD 11 (RFC  
-  822), this quotation can interfere with MIME encoded full name phrases. 
+  If a full name phrase includes characters from MustQuoteChars, sendmail
+  will quote the entire full name phrase. If MustQuoteChars includes
+  characters which are not special characters according to STD 11 (RFC
+  822), this quotation can interfere with MIME encoded full name phrases.
   By default, sendmail includes the single quote character (') in
   MustQuoteChars even though it is not listed as a special character in
   STD 11.
@@ -157,7 +152,7 @@ This list is not guaranteed to be complete.
   In the case where the sender is using su to act as root, the file
   safety checks prevent sendmail from saving the dead.letter file
   because the sender's uid and the current real uid do not match.
-  
+
 * Berkeley DB 2.X race condition with fcntl() locking
 
   There is a race condition for Berkeley DB 2.X databases on
@@ -173,6 +168,9 @@ This list is not guaranteed to be complete.
   you can use makemap to build a map with a new name and then
   "mv" the new db file to replace the old one.
 
+  Sleepycat Software has added code to avoid this race condition to
+  Berkeley DB versions after 2.7.5.
+
 * File open timeouts not available on hard mounted NFS file systems
 
   Since SIGALRM does not interrupt an RPC call for hard mounted
@@ -182,4 +180,22 @@ This list is not guaranteed to be complete.
   local mail delivery and NFS hard mounted home directories should be
   avoided, as attempts to open the forward files could hang.
 
-(Version 8.36, last updated 2/4/1999)
+* Race condition for delivery to setuid files
+
+  Sendmail will deliver to a fail if the file is owned by the DefaultUser
+  or has the setuid bit set.  Unfortunately, some systems clear that bit
+  when a file is modified.  Sendmail compensates by resetting the file mode 
+  back to it's original settings.  Unfortunately, there's still a
+  permission failure race as sendmail checks the permissions before locking 
+  the file.  This is unavoidable as sendmail must verify the file is safe
+  to open before opening it.  A file can not be locked until it is open.
+
+* Potential denial of service attack with AutoRebuildAliases
+
+  There is a potential for a denial of service attack if the
+  AutoRebuildAliases option is set as a user can kill the sendmail process
+  while it is rebuilding the aliases file leaving it in an inconsistent
+  state.  This option and it's use is deprecated and will be removed from a
+  future version of sendmail.
+
+$Revision: 8.43 $, Last updated $Date: 1999/11/17 18:56:09 $

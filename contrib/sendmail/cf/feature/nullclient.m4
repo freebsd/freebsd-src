@@ -1,6 +1,7 @@
-PUSHDIVERT(-1)
+divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -10,11 +11,8 @@ PUSHDIVERT(-1)
 # the sendmail distribution.
 #
 #
-ifdef(`SMTP_MAILER_FLAGS',, `define(`SMTP_MAILER_FLAGS', `')')
-define(_NULL_CLIENT_ONLY_, `1')
-ifelse(_ARG_, `', `errprint(`Feature "nullclient" requires argument')',
-	`define(`MAIL_HUB', _ARG_)')
-POPDIVERT
+ifelse(defn(`_ARG_'), `', `errprint(`Feature "nullclient" requires argument')',
+	`define(`_NULL_CLIENT_', _ARG_)')
 
 #
 #  This is used only for relaying mail from a client to a hub when
@@ -23,28 +21,17 @@ POPDIVERT
 #  sendmail.
 #
 
-VERSIONID(`@(#)nullclient.m4	8.12 (Berkeley) 5/19/1998')
+divert(0)
+VERSIONID(`$Id: nullclient.m4,v 8.21.16.1 2000/05/26 18:08:41 gshapiro Exp $')
+divert(-1)
 
-PUSHDIVERT(6)
-# hub host (to which all mail is sent)
-DH`'ifdef(`MAIL_HUB', MAIL_HUB,
-	`errprint(`MAIL_HUB not defined for nullclient feature')')
-ifdef(`MASQUERADE_NAME',, `define(`MASQUERADE_NAME', MAIL_HUB)')dnl
-
-# route-addr separators
-C: : ,
-POPDIVERT
-PUSHDIVERT(7)
-############################################
-###   Null Client Mailer specification   ###
-############################################
-
-ifdef(`confRELAY_MAILER',,
-	`define(`confRELAY_MAILER', `nullclient')')dnl
-ifdef(`confFROM_HEADER',,
-	`define(`confFROM_HEADER', <$g>)')dnl
-ifdef(`SMTP_MAILER_ARGS',, `define(`SMTP_MAILER_ARGS', `IPC $h')')dnl
-
-Mnullclient,	P=[IPC], F=CONCAT(mDFMuXa, SMTP_MAILER_FLAGS),ifdef(`SMTP_MAILER_MAX', ` M=SMTP_MAILER_MAX,')
-		A=SMTP_MAILER_ARGS
-POPDIVERT
+undefine(`ALIAS_FILE')
+define(`MAIL_HUB', _NULL_CLIENT_)
+define(`SMART_HOST', _NULL_CLIENT_)
+define(`confFORWARD_PATH', `')
+define(`_DEF_LOCAL_MAILER_FLAGS', `lsDFM5q')
+MASQUERADE_AS(_NULL_CLIENT_)
+FEATURE(`allmasquerade')
+FEATURE(`masquerade_envelope')
+MAILER(`local')
+MAILER(`smtp')
