@@ -614,7 +614,7 @@ card(int c, const char *p2)
 {
 	char buf[BUFSIZ];
 	register char *p1 = buf;
-	register int len = 2;
+	size_t len = 2;
 
 	*p1++ = c;
 	while ((c = *p2++) != '\0' && len < sizeof(buf)) {
