@@ -54,38 +54,53 @@ struct	crypt_op cryptop;
 char	iv[8] = "00000000";
 int	verbose = 0;
 int	opflags = 0;
+int	verify = 0;
 
 struct alg {
 	const char* name;
+	int	ishash;
 	int	blocksize;
 	int	minkeylen;
 	int	maxkeylen;
 	int	code;
 } algorithms[] = {
 #ifdef CRYPTO_NULL_CBC
-	{ "null",	8,	1,	256,	CRYPTO_NULL_CBC },
+	{ "null",	0,	8,	1,	256,	CRYPTO_NULL_CBC },
 #endif
-	{ "des",	8,	8,	8,	CRYPTO_DES_CBC },
-	{ "3des",	8,	24,	24,	CRYPTO_3DES_CBC },
-	{ "blf",	8,	5,	56,	CRYPTO_BLF_CBC },
-	{ "cast",	8,	5,	16,	CRYPTO_CAST_CBC },
-	{ "skj",	8,	10,	10,	CRYPTO_SKIPJACK_CBC },
-	{ "aes",	16,	8,	32,	CRYPTO_RIJNDAEL128_CBC },
+	{ "des",	0,	8,	8,	8,	CRYPTO_DES_CBC },
+	{ "3des",	0,	8,	24,	24,	CRYPTO_3DES_CBC },
+	{ "blf",	0,	8,	5,	56,	CRYPTO_BLF_CBC },
+	{ "cast",	0,	8,	5,	16,	CRYPTO_CAST_CBC },
+	{ "skj",	0,	8,	10,	10,	CRYPTO_SKIPJACK_CBC },
+	{ "aes",	0,	16,	16,	16,	CRYPTO_RIJNDAEL128_CBC},
+	{ "aes192",	0,	16,	24,	24,	CRYPTO_RIJNDAEL128_CBC},
+	{ "aes256",	0,	16,	32,	32,	CRYPTO_RIJNDAEL128_CBC},
 #ifdef notdef
-	{ "arc4",	8,	1,	32,	CRYPTO_ARC4 },
+	{ "arc4",	0,	8,	1,	32,	CRYPTO_ARC4 },
 #endif
+	{ "md5",	1,	8,	16,	16,	CRYPTO_MD5_HMAC },
+	{ "sha1",	1,	8,	20,	20,	CRYPTO_SHA1_HMAC },
+	{ "sha256",	1,	8,	32,	32,	CRYPTO_SHA2_HMAC },
+	{ "sha384",	1,	8,	48,	48,	CRYPTO_SHA2_HMAC },
+	{ "sha512",	1,	8,	64,	64,	CRYPTO_SHA2_HMAC },
 };
 
 static void
 usage(const char* cmd)
 {
-	printf("usage: %s [-z] [-s] [-v] [-a algorithm] [count] [size ...]\n",
+	printf("usage: %s [-c] [-z] [-s] [-b] [-v] [-a algorithm] [count] [size ...]\n",
 		cmd);
 	printf("where algorithm is one of:\n");
 	printf("    des 3des (default) blowfish cast skipjack\n");
-	printf("    rijndael arc4\n");
+	printf("    aes (aka rijndael) aes192 aes256 arc4\n");
 	printf("count is the number of encrypt/decrypt ops to do\n");
 	printf("size is the number of bytes of text to encrypt+decrypt\n");
+	printf("\n");
+	printf("-c check the results (slows timing)\n");
+	printf("-z run all available algorithms on a variety of sizes\n");
+	printf("-v be verbose\n");
+	printf("-b mark operations for batching\n");
+	printf("-p profile kernel crypto operation (must be root)\n");
 	exit(-1);
 }
 
@@ -116,70 +131,122 @@ runtest(struct alg *alg, int count, int size, int cmd, struct timeval *tv)
 {
 	int i;
 	struct timeval start, stop, dt;
-	char *cleartext, *ciphertext;
+	char *cleartext, *ciphertext, *originaltext;
 
 	if (ioctl(cryptodev_fd,CRIOGET,&fd) == -1)
 		err(1, "CRIOGET failed");
 
-	session.mac = 0;
-	session.keylen = (alg->minkeylen + alg->maxkeylen)/2;
-	session.key = (char *) malloc(session.keylen);
-	if (session.key == NULL)
-		err(1, "malloc (key)");
-	for (i = 0; i < session.keylen; i++)
-		session.key[i] = '0' + (i%10);
-	session.cipher = alg->code;
+	bzero(&session, sizeof(session));
+	if (!alg->ishash) {
+		session.keylen = (alg->minkeylen + alg->maxkeylen)/2;
+		session.key = (char *) malloc(session.keylen);
+		if (session.key == NULL)
+			err(1, "malloc (key)");
+		for (i = 0; i < session.keylen; i++)
+			session.key[i] = '0' + (i%10);
+		session.cipher = alg->code;
+	} else {
+		session.mackeylen = (alg->minkeylen + alg->maxkeylen)/2;
+		session.mackey = (char *) malloc(session.mackeylen);
+		if (session.mackey == NULL)
+			err(1, "malloc (mac)");
+		for (i = 0; i < session.mackeylen; i++)
+			session.mackey[i] = '0' + (i%10);
+		session.mac = alg->code;
+	}
 	if (ioctl(fd, cmd, &session) == -1) {
 		if (cmd == CIOCGSESSION) {
 			close(fd);
+			if (verbose) {
+				printf("cipher %s", alg->name);
+				if (alg->ishash)
+					printf(" mackeylen %u\n", session.mackeylen);
+				else
+					printf(" keylen %u\n", session.keylen);
+				perror("CIOCGSESSION");
+			}
 			/* hardware doesn't support algorithm; skip it */
 			return;
 		}
-		printf("cipher %s keylen %u\n", alg->name, session.keylen);
+		printf("cipher %s keylen %u mackeylen %u\n",
+			alg->name, session.keylen, session.mackeylen);
 		err(1, "CIOCGSESSION failed");
 	}
 
+	if ((originaltext = (char *)malloc(size)) == NULL)
+		err(1, "malloc (originaltext)");
 	if ((cleartext = (char *)malloc(size)) == NULL)
 		err(1, "malloc (cleartext)");
 	if ((ciphertext = (char *)malloc(size)) == NULL)
 		err(1, "malloc (ciphertext)");
 	for (i = 0; i < size; i++)
 		cleartext[i] = 'a' + i%26;
+	memcpy(originaltext, cleartext, size);
 
 	if (verbose) {
 		printf("session = 0x%x\n", session.ses);
 		printf("count = %d, size = %d\n", count, size);
 		cryptop.ses = session.ses;
-		printf("iv:");
-		hexdump(iv, sizeof iv);
+		if (!alg->ishash) {
+			printf("iv:");
+			hexdump(iv, sizeof iv);
+		}
 		printf("cleartext:");
 		hexdump(cleartext, MIN(size, CHUNK));
 	}
 
 	gettimeofday(&start, NULL);
-	for (i = 0; i < count; i++) {
-		cryptop.op = COP_ENCRYPT;
-		cryptop.flags = opflags;
-		cryptop.len = size;
-		cryptop.src = cleartext;
-		cryptop.dst = ciphertext;
-		cryptop.mac = 0;
-		cryptop.iv = iv;
+	if (!alg->ishash) {
+		for (i = 0; i < count; i++) {
+			cryptop.op = COP_ENCRYPT;
+			cryptop.flags = opflags;
+			cryptop.len = size;
+			cryptop.src = cleartext;
+			cryptop.dst = ciphertext;
+			cryptop.mac = 0;
+			cryptop.iv = iv;
 
-		if (ioctl(fd, CIOCCRYPT, &cryptop) == -1)
-			err(1, "CIOCCRYPT failed");
+			if (ioctl(fd, CIOCCRYPT, &cryptop) == -1)
+				err(1, "CIOCCRYPT failed");
 
-		memset(cleartext, 'x', MIN(size, CHUNK));
-		cryptop.op = COP_DECRYPT;
-		cryptop.flags = opflags;
-		cryptop.len = size;
-		cryptop.src = ciphertext;
-		cryptop.dst = cleartext;
-		cryptop.mac = 0;
-		cryptop.iv = iv;
+			if (verify && bcmp(ciphertext, cleartext, size) == 0) {
+				printf("cipher text unchanged:");
+				hexdump(ciphertext, size);
+			}
 
-		if (ioctl(fd, CIOCCRYPT, &cryptop) == -1)
-			err(1, "CIOCCRYPT failed");
+			memset(cleartext, 'x', MIN(size, CHUNK));
+			cryptop.op = COP_DECRYPT;
+			cryptop.flags = opflags;
+			cryptop.len = size;
+			cryptop.src = ciphertext;
+			cryptop.dst = cleartext;
+			cryptop.mac = 0;
+			cryptop.iv = iv;
+
+			if (ioctl(fd, CIOCCRYPT, &cryptop) == -1)
+				err(1, "CIOCCRYPT failed");
+
+			if (verify && bcmp(cleartext, originaltext, size) != 0) {
+				printf("decrypt mismatch:\n");
+				printf("original:");
+				hexdump(originaltext, size);
+				printf("cleartext:");
+				hexdump(cleartext, size);
+			}
+		}
+	} else {
+		for (i = 0; i < count; i++) {
+			cryptop.op = 0;
+			cryptop.flags = opflags;
+			cryptop.len = size;
+			cryptop.src = cleartext;
+			cryptop.dst = 0;
+			cryptop.mac = ciphertext;
+			cryptop.iv = 0;
+
+			if (ioctl(fd, CIOCCRYPT, &cryptop) == -1)
+				err(1, "CIOCCRYPT failed");
+		}
 	}
 	gettimeofday(&stop, NULL);
  
@@ -289,9 +356,12 @@ runtests(struct alg *alg, int count, int size, int cmd, int threads, int profile
 	for (i = 0; i < threads; i++)
 		t += (((double)tvp[i].tv_sec * 1000000 + tvp[i].tv_usec) / 1000000);
 	if (t) {
+		int nops = alg->ishash ? count : 2*count;
+
+		t /= threads;
 		printf("%6.3lf sec, %7d %6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
-		    t/threads, 2*count*threads, alg->name, size, (double)2*count*size*threads / t,
-		    (double)2*count*size*threads / t * 8 / 1024 / 1024);
+		    t, nops, alg->name, size, (double)nops*size / t,
+		    (double)nops*size / t * 8 / 1024 / 1024);
 	}
 #ifdef __FreeBSD__
 	if (profile) {
@@ -326,7 +396,7 @@ main(int argc, char **argv)
 	int profile = 0;
 	int i, ch;
 
-	while ((ch = getopt(argc, argv, "pzsva:bt:")) != -1) {
+	while ((ch = getopt(argc, argv, "cpzsva:bt:")) != -1) {
 		switch (ch) {
 #ifdef CIOCGSSESSION
 		case 's':
@@ -357,6 +427,9 @@ main(int argc, char **argv)
 		case 'b':
 			opflags |= COP_F_BATCH;
 			break;
+		case 'c':
+			verify = 1;
+			break;
 		default:
 			usage(argv[0]);
 		}
@@ -374,7 +447,10 @@ main(int argc, char **argv)
 		argc--, argv++;
 	}
 	if (nsizes == 0) {
-		sizes[nsizes++] = 8;
+		if (alg)
+			sizes[nsizes++] = alg->blocksize;
+		else
+			sizes[nsizes++] = 8;
 		if (testall) {
 			while (sizes[nsizes-1] < 8*1024) {
 				sizes[nsizes] = sizes[nsizes-1]<<1;
@@ -403,7 +479,8 @@ main(int argc, char **argv)
 	return (0);
 }
 
-void hexdump(char *p, int n)
+void
+hexdump(char *p, int n)
 {
 	int i;
 	for (i = 0; i < n; i++) {
