@@ -702,6 +702,16 @@ typedef struct isp_icb {
 	array[ICB_NNM6] = (u_int8_t) ((wwn >> 48) & 0xff), \
 	array[ICB_NNM7] = (u_int8_t) ((wwn >> 56) & 0xff)
 
+#define	MAKE_WWN_FROM_NODE_NAME(wwn, array)	\
+	wwn =	((u_int64_t) array[ICB_NNM0]) | \
+		((u_int64_t) array[ICB_NNM1] <<  8) | \
+		((u_int64_t) array[ICB_NNM2] << 16) | \
+		((u_int64_t) array[ICB_NNM3] << 24) | \
+		((u_int64_t) array[ICB_NNM4] << 32) | \
+		((u_int64_t) array[ICB_NNM5] << 40) | \
+		((u_int64_t) array[ICB_NNM6] << 48) | \
+		((u_int64_t) array[ICB_NNM7] << 56)
+
 /*
  * FC-AL Position Map
  *
