@@ -1,5 +1,7 @@
 /*
  * ntp_proto.c - NTP version 4 protocol machinery
+ *
+ * $FreeBSD$
  */
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -1925,7 +1927,7 @@ default_get_precision(void)
 #endif
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	u_long freq;
-	int j;
+	size_t j;
 
 	/* Try to see if we can find the frequency of of the counter
 	 * which drives our timekeeping
