@@ -1,11 +1,9 @@
 # $FreeBSD$
 
 PROG=	truss
-SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c
-.if (${MACHINE_ARCH} == "alpha")
-SRCS+=	alpha-fbsd.c
-.elif (${MACHINE_ARCH} == "i386")
-SRCS+=	i386-fbsd.c i386-linux.c linux_syscalls.h
+SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c ${MACHINE_ARCH}-fbsd.c
+.if (${MACHINE_ARCH} == "i386")
+SRCS+=	i386-linux.c linux_syscalls.h
 .endif
 
 CFLAGS+= -I${.CURDIR} -I.
