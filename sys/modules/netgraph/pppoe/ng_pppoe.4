@@ -33,98 +33,362 @@
 .\" Author: Archie Cobbs <archie@whistle.com>
 .\"
 .\" $FreeBSD$
-.\" $Whistle: ng_lmi.8,v 1.4 1999/01/25 23:46:27 archie Exp $
+.\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd January 19, 1999
-.Dt NG_LMI 8
+.Dd October 28, 1999
+.Dt NG_PPPOE 8
 .Os FreeBSD 3
 .Sh NAME
-.Nm ng_lmi
-.Nd Frame relay LMI protocol netgraph node type
+.Nm ng_pppoe
+.Nd RFC-2516 PPPOE protocol netgraph node type
 .Sh SYNOPSIS
-.Fd #include <netgraph/ng_lmi.h>
+.Fd #include <netgraph/ng_pppoe.h>
 .Sh DESCRIPTION
 The
-.Nm lmi
-node type performs the frame relay LMI protocol. It supports
-the ITU Annex A, ANSI Annex D, and Group-of-four LMI types.
-It also supports auto-detection of the LMI type.
-.Pp
-To enable a specific LMI type, connect the corresponding hook (
-.Dv annexA ,
-.Dv annexD ,
-or
-.Dv group4 ")"
-to DLCI 0 or 1023 of a
-.Xr ng_frame_relay 8
-node.
-Typically, Annex A and Annex D live on DLCI 0 while Group-of-four
-lives on DLCI 1023.
-.Pp
-To enable LMI type auto-detection, connect the
-.Dv auto0
-hook to DLCI 0 and the
-.Dv auto1023
-hook to DLCI 1023. The node will attempt to automatically determine
-which LMI type is running at the switch, and go into that mode.
-.Pp
-Only one fixed LMI type, or auto-detection, can be active at any given time.
+.Nm 
+node type performs the PPPoE protocol. It is used in conjunction with a the
+.Dv Netgraph
+extensions to the ethernet framework to divert and inject ethernet packets
+to and from a PPP agent (which is not specified).
 .Pp
 The
-.Dv NGM_LMI_GET_STATUS
+.Dv NGM_PPPOE_GET_STATUS
 control message can be used at any time to query the current status
-of the LMI protocol and each DLCI channel. This node also supports the
+of the PPPOE module. The only statistics presently available are the
+total packet counts for input and output.  This node does not yet support
+the
 .Dv NGM_TEXT_STATUS
 control message.
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
 .Bl -tag -width foobarbaz
-.It Dv annexA
-ITU Annex A LMI hook.
-.It Dv annexD
-ANSI Annex D LMI hook.
-.It Dv group4
-Group-of-four LMI hook.
-.It Dv auto0
-Auto-detection hook for DLCI 0.
-.It Dv auto1023
-Auto-detection hook for DLCI 1023.
+.It Dv ethernet
+The hook that should normally be connected to an ethernet node.
+.It Dv debug
+Presently no use.
+.It Dv [unspecified]
+Any other name is assumed to be a session hook that will be connected to
+a PPP client agent, or a ppp server agent.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_LMI_GET_STATUS
+.It Dv NGM_PPPOE_GET_STATUS
 This command returns status information in a
-.Dv "struct nglmistat" :
+.Dv "struct ngpppoestat" :
 .Bd -literal -offset 4n
-#define NGM_LMI_STAT_ARYSIZE   (1024/8)
-
-struct nglmistat {
-  u_char  proto[12];	/* Active proto (same as hook name) */
-  u_char  hook[12];	/* Active hook */
-  u_char  fixed;	/* If set to fixed LMI mode */
-  u_char  autod;	/* If currently auto-detecting */
-  u_char  seen[NGM_LMI_STAT_ARYSIZE];	/* bitmap DLCIs seen */
-  u_char  up[NGM_LMI_STAT_ARYSIZE];	/* bitmap DLCIs up */
+struct ngpppoestat {
+	u_int   packets_in;     /* packets in from ethernet */
+	u_int   packets_out;    /* packets out towards ethernet */
 };
 .Ed
 .It Dv NGM_TEXT_STATUS
 This generic message returns is a human-readable version of the node status.
+(not yet)
+.It Dv NGM_PPPOE_CONNECT
+Tell a nominated newly created hook that it's session should enter
+the state machine in a manner to become a client. It must be newly created and 
+a service name can be given as an agument. It is legal to specify a zero length
+service name. This is common on some DSL setups. A session request packet
+will be broadcast on the ethernet.
+This command uses the 
+.Dv ngpppoe_init_data
+structure shown below.
+.It Dv NGM_PPPOE_LISTEN
+Tell a nominated newly created hook that it's session should enter
+the state machine in a manner to become a server listenner. The argument
+given is the name of the service to listen on behalf of. A zero length service
+length will match all requests for service. A matching ervice request
+packet will be passed unmodified back to the process responsible
+for starting the service. It can then examine it and pass it on to 
+the session that is started to answer the request. 
+This command uses the 
+.Dv ngpppoe_init_data
+structure shown below.
+.It Dv NGM_PPPOE_OFFER
+Tell a nominated newly created hook that it's session should enter
+the state machine in a manner to become a server. The argument
+given is the name of the service to offer. A zero length service
+is legal. The State machine will progress to a state where it will await
+a request packet to be forwarded to it from  the startup server,
+which in turn probably received it from a LISTEN mode hook ( see above).
+This is so
+that information that is required for the session that is embedded in
+the original session request packet, is made available to the state machine 
+that eventually answers the request. When the Session request packet is
+received, the session negotiation will proceed. 
+This command uses the 
+.Dv ngpppoe_init_data
+structure shown below.
+
+.Pp
+The three commands above use a common data structure.
+.Dv "struct ngpppoe_init_data"
+.Bd -literal -offset 4n
+struct ngpppoe_init_data {
+        char    hook[NG_HOOKLEN + 1];   /* hook to monitor on */
+        u_int16_t       data_len;               /* Length of the service name */
+        char    data[0];                /* init data goes here */
+};
+.Ed
+
+.It Dv NGM_PPPOE_SUCCESS
+This command is sent to the node that started this session with one of the
+above messages, and reports a state change. This message reports
+successful Session negotiation. It uses the structure shown below, and
+reports back the hook name corresponding to the successful session.
+.It Dv NGM_NGM_PPPOE_FAIL
+This command is sent to the node that started this session with one of the
+above messages, and reports a state change. This message reports
+failed Session negotiation. It uses the structure shown below, and
+reports back the hook name corresponding to the failed session.
+The hook will probably have been removed immediatly after sending this message
+.It Dv NGM_NGM_PPPOE_CLOSE
+This command is sent to the node that started this session with one of the
+above messages, and reports a state change. This message reports
+a request to close a session. It uses the structure shown below, and
+reports back the hook name corresponding to the closed session.
+The hook will probably have been removed immediatly after sending this
+message. At present this message is not yet used and a 'failed' mesage
+will be received at closure instead.
+.Pp
+The three commands above use a common data structure.
+.Dv "struct ngpppoe_sts"
+.Bd -literal -offset 4n
+struct ngpppoe_sts {
+        char    hook[NG_HOOKLEN + 1]; /* hook associated with event session */
+};
+
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
-control message, or when all hooks have been disconnected.
+control message, when all session have been disconnected or when the
+.Dv ethernet
+hook is disconected.
+.Sh EXAMPLE USAGE
+The following code uses 
+.Dv libnetgraph
+to set up a
+.Nm 
+node and connect it to both a socket node and an ethernet node. It can handle
+the case of when a
+.Nm
+node is already attached to the ethernet. It then starts a client session.
+.Bd -literal
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <sysexits.h>
+#include <errno.h>
+#include <err.h>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <net/ethernet.h>
+
+#include <netgraph.h>
+#include <netgraph/ng_ether.h>
+#include <netgraph/ng_pppoe.h>
+#include <netgraph/ng_socket.h>
+static int setup(char *ethername, char *service, char *sessname,
+				int *dfd, int *cfd);
+
+int
+main()
+{
+	int  fd1, fd2;
+	setup("xl0", NULL, "fred", &fd1, &fd2);
+	sleep (30);
+}
+
+static int
+setup(char *ethername, char *service, char *sessname,
+			int *dfd, int *cfd)
+{
+	struct ngm_connect ngc;	/* connect */
+	struct ngm_mkpeer mkp;	/* mkpeer */
+	/******** nodeinfo stuff **********/
+	u_char          rbuf[2 * 1024];
+	struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
+	struct hooklist *const hlist
+			= (struct hooklist *) resp->data;
+	struct nodeinfo *const ninfo = &hlist->nodeinfo;
+	int             ch, no_hooks = 0;
+	struct linkinfo *link;
+	struct nodeinfo *peer;
+	/****message to connect pppoe session*****/
+	struct {
+		struct ngPPPoE_init_data idata;
+		char            service[100];
+	}               message;
+	/********tracking our little graph ********/
+	char            path[100];
+	char            source_ID[NG_NODELEN + 1];
+	char            pppoe_node_name[100];
+	int             k;
+
+	/*
+	 * Create the data and control sockets
+	 */
+	if (NgMkSockNode(NULL, cfd, dfd) < 0) {
+		return (errno);
+	}
+	/*
+	 * find the ether node of the name requested by asking it for
+	 * it's inquiry information.
+	 */
+	if (strlen(ethername) > 16)
+		return (EINVAL);
+	sprintf(path, "%s:", ethername);
+	if (NgSendMsg(*cfd, path, NGM_GENERIC_COOKIE,
+		      NGM_LISTHOOKS, NULL, 0) < 0) {
+		return (errno);
+	}
+	/*
+	 * the command was accepted so it exists. Await the reply (It's
+	 * almost certainly already waiting).
+	 */
+	if (NgRecvMsg(*cfd, resp, sizeof(rbuf), NULL) < 0) {
+		return (errno);
+	}
+	/**
+	 * The following is available about the node:
+	 * ninfo->name		(string)
+	 * ninfo->type		(string)
+	 * ninfo->id		(u_int32_t)
+	 * ninfo->hooks		(u_int32_t) (count of hooks)
+	 * check it is the correct type. and get it's ID for use
+	 * with mkpeer later.
+	 */
+	if (strncmp(ninfo->type, NG_ETHER_NODE_TYPE,
+		    strlen(NG_ETHER_NODE_TYPE)) != 0) {
+		return (EPROTOTYPE);
+	}
+	sprintf(source_ID, "[%08x]:", ninfo->id);
+
+	/*
+	 * look for a hook already attached.
+	 */
+	for (k = 0; k < ninfo->hooks; k++) {
+		/**
+		 * The following are available about each hook.
+		 * link->ourhook	(string)
+		 * link->peerhook	(string)
+		 * peer->name		(string)
+		 * peer->type		(string)
+		 * peer->id		(u_int32_t)
+		 * peer->hooks		(u_int32_t)
+		 */
+		link = &hlist->link[k];
+		peer = &hlist->link[k].nodeinfo;
+
+		/* Ignore debug hooks */
+		if (strcmp("debug", link->ourhook) == 0)
+			continue;
+
+		/* If the orphans hook is attached, use that */
+		if (strcmp(NG_ETHER_HOOK_ORPHAN,
+		    link->ourhook) == 0) {
+			break;
+		}
+		/* the other option is the 'divert' hook */
+		if (strcmp("NG_ETHER_HOOK_DIVERT",
+		    link->ourhook) == 0) {
+			break;
+		}
+	}
+
+	/*
+	 * See if we found a hook there.
+	 */
+	if (k < ninfo->hooks) {
+		if (strcmp(peer->type, NG_PPPOE_NODE_TYPE) == 0) {
+			/*
+			 * If it's a type pppoe, we skip making one
+			 * ourself, but we continue, using
+			 * the existing one.
+			 */
+			sprintf(pppoe_node_name, "[%08x]:", peer->id);
+		} else {
+			/*
+			 * There is already someon hogging the data,
+			 * return * an error. Some day we'll try
+			 * daisy-chaining..
+			 */
+			return (EBUSY);
+		}
+	} else {
+
+		/*
+		 * Try make a node of type pppoe against node "ID"
+		 * On hook NG_ETHER_HOOK_ORPHAN.
+		 */
+		snprintf(mkp.type, sizeof(mkp.type),
+			 "%s", NG_PPPOE_NODE_TYPE);
+		snprintf(mkp.ourhook, sizeof(mkp.ourhook),
+			 "%s", NG_ETHER_HOOK_ORPHAN);
+		snprintf(mkp.peerhook, sizeof(mkp.peerhook),
+			 "%s", NG_PPPOE_HOOK_ETHERNET);
+		/* Send message */
+		if (NgSendMsg(*cfd, source_ID, NGM_GENERIC_COOKIE,
+			      NGM_MKPEER, &mkp, sizeof(mkp)) < 0) {
+			return (errno);
+		}
+		/*
+		 * Work out a name for the new node.
+		 */
+		sprintf(pppoe_node_name, "%s:%s",
+			source_ID, NG_ETHER_HOOK_ORPHAN);
+	}
+	/*
+	 * We now have a pppoe node attached to the ethernet
+	 * card. The Ethernet is addressed as ethername: The pppoe
+	 * node is addressed as pppoe_node_name: attach to it.
+	 * Connect socket node to specified node Use the same hook
+	 * name on both ends of the link.
+	 */
+	snprintf(ngc.path, sizeof(ngc.path), "%s", pppoe_node_name);
+	snprintf(ngc.ourhook, sizeof(ngc.ourhook), "%s", sessname);
+	snprintf(ngc.peerhook, sizeof(ngc.peerhook), "%s", sessname);
+
+	if (NgSendMsg(*cfd, ".:", NGM_GENERIC_COOKIE,
+		      NGM_CONNECT, &ngc, sizeof(ngc)) < 0) {
+		return (errno);
+	}
+	/*
+	 * Send it a message telling it to start up.
+	 */
+	bzero(&message, sizeof(message));
+	snprintf(message.idata.hook, sizeof(message.idata.hook),
+				"%s", sessname);
+	if (service == NULL) {
+		message.idata.data_len = 0;
+	} else {
+		snprintf(message.idata.data,
+			 sizeof(message.idata.data), "%s", service);
+		message.idata.data_len = strlen(service);
+	}
+	/* Tell session/hook to start up as a client */
+	if (NgSendMsg(*cfd, ngc.path,
+		      NGM_PPPOE_COOKIE, NGM_PPPOE_CONNECT, &message.idata,
+		      sizeof(message.idata) + message.idata.data_len) < 0) {
+		return (errno);
+	}
+	return (0);
+}
+.Ed
 .Sh SEE ALSO
+.Xr netgraph 3 ,
 .Xr netgraph 4 ,
-.Xr ng_frame_relay 8 ,
+.Xr ng_socket 8 ,
 .Xr ngctl 8 .
 .Rs
-.%T "ANSI T1.617-1991 Annex D"
-.Re
-.Rs
-.%T "ITU-T Q.933 Digital Subscriber Signalling System No. 1 - Signalling Specification for Frame Mode Basic Call Control, Annex A"
+.%T "RFC 2516 - A Method of transmitting PPP over Ethernet (PPPoE)"
 .Re
 .Sh AUTHOR
 Julian Elisher <julian@whistle.com>
