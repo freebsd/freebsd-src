@@ -185,7 +185,11 @@ struct uma_bucket_zone bucket_zones[] = {
 #define	BUCKET_SHIFT	4
 #define	BUCKET_ZONES	((BUCKET_MAX >> BUCKET_SHIFT) + 1)
 
-uint8_t bucket_size[BUCKET_ZONES];
+/*
+ * bucket_size[] maps requested bucket sizes to zones that allocate a bucket
+ * of approximately the right size.
+ */
+static uint8_t bucket_size[BUCKET_ZONES];
 
 enum zfreeskip { SKIP_NONE, SKIP_DTOR, SKIP_FINI };
 
