@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)un.h	8.1 (Berkeley) 6/2/93
- * $Id: un.h,v 1.7 1995/11/21 12:55:15 bde Exp $
+ *	@(#)un.h	8.3 (Berkeley) 2/19/95
+ * $Id: un.h,v 1.11 1996/03/10 10:36:30 hsu Exp $
  */
 
 #ifndef _SYS_UN_H_
@@ -51,15 +51,19 @@ struct	sockaddr_un {
 };
 
 #ifdef KERNEL
-int	uipc_usrreq __P((struct socket *, int, struct mbuf *, struct mbuf *,
-			 struct mbuf *));
-int	unp_connect2 __P((struct socket*,struct socket*));
-void	unp_dispose __P((struct mbuf *));
-int	unp_externalize __P((struct mbuf *));
-#else /* KERNEL */
+struct unpcb;
+
+int	uipc_usrreq __P((struct socket *so, int req, struct mbuf *m,
+		struct mbuf *nam, struct mbuf *control));
+int	unp_connect2 __P((struct socket *so, struct socket *so2));
+void	unp_dispose __P((struct mbuf *m));
+int	unp_externalize __P((struct mbuf *rights));
+#else /* !KERNEL */
+
 /* actual length of an initialized sockaddr_un */
 #define SUN_LEN(su) \
 	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
-#endif
 
-#endif
+#endif /* KERNEL */
+
+#endif /* !_SYS_UN_H_ */
