@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98gdc.c,v 1.7 1999/04/18 14:42:18 kato Exp $
+ *	$Id: pc98gdc.c,v 1.8 1999/05/09 04:56:42 kato Exp $
  */
 
 #include "gdc.h"
@@ -101,11 +101,26 @@ static d_close_t	gdcclose;
 static d_read_t		gdcread;
 static d_ioctl_t	gdcioctl;
 
-static struct  cdevsw vga_cdevsw = {
-	gdcopen,	gdcclose,	noread,		nowrite,	/* ?? */
-	gdcioctl,	nostop,		nullreset,	nodevtotty,
-	seltrue,	nommap,		NULL,		DRIVER_NAME,
-	NULL,		-1,		nodump,		nopsize,
+static struct cdevsw vga_cdevsw = {
+	/* open */	gdcopen,
+	/* close */	gdcclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	gdcioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	DRIVER_NAME,
+	/* parms */	noparms,
+	/* maj */	-1,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #endif /* FB_INSTALL_CDEV */

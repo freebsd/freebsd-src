@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.30 1999/05/08 07:02:33 phk Exp $
+ * $Id: stallion.c,v 1.31 1999/05/09 17:07:22 peter Exp $
  */
 
 /*****************************************************************************/
@@ -535,12 +535,26 @@ COMPAT_PCI_DRIVER (stlpci, stlpcidriver);
  */
 
 #define	CDEV_MAJOR	72
-static	struct cdevsw	stl_cdevsw = {
-	stlopen,	stlclose,	stlread,	stlwrite,
-	stlioctl,	stlstop,	noreset,	stldevtotty,
-	ttpoll,		nommap,		NULL,		"stl",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw stl_cdevsw = {
+	/* open */	stlopen,
+	/* close */	stlclose,
+	/* read */	stlread,
+	/* write */	stlwrite,
+	/* ioctl */	stlioctl,
+	/* stop */	stlstop,
+	/* reset */	noreset,
+	/* devtotty */	stldevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"stl",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static int stl_devsw_installed;

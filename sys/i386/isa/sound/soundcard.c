@@ -93,9 +93,25 @@ static char     driver_name[] = "snd";
 
 #define CDEV_MAJOR 30
 static struct cdevsw snd_cdevsw = {
-	sndopen, sndclose, sndread, sndwrite,
-	sndioctl, nostop, noreset, nodevtotty,
-	sndpoll, sndmmap, nostrategy, driver_name,
+	/* open */	sndopen,
+	/* close */	sndclose,
+	/* read */	sndread,
+	/* write */	sndwrite,
+	/* ioctl */	sndioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	sndpoll,
+	/* mmap */	sndmmap,
+	/* strategy */	nostrategy,
+	/* name */	driver_name,
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 

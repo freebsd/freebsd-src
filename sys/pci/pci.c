@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.104 1999/05/20 15:33:31 gallatin Exp $
+ * $Id: pci.c,v 1.105 1999/05/30 10:54:31 dfr Exp $
  *
  */
 
@@ -847,8 +847,25 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #define	PCI_CDEV	78
 
 static struct cdevsw pcicdev = {
-	pci_open, pci_close, noread, nowrite, pci_ioctl, nostop, noreset,
-	nodevtotty, seltrue, nommap, nostrategy, "pci", 0, PCI_CDEV
+	/* open */	pci_open,
+	/* close */	pci_close,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	pci_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"pci",
+	/* parms */	noparms,
+	/* maj */	PCI_CDEV,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #ifdef DEVFS

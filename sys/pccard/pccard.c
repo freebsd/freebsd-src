@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.77 1999/05/02 04:19:27 nate Exp $
+ *	$Id: pccard.c,v 1.78 1999/05/04 15:43:02 wpaul Exp $
  */
 
 #include "opt_devfs.h"
@@ -138,10 +138,27 @@ static	d_ioctl_t	crdioctl;
 static	d_poll_t	crdpoll;
 
 #define CDEV_MAJOR 50
-static struct cdevsw crd_cdevsw = 
-	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
-	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
-	  crdpoll,	nommap,		NULL,	"crd",	NULL,	-1 };
+static struct cdevsw crd_cdevsw = {
+	/* open */	crdopen,
+	/* close */	crdclose,
+	/* read */	crdread,
+	/* write */	crdwrite,
+	/* ioctl */	crdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	crdpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"crd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 
 /*

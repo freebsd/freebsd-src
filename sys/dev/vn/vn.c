@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.78 1999/05/07 10:10:10 phk Exp $
+ *	$Id: vn.c,v 1.79 1999/05/11 19:54:02 phk Exp $
  */
 
 /*
@@ -121,11 +121,26 @@ static	d_parms_t	vnparms;
  */
 
 static struct cdevsw vn_cdevsw = {
-	  vnopen,	vnclose,	physread,	physwrite,
-	  vnioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		vnstrategy,	"vn",
-	  vnparms,	-1,		vndump,		vnsize,
-	  D_DISK|D_CANFREE,	0,	-1 };
+	/* open */	vnopen,
+	/* close */	vnclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	vnioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	vnstrategy,
+	/* name */	"vn",
+	/* parms */	vnparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	vndump,
+	/* psize */	vnsize,
+	/* flags */	D_DISK|D_CANFREE,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 
 #define	vnunit(dev)	dkunit(dev)

@@ -136,11 +136,26 @@ static d_read_t		ukbdread;
 static d_ioctl_t	ukbdioctl;
 static d_poll_t		ukbdpoll;
 
-static struct  cdevsw ukbd_cdevsw = {
-	ukbdopen,	ukbdclose,	ukbdread,	nowrite,
-	ukbdioctl,	nostop,		nullreset,	nodevtotty,
-	ukbdpoll,	nommap,		NULL,		DRIVER_NAME,
-	NULL,		-1,
+static struct cdevsw ukbd_cdevsw = {
+	/* open */	ukbdopen,
+	/* close */	ukbdclose,
+	/* read */	ukbdread,
+	/* write */	nowrite,
+	/* ioctl */	ukbdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	ukbdpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	DRIVER_NAME,
+	/* parms */	noparms,
+	/* maj */	-1,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #endif /* KBD_INSTALL_CDEV */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.33 1998/12/07 21:58:29 archie Exp $
+ * $Id: subr_log.c,v 1.34 1999/05/06 18:12:46 peter Exp $
  */
 
 /*
@@ -68,10 +68,27 @@ static	d_ioctl_t	logioctl;
 static	d_poll_t	logpoll;
 
 #define CDEV_MAJOR 7
-static struct cdevsw log_cdevsw = 
-	{ logopen,	logclose,	logread,	nowrite,	/*7*/
-	  logioctl,	nostop,		nullreset,	nodevtotty,/* klog */
-	  logpoll,	nommap,		NULL,	"log",	NULL,	-1 };
+static struct cdevsw log_cdevsw = {
+	/* open */	logopen,
+	/* close */	logclose,
+	/* read */	logread,
+	/* write */	nowrite,
+	/* ioctl */	logioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	logpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"log",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static struct logsoftc {
 	int	sc_state;		/* see above for possibilities */

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.7 1999/05/09 17:07:30 peter Exp $
+ *	@(#) $Id: fore_load.c,v 1.8 1999/05/10 22:53:45 mks Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_load.c,v 1.7 1999/05/09 17:07:30 peter Exp $");
+__RCSID("@(#) $Id: fore_load.c,v 1.8 1999/05/10 22:53:45 mks Exp $");
 #endif
 
 
@@ -1522,18 +1522,26 @@ fore_mod(cmd, vdp, vdi, vds)
 /*
  * Driver entry points
  */
-static struct cdevsw	fore_cdev = {
-	(d_open_t *)enodev,	/* open */
-	(d_close_t *)enodev,	/* close */
-	NULL,			/* read */
-	NULL,			/* write */
-	NULL,			/* ioctl */
-	NULL,			/* stop */
-	NULL,			/* reset */
-	NULL,			/* devtotty */
-	NULL,			/* select */
-	NULL,			/* mmap */
-	NULL			/* strategy */
+static struct cdevsw fore_cdev = {
+	/* open */	noopen,
+	/* close */	noclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	noioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	noname,
+	/* parms */	noparms,
+	/* maj */	-1,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 

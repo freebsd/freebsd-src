@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.9 1999/04/24 20:14:03 peter Exp $
+ * $Id: xrpu.c,v 1.10 1999/05/09 17:07:12 peter Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -49,11 +49,26 @@ static d_ioctl_t xrpu_ioctl;
 static d_mmap_t xrpu_mmap;
 
 #define CDEV_MAJOR 100
-static struct cdevsw xrpudevsw = {
-	xrpu_open,	xrpu_close,	noread,		nowrite,
-	xrpu_ioctl,	nullstop,	noreset,	nodevtotty,
-	seltrue,	xrpu_mmap,	nostrategy,	"xrpu",
-	NULL,		-1
+static struct cdevsw xrpu_cdevsw = {
+	/* open */	xrpu_open,
+	/* close */	xrpu_close,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	xrpu_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	xrpu_mmap,
+	/* strategy */	nostrategy,
+	/* name */	"xrpu",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static MALLOC_DEFINE(M_XRPU, "xrpu", "XRPU related");
@@ -164,7 +179,7 @@ xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 			    && xt->xt_pps[i].xt_addr_clear == 0)
 				continue;
 #ifdef DEVFS
-			devfs_add_devswf(&xrpudevsw, (i+1)<<16, DV_CHR, UID_ROOT, GID_WHEEL, 
+			devfs_add_devswf(&xrpu_cdevsw, (i+1)<<16, DV_CHR, UID_ROOT, GID_WHEEL, 
 			    0600, "xpps%d", i);
 #endif
 			sc->pps[i].ppscap = 0;
@@ -239,10 +254,10 @@ xrpu_attach (pcici_t tag, int unit)
 		    (u_long)sc->physbase, (u_long)sc->virbase);
 
 	if (!unit)
-		cdevsw_add(&cdev, &xrpudevsw, NULL);
+		cdevsw_add(&cdev, &xrpu_cdevsw, NULL);
 
 #ifdef DEVFS
-	devfs_add_devswf(&xrpudevsw, 0, DV_CHR, UID_ROOT, GID_WHEEL, 0600,
+	devfs_add_devswf(&xrpu_cdevsw, 0, DV_CHR, UID_ROOT, GID_WHEEL, 0600,
 		"xrpu%d", unit);
 #endif
 }

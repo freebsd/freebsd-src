@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.29 1998/12/09 02:56:48 eivind Exp $
+ *	$Id: ctx.c,v 1.30 1999/04/28 10:52:19 dt Exp $
  */
 
 /*
@@ -146,10 +146,27 @@ static	d_write_t	ctxwrite;
 static	d_ioctl_t	ctxioctl;
 #define CDEV_MAJOR 40
 
-static struct cdevsw ctx_cdevsw = 
-	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
-	  ctxioctl,	nostop,		nullreset,	nodevtotty,/* cortex */
-	  seltrue,	nommap,		NULL,	"ctx",	NULL,	-1 };
+static struct cdevsw ctx_cdevsw = {
+	/* open */	ctxopen,
+	/* close */	ctxclose,
+	/* read */	ctxread,
+	/* write */	ctxwrite,
+	/* ioctl */	ctxioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ctx",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 
 #define   LUTSIZE     256	/* buffer size for Look Up Table (LUT) */

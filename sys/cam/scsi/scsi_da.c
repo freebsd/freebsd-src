@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.24 1999/05/09 01:25:28 ken Exp $
+ *      $Id: scsi_da.c,v 1.25 1999/05/22 22:00:20 gibbs Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -236,27 +236,26 @@ DATA_SET(periphdriver_set, dadriver);
 #define D_DISK 0
 #endif
 
-static struct cdevsw da_cdevsw = 
-{
-	/*d_open*/	daopen,
-	/*d_close*/	daclose,
-	/*d_read*/	physread,
-	/*d_write*/	physwrite,
-	/*d_ioctl*/	daioctl,
-	/*d_stop*/	nostop,
-	/*d_reset*/	noreset,
-	/*d_devtotty*/	nodevtotty,
-	/*d_poll*/	seltrue,
-	/*d_mmap*/	nommap,
-	/*d_strategy*/	dastrategy,
-	/*d_name*/	"da",
-	/*d_spare*/	NULL,
-	/*d_maj*/	-1,
-	/*d_dump*/	dadump,
-	/*d_psize*/	dasize,
-	/*d_flags*/	D_DISK,
-	/*d_maxio*/	0,
-	/*b_maj*/	-1
+static struct cdevsw da_cdevsw = {
+	/* open */	daopen,
+	/* close */	daclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	daioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	dastrategy,
+	/* name */	"da",
+	/* parms */	noparms,
+	/* maj */	DA_CDEV_MAJOR,
+	/* dump */	dadump,
+	/* psize */	dasize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	DA_BDEV_MAJOR
 };
 
 static SLIST_HEAD(,da_softc) softc_list;

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.16 1999/04/25 08:58:10 phk Exp $
+ * $Id: pps.c,v 1.17 1999/05/06 22:03:14 peter Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -60,11 +60,27 @@ static	d_close_t	ppsclose;
 static	d_ioctl_t	ppsioctl;
 
 #define CDEV_MAJOR 89
-static struct cdevsw pps_cdevsw = 
-	{ ppsopen,	ppsclose,	noread,		nowrite,
-	  ppsioctl,	nullstop,	nullreset,	nodevtotty,
-	  seltrue,	nommap,		nostrat,	PPS_NAME,
-	  NULL,		-1 };
+static struct cdevsw pps_cdevsw = {
+	/* open */	ppsopen,
+	/* close */	ppsclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	ppsioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	PPS_NAME,
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 
 static struct ppb_device *

@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.25 1999/01/28 11:24:36 kato Exp $
+ *	$Id: lpt.c,v 1.26 1999/04/28 10:53:53 dt Exp $
  */
 
 /*
@@ -308,10 +308,27 @@ static	d_write_t	lptwrite;
 static	d_ioctl_t	lptioctl;
 
 #define CDEV_MAJOR 16
-static struct cdevsw lpt_cdevsw = 
-	{ lptopen,	lptclose,	noread,		lptwrite,	/*16*/
-	  lptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
-	  seltrue,	nommap,		nostrat,	"lpt",	NULL,	-1 };
+static struct cdevsw lpt_cdevsw = {
+	/* open */	lptopen,
+	/* close */	lptclose,
+	/* read */	noread,
+	/* write */	lptwrite,
+	/* ioctl */	lptioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"lpt",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 #ifndef PC98
 /*

@@ -131,8 +131,8 @@ static void *ipf_devfs[IPL_LOGMAX + 1];
 #if !defined(__FreeBSD_version) || (__FreeBSD_version < 220000)
 int	ipl_major = 0;
 
-static struct	cdevsw	ipldevsw = 
-{
+static struct	cdevsw	ipldevsw 
+= {
 	iplopen,		/* open */
 	iplclose,		/* close */
 	iplread,		/* read */
@@ -154,10 +154,25 @@ extern int nchrdev;
 #else
 
 static struct cdevsw ipl_cdevsw = {
-	iplopen,	iplclose,	iplread,	nowrite, /* 79 */
-	iplioctl,	nostop,		noreset,	nodevtotty,
-	seltrue,	nommap,		nostrategy,	"ipl",
-	NULL,	-1
+	/* open */	iplopen,
+	/* close */	iplclose,
+	/* read */	iplread,
+	/* write */	nowrite,
+	/* ioctl */	iplioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ipl",
+	/* parms */	noparms,
+	/* maj */	-1,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 #endif
 

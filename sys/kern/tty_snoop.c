@@ -46,10 +46,27 @@ static	d_ioctl_t	snpioctl;
 static	d_poll_t	snppoll;
 
 #define CDEV_MAJOR 53
-static struct cdevsw snp_cdevsw = 
-	{ snpopen,	snpclose,	snpread,	snpwrite,	/*53*/
-	  snpioctl,	nostop,		nullreset,	nodevtotty,/* snoop */
-	  snppoll,	nommap,		NULL,	"snp",	NULL,	-1 };
+static struct cdevsw snp_cdevsw = {
+	/* open */	snpopen,
+	/* close */	snpclose,
+	/* read */	snpread,
+	/* write */	snpwrite,
+	/* ioctl */	snpioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	snppoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"snp",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 
 #ifndef MIN

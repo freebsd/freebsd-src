@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.84 1999/05/08 07:02:31 phk Exp $
+ *	$Id: si.c,v 1.85 1999/05/09 17:07:21 peter Exp $
  */
 
 #ifndef lint
@@ -179,12 +179,26 @@ static	d_stop_t	sistop;
 static	d_devtotty_t	sidevtotty;
 
 #define	CDEV_MAJOR	68
-static	struct cdevsw	si_cdevsw = {
-	siopen,		siclose,	siread,		siwrite,
-	siioctl,	sistop,		noreset,	sidevtotty,
-	ttpoll,		nommap,		NULL,		"si",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw si_cdevsw = {
+	/* open */	siopen,
+	/* close */	siclose,
+	/* read */	siread,
+	/* write */	siwrite,
+	/* ioctl */	siioctl,
+	/* stop */	sistop,
+	/* reset */	noreset,
+	/* devtotty */	sidevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"si",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #ifdef SI_DEBUG		/* use: ``options "SI_DEBUG"'' in your config file */

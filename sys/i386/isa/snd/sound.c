@@ -75,10 +75,25 @@ static d_mmap_t sndmmap;
 
 #define CDEV_MAJOR 30
 static struct cdevsw snd_cdevsw = {
-	sndopen, sndclose, sndread, sndwrite,
-	sndioctl, nostop, noreset, nodevtotty,
-	sndselect, sndmmap, nostrategy, "snd",
-	NULL, -1,
+	/* open */	sndopen,
+	/* close */	sndclose,
+	/* read */	sndread,
+	/* write */	sndwrite,
+	/* ioctl */	sndioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	sndselect,
+	/* mmap */	sndmmap,
+	/* strategy */	nostrategy,
+	/* name */	"snd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 /*

@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.19 1999/04/28 10:53:55 dt Exp $
+ * $Id: mse.c,v 1.20 1999/05/09 04:37:17 kato Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -83,10 +83,27 @@ static  d_ioctl_t	mseioctl;
 static	d_poll_t	msepoll;
 
 #define CDEV_MAJOR 27
-static struct cdevsw mse_cdevsw = 
-	{ mseopen,	mseclose,	mseread,	nowrite,	/*27*/
-	  mseioctl,	nostop,		nullreset,	nodevtotty,/* mse */
-	  msepoll,	nommap,		NULL,	"mse",	NULL,	-1 };
+static struct cdevsw mse_cdevsw = {
+	/* open */	mseopen,
+	/* close */	mseclose,
+	/* read */	mseread,
+	/* write */	nowrite,
+	/* ioctl */	mseioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	msepoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"mse",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static ointhand2_t mseintr;
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.10 1999/05/08 21:59:08 dfr Exp $
+ *	$Id: smb.c,v 1.11 1999/05/09 13:00:37 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -93,10 +93,27 @@ static	d_read_t	smbread;
 static	d_ioctl_t	smbioctl;
 
 #define CDEV_MAJOR 106
-static struct cdevsw smb_cdevsw = 
-	{ smbopen,	smbclose,	smbread,	smbwrite,	/*106*/
-	  smbioctl,	nullstop,	nullreset,	nodevtotty,	/*smb*/
-	  seltrue,	nommap,		nostrat,	"smb",	NULL,	-1 };
+static struct cdevsw smb_cdevsw = {
+	/* open */	smbopen,
+	/* close */	smbclose,
+	/* read */	smbread,
+	/* write */	smbwrite,
+	/* ioctl */	smbioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"smb",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 /*
  * smbprobe()

@@ -92,10 +92,27 @@ static	d_close_t	joyclose;
 static	d_read_t	joyread;
 static	d_ioctl_t	joyioctl;
 
-static struct cdevsw joy_cdevsw = 
-	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
-	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
-	  seltrue,	nommap,		NULL,	"joy",	NULL,	-1 };
+static struct cdevsw joy_cdevsw = {
+	/* open */	joyopen,
+	/* close */	joyclose,
+	/* read */	joyread,
+	/* write */	nowrite,
+	/* ioctl */	joyioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"joy",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static int get_tick __P((void));
 

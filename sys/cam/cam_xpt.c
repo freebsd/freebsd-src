@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.60 1999/05/23 18:57:29 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.61 1999/05/25 20:17:29 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -553,27 +553,26 @@ static d_open_t xptopen;
 static d_close_t xptclose;
 static d_ioctl_t xptioctl;
 
-static struct cdevsw xpt_cdevsw = 
-{
-	/*d_open*/	xptopen,
-	/*d_close*/	xptclose,
-	/*d_read*/	noread,
-	/*d_write*/	nowrite,
-	/*d_ioctl*/	xptioctl,
-	/*d_stop*/	nostop,
-	/*d_reset*/	noreset,
-	/*d_devtotty*/	nodevtotty,
-	/*d_poll*/	NULL,
-	/*d_mmap*/	nommap,
-	/*d_strategy*/	nostrategy,
-	/*d_name*/	"xpt",
-	/*d_spare*/	NULL,
-	/*d_maj*/	-1,
-	/*d_dump*/	nodump,
-	/*d_psize*/	nopsize,
-	/*d_flags*/	0,
-	/*d_maxio*/	0,
-	/*b_maj*/	-1
+static struct cdevsw xpt_cdevsw = {
+	/* open */	xptopen,
+	/* close */	xptclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	xptioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"xpt",
+	/* parms */	noparms,
+	/* maj */	XPT_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static struct intr_config_hook *xpt_config_hook;
