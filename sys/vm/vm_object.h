@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.47 1998/03/07 21:37:09 dyson Exp $
+ * $Id: vm_object.h,v 1.48 1998/04/29 04:28:12 dyson Exp $
  */
 
 /*
@@ -128,6 +128,7 @@ struct vm_object {
  */
 #define OBJ_ACTIVE	0x0004		/* active objects */
 #define OBJ_DEAD	0x0008		/* dead objects (during rundown) */
+#define	OBJ_NOSPLIT	0x0010		/* dont split this object */
 #define OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define	OBJ_WRITEABLE	0x0080		/* object has been made writable */
 #define OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
