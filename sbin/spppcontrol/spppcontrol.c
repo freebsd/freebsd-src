@@ -26,14 +26,13 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: spppcontrol.c,v 1.2 1998/01/05 07:23:02 charnier Exp $";
+	"$Id: spppcontrol.c,v 1.3 1998/01/07 07:55:26 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/callout.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
