@@ -110,6 +110,7 @@ void	Warning		(char *, ...);
 void	Perror		__P((char *));
 void	usage		__P((void));
 extern	u_short dkcksum __P((struct disklabel *));
+struct disklabel * getvirginlabel __P((void));
 
 #define	DEFEDITOR	_PATH_VI
 #define	streq(a,b)	(strcmp(a,b) == 0)
@@ -336,7 +337,10 @@ makelabel(type, name, lp)
 	register struct disklabel *lp;
 {
 	register struct disklabel *dp;
-	char *strcpy();
+
+	if (strcmp(type, "auto") == 0)
+		dp = getvirginlabel();
+	else
 		dp = getdiskbyname(type);
 	if (dp == NULL) {
 		fprintf(stderr, "%s: unknown disk type\n", type);
@@ -1278,6 +1282,48 @@ checklabel(lp)
 	}
 	return (errors);
 }
+
+/*
+ * When operating on a "virgin" disk, try getting an initial label
+ * from the associated device driver.  This might work for all device
+ * drivers that are able to fetch some initial device parameters
+ * without even having access to a (BSD) disklabel, like SCSI disks,
+ * most IDE drives, or vn devices.
+ *
+ * The device name must be given in its "canonical" form.
+ */
+struct disklabel *
+getvirginlabel(void)
+{
+	static struct disklabel lab;
+	char namebuf[BBSIZE];
+	int f;
+
+	if (dkname[0] == '/') {
+		fprintf(stderr,
+		"\"auto\" requires the usage of a canonical disk name.\n");
+		return 0;
+	}
+	(void)snprintf(namebuf, BBSIZE, "%sr%s", _PATH_DEV, dkname);
+	if ((f = open(namebuf, O_RDONLY, 0)) == -1) {
+		Perror("open()");
+		return 0;
+	}
+	if (ioctl(f, DIOCGDINFO, &lab) < 0) {
+		Perror("ioctl DIOCGDINFO");
+		close(f);
+		return 0;
+	}
+	close(f);
+	/* insert reasonable defaults where necessary */
+	if (lab.d_npartitions < 8) lab.d_npartitions = 8;
+	if (lab.d_bbsize == 0) lab.d_bbsize = BBSIZE;
+	if (lab.d_sbsize == 0) lab.d_sbsize = SBSIZE;
+	if (lab.d_rpm == 0) lab.d_rpm = 3600;
+	if (lab.d_interleave == 0) lab.d_interleave = 1;
+	return &lab;
+}
+
 
 /*
  * If we are installing a boot program that doesn't fit in d_bbsize

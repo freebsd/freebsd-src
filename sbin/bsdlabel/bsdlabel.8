@@ -161,6 +161,21 @@ If the disk does not already have a label, the
 flag must be used.
 In either case, the kernel's in-core label is replaced.
 .Pp
+For a virgin disk that is not known to
+.Xr disktab 5 ,
+.Ar disktype
+can be specified as
+.Dq auto .
+In this case, the driver is requested to produce a virgin label for the
+disk.  This might or might not be successful, depending on whether the
+driver for the disk is able to get the required data without reading
+anything from the disk at all.  It will likely succeed for all SCSI
+disks, most IDE disks, and vnode devices.  Writing a label to the
+disk is the only supported operation, and the
+.Ar disk
+itself must be provided as the canonical name, i.e. not as a full
+path name.
+.Pp
 An existing disk label may be edited by using the
 .Fl e
 flag.
@@ -285,6 +300,12 @@ Any existing bootstrap code will be clobbered.
 Read the on-disk label for sd0, edit it and reinstall in-core as well
 as on-disk.
 Existing bootstrap code is unaffected.
+.Pp
+.Dl disklabel -r -w sd0 auto
+.Pp
+Try to auto-detect the required information from sd0, and write a new
+label to the disk.  Use another disklabel -e command to edit the
+partitioning and file system information.
 .Pp
 .Dl disklabel -R sd0 mylabel
 .Pp
