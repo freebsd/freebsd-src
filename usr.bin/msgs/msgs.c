@@ -438,7 +438,7 @@ int argc; char *argv[];
 	}
 	if (newrc) {
 		nextmsg = firstmsg;
-		fseek(msgsrc, 0L, 0);
+		rewind(msgsrc);
 		fprintf(msgsrc, "%d\n", nextmsg);
 		fflush(msgsrc);
 	}
@@ -582,7 +582,7 @@ cmnd:
 		sep = "-";
 		if (msg >= nextmsg) {
 			nextmsg = msg + 1;
-			fseek(msgsrc, 0L, 0);
+			rewind(msgsrc);
 			fprintf(msgsrc, "%d\n", nextmsg);
 			fflush(msgsrc);
 		}
@@ -597,7 +597,7 @@ cmnd:
 	 */
 	if (--msg >= nextmsg) {
 		nextmsg = msg + 1;
-		fseek(msgsrc, 0L, 0);
+		rewind(msgsrc);
 		fprintf(msgsrc, "%d\n", nextmsg);
 		fflush(msgsrc);
 	}
@@ -688,7 +688,7 @@ onintr(unused)
 			exit(0);
 		sep = "Interrupt";
 		if (newmsg)
-			fseek(newmsg, 0L, 2);
+			fseeko(newmsg, (off_t)0, SEEK_END);
 		intrpflg = YES;
 	}
 }
@@ -712,14 +712,14 @@ int
 linecnt(f)
 FILE *f;
 {
-	off_t oldpos = ftell(f);
+	off_t oldpos = ftello(f);
 	int l = 0;
 	char lbuf[BUFSIZ];
 
 	while (fgets(lbuf, sizeof lbuf, f))
 		l++;
 	clearerr(f);
-	fseek(f, oldpos, 0);
+	fseeko(f, oldpos, SEEK_SET);
 	return (l);
 }
 
@@ -763,7 +763,7 @@ const char *prompt;
 			cmsg = msg;
 		snprintf(fname, sizeof(fname), "%s/%d", _PATH_MSGS, cmsg);
 
-		oldpos = ftell(newmsg);
+		oldpos = ftello(newmsg);
 
 		cpfrom = fopen(fname, "r");
 		if (!cpfrom) {
@@ -798,7 +798,7 @@ const char *prompt;
 				close(fd);
 			warn("%s", fname);
 			mailing = NO;
-			fseek(newmsg, oldpos, 0);
+			fseeko(newmsg, oldpos, SEEK_SET);
 			ask(prompt);
 			return;
 		}
@@ -808,7 +808,7 @@ const char *prompt;
 
 		fclose(cpfrom);
 		fclose(cpto);
-		fseek(newmsg, oldpos, 0);	/* reposition current message */
+		fseeko(newmsg, oldpos, SEEK_SET);/* reposition current message */
 		if (inch == 's')
 			printf("Message %d saved in \"%s\"\n", cmsg, fname);
 		else {
@@ -840,7 +840,7 @@ FILE *infile;
 			 * expected form starts with From
 			 */
 			seenfrom = YES;
-			frompos = ftell(infile);
+			frompos = ftello(infile);
 			ptr = from;
 			in = nxtfld(inbuf);
 			if (*in) {
@@ -864,7 +864,7 @@ FILE *infile;
 			/*
 			 * not the expected form
 			 */
-			fseek(infile, 0L, 0);
+			rewind(infile);
 			return;
 		}
 	}
@@ -884,7 +884,7 @@ FILE *infile;
 		 */
 		if (!seensubj && strncmp(inbuf, "Subj", 4)==0) {
 			seensubj = YES;
-			frompos = ftell(infile);
+			frompos = ftello(infile);
 			strncpy(subj, nxtfld(inbuf), sizeof subj);
 		}
 	}
@@ -892,7 +892,7 @@ FILE *infile;
 		/*
 		 * ran into EOF
 		 */
-		fseek(infile, frompos, 0);
+		fseeko(infile, frompos, SEEK_SET);
 
 	if (!seensubj)
 		/*
