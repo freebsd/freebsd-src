@@ -109,6 +109,7 @@ _thread_dump_info(void)
 		}
 
 		/* Check if there are no dead threads: */
+		DEAD_LIST_LOCK;
 		if (TAILQ_FIRST(&_dead_list) == NULL) {
 			/* Output a record: */
 			strcpy(s, "\n\nTHERE ARE NO DEAD THREADS\n");
@@ -126,6 +127,7 @@ _thread_dump_info(void)
 				dump_thread(fd, pthread, /*long_version*/ 0);
 			}
 		}
+		DEAD_LIST_UNLOCK;
 
 		/* Close the dump file: */
 		__sys_close(fd);

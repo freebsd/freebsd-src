@@ -326,7 +326,7 @@ _thread_init(void)
 		    clockinfo.tick : CLOCK_RES_USEC_MIN;
 
 	/* Initialise the garbage collector mutex and condition variable. */
-	if (_pthread_mutex_init(&_gc_mutex,NULL) != 0 ||
+	if (_pthread_mutex_init(&dead_list_lock,NULL) != 0 ||
 	    _pthread_cond_init(&_gc_cond,NULL) != 0)
 		PANIC("Failed to initialise garbage collector mutex or condvar");
 }
