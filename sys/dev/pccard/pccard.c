@@ -55,9 +55,13 @@
 int	pccard_debug = 1;
 #define	DPRINTF(arg) if (pccard_debug) printf arg
 #define	DEVPRINTF(arg) if (pccard_debug) device_printf arg
+#define PRVERBOSE(arg) printf arg
+#define DEVPRVERBOSE(arg) device_printf arg
 #else
 #define	DPRINTF(arg)
 #define	DEVPRINTF(arg)
+#define PRVERBOSE(arg) if (bootverbose) printf arg
+#define DEVPRVERBOSE(arg) if (bootverbose) device_printf arg
 #endif
 
 #ifdef PCCARDVERBOSE
@@ -141,7 +145,6 @@ pccard_attach_card(device_t dev)
 	DEVPRINTF((dev, "chip_socket_disable\n"));
 	POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
 #endif
-
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
@@ -171,8 +174,8 @@ pccard_attach_card(device_t dev)
 		 * XXX addresses illegal or broken).
 		 */
 		pccard_function_init(pf);
-		pccard_function_enable(pf);
-		if (device_probe_and_attach(child) == 0) {
+		if (pccard_function_enable(pf) == 0 &&
+		    device_probe_and_attach(child) == 0) {
 			attached++;
 
 			DEVPRINTF((sc->dev, "function %d CCR at %d "
@@ -344,6 +347,10 @@ pccard_function_init(struct pccard_function *pf)
 		pf->cfe = cfe;
 		break;
 	    not_this_one:;
+		/*
+		 * Release resources that we partially allocated
+		 * from this config entry.
+		 */
 		for (i = 0; i < cfe->num_iospace; i++) {
 			resource_list_delete(rl, SYS_RES_IOPORT, i);
 			if (cfe->iores[i])
@@ -368,8 +375,10 @@ pccard_function_enable(struct pccard_function *pf)
 	int reg;
 	device_t dev = pf->sc->dev;
 
-	if (pf->cfe == NULL)
-		panic("pccard_function_enable: function not initialized");
+	if (pf->cfe == NULL) {
+		DEVPRVERBOSE((dev, "No config entry could be allocated.\n"));
+		return ENOMEM;
+	}
 
 	/*
 	 * Increase the reference count on the socket, enabling power, if
@@ -656,7 +665,7 @@ pccard_add_children(device_t dev, int busno)
 static int
 pccard_probe(device_t dev)
 {
-	device_set_desc(dev, "PC Card bus -- newconfig version");
+	device_set_desc(dev, "16-bit PCCard bus");
 	return pccard_add_children(dev, device_get_unit(dev));
 }
 
@@ -909,6 +918,15 @@ pccard_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
 }
 
+static void
+pccard_child_detached(device_t parent, device_t dev)
+{
+	struct pccard_ivar *ivar = PCCARD_IVAR(dev);
+
+	if (parent == device_get_parent(dev))
+		free(ivar, M_DEVBUF);
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -921,6 +939,7 @@ static device_method_t pccard_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pccard_print_child),
 	DEVMETHOD(bus_driver_added,	pccard_driver_added),
+	DEVMETHOD(bus_child_detached,	pccard_child_detached),
 	DEVMETHOD(bus_alloc_resource,	pccard_alloc_resource),
 	DEVMETHOD(bus_release_resource,	pccard_release_resource),
 	DEVMETHOD(bus_activate_resource, pccard_activate_resource),
