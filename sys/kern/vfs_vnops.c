@@ -140,9 +140,17 @@ restart:
 					return (error);
 				goto restart;
 			}
-			VOP_LEASE(ndp->ni_dvp, td, cred, LEASE_WRITE);
-			error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
-					   &ndp->ni_cnd, vap);
+#ifdef MAC
+			error = mac_check_vnode_create(cred, ndp->ni_dvp,
+			    &ndp->ni_cnd, vap);
+			if (error == 0) {
+#endif
+				VOP_LEASE(ndp->ni_dvp, td, cred, LEASE_WRITE);
+				error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
+						   &ndp->ni_cnd, vap);
+#ifdef MAC
+			}
+#endif
 			vput(ndp->ni_dvp);
 			vn_finished_write(mp);
 			if (error) {
