@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.20 1994/08/13 03:50:07 wollman Exp $
+ *	$Id: isa.c,v 1.21 1994/08/18 05:09:30 davidg Exp $
  */
 
 /*
@@ -170,7 +170,7 @@ haveseen(dvp, tmpdvp, checkbits)
 	if (tmpdvp->id_alive) {
 		char const *whatnot;
 
-		whatnot = checkbits & CC_ATTACH ? "attach" : "probe";
+		whatnot = checkbits & CC_ATTACH ? "attach" : "prob";
 		/*
 		 * Check for I/O address conflict.  We can only check the
 		 * starting address of the device against the range of the
