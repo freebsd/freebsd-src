@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.3 1995/05/30 04:55:09 rgrimes Exp $
+ *	$Id: auth.h,v 1.4 1996/01/30 23:31:35 mpp Exp $
  */
 
 /*
@@ -68,14 +68,10 @@ enum auth_stat {
 	AUTH_FAILED=7			/* some unknown reason */
 };
 
-#if (mc68000 || sparc || vax || i386 || tahoe || hp300)
-typedef u_long u_int32;	/* 32-bit unsigned integers */
-#endif
-
 union des_block {
 	struct {
-		u_int32 high;
-		u_int32 low;
+		u_int32_t high;
+		u_int32_t low;
 	} key;
 	char c[8];
 };
