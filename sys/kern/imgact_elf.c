@@ -190,7 +190,7 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 	vm_offset_t file_addr;
 	vm_offset_t data_buf = 0;
 
-	object = vp->v_object;
+	VOP_GETVOBJECT(vp, &object);
 	error = 0;
 
 	/*

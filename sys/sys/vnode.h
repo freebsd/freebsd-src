@@ -614,6 +614,9 @@ int	vop_enotty __P((struct vop_generic_args *ap));
 int	vop_defaultop __P((struct vop_generic_args *ap));
 int	vop_null __P((struct vop_generic_args *ap));
 int	vop_panic __P((struct vop_generic_args *ap));
+int	vop_stdcreatevobject __P((struct vop_createvobject_args *ap));
+int	vop_stddestroyvobject __P((struct vop_destroyvobject_args *ap));
+int	vop_stdgetvobject __P((struct vop_getvobject_args *ap));
 
 void 	vput __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));

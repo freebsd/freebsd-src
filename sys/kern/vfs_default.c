@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -49,6 +50,14 @@
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+
+#include <machine/limits.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
 
 static int vop_nostrategy __P((struct vop_strategy_args *));
 
@@ -66,7 +75,10 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_advlock_desc,		(vop_t *) vop_einval },
 	{ &vop_bwrite_desc,		(vop_t *) vop_stdbwrite },
 	{ &vop_close_desc,		(vop_t *) vop_null },
+	{ &vop_createvobject_desc,	(vop_t *) vop_stdcreatevobject },
+	{ &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },
 	{ &vop_fsync_desc,		(vop_t *) vop_null },
+	{ &vop_getvobject_desc,		(vop_t *) vop_stdgetvobject },
 	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
@@ -497,6 +509,106 @@ vop_noislocked(ap)
 	if (vp->v_vnlock == NULL)
 		return (0);
 	return (lockstatus(vp->v_vnlock, ap->a_p));
+}
+
+int
+vop_stdcreatevobject(ap)
+	struct vop_createvobject_args /* {
+		struct vnode *vp;
+		struct ucred *cred;
+		struct proc *p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct ucred *cred = ap->a_cred;
+	struct proc *p = ap->a_p;
+	struct vattr vat;
+	vm_object_t object;
+	int error = 0;
+
+	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
+		return (0);
+
+retry:
+	if ((object = vp->v_object) == NULL) {
+		if (vp->v_type == VREG || vp->v_type == VDIR) {
+			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
+				goto retn;
+			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
+		} else if (devsw(vp->v_rdev) != NULL) {
+			/*
+			 * This simply allocates the biggest object possible
+			 * for a disk vnode.  This should be fixed, but doesn't
+			 * cause any problems (yet).
+			 */
+			object = vnode_pager_alloc(vp, IDX_TO_OFF(INT_MAX), 0, 0);
+		} else {
+			goto retn;
+		}
+		/*
+		 * Dereference the reference we just created.  This assumes
+		 * that the object is associated with the vp.
+		 */
+		object->ref_count--;
+		vp->v_usecount--;
+	} else {
+		if (object->flags & OBJ_DEAD) {
+			VOP_UNLOCK(vp, 0, p);
+			tsleep(object, PVM, "vodead", 0);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			goto retry;
+		}
+	}
+
+	KASSERT(vp->v_object != NULL, ("vfs_object_create: NULL object"));
+	vp->v_flag |= VOBJBUF;
+
+retn:
+	return (error);
+}
+
+int
+vop_stddestroyvobject(ap)
+	struct vop_destroyvobject_args /* {
+		struct vnode *vp;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	vm_object_t obj = vp->v_object;
+
+	if (vp->v_object == NULL)
+		return (0);
+
+	if (obj->ref_count == 0) {
+		/*
+		 * vclean() may be called twice. The first time
+		 * removes the primary reference to the object,
+		 * the second time goes one further and is a
+		 * special-case to terminate the object.
+		 */
+		vm_object_terminate(obj);
+	} else {
+		/*
+		 * Woe to the process that tries to page now :-).
+		 */
+		vm_pager_deallocate(obj);
+	}
+	return (0);
+}
+
+int
+vop_stdgetvobject(ap)
+	struct vop_getvobject_args /* {
+		struct vnode *vp;
+		struct vm_object **objpp;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct vm_object **objpp = ap->a_objpp;
+
+	if (objpp)
+		*objpp = vp->v_object;
+	return (vp->v_object ? 0 : EINVAL);
 }
 
 /* 
