@@ -26,10 +26,11 @@ static char *rcsid = "$Header: /usr1/cvs/jkh/pkg_install/info/main.c,v 1.5 1993/
 #include "lib.h"
 #include "info.h"
 
-static char Options[] = "acde:fikrpIvhl:";
+static char Options[] = "acde:fikrpLqIvhl:";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
+Boolean Quiet		= FALSE;
 char *InfoPrefix	= "";
 char *PlayPen		= NULL;
 char *CheckPkg		= NULL;
@@ -87,8 +88,16 @@ main(int argc, char **argv)
 	    Flags |= SHOW_REQUIRE;
 	    break;
 
+	case 'L':
+	    Flags |= SHOW_FILES;
+	    break;
+
 	case 'l':
 	    InfoPrefix = optarg;
+	    break;
+
+	case 'q':
+	    Quiet = TRUE;
 	    break;
 
 	case 't':

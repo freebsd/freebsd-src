@@ -31,14 +31,17 @@
 #define SHOW_REQUIRE	0x20
 #define SHOW_PREFIX	0x40
 #define SHOW_INDEX	0x80
+#define SHOW_FILES	0x100
 
 extern int Flags;
 extern Boolean AllInstalled;
+extern Boolean Quiet;
 extern char *InfoPrefix;
 extern char *PlayPen;
 extern char *CheckPkg;
 
 extern void	show_file(char *, char *);
 extern void	show_plist(char *, Package *, plist_t);
+extern void	show_files(char *, Package *);
 
 #endif	/* _INST_INFO_H_INCLUDE */
