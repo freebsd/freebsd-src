@@ -115,10 +115,10 @@ extern	int	opts;
 # define	FR_VERBOSE(verb_pr)
 # define	FR_DEBUG(verb_pr)
 # define	IPLLOG(a, c, d, e)		ipflog(a, c, d, e)
-# if SOLARIS || defined(__sgi) || (__FreeBSD_version >= 500043)
+# ifdef USE_MUTEX
 extern	KRWLOCK_T	ipf_mutex, ipf_auth, ipf_nat;
 extern	kmutex_t	ipf_rw;
-# endif /* SOLARIS || __sgi || __FreeBSD_version */
+# endif /* USE_MUTEX */
 #endif /* _KERNEL */
 
 
@@ -1051,15 +1051,6 @@ int out;
 	fin->fin_out = out;
 #endif /* _KERNEL */
 	
-#ifndef __FreeBSD__
-	/*
-	 * Be careful here: ip_id is in network byte order when called
-	 * from ip_output()
-	 */
-	if ((out) && (v == 4))
-		ip->ip_id = ntohs(ip->ip_id);
-#endif
-
 	changed = 0;
 	fin->fin_v = v;
 	fin->fin_ifp = ifp;
@@ -1304,11 +1295,6 @@ logit:
 		}
 	}
 #endif /* IPFILTER_LOG */
-
-#ifndef __FreeBSD__	
-	if ((out) && (v == 4))
-		ip->ip_id = htons(ip->ip_id);
-#endif
 
 #ifdef	_KERNEL
 	/*
