@@ -706,10 +706,6 @@ ENTRY(generic_copyout)
 
 #if defined(I386_CPU)
 
-#if defined(SMP)
-#error I386_CPU option not supported if SMP
-#endif
-
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
 	jne	3f
@@ -1214,10 +1210,6 @@ ENTRY(suword)
 
 #if defined(I386_CPU)
 
-#if defined(SMP)
-#error I386_CPU option not supported if SMP
-#endif
-
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
 	jne	2f				/* we only have to set the right segment selector */
@@ -1269,10 +1261,6 @@ ENTRY(susword)
 	movl	4(%esp),%edx
 
 #if defined(I386_CPU)
-
-#if defined(SMP)
-#error I386_CPU option not supported if SMP
-#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
@@ -1326,10 +1314,6 @@ ENTRY(subyte)
 	movl	4(%esp),%edx
 
 #if defined(I386_CPU)
-
-#if defined(SMP)
-#error I386_CPU option not supported if SMP
-#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
