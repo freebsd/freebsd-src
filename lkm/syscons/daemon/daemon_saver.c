@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1997 Sandro Sigala, Brescia, Italy.
+ * Copyright (c) 1997 Chris Shenton
  * Copyright (c) 1995 S ren Schmidt
  * All rights reserved.
  *
@@ -24,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: daemon_saver.c,v 1.1 1997/05/21 14:18:27 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -44,10 +45,18 @@ MOD_MISC(daemon_saver);
 void (*current_saver)(int blank);
 void (*old_saver)(int blank);
 
+#define CONSOLE_VECT(x, y) \
+	*((u_short*)(Crtat + (y)*cur_console->xsize + (x)))
+
 #define DAEMON_MAX_WIDTH	32
 #define DAEMON_MAX_HEIGHT	19
 
-/* How is the author of this ASCII pic? */
+/*
+ * Define this to disable the bouncing text.
+ */
+#undef DAEMON_ONLY
+
+/* Who is the author of this ASCII pic? */
 
 static char *daemon_pic[] = {
         "             ,        ,",
@@ -95,9 +104,27 @@ static char *daemon_attr[] = {
 	NULL
 };
 
+/*
+ * Reverse a graphics character, or return unaltered if no mirror;
+ * should do alphanumerics too, but I'm too lazy. <cshenton@it.hq.nasa.gov>
+ */
+
+static char
+xflip_symbol(char symbol)
+{
+	static const char lchars[] = "`'(){}[]\\/<>";
+	static const char rchars[] = "'`)(}{][/\\><";
+	int pos;
+
+	for (pos = 0; lchars[pos] != '\0'; pos++)
+		if (lchars[pos] == symbol)
+			return rchars[pos];
+
+	return symbol;
+}
 
 static void
-draw_daemon(int xpos, int ypos)
+draw_daemon(int xpos, int ypos, int dxdir)
 {
 	int x, y;
 	int attr;
@@ -112,29 +139,38 @@ draw_daemon(int xpos, int ypos)
 			case 'C': attr = (FG_CYAN|BG_BLACK)<<8; break;
 			default: attr = (FG_WHITE|BG_BLACK)<<8; break;
 			}
-			*((u_short *)(Crtat + (ypos + y)*cur_console->xsize 
-			    + xpos + x)) = scr_map[daemon_pic[y][x]]|attr;
+			if (dxdir < 0) {	/* Moving left */
+				CONSOLE_VECT(xpos + x, ypos + y) =
+					scr_map[daemon_pic[y][x]]|attr;
+			} else {		/* Moving right */
+				CONSOLE_VECT(xpos + DAEMON_MAX_WIDTH - x - 1, ypos + y) =
+					scr_map[xflip_symbol(daemon_pic[y][x])]|attr;
+			}
 		}
 }
 
+#ifndef DAEMON_ONLY
 static void
 draw_string(int xpos, int ypos, char *s, int len)
 {
 	int x;
 
 	for (x = 0; x < len; x++)
-		*((u_short*)(Crtat + ypos*cur_console->xsize + xpos + x)) =
+		CONSOLE_VECT(xpos + x, ypos) =
 			scr_map[s[x]]|(FG_LIGHTGREEN|BG_BLACK)<<8;
 }
+#endif
 
 static void
 daemon_saver(int blank)
 {
+#ifndef DAEMON_ONLY
 	static const char message[] = {"FreeBSD 3.0 CURRENT"};
-	static int dxpos = 0, dypos = 0;
-	static int dxdir = 1, dydir = 1;
 	static int txpos = 10, typos = 10;
 	static int txdir = -1, tydir = -1;
+#endif
+	static int dxpos = 0, dypos = 0;
+	static int dxdir = 1, dydir = 1;
 	static int moved_daemon = 0;
 	scr_stat *scp = cur_console;
 
@@ -148,14 +184,13 @@ daemon_saver(int blank)
 
 		if (++moved_daemon) {
 			if (dxdir > 0) {
-				if (dxpos + 1 >= scp->xsize - DAEMON_MAX_WIDTH)
+				if (dxpos == scp->xsize - DAEMON_MAX_WIDTH)
 					dxdir = -1;
 			} else {
 				if (dxpos == 0) dxdir = 1;
 			}
 			if (dydir > 0) {
-				if (dypos + 1 >= scp->ysize - DAEMON_MAX_HEIGHT
-)
+				if (dypos == scp->ysize - DAEMON_MAX_HEIGHT)
 					dydir = -1;
 			} else {
 				if (dypos == 0) dydir = 1;
@@ -164,22 +199,26 @@ daemon_saver(int blank)
 			dxpos += dxdir; dypos += dydir;
 		}
 
+#ifndef DAEMON_ONLY
 		if (txdir > 0) {
-			if (txpos + 1 >= scp->xsize - sizeof(message)-1)
+			if (txpos == scp->xsize - sizeof(message)-1)
 				txdir = -1;
 		} else {
 			if (txpos == 0) txdir = 1;
 		}
 		if (tydir > 0) {
-			if (typos + 1 >= scp->ysize - 1)
+			if (typos == scp->ysize - 1)
 				tydir = -1;
 		} else {
 			if (typos == 0) tydir = 1;
 		}
 		txpos += txdir; typos += tydir;
+#endif
 
-		draw_daemon(dxpos, dypos);
+ 		draw_daemon(dxpos, dypos, dxdir);
+#ifndef DAEMON_ONLY
 		draw_string(txpos, typos, (char *)message, sizeof(message)-1);
+#endif
 	} else {
 		if (scrn_blanked) {
 			set_border(scp->border);
