@@ -32,7 +32,7 @@
 .\"     @(#)remote.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd October 20, 2003
 .Dt REMOTE 5
 .Os
 .Sh NAME
@@ -171,14 +171,21 @@ Indicates that the list of capabilities is continued in the named
 description.
 This is used primarily to share common capability information.
 .El
-.Pp
+.Sh EXAMPLES
 Here is a short example showing the use of the capability continuation
-feature:
+feature.
+It defines a 56k mdoem connection on the first serial port, at 115200
+baud, no parity using the hayes command set with standard line editing
+and end of file characters.
+The arpavax entry includes everything in the UNIX-57600 entry, plus
+the phone number for arpavax (in this case an @ character so that it
+retrieved from the enviornment and so as to prevent accidental calling
+of a live number).
 .Bd -literal
-UNIX-1200:\e
-:dv=/dev/cau0:el=^D^U^C^S^Q^O@:du:at=ventel:ie=#$%:oe=^D:br#1200:
+UNIX-57600:\e
+:dv=/dev/cuaa0:el=^D^U^C^S^Q^O@:oe=^D:du:at=hayes:br#115200:pa=none:
 arpavax|ax:\e
-:pn=7654321%:tc=UNIX-1200
+:pn=\e@:tc=UNIX-57600
 .Ed
 .Sh FILES
 .Bl -tag -width /etc/remote -compact
