@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.18 1999/04/21 10:51:04 dt Exp $
+ *	$Id: pmap.c,v 1.19 1999/04/23 19:53:38 dt Exp $
  */
 
 /*
@@ -377,7 +377,6 @@ static int pmap_release_free_page __P((pmap_t pmap, vm_page_t p));
 static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
-void pmap_collect(void);
 
 
 /*
