@@ -386,7 +386,7 @@ proc0_init(dummy)
 	vmspace0.vm_refcnt = 1;
 	pmap_pinit(&vmspace0.vm_pmap);
 	vm_map_init(&vmspace0.vm_map, round_page(VM_MIN_ADDRESS),
-	    trunc_page(USRSTACK), TRUE);
+	    trunc_page(VM_MAXUSER_ADDRESS), TRUE);
 	vmspace0.vm_map.pmap = &vmspace0.vm_pmap;
 	p->p_addr = proc0paddr;				/* XXX */
 
