@@ -16,6 +16,8 @@
 #define GCC_INCLUDE_DIR			PREFIX"/include"
 #ifdef CROSS_COMPILE
 #define CROSS_INCLUDE_DIR		PREFIX"/include"
+#else
+#define STANDARD_INCLUDE_DIR		PREFIX"/include"
 #endif
 
 /* Under FreeBSD, the normal location of the compiler back ends is the
@@ -35,6 +37,9 @@
 
 #undef  MD_STARTFILE_PREFIX		/* We don't need one for now. */
 #define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
+#ifdef CROSS_COMPILE
+#define CROSS_STARTFILE_PREFIX		PREFIX"/lib/"
+#endif
 
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
