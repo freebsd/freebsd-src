@@ -76,6 +76,7 @@ static	int dirindir(ino_t ino, ufs2_daddr_t blkno, int level, long *size,
 static	void dmpindir(ino_t ino, ufs2_daddr_t blk, int level, off_t *size);
 static	int searchdir(ino_t ino, ufs2_daddr_t blkno, long size, long filesize,
     long *tapesize, int nodump);
+static	long blockest(union dinode *dp);
 
 /*
  * This is an estimation of the number of TP_BSIZE blocks in the file.
@@ -84,7 +85,7 @@ static	int searchdir(ino_t ino, ufs2_daddr_t blkno, long size, long filesize,
  * (when some of the blocks are usually used for indirect pointers);
  * hence the estimate may be high.
  */
-long
+static long
 blockest(union dinode *dp)
 {
 	long blkest, sizeest;
@@ -103,6 +104,8 @@ blockest(union dinode *dp)
 	 *	dump blocks (sizeest vs. blkest in the indirect block
 	 *	calculation).
 	 */
+	if ((DIP(dp, di_flags) & SF_SNAPSHOT) != 0)
+		return (1);
 	blkest = howmany(dbtob(DIP(dp, di_blocks)), TP_BSIZE);
 	sizeest = howmany(DIP(dp, di_size), TP_BSIZE);
 	if (blkest > sizeest)
