@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_denode.c,v 1.22 1997/02/22 09:40:46 peter Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -70,7 +70,8 @@
 
 struct denode **dehashtbl;
 u_long dehash;			/* size of hash table - 1 */
-#define	DEHASH(dev, deno)	(((dev) + (deno)) & dehash)
+#define	DEHASH(dev, deno)	(dehashtbl[((dev) + (deno)) & dehash])
+static struct simplelock dehash_slock;
 
 union _qcvt {
 	quad_t qcvt;
@@ -99,6 +100,7 @@ int msdosfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 	dehashtbl = hashinit(desiredvnodes/2, M_MSDOSFSMNT, &dehash);
+	simple_lock_init(&dehash_slock);
 	return 0;
 }
 
@@ -108,28 +110,27 @@ msdosfs_hashget(dev, dirclust, diroff)
 	u_long dirclust;
 	u_long diroff;
 {
+	struct proc *p = curproc;	/* XXX */
 	struct denode *dep;
+	struct vnode *vp;
 
-	for (;;)
-		for (dep = dehashtbl[DEHASH(dev, dirclust + diroff)];;
-		     dep = dep->de_next) {
-			if (dep == NULL)
-				return NULL;
-			if (dirclust != dep->de_dirclust
-			    || diroff != dep->de_diroffset
-			    || dev != dep->de_dev
-			    || dep->de_refcnt == 0)
-				continue;
-			if (dep->de_flag & DE_LOCKED) {
-				dep->de_flag |= DE_WANTED;
-				(void) tsleep((caddr_t)dep, PINOD, "msdhgt", 0);
-				break;
-			}
-			if (!vget(DETOV(dep), LK_EXCLUSIVE | LK_INTERLOCK, curproc))
-				return dep;
-			break;
+loop:
+	simple_lock(&dehash_slock);
+	for (dep = DEHASH(dev, dirclust + diroff); dep; dep = dep->de_next) {
+		if (dirclust == dep->de_dirclust
+		    && diroff == dep->de_diroffset
+		    && dev == dep->de_dev
+		    && dep->de_refcnt != 0) {
+			vp = DETOV(dep);
+			simple_lock(&vp->v_interlock);
+			simple_unlock(&dehash_slock);
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
+				goto loop;
+			return (dep);
 		}
-	/* NOTREACHED */
+	}
+	simple_unlock(&dehash_slock);
+	return (NULL);
 }
 
 static void
@@ -138,13 +139,15 @@ msdosfs_hashins(dep)
 {
 	struct denode **depp, *deq;
 
-	depp = &dehashtbl[DEHASH(dep->de_dev, dep->de_dirclust + dep->de_diroffset)];
+	simple_lock(&dehash_slock);
+	depp = &DEHASH(dep->de_dev, dep->de_dirclust + dep->de_diroffset);
 	deq = *depp;
 	if (deq)
 		deq->de_prev = &dep->de_next;
 	dep->de_next = deq;
 	dep->de_prev = depp;
 	*depp = dep;
+	simple_unlock(&dehash_slock);
 }
 
 static void
@@ -152,6 +155,8 @@ msdosfs_hashrem(dep)
 	struct denode *dep;
 {
 	struct denode *deq;
+
+	simple_lock(&dehash_slock);
 	deq = dep->de_next;
 	if (deq)
 		deq->de_prev = dep->de_prev;
@@ -160,6 +165,7 @@ msdosfs_hashrem(dep)
 	dep->de_next = NULL;
 	dep->de_prev = NULL;
 #endif
+	simple_unlock(&dehash_slock);
 }
 
 /*
@@ -190,6 +196,7 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 	struct denode *ldep;
 	struct vnode *nvp;
 	struct buf *bp;
+	struct proc *p = curproc;	/* XXX */
 
 #ifdef MSDOSFS_DEBUG
 	printf("deget(pmp %p, dirclust %ld, diroffset %x, direntptr %p, depp %p)\n",
@@ -245,6 +252,7 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 		return error;
 	}
 	bzero((caddr_t)ldep, sizeof *ldep);
+	lockinit(&ldep->de_lock, PINOD, "denode", 0, 0);
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;
@@ -256,11 +264,17 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 
 	/*
-	 * Insert the denode into the hash queue and lock the denode so it
-	 * can't be accessed until we've read it in and have done what we
-	 * need to it.
+	 * Lock the denode so that it can't be accessed until we've read
+	 * it in and have done what we need to it.  Do this here instead
+	 * of at the start of msdosfs_hashins() so that reinsert() can
+	 * call msdosfs_hashins() with a locked denode.
 	 */
-	vn_lock(nvp, LK_EXCLUSIVE | LK_RETRY, curproc);
+	if (lockmgr(&ldep->de_lock, LK_EXCLUSIVE, (struct simplelock *)0, p))
+		panic("deget: unexpected lock failure");
+
+	/*
+	 * Insert the denode into the hash queue.
+	 */
 	msdosfs_hashins(ldep);
 
 	/*
@@ -684,10 +698,12 @@ int
 msdosfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
+	struct proc *p = ap->a_p;
 	int error = 0;
 	struct timespec ts;
 
@@ -699,14 +715,10 @@ msdosfs_inactive(ap)
 		vprint("msdosfs_inactive(): pushing active", vp);
 
 	/*
-	 * Get rid of denodes related to stale file handles. Hmmm, what
-	 * does this really do?
+	 * Ignore inodes related to stale file handles.
 	 */
-	if (dep->de_Name[0] == SLOT_DELETED) {
-		if ((vp->v_flag & VXLOCK) == 0)
-			vgone(vp);
-		return 0;
-	}
+	if (dep->de_Name[0] == SLOT_DELETED)
+		goto out;
 
 	/*
 	 * If the file has been deleted and it is on a read/write
@@ -717,9 +729,8 @@ msdosfs_inactive(ap)
 	printf("msdosfs_inactive(): dep %p, refcnt %ld, mntflag %x, MNT_RDONLY %x\n",
 	       dep, dep->de_refcnt, vp->v_mount->mnt_flag, MNT_RDONLY);
 #endif
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 	if (dep->de_refcnt <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-		error = detrunc(dep, (u_long) 0, 0, NOCRED, NULL);
+		error = detrunc(dep, (u_long) 0, 0, NOCRED, p);
 		dep->de_flag |= DE_UPDATE;
 		dep->de_Name[0] = SLOT_DELETED;
 	}
@@ -727,7 +738,8 @@ msdosfs_inactive(ap)
 		TIMEVAL_TO_TIMESPEC(&time, &ts);
 		deupdat(dep, &ts, 0);
 	}
-	VOP_UNLOCK(vp, 0, curproc);
+out:
+	VOP_UNLOCK(vp, 0, p);
 	dep->de_flag = 0;
 
 	/*
@@ -738,7 +750,7 @@ msdosfs_inactive(ap)
 	printf("msdosfs_inactive(): v_usecount %d, de_Name[0] %x\n", vp->v_usecount,
 	       dep->de_Name[0]);
 #endif
-	if (vp->v_usecount == 0 && dep->de_Name[0] == SLOT_DELETED)
-		vgone(vp);
+	if (dep->de_Name[0] == SLOT_DELETED)
+		vrecycle(vp, (struct simplelock *)0, p);
 	return error;
 }

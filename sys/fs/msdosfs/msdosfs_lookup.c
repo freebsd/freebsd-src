@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_lookup.c,v 1.10 1997/02/22 09:40:47 peter Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -117,6 +117,7 @@ msdosfs_lookup(ap)
 	u_char dosfilename[12];
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
+	struct proc *p = cnp->cn_proc;
 
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_lookup(): looking for %s\n", cnp->cn_nameptr);
@@ -157,14 +158,14 @@ msdosfs_lookup(ap)
 			VREF(vdp);
 			error = 0;
 		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(pdp, 0, curproc);
-			error = vget(vdp, LK_EXCLUSIVE | LK_INTERLOCK, curproc);
+			VOP_UNLOCK(pdp, 0, p);
+			error = vget(vdp, LK_EXCLUSIVE, p);
 			if (!error && lockparent && (flags & ISLASTCN))
-				error = vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, curproc);
+				error = vn_lock(pdp, LK_EXCLUSIVE, p);
 		} else {
-			error = vget(vdp, LK_EXCLUSIVE | LK_INTERLOCK, curproc);
+			error = vget(vdp, LK_EXCLUSIVE, p);
 			if (!lockparent || error || !(flags & ISLASTCN))
-				VOP_UNLOCK(pdp, 0, curproc);
+				VOP_UNLOCK(pdp, 0, p);
 		}
 
 		if (!error) {
@@ -184,9 +185,9 @@ msdosfs_lookup(ap)
 			}
 			vput(vdp);
 			if (lockparent && pdp != vdp && (flags & ISLASTCN))
-				VOP_UNLOCK(pdp, 0, curproc);
+				VOP_UNLOCK(pdp, 0, p);
 		}
-		error = vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, curproc);
+		error = vn_lock(pdp, LK_EXCLUSIVE, p);
 		if (error)
 			return error;
 		vdp = pdp;
@@ -346,7 +347,7 @@ notfound:;
 		/* dp->de_flag |= DE_UPDATE;  never update dos directories */
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)/* leave searched dir locked?	 */
-			VOP_UNLOCK(vdp, 0, curproc);
+			VOP_UNLOCK(vdp, 0, p);
 		return EJUSTRETURN;
 	}
 	/*
@@ -399,7 +400,7 @@ foundroot:;
 		}
 		*vpp = DETOV(tdp);
 		if (!lockparent)
-			VOP_UNLOCK(vdp, 0, curproc);
+			VOP_UNLOCK(vdp, 0, p);
 		if (bp)
 			brelse(bp);
 		return 0;
@@ -429,7 +430,7 @@ foundroot:;
 		*vpp = DETOV(tdp);
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
-			VOP_UNLOCK(vdp, 0, curproc);
+			VOP_UNLOCK(vdp, 0, p);
 		if (bp)
 			brelse(bp);
 		return 0;
@@ -440,16 +441,16 @@ foundroot:;
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp, 0, curproc);
+		VOP_UNLOCK(pdp, 0, p);
 		error = deget(pmp, cluster, diroff, dep, &tdp);
 		if (error) {
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, curproc);
+			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p);
 			if (bp)
 				brelse(bp);
 			return error;
 		}
 		if (lockparent && (flags & ISLASTCN)
-		    && (error = vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, curproc))) {
+		    && (error = vn_lock(pdp, LK_EXCLUSIVE, p))) {
 			vput(DETOV(tdp));
 			return error;
 		}
@@ -465,7 +466,7 @@ foundroot:;
 			return error;
 		}
 		if (!lockparent || !(flags & ISLASTCN))
-			VOP_UNLOCK(pdp, 0, curproc);
+			VOP_UNLOCK(pdp, 0, p);
 		*vpp = DETOV(tdp);
 	}
 	if (bp)
