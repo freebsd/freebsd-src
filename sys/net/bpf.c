@@ -44,6 +44,7 @@
 #include "opt_mac.h"
 #include "opt_netgraph.h"
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -58,7 +59,10 @@
 #include <sys/ttycom.h>
 #include <sys/filedesc.h>
 
+#include <sys/event.h>
+#include <sys/file.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
 
 #include <sys/socket.h>
 #include <sys/vnode.h>
@@ -111,6 +115,8 @@ static void	reset_d(struct bpf_d *);
 static int	 bpf_setf(struct bpf_d *, struct bpf_program *);
 static int	bpf_getdltlist(struct bpf_d *, struct bpf_dltlist *);
 static int	bpf_setdlt(struct bpf_d *, u_int);
+static void	filt_bpfdetach(struct knote *);
+static int	filt_bpfread(struct knote *, long);
 
 static	d_open_t	bpfopen;
 static	d_close_t	bpfclose;
@@ -118,6 +124,7 @@ static	d_read_t	bpfread;
 static	d_write_t	bpfwrite;
 static	d_ioctl_t	bpfioctl;
 static	d_poll_t	bpfpoll;
+static	d_kqfilter_t	bpfkqfilter;
 
 #define CDEV_MAJOR 23
 static struct cdevsw bpf_cdevsw = {
@@ -129,8 +136,11 @@ static struct cdevsw bpf_cdevsw = {
 	.d_poll =	bpfpoll,
 	.d_name =	"bpf",
 	.d_maj =	CDEV_MAJOR,
+	.d_kqfilter =	bpfkqfilter,
 };
 
+static struct filterops bpfread_filtops =
+	{ 1, NULL, filt_bpfdetach, filt_bpfread };	
 
 static int
 bpf_movein(uio, linktype, mp, sockp, datlen)
@@ -518,6 +528,7 @@ bpf_wakeup(d)
 		pgsigio(&d->bd_sigio, d->bd_sig, 0);
 
 	selwakeup(&d->bd_sel);
+	KNOTE(&d->bd_sel.si_note, 0);
 }
 
 static void
@@ -1046,15 +1057,7 @@ bpfpoll(dev, events, td)
 	revents = events & (POLLOUT | POLLWRNORM);
 	BPFD_LOCK(d);
 	if (events & (POLLIN | POLLRDNORM)) {
-		/*
-		 * An imitation of the FIONREAD ioctl code.
-		 * XXX not quite.  An exact imitation:
-		 *	if (d->b_slen != 0 ||
-		 *	    (d->bd_hbuf != NULL && d->bd_hlen != 0)
-		 */
-		if (d->bd_hlen != 0 ||
-		    ((d->bd_immediate || d->bd_state == BPF_TIMED_OUT) &&
-		    d->bd_slen != 0))
+		if (bpf_ready(d))
 			revents |= events & (POLLIN | POLLRDNORM);
 		else {
 			selrecord(td, &d->bd_sel);
@@ -1068,6 +1071,65 @@ bpfpoll(dev, events, td)
 	}
 	BPFD_UNLOCK(d);
 	return (revents);
+}
+
+/*
+ * Support for kevent() system call.  Register EVFILT_READ filters and
+ * reject all others.
+ */
+int
+bpfkqfilter(dev, kn)
+	dev_t dev;
+	struct knote *kn;
+{
+	struct bpf_d *d = (struct bpf_d *)dev->si_drv1;
+
+	if (kn->kn_filter != EVFILT_READ)
+		return (1);
+
+	kn->kn_fop = &bpfread_filtops;
+	kn->kn_hook = d;
+	BPFD_LOCK(d);
+	SLIST_INSERT_HEAD(&d->bd_sel.si_note, kn, kn_selnext);
+	BPFD_UNLOCK(d);
+
+	return (0);
+}
+
+static void
+filt_bpfdetach(kn)
+	struct knote *kn;
+{
+	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
+
+	BPFD_LOCK(d);
+	SLIST_REMOVE(&d->bd_sel.si_note, kn, knote, kn_selnext);
+	BPFD_UNLOCK(d);
+}
+
+static int
+filt_bpfread(kn, hint)
+	struct knote *kn;
+	long hint;
+{
+	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
+	int ready;
+
+	BPFD_LOCK(d);
+	ready = bpf_ready(d);
+	if (ready) {
+		kn->kn_data = d->bd_slen;
+		if (d->bd_hbuf)
+			kn->kn_data += d->bd_hlen;
+	}
+	else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
+		callout_reset(&d->bd_callout, d->bd_rtout,
+		    bpf_timed_out, d);
+		d->bd_state = BPF_WAITING;
+	}
+	BPFD_UNLOCK(d);
+	
+	return (ready);
 }
 
 /*
