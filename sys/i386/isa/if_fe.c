@@ -1347,17 +1347,31 @@ fe_probe_cnet9ne ( struct isa_device * dev, struct fe_softc * sc )
 	/* Make sure it is Contec's.  */
 	if (!valid_Ether_p(sc->sc_enaddr, 0x00804C)) return 0;
 
-	/* Setup the board type.  */
-	sc->typestr = "C-NET(9N)E";
+	/* Determine the card type.  */
+	if (sc->sc_enaddr[3] == 0x06) {
+		sc->typestr = "C-NET(9N)C";
 
-	/* C-NET(9N)E seems to work only IRQ5.  FIXME.  */
-	if (dev->id_irq != IRQ5) {
-		fe_irq_failure(sc->typestr, sc->sc_unit, dev->id_irq, "5");
-		return 0;
+		/* We seems to need our own IDENT bits...  FIXME.  */
+		sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_IDENT_NICE;
+
+		/* C-NET(9N)C requires an explicit IRQ to work.  */
+		if (dev->id_irq == NO_IRQ) {
+			fe_irq_failure(sc->typestr, sc->sc_unit, NO_IRQ, NULL);
+			return 0;
+		}
+	} else {
+		sc->typestr = "C-NET(9N)E";
+
+		/* C-NET(9N)E works only IRQ5.  */
+		if (dev->id_irq != IRQ5) {
+			fe_irq_failure(sc->typestr,
+					sc->sc_unit, dev->id_irq, "5");
+			return 0;
+		}
+
+		/* We need an init hook to initialize ASIC before we start.  */
+		sc->init = fe_init_cnet9ne;
 	}
-
-	/* We need an init hook to initialize ASIC before we start.  */
-	sc->init = fe_init_cnet9ne;
 
 	/* C-NET(9N)E has 64KB SRAM.  */
 	sc->proto_dlcr6 = FE_D6_BUFSIZ_64KB | FE_D6_TXBSIZ_2x4KB
@@ -1561,7 +1575,7 @@ fe_probe_gwy ( struct isa_device * dev, struct fe_softc * sc )
 static int
 fe_probe_ubn (struct isa_device * dev, struct fe_softc * sc)
 {
-	u_char sum;
+	u_char sum, save7;
 	int i;
 	static struct fe_simple_probe_struct const probe_table [] = {
 		{ FE_DLCR2, 0x58, 0x00 },
@@ -1588,16 +1602,27 @@ fe_probe_ubn (struct isa_device * dev, struct fe_softc * sc)
 	/* Simple probe.  */
 	if (!fe_simple_probe(sc, probe_table)) return 0;
 
+	/* NOTE: Access/NOTE N98 sometimes freeze when reading station
+	   address.  In case of using it togather with C-NET(9N)C,
+	   this problem usually happens.
+	   Writing DLCR7 prevents freezing, but I don't know why.  FIXME.  */
+
+	/* Save the current value for the DLCR7 register we are about
+	   to destroy.  */
+	save7 = inb(sc->ioaddr[FE_DLCR7]);
+	outb(sc->ioaddr[FE_DLCR7],
+		sc->proto_dlcr7 | FE_D7_RBS_BMPR | FE_D7_POWER_UP);
+
 	/* Get our station address form ID ROM and make sure it is UBN's.  */
 	inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!valid_Ether_p(sc->sc_enaddr, 0x00DD01)) return 0;
+	if (!valid_Ether_p(sc->sc_enaddr, 0x00DD01)) goto fail_ubn;
 #if 1
 	/* Calculate checksum.  */
 	sum = inb(sc->ioaddr[0x1e]);
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		sum ^= sc->sc_enaddr[i];
 	}
-	if (sum != 0) return 0;
+	if (sum != 0) goto fail_ubn;
 #endif
 	/* Setup the board type.  */
 	sc->typestr = "Access/PC";
@@ -1614,7 +1639,7 @@ fe_probe_ubn (struct isa_device * dev, struct fe_softc * sc)
 	  default:
 		fe_irq_failure(sc->typestr,
 				sc->sc_unit, dev->id_irq, "3/5/6/12");
-		return 0;
+		goto fail_ubn;
 	}
 
 	/* Setup hooks.  We need a special initialization procedure.  */
@@ -1623,6 +1648,10 @@ fe_probe_ubn (struct isa_device * dev, struct fe_softc * sc)
 	/* The I/O address range is fragmented in the Access/PC N98C+.
 	   This is the number of regs at iobase.  */
 	return 16;
+
+fail_ubn:
+	outb(sc->ioaddr[FE_DLCR7], save7);
+	return 0;
 }
 
 #else	/* !PC98 */
