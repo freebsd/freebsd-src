@@ -1526,6 +1526,15 @@
         </listitem>
       </itemizedlist>
     </para>
+
+    <para>Gigabit Ethernet NICs based on the Intel 82542 and 82543
+    controller chips (&man.gx.4; driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Intel PRO/1000 Gigabit Ethernet</para>
+	</listitem>
+      </itemizedlist>
+    </para>
   </sect2>
 
   <sect2>
