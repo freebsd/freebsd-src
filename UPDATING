@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050103:	p3	FreeBSD-EN-05:01.nfs
+	Correct a bug in nfsrv_create() where a call to nfsrv_access()
+	might be made while holding the NFS server mutex, which resulted
+	in kernel panics under certain load patterns.
+
 20041201:	p2	FreeBSD-SA-04:17.procfs
 	Fix a tainted pointer dereference in procfs(5) and linprocfs(5)
 	which could allow a local attacker to panic a system and/or read
