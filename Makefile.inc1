@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.3 1998/09/01 00:39:02 jb Exp $
+#	$Id: Makefile.inc1,v 1.4 1998/09/01 06:07:47 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -361,7 +361,7 @@ reinstall:
 	@echo " Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Re-scanning the shared libraries.."
