@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 1997
+.Dd October 3, 2002
 .Dt MINIGZIP 1
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd minimal implementation of the 'gzip' compression tool
 .Sh SYNOPSIS
 .Nm
-.Op Fl d
+.Op Fl cd
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -64,6 +64,13 @@ arguments are supplied,
 .Nm
 reads from standard input and writes the results of the operation
 to standard output.
+.Pp
+If the
+.Fl c
+option is specified, 
+.Nm
+writes the results to standard output and keep the original files
+unchanged.
 .Sh SEE ALSO
 .Xr gzip 1
 .Sh AUTHORS
