@@ -153,9 +153,8 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		error = vfs_getopt(mp->mnt_optnew,
 		    "export", (void **)&export, &len);
-		if (error == 0 && len == sizeof *export && export.ex_flags)
+		if (error == 0 && len == sizeof *export && export->ex_flags)
 			return (vfs_export(mp, export));
-	}
 	}
 	/*
 	 * Not an update, or updating the name: look up the name
