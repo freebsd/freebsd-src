@@ -10,7 +10,7 @@ CLEANFILES+=setup data.c
 data.c: glorkz setup
 	./setup ${.CURDIR}/glorkz > data.c
 
-setup: setup.c hdr.h
+setup: setup.c hdr.h ${LIBCRT0} ${LIBC}
 	${CC} -o setup ${.CURDIR}/setup.c
 
 .include <bsd.prog.mk>
