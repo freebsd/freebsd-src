@@ -76,6 +76,7 @@ typedef struct mac	*mac_t;
  * Extended non-POSIX.1e interfaces that offer additional services
  * available from the userland and kernel MAC frameworks.
  */
+__BEGIN_DECLS
 int	 mac_execve(char *fname, char **argv, char **envv, mac_t _label);
 int	 mac_free(mac_t _label);
 int	 mac_from_text(mac_t *_label, const char *_text);
@@ -96,6 +97,7 @@ int	 mac_set_link(const char *_path, mac_t _label);
 int	 mac_set_proc(const mac_t _label);
 int	 mac_syscall(const char *_policyname, int _call, void *_arg);
 int	 mac_to_text(mac_t mac, char **_text);
+__END_DECLS
 
 #else /* _KERNEL */
 
