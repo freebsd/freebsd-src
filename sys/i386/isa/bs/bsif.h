@@ -117,7 +117,6 @@
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/vmparam.h>
-#include <machine/ipl.h>
 #include <machine/dvcfg.h>
 
 #include <cam/scsi/scsi_all.h>
@@ -209,12 +208,8 @@ static BS_INLINE void memcopy __P((void *from, void *to, register size_t len));
 u_int32_t bs_adapter_info __P((int));
 #define delay(y) DELAY(y)
 extern int dma_init_flag;
-extern	volatile u_int spending;
 
-#define softintr(y)	do {			\
-	atomic_set_int(&spending, 1 << y);	\
-	sched_softintr();					\
-} while(0);
+#define softintr(y)
 
 static BS_INLINE void
 memcopy(from, to, len)
