@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.5 1993/11/22 19:05:26 jkh Exp $
+#	$Id: Makefile,v 1.6 1993/11/25 01:06:42 jkh Exp $
 
 PROG=	ld.so
-SRCS=	mdprologue.S rtld.c shlib.c etc.c md.c
+SRCS=	mdprologue.S sbrk.c rtld.c shlib.c etc.c md.c
 NOMAN=	noman
 LDDIR?= $(.CURDIR)/..
 #PICFLAG=-pic
@@ -10,6 +10,7 @@ CFLAGS += -I$(LDDIR) -I$(.CURDIR) -I$(LDDIR)/$(MACHINE) -O $(PICFLAG) -DRTLD
 LDFLAGS = -Bshareable -Bsymbolic -assert nosymbolic
 LIBS =  -lc_pic -lgcc_pic
 BINDIR= /usr/libexec
+ASFLAGS = -k
 
 .PATH: $(LDDIR) $(LDDIR)/$(MACHINE)
 
@@ -19,6 +20,6 @@ $(PROG):
 	$(LD) -o $(PROG) $(LDFLAGS) $(OBJS) $(LIBS) $(LDADD)
 
 .S.o:
-	$(CPP) $(.IMPSRC) | $(AS) -k -o $(.TARGET) -
+	$(CPP) $(.IMPSRC) | $(AS) $(ASFLAGS) -o $(.TARGET) -
 
 .include <bsd.prog.mk>
