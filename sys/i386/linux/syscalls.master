@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.16 1998/12/30 20:58:28 sos Exp $
+	$Id: syscalls.master,v 1.17 1999/08/11 13:29:48 marcel Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -40,7 +40,7 @@
 6	NOPROTO	LINUX	{ int close(int fd); }
 7	STD	LINUX	{ int linux_waitpid(int pid, int *status, int options);}
 8	STD	LINUX	{ int linux_creat(char *path, int mode); }
-9	NOPROTO	LINUX	{ int link(char *path, char *link); }
+9	STD	LINUX	{ int linux_link(char *path, char *to); }
 10	STD	LINUX	{ int linux_unlink(char *path); }
 11	STD	LINUX	{ int linux_execve(char *path, char **argp, char **envp); }
 12	STD	LINUX	{ int linux_chdir(char *path); }
