@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	rnordier
-
 PROG=	boot0cfg
 MAN=	boot0cfg.8
 
