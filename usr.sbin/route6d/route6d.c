@@ -1545,6 +1545,14 @@ rtrecv()
 			len, (u_long)sizeof(*rtm));
 		return;
 	}
+	if (dflag >= 2) {
+		fprintf(stderr, "rtmsg:\n");
+		for (i = 0; i < len; i++) {
+			fprintf(stderr, "%02x ", buf[i] & 0xff);
+			if (i % 16 == 15) fprintf(stderr, "\n");
+		}
+		fprintf(stderr, "\n");
+	}
 
 	for (p = buf; p - buf < len; p += ((struct rt_msghdr *)p)->rtm_msglen) {
 		/* safety against bogus message */
@@ -1962,7 +1970,7 @@ ifrt(ifcp, again)
 	int again;
 {
 	struct ifac *ifa;
-	struct riprt *rrt, *search_rrt, *prev_rrt, *loop_rrt;
+	struct riprt *rrt = NULL, *search_rrt, *prev_rrt, *loop_rrt;
 	struct netinfo6 *np;
 	time_t t_lifetime;
 	int need_trigger = 0;
@@ -2005,22 +2013,12 @@ ifrt(ifcp, again)
 			rrt->rrt_rflags |= RRTF_CHANGED;
 			applyplen(&rrt->rrt_info.rip6_dest, ifa->ifa_plen);
 			memset(&rrt->rrt_gw, 0, sizeof(struct in6_addr));
-#if 0
-			/* XXX why gateway address == network adddress? */
 			rrt->rrt_gw = ifa->ifa_addr;
-#endif
 			np = &rrt->rrt_info;
 			search_rrt = rtsearch(np, &prev_rrt);
 			if (search_rrt != NULL) {
-				if (search_rrt->rrt_info.rip6_metric >
+				if (search_rrt->rrt_info.rip6_metric <=
 				    rrt->rrt_info.rip6_metric) {
-					if (prev_rrt)
-						prev_rrt->rrt_next = rrt->rrt_next;
-					else
-						riprt = rrt->rrt_next;
-					delroute(&rrt->rrt_info, &rrt->rrt_gw);
-					free(rrt);
-				} else {
 					/* Already have better route */
 					if (!again) {
 						trace(1, "route: %s/%d: "
@@ -2028,9 +2026,14 @@ ifrt(ifcp, again)
 						    inet6_n2p(&np->rip6_dest), np->rip6_plen,
 						    ifcp->ifc_name);
 					}
-					free(rrt);
-					continue;
+					goto next;
 				}
+
+				if (prev_rrt)
+					prev_rrt->rrt_next = rrt->rrt_next;
+				else
+					riprt = rrt->rrt_next;
+				delroute(&rrt->rrt_info, &rrt->rrt_gw);
 			}
 			/* Attach the route to the list */
 			trace(1, "route: %s/%d: register route (%s)\n",
@@ -2039,6 +2042,7 @@ ifrt(ifcp, again)
 			rrt->rrt_next = riprt;
 			riprt = rrt;
 			addroute(rrt, &rrt->rrt_gw, ifcp);
+			rrt = NULL;
 			sendrequest(ifcp);
 			ripsend(ifcp, &ifcp->ifc_ripsin, 0);
 			need_trigger = 1;
@@ -2055,6 +2059,9 @@ ifrt(ifcp, again)
 				}
 			}
                 }
+	next:
+		if (rrt)
+			free(rrt);
 	}
 	return need_trigger;
 }
