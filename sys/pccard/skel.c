@@ -37,18 +37,19 @@
 #include <sys/exec.h>
 #include <sys/lkm.h>
 
+#include <i386/isa/isa_device.h>
+
 #include <sys/select.h>
+#include <sys/kernel.h>
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
-
 
 /*
  *	This defines the lkm_misc module use by modload
  *	to define the module name.
  */
- MOD_MISC( "skel")
-
+MOD_MISC(skel);
 
 static int skelinit(struct pccard_devinfo *);		/* init device */
 static void skelunload(struct pccard_devinfo *);	/* Disable driver */
@@ -75,7 +76,7 @@ static int opened;	/* Rather minimal device state... */
  *	called to deregister the driver before unloading.
  */
 static int
-skel_handle( lkmtp, cmd)
+skel_handle(lkmtp, cmd)
 struct lkm_table	*lkmtp;
 int			cmd;
 {
@@ -85,12 +86,6 @@ int			cmd;
 
 	switch( cmd) {
 	case LKM_E_LOAD:
-
-		/*
-		 * Don't load twice! (lkmexists() is exported by kern_lkm.c)
-		 */
-		if( lkmexists( lkmtp))
-			return( EEXIST);
 /*
  *	Now register the driver
  */
@@ -115,7 +110,7 @@ int			cmd;
 /*
  * External entry point; should generally match name of .o file.  The
  * arguments are always the same for all loaded modules.  The "load",
- * "unload", and "stat" functions in "DISPATCH" will be called under
+ * "unload", and "stat" functions in "MOD_DISPATCH" will be called under
  * their respective circumstances unless their value is "nosys".  If
  * called, they are called with the same arguments (cmd is included to
  * allow the use of a single function, ver is included for version
@@ -132,12 +127,12 @@ int			cmd;
  * case it should return an errno from errno.h).
  */
 int
-lkm_skel(lkmtp, cmd, ver)
+skel(lkmtp, cmd, ver)
 struct lkm_table	*lkmtp;	
 int			cmd;
 int			ver;
 {
-	DISPATCH(lkmtp,cmd,ver,skel_handle,skel_handle,nosys)
+	MOD_DISPATCH(skel,lkmtp,cmd,ver,skel_handle,skel_handle,nosys)
 }
 /*
  *	Skeleton driver entry points for PCCARD configuration.
@@ -148,11 +143,16 @@ int			ver;
 static int
 skelinit(struct pccard_devinfo *devi)
 {
-	if ((1 << devi->unit) & opened)
+	int unit = devi->isahd.id_unit;
+
+	if (opened & (1 << unit))
 		return(EBUSY);
-	opened |= 1 << devi->unit;
-	printf("skel%d: init\n", devi->unit);
-	printf("iomem = 0x%x, iobase = 0x%x\n", devi->memory, devi->ioaddr);
+	opened |= 1 << unit;
+	printf("%s%d: init\n", devi->drv->name, unit);
+	printf("%s%d: irq %d iobase 0x%x maddr 0x%x memlen %d\n",
+		devi->drv->name, unit, devi->isahd.id_irq,
+		devi->isahd.id_iobase, devi->isahd.id_maddr,
+		devi->isahd.id_msize);
 	return(0);
 }
 /*
@@ -163,8 +163,10 @@ skelinit(struct pccard_devinfo *devi)
 static void
 skelunload(struct pccard_devinfo *devi)
 {
-	printf("skel%d: unload\n", devi->unit);
-	opened &= ~(1 << devi->unit);
+	int unit = devi->isahd.id_unit;
+
+	printf("%s%d: unload\n", devi->drv->name, unit);
+	opened &= ~(1 << unit);
 }
 /*
  *	Interrupt handler.

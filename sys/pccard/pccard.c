@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.62 1998/06/18 15:32:09 bde Exp $
+ *	$Id: pccard.c,v 1.63 1998/08/16 01:21:52 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -184,7 +184,6 @@ pccard_add_driver(struct pccard_device *drv)
 	drivers = drv;
 }
 
-#ifdef unused
 /*
  *	pccard_remove_driver - called to unlink driver
  *	from devices. Usually called when drivers are
@@ -217,7 +216,6 @@ pccard_remove_driver(struct pccard_device *drv)
 				break;
 			}
 }
-#endif
 
 /*
  *	pccard_remove_controller - Called when the slot
