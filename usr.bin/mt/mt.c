@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.22 1999/03/02 06:27:59 mjacob Exp $";
+	"$Id: mt.c,v 1.23 1999/03/10 00:48:03 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -611,14 +611,14 @@ stringtocomp(const char *s)
 void
 st_status(struct mtget *bp)
 {
-	printf("Mode      Density         Blocksize      bpi      "
+	printf("Mode      Density              Blocksize      bpi      "
 	       "Compression\n"
-	       "Current:  %-12s    %-12s   %-7d  %s\n"
+	       "Current:  %-17s    %-12s   %-7d  %s\n"
 	       "---------available modes---------\n"
-	       "0:        %-12s    %-12s   %-7d  %s\n"
-	       "1:        %-12s    %-12s   %-7d  %s\n"
-	       "2:        %-12s    %-12s   %-7d  %s\n"
-	       "3:        %-12s    %-12s   %-7d  %s\n",
+	       "0:        %-17s    %-12s   %-7d  %s\n"
+	       "1:        %-17s    %-12s   %-7d  %s\n"
+	       "2:        %-17s    %-12s   %-7d  %s\n"
+	       "3:        %-17s    %-12s   %-7d  %s\n",
 	       denstostring(bp->mt_density), getblksiz(bp->mt_blksiz),
 	       denstobp(bp->mt_density, TRUE), comptostring(bp->mt_comp),
 	       denstostring(bp->mt_density0), getblksiz(bp->mt_blksiz0),
