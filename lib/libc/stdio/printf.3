@@ -688,10 +688,26 @@ char *newfmt(const char *fmt, ...)
 		return (p);
 }
 .Ed
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn sprintf
+and
+.Fn vsprintf
+functions are easily misused in a manner which enables malicious users
+to arbitrarily change a running program's functionality through
+a buffer overflow attack.
+(See
+the FSA
+and
+.Sx EXAMPLES . )
 .Sh SEE ALSO
 .Xr printf 1 ,
 .Xr scanf 3 ,
 .Xr setlocale 3
+.Rs
+.%T "The FreeBSD Security Architecture"
+.%J "/usr/share/doc/{to be determined}"
+.Re
 .Sh STANDARDS
 The
 .Fn fprintf ,
