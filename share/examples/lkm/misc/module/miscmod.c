@@ -44,7 +44,7 @@
 #include <sys/lkm.h>
 
 /* XXX this should be in a header. */
-extern int	misccall __P((struct proc *p, void *uap, int retval[]));
+extern int	misccall __P((struct proc *p, void *uap));
 
 /*
  * These two entries define our system call and module information.  We
