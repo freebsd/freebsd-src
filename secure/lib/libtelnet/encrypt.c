@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)encrypt.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)encrypt.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -763,12 +763,13 @@ encrypt_keyid(kp, keyid, len)
 		if (ep->keyid)
 			(void)(*ep->keyid)(dir, kp->keyid, &kp->keylen);
 
-	} else if ((len != kp->keylen) || (bcmp(keyid, kp->keyid, len) != 0)) {
+	} else if ((len != kp->keylen) ||
+		   (memcmp(keyid, kp->keyid, len) != 0)) {
 		/*
 		 * Length or contents are different
 		 */
 		kp->keylen = len;
-		bcopy(keyid, kp->keyid, len);
+		memmove(kp->keyid, keyid, len);
 		if (ep->keyid)
 			(void)(*ep->keyid)(dir, kp->keyid, &kp->keylen);
 	} else {
@@ -795,7 +796,7 @@ encrypt_send_keyid(dir, keyid, keylen, saveit)
 			? ENCRYPT_ENC_KEYID : ENCRYPT_DEC_KEYID;
 	if (saveit) {
 		struct key_info *kp = &ki[(dir == DIR_ENCRYPT) ? 0 : 1];
-		bcopy(keyid, kp->keyid, keylen);
+		memmove(kp->keyid, keyid, keylen);
 		kp->keylen = keylen;
 	}
 

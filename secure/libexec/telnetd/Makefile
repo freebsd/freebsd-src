@@ -4,13 +4,22 @@ PROG=	telnetd
 CFLAGS+=-DLINEMODE -DKLUDGELINEMODE -DUSE_TERMIO -DDIAGNOSTICS
 CFLAGS+=-DOLD_ENVIRON -DENV_HACK
 CFLAGS+=-I${.CURDIR}/../../lib
-#CFLAGS+=-DAUTHENTICATION -DENCRYPTION
 SRCS=	authenc.c global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
 DPADD=	${LIBUTIL} ${LIBTERMCAP}
 LDADD=	-lutil -ltermcap -ltelnet
-#LDADD+=	-lkrb -ldes
+
 MAN8=	telnetd.8
+
+#ifdef	ENCRYPTION
+
+CFLAGS+=-DAUTHENTICATION -DENCRYPTION
+
+.if exists(/usr/lib/libkrb.a)
+LDADD+=	-lkrb -ldes
+.endif
+
+#endif	/* ENCRYPTION */
 
 # These are the sources that have encryption stuff in them.
 CRYPT_SRC= authenc.c ext.h state.c telnetd.c termstat.c
