@@ -310,7 +310,7 @@ static int tl_calchash		__P((caddr_t));
 static void tl_setmulti		__P((struct tl_softc *));
 static void tl_setfilt		__P((struct tl_softc *, caddr_t, int));
 static void tl_softreset	__P((struct tl_softc *, int));
-static void tl_hardreset	__P((struct tl_softc *));
+static void tl_hardreset	__P((device_t));
 static int tl_list_rx_init	__P((struct tl_softc *));
 static int tl_list_tx_init	__P((struct tl_softc *));
 
@@ -996,39 +996,29 @@ static void tl_setmulti(sc)
  * second pause at the end to 'wait for the clocks to start' but in my
  * experience this isn't necessary.
  */
-static void tl_hardreset(sc)
-	struct tl_softc		*sc;
+static void tl_hardreset(dev)
+	device_t		dev;
 {
-#ifdef foo
+	struct tl_softc		*sc;
 	int			i;
-	u_int16_t		old_addr, flags;
-	old_addr = sc->tl_phy_addr;
+	u_int16_t		flags;
 
-	for (i = 0; i < TL_PHYADDR_MAX + 1; i++) {
-		sc->tl_phy_addr = i;
-		tl_mii_sync(sc);
-	}
-
-	flags = PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE|PHY_BMCR_PWRDOWN;
-
-	for (i = 0; i < TL_PHYADDR_MAX + 1; i++) {
-		sc->tl_phy_addr = i;
-		tl_phy_writereg(sc, PHY_BMCR, flags);
-	}
-
-	sc->tl_phy_addr = TL_PHYADDR_MAX;
-	tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_ISOLATE);
-
-	DELAY(50000);
-
-	tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE);
+	sc = device_get_softc(dev);
 
 	tl_mii_sync(sc);
 
-	while(tl_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_RESET);
+	flags = BMCR_LOOP|BMCR_ISO|BMCR_PDOWN;
 
-	sc->tl_phy_addr = old_addr;
-#endif
+	for (i = 0; i < MII_NPHY; i++)
+		tl_miibus_writereg(dev, i, MII_BMCR, flags);
+
+	tl_miibus_writereg(dev, 31, MII_BMCR, BMCR_ISO);
+	DELAY(50000);
+	tl_miibus_writereg(dev, 31, MII_BMCR, BMCR_LOOP|BMCR_ISO);
+	tl_mii_sync(sc);
+	while(tl_miibus_readreg(dev, 31, MII_BMCR) & BMCR_RESET);
+
+	DELAY(50000);
 	return;
 }
 
@@ -1040,6 +1030,7 @@ static void tl_softreset(sc, internal)
 
         /* Assert the adapter reset bit. */
 	CMD_SET(sc, TL_CMD_ADRST);
+
         /* Turn off interrupts */
 	CMD_SET(sc, TL_CMD_INTSOFF);
 
@@ -1082,16 +1073,6 @@ static void tl_softreset(sc, internal)
 
         /* Unreset the MII */
 	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_NMRST);
-
-	/* Clear status register */
-        tl_dio_setbit16(sc, TL_NETSTS, TL_STS_MIRQ);
-        tl_dio_setbit16(sc, TL_NETSTS, TL_STS_HBEAT);
-        tl_dio_setbit16(sc, TL_NETSTS, TL_STS_TXSTOP);
-        tl_dio_setbit16(sc, TL_NETSTS, TL_STS_RXSTOP);
-
-	/* Enable network status interrupts for everything. */
-	tl_dio_setbit(sc, TL_NETMASK, TL_MASK_MASK7|TL_MASK_MASK6|
-			TL_MASK_MASK5|TL_MASK_MASK4);
 
 	/* Take the adapter out of reset */
 	tl_dio_setbit(sc, TL_NETCMD, TL_CMD_NRESET|TL_CMD_NWRAP);
@@ -1298,7 +1279,7 @@ static int tl_attach(dev)
 
 	/* Reset the adapter. */
 	tl_softreset(sc, 1);
-	tl_hardreset(sc);
+	tl_hardreset(dev);
 	tl_softreset(sc, 1);
 
 	/*
@@ -1359,7 +1340,7 @@ static int tl_attach(dev)
 
 	/* Reset the adapter again. */
 	tl_softreset(sc, 1);
-	tl_hardreset(sc);
+	tl_hardreset(dev);
 	tl_softreset(sc, 1);
 
 	/*
@@ -2122,6 +2103,8 @@ static void tl_init(xsc)
 	else
 		tl_dio_setbit(sc, TL_NETCMD, TL_CMD_NOBRX);
 
+	tl_dio_write16(sc, TL_MAXRX, MCLBYTES);
+
 	/* Init our MAC address */
 	tl_setfilt(sc, (caddr_t)&sc->arpcom.ac_enaddr, 0);
 
@@ -2154,7 +2137,7 @@ static void tl_init(xsc)
 	}
 
 	/* Send the RX go command */
-	CMD_SET(sc, TL_CMD_GO|TL_CMD_RT);
+	CMD_SET(sc, TL_CMD_GO|TL_CMD_NES|TL_CMD_RT);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -2294,20 +2277,11 @@ static void tl_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
-#ifdef foo
-	u_int16_t		bmsr;
-	/* Check that we're still connected. */
-	tl_phy_readreg(sc, PHY_BMSR);
-	bmsr = tl_phy_readreg(sc, PHY_BMSR);
-	if (!(bmsr & PHY_BMSR_LINKSTAT)) {
-		printf("tl%d: no carrier\n", sc->tl_unit);
-		tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
-	} else
-#endif
 	printf("tl%d: device timeout\n", sc->tl_unit);
 
 	ifp->if_oerrors++;
 
+	tl_softreset(sc, 1);
 	tl_init(sc);
 
 	return;
