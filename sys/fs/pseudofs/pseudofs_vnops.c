@@ -77,17 +77,20 @@ pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid)
 	
 	PFS_TRACE(("%s (pid: %d, req: %d)",
 	    pn->pn_name, pid, td->td_proc->p_pid));
-	if (pid == NO_PID)
-		PFS_RETURN (1);
+
+	if (pn->pn_flags & PFS_DISABLED)
+		PFS_RETURN (0);
 	
 	r = 1;
-	if ((proc = pfind(pid)) == NULL)
-		PFS_RETURN (0);
-	/* XXX should lock td->td_proc? */
-	if (p_cansee(td->td_proc, proc) != 0 ||
-	    (pn->pn_vis != NULL && !(pn->pn_vis)(td, proc, pn)))
-		r = 0;
-	PROC_UNLOCK(proc);
+	if (pid != NO_PID) {
+		if ((proc = pfind(pid)) == NULL)
+			PFS_RETURN (0);
+		/* XXX should lock td->td_proc? */
+		if (p_cansee(td->td_proc, proc) != 0 ||
+		    (pn->pn_vis != NULL && !(pn->pn_vis)(td, proc, pn)))
+			r = 0;
+		PROC_UNLOCK(proc);
+	}
 	PFS_RETURN (r);
 }
 
@@ -150,7 +153,6 @@ pfs_getattr(struct vop_getattr_args *va)
 
 	switch (pn->pn_type) {
 	case pfstype_procdir:
-		/* XXX needs p_cansee */
 	case pfstype_root:
 	case pfstype_dir:
 		vap->va_mode = 0555;
