@@ -97,6 +97,11 @@ ed_isa_probe(dev)
 		goto end;
 	ed_release_resources(dev);
 
+	error = ed_probe_SIC(dev, 0, flags);
+	if (error == 0)
+		goto end;
+	ed_release_resources(dev);
+
 	error = ed_probe_Novell(dev, 0, flags);
 	if (error == 0)
 		goto end;
