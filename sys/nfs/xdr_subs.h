@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)xdr_subs.h	8.1 (Berkeley) 6/10/93
- * $Id: xdr_subs.h,v 1.2 1994/08/02 07:52:30 davidg Exp $
+ * $Id: xdr_subs.h,v 1.3 1994/08/21 06:50:16 paul Exp $
  */
 
 #ifndef _NFS_XDR_SUBS_H_
@@ -56,11 +56,17 @@
 
 #define	fxdr_nfstime(f, t) { \
 	(t)->ts_sec = ntohl(((struct nfsv2_time *)(f))->nfs_sec); \
-	(t)->ts_nsec = 1000 * ntohl(((struct nfsv2_time *)(f))->nfs_usec); \
+	if (((struct nfsv2_time *)(f))->nfs_usec != 0xffffffff) \
+		(t)->ts_nsec = 1000 * ntohl(((struct nfsv2_time *)(f))->nfs_usec); \
+	else \
+		(t)->ts_nsec = -1; \
 }
 #define	txdr_nfstime(f, t) { \
 	((struct nfsv2_time *)(t))->nfs_sec = htonl((f)->ts_sec); \
-	((struct nfsv2_time *)(t))->nfs_usec = htonl((f)->ts_nsec) / 1000; \
+	if ((f)->ts_nsec != -1) \
+		((struct nfsv2_time *)(t))->nfs_usec = htonl((f)->ts_nsec / 1000); \
+	else \
+		((struct nfsv2_time *)(t))->nfs_usec = 0xffffffff; \
 }
 
 #define	fxdr_nqtime(f, t) { \
