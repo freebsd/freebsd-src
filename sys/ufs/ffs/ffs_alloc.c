@@ -261,8 +261,7 @@ retry:
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
 		if ((bp->b_flags & (B_MALLOC | B_VMIO)) != B_VMIO)
-			bzero((char *)bp->b_data + osize,
-			    (u_int)nsize - osize);
+			bzero((char *)bp->b_data + osize, nsize - osize);
 		else
 			vfs_bio_clrbuf(bp);
 		*bpp = bp;
@@ -330,8 +329,7 @@ retry:
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
 		if ((bp->b_flags & (B_MALLOC | B_VMIO)) != B_VMIO)
-			bzero((char *)bp->b_data + osize,
-			    (u_int)nsize - osize);
+			bzero((char *)bp->b_data + osize, nsize - osize);
 		else
 			vfs_bio_clrbuf(bp);
 		*bpp = bp;
