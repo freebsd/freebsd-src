@@ -64,11 +64,35 @@ __FBSDID("$FreeBSD$");
 #define DKTYPENAMES
 #define FSTYPENAMES
 #include <sys/disklabel.h>
-#ifdef PC98
-#include <sys/diskpc98.h>
-#else
+
 #include <sys/diskmbr.h>
+#if (DOSPARTOFF != 446 || NDOSPART != 4 || DOSPTYP_386BSD != 0xa5)
+#error	<sys/diskmbr.h> has changed
+#else
+#define	I386_DOSPARTOFF		446
+#define	I386_NDOSPART		4
+#define	I386_DOSPTYP_386BSD	0xa5
 #endif
+#undef DOSPARTOFF
+#undef NDOSPART
+#undef DOSPTYP_386BSD
+
+#include <sys/diskpc98.h>
+#if (DOSPARTOFF != 0 || NDOSPART != 16 || DOSPTYP_386BSD != 0x94)
+#error	<sys/diskpc98.h> has changed
+#else
+#define	PC98_DOSPARTOFF		0
+#define	PC98_NDOSPART		16
+#define	PC98_DOSPTYP_386BSD	0x94
+#endif
+#undef DOSPARTOFF
+#undef NDOSPART
+#undef DOSPTYP_386BSD
+
+#define	IS_PC98	(arch->mach == MACH_PC98)
+#define	DOSPARTOFF	(IS_PC98 ? PC98_DOSPARTOFF : I386_DOSPARTOFF)
+#define	NDOSPART	(IS_PC98 ? PC98_NDOSPART : I386_NDOSPART)
+#define	DOSPTYP_386BSD	(IS_PC98 ? PC98_DOSPTYP_386BSD : I386_DOSPTYP_386BSD)
 
 #include <unistd.h>
 #include <string.h>
@@ -104,18 +128,11 @@ __FBSDID("$FreeBSD$");
 #define BIG_NEWFS_FRAG   2048U
 #define BIG_NEWFS_CPG    64U
 
-#if defined(__i386__)
-#elif defined(__alpha__)
-#elif defined(__ia64__)
-#else
-#error	I do not know about this architecture, and shall probably not be compiled for it.
-#endif
-
 void	makelabel(const char *, const char *, struct disklabel *);
-int	writelabel(int, const char *, struct disklabel *);
+int	writelabel(int, void *, struct disklabel *);
 void	l_perror(const char *);
 struct disklabel *readlabel(int);
-struct disklabel *makebootarea(char *, struct disklabel *, int);
+struct disklabel *makebootarea(void *, struct disklabel *, int);
 void	display(FILE *, const struct disklabel *);
 int	edit(struct disklabel *, int);
 int	editit(void);
@@ -137,7 +154,7 @@ char	tmpfil[] = PATH_TMPFILE;
 
 char	namebuf[BBSIZE], *np = namebuf;
 struct	disklabel lab;
-char	bootarea[BBSIZE];
+int64_t	bootarea[BBSIZE / 8];
 char	blank[] = "";
 char	unknown[] = "unknown";
 
@@ -155,26 +172,51 @@ enum	{
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
 } op = UNSPEC;
 
+enum { ARCH_I386, ARCH_ALPHA, ARCH_IA64 };
+
+enum { MACH_I386, MACH_PC98 };
+
+struct {
+	const char	*name;
+	int		arch;
+	int		mach;
+	off_t		label_sector;
+	off_t		label_offset;
+} arches[] = {
+	{ "i386", ARCH_I386, MACH_I386, 1, 0 },
+	{ "pc98", ARCH_I386, MACH_PC98, 1, 0 },
+	{ "alpha", ARCH_ALPHA, ARCH_ALPHA, 0, 64 },
+	{ "ia64", ARCH_IA64, ARCH_IA64, 1, 0 },
+}, *arch;
+#define	NARCHES	(int)(sizeof(arches) / sizeof(*arches))
+
 int	rflag;
 int	disable_write;   /* set to disable writing to disk label */
-
-#define OPTIONS	"BRb:enrs:w"
 
 int
 main(int argc, char *argv[])
 {
 	struct disklabel *lp;
 	FILE *t;
-	int ch, f = 0, error = 0;
+	int ch, f = 0, error = 0, i;
 	char *name = 0;
 
-	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
+	while ((ch = getopt(argc, argv, "Bb:em:nRrs:w")) != -1)
 		switch (ch) {
 			case 'B':
 				++installboot;
 				break;
 			case 'b':
 				xxboot = optarg;
+				break;
+			case 'm':
+				for (i = 0; i < NARCHES &&
+				    strcmp(arches[i].name, optarg) != 0;
+				    i++);
+				if (i == NARCHES)
+					errx(1, "%s: unknown architecture",
+					    optarg);
+				arch = &arches[i];
 				break;
 			case 'n':
 				disable_write = 1;
@@ -214,6 +256,30 @@ main(int argc, char *argv[])
 	}
 	if (argc < 1)
 		usage();
+
+	if (arch == NULL) {
+		for (i = 0; i < NARCHES; i++)
+			if (strcmp(arches[i].name,
+#if defined(__i386__)
+#ifdef PC98
+			    "pc98"
+#else
+			    "i386"
+#endif
+#elif defined(__alpha__)
+			    "alpha"
+#elif defined(__ia64__)
+			    "ia64"
+#else
+			    "unknown"
+#endif
+			    ) == 0) {
+				arch = &arches[i];
+				break;
+			}
+		if (i == NARCHES)
+			errx(1, "unsupported architecture");
+	}
 
 	dkname = argv[0];
 	if (dkname[0] != '/') {
@@ -320,12 +386,10 @@ makelabel(const char *type, const char *name, struct disklabel *lp)
 }
 
 int
-writelabel(int f, const char *boot, struct disklabel *lp)
+writelabel(int f, void *boot, struct disklabel *lp)
 {
-#ifdef __alpha__
-	u_long *p, sum;
+	uint64_t *p, sum;
 	int i;
-#endif
 
 	if (disable_write) {
 		Warning("write to disk label supressed - label was as follows:");
@@ -360,14 +424,14 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 	}
 	(void)lseek(f, (off_t)0, SEEK_SET);
 	
-#ifdef __alpha__
-	/*
-	 * Generate the bootblock checksum for the SRM console.
-	 */
-	for (p = (u_long *)boot, i = 0, sum = 0; i < 63; i++)
-		sum += p[i];
-	p[63] = sum;
-#endif
+	if (arch->arch == ARCH_ALPHA) {
+		/*
+		 * Generate the bootblock checksum for the SRM console.
+		 */
+		for (p = (uint64_t *)boot, i = 0, sum = 0; i < 63; i++)
+			sum += p[i];
+		p[63] = sum;
+	}
 	if (ioctl(f, DIOCBSDBB, &boot) == 0)
 		return (0);
 	if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
@@ -420,12 +484,14 @@ readlabel(int f)
 		if (read(f, bootarea, BBSIZE) < BBSIZE)
 			err(4, "%s", specname);
 		for (lp = (struct disklabel *)bootarea;
-		    lp <= (struct disklabel *)(bootarea + BBSIZE - sizeof(*lp));
+		    lp <= (struct disklabel *)
+			((char *)bootarea + BBSIZE - sizeof(*lp));
 		    lp = (struct disklabel *)((char *)lp + 16))
 			if (lp->d_magic == DISKMAGIC &&
 			    lp->d_magic2 == DISKMAGIC)
 				break;
-		if (lp > (struct disklabel *)(bootarea+BBSIZE-sizeof(*lp)) ||
+		if (lp > (struct disklabel *)
+		    ((char *)bootarea + BBSIZE - sizeof(*lp)) ||
 		    lp->d_magic != DISKMAGIC || lp->d_magic2 != DISKMAGIC ||
 		    dkcksum(lp) != 0)
 			errx(1,
@@ -443,21 +509,17 @@ readlabel(int f)
  * Returns a pointer to the disklabel portion of the bootarea.
  */
 struct disklabel *
-makebootarea(char *boot, struct disklabel *dp, int f)
+makebootarea(void *boot, struct disklabel *dp, int f)
 {
 	struct disklabel *lp;
 	char *p;
 	int b;
 	char *dkbasename;
 	struct stat sb;
-#ifdef __alpha__
-	u_long *bootinfo;
+	uint64_t *bootinfo;
 	int n;
-#endif
-#ifdef __i386__
 	char *tmpbuf;
 	int i, found, dps;
-#endif
 
 	/* XXX */
 	if (dp->d_secsize == 0) {
@@ -465,7 +527,8 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 		dp->d_bbsize = BBSIZE;
 	}
 	lp = (struct disklabel *)
-		(boot + (LABELSECTOR * dp->d_secsize) + LABELOFFSET);
+	    ((char *)boot + (arch->label_sector * dp->d_secsize) +
+	    arch->label_offset);
 	bzero((char *)lp, sizeof *lp);
 	/*
 	 * If we are not installing a boot program but we are installing a
@@ -505,57 +568,55 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 		err(4, "%s", xxboot);
 	if (fstat(b, &sb) != 0)
 		err(4, "%s", xxboot);
-#ifdef __i386__
-	if (sb.st_size > BBSIZE)
-		errx(4, "%s too large", xxboot);
-	/*
-	 * XXX Botch alert.
-	 * The i386/PC98 has the so-called fdisk table embedded into the
-	 * primary bootstrap.  We take care to not clobber it, but
-	 * only if it does already contain some data.  (Otherwise,
-	 * the xxboot provides a template.)
-	 */
-	if ((tmpbuf = (char *)malloc((int)dp->d_secsize)) == 0)
-		err(4, "%s", xxboot);
-	memcpy((void *)tmpbuf, (void *)boot, (int)dp->d_secsize);
+	if (arch->arch == ARCH_I386) {
+		if (sb.st_size > BBSIZE)
+			errx(4, "%s too large", xxboot);
+		/*
+		 * XXX Botch alert.
+		 * The i386/PC98 has the so-called fdisk table embedded into the
+		 * primary bootstrap.  We take care to not clobber it, but
+		 * only if it does already contain some data.  (Otherwise,
+		 * the xxboot provides a template.)
+		 */
+		if ((tmpbuf = (char *)malloc((int)dp->d_secsize)) == 0)
+			err(4, "%s", xxboot);
+		memcpy((void *)tmpbuf, (void *)boot, (int)dp->d_secsize);
 
-	if (read(b, boot, BBSIZE) < 0)
-		err(4, "%s", xxboot);
+		if (read(b, boot, BBSIZE) < 0)
+			err(4, "%s", xxboot);
 
-	/* XXX: rely on some very precise overlaps in definitions */
-#ifdef PC98
-	dps = sizeof(struct pc98_partition);
-#else
-	dps = sizeof(struct dos_partition);
-#endif
-	for (i = DOSPARTOFF, found = 0;
-	     !found && i < (int)(DOSPARTOFF + NDOSPART * dps);
-	     i++)
-		found = tmpbuf[i] != 0;
-	if (found)
-		memcpy((void *)&boot[DOSPARTOFF],
-		       (void *)&tmpbuf[DOSPARTOFF],
-		       NDOSPART * dps);
-	free(tmpbuf);
-#endif /* __i386__ */
+		/* XXX: rely on some very precise overlaps in definitions */
+		dps = IS_PC98 ? sizeof(struct pc98_partition) :
+		    sizeof(struct dos_partition);
+		for (i = DOSPARTOFF, found = 0;
+		     !found && i < (int)(DOSPARTOFF + NDOSPART * dps);
+		     i++)
+			found = tmpbuf[i] != 0;
+		if (found)
+			memcpy((void *)&((char *)boot)[DOSPARTOFF],
+			       (void *)&tmpbuf[DOSPARTOFF],
+			       NDOSPART * dps);
+		free(tmpbuf);
+	}
 
-#ifdef __alpha__
-	if (sb.st_size > BBSIZE - dp->d_secsize)
-		errx(4, "%s too large", xxboot);
-	/*
-	 * On the alpha, the primary bootstrap starts at the
-	 * second sector of the boot area.  The first sector
-	 * contains the label and must be edited to contain the
-	 * size and location of the primary bootstrap.
-	 */
-	n = read(b, boot + dp->d_secsize, BBSIZE - dp->d_secsize);
-	if (n < 0)
-		err(4, "%s", xxboot);
-	bootinfo = (u_long *)(boot + 480);
-	bootinfo[0] = (n + dp->d_secsize - 1) / dp->d_secsize;
-	bootinfo[1] = 1;	/* start at sector 1 */
-	bootinfo[2] = 0;	/* flags (must be zero) */
-#endif /* __alpha__ */
+	if (arch->arch == ARCH_ALPHA) {
+		if (sb.st_size > BBSIZE - dp->d_secsize)
+			errx(4, "%s too large", xxboot);
+		/*
+		 * On the alpha, the primary bootstrap starts at the
+		 * second sector of the boot area.  The first sector
+		 * contains the label and must be edited to contain the
+		 * size and location of the primary bootstrap.
+		 */
+		n = read(b, (char *)boot + dp->d_secsize,
+		    BBSIZE - dp->d_secsize);
+		if (n < 0)
+			err(4, "%s", xxboot);
+		bootinfo = (uint64_t *)((char *)boot + 480);
+		bootinfo[0] = (n + dp->d_secsize - 1) / dp->d_secsize;
+		bootinfo[1] = 1;	/* start at sector 1 */
+		bootinfo[2] = 0;	/* flags (must be zero) */
+	}
 
 	(void)close(b);
 	/*
@@ -1495,20 +1556,22 @@ Warning(const char *fmt, ...)
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-		"usage: disklabel [-r] disk",
-		"\t\t(to read label)",
-		"       disklabel -w [-r] [-n] disk type [ packid ]",
-		"\t\t(to write label with existing boot program)",
-		"       disklabel -e [-r] [-n] disk",
-		"\t\t(to edit label)",
-		"       disklabel -R [-r] [-n] disk protofile",
-		"\t\t(to restore label with existing boot program)",
-		"       disklabel -B [-n] [ -b bootprog ] disk [ type ]",
-		"\t\t(to install boot program with existing on-disk label)",
-		"       disklabel -w -B [-n] [ -b bootprog ] disk type [ packid ]",
-		"\t\t(to write label and install boot program)",
-		"       disklabel -R -B [-n] [ -b bootprog ] disk protofile",
+
+	fprintf(stderr,
+	"%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	"usage: disklabel [-r] disk",
+	"\t\t(to read label)",
+	"	disklabel -w [-nr] [-m machine] disk type [packid]",
+	"\t\t(to write label with existing boot program)",
+	"	disklabel -e [-nr] [-m machine] disk",
+	"\t\t(to edit label)",
+	"	disklabel -R [-nr] [-m machine] disk protofile",
+	"\t\t(to restore label with existing boot program)",
+	"	disklabel -B [-b boot] [-m machine] disk",
+	"\t\t(to install boot program with existing on-disk label)",
+	"	disklabel -w -B [-n] [-b boot] [-m machine] disk type [packid]",
+	"\t\t(to write label and install boot program)",
+	"	disklabel -R -B [-n] [-b boot] [-m machine] disk protofile",
 		"\t\t(to restore label and install boot program)"
 	);
 	exit(1);
