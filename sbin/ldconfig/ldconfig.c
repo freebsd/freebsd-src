@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ldconfig.c,v 1.24 1998/08/02 16:06:33 bde Exp $";
+	"$Id: ldconfig.c,v 1.25 1998/09/05 03:30:54 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -359,6 +359,8 @@ int	silent;
 
 		bzero((caddr_t)dewey, sizeof(dewey));
 		ndewey = getdewey(dewey, cp + 4);
+		if (ndewey < 2)
+			continue;
 		enter(dir, dp->d_name, name, dewey, ndewey);
 	}
 
