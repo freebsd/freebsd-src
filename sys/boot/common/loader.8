@@ -114,7 +114,7 @@ will be set and
 .Nm
 will engage interactive mode.
 .Sh BUILTIN COMMANDS
-.Nm Loader Ns No 's
+.Nm Loader Ns 's
 builtin commands take its parameters from the command line.
 Presently,
 the only way to call them from a script is by using
@@ -301,7 +301,7 @@ Notice that this environment variables are not inherited by any shell
 after the system has been booted.
 .Pp
 A few variables are set automatically by
-.Nm loader .
+.Nm .
 Others can affect either
 .Nm
 or kernel's behavior at boot.
@@ -375,7 +375,7 @@ This has been deprecated in favour of
 .Va root_disk_unit .
 .It Va prompt
 Value of
-.Nm Ns No 's
+.Nm Ns 's
 prompt.
 Defaults to
 .Li Dq "${currdev}>" .
@@ -525,7 +525,7 @@ virtual machine library that can be called by C functions and vice
 versa.
 .Pp
 In
-.Nm No ,
+.Nm ,
 each line read interactively is then fed to
 .Tn FICL ,
 which may call
