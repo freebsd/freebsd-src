@@ -39,9 +39,9 @@
  *
  * Argument is an unsigned 2-byte integer (u_int16_t).
  */
-ENTRY(NAME, 1)				/* in0  = 0x0123 */
-	extr.u	ret0=in0,8,8		/* ret0 = 0x  01 */
-	;; 
-	dep	ret0=ret0,in0,8,8	/* ret0 = 0x2301 */
+ENTRY(NAME, 1)
+	mux1	r16=in0,@rev
+	;;
+	extr.u	r8=r16,48,16
 	br.ret.sptk.few rp
 END(NAME)
