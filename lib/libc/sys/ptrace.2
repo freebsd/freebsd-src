@@ -1,4 +1,4 @@
-.\"	$Id: ptrace.2,v 1.9 1997/02/22 15:04:13 peter Exp $
+.\"	$Id: ptrace.2,v 1.10 1997/03/21 20:57:20 mpp Exp $
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
@@ -75,7 +75,9 @@ and data, which is why there are two requests: conceptually,
 .Dv PT_READ_I
 reads from the instruction space and
 .Dv PT_READ_D
-reads from the data space.  In the current FreeBSD implementation, these
+reads from the data space.  In the current
+.Tn FreeBSD
+implementation, these
 two requests are completely identical.  The
 .Fa addr
 argument specifies the address (in the traced process' virtual address

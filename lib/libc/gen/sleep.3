@@ -85,7 +85,9 @@ is available.
 .Xr sigpause 2 ,
 .Xr usleep 3
 .Sh CAVEAT
-In practice the FreeBSD implementation will not be interrupted: it will
+In practice the
+.Tn FreeBSD
+implementation will not be interrupted: it will
 always return the original argument or zero. Code that depends on
 sleep being interrupted (using it as a timed pause, for example) needs
 to be recoded to use
