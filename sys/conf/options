@@ -216,6 +216,10 @@ ATA_DEBUG		opt_ata.h
 ATA_STATIC_ID		opt_ata.h
 ATA_ENABLE_ATAPI_DMA	opt_ata.h
 ATA_ENABLE_TAGS		opt_ata.h
+DEV_ATADISK		opt_ata.h
+DEV_ATAPICD		opt_ata.h
+DEV_ATAPIST		opt_ata.h
+DEV_ATAPIFD		opt_ata.h
 
 # Resource limits.
 DFLDSIZ			opt_rlimit.h

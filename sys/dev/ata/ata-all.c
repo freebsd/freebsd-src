@@ -28,13 +28,8 @@
  * $FreeBSD$
  */
 
-#include "ata.h"
 #include "card.h"
 #include "pci.h"
-#include "atadisk.h"
-#include "atapicd.h"
-#include "atapifd.h"
-#include "atapist.h"
 #include "opt_global.h"
 #include "opt_isa.h"
 #include "opt_ata.h"
@@ -904,13 +899,13 @@ ata_attach(device_t dev)
 	if (scp->devices & ATA_ATAPI_MASTER)
 	    if (ata_getparam(scp, ATA_MASTER,ATA_C_ATAPI_IDENTIFY))
 		scp->devices &= ~ATA_ATAPI_MASTER;
-#if NATADISK > 0
+#ifdef DEV_ATADISK
 	if (scp->devices & ATA_ATA_MASTER)
 	    ad_attach(scp, ATA_MASTER);
 	if (scp->devices & ATA_ATA_SLAVE)
 	    ad_attach(scp, ATA_SLAVE);
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
 	if (scp->devices & ATA_ATAPI_MASTER)
 	    atapi_attach(scp, ATA_MASTER);
 	if (scp->devices & ATA_ATAPI_SLAVE)
@@ -929,13 +924,13 @@ ata_detach(device_t dev)
     if (!scp || !(scp->flags & ATA_ATTACHED))
 	return ENXIO;
 
-#if NATADISK > 0
+#ifdef DEV_ATADISK
     if (scp->devices & ATA_ATA_MASTER)
 	ad_detach(scp->dev_softc[0]);
     if (scp->devices & ATA_ATA_SLAVE)
 	ad_detach(scp->dev_softc[1]);
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     if (scp->devices & ATA_ATAPI_MASTER)
 	atapi_detach(scp->dev_softc[0]);
     if (scp->devices & ATA_ATAPI_SLAVE)
@@ -1050,7 +1045,7 @@ ata_boot_attach(void)
 		scp->devices &= ~ATA_ATAPI_MASTER;
     }
 
-#if NATADISK > 0
+#ifdef DEV_ATADISK
     /* now we know whats there, do the real attach, first the ATA disks */
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(scp = devclass_get_softc(ata_devclass, ctlr)))
@@ -1061,7 +1056,7 @@ ata_boot_attach(void)
 	    ad_attach(scp, ATA_SLAVE);
     }
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     /* then the atapi devices */
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(scp = devclass_get_softc(ata_devclass, ctlr)))
@@ -1138,13 +1133,13 @@ out:
 
     /* find & call the responsible driver to process this interrupt */
     switch (scp->active) {
-#if NATADISK > 0
+#ifdef DEV_ATADISK
     case ATA_ACTIVE_ATA:
 	if (!scp->running || ad_interrupt(scp->running) == ATA_OP_CONTINUES)
 	    return;
 	break;
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     case ATA_ACTIVE_ATAPI:
 	if (!scp->running || atapi_interrupt(scp->running) == ATA_OP_CONTINUES)
 	    return;
@@ -1188,17 +1183,17 @@ out:
 void
 ata_start(struct ata_softc *scp)
 {
-#if NATADISK > 0
+#ifdef DEV_ATADISK
     struct ad_request *ad_request; 
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     struct atapi_request *atapi_request;
 #endif
 
     if (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_ACTIVE))
 	return;
 
-#if NATADISK > 0
+#ifdef DEV_ATADISK
     /* find & call the responsible driver if anything on the ATA queue */
     if (TAILQ_EMPTY(&scp->ata_queue)) {
 	if (scp->devices & (ATA_ATA_MASTER) && scp->dev_softc[0])
@@ -1215,7 +1210,7 @@ ata_start(struct ata_softc *scp)
     }
 
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     /* find & call the responsible driver if anything on the ATAPI queue */
     if (TAILQ_EMPTY(&scp->atapi_queue)) {
 	if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[0])
@@ -1367,13 +1362,13 @@ ata_reinit(struct ata_softc *scp)
 	if (omask != mask)
 	    printf(" device dissapeared! %d ", omask & ~mask);
 
-#if NATADISK > 0
+#ifdef DEV_ATADISK
 	if (scp->devices & (ATA_ATA_MASTER) && scp->dev_softc[0])
 	    ad_reinit((struct ad_softc *)scp->dev_softc[0]);
 	if (scp->devices & (ATA_ATA_SLAVE) && scp->dev_softc[1])
 	    ad_reinit((struct ad_softc *)scp->dev_softc[1]);
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
 	if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[0])
 	    atapi_reinit((struct atapi_softc *)scp->dev_softc[0]);
 	if (scp->devices & (ATA_ATAPI_SLAVE) && scp->dev_softc[1])
@@ -1392,7 +1387,7 @@ ata_service(struct ata_softc *scp)
     /* do we have a SERVICE request from the drive ? */
     if ((scp->status & (ATA_S_SERVICE|ATA_S_ERROR|ATA_S_DRQ)) == ATA_S_SERVICE){
 	outb(scp->bmaddr + ATA_BMSTAT_PORT, ata_dmastatus(scp) | ATA_BMSTAT_INTERRUPT);
-#if NATADISK > 0
+#ifdef DEV_ATADISK
 	if ((inb(scp->ioaddr + ATA_DRIVE) & ATA_SLAVE) == ATA_MASTER) {
 	    if ((scp->devices & ATA_ATA_MASTER) && scp->dev_softc[0])
 		return ad_service((struct ad_softc *)scp->dev_softc[0], 0);
