@@ -27,6 +27,11 @@
  */
 
 #include "opt_mp_watchdog.h"
+#include "opt_sched.h"
+
+#ifdef SCHED_ULE
+#error MP_WATCHDOG cannot currently be used with SCHED_ULE
+#endif
 
 #include <sys/param.h>
 #include <sys/kdb.h>
