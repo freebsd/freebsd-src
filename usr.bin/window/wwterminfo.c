@@ -98,8 +98,9 @@ wwterminfoend()
 		return -1;
 	case 0:
 		execl(_PATH_RM, _PATH_RM, "-rf", wwterminfopath, 0);
-		return -1;
+		_exit(0);
 	default:
+		wait(NULL);
 		return 0;
 	}
 }
