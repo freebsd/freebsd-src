@@ -312,7 +312,8 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 		printf("   virtual address = 0x%x\n", frame->srr0);
 		break;
 	}
-	printf("   srr0            = 0x%x", frame->srr0);
+	printf("   srr0            = 0x%x\n", frame->srr0);
+	printf("   srr1            = 0x%x\n", frame->srr1);
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
 		printf("          pid = %d, comm = %s\n",
