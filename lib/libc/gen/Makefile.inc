@@ -42,22 +42,22 @@ MAN+=	alarm.3 arc4random.3 \
 	confstr.3 ctermid.3 daemon.3 \
 	devname.3 directory.3 dirname.3 dladdr.3 dllockinit.3 dlopen.3 \
 	err.3 exec.3 fmtcheck.3 fmtmsg.3 fnmatch.3 frexp.3 ftok.3 fts.3 \
-	getbootfile.3 getbsize.3 getcap.3 getcwd.3 \
+	getbootfile.3 getbsize.3 getcap.3 getcontext.3 getcwd.3 \
 	getdiskbyname.3 getdomainname.3 getfsent.3 \
 	getgrent.3 getgrouplist.3 gethostname.3 getloadavg.3 \
 	getmntinfo.3 getnetgrent.3 getobjformat.3 \
 	getpagesize.3 getpass.3 getpeereid.3 getprogname.3 getpwent.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 getvfsent.3 \
-	glob.3 initgroups.3 isinf.3 \
-	ldexp.3 lockf.3 modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
+	glob.3 initgroups.3 isinf.3 ldexp.3 lockf.3 makecontext.3 \
+	modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
 	nice.3 nlist.3 pause.3 popen.3 pselect.3 psignal.3 pwcache.3 \
 	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
 	scandir.3 setjmp.3 setmode.3 setproctitle.3 shm_open.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 statvfs.3 stringlist.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
 	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
-	ttyname.3 tzset.3 ualarm.3 ulimit.3 uname.3 unvis.3 usleep.3 utime.3 \
-	valloc.3 vis.3
+	ttyname.3 tzset.3 ualarm.3 ucontext.3 ulimit.3 uname.3 \
+	unvis.3 usleep.3 utime.3 valloc.3 vis.3
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3
 MLINKS+=ctermid.3 ctermid_r.3
@@ -78,6 +78,7 @@ MLINKS+=getcap.3 cgetcap.3 getcap.3 cgetclose.3 getcap.3 cgetent.3 \
 	getcap.3 cgetnum.3 getcap.3 cgetset.3 getcap.3 cgetstr.3 \
 	getcap.3 cgetustr.3
 MLINKS+=getcwd.3 getwd.3
+MLINKS+=getcontext.3 setcontext.3
 MLINKS+=getdomainname.3 setdomainname.3
 MLINKS+=getfsent.3 endfsent.3 getfsent.3 getfsfile.3 getfsent.3 getfsspec.3 \
 	getfsent.3 getfstype.3 getfsent.3 setfsent.3
@@ -98,6 +99,7 @@ MLINKS+=getvfsent.3 endvfsent.3 getvfsent.3 getvfsbytype.3 \
 	getvfsent.3 vfsload.3
 MLINKS+=glob.3 globfree.3
 MLINKS+=isinf.3 isnan.3 isinf.3 isnanf.3
+MLINKS+=makecontext.3 swapcontext.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 strsignal.3 psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=pwcache.3 group_from_gid.3 pwcache.3 user_from_uid.3
