@@ -67,6 +67,15 @@
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
+/*
+ * XXX sys/kbio.h declares a lot of junk, but we need it for NUM_KEYS which
+ * is used in dev/kbd/kbdreg.h.
+ */
+#include <sys/kbio.h>
+#undef KB_OTHER
+#undef S
+#undef F
+
 #if PCVT_FREEBSD > 210
 #include <sys/random.h>
 #endif	/* PCVT_FREEBSD > 210 */
