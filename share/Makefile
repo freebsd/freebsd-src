@@ -3,12 +3,8 @@
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
-SUBDIR= colldef dict examples man me misc mk monetdef \
+SUBDIR= colldef dict examples man me misc mk mklocale monetdef \
 	msgdef numericdef skel syscons tabset termcap timedef zoneinfo
-
-.if ${MACHINE_ARCH} != "sparc64"
-SUBDIR+= mklocale
-.endif
 
 .if !defined(NO_SHAREDOCS)
 SUBDIR+= doc
