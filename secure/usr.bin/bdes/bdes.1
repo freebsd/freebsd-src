@@ -51,15 +51,17 @@
 .Op Fl o Ar N
 .Op Fl v Ar vector
 .Sh DESCRIPTION
-.Nm Bdes
-implements all
+The
+.Nm
+utility implements all
 .Tn DES
 modes of operation described in
 .%T "FIPS PUB 81" ,
 including alternative cipher feedback mode and both authentication
 modes.
-.Nm Bdes
-reads from the standard input and writes to the standard output.
+The
+.Nm
+utility reads from the standard input and writes to the standard output.
 By default, the input is encrypted using cipher block chaining mode.
 Using the same key for encryption and decryption preserves plain text.
 .Pp
