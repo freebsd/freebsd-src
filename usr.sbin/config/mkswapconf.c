@@ -40,8 +40,11 @@ static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
  */
 #include "config.h"
 
-#include <stdio.h>
+#include <sys/disklabel.h>
+#include <sys/diskslice.h>
+
 #include <ctype.h>
+#include <stdio.h>
 
 swapconf()
 {
@@ -77,8 +80,8 @@ do_swap(fl)
 		perror(path(swapname));
 		exit(1);
 	}
-	fprintf(fp, "#include \"sys/param.h\"\n");
-	fprintf(fp, "#include \"sys/conf.h\"\n");
+	fprintf(fp, "#include <sys/param.h>\n");
+	fprintf(fp, "#include <sys/conf.h>\n");
 	fprintf(fp, "\n");
 	/*
 	 * If there aren't any swap devices
@@ -91,15 +94,17 @@ do_swap(fl)
 		fclose(fp);
 		return (swap);
 	}
-	fprintf(fp, "dev_t\trootdev = makedev(%d, %d);\n",
-		major(fl->f_rootdev), minor(fl->f_rootdev));
-	fprintf(fp, "dev_t\tdumpdev = makedev(%d, %d);\n",
-		major(fl->f_dumpdev), minor(fl->f_dumpdev));
+	fprintf(fp, "dev_t\trootdev = makedev(%d, 0x%08x);\t\t/* %s */\n",
+		major(fl->f_rootdev), minor(fl->f_rootdev),
+		devtoname(fl->f_rootdev));
+	fprintf(fp, "dev_t\tdumpdev = makedev(%d, 0x%08x);\t\t/* %s */\n",
+		major(fl->f_dumpdev), minor(fl->f_dumpdev),
+		devtoname(fl->f_dumpdev));
 	fprintf(fp, "\n");
 	fprintf(fp, "struct\tswdevt swdevt[] = {\n");
 	do {
 		dev = swap->f_swapdev;
-		fprintf(fp, "\t{ makedev(%d, %d),\t%d,\t%d },\t/* %s */\n",
+		fprintf(fp, "\t{ makedev(%d, 0x%08x),\t%d,\t%d },\t/* %s */\n",
 		    major(dev), minor(dev), swap->f_swapflag,
 		    swap->f_swapsize, swap->f_fn);
 		swap = swap->f_next;
@@ -128,13 +133,14 @@ static	struct devdescription {
  * terms of major/minor instead of string names.
  */
 dev_t
-nametodev(name, defunit, defpartition)
+nametodev(name, defunit, defslice, defpartition)
 	char *name;
 	int defunit;
+	int defslice;
 	char defpartition;
 {
 	char *cp, partition;
-	int unit;
+	int unit, slice;
 	register struct devdescription *dp;
 
 	cp = name;
@@ -155,6 +161,23 @@ nametodev(name, defunit, defpartition)
 		while (*cp && isdigit(*cp))
 			cp++;
 	}
+	slice = defslice;
+	if (*cp == 's') {
+		++cp;
+		if (*cp) {
+			slice = atoi(cp);
+			if (slice < 0 || slice >= MAX_SLICES - 1) {
+				fprintf(stderr,
+"config: %s: invalid device specification, slice out of range\n", cp);
+				slice = defslice;
+			}
+			if (slice != COMPATIBILITY_SLICE)
+				slice++;
+			*cp++ = '\0';
+			while (*cp && isdigit(*cp))
+				cp++;
+		}
+	}
 	partition = *cp ? *cp : defpartition;
 	if (partition < 'a' || partition > 'h') {
 		fprintf(stderr,
@@ -170,7 +193,8 @@ nametodev(name, defunit, defpartition)
 		fprintf(stderr, "config: %s: unknown device\n", name);
 		return (NODEV);
 	}
-	return (makedev(dp->dev_major, (unit << 3) + (partition - 'a')));
+	return (makedev(dp->dev_major,
+			dkmakeminor(unit, slice, partition - 'a')));
 }
 
 char *
@@ -179,6 +203,10 @@ devtoname(dev)
 {
 	char buf[80]; 
 	register struct devdescription *dp;
+	int part;
+	char partname[2];
+	int slice;
+	char slicename[32];
 
 	if (devtablenotread)
 		initdevtable();
@@ -187,8 +215,17 @@ devtoname(dev)
 			break;
 	if (dp == 0)
 		dp = devtable;
-	(void) sprintf(buf, "%s%d%c", dp->dev_name,
-		minor(dev) >> 3, (minor(dev) & 07) + 'a');
+	part = dkpart(dev);
+	slice = dkslice(dev);
+	slicename[0] = partname[0] = '\0';
+	if (slice != WHOLE_DISK_SLICE || part != RAW_PART) {
+		partname[0] = 'a' + part;
+		partname[1] = '\0';
+		if (slice != COMPATIBILITY_SLICE)
+			sprintf(slicename, "s%d", slice - 1);
+	}
+	(void) sprintf(buf, "%s%d%s%s", dp->dev_name,
+		dkunit(dev), slicename, partname);
 	return (ns(buf));
 }
 
