@@ -318,13 +318,16 @@ ibcs2_sigsys(p, uap)
 			p->p_retval[0] = (int)sa.sa_handler;
 
 			/* special sigset() check */
-                        if(IBCS2_SIGCALL(SCARG(uap, sig)) == IBCS2_SIGSET_MASK)
+                        if(IBCS2_SIGCALL(SCARG(uap, sig)) == IBCS2_SIGSET_MASK) {
+				PROC_LOCK(p);
 			        /* check to make sure signal is not blocked */
                                 if(sigismember(&p->p_sigmask, signum)) {
 				        /* return SIG_HOLD and unblock signal*/
                                         p->p_retval[0] = (int)IBCS2_SIG_HOLD;
 					SIGDELSET(p->p_sigmask, signum);
 				}
+				PROC_UNLOCK(p);
+			}
 				
 			return 0;
 		}
@@ -369,7 +372,9 @@ ibcs2_sigsys(p, uap)
 			sigset_t mask;
 			struct sigsuspend_args sa;
 
+			PROC_LOCK(p);
 			mask = p->p_sigmask;
+			PROC_UNLOCK(p);
 			SIGDELSET(mask, signum);
 			SCARG(&sa, sigmask) = &mask;
 			return sigsuspend(p, &sa);
@@ -391,7 +396,9 @@ ibcs2_sigprocmask(p, uap)
 
 	if (SCARG(uap, oset) != NULL) {
 		/* Fix the return value first if needed */
+		PROC_LOCK(p);
 		bsd_to_ibcs2_sigset(&p->p_sigmask, &iss);
+		PROC_UNLOCK(p);
 		if ((error = copyout(&iss, SCARG(uap, oset), sizeof(iss))) != 0)
 			return error;
 	}
@@ -405,7 +412,7 @@ ibcs2_sigprocmask(p, uap)
 
 	ibcs2_to_bsd_sigset(&iss, &bss);
 
-	(void) splhigh();
+	PROC_LOCK(p);
 
 	switch (SCARG(uap, how)) {
 	case IBCS2_SIG_BLOCK:
@@ -427,7 +434,7 @@ ibcs2_sigprocmask(p, uap)
 		break;
 	}
 
-	(void) spl0();
+	PROC_UNLOCK(p);
 
 	return error;
 }
@@ -440,8 +447,10 @@ ibcs2_sigpending(p, uap)
 	sigset_t bss;
 	ibcs2_sigset_t iss;
 
+	PROC_LOCK(p);
 	bss = p->p_siglist;
 	SIGSETAND(bss, p->p_sigmask);
+	PROC_UNLOCK(p);
 	bsd_to_ibcs2_sigset(&bss, &iss);
 
 	return copyout(&iss, SCARG(uap, mask), sizeof(iss));
@@ -473,7 +482,9 @@ ibcs2_pause(p, uap)
 	sigset_t mask;
 	struct sigsuspend_args sa;
 
+	PROC_LOCK(p);
 	mask = p->p_sigmask;
+	PROC_UNLOCK(p);
 	SCARG(&sa, sigmask) = &mask;
 	return sigsuspend(p, &sa);
 }
