@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.9 1996/05/10 16:11:03 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.10 1996/05/10 16:28:00 gibbs Exp $
  */
 
 /*
@@ -739,6 +739,8 @@
 
 #define SAVED_LINKPTR		0x050
 #define SAVED_SCBPTR		0x051
+#define ULTRA_ENB		0x052
+#define ULTRA_ENB_B		0x053
 
 #define SCSICONF		0x05a
 #define		RESET_SCSI	0x40
