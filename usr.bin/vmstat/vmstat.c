@@ -759,7 +759,8 @@ cpustats()
 void
 dointr()
 {
-	register long *intrcnt, inttotal, uptime;
+	register u_long *intrcnt, uptime;
+	register u_int64_t inttotal;
 	register int nintr, inamlen;
 	register char *intrname;
 
@@ -778,12 +779,13 @@ dointr()
 	nintr /= sizeof(long);
 	while (--nintr >= 0) {
 		if (*intrcnt)
-			(void)printf("%-12s %8ld %8ld\n", intrname,
+			(void)printf("%-12s %8lu %8lu\n", intrname,
 			    *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
 		inttotal += *intrcnt++;
 	}
-	(void)printf("Total        %8ld %8ld\n", inttotal, inttotal / uptime);
+	(void)printf("Total        %8llu %8llu\n", inttotal,
+			inttotal / (u_int64_t) uptime);
 }
 
 void
