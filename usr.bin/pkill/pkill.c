@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/user.h>
 
 #include <stdio.h>
@@ -99,6 +100,7 @@ int	nproc;
 int	pgrep;
 int	signum = SIGTERM;
 int	newest;
+int	oldest;
 int	inverse;
 int	longfmt;
 int	matchargs;
@@ -177,7 +179,7 @@ main(int argc, char **argv)
 	pidfromfile = -1;
 	execf = coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:M:N:P:SU:d:fg:ij:lns:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:M:N:P:SU:d:fg:ij:lnos:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -237,6 +239,10 @@ main(int argc, char **argv)
 			newest = 1;
 			criteria = 1;
 			break;
+		case 'o':
+			oldest = 1;
+			criteria = 1;
+			break;
 		case 's':
 			makelist(&sidlist, LT_SID, optarg);
 			criteria = 1;
@@ -266,6 +272,8 @@ main(int argc, char **argv)
 		criteria = 1;
 	if (!criteria)
 		usage();
+	if (newest && oldest)
+		errx(STATUS_ERROR, "-n and -o are mutually exclusive");
 
 	mypid = getpid();
 
@@ -434,7 +442,7 @@ main(int argc, char **argv)
 			selected[i] = 1;
 	}
 
-	if (newest) {
+	if (newest || oldest) {
 		best_tval.tv_sec = 0;
 		best_tval.tv_usec = 0;
 		bestidx = -1;
@@ -443,13 +451,22 @@ main(int argc, char **argv)
 			if (!selected[i])
 				continue;
 
-			if (kp->ki_start.tv_sec > best_tval.tv_sec ||
-			    (kp->ki_start.tv_sec == best_tval.tv_sec
-			    && kp->ki_start.tv_usec > best_tval.tv_usec)) {
-				best_tval.tv_sec = kp->ki_start.tv_sec;
-				best_tval.tv_usec = kp->ki_start.tv_usec;
-				bestidx = i;
+			if (bestidx == -1) {
+				/* The first entry of the list which matched. */
+				;
+			} else if (timercmp(&kp->ki_start, &best_tval, >)) {
+				/* This entry is newer than previous "best". */
+				if (oldest)     /* but we want the oldest */
+					continue;
+			} else {
+				/* This entry is older than previous "best". */
+				if (newest)     /* but we want the newest */
+					continue;
 			}
+			/* This entry is better than previous "best" entry. */
+			best_tval.tv_sec = kp->ki_start.tv_sec;
+			best_tval.tv_usec = kp->ki_start.tv_usec;
+			bestidx = i;
 		}
 
 		memset(selected, 0, nproc);
@@ -481,9 +498,9 @@ usage(void)
 	const char *ustr;
 
 	if (pgrep)
-		ustr = "[-Sfilnvx] [-d delim]";
+		ustr = "[-Sfilnovx] [-d delim]";
 	else
-		ustr = "[-signal] [-finvx]";
+		ustr = "[-signal] [-finovx]";
 
 	fprintf(stderr,
 		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"
