@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fnmatch.h>
 #ifdef HAVE_GETOPT_LONG
 #include <getopt.h>
 #else
@@ -120,6 +119,10 @@ static const char *tar_opts = "+Bb:C:cF:f:HhI:jkLlmnOoPprtT:UuvW:wX:xyZz";
 #define	OPTION_TOTALS 28
 #define	OPTION_VERSION 30
 
+/*
+ * If you add anything, be very careful
+ * to keep this list properly sorted.
+ */
 static const struct option tar_longopts[] = {
 	{ "absolute-paths",     no_argument,       NULL, 'P' },
 	{ "append",             no_argument,       NULL, 'r' },
@@ -753,12 +756,18 @@ bsdtar_getopt(struct bsdtar *bsdtar, const char *optstring,
 			*poption = option;
 			opt = option->val;
 
-			/* Check if there's another match. */
-			option++;
-			while (option->name != NULL &&
-			    (strlen(option->name) < option_length ||
-			    strncmp(p, option->name, option_length) != 0)) {
+			/* If the first match was exact, we're done. */
+			if (strncmp(p, option->name, strlen(option->name)) == 0) {
+				while (option->name != NULL)
+					option++;
+			} else {
+				/* Check if there's another match. */
 				option++;
+				while (option->name != NULL &&
+				    (strlen(option->name) < option_length ||
+				    strncmp(p, option->name, option_length) != 0)) {
+					option++;
+				}
 			}
 			if (option->name != NULL)
 				bsdtar_errc(bsdtar, 1, 0,
