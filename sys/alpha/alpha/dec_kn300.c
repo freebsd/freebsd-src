@@ -73,12 +73,8 @@ const struct alpha_variation_table dec_kn300_variations[] = {
 };
 
 
-#if NSC > 0
 extern int siocnattach __P((int, int));
-#endif
-#ifdef	DDB
 extern int siogdbattach __P((int, int));
-#endif
 extern int sccnattach __P((void));
 
 void
