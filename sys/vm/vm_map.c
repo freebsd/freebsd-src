@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.158 1999/03/21 23:37:00 alc Exp $
+ * $Id: vm_map.c,v 1.159 1999/03/27 23:46:04 alc Exp $
  */
 
 /*
@@ -1917,12 +1917,9 @@ vm_map_delete(map, start, end)
 	 * Find the start of the region, and clip it
 	 */
 
-	if (!vm_map_lookup_entry(map, start, &first_entry)) {
+	if (!vm_map_lookup_entry(map, start, &first_entry))
 		entry = first_entry->next;
-		object = entry->object.vm_object;
-		if (object && (object->ref_count == 1) && (object->shadow_count == 0))
-			vm_object_set_flag(object, OBJ_ONEMAPPING);
-	} else {
+	else {
 		entry = first_entry;
 		vm_map_clip_start(map, entry, start);
 		/*
@@ -1975,18 +1972,18 @@ vm_map_delete(map, start, end)
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 		} else {
 			pmap_remove(map->pmap, s, e);
-			if (object &&
-				((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) &&
-				((object->type == OBJT_SWAP) || (object->type == OBJT_DEFAULT))) {
+			if (object != NULL &&
+			    object->ref_count != 1 &&
+			    (object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING &&
+			    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
 				vm_object_collapse(object);
 				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 				if (object->type == OBJT_SWAP) {
 					swap_pager_freespace(object, offidxstart, count);
 				}
-
-				if ((offidxend >= object->size) &&
-					(offidxstart < object->size)) {
-						object->size = offidxstart;
+				if (offidxend >= object->size &&
+				    offidxstart < object->size) {
+					object->size = offidxstart;
 				}
 			}
 		}
