@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.68 1997/10/16 20:32:32 phk Exp $
+ * $Id: nfs_vnops.c,v 1.69 1997/10/16 22:00:51 phk Exp $
  */
 
 
@@ -133,7 +133,7 @@ static int	nfs_bwrite __P((struct vop_bwrite_args *));
  */
 vop_t **nfsv2_vnodeop_p;
 static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_abortop_desc,		(vop_t *) nfs_abortop },
 	{ &vop_access_desc,		(vop_t *) nfs_access },
 	{ &vop_advlock_desc,		(vop_t *) nfs_advlock },
@@ -145,7 +145,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_getpages_desc,		(vop_t *) nfs_getpages },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_lease_desc,		(vop_t *) nullop },
+	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) nfs_link },
 	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
 	{ &vop_lookup_desc,		(vop_t *) nfs_lookup },
