@@ -173,7 +173,7 @@ io_apic_setup(int apic)
 			continue;
 
 		irq = apic_irq(apic, pin);
-		if (irq == 0xff)
+		if (irq < 0)
 			continue;
 		
 		/* determine the bus type for this pin */
@@ -182,17 +182,22 @@ io_apic_setup(int apic)
 			continue;
 		bustype = apic_bus_type(bus);
 		
-		/* the "ISA" type INTerrupts */
 		if ((bustype == ISA) &&
 		    (pin < IOAPIC_ISA_INTS) && 
 		    (irq == pin) &&
 		    (apic_polarity(apic, pin) == 0x1) &&
 		    (apic_trigger(apic, pin) == 0x3)) {
+			/* 
+			 * A broken BIOS might describe some ISA 
+			 * interrupts as active-high level-triggered.
+			 * Use default ISA flags for those interrupts.
+			 */
 			flags = DEFAULT_ISA_FLAGS;
-		}
-		
-		/* PCI or other bus */
-		else {
+		} else {
+			/* 
+			 * Program polarity and trigger mode according to 
+			 * interrupt entry.
+			 */
 			flags = DEFAULT_FLAGS;
 			level = trigger(apic, pin, &flags);
 			if (level == 1)
