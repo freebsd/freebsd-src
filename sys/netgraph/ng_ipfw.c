@@ -228,19 +228,17 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 
 	switch (ngit->dir) {
 	case NG_IPFW_OUT:
+	    {
+		struct ip *ip = mtod(m, struct ip *);
+
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
+
 		return ip_output(m, NULL, NULL, ngit->flags, NULL, NULL);
-
+	    }
 	case NG_IPFW_IN:
-	 {
-		struct ip *ip;
-
-		ip = mtod(m, struct ip *);
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
 		ip_input(m);
-
 		return (0);
-	 }
 	default:
 		panic("ng_ipfw_rcvdata: bad dir %u", ngit->dir);
 	}	
@@ -254,6 +252,7 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 {
 	struct mbuf *m;
 	struct ng_ipfw_tag *ngit;
+	struct ip *ip;
 	hook_p	hook;
 	int error = 0;
 
@@ -291,6 +290,10 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 	} else
 		if ((m = m_dup(*m0, M_DONTWAIT)) == NULL)
 			return (ENOMEM);	/* which is ignored */
+
+	ip = mtod(m, struct ip *);
+	ip->ip_len = htons(ip->ip_len);
+	ip->ip_off = htons(ip->ip_off);
 
 	NG_SEND_DATA_ONLY(error, hook, m);
 
