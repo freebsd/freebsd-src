@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: csh.c,v 1.3 1995/05/30 00:06:30 rgrimes Exp $
+ *	$Id: csh.c,v 1.4 1995/07/07 22:45:26 ache Exp $
  */
 
 #ifndef lint
@@ -248,14 +248,6 @@ main(argc, argv)
     if ((tcp = getenv("TERM")) != NULL)
 	set(STRterm, SAVE(tcp));
 
-    /*
-     * Re-initialize path if set in environment
-     */
-    if ((tcp = getenv("PATH")) == NULL)
-	set1(STRpath, defaultpath(), &shvhed);
-    else
-	importpath(SAVE(tcp));
-
     set(STRshell, Strsave(STR_SHELLPATH));
 
     doldol = putn((int) getpid());	/* For $$ */
@@ -417,6 +409,16 @@ main(argc, argv)
 	    stderror(ERR_SYSTEM, "csh", strerror(errno));
 	}
     }
+
+    /*
+     * Re-initialize path if set in environment
+     * importpath uses intty and intact
+     */
+    if ((tcp = getenv("PATH")) == NULL)
+	set1(STRpath, defaultpath(), &shvhed);
+    else
+	importpath(SAVE(tcp));
+
     /*
      * Decide whether we should play with signals or not. If we are explicitly
      * told (via -i, or -) or we are a login shell (arg0 starts with -) or the
@@ -618,7 +620,7 @@ importpath(cp)
 	for (;;) {
 	    if ((c = *dp) == ':' || c == 0) {
 		*dp = 0;
-		if ((*cp != '/' || *cp == '\0') && (euid == 0 || uid == 0) &&
+		if (*cp != '/' && (euid == 0 || uid == 0) &&
 		    (intact || intty && isatty(SHOUT)))
 		    (void) fprintf(csherr,
 	    "Warning: imported path contains relative components\n");
