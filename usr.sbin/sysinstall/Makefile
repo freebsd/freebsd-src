@@ -1,6 +1,8 @@
 PROG=	sysinstall
 NOMAN=	yes
-CLEANFILES+=	makedevs.c rtermcap dumpnlist
+
+CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
+CLEANFILES+=	keymap.tmp keymap.h
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
@@ -22,7 +24,7 @@ DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk
 
 
-makedevs.c:	Makefile rtermcap
+makedevs.c:	Makefile rtermcap keymap.h
 	rm -f makedevs.tmp
 	echo '#include <sys/types.h>' > makedevs.tmp
 	./rtermcap cons25 | \
@@ -51,14 +53,13 @@ makedevs.c:	Makefile rtermcap
 rtermcap:	${.CURDIR}/rtermcap.c
 	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
 
+
 KEYMAPS= be.iso br275.iso danish.iso fr.iso german.iso it.iso jp.106 \
 	norwegian.iso ru.koi8-r spanish.iso swedish.iso \
 	swissgerman.iso uk.iso us.dvorak us.iso
 
-CLEANFILES+=	rtermcap rtermcap.tmp makedevs.c
 
-keymap.o:	keymap.c keymap.h
-keymap.h:	Makefile
+keymap.h:
 	rm -f keymap.tmp
 	for map in ${KEYMAPS} ; do \
 		kbdcontrol -L $$map >> keymap.tmp ; \
@@ -71,12 +72,5 @@ keymap.h:	Makefile
 	( echo "	{ 0 }"; echo "};" ; echo "" ) >> keymap.tmp
 	mv keymap.tmp keymap.h
 
-CLEANFILES+=	keymap.tmp keymap.h
-
-
-testftp:       ftp.c
-	cc -o testftp -I../libdisk -DSTANDALONE_FTP ftp.c
-
-CLEANFILES+=	testftp
 
 .include <bsd.prog.mk>
