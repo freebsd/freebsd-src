@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.9 1997/06/25 07:31:47 joerg Exp $
+ * $Id: kern_mib.c,v 1.10 1997/08/29 09:03:02 kato Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,8 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/unistd.h>
+
+#include <machine/cpu.h>
 
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
