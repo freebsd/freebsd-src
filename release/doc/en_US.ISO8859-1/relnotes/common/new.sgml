@@ -10,6 +10,7 @@
     <year>2001</year>
     <year>2002</year>
     <year>2003</year>
+    <year>2004</year>
     <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
   </copyright>
 
@@ -124,7 +125,7 @@
     <title>Kernel Changes</title>
 
     <para arch="i386,pc98">The dgb (DigiBoard intelligent serial card) driver has been
-      removed due to breakage.  Its replacement is the digi driver,
+      removed due to breakage.  Its replacement is the &man.digi.4; driver,
       which supports all the hardware of the dgb driver.</para>
 
     <para arch="i386">The loran (Loran-C receiver) driver has been removed due to
@@ -172,7 +173,20 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>The following TCP features are now enabled by default: RFC
+	3042 (Limited Retransmit), RFC 3390 (increased initial
+	congestion window sizes), TCP bandwidth-delay product
+	limiting.  More information can be found in &man.tcp.4;.</para>
+
+      <para>&os;'s TCP implementation now includes support for a
+	minimum MSS (settable via the
+	<varname>net.inet.tcp.minmss</varname> sysctl variable) and a
+	rate limit on connections that send many small TCP segments
+	within a short period of time (via the
+	<varname>net.inet.tcp.minmssoverload</varname> sysctl
+	variable).  Connections exceeding this limit may be reset and
+	dropped.  This feature provides protection against a class of
+	resource exhaustion attacks.</para>
 
     </sect3>
 
@@ -218,6 +232,9 @@
 
     <para>The <application>ACPI-CA</application> code has been updated
       from the 20030619 snapshot to the 20031203 snapshot.</para>
+
+    <para><application>OpenSSH</application> has been updated from
+      3.6.1p1 to 3.7.1p2.</para>
 
   </sect2>
 
