@@ -175,7 +175,7 @@ intpr(interval, ifnetaddr, pfunc)
 	}
 	if (kread(ifnetaddr, (char *)&ifnethead, sizeof ifnethead))
 		return;
-	ifnetaddr = (u_long)ifnethead.tqh_first;
+	ifnetaddr = (u_long)TAILQ_FIRST(&ifnethead);
 	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
 		return;
 
@@ -209,7 +209,7 @@ intpr(interval, ifnetaddr, pfunc)
 			    kread((u_long)ifnet.if_name, tname, 16))
 				return;
 			tname[15] = '\0';
-			ifnetaddr = (u_long)ifnet.if_link.tqe_next;
+			ifnetaddr = (u_long)TAILQ_NEXT(&ifnet, if_link);
 			snprintf(name, 32, "%s%d", tname, ifnet.if_unit);
 			if (interface != 0 && (strcmp(name, interface) != 0))
 				continue;
@@ -223,7 +223,7 @@ intpr(interval, ifnetaddr, pfunc)
 			if ((ifnet.if_flags&IFF_UP) == 0)
 				*cp++ = '*';
 			*cp = '\0';
-			ifaddraddr = (u_long)ifnet.if_addrhead.tqh_first;
+			ifaddraddr = (u_long)TAILQ_FIRST(&ifnet.if_addrhead);
 		}
 		printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
 		ifaddrfound = ifaddraddr;
@@ -367,7 +367,7 @@ intpr(interval, ifnetaddr, pfunc)
 				collisions = timer = drops = 0;
 			}
 
-			ifaddraddr = (u_long)ifaddr.ifa.ifa_link.tqe_next;
+			ifaddraddr = (u_long)TAILQ_NEXT(&ifaddr.ifa, ifa_link);
 		}
 
 		printf("%8lu %5lu ", ipackets, ierrors);
@@ -386,7 +386,7 @@ intpr(interval, ifnetaddr, pfunc)
 			/*
 			 * Print family's multicast addresses
 			 */
-			u_long multiaddr;
+			struct ifmultiaddr *multiaddr;
 			struct ifmultiaddr ifma;
 			union {
 				struct sockaddr sa;
@@ -398,10 +398,8 @@ intpr(interval, ifnetaddr, pfunc)
 			} msa;
 			const char *fmt;
 
-			for(multiaddr = (u_long)ifnet.if_multiaddrs.lh_first;
-			    multiaddr;
-			    multiaddr = (u_long)ifma.ifma_link.le_next) {
-				if (kread(multiaddr, (char *)&ifma,
+			LIST_FOREACH(multiaddr, &ifnet.if_multiaddrs, ifma_link) {
+				if (kread(*(u_long *)multiaddr, (char *)&ifma,
 					  sizeof ifma))
 					break;
 				if (kread((u_long)ifma.ifma_addr, (char *)&msa,
@@ -443,7 +441,7 @@ intpr(interval, ifnetaddr, pfunc)
 }
 
 struct	iftot {
-	struct iftot *ift_next;		/* next element list*/
+	SLIST_ENTRY(iftot) chain;
 	char	ift_name[16];		/* interface name */
 	u_long	ift_ip;			/* input packets */
 	u_long	ift_ie;			/* input errors */
@@ -479,7 +477,7 @@ sidewaysintpr(interval, off)
 
 	if (kread(off, (char *)&ifnethead, sizeof ifnethead))
 		return;
-	firstifnet = (u_long)ifnethead.tqh_first;
+	firstifnet = (u_long)TAILQ_FIRST(&ifnethead);
 
 	if ((iftot = malloc(sizeof(struct iftot))) == NULL) {
 		printf("malloc failed\n");
@@ -508,9 +506,9 @@ sidewaysintpr(interval, off)
 			exit(1);
 		}
 		memset(ipn, 0, sizeof(struct iftot));
-		ip->ift_next = ipn;
+		SLIST_NEXT(ip, chain) = ipn;
 		ip = ipn;
-		off = (u_long) ifnet.if_link.tqe_next;
+		off = (u_long)TAILQ_NEXT(&ifnet, if_link);
 	}
 	if ((total = malloc(sizeof(struct iftot))) == NULL) {
 		printf("malloc failed\n");
@@ -575,8 +573,9 @@ loop:
 		sum->ift_ob = 0;
 		sum->ift_co = 0;
 		sum->ift_dr = 0;
-		for (off = firstifnet, ip = iftot; off && ip->ift_next != NULL;
-		     ip = ip->ift_next) {
+		for (off = firstifnet, ip = iftot;
+		     off && SLIST_NEXT(ip, chain) != NULL;
+		     ip = SLIST_NEXT(ip, chain)) {
 			if (kread(off, (char *)&ifnet, sizeof ifnet)) {
 				off = 0;
 				continue;
@@ -589,7 +588,7 @@ loop:
 			sum->ift_ob += ifnet.if_obytes;
 			sum->ift_co += ifnet.if_collisions;
 			sum->ift_dr += ifnet.if_snd.ifq_drops;
-			off = (u_long) ifnet.if_link.tqe_next;
+			off = (u_long)TAILQ_NEXT(&ifnet, if_link);
 		}
 		if (!first) {
 			printf("%10lu %5lu %10lu %10lu %5lu %10lu %5lu",
