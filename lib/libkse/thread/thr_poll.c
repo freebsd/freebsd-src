@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1999 Daniel Eischen <eischen@vigrid.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,15 +12,15 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by John Birrell.
+ *	This product includes software developed by Daniel Eischen.
  * 4. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY DANIEL EISCHEN AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -31,42 +31,65 @@
  *
  * $Id$
  */
+#include <unistd.h>
 #include <errno.h>
+#include <string.h>
+#include <poll.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/fcntl.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
-/* Suspend a thread: */
-int
-pthread_suspend_np(pthread_t thread)
-{
-	int ret;
 
-	/* Find the thread in the list of active threads: */
-	if ((ret = _find_thread(thread)) == 0) {
-		/* The thread exists. Is it running? */
-		if (thread->state != PS_RUNNING &&
-		    thread->state != PS_SUSPENDED) {
-			/* The thread operation has been interrupted */
-			_thread_seterrno(thread,EINTR);
-			thread->interrupted = 1;
+int 
+poll(struct pollfd *fds, unsigned int nfds, int timeout)
+{
+	struct timespec	ts;
+	int		numfds = nfds;
+	int             i, ret = 0, found = 0;
+	struct pthread_poll_data data;
+
+	if (numfds > _thread_dtablesize) {
+		numfds = _thread_dtablesize;
+	}
+	/* Check if a timeout was specified: */
+	if (timeout == INFTIM) {
+		/* Wait for ever: */
+		_thread_kern_set_timeout(NULL);
+	} else if (timeout != 0) {
+		/* Convert the timeout in msec to a timespec: */
+		ts.tv_sec = timeout / 1000;
+		ts.tv_nsec = (timeout % 1000) * 1000;
+
+		/* Set the wake up time: */
+		_thread_kern_set_timeout(&ts);
+	}
+
+	if (((ret = _thread_sys_poll(fds, numfds, 0)) == 0) && (timeout != 0)) {
+		data.nfds = numfds;
+		data.fds = fds;
+
+		/*
+		 * Clear revents in case of a timeout which leaves fds
+		 * unchanged:
+		 */
+		for (i = 0; i < numfds; i++) {
+			fds[i].revents = 0;
 		}
 
-		/*
-		 * Defer signals to protect the scheduling queues from
-		 * access by the signal handler:
-		 */
-		_thread_kern_sig_defer();
-
-		/* Suspend the thread. */
-		PTHREAD_NEW_STATE(thread,PS_SUSPENDED);
-
-		/*
-		 * Undefer and handle pending signals, yielding if
-		 * necessary:
-		 */
-		_thread_kern_sig_undefer();
+		_thread_run->data.poll_data = &data;
+		_thread_run->interrupted = 0;
+		_thread_kern_sched_state(PS_POLL_WAIT, __FILE__, __LINE__);
+		if (_thread_run->interrupted) {
+			errno = EINTR;
+			ret = -1;
+		} else {
+			ret = data.nfds;
+		}
 	}
-	return(ret);
+
+	return (ret);
 }
 #endif

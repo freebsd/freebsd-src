@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 
 /* Allocate space for global thread variables here: */
@@ -39,7 +40,9 @@
 #include <string.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <poll.h>
 #include <unistd.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
 #ifdef _THREAD_SAFE
@@ -81,6 +84,9 @@ _thread_init(void)
 	int		fd;
 	int             flags;
 	int             i;
+	int		len;
+	int		mib[2];
+	struct clockinfo clockinfo;
 	struct sigaction act;
 
 	/* Check if this function has already been called: */
@@ -147,8 +153,8 @@ _thread_init(void)
 		/* Abort this application: */
 		PANIC("Cannot get kernel write pipe flags");
 	}
-	/* Initialize the ready queue: */
-	else if (_pq_init(&_readyq, PTHREAD_MIN_PRIORITY, PTHREAD_MAX_PRIORITY) != 0) {
+	/* Allocate and initialize the ready queue: */
+	else if (_pq_alloc(&_readyq, PTHREAD_MIN_PRIORITY, PTHREAD_MAX_PRIORITY) != 0) {
 		/* Abort this application: */
 		PANIC("Cannot allocate priority ready queue.");
 	}
@@ -165,8 +171,9 @@ _thread_init(void)
 		_thread_kern_thread.flags = PTHREAD_FLAGS_PRIVATE;
 		memset(_thread_initial, 0, sizeof(struct pthread));
 
-		/* Initialize the waiting queue: */
+		/* Initialize the waiting and work queues: */
 		TAILQ_INIT(&_waitingq);
+		TAILQ_INIT(&_workq);
 
 		/* Initialize the scheduling switch hook routine: */
 		_sched_switch_hook = NULL;
@@ -186,29 +193,32 @@ _thread_init(void)
 		_thread_initial->state = PS_RUNNING;
 
 		/* Initialise the queue: */
-		_thread_queue_init(&(_thread_initial->join_queue));
+		TAILQ_INIT(&(_thread_initial->join_queue));
 
 		/* Initialize the owned mutex queue and count: */
 		TAILQ_INIT(&(_thread_initial->mutexq));
 		_thread_initial->priority_mutex_count = 0;
 
 		/* Initialise the rest of the fields: */
-		_thread_initial->sched_defer_count = 0;
-		_thread_initial->yield_on_sched_undefer = 0;
+		_thread_initial->poll_data.nfds = 0;
+		_thread_initial->poll_data.fds = NULL;
+		_thread_initial->sig_defer_count = 0;
+		_thread_initial->yield_on_sig_undefer = 0;
 		_thread_initial->specific_data = NULL;
 		_thread_initial->cleanup = NULL;
-		_thread_initial->queue = NULL;
-		_thread_initial->qnxt = NULL;
-		_thread_initial->nxt = NULL;
 		_thread_initial->flags = 0;
 		_thread_initial->error = 0;
-		_thread_link_list = _thread_initial;
+		TAILQ_INIT(&_thread_list);
+		TAILQ_INSERT_HEAD(&_thread_list, _thread_initial, tle);
 		_thread_run = _thread_initial;
 
 		/* Initialise the global signal action structure: */
 		sigfillset(&act.sa_mask);
 		act.sa_handler = (void (*) ()) _thread_sig_handler;
 		act.sa_flags = 0;
+
+		/* Initialize signal handling: */
+		_thread_sig_init();
 
 		/* Enter a loop to get the existing signal status: */
 		for (i = 1; i < NSIG; i++) {
@@ -241,6 +251,13 @@ _thread_init(void)
 			PANIC("Cannot initialise signal handler");
 		}
 
+		/* Get the kernel clockrate: */
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_CLOCKRATE;
+		len = sizeof (struct clockinfo);
+		if (sysctl(mib, 2, &clockinfo, &len, NULL, 0) == 0)
+			_clock_res_nsec = clockinfo.tick * 1000;
+
 		/* Get the table size: */
 		if ((_thread_dtablesize = getdtablesize()) < 0) {
 			/*
@@ -256,6 +273,14 @@ _thread_init(void)
 			 * table, so abort this process. 
 			 */
 			PANIC("Cannot allocate memory for file descriptor table");
+		}
+		/* Allocate memory for the pollfd table: */
+		if ((_thread_pfd_table = (struct pollfd *) malloc(sizeof(struct pollfd) * _thread_dtablesize)) == NULL) {
+			/*
+			 * Cannot allocate memory for the file descriptor
+			 * table, so abort this process. 
+			 */
+			PANIC("Cannot allocate memory for pollfd table");
 		} else {
 			/*
 			 * Enter a loop to initialise the file descriptor
@@ -264,6 +289,14 @@ _thread_init(void)
 			for (i = 0; i < _thread_dtablesize; i++) {
 				/* Initialise the file descriptor table: */
 				_thread_fd_table[i] = NULL;
+			}
+
+			/* Initialize stdio file descriptor table entries: */
+			if ((_thread_fd_table_init(0) != 0) ||
+			    (_thread_fd_table_init(1) != 0) ||
+			    (_thread_fd_table_init(2) != 0)) {
+				PANIC("Cannot initialize stdio file descriptor "
+				    "table entries");
 			}
 		}
 	}
