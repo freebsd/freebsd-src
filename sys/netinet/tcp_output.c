@@ -921,7 +921,17 @@ out:
 	tp->t_flags &= ~TF_ACKNOW;
 	if (tcp_delack_enabled)
 		callout_stop(tp->tt_delack);
+#if 0
+	/*
+	 * This completely breaks TCP if newreno is turned on.  What happens
+	 * is that if delayed-acks are turned on on the receiver, this code
+	 * on the transmitter effectively destroys the TCP window, forcing
+	 * it to four packets (1.5Kx4 = 6K window).
+	 */
 	if (sendalot && (!tcp_do_newreno || --maxburst))
+		goto again;
+#endif
+	if (sendalot)
 		goto again;
 	return (0);
 }
