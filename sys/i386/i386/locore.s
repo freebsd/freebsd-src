@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.88 1997/05/29 05:11:09 peter Exp $
+ *	$Id: locore.s,v 1.1 1997/06/27 18:33:41 smp Exp smp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -102,7 +102,7 @@
 	.set	_SMP_ioapic,_SMP_prvstart + (16 * PAGE_SIZE)
 
 	.globl	_cpuid,_curproc,_curpcb,_npxproc,_runtime,_cpu_lockid
-	.globl	_common_tss
+	.globl	_common_tss,_other_cpus
 	.set	_cpuid,_SMP_prvpage+0
 	.set	_curproc,_SMP_prvpage+4
 	.set	_curpcb,_SMP_prvpage+8
@@ -110,6 +110,8 @@
 	.set	_runtime,_SMP_prvpage+16	/* 8 bytes struct timeval */
 	.set	_cpu_lockid,_SMP_prvpage+24
 	.set	_common_tss,_SMP_prvpage+28	/* 104 bytes long, next = 132 */
+	.set	_other_cpus,_SMP_prvpage+132	/* bitmap of available CPUs,
+						    excluding ourself */
 
 /* Fetch the .set's for the local apic */
 #include "i386/i386/mp_apicdefs.s"
