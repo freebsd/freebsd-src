@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.2 1998/06/10 10:54:57 dfr Exp $
+ *      $Id: elf.h,v 1.3 1998/06/28 00:50:35 dfr Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -34,6 +34,9 @@
  */
 
 #include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
+
+#define __ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
+#include <sys/elf_generic.h>
 
 #define ELF_MACHINE_OK(x)	((x) == EM_ALPHA)
 
@@ -52,6 +55,8 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 		void	(*a_fcn)(void);	/* Function pointer (not used). */
 	} a_un;
 } Elf64_Auxinfo;
+
+__ElfType(Auxinfo);
 
 /* Values for a_type. */
 #define AT_NULL		0	/* Terminates the vector. */
