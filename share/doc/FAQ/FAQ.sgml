@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/14 14:40:42 $
+<date>$Date: 1997/01/14 14:43:17 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1126,7 +1126,7 @@ drivedata: 0
 <verb>
 device    psm0    at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 # Options for psm:
-options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
+options   PSM_CHECKSYNC      #checks the header byte for sync.
 </verb>
 
         <p>
@@ -1141,15 +1141,6 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 	cd /dev; sh MAKEDEV psm0
 </verb>
 	  When logged in as root.
-	<p>
-	  Note: Some PS/2 mouse controllers have a problem
-	  where the presence of the psm0 driver will cause the keyboard to
-	  lock up (which is why this driver is not present by default in the
-	  GENERIC kernel).  This can sometimes be fixed by bouncing the
-	  NumLock key during the boot process. Also suggest going into CMOS
-	  setup and toggling any value for Numlock On/Off at boot time. The
-	  real fix is, of course, to merge the PS/2 mouse driver with syscons.
-	  Any volunteers? :)
 
        <sect1>
         <heading>I have a laptop with a track-ball mouse.</heading>
@@ -1818,22 +1809,6 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           understood) timing problem.
 
       <sect1>
-        <heading>My keyboard locks up after switching between vtys.</heading>
-        <p>
-          Try adding the following option in your kernel configuration file
-          and recompile it.
-          <verb>
-            options ASYNCH
-          </verb>
-
-          See the section  on <ref id="make-kernel" name="building  a
-          kernel"> if you've no experience with building kernels.
-
-      <sect1>My bus mouse locks up spontaneously.</heading>
-        <p>
-          Please refer to the answer to the previous question.
-  
-      <sect1>
 	<heading>Can I run DOS binaries under FreeBSD?</heading>
 
         <p>
@@ -2299,6 +2274,29 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           use that address + <tt/0x800/, and a third I/O port for reading
           that can be located anywhere between <tt/0x200/ and <tt/0x3ff/.
           
+      <sect1>
+        <heading>My PS/2 mouse doesn't behave properly under X Window.</heading>
+        <p>
+	  Your mouse and the mouse driver have somewhat become out of 
+	  synchronization.  Switching away from X to a virtual terminal 
+	  and getting back to X again may make them re-synchronized.
+	  If the problem occurs often, you may add the following option 
+	  in your kernel configuration file and recompile it.
+          <verb>
+            options PSM_CHECKSYNC
+          </verb>
+
+          See the section  on <ref id="make-kernel" name="building  a
+          kernel"> if you've no experience with building kernels.
+
+          With this option, there should be less chance of synchronization
+          problem between the mouse and the driver.  If, however, you
+          still see the problem, click any mouse button while holding
+	  the mouse still to re-synchronize the mouse and the driver.
+
+	  Note that unfortunately this option may not work with all the
+	  systems and voids the ``tap'' feature of the ALPS GlidePoint 
+	  device attached to the PS/2 mouse port.
 
     <sect>
       <heading>Kernel Configuration</heading>
