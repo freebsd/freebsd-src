@@ -1,4 +1,4 @@
-$Id: README.le,v 1.1 1994/08/16 20:40:56 thomas Exp $
+$Id: README.le,v 1.1 1994/10/01 20:15:43 wollman Exp $
 
 ----------------
 
@@ -10,7 +10,7 @@ and DE205) and the later DEC EtherWORKS II NICs (DE200, DE201, DE202,
 DE422).  DEPCA-style boards prior to the DE200 have not been tested
 and may not work.  
 
-This driver is not ESIA aware.  If you are using a DE422 or have
+This driver is not EISA aware.  If you are using a DE422 or have
 configured the EtherWORKS III in EISA mode, make sure you specify
 the I/O port properly as this driver will *not* probe for it.
 (The I/O port should be 0xNc00 where N is the EISA slot number).
