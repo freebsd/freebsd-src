@@ -230,9 +230,8 @@ owi_generic_attach(device_t dev)
 
 	owi_get_id(sc);
 
+	if_initname(ifp, device_get_name(dev), sc->wi_unit);
 	ifp->if_softc = sc;
-	ifp->if_unit = sc->wi_unit;
-	ifp->if_name = "owi";
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wi_ioctl;
@@ -448,6 +447,7 @@ wi_rxeof(sc)
 	struct ether_header	*eh;
 	struct mbuf		*m;
 	int			id;
+	int			s;
 
 	WI_LOCK_ASSERT(sc);
 
@@ -652,9 +652,9 @@ wi_rxeof(sc)
 #ifdef WICACHE
 		wi_cache_store(sc, eh, m, rx_frame.wi_q_info);
 #endif  
-		WI_UNLOCK(sc);
+		WI_UNLOCK(sc, s);
 		(*ifp->if_input)(ifp, m);
-		WI_LOCK(sc);
+		WI_LOCK(sc, s);
 	}
 }
 
