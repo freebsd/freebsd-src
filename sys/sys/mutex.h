@@ -263,7 +263,7 @@ extern int mtx_pool_valid;
 	_get_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
 	_rel_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
-#ifdef SMP
+#ifndef SMPnotyet
 #define	mtx_lock_spin_flags(m, opts)					\
 	_get_spin_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_spin_flags(m, opts)					\
