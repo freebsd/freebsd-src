@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.190 1996/05/10 19:28:44 wollman Exp $
+ *	$Id: machdep.c,v 1.191 1996/05/18 03:36:07 dyson Exp $
  */
 
 #include "npx.h"
@@ -937,7 +937,7 @@ boot(howto)
 		if (howto & RB_DUMP) {
 			if (!cold) {
 				savectx(&dumppcb);
-				dumppcb.pcb_ptd = rcr3();
+				dumppcb.pcb_cr3 = rcr3();
 				dumpsys();
 			}
 
@@ -1646,7 +1646,7 @@ init386(first)
 
 	/* setup proc 0's pcb */
 	proc0.p_addr->u_pcb.pcb_flags = 0;
-	proc0.p_addr->u_pcb.pcb_ptd = IdlePTD;
+	proc0.p_addr->u_pcb.pcb_cr3 = IdlePTD;
 }
 
 /*
