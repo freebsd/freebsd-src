@@ -131,7 +131,7 @@ getargs(char *av[])
 			continue;
 		}
 		c = ++p;
-		switch (tolower(*c)) {
+		switch (tolower((unsigned char)*c)) {
 		case 's':
 			if (*++p || (p = *++av))
 				ip->sepstring = p;
