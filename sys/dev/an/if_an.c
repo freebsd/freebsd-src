@@ -1828,7 +1828,6 @@ void an_cache_store (sc, eh, m, rx_quality)
 	static int cache_slot = 0; 	/* use this cache entry */
 	static int wrapindex = 0;       /* next "free" cache entry */
 	int saanp=0;
-	int sig, noise;
 
 	/* filters:
 	 * 1. ip only
