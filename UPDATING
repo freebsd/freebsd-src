@@ -23,6 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20041007:
+	One of the syscalls the 1:1 threading library libthr uses has
+	changed, thus breaking ABI compatibility. Make sure you rebuild
+	this library with the kernel.
+
 20041001:
 	The following libraries had their version number bumped up:
 		/lib/libm.so.2 -> libm.so.3
