@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.27 1999/06/10 00:17:26 brian Exp $
+ *	$Id: alias_cmd.c,v 1.28 1999/07/24 02:53:39 brian Exp $
  */
 
 #include <sys/param.h>
@@ -403,7 +403,7 @@ alias_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
     case PKT_ALIAS_UNRESOLVED_FRAGMENT:
       /* Save the data for later */
       fptr = malloc(bp->cnt);
-      mbuf_Read(bp, fptr, bp->cnt);
+      bp = mbuf_Read(bp, fptr, bp->cnt);
       PacketAliasSaveFragment(fptr);
       break;
 
