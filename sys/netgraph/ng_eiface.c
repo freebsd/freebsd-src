@@ -68,6 +68,7 @@ static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 struct ng_eiface_private {
 	struct arpcom	arpcom;		/* per-interface network data */
 	struct ifnet	*ifp;		/* This interface */
+	int		unit;		/* Interface unit number */
 	node_p		node;		/* Our netgraph node */
 	hook_p		ether;		/* Hook for ethernet stream */
 };
@@ -106,8 +107,83 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
-static char ng_eiface_ifname[] = NG_EIFACE_EIFACE_NAME;
-static int ng_eiface_next_unit;
+/* We keep a bitmap indicating which unit numbers are free.
+   One means the unit number is free, zero means it's taken. */
+static int	*ng_eiface_units = NULL;
+static int	ng_eiface_units_len = 0;
+static int	ng_units_in_use = 0;
+
+#define UNITS_BITSPERWORD	(sizeof(*ng_eiface_units) * NBBY)
+
+/************************************************************************
+			HELPER STUFF
+ ************************************************************************/
+/*
+ * Find the first free unit number for a new interface.
+ * Increase the size of the unit bitmap as necessary.
+ */
+static __inline int
+ng_eiface_get_unit(int *unit)
+{
+	int index, bit;
+
+	for (index = 0; index < ng_eiface_units_len
+	    && ng_eiface_units[index] == 0; index++);
+	if (index == ng_eiface_units_len) {		/* extend array */
+		int i, *newarray, newlen;
+
+		newlen = (2 * ng_eiface_units_len) + 4;
+		MALLOC(newarray, int *, newlen * sizeof(*ng_eiface_units),
+		    M_NETGRAPH, M_NOWAIT);
+		if (newarray == NULL) {
+			return (ENOMEM);
+		}
+		bcopy(ng_eiface_units, newarray,
+		    ng_eiface_units_len * sizeof(*ng_eiface_units));
+		for (i = ng_eiface_units_len; i < newlen; i++)
+			newarray[i] = ~0;
+		if (ng_eiface_units != NULL)
+			FREE(ng_eiface_units, M_NETGRAPH);
+		ng_eiface_units = newarray;
+		ng_eiface_units_len = newlen;
+	}
+	bit = ffs(ng_eiface_units[index]) - 1;
+	KASSERT(bit >= 0 && bit <= UNITS_BITSPERWORD - 1,
+	    ("%s: word=%d bit=%d", __func__, ng_eiface_units[index], bit));
+	ng_eiface_units[index] &= ~(1 << bit);
+	*unit = (index * UNITS_BITSPERWORD) + bit;
+	ng_units_in_use++;
+	return (0);
+}
+
+/*
+ * Free a no longer needed unit number.
+ */
+static __inline void
+ng_eiface_free_unit(int unit)
+{
+	int index, bit;
+
+	index = unit / UNITS_BITSPERWORD;
+	bit = unit % UNITS_BITSPERWORD;
+	KASSERT(index < ng_eiface_units_len,
+	    ("%s: unit=%d len=%d", __func__, unit, ng_eiface_units_len));
+	KASSERT((ng_eiface_units[index] & (1 << bit)) == 0,
+	    ("%s: unit=%d is free", __func__, unit));
+	ng_eiface_units[index] |= (1 << bit);
+	/*
+	 * XXX We could think about reducing the size of ng_eiface_units[]
+	 * XXX here if the last portion is all ones
+	 * XXX At least free it if no more units.
+	 * Needed if we are to eventually be able to unload.
+	 */
+	ng_units_in_use--;
+	if (ng_units_in_use == 0) { /* XXX make SMP safe */
+		FREE(ng_eiface_units, M_NETGRAPH);
+		ng_eiface_units_len = 0;
+		ng_eiface_units = NULL;
+	}
+}
 
 /************************************************************************
 			INTERFACE STUFF
@@ -316,8 +392,15 @@ ng_eiface_constructor(node_p *nodep)
 	ifp->if_softc = priv;
 	priv->ifp = ifp;
 
+	/* Get an interface unit number */
+	if ((error = ng_eiface_get_unit(&priv->unit)) != 0) {
+		FREE(priv, M_NETGRAPH);
+		return (error);
+	}
+
 	/* Call generic node constructor */
 	if ((error = ng_make_node_common(&typestruct, nodep))) {
+		ng_eiface_free_unit(priv->unit);
 		FREE(priv, M_NETGRAPH);
 		return (error);
 	}
@@ -328,8 +411,8 @@ ng_eiface_constructor(node_p *nodep)
 	priv->node = node;
 
 	/* Initialize interface structure */
-	ifp->if_name = ng_eiface_ifname;
-	ifp->if_unit = ng_eiface_next_unit++;
+	ifp->if_name = NG_EIFACE_EIFACE_NAME;
+	ifp->if_unit = priv->unit;
 	ifp->if_init = ng_eiface_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = ng_eiface_start;
@@ -520,8 +603,9 @@ ng_eiface_rmnode(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ifnet *const ifp = priv->ifp;
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	node->flags |= NG_INVALID;
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ng_eiface_free_unit(priv->unit);
 	ng_cutlinks(node);
 	ng_unname(node);
 	FREE(priv, M_NETGRAPH);
