@@ -1544,10 +1544,17 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_new_thread(struct thread *td, int pages)
 {
+	vm_page_t	ma[KSTACK_MAX_PAGES];
 	vm_object_t	ksobj;
 	vm_offset_t	ks;
 	vm_page_t	m;
 	u_int		i;
+
+	/* Bounds check */
+	if (pages <= 1)
+		pages = KSTACK_PAGES; 
+	else if (pages > KSTACK_MAX_PAGES)
+		pages = KSTACK_MAX_PAGES;
 
 	/*
 	 * Allocate object for the kstack.
@@ -1578,46 +1585,127 @@ pmap_new_thread(struct thread *td, int pages)
 		 */
 		m = vm_page_grab(ksobj, i,
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
-
-		/*
-		 * Enter the page into the kernel address space.
-		 */
-		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+		ma[i] = m;
 
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
+
+	/*
+	 * Enter the page into the kernel address space
+	 */
+	pmap_qenter(ks, ma, pages);
 }
 
 void
 pmap_dispose_thread(struct thread *td)
 {
-	TODO;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	int i;
+	int pages;
+
+	pages = td->td_kstack_pages;
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < pages ; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_dispose_thread: kstack already missing?");
+		vm_page_lock_queues();
+		vm_page_busy(m);
+		vm_page_unwire(m, 0);
+		vm_page_free(m);
+		vm_page_unlock_queues();
+	}
+	pmap_qremove(ks, pages);
+	kmem_free(kernel_map, ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
+	   (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+	vm_object_deallocate(ksobj);
 }
 
 void
 pmap_new_altkstack(struct thread *td, int pages)
 {
-	TODO;
+	/* shuffle the original stack */
+	td->td_altkstack_obj = td->td_kstack_obj;
+	td->td_altkstack = td->td_kstack;
+	td->td_altkstack_pages = td->td_kstack_pages;
+
+	pmap_new_thread(td, pages);
 }
 
 void
 pmap_dispose_altkstack(struct thread *td)
 {
-	TODO;
+	pmap_dispose_thread(td);
+
+	/* restore the original kstack */
+	td->td_kstack = td->td_altkstack;
+	td->td_kstack_obj = td->td_altkstack_obj;
+	td->td_kstack_pages = td->td_altkstack_pages;
+	td->td_altkstack = 0;
+	td->td_altkstack_obj = NULL;
+	td->td_altkstack_pages = 0;
 }
 
 void
 pmap_swapin_thread(struct thread *td)
 {
-	TODO;
+	vm_page_t ma[KSTACK_MAX_PAGES];
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	int rv;
+	int i;
+	int pages;
+
+	pages = td->td_kstack_pages;
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < pages; i++) {
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK)
+				panic("pmap_swapin_thread: cannot get kstack");
+			m = vm_page_lookup(ksobj, i);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		ma[i] = m;
+		vm_page_lock_queues();
+		vm_page_wire(m);
+		vm_page_wakeup(m);
+		vm_page_unlock_queues();
+	}
+	pmap_qenter(ks, ma, pages);
 }
+
 
 void
 pmap_swapout_thread(struct thread *td)
 {
-	TODO;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	int i;
+	int pages;
+
+	pages = td->td_kstack_pages;
+	ksobj = td->td_kstack_obj;
+	ks = (vm_offset_t)td->td_kstack;
+	for (i = 0; i < pages; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_swapout_thread: kstack already missing?");
+		vm_page_lock_queues();
+		vm_page_dirty(m);
+		vm_page_unwire(m, 0);
+		vm_page_unlock_queues();
+	}
+	pmap_qremove(ks, pages);
 }
 
 /*
