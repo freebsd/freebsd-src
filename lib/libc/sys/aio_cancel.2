@@ -72,12 +72,6 @@ checked with
 .It Bq Dv AIO_ALLDONE
 All of the requests meeting the criteria have finished.
 .El
-.Sh SEE ALSO
-.Xr aio_error 2 ,
-.Xr aio_read 2 ,
-.Xr aio_return 2 ,
-.Xr aio_suspend 2 ,
-.Xr aio_write 2
 .Sh ERRORS
 An error return from
 .Fn aio_cancel
@@ -87,6 +81,32 @@ indicates:
 .Fa fildes
 is an invalid file descriptor.
 .El
+.Sh KERNEL OPTIONS
+The following kernel configuration option
+(see
+.Xr config 8 )
+is required:
+.Pp
+.Dl "options VFS_AIO"
+.Pp
+If you do not want AIO support included in the kernel, but
+want to use it occasionally, do not add the
+.Dv VFS_AIO
+option.  Instead, load the
+.Nm aio
+module as desired:
+.Pp
+.Dl kldload aio
+.Pp
+.Sh SEE ALSO
+.Xr aio_error 2 ,
+.Xr aio_read 2 ,
+.Xr aio_return 2 ,
+.Xr aio_suspend 2 ,
+.Xr aio_write 2 ,
+.Xr config 8 ,
+.Xr kldload 8 ,
+.Xr kldunload 8
 .Sh STANDARDS
 The
 .Fn aio_cancel
