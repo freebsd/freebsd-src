@@ -629,7 +629,6 @@ kern/kern_synch.c	standard
 kern/kern_syscalls.c	standard
 kern/kern_sysctl.c	standard
 kern/kern_tc.c		standard
-kern/kern_threads.c	standard
 kern/kern_time.c	standard
 kern/kern_timeout.c	standard
 kern/kern_xxx.c		standard
