@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm led
-.Nd API for manipulating LED's, lamps and other announciators.
+.Nd API for manipulating LED's, lamps and other annunciators.
 .Sh SYNOPSIS
 .In dev/led/led.h
 .Bd -literal
@@ -49,12 +49,12 @@ typedef void led_t(void *priv, int onoff);
 The
 .Nm
 driver provides generic support for handling LEDs, lamps and other
-announciators.
+annunciators.
 .Pp
-The hardware driver must supply a function to turn the announciator on and off
+The hardware driver must supply a function to turn the annunciator on and off
 and the device
 .Va name
-of the announciator relative "/dev/led/".
+of the annunciator relative "/dev/led/".
 The
 .Va priv
 argument is passed back to this on/off function and can be used however
@@ -64,24 +64,24 @@ The lamp can be controlled by opening and writing ascii strings to the
 "/dev/led/bla" device.
 .Pp
 In the following we will use this special notation to indicate the resulting
-output of the announciator:
+output of the annunciator:
 .Bl -tag -width Ds -offset indent -compact
 .It Ic *
-The announciator is on for 1/10th secound.
+The annunciator is on for 1/10th second.
 .It Ic _
-The announciator is off for 1/10th secound.
+The annunciator is off for 1/10th second.
 .El
 .Pp
 State can be set directly, and since the change happens immediately, 
-it is possible to flash the announciator with very short periods and
+it is possible to flash the annunciator with very short periods and
 synchronize it with program events.
 It should be noted that there is a non-trivial overhead, so this may
 not be usable for benchmarking or measuring short intervals.
 .Bl -tag -width Ds -offset indent -compact
 .It Ic 0
-Turn the announciator off immediately.
+Turn the annunciator off immediately.
 .It Ic 1
-Turn the announciator on immediately.
+Turn the annunciator on immediately.
 .El
 .Pp
 Flashing can be set with a given period.  The pattern continues endlessly.
@@ -107,10 +107,10 @@ ten pulses.  Between digits a one second pause and after the last
 digit a two second pause after which the sequence is repeated.
 .It Ic s%s
 string.
-This gives full control over the announciator.
-Letters 'A' ... 'J' turns the announciator on for from 1/10th to one full
+This gives full control over the annunciator.
+Letters 'A' ... 'J' turns the annunciator on for from 1/10th to one full
 second.
-Letters 'a' ... 'j' turns the announciator off for 1/10th
+Letters 'a' ... 'j' turns the annunciator off for 1/10th
 to one full second.
 Unless terminated with a '.', the sequence is immediately repeated.
 .It Ic m%s
