@@ -401,6 +401,7 @@ wdattach(struct isa_device *dvp)
 		    wd_registerdev(dvp->id_unit, lunit);
 		    if(dk_ndrive < DK_NDRIVE) {
 			    sprintf(dk_names[dk_ndrive], "wd%d", lunit);
+			    dk_wpms[dk_ndrive] = 1048576; /* fake it */
 			    du->dk_dkunit = dk_ndrive++;
 		    } else {
 			    du->dk_dkunit = -1;
@@ -595,8 +596,13 @@ loop:
 	secpertrk = lp->d_nsectors;
 	secpercyl = lp->d_secpercyl;
 
+	if(du->dk_dkunit >= 0) {
+		dk_wds[du->dk_dkunit] += bp->b_bcount >> 1;
+	}
+
 	if (du->dk_skip == 0) {
 		du->dk_bc = bp->b_bcount;
+
 		if (bp->b_flags & B_BAD
 		    /*
 		     * XXX handle large transfers inefficiently instead
