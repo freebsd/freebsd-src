@@ -45,14 +45,15 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/systm.h>
+.Fd #include <sys/resourcevar.h>
 .Ft int
-.Fn fubyte "void *base"
+.Fn fubyte "const void *base"
 .Ft int
 .Fn fusword "void *base"
 .Ft int
 .Fn fuswintr "void *base"
 .Ft int
-.Fn fuword "void *base"
+.Fn fuword "const void *base"
 .Sh DESCRIPTION
 The
 .Nm

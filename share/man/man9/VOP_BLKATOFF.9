@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: VOP_BLKATOFF.9,v 1.1 1997/03/03 18:00:11 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -35,6 +35,7 @@
 .Nm VOP_BLKATOFF
 .Nd return a filesystem buffer for part of a file
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Fd #include <sys/buf.h>
 .Ft int

@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_OPENCLOSE.9,v 1.1 1997/03/03 18:00:28 dfr Exp $
+.\" $Id: VOP_OPENCLOSE.9,v 1.2 1997/03/04 10:02:15 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -36,6 +36,7 @@
 .Nm VOP_CLOSE
 .Nd open or close a file
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Ft int
 .Fn VOP_OPEN "struct vnode *vp" "int mode" "struct ucred *cred" "struct proc *p"
