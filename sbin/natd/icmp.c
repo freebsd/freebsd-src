@@ -86,7 +86,7 @@ int SendNeedFragIcmp (int sock, struct ip* failedDgram, int mtu)
 /*
  * Calculate checksum.
  */
-	icmp->icmp_cksum = PacketAliasInternetChecksum ((u_short*) icmp,
+	icmp->icmp_cksum = LibAliasInternetChecksum (mla, (u_short*) icmp,
 							icmpLen);
 /*
  * Add IP header using old IP header as template.
@@ -103,7 +103,7 @@ int SendNeedFragIcmp (int sock, struct ip* failedDgram, int mtu)
 	ip->ip_dst = ip->ip_src;
 	ip->ip_src = swap;
 
-	PacketAliasIn ((char*) ip, IP_MAXPACKET);
+	LibAliasIn (mla, (char*) ip, IP_MAXPACKET);
 
 	addr.sin_family		= AF_INET;
 	addr.sin_addr		= ip->ip_dst;
