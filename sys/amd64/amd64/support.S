@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.60 1999/01/09 17:29:38 bde Exp $
+ *	$Id: support.s,v 1.61 1999/03/21 12:30:50 phk Exp $
  */
 
 #include "npx.h"
@@ -1614,13 +1614,16 @@ ENTRY(longjmp)
 	ret
 
 /*
- * Here for doing BB-profiling (gcc -a).
+ * Support for BB-profiling (gcc -a).  The kernbb program will extract
+ * the data from the kernel.
  */
 
 	.data
+	ALIGN_DATA
 	.globl bbhead
 bbhead:
 	.long 0
+
 	.text
 NON_GPROF_ENTRY(__bb_init_func)
 	movl	4(%esp),%eax
