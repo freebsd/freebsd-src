@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.13 1996/01/05 20:12:43 wollman Exp $
+ *      $Id: pt.c,v 1.14 1996/03/10 07:13:06 gibbs Exp $
  */
 
 /*
@@ -249,7 +249,7 @@ pt_sense(struct scsi_xfer *xs)
 		return SCSIRET_CONTINUE;	/* let the default handler handle it */
 	}
 
-	resid = ntohl(*((int32 *) sense->ext.extended.info));
+	resid = ntohl(*((int32_t *) sense->ext.extended.info));
 
  	bp = xs->bp;
 
