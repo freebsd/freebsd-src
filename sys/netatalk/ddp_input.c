@@ -29,6 +29,8 @@ struct ifqueue		atintrq1, atintrq2;
 int		ddp_forward = 1;
 int		ddp_firewall = 0;
 extern int	ddp_cksum;
+static struct ddpstat	ddpstat;
+
 void     ddp_input( struct mbuf	*, struct ifnet *, struct elaphdr *, int );
 
 /*
