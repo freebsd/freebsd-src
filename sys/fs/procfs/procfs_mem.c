@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.13 1995/12/11 04:56:31 dyson Exp $
+ *	$Id: procfs_mem.c,v 1.14 1995/12/17 07:19:24 bde Exp $
  */
 
 /*
@@ -171,7 +171,8 @@ procfs_rwmem(p, uio)
 		/* Find space in kernel_map for the page we're interested in */
 		if (!error)
 			error = vm_map_find(kernel_map, object,
-				IDX_TO_OFF(pindex), &kva, PAGE_SIZE, 1);
+				IDX_TO_OFF(pindex), &kva, PAGE_SIZE, 1,
+				VM_PROT_ALL, VM_PROT_ALL, 0);
 
 		if (!error) {
 			/*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.9 1995/09/04 00:21:09 dyson Exp $
+ * $Id: ufs_bmap.c,v 1.10 1995/11/05 23:07:37 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -188,7 +188,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		 * or we have a disk address for it, go fetch it.
 		 */
 		if (bp)
-			brelse(bp);
+			bqrelse(bp);
 
 		xap->in_exists = 1;
 		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0);
@@ -226,7 +226,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		}
 	}
 	if (bp)
-		brelse(bp);
+		bqrelse(bp);
 
 	daddr = blkptrtodb(ump, daddr);
 	*bnp = daddr == 0 ? -1 : daddr;

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.14 1995/12/03 16:41:53 bde Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.15 1995/12/07 12:47:19 davidg Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -442,10 +442,11 @@ detrunc(dep, length, flags, cred, p)
 		return EINVAL;
 	}
 
-	vnode_pager_setsize(DETOV(dep), length);
 
-	if (dep->de_FileSize < length)
+	if (dep->de_FileSize < length) {
+		vnode_pager_setsize(DETOV(dep), length);
 		return deextend(dep, length, cred);
+	}
 
 	/*
 	 * If the desired length is 0 then remember the starting cluster of
@@ -515,6 +516,7 @@ detrunc(dep, length, flags, cred, p)
 	dep->de_flag |= DE_UPDATE;
 	vflags = (length > 0 ? V_SAVE : 0) | V_SAVEMETA;
 	vinvalbuf(DETOV(dep), vflags, cred, p, 0, 0);
+	vnode_pager_setsize(DETOV(dep), length);
 	TIMEVAL_TO_TIMESPEC(&time, &ts);
 	allerror = deupdat(dep, &ts, 1);
 #ifdef MSDOSFS_DEBUG

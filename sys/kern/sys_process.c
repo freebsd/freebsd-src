@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.18 1995/12/16 21:43:47 bde Exp $
+ *	$Id: sys_process.c,v 1.19 1995/12/17 06:59:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -85,8 +85,8 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 	vm_map_lookup_done (tmap, out_entry);
 
 	/* Find space in kernel_map for the page we're interested in */
-	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex), &kva,
-			  PAGE_SIZE, 1);
+	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex),
+		&kva, PAGE_SIZE, 0, VM_PROT_ALL, VM_PROT_ALL, 0);
 
 	if (!rv) {
 		vm_object_reference (object);
@@ -175,9 +175,9 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 		return EFAULT;
 
 	/* Find space in kernel_map for the page we're interested in */
-	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex), &kva,
-			  PAGE_SIZE, 1);
-
+	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex),
+		&kva, PAGE_SIZE, 0,
+		VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (!rv) {
 		vm_object_reference (object);
 

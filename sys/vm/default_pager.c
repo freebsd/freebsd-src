@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.4 1995/12/11 04:57:56 dyson Exp $
+ *	$Id: default_pager.c,v 1.5 1995/12/14 09:54:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ default_pager_alloc(handle, size, prot, offset)
 	if (handle != NULL)
 		panic("default_pager_alloc: handle specified");
 
-	return vm_object_allocate(OBJT_DEFAULT, offset + size);
+	return vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(offset) + size);
 }
 
 static void

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.30 1995/12/14 09:54:59 phk Exp $
+ * $Id: vm_map.c,v 1.31 1996/01/04 21:13:17 wollman Exp $
  */
 
 /*
@@ -151,6 +151,7 @@ vm_offset_t kentry_data;
 vm_size_t kentry_data_size;
 static vm_map_entry_t kentry_free;
 static vm_map_t kmap_free;
+extern char kstack[];
 
 static int kentry_count;
 static vm_offset_t mapvm_start, mapvm, mapvmmax;
@@ -241,12 +242,17 @@ vmspace_free(vm)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
 	if (--vm->vm_refcnt == 0) {
+		int s, i;
+
+		pmap_remove(&vm->vm_pmap, (vm_offset_t) kstack, (vm_offset_t) kstack+UPAGES*PAGE_SIZE);
+			
 		/*
 		 * Lock the map, to wait out all other references to it.
 		 * Delete all of the mappings and pages they hold, then call
 		 * the pmap module to reclaim anything left.
 		 */
 		vm_map_lock(&vm->vm_map);
+		vm_object_deallocate(vm->vm_upages_obj);
 		(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
 		    vm->vm_map.max_offset);
 		vm_map_unlock(&vm->vm_map);
@@ -509,12 +515,14 @@ vm_map_deallocate(map)
  *	Requires that the map be locked, and leaves it so.
  */
 int
-vm_map_insert(map, object, offset, start, end)
+vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	vm_map_t map;
 	vm_object_t object;
 	vm_ooffset_t offset;
 	vm_offset_t start;
 	vm_offset_t end;
+	vm_prot_t prot, max;
+	int cow;
 {
 	register vm_map_entry_t new_entry;
 	register vm_map_entry_t prev_entry;
@@ -558,8 +566,8 @@ vm_map_insert(map, object, offset, start, end)
 		    (prev_entry->is_a_map == FALSE) &&
 		    (prev_entry->is_sub_map == FALSE) &&
 		    (prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
-		    (prev_entry->protection == VM_PROT_DEFAULT) &&
-		    (prev_entry->max_protection == VM_PROT_DEFAULT) &&
+		    (prev_entry->protection == prot) &&
+		    (prev_entry->max_protection == max) &&
 		    (prev_entry->wired_count == 0)) {
 
 			if (vm_object_coalesce(prev_entry->object.vm_object,
@@ -591,13 +599,20 @@ vm_map_insert(map, object, offset, start, end)
 	new_entry->object.vm_object = object;
 	new_entry->offset = offset;
 
-	new_entry->copy_on_write = FALSE;
-	new_entry->needs_copy = FALSE;
+	if (cow & MAP_COPY_NEEDED)
+		new_entry->needs_copy = TRUE;
+	else
+		new_entry->needs_copy = FALSE;
+
+	if (cow & MAP_COPY_ON_WRITE)
+		new_entry->copy_on_write = TRUE;
+	else
+		new_entry->copy_on_write = FALSE;
 
 	if (map->is_main_map) {
 		new_entry->inheritance = VM_INHERIT_DEFAULT;
-		new_entry->protection = VM_PROT_DEFAULT;
-		new_entry->max_protection = VM_PROT_DEFAULT;
+		new_entry->protection = prot;
+		new_entry->max_protection = max;
 		new_entry->wired_count = 0;
 	}
 	/*
@@ -611,7 +626,8 @@ vm_map_insert(map, object, offset, start, end)
 	 * Update the free space hint
 	 */
 
-	if ((map->first_free == prev_entry) && (prev_entry->end >= new_entry->start))
+	if ((map->first_free == prev_entry) &&
+		(prev_entry->end >= new_entry->start))
 		map->first_free = new_entry;
 
 	return (KERN_SUCCESS);
@@ -770,13 +786,15 @@ vm_map_findspace(map, start, length, addr)
  *
  */
 int
-vm_map_find(map, object, offset, addr, length, find_space)
+vm_map_find(map, object, offset, addr, length, find_space, prot, max, cow)
 	vm_map_t map;
 	vm_object_t object;
 	vm_ooffset_t offset;
 	vm_offset_t *addr;	/* IN/OUT */
 	vm_size_t length;
 	boolean_t find_space;
+	vm_prot_t prot, max;
+	int cow;
 {
 	register vm_offset_t start;
 	int result, s = 0;
@@ -796,7 +814,8 @@ vm_map_find(map, object, offset, addr, length, find_space)
 		}
 		start = *addr;
 	}
-	result = vm_map_insert(map, object, offset, start, start + length);
+	result = vm_map_insert(map, object, offset,
+		start, start + length, prot, max, cow);
 	vm_map_unlock(map);
 
 	if (map == kmem_map)
@@ -1767,20 +1786,6 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	if (dst_entry->wired_count != 0)
 		vm_map_entry_unwire(dst_map, dst_entry);
 
-	/*
-	 * If we're dealing with a sharing map, we must remove the destination
-	 * pages from all maps (since we cannot know which maps this sharing
-	 * map belongs in).
-	 */
-
-	if (dst_map->is_main_map)
-		pmap_remove(dst_map->pmap, dst_entry->start, dst_entry->end);
-	else
-		vm_object_pmap_remove(dst_entry->object.vm_object,
-		    OFF_TO_IDX(dst_entry->offset),
-		    OFF_TO_IDX(dst_entry->offset +
-		    (dst_entry->end - dst_entry->start)));
-
 	if (src_entry->wired_count == 0) {
 
 		boolean_t src_needs_copy;
@@ -1800,17 +1805,21 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 			if (!(su = src_map->is_main_map)) {
 				su = (src_map->ref_count == 1);
 			}
+#ifdef VM_MAP_OLD 
 			if (su) {
 				pmap_protect(src_map->pmap,
 				    src_entry->start,
 				    src_entry->end,
 				    src_entry->protection & ~VM_PROT_WRITE);
 			} else {
+#endif
 				vm_object_pmap_copy(src_entry->object.vm_object,
 				    OFF_TO_IDX(src_entry->offset),
 				    OFF_TO_IDX(src_entry->offset + (src_entry->end
 					- src_entry->start)));
+#ifdef VM_MAP_OLD
 			}
+#endif
 		}
 		/*
 		 * Make a copy of the object.
@@ -1932,7 +1941,8 @@ vmspace_fork(vm1)
 			new_entry->is_a_map = FALSE;
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
-			vm_map_copy_entry(old_map, new_map, old_entry, new_entry);
+			vm_map_copy_entry(old_map, new_map, old_entry,
+			    new_entry);
 			break;
 		}
 		old_entry = old_entry->next;
