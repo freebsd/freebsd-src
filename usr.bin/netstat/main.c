@@ -460,7 +460,7 @@ main(argc, argv)
 	 */
 #endif
 	if (iflag) {
-		if (af != AF_UNSPEC)
+		if (sflag && af != AF_UNSPEC)
 			goto protostat;
 
 		kread(0, 0, 0);
