@@ -271,11 +271,10 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (LIST_EMPTY(&gp->provider)) {
 		g_slice_spoiled(cp);
 		return (NULL);
-	} else {
-		g_slice_conf_hot(gp, 0, 0, SUN_SIZE,
-		    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
-		gsp->hot = g_sunlabel_hotwrite;
 	}
+	g_slice_conf_hot(gp, 0, 0, SUN_SIZE,
+	    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
+	gsp->hot = g_sunlabel_hotwrite;
 	return (gp);
 }
 
