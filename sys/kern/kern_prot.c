@@ -716,6 +716,164 @@ setregid(p, uap)
 	return (0);
 }
 
+/*
+ * setresuid(ruid, euid, suid) is like setreuid except control over the
+ * saved uid is explicit.
+ */
+
+#ifndef _SYS_SYSPROTO_H_
+struct setresuid_args {
+	uid_t	ruid;
+	uid_t	euid;
+	uid_t	suid;
+};
+#endif
+/* ARGSUSED */
+int
+setresuid(p, uap)
+	register struct proc *p;
+	struct setresuid_args *uap;
+{
+	register struct pcred *pc = p->p_cred;
+	register uid_t ruid, euid, suid;
+	int error;
+
+	ruid = uap->ruid;
+	euid = uap->euid;
+	suid = uap->suid;
+	if (((ruid != (uid_t)-1 && ruid != pc->p_ruid && ruid != pc->p_svuid &&
+	      ruid != pc->pc_ucred->cr_uid) ||
+	     (euid != (uid_t)-1 && euid != pc->p_ruid && euid != pc->p_svuid &&
+	      euid != pc->pc_ucred->cr_uid) ||
+	     (suid != (uid_t)-1 && suid != pc->p_ruid && suid != pc->p_svuid &&
+	      suid != pc->pc_ucred->cr_uid)) &&
+	    (error = suser_xxx(0, p, PRISON_ROOT)) != 0)
+		return (error);
+	if (euid != (uid_t)-1 && pc->pc_ucred->cr_uid != euid) {
+		pc->pc_ucred = crcopy(pc->pc_ucred);
+		pc->pc_ucred->cr_uid = euid;
+		setsugid(p);
+	}
+	if (ruid != (uid_t)-1 && pc->p_ruid != ruid) {
+		(void)chgproccnt(pc->p_ruid, -1);
+		(void)chgproccnt(ruid, 1);
+		pc->p_ruid = ruid;
+		setsugid(p);
+	}
+	if (suid != (uid_t)-1 && pc->p_svuid != suid) {
+		pc->p_svuid = suid;
+		setsugid(p);
+	}
+	return (0);
+}
+
+/*
+ * setresgid(rgid, egid, sgid) is like setregid except control over the
+ * saved gid is explicit.
+ */
+
+#ifndef _SYS_SYSPROTO_H_
+struct setresgid_args {
+	gid_t	rgid;
+	gid_t	egid;
+	gid_t	sgid;
+};
+#endif
+/* ARGSUSED */
+int
+setresgid(p, uap)
+	register struct proc *p;
+	struct setresgid_args *uap;
+{
+	register struct pcred *pc = p->p_cred;
+	register gid_t rgid, egid, sgid;
+	int error;
+
+	rgid = uap->rgid;
+	egid = uap->egid;
+	sgid = uap->sgid;
+	if (((rgid != (gid_t)-1 && rgid != pc->p_rgid && rgid != pc->p_svgid &&
+	      rgid != pc->pc_ucred->cr_groups[0]) ||
+	     (egid != (gid_t)-1 && egid != pc->p_rgid && egid != pc->p_svgid &&
+	      egid != pc->pc_ucred->cr_groups[0]) ||
+	     (sgid != (gid_t)-1 && sgid != pc->p_rgid && sgid != pc->p_svgid &&
+	      sgid != pc->pc_ucred->cr_groups[0])) &&
+	    (error = suser_xxx(0, p, PRISON_ROOT)) != 0)
+		return (error);
+
+	if (egid != (gid_t)-1 && pc->pc_ucred->cr_groups[0] != egid) {
+		pc->pc_ucred = crcopy(pc->pc_ucred);
+		pc->pc_ucred->cr_groups[0] = egid;
+		setsugid(p);
+	}
+	if (rgid != (gid_t)-1 && pc->p_rgid != rgid) {
+		pc->p_rgid = rgid;
+		setsugid(p);
+	}
+	if (sgid != (gid_t)-1 && pc->p_svgid != sgid) {
+		pc->p_svgid = sgid;
+		setsugid(p);
+	}
+	return (0);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct getresuid_args {
+	uid_t	*ruid;
+	uid_t	*euid;
+	uid_t	*suid;
+};
+#endif
+/* ARGSUSED */
+int
+getresuid(p, uap)
+	register struct proc *p;
+	struct getresuid_args *uap;
+{
+	struct pcred *pc = p->p_cred;
+	int error1 = 0, error2 = 0, error3 = 0;
+
+	if (uap->ruid)
+		error1 = copyout((caddr_t)&pc->p_ruid,
+		    (caddr_t)uap->ruid, sizeof(pc->p_ruid));
+	if (uap->euid)
+		error2 = copyout((caddr_t)&pc->pc_ucred->cr_uid,
+		    (caddr_t)uap->euid, sizeof(pc->pc_ucred->cr_uid));
+	if (uap->suid)
+		error3 = copyout((caddr_t)&pc->p_svuid,
+		    (caddr_t)uap->suid, sizeof(pc->p_svuid));
+	return error1 ? error1 : (error2 ? error2 : error3);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct getresgid_args {
+	gid_t	*rgid;
+	gid_t	*egid;
+	gid_t	*sgid;
+};
+#endif
+/* ARGSUSED */
+int
+getresgid(p, uap)
+	register struct proc *p;
+	struct getresgid_args *uap;
+{
+	struct pcred *pc = p->p_cred;
+	int error1 = 0, error2 = 0, error3 = 0;
+
+	if (uap->rgid)
+		error1 = copyout((caddr_t)&pc->p_rgid,
+		    (caddr_t)uap->rgid, sizeof(pc->p_rgid));
+	if (uap->egid)
+		error2 = copyout((caddr_t)&pc->pc_ucred->cr_groups[0],
+		    (caddr_t)uap->egid, sizeof(pc->pc_ucred->cr_groups[0]));
+	if (uap->sgid)
+		error3 = copyout((caddr_t)&pc->p_svgid,
+		    (caddr_t)uap->sgid, sizeof(pc->p_svgid));
+	return error1 ? error1 : (error2 ? error2 : error3);
+}
+
+
 #ifndef _SYS_SYSPROTO_H_
 struct issetugid_args {
 	int dummy;
