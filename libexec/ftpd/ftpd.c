@@ -206,7 +206,6 @@ char	proctitle[LINE_MAX];	/* initial part of title */
 
 #ifdef SKEY
 int	pwok = 0;
-char	addr_string[INET6_ADDRSTRLEN];	/* XXX */
 #endif
 
 #define LOGCMD(cmd, file) \
@@ -501,11 +500,6 @@ main(argc, argv, envp)
 	if (signal(SIGURG, myoob) == SIG_ERR)
 		syslog(LOG_ERR, "signal: %m");
 
-#ifdef SKEY
-	getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
-		    addr_string, sizeof(addr_string) - 1, NULL, 0,
-		    NI_NUMERICHOST|NI_WITHSCOPEID);
-#endif
 	addrlen = sizeof(ctrl_addr);
 	if (getsockname(0, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
 		syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
@@ -948,7 +942,7 @@ user(name)
 	if (logging)
 		strncpy(curname, name, sizeof(curname)-1);
 #ifdef SKEY
-	pwok = skeyaccess(name, NULL, remotehost, addr_string);
+	pwok = skeyaccess(name, NULL, remotehost, remotehost);
 	reply(331, "%s", skey_challenge(name, pw, pwok));
 #else
 	reply(331, "Password required for %s.", name);
@@ -1106,6 +1100,13 @@ auth_pam(struct passwd **ppw, const char *pass)
 	e = pam_start("ftpd", (*ppw)->pw_name, &conv, &pamh);
 	if (e != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_start: %s", pam_strerror(pamh, e));
+		return -1;
+	}
+
+	e = pam_set_item(pamh, PAM_RHOST, remotehost);
+	if (e != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s",
+			pam_strerror(pamh, e));
 		return -1;
 	}
 
