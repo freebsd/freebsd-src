@@ -92,6 +92,8 @@ static struct timecounter i80321_timer_timecounter = {
 static int
 i80321_timer_probe(device_t dev)
 {
+
+	device_set_desc(dev, "i80321 timer");
 	return (0);
 }
 
