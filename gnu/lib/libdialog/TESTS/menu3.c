@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: menu3.c,v 1.2 1996/04/07 03:20:55 jkh Exp $
+ * $Id: menu3.c,v 1.3 1996/04/16 12:17:24 jkh Exp $
  */
 
 #include <stdio.h>
@@ -35,14 +35,8 @@ stop(dialogMenuItem *self)
 static int
 maybe(dialogMenuItem *self)
 {
-    WINDOW *w;
-    
-    w = dupwin(newscr);
     dialog_mesgbox("!", "I said don't rush me!  I'm THINKING!", -1, -1);
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
-    return DITEM_FAILURE;
+    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_CONTINUE;
 }
 
 /* Dummy menu just to show of the ability */
@@ -60,7 +54,7 @@ preinsure(dialogMenuItem *self, int is_selected)
 	
 	/* This has to be here first if you want to see selection traverse properly in the invoking menu */
 	refresh();
-	
+
 	w = dupwin(newscr);
 	DialogX = 1;
 	DialogY = 13;

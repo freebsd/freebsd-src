@@ -48,6 +48,7 @@
 #define DITEM_REDRAW		(1 << 17)
 #define DITEM_RECREATE		(1 << 18)
 #define DITEM_RESTORE		(1 << 19)
+#define DITEM_CONTINUE		(1 << 20)
 
 
 /* negative offsets for buttons in item lists, if specified */
