@@ -311,6 +311,18 @@ vnstrategy(struct buf *bp)
 		int pbn;	/* in sc_secsize chunks */
 		long sz;	/* in sc_secsize chunks */
 
+		/*
+		 * Check for required alignment.  Transfers must be a valid
+		 * multiple of the sector size.
+		 */
+		if (bp->b_bcount % vn->sc_secsize != 0 ||
+		    bp->b_blkno % (vn->sc_secsize / DEV_BSIZE) != 0) {
+			bp->b_error = EINVAL;
+			bp->b_flags |= B_ERROR | B_INVAL;
+			biodone(bp);
+			return;
+		}
+
 		pbn = bp->b_blkno / (vn->sc_secsize / DEV_BSIZE);
 		sz = howmany(bp->b_bcount, vn->sc_secsize);
 
@@ -390,7 +402,7 @@ vnstrategy(struct buf *bp)
 		 * Note: if we pre-reserved swap, B_FREEBUF is disabled
 		 */
 		KASSERT((bp->b_bufsize & (vn->sc_secsize - 1)) == 0,
-		    ("vnstrategy: buffer %p to small for physio", bp));
+		    ("vnstrategy: buffer %p too small for physio", bp));
 
 		if ((bp->b_flags & B_FREEBUF) && TESTOPT(vn, VN_RESERVE)) {
 			biodone(bp);
