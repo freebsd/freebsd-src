@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_create.c,v 1.15 1999/07/06 00:25:36 jasone Exp $
+ * $Id: uthread_create.c,v 1.16 1999/07/11 05:56:36 jasone Exp $
  */
 #include <errno.h>
 #include <stdlib.h>
@@ -81,7 +81,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		}
 		/* Allocate memory for a default-size stack: */
 		else if (pattr->stacksize_attr == PTHREAD_STACK_DEFAULT) {
-			struct stack	* spare_stack;
+			struct stack	*spare_stack;
 			
 			/* Allocate or re-use a default-size stack. */
 			
