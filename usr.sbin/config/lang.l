@@ -56,6 +56,7 @@ struct kt {
 	{ "bio",	BIO },
 	{ "bus",	BUS },
 	{ "cam",	CAM},
+	{ "ha",		HA},
 	{ "conflicts",	CONFLICTS },
 #endif
 	{ "config",	CONFIG },
