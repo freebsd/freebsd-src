@@ -92,6 +92,7 @@ extern	struct user *proc0paddr;
 
 struct	vnode *rootvp;
 int	boothowto = 0;		/* initialized so that it can be patched */
+SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0, "");
 
 /*
  * Promiscuous argument pass for start_init()
