@@ -257,6 +257,10 @@ fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
 This brings it in line with the numbers used in the device names
 in /dev.
 
+The ``picobsd'' package for creating custom FreeBSD boot floppies
+and "mini systems" has been brought into /usr/src/release/picobsd.
+See file:/usr/src/release/picobsd/README.html for further information.
+
 When operating over the network, finger(1) no longer closes the socket
 immediately after sending its request, but instead waits for the
 remote end to close first.  (The specification is ambiguous, so we are
