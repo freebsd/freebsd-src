@@ -308,6 +308,8 @@ int		pthread_getschedparam __P((pthread_t pthread, int *,
 			struct sched_param *));
 int		pthread_setschedparam __P((pthread_t, int,
 			const struct sched_param *));
+int		pthread_getconcurrency __P((void));
+int		pthread_setconcurrency __P((int));
 
 int		pthread_attr_setfloatstate __P((pthread_attr_t *, int));
 int		pthread_attr_getfloatstate __P((pthread_attr_t *, int *));

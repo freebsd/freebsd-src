@@ -10,6 +10,7 @@ MAN+=	pthread_attr.3 \
 	pthread_cancel.3 \
 	pthread_cleanup_pop.3 \
 	pthread_cleanup_push.3 \
+	pthread_getconcurrency.3 \
 	pthread_condattr.3 \
 	pthread_cond_broadcast.3 \
 	pthread_cond_destroy.3 \
@@ -81,6 +82,7 @@ MLINKS+= \
 	pthread_attr.3 pthread_attr_setscope.3 \
 	pthread_attr.3 pthread_attr_setstackaddr.3 \
 	pthread_attr.3 pthread_attr_setstacksize.3 \
+	pthread_getconcurrency.3 pthread_setconcurrency.3 \
 	pthread_condattr.3 pthread_condattr_init.3 \
 	pthread_condattr.3 pthread_condattr_destroy.3 \
 	pthread_multi_np.3 pthread_single_np.3 \

@@ -31,6 +31,7 @@ SRCS+= \
 	uthread_cancel.c \
 	uthread_clean.c \
 	uthread_close.c \
+	uthread_concurrency.c \
 	uthread_cond.c \
 	uthread_condattr_destroy.c \
 	uthread_condattr_init.c \
