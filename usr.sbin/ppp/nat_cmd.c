@@ -19,11 +19,12 @@
 #include <string.h>
 #include <termios.h>
 
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
+#ifdef LOCALNAT
 #include "alias.h"
+#else
+#include <alias.h>
 #endif
+
 #include "layer.h"
 #include "proto.h"
 #include "defs.h"

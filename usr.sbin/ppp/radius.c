@@ -36,8 +36,13 @@
 #include <sys/un.h>
 #include <net/route.h>
 
-#include <errno.h>
+#ifdef LOCALRAD
+#include "radlib.h"
+#else
 #include <radlib.h>
+#endif
+
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
