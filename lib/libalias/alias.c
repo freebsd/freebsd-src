@@ -539,12 +539,17 @@ IcmpAliasOut2(struct ip *pip)
             accumulate -= alias_port;
             ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
 
-/* Alias address in IP header */
-            DifferentialChecksum(&pip->ip_sum,
-                                 (u_short *) &alias_address,
-                                 (u_short *) &pip->ip_src,
-                                 2);
-            pip->ip_src = alias_address;
+/*
+ * Alias address in IP header if it comes from the host
+ * the original TCP/UDP packet was destined for.
+ */
+	    if (pip->ip_src.s_addr == ip->ip_dst.s_addr) {
+		DifferentialChecksum(&pip->ip_sum,
+				     (u_short *) &alias_address,
+				     (u_short *) &pip->ip_src,
+				     2);
+		pip->ip_src = alias_address;
+	    }
 
 /* Alias address and port number of original IP packet
 fragment contained in ICMP data section */
@@ -572,12 +577,17 @@ fragment contained in ICMP data section */
             accumulate -= alias_id;
             ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
 
-/* Alias address in IP header */
-            DifferentialChecksum(&pip->ip_sum,
-                                 (u_short *) &alias_address,
-                                 (u_short *) &pip->ip_src,
-                                 2);
-            pip->ip_src = alias_address;
+/*
+ * Alias address in IP header if it comes from the host
+ * the original ICMP message was destined for.
+ */
+	    if (pip->ip_src.s_addr == ip->ip_dst.s_addr) {
+		DifferentialChecksum(&pip->ip_sum,
+				     (u_short *) &alias_address,
+				     (u_short *) &pip->ip_src,
+				     2);
+		pip->ip_src = alias_address;
+	    }
 
 /* Alias address of original IP packet and sequence number of 
    embedded ICMP datagram */
