@@ -663,8 +663,10 @@ thread_wait(struct proc *p)
 	KASSERT((p->p_numksegrps == 1), ("Multiple ksegrps in wait1()"));
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (td->td_standin != NULL) {
-			crfree(td->td_ucred);
-			td->td_ucred = NULL;
+			if (td->td_standin->td_ucred != NULL) {
+				crfree(td->td_standin->td_ucred);
+				td->td_standin->td_ucred = NULL;
+			}
 			thread_free(td->td_standin);
 			td->td_standin = NULL;
 		}
