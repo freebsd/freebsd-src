@@ -99,6 +99,7 @@ MAN=	aac.4 \
 	maestro3.4 \
 	md.4 \
 	mem.4 \
+	miibus.4 \
 	mlx.4 \
 	mly.4 \
 	mac.4 \
