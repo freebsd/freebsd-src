@@ -70,6 +70,8 @@ struct archive_dir_entry {
 
 static void		 add_dir_list(struct bsdtar *bsdtar, const char *path,
 			     time_t mtime_sec, int mtime_nsec);
+void			 archive_names_from_file(struct bsdtar *bsdtar,
+			     struct archive *a);
 static void		 create_cleanup(struct bsdtar *);
 static int		 append_archive(struct bsdtar *, struct archive *,
 			     const char *fname);
@@ -96,7 +98,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 	struct archive *a;
 	int r;
 
-	if (*bsdtar->argv == NULL)
+	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
 		bsdtar_errc(1, 0, "no files or directories specified");
 
 	a = archive_write_new();
@@ -273,7 +275,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 
 /*
- * Write files/dirs given on command line to opened archive.
+ * Write user-specified files/dirs to opened archive.
  */
 static void
 write_archive(struct archive *a, struct bsdtar *bsdtar)
@@ -285,6 +287,9 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 
 	if (bsdtar->start_dir != NULL && chdir(bsdtar->start_dir))
 		bsdtar_errc(1, errno, "chdir(%s) failed", bsdtar->start_dir);
+
+	if (bsdtar->names_from_file != NULL)
+		archive_names_from_file(bsdtar, a);
 
 	while (*bsdtar->argv) {
 		arg = *bsdtar->argv;
@@ -360,6 +365,50 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	create_cleanup(bsdtar);
 }
 
+/* Archive names specified in file. */
+void
+archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
+{
+	FILE *f;
+	char buff[1024];
+	int l;
+
+	if (strcmp(bsdtar->names_from_file, "-") == 0)
+		f = stdin;
+	else
+		f = fopen(bsdtar->names_from_file, "r");
+
+	while (fgets(buff, sizeof(buff), f) != NULL) {
+		l = strlen(buff);
+		if (buff[l-1] == '\n')
+			buff[l-1] = '\0';
+
+		/*
+		 * This -C processing hack is really quite ugly, but
+		 * gtar does it this way and pkg_create depends on it,
+		 * so I guess I'm stuck having to implement it.
+		 *
+		 * Someday, pkg_create will just use libarchive directly
+		 * and this will just be a bad memory.
+		 */
+		if (strcmp(buff, "-C") == 0) {
+			if (fgets(buff, sizeof(buff), f) == NULL)
+				bsdtar_errc(1, errno,
+				    "Unexpected end of filename list; "
+				    "directory expected after -C");
+			l = strlen(buff);
+			if (buff[l-1] == '\n')
+				buff[l-1] = '\0';
+			if (chdir(buff))
+				bsdtar_errc(1, errno, "chdir(%s) failed", buff);
+		} else {
+			write_heirarchy(bsdtar, a, buff);
+		}
+	}
+
+	if (strcmp(bsdtar->names_from_file, "-") != 0)
+		fclose(f);
+}
 
 /* Copy from specified archive to current archive. */
 static int
