@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.h	7.9 (Berkeley) 5/5/91
- *	$Id: conf.h,v 1.4.2.1 1994/05/04 07:57:05 rgrimes Exp $
+ *	$Id: conf.h,v 1.6 1994/05/04 08:30:22 rgrimes Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -88,7 +88,7 @@ struct cdevsw {
 	d_ioctl_t *d_ioctl;
 	d_stop_t *d_stop;
 	d_reset_t *d_reset;
-	struct	tty *d_ttys;
+	struct	tty **d_ttys;
 	d_select_t *d_select;
 	d_mmap_t *d_mmap;
 	d_strategy_t *d_strategy;

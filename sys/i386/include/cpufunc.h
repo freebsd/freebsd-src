@@ -2,7 +2,7 @@
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
  *
- *	$Id: cpufunc.h,v 1.9 1994/01/31 23:48:23 davidg Exp $
+ *	$Id: cpufunc.h,v 1.11 1994/06/01 03:09:51 davidg Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -10,6 +10,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+
+#include "machine/spl.h"
 
 #ifdef	__GNUC__
 
@@ -67,6 +69,14 @@ static inline void
 tlbflush()
 {
 	__asm __volatile("movl %%cr3, %%eax; movl %%eax, %%cr3" : : : "ax");
+}
+
+static inline u_long
+rcr2()
+{
+	u_long	data;
+	__asm __volatile("movl %%cr2,%%eax" : "=a" (data));
+	return data;
 }
 
 static inline
@@ -224,7 +234,6 @@ void	load_cr0	__P((u_int cr0));
 u_int	rcr0	__P((void));
 void load_cr3(u_long);
 u_long rcr3(void);
-u_long rcr2(void);
 
 void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);

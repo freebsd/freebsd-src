@@ -74,6 +74,9 @@ print(tp, wp, ldisc, fmt)
 		case NTTYDISC:
 			cnt += printf("new tty disc; ");
 			break;
+		case PPPDISC:
+			cnt += printf("ppp disc; ");
+			break;
 		default:	
 			cnt += printf("#%d disc; ", ldisc);
 			break;
@@ -250,13 +253,14 @@ ccval(p, c)
 	static char buf[5];
 	char *bp;
 
-	if (c == _POSIX_VDISABLE)
-		return("<undef>");
-
 	if (p->sub == VMIN || p->sub == VTIME) {
 		(void)snprintf(buf, sizeof(buf), "%d", c);
 		return (buf);
 	}
+
+	if (c == _POSIX_VDISABLE)
+		return("<undef>");
+
 	bp = buf;
 	if (c & 0200) {
 		*bp++ = 'M';

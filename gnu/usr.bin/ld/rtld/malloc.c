@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)malloc.c	5.11 (Berkeley) 2/23/91";*/
-static char *rcsid = "$Id: malloc.c,v 1.1 1994/02/13 20:44:09 jkh Exp $";
+static char *rcsid = "$Id: malloc.c,v 1.2 1994/06/15 22:41:13 rich Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -48,6 +48,7 @@ static char *rcsid = "$Id: malloc.c,v 1.1 1994/02/13 20:44:09 jkh Exp $";
  */
 
 #include <sys/types.h>
+#include <err.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -460,7 +461,7 @@ int	n;
 		caddr_t	addr = (caddr_t)
 			(((int)pagepool_start + pagesz - 1) & ~(pagesz - 1));
 		if (munmap(addr, pagepool_end - addr) != 0)
-			perror("munmap");
+			warn("morepages: munmap %p", addr);
 	}
 
 	offset = (int)pagepool_start - ((int)pagepool_start & ~(pagesz - 1));

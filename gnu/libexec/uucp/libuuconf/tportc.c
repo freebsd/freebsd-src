@@ -1,7 +1,7 @@
 /* tportc.c
    Handle a Taylor UUCP port command.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tportc_rcsid[] = "$Id: tportc.c,v 1.1 1993/08/05 18:26:12 conklin Exp $";
+const char _uuconf_tportc_rcsid[] = "$Id: tportc.c,v 1.2 1994/05/07 18:13:11 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -50,7 +50,8 @@ static const char * const azPtype_names[] =
   "modem",
   "direct",
   "tcp",
-  "tli"
+  "tli",
+  "pipe"
 };
 
 #define CPORT_TYPES (sizeof azPtype_names / sizeof azPtype_names[0])
@@ -104,6 +105,9 @@ static const struct cmdtab_offset asPmodem_cmds[] =
   { "carrier", UUCONF_CMDTABTYPE_BOOLEAN,
       offsetof (struct uuconf_port, uuconf_u.uuconf_smodem.uuconf_fcarrier),
       NULL },
+  { "hardflow", UUCONF_CMDTABTYPE_BOOLEAN,
+      offsetof (struct uuconf_port, uuconf_u.uuconf_smodem.uuconf_fhardflow),
+      NULL },
   { "dial-device", UUCONF_CMDTABTYPE_STRING,
       offsetof (struct uuconf_port,
 		uuconf_u.uuconf_smodem.uuconf_zdial_device),
@@ -130,6 +134,12 @@ static const struct cmdtab_offset asPdirect_cmds[] =
   { "speed", UUCONF_CMDTABTYPE_LONG,
       offsetof (struct uuconf_port, uuconf_u.uuconf_sdirect.uuconf_ibaud),
       NULL },
+  { "carrier", UUCONF_CMDTABTYPE_BOOLEAN,
+      offsetof (struct uuconf_port, uuconf_u.uuconf_sdirect.uuconf_fcarrier),
+      NULL },
+  { "hardflow", UUCONF_CMDTABTYPE_BOOLEAN,
+      offsetof (struct uuconf_port, uuconf_u.uuconf_sdirect.uuconf_fhardflow),
+      NULL },
   { NULL, 0, 0, NULL }
 };
 
@@ -140,6 +150,9 @@ static const struct cmdtab_offset asPtcp_cmds[] =
 {
   { "service", UUCONF_CMDTABTYPE_STRING,
       offsetof (struct uuconf_port, uuconf_u.uuconf_stcp.uuconf_zport),
+      NULL },
+  { "dialer-sequence", UUCONF_CMDTABTYPE_FULLSTRING,
+      offsetof (struct uuconf_port, uuconf_u.uuconf_stcp.uuconf_pzdialer),
       NULL },
   { NULL, 0, 0, NULL }
 };
@@ -169,11 +182,22 @@ static const struct cmdtab_offset asPtli_cmds[] =
 
 #define CTLI_CMDS (sizeof asPtli_cmds / sizeof asPtli_cmds[0])
 
+/* The pipe port command table.  */
+static const struct cmdtab_offset asPpipe_cmds[] =
+{
+  { "command", UUCONF_CMDTABTYPE_FULLSTRING,
+      offsetof (struct uuconf_port, uuconf_u.uuconf_spipe.uuconf_pzcmd),
+      NULL },
+  { NULL, 0, 0, NULL}
+};
+
+#define CPIPE_CMDS (sizeof asPpipe_cmds / sizeof asPpipe_cmds[0])
+
 #undef max
 #define max(i1, i2) ((i1) > (i2) ? (i1) : (i2))
 #define CCMDS \
   max (max (max (CPORT_CMDS, CSTDIN_CMDS), CMODEM_CMDS), \
-       max (max (CDIRECT_CMDS, CTCP_CMDS), CTLI_CMDS))
+       max (max (CDIRECT_CMDS, CTCP_CMDS), max (CTLI_CMDS, CPIPE_CMDS)))
 
 /* Handle a command passed to a port from a Taylor UUCP configuration
    file.  This can be called when reading either the port file or the
@@ -243,15 +267,19 @@ _uuconf_iport_cmd (qglobal, argc, argv, qport)
 	  qport->uuconf_u.uuconf_smodem.uuconf_ilowbaud = 0L;
 	  qport->uuconf_u.uuconf_smodem.uuconf_ihighbaud = 0L;
 	  qport->uuconf_u.uuconf_smodem.uuconf_fcarrier = TRUE;
+	  qport->uuconf_u.uuconf_smodem.uuconf_fhardflow = TRUE;
 	  qport->uuconf_u.uuconf_smodem.uuconf_pzdialer = NULL;
 	  qport->uuconf_u.uuconf_smodem.uuconf_qdialer = NULL;
 	  break;
 	case UUCONF_PORTTYPE_DIRECT:
 	  qport->uuconf_u.uuconf_sdirect.uuconf_zdevice = NULL;
 	  qport->uuconf_u.uuconf_sdirect.uuconf_ibaud = -1;
+	  qport->uuconf_u.uuconf_sdirect.uuconf_fcarrier = FALSE;
+	  qport->uuconf_u.uuconf_sdirect.uuconf_fhardflow = TRUE;
 	  break;
 	case UUCONF_PORTTYPE_TCP:
 	  qport->uuconf_u.uuconf_stcp.uuconf_zport = (char *) "uucp";
+	  qport->uuconf_u.uuconf_stcp.uuconf_pzdialer = NULL;
 	  qport->uuconf_ireliable = (UUCONF_RELIABLE_SPECIFIED
 				     | UUCONF_RELIABLE_ENDTOEND
 				     | UUCONF_RELIABLE_RELIABLE
@@ -269,6 +297,9 @@ _uuconf_iport_cmd (qglobal, argc, argv, qport)
 				     | UUCONF_RELIABLE_RELIABLE
 				     | UUCONF_RELIABLE_EIGHT
 				     | UUCONF_RELIABLE_FULLDUPLEX);
+	  break;
+	case UUCONF_PORTTYPE_PIPE:
+	  qport->uuconf_u.uuconf_spipe.uuconf_pzcmd = NULL;
 	  break;
 	}
 
@@ -309,6 +340,10 @@ _uuconf_iport_cmd (qglobal, argc, argv, qport)
 	case UUCONF_PORTTYPE_TLI:
 	  qcmds = asPtli_cmds;
 	  ccmds = CTLI_CMDS;
+	  break;
+	case UUCONF_PORTTYPE_PIPE:
+	  qcmds = asPpipe_cmds;
+	  ccmds = CPIPE_CMDS;
 	  break;
 	default:
 	  return UUCONF_SYNTAX_ERROR;
@@ -410,22 +445,27 @@ ipdialer (pglobal, argc, argv, pvar, pinfo)
 
 	  _uuconf_uclear_dialer (qnew);
 
-	  clen = strlen (qport->uuconf_zname);
-	  qnew->uuconf_zname = (char *) uuconf_malloc (qport->uuconf_palloc,
-						       (clen
-							+ sizeof " dialer"));
-	  if (qnew->uuconf_zname == NULL)
+	  if (qport->uuconf_zname == NULL)
+	    qnew->uuconf_zname = (char *) "default port file dialer";
+	  else
 	    {
-	      qglobal->ierrno = errno;
-	      return (UUCONF_MALLOC_FAILED
-		      | UUCONF_ERROR_ERRNO
-		      | UUCONF_CMDTABRET_EXIT);
-	    }
+	      clen = strlen (qport->uuconf_zname);
+	      qnew->uuconf_zname =
+		(char *) uuconf_malloc (qport->uuconf_palloc,
+					clen + sizeof " dialer");
+	      if (qnew->uuconf_zname == NULL)
+		{
+		  qglobal->ierrno = errno;
+		  return (UUCONF_MALLOC_FAILED
+			  | UUCONF_ERROR_ERRNO
+			  | UUCONF_CMDTABRET_EXIT);
+		}
 
-	  memcpy ((pointer) qnew->uuconf_zname,
-		  (pointer) qport->uuconf_zname, clen);
-	  memcpy ((pointer) (qnew->uuconf_zname + clen), (pointer) " dialer",
-		  sizeof " dialer");
+	      memcpy ((pointer) qnew->uuconf_zname,
+		      (pointer) qport->uuconf_zname, clen);
+	      memcpy ((pointer) (qnew->uuconf_zname + clen),
+		      (pointer) " dialer", sizeof " dialer");
+	    }
 
 	  qnew->uuconf_palloc = qport->uuconf_palloc;
 

@@ -38,14 +38,23 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)systm.h	7.17 (Berkeley) 5/25/91
- *	$Id: systm.h,v 1.9.2.1 1994/05/04 07:57:37 rgrimes Exp $
+ *	$Id: systm.h,v 1.11 1994/05/04 08:31:08 rgrimes Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
 #define _SYS_SYSTM_H_
 
-#include "sys/param.h"
+#include "sys/param.h"		/* XXX */
 #include "sys/sysent.h"		/* XXX */
+
+/*
+ * Machine-dependent function declarations.
+ * These must be first in case a machine-dependent function is static
+ * [inline].  ANSI C's linkage scope rules require the static version
+ * to be visible first.  However, if the machine-dependent functions
+ * were actually macros, they would have to be defined last.
+ */
+#include <machine/cpufunc.h>
 
 /* Initialize the world */
 void	startrtclock __P((void));
@@ -78,17 +87,18 @@ void	selwakeup  __P((int /*pid_t*/, int));
 extern int selwait;		/* select timeout address */
 
 
-/* SPL Levels */
-extern int splbio(void);
-extern int splclock(void);
-extern int splhigh(void);
-extern int splimp(void);
-extern int splnet(void);
-extern int splsoftclock(void);
-extern int spltty(void);
-extern int splnone(void);
-extern int splx(int);
-#define spl0 splnone
+/* Interrupt masking. */
+void	spl0 __P((void));
+int	splbio __P((void));
+int	splclock __P((void));
+int	splhigh __P((void));
+int	splimp __P((void));
+int	splnet __P((void));
+#define	splnone spl0		/* XXX traditional; the reverse is better */
+int	splsoftclock __P((void));
+int	splsofttty __P((void));
+int	spltty __P((void));
+void	splx __P((int));
 
 
 /* Scheduling */
@@ -181,7 +191,6 @@ void	boot __P((int));
 
 
 /* string functions */
-size_t	strlen __P((const char *));
 int	strcmp __P((const char *, const char *));
 char   *strncpy __P((char *, const char *, int));
 char   *strcat __P((char *, const char *));
@@ -195,13 +204,8 @@ int	bcmp __P((const void *str1, const void *str2, u_int len));
 int	scanc __P((unsigned size, u_char *cp, u_char *table, int mask));
 int	skpc __P((int, u_int, u_char *));
 int	locc __P((int, unsigned, u_char *));
-int	ffs __P((long));
 
 /* Debugger entry points */
 void	Debugger __P((const char *));
 
-/*
- * Machine-dependent function declarations.
- */
-#include <machine/cpufunc.h>
 #endif /* _SYS_SYSTM_H_ */

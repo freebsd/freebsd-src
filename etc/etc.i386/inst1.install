@@ -9,7 +9,7 @@ export PATH
 
 OPSYSTEM=FreeBSD
 OPSYSID=165
-ROOTMIN=7
+ROOTMIN=8
 SWAPMIN=8
 USRMIN=7
 DISKMIN=`expr $ROOTMIN + $SWAPMIN + 1`
@@ -438,7 +438,7 @@ sync
 verified_install=""
 while [ ! "$verified_install" ]; do	# Begin of Big Loop
 
-rotdelay=""
+rotdelay="-d 0 -n 1"
 drivename=wd0
 drivetype=wd
 sect_fwd=""
@@ -465,13 +465,11 @@ e*|E*|st*|ST*)
 	;;
 i*|I*)
 	type=ST506
-	rotdelay="-d 0"
 	;;
 sc*|SC*)
 	drivename=sd0
 	drivetype=sd
 	type=SCSI
-	rotdelay="-d 0"
 	DEFSECT=32
 	DEFHEAD=64
 	;;
@@ -481,7 +479,11 @@ sc*|SC*)
 	;;
 esac
 echo
-echo	"Disk is of device type $drivetype."
+echo -n "Install onto which drive [$drivename] "
+read resp junk
+drivename=${resp:-${drivename}}
+echo
+echo	"Disk $drivename is of device type $drivetype."
 if [ ! "$partition" ]; then
 	echo
 	echo	"Examining device /dev/r${drivename}d..."
@@ -878,7 +880,7 @@ if [ "$sect_fwd" = "sf:" ]; then
 		bad_read=$(expr "$data" : '[^(]*(read)[^0-9]*\([0-9]*\)')
 		[ "$bad_seek" -o "$bad_read" ] && echo -n "$bad_seek $bad_read "
 	done)
-	[ "$badlist" ] && bad144 -a -c $drivename "$badlist"
+	[ "$badlist" ] && bad144 -a -c $drivename $badlist
 	echo " done."
 fi
 

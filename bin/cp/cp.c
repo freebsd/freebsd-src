@@ -299,7 +299,7 @@ copy_file(fs, dne)
 	struct stat *fs;
 	int dne;
 {
-	static char buf[MAXBSIZE];
+	static char buf[MAXBSIZE * 4];
 	register int from_fd, to_fd, rcount, wcount;
 	struct stat to_stat;
 	char *p;
@@ -358,7 +358,7 @@ copy_file(fs, dne)
 		if (munmap((caddr_t) p, fs->st_size) < 0)
 			err("%s: %s", from.p_path, strerror(errno));
 	} else {
-		while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
+		while ((rcount = read(from_fd, buf, sizeof(buf))) > 0) {
 			wcount = write(to_fd, buf, rcount);
 			if (rcount != wcount || wcount == -1) {
 				err("%s: %s", to.p_path, strerror(errno));

@@ -1,0 +1,205 @@
+.\" 
+.\" Copyright (c) 1994 Joerg Wunsch
+.\" 
+.\" All rights reserved.
+.\" 
+.\" This program is free software.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" This product includes software developed by Joerg Wunsch
+.\" 4. The name of the developer may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" 
+.\" libcompat man page,
+.\" written June 15, 1993 by Joerg Wunsch
+.\"
+.Dd June 15, 1993
+.Os
+.Dt LIBCOMPAT 3
+.Sh NAME
+.Nm libcompat
+.Nd compatibility library for older programs
+.Sh SYNOPSIS
+.Fd #include <sgtty.h>
+.Fn "int stty" "int fd" "struct sgttyb *s" ;
+.Fn "int gtty" "int fd" "struct sgttyb *s" ;
+.Fd #include <sys/timeb.h>
+.Fn "int ftime" "struct timeb *tp" ;
+.Fd #include <time.h>
+.Fn "int cftime" "char *s" "char *format" "const time_t *clock" ;
+.Fn "int ascftime" "char *s" "const char *format" "const struct tm *tmptr" ;
+
+.Fn "char *re_comp" "char *s" ;
+.Fn "int re_exec" "char *s" ;
+.Fd #include <sys/types.h>
+.Fn "int setruid" "uid_t uid" ;
+.Fn "int setrgid" "gid_t gid" ;
+.Sh DESCRIPTION
+.Em The functions described here are obsoleted .
+.Em The sole purpose \&of this library \&is providing
+.Em a compatibility module for older programs .
+To use the library, an option of
+.Fl lcompat
+has to be specified when linking those programs.
+
+The functions
+.Nm stty
+and
+.Nm gtty
+set or get, respectively, the terminal control flags from/into a
+variable of type
+.Em struct sgttyb .
+They are obsoleted by the new terminal controlling interface, see
+.Xr termios 3 .
+There used to be macros instead of functions, too.
+
+The function
+.Nm ftime
+returns information on the current time as well as the timezone.
+It is obsoleted by
+.Xr gettimeofday 3 .
+Note further that the timezone information is no longer kept inside
+the kernel, hence neither
+.Xr gettimeofday 3 ,
+nor
+.Nm ftime
+will return useful values for their timezone-related arguments. See
+.Xr tzset 3
+and
+.Xr ctime 3
+for an up-to-date timezone handling.
+
+Use of the functions
+.Nm cftime
+and
+.Nm ascftime
+is strongly deprecated, since there is no way to check for a buffer
+overflow condition. Use
+.Xr strftime 3
+instead.
+
+.Nm Ascftime
+is almost identical with
+.Xr strftime 3 ,
+with the only exception there's no parameter to tell about the
+maximal buffer length, and the
+.Ar format
+parameter defaults to
+.Dq %C
+if a
+.Em NULL
+pointer is given.
+
+.Nm Cftime
+does the same job, but it first invokes
+.Xr localtime 3
+in order to convert the given
+.Ar clock ,
+then also performs the conversions as requested by the
+.Ar format
+argument.
+
+.Nm Setruid
+and
+.Nm setrgid
+have been used previously to set the real user-ID or real group-ID,
+respectively. They are no longer available, because they are
+incompatible with the POSIX security model. If a process wants to set
+its real user-ID, then it must also simultaneously set its effective and
+saved IDs, which is what
+.Nm setuid
+does. Similiar considerations apply to
+.Nm setrgid .
+
+The functions
+.Nm re_comp
+and
+.Nm re_exec
+provide a traditional interface to the regular expression matching
+routines
+.Xr regcomp 3
+and
+.Xr regexec 3 .
+
+.Nm Re_comp
+compiles a string into an internal form suitable for pattern
+matching.
+.Nm Re_exec
+checks the argument string against the last string
+passed to
+.Nm re_comp .
+
+.Nm Re_comp
+returns 0 if the string s was compiled successfully;
+otherwise a string containing an error message is returned. If
+.Nm re_comp
+is passed 0 or a null string, it returns without changing the
+currently compiled regular expression.
+
+.Nm Re_exec
+returns 1 if the string s matches the last compiled regular
+expression, 0 if the string s failed to match the last compiled
+regular expression, and -1 if the compiled regular expression was
+invalid
+.Pq indicating an internal error .
+
+Note that
+.Nm re_comp
+and
+.Nm re_exec
+need the
+.Xr regexp 3
+library with the traditional
+.Pq V8
+function call interface rather than the new library as
+contained in the standard C library. The
+.Xr regexp 3
+library is also part of libcompat.a.
+
+.Sh RETURN VALUES
+The functions usually return with a negative value on error.
+
+The
+.Nm cftime
+and
+.Nm ascftime
+function return the number of characters written to the output
+buffer
+.Ar s ,
+not counting the trailing null character.
+
+.Sh SEE ALSO
+.Xr termios 3 ;
+.Xr gettimeofday 3 ;
+.Xr strftime 3 ,
+.Xr tzset 3 ,
+.Xr ctime 3 ,
+.Xr localtime 3 ;
+.Xr setreuid 2 ,
+.Xr setuid 3 ,
+.Xr setregid 2 ,
+.Xr setgid 3 ;
+.Xr regcomp 3 ,
+.Xr regexec 3 .

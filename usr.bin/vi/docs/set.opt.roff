@@ -1,0 +1,1065 @@
+.\" Copyright (c) 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)set.opt.roff	8.5 (Berkeley) 3/22/94
+.\"
+There are a large number of options that may be set (or unset) to
+change the editor's behavior.
+This section describes the options, their abbreviations and their
+default values.
+.Pp
+In each entry below, the first part of the tag line is the full name
+of the option, followed by any equivalent abbreviations.
+#ifdef REFERENCE
+(Regardless of the abbreviations, it is only necessary to use the
+minimum number of characters necessary to distinguish an abbreviation
+from all other commands for it to be accepted, in
+.Nm nex/nvi .
+Historically, only the full name and the official abbreviations
+were accepted by
+.Nm ex/vi .
+Using full names in your startup files and environmental variables will
+probably make them more portable.)
+#endif
+The part in square brackets is the default value of the option.
+Most of the options are boolean, i.e. they are either on or off,
+and do not have an associated value.
+.Pp
+Options apply to both
+.Nm \&ex
+and
+.Nm \&vi
+modes, unless otherwise specified.
+#ifdef REFERENCE
+.Pp
+For information on modifying the options or to display the options and
+their current values, see the
+.Dq set
+command in the Ex Commands section.
+#endif
+.Bl -tag -width "XXXX" -compact
+.It Li "altwerase [off]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Select an alternate word erase algorithm.
+#endif
+#ifdef REFERENCE
+Change how
+.Nm \&vi
+does word erase during text input.
+When this option is set, text is broken up into three classes:
+alphabetic, numeric and underscore characters, other non-blank
+characters, and blank characters.
+Changing from one class to another marks the end of a word.
+In addition, the class of the first character erased is ignored
+(which is exactly what you want when erasing pathname components).
+#endif
+.It Li "autoindent, ai [off]"
+#ifdef MANUAL
+Automatically indent new lines.
+#endif
+#ifdef REFERENCE
+If this option is set, whenever you create a new line (using the
+.Nm \&vi
+.Sy \&A ,
+.Sy \&a ,
+.Sy \&C ,
+.Sy \&c ,
+.Sy \&I ,
+.Sy \&i ,
+.Sy \&O ,
+.Sy \&o ,
+.Sy \&R ,
+.Sy \&r ,
+.Sy \&S ,
+and
+.Sy \&s
+commands, or the
+.Nm \&ex
+.Sy append ,
+.Sy change ,
+and
+.Sy insert
+commands) the new line is automatically indented to align the cursor with
+the first non-blank character of the line from which you created it.
+Lines are indented using tab characters to the extent possible (based on
+the value of the
+.Sy tabstop
+option) and then using space characters as necessary.
+For commands inserting text into the middle of a line, any blank characters
+to the right of the cursor are discarded, and the first non-blank character
+to the right of the cursor is aligned as described above.
+.Pp
+The indent characters are themselves somewhat special.
+If you do not enter more characters on the new line before moving moving to
+another line, or entering <escape>, the indent character will be deleted and
+the line will be empty.
+For example, if you enter <carriage-return> twice in succession, the line
+created by the first <carriage-return> will not have any characters in it,
+regardless of the indentation of the previous or subsequent line.
+.Pp
+Indent characters also require that you enter additional erase characters
+to delete them.
+For example, if you have an indented line, containing only blanks, the first
+<word-erase> character you enter will erase up to end of the indent characters,
+and the second will erase back to the beginning of the line.
+(Historically, only the
+.Sy \&^D
+key would erase the indent characters.
+Both the
+.Sy \&^D
+key and the usual erase keys work in
+.Nm nvi .)
+In addition, if the cursor is positioned at the end of the indent
+characters, the keys
+.Dq 0^D
+will erase all of the indent characters for the current line,
+resetting the indentation level to 0.
+Similarly, the keys
+.Dq ^^D
+(i.e. a carat followed by a <control-D>) will erase all of the indent
+characters for the current line, leaving the indentation level for
+future created lines unaffected.
+.Pp
+Finally, if
+.Sy autoindent
+is set, the
+.Sy \&S
+and
+.Sy \&cc
+commands change from the first non-blank of the line to the end of the
+line, instead of from the beginning of the line to the end of the line.
+#endif
+.It Li "autoprint, ap [off]"
+.Nm \&Ex
+only.
+#ifdef MANUAL
+Display the current line automatically.
+.
+#endif
+#ifdef REFERENCE
+.Nm \&Ex
+only.
+Cause the current line to be automatically displayed after the
+.Nm \&ex
+commands
+.Sy \&< ,
+.Sy \&> ,
+.Sy copy ,
+.Sy delete ,
+.Sy join ,
+.Sy move ,
+.Sy put ,
+.Sy \&t ,
+.Sy Undo ,
+and
+.Sy undo .
+This automatic display is suppressed during
+.Sy global
+and
+.Sy vglobal
+commands, and for any command where optional flags are used to explicitly
+display the line.
+#endif
+.It Li "autowrite, aw [off]"
+#ifdef MANUAL
+Write modified files automatically when changing files.
+#endif
+#ifdef REFERENCE
+If this option is set, the
+.Nm \&vi
+.Sy \&!
+.Sy \&^^
+.Sy \&^]
+and
+.Sy \&^Z
+commands, and the
+.Nm \&ex
+.Sy edit ,
+.Sy next ,
+.Sy rewind ,
+.Sy stop ,
+.Sy suspend ,
+.Sy tag ,
+.Sy tagpop ,
+and
+.Sy tagtop
+commands automatically write the current file back to the current file name
+if it has been modified since it was last written.
+If the write fails, the command fails and goes no further.
+.Pp
+Appending the optional force flag
+.Dq \&!
+to the
+.Nm \&ex
+commands
+.Sy next ,
+.Sy rewind ,
+.Sy stop ,
+.Sy suspend ,
+.Sy tag ,
+.Sy tagpop ,
+and
+.Sy tagtop
+stops the automatic write from being attempted.
+.Pp
+(Historically, the
+.Sy next
+command ignored the optional force flag.)
+Note, the
+.Nm \&ex
+commands
+.Sy edit ,
+.Sy quit ,
+.Sy shell ,
+and
+.Sy xit
+are
+.Em not
+affected by the
+.Sy autowrite
+option.
+#endif
+.It Li "beautify, bf [off]"
+#ifdef MANUAL
+Discard control characters.
+#endif
+#ifdef REFERENCE
+If this option is set, all control characters that are not currently being
+specially interpreted, other than <tab>, <newline>, and <form-feed>, are
+discarded from commands read in by
+.Nm \&ex
+from command files, and from input text entered to
+.Nm \&vi
+(either into the file or to the colon command line).
+Text files read by
+.Nm ex/vi
+are
+.Em not
+affected by the
+.Sy beautify
+option.
+#endif
+.It Li "cdpath [environment variable CDPATH, or ``.'']"
+#ifdef MANUAL
+The directory paths used as path prefixes for the
+.Sy cd
+command.
+#endif
+#ifdef REFERENCE
+This option is used to specify a colon separated list of directories
+which are used as path prefixes for any relative path names used as
+arguments for the
+.Sy cd
+command.
+The value of this option defaults to the value of the environmental
+variable
+.Ev CDPATH
+if it is set, otherwise to the current directory.
+For compatibility with the POSIX 1003.2 shell, the
+.Sy cd
+command does
+.Em not
+check the current directory as a path prefix for relative path names
+unless it is explicitly specified.
+It may be so specified by entering an empty string or a
+.Dq \&.
+into the
+.Ev CDPATH 
+variable or the option value.
+#endif
+.It Li "columns, co [80]"
+#ifdef MANUAL
+Set the number of columns in the screen.
+#endif
+#ifdef REFERENCE
+The number of columns in the screen.
+Setting this option causes
+.Nm ex/vi
+to set (or reset) the environmental variable
+.Ev COLUMNS .
+See the SCREEN SIZING section for more information.
+#endif
+.It Li "comment [off]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Skip leading comments in files.
+#endif
+#ifdef REFERENCE
+If the first non-empty line of the file begins with the string
+.Dq \&/\&* ,
+this option causes
+.Nm \&vi
+to skip to the end of that C comment (probably a terribly boring
+legal notice) before displaying the file.
+#endif
+.It Li "directory, dir [environment variable TMPDIR, or /tmp]"
+#ifdef MANUAL
+The directory where temporary files are created.
+#endif
+#ifdef REFERENCE
+The directory where temporary files are created.
+The environmental variable
+.Ev TMPDIR
+is used as the default value if it exists, otherwise
+.Pa /tmp
+is used.
+#endif
+.It Li "edcompatible, ed [off]"
+#ifdef MANUAL
+Modify the behavior of certain suffices for the
+.Nm ex
+.Sy substitute
+command.
+#endif
+#ifdef REFERENCE
+This option causes the presence or absence of
+.Sy \&g
+and
+.Sy \&c
+suffixes on
+.Sy substitute
+commands to be remembered,
+and to be toggled by repeating the suffices.
+The suffix
+.Sy \&r
+makes the substitution be as in the
+.Sy \&~
+command, instead of like the
+.Sy \&&
+command.
+#endif
+.br
+.Em "This option is not yet implemented."
+.It Li "errorbells, eb [off]"
+.Nm \&Ex
+only.
+#ifdef MANUAL
+Precede error messages with a bell.
+#endif
+#ifdef REFERENCE
+Causes
+.Nm \&ex
+error messages to be preceded by a bell.
+#endif
+.br
+.Em "This option is not yet implemented."
+.It Li "exrc, ex [off]"
+#ifdef MANUAL
+Never read startup files in the local directory.
+#endif
+#ifdef REFERENCE
+If this option is turned off in the system or $HOME startup files,
+the local startup files are never read (unless they are the same
+as the system or $HOME startup files).
+Turning it on has no effect, i.e. the normal checks for local startup
+files are performed, regardless.
+See the STARTUP INFORMATION section for more information.
+#endif
+.It Li "extended [off]"
+#ifdef MANUAL
+Regular expressions are extended (i.e.
+.Xr egrep 1
+style) expressions.
+#endif
+#ifdef REFERENCE
+This option causes all regular expressions to be treated as POSIX
+1003.2 extended regular expressions (which are similar to historic
+.Xr egrep 1
+style expressions).
+#endif
+.It Li "flash [on]"
+#ifdef MANUAL
+Flash the screen instead of beeping the keyboard on error.
+#endif
+#ifdef REFERENCE
+This option causes the screen to flash instead of beeping the keyboard,
+on error, if the terminal has the capability.
+#endif
+.It Li "hardtabs, ht [8]"
+#ifdef MANUAL
+Set the spacing between hardware tab settings.
+#endif
+#ifdef REFERENCE
+This option defines the spacing between hardware tab settings, i.e.
+the tab expansion done by the operating system and/or the terminal
+itself.
+As
+.Nm nex/nvi
+never writes tabs to the terminal, unlike historic versions of
+.Nm ex/vi ,
+this option does not currently have any affect.
+#endif
+.It Li "ignorecase, ic [off]"
+#ifdef MANUAL
+Ignore case differences in regular expressions.
+#endif
+#ifdef REFERENCE
+This option causes regular expressions, both in
+.Nm \&ex
+commands and in searches,
+to be evaluated in a case-insensitive manner.
+#endif
+.It Li "keytime [6]"
+The 10th's of a second
+.Nm ex/vi
+waits for a subsequent key to complete a key mapping.
+.It Li "leftright [off]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Do left-right scrolling.
+#endif
+#ifdef REFERENCE
+This option causes the screen to be scrolled left-right to view
+lines longer than the screen, instead of the traditional
+.Nm \&vi
+screen interface which folds long lines at the right-hand margin
+of the terminal.
+#endif
+.It Li "lines, li [24]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Set the number of lines in the screen.
+#endif
+#ifdef REFERENCE
+The number of lines in the screen.
+Setting this option causes
+.Nm ex/vi
+to set (or reset) the environmental variable
+.Ev LINES .
+See the Screen Sizing section for more information.
+#endif
+.It Li "lisp [off]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Modify various search commands and options to work with Lisp.
+#endif
+#ifdef REFERENCE
+This option changes the behavior of the
+.Nm \&vi
+.Sy \&( ,
+.Sy \&) ,
+.Sy \&{ ,
+.Sy \&} ,
+.Sy \&[[
+and
+.Sy \&]]
+commands to match the Lisp language.
+Also, the
+.Sy autoindent
+option's behavior is changed to be appropriate for Lisp.
+#endif
+.br
+.Em "This option is not yet implemented."
+.It Li "list [off]"
+#ifdef MANUAL
+Display lines in an unambiguous fashion.
+#endif
+#ifdef REFERENCE
+This option causes lines to be displayed in an unambiguous fashion.
+Specifically, tabs are displayed as control characters, i.e.
+.Dq \&^I ,
+and the ends of lines are marked with a
+.Dq \&$
+character.
+#endif
+.It Li "magic [on]"
+#ifdef MANUAL
+Treat certain characters specially in regular expressions.
+#endif
+#ifdef REFERENCE
+This option is on by default.
+Turning the
+.Sy magic
+option off causes all regular expression characters except for
+.Dq \&^
+and
+.Dq \&$ ,
+to be treated as ordinary characters.
+To re-enable characters individually, when the
+.Sy magic
+option is off,
+precede them with an
+.Dq \&\e .
+See the REGULAR EXPRESSIONS AND REPLACEMENT STRINGS section for
+more information.
+#endif
+.It Li "matchtime [7]"
+.Nm \&Vi
+only.
+The 10th's of a second
+.Nm ex/vi
+pauses on the matching character when the
+.Sy showmatch
+option is set.
+.It Li "mesg [on]"
+#ifdef MANUAL
+Permit messages from other users.
+#endif
+#ifdef REFERENCE
+This option allows other users to contact you using the
+.Xr talk 1
+and
+.Xr write 1
+utilities, while you are editing.
+.Nm Ex/vi
+does not turn message on, i.e. if messages were turned off when the
+editor was invoked, they will stay turned off.
+This option only permits you to disallow messages for the edit session.
+See the
+.Xr mesg 1
+utility for more information.
+#endif
+.It Li "modelines, modeline [off]"
+#ifdef MANUAL
+Read the first and last few lines of each file for
+.Nm ex
+commands.
+#endif
+#ifdef REFERENCE
+If the
+.Sy modelines
+option is set,
+.Nm ex/vi
+has historically scanned the first and last five lines of each file as
+it is read for editing, looking for any
+.Nm \&ex
+commands that have been placed in those lines.
+After the startup information has been processed, and before the user
+starts editing the file, any commands embedded in the file are executed.
+Commands are recognized by the letters
+.Dq \&e
+or
+.Dq \&v
+followed by
+.Dq \&x
+or
+.Dq \&i ,
+at the beginning of a line or following a tab or space character,
+and followed by a
+.Dq \&: ,
+an
+.Nm \&ex
+command, and another
+.Dq \&: .
+This option is a security problem of immense proportions,
+and should not be used under any circumstances.
+#endif
+.br
+.Em "This option will never be implemented."
+.It Li "number, nu [off]"
+Precede each line displayed with its current line number.
+.It Li "open [on]"
+.Nm \&Ex
+only.
+If this option is not set, the
+.Sy open
+and
+.Sy visual
+commands are disallowed.
+.It Li "optimize, opt [on]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Optimize text throughput to dumb terminals.
+#endif
+#ifdef REFERENCE
+Throughput of text is expedited by setting the terminal to no do automatic
+carriage returns when printing more than one (logical) line of output,
+greatly speeding output on terminals without addressable cursors when text
+with leading white space is printed.
+#endif
+.br
+.Em "This option is not yet implemented."
+.It Li "paragraphs, para [IPLPPPQPP LIpplpipbp]"
+.Nm \&Vi
+only.
+Define additional paragraph boundaries for the
+.Sy \&{
+and
+.Sy \&}
+commands.
+#ifdef REFERENCE
+The value of this option must be a character string consisting
+of zero or more character pairs.
+.Pp
+In the text to be edited, the character string <newline>.<char-pair>,
+(where <char-pair> is one of the character pairs in the option's value)
+defines a paragraph boundary.
+For example, if the option were set to
+.Dq "LaA ##" ,
+then all of the following additional paragraph boundaries would be
+recognized:
+.Bd -literal -offset indent -compact
+<newline>.La
+<newline>.A<space>
+<newline>.##
+.Ed
+#endif
+.It Li "prompt [on]"
+.Nm \&Ex
+only.
+#ifdef MANUAL
+Display a command prompt.
+#endif
+#ifdef REFERENCE
+This option causes
+.Nm \&ex
+to prompt for command input with a
+.Dq \&:
+character; when it's not set, no prompt is displayed.
+#endif
+.It Li "readonly, ro [off]"
+#ifdef MANUAL
+Mark the file as read-only.
+#endif
+#ifdef REFERENCE
+This option causes a force flag to be required to attempt to write
+the file back to the original file name.
+Setting this option is equivalent to using the
+.Fl R
+command line option, or editing a file which lacks write permission.
+#endif
+.It Li "recdir [/var/tmp/vi.recover]"
+The directory where recovery files are stored.
+.It Li "redraw, re [off]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Simulate an intelligent terminal on a dumb one.
+#endif
+#ifdef REFERENCE
+The editor simulates (using great amounts of output), an intelligent
+terminal on a dumb terminal (e.g. during insertions in visual mode
+the characters to the right of the cursor are refreshed as each input
+character is typed).
+#endif
+.br
+.Em "This option is not yet implemented."
+.It Li "remap [on]"
+#ifdef MANUAL
+Remap keys until resolved.
+#endif
+#ifdef REFERENCE
+If this option is set,
+it's possible to define macros in terms of other macros.
+Otherwise, each key is only remapped up to one time.
+For example, if
+.Dq \&A
+is mapped to
+.Dq \&B ,
+and
+.Dq \&B
+is mapped to
+.Dq \&C ,
+The keystroke
+.Dq \&A
+will be mapped to
+.Dq \&C
+if
+.Sy remap
+is set, and to
+.Dq \&B
+if it is not set.
+#endif
+.It Li "remapmax [on]"
+#ifdef MANUAL
+Limit the number of times a key may be remapped.
+#endif
+#ifdef REFERENCE
+If this option is set, a key may only be remapped 50 times.
+If it is not set, a key may be remapped an infinite number of times,
+and the editor can be placed into infinite loops.
+#endif
+.It Li "report [5]"
+#ifdef MANUAL
+Set the number of lines about which the editor reports changes.
+#endif
+#ifdef REFERENCE
+Set the threshold of the number of lines that need to be changed
+before a message will be displayed to the user.
+The value is the largest value about which the editor is silent,
+i.e. by default, 6 lines must change before the user is notified.
+#endif
+.It Li "ruler [off]"
+.Nm \&Vi
+only.
+Display a row/column ruler on the colon command line.
+.It Li "scroll, scr [window / 2]"
+#ifdef MANUAL
+Set the number of lines scrolled.
+#endif
+#ifdef REFERENCE
+Set the number of lines scrolled by the
+.Nm \&vi
+commands
+.Sy \&^D
+and
+.Sy \&^U .
+.Pp
+Historically, the
+.Nm ex
+.Sy z
+command, when specified without a count, used two times the size of the
+scroll value; the POSIX 1003.2 standard specified the window size, which
+is a better choice.
+#endif
+.It Li "sections, sect [NHSHH HUnhsh]"
+.Nm \&Vi
+only.
+Define additional section boundaries for the
+.Sy \&[[
+and
+.Sy \&]]
+commands.
+#ifdef REFERENCE
+The
+.Sy sections
+option should be set to a character string consisting of zero or
+more character pairs.
+In the text to be edited, the character string <newline>.<char-pair>,
+(where <char-pair> is one of the character pairs in the option's value),
+defines a section boundary in the same manner that
+.Sy paragraph
+option boundaries are defined.
+#endif
+.It Li "shell, sh [environment variable SHELL, or /bin/sh]"
+Select the shell used by the editor.
+#ifdef REFERENCE
+The specified path is the pathname of the shell invoked by the
+.Nm \&vi
+.Sy \&!
+shell escape command and by the
+.Nm \&ex
+.Sy shell
+command.
+This program is also used to resolve any shell meta-characters in
+.Nm \&ex
+commands.
+#endif
+.It Li "shiftwidth, sw [8]"
+Set the autoindent and shift command indentation width.
+#ifdef REFERENCE
+This width is used by the
+.Sy autoindent
+option and by the
+.Sy \&< ,
+.Sy \&> ,
+and
+.Sy shift
+commands.
+#endif
+.It Li "showdirty [off]"
+.Nm \&Vi
+only.
+Display an asterisk on the colon command line if the file has been modified.
+.It Li "showmatch, sm [off]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Note matching
+.Dq \&{
+and
+.Dq \&(
+for
+.Dq \&}
+and
+.Dq \&)
+characters.
+#endif
+#ifdef REFERENCE
+This option causes
+.Nm \&vi ,
+when a
+.Dq \&}
+or
+.Dq \&)
+is entered, to briefly move the cursor the matching
+.Dq \&{
+or
+.Dq \&( .
+See the
+.Sy matchtime
+option for more information.
+#endif
+.It Li "showmode [off]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Display the current editor mode (command or input).
+#endif
+#ifdef REFERENCE
+This option causes
+.Nm \&vi
+to display the strings
+.Dq Command
+or
+.Dq Input
+on the colon command line, based on the current mode of the editor.
+#endif
+.It Li "sidescroll [16]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Set the amount a left-right scroll will shift.
+#endif
+#ifdef REFERENCE
+Sets the number of columns that are shifted to the left or right,
+when
+.Nm \&vi
+is doing left-right scrolling and the left or right margin is
+crossed.
+See the
+.Sy leftright
+option for more information.
+#endif
+.It Li "slowopen, slow [off]"
+#ifdef MANUAL
+Delay display updating during text input.
+#endif
+#ifdef REFERENCE
+This option affects the display algorithm used by
+.Nm \&vi ,
+holding off display updating during input of new text to improve
+throughput when the terminal in use is slow and unintelligent.
+#endif
+.br
+.Em "This option is not yet implemented."
+.It Li "sourceany [off]"
+#ifdef MANUAL
+Read startup files not owned by the current user.
+#endif
+#ifdef REFERENCE
+If this option is turned on,
+.Nm \&vi
+historically read startup files that were owned by someone other than
+the editor user.
+See the STARTUP INFORMATION section for more information.
+This option is a security problem of immense proportions,
+and should not be used under any circumstances.
+#endif
+.br
+.Em "This option will never be implemented."
+.It Li "tabstop, ts [8]"
+This option sets tab widths for the editor display.
+.It Li "taglength, tl [0]"
+#ifdef MANUAL
+Set the number of significant characters in tag names.
+#endif
+#ifdef REFERENCE
+This option sets the maximum number of characters that are considered
+significant in a tag name.
+Setting the value to 0 makes all of the characters in the tag name
+significant.
+#endif
+.It Li "tags, tag [tags /var/db/libc.tags /sys/kern/tags]"
+#ifdef MANUAL
+Set the list of tags files.
+#endif
+#ifdef REFERENCE
+Sets the list of tags files, in search order,
+which are used when the editor searches for a tag.
+#endif
+.It Li "term, ttytype, tty [environment variable TERM]"
+Set the terminal type.
+#ifdef REFERENCE
+Setting this option causes
+.Nm ex/vi
+to set (or reset) the environmental variable
+.Ev TERM .
+#endif
+.It Li "terse [off]"
+This option has historically made editor messages less verbose.
+It has no effect in this implementation.
+#ifdef REFERENCE
+See the
+.Sy verbose
+option for more information.
+#endif
+.It Li "timeout, to [on]"
+#ifdef MANUAL
+Time out on keys which may be mapped.
+#endif
+#ifdef REFERENCE
+If this option is set,
+.Nm ex/vi
+waits for a specific period for a subsequent key to complete a key
+mapping (see the
+.Sy keytime
+option).
+If the option is not set, the editor waits until enough keys are
+entered to resolve the ambiguity, regardless of how long it takes.
+#endif
+.It Li "ttywerase [off]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Select an alternate erase algorithm.
+#endif
+#ifdef REFERENCE
+This option changes how
+.Nm \&vi
+does word erase during text input.
+If this option is set, text is broken up into two classes,
+blank characters and non-blank characters.
+Changing from one class to another marks the end of a word.
+#endif
+.It Li "verbose [off]"
+.NM \&Vi
+only.
+#ifdef MANUAL
+Display an error message for every error.
+#endif
+#ifdef REFERENCE
+.Nm \&Vi
+historically bells the terminal for many obvious mistakes, e.g. trying
+to move past the left-hand margin, or past the end of the file.
+If this option is set, an error message is displayed for all errors.
+#endif
+.It Li "w300 [no default]"
+.Nm \&Vi
+only.
+Set the window size if the baud rate is less than 1200 baud.
+#ifdef REFERENCE
+See the
+.Sy window
+option for more information.
+#endif
+.It Li "w1200 [no default]"
+.Nm \&Vi
+only.
+Set the window size if the baud rate is equal to 1200 baud.
+#ifdef REFERENCE
+See the
+.Sy window
+option for more information.
+#endif
+.It Li "w9600 [no default]"
+.Nm \&Vi
+only.
+Set the window size if the baud rate is greater than 1200 baud.
+#ifdef REFERENCE
+See the
+.Sy window
+option for more information.
+#endif
+.It Li "warn [on]"
+.Nm \&Ex
+only.
+This option causes a warning message to the terminal if the file has
+been modified, since it was last written, before a
+.Sy \&!
+command.
+.It Li "window, w, wi [environment variable LINES]"
+#ifdef MANUAL
+Set the window size for the screen.
+#endif
+#ifdef REFERENCE
+This option determines the default number of lines in a screenful,
+as written by the
+.Sy \&z
+command.
+It also determines the number of lines scrolled by the
+.Nm \&vi
+commands
+.Sy \&^F
+and
+.Sy \&^B .
+The value of window can be unrelated to the real screen size,
+although it starts out as the number of lines on the screen (see
+the SCREEN SIZING section).
+Setting the value of the
+.Sy window
+option is the same as using the
+.Fl w
+command line option.
+.Pp
+If the value of
+.Sy window
+(as set by the
+.Sy window ,
+.Sy w300 ,
+.Sy w1200
+or
+.Sy w9600
+options) is smaller than the actual size of the screen, large screen
+movements will result in displaying only that smaller number of lines
+on the screen.
+(Further movements in that same area will result in the screen being
+filled.)
+This can provide a performance improvement when viewing different
+places in one or more files over a slow link.
+#endif
+.It Li "wrapmargin, wm [0]"
+.Nm \&Vi
+only.
+#ifdef MANUAL
+Break lines automatically when they reach the right-hand margin.
+#endif
+#ifdef REFERENCE
+If the value of wrapmargin is non-zero,
+.Nm \&vi
+will break lines, that are more than that number of characters long,
+into two lines at the blank character closest to the value.
+If wrapmargin is 0,
+or if there is no blank character upon which to break the line,
+the line will not be broken.
+#endif
+.It Li "wrapscan, ws [on]"
+#ifdef MANUAL
+Set searches to wrap around the end or beginning of the file.
+#endif
+#ifdef REFERENCE
+This option causes searches to wrap around the end or the beginning
+of the file, and back to the starting point.
+Otherwise, the end or beginning of the file terminates the search.
+#endif
+.It Li "writeany, wa [off]"
+#ifdef MANUAL
+Turn off file-overwriting checks.
+#endif
+#ifdef REFERENCE
+If this option is set, file-overwriting checks that would usually be
+made before the
+.Sy write
+and
+.Sy xit
+commands, or before an automatic write (see the
+.Sy autowrite
+option), are not made.
+This allows a write to any file, provided the file permissions allow it.
+#endif
+.El

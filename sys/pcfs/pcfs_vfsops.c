@@ -15,7 +15,7 @@
  *
  *  October 1992
  *
- *	$Id: pcfs_vfsops.c,v 1.5 1993/12/19 02:07:58 ache Exp $
+ *	$Id: pcfs_vfsops.c,v 1.6 1994/05/21 01:25:30 sean Exp $
  */
 
 #include "param.h"
@@ -367,8 +367,7 @@ mountpcfs(devvp, mp, p)
  *  Finish up.
  */
 	pmp->pm_ronly = ronly;
-	if (ronly == 0)
-		pmp->pm_fmod = 1;
+	pmp->pm_fmod = !ronly;
 	mp->mnt_data = (qaddr_t)pmp;
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
 	mp->mnt_stat.f_fsid.val[1] = MOUNT_MSDOS;

@@ -1,14 +1,19 @@
-#	@(#)Makefile	5.6 (Berkeley) 9/27/90
+#	$Id: Makefile,v 1.6 1994/05/03 19:20:35 wollman Exp $
+#	From: @(#)Makefile	5.6 (Berkeley) 9/27/90
 
 PROG=	rlogin
-SRCS=	rlogin.c
+SRCS=	rlogin.c krcmd.c kcmd.c
 BINOWN=	root
 BINMODE=4555
 
-.if exists(/usr/lib/libcrypt.a)
-#CFLAGS+=-DCRYPT -DKERBEROS
-DPADD+= ${LIBCRYPT} #${LIBKRB}
-LDADD+= -lcrypt #-lkrb
+.if exists(${DESTDIR}/usr/lib/libcrypt.a)
+DPADD+= ${LIBCRYPT}
+LDADD+= -lcrypt
+.endif
+.if exists(${DESTDIR}/usr/lib/libkrb.a)
+DPADD+= ${LIBKRB} ${LIBDES}
+LDADD+= -lkrb -ldes
+CFLAGS+= -DKERBEROS -DCRYPT
 .endif
 
 .include <bsd.prog.mk>

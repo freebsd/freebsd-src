@@ -27,7 +27,9 @@ like to display the formatted pages.  If section is specified, man
 only looks in that section of the manual.  You may also specify the
 order to search the sections for entries and which preprocessors to
 run on the source files via command line options or environment
-variables.
+variables.  If enabled by the system administrator, formatted man
+pages will also be compressed with the `%compress%' command to save
+space.
 .SH OPTIONS
 .TP
 .B \-\^M " path"

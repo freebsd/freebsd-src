@@ -11,7 +11,7 @@
 #Missing: adventure boggle ching dungeon hunt phantasia quiz warp 
 
 SUBDIR=	arithmetic atc backgammon banner battlestar bcd caesar canfield \
-	cribbage dm factor fish fortune hack hangman larn \
+	cribbage dm factor fish fortune hangman larn \
 	mille monop morse number pom ppt primes rain robots rogue \
 	sail snake trek wargames worm worms wump
 

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_prot.c	7.21 (Berkeley) 5/3/91
- *	$Id: kern_prot.c,v 1.5.2.2 1994/05/04 07:54:41 rgrimes Exp $
+ *	$Id: kern_prot.c,v 1.7 1994/05/04 08:26:59 rgrimes Exp $
  */
 
 /*

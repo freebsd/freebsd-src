@@ -1,7 +1,7 @@
 /* serial.c
    The serial port communication routines for Unix.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char serial_rcsid[] = "$Id: serial.c,v 1.3 1994/02/07 23:47:51 ache Exp $";
+const char serial_rcsid[] = "$Id: serial.c,v 1.4 1994/05/07 18:11:09 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -78,19 +78,21 @@ const char serial_rcsid[] = "$Id: serial.c,v 1.3 1994/02/07 23:47:51 ache Exp $"
 #define FD_CLOEXEC 1
 #endif
 
-#if HAVE_SYS_IOCTL_H
+#if HAVE_SYS_IOCTL_H || HAVE_TXADDCD
 #include <sys/ioctl.h>
 #endif
 
 #if HAVE_BSD_TTY
+#if HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #if HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
 #endif
 
 #if HAVE_TIME_H
-#if HAVE_SYS_TIME_AND_TIME_H || ! HAVE_BSD_TTY
+#if ! HAVE_SYS_TIME_H || ! HAVE_BSD_TTY || TIME_WITH_SYS_TIME
 #include <time.h>
 #endif
 #endif
@@ -116,6 +118,10 @@ const char serial_rcsid[] = "$Id: serial.c,v 1.3 1994/02/07 23:47:51 ache Exp $"
 #endif
 #endif /* ! MAJOR_IN_MKDEV && ! MAJOR_IN_SYSMACROS */
 #endif /* HAVE_SVR4_LOCKFILES */
+
+#if HAVE_DEV_INFO
+#include <sys/dev.h>
+#endif
 
 /* Get definitions for both O_NONBLOCK and O_NDELAY.  */
 #ifndef O_NDELAY
@@ -180,38 +186,46 @@ extern int t_nerr;
 
 /* Determine bits to clear for the various terminal control fields for
    HAVE_SYSV_TERMIO and HAVE_POSIX_TERMIOS.  */
+
+/* These fields are defined on some systems, and I am told that it
+   does not hurt to clear them, and it sometimes helps.  */
+#ifndef IMAXBEL
+#define IMAXBEL 0
+#endif
+
+#ifndef PENDIN
+#define PENDIN 0
+#endif
+
 #if HAVE_SYSV_TERMIO
 #define ICLEAR_IFLAG (IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK \
 		      | ISTRIP | INLCR | IGNCR | ICRNL | IUCLC \
-		      | IXON | IXANY | IXOFF)
+		      | IXON | IXANY | IXOFF | IMAXBEL)
 #define ICLEAR_OFLAG (OPOST | OLCUC | ONLCR | OCRNL | ONOCR | ONLRET \
 		      | OFILL | OFDEL | NLDLY | CRDLY | TABDLY | BSDLY \
 		      | VTDLY | FFDLY)
-#define ICLEAR_CFLAG (CBAUD | CLOCAL | CSIZE | PARENB | PARODD)
+#define ICLEAR_CFLAG (CBAUD | CSIZE | PARENB | PARODD)
 #define ISET_CFLAG (CS8 | CREAD | HUPCL)
 #define ICLEAR_LFLAG (ISIG | ICANON | XCASE | ECHO | ECHOE | ECHOK \
-		      | ECHONL | NOFLSH)
+		      | ECHONL | NOFLSH | PENDIN)
 #endif
 #if HAVE_POSIX_TERMIOS
-#ifdef IMAXBEL
-#define CI_ADD1 IMAXBEL
-#else
-#define CI_ADD1 0
-#endif
 #define ICLEAR_IFLAG (BRKINT | ICRNL | IGNBRK | IGNCR | IGNPAR \
 		      | INLCR | INPCK | ISTRIP | IXOFF | IXON \
-		      | PARMRK | CI_ADD1)
+		      | PARMRK | IMAXBEL)
 #define ICLEAR_OFLAG (OPOST)
-#define ICLEAR_CFLAG (CLOCAL | CSIZE | PARENB | PARODD)
+#define ICLEAR_CFLAG (CSIZE | PARENB | PARODD)
 #define ISET_CFLAG (CS8 | CREAD | HUPCL)
-#ifdef PENDIN
-#define CL_ADD1 PENDIN
-#else
-#define CL_ADD1 0
-#endif
 #define ICLEAR_LFLAG (ECHO | ECHOE | ECHOK | ECHONL | ICANON | IEXTEN \
-		      | ISIG | NOFLSH | TOSTOP | CL_ADD1)
+		      | ISIG | NOFLSH | TOSTOP | PENDIN)
 #endif
+
+enum tclocal_setting
+{
+  SET_CLOCAL,
+  CLEAR_CLOCAL,
+  IGNORE_CLOCAL
+};
 
 /* Local functions.  */
 
@@ -226,7 +240,7 @@ static boolean fsserial_lock P((struct sconnection *qconn,
 				boolean fin));
 static boolean fsserial_unlock P((struct sconnection *qconn));
 static boolean fsserial_open P((struct sconnection *qconn, long ibaud,
-				boolean fwait));
+				boolean fwait, enum tclocal_setting tlocal));
 static boolean fsstdin_open P((struct sconnection *qconn, long ibaud,
 			       boolean fwait));
 static boolean fsmodem_open P((struct sconnection *qconn, long ibaud,
@@ -247,13 +261,6 @@ static boolean fsdirect_close P((struct sconnection *qconn,
 				 pointer puuconf,
 				 struct uuconf_dialer *qdialer,
 				 boolean fsuccess));
-static boolean fsserial_reset P((struct sconnection *qconn));
-static boolean fsstdin_reset P((struct sconnection *qconn));
-static boolean fsstdin_read P((struct sconnection *qconn,
-			       char *zbuf, size_t *pclen, size_t cmin,
-			       int ctimeout, boolean freport));
-static boolean fsstdin_write P((struct sconnection *qconn,
-				const char *zwrite, size_t cwrite));
 static boolean fsserial_break P((struct sconnection *qconn));
 static boolean fsstdin_break P((struct sconnection *qconn));
 static boolean fsserial_set P((struct sconnection *qconn,
@@ -266,9 +273,9 @@ static boolean fsstdin_set P((struct sconnection *qconn,
 			       enum txonxoffsetting txonxoff));
 static boolean fsmodem_carrier P((struct sconnection *qconn,
 				  boolean fcarrier));
+static boolean fsserial_hardflow P((struct sconnection *qconn,
+				    boolean fhardflow));
 static boolean fsrun_chat P((int oread, int owrite, char **pzprog));
-static boolean fsstdin_chat P((struct sconnection *qconn,
-			       char **pzprog));
 static long isserial_baud P((struct sconnection *qconn));
 
 /* The command table for standard input ports.  */
@@ -280,15 +287,14 @@ static const struct sconncmds sstdincmds =
   NULL, /* pfunlock */
   fsstdin_open,
   fsstdin_close,
-  fsstdin_reset,
   NULL, /* pfdial */
-  fsstdin_read,
-  fsstdin_write,
+  fsdouble_read,
+  fsdouble_write,
   fsysdep_conn_io,
   fsstdin_break,
   fsstdin_set,
   NULL, /* pfcarrier */
-  fsstdin_chat,
+  fsdouble_chat,
   isserial_baud
 };
 
@@ -301,7 +307,6 @@ static const struct sconncmds smodemcmds =
   fsserial_unlock,
   fsmodem_open,
   fsmodem_close,
-  fsserial_reset,
   fmodem_dial,
   fsysdep_conn_read,
   fsysdep_conn_write,
@@ -322,7 +327,6 @@ static const struct sconncmds sdirectcmds =
   fsserial_unlock,
   fsdirect_open,
   fsdirect_close,
-  fsserial_reset,
   NULL, /* pfdial */
   fsysdep_conn_read,
   fsysdep_conn_write,
@@ -499,6 +503,8 @@ fsserial_init (qconn, qcmds, zdevice)
       q->zdevice[sizeof "/dev/" + clen - 1] = '\0';
     }
   q->o = -1;
+  q->ord = -1;
+  q->owr = -1;
   q->ftli = FALSE;
   qconn->psysdep = (pointer) q;
   qconn->qcmds = qcmds;
@@ -548,6 +554,12 @@ usserial_free (qconn)
   qconn->psysdep = NULL;
 }
 
+#if HAVE_SEQUENT_LOCKFILES
+#define LCK_TEMPLATE "LCK..tty"
+#else
+#define LCK_TEMPLATE "LCK.."
+#endif
+
 /* This routine is used for both locking and unlocking.  It is the
    only routine which knows how to translate a device name into the
    name of a lock file.  If it can't figure out a name, it does
@@ -571,6 +583,39 @@ fsserial_lockfile (flok, qconn)
   zalc = NULL;
   if (z == NULL)
     {
+#if HAVE_QNX_LOCKFILES
+      {
+	nid_t idevice_nid;
+	char abdevice_nid[13]; /* length of long, a period, and a NUL */
+	size_t cdevice_nid;
+	const char *zbase;
+	size_t clen;
+
+        /* If the node ID is explicitly specified as part of the
+           pathname to the device, use that.  Otherwise, presume the
+           device is local to the current node. */
+        if (qsysdep->zdevice[0] == '/' && qsysdep->zdevice[1] == '/')
+          idevice_nid = (nid_t) strtol (qsysdep->zdevice + 2,
+					(char **) NULL, 10);
+        else
+          idevice_nid = getnid ();
+
+        sprintf (abdevice_nid, "%ld.", (long) idevice_nid);
+        cdevice_nid = strlen (abdevice_nid);
+
+ 	zbase = strrchr (qsysdep->zdevice, '/') + 1;
+ 	clen = strlen (zbase);
+
+        zalc = zbufalc (sizeof LCK_TEMPLATE + cdevice_nid + clen);
+
+	memcpy (zalc, LCK_TEMPLATE, sizeof LCK_TEMPLATE - 1);
+	memcpy (zalc + sizeof LCK_TEMPLATE - 1, abdevice_nid, cdevice_nid);
+	memcpy (zalc + sizeof LCK_TEMPLATE - 1 + cdevice_nid,
+		zbase, clen + 1);
+
+	z = zalc;
+      }
+#else /* ! HAVE_QNX_LOCKFILES */
 #if ! HAVE_SVR4_LOCKFILES
       {
 	const char *zbase;
@@ -578,22 +623,21 @@ fsserial_lockfile (flok, qconn)
 
 	zbase = strrchr (qsysdep->zdevice, '/') + 1;
 	clen = strlen (zbase);
-	zalc = zbufalc (sizeof "LCK.." + clen);
-	memcpy (zalc, "LCK..", sizeof "LCK.." - 1);
-	memcpy (zalc + sizeof "LCK.." - 1, zbase, clen + 1);
+	zalc = zbufalc (sizeof LCK_TEMPLATE + clen);
+	memcpy (zalc, LCK_TEMPLATE, sizeof LCK_TEMPLATE - 1);
+	memcpy (zalc + sizeof LCK_TEMPLATE - 1, zbase, clen + 1);
 #if HAVE_SCO_LOCKFILES
 	{
 	  char *zl;
 
-	  for (zl = zalc + sizeof "LCK.." - 1; *zl != '\0'; zl++)
+	  for (zl = zalc + sizeof LCK_TEMPLATE - 1; *zl != '\0'; zl++)
 	    if (isupper (*zl))
 	      *zl = tolower (*zl);
 	}
 #endif
 	z = zalc;
       }
-#else /* ! HAVE_SVR4_LOCKFILES */
-#if HAVE_SVR4_LOCKFILES
+#else /* HAVE_SVR4_LOCKFILES */
       {
 	struct stat s;
 
@@ -608,10 +652,8 @@ fsserial_lockfile (flok, qconn)
 		 major (s.st_rdev), minor (s.st_rdev));
 	z = zalc;
       }
-#else /* ! HAVE_SVR4_LOCKFILES */
-      z = strrchr (qsysdep->zdevice, '/') + 1;
-#endif /* ! HAVE_SVR4_LOCKFILES */
-#endif /* ! HAVE_SVR4_LOCKFILES */
+#endif /* HAVE_SVR4_LOCKFILES */
+#endif /* ! HAVE_QNX_LOCKFILES */
     }
 
   if (flok)
@@ -624,13 +666,15 @@ fsserial_lockfile (flok, qconn)
     {
       if (flok)
 	{
-	  if (lockttyexist (z))
+	  if (lockttyexist (z + sizeof LCK_TEMPLATE - 1))
 	    {
-	      ulog (LOG_NORMAL, "%s: port already locked", z+5);
+	      ulog (LOG_NORMAL, "%s: port already locked",
+		    z + sizeof LCK_TEMPLATE - 1);
 	      fret = FALSE;
 	    }
 	  else
-	    fret = !(fscoherent_disable_tty (z, &qsysdep->zenable));
+	    fret = fscoherent_disable_tty (z + sizeof LCK_TEMPLATE - 1,
+					   &qsysdep->zenable);
 	}
       else
 	{
@@ -689,7 +733,7 @@ fsserial_lock (qconn, fin)
   if (! fsserial_lockfile (TRUE, qconn))
     return FALSE;
 
-#if HAVE_TIOCSINUSE || HAVE_TIOCEXCL
+#if HAVE_TIOCSINUSE || HAVE_TIOCEXCL || HAVE_DEV_INFO
   /* Open the line and try to mark it in use.  */
   {
     struct ssysdep_conn *qsysdep;
@@ -740,6 +784,38 @@ fsserial_lock (qconn, fin)
       }
 #endif
 
+#if HAVE_DEV_INFO
+    /* QNX programs "lock" a serial port by simply opening it and
+       checking if some other program also has the port open.  If the
+       count of openers is greater than one, the program presumes the
+       port is "locked" and backs off.  This isn't really "locking" of
+       course, but it pretty much seems to work.  This can result in
+       dropping incoming connections if an outgoing connection is
+       started at exactly the same time.  It would probably be better
+       to stop using the lock files at all for this case, but that
+       would involve more complex changes to the code, and I'm afraid
+       I would break something.  -- Joe Wells <jbw@cs.bu.edu>  */
+    {
+      struct _dev_info_entry sdevinfo;
+
+      if (dev_info (qsysdep->o, &sdevinfo) == -1)
+        {
+          ulog (LOG_ERROR, "dev_info: %s", strerror (errno));
+          sdevinfo.open_count = 2; /* force presumption of "locked" */
+        }
+      if (sdevinfo.open_count != 1)
+        {
+#ifdef TIOCNOTTY
+          (void) ioctl (qsysdep->o, TIOCNOTTY, (char *) NULL);
+#endif /* TIOCNOTTY */
+          (void) close (qsysdep->o);
+          qsysdep->o = -1;
+          (void) fsserial_lockfile (FALSE, qconn);
+          return FALSE;
+        }
+    }
+#endif /* HAVE_DEV_INFO */
+
     if (fcntl (qsysdep->o, F_SETFD,
 	       fcntl (qsysdep->o, F_GETFD, 0) | FD_CLOEXEC) < 0)
       {
@@ -752,11 +828,6 @@ fsserial_lock (qconn, fin)
 	(void) fsserial_lockfile (FALSE, qconn);
 	return FALSE;
       }
-
-#ifdef TIOCSCTTY
-    /* On BSD 4.4, make it our controlling terminal.  */
-    (void) ioctl (qsysdep->o, TIOCSCTTY, 0);
-#endif
   }
 #endif /* HAVE_TIOCSINUSE || HAVE_TIOCEXCL */
 
@@ -796,8 +867,7 @@ fsserial_unlock (qconn)
   return fret;
 }
 
-/* Open a serial line.  This sets the terminal settings.  We begin in
-   seven bit mode and let the protocol change if necessary.  */
+/* A table to map baud rates into index numbers.  */
 
 #if HAVE_POSIX_TERMIOS
 typedef speed_t baud_code;
@@ -858,11 +928,18 @@ static struct sbaud_table
 static int cSmin;
 #endif /* HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS */
 
+/* Open a serial line.  This sets the terminal settings.  We begin in
+   seven bit mode and let the protocol change if necessary.  If fwait
+   is FALSE we open the terminal in non-blocking mode.  If flocal is
+   TRUE we set CLOCAL on the terminal when using termio[s]; this is
+   supposedly required on some versions of BSD/386.  */
+
 static boolean
-fsserial_open (qconn, ibaud, fwait)
+fsserial_open (qconn, ibaud, fwait, tlocal)
      struct sconnection *qconn;
      long ibaud;
      boolean fwait;
+     enum tclocal_setting tlocal;
 {
   struct ssysdep_conn *q;
   baud_code ib;
@@ -870,7 +947,19 @@ fsserial_open (qconn, ibaud, fwait)
   q = (struct ssysdep_conn *) qconn->psysdep;
 
   if (q->zdevice != NULL)
-    ulog_device (strrchr (q->zdevice, '/') + 1);
+    {
+#if LOG_DEVICE_PREFIX
+      ulog_device (q->zdevice);
+#else
+      const char *z;
+
+      if (strncmp (q->zdevice, "/dev/", sizeof "/dev/" - 1) == 0)
+	z = q->zdevice + sizeof "/dev/" - 1;
+      else
+	z = q->zdevice;
+      ulog_device (z);
+#endif
+    }
   else
     {
       const char *zport;
@@ -945,7 +1034,7 @@ fsserial_open (qconn, ibaud, fwait)
       ulog (LOG_ERROR, "fcntl: %s", strerror (errno));
       return FALSE;
     }
-  q->istdout_flags = -1;
+  q->iwr_flags = -1;
 
   if (! fgetterminfo (q->o, &q->sorig))
     {
@@ -1025,13 +1114,11 @@ fsserial_open (qconn, ibaud, fwait)
   q->snew.c_iflag &=~ ICLEAR_IFLAG;
   q->snew.c_oflag &=~ ICLEAR_OFLAG;
   q->snew.c_cflag &=~ ICLEAR_CFLAG;
-  if (!fwait)
-    q->snew.c_cflag |= CLOCAL;
-  q->snew.c_cflag |= (ib | ISET_CFLAG);
+  q->snew.c_cflag |= ib | ISET_CFLAG;
   q->snew.c_lflag &=~ ICLEAR_LFLAG;
   cSmin = 1;
   q->snew.c_cc[VMIN] = cSmin;
-  q->snew.c_cc[VTIME] = 0;
+  q->snew.c_cc[VTIME] = 1;
 
 #ifdef TCFLSH
   /* Flush pending input.  */
@@ -1048,13 +1135,11 @@ fsserial_open (qconn, ibaud, fwait)
   q->snew.c_iflag &=~ ICLEAR_IFLAG;
   q->snew.c_oflag &=~ ICLEAR_OFLAG;
   q->snew.c_cflag &=~ ICLEAR_CFLAG;
-  if (!fwait)
-    q->snew.c_cflag |= CLOCAL;
   q->snew.c_cflag |= ISET_CFLAG;
   q->snew.c_lflag &=~ ICLEAR_LFLAG;
   cSmin = 1;
   q->snew.c_cc[VMIN] = cSmin;
-  q->snew.c_cc[VTIME] = 0;
+  q->snew.c_cc[VTIME] = 1;
 
   (void) cfsetospeed (&q->snew, ib);
   (void) cfsetispeed (&q->snew, ib);
@@ -1063,6 +1148,20 @@ fsserial_open (qconn, ibaud, fwait)
   (void) tcflush (q->o, TCIFLUSH);
 
 #endif /* HAVE_POSIX_TERMIOS */
+
+#if HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS
+  switch (tlocal)
+    {
+    case SET_CLOCAL:
+      q->snew.c_cflag |= CLOCAL;
+      break;
+    case CLEAR_CLOCAL:
+      q->snew.c_cflag &=~ CLOCAL;
+      break;
+    case IGNORE_CLOCAL:
+      break;
+    }
+#endif /* HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS */
 
   if (! fsetterminfo (q->o, &q->snew))
     {
@@ -1098,8 +1197,9 @@ fsserial_open (qconn, ibaud, fwait)
   return TRUE;
 }
 
-/* Open a standard input port.  The code alternates q->o between 0 and
-   1 as appropriate.  It is always 0 before any call to fsblock.  */
+/* Open a standard input port.  The code alternates q->o between
+   q->ord and q->owr as appropriate.  It is always q->ord before any
+   call to fsblock.  */
 
 static boolean
 fsstdin_open (qconn, ibaud, fwait)
@@ -1110,11 +1210,14 @@ fsstdin_open (qconn, ibaud, fwait)
   struct ssysdep_conn *q;
 
   q = (struct ssysdep_conn *) qconn->psysdep;
-  q->o = 0;
-  if (! fsserial_open (qconn, ibaud, fwait))
+  q->ord = 0;
+  q->owr = 1;
+
+  q->o = q->ord;
+  if (! fsserial_open (qconn, ibaud, fwait, IGNORE_CLOCAL))
     return FALSE;
-  q->istdout_flags = fcntl (1, F_GETFL, 0);
-  if (q->istdout_flags < 0)
+  q->iwr_flags = fcntl (q->owr, F_GETFL, 0);
+  if (q->iwr_flags < 0)
     {
       ulog (LOG_ERROR, "fcntl: %s", strerror (errno));
       return FALSE;
@@ -1130,9 +1233,26 @@ fsmodem_open (qconn, ibaud, fwait)
      long ibaud;
      boolean fwait;
 {
+  struct uuconf_modem_port *qm;
+
+  qm = &qconn->qport->uuconf_u.uuconf_smodem;
   if (ibaud == (long) 0)
-    ibaud = qconn->qport->uuconf_u.uuconf_smodem.uuconf_ibaud;
-  return fsserial_open (qconn, ibaud, fwait);
+    ibaud = qm->uuconf_ibaud;
+
+  if (! fsserial_open (qconn, ibaud, fwait,
+		       fwait ? CLEAR_CLOCAL : SET_CLOCAL))
+    return FALSE;
+
+  /* If we are waiting for carrier, then turn on hardware flow
+     control.  We don't turn on hardware flow control when dialing
+     out, because some modems don't assert the necessary signals until
+     they see carrier.  Instead, we turn on hardware flow control in
+     fsmodem_carrier.  */
+  if (fwait
+      && ! fsserial_hardflow (qconn, qm->uuconf_fhardflow))
+    return FALSE;
+
+  return TRUE;
 }
 
 /* Open a direct port.  */
@@ -1143,9 +1263,18 @@ fsdirect_open (qconn, ibaud, fwait)
      long ibaud;
      boolean fwait;
 {
+  struct uuconf_direct_port *qd;
+
+  qd = &qconn->qport->uuconf_u.uuconf_sdirect;
   if (ibaud == (long) 0)
-    ibaud = qconn->qport->uuconf_u.uuconf_sdirect.uuconf_ibaud;
-  return fsserial_open (qconn, ibaud, fwait);
+    ibaud = qd->uuconf_ibaud;
+  if (! fsserial_open (qconn, ibaud, fwait,
+		       qd->uuconf_fcarrier ? CLEAR_CLOCAL : SET_CLOCAL))
+    return FALSE;
+
+  /* Always turn on hardware flow control for a direct port when it is
+     opened.  There is no other sensible time to turn it on.  */
+  return fsserial_hardflow (qconn, qd->uuconf_fhardflow);
 }
 
 /* Change the blocking status of the port.  We keep track of the
@@ -1188,14 +1317,14 @@ fsblock (qs, fblock)
 
   qs->iflags = iwant;
 
-  if (qs->istdout_flags >= 0)
+  if (qs->iwr_flags >= 0 && qs->ord != qs->owr)
     {
       if (fblock)
-	iwant = qs->istdout_flags &~ (O_NDELAY | O_NONBLOCK);
+	iwant = qs->iwr_flags &~ (O_NDELAY | O_NONBLOCK);
       else
-	iwant = qs->istdout_flags | iSunblock;
+	iwant = qs->iwr_flags | iSunblock;
 
-      if (fcntl (1, F_SETFL, iwant) < 0)
+      if (fcntl (qs->owr, F_SETFL, iwant) < 0)
 	{
 	  /* We don't bother to fix up iSunblock here, since we
 	     succeeded above.  */
@@ -1203,7 +1332,7 @@ fsblock (qs, fblock)
 	  return FALSE;
 	}
 
-      qs->istdout_flags = iwant;
+      qs->iwr_flags = iwant;
     }
 
   return TRUE;
@@ -1274,9 +1403,9 @@ fsstdin_close (qconn, puuconf, qdialer, fsuccess)
   struct ssysdep_conn *qsysdep;
 
   qsysdep = (struct ssysdep_conn *) qconn->psysdep;
-  (void) close (1);
+  (void) close (qsysdep->owr);
   (void) close (2);
-  qsysdep->o = 0;
+  qsysdep->o = qsysdep->ord;
   return fsserial_close (qsysdep);
 }
 
@@ -1442,68 +1571,6 @@ fsdirect_close (qconn, puuconf, qdialer, fsuccess)
   return fsserial_close ((struct ssysdep_conn *) qconn->psysdep);
 }
 
-/* Reset a serial port by hanging up.  */
-
-static boolean
-fsserial_reset (qconn)
-     struct sconnection *qconn;
-{
-  struct ssysdep_conn *q;
-  sterminal sbaud;
-
-  q = (struct ssysdep_conn *) qconn->psysdep;
-
-  if (! q->fterminal)
-    return TRUE;
-
-  sbaud = q->snew;
-
-#if HAVE_BSD_TTY
-  sbaud.stty.sg_ispeed = B0;
-  sbaud.stty.sg_ospeed = B0;
-#endif
-#if HAVE_SYSV_TERMIO
-  sbaud.c_cflag = (sbaud.c_cflag &~ CBAUD) | B0;
-#endif
-#if HAVE_POSIX_TERMIOS
-  if (cfsetospeed (&sbaud, B0) < 0)
-    {
-      ulog (LOG_ERROR, "Can't set baud rate: %s", strerror (errno));
-      return FALSE;
-    }
-#endif
-
-  if (! fsetterminfodrain (q->o, &sbaud))
-    {
-      ulog (LOG_ERROR, "Can't hangup terminal: %s", strerror (errno));
-      return FALSE;
-    }
-
-  /* Give the terminal a chance to settle.  */
-  sleep (2);
-
-  if (! fsetterminfo (q->o, &q->snew))
-    {
-      ulog (LOG_ERROR, "Can't reopen terminal: %s", strerror (errno));
-      return FALSE;
-    }
-  
-  return TRUE;
-}
-
-/* Reset a standard input port.  */
-
-static boolean
-fsstdin_reset (qconn)
-     struct sconnection *qconn;
-{
-  struct ssysdep_conn *qsysdep;
-
-  qsysdep = (struct ssysdep_conn *) qconn->psysdep;
-  qsysdep->o = 0;
-  return fsserial_reset (qconn);
-}
-
 /* Begin dialing out on a modem port.  This opens the dialer device if
    there is one.  */
 
@@ -1536,7 +1603,27 @@ fsysdep_modem_begin_dial (qconn, qdial)
       sleep (2);
       (void) ioctl (qsysdep->o, TIOCSDTR, 0);
 #else /* ! defined (TIOCCDTR) */
-      (void) fconn_reset (qconn);
+      if (qsysdep->fterminal)
+	{
+	  sterminal sbaud;
+
+	  sbaud = qsysdep->snew;
+
+#if HAVE_BSD_TTY
+	  sbaud.stty.sg_ispeed = B0;
+	  sbaud.stty.sg_ospeed = B0;
+#endif
+#if HAVE_SYSV_TERMIO
+	  sbaud.c_cflag = (sbaud.c_cflag &~ CBAUD) | B0;
+#endif
+#if HAVE_POSIX_TERMIOS
+	  (void) cfsetospeed (&sbaud, B0);
+#endif
+
+	  (void) fsetterminfodrain (qsysdep->o, &sbaud);
+	  sleep (2);
+	  (void) fsetterminfo (qsysdep->o, &qsysdep->snew);
+	}
 #endif /* ! defined (TIOCCDTR) */
 
       if (qdial->uuconf_fdtr_toggle_wait)
@@ -1598,15 +1685,17 @@ fsmodem_carrier (qconn, fcarrier)
      boolean fcarrier;
 {
   register struct ssysdep_conn *q;
+  struct uuconf_modem_port *qm;
 
   q = (struct ssysdep_conn *) qconn->psysdep;
 
   if (! q->fterminal)
     return TRUE;
 
+  qm = &qconn->qport->uuconf_u.uuconf_smodem;
   if (fcarrier)
     {
-      if (qconn->qport->uuconf_u.uuconf_smodem.uuconf_fcarrier)
+      if (qm->uuconf_fcarrier)
 	{
 #ifdef TIOCCAR
 	  /* Tell the modem to pay attention to carrier.  */
@@ -1619,18 +1708,18 @@ fsmodem_carrier (qconn, fcarrier)
 
 #if HAVE_BSD_TTY
 #ifdef LNOMDM
-      /* IS68K Unix uses a local LNOMDM bit.  */
-      {
-	int iparam;
-
-	iparam = LNOMDM;
-	if (ioctl (q->o, TIOCLBIC, &iparam) < 0)
+	  /* IS68K Unix uses a local LNOMDM bit.  */
 	  {
-	    ulog (LOG_ERROR, "ioctl (TIOCLBIC, LNOMDM): %s",
-		  strerror (errno));
-	    return FALSE;
+	    int iparam;
+
+	    iparam = LNOMDM;
+	    if (ioctl (q->o, TIOCLBIC, &iparam) < 0)
+	      {
+		ulog (LOG_ERROR, "ioctl (TIOCLBIC, LNOMDM): %s",
+		      strerror (errno));
+		return FALSE;
+	      }
 	  }
-      }
 #endif /* LNOMDM */
 #endif /* HAVE_BSD_TTY */
 
@@ -1644,9 +1733,20 @@ fsmodem_carrier (qconn, fcarrier)
 	    }
 #endif /* HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS */
 	}
+
+      /* Turn on hardware flow control after turning on carrier.  We
+	 don't do it until now because some modems don't assert the
+	 right signals until they see carrier.  */
+      if (! fsserial_hardflow (qconn, qm->uuconf_fhardflow))
+	return FALSE;
     }
   else
     {
+      /* Turn off any hardware flow control before turning off
+	 carrier.  */
+      if (! fsserial_hardflow (qconn, FALSE))
+	return FALSE;
+
 #ifdef TIOCNCAR
       /* Tell the modem to ignore carrier.  */ 
       if (ioctl (q->o, TIOCNCAR, 0) < 0)
@@ -1710,6 +1810,104 @@ fsmodem_carrier (qconn, fcarrier)
 
 #endif /* HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS */
     }
+
+  return TRUE;
+}
+
+/* Tell the port to use hardware flow control.  There is no standard
+   mechanism for controlling this.  This implementation supports
+   CRTSCTS on SunOS, RTS/CTSFLOW on 386(ish) unix, CTSCD on the 3b1,
+   and TXADDCD/TXDELCD on AIX.  If you know how to do it on other
+   systems, please implement it and send me the patches.  */
+
+static boolean
+fsserial_hardflow (qconn, fhardflow)
+     struct sconnection *qconn;
+     boolean fhardflow;
+{
+  register struct ssysdep_conn *q;
+
+  q = (struct ssysdep_conn *) qconn->psysdep;
+
+  if (! q->fterminal)
+    return TRUE;
+
+  /* Don't do anything if we don't know what to do.  */
+#if HAVE_BSD_TTY
+#define HAVE_HARDFLOW 0
+#endif
+#if HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS
+#if ! HAVE_TXADDCD
+#ifndef CRTSFL
+#ifndef CRTSCTS
+#ifndef CTSCD
+#define HAVE_HARDFLOW 0
+#endif
+#endif
+#endif
+#endif
+#endif
+
+#ifndef HAVE_HARDFLOW
+#define HAVE_HARDFLOW 1
+#endif
+
+#if HAVE_HARDFLOW
+  if (fhardflow)
+    {
+#if HAVE_TXADDCD
+      /* The return value does not reliably indicate whether this
+	 actually succeeded.  */
+      (void) ioctl (q->o, TXADDCD, "rts");
+#else /* ! HAVE_TXADDCD */
+#if HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS
+#ifdef CRTSFL
+      q->snew.c_cflag |= CRTSFL;
+      q->snew.c_cflag &=~ (RTSFLOW | CTSFLOW);
+#endif /* defined (CRTSFL) */
+#ifdef CRTSCTS
+      q->snew.c_cflag |= CRTSCTS;
+#endif /* defined (CRTSCTS) */
+#ifdef CTSCD
+      q->snew.c_cflag |= CTSCD;
+#endif /* defined (CTSCD) */
+#endif /* HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS */
+      if (! fsetterminfo (q->o, &q->snew))
+	{
+	  ulog (LOG_ERROR, "Can't enable hardware flow control: %s",
+		strerror (errno));
+	  return FALSE;
+	}
+#endif /* ! HAVE_TXADDCD */
+    }
+  else
+    {
+#if HAVE_TXADDCD
+      /* The return value does not reliably indicate whether this
+	 actually succeeded.  */
+      (void) ioctl (q->o, TXDELCD, "rts");
+#else /* ! HAVE_TXADDCD */
+#if HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS
+#ifdef CRTSFL
+      q->snew.c_cflag &=~ CRTSFL;
+      q->snew.c_cflag &=~ (RTSFLOW | CTSFLOW);
+#endif /* defined (CRTSFL) */
+#ifdef CRTSCTS
+      q->snew.c_cflag &=~ CRTSCTS;
+#endif /* defined (CRTSCTS) */
+#ifdef CTSCD
+      q->snew.c_cflag &=~ CTSCD;
+#endif /* defined (CTSCD) */
+#endif /* HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS */
+      if (! fsetterminfo (q->o, &q->snew))
+	{
+	  ulog (LOG_ERROR, "Can't disable hardware flow control: %s",
+		strerror (errno));
+	  return FALSE;
+	}
+#endif /* ! HAVE_TXADDCD */
+    }
+#endif /* HAVE_HARDFLOW */
 
   return TRUE;
 }
@@ -1795,7 +1993,50 @@ fsysdep_modem_end_dial (qconn, qdial)
 	  return FALSE;
 	}
 
-#endif /* TIOCWONLINE */
+#else /* ! defined (TIOCWONLINE) */
+
+      /* Try to open the port again without using O_NDELAY.  In
+	 principle, the open should delay until carrier is available.
+	 This may not work on some systems, so we just ignore any
+	 errors.  */
+      {
+	int onew;
+ 
+	onew = open (q->zdevice, O_RDWR);
+	if (onew >= 0)
+	  {
+	    boolean fbad;
+	    int iflags;
+
+	    fbad = FALSE;
+
+	    if (fcntl (onew, F_SETFD,
+		       fcntl (onew, F_GETFD, 0) | FD_CLOEXEC) < 0)
+	      fbad = TRUE;
+
+	    if (! fbad)
+	      {
+		iflags = fcntl (onew, F_GETFL, 0);
+		if (iflags < 0
+		    || ! fsetterminfo (onew, &q->snew))
+		  fbad = TRUE;
+	      }
+
+	    if (fbad)
+	      (void) close (onew);
+	    else
+	      {
+		(void) close (q->o);
+		q->o = onew;
+		q->iflags = iflags;
+#if HAVE_TIOCSINUSE
+		(void) ioctl (onew, TIOCSINUSE, 0);
+#endif
+	      }
+	  }
+      }
+
+#endif /* ! defined (TIOCWONLINE) */
     }
 
   return TRUE; 
@@ -1855,6 +2096,7 @@ fsysdep_conn_read (qconn, zbuf, pclen, cmin, ctimeout, freport)
   boolean fret;
   register struct ssysdep_conn * const q
     = (struct ssysdep_conn *) qconn->psysdep;
+  int cwouldblock;
 
   cwant = *pclen;
   *pclen = 0;
@@ -1893,6 +2135,7 @@ fsysdep_conn_read (qconn, zbuf, pclen, cmin, ctimeout, freport)
 
   fret = FALSE;
 
+  cwouldblock = 0;
   while (TRUE)
     {
       int cgot;
@@ -2009,10 +2252,26 @@ fsysdep_conn_read (qconn, zbuf, pclen, cmin, ctimeout, freport)
 	 (normally we would have received SIGHUP, but we can't count
 	 on that).  We turn off the signals before calling ulog to
 	 reduce problems with interrupted system calls.  */
-      if (cgot <= 0)
+      if (cgot > 0)
+	cwouldblock = 0;
+      else
 	{
 	  if (cgot < 0 && errno == EINTR)
 	    cgot = 0;
+	  else if (cgot < 0
+		   && (errno == EAGAIN || errno == EWOULDBLOCK)
+		   && cwouldblock < 2)
+	    {
+	      /* Incomprehensibly, on some systems the read will
+		 return EWOULDBLOCK even though the descriptor has
+		 been set to blocking mode.  We permit the read call
+		 to do this twice in a row, and then error out.  We
+		 don't want to permit an arbitrary number of
+		 EWOULDBLOCK errors, since that could hang us up
+		 indefinitely.  */
+	      ++cwouldblock;
+	      cgot = 0;
+	    }
 	  else
 	    {
 	      int ierr;
@@ -2128,10 +2387,10 @@ fsysdep_conn_read (qconn, zbuf, pclen, cmin, ctimeout, freport)
   return fret;
 }
 
-/* Read from a stdin port.  */
+/* Read from a port with separate read/write file descriptors.  */
 
-static boolean
-fsstdin_read (qconn, zbuf, pclen, cmin, ctimeout, freport)
+boolean
+fsdouble_read (qconn, zbuf, pclen, cmin, ctimeout, freport)
      struct sconnection *qconn;
      char *zbuf;
      size_t *pclen;
@@ -2142,7 +2401,7 @@ fsstdin_read (qconn, zbuf, pclen, cmin, ctimeout, freport)
   struct ssysdep_conn *qsysdep;
 
   qsysdep = (struct ssysdep_conn *) qconn->psysdep;
-  qsysdep->o = 0;
+  qsysdep->o = qsysdep->ord;
   return fsysdep_conn_read (qconn, zbuf, pclen, cmin, ctimeout, freport);
 }
 
@@ -2180,7 +2439,7 @@ fsysdep_conn_write (qconn, zwrite, cwrite)
 #if HAVE_TLI
 	  if (q->ftli)
 	    {
-	      cdid = t_snd (q->o, zwrite, cwrite, 0);
+	      cdid = t_snd (q->o, (char *) zwrite, cwrite, 0);
 	      if (cdid < 0 && t_errno != TSYSERR)
 		{
 		  ulog (LOG_ERROR, "t_snd: %s",
@@ -2239,10 +2498,10 @@ fsysdep_conn_write (qconn, zwrite, cwrite)
   return TRUE;
 }
 
-/* Write to a stdin port.  */
+/* Write to a port with separate read/write file descriptors.  */
 
-static boolean
-fsstdin_write (qconn, zwrite, cwrite)
+boolean
+fsdouble_write (qconn, zwrite, cwrite)
      struct sconnection *qconn;
      const char *zwrite;
      size_t cwrite;
@@ -2250,10 +2509,10 @@ fsstdin_write (qconn, zwrite, cwrite)
   struct ssysdep_conn *qsysdep;
 
   qsysdep = (struct ssysdep_conn *) qconn->psysdep;
-  qsysdep->o = 0;
+  qsysdep->o = qsysdep->ord;
   if (! fsblock (qsysdep, TRUE))
     return FALSE;
-  qsysdep->o = 1;
+  qsysdep->o = qsysdep->owr;
   return fsysdep_conn_write (qconn, zwrite, cwrite);
 }
 
@@ -2317,8 +2576,8 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 
       /* If we are running on standard input, we switch the file
 	 descriptors by hand.  */
-      if (q->istdout_flags >= 0)
-	q->o = 0;
+      if (q->ord >= 0)
+	q->o = q->ord;
 
       /* Do an unblocked read.  */
       if (! fsblock (q, FALSE))
@@ -2392,8 +2651,8 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 	cdo = SINGLE_WRITE;
 #endif
 
-      if (q->istdout_flags >= 0)
-	q->o = 1;
+      if (q->owr >= 0)
+	q->o = q->owr;
 
       /* Loop until we get something besides EINTR.  */
       while (TRUE)
@@ -2405,7 +2664,7 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 #if HAVE_TLI
 	  if (q->ftli)
 	    {
-	      cdid = t_snd (q->o, zwrite, cdo, 0);
+	      cdid = t_snd (q->o, (char *) zwrite, cdo, 0);
 	      if (cdid < 0)
 		{
 		  if (t_errno == TFLOW)
@@ -2460,8 +2719,8 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 	{
 	  /* We didn't write any data.  Do a blocking write.  */
 
-	  if (q->istdout_flags >= 0)
-	    q->o = 0;
+	  if (q->ord >= 0)
+	    q->o = q->ord;
 
 	  if (! fsblock (q, TRUE))
 	    return FALSE;
@@ -2471,11 +2730,11 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 	    cdo = SINGLE_WRITE;
 
 	  DEBUG_MESSAGE1 (DEBUG_PORT,
-			  "fsysdep_conn_io: Blocking write of %lud",
+			  "fsysdep_conn_io: Blocking write of %lu",
 			  (unsigned long) cdo);
 
-	  if (q->istdout_flags >= 0)
-	    q->o = 1;
+	  if (q->owr >= 0)
+	    q->o = q->owr;
 
 	  /* Loop until we get something besides EINTR.  */
 	  while (TRUE)
@@ -2487,7 +2746,7 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 #if HAVE_TLI
 	      if (q->ftli)
 		{
-		  cdid = t_snd (q->o, zwrite, cdo, 0);
+		  cdid = t_snd (q->o, (char *) zwrite, cdo, 0);
 		  if (cdid < 0 && t_errno != TSYSERR)
 		    {
 		      ulog (LOG_ERROR, "t_snd: %s",
@@ -2576,7 +2835,7 @@ fsstdin_break (qconn)
   struct ssysdep_conn *qsysdep;
 
   qsysdep = (struct ssysdep_conn *) qconn->psysdep;
-  qsysdep->o = 1;
+  qsysdep->o = qsysdep->owr;
   return fsserial_break (qconn);
 }
 
@@ -2805,6 +3064,22 @@ fsserial_set (qconn, tparity, tstrip, txonxoff)
 	}
 #endif /* HAVE_POSIX_TERMIOS */
 #endif /* defined (CRTSCTS) */
+#ifdef CRTSFL
+      if ((q->snew.c_cflag & CRTSFL) != 0)
+	{
+	  iset = IXON;
+	  iclear = IXOFF;
+	  /* SCO says we cant have CRTSFL **and** RTSFLOW/CTSFLOW */
+#ifdef RTSFLOW
+	  iclear |= RTSFLOW;
+#endif
+#ifdef CTSFLOW
+	  iclear |= CTSFLOW;
+#endif
+	  fdo = TRUE;
+	  break;
+	}
+#endif /* defined(CRTSFL) */
       iset = IXON | IXOFF;
       iclear = 0;
       fdo = TRUE;
@@ -2890,7 +3165,7 @@ fsstdin_set (qconn, tparity, tstrip, txonxoff)
   struct ssysdep_conn *qsysdep;
 
   qsysdep = (struct ssysdep_conn *) qconn->psysdep;
-  qsysdep->o = 0;
+  qsysdep->o = qsysdep->ord;
   return fsserial_set (qconn, tparity, tstrip, txonxoff);
 }
 
@@ -2954,15 +3229,22 @@ fsrun_chat (oread, owrite, pzprog)
   return ixswait ((unsigned long) ipid, "Chat program") == 0;
 }
 
-/* Run a chat program on a stdin port.  */
+/* Run a chat program on a port using separate read/write file
+   descriptors.  */
 
-/*ARGSUSED*/
-static boolean
-fsstdin_chat (qconn, pzprog)
+boolean
+fsdouble_chat (qconn, pzprog)
      struct sconnection *qconn;
      char **pzprog;
 {
-  return fsrun_chat (0, 1, pzprog);
+  struct ssysdep_conn *qsysdep;
+  boolean fret;
+
+  qsysdep = (struct ssysdep_conn *) qconn->psysdep;
+  fret = fsrun_chat (qsysdep->ord, qsysdep->owr, pzprog);
+  if (qsysdep->fterminal)
+    (void) fgetterminfo (qsysdep->ord, &qsysdep->snew);
+  return fret;
 }
 
 /* Run a chat program on any general type of connection.  */
@@ -2973,9 +3255,13 @@ fsysdep_conn_chat (qconn, pzprog)
      char **pzprog;
 {
   struct ssysdep_conn *qsysdep;
+  boolean fret;
 
   qsysdep = (struct ssysdep_conn *) qconn->psysdep;
-  return fsrun_chat (qsysdep->o, qsysdep->o, pzprog);
+  fret = fsrun_chat (qsysdep->o, qsysdep->o, pzprog);
+  if (qsysdep->fterminal)
+    (void) fgetterminfo (qsysdep->o, &qsysdep->snew);
+  return fret;
 }
 
 /* Return baud rate of a serial port.  */

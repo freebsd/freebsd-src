@@ -1,7 +1,7 @@
 /* statsb.c
    System dependent routines for uustat.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char statsb_rcsid[] = "$Id: statsb.c,v 1.1 1993/08/05 18:24:34 conklin Exp $";
+const char statsb_rcsid[] = "$Id: statsb.c,v 1.2 1994/05/07 18:11:29 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -73,32 +73,16 @@ const char statsb_rcsid[] = "$Id: statsb.c,v 1.1 1993/08/05 18:24:34 conklin Exp
 
 /* Local functions.  */
 
-static int ussettime P((const char *z, time_t inow));
+static int issettime P((const char *z, time_t inow));
 static boolean fskill_or_rejuv P((pointer puuconf, const char *zid,
 				  boolean fkill));
-
-/* See whether the user is permitted to kill arbitrary jobs.  This is
-   true only for root and uucp.  We check for uucp by seeing if the
-   real user ID and the effective user ID are the same; this works
-   because we should be suid to uucp, so our effective user ID will
-   always be uucp while our real user ID will be whoever ran the
-   program.  */
-
-boolean
-fsysdep_privileged ()
-{
-  uid_t iuid;
-
-  iuid = getuid ();
-  return iuid == 0 || iuid == geteuid ();
-}
 
 /* Set file access time to the present.  On many systems this could be
    done by passing NULL to utime, but on some that doesn't work.  This
    routine is not time critical, so we never rely on NULL.  */
 
 static int
-ussettime(z, inow)
+issettime(z, inow)
      const char *z;
      time_t inow;
 {
@@ -238,7 +222,7 @@ fskill_or_rejuv (puuconf, zid, fkill)
 	      if (fkill)
 		isys = remove (ztemp);
 	      else
-		isys = ussettime (ztemp, inow);
+		isys = issettime (ztemp, inow);
 
 	      if (isys != 0 && errno != ENOENT)
 		{
@@ -261,7 +245,7 @@ fskill_or_rejuv (puuconf, zid, fkill)
   if (fkill)
     isys = remove (zfile);
   else
-    isys = ussettime (zfile, inow);
+    isys = issettime (zfile, inow);
 
   if (isys != 0 && errno != ENOENT)
     {
@@ -312,6 +296,21 @@ ixsysdep_file_time (zfile)
     }
 
   return (long) s.st_mtime;
+}
+
+/* Set the time of a file to the current time.  */
+
+boolean
+fsysdep_touch_file (zfile)
+     const char *zfile;
+{
+  if (issettime (zfile, time ((time_t *) NULL)) != 0)
+    {
+      ulog (LOG_ERROR, "utime (%s): %s", zfile, strerror (errno));
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 /* Start getting the status files.  */
@@ -399,7 +398,10 @@ fsysdep_lock_status ()
   DIR *qdir;
   struct dirent *qentry;
   int calc;
-  int *pai;
+  pid_t *pai;
+#if HAVE_QNX_LOCKFILES
+  nid_t *painid;
+#endif
   int cgot;
   int aidescs[3];
   char *zcopy, *ztok;
@@ -420,18 +422,28 @@ fsysdep_lock_status ()
   calc = 0;
   pai = NULL;
   cgot = 0;
+#if HAVE_QNX_LOCKFILES
+  painid = NULL;
+#endif
   while ((qentry = readdir (qdir)) != NULL)
     {
       char *zname;
       int o;
+#if HAVE_QNX_LOCKFILES
+      nid_t inid;
+      char ab[23];
+      char *zend;
+#else
 #if HAVE_V2_LOCKFILES
       int i;
 #else
       char ab[12];
 #endif
+#endif
       int cread;
       int ierr;
-      int ipid;
+      pid_t ipid;
+      int icheck;
 
       if (strncmp (qentry->d_name, "LCK..", sizeof "LCK.." - 1) != 0)
 	continue;
@@ -464,22 +476,45 @@ fsysdep_lock_status ()
 
       ubuffree (zname);
 
+#if HAVE_QNX_LOCKFILES
+      ab[cread] = '\0';
+      ipid = (pid_t) strtol (ab, &zend, 10);
+      inid = (nid_t) strtol (zend, (char **) NULL, 10);
+#else
 #if HAVE_V2_LOCKFILES
-      ipid = i;
+      ipid = (pid_t) i;
 #else
       ab[cread] = '\0';
-      ipid = strtol (ab, (char **) NULL, 10);
+      ipid = (pid_t) strtol (ab, (char **) NULL, 10);
+#endif
 #endif
 
-      printf ("%s: %d\n", qentry->d_name, ipid);
+#if HAVE_QNX_LOCKFILES
+      printf ("%s: %ld %ld\n", qentry->d_name, (long) inid, (long) ipid);
+#else
+      printf ("%s: %ld\n", qentry->d_name, (long) ipid);
+#endif
+
+      for (icheck = 0; icheck < cgot; icheck++)
+	if (pai[icheck] == ipid)
+	  break;
+      if (icheck < cgot)
+	continue;
 
       if (cgot >= calc)
 	{
 	  calc += 10;
-	  pai = (int *) xrealloc ((pointer) pai, calc * sizeof (int));
+	  pai = (pid_t *) xrealloc ((pointer) pai, calc * sizeof (pid_t));
+#if HAVE_QNX_LOCKFILES
+	  painid = (nid_t *) xrealloc ((pointer) painid,
+				       calc * sizeof (nid_t));
+#endif
 	}
 
       pai[cgot] = ipid;
+#if HAVE_QNX_LOCKFILES
+      painid[cgot] = inid;
+#endif
       ++cgot;
     }
 
@@ -513,15 +548,39 @@ fsysdep_lock_status ()
   {
     int i;
     char *zlast, *zset;
+#if HAVE_QNX_LOCKFILES
+    char *zpenultimate, *zsetnid;
+#endif /* HAVE_QNX_LOCKFILES */
 
     zlast = pazargs[cargs - 1];
     zset = zbufalc (strlen (zlast) + 20);
+
+#if HAVE_QNX_LOCKFILES
+    /* We assume in this case that PS_PROGRAM ends with " -n -p".
+       Thus, the last argument is "-p" and the second-to-last
+       (penultimate) argument is "-n".  We modify them to read "-n###"
+       and "-p###" where "###" is the node ID and the process ID,
+       respectively.  This seems like quite a roundabout way of doing
+       things.  Why don't we just leave the " -n -p" part out of
+       PS_PROGRAM and construct the "-n###" and "-p###" arguments here
+       from scratch?  Because that would not fit as well with how the
+       code works for the other systems and would require larger
+       changes. */
+    zpenultimate = pazargs[cargs - 2];
+    zsetnid = zbufalc (strlen (zpenultimate) + 20);
+#endif
+
     for (i = 0; i < cgot; i++)
       {
 	pid_t ipid;
 
-	sprintf (zset, "%s%d", zlast, pai[i]);
+	sprintf (zset, "%s%ld", zlast, (long) pai[i]);
 	pazargs[cargs - 1] = zset;
+
+#if HAVE_QNX_LOCKFILES
+        sprintf (zsetnid, "%s%ld", zpenultimate, (long) painid[i]);
+        pazargs[cargs - 2] = zsetnid;
+#endif
 
 	ipid = ixsspawn ((const char **) pazargs, aidescs, FALSE, FALSE,
 			 (const char *) NULL, FALSE, TRUE,
@@ -533,6 +592,9 @@ fsysdep_lock_status ()
 	  (void) ixswait ((unsigned long) ipid, PS_PROGRAM);
       }
     ubuffree (zset);
+#if HAVE_QNX_LOCKFILES
+    ubuffree (zsetnid);
+#endif
   }
 #else
   {
@@ -546,7 +608,7 @@ fsysdep_lock_status ()
       {
 	char ab[20];
 
-	sprintf (ab, "%d", pai[i]);
+	sprintf (ab, "%ld", (long) pai[i]);
 	strcat (zlast, ab);
 	if (i + 1 < cgot)
 	  strcat (zlast, ",");
@@ -563,7 +625,7 @@ fsysdep_lock_status ()
       (void) ixswait ((unsigned long) ipid, PS_PROGRAM);
     ubuffree (zlast);
   }
-#endif    
+#endif
 
   ubuffree (zcopy);
   xfree ((pointer) pazargs);

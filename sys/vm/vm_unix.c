@@ -37,7 +37,7 @@
  *
  *	from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *	from: @(#)vm_unix.c	7.2 (Berkeley) 4/20/91
- *	$Id: vm_unix.c,v 1.5 1993/12/12 12:27:26 davidg Exp $
+ *	$Id: vm_unix.c,v 1.6 1994/03/14 21:54:33 davidg Exp $
  */
 
 /*
@@ -49,6 +49,8 @@
 #include "resourcevar.h"
 
 #include "vm.h"
+
+extern int swap_pager_full;
 
 struct obreak_args {
 	char	*nsiz;
@@ -73,9 +75,11 @@ obreak(p, uap, retval)
 	old = round_page(old + ctob(vm->vm_dsize));
 	diff = new - old;
 	if (diff > 0) {
+		if (swap_pager_full) {
+			return(ENOMEM);
+		}
 		rv = vm_allocate(&vm->vm_map, &old, diff, FALSE);
 		if (rv != KERN_SUCCESS) {
-			uprintf("sbrk: grow failed, return = %d\n", rv);
 			return(ENOMEM);
 		}
 		vm->vm_dsize += btoc(diff);
@@ -83,7 +87,6 @@ obreak(p, uap, retval)
 		diff = -diff;
 		rv = vm_deallocate(&vm->vm_map, new, diff);
 		if (rv != KERN_SUCCESS) {
-			uprintf("sbrk: shrink failed, return = %d\n", rv);
 			return(ENOMEM);
 		}
 		vm->vm_dsize -= btoc(diff);

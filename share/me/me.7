@@ -111,40 +111,40 @@ for interesting details.
 .br
 .di
 .in \nau
-.ti0
+.ti 0
 Request	Initial	Cause	Explanation
-.ti0
+.ti 0
 	Value	Break
 .br
 .in \nau
-.ti0
+.ti 0
 \&.(c	-	yes	Begin centered block
-.ti0
+.ti 0
 \&.(d	-	no	Begin delayed text
-.ti0
+.ti 0
 \&.(f	-	no	Begin footnote
-.ti0
+.ti 0
 \&.(l	-	yes	Begin list
-.ti0
+.ti 0
 \&.(q	-	yes	Begin major quote
-.ti0
+.ti 0
 \&.(x \fIx\fR	-	no	Begin indexed item in index
 .I x
-.ti0
+.ti 0
 \&.(z	-	no	Begin floating keep
-.ti0
+.ti 0
 \&.)c	-	yes	End centered block
-.ti0
+.ti 0
 \&.)d	-	yes	End delayed text
-.ti0
+.ti 0
 \&.)f	-	yes	End footnote
-.ti0
+.ti 0
 \&.)l	-	yes	End list
-.ti0
+.ti 0
 \&.)q	-	yes	End major quote
-.ti0
+.ti 0
 \&.)x	-	yes	End index item
-.ti0
+.ti 0
 \&.)z	-	yes	End floating keep
 .ti 0
 \&.++ \fIm H\fR	-	no	Define paper section.
@@ -168,17 +168,17 @@ or
 set by .++).
 .I T
 is the chapter title.
-.ti0
+.ti 0
 \&.1c	1	yes	One column format on a new page.
-.ti0
+.ti 0
 \&.2c	1	yes	Two column format.
-.ti0
+.ti 0
 \&.EN	-	yes	Space after equation
 produced by
 .I eqn
 or
 .IR neqn .
-.ti0
+.ti 0
 \&.EQ \fIx y\fR	-	yes	Precede equation; break out and
 add space.
 Equation number is
@@ -191,19 +191,19 @@ to indent equation (default),
 to left-adjust the equation, or
 .I C
 to center the equation.
-.ti0
+.ti 0
 \&.GE	-	yes	End \fIgremlin\fP picture.
-.ti0
+.ti 0
 \&.GS	-	yes	Begin \fIgremlin\fP picture.
-.ti0
+.ti 0
 \&.PE	-	yes	End \fIpic\fP picture.
-.ti0
+.ti 0
 \&.PS	-	yes	Begin \fIpic\fP picture.
-.ti0
+.ti 0
 \&.TE	-	yes	End table.
-.ti0
+.ti 0
 \&.TH	-	yes	End heading section of table.
-.ti0
+.ti 0
 \&.TS \fIx\fR	-	yes	Begin table; if \fIx\fR is
 .I H
 table has repeated heading.
@@ -214,7 +214,7 @@ is the Author's name(s),
 .I N
 is the total number of pages.
 Must be given before the first initialization.
-.ti0
+.ti 0
 \&.b \fIx\fR	no	no	Print
 .I x
 in boldface; if no argument switch to boldface.
@@ -223,15 +223,15 @@ in boldface; if no argument switch to boldface.
 .I n.
 This indent is used to set the indent on regular text
 (like paragraphs).
-.ti0
+.ti 0
 \&.bc	no	yes	Begin new column
-.ti0
+.ti 0
 \&.bi \fIx\fR	no	no	Print
 .I x
 in bold italics (nofill only)
-.ti0
+.ti 0
 \&.bu	-	yes	Begin bulleted paragraph
-.ti0
+.ti 0
 \&.bx \fIx\fR	no	no	Print \fIx\fR in a box (nofill only).
 .ti 0
 \&.ef \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set even footer to x  y  z
@@ -241,31 +241,31 @@ in bold italics (nofill only)
 \&.fo \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set footer to x  y  z
 .ti 0
 \&.hx	-	no	Suppress headers and footers on next page.
-.ti0
+.ti 0
 \&.he \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set header to x  y  z
-.ti0
+.ti 0
 \&.hl	-	yes	Draw a horizontal line
-.ti0
+.ti 0
 \&.i \fIx\fR	no	no	Italicize
 .I x;
 if
 .I x
 missing, italic text follows.
-.ti0
+.ti 0
 \&.ip \fIx y\fR	no	yes	Start indented paragraph,
 with hanging tag
 .IR x .
 Indentation is
 .I y
 ens (default 5).
-.ti0
+.ti 0
 \&.lp	yes	yes	Start left-blocked paragraph.
 .ti 0
 \&.lo	-	no	Read in a file of local macros of the
 form
 .BI \&.* x.
 Must be given before initialization.
-.ti0
+.ti 0
 \&.np	1	yes	Start numbered paragraph.
 .ti 0
 \&.of \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set odd footer to x  y  z
@@ -273,10 +273,10 @@ Must be given before initialization.
 \&.oh \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set odd header to x  y  z
 .ti 0
 \&.pd	-	yes	Print delayed text.
-.ti0
+.ti 0
 \&.pp	no	yes	Begin paragraph.
 First line indented.
-.ti0
+.ti 0
 \&.r	yes	no	Roman text follows.
 .ti 0
 \&.re	-	no	Reset tabs to default values.
@@ -284,7 +284,7 @@ First line indented.
 \&.sc	no	no	Read in a file of special characters
 and diacritical marks.
 Must be given before initialization.
-.ti0
+.ti 0
 \&.sh \fIn x\fR	-	yes	Section head follows,
 font automatically bold.
 .I n
@@ -294,7 +294,7 @@ is title of section.
 .ti 0
 \&.sk	no	no	Leave the next page blank.
 Only one page is remembered ahead.
-.ti0
+.ti 0
 \&.sm \fIx\fR	-	no	Set
 .I x
 in a smaller pointsize.
@@ -307,11 +307,11 @@ points.
 Must be given before initialization.
 .ti 0
 \&.tp	no	yes	Begin title page.
-.ti0
+.ti 0
 \&.u \fIx\fR	-	no	Underline argument (even in \fItroff\fR).
 (Nofill only).
-.ti0
+.ti 0
 \&.uh	-	yes	Like .sh but unnumbered.
-.ti0
+.ti 0
 \&.xp \fIx\fR	-	no	Print index
 .I x.

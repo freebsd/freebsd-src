@@ -40,6 +40,9 @@
 #define QCV_ECCBLKS	3		/* Blocks ecc eats */
 #define QCV_NFMT	3		/* Number of tape formats */
 #define QCV_NLEN	5		/* Number of tape lengths */
+#define QCV_HDRMAGIC	0xaa55aa55	/* Magic for header segment */
+#define QCV_FSMAGIC	0x33cc33cc	/* Magic for fileset */
+
 #define UCHAR		unsigned char
 #define USHORT		unsigned short
 #define ULONG		unsigned long
@@ -92,6 +95,8 @@ typedef struct qic_hwinfo {
 #define QIOCONFIG	_IOR('q', 15, int)		/* Get tape config  */
 #define QIOGEOM		_IOR('q', 16, QIC_Geom)		/* Get geometry	    */
 #define QIOHWINFO	_IOR('q', 17, QIC_HWInfo)	/* Get hardware inf */
+#define QIOSENDHDR	_IOW('q', 18, QIC_Segment)	/* Send header      */
+#define QIORECVHDR	_IOWR('q', 19, QIC_Segment)	/* Receive header   */
 
 /* QIC drive status bits. */
 #define QS_READY			0x01	/* Drive ready */

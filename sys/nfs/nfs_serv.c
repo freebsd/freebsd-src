@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_serv.c	7.40 (Berkeley) 5/15/91
- *	$Id: nfs_serv.c,v 1.5 1993/12/19 00:54:12 wollman Exp $
+ *	$Id: nfs_serv.c,v 1.6 1994/06/11 23:33:53 karl Exp $
  */
 
 /*
@@ -667,10 +667,16 @@ nfsrv_create(mrep, md, dpos, cred, xid, mrq, repstat, p)
 			vput(nd.ni_dvp);
 		VOP_ABORTOP(&nd);
 		vap->va_size = fxdr_unsigned(long, *(tl+3));	/* 28 Aug 92*/
-/* 08 Sep 92*/	if (vap->va_size != -1 && (error = VOP_SETATTR(vp, vap, cred, p))) {
-			vput(vp);
-			nfsm_reply(0);
-		}
+		if (vap->va_size != -1) {
+			if (error = nfsrv_access(vp, VWRITE, cred, p)) {
+				vput(vp);
+				nfsm_reply(0);
+			}
+			if (error = VOP_SETATTR(vp, vap, cred, p)) {
+				vput(vp);
+				nfsm_reply(0);
+			}
+                }
 	}
 	bzero((caddr_t)fhp, sizeof(nfh));
 	fhp->fh_fsid = vp->v_mount->mnt_stat.f_fsid;

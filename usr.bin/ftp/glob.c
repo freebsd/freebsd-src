@@ -184,7 +184,7 @@ expand(as)
 		if (*cs == 0) {
 			if (!globbed)
 				Gcat(gpath, "");
-			else if (stat(gpath, &stb) >= 0) {
+			else if (stat(*gpath ? gpath : ".", &stb) >= 0) {
 				Gcat(gpath, "");
 				globcnt++;
 			}
@@ -216,7 +216,8 @@ matchdir(pattern)
 	register struct dirent *dp;
 	DIR *dirp;
 
-	dirp = opendir(gpath);
+	/* Note: "" is not equivalent to "." for opendir(2) now! */
+	dirp = opendir(*gpath ? gpath : ".");
 	if (dirp == NULL) {
 		if (globbed)
 			return;
@@ -420,7 +421,7 @@ slash:
 			while (*s)
 				addpath(*s++);
 			addpath('/');
-			if (stat(gpath, &stb) == 0 && isdir(stb))
+			if (stat(*gpath ? gpath : ".", &stb) == 0 && isdir(stb))
 				if (*p == 0) {
 					Gcat(gpath, "");
 					globcnt++;

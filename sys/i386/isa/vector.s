@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.6 1994/01/10 23:15:09 ache Exp $
+ *	$Id: vector.s,v 1.7 1994/04/02 07:00:50 davidg Exp $
  */
 
 #include "i386/isa/icu.h"
@@ -12,24 +12,44 @@
 #define	IRQ_BIT(irq_num)	(1 << ((irq_num) % 8))
 #define	IRQ_BYTE(irq_num)	((irq_num) / 8)
 
+#ifdef AUTO_EOI_1
+#define	ENABLE_ICU1		/* use auto-EOI to reduce i/o */
+#else
 #define	ENABLE_ICU1 \
 	movb	$ICU_EOI,%al ;	/* as soon as possible send EOI ... */ \
 	FASTER_NOP ;		/* ... ASAP ... */ \
 	outb	%al,$IO_ICU1	/* ... to clear in service bit */
-#ifdef AUTO_EOI_1
-#undef	ENABLE_ICU1		/* we now use auto-EOI to reduce i/o */
-#define	ENABLE_ICU1
 #endif
 
+#ifdef AUTO_EOI_2
+/*
+ * The data sheet says no auto-EOI on slave, but it sometimes works.
+ */
+#define	ENABLE_ICU1_AND_2	ENABLE_ICU1
+#else
 #define	ENABLE_ICU1_AND_2 \
 	movb	$ICU_EOI,%al ;	/* as above */ \
 	FASTER_NOP ; \
 	outb	%al,$IO_ICU2 ;	/* but do second icu first */ \
 	FASTER_NOP ; \
 	outb	%al,$IO_ICU1	/* then first icu */
-#ifdef AUTO_EOI_2
-#undef	ENABLE_ICU1_AND_2	/* data sheet says no auto-EOI on slave ... */
-#define	ENABLE_ICU1_AND_2	/* ... but it works */
+#endif
+
+#ifdef FAST_INTR_HANDLER_USES_ES
+#define	ACTUALLY_PUSHED		1
+#define	MAYBE_MOVW_AX_ES	movl	%ax,%es
+#define	MAYBE_POPL_ES		popl	%es
+#define	MAYBE_PUSHL_ES		pushl	%es
+#else
+/*
+ * We can usually skip loading %es for fastintr handlers.  %es should
+ * only be used for string instructions, and fastintr handlers shouldn't
+ * do anything slow enough to justify using a string instruction.
+ */
+#define	ACTUALLY_PUSHED		0
+#define	MAYBE_MOVW_AX_ES
+#define	MAYBE_POPL_ES
+#define	MAYBE_PUSHL_ES
 #endif
 
 /*
@@ -82,39 +102,63 @@
 	pushl	%ecx ; \
 	pushl	%edx ; \
 	pushl	%ds ; \
-	/* pushl	%es ; know compiler doesn't do string insns */ \
+	MAYBE_PUSHL_ES ; \
 	movl	$KDSEL,%eax ; \
 	movl	%ax,%ds ; \
-	/* movl	%ax,%es ; */ \
-	SHOW_CLI ;		/* although it interferes with "ASAP" */ \
+	MAYBE_MOVW_AX_ES ; \
+	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ; \
 	pushl	$unit ; \
 	call	handler ;	/* do the work ASAP */ \
 	enable_icus ;		/* (re)enable ASAP (helps edge trigger?) */ \
 	addl	$4,%esp ; \
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */ \
-	COUNT_EVENT(_intrcnt_actv, id_num) ; \
-	SHOW_STI ; \
-	/* popl	%es ; */ \
+	incl	_intrcnt_actv + (id_num) * 4 ; \
+	movl	_cpl,%eax ;	/* are we unmasking pending HWIs or SWIs? */ \
+	notl	%eax ; \
+	andl	_ipending,%eax ; \
+	jne	1f ;		/* yes, handle them */ \
+	MEXITCOUNT ; \
+	MAYBE_POPL_ES ; \
 	popl	%ds ; \
-	popl	%edx; \
-	popl	%ecx; \
-	popl	%eax; \
-	iret
+	popl	%edx ; \
+	popl	%ecx ; \
+	popl	%eax ; \
+	iret ; \
+; \
+	ALIGN_TEXT ; \
+1: ; \
+	movl	_cpl,%eax ; \
+	movl	$HWI_MASK|SWI_MASK,_cpl ;	/* limit nesting ... */ \
+	sti ;			/* ... to do this as early as possible */ \
+	MAYBE_POPL_ES ;		/* discard most of thin frame ... */ \
+	popl	%ecx ;		/* ... original %ds ... */ \
+	popl	%edx ; \
+	xchgl	%eax,(1+ACTUALLY_PUSHED)*4(%esp) ; /* orig %eax; save cpl */ \
+	pushal ;		/* build fat frame (grrr) ... */ \
+	pushl	%ecx ;		/* ... actually %ds ... */ \
+	pushl	%es ; \
+	movl	$KDSEL,%eax ; \
+	movl	%ax,%es ; \
+	movl	(2+8+0)*4(%esp),%ecx ;	/* ... %ecx from thin frame ... */ \
+	movl	%ecx,(2+6)*4(%esp) ;	/* ... to fat frame ... */ \
+	movl	(2+8+1)*4(%esp),%eax ;	/* ... cpl from thin frame */ \
+	pushl	%eax ; \
+	subl	$4,%esp ;	/* junk for unit number */ \
+	MEXITCOUNT ; \
+	jmp	_doreti
 
 #define	INTR(unit, irq_num, id_num, mask, handler, icu, enable_icus, reg, stray) \
-	pushl	$0 ;		/* dummy error code */ \
-	pushl	$T_ASTFLT ; \
+	pushl	$0 ;		/* dumby error code */ \
+	pushl	$0 ;		/* dumby trap type */ \
 	pushal ; \
-	pushl	%ds ; 		/* save our data and extra segments ... */ \
+	pushl	%ds ;		/* save our data and extra segments ... */ \
 	pushl	%es ; \
 	movl	$KDSEL,%eax ;	/* ... and reload with kernel's own ... */ \
-	movl	%ax,%ds ; 	/* ... early in case SHOW_A_LOT is on */ \
+	movl	%ax,%ds ;	/* ... early for obsolete reasons */ \
 	movl	%ax,%es ; \
-	SHOW_CLI ;		/* interrupt did an implicit cli */ \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	orb	$IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
-	SHOW_IMEN ; \
 	FASTER_NOP ; \
 	outb	%al,$icu+1 ; \
 	enable_icus ; \
@@ -123,32 +167,32 @@
 	testb	$IRQ_BIT(irq_num),%reg ; \
 	jne	2f ; \
 1: ; \
-	COUNT_EVENT(_intrcnt_actv, id_num) ; \
+	FAKE_MCOUNT(12*4(%esp)) ;	/* XXX late to avoid double count */ \
+	incl	_intrcnt_actv + (id_num) * 4 ; \
 	movl	_cpl,%eax ; \
 	pushl	%eax ; \
 	pushl	$unit ; \
 	orl	mask,%eax ; \
 	movl	%eax,_cpl ; \
-	SHOW_CPL ; \
-	SHOW_STI ; \
 	sti ; \
 	call	handler ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	andb	$~IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
-	SHOW_IMEN ; \
 	FASTER_NOP ; \
 	outb	%al,$icu+1 ; \
-	jmp	doreti ; \
+	MEXITCOUNT ; \
+	/* We could usually avoid the following jmp by inlining some of */ \
+	/* _doreti, but it's probably better to use less cache. */ \
+	jmp	_doreti ; \
 ; \
 	ALIGN_TEXT ; \
 2: ; \
-	COUNT_EVENT(_intrcnt_pend, id_num) ; \
+	/* XXX skip mcounting here to avoid double count */ \
 	movl	$1b,%eax ;	/* register resume address */ \
 				/* XXX - someday do it at attach time */ \
-	movl	%eax,Vresume + (irq_num) * 4 ;	\
+	movl	%eax,ihandlers + (irq_num) * 4 ;	\
 	orb	$IRQ_BIT(irq_num),_ipending + IRQ_BYTE(irq_num) ; \
-	SHOW_IPENDING ; \
 	popl	%es ; \
 	popl	%ds ; \
 	popal ; \
@@ -191,7 +235,7 @@
 	.globl	_V/**/name ; \
 	SUPERALIGN_TEXT ; \
 _V/**/name: ; \
-	FAST_INTR(unit, irq_num, id_num, handler, ENABLE_ICU/**/icu_enables)
+	FAST_INTR(unit, irq_num,id_num, handler, ENABLE_ICU/**/icu_enables)
 
 #undef BUILD_VECTOR
 #define	BUILD_VECTOR(name, unit, irq_num, id_num, mask, handler, \
@@ -201,9 +245,10 @@ _V/**/name: ; \
 	.globl	_V/**/name ; \
 	SUPERALIGN_TEXT ; \
 _V/**/name: ; \
-	INTR(unit,irq_num,id_num, mask, handler, IO_ICU/**/icu_num, \
+	INTR(unit,irq_num, id_num, mask, handler, IO_ICU/**/icu_num, \
 	     ENABLE_ICU/**/icu_enables, reg,)
 
+MCOUNT_LABEL(bintr)
 	BUILD_VECTORS
 
 	/* hardware interrupt catcher (IDT 32 - 47) */
@@ -211,7 +256,7 @@ _V/**/name: ; \
 
 #define	STRAYINTR(irq_num, icu_num, icu_enables, reg) \
 IDTVEC(intr/**/irq_num) ; \
-	INTR(irq_num,irq_num,irq_num, _highmask,  _isa_strayintr, \
+	INTR(irq_num,irq_num,irq_num, _high_imask,  _isa_strayintr, \
 		  IO_ICU/**/icu_num, ENABLE_ICU/**/icu_enables, reg,stray)
 
 /*
@@ -241,6 +286,7 @@ IDTVEC(intr/**/irq_num) ; \
 	STRAYINTR(4,1,1, al)
 	STRAYINTR(5,1,1, al)
 	STRAYINTR(6,1,1, al)
+	STRAYINTR(7,1,1, al)
 	STRAYINTR(8,2,1_AND_2, ah)
 	STRAYINTR(9,2,1_AND_2, ah)
 	STRAYINTR(10,2,1_AND_2, ah)
@@ -249,11 +295,11 @@ IDTVEC(intr/**/irq_num) ; \
 	STRAYINTR(13,2,1_AND_2, ah)
 	STRAYINTR(14,2,1_AND_2, ah)
 	STRAYINTR(15,2,1_AND_2, ah)
-IDTVEC(intrdefault)
-	STRAYINTR(7,1,1, al)	/* XXX */
 #if 0
 	INTRSTRAY(255, _highmask, 255) ; call	_isa_strayintr ; INTREXIT2
 #endif
+MCOUNT_LABEL(eintr)
+
 /*
  * These are the interrupt counters, I moved them here from icu.s so that
  * they are with the name table.  rgrimes
@@ -263,7 +309,15 @@ IDTVEC(intrdefault)
  * work with vmstat.
  */
 	.data
-Vresume:        .space  32 * 4  /* where to resume intr handler after unpend */
+ihandlers:			/* addresses of interrupt handlers */
+	.space	NHWI*4		/* actually resumption addresses for HWI's */
+	.long	swi_tty, swi_net, 0, 0, 0, 0, 0, 0
+	.long	0, 0, 0, 0, 0, 0, swi_clock, swi_ast
+imasks:				/* masks for interrupt handlers */
+	.space	NHWI*4		/* padding; HWI masks are elsewhere */
+	.long	SWI_TTY_MASK, SWI_NET_MASK, 0, 0, 0, 0, 0, 0
+	.long	0, 0, 0, 0, 0, 0, SWI_CLOCK_MASK, SWI_AST_MASK
+
 	.globl	_intrcnt
 _intrcnt:			/* used by vmstat to calc size of table */
 	.globl	_intrcnt_bad7
@@ -274,14 +328,8 @@ _intrcnt_bad15:	.space	4	/* glitches on irq 15 */
 _intrcnt_stray:	.space	4	/* total count of stray interrupts */
 	.globl	_intrcnt_actv
 _intrcnt_actv:	.space	NR_REAL_INT_HANDLERS * 4	/* active interrupts */
-	.globl	_intrcnt_pend
-_intrcnt_pend:	.space	NR_REAL_INT_HANDLERS * 4	/* pending interrupts */
 	.globl	_eintrcnt
 _eintrcnt:			/* used by vmstat to calc size of table */
-	.globl	_intrcnt_spl
-_intrcnt_spl:	.space	32 * 4	/* XXX 32 should not be hard coded ? */
-	.globl	_intrcnt_show
-_intrcnt_show:	.space	8 * 4	/* XXX 16 should not be hard coded ? */
 
 /*
  * Build the interrupt name table for vmstat
@@ -296,8 +344,9 @@ _intrcnt_show:	.space	8 * 4	/* XXX 16 should not be hard coded ? */
 	.ascii	"name irq" ; \
 	.asciz	"irq_num"
 /*
- * XXX - use the STRING and CONCAT macros from <sys/cdefs.h> to stringize
- * and concatenate names above and elsewhere.
+ * XXX - use the __STRING and __CONCAT macros from <sys/cdefs.h> to stringize
+ * and concatenate names above and elsewhere.  Note that __CONCAT doesn't
+ * work when nested.
  */
 
 	.text
@@ -308,61 +357,4 @@ _intrnames:
 	BUILD_VECTOR(stray,,,,,,,,)
 	BUILD_VECTORS
 
-#undef BUILD_FAST_VECTOR
-#define BUILD_FAST_VECTOR	BUILD_VECTOR
-
-#undef BUILD_VECTOR
-#define	BUILD_VECTOR(name, unit, irq_num, id_num, mask, handler, \
-		     icu_num, icu_enables, reg) \
-	.asciz	"name pend"
-
-	BUILD_VECTORS
 _eintrnames:
-
-/*
- * now the spl names
- */
-	.asciz	"unpend_v"
-	.asciz	"doreti"
-	.asciz	"p0!ni"
-	.asciz	"!p0!ni"
-	.asciz	"p0ni"
-	.asciz	"netisr_raw"
-	.asciz	"netisr_ip"
-	.asciz	"netisr_imp"
-	.asciz	"netisr_ns"
-	.asciz	"netisr_iso"
-	.asciz	"softclock"		/* 10 */
-	.asciz	"trap"
-	.asciz	"doreti_exit2"
-	.asciz	"splbio"
-	.asciz	"splclock"
-	.asciz	"splhigh"
-	.asciz	"splimp"
-	.asciz	"splnet"
-	.asciz	"splsoftclock"
-	.asciz	"spltty"
-	.asciz	"spl0"			/* 20 */
-	.asciz	"netisr_raw2"
-	.asciz	"netisr_ip2"
-	.asciz	"netisr_imp2"
-	.asciz	"netisr_ns2"
-	.asciz	"netisr_iso2"
-	.asciz	"splx"
-	.asciz	"splx!0"
-	.asciz	"unpend_V"
-	.asciz	"netisr_x25"
-	.asciz	"netisr_hdlc"
-	.asciz	"spl31"
-/*
- * now the mask names
- */
-	.asciz	"cli"
-	.asciz	"cpl"
-	.asciz	"imen"
-	.asciz	"ipending"
-	.asciz	"sti"
-	.asciz	"mask5"		/* mask5-mask7 are spares */
-	.asciz	"mask6"
-	.asciz	"mask7"
-	

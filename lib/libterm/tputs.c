@@ -44,8 +44,9 @@ static char sccsid[] = "@(#)tputs.c	5.3 (Berkeley) 6/1/90";
  * baud returns a 7, there are 33.3 milliseconds per char at 300 baud.
  */
 static
-short	tmspc10[] = {
-	0, 2000, 1333, 909, 743, 666, 500, 333, 166, 83, 55, 41, 20, 10, 5
+short   tmspc10[] = {
+	0, 2000, 1333, 909, 743, 666, 500, 333, 166, 83, 55, 41, 20, 10, 5,
+	3, 2, 1
 };
 
 short	ospeed;
@@ -63,6 +64,7 @@ tputs(cp, affcnt, outc)
 {
 	register int i = 0;
 	register int mspc10;
+	int speed;
 
 	if (cp == 0)
 		return;
@@ -106,8 +108,12 @@ tputs(cp, affcnt, outc)
 	 */
 	if (i == 0)
 		return;
-	if (ospeed <= 0 || ospeed >= (sizeof tmspc10 / sizeof tmspc10[0]))
+	if (ospeed <= 0)
 		return;
+	if (ospeed >= (sizeof tmspc10 / sizeof tmspc10[0]))
+		speed = (sizeof tmspc10 / sizeof tmspc10[0]) - 1;
+	else
+		speed = ospeed;
 
 	/*
 	 * Round up by a half a character frame,
@@ -116,7 +122,7 @@ tputs(cp, affcnt, outc)
 	 * Transmitting pad characters slows many
 	 * terminals down and also loads the system.
 	 */
-	mspc10 = tmspc10[ospeed];
+	mspc10 = tmspc10[speed];
 	i += mspc10 / 2;
 	for (i /= mspc10; i > 0; i--)
 		(*outc)(PC);

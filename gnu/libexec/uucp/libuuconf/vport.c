@@ -1,7 +1,7 @@
 /* vport.c
    Find a port in the V2 configuration files.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vport_rcsid[] = "$Id: vport.c,v 1.1 1993/08/05 18:26:22 conklin Exp $";
+const char _uuconf_vport_rcsid[] = "$Id: vport.c,v 1.2 1994/05/07 18:13:22 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -140,6 +140,8 @@ uuconf_v2_find_port (pglobal, zname, ibaud, ihighbaud, pifn, pinfo, qport)
 	  qport->uuconf_ttype = UUCONF_PORTTYPE_DIRECT;
 	  qport->uuconf_u.uuconf_sdirect.uuconf_zdevice = pzsplit[1];
 	  qport->uuconf_u.uuconf_sdirect.uuconf_ibaud = ilow;
+	  qport->uuconf_u.uuconf_sdirect.uuconf_fcarrier = FALSE;
+	  qport->uuconf_u.uuconf_sdirect.uuconf_fhardflow = TRUE;
 	}
       else
 	{
@@ -162,6 +164,7 @@ uuconf_v2_find_port (pglobal, zname, ibaud, ihighbaud, pifn, pinfo, qport)
 	      qport->uuconf_u.uuconf_smodem.uuconf_ihighbaud = ihigh;
 	    }
 	  qport->uuconf_u.uuconf_smodem.uuconf_fcarrier = TRUE;
+	  qport->uuconf_u.uuconf_smodem.uuconf_fhardflow = TRUE;
 	  if (ctoks < 5)
 	    qport->uuconf_u.uuconf_smodem.uuconf_pzdialer = NULL;
 	  else

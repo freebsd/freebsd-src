@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,16 +38,22 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.65 (Berkeley) 1/23/94";
+static char sccsid[] = "@(#)main.c	8.76 (Berkeley) 3/23/94";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <queue.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -59,12 +65,17 @@ static char sccsid[] = "@(#)main.c	8.65 (Berkeley) 1/23/94";
 #include <varargs.h>
 #endif
 
+#include <db.h>
+#include <regex.h>
+#include <pathnames.h>
+
 #include "vi.h"
 #include "excmd.h"
-#include "pathnames.h"
 #include "tag.h"
 
-static int	 exrc_isok __P((SCR *, char *, int));
+enum rc { NOEXIST, NOPERM, OK };
+
+static enum rc	 exrc_isok __P((SCR *, struct stat *, char *, int));
 static void	 gs_end __P((GS *));
 static GS	*gs_init __P((void));
 static void	 h_hup __P((int));
@@ -84,6 +95,7 @@ main(argc, argv)
 	extern char *optarg;
 	static int reenter;		/* STATIC: Re-entrancy check. */
 	struct sigaction act;
+	struct stat hsb, lsb;
 	GS *gp;
 	FREF *frp;
 	SCR *sp;
@@ -196,7 +208,7 @@ main(argc, argv)
 
 	/* Build and initialize the GS structure. */
 	__global_list = gp = gs_init();
-		
+
 	if (snapshot)
 		F_SET(gp, G_SNAPSHOT);
 
@@ -263,8 +275,8 @@ main(argc, argv)
 #endif
 
 	/*
-	 * Source the system, environment, ~user and local .exrc values.
-	 * Vi historically didn't check ~user/.exrc if the environment
+	 * Source the system, environment, $HOME and local .exrc values.
+	 * Vi historically didn't check $HOME/.exrc if the environment
 	 * variable EXINIT was set.  This is all done before the file is
 	 * read in because things in the .exrc information can set, for
 	 * example, the recovery directory.
@@ -273,52 +285,75 @@ main(argc, argv)
 	 * While nvi can handle any of the options settings of historic vi,
 	 * the converse is not true.  Since users are going to have to have
 	 * files and environmental variables that work with both, we use nvi
-	 * versions if they exist, otherwise the historic ones.
+	 * versions of both the $HOME and local startup files if they exist,
+	 * otherwise the historic ones.
+	 *
+	 * !!!
+	 * According to O'Reilly ("Learning the VI Editor", Fifth Ed., May
+	 * 1992, page 106), System V release 3.2 and later, has an option
+	 * "[no]exrc", causing vi to not "read .exrc files in the current
+	 * directory unless the exrc option in the home directory's .exrc
+	 * file" was set.  The problem that this (hopefully) solves is that
+	 * on System V you can give away files, so there's no possible test
+	 * we can make to determine that the file is safe.
+	 *
+	 * We initialize the exrc variable to off.  If it's explicitly turned
+	 * off by the user, then we never read the local .exrc file.  If the
+	 * user didn't initialize it or initialized it to on, we make all of
+	 * the standard checks of the file before reading it.
+	 *
+	 * !!!
+	 * If the user started the historic of vi in $HOME, vi read the user's
+	 * .exrc file twice, as $HOME/.exrc and as ./.exrc.  We don't since
+	 * it's going to make some commands behave oddly, and I can't imagine
+	 * anyone depending on it.
 	 */
 	if (!silent) {
-		if (exrc_isok(sp, _PATH_SYSEXRC, 1))
+		switch (exrc_isok(sp, &hsb, _PATH_SYSEXRC, 1)) {
+		case NOEXIST:
+		case NOPERM:
+			break;
+		case OK:
 			(void)ex_cfile(sp, NULL, _PATH_SYSEXRC);
+			break;
+		}
 
-		/* Source the {N,}EXINIT environment variable. */
-		if ((p = getenv("NEXINIT")) != NULL ||
-		    (p = getenv("EXINIT")) != NULL)
+		if ((p = getenv("EXINIT")) != NULL)
 			if ((p = strdup(p)) == NULL) {
 				msgq(sp, M_SYSERR, NULL);
 				goto err;
 			} else {
+				F_SET(sp, S_VLITONLY);
 				(void)ex_icmd(sp, NULL, p, strlen(p));
+				F_CLR(sp, S_VLITONLY);
 				free(p);
 			}
 		else if ((p = getenv("HOME")) != NULL && *p) {
 			(void)snprintf(path,
-			    sizeof(path), "%s/%s", p, _PATH_NEXRC);
-			if (exrc_isok(sp, path, 0))
+			    sizeof(path), "%s/%s", p, _PATH_EXRC);
+			switch (exrc_isok(sp, &hsb, path, 0)) {
+			case NOEXIST:
+				break;
+			case NOPERM:
+				break;
+			case OK:
 				(void)ex_cfile(sp, NULL, path);
-			else {
-				(void)snprintf(path,
-				    sizeof(path), "%s/%s", p, _PATH_EXRC);
-				if (exrc_isok(sp, path, 0))
-					(void)ex_cfile(sp, NULL, path);
+				break;
 			}
 		}
-		/*
-		 * !!!
-		 * According to O'Reilly ("Learning the VI Editor", Fifth Ed.,
-		 * May 1992, page 106), System V release 3.2 and later, has an
-		 * option "[no]exrc", causing vi to not "read .exrc files in
-		 * the current directory unless you first set the exrc option
-		 * in your home directory's .exrc file".  Yeah, right.  Did
-		 * someone actually believe that users would change their home
-		 * .exrc file based on whether or not they wanted to source the
-		 * current local .exrc?  Or that users would want ALL the local
-		 * .exrc files on some systems, and none of them on others?
-		 * I think not.
-		 *
-		 * Apply the same tests to local .exrc files that are applied
-		 * to any other .exrc file.
-		 */
-		if (exrc_isok(sp, _PATH_EXRC, 0))
-			(void)ex_cfile(sp, NULL, _PATH_EXRC);
+
+		if (!F_ISSET(&sp->opts[O_EXRC], OPT_SET) || O_ISSET(sp, O_EXRC))
+			switch (exrc_isok(sp, &lsb, _PATH_EXRC, 0)) {
+			case NOEXIST:
+				break;
+			case NOPERM:
+				break;
+			case OK:
+				if (lsb.st_dev != hsb.st_dev ||
+				    lsb.st_ino != hsb.st_ino)
+					(void)ex_cfile(sp, NULL, _PATH_EXRC);
+				break;
+			}
 	}
 
 	/* List recovery files if -l specified. */
@@ -358,9 +393,20 @@ main(argc, argv)
 	 * would be nice in some cases to restart system calls, but SA_RESTART
 	 * is a 4BSD extension so we can't use it.
 	 *
-	 * SIGWINCH, SIGHUP, SIGTERM:
+	 * SIGALRM:
+	 *	Walk structures and call handling routines.
+	 * SIGHUP, SIGTERM, SIGWINCH:
 	 *	Catch and set a global bit.
+	 * SIGQUIT:
+	 *	Always ignore.
 	 */
+	act.sa_handler = h_alrm;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	if (sigaction(SIGALRM, &act, NULL)) {
+		msgq(sp, M_SYSERR, "timer: sigaction");
+		goto err;
+	}
 	act.sa_handler = h_hup;
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
@@ -373,11 +419,6 @@ main(argc, argv)
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
 	(void)sigaction(SIGWINCH, &act, NULL);
-
-	/*
-	 * SIGQUIT:
-	 *	Always ignore.
-	 */
 	act.sa_handler = SIG_IGN;
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
@@ -400,9 +441,9 @@ main(argc, argv)
 			if (term_push(sp, ":", 1, 0, 0))
 				goto err;
 		}
-		
+
 	/* Vi reads from the terminal. */
-	if (!F_ISSET(gp, G_ISFROMTTY) && !F_ISSET(sp, S_EX)) {
+	if (!F_ISSET(gp, G_STDIN_TTY) && !F_ISSET(sp, S_EX)) {
 		msgq(sp, M_ERR, "Vi's standard input must be a terminal.");
 		goto err;
 	}
@@ -472,7 +513,7 @@ err:		eval = 1;
 	 * other systems mess up characters typed after the quit command to
 	 * vi but before vi actually exits.
 	 */
-	if (F_ISSET(gp, G_ISFROMTTY))
+	if (F_ISSET(gp, G_TERMIOS_SET))
 		(void)tcsetattr(STDIN_FILENO, TCSADRAIN, &gp->original_termios);
 	exit(eval);
 }
@@ -505,26 +546,27 @@ gs_init()
 
 	/* Set a flag if we're reading from the tty. */
 	if (isatty(STDIN_FILENO))
-		F_SET(gp, G_ISFROMTTY);
+		F_SET(gp, G_STDIN_TTY);
 
 	/*
-	 * XXX
-	 * Set a flag and don't do terminal sets/resets if the input isn't
-	 * from a tty.  Under all circumstances put reasonable things into
-	 * the original_termios field, as some routines (seq.c:seq_save()
-	 * and term.c:term_init()) want values for special characters.
+	 * Set the G_STDIN_TTY flag.  It's purpose is to avoid setting and
+	 * resetting the tty if the input isn't from there.
+	 *
+	 * Set the G_TERMIOS_SET flag.  It's purpose is to avoid using the
+	 * original_termios information (mostly special character values)
+	 * if it's not valid.  We expect that if we've lost our controlling
+	 * terminal that the open() (but not the tcgetattr()) will fail.
 	 */
-	if (F_ISSET(gp, G_ISFROMTTY)) {
-		if (tcgetattr(STDIN_FILENO, &gp->original_termios))
+	if (F_ISSET(gp, G_STDIN_TTY)) {
+		if (tcgetattr(STDIN_FILENO, &gp->original_termios) == -1)
 			err(1, "tcgetattr");
-	} else {
-		if ((fd = open(_PATH_TTY, O_RDONLY, 0)) == -1)
-			err(1, "%s", _PATH_TTY);
-		if (tcgetattr(fd, &gp->original_termios))
+		F_SET(gp, G_TERMIOS_SET);
+	} else if ((fd = open(_PATH_TTY, O_RDONLY, 0)) != -1) {
+		if (tcgetattr(fd, &gp->original_termios) == -1)
 			err(1, "tcgetattr");
+		F_SET(gp, G_TERMIOS_SET);
 		(void)close(fd);
 	}
-
 	return (gp);
 }
 
@@ -556,16 +598,16 @@ gs_end(gp)
 	for (sp = __global_list->dq.cqh_first;
 	    sp != (void *)&__global_list->dq; sp = sp->q.cqe_next)
 		for (mp = sp->msgq.lh_first;
-		    mp != NULL && !(F_ISSET(mp, M_EMPTY)); mp = mp->q.le_next) 
+		    mp != NULL && !(F_ISSET(mp, M_EMPTY)); mp = mp->q.le_next)
 			(void)fprintf(stderr, "%.*s\n", (int)mp->len, mp->mbuf);
 	for (sp = __global_list->hq.cqh_first;
 	    sp != (void *)&__global_list->hq; sp = sp->q.cqe_next)
 		for (mp = sp->msgq.lh_first;
-		    mp != NULL && !(F_ISSET(mp, M_EMPTY)); mp = mp->q.le_next) 
+		    mp != NULL && !(F_ISSET(mp, M_EMPTY)); mp = mp->q.le_next)
 			(void)fprintf(stderr, "%.*s\n", (int)mp->len, mp->mbuf);
 	/* Flush messages on the global queue. */
 	for (mp = gp->msgq.lh_first;
-	    mp != NULL && !(F_ISSET(mp, M_EMPTY)); mp = mp->q.le_next) 
+	    mp != NULL && !(F_ISSET(mp, M_EMPTY)); mp = mp->q.le_next)
 		(void)fprintf(stderr, "%.*s\n", (int)mp->len, mp->mbuf);
 
 	if (gp->special_key != NULL)
@@ -632,19 +674,19 @@ h_winch(signo)
  * exrc_isok --
  *	Check a .exrc for source-ability.
  */
-static int
-exrc_isok(sp, path, rootok)
+static enum rc
+exrc_isok(sp, sbp, path, rootok)
 	SCR *sp;
+	struct stat *sbp;
 	char *path;
 	int rootok;
 {
-	struct stat sb;
 	uid_t uid;
 	char *emsg, buf[MAXPATHLEN];
 
 	/* Check for the file's existence. */
-	if (stat(path, &sb))
-		return (0);
+	if (stat(path, sbp))
+		return (NOEXIST);
 
 	/*
 	 * !!!
@@ -658,29 +700,29 @@ exrc_isok(sp, path, rootok)
 	/* Owned by the user or root. */
 	uid = getuid();
 	if (rootok) {
-		if (sb.st_uid != uid && sb.st_uid != 0) {
+		if (sbp->st_uid != uid && sbp->st_uid != 0) {
 			emsg = "not owned by you or root";
-			goto err;
+			goto denied;
 		}
 	} else
-		if (sb.st_uid != uid) {
+		if (sbp->st_uid != uid) {
 			emsg = "not owned by you";
-			goto err;
+			goto denied;
 		}
 
 	/* Not writeable by anyone but the owner. */
-	if (sb.st_mode & (S_IWGRP | S_IWOTH)) {
+	if (sbp->st_mode & (S_IWGRP | S_IWOTH)) {
 		emsg = "writeable by a user other than the owner";
-err:		if (strchr(path, '/') == NULL &&
+denied:		if (strchr(path, '/') == NULL &&
 		    getcwd(buf, sizeof(buf)) != NULL)
 			msgq(sp, M_ERR,
 			    "%s/%s: not sourced: %s.", buf, path, emsg);
 		else
 			msgq(sp, M_ERR,
 			    "%s: not sourced: %s.", path, emsg);
-		return (0);
+		return (NOPERM);
 	}
-	return (1);
+	return (OK);
 }
 
 static void
@@ -688,7 +730,7 @@ obsolete(argv)
 	char *argv[];
 {
 	size_t len;
-	char *p, *myname;
+	char *p;
 
 	/*
 	 * Translate old style arguments into something getopt will like.
@@ -699,7 +741,7 @@ obsolete(argv)
 	 *	Change "-" into "-s"
 	 *	Change "-r" into "-l"
 	 */
-	for (myname = argv[0]; *++argv;)
+	while (*++argv)
 		if (argv[0][0] == '+') {
 			if (argv[0][1] == '\0') {
 				MALLOC_NOMSG(NULL, argv[0], char *, 4);

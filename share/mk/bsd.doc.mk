@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.6 1994/02/03 19:58:23 jkh Exp $
+#	$Id: bsd.doc.mk,v 1.7 1994/04/19 17:15:55 jkh Exp $
 
 PRINTER?=	ps
 
@@ -8,6 +8,7 @@ EQN?=		eqn -T${PRINTER}
 GREMLIN?=	grn
 GRIND?=		vgrind -f
 INDXBIB?=	indxbib
+INSTALL?=	install
 PIC?=		pic
 REFER?=		refer
 ROFF?=		groff -T${PRINTER} ${MACROS} -o${PAGES}
@@ -72,7 +73,7 @@ install:
         else \
                 true ; \
         fi
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${DOC}.* \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${DOC}.* \
 	${DESTDIR}${BINDIR}/${VOLUME}
 
 spell: ${SRCS}

@@ -1,4 +1,4 @@
-# $Id: files,v 1.20 1994/01/25 11:16:01 rgrimes Exp $
+# $Id: files,v 1.22 1994/05/17 22:30:25 jkh Exp $
 #
 ddb/db_access.c		optional ddb
 ddb/db_aout.c		optional ddb
@@ -39,6 +39,7 @@ kern/kern_fork.c	standard
 kern/kern_kinfo.c	standard
 kern/kern_ktrace.c	standard
 kern/kern_malloc.c	standard
+kern/kern_ntptime.c	standard
 kern/kern_proc.c	standard
 kern/kern_prot.c	standard
 kern/kern_resource.c	standard
@@ -132,6 +133,8 @@ netinet/tcp_subr.c	optional inet
 netinet/tcp_timer.c	optional inet
 netinet/tcp_usrreq.c	optional inet
 netinet/udp_usrreq.c	optional inet
+netinet/igmp.c		optional multicast
+netinet/ip_mroute.c	optional inet multicast mrouting
 netiso/clnp_debug.c	optional iso
 netiso/clnp_er.c	optional iso
 netiso/clnp_frag.c	optional iso

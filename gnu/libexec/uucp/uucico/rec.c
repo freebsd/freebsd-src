@@ -1,7 +1,7 @@
 /* rec.c
    Routines to receive a file.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char rec_rcsid[] = "$Id: rec.c,v 1.1 1993/08/05 18:27:18 conklin Exp $";
+const char rec_rcsid[] = "$Id: rec.c,v 1.2 1994/05/07 18:13:55 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -308,12 +308,21 @@ flocal_rec_send_request (qtrans, qdaemon)
   boolean fret;
 
   qinfo->ztemp = zsysdep_receive_temp (qdaemon->qsys, qinfo->zfile,
-				       (const char *) NULL);
+				       (const char *) NULL,
+				       (qdaemon->qproto->frestart
+					&& (qdaemon->ifeatures
+					    & FEATURE_RESTART) != 0));
   if (qinfo->ztemp == NULL)
     {
       urrec_free (qtrans);
       return FALSE;
     }
+
+  qtrans->fcmd = TRUE;
+  qtrans->precfn = flocal_rec_await_reply;
+
+  if (! fqueue_receive (qdaemon, qtrans))
+    return FALSE;
 
   /* Check the amount of free space available for both the temporary
      file and the real file.  */
@@ -354,16 +363,11 @@ flocal_rec_send_request (qtrans, qdaemon)
   fret = (*qdaemon->qproto->pfsendcmd) (qdaemon, zsend, qtrans->ilocal,
 					qtrans->iremote);
   ubuffree (zsend);
+
   if (! fret)
-    {
-      urrec_free (qtrans);
-      return FALSE;
-    }
+    urrec_free (qtrans);
 
-  qtrans->fcmd = TRUE;
-  qtrans->precfn = flocal_rec_await_reply;
-
-  return fqueue_receive (qdaemon, qtrans);
+  return fret;
 }
 
 /* This is called when a reply is received for the request.  */
@@ -377,8 +381,8 @@ flocal_rec_await_reply (qtrans, qdaemon, zdata, cdata)
      size_t cdata;
 {
   struct srecinfo *qinfo = (struct srecinfo *) qtrans->pinfo;
-  long crestart;
   const char *zlog;
+  char *zend;
 
   if (zdata[0] != 'R'
       || (zdata[1] != 'Y' && zdata[1] != 'N'))
@@ -407,6 +411,18 @@ flocal_rec_await_reply (qtrans, qdaemon, zdata, cdata)
 	  zerr = "too large to receive now";
 	  fnever = FALSE;
 	}
+      else if (zdata[2] == '9')
+	{
+	  /* Remote has run out of channels.  */
+	  zerr = "too many channels for remote";
+	  fnever = FALSE;
+
+	  /* Drop one channel; using exactly one channel causes
+	     slightly different behahaviour in a few places, so don't
+	     decrement to one.  */
+	  if (qdaemon->cchans > 2)
+	    --qdaemon->cchans;
+	}
       else
 	zerr = "unknown reason";
 
@@ -423,16 +439,25 @@ flocal_rec_await_reply (qtrans, qdaemon, zdata, cdata)
   /* The mode should have been sent as "RY 0%o".  If it wasn't, we use
      0666.  */
   qtrans->s.imode = (unsigned int) strtol ((char *) (zdata + 2),
-					   (char **) NULL, 8);
+					   &zend, 8);
   if (qtrans->s.imode == 0)
     qtrans->s.imode = 0666;
+
+  /* If there is an M after the mode, the remote has requested a
+     hangup.  */
+  if (*zend == 'M' && qdaemon->fmaster)
+    {
+      DEBUG_MESSAGE0 (DEBUG_UUCP_PROTO,
+		      "flocal_rec_await_reply: Remote has requested transfer of control");
+      qdaemon->fhangup_requested = TRUE;
+    }
 
   /* Open the file to receive into.  We just ignore any restart count,
      since we have no way to tell it to the other side.  SVR4 may have
      some way to do this, but I don't know what it is.  */
   qtrans->e = esysdep_open_receive (qdaemon->qsys, qinfo->zfile,
 				    (const char *) NULL, qinfo->ztemp,
-				    &crestart);
+				    (long *) NULL);
   if (! ffileisopen (qtrans->e))
     return flocal_rec_fail (qtrans, &qtrans->s, qdaemon->qsys,
 			    "cannot open file");
@@ -570,7 +595,15 @@ fremote_send_file_init (qdaemon, qcmd, iremote)
     }
   else
     {
-      zfile = zsysdep_local_file (qcmd->zto, qsys->uuconf_zpubdir);
+      boolean fbadname;
+
+      zfile = zsysdep_local_file (qcmd->zto, qsys->uuconf_zpubdir,
+				  &fbadname);
+      if (zfile == NULL && fbadname)
+	{
+	  ulog (LOG_ERROR, "%s: bad local file name", qcmd->zto);
+	  return fremote_send_fail (qdaemon, qcmd, FAILURE_PERM, iremote);
+	}
       if (zfile != NULL)
 	{
 	  char *zadd;
@@ -603,7 +636,10 @@ fremote_send_file_init (qdaemon, qcmd, iremote)
 	}
     }
 
-  ztemp = zsysdep_receive_temp (qsys, zfile, qcmd->ztemp);
+  ztemp = zsysdep_receive_temp (qsys, zfile, qcmd->ztemp,
+				(qdaemon->qproto->frestart
+				 && (qdaemon->ifeatures
+				     & FEATURE_RESTART) != 0));
 
   /* Adjust the number of bytes we are prepared to receive according
      to the amount of free space we are supposed to leave available
@@ -646,7 +682,13 @@ fremote_send_file_init (qdaemon, qcmd, iremote)
   /* Open the file to receive into.  This may find an old copy of the
      file, which will be used for file restart if the other side
      supports it.  */
-  e = esysdep_open_receive (qsys, zfile, qcmd->ztemp, ztemp, &crestart);
+  crestart = -1;
+  e = esysdep_open_receive (qsys, zfile, qcmd->ztemp, ztemp,
+			    ((qdaemon->qproto->frestart
+			      && (qdaemon->ifeatures
+				  & FEATURE_RESTART) != 0)
+			     ? &crestart
+			     : (long *) NULL));
   if (! ffileisopen (e))
     {
       ubuffree (ztemp);
@@ -656,21 +698,16 @@ fremote_send_file_init (qdaemon, qcmd, iremote)
 
   if (crestart > 0)
     {
-      if ((qdaemon->ifeatures & FEATURE_RESTART) == 0)
-	crestart = -1;
-      else
+      DEBUG_MESSAGE1 (DEBUG_UUCP_PROTO,
+		      "fremote_send_file_init: Restarting receive from %ld",
+		      crestart);
+      if (! ffileseek (e, crestart))
 	{
-	  DEBUG_MESSAGE1 (DEBUG_UUCP_PROTO,
-			  "fremote_send_file_init: Restarting receive from %ld",
-			  crestart);
-	  if (! ffileseek (e, crestart))
-	    {
-	      ulog (LOG_ERROR, "seek: %s", strerror (errno));
-	      (void) ffileclose (e);
-	      ubuffree (ztemp);
-	      ubuffree (zfile);
-	      return FALSE;
-	    }
+	  ulog (LOG_ERROR, "seek: %s", strerror (errno));
+	  (void) ffileclose (e);
+	  ubuffree (ztemp);
+	  ubuffree (zfile);
+	  return FALSE;
 	}
     }
 
@@ -705,8 +742,24 @@ fremote_send_file_init (qdaemon, qcmd, iremote)
       else
 	zlog = qinfo->zfile;
     }
-  qtrans->zlog = zbufalc (sizeof "Receiving " + strlen (zlog));
+  qtrans->zlog = zbufalc (sizeof "Receiving ( bytes resume at )"
+			  + strlen (zlog) + 50);
   sprintf (qtrans->zlog, "Receiving %s", zlog);
+  if (crestart > 0 || qcmd->cbytes > 0)
+    {
+      strcat (qtrans->zlog, " (");
+      if (qcmd->cbytes > 0)
+	{
+	  sprintf (qtrans->zlog + strlen (qtrans->zlog), "%ld bytes",
+		   qcmd->cbytes);
+	  if (crestart > 0)
+	    strcat (qtrans->zlog, " ");
+	}
+      if (crestart > 0)
+	sprintf (qtrans->zlog + strlen (qtrans->zlog), "resume at %ld",
+		 crestart);
+      strcat (qtrans->zlog, ")");
+    }
 
   return fqueue_remote (qdaemon, qtrans);
 }
@@ -719,7 +772,19 @@ fremote_send_reply (qtrans, qdaemon)
      struct sdaemon *qdaemon;
 {
   struct srecinfo *qinfo = (struct srecinfo *) qtrans->pinfo;
+  boolean fret;
   char ab[50];
+
+  /* If the file has been completely received, we just want to send
+     the final confirmation.  Otherwise, we must wait for the file
+     first.  */
+  qtrans->psendfn = frec_file_send_confirm;
+  if (qinfo->freceived)
+    fret = fqueue_send (qdaemon, qtrans);
+  else
+    fret = fqueue_receive (qdaemon, qtrans);
+  if (! fret)
+    return FALSE;
 
   ab[0] = qtrans->s.bcmd;
   ab[1] = 'Y';
@@ -751,18 +816,9 @@ fremote_send_reply (qtrans, qdaemon)
 	  urrec_free (qtrans);
 	  return FALSE;
 	}
-      if (fhandled)
-	return TRUE;
     }
 
-  /* If the file has been completely received, we just want to send
-     the final confirmation.  Otherwise, we must wait for the file
-     first.  */
-  qtrans->psendfn = frec_file_send_confirm;
-  if (qinfo->freceived)
-    return fqueue_send (qdaemon, qtrans);
-  else
-    return fqueue_receive (qdaemon, qtrans);
+  return TRUE;
 }
 
 /* If we can't receive a file, queue up a response to the remote
@@ -784,7 +840,7 @@ fremote_send_fail (qdaemon, qcmd, twhy, iremote)
 
   /* If the protocol does not support multiple channels (cchans <= 1),
      then we have essentially already received the entire file.  */
-  qinfo->freceived = qdaemon->qproto->cchans <= 1;
+  qinfo->freceived = qdaemon->cchans <= 1;
 
   qtrans = qtransalc (qcmd);
   qtrans->psendfn = fremote_send_fail_send;
@@ -806,6 +862,13 @@ fremote_send_fail_send (qtrans, qdaemon)
   struct srecfailinfo *qinfo = (struct srecfailinfo *) qtrans->pinfo;
   char ab[4];
   boolean fret;
+
+  /* Wait for the end of file marker if we haven't gotten it yet.  */
+  if (! qinfo->freceived)
+    {
+      if (! fqueue_receive (qdaemon, qtrans))
+	return FALSE;
+    }
 
   ab[0] = qtrans->s.bcmd;
   ab[1] = 'N';
@@ -840,13 +903,7 @@ fremote_send_fail_send (qtrans, qdaemon)
 
   qinfo->fsent = TRUE;
 
-  /* Wait for the end of file marker if we haven't gotten it yet.  */
-  if (! qinfo->freceived)
-    {
-      if (! fqueue_receive (qdaemon, qtrans))
-	fret = FALSE;
-    }
-  else
+  if (qinfo->freceived)
     {
       xfree (qtrans->pinfo);
       utransfree (qtrans);
@@ -902,6 +959,7 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
      size_t cdata;
 {
   struct srecinfo *qinfo = (struct srecinfo *) qtrans->pinfo;
+  char *zalc;
   const char *zerr;
   boolean fnever;
 
@@ -929,10 +987,13 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 
   fnever = FALSE;
 
+  zalc = NULL;
+
   if (! ffileclose (qtrans->e))
     {
       zerr = strerror (errno);
       ulog (LOG_ERROR, "%s: close: %s", qtrans->s.zto, zerr);
+      (void) remove (qinfo->ztemp);
     }
   else if (! fsysdep_move_file (qinfo->ztemp, qinfo->zfile, qinfo->fspool,
 				FALSE, ! qinfo->fspool,
@@ -940,7 +1001,49 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 				 ? qtrans->s.zuser
 				 : (const char *) NULL)))
     {
-      zerr = "could not move to final location";
+      long cspace;
+
+      /* Keep the temporary file if there is 1.5 times the amount of
+	 required free space.  This is just a random guess, to make an
+	 unusual situtation potentially less painful.  */
+      cspace = csysdep_bytes_free (qinfo->ztemp);
+      if (cspace == -1)
+	cspace = FREE_SPACE_DELTA;
+      cspace -= (qdaemon->qsys->uuconf_cfree_space
+		 + qdaemon->qsys->uuconf_cfree_space / 2);
+      if (cspace < 0)
+	{
+	  (void) remove (qinfo->ztemp);
+	  zerr = "could not move to final location";
+	}
+      else
+	{
+	  const char *az[20];
+	  int i;
+
+	  zalc = zbufalc (sizeof "could not move to final location (left as )"
+			  + strlen (qinfo->ztemp));
+	  sprintf (zalc, "could not move to final location (left as %s)",
+		   qinfo->ztemp);
+	  zerr = zalc;
+
+	  i = 0;
+	  az[i++] = "The file\n\t";
+	  az[i++] = qinfo->ztemp;
+	  az[i++] =
+	    "\nwas saved because the move to the final location failed.\n";
+	  az[i++] = "See the UUCP logs for more details.\n";
+	  az[i++] = "The file transfer was from\n\t";
+	  az[i++] = qdaemon->qsys->uuconf_zname;
+	  az[i++] = "!";
+	  az[i++] = qtrans->s.zfrom;
+	  az[i++] = "\nto\n\t";
+	  az[i++] = qtrans->s.zto;
+	  az[i++] = "\nand was requested by\n\t";
+	  az[i++] = qtrans->s.zuser;
+	  az[i++] = "\n";
+	  (void) fsysdep_mail (OWNER, "UUCP temporary file saved", i, az);
+	}
       ulog (LOG_ERROR, "%s: %s", qinfo->zfile, zerr);
       fnever = TRUE;
     }
@@ -963,12 +1066,10 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
       zerr = NULL;
     }
 
-  if (zerr != NULL)
-    (void) remove (qinfo->ztemp);
-
   ustats (zerr == NULL, qtrans->s.zuser, qdaemon->qsys->uuconf_zname,
 	  FALSE, qtrans->cbytes, qtrans->isecs, qtrans->imicros,
 	  qdaemon->fmaster);
+  qdaemon->creceived += qtrans->cbytes;
 
   if (zerr == NULL)
     {
@@ -1011,6 +1112,8 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 	}
     }
 
+  ubuffree (zalc);
+
   /* If this is an execution request, we must create the execution
      file itself.  */
   if (qtrans->s.bcmd == 'E' && zerr == NULL)
@@ -1040,7 +1143,10 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 	 uuxqt might pick up the file before we have finished writing
 	 it.  */
       e = NULL;
-      ztemp = zsysdep_receive_temp (qdaemon->qsys, zxqtfile, "D.0");
+      ztemp = zsysdep_receive_temp (qdaemon->qsys, zxqtfile, "D.0",
+				    (qdaemon->qproto->frestart
+				     && (qdaemon->ifeatures
+					 & FEATURE_RESTART) != 0));
       if (ztemp != NULL)
 	e = esysdep_fopen (ztemp, FALSE, FALSE, TRUE);
 
@@ -1077,7 +1183,10 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 	{
 	  if (! fsysdep_move_file (ztemp, zxqtfile, TRUE, FALSE, FALSE,
 				   (const char *) NULL))
-	    fbad = TRUE;
+	    {
+	      (void) remove (ztemp);
+	      fbad = TRUE;
+	    }
 	}
 
       ubuffree (zxqtfile);
@@ -1087,6 +1196,21 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 	{
 	  urrec_free (qtrans);
 	  return FALSE;
+	}
+    }
+
+  /* See if we should spawn a uuxqt process.  */
+  if (zerr == NULL
+      && (qtrans->s.bcmd == 'E'
+	  || (qinfo->fspool && qtrans->s.zto[0] == 'X')))
+    {
+      ++qdaemon->cxfiles_received;
+      if (qdaemon->irunuuxqt > 0
+	  && qdaemon->cxfiles_received >= qdaemon->irunuuxqt)
+	{
+	  if (fspawn_uuxqt (TRUE, qdaemon->qsys->uuconf_zname,
+			    qdaemon->zconfig))
+	    qdaemon->cxfiles_received = 0;
 	}
     }
 

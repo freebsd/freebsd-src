@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,25 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)screen.c	8.51 (Berkeley) 1/11/94";
+static char sccsid[] = "@(#)screen.c	8.56 (Berkeley) 3/14/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "vcmd.h"
@@ -78,7 +88,6 @@ screen_init(orig, spp, flags)
 /* PARTIALLY OR COMPLETELY COPIED FROM PREVIOUS SCREEN. */
 	if (orig == NULL) {
 		sp->searchdir = NOTSET;
-		sp->csearchdir = CNOTSET;
 
 		switch (flags & S_SCREENS) {
 		case S_EX:
@@ -113,8 +122,6 @@ screen_init(orig, spp, flags)
 			sp->subre = orig->subre;
 		}
 		sp->searchdir = orig->searchdir == NOTSET ? NOTSET : FORWARD;
-		sp->csearchdir = CNOTSET;
-		sp->lastckey = orig->lastckey;
 
 		if (orig->matchsize) {
 			len = orig->matchsize * sizeof(regmatch_t);
@@ -153,10 +160,11 @@ mem:			msgq(orig, M_SYSERR, "new screen attributes");
 		sp->s_bg		= orig->s_bg;
 		sp->s_busy		= orig->s_busy;
 		sp->s_change		= orig->s_change;
-		sp->s_chposition	= orig->s_chposition;
 		sp->s_clear		= orig->s_clear;
+		sp->s_colpos		= orig->s_colpos;
 		sp->s_column		= orig->s_column;
 		sp->s_confirm		= orig->s_confirm;
+		sp->s_crel		= orig->s_crel;
 		sp->s_down		= orig->s_down;
 		sp->s_edit		= orig->s_edit;
 		sp->s_end		= orig->s_end;
@@ -170,9 +178,8 @@ mem:			msgq(orig, M_SYSERR, "new screen attributes");
 		sp->s_optchange		= orig->s_optchange;
 		sp->s_position		= orig->s_position;
 		sp->s_rabs		= orig->s_rabs;
+		sp->s_rcm		= orig->s_rcm;
 		sp->s_refresh		= orig->s_refresh;
-		sp->s_relative		= orig->s_relative;
-		sp->s_rrel		= orig->s_rrel;
 		sp->s_split		= orig->s_split;
 		sp->s_suspend		= orig->s_suspend;
 		sp->s_up		= orig->s_up;
@@ -256,7 +263,7 @@ screen_end(sp)
 	/*
 	 * Free the message chain last, so previous failures have a place
 	 * to put messages.  Copy messages to (in order) a related screen,
-	 * any screen, the global area. 
+	 * any screen, the global area.
 	 */
 	{ SCR *c_sp; MSG *mp, *next;
 		if ((c_sp = sp->q.cqe_prev) != (void *)&sp->gp->dq) {

@@ -24,14 +24,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)$Id: ed.h,v 1.5 1994/02/01 00:34:39 alm Exp $
+ *	@(#)ed.h,v 1.5 1994/02/01 00:34:39 alm Exp
  */
 
+#include <sys/types.h>
 #if defined(BSD) && BSD >= 199103 || defined(__386BSD__)
 # include <sys/param.h>		/* for MAXPATHLEN */
 #endif
 #include <errno.h>
-#ifdef sun
+#if defined(sun) || defined(__NetBSD__)
 # include <limits.h>
 #endif
 #include <regex.h>
@@ -166,17 +167,15 @@ if ((i) > (n)) { \
 /* REQUE: link pred before succ */
 #define REQUE(pred, succ) (pred)->q_forw = (succ), (succ)->q_back = (pred)
 
-#ifdef NEED_INSQUE
-/* insque: insert elem in circular queue after pred */
-#define insque(elem, pred) \
+/* INSQUE: insert elem in circular queue after pred */
+#define INSQUE(elem, pred) \
 { \
 	REQUE((elem), (pred)->q_forw); \
 	REQUE((pred), elem); \
 }
 
-/* remque: remove_lines elem from circular queue */
-#define remque(elem) REQUE((elem)->q_back, (elem)->q_forw);
-#endif /* NEED_INSQUE */
+/* REMQUE: remove_lines elem from circular queue */
+#define REMQUE(elem) REQUE((elem)->q_back, (elem)->q_forw);
 
 /* NUL_TO_NEWLINE: overwrite ASCII NULs with newlines */
 #define NUL_TO_NEWLINE(s, l) translit_text(s, l, '\0', '\n')
@@ -184,7 +183,7 @@ if ((i) > (n)) { \
 /* NEWLINE_TO_NUL: overwrite newlines with ASCII NULs */
 #define NEWLINE_TO_NUL(s, l) translit_text(s, l, '\n', '\0')
 
-#ifndef strerror
+#ifdef sun
 # define strerror(n) sys_errlist[n]
 #endif
 

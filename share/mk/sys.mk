@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	5.11 (Berkeley) 3/13/91
-#	$Id: sys.mk,v 1.5 1994/02/04 03:19:16 wollman Exp $
+#	$Id: sys.mk,v 1.7 1994/06/13 21:02:48 csgr Exp $
 
 unix=		We run FreeBSD, not UNIX.
 
@@ -18,7 +18,7 @@ CC=		cc
 CFLAGS=		-O
 
 CXX=		g++
-CXXFLAGS=	${CFLAGS}
+CXXFLAGS=	${CXXINCLUDES} ${CFLAGS}
 
 CPP=		cpp
 
@@ -100,3 +100,7 @@ YFLAGS=-d
 	rm -f lex.yy.c
 
 .include <bsd.own.mk>
+
+.if exists(/etc/make.conf)
+.include </etc/make.conf>
+.endif

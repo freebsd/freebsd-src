@@ -237,11 +237,11 @@
 .       \}
 .       if "\\*(A\\n(aP"-ansiC" \{\
 .		ie \\n(sT==1 \{\
-.			ds b1 \&\\*(tNANSI \\*(aaX3.159-1989\\*(sV
+.			ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
 .			as b1 (``\\*(tNANSI C\\*(aa'')
 .		\}
 .		el \{\
-.			ds b1 \&\\*(tNANSI \\*(aaX3.159-1989\\*(sV
+.			ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
 .			as b1 (``\\*(tNANSI C\\*(aa'')
 .		\}
 .       \}
@@ -253,6 +253,16 @@
 .		el \{\
 .			ds b1 \&\\*(tNANSI \\*(aaX3.159-1989\\*(sV
 .			as b1 (``\\*(tNANSI C\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-isoC-90" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
+.			as b1 (``\\*(tNANSI/ISO C\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
+.			as b1 (``\\*(tNANSI/ISO C\\*(aa'')
 .		\}
 .       \}
 .       if "\\*(A\\n(aP"-iso8802-3" \{\

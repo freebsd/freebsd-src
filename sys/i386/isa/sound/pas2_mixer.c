@@ -1,12 +1,12 @@
 #define _PAS2_MIXER_C_
 
 /*
- * linux/kernel/chr_drv/sound/pas2_mixer.c
- * 
+ * sound/pas2_mixer.c
+ *
  * Mixer routines for the Pro Audio Spectrum cards.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -14,7 +14,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,7 +26,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -46,7 +46,7 @@ static int      mode_control = 0;
 					 SOUND_MASK_CD | SOUND_MASK_ALTPCM)
 
 #define SUPPORTED_MIXER_DEVICES		(SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_SPEAKER | SOUND_MASK_LINE | SOUND_MASK_MIC | \
-					 SOUND_MASK_CD /*|SOUND_MASK_ALTPCM*/ | SOUND_MASK_IMIX | \
+					 SOUND_MASK_CD | SOUND_MASK_ALTPCM | SOUND_MASK_IMIX | \
 					 SOUND_MASK_VOLUME | SOUND_MASK_BASS | SOUND_MASK_TREBLE | SOUND_MASK_RECLEV | \
 					 SOUND_MASK_MUTE | SOUND_MASK_ENHANCE | SOUND_MASK_LOUD)
 
@@ -72,14 +72,6 @@ mixer_output (int right_vol, int left_vol, int div, int bits,
   int             left = left_vol * div / 100;
   int             right = right_vol * div / 100;
 
-  /*
-   * The Revision D cards have a problem with their MVA508 interface. The
-   * kludge-o-rama fix is to make a 16-bit quantity with identical LSB and
-   * MSBs out of the output byte and to do a 16-bit out to the mixer port -
-   * 1. We don't need to do this because the call to pas_write more than
-   * compensates for the timing problems.
-   */
-
   if (bits & P_M_MV508_MIXER)
     {				/* Select input or output mixer */
       left |= mixer;
@@ -87,17 +79,17 @@ mixer_output (int right_vol, int left_vol, int div, int bits,
     }
 
   if (bits == P_M_MV508_BASS || bits == P_M_MV508_TREBLE)
-    {				/* Bass and trebble are mono devices	 */
-      pas_write (P_M_MV508_ADDRESS | bits, PARALLEL_MIXER);
-      pas_write (left, PARALLEL_MIXER);
+    {				/* Bass and trebble are mono devices     */
+      mix_write (P_M_MV508_ADDRESS | bits, PARALLEL_MIXER);
+      mix_write (left, PARALLEL_MIXER);
       right_vol = left_vol;
     }
   else
     {
-      pas_write (P_M_MV508_ADDRESS | P_M_MV508_LEFT | bits, PARALLEL_MIXER);
-      pas_write (left, PARALLEL_MIXER);
-      pas_write (P_M_MV508_ADDRESS | P_M_MV508_RIGHT | bits, PARALLEL_MIXER);
-      pas_write (right, PARALLEL_MIXER);
+      mix_write (P_M_MV508_ADDRESS | P_M_MV508_LEFT | bits, PARALLEL_MIXER);
+      mix_write (left, PARALLEL_MIXER);
+      mix_write (P_M_MV508_ADDRESS | P_M_MV508_RIGHT | bits, PARALLEL_MIXER);
+      mix_write (right, PARALLEL_MIXER);
     }
 
   return (left_vol | (right_vol << 8));
@@ -106,8 +98,8 @@ mixer_output (int right_vol, int left_vol, int div, int bits,
 void
 set_mode (int new_mode)
 {
-  pas_write (P_M_MV508_ADDRESS | P_M_MV508_MODE, PARALLEL_MIXER);
-  pas_write (new_mode, PARALLEL_MIXER);
+  mix_write (P_M_MV508_ADDRESS | P_M_MV508_MODE, PARALLEL_MIXER);
+  mix_write (new_mode, PARALLEL_MIXER);
 
   mode_control = new_mode;
 }

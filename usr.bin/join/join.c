@@ -42,15 +42,16 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)join.c	5.1 (Berkeley) 11/18/91";
+/*static char sccsid[] = "from: @(#)join.c	5.1 (Berkeley) 11/18/91";*/
+static char rcsid[] = "$Id: join.c,v 1.4 1994/04/17 09:35:20 alm Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <errno.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 /*
  * There's a structure per input file which encapsulates the state of the
@@ -270,7 +271,7 @@ slurp(F)
 	LINE tmp;
 	size_t len;
 	int cnt;
-	char *bp, *fieldp, *token;
+	char *bp, *fieldp;
 
 	/*
 	 * Read all of the lines from an input file that have the same
@@ -307,20 +308,30 @@ slurp(F)
 			F->pushback = -1;
 			continue;
 		}
-		if ((bp = fgetline(F->fp, &len)) == NULL)
+		if ((bp = fgetln(F->fp, &len)) == NULL)
 			return;
-		while (lp->linealloc <= len) {
-			lp->linealloc += 100;
+		if (lp->linealloc <= len + 1) {
+			if (lp->linealloc == 0)
+				lp->linealloc = 128;
+			while (lp->linealloc <= len + 1)
+				lp->linealloc *= 2;
+
 			if ((lp->line = realloc(lp->line,
 			    lp->linealloc * sizeof(char))) == NULL)
 				enomem();
 		}
 		bcopy(bp, lp->line, len+1);
 
+		/* Replace trailing newline, if it exists. */ 
+		if (bp[len - 1] == '\n')
+			lp->line[len - 1] = '\0';
+		else
+			lp->line[len] = '\0';
+		bp = lp->line;
+
 		/* Split the line into fields, allocate space as necessary. */
-		token = lp->line;
 		lp->fieldcnt = 0;
-		while ((fieldp = strsep(&token, tabchar)) != NULL) {
+		while ((fieldp = strsep(&bp, tabchar)) != NULL) {
 			if (spans && *fieldp == '\0')
 				continue;
 			if (lp->fieldcnt == lp->fieldalloc) {

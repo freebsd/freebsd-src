@@ -1,7 +1,7 @@
 /* proti.c
    The 'i' protocol.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char proti_rcsid[] = "$Id: proti.c,v 1.1 1993/08/05 18:27:12 conklin Exp $";
+const char proti_rcsid[] = "$Id: proti.c,v 1.2 1994/05/07 18:13:48 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -153,7 +153,10 @@ const char proti_rcsid[] = "$Id: proti.c,v 1.1 1993/08/05 18:27:12 conklin Exp $
 #define IMAXSEQ 32
 
 /* Get the next sequence number given a sequence number.  */
-#define INEXTSEQ(i) ((i + 1) & (IMAXSEQ - 1))
+#define INEXTSEQ(i) (((i) + 1) & (IMAXSEQ - 1))
+
+/* Get the previous sequence number given a sequence number.  */
+#define IPREVSEQ(i) (((i) + IMAXSEQ - 1) & (IMAXSEQ - 1))
 
 /* Compute i1 - i2 in sequence space (i.e., the number of packets from
    i2 to i1).  */
@@ -216,16 +219,13 @@ static int iIremote_packsize;
 static int iIalc_packsize;
 
 /* Forced remote packet size, used if non-zero (protocol parameter
-   ``remote-packet-size'').  */
+   ``remote-packet-size'').  There is no forced remote window size
+   because the ACK strategy requires that both sides agree on the
+   window size.  */
 static int iIforced_remote_packsize = 0;
 
-/* Remote window size (set from SYNC packet or from
-   iIforced_remote_winsize).  */
+/* Remote window size (set from SYNC packet).  */
 static int iIremote_winsize;
-
-/* Forced remote window size, used if non-zero (protocol parameter
-   ``remote-window'').  */
-static int iIforced_remote_winsize = 0;
 
 /* Timeout to use when sending the SYNC packet (protocol
    parameter ``sync-timeout'').  */
@@ -250,6 +250,11 @@ static int cIerrors = CERRORS;
 /* Each time we receive this many packets succesfully, we decrement
    the error level by one (protocol parameter ``error-decay'').  */
 static int cIerror_decay = CERROR_DECAY;
+
+/* The number of packets we should wait to receive before sending an
+   ACK; this is set by default to half the window size we have
+   requested (protocol parameter ``ack-frequency'').  */
+static int cIack_frequency = 0;
 
 /* The set of characters to avoid (protocol parameter ``avoid'').
    This is actually part of the 'j' protocol; it is defined in this
@@ -334,8 +339,6 @@ struct uuconf_cmdtab asIproto_params[] =
   { "window", UUCONF_CMDTABTYPE_INT, (pointer) &iIrequest_winsize, NULL },
   { "remote-packet-size", UUCONF_CMDTABTYPE_INT,
       (pointer) &iIforced_remote_packsize, NULL },
-  { "remote-window", UUCONF_CMDTABTYPE_INT,
-      (pointer) &iIforced_remote_winsize, NULL },
   { "sync-timeout", UUCONF_CMDTABTYPE_INT, (pointer) &cIsync_timeout,
       NULL },
   { "sync-retries", UUCONF_CMDTABTYPE_INT, (pointer) &cIsync_retries,
@@ -344,6 +347,7 @@ struct uuconf_cmdtab asIproto_params[] =
   { "retries", UUCONF_CMDTABTYPE_INT, (pointer) &cIretries, NULL },
   { "errors", UUCONF_CMDTABTYPE_INT, (pointer) &cIerrors, NULL },
   { "error-decay", UUCONF_CMDTABTYPE_INT, (pointer) &cIerror_decay, NULL },
+  { "ack-frequency", UUCONF_CMDTABTYPE_INT, (pointer) &cIack_frequency, NULL },
   /* The ``avoid'' protocol parameter is part of the 'j' protocol, but
      it is convenient for the 'i' and 'j' protocols to share the same
      protocol parameter table.  */
@@ -398,7 +402,7 @@ fijstart (qdaemon, pzlog, imaxpacksize, pfsend, pfreceive)
      boolean (*pfreceive) P((struct sconnection *qconn, size_t cneed,
 			     size_t *pcrec, int ctimeout, boolean freport));
 {
-  char ab[CHDRLEN + 3 + CCKSUMLEN];
+  char ab[CHDRLEN + 4 + CCKSUMLEN];
   unsigned long icksum;
   int ctries;
   int csyncs;
@@ -414,10 +418,6 @@ fijstart (qdaemon, pzlog, imaxpacksize, pfsend, pfreceive)
   else
     iIremote_packsize = iIforced_remote_packsize;
   iIalc_packsize = 0;
-  if (iIforced_remote_winsize <= 0 || iIforced_remote_winsize >= IMAXSEQ)
-    iIforced_remote_winsize = 0;
-  else
-    iIremote_winsize = iIforced_remote_winsize;
 
   iIsendseq = 1;
   iIrecseq = 0;
@@ -435,16 +435,41 @@ fijstart (qdaemon, pzlog, imaxpacksize, pfsend, pfreceive)
   cIbad_cksum = 0;
   cIremote_rejects = 0;
 
+  if (iIrequest_packsize < 0 || iIrequest_packsize > imaxpacksize)
+    {
+      ulog (LOG_ERROR, "Illegal protocol '%c' packet size; using %d",
+	    qdaemon->qproto->bname, imaxpacksize);
+      iIrequest_packsize = imaxpacksize;
+    }
+
+  /* The maximum permissible window size is 16.  Otherwise the
+     protocol can get confused because a duplicated packet may arrive
+     out of order.  If the window size is large in such a case, the
+     duplicate packet may be treated as a packet in the upcoming
+     window, causing the protocol to assume that all intermediate
+     packets have been lost, leading to immense confusion.  */
+  if (iIrequest_winsize < 0 || iIrequest_winsize > IMAXSEQ / 2)
+    {
+      ulog (LOG_ERROR, "Illegal protocol '%c' window size; using %d",
+	    qdaemon->qproto->bname, IREQUEST_WINSIZE);
+      iIrequest_winsize = IREQUEST_WINSIZE;
+    }
+
+  /* The default for the ACK frequency is half the window size.  */
+  if (cIack_frequency <= 0 || cIack_frequency >= iIrequest_winsize)
+    cIack_frequency = iIrequest_winsize / 2;
+
   ab[IHDR_INTRO] = IINTRO;
   ab[IHDR_LOCAL] = ab[IHDR_REMOTE] = IHDRWIN_SET (0, 0);
-  ab[IHDR_CONTENTS1] = IHDRCON_SET1 (SYNC, qdaemon->fcaller, 3);
-  ab[IHDR_CONTENTS2] = IHDRCON_SET2 (SYNC, qdaemon->fcaller, 3);
+  ab[IHDR_CONTENTS1] = IHDRCON_SET1 (SYNC, qdaemon->fcaller, 4);
+  ab[IHDR_CONTENTS2] = IHDRCON_SET2 (SYNC, qdaemon->fcaller, 4);
   ab[IHDR_CHECK] = IHDRCHECK_VAL (ab);
   ab[CHDRLEN + 0] = (iIrequest_packsize >> 8) & 0xff;
   ab[CHDRLEN + 1] = iIrequest_packsize & 0xff;
   ab[CHDRLEN + 2] = iIrequest_winsize;
-  icksum = icrc (ab + CHDRLEN, 3, ICRCINIT);
-  UCKSUM_SET (ab + CHDRLEN + 3, icksum);
+  ab[CHDRLEN + 3] = qdaemon->cchans;
+  icksum = icrc (ab + CHDRLEN, 4, ICRCINIT);
+  UCKSUM_SET (ab + CHDRLEN + 4, icksum);
 
   /* The static cIsyncs is incremented each time a SYNC packet is
      received.  */
@@ -455,11 +480,11 @@ fijstart (qdaemon, pzlog, imaxpacksize, pfsend, pfreceive)
     {
       boolean ftimedout;
 
-      DEBUG_MESSAGE2 (DEBUG_PROTO,
-		      "fistart: Sending SYNC packsize %d winsize %d",
-		      iIrequest_packsize, iIrequest_winsize);
+      DEBUG_MESSAGE3 (DEBUG_PROTO,
+		      "fistart: Sending SYNC packsize %d winsize %d channels %d",
+		      iIrequest_packsize, iIrequest_winsize, qdaemon->cchans);
 
-      if (! (*pfIsend) (qdaemon->qconn, ab, CHDRLEN + 3 + CCKSUMLEN,
+      if (! (*pfIsend) (qdaemon->qconn, ab, CHDRLEN + 4 + CCKSUMLEN,
 			TRUE))
 	return FALSE;
 
@@ -509,11 +534,15 @@ fijstart (qdaemon, pzlog, imaxpacksize, pfsend, pfreceive)
 
       if (iseq >= IMAXSEQ)
 	{
-	  *pzlog = zbufalc (sizeof "protocol 'i' packet size %d window %d"
-			    + 50);
-	  sprintf (*pzlog, "protocol '%c' packet size %d window %d",
-		   qdaemon->qproto->bname, iIremote_packsize,
-		   iIremote_winsize);
+	  *pzlog =
+	    zbufalc (sizeof "protocol '' sending packet/window / receiving /"
+		     + 64);
+	  sprintf (*pzlog,
+		   "protocol '%c' sending packet/window %d/%d receiving %d/%d",
+		   qdaemon->qproto->bname, (int) iIremote_packsize,
+		   (int) iIremote_winsize, (int) iIrequest_packsize,
+		   (int) iIrequest_winsize);
+
 	  iIalc_packsize = iIremote_packsize;
 
 	  return TRUE;
@@ -575,13 +604,13 @@ fishutdown (qdaemon)
   iIrequest_packsize = IREQUEST_PACKSIZE;
   iIrequest_winsize = IREQUEST_WINSIZE;
   iIforced_remote_packsize = 0;
-  iIforced_remote_winsize = 0;
   cIsync_timeout = CSYNC_TIMEOUT;
   cIsync_retries = CSYNC_RETRIES;
   cItimeout = CTIMEOUT;
   cIretries = CRETRIES;
   cIerrors = CERRORS;
   cIerror_decay = CERROR_DECAY;
+  cIack_frequency = 0;
   zJavoid_parameter = ZAVOID;
 
   return TRUE;
@@ -835,8 +864,9 @@ fisenddata (qdaemon, zdata, cdata, ilocal, iremote, ipos)
   iIlocal_ack = iIrecseq;
   zhdr[IHDR_CHECK] = IHDRCHECK_VAL (zhdr);
 
-  DEBUG_MESSAGE2 (DEBUG_PROTO, "fisenddata: Sending packet %d (%d bytes)",
-		  iIsendseq, (int) cdata);
+  DEBUG_MESSAGE4 (DEBUG_PROTO,
+		  "fisenddata: Sending packet %d size %d local %d remote %d",
+		  iIsendseq, (int) cdata, ilocal, iremote);		  
 
   iIsendseq = INEXTSEQ (iIsendseq);
   ++cIsent_packets;
@@ -977,6 +1007,8 @@ ficheck_errors (qdaemon)
 	  char absync[CHDRLEN + 3 + CCKSUMLEN];
 	  unsigned long icksum;
 
+	  /* Don't bother sending the number of channels in this
+	     packet.  */
 	  iIrequest_packsize /= 2;
 	  absync[IHDR_INTRO] = IINTRO;
 	  absync[IHDR_LOCAL] = IHDRWIN_SET (0, 0);
@@ -1127,9 +1159,9 @@ fiprocess_data (qdaemon, pfexit, pffound, pcneed)
 	  if (iIrequest_winsize > 0
 	      && CSEQDIFF (iseq, iIlocal_ack) > iIrequest_winsize)
 	    {
-	      DEBUG_MESSAGE1 (DEBUG_PROTO | DEBUG_ABNORMAL,
-			      "fiprocess_data: Out of order packet %d",
-			      iseq);
+	      DEBUG_MESSAGE2 (DEBUG_PROTO | DEBUG_ABNORMAL,
+			      "fiprocess_data: Out of order packet %d (ack %d)",
+			      iseq, iIlocal_ack);
 
 	      ++cIbad_order;
 	      if (! ficheck_errors (qdaemon))
@@ -1253,7 +1285,27 @@ fiprocess_data (qdaemon, pfexit, pffound, pcneed)
 
       if (iseq != -1)
 	{
-	  afInaked[iseq] = FALSE;
+	  /* If we already sent a NAK for this packet, and we have not
+	     seen the previous packet, then forget that we sent a NAK
+	     for this and any preceding packets.  This is to handle
+	     the following sequence:
+	         receive packet 0
+		 packets 1 and 2 lost
+		 receive packet 3
+		 send NAK 1
+		 send NAK 2
+		 packet 1 lost
+		 receive packet 2
+	     At this point we want to send NAK 1.  */
+	  if (afInaked[iseq]
+	      && azIrecbuffers[IPREVSEQ (iseq)] == NULL)
+	    {
+	      for (i = INEXTSEQ (iIrecseq);
+		   i != iseq;
+		   i = INEXTSEQ (i))
+		afInaked[i] = FALSE;
+	      afInaked[iseq] = FALSE;
+	    }
 
 	  /* If we haven't handled all previous packets, we must save
 	     off this packet and deal with it later.  */
@@ -1263,16 +1315,16 @@ fiprocess_data (qdaemon, pfexit, pffound, pcneed)
 		  || (iIrequest_winsize > 0
 		      && CSEQDIFF (iseq, iIrecseq) > iIrequest_winsize))
 		{
-		  DEBUG_MESSAGE1 (DEBUG_PROTO | DEBUG_ABNORMAL,
-				  "fiprocess_data: Ignoring out of order packet %d",
-				  iseq);
+		  DEBUG_MESSAGE2 (DEBUG_PROTO | DEBUG_ABNORMAL,
+				  "fiprocess_data: Ignoring out of order packet %d (recseq %d)",
+				  iseq, iIrecseq);
 		  continue;
 		}
 	      else
 		{
-		  DEBUG_MESSAGE1 (DEBUG_PROTO | DEBUG_ABNORMAL,
-				  "fiprocess_data: Saving unexpected packet %d",
-				  iseq);
+		  DEBUG_MESSAGE2 (DEBUG_PROTO | DEBUG_ABNORMAL,
+				  "fiprocess_data: Saving unexpected packet %d (recseq %d)",
+				  iseq, iIrecseq);
 
 		  if (azIrecbuffers[iseq] == NULL)
 		    {
@@ -1352,7 +1404,7 @@ fiprocess_data (qdaemon, pfexit, pffound, pcneed)
 	 However, it can happen if we receive a burst of short
 	 packets, such as a set of command acknowledgements.  */
       if (iIrequest_winsize > 0
-	  && CSEQDIFF (iIrecseq, iIlocal_ack) >= iIrequest_winsize / 2)
+	  && CSEQDIFF (iIrecseq, iIlocal_ack) >= cIack_frequency)
 	{
 	  char aback[CHDRLEN];
 
@@ -1401,9 +1453,11 @@ fiprocess_packet (qdaemon, zhdr, zfirst, cfirst, zsecond, csecond, pfexit)
 	boolean fret;
 
 	iseq = IHDRWIN_GETSEQ (zhdr[IHDR_LOCAL]);
-	DEBUG_MESSAGE2 (DEBUG_PROTO,
-			"fiprocess_packet: Got DATA packet %d size %d",
-			iseq, cfirst + csecond);
+	DEBUG_MESSAGE4 (DEBUG_PROTO,
+			"fiprocess_packet: Got DATA packet %d size %d local %d remote %d",
+			iseq, cfirst + csecond,
+			IHDRWIN_GETCHAN (zhdr[IHDR_REMOTE]),
+			IHDRWIN_GETCHAN (zhdr[IHDR_LOCAL]));
 	fret = fgot_data (qdaemon, zfirst, (size_t) cfirst,
 			  zsecond, (size_t) csecond,
 			  IHDRWIN_GETCHAN (zhdr[IHDR_REMOTE]),
@@ -1417,7 +1471,7 @@ fiprocess_packet (qdaemon, zhdr, zfirst, cfirst, zsecond, csecond, pfexit)
 
     case SYNC:
       {
-	int ipack, iwin;
+	int ipack, iwin, cchans;
 
 	/* We accept a SYNC packet to adjust the packet and window
 	   sizes at any time.  */
@@ -1436,16 +1490,31 @@ fiprocess_packet (qdaemon, zhdr, zfirst, cfirst, zsecond, csecond, pfexit)
 	else
 	  iwin = zsecond[2 - cfirst];
 
-	DEBUG_MESSAGE2 (DEBUG_PROTO,
-			"fiprocess_packet: Got SYNC packsize %d winsize %d",
-			ipack, iwin);
+	/* The fourth byte in a SYNC packet is the number of channels
+	   to use.  This is optional.  Switching the number of
+	   channels in the middle of a conversation may cause
+	   problems.  */
+	if (cfirst + csecond <= 3)
+	  cchans = 0;
+	else
+	  {
+	    if (cfirst > 3)
+	      cchans = zfirst[3];
+	    else
+	      cchans = zsecond[3 - cfirst];
+	    if (cchans > 0 && cchans < 8)
+	      qdaemon->cchans = cchans;
+	  }
+
+	DEBUG_MESSAGE3 (DEBUG_PROTO,
+			"fiprocess_packet: Got SYNC packsize %d winsize %d channels %d",
+			ipack, iwin, cchans);
 
 	if (iIforced_remote_packsize == 0
 	    && (iIalc_packsize == 0
 		|| ipack <= iIalc_packsize))
 	  iIremote_packsize = ipack;
-	if (iIforced_remote_winsize == 0)
-	  iIremote_winsize = iwin;
+	iIremote_winsize = iwin;
 
 	/* We increment a static variable to tell the initialization
 	   code that a SYNC was received, and we set *pfexit to TRUE
@@ -1477,44 +1546,68 @@ fiprocess_packet (qdaemon, zhdr, zfirst, cfirst, zsecond, csecond, pfexit)
 
 	iseq = IHDRWIN_GETSEQ (zhdr[IHDR_LOCAL]);
 
-	/* The timeout code will send a NAK for the packet the remote
-	   side wants.  So we may see a NAK here for the packet we are
-	   about to send.  */
-	if (iseq == iIsendseq
-	    || (iIremote_winsize > 0
-		&& (CSEQDIFF (iseq, iIremote_ack) > iIremote_winsize
-		    || CSEQDIFF (iIsendseq, iseq) > iIremote_winsize)))
+	/* If the remote side times out while waiting for a packet, it
+	   will send a NAK for the next packet it wants to see.  If we
+	   have not sent that packet yet, and we have no
+	   unacknowledged data, it implies that the remote side has a
+	   window full of data to send, which implies that our ACK has
+	   been lost.  Therefore, we send an ACK.  */
+	if (iseq == iIsendseq &&
+	    INEXTSEQ (iIremote_ack) == iIsendseq)
 	  {
-	    DEBUG_MESSAGE1 (DEBUG_PROTO | DEBUG_ABNORMAL,
-			    "fiprocess_packet: Ignoring out of order NAK %d",
-			    iseq);
-	    return TRUE;
-	  }
+	    char aback[CHDRLEN];
 
-	DEBUG_MESSAGE1 (DEBUG_PROTO | DEBUG_ABNORMAL,
-			"fiprocess_packet: Got NAK %d; resending packet",
-			iseq);
-
-	/* Update the received sequence number.  */
-	zsend = azIsendbuffers[iseq] + CHDROFFSET;
-	if (IHDRWIN_GETSEQ (zsend[IHDR_REMOTE]) != iIrecseq)
-	  {
-	    int iremote;
-
-	    iremote = IHDRWIN_GETCHAN (zsend[IHDR_REMOTE]);
-	    zsend[IHDR_REMOTE] = IHDRWIN_SET (iIrecseq, iremote);
-	    zsend[IHDR_CHECK] = IHDRCHECK_VAL (zsend);
+	    aback[IHDR_INTRO] = IINTRO;
+	    aback[IHDR_LOCAL] = IHDRWIN_SET (0, 0);
+	    aback[IHDR_REMOTE] = IHDRWIN_SET (iIrecseq, 0);
 	    iIlocal_ack = iIrecseq;
+	    aback[IHDR_CONTENTS1] = IHDRCON_SET1 (ACK, qdaemon->fcaller, 0);
+	    aback[IHDR_CONTENTS2] = IHDRCON_SET2 (ACK, qdaemon->fcaller, 0);
+	    aback[IHDR_CHECK] = IHDRCHECK_VAL (aback);
+
+	    DEBUG_MESSAGE1 (DEBUG_PROTO, "fiprocess_packet: Sending ACK %d",
+			    iIrecseq);
+
+	    return (*pfIsend) (qdaemon->qconn, aback, CHDRLEN, TRUE);
 	  }
+	else
+	  {
+	    if (iseq == iIsendseq
+		|| (iIremote_winsize > 0
+		    && (CSEQDIFF (iseq, iIremote_ack) > iIremote_winsize
+			|| CSEQDIFF (iIsendseq, iseq) > iIremote_winsize)))
+	      {
+		DEBUG_MESSAGE2 (DEBUG_PROTO | DEBUG_ABNORMAL,
+				"fiprocess_packet: Ignoring out of order NAK %d (sendseq %d)",
+				iseq, iIsendseq);
+		return TRUE;
+	      }
+
+	    DEBUG_MESSAGE1 (DEBUG_PROTO | DEBUG_ABNORMAL,
+			    "fiprocess_packet: Got NAK %d; resending packet",
+			    iseq);
+
+	    /* Update the received sequence number.  */
+	    zsend = azIsendbuffers[iseq] + CHDROFFSET;
+	    if (IHDRWIN_GETSEQ (zsend[IHDR_REMOTE]) != iIrecseq)
+	      {
+		int iremote;
+
+		iremote = IHDRWIN_GETCHAN (zsend[IHDR_REMOTE]);
+		zsend[IHDR_REMOTE] = IHDRWIN_SET (iIrecseq, iremote);
+		zsend[IHDR_CHECK] = IHDRCHECK_VAL (zsend);
+		iIlocal_ack = iIrecseq;
+	      }
 	      
-	++cIresent_packets;
+	    ++cIresent_packets;
 
-	clen = CHDRCON_GETBYTES (zsend[IHDR_CONTENTS1],
-				 zsend[IHDR_CONTENTS2]);
+	    clen = CHDRCON_GETBYTES (zsend[IHDR_CONTENTS1],
+				     zsend[IHDR_CONTENTS2]);
 
-	return (*pfIsend) (qdaemon->qconn, zsend,
-			   CHDRLEN + clen + (clen > 0 ? CCKSUMLEN : 0),
-			   TRUE);
+	    return (*pfIsend) (qdaemon->qconn, zsend,
+			       CHDRLEN + clen + (clen > 0 ? CCKSUMLEN : 0),
+			       TRUE);
+	  }
       }
 
     case SPOS:

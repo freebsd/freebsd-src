@@ -1,7 +1,7 @@
 #	@(#)Makefile	5.14 (Berkeley) 6/18/90
 
 PROG=	netstat
-SRCS=	inet.c if.c main.c mbuf.c route.c unix.c
+SRCS=	inet.c if.c main.c mbuf.c route.c unix.c mroute.c
 
 #SRCS+=	host.c
 #CFLAGS+= -DIMP

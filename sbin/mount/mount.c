@@ -103,6 +103,7 @@ int retrycnt;
 #define	BGRND	1
 #define	ISBGRND	2
 int opflags = 0;
+u_short serverport = 0;
 #endif
 
 main(argc, argv, arge)
@@ -301,9 +302,11 @@ mountfs(spec, name, flags, type, options, mntopts)
 	case MOUNT_NFS:
 		retrycnt = DEF_RETRY;
 		if (mntopts)
-			getnfsopts(mntopts, &nfsargs, &opflags, &retrycnt);
+			getnfsopts(mntopts, &nfsargs, &opflags, &retrycnt,
+				   &serverport);
 		if (options)
-			getnfsopts(options, &nfsargs, &opflags, &retrycnt);
+			getnfsopts(options, &nfsargs, &opflags, &retrycnt,
+				   &serverport);
 		if (argp = getnfsargs(spec, &nfsargs))
 			break;
 		return (1);
@@ -643,11 +646,12 @@ exclusive(a, b)
  * Handle the getoption arg.
  * Essentially update "opflags", "retrycnt" and "nfsargs"
  */
-getnfsopts(optarg, nfsargsp, opflagsp, retrycntp)
+getnfsopts(optarg, nfsargsp, opflagsp, retrycntp, serverport)
 	char *optarg;
 	register struct nfs_args *nfsargsp;
 	int *opflagsp;
 	int *retrycntp;
+	u_short *serverport;
 {
 	register char *cp, *nextcp;
 	int num;
@@ -696,6 +700,8 @@ getnfsopts(optarg, nfsargsp, opflagsp, retrycntp)
 		} else if (!strcmp(cp, "retrans") && num > 0) {
 			nfsargsp->retrans = num;
 			nfsargsp->flags |= NFSMNT_RETRANS;
+		} else if (!strcmp(cp, "port") && num > 0) {
+			*serverport = num;
 		}
 	}
 	if (nfsargsp->sotype == SOCK_DGRAM) {
@@ -748,8 +754,10 @@ getnfsargs(spec, nfsargsp)
 	while (retrycnt > 0) {
 		saddr.sin_family = AF_INET;
 		saddr.sin_port = htons(PMAPPORT);
-		if ((tport = pmap_getport(&saddr, RPCPROG_NFS,
-		    NFS_VER2, IPPROTO_UDP)) == 0) {
+		tport = serverport;
+		if (serverport == 0 &&
+		    ((tport = pmap_getport(&saddr, RPCPROG_NFS,
+					   NFS_VER2, IPPROTO_UDP)) == 0)) {
 			if ((opflags & ISBGRND) == 0)
 				clnt_pcreateerror("NFS Portmap");
 		} else {

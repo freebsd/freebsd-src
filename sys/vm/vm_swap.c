@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_swap.c	7.18 (Berkeley) 5/6/91
- *	$Id: vm_swap.c,v 1.7 1993/12/19 00:56:15 wollman Exp $
+ *	$Id: vm_swap.c,v 1.8 1994/03/14 21:54:32 davidg Exp $
  */
 
 #include "param.h"
@@ -48,6 +48,7 @@
 #include "kernel.h"
 
 static int swfree(struct proc *, int);
+int vm_swap_size;
 
 /*
  * Indirect driver for multi-controller paging.
@@ -264,6 +265,7 @@ swfree(p, index)
 		if (blk > dmmax)
 			blk = dmmax;
 		rlist_free(&swapmap, vsbase, vsbase + blk - 1); 
+		vm_swap_size += blk;
 	}
 	return (0);
 }

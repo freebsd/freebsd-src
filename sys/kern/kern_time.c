@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_time.c	7.15 (Berkeley) 3/17/91
- *	$Id: kern_time.c,v 1.4 1993/11/25 01:33:14 wollman Exp $
+ *	$Id: kern_time.c,v 1.5 1994/06/22 05:52:47 jkh Exp $
  */
 
 #include "param.h"
@@ -103,7 +103,9 @@ settimeofday(p, uap, retval)
 			return (error);
 		/* WHAT DO WE DO ABOUT PENDING REAL-TIME TIMEOUTS??? */
 		boottime.tv_sec += atv.tv_sec - time.tv_sec;
-		s = splhigh(); time = atv; splx(s);
+		s = splclock();
+		time.tv_sec = atv.tv_sec;	/* XXX avoid skew in tv_usec */
+		splx(s);
 		resettodr();
 	}
 	if (uap->tzp && (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz,

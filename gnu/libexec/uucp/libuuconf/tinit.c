@@ -1,7 +1,7 @@
 /* tinit.c
    Initialize for reading Taylor UUCP configuration files.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tinit_rcsid[] = "$Id: tinit.c,v 1.1 1993/08/05 18:26:08 conklin Exp $";
+const char _uuconf_tinit_rcsid[] = "$Id: tinit.c,v 1.2 1994/05/07 18:13:07 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -35,8 +35,10 @@ const char _uuconf_tinit_rcsid[] = "$Id: tinit.c,v 1.1 1993/08/05 18:26:08 conkl
 
 static int itset_default P((struct sglobal *qglobal, char ***ppzvar,
 			    const char *zfile));
-static int itadd P((pointer pglobal, int argc, char **argv, pointer pvar,
-		    pointer pinfo));
+static int itdebug P((pointer pglobal, int argc, char **argv, pointer pvar,
+		      pointer pinfo));
+static int itaddfile P((pointer pglobal, int argc, char **argv, pointer pvar,
+			pointer pinfo));
 static int itunknown P((pointer pglobal, int argc, char **argv, pointer pvar,
 			pointer pinfo));
 static int itprogram P((pointer pglobal, int argc, char **argv, pointer pvar,
@@ -62,22 +64,24 @@ static const struct cmdtab_offset asCmds[] =
       offsetof (struct sprocess, zstatsfile), NULL },
   { "debugfile", UUCONF_CMDTABTYPE_STRING,
       offsetof (struct sprocess, zdebugfile), NULL },
-  { "debug", UUCONF_CMDTABTYPE_STRING,
-      offsetof (struct sprocess, zdebug), NULL },
+  { "debug", UUCONF_CMDTABTYPE_FN | 0,
+      offsetof (struct sprocess, zdebug), itdebug },
   { "max-uuxqts", UUCONF_CMDTABTYPE_INT,
       offsetof (struct sprocess, cmaxuuxqts), NULL },
+  { "run-uuxqt", UUCONF_CMDTABTYPE_STRING,
+      offsetof (struct sprocess, zrunuuxqt), NULL },
   { "sysfile", UUCONF_CMDTABTYPE_FN | 0,
-      offsetof (struct sprocess, pzsysfiles), itadd },
+      offsetof (struct sprocess, pzsysfiles), itaddfile },
   { "portfile", UUCONF_CMDTABTYPE_FN | 0,
-      offsetof (struct sprocess, pzportfiles), itadd },
+      offsetof (struct sprocess, pzportfiles), itaddfile },
   { "dialfile", UUCONF_CMDTABTYPE_FN | 0,
-      offsetof (struct sprocess, pzdialfiles), itadd },
+      offsetof (struct sprocess, pzdialfiles), itaddfile },
   { "dialcodefile", UUCONF_CMDTABTYPE_FN | 0,
-      offsetof (struct sprocess, pzdialcodefiles), itadd },
+      offsetof (struct sprocess, pzdialcodefiles), itaddfile },
   { "callfile", UUCONF_CMDTABTYPE_FN | 0,
-      offsetof (struct sprocess, pzcallfiles), itadd },
+      offsetof (struct sprocess, pzcallfiles), itaddfile },
   { "passwdfile", UUCONF_CMDTABTYPE_FN | 0,
-      offsetof (struct sprocess, pzpwdfiles), itadd },
+      offsetof (struct sprocess, pzpwdfiles), itaddfile },
   { "unknown", UUCONF_CMDTABTYPE_FN, offsetof (struct sprocess, qunknown),
       itunknown },
   { "v2-files", UUCONF_CMDTABTYPE_BOOLEAN,
@@ -227,11 +231,29 @@ uuconf_taylor_init (ppglobal, zprogram, zname)
   return UUCONF_SUCCESS;
 }
 
-/* Add new strings to a variable.  */
+/* Local interface to the _uuconf_idebug_cmd function, which handles
+   the "debug" command.  */
+
+static int
+itdebug (pglobal, argc, argv, pvar, pinfo)
+     pointer pglobal;
+     int argc;
+     char **argv;
+     pointer pvar;
+     pointer pinfo;
+{
+  struct sglobal *qglobal = (struct sglobal *) pglobal;
+  char **pzdebug = (char **) pvar;
+
+  return _uuconf_idebug_cmd (qglobal, pzdebug, argc, argv,
+			     qglobal->pblock);
+}
+
+/* Add new filenames to a list of files.  */
 
 /*ARGSUSED*/
 static int
-itadd (pglobal, argc, argv, pvar, pinfo)
+itaddfile (pglobal, argc, argv, pvar, pinfo)
      pointer pglobal;
      int argc;
      char **argv;
@@ -254,7 +276,19 @@ itadd (pglobal, argc, argv, pvar, pinfo)
     {
       for (i = 1; i < argc; i++)
 	{
-	  iret = _uuconf_iadd_string (qglobal, argv[i], TRUE, FALSE, ppz,
+	  char *z;
+	  boolean fallocated;
+
+	  MAKE_ABSOLUTE (z, fallocated, argv[i], NEWCONFIGLIB,
+			 qglobal->pblock);
+	  if (z == NULL)
+	    {
+	      qglobal->ierrno = errno;
+	      return (UUCONF_MALLOC_FAILED
+		      | UUCONF_ERROR_ERRNO
+		      | UUCONF_CMDTABRET_EXIT);
+	    }
+	  iret = _uuconf_iadd_string (qglobal, z, ! fallocated, FALSE, ppz,
 				      qglobal->pblock);
 	  if (iret != UUCONF_SUCCESS)
 	    return iret;
@@ -367,4 +401,61 @@ itset_default (qglobal, ppzvar, zfile)
 
   return _uuconf_iadd_string (qglobal, zadd, FALSE, FALSE, ppzvar,
 			      qglobal->pblock);
+}
+
+/* Handle the "debug" command which is documented to take multiple
+   arguments.  This is also called by the ``debug'' command in a sys
+   file.  It returns a CMDTABRET code.  This should probably be in its
+   own file, but the only other place it is called is from tsinfo.c,
+   and any user of tsinfo.c it sure to link in this file as well.  */
+
+int
+_uuconf_idebug_cmd (qglobal, pzdebug, argc, argv, pblock)
+     struct sglobal *qglobal;
+     char **pzdebug;
+     int argc;
+     char **argv;
+     pointer pblock;
+{
+  if (argc == 1)
+    {
+      *pzdebug = NULL;
+      return UUCONF_CMDTABRET_CONTINUE;
+    }
+  else if (argc == 2)
+    {
+      *pzdebug = argv[1];
+      return UUCONF_CMDTABRET_KEEP;
+    }
+  else
+    {
+      size_t cdebug;
+      int i;
+      char *zdebug;
+
+      cdebug = 0;
+      for (i = 1; i < argc; i++)
+	cdebug += strlen (argv[i]) + 1;
+      zdebug = (char *) uuconf_malloc (pblock, cdebug);
+      if (zdebug == NULL)
+	{
+	  qglobal->ierrno = errno;
+	  return (UUCONF_MALLOC_FAILED
+		  | UUCONF_ERROR_ERRNO
+		  | UUCONF_CMDTABRET_EXIT);
+	}
+      cdebug = 0;
+      for (i = 1; i < argc; i++)
+	{
+	  size_t clen;
+
+	  clen = strlen (argv[i]);
+	  memcpy (zdebug + cdebug, argv[i], clen);
+	  zdebug[cdebug + clen] = ' ';
+	  cdebug += clen + 1;
+	}
+      zdebug[cdebug - 1] = '\0';
+      *pzdebug = zdebug;
+      return UUCONF_CMDTABRET_CONTINUE;
+    }
 }

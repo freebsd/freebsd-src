@@ -40,7 +40,7 @@ char copyright[] =
 #ifndef lint
 /* From: static char sccsid[] = "@(#)main.c	5.23 (Berkeley) 7/1/91"; */
 const char main_c_rcsid[] =
-	"$Id: main.c,v 1.2 1993/11/17 20:19:22 wollman Exp $";
+	"$Id: main.c,v 1.5 1994/05/17 21:50:41 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -115,12 +115,23 @@ struct nlist nl[] = {
 	{ "_cltb"},
 #define N_CLTPSTAT	28
 	{ "_cltpstat"},
+#define	N_IGMPSTAT	29
+	{ "_igmpstat" },
+#define	N_MRTPROTO	30
+	{ "_ip_mrtproto" },
+#define	N_MRTSTAT	31
+	{ "_mrtstat" },
+#define	N_MRTTABLE	32
+	{ "_mrttable" },
+#define	N_VIFTABLE	33
+	{ "_viftable" },
 	"",
 };
 
 /* internet protocols */
 extern	int protopr();
 extern	int tcp_stats(), udp_stats(), ip_stats(), icmp_stats();
+extern	int igmp_stats();
 #ifdef NS
 /* ns protocols */
 extern	int nsprotopr();
@@ -152,6 +163,8 @@ struct protox {
 	  ip_stats,	"ip" },
 	{ -1,		N_ICMPSTAT,	1,	0,
 	  icmp_stats,	"icmp" },
+	{ -1,		N_IGMPSTAT,	1,	0,
+	  igmp_stats,	"igmp"},
 	{ -1,		-1,		0,	0,
 	  0,		0 }
 };
@@ -208,6 +221,7 @@ int	mflag;
 int	nflag;
 int	pflag;
 int	rflag;
+int	Rflag;	/* Multicast routing stats */
 int	sflag;
 int	tflag;
 int	dflag;
@@ -229,7 +243,7 @@ main(argc, argv)
 	int ch;
 	void usage(); 
 
-	while ((ch = getopt(argc, argv, "Aadf:hI:iM:mN:np:rstuw")) != EOF)
+	while ((ch = getopt(argc, argv, "Aadf:ghI:iM:mN:np:rstuw:")) != EOF)
 		switch((char)ch) {
 		case 'A':
 			Aflag = 1;
@@ -294,6 +308,9 @@ main(argc, argv)
 			break;
 		case 'r':
 			rflag = 1;
+			break;
+		case 'g':
+			Rflag = 1;
 			break;
 		case 's':
 			sflag = 1;
@@ -379,6 +396,16 @@ main(argc, argv)
 				(off_t)nl[N_RTNET].n_value,
 				(off_t)nl[N_RTHASHSIZE].n_value,
 				(off_t)nl[N_RTREE].n_value);
+		exit(0);
+	}
+	if (Rflag) {
+		if (sflag)
+			mrt_stats((off_t)nl[N_MRTPROTO].n_value,
+				  (off_t)nl[N_MRTSTAT].n_value);
+		else
+			mroutepr((off_t)nl[N_MRTPROTO].n_value,
+				 (off_t)nl[N_MRTTABLE].n_value,
+				 (off_t)nl[N_VIFTABLE].n_value);
 		exit(0);
 	}
     if (af == AF_INET || af == AF_UNSPEC) {
@@ -500,7 +527,7 @@ usage()
 	(void)fprintf(stderr,
 "usage: netstat [-Aan] [-f address_family] [-M core] [-N system]\n");
 	(void)fprintf(stderr,
-"               [-himnrs] [-f address_family] [-M core] [-N system]\n");
+"               [-himnrRs] [-f address_family] [-M core] [-N system]\n");
 	(void)fprintf(stderr,
 "               [-n] [-I interface] [-M core] [-N system] [-w wait]\n");
 	(void)fprintf(stderr,

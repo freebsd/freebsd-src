@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)subr_prf.c	7.30 (Berkeley) 6/29/91
- *	$Id: subr_prf.c,v 1.6.2.1 1994/05/04 07:54:49 rgrimes Exp $
+ *	$Id: subr_prf.c,v 1.8 1994/05/04 08:27:06 rgrimes Exp $
  */
 
 #include "param.h"
@@ -87,7 +87,6 @@ static void  logpri __P((int level));
 static void  putchar __P((int ch, int flags, struct tty *tp));
 static char *ksprintn __P((u_long num, int base, int *len));
 void  kprintf __P((const char *fmt, int flags, struct tty *tp, va_list));
-volatile void boot(int bootopt);
 
 /*
  * Variable panicstr contains argument to first call to panic; used
@@ -106,14 +105,8 @@ int msgbufmapped;
  * and then reboots.  If we are called twice, then we avoid trying to sync
  * the disks as this often leads to recursive panics.
  */
-#ifdef __STDC__
-volatile void
-panic(const char *msg)
-#else
 void
-panic(msg)
-	char *msg;
-#endif
+panic(const char *msg)
 {
 	int bootopt = RB_AUTOBOOT | RB_DUMP;
 

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.12 1993/12/19 00:50:29 wollman Exp $
+ *      $Id: bt742a.c,v 1.22 1994/06/15 04:19:23 jkh Exp $
  */
 
 /*
@@ -126,7 +126,7 @@ struct bt_cmd_buf {
  * these could be bigger but we need the bt_data to fit on a single page..
  */
 
-#define BT_MBX_SIZE	16	/* mail box size  (MAX 255 MBxs) */
+#define BT_MBX_SIZE	32	/* mail box size  (MAX 255 MBxs) */
 				/* don't need that many really */
 #define BT_CCB_MAX	32	/* store up to 32CCBs at any one time */
 				/* in bt742a H/W ( Not MAX ? ) */
@@ -297,6 +297,21 @@ struct bt_config {
 	u_char  intr;
 	u_char  scsi_dev:3;
 	u_char	:5;
+};
+
+/*
+ * Determin 32bit address/Data firmware functionality from Bus type
+ * Note: bt742a/747[s|d]/757/946/445s will return 'E'
+ *       bt542b/545s/545d will be return 'A'
+ *				94/05/18 amurai@spec.co.jp
+ */
+#define BT_BUS_TYPE_24bit 'A' 	/* PC/AT 24 bit address bus type */
+#define BT_BUS_TYPE_32bit 'E' 	/* EISA/VLB/PCI 32 bit address bus type */
+#define BT_BUS_TYPE_MCA   'M'   /* Micro chanel is ? forget it right now */
+struct bt_ext_info {
+	u_char  bus_type;	/* Host adapter bus type */
+	u_char  bios_addr;	/* Bios Address-Not use*/
+	u_short max_seg;	/* Max segment List */
 };
 
 #define INT9	0x01
@@ -568,7 +583,8 @@ btprobe(dev)
 	}
 	/*
 	 * If it's there, put in it's interrupt vectors
-	 */ dev->id_unit = unit;
+	 */
+	dev->id_unit = unit;
 	dev->id_irq = (1 << bt->bt_int);
 	dev->id_drq = bt->bt_dma;
 
@@ -593,6 +609,7 @@ btattach(dev)
 	bt->sc_link.adapter_targ = bt->bt_scsi_dev;
 	bt->sc_link.adapter = &bt_switch;
 	bt->sc_link.device = &bt_dev;
+	bt->sc_link.flags = SDEV_BOUNCE;
 
 	/*
 	 * ask the adapter what subunits are present
@@ -818,7 +835,8 @@ bt_get_ccb(unit, flags)
 			goto gottit;
 		} else {
 			if (!(flags & SCSI_NOSLEEP)) {
-				sleep(&bt->bt_ccb_free, PRIBIO);
+				tsleep((caddr_t)&bt->bt_ccb_free, PRIBIO,
+				       "btccb", 0);
 			}
 		}
 	}
@@ -987,6 +1005,7 @@ bt_init(unit)
 	unsigned char ad[4];
 	volatile int i, sts;
 	struct bt_config conf;
+	struct bt_ext_info info;
 
 	/*
 	 * reset board, If it doesn't respond, assume 
@@ -1007,6 +1026,32 @@ bt_init(unit)
 #endif
 		return (ENXIO);
 	}
+	/*
+         * Make sure board has a capability of 32bit addressing.
+         *   and Firmware also need a capability of 32bit addressing pointer
+         *   in Extended mailbox and ccb structure.
+         *                                   94/05/18 amurai@spec.co.jp
+         */
+	bt_cmd(unit, 1, sizeof(info),0,&info, BT_INQUIRE_EXTENDED,sizeof(info));
+	switch (info.bus_type) {
+		case BT_BUS_TYPE_24bit:		/* PC/AT 24 bit address bus */
+			printf("bt%d: bt54x-ISA(24bit) bus detected\n", unit);
+			break;	
+		case BT_BUS_TYPE_32bit:		/* EISA/VLB/PCI 32 bit bus */
+			printf("bt%d: PCI/EISA/VLB(32bit) bus detected\n",unit);
+			break;	
+		case BT_BUS_TYPE_MCA:           /* forget it right now */
+			printf("bt%d: MCA bus architecture detected..", unit);
+			printf("[giving up]\n");
+			return (ENXIO);
+			break;
+		default:
+			printf("bt%d: Unknown state detected...", unit);
+			printf("[giving up]\n");
+			return (ENXIO);
+			break;
+	}
+
 	/*
 	 * Assume we have a board at this stage
 	 * setup dma channel from jumpers and save int
@@ -1107,8 +1152,6 @@ bt_init(unit)
 	bt->bt_mbx.tmbi = &bt->bt_mbx.mbi[0];
 	bt_inquire_setup_information(unit);
 
-	/* Enable round-robin scheme - appeared at firmware rev. 3.31 */
-	bt_cmd(unit, 1, 0, 0, 0, BT_ROUND_ROBIN, BT_ENABLE);
 
 	/*
 	 * Note that we are going and return (to probe)
@@ -1122,8 +1165,13 @@ bt_inquire_setup_information(unit)
 {
 	struct	bt_data *bt = btdata[unit];
 	struct	bt_setup setup;
+	char	dummy[8];
 	struct	bt_boardID bID;
 	int	i;
+
+       /* Inquire Installed Devices */
+	bzero( &dummy[0], sizeof(dummy) );
+        bt_cmd(unit, 0, sizeof(dummy), 10, &dummy[0], BT_DEV_GET);
 
 	/* Inquire Board ID to Bt742 for firmware version */
 	bt_cmd(unit, 0, sizeof(bID), 0, &bID, BT_INQUIRE);
@@ -1143,19 +1191,37 @@ bt_inquire_setup_information(unit)
 	} else {
 		printf("no parity, ");
 	}
-	printf("%d mbxs, %d ccbs\n", setup.num_mbx, bt->numccbs);
+	printf("%d mbxs, %d ccbs\n", setup.num_mbx, BT_CCB_MAX);
 
+
+	/*
+	 * Displaying SCSI negotiation value by each target.
+         *   How can I determin FAST scsi value? XXX amurai@spec.co.jp 
+         */
 	for (i = 0; i < 8; i++) {
-		if (!setup.sync[i].offset &&
-		    !setup.sync[i].period &&
-		    !setup.sync[i].valid)
+		if (!setup.sync[i].valid)
 			continue;
-
-		printf("bt%d: dev%02d Offset=%d,Transfer period=%d, Synchronous? %s",
-		    unit, i,
-		    setup.sync[i].offset, setup.sync[i].period,
-		    setup.sync[i].valid ? "Yes" : "No");
+		if (!setup.sync[i].offset && !setup.sync[i].period )
+		    printf("bt%d: targ %d async\n", unit, i);
+		else
+		    printf("bt%d: targ %d offset=%02d, period=%dnsec\n",
+		    	    unit, i,
+		    	    setup.sync[i].offset,
+		    	    200 + setup.sync[i].period * 50 );
 	}
+
+	/* 
+         * Enable round-robin scheme - appeared at firmware rev. 3.31
+	 *   Below rev 2.XX firmware has a problem for issuing 
+         *    BT_ROUND_ROBIN command  amurai@spec.co.jp
+	 */
+	if ( bID.firm_revision != '2' ) {
+		printf("bt%d: Enabling Round robin scheme\n", unit);
+		bt_cmd(unit, 1, 0, 0, 0, BT_ROUND_ROBIN, BT_ENABLE);
+	} else {
+		printf("bt%d: Not Enabling Round robin scheme\n", unit);
+	}
+
 }
 
 #ifndef	min
@@ -1434,13 +1500,15 @@ bt_timeout(caddr_t arg1, int arg2)
 	struct bt_data *bt;
 	int     s = splbio();
 
+	/*
+         * A timeout routine in kernel DONOT unlink
+	 * Entry chains when time outed....So infinity Loop..
+         *                              94/04/20 amurai@spec.co.jp
+         */
+	untimeout(bt_timeout, (caddr_t)ccb);
+
 	unit = ccb->xfer->sc_link->adapter_unit;
 	bt = btdata[unit];
-	printf("bt%d:%d:%d (%s%d) timed out ", unit
-	    ,ccb->xfer->sc_link->target
-	    ,ccb->xfer->sc_link->lun
-	    ,ccb->xfer->sc_link->device->name
-	    ,ccb->xfer->sc_link->dev_unit);
 
 #ifdef	UTEST
 	bt_print_active_ccbs(unit);
@@ -1467,13 +1535,14 @@ bt_timeout(caddr_t arg1, int arg2)
 		ccb->xfer->retries = 0;		/* I MEAN IT ! */
 		ccb->host_stat = BT_ABORTED;
 		bt_done(unit, ccb);
-	} else {		/* abort the operation that has timed out */
+	} else {	
+		/* abort the operation that has timed out */
 		printf("bt%d: Try to abort\n", unit);
 		bt_send_mbo(unit, ~SCSI_NOMASK,
 		    BT_MBO_ABORT, ccb);
 		/* 2 secs for the abort */
-		timeout(bt_timeout, (caddr_t)ccb, 2 * hz);
 		ccb->flags = CCB_ABORTED;
+		timeout(bt_timeout, (caddr_t)ccb, 2 * hz);
 	}
 	splx(s);
 }

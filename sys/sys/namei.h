@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)namei.h	7.15 (Berkeley) 5/15/91
- *	$Id: namei.h,v 1.3 1993/11/07 17:52:53 wollman Exp $
+ *	$Id: namei.h,v 1.5 1994/05/26 04:29:54 ache Exp $
  */
 
 #ifndef _NAMEI_H_

@@ -3,6 +3,8 @@
 /* to a pointer to a function of type void (generic pointer) as per */
 /* ANSI C */
 
+/* $Id: callout.h,v 1.2 1994/03/30 09:31:22 jkh Exp $ */
+
 #ifndef _ppp_callout_h
 #define _ppp_callout_h
 

@@ -1,7 +1,7 @@
 /* uulog.c
    Display the UUCP log file.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uulog_rcsid[] = "$Id: uulog.c,v 1.1 1993/08/05 18:27:40 conklin Exp $";
+const char uulog_rcsid[] = "$Id: uulog.c,v 1.2 1994/05/07 18:14:12 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -42,15 +42,27 @@ const char uulog_rcsid[] = "$Id: uulog.c,v 1.1 1993/08/05 18:27:40 conklin Exp $
    is a very useful program anyhow.  It only takes a single -s and/or
    -u switch.  When using HAVE_HDB_LOGGING it requires a system.  */
 
-/* The program name.  */
-char abProgram[] = "uulog";
-
 /* Local functions.  */
 
 static void ulusage P((void));
+static void ulhelp P((void));
 
 /* Long getopt options.  */
-static const struct option asLlongopts[] = { { NULL, 0, NULL, 0 } };
+static const struct option asLlongopts[] =
+{
+  { "debuglog", no_argument, NULL, 'D' },
+  { "follow", optional_argument, NULL, 2 },
+  { "lines", required_argument, NULL, 'n' },
+  { "system", required_argument, NULL, 's' },
+  { "statslog", no_argument, NULL, 'S' },
+  { "user", required_argument, NULL, 'u' },
+  { "uuxqtlog", no_argument, NULL, 'x' },
+  { "config", required_argument, NULL, 'I' },
+  { "debug", required_argument, NULL, 'X' },
+  { "version", no_argument, NULL, 'v' },
+  { "help", no_argument, NULL, 1 },
+  { NULL, 0, NULL, 0 }
+};
 
 int
 main (argc, argv)
@@ -89,6 +101,8 @@ main (argc, argv)
   char *zline;
   size_t cline;
 
+  zProgram = argv[0];
+
   /* Look for a straight number argument, and convert it to -n before
      passing the arguments to getopt.  */
   for (i = 0; i < argc; i++)
@@ -107,7 +121,7 @@ main (argc, argv)
 	}
     }
 
-  while ((iopt = getopt_long (argc, argv, "Df:FI:n:s:Su:xX:", asLlongopts,
+  while ((iopt = getopt_long (argc, argv, "Df:FI:n:s:Su:vxX:", asLlongopts,
 			      (int *) NULL)) != EOF)
     {
       switch (iopt)
@@ -170,13 +184,35 @@ main (argc, argv)
 #endif
 	  break;
 
+	case 'v':
+	  /* Print version and exit.  */
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+		  zProgram, VERSION);
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
+	case 2:
+	  /* --follow.  */
+	  fforever = TRUE;
+	  if (cshow == 0)
+	    cshow = 10;
+	  if (optarg != NULL)
+	    zsystem = optarg;
+	  break;
+
+	case 1:
+	  /* --help.  */
+	  ulhelp ();
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
 	case 0:
 	  /* Long option found and flag set.  */
 	  break;
 
 	default:
 	  ulusage ();
-	  break;
+	  /*NOTREACHED*/
 	}
     }
 
@@ -211,7 +247,7 @@ main (argc, argv)
   if (iuuconf != UUCONF_SUCCESS)
     ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
 
-  usysdep_initialize (puuconf, 0);
+  usysdep_initialize (puuconf, INIT_NOCHDIR);
 
   if (zsystem != NULL)
     {
@@ -221,15 +257,16 @@ main (argc, argv)
 	{
 	  struct uuconf_system ssys;
 
+	  /* Canonicalize the system name.  If we can't find the
+	     system information, just use whatever we were given so
+	     that people can check on systems that logged in
+	     anonymously.  */
 	  iuuconf = uuconf_system_info (puuconf, zsystem, &ssys);
-	  if (iuuconf != UUCONF_SUCCESS)
+	  if (iuuconf == UUCONF_SUCCESS)
 	    {
-	      if (iuuconf != UUCONF_NOT_FOUND)
-		ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
-	      ulog (LOG_FATAL, "%s: System not found", zsystem);
+	      zsystem = zbufcpy (ssys.uuconf_zname);
+	      (void) uuconf_system_free (puuconf, &ssys);
 	    }
-	  zsystem = zbufcpy (ssys.uuconf_zname);
-	  (void) uuconf_system_free (puuconf, &ssys);
 	}
     }
 
@@ -247,7 +284,8 @@ main (argc, argv)
 
       /* We need a system to find a HDB log file.  */
       if (zsystem == NULL)
-	ulusage ();
+	ulog (LOG_FATAL,
+	      "system name (-s argument) required for HDB format log files");
 
       if (fuuxqt)
 	zprogram = "uuxqt";
@@ -260,6 +298,9 @@ main (argc, argv)
 		      + 1);
       sprintf (zalc, zlogfile, zprogram, zsystem);
       zfile = zalc;
+
+      if (! fsysdep_file_exists (zfile))
+	ulog (LOG_FATAL, "no log file available for system %s", zsystem);
 
       if (strcmp (zsystem, "ANY") == 0)
 	zsystem = NULL;
@@ -344,7 +385,7 @@ main (argc, argv)
 	      zlsys = znext;
 	      clsys = strcspn (znext, "!");
 	      znext += clsys + 1;
-	      zlsys = znext;
+	      zluser = znext;
 	      clsys = strcspn (znext, " \t");
 #endif
 	    }
@@ -411,34 +452,41 @@ static void
 ulusage ()
 {
   fprintf (stderr,
-	   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
-	   VERSION);
-  fprintf (stderr,
-	   "Usage: uulog [-n #] [-sf system] [-u user] [-xDSF] [-I file] [-X debug]\n");
-  fprintf (stderr,
-	   " -n: show given number of lines from end of log\n");
-  fprintf (stderr,
-	   " -s: print entries for named system\n");
-  fprintf (stderr,
-	   " -f: follow entries for named system\n");
-  fprintf (stderr,
-	   " -u: print entries for named user\n");
-#if HAVE_HDB_LOGGING
-  fprintf (stderr,
-	   " -x: print uuxqt log rather than uucico log\n");
-#else
-  fprintf (stderr,
-	   " -F: follow entries for any system\n");
-#endif
-  fprintf (stderr,
-	   " -S: show statistics file\n");
-  fprintf (stderr,
-	   " -D: show debugging file\n");
-  fprintf (stderr,
-	   " -X debug: Set debugging level (0 for none, 9 is max)\n");
-#if HAVE_TAYLOR_CONFIG
-  fprintf (stderr,
-	   " -I file: Set configuration file to use\n");
-#endif /* HAVE_TAYLOR_CONFIG */
+	   "Usage: %s [-n #] [-sf system] [-u user] [-xDSF] [-I file] [-X debug]\n",
+	   zProgram);
+  fprintf (stderr, "Use %s --help for help\n", zProgram);
   exit (EXIT_FAILURE);
+}
+
+/* Print a help message.  */
+
+static void
+ulhelp ()
+{
+  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	   VERSION);
+#if HAVE_HDB_LOGGING
+  printf ("Usage: %s [-n #] [-sf system] [-u user] [-xDS] [-I file] [-X debug]\n",
+	   zProgram);
+#else
+  printf ("Usage: %s [-n #] [-sf system] [-u user] [-DSF] [-I file] [-X debug]\n",
+	   zProgram);
+#endif
+  printf (" -n,--lines: show given number of lines from end of log\n");
+  printf (" -s,--system: print entries for named system\n");
+  printf (" -f system,--follow=system: follow entries for named system\n");
+  printf (" -u,--user user: print entries for named user\n");
+#if HAVE_HDB_LOGGING
+  printf (" -x,--uuxqt: print uuxqt log rather than uucico log\n");
+#else
+  printf (" -F,--follow: follow entries for any system\n");
+#endif
+  printf (" -S,--statslog: show statistics file\n");
+  printf (" -D,--debuglog: show debugging file\n");
+  printf (" -X,--debug debug: Set debugging level\n");
+#if HAVE_TAYLOR_CONFIG
+  printf (" -I,--config file: Set configuration file to use\n");
+#endif /* HAVE_TAYLOR_CONFIG */
+  printf (" -v,--version: Print version and exit\n");
+  printf (" --help: Print help and exit\n");
 }

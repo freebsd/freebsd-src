@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_synch.c	7.18 (Berkeley) 6/27/91
- *	$Id: kern_synch.c,v 1.4 1994/02/11 21:14:28 guido Exp $
+ *	$Id: kern_synch.c,v 1.5 1994/03/20 00:33:06 wollman Exp $
  */
 
 #include "param.h"
@@ -381,7 +381,7 @@ endtsleep(arg1, dummy)
 	splx(s);
 }
 
-#if 1				/* XXX this should go away... */
+#if 0				/* This is obsolete, use tsleep(). */
 /*
  * Short-term, non-interruptable sleep.
  */

@@ -1,14 +1,16 @@
 /*
- * $Id: lib.c,v 1.9 1994/02/13 20:41:37 jkh Exp $	- library routines
+ * $Id: lib.c,v 1.10 1994/06/15 22:39:49 rich Exp $	- library routines
  */
 
 #include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <err.h>
 #include <fcntl.h>
 #include <ar.h>
 #include <ranlib.h>
@@ -16,6 +18,7 @@
 #include <stab.h>
 #include <string.h>
 #include <dirent.h>
+#include <ctype.h>
 
 #include "ld.h"
 
@@ -26,15 +29,15 @@ static struct file_entry	*decode_library_subfile __P((int,
 							int, int *));
 
 /*
- * Search the library ENTRY, already open on descriptor DESC. This means
+ * Search the library ENTRY, already open on descriptor FD. This means
  * deciding which library members to load, making a chain of `struct
  * file_entry' for those members, and entering their global symbols in the
  * hash table.
  */
 
 void
-search_library(desc, entry)
-	int             desc;
+search_library(fd, entry)
+	int             fd;
 	struct file_entry *entry;
 {
 	int             member_length;
@@ -45,7 +48,7 @@ search_library(desc, entry)
 		return;
 
 	/* Examine its first member, which starts SARMAG bytes in.  */
-	subentry = decode_library_subfile(desc, entry, SARMAG, &member_length);
+	subentry = decode_library_subfile(fd, entry, SARMAG, &member_length);
 	if (!subentry)
 		return;
 
@@ -55,21 +58,21 @@ search_library(desc, entry)
 	/* Search via __.SYMDEF if that exists, else linearly.  */
 
 	if (!strcmp(name, "__.SYMDEF"))
-		symdef_library(desc, entry, member_length);
+		symdef_library(fd, entry, member_length);
 	else
-		linear_library(desc, entry);
+		linear_library(fd, entry);
 }
 
 /*
  * Construct and return a file_entry for a library member. The library's
- * file_entry is library_entry, and the library is open on DESC.
+ * file_entry is library_entry, and the library is open on FD.
  * SUBFILE_OFFSET is the byte index in the library of this member's header.
  * We store the length of the member into *LENGTH_LOC.
  */
 
 static struct file_entry *
-decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
-	int             desc;
+decode_library_subfile(fd, library_entry, subfile_offset, length_loc)
+	int             fd;
 	struct file_entry *library_entry;
 	int             subfile_offset;
 	int            *length_loc;
@@ -82,17 +85,20 @@ decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
 	struct ar_hdr   hdr1;
 	register struct file_entry *subentry;
 
-	lseek(desc, subfile_offset, 0);
+	lseek(fd, subfile_offset, 0);
 
-	bytes_read = read(desc, &hdr1, sizeof hdr1);
+	bytes_read = read(fd, &hdr1, sizeof hdr1);
 	if (!bytes_read)
 		return 0;	/* end of archive */
 
 	if (sizeof hdr1 != bytes_read)
-		fatal_with_file("malformed library archive ", library_entry);
+		errx(1, "%s: malformed library archive",
+			get_file_name(library_entry));
 
 	if (sscanf(hdr1.ar_size, "%d", &member_length) != 1)
-		fatal_with_file("malformatted header of archive member in ", library_entry);
+		errx(1, "%s: malformatted header of archive member: %.*s",
+			get_file_name(library_entry),
+			sizeof(hdr1.ar_name), hdr1.ar_name);
 
 	subentry = (struct file_entry *) xmalloc(sizeof(struct file_entry));
 	bzero(subentry, sizeof(struct file_entry));
@@ -116,10 +122,10 @@ decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
 
 		namelen = atoi(&hdr1.ar_name[sizeof(AR_EFMT1) - 1]);
 		name = (char *)xmalloc(namelen + 1);
-		if (read(desc, name, namelen) != namelen)
-			fatal_with_file(
-			"malformatted header of archive member in ",
-				library_entry);
+		if (read(fd, name, namelen) != namelen)
+			errx(1, "%s: malformatted archive member: %.*s",
+				get_file_name(library_entry),
+				sizeof(hdr1.ar_name), hdr1.ar_name);
 		name[namelen] = 0;
 		content_length -= namelen;
 		starting_offset += namelen;
@@ -134,14 +140,16 @@ decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
 
 	subentry->filename = name;
 	subentry->local_sym_name = name;
+	subentry->starting_offset = starting_offset;
+	subentry->superfile = library_entry;
+	subentry->total_size = content_length;
+#if 0
 	subentry->symbols = 0;
 	subentry->strings = 0;
 	subentry->subfiles = 0;
-	subentry->starting_offset = starting_offset;
-	subentry->superfile = library_entry;
 	subentry->chain = 0;
 	subentry->flags = 0;
-	subentry->total_size = content_length;
+#endif
 
 	(*length_loc) = member_length;
 
@@ -151,15 +159,15 @@ decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
 static int	subfile_wanted_p __P((struct file_entry *));
 
 /*
- * Search a library that has a __.SYMDEF member. DESC is a descriptor on
+ * Search a library that has a __.SYMDEF member. FD is a descriptor on
  * which the library is open. The file pointer is assumed to point at the
  * __.SYMDEF data. ENTRY is the library's file_entry. MEMBER_LENGTH is the
  * length of the __.SYMDEF data.
  */
 
 static void
-symdef_library(desc, entry, member_length)
-	int             desc;
+symdef_library(fd, entry, member_length)
+	int             fd;
 	struct file_entry *entry;
 	int             member_length;
 {
@@ -174,14 +182,16 @@ symdef_library(desc, entry, member_length)
 	struct file_entry *prev = 0;
 	int             prev_offset = 0;
 
-	bytes_read = read(desc, symdef_data, member_length);
+	bytes_read = read(fd, symdef_data, member_length);
 	if (bytes_read != member_length)
-		fatal_with_file("malformatted __.SYMDEF in ", entry);
+		errx(1, "%s: malformatted __.SYMDEF",
+			get_file_name(entry));
 
 	nsymdefs = md_swap_long(*symdef_data) / sizeof(struct ranlib);
 	if (nsymdefs < 0 ||
 	    nsymdefs * sizeof(struct ranlib) + 2 * sizeof(int) > member_length)
-		fatal_with_file("malformatted __.SYMDEF in ", entry);
+		errx(1, "%s: malformatted __.SYMDEF",
+			get_file_name(entry));
 
 	symdef_base = (struct ranlib *) (symdef_data + 1);
 	length_of_strings = md_swap_long(*(int *) (symdef_base + nsymdefs));
@@ -189,7 +199,8 @@ symdef_library(desc, entry, member_length)
 	if (length_of_strings < 0
 	    || nsymdefs * sizeof(struct ranlib) + length_of_strings
 	    + 2 * sizeof(int) > member_length)
-		fatal_with_file("malformatted __.SYMDEF in ", entry);
+		errx(1, "%s: malformatted __.SYMDEF",
+			get_file_name(entry));
 
 	sym_name_base = sizeof(int) + (char *) (symdef_base + nsymdefs);
 
@@ -199,7 +210,8 @@ symdef_library(desc, entry, member_length)
 		register int    index = symdef_base[i].ran_un.ran_strx;
 		if (index < 0 || index >= length_of_strings
 		    || (index && *(sym_name_base + index - 1)))
-			fatal_with_file("malformatted __.SYMDEF in ", entry);
+			errx(1, "%s: malformatted __.SYMDEF",
+				get_file_name(entry));
 	}
 
 	/*
@@ -268,19 +280,19 @@ symdef_library(desc, entry, member_length)
 			 * Read the symbol table of the archive member.
 			 */
 
-			subentry = decode_library_subfile(desc,
+			subentry = decode_library_subfile(fd,
 						      entry, offset, &junk);
 			if (subentry == 0)
-				fatal(
+				errx(1,
 				"invalid offset for %s in symbol table of %s",
 				      sym_name_base
 					      + symdef_base[i].ran_un.ran_strx,
 				      entry->filename);
 
-			read_entry_symbols(desc, subentry);
+			read_entry_symbols(fd, subentry);
 			subentry->strings = (char *)
-				malloc(subentry->string_size);
-			read_entry_strings(desc, subentry);
+				alloca(subentry->string_size);
+			read_entry_strings(fd, subentry);
 
 			/*
 			 * Now scan the symbol table and decide whether to
@@ -289,6 +301,7 @@ symdef_library(desc, entry, member_length)
 
 			if (!(link_mode & FORCEARCHIVE) &&
 					!subfile_wanted_p(subentry)) {
+				if (subentry->symbols)
 				free(subentry->symbols);
 				free(subentry);
 			} else {
@@ -301,7 +314,7 @@ symdef_library(desc, entry, member_length)
 
 				not_finished = 1;
 
-				read_entry_relocation(desc, subentry);
+				read_entry_relocation(fd, subentry);
 				enter_file_symbols(subentry);
 
 				if (prev)
@@ -320,15 +333,14 @@ symdef_library(desc, entry, member_length)
 					if (symdef_base[j].ran_off == offset)
 						symdef_base[j].ran_un.ran_strx = -1;
 				}
-			}
 
 			/*
-			 * We'll read the strings again if we need them
-			 * again.
+				 * We'll read the strings again
+				 * if we need them.
 			 */
-			free(subentry->strings);
 			subentry->strings = 0;
 		}
+	}
 	}
 
 	free(symdef_data);
@@ -336,12 +348,12 @@ symdef_library(desc, entry, member_length)
 
 /*
  * Search a library that has no __.SYMDEF. ENTRY is the library's file_entry.
- * DESC is the descriptor it is open on.
+ * FD is the descriptor it is open on.
  */
 
 static void
-linear_library(desc, entry)
-	int             desc;
+linear_library(fd, entry)
+	int             fd;
 	struct file_entry *entry;
 {
 	register struct file_entry *prev = 0;
@@ -353,22 +365,23 @@ linear_library(desc, entry)
 		int				member_length;
 		register struct file_entry	*subentry;
 
-		subentry = decode_library_subfile(desc, entry,
+		subentry = decode_library_subfile(fd, entry,
 					this_subfile_offset, &member_length);
 
 		if (!subentry)
 			return;
 
-		read_entry_symbols(desc, subentry);
-		subentry->strings = (char *) alloca(subentry->string_size);
-		read_entry_strings(desc, subentry);
+		read_entry_symbols(fd, subentry);
+		subentry->strings = (char *)alloca(subentry->string_size);
+		read_entry_strings(fd, subentry);
 
 		if (!(link_mode & FORCEARCHIVE) &&
 					!subfile_wanted_p(subentry)) {
+			if (subentry->symbols)
 			free(subentry->symbols);
 			free(subentry);
 		} else {
-			read_entry_relocation(desc, subentry);
+			read_entry_relocation(fd, subentry);
 			enter_file_symbols(subentry);
 
 			if (prev)
@@ -527,6 +540,7 @@ subfile_wanted_p(entry)
 					/*
 					 * But this member wants it to be
 					 * a common; ignore it.
+					 */
 					continue;
 			}
 
@@ -550,7 +564,9 @@ subfile_wanted_p(entry)
 
 			if (write_map) {
 				print_file_name(entry, stdout);
-				fprintf(stdout, " needed due to shared lib ref %s\n", sp->name);
+				fprintf(stdout,
+					" needed due to shared lib ref %s\n",
+					sp->name);
 			}
 			return 1;
 		}
@@ -561,12 +577,12 @@ subfile_wanted_p(entry)
 
 /*
  * Read the symbols of dynamic entity ENTRY into core. Assume it is already
- * open, on descriptor DESC.
+ * open, on descriptor FD.
  */
 void
-read_shared_object (desc, entry)
+read_shared_object(fd, entry)
      struct file_entry *entry;
-     int desc;
+	int fd;
 {
 	struct _dynamic			dyn;
 	struct section_dispatch_table	sdt;
@@ -575,22 +591,23 @@ read_shared_object (desc, entry)
 	int				n, i, has_nz = 0;
 
 	if (!(entry->flags & E_HEADER_VALID))
-		read_header (desc, entry);
+		read_header(fd, entry);
 
 	/* Read DYNAMIC structure (first in data segment) */
-	lseek (desc,
-		text_offset (entry) + entry->header.a_text,
-		L_SET);
-	if (read(desc, &dyn, sizeof dyn) != sizeof dyn) {
-		fatal_with_file (
-			"premature eof in data segment of ", entry);
+	if (lseek(fd, text_offset(entry) + entry->header.a_text, L_SET) ==
+	    (off_t)-1)
+		err(1, "%s: lseek", get_file_name(entry));
+	if (read(fd, &dyn, sizeof dyn) != sizeof dyn) {
+		errx(1, "%s: premature EOF reading _dynamic",
+			get_file_name(entry));
 	}
 	md_swapin__dynamic(&dyn);
 
 	/* Check version */
 	switch (dyn.d_version) {
 	default:
-		fatal_with_file( "unsupported _DYNAMIC version ", entry);
+		errx(1, "%s: unsupported _DYNAMIC version: %d",
+			get_file_name(entry), dyn.d_version);
 		break;
 	case LD_VERSION_SUN:
 		break;
@@ -600,29 +617,33 @@ read_shared_object (desc, entry)
 	}
 
 	/* Read Section Dispatch Table (from data segment) */
-	lseek (desc,
+	if (lseek(fd,
 		text_offset(entry) + (long)dyn.d_un.d_sdt -
 			(DATA_START(entry->header) - N_DATOFF(entry->header)),
-		L_SET);
-	if (read(desc, &sdt, sizeof sdt) != sizeof sdt) {
-		fatal_with_file( "premature eof in data segment of ", entry);
-	}
+	    L_SET) == (off_t)-1)
+		err(1, "%s: lseek", get_file_name(entry));
+	if (read(fd, &sdt, sizeof sdt) != sizeof sdt)
+		errx(1, "%s: premature EOF reading sdt",
+			get_file_name(entry));
 	md_swapin_section_dispatch_table(&sdt);
 
 	/* Read symbols (text segment) */
 	n = sdt.sdt_strings - sdt.sdt_nzlist;
 	entry->nsymbols = n /
 		(has_nz ? sizeof(struct nzlist) : sizeof(struct nlist));
-	nzp = (struct nzlist *)(np = (struct nlist *) alloca (n));
+	nzp = (struct nzlist *)(np = (struct nlist *)alloca (n));
 	entry->symbols = (struct localsymbol *)
 			xmalloc(entry->nsymbols * sizeof(struct localsymbol));
-	lseek(desc, text_offset(entry) + (long)sdt.sdt_nzlist -
+
+	if (lseek(fd,
+	    text_offset(entry) + (long)sdt.sdt_nzlist -
 			(TEXT_START(entry->header) - N_TXTOFF(entry->header)),
-		L_SET);
-	if (read(desc, (char *)nzp, n) != n) {
-		fatal_with_file(
-			"premature eof while reading object symbols ", entry);
-	}
+	    L_SET) == (off_t)-1)
+		err(1, "%s: lseek", get_file_name(entry));
+	if (read(fd, (char *)nzp, n) != n)
+		errx(1, "%s: premature EOF reading symbols ",
+			get_file_name(entry));
+
 	if (has_nz)
 		md_swapin_zsymbols(nzp, entry->nsymbols);
 	else
@@ -645,15 +666,16 @@ read_shared_object (desc, entry)
 
 	/* Read strings (text segment) */
 	n = entry->string_size = sdt.sdt_str_sz;
-	entry->strings = (char *) alloca(n);
+	entry->strings = (char *)alloca(n);
 	entry->strings_offset = text_offset(entry) + sdt.sdt_strings;
-	lseek(desc, entry->strings_offset -
+	if (lseek(fd,
+	    entry->strings_offset -
 			(TEXT_START(entry->header) - N_TXTOFF(entry->header)),
-		L_SET);
-	if (read(desc, entry->strings, n) != n) {
-		fatal_with_file(
-			"premature eof while reading object strings ", entry);
-	}
+	    L_SET) == (off_t)-1)
+		err(1, "%s: lseek", get_file_name(entry));
+	if (read(fd, entry->strings, n) != n)
+		errx(1, "%s: premature EOF reading strings",
+			get_file_name(entry));
 	enter_file_symbols (entry);
 	entry->strings = 0;
 
@@ -675,19 +697,21 @@ read_shared_object (desc, entry)
 			bzero(subentry, sizeof(struct file_entry));
 			subentry->superfile = entry;
 
-			lseek(desc, offset -
-			   (TEXT_START(entry->header) - N_TXTOFF(entry->header)),
-				L_SET);
-			if (read(desc, &sod, sizeof(sod)) != sizeof(sod)) {
-				fatal_with_file(
-				"premature eof while reading sod ",
-						entry);
-			}
+			if (lseek(fd,
+			    offset - (TEXT_START(entry->header) -
+				      N_TXTOFF(entry->header)),
+			    L_SET) == (off_t)-1)
+				err(1, "%s: lseek", get_file_name(entry));
+			if (read(fd, &sod, sizeof(sod)) != sizeof(sod))
+				errx(1, "%s: premature EOF reding sod",
+					get_file_name(entry));
 			md_swapin_sod(&sod, 1);
-			(void)lseek(desc, (off_t)sod.sod_name -
-			   (TEXT_START(entry->header) - N_TXTOFF(entry->header)),
-			   L_SET);
-			(void)read(desc, name, sizeof(name)); /*XXX*/
+			if (lseek(fd,
+			    (off_t)sod.sod_name - (TEXT_START(entry->header) -
+						   N_TXTOFF(entry->header)),
+			    L_SET) == (off_t)-1)
+				err(1, "%s: lseek", get_file_name(entry));
+			(void)read(fd, name, sizeof(name)); /*XXX*/
 			if (sod.sod_library) {
 				int sod_major = sod.sod_major;
 				int sod_minor = sod.sod_minor;
@@ -695,7 +719,7 @@ read_shared_object (desc, entry)
 				libname = findshlib(name,
 						&sod_major, &sod_minor, 0);
 				if (libname == NULL)
-					fatal("no shared -l%s.%d.%d available",
+					errx(1,"no shared -l%s.%d.%d available",
 					name, sod.sod_major, sod.sod_minor);
 				subentry->filename = libname;
 				subentry->local_sym_name = concat("-l", name, "");
@@ -710,7 +734,7 @@ read_shared_object (desc, entry)
 			else
 				entry->subfiles = subentry;
 			prev = subentry;
-			desc = file_open(entry);
+			fd = file_open(entry);
 			if ((offset = (off_t)sod.sod_next) == 0)
 				break;
 		}
@@ -746,7 +770,7 @@ read_shared_object (desc, entry)
 		(void)read(fd, armag, SARMAG);
 		(void)close(fd);
 		if (strncmp(armag, ARMAG, SARMAG) != 0) {
-			error("%s: malformed silly archive",
+			warnx("%s: malformed silly archive",
 					get_file_name(entry));
 			goto out;
 		}
@@ -774,9 +798,8 @@ int
 findlib(p)
 struct file_entry	*p;
 {
-	int		desc;
 	int		i;
-	int		len;
+	int		fd = -1;
 	int		major = -1, minor = -1;
 	char		*cp, *fname = NULL;
 
@@ -785,14 +808,14 @@ struct file_entry	*p;
 
 	fname = findshlib(p->filename, &major, &minor, 1);
 
-	if (fname && (desc = open (fname, O_RDONLY, 0)) > 0) {
+	if (fname && (fd = open(fname, O_RDONLY, 0)) > 0) {
 		p->filename = fname;
 		p->lib_major = major;
 		p->lib_minor = minor;
 		p->flags &= ~E_SEARCH_DIRS;
-		return desc;
+		return fd;
 	}
-	free (fname);
+	(void)free(fname);
 
 dot_a:
 	p->flags &= ~E_SEARCH_DYNAMIC;
@@ -804,16 +827,17 @@ dot_a:
 		fname = concat("lib", p->filename, ".a");
 
 	for (i = 0; i < n_search_dirs; i++) {
-		register char *string
-			= concat (search_dirs[i], "/", fname);
-		desc = open (string, O_RDONLY, 0);
-		if (desc > 0) {
-			p->filename = string;
+		register char *path
+			= concat(search_dirs[i], "/", fname);
+		fd = open(path, O_RDONLY, 0);
+		if (fd > 0) {
+			p->filename = path;
 			p->flags &= ~E_SEARCH_DIRS;
 			break;
 		}
-		free (string);
+		(void)free(path);
 	}
-	return desc;
+	(void)free(fname);
+	return fd;
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_malloc.c	7.25 (Berkeley) 5/8/91
- *	$Id: kern_malloc.c,v 1.8 1994/02/10 08:04:07 davidg Exp $
+ *	$Id: kern_malloc.c,v 1.9 1994/04/13 00:54:59 ache Exp $
  */
 
 #include "param.h"
@@ -259,3 +259,75 @@ kmeminit()
 	kmemstats[M_MBUF].ks_limit = (vm_page_count * NBPG) / 16;
 #endif
 }
+
+void *
+contigmalloc(size, type, flags, maxpa, alignmask, boundarymask)
+	unsigned long size;
+	int type;
+	int flags;
+	unsigned long maxpa;		/* e.g. 16M - 1 for isa dma */
+	unsigned long alignmask;	/* e.g. 1M - 1 for M boundary */
+	unsigned long boundarymask;	/* e.g. 64K - 1 for 8-bit isa dma */
+{
+	unsigned long skipsize;
+	void *skipva;
+
+	size = round_page(size);
+	if (size == 0 || size > boundarymask + 1)
+		return (NULL);
+
+	/*
+	 * Attempt to push the physical address to a suitable boundary by
+	 * skipping some memory.  We could be cleverer here.  E.g., mallocate
+	 * lots of single pages and then free the ones that we hope to use.
+	 * flags == M_WAIT is likely to hang the system.
+	 */
+	for (skipsize = 0, skipva = NULL; ; skipsize += NBPG) {
+		unsigned long off;
+		unsigned long pa;
+		unsigned long prevpa;
+		void *va;
+
+		if (skipsize != 0) {
+			skipva = malloc(skipsize, type, flags);
+			if (skipva == NULL) {
+#ifdef DEBUG
+				printf("contigmalloc: skipva NULL on try %d\n",
+				       1 + skipsize / NBPG);
+#endif
+				return (NULL);
+			}
+		}
+		va = malloc(size, type, flags);
+		if (skipsize != 0)
+			free(skipva, type);
+		if (va == NULL) {
+#ifdef DEBUG
+			printf("contigmalloc: va NULL on try %d\n",
+			       1 + skipsize / NBPG);
+#endif
+			return (NULL);
+		}
+		for (off = 0, prevpa = 0; off < size; off += NBPG, prevpa = pa)
+		{
+			pa = pmap_extract(pmap_kernel(), (vm_offset_t)va + off);
+			if (pa + NBPG - 1 > maxpa
+			    || off == 0 && pa & alignmask
+			    || off != 0
+			       && (pa != prevpa + NBPG
+				   || (pa & boundarymask) == 0))
+				goto fail;
+		}
+#ifdef DEBUG
+		printf("contigmalloc: success at va %lx pa %lx on try %d\n",
+		       (unsigned long)va,
+		       pmap_extract(pmap_kernel(), (unsigned long)va),
+		       1 + skipsize / NBPG);
+#endif
+		return (va);
+fail:
+		free(va, type);
+	}
+}
+
+

@@ -1,7 +1,7 @@
 /* trans.h
    Header file for file and command transfer routines.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 /* The maximum possible number of channels.  */
@@ -56,6 +56,10 @@ struct sdaemon
 {
   /* Global uuconf pointer.  */
   pointer puuconf;
+  /* Configuration file name argument (from -I option).  */
+  const char *zconfig;
+  /* How often to spawn uuxqt (from uuconf_runuuxqt).  */
+  int irunuuxqt;
   /* Remote system information.  */
   const struct uuconf_system *qsys;
   /* Local name being used.  */
@@ -64,6 +68,8 @@ struct sdaemon
   struct sconnection *qconn;
   /* Protocol being used.  */
   const struct sprotocol *qproto;
+  /* Number of channels being used.  */
+  int cchans;
   /* The largest file size permitted for a local request.  */
   long clocal_size;
   /* The largest file size permitted for a remote request.  */
@@ -72,6 +78,13 @@ struct sdaemon
   long cmax_ever;
   /* The remote system ulimit.  */
   long cmax_receive;
+  /* Number of bytes sent.  */
+  long csent;
+  /* Number of bytes received.  */
+  long creceived;
+  /* Number of execution files received since the last time we spawned
+     uuxqt.  */
+  long cxfiles_received;
   /* Features supported by the remote side.  */
   int ifeatures;
   /* TRUE if we should request the remote side to hang up.  */
@@ -266,3 +279,10 @@ extern void usent_receive_ack P((struct sdaemon *qdaemon,
    lost.  */
 extern void uwindow_acked P((struct sdaemon *qdaemon,
 			     boolean fallacked));
+
+/* Spawn a uuxqt process.  The ffork argument is passed to
+   fsysdep_run.  If the zsys argument is not NULL, then -s zsys is
+   passed to uuxqt.  The zconfig argument is the name of the
+   configuration file, from the -I option.  */
+extern boolean fspawn_uuxqt P((boolean ffork, const char *zsys,
+			       const char *zconfig));

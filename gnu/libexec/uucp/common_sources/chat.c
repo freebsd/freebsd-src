@@ -1,7 +1,7 @@
 /* chat.c
    Chat routine for the UUCP package.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char chat_rcsid[] = "$Id: chat.c,v 1.1 1993/08/05 18:22:30 conklin Exp $";
+const char chat_rcsid[] = "$Id: chat.c,v 1.2 1994/05/07 18:08:33 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -153,6 +153,9 @@ fchat (qconn, puuconf, qchat, qsys, qdial, zphone, ftranslate, zport, ibaud)
       /* Loop over subexpects and subsends.  */
       while (TRUE)
 	{
+	  char *ztimeout;
+	  int ctimeout;
+
 	  /* Copy the expect string into the buffer so that we can
 	     modify it in cescape.  */
 	  clen = strlen (*pzchat);
@@ -167,6 +170,23 @@ fchat (qconn, puuconf, qchat, qsys, qdial, zphone, ftranslate, zport, ibaud)
 	  azstrings[0] = zbuf;
 	  if (azstrings[0][0] == '-')
 	    ++azstrings[0];
+
+	  /* \Wnum at the end of the string is a timeout.  */
+	  ctimeout = qchat->uuconf_ctimeout;
+	  ztimeout = strrchr (azstrings[0], '\\');
+	  if (ztimeout != NULL && ztimeout[1] == 'W')
+	    {
+	      char *zend;
+	      int cval;
+
+	      cval = (int) strtol (ztimeout + 2, &zend, 10);
+	      if (zend != ztimeout + 2 && *zend == '\0')
+		{
+		  ctimeout = cval;
+		  *ztimeout = '\0';
+		}
+	    }
+
 	  aclens[0] = cescape (azstrings[0]);
 
 	  if (aclens[0] == 0
@@ -185,8 +205,7 @@ fchat (qconn, puuconf, qchat, qsys, qdial, zphone, ftranslate, zport, ibaud)
 	      int istr;
 
 	      istr = icexpect (qconn, cstrings, azstrings, aclens,
-			       qchat->uuconf_ctimeout,
-			       qchat->uuconf_fstrip);
+			       ctimeout, qchat->uuconf_fstrip);
 
 	      /* If we found the string, break out of the
 		 subexpect/subsend loop.  */
@@ -640,7 +659,7 @@ fcsend (qconn, puuconf, z, qsys, qdial, zphone, ftranslate, fstrip)
 	      break;
 	    case 'd':
 	      fquote = fcsend_debug (fquote, (size_t) 0, "sleep");
-	      usysdep_sleep (2);
+	      usysdep_sleep (1);
 	      break;
 	    case 'e':
 	      fquote = fcsend_debug (fquote, (size_t) 0, "echo-check-off");
@@ -717,6 +736,8 @@ fcsend (qconn, puuconf, z, qsys, qdial, zphone, ftranslate, fstrip)
 	    case 'L':
 	      {
 		const char *zlog;
+		char *zcopy;
+		size_t clen;
 
 		if (qsys == NULL)
 		  {
@@ -756,18 +777,24 @@ fcsend (qconn, puuconf, z, qsys, qdial, zphone, ftranslate, fstrip)
 		      }
 		    zlog = zcallout_login;
 		  }
+		zcopy = zbufcpy (zlog);
+		clen = cescape (zcopy);
 		fquote = fcsend_debug (fquote, (size_t) 0, "login");
-		fquote = fcsend_debug (fquote, strlen (zlog), zlog);
-		if (! (*pfwrite) (qconn, zlog, strlen (zlog)))
+		fquote = fcsend_debug (fquote, clen, zcopy);
+		if (! (*pfwrite) (qconn, zcopy, clen))
 		  {
+		    ubuffree (zcopy);
 		    ucsend_debug_end (fquote, TRUE);
 		    return FALSE;
 		  }
+		ubuffree (zcopy);
 	      }
 	      break;
 	    case 'P':
 	      {
 		const char *zpass;
+		char *zcopy;
+		size_t clen;
 
 		if (qsys == NULL)
 		  {
@@ -807,13 +834,17 @@ fcsend (qconn, puuconf, z, qsys, qdial, zphone, ftranslate, fstrip)
 		      }
 		    zpass = zcallout_pass;
 		  }
+		zcopy = zbufcpy (zpass);
+		clen = cescape (zcopy);
 		fquote = fcsend_debug (fquote, (size_t) 0, "password");
-		fquote = fcsend_debug (fquote, strlen (zpass), zpass);
-		if (! (*pfwrite) (qconn, zpass, strlen (zpass)))
+		fquote = fcsend_debug (fquote, clen, zcopy);
+		if (! (*pfwrite) (qconn, zcopy, clen))
 		  {
+		    ubuffree (zcopy);
 		    ucsend_debug_end (fquote, TRUE);
 		    return FALSE;
 		  }
+		ubuffree (zcopy);
 	      }
 	      break;
 	    case 'D':
@@ -1168,6 +1199,7 @@ fcprogram (qconn, puuconf, pzprogram, qsys, qdial, zphone, zport, ibaud)
       for (zfrom = *pz; *zfrom != '\0'; zfrom++)
 	{
 	  const char *zadd = NULL;
+	  char *zfree = NULL;
 	  size_t cadd;
 	  char abadd[15];
 
@@ -1241,7 +1273,9 @@ fcprogram (qconn, puuconf, pzprogram, qsys, qdial, zphone, zport, ibaud)
 		      }
 		    zlog = zcallout_login;
 		  }
-		zadd = zlog;
+		zfree = zbufcpy (zlog);
+		(void) cescape (zfree);
+		zadd = zfree;
 	      }
 	      break;
 	    case 'P':
@@ -1287,7 +1321,9 @@ fcprogram (qconn, puuconf, pzprogram, qsys, qdial, zphone, zport, ibaud)
 		      }
 		    zpass = zcallout_pass;
 		  }
-		zadd = zpass;
+		zfree = zbufcpy (zpass);
+		(void) cescape (zfree);
+		zadd = zfree;
 	      }
 	      break;
 	    case 'D':
@@ -1405,6 +1441,7 @@ fcprogram (qconn, puuconf, pzprogram, qsys, qdial, zphone, zport, ibaud)
 	  memcpy (zto, zadd, cadd + 1);
 	  zto += cadd;
 	  clen += cadd;
+	  ubuffree (zfree);
 	}
 
       if (! fret)

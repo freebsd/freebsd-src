@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)utilities.c	5.30 (Berkeley) 7/26/91";
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/utilities.c,v 1.2 1993/07/22 16:52:01 jkh Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/utilities.c,v 1.3 1994/06/03 22:04:59 ats Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -195,7 +195,7 @@ flush(fd, bp)
 {
 	register int i, j;
 
-	if (!bp->b_dirty)
+	if (!bp || !bp->b_dirty)
 		return;
 	if (bp->b_errs != 0)
 		pfatal("WRITING %sZERO'ED BLOCK %d TO DISK\n",
@@ -240,7 +240,7 @@ ckfini()
 	}
 	flush(fswritefd, &cgblk);
 	free(cgblk.b_un.b_buf);
-	for (bp = bufhead.b_prev; bp != &bufhead; bp = nbp) {
+	for (bp = bufhead.b_prev; bp && (bp != &bufhead); bp = nbp) {
 		cnt++;
 		flush(fswritefd, bp);
 		nbp = bp->b_prev;

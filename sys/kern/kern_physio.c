@@ -45,7 +45,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_physio.c,v 1.1.2.2 1994/05/01 18:59:48 rgrimes Exp $
+ *	$Id: kern_physio.c,v 1.7 1994/04/25 23:48:29 davidg Exp $
  */
 
 #include "param.h"
@@ -56,7 +56,10 @@
 #include "malloc.h"
 #include "vnode.h"
 #include "vm/vm.h"
+#include "vm/vm_page.h"
 #include "specdev.h"
+
+#define HOLD_WORKS_FOR_SHARING
 
 /*
  * Driver interface to do "raw" I/O in the address space of a
@@ -79,6 +82,13 @@ rawwrite(dev, uio)
 				(caddr_t) (u_long) dev, uio));
 }
 
+static void
+physwakeup(bp)
+	struct buf *bp;
+{
+	wakeup((caddr_t) bp);
+	bp->b_flags &= ~B_CALL;
+}
 
 int physio(strat, dev, bp, off, rw, base, len, p)
 	d_strategy_t strat; 
@@ -92,7 +102,7 @@ int physio(strat, dev, bp, off, rw, base, len, p)
 	int amttodo = *len;
 	int error, amtdone;
 	vm_prot_t ftype;
-	vm_offset_t v, lastv;
+	vm_offset_t v, lastv, pa;
 	caddr_t adr;
 	int oldflags;
 	int s;
@@ -122,7 +132,6 @@ int physio(strat, dev, bp, off, rw, base, len, p)
 		splx(s);
 	}
 
-	bp->b_flags = B_BUSY | B_PHYS | rw;
 	bp->b_proc = p;
 	bp->b_dev = dev;
 	bp->b_error = 0;
@@ -131,17 +140,25 @@ int physio(strat, dev, bp, off, rw, base, len, p)
 
 	/* iteratively do I/O on as large a chunk as possible */
 	do {
-		bp->b_flags &= ~B_DONE;
+		bp->b_flags = B_BUSY | B_PHYS | B_CALL | rw;
+		bp->b_iodone = physwakeup;
 		bp->b_un.b_addr = base;
-		/* XXX limit */
+		/*
+		 * Notice that b_bufsize is more owned by the buffer
+		 * allocating entity, while b_bcount might be modified
+		 * by the called I/O routines.  So after I/O is complete
+		 * the only thing guaranteed to be unchanged is
+		 * b_bufsize.
+		 */
 		bp->b_bcount = min (256*1024, amttodo);
+		bp->b_bufsize = bp->b_bcount;
 
 		/* first, check if accessible */
-		if (rw == B_READ && !useracc(base, bp->b_bcount, B_WRITE)) {
+		if (rw == B_READ && !useracc(base, bp->b_bufsize, B_WRITE)) {
 			error = EFAULT;
 			goto errrtn;
 		}
-		if (rw == B_WRITE && !useracc(base, bp->b_bcount, B_READ)) {
+		if (rw == B_WRITE && !useracc(base, bp->b_bufsize, B_READ)) {
 			error = EFAULT;
 			goto errrtn;
 		}
@@ -153,16 +170,17 @@ int physio(strat, dev, bp, off, rw, base, len, p)
 			ftype = VM_PROT_READ;
 
 		lastv = 0;
-		for (adr = (caddr_t)trunc_page(base); adr < base + bp->b_bcount;
+		for (adr = (caddr_t)trunc_page(base); adr < base + bp->b_bufsize;
 			adr += NBPG) {
 	
 /*
- * make sure that the pde is valid and wired
+ * make sure that the pde is valid and held
  */
 			v = trunc_page(((vm_offset_t)vtopte(adr)));
 			if (v != lastv) {
-				vm_map_pageable(&p->p_vmspace->vm_map, v,
-					round_page(v+1), FALSE);
+				vm_fault_quick(v, VM_PROT_READ);
+				pa = pmap_extract(&p->p_vmspace->vm_pmap, v);
+				vm_page_hold(PHYS_TO_VM_PAGE(pa));
 				lastv = v;
 			}
 
@@ -170,65 +188,48 @@ int physio(strat, dev, bp, off, rw, base, len, p)
  * do the vm_fault if needed, do the copy-on-write thing when
  * reading stuff off device into memory.
  */
-			if (ftype & VM_PROT_WRITE) {
-				/*
-				 * properly handle copy-on-write
-				 */
-#if 0
-				*(volatile int *) adr += 0;
-#endif
-				vm_fault(&curproc->p_vmspace->vm_map,
-					(vm_offset_t) adr,
-					VM_PROT_READ|VM_PROT_WRITE, FALSE);
-			}
-#if 0
-			else {
-				/*
-				 * this clause is not really necessary because 
-				 * vslock does a vm_map_pageable FALSE.
-				 * It is not optimally efficient to reference the
-				 * page with the possiblity of it being paged out, but
-				 * if this page is faulted here, it will be placed on the
-				 * active queue, with the probability of it being paged
-				 * out being very very low.  This is here primarily for
-				 * "symmetry".
-				 */
-				*(volatile int *) adr;
-			}
-#endif
-		}
+			vm_fault_quick(adr, ftype);
+			pa = pmap_extract(&p->p_vmspace->vm_pmap, (vm_offset_t) adr);
 /*
- * if the process has been blocked by the wiring of the page table pages
- * above or faults of other pages, then the vm_map_pageable contained in the
- * vslock will fault the pages back in if they have been paged out since
- * being referenced in the loop above. (vm_map_pageable calls vm_fault_wire
- * which calls vm_fault to get the pages if needed.)
+ * hold the data page
  */
+			vm_page_hold(PHYS_TO_VM_PAGE(pa));
+		}
 
-		/* lock in core (perform vm_map_pageable, FALSE) */
-		vslock (base, bp->b_bcount);
+		vmapbuf(bp);
 
 		/* perform transfer */
-		physstrat(bp, strat, PRIBIO);
+		(*strat)(bp);
 
-		/* unlock (perform vm_map_pageable, TRUE) */
-		vsunlock (base, bp->b_bcount, 0);
+		/* pageout daemon doesn't wait for pushed pages */
+		s = splbio();
+		while ((bp->b_flags & B_DONE) == 0)
+			tsleep((caddr_t)bp, PRIBIO, "physstr", 0);
+		splx(s);
 
-		lastv = 0;
+		vunmapbuf(bp);
 
 /*
- * unwire the pde
+ * unhold the pde, and data pages
  */
-		for (adr = (caddr_t)trunc_page(base); adr < base + bp->b_bcount;
+		lastv = 0;
+		for (adr = (caddr_t)trunc_page(base); adr < base + bp->b_bufsize;
 			adr += NBPG) {
 			v = trunc_page(((vm_offset_t)vtopte(adr)));
 			if (v != lastv) {
-				vm_map_pageable(&p->p_vmspace->vm_map, v, round_page(v+1), TRUE);
+				pa = pmap_extract(&p->p_vmspace->vm_pmap, v);
+				vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 				lastv = v;
 			}
+			pa = pmap_extract(&p->p_vmspace->vm_pmap, (vm_offset_t) adr);
+			vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 		}
 			
 
+		/*
+		 * in this case, we need to use b_bcount instead of
+		 * b_bufsize.
+		 */
 		amtdone = bp->b_bcount - bp->b_resid;
 		amttodo -= amtdone;
 		base += amtdone;

@@ -63,6 +63,9 @@ typedef struct _rlib {
 RLIB *rhead, **pnext;
 
 FILE *fp;
+long symcnt;				/* symbol count */
+long tsymlen;				/* total string length */
+
 static void rexec(), symobj();
 
 build()
@@ -74,6 +77,8 @@ build()
 	afd = open_archive(O_RDWR);
 	fp = fdopen(afd, "r+");
 	tfd = tmp();
+	symcnt = 0;
+	tsymlen = 0;
 
 	SETCF(afd, archive, tfd, tname, RPAD|WPAD);
 
@@ -105,9 +110,6 @@ build()
 	close_archive(afd);
 	return(0);
 }
-
-long symcnt;				/* symbol count */
-long tsymlen;				/* total string length */
 
 /*
  * rexec

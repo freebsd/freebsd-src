@@ -38,6 +38,9 @@
 .Nm adduser
 .Nd procedure for adding new users
 .Sh DESCRIPTION
+This is a proceduce for adding now users, not a command.  Read the
+descriptions below and follow the steps.
+.Pp
 A new user must choose a login name, which must not already appear in
 .Pa /etc/passwd
 or
@@ -66,12 +69,23 @@ A skeletal account for a new user
 \*(lqernie\*(rq
 might look like:
 .Bd -literal
-ernie::25:30::0:0:Ernie Kovacs,508 Evans Hall,x7925,
+ernie:*:25:30::0:0:Ernie Kovacs,508 Evans Hall,x7925,
 	642-8202:/a/users/ernie:/bin/csh
 .Ed
 .Pp
 For a description of each of these fields, see
 .Xr passwd 5 .
+.Pp
+Use the
+.Xr passwd 1
+command to give the user an initial password.  You can type
+.Bd -literal
+passwd ernie
+.Ed
+.Pp
+as root to give ernie a password.  Remember, the password field (the *
+in the above example) holds the encrypted password, so
+writing the password there in plain text will not work.
 .Pp
 It is useful to give new users some help in getting started, supplying
 them with a few skeletal files such as

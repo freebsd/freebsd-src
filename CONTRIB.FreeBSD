@@ -1,20 +1,24 @@
-			  FreeBSD 1.1
-		        Contributor List
+			  FreeBSD 1.1.5
+		         Contributor List
 
 
 
 Derived Software Contributors:
 
-This software was derived from William F. Jolitz's 386BSD release 0.1. 
+This software was originally derived from William F. Jolitz's 386BSD
+release 0.1, though very little of the original 386BSD specific code
+remains.
+
 Please see the file CONTRIB.386BSD for the list of contributors from 
 386BSD.
 
-Included in this release are the patches from the patch kit version
-0.2.4.  The names of contributors from the patch kit are listed below.
+Included in this release are some of the patches from the old 386BSD
+patch kit version 0.2.4, and therefore the names of contributors from the
+patch kit are also listed below.
 
-There are portions of NetBSD that has been intergraged into FreeBSD
-as well.  We would like to thank all the contributors to NetBSD for
-their work.
+Finally, there are portions of NetBSD that have been integrated into
+FreeBSD as well, and we would therefore like to thank all the contributors
+to NetBSD for their work.
 
 
 Hardware Contributors:
@@ -28,32 +32,35 @@ Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
 drive.
 
 
-FreeBSD core:
+The FreeBSD Core Team (in alphabetical order):
 
-Andrew Moore <alm@netcom.com>
-Andreas Schulz <ats@g386bsd.first.bmd.de>
+Andrew A. Chernov <ache@astral.msk.su>
 John Dyson <dyson@implode.rain.com>
-Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
 David Greenman <davidg@Root.COM>
-Jordan K. Hubbard <jkh@whisker.hubbard.ie>
-Nate Williams <nate@bsd.coe.montana.edu>
-Paul Richards <paul@isl.cf.ac.uk>
-Rich Murphey <rich@lamprey.utmb.edu>
 Rodney W. Grimes <rgrimes@cdrom.com>
+Jordan K. Hubbard <jkh@freefall.cdrom.com>
 Scott Mace <smace@neosoft.com>
+Andrew Moore <alm@netcom.com>
+Rich Murphey <rich@lamprey.utmb.edu>
+Geoff Rehmet <csgr@cs.ru.ac.za>
+Paul Richards <paul@isl.cf.ac.uk>
+Andreas Schulz <ats@g386bsd.first.bmd.de>
+Nate Williams <nate@bsd.coe.montana.edu>
 Garrett A. Wollman <wollman@freefall.cdrom.com>
 
 
-Additional FreeBSD Contributors:
+Additional FreeBSD Contributors (no particular order):
 
+Atsushi Murai <amurai@spec.co.jp>
+Keith Moore <?>
 Adam Glass <glass@postgres.berkeley.edu>
-Andrew A. Chernov <ache@astral.msk.su>
 Andrew Herbert <andrew@werple.apana.org.au>
 Bob Wilcox <bob@obiwan.uucp>
 Bruce Evans <bde@kralizec.zeta.org.au>
 Charles Hannum <mycroft@ai.mit.edu>
 Chris G. Demetriou <cgd@postgres.berkeley.edu>
 Chris Torek <torek@ee.lbl.gov>
+Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
 Curt Mayer <curt@toad.com>
 Dave Burgess <burgess@hrd769.brooks.af.mil>
 Dave Rivers <rivers@ponds.uucp>
@@ -69,7 +76,7 @@ J.T. Conklin <jtc@winsey.com>
 James Clark <jjc@jclark.com>
 James da Silva <jds@cs.umd.edu> et al
 Jim Wilson <wilson@moria.cygnus.com>
-John Dyson - <formerly dyson@ref.tfs.com>
+Joerg Wunsch <joerg_wunsch@uriah.sax.de>
 Julian Elischer <julian@dialix.oz.au>
 Julian Stacey <stacey@guug.de> <fallback: <julian@meepmeep.pcs.com>>
 Keith Bostic <bostic@toe.CS.Berkeley.EDU>
@@ -79,7 +86,7 @@ Martin Birgmeier
 Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
 Poul-Henning Kamp <phk@login.dkuug.dk>
-Rod Shady <rls@id.net>
+Rob Shady <rls@id.net>
 Sascha Wildner <swildner@channelz.GUN.de>
 Sean Eric Fagan <sef@kithrup.com>
 Serge V. Vakulenko <vak@zebub.msk.su>
@@ -90,7 +97,7 @@ Theo Deraadt <deraadt@fsa.ca>
 Yuval Yarom <yval@cs.huji.ac.il>
 
 
-Patch kit patch contributors:
+Patch kit patch contributors (no particular order):
 
 Adam Glass <glass@postgres.berkeley.edu>
 Adrian Hall <adrian@ibmpcug.co.uk>
@@ -138,7 +145,7 @@ Joerg Lohse <lohse@tech7.informatik.uni-hamburg.de>
 Joerg Wunsch <joerg_wunsch@uriah.sax.de>
 John Dyson - <formerly dyson@ref.tfs.com>
 John Woods <jfw@eddie.mit.edu>
-Jordan K. Hubbard <jkh@whisker.lotus.ie>
+Jordan K. Hubbard <jkh@whisker.hubbard.ie>
 Julian Elischer <julian@dialix.oz.au>
 Julian Stacey <stacey@guug.de> <fallback: <julian@meepmeep.pcs.com>>
 Karl Lehenbauer <karl@NeoSoft.com> <karl@one.neosoft.com>
@@ -165,11 +172,10 @@ Rich Murphey <rich@lamprey.utmb.edu>
 Rick Macklem <root@snowhite.cis.uoguelph.ca>
 Robert D. Thrush <rd@phoenix.aii.com>
 Rodney W. Grimes <rgrimes@cdrom.com>
-Rog Egge
+Rog Egge <?>
 Sascha Wildner <swildner@channelz.GUN.de>
 Scott Burris <scott@pita.cns.ucla.edu>
 Scott Reynolds <scott@clmqt.marquette.mi.us>
-Scotty ?
 Sean Eric Fagan <sef@kithrup.com>
 Simon J Gerraty <sjg@melb.bull.oz.au> <sjg@zen.void.oz.au>
 Stephen McKay <robert@psych.psy.uq.oz.au>
@@ -182,4 +188,4 @@ Wolfgang Solfrank <ws@tools.de>
 Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
 Yuval Yarom <yval@cs.huji.ac.il>
 
-$Id: CONTRIB.FreeBSD,v 1.32.2.1 1994/03/07 01:29:59 rgrimes Exp $
+$Id: CONTRIB.FreeBSD,v 1.36 1994/06/28 08:09:27 jkh Exp $

@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	from: @(#)makesyscalls.sh	7.6 (Berkeley) 4/20/91
-#	$Id: makesyscalls.sh,v 1.3 1993/11/07 21:22:30 wollman Exp $
+#	$Id: makesyscalls.sh,v 1.4 1994/06/01 21:13:53 phk Exp $
 
 set -e
 
@@ -162,7 +162,7 @@ awk < $1 "
 		printf("\n#else /* %s */\n", compat) > syscompat
 		printf("#define compat(n, name) 0, nosys\n") > syscompat
 		printf("#endif /* %s */\n\n", compat) > syscompat
-		printf("#endif /* _SYS_SYSCALL_H_ */") > syshdr
+		printf("#endif /* _SYS_SYSCALL_H_ */\n") > syshdr
 
 		printf("};\n\n") > sysent
 		printf("int\tnsysent = sizeof(sysent) / sizeof(sysent[0]);\n") > sysent

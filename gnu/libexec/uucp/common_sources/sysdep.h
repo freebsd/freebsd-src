@@ -1,7 +1,7 @@
 /* sysh.unx -*- C -*-
    The header file for the UNIX system dependent routines.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #ifndef SYSH_UNX_H
@@ -34,14 +34,9 @@ struct uuconf_system;
 struct sconnection;
 #endif
 
-/* Make sure the defines do not conflict.  These are in this file
-   because they are Unix dependent.  */
-#if HAVE_V2_LOCKFILES + HAVE_HDB_LOCKFILES + HAVE_SCO_LOCKFILES + HAVE_SVR4_LOCKFILES + HAVE_COHERENT_LOCKFILES != 1
- #error LOCKFILES define not set or duplicated
-#endif
-
-/* SCO and SVR4 lockfiles are basically just like HDB lockfiles.  */
-#if HAVE_SCO_LOCKFILES || HAVE_SVR4_LOCKFILES
+/* SCO, SVR4 and Sequent lockfiles are basically just like HDB
+   lockfiles.  */
+#if HAVE_SCO_LOCKFILES || HAVE_SVR4_LOCKFILES || HAVE_SEQUENT_LOCKFILES
 #undef HAVE_HDB_LOCKFILES
 #define HAVE_HDB_LOCKFILES 1
 #endif
@@ -230,6 +225,9 @@ typedef struct termios sterminal;
    failed.  */
 #define PRESERVEDIR ".Preserve"
 
+/* The name of the directory to which we move corrupt files.  */
+#define CORRUPTDIR ".Corrupt"
+
 /* The length of the sequence number used in a file name.  */
 #define CSEQLEN (4)
 
@@ -282,6 +280,10 @@ typedef struct termios sterminal;
 #endif
 #ifndef S_IXOTH
 #define S_IXOTH 0001
+#endif
+
+#if STAT_MACROS_BROKEN
+#undef S_ISDIR
 #endif
 
 #ifndef S_ISDIR
@@ -351,12 +353,16 @@ struct ssysdep_conn
 {
   /* File descriptor.  */
   int o;
+  /* File descriptor to read from (used by stdin and pipe port types).  */
+  int ord;
+  /* File descriptor to write to (used by stdin and pipe port types).  */
+  int owr;
   /* Device name.  */
   char *zdevice;
   /* File status flags.  */
   int iflags;
-  /* File status flags for descriptor 1 (-1 if not standard input).  */
-  int istdout_flags;
+  /* File status flags for write descriptor (-1 if not used).  */
+  int iwr_flags;
   /* Hold the real descriptor when using a dialer device.  */
   int ohold;
   /* TRUE if this is a terminal and the remaining fields are valid.  */
@@ -369,6 +375,9 @@ struct ssysdep_conn
   sterminal sorig;
   /* Current terminal settings.  */
   sterminal snew;
+  /* Process ID of currently executing pipe command, or parent process
+     of forked TCP or TLI server, or -1.  */
+  pid_t ipid;
 #if HAVE_COHERENT_LOCKFILES
   /* On Coherent we need to hold on to the real port name which will
      be used to enable the port.  Ick.  */
@@ -428,6 +437,19 @@ extern FILE *espopen P((const char **pazargs, boolean frd,
    prototype.  */
 extern int ixswait P((unsigned long ipid, const char *zreport));
 
+/* Read from a connection using two file descriptors.  */
+extern boolean fsdouble_read P((struct sconnection *qconn, char *zbuf,
+				size_t *pclen, size_t cmin, int ctimeout,
+				boolean freport));
+
+/* Write to a connection using two file descriptors.  */
+extern boolean fsdouble_write P((struct sconnection *qconn,
+				 const char *zbuf, size_t clen));
+
+/* Run a chat program on a connection using two file descriptors.  */
+extern boolean fsdouble_chat P((struct sconnection *qconn,
+				char **pzprog));
+
 /* Find a spool file in the spool directory.  For a local file, the
    bgrade argument is the grade of the file.  This is needed for
    SPOOLDIR_SVR4.  */
@@ -435,7 +457,7 @@ extern char *zsfind_file P((const char *zsimple, const char *zsystem,
 			    int bgrade));
 
 /* Return the grade given a sequence number.  */
-extern char bsgrade P((pointer pseq));
+extern int bsgrade P((pointer pseq));
 
 /* Lock a string.  */
 extern boolean fsdo_lock P((const char *, boolean fspooldir,
@@ -493,7 +515,7 @@ extern int dup2 P((int oold, int onew));
 #if ! HAVE_FTW
 extern int ftw P((const char *zdir,
 		  int (*pfn) P((const char *zfile,
-				const struct stat *qstat,
+				struct stat *qstat,
 				int iflag)),
 		  int cdescriptors));
 #endif

@@ -60,12 +60,14 @@ struct cchar cchars1[] = {
 	"intr",		VINTR,		CINTR,
 	"kill",		VKILL,		CKILL,
 	"lnext",	VLNEXT,		CLNEXT,
+	"min",          VMIN,           CMIN,
 	"quit",		VQUIT,		CQUIT,
 	"reprint",	VREPRINT, 	CREPRINT,
 	"start",	VSTART,		CSTART,
 	"status",	VSTATUS, 	CSTATUS,
 	"stop",		VSTOP,		CSTOP,
 	"susp",		VSUSP,		CSUSP,
+	"time",         VTIME,          CTIME,
 	"werase",	VWERASE,	CWERASE,
 	NULL,
 };
@@ -95,8 +97,8 @@ csearch(argvp, ip)
 	tmp.name = name;
 	if (!(cp = (struct cchar *)bsearch(&tmp, cchars1,
 	    sizeof(cchars1)/sizeof(struct cchar) - 1, sizeof(struct cchar),
-	    c_cchar)) && !(cp = (struct cchar *)bsearch(&tmp, cchars1,
-	    sizeof(cchars1)/sizeof(struct cchar) - 1, sizeof(struct cchar),
+	    c_cchar)) && !(cp = (struct cchar *)bsearch(&tmp, cchars2,
+	    sizeof(cchars2)/sizeof(struct cchar) - 1, sizeof(struct cchar),
 	    c_cchar)))
 		return(0);
 
@@ -109,10 +111,6 @@ csearch(argvp, ip)
 		ip->t.c_cc[cp->sub] = _POSIX_VDISABLE;
 	else if (cp->sub == VMIN || cp->sub == VTIME) {
 		val = strtol(arg, &ep, 10);
-		if (val == _POSIX_VDISABLE) {
-			warnx("value of %ld would disable the option -- %s",
-			    val, name);
-		}
 		if (val > UCHAR_MAX) {
 			warnx("maximum option value is %d -- %s",
 			    UCHAR_MAX, name);

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)stat.h	7.11 (Berkeley) 3/3/91
- *	$Id: stat.h,v 1.4.4.1 1994/05/04 07:57:35 rgrimes Exp $
+ *	$Id: stat.h,v 1.5 1994/05/04 08:31:05 rgrimes Exp $
  */
 
 #ifndef _SYS_STAT_H_

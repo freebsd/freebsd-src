@@ -41,12 +41,17 @@
 protocol
 .Sh SYNOPSIS
 .Nm telnet
+.Op Fl 8
+.Op Fl E
+.Op Fl L
+.Op Fl K
 .Op Fl d
 .Op Fl a
 .Op Fl n Ar tracefile
 .Op Fl e Ar escapechar
 .Oo
 .Op Fl l Ar user
+.Op Fl r
 .Ar host
 .Op port
 .Oc
@@ -71,6 +76,27 @@ command with those arguments.
 .Pp
 Options:
 .Bl -tag -width indent
+.It Fl 8
+The
+.Fl 8
+option allows the telnet session to be run in binary input/output
+mode.
+.It Fl E
+The
+.Fl E
+option stops any character from being recognized as an escape character.
+When used with the
+.Fl 8
+option, this provides a completely transparent connection.
+.It Fl K
+The
+.Fl K
+option turns off all Kerberos authentication.
+.It Fl L
+The
+.Fl L
+option allows the telnet session to be run in binary output
+mode.
 .It Fl d
 Sets the initial value of the
 .Ic debug
@@ -110,14 +136,15 @@ This option may also be used with the
 command.
 .It Fl e Ar escape char 
 Sets the initial
-.Nm
 .Nm telnet
 escape character to
 .Ar escape char.
-If
-.Ar escape char
-is ommitted, then
-there will be no escape character.
+.It Fl r
+The
+.Fl r
+option allows the telnet session to simulate
+.Xr rlogin 1
+session.
 .It Ar host
 Indicates the official name, an alias, or the Internet address
 of a remote host.

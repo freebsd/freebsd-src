@@ -873,9 +873,10 @@ void resource_manager::process_file(int rank, FILE *fp, const char *filename,
   
   const int NHEADER_COMMENTS = (sizeof(header_comment_table)
 				/ sizeof(header_comment_table[0]));
+  typedef (resource_manager::*resource_manager_mfp)(const char *, int, FILE *, FILE *);
   struct comment_info {
     const char *name;
-    int (resource_manager::*proc)(const char *, int, FILE *, FILE *);
+    resource_manager_mfp proc;
   };
 
   static comment_info comment_table[] = {

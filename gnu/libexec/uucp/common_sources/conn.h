@@ -1,7 +1,7 @@
 /* conn.h
    Header file for routines which manipulate connections.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #ifndef CONN_H
@@ -121,8 +121,6 @@ struct sconncmds
 			pointer puuconf,
 			struct uuconf_dialer *qdialer,
 			boolean fsuccess));
-  /* Reset the connection so that another call may be accepted.  */
-  boolean (*pfreset) P((struct sconnection *qconn));
   /* Dial a number on a connection.  This set *qdialer to the dialer
      used, if any, and sets *ptdialerfound appropriately.  The qsys
      and zphone arguments are for the chat script.  This field may be
@@ -170,9 +168,11 @@ struct sconncmds
 
 /* Initialize a connection.  This must be called before any of the
    other connection functions are called.  It initializes the fields
-   of qconn.  It returns FALSE on error.  */
+   of qconn.  If qport is NULL, this opens standard input as a port
+   using type ttype.  This function returns FALSE on error.  */
 extern boolean fconn_init P((struct uuconf_port *qport,
-			     struct sconnection *qconn));
+			     struct sconnection *qconn,
+			     enum uuconf_porttype ttype));
 
 /* Free up connection data.  */
 extern void uconn_free P((struct sconnection *qconn));
@@ -198,9 +198,6 @@ extern boolean fconn_close P((struct sconnection *qconn,
 			      pointer puuconf,
 			      struct uuconf_dialer *qdialer,
 			      boolean fsuccess));
-
-/* Reset a connection such that another call may be accepted.  */
-extern boolean fconn_reset P((struct sconnection *q));
 
 /* Dial out on a connection.  The qsys and zphone arguments are for
    the chat scripts; zphone is the phone number to dial.  If qdialer
@@ -275,6 +272,15 @@ extern boolean fconn_carrier P((struct sconnection *qconn,
 extern boolean fconn_run_chat P((struct sconnection *qconn,
 				 char **pzprog));
 
+/* Run through a dialer sequence.  This is a support routine for the
+   port type specific dialing routines.  */
+extern boolean fconn_dial_sequence P((struct sconnection *qconn,
+				      pointer puuconf, char **pzdialer,
+				      const struct uuconf_system *qsys,
+				      const char *zphone,
+				      struct uuconf_dialer *qdialer,
+				      enum tdialerfound *ptdialerfound));
+
 /* Dialing out on a modem is partially system independent.  This is
    the modem dialing routine.  */
 extern boolean fmodem_dial P((struct sconnection *qconn, pointer puuconf,
@@ -308,5 +314,6 @@ extern boolean fsysdep_tcp_init P((struct sconnection *qconn));
 #if HAVE_TLI
 extern boolean fsysdep_tli_init P((struct sconnection *qconn));
 #endif
+extern boolean fsysdep_pipe_init P((struct sconnection *qconn));
 
 #endif /* ! defined (CONN_H) */

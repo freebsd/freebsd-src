@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,113 +32,31 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_util.c	8.26 (Berkeley) 12/9/93";
+static char sccsid[] = "@(#)svi_util.c	8.33 (Berkeley) 3/10/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <curses.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
+#include <db.h>
+#include <regex.h>
+
 #include "vi.h"
-#include "vcmd.h"
+#include "../vi/vcmd.h"
 #include "excmd.h"
 #include "svi_screen.h"
-
-/*
- * svi_screens --
- *	Return the number of screens required by the line, or,
- *	if a column is specified, by the column within the line.
- */
-size_t
-svi_screens(sp, ep, lno, cnop)
-	SCR *sp;
-	EXF *ep;
-	recno_t lno;
-	size_t *cnop;
-{
-	size_t cols, len, screens;
-	char *p;
-
-	/*
-	 * Check for single cached value.  The cache is because, if
-	 * the line is large, this routine gets called repeatedly.
-	 * One other hack, lots of time the user is on column one,
-	 * which is an easy one.
-	 */
-	if (cnop == NULL) {
-		if (SVP(sp)->ss_lno == lno)
-			return (SVP(sp)->ss_screens);
-	} else if (*cnop == 0)
-		return (1);
-
-	/* Get a copy of the line. */
-	if ((p = file_gline(sp, ep, lno, &len)) == NULL || len == 0)
-		return (1);
-
-	/* Figure out how many columns the line/column needs. */
-	cols = svi_ncols(sp, p, len, cnop);
-
-	/* Leading number if O_NUMBER option set. */
-	if (O_ISSET(sp, O_NUMBER))
-		cols += O_NUMBER_LENGTH;
-
-	/* Trailing '$' if O_LIST option set. */
-	if (O_ISSET(sp, O_LIST) && cnop == NULL)
-		cols += sp->gp->cname['$'].len;
-
-	screens = (cols / sp->cols + (cols % sp->cols ? 1 : 0));
-	if (cnop == NULL) {
-		SVP(sp)->ss_lno = lno;
-		SVP(sp)->ss_screens = screens;
-	}
-	return (screens);
-}
-
-/*
- * svi_ncols --
- *	Return the number of columns required by the line, or,
- *	if a column is specified, by the column within the line.
- */
-size_t
-svi_ncols(sp, p, len, cnop)
-	SCR *sp;
-	u_char *p;
-	size_t len, *cnop;
-{
-	CHNAME const *cname;
-	size_t cno_cnt, scno;
-	int ch, listset;
-
-	cname = sp->gp->cname;
-	listset = O_ISSET(sp, O_LIST);
-
-	if (cnop == NULL)
-		for (scno = 0; len; --len)
-			SCNO_INCREMENT;
-	else
-		for (cno_cnt = *cnop, scno = 0; len; --len) {
-			SCNO_INCREMENT;
-			if (cno_cnt == 0)
-				break;
-			--cno_cnt;
-		}
-	return (scno);
-}
-
-/*
- * bell_putchar --
- *	Functional version of putchar, for tputs.
- */
-static void
-bell_putchar(ch)
-	int ch;
-{
-	(void)putchar(ch);
-}
 
 /*
  * vbell --
@@ -166,12 +84,15 @@ vbell(sp)
 		    "No visual bell for %s terminal type", s);
 		return (1);
 	}
-	len = t - b2;
+	if ((len = t - b2) == 0)
+		return (1);
+
+	/* Free the old one, save the new one. */
 	MALLOC_RET(sp, s, char *, len);
 	memmove(s, b2, len);
 	if (SVP(sp)->VB != NULL)
 		free(SVP(sp)->VB);
-	SVP(sp)->VB = t;
+	SVP(sp)->VB = s;
 	return (0);
 }
 
@@ -185,7 +106,7 @@ svi_bell(sp)
 {
 	if (O_ISSET(sp, O_FLASH) && !F_ISSET(SVP(sp), SVI_NO_VBELL))
 		if (SVP(sp)->VB != NULL) {
-			(void)tputs(SVP(sp)->VB, 1, bell_putchar);
+			(void)tputs(SVP(sp)->VB, 1, svi_putchar);
 			(void)fflush(stdout);
 		} else {
 			if (vbell(sp))
@@ -217,7 +138,7 @@ svi_optchange(sp, opt)
 		F_SET(sp, S_RESIZE);
 		break;
 	case O_WINDOW:
-		if (svi_rrel(sp, O_VAL(sp, O_WINDOW)))
+		if (svi_crel(sp, O_VAL(sp, O_WINDOW)))
 			return (1);
 		break;
 	}
@@ -237,14 +158,41 @@ svi_busy(sp, msg)
 	SCR *sp;
 	char const *msg;
 {
-	MOVE(sp, INFOLINE(sp), 0);
-	if (msg) {
-		ADDSTR(msg);
-		clrtoeol();
+	/*
+	 * search.c:f_search() is called from ex/ex_tag.c:ex_tagfirst(),
+	 * which runs before the screen really exists.  Make sure we don't
+	 * step on anything.
+	 */
+	if (F_ISSET(sp->gp, G_CURSES_INIT)) {
+		MOVE(sp, INFOLINE(sp), 0);
+		if (msg) {
+			ADDSTR(msg);
+			clrtoeol();
+		}
+		refresh();
+		F_SET(SVP(sp), SVI_CUR_INVALID);
 	}
-	refresh();
-	F_SET(SVP(sp), SVI_CUR_INVALID);
 	return (0);
+}
+
+/*
+ * svi_keypad --
+ *	Put the keypad/cursor arrows into or out of application mode.
+ */
+void
+svi_keypad(sp, on)
+	SCR *sp;
+	int on;
+{
+	char *sbp, *t, kbuf[2048], sbuf[128];
+
+	if (tgetent(kbuf, O_STR(sp, O_TERM)) != 1)
+		return;
+	sbp = sbuf;
+	if ((t = tgetstr(on ? "ks" : "ke", &sbp)) == NULL)
+		return;
+	(void)tputs(t, 0, svi_putchar);
+	(void)fflush(stdout);
 }
 
 /*
@@ -279,6 +227,9 @@ svi_suspend(sp)
 	struct termios t;
 	int rval;
 
+	/* Restore the cursor keys to normal mode. */
+	svi_keypad(sp, 0);
+
 	/*
 	 * XXX
 	 * See comment in svi_curses_init().
@@ -297,7 +248,21 @@ svi_suspend(sp)
 	if (F_ISSET(sp->gp, G_CURSES_S5CB))
 		(void)tcsetattr(STDIN_FILENO, TCSASOFT | TCSADRAIN, &t);
 
+	/* Put the cursor keys into application mode. */
+	svi_keypad(sp, 0);
+
 	return (rval);
+}
+
+/*
+ * svi_putchar --
+ *	Functional version of putchar, for tputs.
+ */
+int
+svi_putchar(ch)
+	int ch;
+{
+	return putchar(ch);
 }
 
 /*

@@ -148,7 +148,7 @@ char	*do_malloc(), *copy(), *off_name();
 
 FILEDESC	*pick_child(), *new_fp();
 
-extern char	*malloc(), *index(), *rindex(), *strcpy(), *strcat();
+extern char	*index(), *rindex(), *strcpy(), *strcat();
 
 extern time_t	time();
 

@@ -86,6 +86,7 @@ struct pagerops devicepagerops = {
 	dev_pager_getpage,
 	0,
 	dev_pager_putpage,
+	0,
 	dev_pager_haspage
 };
 

@@ -36,7 +36,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)ftell.c	5.4 (Berkeley) 2/5/91";*/
-static char *rcsid = "$Id: ftell.c,v 1.1 1994/01/30 04:25:01 proven Exp $";
+static char *rcsid = "$Id: ftell.c,v 1.2 1994/06/06 08:35:25 ats Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <pthread.h>
@@ -62,7 +62,7 @@ ftell(fp)
 	if (fp->_flags & __SOFF)
 		pos = fp->_offset;
 	else {
-		pos = lseek(fp, (fpos_t)0, SEEK_CUR);
+		pos = lseek(fp->_file, (fpos_t)0, SEEK_CUR);
 	}
 
 	if (pos != -1L) {

@@ -1,4 +1,4 @@
-#	$Id: BSD.local.dist,v 1.4 1994/02/22 05:43:07 rgrimes Exp $
+#	$Id: BSD.local.dist,v 1.5 1994/05/20 22:50:36 jkh Exp $
 #
 
 /set type=file uname=bin gname=bin mode=0755
@@ -15,23 +15,23 @@ lib	type=dir uname=bin gname=bin mode=0755
 ..
 
 man	type=dir uname=bin gname=bin mode=0755
-	cat1	type=dir uname=bin gname=bin mode=0755
+	cat1	type=dir uname=man gname=bin mode=0755
 	..
-	cat2	type=dir uname=bin gname=bin mode=0755
+	cat2	type=dir uname=man gname=bin mode=0755
 	..
-	cat3	type=dir uname=bin gname=bin mode=0755
+	cat3	type=dir uname=man gname=bin mode=0755
 	..
-	cat4	type=dir uname=bin gname=bin mode=0755
+	cat4	type=dir uname=man gname=bin mode=0755
 	..
-	cat5	type=dir uname=bin gname=bin mode=0755
+	cat5	type=dir uname=man gname=bin mode=0755
 	..
-	cat6	type=dir uname=bin gname=bin mode=0755
+	cat6	type=dir uname=man gname=bin mode=0755
 	..
-	cat7	type=dir uname=bin gname=bin mode=0755
+	cat7	type=dir uname=man gname=bin mode=0755
 	..
-	cat8	type=dir uname=bin gname=bin mode=0755
+	cat8	type=dir uname=man gname=bin mode=0755
 	..
-	catl	type=dir uname=bin gname=bin mode=0755
+	catl	type=dir uname=man gname=bin mode=0755
 	..
 	man1	type=dir uname=bin gname=bin mode=0755
 	..

@@ -1,7 +1,7 @@
 /* hsinfo.c
    Get information about a system from the HDB configuration files.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hsinfo_rcsid[] = "$Id: hsinfo.c,v 1.1 1993/08/05 18:25:29 conklin Exp $";
+const char _uuconf_hsinfo_rcsid[] = "$Id: hsinfo.c,v 1.2 1994/05/07 18:12:27 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -112,6 +112,8 @@ _uuconf_ihdb_system_internal (qglobal, zsystem, qsys)
       FILE *e;
       int cchars;
 
+      qglobal->ilineno = 0;
+
       e = fopen (*pz, "r");
       if (e == NULL)
 	{
@@ -121,8 +123,6 @@ _uuconf_ihdb_system_internal (qglobal, zsystem, qsys)
 	  iret = UUCONF_FOPEN_FAILED | UUCONF_ERROR_ERRNO;
 	  break;
 	}
-
-      qglobal->ilineno = 0;
 
       while ((cchars = _uuconf_getline (qglobal, &zline, &cline, e)) > 0)
 	{
@@ -258,6 +258,11 @@ _uuconf_ihdb_system_internal (qglobal, zsystem, qsys)
 					  pblock);
 	      if (iret != UUCONF_SUCCESS)
 		break;
+
+	      /* Treat any time/grade setting as both a timegrade and
+		 a call-timegrade.  */
+	      if (bgrade != UUCONF_GRADE_LOW)
+		qset->uuconf_qcalltimegrade = qset->uuconf_qtimegrade;
 	    }
 
 	  if (iret != UUCONF_SUCCESS)
@@ -355,7 +360,7 @@ _uuconf_ihdb_system_internal (qglobal, zsystem, qsys)
   if (iret != UUCONF_SUCCESS)
     {
       qglobal->zfilename = *pz;
-      return iret | UUCONF_ERROR_FILENAME;
+      return iret | UUCONF_ERROR_FILENAME | UUCONF_ERROR_LINENO;
     }
 
   if (pblock == NULL)

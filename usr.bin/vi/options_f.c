@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,21 +32,32 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)options_f.c	8.25 (Berkeley) 12/20/93";
+static char sccsid[] = "@(#)options_f.c	8.28 (Berkeley) 3/18/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "tag.h"
 
+static int	opt_dup __P((SCR *, int, char *));
 static int	opt_putenv __P((char *));
 
 #define	DECL(f)								\
@@ -72,15 +83,9 @@ DECL(f_altwerase)
 	return (0);
 }
 
-DECL(f_ttywerase)
+DECL(f_cdpath)
 {
-	if (turnoff)
-		O_CLR(sp, O_TTYWERASE);
-	else {
-		O_SET(sp, O_TTYWERASE);
-		O_CLR(sp, O_ALTWERASE);
-	}
-	return (0);
+	return (opt_dup(sp, O_CDPATH, str));
 }
 
 DECL(f_columns)
@@ -280,12 +285,6 @@ DECL(f_number)
 	return (0);
 }
 
-DECL(f_optimize)
-{
-	msgq(sp, M_ERR, "The optimize option is not implemented.");
-	return (0);
-}
-
 DECL(f_paragraph)
 {
 	if (strlen(str) & 1) {
@@ -293,15 +292,7 @@ DECL(f_paragraph)
 		    "Paragraph options must be in sets of two characters.");
 		return (1);
 	}
-
-	if (F_ISSET(&sp->opts[O_PARAGRAPHS], OPT_ALLOCATED))
-		free(O_STR(sp, O_PARAGRAPHS));
-	if ((O_STR(sp, O_PARAGRAPHS) = strdup(str)) == NULL) {
-		msgq(sp, M_SYSERR, NULL);
-		return (1);
-	}
-	F_SET(&sp->opts[O_PARAGRAPHS], OPT_ALLOCATED | OPT_SET);
-	return (0);
+	return (opt_dup(sp, O_PARAGRAPHS, str));
 }
 
 DECL(f_readonly)
@@ -334,15 +325,7 @@ DECL(f_section)
 		    "Section options must be in sets of two characters.");
 		return (1);
 	}
-
-	if (F_ISSET(&sp->opts[O_SECTIONS], OPT_ALLOCATED))
-		free(O_STR(sp, O_SECTIONS));
-	if ((O_STR(sp, O_SECTIONS) = strdup(str)) == NULL) {
-		msgq(sp, M_SYSERR, NULL);
-		return (1);
-	}
-	F_SET(&sp->opts[O_SECTIONS], OPT_ALLOCATED | OPT_SET);
-	return (0);
+	return (opt_dup(sp, O_SECTIONS, str));
 }
 
 DECL(f_shiftwidth)
@@ -412,32 +395,15 @@ DECL(f_tabstop)
 
 DECL(f_tags)
 {
-	char *p;
-
-	/* Copy for user display. */
-	p = O_STR(sp, O_TAGS);
-	if ((O_STR(sp, O_TAGS) = strdup(str)) == NULL) {
-		O_STR(sp, O_TAGS) = p;
-		msgq(sp, M_SYSERR, NULL);
-		return (1);
-	}
-	if (F_ISSET(&sp->opts[O_TAGS], OPT_ALLOCATED))
-		FREE(p, strlen(p) + 1);
-	F_SET(&sp->opts[O_TAGS], OPT_ALLOCATED | OPT_SET);
-	return (0);
+	return (opt_dup(sp, O_TAGS, str));
 }
 
 DECL(f_term)
 {
 	char buf[256];
 
-	if (F_ISSET(&sp->opts[O_TERM], OPT_ALLOCATED))
-		free(O_STR(sp, O_TERM));
-	if ((O_STR(sp, O_TERM) = strdup(str)) == NULL) {
-		msgq(sp, M_SYSERR, NULL);
+	if (opt_dup(sp, O_TERM, str))
 		return (1);
-	}
-	F_SET(&sp->opts[O_TERM], OPT_ALLOCATED | OPT_SET);
 
 	/* Set the terminal value in the environment for curses. */
 	(void)snprintf(buf, sizeof(buf), "TERM=%s", str);
@@ -446,6 +412,17 @@ DECL(f_term)
 
 	if (set_window_size(sp, 0, 0))
 		return (1);
+	return (0);
+}
+
+DECL(f_ttywerase)
+{
+	if (turnoff)
+		O_CLR(sp, O_TTYWERASE);
+	else {
+		O_SET(sp, O_TTYWERASE);
+		O_CLR(sp, O_ALTWERASE);
+	}
 	return (0);
 }
 
@@ -523,6 +500,36 @@ DECL(f_wrapmargin)
 		return (1);
 	}
 	O_VAL(sp, O_WRAPMARGIN) = val;
+	return (0);
+}
+
+/*
+ * opt_dup --
+ *	Copy a string value for user display.
+ */
+static int
+opt_dup(sp, opt, str)
+	SCR *sp;
+	int opt;
+	char *str;
+{
+	char *p;
+
+	/* Copy for user display. */
+	if ((p = strdup(str)) == NULL) {
+		msgq(sp, M_SYSERR, NULL);
+		return (1);
+	}
+
+	/* Free the old contents. */
+	if (F_ISSET(&sp->opts[opt], OPT_ALLOCATED))
+		free(O_STR(sp, opt));
+
+	/* Note that it's set and allocated. */
+	F_SET(&sp->opts[opt], OPT_ALLOCATED | OPT_SET);
+
+	/* Assign new contents. */
+	O_STR(sp, opt) = p;
 	return (0);
 }
 

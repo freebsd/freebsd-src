@@ -217,7 +217,7 @@ top:
 	STPUTC('\0', p);
 	p = grabstackstr(p);
 	INTOFF;
-	if (chdir(p) < 0) {
+	if (chdir(*p ? p : ".") < 0) {
 		INTON;
 		return -1;
 	}

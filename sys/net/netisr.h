@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)netisr.h	7.8 (Berkeley) 5/7/91
- *	$Id: netisr.h,v 1.5 1993/12/20 14:58:31 wollman Exp $
+ *	$Id: netisr.h,v 1.6 1994/04/02 07:01:00 davidg Exp $
  */
 
 #ifndef _NET_NETISR_H_
@@ -65,20 +65,9 @@
 
 #define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 
-#ifdef i386
-/* XXX Temporary -- soon to vanish - wfj */
-#define	NETISR_SCLK	11		/* softclock */
-#define	NETISR_AST	12		/* ast -- resched */
-
-#undef	schednetisr
-#define	schednetisr(anisr)	{\
-	netisr |= 1<<(anisr); \
-}
-#endif /* i386 */
-
 #ifndef LOCORE
 #ifdef KERNEL
-extern int	netisr;		/* scheduling bits for network */
+extern volatile unsigned netisr;	/* scheduling bits for network */
 #endif
 #endif
 #endif /* _NET_NETISR_H_ */

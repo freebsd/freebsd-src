@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.14 1994/01/22 21:52:04 rgrimes Exp $
+ *	$Id: isa.c,v 1.19 1994/06/22 05:52:39 jkh Exp $
  */
 
 /*
@@ -124,9 +124,11 @@ haveseen(dvp, tmpdvp)
 			if ((dvp->id_iobase >= tmpdvp->id_iobase) &&
 			    (dvp->id_iobase <=
 				  (tmpdvp->id_iobase + tmpdvp->id_alive - 1))) {
+#ifndef ALLOW_CONFLICT_IOADDR
 				conflict(dvp, tmpdvp, dvp->id_iobase,
 					 "I/O address", "0x%x");
 				status = 1;
+#endif
 			}
 		}
 		/*
@@ -143,12 +145,14 @@ haveseen(dvp, tmpdvp)
 			if((KERNBASE + dvp->id_maddr >= tmpdvp->id_maddr) &&
 			   (KERNBASE + dvp->id_maddr <=
 			   (tmpdvp->id_maddr + tmpdvp->id_msize - 1))) {
+#ifndef ALLOW_CONFLICT_MEMADDR
 				conflict(dvp, tmpdvp, dvp->id_maddr, "maddr",
 					"0x%x");
 				status = 1;
+#endif
 			}
 		}
-#ifndef COM_MULTIPORT
+#ifndef ALLOW_CONFLICT_IRQ
 		/*
 		 * Check for IRQ conflicts.
 		 */
@@ -160,6 +164,7 @@ haveseen(dvp, tmpdvp)
 			}
 		}
 #endif
+#ifndef ALLOW_CONFLICT_DRQ
 		/*
 		 * Check for DRQ conflicts.
 		 */
@@ -170,6 +175,7 @@ haveseen(dvp, tmpdvp)
 				status = 1;
 			}
 		}
+#endif
 	}
 	return (status);
 }
@@ -213,38 +219,45 @@ isa_configure() {
 	printf("Probing for devices on the ISA bus:\n");
 	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++) {
 		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&ttymask);
+			config_isadev(dvp,&tty_imask);
 	}
 	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++) {
 		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&biomask);
+			config_isadev(dvp,&bio_imask);
 	}
 	for (dvp = isa_devtab_net; dvp->id_driver; dvp++) {
 		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&netmask);
+			config_isadev(dvp,&net_imask);
 	}
 	for (dvp = isa_devtab_null; dvp->id_driver; dvp++) {
 		if (!haveseen_isadev(dvp))
 			config_isadev(dvp,(u_int *) NULL);
 	}
+	bio_imask |= SWI_CLOCK_MASK;
+	net_imask |= SWI_NET_MASK;
+	tty_imask |= SWI_TTY_MASK;
+
 /*
- * XXX We should really add the tty device to netmask when the line is
+ * XXX we should really add the tty device to net_imask when the line is
  * switched to SLIPDISC, and then remove it when it is switched away from
- * SLIPDISC.  No need to block out ALL ttys during a splnet when only one
+ * SLIPDISC.  No need to block out ALL ttys during a splimp when only one
  * of them is running slip.
+ *
+ * XXX actually, blocking all ttys during a splimp doesn't matter so much 
+ * with sio because the serial interrupt layer doesn't use tty_imask.  Only
+ * non-serial ttys suffer.  It's more stupid that ALL 'net's are blocked
+ * during spltty.
  */
 #include "sl.h"
 #if NSL > 0
-	netmask |= ttymask;
-	ttymask |= netmask;
+	net_imask |= tty_imask;
+	tty_imask = net_imask;
 #endif
-	/* if netmask == 0, then the loopback code can do some really
-	 * bad things.
-	 */
-	if (netmask == 0)
-		netmask = 0x10000;
-	/* biomask |= ttymask ;  can some tty devices use buffers? */
-	printf("biomask %x ttymask %x netmask %x\n", biomask, ttymask, netmask);
+	/* bio_imask |= tty_imask ;  can some tty devices use buffers? */
+#ifdef DIAGNOSTIC
+	printf("bio_imask %x tty_imask %x net_imask %x\n",
+	       bio_imask, tty_imask, net_imask);
+#endif
 	splnone();
 }
 
@@ -337,14 +350,11 @@ extern inthand_t
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
 
-static inthand_func_t defvec[16] = {
+static inthand_func_t defvec[ICU_LEN] = {
 	&IDTVEC(intr0), &IDTVEC(intr1), &IDTVEC(intr2), &IDTVEC(intr3),
 	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
 	&IDTVEC(intr8), &IDTVEC(intr9), &IDTVEC(intr10), &IDTVEC(intr11),
 	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15) };
-
-/* out of range default interrupt vector gate entry */
-extern inthand_t IDTVEC(intrdefault);
 
 /*
  * Fill in default interrupt table (in case of spuruious interrupt
@@ -356,12 +366,8 @@ isa_defaultirq()
 	int i;
 
 	/* icu vectors */
-	for (i = NRSVIDT ; i < NRSVIDT+ICU_LEN ; i++)
-		setidt(i, defvec[i],  SDT_SYS386IGT, SEL_KPL);
-  
-	/* out of range vectors */
-	for (i = NRSVIDT; i < NIDT; i++)
-		setidt(i, &IDTVEC(intrdefault), SDT_SYS386IGT, SEL_KPL);
+	for (i = 0; i < ICU_LEN; i++)
+		setidt(ICU_OFFSET + i, defvec[i], SDT_SYS386IGT, SEL_KPL);
 
 	/* initialize 8259's */
 	outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
@@ -530,7 +536,7 @@ isa_dmarangecheck(caddr_t va, unsigned length, unsigned chan) {
 #define ISARAM_END	RAM_END
 		if (phys == 0)
 			panic("isa_dmacheck: no physical page present");
-		if (phys > ISARAM_END) 
+		if (phys >= ISARAM_END)
 			return (1);
 		if (priorpage) {
 			if (priorpage + NBPG != phys)
@@ -588,14 +594,18 @@ isa_freephysmem(caddr_t va, unsigned length) {
 	
 /*
  * Handle a NMI, possibly a machine check.
+ * This is generally one of two things, either an memory parity error
+ * or a bus master timeout failure.  A bus-master timeout is indicated
+ * by bit 4 of port 0x461 going high.
+ *
  * return true to panic system, false to ignore.
  */
 int
 isa_nmi(cd) 
 	int cd;
 {
-
-	log(LOG_CRIT, "\nNMI port 61 %x, port 70 %x\n", inb(0x61), inb(0x70));
+	log(LOG_CRIT, "\nNMI port 61 %x, port 70 %x, port 461 %x\n",
+                      inb(0x61), inb(0x70), inb(0x461));
 	return(0);
 }
 
@@ -624,165 +634,6 @@ isa_strayintr(d)
 		log(LOG_ERR,"ISA strayintr %x\n", d);
 	if (intrcnt_stray == 5)
 		log(LOG_CRIT,"Too many ISA strayintr not logging any more\n");
-}
-
-/*
- * Wait "n" microseconds.
- * Relies on timer 1 counting down from (TIMER_FREQ / hz) at
- * (1 * TIMER_FREQ) Hz.
- * Note: timer had better have been programmed before this is first used!
- * (The standard programming causes the timer to generate a square wave and
- * the counter is decremented twice every cycle.)
- */
-#define	CF		(1 * TIMER_FREQ)
-#define	TIMER_FREQ	1193182	/* XXX - should be elsewhere */
-
-void
-DELAY(n)
-	int n;
-{
-	int counter_limit;
-	int prev_tick;
-	int tick;
-	int ticks_left;
-	int sec;
-	int usec;
-
-#ifdef DELAYDEBUG
-	int getit_calls = 1;
-	int n1;
-	static int state = 0;
-
-	if (state == 0) {
-		state = 1;
-		for (n1 = 1; n1 <= 10000000; n1 *= 10)
-			DELAY(n1);
-		state = 2;
-	}
-	if (state == 1)
-		printf("DELAY(%d)...", n);
-#endif
-
-	/*
-	 * Read the counter first, so that the rest of the setup overhead is
-	 * counted.  Guess the initial overhead is 20 usec (on most systems it
-	 * takes about 1.5 usec for each of the i/o's in getit().  The loop
-	 * takes about 6 usec on a 486/33 and 13 usec on a 386/20.  The
-	 * multiplications and divisions to scale the count take a while).
-	 */
-	prev_tick = getit(0, 0);
-	n -= 20;
-
-	/*
-	 * Calculate (n * (CF / 1e6)) without using floating point and without
-	 * any avoidable overflows.
-	 */
-	sec = n / 1000000;
-	usec = n - sec * 1000000;
-	ticks_left = sec * CF
-		     + usec * (CF / 1000000)
-		     + usec * ((CF % 1000000) / 1000) / 1000
-		     + usec * (CF % 1000) / 1000000;
-
-	counter_limit = TIMER_FREQ / hz;
-	while (ticks_left > 0) {
-		tick = getit(0, 0);
-#ifdef DELAYDEBUG
-		++getit_calls;
-#endif
-		if (tick > prev_tick)
-			ticks_left -= prev_tick - (tick - counter_limit);
-		else
-			ticks_left -= prev_tick - tick;
-		prev_tick = tick;
-	}
-#ifdef DELAYDEBUG
-	if (state == 1)
-		printf(" %d calls to getit() at %d usec each\n",
-		       getit_calls, (n + 5) / getit_calls);
-#endif
-}
-
-int
-getit(unit, timer) 
-	int unit;
-	int timer;
-{
-	int high;
-	int low;
-
-	/*
-	 * XXX - isa.h defines bogus timers.  There's no such timer as
-	 * IO_TIMER_2 = 0x48.  There's a timer in the CMOS RAM chip but
-	 * its interface is quite different.  Neither timer is an 8252.
-	 * We actually only call this with unit = 0 and timer = 0.  It
-	 * could be static...
-	 */
-	/*
-	 * Protect ourself against interrupts.
-	 * XXX - sysbeep() and sysbeepstop() need protection.
-	 */
-	disable_intr();
-	/*
-	 * Latch the count for 'timer' (cc00xxxx, c = counter, x = any).
-	 */
-	outb(IO_TIMER1 + 3, timer << 6);
-
-	low = inb(IO_TIMER1 + timer);
-	high = inb(IO_TIMER1 + timer);
-	enable_intr();
-	return ((high << 8) | low);
-}
-
-static int beeping;
-
-static void
-sysbeepstop(f, dummy)
-	caddr_t f;
-	int dummy;
-{
-	/* disable counter 2 */
-	outb(0x61, inb(0x61) & 0xFC);
-	if (f)
-		timeout(sysbeepstop, (caddr_t)0, (int)f);
-	else
-		beeping = 0;
-}
-
-void 
-sysbeep(int pitch, int period)
-{
-
-	outb(0x61, inb(0x61) | 3);	/* enable counter 2 */
-	/*
-	 * XXX - move timer stuff to clock.c.
-	 * Program counter 2:
-	 * ccaammmb, c counter, a = access, m = mode, b = BCD
-	 * 1011x110, 11 for aa = LSB then MSB, x11 for mmm = square wave.
-	 */
-	outb(0x43, 0xb6);	/* set command for counter 2, 2 byte write */
-	
-	outb(0x42, pitch);
-	outb(0x42, (pitch>>8));
-	
-	if (!beeping) {
-		beeping = period;
-		timeout(sysbeepstop, (caddr_t)(period/2), period);
-	}
-}
-
-/*
- * Pass command to keyboard controller (8042)
- */
-unsigned
-kbc_8042cmd(val) 
-	int val;
-{
-	
-	while (inb(KBSTATP)&KBS_IBF);
-	if (val) outb(KBCMDP, val);
-	while (inb(KBSTATP)&KBS_IBF);
-	return (inb(KBDATAP));
 }
 
 /*

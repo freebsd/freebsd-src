@@ -1,0 +1,1074 @@
+\input texinfo  @c -*- texinfo -*-
+@c -----------------------------------------------------------------------
+@c Thus spoke the elders in days long gone by:
+@c  How to edit:  use an existing entry as template, keep the file sorted
+@c  using the most keyword-ish thing.  When done, make sure /usr/gnu/bin
+@c  is in your path, run "make" and THEN "cvs commit".
+@c -----------------------------------------------------------------------
+@c %**start of header
+@setfilename options.info
+@settitle Configuration Options for FreeBSD
+@c @setchapternewpage odd
+@c function index is option/pseudo/device names; concept is everything
+@c else
+@syncodeindex fn cp
+@finalout
+@c %**end of header
+
+@ifinfo
+$Id: options.texi,v 1.11 1994/06/28 06:10:40 jkh Exp $
+
+This file documents the configuration options available in the FreeBSD
+operating system.
+
+@display
+Copyright @copyright{} 1993, 1994, Garrett A. Wollman.  All rights reserved.
+
+Redistribution and use in source and printed forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice and this list of conditions.
+2. Redistributions in printed form must reproduce the above copyright
+   notice, this list of conditions and the following notice of
+   authorship.
+
+Trademarks are property of their respective owners.
+@end display
+@end ifinfo
+
+@titlepage
+@title Configuration Options in FreeBSD
+@subtitle for FreeBSD 1.1.5
+@author Garrett A. Wollman
+@author FreeBSD Project
+
+@page
+@vskip 0pt plus 1filll
+
+i386, i387, and i486 are trademarks of Intel Corporation.  SunOS is a
+registered trademark and NFS is a trademark of Sun Microsystems, Inc.
+Ultrix is a registered trademark of Digital Equipment Corporation.
+Xerox is a registered trademark and XNS is a trademark of Xerox
+Corporation.  VESA is a trademark of the Video Electronics Standards
+Association.  System V is a registered trademark of Novell Corporation.
+All other trademarks are property of their respective owners.  FreeBSD
+is nobody's trademark, and damn proud of it.
+
+Copyright @copyright{} 1993, 1994, Garrett A. Wollman.  All rights reserved.
+
+Redistribution and use in source and printed forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+@enumerate
+@item
+Redistributions of source code must retain the above copyright
+notice and this list of conditions.
+
+@item
+Redistributions in printed form must reproduce the above copyright
+notice, this list of conditions and the preceding notice of
+authorship.
+@end enumerate
+@end titlepage
+
+@node Top, Subsystems, (dir), (dir)
+@top FreeBSD Configuration Options
+
+This document describes kernel configuration options relevant to the
+FreeBSD operating system between versions 1.1 and 1.2.  It is intended
+for readers who already have a general understanding of the process of
+configuring a BSD kernel and wish to get a general overview of the
+meaning of various configuration options.  This document covers
+configurable options and pseudo-devices; it is intended that devices may
+be added at a later date.
+
+@menu
+* Subsystems::          Controlling subsystems.
+* Performance::         Performance enhancement.
+* Devices::             Device-control options.
+* Internals::           Non-user-serviceable parts.
+
+* Index::               General Index.
+@end menu
+
+@node Subsystems, Performance, Top, Top
+@c node,next,prev,up
+
+@chapter Options for Subsystems
+
+This chapter discusses options controlling the inclusion of various
+subsystems in FreeBSD.  These include things like filesystems,
+networking modules, and whatnot.  Remember that options containing
+underscores must be quoted.
+
+@table @code
+@item pseudo-device bpfilter @var{number}
+@findex bpfilter
+@cindex Berkeley packet filter
+@cindex Network interfaces
+The @samp{bpfilter} pseudo-device is the Berkeley Packet Filter,
+developed by Lawrence Berkeley Labs and based on an earlier packet
+filter from Stanford.  See the @samp{bpf} manual page for more details.
+The @var{number} given is the maximum number of simultaneous users
+permitted.  (NB: in previous version of BPF, the @var{number} had to be
+greater than the number of interfaces; this space is now dynamically
+allocated so this requirement is no longer present.)
+
+@item options CCITT
+@findex CCITT
+@cindex X.25
+@cindex Networking domains
+The @samp{CCITT} option enables support for the ITU-T X.25(1980)
+network-layer protocol.  Nobody we know has a direct X.25 connection to
+anything, so this code has never been tested.
+
+This option will likely be removed in a future release of FreeBSD.
+
+@item options "COMPAT_42"
+@findex COMPAT_42
+@cindex UDP Checksums
+@cindex Checksums, UDP
+@cindex 4.2 Compatibility
+@cindex Compatibility options
+This option is used to disable UDP checksumming.  Under ordinary
+circumstances it should never ever ever be defined; however, if you are
+stuck trying to communicate with an old 4.2BSD machine, or one running
+something derived from 4.2 like SunOS 3.5 or Ultrix 2.0, this may be
+necessary in order to successfully receive UDP packets.
+
+This option will be replaced by run-time configuration in a future
+release of FreeBSD.
+
+@item options "COMPAT_43"
+@findex COMPAT_43
+@cindex 4.3 Compatibility
+@cindex Compatibility options
+This option controls a whole host of features, mostly relating to
+system-call compatibilty with 4.3BSD.  At the present time, it should
+not be turned off, as many utilities and library routines still depend
+on these obsolescent system calls being present.  At some future date,
+this will probably be split up into two separate options, one for binary
+compatibility and one for the old but useful system calls.
+
+@item options "COMPAT_102"
+@findex COMPAT_102
+@cindex FreeBSD 1.0.2 compatibility
+@cindex 1.0.2 Compatibility
+@cindex Compatibility options
+This option, which is not yet implemented, will control whether certain
+entry points which were system calls in FreeBSD 1.0.2 but have been
+replaced with library routines, are supported in the kernel for
+backwards compatiblity.
+
+@item options "DIRECTED_BROADCAST"
+@findex DIRECTED_BROADCAST
+@cindex IP
+@cindex UDP
+If this option is enabled, the kernel will support sending IP broadcast
+packets to subnets other than the one that the machine is on, and when
+forwarding will accept such packets.  That is to say, if your host lives
+on subnets @samp{132.198.3} and @samp{132.198.4}, and the
+@samp{132.198.3} side receives a packet addressed to
+@samp{132.198.4.255}, it will forward the packet as a broadcast on that
+subnet.
+
+This option will likely be replaced by run-time configuration in a
+future release of FreeBSD.
+
+@item options "DISKLABEL_UNPROTECTED"
+@findex DISKLABEL_UNPROTECTED
+@cindex disk
+@cindex disklabel
+@cindex rawdisk
+This options disables the checks which normally protects the disklabel from
+being overwritten.  This allows dd of=/dev/rwd0d if=file bs=8k to restore
+an diskimage.
+
+@item pseudo-device ether
+@findex ether
+@cindex Ethernet
+@cindex Network interfaces
+This pseudo-device provides link-layer support for Ethernet device
+drivers.  It is mandatory for all systems which include Ethernet or
+Ethernet-like devices, such as @samp{ed}, @samp{ie}, and @samp{is}.
+This code is due for a redesign.
+
+@item options EON
+@itemx pseudo-device eon
+@findex EON
+@cindex ISO 8473 CLNP
+@cindex Network interfaces
+The @samp{eon} network interface supports the ISO 8473
+Connectionless-Mode Network Protocol, tunnelled through IP version 4.
+@samp{eon} interfaces are created automatically once initially
+configured by adding ISO routes with IP destinations.  At present, both
+the pseudo-device and option declaration are necessary.
+
+This option will likely be removed in a future release of FreeBSD.
+
+@item options FIFO
+@findex FIFO
+@cindex Named pipes
+This option enables support for System V-- and POSIX-style named pipes
+or fifos.
+
+@item options GATEWAY
+@itemx options IPFORWARDING=@var{value}
+@itemx options IPSENDREDIRECTS=@var{value}
+@findex GATEWAY
+@findex IPFORWARDING
+@findex IPSENDREDIRECTS
+@cindex ICMP
+@cindex IP
+@cindex Network parameters
+These three options control whether FreeBSD's IP forwarding functions
+are enabled.  Technically speaking, because FreeBSD does not meet the
+standards set out in the ``Router Requirements'' document (RFC 1009),
+these should not be enabled, but sometimes it is necessary to enable
+this function.  The @samp{GATEWAY} option turns on @samp{IPFORWARDING},
+and also controls the sizing of certain system tables.  The
+@samp{IPFORWARDING} option controls the initial value of the
+@samp{ipforwarding} kernel variable (default 1 if @samp{GATEWAY}
+defined, 0 otherwise), which controls whether packets are acutally
+forwarded or not; @var{value} should be either @samp{0} or @samp{1}.
+@samp{IPSENDREDIRECTS} controls the initial value of the
+@samp{ipsendredirects} variable (default is one, but should be changed
+to zero); its @var{value} should also be either @samp{0} or @samp{1}.
+
+This option will be replaced by run-time configuration in a future
+release of FreeBSD.
+
+@item options INET
+@findex INET
+@cindex IP
+@cindex TCP
+@cindex UDP
+@cindex ICMP
+@cindex Networking domains
+This option controls the inclusion of the Internet protocol suite,
+including IP version 4, TCP, UDP, and ICMP.  Support for IP multicast,
+IP next generation, and IGMP will be provided at a future date.  It is
+not recommended to even attempt to generate a system with this option
+turned off, as many parts of the system depend on Internet networking in
+important and subtle ways.
+
+@item options ISO
+@itemx options TPIP
+@findex ISO
+@findex TPIP
+@cindex ISO 8473 CLNP
+@cindex ISO TP4
+@cindex ISO TP0
+@cindex ISO 9542 ESIS
+@cindex IEEE 802.2 LLC
+@cindex Networking domains
+These options control the inclusion of ISO OSI networking protocols.
+The TPIP option includes just enough support to run ISO Transport
+Protocol class 4 over IP, supporing the @samp{SOCK_SEQPACKET}
+abstraction.  The ISO option includes support for CLNP, TP class 0,
+ISO 9542 ESIS, and IEEE 802.2 logical link control class 0 (for CLNP
+only).
+
+This option will likely be removed in a future release of FreeBSD.
+
+@item options ISOFS
+@findex ISOFS
+@cindex ISO 9660 filesystem
+@cindex CD-ROM
+@cindex Rock Ridge filesystem
+@cindex Filesystems
+The @samp{ISOFS} option enables kernel support for the ISO 9660 CD-ROM
+filesystem, including RockRidge extensions.
+
+@item options "ISO_X25ESIS"
+@findex ISO_X25ESIS
+@cindex ISO 9542 ESIS
+@cindex X.25
+This option controls whether ISO 9542 ESIS is run over ITU-T X.25 link
+layers.  This requires the @samp{CCITT} option to be enabled as well.
+
+This option will likely be removed in a future release of FreeBSD.
+
+@item options KTRACE
+@findex KTRACE
+@cindex Kernel tracing
+This option enables the tracing of several classes of internal kernel
+events.  See the @samp{ktrace} command for more details.  Recommended.
+
+@item pseudo-device log
+@findex log
+@cindex Kernel message logging
+The @samp{log} pseudo-device provides kernel support to send kernel
+messages to @samp{syslog}.  It is mandatory.
+
+@item pseudo-device loop
+@findex loop
+@cindex Network interfaces
+The @samp{loop} pseudo-device provides the trivial network interface.
+It is required when any networking options are enabled.
+
+@item options MACHVMCOMPAT
+@findex MACHVMCOMPAT
+@cindex Mach virtual memory
+This option enables a Mach-compatible interface to the virtual memory
+subsystem, supporting system calls @samp{vm_allocate},
+@samp{vm_deallocate}, @samp{vm_inherit}, and @samp{vm_protect}.
+(Given the nature of the VM system, it is impossible to support a
+Mach-style @samp{vm_region} call, and in every case the `map' argument
+is ignored and replaced with the calling process's own map.)
+
+@item options MFS
+@findex MFS
+@cindex Memory filesystem
+@cindex Filesystems
+This option enables support for the memory filesystem, an in-core
+filesystem which lives in the swap area.  Using MFS as a @file{/tmp}
+filesystem can dramatically increase the speed of
+temporary-space-intensive operations such as compilations.  See the
+@samp{mount_mfs} manual page for more details.
+
+@item options MULTICAST
+@findex MULTICAST
+@cindex Multicast IP
+@cindex Networking
+Enable multicast support for things like vat, nv, etc.
+
+
+@item options MROUTING
+@findex MROUTING
+@cindex Multicast Routing
+@cindex Networking
+Enable multicast routing support (generally goes hand-in-hand with the
+above).  See also mrouted(1).
+
+@item options NFS
+@findex NFS
+@cindex Network File System
+@cindex Filesystems
+The @samp{NFS} option enables support for Sun's Network File System.
+(Also called ``Nightmare'' or ``Not a''@dots{}.)  This presently includes
+both client-- and server-side kernelized NFS support; it may in the
+future be broken into separate options.  This NFS implmentation comes to
+BSD courtesy of Rick Macklem of the University of Guelph, and is not
+derived from Sun licensed source code.  As a result, there are sometimes
+interoperability problems where the published specification is vague,
+and this option supports several new and useful features compared to
+Sun's.  See the @samp{mount} manual page for more details.
+
+@item options NS
+@itemx options NSIP
+@findex NS
+@findex NSIP
+@cindex Xerox Network System
+@cindex XNS IDP
+@cindex XNS SPP
+@cindex Network interfaces
+@samp{NS} controls the inclusion of support for the Xerox Network
+Service protocol family.  At the present time, it is not known whether
+this code even works; testers are welcome.  The @samp{NSIP} option
+enables encapsulation of XNS IDP over IP.
+
+These options will likely be removed in a future release of FreeBSD.
+
+@item options "PANIC_REBOOT_WAIT_TIME=@var{time}"
+@findex PANIC_REBOOT_WAIT_TIME
+@cindex Kernel panics
+This option controls how long the system waits after a panic before it
+reboots.  If a @var{time} of zero is specified, it reboots immediately;
+otherwise, @var{time} is the number of seconds to wait before rebooting.
+If, during the waiting period, a key is hit on the console, the
+countdown stops and the system will wait for the user to copy down the
+panic message and hit another key before rebooting.
+
+@item options PCFS
+@findex PCFS
+@cindex MS-DOS filesystem
+@cindex Filesystems
+This option controls support for mounting MS-DOS disks and disk
+partitions under FreeBSD.  The @samp{pcfs} manual page is presently very
+bogus.
+
+@item pseudo-device ppp @var{number}
+@findex ppp
+@cindex Point-To-Point Protocol
+@cindex Network interfaces
+The @samp{ppp} pseudo-device provides support for the Internet
+Point-to-Point protocol (RFC 1351 @i{et seq}), implemented as a line
+discipline over standard serial links.  @var{number} should be the
+number of simultaneous PPP interfaces which will be configured.
+
+@item pseudo-device pty @var{number}
+@findex pty
+@cindex Pseudo-terminals
+This pseudo-device provides support for pseudo-ttys, which are required
+for @samp{rlogin}, @samp{telnet}, and @samp{xterm} to operate correctly;
+@var{number} should be set to the total number of these programs you
+expect to have running at any given time.  Because pty's are not as yet
+dynamically allocated, and the underlying structures are large, it is
+best to keep this value as small as feasible, until this deficiency is
+remedied.
+
+@item options QUOTA
+@findex QUOTA
+@cindex Disk quotas
+@cindex Filesystems
+The @samp{QUOTA} option enables support for disk quotas.  Note that NFS
+quota support is not available.
+
+@item pseudo-device sl @var{number}
+@findex sl
+@cindex Serial Line Internet Protocol
+@cindex SLIP
+@cindex CSLIP
+@cindex IP
+@cindex Network interfaces
+This pseudo-device provides support for the Serial Line Internet
+Protocol (RFC 1055), implemented as a line discipline over standard
+serial links.  It includes support for Van Jacobson header compression.
+@var{number} should be the number of simultaneous SLIP interfaces which
+will be configured.  See also the @samp{slattach} manual page.
+
+@item options SYSVSHM
+@item options SYSVSEM
+@item options SYSVMSG
+@itemx options SHMMAXPGS=@var{value}
+@findex SYSVSHM
+@findex SYSVSEM
+@findex SYSVMSG
+@findex SHMMAXPGS
+@cindex System V shared memory
+@cindex System V semaphores
+@cindex System V message queues
+@cindex System V IPC
+@cindex Shared memory, System V
+@cindex Semaphores, System V
+@cindex Message queues, System V
+@cindex IPC, System V
+The @samp{SYSVSHM} option enables kernel-side emulation of System
+V-compatible shared memory.  The @samp{SHMMAXPGS} option (default 64
+pages or 256K) determines the maximum amount of shared memory available
+under this mechanism.  The @samp{SYSVSEM} option provides emulation of
+System V-compatible semaphores, and likewise @samp{SYSVMSG} for message
+queues.
+
+@item options "TCP_COMPAT_42"
+@findex TCP_COMPAT_42
+@cindex 4.2 Compatibility
+@cindex Compatibility options
+@cindex TCP
+This option controls the perpetuation of several bugs inherited from the
+4.2BSD implementation of TCP.  It should only be defined in the
+circumstances outlined for @samp{COMPAT_42}, above.
+
+This option will likely be replaced by run-time configuration in a
+future release of FreeBSD.
+
+@item pseudo-device tun
+@findex tun
+@cindex Network interfaces
+The @samp{tun} driver provides a network interface which is attached to
+a character device.  In this way, a user-mode program can grab packets
+out of the networking system, fiddle with them or move them around, and
+pass stuff packets back up into the kernel.  It is not known if this
+device either compiles or operates correctly, although it was believed
+to do both at some time in the past.
+
+@item options UCONSOLE
+@findex UCONSOLE
+@cindex Console redirection
+This option allows any old user to grab kernel output away from the
+console and send it to the tty of their choice.  It presents an
+incredile security hole for some systems, but is necessary in order to
+allow programs like @samp{xconsole} to operate.
+
+@item options XSERVER
+@findex XSERVER
+@cindex X Window System
+This obsolescent option enables support in the @samp{pc} console
+driver for certain operations required by the XFree86 server.
+@end table
+
+@node Performance, Devices, Subsystems, Top
+@c node,next,prev,up
+
+@chapter Performace and Debugging Options
+
+The following options are provided for system performace optimization.
+Note that kernel profiling is supported via the @samp{-p} option to the
+@samp{config} command; for more information see the @samp{config} manual
+page.
+
+@table @code
+@item psuedo-device ddb
+@findex ddb
+@cindex Kernel debugger
+@cindex Debugger, kernel
+This option enables the @samp{ddb} debugger, taken from Mach.  See the
+@samp{ddb} and @samp{dbsym} manual pages for more information on the use
+of this debugger.
+
+@item options DIAGNOSTIC
+@itemx options NAMEI_DIAGNOSTIC
+@itemx options PARANOID
+@findex DIAGNOSTIC
+@findex NAMEI_DIAGNOSTIC
+@findex PARANOID
+@cindex Debugging options
+These debugging options reduce performace.  They are intended to enable
+certain internal consistency checks which are not supposed to fail
+during correct operation, and so are normally disabled for performace
+reasons.
+
+@item options FASTLINKS
+@findex FASTLINKS
+@cindex Symbolic links
+@cindex Filesystems
+The @samp{FASTLINKS} option enables the creation of symbolic links whose
+target names reside entirely within the i-node of the link, when
+possible.  This results in faster access for those links which are short
+enough (in practice, most of them).  All kernels can read such links,
+but only @samp{FASTLINKS} kernels will create them, for compatibility
+with older kernels lacking such support.
+
+@item options ICMPPRINTFS
+@findex ICMPPRINTFS
+@cindex Debugging options
+@cindex ICMP
+This option is defined to allow debugging of ICMP (@dfn{Internet Control
+Message Protocol}) packets in the kernel.  When defined and the
+@samp{icmpprintfs} kernel variable (default false) is set to true, ICMP
+packets will be printed out to the console when received.  Note that it
+is probably better to use @samp{tcpdump} for this kind of debugging.
+
+@item options KGDB
+@findex KGDB
+@cindex Kernel debugger
+@cindex Debugger, kernel
+@cindex Remote debugging
+The @samp{KGDB} option enables certain bits of kernel code which will
+eventually be able to talk to a remote copy of the @samp{gdb} debugger
+over a serial connection.  The present code does not work, but users are
+invited to hack on it and contribute the changes back to the FreeBSD
+team.
+
+@item options MAXMEM=@var{size}
+@findex MAXMEM
+The @samp{MAXMEM} option controls how much memory the kernel will
+recognize on bootup, specified in kilobytes.  This may be useful for
+dealing with certain broken attachment busses (or the adapters thereon)
+which are unable to deal with memory beyond a certain address.
+
+@item options SUBNETSARELOCAL
+@findex SUBNETSARELOCAL
+@cindex TCP
+@cindex Network parameters
+This option controls whether the TCP system believes that machines on
+other subnets of your network are considered to be ``local'' to your
+host.  For most systems, this option should be on (the default); if you
+are directly connected to a class A network, however, then it may need
+to be turned off.  (This is true of networks like the MILNET.)
+
+@item options "SYMTAB_SPACE=@var{value}"
+@findex SYMTAB_SPACE
+@cindex Debugger, kernel
+@cindex Kernel debugger
+This obsolescent option controls the amount of space that will be
+statically allocated in the debugger source code to hold the kernel
+symbol table that @samp{dbsym} sticks there.  Eventually this will be
+dynamically allocated at load time.  The default @var{value} is 63000
+bytes.
+
+@item options "UPDATE_INTERVAL=@var{value}"
+@findex UPDATE_INTERVAL
+@cindex Update process
+This option controls the wait time between successive @samp{sync}
+operations run by the @samp{update} system process (pid 3).  This option
+will be replaced by run-time configuration in a future release of
+FreeBSD.
+
+@item options DUMMY_NOPS
+@findex DUMMY_NOPS
+@cindex Fast i/o bus operations
+This option controls the use of real Nops for bus operations.
+This might break on older systems so should be used with care.
+
+@end table
+
+@node Devices, Internals, Performance, Top
+
+@chapter Device Options
+
+There are different device selections available depending on the type of
+bus present in your computer.  We will cover generic FreeBSD devices,
+ISA-bus devices, and EISA-bus devices.  A separate section describes the
+devices available in the SCSI subsystem.
+
+@menu
+* Generic::             Devices available in all FreeBSD systems.
+* ISA::                 Devices specific to the ISA bus.
+* EISA::                Devices specific to the EISA bus.
+* MCA::                 No support for Micro Channel, yet.
+* PCI::                 No support for PCI, yet.
+* SCSI::                The SCSI subsystem.
+@end menu
+
+@node Generic, ISA,, Devices
+@section Generic Devices and Options
+
+The following devices and options are available in all FreeBSD
+configurations.  In addition to these devices, a selection of ISA
+devices (@pxref{ISA}) is required in order to generate a workable
+system.
+
+@table @code
+@item machine "i386"
+@findex i386
+This mandatory declaration informs the @samp{config} program that you
+are using an i386 or compatible CPU, and enables the selection of all
+the other devices listed here.
+
+@item cpu "I386_CPU"
+@itemx cpu "I486_CPU"
+@findex I386_CPU
+@findex I486_CPU
+These two options control which specific CPUs will be supported by the
+generated kernel.  If the kernel detects that it is not running on a CPU
+for which support was enabled, it will panic quickly upon startup.  If
+you do not expect to need to run your kernel on an i386 or similar CPU,
+leaving out that support can increase virtual memory system performance.
+
+@item options "MATH_EMULATE"
+@findex MATH_EMULATE
+@cindex Floating-point emulator
+@cindex i387
+When this option is defined, the math coprocessor emulator is compiled
+into the kernel.  When it is not defined and the coprocessor is absent,
+programs which use floating-point operations are automatically killed.
+
+@item device npx0 at isa? port "IO_NPX" irq 13 vector npxintr
+@findex npx
+@cindex i386
+The @samp{npx} device provides support for the i387 numeric coprocessor
+and the floating-point portions of the i486 CPU.  This will eventually
+be fixed to not require ISA to be configured.
+
+@item pseudo-device speaker
+@findex speaker
+The @samp{speaker} pseudo-device provides support for rudimentary access
+to the PC's speaker via @file{/dev/spkr}.  It provides a
+character-device interface which interprets @samp{PLAY} strings similar
+to IBM PC Advanced BASIC, as well as an @samp{ioctl} interface with more
+fine-grained control.  See the @samp{spkr} manual page for more
+information.
+@end table
+
+@node ISA, EISA, Generic, Devices
+@section ISA-bus Devices and Options
+
+The following options are specific to ISA-bus devices and systems.
+Since the EISA bus is backwards-compatible with the ISA bus, all these
+options also apply to EISA systems.  The same goes for VESA Local Bus
+(VL-Bus) systems.
+
+@table @code
+@item controller isa0
+@findex isa
+This @strong{mandatory} declaration must precede any other devices
+listed in this section.  It provides the basic support for the ISA-bus
+glue logic, including DMA and autoconfiguration.
+
+@item controller aha0 at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
+@item options "TUNE_1542"
+@findex aha
+@findex TUNE_1542
+@cindex Adaptec 154x
+@cindex SCSI host adaptors
+The @samp{aha} device supports the Adaptec 154x series of SCSI
+controllers, and attempts to support other vendors' controllers which
+claim compatibility with the Adaptec 1542, such as the BusLogic 545.
+This device is included in the @samp{GENERICAH} distribution kernel.
+The @samp{scbus} device (@pxref{SCSI}) is a prerequisite for this
+device.
+
+Some older versions of this code would attempt to set the controller's
+bus access speed to the fastest possible without losing data; we have
+found that this makes the driver unusable for some users.  If you wish
+to enable this optimization, or if you suspect that your SCSI transfers
+are running slower than they should, then you can use the @samp{TUNE_1542}
+option to enable bus-timing detection.
+
+@item controller bt0 at isa? port "IO_BT0" bio irq 12 vector btintr
+@findex bt
+@cindex Bustek 742
+@cindex SCSI host adaptors
+This device supports the Bustek 742 SCSI controller.  It is included in
+the @samp{GENERICBT} distribution kernel; the @samp{scbus} device
+(@pxref{SCSI}) is a prerequisite.
+
+@item options ALLOW_CONFLICT_IOADDR
+@findex ALLOW_CONFLICT_IOADDR
+@cindex Allow IO Address Conflict
+@cindex ISA device management
+Allow devices on the ISA bus to share conflicting IO address spaces.
+This is generally an error, though things like PS/2 mouse drivers which
+are implemented seperately from the keyboard driver will require this
+option to be set.  Note that this is almost always sub-optimal, and the
+current PS/2 mouse driver will, in fact, frequently fight with the
+keyboard if you try to use them concurrently.  Needing this option
+enabled is a sure sign that you need to consider a different design for
+your driver.
+
+@item options ALLOW_CONFLICT_IRQ
+@findex ALLOW_CONFLICT_IRQ
+@cindex Allow IRQ Conflict
+@cindex ISA device management
+
+Allow devices on the ISA bus to share conflicting IRQ's.  This is often
+necessary for multiport serial cards which have several devices at the
+same IRQ.  Enable this only with caution!
+
+@item options COM_MULTIPORT
+@findex COM_MULTIPORT
+@cindex Multi-port serial boards
+@cindex Serial ports
+This option enables support in the @samp{sio} serial driver for certain
+multi-port serial boards.
+
+@item device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
+@itemx device ed1 at isa? port 0x300 net irq 5 iomem 0xd8000 vector edintr
+@findex ed
+@cindex Western Digital 80x3
+@cindex 3Com 3C503
+@cindex Novel NE1000/NE2000
+@cindex Network interfaces
+@cindex Ethernet
+The @samp{ed} network interface driver provides support for the Western
+Digital/SMC 80x3 series, the 3Com 3c503, and Novell NE1000 and NE2000
+series of Ethernet controllers.  It automatically detects differences
+among the various versions of these controllers and adapts
+appropriately.  The @samp{ed1} line shown is for the Novell boards; the
+@samp{ed0} line is appropriate for all other supported controllers.
+(The Novell controllers cannot be configured to use port 0x280.)
+
+@item controller fdc0 at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+@itemx disk fd0 at fdc0 drive 0
+@itemx disk fd1 at fdc0 drive 1
+@itemx tape ft0 at fdc0 drive 2
+@findex fd
+@findex ft
+@cindex Floppy disk
+@cindex Floppy tape
+@cindex QIC-80
+@cindex Tape drives
+@cindex Cartridge tape drives
+@cindex Quarter-Inch-Cartridge (QIC) tape drives
+@cindex Disk drives
+The @samp{fdc} driver provides support for the standard PC floppy-disk
+controller.  The @samp{fd} sub-driver supports 3.5-- and 5.25-inch
+floppy disks in the standard 360KB, 720KB, 1200KB, 1440KB, and 2880KB
+formats, as well as a number of other formats not supported by DOS.  The
+@samp{ft} driver is available for QIC-80 ``floppy tape'' support.
+The drivers support formatting of both tapes and disks.  This driver is
+substantially improved from that shipped in previous releases of
+FreeBSD.
+
+@item device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
+@findex ie
+@cindex AT&T EN100
+@cindex AT&T StarLAN 10
+@cindex Network interfaces
+@cindex Ethernet
+@cindex StarLAN
+This network interface driver provides support for the AT&T StarLAN 10
+and EN100 family of controllers.  Note that the configuration specified
+here is not the default configuration, but one which attempts to deal
+with the conflicts that arise in more modern systems.  (It is expected
+that this driver will be expanded in the future to support other similar
+cards in the manner of @samp{ed}.)
+
+@item device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
+@findex is
+@cindex Isolan 4141-0
+@cindex Isolink 4110
+@cindex Ethernet
+@cindex Network interfaces
+The @samp{is} network interface driver supports the Isolan 4141-0 and
+Isolink 4110 Ethernet controllers.
+
+@c @item device ix0 at isa? port 0x320 net irq 10 iomem 0xd0000 iosiz 32768 \
+@c @itemx vector ixintr
+@c @findex ix
+@c @cindex Intel EtherEXPRESS
+@c @cindex Ethernet
+@c @cindex Network interfaces
+@c This device is known to exist, but is not presently in the FreeBSD
+@c source tree.  When it is made available, this information will be
+@c updated.
+
+@item device lpt0 at isa? port "IO_LPT1" tty
+@itemx device lpt0 at isa? port "IO_LPT1" tty irq 7 vector lptintr
+@itemx device lpt0 at isa? port ? tty irq 7 vector lptintr
+@itemx device lpt0 at isa? port ? tty
+@findex lpa
+@findex lpt
+@cindex Parallel printers
+
+The @samp{lpt} driver provides support for the parallel printer driver
+accessed as @file{/dev/lpt@var{N}} (@var{N}=0, 1, @dots{}).  The current
+version of this driver provides support for either polled or
+interrupt-driven ports, a unification of the @samp{lpt} and @samp{lpa}
+drivers from FreeBSD 1.1.
+
+The first and second examples show explicit selection of a port address.
+If the port is not specified, as in the third and fourth examples, the
+driver defaults to whatever address the BIOS printer driver would have
+used.  The second and third examples select interrupt-driven I/O; if
+polled mode is specified, as in the first and fourth examples, it is
+impossible to enable interrupt-driven access at run time.
+
+If you receive ``ISA strayintr 7'' messages correlated with the use of
+the polled mode of @samp{lpt}, chances are that your controller supports
+interrupt-driven operation, and you should switch to that mode.
+
+
+@item device mcd0 at isa? port 0x300 bio irq 10 vector mcdintr
+@findex mcd
+@cindex Mitsumi CD-ROM
+@cindex CD-ROM
+This device provides support for the Mitsumi non-SCSI CD-ROM drive.
+Performance is known to be quite slow.
+
+@c mse, anyone?
+
+@item device pc0 at isa? port "IO_KBD" tty irq 1 vector pcrint
+@itemx device sc0 at isa? port "IO_KBD" tty irq 1 vector scintr
+@itemx options NCONS=@var{value}
+@itemx options COMCONSOLE
+@findex pc
+@findex sc
+@findex NCONS
+@findex COMCONSOLE
+@cindex Console devices
+@cindex pccons
+@cindex Syscons
+@cindex Virtual consoles
+@cindex X Window System
+The @samp{pc} and @samp{sc} devices provide support for the system
+display and keyboard, which is the default console.  There might
+actually be documentation somewhere for both of these.  The @samp{sc}
+device requires the @samp{NCONS} option to be defined to some value; it
+represents the number of virtual consoles to be provided by the driver;
+a reasonable value is 8.  One of @samp{pc} or @samp{sc} is presently
+required unless @samp{COMCONSOLE} is enabled, in which case a serial
+port is made into the console.
+
+@item device psm0 at isa? port "IO_KBD" tty irq 12 vector psmintr
+@findex psm
+@cindex PS/2 mouse
+@cindex Mouse
+This driver provides support for the IBM-style PS/2 mouse now popular
+on many PCs.  This driver shares an address with the console driver
+and therefore requires that the option @samp{ALLOW_CONFLICT_IOADDR}
+also be set.  It is also important that the console driver
+(@samp{pc} or @samp{sc}) *preceed* this driver in your kernel configuration
+file in order to get priority.  All in all, this driver is a hack and
+should really be integrated into the console driver itself, evidence of
+which can be easily seen when trying to use the mouse and keyboard at the
+same time in X (try it).  Volunteers willing to clean this up and do it
+properly are most welcome!
+
+@c sb, anyone?
+
+@item device sio0 at isa? port "IO_COM1" tty irq 4 vector siointr
+@itemx device sio1 at isa? port "IO_COM2" tty irq 3 vector siointr
+@itemx device sio2 at isa? port "IO_COM3" tty irq 5 vector siointr
+@itemx device sio3 at isa? port "IO_COM4" tty irq 9 vector siointr
+@findex sio
+@cindex Serial ports
+@cindex National 8250/16450/16550
+@cindex Bi-directional serial ports
+@cindex Multi-port serial boards
+The @samp{sio} driver provides support for high-speed serial
+communications using the standard 8250, 16450, and 16550 UART chips.  It
+provides a standard tty interface for these devices as
+@file{/dev/tty@var{unit}}, and, when enabled with the @samp{comcontrol}
+program, a call-out capability as @file{/dev/cua@var{unit}} (@var{unit}
+is two digits, zero-padded in both cases).  Certain multi-port systems
+are also supported.
+
+@item device uha0 at isa? port "IO_UHA0" bio irq 14 drq 5 vector uhaintr
+@findex uha
+@cindex Ultrastor 14F
+@cindex Ultrastor 34F
+@cindex SCSI host adaptors
+This device supports the Ultrastor 14F and related SCSI controllers.  It
+is included in the @samp{GENERICBT} distribution kernel, and requires
+@samp{scbus} (@pxref{SCSI}) as a prerequisite.  The Ultrastor 24F is not
+supported.
+
+@item controller wdc0 at isa? port "IO_WD1" bio irq 14 vector wdintr
+@itemx disk wd0 at wdc0 drive 0
+@itemx disk wd1 at wdc0 drive 1
+@findex wd
+@cindex Western Digital WD100x
+@cindex ST-506 hard disks
+@cindex RLL hard disks
+@cindex ESDI hard disks
+@cindex IDE hard disks
+@cindex Disk drives
+The @samp{wd} device supports standard ST-506, RLL, ESDI, and IDE hard
+disks, as controlled by the Western Digital WD100x series of controllers
+(and compatible hardware).  This version is substantially improved from
+that provided in FreeBSD 1.0.
+
+@item device wt0 at isa? port 0x300 bio irq 5 drq 1 vector wtintr
+@findex wt
+@cindex Archive QIC-02
+@cindex Wangtek QIC-02
+@cindex Cartridge tape drives
+@cindex QIC-02
+@cindex QIC-36
+@cindex Tape drives
+@cindex Quarter-Inch-Cartridge (QIC) tape drives
+This driver supports Archive QIC-02 and Wangtek QIC-02 and QIC-36
+cartridge tape controllers.
+
+@item device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
+@findex ze
+@cindex Ethernet
+@cindex Network Interfaces
+@cindex PCMCIA
+@cindex PCMCIA Ethernet Cards
+This driver supports certain PCMCIA ethernet cards.  It was originally
+written for the IBM Credit Card Adapter and has also been tested
+with the National Semi `InfoMover' PCMCIA card.
+@end table
+
+@node EISA, MCA, ISA, Devices
+@section EISA-bus Devices and Options
+
+There is presently only one EISA-specific device driver.
+
+@table @code
+@item controller ahb0 at isa? bio irq 11 vector ahbintr
+@findex ahb
+@cindex Adaptec 174x
+@cindex SCSI host adaptors
+The @samp{ahb} driver provides support for the Adaptec AHA-174x series
+of SCSI controllers.  This controller is included in the
+@samp{GENERICAH} distribution kernel, and requires the @samp{scbus}
+driver (@pxref{SCSI}) as a prerequisite.
+@end table
+
+@node MCA, PCI, EISA, Devices
+@section Micro Channel Devices and Options
+
+@cindex Micro Channel Architecture
+We don't support Micro Channel right now.  Anyone interested in working
+on Micro Channel support should send mail to
+@samp{FreeBSD-Questions@@freefall.cdrom.com} for information on how to
+help.
+
+@node PCI, SCSI, MCA, Devices
+@section PCI Devices and Options
+
+@cindex PCI
+We don't support PCI, either.  Anyone interested in working on PCI
+support should send mail to @samp{FreeBSD-Questions@@freefall.cdrom.com}
+for information on how to help.
+
+@node SCSI,, PCI, Devices
+@section The SCSI Subsystem
+
+The SCSI subsystem consists of a set of adaptor-specific driver
+routines, which were described in the previous sections, and the generic
+SCSI device drivers, which handle the standardized interactions with
+devices on the SCSI bus.
+
+@c devices: cd, ch, scbus, sd, sg, st
+
+@table @code
+@item device cd0 
+@findex cd
+@cindex CD-ROM
+@cindex SCSI devices
+The @samp{cd} device provides support for CD-ROM drives.  Only one
+@samp{cd} device need be configured, as the driver automatically
+allocates units for each CD-ROM drive found.  Playing of audio CDs is
+also supported, on drives which support it, through @code{ioctl} calls.
+Support for retrieval of CD audio over the SCSI bus is not presently
+available.
+
+@item device ch0
+@findex ch
+@cindex Media changers
+@cindex SCSI devices
+The @samp{ch} driver supports SCSI media changers; this may include
+tape, removable disk, and CD changers.  One @samp{ch} device should be
+configured for each changer you expect to support.
+
+@item device scbus0
+@findex scbus
+@cindex SCSI bus management
+This driver forms the core of the SCSI subsystem.  It provides the
+device-independent routines that manage SCSI transactions, keep track of
+attached devices, and act as glue between SCSI-device-specific drivers
+and system-specific host adaptors.  This device is @emph{mandatory} for
+all SCSI systems.
+
+@item device sd0
+@findex sd
+@cindex SCSI devices
+@cindex Disk drives
+The @samp{sd} driver provides access to non-removable SCSI disks.  One
+@samp{sd} device should be defined for each disk you expect to have
+simultaneously connected to the system.
+
+@c @item device sg0
+@c @findex sg
+@c @cindex SCSI devices
+@c @cindex Generic SCSI
+@c @cindex Unsupported SCSI devices
+@c This driver provides support for development of user-mode drivers and
+@c other programs which access the SCSI bus directly.  One @samp{sg} device
+@c should be defined for each @emph{host adaptor} you have installed in
+@c your system.
+
+@item device st0
+@findex st
+@cindex SCSI devices
+@cindex Tape drives
+@cindex Quarter-Inch-Cartridge (QIC) tape drives
+The @samp{st} driver supports generic SCSI tape drives.  One @samp{st}
+device should be defined for each tape drive you wish to access.  See
+the @samp{st} manual page for information about how to manipulate the
+parameters of this device.
+
+@item device uk0
+@findex uk
+@cindex SCSI devices
+@cindex Unknown SCSI devices
+The @samp{uk} driver provides an attachment point for all otherwise
+unrecognized SCSI devices.  You can't actually do anything with such a
+device, except perhaps send it an inquiry command using the @samp{scsi}
+program (q.v.).
+@end table
+
+@node Internals, Index, Devices, Top
+
+@chapter Internal Use Only
+
+Eventually, this chapter will document some of the kernel manifest
+constants which are not defines, but which can be tweaked in various
+header files.
+
+@node Index,, Internals, Top
+@appendix General Index
+
+Items in @code{typewriter} font are option or device names.
+
+@printindex cp
+
+@bye

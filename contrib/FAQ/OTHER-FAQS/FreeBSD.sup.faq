@@ -1,0 +1,98 @@
+
+                                 FreeBSD
+                                 Sup FAQ
+
+Last updated: $Date: 1994/05/11 22:40:48 $
+
+	SUP is a network based software update tool developed at CMU.  The
+purpose of this document is get the beginner up and running with sup.
+
+	First off you will need to pick up the sup binaries.  The easiest
+way of doing this is to grab the sup_bin.tgz package from:
+
+	freebsd.cdrom.com:~ftp/pub/FreeBSD/packages
+		(FreeBSD 1.1 or later)
+	freebsd.cdrom.com:~ftp/pub/FreeBSD/packages-1.0
+		(FreeBSD 1.0.2 or earlier)
+
+Install the sup package using pkg_add and add the following line to your
+/etc/services file:
+
+        sup                 871/tcp        #sup
+
+	
+	SUP gets the information it needs to run from a configuration file 
+called a supfile.  This file tells sup what collections it will be updating
+and/or installing and where they go.  There are already two files that
+have been created for supping FreeBSD, both of which may be gotten from: 
+
+	freebsd.cdrom.com:~ftp/pub/FreeBSD/FAQ/OTHER-FAQS 
+
+The file `FreeBSD.standard.supfile' is used for supping from the
+/usr/src tree, the file `FreeBSD.ports.supfile' for the /usr/ports tree.
+These two files can be installed whereever it is convient to do so.
+
+	Next you will have to comment out whichever distributions you do
+not wish to receive with a # at the begining of the distribution line.
+You will find a list of distributions and a description for each at the
+end of this file.
+
+	Once this is setup, you're ready to go.
+
+To start sup type:
+
+	sup supfile
+
+If you wish to see what sup is doing "verbosely", give it the -v option,
+like so:
+
+	sup -v supfile
+
+  Thats all there is to it!  Remember that if you're running current,
+which is what you will have if you sup, please join the freebsd-current
+mailing list.  For more information on current please see the file:
+
+freefall.cdrom.com:~ftp/pub/FreeBSD/FAQ/OTHER-FAQS/FreeBSD.current.policy
+
+Gary Clark II
+FreeBSD maintainance person
+
+----
+
+FreeBSD SUP distributions
+
+From FreeBSD.standard.supfile:
+
+base:  Just those files at the top of /usr/src.
+bin:  /bin
+contrib:  Sources to programs located in /usr/src/contrib, including the FAQ.
+crypt:  Sources to libcrypt.  NOTE:  This is for use by US and Canadians only!!
+etc: /etc 
+games: /usr/games
+gnu: Software that is under the GPL, like gcc, groff and uucp.
+include: /usr/include
+ksrc:  The kernel sources
+lib: /usr/lib
+libexec: /usr/libexec
+sbin: /sbin
+usrbin: /usr/bin
+usrsbin: /usr/sbin
+
+From FreeBSD.ports.supfile
+
+ports-audio:  Audio applications
+ports-base:  Just those files at the top of /usr/ports.
+ports-comm:  Communications software
+ports-db:  Database software
+ports-devel:  Development software
+ports-editor:  Editing software
+ports-game:  Game software
+ports-lang:  Programming Languages
+ports-mail:  Mail software
+ports-math:  Math software
+ports-net:  Network software
+ports-news:  USENET news software
+ports-print:  Printing software
+ports-shell:  User shell software
+ports-util:  Utility software
+ports-x11:  X11 software

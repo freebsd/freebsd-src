@@ -1,0 +1,138 @@
+1.10 -> 1.11: Thu Mar 24 16:07:45 EST 1994
+	+ Change H, M, and L to set the absolute mark, historical practice.
+	+ Fix bug in stepping through multiple tags files.
+	+ Add "remapmax" option that turns off map counts so you can remap
+	  infinitely.  If it's off, term_key() can be interrupted from the
+	  keyboard, which will cause the buffers to flush.  I also dropped
+	  the default max number of remaps to 50.  (Only Dave Hitz's TM
+	  macros and maze appear to go over that limit.)
+	+ Change :mkexrc to not dump w{300,1200,9600}, lisp options.
+	+ Fix backward search within a line bug.
+	+ Change all the includes of "pathnames.h" to use <>'s so that the
+	  PORT versions can use -I. to replace it with their own versions.
+	+ Make reads and writes interruptible.  Rework code that enters and
+	  leaves ex for '!' and filter commands, rework all interrupt and
+	  timer code.
+	+ Fix core dump when user displayed option in .exrc file.
+	+ Fix bug where writing empty files didn't update the saved 
+	  modification time.
+	+ Fix bug where /pattern/ addressing was always a backward search.
+	+ Fix bug triggered by autoindent of more than 32 characters, where
+	  nvi wasn't checking the right TEXT length.
+	+ Fix bug where joining only empty lines caused a core dump.
+1.09 -> 1.10: Sat Mar 19 15:40:29 EST 1994
+	+ Fix "set all" core dump.
+1.08 -> 1.09: Sat Mar 19 10:11:14 EST 1994
+	+ If the tag's file path is relative, and it doesn't exist, check
+	  relative to the tag file location.
+	+ Fix ~ command to free temporary buffer on error return.
+	+ Create vi.ref, a first cut at a reference document for vi.
+	  The manual page and the reference document only document the
+	  set options, so far.
+	+ Fix 1G bug not always going to the first non-blank.
+	+ Upgrade PORT/regex to release alpha3.4, from Henry Spencer.
+	+ Add MKS vi's "cdpath" option, supporting a cd search path.
+	+ Handle if search as a motion was discarded, i.e. "d/<erase>".
+	+ Change nvi to not create multiple recovery files if modifying
+	  a recovered file.
+	+ Decide to ignore that the cursor is before the '$' when inserting
+	  in list mode.  It's too hard to fix.
+1.07 -> 1.08: Wed Mar 16 07:37:36 EST 1994
+	+ Leftright and big line scrolling fixes.  This meant more changes
+	  to the screen display code, so there may be new problems.
+	+ Don't permit search-style addresses until a file has been read.
+	+ "c[Ww]" command incorrectly handled the "in whitespace" case.
+	+ Fix key space allocation bug triggered by cut/paste under SunOS.
+	+ Ex move command got the final cursor position wrong.
+	+ Delete "optimize option not implemented" message.
+	+ Make the literal-next character turn off mapping for the next
+	  character in text input mode.
+1.06 -> 1.07: Mon Mar 14 11:10:33 EST 1994
+	+ The "wire down" change in 1.05 broke ex command parsing, there
+	  wasn't a corresponding change to handle multiple K_VLNEXT chars.
+	+ Fix final position for vi's 't' command.
+1.05 -> 1.06: Sun Mar 13 16:12:52 EST 1994
+	+ Wire down ^D, ^H, ^W, and ^V, regardless of the user's termios
+	  values.
+	+ Add ^D as the ex scroll command.
+	+ Support ^Q as a literal-next character.
+	+ Rework abbreviations to be delimited by any !inword() character.
+	+ Add options description to the manual page.
+	+ Minor screen cache fix for svi_get.c.
+	+ Rework beautify option support to match historical practice.
+	+ Exit immediately if not reading from a tty and a command fails.
+	+ Default the SunOS 4.* ports to the distributed curses, not SMI's.
+1.04 -> 1.05: Thu Mar 24 16:07:45 EST 1994
+	+ Make cursor keys work in input mode.
+	+ Rework screen column code in vi curses screen.  MAJOR CHANGE --
+	  after this, we'll be debugging curses screen presentation from
+	  scratch.
+	+ Explode include files in vi.h into the source files.
+1.03 -> 1.04: Sun Mar  6 14:14:16 EST 1994
+	+ Make the ex move command keep the marks on the moved lines.
+	+ Change resize semantics so you can set the screen size to a
+	  specific value.  A couple of screen fixes for the resize code.
+	+ Fixes for foreground/background due to SIGWINCH.
+	+ Complete rework of all of vi's cursor movements.  The underlying
+	  assumption in the old code was that the starting cursor position
+	  was part of the range of lines cut or deleted.  The command
+	  "d[[" is an example where this isn't true.  Change it so that all
+	  motion component commands set the final cursor position separately
+	  from the range, as it can't be done correctly later.  This is a
+	  MAJOR CHANGE -- after this change, we'll be debugging the cursor
+	  positioning from scratch.
+	+ Rewrite the B, b, E, e commands to use vi's getc() interface
+	  instead of rolling their own.
+	+ Add a second MARK structure, LMARK, which is the larger mark
+	  needed by the logging and mark queue code.  Everything else uses
+	  the reworked MARK structure, which is simply a line/column pair.
+	+ Rework cut/delete to not expect 1-past-the-end in the range, but
+	  to act on text to the end of the range, inclusive.
+	+ Sync on write's, to force NFS to flush.
+1.01 -> 1.03: Sun Jan 23 17:50:35 EST 1994 (PUBLICLY AVAILABLE VERSION)
+	+ Tag stack fixes, was returning to the tag, not the position from
+	  which the user tagged.
+	+ Only use from the cursor to the end of the word in cursor word
+	  searches and tags.  (Matches historical vi behavior.)
+	+ Fix delete-last-line bug when line number option set.
+	+ Fix usage line for :split command.
+	+ If O_NUMBER set, long input lines would eventually fail, the column
+	  count for the second screen of long lines wasn't set correctly.
+	+ Fix for [[ reaching SOF with a column longer than the first line.
+	+ Fix for multiple error messages if no screen displayed.
+	+ Fix :read to set alternate file name as in historical practice.
+	+ Fix cut to rotate the numeric buffers if line mode flag set.
+1.00 -> 1.01: Wed Jan 12 13:37:18 EST 1994
+	+ Don't put cut items into numeric buffers if cutting less than
+	  parts of two lines.
+0.94 -> 1.00: Mon Jan 10 02:27:27 EST 1994
+	+ Read-ahead not there; BSD tty driver problem, SunOS curses
+	  problem.
+	+ Global command could error if it deleted the last line of
+	  the file.
+	+ Change '.' to only apply to the 'u' if entered immediately
+	  after the 'u' command.  "1pu.u.u. is still broken, but I
+	  expect that it's going to be sacrificed for multiple undo.
+	+ If backward motion on a command, now move to the point; get
+	  yank cursor positioning correct.
+	+ Rework cut buffers to match historic practice -- yank/delete
+	  numeric buffers redone sensibly, ignoring historic practice.
+0.92 -> 0.93: Mon Dec 20 19:52:14 EST 1993
+	+ Christos Zoulas reimplemented the script windows using pty's,
+	  which means that they now work reasonably.   The down side of
+	  this is that almost all ports other than 4.4BSD need to include
+	  two new files, login_tty.c and pty.c from the PORT/clib directory.
+	  I've added them to the Makefiles.
+	+ All calloc/malloc/realloc functions now cast their pointers, for
+	  SunOS -- there should be far fewer warning messages, during the
+	  build.  The remaining messages are where CHAR_T's meet char *'s,
+	  i.e. where 8-bit clean meets strcmp.
+	+ The user's argument list handling has been reworked so that there
+	  is always a single consistent position for use by :next, :prev and
+	  :rewind.
+	+ All of the historical options are now at least accepted, although
+	  not all of them are implemented.   (Edcompatible, hardtabs, lisp,
+	  optimize, redraw, and slowopen aren't implemented.)
+	+ The RE's have been reworked so that matches of length 0 are handled
+	  in the same way as vi used to handle them.
+	+ Several more mapping fixes and ex parser addressing fixes.

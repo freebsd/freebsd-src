@@ -11,9 +11,6 @@ installed on your hard-drive is to 'bounce' on a key like shift or
 num-lock (which works well since you can see when the keyboard comes
 back to life) until the boot sequence is finished.  The keyboard will
 work fine for installing FreeBSD onto the hard-drive.
-	Generally the problems go away at this point, but if it doesn't
-you should install a SYSCONS kernel which doesn't experience these
-keyboard problems.
 
 /usr/bin/gdb:
 	The gdb in the release will not work on shared objects nor will it
@@ -63,14 +60,14 @@ keyboard problems.
 	memory.  If you find this to be the case, temporarily remove your
 	extra memory and contact Buslogic for an upgrade!
 
-/usr/bin/find
-	find doesn't work on CDROM's. You need to call find with the
-	"fstype isofs" argument to get it working. The bug seems to be 
-	in the "fts(3)" routines that find uses.
+fsck:
+	fsck can go into an endless loop in the repair/fsck cycle on
+	a corrupted filesystem. The message "VALUES IN SUPER BLOCK
+	DISAGREE WITH THOSE IN FIRST ALTERNATE" is very misleading.
+	fsck compares the superblock with the alternate in the last
+	cylinder group? So if this block is corrupt, you have no chance
+	to get the filesystem repaired. You can answer on the question
+	"UPDATE STANDARD SUPERBLOCK" with yes and get always the same
+	error message on the next fsck.
 
-/usr/bin/awk
-	awk dumps core for the following command line "awk '' blubber".
-	Problem is already known by the gawk maintainers and will be fixed
-	in the next release of gawk.
-
-$Id: KNOWNBUGS,v 1.7.2.6 1994/05/01 20:58:17 rgrimes Exp $
+$Id: KNOWNBUGS,v 1.16 1994/06/04 10:39:55 jkh Exp $

@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.7 1994/01/25 23:04:27 ache Exp $
+ *    $Id: spkr.c,v 1.8 1994/04/21 14:21:50 sos Exp $
  */
 
 #include "speaker.h"
@@ -17,7 +17,8 @@
 #include "errno.h"
 #include "buf.h"
 #include "uio.h"
-
+#include "i386/isa/isa.h"
+#include "i386/isa/timerreg.h"
 #include "machine/speaker.h"
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
@@ -48,10 +49,7 @@
  *  Channel 2  LSB first,  (Square Wave) Encoding 
  *             MSB second
  */
-#define PPI		0x61	/* port of Programmable Peripheral Interface */
 #define PPI_SPKR	0x03	/* turn these PPI bits on to pass sound */
-#define PIT_CTRL	0x43	/* PIT control address */
-#define PIT_COUNT	0x42	/* PIT count address */
 #define PIT_MODE	0xB6	/* set timer mode for sound generation */
 
 /*
@@ -75,13 +73,17 @@ unsigned int thz, ticks;
 
     /* set timer to generate clicks at given frequency in Hertz */
     sps = spltty();
-    outb(PIT_CTRL, PIT_MODE);		/* prepare timer */
-    outb(PIT_COUNT, (divisor & 0xff));	/* send lo byte */
-    outb(PIT_COUNT, (divisor >> 8));	/* send hi byte */
+
+    if (acquire_timer2(PIT_MODE)) {
+	/* enter list of waiting procs ??? */
+	return;
+    }
+    outb(TIMER_CNTR2, (divisor & 0xff));	/* send lo byte */
+    outb(TIMER_CNTR2, (divisor >> 8));	/* send hi byte */
     splx(sps);
 
     /* turn the speaker on */
-    outb(PPI, inb(PPI) | PPI_SPKR);
+    outb(IO_PPI, inb(IO_PPI) | PPI_SPKR);
 
     /*
      * Set timeout to endtone function, then give up the timeslice.
@@ -89,7 +91,8 @@ unsigned int thz, ticks;
      * emitted.
      */
     (void) tsleep((caddr_t)&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
-    outb(PPI, inb(PPI) & ~PPI_SPKR);
+    outb(IO_PPI, inb(IO_PPI) & ~PPI_SPKR);
+    release_timer2();
 }
 
 static void rest(ticks)

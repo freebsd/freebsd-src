@@ -1,0 +1,33 @@
+                   Kernel debugging FAQ
+                       FreeBSD
+
+Last modified: $Id: FreeBSD.kdebug.FAQ,v 1.1 1994/06/12 15:12:21 gclarkii Exp $
+
+Here are some instructions for getting kernel debugging working on
+a crash dump, it assumes that you have enough swap space for a crash
+dump.
+
+*** Start ***
+
+Config you're kernel using config -g
+
+Remove ${STRIP} -x $@; from the Makefile for the kernel so it doesn't
+get stripped.
+
+When the kernel's been built make a copy of it, say 386BSD.debug, and
+then run strip -x on the original. Install the original as normal.
+
+Now, after a crash dump, go to /sys/compile/WHATEVER and run kgdb. From kgdb
+do:
+
+symbol-file 386BSD.debug
+exec-file /var/crash/system.0
+core-file /var/crash/ram.0
+
+and viola, you can debug the crash dump using the kernel sources just like
+you can for any other program. 
+
+
+
+  Paul Richards, FreeBSD core team member.
+

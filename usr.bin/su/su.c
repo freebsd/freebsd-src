@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)su.c	5.26 (Berkeley) 7/6/91";
 #include <string.h>
 #include <unistd.h>
 #include <paths.h>
+#include <stdlib.h>
 
 #ifdef KERBEROS
 #include <kerberosIV/des.h>
@@ -76,39 +77,57 @@ main(argc, argv)
 	uid_t ruid, getuid();
 	int asme, ch, asthem, fastlogin, prio;
 	enum { UNSET, YES, NO } iscsh = UNSET;
-	char *user, *shell, *username, *cleanenv[20], *nargv[4], **np;
+	char *user, *shell, *username, *cleanenv[20], **nargv, **np;
 	char shellbuf[MAXPATHLEN];
 	char avshellbuf[MAXPATHLEN];
 	char *crypt(), *getpass(), *getenv(), *getlogin(), *ontty();
+	int i;
 
-	np = &nargv[3];
-	*np-- = NULL;
 	asme = asthem = fastlogin = 0;
-	while ((ch = getopt(argc, argv, ARGSTR)) != EOF)
-		switch((char)ch) {
+
+	user = "root";
+	while ( optind < argc )
+		if ((ch = getopt(argc, argv, ARGSTR)) != EOF)
+			switch((char)ch) {
 #ifdef KERBEROS
-		case 'K':
-			use_kerberos = 0;
-			break;
+			case 'K':
+				use_kerberos = 0;
+				break;
 #endif
-		case 'f':
-			fastlogin = 1;
+			case 'f':
+				fastlogin = 1;
+				break;
+			case '-':
+			case 'l':
+				asme = 0;
+				asthem = 1;
+				break;
+			case 'm':
+				asme = 1;
+				asthem = 0;
+				break;
+			case '?':
+			default:
+				(void)fprintf(stderr, "usage: su [%s] [login]\n",
+				    ARGSTR);
+				exit(1);
+			}
+		else
+		{
+			user = argv[optind++];
 			break;
-		case '-':
-		case 'l':
-			asme = 0;
-			asthem = 1;
-			break;
-		case 'm':
-			asme = 1;
-			asthem = 0;
-			break;
-		case '?':
-		default:
-			(void)fprintf(stderr, "usage: su [%s] [login]\n",
-			    ARGSTR);
-			exit(1);
 		}
+
+	if ((nargv = malloc (sizeof (char *) * (argc + 4))) == NULL) {
+		(void)fprintf(stderr, "su: alloc failure\n" );
+		exit(1);
+	}
+
+	nargv[argc + 3] = NULL;
+	for (i = argc; i >= optind; i--)
+		nargv[i + 3] = argv[i];
+	np = &nargv[i + 3];
+
 	argv += optind;
 
 	errno = 0;
@@ -128,7 +147,12 @@ main(argc, argv)
 		fprintf(stderr, "su: who are you?\n");
 		exit(1);
 	}
-	username = strdup(pwd->pw_name);
+	if ((username = strdup(pwd->pw_name)) == NULL ) {            
+		(void)fprintf(stderr, "su: alloc failure\n" );
+		exit(1);
+        }
+
+
 	if (asme)
 		if (pwd->pw_shell && *pwd->pw_shell)
 			shell = strcpy(shellbuf,  pwd->pw_shell);
@@ -138,7 +162,6 @@ main(argc, argv)
 		}
 
 	/* get target login information, default to root */
-	user = *argv ? *argv : "root";
 	if ((pwd = getpwnam(user)) == NULL) {
 		fprintf(stderr, "su: unknown login %s\n", user);
 		exit(1);

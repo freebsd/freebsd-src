@@ -244,6 +244,10 @@ openit:
 		perror(fname);
 		exit(1);
 	}
+	if(ident == NULL) {
+		printf("no ident line specified\n");
+		exit(1);
+	}
 next:
 	/*
 	 * filename	[ standard | optional ] [ config-dependent ]

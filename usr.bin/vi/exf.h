@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)exf.h	8.20 (Berkeley) 12/28/93
+ *	@(#)exf.h	8.23 (Berkeley) 3/23/94
  */
 					/* Undo direction. */
 /*
@@ -55,7 +55,7 @@ struct _exf {
 	MARK	 l_cursor;		/* Log cursor position. */
 	enum direction lundo;		/* Last undo direction. */
 
-	LIST_HEAD(_markh, _mark) marks;	/* Linked list of file MARK's. */
+	LIST_HEAD(_markh, _lmark) marks;/* Linked list of file MARK's. */
 
 	/*
 	 * Paths for the recovery mail file and the vi recovery file and
@@ -74,6 +74,7 @@ struct _exf {
 	char	*rcv_path;		/* Recover file name. */
 	char	*rcv_mpath;		/* Recover mail file name. */
 	int	 rcv_fd;		/* Locked mail file descriptor. */
+	struct timeval rcv_tod;		/* ITIMER_REAL: recovery time-of-day. */
 
 #define	F_FIRSTMODIFY	0x001		/* File not yet modified. */
 #define	F_MODIFIED	0x002		/* File is currently dirty. */

@@ -179,6 +179,11 @@ main(argc, argv)
 		*nextp = ep;
 		nextp = &(ep->next);
 		bcopy(&utmp, &(ep->utmp), sizeof (struct utmp));
+		if (!strncmp(ep->utmp.ut_line, "uu", 2)) {
+			ep->idle = 0;
+			ep->tdev = -1;
+			continue;
+		}
 		stp = ttystat(ep->utmp.ut_line);
 		ep->tdev = stp->st_rdev;
 #if defined(hp300) || defined(i386)
@@ -319,7 +324,8 @@ main(argc, argv)
 	for (ep = ehead; ep != NULL; ep = ep->next) {
 		printf("%-*.*s %-2.2s %-*.*s %s",
 			UT_NAMESIZE, UT_NAMESIZE, ep->utmp.ut_name,
-			strncmp(ep->utmp.ut_line, "tty", 3) == 0 ? 
+			strncmp(ep->utmp.ut_line, "tty", 3) == 0 ||
+			strncmp(ep->utmp.ut_line, "cua", 3) == 0 ?
 				ep->utmp.ut_line+3 : ep->utmp.ut_line,
 			UT_HOSTSIZE, UT_HOSTSIZE, *ep->utmp.ut_host ?
 				ep->utmp.ut_host : "-",

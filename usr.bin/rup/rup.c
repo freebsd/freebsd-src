@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rup.c,v 1.2 1993/09/23 18:45:57 jtc Exp $";
+static char rcsid[] = "$Id: rup.c,v 1.3 1994/04/10 10:42:28 csgr Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -105,6 +105,10 @@ rstat_reply(char *replyp, struct sockaddr_in *raddrp)
 		host = hp->h_name;
 	else
 		host = inet_ntoa(raddrp->sin_addr);
+
+	/* truncate hostname to fit nicely into field */
+	if (strlen(host) > HOST_WIDTH)
+		host[HOST_WIDTH] = '\0';
 
 	printf("%-*s\t", HOST_WIDTH, host);
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)options.h.stub	8.14 (Berkeley) 12/20/93
+ *	@(#)options.h.stub	8.18 (Berkeley) 3/17/94
  */
 
 struct _option {
@@ -50,7 +50,7 @@ struct _optlist {
 	char	*name;			/* Name. */
 					/* Change function. */
 	int	(*func) __P((SCR *, OPTION *, char *, u_long));
-					/* Type of object. */	
+					/* Type of object. */
 	enum { OPT_0BOOL, OPT_1BOOL, OPT_NUM, OPT_STR } type;
 
 #define	OPT_NEVER	0x01		/* Never display the option. */
@@ -81,6 +81,7 @@ int	opts_set __P((SCR *, ARGS *[]));
 
 /* Per-option change routines. */
 int	f_altwerase __P((SCR *, OPTION *, char *, u_long));
+int	f_cdpath __P((SCR *, OPTION *, char *, u_long));
 int	f_columns __P((SCR *, OPTION *, char *, u_long));
 int	f_keytime __P((SCR *, OPTION *, char *, u_long));
 int	f_leftright __P((SCR *, OPTION *, char *, u_long));
@@ -91,7 +92,6 @@ int	f_matchtime __P((SCR *, OPTION *, char *, u_long));
 int	f_mesg __P((SCR *, OPTION *, char *, u_long));
 int	f_modeline __P((SCR *, OPTION *, char *, u_long));
 int	f_number __P((SCR *, OPTION *, char *, u_long));
-int	f_optimize __P((SCR *, OPTION *, char *, u_long));
 int	f_paragraph __P((SCR *, OPTION *, char *, u_long));
 int	f_readonly __P((SCR *, OPTION *, char *, u_long));
 int	f_ruler __P((SCR *, OPTION *, char *, u_long));

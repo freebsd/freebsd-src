@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: grp.h,v 1.2.2.1 1994/05/04 07:37:45 rgrimes Exp $
+ *	$Id: grp.h,v 1.3 1994/05/04 08:08:29 rgrimes Exp $
  */
 /*-
  * Copyright (c) 1989 The Regents of the University of California.

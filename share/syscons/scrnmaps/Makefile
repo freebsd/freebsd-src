@@ -1,17 +1,23 @@
-SCRMAPS = koi8-r2alt.scr
+OLDSCRMAPS = koi8-r2alt.scr
 
-SCRMAPS_MK = ${SCRMAPS:R:S/$/.mk/g}
+SCRMAPS = koi8-r2alt.scm
+
+SCRMAPS_MK = ${OLDSCRMAPS:R:S/$/.mk/g}
 SCRDIR = /usr/share/syscons/scrnmaps
-CLEANFILES+= ${SCRMAPS} ${SCRMAPS_MK}
+CLEANFILES+= ${OLDSCRMAPS} ${SCRMAPS_MK}
+
 NOMAN = noman
 
-all: ${SCRMAPS}
+all: ${OLDSCRMAPS}
 
 install:
+	cd ${.CURDIR}; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SCRMAPS} \
 		${DESTDIR}${SCRDIR}
+	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${OLDSCRMAPS} \
+		${DESTDIR}${SCRDIR}
 
-${SCRMAPS}: ${.TARGET:R}.mk
+${OLDSCRMAPS}: ${.TARGET:R}.mk
 	./${.TARGET:R}.mk ${.TARGET}
 
 ${SCRMAPS_MK}: ${.TARGET:R} mkscrfil.c

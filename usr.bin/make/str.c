@@ -137,8 +137,14 @@ brk_string(str, store_argc)
 					inquote = NULL;
 				else
 					break;
-			else
+			else {
 				inquote = ch;
+				/* Don't miss "" or '' */
+				if (start == NULL && p[1] == inquote) {
+					start = t + 1;
+					break;
+				}
+			}
 			continue;
 		case ' ':
 		case '\t':

@@ -14,7 +14,7 @@
  *    must display the following acknowledgement:
  *      This product includes software developed by Winning Strategies, Inc.
  * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,11 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: memset.S,v 1.1 1993/12/05 13:01:53 ats Exp $
+ *	$Id: memset.S,v 1.2 1994/03/31 14:11:01 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-        .asciz "$Id: memset.S,v 1.1 1993/12/05 13:01:53 ats Exp $"
+        .asciz "$Id: memset.S,v 1.2 1994/03/31 14:11:01 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -57,17 +57,15 @@ ENTRY(memset)
 
 	/*
 	 * if the string is too short, it's really not worth the overhead
-	 * of aligning to word boundries, etc.  So we jump to a plain 
+	 * of aligning to word boundries, etc.  So we jump to a plain
 	 * unaligned set.
 	 */
 	cmpl	$0x0f,%ecx
 	jle	L1
 
-	movl	%eax,%edx		/* copy value to all bytes in word */
-	sall	$8,%edx			/* XXX is there a better way? */
-	orl	%edx,%eax
+	movb	%al,%ah			/* copy char to all bytes in word */
 	movl	%eax,%edx
-	sall	$16,%edx
+	sall	$16,%eax
 	orl	%edx,%eax
 
 	movl	%edi,%edx		/* compute misalignment */
@@ -75,7 +73,7 @@ ENTRY(memset)
 	andl	$3,%edx
 	movl	%ecx,%ebx
 	subl	%edx,%ebx
-	
+
 	movl	%edx,%ecx		/* set until word aligned */
 	rep
 	stosb

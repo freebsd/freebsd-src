@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.1.1.2 (Berkeley) 5/9/91
 #
-#	$Id: Makefile,v 1.40 1994/02/18 02:03:17 rgrimes Exp $
+#	$Id: Makefile,v 1.55 1994/06/15 21:30:28 adam Exp $
 #
 
 SUBDIR=
@@ -22,6 +22,13 @@ SUBDIR+= include
 .if exists(lib)
 SUBDIR+= lib
 .endif
+
+# This contains both libraries and includes, which stuff below depends
+# upon.
+.if exists(kerberosIV) && !defined(NOCRYPT)
+SUBDIR+= kerberosIV
+.endif
+
 .if exists(libexec)
 SUBDIR+= libexec
 .endif
@@ -60,6 +67,11 @@ CLEANDIR=
 CLEANDIR=	cleandir
 .endif
 
+# Where is the c-compiler source.  Change this, and gnu/usr.bin/Makefile if you
+# want to use another cc (gcc-2.5.8 for instance)
+CCDIR=		${.CURDIR}/gnu/usr.bin/cc
+#CCDIR=		${.CURDIR}/gnu/usr.bin/cc25
+
 world:	directories cleandist mk includes libraries tools mdec
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
@@ -69,6 +81,9 @@ world:	directories cleandist mk includes libraries tools mdec
 	cd ${.CURDIR}/share/man;		make makedb
 
 directories:
+	@echo "--------------------------------------------------------------"
+	@echo " Making directories"
+	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/etc;			make distrib-dirs
 
 cleandist:
@@ -107,7 +122,7 @@ mk:
 	# DONT DO THIS!! chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/share/mk
 	# DONT DO THIS!! chmod 755 ${DESTDIR}/usr/share/mk
 .endif
-	cd ${.CURDIR}/share/mk;			make install;
+	cd ${.CURDIR}/share/mk;			make clean all install;
 
 includes:
 	@echo "--------------------------------------------------------------"
@@ -120,11 +135,15 @@ includes:
 	chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include
 	chmod 755 ${DESTDIR}/usr/include
 .endif
-	cd ${.CURDIR}/include;			make install
-	cd ${.CURDIR}/gnu/usr.bin/cc/libobjc;	make beforeinstall
+	cd ${.CURDIR}/include;			make clean all install
+	cd ${CCDIR}/libobjc;			make beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++;		make beforeinstall
+	cd ${.CURDIR}/gnu/lib/libreadline;	make beforeinstall
 	cd ${.CURDIR}/lib/libcurses;		make beforeinstall
 	cd ${.CURDIR}/lib/libc;			make beforeinstall
+.if !defined(NOCRYPT) && exists(${.CURDIR}/kerberosIV)
+	cd ${.CURDIR}/kerberosIV/include;	make clean all install
+.endif
 
 # You MUST run this the first time you get the new sources to boot strap
 # the shared library tools onto you system.  This target should only
@@ -142,11 +161,38 @@ bootstrapld:	directories cleandist mk includes
 	cd ${.CURDIR}/usr.bin/strip;	make -DNOPIC depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/gnu/usr.bin/ld;	make -DNOPIC depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/gnu/usr.bin/as;	make depend all install ${CLEANDIR} obj
-	cd ${.CURDIR}/gnu/usr.bin/cc;	make -DNOPIC depend all install ${CLEANDIR} obj
-	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc;	make all install ${CLEANDIR} obj
+	cd ${CCDIR};			make -DNOPIC depend all install ${CLEANDIR} obj
+	cd ${CCDIR}/libgcc;		make all install ${CLEANDIR} obj
 	cd ${.CURDIR}/lib/csu.i386;	make depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/lib/libc;		make depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/gnu/usr.bin/ld/rtld;	make depend all install ${CLEANDIR} obj
+
+#    Standard database make routines are slow especially for big passwd files.
+#    Moreover, *pwd.db bases are too big and waste root space.  You can have
+#    much faster routines with small *pwd.db, but loose binary compatibility
+#    with previous versions and with other BSD-like systems.  If you want to
+#    setup much faster routines, define envirnoment variable (f.e. 'setenv
+#    PW_COMPACT' in csh) and use target into /usr/src/Makefile.  If you will
+#    want to return this changes back, use the same target without defining
+#    PW_COMPACT.
+
+bootstrappwd:   #directories
+	-rm -f ${.CURDIR}/lib/libc/obj/getpwent.o ${.CURDIR}/lib/libc/getpwent.o
+	cd ${.CURDIR}/lib/libc; make all
+	-rm -f ${.CURDIR}/usr.sbin/pwd_mkdb/obj/pwd_mkdb.o ${.CURDIR}/usr.sbin/pwd_mkdb/pwd_mkdb.o
+	cd ${.CURDIR}/usr.sbin/pwd_mkdb; make all install ${CLEANDIR}
+	cp /etc/master.passwd /etc/mp.t; pwd_mkdb /etc/mp.t
+	SLIB=`basename ${.CURDIR}/lib/libc/obj/libc.so.*`; \
+		cp ${.CURDIR}/lib/libc/obj/$$SLIB /usr/lib/$$SLIB.tmp; \
+		mv /usr/lib/$$SLIB.tmp /usr/lib/$$SLIB
+	cd ${.CURDIR}/lib/libc; make install ${CLEANDIR}
+	cd ${.CURDIR}/usr.bin/passwd; make clean all install ${CLEANDIR}
+	cd ${.CURDIR}/usr.bin/chpass; make clean all install ${CLEANDIR}
+	cd ${.CURDIR}/bin; make clean all install ${CLEANDIR}
+	cd ${.CURDIR}/sbin; make clean all install ${CLEANDIR}
+	@echo "--------------------------------------------------------------"
+	@echo " Do a reboot now because all daemons need restarting"
+	@echo "--------------------------------------------------------------"
 
 libraries:
 	# setenv NOPROFILE if you do not want profiled libraries
@@ -158,18 +204,24 @@ libraries:
 	find ${DESTDIR}/usr/lib \! -name '*.s[ao].*' -a \! -type d | xargs -n30 rm -rf
 .endif
 	cd ${.CURDIR}/lib;			make depend all install ${CLEANDIR} obj
-	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc;	make depend all install ${CLEANDIR} obj
+	cd ${CCDIR}/libgcc;			make depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/gnu/lib/libg++;		make depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/gnu/lib/libregex;		make depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/gnu/lib/libmalloc;	make depend all install ${CLEANDIR} obj
+	cd ${.CURDIR}/gnu/lib/libreadline;	make depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/usr.bin/lex;	make depend all install ${CLEANDIR} obj
+.if exists(${.CURDIR}/kerberosIV) && !defined(NOCRYPT)
+	cd ${.CURDIR}/kerberosIV/des;	make depend all install ${CLEANDIR} obj
+	cd ${.CURDIR}/kerberosIV/krb;	make depend all install ${CLEANDIR} obj
+	cd ${.CURDIR}/kerberosIV/kdb;	make depend all install ${CLEANDIR} obj
+.endif
 
 tools:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} Compiler and Make"
 	@echo "--------------------------------------------------------------"
 	@echo
-	cd ${.CURDIR}/gnu/usr.bin/cc;	make depend all install ${CLEANDIR} obj
+	cd ${CCDIR};			make depend all install ${CLEANDIR} obj
 	cd ${.CURDIR}/usr.bin/make;	make depend all install ${CLEANDIR} obj
 
 mdec:

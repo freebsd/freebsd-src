@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.12 1994/02/09 07:03:10 davidg Exp $
+ *	$Id: vm_page.c,v 1.18 1994/06/17 13:29:13 davidg Exp $
  */
 
 /*
@@ -311,6 +311,7 @@ vm_page_startup(starta, enda, vaddr)
 			m->flags = 0;
 			m->object = 0;
 			m->phys_addr = pa;
+			m->hold_count = 0;
 			queue_enter(&vm_page_queue_free, m, vm_page_t, pageq);
 			pa += PAGE_SIZE;
 		}
@@ -469,7 +470,7 @@ vm_page_lookup(object, offset)
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(object, offset)];
-	spl = vm_disable_intr(); 
+	spl = splimp(); 
 
 	simple_lock(&bucket_lock);
 	mem = (vm_page_t) queue_first(bucket);
@@ -477,14 +478,14 @@ vm_page_lookup(object, offset)
 		VM_PAGE_CHECK(mem);
 		if ((mem->object == object) && (mem->offset == offset)) {
 			simple_unlock(&bucket_lock);
-			vm_set_intr(spl); 
+			splx(spl); 
 			return(mem);
 		}
 		mem = (vm_page_t) queue_next(&mem->hashq);
 	}
 
 	simple_unlock(&bucket_lock);
-	vm_set_intr(spl); 
+	splx(spl); 
 	return(NULL);
 }
 
@@ -508,10 +509,10 @@ vm_page_rename(mem, new_object, new_offset)
 
 	vm_page_lock_queues();	/* keep page from moving out from
 				   under pageout daemon */
-	spl = vm_disable_intr(); 
+	spl = splimp(); 
     	vm_page_remove(mem);
 	vm_page_insert(mem, new_object, new_offset);
-	vm_set_intr(spl);
+	splx(spl);
 	vm_page_unlock_queues();
 }
 
@@ -531,7 +532,7 @@ vm_page_alloc(object, offset)
 	register vm_page_t	mem;
 	int		spl;
 
-	spl = vm_disable_intr();
+	spl = splimp();
 	simple_lock(&vm_page_queue_free_lock);
 	if (	object != kernel_object &&
 		object != kmem_object	&&
@@ -539,7 +540,7 @@ vm_page_alloc(object, offset)
 		vm_page_free_count < vm_page_free_reserved) {
 
 		simple_unlock(&vm_page_queue_free_lock);
-		vm_set_intr(spl);
+		splx(spl);
 		/*
 		 * this wakeup seems unnecessary, but there is code that
 		 * might just check to see if there are free pages, and
@@ -552,7 +553,7 @@ vm_page_alloc(object, offset)
 	}
 	if (queue_empty(&vm_page_queue_free)) {
 		simple_unlock(&vm_page_queue_free_lock);
-		vm_set_intr(spl);
+		splx(spl);
 		/*
 		 * comment above re: wakeups applies here too...
 		 */
@@ -569,8 +570,9 @@ vm_page_alloc(object, offset)
 	mem->flags = PG_BUSY|PG_CLEAN|PG_FAKE;
 	vm_page_insert(mem, object, offset);
 	mem->wire_count = 0;
-	mem->deact = 0;
-	vm_set_intr(spl);
+	mem->hold_count = 0;
+	mem->act_count = 0;
+	splx(spl);
 
 /*
  * don't wakeup too often, so we wakeup the pageout daemon when
@@ -597,10 +599,9 @@ vm_page_free(mem)
 {
 	int	spl;
 
-	spl = vm_disable_intr();
+	spl = splimp();
 
 	vm_page_remove(mem);
-	mem->deact = 0;
 	if (mem->flags & PG_ACTIVE) {
 		queue_remove(&vm_page_queue_active, mem, vm_page_t, pageq);
 		mem->flags &= ~PG_ACTIVE;
@@ -624,7 +625,7 @@ vm_page_free(mem)
 
 		vm_page_free_count++;
 		simple_unlock(&vm_page_queue_free_lock);
-		vm_set_intr(spl);
+		splx(spl);
 
 		/*
 		 * if pageout daemon needs pages, then tell it that there
@@ -650,7 +651,7 @@ vm_page_free(mem)
 		}
 
 	} else {
-		vm_set_intr(spl);
+		splx(spl);
 	}
 	wakeup((caddr_t) mem);
 }
@@ -670,7 +671,7 @@ vm_page_wire(mem)
 {
 	int spl;
 	VM_PAGE_CHECK(mem);
-	spl = vm_disable_intr();
+	spl = splimp();
 
 	if (mem->wire_count == 0) {
 		if (mem->flags & PG_ACTIVE) {
@@ -688,7 +689,7 @@ vm_page_wire(mem)
 		vm_page_wire_count++;
 	}
 	mem->wire_count++;
-	vm_set_intr(spl);
+	splx(spl);
 }
 
 /*
@@ -706,7 +707,7 @@ vm_page_unwire(mem)
 	int spl;
 	VM_PAGE_CHECK(mem);
 
-	spl = vm_disable_intr();
+	spl = splimp();
 	if (mem->wire_count != 0)
 		mem->wire_count--;
 	if (mem->wire_count == 0) {
@@ -714,9 +715,8 @@ vm_page_unwire(mem)
 		vm_page_active_count++;
 		mem->flags |= PG_ACTIVE;
 		vm_page_wire_count--;
-		vm_pageout_deact_bump(mem);
 	}
-	vm_set_intr(spl);
+	splx(spl);
 }
 
 /*
@@ -745,9 +745,8 @@ vm_page_deactivate(m)
 	 *	Paul Mackerras (paulus@cs.anu.edu.au) 9-Jan-93.
 	 */
 
-	spl = splhigh();
-	m->deact = 0;
-	if (!(m->flags & PG_INACTIVE) && m->wire_count == 0) {
+	spl = splimp();
+	if (!(m->flags & PG_INACTIVE) && m->wire_count == 0 && m->hold_count == 0) {
 		pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 		if (m->flags & PG_ACTIVE) {
 			queue_remove(&vm_page_queue_active, m, vm_page_t, pageq);
@@ -757,7 +756,13 @@ vm_page_deactivate(m)
 		queue_enter(&vm_page_queue_inactive, m, vm_page_t, pageq);
 		m->flags |= PG_INACTIVE;
 		vm_page_inactive_count++;
+#define NOT_DEACTIVATE_PROTECTS
+#ifndef NOT_DEACTIVATE_PROTECTS
 		pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+#else
+		if (pmap_is_modified(VM_PAGE_TO_PHYS(m)))
+			m->flags &= ~PG_CLEAN;
+#endif
 		if ((m->flags & PG_CLEAN) == 0)
 			m->flags |= PG_LAUNDRY;
 	} 
@@ -789,32 +794,42 @@ void
 vm_page_activate(m)
 	register vm_page_t	m;
 {
-	int spl;
+	int spl, target, shortage, maxscan;
+	vm_page_t actm, next;
+
 	VM_PAGE_CHECK(m);
 
-	vm_pageout_deact_bump(m);
+	spl = splimp();
 
-	spl = vm_disable_intr();
+	if (m->wire_count) {
+		splx(spl);
+		return;
+	}
+
+	if ((m->flags & (PG_INACTIVE|PG_ACTIVE)) ==
+	    (PG_INACTIVE|PG_ACTIVE)) {
+		panic("vm_page_activate: on both queues?");
+	}
 
 	if (m->flags & PG_INACTIVE) {
-		queue_remove(&vm_page_queue_inactive, m, vm_page_t,
-						pageq);
+		queue_remove(&vm_page_queue_inactive, m, vm_page_t, pageq);
 		vm_page_inactive_count--;
 		m->flags &= ~PG_INACTIVE;
-	}
-	if (m->wire_count == 0) {
-		if (m->flags & PG_ACTIVE)
-			panic("vm_page_activate: already active");
-
-		m->flags |= PG_ACTIVE;
-		queue_enter(&vm_page_queue_active, m, vm_page_t, pageq);
-		queue_remove(&m->object->memq, m, vm_page_t, listq);
-		queue_enter(&m->object->memq, m, vm_page_t, listq);
-		vm_page_active_count++;
-
+		vm_stat.reactivations++;
 	}
 
-	vm_set_intr(spl);
+	if (m->flags & PG_ACTIVE)
+		panic("vm_page_activate: already active");
+
+	m->flags |= PG_ACTIVE;
+	queue_enter(&vm_page_queue_active, m, vm_page_t, pageq);
+	queue_remove(&m->object->memq, m, vm_page_t, listq);
+	queue_enter(&m->object->memq, m, vm_page_t, listq);
+	vm_page_active_count++;
+	/* m->act_count = 10; */
+	m->act_count = 1;
+
+	splx(spl);
 }
 
 /*

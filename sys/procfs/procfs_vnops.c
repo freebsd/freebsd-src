@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: procfs_vnops.c,v 1.6 1994/01/31 04:19:20 davidg Exp $
+ *	$Id: procfs_vnops.c,v 1.7 1994/03/07 11:38:59 davidg Exp $
  */
 
 /*
@@ -46,6 +46,7 @@
 #include "namei.h"
 #include "resourcevar.h"
 #include "vm/vm.h"
+#include "vm/vm_page.h"
 #include "kinfo.h"
 #include "kinfo_proc.h"
 
@@ -213,6 +214,13 @@ pfs_ioctl(vp, com, data, fflag, cred, p)
 		error = pfs_vmmap(procp, pfsp, *(struct procmap *)data);
 		break;
 
+	case PIOCGNVMINFO:
+		*(int *)data = pfs_vminfo_nentries(procp, pfsp);
+		break;
+
+	case PIOCGVMINFO:
+		error = pfs_vminfo(procp, pfsp, *(struct procvminfo *)data);
+		break;
 	default:
 		error = EIO;
 		break;

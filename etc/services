@@ -7,7 +7,7 @@
 # Updated from RFC 1340, ``Assigned Numbers'' (July 1992).  Not all ports
 # are included, only the more common ones.
 #
-#	$Id: services,v 1.5.2.1 1994/03/06 08:43:38 rgrimes Exp $
+#	$Id: services,v 1.7 1994/03/02 17:58:29 wollman Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 tcpmux		1/tcp		# TCP port service multiplexer

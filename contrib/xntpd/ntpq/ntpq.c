@@ -75,6 +75,7 @@ int jump = 0;
 #define	OC	12	/* integer, print in octal */
 #define	MD	13	/* mode */
 #define	AR	14	/* array of times */
+#define TST	15	/* test flags */
 #define	EOV	255	/* end of table */
 
 
@@ -145,7 +146,7 @@ struct ctl_var peer_var[] = {
 	{ CP_RECEIVED,	UI,	"received" },	/* 31 */
 	{ CP_SENT,	UI,	"sent" },	/* 32 */
 	{ CP_FILTERROR,	AR,	"filterror" },	/* 33 */
-	{ CP_FLASH,     ST,	"flash"},	/* 34 */ 
+	{ CP_FLASH,     TST,	"flash"},	/* 34 */ 
 	{ CP_DISP,      AR,	"disp" },	/* 35 */
 	/*
 	 * These are duplicate entires so that we can
@@ -186,6 +187,20 @@ struct ctl_var clock_var[] = {
 struct codestring {
 	int code;
 	char *string;
+};
+
+/*
+ * flasher bits
+ */
+static char *tstflagnames[] = {
+      "DUPLICATE PKT",
+      "BOGUS PKT",
+      "PROTO UNSYNC",
+      "PEER BOUNDS",
+      "BAD AUTH",
+      "PEER CLOCK UNSYNC",
+      "BAD STRATUM",
+      "ROOT BOUNDS"
 };
 
 /*
@@ -301,7 +316,7 @@ static	int	decodereach	P((char *, U_LONG *));
 static	int	decodearr	P((char *, int *, l_fp *));
 static	char *	getcode		P((int, struct codestring *));
 static	void	help		P((struct parse *, FILE *));
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 static	int	helpsort	P((const void *, const void *));
 #else
 static	int	helpsort	P((char **, char **));
@@ -335,7 +350,7 @@ static	void	output		P((FILE *, char *, char *));
 static	void	endoutput	P((FILE *));
 static	void	outputarr	P((FILE *, char *, int, l_fp *));
 static	void	cookedprint	P((int, int, char *, int, FILE *));
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 static	int	assoccmp	P((const void *, const void *));
 #else
 static	int	assoccmp	P((struct association *, struct association *));
@@ -1888,7 +1903,7 @@ help(pcmd, fp)
 		for (xcp = opcmds; xcp->keyword != 0; xcp++)
 			cmdsort[n++] = xcp->keyword;
 
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 		qsort((void *)cmdsort, n, sizeof(char *), helpsort);
 #else
 		qsort((char *)cmdsort, n, sizeof(char *), helpsort);
@@ -1934,7 +1949,7 @@ help(pcmd, fp)
  * helpsort - do hostname qsort comparisons
  */
 static int
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 helpsort(t1, t2)
 	const void *t1;
 	const void *t2;
@@ -2836,7 +2851,45 @@ outputarr(fp, name, narr, lfp)
 	output(fp, name, buf);
 }
 
+static char *
+tstflags(val)
+  	U_LONG val;
+{
+  	register char *cb, *s;
+  	register int i;
+  	register char *sep;
 
+  	sep = "";
+  	i = 0;
+  	s = cb = &circ_buf[nextcb][0];
+  	if (++nextcb >= NUMCB)
+	  	nextcb = 0;
+
+  	sprintf(cb, "0x%x", val);
+  	cb += strlen(cb);
+  	if (val <= ((1<<8)-1)) {
+    		if (!val) {
+      			strcat(cb, "<OK>");
+      			cb += strlen(cb);
+    		} else {
+      			*cb++ = '<';
+      			while (val) {
+				if (val & 0x1) {
+	  				sprintf(cb, "%s%s", sep, tstflagnames[i]);
+	  				sep = ";";
+	  				cb += strlen(cb);
+				}
+				i++;
+				val >>= 1;
+      			}
+      			*cb++ = '>';
+    		}
+  	} else {
+    		*cb++ = '?';
+  	}
+  	*cb = '\0';
+  	return s;
+}
 
 /*
  * cookedprint - output variables in cooked mode
@@ -2994,6 +3047,13 @@ cookedprint(datatype, length, data, status, fp)
 					outputarr(fp, name, narr, lfparr);
 				break;
 
+			case TST:
+				if (!decodeuint(value, &uval))
+					output_raw = '?';
+				else
+					output(fp, name, tstflags(uval));
+				break;
+			
 			default:
 				(void) fprintf(stderr,
 			"Internal error in cookedprint, %s=%s, fmt %d\n",
@@ -3028,7 +3088,7 @@ void
 sortassoc()
 {
 	if (numassoc > 1)
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 		qsort((void *)assoc_cache, numassoc,
 		    sizeof(struct association), assoccmp);
 #else
@@ -3042,7 +3102,7 @@ sortassoc()
  * assoccmp - compare two associations
  */
 static int
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 assoccmp(t1, t2)
 	const void *t1;
 	const void *t2;

@@ -63,10 +63,10 @@ unsigned short _cmap[256] = {
 	_CTR,		_CTR,		_CTR,		_CTR,
 
 /*	sp		!		"		#	*/
-	_SP|_META,	0,		_Q,		_META,
+	_SP|_META,	0,		_Q2,		_META,
 
 /*	$		%		&		'	*/
-	_DOL,		0,		_META|_CMD,	_Q,
+	_DOL,		0,		_META|_CMD,	_Q2,
 
 /*	(		)		*		+	*/
 	_META|_CMD,	_META,		_GLOB,		0,

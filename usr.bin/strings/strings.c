@@ -84,7 +84,7 @@ main(argc, argv)
 	 */
 	asdata = exitcode = fflg = oflg = 0;
 	minlen = -1;
-	while ((ch = getopt(argc, argv, "-0123456789anof")) != EOF)
+	while ((ch = getopt(argc, argv, "-0123456789an:of")) != EOF)
 		switch((char)ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':

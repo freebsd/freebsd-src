@@ -1,0 +1,314 @@
+#	@(#)input	5.4 (Berkeley) 8/26/93
+
+MAPS, EXECUTABLE BUFFERS AND INPUT IN EX/VI:
+
+The basic rule is that input in ex/vi is a stack.  Every time a key which
+gets expanded is encountered, it is expanded and the expansion is treated
+as if it were input from the user.  So, maps and executable buffers are
+simply pushed onto the stack from which keys are returned.  The exception
+is that if the "remap" option is turned off, only a single map expansion
+is done.  I intend to be fully backward compatible with this.
+
+Historically, if the mode of the editor changed (ex to vi or vice versa),
+any queued input was silently discarded.  I don't see any reason to either
+support or not support this semantic.  I intend to retain the queued input,
+mostly because it's simpler than throwing it away.
+
+Historically, neither the initial command on the command line (the + flag)
+or the +cmd associated with the ex and edit commands was subject to mapping.
+Also, while the +cmd appears to be subject to "@buffer" expansion, once
+expanded it doesn't appear to work correctly.  I don't see any reason to
+either support or not support these semantics, so, for consistency, I intend
+to pass both the initial command and the command associated with ex and edit
+commands through the standard mapping and @ buffer expansion.
+
+One other difference between the historic ex/vi and nex/nvi is that nex
+displays the executed buffers as it executes them.  This means that if
+the file is:
+
+	set term=xterm
+	set term=yterm
+	set term=yterm
+
+the user will see the following during a typical edit session:
+
+	nex testfile
+	testfile: unmodified: line 3
+	:1,$yank a
+	:@a
+	:set term=zterm
+	:set term=yterm
+	:set term=xterm
+	:q!
+
+This seems like a feature and unlikely to break anything, so I don't
+intend to match historic practice in this area.
+
+The rest of this document is a set of conclusions as to how I believe
+the historic maps and @ buffers work.  The summary is as follows:
+
+1: For buffers that are cut in "line mode", or buffers that are not cut
+   in line mode but which contain portions of more than a single line, a
+   trailing <newline> character appears in the input for each line in the
+   buffer when it is executed.  For buffers not cut in line mode and which
+   contain portions of only a single line, no additional characters
+   appear in the input.
+2: Executable buffers that execute other buffers don't load their
+   contents until they execute them.
+3: Maps and executable buffers are copied when they are executed --
+   they can be modified by the command but that does not change their
+   actions.
+4: Historically, executable buffers are discarded if the editor
+   switches between ex and vi modes.
+5: Executable buffers inside of map commands are expanded normally.
+   Maps inside of executable buffers are expanded normally.
+6: If an error is encountered while executing a mapped command or buffer,
+   the rest of the mapped command/buffer is discarded.  No user input
+   characters are discarded.
+
+Individual test cases follow.  Note, in the test cases, control characters
+are not literal and will have to be replaced to make the test cases work.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+1: For buffers that are cut in "line mode", or buffers that are not cut
+   in line mode but which contain portions of more than a single line, a
+   trailing <newline> character appears in the input for each line in the
+   buffer when it is executed.  For buffers not cut in line mode and which
+   contain portions of only a single line, no additional characters
+   appear in the input.
+
+===   test file   ===
+3Gw
+w
+line 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+=== end test file ===
+
+   If the first line is loaded into 'a' and executed:
+
+1G"ayy@a
+
+   The cursor ends up on the '2', a result of pushing "3Gw^J" onto
+   the stack.
+
+   If the first two lines are loaded into 'a' and executed:
+
+1G2"ayy@a
+
+   The cursor ends up on the 'f' in "foo" in the fifth line of the
+   file, a result of pushing "3Gw^Jw^J" onto the stack.
+
+   If the first line is loaded into 'a', but not using line mode,
+   and executed:
+
+1G"ay$@a
+
+   The cursor ends up on the '1', a result of pushing "3Gw" onto
+   the stack
+
+   If the first two lines are loaded into 'a', but not using line mode,
+   and executed:
+
+1G2"ay$@a
+
+   The cursor ends up on the 'f' in "foo" in the fifth line of the
+   file, a result of pushing "3Gw^Jw^J" onto the stack.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+2: Executable buffers that execute other buffers don't load their
+   contents until they execute them.
+
+===   test file   ===
+cwLOAD B^[
+line 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+@a@b
+"byy
+=== end test file ===
+
+   The command is loaded into 'e', and then executed.  'e' executes
+   'a', which loads 'b', then 'e' executes 'b'.
+
+5G"eyy6G"ayy1G@e
+
+   The output should be:
+
+===   output file   ===
+cwLOAD B^[
+LOAD B 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+@a@b
+"byy
+=== end output file ===
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+3: Maps and executable buffers are copied when they are executed --
+   they can be modified by the command but that does not change their
+   actions.
+
+   Executable buffers:
+
+===   test file   ===
+line 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+@a@b
+"eyy
+cwEXECUTE B^[
+=== end test file ===
+
+4G"eyy5G"ayy6G"byy1G@eG"ep
+
+   The command is loaded into 'e', and then executed.  'e' executes
+   'a', which loads 'e', then 'e' executes 'b' anyway.
+
+   The output should be:
+
+===   output file   ===
+line 1 foo bar baz
+EXECUTE B 2 foo bar baz
+line 3 foo bar baz
+@a@b
+"eyy
+cwEXECUTE B^[
+line 1 foo bar baz
+=== end output file ===
+
+   Maps:
+
+===   test file   ===
+Cine 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+=== end test file ===
+
+   Entering the command ':map = :map = rB^V^MrA^M1G==' shows that
+   the first time the '=' is entered the '=' map is set and the
+   character is changed to 'A', the second time the character is
+   changed to 'B'.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+4: Historically, executable buffers are discarded if the editor
+   switches between ex and vi modes.
+
+===   test file   ===
+line 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+cwCHANGE^[Q:set
+set|visual|1Gwww
+=== end test file ===
+
+vi testfile
+4G"ayy@a
+
+ex testfile
+$p
+yank a
+@a
+
+   In vi, the command is loaded into 'a' and then executed.  The command
+   subsequent to the 'Q' is (historically, silently) discarded.
+
+   In ex, the command is loaded into 'a' and then executed.  The command
+   subsequent to the 'visual' is (historically, silently) discarded.  The
+   first set command is output by ex, although refreshing the screen usually
+   causes it not to be seen.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+5: Executable buffers inside of map commands are expanded normally.
+   Maps inside of executable buffers are expanded normally.
+
+   Buffers inside of map commands:
+
+===   test file   ===
+line 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+cwREPLACE BY A^[
+=== end test file ===
+
+4G"ay$:map x @a
+1Gx
+
+   The output should be:
+
+===   output file   ===
+REPLACE BY A 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+cwREPLACE BY A^[
+=== end output file ===
+
+   Maps commands inside of executable buffers:
+
+===   test file   ===
+line 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+X
+=== end test file ===
+
+:map X cwREPLACE BY XMAP^[
+4G"ay$1G@a
+
+   The output should be:
+
+===   output file   ===
+REPLACE BY XMAP 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+X
+=== end output file ===
+
+   Here's a test that does both, repeatedly.
+
+===   test file   ===
+line 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+X
+Y
+cwREPLACED BY C^[
+blank line
+=== end test file ===
+
+:map x @a
+4G"ay$
+:map X @b
+5G"by$
+:map Y @c
+6G"cy$
+1Gx
+
+   The output should be:
+
+===   output file   ===
+REPLACED BY C 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+X
+Y
+cwREPLACED BY C^[
+blank line
+=== end output file ===
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+6: If an error is encountered while executing a mapped command or
+   a buffer, the rest of the mapped command/buffer is discarded.  No
+   user input characters are discarded.
+
+===   test file   ===
+line 1 foo bar baz
+line 2 foo bar baz
+line 3 foo bar baz
+:map = 10GcwREPLACMENT^V^[^[
+=== end test file ===
+
+   The above mapping fails, however, if the 10G is changed to 1, 2,
+   or 3G, it will succeed.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=

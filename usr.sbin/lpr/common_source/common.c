@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: common.c,v 1.1.1.1.2.1 1994/05/04 08:01:55 rgrimes Exp $
+ *	$Id: common.c,v 1.2 1994/05/04 08:37:15 rgrimes Exp $
  */
 /*
  * Copyright (c) 1983 Regents of the University of California.

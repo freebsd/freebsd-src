@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.9.2.1 1994/04/18 03:19:42 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.15 1994/06/01 02:39:37 ache Exp $
 #
 
 /set type=file uname=bin gname=bin mode=0755
@@ -37,7 +37,7 @@ lib	type=dir uname=bin gname=bin mode=0755
 libexec	type=dir uname=bin gname=bin mode=0755
 	lpr	type=dir uname=bin gname=bin mode=0755
 	..
-	uucp	type=dir uname=bin gname=bin mode=0755
+	uucp    type=dir uname=bin gname=bin mode=0755
 	..
 ..
 

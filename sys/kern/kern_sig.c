@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_sig.c	7.35 (Berkeley) 6/28/91
- *	$Id: kern_sig.c,v 1.9 1993/12/19 00:51:30 wollman Exp $
+ *	$Id: kern_sig.c,v 1.12 1994/05/25 19:49:38 csgr Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -43,6 +43,7 @@
 #include "mount.h"
 #include "filedesc.h"
 #include "proc.h"
+#include "ucred.h"
 #include "systm.h"
 #include "timeb.h"
 #include "times.h"
@@ -52,6 +53,7 @@
 #include "kernel.h"
 #include "wait.h"
 #include "ktrace.h"
+#include "syslog.h"
 
 #include "machine/cpu.h"
 
@@ -1044,6 +1046,14 @@ sigexit(p, sig)
 	p->p_acflag |= AXSIG;
 	if (sigprop[sig] & SA_CORE) {
 		p->p_sigacts->ps_sig = sig;
+		/*
+		 * Log signals which would cause core dumps
+		 * (Log as LOG_INFO to appease those who don't want 
+		 * these messages.)
+		 * XXX : Todo, as well as euid, write out ruid too
+		 */
+		log(LOG_INFO, "pid %d: %s: uid %d: exited on signal %d\n",
+			p->p_pid, p->p_comm, p->p_ucred->cr_uid, sig);
 		if (coredump(p) == 0)
 			sig |= WCOREFLAG;
 	}

@@ -2084,7 +2084,7 @@ status(argc, argv)
 	printf("No connection.\n");
     }
 #   if !defined(TN3270)
-    printf("Escape character is '%s'.\n", control(escape));
+	printf("Escape character is '%s'.\n", control(escape));
     (void) fflush(stdout);
 #   else /* !defined(TN3270) */
     if ((!In3270) && ((argc < 2) || strcmp(argv[1], "notmuch"))) {

@@ -1273,7 +1273,7 @@ start_login(host, autologin, name)
 {
 	register char *cp;
 	register char **argv;
-	char **addarg();
+	char **addarg(), *user;
 
 	/*
 	 * -h : pass on name of host.
@@ -1315,7 +1315,12 @@ start_login(host, autologin, name)
 		argv = addarg(argv, name);
 	} else
 #endif
-	if (getenv("USER")) {
+	if (user = getenv("USER")) {
+		if (strchr(user, '-')) {
+			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
+			       user);
+			fatal(net, "invalid user");
+		}
 		argv = addarg(argv, getenv("USER"));
 #if	defined(CRAY) && defined(NO_LOGIN_P)
 		{

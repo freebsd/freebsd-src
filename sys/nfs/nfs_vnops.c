@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_vnops.c	7.60 (Berkeley) 5/24/91
- *	$Id: nfs_vnops.c,v 1.7 1994/01/31 23:40:50 martin Exp $
+ *	$Id: nfs_vnops.c,v 1.8 1994/06/14 03:41:10 davidg Exp $
  */
 
 /*
@@ -278,9 +278,19 @@ nfs_open(vp, mode, cred, p)
 	register enum vtype vtyp;
 
 	vtyp = vp->v_type;
-	if (vtyp == VREG || vtyp == VDIR || vtyp == VLNK)
+	if (vtyp == VREG || vtyp == VDIR || vtyp == VLNK) {
+		struct nfsnode *np;
+		struct vattr vattr;
+		np = VTONFS(vp);
+		if (nfs_dogetattr(vp, &vattr, cred, 1, p) == 0) {
+			if (np->n_mtime != vattr.va_mtime.tv_sec) {
+				np->n_direofoffset = 0;
+				vinvalbuf(vp, TRUE);
+				np->n_mtime = vattr.va_mtime.tv_sec;
+			}
+		}
 		return (0);
-	else
+	} else
 		return (EACCES);
 }
 

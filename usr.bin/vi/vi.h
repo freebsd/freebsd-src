@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,24 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vi.h	8.33 (Berkeley) 1/9/94
+ *	@(#)vi.h	8.39 (Berkeley) 3/23/94
  */
-
-/* System includes. */
-#include <queue.h>		/* Required by screen.h. */
-#include <sys/time.h>		/* Required by screen.h. */
-
-#include <bitstring.h>		/* Required by screen.h. */
-#include <limits.h>		/* Required by screen.h. */
-#include <signal.h>		/* Required by screen.h. */
-#include <stdio.h>		/* Required by screen.h. */
-#include <termios.h>		/* Required by gs.h. */
-
-/*
- * Required by screen.h.  This is the first include that can pull
- * in "compat.h".  Should be after every other system include.
- */
-#include <regex.h>
 
 /*
  * Forward structure declarations.  Not pretty, but the include files
@@ -61,6 +45,7 @@ typedef struct _exf		EXF;
 typedef struct _fref		FREF;
 typedef struct _gs		GS;
 typedef struct _ibuf		IBUF;
+typedef struct _lmark		LMARK;
 typedef struct _mark		MARK;
 typedef struct _msg		MSG;
 typedef struct _option		OPTION;
@@ -73,40 +58,20 @@ typedef struct _tagf		TAGF;
 typedef struct _text		TEXT;
 
 /*
- * Fundamental character types.
- *
- * CHAR_T	An integral type that can hold any character.
- * ARG_CHAR_T	The type of a CHAR_T when passed as an argument using
- *		traditional promotion rules.  It should also be able
- *		to be compared against any CHAR_T for equality without
- *		problems.
- * MAX_CHAR_T	The maximum value of any character.
- *
- * If no integral type can hold a character, don't even try the port.
- */
-typedef	u_char		CHAR_T;	
-typedef	u_int		ARG_CHAR_T;
-#define	MAX_CHAR_T	0xff
-
-/* The maximum number of columns any character can take up on a screen. */
-#define	MAX_CHARACTER_COLUMNS	4
-
-/*
  * Local includes.
  */
-#include <db.h>			/* Required by exf.h; includes compat.h. */
-
-#include "search.h"		/* Required by screen.h. */
+#include "compat.h"		/* typedef u_int8_t et al. */
+#include "term.h"		/* Required by args.h. */
 #include "args.h"		/* Required by options.h. */
 #include "options.h"		/* Required by screen.h. */
-#include "term.h"		/* Required by screen.h. */
+#include "search.h"		/* Required by screen.h. */
 
 #include "msg.h"		/* Required by gs.h. */
 #include "cut.h"		/* Required by gs.h. */
 #include "gs.h"			/* Required by screen.h. */
 #include "screen.h"		/* Required by exf.h. */
 #include "mark.h"		/* Required by exf.h. */
-#include "exf.h"		
+#include "exf.h"
 #include "log.h"
 #include "mem.h"
 
@@ -146,8 +111,6 @@ FILE	*fwopen __P((SCR *, void *));
 /* Function prototypes that don't seem to belong anywhere else. */
 u_long	 baud_from_bval __P((SCR *));
 char	*charname __P((SCR *, ARG_CHAR_T));
-void	 busy_off __P((SCR *));
-void	 busy_on __P((SCR *, int, char const *));
 int	 nonblank __P((SCR *, EXF *, recno_t, size_t *));
 void	 set_alt_name __P((SCR *, char *));
 int	 set_window_size __P((SCR *, u_int, int));

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kvm.c,v 1.8 1994/02/23 09:56:45 rgrimes Exp $
+ *	$Id: kvm.c,v 1.10 1994/03/22 21:56:48 davidg Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -291,35 +291,6 @@ kvm_nlist(nl)
 	if ((db = dbm_open(dbname, O_RDONLY, 0)) == NULL)
 		goto hard2;
 	/*
-	 * read version out of database
-	 */
-	bcopy("VERSION", symbuf, sizeof ("VERSION")-1);
-	key.dsize = (sizeof ("VERSION") - 1);
-	data = dbm_fetch(db, key);
-	if (data.dptr == NULL)
-		goto hard1;
-	bcopy(data.dptr, dbversion, data.dsize);
-	dbversionlen = data.dsize;
-	/*
-	 * read version string from kernel memory
-	 */
-	bcopy("_version", symbuf, sizeof ("_version")-1);
-	key.dsize = (sizeof ("_version")-1);
-	data = dbm_fetch(db, key);
-	if (data.dptr == NULL)
-		goto hard1;
-	if (data.dsize != sizeof (struct nlist))
-		goto hard1;
-	bcopy(data.dptr, &nbuf, sizeof (struct nlist));
-	lseek(kmem, nbuf.n_value, 0);
-	if (read(kmem, kversion, dbversionlen) != dbversionlen)
-		goto hard1;
-	/*
-	 * if they match, we win - otherwise do it the hard way
-	 */
-	if (bcmp(dbversion, kversion, dbversionlen) != 0)
-		goto hard1;
-	/*
 	 * getem from the database.
 	 */
 win:
@@ -513,7 +484,7 @@ again:
 		} else
 			eproc.e_tdev = NODEV;
 		if (proc.p_wmesg)
-			kvm_read(proc.p_wmesg, eproc.e_wmesg, WMESGLEN);
+			kvm_read((char *)proc.p_wmesg, eproc.e_wmesg, WMESGLEN);
 		(void) kvm_read(proc.p_vmspace, &eproc.e_vm,
 		    sizeof (struct vmspace));
 		eproc.e_xsize = eproc.e_xrssize =

@@ -1,7 +1,7 @@
 /* xqtsub.c
    System dependent functions used only by uuxqt.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xqtsub_rcsid[] = "$Id: xqtsub.c,v 1.1 1993/08/05 18:24:47 conklin Exp $";
+const char xqtsub_rcsid[] = "$Id: xqtsub.c,v 1.2 1994/05/07 18:11:43 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -89,6 +89,7 @@ zsysdep_find_command (zcmd, pzcmds, pzpath, pferr)
      boolean *pferr;
 {
   char **pz;
+  struct stat s;
 
   *pferr = FALSE;
 
@@ -110,7 +111,16 @@ zsysdep_find_command (zcmd, pzcmds, pzpath, pferr)
 	  /* If we already have an absolute path, we can get out
 	     immediately.  */
 	  if (**pz == '/')
-	    return zbufcpy (*pz);
+	    {
+	      /* Quick error check.  */
+	      if (stat (*pz, &s) != 0)
+		{
+		  ulog (LOG_ERROR, "%s: %s", *pz, strerror (errno));
+		  *pferr = TRUE;
+		  return NULL;
+		}
+	      return zbufcpy (*pz);
+	    }
 	  break;
 	}
     }
@@ -124,14 +134,12 @@ zsysdep_find_command (zcmd, pzcmds, pzpath, pferr)
   for (pz = pzpath; *pz != NULL; pz++)
     {
       char *zname;
-      struct stat s;
 
       zname = zsysdep_in_dir (*pz, zcmd);
       if (stat (zname, &s) == 0)
 	return zname;
     }
 
-  *pferr = FALSE;
   return NULL;
 }
 
@@ -159,7 +167,8 @@ zsysdep_xqt_local_file (qsys, zfile)
       memcpy (zret, zfile + 1, clen);
       return zret;
     }
-  return zsysdep_local_file (zfile, qsys->uuconf_zpubdir);
+  return zsysdep_local_file (zfile, qsys->uuconf_zpubdir,
+			     (boolean *) NULL);
 }
 
 #if ! ALLOW_FILENAME_ARGUMENTS
@@ -177,9 +186,12 @@ fsysdep_xqt_check_file (qsys, zfile)
 {
   size_t clen;
 
+  /* Disallow exact "..", prefix "../", suffix "/..", internal "/../",
+     and restricted absolute paths.  */
   clen = strlen (zfile);
-  if ((clen == sizeof "../" - 1
-       && strcmp (zfile, "../") == 0)
+  if ((clen == sizeof ".." - 1
+       && strcmp (zfile, "..") == 0)
+      || strncmp (zfile, "../", sizeof "../" - 1) == 0
       || (clen >= sizeof "/.." - 1
 	  && strcmp (zfile + clen - (sizeof "/.." - 1), "/..") == 0)
       || strstr (zfile, "/../") != NULL
@@ -358,7 +370,7 @@ fsysdep_execute (qsys, zuser, pazargs, zfullcmd, zinput, zoutput,
 
   /* Pass zchdir as zxqtdir, fnosigs as TRUE, fshell as TRUE if we
      aren't already using the shell.  */
-  ipid = ixsspawn (pazargs, aidescs, FALSE, FALSE, zxqtdir, TRUE,
+  ipid = ixsspawn (pazargs, aidescs, TRUE, FALSE, zxqtdir, TRUE,
 		   ! fshell, zpath, qsys->uuconf_zname, zuser);
 
   ierr = errno;

@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1992 Diomidis Spinellis.
- * Copyright (c) 1992 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1992, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Diomidis Spinellis of Imperial College, University of London.
@@ -36,7 +36,8 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)compile.c	5.6 (Berkeley) 11/2/92";
+/* from: static char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93"; */
+static char *rcsid = "$Id: compile.c,v 1.5 1994/04/17 09:41:36 alm Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -54,6 +55,15 @@ static char sccsid[] = "@(#)compile.c	5.6 (Berkeley) 11/2/92";
 #include "defs.h"
 #include "extern.h"
 
+#define LHSZ	128
+#define	LHMASK	(LHSZ - 1)
+static struct labhash {
+	struct	labhash *lh_next;
+	u_int	lh_hash;
+	struct	s_command *lh_cmd;
+	int	lh_ref;
+} *labels[LHSZ];
+
 static char	 *compile_addr __P((char *, struct s_addr *));
 static char	 *compile_ccl __P((char **, char *));
 static char	 *compile_delimited __P((char *, char *));
@@ -64,11 +74,12 @@ static char	 *compile_text __P((void));
 static char	 *compile_tr __P((char *, char **));
 static struct s_command
 		**compile_stream __P((char *, struct s_command **, char *));
-static char	 *duptoeol __P((char *));
+static char	 *duptoeol __P((char *, char *));
+static void	  enterlabel __P((struct s_command *));
 static struct s_command
-		 *findlabel __P((struct s_command *, struct s_command *));
-static void	  fixuplabel __P((struct s_command *, struct s_command *,
-		  	struct s_command *));
+		 *findlabel __P((char *));
+static void	  fixuplabel __P((struct s_command *, struct s_command *));
+static void	  uselabel __P((void));
 
 /*
  * Command specification.  This is used to drive the command parser.
@@ -121,7 +132,8 @@ void
 compile()
 {
 	*compile_stream(NULL, &prog, NULL) = NULL;
-	fixuplabel(prog, prog, NULL);
+	fixuplabel(prog, NULL);
+	uselabel();
 	appends = xmalloc(sizeof(struct s_appends) * appendnum);
 	match = xmalloc((maxnsub + 1) * sizeof(regmatch_t));
 }
@@ -208,8 +220,6 @@ nonsel:		/* Now parse the command */
 				p = NULL;
 			cmd2 = xmalloc(sizeof(struct s_command));
 			cmd2->code = '}';
-			cmd2->a1 = cmd2->a2 = NULL;
-			cmd2->nonsel = 0;
 			*compile_stream("}", &cmd->u.c, p) = cmd2;
 			cmd->next = cmd2;
 			link = &cmd2->next;
@@ -246,7 +256,7 @@ nonsel:		/* Now parse the command */
 			EATSPACE();
 			if (*p == '\0')
 				err(COMPILE, "filename expected");
-			cmd->t = duptoeol(p);
+			cmd->t = duptoeol(p, "w command");
 			if (aflag)
 				cmd->u.fd = -1;
 			else if ((cmd->u.fd = open(p, 
@@ -260,7 +270,7 @@ nonsel:		/* Now parse the command */
 			if (*p == '\0')
 				err(COMPILE, "filename expected");
 			else
-				cmd->t = duptoeol(p);
+				cmd->t = duptoeol(p, "read command");
 			break;
 		case BRANCH:			/* b t */
 			p++;
@@ -268,14 +278,15 @@ nonsel:		/* Now parse the command */
 			if (*p == '\0')
 				cmd->t = NULL;
 			else
-				cmd->t = duptoeol(p);
+				cmd->t = duptoeol(p, "branch");
 			break;
 		case LABEL:			/* : */
 			p++;
 			EATSPACE();
-			cmd->t = duptoeol(p);
+			cmd->t = duptoeol(p, "label");
 			if (strlen(p) == 0)
 				err(COMPILE, "empty label");
+			enterlabel(cmd);
 			break;
 		case SUBST:			/* s */
 			p++;
@@ -340,6 +351,8 @@ compile_delimited(p, d)
 			if ((d = compile_ccl(&p, d)) == NULL)
 				err(COMPILE, "unbalanced brackets ([])");
 			continue;
+		} else if (*p == '\\' && p[1] == '[') {
+			*d++ = *p++;
 		} else if (*p == '\\' && p[1] == c)
 			p++;
 		else if (*p == '\\' && p[1] == 'n') {
@@ -664,77 +677,129 @@ compile_addr(p, a)
 }
 
 /*
- * Return a copy of all the characters up to \n or \0
+ * duptoeol --
+ *	Return a copy of all the characters up to \n or \0.
  */
 static char *
-duptoeol(s)
+duptoeol(s, ctype)
 	register char *s;
+	char *ctype;
 {
 	size_t len;
+	int ws;
 	char *start;
 
-	for (start = s; *s != '\0' && *s != '\n'; ++s);
+	ws = 0;
+	for (start = s; *s != '\0' && *s != '\n'; ++s)
+		ws = isspace(*s);
 	*s = '\0';
+	if (ws)
+		err(WARNING, "whitespace after %s", ctype);
 	len = s - start + 1;
 	return (memmove(xmalloc(len), start, len));
 }
 
 /*
- * Find the label contained in the command l in the command linked list cp.
- * L is excluded from the search.  Return NULL if not found.
- */
-static struct s_command *
-findlabel(l, cp)
-	struct s_command *l, *cp;
-{
-	struct s_command *r;
-
-	for (; cp; cp = cp->next)
-		if (cp->code == ':' && cp != l && strcmp(l->t, cp->t) == 0)
-			return (cp);
-		else if (cp->code == '{' && (r = findlabel(l, cp->u.c)))
-			return (r);
-	return (NULL);
-}
-
-/*
- * Convert goto label names to addresses.
- * Detect duplicate labels.
- * Set appendnum to the number of a and r commands in the script.
- * Free the memory used by labels in b and t commands (but not by :)
- * Root is a pointer to the script linked list; cp points to the
- * search start.
+ * Convert goto label names to addresses, and count a and r commands, in
+ * the given subset of the script.  Free the memory used by labels in b
+ * and t commands (but not by :).
+ *
  * TODO: Remove } nodes
  */
 static void
-fixuplabel(root, cp, end)
-	struct s_command *root, *cp, *end;
+fixuplabel(cp, end)
+	struct s_command *cp, *end;
 {
-	struct s_command *cp2;
 
 	for (; cp != end; cp = cp->next)
 		switch (cp->code) {
-		case ':':
-			if (findlabel(cp, root))
-				err(COMPILE2, "duplicate label %s", cp->t);
-			break;
 		case 'a':
 		case 'r':
 			appendnum++;
 			break;
 		case 'b':
 		case 't':
+			/* Resolve branch target. */
 			if (cp->t == NULL) {
 				cp->u.c = NULL;
 				break;
 			}
-			if ((cp2 = findlabel(cp, root)) == NULL)
+			if ((cp->u.c = findlabel(cp->t)) == NULL)
 				err(COMPILE2, "undefined label '%s'", cp->t);
 			free(cp->t);
-			cp->u.c = cp2;
 			break;
 		case '{':
-			fixuplabel(root, cp->u.c, cp->next);
+			/* Do interior commands. */
+			fixuplabel(cp->u.c, cp->next);
 			break;
 		}
+}
+
+/*
+ * Associate the given command label for later lookup.
+ */
+static void
+enterlabel(cp)
+	struct s_command *cp;
+{
+	register struct labhash **lhp, *lh;
+	register u_char *p;
+	register u_int h, c;
+
+	for (h = 0, p = (u_char *)cp->t; (c = *p) != 0; p++)
+		h = (h << 5) + h + c;
+	lhp = &labels[h & LHMASK];
+	for (lh = *lhp; lh != NULL; lh = lh->lh_next)
+		if (lh->lh_hash == h && strcmp(cp->t, lh->lh_cmd->t) == 0)
+			err(COMPILE2, "duplicate label '%s'", cp->t);
+	lh = xmalloc(sizeof *lh);
+	lh->lh_next = *lhp;
+	lh->lh_hash = h;
+	lh->lh_cmd = cp;
+	lh->lh_ref = 0;
+	*lhp = lh;
+}
+
+/*
+ * Find the label contained in the command l in the command linked
+ * list cp.  L is excluded from the search.  Return NULL if not found.
+ */
+static struct s_command *
+findlabel(name)
+	char *name;
+{
+	register struct labhash *lh;
+	register u_char *p;
+	register u_int h, c;
+
+	for (h = 0, p = (u_char *)name; (c = *p) != 0; p++)
+		h = (h << 5) + h + c;
+	for (lh = labels[h & LHMASK]; lh != NULL; lh = lh->lh_next) {
+		if (lh->lh_hash == h && strcmp(name, lh->lh_cmd->t) == 0) {
+			lh->lh_ref = 1;
+			return (lh->lh_cmd);
+		}
+	}
+	return (NULL);
+}
+
+/* 
+ * Warn about any unused labels.  As a side effect, release the label hash
+ * table space.
+ */
+static void
+uselabel()
+{
+	register struct labhash *lh, *next;
+	register int i;
+
+	for (i = 0; i < LHSZ; i++) {
+		for (lh = labels[i]; lh != NULL; lh = next) {
+			next = lh->lh_next;
+			if (!lh->lh_ref)
+				err(WARNING, "unused label '%s'",
+				    lh->lh_cmd->t);
+			free(lh);
+		}
+	}
 }

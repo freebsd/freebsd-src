@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)dumpoptr.c	5.8 (Berkeley) 3/7/91";
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/dump/dumpoptr.c,v 1.2 1993/07/22 16:49:17 jkh Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/dump/dumpoptr.c,v 1.3 1994/03/07 16:37:08 ats Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -505,6 +505,7 @@ lastdump(arg)
 	time(&tnow);
 	getfstab();		/* /etc/fstab input */
 	initdumptimes();	/* /etc/dumpdates input */
+	if(ddatev == NULL) exit(1); /* /etc/dumpdates doesn't exist */
 	qsort(ddatev, nddates, sizeof(struct dumpdates *), datesort);
 
 	if (arg == 'w')

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_vnops.c	7.64 (Berkeley) 5/16/91
- *	$Id: ufs_vnops.c,v 1.14 1994/01/19 21:09:26 jtc Exp $
+ *	$Id: ufs_vnops.c,v 1.16 1994/06/12 04:05:53 davidg Exp $
  */
 
 #include "param.h"
@@ -524,10 +524,6 @@ ufs_read(vp, uio, ioflag, cred)
 			return (error);
 		}
 		error = uiomove(bp->b_un.b_addr + on, (int)n, uio);
-#if OMIT	/* 20 Aug 92*/
-		if (n + on == fs->fs_bsize || uio->uio_offset == ip->i_size)
-			bp->b_flags |= B_AGE;
-#endif	/* OMIT*/
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
 	return (error);
@@ -617,7 +613,6 @@ ufs_write(vp, uio, ioflag, cred)
 		if (ioflag & IO_SYNC)
 			(void) bwrite(bp);
 		else if (n + on == fs->fs_bsize) {
-			bp->b_flags |= B_AGE;
 			bawrite(bp);
 		} else
 			bdwrite(bp);

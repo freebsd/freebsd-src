@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)buf.h	7.11 (Berkeley) 5/9/90
- *	$Id: buf.h,v 1.7 1993/12/22 12:51:48 davidg Exp $
+ *	$Id: buf.h,v 1.10 1994/04/20 07:07:01 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -79,6 +79,7 @@ struct buf
 	struct	buf *b_forw, *b_back;	/* hash chain (2 way street) */
 	struct	buf *av_forw, *av_back;	/* position on free list if not BUSY */
 	struct	buf *b_blockf, **b_blockb;/* associated vnode */
+	struct	buf *b_clusterf, *b_clusterl;/* cluster list */
 #define	b_actf	av_forw			/* alternate names for driver queue */
 #define	b_actl	av_back			/*    head - isn't history wonderful */
 	long	b_bcount;		/* transfer count */
@@ -96,6 +97,7 @@ struct buf
 	    daddr_t *b_daddr;		/* indirect block */
 	} b_un;
 	daddr_t	b_lblkno;		/* logical block number */
+	daddr_t b_pblkno;		/* physical block number */
 	daddr_t	b_blkno;		/* block # on device */
 	long	b_resid;		/* words not transferred after error */
 #define	b_errcnt b_resid		/* while i/o in progress: # retries */
@@ -107,6 +109,7 @@ struct buf
 	struct	ucred *b_wcred;		/* ref to write credendtials */
 	int	b_dirtyoff;		/* offset in buffer of dirty region */
 	int	b_dirtyend;		/* offset of end of dirty region */
+	caddr_t	b_savekva;		/* saved kva for transfer while bouncing */
 	caddr_t	b_saveaddr;		/* original b_addr for PHYSIO */
 	void *	b_driver1;		/* for private use by the driver */
 	void *	b_driver2;		/* for private use by the driver */
@@ -186,7 +189,7 @@ extern int physio(void (*)(struct buf *), int, struct buf *, int, int,
 #define	B_VMPAGE	0x000800	/* buffer from virtual memory */
 #define	B_MALLOC	0x001000	/* buffer from malloc space */
 #define	B_DIRTY		0x002000	/* dirty page to be pushed out async */
-#define	B_PGIN		0x004000	/* pagein op, so swap() can count it */
+#define	B_CLUSTER	0x004000	/* pagein op, so swap() can count it */
 #define	B_CACHE		0x008000	/* did bread find us in the cache ? */
 #define	B_INVAL		0x010000	/* does not contain valid info  */
 #define	B_LOCKED	0x020000	/* locked in core (not reusable) */
@@ -200,6 +203,7 @@ extern int physio(void (*)(struct buf *), int, struct buf *, int, int,
 #define	B_DRIVER2      0x2000000	/* bits for the driver to use */
 #define	B_DRIVER4      0x3000000	/* bits for the driver to use */
 #define	B_DRIVER8      0x4000000	/* bits for the driver to use */
+#define B_BOUNCE       0x8000000	/* bounce buffer flag */
 
 /*
  * Insq/Remq for the buffer hash lists.

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1993 Steve Gerakines
+ *  Copyright (c) 1993, 1994 Steve Gerakines
  *
  *  This is freely redistributable software.  You may do anything you
  *  wish with it, so long as the above notice stays intact.
@@ -17,8 +17,15 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.4 1994/02/14 22:24:28 nate Exp $
+ *  $Id: ft.c,v 1.7 1994/06/22 05:52:36 jkh Exp $
  *
+ *  06/07/94 v0.9 ++sg
+ *  Tape stuck on segment problem should be gone.  Re-wrote buffering
+ *  scheme.  Added support for drives that do not automatically perform
+ *  seek load point.  Can handle more wakeup types now and should correctly
+ *  report most manufacturer names.  Fixed places where unit 0 was being
+ *  sent to the fdc instead of the actual unit number.  Added ioctl support
+ *  for an in-core badmap.
  *
  *  01/26/94 v0.3b - Jim Babb
  *  Got rid of the hard coded device selection.  Moved (some of) the
@@ -76,12 +83,13 @@
 #include "ftreg.h"
 
 /* Enable or disable debugging messages. */
-#define FTDBGALL 0			/* everything */
-/* #define DPRT(a) printf a		*/
-#define DPRT(a) 		
+#define FTDBGALL 0			/* 1 if you want everything */
+/*#define DPRT(a) printf a		*/
+#define DPRT(a) 
 
 /* Constants private to the driver */
 #define FTPRI		(PRIBIO)	/* sleep priority */
+#define	FTNBUFF		9		/* 8 for buffering, 1 for header */
 
 /* The following items are needed from the fd driver. */
 extern int in_fdc(int);			/* read fdc registers */
@@ -92,11 +100,13 @@ extern int hz;				/* system clock rate */
 /* Type of tape attached */
 /* use numbers that don't interfere with the possible floppy types */
 #define NO_TYPE 0		/* (same as NO_TYPE in fd.c) */
-			/* F_TAPE_TYPE must match value in fd.c */
-#define F_TAPE_TYPE	0x020	/* bit for ft->types to indicate tape */
-#define	FT_MOUNTAIN	(F_TAPE_TYPE | 1)
-#define	FT_COLORADO	(F_TAPE_TYPE | 2)
 
+/* F_TAPE_TYPE must match value in fd.c */
+#define F_TAPE_TYPE	0x020		/* bit for ft->types to indicate tape */
+#define FT_NONE		(F_TAPE_TYPE | 0)	/* no method required */
+#define	FT_MOUNTAIN	(F_TAPE_TYPE | 1)	/* mountain */
+#define	FT_COLORADO	(F_TAPE_TYPE | 2)	/* colorado */
+#define FT_INSIGHT	(F_TAPE_TYPE | 3)	/* insight */
 
 /* Mode FDC is currently in: tape or disk */
 enum { FDC_TAPE_MODE, FDC_DISK_MODE };
@@ -150,15 +160,25 @@ QIC_Geom *ftg = NULL;			/* Current tape's geometry */
 /*
  *  things relating to asynchronous commands
  */
-static int astk_depth;		/* async_cmd stack depth */
 static int awr_state;		/* state of async write */
 static int ard_state;		/* state of async read */
 static int arq_state;		/* state of async request */
 static int async_retries;	/* retries, one per invocation */
 static int async_func;		/* function to perform */
 static int async_state;		/* state current function is at */
-static int async_arg[5];	/* up to 5 arguments for async cmds */
+static int async_arg0;		/* up to 3 arguments for async cmds */
+static int async_arg1;		/**/
+static int async_arg2;		/**/
 static int async_ret;		/* return value */
+static struct _astk {
+	int over_func;
+	int over_state;
+	int over_retries;
+	int over_arg0;
+	int over_arg1;
+	int over_arg2;
+} astk[10];
+static struct _astk *astk_ptr = &astk[0]; /* Pointer to stack position */
 
 /* List of valid async (interrupt driven) tape support functions. */
 enum {
@@ -172,29 +192,36 @@ enum {
 };
 
 /* Call another asyncronous command from within async_cmd(). */
-#define CALL_ACMD(r,f,a,b,c,d,e) \
-			astk[astk_depth].over_retries = async_retries; \
-			astk[astk_depth].over_func = async_func; \
-			astk[astk_depth].over_state = (r); \
-			for (i = 0; i < 5; i++) \
-			   astk[astk_depth].over_arg[i] = async_arg[i]; \
+#define CALL_ACMD(r,f,a,b,c) \
+			astk_ptr->over_retries = async_retries; \
+			astk_ptr->over_func = async_func; \
+			astk_ptr->over_state = (r); \
+			astk_ptr->over_arg0 = async_arg0; \
+			astk_ptr->over_arg1 = async_arg1; \
+			astk_ptr->over_arg2 = async_arg2; \
 			async_func = (f); async_state = 0; async_retries = 0; \
-			async_arg[0]=(a); async_arg[1]=(b); async_arg[2]=(c); \
-			async_arg[3]=(d); async_arg[4]=(e); \
-			astk_depth++; \
+			async_arg0=(a); async_arg1=(b); async_arg2=(c); \
+			astk_ptr++; \
 			goto restate
 
 /* Perform an asyncronous command from outside async_cmd(). */
-#define ACMD_FUNC(r,f,a,b,c,d,e) over_async = (r); astk_depth = 0; \
+#define ACMD_FUNC(r,f,a,b,c) over_async = (r); astk_ptr = &astk[0]; \
 			async_func = (f); async_state = 0; async_retries = 0; \
-			async_arg[0]=(a); async_arg[1]=(b); async_arg[2]=(c); \
-			async_arg[3]=(d); async_arg[4]=(e); \
+			async_arg0=(a); async_arg1=(b); async_arg2=(c); \
 			async_cmd(ftu); \
 			return
 
 /* Various wait channels */
+static char *wc_buff_avail	= "bavail";
+static char *wc_buff_done	= "bdone";
+static char *wc_iosts_change	= "iochg";
+static char *wc_long_delay	= "ldelay";
+static char *wc_intr_wait	= "intrw";
+#define ftsleep(wc,to)	tsleep((caddr_t)(wc),FTPRI,(wc),(to))
+
 static struct {
 	int buff_avail;
+	int buff_done;
 	int iosts_change;
 	int long_delay;
 	int intr_wait;
@@ -223,8 +250,17 @@ struct ft_data {
 	unsigned char *xptr;	/* pointer to buffer blk to xfer  */
 	int	xcnt;		/* transfer count                 */
 	int	xblk;		/* block number to transfer       */
-	SegReq *curseg;		/* Current segment to do I/O on	  */
-	SegReq *bufseg;		/* Buffered segment to r/w ahead  */
+	int	xseg;		/* segment being transferred	  */
+	SegReq *segh;		/* Current I/O request		  */
+	SegReq *segt;		/* Tail of queued I/O requests	  */
+	SegReq *doneh;		/* Completed I/O request queue    */
+	SegReq *donet;		/* Completed I/O request tail	  */
+	SegReq *segfree;	/* Free segments		  */
+	SegReq *hdr;		/* Current tape header		  */
+	int nsegq;		/* Segments on request queue	  */
+	int ndoneq;		/* Segments on completed queue	  */
+	int nfreelist;		/* Segments on free list	  */
+
 				/* the next 3 should be defines in 'flags' */
 	int active;		/* TRUE if transfer is active	  */
 	int rdonly;		/* TRUE if tape is read-only	  */
@@ -261,85 +297,237 @@ void ftstrategy(struct buf *);
 int ftioctl(dev_t, int, caddr_t, int, struct proc *);
 int ftdump(dev_t);
 int ftsize(dev_t);
-static void ft_timeout(caddr_t arg1, int arg2);
-void async_cmd(ftu_t);
-void async_req(ftu_t, int);
-void async_read(ftu_t, int);
-void async_write(ftu_t, int);
-void tape_start(ftu_t);
-void tape_end(ftu_t);
-void tape_inactive(ftu_t);
+static void ft_timeout(caddr_t, int);
+static void async_cmd(ftu_t);
+static void async_req(ftu_t, int);
+static void async_read(ftu_t, int);
+static void async_write(ftu_t, int);
+static void tape_start(ftu_t, int);
+static void tape_end(ftu_t);
+static void tape_inactive(ftu_t);
+static int tape_cmd(ftu_t, int);
+static int tape_status(ftu_t);
+static int qic_status(ftu_t, int, int);
+static int ftreq_rewind(ftu_t);
+static int ftreq_hwinfo(ftu_t, QIC_HWInfo *);
+
+/*****************************************************************************/
 
 
+/*
+ *  Allocate a segment I/O buffer from the free list.
+ */
+static SegReq *
+segio_alloc(ft_p ft)
+{
+  SegReq *r;
 
+  /* Grab first item from free list */
+  if ((r = ft->segfree) != NULL) {
+	ft->segfree = ft->segfree->next;
+	ft->nfreelist--;
+  }
+  DPRT(("segio_alloc: nfree=%d ndone=%d nreq=%d\n", ft->nfreelist, ft->ndoneq, ft->nsegq));
+  return(r);
+}
+
+
+/*
+ *  Queue a segment I/O request.
+ */
+static void
+segio_queue(ft_p ft, SegReq *sp)
+{
+  /* Put request on in process queue. */
+  if (ft->segt == NULL)
+	ft->segh = sp;
+  else
+	ft->segt->next = sp;
+  sp->next = NULL;
+  ft->segt = sp;
+  ft->nsegq++;
+  DPRT(("segio_queue: nfree=%d ndone=%d nreq=%d\n", ft->nfreelist, ft->ndoneq, ft->nsegq));
+}
+
+
+/*
+ *  Segment I/O completed, place on correct queue.
+ */
+static void
+segio_done(ft_p ft, SegReq *sp)
+{
+  /* First remove from current I/O queue */
+  ft->segh = sp->next;
+  if (ft->segh == NULL) ft->segt = NULL;
+  ft->nsegq--;
+
+  if (sp->reqtype == FTIO_WRITING) {
+	/* Place on free list */
+	sp->next = ft->segfree;
+	ft->segfree = sp;
+	ft->nfreelist++;
+	wakeup((caddr_t)wc_buff_avail);
+	DPRT(("segio_done: (w) nfree=%d ndone=%d nreq=%d\n", ft->nfreelist, ft->ndoneq, ft->nsegq));
+  } else {
+	/* Put on completed I/O queue */
+	if (ft->donet == NULL)
+		ft->doneh = sp;
+	else
+		ft->donet->next = sp;
+	sp->next = NULL;
+	ft->donet = sp;
+	ft->ndoneq++;
+	wakeup((caddr_t)wc_buff_done);
+	DPRT(("segio_done: (r) nfree=%d ndone=%d nreq=%d\n", ft->nfreelist, ft->ndoneq, ft->nsegq));
+  }
+}
+
+
+/*
+ *  Take I/O request from finished queue to free queue.
+ */
+static void
+segio_free(ft_p ft, SegReq *sp)
+{
+  /* First remove from done queue */
+  ft->doneh = sp->next;
+  if (ft->doneh == NULL) ft->donet = NULL;
+  ft->ndoneq--;
+
+  /* Place on free list */
+  sp->next = ft->segfree;
+  ft->segfree = sp;
+  ft->nfreelist++;
+  wakeup((caddr_t)wc_buff_avail);
+  DPRT(("segio_free: nfree=%d ndone=%d nreq=%d\n", ft->nfreelist, ft->ndoneq, ft->nsegq));
+}
 
 
 /*
  *  Probe/attach floppy tapes.
  */
-int ftattach(isadev, fdup)
+int
+ftattach(isadev, fdup)
 	struct isa_device *isadev, *fdup;
 {
-	fdcu_t	fdcu = isadev->id_unit;		/* fdc active unit */
-	fdc_p	fdc = fdc_data + fdcu;	/* pointer to controller structure */
-	ftu_t	ftu = fdup->id_unit;
-	ft_p	ft;
-	ftsu_t	ftsu = fdup->id_physid;
+  fdcu_t fdcu = isadev->id_unit;		/* fdc active unit */
+  fdc_p fdc = fdc_data + fdcu;	/* pointer to controller structure */
+  ftu_t ftu = fdup->id_unit;
+  ft_p ft;
+  ftsu_t ftsu = fdup->id_physid;
+  QIC_HWInfo hw;
+  char *manu;
 
-	if (ftu >= NFT)
-		return 0;
-	ft = &ft_data[ftu];
-				/* Probe for tape */
-	ft->attaching = 1;
-	ft->type = NO_TYPE;
-	ft->fdc = fdc;
-	ft->ftsu = ftsu;
+  if (ftu >= NFT) return 0;
+  ft = &ft_data[ftu];
 
-	tape_start(ftu);	/* ready controller for tape */
-	tape_cmd(ftu, QC_COL_ENABLE1);
-	tape_cmd(ftu, QC_COL_ENABLE2);
-	if (tape_status(ftu) >= 0) {
-		ft->type = FT_COLORADO;
-		fdc->flags |= FDC_HASFTAPE;
-		printf(" [%d: ft%d: Colorado tape]",
-			 fdup->id_physid, fdup->id_unit );
-		tape_cmd(ftu, QC_COL_DISABLE);
-		goto out;
-	}
+  /* Probe for tape */
+  ft->attaching = 1;
+  ft->type = NO_TYPE;
+  ft->fdc = fdc;
+  ft->ftsu = ftsu;
 
-	tape_start(ftu);	/* ready controller for tape */
-	tape_cmd(ftu, QC_MTN_ENABLE1);
-	tape_cmd(ftu, QC_MTN_ENABLE2);
-	if (tape_status(ftu) >= 0) {
-		ft->type = FT_MOUNTAIN;
-		fdc->flags |= FDC_HASFTAPE;
-		printf(" [%d: ft%d: Mountain tape]",
-			 fdup->id_physid, fdup->id_unit );
-		tape_cmd(ftu, QC_MTN_DISABLE);
-		goto out;
-	}
+  /*
+   *  FT_NONE - no method, just do it
+   */
+  tape_start(ftu, 0);
+  if (tape_status(ftu) >= 0) {
+	ft->type = FT_NONE;
+	ftreq_hwinfo(ftu, &hw);
+	goto out;
+  }
+
+  /*
+   *  FT_COLORADO - colorado style
+   */
+  tape_start(ftu, 0);
+  tape_cmd(ftu, QC_COL_ENABLE1);
+  tape_cmd(ftu, QC_COL_ENABLE2 + ftu);
+  if (tape_status(ftu) >= 0) {
+	ft->type = FT_COLORADO;
+	ftreq_hwinfo(ftu, &hw);
+	tape_cmd(ftu, QC_COL_DISABLE);
+	goto out;
+  }
+
+  /*
+   *  FT_MOUNTAIN - mountain style
+   */
+  tape_start(ftu, 0);
+  tape_cmd(ftu, QC_MTN_ENABLE1);
+  tape_cmd(ftu, QC_MTN_ENABLE2);
+  if (tape_status(ftu) >= 0) {
+	ft->type = FT_MOUNTAIN;
+	ftreq_hwinfo(ftu, &hw);
+	tape_cmd(ftu, QC_MTN_DISABLE);
+	goto out;
+  }
+
+  /*
+   *  FT_INSIGHT - insight style
+   */
+  tape_start(ftu, 1);
+  if (tape_status(ftu) >= 0) {
+	ft->type = FT_INSIGHT;
+	ftreq_hwinfo(ftu, &hw);
+	goto out;
+  }
 
 out:
-	tape_end(ftu);
-	ft->attaching = 0;
-	return(ft->type);
+  tape_end(ftu);
+  if (ft->type != NO_TYPE) {
+	fdc->flags |= FDC_HASFTAPE;
+	switch(hw.hw_make) {
+	    case 0x0000:
+		if (ft->type == FT_COLORADO)
+			manu = "Colorado";
+		else if (ft->type == FT_INSIGHT)
+			manu = "Insight";
+		else if (ft->type == FT_MOUNTAIN && hw.hw_model == 0x05)
+			manu = "Archive";
+		else if (ft->type == FT_MOUNTAIN)
+			manu = "Mountain";
+		else
+			manu = "Unknown";
+		break;
+	    case 0x0001:
+		manu = "Colorado";
+		break;
+	    case 0x0005:
+		if (hw.hw_model >= 0x09)
+			manu = "Conner";
+		else
+			manu = "Archive";
+		break;
+	    case 0x0006:
+		manu = "Mountain";
+		break;
+	    case 0x0007:
+		manu = "Wangtek";
+		break;
+	    case 0x0222:
+		manu = "IOMega";
+		break;
+	    default:
+		manu = "Unknown";
+		break;
+	}
+	printf(" [%d: ft%d: %s tape]", fdup->id_physid, fdup->id_unit, manu);
+  }
+  ft->attaching = 0;
+  return(ft->type);
 }
 
 
 /*
  *  Perform common commands asynchronously.
  */
-void async_cmd(ftu_t ftu) {
+static void
+async_cmd(ftu_t ftu) {
 	ft_p	ft = &ft_data[ftu];
 	fdcu_t	fdcu = ft->fdc->fdcu;
 	int cmd, i, st0, st3, pcn;
 	static int bitn, retval, retpos, nbits, newcn;
-	static struct {
-		int over_func;
-		int over_state;
-		int over_retries;
-		int over_arg[5];
-	} astk[15];
 	static int wanttrk, wantblk, wantdir;
 	static int curpos, curtrk, curblk, curdir, curdiff;
 	static int errcnt = 0;
@@ -356,7 +544,7 @@ restate:
 	 */
 	switch (async_state) {
 	    case 0:
-		cmd = async_arg[0];
+		cmd = async_arg0;
 #if FTDBGALL
 		DPRT(("===>async_seek cmd = %d\n", cmd));
 #endif
@@ -364,7 +552,7 @@ restate:
 		async_state = 1;
 		i = 0;
 		if (out_fdc(fdcu, NE7CMD_SEEK) < 0) i = 1;
-		if (!i && out_fdc(fdcu, 0x00) < 0) i = 1;
+		if (!i && out_fdc(fdcu, ftu) < 0) i = 1;
 		if (!i && out_fdc(fdcu, newcn) < 0) i = 1;
 		if (i) {
 			if (++async_retries >= 10) {
@@ -399,7 +587,7 @@ restate:
 			DPRT(("ft%d: async_seek error st0 = $%02x pcn = %d\n",
 							ftu, st0, pcn));
 #endif
-		if (async_arg[1]) goto complete;
+		if (async_arg1) goto complete;
 		async_state = 2;
 		timeout(ft_timeout, (caddr_t)ftu, hz/50);
 		break;
@@ -420,14 +608,14 @@ restate:
 	    case 0:
 		bitn = 0;
 		retval = 0;
-		cmd = async_arg[0];
-		nbits = async_arg[1];
+		cmd = async_arg0;
+		nbits = async_arg1;
 		DPRT(("async_status got cmd = %d nbits = %d\n", cmd,nbits));
-		CALL_ACMD(5, ACMD_SEEK, QC_NEXTBIT, 0, 0, 0, 0);
+		CALL_ACMD(5, ACMD_SEEK, QC_NEXTBIT, 0, 0);
 		/* NOTREACHED */
 	    case 1:
 		out_fdc(fdcu, NE7CMD_SENSED);
-		out_fdc(fdcu, 0x00);
+		out_fdc(fdcu, ftu);
 		st3 = in_fdc(fdcu);
 		if (st3 < 0) {
 		DPRT(("ft%d: async_status timed out on bit %d r=$%02x\n",
@@ -440,7 +628,7 @@ restate:
 		if (bitn >= (nbits+2)) {
 			if ((retval & 1) && (retval & (1 << (nbits+1)))) {
 				async_ret = (retval & ~(1<<(nbits+1))) >> 1;
-				if (async_arg[0] == QC_STATUS && async_arg[2] == 0 &&
+				if (async_arg0 == QC_STATUS && async_arg2 == 0 &&
 				   (async_ret & (QS_ERROR|QS_NEWCART))) {
 					async_state = 2;
 					goto restate;
@@ -453,31 +641,31 @@ restate:
 			}
 			goto complete;
 		}
-		CALL_ACMD(1, ACMD_SEEK, QC_NEXTBIT, 0, 0, 0, 0);
+		CALL_ACMD(1, ACMD_SEEK, QC_NEXTBIT, 0, 0);
 		/* NOTREACHED */
 	    case 2:
 		if (async_ret & QS_NEWCART) ft->newcart = 1;
-		CALL_ACMD(3, ACMD_STATUS, QC_ERRCODE, 16, 1, 0, 0);
+		CALL_ACMD(3, ACMD_STATUS, QC_ERRCODE, 16, 1);
 	    case 3:
 		ft->lasterr = async_ret;
 		if ((ft->lasterr & QS_NEWCART) == 0 && ft->lasterr) {
 			DPRT(("ft%d: QIC error %d occurred on cmd %d\n",
 				ftu, ft->lasterr & 0xff, ft->lasterr >> 8));
 		}
-	        cmd = async_arg[0];
-		nbits = async_arg[1];
-		CALL_ACMD(4, ACMD_STATUS, QC_STATUS, 8, 1, 0, 0);
+	        cmd = async_arg0;
+		nbits = async_arg1;
+		CALL_ACMD(4, ACMD_STATUS, QC_STATUS, 8, 1);
 	    case 4:
 		goto complete;
 	    case 5:
-		CALL_ACMD(6, ACMD_SEEK, QC_NEXTBIT, 0, 0, 0, 0);
+		CALL_ACMD(6, ACMD_SEEK, QC_NEXTBIT, 0, 0);
 	    case 6:
-		CALL_ACMD(7, ACMD_SEEK, QC_NEXTBIT, 0, 0, 0, 0);
+		CALL_ACMD(7, ACMD_SEEK, QC_NEXTBIT, 0, 0);
 	    case 7:
-		CALL_ACMD(8, ACMD_SEEK, QC_NEXTBIT, 0, 0, 0, 0);
+		CALL_ACMD(8, ACMD_SEEK, QC_NEXTBIT, 0, 0);
 	    case 8:
-		cmd = async_arg[0];
-		CALL_ACMD(1, ACMD_SEEK, cmd, 0, 0, 0, 0);
+		cmd = async_arg0;
+		CALL_ACMD(1, ACMD_SEEK, cmd, 0, 0);
 	}
 	break;
 
@@ -488,9 +676,9 @@ restate:
 	 */
 	switch(async_state) {
 	    case 0:
-		CALL_ACMD(1, ACMD_STATUS, QC_STATUS, 8, 0, 0, 0);
+		CALL_ACMD(1, ACMD_STATUS, QC_STATUS, 8, 0);
 	    case 1:
-		if ((async_ret & async_arg[0]) != 0) goto complete;
+		if ((async_ret & async_arg0) != 0) goto complete;
 		async_state = 0;
 		if (++async_retries == 360) {	/* 90 secs. */
 			DPRT(("ft%d: acmd_state exceeded retry count\n", ftu));
@@ -510,13 +698,13 @@ restate:
 	 */
 	switch(async_state) {
 	    case 0:
-		cmd = async_arg[0];
-		async_retries = (async_arg[2]) ? (async_arg[2]*4) : 10;
-		CALL_ACMD(1, ACMD_SEEK, cmd, 0, 0, 0, 0);
+		cmd = async_arg0;
+		async_retries = (async_arg2) ? (async_arg2 * 4) : 10;
+		CALL_ACMD(1, ACMD_SEEK, cmd, 0, 0);
 	    case 1:
-		CALL_ACMD(2, ACMD_STATUS, QC_STATUS, 8, 0, 0, 0);
+		CALL_ACMD(2, ACMD_STATUS, QC_STATUS, 8, 0);
 	    case 2:
-		if ((async_ret & async_arg[1]) != 0) goto complete;
+		if ((async_ret & async_arg1) != 0) goto complete;
 		if (--async_retries == 0) {
 			DPRT(("ft%d: acmd_seeksts retries exceeded\n", ftu));
 			goto complete;
@@ -534,12 +722,12 @@ restate:
 	switch(async_state) {
 	    case 0:
 		if (!ft->moving) {
-			CALL_ACMD(4, ACMD_SEEKSTS, QC_STOP, QS_READY, 0, 0, 0);
+			CALL_ACMD(4, ACMD_SEEKSTS, QC_STOP, QS_READY, 0);
 			/* NOTREACHED */
 		}
 		async_state = 1;
 		out_fdc(fdcu, 0x4a);		/* READ_ID */
-		out_fdc(fdcu, 0);
+		out_fdc(fdcu, ftu);
 		break;
 	    case 1:
 		for (i = 0; i < 7; i++) ft->rid[i] = in_fdc(fdcu);
@@ -548,25 +736,36 @@ restate:
 		DPRT(("readid st0:%02x st1:%02x st2:%02x c:%d h:%d s:%d pos:%d\n",
 			ft->rid[0], ft->rid[1], ft->rid[2], ft->rid[3],
 			ft->rid[4], ft->rid[5], async_ret));
-		if ((ft->rid[0] & 0xc0) == 0x40) {
-			if (++errcnt >= 10) {
+		if ((ft->rid[0] & 0xc0) != 0 || async_ret < 0) {
+			/*
+			 *  Method for retry:
+			 *    errcnt == 1 regular retry
+			 *		2 microstep head 1
+			 * 		3 microstep head 2
+			 *		4 microstep head back to 0
+			 *		5 fail
+			 */
+			if (++errcnt >= 5) {
 				DPRT(("ft%d: acmd_readid errcnt exceeded\n", fdcu));
-				async_ret = ft->lastpos;
+				async_ret = -2;
 				errcnt = 0;
 				goto complete;
 			}
-			if (errcnt > 2) {
+			if (errcnt == 1) {
 				ft->moving = 0;
-				CALL_ACMD(4, ACMD_SEEKSTS, QC_STOP, QS_READY, 0, 0, 0);
+				CALL_ACMD(4, ACMD_SEEKSTS, QC_STOP, QS_READY, 0);
+			} else {
+				ft->moving = 0;
+				CALL_ACMD(4, ACMD_SEEKSTS, QC_STPAUSE, QS_READY, 0);
 			}
-			DPRT(("readid retry...\n"));
+			DPRT(("readid retry %d...\n", errcnt));
 			async_state = 0;
 			goto restate;
 		}
 		if ((async_ret % ftg->g_blktrk) == (ftg->g_blktrk-1)) {
 			DPRT(("acmd_readid detected last block on track\n"));
 			retpos = async_ret;
-			CALL_ACMD(2, ACMD_STATE, QS_BOT|QS_EOT, 0, 0, 0, 0);
+			CALL_ACMD(2, ACMD_STATE, QS_BOT|QS_EOT, 0, 0);
 			/* NOTREACHED */
 		}
 		ft->lastpos = async_ret;
@@ -574,13 +773,13 @@ restate:
 		goto complete;
 		/* NOTREACHED */
 	    case 2:
-		CALL_ACMD(3, ACMD_STATE, QS_READY, 0, 0, 0, 0);
+		CALL_ACMD(3, ACMD_STATE, QS_READY, 0, 0);
 	    case 3:
 		ft->moving = 0;
 		async_ret = retpos+1;
 		goto complete;
 	    case 4:
-		CALL_ACMD(5, ACMD_SEEK, QC_FORWARD, 0, 0, 0, 0);
+		CALL_ACMD(5, ACMD_SEEK, QC_FORWARD, 0, 0);
 	    case 5:
 		ft->moving = 1;
 		async_state = 0;
@@ -598,27 +797,27 @@ restate:
 	 */
 	switch (async_state) {
 	    case 0:
-		wanttrk = async_arg[0] / ftg->g_blktrk;
-		wantblk = async_arg[0] % ftg->g_blktrk;
+		wanttrk = async_arg0 / ftg->g_blktrk;
+		wantblk = async_arg0 % ftg->g_blktrk;
 		wantdir = wanttrk & 1;
 		ft->moving = 0;
-		CALL_ACMD(1, ACMD_SEEKSTS, QC_STOP, QS_READY, 0, 0, 0);
+		CALL_ACMD(1, ACMD_SEEKSTS, QC_STOP, QS_READY, 0);
 	    case 1:
 		curtrk = wanttrk;
 		curdir = curtrk & 1;
 		DPRT(("Changing to track %d\n", wanttrk));
-		CALL_ACMD(2, ACMD_SEEK, QC_SEEKTRACK, 0, 0, 0, 0);
+		CALL_ACMD(2, ACMD_SEEK, QC_SEEKTRACK, 0, 0);
 	    case 2:
 		cmd = wanttrk+2;
-		CALL_ACMD(3, ACMD_SEEKSTS, cmd, QS_READY, 0, 0, 0);
+		CALL_ACMD(3, ACMD_SEEKSTS, cmd, QS_READY, 0);
 	    case 3:
-		CALL_ACMD(4, ACMD_STATUS, QC_STATUS, 8, 0, 0, 0);
+		CALL_ACMD(4, ACMD_STATUS, QC_STATUS, 8, 0);
 	    case 4:
 		ft->laststs = async_ret;
 		if (wantblk == 0) {
 			curblk = 0;
 			cmd = (wantdir) ? QC_SEEKEND : QC_SEEKSTART;
-			CALL_ACMD(6, ACMD_SEEKSTS, cmd, QS_READY, 90, 0, 0);
+			CALL_ACMD(6, ACMD_SEEKSTS, cmd, QS_READY, 90);
 		}
 		if (ft->laststs & QS_BOT) {
 			DPRT(("Tape is at BOT\n"));
@@ -632,15 +831,23 @@ restate:
 			async_state = 6;
 			goto restate;
 		}
-		CALL_ACMD(5, ACMD_READID, 0, 0, 0, 0, 0);
+		CALL_ACMD(5, ACMD_READID, 0, 0, 0);
 	    case 5:
+		if (async_ret < 0) {
+			ft->moving = 0;
+			ft->lastpos = -2;
+			if (async_ret == -2) {
+				CALL_ACMD(9, ACMD_SEEKSTS, QC_STOP, QS_READY, 0);
+			}
+			CALL_ACMD(1, ACMD_SEEKSTS, QC_STOP, QS_READY, 0);
+		}
 		curtrk = (async_ret+1) / ftg->g_blktrk;
 		curblk = (async_ret+1) % ftg->g_blktrk;
 		DPRT(("gotid: curtrk=%d wanttrk=%d curblk=%d wantblk=%d\n",
 			curtrk, wanttrk, curblk, wantblk));
 		if (curtrk != wanttrk) {	/* oops! */
 			DPRT(("oops!! wrong track!\n"));
-			CALL_ACMD(1, ACMD_SEEKSTS, QC_STOP, QS_READY, 0, 0, 0);
+			CALL_ACMD(1, ACMD_SEEKSTS, QC_STOP, QS_READY, 0);
 		}
 		async_state = 6;
 		goto restate;
@@ -650,22 +857,22 @@ restate:
 			ft->lastpos = curblk - 1;
 			async_ret = ft->lastpos;
 			if (ft->moving) goto complete;
-			CALL_ACMD(7, ACMD_STATE, QS_READY, 0, 0, 0, 0);
+			CALL_ACMD(7, ACMD_STATE, QS_READY, 0, 0);
 		}
 		if (curblk > wantblk) {		/* passed it */
 			ft->moving = 0;
-			CALL_ACMD(10, ACMD_SEEKSTS, QC_STOP, QS_READY, 0, 0, 0);
+			CALL_ACMD(10, ACMD_SEEKSTS, QC_STOP, QS_READY, 0);
 		}
-		if ((wantblk - curblk) <= 96) {	/* approaching it */
-			CALL_ACMD(5, ACMD_READID, 0, 0, 0, 0, 0);
+		if ((wantblk - curblk) <= 256) {	/* approaching it */
+			CALL_ACMD(5, ACMD_READID, 0, 0, 0);
 		}
 		/* way up ahead */
 		ft->moving = 0;
-		CALL_ACMD(14, ACMD_SEEKSTS, QC_STOP, QS_READY, 0, 0, 0);
+		CALL_ACMD(14, ACMD_SEEKSTS, QC_STOP, QS_READY, 0);
 		break;
 	    case 7:
 		ft->moving = 1;
-		CALL_ACMD(8, ACMD_SEEK, QC_FORWARD, 0, 0, 0, 0);
+		CALL_ACMD(8, ACMD_SEEK, QC_FORWARD, 0, 0);
 		break;
 	    case 8:
 		async_state = 9;
@@ -677,26 +884,26 @@ restate:
 		curdiff = ((curblk - wantblk) / QCV_BLKSEG) + 2;
 		if (curdiff >= ftg->g_segtrk) curdiff = ftg->g_segtrk - 1;
 		DPRT(("pos %d past %d, reverse %d\n", curblk, wantblk, curdiff));
-		CALL_ACMD(11, ACMD_SEEK, QC_SEEKREV, 0, 0, 0, 0);
+		CALL_ACMD(11, ACMD_SEEK, QC_SEEKREV, 0, 0);
 	    case 11:
 		DPRT(("reverse 1 done\n"));
-		CALL_ACMD(12, ACMD_SEEK, (curdiff & 0xf)+2, 0, 0, 0, 0);
+		CALL_ACMD(12, ACMD_SEEK, (curdiff & 0xf)+2, 0, 0);
 	    case 12:
 		DPRT(("reverse 2 done\n"));
-		CALL_ACMD(13, ACMD_SEEKSTS, ((curdiff>>4)&0xf)+2, QS_READY, 90, 0, 0);
+		CALL_ACMD(13, ACMD_SEEKSTS, ((curdiff>>4)&0xf)+2, QS_READY, 90);
 	    case 13:
-		CALL_ACMD(5, ACMD_READID, 0, 0, 0, 0, 0);
+		CALL_ACMD(5, ACMD_READID, 0, 0, 0);
 	    case 14:
 		curdiff = ((wantblk - curblk) / QCV_BLKSEG) - 2;
 		if (curdiff < 0) curdiff = 0;
 		DPRT(("pos %d before %d, forward %d\n", curblk, wantblk, curdiff));
-		CALL_ACMD(15, ACMD_SEEK, QC_SEEKFWD, 0, 0, 0, 0);
+		CALL_ACMD(15, ACMD_SEEK, QC_SEEKFWD, 0, 0);
 	    case 15:
 		DPRT(("forward 1 done\n"));
-		CALL_ACMD(16, ACMD_SEEK, (curdiff & 0xf)+2, 0, 0, 0, 0);
+		CALL_ACMD(16, ACMD_SEEK, (curdiff & 0xf)+2, 0, 0);
 	    case 16:
 		DPRT(("forward 2 done\n"));
-		CALL_ACMD(13, ACMD_SEEKSTS, ((curdiff>>4)&0xf)+2, QS_READY, 90, 0, 0);
+		CALL_ACMD(13, ACMD_SEEKSTS, ((curdiff>>4)&0xf)+2, QS_READY, 90);
 	}
 	break;
   }
@@ -704,13 +911,14 @@ restate:
   return;
 
 complete:
-  if (astk_depth) {
-	astk_depth--;
-	async_retries = astk[astk_depth].over_retries;
-	async_func = astk[astk_depth].over_func;
-	async_state = astk[astk_depth].over_state;
-	for(i = 0; i < 5; i++)
-		async_arg[i] = astk[astk_depth].over_arg[i];
+  if (astk_ptr != &astk[0]) {
+	astk_ptr--;
+	async_retries = astk_ptr->over_retries;
+	async_func = astk_ptr->over_func;
+	async_state = astk_ptr->over_state;
+	async_arg0 = astk_ptr->over_arg0;
+	async_arg1 = astk_ptr->over_arg1;
+	async_arg2 = astk_ptr->over_arg2;
 	goto restate;
   }
   async_func = ACMD_NONE;
@@ -720,6 +928,7 @@ complete:
 	async_req(ftu, 2);
 	break;
      case FTIO_READING:
+     case FTIO_RDAHEAD:
 	async_read(ftu, 2);
 	break;
      case FTIO_WRITING:
@@ -735,10 +944,11 @@ complete:
 /*
  *  Entry point for the async request processor.
  */
-void async_req(ftu_t ftu, int from)
+static void
+async_req(ftu_t ftu, int from)
 {
   ft_p	ft = &ft_data[ftu];
-  SegReq *sp;
+  SegReq *nsp, *sp;
   static int over_async, lastreq, domore;
   int cmd;
 
@@ -747,56 +957,73 @@ void async_req(ftu_t ftu, int from)
 restate:
   switch (arq_state) {
      case 0:	/* Process segment */
-	ft->io_sts = ft->curseg->reqtype;
+	sp = ft->segh;
+	ft->io_sts = (sp == NULL) ? FTIO_READY : sp->reqtype;
+
 	if (ft->io_sts == FTIO_WRITING)
 		async_write(ftu, from);
 	else
 		async_read(ftu, from);
 	if (ft->io_sts != FTIO_READY) return;
 
-	/* Swap buffered and current segment */
-	lastreq = ft->curseg->reqtype;
-	ft->curseg->reqtype = FTIO_READY;
-	sp = ft->curseg;
-	ft->curseg = ft->bufseg;
-	ft->bufseg = sp;
+	/* Pull buffer from current I/O queue */
+	if (sp != NULL) {
+		lastreq = sp->reqtype;
+		segio_done(ft, sp);
 
-	wakeup((caddr_t)&ftsem.buff_avail);
+		/* If I/O cancelled, clear finished queue. */
+		if (sp->reqcan) {
+			while (ft->doneh != NULL)
+				segio_free(ft, ft->doneh);
+			lastreq = FTIO_READY;
+		}
+	} else
+		lastreq = FTIO_READY;
 
 	/* Detect end of track */
 	if (((ft->xblk / QCV_BLKSEG) % ftg->g_segtrk) == 0) {
-		domore = (ft->curseg->reqtype != FTIO_READY);
-		ACMD_FUNC(2, ACMD_STATE, QS_BOT|QS_EOT, 0, 0, 0, 0);
+		ACMD_FUNC(2, ACMD_STATE, QS_BOT|QS_EOT, 0, 0);
 	}
 	arq_state = 1;
 	goto restate;
 
      case 1:	/* Next request */
-	if (ft->curseg->reqtype != FTIO_READY) {
-		ft->curseg->reqcrc = 0;
+	/* If we have another request queued, start it running. */
+	if (ft->segh != NULL) {
+		sp = ft->segh;
+		sp->reqcrc = 0;
 		arq_state = ard_state = awr_state = 0;
-		ft->xblk = ft->curseg->reqblk;
+		ft->xblk = sp->reqblk;
+		ft->xseg = sp->reqseg;
 		ft->xcnt = 0;
-		ft->xptr = ft->curseg->buff;
-		DPRT(("I/O reqblk = %d\n", ft->curseg->reqblk));
+		ft->xptr = sp->buff;
+		DPRT(("I/O reqblk = %d\n", ft->xblk));
 		goto restate;
 	}
-	if (lastreq == FTIO_READING) {
-		ft->curseg->reqtype = FTIO_RDAHEAD;
-		ft->curseg->reqblk = ft->xblk;
-		ft->curseg->reqcrc = 0;
-		ft->curseg->reqcan = 0;
-		bzero(ft->curseg->buff, QCV_SEGSIZE);
+
+	/* If the last request was reading, do read ahead. */
+	if ((lastreq == FTIO_READING || lastreq == FTIO_RDAHEAD) &&
+					(sp = segio_alloc(ft)) != NULL) {
+		sp->reqtype = FTIO_RDAHEAD;
+		sp->reqblk = ft->xblk;
+		sp->reqseg = ft->xseg+1;
+		sp->reqcrc = 0;
+		sp->reqcan = 0;
+		segio_queue(ft, sp);
+		bzero(sp->buff, QCV_SEGSIZE);
 		arq_state = ard_state = awr_state = 0;
-		ft->xblk = ft->curseg->reqblk;
+		ft->xblk = sp->reqblk;
+		ft->xseg = sp->reqseg;
 		ft->xcnt = 0;
-		ft->xptr = ft->curseg->buff;
-		DPRT(("Processing readahead reqblk = %d\n", ft->curseg->reqblk));
+		ft->xptr = sp->buff;
+		DPRT(("Processing readahead reqblk = %d\n", ft->xblk));
 		goto restate;
 	}
+
 	if (ft->moving) {
 		DPRT(("No more I/O.. Stopping.\n"));
-		ACMD_FUNC(7, ACMD_SEEKSTS, QC_STOP, QS_READY, 0, 0, 0);
+		ft->moving = 0;
+		ACMD_FUNC(7, ACMD_SEEKSTS, QC_PAUSE, QS_READY, 0);
 		break;
 	}
 	arq_state = 7;
@@ -804,26 +1031,26 @@ restate:
 
      case 2:	/* End of track */
 	ft->moving = 0;
-	ACMD_FUNC(3, ACMD_STATE, QS_READY, 0, 0, 0, 0);
+	ACMD_FUNC(3, ACMD_STATE, QS_READY, 0, 0);
 	break;
 
      case 3:
 	DPRT(("async_req seek head to track %d\n", ft->xblk / ftg->g_blktrk));
-	ACMD_FUNC(4, ACMD_SEEK, QC_SEEKTRACK, 0, 0, 0, 0);
+	ACMD_FUNC(4, ACMD_SEEK, QC_SEEKTRACK, 0, 0);
 	break;
 
      case 4:
 	cmd = (ft->xblk / ftg->g_blktrk) + 2;
-	if (domore) {
-		ACMD_FUNC(5, ACMD_SEEKSTS, cmd, QS_READY, 0, 0, 0);
+	if (ft->segh != NULL) {
+		ACMD_FUNC(5, ACMD_SEEKSTS, cmd, QS_READY, 0);
 	} else {
-		ACMD_FUNC(7, ACMD_SEEKSTS, cmd, QS_READY, 0, 0, 0);
+		ACMD_FUNC(7, ACMD_SEEKSTS, cmd, QS_READY, 0);
 	}
 	break;
 
      case 5:
 	ft->moving = 1;
-	ACMD_FUNC(6, ACMD_SEEK, QC_FORWARD, 0, 0, 0, 0);
+	ACMD_FUNC(6, ACMD_SEEK, QC_FORWARD, 0, 0);
 	break;
 
      case 6:
@@ -832,26 +1059,22 @@ restate:
 	break;
 
      case 7:
-	ft->moving = 0;
-
-	/* Check one last time to see if a request came in. */
-	if (ft->curseg->reqtype != FTIO_READY) {
-		DPRT(("async_req: Never say no!\n"));
-		arq_state = 1;
-		goto restate;
-	}
-
 	/* Time to rest. */
 	ft->active = 0;
-	wakeup((caddr_t)&ftsem.iosts_change);	/* wakeup those who want an i/o chg */
+	ft->lastpos = -2;
+
+	/* wakeup those who want an i/o chg */
+	wakeup((caddr_t)wc_iosts_change);
 	break;
   }
 }
 
+
 /*
  *  Entry for async read.
  */
-void async_read(ftu_t ftu, int from)
+static void
+async_read(ftu_t ftu, int from)
 {
   ft_p ft = &ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
@@ -859,6 +1082,7 @@ void async_read(ftu_t ftu, int from)
   int i, cmd, newcn, rddta[7];
   int st0, pcn, where;
   static int over_async;
+  static int retries = 0;
 
   if (from == 2) ard_state = over_async;
 
@@ -872,13 +1096,13 @@ restate:
 	if (ft->lastpos != (ft->xblk-1)) {
 		DPRT(("ft%d: position unknown: lastpos:%d ft->xblk:%d\n",
 			ftu, ft->lastpos, ft->xblk));
-		ACMD_FUNC(1, ACMD_RUNBLK, ft->xblk, 0, 0, 0, 0);
+		ACMD_FUNC(1, ACMD_RUNBLK, ft->xblk, 0, 0);
 	}
 
 	/* Tape is in position but stopped. */
 	if (!ft->moving) {
 		DPRT(("async_read ******STARTING TAPE\n"));
-		ACMD_FUNC(3, ACMD_STATE, QS_READY, 0, 0, 0, 0);
+		ACMD_FUNC(3, ACMD_STATE, QS_READY, 0, 0);
 	}
 	ard_state = 1;
 	goto restate;
@@ -887,8 +1111,8 @@ restate:
 	/* Tape is now moving and in position-- start DMA now! */
 	isa_dmastart(B_READ, ft->xptr, QCV_BLKSIZE, 2);
 	out_fdc(fdcu, 0x66);				/* read */
-	out_fdc(fdcu, 0x00);				/* unit */
-	out_fdc(fdcu, (ft->xblk % ftg->g_fdside) / ftg->g_fdtrk);	/* cylinder */
+	out_fdc(fdcu, ftu);				/* unit */
+	out_fdc(fdcu, (ft->xblk % ftg->g_fdside) / ftg->g_fdtrk); 	/* cylinder */
 	out_fdc(fdcu, ft->xblk / ftg->g_fdside);		/* head */
 	out_fdc(fdcu, (ft->xblk % ftg->g_fdtrk) + 1);	/* sector */
 	out_fdc(fdcu, 0x03);				/* 1K sectors */
@@ -905,7 +1129,8 @@ restate:
 
 #if FTDBGALL
 	/* Compute where the controller thinks we are */
-	where = (rddta[3]*ftg->g_fdtrk) + (rddta[4]*ftg->g_fdside) + rddta[5]-1;
+	where = (rddta[3]*ftg->g_fdtrk) + (rddta[4]*ftg->g_fdside)
+			+ rddta[5]-1;
 	DPRT(("xfer done: st0:%02x st1:%02x st2:%02x c:%d h:%d s:%d pos:%d want:%d\n",
 	    rddta[0], rddta[1], rddta[2], rddta[3], rddta[4], rddta[5],
 	    where, ft->xblk));
@@ -913,34 +1138,44 @@ restate:
 
 	/* Check for errors */
 	if ((rddta[0] & 0xc0) != 0x00) {
-		if (rddta[1] & 0x04) {
+#if !FTDBGALL
+		where = (rddta[3]*ftg->g_fdtrk) + (rddta[4]*ftg->g_fdside)
+			+ rddta[5]-1;
+		DPRT(("xd: st0:%02x st1:%02x st2:%02x c:%d h:%d s:%d pos:%d want:%d\n",
+		    rddta[0], rddta[1], rddta[2], rddta[3], rddta[4], rddta[5],
+		    where, ft->xblk));
+#endif
+		if ((rddta[1] & 0x04) == 0x04 && retries < 2) {
 			/* Probably wrong position */
+			DPRT(("async_read: doing retry %d\n", retries));
 			ft->lastpos = ft->xblk;
 			ard_state = 0;
+			retries++;
 			goto restate;
 		} else {
 			/* CRC/Address-mark/Data-mark, et. al. */
 			DPRT(("ft%d: CRC error on block %d\n", fdcu, ft->xblk));
-			ft->curseg->reqcrc |= (1 << ft->xcnt);
+			ft->segh->reqcrc |= (1 << ft->xcnt);
 		}
 	}
 
 	/* Otherwise, transfer completed okay. */
+	retries = 0;
 	ft->lastpos = ft->xblk;
 	ft->xblk++;
 	ft->xcnt++;
 	ft->xptr += QCV_BLKSIZE;
-	if (ft->xcnt < QCV_BLKSEG && ft->curseg->reqcan == 0) {
+	if (ft->xcnt < QCV_BLKSEG && ft->segh->reqcan == 0) {
 		ard_state = 0;
 		goto restate;
 	}
-	DPRT(("Read done..  Cancel = %d\n", ft->curseg->reqcan));
+	DPRT(("Read done..  Cancel = %d\n", ft->segh->reqcan));
 	ft->io_sts = FTIO_READY;
 	break;
 
      case 3:
 	ft->moving = 1;
-	ACMD_FUNC(4, ACMD_SEEK, QC_FORWARD, 0, 0, 0, 0);
+	ACMD_FUNC(4, ACMD_SEEK, QC_FORWARD, 0, 0);
 	break;
 
      case 4:
@@ -960,7 +1195,8 @@ restate:
  *  routine, if it's 1 then it was a timeout, if it's 2, then an
  *  async_cmd completed.
  */
-void async_write(ftu_t ftu, int from)
+static void
+async_write(ftu_t ftu, int from)
 {
   ft_p ft = &ft_data[ftu];
   fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
@@ -982,13 +1218,13 @@ restate:
 	if (ft->lastpos != (ft->xblk-1)) {
 		DPRT(("ft%d: position unknown: lastpos:%d ft->xblk:%d\n",
 			ftu, ft->lastpos, ft->xblk));
-		ACMD_FUNC(1, ACMD_RUNBLK, ft->xblk, 0, 0, 0, 0);
+		ACMD_FUNC(1, ACMD_RUNBLK, ft->xblk, 0, 0);
 	}
 
 	/* Tape is in position but stopped. */
 	if (!ft->moving) {
 		DPRT(("async_write ******STARTING TAPE\n"));
-		ACMD_FUNC(3, ACMD_STATE, QS_READY, 0, 0, 0, 0);
+		ACMD_FUNC(3, ACMD_STATE, QS_READY, 0, 0);
 	}
 	awr_state = 1;
 	goto restate;
@@ -997,8 +1233,8 @@ restate:
 	/* Tape is now moving and in position-- start DMA now! */
 	isa_dmastart(B_WRITE, ft->xptr, QCV_BLKSIZE, 2);
 	out_fdc(fdcu, 0x45);				/* write */
-	out_fdc(fdcu, 0x00);				/* unit */
-	out_fdc(fdcu, (ft->xblk % ftg->g_fdside) / ftg->g_fdtrk);	/* cylinder */
+	out_fdc(fdcu, ftu);				/* unit */
+	out_fdc(fdcu, (ft->xblk % ftg->g_fdside) / ftg->g_fdtrk); /* cyl */
 	out_fdc(fdcu, ft->xblk / ftg->g_fdside);		/* head */
 	out_fdc(fdcu, (ft->xblk % ftg->g_fdtrk) + 1);	/* sector */
 	out_fdc(fdcu, 0x03);				/* 1K sectors */
@@ -1023,13 +1259,16 @@ restate:
 
 	/* Check for errors */
 	if ((rddta[0] & 0xc0) != 0x00) {
-		if (rddta[1] & 0x04) {
-			/* Probably wrong position */
-			ft->lastpos = ft->xblk;
-			awr_state = 0;
-			goto restate;
-		} else if (retries < 5) {
+#if !FTDBGALL
+		where = (rddta[3]*ftg->g_fdtrk) + (rddta[4]*ftg->g_fdside)
+			 + rddta[5]-1;
+		DPRT(("xfer done: st0:%02x st1:%02x st2:%02x c:%d h:%d s:%d pos:%d want:%d\n",
+		    rddta[0], rddta[1], rddta[2], rddta[3], rddta[4], rddta[5],
+		    where, ft->xblk));
+#endif
+		if (retries < 3) {
 			/* Something happened -- try again */
+			DPRT(("async_write: doing retry %d\n", retries));
 			ft->lastpos = ft->xblk;
 			awr_state = 0;
 			retries++;
@@ -1037,11 +1276,11 @@ restate:
 		} else {
 			/*
 			 *  Retries failed.  Note the unrecoverable error.
-			 *  Marking the block as bad is fairly useless.
+			 *  Marking the block as bad is useless right now.
 			 */ 
 			printf("ft%d: unrecoverable write error on block %d\n",
 					ftu, ft->xblk);
-			ft->curseg->reqcrc |= (1 << ft->xcnt);
+			ft->segh->reqcrc |= (1 << ft->xcnt);
 		}
 	}
 
@@ -1063,7 +1302,7 @@ restate:
 
      case 3:
 	ft->moving = 1;
-	ACMD_FUNC(4, ACMD_SEEK, QC_FORWARD, 0, 0, 0, 0);
+	ACMD_FUNC(4, ACMD_SEEK, QC_FORWARD, 0, 0);
 	break;
 
      case 4:
@@ -1081,11 +1320,14 @@ restate:
 /*
  *  Interrupt handler for active tape.  Bounced off of fdintr().
  */
-int ftintr(ftu_t ftu)
+int
+ftintr(ftu_t ftu)
 {
   int st0, pcn, i;
   ft_p	ft = &ft_data[ftu];
-	fdcu_t	fdcu = ft->fdc->fdcu;		/* fdc active unit */
+  fdcu_t fdcu = ft->fdc->fdcu;		/* fdc active unit */
+  int s = splbio();
+
   st0 = 0;
   pcn = 0;
 
@@ -1093,12 +1335,14 @@ int ftintr(ftu_t ftu)
   if (ft->active) {
 	if (async_func != ACMD_NONE) {
 		async_cmd(ftu);
+		splx(s);
 		return(1);
 	}
 #if FTDBGALL
 	DPRT(("Got request interrupt\n"));
 #endif
 	async_req(ftu, 0);
+	splx(s);
 	return(1);
   }
 
@@ -1113,20 +1357,21 @@ int ftintr(ftu_t ftu)
 huh_what:
 	printf("ft%d: unexpected interrupt; st0 = $%02x pcn = %d\n",
 				ftu, st0, pcn);
+	splx(s);
 	return(1);
   }
 
   switch (ft->cmd_wait) {
      case FTCMD_RESET:
 	ft->sts_wait = FTSTS_INTERRUPT;
-	wakeup((caddr_t)&ftsem.intr_wait);
+	wakeup((caddr_t)wc_intr_wait);
 	break;
      case FTCMD_RECAL:
      case FTCMD_SEEK:
 	if (st0 & 0x20)	{ 	/* seek done */
 		ft->sts_wait = FTSTS_INTERRUPT;
 		ft->pcn = pcn;
-		wakeup((caddr_t)&ftsem.intr_wait);
+		wakeup((caddr_t)wc_intr_wait);
 	}
 #if FTDBGALL
 	else
@@ -1137,20 +1382,23 @@ huh_what:
      case FTCMD_READID:
 	for (i = 0; i < 7; i++) ft->rid[i] = in_fdc(fdcu);
 	ft->sts_wait = FTSTS_INTERRUPT;
-	wakeup((caddr_t)&ftsem.intr_wait);
+	wakeup((caddr_t)wc_intr_wait);
 	break;
 
      default:
 	goto huh_what;
   }
 
+  splx(s);
   return(1);
 }
+
 
 /*
  *  Interrupt timeout routine.
  */
-static void ft_timeout(caddr_t arg1, int arg2)
+static void
+ft_timeout(caddr_t arg1, int arg2)
 {
   int s;
   ftu_t ftu = (ftu_t)arg1;
@@ -1166,17 +1414,19 @@ static void ft_timeout(caddr_t arg1, int arg2)
 	async_req(ftu, 1);
   } else {
 	  ft->sts_wait = FTSTS_TIMEOUT;
-	  wakeup((caddr_t)&ftsem.intr_wait);
+	  wakeup((caddr_t)wc_intr_wait);
   }
   splx(s);
 }
+
 
 /*
  *  Wait for a particular interrupt to occur.  ftintr() will wake us up
  *  if it sees what we want.  Otherwise, time out and return error.
  *  Should always disable ints before trigger is sent and calling here.
  */
-int ftintr_wait(ftu_t ftu, int cmd, int ticks)
+static int
+ftintr_wait(ftu_t ftu, int cmd, int ticks)
 {
   int retries, st0, pcn;
   ft_p	ft = &ft_data[ftu];
@@ -1211,8 +1461,7 @@ int ftintr_wait(ftu_t ftu, int cmd, int ticks)
 	goto intrdone;
   }
 
-  if (ticks) timeout(ft_timeout, (caddr_t)ftu, ticks);
-  sleep((caddr_t)&ftsem.intr_wait, FTPRI);
+  ftsleep(wc_intr_wait, ticks);
 
 intrdone:
   if (ft->sts_wait == FTSTS_TIMEOUT) {	/* timeout */
@@ -1230,11 +1479,13 @@ intrdone:
   return(0);
 }
 
+
 /*
  *  Recalibrate tape drive.  Parameter totape is true, if we should
  *  recalibrate to tape drive settings.
  */
-int tape_recal(ftu_t ftu, int totape)
+static int
+tape_recal(ftu_t ftu, int totape)
 {
   int s;
   ft_p	ft = &ft_data[ftu];
@@ -1248,7 +1499,7 @@ int tape_recal(ftu_t ftu, int totape)
 
   s = splbio();
   out_fdc(fdcu, NE7CMD_RECAL);
-  out_fdc(fdcu, 0x00);
+  out_fdc(fdcu, ftu);
 
   if (ftintr_wait(ftu, FTCMD_RECAL, hz)) {
 	splx(s);
@@ -1265,18 +1516,25 @@ int tape_recal(ftu_t ftu, int totape)
   return(0);
 }
 
-static void state_timeout(caddr_t arg1, int arg2)
+
+/*
+ *  Timeout for long delays.
+ */
+static void
+state_timeout(caddr_t arg1, int arg2)
 {
   ftu_t ftu = (ftu_t)arg1;
 
-  wakeup((caddr_t)&ftsem.long_delay);
+  wakeup((caddr_t)wc_long_delay);
 }
+
 
 /*
  *  Wait for a particular tape status to be met.  If all is TRUE, then
  *  all states must be met, otherwise any state can be met.
  */
-int tape_state(ftu_t ftu, int all, int mask, int seconds)
+static int
+tape_state(ftu_t ftu, int all, int mask, int seconds)
 {
   int r, tries, maxtries;
 
@@ -1287,20 +1545,19 @@ int tape_state(ftu_t ftu, int all, int mask, int seconds)
 		if (all && (r & mask) == mask) return(r);
 		if ((r & mask) != 0) return(r);
 	}
-	if (seconds) {
-		timeout(state_timeout, (caddr_t)ftu, hz/4);
-		sleep((caddr_t)&ftsem.long_delay, FTPRI);
-	}
+	if (seconds) ftsleep(wc_long_delay, hz/4);
   }
   DPRT(("ft%d: tape_state failed on mask=$%02x maxtries=%d\n",
 				ftu, mask, maxtries));
   return(-1);
 }
 
+
 /*
  *  Send a QIC command to tape drive, wait for completion.
  */
-int tape_cmd(ftu_t ftu, int cmd)
+static int
+tape_cmd(ftu_t ftu, int cmd)
 {
   int newcn;
   int retries = 0;
@@ -1316,7 +1573,7 @@ retry:
   /* Perform seek */
   s = splbio();
   out_fdc(fdcu, NE7CMD_SEEK);
-  out_fdc(fdcu, 0x00);
+  out_fdc(fdcu, ftu);
   out_fdc(fdcu, newcn);
 
   if (ftintr_wait(ftu, FTCMD_SEEK, hz)) {
@@ -1338,25 +1595,40 @@ redo:
   return(0);
 }
 
+
 /*
  *  Return status of tape drive
  */
-int tape_status(ftu_t ftu)
+static int
+tape_status(ftu_t ftu)
 {
   int r, err, tries;
-	ft_p	ft = &ft_data[ftu];
+  ft_p ft = &ft_data[ftu];
+  int max = (ft->attaching) ? 2 : 3;
 
-  for (r = -1, tries = 0; r < 0 && tries < 3; tries++)
+  for (r = -1, tries = 0; r < 0 && tries < max; tries++)
 	r = qic_status(ftu, QC_STATUS, 8);
-  if (tries == 3) return(-1);
+  if (tries == max) return(-1);
+
+recheck:
   DPRT(("tape_status got $%04x\n",r));
   ft->laststs = r;
 
   if (r & (QS_ERROR|QS_NEWCART)) {
-	if (r & QS_NEWCART) ft->newcart = 1;
 	err = qic_status(ftu, QC_ERRCODE, 16);
 	ft->lasterr = err;
-	if ((r & QS_NEWCART) == 0 && err && ft->attaching == 0) {
+	if (r & QS_NEWCART) {
+		ft->newcart = 1;
+		/* If tape not referenced, do a seek load point. */
+		if ((r & QS_FMTOK) == 0 && !ft->attaching) {
+			tape_cmd(ftu, QC_SEEKLP);
+			do {
+				ftsleep(wc_long_delay, hz);
+			} while ((r = qic_status(ftu, QC_STATUS, 8)) < 0 ||
+					(r & (QS_READY|QS_CART)) == QS_CART);
+			goto recheck;
+		}
+	} else if (err && !ft->attaching) {
 		DPRT(("ft%d: QIC error %d occurred on cmd %d\n",
 					ftu, err & 0xff, err >> 8));
 	}
@@ -1364,29 +1636,36 @@ int tape_status(ftu_t ftu)
 	ft->laststs = r;
 	DPRT(("tape_status got error code $%04x new sts = $%02x\n",err,r));
   }
+
   ft->rdonly = (r & QS_RDONLY);
   return(r);
 }
 
+
 /*
  *  Transfer control to tape drive.
  */
-void tape_start(ftu_t ftu)
+static void
+tape_start(ftu_t ftu, int motor)
 {
   ft_p	ft = &ft_data[ftu];
   fdc_p	fdc = ft->fdc;
-  int s;
-
-  DPRT(("tape_start start\n"));
+  int s, mbits;
 
   s = splbio();
+  DPRT(("tape_start start\n"));
 
   /* reset, dma disable */
-  outb(fdc->baseport+fdout, 0x00);
+  outb(fdc->baseport+FDOUT, 0x00);
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
-  /* raise reset, enable DMA */
-  outb(fdc->baseport+fdout, FDO_FRST | FDO_FDMAEN);
+  /* raise reset, enable DMA, motor on if needed */
+  if (motor)
+	mbits = (!ftu) ? FDO_MOEN0 : FDO_MOEN1;
+  else
+	mbits = 0;
+
+  outb(fdc->baseport+FDOUT, FDO_FRST | FDO_FDMAEN | mbits);
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
   splx(s);
@@ -1394,16 +1673,18 @@ void tape_start(ftu_t ftu)
   tape_recal(ftu, 1);
 
   /* set transfer speed */
-  outb(fdc->baseport+fdctl, FDC_500KBPS);
+  outb(fdc->baseport+FDCTL, FDC_500KBPS);
   DELAY(10);
 
   DPRT(("tape_start end\n"));
 }
 
+
 /*
  *  Transfer control back to floppy disks.
  */
-void tape_end(ftu_t ftu)
+static void
+tape_end(ftu_t ftu)
 {
   ft_p	ft = &ft_data[ftu];
   fdc_p	fdc = ft->fdc;
@@ -1415,41 +1696,59 @@ void tape_end(ftu_t ftu)
   s = splbio();
 
   /* reset, dma disable */
-  outb(fdc->baseport+fdout, 0x00);
+  outb(fdc->baseport+FDOUT, 0x00);
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
   /* raise reset, enable DMA */
-  outb(fdc->baseport+fdout, FDO_FRST | FDO_FDMAEN);
+  outb(fdc->baseport+FDOUT, FDO_FRST | FDO_FDMAEN);
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
   splx(s);
 
   /* set transfer speed */
-  outb(fdc->baseport+fdctl, FDC_500KBPS);
+  outb(fdc->baseport+FDCTL, FDC_500KBPS);
   DELAY(10);
   fdc->flags &= ~FDC_TAPE_BUSY; 
 
   DPRT(("tape_end end\n"));
 }
 
+
 /*
  *  Wait for the driver to go inactive, cancel readahead if necessary.
  */
-void tape_inactive(ftu_t ftu)
+static void
+tape_inactive(ftu_t ftu)
 {
   ft_p	ft = &ft_data[ftu];
+  int s = splbio();
 
-  if (ft->curseg->reqtype == FTIO_RDAHEAD) {
-	ft->curseg->reqcan = 1;	/* XXX cancel rdahead */
-	while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+  if (ft->segh != NULL) {
+	if (ft->segh->reqtype == FTIO_RDAHEAD) {
+		/* cancel read-ahead */
+		ft->segh->reqcan = 1;
+	} else if (ft->segh->reqtype == FTIO_WRITING && !ft->active) {
+		/* flush out any remaining writes */
+		DPRT(("Flushing write I/O chain\n"));
+		arq_state = ard_state = awr_state = 0;
+		ft->xblk = ft->segh->reqblk;
+		ft->xseg = ft->segh->reqseg;
+		ft->xcnt = 0;
+		ft->xptr = ft->segh->buff;
+		ft->active = 1;
+		timeout(ft_timeout, (caddr_t)ftu, 1);
+	}
   }
-  while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+  while (ft->active) ftsleep(wc_iosts_change, 0);
+  splx(s);
 }
+
 
 /*
  *  Get the geometry of the tape currently in the drive.
  */
-int ftgetgeom(ftu_t ftu)
+static int
+ftgetgeom(ftu_t ftu)
 {
   int r, i, tries;
   int cfg, qic80, ext;
@@ -1459,7 +1758,7 @@ int ftgetgeom(ftu_t ftu)
   r = tape_status(ftu);
 
   /* XXX fix me when format mode is finished */
-  if ((r & QS_CART) == 0 || (r & QS_FMTOK) == 0) {
+  if (r < 0 || (r & QS_CART) == 0 || (r & QS_FMTOK) == 0) {
 	DPRT(("ftgetgeom: no cart or not formatted 0x%04x\n",r));
 	ftg = NULL;
 	ft->newcart = 1;
@@ -1539,20 +1838,21 @@ int ftgetgeom(ftu_t ftu)
   return(0);
 }
 
+
 /*
  *  Switch between tape/floppy.  This will send the tape enable/disable
  *  codes for this drive's manufacturer.
  */
-int set_fdcmode(dev_t dev, int newmode)
+static int
+set_fdcmode(dev_t dev, int newmode)
 {
   ftu_t ftu = FDUNIT(minor(dev));
   ft_p	ft = &ft_data[ftu];
   fdc_p	fdc = ft->fdc;
-
   static int havebufs = 0;
   void *buf;
   int r, s, i;
-  SegReq *sp;
+  SegReq *sp, *rsp;
 
   if (newmode == FDC_TAPE_MODE) {
 	/* Wake up the tape drive */
@@ -1560,19 +1860,22 @@ int set_fdcmode(dev_t dev, int newmode)
 	    case NO_TYPE:
 		fdc->flags &= ~FDC_TAPE_BUSY; 
 		return(ENXIO);
+	    case FT_NONE:
+		tape_start(ftu, 0);
+		break;
 	    case FT_COLORADO:
-		tape_start(ftu);
+		tape_start(ftu, 0);
 		if (tape_cmd(ftu, QC_COL_ENABLE1)) {
 			tape_end(ftu);
 			return(EIO);
 		}
-		if (tape_cmd(ftu, QC_COL_ENABLE2)) {
+		if (tape_cmd(ftu, QC_COL_ENABLE2 + ftu)) {
 			tape_end(ftu);
 			return(EIO);
 		}
 		break;
 	    case FT_MOUNTAIN:
-		tape_start(ftu);
+		tape_start(ftu, 0);
 		if (tape_cmd(ftu, QC_MTN_ENABLE1)) {
 			tape_end(ftu);
 			return(EIO);
@@ -1582,56 +1885,93 @@ int set_fdcmode(dev_t dev, int newmode)
 			return(EIO);
 		}
 		break;
+	    case FT_INSIGHT:
+		tape_start(ftu, 1);
+		break;
 	    default:
 		DPRT(("ft%d: bad tape type\n", ftu));
 		return(ENXIO);
 	}
 	if (tape_status(ftu) < 0) {
-		tape_cmd(ftu, (ft->type == FT_COLORADO) ? QC_COL_DISABLE : QC_MTN_DISABLE);
+		if (ft->type == FT_COLORADO)
+			tape_cmd(ftu, QC_COL_DISABLE);
+		else if (ft->type == FT_MOUNTAIN)
+			tape_cmd(ftu, QC_MTN_DISABLE);
 		tape_end(ftu);
 		return(EIO);
 	}
 
 	/* Grab buffers from memory. */
 	if (!havebufs) {
-		ft->curseg = malloc(sizeof(SegReq), M_DEVBUF, M_NOWAIT);
-		if (ft->curseg == NULL) {
-			printf("ft%d: not enough memory for buffers\n", ftu);
-			return(ENOMEM);
+		ft->segh = ft->segt = NULL;
+		ft->doneh = ft->donet = NULL;
+		ft->segfree = NULL;
+		ft->hdr = NULL;
+		ft->nsegq = ft->ndoneq = ft->nfreelist = 0;
+		for (i = 0; i < FTNBUFF; i++) {
+			sp = malloc(sizeof(SegReq), M_DEVBUF, M_WAITOK);
+			if (sp == NULL) {
+				printf("ft%d: not enough memory for buffers\n", ftu);
+				for (sp=ft->segfree; sp != NULL; sp=sp->next)
+					free(sp, M_DEVBUF);
+				if (ft->type == FT_COLORADO)
+					tape_cmd(ftu, QC_COL_DISABLE);
+				else if (ft->type == FT_MOUNTAIN)
+					tape_cmd(ftu, QC_MTN_DISABLE);
+				tape_end(ftu);
+				return(ENOMEM);
+			}
+			sp->reqtype = FTIO_READY;
+			sp->next = ft->segfree;
+			ft->segfree = sp;
+			ft->nfreelist++;
 		}
-		ft->bufseg = malloc(sizeof(SegReq), M_DEVBUF, M_NOWAIT);
-		if (ft->bufseg == NULL) {
-			free(ft->curseg, M_DEVBUF);
-			printf("ft%d: not enough memory for buffers\n", ftu);
-			return(ENOMEM);
-		}
+		/* take one buffer for header */
+		ft->hdr = ft->segfree;
+		ft->segfree = ft->segfree->next;
+		ft->nfreelist--;
 		havebufs = 1;
 	}
-	ft->curseg->reqtype = FTIO_READY;
-	ft->bufseg->reqtype = FTIO_READY;
 	ft->io_sts = FTIO_READY;	/* tape drive is ready */
 	ft->active = 0;			/* interrupt driver not active */
 	ft->moving = 0;			/* tape not moving */
 	ft->rdonly = 0;			/* tape read only */
-	ft->newcart = 0;		/* a new cart was inserted */
+	ft->newcart = 0;		/* new cartridge flag */
 	ft->lastpos = -1;		/* tape is rewound */
+	async_func = ACMD_NONE;		/* No async function */
 	tape_state(ftu, 0, QS_READY, 60);
 	tape_cmd(ftu, QC_RATE);
 	tape_cmd(ftu, QCF_RT500+2);		/* 500K bps */
 	tape_state(ftu, 0, QS_READY, 60);
 	ft->mode = FTM_PRIMARY;
-	tape_cmd(ftu, QC_PRIMARY);		/* Make sure we're in primary mode */
+	tape_cmd(ftu, QC_PRIMARY);	/* Make sure we're in primary mode */
 	tape_state(ftu, 0, QS_READY, 60);
 	ftg = NULL;			/* No geometry yet */
 	ftgetgeom(ftu);			/* Get tape geometry */
 	ftreq_rewind(ftu);		/* Make sure tape is rewound */
   } else {
-	tape_cmd(ftu, (ft->type == FT_COLORADO) ? QC_COL_DISABLE : QC_MTN_DISABLE);
+	if (ft->type == FT_COLORADO)
+		tape_cmd(ftu, QC_COL_DISABLE);
+	else if (ft->type == FT_MOUNTAIN)
+		tape_cmd(ftu, QC_MTN_DISABLE);
 	tape_end(ftu);
 	ft->newcart = 0;		/* clear new cartridge */
+	if (ft->hdr != NULL) free(ft->hdr, M_DEVBUF);
+	if (havebufs) {
+		for (sp = ft->segfree; sp != NULL;) {
+			rsp = sp; sp = sp->next;
+			free(rsp, M_DEVBUF);
+		}
+		for (sp = ft->segh; sp != NULL;) {
+			rsp = sp; sp = sp->next;
+			free(rsp, M_DEVBUF);
+		}
+		for (sp = ft->doneh; sp != NULL;) {
+			rsp = sp; sp = sp->next;
+			free(rsp, M_DEVBUF);
+		}
+	}
 	havebufs = 0;
-	free(ft->curseg, M_DEVBUF);
-	free(ft->bufseg, M_DEVBUF);
   }
   return(0);
 }
@@ -1640,7 +1980,8 @@ int set_fdcmode(dev_t dev, int newmode)
 /*
  *  Perform a QIC status function.
  */
-int qic_status(ftu_t ftu, int cmd, int nbits)
+static int
+qic_status(ftu_t ftu, int cmd, int nbits)
 {
   int st3, val, r, i;
   ft_p	ft = &ft_data[ftu];
@@ -1653,7 +1994,7 @@ int qic_status(ftu_t ftu, int cmd, int nbits)
 
   /* Sense drive status */
   out_fdc(fdcu, NE7CMD_SENSED);
-  out_fdc(fdcu, 0x00);
+  out_fdc(fdcu, ftu);
   st3 = in_fdc(fdcu);
 
   if ((st3 & 0x10) == 0) {	/* track 0 */
@@ -1668,7 +2009,7 @@ int qic_status(ftu_t ftu, int cmd, int nbits)
 	}
 
 	out_fdc(fdcu, NE7CMD_SENSED);
-	out_fdc(fdcu, 0x00);
+	out_fdc(fdcu, ftu);
 	st3 = in_fdc(fdcu);
 	if (st3 < 0) {
 		DPRT(("ft%d: controller timed out on bit %d r=$%02x\n",
@@ -1690,11 +2031,13 @@ int qic_status(ftu_t ftu, int cmd, int nbits)
   return(r);
 }
 
+
 /*
  *  Open tape drive for use.  Bounced off of Fdopen if tape minor is
  *  detected.
  */
-int ftopen(dev_t dev, int arg2) {
+int
+ftopen(dev_t dev, int arg2) {
   ftu_t ftu = FDUNIT(minor(dev));
   int type = FDTYPE(minor(dev));
   fdc_p fdc;
@@ -1714,19 +2057,21 @@ int ftopen(dev_t dev, int arg2) {
   return(set_fdcmode(dev, FDC_TAPE_MODE)); /* try to switch to tape */
 }
 
+
 /*
  *  Close tape and return floppy controller to disk mode.
  */
-int ftclose(dev_t dev, int flags)
+int
+ftclose(dev_t dev, int flags)
 {
   int s;
   SegReq *sp;
   ftu_t ftu = FDUNIT(minor(dev));
   ft_p	ft = &ft_data[ftu];
 
+
   /* Wait for any remaining I/O activity to complete. */
-  if (ft->curseg->reqtype == FTIO_RDAHEAD) ft->curseg->reqcan = 1;
-  while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+  tape_inactive(ftu);
 
   ft->mode = FTM_PRIMARY;
   tape_cmd(ftu, QC_PRIMARY);
@@ -1735,94 +2080,124 @@ int ftclose(dev_t dev, int flags)
   return(set_fdcmode(dev, FDC_DISK_MODE));	/* Otherwise, close tape */
 }
 
+
 /*
- *  Perform strategy on a given buffer (not!).  The driver was not
- *  performing very efficiently using the buffering routines.  After
- *  support for error correction was added, this routine became
- *  obsolete in favor of doing ioctl's.  Ugly, yes.
+ *  Perform strategy on a given buffer (not!).  Changed so that the
+ *  driver will at least return 'Operation not supported'.
  */
-void ftstrategy(struct buf *bp)
+void
+ftstrategy(struct buf *bp)
 {
-  return;
+  bp->b_error = ENODEV;
+  bp->b_flags |= B_ERROR;
+  biodone(bp);
 }
 
-/* Read or write a segment. */
-int ftreq_rw(ftu_t ftu, int cmd, QIC_Segment *sr, struct proc *p)
+
+/*
+ *  Read or write a segment.
+ */
+static int
+ftreq_rw(ftu_t ftu, int cmd, QIC_Segment *sr, struct proc *p)
 {
   int r, i, j;
   SegReq *sp;
   int s;
-  long blk, bad;
+  long blk, bad, seg;
   unsigned char *cp, *cp2;
   ft_p	ft = &ft_data[ftu];
 
-  if (!ft->active) {
+  if (!ft->active && ft->segh == NULL) {
 	r = tape_status(ftu);
-	if ((r & QS_CART) == 0) {
+	if ((r & QS_CART) == 0)
 		return(ENXIO);	/* No cartridge */
-	}
-	if ((r & QS_FMTOK) == 0) {
+	if ((r & QS_FMTOK) == 0)
 		return(ENXIO);	/* Not formatted */
-	}
 	tape_state(ftu, 0, QS_READY, 90);
   }
 
   if (ftg == NULL || ft->newcart) {
-	while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+	tape_inactive(ftu);
 	tape_state(ftu, 0, QS_READY, 90);
-	if (ftgetgeom(ftu) < 0) {
+	if (ftgetgeom(ftu) < 0)
 		return(ENXIO);
-	}
   }
 
   /* Write not allowed on a read-only tape. */
-  if (cmd == QIOWRITE && ft->rdonly) {
+  if (cmd == QIOWRITE && ft->rdonly)
 	return(EROFS);
-  }
+
   /* Quick check of request and buffer. */
-  if (sr == NULL || sr->sg_data == NULL) {
+  if (sr == NULL || sr->sg_data == NULL)
 	return(EINVAL);
-  }
-  if (sr->sg_trk >= ftg->g_trktape ||
-	sr->sg_seg >= ftg->g_segtrk) {
+
+  /* Make sure requested track and segment is in range. */
+  if (sr->sg_trk >= ftg->g_trktape || sr->sg_seg >= ftg->g_segtrk)
 	return(EINVAL);
-  }
+
   blk = sr->sg_trk * ftg->g_blktrk + sr->sg_seg * QCV_BLKSEG;
+  seg = sr->sg_trk * ftg->g_segtrk + sr->sg_seg;
 
   s = splbio();
   if (cmd == QIOREAD) {
-	if (ft->curseg->reqtype == FTIO_RDAHEAD) {
-		if (blk == ft->curseg->reqblk) {
-			sp = ft->curseg;
+	/*
+	 *  See if the driver is reading ahead.
+	 */
+	if (ft->doneh != NULL ||
+		(ft->segh != NULL && ft->segh->reqtype == FTIO_RDAHEAD)) {
+		/*
+		 *  Eat the completion queue and see if the request
+		 *  is already there.
+		 */
+		while (ft->doneh != NULL) {
+			if (blk == ft->doneh->reqblk) {
+				sp = ft->doneh;
+				sp->reqtype = FTIO_READING;
+				sp->reqbad = sr->sg_badmap;
+				goto rddone;
+			}
+			segio_free(ft, ft->doneh);
+		}
+
+		/*
+		 *  Not on the completed queue, in progress maybe?
+		 */
+		if (ft->segh != NULL && ft->segh->reqtype == FTIO_RDAHEAD &&
+				blk == ft->segh->reqblk) {
+			sp = ft->segh;
 			sp->reqtype = FTIO_READING;
 			sp->reqbad = sr->sg_badmap;
 			goto rdwait;
-		} else
-			ft->curseg->reqcan = 1;	/* XXX cancel rdahead */
+ 		}
 	}
 
 	/* Wait until we're ready. */
-	while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+	tape_inactive(ftu);
 
 	/* Set up a new read request. */
-	sp = ft->curseg;
+	sp = segio_alloc(ft);
 	sp->reqcrc = 0;
 	sp->reqbad = sr->sg_badmap;
 	sp->reqblk = blk;
+	sp->reqseg = seg;
 	sp->reqcan = 0;
 	sp->reqtype = FTIO_READING;
+	segio_queue(ft, sp);
 
 	/* Start the read request off. */
 	DPRT(("Starting read I/O chain\n"));
 	arq_state = ard_state = awr_state = 0;
 	ft->xblk = sp->reqblk;
+	ft->xseg = sp->reqseg;
 	ft->xcnt = 0;
 	ft->xptr = sp->buff;
 	ft->active = 1;
 	timeout(ft_timeout, (caddr_t)ftu, 1);
 
 rdwait:
-	sleep((caddr_t)&ftsem.buff_avail, FTPRI);
+	ftsleep(wc_buff_done, 0);
+
+rddone:
 	bad = sp->reqbad;
 	sr->sg_crcmap = sp->reqcrc & ~bad;
 
@@ -1833,17 +2208,29 @@ rdwait:
 		copyout(cp, cp2, QCV_BLKSIZE);
 		cp2 += QCV_BLKSIZE;
 	}
+	segio_free(ft, sp);
   } else {
-	if (ft->curseg->reqtype == FTIO_RDAHEAD) {
-		ft->curseg->reqcan = 1;	/* XXX cancel rdahead */
-		while (ft->active)
-			sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+	if (ft->segh != NULL && ft->segh->reqtype != FTIO_WRITING)
+		tape_inactive(ftu);
+
+	/* Allocate a buffer and start tape if we're running low. */
+	sp = segio_alloc(ft);
+	if (!ft->active && (sp == NULL || ft->nfreelist <= 1)) {
+		DPRT(("Starting write I/O chain\n"));
+		arq_state = ard_state = awr_state = 0;
+		ft->xblk = ft->segh->reqblk;
+		ft->xseg = ft->segh->reqseg;
+		ft->xcnt = 0;
+		ft->xptr = ft->segh->buff;
+		ft->active = 1;
+		timeout(ft_timeout, (caddr_t)ftu, 1);
 	}
 
 	/* Sleep until a buffer becomes available. */
-	while (ft->bufseg->reqtype != FTIO_READY)
-		sleep((caddr_t)&ftsem.buff_avail, FTPRI);
-	sp = (ft->curseg->reqtype == FTIO_READY) ? ft->curseg : ft->bufseg;
+	while (sp == NULL) {
+		ftsleep(wc_buff_avail, 0);
+		sp = segio_alloc(ft);
+	}
 
 	/* Copy in segment and expand bad blocks. */
 	bad = sr->sg_badmap;
@@ -1853,28 +2240,22 @@ rdwait:
 		copyin(cp, cp2, QCV_BLKSIZE);
 		cp += QCV_BLKSIZE;
 	}
-
 	sp->reqblk = blk;
+	sp->reqseg = seg;
 	sp->reqcan = 0;
 	sp->reqtype = FTIO_WRITING;
-
-	if (!ft->active) {
-		DPRT(("Starting write I/O chain\n"));
-		arq_state = ard_state = awr_state = 0;
-		ft->xblk = sp->reqblk;
-		ft->xcnt = 0;
-		ft->xptr = sp->buff;
-		ft->active = 1;
-		timeout(ft_timeout, (caddr_t)ftu, 1);
-	}
+	segio_queue(ft, sp);
   }
   splx(s);
   return(0);
 }
 
 
-/* Rewind to beginning of tape */
-int ftreq_rewind(ftu_t ftu)
+/*
+ *  Rewind to beginning of tape
+ */
+static int
+ftreq_rewind(ftu_t ftu)
 {
   ft_p	ft = &ft_data[ftu];
 
@@ -1891,8 +2272,12 @@ int ftreq_rewind(ftu_t ftu)
   return(0);
 }
 
-/* Move to logical beginning or end of track */
-int ftreq_trkpos(ftu_t ftu, int req)
+
+/*
+ *  Move to logical beginning or end of track
+ */
+static int
+ftreq_trkpos(ftu_t ftu, int req)
 {
   int curtrk, r, cmd;
   ft_p	ft = &ft_data[ftu];
@@ -1919,8 +2304,12 @@ int ftreq_trkpos(ftu_t ftu, int req)
   return(0);
 }
 
-/* Seek tape head to a particular track. */
-int ftreq_trkset(ftu_t ftu, int *trk)
+
+/*
+ *  Seek tape head to a particular track.
+ */
+static int
+ftreq_trkset(ftu_t ftu, int *trk)
 {
   int curtrk, r, cmd;
   ft_p	ft = &ft_data[ftu];
@@ -1942,27 +2331,45 @@ int ftreq_trkset(ftu_t ftu, int *trk)
   return(0);
 }
 
-/* Start tape moving forward. */
-int ftreq_lfwd(ftu_t ftu)
+
+/*
+ *  Start tape moving forward.
+ */
+static int
+ftreq_lfwd(ftu_t ftu)
 {
+  ft_p	ft = &ft_data[ftu];
+
   tape_inactive(ftu);
   tape_cmd(ftu, QC_STOP);
   tape_state(ftu, 0, QS_READY, 90);
   tape_cmd(ftu, QC_FORWARD);
+  ft->moving = 1;
   return(0);
 }
 
-/* Stop the tape */
-int ftreq_stop(ftu_t ftu)
+
+/*
+ *  Stop the tape
+ */
+static int
+ftreq_stop(ftu_t ftu)
 {
+  ft_p	ft = &ft_data[ftu];
+
   tape_inactive(ftu);
   tape_cmd(ftu, QC_STOP);
   tape_state(ftu, 0, QS_READY, 90);
+  ft->moving = 0;
   return(0);
 }
 
-/* Set the particular mode the drive should be in. */
-int ftreq_setmode(ftu_t ftu, int cmd)
+
+/*
+ *  Set the particular mode the drive should be in.
+ */
+static int
+ftreq_setmode(ftu_t ftu, int cmd)
 {
   int r;
   ft_p	ft = &ft_data[ftu];
@@ -1989,8 +2396,12 @@ int ftreq_setmode(ftu_t ftu, int cmd)
   return(0);
 }
 
-/* Return drive status bits */
-int ftreq_status(ftu_t ftu, int cmd, int *sts, struct proc *p)
+
+/*
+ *  Return drive status bits
+ */
+static int
+ftreq_status(ftu_t ftu, int cmd, int *sts, struct proc *p)
 {
   ft_p	ft = &ft_data[ftu];
 
@@ -2001,8 +2412,12 @@ int ftreq_status(ftu_t ftu, int cmd, int *sts, struct proc *p)
   return(0);
 }
 
-/* Return drive configuration bits */
-int ftreq_config(ftu_t ftu, int cmd, int *cfg, struct proc *p)
+
+/*
+ *  Return drive configuration bits
+ */
+static int
+ftreq_config(ftu_t ftu, int cmd, int *cfg, struct proc *p)
 {
   int r, tries;
   ft_p	ft = &ft_data[ftu];
@@ -2018,8 +2433,12 @@ int ftreq_config(ftu_t ftu, int cmd, int *cfg, struct proc *p)
   return(0);
 }
 
-/* Return current tape's geometry. */
-int ftreq_geom(ftu_t ftu, QIC_Geom *g)
+
+/*
+ *  Return current tape's geometry.
+ */
+static int
+ftreq_geom(ftu_t ftu, QIC_Geom *g)
 {
   tape_inactive(ftu);
   if (ftg == NULL && ftgetgeom(ftu) < 0) return(ENXIO);
@@ -2027,8 +2446,12 @@ int ftreq_geom(ftu_t ftu, QIC_Geom *g)
   return(0);
 }
 
-/* Return drive hardware information */
-int ftreq_hwinfo(ftu_t ftu, QIC_HWInfo *hwp)
+
+/*
+ *  Return drive hardware information
+ */
+static int
+ftreq_hwinfo(ftu_t ftu, QIC_HWInfo *hwp)
 {
   int r, tries;
   int rom, vend;
@@ -2053,10 +2476,31 @@ int ftreq_hwinfo(ftu_t ftu, QIC_HWInfo *hwp)
   return(0);
 }
 
+
+/*
+ *  Receive or Send the in-core header segment.
+ */
+static int
+ftreq_hdr(ftu_t ftu, int cmd, QIC_Segment *sp)
+{
+  ft_p	ft = &ft_data[ftu];
+  QIC_Header *h = (QIC_Header *)ft->hdr->buff;
+
+  if (sp == NULL || sp->sg_data == NULL) return(EINVAL);
+  if (cmd == QIOSENDHDR) {
+	copyin(sp->sg_data, ft->hdr->buff, QCV_SEGSIZE);
+  } else {
+	if (h->qh_sig != QCV_HDRMAGIC) return(EIO);
+	copyout(ft->hdr->buff, sp->sg_data, QCV_SEGSIZE);
+  }
+  return(0);	
+}
+
 /*
  *  I/O functions.
  */
-int ftioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+int
+ftioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
   ftu_t ftu = FDUNIT(minor(dev));
   ft_p	ft = &ft_data[ftu];
@@ -2104,20 +2548,30 @@ int ftioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
      case QIOHWINFO:
 	return(ftreq_hwinfo(ftu, (QIC_HWInfo *)data));
+
+     case QIOSENDHDR:
+     case QIORECVHDR:
+	return(ftreq_hdr(ftu, cmd, (QIC_Segment *)data));
   }
 badreq:
   DPRT(("ft%d: unknown ioctl(%d) request\n", ftu, cmd));
   return(ENXIO);
 }
 
-/* Not implemented */
-int ftdump(dev_t dev)
+/*
+ *  Not implemented
+ */
+int
+ftdump(dev_t dev)
 {
   return(EINVAL);
 }
 
-/* Not implemented */
-int ftsize(dev_t dev)
+/*
+ *  Not implemented
+ */
+int
+ftsize(dev_t dev)
 {
   return(EINVAL);
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)screen.h	8.81 (Berkeley) 12/29/93
+ *	@(#)screen.h	8.92 (Berkeley) 3/23/94
  */
 
 /*
@@ -51,6 +51,8 @@
 enum operation { LINE_APPEND, LINE_DELETE, LINE_INSERT, LINE_RESET };
 					/* Position values. */
 enum position { P_BOTTOM, P_FILL, P_MIDDLE, P_TOP };
+					/* Screen adjustment operations. */
+enum adjust { A_DECREASE, A_INCREASE, A_SET };
 
 /*
  * Structure for holding file references.  Each SCR structure contains a
@@ -161,9 +163,12 @@ struct _scr {
 
 	SCRIPT	*script;		/* Vi: script mode information .*/
 
-	char const *time_msg;		/* ITIMER_REAL message. */
-	struct itimerval time_value;	/* ITIMER_REAL saved value. */
-	struct sigaction time_handler;	/* ITIMER_REAL saved handler. */
+	struct timeval	 busy_tod;	/* ITIMER_REAL: busy time-of-day. */
+	char const	*busy_msg;	/* ITIMER_REAL: busy message. */
+
+	struct sigaction intr_act;	/* Interrupt saved signal state. */
+	struct termios	 intr_term;	/* Interrupt saved terminal state. */
+	int	 intr_level;		/* 0-N: Interrupt level. */
 
 	void	*vi_private;		/* Vi private area. */
 	void	*ex_private;		/* Ex private area. */
@@ -177,8 +182,6 @@ struct _scr {
 	regex_t	 sre;			/* Last search RE. */
 	regex_t	 subre;			/* Last substitute RE. */
 	enum direction	searchdir;	/* File search direction. */
-	enum cdirection	csearchdir;	/* Character search direction. */
-	CHAR_T	 lastckey;		/* Last search character. */
 	regmatch_t     *match;		/* Substitute match array. */
 	size_t	 matchsize;		/* Substitute match array size. */
 	char	*repl;			/* Substitute replacement. */
@@ -197,60 +200,60 @@ struct _scr {
  * A SCR * MUST be the first argument to these routines.
  */
 					/* Ring the screen bell. */
-	void	 (*s_bell) __P((SCR *));
+	void	(*s_bell) __P((SCR *));
 					/* Background the screen. */
-	int	 (*s_bg) __P((SCR *));
+	int	(*s_bg) __P((SCR *));
 					/* Put up a busy message. */
-	int	 (*s_busy) __P((SCR *, char const *));
+	int	(*s_busy) __P((SCR *, char const *));
 					/* Change a screen line. */
-	int	 (*s_change) __P((SCR *, EXF *, recno_t, enum operation));
-					/* Return column close to specified. */
-	size_t	 (*s_chposition) __P((SCR *, EXF *, recno_t, size_t));
+	int	(*s_change) __P((SCR *, EXF *, recno_t, enum operation));
 					/* Clear the screen. */
-	int	 (*s_clear) __P((SCR *));
+	int	(*s_clear) __P((SCR *));
+					/* Return column close to specified. */
+	size_t	(*s_colpos) __P((SCR *, EXF *, recno_t, size_t));
 					/* Return the logical cursor column. */
-	int	 (*s_column) __P((SCR *, EXF *, size_t *));
+	int	(*s_column) __P((SCR *, EXF *, size_t *));
 	enum confirm			/* Confirm an action with the user. */
-		 (*s_confirm) __P((SCR *, EXF *, MARK *, MARK *));
-					/* Move down the screen. */
-	int	 (*s_down) __P((SCR *, EXF *, MARK *, recno_t, int));
-					/* Edit a file. */
-	int	 (*s_edit) __P((SCR *, EXF *));
-					/* End a screen. */
-	int	 (*s_end) __P((SCR *));
-					/* Run a single ex command. */
-	int	 (*s_ex_cmd) __P((SCR *, EXF *, EXCMDARG *, MARK *));
-					/* Run user's ex commands. */
-	int	 (*s_ex_run) __P((SCR *, EXF *, MARK *));
-					/* Screen's ex write function. */
-	int	 (*s_ex_write) __P((void *, const char *, int));
-					/* Foreground the screen. */
-	int	 (*s_fg) __P((SCR *, CHAR_T *));
-					/* Fill the screen's map. */
-	int	 (*s_fill) __P((SCR *, EXF *, recno_t, enum position));
-	enum input			/* Get a line from the user. */
-		 (*s_get) __P((SCR *, EXF *, TEXTH *, int, u_int));
-	enum input			/* Get a key from the user. */
-		 (*s_key_read) __P((SCR *, int *, struct timeval *));
-					/* Tell the screen an option changed. */
-	int	 (*s_optchange) __P((SCR *, int));
-					/* Return column at screen position. */
-	int	 (*s_position) __P((SCR *, EXF *,
-		    MARK *, u_long, enum position));
-					/* Change the absolute screen size. */
-	int	 (*s_rabs) __P((SCR *, long));
-					/* Refresh the screen. */
-	int	 (*s_refresh) __P((SCR *, EXF *));
-					/* Return column close to last char. */
-	size_t	 (*s_relative) __P((SCR *, EXF *, recno_t));
+		(*s_confirm) __P((SCR *, EXF *, MARK *, MARK *));
 					/* Change the relative screen size. */
-	int	 (*s_rrel) __P((SCR *, long));
+	int	(*s_crel) __P((SCR *, long));
+					/* Move down the screen. */
+	int	(*s_down) __P((SCR *, EXF *, MARK *, recno_t, int));
+					/* Edit a file. */
+	int	(*s_edit) __P((SCR *, EXF *));
+					/* End a screen. */
+	int	(*s_end) __P((SCR *));
+					/* Run a single ex command. */
+	int	(*s_ex_cmd) __P((SCR *, EXF *, EXCMDARG *, MARK *));
+					/* Run user's ex commands. */
+	int	(*s_ex_run) __P((SCR *, EXF *, MARK *));
+					/* Screen's ex write function. */
+	int	(*s_ex_write) __P((void *, const char *, int));
+					/* Foreground the screen. */
+	int	(*s_fg) __P((SCR *, CHAR_T *));
+					/* Fill the screen's map. */
+	int	(*s_fill) __P((SCR *, EXF *, recno_t, enum position));
+	enum input			/* Get a line from the user. */
+		(*s_get) __P((SCR *, EXF *, TEXTH *, int, u_int));
+	enum input			/* Get a key from the user. */
+		(*s_key_read) __P((SCR *, int *, struct timeval *));
+					/* Tell the screen an option changed. */
+	int	(*s_optchange) __P((SCR *, int));
+					/* Return column at screen position. */
+	int	(*s_position) __P((SCR *, EXF *,
+		   MARK *, u_long, enum position));
+					/* Change the absolute screen size. */
+	int	(*s_rabs) __P((SCR *, long, enum adjust));
+					/* Return column close to selection. */
+	size_t	(*s_rcm) __P((SCR *, EXF *, recno_t));
+					/* Refresh the screen. */
+	int	(*s_refresh) __P((SCR *, EXF *));
 					/* Split the screen. */
-	int	 (*s_split) __P((SCR *, ARGS *[]));
+	int	(*s_split) __P((SCR *, ARGS *[]));
 					/* Suspend the screen. */
-	int	 (*s_suspend) __P((SCR *));
+	int	(*s_suspend) __P((SCR *));
 					/* Move up the screen. */
-	int	 (*s_up) __P((SCR *, EXF *, MARK *, recno_t, int));
+	int	(*s_up) __P((SCR *, EXF *, MARK *, recno_t, int));
 
 /* Editor screens. */
 #define	S_EX		0x0000001	/* Ex screen. */
@@ -287,28 +290,38 @@ struct _scr {
 #define	S_SCRIPT	0x0080000	/* Window is a shell script. */
 #define	S_SRE_SET	0x0100000	/* The search RE has been set. */
 #define	S_SUBRE_SET	0x0200000	/* The substitute RE has been set. */
-#define	S_TIMER_SET	0x0400000	/* If a busy timer is running. */
-#define	S_UPDATE_MODE	0x0800000	/* Don't repaint modeline. */
-	u_int flags;
+#define	S_UPDATE_MODE	0x0400000	/* Don't repaint modeline. */
+#define	S_VLITONLY	0x0800000	/* ^V literal next only. */
+	u_int32_t flags;
 };
 
+/* Timers have no structure, so routines are here. */
+void	 h_alrm __P((int));
+int	 busy_on __P((SCR *, char const *));
+void	 busy_off __P((SCR *));
+int	 rcv_on __P((SCR *, EXF *));
+
+/* Interrupts have no structure, so routines are here. */
+void	 intr_end __P((SCR *));
+int	 intr_init __P((SCR *));
+
 /* Generic routines to start/stop a screen. */
-int	screen_end __P((SCR *));
-int	screen_init __P((SCR *, SCR **, u_int));
+int	 screen_end __P((SCR *));
+int	 screen_init __P((SCR *, SCR **, u_int));
 
 /* Public interfaces to the underlying screens. */
-int	ex_screen_copy __P((SCR *, SCR *));
-int	ex_screen_end __P((SCR *));
-int	ex_screen_init __P((SCR *));
-int	sex_screen_copy __P((SCR *, SCR *));
-int	sex_screen_end __P((SCR *));
-int	sex_screen_init __P((SCR *));
-int	svi_screen_copy __P((SCR *, SCR *));
-int	svi_screen_end __P((SCR *));
-int	svi_screen_init __P((SCR *));
-int	v_screen_copy __P((SCR *, SCR *));
-int	v_screen_end __P((SCR *));
-int	v_screen_init __P((SCR *));
-int	xaw_screen_copy __P((SCR *, SCR *));
-int	xaw_screen_end __P((SCR *));
-int	xaw_screen_init __P((SCR *));
+int	 ex_screen_copy __P((SCR *, SCR *));
+int	 ex_screen_end __P((SCR *));
+int	 ex_screen_init __P((SCR *));
+int	 sex_screen_copy __P((SCR *, SCR *));
+int	 sex_screen_end __P((SCR *));
+int	 sex_screen_init __P((SCR *));
+int	 svi_screen_copy __P((SCR *, SCR *));
+int	 svi_screen_end __P((SCR *));
+int	 svi_screen_init __P((SCR *));
+int	 v_screen_copy __P((SCR *, SCR *));
+int	 v_screen_end __P((SCR *));
+int	 v_screen_init __P((SCR *));
+int	 xaw_screen_copy __P((SCR *, SCR *));
+int	 xaw_screen_end __P((SCR *));
+int	 xaw_screen_init __P((SCR *));

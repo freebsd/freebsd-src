@@ -1,12 +1,12 @@
 /*
- * linux/kernel/chr_drv/sound/mpu401.c
- * 
+ * sound/mpu401.c
+ *
  * The low level driver for Roland MPU-401 compatible Midi cards.
- * 
+ *
  * This version supports just the DUMB UART mode.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -14,7 +14,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,7 +26,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -61,102 +61,16 @@ static int      my_dev;
 static int      reset_mpu401 (void);
 static void     (*midi_input_intr) (int dev, unsigned char data);
 
-static void
-mpu401_input_loop (void)
-{
-  int             count;
-
-  count = 10;
-
-  while (count)			/* Not timed out */
-    if (input_avail ())
-      {
-	unsigned char   c = mpu401_read ();
-
-	count = 100;
-
-	if (mpu401_opened & OPEN_READ)
-	  midi_input_intr (my_dev, c);
-      }
-    else
-      while (!input_avail () && count)
-	count--;
-}
-
 void
 mpuintr (int unit)
 {
-  if (input_avail ())
-    mpu401_input_loop ();
-}
-
-/*
- * It looks like there is no input interrupts in the UART mode. Let's try
- * polling.
- */
-
-/* XXX WARNING:  FreeBSD doesn't seem to have timer_lists like this,
- * so until I figure out how to do the analogous thing in FreeBSD, I'm
- * not all that sure WHAT this driver will do!  It might work, depending
- * on the condition taken, but then again it might not!  -jkh
- * XXX WARNING
- */
-static void
-poll_mpu401 (unsigned long dummy)
-{
-  unsigned long   flags;
-
-#ifdef linux
-  static struct timer_list mpu401_timer =
-  {NULL, 0, 0, poll_mpu401};
-#endif
-
-  if (!(mpu401_opened & OPEN_READ))
-    return;			/* No longer required */
-
-  DISABLE_INTR (flags);
-
-  if (input_avail ())
-    mpu401_input_loop ();
-
-#ifdef linux
-  mpu401_timer.expires = 1;
-  add_timer (&mpu401_timer);	/* Come back later */
-#endif
-
-  RESTORE_INTR (flags);
-}
-
-static int
-set_mpu401_irq (int interrupt_level)
-{
-  int             retcode = EINVAL;
-
-#ifdef linux
-  struct sigaction sa;
-
-  sa.sa_handler = mpuintr;
-
-#ifdef SND_SA_INTERRUPT
-  sa.sa_flags = SA_INTERRUPT;
-#else
-  sa.sa_flags = 0;
-#endif
-
-  sa.sa_mask = 0;
-  sa.sa_restorer = NULL;
-
-  retcode = irqaction (interrupt_level, &sa);
-
-  if (retcode < 0)
+  while (input_avail ())
     {
-      printk ("MPU-401: IRQ%d already in use\n", interrupt_level);
-    }
+      unsigned char   c = mpu401_read ();
 
-#else
-  /* #  error Unimplemented for this OS	 */
-#endif
-  return retcode;
+      if (mpu401_opened & OPEN_READ)
+	midi_input_intr (my_dev, c);
+    }
 }
 
 static int
@@ -171,11 +85,10 @@ mpu401_open (int dev, int mode,
       return RET_ERROR (EBUSY);
     }
 
-  mpu401_input_loop ();
+  mpuintr (0);
 
   midi_input_intr = input;
   mpu401_opened = mode;
-  poll_mpu401 (0);		/* Enable input polling */
 
   return 0;
 }
@@ -199,7 +112,7 @@ mpu401_out (int dev, unsigned char midi_byte)
   DISABLE_INTR (flags);
 
   if (input_avail ())
-    mpu401_input_loop ();
+    mpuintr (0);
 
   RESTORE_INTR (flags);
 
@@ -257,7 +170,7 @@ mpu401_buffer_status (int dev)
 
 static struct midi_operations mpu401_operations =
 {
-  {"MPU-401", 0},
+  {"MPU-401", 0, 0, SNDCARD_MPU401},
   mpu401_open,
   mpu401_close,
   mpu401_ioctl,
@@ -294,12 +207,14 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
 
   RESTORE_INTR (flags);
 
+#ifdef __FreeBSD__
   printk ("snd5: <Roland MPU-401>");
+#else
+  printk (" <Roland MPU-401>");
+#endif
 
   my_dev = num_midis;
-#ifdef linux
   mpu401_dev = num_midis;
-#endif
   midi_devs[num_midis++] = &mpu401_operations;
   return mem_start;
 }
@@ -311,7 +226,7 @@ reset_mpu401 (void)
   int             ok, timeout, n;
 
   /*
-   * Send the RESET command. Try twice if no success at the first time.
+   * Send the RESET command. Try again if no success at the first time.
    */
 
   ok = 0;
@@ -337,7 +252,7 @@ reset_mpu401 (void)
 
   mpu401_opened = 0;
   if (ok)
-    mpu401_input_loop ();	/* Flush input before enabling interrupts */
+    mpuintr (0);		/* Flush input before enabling interrupts */
 
   RESTORE_INTR (flags);
 
@@ -353,7 +268,7 @@ probe_mpu401 (struct address_info *hw_config)
   mpu401_base = hw_config->io_base;
   mpu401_irq = hw_config->irq;
 
-  if (set_mpu401_irq (mpu401_irq) < 0)
+  if (snd_set_irq_handler (mpu401_irq, mpuintr) < 0)
     return 0;
 
   ok = reset_mpu401 ();

@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)rlogind.c	5.53 (Berkeley) 4/20/91";
 #ifdef KERBEROS
 /* From:
  *	$Source: /home/cvs/386BSD/src/libexec/rlogind/rlogind.c,v $
- *	$Header: /home/cvs/386BSD/src/libexec/rlogind/rlogind.c,v 1.1.1.1 1993/06/12 14:54:58 rgrimes Exp $
+ *	$Header: /home/cvs/386BSD/src/libexec/rlogind/rlogind.c,v 1.2 1994/05/22 19:22:02 karl Exp $
  */
 #endif
 
@@ -317,6 +317,11 @@ doit(f, fromp)
 		if (f > 2)	/* f should always be 0, but... */ 
 			(void) close(f);
 		setup_term(0);
+		if (strchr(lusername, '-')) {
+			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
+			       lusername);
+			fatal(STDERR_FILENO, "invalid user", 0);
+		}
 		if (authenticated) {
 #ifdef	KERBEROS
 			if (use_kerberos && (pwd->pw_uid == 0))

@@ -26,7 +26,7 @@
  */
 
 const char chkconfig_c_rcsid[] =
-  "$Id: chkconfig.c,v 1.4 1993/11/12 03:54:24 wollman Exp $";
+  "$Id: chkconfig.c,v 1.5 1994/04/17 09:22:15 alm Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,7 +43,7 @@ static int setvalue(const char *, int);
 static int printvalues(void);
 static void usage(void);
 static void die(const char *);
-static int is_on(const char *);
+static int is_on(const char *, size_t);
 
 const char *whoami;
 static const char *configdir = _PATH_CONFIG;
@@ -101,7 +101,8 @@ int main(int argc, char **argv) {
     return doflags ? printflags(argv[optind]) : testvalue(argv[optind]);
 
   case 2:
-    return setvalue(argv[optind], is_on(argv[optind + 1]));
+    return setvalue(argv[optind], is_on(argv[optind + 1],
+	strlen(argv[optind + 1])));
   
   default:
     usage();
@@ -109,11 +110,11 @@ int main(int argc, char **argv) {
   }
 }
 
-static int is_on(const char *str) {
-  if(!str) return 0;
+static int is_on(const char *str, size_t len) {
+  if(!str || len < 2) return 0;
   return (   ((str[0] == 'o') || (str[0] == 'O'))
 	  && ((str[1] == 'n') || (str[1] == 'N'))
-	  && ((str[2] == '\n')|| (str[2] == '\0')));
+	  && ((len == 2) || (str[2] == '\n')));
 }
 
 static void chat(const char *str, int state) {
@@ -141,15 +142,16 @@ static int testvalue(const char *str) {
   FILE *fp;
   char *line;
   const char *fname;
+  size_t len = 0;
   int rv = 1;			/* NB: shell's convention is opposite C's */
 
   fname = confname(str, "");
   fp = fopen(fname, "r");
   if(fp) {
     do {
-      line = fgetline(fp, (size_t *)0);
+      line = fgetln(fp, &len);
     } while(line && line[0] == '#');
-    rv = !is_on(line);		/* shell's convention is opposite C's */
+    rv = !is_on(line, len);	/* shell's convention is opposite C's */
     fclose(fp);
   }
 
@@ -163,6 +165,7 @@ static char *getflags(const char *str) {
   char *line;
   const char *fname;
   char *rv = strdup("");
+  size_t len = 0;
 
   if(!rv) {
     errno = ENOMEM;
@@ -173,17 +176,18 @@ static char *getflags(const char *str) {
   fp = fopen(fname, "r");
   if(fp) {
     do {
-      line = fgetline(fp, (size_t *)0);
+      line = fgetln(fp, &len);
     } while(line && line[0] == '#');
 
     if(line) {
       free(rv);
-      rv = strdup(line);
-
-      if(!rv) {
+      if(line[len - 1] == '\n') --len;
+      if((rv = (char *) malloc(len + 1)) == NULL) {
 	errno = ENOMEM;
-	die("getflags: strdup");
+	die("getflags: malloc");
       }
+      bcopy(line, rv, len);
+      rv[len] = '\0';
     }
 
     fclose(fp);

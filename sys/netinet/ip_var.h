@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986 Regents of the University of California.
+ * Copyright (c) 1982, 1986, 1993 Regents of the University of California.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ip_var.h	7.7 (Berkeley) 6/28/90
- *	$Id: ip_var.h,v 1.3 1993/11/07 17:48:00 wollman Exp $
+ *	$Id: ip_var.h,v 1.4 1994/05/17 22:31:12 jkh Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -103,6 +103,18 @@ struct ipoption {
 	char	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
+/*
+ * Structure attached to inpcb.ip_moptions and
+ * passed to ip_output when IP multicast options are in use.
+ */
+struct ip_moptions {
+	struct	ifnet *imo_multicast_ifp; /* ifp for outgoing multicasts */
+	u_char	imo_multicast_ttl;	/* TTL for outgoing multicasts */
+	u_char	imo_multicast_loop;	/* 1 => hear sends if a member */
+	u_short	imo_num_memberships;	/* no. memberships this socket */
+	struct	in_multi *imo_membership[IP_MAX_MEMBERSHIPS];
+};
+
 struct	ipstat {
 	long	ips_total;		/* total packets received */
 	long	ips_badsum;		/* checksum bad */
@@ -129,6 +141,7 @@ struct	ipstat {
 #ifdef KERNEL
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
+#define IP_MULTICASTOPTS	0x2		/* multicast opts present */
 #define	IP_ROUTETOIF		SO_DONTROUTE	/* bypass routing tables */
 #define	IP_ALLOWBROADCAST	SO_BROADCAST	/* can send broadcast packets */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)spec_vnops.c	7.37 (Berkeley) 5/30/91
- *	$Id: spec_vnops.c,v 1.3 1993/11/25 01:33:15 wollman Exp $
+ *	$Id: spec_vnops.c,v 1.4 1994/05/30 03:20:08 ache Exp $
  */
 
 #include "param.h"
@@ -137,7 +137,9 @@ spec_open(vp, mode, cred, p)
 		if ((u_int)maj >= nchrdev)
 			return (ENXIO);
 		VOP_UNLOCK(vp);
+		vp->v_opencount++;
 		error = (*cdevsw[maj].d_open)(dev, mode, S_IFCHR, p);
+		--vp->v_opencount;
 		VOP_LOCK(vp);
 		return (error);
 

@@ -14,7 +14,7 @@
  *    must display the following acknowledgement:
  *      This product includes software developed by Paul Kranenburg.
  * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,13 +27,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.9 1994/02/13 20:42:09 jkh Exp $
+ *	$Id: md.c,v 1.10 1994/06/15 22:40:44 rich Exp $
  */
 
 #include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <err.h>
 #include <fcntl.h>
 #include <a.out.h>
 #include <stab.h>
@@ -53,14 +54,13 @@ unsigned char		*addr;
 	switch (RELOC_TARGET_SIZE(rp)) {
 	case 0:
 		return get_byte(addr);
-		break;
 	case 1:
 		return get_short(addr);
-		break;
 	case 2:
 		return get_long(addr);
-		break;
 	}
+	errx(1, "Unsupported relocation size: %x", RELOC_TARGET_SIZE(rp));
+	return 0;
 }
 
 /*
@@ -71,20 +71,20 @@ md_relocate(rp, relocation, addr, relocatable_output)
 struct relocation_info	*rp;
 long			relocation;
 unsigned char		*addr;
+int			relocatable_output;
 {
 	switch (RELOC_TARGET_SIZE(rp)) {
 	case 0:
 		put_byte(addr, relocation);
-		break;
+		return;
 	case 1:
 		put_short(addr, relocation);
-		break;
+		return;
 	case 2:
 		put_long(addr, relocation);
-		break;
-	default:
-		fatal("Unsupported relocation size: %x", RELOC_TARGET_SIZE(rp));
+		return;
 	}
+	errx(1, "Unsupported relocation size: %x", RELOC_TARGET_SIZE(rp));
 }
 
 /*

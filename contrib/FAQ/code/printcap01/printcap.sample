@@ -1,0 +1,9 @@
+
+ps|postscript emulation:\
+        :lp=/dev/lpa0:sd=/var/spool/lpd:lf=/var/log/lpd-errs:\
+        :if=/usr/libexec/lpr/ps2lj3:sh:mx#0:sf:
+
+lp|epson|lj|local line printer:\
+        :lp=/dev/lpa0:sd=/var/spool/lpd:lf=/var/log/lpd-errs:\
+        :if=/usr/libexec/lpr/hpf:\
+        :sh:mx#0:pw#80:

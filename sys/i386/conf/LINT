@@ -4,38 +4,40 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.53 1994/02/09 05:35:57 nate Exp $
+#	$Id: LINT,v 1.79 1994/06/16 05:31:16 jkh Exp $
 #
 
 machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"
+cpu		"I586_CPU"
 ident		LINT
 timezone	8 dst
 maxusers	10
 maxfdescs	2048			#Max file descriptors per process
 options		MATH_EMULATE		#Support for x87 emulation
 
+# Do not use in binary distributions
+#options        GPL_MATH_EMULATE        #Support for x87 emualtion via
+                                        #new math emulator 
+
 config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
 #
 # options that appear as inline #ifdef's
 #
-options		"COM_BIDIR"		#Bidirectional support in sys/isa/sio.c
 options		"COM_MULTIPORT"		#Multiport support in sys/isa/sio.c
-options         "FIFO_TRIGGER=FIFO_TRIGGER_1"   #Use this fifo value in sio.c
 
 options		"COMPAT_43"		#compatible with BSD 4.3
-options		"SYMTAB_SPACE=104705"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=119000"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 
 options		"NCONS=8"		#number of syscons virtual consoles
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
-options		"STAR_SAVER"		#syscons "stars" screen saver
-options         "FADE_SAVER"            #syscons "fade" screen saver
-options		"SNAKE_SAVER"		#syscons "snake" screen saver
-options         "BLANK_SAVER"           #syscons "blank" screen saver
+
+#options	ALLOW_CONFLICT_IOADDR	#no IO addr conflict checks (PS/2 mice)
+#options	ALLOW_CONFLICT_IRQ	#no IRQ conflict checks (mport serial)
 
 options		"TCP_COMPAT_42"		#tcp/ip compatible with 4.2
 					# ^^^ NOT RECOMMENDED FOR NORMAL USE
@@ -53,13 +55,14 @@ options		MACHVMCOMPAT		#support for Mach-style vm calls
 options		IPBROADCASTECHO=1	#send reply to broadcast pings
 options		IPMASKAGENT=1		#send reply to icmp mask requests
 options		TPCONS			#support X.25 network-layer service
-
-options		EXCLUDE_CHIP_MIDI	# \  sound driver options
-options		"EXCLUDE_MPU401"	#  \ exclude specified
-options		EXCLUDE_GUS		#  / device or chip
-options		EXCLUDE_SBPRO		# /  from driver
-
 options		USER_LDT		#allow user-level control of i386 ldt
+
+# See /sys/i386/doc/sound.doc for information about EXCLUDE options for
+#  the sound drivers.
+
+# Multicast support.
+options		MULTICAST		# Multicast code
+options		MROUTING		# Multicast routing
 
 #
 # options that are in sys/conf/files
@@ -120,13 +123,15 @@ controller	ahb0	at isa? bio irq 11 vector ahbintr
 controller	bt0	at isa? port "IO_BT0" bio irq 12 vector btintr
 # driver for the Seagate ST01/ST02 card, not yet finished.
 #controller	sg0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector sgintr
-#dcfclk	device-driver
+# driver for the Seagate ST01/ST02 or Future Domain 950 card, works
+controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 tape		ft0	at fdc0 drive 2
+
 # driver for the Western Digital and SMCC WD80xx cards, for the Novell
-# NE1000/200 card and the 3COM 3C503 card.
+# NE1000/2000 card and the 3COM 3C503 card.
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 # driver for the AT&T Starlan card.
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
@@ -135,27 +140,38 @@ device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 #device ix0 at isa? port 0x320 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 # driver for the Etherlink III ( 3C509 ) card, beta version.
 device ep0 at isa? port 0x300 net irq 10 vector epintr
+#driver for the 3c501
+device el0 at isa? port 0x300 net irq 9 vector elintr
+# IBM/National PCMCIA ethernet cards
+device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
+
 #special cased above:
 #controller	isa0
-# interruptless parallel printer port driver
-device		lpa0	at isa? port "IO_LPT1" tty
-device		lpa1	at isa? port "IO_LPT2" tty
+
+# interruptless parallel printer port driver.  NOW OBSOLETE, DON'T USE.
+#device		lpa0	at isa? port "IO_LPT1" tty
+#device		lpa1	at isa? port "IO_LPT2" tty
 # interrupt driven parallel printer port driver
 device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
-# Driver for Mutsumi CD-ROM players
-device		mcd0	at isa? port 0x300 bio irq 10 vector mcdint
+# Driver for Mitsumi CD-ROM players
+device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # Driver for Logitech and ATI inport bus mice
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
-device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 #only one of pc0 or sc0 allowed
-#device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+#device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
+device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
 device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
 device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
+#PS/2 mouse driver (must follow pc0 or sc0 if enabled).  Also enable
+#ALLOW_CONFLICT_IOADDR option (see above) if you want to use this.
+#device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
+
 pseudo-device	speaker
-#tw	device-driver
+device         	tw0     at isa? port 0x278 tty irq 5 vector twintr
+
 controller	uha0	at isa? port "IO_UHA0" bio irq 14 drq 5 vector uhaintr
 controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
@@ -166,14 +182,17 @@ disk		wd3	at wdc1 drive 1
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 
 # Various sound card drivers.
-# See /sys/i386/doc/sound.doc for more information.
-device snd5 at isa? port 0x330 irq 6 drq 0 vector mpuintr
+# See /sys/doc/sound.doc for more information.
+device snd5 at isa? port 0x330 irq 6 vector mpuintr
 device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
-device snd3 at isa? port 0x388 irq 12 drq 3 vector pasintr
+device snd3 at isa? port 0x388 irq 10 drq 6 vector pasintr
 device snd2 at isa? port 0x220 irq 7 drq 1 vector sbintr
-device snd1 at isa? port 0x388 irq 0 drq 0 vector sbintr
-#
-#
+device snd6 at isa? port 0x220 irq 7 drq 5 vector sbintr
+device snd7 at isa? port 0x300
+device snd1 at isa? port 0x388
+
+# The digital speaker driver (/dev/pcaudio).
+device pca0 at isa? tty
+
 # options that have not been resolved yet
-#
 pseudo-device	log

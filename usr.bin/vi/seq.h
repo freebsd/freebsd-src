@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)seq.h	8.7 (Berkeley) 12/2/93
+ *	@(#)seq.h	8.9 (Berkeley) 3/16/94
  */
 
 /*
@@ -42,6 +42,9 @@
  * Additionally, there is a bitmap which has bits set if there are entries
  * starting with the corresponding character.  This keeps us from walking
  * the list unless it's necessary.
+ *
+ * The name and the output fields of a SEQ can be empty, i.e. NULL.
+ * Only the input field is required.
  *
  * XXX
  * The fast-lookup bits are never turned off -- users don't usually unmap

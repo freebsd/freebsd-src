@@ -78,7 +78,7 @@ extern int __sdidinit;
 }
 
 /*
- * test for an fgetline() buffer.
+ * test for an fgetln() buffer.
  */
 #define	HASLB(fp) ((fp)->_lb._base != NULL)
 #define	FREELB(fp) { \

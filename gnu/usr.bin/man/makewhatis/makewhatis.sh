@@ -30,9 +30,16 @@ do
         then
             for f in `find $subdir -type f -print`
             do
+		suffix=`echo $f | sed -e 's/.*\\.//'`
+		if [ ".$suffix" = "%compext%" ]; then
+			output=%zcat%
+		else
+			output=cat
+		fi
+		$output $f | \
                 sed -n '/^\.TH.*$/p
                 	/^\.Dt.*$/p
-                        /^\.S[hH][         ]*NAME/,/^\.S[hH]/p' $f |\
+                        /^\.S[hH][         ]*NAME/,/^\.S[hH]/p'|\
                 sed -e 's/\\[   ]*\-/-/
                         s/^.P[Pp].*$//
                         s/\\(em//

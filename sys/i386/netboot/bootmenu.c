@@ -86,7 +86,7 @@ CMD_BOOTFILE - set boot filename
 cmd_bootfile(p)
 	char *p;
 {
-	char *q = bootname;
+	char *q = bootfile = bootname;
 	if (*p) {
 		while(*p)
 			*(q++) = *(p++);

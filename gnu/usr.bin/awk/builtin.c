@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -26,9 +26,8 @@
 
 #include "awk.h"
 
-
 #ifndef SRANDOM_PROTO
-extern void srandom P((int seed));
+extern void srandom P((unsigned int seed));
 #endif
 #ifndef linux
 extern char *initstate P((unsigned seed, char *state, int n));
@@ -40,10 +39,7 @@ extern NODE **fields_arr;
 extern int output_is_tty;
 
 static NODE *sub_common P((NODE *tree, int global));
-
-#ifdef GFMT_WORKAROUND
-char *gfmt P((double g, int prec, char *buf));
-#endif
+NODE *format_tree P((const char *, int, NODE *));
 
 #ifdef _CRAY
 /* Work around a problem in conversion of doubles to exact integers. */
@@ -63,12 +59,35 @@ double (*Log)() = log;
 #define Ceil(n) ceil(n)
 #endif
 
+#define DEFAULT_G_PRECISION 6
+
+#ifdef GFMT_WORKAROUND
+/* semi-temporary hack, mostly to gracefully handle VMS */
+static void sgfmt P((char *buf, const char *format, int alt,
+		     int fwidth, int precision, double value));
+#endif /* GFMT_WORKAROUND */
+
+/*
+ * On the alpha, LONG_MAX is too big for doing rand().
+ * On the Cray (Y-MP, anyway), ints and longs are 64 bits, but
+ * random() does things in terms of 32 bits. So we have to chop
+ * LONG_MAX down.
+ */
+#if (defined(__alpha) && defined(__osf__)) || defined(_CRAY)
+#define GAWK_RANDOM_MAX (LONG_MAX & 0x7fffffff)
+#else
+#define GAWK_RANDOM_MAX LONG_MAX
+#endif
+
+static void efwrite P((const void *ptr, size_t size, size_t count, FILE *fp,
+		       const char *from, struct redirect *rp,int flush));
+
 static void
 efwrite(ptr, size, count, fp, from, rp, flush)
-void *ptr;
-unsigned size, count;
+const void *ptr;
+size_t size, count;
 FILE *fp;
-char *from;
+const char *from;
 struct redirect *rp;
 int flush;
 {
@@ -117,7 +136,7 @@ NODE *tree;
 {
 	NODE *s1, *s2;
 	register char *p1, *p2;
-	register int l1, l2;
+	register size_t l1, l2;
 	long ret;
 
 
@@ -160,21 +179,30 @@ NODE *tree;
 	return tmp_number((AWKNUM) ret);
 }
 
+double
+double_to_int(d)
+double d;
+{
+	double floor P((double));
+	double ceil P((double));
+
+	if (d >= 0)
+		d = Floor(d);
+	else
+		d = Ceil(d);
+	return d;
+}
+
 NODE *
 do_int(tree)
 NODE *tree;
 {
 	NODE *tmp;
-	double floor P((double));
-	double ceil P((double));
 	double d;
 
 	tmp = tree_eval(tree->lnode);
 	d = force_number(tmp);
-	if (d >= 0)
-		d = Floor(d);
-	else
-		d = Ceil(d);
+	d = double_to_int(d);
 	free_temp(tmp);
 	return tmp_number((AWKNUM) d);
 }
@@ -184,7 +212,7 @@ do_length(tree)
 NODE *tree;
 {
 	NODE *tmp;
-	int len;
+	size_t len;
 
 	tmp = tree_eval(tree->lnode);
 	len = force_string(tmp)->stlen;
@@ -211,27 +239,54 @@ NODE *tree;
 	return tmp_number((AWKNUM) d);
 }
 
-/* %e and %f formats are not properly implemented.  Someone should fix them */
-/* Actually, this whole thing should be reimplemented. */
+/*
+ * format_tree() formats nodes of a tree, starting with a left node,
+ * and accordingly to a fmt_string providing a format like in
+ * printf family from C library.  Returns a string node which value
+ * is a formatted string.  Called by  sprintf function.
+ *
+ * It is one of the uglier parts of gawk.  Thanks to Michal Jaegermann
+ * for taming this beast and making it compatible with ANSI C.
+ */
 
 NODE *
-do_sprintf(tree)
-NODE *tree;
+format_tree(fmt_string, n0, carg)
+const char *fmt_string;
+int n0;
+register NODE *carg;
 {
+/* copy 'l' bytes from 's' to 'obufout' checking for space in the process */
+/* difference of pointers should be of ptrdiff_t type, but let us be kind */
 #define bchunk(s,l) if(l) {\
     while((l)>ofre) {\
-      erealloc(obuf, char *, osiz*2, "do_sprintf");\
+      long olen = obufout - obuf;\
+      erealloc(obuf, char *, osiz*2, "format_tree");\
       ofre+=osiz;\
       osiz*=2;\
+      obufout = obuf + olen;\
     }\
-    memcpy(obuf+olen,s,(l));\
-    olen+=(l);\
+    memcpy(obufout,s,(size_t)(l));\
+    obufout+=(l);\
     ofre-=(l);\
+  }
+/* copy one byte from 's' to 'obufout' checking for space in the process */
+#define bchunk_one(s) {\
+    if(ofre <= 0) {\
+      long olen = obufout - obuf;\
+      erealloc(obuf, char *, osiz*2, "format_tree");\
+      ofre+=osiz;\
+      osiz*=2;\
+      obufout = obuf + olen;\
+    }\
+    *obufout++ = *s;\
+    --ofre;\
   }
 
 	/* Is there space for something L big in the buffer? */
 #define chksize(l)  if((l)>ofre) {\
-    erealloc(obuf, char *, osiz*2, "do_sprintf");\
+    long olen = obufout - obuf;\
+    erealloc(obuf, char *, osiz*2, "format_tree");\
+    obufout = obuf + olen;\
     ofre+=osiz;\
     osiz*=2;\
   }
@@ -250,15 +305,14 @@ NODE *tree;
 
 	NODE *r;
 	int toofew = 0;
-	char *obuf;
-	int osiz, ofre, olen;
-	static char chbuf[] = "0123456789abcdef";
-	static char sp[] = " ";
-	char *s0, *s1;
-	int n0;
-	NODE *sfmt, *arg;
-	register NODE *carg;
-	long fw, prec, lj, alt, big;
+	char *obuf, *obufout;
+	size_t osiz, ofre;
+	char *chbuf;
+	const char *s0, *s1;
+	int cs1;
+	NODE *arg;
+	long fw, prec;
+	int lj, alt, big, have_prec;
 	long *cur;
 	long val;
 #ifdef sun386		/* Can't cast unsigned (int/long) from ptr->value */
@@ -266,26 +320,26 @@ NODE *tree;
 #endif
 	unsigned long uval;
 	int sgn;
-	int base;
+	int base = 0;
 	char cpbuf[30];		/* if we have numbers bigger than 30 */
 	char *cend = &cpbuf[30];/* chars, we lose, but seems unlikely */
 	char *cp;
 	char *fill;
 	double tmpval;
-	char *pr_str;
-	int ucasehex = 0;
 	char signchar = 0;
-	int len;
+	size_t len;
+	static char sp[] = " ";
+	static char zero_string[] = "0";
+	static char lchbuf[] = "0123456789abcdef";
+	static char Uchbuf[] = "0123456789ABCDEF";
 
-
-	emalloc(obuf, char *, 120, "do_sprintf");
+	emalloc(obuf, char *, 120, "format_tree");
+	obufout = obuf;
 	osiz = 120;
 	ofre = osiz - 1;
-	olen = 0;
-	sfmt = tree_eval(tree->lnode);
-	sfmt = force_string(sfmt);
-	carg = tree->rnode;
-	for (s0 = s1 = sfmt->stptr, n0 = sfmt->stlen; n0-- > 0;) {
+
+	s0 = s1 = fmt_string;
+	while (n0-- > 0) {
 		if (*s1 != '%') {
 			s1++;
 			continue;
@@ -295,24 +349,31 @@ NODE *tree;
 		cur = &fw;
 		fw = 0;
 		prec = 0;
+		have_prec = 0;
 		lj = alt = big = 0;
 		fill = sp;
 		cp = cend;
+		chbuf = lchbuf;
 		s1++;
 
 retry:
 		--n0;
-		switch (*s1++) {
+		switch (cs1 = *s1++) {
+		case (-1):	/* dummy case to allow for checking */
+check_pos:
+			if (cur != &fw)
+				break;		/* reject as a valid format */
+			goto retry;
 		case '%':
-			bchunk("%", 1);
+			bchunk_one("%");
 			s0 = s1;
 			break;
 
 		case '0':
-			if (fill != sp || lj)
-				goto lose;
+			if (lj)
+				goto retry;
 			if (cur == &fw)
-				fill = "0";	/* FALL through */
+				fill = zero_string;	/* FALL through */
 		case '1':
 		case '2':
 		case '3':
@@ -323,44 +384,65 @@ retry:
 		case '8':
 		case '9':
 			if (cur == 0)
-				goto lose;
-			*cur = s1[-1] - '0';
+				/* goto lose; */
+				break;
+			if (prec >= 0)
+				*cur = cs1 - '0';
+			/* with a negative precision *cur is already set  */
+			/* to -1, so it will remain negative, but we have */
+			/* to "eat" precision digits in any case          */
 			while (n0 > 0 && *s1 >= '0' && *s1 <= '9') {
 				--n0;
 				*cur = *cur * 10 + *s1++ - '0';
 			}
+			if (prec < 0) 	/* negative precision is discarded */
+				have_prec = 0;
+			if (cur == &prec)
+				cur = 0;
 			goto retry;
 		case '*':
 			if (cur == 0)
-				goto lose;
+				/* goto lose; */
+				break;
 			parse_next_arg();
 			*cur = force_number(arg);
 			free_temp(arg);
+			if (cur == &prec)
+				cur = 0;
 			goto retry;
 		case ' ':		/* print ' ' or '-' */
+					/* 'space' flag is ignored */
+					/* if '+' already present  */
+			if (signchar != 0) 
+				goto check_pos;
+			/* FALL THROUGH */
 		case '+':		/* print '+' or '-' */
-			signchar = *(s1-1);
-			goto retry;
+			signchar = cs1;
+			goto check_pos;
 		case '-':
-			if (lj || fill != sp)
-				goto lose;
-			lj++;
-			goto retry;
+			if (prec < 0)
+				break;
+			if (cur == &prec) {
+				prec = -1;
+				goto retry;
+			}
+			fill = sp;      /* if left justified then other */
+			lj++; 		/* filling is ignored */
+			goto check_pos;
 		case '.':
 			if (cur != &fw)
-				goto lose;
+				break;
 			cur = &prec;
+			have_prec++;
 			goto retry;
 		case '#':
-			if (alt)
-				goto lose;
 			alt++;
-			goto retry;
+			goto check_pos;
 		case 'l':
 			if (big)
-				goto lose;
+				break;
 			big++;
-			goto retry;
+			goto check_pos;
 		case 'c':
 			parse_next_arg();
 			if (arg->flags & NUMBER) {
@@ -372,239 +454,188 @@ retry:
 #endif
 				cpbuf[0] = uval;
 				prec = 1;
-				pr_str = cpbuf;
-				goto dopr_string;
+				cp = cpbuf;
+				goto pr_tail;
 			}
-			if (! prec)
+			if (have_prec == 0)
 				prec = 1;
 			else if (prec > arg->stlen)
 				prec = arg->stlen;
-			pr_str = arg->stptr;
-			goto dopr_string;
+			cp = arg->stptr;
+			goto pr_tail;
 		case 's':
 			parse_next_arg();
 			arg = force_string(arg);
-			if (!prec || prec > arg->stlen)
+			if (have_prec == 0 || prec > arg->stlen)
 				prec = arg->stlen;
-			pr_str = arg->stptr;
-
-	dopr_string:
-			if (fw > prec && !lj) {
-				while (fw > prec) {
-					bchunk(sp, 1);
-					fw--;
-				}
-			}
-			bchunk(pr_str, (int) prec);
-			if (fw > prec) {
-				while (fw > prec) {
-					bchunk(sp, 1);
-					fw--;
-				}
-			}
-			s0 = s1;
-			free_temp(arg);
-			break;
+			cp = arg->stptr;
+			goto pr_tail;
 		case 'd':
 		case 'i':
 			parse_next_arg();
-			val = (long) force_number(arg);
-			free_temp(arg);
+			tmpval = force_number(arg);
+			if (tmpval > LONG_MAX || tmpval < LONG_MIN) {
+				/* out of range - emergency use of %g format */
+				cs1 = 'g';
+				goto format_float;
+			}
+			val = (long) tmpval;
+
 			if (val < 0) {
 				sgn = 1;
-				val = -val;
-			} else
+				if (val > LONG_MIN)
+					uval = (unsigned long) -val;
+				else
+					uval = (unsigned long)(-(LONG_MIN + 1))
+					       + (unsigned long)1;
+			} else {
 				sgn = 0;
+				uval = (unsigned long) val;
+			}
 			do {
-				*--cp = '0' + val % 10;
-				val /= 10;
-			} while (val);
+				*--cp = (char) ('0' + uval % 10);
+				uval /= 10;
+			} while (uval);
 			if (sgn)
 				*--cp = '-';
 			else if (signchar)
 				*--cp = signchar;
+			if (have_prec != 0)	/* ignore '0' flag if */
+				fill = sp; 	/* precision given    */
 			if (prec > fw)
 				fw = prec;
 			prec = cend - cp;
-			if (fw > prec && !lj) {
-				if (fill != sp && (*cp == '-' || signchar)) {
-					bchunk(cp, 1);
-					cp++;
-					prec--;
-					fw--;
-				}
-				while (fw > prec) {
-					bchunk(fill, 1);
-					fw--;
-				}
+			if (fw > prec && ! lj && fill != sp
+			    && (*cp == '-' || signchar)) {
+				bchunk_one(cp);
+				cp++;
+				prec--;
+				fw--;
 			}
-			bchunk(cp, (int) prec);
-			if (fw > prec) {
-				while (fw > prec) {
-					bchunk(fill, 1);
-					fw--;
-				}
-			}
-			s0 = s1;
-			break;
-		case 'u':
-			base = 10;
-			goto pr_unsigned;
-		case 'o':
-			base = 8;
-			goto pr_unsigned;
+			goto pr_tail;
 		case 'X':
-			ucasehex = 1;
+			chbuf = Uchbuf;	/* FALL THROUGH */
 		case 'x':
-			base = 16;
-			goto pr_unsigned;
-	pr_unsigned:
+			base += 6;	/* FALL THROUGH */
+		case 'u':
+			base += 2;	/* FALL THROUGH */
+		case 'o':
+			base += 8;
 			parse_next_arg();
-			uval = (unsigned long) force_number(arg);
-			free_temp(arg);
+			tmpval = force_number(arg);
+			if (tmpval > ULONG_MAX || tmpval < LONG_MIN) {
+				/* out of range - emergency use of %g format */
+				cs1 = 'g';
+				goto format_float;
+			}
+			uval = (unsigned long)tmpval;
+			if (have_prec != 0)	/* ignore '0' flag if */
+				fill = sp; 	/* precision given    */
 			do {
 				*--cp = chbuf[uval % base];
-				if (ucasehex && isalpha(*cp))
-					*cp = toupper(*cp);
 				uval /= base;
 			} while (uval);
-			if (alt && (base == 8 || base == 16)) {
+			if (alt) {
 				if (base == 16) {
-					if (ucasehex)
-						*--cp = 'X';
-					else
-						*--cp = 'x';
-				}
-				*--cp = '0';
+					*--cp = cs1;
+					*--cp = '0';
+					if (fill != sp) {
+						bchunk(cp, 2);
+						cp += 2;
+						fw -= 2;
+					}
+				} else if (base == 8)
+					*--cp = '0';
 			}
+			base = 0;
 			prec = cend - cp;
-			if (fw > prec && !lj) {
+	pr_tail:
+			if (! lj) {
 				while (fw > prec) {
-					bchunk(fill, 1);
+			    		bchunk_one(fill);
 					fw--;
 				}
 			}
 			bchunk(cp, (int) prec);
-			if (fw > prec) {
-				while (fw > prec) {
-					bchunk(fill, 1);
-					fw--;
-				}
+			while (fw > prec) {
+				bchunk_one(fill);
+				fw--;
 			}
 			s0 = s1;
+			free_temp(arg);
 			break;
 		case 'g':
-			parse_next_arg();
-			tmpval = force_number(arg);
-			free_temp(arg);
-			chksize(fw + prec + 9);	/* 9==slop */
-
-			cp = cpbuf;
-			*cp++ = '%';
-			if (lj)
-				*cp++ = '-';
-			if (fill != sp)
-				*cp++ = '0';
-#ifndef GFMT_WORKAROUND
-			if (cur != &fw) {
-				(void) strcpy(cp, "*.*g");
-				(void) sprintf(obuf + olen, cpbuf, (int) fw, (int) prec, (double) tmpval);
-			} else {
-				(void) strcpy(cp, "*g");
-				(void) sprintf(obuf + olen, cpbuf, (int) fw, (double) tmpval);
-			}
-#else	/* GFMT_WORKAROUND */
-		      {
-			char *gptr, gbuf[120];
-#define DEFAULT_G_PRECISION 6
-			if (fw + prec + 9 > sizeof gbuf) {	/* 9==slop */
-				emalloc(gptr, char *, fw+prec+9, "do_sprintf(gfmt)");
-			} else
-				gptr = gbuf;
-			(void) gfmt((double) tmpval, cur != &fw ?
-				    (int) prec : DEFAULT_G_PRECISION, gptr);
-			*cp++ = '*',  *cp++ = 's',  *cp = '\0';
-			(void) sprintf(obuf + olen, cpbuf, (int) fw, gptr);
-			if (fill != sp && *gptr == ' ') {
-				char *p = gptr;
-				do { *p++ = '0'; } while (*p == ' ');
-			}
-			if (gptr != gbuf) free(gptr);
-		      }
-#endif	/* GFMT_WORKAROUND */
-			len = strlen(obuf + olen);
-			ofre -= len;
-			olen += len;
-			s0 = s1;
-			break;
-
-		case 'f':
-			parse_next_arg();
-			tmpval = force_number(arg);
-			free_temp(arg);
-			chksize(fw + prec + 9);	/* 9==slop */
-
-			cp = cpbuf;
-			*cp++ = '%';
-			if (lj)
-				*cp++ = '-';
-			if (fill != sp)
-				*cp++ = '0';
-			if (cur != &fw) {
-				(void) strcpy(cp, "*.*f");
-				(void) sprintf(obuf + olen, cpbuf, (int) fw, (int) prec, (double) tmpval);
-			} else {
-				(void) strcpy(cp, "*f");
-				(void) sprintf(obuf + olen, cpbuf, (int) fw, (double) tmpval);
-			}
-			len = strlen(obuf + olen);
-			ofre -= len;
-			olen += len;
-			s0 = s1;
-			break;
+		case 'G':
 		case 'e':
+		case 'f':
+		case 'E':
 			parse_next_arg();
 			tmpval = force_number(arg);
+     format_float:
 			free_temp(arg);
+			if (have_prec == 0)
+				prec = DEFAULT_G_PRECISION;
 			chksize(fw + prec + 9);	/* 9==slop */
+
 			cp = cpbuf;
 			*cp++ = '%';
 			if (lj)
 				*cp++ = '-';
+			if (signchar)
+				*cp++ = signchar;
+			if (alt)
+				*cp++ = '#';
 			if (fill != sp)
 				*cp++ = '0';
-			if (cur != &fw) {
-				(void) strcpy(cp, "*.*e");
-				(void) sprintf(obuf + olen, cpbuf, (int) fw, (int) prec, (double) tmpval);
-			} else {
-				(void) strcpy(cp, "*e");
-				(void) sprintf(obuf + olen, cpbuf, (int) fw, (double) tmpval);
-			}
-			len = strlen(obuf + olen);
+			cp = strcpy(cp, "*.*") + 3;
+			*cp++ = cs1;
+			*cp   = '\0';
+#ifndef GFMT_WORKAROUND
+			(void) sprintf(obufout, cpbuf,
+				       (int) fw, (int) prec, (double) tmpval);
+#else	/* GFMT_WORKAROUND */
+			if (cs1 == 'g' || cs1 == 'G')
+				sgfmt(obufout, cpbuf, (int) alt,
+				       (int) fw, (int) prec, (double) tmpval);
+			else
+				(void) sprintf(obufout, cpbuf,
+				       (int) fw, (int) prec, (double) tmpval);
+#endif	/* GFMT_WORKAROUND */
+			len = strlen(obufout);
 			ofre -= len;
-			olen += len;
+			obufout += len;
 			s0 = s1;
 			break;
-
 		default:
-	lose:
 			break;
 		}
 		if (toofew)
 			fatal("%s\n\t%s\n\t%*s%s",
 			"not enough arguments to satisfy format string",
-			sfmt->stptr, s1 - sfmt->stptr - 2, "",
+			fmt_string, s1 - fmt_string - 2, "",
 			"^ ran out for this one"
 			);
 	}
 	if (do_lint && carg != NULL)
 		warning("too many arguments supplied for format string");
 	bchunk(s0, s1 - s0);
-	free_temp(sfmt);
-	r = make_str_node(obuf, olen, ALREADY_MALLOCED);
+	r = make_str_node(obuf, obufout - obuf, ALREADY_MALLOCED);
 	r->flags |= TEMP;
 	return r;
 }
+
+NODE *
+do_sprintf(tree)
+NODE *tree;
+{
+	NODE *r;
+	NODE *sfmt = force_string(tree_eval(tree->lnode));
+
+	r = format_tree(sfmt->stptr, sfmt->stlen, tree->rnode);
+	free_temp(sfmt);
+	return r;
+}
+
 
 void
 do_printf(tree)
@@ -654,6 +685,7 @@ NODE *tree;
 	NODE *r;
 	register int indx;
 	size_t length;
+	int is_long;
 
 	t1 = tree_eval(tree->lnode);
 	t2 = tree_eval(tree->rnode->lnode);
@@ -669,12 +701,16 @@ NODE *tree;
 	t1 = force_string(t1);
 	if (indx < 0)
 		indx = 0;
-	if (indx >= t1->stlen || length <= 0) {
+	if (indx >= t1->stlen || (long) length <= 0) {
 		free_temp(t1);
 		return Nnull_string;
 	}
-	if (indx + length > t1->stlen || LONG_MAX - indx < length)
+	if ((is_long = (indx + length > t1->stlen)) || LONG_MAX - indx < length) {
 		length = t1->stlen - indx;
+		if (do_lint && is_long)
+			warning("substr: length %d at position %d exceeds length of first argument",
+				length, indx+1);
+	}
 	r =  tmp_string(t1->stptr + indx, length);
 	free_temp(t1);
 	return r;
@@ -688,7 +724,6 @@ NODE *tree;
 	struct tm *tm;
 	time_t fclock;
 	char buf[100];
-	int ret;
 
 	t1 = force_string(tree_eval(tree->lnode));
 
@@ -701,9 +736,7 @@ NODE *tree;
 	}
 	tm = localtime(&fclock);
 
-	ret = strftime(buf, 100, t1->stptr, tm);
-
-	return tmp_string(buf, ret);
+	return tmp_string(buf, strftime(buf, 100, t1->stptr, tm));
 }
 
 NODE *
@@ -723,17 +756,42 @@ NODE *tree;
 	NODE *tmp;
 	int ret = 0;
 	char *cmd;
+	char save;
 
-	(void) flush_io ();	/* so output is synchronous with gawk's */
+	(void) flush_io ();     /* so output is synchronous with gawk's */
 	tmp = tree_eval(tree->lnode);
 	cmd = force_string(tmp)->stptr;
+
 	if (cmd && *cmd) {
+		/* insure arg to system is zero-terminated */
+
+		/*
+		 * From: David Trueman <emory!cs.dal.ca!david>
+		 * To: arnold@cc.gatech.edu (Arnold Robbins)
+		 * Date: 	Wed, 3 Nov 1993 12:49:41 -0400
+		 * 
+		 * It may not be necessary to save the character, but
+		 * I'm not sure.  It would normally be the field
+		 * separator.  If the parse has not yet gone beyond
+		 * that, it could mess up (although I doubt it).  If
+		 * FIELDWIDTHS is being used, it might be the first
+		 * character of the next field.  Unless someone wants
+		 * to check it out exhaustively, I suggest saving it
+		 * for now...
+		 */
+		save = cmd[tmp->stlen];
+		cmd[tmp->stlen] = '\0';
+
 		ret = system(cmd);
 		ret = (ret >> 8) & 0xff;
+
+		cmd[tmp->stlen] = save;
 	}
 	free_temp(tmp);
 	return tmp_number((AWKNUM) ret);
 }
+
+extern NODE **fmt_list;  /* declared in eval.c */
 
 void 
 do_print(tree)
@@ -763,10 +821,18 @@ register NODE *tree;
 			if (OFMTidx == CONVFMTidx)
 				(void) force_string(t1);
 			else {
+#ifndef GFMT_WORKAROUND
 				char buf[100];
 
-				sprintf(buf, OFMT, t1->numbr);
+				(void) sprintf(buf, OFMT, t1->numbr);
+				free_temp(t1);
 				t1 = tmp_string(buf, strlen(buf));
+#else /* GFMT_WORKAROUND */
+				free_temp(t1);
+				t1 = format_tree(OFMT,
+						 fmt_list[OFMTidx]->stlen,
+						 tree);
+#endif /* GFMT_WORKAROUND */
 			}
 		}
 		efwrite(t1->stptr, sizeof(char), t1->stlen, fp, "print", rp, 0);
@@ -775,12 +841,13 @@ register NODE *tree;
 		if (tree) {
 			s = OFS;
 			if (OFSlen)
-				efwrite(s, sizeof(char), OFSlen, fp, "print", rp, 0);
+				efwrite(s, sizeof(char), (size_t)OFSlen,
+					fp, "print", rp, 0);
 		}
 	}
 	s = ORS;
 	if (ORSlen)
-		efwrite(s, sizeof(char), ORSlen, fp, "print", rp, 1);
+		efwrite(s, sizeof(char), (size_t)ORSlen, fp, "print", rp, 1);
 }
 
 NODE *
@@ -863,7 +930,7 @@ NODE *tree;
 }
 
 static int firstrand = 1;
-static char state[256];
+static char state[512];
 
 /* ARGSUSED */
 NODE *
@@ -875,7 +942,7 @@ NODE *tree;
 		srandom(1);
 		firstrand = 0;
 	}
-	return tmp_number((AWKNUM) random() / LONG_MAX);
+	return tmp_number((AWKNUM) random() / GAWK_RANDOM_MAX);
 }
 
 NODE *
@@ -892,10 +959,10 @@ NODE *tree;
 		(void) setstate(state);
 
 	if (!tree)
-		srandom((int) (save_seed = (long) time((time_t *) 0)));
+		srandom((unsigned int) (save_seed = (long) time((time_t *) 0)));
 	else {
 		tmp = tree_eval(tree->lnode);
-		srandom((int) (save_seed = (long) force_number(tmp)));
+		srandom((unsigned int) (save_seed = (long) force_number(tmp)));
 		free_temp(tmp);
 	}
 	firstrand = 0;
@@ -938,15 +1005,15 @@ int global;
 	register char *scan;
 	register char *bp, *cp;
 	char *buf;
-	int buflen;
+	size_t buflen;
 	register char *matchend;
-	register int len;
+	register size_t len;
 	char *matchstart;
 	char *text;
-	int textlen;
+	size_t textlen;
 	char *repl;
 	char *replend;
-	int repllen;
+	size_t repllen;
 	int sofar;
 	int ampersands;
 	int matches = 0;
@@ -970,9 +1037,9 @@ int global;
 
 	/* do the search early to avoid work on non-match */
 	if (research(rp, t->stptr, 0, t->stlen, 1) == -1 ||
-	    (RESTART(rp, t->stptr) > t->stlen) && (matches = 1)) {
+	    RESTART(rp, t->stptr) > t->stlen) {
 		free_temp(t);
-		return tmp_number((AWKNUM) matches);
+		return tmp_number((AWKNUM) 0.0);
 	}
 
 	if (tmp->type == Node_val)
@@ -1001,13 +1068,15 @@ int global;
 	repl = s->stptr;
 	replend = repl + s->stlen;
 	repllen = replend - repl;
-	emalloc(buf, char *, buflen, "do_sub");
+	emalloc(buf, char *, buflen + 2, "do_sub");
+	buf[buflen] = '\0';
+	buf[buflen + 1] = '\0';
 	ampersands = 0;
 	for (scan = repl; scan < replend; scan++) {
 		if (*scan == '&') {
 			repllen--;
 			ampersands++;
-		} else if (*scan == '\\' && (*(scan+1) == '&' || *(scan+1) == '\\')) {
+		} else if (*scan == '\\' && *(scan+1) == '&') {
 			repllen--;
 			scan++;
 		}
@@ -1026,7 +1095,7 @@ int global;
 		len = matchstart - text + repllen
 		      + ampersands * (matchend - matchstart);
 		sofar = bp - buf;
-		while (buflen - sofar - len - 1 < 0) {
+		while ((long)(buflen - sofar - len - 1) < 0) {
 			buflen *= 2;
 			erealloc(buf, char *, buflen, "do_sub");
 			bp = buf + sofar;
@@ -1037,18 +1106,20 @@ int global;
 			if (*scan == '&')
 				for (cp = matchstart; cp < matchend; cp++)
 					*bp++ = *cp;
-			else if (*scan == '\\' && (*(scan+1) == '&' || *(scan+1) == '\\')) {
+			else if (*scan == '\\' && *(scan+1) == '&') {
 				scan++;
 				*bp++ = *scan;
 			} else
 				*bp++ = *scan;
+
+		/* catch the case of gsub(//, "blah", whatever), i.e. empty regexp */
 		if (global && matchstart == matchend && matchend < text + textlen) {
 			*bp++ = *matchend;
 			matchend++;
 		}
 		textlen = text + textlen - matchend;
 		text = matchend;
-		if (!global || textlen <= 0 ||
+		if (!global || (long)textlen <= 0 ||
 		    research(rp, t->stptr, text-t->stptr, textlen, 1) == -1)
 			break;
 	}
@@ -1060,6 +1131,7 @@ int global;
 	}
 	for (scan = matchend; scan < text + textlen; scan++)
 		*bp++ = *scan;
+	*bp = '\0';
 	textlen = bp - buf;
 	free(t->stptr);
 	t->stptr = buf;
@@ -1093,41 +1165,75 @@ NODE *tree;
 }
 
 #ifdef GFMT_WORKAROUND
-	/*
-	 *	printf's %g format [can't rely on gcvt()]
-	 *		caveat: don't use as argument to *printf()!
-	 */
-char *
-gfmt(g, prec, buf)
-double g;	/* value to format */
-int prec;	/* indicates desired significant digits, not decimal places */
+/*
+ * printf's %g format [can't rely on gcvt()]
+ *	caveat: don't use as argument to *printf()!
+ * 'format' string HAS to be of "<flags>*.*g" kind, or we bomb!
+ */
+static void
+sgfmt(buf, format, alt, fwidth, prec, g)
 char *buf;	/* return buffer; assumed big enough to hold result */
+const char *format;
+int alt;	/* use alternate form flag */
+int fwidth;	/* field width in a format */
+int prec;	/* indicates desired significant digits, not decimal places */
+double g;	/* value to format */
 {
-	if (g == 0.0) {
-		(void) strcpy(buf, "0");	/* easy special case */
-	} else {
-		register char *d, *e, *p;
+	char dform[40];
+	register char *gpos;
+	register char *d, *e, *p;
+	int again = 0;
 
-		/* start with 'e' format (it'll provide nice exponent) */
-		if (prec < 1) prec = 1;	    /* at least 1 significant digit */
-		(void) sprintf(buf, "%.*e", prec - 1, g);
-		if ((e = strchr(buf, 'e')) != 0) {	/* find exponent  */
-			int exp = atoi(e+1);		/* fetch exponent */
-			if (exp >= -4 && exp < prec) {	/* per K&R2, B1.2 */
-				/* switch to 'f' format and re-do */
-				prec -= (exp + 1);	/* decimal precision */
-				(void) sprintf(buf, "%.*f", prec, g);
-				e = buf + strlen(buf);
-			}
-			if ((d = strchr(buf, '.')) != 0) {
-				/* remove trailing zeroes and decimal point */
-				for (p = e; p > d && *--p == '0'; ) continue;
-				if (*p == '.') --p;
-				if (++p < e)	/* copy exponent and NUL */
-					while ((*p++ = *e++) != '\0') continue;
-			}
-		}
+	strncpy(dform, format, sizeof dform - 1);
+	dform[sizeof dform - 1] = '\0';
+	gpos = strrchr(dform, '.');
+
+	if (g == 0.0 && alt == 0) {	/* easy special case */
+		*gpos++ = 'd';
+		*gpos = '\0';
+		(void) sprintf(buf, dform, fwidth, 0);
+		return;
 	}
-	return buf;
+	gpos += 2;  /* advance to location of 'g' in the format */
+
+	if (prec <= 0)	      /* negative precision is ignored */
+		prec = (prec < 0 ?  DEFAULT_G_PRECISION : 1);
+
+	if (*gpos == 'G')
+		again = 1;
+	/* start with 'e' format (it'll provide nice exponent) */
+	*gpos = 'e';
+	prec -= 1;
+	(void) sprintf(buf, dform, fwidth, prec, g);
+	if ((e = strrchr(buf, 'e')) != NULL) {	/* find exponent  */
+		int exp = atoi(e+1);		/* fetch exponent */
+		if (exp >= -4 && exp <= prec) {	/* per K&R2, B1.2 */
+			/* switch to 'f' format and re-do */
+			*gpos = 'f';
+			prec -= exp;		/* decimal precision */
+			(void) sprintf(buf, dform, fwidth, prec, g);
+			e = buf + strlen(buf);
+			while (*--e == ' ')
+				continue;
+			e += 1;
+		}
+		else if (again != 0)
+			*gpos = 'E';
+
+		/* if 'alt' in force, then trailing zeros are not removed */
+		if (alt == 0 && (d = strrchr(buf, '.')) != NULL) {
+			/* throw away an excess of precision */
+			for (p = e; p > d && *--p == '0'; )
+				prec -= 1;
+			if (d == p)
+				prec -= 1;
+			if (prec < 0)
+				prec = 0;
+			/* and do that once again */
+			again = 1;
+		}
+		if (again != 0)
+			(void) sprintf(buf, dform, fwidth, prec, g);
+	}
 }
 #endif	/* GFMT_WORKAROUND */

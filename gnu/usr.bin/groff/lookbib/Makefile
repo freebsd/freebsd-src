@@ -3,6 +3,7 @@
 PROG=		lookbib
 SRCS=		lookbib.cc
 CFLAGS+=	-I$(.CURDIR)/../include
+CXXFLAGS+=	-I$(.CURDIR)/../include
 LDADD+=		$(LIBBIB) $(LIBGROFF) -lm
 DPADD+=		$(LIBBIB) $(LIBGROFF) $(LIBMATH)
 

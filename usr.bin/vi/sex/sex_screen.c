@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,23 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sex_screen.c	8.30 (Berkeley) 12/23/93";
+static char sccsid[] = "@(#)sex_screen.c	8.36 (Berkeley) 3/15/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <termios.h>
 #include <unistd.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "excmd.h"
@@ -61,11 +71,12 @@ sex_screen_init(sp)
 	sp->s_bell		= sex_bell;
 	sp->s_bg		= (int (*)())sex_nope;
 	sp->s_busy		= (int (*)())sex_busy;
-	sp->s_change		= (int (*)())sex_noop; 
-	sp->s_chposition	= (size_t (*)())sex_abort; 
-	sp->s_clear		= (int (*)())sex_noop; 
+	sp->s_change		= (int (*)())sex_noop;
+	sp->s_clear		= (int (*)())sex_noop;
+	sp->s_colpos		= (size_t (*)())sex_abort;
 	sp->s_column		= (int (*)())sex_abort;
 	sp->s_confirm		= sex_confirm;
+	sp->s_crel		= (int (*)())sex_nope;
 	sp->s_down		= (int (*)())sex_abort;
 	sp->s_edit		= sex_screen_edit;
 	sp->s_end		= (int (*)())sex_noop;
@@ -75,14 +86,13 @@ sex_screen_init(sp)
 	sp->s_fg		= (int (*)())sex_nope;
 	sp->s_fill		= (int (*)())sex_abort;
 	sp->s_get		= F_ISSET(sp->gp,
-				    G_ISFROMTTY) ? sex_get : sex_get_notty;
+				    G_STDIN_TTY) ? sex_get : sex_get_notty;
 	sp->s_key_read		= sex_key_read;
 	sp->s_optchange		= (int (*)())sex_noop;
 	sp->s_position		= (int (*)())sex_abort;
 	sp->s_rabs		= (int (*)())sex_nope;
+	sp->s_rcm		= (size_t (*)())sex_abort;
 	sp->s_refresh		= sex_refresh;
-	sp->s_relative		= (size_t (*)())sex_abort;
-	sp->s_rrel		= (int (*)())sex_nope;
 	sp->s_split		= (int (*)())sex_nope;
 	sp->s_suspend		= sex_suspend;
 	sp->s_up		= (int (*)())sex_abort;
@@ -123,11 +133,10 @@ sex_screen_edit(sp, ep)
 	EXF *ep;
 {
 	struct termios rawt, t;
-	GS *saved_gp;
 	int force, rval;
 
 	/* Initialize the terminal state. */
-	if (F_ISSET(sp->gp, G_ISFROMTTY))
+	if (F_ISSET(sp->gp, G_STDIN_TTY))
 		SEX_RAW(t, rawt);
 
 	/* Write to the terminal. */
@@ -150,8 +159,6 @@ sex_screen_edit(sp, ep)
 			(void)screen_end(sp);		/* General SCR info. */
 			break;
 		}
-
-		saved_gp = sp->gp;
 
 		force = 0;
 		switch (F_ISSET(sp, S_MAJOR_CHANGE)) {
@@ -176,7 +183,7 @@ sex_screen_edit(sp, ep)
 	}
 
 	/* Reset the terminal state. */
-ret:	if (F_ISSET(sp->gp, G_ISFROMTTY) && SEX_NORAW(t))
+ret:	if (F_ISSET(sp->gp, G_STDIN_TTY) && SEX_NORAW(t))
 		rval = 1;
 	return (rval);
 }

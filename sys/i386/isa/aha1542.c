@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.20.2.2 1994/05/03 05:16:50 rgrimes Exp $
+ *      $Id: aha1542.c,v 1.27 1994/06/05 19:18:10 ats Exp $
  */
 
 /*
@@ -299,8 +299,8 @@ struct aha_data {
 	struct aha_ccb *aha_ccb_free;	/* the next free ccb */
 	struct aha_ccb aha_ccb[AHA_MBX_SIZE];	/* all the CCBs      */
 	int     aha_int;	/* our irq level        */
-	int     aha_dma;	/* out DMA req channel  */
-	int     aha_scsi_dev;	/* ourscsi bus address  */
+	int     aha_dma;	/* our DMA req channel  */
+	int     aha_scsi_dev;	/* our scsi bus address  */
 	struct scsi_link sc_link;	/* prototype for subdevs */
 } *ahadata[NAHA];
 
@@ -589,6 +589,7 @@ ahaattach(dev)
 	aha->sc_link.adapter_targ = aha->aha_scsi_dev;
 	aha->sc_link.adapter = &aha_switch;
 	aha->sc_link.device = &aha_dev;
+	aha->sc_link.flags = SDEV_BOUNCE;
 
 	/*
 	 * ask the adapter what subunits are present
@@ -741,7 +742,7 @@ aha_get_ccb(unit, flags)
 	 * to come free
 	 */
 	while ((!(rc = aha->aha_ccb_free)) && (!(flags & SCSI_NOSLEEP))) {
-		sleep(&aha->aha_ccb_free, PRIBIO);
+		tsleep((caddr_t)&aha->aha_ccb_free, PRIBIO, "ahaccb", 0);
 	}
 	if (rc) {
 		aha->aha_ccb_free = aha->aha_ccb_free->next;
@@ -916,7 +917,7 @@ aha_init(unit)
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
 #endif	/* AHADEBUG */
-		printf("aha%d: 1542C/CF detected, unlocking mailbox\n");
+		printf("aha%d: 1542C/CF detected, unlocking mailbox\n", unit);
 		aha_cmd(unit, 2, 0, 0, 0, AHA_MBX_ENABLE,
 			0, extbios.mailboxlock);
 	}
@@ -1006,7 +1007,7 @@ aha_init(unit)
 		return (EIO);
 	}
 #else
-	printf ("\n");
+	printf (" (bus speed defaulted)\n");
 #endif	/*TUNE_1542*/
 	/*
 	 * Initialize mail box 

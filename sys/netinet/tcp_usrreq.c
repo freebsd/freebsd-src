@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_usrreq.c	7.15 (Berkeley) 6/28/90
- *	$Id: tcp_usrreq.c,v 1.5 1994/01/24 05:12:36 davidg Exp $
+ *	$Id: tcp_usrreq.c,v 1.6 1994/05/22 23:18:40 ache Exp $
  */
 
 #include "param.h"
@@ -351,11 +351,14 @@ tcp_ctloutput(op, so, level, optname, mp)
 {
 	int error = 0;
 	struct inpcb *inp = sotoinpcb(so);
-	register struct tcpcb *tp = intotcpcb(inp);
+	register struct tcpcb *tp;
 	register struct mbuf *m;
 
 	if (level != IPPROTO_TCP)
 		return (ip_ctloutput(op, so, level, optname, mp));
+
+	if (!inp || !(tp = intotcpcb(inp)))
+		return (EINVAL);
 
 	switch (op) {
 

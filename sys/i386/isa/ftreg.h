@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1993 Steve Gerakines
+ *  Copyright (c) 1993, 1994 Steve Gerakines
  *
  *  This is freely redistributable software.  You may do anything you
  *  wish with it, so long as the above notice stays intact.
@@ -17,6 +17,9 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ftreg.h - QIC-40/80 floppy tape driver header
+ *  06/03/94 v0.9
+ *  Changed seek load point to QC_SEEKLP, added reqseg to SegReq structure.
+ *
  *  10/30/93 v0.3
  *  More things will end up here.  QC_VENDORID and QC_VERSION now used.
  *
@@ -42,7 +45,7 @@
 #define QC_SEEKSTART			11	/* seek to track start */
 #define QC_SEEKEND			12	/* seek to track end */
 #define QC_SEEKTRACK			13	/* seek head to track */
-#define QC_SEEKLOAD			14	/* seek load point */
+#define QC_SEEKLP			14	/* seek load point */
 #define QC_FORMAT			15	/* format mode */
 #define QC_WRITEREF			16	/* write reference */
 #define QC_VERIFY			17	/* verify mode */
@@ -62,7 +65,7 @@
 
 /* Colorado enable/disable. */
 #define QC_COL_ENABLE1			46	/* enable */
-#define QC_COL_ENABLE2			2	/* null-op */
+#define QC_COL_ENABLE2			2	/* unit+2 */
 #define QC_COL_DISABLE			47	/* disable */
 
 /* Mountain enable/disable. */
@@ -77,5 +80,7 @@ typedef struct segq {
 	long reqcrc;			/* CRC Errors found */
 	long reqbad;			/* Bad sector map */
 	long reqblk;			/* Block request starts at */
+	long reqseg;			/* Segment request is at */
 	int reqcan;			/* Cancel read-ahead */
+	struct segq *next;		/* Next request */
 } SegReq;

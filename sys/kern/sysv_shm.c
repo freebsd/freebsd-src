@@ -37,7 +37,7 @@
  *
  *	from: Utah $Hdr: uipc_shm.c 1.9 89/08/14$
  *	from: @(#)sysv_shm.c	7.15 (Berkeley) 5/13/91
- *	$Id: sysv_shm.c,v 1.9 1994/01/21 09:56:31 davidg Exp $
+ *	$Id: sysv_shm.c,v 1.12 1994/03/08 14:08:14 ats Exp $
  */
 
 /*
@@ -69,7 +69,7 @@
 struct	shmid_ds	*shmsegs;
 struct	shminfo		shminfo;
 
-int	shmat(), shmctl(), shmdt(), shmget(); /* XXX */
+static int	shmat(), shmctl(), shmdt(), shmget(); /* XXX */
 int	(*shmcalls[])() = { shmat, shmctl, shmdt, shmget }; /* XXX */
 int	shmtot = 0;
 
@@ -90,7 +90,7 @@ struct	shmhandle {
 	caddr_t		shmh_id;
 };
 
-static int ipcaccess(struct ipc_perm *, int, struct ucred *);
+extern int ipcaccess(struct ipc_perm *, int, struct ucred *);
 static void shmufree(struct proc *, struct shmdesc *);
 static void shmfree(struct shmid_ds *);
 static int shmvalid(int);
@@ -146,7 +146,7 @@ struct shmget_args {
 	int shmflg;
 };
 
-int
+static int
 shmget(p, uap, retval)
 	struct proc *p;
 	register struct shmget_args *uap;
@@ -244,7 +244,7 @@ struct shmctl_args {
 };
 
 /* ARGSUSED */
-int
+static int
 shmctl(p, uap, retval)
 	struct proc *p;
 	register struct shmctl_args *uap;
@@ -316,7 +316,7 @@ struct shmat_args {
 	int	shmflg;
 };
 
-int
+static int
 shmat(p, uap, retval)
 	struct proc *p;
 	register struct shmat_args *uap;
@@ -402,7 +402,7 @@ struct shmdt_args {
 };
 
 /* ARGSUSED */
-int
+static int
 shmdt(p, uap, retval)
 	struct proc *p;
 	struct shmdt_args *uap;

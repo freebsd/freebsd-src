@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: lpr.c,v 1.1.1.1.2.2 1994/05/04 08:02:12 rgrimes Exp $
+ *	$Id: lpr.c,v 1.3 1994/05/04 08:37:28 rgrimes Exp $
  */
 /*
  * Copyright (c) 1983 Regents of the University of California.

@@ -1,0 +1,11 @@
+#! /bin/sh -x
+# testmalloc tests some unusual cases -- will test all branches in free,
+# which is important.
+./testmalloc $@
+# simumalloc makes a good thorough exercise for malloc and free.
+# need something for realloc, though.
+./simumalloc -t 15000 -s 1024 -l 2000 $@
+./simumalloc -t 5000 -s 512 -l 20 $@
+./simumalloc -d -t 500 -s 512 -l 20 $@
+./simumalloc -d -t 500 -s 512 -l 500 $@
+./simumalloc -d -t 500 -s 512 -a $@

@@ -332,15 +332,15 @@ is_attach(isa_dev)
 	 * are only 16 bits wide!
 	 */
 
-#define MAXMEM ((NRBUF+NTBUF)*(BUFSIZE) + (NRBUF+NTBUF)*sizeof(struct mds) \
+#define ISMAXMEM ((NRBUF+NTBUF)*(BUFSIZE) + (NRBUF+NTBUF)*sizeof(struct mds) \
                  + sizeof(struct init_block) + 8)
-	is->init_block = (struct init_block *)malloc(MAXMEM,M_TEMP,M_NOWAIT);
+	is->init_block = (struct init_block *)malloc(ISMAXMEM,M_TEMP,M_NOWAIT);
 	if (!is->init_block) {
 		printf("is%d : Couldn't allocate memory for card\n",unit);
 	}
 	/* 
 	 * XXX -- should take corrective action if not
-	 * quadword alilgned, the 8 byte slew factor in MAXMEM
+	 * quadword alilgned, the 8 byte slew factor in ISMAXMEM
 	 * allows for this.
 	 */
 
@@ -483,7 +483,7 @@ is_init(unit)
 	/* Address not known */
  	if (ifp->if_addrlist == (struct ifaddr *)0) return;
 
-	s = splnet();
+	s = splimp();
 
 	/* 
 	 * Lance must be stopped
@@ -984,7 +984,7 @@ is_ioctl(ifp, cmd, data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error = 0;
 
-	s = splnet();
+	s = splimp();
 
 	switch (cmd) {
 

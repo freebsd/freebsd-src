@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recover.c	8.40 (Berkeley) 12/21/93";
+static char sccsid[] = "@(#)recover.c	8.50 (Berkeley) 3/23/94";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <queue.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -46,18 +47,26 @@ static char sccsid[] = "@(#)recover.c	8.40 (Berkeley) 12/21/93";
  */
 #include <sys/file.h>
 
-#include <netdb.h>			/* MAXHOSTNAMELEN on some systems. */
+#include <netdb.h>		/* MAXHOSTNAMELEN on some systems. */
 
+#include <bitstring.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <pwd.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
+#include <db.h>
+#include <regex.h>
+#include <pathnames.h>
+
 #include "vi.h"
-#include "pathnames.h"
 
 /*
  * Recovery code.
@@ -92,7 +101,6 @@ static char sccsid[] = "@(#)recover.c	8.40 (Berkeley) 12/21/93";
 #define	VI_FHEADER	"Vi-recover-file: "
 #define	VI_PHEADER	"Vi-recover-path: "
 
-static void	rcv_alrm __P((int));
 static int	rcv_mailfile __P((SCR *, EXF *));
 static void	rcv_syncit __P((SCR *, int));
 
@@ -125,7 +133,7 @@ rcv_tmp(sp, ep, name)
 		}
 		(void)chmod(dp, S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
 	}
-		
+
 	/* Newlines delimit the mail messages. */
 	for (p = name; *p; ++p)
 		if (*p == '\n') {
@@ -169,14 +177,16 @@ rcv_init(sp, ep)
 	SCR *sp;
 	EXF *ep;
 {
-	struct itimerval value;
-	struct sigaction act;
 	recno_t lno;
+	int btear;
 
 	F_CLR(ep, F_FIRSTMODIFY | F_RCV_ON);
 
-	/* Build file to mail to the user. */
-	if (rcv_mailfile(sp, ep))
+	/*
+	 * If not already recoverying a file, build a file to mail
+	 * to the user.
+	 */
+	if (ep->rcv_mpath == NULL && rcv_mailfile(sp, ep))
 		goto err;
 
 	/* Force read of entire file. */
@@ -184,48 +194,27 @@ rcv_init(sp, ep)
 		goto err;
 
 	/* Turn on a busy message, and sync it to backing store. */
-	busy_on(sp, 1, "Copying file for recovery...");
+
+	btear = F_ISSET(sp, S_EXSILENT) ? 0 :
+	    !busy_on(sp, "Copying file for recovery...");
 	if (ep->db->sync(ep->db, R_RECNOSYNC)) {
 		msgq(sp, M_ERR, "Preservation failed: %s: %s",
 		    ep->rcv_path, strerror(errno));
-		busy_off(sp);
+		if (btear)
+			busy_off(sp);
 		goto err;
 	}
-	busy_off(sp);
+	if (btear)
+		busy_off(sp);
 
-	if (!F_ISSET(sp->gp, G_RECOVER_SET)) {
-		/* Install the recovery timer handler. */
-		act.sa_handler = rcv_alrm;
-		sigemptyset(&act.sa_mask);
-		act.sa_flags = 0;
-		(void)sigaction(SIGALRM, &act, NULL);
-
-		/* Start the recovery timer. */
-		value.it_interval.tv_sec = value.it_value.tv_sec = RCV_PERIOD;
-		value.it_interval.tv_usec = value.it_value.tv_usec = 0;
-		if (setitimer(ITIMER_REAL, &value, NULL)) {
-			msgq(sp, M_ERR,
-			    "Error: setitimer: %s", strerror(errno));
-err:			msgq(sp, M_ERR,
-			    "Recovery after system crash not possible.");
-			return (1);
-		}
+	if (!F_ISSET(sp->gp, G_RECOVER_SET) && rcv_on(sp, ep)) {
+err:		msgq(sp, M_ERR, "Recovery after system crash not possible.");
+		return (1);
 	}
 
 	/* We believe the file is recoverable. */
 	F_SET(ep, F_RCV_ON);
 	return (0);
-}
-
-/*
- * rcv_alrm --
- *	Recovery timer interrupt handler.
- */
-static void
-rcv_alrm(signo)
-	int signo;
-{
-	F_SET(__global_list, G_SIGALRM);
 }
 
 /*
@@ -265,15 +254,16 @@ rcv_mailfile(sp, ep)
 	 * be recovered.  There's an obvious window between the mkstemp call
 	 * and the lock, but it's pretty small.
 	 */
-	if ((ep->rcv_fd = dup(fd)) != -1)
-		(void)flock(ep->rcv_fd, LOCK_EX | LOCK_NB);
+	if ((ep->rcv_fd = dup(fd)) == -1 ||
+	    flock(ep->rcv_fd, LOCK_EX | LOCK_NB))
+		msgq(sp, M_SYSERR, "Unable to lock recovery file");
 
 	if ((ep->rcv_mpath = strdup(path)) == NULL) {
 		msgq(sp, M_SYSERR, NULL);
 		(void)fclose(fp);
 		return (1);
 	}
-	
+
 	t = FILENAME(sp->frp);
 	if ((p = strrchr(t, '/')) == NULL)
 		p = t;
@@ -289,7 +279,7 @@ rcv_mailfile(sp, ep)
 	    "To: ", pw->pw_name,
 	    "Subject: Nvi saved the file ", p,
 	    "Precedence: bulk");			/* For vacation(1). */
-	(void)fprintf(fp, "%s%.24s%s%s\n%s%s", 
+	(void)fprintf(fp, "%s%.24s%s%s\n%s%s",
 	    "On ", ctime(&now),
 	    ", the user ", pw->pw_name,
 	    "was editing a file named ", p);
@@ -307,6 +297,7 @@ rcv_mailfile(sp, ep)
 		(void)fclose(fp);
 		return (1);
 	}
+	(void)fclose(fp);
 	return (0);
 }
 
@@ -319,15 +310,10 @@ rcv_sync(sp, ep)
 	SCR *sp;
 	EXF *ep;
 {
-	struct itimerval value;
-
 	if (ep->db->sync(ep->db, R_RECNOSYNC)) {
+		F_CLR(ep, F_RCV_ON);
 		msgq(sp, M_ERR, "Automatic file backup failed: %s: %s",
 		    ep->rcv_path, strerror(errno));
-		value.it_interval.tv_sec = value.it_interval.tv_usec = 0;
-		value.it_value.tv_sec = value.it_value.tv_usec = 0;
-		(void)setitimer(ITIMER_REAL, &value, NULL);
-		F_CLR(ep, F_RCV_ON);
 		return (1);
 	}
 	return (0);
@@ -432,7 +418,7 @@ rcv_syncit(sp, email)
 /*
  *	people making love
  *	never exactly the same
- *	just like a snowflake 
+ *	just like a snowflake
  *
  * rcv_list --
  *	List the files that can be recovered by this user.
@@ -511,18 +497,20 @@ rcv_read(sp, name)
 	struct stat sb;
 	DIR *dirp;
 	FREF *frp;
-	FILE *fp;
+	FILE *fp, *sv_fp;
 	time_t rec_mtime;
 	int found, requested;
 	char *p, *t, *recp, *pathp;
 	char recpath[MAXPATHLEN], file[MAXPATHLEN], path[MAXPATHLEN];
-		
+
 	if ((dirp = opendir(O_STR(sp, O_RECDIR))) == NULL) {
 		msgq(sp, M_ERR,
 		    "%s: %s", O_STR(sp, O_RECDIR), strerror(errno));
 		return (1);
 	}
 
+	sv_fp = NULL;
+	rec_mtime = 0;
 	recp = pathp = NULL;
 	for (found = requested = 0; (dp = readdir(dirp)) != NULL;) {
 		if (strncmp(dp->d_name, "recover.", 8))
@@ -590,9 +578,11 @@ rcv_read(sp, name)
 				FREE(t, strlen(t) + 1);
 			}
 			rec_mtime = sb.st_mtime;
-		}
-
-next:		(void)fclose(fp);
+			if (sv_fp != NULL)
+				(void)fclose(sv_fp);
+			sv_fp = fp;
+		} else
+next:			(void)fclose(fp);
 	}
 	(void)closedir(dirp);
 
@@ -607,7 +597,7 @@ next:		(void)fclose(fp);
 		   "There are older versions of this file for you to recover.");
 		if (found > requested)
 			msgq(sp, M_INFO,
-			    "There are other files that you can recover.");
+			    "There are other files for you to recover.");
 	}
 
 	/* Create the FREF structure, start the btree file. */
@@ -615,8 +605,18 @@ next:		(void)fclose(fp);
 	    file_init(sp, frp, pathp + sizeof(VI_PHEADER) - 1, 0)) {
 		FREE(recp, strlen(recp) + 1);
 		FREE(pathp, strlen(pathp) + 1);
+		(void)fclose(sv_fp);
 		return (1);
 	}
+
+	/*
+	 * We keep an open lock on the file so that the recover option can
+	 * distinguish between files that are live and those that need to
+	 * be recovered.  The lock is already acquired, so just get a copy.
+	 */
+	if ((sp->ep->rcv_fd = dup(fileno(sv_fp))) != -1)
+		(void)fclose(sv_fp);
+
 	sp->ep->rcv_mpath = recp;
 	return (0);
 }

@@ -1,7 +1,7 @@
 /* protf.c
    The 'f' protocol.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protf_rcsid[] = "$Id: protf.c,v 1.1 1993/08/05 18:27:10 conklin Exp $";
+const char protf_rcsid[] = "$Id: protf.c,v 1.2 1994/05/07 18:13:45 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -340,6 +340,10 @@ ffprocess_data (qdaemon, pfexit, pcneed)
 	{
 	  for (i = iPrecstart; i < CRECBUFLEN && i != iPrecend; i++)
 	    {
+	      /* Some systems seem to send characters with parity, so
+		 strip the parity bit.  */
+	      abPrecbuf[i] &= 0x7f;
+
 	      if (abPrecbuf[i] == '\r')
 		{
 		  int istart;
@@ -395,7 +399,9 @@ ffprocess_data (qdaemon, pfexit, pcneed)
 	{
 	  int b;
 
-	  b = *zfrom++ & 0xff;
+	  /* Some systems seem to send characters with parity, so
+	     strip the parity bit.  */
+	  b = *zfrom++ & 0x7f;
 	  if (b < 040 || b > 0176)
 	    {
 	      ulog (LOG_ERROR, "Illegal byte %d", b);

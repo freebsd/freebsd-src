@@ -1,16 +1,16 @@
 /*
- * $Id: symbol.c,v 1.4 1994/02/13 20:41:46 jkh Exp $		- symbol table routines
+ * $Id: symbol.c,v 1.5 1994/06/15 22:39:56 rich Exp $		- symbol table routines
  */
 
 /* Create the symbol table entries for `etext', `edata' and `end'.  */
 
 #include <sys/param.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <a.out.h>
 #include <stab.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "ld.h"
@@ -25,8 +25,8 @@ symbol	*got_symbol;		/* the symbol __GLOBAL_OFFSET_TABLE_ */
 symbol	*dynamic_symbol;	/* the symbol __DYNAMIC */
 
 void
-symtab_init (relocatable_output)
-int	relocatable_output;
+symtab_init(relocatable_output)
+	int	relocatable_output;
 {
 	/*
 	 * Put linker reserved symbols into symbol table.
@@ -45,18 +45,18 @@ int	relocatable_output;
 #define GOT_SYM		"_GLOBAL_OFFSET_TABLE_"
 #endif
 
-	dynamic_symbol = getsym (DYN_SYM);
+	dynamic_symbol = getsym(DYN_SYM);
 	dynamic_symbol->defined = relocatable_output?N_UNDF:(N_DATA | N_EXT);
 
-	got_symbol = getsym (GOT_SYM);
+	got_symbol = getsym(GOT_SYM);
 	got_symbol->defined = N_DATA | N_EXT;
 
 	if (relocatable_output)
 		return;
 
-	etext_symbol = getsym (ETEXT_SYM);
-	edata_symbol = getsym (EDATA_SYM);
-	end_symbol = getsym (END_SYM);
+	etext_symbol = getsym(ETEXT_SYM);
+	edata_symbol = getsym(EDATA_SYM);
+	end_symbol = getsym(END_SYM);
 
 	etext_symbol->defined = N_TEXT | N_EXT;
 	edata_symbol->defined = N_DATA | N_EXT;
@@ -67,7 +67,9 @@ int	relocatable_output;
 	end_symbol->flags |= GS_REFERENCED;
 }
 
-/* Compute the hash code for symbol name KEY.  */
+/*
+ * Compute the hash code for symbol name KEY.
+ */
 
 int
 hash_string (key)
@@ -84,8 +86,10 @@ hash_string (key)
 	return k;
 }
 
-/* Get the symbol table entry for the global symbol named KEY.
-   Create one if there is none.  */
+/*
+ * Get the symbol table entry for the global symbol named KEY.
+ * Create one if there is none.
+ */
 
 symbol *
 getsym(key)
@@ -95,16 +99,16 @@ getsym(key)
 	register symbol *bp;
 
 	/* Determine the proper bucket.  */
-	hashval = hash_string (key) % SYMTABSIZE;
+	hashval = hash_string(key) % SYMTABSIZE;
 
 	/* Search the bucket.  */
 	for (bp = symtab[hashval]; bp; bp = bp->link)
-		if (! strcmp (key, bp->name))
+		if (strcmp(key, bp->name) == 0)
 			return bp;
 
 	/* Nothing was found; create a new symbol table entry.  */
-	bp = (symbol *) xmalloc (sizeof (symbol));
-	bp->name = (char *) xmalloc (strlen (key) + 1);
+	bp = (symbol *)xmalloc(sizeof(symbol));
+	bp->name = (char *)xmalloc(strlen(key) + 1);
 	strcpy (bp->name, key);
 	bp->refs = 0;
 	bp->defined = 0;
@@ -146,13 +150,11 @@ getsym_soft (key)
 	register symbol *bp;
 
 	/* Determine which bucket.  */
-
-	hashval = hash_string (key) % SYMTABSIZE;
+	hashval = hash_string(key) % SYMTABSIZE;
 
 	/* Search the bucket.  */
-
 	for (bp = symtab[hashval]; bp; bp = bp->link)
-		if (! strcmp (key, bp->name))
+		if (strcmp(key, bp->name) == 0)
 			return bp;
 
 	return 0;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,11 +30,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)trace.c	8.1 (Berkeley) 6/9/93
+ *	@(#)trace.c	8.2 (Berkeley) 3/8/94
  */
 
 #ifdef DEBUG
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
+
+#include <bitstring.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 

@@ -75,6 +75,7 @@
 #include "vm_page.h"
 #include "vm_kern.h"
 #include "machine/stdarg.h"
+#include "machine/vmparam.h"
 
 extern char kstack[];
 int	avefree = 0;		/* XXX */
@@ -115,19 +116,16 @@ useracc(addr, len, rw)
 	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
 
 	/*
-	 * XXX - specially disallow access to user page tables - they are
-	 * in the map.
-	 *
-	 * XXX - don't specially disallow access to the user area - treat
-	 * it as incorrectly as elsewhere.
+	 * XXX - check separately to disallow access to user area and user
+	 * page tables - they are in the map.
 	 *
 	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  It was
-	 * only used (as an end address) in trap.c.  Use it as an end
-	 * address here too.
+	 * once only used (as an end address) in trap.c.  Use it as an end
+	 * address here too.  This bogusness has spread.  I just fixed
+	 * where it was used as a max in vm_mmap.c.
 	 */
-	if ((vm_offset_t) addr >= VM_MAXUSER_ADDRESS 
-	    || (vm_offset_t) addr + len > VM_MAXUSER_ADDRESS
-	    || (vm_offset_t) addr + len <= (vm_offset_t) addr) {
+	if ((vm_offset_t) addr + len > /* XXX */ VM_MAXUSER_ADDRESS
+	    || (vm_offset_t) addr + len < (vm_offset_t) addr) {
 		printf("address wrap\n");
 		return (FALSE);
 	}
@@ -213,7 +211,6 @@ vm_fork(p1, p2, isvfork)
 	 * Allocate a wired-down (for now) pcb and kernel stack for the process
 	 */
 
-	/* addr = UPT_MIN_ADDRESS - UPAGES*NBPG; */
 	addr = (vm_offset_t) kstack;
 
 	vp = &p2->p_vmspace->vm_map;
@@ -281,23 +278,24 @@ void
 vm_init_limits(p)
 	register struct proc *p;
 {
-	int tmp;
+	int rss_limit;
 
 	/*
 	 * Set up the initial limits on process VM.
-	 * Set the maximum resident set size to be all
-	 * of (reasonably) available memory.  This causes
-	 * any single, large process to start random page
-	 * replacement once it fills memory.
+	 * Set the maximum resident set size to be half
+	 * of (reasonably) available memory.  Since this
+	 * is a soft limit, it comes into effect only
+	 * when the system is out of memory - half of
+	 * main memory helps to favor smaller processes,
+	 * and reduces thrashing of the object cache.
 	 */
         p->p_rlimit[RLIMIT_STACK].rlim_cur = DFLSSIZ;
         p->p_rlimit[RLIMIT_STACK].rlim_max = MAXSSIZ;
         p->p_rlimit[RLIMIT_DATA].rlim_cur = DFLDSIZ;
         p->p_rlimit[RLIMIT_DATA].rlim_max = MAXDSIZ;
-	tmp = ((2 * vm_page_free_count) / 3) - 32;
-	if (vm_page_free_count < 512)
-		tmp = vm_page_free_count;
-	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(tmp);
+	/* limit the limit to no less than 128K */ 
+	rss_limit = max(vm_page_free_count / 2, 32);
+	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
 	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
@@ -425,7 +423,7 @@ noswap:
 	(void) splhigh();
 	if (((vm_page_free_count + vm_page_inactive_count) >=
 	    (vm_page_inactive_target + vm_page_free_reserved)) ||
-	    (vm_page_free_count >= vm_page_free_min)) {
+	    (vm_page_free_count > vm_page_free_reserved)) {
 		spl0();
 		faultin(p);
 		p->p_time = 0;
@@ -485,8 +483,6 @@ swapout_threads()
 			continue;
 		switch (p->p_stat) {
 		case SRUN:
-			if (p->p_pri < PUSER)
-				continue;
 			if ((tpri = p->p_time + p->p_nice * 8) > outpri2) {
 				outp2 = p;
 				outpri2 = tpri;
@@ -495,7 +491,7 @@ swapout_threads()
 			
 		case SSLEEP:
 		case SSTOP:
-			if (p->p_pri <= PRIBIO)
+			if (p->p_pri <= PVM)
 				continue;
 			if (p->p_slptime > maxslp) {
 				swapout(p);
@@ -511,12 +507,12 @@ swapout_threads()
 	 * If we didn't get rid of any real duds, toss out the next most
 	 * likely sleeping/stopped or running candidate.  We only do this
 	 * if we are real low on memory since we don't gain much by doing
-	 * it (UPAGES pages).
+	 * it (UPAGES+1 pages).
 	 */
 	if (didswap == 0 && (swapinreq && 
-			vm_page_free_count <= vm_pageout_free_min)) {
+			(vm_page_free_count + vm_page_inactive_count) <= (vm_page_free_min + vm_page_inactive_target))) {
 		if ((p = outp) == 0 &&
-			(vm_page_free_count <= vm_pageout_free_min))
+			(vm_page_free_count <= vm_page_free_reserved))
 			p = outp2;
 #ifdef DEBUG
 		if (swapdebug & SDB_SWAPOUT)
@@ -551,6 +547,8 @@ swapout(p)
 		       p->p_pid, p->p_comm, p->p_addr, p->p_stat,
 		       p->p_slptime, vm_page_free_count);
 #endif
+
+	++p->p_stats->p_ru.ru_nswap;
 
 
 	(void) splhigh();

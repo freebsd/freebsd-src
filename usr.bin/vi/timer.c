@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,135 +32,205 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)timer.c	8.7 (Berkeley) 12/2/93";
+static char sccsid[] = "@(#)timer.c	8.13 (Berkeley) 3/23/94";
 #endif /* not lint */
 
+#include <queue.h>
 #include <sys/time.h>
+
+#include <bitstring.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 
-static void busy_handler __P((int));
-
 /*
- * XXX
- * There are two uses of timers in nvi.  The first is to push the recovery
- * information out to disk at periodic intervals.  The second is to display
- * a "busy" message if an operation takes too long.  Rather than solve this
- * in a general fashion, we depend on the fact that only a single screen in
- * a window is active at a time, and that there are only two parts of the
- * systems that use timers.
+ * There are two uses of the ITIMER_REAL timer (SIGALRM) in nvi.  The first
+ * is to push the recovery information out to disk at periodic intervals.
+ * The second is to display a "busy" message if an operation takes more time
+ * that users are willing to wait before seeing something happen.  Each of
+ * these uses has a wall clock timer structure in each SCR structure.  Since
+ * the busy timer has a much faster timeout than the recovery timer, most of
+ * the code ignores the recovery timer unless it's the only thing running.
  *
- * It would be nice to reimplement this with multiple timers, a la POSIX
- * 1003.1, but not many systems offer them yet.
+ * XXX
+ * It would be nice to reimplement this with two timers, a la POSIX 1003.1,
+ * but not many systems offer them yet.
  */
 
-/*
+/* 
  * busy_on --
- *	Display a message if too much time passes.
+ *	Set a busy message timer.
  */
-void
-busy_on(sp, seconds, msg)
+int
+busy_on(sp, msg)
 	SCR *sp;
-	int seconds;
 	char const *msg;
 {
 	struct itimerval value;
-	struct sigaction act;
-
-	/* No busy messages in batch mode. */
-	if (F_ISSET(sp, S_EXSILENT))
-		return;
-
-	/* Turn off the current timer, saving its current value. */
-	value.it_interval.tv_sec = value.it_value.tv_sec = 0;
-	value.it_interval.tv_usec = value.it_value.tv_usec = 0;
-	if (setitimer(ITIMER_REAL, &value, &sp->time_value))
-		return;
+	struct timeval tod;
 
 	/*
-	 * Decrement the original timer by the number of seconds
-	 * we're going to wait.
+	 * Give the oldest busy message precedence, since it's
+	 * the longer running operation.
 	 */
-	if (sp->time_value.it_value.tv_sec > seconds)
-		sp->time_value.it_value.tv_sec -= seconds;
-	else
-		sp->time_value.it_value.tv_sec = 1;
+	if (sp->busy_msg != NULL)
+		return (1);
 
-	/* Reset the handler, saving its current value. */
-	act.sa_handler = busy_handler;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-	(void)sigaction(SIGALRM, &act, &sp->time_handler);
+	/* Get the current time of day, and create a target time. */
+	if (gettimeofday(&tod, NULL))
+		return (1);
+#define	USER_PATIENCE_USECS	(8 * 100000L)
+	sp->busy_tod.tv_sec = tod.tv_sec;
+	sp->busy_tod.tv_usec = tod.tv_usec + USER_PATIENCE_USECS;
 
-	/* Reset the timer. */
-	value.it_value.tv_sec = seconds;
+	/* We depend on this being an atomic instruction. */
+	sp->busy_msg = msg;
+
+	/*
+	 * Busy messages turn around fast.  Reset the timer regardless
+	 * of its current state.
+	 */
+	value.it_value.tv_sec = 0;
+	value.it_value.tv_usec = USER_PATIENCE_USECS;
 	value.it_interval.tv_sec = 0;
-	value.it_interval.tv_usec = value.it_value.tv_usec = 0;
-	(void)setitimer(ITIMER_REAL, &value, NULL);
-
-	sp->time_msg = msg;
-	F_SET(sp, S_TIMER_SET);
+	value.it_interval.tv_usec = 0;
+	if (setitimer(ITIMER_REAL, &value, NULL))
+		msgq(sp, M_SYSERR, "timer: setitimer");
+	return (0);
 }
 
 /*
  * busy_off --
- *	Reset the timer handlers.
+ *	Turn off a busy message timer.
  */
 void
 busy_off(sp)
 	SCR *sp;
 {
-	struct itimerval ovalue, value;
-
-	/* No busy messages in batch mode. */
-	if (F_ISSET(sp, S_EXSILENT))
-		return;
-
-	/* If the timer flag isn't set, it must have fired. */
-	if (!F_ISSET(sp, S_TIMER_SET))
-		return;
-
-	/* Ignore it if first on one of following system calls. */
-	F_CLR(sp, S_TIMER_SET);
-
-	/* Turn off the current timer. */
-	value.it_interval.tv_sec = value.it_value.tv_sec = 0;
-	value.it_interval.tv_usec = value.it_value.tv_usec = 0;
-	if (setitimer(ITIMER_REAL, &value, &ovalue))
-		return;
-
-	/* If the timer wasn't running, we're done. */
-	if (sp->time_handler.sa_handler == SIG_DFL)
-		return;
-
-	/*
-	 * Increment the old timer by the number of seconds
-	 * remaining in the new one.
-	 */
-	sp->time_value.it_value.tv_sec += ovalue.it_value.tv_sec;
-
-	/* Reset the handler to the original handler. */
-	(void)sigaction(SIGALRM, &sp->time_handler, NULL);
-
-	/* Reset the timer. */
-	(void)setitimer(ITIMER_REAL, &sp->time_value, NULL);
+	/* We depend on this being an atomic instruction. */
+	sp->busy_msg = NULL;
 }
 
 /*
- * busy_handler --
- *	Display a message when the timer goes off, and restore the
- *	timer to its original values.
+ * rcv_on --
+ *	Turn on recovery timer.
  */
-static void
-busy_handler(signo)
+int
+rcv_on(sp, ep)
+	SCR *sp;
+	EXF *ep;
+{
+	struct itimerval value;
+	struct timeval tod;
+
+	/* Get the current time of day. */
+	if (gettimeofday(&tod, NULL))
+		return (1);
+
+	/* Create target time of day. */
+	ep->rcv_tod.tv_sec = tod.tv_sec + RCV_PERIOD;
+	ep->rcv_tod.tv_usec = 0;
+
+	/*
+	 * If there's a busy message happening, we're done, the
+	 * interrupt handler will start our timer as necessary.
+	 */
+	if (sp->busy_msg != NULL)
+		return (0);
+
+	value.it_value.tv_sec = RCV_PERIOD;
+	value.it_value.tv_usec = 0;
+	value.it_interval.tv_sec = 0;
+	value.it_interval.tv_usec = 0;
+	if (setitimer(ITIMER_REAL, &value, NULL)) {
+		msgq(sp, M_SYSERR, "timer: setitimer");
+		return (1);
+	}
+	return (0);
+}
+
+/*
+ * h_alrm --
+ *	Handle SIGALRM.
+ */
+void
+h_alrm(signo)
 	int signo;
 {
+	struct itimerval value;
+	struct timeval ntod, tod;
 	SCR *sp;
+	EXF *ep;
 
-	for (sp = __global_list->dq.cqh_first;
-	    sp != (void *)&__global_list->dq; sp = sp->q.cqe_next)
-		if (F_ISSET(sp, S_TIMER_SET)) {
-			sp->s_busy(sp, sp->time_msg);
-			busy_off(sp);
+	/* XXX: Get the current time of day; if this fails, we're dead. */
+	if (gettimeofday(&tod, NULL))
+		return;
+	
+	/*
+	 * Fire any timers that are past due, or any that are due
+	 * in a tenth of a second or less.
+	 */
+	for (ntod.tv_sec = 0, sp = __global_list->dq.cqh_first;
+	    sp != (void *)&__global_list->dq; sp = sp->q.cqe_next) {
+
+		/* Check the busy timer if the msg pointer is set. */
+		if (sp->busy_msg == NULL)
+			goto skip_busy;
+		if (sp->busy_tod.tv_sec > tod.tv_sec ||
+		    sp->busy_tod.tv_sec == tod.tv_sec &&
+		    sp->busy_tod.tv_usec > tod.tv_usec &&
+		    sp->busy_tod.tv_usec - tod.tv_usec > 100000L) {
+			if (ntod.tv_sec == 0 ||
+			    ntod.tv_sec > sp->busy_tod.tv_sec ||
+			    ntod.tv_sec == sp->busy_tod.tv_sec &&
+			    ntod.tv_usec > sp->busy_tod.tv_usec)
+				ntod = sp->busy_tod;
+		} else {
+			(void)sp->s_busy(sp, sp->busy_msg);
+			sp->busy_msg = NULL;
 		}
+
+		/*
+		 * Check the recovery timer if there's an EXF structure
+		 * and the recovery bit is set.
+		 */
+skip_busy:	if ((ep = sp->ep) == NULL || !F_ISSET(sp->ep, F_RCV_ON))
+			continue;
+		if (ep->rcv_tod.tv_sec > tod.tv_sec ||
+		    ep->rcv_tod.tv_sec == tod.tv_sec &&
+		    ep->rcv_tod.tv_usec > tod.tv_usec &&
+		    ep->rcv_tod.tv_usec - tod.tv_usec > 100000L) {
+			if (ntod.tv_sec == 0 ||
+			    ntod.tv_sec > ep->rcv_tod.tv_sec ||
+			    ntod.tv_sec == ep->rcv_tod.tv_sec &&
+			    ntod.tv_usec > ep->rcv_tod.tv_usec)
+				ntod = ep->rcv_tod;
+		} else {
+			F_SET(sp->gp, G_SIGALRM);
+			ep->rcv_tod = tod;
+			ep->rcv_tod.tv_sec += RCV_PERIOD;
+
+			if (ntod.tv_sec == 0 ||
+			    ntod.tv_sec > ep->rcv_tod.tv_sec ||
+			    ntod.tv_sec == ep->rcv_tod.tv_sec &&
+			    ntod.tv_usec > ep->rcv_tod.tv_usec)
+				ntod = ep->rcv_tod;
+		}
+	}
+
+	if (ntod.tv_sec == 0)
+		return;
+
+	/* XXX: Set the timer; if this fails, we're dead. */
+	value.it_value.tv_sec = ntod.tv_sec - tod.tv_sec;
+	value.it_value.tv_usec = ntod.tv_usec - tod.tv_usec;
+	value.it_interval.tv_sec = 0;
+	value.it_interval.tv_usec = 0;
+	(void)setitimer(ITIMER_REAL, &value, NULL);
 }

@@ -1,0 +1,38 @@
+This is my current TODO list for 1.1.5.  Please feel free to add to
+it, assuming that you've actually got some confidence that you or
+someone else will be able to actually get to whatever it is (or it's
+so critical that you don't think 1.1.5 could/should be released
+without it).
+
+Also, please bear in mind the following milestones we have to hit:
+
+June 5th	Feature Freeze (bug fixes and cleanup work only).
+June 16th	Code Freeze
+June 20th	Roll binaries - begin initial testing
+June 23rd	Announce availability of 1.1.5.
+
+(*) = Task is completed
+(@) = Task is abandoned
+
+Task					Urgency		Who
+-------------------------------------------------------------------------------
+Floppy driver fixes			Low *		Joerg Wunsch
+Sound driver (GUS/Multicast/cleanup)	Medium		Steven W/Andrew C.
+Curses library problems			Medium *	Steven W.
+SIO driver - reported problems		High *		Andrew C/Bruce E/???
+Syscons integration / new features	High *		Soren Schmidt/Jordan
+Update FT driver			Medium *	Javier R/Steven G.
+Update gdb				High *		Paul
+Make pcfs less dangerous		Low @		???
+Bruce's disklabel and bad144 fixes	Medium *	Andrew C.
+Misc NetBSD drivers for weird devices	Low @		Geoff
+Multicast Support			Medium *	Jordan
+Bounce Buffer fixes			High *		John/David
+VM panics and assorted lossage		High *		John/David
+Secure Key support			Low *		Guido
+Install script enhancements		Medium *	Andrew M/Jordan
+Fsck/umount cooperation with dirty bit	Low @		Paul R.
+PCFS data corruption with cp		Medium *	Steven W./ATS
+PCFS extended DOS partition support	Low @		???
+ISOFS over NSF fix			Medium/High *	???
+Libcompat				Low *		Joerg Wunsch

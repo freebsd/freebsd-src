@@ -79,9 +79,10 @@ Copyright (C) 1992, 1993, Garrett A. Wollman
 Copyright (C) 1992, 1993, HD Associates
 Copyright (C) 1992, 1993, Holger Veit
 Copyright (C) 1992, 1993, Jean-Loup Gailly
-Copyright (C) 1992, 1993, Joerg Wunsch
+Copyright (C) 1992, 1993, 1994 Joerg Wunsch
 Copyright (C) 1992, 1993, John Brezak
 Copyright (C) 1992, 1993, Motorola, Inc.
+Copyright (C) 1993, 1994, Jordan Hubbard
 Copyright (C) 1992, 1993, Soeren Schmidt
 Copyright (C) 1992, 1993, Theo de Raadt
 Copyright (C) 1992, 1993, University of Vermont and State Agricultural College
@@ -114,5 +115,8 @@ Copyright (C) 1993, Thomas Koenig
 Copyright (C) 1993, Winning Strategies, Inc.
 Copyright (C) 1994, Christoph M. Robitschko
 Copyright (C) 1994, University of Maryland
+Copyright (C) 1993, 1994, jc@irbs.UUCP (John Capo),
+		vak@zebub.msk.su (Serge Vakulenko),
+		ache@astral.msk.su (Andrew A. Chernov)
 
-$Id: COPYRIGHT.FreeBSD,v 1.2 1994/02/20 02:51:25 rgrimes Exp $
+$Id: COPYRIGHT.FreeBSD,v 1.4 1994/06/28 08:09:29 jkh Exp $

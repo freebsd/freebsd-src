@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getpwent.c	5.21 (Berkeley) 3/14/91";*/
-static char *rcsid = "$Id: getpwent.c,v 1.4 1994/01/11 19:00:58 nate Exp $";
+static char *rcsid = "$Id: getpwent.c,v 1.9 1994/05/05 18:16:44 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -54,8 +54,14 @@ static char *rcsid = "$Id: getpwent.c,v 1.4 1994/01/11 19:00:58 nate Exp $";
 #include <rpcsvc/ypclnt.h>
 #endif
 
+/* #define PW_COMPACT */
+/* Compact pwd.db/spwd.db structure by Alex G. Bulushev, bag@demos.su */
+
 static struct passwd _pw_passwd;	/* password structure */
 static DB *_pw_db;			/* password database */
+#ifdef PW_COMPACT
+static DB *_spw_db;                     /* shadow password database */
+#endif
 static int _pw_keynum;			/* key counter */
 static int _pw_stayopen;		/* keep fd's open */
 static int __hashpw(), __initdb();
@@ -260,6 +266,12 @@ getpwnam(name)
 				if (!_pw_stayopen) {
 					(void)(_pw_db->close)(_pw_db);
 					_pw_db = (DB *)NULL;
+#ifdef PW_COMPACT
+				    if (_spw_db) {
+					(void)(_spw_db->close)(_spw_db);
+					_spw_db = (DB *)NULL;
+				    }
+#endif
 				}
 				return &_pw_passwd;
 			}
@@ -268,6 +280,12 @@ getpwnam(name)
 		if (!_pw_stayopen) {
 			(void)(_pw_db->close)(_pw_db);
 			_pw_db = (DB *)NULL;
+#ifdef PW_COMPACT
+			if (_spw_db) {
+			     (void)(_spw_db->close)(_spw_db);
+			      _spw_db = (DB *)NULL;
+			}
+#endif
 		}
 		return (struct passwd *)NULL;
 	}
@@ -283,6 +301,12 @@ getpwnam(name)
 	if (!_pw_stayopen) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
+#ifdef PW_COMPACT
+		if (_spw_db) {
+		      (void)(_spw_db->close)(_spw_db);
+		      _spw_db = (DB *)NULL;
+		 }
+#endif
 	}
 	return(rval ? &_pw_passwd : (struct passwd *)NULL);
 }
@@ -355,6 +379,12 @@ getpwuid(uid)
 				if (!_pw_stayopen) {
 					(void)(_pw_db->close)(_pw_db);
 					_pw_db = (DB *)NULL;
+#ifdef PW_COMPACT
+				    if (_spw_db) {
+					(void)(_spw_db->close)(_spw_db);
+					_spw_db = (DB *)NULL;
+				    }
+#endif
 				}
 				return &_pw_passwd;
 			}
@@ -363,6 +393,12 @@ getpwuid(uid)
 		if (!_pw_stayopen) {
 			(void)(_pw_db->close)(_pw_db);
 			_pw_db = (DB *)NULL;
+#ifdef PW_COMPACT
+			if (_spw_db) {
+			     (void)(_spw_db->close)(_spw_db);
+			     _spw_db = (DB *)NULL;
+			}
+#endif
 		}
 		return (struct passwd *)NULL;
 	}
@@ -378,6 +414,12 @@ getpwuid(uid)
 	if (!_pw_stayopen) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
+#ifdef PW_COMPACT
+		if (_spw_db) {
+		      (void)(_spw_db->close)(_spw_db);
+		      _spw_db = (DB *)NULL;
+		}
+#endif
 	}
 	return(rval ? &_pw_passwd : (struct passwd *)NULL);
 }
@@ -410,6 +452,12 @@ endpwent()
 	if (_pw_db) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
+#ifdef PW_COMPACT
+		if (_spw_db) {
+		     (void)(_spw_db->close)(_spw_db);
+		     _spw_db = (DB *)NULL;
+		}
+#endif
 	}
 #ifdef YP
 	__ypmode = 0;
@@ -425,12 +473,30 @@ __initdb()
 	static int warned;
 	char *p;
 
+#ifdef PW_COMPACT
+	if (!geteuid()) {
+	  _spw_db = dbopen(_PATH_SMP_DB, O_RDONLY, 0, DB_HASH, NULL);
+	  if (!_spw_db && !warned)
+		syslog(LOG_ERR, "%s: %m", _PATH_SMP_DB);
+	}
+	_pw_db = dbopen(_PATH_MP_DB, O_RDONLY, 0, DB_HASH, NULL);
+	if (_pw_db)
+		return(1);
+	if (!warned)
+		syslog(LOG_ERR, "%s: %m", _PATH_MP_DB);
+	if (_spw_db) {
+		(void)(_spw_db->close)(_spw_db);
+		_spw_db = (DB *)NULL;
+	}
+#else
 	p = (geteuid()) ? _PATH_MP_DB : _PATH_SMP_DB;
 	_pw_db = dbopen(p, O_RDONLY, 0, DB_HASH, NULL);
 	if (_pw_db)
 		return(1);
 	if (!warned)
 		syslog(LOG_ERR, "%s: %m", p);
+#endif
+	warned = 1;
 	return(0);
 }
 
@@ -442,9 +508,26 @@ __hashpw(key)
 	static u_int max;
 	static char *line;
 	DBT data;
+#ifdef PW_COMPACT
+	DBT _key, *__key;
+	char bf[sizeof(_pw_keynum) + 1];
+#endif
 
 	if ((_pw_db->get)(_pw_db, key, &data, 0))
 		return(0);
+#ifdef PW_COMPACT
+	__key = key;
+	if (((char *)(*__key).data)[0] != _PW_KEYBYNUM) {
+		if (data.size != sizeof(_pw_keynum)) return(0);
+		bf[0] = _PW_KEYBYNUM;
+		bcopy(data.data, bf + 1, sizeof(_pw_keynum));
+		_key.data = (u_char *)bf;
+		_key.size = sizeof(_pw_keynum) + 1;
+		__key = (DBT *)&_key;
+		if ((_pw_db->get)(_pw_db, __key, &data, 0))
+			 return(0);
+	}
+#endif
 	p = (char *)data.data;
 	if (data.size > max && !(line = realloc(line, max += 1024)))
 		return(0);
@@ -452,7 +535,9 @@ __hashpw(key)
 	t = line;
 #define	EXPAND(e)	e = t; while (*t++ = *p++);
 	EXPAND(_pw_passwd.pw_name);
+#ifndef PW_COMPACT
 	EXPAND(_pw_passwd.pw_passwd);
+#endif
 	bcopy(p, (char *)&_pw_passwd.pw_uid, sizeof(int));
 	p += sizeof(int);
 	bcopy(p, (char *)&_pw_passwd.pw_gid, sizeof(int));
@@ -465,5 +550,11 @@ __hashpw(key)
 	EXPAND(_pw_passwd.pw_shell);
 	bcopy(p, (char *)&_pw_passwd.pw_expire, sizeof(time_t));
 	p += sizeof(time_t);
+#ifdef PW_COMPACT
+	if (_spw_db && !(_spw_db->get)(_spw_db, __key, &data, 0))
+	     p = (char *)data.data;
+	else p = "*";
+	EXPAND(_pw_passwd.pw_passwd);
+#endif
 	return(1);
 }

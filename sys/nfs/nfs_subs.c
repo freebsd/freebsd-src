@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_subs.c	7.41 (Berkeley) 5/15/91
- *	$Id: nfs_subs.c,v 1.5 1993/12/19 00:54:15 wollman Exp $
+ *	$Id: nfs_subs.c,v 1.6 1994/04/14 07:50:11 davidg Exp $
  */
 
 /*
@@ -262,6 +262,12 @@ nfsm_mbuftouio(mrep, uiop, siz, dpos)
 	return (error);
 }
 
+void nfsm_nullfree()
+{
+	/* Nothing to do here */
+}
+
+
 /*
  * copies a uio scatter/gather list to an mbuf chain...
  */
@@ -278,7 +284,7 @@ nfsm_uiotombuf(uiop, mq, siz, bpos)
 	int uiosiz, clflg, rem;
 	char *cp;
 
-	if (siz > MLEN)		/* or should it >= MCLBYTES ?? */
+	if (siz > MLEN && uiop->uio_segflg != UIO_SYSSPACE)
 		clflg = 1;
 	else
 		clflg = 0;
@@ -292,31 +298,43 @@ nfsm_uiotombuf(uiop, mq, siz, bpos)
 		if (left > siz)
 			left = siz;
 		uiosiz = left;
-		while (left > 0) {
+		if (uiop->uio_segflg == UIO_SYSSPACE) {
 			MGET(mp, M_WAIT, MT_DATA);
-			if (clflg)
-				MCLGET(mp, M_WAIT);
-			mp->m_len = NFSMSIZ(mp);
+			mp->m_flags |= M_EXT;
+			mp->m_data = mp->m_ext.ext_buf = uiocp;
+			mp->m_len = mp->m_ext.ext_size = uiosiz;
+			mp->m_ext.ext_free = nfsm_nullfree;
 			mp2->m_next = mp;
 			mp2 = mp;
-			xfer = (left > mp->m_len) ? mp->m_len : left;
+			uiop->uio_offset += uiosiz;
+			uiop->uio_resid -= uiosiz;
+		} else {
+			while (left > 0) {
+				MGET(mp, M_WAIT, MT_DATA);
+				if (clflg)
+					MCLGET(mp, M_WAIT);
+				mp->m_len = NFSMSIZ(mp);
+				mp2->m_next = mp;
+				mp2 = mp;
+				xfer = (left > mp->m_len) ? mp->m_len : left;
 #ifdef notdef
-			/* Not Yet.. */
-			if (uiop->uio_iov->iov_op != NULL)
-				(*(uiop->uio_iov->iov_op))
-				(uiocp, mtod(mp, caddr_t), xfer);
-			else
+				/* Not Yet.. */
+				if (uiop->uio_iov->iov_op != NULL)
+					(*(uiop->uio_iov->iov_op))
+					(uiocp, mtod(mp, caddr_t), xfer);
+				else
+				if (uiop->uio_segflg == UIO_SYSSPACE)
+					bcopy(uiocp, mtod(mp, caddr_t), xfer);
+				else
 #endif
-			if (uiop->uio_segflg == UIO_SYSSPACE)
-				bcopy(uiocp, mtod(mp, caddr_t), xfer);
-			else
 				copyin(uiocp, mtod(mp, caddr_t), xfer);
-			len = mp->m_len;
-			mp->m_len = xfer;
-			left -= xfer;
-			uiocp += xfer;
-			uiop->uio_offset += xfer;
-			uiop->uio_resid -= xfer;
+				len = mp->m_len;
+				mp->m_len = xfer;
+				left -= xfer;
+				uiocp += xfer;
+				uiop->uio_offset += xfer;
+				uiop->uio_resid -= xfer;
+			}
 		}
 		if (uiop->uio_iov->iov_len <= siz) {
 			uiop->uio_iovcnt--;

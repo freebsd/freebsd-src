@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: procfs.h,v 1.1 1993/12/12 12:27:03 davidg Exp $
+ *	$Id: procfs.h,v 1.2 1994/03/07 11:39:04 davidg Exp $
  */
 #ifndef _SYS_PROCFS_H_
 #define _SYS_PROCFS_H_
@@ -44,6 +44,26 @@ struct vmfd {		/* Mapped file descriptor */
 	int		fd;	/* OUT */
 };
 
+enum vmet { PFS_END, PFS_PRMAP, PFS_OBJINFO };
+
+struct objinfo {
+	int	ref_count;	/* ref_count for object */
+	int	rss_map;	/* rss within the map entry */
+	int	persist;	/* persist flag */
+	int	internal;	/* internal flag */
+	vm_offset_t offset;	/* offset into object */
+	vm_offset_t size;	/* total size of object */
+	struct vm_page pages[0];	/* pages */
+};
+
+struct procvminfo	{	/* Full proc VM info */
+	enum	vmet entrytype;	/* type of entry */
+	union	{
+		struct procmap pm;	/* proc map entry */
+		struct objinfo oi;	/* object info entry */
+	} u;
+};
+
 typedef	unsigned long	fltset_t;
 
 #define PIOCGPINFO	_IOR('P', 0, struct kinfo_proc)
@@ -54,5 +74,7 @@ typedef	unsigned long	fltset_t;
 #define PIOCGNMAP	_IOR('P', 5, int)
 #define PIOCGMAP	_IO ('P', 6)
 #define PIOCGMAPFD	_IOWR('P', 7, struct vmfd)
+#define PIOCGNVMINFO	_IOR('P', 8, int)
+#define PIOCGVMINFO	_IO ('P', 9)
 
 #endif /* _SYS_PROCFS_H_ */

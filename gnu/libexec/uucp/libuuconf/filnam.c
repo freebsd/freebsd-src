@@ -20,18 +20,18 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_filnam_rcsid[] = "$Id: filnam.c,v 1.1 1993/08/05 18:25:17 conklin Exp $";
+const char _uuconf_filnam_rcsid[] = "$Id: filnam.c,v 1.2 1994/05/07 18:12:13 ache Exp $";
 #endif
 
 /* Return the saved file name.  */
 
-const char *
+UUCONF_CONST char *
 uuconf_error_filename (pglobal)
      pointer pglobal;
 {

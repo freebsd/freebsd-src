@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)callout.h	7.2 (Berkeley) 2/15/91
- *	$Id: callout.h,v 1.4.2.1 1994/05/04 07:57:02 rgrimes Exp $
+ *	$Id: callout.h,v 1.5 1994/05/04 08:30:18 rgrimes Exp $
  */
 
 #ifndef _SYS_CALLOUT_H_

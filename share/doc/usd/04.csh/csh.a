@@ -56,7 +56,7 @@ Syntactic metacharacters
 Filename metacharacters
 .DS
 /	1.6	separates components of a file's pathname
-\.	1.6	separates root parts of a file name from extensions
+\&.	1.6	separates root parts of	a file name from extensions
 ?	1.6	expansion character matching any single character
 *	1.6	expansion character matching any sequence of characters
 [ ]	1.6	expansion sequence matching any single character from a set

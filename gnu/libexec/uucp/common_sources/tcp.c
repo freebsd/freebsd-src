@@ -1,7 +1,7 @@
 /* tcp.c
    Code to handle TCP connections.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char tcp_rcsid[] = "$Id: tcp.c,v 1.1 1993/08/05 18:22:46 conklin Exp $";
+const char tcp_rcsid[] = "$Id: tcp.c,v 1.2 1994/05/07 18:09:01 ache Exp $";
 #endif
 
 #if HAVE_TCP
@@ -72,7 +72,6 @@ static boolean ftcp_close P((struct sconnection *qconn,
 			     pointer puuconf,
 			     struct uuconf_dialer *qdialer,
 			     boolean fsuccess));
-static boolean ftcp_reset P((struct sconnection *qconn));
 static boolean ftcp_dial P((struct sconnection *qconn, pointer puuconf,
 			    const struct uuconf_system *qsys,
 			    const char *zphone,
@@ -88,7 +87,6 @@ static const struct sconncmds stcpcmds =
   NULL, /* pfunlock */
   ftcp_open,
   ftcp_close,
-  ftcp_reset,
   ftcp_dial,
   fsysdep_conn_read,
   fsysdep_conn_write,
@@ -110,9 +108,11 @@ fsysdep_tcp_init (qconn)
 
   q = (struct ssysdep_conn *) xmalloc (sizeof (struct ssysdep_conn));
   q->o = -1;
+  q->ord = -1;
+  q->owr = -1;
   q->zdevice = NULL;
   q->iflags = -1;
-  q->istdout_flags = -1;
+  q->iwr_flags = -1;
   q->fterminal = FALSE;
   q->ftli = FALSE;
   q->ibaud = 0;
@@ -174,6 +174,10 @@ ftcp_open (qconn, ibaud, fwait)
       qsysdep->o = -1;
       return FALSE;
     }
+
+  /* We save our process ID in the qconn structure.  This is checked
+     in ftcp_close.  */
+  qsysdep->ipid = getpid ();
 
   /* If we aren't waiting for a connection, we're done.  */
   if (! fwait)
@@ -347,23 +351,16 @@ ftcp_close (qconn, puuconf, qdialer, fsuccess)
       fret = FALSE;
     }
   qsysdep->o = -1;
-  return fret;
-}
-
-/* Reset the port.  This will be called by a child which was forked
-   off in ftcp_open, above.  We don't want uucico to continue looping
-   and giving login prompts, so we pretend that we received a SIGINT
-   signal.  This should probably be handled more cleanly.  The signal
-   will not be recorded in the log file because we don't set
-   afLog_signal[INDEXSIG_SIGINT].  */
 
-/*ARGSUSED*/
-static boolean
-ftcp_reset (qconn)
-     struct sconnection *qconn;
-{
-  afSignal[INDEXSIG_SIGINT] = TRUE;
-  return TRUE;
+  /* If the current pid is not the one we used to open the port, then
+     we must have forked up above and we are now the child.  In this
+     case, we are being called from within the fendless loop in
+     uucico.c.  We return FALSE to force the loop to end and the child
+     to exit.  This should be handled in a cleaner fashion.  */
+  if (qsysdep->ipid != getpid ())
+    fret = FALSE;
+
+  return fret;
 }
 
 /* Dial out on a TCP port, so to speak: connect to a remote computer.  */
@@ -383,6 +380,7 @@ ftcp_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialer)
   struct hostent *q;
   struct sockaddr_in s;
   const char *zport;
+  char **pzdialer;
 
   qsysdep = (struct ssysdep_conn *) qconn->psysdep;
 
@@ -411,14 +409,23 @@ ftcp_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialer)
     }
 
   s.sin_family = q->h_addrtype;
+  memcpy (&s.sin_addr.s_addr, q->h_addr, (size_t) q->h_length);
   zport = qconn->qport->uuconf_u.uuconf_stcp.uuconf_zport;
   s.sin_port = itcp_port_number (zport);
-  memcpy (&s.sin_addr.s_addr, q->h_addr, (size_t) q->h_length);
 
   if (connect (qsysdep->o, (struct sockaddr *) &s, sizeof s) < 0)
     {
       ulog (LOG_ERROR, "connect: %s", strerror (errno));
       return FALSE;
+    }
+
+  /* Handle the dialer sequence, if any.  */
+  pzdialer = qconn->qport->uuconf_u.uuconf_stcp.uuconf_pzdialer;
+  if (pzdialer != NULL && *pzdialer != NULL)
+    {
+      if (! fconn_dial_sequence (qconn, puuconf, pzdialer, qsys, zphone,
+				 qdialer, ptdialer))
+	return FALSE;
     }
 
   return TRUE;

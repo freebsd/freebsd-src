@@ -196,6 +196,7 @@ _fmt(format, t)
 			case 'R':
 				if (!_fmt("%H:%M", t))
 					return(0);
+				continue;
 			case 'r':
 				if (!_fmt(t_fmt_ampm, t))
 					return(0);

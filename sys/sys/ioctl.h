@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ioctl.h	7.19 (Berkeley) 6/26/91
- *	$Id: ioctl.h,v 1.6.2.1 1994/05/04 07:57:16 rgrimes Exp $
+ *	$Id: ioctl.h,v 1.10 1994/05/30 03:29:53 ache Exp $
  */
 
 #ifndef	_IOCTL_H_
@@ -154,10 +154,10 @@ struct ttysize {
 #define	TIOCEXT		_IOW('t', 96, int)	/* pty: external processing */
 #define	TIOCSIG		_IO('t', 95)		/* pty: generate signal */
 #define	TIOCDRAIN	_IO('t', 94)		/* wait till output drained */
-#define	TIOCMSBIDIR	_IOW('t', 93, int)	/* modem: set bidir cap. */
-#define	TIOCMGBIDIR	_IOR('t', 92, int)	/* modem: get bidir cap. */
 #define TIOCMSDTRWAIT	_IOW('t', 91, int)	/* modem: set wait on close */
 #define TIOCMGDTRWAIT	_IOR('t', 90, int)	/* modem: get wait on close */
+#define TIOCTIMESTAMP	_IOR('t', 89, struct timeval)	/* get timestamp of 
+						 last interrupt for xntp. */
 
 #define	TTYDISC		0		/* termios tty line discipline */
 #define	NETLDISC	1		/* line discip for berk net */
@@ -219,6 +219,9 @@ struct ttysize {
 #define	SIOCGIFMTU	_IOWR('i',126, struct ifreq)	/* get ifnet mtu */
 #define	SIOCSIFASYNCMAP	_IOW('i', 125, struct ifreq)	/* set ppp asyncmap */
 #define	SIOCGIFASYNCMAP	_IOWR('i',124, struct ifreq)	/* get ppp asyncmap */
+
+#define	SIOCADDMULTI	_IOW('i', 49, struct ifreq)	/* add m'cast addr */
+#define	SIOCDELMULTI	_IOW('i', 50, struct ifreq)	/* del m'cast addr */
 
 #ifndef KERNEL
 

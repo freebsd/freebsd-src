@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)setup.c	5.33 (Berkeley) 2/22/91";
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/setup.c,v 1.2 1993/07/22 16:52:00 jkh Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/setup.c,v 1.3 1994/03/07 22:27:23 ats Exp $";
 #endif /* not lint */
 
 #define DKTYPENAMES
@@ -461,6 +461,8 @@ calcsb(dev, devfd, fs)
 	fs->fs_cgoffset = roundup(
 		howmany(fs->fs_nsect, NSPF(fs)), fs->fs_frag);
 	fs->fs_fpg = (fs->fs_cpg * fs->fs_spc) / NSPF(fs);
+	/* Make sure, that fs->fs_cpg is not zero to avoid a divide by zero */
+	if(fs->fs_cpg == 0) fs->fs_cpg = 1;
 	fs->fs_ncg = howmany(fs->fs_size / fs->fs_spc, fs->fs_cpg);
 	for (fs->fs_fsbtodb = 0, i = NSPF(fs); i > 1; i >>= 1)
 		fs->fs_fsbtodb++;

@@ -1,10 +1,10 @@
 /*
- * linux/kernel/chr_drv/sound/opl3.c
- * 
+ * sound/opl3.c
+ *
  * A low level driver for Yamaha YM3812 and OPL-3 -chips
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,7 +24,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 /* Major improvements to the FM handling 30AUG92 by Rob Hooft, */
@@ -38,7 +38,7 @@
 
 #define MAX_VOICE	18
 #define OFFS_4OP	11	/* Definitions for the operators OP3 and OP4
-				 * begin here */
+				   * begin here */
 
 static int      opl3_enabled = 0;
 static int      left_address = 0x388, right_address = 0x388, both_address = 0;
@@ -59,8 +59,7 @@ struct voice_info
 
 static struct voice_info voices[MAX_VOICE];
 
-typedef struct sbi_instrument instr_array[SBFM_MAXINSTR];
-static instr_array instrmap;
+static struct sbi_instrument *instrmap;
 static struct sbi_instrument *active_instrument[MAX_VOICE] =
 {NULL};
 
@@ -71,17 +70,20 @@ static int      already_initialized = 0;
 
 static int      opl3_ok = 0;
 static int      opl3_busy = 0;
-static int      fm_model = 0;	/* 0=no fm, 1=mono, 2=SB Pro 1, 3=SB Pro 2	 */
+static int      fm_model = 0;	/* 0=no fm, 1=mono, 2=SB Pro 1, 3=SB Pro 2       */
 
 static int      store_instr (int instr_no, struct sbi_instrument *instr);
 static void     freq_to_fnum (int freq, int *block, int *fnum);
-static void     opl3_command (int io_addr, const unsigned char addr, const unsigned char val);
+static void     opl3_command (int io_addr, unsigned int addr, unsigned int val);
 static int      opl3_kill_note (int dev, int voice, int velocity);
 static unsigned char connection_mask = 0x00;
 
 void
 enable_opl3_mode (int left, int right, int both)
 {
+  if (opl3_enabled)
+    return;
+
   opl3_enabled = 1;
   left_address = left;
   right_address = right;
@@ -112,7 +114,7 @@ enter_4op_mode (void)
 
   for (i = 0; i < 12; i++)
     logical_voices[i] = voices_4op[i];
-  nr_voices = 6;
+  nr_voices = 12;
 }
 
 static int
@@ -140,7 +142,7 @@ opl3_ioctl (int dev,
       break;
 
     case SNDCTL_SYNTH_INFO:
-      fm_info.nr_voices = nr_voices;
+      fm_info.nr_voices = (nr_voices == 12) ? 6 : nr_voices;
 
       IOCTL_TO_USER ((char *) arg, 0, &fm_info, sizeof (fm_info));
       return 0;
@@ -169,10 +171,10 @@ opl3_detect (int ioaddr)
    * This function returns 1 if the FM chicp is present at the given I/O port
    * The detection algorithm plays with the timer built in the FM chip and
    * looks for a change in the status register.
-   * 
+   *
    * Note! The timers of the FM chip are not connected to AdLib (and compatible)
    * boards.
-   * 
+   *
    * Note2! The chip is initialized if detected.
    */
 
@@ -184,6 +186,9 @@ opl3_detect (int ioaddr)
       return 0;			/* Do avoid duplicate initializations */
     }
 
+  if (opl3_enabled)
+    ioaddr = left_address;
+
   opl3_command (ioaddr, TIMER_CONTROL_REGISTER, TIMER1_MASK | TIMER2_MASK);	/* Reset timers 1 and 2 */
   opl3_command (ioaddr, TIMER_CONTROL_REGISTER, IRQ_RESET);	/* Reset the IRQ of FM
 								 * chicp */
@@ -192,7 +197,7 @@ opl3_detect (int ioaddr)
 
   if ((stat1 & 0xE0) != 0x00)
     {
-      return 0;			/* Should be 0x00	 */
+      return 0;			/* Should be 0x00        */
     }
 
   opl3_command (ioaddr, TIMER1_REGISTER, 0xff);	/* Set timer 1 to 0xff */
@@ -270,7 +275,7 @@ store_instr (int instr_no, struct sbi_instrument *instr)
 {
 
   if (instr->key != FM_PATCH && (instr->key != OPL3_PATCH || !opl3_enabled))
-    printk ("FM warning: Invalid patch format field (key) 0x%04x\n", instr->key);
+    printk ("FM warning: Invalid patch format field (key) 0x%x\n", instr->key);
   memcpy ((char *) &(instrmap[instr_no]), (char *) instr, sizeof (*instr));
 
   return 0;
@@ -362,7 +367,7 @@ set_voice_volume (int voice, int volume)
       vol2 = instr->operators[3];
 
       if ((instr->operators[10] & 0x01))
-	{			/* Additive synthesis	 */
+	{			/* Additive synthesis    */
 	  calc_vol (&vol1, volume);
 	  calc_vol (&vol2, volume);
 	}
@@ -616,7 +621,7 @@ freq_to_fnum (int freq, int *block, int *fnum)
 }
 
 static void
-opl3_command (int io_addr, const unsigned char addr, const unsigned char val)
+opl3_command (int io_addr, unsigned int addr, unsigned int val)
 {
   int             i;
 
@@ -625,7 +630,7 @@ opl3_command (int io_addr, const unsigned char addr, const unsigned char val)
    * register. The OPL-3 survives with just two INBs
    */
 
-  OUTB (addr, io_addr);		/* Select register	 */
+  OUTB ((unsigned char) (addr & 0xff), io_addr);	/* Select register       */
 
   if (!opl3_enabled)
     tenmicrosec ();
@@ -633,7 +638,7 @@ opl3_command (int io_addr, const unsigned char addr, const unsigned char val)
     for (i = 0; i < 2; i++)
       INB (io_addr);
 
-  OUTB (val, io_addr + 1);	/* Write to register	 */
+  OUTB ((unsigned char) (val & 0xff), io_addr + 1);	/* Write to register  */
 
   if (!opl3_enabled)
     {
@@ -745,6 +750,11 @@ opl3_panning (int dev, int voice, int pressure)
 {
 }
 
+static void
+opl3_volume_method (int dev, int mode)
+{
+}
+
 #define SET_VIBRATO(cell) { \
       tmp = instr->operators[(cell-1)+(((cell-1)/2)*OFFS_4OP)]; \
       if (pressure > 110) \
@@ -850,7 +860,7 @@ opl3_controller (int dev, int voice, int ctrl_num, int value)
       opl3_command (map->ioaddr, FNUM_LOW + map->voice_num, data);
 
       data = 0x20 | ((block & 0x7) << 2) | ((fnum >> 8) & 0x3);	/* KEYON|OCTAVE|MS bits
-								 * of f-num */
+									   * of f-num */
       voices[voice].keyon_byte = data;
       opl3_command (map->ioaddr, KEYON_BLOCK + map->voice_num, data);
       break;
@@ -884,6 +894,7 @@ static struct synth_operations opl3_operations =
   opl3_aftertouch,
   opl3_controller,
   opl3_panning,
+  opl3_volume_method,
   opl3_patchmgr
 };
 
@@ -892,17 +903,26 @@ opl3_init (long mem_start)
 {
   int             i;
 
+  PERMANENT_MALLOC (struct sbi_instrument *, instrmap,
+		    SBFM_MAXINSTR * sizeof (*instrmap), mem_start);
+
   synth_devs[num_synths++] = &opl3_operations;
   fm_model = 0;
   opl3_ok = 1;
   if (opl3_enabled)
     {
+#ifdef __FreeBSD__
       printk ("snd1: <Yamaha OPL-3 FM>");
+#else
+      printk (" <Yamaha OPL-3 FM>");
+#endif
       fm_model = 2;
       nr_voices = 18;
       fm_info.nr_drums = 0;
       fm_info.capabilities |= SYNTH_CAP_OPL3;
+#ifndef SCO
       strcpy (fm_info.name, "Yamaha OPL-3");
+#endif
 
       for (i = 0; i < 18; i++)
 	if (physical_voices[i].ioaddr == USE_LEFT)
@@ -917,7 +937,11 @@ opl3_init (long mem_start)
     }
   else
     {
+#ifdef __FreeBSD__
       printk ("snd1: <Yamaha 2-OP FM>");
+#else
+      printk (" <Yamaha 2-OP FM>");
+#endif
       fm_model = 1;
       nr_voices = 9;
       fm_info.nr_drums = 0;

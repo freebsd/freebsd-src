@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.10 1994/01/31 04:19:00 davidg Exp $
+ * 	$Id: pmap.h,v 1.16 1994/06/07 17:48:46 davidg Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
@@ -58,7 +58,8 @@ struct pde
 unsigned int	
 		pd_v:1,			/* valid bit */
 		pd_prot:2,		/* access control */
-		pd_mbz1:2,		/* reserved, must be zero */
+		pd_ncpwt:1,		/* page cache write through */
+		pd_ncpcd:1,		/* page cache disable */
 		pd_u:1,			/* hardware maintained 'used' bit */
 		:1,			/* not used */
 		pd_mbz2:2,		/* reserved, must be zero */
@@ -76,7 +77,8 @@ struct pte
 unsigned int	
 		pg_v:1,			/* valid bit */
 		pg_prot:2,		/* access control */
-		pg_mbz1:2,		/* reserved, must be zero */
+		pg_ncpwt:1,		/* page cache write through */
+		pg_ncpcd:1,		/* page cache disable */
 		pg_u:1,			/* hardware maintained 'used' bit */
 		pg_m:1,			/* hardware maintained modified bit */
 		pg_mbz2:2,		/* reserved, must be zero */
@@ -91,10 +93,12 @@ unsigned int
 #define	PG_RW		0x00000002
 #define	PG_u		0x00000004
 #define	PG_PROT		0x00000006 /* all protection bits . */
-#define	PG_W		0x00000200
-#define	PG_N		0x00000800 /* Non-cacheable */
-#define	PG_M		0x00000040
+#define	PG_NC_PWT	0x00000008 /* page cache write through */
+#define	PG_NC_PCD	0x00000010 /* page cache disable */
+#define	PG_N		0x00000018 /* Non-cacheable */
 #define	PG_U		0x00000020
+#define	PG_M		0x00000040
+#define	PG_W		0x00000200
 #define	PG_FRAME	0xfffff000UL
 
 #define	PG_NOACC	0
@@ -115,8 +119,10 @@ unsigned int
 #define	PGEX_W		0x02	/* during a Write cycle */
 #define	PGEX_U		0x04	/* access from User mode (UPL) */
 
-typedef struct pde	pd_entry_t;	/* page directory entry */
-typedef struct pte	pt_entry_t;	/* Mach page table entry */
+/* typedef struct pde	pd_entry_t;	*/ /* page directory entry */
+/* typedef struct pte	pt_entry_t;	*/ /* Mach page table entry */
+typedef unsigned int *pd_entry_t;
+typedef unsigned int *pt_entry_t;
 
 /*
  * NKPDE controls the virtual space of the kernel, what ever is left, minus
@@ -145,18 +151,18 @@ typedef struct pte	pt_entry_t;	/* Mach page table entry */
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
 #define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
 #define	KSTKPTDI	(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
-#define KSTKPTEOFF	(NBPG/sizeof(struct pde)-UPAGES) /* pte entry for kernel stack */
+#define KSTKPTEOFF	(NBPG/sizeof(pd_entry_t)-UPAGES) /* pte entry for kernel stack */
 
-#define PDESIZE		sizeof(struct pde) /* for assembly files */
-#define PTESIZE		sizeof(struct pte) /* for assembly files */
+#define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
+#define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
 
 /*
  * Address of current and alternate address space page table maps
  * and directories.
  */
 #ifdef KERNEL
-extern struct pte	PTmap[], APTmap[], Upte;
-extern struct pde	PTD[], APTD[], PTDpde, APTDpde, Upde;
+extern pt_entry_t PTmap[], APTmap[], Upte;
+extern pd_entry_t PTD[], APTD[], PTDpde, APTDpde, Upde;
 extern pt_entry_t	*Sysmap;
 
 extern int	IdlePTD;	/* physical address of "Idle" state directory */
@@ -171,12 +177,29 @@ extern int	IdlePTD;	/* physical address of "Idle" state directory */
 #define	vtopte(va)	(PTmap + i386_btop(va))
 #define	kvtopte(va)	vtopte(va)
 #define	ptetov(pt)	(i386_ptob(pt - PTmap)) 
-#define	vtophys(va)	(i386_ptob(vtopte(va)->pg_pfnum) | ((int)(va) & PGOFSET))
+#define	vtophys(va)	(((int) (*vtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
 #define	ispt(va)	((va) >= UPT_MIN_ADDRESS && (va) <= KPT_MAX_ADDRESS)
 
 #define	avtopte(va)	(APTmap + i386_btop(va))
 #define	ptetoav(pt)	(i386_ptob(pt - APTmap)) 
-#define	avtophys(va)	(i386_ptob(avtopte(va)->pg_pfnum) | ((int)(va) & PGOFSET))
+#define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
+
+#ifdef KERNEL
+/*
+ *	Routine:	pmap_kextract
+ *	Function:
+ *		Extract the physical page address associated
+ *		kernel virtual address.
+ */
+static inline vm_offset_t
+pmap_kextract(va)
+	vm_offset_t va;
+{
+	vm_offset_t pa = *(int *)vtopte(va);
+	pa = (pa & PG_FRAME) | (va & ~PG_FRAME);
+	return pa;
+}
+#endif
 
 /*
  * macros to generate page directory/table indicies
@@ -252,7 +275,7 @@ extern void pmap_remove(struct pmap *, vm_offset_t, vm_offset_t);
 extern void pmap_protect(struct pmap *, vm_offset_t, vm_offset_t, vm_prot_t);
 extern void pmap_enter(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
 extern void pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
-extern inline struct pte *pmap_pte(pmap_t, vm_offset_t);
+extern inline pt_entry_t * const pmap_pte(pmap_t, vm_offset_t);
 extern vm_offset_t pmap_extract(pmap_t, vm_offset_t);
 extern void pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 extern void pmap_collect(pmap_t);

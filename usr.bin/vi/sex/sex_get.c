@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,23 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sex_get.c	8.12 (Berkeley) 12/9/93";
+static char sccsid[] = "@(#)sex_get.c	8.19 (Berkeley) 3/15/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
-#include <stdlib.h>
+#include <bitstring.h>
 #include <ctype.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "excmd.h"
@@ -66,6 +76,9 @@ static void	repaint __P((SCR *, int, char *, size_t));
 	for (cnt = tp->wd[tp->len]; cnt > 0; --cnt, --col)		\
 		(void)fprintf(stdout, "%s", "\b \b");			\
 }
+
+#define	TXT_VALID_EX							\
+	(TXT_BEAUTIFY | TXT_CNTRLD | TXT_CR | TXT_NLECHO | TXT_PROMPT)
 
 /*
  * sex_get --
@@ -117,7 +130,7 @@ newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 	} else
 		col = 0;
 
-	iflags = LF_ISSET(TXT_MAPCOMMAND | TXT_MAPINPUT);
+	iflags = LF_ISSET(TXT_BEAUTIFY | TXT_MAPCOMMAND | TXT_MAPINPUT);
 	for (quoted = Q_NOTSET;;) {
 		(void)fflush(stdout);
 
@@ -133,6 +146,20 @@ newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 		}
 
 		switch (ikey.value) {
+		case K_CNTRLD:
+			/*
+			 * !!!
+			 * Historically, ^D took (but then ignored) a count.
+			 * For simplicity, we don't return unless it's the
+			 * first character entered.
+			 */
+			if (LF_ISSET(TXT_CNTRLD) && tp->len == 0) {
+				tp->len = 1;
+				tp->lb[0] = '\004';
+				tp->lb[1] = '\0';
+				return (INP_OK);
+			}
+			goto ins_ch;
 		case K_CNTRLZ:
 			sex_suspend(sp);
 			/* FALLTHROUGH */
@@ -146,7 +173,7 @@ newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 				(void)putc('\n', stdout);
 				(void)fflush(stdout);
 			}
-			/* Terminate with a newline, needed by filter. */
+			/* Terminate with a nul, needed by filter. */
 			tp->lb[tp->len] = '\0';
 			return (INP_OK);
 		case K_VERASE:
@@ -205,10 +232,8 @@ sex_get_notty(sp, ep, tiqh, prompt, flags)
 	u_int flags;
 {
 	enum { Q_NOTSET, Q_THISCHAR } quoted;
-	CHNAME const *cname;		/* Character map. */
 	TEXT *tp;			/* Input text structures. */
 	CH ikey;			/* Input character. */
-	size_t col;			/* 0-N: screen column. */
 	u_int iflags;			/* Input flags. */
 	int rval;
 
@@ -234,9 +259,6 @@ newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 		CIRCLEQ_INSERT_HEAD(tiqh, tp, q);
 	}
 
-	cname = sp->gp->cname;
-	col = 0;
-
 	iflags = LF_ISSET(TXT_MAPCOMMAND | TXT_MAPINPUT);
 	for (quoted = Q_NOTSET;;) {
 		if (rval = term_key(sp, &ikey, iflags))
@@ -246,46 +268,40 @@ newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 		BINC_RET(sp, tp->wd, tp->wd_len, tp->len + 1);
 
 		if (quoted == Q_THISCHAR)
-			goto ins_ch;
+			goto insq_ch;
 
 		switch (ikey.value) {
-		case K_CNTRLZ:
-			sex_suspend(sp);
-			/* FALLTHROUGH */
-		case K_CNTRLR:
-			break;
+		case K_CNTRLD:
+			/* See comment above, in sex_get(). */
+			if (LF_ISSET(TXT_CNTRLD) && tp->len == 1) {
+				tp->len = 1;
+				tp->lb[0] = '\004';
+				tp->lb[1] = '\0';
+				return (INP_OK);
+			}
+			goto ins_ch;
 		case K_CR:
 		case K_NL:
-			/* Terminate with a newline, needed by filter. */
+			/* Terminate with a nul, needed by filter. */
 			tp->lb[tp->len] = '\0';
 			return (INP_OK);
-		case K_VERASE:
-			if (tp->len)
-				--tp->len;
-			break;
-		case K_VKILL:
-			tp->len = 0;
-			break;
 		case K_VLNEXT:
 			quoted = Q_THISCHAR;
 			break;
-		case K_VWERASE:
-			/* Move to the last non-space character. */
-			while (tp->len)
-				if (!isblank(tp->lb[--tp->len])) {
-					++tp->len;
-					break;
-				}
-
-			/* Move to the last space character. */
-			while (tp->len)
-				if (isblank(tp->lb[--tp->len])) {
-					++tp->len;
-					break;
-				}
-			break;
 		default:
-ins_ch:			tp->lb[tp->len] = ikey.ch;
+			/*
+			 * See the discussion of TXT_BEAUTIFY in vi/v_ntext.c.
+			 *
+			 * Eliminate any unquoted, iscntrl() character that
+			 * wasn't handled specially, except <tab> or <ff>.
+			 */
+ins_ch:			if (LF_ISSET(TXT_BEAUTIFY) && iscntrl(ikey.ch) &&
+			    ikey.value != K_FORMFEED && ikey.value != K_TAB) {
+				msgq(sp, M_BERR,
+				    "Illegal character; quote to enter.");
+				break;
+			}
+insq_ch:		tp->lb[tp->len] = ikey.ch;
 			++tp->len;
 			quoted = Q_NOTSET;
 			break;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: fdreg.h,v 1.4 1994/02/07 22:12:42 alm Exp $
+ *	$Id: fdreg.h,v 1.5 1994/05/22 12:35:40 joerg Exp $
  */
 
 /*
@@ -42,24 +42,26 @@
 #include "../i386/isa/ic/nec765.h"
 
 /* registers */
-#define	fdout	2	/* Digital Output Register (W) */
+#define	FDOUT	2	/* Digital Output Register (W) */
 #define	FDO_FDSEL	0x03	/*  floppy device select */
 #define	FDO_FRST	0x04	/*  floppy controller reset */
 #define	FDO_FDMAEN	0x08	/*  enable floppy DMA and Interrupt */
 #define	FDO_MOEN0	0x10	/*  motor enable drive 0 */
 #define	FDO_MOEN1	0x20	/*  motor enable drive 1 */
-#define	FDO_MOEN2	0x30	/*  motor enable drive 2 */
-#define	FDO_MOEN3	0x40	/*  motor enable drive 3 */
+#define	FDO_MOEN2	0x40	/*  motor enable drive 2 */
+#define	FDO_MOEN3	0x80	/*  motor enable drive 3 */
 
-#define	fdsts	4	/* NEC 765 Main Status Register (R) */
-#define	fddata	5	/* NEC 765 Data Register (R/W) */
+#define	FDSTS	4	/* NEC 765 Main Status Register (R) */
+#define	FDDATA	5	/* NEC 765 Data Register (R/W) */
 
-#define	fdctl	7	/* Control Register (W) */
+#define	FDCTL	7	/* Control Register (W) */
 #define	FDC_500KBPS	0x00	/* 500KBPS MFM drive transfer rate */
 #define	FDC_300KBPS	0x01	/* 300KBPS MFM drive transfer rate */
 #define	FDC_250KBPS	0x02	/* 250KBPS MFM drive transfer rate */
 #define	FDC_125KBPS	0x03	/* 125KBPS FM drive transfer rate */
+				/* for some controllers 1MPBS instead */
 
-#define	fdin	7	/* Digital Input Register (R) */
+#define	FDIN	7	/* Digital Input Register (R) */
 #define	FDI_DCHG	0x80	/* diskette has been changed */
-
+				/* requires drive and motor being selected */
+				/* is cleared by any step pulse to drive */

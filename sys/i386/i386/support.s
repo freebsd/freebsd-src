@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.4 1994/02/01 04:09:07 davidg Exp $
+ *	$Id: support.s,v 1.11 1994/06/11 02:30:05 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -75,7 +75,7 @@ ENTRY(inw)					/* val = inw(port) */
 
 ENTRY(insb)					/* insb(port, addr, cnt) */
 	pushl	%edi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%edi
 	movl	16(%esp),%ecx
 	cld
@@ -88,12 +88,25 @@ ENTRY(insb)					/* insb(port, addr, cnt) */
 
 ENTRY(insw)					/* insw(port, addr, cnt) */
 	pushl	%edi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%edi
 	movl	16(%esp),%ecx
 	cld
 	rep
 	insw
+	NOP
+	movl	%edi,%eax
+	popl	%edi
+	ret
+
+ENTRY(insl)					/* insl(port, addr, cnt) */
+	pushl	%edi
+	movl	8(%esp),%edx
+	movl	12(%esp),%edi
+	movl	16(%esp),%ecx
+	cld
+	rep
+	insl
 	NOP
 	movl	%edi,%eax
 	popl	%edi
@@ -124,7 +137,7 @@ ENTRY(outw)					/* outw(port, val) */
 
 ENTRY(outsb)					/* outsb(port, addr, cnt) */
 	pushl	%esi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%esi
 	movl	16(%esp),%ecx
 	cld
@@ -137,7 +150,7 @@ ENTRY(outsb)					/* outsb(port, addr, cnt) */
 
 ENTRY(outsw)					/* outsw(port, addr, cnt) */
 	pushl	%esi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%esi
 	movl	16(%esp),%ecx
 	cld
@@ -148,11 +161,36 @@ ENTRY(outsw)					/* outsw(port, addr, cnt) */
 	popl	%esi
 	ret
 
+ENTRY(outsl)					/* outsl(port, addr, cnt) */
+	pushl	%esi
+	movl	8(%esp),%edx
+	movl	12(%esp),%esi
+	movl	16(%esp),%ecx
+	cld
+	rep
+	outsl
+	NOP
+	movl	%esi,%eax
+	popl	%esi
+	ret
+
 /*
  * bcopy family
  */
-/* void bzero(void *base, u_int cnt) */
+
+/*
+ * void bzero(void *base, u_int cnt)
+ * Special code for I486 because stosl uses lots
+ * of clocks.  Makes little or no difference on DX2 type
+ * machines, but stosl is about 1/2 as fast as
+ * memory moves on a standard DX !!!!!
+ */
 ENTRY(bzero)
+#if defined(I486_CPU)
+	cmpl	$CPUCLASS_486,_cpu_class
+	jz	1f
+#endif
+
 	pushl	%edi
 	movl	8(%esp),%edi
 	movl	12(%esp),%ecx
@@ -168,6 +206,107 @@ ENTRY(bzero)
 	popl	%edi
 	ret
 
+#if defined(I486_CPU)
+	SUPERALIGN_TEXT
+1:
+	movl	4(%esp),%edx
+	movl	8(%esp),%ecx
+	xorl	%eax,%eax
+/
+/ do 64 byte chunks first
+/
+/ XXX this is probably over-unrolled at least for DX2's
+/
+2:
+	cmpl	$64,%ecx
+	jb	3f
+	movl	%eax,(%edx)
+	movl	%eax,4(%edx)
+	movl	%eax,8(%edx)
+	movl	%eax,12(%edx)
+	movl	%eax,16(%edx)
+	movl	%eax,20(%edx)
+	movl	%eax,24(%edx)
+	movl	%eax,28(%edx)
+	movl	%eax,32(%edx)
+	movl	%eax,36(%edx)
+	movl	%eax,40(%edx)
+	movl	%eax,44(%edx)
+	movl	%eax,48(%edx)
+	movl	%eax,52(%edx)
+	movl	%eax,56(%edx)
+	movl	%eax,60(%edx)
+	addl	$64,%edx
+	subl	$64,%ecx
+	jnz	2b
+	ret
+
+/
+/ do 16 byte chunks
+/
+	SUPERALIGN_TEXT
+3:
+	cmpl	$16,%ecx
+	jb	4f
+	movl	%eax,(%edx)
+	movl	%eax,4(%edx)
+	movl	%eax,8(%edx)
+	movl	%eax,12(%edx)
+	addl	$16,%edx
+	subl	$16,%ecx
+	jnz	3b
+	ret
+
+/
+/ do 4 byte chunks
+/
+	SUPERALIGN_TEXT
+4:
+	cmpl	$4,%ecx
+	jb	5f
+	movl	%eax,(%edx)
+	addl	$4,%edx
+	subl	$4,%ecx
+	jnz	4b
+	ret
+
+/
+/ do 1 byte chunks
+/ a jump table seems to be faster than a loop or more range reductions
+/
+/ XXX need a const section for non-text
+/
+	SUPERALIGN_TEXT
+jtab:
+	.long	do0
+	.long	do1
+	.long	do2
+	.long	do3
+
+	SUPERALIGN_TEXT
+5:
+	jmp	jtab(,%ecx,4)
+
+	SUPERALIGN_TEXT
+do3:
+	movw	%ax,(%edx)
+	movb	%al,2(%edx)
+	ret
+
+	SUPERALIGN_TEXT
+do2:
+	movw	%ax,(%edx)
+	ret
+
+	SUPERALIGN_TEXT
+do1:
+	movb	%al,(%edx)
+
+	SUPERALIGN_TEXT
+do0:
+	ret
+#endif /* I486_CPU */
+
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
 	pushl	%edi
@@ -182,7 +321,6 @@ ENTRY(fillw)
 
 /* filli(pat, base, cnt) */
 ENTRY(filli)
-filli:
 	pushl	%edi
 	movl	8(%esp),%eax
 	movl	12(%esp),%edi
@@ -232,8 +370,8 @@ bcopyw:
 	movl	20(%esp),%ecx
 	cmpl	%esi,%edi			/* potentially overlapping? */
 	jnb	1f
-	cld					/* nope, copy forwards */
 	shrl	$1,%ecx				/* copy by 16-bit words */
+	cld					/* nope, copy forwards */
 	rep
 	movsw
 	adc	%ecx,%ecx			/* any bytes left? */
@@ -247,10 +385,10 @@ bcopyw:
 1:
 	addl	%ecx,%edi			/* copy backwards */
 	addl	%ecx,%esi
-	std
 	andl	$1,%ecx				/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
+	std
 	rep
 	movsb
 	movl	20(%esp),%ecx			/* copy remainder by 16-bit words */
@@ -269,7 +407,7 @@ ENTRY(bcopyx)
 	cmpl	$2,%eax
 	je	bcopyw				/* not _bcopyw, to avoid multiple mcounts */
 	cmpl	$4,%eax
-	je	bcopy
+	je	bcopy				/* XXX the shared ret's break mexitcount */
 	jmp	bcopyb
 
 /*
@@ -286,8 +424,8 @@ bcopy:
 	movl	20(%esp),%ecx
 	cmpl	%esi,%edi			/* potentially overlapping? */
 	jnb	1f
-	cld					/* nope, copy forwards */
 	shrl	$2,%ecx				/* copy by 32-bit words */
+	cld					/* nope, copy forwards */
 	rep
 	movsl
 	movl	20(%esp),%ecx
@@ -302,10 +440,10 @@ bcopy:
 1:
 	addl	%ecx,%edi			/* copy backwards */
 	addl	%ecx,%esi
-	std
 	andl	$3,%ecx				/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
+	std
 	rep
 	movsb
 	movl	20(%esp),%ecx			/* copy remainder by 32-bit words */
@@ -395,6 +533,12 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	movl	%edi,%eax
 	addl	%ebx,%eax
 	jc	copyout_fault
+/*
+ * XXX STOP USING VM_MAXUSER_ADDRESS.
+ * It is an end address, not a max, so every time it is used correctly it
+ * looks like there is an off by one error, and of course it caused an off
+ * by one error in several places.
+ */
 	cmpl	$VM_MAXUSER_ADDRESS,%eax
 	ja	copyout_fault
 
@@ -449,13 +593,13 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 
 	/* bcopy(%esi, %edi, %ebx) */
 3:
-	cld
 	movl	%ebx,%ecx
 	shrl	$2,%ecx
+	cld
 	rep
 	movsl
 	movb	%bl,%cl
-	andb	$3,%cl				/* XXX can we trust the rest of %ecx on clones? */
+	andb	$3,%cl
 	rep
 	movsb
 
@@ -488,15 +632,22 @@ ENTRY(copyin)
 	movl	16(%esp),%edi			/* caddr_t to */
 	movl	20(%esp),%ecx			/* size_t  len */
 
+	/*
+	 * make sure address is valid
+	 */
+	movl	%esi,%edx
+	addl	%ecx,%edx
+	jc	copyin_fault
+	cmpl	$VM_MAXUSER_ADDRESS,%edx
+	ja	copyin_fault
+
 	movb	%cl,%al
 	shrl	$2,%ecx				/* copy longword-wise */
 	cld
-	gs
 	rep
 	movsl
 	movb	%al,%cl
 	andb	$3,%cl				/* copy remaining bytes */
-	gs
 	rep
 	movsb
 
@@ -517,39 +668,42 @@ copyin_fault:
 	ret
 
 /*
- * fu{byte,sword,word} : fetch a byte(sword, word) from user memory
+ * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
  */
 ALTENTRY(fuiword)
 ENTRY(fuword)
-	movl	__udatasel,%ax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-	gs
+	movl	4(%esp),%edx			/* from */
+
+	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address is valid */
+	ja	fusufault
+
 	movl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
 
 ENTRY(fusword)
-	movl	__udatasel,%ax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
-	gs
+
+	cmpl	$VM_MAXUSER_ADDRESS-2,%edx
+	ja	fusufault
+
 	movzwl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
 
 ALTENTRY(fuibyte)
 ENTRY(fubyte)
-	movl	__udatasel,%ax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
-	gs
+
+	cmpl	$VM_MAXUSER_ADDRESS-1,%edx
+	ja	fusufault
+
 	movzbl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
@@ -563,15 +717,10 @@ fusufault:
 	ret
 
 /*
- * su{byte,sword,word}: write a byte(word, longword) to user memory
- */
-/*
- * we only have to set the right segment selector.
+ * su{byte,sword,word}: write a byte (word, longword) to user memory
  */
 ALTENTRY(suiword)
 ENTRY(suword)
-	movl	__udatasel,%ax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -580,9 +729,10 @@ ENTRY(suword)
 
 #if defined(I486_CPU) || defined(I586_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
-	jne	2f
+	jne	2f				/* we only have to set the right segment selector */
 #endif /* I486_CPU || I586_CPU */
 
+	/* XXX - page boundary crossing is still not handled */
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
@@ -603,16 +753,16 @@ ENTRY(suword)
 #endif
 
 2:	
+	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address validity */
+	ja	fusufault
+
 	movl	8(%esp),%eax
-	gs
 	movl	%eax,(%edx)
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
 ENTRY(susword)
-	movl	__udatasel,%eax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -624,6 +774,7 @@ ENTRY(susword)
 	jne	2f
 #endif /* I486_CPU || I586_CPU */
 
+	/* XXX - page boundary crossing is still not handled */
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
@@ -644,8 +795,10 @@ ENTRY(susword)
 #endif
 
 2:
+	cmpl	$VM_MAXUSER_ADDRESS-2,%edx	/* verify address validity */
+	ja	fusufault
+
 	movw	8(%esp),%ax
-	gs
 	movw	%ax,(%edx)
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
@@ -684,8 +837,10 @@ ENTRY(subyte)
 #endif
 
 2:
+	cmpl	$VM_MAXUSER_ADDRESS-1,%edx	/* verify address validity */
+	ja	fusufault
+
 	movb	8(%esp),%al
-	gs
 	movb	%al,(%edx)
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
@@ -702,11 +857,12 @@ ENTRY(copyoutstr)
 	pushl	%esi
 	pushl	%edi
 	movl	_curpcb,%ecx
-	movl	$cpystrflt,PCB_ONFAULT(%ecx)
+	movl	$cpystrflt,PCB_ONFAULT(%ecx)	/* XXX rename copyoutstr_fault */
 
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
+	cld
 
 #if defined(I386_CPU)
 
@@ -721,8 +877,8 @@ ENTRY(copyoutstr)
 	 * we look at a page at a time and the end address is on a page
 	 * boundary.
 	 */
-	cmpl	$VM_MAXUSER_ADDRESS,%edi
-	jae	cpystrflt
+	cmpl	$VM_MAXUSER_ADDRESS-1,%edi
+	ja	cpystrflt
 
 	movl	%edi,%eax
 	shrl	$IDXSHIFT,%eax
@@ -736,6 +892,7 @@ ENTRY(copyoutstr)
 	pushl	%edx
 	pushl	%edi
 	call	_trapwrite
+	cld
 	popl	%edi
 	popl	%edx
 	orl	%eax,%eax
@@ -747,7 +904,7 @@ ENTRY(copyoutstr)
 	movl	$NBPG,%ecx
 	subl	%eax,%ecx			/* ecx = NBPG - (src % NBPG) */
 	cmpl	%ecx,%edx
-	jge	3f
+	jae	3f
 	movl	%edx,%ecx			/* ecx = min(ecx, edx) */
 3:
 	orl	%ecx,%ecx
@@ -780,13 +937,11 @@ ENTRY(copyoutstr)
 	decl	%edx
 	jz	2f
 	/*
-	 * gs override doesn't work for stosb.  Use the same explicit check
-	 * as in copyout().  It's much slower now because it is per-char.
-	 * XXX - however, it would be faster to rewrite this function to use
+	 * XXX - would be faster to rewrite this function to use
 	 * strlen() and copyout().
 	 */
-	cmpl	$VM_MAXUSER_ADDRESS,%edi
-	jae	cpystrflt
+	cmpl	$VM_MAXUSER_ADDRESS-1,%edi
+	ja	cpystrflt
 
 	lodsb
 	stosb
@@ -805,6 +960,28 @@ ENTRY(copyoutstr)
 #endif /* I486_CPU || I586_CPU */
 
 /*
+ * This was split from copyinstr_fault mainly because pushing gs changes the
+ * stack offsets.  It's better to have it separate for mcounting too.
+ */
+cpystrflt:
+	movl	$EFAULT,%eax
+cpystrflt_x:
+	/* set *lencopied and return %eax */
+	movl	_curpcb,%ecx
+	movl	$0,PCB_ONFAULT(%ecx)
+	movl	20(%esp),%ecx
+	subl	%edx,%ecx
+	movl	24(%esp),%edx
+	orl	%edx,%edx
+	jz	1f
+	movl	%ecx,(%edx)
+1:
+	popl	%edi
+	popl	%esi
+	ret
+
+
+/*
  * copyinstr(from, to, maxlen, int *lencopied)
  *	copy a string from from to to, stop when a 0 character is reached.
  *	return ENAMETOOLONG if string is longer than maxlen, and
@@ -815,18 +992,24 @@ ENTRY(copyinstr)
 	pushl	%esi
 	pushl	%edi
 	movl	_curpcb,%ecx
-	movl	$cpystrflt,PCB_ONFAULT(%ecx)
+	movl	$copyinstr_fault,PCB_ONFAULT(%ecx)
 
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
+	/*
+	 * XXX should avoid touching gs.  Either copy the string in and
+	 * check the bounds later or get its length and check the bounds
+	 * and then use copyin().
+	 */
+	pushl	%gs
 	movl	__udatasel,%eax
 	movl	%ax,%gs
 	incl	%edx
-
+	cld
 1:
 	decl	%edx
-	jz	4f
+	jz	2f
 	gs
 	lodsb
 	stosb
@@ -836,26 +1019,27 @@ ENTRY(copyinstr)
 	/* Success -- 0 byte reached */
 	decl	%edx
 	xorl	%eax,%eax
-	jmp	6f
-4:
+	jmp	3f
+2:
 	/* edx is zero -- return ENAMETOOLONG */
 	movl	$ENAMETOOLONG,%eax
-	jmp	6f
+	jmp	3f
 
-cpystrflt:
+	ALIGN_TEXT
+copyinstr_fault:
 	movl	$EFAULT,%eax
-cpystrflt_x:
-6:
+3:
 	/* set *lencopied and return %eax */
 	movl	_curpcb,%ecx
 	movl	$0,PCB_ONFAULT(%ecx)
-	movl	20(%esp),%ecx
+	movl	24(%esp),%ecx
 	subl	%edx,%ecx
-	movl	24(%esp),%edx
+	movl	28(%esp),%edx
 	orl	%edx,%edx
-	jz	7f
+	jz	4f
 	movl	%ecx,(%edx)
-7:
+4:
+	popl	%gs
 	popl	%edi
 	popl	%esi
 	ret
@@ -872,7 +1056,7 @@ ENTRY(copystr)
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
 	incl	%edx
-
+	cld
 1:
 	decl	%edx
 	jz	4f
@@ -971,15 +1155,6 @@ ENTRY(ssdtosd)
 	popl	%ebx
 	ret
 
-#if 0
-/* tlbflush() */
-ENTRY(tlbflush)
-	movl	%cr3,%eax
-	orl	$I386_CR3PAT,%eax
-	movl	%eax,%cr3
-	ret
-#endif
-
 /* load_cr0(cr0) */
 ENTRY(load_cr0)
 	movl	4(%esp),%eax
@@ -989,11 +1164,6 @@ ENTRY(load_cr0)
 /* rcr0() */
 ENTRY(rcr0)
 	movl	%cr0,%eax
-	ret
-
-/* rcr2() */
-ENTRY(rcr2)
-	movl	%cr2,%eax
 	ret
 
 /* rcr3() */
@@ -1037,4 +1207,3 @@ ENTRY(longjmp)
 	xorl	%eax,%eax			/* return(1); */
 	incl	%eax
 	ret
-

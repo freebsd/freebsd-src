@@ -1,0 +1,37 @@
+		 MD5 -- New Message Digest Algorithm
+		  (Feel free to distribute further)
+
+RSA Data Security is announcing MD5, a new message-digest algorithm.
+Like MD4, this algorithm is being placed in the public domain for free
+general use.
+
+The MD5 algorithm is a strengthened version of MD4.  It has four
+rounds instead of three, and incorporates other revisions based on a
+year's worth of collected comments on the MD4 algorithm.  For example,
+the input access patterns in rounds two and three have been improved,
+and the rotation amounts have been optimized for maximum ``avalanche
+effect.''  The additive constants have been made unique in each step,
+and an additional dependence of each step on the previous one has been
+added.
+
+These changes cause MD5 to be somewhat slower than MD4.  We estimate
+that MD5 will typically run about 15-30% slower than MD4, depending on
+the degree to which the versions of MD4 and MD5 have been optimized.
+The more they are both optimized, the greater the percentage
+difference in speed.  An optimized version of MD5 on a Sun
+SparcStation runs at about 890 Kbytes/second.
+
+Why MD5?  While we do not know of any way to ``break'' MD4, we feel
+that MD4 is being pressed into service far too quickly for such an
+``aggressive'' design.  We have been surprised at the speed with which
+MD4 is being designed into products.  MD5 is ``MD4 with seatbelts''
+and thus, as a more conservative design, is more suitable for rapid
+deployment.
+
+It is the intent of RSA Data Security to use MD5 in its products and
+standards instead of MD4.  We recommend that our customers generally
+do the same, unless there is an overwhelming need for the higher speed
+of MD4.  Copies of the MD5 algorithm, including a reference
+implementation in C, are available from the company.  (Over the
+Internet, you can access this documentation by anonymous FTP to
+rsa.com and obtaining the file pub/md5.doc.)

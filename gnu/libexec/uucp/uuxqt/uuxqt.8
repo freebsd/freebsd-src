@@ -1,5 +1,5 @@
-''' $Id: uuxqt.8,v 1.1 1993/08/05 18:28:26 conklin Exp $
-.TH uuxqt 8 "Taylor UUCP 1.04"
+''' $Id: uuxqt.8,v 1.2 1994/05/07 18:14:41 ache Exp $
+.TH uuxqt 8 "Taylor UUCP 1.05"
 .SH NAME
 uuxqt \- UUCP execution daemon
 .SH SYNOPSIS
@@ -17,6 +17,8 @@ It is started automatically by the
 .I uucico
 (8) is given the
 .B \-q
+or
+.B \-\-nouuxqt
 option).
 
 There is normally no need to run this command, since it will be
@@ -34,16 +36,19 @@ configuration command.
 The following options may be given to
 .I uuxqt.
 .TP 5
-.B \-c command
+.B \-c command, \-\-command command
 Only execute requests for the specified command.  For example:
-.EX
-uuxqt -c rmail
-.EE
+.br
+.in +0.5i
+.nf
+uuxqt --command rmail
+.fi
+.in -0.5i
 .TP 5
-.B \-s system
+.B \-s system, \-\-system system
 Only execute requests originating from the specified system.
 .TP 5
-.B \-x type
+.B \-x type, \-\-debug type
 Turn on particular debugging types.  The following types are
 recognized: abnormal, chat, handshake, uucp-proto, proto, port,
 config, spooldir, execute, incoming, outgoing.  Only abnormal, config,
@@ -51,22 +56,28 @@ spooldir and execute are meaningful for
 .I uuxqt.
 
 Multiple types may be given, separated by commas, and the
-.B \-x
+.B \-\-debug
 option may appear multiple times.  A number may also be given, which
 will turn on that many types from the foregoing list; for example,
-.B \-x 2
+.B \-\-debug 2
 is equivalent to
-.B \-x abnormal,chat.
+.B \-\-debug abnormal,chat.
 
 The debugging output is sent to the debugging file, usually one of
 /usr/spool/uucp/Debug, /usr/spool/uucp/DEBUG, or
 /usr/spool/uucp/.Admin/audit.local.
 .TP 5
-.B \-I file
+.B \-I file, \-\-config 
 Set configuration file to use.  This option may not be available,
 depending upon how
 .I uuxqt
 was compiled.
+.TP 5
+.B \-v, \-\-version
+Report version information and exit.
+.TP 5
+.B \-\-help
+Print a help message and exit.
 .SH FILES
 The file names may be changed at compilation time or by the
 configuration file, so these are only approximations.
@@ -89,4 +100,4 @@ Debugging file.
 uucp(1), uux(1), uucico(8)
 .SH AUTHOR
 Ian Lance Taylor
-(ian@airs.com or uunet!airs!ian)
+(ian@airs.com)

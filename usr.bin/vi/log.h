@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)log.h	8.3 (Berkeley) 12/28/93
+ *	@(#)log.h	8.5 (Berkeley) 3/16/94
  */
 
 #define	LOG_NOTYPE		0
@@ -49,5 +49,5 @@ int	log_end __P((SCR *, EXF *));
 int	log_forward __P((SCR *, EXF *, MARK *));
 int	log_init __P((SCR *, EXF *));
 int	log_line __P((SCR *, EXF *, recno_t, u_int));
-int	log_mark __P((SCR *, EXF *, MARK *));
+int	log_mark __P((SCR *, EXF *, LMARK *));
 int	log_setline __P((SCR *, EXF *));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_sl.c	7.22 (Berkeley) 4/20/91
- *	$Id: if_sl.c,v 1.7 1993/12/20 19:31:32 wollman Exp $
+ *	$Id: if_sl.c,v 1.12 1994/06/07 13:02:36 davidg Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
  * interrupts and network activity; thus, splimp must be >= spltty.
  */
 
-/* $Id: if_sl.c,v 1.7 1993/12/20 19:31:32 wollman Exp $ */
+/* $Id: if_sl.c,v 1.12 1994/06/07 13:02:36 davidg Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "sl.h"
@@ -170,8 +170,10 @@
 #ifndef SLRMTU
 #define	SLRMTU		296	/* for good latency */
 #endif
-#else
+#else	/* (not) experimental */
+#ifndef SLMTU
 #define SLMTU		296
+#endif
 #define SLRMTU		SLMTU
 #endif
 
@@ -445,7 +447,7 @@ sloutput(ifp, m, dst, rt)
 	}
 	IF_ENQUEUE(ifq, m);
 	sc->sc_if.if_lastchange = time;
-	if (RB_LEN(&sc->sc_ttyp->t_out) == 0)
+	if (RB_LEN(sc->sc_ttyp->t_out) == 0)
 		slstart(sc->sc_ttyp);
 	splx(s);
 	return (0);
@@ -478,7 +480,7 @@ slstart(tp)
 		 * it would.
 		 */
 		(*tp->t_oproc)(tp);
-		if (RB_LEN(&tp->t_out) > SLIP_HIWAT)
+		if (RB_LEN(tp->t_out) > SLIP_HIWAT)
 			return;
 
 		/*
@@ -495,7 +497,7 @@ slstart(tp)
 		 * of RBSZ in tty.h also has to be upped to be at least
 		 * SLMTU*2.
 		 */
-		if (min(RBSZ, 4 * SLMTU + 4) - RB_LEN(&tp->t_out) < 2 * SLMTU + 2)
+		if (min(RBSZ, 4 * SLMTU + 4) - RB_LEN(tp->t_out) < 2 * SLMTU + 2)
 			return;
 
 		/*
@@ -558,9 +560,9 @@ slstart(tp)
 		 * will flush any accumulated garbage.  We do this whenever
 		 * the line may have been idle for some time.
 		 */
-		if (RB_LEN(&tp->t_out) == 0) {
+		if (RB_LEN(tp->t_out) == 0) {
 			++sc->sc_bytessent;
-			(void) putc(FRAME_END, &tp->t_out);
+			(void) putc(FRAME_END, tp->t_out);
 		}
 
 		while (m) {
@@ -589,7 +591,7 @@ slstart(tp)
 					 * into the tty output queue.
 					 */
 					sc->sc_bytessent += rb_write(
-								&tp->t_out,
+								tp->t_out,
 								(char *) bp,
 								cp - bp);
 				}
@@ -599,12 +601,12 @@ slstart(tp)
 				 * Put it out in a different form.
 				 */
 				if (cp < ep) {
-					if (putc(FRAME_ESCAPE, &tp->t_out))
+					if (putc(FRAME_ESCAPE, tp->t_out))
 						break;
 					if (putc(*cp++ == FRAME_ESCAPE ?
 					   TRANS_FRAME_ESCAPE : TRANS_FRAME_END,
-					   &tp->t_out)) {
-						(void) unputc(&tp->t_out);
+					   tp->t_out)) {
+						(void) unputc(tp->t_out);
 						break;
 					}
 					sc->sc_bytessent += 2;
@@ -614,7 +616,7 @@ slstart(tp)
 			m = m2;
 		}
 
-		if (putc(FRAME_END, &tp->t_out)) {
+		if (putc(FRAME_END, tp->t_out)) {
 			/*
 			 * Not enough room.  Remove a char to make room
 			 * and end the packet normally.
@@ -622,8 +624,8 @@ slstart(tp)
 			 * a day) you probably do not have enough clists
 			 * and you should increase "nclist" in param.c.
 			 */
-			(void) unputc(&tp->t_out);
-			(void) putc(FRAME_END, &tp->t_out);
+			(void) unputc(tp->t_out);
+			(void) putc(FRAME_END, tp->t_out);
 			sc->sc_if.if_collisions++;
 		} else {
 			++sc->sc_bytessent;
@@ -869,6 +871,9 @@ slioctl(ifp, cmd, data)
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;
+#ifdef MULTICAST
+	register struct ifreq *ifr;
+#endif
 	int s = splimp(), error = 0;
 
 	switch (cmd) {
@@ -890,6 +895,25 @@ slioctl(ifp, cmd, data)
 			error = EAFNOSUPPORT;
 		break;
 
+#ifdef MULTICAST
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		ifr = (struct ifreq *)data;
+		if (ifr == 0) {
+			error = EAFNOSUPPORT;		/* XXX */
+			break;
+		}
+		switch (ifr->ifr_addr.sa_family) {
+#ifdef INET
+		case AF_INET:
+			break;
+#endif
+		default:
+			error = EAFNOSUPPORT;
+			break;
+		}
+		break;
+#endif
 	default:
 		error = EINVAL;
 	}

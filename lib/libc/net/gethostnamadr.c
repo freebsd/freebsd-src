@@ -120,6 +120,7 @@ init_services()
 				service_order[cc++] = SERVICE_NIS;
 		}
 		service_order[cc] = SERVICE_NONE;
+		fclose(fd);
 	}
 	service_done = 1;
 }

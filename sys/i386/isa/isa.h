@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.4 1994/01/05 15:03:28 rgrimes Exp $
+ *	$Id: isa.h,v 1.5 1994/04/21 14:20:54 sos Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -47,12 +47,8 @@
 #ifndef LOCORE
 #include <sys/cdefs.h>
 
-unsigned char rtcin __P((int));
 extern unsigned int atdevbase;	/* offset in virtual memory of ISA io mem */
-void sysbeep __P((int, int));
-unsigned kbd_8042cmd __P((int));
-struct isa_device;
-int isa_irq_pending __P((struct isa_device *dvp));
+unsigned char rtcin __P((int));
 #endif
 
 
@@ -69,6 +65,7 @@ int isa_irq_pending __P((struct isa_device *dvp));
 #define IO_TIMER1	0x040		/* 8253 Timer #1 */
 #define IO_TIMER2	0x048		/* 8253 Timer #2 */
 #define IO_KBD		0x060		/* 8042 Keyboard */
+#define IO_PPI		0x061		/* Programmabel Peripheral Interface */
 #define IO_RTC		0x070		/* RTC */
 #define IO_NMI		IO_RTC		/* NMI Control */
 #define IO_DMAPG	0x080		/* DMA Page Registers */

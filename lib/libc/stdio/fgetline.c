@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)fgetline.c	5.2 (Berkeley) 5/4/91";
  * The `new size' does not account for a terminating '\0',
  * so we add 1 here.
  */
+static int
 __slbexpand(fp, newsize)
 	FILE *fp;
 	size_t newsize;

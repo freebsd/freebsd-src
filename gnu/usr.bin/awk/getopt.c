@@ -3,44 +3,74 @@
    "Keep this file name-space clean" means, talk to roland@gnu.ai.mit.edu
    before changing it!
 
-   Copyright (C) 1987, 88, 89, 90, 91, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 89, 90, 91, 92, 93, 1994
+   	Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
-   under the terms of the GNU Library General Public License as published
-   by the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 2, or (at your option) any
+   later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#ifdef GAWK
+#ifdef HAVE_CONFIG_H
+#if defined (emacs) || defined (CONFIG_BROKETS)
+/* We use <config.h> instead of "config.h" so that a compilation
+   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
+   (which it would do because it found this file in $srcdir).  */
+#include <config.h>
+#else
 #include "config.h"
+#endif
+#endif
+
+#ifndef __STDC__
+/* This is a separate conditional since some stdc systems
+   reject `defined (const)'.  */
+#ifndef const
+#define const
+#endif
+#endif
+
+/* This tells Alpha OSF/1 not to define a getopt prototype in <stdio.h>.  */
+#ifndef _NO_PROTO
+#define _NO_PROTO
 #endif
 
 #include <stdio.h>
 
+/* Comment out all this code if we are using the GNU C Library, and are not
+   actually compiling the library itself.  This code is part of the GNU C
+   Library, but also included in many other GNU distributions.  Compiling
+   and linking in this code is a waste when using the GNU C library
+   (especially if it is a shared library).  Rather than having every GNU
+   program understand `configure --with-gnu-libc' and omit the object files,
+   it is simpler to just do this in the source for each such file.  */
+
+#if defined (_LIBC) || !defined (__GNU_LIBRARY__)
+
+
 /* This needs to come after some library #include
    to get __GNU_LIBRARY__ defined.  */
-#ifdef	__GNU_LIBRARY__
+#if defined(__GNU_LIBRARY__) || defined(STDC_HEADERS)
+/* Don't include stdlib.h for non-GNU C libraries because some of them
+   contain conflicting prototypes for getopt.  */
 #include <stdlib.h>
-#include <string.h>
-#endif	/* GNU C library.  */
-
-
-#ifndef __STDC__
-#define const
-#endif
+#else
+extern char *getenv ();
+#endif	/* __GNU_LIBRARY || STDC_HEADERS */
 
 /* If GETOPT_COMPAT is defined, `+' as well as `--' can introduce a
    long-named option.  Because this is not POSIX.2 compliant, it is
-   being phased out. */
-#define GETOPT_COMPAT
+   being phased out.  */
+/* #define GETOPT_COMPAT */
 
 /* This version of `getopt' appears to the caller like standard Unix `getopt'
    but it behaves differently for the user, since it allows the user
@@ -78,6 +108,7 @@ char *optarg = 0;
    Otherwise, `optind' communicates from one call to the next
    how much of ARGV has been scanned so far.  */
 
+/* XXX 1003.2 says this must be 1 before any call.  */
 int optind = 0;
 
 /* The next char to be scanned in the option-element
@@ -93,6 +124,12 @@ static char *nextchar;
    for unrecognized options.  */
 
 int opterr = 1;
+
+/* Set to an option character which was unrecognized.
+   This must be initialized on some systems to avoid linking in the
+   system's own getopt implementation.  */
+
+int optopt = '?';
 
 /* Describe how to deal with options that follow non-option ARGV-elements.
 
@@ -128,41 +165,46 @@ static enum
   REQUIRE_ORDER, PERMUTE, RETURN_IN_ORDER
 } ordering;
 
-#ifdef	__GNU_LIBRARY__
+#if defined(__GNU_LIBRARY__) || defined(STDC_HEADERS)
+/* We want to avoid inclusion of string.h with non-GNU libraries
+   because there are many ways it can cause trouble.
+   On some systems, it contains special magic macros that don't work
+   in GCC.  */
 #include <string.h>
 #define	my_index	strchr
-#define	my_bcopy(src, dst, n)	memcpy ((dst), (src), (n))
 #else
 
 /* Avoid depending on library functions or files
    whose names are inconsistent.  */
 
-char *getenv ();
-
 static char *
-my_index (string, chr)
-     char *string;
+my_index (str, chr)
+     const char *str;
      int chr;
 {
-  while (*string)
+  while (*str)
     {
-      if (*string == chr)
-	return string;
-      string++;
+      if (*str == chr)
+	return (char *) str;
+      str++;
     }
   return 0;
 }
 
-static void
-my_bcopy (from, to, size)
-     char *from, *to;
-     int size;
-{
-  int i;
-  for (i = 0; i < size; i++)
-    to[i] = from[i];
-}
-#endif				/* GNU C library.  */
+/* If using GCC, we can safely declare strlen this way.
+   If not using GCC, it is ok not to declare it.
+   (Supposedly there are some machines where it might get a warning,
+   but changing this conditional to __STDC__ is too risky.)  */
+#ifdef __GNUC__
+#ifdef IN_GCC
+#include "gstddef.h"
+#else
+#include <stddef.h>
+#endif
+extern size_t strlen (const char *);
+#endif
+
+#endif	/* __GNU_LIBRARY__ || STDC_HEADERS */
 
 /* Handle permutation of arguments.  */
 
@@ -186,17 +228,51 @@ static void
 exchange (argv)
      char **argv;
 {
-  int nonopts_size = (last_nonopt - first_nonopt) * sizeof (char *);
-  char **temp = (char **) malloc (nonopts_size);
+  int bottom = first_nonopt;
+  int middle = last_nonopt;
+  int top = optind;
+  char *tem;
 
-  /* Interchange the two blocks of data in ARGV.  */
+  /* Exchange the shorter segment with the far end of the longer segment.
+     That puts the shorter segment into the right place.
+     It leaves the longer segment in the right place overall,
+     but it consists of two parts that need to be swapped next.  */
 
-  my_bcopy (&argv[first_nonopt], temp, nonopts_size);
-  my_bcopy (&argv[last_nonopt], &argv[first_nonopt],
-	    (optind - last_nonopt) * sizeof (char *));
-  my_bcopy (temp, &argv[first_nonopt + optind - last_nonopt], nonopts_size);
+  while (top > middle && middle > bottom)
+    {
+      if (top - middle > middle - bottom)
+	{
+	  /* Bottom segment is the short one.  */
+	  int len = middle - bottom;
+	  register int i;
 
-  free(temp);
+	  /* Swap it with the top part of the top segment.  */
+	  for (i = 0; i < len; i++)
+	    {
+	      tem = argv[bottom + i];
+	      argv[bottom + i] = argv[top - (middle - bottom) + i];
+	      argv[top - (middle - bottom) + i] = tem;
+	    }
+	  /* Exclude the moved bottom segment from further swapping.  */
+	  top -= len;
+	}
+      else
+	{
+	  /* Top segment is the short one.  */
+	  int len = top - middle;
+	  register int i;
+
+	  /* Swap it with the bottom part of the bottom segment.  */
+	  for (i = 0; i < len; i++)
+	    {
+	      tem = argv[bottom + i];
+	      argv[bottom + i] = argv[middle + i];
+	      argv[middle + i] = tem;
+	    }
+	  /* Exclude the moved top segment from further swapping.  */
+	  bottom += len;
+	}
+    }
 
   /* Update records for the slots the non-options now occupy.  */
 
@@ -394,8 +470,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
       int exact = 0;
       int ambig = 0;
       const struct option *pfound = NULL;
-      int indfound = 0;
-      extern int strncmp();
+      int indfound;
 
       while (*s && *s != '=')
 	s++;
@@ -441,7 +516,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 	  if (*s)
 	    {
 	      /* Don't test has_arg with >, because some C compilers don't
-		 allow it to be used on enums. */
+		 allow it to be used on enums.  */
 	      if (pfound->has_arg)
 		optarg = s + 1;
 	      else
@@ -473,7 +548,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 		    fprintf (stderr, "%s: option `%s' requires an argument\n",
 			     argv[0], argv[optind - 1]);
 		  nextchar += strlen (nextchar);
-		  return '?';
+		  return optstring[0] == ':' ? ':' : '?';
 		}
 	    }
 	  nextchar += strlen (nextchar);
@@ -489,7 +564,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
       /* Can't find it as a long option.  If this is not getopt_long_only,
 	 or the option starts with '--' or is not a valid short
 	 option, then it's an error.
-	 Otherwise interpret it as a short option. */
+	 Otherwise interpret it as a short option.  */
       if (!long_only || argv[optind][1] == '-'
 #ifdef GETOPT_COMPAT
 	  || argv[optind][0] == '+'
@@ -527,12 +602,18 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
       {
 	if (opterr)
 	  {
+#if 0
 	    if (c < 040 || c >= 0177)
 	      fprintf (stderr, "%s: unrecognized option, character code 0%o\n",
 		       argv[0], c);
 	    else
 	      fprintf (stderr, "%s: unrecognized option `-%c'\n", argv[0], c);
+#else
+	    /* 1003.2 specifies the format of this message.  */
+	    fprintf (stderr, "%s: illegal option -- %c\n", argv[0], c);
+#endif
 	  }
+	optopt = c;
 	return '?';
       }
     if (temp[1] == ':')
@@ -562,9 +643,21 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 	    else if (optind == argc)
 	      {
 		if (opterr)
-		  fprintf (stderr, "%s: option `-%c' requires an argument\n",
-			   argv[0], c);
-		c = '?';
+		  {
+#if 0
+		    fprintf (stderr, "%s: option `-%c' requires an argument\n",
+			     argv[0], c);
+#else
+		    /* 1003.2 specifies the format of this message.  */
+		    fprintf (stderr, "%s: option requires an argument -- %c\n",
+			     argv[0], c);
+#endif
+		  }
+		optopt = c;
+		if (optstring[0] == ':')
+		  c = ':';
+		else
+		  c = '?';
 	      }
 	    else
 	      /* We already incremented `optind' once;
@@ -588,6 +681,8 @@ getopt (argc, argv, optstring)
 			   (int *) 0,
 			   0);
 }
+
+#endif	/* _LIBC or not __GNU_LIBRARY__.  */
 
 #ifdef TEST
 

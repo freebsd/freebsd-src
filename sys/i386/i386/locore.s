@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.15 1994/02/01 04:08:54 davidg Exp $
+ *	$Id: locore.s,v 1.20 1994/06/14 17:49:42 davidg Exp $
  */
 
 /*
@@ -51,7 +51,6 @@
 #include "machine/pte.h"			/* page table entry definitions */
 #include "errno.h"				/* error return codes */
 #include "machine/specialreg.h"			/* x86 special registers */
-#include "i386/isa/debug.h"			/* BDE debugging macros */
 #include "machine/cputypes.h"			/* x86 cpu type definitions */
 #include "syscall.h"				/* system call numbers */
 #include "machine/asmacros.h"			/* miscellaneous asm macros */
@@ -102,8 +101,10 @@ _esym:	.long	0				/* ptr to end of syms */
 
 	.globl	_boothowto,_bootdev,_curpcb
 
-	.globl	_cpu,_cold,_atdevbase
+	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
+_cpu_id:	.long 0
+_cpu_vendor:	.space 17
 _cold:	.long	1				/* cold till we are not */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
 _atdevphys:	.long	0			/* location of device mapping ptes (phys) */
@@ -123,7 +124,7 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 
 #ifdef BDE_DEBUGGER
 	.globl	_bdb_exists			/* flag to indicate BDE debugger is available */
-_bde_exists:	.long	0
+_bdb_exists:	.long	0
 #endif
 
 	.globl	tmpstk
@@ -140,10 +141,10 @@ tmpstk:
  * btext: beginning of text section.
  * Also the entry point (jumped to directly from the boot blocks).
  */
-ENTRY(btext)
+NON_GPROF_ENTRY(btext)
 	movw	$0x1234,0x472			/* warm boot */
 	jmp	1f
-	.space	0x500				/* skip over warm boot shit */
+	.org	0x500				/* space for BIOS variables */
 
 	/*
 	 * pass parameters on stack (howto, bootdev, unit, cyloffset, esym)
@@ -151,7 +152,8 @@ ENTRY(btext)
 	 * ( if we want to hold onto /boot, it's physical %esp up to _end)
 	 */
 
- 1:	movl	4(%esp),%eax
+ 1:
+	movl	4(%esp),%eax
 	movl	%eax,_boothowto-KERNBASE
 	movl	8(%esp),%eax
 	movl	%eax,_bootdev-KERNBASE
@@ -164,30 +166,76 @@ ENTRY(btext)
 	movl	_nfs_diskless_size-KERNBASE,%ecx
 	movl	20(%esp),%esi
 	movl	$(_nfs_diskless-KERNBASE),%edi
+	cld
 	rep
 	movsb
 #endif
 
-	/* find out our CPU type. */
-        pushfl
-        popl    %eax
-        movl    %eax,%ecx
-        xorl    $0x40000,%eax
-        pushl   %eax
-        popfl
-        pushfl
-        popl    %eax
-        xorl    %ecx,%eax
-        shrl    $18,%eax
-        andl    $1,%eax
-        push    %ecx
-        popfl
-      
-        cmpl    $0,%eax
-        jne     1f
-        movl    $CPU_386,_cpu-KERNBASE
+	/* don't trust what the BIOS gives for eflags */
+	pushl	$PSL_MBO
+	popfl
+
+	/* Find out our CPU type. */
+
+	/* Try to toggle alignment check flag; does not exist on 386. */
+	pushfl
+	popl	%eax
+	movl	%eax,%ecx
+	orl	$PSL_AC,%eax
+	pushl	%eax
+	popfl
+	pushfl
+	popl	%eax
+	xorl	%ecx,%eax
+	andl	$PSL_AC,%eax
+	pushl	%ecx
+	popfl
+
+	testl	%eax,%eax
+	jnz	1f
+	movl	$CPU_386,_cpu-KERNBASE
 	jmp	2f
-1:      movl    $CPU_486,_cpu-KERNBASE
+
+1:	/* Try to toggle identification flag; does not exist on early 486s. */
+	pushfl
+	popl	%eax
+	movl	%eax,%ecx
+	xorl	$PSL_ID,%eax
+	pushl	%eax
+	popfl
+	pushfl
+	popl	%eax
+	xorl	%ecx,%eax
+	andl	$PSL_ID,%eax
+	pushl	%ecx
+	popfl
+
+	testl	%eax,%eax
+	jnz	1f
+	movl	$CPU_486,_cpu-KERNBASE
+	jmp	2f
+
+1:	/* Use the `cpuid' instruction. */
+	xorl	%eax,%eax
+	.byte	0x0f,0xa2		# cpuid 0
+	movl	%ebx,_cpu_vendor-KERNBASE	# store vendor string
+	movl	%edx,_cpu_vendor+4-KERNBASE
+	movl	%ecx,_cpu_vendor+8-KERNBASE
+	movb	$0,_cpu_vendor+12-KERNBASE
+
+	movl	$1,%eax
+	.byte	0x0f,0xa2		# cpuid 1
+	movl	%eax,_cpu_id-KERNBASE		# store cpu_id
+	rorl	$8,%eax			# extract family type
+	andl	$15,%eax
+	cmpl	$5,%eax
+	jae	1f
+
+	/* less than Pentium; must be 486 */
+	movl	$CPU_486,_cpu-KERNBASE
+	jmp	2f
+
+1:	movl	$CPU_586,_cpu-KERNBASE
 2:
 
 	/*
@@ -217,7 +265,7 @@ ENTRY(btext)
 	movl	$_end-KERNBASE,%ecx
 	addl	$NBPG-1,%ecx			/* page align up */
 	andl	$~(NBPG-1),%ecx
-	movl	%ecx,%esi			/* esi=start of tables */
+	movl	%ecx,%esi			/* esi = start of free memory */
 	movl	%ecx,_KERNend-KERNBASE		/* save end of kernel */
 
 /* clear bss */
@@ -296,7 +344,7 @@ ENTRY(btext)
 	shrl	$PGSHIFT,%ecx
 	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
 	fillkpt
-#endif
+#endif /* KGDB || BDE_DEBUGGER */
 
 /* now initialize the page dir, upages, p0stack PT, and page tables */
 
@@ -309,7 +357,7 @@ ENTRY(btext)
 	addl	%esi,%ebx			/* address of page directory */
 	addl	$((1+UPAGES+1)*NBPG),%ebx	/* offset to kernel page tables */
 	fillkpt
-	
+
 /* map I/O memory map */
 
 	movl    _KPTphys-KERNBASE,%ebx		/* base of kernel page tables */
@@ -368,6 +416,7 @@ ENTRY(btext)
 	movl	$_gdt-KERNBASE,%edi
 	movl	%edi,2(%esp)
 	movl	$8*18/4,%ecx
+	cld
 	rep					/* copy gdt */
 	movsl
 	movl	$_gdt-KERNBASE,-8+2(%edi)	/* adjust gdt self-ptr */
@@ -389,6 +438,7 @@ ENTRY(btext)
 	movl	$_idt-KERNBASE,%edi
 	movl	%edi,6+2(%esp)
 	movl	$8*4/4,%ecx
+	cld
 	rep					/* copy idt */
 	movsl
 
@@ -397,7 +447,7 @@ ENTRY(btext)
 
 	addl	$2*6,%esp
 	popal
-#endif
+#endif /* BDE_DEBUGGER */
 
 	/* load base of page directory and enable mapping */
 	movl	%esi,%eax			/* phys address of ptd in proc 0 */
@@ -436,7 +486,7 @@ begin: /* now running relocated at KERNBASE where the system is linked to run */
 	movl	$_gdt+8*9,%eax			/* adjust slots 9-17 */
 	movl	$9,%ecx
 reloc_gdt:
-	movb	$0xfe,7(%eax)			/* top byte of base addresses, was 0, */
+	movb	$KERNBASE>>24,7(%eax)		/* top byte of base addresses, was 0, */
 	addl	$8,%eax				/* now KERNBASE>>24 */
 	loop	reloc_gdt
 
@@ -444,7 +494,7 @@ reloc_gdt:
 	je	1f
 	int	$3
 1:
-#endif
+#endif /* BDE_DEBUGGER */
 
 	/*
 	 * Skip over the page tables and the kernel stack
@@ -494,7 +544,7 @@ lretmsg1:
 	.asciz	"lret: toinit\n"
 
 
-#define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
+#define	LCALL(x,y)	.byte 0x9a ; .long y ; .word x
 /*
  * Icode is copied out to process 1 and executed in user mode:
  *	execve("/sbin/init", argv, envp); exit(0);
@@ -551,4 +601,3 @@ NON_GPROF_ENTRY(sigcode)
 	.globl	_szsigcode
 _szsigcode:
 	.long	_szsigcode-_sigcode
-

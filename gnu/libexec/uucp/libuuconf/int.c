@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_int_rcsid[] = "$Id: int.c,v 1.1 1993/08/05 18:25:37 conklin Exp $";
+const char _uuconf_int_rcsid[] = "$Id: int.c,v 1.2 1994/05/07 18:12:33 ache Exp $";
 #endif
 
 /* Parse a string into a variable.  This is called by uuconf_cmd_args,

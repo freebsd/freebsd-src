@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,23 +32,33 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)term.c	8.41 (Berkeley) 1/23/94";
+static char sccsid[] = "@(#)term.c	8.56 (Berkeley) 3/23/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
 #include <sys/time.h>
 
+#include <bitstring.h>
 #include <ctype.h>
 #include <curses.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "seq.h"
 
-static int keycmp __P((const void *, const void *));
+static int	keycmp __P((const void *, const void *));
+static void	termkeyset __P((GS *, int, int));
 
 /*
  * If we're reading less than 20 characters, up the size of the tty buffer.
@@ -56,39 +66,67 @@ static int keycmp __P((const void *, const void *));
  * possible if a map is large enough.
  */
 #define	term_read_grow(sp, tty)					\
-	(tty)->len - (tty)->cnt >= 20 ? 0 : __term_read_grow(sp, tty)
-static int __term_read_grow __P((SCR *, IBUF *));
+	(tty)->nelem - (tty)->cnt >= 20 ? 0 : __term_read_grow(sp, tty, 64)
+static int __term_read_grow __P((SCR *, IBUF *, int));
 
 /*
  * XXX
  * THIS REQUIRES THAT ALL SCREENS SHARE A TERMINAL TYPE.
  */
 typedef struct _tklist {
-	char *ts;			/* Key's termcap string. */
-	char *output;			/* Corresponding vi command. */
-	char *name;			/* Name. */
+	char	*ts;			/* Key's termcap string. */
+	char	*output;		/* Corresponding vi command. */
+	char	*name;			/* Name. */
+	u_char	 value;			/* Special value (for lookup). */
 } TKLIST;
-static TKLIST const tklist[] = {
-	{"kA",    "O", "insert line"},
-	{"kD",    "x", "delete character"},
-	{"kd",    "j", "cursor down"},
-	{"kE",    "D", "delete to eol"},
-	{"kF", "\004", "scroll down"},
-	{"kH",    "$", "go to eol"},
-	{"kh",    "^", "go to sol"},
-	{"kI",    "i", "insert at cursor"},
-	{"kL",   "dd", "delete line"},
-	{"kl",    "h", "cursor left"},
-	{"kN", "\006", "page down"},
-	{"kP", "\002", "page up"},
-	{"kR", "\025", "scroll up"},
-	{"kS",	 "dG", "delete to end of screen"},
-	{"kr",    "l", "cursor right"},
-	{"ku",    "k", "cursor up"},
+static TKLIST const c_tklist[] = {	/* Command mappings. */
+	{"kA",    "O",	"insert line"},
+	{"kD",    "x",	"delete character"},
+	{"kd",    "j",	"cursor down"},
+	{"kE",    "D",	"delete to eol"},
+	{"kF", "\004",	"scroll down"},
+	{"kH",    "$",	"go to eol"},
+	{"kh",    "^",	"go to sol"},
+	{"kI",    "i",	"insert at cursor"},
+	{"kL",   "dd",	"delete line"},
+	{"kl",    "h",	"cursor left"},
+	{"kN", "\006",	"page down"},
+	{"kP", "\002",	"page up"},
+	{"kR", "\025",	"scroll up"},
+	{"kS",	 "dG",	"delete to end of screen"},
+	{"kr",    "l",	"cursor right"},
+	{"ku",    "k",	"cursor up"},
+	{NULL},
+};
+static TKLIST const m1_tklist[] = {	/* Input mappings (lookup). */
+	{"kl",   NULL,	"cursor erase", K_VERASE},
+	{NULL},
+};
+static TKLIST const m2_tklist[] = {	/* Input mappings (set or delete). */
+	{"kd",   NULL,	"cursor down"},
+	{"ku",   NULL,	"cursor up"},
+	{"kr",    " ",	"cursor space"},
 	{NULL},
 };
 
 /*
+ * !!!
+ * Historic ex/vi always used:
+ *
+ *	^D: autoindent deletion
+ *	^H: last character deletion
+ *	^W: last word deletion
+ *	^Q: quote the next character (if not used in flow control).
+ *	^V: quote the next character
+ *
+ * regardless of the user's choices for these characters.  The user's erase
+ * and kill characters worked in addition to these characters.  Ex was not
+ * completely consistent with this scheme, as it did map the scroll command
+ * to the user's current EOF character.  This implementation wires down the
+ * above characters, but in addition uses the VERASE, VINTR, VKILL and VWERASE
+ * characters described by the user's termios structure.  We don't do the EOF
+ * mapping for ex, but I think I'm unlikely to get caught on that one.
+ *
  * XXX
  * THIS REQUIRES THAT ALL SCREENS SHARE A SPECIAL KEY SET.
  */
@@ -97,26 +135,32 @@ typedef struct _keylist {
 	CHAR_T	ch;			/* Key. */
 } KEYLIST;
 static KEYLIST keylist[] = {
-	{K_CARAT,	   '^'},
-	{K_CNTRLR,	'\022'},
-	{K_CNTRLT,	'\024'},
-	{K_CNTRLZ,	'\032'},
-	{K_COLON,	   ':'},
-	{K_CR,		  '\r'},
-	{K_ESCAPE,	'\033'},
-	{K_FORMFEED,	  '\f'},
-	{K_NL,		  '\n'},
-	{K_RIGHTBRACE,	   '}'},
-	{K_RIGHTPAREN,	   ')'},
-	{K_TAB,		  '\t'},
-	{K_VEOF,	'\004'},
-	{K_VERASE,	  '\b'},
-	{K_VINTR,	'\003'},
-	{K_VKILL,	'\025'},
-	{K_VLNEXT,	'\026'},
-	{K_VWERASE,	'\027'},
-	{K_ZERO,	   '0'},
+	{K_CARAT,	   '^'},	/*  ^ */
+	{K_CNTRLD,	'\004'},	/* ^D */
+	{K_CNTRLR,	'\022'},	/* ^R */
+	{K_CNTRLT,	'\024'},	/* ^T */
+	{K_CNTRLZ,	'\032'},	/* ^Z */
+	{K_COLON,	   ':'},	/*  : */
+	{K_CR,		  '\r'},	/* \r */
+	{K_ESCAPE,	'\033'},	/* ^[ */
+	{K_FORMFEED,	  '\f'},	/* \f */
+	{K_NL,		  '\n'},	/* \n */
+	{K_RIGHTBRACE,	   '}'},	/*  } */
+	{K_RIGHTPAREN,	   ')'},	/*  ) */
+	{K_TAB,		  '\t'},	/* \t */
+	{K_VERASE,	  '\b'},	/* \b */
+	{K_VINTR,	'\003'},	/* ^C */
+	{K_VKILL,	'\025'},	/* ^U */
+	{K_VLNEXT,	'\021'},	/* ^Q */
+	{K_VLNEXT,	'\026'},	/* ^V */
+	{K_VWERASE,	'\027'},	/* ^W */
+	{K_ZERO,	   '0'},	/*  0 */
+	{K_NOTUSED, 0},			/* VERASE, VINTR, VKILL, VWERASE */
+	{K_NOTUSED, 0},
+	{K_NOTUSED, 0},
+	{K_NOTUSED, 0},
 };
+static int nkeylist = (sizeof(keylist) / sizeof(keylist[0])) - 4;
 
 /*
  * term_init --
@@ -131,7 +175,6 @@ term_init(sp)
 	GS *gp;
 	KEYLIST *kp;
 	TKLIST const *tkp;
-	cc_t ch;
 	int cnt;
 	char *sbp, *t, buf[2 * 1024], sbuf[128];
 
@@ -143,50 +186,31 @@ term_init(sp)
 	gp = sp->gp;
 	gp->cname = asciiname;			/* XXX */
 
-	/* Set keys found in the termios structure. */
-#define	TERMSET(name, val) {						\
-	if ((ch = gp->original_termios.c_cc[name]) != _POSIX_VDISABLE)	\
-		for (kp = keylist;; ++kp)				\
-			if (kp->value == (val)) {			\
-				kp->ch = ch;				\
-				break;					\
-			}						\
-}
-/*
- * VEOF, VERASE, VKILL are required by POSIX 1003.1-1990,
- * VWERASE is a 4.4BSD extension.
- */
-#ifdef VEOF
-	TERMSET(VEOF, K_VEOF);
-#endif
 #ifdef VERASE
-	TERMSET(VERASE, K_VERASE);
+	termkeyset(gp, VERASE, K_VERASE);
 #endif
 #ifdef VINTR
-	TERMSET(VINTR, K_VINTR);
+	termkeyset(gp, VINTR, K_VINTR);
 #endif
 #ifdef VKILL
-	TERMSET(VKILL, K_VKILL);
+	termkeyset(gp, VKILL, K_VKILL);
 #endif
 #ifdef VWERASE
-	TERMSET(VWERASE, K_VWERASE);
+	termkeyset(gp, VWERASE, K_VWERASE);
 #endif
-
 	/* Sort the special key list. */
-	qsort(keylist,
-	    sizeof(keylist) / sizeof(keylist[0]), sizeof(keylist[0]), keycmp);
+	qsort(keylist, nkeylist, sizeof(keylist[0]), keycmp);
 
 	/* Initialize the fast lookup table. */
 	CALLOC_RET(sp,
 	    gp->special_key, u_char *, MAX_FAST_KEY + 1, sizeof(u_char));
-	for (gp->max_special = 0, kp = keylist,
-	    cnt = sizeof(keylist) / sizeof(keylist[0]); cnt--; ++kp) {
+	for (gp->max_special = 0, kp = keylist, cnt = nkeylist; cnt--; ++kp) {
 		if (gp->max_special < kp->value)
 			gp->max_special = kp->value;
 		if (kp->ch <= MAX_FAST_KEY)
 			gp->special_key[kp->ch] = kp->value;
 	}
-	
+
 	/* Set key sequences found in the termcap entry. */
 	switch (tgetent(buf, O_STR(sp, O_TERM))) {
 	case -1:
@@ -199,7 +223,8 @@ term_init(sp)
 		return (0);
 	}
 
-	for (tkp = tklist; tkp->name != NULL; ++tkp) {
+	/* Command mappings. */
+	for (tkp = c_tklist; tkp->name != NULL; ++tkp) {
 		sbp = sbuf;
 		if ((t = tgetstr(tkp->ts, &sbp)) == NULL)
 			continue;
@@ -207,7 +232,71 @@ term_init(sp)
 		    tkp->output, strlen(tkp->output), SEQ_COMMAND, 0))
 			return (1);
 	}
+	/* Input mappings needing to be looked up. */
+	for (tkp = m1_tklist; tkp->name != NULL; ++tkp) {
+		sbp = sbuf;
+		if ((t = tgetstr(tkp->ts, &sbp)) == NULL)
+			continue;
+		for (kp = keylist;; ++kp)
+			if (kp->value == tkp->value)
+				break;
+		if (kp == NULL)
+			continue;
+		if (seq_set(sp, tkp->name, strlen(tkp->name),
+		    t, strlen(t), &kp->ch, 1, SEQ_INPUT, 0))
+			return (1);
+	}
+	/* Input mappings that are already set or are text deletions. */
+	for (tkp = m2_tklist; tkp->name != NULL; ++tkp) {
+		sbp = sbuf;
+		if ((t = tgetstr(tkp->ts, &sbp)) == NULL)
+			continue;
+		if (tkp->output == NULL) {
+			if (seq_set(sp, tkp->name, strlen(tkp->name),
+			    t, strlen(t), NULL, 0, SEQ_INPUT, 0))
+				return (1);
+		} else
+			if (seq_set(sp, tkp->name, strlen(tkp->name),
+			    t, strlen(t), tkp->output, strlen(tkp->output),
+			    SEQ_INPUT, 0))
+				return (1);
+	}
 	return (0);
+}
+
+/*
+ * termkeyset --
+ *	Set keys found in the termios structure.  VERASE, VINTR and VKILL are
+ *	required by POSIX 1003.1-1990, VWERASE is a 4.4BSD extension.  We've
+ *	left four open slots in the keylist table, if these values exist, put
+ *	them into place.  Note, they may reset (or duplicate) values already
+ *	in the table, so we check for that first.
+ */
+static void
+termkeyset(gp, name, val)
+	GS *gp;
+	int name, val;
+{
+	KEYLIST *kp;
+	cc_t ch;
+
+	if (!F_ISSET(gp, G_TERMIOS_SET))
+		return;
+	if ((ch = gp->original_termios.c_cc[(name)]) == _POSIX_VDISABLE)
+		return;
+
+	/* Check for duplication. */
+	for (kp = keylist; kp->value != K_NOTUSED; ++kp)
+		if (kp->ch == ch) {
+			kp->value = val;
+			return;
+		}
+	/* Add a new entry. */
+	if (kp->value == K_NOTUSED) {
+		keylist[nkeylist].ch = ch;
+		keylist[nkeylist].value = val;
+		++nkeylist;
+	}
 }
 
 /*
@@ -216,46 +305,38 @@ term_init(sp)
  *
  * There is a single input buffer in ex/vi.  Characters are read onto the
  * end of the buffer by the terminal input routines, and pushed onto the
- * front of the buffer various other functions in ex/vi.  Each key has an
- * associated flag value, which indicates if it has already been quoted,
- * if it is the result of a mapping or an abbreviation.
- */ 
+ * front of the buffer by various other functions in ex/vi.  Each key has
+ * an associated flag value, which indicates if it has already been quoted,
+ * if it is the result of a mapping or an abbreviation, as well as a count
+ * of the number of times it has been mapped.
+ */
 int
-term_push(sp, s, len, cmap, flags)
+term_push(sp, s, nchars, cmap, flags)
 	SCR *sp;
 	CHAR_T *s;			/* Characters. */
-	size_t len;			/* Number of chars. */
+	size_t nchars;			/* Number of chars. */
 	u_int cmap;			/* Map count. */
 	u_int flags;			/* CH_* flags. */
 {
 	IBUF *tty;
-	size_t nlen;
 
 	/* If we have room, stuff the keys into the buffer. */
 	tty = sp->gp->tty;
-	if (len <= tty->next ||
-	    (tty->ch != NULL && tty->cnt == 0 && len <= tty->len)) {
+	if (nchars <= tty->next ||
+	    (tty->ch != NULL && tty->cnt == 0 && nchars <= tty->nelem)) {
 		if (tty->cnt != 0)
-			tty->next -= len;
-		tty->cnt += len;
-		memmove(tty->ch + tty->next, s, len * sizeof(CHAR_T));
-		memset(tty->chf + tty->next, flags, len);
-		memset(tty->cmap + tty->next, cmap, len);
+			tty->next -= nchars;
+		tty->cnt += nchars;
+		MEMMOVE(tty->ch + tty->next, s, nchars);
+		MEMSET(tty->chf + tty->next, flags, nchars);
+		MEMSET(tty->cmap + tty->next, cmap, nchars);
 		return (0);
 	}
 
 	/* Get enough space plus a little extra. */
-	nlen = tty->cnt + len;
-	if (nlen > tty->len) {
-		size_t olen;
-
-		nlen += 64;
-		olen = tty->len;
-		BINC_RET(sp, tty->ch, olen, nlen * sizeof(tty->ch[0]));
-		olen = tty->len;
-		BINC_RET(sp, tty->chf, olen, nlen * sizeof(tty->chf[0]));
-		BINC_RET(sp, tty->cmap, tty->len, nlen * sizeof(tty->cmap[0]));
-	}
+	if (tty->cnt + nchars >= tty->nelem &&
+	    __term_read_grow(sp, tty, MAX(nchars, 64)))
+		return (1);
 
 	/*
 	 * If there are currently characters in the queue, shift them up,
@@ -263,26 +344,26 @@ term_push(sp, s, len, cmap, flags)
 	 */
 #define	TERM_PUSH_SHIFT	30
 	if (tty->cnt) {
-		memmove(tty->ch + TERM_PUSH_SHIFT + len,
-		    tty->ch + tty->next, tty->cnt * sizeof(tty->ch[0]));
-		memmove(tty->chf + TERM_PUSH_SHIFT + len,
-		    tty->chf + tty->next, tty->cnt * sizeof(tty->chf[0]));
-		memmove(tty->cmap + TERM_PUSH_SHIFT + len,
-		    tty->cmap + tty->next, tty->cnt * sizeof(tty->cmap[0]));
+		MEMMOVE(tty->ch + TERM_PUSH_SHIFT + nchars,
+		    tty->ch + tty->next, tty->cnt);
+		MEMMOVE(tty->chf + TERM_PUSH_SHIFT + nchars,
+		    tty->chf + tty->next, tty->cnt);
+		MEMMOVE(tty->cmap + TERM_PUSH_SHIFT + nchars,
+		    tty->cmap + tty->next, tty->cnt);
 	}
 
 	/* Put the new characters into the queue. */
 	tty->next = TERM_PUSH_SHIFT;
-	tty->cnt += len;
-	memmove(tty->ch + TERM_PUSH_SHIFT, s, len * sizeof(tty->ch[0]));
-	memset(tty->chf + TERM_PUSH_SHIFT, flags, len * sizeof(tty->chf[0]));
-	memset(tty->cmap + TERM_PUSH_SHIFT, cmap, len * sizeof(tty->cmap[0]));
+	tty->cnt += nchars;
+	MEMMOVE(tty->ch + TERM_PUSH_SHIFT, s, nchars);
+	MEMSET(tty->chf + TERM_PUSH_SHIFT, flags, nchars);
+	MEMSET(tty->cmap + TERM_PUSH_SHIFT, cmap, nchars);
 	return (0);
 }
 
 /*
- * Remove characters from the queue, simultaneously clearing the
- * flag and map counts.
+ * Remove characters from the queue, simultaneously clearing the flag
+ * and map counts.
  */
 #define	QREM_HEAD(q, len) {						\
 	size_t __off = (q)->next;					\
@@ -290,8 +371,8 @@ term_push(sp, s, len, cmap, flags)
 		tty->chf[__off] = 0;					\
 		tty->cmap[__off] = 0;					\
 	} else {							\
-		memset(tty->chf + __off, 0, len);			\
-		memset(tty->cmap + __off, 0, len);			\
+		MEMSET(tty->chf + __off, 0, len);			\
+		MEMSET(tty->cmap + __off, 0, len);			\
 	}								\
 	if (((q)->cnt -= len) == 0)					\
 		(q)->next = 0;						\
@@ -304,8 +385,8 @@ term_push(sp, s, len, cmap, flags)
 		tty->chf[__off] = 0;					\
 		tty->cmap[__off] = 0;					\
 	} else {							\
-		memset(tty->chf + __off, 0, len);			\
-		memset(tty->cmap + __off, 0, len);			\
+		MEMSET(tty->chf + __off, 0, len);			\
+		MEMSET(tty->cmap + __off, 0, len);			\
 	}								\
 	if (((q)->cnt -= len) == 0)					\
 		(q)->next = 0;						\
@@ -386,7 +467,7 @@ term_key(sp, chp, flags)
 	GS *gp;
 	IBUF *tty;
 	SEQ *qp;
-	int cmap, ispartial, nr;
+	int cmap, ispartial, nr, itear;
 
 	gp = sp->gp;
 	tty = gp->tty;
@@ -409,6 +490,9 @@ loop:	if (tty->cnt == 0) {
 		if (F_ISSET(sp, S_UPDATE_MODE))
 			F_CLR(sp, S_UPDATE_MODE);
 	}
+
+	/* If no limit on remaps, set it up so the user can interrupt. */
+	itear = O_ISSET(sp, O_REMAPMAX) ? 0 : !intr_init(sp);
 
 	/* If the key is mappable and should be mapped, look it up. */
 	if (!(tty->chf[tty->next] & CH_NOMAP) &&
@@ -437,10 +521,12 @@ remap:		qp = seq_find(sp, NULL, &tty->ch[tty->next], tty->cnt,
 		 * unmapped.
 		 */
 		if (ispartial) {
-			if (term_read_grow(sp, tty))
-				return (INP_ERR);
+			if (term_read_grow(sp, tty)) {
+				rval = INP_ERR;
+				goto ret;
+			}
 			if (rval = sp->s_key_read(sp, &nr, tp))
-				return (rval);
+				goto ret;
 			if (nr)
 				goto remap;
 			goto nomap;
@@ -455,31 +541,45 @@ remap:		qp = seq_find(sp, NULL, &tty->ch[tty->next], tty->cnt,
 		 * character of the map is it, pretend we haven't seen the
 		 * character.
 		 */
-		if (LF_ISSET(TXT_MAPNODIGIT) && !isdigit(qp->output[0]))
+		if (LF_ISSET(TXT_MAPNODIGIT) &&
+		    qp->output != NULL && !isdigit(qp->output[0]))
 			goto not_digit_ch;
 
 		/*
 		 * Only permit a character to be remapped a certain number
 		 * of times before we figure that it's not going to finish.
 		 */
-		if ((cmap = tty->cmap[tty->next]) > MAX_MAP_COUNT) {
-			term_map_flush(sp, "Character remapped too many times");
-			return (INP_ERR);
-		}
+		if (O_ISSET(sp, O_REMAPMAX)) {
+			if ((cmap = tty->cmap[tty->next]) > MAX_MAP_COUNT)
+				goto flush;
+		} else if (F_ISSET(sp, S_INTERRUPTED)) {
+flush:			term_map_flush(sp, "Character remapped too many times");
+			rval = INP_ERR;
+			goto ret;
+		} else
+			cmap = 0;
 
 		/* Delete the mapped characters from the queue. */
 		QREM_HEAD(tty, qp->ilen);
 
+		/* If keys mapped to nothing, go get more. */
+		if (qp->output == NULL)
+			goto loop;
+
 		/* If remapping characters, push the character on the queue. */
 		if (O_ISSET(sp, O_REMAP)) {
-			if (term_push(sp, qp->output, qp->olen, ++cmap, 0))
-				return (INP_ERR);
+			if (term_push(sp, qp->output, qp->olen, ++cmap, 0)) {
+				rval = INP_ERR;
+				goto ret;
+			}
 			goto newmap;
 		}
 
 		/* Else, push the characters on the queue and return one. */
-		if (term_push(sp, qp->output, qp->olen, 0, CH_NOMAP))
-			return (INP_ERR);
+		if (term_push(sp, qp->output, qp->olen, 0, CH_NOMAP)) {
+			rval = INP_ERR;
+			goto ret;
+		}
 	}
 
 nomap:	ch = tty->ch[tty->next];
@@ -487,7 +587,8 @@ nomap:	ch = tty->ch[tty->next];
 not_digit_ch:	chp->ch = NOT_DIGIT_CH;
 		chp->value = 0;
 		chp->flags = 0;
-		return (INP_OK);
+		rval = INP_OK;
+		goto ret;
 	}
 
 	/* Fill in the return information. */
@@ -497,18 +598,11 @@ not_digit_ch:	chp->ch = NOT_DIGIT_CH;
 
 	/* Delete the character from the queue. */
 	QREM_HEAD(tty, 1);
+	rval = INP_OK;
 
-	/*
-	 * O_BEAUTIFY eliminates all control characters except
-	 * escape, form-feed, newline and tab.
-	 */
-	if (isprint(ch) ||
-	    !LF_ISSET(TXT_BEAUTIFY) || !O_ISSET(sp, O_BEAUTIFY) ||
-	    chp->value == K_ESCAPE || chp->value == K_FORMFEED ||
-	    chp->value == K_NL || chp->value == K_TAB)
-		return (INP_OK);
-
-	goto loop;
+ret:	if (itear)
+		intr_end(sp);
+	return (rval);
 }
 
 /*
@@ -529,8 +623,8 @@ term_ab_flush(sp, msg)
 		QREM_HEAD(tty, 1);
 	} while (tty->cnt && tty->chf[tty->next] & CH_ABBREVIATED);
 	msgq(sp, M_ERR, "%s: keys flushed.", msg);
-	
 }
+
 /*
  * term_map_flush --
  *	Flush any mapped keys.
@@ -549,7 +643,6 @@ term_map_flush(sp, msg)
 		QREM_HEAD(tty, 1);
 	} while (tty->cnt && tty->cmap[tty->next]);
 	msgq(sp, M_ERR, "%s: keys flushed.", msg);
-	
 }
 
 /*
@@ -575,7 +668,7 @@ term_user_key(sp, chp)
 	/* Wait and read another key. */
 	if (rval = sp->s_key_read(sp, &nr, NULL))
 		return (rval);
-			
+
 	/* Fill in the return information. */
 	tty = sp->gp->tty;
 	chp->ch = tty->ch[tty->next + (tty->cnt - 1)];
@@ -586,7 +679,7 @@ term_user_key(sp, chp)
 	return (INP_OK);
 }
 
-/* 
+/*
  * term_key_queue --
  *	Read the keys off of the terminal queue until it's empty.
  */
@@ -613,26 +706,6 @@ term_key_queue(sp)
 }
 
 /*
- * term_key_ch --
- *	Fill in the key for a value.
- */
-int
-term_key_ch(sp, val, chp)
-	SCR *sp;
-	int val;
-	CHAR_T *chp;
-{
-	KEYLIST *kp;
-
-	for (kp = keylist;; ++kp)
-		if (kp->value == val) {
-			*chp = kp->ch;
-			return (0);
-		}
-	/* NOTREACHED */
-}
-
-/*
  * __term_key_val --
  *	Fill in the value for a key.  This routine is the backup
  *	for the term_key_val() macro.
@@ -645,9 +718,8 @@ __term_key_val(sp, ch)
 	KEYLIST k, *kp;
 
 	k.ch = ch;
-	kp = bsearch(&k, keylist,
-	    sizeof(keylist) / sizeof(keylist[0]), sizeof(keylist[0]), keycmp);
-	return (kp == NULL ? 0 : kp->value);
+	kp = bsearch(&k, keylist, nkeylist, sizeof(keylist[0]), keycmp);
+	return (kp == NULL ? K_NOTUSED : kp->value);
 }
 
 /*
@@ -656,26 +728,24 @@ __term_key_val(sp, ch)
  *	the term_read_grow() macro.
  */
 static int
-__term_read_grow(sp, tty)
+__term_read_grow(sp, tty, add)
 	SCR *sp;
 	IBUF *tty;
+	int add;
 {
-	size_t alen, len, nlen;
+	size_t new_nelem, olen;
 
-	nlen = tty->len + 64;
-	alen = tty->len - (tty->next + tty->cnt);
+	new_nelem = tty->nelem + add;
+	olen = tty->nelem * sizeof(tty->ch[0]);
+	BINC_RET(sp, tty->ch, olen, new_nelem * sizeof(tty->ch[0]));
 
-	len = tty->len;
-	BINC_RET(sp, tty->ch, len, nlen * sizeof(tty->ch[0]));
-	memset(tty->ch + tty->next + tty->cnt, 0, alen * sizeof(tty->ch[0]));
+	olen = tty->nelem * sizeof(tty->chf[0]);
+	BINC_RET(sp, tty->chf, olen, new_nelem * sizeof(tty->chf[0]));
 
-	len = tty->len;
-	BINC_RET(sp, tty->chf, len, nlen * sizeof(tty->chf[0]));
-	memset(tty->chf + tty->next + tty->cnt, 0, alen * sizeof(tty->chf[0]));
+	olen = tty->nelem * sizeof(tty->cmap[0]);
+	BINC_RET(sp, tty->cmap, olen, new_nelem * sizeof(tty->cmap[0]));
 
-	BINC_RET(sp, tty->cmap, tty->len, nlen * sizeof(tty->cmap[0]));
-	memset(tty->cmap +
-	    tty->next + tty->cnt, 0, alen * sizeof(tty->cmap[0]));
+	tty->nelem = new_nelem;
 	return (0);
 }
 

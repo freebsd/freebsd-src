@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -55,9 +55,9 @@ NODE *ENVIRON_node, *IGNORECASE_node;
 NODE *ARGC_node, *ARGV_node, *ARGIND_node;
 NODE *FIELDWIDTHS_node;
 
-int NF;
-int NR;
-int FNR;
+long NF;
+long NR;
+long FNR;
 int IGNORECASE;
 char *RS;
 char *OFS;
@@ -134,10 +134,19 @@ char **argv;
 {
 	int c;
 	char *scan;
+	/* the + on the front tells GNU getopt not to rearrange argv */
+	const char *optlist = "+F:f:v:W:m:";
+	int stopped_early = 0;
+	int old_optind;
 	extern int optind;
 	extern int opterr;
 	extern char *optarg;
-	int i;
+
+#ifdef __EMX__
+	_response(&argc, &argv);
+	_wildcard(&argc, &argv);
+	setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+#endif
 
 	(void) signal(SIGFPE,  (SIGTYPE (*) P((int))) catchsig);
 	(void) signal(SIGSEGV, (SIGTYPE (*) P((int))) catchsig);
@@ -165,7 +174,6 @@ char **argv;
 	Nnull_string->flags = (PERM|STR|STRING|NUM|NUMBER);
 
 	/* Set up the special variables */
-
 	/*
 	 * Note that this must be done BEFORE arg parsing else -F
 	 * breaks horribly 
@@ -179,11 +187,16 @@ char **argv;
 	/* Tell the regex routines how they should work. . . */
 	resetup();
 
+#ifdef fpsetmask
+	fpsetmask(~0xff);
+#endif
 	/* we do error messages ourselves on invalid options */
 	opterr = 0;
 
-	/* the + on the front tells GNU getopt not to rearrange argv */
-	while ((c = getopt_long(argc, argv, "+F:f:v:W:", optab, NULL)) != EOF) {
+	/* option processing. ready, set, go! */
+	for (optopt = 0, old_optind = 1;
+	     (c = getopt_long(argc, argv, optlist, optab, NULL)) != EOF;
+	     optopt = 0, old_optind = optind) {
 		if (do_posix)
 			opterr = 1;
 		switch (c) {
@@ -215,6 +228,19 @@ char **argv;
 			pre_assign(optarg);
 			break;
 
+		case 'm':
+			/*
+			 * Research awk extension.
+			 *	-mf=nnn		set # fields, gawk ignores
+			 *	-mr=nnn		set record length, ditto
+			 */
+			if (do_lint)
+				warning("-m[fr] option irrelevant");
+			if ((optarg[0] != 'r' && optarg[0] != 'f')
+			    || optarg[1] != '=')
+				warning("-m option usage: -m[fn]=nnn");
+			break;
+
 		case 'W':       /* gawk specific options */
 			gawk_option(optarg);
 			break;
@@ -233,7 +259,7 @@ char **argv;
 			break;
 
 		case 's':
-			if (strlen(optarg) == 0)
+			if (optarg[0] == '\0')
 				warning("empty argument to --source ignored");
 			else {
 				srcfiles[++numfiles].stype = CMDLINE;
@@ -247,6 +273,14 @@ char **argv;
 			break;
 #endif
 
+		case 0:
+			/*
+			 * getopt_long found an option that sets a variable
+			 * instead of returning a letter. Do nothing, just
+			 * cycle around for the next one.
+			 */
+			break;
+
 		case '?':
 		default:
 			/*
@@ -254,9 +288,27 @@ char **argv;
 			 * option stops argument processing so that it can
 			 * go into ARGV for the awk program to see. This
 			 * makes use of ``#! /bin/gawk -f'' easier.
+			 *
+			 * However, it's never simple. If optopt is set,
+			 * an option that requires an argument didn't get the
+			 * argument. We care because if opterr is 0, then
+			 * getopt_long won't print the error message for us.
 			 */
-			if (! do_posix)
+			if (! do_posix
+			    && (optopt == 0 || strchr(optlist, optopt) == NULL)) {
+				/*
+				 * can't just do optind--. In case of an
+				 * option with >=2 letters, getopt_long
+				 * won't have incremented optind.
+				 */
+				optind = old_optind;
+				stopped_early = 1;
 				goto out;
+			} else if (optopt)
+				/* Use 1003.2 required message format */
+				fprintf (stderr,
+				"%s: option requires an argument -- %c\n",
+					myname, optopt);
 			/* else
 				let getopt print error message for us */
 			break;
@@ -266,6 +318,14 @@ out:
 
 	if (do_nostalgia)
 		nostalgia();
+
+	/* check for POSIXLY_CORRECT environment variable */
+	if (! do_posix && getenv("POSIXLY_CORRECT") != NULL) {
+		do_posix = 1;
+		if (do_lint)
+			warning(
+	"environment variable `POSIXLY_CORRECT' set: turning on --posix");
+	}
 
 	/* POSIX compliance also implies no Unix extensions either */
 	if (do_posix)
@@ -278,7 +338,7 @@ out:
 		output_is_tty = 1;
 	/* No -f or --source options, use next arg */
 	if (numfiles == -1) {
-		if (optind > argc - 1)	/* no args left */
+		if (optind > argc - 1 || stopped_early) /* no args left or no program */
 			usage(1);
 		srcfiles[++numfiles].stype = CMDLINE;
 		srcfiles[numfiles].val = argv[optind];
@@ -293,6 +353,10 @@ out:
 
 	/* Set up the field variables */
 	init_fields();
+
+	if (do_lint && begin_block == NULL && expression_value == NULL
+	     && end_block == NULL)
+		warning("no program");
 
 	if (begin_block) {
 		in_begin_rule = 1;
@@ -318,25 +382,29 @@ static void
 usage(exitval)
 int exitval;
 {
-	char *opt1 = " -f progfile [--]";
-	char *opt2 = " [--] 'program'";
-	char *regops = " [POSIX or GNU style options]";
+	const char *opt1 = " -f progfile [--]";
+#if defined(MSDOS) || defined(OS2) || defined(VMS)
+	const char *opt2 = " [--] \"program\"";
+#else
+	const char *opt2 = " [--] 'program'";
+#endif
+	const char *regops = " [POSIX or GNU style options]";
 
-	version();
-	fprintf(stderr, "usage: %s%s%s file ...\n       %s%s%s file ...\n",
+	fprintf(stderr, "Usage:\t%s%s%s file ...\n\t%s%s%s file ...\n",
 		myname, regops, opt1, myname, regops, opt2);
 
 	/* GNU long options info. Gack. */
-	fputs("\nPOSIX options:\t\tGNU long options:\n", stderr);
+	fputs("POSIX options:\t\tGNU long options:\n", stderr);
 	fputs("\t-f progfile\t\t--file=progfile\n", stderr);
 	fputs("\t-F fs\t\t\t--field-separator=fs\n", stderr);
 	fputs("\t-v var=val\t\t--assign=var=val\n", stderr);
+	fputs("\t-m[fr]=val\n", stderr);
 	fputs("\t-W compat\t\t--compat\n", stderr);
 	fputs("\t-W copyleft\t\t--copyleft\n", stderr);
 	fputs("\t-W copyright\t\t--copyright\n", stderr);
 	fputs("\t-W help\t\t\t--help\n", stderr);
 	fputs("\t-W lint\t\t\t--lint\n", stderr);
-#if 0
+#ifdef NOSTALGIA
 	fputs("\t-W nostalgia\t\t--nostalgia\n", stderr);
 #endif
 #ifdef DEBUG
@@ -371,7 +439,6 @@ GNU General Public License for more details.\n\
 along with this program; if not, write to the Free Software\n\
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.\n";
 
-	version();
 	fputs(blurb_part1, stderr);
 	fputs(blurb_part2, stderr);
 	fputs(blurb_part3, stderr);
@@ -383,7 +450,8 @@ cmdline_fs(str)
 char *str;
 {
 	register NODE **tmp;
-	int len = strlen(str);
+	/* int len = strlen(str); *//* don't do that - we want to
+	                               avoid mismatched types */
 
 	tmp = get_lhs(FS_node, (Func_ptr *) 0);
 	unref(*tmp);
@@ -400,7 +468,7 @@ char *str;
 		if (do_unix && ! do_posix)
 			str[0] = '\t';
 	}
-	*tmp = make_str_node(str, len, SCAN);	/* do process escapes */
+	*tmp = make_str_node(str, strlen(str), SCAN); /* do process escapes */
 	set_FS();
 }
 
@@ -432,9 +500,9 @@ char **argv;
  */
 struct varinit {
 	NODE **spec;
-	char *name;
+	const char *name;
 	NODETYPE type;
-	char *strval;
+	const char *strval;
 	AWKNUM numval;
 	Func_ptr assign;
 };
@@ -446,7 +514,7 @@ static struct varinit varinit[] = {
 {&FS_node,	"FS",		Node_FS,		" ",	0,  0 },
 {&RS_node,	"RS",		Node_RS,		"\n",	0,  set_RS },
 {&IGNORECASE_node, "IGNORECASE", Node_IGNORECASE,	0,	0,  set_IGNORECASE },
-{&FILENAME_node, "FILENAME",	Node_var,		"-",	0,  0 },
+{&FILENAME_node, "FILENAME",	Node_var,		"",	0,  0 },
 {&OFS_node,	"OFS",		Node_OFS,		" ",	0,  set_OFS },
 {&ORS_node,	"ORS",		Node_ORS,		"\n",	0,  set_ORS },
 {&OFMT_node,	"OFMT",		Node_OFMT,		"%.6g",	0,  set_OFMT },
@@ -465,9 +533,10 @@ init_vars()
 	register struct varinit *vp;
 
 	for (vp = varinit; vp->name; vp++) {
-		*(vp->spec) = install(vp->name,
+		*(vp->spec) = install((char *) vp->name,
 		  node(vp->strval == 0 ? make_number(vp->numval)
-				: make_string(vp->strval, strlen(vp->strval)),
+				: make_string((char *) vp->strval,
+					strlen(vp->strval)),
 		       vp->type, (NODE *) NULL));
 		if (vp->assign)
 			(*(vp->assign))();
@@ -477,7 +546,7 @@ init_vars()
 void
 load_environ()
 {
-#if !defined(MSDOS) && !(defined(VMS) && defined(__DECC))
+#if !defined(MSDOS) && !defined(OS2) && !(defined(VMS) && defined(__DECC))
 	extern char **environ;
 #endif
 	register char *var, *val;
@@ -510,7 +579,8 @@ char *
 arg_assign(arg)
 char *arg;
 {
-	char *cp;
+	char *cp, *cp2;
+	int badvar;
 	Func_ptr after_assign = NULL;
 	NODE *var;
 	NODE *it;
@@ -519,6 +589,19 @@ char *arg;
 	cp = strchr(arg, '=');
 	if (cp != NULL) {
 		*cp++ = '\0';
+		/* first check that the variable name has valid syntax */
+		badvar = 0;
+		if (! isalpha(arg[0]) && arg[0] != '_')
+			badvar = 1;
+		else
+			for (cp2 = arg+1; *cp2; cp2++)
+				if (! isalnum(*cp2) && *cp2 != '_') {
+					badvar = 1;
+					break;
+				}
+		if (badvar)
+			fatal("illegal name `%s' in variable assignment", arg);
+
 		/*
 		 * Recent versions of nawk expand escapes inside assignments.
 		 * This makes sense, so we do it too.
@@ -657,7 +740,7 @@ char *optstr;
 			if (strncasecmp(cp, "source=", 7) != 0)
 				goto unknown;
 			cp += 7;
-			if (strlen(cp) == 0)
+			if (cp[0] == '\0')
 				warning("empty argument to -Wsource ignored");
 			else {
 				srcfiles[++numfiles].stype = CMDLINE;
@@ -689,40 +772,43 @@ static void
 version()
 {
 	fprintf(stderr, "%s, patchlevel %d\n", version_string, PATCHLEVEL);
+	/* per GNU coding standards, exit successfully, do nothing else */
+	exit(0);
 }
 
-/* static */
+/* this mess will improve in 2.16 */
 char *
 gawk_name(filespec)
 char *filespec;
 {
-        char *p;
-    
+	char *p;
+	
 #ifdef VMS	/* "device:[root.][directory.subdir]GAWK.EXE;n" -> "GAWK" */
-        char *q;
+	char *q;
 
-        p = strrchr(filespec, ']');  /* directory punctuation */
-        q = strrchr(filespec, '>');  /* alternate <international> punct */
+	p = strrchr(filespec, ']');  /* directory punctuation */
+	q = strrchr(filespec, '>');  /* alternate <international> punct */
 
-        if (p == NULL || q > p) p = q;
+	if (p == NULL || q > p) p = q;
 	p = strdup(p == NULL ? filespec : (p + 1));
 	if ((q = strrchr(p, '.')) != NULL)  *q = '\0';  /* strip .typ;vers */
 
 	return p;
 #endif /*VMS*/
 
-#if defined(MSDOS) || defined(atarist)
-        char *q;
+#if defined(MSDOS) || defined(OS2) || defined(atarist)
+	char *q;
 
-        p = filespec;
-	
-        if (q = strrchr(p, '\\'))
-            p = q + 1;
-        if (q = strchr(p, '.'))
-    	    *q = '\0';
-        strlwr(p);
+	for (p = filespec; (p = strchr(p, '\\')); *p = '/')
+		;
+	p = filespec;
+	if ((q = strrchr(p, '/')))
+		p = q + 1;
+	if ((q = strchr(p, '.')))
+		*q = '\0';
+	strlwr(p);
 
-        return (p == NULL ? filespec : p);
+	return (p == NULL ? filespec : p);
 #endif /* MSDOS || atarist */
 
 	/* "path/name" -> "name" */

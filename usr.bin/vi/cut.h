@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)cut.h	8.11 (Berkeley) 1/11/94
+ *	@(#)cut.h	8.13 (Berkeley) 3/16/94
  */
 
 typedef struct _texth TEXTH;		/* TEXT list head structure. */
@@ -46,7 +46,7 @@ struct _cb {
 #define	CB_LMODE	0x01		/* Cut was in line mode. */
 	u_char	 flags;
 };
-		
+
 /* Lines/blocks of text. */
 struct _text {				/* Text: a linked list of lines. */
 	CIRCLEQ_ENTRY(_text) q;		/* Linked list of text structures. */

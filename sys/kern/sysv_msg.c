@@ -149,7 +149,7 @@ struct msgctl_args {
 	struct	msqid_ds *user_msqptr;
 };
 
-int
+static int
 msgctl(p, uap, retval)
 	struct proc *p;
 	register struct msgctl_args *uap;
@@ -309,7 +309,7 @@ struct msgget_args {
 	int	msgflg;
 };
 
-int
+static int
 msgget(p, uap, retval)
 	struct proc *p;
 	register struct msgget_args *uap;
@@ -766,7 +766,7 @@ struct msgrcv_args {
 	int	msgflg;
 };
 
-int
+static int
 msgrcv(p, uap, retval)
 	struct proc *p;
 	register struct msgrcv_args *uap;

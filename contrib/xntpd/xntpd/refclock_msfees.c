@@ -139,7 +139,7 @@
 #define	INH_DELAY_PPS		BITS_TO_L_FP(  0, 9600)
 
 #ifndef	STREAM_PP1
-#define	STREAM_PP1	"ppsclockd\0<-- patch space for module name1 -->"
+#define	STREAM_PP1	"ppsclocd\0<-- patch space for module name1 -->"
 #endif
 #ifndef	STREAM_PP2
 #define	STREAM_PP2	"ppsclock\0<-- patch space for module name2 -->"

@@ -1,4 +1,4 @@
-/* tickadj.c,v 3.1 1993/07/06 01:11:05 jbj Exp
+/*
  * tickadj - read, and possibly modify, the kernel `tick' and
  *	     `tickadj' variables, as well as `dosynctodr'.  Note that
  *	     this operates on the running kernel only.  I'd like to be
@@ -6,6 +6,41 @@
  *	     mastered this yet.
  */
 #include <stdio.h>
+
+#ifdef SYS_LINUX
+#include <sys/timex.h>
+
+struct timex txc;
+
+int
+main(int argc, char ** argv)
+{
+  if (argc > 2)
+    {
+      fprintf(stderr, "Usage: %s [tick_value]\n", argv[0]);
+      exit(-1);
+    }
+  else if (argc == 2)
+    {
+      if ( (txc.tick = atoi(argv[1])) < 1 )
+	{
+	  fprintf(stderr, "Silly value for tick: %s\n", argv[1]);
+	  exit(-1);
+	}
+      txc.mode = ADJ_TICK;
+    }
+  else
+    txc.mode = 0;
+    
+  if (__adjtimex(&txc) < 0)
+    perror("adjtimex");
+  else
+    printf("tick = %d\n", txc.tick);
+
+  return(0);
+}
+#else /* not Linux... kmem tweaking: */
+
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -298,10 +333,13 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 
 #if defined(SYS_AUX3) || defined(SYS_AUX2)
 #define X_TICKADJ       0
-#define X_V             1
-#define X_TICK          2
+#define X_TICK          1
 #define X_DEF	
-	static struct nlist	nl[4];
+	static struct nlist nl[] =
+	{	{"tickadj"},
+		{"tick"},
+		{""},
+	};
 #endif
 
 #ifdef	NeXT
@@ -353,6 +391,22 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 #endif
 #endif
 
+#if defined(SYS_HPUX)
+#define	X_TICKADJ	0
+#define	X_TICK		1
+#define	X_DEF
+	static struct nlist nl[] = 
+#ifdef hp9000s300
+	{       {"_tickadj"},
+	        {"_old_tick"},
+#else
+        {       {"tickadj"},
+	        {"old_tick"},
+#endif
+	        {""},
+	};
+#endif
+
 #if !defined(X_DEF)
 #define	X_TICKADJ	0
 #define	X_TICK		1
@@ -373,16 +427,10 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 		"/kernel/unix",
 		"/386bsd",
 		"/netbsd",
+		"/hp-ux",
 		NULL
 	};
 	struct stat stbuf;
-
-#if defined(SYS_AUX3) || defined(SYS_AUX2)
-	strcpy (nl[X_TICKADJ].n_name, "tickadj");
-	strcpy (nl[X_V].n_name, "v");
-	strcpy (nl[X_TICK].n_name, "tick");
-	nl[3].n_name[0] = '\0';
-#endif
 
 	for (kname = kernels; *kname != NULL; kname++) {
 		if (stat(*kname, &stbuf) == -1)
@@ -513,3 +561,4 @@ readvar(fd, off, var)
 		exit(1);
 	}
 }
+#endif /* not Linux */

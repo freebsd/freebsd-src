@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)in.h	7.11 (Berkeley) 4/20/91
- *	$Id: in.h,v 1.4 1993/12/19 00:52:35 wollman Exp $
+ *	$Id: in.h,v 1.8 1994/05/26 22:42:14 jkh Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -47,6 +47,7 @@
  */
 #define	IPPROTO_IP		0		/* dummy for IP */
 #define	IPPROTO_ICMP		1		/* control message protocol */
+#define	IPPROTO_IGMP		2		/* ground control protocol */
 #define	IPPROTO_GGP		3		/* gateway^2 (deprecated) */
 #define	IPPROTO_TCP		6		/* tcp */
 #define	IPPROTO_EGP		8		/* exterior gateway protocol */
@@ -100,18 +101,35 @@ struct in_addr {
 #define	IN_CLASSC_HOST		0x000000ffUL
 
 #define	IN_CLASSD(i)		(((u_long)(i) & 0xf0000000UL) == 0xe0000000UL)
+#define	IN_CLASSD_NET		0xf0000000UL	/* These ones aren't really */
+#define	IN_CLASSD_NSHIFT	28		/* net and host fields, bit */
+#define	IN_CLASSD_HOST		0x0fffffffUL	/* routing needn't know. */
 #define	IN_MULTICAST(i)		IN_CLASSD(i)
 
 #define	IN_EXPERIMENTAL(i)	(((u_long)(i) & 0xe0000000UL) == 0xe0000000UL)
 #define	IN_BADCLASS(i)		(((u_long)(i) & 0xf0000000UL) == 0xf0000000UL)
 
 #define	INADDR_ANY		0x00000000UL
+#ifndef INADDR_LOOPBACK
+#define	INADDR_LOOPBACK		0x7f000001UL
+#endif
 #define	INADDR_BROADCAST	0xffffffffUL	/* must be masked */
 #ifndef KERNEL
 #define	INADDR_NONE		0xffffffffUL		/* -1 return */
 #endif
 
+#define	INADDR_UNSPEC_GROUP	0xe0000000UL	/* 224.0.0.0 */
+#define	INADDR_ALLHOSTS_GROUP	0xe0000001UL	/* 244.0.0.1 */
+#define	INADDR_MAX_LOCAL_GROUP	0xe00000ffUL	/* 244.0.0.255 */
+
 #define	IN_LOOPBACKNET		127			/* official! */
+
+/*
+ * Define a macro to stuff the loopback address into an Internet address.
+ */
+#define	IN_SET_LOOPBACK_ADDR(a) { \
+	(a)->sin_addr.s_addr = htonl(INADDR_LOOPBACK); \
+	(a)->sin_family = AF_INET; }
 
 /*
  * Socket address, internet style.
@@ -148,6 +166,23 @@ struct ip_opts {
 #define	IP_RECVRETOPTS	6	/* bool; receive IP options for response */
 #define	IP_RECVDSTADDR	7	/* bool; receive IP dst addr w/datagram */
 #define	IP_RETOPTS	8	/* ip_opts; set/get IP per-packet options */
+#define	IP_MULTICAST_IF	9	/* set/get IP multicast interfcae */
+#define	IP_MULTICAST_TTL 10	/* set/get IP multicast timetolive */
+#define	IP_MULTICAST_LOOP 11	/* set/get IP m'cast loopback */
+#define	IP_ADD_MEMBERSHIP 12	/* add an IP group membership */
+#define	IP_DROP_MEMBERSHIP 13	/* drop an IP group membership */
+
+#define	IP_DEFAULT_MULTICAST_TTL 1	/* normally limit m'casts to 1 hop */
+#define	IP_DEFAULT_MULTICAST_LOOP 1	/* normally hear sens if a member */
+#define	IP_MAX_MEMBERSHIPS	20	/* per socket; must fit in one mbuf */
+
+/*
+ * Argument structure for IP_ADD_MEMBERSHIP and IP_DROP_MEMBERSHIP.
+ */
+struct	ip_mreq {
+	struct in_addr	imr_multiaddr;	/* IP multicast address of group */
+	struct in_addr	imr_interface;	/* local IP address of interface */
+} ;
 
 #ifdef KERNEL
 /* From in.c: */

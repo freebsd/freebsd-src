@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1992 Diomidis Spinellis.
- * Copyright (c) 1992 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1992, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Diomidis Spinellis of Imperial College, University of London.
@@ -36,7 +36,8 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)process.c	5.10 (Berkeley) 12/2/92";
+/* from: static char sccsid[] = "@(#)process.c	8.1 (Berkeley) 6/6/93"; */
+static char *rcsid = "$Id: process.c,v 1.5 1994/04/17 09:41:52 alm Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,7 +58,7 @@ static char sccsid[] = "@(#)process.c	5.10 (Berkeley) 12/2/92";
 #include "defs.h"
 #include "extern.h"
 
-static SPACE HS = {""}, PS, SS;
+static SPACE HS, PS, SS;
 #define	pd		PS.deleted
 #define	ps		PS.space
 #define	psl		PS.len
@@ -67,7 +68,7 @@ static SPACE HS = {""}, PS, SS;
 static inline int	 applies __P((struct s_command *));
 static void		 flush_appends __P((void));
 static void		 lputs __P((char *));
-static inline int	 regexec_e __P((regex_t *, const char *, int, int));
+static inline int	 regexec_e __P((regex_t *, const char *, int, int, size_t));
 static void		 regsub __P((SPACE *, char *, char *));
 static int		 substitute __P((struct s_command *));
 
@@ -78,11 +79,11 @@ int appendnum;			/* Size of appends array. */
 static int lastaddr;		/* Set by applies if last address of a range. */
 static int sdone;		/* If any substitutes since last line input. */
 				/* Iov structure for 'w' commands. */
-static struct iovec iov[2] = { NULL, 0, "\n", 1 };
-
 static regex_t *defpreg;
 size_t maxnsub;
 regmatch_t *match;
+
+#define OUT(s) { fwrite(s, sizeof(u_char), psl, stdout); }
 
 void
 process()
@@ -113,6 +114,7 @@ redirect:
 					    (appendnum *= 2));
 				appends[appendx].type = AP_STRING;
 				appends[appendx].s = cp->t;
+				appends[appendx].len = strlen(cp->t);
 				appendx++;
 				break;
 			case 'b':
@@ -130,10 +132,10 @@ redirect:
 			case 'D':
 				if (pd)
 					goto new;
-				if ((p = strchr(ps, '\n')) == NULL)
+				if ((p = memchr(ps, '\n', psl)) == NULL)
 					pd = 1;
 				else {
-					psl -= (p - ps) - 1;
+					psl -= (p + 1) - ps;
 					memmove(ps, p + 1, psl);
 				}
 				goto new;
@@ -141,13 +143,13 @@ redirect:
 				cspace(&PS, hs, hsl, REPLACE);
 				break;
 			case 'G':
-				cspace(&PS, hs, hsl, APPENDNL);
+				cspace(&PS, hs, hsl, 0);
 				break;
 			case 'h':
 				cspace(&HS, ps, psl, REPLACE);
 				break;
 			case 'H':
-				cspace(&HS, ps, psl, APPENDNL);
+				cspace(&HS, ps, psl, 0);
 				break;
 			case 'i':
 				(void)printf("%s", cp->t);
@@ -157,10 +159,10 @@ redirect:
 				break;
 			case 'n':
 				if (!nflag && !pd)
-					(void)printf("%s\n", ps);
+					OUT(ps)
 				flush_appends();
 				r = mf_fgets(&PS, REPLACE);
-#ifdef HISTORIC_PRACTICE
+#ifndef NONHISTORIC_PRACTICE
 				if (!r)
 					exit(0);
 #endif
@@ -168,31 +170,31 @@ redirect:
 				break;
 			case 'N':
 				flush_appends();
-				if (!mf_fgets(&PS, APPENDNL)) {
+				if (!mf_fgets(&PS, 0)) {
 					if (!nflag && !pd)
-						(void)printf("%s\n", ps);
+						OUT(ps)
 					exit(0);
 				}
 				break;
 			case 'p':
 				if (pd)
 					break;
-				(void)printf("%s\n", ps);
+				OUT(ps)
 				break;
 			case 'P':
 				if (pd)
 					break;
-				if ((p = strchr(ps, '\n')) != NULL) {
+				if ((p = memchr(ps, '\n', psl)) != NULL) {
 					oldc = *p;
 					*p = '\0';
 				}
-				(void)printf("%s\n", ps);
+				OUT(ps)
 				if (p != NULL)
 					*p = oldc;
 				break;
 			case 'q':
 				if (!nflag && !pd)
-					(void)printf("%s\n", ps);
+					OUT(ps)
 				flush_appends();
 				exit(0);
 			case 'r':
@@ -202,6 +204,7 @@ redirect:
 					    (appendnum *= 2));
 				appends[appendx].type = AP_FILE;
 				appends[appendx].s = cp->t;
+				appends[appendx].len = strlen(cp->t);
 				appendx++;
 				break;
 			case 's':
@@ -222,13 +225,13 @@ redirect:
 				    DEFFILEMODE)) == -1)
 					err(FATAL, "%s: %s\n",
 					    cp->t, strerror(errno));
-				iov[0].iov_base = ps;
-				iov[0].iov_len = psl;
-				if (writev(cp->u.fd, iov, 2) != psl + 1)
+				if (write(cp->u.fd, ps, psl) != psl)
 					err(FATAL, "%s: %s\n",
 					    cp->t, strerror(errno));
 				break;
 			case 'x':
+				if (hs == NULL)
+					cspace(&HS, "", 0, REPLACE);
 				tspace = PS;
 				PS = HS;
 				HS = tspace;
@@ -236,7 +239,7 @@ redirect:
 			case 'y':
 				if (pd)
 					break;
-				for (p = ps, len = psl; len--; ++p)
+				for (p = ps, len = psl; --len; ++p)
 					*p = cp->u.y[*p];
 				break;
 			case ':':
@@ -249,7 +252,7 @@ redirect:
 		} /* for all cp */
 
 new:		if (!nflag && !pd)
-			(void)printf("%s\n", ps);
+			OUT(ps)
 		flush_appends();
 	} /* for all lines */
 }
@@ -258,8 +261,8 @@ new:		if (!nflag && !pd)
  * TRUE if the address passed matches the current program state
  * (lastline, linenumber, ps).
  */
-#define	MATCH(a)							\
-	(a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1) :		\
+#define	MATCH(a)						\
+	(a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1, psl) :	\
 	    (a)->type == AT_LINE ? linenum == (a)->u.l : lastline
 
 /*
@@ -314,14 +317,11 @@ substitute(cp)
 {
 	SPACE tspace;
 	regex_t *re;
-	size_t re_off;
-	size_t re_eoff;
-	int n;
+	size_t re_off, slen;
+	int n, lastempty;
 	char *s;
-	char *eos;
 
 	s = ps;
-	eos = s + strlen(s);
 	re = cp->u.s->re;
 	if (re == NULL) {
 		if (defpreg != NULL && cp->u.s->maxbref > defpreg->re_nsub) {
@@ -330,33 +330,52 @@ substitute(cp)
 			    cp->u.s->maxbref);
 		}
 	}
-	if (!regexec_e(re, s, 0, 0))
+	if (!regexec_e(re, s, 0, 0, psl))
 		return (0);
 
 	SS.len = 0;				/* Clean substitute space. */
+	slen = psl;
 	n = cp->u.s->n;
+	lastempty = 1;
+
 	switch (n) {
 	case 0:					/* Global */
 		do {
-			/* Locate start of replaced string. */
-			re_off = match[0].rm_so;
-			re_eoff = match[0].rm_eo;
-			/* Copy leading retained string. */
-			cspace(&SS, s, re_off, APPEND);
-			/* Add in regular expression. */
-			regsub(&SS, s, cp->u.s->new);
+			if (lastempty || match[0].rm_so != match[0].rm_eo) {
+				/* Locate start of replaced string. */
+				re_off = match[0].rm_so;
+				/* Copy leading retained string. */
+				cspace(&SS, s, re_off, APPEND);
+				/* Add in regular expression. */
+				regsub(&SS, s, cp->u.s->new);
+			}
+
 			/* Move past this match. */
-			s += match[0].rm_eo;
-		} while(*s && re_eoff && regexec_e(re, s, REG_NOTBOL, 0));
-		if (eos - s > 0 && !re_eoff)
-			err(FATAL, "infinite substitution loop");
+			if (match[0].rm_so != match[0].rm_eo) {
+				s += match[0].rm_eo;
+				slen -= match[0].rm_eo;
+				lastempty = 0;
+			} else {
+				if (match[0].rm_so == 0)
+					cspace(&SS, s, match[0].rm_so + 1,
+					    APPEND);
+				else
+					cspace(&SS, s + match[0].rm_so, 1,
+					    APPEND);
+				s += match[0].rm_so + 1;
+				slen -= match[0].rm_so + 1;
+				lastempty = 1;
+			}
+		} while (slen > 0 && regexec_e(re, s, REG_NOTBOL, 0, slen));
 		/* Copy trailing retained string. */
-		cspace(&SS, s, strlen(s), APPEND);
+		if (slen > 0)
+			cspace(&SS, s, slen, APPEND);
 		break;
 	default:				/* Nth occurrence */
 		while (--n) {
 			s += match[0].rm_eo;
-			if (!regexec_e(re, s, REG_NOTBOL, 0))
+			slen -= match[0].rm_eo;
+			if (!regexec_e(re, s, REG_NOTBOL, 0, slen))
 				return (0);
 		}
 		/* FALLTHROUGH */
@@ -369,7 +388,8 @@ substitute(cp)
 		regsub(&SS, s, cp->u.s->new);
 		/* Copy trailing retained string. */
 		s += match[0].rm_eo;
-		cspace(&SS, s, strlen(s), APPEND);
+		slen -= match[0].rm_eo;
+		cspace(&SS, s, slen, APPEND);
 		break;
 	}
 
@@ -384,16 +404,14 @@ substitute(cp)
 
 	/* Handle the 'p' flag. */
 	if (cp->u.s->p)
-		(void)printf("%s\n", ps);
+		OUT(ps)
 
 	/* Handle the 'w' flag. */
 	if (cp->u.s->wfile && !pd) {
 		if (cp->u.s->wfd == -1 && (cp->u.s->wfd = open(cp->u.s->wfile,
 		    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC, DEFFILEMODE)) == -1)
 			err(FATAL, "%s: %s\n", cp->u.s->wfile, strerror(errno));
-		iov[0].iov_base = ps;
-		iov[0].iov_len = psl;	
-		if (writev(cp->u.s->wfd, iov, 2) != psl + 1)
+		if (write(cp->u.s->wfd, ps, psl) != psl)
 			err(FATAL, "%s: %s\n", cp->u.s->wfile, strerror(errno));
 	}
 	return (1);
@@ -413,7 +431,8 @@ flush_appends()
 	for (i = 0; i < appendx; i++) 
 		switch (appends[i].type) {
 		case AP_STRING:
-			(void)printf("%s", appends[i].s);
+			fwrite(appends[i].s, sizeof(char), appends[i].len, 
+			    stdout);
 			break;
 		case AP_FILE:
 			/*
@@ -426,8 +445,8 @@ flush_appends()
 			 */
 			if ((f = fopen(appends[i].s, "r")) == NULL)
 				break;
-			while (count = fread(buf, 1, sizeof(buf), f))
-				(void)fwrite(buf, 1, count, stdout);
+			while (count = fread(buf, sizeof(char), sizeof(buf), f))
+				(void)fwrite(buf, sizeof(char), count, stdout);
 			(void)fclose(f);
 			break;
 		}
@@ -469,7 +488,7 @@ lputs(s)
 				(void)putchar("\\abfnrtv"[p - escapes]);
 				count += 2;
 			} else {
-				(void)printf("%03o", (u_char)*s);
+				(void)printf("%03o", *(u_char *)s);
 				count += 4;
 			}
 		}
@@ -481,21 +500,28 @@ lputs(s)
 }
 
 static inline int
-regexec_e(preg, string, eflags, nomatch)
+regexec_e(preg, string, eflags, nomatch, slen)
 	regex_t *preg;
 	const char *string;
 	int eflags, nomatch;
+	size_t slen;
 {
 	int eval;
-
+	
 	if (preg == NULL) {
 		if (defpreg == NULL)
 			err(FATAL, "first RE may not be empty");
 	} else
 		defpreg = preg;
 
+	/* Set anchors, discounting trailing newline (if any). */
+	if (slen > 0 && string[slen - 1] == '\n')
+		slen--;
+	match[0].rm_so = 0;
+	match[0].rm_eo = slen;
+	
 	eval = regexec(defpreg, string,
-	    nomatch ? 0 : maxnsub + 1, match, eflags);
+	    nomatch ? 0 : maxnsub + 1, match, eflags | REG_STARTEND);
 	switch(eval) {
 	case 0:
 		return (1);
@@ -565,24 +591,18 @@ cspace(sp, p, len, spflag)
 {
 	size_t tlen;
 
-	/*
-	 * Make sure SPACE has enough memory and ramp up quickly.  Appends
-	 * need two extra bytes, one for the newline, one for a terminating
-	 * NULL.
-	 */
-/*	tlen = sp->len + len + spflag == APPENDNL ? 2 : 1; */
-	tlen = sp->len + len + (spflag == APPENDNL ? 2 : 1);  /* XXX */
+	/* Make sure SPACE has enough memory and ramp up quickly. */
+	tlen = sp->len + len + 1;
 	if (tlen > sp->blen) {
 		sp->blen = tlen + 1024;
 		sp->space = sp->back = xrealloc(sp->back, sp->blen);
 	}
 
-	if (spflag == APPENDNL)
-		sp->space[sp->len++] = '\n';
-	else if (spflag == REPLACE)
+	if (spflag == REPLACE)
 		sp->len = 0;
 
 	memmove(sp->space + sp->len, p, len);
+
 	sp->space[sp->len += len] = '\0';
 }
 

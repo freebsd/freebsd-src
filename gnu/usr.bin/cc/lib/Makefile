@@ -1,6 +1,9 @@
 LIB = gcc2
 
-CFLAGS += -I${.CURDIR} -DNOFPU 
+CFLAGS += -I${.CURDIR}
+.if !defined(CCFPU)
+CFLAGS+= -DNOFPU 
+.endif
 NOPROFILE=no
 NOPIC=no
 

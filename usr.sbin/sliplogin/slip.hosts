@@ -1,6 +1,6 @@
 #
 # login	local-addr	remote-addr	mask		opt1	opt2 
-#						(normal,compress,noicmp)	
+#					      (normal,compressautocomp,noicmp)	
 #
 Shavoc	okeeffe         havoc		0xffffff00	normal
 Soxford	okeeffe		oxford-gw	0xffffff00	compress

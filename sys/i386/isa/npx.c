@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.6 1994/01/03 07:55:43 davidg Exp $
+ *	$Id: npx.c,v 1.9 1994/06/11 02:36:32 davidg Exp $
  */
 
 #include "npx.h"
@@ -114,7 +114,7 @@ struct	isa_driver npxdriver = {
 	npxprobe, npxattach, "npx",
 };
 
-u_int	npx0mask;
+u_int	npx0_imask = SWI_CLOCK_MASK;
 struct proc	*npxproc;
 
 static	bool_t			npx_ex16;
@@ -292,7 +292,7 @@ npxprobe1(dvp)
 				 * Bad, we are stuck with IRQ13.
 				 */
 				npx_irq13 = 1;
-				npx0mask = dvp->id_irq;	/* npxattach too late */
+				npx0_imask = dvp->id_irq;	/* npxattach too late */
 				return (IO_NPXSIZE);
 			}
 			/*
@@ -321,10 +321,12 @@ npxattach(dvp)
 	struct isa_device *dvp;
 {
 	if (!npx_ex16 && !npx_irq13) {
-		if (npx_exists)
+		if (npx_exists) {
 			printf("npx%d: Error reporting broken, using 387 emulator\n",dvp->id_unit);
-		else
+			npx_exists = 0;
+		} else {
 			printf("npx%d: 387 Emulator\n",dvp->id_unit);
+		}
 	}
 	npxinit(__INITIAL_NPXCW__);
 	return (1);		/* XXX unused */
@@ -528,8 +530,8 @@ npxsave(addr)
 	old_icu1_mask = inb(IO_ICU1 + 1);
 	old_icu2_mask = inb(IO_ICU2 + 1);
 	save_idt_npxintr = idt[npx_intrno];
-	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0mask));
-	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0mask >> 8));
+	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
+	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0_imask >> 8));
 	idt[npx_intrno] = npx_idt_probeintr;
 	enable_intr();
 	stop_emulating();
@@ -541,10 +543,10 @@ npxsave(addr)
 	icu1_mask = inb(IO_ICU1 + 1);	/* masks may have changed */
 	icu2_mask = inb(IO_ICU2 + 1);
 	outb(IO_ICU1 + 1,
-	     (icu1_mask & ~npx0mask) | (old_icu1_mask & npx0mask));
+	     (icu1_mask & ~npx0_imask) | (old_icu1_mask & npx0_imask));
 	outb(IO_ICU2 + 1,
-	     (icu2_mask & ~(npx0mask >> 8))
-	     | (old_icu2_mask & (npx0mask >> 8)));
+	     (icu2_mask & ~(npx0_imask >> 8))
+	     | (old_icu2_mask & (npx0_imask >> 8)));
 	idt[npx_intrno] = save_idt_npxintr;
 	enable_intr();		/* back to usual state */
 }

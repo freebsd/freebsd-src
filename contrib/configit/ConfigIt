@@ -1,0 +1,761 @@
+#!/usr/bin/perl
+#
+#  Copyright (c) 1994 GB Data Consulting
+#  All rights reserved.
+# 
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#  3. The name of the Author may not be used to endorse or promote products 
+#     derived from this software without specific prior written permission.
+#  4. This license extends only to network distributed versions.
+#     All even number versions are non-network.
+#  THIS SOFTWARE IS PROVIDED BY GB DATA AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL GB DATA OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF    
+#  SUCH DAMAGE.
+#
+#
+#
+#
+#     $Id: ConfigIt,v 1.2 1994/05/02 06:57:47 gclarkii Exp $
+#
+
+&config;
+&standard_devices;
+&menu;
+
+sub menu {
+system "clear";
+
+print "                                  ConfigIt!\n";
+print "                         A auto-configuration system\n";
+print "\n\n\n"; 
+
+print "            1                         Disk devices\n";
+print "            2                         Serial devices\n";
+print "            3                         Network devices\n";
+print "            4                         Console devices\n";
+print "            5                         Tape devices\n";
+print "            6                         Misc devices and options\n";
+print "            7                         Parallel devices\n";
+print "\n\n";
+print "Please enter you choice or q to quit: ";
+chop ($choice = <STDIN>);
+
+if ($choice eq ('q' || 'Q')) 
+    { 
+   print (CONFIG "\n\n\n"); 
+   close CONFIG;
+   exit; }
+ elsif ($choice == 1) 
+    { &disk_devices; } 
+ elsif ($choice == 2 && !$serdevsflag) 
+    { &serial_devices; }
+ elsif ($choice == 3 && !$netdevsflag) 
+    { &network_devices; } 
+ elsif ($choice == 4) 
+    { &console_devices; }
+ elsif ($choice == 5) 
+    { &tape_devices; } 
+ elsif ($choice == 6) 
+    { &misc_dev_option; } 
+ elsif ($choice == 7)
+    { &parallel_ports; }
+ else  
+    { &menu; } 
+&menu; 
+
+}
+
+
+sub config {
+system "clear";
+print "                               ConfigIt!\n";
+print "                    A Auto-configuration System\n\n";
+print "Please enter the name of your system: ";
+chop ($systemname = <STDIN>);
+$systemname =~ tr/a-z/A-Z/;
+open (CONFIG, ">>$systemname");
+
+}
+
+
+sub config_serial_devices {
+print (CONFIG "\n#Multi-port Config\n");
+print "Multi-port Comm-Cards are not supported at this time....\n\n";
+sleep 3;
+
+}
+
+
+sub console_devices {
+system "clear";
+print "				Console Devices\n\n";
+print "		1			Syscons\n";
+print "		2			Pccons\n";
+print "\n\n\n";
+print "Please enter your choice (q or Q to quit): ";
+chop ($cdevs = <STDIN>);
+
+if ($cdevs == 1 && !$condevsflag)
+   { &syscons; }
+elsif ($cdevs == 2 && !$condevsflag)
+   { &pccons; }
+elsif ($cdevs eq 'q')
+   { return; }
+elsif ($cdevs eq 'Q')
+   { return; }
+else {
+   &console_devices; }
+}
+
+
+
+sub disk_devices {
+
+  system "clear";
+  local ($choice);
+  print "                         Disk Device Sub-section\n\n";
+  print "              1                       WD drives\n";
+  print "              2                       SCSI drives\n";
+  print "              3                       Floppy & QIC-40/80 Drives\n";
+  print "		4			Mitsumi CD-ROM Drive\n"; 
+  print "\n\n";
+  print "Please enter your choice: ";
+  chop ($choice = <STDIN>);
+
+  if ($choice eq ('q' || 'Q')) 
+     { return; }
+   elsif ($choice == 1 && !$wdflag) 
+     { &wd_drives; } 
+   elsif ($choice == 2 && !$scsidevflag) 
+     { &scsi_drives; } 
+   elsif ($choice == 3 && !$floppyflag) 
+     { &floppy_drives; } 
+   elsif ($choice == 4 && !$mitsumiflag)
+     { &mitsumi_drive; }
+   else  
+     { &disk_devices; } 
+}
+
+
+sub doonecard {
+$cardnum = @_[0];
+
+system "clear";
+print "		1		AT&T EN100/STARLAN 10\n";
+print "		2		ISOLAN AT 4141-0\n or ISOLINK 4110\n";
+print "		3		WD/SMC 8003 & 8013\n";
+print "		4		SMC Ultra Elite 16\n";
+print "		5		3com 3c503\n";
+print "		6		NE1000/NE2000\n";
+print "\n\nPlease enter the type of network card number $cardnum : ";
+chop ($netcardchoice = <STDIN>);
+print "Please enter the port (in hex) address of the card: ";
+chop ($netcardadd = <STDIN>);
+print "Please enter the irq of the card: ";
+chop ($netcardirq = <STDIN>);
+
+if ($netcardchoice != 2)
+   { print "Please enter the I/O mem of the card: ";
+     chop ($netcardiomem = <STDIN>);
+   }
+
+if ($netcardchoice != (2 || 1))
+  { 
+    if ($ednum < 1) { 
+     $cardty = 'ed0';
+     $ednum++; 
+    } else { 
+    $cardty = "ed$ednum";
+    $ednum++; 
+    }
+     $interp = 'edintr';
+    }
+
+if ($netcardchoice == 2) 
+  {
+    if ($isnum < 1) {
+    $cardty = 'is0'; 
+    $isnum++; 
+    } else {
+    $cardty = "is$isnum";
+    $isnum++; 
+    } 
+    $interp = 'isintr';
+    } 
+
+if ($netcardchoice == 1) 
+   {
+     if ($ienum < 1) {
+     $cardty = 'ie0';
+     $ienum++; 
+     } else {
+     $cardty = "ie$ienum";
+     $ienum++ 
+     }
+     $interp = 'ieintr';
+     }   
+
+print (CONFIG "device 	$cardty at isa? port $netcardadd net irq $netcardirq iomem $netcardiomem vector $interp\n");
+
+}
+
+
+sub floppy_drives 
+{
+$floppyflag = 1;
+system "clear";
+print (CONFIG "\n#Disk devices\n\n");
+
+print "How many floppys do you have?: ";
+chop ($flch = <STDIN>);
+if ($flch > 0)
+   {
+    print (CONFIG "controller fdc0 at isa? port \"IO_FD1\" bio irq 6 drq 2 vector fdintr\n");
+    print (CONFIG "disk       fd0 at fdc0 drive 0\n");
+    print (CONFIG "disk       fd1 at fdc0 drive 1\n");
+   }
+if ($flch > 0)
+   {
+   print "Do you have a QIC-40/80 drive?: ";
+   chop ($qic40 = <STDIN>);
+   if ($qic40 eq 'y' || $qic40 eq 'Y')
+      {
+       print (CONFIG "tape       ft0 at fdc0 drive 2\n");
+      }
+   }
+}
+
+
+sub misc_dev_option {
+system "clear";
+$miscdevflag = 1;
+print (CONFIG "\n# Misc Devices\n");
+print "Do you want kernel tracing?: ";
+chop ($ktrace = <STDIN>);
+if ($ktrace eq ('y' || 'Y')) 
+    {
+    print (CONFIG "options	KTRACE\n");
+    }
+print "Do you want kernel debugging?: ";
+chop ($kddb = <STDIN>);
+if ($kddb eq ('y' || 'Y'))
+    {
+    print (CONFIG "pseudo-device	ddb\n");
+    }
+print "Do you want fast symlinks?: ";
+chop ($fastlinks = <STDIN>);
+if ($fastlinks eq ('y' || 'Y'))
+   {
+   print (CONFIG "options	FASTLINKS\n");
+   }
+print "Do you want PC file system support?: ";
+chop ($pcfs = <STDIN>);
+if ($pcfs eq ('y' || 'Y'))
+    {
+    print (CONFIG "options	PCFS\n");
+    }
+print "Do you want Memory File System support?: ";
+chop ($mfs = <STDIN>);
+if ($mfs eq ('y' || 'Y'))
+    {
+     print (CONFIG "options	MFS\n");
+    }
+print "Do you want QUOTA support?: ";
+chop ($quota = <STDIN>);
+if ($quota eq ('y' || 'Y'))
+    {
+    print (CONFIG "options	QUOTA\n");
+    }
+print "Do you want FIFO support?: ";
+chop ($fifo = <STDIN>);
+if ($fifo eq ('y' || 'Y'))
+    {
+    print (CONFIG "options	FIFO\n");
+    }
+print "Do you want ISO File System support?: ";
+chop ($isofs = <STDIN>);
+if ($isofs eq ('y' || 'Y'))
+   {
+   print (CONFIG "options	ISOFS\n");
+   }
+
+}
+
+
+sub mitsumi_drive {
+system "clear";
+$mitsumiflag = 1;
+print (CONFIG "\n#Disk devices\n\n");
+
+print "What address (hex) is the mitsumi controller at?: ";
+chop ($mitadd = <STDIN>);
+print "What interupt is the mitsumi controller at?: ";
+chop ($mitint = <STDIN>);
+print (CONFIG "device 		mcd at isa? port $mitadd bio irq $mitint vector mcdint\n");
+}
+
+#
+# Multi-port support for serial_devices.pl
+#
+#    $Id: ConfigIt,v 1.2 1994/05/02 06:57:47 gclarkii Exp $
+#
+
+
+sub multiport {
+$numstandm = @_[0];
+system "clear";
+print "NOTE: Only 1 multiport card is supported by ConfigIt.\n";
+print "Please enter the number of ports on the card: ";
+ chop ($multinum = <STDIN>);
+print "Please enter the starting port of the card: ";
+ chop ($startm = <STDIN>);
+print "Please enter the port number of the master port or 0 if none: ";
+ chop ($multimaster = <STDIN>);
+print "Please enter the intrupt of the card: ";
+ chop ($multiint = <STDIN>);
+print (CONFIG "\n#Multi-port serial devices\n\n");
+print (CONFIG "options       \"COM_MULTIPORT\"\n");
+
+$portm = $startm;
+$startm =~ tr/a-z/A-Z/;
+
+ for ($i = 1; $i < $multinum + 1; $i++) {
+  $siom = $i + $numstandm;
+  $siom = $siom - 1; 
+  if ($siom < 10) { $sio = "sio0"; } else { $sio = "sio"; }
+
+    if ($multimaster != $i) {
+    print (CONFIG "device    $sio$siom at isa? port $portm flags 0x501 vector siointr\n");
+    } else {
+    print (CONFIG "device    $sio$siom at isa? port $portm tty irq $multiint flags 0x501 vector siointr\n");
+    }
+$portm =~ tr/A-Z/a-z/;
+$numorig = hex ("$portm");
+$numadd = hex ("0x08");
+$numend = $numadd + $numorig;
+$endm = sprintf ("%lx", $numend);
+$end1m = $endm;
+$portm = "0x$end1m";
+$portm =~ tr/a-z/A-Z/;
+
+ }
+if ($numstandm > 0) { &standard_serial; }
+}
+
+sub network_devices {
+system "clear";
+$netdevsflag = 1;
+print (CONFIG "\n# Network devices\n");
+print "How many networking cards do you have: ";
+chop ($numnet = <STDIN>);
+
+if ($numnet != 0) {
+for ($i = 1; $i <= $numnet ; $i++)   
+{
+    &doonecard($i);
+   }
+}
+
+print "Do you need the SLIP device in the kernel?: ";
+chop ($slipch = <STDIN>);
+if ($slipch eq ('y' || 'Y'))
+   {
+  print "How many slip devices do you need: ";
+  chop ($slipno = <STDIN>);
+  print (CONFIG "pseudo-device	slip	$slipno\n");
+   }
+
+print "Do you need the PPP device in the kernel?: ";
+chop ($pppch = <STDIN>);
+if ($pppch eq ('y' || 'Y'))
+   {
+   print "How many PPP devices do you need: ";
+   chop ($pppno = <STDIN>);
+   print (CONFIG "pseudo-device	ppp	$pppno\n");
+   }
+
+print "Do you want Berkeley Packet Filter support?: ";
+chop ($bpf = <STDIN>);
+if ($bpf eq ('y' || 'Y'))
+   {
+   print (CONFIG "pseudo-device		bpf\n");
+   }
+
+print "Do you want Internetwork Gateway support?: ";
+chop ($gateway = <STDIN>);
+if ($gateway eq ('y' || 'Y'))
+    {
+    print (CONFIG "option 	GATEWAY\n");
+    }
+
+print "Do you want NFS support?: ";
+chop ($nfs = <STDIN>);
+if ($nfs eq ('y' || 'Y'))
+    {
+    print (CONFIG "option	NFS\n");
+    }
+
+print "How many pty's do you want?: ";
+chop ($ptyno = <STDIN>);
+if ($ptyno eq ('y' || 'Y'))
+    {
+    print (CONFIG "pseudo-device	pty $ptyno\n");
+    }
+
+}
+
+
+#
+#
+#
+
+sub parallel_ports {
+
+print "How many parallel ports do you have: ";
+ chop ($paranum = <STDIN>);
+
+if ($paranum) {
+print (CONFIG "\n#Parallel devices\n\n");
+
+for ($i = 1; $i <= $paranum; $i++) {
+ $lpanum = $i - 1;
+ print "Please enter the address for parallel port number $i : "; 
+  chop ($paraport = <STDIN>);
+ print "If you are running with out interupts on this port please\n"; 
+ print "anwser 0 to the following question.\n";
+ print "Please enter the interupt for parallel port number $i : ";
+  chop ($paraint  = <STDIN>);
+  if ($paraint) {
+ print (CONFIG "device     lpa$lpanum at isa? port $paraport tty irq $paraint vector lptintr\n");
+  } else {
+ print (CONFIG "device     lpa$lpanum at isa? port $paraport tty vector lptintr\n");
+   }
+
+  }
+ 
+ } 
+
+}
+
+sub pccons {
+$condevsflag = 1;
+print (CONFIG "\n# Console devices\n\n");
+print (CONFIG "device 		pc0 at isa? port \"IO_KBD\" tty irq 1 vector pcrint\n");
+
+}
+
+
+sub scsi_drives {
+$scsidevsflag = 1; 
+system "clear";
+print (CONFIG "\n# SCSI Devices\n\n");
+print "		1		Adaptec 1542/Bustec 542\n";
+print "		2		Adaptec 1742\n";
+print "		3		Bustec 742\n";
+print "		4		Ultrastore 14F/34F\n";
+print "\n\n";
+print "Enter your choice or q to quit: ";
+chop ($scsicho = <STDIN>);
+
+if ($scsicho eq 'q' || $scsicho eq 'Q')
+    {
+     return;
+    }
+elsif ($scsicho == 1)
+    {
+    $scsicard = "aha0";
+    $scsiio = "\"IO_AHA0\"";
+    $scsiint = "ahaintr";
+    }
+elsif ($scsicho == 2)
+    {
+    $scsicard = "ahb0";
+    $scsiint = "ahbintr";
+    }
+elsif ($scsicho == 3)
+    {
+    $scsicard = "bt0";
+    $scsiio = "\"IO_BT0\"";
+    $scsiint = "btintr";
+    }
+elsif ($scsicho == 4)
+    {
+    $scsicard = "uha0";
+    $scsiio = "\"IO_UHA0\"";
+    $scsiio = "uhaintr";
+    }
+else { &scsi_drives; }
+
+if ($scsicho == 2)
+    {
+     print "Please enter the interupt the AHA-1742 is on: ";
+     chop ($scsiirq = <STDIN>);
+     print (CONFIG "contoller 	ahb0	at isa? bio irq $scsiirq vector $scsiint\n");
+    }
+elsif ($scsicho == 1 || $scsicho == 4) 
+    {
+     print "Please enter the interupt the SCSI controller is on: ";
+     chop ($scsiirq = <STDIN>);
+     print "Please enter the dma channel the SCSI controller is on: ";
+     chop ($scsidrq = <STDIN>);
+     print (CONFIG "controller $scsicard at isa? port $scsiio bio irq $scsiirq drq $scsidrq vector $scsiint\n");
+     }
+else 
+     {
+     print "Please enter the interupt the SCSI controller is on: ";
+     chop ($scsiirq = <STDIN>);
+     print (CONFIG "controller $scsicard at isa? port $scsiio bio irq $scsiirq vector $scsiint\n");
+     }
+
+print (CONFIG "device		sd0\n");
+print (CONFIG "device		sd1\n");
+print (CONFIG "device		sd2\n");
+print (CONFIG "device		sd3\n");
+print (CONFIG "device		st1\n");
+print (CONFIG "device		st2\n");
+print (CONFIG "device		cd0\n");
+
+}
+
+#
+# Do serial ports, only standard ones are here 
+#
+#
+
+sub serial_devices {
+system "clear";
+$serdevsflag = 1;
+
+print "Do you have a multi-port card (Non-standard serial card): ";
+ chop ($multicard = <STDIN>);
+print "Please enter the number of standard serial ports you have: ";
+ chop ($numstand = <STDIN>);
+
+  if ($multicard eq ( 'y' || 'Y')) {
+    print "Please enter the number of standard serial ports you also have: ";
+    &multiport($numstand);
+  } else {
+    &standard_serial($numstand);
+  }
+print "Do you wish to have bidirectionl serial ports: ";
+ chop ($bidir = <STDIN>);
+  if ($bidir eq ('y' || 'Y')) {
+  print (CONFIG "options       \"COM_BIDIR\"\n");  
+ }
+}
+
+
+sub standard_devices {
+system "clear";
+print "What timezone are you in? (cst = 6): ";
+chop ($time = <STDIN>);
+print "What type of cpu do you have? ( 386 or 486 ): ";
+chop ($cputype = <STDIN>);
+
+if ($cputype == 386)
+   {
+   print "Do you have a 387?: ";
+   chop ($mathco = <STDIN>);
+   }
+
+if ($cputype == 486)
+   { 
+   print "Is it a DX or SX?: ";
+   chop ($dxsx = <STDIN>);
+    if ($dxsz eq 'SX' || $dxsx eq 'sx')
+     { 
+     $mathco = 'n'; 
+     }
+    }
+
+chop ($date = `date`); 
+chop ($whoami = `whoami`);  
+
+print (CONFIG "\n#\n#Config file for $systemname\n");
+print (CONFIG "#Generated by ConfigIt!\n");
+print (CONFIG "#Generated at $date by $whoami\n#\n#\n\n");
+
+print (CONFIG "#Generic Items\n\n");
+print (CONFIG "machine		\"i386\"\n");
+print (CONFIG "cpu		\"I","$cputype","_CPU\"\n");
+
+if ($mathco eq 'n' || $mathco eq 'N')
+   {
+   print "Do you wish to use the new math emulator (its better): ";  
+    chop ($choicesti = <STDIN>);
+    if ($choicesti eq ('y' || 'Y')) {
+   print (CONFIG "options       GPL_MATH_EMULATE\n");
+   } else { 
+   print (CONFIG "options	MATH_EMULATE\n");
+   }
+}
+
+print "The following is used to set certain parameters.\n";
+print "Please enter the number of users you expect: ";
+ chop ($maxusers = <STDIN>);
+if ($maxusers <= 10) { $maxusers = 10; }
+print (CONFIG "ident		$systemname\n");
+print (CONFIG "maxusers		$maxusers\n");
+print (CONFIG "maxfdescs	2000\n");
+print (CONFIG "timezone		$time dst\n");
+print (CONFIG "options		\"COMPAT_43\"\n");
+print (CONFIG "options		UCONSOLE\n");
+print (CONFIG "options		XSERVER\n");
+print (CONFIG "options		INET\n");
+print "What device is root on? (e.g. \"wd0\"): ";
+chop ($root = <STDIN>);
+if ($root) {
+$roots = "root on $root";
+} else { print "ABORTING you must have a root!\n"; exit; }
+
+print "What device is swap on? (e.g. \"wd0\" or \"wd0 and wd1\"): ";
+chop ($swap = <STDIN>);
+if ($swap) {
+$swaps = "swap on $swap";
+}
+print "What device is dump on? (e.g. \"wd0\"): ";
+chop ($dump = <STDIN>);
+if ($dumps) {
+$dumps = "dumps on $dump";
+}
+
+print (CONFIG "config	\"386bsd\"	$roots $swaps $dumps \n");
+print (CONFIG "pseudo-device	vnodepager\n");
+print (CONFIG "pseudo-device	swappager\n");
+print (CONFIG "pseudo-device	devpager\n");
+print (CONFIG "pseudo-device	ether\n");
+print (CONFIG "pseudo-device	loop\n");
+print (CONFIG "pseudo-device	log\n");
+print (CONFIG "pseudo-device	speaker\n");
+print (CONFIG "device		isa0\n");
+
+}
+
+
+#
+# Do standard serial ports
+#
+
+sub standard_serial {
+$sernumss = @_[0];
+
+  print "Are the $sernumss standard ports at the standard location and interup: ";
+   chop ($standss = <STDIN>);
+if ($standss eq ('y' || 'Y')) {
+
+ if ($sernumss == 0 || $sernumss > 4)
+   { print "invalid number of serial ports!!\n\n";
+     print "Please hit any key to continue.";
+     while (!($kbhit = <STDIN>)) {}
+     &serial_devices;} 
+
+   if ($sernumss < 3) {
+          print (CONFIG "\n#Standard serial devices\n\n");
+          print (CONFIG "device		sio00 at isa? port \"IO_COM1\" tty irq 4 vector siointr\n");
+	  print (CONFIG "device		sio01 at isa? port \"IO_COM2\" tty irq 3 vector siointr\n");
+       } else {
+          print (CONFIG "\n#Standard serial devices\n\n");
+          print (CONFIG "device		sio00 at isa? port \"IO_COM1\" tty irq 4 vector siointr\n");
+	  print (CONFIG "device		sio01 at isa? port \"IO_COM2\" tty irq 3 vector siointr\n");
+          print (CONFIG "device		sio02 at isa? port \"IO_COM3\" tty irq 5 vector siointr\n"); 
+          print (CONFIG "device		sio03 at isa? port \"IO_COM4\" tty irq 9 vector siointr\n"); }
+
+} else {
+    print (CONFIG "\n#Standard serial devices\n\n");
+
+    for ($i = 1;$i <= $sernum;$i++) {
+    print "Please enter the intrupt for serial port number $i: ";
+     chop ($intt = <STDIN>);
+    print "Please enter the address for serial port number $i: ";
+     chop ($portk = <STDIN>);
+    $iik = $i - 1;
+    print (CONFIG "device       sio0$iik at isa port $portk tty irq $intt vector siointr\n");
+    
+      }
+    }
+}
+
+
+
+sub syscons {
+print (CONFIG "\n#Console device\n");
+
+$condevsflag = 1;
+system "clear";
+print (CONFIG "device		sc0 at isa? port \"IO_KBD\" tty irq 1 vector scintr\n");
+print "How many virtual terminals do you want? (max 8): ";
+chop ($numvty = <STDIN>);
+if ($numvty == 0 || $numvty > 8)
+   { $numvty = 1; }
+print (CONFIG "options		\"NCONS=$numvty\"\n");
+print (CONFIG "options		\"STAR_SAVER\"\n");
+print (CONFIG "options		\"FADE_SAVER\"\n");
+print (CONFIG "options		\"SNAKE_SAVER\"\n");
+print (CONFIG "options		\"BLANK_SAVER\"\n");
+
+}
+
+
+sub tape_devices
+{
+system "clear";
+print (CONFIG "\n# QIC-02 Tape devices\n\n");
+$tapdevsflag = 1;
+print "Do you have a QIC-02 tape drive?: ";
+chop ($qic02 = <STDIN>);
+if ($qic02 eq ('y' || 'Y'))
+   {
+print "What address is it at? (Hex): ";
+chop ($qic02add = <STDIN>);
+print "What interupt is it at?: ";
+chop ($qic02int = <STDIN>);
+print (CONFIG "device	wt0 at isa? port $qic02add bio irq $qic02int drq 1 vector wtintr\n");
+   }
+}
+
+
+sub wd_drives {
+  $wdflag = 1;
+  local ($choice);
+  system "clear";
+  print (CONFIG "\n#Disk devices\n\n");
+
+  print "                 WD Drive Configuration\n\n";
+  print "How many WD drives do you have (Max of 4): ";
+  chop ($choice = <STDIN>);
+
+  if ($choice >= 3 ) {
+	print "\n";
+	print (CONFIG "controller     wdc0 at isa? port \"IO_WD1\" bio irq 14 vector wdintr\n");
+	print "\n";
+	print (CONFIG "disk           wd0  at wdc0 drive 0\n");
+	print (CONFIG "disk           wd1  at wdc1 drive 1\n");
+	print (CONFIG "controller     wdc1 at isa? port \"IO_WD2\" bio irq 15 vector wdintr\n");
+	print (CONFIG "disk           wd2  at wdc1 drive 0\n");
+	print (CONFIG "disk           wd3  at wdc1 drive 1\n");
+	print "\n";
+  } else {
+	print "\n";
+	print (CONFIG "controller     wdc0 at isa? port \"IO_WD1\" bio irq 14 vector wdintr\n");
+	print "\n";
+	print (CONFIG "disk           wd0  at wdc0 drive 0\n");
+	print (CONFIG "disk           wd1  at wdc0 drive 1\n");
+	print "\n";
+  }
+}
+

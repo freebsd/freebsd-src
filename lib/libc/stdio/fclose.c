@@ -48,7 +48,7 @@ fclose(fp)
 {
 	register int r;
 
-	if (fp->_flags == 0) {	/* not open! */
+	if (!fp || (fp->_flags == 0)) {	/* not open! */
 		errno = EBADF;
 		return (EOF);
 	}

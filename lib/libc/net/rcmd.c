@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)rcmd.c	5.24 (Berkeley) 2/24/91";
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
@@ -138,7 +139,7 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 		FD_SET(s, &reads);
 		FD_SET(s2, &reads);
 		errno = 0;
-		if (select(32, &reads, 0, 0, 0) < 1 ||
+		if (select(FD_SETSIZE, &reads, 0, 0, 0) < 1 ||
 		    !FD_ISSET(s2, &reads)) {
 			if (errno != 0)
 				perror("select: setting up stderr");
@@ -230,6 +231,12 @@ ruserok(rhost, superuser, ruser, luser)
 	int first = 1;
 	register char *sp, *p;
 	int baselen = -1;
+	uid_t suid;
+	gid_t sgid;
+	int int_sgid;	/* this is a kludge and should be removed
+			   when we transition to FreeBSD 2.0.  If you
+			   find this code in a 2.0 source tree, please
+			   contact the core team. */
 
 	sp = (char *)rhost;
 	p = fhost;
@@ -248,6 +255,12 @@ again:
 	if (hostf) {
 		if (!_validuser(hostf, fhost, luser, ruser, baselen)) {
 			(void) fclose(hostf);
+			if (first == 0) {
+                                (void)seteuid(suid);
+                                (void)setegid(sgid);
+				int_sgid = sgid;
+                                (void)setgroups(1, &int_sgid);
+                        }
 			return(0);
 		}
 		(void) fclose(hostf);
@@ -258,12 +271,17 @@ again:
 		char pbuf[MAXPATHLEN];
 
 		first = 0;
+		suid = geteuid();
+		sgid = getegid();
 		if ((pwd = getpwnam(luser)) == NULL)
 			return(-1);
+		(void)setegid(pwd->pw_gid);
+                (void)initgroups(luser, pwd->pw_gid);
+                (void)seteuid(pwd->pw_uid);
 		(void)strcpy(pbuf, pwd->pw_dir);
 		(void)strcat(pbuf, "/.rhosts");
 		if ((hostf = fopen(pbuf, "r")) == NULL)
-			return(-1);
+			goto bad;
 		/*
 		 * if owned by someone other than user or root or if
 		 * writeable by anyone but the owner, quit
@@ -272,9 +290,15 @@ again:
 		    sbuf.st_uid && sbuf.st_uid != pwd->pw_uid ||
 		    sbuf.st_mode&022) {
 			fclose(hostf);
-			return(-1);
+			goto bad;
 		}
 		goto again;
+	}
+bad:
+	if (first == 0) {
+		(void)seteuid(suid);
+		(void)setegid(sgid);
+		(void)setgroups(1, (int *)&sgid);
 	}
 	return (-1);
 }

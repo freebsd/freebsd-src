@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_pager.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_pager.c,v 1.10 1994/01/31 04:21:43 davidg Exp $
+ *	$Id: vm_pager.c,v 1.11 1994/03/07 11:39:16 davidg Exp $
  */
 
 /*
@@ -164,6 +164,26 @@ vm_pager_getmulti(pager, m, count, reqpage, sync)
 		return VM_PAGER_OK;
 	}
 	return(VM_PAGER_GET_MULTI(pager, m, count, reqpage, sync));
+}
+
+int
+vm_pager_putmulti(pager, m, count, sync, rtvals)
+	vm_pager_t	pager;
+	vm_page_t	*m;
+	int		count;
+	boolean_t	sync;
+	int		*rtvals;
+{
+	int i;
+
+	if( pager->pg_ops->pgo_putmulti)
+		return(VM_PAGER_PUT_MULTI(pager, m, count, sync, rtvals));
+	else {
+		for(i=0;i<count;i++) {
+			rtvals[i] = VM_PAGER_PUT( pager, m[i], sync);
+		}
+		return 1;
+	}
 }
 
 int

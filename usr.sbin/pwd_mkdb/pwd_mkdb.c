@@ -53,10 +53,41 @@ static char sccsid[] = "@(#)pwd_mkdb.c	5.5 (Berkeley) 5/6/91";
 #include <string.h>
 #include <stdlib.h>
 
+/* #define PW_COMPACT */
+/* Compact pwd.db/spwd.db structure by Alex G. Bulushev, bag@demos.su */
+#ifdef PW_COMPACT
+# define HI_BSIZE 1024
+# define HI_CACHE (512 * 1024)
+# define HI_SCACHE (128 * 1024)
+#else
+# define HI_BSIZE 4096
+# define HI_CACHE (2048 * 1024)
+#endif
+
 #define	INSECURE	1
 #define	SECURE		2
 #define	PERM_INSECURE	(S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 #define	PERM_SECURE	(S_IRUSR|S_IWUSR)
+
+HASHINFO openinfo = {
+      HI_BSIZE,         /* bsize */
+      32,               /* ffactor */
+      256,              /* nelem */
+      HI_CACHE,         /* cachesize */
+      NULL,             /* hash() */
+      0                 /* lorder */
+};
+
+#ifdef PW_COMPACT
+HASHINFO sopeninfo = {
+      HI_BSIZE,         /* bsize */
+      32,               /* ffactor */
+      256,              /* nelem */
+      HI_SCACHE,        /* cachesize */
+      NULL,             /* hash() */
+      0                 /* lorder */
+};
+#endif
 
 char *progname = "pwd_mkdb";
 
@@ -76,10 +107,14 @@ main(argc, argv)
 	DB *dp, *edp;
 	sigset_t set;
 	DBT data, key;
+#ifdef PW_COMPACT
+	DBT pdata, sdata;
+#endif
 	int ch, cnt, tfd;
 	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
 	char buf2[MAXPATHLEN];
 
+	umask(022);
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	while ((ch = getopt(argc, argv, "d:pv")) != EOF)
@@ -121,17 +156,21 @@ main(argc, argv)
 
 	/* Open the temporary insecure password database. */
 	(void)sprintf(buf, "%s/%s.tmp", prefix, _MP_DB);
-	dp = dbopen(buf, O_RDWR|O_CREAT|O_EXCL, PERM_INSECURE, DB_HASH, NULL);
+	dp = dbopen(buf,
+	    O_RDWR|O_CREAT|O_EXCL, PERM_INSECURE, DB_HASH, &openinfo);
 	if (!dp)
 		error(buf);
 	clean = FILE_INSECURE;
 
+#ifdef PW_COMPACT
 	/* Open the temporary encrypted password database. */
 	(void)sprintf(buf, "%s/%s.tmp", prefix, _SMP_DB);
-	edp = dbopen(buf, O_RDWR|O_CREAT|O_EXCL, PERM_SECURE, DB_HASH, NULL);
+	edp = dbopen(buf,
+	    O_RDWR|O_CREAT|O_EXCL, PERM_SECURE, DB_HASH, &sopeninfo);
 	if (!edp)
 		error(buf);
 	clean = FILE_SECURE;
+#endif
 
 	/*
 	 * Open file for old password file.  Minor trickiness -- don't want to
@@ -163,11 +202,19 @@ main(argc, argv)
 	data.data = (u_char *)buf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
+#ifdef PW_COMPACT
+		pdata.data = (u_char *)&cnt;
+		pdata.size = sizeof(int);
+		sdata.data = (u_char *)pwd.pw_passwd;
+		sdata.size = strlen(pwd.pw_passwd) + 1;
+#endif
 #define	COMPACT(e)	t = e; while (*p++ = *t++);
 		/* Create insecure data. */
 		p = buf;
 		COMPACT(pwd.pw_name);
+#ifndef PW_COMPACT
 		COMPACT("*");
+#endif
 		bcopy((char *)&pwd.pw_uid, p, sizeof(int));
 		p += sizeof(int);
 		bcopy((char *)&pwd.pw_gid, p, sizeof(int));
@@ -187,7 +234,22 @@ main(argc, argv)
 		len = strlen(pwd.pw_name);
 		bcopy(pwd.pw_name, tbuf + 1, len);
 		key.size = len + 1;
+#ifdef PW_COMPACT
+		if ((dp->put)(dp, &key, &pdata, R_NOOVERWRITE) == -1)
+#else
 		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
+#endif
+			error("put");
+
+		/* Store insecure by uid. */
+		tbuf[0] = _PW_KEYBYUID;
+		bcopy((char *)&pwd.pw_uid, tbuf + 1, sizeof(pwd.pw_uid));
+		key.size = sizeof(pwd.pw_uid) + 1;
+#ifdef PW_COMPACT
+		if ((dp->put)(dp, &key, &pdata, R_NOOVERWRITE) == -1)
+#else
+		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
+#endif
 			error("put");
 
 		/* Store insecure by number. */
@@ -197,12 +259,41 @@ main(argc, argv)
 		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 
-		/* Store insecure by uid. */
-		tbuf[0] = _PW_KEYBYUID;
-		bcopy((char *)&pwd.pw_uid, tbuf + 1, sizeof(pwd.pw_uid));
-		key.size = sizeof(pwd.pw_uid) + 1;
-		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
+#ifdef PW_COMPACT
+		/* Store secure. */
+		if ((edp->put)(edp, &key, &sdata, R_NOOVERWRITE) == -1)
 			error("put");
+#endif
+
+		/* Create original format password file entry */
+		if (makeold)
+			(void)fprintf(oldfp, "%s:*:%d:%d:%s:%s:%s\n",
+			    pwd.pw_name, pwd.pw_uid, pwd.pw_gid, pwd.pw_gecos,
+			    pwd.pw_dir, pwd.pw_shell);
+
+	}
+	(void)(dp->close)(dp);
+#ifdef PW_COMPACT
+	(void)(edp->close)(edp);
+#endif
+
+	if (makeold) {
+		(void)fflush(oldfp);
+		(void)fsync(fileno(oldfp));
+		(void)fclose(oldfp);
+	}
+
+#ifndef PW_COMPACT
+	/* Open the temporary encrypted password database. */
+	(void)sprintf(buf, "%s/%s.tmp", prefix, _SMP_DB);
+	edp = dbopen(buf,
+	    O_RDWR|O_CREAT|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
+	if (!edp)
+		error(buf);
+	clean = FILE_SECURE;
+
+	rewind(fp);
+	for (cnt = 1; scan(fp, &pwd); ++cnt) {
 
 		/* Create secure data. */
 		p = buf;
@@ -227,35 +318,27 @@ main(argc, argv)
 		len = strlen(pwd.pw_name);
 		bcopy(pwd.pw_name, tbuf + 1, len);
 		key.size = len + 1;
-		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
+		if ((edp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 
 		/* Store secure by number. */
 		tbuf[0] = _PW_KEYBYNUM;
 		bcopy((char *)&cnt, tbuf + 1, sizeof(cnt));
 		key.size = sizeof(cnt) + 1;
-		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
+		if ((edp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 
 		/* Store secure by uid. */
 		tbuf[0] = _PW_KEYBYUID;
 		bcopy((char *)&pwd.pw_uid, tbuf + 1, sizeof(pwd.pw_uid));
 		key.size = sizeof(pwd.pw_uid) + 1;
-		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
+		if ((edp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 
-		/* Create original format password file entry */
-		if (makeold)
-			(void)fprintf(oldfp, "%s:*:%d:%d:%s:%s:%s\n",
-			    pwd.pw_name, pwd.pw_uid, pwd.pw_gid, pwd.pw_gecos,
-			    pwd.pw_dir, pwd.pw_shell);
 	}
-	(void)(dp->close)(dp);
+
 	(void)(edp->close)(edp);
-	if (makeold) {
-		(void)fsync(oldfp);
-		(void)fclose(oldfp);
-	}
+#endif
 
 	/* Set master.passwd permissions, in case caller forgot. */
 	(void)fchmod(fileno(fp), S_IRUSR|S_IWUSR);
@@ -284,6 +367,7 @@ main(argc, argv)
 	exit(0);
 }
 
+int
 scan(fp, pw)
 	FILE *fp;
 	struct passwd *pw;
@@ -310,8 +394,8 @@ scan(fp, pw)
 		(void)fprintf(stderr, "pwd_mkdb: at line #%d.\n", lcnt);
 fmt:		errno = EFTYPE;
 		error(pname);
-		exit(1);
 	}
+	return(1);
 }
 
 mv(from, to)

@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: dumprestore.h,v 1.1.1.1.2.1 1994/05/04 07:38:27 rgrimes Exp $
+ *	$Id: dumprestore.h,v 1.2 1994/05/04 08:09:11 rgrimes Exp $
  */
 /*
  * Copyright (c) 1980 Regents of the University of California.

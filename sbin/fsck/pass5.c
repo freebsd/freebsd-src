@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)pass5.c	5.13 (Berkeley) 7/20/90";
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/pass5.c,v 1.2 1993/07/22 16:51:58 jkh Exp $";
+static char rcsid[] = "$Id: pass5.c,v 1.3 1994/05/05 23:41:06 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -41,6 +41,14 @@ static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/pass5.c,v 1.2 199
 #include <ufs/fs.h>
 #include <string.h>
 #include "fsck.h"
+
+/*
+ * Allow time in cg summary data to be this number of seconds in the future.
+ * Currently we allow up to one day of slack because of problem that
+ * adjkerntz(8) can change the time by up to a day when it runs and adjusts
+ * the timezone.
+ */
+#define TIME_SLACK (60*60*24)
 
 pass5()
 {
@@ -110,7 +118,10 @@ pass5()
 		dmax = dbase + fs->fs_fpg;
 		if (dmax > fs->fs_size)
 			dmax = fs->fs_size;
-		if (now > cg->cg_time)
+#ifndef TIME_SLACK
+#define TIME_SLACK 0
+#endif
+		if (now > cg->cg_time - TIME_SLACK)
 			newcg->cg_time = cg->cg_time;
 		else
 			newcg->cg_time = now;

@@ -1,7 +1,7 @@
 /* uucp.c
    Prepare to copy a file to or from a remote system.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uucp_rcsid[] = "$Id: uucp.c,v 1.1 1993/08/05 18:27:36 conklin Exp $";
+const char uucp_rcsid[] = "$Id: uucp.c,v 1.2 1994/05/07 18:14:10 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -41,6 +41,7 @@ const char uucp_rcsid[] = "$Id: uucp.c,v 1.1 1993/08/05 18:27:36 conklin Exp $";
 /* Local functions.  */
 
 static void ucusage P((void));
+static void uchelp P((void));
 static void ucdirfile P((const char *zdir, const char *zfile,
 			 pointer pinfo));
 static void uccopy P((const char *zfile, const char *zdest));
@@ -51,11 +52,29 @@ static const char *zcone_system P((boolean *pfany));
 static void ucrecord_file P((const char *zfile));
 static void ucabort P((void));
 
-/* The program name.  */
-char abProgram[] = "uucp";
-
 /* Long getopt options.  */
-static const struct option asClongopts[] = { { NULL, 0, NULL, 0 } };
+static const struct option asClongopts[] =
+{
+  { "copy", no_argument, NULL, 'C' },
+  { "nocopy", no_argument, NULL, 'c' },
+  { "directories", no_argument, NULL, 'd' },
+  { "nodirectories", no_argument, NULL, 'f' },
+  { "grade", required_argument, NULL, 'g' },
+  { "jobid", no_argument, NULL, 'j' },
+  { "mail", no_argument, NULL, 'm' },
+  { "notify", required_argument, NULL, 'n' },
+  { "nouucico", no_argument, NULL, 'r' },
+  { "recursive", no_argument, NULL, 'R' },
+  { "status", required_argument, NULL, 's' },
+  { "uuto", no_argument, NULL, 't' },
+  { "user", required_argument, NULL, 'u' },
+  { "noexpand", no_argument, NULL, 'w' },
+  { "config", required_argument, NULL, 'I' },
+  { "debug", required_argument, NULL, 'x' },
+  { "version", no_argument, NULL, 'v' },
+  { "help", no_argument, NULL, 1 },
+  { NULL, 0, NULL, 0 }
+};
 
 /* Local variables.  There are a bunch of these, mostly set by the
    options and the last (the destination) argument.  These have file
@@ -137,13 +156,16 @@ main (argc, argv)
   int iuuconf;
   int i;
   boolean fgetcwd;
+  struct uuconf_system slocalsys;
   char *zexclam;
   char *zdestfile;
   const char *zdestsys;
   char *zoptions;
   boolean fexit;
 
-  while ((iopt = getopt_long (argc, argv, "cCdfg:I:jmn:prRs:tu:Wx:",
+  zProgram = argv[0];
+
+  while ((iopt = getopt_long (argc, argv, "cCdfg:I:jmn:prRs:tu:Wvx:",
 			      asClongopts, (int *) NULL)) != EOF)
     {
       switch (iopt)
@@ -232,13 +254,26 @@ main (argc, argv)
 #endif
 	  break;
 
+	case 'v':
+	  /* Print version and exit.  */
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+		  zProgram, VERSION);
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
+	case 1:
+	  /* --help.  */
+	  uchelp ();
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
 	case 0:
 	  /* Long option found and flag set.  */
 	  break;
 
 	default:
 	  ucusage ();
-	  break;
+	  /*NOTREACHED*/
 	}
     }
 
@@ -335,6 +370,18 @@ main (argc, argv)
   else if (iuuconf != UUCONF_SUCCESS)
     ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
 
+  /* Get the local system information.  */
+  iuuconf = uuconf_system_info (puuconf, zClocalname, &slocalsys);
+  if (iuuconf != UUCONF_SUCCESS)
+    {
+      if (iuuconf != UUCONF_NOT_FOUND)
+	ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
+      iuuconf = uuconf_system_local (puuconf, &slocalsys);
+      if (iuuconf != UUCONF_SUCCESS)
+	ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
+      slocalsys.uuconf_zname = (char *) zClocalname;
+    }
+
   /* If we are emulating uuto, translate the destination argument, and
      notify the destination user.  This had better not turn into
      something that requires the current directory, or we may have
@@ -377,6 +424,8 @@ main (argc, argv)
   if (fCmail)
     *zoptions++ = 'm';
   *zoptions = '\0';
+
+  argv[argc - 1] = zremove_local_sys (&slocalsys, argv[argc - 1]);
 
   zexclam = strchr (argv[argc - 1], '!');
   if (zexclam == NULL)
@@ -445,7 +494,8 @@ main (argc, argv)
   /* Turn the destination into an absolute path, unless it is on a
      remote system and -W was used.  */
   if (fClocaldest)
-    zdestfile = zsysdep_local_file_cwd (zdestfile, sCdestsys.uuconf_zpubdir);
+    zdestfile = zsysdep_local_file_cwd (zdestfile, sCdestsys.uuconf_zpubdir,
+					(boolean *) NULL);
   else if (fCexpand)
     zdestfile = zsysdep_add_cwd (zdestfile);
   if (zdestfile == NULL)
@@ -462,6 +512,8 @@ main (argc, argv)
 
       fCneeds_cwd = FALSE;
 
+      argv[i] = zremove_local_sys (&slocalsys, argv[i]);
+
       if (strchr (argv[i], '!') != NULL)
 	{
 	  flocal = FALSE;
@@ -476,7 +528,8 @@ main (argc, argv)
 	  if (fsysdep_needs_cwd (argv[i]))
 	    fCneeds_cwd = TRUE;
 	  zfrom = zsysdep_local_file_cwd (argv[i],
-					  sCdestsys.uuconf_zpubdir);
+					  sCdestsys.uuconf_zpubdir,
+					  (boolean *) NULL);
 	  if (zfrom == NULL)
 	    ucabort ();
 	}
@@ -524,12 +577,35 @@ main (argc, argv)
       boolean fany;
 
       zsys = zcone_system (&fany);
-      if (zsys != NULL)
-	fexit = fsysdep_run ("uucico", "-s", zsys);
-      else if (fany)
-	fexit = fsysdep_run ("uucico", "-r1", (const char *) NULL);
-      else
+
+      if (zsys == NULL && ! fany)
 	fexit = TRUE;
+      else
+	{
+	  const char *zarg;
+	  char *zconfigarg;
+
+	  if (zsys == NULL)
+	    zarg = "-r1";
+	  else
+	    {
+	      char *z;
+
+	      z = zbufalc (sizeof "-Cs" + strlen (zsys));
+	      sprintf (z, "-Cs%s", zsys);
+	      zarg = z;
+	    }
+
+	  if (zconfig == NULL)
+	    zconfigarg = NULL;
+	  else
+	    {
+	      zconfigarg = zbufalc (sizeof "-I" + strlen (zconfig));
+	      sprintf (zconfigarg, "-I%s", zconfig);
+	    }
+
+	  fexit = fsysdep_run (FALSE, "uucico", zarg, zconfigarg);
+	}
     }
 
   usysdep_exit (fexit);
@@ -538,49 +614,45 @@ main (argc, argv)
   return 0;
 }
 
+/* Print usage message and die.  */
+
 static void
 ucusage ()
 {
   fprintf (stderr,
-	   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
-	   VERSION);
-  fprintf (stderr,
-	   "Usage: uucp [options] file1 [file2 ...] dest\n");
-  fprintf (stderr,
-	   " -c: Do not copy local files to spool directory\n");
-  fprintf (stderr,
-	   " -C, -p: Copy local files to spool directory (default)\n");
-  fprintf (stderr,
-	   " -d: Create necessary directories (default)\n");
-  fprintf (stderr,
-	   " -f: Do not create directories (fail if they do not exist)\n");
-  fprintf (stderr,
-	   " -g grade: Set job grade (must be alphabetic)\n");
-  fprintf (stderr,
-	   " -m: Report status of copy by mail\n");
-  fprintf (stderr,
-	   " -n user: Report status of copy by mail to remote user\n");
-  fprintf (stderr,
-	   " -R: Copy directories recursively\n");
-  fprintf (stderr,
-	   " -r: Do not start uucico daemon\n");
-  fprintf (stderr,
-	   " -s file: Report completion status to file\n");
-  fprintf (stderr,
-	   " -j: Report job id\n");
-  fprintf (stderr,
-	   " -W: Do not add current directory to remote filenames\n");
-  fprintf (stderr,
-	   " -t: Emulate uuto\n");
-  fprintf (stderr,
-	   " -u name: Set user name\n");
-  fprintf (stderr,
-	   " -x debug: Set debugging level\n");
-#if HAVE_TAYLOR_CONFIG
-  fprintf (stderr,
-	   " -I file: Set configuration file to use\n");
-#endif /* HAVE_TAYLOR_CONFIG */
+	   "Usage: %s [options] file1 [file2 ...] dest\n", zProgram);
+  fprintf (stderr, "Use %s --help for help\n", zProgram);
   exit (EXIT_FAILURE);
+}
+
+/* Print help message.  */
+
+static void
+uchelp ()
+{
+  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	   VERSION);
+  printf ("Usage: %s [options] file1 [file2 ...] dest\n", zProgram);
+  printf (" -c,--nocopy: Do not copy local files to spool directory\n");
+  printf (" -C,-p,--copy: Copy local files to spool directory (default)\n");
+  printf (" -d,--directories: Create necessary directories (default)\n");
+  printf (" -f,--nodirectories: Do not create directories (fail if they do not exist)\n");
+  printf (" -g,--grade grade: Set job grade (must be alphabetic)\n");
+  printf (" -m,--mail: Report status of copy by mail\n");
+  printf (" -n,--notify user: Report status of copy by mail to remote user\n");
+  printf (" -R,--recursive: Copy directories recursively\n");
+  printf (" -r,--nouucico: Do not start uucico daemon\n");
+  printf (" -s,--status file: Report completion status to file\n");
+  printf (" -j,--jobid: Report job id\n");
+  printf (" -W,--noexpand: Do not add current directory to remote filenames\n");
+  printf (" -t,--uuto: Emulate uuto\n");
+  printf (" -u,--usage name: Set user name\n");
+  printf (" -x,--debug debug: Set debugging level\n");
+#if HAVE_TAYLOR_CONFIG
+  printf (" -I,--config file: Set configuration file to use\n");
+#endif /* HAVE_TAYLOR_CONFIG */
+  printf (" -v,--version: Print version and exit\n");
+  printf (" --help: Print help and exit\n");
 }
 
 /* This is called for each file in a directory heirarchy.  */
@@ -713,7 +785,9 @@ uccopy (zfile, zdest)
 					(fCremote
 					 ? (const char *) NULL
 					 : zCuser)))
-		ulog (LOG_FATAL, "Not permitted to send %s", zfile);
+		ulog (LOG_FATAL,
+		      "Daemon not permitted to send %s (suggest --copy)",
+		      zfile);
 	    }
 	  else
 	    {
@@ -730,6 +804,7 @@ uccopy (zfile, zdest)
 	    {
 	      /* We're not forwarding.  Just send the file.  */
 	      s.bcmd = 'S';
+	      s.bgrade = bCgrade;
 	      s.pseq = NULL;
 	      s.zfrom = zbufcpy (zfile);
 	      s.zto = zbufcpy (zdest);
@@ -794,6 +869,7 @@ uccopy (zfile, zdest)
 
 	      /* Send the execution file.  */
 	      s.bcmd = 'S';
+	      s.bgrade = bCgrade;
 	      s.pseq = NULL;
 	      s.zfrom = zbufcpy (abxtname);
 	      s.zto = zbufcpy (abxname);
@@ -815,6 +891,7 @@ uccopy (zfile, zdest)
 
 	      /* Send the data file.  */
 	      s.bcmd = 'S';
+	      s.bgrade = bCgrade;
 	      s.pseq = NULL;
 	      s.zfrom = zbufcpy (zfile);
 	      s.zto = zbufcpy (abdname);
@@ -851,6 +928,7 @@ uccopy (zfile, zdest)
 	  clen = zfrom - zexclam - 1;
 	  zforward = zbufalc (clen + 1);
 	  memcpy (zforward, zexclam + 1, clen);
+	  zforward[clen] = '\0';
 	}
 
       ++zfrom;
@@ -925,6 +1003,7 @@ uccopy (zfile, zdest)
 	      zto = zbufcpy (zdest);
 	    }
 
+	  s.bgrade = bCgrade;
 	  s.pseq = NULL;
 	  s.zfrom = zfrom;
 	  s.zto = zto;
@@ -999,6 +1078,7 @@ uccopy (zfile, zdest)
 
 	  /* Send the execution file.  */
 	  s.bcmd = 'S';
+	  s.bgrade = bCgrade;
 	  s.pseq = NULL;
 	  s.zfrom = zbufcpy (abtname);
 	  s.zto = zbufcpy (abxname);

@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.2.2.4 1994/05/01 20:53:40 rgrimes Exp $
+#	$Id: cpio.magic,v 1.13 1994/06/29 20:29:12 jkh Exp $
 #
 set_tmp_dir()
 {
@@ -104,7 +104,7 @@ load_fd()
 		echo; 
 		if [ "$drive" != "C" ]; then
 			echo	"Insert floppy in drive $drive:, then press RETURN to copy files,"
-			echo -n "or enter option (? for help): "
+			echo -n "or enter option (? for help): "
 		else
 			echo -n "Press RETURN to copy files, or enter option (? for help): "
 		fi
@@ -219,14 +219,14 @@ load_qic_tape()
 	tmp_dir
 	echo -n "Insert tape into QIC tape drive and hit return to continue: "
 	read foo
-	tar xvf /dev/rwt0
+	tar --unlink -xvf /dev/rwt0
 }
 load_scsi_tape()
 {
 	tmp_dir
 	echo -n "Insert tape into SCSI tape drive and hit return to continue: "
 	read foo
-	tar xvf /dev/nrst0
+	tar --unlink -xvf /dev/nrst0
 }
 extract()
 {
@@ -242,12 +242,7 @@ extract()
 		tarverbose=
 		;;
 	esac
-	#XXX ugly hack to eliminate busy files, copy them to /tmp and use them
-	#from there... even uglier.. we CAN NOT LOAD libc.so.1.0 from the tar
-	#balls or it spams tar!!
-	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
-
-	#XXX more ugly hacks to get around busy text files/symlink problems.
+	#XXX ugly hacks to get around busy text files/symlink problems.
 	if [ X"$1" = X"bin" ]; then
 		rm -f /bin/sh.$$ /sbin/init.$$ /etc/termcap.$$
 		mv /bin/sh /bin/sh.$$
@@ -259,11 +254,10 @@ extract()
 		mv /sbin/init /sbin/init.$$
 	fi
 	for i in $*; do
-		/tmp/cat "$i"* | 
-		/tmp/gunzip |
-		(cd / ; /tmp/tar --extract --file - --preserve-permissions --exclude libc.so.1.0 ${tarverbose} )
+		cat "$i"* | 
+		gunzip |
+		(cd / ; tar --unlink --extract --file - --preserve-permissions ${tarverbose} )
 	done
-	rm -f /tmp/cat /tmp/gunzip /tmp/tar
 	sync
 	[ X"$1" = X"bin" ] && echo "Run \`configure' to complete installation." 
 	echo "(wd is now: `pwd`)"
@@ -356,6 +350,32 @@ configure()
 		echo	"WARNING: if you have any more ethernet interfaces, you"
 		echo	"will have to configure them by hand.  Read the comments"
 		echo	"in /etc/netstart to learn how to do this"
+		;;
+	esac
+
+	echo
+	echo	"Setting up access to a nameserver:"
+	echo -n	"Do you want to configure /etc/resolv.conf? [n]: "
+	read resp
+	case "$resp" in
+	y*)
+		echo    "OK: Configuring your /etc/resolv.conf"
+		echo	"If you need more information about resolv.conf"
+		echo	"type \"man 5 resolver\" once you have COMPLETED"
+		echo	"installation of the binary distribution."
+		echo	""
+
+		nameserver=
+		while [ "$nameserver" = "" ]; do
+			echo -n "Enter the IP number of your nameserver: "
+			read nameserver
+		done
+
+		echo "nameserver $nameserver" > /etc/resolv.conf
+		
+		echo " "
+		;;
+	*)
 		;;
 	esac
 

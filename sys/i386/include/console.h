@@ -14,7 +14,7 @@
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
  *
  *	from:@(#)console.h	1.1 940105
- *	$Id: console.h,v 1.7 1994/02/04 10:35:29 chmr Exp $
+ *	$Id: console.h,v 1.9 1994/05/20 12:21:49 sos Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -55,7 +55,7 @@
 #define GIO_FONT8x14	_IOR('c', 67, fnt14_t)
 #define PIO_FONT8x16	_IOW('c', 68, fnt16_t)
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
-#define CONS_GETINFO	_IOR('c', 73, vid_info_t)
+#define CONS_GETINFO    _IOWR('c', 73, vid_info_t)
 #define CONS_GETVERS	_IOR('c', 74, long)
 #define CONS_80x25TEXT	_IO('c', 102)
 #define CONS_80x50TEXT	_IO('c', 103)
@@ -124,16 +124,19 @@ struct vt_mode {
 #define NUM_STATES	8		/* states per key		*/
 #define ALTGR_OFFSET	128		/* offset for altlock keys	*/
 
+struct key_t {
+	u_char map[NUM_STATES];
+	u_char spcl;
+	u_char flgs;
+};
+
 struct keymap {
 	u_short	n_keys;
-	struct key_t {
-		u_char map[NUM_STATES];
-		u_char spcl;
-		u_char flgs;
-	} key[NUM_KEYS];
+	struct key_t key[NUM_KEYS];
 };
 
 #define MAXFK		16
+#define NUM_FKEYS	60
 
 struct fkeytab {
 	u_char	str[MAXFK];
@@ -190,6 +193,7 @@ typedef struct ssaver ssaver_t;
 #define NLK		0x05		/* num lock key			*/
 #define SLK		0x06		/* scroll lock key		*/
 #define LALT		0x07		/* left alt key			*/
+#define BTAB		0x08		/* backwards tab		*/
 #define LCTR		0x09		/* left control key		*/
 #define NEXT		0x0a		/* switch to next screen 	*/
 #define F_SCR		0x0b		/* switch to first screen 	*/
@@ -214,11 +218,14 @@ typedef struct ssaver ssaver_t;
 #define	KB_STAT		0x64		/* kbd status port 		*/
 #define	KB_BUF_FULL	0x01		/* kbd has char pending 	*/
 #define	KB_READY	0x02		/* kbd ready for command 	*/
+#define KB_MODE		0x4D		/* kbd mode (trans, ints enable)*/
 #define KB_WRITE	0x60		/* kbd write command 		*/
-#define KB_SETLEDS	0xed		/* kbd set leds 		*/
-#define KB_SETRAD	0xf3		/* kbd set repeat&delay command */
-#define KB_ACK		0xfa		/* kbd acknowledge answer 	*/
-#define KB_RESET_CPU	0xfe		/* kbd reset main cpu command 	*/
-#define KB_RESET	0xff		/* kbd reset 			*/
+#define KB_RESET_DONE	0xAA		/* kbd reset command completed  */
+#define KB_SETLEDS	0xED		/* kbd set leds 		*/
+#define KB_ECHO		0xEE		/* kbd set leds 		*/
+#define KB_SETRAD	0xF3		/* kbd set repeat&delay command */
+#define KB_ACK		0xFA		/* kbd acknowledge answer 	*/
+#define KB_RESEND	0xFE		/* kbd resend cmd answer      	*/
+#define KB_RESET	0xFF		/* kbd reset 			*/
 
 #endif

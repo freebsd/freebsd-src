@@ -542,9 +542,9 @@ MARK input(from, to, when, delta)
 						ChangeText
 						{
 							cut(from, to);
+							cursor = from;
 							delete(from, to);
 						}
-						cursor = from;
 						break;
 
 #ifndef NO_POPUP

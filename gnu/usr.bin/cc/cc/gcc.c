@@ -35,6 +35,7 @@ compilation is specified by a string called a "spec".  */
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/file.h>   /* May get R_OK, etc. on some systems.  */
+#include <sys/errno.h>
 
 #include "config.h"
 #include "obstack.h"
@@ -102,9 +103,6 @@ compilation is specified by a string called a "spec".  */
 
 extern void free ();
 extern char *getenv ();
-
-extern int errno, sys_nerr;
-extern char *sys_errlist[];
 
 extern int execv (), execvp ();
 
@@ -1181,7 +1179,7 @@ static char *standard_startfile_prefix_1 = "/lib/";
 static char *standard_startfile_prefix_2 = "/usr/lib/";
 
 #ifndef TOOLDIR_BASE_PREFIX
-#define TOOLDIR_BASE_PREFIX "/usr/local/"
+#define TOOLDIR_BASE_PREFIX "/usr/libexec/"
 #endif
 static char *tooldir_base_prefix = TOOLDIR_BASE_PREFIX;
 static char *tooldir_prefix;

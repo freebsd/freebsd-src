@@ -66,7 +66,7 @@ static Char *Dcp, **Dvp;	/* Input vector for Dreadc */
 
 #define	unDgetC(c)	Dpeekc = c
 
-#define QUOTES		(_Q|_Q1|_ESC)	/* \ ' " ` */
+#define QUOTES		(_Q2|_Q1|_ESC)	/* \ ' " ` */
 
 /*
  * The following variables give the information about the current
@@ -192,7 +192,7 @@ Dpack(wbuf, wp)
 	    Gcat(STRNULL, wbuf);
 	    return (NULL);
 	}
-	if (cmap(c, _SP | _NL | _Q | _Q1)) {	/* sp \t\n'"` */
+	if (cmap(c, _SP | _NL | _Q2 | _Q1)) {	/* sp \t\n'"` */
 	    unDgetC(c);
 	    if (cmap(c, QUOTES))
 		return (wp);

@@ -1,0 +1,32 @@
+
+
+
+This is the README file for ConfigIt!, a kernel configuration file generator
+for FreeBSD 1.1Beta and above.  ConfigIt! is a menu driven program that
+askes what options and devices you want in your kernel.  For more information
+on what the various options and devices are please see the file options.texi
+in /sys/i386/doc.
+
+To run ConfigIt! you must have Perl 4.036 (It has not been tested with Perl 5).
+
+Steps needed to run ConfigIt!:
+1. Make sure that you have Perl installed on your system.
+2. Untar the archive in the directory where you wish to run it.
+3. Run the program.
+4. Copy the resulting config file to /sys/i386/conf.
+5. Run config SYSTEM_NAME.
+6. Change directory to /sys/compile/SYSTEM_NAME.
+7. Run make depend and then make in /sys/compile/SYSTEM_NAME.
+
+And thats it! 
+
+If you have any questions, suggestions or whatever you can reach me
+at gclarkii@freefall.cdrom.com.  Please DO NOT send questions about ConfigIt!
+to the mailing lists.
+
+Enjoy,
+
+Gary Clark II
+gclarkii@freefall.cdrom.com
+
+

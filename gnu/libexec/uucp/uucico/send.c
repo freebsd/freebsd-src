@@ -1,7 +1,7 @@
 /* send.c
    Routines to send a file.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char send_rcsid[] = "$Id: send.c,v 1.1 1993/08/05 18:27:19 conklin Exp $";
+const char send_rcsid[] = "$Id: send.c,v 1.2 1994/05/07 18:13:57 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -51,7 +51,9 @@ struct ssendinfo
   boolean flocal;
   /* TRUE if this is a spool directory file.  */
   boolean fspool;
-  /* TRUE if the file has been completely sent.  */
+  /* TRUE if the file has been completely sent.  Also used in
+     flocal_send_cancelled to mean that the file send will never
+     succeed.  */
   boolean fsent;
   /* Execution file for sending an unsupported E request.  */
   char *zexec;
@@ -62,7 +64,7 @@ struct ssendinfo
 static void usfree_send P((struct stransfer *qtrans));
 static boolean flocal_send_fail P((struct stransfer *qtrans,
 				   struct scmd *qcmd,
-				   const struct uuconf_system *qsys,
+				   struct sdaemon *qdaemon,
 				   const char *zwhy));
 static boolean flocal_send_request P((struct stransfer *qtrans,
 				      struct sdaemon *qdaemon));
@@ -150,10 +152,9 @@ usfree_send (qtrans)
    flocal_send_request.
 
    If flocal_send_await_reply is called before the entire file has
-   been sent: if it gets an SN, it calls flocal_send_cancelled to send
-   an empty data block to inform the remote system that the file
-   transfer has stopped.  If it gets a file position request, it must
-   adjust the file position accordingly.
+   been sent: if it gets an SN, it sets the file position to the end
+   and arranges to call flocal_send_cancelled.  If it gets a file
+   position request, it must adjust the file position accordingly.
 
    If flocal_send_await_reply is called after the entire file has been
    sent: if it gets an SN, it can simply delete the request.  It can
@@ -197,7 +198,7 @@ flocal_send_file_init (qdaemon, qcmd)
 	 is possible, but it might have changed since then.  */
       if (! qsys->uuconf_fcall_transfer
 	  && ! qsys->uuconf_fcalled_transfer)
-	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qsys,
+	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qdaemon,
 				 "not permitted to transfer files");
 
       /* We can't do the request now, but it may get done later.  */
@@ -214,7 +215,7 @@ flocal_send_file_init (qdaemon, qcmd)
 				qsys->uuconf_pzlocal_send,
 				qsys->uuconf_zpubdir, TRUE,
 				TRUE, qcmd->zuser))
-	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qsys,
+	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qdaemon,
 				 "not permitted to send");
       zfile = zbufcpy (qcmd->zfrom);
     }
@@ -234,12 +235,13 @@ flocal_send_file_init (qdaemon, qcmd)
     {
       ubuffree (zfile);
       if (cbytes != -1)
-	return FALSE;
+	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qdaemon,
+				 "can not get size");
       /* A cbytes value of -1 means that the file does not exist.
 	 This can happen legitimately if it has already been sent from
 	 the spool directory.  */
       if (! fspool)
-	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qsys,
+	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qdaemon,
 				 "does not exist");
       (void) fsysdep_did_work (qcmd->pseq);
       return TRUE;
@@ -264,7 +266,7 @@ flocal_send_file_init (qdaemon, qcmd)
 		      
       if (qdaemon->cmax_ever != -1
 	  && qdaemon->cmax_ever < qcmd->cbytes)
-	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qsys,
+	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qdaemon,
 				 "too large to send");
 
       return TRUE;
@@ -280,7 +282,7 @@ flocal_send_file_init (qdaemon, qcmd)
     qinfo->zmail = zbufcpy (qcmd->zuser);
   qinfo->zfile = zfile;
   qinfo->cbytes = cbytes;
-  qinfo->flocal = TRUE;
+  qinfo->flocal = strchr (qcmd->zuser, '!') == NULL;
   qinfo->fspool = fspool;
   qinfo->fsent = FALSE;
   qinfo->zexec = NULL;
@@ -296,32 +298,48 @@ flocal_send_file_init (qdaemon, qcmd)
    this reports an error to the log file and to the user.  */
 
 static boolean
-flocal_send_fail (qtrans, qcmd, qsys, zwhy)
+flocal_send_fail (qtrans, qcmd, qdaemon, zwhy)
      struct stransfer *qtrans;
      struct scmd *qcmd;
-     const struct uuconf_system *qsys;
+     struct sdaemon *qdaemon;
      const char *zwhy;
 {
   if (zwhy != NULL)
     {
+      const char *zfrom;
       char *zfree;
+      const char *ztemp;
 
       if (qcmd->bcmd != 'E')
-	zfree = NULL;
+	{
+	  zfrom = qcmd->zfrom;
+	  zfree = NULL;
+	}
       else
 	{
-	  zfree = zbufalc (sizeof "Execution of \"\": "
-			   + strlen (qcmd->zcmd)
-			   + strlen (zwhy));
-	  sprintf (zfree, "Execution of \"%s\": %s", qcmd->zcmd, zwhy);
-	  zwhy = zfree;
+	  zfree = zbufalc (strlen (qcmd->zfrom)
+			   + sizeof " (execution of \"\")"
+			   + strlen (qcmd->zcmd));
+	  sprintf (zfree, "%s (execution of \"%s\")", qcmd->zfrom,
+		   qcmd->zcmd);
+	  zfrom = zfree;
 	}
 
-      ulog (LOG_ERROR, "%s: %s", qcmd->zfrom, zwhy);
+      ulog (LOG_ERROR, "%s: %s", zfrom, zwhy);
+
+      /* We only save the temporary file if this is a request from the
+	 local system; otherwise a remote system could launch a denial
+	 of service attack by filling up the .Preserve directory
+	 (local users have much simpler methods for this type of
+	 denial of service attack, so there is little point to using a
+	 more sophisticated scheme).  */
+      if (strchr (qcmd->zuser, '!') == NULL)
+	ztemp = zsysdep_save_temp_file (qcmd->pseq);
+      else
+	ztemp = NULL;
       (void) fmail_transfer (FALSE, qcmd->zuser, (const char *) NULL,
-			     zwhy, qcmd->zfrom, (const char *) NULL,
-			     qcmd->zto, qsys->uuconf_zname,
-			     zsysdep_save_temp_file (qcmd->pseq));
+			     zwhy, zfrom, (const char *) NULL,
+			     qcmd->zto, qdaemon->qsys->uuconf_zname, ztemp);
 
       ubuffree (zfree);
     }
@@ -353,8 +371,36 @@ flocal_send_request (qtrans, qdaemon)
   /* Make sure the file meets any remote size restrictions.  */
   if (qdaemon->cmax_receive != -1
       && qdaemon->cmax_receive < qinfo->cbytes)
-    return flocal_send_fail (qtrans, &qtrans->s, qdaemon->qsys,
+    return flocal_send_fail (qtrans, &qtrans->s, qdaemon,
 			     "too large for receiver");
+
+  /* Make sure the file still exists--it may have been removed between
+     the conversation startup and now.  After we have sent over the S
+     command we must give an error if we can't find the file.  */
+  if (! fsysdep_file_exists (qinfo->zfile))
+    {
+      (void) fsysdep_did_work (qtrans->s.pseq);
+      usfree_send (qtrans);
+      return TRUE;
+    }
+
+  /* If we are using a protocol which can make multiple channels, then
+     we can open and send the file whenever we are ready.  This is
+     because we will be able to distinguish the response by the
+     channel it is directed to.  This assumes that every protocol
+     which supports multiple channels also supports sending the file
+     position in mid-stream, since otherwise we would not be able to
+     restart files.  */
+  qtrans->fcmd = TRUE;
+  qtrans->psendfn = flocal_send_open_file;
+  qtrans->precfn = flocal_send_await_reply;
+
+  if (qdaemon->cchans > 1)
+    fret = fqueue_send (qdaemon, qtrans);
+  else
+    fret = fqueue_receive (qdaemon, qtrans);
+  if (! fret)
+    return FALSE;
 
   /* Construct the notify string to send.  If we are going to send a
      size or an execution command, it must be non-empty.  */
@@ -452,27 +498,11 @@ flocal_send_request (qtrans, qdaemon)
   fret = (*qdaemon->qproto->pfsendcmd) (qdaemon, zsend, qtrans->ilocal,
 					qtrans->iremote);
   ubuffree (zsend);
+
   if (! fret)
-    {
-      usfree_send (qtrans);
-      return FALSE;
-    }
+    usfree_send (qtrans);
 
-  /* If we are using a protocol which can make multiple channels, then
-     we can open and send the file whenever we are ready.  This is
-     because we will be able to distinguish the response by the
-     channel it is directed to.  This assumes that every protocol
-     which supports multiple channels also supports sending the file
-     position in mid-stream, since otherwise we would not be able to
-     restart files.  */
-  qtrans->fcmd = TRUE;
-  qtrans->psendfn = flocal_send_open_file;
-  qtrans->precfn = flocal_send_await_reply;
-
-  if (qdaemon->qproto->cchans > 1)
-    return fqueue_send (qdaemon, qtrans);
-  else
-    return fqueue_receive (qdaemon, qtrans);
+  return fret;
 }
 
 /* This is called when a reply is received for the send request.  As
@@ -535,21 +565,36 @@ flocal_send_await_reply (qtrans, qdaemon, zdata, cdata)
 	     is no need to resend the file.  */
 	  zerr = NULL;
 	}
+      else if (zdata[2] == '9')
+	{
+	  /* Remote has run out of channels.  */
+	  zerr = "too many channels for remote";
+	  fnever = FALSE;
+
+	  /* Drop one channel; using exactly one channel causes
+	     slightly different behahaviour in a few places, so don't
+	     decrement to one.  */
+	  if (qdaemon->cchans > 2)
+	    --qdaemon->cchans;
+	}
       else
 	zerr = "unknown reason";
 
-      if (! fnever)
+      if (! fnever
+	  || (qtrans->s.bcmd == 'E'
+	      && (qdaemon->ifeatures & FEATURE_EXEC) == 0
+	      && qinfo->zexec == NULL))
 	{
 	  if (qtrans->s.bcmd == 'E')
-	    ulog (LOG_ERROR, "Execution of \"%s\": %s", qtrans->s.zcmd,
-		  zerr);
+	    ulog (LOG_ERROR, "%s (execution of \"%s\"): %s",
+		  qtrans->s.zfrom, qtrans->s.zcmd, zerr);
 	  else
 	    ulog (LOG_ERROR, "%s: %s", qtrans->s.zfrom, zerr);
 	}
       else
 	{
 	  if (! flocal_send_fail ((struct stransfer *) NULL, &qtrans->s,
-				  qdaemon->qsys, zerr))
+				  qdaemon, zerr))
 	    return FALSE;
 	}
 
@@ -558,16 +603,39 @@ flocal_send_await_reply (qtrans, qdaemon, zdata, cdata)
 	 the remote side knows that we have finished sending the file
 	 data.  If we have already sent the entire file, there will be
 	 no confusion.  */
-      if (qdaemon->qproto->cchans == 1 || qinfo->fsent)
+      if (qdaemon->cchans == 1 || qinfo->fsent)
 	{
+	  /* If we are breaking a 'E' command into two 'S' commands,
+	     and that was for the first 'S' command, we still have to
+	     send the second one.  */
+	  if (fnever
+	      && qtrans->s.bcmd == 'E'
+	      && (qdaemon->ifeatures & FEATURE_EXEC) == 0
+	      && qinfo->zexec == NULL)
+	    return fsend_exec_file_init (qtrans, qdaemon);
+
 	  usfree_send (qtrans);
 	  return TRUE;
 	}
       else
 	{
+	  /* Seek to the end of the file so that the next read will
+	     send end of file.  We have to be careful here, because we
+	     may have actually already sent end of file--we could be
+	     being called because of data received while the end of
+	     file block was sent.  */
+	  if (! ffileseekend (qtrans->e))
+	    {
+	      ulog (LOG_ERROR, "seek to end: %s", strerror (errno));
+	      usfree_send (qtrans);
+	      return FALSE;
+	    }
 	  qtrans->psendfn = flocal_send_cancelled;
 	  qtrans->precfn = NULL;
-	  qtrans->fsendfile = FALSE;
+
+	  /* Reuse fsent to pass fnever to flocal_send_cancelled.  */
+	  qinfo->fsent = fnever;
+
 	  return fqueue_send (qdaemon, qtrans);
 	}
     }
@@ -603,7 +671,7 @@ flocal_send_await_reply (qtrans, qdaemon, zdata, cdata)
   qtrans->precfn = fsend_await_confirm;
   if (qinfo->fsent)
     return fqueue_receive (qdaemon, qtrans);
-  else if (qdaemon->qproto->cchans <= 1)
+  else if (qdaemon->cchans <= 1)
     return fqueue_send (qdaemon, qtrans);
   else
     return TRUE;
@@ -638,7 +706,9 @@ flocal_send_open_file (qtrans, qdaemon)
 				 qtrans->s.zfrom, (const char *) NULL,
 				 qtrans->s.zto,
 				 qdaemon->qsys->uuconf_zname,
-				 zsysdep_save_temp_file (qtrans->s.pseq));
+				 (qinfo->flocal
+				  ? zsysdep_save_temp_file (qtrans->s.pseq)
+				  : (const char *) NULL));
 	  (void) fsysdep_did_work (qtrans->s.pseq);
 	  usfree_send (qtrans);
 
@@ -688,8 +758,15 @@ flocal_send_open_file (qtrans, qdaemon)
 	  sprintf (zalc, "%s (%s)", qtrans->s.zcmd, qtrans->s.zfrom);
 	  zsend = zalc;
 	}
-      qtrans->zlog = zbufalc (sizeof "Sending " + strlen (zsend));
-      sprintf (qtrans->zlog, "Sending %s", zsend);
+
+      qtrans->zlog = zbufalc (sizeof "Sending ( bytes resume at )"
+			      + strlen (zsend) + 50);
+      sprintf (qtrans->zlog, "Sending %s (%ld bytes", zsend, qinfo->cbytes);
+      if (qtrans->ipos > 0)
+	sprintf (qtrans->zlog + strlen (qtrans->zlog), " resume at %ld",
+		 qtrans->ipos);
+      strcat (qtrans->zlog, ")");
+
       ubuffree (zalc);
     }
 
@@ -698,7 +775,8 @@ flocal_send_open_file (qtrans, qdaemon)
       boolean fhandled;
 
       if (! (*qdaemon->qproto->pffile) (qdaemon, qtrans, TRUE, TRUE,
-					qinfo->cbytes, &fhandled))
+					qinfo->cbytes - qtrans->ipos,
+					&fhandled))
 	{
 	  usfree_send (qtrans);
 	  return FALSE;
@@ -719,32 +797,29 @@ flocal_send_open_file (qtrans, qdaemon)
   return fqueue_send (qdaemon, qtrans);
 }
 
-/* Cancel a file send by sending an empty buffer.  This is only called
-   for a protocol which supports multiple channels.  It is needed
-   so that both systems agree as to when a channel is no longer
-   needed.  */
+/* Cancel a file send.  This is only called for a protocol which
+   supports multiple channels.  It is needed so that both systems
+   agree as to when a channel is no longer needed.  */
 
 static boolean
 flocal_send_cancelled (qtrans, qdaemon)
      struct stransfer *qtrans;
      struct sdaemon *qdaemon;
 {
-  char *zdata;
-  size_t cdata;
-  boolean fret;
-  
-  zdata = (*qdaemon->qproto->pzgetspace) (qdaemon, &cdata);
-  if (zdata == NULL)
-    {
-      usfree_send (qtrans);
-      return FALSE;
-    }
+  struct ssendinfo *qinfo = (struct ssendinfo *) qtrans->pinfo;
 
-  fret = (*qdaemon->qproto->pfsenddata) (qdaemon, zdata, (size_t) 0,
-					 qtrans->ilocal, qtrans->iremote,
-					 qtrans->ipos);
+  /* If we are breaking a 'E' command into two 'S' commands, and that
+     was for the first 'S' command, and the first 'S' command will
+     never be sent (passed as qinfo->fsent), we still have to send the
+     second one.  */
+  if (qinfo->fsent
+      && qtrans->s.bcmd == 'E'
+      && (qdaemon->ifeatures & FEATURE_EXEC) == 0
+      && qinfo->zexec == NULL)
+    return fsend_exec_file_init (qtrans, qdaemon);
+
   usfree_send (qtrans);
-  return fret;
+  return TRUE;
 }
 
 /* A remote request to receive a file (meaning that we have to send a
@@ -765,6 +840,7 @@ fremote_rec_file_init (qdaemon, qcmd, iremote)
 {
   const struct uuconf_system *qsys;
   char *zfile;
+  boolean fbadname;
   long cbytes;
   unsigned int imode;
   openfile_t e;
@@ -786,7 +862,12 @@ fremote_rec_file_init (qdaemon, qcmd, iremote)
       return fremote_rec_fail (qdaemon, FAILURE_PERM, iremote);
     }
 
-  zfile = zsysdep_local_file (qcmd->zfrom, qsys->uuconf_zpubdir);
+  zfile = zsysdep_local_file (qcmd->zfrom, qsys->uuconf_zpubdir, &fbadname);
+  if (zfile == NULL && fbadname)
+    {
+      ulog (LOG_ERROR, "%s: bad local file name", qcmd->zfrom);
+      return fremote_rec_fail (qdaemon, FAILURE_PERM, iremote);
+    }
   if (zfile != NULL)
     {
       char *zbased;
@@ -875,8 +956,24 @@ fremote_rec_reply (qtrans, qdaemon)
   struct ssendinfo *qinfo = (struct ssendinfo *) qtrans->pinfo;
   char absend[50];
 
-  sprintf (absend, "RY 0%o 0x%lx", qtrans->s.imode,
-	   (unsigned long) qinfo->cbytes);
+  qtrans->fsendfile = TRUE;
+  qtrans->psendfn = fsend_file_end;
+  qtrans->precfn = fsend_await_confirm;
+
+  if (! fqueue_send (qdaemon, qtrans))
+    return FALSE;
+
+  /* We send the file size because SVR4 UUCP does.  We don't look for
+     it.  We send a trailing M if we want to request a hangup.  We
+     send it both after the mode and at the end of the entire string;
+     I don't know where programs look for it.  */
+  if (qdaemon->frequest_hangup)
+    DEBUG_MESSAGE0 (DEBUG_UUCP_PROTO,
+		    "fremote_rec_reply: Requesting remote to transfer control");
+  sprintf (absend, "RY 0%o%s 0x%lx%s", qtrans->s.imode,
+	   qdaemon->frequest_hangup ? "M" : "",
+	   (unsigned long) qinfo->cbytes,
+	   qdaemon->frequest_hangup ? "M" : "");
   if (! (*qdaemon->qproto->pfsendcmd) (qdaemon, absend, qtrans->ilocal,
 				       qtrans->iremote))
     {
@@ -885,8 +982,10 @@ fremote_rec_reply (qtrans, qdaemon)
       return FALSE;
     }
 
-  qtrans->zlog = zbufalc (sizeof "Sending " + strlen (qtrans->s.zfrom));
-  sprintf (qtrans->zlog, "Sending %s", qtrans->s.zfrom);
+  qtrans->zlog = zbufalc (sizeof "Sending ( bytes) "
+			  + strlen (qtrans->s.zfrom) + 25);
+  sprintf (qtrans->zlog, "Sending %s (%ld bytes)", qtrans->s.zfrom,
+	   qinfo->cbytes);
 
   if (qdaemon->qproto->pffile != NULL)
     {
@@ -898,16 +997,9 @@ fremote_rec_reply (qtrans, qdaemon)
 	  usfree_send (qtrans);
 	  return FALSE;
 	}
-
-      if (fhandled)
-	return TRUE;
     }
 
-  qtrans->fsendfile = TRUE;
-  qtrans->psendfn = fsend_file_end;
-  qtrans->precfn = fsend_await_confirm;
-
-  return fqueue_send (qdaemon, qtrans);
+  return TRUE;
 }
 
 /* If we can't send a file as requested by the remote system, queue up
@@ -1057,6 +1149,7 @@ fsend_await_confirm (qtrans, qdaemon, zdata, cdata)
   ustats (zerr == NULL, qtrans->s.zuser, qdaemon->qsys->uuconf_zname,
 	  TRUE, qtrans->cbytes, qtrans->isecs, qtrans->imicros,
 	  qdaemon->fmaster);
+  qdaemon->csent += qtrans->cbytes;
 
   if (zerr == NULL)
     {

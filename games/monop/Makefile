@@ -13,7 +13,7 @@ cards.pck: initdeck
 	./initdeck ${.CURDIR}/cards.inp
 
 initdeck: initdeck.c
-	${CC} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/initdeck.c
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.CURDIR}/initdeck.c
 
 beforeinstall:
 	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 cards.pck \

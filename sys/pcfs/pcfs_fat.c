@@ -15,7 +15,7 @@
  *
  *  October 1992
  *
- *	$Id: pcfs_fat.c,v 1.3 1993/11/25 01:37:11 wollman Exp $
+ *	$Id: pcfs_fat.c,v 1.4 1994/06/22 05:52:53 jkh Exp $
  */
 
 /*
@@ -340,8 +340,14 @@ printf("updateotherfats(pmp %08x, bp %08x, fatbn %d)\n",
  */
 
 
-extern inline void
-usemap_alloc (struct pcfsmount *pmp, u_long cn)
+#ifndef __GNUC__
+#define inline
+#endif
+
+static inline void
+usemap_alloc (pmp, cn)
+	struct pcfsmount *pmp;
+	u_long cn;
 {
 	pmp->pm_inusemap[cn / 8] |= 1 << (cn % 8);
 	pmp->pm_freeclustercount--;
@@ -349,8 +355,10 @@ usemap_alloc (struct pcfsmount *pmp, u_long cn)
 	pmp->pm_lookhere = cn + 1;
 }
 
-extern inline void
-usemap_free (struct pcfsmount *pmp, u_long cn)
+static inline void
+usemap_free (pmp, cn)
+	struct pcfsmount *pmp;
+	u_long cn;
 {
 	pmp->pm_freeclustercount++;
 	pmp->pm_inusemap[cn / 8] &= ~(1 << (cn % 8));

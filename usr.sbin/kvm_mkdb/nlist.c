@@ -122,58 +122,6 @@ create_knlist(name, db)
 		if ((db->put)(db, &key, &data, 0))
 			error("put");
 
-		if (!strncmp((char *)key.data, VRS_SYM, sizeof(VRS_SYM) - 1)) {
-			off_t cur_off, rel_off, vers_off;
-
-			/* Offset relative to start of text image in VM. */
-#ifdef hp300
-			rel_off = nbuf.n_value;
-#endif
-#ifdef tahoe
-			/*
-			 * On tahoe, first 0x800 is reserved for communication
-			 * with the console processor.
-			 */
-			rel_off = ((nbuf.n_value & ~KERNBASE) - 0x800);
-#endif
-#ifdef vax
-			rel_off = nbuf.n_value & ~KERNBASE;
-#endif
-#ifdef i386
-			rel_off = nbuf.n_value - ebuf.a_entry + CLBYTES;
-#endif
-			/*
-			 * When loaded, data is rounded to next page cluster
-			 * after text, but not in file.
-			 */
-			rel_off -= CLBYTES - (ebuf.a_text % CLBYTES);
-			vers_off = N_TXTOFF(ebuf) + rel_off;
-
-			cur_off = ftell(fp);
-			if (fseek(fp, vers_off, SEEK_SET) == -1)
-				badfmt("corrupted string table");
-
-			/*
-			 * Read version string up to, and including newline.
-			 * This code assumes that a newline terminates the
-			 * version line.
-			 */
-			if (fgets(buf, sizeof(buf), fp) == NULL)
-				badfmt("corrupted string table");
-
-			key.data = (u_char *)VRS_KEY;
-			key.size = sizeof(VRS_KEY) - 1;
-			data.data = (u_char *)buf;
-			data.size = strlen(buf);
-			if ((db->put)(db, &key, &data, 0))
-				error("put");
-
-			/* Restore to original values. */
-			data.data = (u_char *)&nbuf;
-			data.size = sizeof(NLIST);
-			if (fseek(fp, cur_off, SEEK_SET) == -1)
-				badfmt("corrupted string table");
-		}
 	}
 	(void)fclose(fp);
 }

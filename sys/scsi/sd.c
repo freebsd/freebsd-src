@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.18.2.2 1994/03/16 04:03:48 rgrimes Exp $
+ *      $Id: sd.c,v 1.27 1994/06/22 05:52:59 jkh Exp $
  */
 
 #define SPLSD splbio
@@ -415,14 +415,25 @@ sdstrategy(bp)
 		if (bounds_check_with_label(bp, &sd->disklabel, sd->wlabel) <= 0)
 			goto done;
 		/* otherwise, process transfer request */
+	} else {
+		bp->b_pblkno = bp->b_blkno;
+		bp->b_resid = 0;
 	}
 	opri = SPLSD();
 	dp = &sd->buf_queue;
 
+	/*      
+	 * Use a bounce buffer if necessary
+	 */      
+#ifndef NOBOUNCE
+	if (sd->sc_link->flags & SDEV_BOUNCE)
+		vm_bounce_alloc(bp);
+#endif
+
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	disksort(dp, bp);
+	cldisksort(dp, bp, 64*1024);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -883,10 +894,13 @@ sd_get_parms(unit, flags)
 		}
 		else {
 			/* set it to something reasonable */
-			sectors = 32;
 			disk_parms->heads = 64;
 			disk_parms->cyls = sectors / (64 * 32);
+			sectors = 32;
 		}
+		/* keep secsiz sane too - we may divide by it later */
+		if(disk_parms->secsiz == 0)
+			disk_parms->secsiz = SECSIZE;
 		disk_parms->sectors = sectors;	/* dubious on SCSI *//*XXX */
 	}
 	sd->sc_link->flags |= SDEV_MEDIA_LOADED;

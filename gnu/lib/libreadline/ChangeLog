@@ -1,0 +1,403 @@
+Tue Mar 23 14:36:51 1993  Brian Fox  (bfox@eos.crseo.ucsb.edu)
+
+	* readline.c (rl_copy): Changed name to rl_copy_text.
+
+Mon Mar 22 19:16:05 1993  Brian Fox  (bfox@eos.crseo.ucsb.edu)
+
+	* dispose_cmd.c, several other files. Declare dispose_xxx () as
+	"void".
+
+	* builtins/hashcom.h: Make declarations of hashed_filenames be
+	"extern" to keep the SGI compiler happy.
+
+	* readline.c (rl_initialize_everything): Assign values to
+	out_stream and in_stream immediately, since
+	output_character_function () can be called before
+	readline_internal () is called.
+
+Tue Dec  8 09:30:56 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c (rl_init_terminal) Set PC from BC, not from *buffer.
+
+Mon Nov 30 09:35:47 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c (invoking_keyseqs_in_map, rl_parse_and_bind) Allow
+	backslash to quote characters, such as backslash, double quote,
+	and space. Backslash quotes all character indiscriminately.
+
+	* funmap.c (vi_keymap) Fix type in "vi-replace" declaration.
+
+Fri Nov 20 10:55:05 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c (init_terminal_io, rl_prep_terminal): FINALLY!
+	Declare and use termcap variable `ospeed' when setting up terminal
+	parameters.
+
+Thu Oct  8 08:53:07 1992  Brian J. Fox  (bfox@helios)
+
+	* Makefile, this directory: Include (as links to the canonical
+	sources), tilde.c, tilde.h, posixstat.h and xmalloc.c.
+
+Tue Sep 29 13:07:21 1992  Brian J. Fox  (bfox@helios)
+
+	* readline.c (init_terminal_io) Don't set arrow keys if the key
+	sequences that represent them are already set.
+
+	* readline.c (rl_function_of_keyseq) New function returns the first
+	function (or macro) found while searching a key sequence.
+
+Mon Sep 28 00:34:04 1992  Brian J. Fox  (bfox@helios)
+
+	* readline.c (LibraryVersion) New static char * contains current
+	version number.  Version is at 2.0.
+
+	* readline.c (rl_complete_internal): Incorporated clean changes
+	from gilmore (gnu@cygnus.com) to support quoted substrings within
+	completion functions.
+
+	* readline.c (many locations) Added support for the _GO32_,
+	whatever that is.  Patches supplied by Cygnus, typed in by hand,
+	with cleanups.
+
+Sun Aug 16 12:46:24 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c (init_terminal_io): Find out the values of the keypad
+	arrows and bind them to appropriate RL functions if present.
+
+Mon Aug 10 18:13:24 1992  Brian Fox  (bfox@cubit)
+
+	* history.c (stifle_history): A negative argument to stifle
+	becomes zero.
+
+Tue Jul 28 09:28:41 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c (rl_variable_bind): New local structure describes
+	booleans by name and address; code in rl_variable_bind () looks at
+	structure to set simple variables.
+
+	* parens.c (rl_insert_close): New variable rl_blink_matching_paren
+	is non-zero if we want to blink the matching open when a close is
+	inserted.  If FD_SET is defined, rl_blink_matching_paren defaults
+	to 1, else 0.  If FD_SET is not defined, and
+	rl_blink_matching_paren is non-zero, the close character(s) are/is
+	simply inserted.
+
+Wed Jul 22 20:03:59 1992  Brian Fox  (bfox@cubit)
+
+	* history.c, readline.c, vi_mode.c: Cause the functions strchr ()
+	and strrchr () to be used instead of index () and rindex ()
+	throughout the source.
+
+Mon Jul 13 11:34:07 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c: (rl_variable_bind) New variable "meta-flag" if "on"
+	means force the use of the 8th bit as Meta bit.  Internal variable
+	is called meta_flag.
+
+Thu Jul  9 10:37:56 1992  Brian Fox  (bfox@cubit)
+
+	* history.c (get_history_event) Change INDEX to LOCAL_INDEX.  If
+	compiling for the shell, allow shell metacharacters to separate
+	history tokens as they would for shell tokens.
+
+Sat Jul  4 19:29:12 1992  Brian Fox  (bfox@cubit)
+
+	* vi_keymap.c: According to Posix, TAB self-inserts instead of
+	doing completion.
+
+	* vi_mode.c: (rl_vi_yank_arg) Enter VI insert mode after yanking
+	an arg from the previous line.
+
+	* search.c: New file takes over vi style searching and implements
+	non-incremental searching the history.
+
+	Makefile: Add search.c and search.o.
+
+	funmap.c: Add names for non-incremental-forward-search-history and
+	non-incremental-reverse-search-history.
+
+	readline.h: Add extern definitions for non-incremental searching.
+
+	vi_mode.c: Remove old search code; add calls to code in search.c.
+
+Fri Jul  3 10:36:33 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c (rl_delete_horizontal_space); New function deletes
+	all whitespace surrounding point.
+
+	funmap.c: Add "delete-horizontal-space".
+	emacs_keymap.c: Put rl_delete_horizontal_space () on M-\.
+
+	* readline.c (rl_set_signals, rl_clear_signals); New function
+	rl_set_sighandler () is either defined in a Posix way (if
+	HAVE_POSIX_SIGNALS is defined) or in a BSD way.  Function is
+	called from rl_set_signals () and rl_clear_signals ().
+
+Fri May  8 12:50:15 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c: (readline_default_bindings) Do comparisons with
+	_POSIX_VDISABLE casted to `unsigned char'.  Change tty characters
+	to be unsigned char.
+
+Thu Apr 30 12:36:35 1992  Brian Fox  (bfox@cubit)
+
+	* readline.c: (rl_getc) Handle "read would block" error on
+	non-blocking IO streams.
+
+	* readline.c: (rl_signal_handler): Unblock only the signal that we
+	have caught, not all signals.
+
+Sun Feb 23 03:33:09 1992  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: Many functions.  Use only the macros META_CHAR and
+	UNMETA to deal with meta characters.  Prior to this, we used
+	numeric values and tests.
+
+	* readline.c (rl_complete_internal) Report exactly the number of
+	possible completions, not the number + 1.
+
+	* vi_mode.c (rl_do_move) Do not change the cursor position when
+	using `cw' or `cW'.
+
+	* vi_mode.c (rl_vi_complete) Enter insert mode after completing
+	with `*' or `\'.
+
+Fri Feb 21 05:58:18 1992  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (rl_dispatch) Increment rl_key_sequence_length for
+	meta characters that map onto ESC map.
+
+Mon Feb 10 01:41:35 1992  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* history.c (history_do_write) Build a buffer of all of the lines
+	to write and write them in one fell swoop (lower overhead than
+	calling write () for each line).  Suggested by Peter Ho.
+
+	* readline.c: Include hbullx20 as well as hpux for determining
+	USGr3ness.
+
+	* readline.c (rl_unix_word_rubout) As per the "Now REMEMBER"
+	comment, pass arguments to rl_kill_text () in the correct order to
+	preserve prepending and appending of killed text.
+
+	* readline.c (rl_search_history) malloc (), realloc (), and free
+	() SEARCH_STRING so that there are no static limits on searching.
+
+	* vi_mode.c (rl_vi_subst) Don't forget to end the undo group.
+
+Fri Jan 31 14:51:02 1992  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (rl_signal_handler): Zero the current history entry's
+	pointer after freeing the undo_list when SIGINT received.
+	Reformat a couple of functions.
+
+Sat Jan 25 13:47:35 1992  Brian Fox  (bfox at bears)
+
+        * readline.c (parser_if): free () TNAME after use.
+
+Tue Jan 21 01:01:35 1992  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (rl_redisplay) and (rl_character_len): Display
+	Control characters as "^c" and Meta characters as "\234", instead
+	of "C-C" and "M-C".
+
+Sun Dec 29 10:59:00 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (init_terminal_io) Default to environment variables
+	LINES and COLUMNS before termcap entry values.  If all else fails,
+	then assume 80x24 terminal.
+
+Sat Dec 28 16:33:11 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: If this machine is USG and it is hpux, then define
+	USGr3.
+
+	* history.c: Cosmetic fixes.
+
+Thu Nov 21 00:10:12 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* vi_mode.c: (rl_do_move) Place cursor at end of line, never at
+	next to last character.
+
+Thu Nov 14 05:08:01 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* history.c (get_history_event) Non-anchored searches can have a
+	return index of greater than zero from get_history_event ().
+
+Fri Nov  1 07:02:13 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (rl_translate_keyseq) Make C-? translate to RUBOUT
+	unconditionally.
+
+Mon Oct 28 11:34:52 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c; Use Posix directory routines and macros.
+
+	* funmap.c; Add entry for call-last-kbd-macro.
+
+	* readline.c (rl_prep_term); Use system EOF character on POSIX
+	systems also.
+
+Thu Oct  3 16:19:53 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c; Make a distinction between having a TERMIOS tty
+	driver, and having POSIX signal handling.  You might one without
+	the other.  New defines used HAVE_POSIX_SIGNALS, and
+	TERMIOS_TTY_DRIVER.
+
+Tue Jul 30 22:37:26 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: rl_getc () If a call to read () returns without an
+	error, but with zero characters, the file is empty, so return EOF.
+
+Thu Jul 11 20:58:38 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: (rl_get_next_history, rl_get_previous_history)
+	Reallocate the buffer space if the line being moved to is longer
+	the the current space allocated.  Amazing that no one has found
+	this bug until now.
+
+Sun Jul  7 02:37:05 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c:(rl_parse_and_bind) Allow leading whitespace.
+	  Make sure TERMIO and TERMIOS systems treat CR and NL
+	  disctinctly.
+	
+Tue Jun 25 04:09:27 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: Rework parsing conditionals to pay attention to the
+	prior states of the conditional stack.  This makes $if statements
+	work correctly.
+
+Mon Jun 24 20:45:59 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: support for displaying key binding information
+	includes the functions rl_list_funmap_names (),
+	invoking_keyseqs_in_map (), rl_invoking_keyseqs (),
+	rl_dump_functions (), and rl_function_dumper ().
+
+	funmap.c: support for same includes rl_funmap_names ().
+
+	readline.c, funmap.c: no longer define STATIC_MALLOC.  However,
+	update both version of xrealloc () to handle a null pointer.
+
+Thu Apr 25 12:03:49 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* vi_mode.c (rl_vi_fword, fWord, etc.  All functions use
+	the macro `isident()'.  Fixed movement bug which prevents
+	continious movement through the text.
+
+Fri Jul 27 16:47:01 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (parser_if) Allow "$if term=foo" construct.
+
+Wed May 23 16:10:33 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (rl_dispatch) Correctly remember the last command
+	executed.  Fixed typo in username_completion_function ().
+
+Mon Apr  9 19:55:48 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: username_completion_function (); For text passed in
+	with a leading `~', remember that this could be a filename (after
+	it is completed).
+
+Thu Apr  5 13:44:24 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: rl_search_history (): Correctly handle case of an
+	unfound search string, but a graceful exit (as with ESC).
+
+	* readline.c: rl_restart_output ();  The Apollo passes the address
+	of the file descriptor to TIOCSTART, not the descriptor itself.
+
+Tue Mar 20 05:38:55 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: rl_complete (); second call in a row causes possible
+	completions to be listed.
+
+	* readline.c: rl_redisplay (), added prompt_this_line variable
+	which is the first character character following \n in prompt.
+
+Sun Mar 11 04:32:03 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* Signals are now supposedly handled inside of SYSV compilation.
+
+Wed Jan 17 19:24:09 1990  Brian Fox  (bfox at sbphy.ucsb.edu)
+
+	* history.c: history_expand (); fixed overwriting memory error,
+	added needed argument to call to get_history_event ().
+
+Thu Jan 11 10:54:04 1990  Brian Fox  (bfox at sbphy.ucsb.edu)
+
+	* readline.c: added mark_modified_lines to control the
+	display of an asterisk on modified history lines.  Also
+	added a user variable called mark-modified-lines to the
+	`set' command.
+
+Thu Jan  4 10:38:05 1990  Brian Fox  (bfox at sbphy.ucsb.edu)
+
+	* readline.c: start_insert ().  Only use IC if we don't have an im
+	capability.
+
+Fri Sep  8 09:00:45 1989  Brian Fox  (bfox at aurel)
+
+	* readline.c: rl_prep_terminal ().  Only turn on 8th bit
+	  as meta-bit iff the terminal is not using parity.
+
+Sun Sep  3 08:57:40 1989  Brian Fox  (bfox at aurel)
+
+	* readline.c: start_insert ().  Uses multiple
+	  insertion call in cases where that makes sense.
+
+	  rl_insert ().  Read type-ahead buffer for additional
+	  keys that are bound to rl_insert, and insert them
+	  all at once.  Make insertion of single keys given
+	  with an argument much more efficient.
+
+Tue Aug  8 18:13:57 1989  Brian Fox  (bfox at aurel)
+
+	* readline.c: Changed handling of EOF.  readline () returns
+	 (char *)EOF or consed string.  The EOF character is read from the
+	 tty, or if the tty doesn't have one, defaults to C-d.
+
+	* readline.c: Added support for event driven programs.
+	  rl_event_hook is the address of a function you want called
+	  while Readline is waiting for input.
+
+	* readline.c: Cleanup time.  Functions without type declarations
+	  do not use return with a value.
+
+	* history.c: history_expand () has new variable which is the
+	  characters to ignore immediately following history_expansion_char.
+
+Sun Jul 16 08:14:00 1989  Brian Fox  (bfox at aurel)
+
+	* rl_prep_terminal ()
+	  BSD version turns off C-s, C-q, C-y, C-v.
+
+	* readline.c -- rl_prep_terminal ()
+	  SYSV version hacks readline_echoing_p.
+	  BSD version turns on passing of the 8th bit for the duration
+	  of reading the line.
+
+Tue Jul 11 06:25:01 1989  Brian Fox  (bfox at aurel)
+
+	* readline.c: new variable rl_tilde_expander.
+	  If non-null, this contains the address of a function to call if
+	  the standard meaning for expanding a tilde fails.  The function is
+	  called with the text sans tilde (as in "foo"), and returns a
+	  malloc()'ed string which is the expansion, or a NULL pointer if
+	  there is no expansion. 
+
+	* readline.h - new file chardefs.h
+	  Separates things that only readline.c needs from the standard
+	  header file publishing interesting things about readline.
+
+	* readline.c:
+	  readline_default_bindings () now looks at terminal chararacters
+	  and binds those as well.
+
+Wed Jun 28 20:20:51 1989  Brian Fox  (bfox at aurel)
+
+	* Made readline and history into independent libraries.
+

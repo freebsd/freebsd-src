@@ -1,0 +1,127 @@
+This file attempts to document just who is `responsible' for what in
+the FreeBSD world.  Since we're an all-volunteer group, the whole
+concept of `responsibility' must, of course, be taken with a grain of
+salt since the folks here may not always have time to deal with your
+problem right away.  With that in mind, you are encouraged to contact
+these folks directly when your problem or suggestion clearly falls
+into their area of responsibility.  If your queries don't net any
+positive results in, say, 48 hours, THEN you should try and contact
+the group at large.  In most cases, however, using these folks as
+first-contacts will both cut down on our mail-overload and give you
+faster service.
+
+Thank you!
+
+				The FreeBSD Team
+				freebsd-hackers@freefall.cdrom.com
+
+---
+
+
+Legend:
+-------
+contrib = Contributed
+doc	= Documentation
+lib	= User-land library
+misc	= Misc user-land utility (contrib, other)
+ports	= Ported software in /usr/ports
+prog	= User-land program
+share	= Support data files
+sys	= Kernel and system code
+tools	= DOS support utilities
+
+Category                Person                  Email address
+===============================================================================
+contrib/xntpd           Garrett Wollman         wollman@lcs.mit.edu
+doc/FAQ                 FAQ Team                freebsd-faq@freefall.cdrom.com
+lib/libF77              L. Jonas Olsson         ljo@po.cwru.edu
+lib/libc                Garrett Wollman         wollman@lcs.mit.edu
+lib/libcrypt (non-US)   Geoff Rehmet            csgr@cs.ru.ac.za
+lib/libcurses           Andrew Chernov          ache@astral.msk.su
+lib/libkrb	        Garrett Wollman         wollman@lcs.mit.edu
+lib/libm		Andrew Moore		alm@netcom.com
+lib/libpthread          Chris Provenzano        proven@mit.edu
+lib/libskey             Guido van Rooij		guido@gvr.win.tue.nl
+lib/libtelnet           Garrett Wollman         wollman@lcs.mit.edu
+misc/addit              Gary Clark II           gclarkii@freefall.cdrom.com
+misc/configit           Gary Clark II           gclarkii@freefall.cdrom.com
+misc/gnats		Andrew Moore		alm@netcom.com
+misc/manctl             Geoff Rehmet            csgr@cs.ru.ac.za
+ports/{not below}	Andrew Moore		alm@freefall.cdrom.com
+ports/aXe               Jordan Hubbard          jkh@freefall.cdrom.com
+ports/archivers         Scott Mace              smace@freefall.cdrom.com
+ports/bash              Jordan Hubbard          jkh@freefall.cdrom.com
+ports/blt               Jordan Hubbard          jkh@freefall.cdrom.com
+ports/cpm               Joerg Wunsch            joerg_wunsch@uriah.sax.de
+ports/dgd               Adam David              adam@veda.is
+ports/elm               Scott Mace              smace@freefall.cdrom.com
+ports/emacs             Jordan Hubbard          jkh@freefall.cdrom.com
+ports/exmh              Jordan Hubbard          jkh@freefall.cdrom.com
+ports/ezd		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/franz             Jordan Hubbard          jkh@freefall.cdrom.com
+ports/fvwm              Geoff Rehmet            csgr@cs.ru.ac.za
+ports/golddig		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/ile               Jordan Hubbard          jkh@freefall.cdrom.com
+ports/ispell		Piero Serini		piero@strider.st.dsi.unimi.it
+ports/jpeg              Scott Mace              smace@freefall.cdrom.com
+ports/kermit            Scott Mace              smace@freefall.cdrom.com
+ports/ksh               Sean Vickery            seanv@cs.uq.edu.au
+ports/kterm		Satoshi Asami		asami@cs.berkeley.edu
+ports/lynx              Serge V.Vakulenko       vak@cronyx.msk.su
+ports/mprof		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/mtools		Steven Wallace		swallace@freefall.cdrom.com
+ports/netaudio		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/nethack           Sean Vickery            seanv@cs.uq.edu.au
+ports/pcvt              J"org Wunsch            joerg_wunsch@uriah.sax.de
+ports/piewm		Satoshi Asami		asami@cs.berkeley.edu
+ports/pkg_install       Jordan Hubbard          jkh@freefall.cdrom.com
+ports/popper		Andreas Schulz		ats@g386bsd.first.gmd.de
+ports/point             Jordan Hubbard          jkh@freefall.cdrom.com
+ports/sather		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/schemetoc		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/scm		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/seahaven		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/sml		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/sup               Jordan Hubbard          jkh@freefall.cdrom.com
+ports/tcl               Jordan Hubbard          jkh@freefall.cdrom.com
+ports/tcl-dp            Jordan Hubbard          jkh@freefall.cdrom.com
+ports/tclX              Jordan Hubbard          jkh@freefall.cdrom.com
+ports/tcsh              Scott Mace              smace@freefall.cdrom.com
+ports/tk                Jordan Hubbard          jkh@freefall.cdrom.com
+ports/vile              Jordan Hubbard          jkh@freefall.cdrom.com
+ports/vim               Jordan Hubbard          jkh@freefall.cdrom.com
+ports/wine		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/wu-ftpd           Justin T. Gibbs         gibbs@freefall.cdrom.com
+ports/xcdplayer		Steven Wallace		swallace@freefall.cdrom.com
+ports/xjewel		Jeffrey Hsu		hsu@freefall.cdrom.com
+ports/xlock             Scott Mace              smace@freefall.cdrom.com
+ports/xmine             J"org Wunsch            joerg_wunsch@uriah.sax.de
+ports/xphoon		Satoshi Asami		asami@cs.berkeley.edu
+ports/xv                Scott Mace              smace@freefall.cdrom.com
+ports/ytalk             Geoff Rehmet            csgr@cs.ru.ac.za
+ports/zircon            Jordan Hubbard          jkh@freefall.cdrom.com
+ports/zsh               Scott Mace              smace@freefall.cdrom.com
+prog/cc			Poul-Henning Kamp	phk@freefall.cdrom.com
+prog/cc25		Poul-Henning Kamp	phk@freefall.cdrom.com
+prog/gdb                Gary Jennejohn          gj@pcs.dec.com
+prog/man                Jordan Hubbard          jkh@freefall.cdrom.com
+prog/telnet		Garrett Wollman		wollman@lcs.mit.edu
+sys/fd                  J"org Wunsch            joerg_wunsch@uriah.sax.de
+sys/fd                  Serge V.Vakulenko       vak@cronyx.msk.su
+sys/i386                David Greenman          davidg@root.com
+sys/i386/isa/seagate	Sean Vickery		seanv@cs.uq.edu.au
+sys/i386/isa/sound	Steven Wallace		swallace@freefall.cdrom.com
+sys/i386/isa/bt742*.c	Atsushi Murai		amurai@spec.co.jp
+sys/kern                David Greenman          davidg@root.com
+sys/kern/ntp	        Garrett Wollman         wollman@lcs.mit.edu
+sys/lpt                 Geoff Rehmet            csgr@cs.ru.ac.za
+sys/net*                David Greenman          davidg@root.com
+sys/netboot             Martin Renters          martin@innovus.com
+sys/netinet             Garrett Wollman         wollman@lcs.mit.edu
+sys/pcmcia		Poul-Henning Kamp	phk@freefall.cdrom.com
+sys/scheduler           John Dyson              dyson@freefall.cdrom.com
+sys/syscons             So/ren Schmidt          sos@freefall.cdrom.com
+sys/vm                  David Greenman          davidg@root.com
+sys/vm                  John Dyson              dyson@freefall.cdrom.com
+sys/wt                  Serge V.Vakulenko       vak@cronyx.msk.su
+tools/booteasy          Serge V.Vakulenko       vak@cronyx.msk.su

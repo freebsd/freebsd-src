@@ -97,10 +97,7 @@ All uses of "POSIX" refer to section 4.55, Draft 12 of POSIX 1003.2.
 	did not produce any output.  POSIX does not specify this behavior.
 	This implementation follows historic practice.
 
-10.	POSIX does not specify that the q command causes all lines that
-	have been appended to be output and that the pattern space is
-	printed before exiting.  This implementation follows historic
-	practice.
+10.	Deleted.
 
 11.	Historical implementations do not output the change text of a c
 	command in the case of an address range whose first line number
@@ -175,11 +172,7 @@ All uses of "POSIX" refer to section 4.55, Draft 12 of POSIX 1003.2.
 	string1 or string2 of the y command.  This is not specified by
 	POSIX.  This implementation follows historic practice.
 
-21.	POSIX does not specify if the "Nth occurrence" of an RE in a
-	substitute command is an overlapping or a non-overlapping one,
-	i.e. what is the result of s/a*/A/2 on the pattern "aaaaa aaaaa".
-	Historical practice is to drop core or only do non-overlapping
-	RE's.  This implementation only does non-overlapping RE's.
+21.	Deleted.
 
 22.	Historic implementations of sed ignore the RE delimiter characters
 	within character classes.  This is not specified in POSIX.  This

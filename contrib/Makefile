@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.3 1993/12/21 21:18:14 wollman Exp $
+# $Id: Makefile,v 1.5 1994/06/15 21:08:47 jkh Exp $
 
-SUBDIR=	tcpdump xntpd
+SUBDIR=	crunch manctl tcpdump xntpd
 
 # Not ported: isode
 

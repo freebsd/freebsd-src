@@ -55,7 +55,9 @@ find_idle_and_ttywrite(w)
 	struct stat sb;
 	char *strerror();
 
-	(void)sprintf(tbuf, "%s/%s", _PATH_DEV, w->tty);
+	if (!strncmp(w->tty, "uu", 2))
+		return;
+	(void)sprintf(tbuf, "%s%s", _PATH_DEV, w->tty);
 	if (stat(tbuf, &sb) < 0) {
 		(void)fprintf(stderr,
 		    "finger: %s: %s\n", tbuf, strerror(errno));

@@ -1,0 +1,70 @@
+[ Note:  You could very well simply substitute the word "NetBSD" for Linux
+  in the argument that follows ]
+
+From time to time, a thread in both the comp.os.386bsd.misc and
+comp.os.linux.misc groups flares up regarding which operating system is
+"better", FreeBSD or Linux.  This generally provokes controversy from
+users on both sides, with one group claiming that their OS is "better"
+for some reason and the other group claiming that the first group
+doesn't know what the heck it's talking about.
+
+Both arguments are a waste of time.
+
+Rather than trying to win a rather questionable debate on relative
+(and constantly changing) technical merits, we should be asking ourselves
+what both groups are REALLY about and what they represent.  This is
+naturally going to be a matter of personal opinion, but I believe even the
+most seriously at-odds members would agree that both operating systems
+represent a unique and long-awaited opportunity: The ability to run a
+fully featured operating system on popular, easily affordable hardware
+and for which all source code is freely available.
+
+Those who have been in computing for awhile will remember when the term
+`operating system' referred almost exclusively to something provided solely
+by the hardware vendor, with very little in the way of alternative options.
+It was never EVER given out with source code, and true "wizard" status could
+only be achieved by exerting mind-numbing amounts of effort and patience in
+digging through forbidden bits of binary data. By comparison, the situation
+today seems almost too good to be true!  Certainly, the feeling of achievement
+that came from finally ferreting out some esoteric bit of information from
+a 4MB printed system dump was high, but I don't think that anyone would argue
+that it was hardly the most optimal way of truly getting to know your
+operating system! :-)
+
+So now, within a very short space of time, we're almost spoiled for choice in
+having machines several times more powerful than the first multi-user VAX
+machines and available for under $2000, and we've got not one but SEVERAL
+perfectly reasonable free operating systems to chose from.  We are in a
+comparative paradise, and what are some of us doing?  *Complaining* about it!
+I suppose too much is never enough, eh? :-)
+
+So, my essential point is simply this:  For the first time ever we
+have what previous computing generations could only dream about; 
+powerful computers at a reasonable prices and a wonderful selection of
+things to run on them.  Be happy, read the source code you're so
+privileged to now have available (*believe* me!  What I wouldn't have
+given, even 5 years ago!) and spend your energy in making constructive
+use of it, not in arguing with the guys on the other side of the
+fence!
+
+Additionally, it should be said that none of the FreeBSD team has
+anything but the highest degree of respect for Linus Torvalds and his
+"team" of dedicated volunteers (and we occasional exchange gripe mail
+about the huge volume of messages each of us gets as a direct result
+of being insane enough to volunteer to do something like this :-).
+Our common commitment to the Intel platform also gives us more common
+ground (and interests) than one might think and, if anything, it's a pity
+that we do not endevor to share more code and effort - ideologically,
+at least, I'd say we share pretty similar goals.
+
+As to which is "best", I have only one standard reply: Try them both,
+see for yourself, think for yourself.  Both groups have given you
+something for free, at considerable personal effort, and the least you
+can do is give them the benefit of exerting enough effort to try what
+they're offering out before passing judgment (or worse, blindly
+accepting someone else's!).
+
+Whichever you run, you're getting a great deal - enjoy!
+
+
+				Jordan Hubbard

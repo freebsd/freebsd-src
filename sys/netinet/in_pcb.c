@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)in_pcb.c	7.14 (Berkeley) 4/20/91
- *	$Id: in_pcb.c,v 1.5 1993/12/19 00:52:37 wollman Exp $
+ *	$Id: in_pcb.c,v 1.6 1994/05/17 22:31:05 jkh Exp $
  */
 
 #include "param.h"
@@ -51,6 +51,9 @@
 #include "ip.h"
 #include "in_pcb.h"
 #include "in_var.h"
+#ifdef MULTICAST
+#include "ip_var.h"
+#endif
 
 int
 in_pcballoc(so, head)
@@ -70,6 +73,53 @@ in_pcballoc(so, head)
 	so->so_pcb = (caddr_t)inp;
 	return (0);
 }
+/*
+ * return 1 if there's a pcb whose addresses 'confict' with the
+ * supplied addresses.  Only exact matches (address with address
+ * or wildcard with wildcard) are considered to be in conflict
+ * since in_pcblookup will resolve anything else via 'best match'.
+ */
+int
+in_pcbconflict(head, faddr, laddr, fport, lport)
+        register struct inpcb *head;
+        register u_long faddr, laddr;
+        register u_short fport, lport;
+{
+        register struct inpcb *inp = head;
+
+        while ((inp = inp->inp_next) != head)
+                if (inp->inp_lport == lport &&
+                    (fport == 0 || inp->inp_fport == fport) &&
+                    (faddr == 0 || inp->inp_faddr.s_addr == faddr) &&
+                    (laddr == 0 || inp->inp_laddr.s_addr == laddr))
+                        return (1);
+        return (0);
+}
+
+/*
+ * Chose a unique (non-conflicting) local port for the inpcb list
+ * starting at 'head'.  (A 'rover' is kept in the lport field of
+ * the list head to make N calls to this routine O(N^2) instead of
+ * O(N^3)).  The port will always be
+ *      IPPORT_RESERVED <= lport <= IPPORT_USERRESERVED
+ */
+u_short
+in_uniqueport(head, faddr, laddr, fport)
+        register struct inpcb *head;
+        register u_long faddr, laddr;
+        register u_short fport;
+{
+        register u_short lport = head->inp_lport;
+
+        do {
+                ++lport;
+                if (lport < IPPORT_RESERVED || lport > IPPORT_USERRESERVED)
+                        lport = IPPORT_RESERVED;
+        } while (in_pcbconflict(head, faddr, laddr, fport, htons(lport)));
+        head->inp_lport = lport;
+        return (htons(lport));
+}
+
 	
 int
 in_pcbbind(inp, nam)
@@ -107,6 +157,7 @@ in_pcbbind(inp, nam)
 		if (aport < IPPORT_RESERVED && (so->so_state & SS_PRIV) == 0)
 			return (EACCES);
 		/* even GROSSER, but this is the Internet */
+#ifdef notdef
 		if ((so->so_options & SO_REUSEADDR) == 0 &&
 		    ((so->so_proto->pr_flags & PR_CONNREQUIRED) == 0 ||
 		     (so->so_options & SO_ACCEPTCONN) == 0))
@@ -114,10 +165,16 @@ in_pcbbind(inp, nam)
 		if (in_pcblookup(head,
 		    zeroin_addr, 0, sin->sin_addr, lport, wild))
 			return (EADDRINUSE);
+#else
+		 if ((inp->inp_socket->so_options & SO_REUSEADDR) == 0 &&
+                            in_pcbconflict(head, 0, sin->sin_addr.s_addr, 0, lport))
+                                return (EADDRINUSE);
+#endif
 	}
 	inp->inp_laddr = sin->sin_addr;
 noname:
 	if (lport == 0)
+#ifdef notdef
 		do {
 			if (head->inp_lport++ < IPPORT_RESERVED ||
 			    head->inp_lport > IPPORT_USERRESERVED)
@@ -125,6 +182,10 @@ noname:
 			lport = htons(head->inp_lport);
 		} while (in_pcblookup(head,
 			    zeroin_addr, 0, inp->inp_laddr, lport, 0));
+#else
+		lport = in_uniqueport(head, inp->inp_faddr.s_addr,
+				inp->inp_laddr, inp->inp_fport);
+#endif
 	inp->inp_lport = lport;
 	return (0);
 }
@@ -148,8 +209,13 @@ in_pcbconnect(inp, nam)
 		return (EINVAL);
 	if (sin->sin_family != AF_INET)
 		return (EAFNOSUPPORT);
+#ifdef MULTICAST
+	if (sin->sin_port == 0 && !IN_MULTICAST(sin->sin_addr.s_addr))
+		return(EADDRNOTAVAIL);
+#else
 	if (sin->sin_port == 0)
 		return (EADDRNOTAVAIL);
+#endif
 	if (in_ifaddr) {
 		/*
 		 * If the destination address is INADDR_ANY,
@@ -217,6 +283,28 @@ in_pcbconnect(inp, nam)
 			if (ia == 0)
 				return (EADDRNOTAVAIL);
 		}
+#ifdef MULTICAST
+		/*
+		 * If the destination address is multicast and an outgoing
+		 * interface has been set as a multicast option, use the
+		 * address of that interface as our source address.
+		 */
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
+		    inp->inp_moptions != NULL) {
+			struct ip_moptions *imo;
+			struct ifnet *ifp;
+			
+			imo = inp->inp_moptions;
+			if (imo->imo_multicast_ifp != NULL) {
+				ifp = imo->imo_multicast_ifp;
+				for (ia = in_ifaddr; ia; ia = ia->ia_next)
+					if (ia->ia_ifp == ifp)
+						break;
+				if (ia == 0)
+					return (EADDRNOTAVAIL);
+			}
+		}
+#endif
 		ifaddr = (struct sockaddr_in *)&ia->ia_addr;
 	}
 	if (in_pcblookup(inp->inp_head,
@@ -269,6 +357,9 @@ in_pcbdetach(inp)
 		(void)m_free(inp->inp_options);
 	if (inp->inp_route.ro_rt)
 		rtfree(inp->inp_route.ro_rt);
+#ifdef MULTICAST
+	ip_freemoptions(inp->inp_moptions);
+#endif
 	remque(inp);
 	(void) m_free(dtom(inp));
 }

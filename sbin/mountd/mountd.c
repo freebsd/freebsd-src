@@ -820,7 +820,7 @@ send_umntall()
 {
 	(void) clnt_broadcast(RPCPROG_MNT, RPCMNT_VER1, RPCMNT_UMNTALL,
 		xdr_void, (caddr_t)0, xdr_void, (caddr_t)0, umntall_each);
-	exit();
+	exit(0);
 }
 
 umntall_each(resultsp, raddr)

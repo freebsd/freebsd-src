@@ -1,0 +1,14 @@
+This print cap package was created by Curt Mayer.  Please contact hime for more
+information.
+
+Curt Mayer
+curt@toad.com
+415-387-0217 home
+
+To install this package, type make then make install.  This will copy the
+printcap.sample to /etc/printcap and create the directory /usr/libexec/lpr
+and copy the hpf filter to there.
+
+Thanks
+Gary Clark II 
+FreeBSD FAQ Person

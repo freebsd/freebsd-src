@@ -3,6 +3,7 @@
 PROG=		tfmtodit
 SRCS=		tfmtodit.cc
 CFLAGS+=	-I$(.CURDIR)/../include
+CXXFLAGS+=	-I$(.CURDIR)/../include
 LDADD+=		$(LIBGROFF) -lm
 DPADD+=		$(LIBGROFF) $(LIBMATH)
 

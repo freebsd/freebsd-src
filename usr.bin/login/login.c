@@ -117,6 +117,10 @@ main(argc, argv)
 	char *domain, *salt, *ttyn;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
+#ifdef SKEY
+	int permit_passwd = 0;
+	char *skey_getpass(), *skey_crypt();
+#endif /* SKEY */
 
 	(void)signal(SIGALRM, timedout);
 	(void)alarm((u_int)timeout);
@@ -152,9 +156,11 @@ main(argc, argv)
 				exit(1);
 			}
 			hflag = 1;
+#ifndef SKEY
 			if (domain && (p = index(optarg, '.')) &&
 			    strcasecmp(p, domain) == 0)
 				*p = 0;
+#endif /* SKEY */
 			hostname = optarg;
 			break;
 		case 'p':
@@ -189,6 +195,10 @@ main(argc, argv)
 		++tty;
 	else
 		tty = ttyn;
+
+#ifdef SKEY
+	permit_passwd = (hostname == 0 || authfile(hostname) != 0);
+#endif
 
 	for (cnt = 0;; ask = 1) {
 		if (ask) {
@@ -248,7 +258,11 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
+#ifdef SKEY
+		p = skey_getpass("Password:", pwd, permit_passwd);
+#else
 		p = getpass("Password:");
+#endif /* SKEY */
 
 		if (pwd) {
 #ifdef KERBEROS
@@ -256,9 +270,19 @@ main(argc, argv)
 			if (rval == 0)
 				authok = 1;
 			else if (rval == 1)
+#ifdef SKEY
+				rval = strcmp(skey_crypt(p, salt, pwd, permit_passwd), 
+					      pwd->pw_passwd);
+#else
 				rval = strcmp(crypt(p, salt), pwd->pw_passwd);
+#endif /* SKEY */
+#else
+#ifdef SKEY
+			rval = strcmp(skey_crypt(p, salt, pwd, permit_passwd), 
+				      pwd->pw_passwd);
 #else
 			rval = strcmp(crypt(p, salt), pwd->pw_passwd);
+#endif /* SKEY */
 #endif
 		}
 		bzero(p, strlen(p));
@@ -393,6 +417,18 @@ main(argc, argv)
 		(void)printf("Warning: no Kerberos tickets issued.\n");
 #endif
 
+#ifdef LOGALL
+	/*
+	 * Syslog each successful login, so we don't have to watch hundreds
+	 * of wtmp or lastlogin files.
+	 */
+	if (hostname) {
+		syslog(LOG_INFO, "login from %s as %s", hostname, pwd->pw_name);
+	} else {
+		syslog(LOG_INFO, "login on %s as %s", tty, pwd->pw_name);
+	}
+#endif
+
 	if (!quietlog) {
 		(void)printf(
 "Copyright (c) 1980,1983,1986,1988,1990,1991 The Regents of the University\n%s",
@@ -404,6 +440,19 @@ main(argc, argv)
 			(void)printf("You have %smail.\n",
 			    (st.st_mtime > st.st_atime) ? "new " : "");
 	}
+
+#ifdef LOGIN_ACCESS
+	if (login_access(pwd->pw_name, hostname ? hostname : tty) == 0) {
+		printf("Permission denied\n");
+		if (hostname)
+			syslog(LOG_NOTICE, "%s LOGIN REFUSED FROM %s",
+				pwd->pw_name, hostname);
+		else
+			syslog(LOG_NOTICE, "%s LOGIN REFUSED ON %s",
+				pwd->pw_name, tty);
+		sleepexit(1);
+	}
+#endif
 
 	(void)signal(SIGALRM, SIG_DFL);
 	(void)signal(SIGQUIT, SIG_DFL);

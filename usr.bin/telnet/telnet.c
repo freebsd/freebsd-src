@@ -1936,7 +1936,7 @@ telsnd()
 				command(0, "z\n", 2);
 				continue;
 			}
-			if (sc == escape) {
+			if (escape != _POSIX_VDISABLE && sc == escape) {
 				command(0, (char *)tbp, tcc);
 				bol = 1;
 				count += tcc;
@@ -1953,7 +1953,7 @@ telsnd()
 		}
 		if ((sc == '\n') || (sc == '\r'))
 			bol = 1;
-	} else if (sc == escape) {
+	} else if (escape != _POSIX_VDISABLE && sc == escape) {
 	    /*
 	     * Double escape is a pass through of a single escape character.
 	     */
@@ -1973,7 +1973,8 @@ telsnd()
 	} else
 	    bol = 0;
 #ifdef	KLUDGELINEMODE
-	if (kludgelinemode && (globalmode&MODE_EDIT) && (sc == echoc)) {
+	if (kludgelinemode && (globalmode&MODE_EDIT) &&
+	    echoc != _POSIX_VDISABLE && (sc == echoc)) {
 	    if (tcc > 0 && *tbp == echoc) {
 		tcc--; tbp++; count++;
 	    } else {

@@ -163,7 +163,6 @@ main(argc, argv)
 	i = 0;
 	args[i++] = _PATH_SENDMAIL;
 	args[i++] = "-oee";		/* no errors, just status */
-	args[i++] = "-odq";		/* queue it, don't try to deliver */
 	args[i++] = "-oi";		/* ignore '.' on a line by itself */
 	if (fsys[0] != '\0') {		/* set sender's host name */
 		static char junk2[512];

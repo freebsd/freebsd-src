@@ -1,0 +1,48 @@
+List of known bugs:
+
++ Large numbers of matches (e.g. %, g or v commands), with the
+  ignorecase option set, triggers a memory corruption bug in the
+  regex routines.
+
++ Autoindent doesn't work in the ex editor.
+
++ ^C isn't passed to the shell in the script windows as an interrupt
+  character.
+
++ The command ":ab foo^J bar" prints a usage message -- non-word
+  characters should be quoted in the underlying terminal engine
+  so that the upper-level knows they're quoted and doesn't use them
+  as delimiters.  (Note, this isn't historical practice, vi didn't
+  permit escaping of ^J in this type of command.)
+
++ The options edcompatible, hardtabs*, lisp*, optimize*, redraw*,
+  and slowopen* are recognized, but not implemented.  Options with
+  an asterisk are unlikely to ever be implemented, so if you want
+  them you might want to say something!  I will implement lisp if
+  anyone ever documents how it really worked.
+
++ Screen repainting over slow lines, for some screen changes, is not
+  as good as the historic vi's.
+
++ If an error results during input in ex, it is not displayed until
+  after input mode is exited.
+
++ If the ex append command is used from vi, the input command buffer
+  is overwritten by the ex_append function, causing random errors.
+
++ Colon commands longer than a single line cause the display to be
+  incorrect.
+
++ When switching files in a small screen (O_WINDOW) with :e, the status
+  message isn't displayed.
+
++ The usages of S_{REDRAW,REFORMAT,REFRESH,RENUMBER,RESIZE} are
+  inconsistent, and should be reviewed.  In particular, S_REFRESH
+  in any screen redraws all screens.
+
++ Historic vi permitted :g/xxx/vi, i.e. you could execute ex/vi as
+  global commands.  Need to review all of the old commands to verify
+  which ones could/could not be used as global commands.
+
++ If you run out of space in the recovery directory, the recovery
+  file is left in place.

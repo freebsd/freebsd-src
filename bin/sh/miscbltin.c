@@ -89,8 +89,8 @@ readcmd(argc, argv)  char **argv; {
 		out2str(prompt);
 		flushall();
 	}
-	if ((ap = argptr) == NULL)
-		error("arg count");
+	if (*(ap = argptr) == NULL)
+		error("bad argument/arg count");
 	if ((ifs = bltinlookup("IFS", 1)) == NULL)
 		ifs = nullstr;
 	status = 0;

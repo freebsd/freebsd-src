@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.8.2.1 1994/03/23 23:45:08 rgrimes Exp $
+ *	$Id: autoconf.c,v 1.11 1994/03/21 15:02:47 ache Exp $
  */
 
 /*
@@ -77,6 +77,11 @@ configure()
 #include "isa.h"
 #if NISA > 0
 	isa_configure();
+#endif
+
+#include "pci.h"
+#if NPCI > 0
+      pci_configure();
 #endif
 
 #if GENERICxxx && !defined(DISKLESS)

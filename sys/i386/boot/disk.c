@@ -24,7 +24,17 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.4 1994/02/22 22:59:40 rgrimes Exp $
+ *	$Id: disk.c,v 1.5 1994/05/16 03:06:00 ache Exp $
+ */
+
+/*
+ * 93/10/08  bde
+ *	If there is no 386BSD partition, initialize the label sector with
+ *	LABELSECTOR instead of with garbage.
+ *
+ * 93/08/22  bde
+ *	Fixed reading of bad sector table.  It is at the end of the 'c'
+ *	partition, which is not always at the end of the disk.
  */
 
 #include "boot.h"
@@ -80,10 +90,12 @@ devopen()
 #else	EMBEDDED_DISKLABEL
 		Bread(dosdev, 0);
 		dptr = (struct dos_partition *)(((char *)0)+DOSPARTOFF);
+		sector = LABELSECTOR;
 		for (i = 0; i < NDOSPART; i++, dptr++)
-			if (dptr->dp_typ == DOSPTYP_386BSD)
+			if (dptr->dp_typ == DOSPTYP_386BSD) {
+				sector = dptr->dp_start + LABELSECTOR;
 				break;
-		sector = dptr->dp_start + LABELSECTOR;
+			}
 		Bread(dosdev, sector++);
 		dl=((struct disklabel *)0);
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
@@ -113,10 +125,20 @@ devopen()
 		    int dkbbnum;
 		    struct dkbad *dkbptr;
 
-		    /* find the first readable bad144 sector */
-		    /* some of this code is copied from ufs/disk_subr.c */
+		    /* find the first readable bad sector table */
+		    /* some of this code is copied from ufs/ufs_disksubr.c */
+		    /* including the bugs :-( */
 		    /* read a bad sector table */
-		    dkbbnum = dl->d_secperunit - dl->d_nsectors;
+
+#define BAD144_PART	2	/* XXX scattered magic numbers */
+#define BSD_PART	0	/* XXX should be 2 but bad144.c uses 0 */
+		    if (dl->d_partitions[BSD_PART].p_offset != 0)
+			    dkbbnum = dl->d_partitions[BAD144_PART].p_offset
+				      + dl->d_partitions[BAD144_PART].p_size;
+		    else
+			    dkbbnum = dl->d_secperunit;
+		    dkbbnum -= dl->d_nsectors;
+
 		    if (dl->d_secsize > DEV_BSIZE)
 		      dkbbnum *= dl->d_secsize / DEV_BSIZE;
 		    else
@@ -138,9 +160,9 @@ devopen()
 			i += 2;
 		    } while (i < 10 && i < dl->d_nsectors);
 		    if (!do_bad144)
-		      printf("Bad badsect table\n");
+		      printf("Bad bad sector table\n");
 		    else
-		      printf("Using bad144 bad sector at %d\n", dkbbnum+i);
+		      printf("Using bad sector table at %d\n", dkbbnum+i);
 		}
 #endif DO_BAD144
 	}
@@ -245,7 +267,12 @@ badsect(dosdev, sector)
 		goto no_remap;
 	    }
 	    /* otherwise find replacement sector */
-	    newsec = dl->d_secperunit - dl->d_nsectors - i -1;
+	    if (dl->d_partitions[BSD_PART].p_offset != 0)
+		    newsec = dl->d_partitions[BAD144_PART].p_offset
+			      + dl->d_partitions[BAD144_PART].p_size;
+	    else
+		    newsec = dl->d_secperunit;
+	    newsec -= dl->d_nsectors + i + 1;
 	    return newsec;
 	}
 #endif DO_BAD144

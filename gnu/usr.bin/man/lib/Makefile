@@ -6,8 +6,9 @@ CONFH=  ${.CURDIR}/obj/config.h
 CONFH=  ${.CURDIR}/config.h
 .endif
 
+NOPROFILE=	YES
 
-CFLAGS+= -I${.CURDIR} -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_UNCOMPRESS -DALT_SYSTEMS
+CFLAGS+= -I${.CURDIR} -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_COMPRESS -DALT_SYSTEMS
 CLEANFILES+=	${CONFH}
 SRCS =	util.c gripes.c
 
@@ -25,6 +26,8 @@ depend ${CONFH}:	${.CURDIR}/config.h_dist ../Makefile.inc
 	    -e 's,%vgrind%,${vgrind},' -e 's,%refer%,${refer},' \
 	    -e 's,%grap%,${grap},' -e 's,%zcat%,${zcat},' \
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
+	    -e 's,%compress%,${compress},' \
+	    -e 's,%compext%,${compext},' \
         ${.CURDIR}/config.h_dist > ${CONFH}
 
 .include <bsd.lib.mk>

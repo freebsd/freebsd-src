@@ -136,7 +136,7 @@ struct ifaliasreq {
  */
 
 #define NFS_FHSIZE	32
-typedef struct { u_char f[NFS_FHSIZE] } nfsv2fh_t;
+typedef struct { u_char f[NFS_FHSIZE]; } nfsv2fh_t;
 /*
  * Arguments to mount NFS
  */

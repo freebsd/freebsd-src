@@ -35,6 +35,7 @@
 
 #ifdef CONFIGURE
 
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -58,7 +59,7 @@ static int	evaluate_line(char *, int, int, char **, int);
 static int	parseline(char *, int, int, char **);
 
 
-char	*fgetline(FILE *, size_t *);			/* XXX */
+char	*fgetln(FILE *, size_t *);			/* XXX */
 
 
 extern const struct Command	Commands[];
@@ -76,10 +77,11 @@ char		*filename;
 {
 static int	ncalled = 0;
 FILE		*cf;
-char		*line, *s, *errmsg;
+char		*fline, *line, *s, *errmsg;
 int		lineno;
 char		**cline;
 int		argc;
+size_t		len;
 
 
 	Debug (1, "Configuring from file %s", filename);
@@ -97,11 +99,25 @@ int		argc;
 	}
 	Debug(1, "Config file %s opened.", filename);
 
+	if ((line = (char *) malloc(1)) == (char *) 0) {
+		syslog(LOG_ERR, "%s: %s", filename, strerror(errno));
+		ncalled --;
+		return;
+	}
+
 	lineno = 0;
-	while ((line = fgetline(cf, (size_t *)0))) {
+	while ((fline = fgetln(cf, &len))) {
 		lineno ++;
-		if (*line == '#')
+		if (*fline == '#')
 			continue;		/* Skip comment line */
+		else if (fline[len - 1] == '\n')
+			--len;
+		if ((line = (char *) realloc(line, len + 1)) == (char *) 0) {
+			syslog(LOG_ERR, "%s: %s", filename, strerror(errno));
+			break;
+		}
+		bcopy(fline, line, len);
+		line[len] = '\0';
 		for (s = line; *s; s++)
 			if ((*s != ' ') && (*s != '\t'))
 				break;
@@ -112,8 +128,8 @@ int		argc;
 			syslog(LOG_ERR, "%s line %d: %s", filename, lineno, errmsg);
 		if (cline && argc > 0)
 			(void)parseline(filename, lineno, argc, cline);
-
 	}
+	free(line);
 	fclose(cf);
 	ncalled --;
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specdev.h	7.4 (Berkeley) 4/19/91
- *	$Id: specdev.h,v 1.4 1993/11/25 01:38:04 wollman Exp $
+ *	$Id: specdev.h,v 1.5 1994/05/30 03:30:29 ache Exp $
  */
 
 #ifndef _SYS_SPECDEV_H_
@@ -47,6 +47,7 @@ struct specinfo {
 	struct	vnode *si_specnext;
 	long	si_flags;
 	dev_t	si_rdev;
+	short	si_opencount;		/* count of sleeping openers */
 };
 /*
  * Exported shorthand
@@ -55,6 +56,7 @@ struct specinfo {
 #define v_hashchain v_specinfo->si_hashchain
 #define v_specnext v_specinfo->si_specnext
 #define v_specflags v_specinfo->si_flags
+#define v_opencount v_specinfo->si_opencount
 
 /*
  * Flags for specinfo

@@ -35,7 +35,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getcap.c	5.15 (Berkeley) 3/19/93";
+/*static char *sccsid = "from: @(#)getcap.c	5.15 (Berkeley) 3/19/93";*/
+static char *rcsid = "$Id: getcap.c,v 1.2 1994/04/17 09:16:16 alm Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -194,8 +195,8 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 	DB *capdbp;
 	DBT key, data;
 	register char *r_end, *rp, **db_p;
-	int myfd, eof, foundit, retval;
-	char *record;
+	int myfd, eof, foundit, retval, clen;
+	char *record, *cbuf;
 	int tc_not_resolved;
 	char pbuf[_POSIX_PATH_MAX];
 	
@@ -250,11 +251,21 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 			     != NULL) {
 				free(record);
 				retval = cdbget(capdbp, &record, name);
-				if (capdbp->close(capdbp) < 0)
+				if (retval < 0) {
+					/* no record available */
+					(void)capdbp->close(capdbp);
+					return (retval); 
+				}
+				/* save the data; close frees it */
+				clen = strlen(record);
+				cbuf = malloc(clen + 1);
+				memcpy(cbuf, record, clen + 1);
+				if (capdbp->close(capdbp) < 0) {
+					free(cbuf);
 					return (-2);
-				*len = strlen(record);
-				*cap = malloc(*len + 1);
-				memmove(*cap, record, *len + 1);
+				}
+				*len = clen;
+				*cap = cbuf;
 				return (retval);
 			} else {
 				fd = open(*db_p, O_RDONLY, 0);
@@ -657,7 +668,7 @@ cgetnext(bp, db_array)
 			gottoprec = 1;
 			line = toprec;
 		} else {
-			line = fgetline(pfp, &len);
+			line = fgetln(pfp, &len);
 			if (line == NULL && pfp) {
 				(void)fclose(pfp);
 				if (ferror(pfp)) {
@@ -716,7 +727,7 @@ cgetnext(bp, db_array)
 				*np = '\0';
 				break;
 			} else { /* name field extends beyond the line */
-				line = fgetline(pfp, &len);
+				line = fgetln(pfp, &len);
 				if (line == NULL && pfp) {
 					(void)fclose(pfp);
 					if (ferror(pfp)) {

@@ -1,5 +1,5 @@
-''' $Id: uux.1,v 1.1 1993/08/05 18:28:17 conklin Exp $
-.TH uux 1 "Taylor UUCP 1.04"
+''' $Id: uux.1,v 1.2 1994/05/07 18:14:33 ache Exp $
+.TH uux 1 "Taylor UUCP 1.05"
 .SH NAME
 uux \- Remote command execution over UUCP
 .SH SYNOPSIS
@@ -14,9 +14,11 @@ The command
 is not executed immediately; the request is queued until the
 .I uucico
 (8) daemon calls the system and executes it.  The daemon is
-started automatically unless the
+started automatically unless one of the
 .B \-r
-switch is given.
+or
+.B \-\-nouucico
+options is given.
 
 The actual command execution is done by the
 .I uuxqt
@@ -54,9 +56,12 @@ not work.
 All specified files are gathered together into a single directory
 before execution of the command begins.  This means that each file
 must have a distinct base name.  For example,
-.EX
+.br
+.in +0.5i
+.nf
 uux 'sys1!diff sys2!~user1/foo sys3!~user2/foo >!foo.diff'
-.EE
+.fi
+.in -0.5i
 will fail because both files will be copied to sys1 and stored under
 the name foo.
 
@@ -68,11 +73,11 @@ command on a remote system.
 The following options may be given to
 .I uux.
 .TP 5
-.B \-,\-p
+.B \-, \-p, \-\-stdin
 Read standard input and use it as the standard input for the command
 to be executed.
 .TP 5
-.B \-c
+.B \-c, \-\-nocopy
 Do not copy local files to the spool directory.  This is the default.
 If they are
 removed before being processed by the
@@ -83,20 +88,22 @@ removed before being processed by the
 as well as the by the invoker of
 .I uux.
 .TP 5
-.B \-C
+.B \-C, \-\-copy
 Copy local files to the spool directory.
 .TP 5
-.B \-l
+.B \-l, \-\-link
 Link local files into the spool directory.  If a file can not be
 linked because it is on a different device, it will be copied unless
-the
+one of the
 .B \-c
-option also appears (in other words, use of
-.B \-l
+or
+.B \-\-nocopy
+options also appears (in other words, use of
+.B \-\-link
 switches the default from
-.B \-c
+.B \-\-nocopy
 to
-.B \-C).
+.B \-\-copy).
 If the files are changed before being processed by the
 .I uucico
 (8) daemon, the changed versions will be used.  The files must be
@@ -105,51 +112,50 @@ readable by the
 (8) daemon, as well as by the invoker of
 .I uux.
 .TP 5
-.B \-g grade
+.B \-g grade, \-\-grade grade
 Set the grade of the file transfer command.  Jobs of a higher grade
 are executed first.  Grades run 0 ... 9 A ... Z a ... z from high to
 low.
 .TP 5
-.B \-n
+.B \-n, \-\-notification=no
 Do not send mail about the status of the job, even if it fails.
 .TP 5
-.B \-z
+.B \-z, \-\-notification=error
 Send mail about the status of the job if an error occurs.  For many
 .I uuxqt
 daemons, including the Taylor UUCP
 .I uuxqt,
 this is the default action; for those,
-.B \-z
+.B \-\-notification=error
 will have no effect.  However, some
 .I uuxqt
 daemons will send mail if the job succeeds unless the
-.B \-z
+.B \-\-notification=error
 option is used, and some other
 .I uuxqt
 daemons will not send mail if the job fails unless the
-.B \-z
+.B \-\-notification=error
 option is used.
 .TP 5
-.B \-r
+.B \-r, \-\-nouucico
 Do not start the
 .I uucico
 (8) daemon immediately; merely queue up the execution request for later
 processing.
 .TP 5
-.B \-j
+.B \-j, \-\-jobid
 Print jobids on standard output.  A jobid will be generated for each
 file copy operation required to perform the operation.  These file
-copies may be cancelled by
-passing the jobid to the
-.B \-k
+copies may be cancelled by passing the jobid to the
+.B \-\-kill
 switch of
 .I uustat
 (1), which will make the execution impossible to complete.
 .TP 5
-.B \-a address
+.B \-a address, \-\-requestor address
 Report job status to the specified e-mail address.
 .TP 5
-.B \-x type
+.B \-x type, \-\-debug type
 Turn on particular debugging types.  The following types are
 recognized: abnormal, chat, handshake, uucp-proto, proto, port,
 config, spooldir, execute, incoming, outgoing.  Only abnormal, config,
@@ -157,40 +163,51 @@ spooldir and execute are meaningful for
 .I uux.
 
 Multiple types may be given, separated by commas, and the
-.B \-x
+.B \-\-debug
 option may appear multiple times.  A number may also be given, which
 will turn on that many types from the foregoing list; for example,
-.B \-x 2
+.B \-\-debug 2
 is equivalent to
-.B \-x abnormal,chat.
+.B \-\-debug abnormal,chat.
 .TP 5
-.B \-I file
+.B \-I file, \-\-config file
 Set configuration file to use.  This option may not be available,
 depending upon how
 .I uux
 was compiled.
+.TP 5
+.B \-v, \-\-version
+Report version information and exit.
+.TP 5
+.B \-\-help
+Print a help message and exit.
 .SH EXAMPLES
-.EX
+.br
+.nf
 uux -z - sys1!rmail user1
-.EE
+.fi
 Execute the command ``rmail user1'' on the system sys1, giving it as
 standard input whatever is given to
 .I uux
 as standard input.  If a failure occurs, send a message using
 .I mail
 (1).
-.EX
+
+.br
+.nf
 uux 'diff -c sys1!~user1/file1 sys2!~user2/file2 >!file.diff'
-.EE
+.fi
 Fetch the two named files from system sys1 and system sys2 and execute
 .I diff
 putting the result in file.diff in the current directory.  The current
 directory must be writable by the
 .I uuxqt
 (8) daemon for this to work.
-.EX
+
+.br
+.nf
 uux 'sys1!uucp ~user1/file1 (sys2!~user2/file2)'
-.EE
+.fi
 Execute 
 .I uucp
 on the system sys1 copying file1 (on system sys1) to sys2.  This
@@ -226,9 +243,9 @@ mail(1), uustat(1), uucp(1), uucico(8), uuxqt(8)
 Files can not be referenced across multiple systems.
 
 Too many jobids are output by
-.B \-j,
+.B \-\-jobid,
 and there is no good way to cancel a local execution requiring remote
 files.
 .SH AUTHOR
 Ian Lance Taylor
-(ian@airs.com or uunet!airs!ian)
+(ian@airs.com)

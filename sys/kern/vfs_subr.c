@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vfs_subr.c	7.60 (Berkeley) 6/21/91
- *	$Id: vfs_subr.c,v 1.7.2.2 1994/05/04 07:55:00 rgrimes Exp $
+ *	$Id: vfs_subr.c,v 1.13 1994/06/14 03:41:00 davidg Exp $
  */
 
 /*
@@ -57,6 +57,9 @@
 #include "buf.h"
 #include "errno.h"
 #include "malloc.h"
+#include "vm/vm.h"
+#include "vm/vm_object.h"
+#include "vm/vm_pager.h"
 
 static void insmntque(struct vnode *, struct mount *);
 
@@ -441,6 +444,8 @@ vinvalbuf(vp, save)
 	register struct buf *bp;
 	struct buf *nbp, *blist;
 	int s, dirty = 0;
+	vm_pager_t pager;
+	vm_object_t object;
 
 	for (;;) {
 		if (blist = vp->v_dirtyblkhd)
@@ -473,6 +478,20 @@ vinvalbuf(vp, save)
 			brelse(bp);
 		}
 	}
+
+	pager = (vm_pager_t)vp->v_vmdata;
+	if (pager != NULL) {
+		object = vm_object_lookup(pager);
+		if (object) {
+			vm_object_lock(object);
+			if (save)
+				vm_object_page_clean(object, 0, 0);
+			vm_object_page_remove(object, 0, object->size);
+			vm_object_unlock(object);
+			vm_object_deallocate(object);
+		}
+	}
+
 	if (vp->v_dirtyblkhd || vp->v_cleanblkhd)
 		panic("vinvalbuf: flush failed");
 	return (dirty);
@@ -645,6 +664,7 @@ loop:
 		nvp->v_hashchain = vpp;
 		nvp->v_specnext = *vpp;
 		nvp->v_specflags = 0;
+		nvp->v_opencount = 0;
 		*vpp = nvp;
 		if (vp != NULL) {
 			nvp->v_flag |= VALIASED;
@@ -1068,6 +1088,7 @@ vfinddev(dev, type, vpp)
 
 /*
  * Calculate the total number of references to a special device.
+ * Not counting sleeping openers.
  */
 int
 vcount(vp)
@@ -1089,7 +1110,7 @@ loop:
 			vgone(vq);
 			goto loop;
 		}
-		count += vq->v_usecount;
+		count += vq->v_usecount - vq->v_opencount;
 	}
 	return (count);
 }

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1982, 1986, 1990 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1982, 1986, 1990, 1993
+ *	Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)in_pcb.h	7.6 (Berkeley) 6/28/90
- *	$Id: in_pcb.h,v 1.5 1993/11/25 01:35:06 wollman Exp $
+ *	$Id: in_pcb.h,v 1.6 1994/05/17 22:31:06 jkh Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -67,6 +67,7 @@ struct inpcb {
 				/* function to call when MTU may have
 				 * changed */
 #endif /* MTUDISC */
+	struct  ip_moptions *inp_moptions; /* IP multicast options */
 };
 
 /* flags in inp_flags: */

@@ -1,7 +1,7 @@
 /* syshdr.unx -*- C -*-
    Unix system header for the uuconf library.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 /* The root directory (used when setting local-send and local-receive
@@ -81,6 +81,40 @@ extern char *sys_errlist[];
   ((ierr) >= 0 && (ierr) < sys_nerr ? sys_errlist[ierr] : "unknown error")
 
 #endif /* ! HAVE_STRERROR */
+
+/* This macro is used to make a filename found in a configuration file
+   into an absolute path.  The zdir argument is the directory to put it
+   in.  The zset argument is set to the new string.  The fallocated
+   argument is set to TRUE if the new string was allocated.  */
+#define MAKE_ABSOLUTE(zset, fallocated, zfile, zdir, pblock) \
+  do \
+    { \
+      if (*(zfile) == '/') \
+	{ \
+	  (zset) = (zfile); \
+	  (fallocated) = FALSE; \
+	} \
+      else \
+	{ \
+	  size_t abs_cdir, abs_cfile; \
+	  char *abs_zret; \
+\
+	  abs_cdir = strlen (zdir); \
+	  abs_cfile = strlen (zfile); \
+	  abs_zret = (char *) uuconf_malloc ((pblock), \
+					     abs_cdir + abs_cfile + 2); \
+	  (zset) = abs_zret; \
+	  (fallocated) = TRUE; \
+	  if (abs_zret != NULL) \
+	    { \
+	      memcpy ((pointer) abs_zret, (pointer) (zdir), abs_cdir); \
+	      abs_zret[abs_cdir] = '/'; \
+	      memcpy ((pointer) (abs_zret + abs_cdir + 1), \
+		      (pointer) (zfile), abs_cfile + 1); \
+	    } \
+	} \
+    } \
+  while (0)
 
 /* We want to be able to mark the Taylor UUCP system files as close on
    exec.  */

@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: utmp.h,v 1.1.1.1.2.1 1994/05/04 07:38:03 rgrimes Exp $
+ *	$Id: utmp.h,v 1.2 1994/05/04 08:08:45 rgrimes Exp $
  */
 /*
  * Copyright (c) 1988 The Regents of the University of California.

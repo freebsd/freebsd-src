@@ -4,6 +4,7 @@ PROG=		troff
 SRCS=		env.cc node.cc input.cc div.cc symbol.cc dictionary.cc reg.cc \
 		number.cc majorminor.cc
 CFLAGS+=	-I$(.CURDIR)/../include
+CXXFLAGS+=	-I$(.CURDIR)/../include
 LDADD+=		$(LIBGROFF) -lm
 DPADD+=		$(LIBGROFF) $(LIBMATH)
 tmacdir?=	/usr/share/tmac

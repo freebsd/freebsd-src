@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.8 1993/12/19 00:54:55 wollman Exp $
+ *	$Id: scsiconf.h,v 1.9 1994/03/23 09:15:55 davidg Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -134,6 +134,7 @@ struct scsi_link
 #define	SDEV_MEDIA_LOADED 	0x01	/* device figures are still valid */
 #define	SDEV_WAITING	 	0x02	/* a process is waiting for this */
 #define	SDEV_OPEN	 	0x04	/* at least 1 open session */
+#define SDEV_BOUNCE		0x08	/* unit requires DMA bounce buffer */
 #define	SDEV_DBX		0xF0	/* debuging flags (scsi_debug.h) */	
 
 /*

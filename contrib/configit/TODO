@@ -1,0 +1,9 @@
+TODO list for ConfigIt! 
+Version 0.1 BETA
+
+1. Make the system more robust in taking anwsers to questions.
+2. Better SCSI support.
+3. Make it faster.
+4. Add more options that it will configure.
+5. Clean up code so that columns are lined up.
+

@@ -1,0 +1,523 @@
+.\" Copyright (c) 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)vi.ref	8.19 (Berkeley) 3/18/94
+.\"
+.Dd "March 18, 1994"
+.Dt "EX/VI REFERENCE MANUAL" 1
+.Os
+.Sh NAME
+.Nm ex, vi, view
+.Nd text editors
+.Sh DESCRIPTION
+.Nm \&Vi
+is a screen oriented text editor.
+.Nm \&Ex
+is a line-oriented text editor.
+.Nm \&Ex
+and
+.Nm \&vi
+are different interfaces to the same program,
+and it is possible to switch back and forth during an edit session.
+.Nm View
+is the equivalent of using the
+.Fl R
+(read-only) option of
+.Nm \&vi .
+.Pp
+This reference manual is the one provided with the
+.Nm ex/vi
+versions of the
+.Nm ex/vi
+text editors.
+.Nm Ex/vi
+are intended as bug-for-bug compatible replacements for the original
+Fourth Berkeley Software Distribution (4BSD)
+.Nm \&ex
+and
+.Nm \&vi
+programs.
+This reference manual is accompanied by a traditional-style manual page.
+That manual page describes the functionality found in
+.Nm ex/vi
+in far less detail than the description here.
+In addition, it describes the system interface to
+.Nm ex/vi ,
+e.g. command line options, environmental variables, and similar things.
+.Pp
+This reference is intended for users already familiar with
+.Nm ex/vi .
+Anyone else should almost certainly read a good tutorial on the
+editor first.
+If you're in an unfamiliar environment, and you absolutely have to
+get work done immediately, see the section entitled FAST STARTUP
+in the manual page.
+It's probably enough to get you going.
+.Pp
+For the rest of this reference,
+.Nm ex/vi
+is used only when it's necessary to distinguish it from the historic
+implementations of
+.Nm ex/vi .
+.Sh ADDITIONAL FEATURES
+There are a few features in
+.Nm ex/vi
+that are not found in historic versions of
+.Nm ex/vi .
+A list of those features is as follows:
+.Bl -tag -width indent
+.It "8-bit clean data, large lines, files"
+.Nm \&Vi/ex
+will edit any format file.
+Line lengths are limited by available memory,
+and file sizes are limited by available disk space.
+The command
+.Dq "^Vx[0-9A-Fa-f]* ,"
+in input mode, will insert any
+legal character value into the text.
+.It "Split screens"
+The command
+.Dq ":sp[lit] [file ...]"
+splits the screen in vi mode.
+The key
+.Dq "^W"
+switches between the foreground screens,
+and the
+.Dq ":resize count"
+command can be used to grow or shrink a particular screen.
+.It "Background and foreground screens"
+The command
+.Dq ":bg"
+backgrounds the current screen,
+and the command
+.Dq ":fg [file]"
+foregrounds the backgrounded screen
+that is editing the specified file, or, by default, the first background
+screen on the queue.
+The command
+.Dq ":di[splay] s[creens]"
+lists the background screens.
+.It "Shell screens"
+The command
+.Dq ":sc[ript] [file ...]"
+runs a shell in the screen.
+Editing is unchanged, with the exception that a <carriage-return>
+enters the current line (stripped of any prompt) as input to the
+shell.
+.It "Tag stacks"
+Tags are now maintained in a stack.
+The command
+.Dq "^T"
+returns to the previous tag location.
+The command
+.Dq ":tagpop [number \| file]"
+returns to the most recent tag
+location by default, or, optionally to a specific tag number in the
+tag stack, or the most recent tag from the specified file.
+Use the command
+.Dq ":di[splay] t[ags]"
+to view the tags stack.
+The command
+.Dq ":tagtop"
+returns to the top of the tag stack.
+.It "New displays"
+The command
+.Dq ":di[splay] b[uffers] \| s[creens] \| t[ags]"
+can be
+used to display, respectively, the current cut buffers,
+the backgrounded screens, and the tags stack.
+.It "Infinite undo"
+The changes made during an edit session may be rolled backward and
+forward.
+A '.' command immediately after a 'u' command continues either forward
+or backward depending on whether the 'u' command was an undo or a redo.
+.It "Usage information"
+The command
+.Dq ":exu[sage] [cmd]"
+and
+.Dq "viu[sage] [key]"
+provide usage
+information for all of the ex and vi commands by default, or, optionally,
+for a specific command or key.
+.It "Extended regular expressions"
+The
+.Dq ":set extended"
+command treats search and other command regular
+expressions as extended (egrep(1) style) regular expressions.
+.It "Word search"
+The command
+.Dq "^A"
+searches for the word referenced by the cursor.
+.It "Number increment"
+The command
+.Dq "#"
+increments the number referenced by the cursor.
+.It "Previous file"
+The command
+.Dq ":prev[ious][!]"
+edits the previous file from the
+argument list.
+.It "Left-Right scrolling"
+The command
+.Dq ":set leftright"
+makes
+.Nm vi
+do left-right screen scrolling, instead of the traditional
+.Nm \&vi
+line wrapping.
+.Sh RECOVERY
+There is no recovery program for
+.Nm vi ,
+nor does
+.Nm vi
+run setuid.
+Users may recover any file which they may read, and the superuser
+may recover any edit session.
+.Pp
+Edit sessions are backed by files in
+.Pa /var/tmp/vi.recover ,
+and are named
+.Dq "vi.XXXX" ,
+where
+.Dq "XXXX"
+is a number related to the process id.
+When a file is first modified, a second file, which contains an
+email message for the user, is created, and is named
+.Dq "recover.XXXX" ,
+where, again,
+.Dq "XXXX"
+is associated with the process id.
+Both files are removed at the end of a normal edit session,
+but will remain if the edit session is abnormally terminated
+or the user enters the ex/vi
+.Dq "preserve"
+command.
+The use of the
+.Pa /var/tmp
+directory may be changed setting the
+.Sy recdir
+option in the user's or system startup information.
+.Pp
+The recovery directory should have the
+.Dq "sticky-bit"
+set so that only the owners of files may remove them.
+If this is not possible on the system, then a pseudo-user should
+own the recovery directory.
+The recovery directory must be both read and write-able by
+any user.
+.Pp
+The recovery file has all of the necessary information in it to enable the
+user to recover the edit session.
+In addition, it has all of the necessary email headers for sendmail.
+When the system is rebooted, all of the files in
+.Pa /var/tmp/vi.recover
+named
+.Dq "recover.XXXX"
+should be sent by email,
+using the
+.Fl t
+flag of sendmail (or a similar mechanism in other mailers).
+A simple way to do this is to insert the following script into your
+.Pa /etc/rc.local
+(or other startup) file:
+.ne 7v
+.Bd -literal -offset indent -compact
+# Recover vi editor files.
+virecovery=`echo /var/tmp/vi.recover/recover.*`
+if [ "$virecovery" != "/var/tmp/vi.recover/recover.*" ]; then
+	echo 'Recovering vi editor sessions'
+	for i in $virecovery; do
+		sendmail -t < $i
+	done
+fi
+.Ed
+.Pp
+If
+.Nm ex/vi
+receives a hangup (SIGHUP) signal, it will email the recovery
+information to the user itself.
+.Pp
+If you don't have the sendmail program on your system, the source file
+.Pa vi/recover.c
+will have to be modified to use your local mail delivery programs.
+.Sh STARTUP INFORMATION
+.Nm Ex/vi
+interprets one of two possible environmental variables and reads up
+to three of five possible files during startup.
+The variables and files are expected to contain
+.Nm \&ex
+commands, not
+.Nm \&vi
+commands.
+In addition, they are interpreted
+.Em before
+the file to be edited is read, and therefore many
+.Nm \&ex
+commands may not be used.
+Generally, any command that requires output to the screen or that
+needs a file upon which to operate, will cause an error if included
+in a startup file or environmental variable.
+.Pp
+First, the file
+.Pa /etc/vi.exrc
+is read.
+Second, the environmental variable
+.Ev EXINIT
+is interpreted.
+Third, if
+.Ev EXINIT
+was not set, the file
+.Pa $HOME/.exrc
+is read.
+Fourth, the file
+.Pa .exrc
+is read.
+.Pp
+Startup files will not be read if they are owned by anyone other
+than the real user-id of the user running
+.Nm \&vi ,
+(or by
+.Dq root
+in the case of the file
+.Pa /etc/vi.exrc )
+or if they are writable by anyone other than the owner.
+Home directory startup file (i.e.
+.Pa $HOME/.exrc )
+will not be read if the
+.Dq HOME
+environmental variable is not set.
+The local startup file (i.e.
+.Pa .exrc )
+will not be read if the
+.Sy exrc
+option is turned off in the
+.Pa /etc/vi.exrc
+or
+.Pa $HOME/.exrc
+files, or in the
+.Ev EXINIT
+environmental variable.
+It is not an error for any of the startup environmental variables
+or files not to exist.
+.Pp
+Because the
+.Nm \&ex
+command set supported by
+.Nm ex/vi
+is a superset of the command set supported by most historical implementations
+of
+.Nm \&ex ,
+.Nm ex/vi
+can use the startup files created for the historical implementations,
+but the converse is often not true.
+.Sh SIZING THE SCREEN
+The size of the screen can be set in a number of ways.
+.Nm Ex/vi
+takes the following steps until values are obtained for both the
+number of rows and number of columns in the screen.
+.sp
+.Bl -enum -compact
+.It
+If the environmental variable
+.Ev LINES
+exists, it is used to specify the number of rows in the screen.
+.It
+If the environmental variable
+.Ev COLUMNS
+exists, it is used to specify the number of columns in the screen.
+.It
+The TIOCGWINSZ
+.Xr ioctl 2
+is attempted on the standard error file descriptor.
+.It
+The termcap entry is checked for the
+.Dq \&li
+entry (rows) and the
+.Dq \&co
+entry (columns).
+.It
+The number of rows is set to 24, and the number of columns is set
+to 80.
+.El
+.Pp
+If a window change size signal (SIGWINCH) is received,
+the same steps are taken with the exception that the first two steps
+are skipped.
+.Sh REGULAR EXPRESSIONS AND REPLACEMENT STRINGS
+Regular expressions are used in line addresses,
+as the first part of
+.Sy substitute ,
+.Sy global ,
+and
+.Sy vglobal
+commands,
+and in search patterns.
+.Pp
+The regular expressions supported by
+.Nm \&ex
+and
+.Nm \&vi
+are, by default, the Basic Regular Expressions (BRE's) described in the
+IEEE POSIX Standard 1003.2.
+The
+.Sy extended
+option causes all regular expressions to be interpreted as the Extended
+Regular Expressions (ERE's) described by the same standard.
+(See
+.Xr re_format 7
+for more information.
+Generally speaking, BRE's are
+.Xr ed 1
+and
+.Xr grep 1
+style regular expressions, and ERE's are
+.Xr egrep 1
+style regular expressions.)
+.Pp
+There are some special strings and characters that can be used in
+RE's:
+.Bl -enum -compact
+.It
+An empty RE (e.g.
+.Dq \&// )
+is equivalent to the last RE used.
+.It
+The construct
+.Dq \e<
+matches the beginning of a word.
+.It
+The construct
+.Dq \e>
+matches the end of a word.
+.It
+The character
+.Dq \&~
+matches the replacement part of the last
+.Sy substitute
+command.
+.El
+.Pp
+When the
+.Sy magic
+option is
+.Em not
+set,
+the only characters with special meanings are
+.Dq \&^
+at the beginning of an RE,
+.Dq \&$
+at the end of an RE, and the escaping character
+.Dq \&\e .
+The characters
+.Dq \&. ,
+.Dq \&* ,
+.Dq \&[ ,
+and
+.Dq \&~
+are treated as ordinary characters unless preceded by a
+.Dq \&\e ;
+when preceded by a
+.Dq \&\e
+they regain their special meaning.
+.Pp
+Replacement strings are the second part of a
+.Sy substitute
+command.
+.Pp
+The character
+.Dq \&&
+(or
+.Dq \e&
+if the
+.Sy magic
+option is
+.Em not
+set) in the replacement string stands for the text matched by the RE
+that's being replaced.
+The character
+.Dq \&~
+(or
+.Dq \e~
+if the
+.Sy magic
+option is
+.Em not
+set) stands for the replacement part of the previous
+.Sy substitute
+command.
+.Pp
+The string
+.Dq \e# ,
+where
+.Dq \&#
+is an integer value from 1 to 9, stands for the text matched by
+the portion of the RE enclosed in the #'th set of escaped parentheses,
+e.g.
+.Dq \e(
+and
+.Dq \e) .
+For example, 
+.Dq "s/abc\e(.*\e)def/\e1/"
+deletes the strings
+.Dq abc
+and
+.Dq def
+from the matched pattern.
+.Pp
+The strings
+.Dq \el ,
+.Dq \eu ,
+.Dq \eL ,
+and
+.Dq \eU
+can be used to modify the case of elements in the replacement string.
+The string
+.Dq \el
+causes the next character to be converted to lowercase; the string
+.Dq \eu
+behaves similarly, but converts to uppercase.
+The strings
+.Dq \eL
+causes characters up to the end of the string or the next occurrence of
+the strings
+.Dq \ee
+or
+.Dq \eE
+to be converted to lowercase; the string
+.Dq \eU
+behaves similarly, but converts to uppercase.
+.Pp
+In
+.Nm \&vi ,
+inserting a <control-M> into the replacement string will cause the
+matched line to be split into two lines at that point.
+.Sh SET OPTIONS
+#include <set.opt.roff>

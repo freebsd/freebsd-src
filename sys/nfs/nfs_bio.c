@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_bio.c	7.19 (Berkeley) 4/16/91
- *	$Id: nfs_bio.c,v 1.5 1994/02/06 22:20:09 davidg Exp $
+ *	$Id: nfs_bio.c,v 1.6 1994/06/12 04:05:39 davidg Exp $
  */
 
 #include "param.h"
@@ -175,8 +175,6 @@ nfs_bioread(vp, uio, ioflag, cred)
 		error = uiomove(bp->b_un.b_addr + on, (int)n, uio);
 	    switch (vp->v_type) {
 	    case VREG:
-		if (n+on == biosize || uio->uio_offset == np->n_size)
-			bp->b_flags |= B_AGE;
 		break;
 	    case VLNK:
 		n = 0;
@@ -298,12 +296,10 @@ again:
 			brelse(bp);
 			return (error);
 		}
+		bp->b_proc = (struct proc *)0;
 		if ((n+on) == biosize) {
-			bp->b_flags |= B_AGE;
-			bp->b_proc = (struct proc *)0;
 			bawrite(bp);
 		} else {
-			bp->b_proc = (struct proc *)0;
 			bdwrite(bp);
 		}
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);

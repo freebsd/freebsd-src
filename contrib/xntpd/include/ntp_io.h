@@ -3,6 +3,7 @@
  * SEEK_SET symbol form <untisd.h>.
  */
 #if defined(NTP_POSIX_SOURCE)
+
 /*
  * POSIX way
  */

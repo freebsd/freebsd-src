@@ -1,5 +1,5 @@
-''' $Id: uucp.1,v 1.1 1993/08/05 18:27:35 conklin Exp $
-.TH uucp 1 "Taylor UUCP 1.04"
+''' $Id: uucp.1,v 1.2 1994/05/07 18:14:08 ache Exp $
+.TH uucp 1 "Taylor UUCP 1.05"
 .SH NAME
 uucp \- Unix to Unix copy
 .SH SYNOPSIS
@@ -34,6 +34,8 @@ system1!system2!path.
 Any pathname that does not begin with / or ~ will be appended to the
 current directory (unless the
 .B \-W
+or
+.B \--noexpand
 option is used); this resulting path will not necessarily exist on a
 remote system.  A pathname beginning with a simple ~ starts at the
 UUCP public directory; a pathname beginning with ~name starts at the
@@ -51,13 +53,15 @@ The copy does not take place immediately, but is queued up for the
 .I uucico
 (8) daemon; the daemon is started immediately unless the 
 .B \-r
+or
+.B \-\-nouucico
 switch is given.  In any case, the next time the remote system is called the
 file(s) will be copied.
 .SH OPTIONS
 The following options may be given to
 .I uucp.
 .TP 5
-.B \-c
+.B \-c, \-\-nocopy
 Do not copy local source files to the spool directory.  If they are
 removed before being processed by the
 .I uucico
@@ -65,40 +69,40 @@ removed before being processed by the
 .I uucico
 (8) daemon, and by the invoking user.
 .TP 5
-.B \-C
+.B \-C, \-\-copy
 Copy local source files to the spool directory.  This is the default.
 .TP 5
-.B \-d
+.B \-d, \-\-directories
 Create all necessary directories when doing the copy.  This is the
 default.
 .TP 5
-.B \-f
+.B \-f, \-\-nodirectories
 If any necessary directories do not exist for the destination path,
 abort the copy.
 .TP 5
-.B \-g grade
+.B \-g grade, \-\-grade grade
 Set the grade of the file transfer command.  Jobs of a higher grade
 are executed first.  Grades run 0 ... 9 A ... Z a ... z from high to
 low.
 .TP 5
-.B \-m
+.B \-m, \-\-mail
 Report completion or failure of the file transfer by
 .I mail
 (1).
 .TP 5
-.B \-n user
+.B \-n user, \-\-notify user
 Report completion or failure of the file transfer by
 .I mail
 (1) to the named
 user on the remote system.
 .TP 5
-.B \-r
+.B \-r, \-\-nouucico
 Do not start
 .I uucico
 (8) daemon immediately; merely queue up the file transfer for later
 execution.
 .TP 5
-.B \-j
+.B \-j, \-\-jobid
 Print jobid on standard output.  The job may be
 later cancelled by passing the jobid to the
 .B \-k
@@ -108,18 +112,21 @@ switch of
 It is possible for some complex operations to produce more than one
 jobid, in which case each will be printed on a separate line.  For
 example
-.EX
-uucp sys1!~user1/file1 sys2!~user2/file2 /usr/spool/uucppublic
-.EE
+.br
+.in +0.5i
+.nf
+uucp sys1!~user1/file1 sys2!~user2/file2 ~user3
+.fi
+.in -0.5i
 will generate two separate jobs, one for the system
 .I sys1
 and one for the system
 .I sys2.
 .TP 5
-.B \-W
+.B \-W, \-\-noexpand
 Do not prepend remote relative path names with the current directory.
 .TP 5
-.B \-x type
+.B \-x type, \-\-debug type
 Turn on particular debugging types.  The following types are
 recognized: abnormal, chat, handshake, uucp-proto, proto, port,
 config, spooldir, execute, incoming, outgoing.  Only abnormal, config,
@@ -127,18 +134,24 @@ spooldir and execute are meaningful for
 .I uucp.
 
 Multiple types may be given, separated by commas, and the
-.B \-x
+.B \-\-debug
 option may appear multiple times.  A number may also be given, which
 will turn on that many types from the foregoing list; for example,
-.B \-x 2
+.B \-\-debug 2
 is equivalent to
-.B \-x abnormal,chat.
+.B \-\-debug abnormal,chat.
 .TP 5
-.B \-I file
+.B \-I file, \-\-config file
 Set configuration file to use.  This option may not be available,
 depending upon how
 .I uucp
 was compiled.
+.TP 5
+.B \-v, \-\-version
+Report version information and exit.
+.TP 5
+.B \-\-help
+Print a help message and exit.
 .SH FILES
 The file names may be changed at compilation time or by the
 configuration file, so these are only approximations.
@@ -172,4 +185,4 @@ File modes are not preserved, except for the execute bit.  The
 resulting file is owned by the uucp user.
 .SH AUTHOR
 Ian Lance Taylor
-(ian@airs.com or uunet!airs!ian)
+<ian@airs.com>

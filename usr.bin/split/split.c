@@ -77,7 +77,7 @@ main(argc, argv)
 				ifd = 0;
 				break;
 			case 'b':	/* byte count split */
-				if (numlines)
+				if (numlines || ((argc-1) <= cnt))
 					usage();
 				if (!argv[cnt][2])
 					bytecnt = atol(argv[++cnt]);

@@ -55,8 +55,8 @@ ns_addr(name)
 	char *hostname, *socketname, *cp;
 	char buf[50];
 
-	(void)strncpy(buf, name, sizeof(buf - 1));
-	buf[sizeof(buf - 1)] = '\0';
+	(void)strncpy(buf, name, sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = '\0';
 
 	/*
 	 * First, figure out what he intends as a field separtor.

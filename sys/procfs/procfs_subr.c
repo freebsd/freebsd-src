@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: procfs_subr.c,v 1.4 1994/01/14 16:25:04 davidg Exp $
+ *	$Id: procfs_subr.c,v 1.5 1994/03/07 11:38:57 davidg Exp $
  */
 #include "param.h"
 #include "systm.h"
@@ -40,9 +40,9 @@
 #include "file.h"
 #include "resourcevar.h"
 #include "vm/vm.h"
-#include "vm/vm_page.h"
 #include "vm/vm_kern.h"
 #include "vm/vm_user.h"
+#include "vm/vm_page.h"
 #include "kinfo.h"
 #include "kinfo_proc.h"
 #include "machine/pmap.h"
@@ -52,6 +52,164 @@
 
 #include "machine/vmparam.h"
 
+/*
+ * Get process address map (PIOCGVMINFO)
+ */
+int
+pfs_vminfo(procp, pfsp, pmapp)
+struct proc	*procp;
+struct nfsnode	*pfsp;
+struct procvminfo	*pmapp;
+{
+	int		error = 0;
+	vm_map_t	map;
+	vm_map_entry_t	entry;
+	struct procvminfo	prmap;
+
+	map = &procp->p_vmspace->vm_map;
+	if( procp != curproc)
+		vm_map_lock(map);
+	entry = map->header.next;
+
+	while (entry != &map->header) {
+		if (entry->is_a_map) {
+			vm_map_t	submap = entry->object.share_map;
+			vm_map_entry_t	subentry;
+
+			if( procp != curproc)
+				vm_map_lock(submap);
+			subentry = submap->header.next;
+			while (subentry != &submap->header) {
+				prmap.entrytype = PFS_PRMAP;
+				prmap.u.pm.vaddr = subentry->start;
+				prmap.u.pm.size = subentry->end - subentry->start;
+				prmap.u.pm.offset = subentry->offset;
+				prmap.u.pm.prot = subentry->protection;
+				error = copyout(&prmap, pmapp, sizeof(struct procvminfo));
+				if (error)
+					break;
+				pmapp++;
+				subentry = subentry->next;
+			}
+			if( procp != curproc)
+				vm_map_unlock(submap);
+			if (error)
+				break;
+		}
+		
+		prmap.entrytype = PFS_PRMAP;
+		prmap.u.pm.vaddr = entry->start;
+		prmap.u.pm.size = entry->end - entry->start;
+		prmap.u.pm.offset = entry->offset;
+		prmap.u.pm.prot = entry->protection;
+		error = copyout(&prmap, pmapp, sizeof(struct procvminfo));
+		if (error)
+			break;
+		pmapp++;
+		if( !entry->is_a_map && !entry->is_sub_map) {
+			vm_object_t obj;
+			vm_offset_t off = entry->offset;
+			obj = entry->object.vm_object;
+			while( obj) {
+				vm_page_t pdata, p;
+				vm_offset_t addr, pmapent, *procpmapent;
+				struct vm_page zeropage;
+				prmap.entrytype = PFS_OBJINFO;
+				prmap.u.oi.ref_count = obj->ref_count;
+				prmap.u.oi.rss_map = obj->resident_page_count;
+				prmap.u.oi.persist = obj->can_persist;
+				prmap.u.oi.internal = obj->internal;
+				prmap.u.oi.offset = off;
+				prmap.u.oi.size = obj->size;
+				error = copyout(&prmap, pmapp, sizeof(struct procvminfo));
+				if (error)
+					break;
+				pmapp++;
+				pdata = (vm_page_t) pmapp;
+				bzero(&zeropage, sizeof zeropage);
+				for(addr=0; addr < obj->size; addr += NBPG) {
+					p = vm_page_lookup( obj, addr);
+					if( !p) {
+						p = &zeropage;
+					}
+					error = copyout( p, pdata++, sizeof( struct vm_page));
+					if( error)
+						goto errorfin;
+						
+				}
+				procpmapent = (vm_offset_t *) pdata;
+
+				for(addr=0; addr < obj->size; addr += NBPG) {
+					pmapent = pmap_extract( vm_map_pmap( map), addr + entry->start);
+					error = copyout( &pmapent, procpmapent++, sizeof( vm_offset_t));
+					if( error)
+						goto errorfin;
+				}
+
+				pmapp = (struct procvminfo *) procpmapent;
+				
+				if( obj->shadow) {
+					off += obj->shadow_offset;
+					obj = obj->shadow;
+				} else {
+					break;
+				}
+			}
+		}
+
+		entry = entry->next;
+	}
+errorfin:
+
+	if( procp != curproc)
+		vm_map_unlock(map);
+	if( !error) {
+		bzero(&prmap, sizeof prmap);
+		prmap.entrytype = PFS_END;
+		error = copyout(&prmap, pmapp, sizeof(struct procvminfo));
+	}
+
+	return error;
+}
+
+/*
+ * Count number of VM entries of process (PIOCGNVMINFO)
+ */
+int
+pfs_vminfo_nentries(procp, pfsp)
+struct proc	*procp;
+struct nfsnode	*pfsp;
+{
+	int		count = 0;
+	vm_map_t	map;
+	vm_map_entry_t	entry;
+
+	map = &procp->p_vmspace->vm_map;
+	if( procp != curproc)
+		vm_map_lock(map);
+	entry = map->header.next;
+
+	while (entry != &map->header) {
+		if (entry->is_a_map)
+			count += entry->object.share_map->nentries;
+		else if( !entry->is_a_map && !entry->is_sub_map) {
+			vm_object_t obj;
+			obj = entry->object.vm_object;
+			while( obj) {
+				count += 2*sizeof( struct procvminfo) +
+					(obj->size / NBPG) * (sizeof (struct vm_page) + sizeof(vm_offset_t));
+				obj = obj->shadow;
+			}
+		} else {
+			count += sizeof( struct procvminfo);
+		}
+		entry = entry->next;
+	}
+
+	if( procp != curproc)
+		vm_map_unlock(map);
+	return count;
+}
 /*
  * Get process address map (PIOCGMAP)
  */
@@ -67,7 +225,7 @@ struct procmap	*pmapp;
 	struct procmap	prmap;
 
 	map = &procp->p_vmspace->vm_map;
-	vm_map_lock(map);
+	if( procp != curproc) vm_map_lock(map);
 	entry = map->header.next;
 
 	while (entry != &map->header) {
@@ -75,7 +233,7 @@ struct procmap	*pmapp;
 			vm_map_t	submap = entry->object.share_map;
 			vm_map_entry_t	subentry;
 
-			vm_map_lock(submap);
+			if( procp != curproc) vm_map_lock(submap);
 			subentry = submap->header.next;
 			while (subentry != &submap->header) {
 				prmap.vaddr = subentry->start;
@@ -88,7 +246,7 @@ struct procmap	*pmapp;
 				pmapp++;
 				subentry = subentry->next;
 			}
-			vm_map_unlock(submap);
+			if( procp != curproc) vm_map_unlock(submap);
 			if (error)
 				break;
 		}
@@ -103,7 +261,7 @@ struct procmap	*pmapp;
 		entry = entry->next;
 	}
 
-	vm_map_unlock(map);
+	if( procp != curproc) vm_map_unlock(map);
 	return error;
 }
 
@@ -120,7 +278,7 @@ struct nfsnode	*pfsp;
 	vm_map_entry_t	entry;
 
 	map = &procp->p_vmspace->vm_map;
-	vm_map_lock(map);
+	if( procp != curproc) vm_map_lock(map);
 	entry = map->header.next;
 
 	while (entry != &map->header) {
@@ -131,7 +289,7 @@ struct nfsnode	*pfsp;
 		entry = entry->next;
 	}
 
-	vm_map_unlock(map);
+	if( procp != curproc) vm_map_unlock(map);
 	return count;
 }
 

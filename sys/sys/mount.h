@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mount.h	7.22 (Berkeley) 6/3/91
- *	$Id: mount.h,v 1.10 1993/12/19 22:54:02 alm Exp $
+ *	$Id: mount.h,v 1.11 1994/03/07 11:39:02 davidg Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -86,7 +86,8 @@ struct statfs {
 #define	MOUNT_MSDOS	4		/* MSDOS Filesystem */
 #define MOUNT_ISOFS	5		/* iso9660 cdrom */
 #define MOUNT_PROCFS	6		/* proc filesystem */
-#define	MOUNT_MAXTYPE	6
+#define MOUNT_DEVFS	7		/* device filesystem */
+#define	MOUNT_MAXTYPE	7
 
 /*
  * Structure per mounted file system.

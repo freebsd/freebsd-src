@@ -1,7 +1,7 @@
 /* protg.c
    The 'g' protocol.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protg_rcsid[] = "$Id: protg.c,v 1.1 1993/08/05 18:27:11 conklin Exp $";
+const char protg_rcsid[] = "$Id: protg.c,v 1.2 1994/05/07 18:13:46 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -346,6 +346,12 @@ static long cGbad_order;
    received).  */
 static long cGremote_rejects;
 
+/* Number of duplicate RR packets treated as RJ packets.  Some UUCP
+   packages appear to never send RJ packets, but only RR packets.  If
+   no RJ has been seen, fgprocess_data treats a duplicate RR as an RJ
+   and increments this variable.  */
+static long cGremote_duprrs;
+
 /* The error level.  This is the total number of errors as adjusted by
    cGerror_decay.  */
 static long cGerror_level;
@@ -419,6 +425,7 @@ fgstart (qdaemon, pzlog)
   cGbad_checksum = 0;
   cGbad_order = 0;
   cGremote_rejects = 0;
+  cGremote_duprrs = 0;
   cGerror_level = 0;
   cGexpect_bad_order = 0;
 
@@ -440,6 +447,13 @@ fgstart (qdaemon, pzlog)
       iseg = 1;
     }
   
+  if (iGrequest_winsize <= 0 || iGrequest_winsize > 7)
+    {
+      ulog (LOG_ERROR, "Illegal window size %d for '%c' protocol",
+	    iGrequest_winsize, qdaemon->qproto->bname);
+      iGrequest_winsize = IWINDOW;
+    }
+
   fgota = FALSE;
   fgotb = FALSE;
   for (i = 0; i < cGstartup_retries; i++)
@@ -503,10 +517,14 @@ fgstart (qdaemon, pzlog)
       if (! fginit_sendbuffers (TRUE))
 	return FALSE;
 
-      *pzlog = zbufalc (sizeof "protocol '' packet size  window " + 50);
-      sprintf (*pzlog, "protocol '%c' packet size %d window %d",
+      *pzlog =
+	zbufalc (sizeof "protocol '' sending packet/window / receiving /"
+		 + 64);
+      sprintf (*pzlog,
+	       "protocol '%c' sending packet/window %d/%d receiving %d/%d",
 	       qdaemon->qproto->bname, (int) iGremote_packsize,
-	       (int) iGremote_winsize);
+	       (int) iGremote_winsize, (int) iGrequest_packsize,
+	       (int) iGrequest_winsize);
 
       return TRUE;
     }
@@ -528,6 +546,22 @@ fbiggstart (qdaemon, pzlog)
   fGshort_packets = FALSE;
   return fgstart (qdaemon, pzlog);
 }
+
+/* The 'v' protocol is identical to the 'g' protocol, except that the
+   packet size defaults to 512 bytes.  Rather than really get it
+   right, we automatically switch from the usual default of 64 to 512.
+   This won't work correctly if somebody does protocol-parameter v
+   packet-size 64.  */
+
+boolean
+fvstart (qdaemon, pzlog)
+     struct sdaemon *qdaemon;
+     char **pzlog;
+{
+  if (iGrequest_packsize == IPACKSIZE)
+    iGrequest_packsize = 1024;
+  return fgstart (qdaemon, pzlog);
+}  
 
 /* Exchange initialization messages with the other system.
 
@@ -671,10 +705,12 @@ fgshutdown (qdaemon)
   if (cGbad_hdr != 0
       || cGbad_checksum != 0
       || cGbad_order != 0
-      || cGremote_rejects != 0)
+      || cGremote_rejects != 0
+      || cGremote_duprrs != 0)
     ulog (LOG_NORMAL,
 	  "Errors: header %ld, checksum %ld, order %ld, remote rejects %ld",
-	  cGbad_hdr, cGbad_checksum, cGbad_order, cGremote_rejects);
+	  cGbad_hdr, cGbad_checksum, cGbad_order,
+	  cGremote_duprrs + cGremote_rejects);
 
   /* Reset all the parameters to their default values, so that the
      protocol parameters used for this connection do not affect the
@@ -739,7 +775,8 @@ fgsendcmd (qdaemon, z, ilocal, iremote)
 	    }
 
 	  memcpy (zpacket, z, clen);
-	  bzero (zpacket + clen, csize - clen);
+	  if (csize > clen)
+	    bzero (zpacket + clen, csize - clen);
 	  fagain = FALSE;
 
 	  if (! fgsenddata (qdaemon, zpacket, csize, 0, 0, (long) 0))
@@ -894,7 +931,8 @@ fgsenddata (qdaemon, zdata, cdata, ilocal, iremote, ipos)
 	      --zdata;
 	      zdata[0] = (char) cshort;
 	      zdata[-1] = '\0';
-	      bzero (zdata + cdata + 1, cshort - 1);
+	      if (cshort > 1)
+		bzero (zdata + cdata + 1, cshort - 1);
 	    }
 	  else
 	    {
@@ -1568,12 +1606,15 @@ fgprocess_data (qdaemon, fdoacks, freturncontrol, pfexit, pcneed, pffound)
 
       /* Annoyingly, some UUCP packages appear to send an RR packet
 	 rather than an RJ packet when they want a packet to be
-	 resent.  If we get a duplicate RR, we treat it as an RJ.  */
+	 resent.  If we get a duplicate RR and we've never seen an RJ,
+	 we treat the RR as an RJ.  */
       fduprr = FALSE;
-      if (CONTROL_TT (ab[IFRAME_CONTROL]) == CONTROL
+      if (cGremote_rejects == 0
+	  && CONTROL_TT (ab[IFRAME_CONTROL]) == CONTROL
 	  && CONTROL_XXX (ab[IFRAME_CONTROL]) == RR
 	  && iGremote_ack == CONTROL_YYY (ab[IFRAME_CONTROL])
-	  && INEXTSEQ (iGremote_ack) != iGsendseq)
+	  && INEXTSEQ (iGremote_ack) != iGsendseq
+	  && iGretransmit_seq != -1)
 	{
 	  DEBUG_MESSAGE0 (DEBUG_PROTO | DEBUG_ABNORMAL,
 			  "fgprocess_data: Treating duplicate RR as RJ");
@@ -1581,11 +1622,12 @@ fgprocess_data (qdaemon, fdoacks, freturncontrol, pfexit, pcneed, pffound)
 	}
 
       /* Update the received sequence number from the yyy field of a
-	 data packet or an RR control packet.  If we've been delaying
-	 sending packets until we received an ack, this may send out
-	 some packets.  */
-      if (CONTROL_TT (ab[IFRAME_CONTROL]) != CONTROL
-	  || CONTROL_XXX (ab[IFRAME_CONTROL]) == RR)
+	 data packet (if it is the one we are expecting) or an RR
+	 control packet.  If we've been delaying sending packets until
+	 we received an ack, this may send out some packets.  */
+      if ((CONTROL_TT (ab[IFRAME_CONTROL]) != CONTROL
+	   && CONTROL_XXX (ab[IFRAME_CONTROL]) == INEXTSEQ (iGrecseq))
+	  || (CONTROL_XXX (ab[IFRAME_CONTROL]) == RR && ! fduprr))
 	{
 	  if (! fggot_ack (qdaemon, CONTROL_YYY (ab[IFRAME_CONTROL])))
 	    return FALSE;
@@ -1773,7 +1815,10 @@ fgprocess_data (qdaemon, fdoacks, freturncontrol, pfexit, pcneed, pffound)
 			      iGsendseq, iGretransmit_seq);
 
 	      ++cGresent_packets;
-	      ++cGremote_rejects;
+	      if (fduprr)
+		++cGremote_duprrs;
+	      else
+		++cGremote_rejects;
 	      ++cGerror_level;
 	      if (! fgcheck_errors (qdaemon))
 		return FALSE;

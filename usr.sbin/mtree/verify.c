@@ -172,10 +172,11 @@ miss(p, tail)
 			    (void)printf(" (not created: group not specified)");
 			else if (!(p->flags & F_MODE))
 			    (void)printf(" (not created: mode not specified)");
-			else if (mkdir(path, S_IRWXU))
+			else if (mkdir(path, S_IRWXU)) {
+				create = 1;
 				(void)printf(" (not created: %s)",
 				    strerror(errno));
-			else {
+			} else {
 				create = 1;
 				(void)printf(" (created)");
 			}

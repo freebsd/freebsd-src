@@ -1,5 +1,5 @@
 /*
- *	$Id: isofs_vfsops.c,v 1.5 1993/12/19 00:51:07 wollman Exp $
+ *	$Id: isofs_vfsops.c,v 1.6 1994/06/02 06:48:34 swallace Exp $
  */
 
 #include "param.h"
@@ -521,7 +521,7 @@ isofs_fhtovp(mp, fhp, vpp)
 		return (EINVAL);
 
 	if (ifhp->ifid_offset + sizeof (struct iso_directory_record)
-	    >= imp->im_bsize)
+	    > imp->im_bsize)
 		return (EINVAL);
 
 	if (error = bread (imp->im_devvp,
@@ -534,7 +534,7 @@ isofs_fhtovp(mp, fhp, vpp)
 	dirp = (struct iso_directory_record *)
 				 (bp->b_un.b_addr + ifhp->ifid_offset);
 
-	if (ifhp->ifid_offset + isonum_711 (dirp->length) >= imp->im_bsize) {
+	if (ifhp->ifid_offset + isonum_711 (dirp->length) > imp->im_bsize) {
 		brelse (bp);
 		return (EINVAL);
 	}

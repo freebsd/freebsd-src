@@ -8,10 +8,10 @@ SRCS+=	alarm.c assert.c clock.c crypt.c ctermid.c ctime.c ctype_.c \
 	fnmatch.c frexp.c fstab.c fts.c getcap.c getcwd.c getgrent.c \
 	getlogin.c getmntinfo.c getpass.c getpwent.c getsubopt.c getttyent.c \
 	getusershell.c glob.c infinity.c initgroups.c insque.c isatty.c \
-	isctype.c isinf.c mktemp.c msgctl.c msgget.c msgsnd.c msgrcv.c \
+	isinf.c mktemp.c msgctl.c msgget.c msgsnd.c msgrcv.c \
 	nice.c nlist.c pause.c popen.c psignal.c raise.c scandir.c \
 	semconfig.c semctl.c semget.c semop.c \
-	setjmperr.c setmode.c setrgid.c setruid.c \
+	setjmperr.c setmode.c \
 	shmat.c shmctl.c shmdt.c shmget.c \
 	siginterrupt.c siglist.c signal.c sigsetops.c sleep.c syslog.c \
 	termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
@@ -27,7 +27,9 @@ SRCS+=	adddf3.s addsf3.s ashlsi3.s ashrsi3.s cmpdf2.s cmpsf2.s divdf3.s \
 	umodsi3.s umulsi3.s
 .elif (${MACHINE} == "i386")
 SRCS+=	_setjmp.S alloca.S fabs.S ldexp.c modf.S setjmp.S sigsetjmp.S
+.if defined (GCC1_IN_LIBC)
 SRCS+=	divsi3.S fixdfsi.S fixunsdfsi.S udivsi3.S
+.endif
 .elif (${MACHINE} == "tahoe")
 CFLAGS+=-I/sys
 SRCS+=	_setjmp.s alloca.s fabs.s ldexp.s modf.s setjmp.s
@@ -35,6 +37,9 @@ SRCS+=	udiv.s urem.s
 .elif (${MACHINE} == "vax")
 SRCS+=	_setjmp.s alloca.s fabs.s ldexp.s modf.s setjmp.s
 SRCS+=	udiv.s urem.s
+.endif
+.if defined (PW_COMPACT)
+CFLAGS+=-DPW_COMPACT
 .endif
 
 MAN3+=	gen/alarm.3 gen/clock.3 gen/crypt.3 gen/ctermid.3 gen/ctime.3 \
@@ -47,7 +52,7 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/crypt.3 gen/ctermid.3 gen/ctime.3 \
 	gen/islower.3 gen/isprint.3 gen/ispunct.3 gen/isspace.3 \
 	gen/isupper.3 gen/isxdigit.3 gen/ldexp.3 gen/modf.3 gen/nice.3 \
 	gen/nlist.3 gen/pause.3 gen/popen.3 gen/psignal.3 gen/raise.3 \
-	gen/scandir.3 gen/setjmp.3 gen/setmode.3 gen/setuid.3 \
+	gen/scandir.3 gen/setjmp.3 gen/setmode.3 \
 	gen/siginterrupt.3 gen/signal.3 gen/sigsetops.3 gen/sleep.3 \
 	gen/syslog.3 gen/tcgetpgrp.3 gen/tcsendbreak.3 gen/tcsetattr.3 \
 	gen/tcsetpgrp.3 gen/time.3 gen/times.3  gen/timezone.3 gen/tolower.3 \
@@ -86,8 +91,6 @@ MLINKS+=scandir.3 alphasort.3
 MLINKS+=setjmp.3 _longjmp.3 setjmp.3 _setjmp.3 setjmp.3 longjmp.3 \
 	setjmp.3 sigsetjmp.3 setjmp.3 siglongjmp.3 setjmp.3 longjmperror.3
 MLINKS+=setmode.3 getmode.3
-MLINKS+=setuid.3 setegid.3 setuid.3 seteuid.3 setuid.3 setgid.3 \
-	setuid.3 setrgid.3 setuid.3 setruid.3
 MLINKS+=sigsetops.3 sigemptyset.3 sigsetops.3 sigfillset.3 \
 	sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 	sigsetops.3 sigismember.3

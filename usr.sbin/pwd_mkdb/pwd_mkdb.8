@@ -99,6 +99,20 @@ The front-ends to
 and
 .IR vipw (8),
 handle the locking necessary to avoid this problem.
+.PP
+Standard database make routines are slow especially for big passwd
+files. Moreover, *pwd.db bases are too big and waste root space.
+You can have much faster routines with small *pwd.db,
+but loose binary compatibility
+with previous versions and with other BSD-like systems.
+If you want to setup much faster routines, define
+.B PW_COMPACT
+envirnoment variable (f.e. 'setenv PW_COMPACT' in csh) and use
+.I bootstrappwd
+target into /usr/src/Makefile.
+If you will want to return this changes back, use the same target
+without defining
+.BR PW_COMPACT .
 .SH COMPATIBILITY
 Previous versions of the system had a program similar to
 .I pwd_mkdb, 

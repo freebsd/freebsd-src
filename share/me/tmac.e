@@ -959,7 +959,7 @@
 .\}
 .nr ?C 1
 .nr $f 1 1
-.ds * \\*[1\\*]\k*
+.ds * \\*\[1\\*\]\k*
 .if \\n(?R \
 .	pn 1
 .bp
@@ -1170,7 +1170,7 @@
 .nr _L \n(.lu			\" line length of page
 .nr $c 1			\" current column number
 .nr $f 1 1			\" footnote number
-.ds * \*[1\*]\k*\"		\" footnote "name"
+.ds * \*\[1\*\]\k*\"		\" footnote "name"
 .nr $d 1 1			\" delayed text number
 .ds # [1]\k#\"			\" delayed text "name"
 .nr _M 1			\" chapter mode is chapter

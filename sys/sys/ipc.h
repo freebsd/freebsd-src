@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ipc.h	7.2 (Berkeley) 2/5/91
- *	$Id: ipc.h,v 1.3.2.1 1994/05/04 07:57:23 rgrimes Exp $
+ *	$Id: ipc.h,v 1.4 1994/05/04 08:30:48 rgrimes Exp $
  */
 
 /*

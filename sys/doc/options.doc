@@ -1,0 +1,682 @@
+$Id: options.doc,v 1.10 1994/06/28 14:00:21 jkh Exp $
+
+   This file documents the configuration options available in the
+FreeBSD operating system.
+
+     Copyright (C) 1993, 1994, Garrett A. Wollman.  All rights reserved.
+     
+     Redistribution and use in source and printed forms, with or without
+     modification, are permitted provided that the following conditions
+     are met:
+     1. Redistributions of source code must retain the above copyright
+        notice and this list of conditions.
+     2. Redistributions in printed form must reproduce the above copyright
+        notice, this list of conditions and the following notice of
+        authorship.
+     
+     Trademarks are property of their respective owners.
+
+FreeBSD Configuration Options
+*****************************
+
+   This document describes kernel configuration options relevant to the
+FreeBSD operating system between versions 1.1 and 1.2.  It is intended
+for readers who already have a general understanding of the process of
+configuring a BSD kernel and wish to get a general overview of the
+meaning of various configuration options.  This document covers
+configurable options and pseudo-devices; it is intended that devices may
+be added at a later date.
+
+Options for Subsystems
+**********************
+
+   This chapter discusses options controlling the inclusion of various
+subsystems in FreeBSD.  These include things like filesystems,
+networking modules, and whatnot.  Remember that options containing
+underscores must be quoted.
+
+`pseudo-device bpfilter NUMBER'
+     The `bpfilter' pseudo-device is the Berkeley Packet Filter,
+     developed by Lawrence Berkeley Labs and based on an earlier packet
+     filter from Stanford.  See the `bpf' manual page for more details.
+     The NUMBER given is the maximum number of simultaneous users
+     permitted.  (NB: in previous version of BPF, the NUMBER had to be
+     greater than the number of interfaces; this space is now
+     dynamically allocated so this requirement is no longer present.)
+
+`options CCITT'
+     The `CCITT' option enables support for the ITU-T X.25(1980)
+     network-layer protocol.  Nobody we know has a direct X.25
+     connection to anything, so this code has never been tested.
+
+     This option will likely be removed in a future release of FreeBSD.
+
+`options "COMPAT_42"'
+     This option is used to disable UDP checksumming.  Under ordinary
+     circumstances it should never ever ever be defined; however, if
+     you are stuck trying to communicate with an old 4.2BSD machine, or
+     one running something derived from 4.2 like SunOS 3.5 or Ultrix
+     2.0, this may be necessary in order to successfully receive UDP
+     packets.
+
+     This option will be replaced by run-time configuration in a future
+     release of FreeBSD.
+
+`options "COMPAT_43"'
+     This option controls a whole host of features, mostly relating to
+     system-call compatibilty with 4.3BSD.  At the present time, it
+     should not be turned off, as many utilities and library routines
+     still depend on these obsolescent system calls being present.  At
+     some future date, this will probably be split up into two separate
+     options, one for binary compatibility and one for the old but
+     useful system calls.
+
+`options "COMPAT_102"'
+     This option, which is not yet implemented, will control whether
+     certain entry points which were system calls in FreeBSD 1.0.2 but
+     have been replaced with library routines, are supported in the
+     kernel for backwards compatiblity.
+
+`options "DIRECTED_BROADCAST"'
+     If this option is enabled, the kernel will support sending IP
+     broadcast packets to subnets other than the one that the machine
+     is on, and when forwarding will accept such packets.  That is to
+     say, if your host lives on subnets `132.198.3' and `132.198.4',
+     and the `132.198.3' side receives a packet addressed to
+     `132.198.4.255', it will forward the packet as a broadcast on that
+     subnet.
+
+     This option will likely be replaced by run-time configuration in a
+     future release of FreeBSD.
+
+`options "DISKLABEL_UNPROTECTED"'
+     This options disables the checks which normally protects the
+     disklabel from being overwritten.  This allows dd of=/dev/rwd0d
+     if=file bs=8k to restore an diskimage.
+
+`pseudo-device ether'
+     This pseudo-device provides link-layer support for Ethernet device
+     drivers.  It is mandatory for all systems which include Ethernet or
+     Ethernet-like devices, such as `ed', `ie', and `is'.  This code is
+     due for a redesign.
+
+`options EON'
+`pseudo-device eon'
+     The `eon' network interface supports the ISO 8473
+     Connectionless-Mode Network Protocol, tunnelled through IP version
+     4.  `eon' interfaces are created automatically once initially
+     configured by adding ISO routes with IP destinations.  At present,
+     both the pseudo-device and option declaration are necessary.
+
+     This option will likely be removed in a future release of FreeBSD.
+
+`options FIFO'
+     This option enables support for System V- and POSIX-style named
+     pipes or fifos.
+
+`options GATEWAY'
+`options IPFORWARDING=VALUE'
+`options IPSENDREDIRECTS=VALUE'
+     These three options control whether FreeBSD's IP forwarding
+     functions are enabled.  Technically speaking, because FreeBSD does
+     not meet the standards set out in the "Router Requirements"
+     document (RFC 1009), these should not be enabled, but sometimes it
+     is necessary to enable this function.  The `GATEWAY' option turns
+     on `IPFORWARDING', and also controls the sizing of certain system
+     tables.  The `IPFORWARDING' option controls the initial value of
+     the `ipforwarding' kernel variable (default 1 if `GATEWAY'
+     defined, 0 otherwise), which controls whether packets are acutally
+     forwarded or not; VALUE should be either `0' or `1'.
+     `IPSENDREDIRECTS' controls the initial value of the
+     `ipsendredirects' variable (default is one, but should be changed
+     to zero); its VALUE should also be either `0' or `1'.
+
+     This option will be replaced by run-time configuration in a future
+     release of FreeBSD.
+
+`options INET'
+     This option controls the inclusion of the Internet protocol suite,
+     including IP version 4, TCP, UDP, and ICMP.  Support for IP
+     multicast, IP next generation, and IGMP will be provided at a
+     future date.  It is not recommended to even attempt to generate a
+     system with this option turned off, as many parts of the system
+     depend on Internet networking in important and subtle ways.
+
+`options ISO'
+`options TPIP'
+     These options control the inclusion of ISO OSI networking
+     protocols.  The TPIP option includes just enough support to run
+     ISO Transport Protocol class 4 over IP, supporing the
+     `SOCK_SEQPACKET' abstraction.  The ISO option includes support for
+     CLNP, TP class 0, ISO 9542 ESIS, and IEEE 802.2 logical link
+     control class 0 (for CLNP only).
+
+     This option will likely be removed in a future release of FreeBSD.
+
+`options ISOFS'
+     The `ISOFS' option enables kernel support for the ISO 9660 CD-ROM
+     filesystem, including RockRidge extensions.
+
+`options "ISO_X25ESIS"'
+     This option controls whether ISO 9542 ESIS is run over ITU-T X.25
+     link layers.  This requires the `CCITT' option to be enabled as
+     well.
+
+     This option will likely be removed in a future release of FreeBSD.
+
+`options KTRACE'
+     This option enables the tracing of several classes of internal
+     kernel events.  See the `ktrace' command for more details.
+     Recommended.
+
+`pseudo-device log'
+     The `log' pseudo-device provides kernel support to send kernel
+     messages to `syslog'.  It is mandatory.
+
+`pseudo-device loop'
+     The `loop' pseudo-device provides the trivial network interface.
+     It is required when any networking options are enabled.
+
+`options MACHVMCOMPAT'
+     This option enables a Mach-compatible interface to the virtual
+     memory subsystem, supporting system calls `vm_allocate',
+     `vm_deallocate', `vm_inherit', and `vm_protect'.  (Given the
+     nature of the VM system, it is impossible to support a Mach-style
+     `vm_region' call, and in every case the `map' argument is ignored
+     and replaced with the calling process's own map.)
+
+`options MFS'
+     This option enables support for the memory filesystem, an in-core
+     filesystem which lives in the swap area.  Using MFS as a `/tmp'
+     filesystem can dramatically increase the speed of
+     temporary-space-intensive operations such as compilations.  See the
+     `mount_mfs' manual page for more details.
+
+`options MULTICAST'
+     Enable multicast support for things like vat, nv, etc.
+
+`options MROUTING'
+     Enable multicast routing support (generally goes hand-in-hand with
+     the above).  See also mrouted(1).
+
+`options NFS'
+     The `NFS' option enables support for Sun's Network File System.
+     (Also called "Nightmare" or "Not a"....)  This presently includes
+     both client- and server-side kernelized NFS support; it may in the
+     future be broken into separate options.  This NFS implmentation
+     comes to BSD courtesy of Rick Macklem of the University of Guelph,
+     and is not derived from Sun licensed source code.  As a result,
+     there are sometimes interoperability problems where the published
+     specification is vague, and this option supports several new and
+     useful features compared to Sun's.  See the `mount' manual page
+     for more details.
+
+`options NS'
+`options NSIP'
+     `NS' controls the inclusion of support for the Xerox Network
+     Service protocol family.  At the present time, it is not known
+     whether this code even works; testers are welcome.  The `NSIP'
+     option enables encapsulation of XNS IDP over IP.
+
+     These options will likely be removed in a future release of
+     FreeBSD.
+
+`options "PANIC_REBOOT_WAIT_TIME=TIME"'
+     This option controls how long the system waits after a panic
+     before it reboots.  If a TIME of zero is specified, it reboots
+     immediately; otherwise, TIME is the number of seconds to wait
+     before rebooting.  If, during the waiting period, a key is hit on
+     the console, the countdown stops and the system will wait for the
+     user to copy down the panic message and hit another key before
+     rebooting.
+
+`options PCFS'
+     This option controls support for mounting MS-DOS disks and disk
+     partitions under FreeBSD.  The `pcfs' manual page is presently very
+     bogus.
+
+`pseudo-device ppp NUMBER'
+     The `ppp' pseudo-device provides support for the Internet
+     Point-to-Point protocol (RFC 1351 et seq), implemented as a line
+     discipline over standard serial links.  NUMBER should be the
+     number of simultaneous PPP interfaces which will be configured.
+
+`pseudo-device pty NUMBER'
+     This pseudo-device provides support for pseudo-ttys, which are
+     required for `rlogin', `telnet', and `xterm' to operate correctly;
+     NUMBER should be set to the total number of these programs you
+     expect to have running at any given time.  Because pty's are not
+     as yet dynamically allocated, and the underlying structures are
+     large, it is best to keep this value as small as feasible, until
+     this deficiency is remedied.
+
+`options QUOTA'
+     The `QUOTA' option enables support for disk quotas.  Note that NFS
+     quota support is not available.
+
+`pseudo-device sl NUMBER'
+     This pseudo-device provides support for the Serial Line Internet
+     Protocol (RFC 1055), implemented as a line discipline over standard
+     serial links.  It includes support for Van Jacobson header
+     compression.  NUMBER should be the number of simultaneous SLIP
+     interfaces which will be configured.  See also the `slattach'
+     manual page.
+
+`options SYSVSHM'
+`options SYSVSEM'
+`options SYSVMSG'
+`options SHMMAXPGS=VALUE'
+     The `SYSVSHM' option enables kernel-side emulation of System
+     V-compatible shared memory.  The `SHMMAXPGS' option (default 64
+     pages or 256K) determines the maximum amount of shared memory
+     available under this mechanism.  The `SYSVSEM' option provides
+     emulation of System V-compatible semaphores, and likewise
+     `SYSVMSG' for message queues.
+
+`options "TCP_COMPAT_42"'
+     This option controls the perpetuation of several bugs inherited
+     from the 4.2BSD implementation of TCP.  It should only be defined
+     in the circumstances outlined for `COMPAT_42', above.
+
+     This option will likely be replaced by run-time configuration in a
+     future release of FreeBSD.
+
+`pseudo-device tun'
+     The `tun' driver provides a network interface which is attached to
+     a character device.  In this way, a user-mode program can grab
+     packets out of the networking system, fiddle with them or move
+     them around, and pass stuff packets back up into the kernel.  It
+     is not known if this device either compiles or operates correctly,
+     although it was believed to do both at some time in the past.
+
+`options UCONSOLE'
+     This option allows any old user to grab kernel output away from the
+     console and send it to the tty of their choice.  It presents an
+     incredile security hole for some systems, but is necessary in
+     order to allow programs like `xconsole' to operate.
+
+`options XSERVER'
+     This obsolescent option enables support in the `pc' console driver
+     for certain operations required by the XFree86 server.
+
+Performace and Debugging Options
+********************************
+
+   The following options are provided for system performace
+optimization.  Note that kernel profiling is supported via the `-p'
+option to the `config' command; for more information see the `config'
+manual page.
+
+`psuedo-device ddb'
+     This option enables the `ddb' debugger, taken from Mach.  See the
+     `ddb' and `dbsym' manual pages for more information on the use of
+     this debugger.
+
+`options DIAGNOSTIC'
+`options NAMEI_DIAGNOSTIC'
+`options PARANOID'
+     These debugging options reduce performace.  They are intended to
+     enable certain internal consistency checks which are not supposed
+     to fail during correct operation, and so are normally disabled for
+     performace reasons.
+
+`options FASTLINKS'
+     The `FASTLINKS' option enables the creation of symbolic links whose
+     target names reside entirely within the i-node of the link, when
+     possible.  This results in faster access for those links which are
+     short enough (in practice, most of them).  All kernels can read
+     such links, but only `FASTLINKS' kernels will create them, for
+     compatibility with older kernels lacking such support.
+
+`options ICMPPRINTFS'
+     This option is defined to allow debugging of ICMP ("Internet
+     Control Message Protocol") packets in the kernel.  When defined
+     and the `icmpprintfs' kernel variable (default false) is set to
+     true, ICMP packets will be printed out to the console when
+     received.  Note that it is probably better to use `tcpdump' for
+     this kind of debugging.
+
+`options KGDB'
+     The `KGDB' option enables certain bits of kernel code which will
+     eventually be able to talk to a remote copy of the `gdb' debugger
+     over a serial connection.  The present code does not work, but
+     users are invited to hack on it and contribute the changes back to
+     the FreeBSD team.
+
+`options MAXMEM=SIZE'
+     The `MAXMEM' option controls how much memory the kernel will
+     recognize on bootup, specified in kilobytes.  This may be useful
+     for dealing with certain broken attachment busses (or the adapters
+     thereon) which are unable to deal with memory beyond a certain
+     address.
+
+`options SUBNETSARELOCAL'
+     This option controls whether the TCP system believes that machines
+     on other subnets of your network are considered to be "local" to
+     your host.  For most systems, this option should be on (the
+     default); if you are directly connected to a class A network,
+     however, then it may need to be turned off.  (This is true of
+     networks like the MILNET.)
+
+`options "SYMTAB_SPACE=VALUE"'
+     This obsolescent option controls the amount of space that will be
+     statically allocated in the debugger source code to hold the kernel
+     symbol table that `dbsym' sticks there.  Eventually this will be
+     dynamically allocated at load time.  The default VALUE is 63000
+     bytes.
+
+`options "UPDATE_INTERVAL=VALUE"'
+     This option controls the wait time between successive `sync'
+     operations run by the `update' system process (pid 3).  This option
+     will be replaced by run-time configuration in a future release of
+     FreeBSD.
+
+`options DUMMY_NOPS'
+     This option controls the use of real Nops for bus operations.
+     This might break on older systems so should be used with care.
+
+Device Options
+**************
+
+   There are different device selections available depending on the
+type of bus present in your computer.  We will cover generic FreeBSD
+devices, ISA-bus devices, and EISA-bus devices.  A separate section
+describes the devices available in the SCSI subsystem.
+
+Generic Devices and Options
+===========================
+
+   The following devices and options are available in all FreeBSD
+configurations.  In addition to these devices, a selection of ISA
+devices (*note ISA::.) is required in order to generate a workable
+system.
+
+`machine "i386"'
+     This mandatory declaration informs the `config' program that you
+     are using an i386 or compatible CPU, and enables the selection of
+     all the other devices listed here.
+
+`cpu "I386_CPU"'
+`cpu "I486_CPU"'
+     These two options control which specific CPUs will be supported by
+     the generated kernel.  If the kernel detects that it is not
+     running on a CPU for which support was enabled, it will panic
+     quickly upon startup.  If you do not expect to need to run your
+     kernel on an i386 or similar CPU, leaving out that support can
+     increase virtual memory system performance.
+
+`options "MATH_EMULATE"'
+     When this option is defined, the math coprocessor emulator is
+     compiled into the kernel.  When it is not defined and the
+     coprocessor is absent, programs which use floating-point
+     operations are automatically killed.
+
+`device npx0 at isa? port "IO_NPX" irq 13 vector npxintr'
+     The `npx' device provides support for the i387 numeric coprocessor
+     and the floating-point portions of the i486 CPU.  This will
+     eventually be fixed to not require ISA to be configured.
+
+`pseudo-device speaker'
+     The `speaker' pseudo-device provides support for rudimentary access
+     to the PC's speaker via `/dev/spkr'.  It provides a
+     character-device interface which interprets `PLAY' strings similar
+     to IBM PC Advanced BASIC, as well as an `ioctl' interface with more
+     fine-grained control.  See the `spkr' manual page for more
+     information.
+
+ISA-bus Devices and Options
+===========================
+
+   The following options are specific to ISA-bus devices and systems.
+Since the EISA bus is backwards-compatible with the ISA bus, all these
+options also apply to EISA systems.  The same goes for VESA Local Bus
+(VL-Bus) systems.
+
+`controller isa0'
+     This *mandatory* declaration must precede any other devices listed
+     in this section.  It provides the basic support for the ISA-bus
+     glue logic, including DMA and autoconfiguration.
+
+`controller aha0 at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr'
+`options "TUNE_1542"'
+     The `aha' device supports the Adaptec 154x series of SCSI
+     controllers, and attempts to support other vendors' controllers
+     which claim compatibility with the Adaptec 1542, such as the
+     BusLogic 545.  This device is included in the `GENERICAH'
+     distribution kernel.  The `scbus' device (*note SCSI::.) is a
+     prerequisite for this device.
+
+     Some older versions of this code would attempt to set the
+     controller's bus access speed to the fastest possible without
+     losing data; we have found that this makes the driver unusable for
+     some users.  If you wish to enable this optimization, or if you
+     suspect that your SCSI transfers are running slower than they
+     should, then you can use the `TUNE_1542' option to enable
+     bus-timing detection.
+
+`controller bt0 at isa? port "IO_BT0" bio irq 12 vector btintr'
+     This device supports the Bustek 742 SCSI controller.  It is
+     included in the `GENERICBT' distribution kernel; the `scbus' device
+     (*note SCSI::.) is a prerequisite.
+
+`options ALLOW_CONFLICT_IOADDR'
+     Allow devices on the ISA bus to share conflicting IO address
+     spaces.  This is generally an error, though things like PS/2 mouse
+     drivers which are implemented seperately from the keyboard driver
+     will require this option to be set.  Note that this is almost
+     always sub-optimal, and the current PS/2 mouse driver will, in
+     fact, frequently fight with the keyboard if you try to use them
+     concurrently.  Needing this option enabled is a sure sign that you
+     need to consider a different design for your driver.
+
+`options ALLOW_CONFLICT_IRQ'
+     Allow devices on the ISA bus to share conflicting IRQ's.  This is
+     often necessary for multiport serial cards which have several
+     devices at the same IRQ.  Enable this only with caution!
+
+`options COM_MULTIPORT'
+     This option enables support in the `sio' serial driver for certain
+     multi-port serial boards.
+
+`device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr'
+`device ed1 at isa? port 0x300 net irq 5 iomem 0xd8000 vector edintr'
+     The `ed' network interface driver provides support for the Western
+     Digital/SMC 80x3 series, the 3Com 3c503, and Novell NE1000 and
+     NE2000 series of Ethernet controllers.  It automatically detects
+     differences among the various versions of these controllers and
+     adapts appropriately.  The `ed1' line shown is for the Novell
+     boards; the `ed0' line is appropriate for all other supported
+     controllers.  (The Novell controllers cannot be configured to use
+     port 0x280.)
+
+`controller fdc0 at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr'
+`disk fd0 at fdc0 drive 0'
+`disk fd1 at fdc0 drive 1'
+`tape ft0 at fdc0 drive 2'
+     The `fdc' driver provides support for the standard PC floppy-disk
+     controller.  The `fd' sub-driver supports 3.5- and 5.25-inch
+     floppy disks in the standard 360KB, 720KB, 1200KB, 1440KB, and
+     2880KB formats, as well as a number of other formats not supported
+     by DOS.  The `ft' driver is available for QIC-80 "floppy tape"
+     support.  The drivers support formatting of both tapes and disks.
+     This driver is substantially improved from that shipped in
+     previous releases of FreeBSD.
+
+`device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr'
+     This network interface driver provides support for the AT&T
+     StarLAN 10 and EN100 family of controllers.  Note that the
+     configuration specified here is not the default configuration, but
+     one which attempts to deal with the conflicts that arise in more
+     modern systems.  (It is expected that this driver will be expanded
+     in the future to support other similar cards in the manner of
+     `ed'.)
+
+`device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr'
+     The `is' network interface driver supports the Isolan 4141-0 and
+     Isolink 4110 Ethernet controllers.
+
+`device lpt0 at isa? port "IO_LPT1" tty'
+`device lpt0 at isa? port "IO_LPT1" tty irq 7 vector lptintr'
+`device lpt0 at isa? port ? tty irq 7 vector lptintr'
+`device lpt0 at isa? port ? tty'
+     The `lpt' driver provides support for the parallel printer driver
+     accessed as `/dev/lptN' (N=0, 1, ...).  The current version of
+     this driver provides support for either polled or interrupt-driven
+     ports, a unification of the `lpt' and `lpa' drivers from FreeBSD
+     1.1.
+
+     The first and second examples show explicit selection of a port
+     address.  If the port is not specified, as in the third and fourth
+     examples, the driver defaults to whatever address the BIOS printer
+     driver would have used.  The second and third examples select
+     interrupt-driven I/O; if polled mode is specified, as in the first
+     and fourth examples, it is impossible to enable interrupt-driven
+     access at run time.
+
+     If you receive "ISA strayintr 7" messages correlated with the use
+     of the polled mode of `lpt', chances are that your controller
+     supports interrupt-driven operation, and you should switch to that
+     mode.
+
+`device mcd0 at isa? port 0x300 bio irq 10 vector mcdintr'
+     This device provides support for the Mitsumi non-SCSI CD-ROM drive.
+     Performance is known to be quite slow.
+
+`device pc0 at isa? port "IO_KBD" tty irq 1 vector pcrint'
+`device sc0 at isa? port "IO_KBD" tty irq 1 vector scintr'
+`options NCONS=VALUE'
+`options COMCONSOLE'
+     The `pc' and `sc' devices provide support for the system display
+     and keyboard, which is the default console.  There might actually
+     be documentation somewhere for both of these.  The `sc' device
+     requires the `NCONS' option to be defined to some value; it
+     represents the number of virtual consoles to be provided by the
+     driver; a reasonable value is 8.  One of `pc' or `sc' is presently
+     required unless `COMCONSOLE' is enabled, in which case a serial
+     port is made into the console.
+
+`device psm0 at isa? port "IO_KBD" tty irq 12 vector psmintr'
+     This driver provides support for the IBM-style PS/2 mouse now
+     popular on many PCs.  This driver shares an address with the
+     console driver and therefore requires that the option
+     `ALLOW_CONFLICT_IOADDR' also be set.  It is also important that
+     the console driver (`pc' or `sc') *preceed* this driver in your
+     kernel configuration file in order to get priority.  All in all,
+     this driver is a hack and should really be integrated into the
+     console driver itself, evidence of which can be easily seen when
+     trying to use the mouse and keyboard at the same time in X (try
+     it).  Volunteers willing to clean this up and do it properly are
+     most welcome!
+
+`device sio0 at isa? port "IO_COM1" tty irq 4 vector siointr'
+`device sio1 at isa? port "IO_COM2" tty irq 3 vector siointr'
+`device sio2 at isa? port "IO_COM3" tty irq 5 vector siointr'
+`device sio3 at isa? port "IO_COM4" tty irq 9 vector siointr'
+     The `sio' driver provides support for high-speed serial
+     communications using the standard 8250, 16450, and 16550 UART
+     chips.  It provides a standard tty interface for these devices as
+     `/dev/ttyUNIT', and, when enabled with the `comcontrol' program, a
+     call-out capability as `/dev/cuaUNIT' (UNIT is two digits,
+     zero-padded in both cases).  Certain multi-port systems are also
+     supported.
+
+`device uha0 at isa? port "IO_UHA0" bio irq 14 drq 5 vector uhaintr'
+     This device supports the Ultrastor 14F and related SCSI
+     controllers.  It is included in the `GENERICBT' distribution
+     kernel, and requires `scbus' (*note SCSI::.) as a prerequisite.
+     The Ultrastor 24F is not supported.
+
+`controller wdc0 at isa? port "IO_WD1" bio irq 14 vector wdintr'
+`disk wd0 at wdc0 drive 0'
+`disk wd1 at wdc0 drive 1'
+     The `wd' device supports standard ST-506, RLL, ESDI, and IDE hard
+     disks, as controlled by the Western Digital WD100x series of
+     controllers (and compatible hardware).  This version is
+     substantially improved from that provided in FreeBSD 1.0.
+
+`device wt0 at isa? port 0x300 bio irq 5 drq 1 vector wtintr'
+     This driver supports Archive QIC-02 and Wangtek QIC-02 and QIC-36
+     cartridge tape controllers.
+
+`device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr'
+     This driver supports certain PCMCIA ethernet cards.  It was
+     originally written for the IBM Credit Card Adapter and has also
+     been tested with the National Semi `InfoMover' PCMCIA card.
+
+EISA-bus Devices and Options
+============================
+
+   There is presently only one EISA-specific device driver.
+
+`controller ahb0 at isa? bio irq 11 vector ahbintr'
+     The `ahb' driver provides support for the Adaptec AHA-174x series
+     of SCSI controllers.  This controller is included in the
+     `GENERICAH' distribution kernel, and requires the `scbus' driver
+     (*note SCSI::.) as a prerequisite.
+
+Micro Channel Devices and Options
+=================================
+
+   We don't support Micro Channel right now.  Anyone interested in
+working on Micro Channel support should send mail to
+`FreeBSD-Questions@freefall.cdrom.com' for information on how to help.
+
+PCI Devices and Options
+=======================
+
+   We don't support PCI, either.  Anyone interested in working on PCI
+support should send mail to `FreeBSD-Questions@freefall.cdrom.com' for
+information on how to help.
+
+The SCSI Subsystem
+==================
+
+   The SCSI subsystem consists of a set of adaptor-specific driver
+routines, which were described in the previous sections, and the generic
+SCSI device drivers, which handle the standardized interactions with
+devices on the SCSI bus.
+
+`device cd0'
+     The `cd' device provides support for CD-ROM drives.  Only one `cd'
+     device need be configured, as the driver automatically allocates
+     units for each CD-ROM drive found.  Playing of audio CDs is also
+     supported, on drives which support it, through `ioctl' calls.
+     Support for retrieval of CD audio over the SCSI bus is not
+     presently available.
+
+`device ch0'
+     The `ch' driver supports SCSI media changers; this may include
+     tape, removable disk, and CD changers.  One `ch' device should be
+     configured for each changer you expect to support.
+
+`device scbus0'
+     This driver forms the core of the SCSI subsystem.  It provides the
+     device-independent routines that manage SCSI transactions, keep
+     track of attached devices, and act as glue between
+     SCSI-device-specific drivers and system-specific host adaptors.
+     This device is *mandatory* for all SCSI systems.
+
+`device sd0'
+     The `sd' driver provides access to non-removable SCSI disks.  One
+     `sd' device should be defined for each disk you expect to have
+     simultaneously connected to the system.
+
+`device st0'
+     The `st' driver supports generic SCSI tape drives.  One `st'
+     device should be defined for each tape drive you wish to access.
+     See the `st' manual page for information about how to manipulate
+     the parameters of this device.
+
+`device uk0'
+     The `uk' driver provides an attachment point for all otherwise
+     unrecognized SCSI devices.  You can't actually do anything with
+     such a device, except perhaps send it an inquiry command using the
+     `scsi' program (q.v.).
+
+Internal Use Only
+*****************
+
+   Eventually, this chapter will document some of the kernel manifest
+constants which are not defines, but which can be tweaked in various
+header files.
+

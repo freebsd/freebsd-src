@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)dumptape.c	5.18 (Berkeley) 4/24/91";
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/dump/dumptape.c,v 1.2 1993/07/22 16:49:19 jkh Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/dump/dumptape.c,v 1.3 1994/03/08 16:20:06 ats Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -66,7 +66,7 @@ char	*nexttape;
 extern char *host;
 int	rmtopen(), rmtwrite();
 void	rmtclose();
-#endif RDUMP
+#endif /* RDUMP */
 
 int	atomic();
 void	doslave(), enslave(), flushtape(), killall();
@@ -231,7 +231,7 @@ trewind()
 		rmtclose();
 		return;
 	}
-#endif RDUMP
+#endif /* RDUMP */
 	close(tapefd);
 	while ((f = open(tape, 0)) < 0)
 		sleep (10);
@@ -363,10 +363,10 @@ startnewtape()
 #ifdef RDUMP
 		while ((tapefd = (host ? rmtopen(tape, 2) :
 			pipeout ? 1 : open(tape, O_WRONLY|O_CREAT, 0666))) < 0)
-#else RDUMP
+#else /* RDUMP */
 		while ((tapefd =
 			pipeout ? 1 : open(tape, O_WRONLY|O_CREAT, 0666)) < 0)
-#endif RDUMP
+#endif /* RDUMP */
 		    {
 			msg("Cannot open output \"%s\".\n", tape);
 			if (!query("Do you want to retry the open?"))
@@ -404,6 +404,9 @@ dumpabort()
 		killall();
 		msg("The ENTIRE dump is aborted.\n");
 	}
+#ifdef RDUMP
+	rmtclose();
+#endif
 	Exit(X_ABORT);
 }
 
@@ -538,10 +541,10 @@ doslave(cmd, prev, next)
 #ifdef RDUMP
 		if ((nwrite = (host ? rmtwrite(tblock[0], writesize)
 			: write(tapefd, tblock[0], writesize))) != writesize) {
-#else RDUMP
+#else /* RDUMP */
 		if ((nwrite = write(tapefd, tblock[0], writesize))
 		    != writesize) {
-#endif RDUMP
+#endif /* RDUMP */
 			if (nwrite == -1) 
 				perror("write");
 			else

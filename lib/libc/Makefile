@@ -15,7 +15,9 @@ INSTALL_PIC_ARCHIVE=
 .include "${.CURDIR}/gen/Makefile.inc"
 .include "${.CURDIR}/locale/Makefile.inc"
 .include "${.CURDIR}/net/Makefile.inc"
+.if defined(GCC1_IN_LIBC)
 .include "${.CURDIR}/quad/Makefile.inc"
+.endif
 .include "${.CURDIR}/stdio/Makefile.inc"
 .include "${.CURDIR}/stdlib/Makefile.inc"
 .include "${.CURDIR}/string/Makefile.inc"

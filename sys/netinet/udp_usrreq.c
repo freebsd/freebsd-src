@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993
+ *	Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)udp_usrreq.c	7.20 (Berkeley) 4/20/91
- *	$Id: udp_usrreq.c,v 1.7 1994/02/07 19:53:25 ache Exp $
+ *	$Id: udp_usrreq.c,v 1.8 1994/05/17 22:31:14 jkh Exp $
  */
 
 #include "param.h"
@@ -145,6 +145,93 @@ udp_input(m, iphlen)
 			return;
 		}
 	}
+#ifdef MULTICAST
+	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
+	    in_broadcast(ip->ip_dst)) {
+		struct socket *last;
+		/*
+		 * Deliver a multicast or broadcast datagram to *all* sockets
+		 * for which the local and remote addresses and ports match
+		 * those of the incoming datagram.  This allows more than
+		 * one process to receive multi/broadcasts on the same port.
+		 * (This really ought to be done for unicast datagrams as
+		 * well, but that would cause problems with existing
+		 * applications that open both address-specific sockets and
+		 * a wildcard socket listening to the same port -- they would
+		 * end up receiving duplicates of every unicast datagram.
+		 * Those applications open the multiple sockets to overcome an
+		 * inadequacy of the UDP socket interface, but for backwards
+		 * compatibility we avoid the problem here rather than
+		 * fixing the interface.  Maybe 4.4BSD will remedy this?)
+		 */
+  
+  		/*
+		 * Construct sockaddr format source address.
+		 */
+		udp_in.sin_port = uh->uh_sport;
+		udp_in.sin_addr = ip->ip_src;
+		m->m_len -= sizeof (struct udpiphdr);
+		m->m_data += sizeof (struct udpiphdr);
+		/*
+		 * Locate pcb(s) for datagram.
+		 * (Algorithm copied from raw_intr().)
+		 */
+		last = NULL;
+		for (inp = udb.inp_next; inp != &udb; inp = inp->inp_next) {
+			if (inp->inp_lport != uh->uh_dport)
+				continue;
+			if (inp->inp_laddr.s_addr != INADDR_ANY) {
+				if (inp->inp_laddr.s_addr !=
+				    ip->ip_dst.s_addr)
+					continue;
+			}
+			if (inp->inp_faddr.s_addr != INADDR_ANY) {
+				if (inp->inp_faddr.s_addr !=
+				    ip->ip_src.s_addr ||
+				    inp->inp_fport != uh->uh_sport)
+					continue;
+			}
+
+			if (last != NULL) {
+				struct mbuf *n;
+
+				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
+					if (sbappendaddr(&last->so_rcv,
+						(struct sockaddr *)&udp_in,
+						n, (struct mbuf *)0) == 0)
+						m_freem(n);
+					else
+						sorwakeup(last);
+				}
+			}
+			last = inp->inp_socket;
+			/*
+			 * Don't look for additional matches if this one
+			 * does not have the SO_REUSEADDR socket option set.
+			 * This heuristic avoids searching through all pcbs
+			 * in the common case of a non-shared port.  It
+			 * assumes that an application will never clear
+			 * the SO_REUSEADDR option after setting it.
+			 */
+			if ((last->so_options & SO_REUSEADDR) == 0)
+				break;
+		}
+
+		if (last == NULL) {
+			/*
+			 * No matching pcb found; discard datagram.
+			 * (No need to send an ICMP Port Unreachable
+			 * for a broadcast or multicast datgram.)
+			 */
+			goto bad;
+		}
+		if (sbappendaddr(&last->so_rcv, (struct sockaddr *)&udp_in,
+		     m, (struct mbuf *)0) == 0)
+			goto bad;
+		sorwakeup(last);
+		return;
+	}
+#endif
 
 	/*
 	 * Locate pcb for datagram.
@@ -163,10 +250,13 @@ udp_input(m, iphlen)
 	if (inp == 0) {
 		/* don't send ICMP response for broadcast packet */
 		udpstat.udps_noport++;
-		if (m->m_flags & M_BCAST) {
+#ifndef MULTICAST
+		/* XXX why don't we do this with MULTICAST? */
+		if (m->m_flags & (M_BCAST | M_MCAST)) {
 			udpstat.udps_noportbcast++;
 			goto bad;
 		}
+#endif
 		*ip = save_ip;
 		ip->ip_len += iphlen;
 		{
@@ -355,7 +445,11 @@ udp_output(inp, m, addr, control)
 	((struct ip *)ui)->ip_tos = inp->inp_ip.ip_tos;	/* XXX */
 	udpstat.udps_opackets++;
 	error = ip_output(m, inp->inp_options, &inp->inp_route,
-	    inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST));
+	    inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST)
+#ifdef MULTICAST
+	  | IP_MULTICASTOPTS, inp->inp_moptions
+#endif
+	  );
 
 	if (addr) {
 		in_pcbdisconnect(inp);

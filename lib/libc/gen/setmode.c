@@ -215,6 +215,7 @@ setmode(p)
 	mode_t mask;
 	struct bitcmd *set, *saveset, *endset;
 	int permXbits, setlen;
+	int equalopdone;
 	static void compress_mode();
 
 	/*
@@ -285,6 +286,8 @@ setmode(p)
 			free(saveset);
 			return(NULL);
 		}
+		if(op == '=')
+			equalopdone = 0;
 
 		who &= ~S_ISTXT;
 		for (perm = 0, permXbits = 0;; ++p) {
@@ -321,10 +324,12 @@ setmode(p)
 				 * to flush out any partial mode that we have,
 				 * and then do the copying of the mode bits.
 				 */
-				if (perm || op == '=') {
+				if (perm) {
 					ADDCMD(op, who, perm, mask);
 					perm = 0;
 				}
+				if (op == '=') 
+					equalopdone = 1;
 				if (op == '+' && permXbits) {
 					ADDCMD('X', who, permXbits, mask);
 					permXbits = 0;
@@ -337,7 +342,9 @@ setmode(p)
 				 * Add any permissions that we haven't already
 				 * done.
 				 */
-				if (perm || op == '=') {
+				if (perm || (op == '=' && !equalopdone)) {
+					if(op == '=')
+						equalopdone = 1;
 					ADDCMD(op, who, perm, mask);
 					perm = 0;
 				}

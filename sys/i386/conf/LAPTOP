@@ -1,0 +1,68 @@
+#
+# LAPTOP -- Minimal machine with IDE drives.
+#
+#	$Id: LAPTOP,v 1.3 1994/06/22 05:58:53 jkh Exp $
+#
+
+machine		"i386"
+cpu		"I386_CPU"
+cpu		"I486_CPU"
+cpu		"I586_CPU"
+ident		LAPTOP
+timezone	8 dst
+maxusers	8
+maxfdescs	256			#Max file descriptors per process
+options		INET			#InterNETworking
+options		NFS			#Network File System
+options		PCFS			#MSDOS File System
+options		"COMPAT_43"		#Compatible with BSD 4.3
+options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
+options		XSERVER			#Xserver
+options		UCONSOLE		#X Console support
+options		"FAT_CURSOR"		#block cursor in syscons or pccons
+options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
+options		"NCONS=8"		#8 virtual consoles
+options		LAPTOP
+
+# Do not use in binary distributions; put here because most laptops lack 387
+# support, and LAPTOP is not one of the kernels we build by default.
+options        GPL_MATH_EMULATE        #Support for x87 emualtion via GPL'd emu
+
+# Most laptops have PS/2 style trackball mice.
+options	ALLOW_CONFLICT_IOADDR	#no IO addr conflict checks (PS/2 mice)
+
+config		"386bsd"	root on wd0 swap on wd0 and wd1 and sd0 and sd1 dumps on wd0
+
+controller	isa0
+
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+disk		wd0	at wdc0 drive 0
+
+device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+
+device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
+device		lpt0	at isa? port? tty irq 7 vector lptintr
+device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
+
+# IBM/National PCMCIA ethernet cards
+device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
+
+# The digital speaker driver (/dev/pcaudio).  Might as well since we almost
+# certainly won't have a sound card!
+device pca0 at isa? tty
+
+pseudo-device	loop
+pseudo-device	ether
+pseudo-device	log
+pseudo-device	sl	1
+pseudo-device	ppp	1
+pseudo-device	pty	16
+pseudo-device	speaker
+
+pseudo-device	swappager
+pseudo-device	vnodepager
+pseudo-device	devpager

@@ -1,0 +1,39 @@
+# Last updated 19940220 phk@login.dkuug.dk
+# These are patches to  FreeBSD-current, to make it compile with gcc-2.5.8
+# Eventually these, or maybe better ones should make it into the FreeBSD
+# source tree.
+
+./gnu/usr.bin/cc/lib/tm.h
+	Define ____386BSD____ __FreeBSD__ if not so already.
+./gnu/usr.bin/rcs/lib/conf.h
+	make compilable by gcc2.5.8
+
+diff -U3 /usr/src-current/./gnu/usr.bin/cc/lib/tm.h ./gnu/usr.bin/cc/lib/tm.h
+--- /usr/src-current/./gnu/usr.bin/cc/lib/tm.h	Mon Jan 10 23:48:12 1994
++++ ./gnu/usr.bin/cc/lib/tm.h	Fri Feb 18 00:54:15 1994
+@@ -2,6 +2,13 @@
+ 
+ /* This is tested by i386gas.h.  */
+ #define YES_UNDERSCORES
++#ifndef ____386BSD____
++#define ____386BSD____
++#endif
++
++#ifndef __FreeBSD__
++#define __FreeBSD__
++#endif
+ 
+ #include "i386/gstabs.h"
+ 
+diff -U3 /usr/src-current/./gnu/usr.bin/rcs/lib/conf.h ./gnu/usr.bin/rcs/lib/conf.h
+--- /usr/src-current/./gnu/usr.bin/rcs/lib/conf.h	Fri Jun 18 06:22:13 1993
++++ ./gnu/usr.bin/rcs/lib/conf.h	Fri Feb 18 00:54:17 1994
+@@ -219,7 +219,7 @@
+ /* Adjust the following declarations as needed.  */
+ 
+ 
+-#if __GNUC__ && !__STRICT_ANSI__
++#if __GNUC__ && !__STRICT_ANSI__ && !__FreeBSD__
+ #	define exiting volatile /* GCC extension: function cannot return */
+ #else
+ #	define exiting

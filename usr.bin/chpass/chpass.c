@@ -59,6 +59,11 @@ char *progname = "chpass";
 char *tempname;
 uid_t uid;
 
+#define	INSECURE	1
+#define	SECURE		2
+#define	PERM_INSECURE	(S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
+#define	PERM_SECURE	(S_IRUSR|S_IWUSR)
+
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -151,7 +156,7 @@ main(argc, argv)
 	 *	Pw_copy() closes its fp, flushing the data and closing the
 	 *	underlying file descriptor.  We can't close the master
 	 *	password fp, or we'd lose the lock.
-	 * 7:	Call pw_mkdb() (which renames the temporary file) and exit.
+	 * 7:	Call pw_fastmkdb() (which renames the temporary file) and exit.
 	 *	The exit closes the master passwd fp/fd.
 	 */
 	pw_init();
@@ -164,11 +169,35 @@ main(argc, argv)
 		(void)unlink(tempname);
 		tfd = pw_tmp();
 	}
-		
+
 	pw_copy(pfd, tfd, pw);
 
-	if (!pw_mkdb())
-		pw_error((char *)NULL, 0, 1);
+	/*
+	 * Attempt a recovery if the incremental database update failed by
+	 * handing off to the real password hashing program to remake the
+	 * whole mess. Even though this costs lots of time it's better than
+	 * having the password databases out of sync with the master pw file.
+	 */
+	if (pw_fastmkdb(pw) < 0) {
+	rebuild:
+		fprintf(stderr,"%s: WARNING!! Password database mangled, recreating it from scratch\n", progname);
+		if(!pw_mkdb())
+			pw_error((char *)NULL, 0, 1);
+	}
+        else {
+                   tfd = pw_tmp();
+                   fchmod(tfd, PERM_INSECURE);
+                   pfd = open(_PATH_PASSWD, O_RDONLY, PERM_INSECURE);
+		   if (pfd < 0) {
+			(void)fprintf(stderr,
+			    "%s: %s: %s\n", progname, _PATH_PASSWD, strerror(errno));
+			goto rebuild;
+		   }
+                   pw->pw_passwd = "*";
+	           pw_copy_insecure(pfd, tfd, pw);
+	           mv(tempname, _PATH_PASSWD);
+                     
+        }
 	exit(0);
 }
 

@@ -1097,6 +1097,8 @@ __fixunssfsi (SFtype a)
    Reult is negative if S1 is less than S2,
    positive if S1 is greater, 0 if S1 and S2 are equal.  */
 
+#include <sys/types.h>
+
 int
 __gcc_bcmp (s1, s2, size)
      unsigned char *s1, *s2;
@@ -1318,6 +1320,9 @@ __bb_init_func (blocks)
 /* frills for C++ */
 
 #ifdef L_op_new
+
+#include <sys/types.h>
+
 typedef void (*vfp)(void);
 
 extern vfp __new_handler;

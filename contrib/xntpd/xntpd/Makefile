@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1994/02/03 23:23:17 wollman Exp $
+# $Id: Makefile,v 1.5 1994/04/03 20:37:26 wollman Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
@@ -34,7 +34,7 @@ SRCS=	ntp_config.c ntp_control.c ntp_io.c ntp_leap.c \
 	refclock_wwvb.c refclock_goes.c refclock_mx4200.c \
 	refclock_parse.c refclock_as2201.c refclock_omega.c \
 	refclock_tpro.c refclock_leitch.c refclock_irig.c \
-	refclock_msfees.c refclock_gpstm.c ntp_intres.c \
+	refclock_msfees.c refclock_gpstm.c refclock_trak.c ntp_intres.c \
 	ntp_filegen.c version.c
 
 beforedepend: version.c

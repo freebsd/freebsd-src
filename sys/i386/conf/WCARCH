@@ -1,0 +1,67 @@
+#
+# GENERICBT -- Generic machine with WD/BTx family disks
+#
+#	$Id: GENERICBT,v 1.35 1994/06/08 00:30:32 phk Exp $
+#
+
+machine		"i386"
+cpu		"I386_CPU"
+cpu		"I486_CPU"
+cpu		"I586_CPU"
+ident		TIME
+timezone	8 dst
+maxusers	10
+maxfdescs	1024			#Max file descriptors per process
+options		INET			#InterNETworking
+options		ISOFS			#ISO File System
+options		NFS			#Network File System
+options		PCFS			#MSDOS File System
+options		"COMPAT_43"		#Compatible with BSD 4.3
+options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
+options		XSERVER			#Xserver
+options		UCONSOLE		#X Console support
+options		"FAT_CURSOR"		#block cursor in syscons or pccons
+options		"NCONS=4"		#4 virtual consoles
+options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
+
+config		"386bsd"	root on sd0 swap on sd0 dumps on sd0
+
+controller	isa0
+
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+
+# driver for the Adaptec 154x SCSI cards.
+controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
+
+#controller	bt0	at isa? port "IO_BT0" bio irq 11 vector btintr
+#controller	scbus0
+
+device		sd0
+device		sd1
+
+device		st0
+
+device		cd0	#Only need one of these, the code dynamically grows
+
+device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+
+device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
+device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
+
+device          lpt0    at isa? port? tty irq 7 vector lptintr
+
+device ed0 at isa? port 0x360 net irq 10 iomem 0xd8000 iosiz 16384 vector edintr
+#device ix0 at isa? port 0x320 net irq 10 iomem 0xd8000 iosiz 32768 vector ixintr
+
+pseudo-device	loop
+pseudo-device	ether
+pseudo-device	log
+pseudo-device	sl	2
+pseudo-device	pty	32
+pseudo-device	speaker
+
+pseudo-device	swappager
+pseudo-device	vnodepager
+pseudo-device	devpager

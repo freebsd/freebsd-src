@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)in.c	7.17 (Berkeley) 4/20/91
- *	$Id: in.c,v 1.8 1994/01/15 14:29:21 davidg Exp $
+ *	$Id: in.c,v 1.9 1994/05/17 22:31:03 jkh Exp $
  */
 
 #include "param.h"
@@ -93,6 +93,10 @@ in_netof(in)
 		net = i & IN_CLASSB_NET;
 	else if (IN_CLASSC(i))
 		net = i & IN_CLASSC_NET;
+#ifdef MULTICAST
+	else if (IN_CLASSD(i))
+		net = i & IN_CLASSD_NET;
+#endif
 	else
 		return (0);
 
@@ -174,6 +178,11 @@ in_lnaof(in)
 	} else if (IN_CLASSC(i)) {
 		net = i & IN_CLASSC_NET;
 		host = i & IN_CLASSC_HOST;
+#ifdef MULTICAST
+	} else if (IN_CLASSD(i)) {
+		net = i & IN_CLASSD_NET;
+		host = i & IN_CLASSD_HOST;
+#endif
 	} else
 		return (i);
 
@@ -557,6 +566,18 @@ in_ifinit(ifp, ia, sin, scrub)
 	}
 	if ((error = rtinit(&(ia->ia_ifa), (int)RTM_ADD, flags)) == 0)
 		ia->ia_flags |= IFA_ROUTE;
+#ifdef MULTICAST
+	/*
+	 * If the interface supports multicast, join the "all hosts"
+	 * multicast group on that interface.
+	 */
+	if (ifp->if_flags & IFF_MULTICAST) {
+		struct in_addr addr;
+		
+		addr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
+		in_addmulti(&addr, ifp);
+	}
+#endif
 	return (error);
 }
 
@@ -603,4 +624,113 @@ in_broadcast(in)
 		return (1);
 	return (0);
 }
+
+#ifdef MULTICAST
+/*
+ * Add an address to the list of IP multicast addresses for a given interface.
+ */
+struct in_multi *
+in_addmulti(ap, ifp)
+	register struct in_addr *ap;
+	register struct ifnet *ifp;
+{
+	register struct in_multi *inm;
+	struct ifreq ifr;
+	struct in_ifaddr *ia;
+	int s = splnet();
+
+	/*
+	 * See if address already in list.
+	 */
+	IN_LOOKUP_MULTI(*ap, ifp, inm);
+	if (inm != NULL) {
+		/*
+		 * Found it; just increment the reference count.
+		 */
+		++inm->inm_refcount;
+	}
+	else {
+		/*
+		 * New address; allocate a new multicast record
+		 * and link it into the interface's multicast list.
+		 */
+		inm = (struct in_multi *)malloc(sizeof(*inm),
+		    M_IPMADDR, M_NOWAIT);
+		if (inm == NULL) {
+			splx(s);
+			return (NULL);
+		}
+		inm->inm_addr = *ap;
+		inm->inm_ifp = ifp;
+		inm->inm_refcount = 1;
+		IFP_TO_IA(ifp, ia);
+		if (ia == NULL) {
+			free(inm, M_IPMADDR);
+			splx(s);
+			return (NULL);
+		}
+		inm->inm_ia = ia;
+		inm->inm_next = ia->ia_multiaddrs;
+		ia->ia_multiaddrs = inm;
+		/*
+		 * Ask the network driver to update its multicast reception
+		 * filter appropriately for the new address.
+		 */
+		((struct sockaddr_in *)&ifr.ifr_addr)->sin_family = AF_INET;
+		((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr = *ap;
+		if (ifp->if_ioctl == NULL ||
+		    (*ifp->if_ioctl)(ifp, SIOCADDMULTI,(caddr_t)&ifr) != 0) {
+			ia->ia_multiaddrs = inm->inm_next;
+			free(inm, M_IPMADDR);
+			splx(s);
+			return (NULL);
+		}
+		/*
+		 * Let IGMP know that we have joined a new IP multicast group.
+		 */
+		igmp_joingroup(inm);
+	}
+	splx(s);
+	return (inm);
+}
+
+/*
+ * Delete a multicast address record.
+ */
+int
+in_delmulti(inm)
+	register struct in_multi *inm;
+{
+	register struct in_multi **p;
+	struct ifreq ifr;
+	int s = splnet();
+
+	if (--inm->inm_refcount == 0) {
+		/*
+		 * No remaining claims to this record; let IGMP know that
+		 * we are leaving the multicast group.
+		 */
+		igmp_leavegroup(inm);
+		/*
+		 * Unlink from list.
+		 */
+		for (p = &inm->inm_ia->ia_multiaddrs;
+		     *p != inm;
+		     p = &(*p)->inm_next)
+			 continue;
+		*p = (*p)->inm_next;
+		/*
+		 * Notify the network driver to update its multicast reception
+		 * filter.
+		 */
+		((struct sockaddr_in *)&(ifr.ifr_addr))->sin_family = AF_INET;
+		((struct sockaddr_in *)&(ifr.ifr_addr))->sin_addr =
+								inm->inm_addr;
+		(*inm->inm_ifp->if_ioctl)(inm->inm_ifp, SIOCDELMULTI,
+							     (caddr_t)&ifr);
+		free(inm, M_IPMADDR);
+	}
+	splx(s);
+}
+#endif
 #endif

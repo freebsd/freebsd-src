@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.4 1993/11/07 17:42:46 wollman Exp $
+ *	$Id: cpu.h,v 1.5 1994/04/02 07:00:35 davidg Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -58,18 +58,21 @@
  * Arguments to hardclock, softclock and gatherstats
  * encapsulate the previous machine state in an opaque
  * clockframe; for now, use generic intrframe.
+ * XXX softclock() has been fixed.  It never needed a
+ * whole frame, only a usermode flag, at least on this
+ * machine.  Fix the rest.
  */
 typedef struct intrframe clockframe;
 
 #define	CLKF_USERMODE(framep)	(ISPL((framep)->if_cs) == SEL_UPL)
-#define	CLKF_BASEPRI(framep)	((framep)->if_ppl == 0)
+#define	CLKF_BASEPRI(framep)	(((framep)->if_ppl & ~SWI_AST_MASK) == 0)
 #define	CLKF_PC(framep)		((framep)->if_eip)
 
 /*
  * Preempt the current process if in interrupt from user mode,
  * or after the current trap/syscall if in system mode.
  */
-#define	need_resched()	{ want_resched++; aston(); }
+#define	need_resched()	{ want_resched = 1; aston(); }
 
 /*
  * Give a profiling tick to the current process from the softclock
@@ -84,7 +87,8 @@ typedef struct intrframe clockframe;
  */
 #define	signotify(p)	aston()
 
-#define aston() (astpending++)
+#define aston()	setsoftast()
+#define astoff()
 
 /*
  * pull in #defines for kinds of processors
@@ -97,7 +101,6 @@ struct cpu_nameclass {
 };
 
 #ifdef KERNEL
-extern int astpending;		/* want a trap before returning to user mode */
 extern int want_resched;	/* resched was called */
 
 extern int cpu;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mbuf.h	7.14 (Berkeley) 12/5/90
- *	$Id: mbuf.h,v 1.6 1993/12/19 00:55:19 wollman Exp $
+ *	$Id: mbuf.h,v 1.10 1994/06/01 03:06:27 davidg Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -65,7 +65,7 @@
 #define mtod(m,t)	((t)((m)->m_data))
 #define	dtom(x)		((struct mbuf *)((int)(x) & ~(MSIZE-1)))
 #define	mtocl(x)	(((u_int)(x) - (u_int)mbutl) >> MCLSHIFT)
-#define	cltom(x)	((caddr_t)((u_int)mbutl + ((u_int)(x) >> MCLSHIFT)))
+#define	cltom(x)	((caddr_t)((u_int)mbutl + ((u_int)(x) << MCLSHIFT)))
 
 /* header at beginning of each mbuf: */
 struct m_hdr {
@@ -158,8 +158,21 @@ struct mbuf {
  * allocates an mbuf and initializes it to contain a packet header
  * and internal data.
  */
+
+
+struct mbuf *mbuffree;
+int mbuffreecnt;
 #define	MGET(m, how, type) { \
-	MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
+	int s = splimp(); \
+	if( mbuffree == 0) { \
+		splx(s); \
+		MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
+	} else { \
+		--mbuffreecnt; \
+		(m) = mbuffree; \
+		mbuffree = (m)->m_next; \
+		splx(s); \
+	} \
 	if (m) { \
 		(m)->m_type = (type); \
 		mbstat.m_mtypes[type]++; \
@@ -172,7 +185,16 @@ struct mbuf {
 }
 
 #define	MGETHDR(m, how, type) { \
-	MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
+	disable_intr(); \
+	if( mbuffree == 0) { \
+		enable_intr(); \
+		MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
+	} else { \
+		--mbuffreecnt; \
+		(m) = mbuffree; \
+		mbuffree = (m)->m_next; \
+		enable_intr(); \
+	} \
 	if (m) { \
 		(m)->m_type = (type); \
 		mbstat.m_mtypes[type]++; \
@@ -219,6 +241,7 @@ union mcluster {
 		(m)->m_data = (m)->m_ext.ext_buf; \
 		(m)->m_flags |= M_EXT; \
 		(m)->m_ext.ext_size = MCLBYTES;  \
+		(m)->m_ext.ext_free = (void (*)())0; \
 	  } \
 	}
 
@@ -237,8 +260,7 @@ union mcluster {
  * Free a single mbuf and associated external storage.
  * Place the successor, if any, in n.
  */
-#ifdef notyet
-#define	MFREE(m, n) \
+#define	MFREE(m, nn) \
 	{ mbstat.m_mtypes[(m)->m_type]--; \
 	  if ((m)->m_flags & M_EXT) { \
 		if ((m)->m_ext.ext_free) \
@@ -247,19 +269,17 @@ union mcluster {
 		else \
 			MCLFREE((m)->m_ext.ext_buf); \
 	  } \
-	  (n) = (m)->m_next; \
-	  FREE((m), mbtypes[(m)->m_type]); \
-	}
-#else /* notyet */
-#define	MFREE(m, nn) \
-	{ mbstat.m_mtypes[(m)->m_type]--; \
-	  if ((m)->m_flags & M_EXT) { \
-		MCLFREE((m)->m_ext.ext_buf); \
-	  } \
 	  (nn) = (m)->m_next; \
-	  FREE((m), mbtypes[(m)->m_type]); \
+	  if( mbuffreecnt < 256) { \
+	  	  ++mbuffreecnt; \
+		  disable_intr(); \
+		  (m)->m_next = mbuffree; \
+		  mbuffree = (m); \
+		  enable_intr(); \
+	  } else { \
+	  	  FREE((m), mbtypes[(m)->m_type]); \
+	  } \
 	}
-#endif
 
 /*
  * Copy mbuf pkthdr from from to to.

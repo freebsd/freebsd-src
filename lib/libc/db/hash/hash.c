@@ -433,6 +433,8 @@ hdestroy(hashp)
 	if (hashp->fp != -1)
 		(void)close(hashp->fp);
 
+	free(hashp);
+
 	if (save_errno) {
 		errno = save_errno;
 		return (ERROR);

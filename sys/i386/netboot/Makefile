@@ -5,13 +5,18 @@
 #	-DSMALL_ROM	- Compile for 8K ROMS
 #	-DROMSIZE	- Size of EPROM - Must be set (even for .COM files)
 #	-DRELOC		- Relocation address (usually 0x90000)
+#	-DINCLUDE_WD	- Include Western Digital/SMC support
+#	-DINCLUDE_NE	- Include NE1000/NE2000 support
+#	-DNE_BASE	- Base I/O address for NE1000/NE2000
+#	-DWD_DEFAULT_MEM- Default memory location for WD/SMC cards
 #
 ROMSIZE=16384
 RELOCADDR=0x90000
-CFLAGS=-O2 -DNFS -DROMSIZE=$(ROMSIZE) -DRELOC=$(RELOCADDR)
+CFLAGS=	-O2 -DNFS -DINCLUDE_WD -DINCLUDE_NE -DROMSIZE=$(ROMSIZE) \
+	-DRELOC=$(RELOCADDR) -DNE_BASE=0x320 -DWD_DEFAULT_MEM=0xD0000
 
 HDRS=netboot.h
-COBJS=main.o misc.o wd80x3.o bootmenu.o
+COBJS=main.o misc.o ether.o bootmenu.o
 SSRCS=start2.S
 SOBJS=start2.o
 

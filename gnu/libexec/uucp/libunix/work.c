@@ -1,7 +1,7 @@
 /* work.c
    Routines to read command files.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char work_rcsid[] = "$Id: work.c,v 1.1 1993/08/05 18:24:45 conklin Exp $";
+const char work_rcsid[] = "$Id: work.c,v 1.2 1994/05/07 18:11:41 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -55,10 +55,25 @@ static int iswork_cmp P((constpointer pkey, constpointer pdatum));
 
 /* These functions can support multiple actions going on at once.
    This allows the UUCP package to send and receive multiple files at
-   the same time.  This is a very flexible feature, but I'm not sure
-   it will actually be used all that much.
+   the same time.  */
 
-   The ssfile structure holds a command file name and all the lines
+/* To avoid wasting a lot of time scanning the spool directory, which
+   might cause the remote system to time out, we limit each scan to
+   pick up at most a certain number of files.  */
+#define COMMANDS_PER_SCAN (200)
+
+/* The ssfilename structure holds the name of a work file, as well as
+   its grade.  */
+
+struct ssfilename
+{
+  char *zfile;
+  char bgrade;
+  /* Some compiler may need this, and it won't normally hurt.  */
+  char bdummy;
+};
+
+/* The ssfile structure holds a command file name and all the lines
    read in from that command file.  The union within the ssline
    structure initially holds a line from the file and then holds a
    pointer back to the ssfile structure; a pointer to this union is
@@ -77,6 +92,9 @@ struct ssline
 struct ssfile
 {
   char *zfile;
+  char bgrade;
+  /* bdummy is needed for some buggy compilers.  */
+  char bdummy;
   int clines;
   int cdid;
   struct ssline aslines[CFILELINES];
@@ -84,7 +102,7 @@ struct ssfile
 
 /* Static variables for the work scan.  */
 
-static char **azSwork_files;
+static struct ssfilename *asSwork_files;
 static size_t cSwork_files;
 static size_t iSwork_file;
 static struct ssfile *qSwork_file;
@@ -182,10 +200,10 @@ iswork_cmp (pkey, pdatum)
      constpointer pkey;
      constpointer pdatum;
 {
-  const char * const *pzkey = (const char * const *) pkey;
-  const char * const *pzdatum = (const char * const *) pdatum;
+  const struct ssfilename *qkey = (const struct ssfilename *) pkey;
+  const struct ssfilename *qdatum = (const struct ssfilename *) pdatum;
 
-  return strcmp (*pzkey, *pzdatum);
+  return strcmp (qkey->zfile, qdatum->zfile);
 }
 
 /* See whether there is any work to do for a particular system.  */
@@ -309,7 +327,8 @@ fsysdep_get_work_init (qsys, bgrade)
      (bad) qsort implementations are very slow when given a sorted
      array, which causes particularly bad effects here.  */
   if (chad > 0)
-    qsort ((pointer) azSwork_files, chad, sizeof (char *), iswork_cmp);
+    qsort ((pointer) asSwork_files, chad, sizeof (struct ssfilename),
+	   iswork_cmp);
 
 #if SPOOLDIR_SVR4
   qgdir = qdir;
@@ -342,6 +361,7 @@ fsysdep_get_work_init (qsys, bgrade)
 	{
 	  char bfilegrade;
 	  char *zname;
+	  struct ssfilename slook;
 
 #if ! SPOOLDIR_SVR4
 	  zname = zbufcpy (qentry->d_name);
@@ -350,13 +370,14 @@ fsysdep_get_work_init (qsys, bgrade)
 	  bfilegrade = qgentry->d_name[0];
 #endif
 
+	  slook.zfile = zname;
 	  if (! fswork_file (qsys->uuconf_zname, qentry->d_name,
 			     &bfilegrade)
 	      || UUCONF_GRADE_CMP (bgrade, bfilegrade) < 0
-	      || (azSwork_files != NULL
-		  && bsearch ((pointer) &zname,
-			      (pointer) azSwork_files,
-			      chad, sizeof (char *),
+	      || (asSwork_files != NULL
+		  && bsearch ((pointer) &slook,
+			      (pointer) asSwork_files,
+			      chad, sizeof (struct ssfilename),
 			      iswork_cmp) != NULL))
 	    ubuffree (zname);
 	  else
@@ -368,18 +389,24 @@ fsysdep_get_work_init (qsys, bgrade)
 	      if (cSwork_files >= callocated)
 		{
 		  callocated += CWORKFILES;
-		  azSwork_files =
-		    (char **) xrealloc ((pointer) azSwork_files,
-					callocated * sizeof (char *));
+		  asSwork_files =
+		    ((struct ssfilename *)
+		     xrealloc ((pointer) asSwork_files,
+			       (callocated * sizeof (struct ssfilename))));
 		}
 
-	      azSwork_files[cSwork_files] = zname;
+	      asSwork_files[cSwork_files].zfile = zname;
+	      asSwork_files[cSwork_files].bgrade = bfilegrade;
 	      ++cSwork_files;
+	      if (cSwork_files - chad > COMMANDS_PER_SCAN)
+		break;
 	    }
 	}
 
 #if SPOOLDIR_SVR4
       closedir (qdir);
+      if (cSwork_files - chad > COMMANDS_PER_SCAN)
+	break;
     }
   qdir = qgdir;
 #endif
@@ -389,10 +416,10 @@ fsysdep_get_work_init (qsys, bgrade)
 
   /* Sorting the files alphabetically will get the grades in the
      right order, since all the file prefixes are the same.  */
-
-  if (cSwork_files > chad)
-    qsort ((pointer) (azSwork_files + chad), cSwork_files - chad,
-	   sizeof (char *), iswork_cmp);
+  if (cSwork_files > iSwork_file)
+    qsort ((pointer) (asSwork_files + iSwork_file),
+	   cSwork_files - iSwork_file,
+	   sizeof (struct ssfilename), iswork_cmp);
 
   return TRUE;
 }
@@ -417,7 +444,7 @@ fsysdep_get_work (qsys, bgrade, qcmd)
   if (qSwork_file != NULL && qSwork_file->cdid >= qSwork_file->clines)
     qSwork_file = NULL;
 
-  if (azSwork_files == NULL)
+  if (asSwork_files == NULL)
     {
       qcmd->bcmd = 'H';
       return TRUE;
@@ -437,6 +464,7 @@ fsysdep_get_work (qsys, bgrade, qcmd)
 	  char *zline;
 	  size_t cline;
 	  char *zname;
+	  char bfilegrade;
 
 	  /* Read all the lines of a command file into memory.  */
 	  do
@@ -464,7 +492,8 @@ fsysdep_get_work (qsys, bgrade, qcmd)
 		    return FALSE;
 		}
 
-	      zname = zsysdep_in_dir (zdir, azSwork_files[iSwork_file]);
+	      zname = zsysdep_in_dir (zdir, asSwork_files[iSwork_file].zfile);
+	      bfilegrade = asSwork_files[iSwork_file].bgrade;
 
 	      ++iSwork_file;
 
@@ -521,6 +550,7 @@ fsysdep_get_work (qsys, bgrade, qcmd)
 	    }
 
 	  qfile->zfile = zname;
+	  qfile->bgrade = bfilegrade;
 	  qfile->clines = iline;
 	  qfile->cdid = 0;
 	  qSwork_file = qfile;
@@ -554,6 +584,7 @@ fsysdep_get_work (qsys, bgrade, qcmd)
 	      qSwork_file->aslines[iline].zline = NULL;
 	      continue;
 	    }
+	  qcmd->bgrade = qSwork_file->bgrade;
 
 	  qSwork_file->aslines[iline].qfile = qSwork_file;
 	  qcmd->pseq = (pointer) (&qSwork_file->aslines[iline]);
@@ -652,14 +683,14 @@ void
 usysdep_get_work_free (qsys)
      const struct uuconf_system *qsys;
 {
-  if (azSwork_files != NULL)
+  if (asSwork_files != NULL)
     {
       size_t i;
 
       for (i = 0; i < cSwork_files; i++)
-	ubuffree ((pointer) azSwork_files[i]);
-      xfree ((pointer) azSwork_files);
-      azSwork_files = NULL;
+	ubuffree ((pointer) asSwork_files[i].zfile);
+      xfree ((pointer) asSwork_files);
+      asSwork_files = NULL;
       cSwork_files = 0;
       iSwork_file = 0;
     }
@@ -710,6 +741,7 @@ zsysdep_save_temp_file (pseq)
   if (! fsysdep_move_file (qline->ztemp, zto, TRUE, FALSE, FALSE,
 			   (const char *) NULL))
     {
+      /* Leave the file where it was, not that is much help.  */
       ubuffree (zto);
       return "Could not move file to preservation directory";
     }
@@ -743,7 +775,7 @@ zsysdep_jobid (qsys, pseq)
    this is a remote file; returning -1 will cause zsfind_file to do
    the right thing.  */
 
-char
+int
 bsgrade (pseq)
      pointer pseq;
 {

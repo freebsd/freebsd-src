@@ -1,11 +1,11 @@
 #define _PAS2_PCM_C_
 /*
- * linux/kernel/chr_drv/sound/pas2_pcm.c
- * 
+ * sound/pas2_pcm.c
+ *
  * The low level driver for the Pro Audio Spectrum ADC/DAC.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -13,7 +13,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,7 +25,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -74,6 +74,31 @@ pcm_set_speed (int arg)
   pcm_speed = arg;
 
   tmp = pas_read (FILTER_FREQUENCY);
+
+/* 
+ * Set anti-aliasing filters according to sample rate. You reall *NEED*
+ * to enable this feature for all normal recording unless you want to
+ * experiment with aliasing effects.
+ * These filters apply to the selected "recording" source.
+ * I (pfw) don't know the encoding of these 5 bits. The values shown
+ * come from the SDK found on ftp.uwp.edu:/pub/msdos/proaudio/.
+*/
+#if !defined NO_AUTO_FILTER_SET
+  tmp &= 0xe0;
+  if(pcm_speed >= 2*17897)
+    tmp |= 0x21;
+  else if(pcm_speed >= 2*15909)
+    tmp |= 0x22;
+  else if(pcm_speed >= 2*11931)
+    tmp |= 0x29;
+  else if(pcm_speed >= 2*8948)
+    tmp |= 0x31;
+  else if(pcm_speed >= 2*5965)
+    tmp |= 0x39;
+  else if(pcm_speed >= 2*2982)
+    tmp |= 0x24;
+  pcm_filter = tmp;
+#endif
 
   DISABLE_INTR (flags);
 
@@ -148,6 +173,8 @@ pas_pcm_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
       break;
 
     case SOUND_PCM_WRITE_CHANNELS:
+      if (local)
+	return pcm_set_channels (arg);
       return IOCTL_OUT (arg, pcm_set_channels (IOCTL_IN (arg)));
       break;
 
@@ -200,12 +227,6 @@ pas_pcm_open (int dev, int mode)
 
   TRACE (printk ("pas2_pcm.c: static int pas_pcm_open(int mode = %X)\n", mode));
 
-  if (mode != OPEN_READ && mode != OPEN_WRITE)
-    {
-      printk ("PAS2: Attempt to open PCM device for simultaneous read and write");
-      return RET_ERROR (EINVAL);
-    }
-
   if ((err = pas_set_intr (PAS_PCM_INTRBITS)) < 0)
     return err;
 
@@ -216,10 +237,6 @@ pas_pcm_open (int dev, int mode)
     }
 
   pcm_count = 0;
-
-  pcm_set_bits (8);
-  pcm_set_channels (1);
-  pcm_set_speed (DSP_DEFAULT_SPEED);
 
   return 0;
 }
@@ -242,7 +259,8 @@ pas_pcm_close (int dev)
 }
 
 static void
-pas_pcm_output_block (int dev, unsigned long buf, int count, int intrflag)
+pas_pcm_output_block (int dev, unsigned long buf, int count,
+		      int intrflag, int restart_dma)
 {
   unsigned long   flags, cnt;
 
@@ -251,7 +269,6 @@ pas_pcm_output_block (int dev, unsigned long buf, int count, int intrflag)
   cnt = count;
   if (sound_dsp_dmachan[dev] > 3)
     cnt >>= 1;
-  cnt--;
 
   if (sound_dma_automode[dev] &&
       intrflag &&
@@ -263,11 +280,11 @@ pas_pcm_output_block (int dev, unsigned long buf, int count, int intrflag)
   pas_write (pas_read (PCM_CONTROL) & ~P_C_PCM_ENABLE,
 	     PCM_CONTROL);
 
-  DMAbuf_start_dma (dev, buf, count, DMA_MODE_WRITE);
+  if (restart_dma)
+    DMAbuf_start_dma (dev, buf, count, DMA_MODE_WRITE);
 
   if (sound_dsp_dmachan[dev] > 3)
     count >>= 1;
-  count--;
 
   if (count != pcm_count)
     {
@@ -288,7 +305,8 @@ pas_pcm_output_block (int dev, unsigned long buf, int count, int intrflag)
 }
 
 static void
-pas_pcm_start_input (int dev, unsigned long buf, int count, int intrflag)
+pas_pcm_start_input (int dev, unsigned long buf, int count,
+		     int intrflag, int restart_dma)
 {
   unsigned long   flags;
   int             cnt;
@@ -298,7 +316,6 @@ pas_pcm_start_input (int dev, unsigned long buf, int count, int intrflag)
   cnt = count;
   if (sound_dsp_dmachan[dev] > 3)
     cnt >>= 1;
-  cnt--;
 
   if (sound_dma_automode[my_devnum] &&
       intrflag &&
@@ -307,12 +324,11 @@ pas_pcm_start_input (int dev, unsigned long buf, int count, int intrflag)
 
   DISABLE_INTR (flags);
 
-  DMAbuf_start_dma (dev, buf, count, DMA_MODE_READ);
+  if (restart_dma)
+    DMAbuf_start_dma (dev, buf, count, DMA_MODE_READ);
 
   if (sound_dsp_dmachan[dev] > 3)
     count >>= 1;
-
-  count--;
 
   if (count != pcm_count)
     {
@@ -346,14 +362,15 @@ pas_pcm_prepare_for_output (int dev, int bsize, int bcount)
 static struct audio_operations pas_pcm_operations =
 {
   "Pro Audio Spectrum",
-  pas_pcm_open,			/* */
-  pas_pcm_close,		/* */
-  pas_pcm_output_block,		/* */
-  pas_pcm_start_input,		/* */
-  pas_pcm_ioctl,		/* */
-  pas_pcm_prepare_for_input,	/* */
-  pas_pcm_prepare_for_output,	/* */
-  pas_pcm_reset,		/* */
+  NOTHING_SPECIAL,
+  pas_pcm_open,
+  pas_pcm_close,
+  pas_pcm_output_block,
+  pas_pcm_start_input,
+  pas_pcm_ioctl,
+  pas_pcm_prepare_for_input,
+  pas_pcm_prepare_for_output,
+  pas_pcm_reset,
   pas_pcm_reset,		/* halt_xfer */
   NULL,				/* has_output_drained */
   NULL				/* copy_from_user */
@@ -374,6 +391,7 @@ pas_pcm_init (long mem_start, struct address_info *hw_config)
     {
       dsp_devs[my_devnum = num_dspdevs++] = &pas_pcm_operations;
       sound_dsp_dmachan[my_devnum] = hw_config->dma;
+#ifndef NO_AUTODMA
       if (hw_config->dma > 3)
 	{
 	  sound_buffcounts[my_devnum] = 1;
@@ -386,6 +404,11 @@ pas_pcm_init (long mem_start, struct address_info *hw_config)
 	  sound_buffsizes[my_devnum] = DSP_BUFFSIZE;
 	  sound_dma_automode[my_devnum] = 1;
 	}
+#else
+      sound_buffcounts[my_devnum] = DSP_BUFFCOUNT;
+      sound_buffsizes[my_devnum] = DSP_BUFFSIZE;
+      sound_dma_automode[my_devnum] = 0;
+#endif
     }
   else
     printk ("PAS2: Too many PCM devices available\n");
@@ -413,7 +436,7 @@ pas_pcm_interrupt (unsigned char status, int cause)
 	{
 
 	case PCM_DAC:
-	  DMAbuf_outputintr (my_devnum);
+	  DMAbuf_outputintr (my_devnum, 1);
 	  break;
 
 	case PCM_ADC:

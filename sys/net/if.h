@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if.h	7.11 (Berkeley) 3/19/91
- *	$Id: if.h,v 1.11 1993/12/19 00:52:02 wollman Exp $
+ *	$Id: if.h,v 1.12 1994/05/17 22:30:53 jkh Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -81,7 +81,7 @@ struct ifnet {
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
 	short	if_unit;		/* sub-unit for lower level driver */
 	u_short	if_mtu;			/* maximum transmission unit */
-	short	if_flags;		/* up/down, broadcast, etc. */
+	u_int	if_flags;		/* up/down, broadcast, etc. */
 	short	if_timer;		/* time 'til if_watchdog called */
 	int	if_metric;		/* routing metric (external only) */
 	struct	ifaddr *if_addrlist;	/* linked list of addresses per if */
@@ -143,12 +143,18 @@ struct ifnet {
 #define	IFF_LLC2	0x4000		/* IEEE 802.2 LLC class 2 */
 #define IFF_ALTPHYS	0x8000	/* alternative physical connection */
 #define IFF_MULTICAST	0x10000	/* i'face supports multicast */
+#ifdef notdef
 #define IFF_VIRTUAL	0x20000	/* i'face is really a VIF */
 
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|IFF_SIMPLEX\
 	 |IFF_MULTICAST|IFF_VIRTUAL)
+#else
+#define	IFF_CANTCHANGE \
+	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|IFF_SIMPLEX\
+	 |IFF_MULTICAST)
+#endif
 
 /*
  * Output queues (ifp->if_snd) and internetwork datagram level (pup level 1)
@@ -222,7 +228,7 @@ struct	ifreq {
 		struct	sockaddr ifru_addr;
 		struct	sockaddr ifru_dstaddr;
 		struct	sockaddr ifru_broadaddr;
-		short	ifru_flags;
+		u_int	ifru_flags;
 		int	ifru_metric;
 		caddr_t	ifru_data;
 	} ifr_ifru;

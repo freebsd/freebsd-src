@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: ctype_.c,v 1.1.1.1.2.1 1994/05/04 07:39:42 rgrimes Exp $
+ *	$Id: ctype_.c,v 1.3 1994/05/04 08:17:14 rgrimes Exp $
  */
 /*
  * Copyright (c) 1989 The Regents of the University of California.
@@ -41,10 +41,12 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)ctype_.c	5.6 (Berkeley) 6/1/90";
+static char sccsid[] = "From: @(#)ctype_.c	5.6 (Berkeley) 6/1/90";
+static const char rcsid[] =
+	"$Id: ctype_.c,v 1.3 1994/05/04 08:17:14 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
-#include <ctype.h>
+#include <octype.h>
 
 char _ctype_[1 + 256] = {
 	0,

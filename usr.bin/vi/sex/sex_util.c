@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,24 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sex_util.c	8.9 (Berkeley) 12/23/93";
+static char sccsid[] = "@(#)sex_util.c	8.11 (Berkeley) 3/8/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "sex_screen.h"
@@ -73,24 +82,27 @@ int
 sex_suspend(sp)
 	SCR *sp;
 {
+	GS *gp;
 	struct termios t;
 	int rval;
 
 	/* Save ex/vi terminal settings, and restore the original ones. */
-	if (F_ISSET(sp->gp, G_ISFROMTTY)) {
+	gp = sp->gp;
+	if (F_ISSET(gp, G_STDIN_TTY)) {
 		(void)tcgetattr(STDIN_FILENO, &t);
-		(void)tcsetattr(STDIN_FILENO,
-		    TCSADRAIN, &sp->gp->original_termios);
+		if (F_ISSET(gp, G_TERMIOS_SET))
+			(void)tcsetattr(STDIN_FILENO,
+			    TCSADRAIN, &gp->original_termios);
 	}
 
 	/* Kill the process group. */
-	F_SET(sp->gp, G_SLEEPING);
+	F_SET(gp, G_SLEEPING);
 	if (rval = kill(0, SIGTSTP))
 		msgq(sp, M_SYSERR, "SIGTSTP");
-	F_CLR(sp->gp, G_SLEEPING);
+	F_CLR(gp, G_SLEEPING);
 
 	/* Restore ex/vi terminal settings. */
-	if (F_ISSET(sp->gp, G_ISFROMTTY))
+	if (F_ISSET(gp, G_STDIN_TTY))
 		(void)tcsetattr(STDIN_FILENO, TCSADRAIN, &t);
 
 	return (rval);

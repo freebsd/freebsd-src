@@ -1,0 +1,415 @@
+Malloc tracing starting
+Test starting
+testmalloc.c:48:sbrk 4096
+heapstart 0x23108
+heapend 0x24100
++ 100 100 0x23114
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Free blk: 0x2317c to 0x240fc, 993 (0x3e1) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:51:+ 150 152 0x23184
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x2321c, 41 (0x29) words really 150 bytes
+  Free blk: 0x23220 to 0x240fc, 952 (0x3b8) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:54:+ 191 192 0x23228
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x2321c, 41 (0x29) words really 150 bytes
+  Allocated blk: 0x23220 to 0x232e8, 51 (0x33) words really 191 bytes
+  Free blk: 0x232ec to 0x240fc, 901 (0x385) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:57:+ 2 4 0x232f4
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x2321c, 41 (0x29) words really 150 bytes
+  Allocated blk: 0x23220 to 0x232e8, 51 (0x33) words really 191 bytes
+  Allocated blk: 0x232ec to 0x232f8, 4 (0x4) words really 2 bytes
+  Free blk: 0x232fc to 0x240fc, 897 (0x381) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:60:+ 21 24 0x23304
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x2321c, 41 (0x29) words really 150 bytes
+  Allocated blk: 0x23220 to 0x232e8, 51 (0x33) words really 191 bytes
+  Allocated blk: 0x232ec to 0x232f8, 4 (0x4) words really 2 bytes
+  Allocated blk: 0x232fc to 0x2331c, 9 (0x9) words really 21 bytes
+  Free blk: 0x23320 to 0x240fc, 888 (0x378) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:63:+ 3540 3540 0x23328
+Heap printout:
+Rover pointer is 0x0
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x2321c, 41 (0x29) words really 150 bytes
+  Allocated blk: 0x23220 to 0x232e8, 51 (0x33) words really 191 bytes
+  Allocated blk: 0x232ec to 0x232f8, 4 (0x4) words really 2 bytes
+  Allocated blk: 0x232fc to 0x2331c, 9 (0x9) words really 21 bytes
+  Allocated blk: 0x23320 to 0x240fc, 888 (0x378) words really 3540 bytes
+==============
+testmalloc.c:67:- 3540 0x23328
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x2321c, 41 (0x29) words really 150 bytes
+  Allocated blk: 0x23220 to 0x232e8, 51 (0x33) words really 191 bytes
+  Allocated blk: 0x232ec to 0x232f8, 4 (0x4) words really 2 bytes
+  Allocated blk: 0x232fc to 0x2331c, 9 (0x9) words really 21 bytes
+  Free blk: 0x23320 to 0x240fc, 888 (0x378) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:69:- 192 0x23228
+Heap printout:
+Rover pointer is 0x232e8
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x2321c, 41 (0x29) words really 150 bytes
+  Free blk: 0x23220 to 0x232e8, 51 (0x33) words next=0x240fc, prev=0x240fc
+  Allocated blk: 0x232ec to 0x232f8, 4 (0x4) words really 2 bytes
+  Allocated blk: 0x232fc to 0x2331c, 9 (0x9) words really 21 bytes
+  Free blk: 0x23320 to 0x240fc, 888 (0x378) words next=0x232e8, prev=0x232e8
+==============
+testmalloc.c:71:- 4 0x232f4
+Heap printout:
+Rover pointer is 0x232f8
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x2321c, 41 (0x29) words really 150 bytes
+  Free blk: 0x23220 to 0x232f8, 55 (0x37) words next=0x240fc, prev=0x240fc
+  Allocated blk: 0x232fc to 0x2331c, 9 (0x9) words really 21 bytes
+  Free blk: 0x23320 to 0x240fc, 888 (0x378) words next=0x232f8, prev=0x232f8
+==============
+testmalloc.c:73:- 152 0x23184
+Heap printout:
+Rover pointer is 0x232f8
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Free blk: 0x2317c to 0x232f8, 96 (0x60) words next=0x240fc, prev=0x240fc
+  Allocated blk: 0x232fc to 0x2331c, 9 (0x9) words really 21 bytes
+  Free blk: 0x23320 to 0x240fc, 888 (0x378) words next=0x232f8, prev=0x232f8
+==============
+testmalloc.c:75:- 24 0x23304
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Free blk: 0x2317c to 0x240fc, 993 (0x3e1) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:77:- 100 0x23114
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Free blk: 0x2310c to 0x240fc, 1021 (0x3fd) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:79:+ 100 100 0x23114
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Free blk: 0x2317c to 0x240fc, 993 (0x3e1) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:82:+ 155 156 0x23184
+Heap printout:
+Rover pointer is 0x240fc
+Arena from 0x23104 to 0x24100, 1024 (0x400) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x23220, 42 (0x2a) words really 155 bytes
+  Free blk: 0x23224 to 0x240fc, 951 (0x3b7) words next=0x240fc, prev=0x240fc
+==============
+testmalloc.c:85:sbrk 12288
+- 12276 0x24108
++ 8192 8192 0x2322c
+Heap printout:
+Rover pointer is 0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x23220, 42 (0x2a) words really 155 bytes
+  Allocated blk: 0x23224 to 0x2522c, 2051 (0x803) words really 8192 bytes
+  Free blk: 0x25230 to 0x270fc, 1972 (0x7b4) words next=0x270fc, prev=0x270fc
+==============
+testmalloc.c:88:+ 100 100 0x25238
+Heap printout:
+Rover pointer is 0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x23220, 42 (0x2a) words really 155 bytes
+  Allocated blk: 0x23224 to 0x2522c, 2051 (0x803) words really 8192 bytes
+  Allocated blk: 0x25230 to 0x2529c, 28 (0x1c) words really 100 bytes
+  Free blk: 0x252a0 to 0x270fc, 1944 (0x798) words next=0x270fc, prev=0x270fc
+==============
+testmalloc.c:91:+ 29 32 0x252a8
+Heap printout:
+Rover pointer is 0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x23220, 42 (0x2a) words really 155 bytes
+  Allocated blk: 0x23224 to 0x2522c, 2051 (0x803) words really 8192 bytes
+  Allocated blk: 0x25230 to 0x2529c, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x252a0 to 0x252c8, 11 (0xb) words really 29 bytes
+  Free blk: 0x252cc to 0x270fc, 1933 (0x78d) words next=0x270fc, prev=0x270fc
+==============
+testmalloc.c:94:- 8192 0x2322c
+Heap printout:
+Rover pointer is 0x2522c
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x23220, 42 (0x2a) words really 155 bytes
+  Free blk: 0x23224 to 0x2522c, 2051 (0x803) words next=0x270fc, prev=0x270fc
+  Allocated blk: 0x25230 to 0x2529c, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x252a0 to 0x252c8, 11 (0xb) words really 29 bytes
+  Free blk: 0x252cc to 0x270fc, 1933 (0x78d) words next=0x2522c, prev=0x2522c
+==============
+testmalloc.c:96:- 100 0x25238
+Heap printout:
+Rover pointer is 0x2529c
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Allocated blk: 0x2317c to 0x23220, 42 (0x2a) words really 155 bytes
+  Free blk: 0x23224 to 0x2529c, 2079 (0x81f) words next=0x270fc, prev=0x270fc
+  Allocated blk: 0x252a0 to 0x252c8, 11 (0xb) words really 29 bytes
+  Free blk: 0x252cc to 0x270fc, 1933 (0x78d) words next=0x2529c, prev=0x2529c
+==============
+testmalloc.c:98:- 156 0x23184
+Heap printout:
+Rover pointer is 0x2529c
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Free blk: 0x2317c to 0x2529c, 2121 (0x849) words next=0x270fc, prev=0x270fc
+  Allocated blk: 0x252a0 to 0x252c8, 11 (0xb) words really 29 bytes
+  Free blk: 0x252cc to 0x270fc, 1933 (0x78d) words next=0x2529c, prev=0x2529c
+==============
+testmalloc.c:100:- 32 0x252a8
+Heap printout:
+Rover pointer is 0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23178, 28 (0x1c) words really 100 bytes
+  Free blk: 0x2317c to 0x270fc, 4065 (0xfe1) words next=0x270fc, prev=0x270fc
+==============
+testmalloc.c:102:- 100 0x23114
+Heap printout:
+Rover pointer is 0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Free blk: 0x2310c to 0x270fc, 4093 (0xffd) words next=0x270fc, prev=0x270fc
+==============
+testmalloc.c:105:+ 1005 1008 0x23114
+Heap printout:
+Rover pointer is 0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23504, 255 (0xff) words really 1005 bytes
+  Free blk: 0x23508 to 0x270fc, 3838 (0xefe) words next=0x270fc, prev=0x270fc
+==============
+testmalloc.c:108:+ 8192 8192 0x23510
+Heap printout:
+Rover pointer is 0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23504, 255 (0xff) words really 1005 bytes
+  Allocated blk: 0x23508 to 0x25510, 2051 (0x803) words really 8192 bytes
+  Free blk: 0x25514 to 0x270fc, 1787 (0x6fb) words next=0x270fc, prev=0x270fc
+==============
+testmalloc.c:111:sbrk 16384
+heapend 0x2b164
++ 16000 16000 0x27178
+Heap printout:
+Rover pointer is 0x2b160
+Arena from 0x27168 to 0x2b164, 4096 (0x1000) words
+Next arena is 0x23104
+  Allocated blk: 0x27170 to 0x2aff8, 4003 (0xfa3) words really 16000 bytes
+  Free blk: 0x2affc to 0x2b160, 90 (0x5a) words next=0x270fc, prev=0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23504, 255 (0xff) words really 1005 bytes
+  Allocated blk: 0x23508 to 0x25510, 2051 (0x803) words really 8192 bytes
+  Free blk: 0x25514 to 0x270fc, 1787 (0x6fb) words next=0x2b160, prev=0x2b160
+==============
+testmalloc.c:114:+ 29 32 0x2b004
+Heap printout:
+Rover pointer is 0x2b160
+Arena from 0x27168 to 0x2b164, 4096 (0x1000) words
+Next arena is 0x23104
+  Allocated blk: 0x27170 to 0x2aff8, 4003 (0xfa3) words really 16000 bytes
+  Allocated blk: 0x2affc to 0x2b024, 11 (0xb) words really 29 bytes
+  Free blk: 0x2b028 to 0x2b160, 79 (0x4f) words next=0x270fc, prev=0x270fc
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23504, 255 (0xff) words really 1005 bytes
+  Allocated blk: 0x23508 to 0x25510, 2051 (0x803) words really 8192 bytes
+  Free blk: 0x25514 to 0x270fc, 1787 (0x6fb) words next=0x2b160, prev=0x2b160
+==============
+testmalloc.c:118:sbrk 77824
+- 77812 0x2b16c
++ 73727 73728 0x2b030
+- 4132 0x3c00c
+- 4036 0x2b030
+Heap printout:
+Rover pointer is 0x2bff4
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Allocated blk: 0x27170 to 0x2aff8, 4003 (0xfa3) words really 16000 bytes
+  Allocated blk: 0x2affc to 0x2b024, 11 (0xb) words really 29 bytes
+  Free blk: 0x2b028 to 0x2bff4, 1012 (0x3f4) words next=0x3e160, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x3c000, 16387 (0x4003) words really 65536 bytes
+  Free blk: 0x3c004 to 0x3e160, 2136 (0x858) words next=0x270fc, prev=0x2bff4
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23504, 255 (0xff) words really 1005 bytes
+  Allocated blk: 0x23508 to 0x25510, 2051 (0x803) words really 8192 bytes
+  Free blk: 0x25514 to 0x270fc, 1787 (0x6fb) words next=0x2bff4, prev=0x3e160
+==============
+testmalloc.c:121:- 57524 0x2df4c
+Heap printout:
+Rover pointer is 0x3e160
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Allocated blk: 0x27170 to 0x2aff8, 4003 (0xfa3) words really 16000 bytes
+  Allocated blk: 0x2affc to 0x2b024, 11 (0xb) words really 29 bytes
+  Free blk: 0x2b028 to 0x2bff4, 1012 (0x3f4) words next=0x3e160, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x2df40, 2003 (0x7d3) words really 8000 bytes
+  Free blk: 0x2df44 to 0x3e160, 16520 (0x4088) words next=0x270fc, prev=0x2bff4
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23504, 255 (0xff) words really 1005 bytes
+  Allocated blk: 0x23508 to 0x25510, 2051 (0x803) words really 8192 bytes
+  Free blk: 0x25514 to 0x270fc, 1787 (0x6fb) words next=0x2bff4, prev=0x3e160
+==============
+testmalloc.c:124:no-op
+Heap printout:
+Rover pointer is 0x3e160
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Allocated blk: 0x27170 to 0x2aff8, 4003 (0xfa3) words really 16000 bytes
+  Allocated blk: 0x2affc to 0x2b024, 11 (0xb) words really 29 bytes
+  Free blk: 0x2b028 to 0x2bff4, 1012 (0x3f4) words next=0x3e160, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x2df40, 2003 (0x7d3) words really 7998 bytes
+  Free blk: 0x2df44 to 0x3e160, 16520 (0x4088) words next=0x270fc, prev=0x2bff4
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Allocated blk: 0x2310c to 0x23504, 255 (0xff) words really 1005 bytes
+  Allocated blk: 0x23508 to 0x25510, 2051 (0x803) words really 8192 bytes
+  Free blk: 0x25514 to 0x270fc, 1787 (0x6fb) words next=0x2bff4, prev=0x3e160
+==============
+testmalloc.c:127:- 1008 0x23114
+Heap printout:
+Rover pointer is 0x23504
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Allocated blk: 0x27170 to 0x2aff8, 4003 (0xfa3) words really 16000 bytes
+  Allocated blk: 0x2affc to 0x2b024, 11 (0xb) words really 29 bytes
+  Free blk: 0x2b028 to 0x2bff4, 1012 (0x3f4) words next=0x23504, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x2df40, 2003 (0x7d3) words really 7998 bytes
+  Free blk: 0x2df44 to 0x3e160, 16520 (0x4088) words next=0x270fc, prev=0x23504
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Free blk: 0x2310c to 0x23504, 255 (0xff) words next=0x3e160, prev=0x2bff4
+  Allocated blk: 0x23508 to 0x25510, 2051 (0x803) words really 8192 bytes
+  Free blk: 0x25514 to 0x270fc, 1787 (0x6fb) words next=0x2bff4, prev=0x3e160
+==============
+testmalloc.c:129:- 8192 0x23510
+Heap printout:
+Rover pointer is 0x270fc
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Allocated blk: 0x27170 to 0x2aff8, 4003 (0xfa3) words really 16000 bytes
+  Allocated blk: 0x2affc to 0x2b024, 11 (0xb) words really 29 bytes
+  Free blk: 0x2b028 to 0x2bff4, 1012 (0x3f4) words next=0x3e160, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x2df40, 2003 (0x7d3) words really 7998 bytes
+  Free blk: 0x2df44 to 0x3e160, 16520 (0x4088) words next=0x270fc, prev=0x2bff4
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Free blk: 0x2310c to 0x270fc, 4093 (0xffd) words next=0x2bff4, prev=0x3e160
+==============
+testmalloc.c:131:- 32 0x2b004
+Heap printout:
+Rover pointer is 0x2bff4
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Allocated blk: 0x27170 to 0x2aff8, 4003 (0xfa3) words really 16000 bytes
+  Free blk: 0x2affc to 0x2bff4, 1023 (0x3ff) words next=0x3e160, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x2df40, 2003 (0x7d3) words really 7998 bytes
+  Free blk: 0x2df44 to 0x3e160, 16520 (0x4088) words next=0x270fc, prev=0x2bff4
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Free blk: 0x2310c to 0x270fc, 4093 (0xffd) words next=0x2bff4, prev=0x3e160
+==============
+testmalloc.c:133:- 16000 0x27178
+Heap printout:
+Rover pointer is 0x2bff4
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Free blk: 0x27170 to 0x2bff4, 5026 (0x13a2) words next=0x3e160, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x2df40, 2003 (0x7d3) words really 7998 bytes
+  Free blk: 0x2df44 to 0x3e160, 16520 (0x4088) words next=0x270fc, prev=0x2bff4
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Free blk: 0x2310c to 0x270fc, 4093 (0xffd) words next=0x2bff4, prev=0x3e160
+==============
+testmalloc.c:135:++ 16000 16000 0x2c000 58080 0x2fe84
+Heap printout:
+Rover pointer is 0x2bff4
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Free blk: 0x27170 to 0x2bff4, 5026 (0x13a2) words next=0x3e160, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x2fe80, 4003 (0xfa3) words really 16000 bytes
+  Free blk: 0x2fe84 to 0x3e160, 14520 (0x38b8) words next=0x270fc, prev=0x2bff4
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Free blk: 0x2310c to 0x270fc, 4093 (0xffd) words next=0x2bff4, prev=0x3e160
+==============
+testmalloc.c:138:++ 32000 32000 0x2c000 42080 0x33d04
+Heap printout:
+Rover pointer is 0x2bff4
+Arena from 0x27168 to 0x3e164, 23552 (0x5c00) words
+Next arena is 0x23104
+  Free blk: 0x27170 to 0x2bff4, 5026 (0x13a2) words next=0x3e160, prev=0x270fc
+  Allocated blk: 0x2bff8 to 0x33d00, 8003 (0x1f43) words really 32000 bytes
+  Free blk: 0x33d04 to 0x3e160, 10520 (0x2918) words next=0x270fc, prev=0x2bff4
+Arena from 0x23104 to 0x27100, 4096 (0x1000) words
+Next arena is 0x0
+  Free blk: 0x2310c to 0x270fc, 4093 (0xffd) words next=0x2bff4, prev=0x3e160
+==============
+16: 1
+36: 1
+44: 2
+112: 3
+164: 1
+168: 1
+204: 1
+1020: 1
+3552: 1
+>= 8192: 4
+Test done

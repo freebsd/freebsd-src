@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,25 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)seq.c	8.21 (Berkeley) 12/9/93";
+static char sccsid[] = "@(#)seq.c	8.26 (Berkeley) 3/14/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "seq.h"
@@ -51,54 +61,81 @@ static char sccsid[] = "@(#)seq.c	8.21 (Berkeley) 12/9/93";
  *	Internal version to enter a sequence.
  */
 int
-seq_set(sp, name, nlen, input, ilen, output, olen, stype, userdef)
+seq_set(sp, name, nlen, input, ilen, output, olen, stype, flags)
 	SCR *sp;
 	char *name, *input, *output;
 	size_t nlen, ilen, olen;
 	enum seqtype stype;
-	int userdef;
+	int flags;
 {
 	SEQ *lastqp, *qp;
 	CHAR_T *p;
+	int sv_errno;
 
-#if defined(DEBUG) && 0
-	TRACE(sp, "seq_set: name {%s} input {%s} output {%s}\n",
-	    name ? name : "", input, output);
-#endif
-	/* Just replace the output field in any previous occurrence. */
+	/*
+	 * An input string must always be present.  The output string
+	 * can be NULL, when set internally, that's how we throw away
+	 * input.
+	 *
+	 * Just replace the output field if the string already set.
+	 */
 	if ((qp = seq_find(sp, &lastqp, input, ilen, stype, NULL)) != NULL) {
-		if ((p = v_strdup(sp, output, olen)) == NULL)
+		if (output == NULL || olen == 0) {
+			p = NULL;
+			olen = 0;
+		} else if ((p = v_strdup(sp, output, olen)) == NULL) {
+			sv_errno = errno;
 			goto mem1;
-		FREE(qp->output, qp->olen);
+		}
+		if (qp->output != NULL)
+			free(qp->output);
 		qp->olen = olen;
 		qp->output = p;
 		return (0);
 	}
 
-	/* Allocate and initialize space. */
+	/* Allocate and initialize SEQ structure. */
 	CALLOC(sp, qp, SEQ *, 1, sizeof(SEQ));
-	if (qp == NULL)
+	if (qp == NULL) {
+		sv_errno = errno;
 		goto mem1;
-	if (name == NULL)
-		qp->name = NULL;
-	else if ((qp->name = v_strdup(sp, name, nlen)) == NULL)
-		goto mem2;
-	if ((qp->input = v_strdup(sp, input, ilen)) == NULL)
-		goto mem3;
-	if ((qp->output = v_strdup(sp, output, olen)) == NULL) {
-		FREE(qp->input, ilen);
-mem3:		if (qp->name != NULL)
-			FREE(qp->name, nlen);
-mem2:		FREE(qp, sizeof(SEQ));
-mem1:		msgq(sp, M_SYSERR, NULL);
-		return (1);
 	}
 
-	qp->stype = stype;
+	/* Name. */
+	if (name == NULL || nlen == 0)
+		qp->name = NULL;
+	else if ((qp->name = v_strdup(sp, name, nlen)) == NULL) {
+		sv_errno = errno;
+		goto mem2;
+	}
 	qp->nlen = nlen;
+
+	/* Input. */
+	if ((qp->input = v_strdup(sp, input, ilen)) == NULL) {
+		sv_errno = errno;
+		goto mem3;
+	}
 	qp->ilen = ilen;
+
+	/* Output. */
+	if (output == NULL) {
+		qp->output = NULL;
+		olen = 0;
+	} else if ((qp->output = v_strdup(sp, output, olen)) == NULL) {
+		sv_errno = errno;
+		free(qp->input);
+mem3:		if (qp->name != NULL)
+			free(qp->name);
+mem2:		FREE(qp, sizeof(SEQ));
+mem1:		errno = sv_errno;
+		msgq(sp, M_SYSERR, NULL);
+		return (1);
+	}
 	qp->olen = olen;
-	qp->flags = userdef ? S_USERDEF : 0;
+
+	/* Type, flags. */
+	qp->stype = stype;
+	qp->flags = flags;
 
 	/* Link into the chain. */
 	if (lastqp == NULL) {
@@ -131,9 +168,10 @@ seq_delete(sp, input, ilen, stype)
 
 	LIST_REMOVE(qp, q);
 	if (qp->name != NULL)
-		FREE(qp->name, qp->nlen);
-	FREE(qp->input, qp->ilen);
-	FREE(qp->output, qp->olen);
+		free(qp->name);
+	free(qp->input);
+	if (qp->output != NULL)
+		free(qp->output);
 	FREE(qp, sizeof(SEQ));
 	return (0);
 }
@@ -159,7 +197,7 @@ seq_find(sp, lastqp, input, ilen, stype, ispartialp)
 	 * Ispartialp is a location where we return if there was a
 	 * partial match, i.e. if the string were extended it might
 	 * match something.
-	 * 
+	 *
 	 * XXX
 	 * Overload the meaning of ispartialp; only the terminal key
 	 * search doesn't want the search limited to complete matches,
@@ -221,28 +259,32 @@ seq_dump(sp, stype, isname)
 {
 	CHNAME const *cname;
 	SEQ *qp;
-	int cnt, len, olen, tablen;
+	int cnt, len, olen;
 	char *p;
 
 	cnt = 0;
 	cname = sp->gp->cname;
-	tablen = O_VAL(sp, O_TABSTOP);
 	for (qp = sp->gp->seqq.lh_first; qp != NULL; qp = qp->q.le_next) {
 		if (stype != qp->stype)
 			continue;
 		++cnt;
 		for (p = qp->input,
-		    olen = qp->ilen, len = 0; olen > 0; --olen, ++len)
-			(void)ex_printf(EXCOOKIE, "%s", cname[*p++].name);
-		for (len = tablen - len % tablen; len; --len)
-			(void)ex_printf(EXCOOKIE, " ");
+		    olen = qp->ilen, len = 0; olen > 0; --olen)
+			len += ex_printf(EXCOOKIE, "%s", cname[*p++].name);
+		for (len = STANDARD_TAB - len % STANDARD_TAB; len > 0;)
+			len -= ex_printf(EXCOOKIE, " ");
 
-		for (p = qp->output, olen = qp->olen; olen > 0; --olen)
-			(void)ex_printf(EXCOOKIE, "%s", cname[*p++].name);
+		if (qp->output != NULL)
+			for (p = qp->output,
+			    olen = qp->olen, len = 0; olen > 0; --olen)
+				len +=
+				    ex_printf(EXCOOKIE, "%s", cname[*p++].name);
+		else
+			len = 0;
 
 		if (isname && qp->name != NULL) {
-			for (len = tablen - len % tablen; len; --len)
-				(void)ex_printf(EXCOOKIE, " ");
+			for (len = STANDARD_TAB - len % STANDARD_TAB; len > 0;)
+				len -= ex_printf(EXCOOKIE, " ");
 			for (p = qp->name, olen = qp->nlen; olen > 0; --olen)
 				(void)ex_printf(EXCOOKIE,
 				    "%s", cname[*p++].name);
@@ -263,36 +305,34 @@ seq_save(sp, fp, prefix, stype)
 	char *prefix;
 	enum seqtype stype;
 {
-	CHAR_T esc;
 	SEQ *qp;
 	size_t olen;
 	int ch;
 	char *p;
 
 	/* Write a sequence command for all keys the user defined. */
-	(void)term_key_ch(sp, K_VLNEXT, &esc);
 	for (qp = sp->gp->seqq.lh_first; qp != NULL; qp = qp->q.le_next) {
-		if (!F_ISSET(qp, S_USERDEF))
-			continue;
-		if (stype != qp->stype)
+		if (!F_ISSET(qp, S_USERDEF) || stype != qp->stype)
 			continue;
 		if (prefix)
 			(void)fprintf(fp, "%s", prefix);
 		for (p = qp->input, olen = qp->ilen; olen > 0; --olen) {
 			ch = *p++;
-			if (ch == esc || ch == '|' ||
+			if (ch == LITERAL_CH || ch == '|' ||
 			    isblank(ch) || term_key_val(sp, ch) == K_NL)
-				(void)putc(esc, fp);
+				(void)putc(LITERAL_CH, fp);
 			(void)putc(ch, fp);
 		}
 		(void)putc(' ', fp);
-		for (p = qp->output, olen = qp->olen; olen > 0; --olen) {
-			ch = *p++;
-			if (ch == esc || ch == '|' ||
-			    term_key_val(sp, ch) == K_NL)
-				(void)putc(esc, fp);
-			(void)putc(ch, fp);
-		}
+		if (qp->output != NULL)
+			for (p = qp->output,
+			    olen = qp->olen; olen > 0; --olen) {
+				ch = *p++;
+				if (ch == LITERAL_CH || ch == '|' ||
+				    term_key_val(sp, ch) == K_NL)
+					(void)putc(LITERAL_CH, fp);
+				(void)putc(ch, fp);
+			}
 		(void)putc('\n', fp);
 	}
 	return (0);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)termios.h	7.22 (Berkeley) 5/7/91
- *	$Id: termios.h,v 1.8 1994/01/31 07:38:18 ache Exp $
+ *	$Id: termios.h,v 1.9 1994/05/30 03:31:04 ache Exp $
  */
 
 /*
@@ -181,7 +181,7 @@
 
 typedef unsigned long	tcflag_t;
 typedef unsigned char	cc_t;
-typedef long		speed_t;
+typedef long		speed_t;	/* XXX should be unsigned long */
 
 struct termios {
 	tcflag_t	c_iflag;	/* input flags */
@@ -189,8 +189,8 @@ struct termios {
 	tcflag_t	c_cflag;	/* control flags */
 	tcflag_t	c_lflag;	/* local flags */
 	cc_t		c_cc[NCCS];	/* control chars */
-	long		c_ispeed;	/* input speed */
-	long		c_ospeed;	/* output speed */
+	speed_t		c_ispeed;	/* input speed */
+	speed_t		c_ospeed;	/* output speed */
 };
 
 /* 

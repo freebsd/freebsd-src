@@ -257,6 +257,9 @@ extern int cvswrite;
 extern int trace;			/* Show all commands */
 extern int noexec;			/* Don't modify disk anywhere */
 extern int logoff;			/* Don't write history entry */
+#ifdef FREEBSD_DEVELOPER
+extern int freebsd;			/* Assume option defaults for FreBSD */
+#endif /* FREEBSD_DEVELOPER */
 
 /* Externs that are included directly in the CVS sources */
 #if __STDC__
@@ -348,7 +351,8 @@ int do_recursion (int (*xfileproc) (), int (*xfilesdoneproc) (),
 int do_update (int argc, char *argv[], char *xoptions, char *xtag,
 	       char *xdate, int xforce, int local, int xbuild,
 	       int xaflag, int xprune, int xpipeout, int which,
-	       char *xjoin_rev1, char *xjoin_rev2, char *preload_update_dir);
+	       char *xjoin_rev1, char *xjoin_rev2,
+	       char *xK_flag, char *preload_update_dir);
 void history_write (int type, char *update_dir, char *revs, char *name,
 		    char *repository);
 int start_recursion (int (*fileproc) (), int (*filesdoneproc) (),

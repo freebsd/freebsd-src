@@ -86,6 +86,8 @@ simple_lock_data_t	vm_pages_needed_lock;
 inline static void vm_wait() {
 	extern struct proc *curproc, *pageproc;
 	extern int vm_pageout_pages_needed;
+	int s;
+	s = splhigh();
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
 		tsleep((caddr_t) &vm_pageout_pages_needed, PSWP, "vmwait", 0);
@@ -94,6 +96,7 @@ inline static void vm_wait() {
 		wakeup((caddr_t) &vm_pages_needed);
 		tsleep((caddr_t) &vm_page_free_count, PVM, "vmwait", 0);
 	}
+	splx(s);
 }
 
 

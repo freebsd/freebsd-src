@@ -32,11 +32,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: memmove.S,v 1.1 1993/12/05 13:01:50 ats Exp $
+ *	$Id: memmove.S,v 1.2 1994/03/31 14:11:00 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-        .asciz "$Id: memmove.S,v 1.1 1993/12/05 13:01:50 ats Exp $"
+        .asciz "$Id: memmove.S,v 1.2 1994/03/31 14:11:00 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -51,20 +51,19 @@ ENTRY(memmove)
 	pushl	%esi
 	pushl	%edi
 	movl	12(%esp),%edi
-	pushl	%edi
-	movl	20(%esp),%esi
-	movl	24(%esp),%ecx
+	movl	16(%esp),%esi
+	movl	20(%esp),%ecx
 	cmpl	%esi,%edi	/* potentially overlapping? */
 	jnb	1f
 	cld			/* nope, copy forwards. */
 	shrl	$2,%ecx		/* copy by words */
 	rep
 	movsl
-	movl	24(%esp),%ecx
+	movl	20(%esp),%ecx
 	andl	$3,%ecx		/* any bytes left? */
 	rep
 	movsb
-	popl	%eax
+	movl	12(%esp),%eax
 	popl	%edi
 	popl	%esi
 	ret
@@ -77,13 +76,13 @@ ENTRY(memmove)
 	decl	%esi
 	rep
 	movsb
-	movl	24(%esp),%ecx	/* copy remainder by words */
+	movl	20(%esp),%ecx	/* copy remainder by words */
 	shrl	$2,%ecx
 	subl	$3,%esi
 	subl	$3,%edi
 	rep
 	movsl
-	popl	%eax
+	movl	12(%esp),%eax
 	popl	%edi
 	popl	%esi
 	cld

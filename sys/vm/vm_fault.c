@@ -66,7 +66,7 @@
  * rights to redistribute these changes.
  */
 /*
- * $Id: vm_fault.c,v 1.14.2.1 1994/03/24 07:20:29 rgrimes Exp $
+ * $Id: vm_fault.c,v 1.18 1994/05/25 11:06:49 davidg Exp $
  */
 
 /*
@@ -82,9 +82,9 @@
 #include "resource.h"
 #include "resourcevar.h"
 
-#define VM_FAULT_READ_AHEAD 3
+#define VM_FAULT_READ_AHEAD 4
 #define VM_FAULT_READ_AHEAD_MIN 1
-#define VM_FAULT_READ_BEHIND 2
+#define VM_FAULT_READ_BEHIND 3
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
 extern int swap_pager_full;
 extern int vm_pageout_proc_limit;
@@ -133,6 +133,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 	vm_page_t		marray[VM_FAULT_READ];
 	int			reqpage;
 	int			spl;
+	int			hardfault=0;
 
 	vm_stat.faults++;		/* needs lock XXX */
 /*
@@ -284,13 +285,12 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			 */
 
 			vm_page_lock_queues();
-			spl = vm_disable_intr();
+			spl = splimp();
 			if (m->flags & PG_INACTIVE) {
 				queue_remove(&vm_page_queue_inactive, m,
 						vm_page_t, pageq);
 				m->flags &= ~PG_INACTIVE;
 				vm_page_inactive_count--;
-				vm_stat.reactivations++;
 			} 
 
 			if (m->flags & PG_ACTIVE) {
@@ -299,7 +299,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 				m->flags &= ~PG_ACTIVE;
 				vm_page_active_count--;
 			}
-			vm_set_intr(spl);
+			splx(spl);
 			vm_page_unlock_queues();
 
 			/*
@@ -328,10 +328,11 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 				(object->pager && object->pager->pg_type == PG_SWAP &&
 				!vm_pager_has_page(object->pager, offset+object->paging_offset)))) {
 				if (vaddr < VM_MAXUSER_ADDRESS && curproc && curproc->p_pid >= 48) /* XXX */ {
-					UNLOCK_AND_DEALLOCATE;
 					printf("Process %d killed by vm_fault -- out of swap\n", curproc->p_pid);
 					psignal(curproc, SIGKILL);
-					return KERN_RESOURCE_SHORTAGE;
+					curproc->p_cpu = 0;
+					curproc->p_nice = PRIO_MIN;
+					setpri(curproc);
 				}
 			}
 
@@ -403,6 +404,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 				vm_stat.pageins++;
 				m->flags &= ~PG_FAKE;
 				pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+				hardfault++;
 				break;
 			}
 
@@ -895,8 +897,16 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 	}
 	else {
 		vm_page_activate(m);
-		vm_pageout_deact_bump(m);
 	}
+
+	if( curproc && curproc->p_stats) {
+		if (hardfault) {
+			curproc->p_stats->p_ru.ru_majflt++;
+		} else {
+			curproc->p_stats->p_ru.ru_minflt++;
+		}
+	}
+		
 	vm_page_unlock_queues();
 
 	/*

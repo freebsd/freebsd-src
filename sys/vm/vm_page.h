@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.h	7.3 (Berkeley) 4/21/91
- *	$Id: vm_page.h,v 1.8 1994/01/31 04:21:19 davidg Exp $
+ *	$Id: vm_page.h,v 1.14 1994/04/14 07:50:24 davidg Exp $
  */
 
 /*
@@ -71,6 +71,9 @@
 #ifndef	_VM_PAGE_
 #define	_VM_PAGE_
 
+#ifdef KERNEL
+#include <systm.h>
+#endif
 /*
  *	Management of resident (logical) pages.
  *
@@ -121,17 +124,13 @@ struct vm_page {
 
 	unsigned int	wire_count;	/* how many wired down maps use me? */
 	unsigned short	flags;		/* bit encoded flags */
-	unsigned short	deact;		/* deactivation count */
+	unsigned short	act_count;	/* active count */
+	int		hold_count;	/* page hold count -- don't pageout */
 
 	vm_offset_t	phys_addr;	/* physical address of page */
 };
 
 typedef struct vm_page	*vm_page_t;
-
-#define DEACT_START	5
-#define	DEACT_DELAY	2
-#define DEACT_CLEAN	1
-#define DEACT_FREE	0
 
 #if	VM_PAGE_DEBUG
 #define	VM_PAGE_CHECK(mem) { \
@@ -226,10 +225,10 @@ void		vm_page_replace();
 
 boolean_t	vm_page_zero_fill();
 void		vm_page_copy();
-
+#if 0
 void		vm_page_wire();
 void		vm_page_unwire();
-
+#endif
 
 /*
  *	Functions implemented as macros
@@ -272,12 +271,25 @@ extern vm_offset_t pmap_phys_ddress(int);
 
 
 /*
- * these macros are *MUCH* faster on a 386/486 type machine
- * eventually they need to be implemented correctly and put
- * somewhere in the machine dependant stuff.
+ * Keep page from being freed by the page daemon
+ * much of the same effect as wiring, except much lower
+ * overhead and should be used only for *very* temporary
+ * holding ("wiring").
  */
-#define vm_disable_intr() (disable_intr(), 0)
-#define vm_set_intr(spl) enable_intr()
+static inline void
+vm_page_hold(mem)
+	vm_page_t mem;
+{
+	mem->hold_count++;
+}
+
+static inline void
+vm_page_unhold(mem)
+	vm_page_t mem;
+{
+	if( --mem->hold_count < 0)
+		panic("vm_page_unhold: hold count < 0!!!");
+}
 
 #endif /* KERNEL */
 #endif /* _VM_PAGE_ */

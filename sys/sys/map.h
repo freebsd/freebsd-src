@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)map.h	7.5 (Berkeley) 5/7/91
- *	$Id: map.h,v 1.2.2.1 1994/05/04 07:57:29 rgrimes Exp $
+ *	$Id: map.h,v 1.3 1994/05/04 08:30:54 rgrimes Exp $
  */
 
 #ifndef _SYS_MAP_H_

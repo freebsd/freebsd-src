@@ -9,6 +9,7 @@ MLINKS= gzip.1 gunzip.1  gzip.1 zcat.1  gzip.1 gzcat.1
 LINKS+= ${BINDIR}/gzip ${BINDIR}/gunzip
 LINKS+= ${BINDIR}/gzip ${BINDIR}/gzcat
 LINKS+= ${BINDIR}/gzip ${BINDIR}/zcat
+NOSHARED=yes
 
 afterinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -32,7 +32,7 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.4 1993/12/19 00:50:02 wollman Exp $
+ *	$Id: in_cksum.c,v 1.5 1994/03/07 11:47:30 davidg Exp $
  */
 
 #include "param.h"
@@ -56,9 +56,10 @@
  * Thanks to gcc we don't have to guess
  * which registers contain sum & w.
  */
-#define CLC     asm("clc")
-#define ADD(n)  asm("adcl " #n "(%2), %0": "=r"(sum): "0"(sum), "r"(w))
-#define MOP     asm("adcl $0, %0":         "=r"(sum): "0"(sum))
+#define ADD(n)	asm("addl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
+#define ADDC(n)	asm("adcl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
+#define LOAD(n)	asm volatile("movb " #n "(%1), %0" : "=r" (junk) : "r" (w))
+#define MOP	asm("adcl         $0, %0" : "=r" (sum) : "0" (sum))
 
 int
 in_cksum(m, len)
@@ -114,28 +115,90 @@ in_cksum(m, len)
 			}
 		}
 		/*
+		 * Advance to a 486 cache line boundary.
+		 */
+		if (4 & (int) w && mlen >= 4) {
+			ADD(0);
+			MOP;
+			w += 2;
+			mlen -= 4;
+		}
+		if (8 & (int) w && mlen >= 8) {
+			ADD(0);
+			ADDC(4);
+			MOP;
+			w += 4;
+			mlen -= 8;
+		}
+		/*
 		 * Do as much of the checksum as possible 32 bits at at time.
 		 * In fact, this loop is unrolled to make overhead from
 		 * branches &c small.
 		 */
+		mlen -= 1;
 		while ((mlen -= 32) >= 0) {
+			u_char junk;
 			/*
-			 * Clear the carry flag, add with carry 16 words
-			 * and fold-in last carry by adding a 0 with carry.
+			 * Add with carry 16 words and fold in the last
+			 * carry by adding a 0 with carry.
+			 *
+			 * The early ADD(16) and the LOAD(32) are to load
+			 * the next 2 cache lines in advance on 486's.  The
+			 * 486 has a penalty of 2 clock cycles for loading
+			 * a cache line, plus whatever time the external
+			 * memory takes to load the first word(s) addressed.
+			 * These penalties are unavoidable.  Subsequent
+			 * accesses to a cache line being loaded (and to
+			 * other external memory?) are delayed until the 
+			 * whole load finishes.  These penalties are mostly
+			 * avoided by not accessing external memory for
+			 * 8 cycles after the ADD(16) and 12 cycles after
+			 * the LOAD(32).  The loop terminates when mlen
+			 * is initially 33 (not 32) to guaranteed that
+			 * the LOAD(32) is within bounds.
 			 */
-			CLC;
-			ADD(0);  ADD(4);  ADD(8);  ADD(12);
-			ADD(16); ADD(20); ADD(24); ADD(28);
-			MOP; w += 16;
+			ADD(16);
+			ADDC(0);
+			ADDC(4);
+			ADDC(8);
+			ADDC(12);
+			LOAD(32);
+			ADDC(20);
+			ADDC(24);
+			ADDC(28);
+			MOP;
+			w += 16;
 		}
-		mlen += 32;
-		while ((mlen -= 8) >= 0) {
-			CLC;
-			ADD(0); ADD(4);
+		mlen += 32 + 1;
+		if (mlen >= 32) {
+			ADD(16);
+			ADDC(0);
+			ADDC(4);
+			ADDC(8);
+			ADDC(12);
+			ADDC(20);
+			ADDC(24);
+			ADDC(28);
+			MOP;
+			w += 16;
+			mlen -= 32;
+		}
+		if (mlen >= 16) {
+			ADD(0);
+			ADDC(4);
+			ADDC(8);
+			ADDC(12);
+			MOP;
+			w += 8;
+			mlen -= 16;
+		}
+		if (mlen >= 8) {
+			ADD(0);
+			ADDC(4);
 			MOP;
 			w += 4;
+			mlen -= 8;
 		}
-		mlen += 8;
 		if (mlen == 0 && byte_swapped == 0)
 			continue;       /* worth 1% maybe ?? */
 		REDUCE;
@@ -172,4 +235,3 @@ in_cksum(m, len)
 	REDUCE;
 	return (~sum & 0xffff);
 }
-

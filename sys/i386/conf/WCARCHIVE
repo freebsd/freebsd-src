@@ -1,0 +1,73 @@
+#
+# GENERICAH -- Generic machine with WD/AHx family disks
+#
+#	$Id: GENERICAH,v 1.36 1994/06/17 06:56:59 sean Exp $
+#
+
+machine		"i386"
+cpu		"I386_CPU"
+cpu		"I486_CPU"
+cpu		"I586_CPU"
+ident		WCARCHIVE
+timezone	8 dst
+maxusers	40
+maxfdescs	1024			#Max file descriptors per process
+options		INET			#InterNETworking
+options		ISOFS			#ISO File System
+options		NFS			#Network File System
+options		PCFS			#MSDOS File System
+options		"COMPAT_43"		#Compatible with BSD 4.3
+options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
+options		XSERVER			#Xserver
+options		UCONSOLE		#X Console support
+options		"FAT_CURSOR"		#block cursor in syscons or pccons
+options		GATEWAY			#Host is a Gateway (forwards packets)
+options		"SCSI_DELAY=10"		#Be pessimistic about Joe SCSI device
+options		"NCONS=4"		#4 virtual consoles
+options		"NMBCLUSTERS=1024"	#Needed space for many ftp connections
+
+config		"386bsd"	root on sd0 swap on sd0 and sd1 and sd2 dumps on sd0
+
+controller	isa0
+
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+
+controller	ahb0	at isa? bio irq 11 vector ahbintr
+controller	ahb1	at isa? bio irq 12 vector ahbintr
+
+#controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
+#controller	aha1	at isa? port 0x230 bio irq 12 drq 6 vector ahaintr
+
+controller	scbus0
+controller	scbus1
+
+device		sd0
+device		sd1
+device		sd2
+device		sd3
+device		sd4
+device		sd5
+device		sd6
+device		sd7
+
+device		cd0	#Only need one of these, the code dynamically grows
+
+device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+
+device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
+
+device		lpt0	at isa? port? tty irq 7 vector lptintr
+
+device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 flags 0x4 vector edintr
+
+pseudo-device	loop
+pseudo-device	ether
+pseudo-device	log
+pseudo-device	pty	32
+pseudo-device	speaker
+
+pseudo-device	swappager
+pseudo-device	vnodepager
+pseudo-device	devpager

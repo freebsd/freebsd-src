@@ -1,0 +1,62 @@
+alloca-like allocation with malloc -- mark()/release() paradigm.  specify a
+point where one starts a stack (stk_create), and stk_alloc from that.
+stk_free releases the specified stack.  This speeds up frees, doesn't speed
+up mallocs too much?  Time it in trace situations.
+
+Tests all in subdirectory.
+
+sbrk stuff for Mach.
+
+Scan all my email on malloc?
+
+Make the document a manual page.  Terser, less cutesy.
+
+mal_size() returns size of a malloc'ed block in bytes.
+
+before starting a search in malloc(), if rover points to wilderness, and
+wilderness->next is not null, rover = wilderness->next.  need to keep
+wilderness uptodate.  should help rayan.
+
+check alignment in IS_VALID_PTR.
+
+Adaptive sbrk size. Keep increasing it by DEF_SBRKUNITS, then if sbrk fails,
+half the sbrkunits till we're smaller than the request (in which case it's
+all over). Should reduce the number of calls to sbrk without increasing
+wastage too much.
+
+Generalize grabhunk() to work properly if new arenas are lower than the old
+ones - i.e. don't rely on sbrk() semantics at all.  I already did some of
+this work in the port to the Firefly. [DONE -- Dec 15, 1993]
+
+Check that totalavail works right for realloc. Should we scrap totalavail
+and save a pointer to the max block, so that can both tell if we need to
+sbrk without a search, as well as realize if the max block has shrunk.
+Problem: how do we know if the max block shrank below the size of some other
+block? Heuristic? Average block size?  Some adapting fraction of totalavail?
+We sbrk if request is greater than (1+fraction)*totalavail/nfree is what
+Korn and Vo suggest.  Assuming fraction is always 1/K, we get
+(K+1)*totalavail/K/nfree.  We can double K everytime we fail a search. To
+provide some negative feedback, we can change the 1 to M, and increment M
+everytime we succeed in a search. Doesn't sound good. Need a better
+heuristic.  Grump. Avoid this stuff for now.
+
+Separate all system dependent stuff into a sysdep header where these things
+can fight it out.
+
+create stdlib.h and move std. decls there.  keep malloc.h as a value added
+thing and declare new stuff there.  decide on malloc(0).
+(malloc 0 should return 0 sized block by default, I think)
+
+setopt Non-ansi should cause malloc(0), realloc(0, *) or realloc(*, 0)
+to fail.
+
+some way to report when the last free happened when you try to use a freed
+pointer.  maintain a splay tree where you add ptrs when you free'em and
+delete when you malloc them?
+
+finish my trace driven simulation stuff in ../maltrace.
+
+way to walk the heap.  if it is a macro, then the other two could use it too.
+should probably switch to arena before all these changes.
+
+interns.h from externs.h. Then we don't need aexterns.h.  

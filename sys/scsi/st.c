@@ -21,13 +21,13 @@
  * 16 Feb 93    Julian Elischer         ADDED for SCSI system
  * 1.15 is the last version to support MACH and OSF/1
  */
-/* $Revision: 1.15 $ */
+/* $Revision: 1.17 $ */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *      $Id: st.c,v 1.15 1994/01/29 10:30:41 rgrimes Exp $
+ *      $Id: st.c,v 1.17 1994/06/22 05:53:02 jkh Exp $
  */
 
 /*
@@ -307,6 +307,7 @@ stattach(sc_link)
 	 * the drive. We cannot use interrupts yet, so the
 	 * request must specify this.
 	 */
+	st_rd_blk_lim(unit, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT);
 	if (st_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT)) {
 		printf("st%d: drive offline\n", unit);
 	} else {
@@ -315,7 +316,7 @@ stattach(sc_link)
 			if (st->media_blksiz) {
 				printf("%d-byte", st->media_blksiz);
 			} else {
-				printf("variable");
+				printf("variable(%d->%d)",st->blkmin,st->blkmax);
 			}
 			printf(" blocks, write-%s\n",
 			    (st->flags & ST_READONLY) ? "protected" : "enabled");
@@ -323,6 +324,13 @@ stattach(sc_link)
 			printf(" drive empty\n");
 		}
 	}
+	/*
+	 * Forget if we've loaded the media,
+	 * because sometimes things are unstable at boot time.
+	 * We'll get it all again at the first open.
+	 */
+	sc_link->flags &= ~SDEV_MEDIA_LOADED;
+
 	/*
 	 * Set up the buf queue for this device
 	 */
@@ -910,6 +918,14 @@ ststrategy(bp)
 	}
 	stminphys(bp);
 	opri = splbio();
+
+	/*      
+	 * Use a bounce buffer if necessary
+	 */      
+#ifndef NOBOUNCE
+	if (st->sc_link->flags & SDEV_BOUNCE)
+		vm_bounce_alloc(bp);
+#endif
 
 	/*
 	 * Place it in the queue of activities for this tape

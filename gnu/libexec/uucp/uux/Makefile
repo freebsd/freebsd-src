@@ -1,9 +1,9 @@
 # Makefile for uux
-# $Id: Makefile,v 1.1 1993/08/05 18:28:14 conklin Exp $
+# $Id: Makefile,v 1.3 1994/05/31 07:37:25 ache Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)
-BINMODE=	4555
+BINMODE=        4555
 
 PROG=		uux
 SRCS=		uux.c util.c log.c copy.c

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
- *	$Id: ufs_disksubr.c,v 1.5 1993/12/19 00:55:43 wollman Exp $
+ *	$Id: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
  */
 
 #include "param.h"
@@ -493,6 +493,7 @@ bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
 	int maxsz = p->p_size,
 		sz = (bp->b_bcount + DEV_BSIZE - 1) >> DEV_BSHIFT;
 
+#if !defined(DISKLABEL_UNPROTECTED)
 	/* overwriting disk label ? */
 	/* XXX should also protect bootstrap in first 8K */
         if (bp->b_blkno + p->p_offset <= LABELSECTOR + labelsect &&
@@ -503,6 +504,7 @@ bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
                 bp->b_error = EROFS;
                 goto bad;
         }
+#endif /* !defined(DISKLABEL_UNPROTECTED) */
 
 #if	defined(DOSBBSECTOR) && defined(notyet)
 	/* overwriting master boot record? */
@@ -530,7 +532,8 @@ bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
         }
 
 	/* calculate cylinder for disksort to order transfers with */
-        bp->b_cylin = (bp->b_blkno + p->p_offset) / lp->d_secpercyl;
+	bp->b_pblkno = bp->b_blkno + p->p_offset;
+        bp->b_cylin = bp->b_pblkno / lp->d_secpercyl;
 	return(1);
 
 bad:

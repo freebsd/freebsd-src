@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)init_main.c	7.41 (Berkeley) 5/15/91
- *	$Id: init_main.c,v 1.14 1994/01/14 16:24:45 davidg Exp $
+ *	$Id: init_main.c,v 1.18 1994/06/16 02:55:28 davidg Exp $
  */
 
 #include "param.h"
@@ -77,7 +77,7 @@ struct	filedesc0 filedesc0;
 struct	plimit limit0;
 struct	vmspace vmspace0;
 struct	proc *curproc = &proc0;
-struct	proc *initproc, *pageproc;
+struct	proc *initproc, *pageproc, *pagescanproc, *updateproc;
 
 int	cmask = CMASK;
 extern	struct user *proc0paddr;
@@ -85,8 +85,6 @@ extern	int (*mountroot)();
 
 struct	vnode *rootvp, *swapdev_vp;
 int	boothowto;
-
-struct	proc *updateproc;
 
 #if __GNUC__ >= 2
 void __main() {}
@@ -96,6 +94,10 @@ void __main() {}
  * This table is filled in by the linker with functions that need to be
  * called to initialize various pseudo-devices and whatnot.
  */
+
+static void dummyinit() {}
+TEXT_SET(pseudo_set, dummyinit);
+
 typedef void (*pseudo_func_t)(void);
 extern const struct linker_set pseudo_set;
 static const pseudo_func_t *pseudos = 
@@ -351,7 +353,7 @@ main()
 	 * Start up pageout daemon (process 2).
 	 */
 	if (fork(p, (void *) NULL, rval))
-		panic("fork pager");
+		panic("failed fork pageout daemon");
 	if (rval[1]) {
 		/*
 		 * Now in process 2.
@@ -364,11 +366,28 @@ main()
 		/*NOTREACHED*/
 	}
 
+#if 0
 	/*
-	 * Start update daemon (process 3).
+	 * Start page scanner daemon (process 3).
 	 */
 	if (fork(p, (void *) NULL, rval))
-		panic("fork update");
+		panic("failed fork page scanner daemon");
+	if (rval[1]) {
+		p = curproc;
+		pagescanproc = p;
+		p->p_flag |= SLOAD|SSYS;
+		bcopy("pagescan", p->p_comm, sizeof("pagescan"));
+		vm_pagescan();
+		/*NOTREACHED*/
+	}
+#endif
+
+	/*
+	 * Start update daemon (process 4).
+	 */
+#ifndef LAPTOP
+	if (fork(p, (void *) NULL, rval))
+		panic("failed fork update daemon");
 	if (rval[1]) {
 		p = curproc;
 		updateproc = p;
@@ -377,6 +396,7 @@ main()
 		vfs_update();
 		/*NOTREACHED*/
 	}
+#endif
 
 	/*
 	 * enter scheduling loop

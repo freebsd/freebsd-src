@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fdc.h,v 1.2 1994/02/14 22:24:25 nate Exp $
+ *	$Id: fdc.h,v 1.3 1994/05/22 12:35:38 joerg Exp $
  *
  */
 
@@ -49,12 +49,12 @@ struct fdc_data
 #define FDC_HASFTAPE	0x02
 #define FDC_TAPE_BUSY	0x04
 	struct	fd_data *fd;
-	int fdu;		/* the active drive	*/
+	int	fdu;		/* the active drive	*/
+	int	state;
+	int	retry;
+	int	fdout;		/* mirror of the w/o digital output reg */
+	int	status[7];	/* copy of the registers */
 	struct buf head;	/* Head of buf chain      */
-	struct buf rhead;	/* Raw head of buf chain  */
-	int state;
-	int retry;
-	int status[7];		/* copy of the registers */
 };
 
 /***********************************************************************\

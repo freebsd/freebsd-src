@@ -3,6 +3,7 @@
 PROG=		grodvi
 SRCS=		dvi.cc
 CFLAGS+=	-I$(.CURDIR)/../include
+CXXFLAGS+=	-I$(.CURDIR)/../include
 LDADD+=		$(LIBDRIVER) $(LIBGROFF) -lm
 DPADD+=		$(LIBDRIVER) $(LIBGROFF) $(LIBMATH)
 

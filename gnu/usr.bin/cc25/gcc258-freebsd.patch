@@ -1,0 +1,1188 @@
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/config/i386/freebsd.h gcc-2.5.8/config/i386/freebsd.h
+*** gcc-2.5.8.gnu/config/i386/freebsd.h	Thu Jan  1 01:00:00 1970
+--- gcc-2.5.8/config/i386/freebsd.h	Sun Feb 27 00:40:55 1994
+***************
+*** 0 ****
+--- 1,341 ----
++ /* Configuration for an i386 running FreeBSD as the target machine.
++  *
++  * 7th feb 1994, Poul-Henning Kamp <phk@login.dkuug.dk>
++  *    Made to fit FreeBSD 1.1 and GCC 2.5.8
++  */
++ 
++ /* This goes away when the math-emulator is fixed */
++ #define TARGET_CPU_DEFAULT 0400		/* TARGET_NO_FANCY_MATH_387 */
++ 
++ /* Just in case. (Cross-compilations &c) */
++ #ifndef __FreeBSD__
++ #define __FreeBSD__ 1
++ #endif
++ 
++ /* This is tested by i386gas.h.  */
++ #define YES_UNDERSCORES
++ 
++ #include "i386/gstabs.h"
++ 
++ /* Get perform_* macros to build libgcc.a.  */
++ #include "i386/perform.h"
++ 
++ #undef CPP_PREDEFINES
++ #define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__ -D__386BSD__ -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
++ 
++ #define INCLUDE_DEFAULTS { \
++ 	{ "/usr/include", 0 }, \
++ 	{ "/usr/include/g++", 1 }, \
++ 	{ 0, 0} \
++ 	}
++ 
++ /* Like the default, except no -lg.  */
++ #define LIB_SPEC "%{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p}"
++ 
++ #undef SIZE_TYPE
++ #define SIZE_TYPE "unsigned int"
++ 
++ #undef PTRDIFF_TYPE
++ #define PTRDIFF_TYPE "int"
++ 
++ #undef WCHAR_TYPE
++ #define WCHAR_TYPE "short unsigned int"
++ 
++ #define WCHAR_UNSIGNED 1
++ 
++ #undef WCHAR_TYPE_SIZE
++ #define WCHAR_TYPE_SIZE 16
++ 
++ #define HAVE_ATEXIT
++ 
++ /* Redefine this to use %eax instead of %edx.  */
++ #undef FUNCTION_PROFILER
++ #define FUNCTION_PROFILER(FILE, LABELNO)  \
++ {									\
++   if (flag_pic)								\
++     {									\
++       fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%eax\n",		\
++ 	       LPREFIX, (LABELNO));					\
++       fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
++     }									\
++   else									\
++     {									\
++       fprintf (FILE, "\tmovl $%sP%d,%%eax\n", LPREFIX, (LABELNO));	\
++       fprintf (FILE, "\tcall mcount\n");				\
++     }									\
++ }
++ 
++ /* There are conflicting reports about whether this system uses
++    a different assembler syntax.  wilson@cygnus.com says # is right.  */
++ #undef COMMENT_BEGIN
++ #define COMMENT_BEGIN "#"
++ 
++ #undef ASM_APP_ON
++ #define ASM_APP_ON "#APP\n"
++ 
++ #undef ASM_APP_OFF
++ #define ASM_APP_OFF "#NO_APP\n"
++ 
++ /* The following macros are stolen from i386v4.h */
++ /* These have to be defined to get PIC code correct */
++ 
++ /* This is how to output an element of a case-vector that is relative.
++    This is only used for PIC code.  See comments by the `casesi' insn in
++    i386.md for an explanation of the expression this outputs. */
++ 
++ #undef ASM_OUTPUT_ADDR_DIFF_ELT
++ #define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, VALUE, REL) \
++   fprintf (FILE, "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, VALUE)
++ 
++ /* Indicate that jump tables go in the text section.  This is
++    necessary when compiling PIC code.  */
++ 
++ #define JUMP_TABLES_IN_TEXT_SECTION
++ 
++ /* Don't default to pcc-struct-return, because gcc is the only compiler, and
++    we want to retain compatibility with older gcc versions.  */
++ #define DEFAULT_PCC_STRUCT_RETURN 0
++ 
++ /*
++  * Some imports from svr4.h in support of shared libraries.
++  * Currently, we need the DECLARE_OBJECT_SIZE stuff.
++  */
++ 
++ /* Define the strings used for the special svr4 .type and .size directives.
++    These strings generally do not vary from one system running svr4 to
++    another, but if a given system (e.g. m88k running svr) needs to use
++    different pseudo-op names for these, they may be overridden in the
++    file which includes this one.  */
++ 
++ #define TYPE_ASM_OP	".type"
++ #define SIZE_ASM_OP	".size"
++ #define WEAK_ASM_OP	".weak"
++ 
++ /* The following macro defines the format used to output the second
++    operand of the .type assembler directive.  Different svr4 assemblers
++    expect various different forms for this operand.  The one given here
++    is just a default.  You may need to override it in your machine-
++    specific tm.h file (depending upon the particulars of your assembler).  */
++ 
++ #define TYPE_OPERAND_FMT	"@%s"
++ 
++ /* Write the extra assembler code needed to declare a function's result.
++    Most svr4 assemblers don't require any special declaration of the
++    result value, but there are exceptions.  */
++ 
++ #ifndef ASM_DECLARE_RESULT
++ #define ASM_DECLARE_RESULT(FILE, RESULT)
++ #endif
++ 
++ /* These macros generate the special .type and .size directives which
++    are used to set the corresponding fields of the linker symbol table
++    entries in an ELF object file under SVR4.  These macros also output
++    the starting labels for the relevant functions/objects.  */
++ 
++ /* Write the extra assembler code needed to declare a function properly.
++    Some svr4 assemblers need to also have something extra said about the
++    function's return value.  We allow for that here.  */
++ 
++ #define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)			\
++   do {									\
++     fprintf (FILE, "\t%s\t ", TYPE_ASM_OP);				\
++     assemble_name (FILE, NAME);						\
++     putc (',', FILE);							\
++     fprintf (FILE, TYPE_OPERAND_FMT, "function");			\
++     putc ('\n', FILE);							\
++     ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));			\
++     ASM_OUTPUT_LABEL(FILE, NAME);					\
++   } while (0)
++ 
++ /* Write the extra assembler code needed to declare an object properly.  */
++ 
++ #define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)			\
++   do {									\
++     fprintf (FILE, "\t%s\t ", TYPE_ASM_OP);				\
++     assemble_name (FILE, NAME);						\
++     putc (',', FILE);							\
++     fprintf (FILE, TYPE_OPERAND_FMT, "object");				\
++     putc ('\n', FILE);							\
++     size_directive_output = 0;						\
++     if (!flag_inhibit_size_directive && DECL_SIZE (DECL))		\
++       {									\
++         size_directive_output = 1;					\
++ 	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
++ 	assemble_name (FILE, NAME);					\
++ 	fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));	\
++       }									\
++     ASM_OUTPUT_LABEL(FILE, NAME);					\
++   } while (0)
++ 
++ /* Output the size directive for a decl in rest_of_decl_compilation
++    in the case where we did not do so before the initializer.
++    Once we find the error_mark_node, we know that the value of
++    size_directive_output was set
++    by ASM_DECLARE_OBJECT_NAME when it was run for the same decl.  */
++ 
++ #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)        \
++ do {                                                                    \
++      char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);                  \
++      if (!flag_inhibit_size_directive && DECL_SIZE (DECL)	        \
++          && ! AT_END && TOP_LEVEL                                       \
++          && DECL_INITIAL (DECL) == error_mark_node                      \
++          && !size_directive_output)                                     \
++        {                                                                \
++          fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);                        \
++ 	 assemble_name (FILE, name);                                    \
++ 	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));\
++ 	}								\
++    } while (0)
++ 
++ 
++ /* This is how to declare the size of a function.  */
++ 
++ #define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)			\
++   do {									\
++     if (!flag_inhibit_size_directive)					\
++       {									\
++         char label[256];						\
++ 	static int labelno;						\
++ 	labelno++;							\
++ 	ASM_GENERATE_INTERNAL_LABEL (label, "Lfe", labelno);		\
++ 	ASM_OUTPUT_INTERNAL_LABEL (FILE, "Lfe", labelno);		\
++ 	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
++ 	assemble_name (FILE, (FNAME));					\
++         fprintf (FILE, ",");						\
++ 	assemble_name (FILE, label);					\
++         fprintf (FILE, "-");						\
++ 	assemble_name (FILE, (FNAME));					\
++ 	putc ('\n', FILE);						\
++       }									\
++   } while (0)
++ 
++ #define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
++ #define LINK_SPEC \
++   "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*}"
++ 
++ #define CUSTOM_DEFAULT_COMPILERS \
++ /***** ljo's Fortran rule *****/ \
++   {".f", "@f2c"}, \
++   {"@f2c", \
++    "f2c %{checksubscripts:-C} %{I2} %{onetrip} %{honorcase:-U} %{u} %{w}\
++         %{ANSIC:-A} %{a} %{C++}\
++         %{c} %{E} %{ec} %{ext} %{f} %{72} %{g} %{h} %{i2} %{kr}\
++         %{P} %{p} %{r} %{r8} %{s} %{w8} %{z} %{N*}\
++         %i %{!pipe: -o %g.c} %{pipe:-o -}|\n", \
++    "gcpp -lang-c %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %I\
++ 	%{C:%{!E:%eGNU C does not support -C without using -E}}\
++ 	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d}\
++         -undef -D__GNUC__=2 %{ansi:-trigraphs -$ -D__STRICT_ANSI__}\
++ 	%{!undef:%{!ansi:%p} %P} %{trigraphs} \
++         %c %{O*:%{!O0:-D__OPTIMIZE__}} %{traditional} %{ftraditional:-traditional}\
++         %{traditional-cpp:-traditional}\
++ 	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*}\
++         %{pipe:-} %{!pipe:%g.c} %{!M:%{!MM:%{!E:%{!pipe:%g.i}}}}%{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}} |\n", \
++    "%{!M:%{!MM:%{!E:gcc1 %{!pipe:%g.i} %1 \
++ 		   %{!Q:-quiet} -dumpbase %b.c %{d*} %{m*} %{a}\
++ 		   %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi} \
++ 		   %{traditional} %{v:-version} %{pg:-p} %{p} %{f*}\
++ 		   %{aux-info*}\
++ 		   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
++ 		   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
++               %{!S:as %{R} %{j} %{J} %{h} %{d2} %a %Y\
++ 		      %{c:%W{o*}%{!o*:-o %w%b.o}}%{!c:-o %d%w%u.o}\
++                       %{!pipe:%g.s} %A\n }}}}"}, \
++ /***** End of ljo's Fortran rule *****/ 
++ 
++ /* This section stolen from i386/osfrose.h */
++ 
++ /* A C statement or compound statement to output to FILE some
++    assembler code to initialize basic-block profiling for the current
++    object module.  This code should call the subroutine
++    `__bb_init_func' once per object module, passing it as its sole
++    argument the address of a block allocated in the object module.
++ 
++    The name of the block is a local symbol made with this statement:
++ 
++ 	ASM_GENERATE_INTERNAL_LABEL (BUFFER, "LPBX", 0);
++ 
++    Of course, since you are writing the definition of
++    `ASM_GENERATE_INTERNAL_LABEL' as well as that of this macro, you
++    can take a short cut in the definition of this macro and use the
++    name that you know will result.
++ 
++    The first word of this block is a flag which will be nonzero if the
++    object module has already been initialized.  So test this word
++    first, and do not call `__bb_init_func' if the flag is nonzero.  */
++ 
++ #undef	FUNCTION_BLOCK_PROFILER
++ #define FUNCTION_BLOCK_PROFILER(STREAM, LABELNO)			\
++ do									\
++   {									\
++     if (!flag_pic)							\
++       {									\
++ 	fprintf (STREAM, "\tcmpl $0,%sPBX0\n", LPREFIX);		\
++ 	fprintf (STREAM, "\tjne 0f\n");					\
++ 	fprintf (STREAM, "\tpushl $%sPBX0\n", LPREFIX);			\
++ 	fprintf (STREAM, "\tcall ___bb_init_func\n");			\
++ 	fprintf (STREAM, "0:\n");					\
++       }									\
++     else								\
++       {									\
++ 	fprintf (STREAM, "\tpushl %eax\n");				\
++ 	fprintf (STREAM, "\tmovl %sPBX0@GOT(%ebx),%eax\n");		\
++ 	fprintf (STREAM, "\tcmpl $0,(%eax)\n");				\
++ 	fprintf (STREAM, "\tjne 0f\n");					\
++ 	fprintf (STREAM, "\tpushl %eax\n");				\
++ 	fprintf (STREAM, "\tcall ___bb_init_func@PLT\n");		\
++ 	fprintf (STREAM, "0:\n");					\
++ 	fprintf (STREAM, "\tpopl %eax\n");				\
++       }									\
++   }									\
++ while (0)
++ 
++ /* A C statement or compound statement to increment the count
++    associated with the basic block number BLOCKNO.  Basic blocks are
++    numbered separately from zero within each compilation.  The count
++    associated with block number BLOCKNO is at index BLOCKNO in a
++    vector of words; the name of this array is a local symbol made
++    with this statement:
++ 
++ 	ASM_GENERATE_INTERNAL_LABEL (BUFFER, "LPBX", 2);
++ 
++    Of course, since you are writing the definition of
++    `ASM_GENERATE_INTERNAL_LABEL' as well as that of this macro, you
++    can take a short cut in the definition of this macro and use the
++    name that you know will result.  */
++ 
++ #undef	BLOCK_PROFILER
++ #define BLOCK_PROFILER(STREAM, BLOCKNO)					\
++ do									\
++   {									\
++     if (!flag_pic)							\
++       fprintf (STREAM, "\tincl %sPBX2+%d\n", LPREFIX, (BLOCKNO)*4);	\
++     else								\
++       {									\
++ 	fprintf (STREAM, "\tpushl %eax\n");				\
++ 	fprintf (STREAM, "\tmovl %sPBX2@GOT(%ebx),%eax\n", LPREFIX);	\
++ 	fprintf (STREAM, "\tincl %d(%eax)\n", (BLOCKNO)*4);		\
++ 	fprintf (STREAM, "\tpopl %eax\n");				\
++       }									\
++   }									\
++ while (0)
++ 
++ /* This is defined when gcc is compiled in the BSD-directory-tree, and must
++  * make up for the gap to all the stuff done in the GNU-makefiles.
++  * XXX Do these right
++  */
++ 
++ #ifdef FREEBSD_NATIVE
++ 
++ #undef MD_EXEC_PREFIX
++ #define MD_EXEC_PREFIX "/usr/libexec/"
++ 
++ #undef STANDARD_STARTFILE_PREFIX
++ #define STANDARD_STARTFILE_PREFIX "/usr/lib"
++ 
++ #define DEFAULT_TARGET_MACHINE "i386-unknown-freebsd_1.0"
++ #define GPLUSPLUS_INCLUDE_DIR "/usr/local/lib/gcc-lib/i386-unknown-freebsd_1.0/2.5.8/include"
++ #define TOOL_INCLUDE_DIR "/usr/local/i386-unknown-freebsd_1.0/include"
++ #define GCC_INCLUDE_DIR "/usr/local/lib/gcc-lib/i386-unknown-freebsd_1.0/2.5.8/include"
++ 
++ #endif /* FREEBSD_NATIVE */
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/config/i386/i386.h gcc-2.5.8/config/i386/i386.h
+*** gcc-2.5.8.gnu/config/i386/i386.h	Wed Oct 13 07:02:27 1993
+--- gcc-2.5.8/config/i386/i386.h	Sun Feb 27 00:40:56 1994
+***************
+*** 90,95 ****
+--- 90,99 ----
+     the 387 to be used, which is compatible with most calling conventions. */
+  #define TARGET_FLOAT_RETURNS_IN_80387 (target_flags & 0200)
+  
++ /* Disable generation of FP sin, cos and sqrt operations for 387.
++    This is because FreeBSD lacks these in the math-emulator-code */
++ #define TARGET_NO_FANCY_MATH_387 (target_flags & 0400)
++ 
+  /* Macro to define tables used to set the flags.
+     This is a list in braces of pairs in braces,
+     each pair being { "NAME", VALUE }
+***************
+*** 114,119 ****
+--- 118,125 ----
+      { "no-ieee-fp", -0100},			\
+      { "fp-ret-in-387", 0200},			\
+      { "no-fp-ret-in-387", -0200},		\
++     { "no-fancy-math-387", 0400},		\
++     { "fancy-math-387", -0400},			\
+      SUBTARGET_SWITCHES                          \
+      { "", TARGET_DEFAULT | TARGET_CPU_DEFAULT}}
+  
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/config/i386/i386.md gcc-2.5.8/config/i386/i386.md
+*** gcc-2.5.8.gnu/config/i386/i386.md	Tue Oct  5 06:43:30 1993
+--- gcc-2.5.8/config/i386/i386.md	Sun Feb 27 00:40:59 1994
+***************
+*** 2935,3012 ****
+  (define_insn "sqrtsf2"
+    [(set (match_operand:SF 0 "register_operand" "=f")
+  	(sqrt:SF (match_operand:SF 1 "general_operand" "0")))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsqrt")
+  
+  (define_insn "sqrtdf2"
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(sqrt:DF (match_operand:DF 1 "general_operand" "0")))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsqrt")
+  
+  (define_insn ""
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(sqrt:DF (float_extend:DF
+  		  (match_operand:SF 1 "general_operand" "0"))))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsqrt")
+  
+  (define_insn "sqrtxf2"
+    [(set (match_operand:XF 0 "register_operand" "=f")
+  	(sqrt:XF (match_operand:XF 1 "general_operand" "0")))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsqrt")
+  
+  (define_insn ""
+    [(set (match_operand:XF 0 "register_operand" "=f")
+  	(sqrt:XF (float_extend:XF
+  		  (match_operand:DF 1 "general_operand" "0"))))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsqrt")
+  
+  (define_insn ""
+    [(set (match_operand:XF 0 "register_operand" "=f")
+  	(sqrt:XF (float_extend:XF
+  		  (match_operand:SF 1 "general_operand" "0"))))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsqrt")
+  
+  (define_insn "sindf2"
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(unspec:DF [(match_operand:DF 1 "register_operand" "0")] 1))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsin")
+  
+  (define_insn "sinsf2"
+    [(set (match_operand:SF 0 "register_operand" "=f")
+  	(unspec:SF [(match_operand:SF 1 "register_operand" "0")] 1))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsin")
+  
+  (define_insn ""
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(unspec:DF [(float_extend:DF
+  		     (match_operand:SF 1 "register_operand" "0"))] 1))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fsin")
+  
+  (define_insn "cosdf2"
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(unspec:DF [(match_operand:DF 1 "register_operand" "0")] 2))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fcos")
+  
+  (define_insn "cossf2"
+    [(set (match_operand:SF 0 "register_operand" "=f")
+  	(unspec:SF [(match_operand:SF 1 "register_operand" "0")] 2))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fcos")
+  
+  (define_insn ""
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(unspec:DF [(float_extend:DF
+  		     (match_operand:SF 1 "register_operand" "0"))] 2))]
+!   "TARGET_80387 && (TARGET_IEEE_FP || flag_fast_math)"
+    "fcos")
+  
+  ;;- one complement instructions
+--- 2935,3024 ----
+  (define_insn "sqrtsf2"
+    [(set (match_operand:SF 0 "register_operand" "=f")
+  	(sqrt:SF (match_operand:SF 1 "general_operand" "0")))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 && 
+! 	(TARGET_IEEE_FP || flag_fast_math) "
+    "fsqrt")
+  
+  (define_insn "sqrtdf2"
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(sqrt:DF (match_operand:DF 1 "general_operand" "0")))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fsqrt")
+  
+  (define_insn ""
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(sqrt:DF (float_extend:DF
+  		  (match_operand:SF 1 "general_operand" "0"))))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fsqrt")
+  
+  (define_insn "sqrtxf2"
+    [(set (match_operand:XF 0 "register_operand" "=f")
+  	(sqrt:XF (match_operand:XF 1 "general_operand" "0")))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fsqrt")
+  
+  (define_insn ""
+    [(set (match_operand:XF 0 "register_operand" "=f")
+  	(sqrt:XF (float_extend:XF
+  		  (match_operand:DF 1 "general_operand" "0"))))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fsqrt")
+  
+  (define_insn ""
+    [(set (match_operand:XF 0 "register_operand" "=f")
+  	(sqrt:XF (float_extend:XF
+  		  (match_operand:SF 1 "general_operand" "0"))))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fsqrt")
+  
+  (define_insn "sindf2"
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(unspec:DF [(match_operand:DF 1 "register_operand" "0")] 1))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fsin")
+  
+  (define_insn "sinsf2"
+    [(set (match_operand:SF 0 "register_operand" "=f")
+  	(unspec:SF [(match_operand:SF 1 "register_operand" "0")] 1))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fsin")
+  
+  (define_insn ""
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(unspec:DF [(float_extend:DF
+  		     (match_operand:SF 1 "register_operand" "0"))] 1))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fsin")
+  
+  (define_insn "cosdf2"
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(unspec:DF [(match_operand:DF 1 "register_operand" "0")] 2))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fcos")
+  
+  (define_insn "cossf2"
+    [(set (match_operand:SF 0 "register_operand" "=f")
+  	(unspec:SF [(match_operand:SF 1 "register_operand" "0")] 2))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fcos")
+  
+  (define_insn ""
+    [(set (match_operand:DF 0 "register_operand" "=f")
+  	(unspec:DF [(float_extend:DF
+  		     (match_operand:SF 1 "register_operand" "0"))] 2))]
+!   "(!TARGET_NO_FANCY_MATH_387) && TARGET_80387 &&
+!         (TARGET_IEEE_FP || flag_fast_math) "
+    "fcos")
+  
+  ;;- one complement instructions
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/config.guess gcc-2.5.8/config.guess
+*** gcc-2.5.8.gnu/config.guess	Sun Dec 12 12:50:10 1993
+--- gcc-2.5.8/config.guess	Sun Feb 27 00:41:00 1994
+***************
+*** 171,176 ****
+--- 171,179 ----
+      hp3[0-9][05]:NetBSD:*:*)
+  	echo m68k-hp-netbsd${UNAME_RELEASE}
+  	exit 0 ;;
++     i[34]86:FreeBSD:*:*)
++ 	echo ${UNAME_MACHINE}-unknown-freebsd
++ 	exit 0 ;;
+      i[34]86:NetBSD:*:*)
+  	echo ${UNAME_MACHINE}-unknown-netbsd${UNAME_RELEASE}
+  	exit 0 ;;
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/config.sub gcc-2.5.8/config.sub
+*** gcc-2.5.8.gnu/config.sub	Thu Jan 13 11:43:23 1994
+--- gcc-2.5.8/config.sub	Sun Feb 27 00:41:00 1994
+***************
+*** 534,540 ****
+  	      | -amigados* | -msdos* | -newsos* | -unicos* | -aos* \
+  	      | -nindy* | -vxworks* | -ebmon* | -hms* | -mvs* | -clix* \
+  	      | -riscos* | -linux* | -uniplus* | -iris* | -rtu* | -xenix* \
+! 	      | -hiux* | -386bsd* | -netbsd* | -riscix* | -lynxos*)
+  		;;
+  	-sunos5*)
+  		os=`echo $os | sed -e 's|sunos5|solaris2|'`
+--- 534,540 ----
+  	      | -amigados* | -msdos* | -newsos* | -unicos* | -aos* \
+  	      | -nindy* | -vxworks* | -ebmon* | -hms* | -mvs* | -clix* \
+  	      | -riscos* | -linux* | -uniplus* | -iris* | -rtu* | -xenix* \
+! 	      | -hiux* | -386bsd* | -netbsd* | -riscix* | -lynxos* | -freebsd*)
+  		;;
+  	-sunos5*)
+  		os=`echo $os | sed -e 's|sunos5|solaris2|'`
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/configure gcc-2.5.8/configure
+*** gcc-2.5.8.gnu/configure	Fri Nov 19 22:44:16 1993
+--- gcc-2.5.8/configure	Sun Feb 27 00:41:03 1994
+***************
+*** 385,390 ****
+--- 385,394 ----
+  		tmake_file=i386/t-next
+  		xmake_file=i386/x-next
+  		;;
++ 	i[34]86-*-freebsd*)
++ 		cpu_type=i386
++ 		tm_file=i386/freebsd.h
++ 		;;
+  	i[34]86-*-bsd*)
+  		cpu_type=i386
+  		tm_file=i386/386bsd.h
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/expmed.c gcc-2.5.8/expmed.c
+*** gcc-2.5.8.gnu/expmed.c	Sun Nov 14 04:50:40 1993
+--- gcc-2.5.8/expmed.c	Sun Feb 27 22:17:01 1994
+***************
+*** 1,6 ****
+  /* Medium-level subroutines: convert bit-field store and extract
+     and shifts, multiplies and divides to rtl instructions.
+!    Copyright (C) 1987, 1988, 1989, 1992, 1993 Free Software Foundation, Inc.
+  
+  This file is part of GNU CC.
+  
+--- 1,6 ----
+  /* Medium-level subroutines: convert bit-field store and extract
+     and shifts, multiplies and divides to rtl instructions.
+!    Copyright (C) 1987, 88, 89, 92, 93, 1994 Free Software Foundation, Inc.
+  
+  This file is part of GNU CC.
+  
+***************
+*** 421,427 ****
+        /* If xop0 is a register, we need it in MAXMODE
+  	 to make it acceptable to the format of insv.  */
+        if (GET_CODE (xop0) == SUBREG)
+! 	PUT_MODE (xop0, maxmode);
+        if (GET_CODE (xop0) == REG && GET_MODE (xop0) != maxmode)
+  	xop0 = gen_rtx (SUBREG, maxmode, xop0, 0);
+  
+--- 421,429 ----
+        /* If xop0 is a register, we need it in MAXMODE
+  	 to make it acceptable to the format of insv.  */
+        if (GET_CODE (xop0) == SUBREG)
+! 	/* We can't just change the mode, because this might clobber op0,
+! 	   and we will need the original value of op0 if insv fails.  */
+! 	xop0 = gen_rtx (SUBREG, maxmode, SUBREG_REG (xop0), SUBREG_WORD (xop0));
+        if (GET_CODE (xop0) == REG && GET_MODE (xop0) != maxmode)
+  	xop0 = gen_rtx (SUBREG, maxmode, xop0, 0);
+  
+***************
+*** 556,561 ****
+--- 558,573 ----
+  
+        total_bits = GET_MODE_BITSIZE (mode);
+  
++       /* Make sure bitpos is valid for the chosen mode.  Adjust BITPOS to
++ 	 be be in the range 0 to total_bits-1, and put any excess bytes in
++ 	 OFFSET.  */
++       if (bitpos >= total_bits)
++ 	{
++ 	  offset += (bitpos / total_bits) * (total_bits / BITS_PER_UNIT);
++ 	  bitpos -= ((bitpos / total_bits) * (total_bits / BITS_PER_UNIT)
++ 		     * BITS_PER_UNIT);
++ 	}
++ 
+        /* Get ref to an aligned byte, halfword, or word containing the field.
+  	 Adjust BITPOS to be position within a word,
+  	 and OFFSET to be the offset of that word.
+***************
+*** 691,697 ****
+      {
+        rtx word = gen_lowpart_common (word_mode, value);
+  
+!       if (word)
+  	value = word;
+        else
+  	value = gen_lowpart_common (word_mode,
+--- 703,709 ----
+      {
+        rtx word = gen_lowpart_common (word_mode, value);
+  
+!       if (word && (value != word))
+  	value = word;
+        else
+  	value = gen_lowpart_common (word_mode,
+***************
+*** 721,731 ****
+  			 >> (bitsize - bitsdone - thissize))
+  			& (((HOST_WIDE_INT) 1 << thissize) - 1));
+        else
+! 	/* The args are chosen so that the last part
+! 	   includes the lsb.  */
+! 	part = extract_fixed_bit_field (word_mode, value, 0, thissize,
+! 					BITS_PER_WORD - bitsize + bitsdone,
+! 					NULL_RTX, 1, align);
+  #else
+        /* Fetch successively more significant portions.  */
+        if (GET_CODE (value) == CONST_INT)
+--- 733,751 ----
+  			 >> (bitsize - bitsdone - thissize))
+  			& (((HOST_WIDE_INT) 1 << thissize) - 1));
+        else
+! 	{
+! 	  /* The args are chosen so that the last part
+! 	     includes the lsb.  */
+! 	  int bit_offset = 0;
+! 	  /* If the value isn't in memory, then it must be right aligned
+! 	     if a register, so skip past the padding on the left.  If it
+! 	     is in memory, then there is no padding on the left.  */
+! 	  if (GET_CODE (value) != MEM)
+! 	    bit_offset = BITS_PER_WORD - bitsize;
+! 	  part = extract_fixed_bit_field (word_mode, value, 0, thissize,
+! 					  bit_offset + bitsdone,
+! 					  NULL_RTX, 1, align);
+! 	}
+  #else
+        /* Fetch successively more significant portions.  */
+        if (GET_CODE (value) == CONST_INT)
+***************
+*** 1592,1597 ****
+--- 1612,1625 ----
+  
+    op1 = expand_expr (amount, NULL_RTX, VOIDmode, 0);
+  
++ #if SHIFT_COUNT_TRUNCATED
++   if (SHIFT_COUNT_TRUNCATED
++       && GET_CODE (op1) == CONST_INT
++       && (unsigned HOST_WIDE_INT) INTVAL (op1) >= GET_MODE_BITSIZE (mode))
++     op1 = GEN_INT ((unsigned HOST_WIDE_INT) INTVAL (op1)
++ 		   % GET_MODE_BITSIZE (mode));
++ #endif
++ 
+    if (op1 == const0_rtx)
+      return shifted;
+  
+***************
+*** 1843,1852 ****
+       int cost_limit;
+  {
+    int m;
+!   struct algorithm *best_alg
+!     = (struct algorithm *)alloca (sizeof (struct algorithm));
+!   struct algorithm *alg_in
+!     = (struct algorithm *)alloca (sizeof (struct algorithm));
+    unsigned int cost;
+    unsigned HOST_WIDE_INT q;
+  
+--- 1871,1877 ----
+       int cost_limit;
+  {
+    int m;
+!   struct algorithm *alg_in, *best_alg;
+    unsigned int cost;
+    unsigned HOST_WIDE_INT q;
+  
+***************
+*** 1881,1886 ****
+--- 1906,1916 ----
+  	}
+      }
+  
++   /* We'll be needing a couple extra algorithm structures now.  */
++ 
++   alg_in = (struct algorithm *)alloca (sizeof (struct algorithm));
++   best_alg = (struct algorithm *)alloca (sizeof (struct algorithm));
++ 
+    /* If we have a group of zero bits at the low-order part of T, try
+       multiplying by the remaining bits and then doing a shift.  */
+  
+***************
+*** 2043,2058 ****
+  	}
+      }
+  
+-   /* If we are getting a too long sequence for `struct algorithm'
+-      to record, make this search fail.  */
+-   if (best_alg->ops == MAX_BITS_PER_WORD)
+-     return;
+- 
+    /* If cost_limit has not decreased since we stored it in alg_out->cost,
+       we have not found any algorithm.  */
+    if (cost_limit == alg_out->cost)
+      return;
+  
+    /* Copy the algorithm from temporary space to the space at alg_out.
+       We avoid using structure assignment because the majority of
+       best_alg is normally undefined, and this is a critical function.  */
+--- 2073,2088 ----
+  	}
+      }
+  
+    /* If cost_limit has not decreased since we stored it in alg_out->cost,
+       we have not found any algorithm.  */
+    if (cost_limit == alg_out->cost)
+      return;
+  
++   /* If we are getting a too long sequence for `struct algorithm'
++      to record, make this search fail.  */
++   if (best_alg->ops == MAX_BITS_PER_WORD)
++     return;
++ 
+    /* Copy the algorithm from temporary space to the space at alg_out.
+       We avoid using structure assignment because the majority of
+       best_alg is normally undefined, and this is a critical function.  */
+***************
+*** 2153,2161 ****
+  	  for (opno = 1; opno < alg.ops; opno++)
+  	    {
+  	      int log = alg.log[opno];
+! 	      rtx shift_subtarget = preserve_subexpressions_p () ? 0 : accum;
+  	      rtx add_target = opno == alg.ops - 1 && target != 0 ? target : 0;
+! 
+  	      switch (alg.op[opno])
+  		{
+  		case alg_shift:
+--- 2183,2193 ----
+  	  for (opno = 1; opno < alg.ops; opno++)
+  	    {
+  	      int log = alg.log[opno];
+! 	      int preserve = preserve_subexpressions_p ();
+! 	      rtx shift_subtarget = preserve ? 0 : accum;
+  	      rtx add_target = opno == alg.ops - 1 && target != 0 ? target : 0;
+! 	      rtx accum_target = preserve ? 0 : accum;
+! 	      
+  	      switch (alg.op[opno])
+  		{
+  		case alg_shift:
+***************
+*** 2168,2174 ****
+  		  tem = expand_shift (LSHIFT_EXPR, mode, op0,
+  				      build_int_2 (log, 0), NULL_RTX, 0);
+  		  accum = force_operand (gen_rtx (PLUS, mode, accum, tem),
+! 					 add_target ? add_target : accum);
+  		  val_so_far += (HOST_WIDE_INT) 1 << log;
+  		  break;
+  
+--- 2200,2206 ----
+  		  tem = expand_shift (LSHIFT_EXPR, mode, op0,
+  				      build_int_2 (log, 0), NULL_RTX, 0);
+  		  accum = force_operand (gen_rtx (PLUS, mode, accum, tem),
+! 					 add_target ? add_target : accum_target);
+  		  val_so_far += (HOST_WIDE_INT) 1 << log;
+  		  break;
+  
+***************
+*** 2176,2198 ****
+  		  tem = expand_shift (LSHIFT_EXPR, mode, op0,
+  				      build_int_2 (log, 0), NULL_RTX, 0);
+  		  accum = force_operand (gen_rtx (MINUS, mode, accum, tem),
+! 					 add_target ? add_target : accum);
+  		  val_so_far -= (HOST_WIDE_INT) 1 << log;
+  		  break;
+  
+  		case alg_add_t2_m:
+  		  accum = expand_shift (LSHIFT_EXPR, mode, accum,
+! 					build_int_2 (log, 0), accum, 0);
+  		  accum = force_operand (gen_rtx (PLUS, mode, accum, op0),
+! 					 add_target ? add_target : accum);
+  		  val_so_far = (val_so_far << log) + 1;
+  		  break;
+  
+  		case alg_sub_t2_m:
+  		  accum = expand_shift (LSHIFT_EXPR, mode, accum,
+! 					build_int_2 (log, 0), accum, 0);
+  		  accum = force_operand (gen_rtx (MINUS, mode, accum, op0),
+! 					 add_target ? add_target : accum);
+  		  val_so_far = (val_so_far << log) - 1;
+  		  break;
+  
+--- 2208,2232 ----
+  		  tem = expand_shift (LSHIFT_EXPR, mode, op0,
+  				      build_int_2 (log, 0), NULL_RTX, 0);
+  		  accum = force_operand (gen_rtx (MINUS, mode, accum, tem),
+! 					 add_target ? add_target : accum_target);
+  		  val_so_far -= (HOST_WIDE_INT) 1 << log;
+  		  break;
+  
+  		case alg_add_t2_m:
+  		  accum = expand_shift (LSHIFT_EXPR, mode, accum,
+! 					build_int_2 (log, 0), shift_subtarget,
+! 					0);
+  		  accum = force_operand (gen_rtx (PLUS, mode, accum, op0),
+! 					 add_target ? add_target : accum_target);
+  		  val_so_far = (val_so_far << log) + 1;
+  		  break;
+  
+  		case alg_sub_t2_m:
+  		  accum = expand_shift (LSHIFT_EXPR, mode, accum,
+! 					build_int_2 (log, 0), shift_subtarget,
+! 					0);
+  		  accum = force_operand (gen_rtx (MINUS, mode, accum, op0),
+! 					 add_target ? add_target : accum_target);
+  		  val_so_far = (val_so_far << log) - 1;
+  		  break;
+  
+***************
+*** 2200,2206 ****
+  		  tem = expand_shift (LSHIFT_EXPR, mode, accum,
+  				      build_int_2 (log, 0), NULL_RTX, 0);
+  		  accum = force_operand (gen_rtx (PLUS, mode, accum, tem),
+! 					 add_target ? add_target : accum);
+  		  val_so_far += val_so_far << log;
+  		  break;
+  
+--- 2234,2240 ----
+  		  tem = expand_shift (LSHIFT_EXPR, mode, accum,
+  				      build_int_2 (log, 0), NULL_RTX, 0);
+  		  accum = force_operand (gen_rtx (PLUS, mode, accum, tem),
+! 					 add_target ? add_target : accum_target);
+  		  val_so_far += val_so_far << log;
+  		  break;
+  
+***************
+*** 2208,2214 ****
+  		  tem = expand_shift (LSHIFT_EXPR, mode, accum,
+  				      build_int_2 (log, 0), NULL_RTX, 0);
+  		  accum = force_operand (gen_rtx (MINUS, mode, tem, accum),
+! 					 add_target ? add_target : tem);
+  		  val_so_far = (val_so_far << log) - val_so_far;
+  		  break;
+  
+--- 2242,2249 ----
+  		  tem = expand_shift (LSHIFT_EXPR, mode, accum,
+  				      build_int_2 (log, 0), NULL_RTX, 0);
+  		  accum = force_operand (gen_rtx (MINUS, mode, tem, accum),
+! 					 (add_target ? add_target
+! 					  : preserve ? 0 : tem));
+  		  val_so_far = (val_so_far << log) - val_so_far;
+  		  break;
+  
+***************
+*** 3196,3198 ****
+--- 3231,3234 ----
+  
+    return tem;
+  }
++ 
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/gcc.c gcc-2.5.8/gcc.c
+*** gcc-2.5.8.gnu/gcc.c	Thu Dec 23 23:49:43 1993
+--- gcc-2.5.8/gcc.c	Sun Feb 27 00:41:06 1994
+***************
+*** 586,591 ****
+--- 586,594 ----
+     "%{!S:%{!gnatc:%{!gnats:as %{R} %{j} %{J} %{h} %{d2} %a %Y\
+          %{c:%W{o*}%{!o*:-o %w%b.o}}%{!c:-o %d%w%u.o}\
+          %{!pipe:%g.s} %A\n}}} "},
++ #ifdef CUSTOM_DEFAULT_COMPILERS
++   CUSTOM_DEFAULT_COMPILERS
++ #endif /* CUSTOM_DEFAULT_COMPILERS */
+    /* Mark end of table */
+    {0, 0}
+  };
+***************
+*** 608,614 ****
+  static char *link_command_spec = "\
+  %{!fsyntax-only: \
+   %{!c:%{!M:%{!MM:%{!E:%{!S:ld %l %X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} \
+! 			%{r} %{s} %{t} %{u*} %{x} %{z}\
+  			%{!A:%{!nostartfiles:%{!nostdlib:%S}}} %{static:}\
+  			%{L*} %D %{T*} %o %{!nostdlib:libgcc.a%s %L libgcc.a%s %{!A:%E}}\n }}}}}}";
+  #else
+--- 611,617 ----
+  static char *link_command_spec = "\
+  %{!fsyntax-only: \
+   %{!c:%{!M:%{!MM:%{!E:%{!S:ld %l %X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} \
+! 			%{r} %{s} %{t} %{u*} %{x} %{z} %{Z}\
+  			%{!A:%{!nostartfiles:%{!nostdlib:%S}}} %{static:}\
+  			%{L*} %D %{T*} %o %{!nostdlib:libgcc.a%s %L libgcc.a%s %{!A:%E}}\n }}}}}}";
+  #else
+***************
+*** 617,623 ****
+  static char *link_command_spec = "\
+  %{!fsyntax-only: \
+   %{!c:%{!M:%{!MM:%{!E:%{!S:ld %l %X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} \
+! 			%{r} %{s} %{t} %{u*} %{x} %{z}\
+  			%{!A:%{!nostartfiles:%{!nostdlib:%S}}} %{static:}\
+  			%{L*} %{T*} %o %{!nostdlib:libgcc.a%s %L libgcc.a%s %{!A:%E}}\n }}}}}}";
+  #else
+--- 620,626 ----
+  static char *link_command_spec = "\
+  %{!fsyntax-only: \
+   %{!c:%{!M:%{!MM:%{!E:%{!S:ld %l %X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} \
+! 			%{r} %{s} %{t} %{u*} %{x} %{z} %{Z}\
+  			%{!A:%{!nostartfiles:%{!nostdlib:%S}}} %{static:}\
+  			%{L*} %{T*} %o %{!nostdlib:libgcc.a%s %L libgcc.a%s %{!A:%E}}\n }}}}}}";
+  #else
+***************
+*** 625,631 ****
+  static char *link_command_spec = "\
+  %{!fsyntax-only: \
+   %{!c:%{!M:%{!MM:%{!E:%{!S:ld %l %X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} \
+! 			%{r} %{s} %{t} %{u*} %{x} %{z}\
+  			%{!A:%{!nostartfiles:%{!nostdlib:%S}}} %{static:}\
+  			%{L*} %D %{T*} %o %{!nostdlib:-lgcc %L -lgcc %{!A:%E}}\n }}}}}}";
+  #endif
+--- 628,634 ----
+  static char *link_command_spec = "\
+  %{!fsyntax-only: \
+   %{!c:%{!M:%{!MM:%{!E:%{!S:ld %l %X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} \
+! 			%{r} %{s} %{t} %{u*} %{x} %{z} %{Z}\
+  			%{!A:%{!nostartfiles:%{!nostdlib:%S}}} %{static:}\
+  			%{L*} %D %{T*} %o %{!nostdlib:-lgcc %L -lgcc %{!A:%E}}\n }}}}}}";
+  #endif
+***************
+*** 3202,3224 ****
+  		{
+  		  if (! strncmp (y, "-D", 2))
+  		    {
+! 		      *x++ = *y++;
+! 		      *x++ = *y++;
+  
+  		      if (strncmp (y, "__", 2))
+  		        {
+  			  /* Stick __ at front of macro name.  */
+  			  *x++ = '_';
+  			  *x++ = '_';
+- 			}
+- 
+- 		      /* Copy the macro name.  */
+- 		      while (*y && *y != '=' && *y != ' ' && *y != '\t')
+- 			*x++ = *y++;
+  
+! 		      /* Copy the value given, if any.  */
+! 		      while (*y && *y != ' ' && *y != '\t')
+! 			*x++ = *y++;
+  		    }
+  		  else if (*y == ' ' || *y == '\t')
+  		    /* Copy whitespace to the result.  */
+--- 3205,3235 ----
+  		{
+  		  if (! strncmp (y, "-D", 2))
+  		    {
+! 		      y++;
+! 		      y++;
+  
+  		      if (strncmp (y, "__", 2))
+  		        {
++ 			  *x++ = '-';
++ 			  *x++ = 'D';
+  			  /* Stick __ at front of macro name.  */
+  			  *x++ = '_';
+  			  *x++ = '_';
+  
+! 			  /* Copy the macro name.  */
+! 			  while (*y && *y != '=' && *y != ' ' && *y != '\t')
+! 			    *x++ = *y++;
+! 
+! 			  /* Copy the value given, if any.  */
+! 			  while (*y && *y != ' ' && *y != '\t')
+! 			    *x++ = *y++;
+! 			}
+! 		      else
+! 			{
+! 			  /* Skip this one, we have done it once already */
+! 			  while (*y && *y != ' ' && *y != '\t')
+! 			    y++;
+! 			}
+  		    }
+  		  else if (*y == ' ' || *y == '\t')
+  		    /* Copy whitespace to the result.  */
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/gstdarg.h gcc-2.5.8/gstdarg.h
+*** gcc-2.5.8.gnu/gstdarg.h	Sat Nov 13 02:53:58 1993
+--- gcc-2.5.8/gstdarg.h	Sun Feb 27 00:41:06 1994
+***************
+*** 136,148 ****
+     But on BSD NET2 we must not test or define or undef it.
+     (Note that the comments in NET 2's ansi.h
+     are incorrect for _VA_LIST_--see stdio.h!)  */
+! #if !defined (_VA_LIST_) || defined (__BSD_NET2__) || defined (____386BSD____) || defined (__bsdi__)
+  /* The macro _VA_LIST is used in SCO Unix 3.2.  */
+  #ifndef _VA_LIST
+  /* The macro _VA_LIST_T_H is used in the Bull dpx2  */
+  #ifndef _VA_LIST_T_H
+  #define _VA_LIST_T_H
+! #if !(defined (__BSD_NET2__) || defined (____386BSD____) || defined (__bsdi__))
+  #define _VA_LIST_
+  #endif
+  #define _VA_LIST
+--- 136,148 ----
+     But on BSD NET2 we must not test or define or undef it.
+     (Note that the comments in NET 2's ansi.h
+     are incorrect for _VA_LIST_--see stdio.h!)  */
+! #if !defined (_VA_LIST_) || defined (__BSD_NET2__) || defined (____386BSD____) || defined (__bsdi__) || defined (__FreeBSD__)
+  /* The macro _VA_LIST is used in SCO Unix 3.2.  */
+  #ifndef _VA_LIST
+  /* The macro _VA_LIST_T_H is used in the Bull dpx2  */
+  #ifndef _VA_LIST_T_H
+  #define _VA_LIST_T_H
+! #if !(defined (__BSD_NET2__) || defined (____386BSD____) || defined (__bsdi__) || defined (__FreeBSD__))
+  #define _VA_LIST_
+  #endif
+  #define _VA_LIST
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/gstddef.h gcc-2.5.8/gstddef.h
+*** gcc-2.5.8.gnu/gstddef.h	Fri Dec  3 12:46:59 1993
+--- gcc-2.5.8/gstddef.h	Sun Feb 27 00:41:07 1994
+***************
+*** 22,28 ****
+  
+  /* On 4.3bsd-net2, make sure ansi.h is included, so we have
+     one less case to deal with in the following.  */
+! #if defined (__BSD_NET2__) || defined (____386BSD____)
+  #include <machine/ansi.h>
+  #endif
+  
+--- 22,28 ----
+  
+  /* On 4.3bsd-net2, make sure ansi.h is included, so we have
+     one less case to deal with in the following.  */
+! #if defined (__BSD_NET2__) || defined (____386BSD____) || defined (__FreeBSD__)
+  #include <machine/ansi.h>
+  #endif
+  
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/gvarargs.h gcc-2.5.8/gvarargs.h
+*** gcc-2.5.8.gnu/gvarargs.h	Sat Nov 13 09:33:23 1993
+--- gcc-2.5.8/gvarargs.h	Sun Feb 27 00:41:07 1994
+***************
+*** 150,162 ****
+  /* Michael Eriksson <mer@sics.se> at Thu Sep 30 11:00:57 1993:
+     Sequent defines _VA_LIST_ in <machine/machtypes.h> to be the type to
+     use for va_list (``typedef _VA_LIST_ va_list'') */
+! #if !defined (_VA_LIST_) || defined (__BSD_NET2__) || defined (____386BSD____) || defined (__bsdi__) || defined (__sequent__)
+  /* The macro _VA_LIST is used in SCO Unix 3.2.  */
+  #ifndef _VA_LIST
+  /* The macro _VA_LIST_T_H is used in the Bull dpx2  */
+  #ifndef _VA_LIST_T_H
+  #define _VA_LIST_T_H
+! #if !(defined (__BSD_NET2__) || defined (____386BSD____) || defined (__bsdi__) || defined (__sequent__))
+  #define _VA_LIST_
+  #endif
+  #define _VA_LIST
+--- 150,162 ----
+  /* Michael Eriksson <mer@sics.se> at Thu Sep 30 11:00:57 1993:
+     Sequent defines _VA_LIST_ in <machine/machtypes.h> to be the type to
+     use for va_list (``typedef _VA_LIST_ va_list'') */
+! #if !defined (_VA_LIST_) || defined (__BSD_NET2__) || defined (____386BSD____) || defined (__bsdi__) || defined (__sequent__) || defined (__FreeBSD__)
+  /* The macro _VA_LIST is used in SCO Unix 3.2.  */
+  #ifndef _VA_LIST
+  /* The macro _VA_LIST_T_H is used in the Bull dpx2  */
+  #ifndef _VA_LIST_T_H
+  #define _VA_LIST_T_H
+! #if !(defined (__BSD_NET2__) || defined (____386BSD____) || defined (__bsdi__) || defined (__sequent__) || defined (__FreeBSD__))
+  #define _VA_LIST_
+  #endif
+  #define _VA_LIST
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/invoke.texi gcc-2.5.8/invoke.texi
+*** gcc-2.5.8.gnu/invoke.texi	Thu Nov 11 14:31:43 1993
+--- gcc-2.5.8/invoke.texi	Sun Feb 27 00:41:10 1994
+***************
+*** 252,258 ****
+  
+  @emph{i386 Options}
+  -m486  -mno-486  -msoft-float  -msvr3-shlib  -mieee-fp
+! -mno-fp-ret-in-387
+  
+  @emph{HPPA Options}
+  -mpa-risc-1-0
+--- 252,258 ----
+  
+  @emph{i386 Options}
+  -m486  -mno-486  -msoft-float  -msvr3-shlib  -mieee-fp
+! -mno-fp-ret-in-387  -mno-fancy-math-387
+  
+  @emph{HPPA Options}
+  -mpa-risc-1-0
+***************
+*** 3090,3095 ****
+--- 3090,3103 ----
+  
+  The option @samp{-mno-fp-ret-in-387} causes such values to be returned
+  in ordinary CPU registers instead.
++ 
++ @item -mno-fancy-math-387
++ Do not generate sin, cos and sqrt instructions to the 387.
++ 
++ Some 387-emulators are less complete than one would expect, and usually
++ the hard parts are missing, this option fixes one such case for the
++ FreeBSD OS, where this option is set as default.
++ 
+  @c FIXME!! What about these options listed in @node Option Summary ??
+  @c -msvr3-shlib -mieee-fp
+  @end table
+diff -C3 -r --unidirectional-new-file gcc-2.5.8.gnu/objc/objects.c gcc-2.5.8/objc/objects.c
+*** gcc-2.5.8.gnu/objc/objects.c	Thu Nov 18 09:07:33 1993
+--- gcc-2.5.8/objc/objects.c	Sun Feb 27 00:41:11 1994
+***************
+*** 24,30 ****
+     however invalidate any other reasons why the executable file might be
+     covered by the GNU General Public License.  */
+  
+! #include "../tconfig.h"         /* include defs of bzero for target */
+  #include "runtime.h"		/* the kitchen sink */
+  
+  id __objc_object_alloc(Class*);
+--- 24,30 ----
+     however invalidate any other reasons why the executable file might be
+     covered by the GNU General Public License.  */
+  
+! #include "tconfig.h"         /* include defs of bzero for target */
+  #include "runtime.h"		/* the kitchen sink */
+  
+  id __objc_object_alloc(Class*);

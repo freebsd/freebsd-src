@@ -43,6 +43,8 @@ static char *rev1 = NULL;
 static char *rev2 = NULL;
 static char *date1 = NULL;
 static char *date2 = NULL;
+static char *K_flag1 = NULL;
+static char *K_flag2 = NULL;
 static char tmpfile1[L_tmpnam+1], tmpfile2[L_tmpnam+1], tmpfile3[L_tmpnam+1];
 static int unidiff = 0;
 
@@ -60,6 +62,7 @@ static char *patch_usage[] =
     "\t-D date\tDate.\n",
     "\t-r rev\tRevision - symbolic or numeric.\n",
     "\t-V vers\tUse RCS Version \"vers\" for keyword expansion.\n",
+    "\t-K key\tUse RCS key -K option on checkout.\n",
     NULL
 };
 
@@ -77,7 +80,7 @@ patch (argc, argv)
 	usage (patch_usage);
 
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "V:k:cuftsQqlRD:r:")) != -1)
+    while ((c = gnu_getopt (argc, argv, "V:k:cuftsQqlRD:r:K:")) != -1)
     {
 	switch (c)
 	{
@@ -139,6 +142,14 @@ patch (argc, argv)
 	    case 'c':			/* Context diff */
 		unidiff = 0;
 		break;
+	    case 'K':
+		if (K_flag2 != NULL)
+		    error (1, 0, "no more than two -K flags can be specified");
+		if (K_flag1 != NULL)
+		    K_flag2 = optarg;
+		else
+		    K_flag1 = optarg;
+		break;
 	    case '?':
 	    default:
 		usage (patch_usage);
@@ -149,6 +160,11 @@ patch (argc, argv)
     argv += optind;
 
     /* Sanity checks */
+    /* Check for dummy -K flags */
+    if (K_flag1 && K_flag1[0] != 'e' && K_flag1[0] != 'i')
+	error (1, 0, "-K flag does not start e or i");
+    if (K_flag2 && K_flag2[0] != 'e' && K_flag2[0] != 'i')
+	error (1, 0, "-K flag does not start e or i");
     if (argc < 1)
 	usage (patch_usage);
 
@@ -364,7 +380,8 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
     }
     if (vers_tag != NULL)
     {
-	run_setup ("%s%s %s -p -q -r%s", Rcsbin, RCS_CO, options, vers_tag);
+	run_setup ("%s%s %s -p -q -r%s %s%s", Rcsbin, RCS_CO, options,
+		   vers_tag, K_flag1 ? "-K" : "", K_flag1 ? K_flag1 : "");
 	run_arg (rcsfile->path);
 	if ((retcode = run_exec (RUN_TTY, tmpfile1, RUN_TTY, RUN_NORMAL)) != 0)
 	{
@@ -382,7 +399,8 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
     }
     if (vers_head != NULL)
     {
-	run_setup ("%s%s %s -p -q -r%s", Rcsbin, RCS_CO, options, vers_head);
+	run_setup ("%s%s %s -p -q -r%s %s%s", Rcsbin, RCS_CO, options,
+		   vers_head, K_flag2 ? "-K" : "", K_flag2 ? K_flag2 : "");
 	run_arg (rcsfile->path);
 	if ((retcode = run_exec (RUN_TTY, tmpfile2, RUN_TTY, RUN_NORMAL)) != 0)
 	{

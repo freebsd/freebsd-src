@@ -1,7 +1,7 @@
 /* init.c
    Initialize the system dependent routines.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -153,35 +153,39 @@ usysdep_initialize (puuconf,iflags)
      pointer puuconf;
      int iflags;
 {
-  int cdescs;
-  int o;
   int iuuconf;
   char *z;
   struct passwd *q;
 
   ulog_id (getpid ());
 
-  /* Close everything but stdin, stdout and stderr.  */
+  if ((iflags & INIT_NOCLOSE) == 0)
+    {
+      int cdescs;
+      int o;
+
+      /* Close everything but stdin, stdout and stderr.  */
 #if HAVE_GETDTABLESIZE
-  cdescs = getdtablesize ();
+      cdescs = getdtablesize ();
 #else
 #if HAVE_SYSCONF
-  cdescs = sysconf (_SC_OPEN_MAX);
+      cdescs = sysconf (_SC_OPEN_MAX);
 #else
 #ifdef OPEN_MAX
-  cdescs = OPEN_MAX;
+      cdescs = OPEN_MAX;
 #else
 #ifdef NOFILE
-  cdescs = NOFILE;
+      cdescs = NOFILE;
 #else
-  cdescs = 20;
+      cdescs = 20;
 #endif /* ! defined (NOFILE) */
 #endif /* ! defined (OPEN_MAX) */
 #endif /* ! HAVE_SYSCONF */
 #endif /* ! HAVE_GETDTABLESIZE */
 
-  for (o = 3; o < cdescs; o++)
-    (void) close (o);
+      for (o = 3; o < cdescs; o++)
+	(void) close (o);
+    }
 
   /* Make sure stdin, stdout and stderr are open.  */
   if (fcntl (0, F_GETFD, 0) < 0

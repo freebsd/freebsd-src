@@ -45,7 +45,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vfs__bio.c,v 1.15 1994/01/31 05:57:45 davidg Exp $
+ *	$Id: vfs__bio.c,v 1.21 1994/05/29 18:06:31 ats Exp $
  */
 
 #include "param.h"
@@ -73,7 +73,13 @@ struct	buf bswlist;		/* head of free swap header list */
 struct	buf *bclnlist;		/* head of cleaned page list */
 
 static struct buf *getnewbuf(int);
-extern	vm_map_t buffer_map;
+extern	vm_map_t buffer_map, io_map;
+
+/*
+ * Internel update daemon, process 3
+ *	The variable vfs_update_wakeup allows for internal syncs.
+ */
+int vfs_update_wakeup;
 
 /*
  * Initialize buffer headers and related structures.
@@ -353,18 +359,8 @@ start:
 		&& bfreelist[BQ_EMPTY].av_forw != (struct buf *)bfreelist+BQ_EMPTY) {
 		caddr_t addr;
 
-/*#define notyet*/
-#ifndef notyet
-		if ((addr = malloc (sz, M_IOBUF, M_WAITOK)) == 0) goto tryfree;
-#else /* notyet */
-		/* get new memory buffer */
-		if (round_page(sz) == sz)
-			addr = (caddr_t) kmem_alloc_wired_wait(buffer_map, sz);
-		else
-			addr = (caddr_t) malloc (sz, M_IOBUF, M_WAITOK);
-	/*if ((addr = malloc (sz, M_IOBUF, M_NOWAIT)) == 0) goto tryfree;*/
-		bzero(addr, sz);
-#endif /* notyet */
+		if ((addr = malloc (sz, M_IOBUF, M_NOWAIT)) == 0)
+			goto tryfree;
 		freebufspace -= sz;
 		allocbufspace += sz;
 
@@ -476,7 +472,14 @@ loop:
 		/* if (bp->b_bufsize != size) allocbuf(bp, size); */
 	} else {
 
-		if ((bp = getnewbuf(size)) == 0) goto loop;
+		if ((bp = getnewbuf(size)) == 0)
+			goto loop;
+		if ( incore(vp, blkno)) {
+			bp->b_flags |= B_INVAL;
+			brelse(bp);
+			goto loop;
+		}
+			
 		bp->b_blkno = bp->b_lblkno = blkno;
 		bgetvp(vp, bp);
 		bh = BUFHASH(vp, blkno);
@@ -521,27 +524,13 @@ allocbuf(register struct buf *bp, int size)
 	caddr_t newcontents;
 
 	/* get new memory buffer */
-#ifndef notyet
 	newcontents = (caddr_t) malloc (size, M_IOBUF, M_WAITOK);
-#else /* notyet */
-	if (round_page(size) == size)
-		newcontents = (caddr_t) kmem_alloc_wired_wait(buffer_map, size);
-	else
-		newcontents = (caddr_t) malloc (size, M_IOBUF, M_WAITOK);
-#endif /* notyet */
 
 	/* copy the old into the new, up to the maximum that will fit */
 	bcopy (bp->b_un.b_addr, newcontents, min(bp->b_bufsize, size));
 
 	/* return old contents to free heap */
-#ifndef notyet
 	free (bp->b_un.b_addr, M_IOBUF);
-#else /* notyet */
-	if (round_page(bp->b_bufsize) == bp->b_bufsize)
-		kmem_free_wakeup(buffer_map, bp->b_un.b_addr, bp->b_bufsize);
-	else
-		free (bp->b_un.b_addr, M_IOBUF);
-#endif /* notyet */
 
 	/* adjust buffer cache's idea of memory allocated to buffer contents */
 	freebufspace -= size - bp->b_bufsize;
@@ -593,6 +582,39 @@ biowait(register struct buf *bp)
 void
 biodone(register struct buf *bp)
 {
+	int s;
+	s = splbio();
+	if (bp->b_flags & B_CLUSTER) {
+		struct buf *tbp;
+		bp->b_resid = bp->b_bcount;
+		while ( tbp = bp->b_clusterf) {
+			bp->b_clusterf = tbp->av_forw;
+			bp->b_resid -= tbp->b_bcount;
+			tbp->b_resid = 0;
+			if( bp->b_resid <= 0) {
+				tbp->b_error = bp->b_error;
+				tbp->b_flags |= (bp->b_flags & B_ERROR);
+				tbp->b_resid = -bp->b_resid;
+				bp->b_resid = 0;
+			}
+/*
+			printf("rdc (%d,%d,%d) ", tbp->b_blkno, tbp->b_bcount, tbp->b_resid);
+*/
+			
+			biodone(tbp);
+		}
+#ifndef NOBOUNCE
+		vm_bounce_kva_free( bp->b_un.b_addr, bp->b_bufsize, 0);
+#endif
+		relpbuf(bp);
+		splx(s);
+		return;
+	}
+		
+#ifndef NOBOUNCE
+	if (bp->b_flags & B_BOUNCE)
+		vm_bounce_free(bp);
+#endif
 	bp->b_flags |= B_DONE;
 
 	if ((bp->b_flags & B_READ) == 0)  {
@@ -603,6 +625,7 @@ biodone(register struct buf *bp)
 	if (bp->b_flags & B_CALL) {
 		bp->b_flags &= ~B_CALL;
 		(*bp->b_iodone)(bp);
+		splx(s);
 		return;
 	}
 
@@ -618,19 +641,21 @@ biodone(register struct buf *bp)
 		bp->b_flags &= ~B_WANTED;
 		wakeup((caddr_t) bp);
 	}
+	splx(s);
 }
 
-/*
- * Internel update daemon, process 3
- *	The variable vfs_update_wakeup allows for internal syncs.
- */
-int vfs_update_wakeup;
+#ifndef UPDATE_INTERVAL
+int vfs_update_interval = 30;
+#else
+int vfs_update_interval = UPDATE_INTERVAL;
+#endif
 
 void
 vfs_update() {
 	(void) spl0();
 	while(1) {
-		tsleep((caddr_t)&vfs_update_wakeup, PRIBIO, "update", hz*30);
+		tsleep((caddr_t)&vfs_update_wakeup, PRIBIO, "update",
+			hz * vfs_update_interval);
 		vfs_update_wakeup = 0;
 		sync(curproc, NULL, NULL);
 	}

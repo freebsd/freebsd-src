@@ -276,6 +276,6 @@ f_tty(ip)
 	int tmp;
 
 	tmp = TTYDISC;
-	if (ioctl(0, TIOCSETD, &tmp) < 0)
+	if (ioctl(ip->fd, TIOCSETD, &tmp) < 0)
 		err("TIOCSETD: %s", strerror(errno));
 }

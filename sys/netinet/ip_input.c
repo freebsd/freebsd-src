@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1982, 1986, 1988 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1982, 1986, 1988, 1993
+ *	Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ip_input.c	7.19 (Berkeley) 5/25/91
- *	$Id: ip_input.c,v 1.8 1994/01/04 17:47:13 ache Exp $
+ *	$Id: ip_input.c,v 1.9 1994/05/17 22:31:10 jkh Exp $
  */
 
 #include "param.h"
@@ -240,6 +240,53 @@ next:
 				goto ours;
 		}
 	}
+#ifdef MULTICAST
+	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+		struct in_multi *inm;
+#ifdef MROUTING
+		extern struct socket *ip_mrouter;
+
+		if (ip_mrouter) {
+			/*
+			 * If we are acting as a multicast router, all
+			 * incoming multicast packets are passed to the
+			 * kernel-level multicast forwarding function.
+			 * The packet is returned (relatively) intact; if
+			 * ip_mforward() returns a non-zero value, the packet
+			 * must be discarded, else it may be accepted below.
+			 *
+			 * (The IP ident field is put in the same byte order
+			 * as expected when ip_mforward() is called from
+			 * ip_output().)
+			 */
+			ip->ip_id = htons(ip->ip_id);
+			if (ip_mforward(ip, m->m_pkthdr.rcvif, m) != 0) {
+				m_freem(m);
+				goto next;
+			}
+			ip->ip_id = ntohs(ip->ip_id);
+
+			/*
+			 * The process-level routing demon needs to receive
+			 * all multicast IGMP packets, whether or not this
+			 * host belongs to their destination groups.
+			 */
+			if (ip->ip_p == IPPROTO_IGMP)
+				goto ours;
+		}
+#endif
+		/*
+		 * See if we belong to the destination multicast group on the
+		 * arrival interface.
+		 */
+		IN_LOOKUP_MULTI(ip->ip_dst, m->m_pkthdr.rcvif, inm);
+		if (inm == NULL) {
+			m_freem(m);
+			goto next;
+		}
+		goto ours;
+	}
+#endif
 	if (ip->ip_dst.s_addr == (u_long)INADDR_BROADCAST)
 		goto ours;
 	if (ip->ip_dst.s_addr == INADDR_ANY)

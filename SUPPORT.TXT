@@ -44,65 +44,46 @@ floppies and tape cartridges available.  System software development
 including drivers for non-standard equipment.
 
 
-Guy Helmer <ghelmer@alpha.dsu.edu>
-519 West Ave. South
-Madison, SD  57042
-Home: 605-256-2788
-Expires on 1995/06/30
-
-Interests: supporting FreeBSD & XFree86 installation, configuration,
-operation; Internet connection support; training.  Prefer short-term
-part-time projects in the northern midwest United States.  I reserve the
-right to refuse work.  Rates negotiable. 
-
-Degree: SDSM&T BS CS, 1989
-
-
 Jordan Hubbard
 Timberline Associates (est 1978)
-Dublin, Ireland
+Dublin, Ireland [And soon Boston / San Francisco]
 Support hours:  1000 - 2300 GMT
 Tel #:          00353-1-332796
 Email:          jkh@al.org
 
-
-Telephone and on-site consulting for FreeBSD for Ireland, the United
-Kingdom and most parts of Europe.  Services include installation,
-system configuration and custom software projects, graphical user
-interfaces a specialty (actively involved with The X Window System
-since Version 9).  Reasonable and flexible rates comeasurate with
-location and duration of assignment.
-
-
-
-Vector Systems Ltd,
-Julian H. Stacey, Holz Strasse 27d, 80469, Munich (Muenchen), Germany.
-Tel. +49 89 268616	09:00-19:00 Timezone=GMT+01:00
-email: <stacey@guug.de>	(later changing to <stacey@vector.guug.de>)
-
-COMMERCIAL Independent Consultancy:
-	Custom Project Designs, provision, & support, targeting all modern 
-	Unix like platforms. Prefered development & target platform: FreeBSD. 
-	Expertise in C, FSF/GNU tools, X Windows, multi lingual systems 
-	(inc. Cyrillic), systems engineering, hardware interfacing,
-	communications & scientific & industrial programming.
-	Generally avoiding: cobol, basic, payroll applications.
-	Support & Provision available for combinations of 
-		FreeBSD, X-Windows, FSF/GNU & range of own C tools for
-		all Unix + MSDOS.
-        Rate: ~125 DM/hour, (~2.5DM=#1UK, ~1.5DM=$1USA @ Nov. 93).
-On Request:
-        Personal Resume, Company Profile, Index of own purchasable tools,
-        Index of public domain tools.
-Deutsch + Francais:
-	Man kann mir in Deutsch schreiben, (oder mich anrufen).
-	Je comprend Francais, mais je n'ecris pas des responses en Francais.
-	(Contact me in English, German, or French.
-Public Domain Copies:
-	Selections of FreeBSD, X-Windows, FSF/GNU Sources & Binaries available.
-	525, 150, & 60 Mbyte QIC Cartridge, TEAC 60M Cassette, 1.2&4M Floppies.
-	From about 100DM per Cartridge for labour, media, postage.
+Telephone (or Internet) and on-site consulting for FreeBSD in Ireland,
+the United States, United Kingdom and most parts of Europe.  Services include
+installation, system configuration, networking and custom software
+projects, graphical user interfaces a specialty (actively involved with
+The X Window System since Version 9 and contributor to the X Consortium).
+Reasonable and flexible rates comensurate with location and duration of
+assignment.  Internet assignments are welcomed, and generally billed at
+lower rates.
 
 
+Vector Systems Ltd, Julian H. Stacey.
+Post:	Holz Strasse 27d, D 80469, Munich (Muenchen), Germany (Deutschland).
+Tel.:	+49 89 268616	09:00-22:00	TZ=GMT+1
+Email:	stacey@freefall.cdrom.com
 
-$Id: SUPPORT.TXT,v 1.1.2.1 1994/04/21 19:06:31 rgrimes Exp $
+Custom designs & support using FreeBSD + X-Windows + FSF/GNU, + own Unix & DOS
+C tools.  Systems engineering, hardware interfacing, multi lingual systems
+(European, Cyrillic, Chinese), communications, scientific, industrial real
+time programming.  Source Tapes: QIC 525M, 150M, 60M.
+Deutsch: Man kann mir in Deutsch schreiben, (oder mich anrufen).
+Francais: Je comprend Francais, mais je n'ecris pas des responses en Francais.
+
+
+Sean Vickery
+2/449 Milton Road
+Auchenflower  Qld   4066
+Australia
+Telephone:  +61 (0)7 870 5241
+    Email:  seanv@cs.uq.edu.au
+
+Sean offers support in most FreeBSD matters, including installation
+and configuration.  His rates are reasonable.  As well as on-site
+help, support is available over the phone and the net.
+
+
+$Id: SUPPORT.TXT,v 1.5 1994/06/09 03:46:15 jkh Exp $

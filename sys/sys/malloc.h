@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)malloc.h	7.25 (Berkeley) 5/15/91
- *	$Id: malloc.h,v 1.4 1993/11/07 17:52:43 wollman Exp $
+ *	$Id: malloc.h,v 1.7 1994/05/17 22:31:21 jkh Exp $
  */
 
 #ifndef _MALLOC_H_
@@ -91,6 +91,11 @@
 #define	M_LOCKF		40	/* Byte-range locking structures */
 #define	M_PROC		41	/* Proc structures */
 #define	M_SUBPROC	42	/* Proc sub-structures */
+#define M_IPMOPTS	43	/* Internet multicast options */
+#define	M_IPMADDR	44	/* Internet multicast address */
+#define	M_IFMADDR	45	/* link-level multicast address */
+#define	M_MRTABLE	46	/* multicast routing tables */
+#define	M_TTYS		47	/* allocated tty structures */
 #define M_ISOFSMNT      48	/* isofs mount structures */
 #define	M_TEMP		49	/* misc temporary data buffers */
 #define	M_PCFSMNT	50	/* PCFS mount structure */
@@ -141,8 +146,12 @@
 	"file desc",	/* 39 M_FILEDESC */ \
 	"lockf",	/* 40 M_LOCKF */ \
 	"proc",		/* 41 M_PROC */ \
-	"subproc",	/* 42 M_PROC */ \
-	0, 0, 0, 0, 0, \
+	"subproc",	/* 42 M_SUBPROC */ \
+ 	"mcast opts",	/* 43 M_IPMOPTS */ \
+	"ip mcast",	/* 44 M_IPMADDR */ \
+	"if mcast",	/* 45 M_IFMADDR */ \
+	"mcast route",	/* 46 M_MRTABLE */ \
+	"ttys",		/* 47 M_TTYS */ \
 	"isofs mount",  /* 48 M_ISOFSMNT */ \
 	"temp",		/* 49 M_TEMP */ \
 	"PCFS mount",	/* 50 M_PCFSMNT */ \
@@ -270,5 +279,7 @@ extern char *kmembase;
 extern struct kmembuckets bucket[];
 extern void *malloc __P((unsigned long size, int type, int flags));
 extern void free __P((void *addr, int type));
+extern void *contigmalloc __P((unsigned long size, int type, int flags, unsigned long maxpa,
+			       unsigned long alignmask, unsigned long boundarymask));
 #endif /* KERNEL */
 #endif /* !_MALLOC_H_ */

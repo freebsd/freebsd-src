@@ -143,9 +143,8 @@ main(argc, argv)
 	int repcnt = 0;
 
 	signal(SIGINT, SIG_IGN);
-/*
 	signal(SIGQUIT, SIG_DFL);
-*/
+
 	openlog("getty", LOG_ODELAY|LOG_CONS, LOG_AUTH);
 	gethostname(hostname, sizeof(hostname));
 	if (hostname[0] == '\0')
@@ -168,10 +167,6 @@ main(argc, argv)
 		chown(ttyn, 0, 0);
 		chmod(ttyn, 0600);
 		revoke(ttyn);
-		/*
-		 * Delay the open so DTR stays down long enough to be detected.
-		 */
-		sleep(2);
 		while ((i = open(ttyn, O_RDWR)) == -1) {
 			if (repcnt % 10 == 0) {
 				syslog(LOG_ERR, "%s: %m", ttyn);
@@ -242,9 +237,9 @@ main(argc, argv)
 		if (getname()) {
 			register int i;
 
-			oflush();
 			alarm(0);
 			signal(SIGALRM, SIG_DFL);
+			oflush();
 			if (name[0] == '-') {
 				puts("user names may not start with '-'.");
 				continue;
@@ -253,7 +248,6 @@ main(argc, argv)
 				continue;
 			set_tmode(2);
 			ioctl(0, TIOCSLTC, &ltc);
-			signal(SIGINT, SIG_DFL);
 			for (i = 0; environ[i] != (char *)0; i++)
 				env[i] = environ[i];
 			makeenv(&env[i]);
@@ -262,9 +256,9 @@ main(argc, argv)
 			syslog(LOG_ERR, "%s: %m", LO);
 			exit(1);
 		}
+		signal(SIGINT, SIG_IGN);
 		alarm(0);
 		signal(SIGALRM, SIG_DFL);
-		signal(SIGINT, SIG_IGN);
 		if (NX && *NX)
 			tname = NX;
 	}

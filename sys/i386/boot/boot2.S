@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- *	$Id: boot2.S,v 1.3 1993/11/13 04:43:25 rgrimes Exp $
+ *	$Id: boot2.S,v 1.4 1994/06/22 05:52:25 jkh Exp $
  */
 
 #include	"asm.h"
@@ -128,14 +128,22 @@ ENTRY(boot2)
 	mov	%ax, %es
 
 	/* fix up IDT entries for bdb */
-	subl	$2, %ebx
+	data32
+	subl	$2, %ebx		/* calculate EA to check it */
+	jb	1f			/* give up if it would trap */
+	addr32
 	movl	%es: (%ebx), %eax	/* actually movw to %ax */
 	addr32
 	movl	%eax, EXT(Idt)+8*DEBUG_VECTOR	/* actually movw %ax */
+1:
+	data32
 	subl	$2, %ecx
+	jb	1f
+	addr32
 	movl	%es: (%ecx), %eax	/* actually movw to %ax */
 	addr32
 	movl	%eax, EXT(Idt)+8*BREAKPOINT_VECTOR	/* actually movw %ax */
+1:
 
 	/* finished with groping in real mode segments */
 	pop	%es

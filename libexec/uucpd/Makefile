@@ -3,6 +3,7 @@
 PROG=	uucpd
 NOMAN=	noman
 
+LDADD+= -lutil
 .if exists(/usr/lib/libcrypt.a)
 DPADD+= ${LIBCRYPT}
 LDADD+= -lcrypt

@@ -1,7 +1,7 @@
 /* rdperm.c
    Read the HDB Permissions file.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_rdperm_rcsid[] = "$Id: rdperm.c,v 1.1 1993/08/05 18:25:50 conklin Exp $";
+const char _uuconf_rdperm_rcsid[] = "$Id: rdperm.c,v 1.2 1994/05/07 18:12:48 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -165,7 +165,7 @@ _uuconf_ihread_permissions (qglobal)
       --cchars;
       if (zline[cchars] == '\n')
 	zline[cchars] = '\0';
-      if (isspace (BUCHAR (zline[0])) || zline[0] == '#')
+      if (zline[0] == '#')
 	continue;
 
       centries = _uuconf_istrsplit (zline, '\0', &pzsplit, &csplit);
@@ -427,19 +427,25 @@ ihadd_norw (qglobal, ppz, pzno)
       char *znew;
       int iret;
 
-      csize = strlen (*pz) + 1;
-      znew = (char *) uuconf_malloc (qglobal->pblock, csize + 1);
-      if (znew == NULL)
+      /* Ignore an attempt to say NOREAD or NOWRITE with an empty
+	 string, since it will be interpreted as an attempt to deny
+	 everything.  */
+      if (**pz != '\0')
 	{
-	  qglobal->ierrno = errno;
-	  return UUCONF_MALLOC_FAILED | UUCONF_ERROR_ERRNO;
+	  csize = strlen (*pz) + 1;
+	  znew = (char *) uuconf_malloc (qglobal->pblock, csize + 1);
+	  if (znew == NULL)
+	    {
+	      qglobal->ierrno = errno;
+	      return UUCONF_MALLOC_FAILED | UUCONF_ERROR_ERRNO;
+	    }
+	  znew[0] = '!';
+	  memcpy ((pointer) (znew + 1), (pointer) *pz, csize);
+	  iret = _uuconf_iadd_string (qglobal, znew, FALSE, FALSE, ppz,
+				      qglobal->pblock);
+	  if (iret != UUCONF_SUCCESS)
+	    return iret;
 	}
-      znew[0] = '!';
-      memcpy ((pointer) (znew + 1), (pointer) *pz, csize);
-      iret = _uuconf_iadd_string (qglobal, znew, FALSE, FALSE, ppz,
-				  qglobal->pblock);
-      if (iret != UUCONF_SUCCESS)
-	return iret;
     }
 
   return UUCONF_SUCCESS;

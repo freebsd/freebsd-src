@@ -42,7 +42,7 @@ extern unsigned char _cmap_lower[], _cmap_upper[];
 
 #endif
 
-#define	_Q	0x0001		/* '" */
+#define	_Q2	0x0001		/* '" */
 #define	_Q1	0x0002		/* ` */
 #define	_SP	0x0004		/* space and tab */
 #define	_NL	0x0008		/* \n */

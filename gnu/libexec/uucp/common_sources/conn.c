@@ -1,7 +1,7 @@
 /* conn.c
    Connection routines for the Taylor UUCP package.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char conn_rcsid[] = "$Id: conn.c,v 1.1 1993/08/05 18:22:35 conklin Exp $";
+const char conn_rcsid[] = "$Id: conn.c,v 1.2 1994/05/07 18:08:38 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -35,21 +35,19 @@ const char conn_rcsid[] = "$Id: conn.c,v 1.1 1993/08/05 18:22:35 conklin Exp $";
 #include "uuconf.h"
 #include "conn.h"
 
-static boolean fcdo_dial P((struct sconnection *qconn, pointer puuconf,
-			    struct uuconf_dialer *qdialer,
-			    const char *zphone, boolean ftranslate));
-
 /* Create a new connection.  This relies on system dependent functions
    to set the qcmds and psysdep fields.  If qport is NULL, it opens a
-   standard input port.  */
+   standard input port, in which case ttype is the type of port to
+   use.  */
 
 boolean
-fconn_init (qport, qconn)
+fconn_init (qport, qconn, ttype)
      struct uuconf_port *qport;
      struct sconnection *qconn;
+     enum uuconf_porttype ttype;
 {
   qconn->qport = qport;
-  switch (qport == NULL ? UUCONF_PORTTYPE_STDIN : qport->uuconf_ttype)
+  switch (qport == NULL ? ttype : qport->uuconf_ttype)
     {
     case UUCONF_PORTTYPE_STDIN:
       return fsysdep_stdin_init (qconn);
@@ -65,8 +63,10 @@ fconn_init (qport, qconn)
     case UUCONF_PORTTYPE_TLI:
       return fsysdep_tli_init (qconn);
 #endif
+    case UUCONF_PORTTYPE_PIPE:
+      return fsysdep_pipe_init (qconn);
     default:
-      ulog (LOG_ERROR, "Unknown port type");
+      ulog (LOG_ERROR, "Unknown or unsupported port type");
       return FALSE;
     }
 }
@@ -202,25 +202,15 @@ fconn_close (qconn, puuconf, qdialer, fsuccess)
 
   fret = (*qconn->qcmds->pfclose) (qconn, puuconf, qdialer, fsuccess);
 
-  /* Make sure any signal reporting has been done before we set
-     fLog_sighup back to TRUE.  */
+  /* Ignore any SIGHUP we may have gotten, and make sure any signal
+     reporting has been done before we reset fLog_sighup.  */
+  afSignal[INDEXSIG_SIGHUP] = FALSE;
   ulog (LOG_ERROR, (const char *) NULL);
   fLog_sighup = TRUE;
 
   ulog_device ((const char *) NULL);
 
   return fret;
-}
-
-/* Reset the connection.  */
-
-boolean
-fconn_reset (qconn)
-     struct sconnection *qconn;
-{
-  DEBUG_MESSAGE0 (DEBUG_PORT, "fconn_reset: Resetting connection");
-
-  return (*qconn->qcmds->pfreset) (qconn);
 }
 
 /* Dial out on the connection.  */
@@ -347,7 +337,7 @@ fconn_break (qconn)
 {
   boolean (*pfbreak) P((struct sconnection *));
 
-  pfbreak = *qconn->qcmds->pfbreak;
+  pfbreak = qconn->qcmds->pfbreak;
   if (pfbreak == NULL)
     return TRUE;
 
@@ -419,7 +409,112 @@ iconn_baud (qconn)
   return (*pibaud) (qconn);
 }
 
-/* Modem dialing routines.  */
+/* Run through a dialer sequence.  The pzdialer argument is a list of
+   strings, which are considered in dialer/token pairs.  The dialer
+   string names a dialer to use.  The token string is what \D and \T
+   in the chat script expand to.  If there is no token for the last
+   dialer, the zphone argument is used.  The qdialer argument is
+   filled in with information for the first dialer, and *ptdialerfound
+   is set to whether the information should be freed or not.  However,
+   if *ptdialerfound is not DIALERFOUND_FALSE when this function is
+   called, then the information for the first dialer is already in
+   qdialer.  */
+
+boolean
+fconn_dial_sequence (qconn, puuconf, pzdialer, qsys, zphone, qdialer,
+		     ptdialerfound)
+     struct sconnection *qconn;
+     pointer puuconf;
+     char **pzdialer;
+     const struct uuconf_system *qsys;
+     const char *zphone;
+     struct uuconf_dialer *qdialer;
+     enum tdialerfound *ptdialerfound;
+{
+  const char *zname;
+  boolean ffirst, ffreefirst;
+
+  if (qconn->qport == NULL)
+    zname = NULL;
+  else
+    zname = qconn->qport->uuconf_zname;
+  ffirst = TRUE;
+  ffreefirst = FALSE;
+  while (*pzdialer != NULL)
+    {
+      struct uuconf_dialer *q;
+      struct uuconf_dialer s;
+      const char *ztoken;
+      boolean ftranslate;
+
+      if (! ffirst)
+	q = &s;
+      else
+	q = qdialer;
+
+      if (! ffirst || *ptdialerfound == DIALERFOUND_FALSE)
+	{
+	  int iuuconf;
+
+	  iuuconf = uuconf_dialer_info (puuconf, *pzdialer, q);
+	  if (iuuconf == UUCONF_NOT_FOUND)
+	    {
+	      ulog (LOG_ERROR, "%s: Dialer not found", *pzdialer);
+	      if (ffreefirst)
+		(void) uuconf_dialer_free (puuconf, qdialer);
+	      return FALSE;
+	    }
+	  else if (iuuconf != UUCONF_SUCCESS)
+	    {
+	      ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
+	      if (ffreefirst)
+		(void) uuconf_dialer_free (puuconf, qdialer);
+	      return FALSE;
+	    }
+
+	  if (ffirst)
+	    {
+	      *ptdialerfound = DIALERFOUND_FREE;
+	      ffreefirst = TRUE;
+	    }
+	}
+
+      ++pzdialer;
+      ztoken = *pzdialer;
+
+      ftranslate = FALSE;
+      if (ztoken == NULL
+	  || strcmp (ztoken, "\\D") == 0)
+	ztoken = zphone;
+      else if (strcmp (ztoken, "\\T") == 0)
+	{
+	  ztoken = zphone;
+	  ftranslate = TRUE;
+	}
+
+      if (! fchat (qconn, puuconf, &q->uuconf_schat, qsys, q, ztoken,
+		   ftranslate, zname, iconn_baud (qconn)))
+	{
+	  if (q == &s)
+	    (void) uuconf_dialer_free (puuconf, q);
+	  if (ffreefirst)
+	    (void) uuconf_dialer_free (puuconf, qdialer);
+	  return FALSE;
+	}
+
+      if (ffirst)
+	ffirst = FALSE;
+      else
+	(void) uuconf_dialer_free (puuconf, q);
+
+      if (*pzdialer != NULL)
+	++pzdialer;
+    }
+
+  return TRUE;
+}
+
+/* Modem dialing routine.  */
 
 /*ARGSUSED*/
 boolean
@@ -431,122 +526,62 @@ fmodem_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialerfound)
      struct uuconf_dialer *qdialer;
      enum tdialerfound *ptdialerfound;
 {
+  char **pzdialer;
+
   *ptdialerfound = DIALERFOUND_FALSE;
 
-  if (qconn->qport->uuconf_u.uuconf_smodem.uuconf_pzdialer != NULL)
+  pzdialer = qconn->qport->uuconf_u.uuconf_smodem.uuconf_pzdialer;
+  if (pzdialer != NULL && *pzdialer != NULL)
     {
-      char **pz;
-      boolean ffirst;
+      int iuuconf;
+      boolean fret;
 
-      /* The pzdialer field is a sequence of dialer/token pairs.  The
-	 dialer portion names a dialer to use.  The token portion is
-	 what \D and \T in the chat script expand to.  If there is no
-	 token for the last dialer, the phone number for the system is
-	 used.  */
-      ffirst = TRUE;
-      pz = qconn->qport->uuconf_u.uuconf_smodem.uuconf_pzdialer;
-      while (*pz != NULL)
+      iuuconf = uuconf_dialer_info (puuconf, *pzdialer, qdialer);
+      if (iuuconf == UUCONF_NOT_FOUND)
 	{
-	  int iuuconf;
-	  struct uuconf_dialer *q;
-	  struct uuconf_dialer s;
-	  const char *ztoken;
-	  boolean ftranslate;
-
-	  if (! ffirst)
-	    q = &s;
-	  else
-	    q = qdialer;
-
-	  iuuconf = uuconf_dialer_info (puuconf, *pz, q);
-	  if (iuuconf == UUCONF_NOT_FOUND)
-	    {
-	      ulog (LOG_ERROR, "%s: Dialer not found", *pz);
-	      return FALSE;
-	    }
-	  else if (iuuconf != UUCONF_SUCCESS)
-	    {
-	      ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
-	      return FALSE;
-	    }
-
-	  ++pz;
-	  ztoken = *pz;
-
-	  ftranslate = FALSE;
-	  if (ztoken == NULL
-	      || strcmp (ztoken, "\\D") == 0)
-	    ztoken = zphone;
-	  else if (strcmp (ztoken, "\\T") == 0)
-	    {
-	      ztoken = zphone;
-	      ftranslate = TRUE;
-	    }
-
-	  if (! fcdo_dial (qconn, puuconf, q, ztoken, ftranslate))
-	    {
-	      (void) uuconf_dialer_free (puuconf, q);
-	      if (! ffirst)
-		(void) uuconf_dialer_free (puuconf, qdialer);
-	      return FALSE;
-	    }
-
-	  if (ffirst)
-	    {
-	      *ptdialerfound = DIALERFOUND_FREE;
-	      ffirst = FALSE;
-	    }
-	  else
-	    (void) uuconf_dialer_free (puuconf, q);
-
-	  if (*pz != NULL)
-	    ++pz;
+	  ulog (LOG_ERROR, "%s: Dialer not found", *pzdialer);
+	  return FALSE;
+	}
+      else if (iuuconf != UUCONF_SUCCESS)
+	{
+	  ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
+	  return FALSE;
 	}
 
-      return TRUE;
+      *ptdialerfound = DIALERFOUND_FREE;
+
+      fret = (fsysdep_modem_begin_dial (qconn, qdialer)
+	      && fconn_dial_sequence (qconn, puuconf, pzdialer, qsys, zphone,
+				      qdialer, ptdialerfound)
+	      && fsysdep_modem_end_dial (qconn, qdialer));
+
+      if (! fret)
+	(void) uuconf_dialer_free (puuconf, qdialer);
+
+      return fret;
     }
   else if (qconn->qport->uuconf_u.uuconf_smodem.uuconf_qdialer != NULL)
     {
       struct uuconf_dialer *q;
+      const char *zname;
 
       q = qconn->qport->uuconf_u.uuconf_smodem.uuconf_qdialer;
       *qdialer = *q;
       *ptdialerfound = DIALERFOUND_TRUE;
-      return fcdo_dial (qconn, puuconf, q, zphone, FALSE);
+
+      if (qconn->qport == NULL)
+	zname = NULL;
+      else
+	zname = qconn->qport->uuconf_zname;
+
+      return (fsysdep_modem_begin_dial (qconn, q)
+	      && fchat (qconn, puuconf, &q->uuconf_schat, qsys, q,
+			zphone, FALSE, zname, iconn_baud (qconn))
+	      && fsysdep_modem_end_dial (qconn, q));
     }
   else
     {
       ulog (LOG_ERROR, "No dialer information");
       return FALSE;
     }
-}
-
-/* Actually use a dialer.  We set up the modem (which may include
-   opening the dialer device), run the chat script, and finish dealing
-   with the modem.  */
-
-static boolean
-fcdo_dial (qconn, puuconf, qdial, zphone, ftranslate)
-     struct sconnection *qconn;
-     pointer puuconf;
-     struct uuconf_dialer *qdial;
-     const char *zphone;
-     boolean ftranslate;
-{
-  const char *zname;
-
-  if (! fsysdep_modem_begin_dial (qconn, qdial))
-    return FALSE;
-
-  if (qconn->qport == NULL)
-    zname = NULL;
-  else
-    zname = qconn->qport->uuconf_zname;
-
-  if (! fchat (qconn, puuconf, &qdial->uuconf_schat,
-	       (const struct uuconf_system *) NULL, qdial,
-	       zphone, ftranslate, zname, iconn_baud (qconn)))
-    return FALSE;
-
-  return fsysdep_modem_end_dial (qconn, qdial);
 }

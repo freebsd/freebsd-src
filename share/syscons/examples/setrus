@@ -1,17 +1,17 @@
 #!/bin/sh
 # Load KOI8-R screen mapping.
-syscons -S koi8-r2alt
+vidcontrol -l koi8-r2alt
 # Load Alternate Codes screen font.
-syscons -f 16 alt8x16
-syscons -f 14 alt-8x14
-syscons -f 8 alt-8x8
+vidcontrol -f 8x16 altb-8x16
+vidcontrol -f 8x14 alt-8x14
+vidcontrol -f 8x8 alt-8x8
 # Install JCUKEN keyboard mapping.
-# syscons -k ru.koi8-r # Not needed for kernel compiled with RUKEYMAP option
+# kbdcontrol -l ru.koi8-r # Not needed for kernel compiled with RUKEYMAP option
 # Remap Del to Esc[K.
-syscons -F 54 "[K"
+kbdcontrol -f 54 "[K"
 # Remap -5- to Esc[E.
-syscons -F 48 "[E"
+kbdcontrol -f 48 "[E"
 # Maximum key rate
-syscons -r fast
+kbdcontrol -r fast
 # Blank after 5 min
-syscons -s 300
+vidcontrol -t 300

@@ -779,6 +779,7 @@ SIGTYPE deathtrap(sig)
 	if (tmpnum > 0 && tmpfd >= 0)
 	{
 		close(tmpfd);
+		tmpfd = -1;
 		sprintf(tmpblk.c, "%s \"%s\" %s", PRESERVE, why, tmpname);
 		system(tmpblk.c);
 	}

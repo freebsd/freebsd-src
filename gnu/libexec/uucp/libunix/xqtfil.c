@@ -1,7 +1,7 @@
 /* xqtfil.c
    Routines to read execute files.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xqtfil_rcsid[] = "$Id: xqtfil.c,v 1.1 1993/08/05 18:24:46 conklin Exp $";
+const char xqtfil_rcsid[] = "$Id: xqtfil.c,v 1.2 1994/05/07 18:11:42 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -144,9 +144,8 @@ zsysdep_get_xqt (pzsystem, pferr)
 	      return NULL;
 	    }
 
-	  /* No system name may start with a dot (this is enforced by
-	     tisystem in sysinf.c).  This allows us to quickly skip
-	     impossible directories.  */
+	  /* No system name may start with a dot This allows us to
+	     quickly skip impossible directories.  */
 	  if (qtop->d_name[0] == '.')
 	    continue;
 

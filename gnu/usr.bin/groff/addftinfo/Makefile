@@ -3,6 +3,7 @@
 PROG=		addftinfo
 SRCS=		addftinfo.cc guess.cc
 CFLAGS+=	-I$(.CURDIR)/../include
+CXXFLAGS+=	-I$(.CURDIR)/../include
 LDADD+=		$(LIBGROFF)
 DPADD+=		$(LIBGROFF)
 

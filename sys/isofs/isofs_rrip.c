@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isofs_rrip.c,v 1.5 1993/12/19 00:51:05 wollman Exp $
+ *	$Id: isofs_rrip.c,v 1.6 1994/06/13 20:19:35 jkh Exp $
  */
 
 #include "param.h"
@@ -193,7 +193,8 @@ struct timeval   *pu;
 	if (year < 0) {
 		crtime = 0;
 	} else {
-		int monlen[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+		static int monlen[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+
 		days = year * 365;
 		if (year > 2)
 			days += (year+2) / 4;
@@ -211,7 +212,7 @@ struct timeval   *pu;
 
 		/* timezone offset is unreliable on some disks */
 		if (-48 <= tz && tz <= 52)
-			crtime += tz * 15 * 60;
+			crtime -= tz * 15 * 60;
 	}
 	pu->tv_sec  = crtime;
 	pu->tv_usec = 0;

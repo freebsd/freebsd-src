@@ -4,6 +4,7 @@ PROG=		pic
 SRCS=		lex.cc main.cc object.cc common.cc troff.cc tex.cc
 OBJS=		pic.o
 CFLAGS+=	-I. -I$(.CURDIR)/../include
+CXXFLAGS+=	-I. -I$(.CURDIR)/../include
 LDADD+=		$(LIBGROFF) -lm
 DPADD+=		$(LIBGROFF) $(LIBMATH)
 

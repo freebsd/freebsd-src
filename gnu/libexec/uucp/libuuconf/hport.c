@@ -1,7 +1,7 @@
 /* hport.c
    Find a port in the HDB configuration files.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hport_rcsid[] = "$Id: hport.c,v 1.1 1993/08/05 18:25:27 conklin Exp $";
+const char _uuconf_hport_rcsid[] = "$Id: hport.c,v 1.2 1994/05/07 18:12:25 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -85,6 +85,7 @@ uuconf_hdb_find_port (pglobal, zname, ibaud, ihighbaud, pifn, pinfo, qport)
 	  char *z, *zprotos, *zport;
 	  long ilow, ihigh;
 	  pointer pblock;
+	  char ***ppzdialer;
 
 	  ++qglobal->ilineno;
 
@@ -202,6 +203,9 @@ uuconf_hdb_find_port (pglobal, zname, ibaud, ihighbaud, pifn, pinfo, qport)
 	      qport->uuconf_ttype = UUCONF_PORTTYPE_DIRECT;
 	      qport->uuconf_u.uuconf_sdirect.uuconf_zdevice = pzsplit[1];
 	      qport->uuconf_u.uuconf_sdirect.uuconf_ibaud = ilow;
+	      qport->uuconf_u.uuconf_sdirect.uuconf_fcarrier = FALSE;
+	      qport->uuconf_u.uuconf_sdirect.uuconf_fhardflow = TRUE;
+	      ppzdialer = NULL;
 	    }
 	  else if (strcmp (pzsplit[0], "TCP") == 0)
 	    {
@@ -213,43 +217,23 @@ uuconf_hdb_find_port (pglobal, zname, ibaud, ihighbaud, pifn, pinfo, qport)
 		   | UUCONF_RELIABLE_EIGHT | UUCONF_RELIABLE_FULLDUPLEX
 		   | UUCONF_RELIABLE_SPECIFIED);
 	      qport->uuconf_u.uuconf_stcp.uuconf_zport = pzsplit[1];
+	      ppzdialer = &qport->uuconf_u.uuconf_stcp.uuconf_pzdialer;
 	    }
 	  else if (ctoks >= 5
 		   && (strcmp (pzsplit[4], "TLI") == 0
 		       || strcmp (pzsplit[4], "TLIS") == 0))
 	    {
-	      size_t c;
-	      char **pzd;
-
 	      qport->uuconf_ttype = UUCONF_PORTTYPE_TLI;
 	      qport->uuconf_u.uuconf_stli.uuconf_zdevice = pzsplit[1];
 	      qport->uuconf_u.uuconf_stli.uuconf_fstream
 		= strcmp (pzsplit[4], "TLIS") == 0;
 	      qport->uuconf_u.uuconf_stli.uuconf_pzpush = NULL;
-	      pblock = uuconf_malloc_block ();
-	      if (pblock == NULL)
-		{
-		  qglobal->ierrno = errno;
-		  iret = UUCONF_MALLOC_FAILED | UUCONF_ERROR_ERRNO;
-		  break;
-		}
-	      c = (ctoks - 4) * sizeof (char *);
-	      pzd = (char **) uuconf_malloc (pblock, c + sizeof (char *));
-	      if (pzd == NULL)
-		{
-		  qglobal->ierrno = errno;
-		  uuconf_free_block (pblock);
-		  iret = UUCONF_MALLOC_FAILED | UUCONF_ERROR_ERRNO;
-		  break;
-		}
-	      memcpy ((pointer) pzd, (pointer) (pzsplit + 4), c);
-	      pzd[ctoks - 4] = NULL;
-	      qport->uuconf_u.uuconf_stli.uuconf_pzdialer = pzd;
 	      qport->uuconf_u.uuconf_stli.uuconf_zservaddr = NULL;
 	      qport->uuconf_ireliable
 		= (UUCONF_RELIABLE_ENDTOEND | UUCONF_RELIABLE_RELIABLE
 		   | UUCONF_RELIABLE_EIGHT | UUCONF_RELIABLE_FULLDUPLEX
 		   | UUCONF_RELIABLE_SPECIFIED);
+	      ppzdialer = &qport->uuconf_u.uuconf_stli.uuconf_pzdialer;
 	    }
 	  else
 	    {
@@ -273,8 +257,15 @@ uuconf_hdb_find_port (pglobal, zname, ibaud, ihighbaud, pifn, pinfo, qport)
 		  qport->uuconf_u.uuconf_smodem.uuconf_ihighbaud = ihigh;
 		}
 	      qport->uuconf_u.uuconf_smodem.uuconf_fcarrier = TRUE;
+	      qport->uuconf_u.uuconf_smodem.uuconf_fhardflow = TRUE;
+	      qport->uuconf_u.uuconf_smodem.uuconf_qdialer = NULL;
+	      ppzdialer = &qport->uuconf_u.uuconf_smodem.uuconf_pzdialer;
+	    }
+
+	  if (ppzdialer != NULL)
+	    {
 	      if (ctoks < 5)
-		qport->uuconf_u.uuconf_smodem.uuconf_pzdialer = NULL;
+		*ppzdialer = NULL;
 	      else
 		{
 		  size_t c;
@@ -299,9 +290,8 @@ uuconf_hdb_find_port (pglobal, zname, ibaud, ihighbaud, pifn, pinfo, qport)
 		  memcpy ((pointer) pzd, (pointer) (pzsplit + 4), c);
 		  pzd[ctoks - 4] = NULL;
 
-		  qport->uuconf_u.uuconf_smodem.uuconf_pzdialer = pzd;
+		  *ppzdialer = pzd;
 		}
-	      qport->uuconf_u.uuconf_smodem.uuconf_qdialer = NULL;
 	    }
 
 	  if (pifn != NULL)

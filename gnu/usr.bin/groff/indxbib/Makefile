@@ -3,6 +3,7 @@
 PROG=		indxbib
 SRCS=		indxbib.cc dirnamemax.c signal.c
 CFLAGS+=	-I$(.CURDIR)/../include
+CXXFLAGS+=	-I$(.CURDIR)/../include
 LDADD+= 	$(LIBBIB) $(LIBGROFF) -lm
 DPADD+= 	$(LIBBIB) $(LIBGROFF) $(LIBMATH)
 

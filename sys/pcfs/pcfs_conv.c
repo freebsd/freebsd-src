@@ -15,7 +15,7 @@
  *
  *  October 1992
  *
- *	$Id: pcfs_conv.c,v 1.4 1993/12/19 00:54:27 wollman Exp $
+ *	$Id: pcfs_conv.c,v 1.5 1994/04/07 00:30:35 ache Exp $
  */
 
 /*
@@ -297,11 +297,11 @@ unix2dosfn(un, dn, unlen)
  *  The filenames "." and ".." are handled specially,
  *  since they don't follow dos filename rules.
  */
-	if (un[0] == '.'  &&  un[1] == '\0') {
+	if (un[0] == '.'  &&  unlen == 1) {
 		dn[0] = '.';
 		return;
 	}
-	if (un[0] == '.'  &&  un[1] == '.'  &&  un[2] == '\0') {
+	if (un[0] == '.'  &&  un[1] == '.'  &&  unlen == 2) {
 		dn[0] = '.';
 		dn[1] = '.';
 		return;

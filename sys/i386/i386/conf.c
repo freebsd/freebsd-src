@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.20.2.1 1994/05/04 07:45:12 rgrimes Exp $
+ *	$Id: conf.c,v 1.28 1994/05/30 03:35:53 ache Exp $
  */
 
 #include "param.h"
@@ -213,6 +213,7 @@ struct bdevsw	bdevsw[] =
 	  cddump,	cdsize,		0 },
 	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
 	  mcddump,	mcdsize,	0 },
+	{ 0, } /* block major 8 is reserved for local use */
 /*
  * If you need a bdev major number, please contact the FreeBSD team
  * by sending mail to "FreeBSD-hackers@freefall.cdrom.com".
@@ -236,7 +237,7 @@ d_close_t pcclose;
 d_rdwr_t pcread, pcwrite;
 d_ioctl_t pcioctl;
 d_mmap_t pcmmap;
-extern	struct tty pccons;
+extern	struct tty *pccons;
 
 /* controlling TTY */
 d_open_t cttyopen;
@@ -262,7 +263,7 @@ d_close_t ptcclose;
 d_rdwr_t ptcread, ptcwrite;
 d_select_t ptcselect;
 d_ioctl_t ptyioctl;
-extern struct	tty pt_tty[];
+extern struct	tty *pt_tty[];
 #else
 #define ptsopen		(d_open_t *)enxio
 #define ptsclose	(d_close_t *)enxio
@@ -285,9 +286,8 @@ d_close_t comclose;
 d_rdwr_t comread;
 d_rdwr_t comwrite;
 d_ioctl_t comioctl;
-d_select_t comselect;
 #define comreset	(d_reset_t *)enxio
-extern	struct tty com_tty[];
+extern	struct tty *com_tty[];
 #else
 #define comopen		(d_open_t *)enxio
 #define comclose	(d_close_t *)enxio
@@ -295,7 +295,6 @@ extern	struct tty com_tty[];
 #define comwrite	(d_rdwr_t *)enxio
 #define comioctl	(d_ioctl_t *)enxio
 #define comreset	(d_reset_t *)enxio
-#define comselect	(d_select_t *)enxio
 #define	com_tty		NULL
 #endif
 
@@ -401,33 +400,15 @@ d_ioctl_t bpfioctl;
 #define	bpfioctl	(d_ioctl_t *)enxio
 #endif
 
-#include "dcfclk.h"
-#if NDCFCLK > 0
-d_open_t dcfclkopen;
-d_close_t dcfclkclose;
-d_rdwr_t dcfclkread;
-d_ioctl_t dcfclkioctl;
-d_select_t dcfclkselect;
-#else
-#define dcfclkopen	(d_open_t *)enxio
-#define dcfclkclose	(d_close_t *)enxio
-#define dcfclkread	(d_rdwr_t *)enxio
-#define dcfclkioctl	(d_ioctl_t *)enxio
-#define dcfclkselect	(d_select_t *)enxio
-#endif
-
-#include "lpa.h"
-#if NLPA > 0
-d_open_t lpaopen;
-d_close_t lpaclose;
-d_rdwr_t lpawrite;
-d_ioctl_t lpaioctl;
-#else
+/*
+ * lpa has been removed from the tree,
+ * but the major dev no for it still remains.
+ * (lpt now provides all the functionality which lpa used to.)
+ */
 #define lpaopen		(d_open_t *)enxio
 #define lpaclose	(d_close_t *)enxio
 #define lpawrite	(d_rdwr_t *)enxio
 #define lpaioctl	(d_ioctl_t *)enxio
-#endif
 
 #include "speaker.h"
 #if NSPEAKER > 0
@@ -440,6 +421,21 @@ d_ioctl_t spkrioctl;
 #define spkrclose	(d_close_t *)enxio
 #define spkrwrite	(d_rdwr_t *)enxio
 #define spkrioctl	(d_ioctl_t *)enxio
+#endif
+
+#include "pca.h"
+#if NPCA > 0
+d_open_t pcaopen;
+d_close_t pcaclose;
+d_rdwr_t pcawrite;
+d_ioctl_t pcaioctl;
+d_select_t pcaselect;
+#else
+#define pcaopen		(d_open_t *)enxio
+#define pcaclose	(d_close_t *)enxio
+#define pcawrite	(d_rdwr_t *)enxio
+#define pcaioctl	(d_ioctl_t *)enxio
+#define pcaselect	(d_select_t *)enxio
 #endif
 
 #include "mse.h"
@@ -464,7 +460,7 @@ d_ioctl_t sioioctl;
 d_select_t sioselect;
 d_stop_t siostop;
 #define sioreset	(d_reset_t *)enxio
-extern	struct tty sio_tty[];
+extern	struct tty *sio_tty[];
 #else
 #define sioopen		(d_open_t *)enxio
 #define sioclose	(d_close_t *)enxio
@@ -544,7 +540,7 @@ struct cdevsw	cdevsw[] =
 	  logselect,	nommap,		NULL },
 	{ comopen,	comclose,	comread,	comwrite,	/*8*/
 	  comioctl,	nostop,		comreset,	com_tty, /* com */
-	  comselect,	nommap,		NULL },
+	  ttselect,	nommap,		NULL },
 	{ Fdopen,	fdclose,	rawread,	rawwrite,	/*9*/
 	  fdioctl,	nostop,		nullreset,	NULL,	/* Fd (!=fd) */
 	  seltrue,	nommap,		fdstrategy },
@@ -590,9 +586,9 @@ struct cdevsw	cdevsw[] =
  	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
  	  bpfioctl,	nostop,		nullreset,	NULL,	/* bpf */
  	  bpfselect,	nommap,		NULL },
-	{ dcfclkopen,	dcfclkclose,	dcfclkread,	nowrite,	/*24*/
-	  dcfclkioctl,	nostop,		nullreset,	NULL,	/* dcfclk */
-	  dcfclkselect,	nommap,		NULL },
+ 	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
+ 	  pcaioctl,     nostop,         nullreset,      NULL,	/* pcaudio */
+ 	  pcaselect,	nommap,		NULL },
 	{ lpaopen,	lpaclose,	noread,		lpawrite,	/*25*/
 	  lpaioctl,	nullstop,	nullreset,	NULL,	/* lpa */
 	  seltrue,	nommap,		NULL },
@@ -614,6 +610,7 @@ struct cdevsw	cdevsw[] =
 	{ ukopen,	ukclose,	noread,         nowrite,      	/*31*/
 	  ukioctl,	nostop,		nullreset,	NULL,	/* unknown */
 	  seltrue,	nommap,		NULL },			/* scsi */
+	{ 0, } /* character device 32 is reserved for local use */
 /*
  * If you need a cdev major number, please contact the FreeBSD team
  * by sending mail to `freebsd-hackers@freefall.cdrom.com'.

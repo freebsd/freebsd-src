@@ -4,6 +4,15 @@ The FreeBSD software is being mirrored at the following locations:
 Country		Site/Directory/Maintainer
 =======		=========================================================
 
+Australia	minnie.cs.adfa.oz.au:/BSD/FreeBSD-1.1-RELEASE
+		<wkt@cs.adfa.oz.au>
+
+Australia	ftp.physics.su.oz.au:/FreeBSD
+		David Dawes <dawes@physics.su.oz.au>
+
+Australia	ftp.une.edu.au:/pub/FreeBSD
+		Gordon Smith <Gordon.Smith@une.edu.au>
+
 Austria		ftp.tu-graz.ac.at:/pub/FreeBSD	
 		<ftp@ftp.tu-graz.ac.at>
 
@@ -14,7 +23,7 @@ France		ftp.ibp.fr:/pub/FreeBSD
 		<ftp@ftp.ibp.fr>
 
 Germany		ftp.informatik.tu-muenchen.de:/pub/comp/os/bsd/FreeBSD
-		<unknown>
+		<bsd@informatik.tu-muenchen.de>
 
 Germany		ftp.uni-duisburg.de:/pub/unix/FreeBSD
 		<ftp@ftp.uni-duisburg.de>
@@ -25,6 +34,9 @@ Germany		gil.physik.rwth-aachen.de:/pub/FreeBSD
 Hong Kong	ftp.cs.cuhk.hk:/pub/FreeBSD
 		<unknown>
 
+Israel		orgchem.weizmann.ac.il:/pub/FreeBSD
+		<serg@klara.weizmann.ac.il>
+
 Netherlands	ftp.nl.net:/pub/os/FreeBSD
 		<archive@nl.net>
 
@@ -32,10 +44,16 @@ Russia		ftp.kiae.su:/FreeBSD
 		<arcman@kiae.su>
 
 UK		src.doc.ic.ac.uk:/packages/FreeBSD
-		<unknown>
+		<wizards@doc.ic.ac.uk>
 
-USA		ftp.dsu.edu:/pub/FreeBSD
-		<ghelmer@alpha.dsu.edu>
+USA		gatekeeper.dec.com:/pub/BSD/FreeBSD
+		<hubbard@gatekeeper.dec.com>
+
+USA		freebsd.uml.edu:/FreeBSD
+		<oneill@cs.uml.edu>
+
+USA		wuarchive.wustl.edu:/systems/unix/FreeBSD
+		<archives@wugate.wustl.edu>
 
 
-$Id: MIRROR.SITES,v 1.7.2.1 1994/04/18 04:41:53 rgrimes Exp $
+$Id: MIRROR.SITES,v 1.16 1994/06/08 13:33:51 sean Exp $

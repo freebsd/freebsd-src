@@ -42,7 +42,7 @@ char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)mv.c	5.11 (Berkeley) 4/3/91";*/
-static char rcsid[] = "$Id: mv.c,v 1.2 1993/11/22 23:54:24 jtc Exp $";
+static char rcsid[] = "$Id: mv.c,v 1.3 1994/04/16 00:51:13 davidg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -229,7 +229,7 @@ fastcopy(from, to, sbp)
 		(void)close(from_fd);
 		return(1);
 	}
-	if (!blen && !(bp = malloc(blen = sbp->st_blksize))) {
+	if (!blen && !(bp = malloc(blen = sbp->st_blksize * 4))) {
 		error(NULL);
 		return(1);
 	}

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)timeb.h	7.2 (Berkeley) 5/5/91
- *	$Id: timeb.h,v 1.3.2.1 1994/05/04 07:57:40 rgrimes Exp $
+ *	$Id: timeb.h,v 1.4 1994/05/04 08:31:12 rgrimes Exp $
  */
 
 #ifndef _SYS_TIMEB_H_

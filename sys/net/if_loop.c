@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_loop.c	7.13 (Berkeley) 4/26/91
- *	$Id: if_loop.c,v 1.6 1993/12/20 19:31:29 wollman Exp $
+ *	$Id: if_loop.c,v 1.7 1994/05/17 22:30:55 jkh Exp $
  */
 
 /*
@@ -95,7 +95,11 @@ loattach(void)
 
 	ifp->if_name = "lo";
 	ifp->if_mtu = LOMTU;
+#ifdef MULTICAST
+	ifp->if_flags = IFF_LOOPBACK|IFF_MULTICAST;
+#else
 	ifp->if_flags = IFF_LOOPBACK;
+#endif
 	ifp->if_ioctl = loioctl;
 	ifp->if_output = looutput;
 	ifp->if_type = IFT_LOOP;
@@ -216,6 +220,9 @@ loioctl(ifp, cmd, data)
 	caddr_t data;
 {
 	register struct ifaddr *ifa;
+#ifdef MULTICAST
+	register struct ifreq *ifr;
+#endif
 	int error = 0;
 
 	switch (cmd) {
@@ -230,6 +237,27 @@ loioctl(ifp, cmd, data)
 		 */
 		break;
 
+#ifdef MULTICAST
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		ifr = (struct ifreq *)data;
+		if (ifr == 0) {
+			error = EAFNOSUPPORT;		/* XXX */
+			break;
+		}
+		switch (ifr->ifr_addr.sa_family) {
+
+#ifdef INET
+		case AF_INET:
+			break;
+#endif
+
+		default:
+			error = EAFNOSUPPORT;
+			break;
+		}
+		break;
+#endif
 	default:
 		error = EINVAL;
 	}

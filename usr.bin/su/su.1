@@ -41,7 +41,6 @@
 .Nm su
 .Op Fl Kflm
 .Op Ar login
-.Op Ar -c cmd
 .Sh DESCRIPTION
 .Nm Su
 requests the Kerberos password for
@@ -120,9 +119,6 @@ and the caller's real uid is
 non-zero,
 .Nm su
 will fail.
-.It Fl "c cmd"
-Execute command as the nominated user. The user's shell is invoked 
-to execute the command. It is assumed that the shell supports a -c switch.
 .El
 .Pp
 The

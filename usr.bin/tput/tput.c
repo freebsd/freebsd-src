@@ -88,9 +88,11 @@ main(argc, argv)
 				p = "is";
 			break;
 		case 'l':
-			if (!strcmp(p, "longname"))
+			if (!strcmp(p, "longname")) {
 				prlongname(tbuf);
-			continue;
+				continue;
+			}
+			break;
 		case 'r':
 			if (!strcmp(p, "reset"))
 				p = "rs";

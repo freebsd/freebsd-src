@@ -78,7 +78,7 @@ extern int strlen();
 #  ifdef HDB
 #   define	LOCK_DIR	"/usr/spool/locks"
 #  else /* HDB */
-#   define	LOCK_DIR	"/usr/spool/uucp"
+#   define	LOCK_DIR	"/var/spool/lock"
 #  endif /* HDB */
 #endif /* LOCK_DIR */
 
@@ -361,7 +361,7 @@ lock()
 	sysfatal("Can't get lock file '%s'", s);
 	}
 
-# ifdef HDB
+# if defined(HDB) || defined(__FreeBSD__)
     sprintf(hdb_lock_buffer, "%10d\n", getpid());
     write(fd, hdb_lock_buffer, 11);
 # else /* HDB */

@@ -146,6 +146,7 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 	makefile();			/* build Makefile */
 	headers();			/* make a lot of .h files */
 	swapconf();			/* swap config files */
+	configfile();			/* add config file into kernel */
 	printf("Don't forget to run \"make depend\"\n");
 	exit(0);
 }
@@ -255,4 +256,40 @@ path(file)
 		(void) strcat(cp, file);
 	}
 	return (cp);
+}
+
+
+configfile()
+{
+	FILE *fi, *fo;
+	char *p;
+	int i;
+	
+	fi = fopen(PREFIX,"r");
+	if(!fi) {
+		perror(PREFIX);
+		exit(2);
+	}
+	fo = fopen(p=path("config.c"),"w");
+	if(!fo) {
+		perror(p);
+		exit(2);
+	}
+	fprintf(fo,"static char *config = \"\n");
+	fprintf(fo,"START CONFIG FILE %s\n___",PREFIX);
+	while (EOF != (i=getc(fi))) {
+		if(i == '\n') {
+			fprintf(fo,"\n___");
+		} else if(i == '\"') {
+			fprintf(fo,"\\\"");
+		} else if(i == '\\') {
+			fprintf(fo,"\\\\");
+		} else {
+			putc(i,fo);
+		}
+	}
+	fprintf(fo,"\nEND CONFIG FILE %s\n",PREFIX);
+	fprintf(fo,"\";\n");
+	fclose(fi);
+	fclose(fo);
 }

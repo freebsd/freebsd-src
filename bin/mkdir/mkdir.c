@@ -39,7 +39,7 @@ char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)mkdir.c	5.7 (Berkeley) 5/31/90";
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/bin/mkdir/mkdir.c,v 1.2 1993/07/21 22:54:09 conklin Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/bin/mkdir/mkdir.c,v 1.3 1994/05/23 01:15:19 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -118,7 +118,7 @@ build(path, mode, dir_mode)
 	int ch;
 
 	for (p = path;; ++p) {
-		if (!*p || *p  == '/') {
+		if (!*p || *p  == '/' && p != path) {
 			ch = *p;
 			*p = '\0';
 			if (stat(path, &sb)) {

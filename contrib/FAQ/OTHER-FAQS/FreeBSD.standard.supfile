@@ -1,0 +1,16 @@
+base release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+bin release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+contrib release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+crypt release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+etc release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+games release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+gnu release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+include release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+ksrc release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+lib release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+libexec release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+sbin release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+share release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+usrbin release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+usrsbin release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/src delete old compress
+

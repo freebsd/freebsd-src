@@ -145,6 +145,7 @@ int	exiting = 0;		/* allready running exit_handler */
 FILE	*console;
 
 struct	termios tty;
+struct	termios tty_orig;	/* For saving original tty state */
 
 char	devname[32];
 char	hostname[MAXHOSTNAMELEN];
@@ -268,6 +269,12 @@ int main(int argc, char **argv)
 	/* upon HUP redial and reconnect.  */
 	if ((int)signal(SIGHUP,sighup_handler) < 0)
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %s: %m");
+	/* Keep track of our original terminal values for redialing */
+	if (tcgetattr(fd, &tty_orig) < 0) {           
+		syslog(LOG_ERR, "tcgetattr: %m");
+		exit_handler(1);
+         }
+
 
 	setup_line();
 
@@ -362,8 +369,8 @@ again:
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
 		       dev,unit,redial_cmd);
 		if (!(modem_control & CLOCAL)) {
-			tty.c_cflag |= CLOCAL;
-			if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
+			tty_orig.c_cflag |= CLOCAL;
+			if (tcsetattr(fd, TCSAFLUSH, &tty_orig) < 0) {
 				syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
 				exit_handler(1);
 			}

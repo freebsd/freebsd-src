@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)raw_cb.h	7.6 (Berkeley) 6/28/90
- *	$Id: raw_cb.h,v 1.4 1993/12/19 00:52:05 wollman Exp $
+ *	$Id: raw_cb.h,v 1.5 1994/05/17 22:30:57 jkh Exp $
  */
 
 #ifndef _NET_RAW_CB_H_
@@ -48,6 +48,7 @@ struct rawcb {
 	struct	sockaddr *rcb_faddr;	/* destination address */
 	struct	sockaddr *rcb_laddr;	/* socket's address */
 	struct	sockproto rcb_proto;	/* protocol family, protocol */
+	struct	mbuf *rcb_moptions;	/* proto specific multicast options */
 };
 
 #define	sotorawcb(so)		((struct rawcb *)(so)->so_pcb)

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,25 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_split.c	8.29 (Berkeley) 12/22/93";
+static char sccsid[] = "@(#)svi_split.c	8.36 (Berkeley) 3/14/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <curses.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "svi_screen.h"
@@ -72,7 +82,7 @@ svi_split(sp, argv)
 	/* Get a new screen. */
 	if (screen_init(sp, &tsp, 0))
 		return (1);
-	MALLOC(sp, _HMAP(tsp), SMAP *, SIZE_HMAP(sp) * sizeof(SMAP));
+	CALLOC(sp, _HMAP(tsp), SMAP *, SIZE_HMAP(sp), sizeof(SMAP));
 	if (_HMAP(tsp) == NULL)
 		return (1);
 
@@ -100,7 +110,7 @@ svi_split(sp, argv)
 	 * The columns in the screen don't change.
 	 */
 	tsp->cols = sp->cols;
-	
+
 	cnt = svi_sm_cursor(sp, sp->ep, &smp) ? 0 : smp - HMAP;
 	if (cnt <= half) {			/* Parent is top half. */
 		/* Child. */
@@ -431,7 +441,7 @@ svi_swap(csp, nsp, name)
 		return (0);
 	}
 	*nsp = sp;
-		
+
 	/* Save the old screen's cursor information. */
 	csp->frp->lno = csp->lno;
 	csp->frp->cno = csp->cno;
@@ -485,7 +495,7 @@ svi_swap(csp, nsp, name)
 	 * a bunch of screens had to be hidden.
 	 */
 	if (HMAP == NULL)
-		MALLOC_RET(sp, HMAP, SMAP *, SIZE_HMAP(sp) * sizeof(SMAP));
+		CALLOC_RET(sp, HMAP, SMAP *, SIZE_HMAP(sp), sizeof(SMAP));
 	TMAP = HMAP + (sp->t_rows - 1);
 
 	/* Fill the map. */
@@ -510,9 +520,10 @@ svi_swap(csp, nsp, name)
  *	Change the absolute size of the current screen.
  */
 int
-svi_rabs(sp, count)
+svi_rabs(sp, count, adj)
 	SCR *sp;
 	long count;
+	enum adjust adj;
 {
 	SCR *g, *s;
 
@@ -522,8 +533,20 @@ svi_rabs(sp, count)
 	 */
 	if (count == 0)
 		return (0);
-	if (count < 0) {
-		count = -count;
+	if (adj == A_SET) {
+		if (sp->t_maxrows == count)
+			return (0);
+		if (sp->t_maxrows > count) {
+			adj = A_DECREASE;
+			count = sp->t_maxrows - count;
+		} else {
+			adj = A_INCREASE;
+			count = count - sp->t_maxrows;
+		}
+	}
+	if (adj == A_DECREASE) {
+		if (count < 0)
+			count = -count;
 		s = sp;
 		if (s->t_maxrows < MINIMUM_SCREEN_ROWS + count)
 			goto toosmall;
@@ -545,7 +568,7 @@ svi_rabs(sp, count)
 		if (s == NULL) {
 			if ((s = sp->q.cqe_prev) == (void *)&sp->gp->dq) {
 toobig:				msgq(sp, M_BERR, "The screen cannot %s.",
-				    count < 0 ? "shrink" : "grow");
+				    adj == A_DECREASE ? "shrink" : "grow");
 				return (1);
 			}
 			if (s->t_maxrows < MINIMUM_SCREEN_ROWS + count) {
@@ -558,24 +581,28 @@ toosmall:			msgq(sp, M_BERR,
 		}
 	}
 
-	/* Update the screens. */
+	/*
+	 * Update the screens; we could optimize the reformatting of the
+	 * screen, but this isn't likely to be a common enough operation
+	 * to make it worthwhile.
+	 */
 	g->rows += count;
 	g->t_rows += count;
 	if (g->t_minrows == g->t_maxrows)
 		g->t_minrows += count;
 	g->t_maxrows += count;
-	_TMAP(g) = _HMAP(g) + (g->t_rows - 1);
+	_TMAP(g) += count;
 	(void)status(g, g->ep, g->lno, 0);
-	F_SET(g, S_REDRAW);
+	F_SET(g, S_REFORMAT);
 
 	s->rows -= count;
 	s->t_rows -= count;
 	s->t_maxrows -= count;
 	if (s->t_minrows > s->t_maxrows)
 		s->t_minrows = s->t_maxrows;
-	_TMAP(s) = _HMAP(s) + (s->t_rows - 1);
+	_TMAP(s) -= count;
 	(void)status(s, s->ep, s->lno, 0);
-	F_SET(s, S_REDRAW);
+	F_SET(s, S_REFORMAT);
 
 	return (0);
 }

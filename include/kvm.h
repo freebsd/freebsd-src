@@ -36,10 +36,6 @@
 #ifndef _KVM_H_
 #define	_KVM_H_
 
-/* Default version symbol. */
-#define	VRS_SYM		"_version"
-#define	VRS_KEY		"VERSION"
-
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS

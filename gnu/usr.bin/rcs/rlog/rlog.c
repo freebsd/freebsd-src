@@ -36,6 +36,15 @@ Report problems and direct all questions to:
 
 
 /* $Log: rlog.c,v $
+ * Revision 1.5  1994/05/12  00:42:59  phk
+ * typo.
+ *
+ * Revision 1.4  1994/05/12  00:37:59  phk
+ * made -v produce tip-revision, which was what I wanted in the first place...
+ *
+ * Revision 1.3  1994/05/11  22:39:44  phk
+ * Added -v option to rlog.  This gives a quick way to get a list of versions.
+ *
  * Revision 1.2  1993/08/06  16:47:16  nate
  * Have rlog output be much easier to parse.  (Added one line which is not
  * used by any CVS/RCS commands)
@@ -198,10 +207,10 @@ static struct lockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.2 1993/08/06 16:47:16 nate Exp $")
+mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.5 1994/05/12 00:42:59 phk Exp $")
 {
 	static char const cmdusage[] =
-		"\nrlog usage: rlog -{bhLRt} -ddates -l[lockers] -rrevs -sstates -w[logins] -Vn file ...";
+		"\nrlog usage: rlog -{bhLRt} [-v[string]] -ddates -l[lockers] -rrevs -sstates -w[logins] -Vn file ...";
 
 	register FILE *out;
 	char *a, **newargv;
@@ -214,11 +223,14 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.2 1993/08/06 16:47:16 nate Exp $")
 	struct lock const *currlock;
 	int descflag, selectflag;
 	int onlylockflag;  /* print only files with locks */
+	int versionlist;
+	char *vstring;
 	int onlyRCSflag;  /* print only RCS file name */
 	unsigned revno;
 
         descflag = selectflag = true;
-	onlylockflag = onlyRCSflag = false;
+	versionlist = onlylockflag = onlyRCSflag = false;
+	vstring=0;
 	out = stdout;
 	suffixes = X_DEFAULT;
 
@@ -281,6 +293,11 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.2 1993/08/06 16:47:16 nate Exp $")
 			setRCSversion(*argv);
 			break;
 
+		case 'v':
+			versionlist = true;
+			vstring = a;
+			break;
+
                 default:
 			faterror("unknown option: %s%s", *argv, cmdusage);
 
@@ -329,6 +346,12 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.2 1993/08/06 16:47:16 nate Exp $")
             /* do nothing if -L is given and there are no locks*/
 	    if (onlylockflag && !Locks)
 		continue;
+
+	    if ( versionlist ) {
+		gettree();
+		aprintf(out, "%s%s %s\n", vstring, workfilename, tiprev());
+		continue;
+	    }
 
 	    if ( onlyRCSflag ) {
 		aprintf(out, "%s\n", RCSfilename);

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)exec.h	7.5 (Berkeley) 2/15/91
- *	$Id: exec.h,v 1.4.2.1 1994/05/04 07:57:10 rgrimes Exp $
+ *	$Id: exec.h,v 1.6 1994/05/04 08:30:34 rgrimes Exp $
  */
 
 #ifndef	_EXEC_H_
@@ -66,7 +66,7 @@ unsigned long	a_drsize;	/* data relocation size */
 #define	OMAGIC		0407	/* old impure format */
 #define	NMAGIC		0410	/* read-only text */
 #define	ZMAGIC		0413	/* demand load format */
-#define QMAGIC          0314    /* "compact" demand load format -- DEPRICATE */
+#define QMAGIC          0314    /* "compact" demand load format */
 
 /* a_mid */
 #define	MID_ZERO	0	/* unknown - implementation dependent */

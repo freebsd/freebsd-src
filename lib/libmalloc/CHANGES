@@ -1,0 +1,58 @@
+Jan 29, 1994 v1.13
+
+Subtle realloc bug uncovered by Gianni Mariani's super malloc stress test.
+(realloc could return a block less than _malloc_minchunk which could cause
+free to die under certain conditions).  testmalloc now checks this case.
+
+Dec 15, 1993
+
+Fixed various problems with formats (printing ints for longs or vice versa)
+pointed out by der Mouse.  Integrated old fix to make grabhunk work if
+blocks returned by the memfunc routine (sbrk, etc) are lower than the
+previous blocks.  Not well-tested yet.
+
+Jul 30, 1993
+
+Bunch of fixes from mds@ilight.com (Mike Schechterman) to make it compile
+and work on Alpha/OSF1, RS6000/AIX3.2, SGI/Irix4.0.5, HP720/HP-UX8.0.7,
+DEC5000/Ultrix4.2.  Thanks, Mike.
+
+Major user visible change is that 'make onefile' becomes 'make one' because
+of overly-smart 'make's.  Minor change is that testmalloc, teststomp and
+simumalloc all want stdlib.h or proper stdio.h, else they have implicit
+ints.  I don't want to declare libc functions.
+
+Added ecalloc, _ecalloc.
+
+--
+Added mmap() support.
+
+Cleaned up externs.h a bit more, added sysconf() call for Posix
+
+Merged some of the smaller files into larger ones.
+
+Added mal_contents from ZMailer version of malloc, changed counters in
+leak.c from long to unsigned long.
+
+On a pure allocation pattern, the old one started to take a bad
+performance hit on the search that precedes an sbrk, because of the
+wilderness preservation problem -- we search through every block in
+the free list before the sbrk, even though none of them will satisfy
+the request, since they're all probably little chunks left over from
+the last sbrk chunk. So our performance reduces to the same as that of
+the 4.1 malloc.  Yech. If we were to preserve the wilderness, we
+wouldn't have these little chunks. Good enough reason to reverse the
+philosophy and cut blocks from the start, not the end. To minimize
+pointer munging, means we have to make the block pointer p point to
+the end of the block (i.e the end tag) NEXT becomes (p-1)->next, PREV
+becomes (p-2)->prev, and the start tag becomes (p + 1 -
+p->size)->size. The free logic is reversed -- preceding block merge
+needs pointer shuffle, following block merge doesn't require pointer
+shuffle. (has the additional advantage that realloc is more likely to
+grow into a free area) Did this -- malloc, free stayed as complex/big,
+but realloc and memalign simplified a fair bit. Now much faster on
+pure allocation pattern, as well as any pattern where allocation
+dominates, since fragmentation is less. Also much less wastage.
+
+Also trimmed down the search loop in malloc.c to make it much smaller
+and simpler, also a mite faster.

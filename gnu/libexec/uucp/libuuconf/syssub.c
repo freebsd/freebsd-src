@@ -1,7 +1,7 @@
 /* syssub.c
    System information subroutines.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_syssub_rcsid[] = "$Id: syssub.c,v 1.1 1993/08/05 18:25:59 conklin Exp $";
+const char _uuconf_syssub_rcsid[] = "$Id: syssub.c,v 1.2 1994/05/07 18:12:59 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -231,6 +231,71 @@ _uuconf_isystem_default (qglobal, qset, qdefault, faddalternates)
       if (qalt->uuconf_qproto_params
 	  == (struct uuconf_proto_param *) &_uuconf_unset)
 	qalt->uuconf_qproto_params = qdefault->uuconf_qproto_params;
+      else if (qdefault->uuconf_qproto_params != NULL)
+	{
+	  int cnew, ca;
+	  struct uuconf_proto_param *qd, *qa;
+
+	  /* Merge in the default protocol parameters, so that a
+	     system with 'g' protocol parameters won't lose the
+	     default 'i' protocol parameters.  */
+	  ca = 0;
+	  cnew = 0;
+	  for (qd = qdefault->uuconf_qproto_params;
+	       qd->uuconf_bproto != '\0';
+	       qd++)
+	    {
+	      int c;
+
+	      c = 0;
+	      for (qa = qalt->uuconf_qproto_params;
+		   (qa->uuconf_bproto != '\0'
+		    && qa->uuconf_bproto != qd->uuconf_bproto);
+		   qa++)
+		++c;
+	      if (qa->uuconf_bproto == '\0')
+		{
+		  ++cnew;
+		  ca = c;
+		}
+	    }
+
+	  if (cnew > 0)
+	    {
+	      struct uuconf_proto_param *qnew;
+
+	      qnew = ((struct uuconf_proto_param *)
+		      uuconf_malloc (qset->uuconf_palloc,
+				     ((ca + cnew + 1)
+				      * sizeof (struct uuconf_proto_param))));
+	      if (qnew == NULL)
+		{
+		  qglobal->ierrno = errno;
+		  return UUCONF_MALLOC_FAILED | UUCONF_ERROR_ERRNO;
+		}
+	      memcpy ((pointer) qnew, (pointer) qalt->uuconf_qproto_params,
+		      ca * sizeof (struct uuconf_proto_param));
+	      cnew = 0;
+	      for (qd = qdefault->uuconf_qproto_params;
+		   qd->uuconf_bproto != '\0';
+		   qd++)
+		{
+		  for (qa = qalt->uuconf_qproto_params;
+		       (qa->uuconf_bproto != '\0'
+			&& qa->uuconf_bproto != qd->uuconf_bproto);
+		       qa++)
+		    ;
+		  if (qa->uuconf_bproto == '\0')
+		    {
+		      qnew[ca + cnew] = *qd;
+		      ++cnew;
+		    }
+		}
+	      qnew[ca + cnew].uuconf_bproto = '\0';
+	      uuconf_free (qset->uuconf_palloc, qalt->uuconf_qproto_params);
+	      qalt->uuconf_qproto_params = qnew;
+	    }
+	}
 
       if (qdefault->uuconf_qalternate != NULL)
 	qdefault = qdefault->uuconf_qalternate;

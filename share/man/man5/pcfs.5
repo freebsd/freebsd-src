@@ -1,114 +1,268 @@
-PCFS quirks file
-
-PCFS filesystems on floppy disks only are supported in this release.
-And, only high density floppy disks are supported.  This is because
-the floppy disk driver only supports high density disks. 
-
+.\" Copyright 1994 Ollivier Robert (roberto@keltia.frmug.fr.net)
+.\" All rights reserved.
+.\"
+.\" Based on previous pcfs.5 found in FreeBSD.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY ME ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL I BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     $Id: pcfs.5,v 1.2 1994/06/22 08:55:58 jkh Exp $
+.\""
+.Dd June 21, 1994
+.Dt PCFS 5
+.Os FreeBSD
+.Sh NAME
+.Nm pcfs
+.Nd MS-DOS[TM] compatible filesystem
+.Sh SYNOPSYS
+Add the following statements to your configuration file in /sys/i386/conf/BLOT.
+Or whatever you call your config file.
+.Bd -literal
+.Cd options PCFS
+.Ed
+.Pp
+PCFS consumes approximately 24000 bytes of kernel code space and
+approximately 4000 bytes of bss.
+.Pp
+.Sh DESCRIPTION
+.Pp
+The
+.Nm
+filesystem enables you to access of DOS floppy and hard
+disks with UN*X compatible semantics without having to resort to special
+utilities such as 
+.Xr mdir 1
+and
+.Xr mcopy 1 .
+.Pp
+The
+.Nm
+filesystem should be considered as
+.Em experimental
+but it seems stable enough. We hope to integrate a better version in latter
+versions of FreeBSD.
+.Pp
+.Sh OPERATIONAL DETAILS
+.Em Floppy disks
+.Pp
+To mount a pcfs filesystem:
+.Bd -literal
+	mount -t pcfs /dev/fd0a /mnt
+.Ed
+.Pp
+To unmount a pcfs filesystem:
+.Bd -literal
+	umount /mnt
+.Ed
+.Pp
+If you want to be sure the fat is
+.Nm ALWAYS
+up to date, mount the filesystem with the synchronous option:
+.Bd -literal
+	mount -t pcfs -o synchronous /dev/fd0a /mnt
+.Ed
+.Pp
+This results in
+.Nm very slow
+file write performance because it turns off write behind of fst disk blocks.
+.Pp
+.Em Hard disks
+.Pp
+You must modify your current disk label (see
+.Xr disklabel 5 )
+to include a reference to your DOS partition.
+.Pp
+Assuming you'll use partition
+.Dq Pa h ,
+the last one, as your MS-DOS partition and that it is at the beginning of
+the disk, you'll end with an entry like that in
+.Em /etc/disktab
+:
+.Bd -literal
+#
+# Seagate ST-31200N
+#
+# a = /             12
+# b = swap          32
+# e = /usr/local    160
+# f = /usr          55
+# g = /spare        597
+# h = /root/dos     150
+#
+st31200n|Seagate ST31200N 1 GB SCSI-2F:\\
+    :dt=SCSI:ty=winchester:\\
+    :nc#1006:ns#32:nt#64:se#512:rm#6300:\\
+    :oa#307200:pa#24576:ta=4.2BSD:ba#8192:fa#1024:\\
+    :ob#331776:pb#65536:tb=swap:\\
+    :oe#397312:pe#327680:te=4.2BSD:be#8192:fe#1024:\\
+    :of#724992:pf#112640:tf=4.2BSD:bf#8192:ff#1024:\\
+    :og#837632:pg#1222656:tg=4.2BSD:bg#8192:fg#1024:\\
+    :oh#32:ph#307168:th=MSDOS:
+.Ed
+.Pp
+The DOS partition begins
+.Em 32
+sectors from the beginning of the disk (the first track of the first
+cylinder is reserved for the partition table and other data). The type of
+the partition (keyword
+.Em th
+) on the last line is set to MS-DOS.
+.Pp
+Run
+.Xr disklabel 8
+to install the new label.
+.Pp
+You must now decide whether you want to mount the partition at boot
+time. If not, you
+.Nm must
+run the following command as
+.Nm root
+when you want to access the partition:
+.Bd -literal
+	mount -t pcfs /dev/sd0h /dos
+.Ed
+.Pp
+(replace /dos by your favorite mount point).
+.Pp
+If you want to mount it at boot time, you must include a statement into
+your
+.Dq Pa /etc/fstab
+file (see
+.Xr fstab 5 )
+like that:
+.Bd -literal
+	/dev/sd0h	/root/dos	pcfs rw 0 0
+.Ed
+.Pp
+.Sh BUGS
+This is the first release and as such has performance problems.
+Reading large files is very slow because the read ahead code in pcfs_read()
+doesn't read far enough ahead for filesystems with small blocksizes.
+Performance and dos hard disk paritions are the next areas to be
+worked on.  Unless someone else does it.
+.Pp
+.Em PCFS quirks
+.Pp
+PCFS filesystems on floppy and hard disks are supported in this
+release. You must add an entry in your disklabel for the DOS partition.
+.Pp
 Created files use only the user permissions bits.  And of these
 only the write bit is meaningful.  DOS files always have the
 execute and read bits on.
-
+.Pp
 PCFS does not turn on or off the DOS archive attribute bit.
-
+.Pp
 The timestamp on dos files is updated when ever the file is modified.
 There is no inode time or create time stamp.
-
+.Pp
 The timestamp placed on a dos file does not have corrections for
 daylight savings time included.  It does have the correction for
 timezone though.
-
+.Pp
 Unix times before 1980 will have their year set to 1980 in dos file
-timestamps.  This is because dos's idea of time starts in 1980.
-
+timestamps.  This is because DOS's idea of time starts in 1980.
+.Pp
 PCFS filesystems do not support sparse files.  Any attempt to seek
 past the end of a file results in the blocks being allocated and
 cleared.
-
-When read() is used to examine pcfs directories you will get dos
+.Pp
+When
+.Xr read 2
+is used to examine pcfs directories you will get dos
 directory contents.  Note that the root directory does not contain
-a "." or ".." entry.  Only the readdir() system call simulates these
-entries in the root directory of a dos filesystem.  readdir() returns
-directory entries as described in getdirentries(2).
-
-Using read() and write() to manipulate the contents of dos directories
-is unwise on an active dos filesystem since a more up to date copy of
+a "." or ".." entry.  Only the
+.Xr readdir 2
+system call simulates these entries in the root directory of a dos
+filesystem.
+.Xr readdir 2
+returns directory entries as described in
+.Xr getdirentries 2 . 
+.Pp
+Using
+.Xr read 2
+and
+.Xr write 2
+to manipulate the contents of dos directories
+is unwise on an active DOS filesystem since a more up to date copy of
 their contents may reside in data structures in the kernel.  It is
 probably safe to examine the filename field of dos directory entries.
 The filesystem code keeps this up to date at all times.
-
+.Pp
 The cluster allocation algorithm is very simplistic.  It starts at
 cluster 2 and searchs until the last cluster of the filesystem and
 takes the first available cluster.
-
-The fsync() system call does not work on file descriptors open on
+.Pp
+The 
+.Xr fsync 2
+system call does not work on file descriptors open on
 directories.  This isn't a terrible thing since very few programs
 open directories for writing.
-
-The pcfs filesystem truncates filenames quietly.  If a filename has
+.Pp
+The PCFS filesystem truncates filenames quietly.  If a filename has
 more than 8 characters before the 1st period only the 1st eigth are
 used.  It only uses the 1st three characters after the period if
-they exist.  The filenames "abc" and "abc." are the same to pcfs.
-Filenames that begin with a "." are considered to be dos filenames
-with an extension only and so are limited to 3 characters after the
-leading ".".  For example ".imlost" would be seen as ".iml" by pcfs.
-PCFS folds filenames to upper case before writing them to disk or
+they exist.  The filenames
+.Dq Pa abc
+and
+.Dq Pa abc.
+are the same to PCFS. Filenames that begin with a "." are considered to be
+dos filenames with an extension only and so are limited to 3 characters
+after the leading ".".  For example
+.Dq Pa .imlost
+would be seen as
+.Dq Pa .iml
+by PCFS. PCFS folds filenames to upper case before writing them to disk or
 looking up filenames, and folds them to lower case when reading them
-from disk for presentation to the user (for example by readdir()).
-
+from disk for presentation to the user (for example by
+.Xr readdir 2 ).
+.Pp
 Directory entries for the DOS filesystem label are quietly ignored.
-
+.Pp
 This is probably going to be a problem.  This implementation expects
 the length of the root directory to be a multiple of the size of
 a cluster.  If this is not true a warning message is printed when
 the filesystem is mounted.
-
+.Pp
 PCFS supports DOS filesystems with 12 bit or 16 bit FATs.  It supports
 both regular and huge filesystems ( > 32 megabytes).  It supports
 both version 3.3 and 5.0 BPB's.  Don't know about version 4.x and
 less than 3.3.  It has not been tested with 16 bit fats or huge
 filesystems. This is because the hard disk drivers need to support
 dos partitions to do these things. 
-
+.Pp
 PCFS does not support symbolic links or hard links.  It does not
 support quotas.  How could it, pcfs files have no owners.  PCFS
 files have a simulated owner and group of 0.  PCFS does not support
 file locking.  Though it may in the future.  PCFS filesystems are
 not remote mountable, but they will be in the future.
-
-This is the first release and as such has performance problems.
-Reading large files is very slow because the read ahead code in pcfs_read()
-doesn't read far enough ahead for filesystems with small blocksizes.
-Performance and dos hard disk paritions are the next areas to be
-worked on.  Unless someone else does it.
-
-
-Operational Details
--------------------
-
-To mount a pcfs filesystem:
-	mount -t pcfs /dev/fd0a /mnt
-
-To unmount a pcfs filesystem:
-	umount /mnt
-
-If you want to be sure the fat is ALWAYS up to date, mount the
-filesystem with the synchronous option:
-	mount -t pcfs -o synchronous /dev/fd0a /mnt
-This reasults in very slow file write performance because it turns
-off write behind of fst disk blocks.
-
-
-Configuring PCFS into your kernel
----------------------------------
-
-Add the following statements to your configuration file in /sys/i386/conf/BLOT.
-Or whatever you call your config file.
-
-	options PCFS
-
-PCFS consumes approximately 24000 bytes of kernel code space and
-approximately 4000 bytes of bss.
-
+.Pp
 PCFS has some debug printf's that can be turned on by defining PCFSDEBUG.
 It produces lots of output.  If you use it be sure to kill syslogd before
 using a PCFS filesystem with debug.
+.Sh SEE ALSO
+.Xr disklabel 5 ,
+.Xr disklabel 8 ,
+.Xr fstab 5 ,
+.Xr mount 8 .
+.Sh HISTORY
+A
+.Nm
+filesystem first appeared in 386BSD 0.1, patchkit 0.2.3.

@@ -1,0 +1,40 @@
+Message-Id: <199403270118.RAA00584@corbin.Root.COM>
+From: David Greenman <davidg@root.com>
+To: "Jordan K. Hubbard" <jkh@whisker.hubbard.ie>
+Cc: csgr@alpha.ru.ac.za, freebsd-hackers@freefall.cdrom.com
+Subject: Re: Boune Buffers : Crash and Burn ^&%$&&^% 
+Date: Sat, 26 Mar 1994 17:18:04 -0800
+
+>Ummm.  I suppose it would be stupid to wonder whether or not this is good
+>memory you just stuck in there? :-)  It does raise the point:  David - what
+>does your memory test do when it finds memory errors?
+
+   The order of events is like this:
+
+1) Determine amount of memory by looking at CMOS.
+2) Do memory test of this memory, starting at the highest address and going
+backwards.
+3) If a bad page is found, TRUNCATE the physical memory to end just before
+this page. Continue until all memory is tested.
+
+   So all memory past the lowest bad page is ignored. The number of pages that
+were chopped are then reported as # of "bad pages" when the memory information
+is printed. If there aren't any, then nothing is printed.
+   The rationale for not constructing a bit mask and weeding out just the
+pages that test bad is a flimsy one - doing so would have required moving the
+memory test into the machine independant portion of the VM system, and would
+have required much trickier coding. Since the main purpose of this was to
+verify that what the CMOS was telling us was correct, and also to identify
+when there is bad memory, trying to make the best of it when there really is
+some bad memory didn't seem important to me. ..but hey, if somebody wants to
+recode it, I won't complain. :-)
+   The problem that Terry eluded to, but didn't state, is where you test memory
+for the purpose of determining how much you have. This is problematic because
+many memory controllers will generate a fatal NMI when you 'test' non-existant
+memory (i.e. the parity check fails, and the condition is handled less than
+gracefully), and can also happen with some memory controllers that do strange
+address wrapping in the non-existant memory area. Compaq machines are alledged
+to be suseptable to one of these two problems.
+
+-DG
+

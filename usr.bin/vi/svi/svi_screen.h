@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)svi_screen.h	8.30 (Berkeley) 12/22/93
+ *	@(#)svi_screen.h	8.38 (Berkeley) 3/15/94
  */
 
 /*
@@ -76,7 +76,8 @@ typedef struct _svi_private {
 	size_t	 extotalcount;	/* Ex overwrite count. */
 	size_t	 exlcontinue;	/* Ex line continue value. */
 
-				/* svi_screens() cache information. */
+				/* svi_opt_screens() cache information. */
+#define	SVI_SCR_CFLUSH(svp)	svp->ss_lno = OOBLNO
 	recno_t	 ss_lno;	/* 1-N: Line number. */
 	size_t	 ss_screens;	/* Return value. */
 
@@ -124,13 +125,17 @@ typedef struct _svi_private {
 						/* Small screen test. */
 #define	ISSMALLSCREEN(sp)	((sp)->t_minrows != (sp)->t_maxrows)
 
-						/* Next tab offset. */
+/*
+ * Next tab offset.
+ *
+ * !!!
+ * There are problems with how the historical vi handled tabs.  For example,
+ * by doing "set ts=3" and building lines that fold, you can get it to step
+ * through tabs as if they were spaces and move inserted characters to new
+ * positions when <esc> is entered.  I think that nvi does tabs correctly,
+ * but there may be some historical incompatibilities.
+ */
 #define	TAB_OFF(sp, c)	(O_VAL(sp, O_TABSTOP) - (c) % O_VAL(sp, O_TABSTOP))
-
-						
-#define SCNO_INCREMENT				/* Step through line. */\
-	scno += (ch = *(u_char *)p++) == '\t' && !listset ?		\
-	    TAB_OFF(sp, scno) : cname[ch].len
 
 /* Move in a screen (absolute), and fail if it doesn't work. */
 #define	MOVEA(sp, lno, cno) {						\
@@ -186,11 +191,12 @@ void	svi_bell __P((SCR *));
 int	svi_bg __P((SCR *));
 int	svi_busy __P((SCR *, char const *));
 int	svi_change __P((SCR *, EXF *, recno_t, enum operation));
-size_t	svi_chposition __P((SCR *, EXF *, recno_t, size_t));
+size_t	svi_cm_public __P((SCR *, EXF *, recno_t, size_t));
 int	svi_column __P((SCR *, EXF *, size_t *));
 enum confirm
 	svi_confirm __P((SCR *, EXF *, MARK *, MARK *));
 int	svi_clear __P((SCR *));
+int	svi_crel __P((SCR *, long));
 int	svi_ex_cmd __P((SCR *, EXF *, struct _excmdarg *, MARK *));
 int	svi_ex_run __P((SCR *, EXF *, MARK *));
 int	svi_ex_write __P((void *, const char *, int));
@@ -198,10 +204,9 @@ int	svi_fg __P((SCR *, CHAR_T *));
 enum input
 	svi_get __P((SCR *, EXF *, TEXTH *, int, u_int));
 int	svi_optchange __P((SCR *, int));
-int	svi_rabs __P((SCR *, long));
+int	svi_rabs __P((SCR *, long, enum adjust));
+size_t	svi_rcm __P((SCR *, EXF *, recno_t));
 int	svi_refresh __P((SCR *, EXF *));
-size_t	svi_relative __P((SCR *, EXF *, recno_t));
-int	svi_rrel __P((SCR *, long));
 int	svi_screen_copy __P((SCR *, SCR *));
 int	svi_screen_edit __P((SCR *, EXF *));
 int	svi_screen_end __P((SCR *));
@@ -214,17 +219,19 @@ int	svi_suspend __P((SCR *));
 int	svi_swap __P((SCR *, SCR **, char *));
 
 /* Private routines. */
+size_t	svi_cm_private __P((SCR *, EXF *, recno_t, size_t, size_t));
 int	svi_curses_end __P((SCR *));
 int	svi_curses_init __P((SCR *));
 int	svi_divider __P((SCR *));
 int	svi_init __P((SCR *));
 int	svi_join __P((SCR *, SCR **));
+void	svi_keypad __P((SCR *, int));
 int	svi_line __P((SCR *, EXF *, SMAP *, size_t *, size_t *));
-size_t	svi_lrelative __P((SCR *, EXF *, recno_t, size_t));
-size_t	svi_ncols __P((SCR *, u_char *, size_t, size_t *));
 int	svi_number __P((SCR *, EXF *));
+size_t	svi_opt_screens __P((SCR *, EXF *, recno_t, size_t *));
 int	svi_paint __P((SCR *, EXF *));
-size_t	svi_screens __P((SCR *, EXF *, recno_t, size_t *));
+int	svi_putchar __P((int));
+size_t	svi_screens __P((SCR *, EXF *, char *, size_t, recno_t, size_t *));
 int	svi_sm_1down __P((SCR *, EXF *));
 int	svi_sm_1up __P((SCR *, EXF *));
 int	svi_sm_cursor __P((SCR *, EXF *, SMAP **));

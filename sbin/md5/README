@@ -1,0 +1,34 @@
+Adapted for FreeBSD by Poul-Henning Kamp, phk@login.dkuug.dk.  Only the
+Makefile is modified.
+-----------------------------------------------------------------------
+This directory contains source code for the MD5 message-digest algorithm.
+
+MD5.tar.Z is a compressed tar file of all the other files in this directory.
+
+"md5-announcement.txt" is the announcement from RSA Data Security that
+MD5 is being placed in the public domain for free general use.
+
+"rfc1321.txt" is the RFC that describes in detail the MD2, MD4, and MD5
+message-digest algorithms.
+
+The *.[ch] files were taken exactly from RFC 1321.
+I wrote a simple Makefile to build an md5 executable by default,
+with targets for "test" (which implements the test in Appendix A.5 in the RFC)
+and "clean".  Running Makefile with no targets will build the "md5" binary.
+
+There is a typo in the RFC Appendix A.4 (mddriver.c).
+Line 20 sets MD to "MD5" by default, but the code wants
+MD to be set to one of "2", "4", or "5".
+I put a -DMD=5 in the Makefile to mask this problem so that the
+code itself remains unchanged from what is in RFC 1321.
+
+Ric Anderson, ric@Artisoft.COM, provided a bug fix to the timing test
+code that caused a divide by zero aborts on a Sun sparc station-10
+running soalris 2.3.  This fix to mddriver.c is the only change to the
+code in RFC 1321 and corrects only a problem with the timing tests.
+No change to the code that implements the actual checksum has been made.
+
+Ric has also provided a man page - "md5.1".  A postscript version
+of this man page is in "md5.1.ps" and a text version in "md5.1.txt".
+
+				-- Jim Ellis (jte@cert.org)

@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.8 1994/01/31 10:27:25 davidg Exp $
+	$Id: syscalls.master,v 1.9 1994/03/15 01:58:33 wollman Exp $
 ;	from: @(#)syscalls.master	7.26 (Berkeley) 3/25/91
 ; System call name/number master file.
 ; Processed to created init_sysent.c, syscalls.c and syscall.h.
@@ -243,8 +243,8 @@
 172	UNIMPL	0 nosys
 173	UNIMPL	0 nosys
 174	UNIMPL	0 nosys
-175	UNIMPL	0 nosys
-176	UNIMPL	0 nosys
+175	STD	1 ntp_gettime
+176	STD	1 ntp_adjtime
 #ifdef MACHVMCOMPAT
 177	STD	4 svm_allocate vm_allocate
 178	STD	3 svm_deallocate vm_deallocate

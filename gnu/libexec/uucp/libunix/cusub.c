@@ -1,7 +1,7 @@
 /* cusub.c
    System dependent routines for cu.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char cusub_rcsid[] = "$Id: cusub.c,v 1.1 1993/08/05 18:23:44 conklin Exp $";
+const char cusub_rcsid[] = "$Id: cusub.c,v 1.2 1994/05/07 18:10:14 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -37,7 +37,39 @@ const char cusub_rcsid[] = "$Id: cusub.c,v 1.1 1993/08/05 18:23:44 conklin Exp $
 #include "conn.h"
 #include "prot.h"
 
+#if HAVE_FCNTL_H
+#include <fcntl.h>
+#else
+#if HAVE_SYS_FILE_H
+#include <sys/file.h>
+#endif
+#endif
+
+/* Get definitions for both O_NONBLOCK and O_NDELAY.  */
+#ifndef O_NDELAY
+#ifdef FNDELAY
+#define O_NDELAY FNDELAY
+#else /* ! defined (FNDELAY) */
+#define O_NDELAY 0
+#endif /* ! defined (FNDELAY) */
+#endif /* ! defined (O_NDELAY) */
+
+#ifndef O_NONBLOCK
+#ifdef FNBLOCK
+#define O_NONBLOCK FNBLOCK
+#else /* ! defined (FNBLOCK) */
+#define O_NONBLOCK 0
+#endif /* ! defined (FNBLOCK) */
+#endif /* ! defined (O_NONBLOCK) */
+
 #include <errno.h>
+
+/* 4.2 systems don't define SIGUSR2.  This should work for them.  On
+   systems which are missing SIGUSR1, or SIGURG, you must find two
+   signals which you can safely use.  */
+#ifndef SIGUSR2
+#define SIGUSR2 SIGURG
+#endif
 
 /* Get definitions for EAGAIN, EWOULDBLOCK and ENODATA.  */
 #ifndef EAGAIN
@@ -69,6 +101,7 @@ static char bStstp;
 
 static const char *zsport_line P((const struct uuconf_port *qport));
 static void uscu_child P((struct sconnection *qconn, int opipe));
+static RETSIGTYPE uscu_child_handler P((int isig));
 static RETSIGTYPE uscu_alarm P((int isig));
 static int cscu_escape P((char *pbcmd, const char *zlocalname));
 static RETSIGTYPE uscu_alarm_kill P((int isig));
@@ -97,6 +130,7 @@ zsport_line (qport)
       break;
     case UUCONF_PORTTYPE_TCP:
     case UUCONF_PORTTYPE_TLI:
+    case UUCONF_PORTTYPE_PIPE:
       return NULL;
     }
 
@@ -556,7 +590,9 @@ uscu_child (qconn, opipe)
   CATCH_PROTECT int cwrite;
   CATCH_PROTECT char abbuf[1024];
 
-  /* It would be nice if we could just use fsserial_read, but that
+  fgot = FALSE;
+
+  /* It would be nice if we could just use fsysdep_conn_read, but that
      will log signals that we don't want logged.  There should be a
      generic way to extract the file descriptor from the port.  */
   if (qconn->qport == NULL)
@@ -571,8 +607,12 @@ uscu_child (qconn, opipe)
 	  oport = -1;
 	  break;
 #endif
+	case UUCONF_PORTTYPE_PIPE:
+	  /* A read of 0 on a pipe always means EOF (see below).  */
+	  fgot = TRUE;
+	  /* Fall through.  */
 	case UUCONF_PORTTYPE_STDIN:
-	  oport = 0;
+	  oport = ((struct ssysdep_conn *) qconn->psysdep)->ord;
 	  break;
 	case UUCONF_PORTTYPE_MODEM:
 	case UUCONF_PORTTYPE_DIRECT:
@@ -583,6 +623,10 @@ uscu_child (qconn, opipe)
 	}
     }
 
+  /* Force the descriptor into blocking mode.  */
+  (void) fcntl (oport, F_SETFL,
+		fcntl (oport, F_GETFL, 0) &~ (O_NDELAY | O_NONBLOCK));
+
   usset_signal (SIGUSR1, uscu_child_handler, TRUE, (boolean *) NULL);
   usset_signal (SIGUSR2, uscu_child_handler, TRUE, (boolean *) NULL);
   usset_signal (SIGINT, SIG_IGN, TRUE, (boolean *) NULL);
@@ -591,7 +635,6 @@ uscu_child (qconn, opipe)
   usset_signal (SIGTERM, uscu_child_handler, TRUE, (boolean *) NULL);
 
   fstopped = FALSE;
-  fgot = FALSE;
   iSchild_sig = 0;
   cwrite = 0;
 
@@ -792,7 +835,7 @@ fsysdep_terminal_raw (flocalecho)
     sSterm_new.c_lflag &=~ (ICANON | ISIG | ECHO | ECHOE | ECHOK | ECHONL);
   else
     sSterm_new.c_lflag &=~ (ICANON | ISIG);
-  sSterm_new.c_iflag &=~ (INLCR | IGNCR | ICRNL);
+  sSterm_new.c_iflag &=~ (INLCR | IGNCR | ICRNL | IXON | IXOFF | IXANY);
   sSterm_new.c_oflag &=~ (OPOST);
   sSterm_new.c_cc[VMIN] = 1;
   sSterm_new.c_cc[VTIME] = 0;
@@ -808,7 +851,7 @@ fsysdep_terminal_raw (flocalecho)
       (ICANON | IEXTEN | ISIG | ECHO | ECHOE | ECHOK | ECHONL);
   else
     sSterm_new.c_lflag &=~ (ICANON | IEXTEN | ISIG);
-  sSterm_new.c_iflag &=~ (INLCR | IGNCR | ICRNL);
+  sSterm_new.c_iflag &=~ (INLCR | IGNCR | ICRNL | IXON | IXOFF);
   sSterm_new.c_oflag &=~ (OPOST);
   sSterm_new.c_cc[VMIN] = 1;
   sSterm_new.c_cc[VTIME] = 0;
@@ -1094,8 +1137,9 @@ fsysdep_shell (qconn, zcmd, tcmd)
 	  oread = owrite = -1;
 	  break;
 	case UUCONF_PORTTYPE_STDIN:
-	  oread = 0;
-	  owrite = 1;
+	case UUCONF_PORTTYPE_PIPE:
+	  oread = ((struct ssysdep_conn *) qconn->psysdep)->ord;
+	  owrite = ((struct ssysdep_conn *) qconn->psysdep)->owr;
 	  break;
 	case UUCONF_PORTTYPE_MODEM:
 	case UUCONF_PORTTYPE_DIRECT:

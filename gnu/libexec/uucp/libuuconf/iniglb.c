@@ -1,7 +1,7 @@
 /* iniglb.c
    Initialize the global information structure.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_iniglb_rcsid[] = "$Id: iniglb.c,v 1.1 1993/08/05 18:25:35 conklin Exp $";
+const char _uuconf_iniglb_rcsid[] = "$Id: iniglb.c,v 1.2 1994/05/07 18:12:31 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -84,6 +84,7 @@ _uuconf_iinit_global (pqglobal)
   qprocess->zdebugfile = DEBUGFILE;
   qprocess->zdebug = "";
   qprocess->cmaxuuxqts = 0;
+  qprocess->zrunuuxqt = NULL;
   qprocess->fv2 = TRUE;
   qprocess->fhdb = TRUE;
   qprocess->pzdialcodefiles = NULL;

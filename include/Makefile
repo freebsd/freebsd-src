@@ -15,7 +15,7 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	paths.h pwd.h queue.h ranlib.h regex.h resolv.h setjmp.h \
 	sgtty.h stab.h stdarg.h stddef.h stdio.h stdlib.h string.h strings.h \
 	struct.h sysexits.h time.h ttyent.h tzfile.h unistd.h utime.h utmp.h \
-	varargs.h vis.h
+	varargs.h vis.h octype.h rune.h runetype.h skey.h
 
 MFILES=	float.h floatingpoint.h frame.h
 LFILES=	errno.h fcntl.h signal.h syslog.h syscall.h termios.h

@@ -34,7 +34,7 @@ TZDIR=	${DESTDIR}/usr/share/zoneinfo
 #	REDO=		right_posix
 # below.
 
-REDO=		right_posix
+REDO=		posix_right
 
 # If you're running on a System V-style system and don't want lint grief,
 # add

@@ -2,7 +2,7 @@
  * authspeed - figure out how LONG it takes to do an NTP encryption
  */
 
-#if defined(SYS_HPUX) || defined(SYS_AUX3) || defined(SYS_AUX2) || defined(SOLARIS) || defined(SYS_SVR4) || defined(SYS_PTX)
+#if defined(SYS_HPUX) || defined(SYS_AUX3) || defined(SYS_AUX2) || defined(SOLARIS) || defined(SYS_SVR4) || defined(SYS_PTX) || defined(SYS_UNIXWARE1)
 #define FAKE_RUSAGE
 #endif
 

@@ -1,7 +1,7 @@
 /* locfil.c
    Expand a file name on the local system.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -41,11 +41,15 @@ extern struct passwd *getpwnam ();
    and moving any other type of file into the public directory.  */
 
 char *
-zsysdep_local_file (zfile, zpubdir)
+zsysdep_local_file (zfile, zpubdir, pfbadname)
      const char *zfile;
      const char *zpubdir;
+     boolean *pfbadname;
 {
   const char *zdir;
+
+  if (pfbadname != NULL)
+    *pfbadname = FALSE;
 
   if (*zfile == '/')
     return zbufcpy (zfile);
@@ -79,6 +83,8 @@ zsysdep_local_file (zfile, zpubdir)
 	    {
 	      ulog (LOG_ERROR, "User %s not found", zcopy);
 	      ubuffree (zcopy);
+	      if (pfbadname != NULL)
+		*pfbadname = TRUE;
 	      return NULL;
 	    }
 	  ubuffree (zcopy);

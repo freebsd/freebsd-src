@@ -1,0 +1,125 @@
+This is a low level driver for Seagate ST01/02, Future Domain TMC-885, TMC-950
+SCSI host adapter that uses Julian Elishers SCSI code.
+
+This driver is the result of looking at code written by the following people:
+
+	Drew Eckhardt
+	Julian Elischer
+	Glen Overby
+	Gary Close
+
+Special thank to
+
+	Robert Knier
+
+that made the fast blind transfer routines, and also helped with debugging.
+
+I am very grateful to these people.
+
+
+Operating system requirements:
+
+This driver uses the latest version of Julian Elischers scsi code, available
+at FreeBSD.cdrom.com in the file called newscsi3.tar.gz. The driver has been
+tested on FreeBSD 1.1-BETA, FreeBSD 1.0.2, 386bsd 0.1. I don't know if will
+work with NetBSD. (I hope it will.)
+
+
+The hardware:
+
+The ST01/02, and Future Domain 950 are very simple SCSI controllers. They are
+not busmastering, so the processor must do all transfers a la IDE. They support
+blind transfer by adding wait states (up to a certain limit). Interrupt is
+generated for reconnect and parity errors (maybe also for some other events).
+
+The card consists of one command port that writes to scsi control lines, reads
+status lines, and a data port that read/writes to the 8 data lines. The address
+decoding gives both data and control ports large memory areas to a single
+port. This is used by the code.
+
+The ST01/02 differs from the FD950 in memory address location and SCSI id.
+
+Probing for the card:
+
+A card is recognized by comparing the BIOS signature with known signatures. A
+new card may not be recognized if the BIOS signature has changed. Please send
+new signatures to me.
+
+Driver function:
+
+A scsi command is sent to scsi_cmd function. The command is either placed in
+the queue or an retryable message is returned. The routine may wait for
+completion of the command depending on the supplied flags. A timer is started
+for every command placed in the queue. The commands are added in the order they
+are received. There is a possiblity to make all REQUEST SENSE commands be
+queued before all other commands, but I dont think it is a good thing (Linux
+do however use this). 
+
+The card is mostly controlled by the sea_main function. It is called by
+scsi_cmd, the interrupt routine, and the timeout routine. The sea_main routine
+runs as long there are something to do (transfer data, issue queued commands,
+and handle reconnected commands).
+
+The data transfers may be done in two different ways: Blind and polled
+transfers. They differ in the way the driver does it handshaking with the
+target. During a blind transfer, the driver code blindly transfers a block
+of data without checking for changed phase. During polled transfers, the
+phase is checked between every character transfered. The polled transfers
+are always used for status information and command transfers.
+
+Because the card does not use dma in any way, there is no need to handle
+physical addresses. There is no problem with the isa-bus address limit of
+16MB, making bounce-buffers unnecessary.
+
+The data structures:
+
+Every card has a sea_data structure keeping the queues of commands waiting to
+be issued, and commands currently disconnected. The type of card (Seagate or
+Future Domain), data and control port addresses, scsi id, busy flags for all
+possible targets, and interrupt vector for the card.
+
+Every scsi command to be issued are stored in a sea_scb structure. It contains
+a flag describing status/error of the command, current data buffer position,
+and number of bytes remaining to be transfered.
+
+
+INSTALLATION
+
+1) Alter defines in /sys/i386/isa/seagate.c if you don't
+   want to use blind transfers and/or disconnects. Please note that 
+   interrupts must be enabled on the board if disconnects are used.
+2) Create a new config file in /sys/i386/conf containing defines for Julian's
+   scsi code (see GENERICAH or GENERICBT). Replace the aha or bt controller
+   with:
+    controller sea0 at isa? bio irq 5 iomem 0xC8000 iosiz 0x2000 vector seaintr
+3) config, make depend, make, cp, shutdown -r
+
+You should now have a working kernel booted.
+
+I have tested the code on the following hardware: 386DX 24MHz 8MB AMI BIOS,
+Maxtor 7120A IDE, Seagate ST02, Maxtor LXT340S scsi disk, SONY CDU-8003 cdrom,
+(short test with) WANGTEK 6200HS DAT drive.
+
+
+PROBLEMS
+
+I have had problems getting the ST02 boot using FreeBSD boot floppies. I think
+is some problem with BIOS calls not working. It is unfortunately impossible to
+disconnect the ST02 floppy controller.
+
+I have had problems getting the driver to talk to a 40 MB Seagate disk. I
+don't have access to it any more, so I can't do any more checking on it.
+
+NOTE: The ST02 creates its own description of the disk attached. This is not
+the same as the disk says. This translation problem may cause problems when
+sharing a disk between both DOS and BSD. It is however not impossible.
+
+
+/Kent
+
+
+Kent Palmkvist
+kentp@isy.liu.se
+
+
+$Id: seagate.doc,v 1.1 1994/06/28 15:47:12 jkh Exp $

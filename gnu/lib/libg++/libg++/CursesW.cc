@@ -41,7 +41,7 @@ int CursesWindow::count = 0;
 #if !defined(_IO_MAGIC) && !defined(HAVE_VSCANF) &&!defined vsscanf
 extern "C" int _doscan(FILE *, const char*, va_list args);
 
-static int vsscanf(char *buf, const char * fmt, va_list args)
+static int vsscanf(const char *buf, const char * fmt, va_list args)
 {
   FILE b;
 #ifdef _IOSTRG

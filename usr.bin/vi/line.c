@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,23 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)line.c	8.20 (Berkeley) 12/29/93";
+static char sccsid[] = "@(#)line.c	8.23 (Berkeley) 3/15/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <string.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "excmd.h"
@@ -270,7 +280,7 @@ file_aline(sp, ep, update, lno, p, len)
 	 * updated/scrolled as each line was entered.  So, when this routine
 	 * is called to copy the new lines from the cut buffer into the file,
 	 * it has to know not to update the screen again.
-	 */ 
+	 */
 	return (scr_update(sp, ep, lno, LINE_APPEND, update));
 }
 
@@ -385,7 +395,7 @@ file_sline(sp, ep, lno, p, len)
 
 	/* Log after change. */
 	log_line(sp, ep, lno, LOG_LINE_RESET_F);
-	
+
 	/* Update screen. */
 	return (scr_update(sp, ep, lno, LINE_RESET, 1));
 }
@@ -422,18 +432,19 @@ file_lline(sp, ep, lnop)
 		*lnop = 0;
 		return (1);
         case 1:
-		lno = 0;
-		break;
+		*lnop = 0;
+		return (0);
 	default:
-		memmove(&lno, key.data, sizeof(lno));
 		break;
 	}
 
 	/* Fill the cache. */
+	memmove(&lno, key.data, sizeof(lno));
 	ep->c_nlines = ep->c_lno = lno;
 	ep->c_len = data.size;
 	ep->c_lp = data.data;
- 
+
+	/* Return the value. */
 	*lnop = (F_ISSET(sp, S_INPUT) &&
 	    ((TEXT *)sp->tiq.cqh_last)->lno > lno ?
 	    ((TEXT *)sp->tiq.cqh_last)->lno : lno);

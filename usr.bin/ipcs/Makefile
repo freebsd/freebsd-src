@@ -2,5 +2,7 @@
 
 PROG=	ipcs
 NOMAN=	noman
+BINMODE = 2555
+BINGRP = kmem
 
 .include <bsd.prog.mk>

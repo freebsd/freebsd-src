@@ -17,7 +17,7 @@ License along with the GNU C Library; see the file COPYING.LIB.  If
 not, write to the Free Software Foundation, Inc., 675 Mass Ave,
 Cambridge, MA 02139, USA.
 
-Modified by Ian Lanc Taylor for Taylor UUCP, June 1992.  */
+Modified by Ian Lance Taylor for Taylor UUCP, June 1992, and October 1993.  */
 
 #include "uucp.h"
 
@@ -63,7 +63,7 @@ ftw_dir (dirs, level, descriptors, dir, len, func)
      int descriptors;
      char *dir;
      size_t len;
-     int (*func) P((const char *file, const struct stat *status, int flag));
+     int (*func) P((const char *file, struct stat *status, int flag));
 {
   int got;
   struct dirent *entry;
@@ -177,7 +177,7 @@ ftw_dir (dirs, level, descriptors, dir, len, func)
 int
 ftw (dir, func, descriptors)
      const char *dir;
-     int (*func) P((const char *file, const struct stat *status, int flag));
+     int (*func) P((const char *file, struct stat *status, int flag));
      int descriptors;
 {
   DIR **dirs;
@@ -234,7 +234,11 @@ ftw (dir, func, descriptors)
   if (flag == FTW_D)
     {
       if (ret == 0)
-	ret = ftw_dir (dirs, 0, descriptors, buf, len, func);
+	{
+	  if (len == 1 && *buf == '/')
+	    len = 0;
+	  ret = ftw_dir (dirs, 0, descriptors, buf, len, func);
+	}
       if (dirs[0] != NULL)
 	{
 	  int save;

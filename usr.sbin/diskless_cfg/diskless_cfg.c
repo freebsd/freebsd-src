@@ -18,6 +18,11 @@ Based loosely on the 4.4BSD diskless setup code
 #include <rpc/types.h>
 #include <sys/errno.h>
 #include <nfs/nfs.h>
+#ifdef __SVR4
+/* Solaris: compile with -lbsm -lnsl -lsocket */
+#define getfh nfs_getfh
+#define bcopy(a,b,c) memcpy(b,a,c)
+#endif
 #endif
 
 #ifdef i386				/* Native 386bsd system */
@@ -50,6 +55,7 @@ struct nfs_diskless nfs_diskless;
 #define KW_HOSTNAME	7
 #define KW_KERNEL	8
 #define KW_GATEWAY	9
+#define KW_SERVER	10
 
 struct {
 	char *name;
@@ -63,11 +69,12 @@ struct {
 	{ "-wsize",	KW_WSIZE },
 	{ "-hostname",	KW_HOSTNAME },
 	{ "-gateway",	KW_GATEWAY },
+	{ "-server",	KW_SERVER },
 	{ NULL,		KW_HELP }
 };
 
 char *hostname = "386bsd";
-char *gateway = NULL;
+char gateway[256];
 char cfg[64];
 char *rootpath = "/var/386bsd";
 char *swappath = "/var/swap/386bsd";
@@ -86,7 +93,7 @@ main(argc, argv)
 	char *p, *q;
 
 	netmask = 0;
-	bzero(&nfs_diskless, 0, sizeof(struct nfs_diskless));
+	memset(&nfs_diskless, 0, sizeof(struct nfs_diskless));
 	strcpy(nfs_diskless.myif.ifra_name,"ed0");
 	nfs_diskless.myif.ifra_addr.sa_len = sizeof(struct sockaddr);
 	nfs_diskless.myif.ifra_addr.sa_family = AF_INET;
@@ -107,24 +114,6 @@ main(argc, argv)
 	nfs_diskless.root_saddr.sa_len = sizeof(struct sockaddr);
 	nfs_diskless.root_saddr.sa_family = AF_INET;
 
-	if (gethostname(servername, 256) < 0) {
-		fprintf(stderr,"%s: unable to get host server name\n",argv[0]);
-		exit(2);
-	}
-	if ((hp = gethostbyname(servername)) == NULL) {
-		fprintf(stderr,"%s: unable to get host address\n",argv[0]);
-		exit(2);
-	}
-	p = servername;
-	while (*p && (*p != '.')) p++;
-	*p = 0;
-	nfs_diskless.swap_saddr.sa_data[0] = nfs_diskless.root_saddr.sa_data[0]
-		= NFS_SOCKET >> 8;
-	nfs_diskless.swap_saddr.sa_data[1] = nfs_diskless.root_saddr.sa_data[1]
-		= NFS_SOCKET & 0x00FF;
-	bcopy(*hp->h_addr_list, &nfs_diskless.swap_saddr.sa_data[2], 4);
-	bcopy(*hp->h_addr_list, &nfs_diskless.root_saddr.sa_data[2], 4);
-	
 	i = 1;
 	while (i < argc) {
 		cmd = KW_HELP;
@@ -174,28 +163,49 @@ main(argc, argv)
 				hostname = argv[i+1];
 				i += 2;
 				break;
+			case KW_SERVER:
+				strcpy(servername,argv[i+1]);
+				i += 2;
+				break;
 			case KW_GATEWAY:
-				gateway = argv[i+1];
+				strcpy(gateway,argv[i+1]);
 				i += 2;
 				break;
 		}
 	}
-	if(gateway)
-	{
-		if (gethostname(gateway, 256) < 0) {
-			fprintf(stderr,"%s: unable to get gateway host name\n",argv[0]);
-			exit(2);
-		}
-		if ((hp = gethostbyname(gateway)) == NULL) {
-			fprintf(stderr,"%s: unable to get gateway host address\n",argv[0]);
-			exit(2);
-		}
-		nfs_diskless.mygateway.sa_len = sizeof(struct sockaddr);
-		nfs_diskless.mygateway.sa_family = AF_INET;
-		nfs_diskless.mygateway.sa_data[0] = NFS_SOCKET >> 8;
-		nfs_diskless.mygateway.sa_data[1] = NFS_SOCKET & 0x00FF;
-		bcopy(*hp->h_addr_list, &nfs_diskless.mygateway.sa_data[2], 4);
+
+	if (!*servername && gethostname(servername, sizeof servername) < 0) {
+		fprintf(stderr,"%s: unable to get host server name\n",argv[0]);
+		exit(2);
 	}
+	if ((hp = gethostbyname(servername)) == NULL) {
+		fprintf(stderr,"%s: unable to get host address\n",argv[0]);
+		exit(2);
+	}
+	p = servername;
+	while (*p && (*p != '.')) p++;
+	*p = 0;
+	nfs_diskless.swap_saddr.sa_data[0] = nfs_diskless.root_saddr.sa_data[0]
+		= NFS_SOCKET >> 8;
+	nfs_diskless.swap_saddr.sa_data[1] = nfs_diskless.root_saddr.sa_data[1]
+		= NFS_SOCKET & 0x00FF;
+	bcopy(*hp->h_addr_list, &nfs_diskless.swap_saddr.sa_data[2], 4);
+	bcopy(*hp->h_addr_list, &nfs_diskless.root_saddr.sa_data[2], 4);
+	
+	if (!*gateway && gethostname(gateway, sizeof gateway) < 0) {
+		fprintf(stderr,"%s: unable to get gateway host name\n",argv[0]);
+		exit(2);
+	}
+	if ((hp = gethostbyname(gateway)) == NULL) {
+		fprintf(stderr,"%s: unable to get gateway host address\n",argv[0]);
+		exit(2);
+	}
+	nfs_diskless.mygateway.sa_len = sizeof(struct sockaddr);
+	nfs_diskless.mygateway.sa_family = AF_INET;
+	nfs_diskless.mygateway.sa_data[0] = NFS_SOCKET >> 8;
+	nfs_diskless.mygateway.sa_data[1] = NFS_SOCKET & 0x00FF;
+	bcopy(*hp->h_addr_list, &nfs_diskless.mygateway.sa_data[2], 4);
+
 	nfs_diskless.swap_args.rsize = i386order(rsize);
 	nfs_diskless.swap_args.wsize = i386order(wsize);
 	nfs_diskless.root_args.rsize = i386order(rsize);
@@ -219,7 +229,7 @@ main(argc, argv)
 	bcopy(&broadcast, &nfs_diskless.myif.ifra_broadaddr.sa_data[2], 4);
 	bcopy(&netmask, &nfs_diskless.myif.ifra_mask.sa_data[2], 4);
 	if (stat(rootpath, &statbuf) < 0) {
-		fprintf(stderr,"%s: unable to stat '%s'\n",
+		fprintf(stderr,"%s: unable to stat root '%s'\n",
 			argv[0],rootpath);
 		exit(2);
 	}
@@ -238,7 +248,7 @@ main(argc, argv)
 	strcpy(nfs_diskless.root_hostnam,buf);
 	printf("root is on %s\n",nfs_diskless.root_hostnam);
 	if (stat(swappath, &statbuf) < 0) {
-		fprintf(stderr,"%s: unable to stat '%s'\n",
+		fprintf(stderr,"%s: unable to stat swap '%s'\n",
 			argv[0],swappath);
 		exit(2);
 	}

@@ -1,0 +1,1012 @@
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename rltech.info
+@comment %**end of header (This is for running Texinfo on a region.)
+@setchapternewpage odd
+
+@ifinfo
+This document describes the GNU Readline Library, a utility for aiding
+in the consitency of user interface across discrete programs that need
+to provide a command line interface.
+
+Copyright (C) 1988 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+pare preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+@end ignore
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end ifinfo
+
+@node Programming with GNU Readline
+@chapter Programming with GNU Readline
+
+This manual describes the interface between the GNU Readline Library and
+user programs.  If you are a programmer, and you wish to include the
+features found in GNU Readline in your own programs, such as completion,
+line editing, and interactive history manipulation, this documentation
+is for you.
+
+@menu
+* Default Behaviour::	Using the default behaviour of Readline.
+* Custom Functions::	Adding your own functions to Readline.
+* Custom Completers::	Supplanting or supplementing Readline's
+			completion functions.
+@end menu
+
+@node Default Behaviour
+@section Default Behaviour
+
+Many programs provide a command line interface, such as @code{mail},
+@code{ftp}, and @code{sh}.  For such programs, the default behaviour of
+Readline is sufficient.  This section describes how to use Readline in
+the simplest way possible, perhaps to replace calls in your code to
+@code{gets ()}.
+
+@findex readline ()
+@cindex readline, function
+The function @code{readline} prints a prompt and then reads and returns
+a single line of text from the user.  The line which @code{readline ()}
+returns is allocated with @code{malloc ()}; you should @code{free ()}
+the line when you are done with it.  The declaration for @code{readline}
+in ANSI C is
+
+@example
+@code{char *readline (char *@var{prompt});}
+@end example
+
+So, one might say
+@example
+@code{char *line = readline ("Enter a line: ");}
+@end example
+in order to read a line of text from the user.
+
+The line which is returned has the final newline removed, so only the
+text of the line remains.
+
+If readline encounters an @code{EOF} while reading the line, and the
+line is empty at that point, then @code{(char *)NULL} is returned.
+Otherwise, the line is ended just as if a newline was typed.
+
+If you want the user to be able to get at the line later, (with
+@key{C-p} for example), you must call @code{add_history ()} to save the
+line away in a @dfn{history} list of such lines.
+
+@example
+@code{add_history (line)};
+@end example
+
+For full details on the GNU History Library, see the associated manual.
+
+It is polite to avoid saving empty lines on the history list, since it
+is rare than someone has a burning need to reuse a blank line.  Here is
+a function which usefully replaces the standard @code{gets ()} library
+function:
+
+@example
+/* A static variable for holding the line. */
+static char *line_read = (char *)NULL;
+
+/* Read a string, and return a pointer to it.  Returns NULL on EOF. */
+char *
+do_gets ()
+@{
+  /* If the buffer has already been allocated, return the memory
+     to the free pool. */
+  if (line_read != (char *)NULL)
+    @{
+      free (line_read);
+      line_read = (char *)NULL;
+    @}
+
+  /* Get a line from the user. */
+  line_read = readline ("");
+
+  /* If the line has any text in it, save it on the history. */
+  if (line_read && *line_read)
+    add_history (line_read);
+
+  return (line_read);
+@}
+@end example
+
+The above code gives the user the default behaviour of @key{TAB}
+completion: completion on file names.  If you do not want readline to
+complete on filenames, you can change the binding of the @key{TAB} key
+with @code{rl_bind_key ()}.
+
+@findex rl_bind_key ()
+@example
+@code{int rl_bind_key (int @var{key}, int (*@var{function})());}
+@end example
+
+@code{rl_bind_key ()} takes 2 arguments; @var{key} is the character that
+you want to bind, and @var{function} is the address of the function to
+run when @var{key} is pressed.  Binding @key{TAB} to @code{rl_insert ()}
+makes @key{TAB} just insert itself.
+
+@code{rl_bind_key ()} returns non-zero if @var{key} is not a valid
+ASCII character code (between 0 and 255).
+
+@example
+@code{rl_bind_key ('\t', rl_insert);}
+@end example
+
+This code should be executed once at the start of your program; you
+might write a function called @code{initialize_readline ()} which
+performs this and other desired initializations, such as installing
+custom completers, etc.
+
+@node Custom Functions
+@section Custom Functions
+
+Readline provides a great many functions for manipulating the text of
+the line.  But it isn't possible to anticipate the needs of all
+programs.  This section describes the various functions and variables
+defined in within the Readline library which allow a user program to add
+customized functionality to Readline.
+
+@menu
+* The Function Type::	C declarations to make code readable.
+* Function Naming::	How to give a function you write a name.
+* Keymaps::		Making keymaps.
+* Binding Keys::	Changing Keymaps.
+* Function Writing::	Variables and calling conventions.
+* Allowing Undoing::	How to make your functions undoable.
+@end menu
+
+@node The Function Type
+@subsection The Function Type
+
+For the sake of readabilty, we declare a new type of object, called
+@dfn{Function}.  A @code{Function} is a C language function which
+returns an @code{int}.  The type declaration for @code{Function} is:
+
+@noindent
+@code{typedef int Function ();}
+
+The reason for declaring this new type is to make it easier to write
+code describing pointers to C functions.  Let us say we had a variable
+called @var{func} which was a pointer to a function.  Instead of the
+classic C declaration
+
+@code{int (*)()func;}
+
+we have
+
+@code{Function *func;}
+
+@node Function Naming
+@subsection Naming a Function
+
+The user can dynamically change the bindings of keys while using
+Readline.  This is done by representing the function with a descriptive
+name.  The user is able to type the descriptive name when referring to
+the function.  Thus, in an init file, one might find
+
+@example
+Meta-Rubout:	backward-kill-word
+@end example
+
+This binds the keystroke @key{Meta-Rubout} to the function
+@emph{descriptively} named @code{backward-kill-word}.  You, as the
+programmer, should bind the functions you write to descriptive names as
+well.  Readline provides a function for doing that:
+
+@defun rl_add_defun (char *name, Function *function, int key)
+Add @var{name} to the list of named functions.  Make @var{function} be
+the function that gets called.  If @var{key} is not -1, then bind it to
+@var{function} using @code{rl_bind_key ()}.
+@end defun
+
+Using this function alone is sufficient for most applications.  It is
+the recommended way to add a few functions to the default functions that
+Readline has built in already.  If you need to do more or different
+things than adding a function to Readline, you may need to use the
+underlying functions described below.
+
+@node Keymaps
+@subsection Selecting a Keymap
+
+Key bindings take place on a @dfn{keymap}.  The keymap is the
+association between the keys that the user types and the functions that
+get run.  You can make your own keymaps, copy existing keymaps, and tell
+Readline which keymap to use.
+
+@defun {Keymap rl_make_bare_keymap} ()
+Returns a new, empty keymap.  The space for the keymap is allocated with
+@code{malloc ()}; you should @code{free ()} it when you are done.
+@end defun
+
+@defun {Keymap rl_copy_keymap} (Keymap map)
+Return a new keymap which is a copy of @var{map}.
+@end defun
+
+@defun {Keymap rl_make_keymap} ()
+Return a new keymap with the printing characters bound to rl_insert,
+the lowercase Meta characters bound to run their equivalents, and
+the Meta digits bound to produce numeric arguments.
+@end defun
+
+@node Binding Keys
+@subsection Binding Keys
+
+You associate keys with functions through the keymap.  Here are
+functions for doing that.
+
+@defun {int rl_bind_key} (int key, Function *function)
+Binds @var{key} to @var{function} in the currently selected keymap.
+Returns non-zero in the case of an invalid @var{key}.
+@end defun
+
+@defun {int rl_bind_key_in_map} (int key, Function *function, Keymap map)
+Bind @var{key} to @var{function} in @var{map}.  Returns non-zero in the case
+of an invalid @var{key}.
+@end defun
+
+@defun {int rl_unbind_key} (int key)
+Make @var{key} do nothing in the currently selected keymap.
+Returns non-zero in case of error.
+@end defun
+
+@defun {int rl_unbind_key_in_map} (int key, Keymap map)
+Make @var{key} be bound to the null function in @var{map}.
+Returns non-zero in case of error.
+@end defun
+
+@defun rl_generic_bind (int type, char *keyseq, char *data, Keymap map)
+Bind the key sequence represented by the string @var{keyseq} to the arbitrary
+pointer @var{data}.  @var{type} says what kind of data is pointed to by
+@var{data}; right now this can be a function (@code{ISFUNC}), a macro
+(@code{ISMACR}), or a keymap (@code{ISKMAP}).  This makes new keymaps as
+necessary.  The initial place to do bindings is in @var{map}.
+@end defun
+
+@node Function Writing
+@subsection Writing a New Function
+
+In order to write new functions for Readline, you need to know the
+calling conventions for keyboard invoked functions, and the names of the
+variables that describe the current state of the line gathered so far.
+
+@defvar {char *rl_line_buffer}
+This is the line gathered so far.  You are welcome to modify the
+contents of this, but see Undoing, below.
+@end defvar
+
+@defvar {int rl_point}
+The offset of the current cursor position in @var{rl_line_buffer}.
+@end defvar
+
+@defvar {int rl_end}
+The number of characters present in @code{rl_line_buffer}.  When
+@code{rl_point} is at the end of the line, then @code{rl_point} and
+@code{rl_end} are equal.
+@end defvar
+
+The calling sequence for a command @code{foo} looks like
+
+@example
+@code{foo (int count, int key)}
+@end example
+
+where @var{count} is the numeric argument (or 1 if defaulted) and
+@var{key} is the key that invoked this function.
+
+It is completely up to the function as to what should be done with the
+numeric argument; some functions use it as a repeat count, other
+functions as a flag, and some choose to ignore it.  In general, if a
+function uses the numeric argument as a repeat count, it should be able
+to do something useful with a negative argument as well as a positive
+argument.  At the very least, it should be aware that it can be passed a
+negative argument.
+
+@node Allowing Undoing
+@subsection Allowing Undoing
+
+Supporting the undo command is a painless thing to do, and makes your
+functions much more useful to the end user.  It is certainly easy to try
+something if you know you can undo it.  I could use an undo function for
+the stock market.
+
+If your function simply inserts text once, or deletes text once, and it
+calls @code{rl_insert_text ()} or @code{rl_delete_text ()} to do it, then
+undoing is already done for you automatically, and you can safely skip
+this section.
+
+If you do multiple insertions or multiple deletions, or any combination
+of these operations, you should group them together into one operation.
+This can be done with @code{rl_begin_undo_group ()} and
+@code{rl_end_undo_group ()}.
+
+@defun rl_begin_undo_group ()
+Begins saving undo information in a group construct.  The undo
+information usually comes from calls to @code{rl_insert_text ()} and
+@code{rl_delete_text ()}, but they could be direct calls to
+@code{rl_add_undo ()}.
+@end defun
+
+@defun rl_end_undo_group ()
+Closes the current undo group started with @code{rl_begin_undo_group
+()}.  There should be exactly one call to @code{rl_end_undo_group ()}
+for every call to @code{rl_begin_undo_group ()}.
+@end defun
+
+Finally, if you neither insert nor delete text, but directly modify the
+existing text (e.g. change its case), you call @code{rl_modifying ()}
+once, just before you modify the text.  You must supply the indices of
+the text range that you are going to modify.
+
+@defun rl_modifying (int start, int end)
+Tell Readline to save the text between @var{start} and @var{end} as a
+single undo unit.  It is assumed that subsequent to this call you will
+modify that range of text in some way.
+@end defun
+
+@subsection An Example
+
+Here is a function which changes lowercase characters to the uppercase
+equivalents, and uppercase characters to the lowercase equivalents.  If
+this function was bound to @samp{M-c}, then typing @samp{M-c} would
+change the case of the character under point.  Typing @samp{10 M-c}
+would change the case of the following 10 characters, leaving the cursor on
+the last character changed.
+
+@example
+/* Invert the case of the COUNT following characters. */
+invert_case_line (count, key)
+     int count, key;
+@{
+  register int start, end;
+
+  start = rl_point;
+
+  if (count < 0)
+    @{
+      direction = -1;
+      count = -count;
+    @}
+  else
+    direction = 1;
+      
+  /* Find the end of the range to modify. */
+  end = start + (count * direction);
+
+  /* Force it to be within range. */
+  if (end > rl_end)
+    end = rl_end;
+  else if (end < 0)
+    end = -1;
+
+  if (start > end)
+    @{
+      int temp = start;
+      start = end;
+      end = temp;
+    @}
+
+  if (start == end)
+    return;
+
+  /* Tell readline that we are modifying the line, so save the undo
+     information. */
+  rl_modifying (start, end);
+
+  for (; start != end; start += direction)
+    @{
+      if (uppercase_p (rl_line_buffer[start]))
+        rl_line_buffer[start] = to_lower (rl_line_buffer[start]);
+      else if (lowercase_p (rl_line_buffer[start]))
+        rl_line_buffer[start] = to_upper (rl_line_buffer[start]);
+    @}
+  /* Move point to on top of the last character changed. */
+  rl_point = end - direction;
+@}
+@end example
+
+@node Custom Completers
+@section Custom Completers
+
+Typically, a program that reads commands from the user has a way of
+disambiguating commands and data.  If your program is one of these, then
+it can provide completion for either commands, or data, or both commands
+and data.  The following sections describe how your program and Readline
+cooperate to provide this service to end users.
+
+@menu
+* How Completing Works::	The logic used to do completion.
+* Completion Functions::	Functions provided by Readline.
+* Completion Variables::	Variables which control completion.
+* A Short Completion Example::	An example of writing completer subroutines.
+@end menu
+
+@node How Completing Works
+@subsection How Completing Works
+
+In order to complete some text, the full list of possible completions
+must be available.  That is to say, it is not possible to accurately
+expand a partial word without knowing what all of the possible words
+that make sense in that context are.  The GNU Readline library provides
+the user interface to completion, and additionally, two of the most common
+completion functions; filename and username.  For completing other types
+of text, you must write your own completion function.  This section
+describes exactly what those functions must do, and provides an example
+function.
+
+There are three major functions used to perform completion:
+
+@enumerate
+@item
+The user-interface function @code{rl_complete ()}.  This function is
+called interactively with the same calling conventions as other
+functions in readline intended for interactive use; i.e. @var{count},
+and @var{invoking-key}.  It isolates the word to be completed and calls
+@code{completion_matches ()} to generate a list of possible completions.
+It then either lists the possible completions or actually performs the
+completion, depending on which behaviour is desired.
+
+@item
+The internal function @code{completion_matches ()} uses your
+@dfn{generator} function to generate the list of possible matches, and
+then returns the array of these matches.  You should place the address
+of your generator function in @code{rl_completion_entry_function}.
+
+@item
+The generator function is called repeatedly from
+@code{completion_matches ()}, returning a string each time.  The
+arguments to the generator function are @var{text} and @var{state}.
+@var{text} is the partial word to be completed.  @var{state} is zero the
+first time the function is called, and a positive non-zero integer for
+each subsequent call.  When the generator function returns @code{(char
+*)NULL} this signals @code{completion_matches ()} that there are no more
+possibilities left.
+
+@end enumerate
+
+@defun rl_complete (int ignore, int invoking_key)
+Complete the word at or before point.  You have supplied the function
+that does the initial simple matching selection algorithm (see
+@code{completion_matches ()}).  The default is to do filename completion.
+@end defun
+
+Note that @code{rl_complete ()} has the identical calling conventions as
+any other key-invokable function; this is because by default it is bound
+to the @samp{TAB} key.
+
+@defvar {Function *rl_completion_entry_function}
+This is a pointer to the generator function for @code{completion_matches
+()}.  If the value of @code{rl_completion_entry_function} is
+@code{(Function *)NULL} then the default filename generator function is
+used, namely @code{filename_entry_function ()}.
+@end defvar
+
+@node Completion Functions
+@subsection Completion Functions
+
+Here is the complete list of callable completion functions present in
+Readline.
+
+@defun rl_complete_internal (int what_to_do)
+Complete the word at or before point.  @var{what_to_do} says what to do
+with the completion.  A value of @samp{?} means list the possible
+completions.  @samp{TAB} means do standard completion.  @samp{*} means
+insert all of the possible completions.
+@end defun
+
+@defun rl_complete (int ignore, int invoking_key)
+Complete the word at or before point.  You have supplied the function
+that does the initial simple matching selection algorithm (see
+@code{completion_matches ()}).  The default is to do filename
+completion.  This just calls @code{rl_complete_internal ()} with an
+argument of @samp{TAB}.
+@end defun
+
+@defun rl_possible_completions ()
+List the possible completions.  See description of @code{rl_complete
+()}.  This just calls @code{rl_complete_internal ()} with an argument of
+@samp{?}.
+@end defun
+
+@defun {char **completion_matches} (char *text, char *(*entry_function) ())
+Returns an array of @code{(char *)} which is a list of completions for
+@var{text}.  If there are no completions, returns @code{(char **)NULL}.
+The first entry in the returned array is the substitution for @var{text}.
+The remaining entries are the possible completions.  The array is
+terminated with a @code{NULL} pointer.
+
+@var{entry_function} is a function of two args, and returns a
+@code{(char *)}.  The first argument is @var{text}.  The second is a
+state argument; it is zero on the first call, and non-zero on subsequent
+calls.  It returns a @code{NULL}  pointer to the caller when there are
+no more matches.
+@end defun
+
+@defun {char *filename_completion_function} (char *text, int state)
+A generator function for filename completion in the general case.  Note
+that completion in the Bash shell is a little different because of all
+the pathnames that must be followed when looking up the completion for a
+command.
+@end defun
+
+@defun {char *username_completion_function} (char *text, int state)
+A completion generator for usernames.  @var{text} contains a partial
+username preceded by a random character (usually @samp{~}).
+@end defun
+
+@node Completion Variables
+@subsection Completion Variables
+
+@defvar {Function *rl_completion_entry_function}
+A pointer to the generator function for @code{completion_matches ()}.
+@code{NULL} means to use @code{filename_entry_function ()}, the default
+filename completer.
+@end defvar
+
+@defvar {Function *rl_attempted_completion_function}
+A pointer to an alternative function to create matches.
+The function is called with @var{text}, @var{start}, and @var{end}.
+@var{start} and @var{end} are indices in @code{rl_line_buffer} saying
+what the boundaries of @var{text} are.  If this function exists and
+returns @code{NULL} then @code{rl_complete ()} will call the value of
+@code{rl_completion_entry_function} to generate matches, otherwise the
+array of strings returned will be used.
+@end defvar
+
+@defvar {int rl_completion_query_items}
+Up to this many items will be displayed in response to a
+possible-completions call.  After that, we ask the user if she is sure
+she wants to see them all.  The default value is 100.
+@end defvar
+
+@defvar {char *rl_basic_word_break_characters}
+The basic list of characters that signal a break between words for the
+completer routine.  The contents of this variable is what breaks words
+in the Bash shell, i.e. " \t\n\"\\'`@@$><=;|&@{(".
+@end defvar
+
+@defvar {char *rl_completer_word_break_characters}
+The list of characters that signal a break between words for
+@code{rl_complete_internal ()}.  The default list is the contents of
+@code{rl_basic_word_break_characters}.
+@end defvar
+
+@defvar {char *rl_special_prefixes}
+The list of characters that are word break characters, but should be
+left in @var{text} when it is passed to the completion function.
+Programs can use this to help determine what kind of completing to do.
+@end defvar
+
+@defvar {int rl_ignore_completion_duplicates}
+If non-zero, then disallow duplicates in the matches.  Default is 1.
+@end defvar
+
+@defvar {int rl_filename_completion_desired}
+Non-zero means that the results of the matches are to be treated as
+filenames.  This is @emph{always} zero on entry, and can only be changed
+within a completion entry generator function.
+@end defvar
+
+@defvar {Function *rl_ignore_some_completions_function}
+This function, if defined, is called by the completer when real filename
+completion is done, after all the matching names have been generated.
+It is passed a @code{NULL} terminated array of @code{(char *)} known as
+@var{matches} in the code.  The 1st element (@code{matches[0]}) is the
+maximal substring that is common to all matches. This function can
+re-arrange the list of matches as required, but each deleted element of
+the array must be @code{free()}'d.
+@end defvar
+
+@node A Short Completion Example
+@subsection A Short Completion Example
+
+Here is a small application demonstrating the use of the GNU Readline
+library.  It is called @code{fileman}, and the source code resides in
+@file{readline/examples/fileman.c}.  This sample application provides
+completion of command names, line editing features, and access to the
+history list.
+
+@page
+@smallexample
+/* fileman.c -- A tiny application which demonstrates how to use the
+   GNU Readline library.  This application interactively allows users
+   to manipulate files and their modes. */
+
+#include <stdio.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+#include <sys/types.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/errno.h>
+
+/* The names of functions that actually do the manipulation. */
+int com_list (), com_view (), com_rename (), com_stat (), com_pwd ();
+int com_delete (), com_help (), com_cd (), com_quit ();
+
+/* A structure which contains information on the commands this program
+   can understand. */
+
+typedef struct @{
+  char *name;                   /* User printable name of the function. */
+  Function *func;               /* Function to call to do the job. */
+  char *doc;                    /* Documentation for this function.  */
+@} COMMAND;
+
+COMMAND commands[] = @{
+  @{ "cd", com_cd, "Change to directory DIR" @},
+  @{ "delete", com_delete, "Delete FILE" @},
+  @{ "help", com_help, "Display this text" @},
+  @{ "?", com_help, "Synonym for `help'" @},
+  @{ "list", com_list, "List files in DIR" @},
+  @{ "ls", com_list, "Synonym for `list'" @},
+  @{ "pwd", com_pwd, "Print the current working directory" @},
+  @{ "quit", com_quit, "Quit using Fileman" @},
+  @{ "rename", com_rename, "Rename FILE to NEWNAME" @},
+  @{ "stat", com_stat, "Print out statistics on FILE" @},
+  @{ "view", com_view, "View the contents of FILE" @},
+  @{ (char *)NULL, (Function *)NULL, (char *)NULL @}
+@};
+
+/* The name of this program, as taken from argv[0]. */
+char *progname;
+
+/* When non-zero, this global means the user is done using this program. */
+int done = 0;
+@page
+main (argc, argv)
+     int argc;
+     char **argv;
+@{
+  progname = argv[0];
+
+  initialize_readline ();       /* Bind our completer. */
+
+  /* Loop reading and executing lines until the user quits. */
+  while (!done)
+    @{
+      char *line;
+
+      line = readline ("FileMan: ");
+
+      if (!line)
+        @{
+          done = 1;             /* Encountered EOF at top level. */
+        @}
+      else
+        @{
+          /* Remove leading and trailing whitespace from the line.
+             Then, if there is anything left, add it to the history list
+             and execute it. */
+          stripwhite (line);
+
+          if (*line)
+            @{
+              add_history (line);
+              execute_line (line);
+            @}
+        @}
+
+      if (line)
+        free (line);
+    @}
+  exit (0);
+@}
+
+/* Execute a command line. */
+execute_line (line)
+     char *line;
+@{
+  register int i;
+  COMMAND *find_command (), *command;
+  char *word;
+
+  /* Isolate the command word. */
+  i = 0;
+  while (line[i] && !whitespace (line[i]))
+    i++;
+
+  word = line;
+
+  if (line[i])
+    line[i++] = '\0';
+
+  command = find_command (word);
+
+  if (!command)
+    @{
+      fprintf (stderr, "%s: No such command for FileMan.\n", word);
+      return;
+    @}
+
+  /* Get argument to command, if any. */
+  while (whitespace (line[i]))
+    i++;
+
+  word = line + i;
+
+  /* Call the function. */
+  (*(command->func)) (word);
+@}
+
+/* Look up NAME as the name of a command, and return a pointer to that
+   command.  Return a NULL pointer if NAME isn't a command name. */
+COMMAND *
+find_command (name)
+     char *name;
+@{
+  register int i;
+
+  for (i = 0; commands[i].name; i++)
+    if (strcmp (name, commands[i].name) == 0)
+      return (&commands[i]);
+
+  return ((COMMAND *)NULL);
+@}
+
+/* Strip whitespace from the start and end of STRING. */
+stripwhite (string)
+     char *string;
+@{
+  register int i = 0;
+
+  while (whitespace (string[i]))
+    i++;
+
+  if (i)
+    strcpy (string, string + i);
+
+  i = strlen (string) - 1;
+
+  while (i > 0 && whitespace (string[i]))
+    i--;
+
+  string[++i] = '\0';
+@}
+@page
+/* **************************************************************** */
+/*                                                                  */
+/*                  Interface to Readline Completion                */
+/*                                                                  */
+/* **************************************************************** */
+
+/* Tell the GNU Readline library how to complete.  We want to try to complete
+   on command names if this is the first word in the line, or on filenames
+   if not. */
+initialize_readline ()
+@{
+  char **fileman_completion ();
+
+  /* Allow conditional parsing of the ~/.inputrc file. */
+  rl_readline_name = "FileMan";
+
+  /* Tell the completer that we want a crack first. */
+  rl_attempted_completion_function = (Function *)fileman_completion;
+@}
+
+/* Attempt to complete on the contents of TEXT.  START and END show the
+   region of TEXT that contains the word to complete.  We can use the
+   entire line in case we want to do some simple parsing.  Return the
+   array of matches, or NULL if there aren't any. */
+char **
+fileman_completion (text, start, end)
+     char *text;
+     int start, end;
+@{
+  char **matches;
+  char *command_generator ();
+
+  matches = (char **)NULL;
+
+  /* If this word is at the start of the line, then it is a command
+     to complete.  Otherwise it is the name of a file in the current
+     directory. */
+  if (start == 0)
+    matches = completion_matches (text, command_generator);
+
+  return (matches);
+@}
+
+/* Generator function for command completion.  STATE lets us know whether
+   to start from scratch; without any state (i.e. STATE == 0), then we
+   start at the top of the list. */
+char *
+command_generator (text, state)
+     char *text;
+     int state;
+@{
+  static int list_index, len;
+  char *name;
+
+  /* If this is a new word to complete, initialize now.  This includes
+     saving the length of TEXT for efficiency, and initializing the index
+     variable to 0. */
+  if (!state)
+    @{
+      list_index = 0;
+      len = strlen (text);
+    @}
+
+  /* Return the next name which partially matches from the command list. */
+  while (name = commands[list_index].name)
+    @{
+      list_index++;
+
+      if (strncmp (name, text, len) == 0)
+        return (name);
+    @}
+
+  /* If no names matched, then return NULL. */
+  return ((char *)NULL);
+@}
+@page
+/* **************************************************************** */
+/*                                                                  */
+/*                       FileMan Commands                           */
+/*                                                                  */
+/* **************************************************************** */
+
+/* String to pass to system ().  This is for the LIST, VIEW and RENAME
+   commands. */
+static char syscom[1024];
+
+/* List the file(s) named in arg. */
+com_list (arg)
+     char *arg;
+@{
+  if (!arg)
+    arg = "*";
+
+  sprintf (syscom, "ls -FClg %s", arg);
+  system (syscom);
+@}
+
+com_view (arg)
+     char *arg;
+@{
+  if (!valid_argument ("view", arg))
+    return;
+
+  sprintf (syscom, "cat %s | more", arg);
+  system (syscom);
+@}
+
+com_rename (arg)
+     char *arg;
+@{
+  too_dangerous ("rename");
+@}
+
+com_stat (arg)
+     char *arg;
+@{
+  struct stat finfo;
+
+  if (!valid_argument ("stat", arg))
+    return;
+
+  if (stat (arg, &finfo) == -1)
+    @{
+      perror (arg);
+      return;
+    @}
+
+  printf ("Statistics for `%s':\n", arg);
+
+  printf ("%s has %d link%s, and is %d bytes in length.\n", arg,
+          finfo.st_nlink, (finfo.st_nlink == 1) ? "" : "s",  finfo.st_size);
+  printf ("      Created on: %s", ctime (&finfo.st_ctime));
+  printf ("  Last access at: %s", ctime (&finfo.st_atime));
+  printf ("Last modified at: %s", ctime (&finfo.st_mtime));
+@}
+
+com_delete (arg)
+     char *arg;
+@{
+  too_dangerous ("delete");
+@}
+
+/* Print out help for ARG, or for all of the commands if ARG is
+   not present. */
+com_help (arg)
+     char *arg;
+@{
+  register int i;
+  int printed = 0;
+
+  for (i = 0; commands[i].name; i++)
+    @{
+      if (!*arg || (strcmp (arg, commands[i].name) == 0))
+        @{
+          printf ("%s\t\t%s.\n", commands[i].name, commands[i].doc);
+          printed++;
+        @}
+    @}
+
+  if (!printed)
+    @{
+      printf ("No commands match `%s'.  Possibilties are:\n", arg);
+
+      for (i = 0; commands[i].name; i++)
+        @{
+          /* Print in six columns. */
+          if (printed == 6)
+            @{
+              printed = 0;
+              printf ("\n");
+            @}
+
+          printf ("%s\t", commands[i].name);
+          printed++;
+        @}
+
+      if (printed)
+        printf ("\n");
+    @}
+@}
+
+/* Change to the directory ARG. */
+com_cd (arg)
+     char *arg;
+@{
+  if (chdir (arg) == -1)
+    perror (arg);
+
+  com_pwd ("");
+@}
+
+/* Print out the current working directory. */
+com_pwd (ignore)
+     char *ignore;
+@{
+  char dir[1024];
+
+  (void) getwd (dir);
+
+  printf ("Current directory is %s\n", dir);
+@}
+
+/* The user wishes to quit using this program.  Just set DONE non-zero. */
+com_quit (arg)
+     char *arg;
+@{
+  done = 1;
+@}
+
+/* Function which tells you that you can't do this. */
+too_dangerous (caller)
+     char *caller;
+@{
+  fprintf (stderr,
+           "%s: Too dangerous for me to distribute.  Write it yourself.\n",
+           caller);
+@}
+
+/* Return non-zero if ARG is a valid argument for CALLER, else print
+   an error message and return zero. */
+int
+valid_argument (caller, arg)
+     char *caller, *arg;
+@{
+  if (!arg || !*arg)
+    @{
+      fprintf (stderr, "%s: Argument required.\n", caller);
+      return (0);
+    @}
+
+  return (1);
+@}
+@end smallexample

@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: tape.c,v 1.2.2.1 1994/05/04 07:42:57 rgrimes Exp $
+ *	$Id: tape.c,v 1.3 1994/05/04 08:20:52 rgrimes Exp $
  */
 /*
  * Copyright (c) 1983 The Regents of the University of California.

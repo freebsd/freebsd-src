@@ -113,9 +113,9 @@ struct gettyflags {
 #define	EP	gettyflags[2].value
 #define	EPset	gettyflags[2].set
 #define	OP	gettyflags[3].value
-#define	OPset	gettyflags[2].set
+#define	OPset	gettyflags[3].set
 #define	AP	gettyflags[4].value
-#define	APset	gettyflags[2].set
+#define	APset	gettyflags[4].set
 #define	EC	gettyflags[5].value
 #define	CO	gettyflags[6].value
 #define	CB	gettyflags[7].value

@@ -74,8 +74,9 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #	snd*	various sound cards
+#	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.28.2.1 1994/03/07 00:58:43 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.37 1994/06/17 21:50:07 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -89,9 +90,8 @@ all)
 	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0 mcd0	# bdev
 	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
-	sh MAKEDEV speaker mse0 ttyd2 ttyd3                     # cdev
-	# NOTE: co0 and vty04 are not done by a "sh MAKEDEV all"
-	# these are for codrv and interfere with other devices! - rgrimes
+	sh MAKEDEV speaker pcaudio psm0 mse0 ttyd2 ttyd3        # cdev
+	sh MAKEDEV vty4						# cdev
 	;;
 std)
 	rm -f console drum mem kmem null zero io tty klog stdin stdout stderr
@@ -108,7 +108,7 @@ std)
 	mknod stdout	c 22 1; chmod 666 stdout;	chown root.wheel stdout
 	mknod stderr	c 22 2; chmod 666 stderr;	chown root.wheel stderr
 	rm -f fd/*
-	mkdir fd > /dev/null 2>&1
+	mkdir fd > null 2>&1
 	(cd fd && eval `echo "" | awk ' BEGIN { \
 		for (i = 0; i < 64; i++) \
 	 		printf("mknod %d c 22 %d;", i, i)}'`)
@@ -120,7 +120,7 @@ std)
 
 # Create device files for new Archive/Wangtek QIC-02 tape driver (vak)
 wt*)
-	umask 2 ; u=`expr $i : '..\(.*\)'`
+	umask 7 ; u=`expr $i : '..\(.*\)'`
 	if [ x$u = x ]; then u=0; fi
 	rm -f r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
 	mknod rwt${u}   c 10 `expr  0 + $u`	# default density, 512b blocks
@@ -264,6 +264,14 @@ sd*|wd*)
 		mknod ${name}${unit}f	b $blk `expr $unit '*' 8 + 5`
 		mknod ${name}${unit}g	b $blk `expr $unit '*' 8 + 6`
 		mknod ${name}${unit}h	b $blk `expr $unit '*' 8 + 7`
+		case $i in
+		wd*)
+		mknod ${name}${unit}i	b $blk `expr $unit '*' 8 + 64`
+		mknod ${name}${unit}j	b $blk `expr $unit '*' 8 + 65`
+		mknod ${name}${unit}k	b $blk `expr $unit '*' 8 + 66`
+		mknod ${name}${unit}l	b $blk `expr $unit '*' 8 + 67`
+		mknod ${name}${unit}m	b $blk `expr $unit '*' 8 + 68`
+		esac
 		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
 		mknod r${name}${unit}b	c $chr `expr $unit '*' 8 + 1`
 		mknod r${name}${unit}c	c $chr `expr $unit '*' 8 + 2`
@@ -272,8 +280,16 @@ sd*|wd*)
 		mknod r${name}${unit}f	c $chr `expr $unit '*' 8 + 5`
 		mknod r${name}${unit}g	c $chr `expr $unit '*' 8 + 6`
 		mknod r${name}${unit}h	c $chr `expr $unit '*' 8 + 7`
-		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
-		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
+		case $i in
+		wd*)
+		mknod r${name}${unit}i	c $chr `expr $unit '*' 8 + 64`
+		mknod r${name}${unit}j	c $chr `expr $unit '*' 8 + 65`
+		mknod r${name}${unit}k	c $chr `expr $unit '*' 8 + 66`
+		mknod r${name}${unit}l	c $chr `expr $unit '*' 8 + 67`
+		mknod r${name}${unit}m	c $chr `expr $unit '*' 8 + 68`
+		esac
+		chgrp operator ${name}${unit}[a-m] r${name}${unit}[a-m]
+		chmod 640 ${name}${unit}[a-m] r${name}${unit}[a-m]
 		;;
 	*)
 		echo bad unit for disk in: $i
@@ -292,7 +308,6 @@ com*)
 	unit=`expr $i : '...\(.*\)'`
 	rm -f tty0$unit
 	mknod tty0$unit c 8 $unit
-	chown uucp.wheel tty0$unit
 	;;
 
 pty*)
@@ -342,7 +357,7 @@ st*)
 					nrst${unit}.${mode} \
 					erst${unit}.${mode} \
 					st${unit}ctl.${mode}
-			chmod 644 	rst${unit}.${mode}\
+			chmod 640 	rst${unit}.${mode}\
 					nrst${unit}.${mode} \
 					erst${unit}.${mode} 
 			chmod 660	st${unit}ctl.${mode}
@@ -416,7 +431,7 @@ tw*)
 
 # hv 22-apr-93 use this to create the necessary video device for
 # pccons driver
-pc*)
+pc?)
 	chr=12
 	minor=0
  	name=ttyv0
@@ -427,7 +442,7 @@ pc*)
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
-# /dev/ttyv0-b
+# ttyv0-b
 # use as MAKEDEV vtyNN to create NN entries
 vty*)
 	chr=12
@@ -469,19 +484,42 @@ speaker)
 	chown root.wheel speaker
 	;;
 
-cua*|ttyd*)
-	unit=`expr $i : '...d*\(.\)'`
-	rm -f tty0$unit cua0$unit ttyd$unit
-	mknod ttyd$unit c 28 $unit
-	mknod cua0$unit c 28 `expr $unit + 128`
-	chown uucp.wheel ttyd$unit cua0$unit
+cua0?|cua?|ttyd?)
+	unit=`expr $i : '...[d0]*\(.\)$'`
+	rm -f tty*0$unit cua*0$unit tty*d$unit
+	case $unit in
+	[0-9]) m=$unit;;
+	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
+	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
+	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
+	v) m=31;;
+	*) echo too many devices; exit 1;;
+	esac
+	mknod ttyd$unit c 28 $m
+	mknod ttyid$unit c 28 `expr $m + 32`
+	mknod ttyld$unit c 28 `expr $m + 64`
+	mknod cua0$unit c 28 `expr $m + 128`
+	mknod cuai0$unit c 28 `expr $m + 32 + 128`
+	mknod cual0$unit c 28 `expr $m + 64 + 128`
+	chown uucp.dialer cua*0$unit
+	chmod 660 cua*0$unit
 	;;
 
-tty*)
-	unit=`expr $i : 'tty\(.\)'`
-	rm -f tty0$unit cua0$unit ttyd$unit
+tty0?|tty?)
+	unit=`expr $i : 'tty0*\(.\)$'`
+	rm -f tty*0$unit cua*0$unit tty*d$unit
+	case $unit in
+	[0-9]) m=$unit;;
+	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
+	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
+	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
+	v) m=31;;
+	*) echo too many devices; exit 1;;
+	esac
 	umask 0
-	mknod tty0$unit c 28 $unit
+	mknod tty0$unit c 28 $m
+	mknod ttyi0$unit c 28 `expr $m + 32`
+	mknod ttyl0$unit c 28 `expr $m + 64`
 	umask 77
 	;;
 
@@ -510,52 +548,64 @@ mouse*)
 	ln -s $name mouse
 	;;
 
+pcaudio)
+	rm -f pcaudio pcaudioctl
+	mknod pcaudio c 24 0
+	mknod pcaudioctl c 24 128
+	chown root.wheel pcaudio pcaudioctl
+	chmod 666 pcaudio pcaudioctl
+	;;
+
 
 snd*)
 	chr=30
-	rm -f /dev/mixer	# Mixer	[ Control ]
-	mknod /dev/mixer 	c $chr 0
-	chmod 666 /dev/mixer
+	rm -f mixer		# Mixer	[ Control ]
+	mknod mixer 		c $chr 0
+	chmod 666 mixer
 
-	rm -f /dev/sequencer	# Sequencer [ FM Synth and MIDI output ]
-	mknod /dev/sequencer	c $chr 1
-	chmod 666 /dev/sequencer
+	rm -f sequencer		# Sequencer [ FM Synth and MIDI output ]
+	mknod sequencer		c $chr 1
+	chmod 666 sequencer
 
-	rm -f /dev/midi		# Midi input [ Not implemented ]
-	mknod /dev/midi		c $chr 2
+	rm -f midi		# Midi input [ Not implemented ]
+	mknod midi		c $chr 2
 
-	rm -f /dev/dsp		# DSP [ Digitized voice ]
-	mknod /dev/dsp		c $chr 3
-	chmod 666 /dev/dsp
+	rm -f dsp		# DSP [ Digitized voice ]
+	mknod dsp		c $chr 3
+	chmod 666 dsp
 
-	rm -f /dev/audio	# SPARC audio [ Not fully implemented ]
-	mknod /dev/audio	c $chr 4
-	chmod 666 /dev/audio
+	rm -f audio		# SPARC audio [ Not fully implemented ]
+	mknod audio		c $chr 4
+	chmod 666 audio
 
-	rm -f /dev/dsp16	# DSP16 [ Same as /dev/dsp, except 16 bits ]
-	mknod /dev/dsp16	c $chr 5
-	chmod 666 /dev/dsp16
+	rm -f dsp16		# DSP16 [ Same as dsp, except 16 bits ]
+	mknod dsp16		c $chr 5
+	chmod 666 dsp16
 
-	rm -f /dev/sndstat	# Status Device [ Debugging interface ]
-	mknod /dev/sndstat	c $chr 6
-	chmod 666 /dev/sndstat
+	rm -f sndstat		# Status Device [ Debugging interface ]
+	mknod sndstat		c $chr 6
+	chmod 666 sndstat
 
-	rm -f /dev/pro_midi	# PRO_MIDI [PAS midi input and output]
-	mknod /dev/pro_midi	c $chr 15
-	chmod 666 /dev/pro_midi
+	rm -f pro_midi		# PRO_MIDI [PAS midi input and output]
+	mknod pro_midi		c $chr 15
+	chmod 666 pro_midi
 
-	rm -f /dev/dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
-	mknod /dev/dsp1		c $chr 19
-	chmod 666 /dev/dsp1
+	rm -f dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
+	mknod dsp1		c $chr 19
+	chmod 666 dsp1
 
-	rm -f /dev/audio1	# Sparc Audio 1 [ SB emulation of PAS16 or 2nd audio ]
-	mknod /dev/audio1	c $chr 20
-	chmod 666 /dev/audio1
+	rm -f audio1	# Sparc Audio 1 [ SB emulation of PAS16 or 2nd audio ]
+	mknod audio1	c $chr 20
+	chmod 666 audio1
 	;;
 
 local)
 	umask 0
 	sh MAKEDEV.local
+	;;
+
+*)
+	echo $i - no such device name
 	;;
 
 esac

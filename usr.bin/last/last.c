@@ -264,8 +264,8 @@ want(bp, check)
 		 */
 		if (!strncmp(bp->ut_line, "ftp", sizeof("ftp") - 1))
 			bp->ut_line[3] = '\0';
-		else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
-			bp->ut_line[4] = '\0';
+		else if (!strncmp(bp->ut_line, "uu", sizeof("uu") - 1))
+			bp->ut_line[2] = '\0';
 	if (!arglist)
 		return(YES);
 

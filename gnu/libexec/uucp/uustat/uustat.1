@@ -1,38 +1,102 @@
-''' $Id: uustat.1,v 1.1 1993/08/05 18:28:04 conklin Exp $
-.TH uustat 1 "Taylor UUCP 1.04"
+''' $Id: uustat.1,v 1.2 1994/05/07 18:14:22 ache Exp $
+.TH uustat 1 "Taylor UUCP 1.05"
 .SH NAME
 uustat \- UUCP status inquiry and control
 .SH SYNOPSIS
 .B uustat \-a
 .PP
+.B uustat \-\-all
+.PP
 .B uustat
 [
-.B \-eKiMNQ ] [
+.B \-eKRiMNQ ] [
 .B \-sS
 system ] [
 .B \-uU
 user ] [
 .B \-cC
 command ] [
-.B \-o
-hours ] [
-.B \-y
+.B \-oy
 hours ] [
 .B \-B
+lines ] [
+.B \-\-executions
+] [
+.B \-\-kill-all
+] [
+.B \-\-rejuvenate-all
+] [
+.B \-\-prompt
+] [
+.B \-\-mail
+] [
+.B \-\-notify
+] [
+.B \-\-no-list
+] [
+.B \-\-system
+system ] [
+.B \-\-not-system
+system ] [
+.B \-\-user
+user ] [
+.B \-\-not-user
+user ] [
+.B \-\-command
+command ] [
+.B \-\-not-command
+command ] [
+.B \-\-older-than
+hours ] [
+.B \-\-younger-than
+hours ] [
+.B \-\-mail-lines
 lines ]
 .PP
 .B uustat
 [
-.B \-k
+.B \-kr
 jobid ] [
-.B \-r
+.B \-\-kill
+jobid ] [
+.B \-\-rejuvenate
 jobid ]
 .PP
-.B uustat \-q
+.B uustat \-q [
+.B \-sS
+system ] [
+.B \-oy
+hours ] [
+.B \-\-system
+system ] [
+.B \-\-not-system
+system ] [
+.B \-\-older-than
+hours ] [
+.B \-\-younger-than
+hours ]
+.PP
+.B uustat \-\-list [
+.B \-sS
+system ] [
+.B \-oy
+hours ] [
+.B \-\-system
+system ] [
+.B \-\-not-system
+system ] [
+.B \-\-older-than
+hours ] [
+.B \-\-younger-than
+hours ]
 .PP
 .B uustat \-m
 .PP
+.B uustat \-\-status
+.PP
 .B uustat \-p
+.PP
+.B uustat \-\-ps
 .SH DESCRIPTION
 The
 .I uustat
@@ -46,35 +110,47 @@ system.  It can also be used to cancel or rejuvenate requests made by
 By default
 .I uustat
 displays all jobs queued up for the invoking user, as if given the
-.B \-u
+.B \-\-user
 option with the appropriate argument.
 
 If any of the
 .B \-a,
+.B \-\-all,
 .B \-e,
+.B \-\-executions,
 .B \-s,
+.B \-\-system,
 .B \-S,
+.B \-\-not-system,
 .B \-u,
+.B \-\-user,
 .B \-U,
+.B \-\-not-user,
 .B \-c,
+.B \-\-command,
 .B \-C,
+.B \-\-not-command,
 .B \-o,
-.B \-y
+.B \-\-older-than,
+.B \-y,
+.B \-\-younger-than
 options are given, then all jobs which match the combined
 specifications are displayed.
 
 The 
 .B \-K
+or
+.B \-\-kill-all
 option may be used to kill off a selected group of jobs, such as all
 jobs more than 7 days old.
 .SH OPTIONS
 The following options may be given to
 .I uustat.
 .TP 5
-.B \-a
+.B \-a, \-\-all
 List all queued file transfer requests.
 .TP 5
-.B \-e
+.B \-e, \-\-executions
 List queued execution requests rather than queued file transfer
 requests.  Queued execution requests are processed by
 .I uuxqt
@@ -86,62 +162,82 @@ of
 .I uux
 (1).
 .TP 5
-.B \-s system
-List all jobs queued up for the named system.  This option may be
+.B \-s system, \-\-system system
+List all jobs queued up for the named system.  These options may be
 specified multiple times, in which case all jobs for all the systems
-will be listed.
+will be listed.  If used with
+.B \-\-list
+only the systems named will be listed.
 .TP 5
-.B \-S system
-List all jobs queued for systems other than the one named.  This
-option may be specified multiple times, in which case no jobs from any
-of the specified systems will be listed.  This option may not be used
-with
-.B \-s.
+.B \-S system, \-\-not-system system
+List all jobs queued for systems other than the one named.  These
+options may be specified multiple times, in which case no jobs from
+any of the specified systems will be listed.  If used with
+.B \-\-list
+only the systems not named will be listed.  These options may not be
+used with
+.B \-s
+or
+.B \-\-system.
 .TP 5
-.B \-u user
-List all jobs queued up for the named user.  This option may be
+.B \-u user, \-\-user user
+List all jobs queued up for the named user.  These options may be
 specified multiple times, in which case all jobs for all the users
 will be listed.
 .TP 5
-.B \-U user
-List all jobs queued up for users other than the one named.  This
-option may be specified multiple times, in which case no jobs from any
-of the specified users will be listed.  This option may not be used
-with
-.B \-u.
+.B \-U user, \-\-not-user user
+List all jobs queued up for users other than the one named.  These
+options may be specified multiple times, in which case no jobs from
+any of the specified users will be listed.  These options may not be
+used with
+.B \-u
+or
+.B \-\-user.
 .TP 5
-.B \-c command
+.B \-c command, \-\-command command
 List all jobs requesting the execution of the named command.  If
 .B command
 is
 .I ALL
 this will list all jobs requesting the execution of some command (as
-opposed to simply requesting a file transfer).  This option may be
+opposed to simply requesting a file transfer).  These options may be
 specified multiple times, in which case all jobs requesting any of the
 commands will be listed.
 .TP 5
-.B \-C command
+.B \-C command, \-\-not-command command
 List all jobs requesting execution of some command other than the
 named command, or, if
 .B command
 is
 .I ALL,
 list all jobs that simply request a file transfer (as opposed to
-requesting the execution of some command).  This option may be
+requesting the execution of some command).  These options may be
 specified multiple times, in which case no job requesting one of the
-specified commands will be listed.  This option may not be used with
-.B \-c.
+specified commands will be listed.  These options may not be used with
+.B \-c
+or
+.B \-\-command.
 .TP 5
-.B \-o hours
-List all queued jobs older than the given number of hours.
+.B \-o hours, \-\-older-than hours
+List all queued jobs older than the given number of hours.  If used
+with
+.B \-\-list
+only systems whose oldest job is older than the given number of hours
+will be listed.
 .TP 5
-.B \-y hours
-List all queued jobs younger than the given number of hours.
+.B \-y hours, \-\-younger-than hours
+List all queued jobs younger than the given number of hours.  If used
+with
+.B \-\-list
+only systems whose oldest job is younger than the given number of
+hours will be listed.
 .TP 5
-.B \-k jobid
+.B \-k jobid, \-\-kill jobid
 Kill the named job.  The job id is shown by the default output format,
 as well as by the
 .B \-j
+or
+.B \-\-jobid
 option to
 .I uucp
 (1) or
@@ -149,40 +245,59 @@ option to
 (1).  A job may only be killed by the user who created the job, or by
 the UUCP administrator or the superuser.  The
 .B \-k
-option may be used multiple times on the command line to kill several
+or
+.B \-\-kill
+options may be used multiple times on the command line to kill several
 jobs.
 .TP 5
-.B \-r jobid
+.B \-r jobid, \-\-rejuvenate jobid
 Rejuvenate the named job.  This will mark it as having been invoked at
 the current time, affecting the output of the
-.B \-o
+.B \-o,
+.B \-\-older-than,
+.B \-y,
 or
-.B \-y
+.B \-\-younger-than
 options and preserving it from any automated cleanup daemon.  The job
 id is shown by the default output format, as well as by the
 .B \-j
-option to
+or
+.B \-\-jobid
+options to
 .I uucp
 (1) or
 .I uux
 (1).  A job may only be rejuvenated by the user who created the job,
 or by the UUCP administrator or the superuser.  The
 .B \-r
-option may be used multiple times on the command line to rejuvenate
+or
+.B \-\-rejuvenate
+options may be used multiple times on the command line to rejuvenate
 several jobs.
 .TP 5
-.B \-q
+.B \-q, \-\-list
 Display the status of commands, executions and conversations for all
-remote systems for which commands or executions are queued.
+remote systems for which commands or executions are queued.  The
+.B \-s,
+.B \-\-system,
+.B \-S,
+.B \-\-not-system,
+.B \-o,
+.B \-\-older-than,
+.B \-y,
+and
+.B \-\-younger-than
+options may be used to restrict the systems which are listed.  Systems
+for which no commands or executions are queued will never be listed.
 .TP 5
-.B \-m
+.B \-m, \-\-status
 Display the status of conversations for all remote systems.
 .TP 5
-.B \-p
+.B \-p, \-\-ps
 Display the status of all processes holding UUCP locks on systems or
 ports.
 .TP 5
-.B \-i
+.B \-i, \-\-prompt
 For each listed job, prompt whether to kill the job or not.  If the
 first character of the input line is
 .I y
@@ -190,53 +305,66 @@ or
 .I Y
 the job will be killed.
 .TP 5
-.B \-K
+.B \-K, \-\-kill-all
 Automatically kill each listed job.  This can be useful for automatic
 cleanup scripts, in conjunction with the
-.B \-M
+.B \-\-mail
 and
-.B \-N
+.B \-\-notify
 options.
 .TP 5
-.B \-M
+.B \-R, \-\-rejuvenate-all
+Automatically rejuvenate each listed job.  This may not be used with
+.B \-\-kill-all.
+.TP 5
+.B \-M, \-\-mail
 For each listed job, send mail to the UUCP administrator.  If the job
 is killed (due to
-.B \-K
+.B \-\-kill-all
 or
-.B \-i
+.B \-\-prompt
 with an affirmative response) the mail will indicate that.  A comment
 specified by the
-.B \-W
+.B \-\-comment
 option may be included.  If the job is an execution, the initial
 portion of its standard input will be included in the mail message;
 the number of lines to include may be set with the
-.B \-B
+.B \-\-mail-lines
 option (the default is 100).  If the standard input contains null
 characters, it is assumed to be a binary file and is not included.
 .TP 5
-.B \-N
+.B \-N, \-\-notify
 For each listed job, send mail to the user who requested the job.  The
 mail is identical to that sent by the
 .B \-M
-option.
-.TP 5
-.B \-W
-Specify a comment to be included in mail sent with the
-.B \-M
 or
-.B \-N
+.B \-\-mail
 options.
 .TP 5
-.B \-Q
+.B \-W, \-\-comment
+Specify a comment to be included in mail sent with the
+.B \-M,
+.B \-\-mail,
+.B \-N,
+or
+.B \-\-notify
+options.
+.TP 5
+.B \-Q, \-\-no-list
 Do not actually list the job, but only take any actions indicated by
 the
 .B \-i,
+.B \-\-prompt,
 .B \-K,
+.B \-\-kill-all,
 .B \-M,
+.B \-\-mail,
 .B \-N
+or
+.B \-\-notify
 options.
 .TP 5
-.B \-x type
+.B \-x type, \-\-debug type
 Turn on particular debugging types.  The following types are
 recognized: abnormal, chat, handshake, uucp-proto, proto, port,
 config, spooldir, execute, incoming, outgoing.  Only abnormal, config,
@@ -244,94 +372,122 @@ spooldir and execute are meaningful for
 .I uustat.
 
 Multiple types may be given, separated by commas, and the
-.B \-x
+.B \-\-debug
 option may appear multiple times.  A number may also be given, which
 will turn on that many types from the foregoing list; for example,
-.B \-x 2
+.B \-\-debug 2
 is equivalent to
-.B \-x abnormal,chat.
+.B \-\-debug abnormal,chat.
 .TP 5
-.B \-I file
+.B \-I file, \-\-config file
 Set configuration file to use.  This option may not be available,
 depending upon how
 .I uustat
 was compiled.
+.TP 5
+.B \-v, \-\-version
+Report version information and exit.
+.TP 5
+.B \-\-help
+Print a help message and exit.
 .SH EXAMPLES
-.EX
-uustat -a
-.EE
+.br
+.nf
+uustat --all
+.fi
 Display status of all jobs.  A sample output line is as follows:
-.EX
+.br
+.in +0.5i
+.nf
 bugsA027h bugs ian 04-01 13:50 Executing rmail ian@airs.com (sending 1283 bytes)
-.EE
+.fi
+.in -0.5i
 The format is
-.EX
+.br
+.in +0.5i
+.nf
 jobid system user queue-date command (size)
-.EE
+.fi
+.in -0.5i
 The jobid may be passed to the
-.B \-k
+.B \-\-kill
 or
-.B \-r
+.B \-\-rejuvenate
 options.
 The size indicates how much data is to be transferred to the remote
 system, and is absent for a file receive request.
 The
-.B \-s,
-.B \-S,
-.B \-u,
-.B \-U,
-.B \-c,
-.B \-C,
-.B \-o,
+.B \-\-system,
+.B \-\-not-system,
+.B \-\-user,
+.B \-\-not-user,
+.B \-\-command,
+.B \-\-not-command,
+.B \-\-older-than,
 and
-.B \-y
+.B \-\-younger-than
 options may be used to control which jobs are listed.
 
-.EX
-uustat -e
-.EE
+.br
+.nf
+uustat --executions
+.fi
 Display status of queued up execution requests.  A sample output line
 is as follows:
-.EX
+.br
+.in +0.5i
+.nf
 bugs bugs!ian 05-20 12:51 rmail ian
-.EE
+.fi
+.in -0.5i
 The format is
-.EX
+.br
+.in +0.5i
+.nf
 system requestor queue-date command
-.EE
+.fi
+.in -0.5i
 The
-.B \-s,
-.B \-S,
-.B \-u,
-.B \-U,
-.B \-c,
-.B \-C,
-.B \-o,
+.B \-\-system,
+.B \-\-not-system,
+.B \-\-user,
+.B \-\-not-user,
+.B \-\-command,
+.B \-\-not-command,
+.B \-\-older-than,
 and
-.B \-y
+.B \-\-younger-than
 options may be used to control which requests are listed.
 
-.EX
-uustat -q
-.EE
+.br
+.nf
+uustat --list
+.fi
 Display status for all systems with queued up commands.  A sample
 output line is as follows:
-.EX
+.br
+.in +0.5i
+.nf
 bugs            4C (1 hour)   0X (0 secs) 04-01 14:45 Dial failed
-.EE
+.fi
+.in -0.5i
 This indicates the system, the number of queued commands, the age of
 the oldest queued command, the number of queued local executions, the
 age of the oldest queued execution, the date of the last conversation,
 and the status of that conversation.
 
-.EX
-uustat -m
-.EE
+.br
+.nf
+uustat --status
+.fi
 Display conversation status for all remote systems.  A sample output
 line is as follows:
-.EX
+.br
+.in +0.5i
+.nf
 bugs           04-01 15:51 Conversation complete
-.EE
+.fi
+.in -0.5i
 This indicates the system, the date of the last conversation, and the
 status of that conversation.  If the last conversation failed,
 .I uustat
@@ -340,9 +496,10 @@ the retry period is currently preventing calls to that system,
 .I uustat
 also displays the time when the next call will be permitted.
 
-.EX
-uustat -p
-.EE
+.br
+.nf
+uustat --ps
+.fi
 Display the status of all processes holding UUCP locks.  The output
 format is system dependent, as
 .I uustat
@@ -350,18 +507,21 @@ simply invokes
 .I ps
 (1) on each process holding a lock.
 
-.EX
-uustat -c rmail -o 168 -K -Q -M -N -W"Queued for over 1 week"
-.EE
+.br
+.in +0.5i
+.nf
+uustat --command rmail --older-than 168 --kill-all --no-list --mail --notify --comment "Queued for over 1 week"
+.fi
+.in -0.5i
 This will kill all
 .I rmail
 commands that have been queued up waiting for delivery for over 1 week
 (168 hours).  For each such command, mail will be sent both to the
 UUCP administrator and to the user who requested the rmail execution.
 The mail message sent will include the string given by the
-.B \-W
+.B \-\-comment
 option.  The
-.B \-Q
+.B \-\-no-list
 option prevents any of the jobs from being listed on the terminal, so
 any output from the program will be error messages.
 .SH FILES
@@ -377,4 +537,4 @@ UUCP spool directory.
 ps(1), rmail(1), uucp(1), uux(1), uucico(8), uuxqt(8)
 .SH AUTHOR
 Ian Lance Taylor
-(ian@airs.com or uunet!airs!ian)
+(ian@airs.com)

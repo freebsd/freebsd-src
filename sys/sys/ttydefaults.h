@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ttydefaults.h	7.9 (Berkeley) 5/9/91
- *	$Id: ttydefaults.h,v 1.3.2.1 1994/05/04 07:57:44 rgrimes Exp $
+ *	$Id: ttydefaults.h,v 1.5 1994/05/30 03:32:26 ache Exp $
  */
 
 /*
@@ -61,10 +61,10 @@
  */
 #define CTRL(x)	(x&037)
 #define	CEOF		CTRL('d')
-#define	CEOL		((unsigned)'\377')	/* XXX avoid _POSIX_VDISABLE */
+#define	CEOL		0xFF		/* XXX avoid _POSIX_VDISABLE */
 #define	CERASE		0177
 #define	CINTR		CTRL('c')
-#define	CSTATUS		((unsigned)'\377')	/* XXX avoid _POSIX_VDISABLE */
+#define	CSTATUS		0xFF		/* XXX avoid _POSIX_VDISABLE */
 #define	CKILL		CTRL('u')
 #define	CMIN		1
 #define	CQUIT		034		/* FS, ^\ */
@@ -90,7 +90,7 @@
  * #define TTYDEFCHARS to include an array of default control characters.
  */
 #ifdef TTYDEFCHARS
-cc_t	ttydefchars[NCCS] = {
+static	cc_t	ttydefchars[NCCS] = {
 	CEOF,	CEOL,	CEOL,	CERASE, CWERASE, CKILL, CREPRINT, 
 	_POSIX_VDISABLE, CINTR,	CQUIT,	CSUSP,	CDSUSP,	CSTART,	CSTOP,	CLNEXT,
 	CDISCARD, CMIN,	CTIME,  CSTATUS, _POSIX_VDISABLE

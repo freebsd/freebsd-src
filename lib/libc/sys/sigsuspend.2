@@ -36,7 +36,7 @@
 .Os
 .Sh NAME
 .Nm sigsuspend
-.Nd automatically release blocked signals and wait for interrupt
+.Nd atomically release blocked signals and wait for interrupt
 .Sh SYNOPSIS
 .Fd #include <sys/signal.h>
 .Ft int
@@ -74,7 +74,7 @@ set to
 .Xr sigsetops 3
 .Sh STANDARDS
 The
-.Nm sigsupend
+.Nm sigsuspend
 function call
 conforms to
 .St -p1003.1-88 .

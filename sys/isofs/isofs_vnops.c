@@ -1,5 +1,5 @@
 /*
- *	$Id: isofs_vnops.c,v 1.4 1993/12/19 00:51:08 wollman Exp $
+ *	$Id: isofs_vnops.c,v 1.6 1994/06/12 04:05:29 davidg Exp $
  */
 #include "param.h"
 #include "systm.h"
@@ -82,10 +82,13 @@ isofs_getattr(vp, vap, cred, p)
 
 	vap->va_fsid = ip->i_dev;
 	vap->va_fileid = ip->i_number;
-	if (vp->v_type == VDIR)
-		vap->va_nlink = 2;
-	else
-		vap->va_nlink = 1;
+	/*
+	 * This should be set properly if a RR filesystem, but this is
+	 * the safest value for now. Note that previously this was conditionally
+	 * set to 2 if the file is a directory, but this causes problems
+	 * with find.
+	 */
+	vap->va_nlink = 1;
 
 	vap->va_mode = ip->inode.iso_mode;
 	vap->va_uid  = ip->inode.iso_uid;
@@ -162,8 +165,6 @@ isofs_read(vp, uio, ioflag, cred)
 		}
 
 		error = uiomove(bp->b_un.b_addr + on, (int)n, uio);
-		if (n + on == imp->im_bsize || uio->uio_offset == ip->i_size)
-			bp->b_flags |= B_AGE;
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
 	return (error);

@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.5 1993/12/19 00:50:50 wollman Exp $
+ * $Id: wt.c,v 1.6 1994/06/29 06:11:20 jkh Exp $
  *
  */
 
@@ -895,6 +895,7 @@ static int wtstatus (wtinfo_t *t)
 
 		outb (t->CTLPORT, t->REQUEST | t->ONLINE); /* set request */
 		wtpoll (t, t->BUSY, 0);                 /* wait for not ready */
+		DELAY(30);
 		outb (t->CTLPORT, t->ONLINE);           /* unset request */
 	}
 	return (1);

@@ -1,7 +1,7 @@
 /* uustat.c
    UUCP status program
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,19 +20,21 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uustat_rcsid[] = "$Id: uustat.c,v 1.1 1993/08/05 18:28:05 conklin Exp $";
+const char uustat_rcsid[] = "$Id: uustat.c,v 1.2 1994/05/07 18:14:24 ache Exp $";
 #endif
 
 #include <ctype.h>
 #include <errno.h>
 
-#if HAVE_TIME_H
+#if TM_IN_SYS_TIME
+#include <sys/time.h>
+#else
 #include <time.h>
 #endif
 
@@ -71,16 +73,14 @@ const char uustat_rcsid[] = "$Id: uustat.c,v 1.1 1993/08/05 18:28:05 conklin Exp
    -xdebug set debugging level
    -yhour report jobs younger than specified number of hours  */
 
-/* The program name.  */
-char abProgram[] = "uustat";
-
 /* What to do with a job that matches the selection criteria; these
    values may be or'red together.  */
 #define JOB_SHOW (01)
 #define JOB_INQUIRE (02)
 #define JOB_KILL (04)
-#define JOB_MAIL (010)
-#define JOB_NOTIFY (020)
+#define JOB_REJUVENATE (010)
+#define JOB_MAIL (020)
+#define JOB_NOTIFY (040)
 
 /* This structure is used to accumulate all the lines in a single
    command file, so that they can all be displayed at once and so that
@@ -96,6 +96,7 @@ struct scmdlist
 /* Local functions.  */
 
 static void ususage P((void));
+static void ushelp P((void));
 static boolean fsxqt_file_read P((pointer puuconf, const char *zfile));
 static void usxqt_file_free P((void));
 static int isxqt_cmd P((pointer puuconf, int argc, char **argv, pointer pvar,
@@ -139,16 +140,48 @@ static boolean fsexecutions P((pointer puuconf, int icmd, int csystems,
 static boolean fsnotify P((pointer puuconf, int icmd, const char *zcomment,
 			   int cstdin, boolean fkilled, const char *zcmd,
 			   struct scmdlist *qcmd, const char *zid,
-			   const char *zuser,
+			   long itime, const char *zuser,
 			   const struct uuconf_system *qsys,
 			   const char *zstdin, pointer pstdinseq,
 			   const char *zrequestor));
-static boolean fsquery P((pointer puuconf));
+static boolean fsquery P((pointer puuconf, int csystems,
+			  char **pazsystems, boolean fnotsystems,
+			  long iold, long iyoung));
 static int csunits_show P((long idiff));
 static boolean fsmachines P((void));
 
 /* Long getopt options.  */
-static const struct option asSlongopts[] = { { NULL, 0, NULL, 0 } };
+static const struct option asSlongopts[] =
+{
+  { "all", no_argument, NULL, 'a' },
+  { "mail-lines", required_argument, NULL, 'B' },
+  { "command", required_argument, NULL, 'c' },
+  { "not-command", required_argument, NULL, 'C' },
+  { "executions", no_argument, NULL, 'e' },
+  { "prompt", no_argument, NULL, 'i' },
+  { "kill", required_argument, NULL, 'k' },
+  { "kill-all", no_argument, NULL, 'K' },
+  { "status", no_argument, NULL, 'm' },
+  { "mail", no_argument, NULL, 'M' },
+  { "notify", no_argument, NULL, 'N' },
+  { "older-than", required_argument, NULL, 'o' },
+  { "ps", no_argument, NULL, 'p' },
+  { "list", no_argument, NULL, 'q' },
+  { "no-list", no_argument, NULL, 'Q' },
+  { "rejuvenate", required_argument, NULL, 'r' },
+  { "rejuvenate-all", no_argument, NULL, 'R' },
+  { "system", required_argument, NULL, 's' },
+  { "not-system", required_argument, NULL, 'S' },
+  { "user", required_argument, NULL, 'u' },
+  { "not-user", required_argument, NULL, 'U' },
+  { "comment", required_argument, NULL, 'W' },
+  { "younger-than", required_argument, NULL, 'y' },
+  { "config", required_argument, NULL, 'I' },
+  { "debug", required_argument, NULL, 'x' },
+  { "version", no_argument, NULL, 'v' },
+  { "help", no_argument, NULL, 1 },
+  { NULL, 0, NULL, 0 }
+};
 
 int
 main (argc, argv)
@@ -204,8 +237,10 @@ main (argc, argv)
   const char *azoneuser[1];
   boolean fret;
 
+  zProgram = argv[0];
+
   while ((iopt = getopt_long (argc, argv,
-			      "aB:c:C:eiI:k:KmMNo:pqQr:s:S:u:U:W:x:y:",
+			      "aB:c:C:eiI:k:KmMNo:pqQr:Rs:S:u:U:vW:x:y:",
 			      asSlongopts, (int *) NULL)) != EOF)
     {
       switch (iopt)
@@ -304,6 +339,11 @@ main (argc, argv)
 	  pazrejuvs[crejuvs - 1] = optarg;
 	  break;
 
+	case 'R':
+	  /* Rejuvenate each listed job.  */
+	  icmd |= JOB_REJUVENATE;
+	  break;
+
 	case 'S':
 	  /* List jobs for other than specified system.  */
 	  fnotsystems = TRUE;
@@ -345,13 +385,26 @@ main (argc, argv)
 	  iyounghours = (int) strtol (optarg, (char **) NULL, 10);
 	  break;
 
+	case 'v':
+	  /* Print version and exit.  */
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+		  zProgram, VERSION);
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
+	case 1:
+	  /* --help.  */
+	  ushelp ();
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
 	case 0:
 	  /* Long option found and flag set.  */
 	  break;
 
 	default:
 	  ususage ();
-	  break;
+	  /*NOTREACHED*/
 	}
     }
 
@@ -371,15 +424,23 @@ main (argc, argv)
     ++ccmds;
   if (fps)
     ++ccmds;
-  if (fquery)
-    ++ccmds;
-  if (fexecute || csystems > 0 || cusers > 0 || ioldhours != -1
+  if (fexecute || fquery || csystems > 0 || cusers > 0 || ioldhours != -1
       || iyounghours != -1 || ccommands > 0)
+    ++ccmds;
+  if (fexecute && fquery)
     ++ccmds;
 
   if (ccmds > 1)
     {
-      ulog (LOG_ERROR, "Too many options");
+      fprintf (stderr, "%s: too many options\n", zProgram);
+      ususage ();
+    }
+
+  if ((icmd & JOB_KILL) != 0
+      && (icmd & JOB_REJUVENATE) != 0)
+    {
+      fprintf (stderr, "%s: can not both rejuvenate and kill jobs\n",
+	       zProgram);
       ususage ();
     }
 
@@ -453,6 +514,7 @@ main (argc, argv)
     }
 
   if (! fexecute
+      && ! fquery
       && (fall
 	  || csystems > 0
 	  || cusers > 0
@@ -471,12 +533,22 @@ main (argc, argv)
   else if (icmd != JOB_SHOW)
     {
       ulog (LOG_ERROR,
-	    "-i, -K, -M, -N, -Q not supported with -k, -m, -p, -q, -r");
+	    "-i, -K, -M, -N, -Q, -R not supported with -k, -m, -p, -q, -r");
       ususage ();
       fret = FALSE;
     }
   else if (fquery)
-    fret = fsquery (puuconf);
+    {
+      if (cusers > 0 || ccommands > 0)
+	{
+	  ulog (LOG_ERROR, "-u, -c not supported with -q");
+	  ususage ();
+	  fret = FALSE;
+	}
+      else
+	fret = fsquery (puuconf, csystems, pazsystems, fnotsystems,
+			iold, iyoung);
+    }
   else if (fmachine)
     fret = fsmachines ();
   else if (ckills > 0 || crejuvs > 0)
@@ -515,62 +587,48 @@ main (argc, argv)
 static void
 ususage ()
 {
-  fprintf (stderr,
-	   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
-	   VERSION);
-  fprintf (stderr,
-	   "Usage: uustat [options]\n");
-  fprintf (stderr,
-	   " -a: list all UUCP jobs\n");
-  fprintf (stderr, 
-	   " -B num: number of lines to return in -M or -N mail message\n");
-  fprintf (stderr,
-	   " -c command: list requests for named command\n");
-  fprintf (stderr,
-	   " -C command: list requests for other than named command\n");
-  fprintf (stderr,
-	   " -e: list queued executions rather than job requests\n");
-  fprintf (stderr,
-	   " -i: prompt for whether to kill each listed job\n");
-  fprintf (stderr,
-	   " -k job: kill specified UUCP job\n");
-  fprintf (stderr,
-	   " -K: kill each listed job\n");
-  fprintf (stderr,
-	   " -m: report status for all remote machines\n");
-  fprintf (stderr,
-	   " -M: mail report on each listed job to UUCP administrator\n");
-  fprintf (stderr,
-	   " -N: mail report on each listed job to requestor\n");
-  fprintf (stderr,
-	   " -o hours: list all jobs older than given number of hours\n");
-  fprintf (stderr,
-	   " -p: show status of all processes holding UUCP locks\n");
-  fprintf (stderr,
-	   " -q: list number of jobs for each system\n");
-  fprintf (stderr,
-	   " -Q: don't list jobs, just take actions (-i, -K, -M, -N)\n");
-  fprintf (stderr,
-	   " -r job: rejuvenate specified UUCP job\n");
-  fprintf (stderr,
-	   " -s system: list all jobs for specified system\n");
-  fprintf (stderr,
-	   " -S system: list all jobs for other than specified system\n");
-  fprintf (stderr,
-	   " -u user: list all jobs for specified user\n");
-  fprintf (stderr,
-	   " -U user: list all jobs for other than specified user\n");
-  fprintf (stderr,
-	   " -W comment: comment to include in mail messages\n");
-  fprintf (stderr,
-	   " -y hours: list all jobs younger than given number of hours\n");
-  fprintf (stderr,
-	   " -x debug: Set debugging level (0 for none, 9 is max)\n");
-#if HAVE_TAYLOR_CONFIG
-  fprintf (stderr,
-	   " -I file: Set configuration file to use\n");
-#endif /* HAVE_TAYLOR_CONFIG */
+  fprintf (stderr, "Usage: %s [options]\n", zProgram);
+  fprintf (stderr, "Use %s --help for help\n", zProgram);
   exit (EXIT_FAILURE);
+}
+
+/* Print a help message.  */
+
+static void
+ushelp ()
+{
+  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	  VERSION);
+  printf ("Usage: %s [options]\n", zProgram);
+  printf (" -a,--all: list all UUCP jobs\n");
+  printf (" -B,--mail-lines num: number of lines to return in -M or -N mail message\n");
+  printf (" -c,--command command: list requests for named command\n");
+  printf (" -C,--not-command command: list requests for other than named command\n");
+  printf (" -e,--executions: list queued executions rather than job requests\n");
+  printf (" -i,--prompt: prompt for whether to kill each listed job\n");
+  printf (" -k,--kill job: kill specified UUCP job\n");
+  printf (" -K,--kill-all: kill each listed job\n");
+  printf (" -m,--status: report status for all remote machines\n");
+  printf (" -M,--mail: mail report on each listed job to UUCP administrator\n");
+  printf (" -N,--notify: mail report on each listed job to requestor\n");
+  printf (" -o,--older-than hours: list all jobs older than given number of hours\n");
+  printf (" -p,--ps: show status of all processes holding UUCP locks\n");
+  printf (" -q,--list: list number of jobs for each system\n");
+  printf (" -Q,--no-list: don't list jobs, just take actions (-i, -K, -M, -N)\n");
+  printf (" -r,--rejuvenate job: rejuvenate specified UUCP job\n");
+  printf (" -R,--rejuvenate-all: rejuvenate each listed job\n");
+  printf (" -s,--system system: list all jobs for specified system\n");
+  printf (" -S,--not-system system: list all jobs for other than specified system\n");
+  printf (" -u,--user user: list all jobs for specified user\n");
+  printf (" -U,--not-user user: list all jobs for other than specified user\n");
+  printf (" -W,--comment comment: comment to include in mail messages\n");
+  printf (" -y,--younger-than hours: list all jobs younger than given number of hours\n");
+  printf (" -x,--debug debug: Set debugging level\n");
+#if HAVE_TAYLOR_CONFIG
+  printf (" -I,--config file: Set configuration file to use\n");
+#endif /* HAVE_TAYLOR_CONFIG */
+  printf (" -v,--version: Print version and exit\n");
+  printf (" --help: Print help and exit\n");
 }
 
 /* We need to be able to read information from an execution file.  */
@@ -1051,15 +1109,12 @@ fsworkfile_show (puuconf, icmd, qsys, qcmd, itime, ccommands, pazcommands,
 			  else
 			    zfile = zbufcpy (qshow->s.zfrom);
 			  if (zfile == NULL)
-			    cbytes = 0;
+			    cbytes = -1;
 			  else
-			    {
-			      cbytes = csysdep_size (zfile);
-			      if (cbytes < 0)
-				cbytes = 0;
-			    }
-			  printf ("Sending %s (%ld bytes) to %s",
-				  qshow->s.zfrom, cbytes, qshow->s.zto);
+			    cbytes = csysdep_size (zfile);
+			  if (cbytes >= 0)
+			    printf ("Sending %s (%ld bytes) to %s",
+				    qshow->s.zfrom, cbytes, qshow->s.zto);
 			  ubuffree (zfile);
 			  break;
 			case 'R':
@@ -1206,25 +1261,28 @@ fsworkfile_show (puuconf, icmd, qsys, qcmd, itime, ccommands, pazcommands,
 
       if (fmatch)
 	{
-	  boolean fkill;
+	  boolean fkill_or_rejuv;
 
-	  fkill = FALSE;
+	  fkill_or_rejuv = FALSE;
 	  if ((icmd & JOB_INQUIRE) != 0)
 	    {
 	      int b;
 
 	      /* Ask stdin whether this job should be killed.  */
-	      fprintf (stderr, "%s: Kill %s? ", abProgram, zlistid);
+	      fprintf (stderr, "%s: %s %s?",
+		       (icmd & JOB_REJUVENATE) != 0 ? "Rejuvenate" : "Kill",
+		       zProgram, zlistid);
 	      (void) fflush (stderr);
 	      b = getchar ();
-	      fkill = b == 'y' || b == 'Y';
+	      fkill_or_rejuv = b == 'y' || b == 'Y';
 	      while (b != EOF && b != '\n')
 		b = getchar ();
 	    }
-	  else if ((icmd & JOB_KILL) != 0)
-	    fkill = TRUE;
+	  else if ((icmd & JOB_KILL) != 0
+		   || (icmd & JOB_REJUVENATE) != 0)
+	    fkill_or_rejuv = TRUE;
 	      
-	  if (fkill
+	  if (fkill_or_rejuv
 	      && (qlist->s.zuser == NULL
 		  || strcmp (zsysdep_login_name (), qlist->s.zuser) != 0)
 	      && ! fsysdep_privileged ())
@@ -1233,16 +1291,27 @@ fsworkfile_show (puuconf, icmd, qsys, qcmd, itime, ccommands, pazcommands,
 	    {
 	      if ((icmd & (JOB_MAIL | JOB_NOTIFY)) != 0)
 		{
-		  if (! fsnotify (puuconf, icmd, zcomment, cstdin, fkill,
-				  zcmd, qlist, zlistid, qlist->s.zuser,
-				  qsys, zstdin, qlist->s.pseq, zrequestor))
+		  if (! fsnotify (puuconf, icmd, zcomment, cstdin,
+				  (fkill_or_rejuv &&
+				   (icmd & JOB_REJUVENATE) == 0),
+				  zcmd, qlist, zlistid, qlist->itime,
+				  qlist->s.zuser, qsys, zstdin,
+				  qlist->s.pseq, zrequestor))
 		    return FALSE;
 		}
 
-	      if (fkill)
+	      if (fkill_or_rejuv)
 		{
-		  if (! fsysdep_kill_job (puuconf, zlistid))
-		    return FALSE;
+		  if ((icmd & JOB_REJUVENATE) == 0)
+		    {
+		      if (! fsysdep_kill_job (puuconf, zlistid))
+			return FALSE;
+		    }
+		  else
+		    {
+		      if (! fsysdep_rejuvenate_job (puuconf, zlistid))
+			return FALSE;
+		    }
 		}
 	    }
 	}
@@ -1433,7 +1502,7 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 
       if (fmatch)
 	{
-	  boolean fbad, fkill;
+	  boolean fbad, fkill_or_rejuv;
 	  struct uuconf_system ssys;
 
 	  fbad = FALSE;
@@ -1456,23 +1525,26 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 	      printf ("%s\n", zSxqt_cmd);
 	    }
 
-	  fkill = FALSE;
+	  fkill_or_rejuv = FALSE;
 	  if ((icmd & JOB_INQUIRE) != 0)
 	    {
 	      int b;
 
 	      /* Ask stdin whether this job should be killed.  */
-	      fprintf (stderr, "%s: Kill %s? ", abProgram, zSxqt_cmd);
+	      fprintf (stderr, "%s: %s %s?",
+		       (icmd & JOB_REJUVENATE) != 0 ? "Rejuvenate" : "Kill",
+		       zProgram, zSxqt_cmd);
 	      (void) fflush (stderr);
 	      b = getchar ();
-	      fkill = b == 'y' || b == 'Y';
+	      fkill_or_rejuv = b == 'y' || b == 'Y';
 	      while (b != EOF && b != '\n')
 		b = getchar ();
 	    }
-	  else if ((icmd & JOB_KILL) != 0)
-	    fkill = TRUE;
+	  else if ((icmd & JOB_KILL) != 0
+		   || (icmd & JOB_REJUVENATE) != 0)
+	    fkill_or_rejuv = TRUE;
 
-	  if (fkill)
+	  if (fkill_or_rejuv)
 	    {
 	      if ((strcmp (zSxqt_user, zsysdep_login_name ()) != 0
 		   || strcmp (zsystem, zlocalname) != 0)
@@ -1513,9 +1585,10 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 
 	  if (! fbad && (icmd & (JOB_MAIL | JOB_NOTIFY)) != 0)
 	    {
-	      if (! fsnotify (puuconf, icmd, zcomment, cstdin, fkill,
+	      if (! fsnotify (puuconf, icmd, zcomment, cstdin,
+			      fkill_or_rejuv && (icmd & JOB_REJUVENATE) == 0,
 			      zSxqt_cmd, (struct scmdlist *) NULL,
-			      (const char *) NULL, zSxqt_user, &ssys,
+			      (const char *) NULL, itime, zSxqt_user, &ssys,
 			      zSxqt_stdin, (pointer) NULL, zSxqt_requestor))
 		{
 		  ferr = TRUE;
@@ -1526,7 +1599,7 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 		}
 	    }
 
-	  if (! fbad && fkill)
+	  if (! fbad && fkill_or_rejuv)
 	    {
 	      for (i = 0; i < cSxqt_files; i++)
 		{
@@ -1536,13 +1609,21 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 					       (pointer) NULL);
 		  if (z != NULL)
 		    {
-		      (void) remove (z);
+		      if ((icmd & JOB_REJUVENATE) != 0)
+			(void) fsysdep_touch_file (z);
+		      else
+			(void) remove (z);
 		      ubuffree (z);
 		    }
 		}
-	      if (remove (zfile) != 0)
-		ulog (LOG_ERROR, "remove (%s): %s", zfile,
-		      strerror (errno));
+	      if ((icmd & JOB_REJUVENATE) != 0)
+		(void) fsysdep_touch_file (zfile);
+	      else
+		{
+		  if (remove (zfile) != 0)
+		    ulog (LOG_ERROR, "remove (%s): %s", zfile,
+			  strerror (errno));
+		}
 	    }
 
 	  if (! fbad)
@@ -1562,8 +1643,8 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 /* When a job is killed, send mail to the appropriate people.  */
 
 static boolean
-fsnotify (puuconf, icmd, zcomment, cstdin, fkilled, zcmd, qcmd, zid, zuser,
-	  qsys, zstdin, pstdinseq, zrequestor)
+fsnotify (puuconf, icmd, zcomment, cstdin, fkilled, zcmd, qcmd, zid, itime,
+	  zuser, qsys, zstdin, pstdinseq, zrequestor)
      pointer puuconf;
      int icmd;
      const char *zcomment;
@@ -1572,6 +1653,7 @@ fsnotify (puuconf, icmd, zcomment, cstdin, fkilled, zcmd, qcmd, zid, zuser,
      const char *zcmd;
      struct scmdlist *qcmd;
      const char *zid;
+     long itime;
      const char *zuser;
      const struct uuconf_system *qsys;
      const char *zstdin;
@@ -1581,6 +1663,8 @@ fsnotify (puuconf, icmd, zcomment, cstdin, fkilled, zcmd, qcmd, zid, zuser,
   const char **pz;
   int cgot;
   int i, istdin;
+  struct tm stime;
+  char ab[sizeof "1991-12-31 12:00:00"];
   const char *zsubject;
   boolean fret;
 
@@ -1615,7 +1699,14 @@ fsnotify (puuconf, icmd, zcomment, cstdin, fkilled, zcmd, qcmd, zid, zuser,
       pz[i++] = "\n";
     }
 
-  pz[i++] = "The job ";
+  pz[i++] = "The job was queued at ";
+  usysdep_localtime (itime, &stime);
+  sprintf (ab, "%04d-%02d-%02d %02d:%02d:%02d",
+	   stime.tm_year + 1900, stime.tm_mon + 1, stime.tm_mday,
+	   stime.tm_hour, stime.tm_min, stime.tm_sec);
+  pz[i++] = ab;
+  pz[i++] = ".\nIt ";
+
   if (fkilled)
     pz[i++] = "was\n";
   else
@@ -1651,6 +1742,7 @@ fsnotify (puuconf, icmd, zcomment, cstdin, fkilled, zcmd, qcmd, zid, zuser,
 	      break;
 	    case 'P':
 	      pz[i++] = "\tpoll ";
+	      break;
 #if DEBUG > 0
 	    case 'E':
 	      ulog (LOG_FATAL, "fsnotify: Can't happen");
@@ -1677,7 +1769,8 @@ fsnotify (puuconf, icmd, zcomment, cstdin, fkilled, zcmd, qcmd, zid, zuser,
       if (fspool)
 	zfile = zsysdep_spool_file_name (qsys, zstdin, pstdinseq);
       else
-	zfile = zsysdep_local_file (zstdin, qsys->uuconf_zpubdir);
+	zfile = zsysdep_local_file (zstdin, qsys->uuconf_zpubdir,
+				    (boolean *) NULL);
 
       if (zfile != NULL
 	  && (fspool
@@ -1827,15 +1920,23 @@ struct sxqtlist
 
 static boolean fsquery_system P((const struct uuconf_system *qsys,
 				 struct sxqtlist **pq,
-				 long inow, const char *zlocalname));
+				 long inow, const char *zlocalname,
+				 int csystems, char **pazsystems,
+				 boolean fnotsystems, long iold, long iyoung));
 static boolean fsquery_show P((const struct uuconf_system *qsys, int cwork,
-			       long ifirstwork,
-			       struct sxqtlist *qxqt,
-			       long inow, const char *zlocalname));
+			       long ifirstwork, struct sxqtlist *qxqt,
+			       long inow, const char *zlocalname,
+			       int csystems, char **pazsystems,
+			       boolean fnotsystems, long iold, long iyoung));
 
 static boolean
-fsquery (puuconf)
+fsquery (puuconf, csystems, pazsystems, fnotsystems, iold, iyoung)
      pointer puuconf;
+     int csystems;
+     char **pazsystems;
+     boolean fnotsystems;
+     long iold;
+     long iyoung;
 {
   int iuuconf;
   const char *zlocalname;
@@ -1926,7 +2027,8 @@ fsquery (puuconf)
 	  continue;
 	}
 
-      if (! fsquery_system (&ssys, &qlist, inow, zlocalname))
+      if (! fsquery_system (&ssys, &qlist, inow, zlocalname, csystems,
+			    pazsystems, fnotsystems, iold, iyoung))
 	fret = FALSE;
 
       (void) uuconf_system_free (puuconf, &ssys);
@@ -1965,7 +2067,9 @@ fsquery (puuconf)
 		  ssys.uuconf_zname = (char *) zlocalname;
 		}
 
-	      if (! fsquery_show (&ssys, 0, 0L, *pq, inow, zlocalname))
+	      if (! fsquery_show (&ssys, 0, 0L, *pq, inow, zlocalname,
+				  csystems, pazsystems, fnotsystems,
+				  iold, iyoung))
 		fret = FALSE;
 	      (void) uuconf_system_free (puuconf, &ssys);
 	      qfree = *pq;
@@ -1991,7 +2095,8 @@ fsquery (puuconf)
 	  break;
 	}
 
-      if (! fsquery_show (&ssys, 0, 0L, qlist, inow, zlocalname))
+      if (! fsquery_show (&ssys, 0, 0L, qlist, inow, zlocalname,
+			  csystems, pazsystems, fnotsystems, iold, iyoung))
 	fret = FALSE;
       (void) uuconf_system_free (puuconf, &ssys);
       qnext = qlist->qnext;
@@ -2006,11 +2111,17 @@ fsquery (puuconf)
 /* Query a single known system.  */
 
 static boolean
-fsquery_system (qsys, pq, inow, zlocalname)
+fsquery_system (qsys, pq, inow, zlocalname, csystems, pazsystems,
+		fnotsystems, iold, iyoung)
      const struct uuconf_system *qsys;
      struct sxqtlist **pq;
      long inow;
      const char *zlocalname;
+     int csystems;
+     char **pazsystems;
+     boolean fnotsystems;
+     long iold;
+     long iyoung;
 {
   int cwork;
   long ifirstwork;
@@ -2065,7 +2176,9 @@ fsquery_system (qsys, pq, inow, zlocalname)
   if (cwork == 0 && *pq == NULL)
     return TRUE;
 
-  fret = fsquery_show (qsys, cwork, ifirstwork, *pq, inow, zlocalname);
+  fret = fsquery_show (qsys, cwork, ifirstwork, *pq, inow,
+		       zlocalname, csystems, pazsystems, fnotsystems,
+		       iold, iyoung);
 
   if (*pq != NULL)
     {
@@ -2084,19 +2197,53 @@ fsquery_system (qsys, pq, inow, zlocalname)
    local system specially.  */
 
 static boolean
-fsquery_show (qsys, cwork, ifirstwork, qxqt, inow, zlocalname)
+fsquery_show (qsys, cwork, ifirstwork, qxqt, inow, zlocalname,
+	      csystems, pazsystems, fnotsystems, iold, iyoung)
      const struct uuconf_system *qsys;
      int cwork;
      long ifirstwork;
      struct sxqtlist *qxqt;
      long inow;
      const char *zlocalname;
+     int csystems;
+     char **pazsystems;
+     boolean fnotsystems;
+     long iold;
+     long iyoung;
 {
   boolean flocal;
   struct sstatus sstat;
   boolean fnostatus;
   struct tm stime;
   int cpad;
+
+  /* Make sure this is one of the systems we are printing.  */
+  if (csystems > 0)
+    {
+      boolean fmatch;
+      int i;
+
+      fmatch = fnotsystems;
+      for (i = 0; i < csystems; i++)
+	{
+	  if (strcmp (pazsystems[i], qsys->uuconf_zname) == 0)
+	    {
+	      fmatch = ! fmatch;
+	      break;
+	    }
+	}
+      if (! fmatch)
+	return TRUE;
+    }
+
+  /* Make sure the commands are within the time bounds.  */
+  if ((iold != (long) -1
+       && (cwork == 0 || ifirstwork > iold)
+       && (qxqt == NULL || qxqt->ifirst > iold))
+      || (iyoung != (long) -1
+	  && (cwork == 0 || ifirstwork < iyoung)
+	  && (qxqt == NULL || qxqt->ifirst < iyoung)))
+    return TRUE;
 
   flocal = strcmp (qsys->uuconf_zname, zlocalname) == 0;
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_exit.c	7.35 (Berkeley) 6/27/91
- *	$Id: kern_exit.c,v 1.14 1994/01/29 04:04:23 davidg Exp $
+ *	$Id: kern_exit.c,v 1.15 1994/03/14 21:54:13 davidg Exp $
  */
 
 #include "param.h"
@@ -353,6 +353,9 @@ loop:
 			continue;
 		nfound++;
 		if (p->p_stat == SZOMB) {
+			/* charge childs cpu usage to parent */
+			if( curproc->p_pid != 1)
+				curproc->p_cpu += p->p_cpu;
 			retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (uap->compat)

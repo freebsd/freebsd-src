@@ -1,0 +1,151 @@
+Miscellaneous notes on the malloc internals.
+
+First fit malloc with boundary tags for fast freeing - based on the
+techniques described in 'The Art of Computer Programming' by Donald
+Knuth. The essential features of the boundary tag are described in
+Algorithm C, Section 2.5. The actual algorithms here incorporate the
+improvements suggested in Exercises 12 and and 15 (I think), and
+adaptations to the C/Un*x environment, plus some performance
+improvements. By keeping the list circular, we don't have an AVAIL at
+all - just use ROVER as the pointer into the list. It also tries to
+"preserve the wilderness" -- i.e. try to keep the block nearest the
+data break free as far as possible, but it does go overboard about it.
+(i.e. it is a simple first fit -- many wilderness preservation schemes
+tend to keep the wilderness block out of the free list, and search the
+rest of the free list first. I find that degrades performance
+somewhat, even if it keeps memory slightly less fragmented)
+
+This has a lot of debugging and tracing support built in - compiling
+with -DDEBUG provides fairly comprehensive ASSERT protection to detect
+heap corruption. (It aborts on the first sign of trouble). I hope that
+every pointer reference is protected with an assertion, so the malloc
+should never dump core or behave weirdly because of user program
+misbehaviour -- it should blow an assertion instead. If the debugging
+version ever gets a segmentation fault, bus error and dumps core
+instead of blowing an assertion and then dumping core on an IO trap or
+Illegal Instruction (depending on how your system does an abort()), I
+want to know...
+
+For the non-debugging malloc:
+
+A minimum size for an allocated block is 4 units - two for the
+leading and trailing size word, and two for the next and previous
+pointers. Therefore the minimum size that we can allocate is 2
+units, since allocated and freed blocks both have the leading and
+trailing size blocks. Only freed blocks have the next, prev
+pointers. The size block is actually a signed - the sign bit
+indicates whether it is a free or allocated block. i.e the tag.
+
+For the debugging malloc:
+
+The minimum size for an allocated block is still 4 units - two for the
+leading and trailing size word, and two for the next and previous
+pointers. But the minimum size that we can allocate is 1 units, since
+allocated and freed blocks both have the leading and trailing size
+blocks. Only freed blocks have the next, prev pointers. Only allocated
+blocks have the realsize word, which indicates the size of the block
+requested by the user in bytes. The next pointer and the realsize word
+share the same header word. So the overhead for an allocated block is
+3 words when debugging, as opposed to 2 words when not debugging.
+(even though the minimum block size is still 4 words) 
+
+The size block is actually a signed - the sign bit indicates whether
+it is a free or allocated block. i.e the tag. Since the size is in
+words, this loss of a bit is no big deal. The realsize block is a full
+unsigned word, since it stores the size in bytes.
+
+For the leak tracing malloc
+
+The _*.c files all have the extra macros that record the blocks as
+they are allocated, and deleted. The extra tracing macro also prints
+the file name and line number before the usual tracing information
+about size etc. This permits you to find out where block xxx was
+freed, so that you can do an address to name mapping more easily.
+
+Note that to use this stuff, you HAVE to include malloc.h and define
+MALLOC_TRACE when compiling. It still works correctly when you don't
+include malloc.h, but you won't get all the information.
+
+Performance
+
+The fastest malloc I know of is the BSD4.3 malloc, which uses a number
+of bins with different sized blocks, sized in powers of two. All it
+has to do to find a free block is an iterated shift to compute the
+bin, if the bin is empty then split a block from one of the higher
+bins. Unfortunately, it can waste spectacular amounts of space for
+many programs.
+
+The most space efficient malloc I know is Sun's Cartesian tree "better
+fit" malloc (It has a hidden overhead of 8K of static data, though).
+It is also unpleasantly slow.
+
+My malloc is close to the BSD4.3 malloc in performance - the
+difference starts to become obvious only as the number of blocks in
+the free list climbs towards the 100000 to million range at which
+point the 4.3 malloc starts to pull ahead in user time, but quite
+often, its VM behaviour deteriorates and makes its elapsed times very
+large. My malloc is close to Sun's malloc in space efficiency.
+
+The key to the improved performance over typical first fit allocators
+is the roving pointer, as well as the coalescing of freed blocks,
+which keeps memory fragmentation and the size of the free list down.
+The wilderness preservation heuristic also helps a lot.
+
+Guide to porting it:
+
+Should port without trouble to machines where any ugliness or
+weirdness in pointers or segmentation is hidden from the programmer. I
+haven't tried porting it to the 286 and below under DOS, nor do I
+intend to at present.
+
+You may need to check align.h if your machine has non-standard
+alignment requirements. (I interpret standard alignment to be
+alignenment on one of char, int, char *, int *, char **, int **,
+whichever requires the strictest alignment) If not, define ALIGN and
+NALIGN.
+
+PLEASE LEAVE THE MAIN CODE FREE FROM #ifdefs. I'm interested in fixes
+for porting it to new machines, only if they do not damage the code.
+I'd prefer to find a least common denominator, or hide the difference
+in a macro.
+
+People interested in reading and understanding this code should start
+in defs.h (after this file, of course) -- it contains all the macros.
+It'll help if you've read the following references. After that, study
+globals.c, malloc.c, verify.c and dumpheap.c.  Running testmalloc and
+following the development of the heap is recommended.
+
+After you've ported it, you should be able to run testmalloc without
+trouble, as well as the few runs of simumalloc listed in regress,
+compiled with the debugging version of malloc. (-DDEBUG defined)
+
+If you uncover a bug, please enhance testmalloc.c with a case that
+triggers the bug, if you can. That way, I can make sure future changes
+to malloc don't re-introduce that bug.
+
+References:
+
+%A Donald E. Knuth
+%T The Art of Computer Programming (Fundamental Algorithms)
+%V 1
+%I Addison Wesley
+%C Reading, Mass.
+%D 1973
+
+%A David G. Korn
+%A Kiem-Phong Vo
+%T In search of a better malloc
+%J Proceedings of the USENIX 1985 Summer Conference
+%C Portland, Oregon
+%D June 1985
+%P 489-506
+
+%A C.J. Stephenson
+%T Fast fits: new methods for dynamic storage allocation
+%J Proceedings of the Ninth ACM Symposium on Operating Systems Principles
+%C Bretton Woods, New Hampshire
+%D October 1983
+%P 30-32
+%O abstract only - paper to be published in TOCS
+%O published as Operating Systems Review 17:5
+%O also appeared in Scientific American somewhere -- reference in Korn and Vo

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.2 1994/01/03 07:55:20 davidg Exp $
+ *	$Id: exception.s,v 1.3 1994/04/02 07:00:23 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -39,7 +39,9 @@
 
 #include "errno.h"				/* error return codes */
 
-#include "i386/isa/debug.h"			/* BDE debugging macros */
+#include "machine/spl.h"			/* SWI_AST_MASK ... */
+
+#include "machine/psl.h"			/* PSL_I */
 
 #include "machine/trap.h"			/* trap codes */
 #include "syscall.h"				/* syscall numbers */
@@ -57,31 +59,49 @@
 /*****************************************************************************/
 /*
  * Trap and fault vector routines
- *
+ */
+#define	IDTVEC(name)	ALIGN_TEXT ; .globl _X/**/name ; _X/**/name:
+#define	TRAP(a)		pushl $(a) ; jmp _alltraps
+
+/*
  * XXX - debugger traps are now interrupt gates so at least bdb doesn't lose
  * control.  The sti's give the standard losing behaviour for ddb and kgdb.
  */
-#define	IDTVEC(name)	ALIGN_TEXT; .globl _X/**/name; _X/**/name:
-#define	TRAP(a)		pushl $(a) ; jmp alltraps
-#ifdef KGDB
-#  define BPTTRAP(a)	sti; pushl $(a) ; jmp bpttraps
+#ifdef BDE_DEBUGGER
+#define	BDBTRAP(name) \
+	ss ; \
+	cmpb	$0,_bdb_exists ; \
+	je	1f ; \
+	testb	$SEL_RPL_MASK,4(%esp) ; \
+	jne	1f ; \
+	ss ; \
+	.globl	bdb_/**/name/**/_ljmp ; \
+bdb_/**/name/**/_ljmp: ; \
+	ljmp	$0,$0 ; \
+1:
 #else
-#  define BPTTRAP(a)	sti; TRAP(a)
+#define BDBTRAP(name)
 #endif
+
+#ifdef KGDB
+#  define BPTTRAP(a)	testl $PSL_I,4+8(%esp) ; je 1f ; sti ; 1: ; \
+			pushl $(a) ; jmp _bpttraps
+#else
+#  define BPTTRAP(a)	testl $PSL_I,4+8(%esp) ; je 1f ; sti ; 1: ; TRAP(a)
+#endif
+
+MCOUNT_LABEL(user)
+MCOUNT_LABEL(btrap)
 
 IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
-#if defined(BDE_DEBUGGER) && defined(BDBTRAP)
 	BDBTRAP(dbg)
-#endif
 	pushl $0; BPTTRAP(T_TRCTRAP)
 IDTVEC(nmi)
 	pushl $0; TRAP(T_NMI)
 IDTVEC(bpt)
-#if defined(BDE_DEBUGGER) && defined(BDBTRAP)
 	BDBTRAP(bpt)
-#endif
 	pushl $0; BPTTRAP(T_BPTFLT)
 IDTVEC(ofl)
 	pushl $0; TRAP(T_OFLOW)
@@ -114,22 +134,24 @@ IDTVEC(fpu)
 	 * error.  It would be better to handle npx interrupts as traps but
 	 * this is difficult for nested interrupts.
 	 */
-	pushl	$0				/* dummy error code */
-	pushl	$T_ASTFLT
+	pushl	$0				/* dumby error code */
+	pushl	$0				/* dumby trap type */
 	pushal
-	nop					/* silly, the bug is for popal and it only
-						 * bites when the next instruction has a
-						 * complicated address mode */
 	pushl	%ds
 	pushl	%es				/* now the stack frame is a trap frame */
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
-	pushl	_cpl
+	FAKE_MCOUNT(12*4(%esp))
+	movl	_cpl,%eax
+	pushl	%eax
 	pushl	$0				/* dummy unit to finish building intr frame */
 	incl	_cnt+V_TRAP
+	orl	$SWI_AST_MASK,%eax
+	movl	%eax,_cpl
 	call	_npxintr
-	jmp	doreti
+	MEXITCOUNT
+	jmp	_doreti
 #else	/* NNPX > 0 */
 	pushl $0; TRAP(T_ARITHTRAP)
 #endif	/* NNPX > 0 */
@@ -166,25 +188,37 @@ IDTVEC(rsvd14)
 	pushl $0; TRAP(31)
 
 	SUPERALIGN_TEXT
-alltraps:
+_alltraps:
 	pushal
-	nop
 	pushl	%ds
 	pushl	%es
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
+	FAKE_MCOUNT(12*4(%esp))
 calltrap:
+	FAKE_MCOUNT(_btrap)			/* init "from" _btrap -> calltrap */
 	incl	_cnt+V_TRAP
+	orl	$SWI_AST_MASK,_cpl
 	call	_trap
 	/*
-	 * Return through doreti to handle ASTs.  Have to change trap frame
+	 * There was no place to save the cpl so we have to recover it
+	 * indirectly.  For traps from user mode it was 0, and for traps
+	 * from kernel mode Oring SWI_AST_MASK into it didn't change it.
+	 */
+	subl	%eax,%eax
+	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
+	jne	1f
+	movl	_cpl,%eax
+1:
+	/*
+	 * Return via _doreti to handle ASTs.  Have to change trap frame
 	 * to interrupt frame.
 	 */
-	movl	$T_ASTFLT,TF_TRAPNO(%esp)	/* new trap type (err code not used) */
-	pushl	_cpl
-	pushl	$0				/* dummy unit */
-	jmp	doreti
+	pushl	%eax
+	subl	$4,%esp
+	MEXITCOUNT
+	jmp	_doreti
 
 #ifdef KGDB
 /*
@@ -192,17 +226,18 @@ calltrap:
  * to the regular trap code.
  */
 	SUPERALIGN_TEXT
-bpttraps:
+_bpttraps:
 	pushal
-	nop
 	pushl	%ds
 	pushl	%es
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
+	FAKE_MCOUNT(12*4(%esp))
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp) /* non-kernel mode? */
 	jne	calltrap			/* yes */
 	call	_kgdb_trap_glue
+	MEXITCOUNT
 	jmp	calltrap
 #endif
 
@@ -214,7 +249,6 @@ IDTVEC(syscall)
 	pushfl					/* Room for tf_err */
 	pushfl					/* Room for tf_trapno */
 	pushal
-	nop
 	pushl	%ds
 	pushl	%es
 	movl	$KDSEL,%eax			/* switch to kernel segments */
@@ -222,51 +256,17 @@ IDTVEC(syscall)
 	movl	%ax,%es
 	movl	TF_ERR(%esp),%eax		/* copy eflags from tf_err to fs_eflags */
 	movl	%eax,TF_EFLAGS(%esp)
-	movl	$0,TF_ERR(%esp)			/* zero tf_err */
+	FAKE_MCOUNT(12*4(%esp))
 	incl	_cnt+V_SYSCALL
+	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
 	/*
-	 * Return through doreti to handle ASTs.
+	 * Return via _doreti to handle ASTs.
 	 */
-	movl	$T_ASTFLT,TF_TRAPNO(%esp)	/* new trap type (err code not used) */
-	pushl	_cpl
-	pushl	$0
-	jmp	doreti
-
-#ifdef SHOW_A_LOT
-/*
- * 'show_bits' was too big when defined as a macro.  The line length for some
- * enclosing macro was too big for gas.  Perhaps the code would have blown
- * the cache anyway.
- */
-	ALIGN_TEXT
-show_bits:
-	pushl   %eax
-	SHOW_BIT(0)
-	SHOW_BIT(1)
-	SHOW_BIT(2)
-	SHOW_BIT(3)
-	SHOW_BIT(4)
-	SHOW_BIT(5)
-	SHOW_BIT(6)
-	SHOW_BIT(7)
-	SHOW_BIT(8)
-	SHOW_BIT(9)
-	SHOW_BIT(10)
-	SHOW_BIT(11)
-	SHOW_BIT(12)
-	SHOW_BIT(13)
-	SHOW_BIT(14)
-	SHOW_BIT(15)
-	popl    %eax
-	ret
-
-	.data
-bit_colors:
-	.byte   GREEN,RED,0,0
-	.text
-
-#endif /* SHOW_A_LOT */
+	pushl	$0				/* cpl to restore */
+	subl	$4,%esp
+	MEXITCOUNT
+	jmp	_doreti
 
 /*
  * include generated interrupt vectors and ISA intr code

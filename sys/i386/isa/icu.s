@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.7 1993/12/20 14:58:21 wollman Exp $
+ *	$Id: icu.s,v 1.8 1994/04/02 07:00:41 davidg Exp $
  */
 
 /*
@@ -45,215 +45,131 @@
  */
 
 /*
- * XXX - this file is now misnamed.  All spls are now soft and the only thing
- * related to the hardware icu is that the bit numbering is the same in the
- * soft priority masks as in the hard ones.
+ * XXX this file should be named ipl.s.  All spls are now soft and the
+ * only thing related to the hardware icu is that the h/w interrupt
+ * numbers are used without translation in the masks.
  */
 
-#include "sio.h"
-#define	HIGHMASK	0xffff
-#define	SOFTCLOCKMASK	0x8000
+#include "../net/netisr.h"
 
 	.data
-
 	.globl	_cpl
-_cpl:	.long	0xffff			/* current priority (all off) */
-
+_cpl:	.long	HWI_MASK | SWI_MASK	/* current priority (all off) */
 	.globl	_imen
-_imen:	.long	0xffff			/* interrupt mask enable (all off) */
-
-/* 	.globl	_highmask	*/
-_highmask:	.long	HIGHMASK
-
-	.globl	_ttymask, _biomask, _netmask
-_ttymask:	.long	0
-_biomask:	.long	0
-_netmask:	.long	0
-
-	.globl	_ipending, _astpending
+_imen:	.long	HWI_MASK		/* interrupt mask enable (all h/w off) */
+_high_imask:	.long	HWI_MASK | SWI_MASK
+	.globl	_tty_imask
+_tty_imask:	.long	0
+	.globl	_bio_imask
+_bio_imask:	.long	0
+	.globl	_net_imask
+_net_imask:	.long	0
+	.globl	_ipending
 _ipending:	.long	0
+	.globl	_astpending
 _astpending:	.long	0		/* tells us an AST needs to be taken */
-
 	.globl	_netisr
 _netisr:	.long	0		/* set with bits for which queue to service */
-
 vec:
 	.long	vec0, vec1, vec2, vec3, vec4, vec5, vec6, vec7
 	.long	vec8, vec9, vec10, vec11, vec12, vec13, vec14, vec15
 
-#define	GENSPL(name, mask, event) \
-	.globl	_spl/**/name ; \
-	ALIGN_TEXT ; \
-_spl/**/name: ; \
-	COUNT_EVENT(_intrcnt_spl, event) ; \
-	movl	_cpl,%eax ; \
-	movl	%eax,%edx ; \
-	orl	mask,%edx ; \
-	movl	%edx,_cpl ; \
-	SHOW_CPL ; \
-	ret
-
-#define	FASTSPL(mask) \
-	movl	mask,_cpl ; \
-	SHOW_CPL
-
-#define	FASTSPL_VARMASK(varmask) \
-	movl	varmask,%eax ; \
-	movl	%eax,_cpl ; \
-	SHOW_CPL
-
 	.text
 
-	ALIGN_TEXT
-unpend_v:
-	COUNT_EVENT(_intrcnt_spl, 0)
-	bsfl	%eax,%eax		# slow, but not worth optimizing
-	btrl	%eax,_ipending
-	jnc	unpend_v_next		# some intr cleared the in-memory bit
-	SHOW_IPENDING
-	movl	Vresume(,%eax,4),%eax
-	testl	%eax,%eax
-	je	noresume
-	jmp	%eax
-
-	ALIGN_TEXT
 /*
- * XXX - must be some fastintr, need to register those too.
+ * Handle return from interrupts, traps and syscalls.
  */
-noresume:
-#if NSIO > 0
-	call	_softsio1
-#endif
-unpend_v_next:
-	movl	_cpl,%eax
-	movl	%eax,%edx
-	notl	%eax
-	andl	_ipending,%eax
-	je	none_to_unpend
-	jmp	unpend_v
-
-/*
- * Handle return from interrupt after device handler finishes
- */
-	ALIGN_TEXT
-doreti:
-	COUNT_EVENT(_intrcnt_spl, 1)
-	addl	$4,%esp			# discard unit arg
-	popl	%eax			# get previous priority
-/*
- * Now interrupt frame is a trap frame!
- *
- * XXX - setting up the interrupt frame to be almost a stack frame is mostly
- * a waste of time.
- */
+	SUPERALIGN_TEXT
+_doreti:
+	FAKE_MCOUNT(_bintr)		/* init "from" _bintr -> _doreti */
+	addl	$4,%esp			/* discard unit number */
+	popl	%eax			/* cpl to restore */
+doreti_next:
+	/*
+	 * Check for pending HWIs and SWIs atomically with restoring cpl
+	 * and exiting.  The check has to be atomic with exiting to stop
+	 * (ipending & ~cpl) changing from zero to nonzero while we're
+	 * looking at it (this wouldn't be fatal but it would increase
+	 * interrupt latency).  Restoring cpl has to be atomic with exiting
+	 * so that the stack cannot pile up (the nesting level of interrupt
+	 * handlers is limited by the number of bits in cpl).
+	 */
+	movl	%eax,%ecx
+	notl	%ecx
+	cli
+	andl	_ipending,%ecx
+	jne	doreti_unpend
+doreti_exit:
 	movl	%eax,_cpl
-	SHOW_CPL
-	movl	%eax,%edx
-	notl	%eax
-	andl	_ipending,%eax
-	jne	unpend_v
-none_to_unpend:
-	testl	%edx,%edx		# returning to zero priority?
-	jne	1f			# nope, going to non-zero priority
-	movl	_netisr,%eax
-	testl	%eax,%eax		# check for softint s/traps
-	jne	2f			# there are some
-	jmp	test_resched		# XXX - schedule jumps better
-	COUNT_EVENT(_intrcnt_spl, 2)	# XXX
-
-	ALIGN_TEXT			# XXX
-1:					# XXX
-	COUNT_EVENT(_intrcnt_spl, 3)
+	MEXITCOUNT
 	popl	%es
 	popl	%ds
 	popal
 	addl	$8,%esp
 	iret
-
-#include "../net/netisr.h"
-
-#define DONET(s, c, event) ; \
-	.globl	c ; \
-	btrl	$s,_netisr ; \
-	jnc	1f ; \
-	COUNT_EVENT(_intrcnt_spl, event) ; \
-	call	c ; \
-1:
 
 	ALIGN_TEXT
-2:
-	COUNT_EVENT(_intrcnt_spl, 4)
-/*
- * XXX - might need extra locking while testing reg copy of netisr, but
- * interrupt routines setting it would not cause any new problems (since we
- * don't loop, fresh bits will not be processed until the next doreti or spl0).
- */
-	testl	$~((1 << NETISR_SCLK) | (1 << NETISR_AST)),%eax
-	je	test_ASTs		# no net stuff, just temporary AST's
-	FASTSPL_VARMASK(_netmask)
-#if 0	
-	DONET(NETISR_RAW, _rawintr, 5)
-#endif
+doreti_unpend:
+	/*
+	 * Enabling interrupts is safe because we haven't restored cpl yet.
+	 * The locking from the "btrl" test is probably no longer necessary.
+	 * We won't miss any new pending interrupts because we will check
+	 * for them again.
+	 */
+	sti
+	bsfl	%ecx,%ecx		/* slow, but not worth optimizing */
+	btrl	%ecx,_ipending
+	jnc	doreti_next		/* some intr cleared memory copy */
+	movl	ihandlers(,%ecx,4),%edx
+	testl	%edx,%edx
+	je	doreti_next		/* "can't happen" */
+	cmpl	$NHWI,%ecx
+	jae	doreti_swi
+	cli
+	movl	%eax,_cpl
+	MEXITCOUNT
+	jmp	%edx
 
-#ifdef	INET
-	DONET(NETISR_IP, _ipintr, 6)
-#endif	/* INET */
+	ALIGN_TEXT
+doreti_swi:
+	pushl	%eax
+	/*
+	 * The SWI_AST handler has to run at cpl = SWI_AST_MASK and the
+	 * SWI_CLOCK handler at cpl = SWI_CLOCK_MASK, so we have to restore
+	 * all the h/w bits in cpl now and have to worry about stack growth.
+	 * The worst case is currently (30 Jan 1994) 2 SWI handlers nested
+	 * in dying interrupt frames and about 12 HWIs nested in active
+	 * interrupt frames.  There are only 4 different SWIs and the HWI
+	 * and SWI masks limit the nesting further.
+	 */
+	orl	imasks(,%ecx,4),%eax
+	movl	%eax,_cpl
+	call	%edx
+	popl	%eax
+	jmp	doreti_next
 
-#ifdef	IMP
-	DONET(NETISR_IMP, _impintr, 7)
-#endif	/* IMP */
-
-#ifdef	NS
-	DONET(NETISR_NS, _nsintr, 8)
-#endif	/* NS */
-
-#ifdef	ISO
-	DONET(NETISR_ISO, _clnlintr, 9)
-#endif	/* ISO */
-
-#ifdef	CCITT
-	DONET(NETISR_X25, _pkintr, 29)
-	DONET(NETISR_HDLC, _hdintr, 30)
-#endif	/* CCITT */
-
-	FASTSPL($0)
-test_ASTs:
-	btrl	$NETISR_SCLK,_netisr
-	jnc	test_resched
-	COUNT_EVENT(_intrcnt_spl, 10)
-	FASTSPL($SOFTCLOCKMASK)
-/*
- * Back to an interrupt frame for a moment.
- */
-	pushl	$0			# previous cpl (probably not used)
-	pushl	$0x7f			# dummy unit number
-	call	_softclock
-	addl	$8,%esp			# discard dummies
-	FASTSPL($0)
-test_resched:
-#ifdef notused1
-	btrl	$NETISR_AST,_netisr
-	jnc	2f
-#endif
-#ifdef notused2
-	cmpl	$0,_want_resched
-	je	2f
-#endif
-	cmpl	$0,_astpending		# XXX - put it back in netisr to
-	je	2f			# reduce the number of tests
+	ALIGN_TEXT
+swi_ast:
+	addl	$8,%esp			/* discard raddr & cpl to get trap frame */
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
-					# to non-kernel (i.e., user)?
-	je	2f			# nope, leave
-	COUNT_EVENT(_intrcnt_spl, 11)
-	movl	$0,_astpending
+	je	swi_ast_phantom
+	movl	$T_ASTFLT,(2+8+0)*4(%esp)
 	call	_trap
-2:
-	COUNT_EVENT(_intrcnt_spl, 12)
-	popl	%es
-	popl	%ds
-	popal
-	addl	$8,%esp
-	iret
+	subl	%eax,%eax		/* recover cpl */
+	jmp	doreti_next
+
+	ALIGN_TEXT
+swi_ast_phantom:
+	/*
+	 * These happen when there is an interrupt in a trap handler before
+	 * ASTs can be masked or in an lcall handler before they can be
+	 * masked or after they are unmasked.  They could be avoided for
+	 * trap entries by using interrupt gates, and for lcall exits by
+	 * using by using cli, but they are unavoidable for lcall entries.
+	 */
+	cli
+	orl	$SWI_AST_PENDING,_ipending
+	jmp	doreti_exit	/* SWI_AST is highest so we must be done */
 
 /*
  * Interrupt priority mechanism
@@ -262,121 +178,84 @@ test_resched:
  *	-- ipending = active interrupts currently masked by cpl
  */
 
-	GENSPL(bio, _biomask, 13)
-	GENSPL(clock, $HIGHMASK, 14)	/* splclock == splhigh ex for count */
-	GENSPL(high, $HIGHMASK, 15)
-	GENSPL(imp, _netmask, 16)	/* splimp == splnet except for count */
-	GENSPL(net, _netmask, 17)
-	GENSPL(softclock, $SOFTCLOCKMASK, 18)
-	GENSPL(tty, _ttymask, 19)
-
-	.globl _splnone
-	.globl _spl0
-	ALIGN_TEXT
-_splnone:
-_spl0:
-	COUNT_EVENT(_intrcnt_spl, 20)
-in_spl0:
+ENTRY(splz)
+	/*
+	 * The caller has restored cpl and checked that (ipending & ~cpl)
+	 * is nonzero.  We have to repeat the check since if there is an
+	 * interrupt while we're looking, _doreti processing for the
+	 * interrupt will handle all the unmasked pending interrupts
+	 * because we restored early.  We're repeating the calculation
+	 * of (ipending & ~cpl) anyway so that the caller doesn't have
+	 * to pass it, so this only costs one "jne".  "bsfl %ecx,%ecx"
+	 * is undefined when %ecx is 0 so we can't rely on the secondary
+	 * btrl tests.
+	 */
 	movl	_cpl,%eax
-	pushl	%eax			# save old priority
-	testl	$(1 << NETISR_RAW) | (1 << NETISR_IP),_netisr
-	je	over_net_stuff_for_spl0
-	movl	_netmask,%eax		# mask off those network devices
-	movl	%eax,_cpl		# set new priority
-	SHOW_CPL
-/*
- * XXX - what about other net intrs?
- */
-#if 0
-	DONET(NETISR_RAW, _rawintr, 21)
-#endif
-
-#ifdef	INET
-	DONET(NETISR_IP, _ipintr, 22)
-#endif	/* INET */
-
-#ifdef	IMP
-	DONET(NETISR_IMP, _impintr, 23)
-#endif	/* IMP */
-
-#ifdef	NS
-	DONET(NETISR_NS, _nsintr, 24)
-#endif	/* NS */
-
-#ifdef	ISO
-	DONET(NETISR_ISO, _clnlintr, 25)
-#endif	/* ISO */
-
-over_net_stuff_for_spl0:
-	movl	$0,_cpl			# set new priority
-	SHOW_CPL
-	movl	_ipending,%eax
-	testl	%eax,%eax
-	jne	unpend_V
-	popl	%eax			# return old priority
-	ret
-
-	.globl _splx
-	ALIGN_TEXT
-_splx:
-	COUNT_EVENT(_intrcnt_spl, 26)
-	movl	4(%esp),%eax		# new priority
-	testl	%eax,%eax
-	je	in_spl0			# going to "zero level" is special
-	COUNT_EVENT(_intrcnt_spl, 27)
-	movl	_cpl,%edx		# save old priority
-	movl	%eax,_cpl		# set new priority
-	SHOW_CPL
-	notl	%eax
-	andl	_ipending,%eax
-	jne	unpend_V_result_edx
-	movl	%edx,%eax		# return old priority
+splz_next:
+	/*
+	 * We don't need any locking here.  (ipending & ~cpl) cannot grow 
+	 * while we're looking at it - any interrupt will shrink it to 0.
+	 */
+	movl	%eax,%ecx
+	notl	%ecx
+	andl	_ipending,%ecx
+	jne	splz_unpend
 	ret
 
 	ALIGN_TEXT
-unpend_V_result_edx:
-	pushl	%edx
-unpend_V:
-	COUNT_EVENT(_intrcnt_spl, 28)
-	bsfl	%eax,%eax
-	btrl	%eax,_ipending
-	jnc	unpend_V_next
-	SHOW_IPENDING
-	movl	Vresume(,%eax,4),%edx
+splz_unpend:
+	bsfl	%ecx,%ecx
+	btrl	%ecx,_ipending
+	jnc	splz_next
+	movl	ihandlers(,%ecx,4),%edx
 	testl	%edx,%edx
-	je	noresumeV
-/*
- * We would prefer to call the intr handler directly here but that doesn't
- * work for badly behaved handlers that want the interrupt frame.  Also,
- * there's a problem determining the unit number.  We should change the
- * interface so that the unit number is not determined at config time.
- */
-	jmp	*vec(,%eax,4)
+	je	splz_next		/* "can't happen" */
+	cmpl	$NHWI,%ecx
+	jae	splz_swi
+	/*
+	 * We would prefer to call the intr handler directly here but that
+	 * doesn't work for badly behaved handlers that want the interrupt
+	 * frame.  Also, there's a problem determining the unit number.
+	 * We should change the interface so that the unit number is not
+	 * determined at config time.
+	 */
+	jmp	*vec(,%ecx,4)
 
 	ALIGN_TEXT
-/*
- * XXX - must be some fastintr, need to register those too.
- */
-noresumeV:
-#if NSIO > 0
-	call	_softsio1
-#endif
-unpend_V_next:
-	movl	_cpl,%eax
-	notl	%eax
-	andl	_ipending,%eax
-	jne	unpend_V
+splz_swi:
+	cmpl	$SWI_AST,%ecx
+	je	splz_next		/* "can't happen" */
+	pushl	%eax
+	orl	imasks(,%ecx,4),%eax
+	movl	%eax,_cpl
+	call	%edx
 	popl	%eax
-	ret
+	movl	%eax,_cpl
+	jmp	splz_next
+
+/*
+ * Fake clock IRQ so that it appears to come from our caller and not from
+ * vec0, so that kernel profiling works.
+ * XXX do this more generally (for all vectors; look up the C entry point).
+ * XXX frame bogusness stops us from just jumping to the C entry point.
+ */
+	ALIGN_TEXT
+vec0:
+	popl	%eax			/* return address */
+	pushfl
+#define	KCSEL	8
+	pushl	$KCSEL
+	pushl	%eax
+	cli
+	MEXITCOUNT
+	jmp	_Vclk
 
 #define BUILD_VEC(irq_num) \
 	ALIGN_TEXT ; \
 vec/**/irq_num: ; \
 	int	$ICU_OFFSET + (irq_num) ; \
-	popl	%eax ; \
 	ret
 
-	BUILD_VEC(0)
 	BUILD_VEC(1)
 	BUILD_VEC(2)
 	BUILD_VEC(3)
@@ -392,3 +271,58 @@ vec/**/irq_num: ; \
 	BUILD_VEC(13)
 	BUILD_VEC(14)
 	BUILD_VEC(15)
+
+	ALIGN_TEXT
+swi_clock:
+	MCOUNT
+	subl	%eax,%eax
+	cmpl	$_splz,(%esp)		/* XXX call from splz()? */
+	jae	1f			/* yes, usermode = 0 */
+	movl	4+4+TRAPF_CS_OFF(%esp),%eax	/* no, check trap frame */
+	andl	$SEL_RPL_MASK,%eax
+1:
+	pushl	%eax
+	call	_softclock
+	addl	$4,%esp
+	ret
+
+#define DONET(s, c, event) ; \
+	.globl	c ; \
+	btrl	$s,_netisr ; \
+	jnc	9f ; \
+	call	c ; \
+9:
+
+	ALIGN_TEXT
+swi_net:
+	MCOUNT
+#if 0	
+	DONET(NETISR_RAW, _rawintr,netisr_raw)
+#endif
+#ifdef INET
+	DONET(NETISR_IP, _ipintr,netisr_ip)
+#endif
+#ifdef IMP
+	DONET(NETISR_IMP, _impintr,netisr_imp)
+#endif
+#ifdef NS
+	DONET(NETISR_NS, _nsintr,netisr_ns)
+#endif
+#ifdef ISO
+	DONET(NETISR_ISO, _clnlintr,netisr_iso)
+#endif
+#ifdef	CCITT
+	DONET(NETISR_X25, _pkintr, 29)
+	DONET(NETISR_HDLC, _hdintr, 30)
+#endif
+	ret
+
+	ALIGN_TEXT
+swi_tty:
+	MCOUNT
+#include "sio.h"
+#if NSIO > 0
+	jmp	_siopoll
+#else
+	ret
+#endif

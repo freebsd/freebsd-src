@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id: start.S,v 1.2 1993/10/16 19:11:38 rgrimes Exp $
+ *	$Id: start.S,v 1.3 1994/06/13 19:27:52 jkh Exp $
  */
 
 /*
@@ -99,6 +99,7 @@ start:
 	jae	hd
 
 fd:
+	mov	$0x0, %dl
 #	reset the disk system
 #ifdef	DEBUG
 	data32

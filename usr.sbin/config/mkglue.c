@@ -353,7 +353,7 @@ vector() {
 
 	fprintf(fp, "\
 #define BUILD_VECTORS \\\n\
-	BUILD_VECTOR(clk, 0,0,0, _highmask, _hardclock,1,1,       al);\\\n");
+	BUILD_VECTOR(clk, 0,0,0, _high_imask, _timerintr,1,1,       al);\\\n");
 
 	count=1;
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
@@ -388,9 +388,9 @@ build_vector(fp, dp, id, offset)
 		strcmp(dp->d_name, "sio") == 0 ? "FAST_" : "",
 		dp->d_name, dp->d_unit, dp->d_unit, dp->d_irq, offset);
 	if (eq(dp->d_mask, "null"))
-		fprintf(fp, ", _%s%dmask,", dp->d_name, dp->d_unit);
+		fprintf(fp, ", _%s%d_imask,", dp->d_name, dp->d_unit);
 	else
-		fprintf(fp, ", _%smask, ", dp->d_mask);
+		fprintf(fp, ", _%s_imask, ", dp->d_mask);
 	fprintf(fp, " _%s,%d,1", id->id, 1 + dp->d_irq / 8);
 	if (dp->d_irq < 8)
 		fprintf(fp, ",       al");

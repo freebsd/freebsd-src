@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vfs_lookup.c	7.32 (Berkeley) 5/21/91
- *	$Id: vfs_lookup.c,v 1.5.2.1 1994/05/04 07:54:56 rgrimes Exp $
+ *	$Id: vfs_lookup.c,v 1.9 1994/06/02 06:53:37 ache Exp $
  */
 
 #include "param.h"
@@ -106,6 +106,13 @@ namei(ndp, p)
 	else
 		error = copyinstr(ndp->ni_dirp, ndp->ni_pnbuf,
 			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
+#if 0
+	/*
+	 * Don't allow empty pathname.
+	 */
+	if (!error && *ndp->ni_pnbuf == '\0')
+		error = ENOENT;
+#endif
 	if (error) {
 		free(ndp->ni_pnbuf, M_NAMEI);
 		ndp->ni_vp = NULL;
@@ -284,10 +291,10 @@ dirloop:
 	 * responsibility for freeing the pathname buffer.
 	 */
 	ndp->ni_hash = 0;
-	for (cp = ndp->ni_ptr; *cp != 0 && *cp != '/'; cp++)
+	for (cp = ndp->ni_ptr; *cp != '\0' && *cp != '/'; cp++)
 		ndp->ni_hash += (unsigned char)*cp;
 	ndp->ni_namelen = cp - ndp->ni_ptr;
-	if (ndp->ni_namelen >= NAME_MAX) {
+	if (ndp->ni_namelen > NAME_MAX) {
 		error = ENAMETOOLONG;
 		goto bad;
 	}
@@ -367,7 +374,7 @@ dirloop:
 		printf("not found\n");
 #endif
 		if (flag == LOOKUP || flag == DELETE ||
-		    error != ENOENT || *cp != 0)
+		    error != ENOENT || *cp != '\0')
 			goto bad;
 		/*
 		 * If creating and at end of pathname, then can consider

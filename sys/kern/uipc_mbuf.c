@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)uipc_mbuf.c	7.19 (Berkeley) 4/20/91
- *	$Id: uipc_mbuf.c,v 1.6 1993/12/19 00:51:44 wollman Exp $
+ *	$Id: uipc_mbuf.c,v 1.9 1994/06/11 23:06:35 paul Exp $
  */
 
 #include "param.h"
@@ -312,7 +312,8 @@ m_copym(m, off0, len, wait)
 		n->m_len = MIN(len, m->m_len - off);
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data + off;
-			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+			if (m->m_ext.ext_free == (void (*)())0)
+				mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
 		} else
@@ -441,8 +442,8 @@ m_adj(mp, req_len)
 		}
 		if (m->m_len >= len) {
 			m->m_len -= len;
-			if ((mp = m)->m_flags & M_PKTHDR)
-				m->m_pkthdr.len -= len;
+			if (mp->m_flags & M_PKTHDR)
+				mp->m_pkthdr.len -= len;
 			return;
 		}
 		count -= len;
@@ -639,7 +640,8 @@ extpacket:
 	if (m -> m_flags & M_EXT) {
 		n -> m_flags |= M_EXT;
 		n -> m_ext = m -> m_ext;
-		mclrefcnt[mtocl (m -> m_ext.ext_buf)]++;
+		if (m->m_ext.ext_free == (void (*)())0)
+			mclrefcnt[mtocl (m -> m_ext.ext_buf)]++;
 		n -> m_data = m -> m_data + len;
 	} else {
 		bcopy (mtod (m, caddr_t) + len, mtod (n, caddr_t), remain);
@@ -724,11 +726,6 @@ m_compress(in, out)
 	(*out)->m_act = 0;
 
 	while (in) {
-		if (in->m_flags & M_EXT) {
-#ifdef DEBUG
-			ASSERT(in->m_len == 0);
-#endif
-		}
 		if ( in->m_len == 0) {
 			in = in->m_next;
 			continue;

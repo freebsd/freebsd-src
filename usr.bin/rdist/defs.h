@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <pwd.h>
 #include <grp.h>
+#include <stdlib.h>
 #include "pathnames.h"
 
 /*
@@ -153,6 +154,5 @@ struct subcmd *makesubcmd();
 struct namelist *lookup();
 struct namelist *expand();
 char *exptilde();
-char *malloc();
 char *rindex();
 char *index();

@@ -34,7 +34,7 @@
 #ifndef lint
 /* From: static char sccsid[] = "@(#)if.c	5.15 (Berkeley) 3/1/91"; */
 static const char if_c_rcsid[] = 
-	"$Id: if.c,v 1.3 1994/02/21 11:35:23 rgrimes Exp $";
+	"$Id: if.c,v 1.4 1994/05/17 21:10:14 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -61,6 +61,7 @@ static const char if_c_rcsid[] =
 #define	YES	1
 #define	NO	0
 
+extern	int aflag;
 extern	int tflag;
 extern	int dflag;
 extern	int nflag;
@@ -68,6 +69,21 @@ extern	char *interface;
 extern	int unit;
 extern	char *routename(), *netname(), *ns_phost();
 char *index();
+
+/*
+ * Return a printable string representation of an Ethernet address.
+ */
+char *etherprint(enaddr)
+	char enaddr[6];
+{
+	static char string[18];
+	unsigned char *en = (unsigned char *)enaddr;
+
+	sprintf(string, "%02x:%02x:%02x:%02x:%02x:%02x",
+		en[0], en[1], en[2], en[3], en[4], en[5] );
+	string[17] = '\0';
+	return(string);
+}
 
 /*
  * Print a description of the network interfaces.
@@ -87,7 +103,7 @@ intpr(interval, ifnetaddr)
 		struct iso_ifaddr iso;
 #endif
 	} ifaddr;
-	off_t ifaddraddr;
+	off_t ifaddraddr, ifaddrfound, ifnetfound;
 	struct sockaddr *sa;
 	char name[16];
 
@@ -110,12 +126,14 @@ intpr(interval, ifnetaddr)
 		printf(" %s", "Drop");
 	putchar('\n');
 	ifaddraddr = 0;
+	ifnetfound = 0;
 	while (ifnetaddr || ifaddraddr) {
 		struct sockaddr_in *sin;
 		register char *cp;
 		int n, m;
 		struct in_addr inet_makeaddr();
 
+		ifnetfound = ifnetaddr;
 		if (ifaddraddr == 0) {
 			kvm_read(ifnetaddr, (char *)&ifnet, sizeof ifnet);
 			kvm_read((off_t)ifnet.if_name, name, 16);
@@ -132,6 +150,7 @@ intpr(interval, ifnetaddr)
 			ifaddraddr = (off_t)ifnet.if_addrlist;
 		}
 		printf("%-5.5s %-5d ", name, ifnet.if_mtu);
+		ifaddrfound = ifaddraddr;
 		if (ifaddraddr == 0) {
 			printf("%-11.11s ", "none");
 			printf("%-15.15s ", "none");
@@ -213,6 +232,75 @@ intpr(interval, ifnetaddr)
 		if (dflag)
 			printf(" %3d", ifnet.if_snd.ifq_drops);
 		putchar('\n');
+
+		/*XXX this needs work for bsdi */
+		if (aflag && ifaddrfound) {
+			/*
+			 * print any internet multicast addresses
+			 */
+			switch (sa->sa_family) {
+			case AF_INET:
+			    {
+				off_t multiaddr;
+				struct in_multi inm;
+
+				multiaddr = (off_t)ifaddr.in.ia_multiaddrs;
+				while (multiaddr != 0) {
+					kvm_read(multiaddr, (char *)&inm,
+						 sizeof inm);
+					multiaddr = (off_t)inm.inm_next;
+					printf("%23s %-19.19s\n", "",
+					       routename(inm.inm_addr.s_addr));
+				}
+				break;
+			    }
+			default:
+				break;
+			}
+		}
+#ifdef notyet
+		if (aflag && ifaddraddr == 0) {
+			/*
+			 * print link-level addresses
+			 * (Is there a better way to determine
+			 *  the type of network??)
+			 */
+			if (strncmp(name, "qe", 2) == 0 ||    /* Ethernet */
+			    strncmp(name, "de", 2) == 0 ||
+			    strncmp(name, "ex", 2) == 0 ||
+			    strncmp(name, "il", 2) == 0 ||
+			    strncmp(name, "le", 2) == 0 ||
+			    strncmp(name, "se", 2) == 0 ||
+			    strncmp(name, "ie", 2) == 0) {
+			    strncmp(name, "we", 2) == 0) {
+			    strncmp(name, "el", 2) == 0) {
+			    /* "ec", the 3Com interface for Suns, is not    */
+			    /* included, although it does handle multicast, */
+			    /* because it does not filter specific ethernet */
+			    /* multicast addresses, but just accepts all.   */
+				off_t multiaddr;
+				struct arpcom ac;
+				struct ether_multi enm;
+
+				kvm_read(ifnetfound, (char *)&ac, sizeof ac);
+				printf("%23s %s\n", "",
+					etherprint(&ac.ac_enaddr));
+				multiaddr = (off_t)ac.ac_multiaddrs;
+				while (multiaddr != 0) {
+					kvm_read(multiaddr, (char *)&enm,
+						 sizeof enm);
+					multiaddr = (off_t)enm.enm_next;
+					printf("%23s %s", "",
+						etherprint(&enm.enm_addrlo));
+					if (bcmp(&enm.enm_addrlo,
+						 &enm.enm_addrhi, 6) != 0)
+						printf(" to %s",
+						etherprint(&enm.enm_addrhi));
+					printf("\n");
+				}
+			}
+		}
+#endif
 	}
 }
 

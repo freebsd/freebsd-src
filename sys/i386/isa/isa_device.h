@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.5 1994/01/04 20:06:30 nate Exp $
+ *	$Id: isa_device.h,v 1.7 1994/06/08 14:01:04 davidg Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -46,7 +46,7 @@
  */
 struct isa_device {
 	struct	isa_driver *id_driver;
-	short	id_iobase;	/* base i/o address */
+	int	id_iobase;	/* base i/o address */
 	u_short	id_irq;		/* interrupt request */
 	short	id_drq;		/* DMA request */
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/

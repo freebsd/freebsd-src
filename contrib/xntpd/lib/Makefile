@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1993/12/22 11:32:23 rgrimes Exp $
+# $Id: Makefile,v 1.5 1994/04/03 20:37:05 wollman Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
@@ -10,7 +10,7 @@ SRCS=	atoint.c atolfp.c atouint.c auth12crypt.c authdecrypt.c authdes.c \
 	clocktime.c dofptoa.c dolfptoa.c emalloc.c fptoa.c fptoms.c \
 	gettstamp.c hextoint.c hextolfp.c humandate.c inttoa.c \
 	lib_strbuf.c mfptoa.c mfptoms.c modetoa.c mstolfp.c \
-	msutotsf.c numtoa.c refnumtoa.c numtohost.c octtoint.c \
+	msutotsf.c netof.c numtoa.c refnumtoa.c numtohost.c octtoint.c \
 	prettydate.c ranny.c tsftomsu.c tstotv.c tvtoa.c tvtots.c \
 	uglydate.c uinttoa.c utvtoa.c clocktypes.c \
 	md5.c a_md5encrypt.c a_md5decrypt.c \

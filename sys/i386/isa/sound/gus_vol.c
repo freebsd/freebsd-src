@@ -1,10 +1,11 @@
 /*
  * gus_vol.c - Compute volume for GUS.
- * 
+ *
  * Greg Lee 1993.
  */
 #include "sound_config.h"
 #ifndef EXCLUDE_GUS
+#include "gus_linearvol.h"
 
 #define GUS_VOLUME	gus_wave_volume
 
@@ -20,7 +21,7 @@ extern int      gus_wave_volume;
  * to expression controller messages, if they were found to be used for
  * dynamic volume adjustments, so here, main volume can be assumed to be
  * constant throughout a song.)
- * 
+ *
  * Intrinsic patch volume is added in, but if over 64 is also multiplied in, so
  * we can give a big boost to very weak voices like nylon guitar and the
  * basses.  The normal value is 64.  Strings are assigned lower values.
@@ -38,24 +39,37 @@ gus_adagio_vol (int vel, int mainv, int xpn, int voicev)
    */
   x = 256 + 6 * (voicev - 64);
 
-  /* Boost expression by voice volume above neutral. */
+  /*
+   * Boost expression by voice volume above neutral.
+   */
   if (voicev > 65)
     xpn += voicev - 64;
   xpn += (voicev - 64) / 2;
 
-  /* Combine multiplicative and level components. */
+  /*
+   * Combine multiplicative and level components.
+   */
   x = vel * xpn * 6 + (voicev / 4) * x;
 
 #ifdef GUS_VOLUME
   /*
    * Further adjustment by installation-specific master volume control
-   * (default 50).
+   * (default 60).
    */
   x = (x * GUS_VOLUME * GUS_VOLUME) / 10000;
 #endif
 
-  if (x < (1 << 11))
-    return (11 << 8);
+#ifdef GUS_USE_CHN_MAIN_VOLUME
+  /*
+   * Experimental support for the channel main volume
+   */
+
+  mainv = (mainv / 2) + 64;	/* Scale to 64 to 127 */
+  x = (x * mainv * mainv) / 16384;
+#endif
+
+  if (x < 2)
+    return (0);
   else if (x >= 65535)
     return ((15 << 8) | 255);
 
@@ -82,7 +96,9 @@ gus_adagio_vol (int vel, int mainv, int xpn, int voicev)
    */
   m = x - (1 << i);
 
-  /* Adjust mantissa to 8 bits. */
+  /*
+   * Adjust mantissa to 8 bits.
+   */
   if (m > 0)
     {
       if (i > 8)
@@ -91,11 +107,41 @@ gus_adagio_vol (int vel, int mainv, int xpn, int voicev)
 	m <<= 8 - i;
     }
 
-  /* low volumes give occasional sour notes */
-  if (i < 11)
-    return (11 << 8);
-
   return ((i << 8) + m);
+}
+
+/*
+ * Volume-values are interpreted as linear values. Volume is based on the
+ * value supplied with SEQ_START_NOTE(), channel main volume (if compiled in)
+ * and the volume set by the mixer-device (default 60%).
+ */
+
+unsigned short
+gus_linear_vol (int vol, int mainvol)
+{
+  int             mixer_mainvol;
+
+  if (vol <= 0)
+    vol = 0;
+  else if (vol >= 127)
+    vol = 127;
+
+#ifdef GUS_VOLUME
+  mixer_mainvol = GUS_VOLUME;
+#else
+  mixer_mainvol = 100;
+#endif
+
+#ifdef GUS_USE_CHN_MAIN_VOLUME
+  if (mainvol <= 0)
+    mainvol = 0;
+  else if (mainvol >= 127)
+    mainvol = 127;
+#else
+  mainvol = 128;
+#endif
+
+  return gus_linearvol[(((vol * mainvol) / 128) * mixer_mainvol) / 100];
 }
 
 #endif

@@ -34,6 +34,11 @@ Report problems and direct all questions to:
 
 
 /* $Log: co.c,v $
+ * Revision 1.2  1994/05/14  07:00:10  rgrimes
+ * Add new option -K from David Dawes that allows you to turn on and off
+ * specific keyword substitution during a rcs co command.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id$.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:11  jkh
  * Updated GNU utilities
  *
@@ -155,7 +160,7 @@ static void cleanup P((void));
 
 static char const quietarg[] = "-q";
 
-static char const *expandarg, *join, *suffixarg, *versionarg;
+static char const *expandarg, *join, *suffixarg, *versionarg, *incexcarg;
 static char const *joinlist[joinlength]; /* revisions to be joined */
 static FILE *neworkptr;
 static int exitstatus;
@@ -167,7 +172,7 @@ static struct hshentries *gendeltas;	/* deltas to be generated	*/
 static struct hshentry *targetdelta;	/* final delta to be generated	*/
 static struct stat workstat;
 
-mainProg(coId, "co", "$Id: co.c,v 1.1.1.1 1993/06/18 04:22:11 jkh Exp $")
+mainProg(coId, "co", "$Id: co.c,v 1.2 1994/05/14 07:00:10 rgrimes Exp $")
 {
 	static char const cmdusage[] =
 		"\nco usage: co -{flpqru}[rev] -ddate -jjoinlist -sstate -w[login] -Vn file ...";
@@ -273,6 +278,10 @@ mainProg(coId, "co", "$Id: co.c,v 1.1.1.1 1993/06/18 04:22:11 jkh Exp $")
 			setRCSversion(versionarg);
 			break;
 
+		case 'K':    /*  set keyword inclusions/exclusions  */
+			incexcarg = *argv;
+			setIncExc(incexcarg);
+			break;
 		case 'k':    /*  set keyword expand mode  */
 			expandarg = *argv;
 			if (0 <= expmode) redefined('k');

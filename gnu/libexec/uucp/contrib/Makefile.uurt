@@ -1,30 +1,40 @@
+# $Id: Makefile.uurt,v 1.2 1994/05/07 18:09:19 ache Exp $
+# Makefile for uurate 1.10
 #
-# Makefile for uurate 1.0
-#
+
+# Prefix directory for installation directories.
+prefix = /usr/local
+
+# Directory where the needed .h files are installed (uucp.h ...).
+uucpsrcs = ../
 
 # Where uurate is installed
-BIN=/usr/local/bin
+BIN=$(prefix)/bin
+# Where uurate's man is installed
+MAN=$(prefix)/man/man1
+
+# The directory to look in for Taylor style configuration files
+newconfigdir = $(prefix)/conf/uucp
 
 # Flags to use when compiling uurate
-CFLAGS=-I..
+CC=gcc -O2
+CFLAGS=-I.. -Wall
+LDFLAGS=-s
 
-CC=cc
 SHELL=/bin/sh
 PROGS=uurate
 
 #-----------
+MORECFLAGS= -I. -I$(uucpsrcs) -DNEWCONFIGLIB=\"$(newconfigdir)\"
 
 all: $(PROGS)
 
+uurate: uurate.c
+	$(CC) $(CFLAGS) $(MORECFLAGS) $@.c -o $@ $(LDFLAGS)
+
 install: $(PROGS)
-	@for i in $(PROGS) ; do \
-		echo "Install $$i into $(BIN)..." ; \
-		cp $$i $(BIN) ; \
-		echo "Set ownership and protection..." ; \
-		/bin/chmod 0555 $(BIN)/$$i ; \
-		/bin/chown bin $(BIN)/$$i ; \
-		/bin/chgrp bin $(BIN)/$$i ; \
-	done
+	cp $(PROGS) $(BIN)
+	cp uurate.man $(MAN)/uurate.1
 
 clean:
 	rm -f $(PROGS) core

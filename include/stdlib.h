@@ -30,24 +30,35 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)stdlib.h	5.13 (Berkeley) 6/4/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00145
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	Richard Murphey		stddef.h patch for XFree86
+ *	From: @(#)stdlib.h	5.13 (Berkeley) 6/4/91
+ *	$Id: stdlib.h,v 1.5 1994/04/04 21:10:52 wollman Exp $
  */
 
 #ifndef _STDLIB_H_
 #define _STDLIB_H_
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 #include <sys/types.h>
+#else
+#include <machine/ansi.h>
+#endif
 
 #ifdef	_WCHAR_T_
 typedef	_WCHAR_T_	wchar_t;
 #undef	_WCHAR_T_
 #endif
+
+#ifdef  _BSD_WCHAR_T_
+#ifndef _ANSI_SOURCE
+typedef _BSD_WCHAR_T_   rune_t;
+#endif
+typedef _BSD_WCHAR_T_   wchar_t;
+#undef  _BSD_WCHAR_T_
+#endif
+
+#ifndef	NULL
+#define	NULL		0
+#endif
+
 
 typedef struct {
 	int quot;		/* quotient */
@@ -63,7 +74,8 @@ typedef struct {
 
 #define	RAND_MAX	0x7fffffff
 
-#define	MB_CUR_MAX	1	/* XXX */
+extern int __mb_cur_max;
+#define MB_CUR_MAX	__mb_cur_max
 
 #include <sys/cdefs.h>
 
@@ -102,7 +114,13 @@ int	 wctomb __P((char *, wchar_t));
 int	 mbtowc __P((wchar_t *, const char *, size_t));
 size_t	 wcstombs __P((char *, const wchar_t *, size_t));
 
-/* don't ask me where to put these -- MB XXX */
+#ifndef _ANSI_SOURCE
+void	 cfree __P((void *));
+int	 putenv __P((const char *));
+int	 setenv __P((const char *, const char *, int));
+#endif /* not ANSI */
+
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 double		drand48	__P((void));
 double		erand48	__P((unsigned short[3]));
 long		lrand48	__P((void));
@@ -113,13 +131,6 @@ void		srand48	__P((long));
 unsigned short *seed48	__P((unsigned short[3]));
 void		lcong48	__P((unsigned short[7]));
 
-#ifndef _ANSI_SOURCE
-void	 cfree __P((void *));
-int	 putenv __P((const char *));
-int	 setenv __P((const char *, const char *, int));
-#endif /* not ANSI */
-
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 #ifndef alloca
 void	*alloca __P((size_t));
 #endif
@@ -132,7 +143,8 @@ int	 getsubopt __P((char **, char * const *, char **));
 int	 heapsort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
 char	*initstate __P((unsigned, char *, int));
-int	 radixsort __P((const u_char **, int, const u_char *, u_char));
+int	 radixsort __P((const unsigned char **, int, const unsigned char *,
+			unsigned char));
 long	 random __P((void));
 char	*setstate __P((char *));
 void	 srandom __P((unsigned));

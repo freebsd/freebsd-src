@@ -8,6 +8,7 @@ SRCS=		assert.cc change_lf.cc cmap.cc cset.cc device.cc errarg.cc\
 		tmpfile.cc illegal.cc version.cc
 SRCS+=		iftoa.c itoa.c matherr.c
 CFLAGS+=	-I$(.CURDIR)/../include
+CXXFLAGS+=	-I$(.CURDIR)/../include
 
 NOMAN=		noman
 NOPROFILE=	noprofile	

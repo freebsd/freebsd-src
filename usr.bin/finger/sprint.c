@@ -88,8 +88,9 @@ sflag_print()
 			    '*' : ' ');
 			if (*w->tty)
 				(void)printf("%-2.2s ",
-				    w->tty[0] != 't' || w->tty[1] != 't' ||
-				    w->tty[2] != 'y' ? w->tty : w->tty + 3);
+				    strncmp(w->tty, "tty", 3) &&
+				    strncmp(w->tty, "cua", 3) ?
+				    w->tty : w->tty + 3);
 			else
 				(void)printf("   ");
 			if (w->info == LOGGEDIN) {

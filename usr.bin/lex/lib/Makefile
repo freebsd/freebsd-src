@@ -1,7 +1,7 @@
 #	@(#)Makefile	5.1 (Berkeley) 6/18/90
 
 SHLIB_MAJOR=1
-SHLIB_MINOR=0
+SHLIB_MINOR=1
 
 LIB=	ln
 SRCS=	libmain.c

@@ -1,0 +1,242 @@
+'\"COPYRIGHT 1989 by The Board of Trustees of Leland Stanford Junior University.
+.TH MROUTED 8
+.UC 5
+.SH NAME
+mrouted \- IP multicast routing daemon
+.SH SYNOPSIS
+.B /etc/mrouted 
+[
+.B \-c 
+.I config_file 
+] [
+.B \-d 
+[ 
+.I debug_level 
+] ]
+.SH DESCRIPTION
+.I Mrouted 
+is an implementation of the Distance-Vector Multicast Routing
+Protocol (DVMRP), an earlier version of which is specified in RFC-1075.
+It maintains topological knowledge via a distance-vector routing protocol
+(like RIP, described in RFC-1058), upon which it implements a multicast
+forwarding algorithm called Truncated Reverse Path Broadcasting (TRPB).
+.PP
+.I Mrouted 
+forwards a multicast datagram along a shortest (reverse) path tree
+rooted at the subnet on which the datagram originates.  It is a 
+.I broadcast
+tree, which means it includes 
+.I all
+subnets reachable by a cooperating set of 
+.I mrouted
+routers.  However, the datagram will not be forwarded onto
+.I leaf
+subnets of the tree if those subnets do not have members of the destination
+group.  Furthermore, the IP time-to-live of a multicast datagram may prevent
+it from being forwarded along the entire tree.
+.PP
+In order to support multicasting among subnets that are separated by (unicast)
+routers that do not support IP multicasting, 
+.I mrouted 
+includes support for
+"tunnels", which are virtual point-to-point links between pairs of 
+.IR mrouted s
+located anywhere in an internet.  IP multicast packets are encapsulated for
+transmission through tunnels, so that they look like normal unicast datagrams
+to intervening routers and subnets.  The encapsulation 
+is inserted on entry to a tunnel, and stripped out
+on exit from a tunnel.
+By default, the packets are encapsulated using the IP-in-IP protocol
+(IP protocol number 4).
+Older versions of 
+.I mrouted
+encapsulate using IP source routing, which puts a heavy load on some
+types of routers.
+This version supports IP source route encapsulation only for backwards 
+compatibility.
+.PP
+The tunnel mechanism allows 
+.I mrouted 
+to establish a virtual internet, for
+the purpose of multicasting only, which is independent of the physical
+internet, and which may span multiple Autonomous Systems.  This capability
+is intended for experimental support of internet multicasting only, pending
+widespread support for multicast routing by the regular (unicast) routers.
+.I Mrouted 
+suffers from the well-known scaling problems of any distance-vector
+routing protocol, and does not (yet) support hierarchical multicast routing
+or inter-operation with other multicast routing protocols.
+.PP
+.I Mrouted 
+handles multicast routing only; there may or may not be a unicast
+router running on the same host as 
+.IR mrouted .
+With the use of tunnels, it
+is not necessary for 
+.I mrouted 
+to have access to more than one physical subnet
+in order to perform multicast forwarding.
+.br
+.ne 5
+.SH INVOCATION
+.PP
+If no "\-d" option is given, or if the debug level is specified as 0, 
+.I mrouted
+detaches from the invoking terminal.  Otherwise, it remains attached to the
+invoking terminal and responsive to signals from that terminal.  If "\-d" is
+given with no argument, the debug level defaults to 2.  Regardless of the
+debug level, 
+.I mrouted 
+always writes warning and error messages to the system
+log demon.  Non-zero debug levels have the following effects:
+.IP "level 1"
+all syslog'ed messages are also printed to stderr.
+.IP "level 2"
+all level 1 messages plus notifications of "significant"
+events are printed to stderr.
+.IP "level 3"
+all level 2 messages plus notifications of all packet
+arrivals and departures are printed to stderr.
+.SH CONFIGURATION
+.PP
+.I Mrouted 
+automatically configures itself to forward on all multicast-capable
+interfaces, i.e., interfaces that have the IFF_MULTICAST flag set (excluding
+the loopback "interface"), and it finds other
+.IR mrouted s
+directly reachable
+via those interfaces.  To override the default configuration, or to add
+tunnel links to other
+.IR mrouted s,
+configuration commands may be placed in
+/etc/mrouted.conf (or an alternative file, specified by the "\-c" option).
+There are two types of configuration command:
+.nf
+
+    phyint <local-addr>   [disable]   [metric <m>] [threshold <t>]
+
+    tunnel <local-addr> <remote-addr> [metric <m>] [threshold <t>] [srcrt]
+
+.fi
+The phyint command can be used to disable multicast routing on the physical
+interface identified by local IP address <local-addr>, or to associate a
+non-default metric or threshold with the specified physical interface.
+Phyint commands must precede tunnel commands.
+.PP
+The tunnel command can be used to establish a tunnel link between local
+IP address <local-addr> and remote IP address <remote-addr>, and to associate
+a non-default metric or threshold with that tunnel.  The tunnel must be set
+up in the mrouted.conf files of both ends before it will be used.
+For backwards compatibility with older
+.IR mrouted s,
+the srcrt keyword specifies 
+encapsulation using IP source routing.
+.PP
+The metric is the "cost" associated with sending a datagram on the given
+interface or tunnel; it may be used to influence the choice of routes.
+The metric defaults to 1.  Metrics should be kept as small as possible,
+because 
+.I mrouted
+cannot route along paths with a sum of metrics greater
+than 31.  When in doubt, the following metrics are recommended:
+.ne 5
+.IP 1
+LAN, or tunnel across a single LAN
+.IP 2
+serial link, or tunnel across a single serial link
+.IP 3
+multi-hop tunnel
+.LP
+The threshold is the minimum IP time-to-live required for a multicast datagram
+to be forwarded to the given interface or tunnel.  It is used to control the
+scope of multicast datagrams.  (The TTL of forwarded packets is only compared
+to the threshold, it is not decremented by the threshold.  Every multicast
+router decrements the TTL by 1.)  The default threshold is 1.
+Suggested thresholds:
+.IP 32    
+for links that separate sites,
+.IP 64    
+for links that separate regions,
+.IP 128    
+for links that separate continents.
+.LP
+In general, all
+.IR mrouted s
+connected to a particular subnet or tunnel should
+use the same metric and threshold for that subnet or tunnel.
+.PP
+.I Mrouted
+will not initiate execution if it has fewer than two enabled vifs,
+where a vif (virtual interface) is either a physical multicast-capable
+interface or a tunnel.  It will log a warning if all of its vifs are
+tunnels; such an 
+.I mrouted
+configuration would be better replaced by more
+direct tunnels (i.e., eliminate the middle man).
+.SH SIGNALS
+.PP
+.I Mrouted 
+responds to the following signals:
+.IP HUP
+.sp -.5v
+.IP TERM
+.sp -.5v
+.IP INT
+terminates execution gracefully (i.e., by sending
+good-bye messages to all neighboring routers).
+.IP USR1
+dumps the internal routing tables to /usr/tmp/mrouted.dump.
+.IP QUIT
+dumps the internal routing tables to stderr (only if
+.I mrouted 
+was invoked with a non-zero debug level). 
+.bp
+.SH EXAMPLE
+.PP
+The routing tables look like this:
+.nf
+
+Virtual Interface Table
+ Vif  Local-Address                    Metric  Thresh  Flags
+  0   36.2.0.8      subnet: 36.2          1       1    querier
+                    groups: 224.0.2.1
+                            224.0.0.4
+  1   36.11.0.1     subnet: 36.11         1       1    querier
+                    groups: 224.0.2.1      
+                            224.0.1.0      
+                            224.0.0.4      
+  2   36.2.0.8      tunnel: 36.8.0.77     3       1   
+                    peers : 36.8.0.77      
+  3   36.2.0.8      tunnel: 36.8.0.110    3       1   
+
+Multicast Routing Table
+ Origin-Subnet   From-Gateway    Metric  In-Vif  Out-Vifs
+ 36.2                               1       0    1* 2  3*
+ 36.8            36.8.0.77          4       2    0* 1* 3*
+ 36.11                              1       1    0* 2  3*
+
+.fi
+In this example, there are four vifs connecting to two subnets and two
+tunnels.  The vif 3 tunnel is not in use (no peer address). The vif 0 and
+vif 1 subnets have some groups present; tunnels never have any groups.  This
+instance of 
+.I mrouted
+is the one responsible for sending periodic group
+membership queries on the vif 0 and vif 1 subnets, as indicated by the
+"querier" flags.
+.PP
+Associated with each subnet from which a multicast datagram can originate
+is the address of the previous hop gateway (unless the subnet is directly-
+connected), the metric of the path back to the origin, the incoming vif for
+multicasts from that origin, and a list of outgoing vifs.  "*" means that
+the outgoing vif is connected to a leaf of the broadcast tree rooted at the
+origin, and a multicast datagram from that origin will be forwarded on that
+outgoing vif only if there are members of the destination group on that leaf.
+.SH FILES
+/etc/mrouted.conf
+.SH SEE ALSO
+TRPB is described, along with other multicast routing algorithms, in the
+paper "Multicast Routing in Internetworks and Extended LANs" by S. Deering,
+in the Proceedings of the ACM SIGCOMM '88 Conference.
+.SH AUTHOR
+Steve Deering

@@ -1,7 +1,7 @@
 /* parse.c
    Parse a UUCP command string.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char parse_rcsid[] = "$Id: parse.c,v 1.1 1993/08/05 18:26:43 conklin Exp $";
+const char parse_rcsid[] = "$Id: parse.c,v 1.2 1994/05/07 18:13:33 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -59,6 +59,7 @@ fparse_cmd (zcmd, qcmd)
       && qcmd->bcmd != 'P')
     return FALSE;
 
+  qcmd->bgrade = '\0';
   qcmd->pseq = NULL;
   qcmd->zfrom = NULL;
   qcmd->zto = NULL;
@@ -164,9 +165,20 @@ fparse_cmd (zcmd, qcmd)
   z = strtok ((char *) NULL, " \t\n");
   if (z == NULL)
     return FALSE;
-  qcmd->imode = (int) strtol (z, &zend, 8);
+  qcmd->imode = (int) strtol (z, &zend, 0);
   if (*zend != '\0')
     return FALSE;
+
+  /* As a magic special case, if the mode came out as the decimal
+     values 666 or 777, assume that they actually meant the octal
+     values.  Most systems use a leading zero, but a few do not.
+     Since both 666 and 777 are greater than the largest legal mode
+     value, which is 0777 == 511, this hack does not restrict any
+     legal values.  */
+  if (qcmd->imode == 666)
+    qcmd->imode = 0666;
+  else if (qcmd->imode == 777)
+    qcmd->imode = 0777;
 
   z = strtok ((char *) NULL, " \t\n");
   if (qcmd->bcmd == 'E' && z == NULL)

@@ -35,13 +35,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.36.2.5 1994/04/18 04:56:56 rgrimes Exp $
+ *	$Id: machdep.c,v 1.47 1994/06/17 13:32:07 davidg Exp $
  */
 
 #include "npx.h"
 #include "isa.h"
 
-#include <stddef.h>
 #include "param.h"
 #include "systm.h"
 #include "signalvar.h"
@@ -58,7 +57,6 @@
 #include "malloc.h"
 #include "mbuf.h"
 #include "msgbuf.h"
-#include "net/netisr.h"
 
 #ifdef SYSVSHM
 #include "sys/shm.h"
@@ -96,6 +94,8 @@ static void initcpu(void);
 static int test_page(int *, int);
 
 extern int grow(struct proc *,int);
+const char machine[] = "PC-Class";
+const char *cpu_model;
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -115,22 +115,22 @@ int	bufpages = BUFPAGES;
 #else
 int	bufpages = 0;
 #endif
+#ifdef BOUNCEPAGES
+int	bouncepages = BOUNCEPAGES;
+#else
+int	bouncepages = 0;
+#endif
 extern int freebufspace;
+extern char *bouncememory;
 
 int _udatasel, _ucodesel;
 
 /*
  * Machine-dependent startup code
  */
-int boothowto = 0, Maxmem = 0, maxmem = 0, badpages = 0, physmem = 0;
+int boothowto = 0, Maxmem = 0, badpages = 0, physmem = 0;
 long dumplo;
 extern int bootdev;
-#ifdef SMALL
-extern int forcemaxmem;
-#endif
-#if defined(GENERICAH) || defined(GENERICBT)
-int generic_hack = 1;
-#endif
 int biosmem;
 
 vm_offset_t	phys_avail[6];
@@ -140,6 +140,8 @@ extern cyloffset;
 int cpu_class;
 
 void dumpsys __P((void));
+
+#define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
 void
 cpu_startup()
@@ -255,6 +257,7 @@ again:
 			panic("startup: no room for tables");
 		goto again;
 	}
+
 	/*
 	 * End of second pass, addresses have been assigned
 	 */
@@ -295,6 +298,22 @@ again:
 	printf("using %d buffers containing %d bytes of memory\n",
 		nbuf, bufpages * CLBYTES);
 
+#ifndef NOBOUNCE
+	/*
+	 * If there is more than 16MB of memory, allocate some bounce buffers
+	 */
+	if (Maxmem > 4096) {
+		if (bouncepages == 0)
+			bouncepages = 96;	/* largest physio size + extra */
+		bouncememory = (char *)kmem_alloc(kernel_map, bouncepages * PAGE_SIZE);
+	}
+
+	/*
+	 * init bounce buffers
+	 */
+	vm_bounce_init();
+#endif
+
 	/*
 	 * Set up CPU-specific registers, cache, etc.
 	 */
@@ -324,10 +343,13 @@ struct cpu_nameclass i386_cpus[] = {
 static void
 identifycpu()
 {
+	extern unsigned long cpu_id;
+	extern char cpu_vendor[];
 	printf("CPU: ");
 	if (cpu >= 0 && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
 		printf("%s", i386_cpus[cpu].cpu_name);
 		cpu_class = i386_cpus[cpu].cpu_class;
+		cpu_model = i386_cpus[cpu].cpu_name;
 	} else {
 		printf("unknown cpu type %d\n", cpu);
 		panic("startup: bad cpu id");
@@ -350,6 +372,10 @@ identifycpu()
 		printf("unknown");	/* will panic below... */
 	}
 	printf("-class CPU)");
+	if(cpu_id)
+		printf("  Id = 0x%x",cpu_id);
+	if(*cpu_vendor)
+		printf("  Origin = \"%s\"",cpu_vendor);
 	printf("\n");	/* cpu speed would be nice, but how? */
 
 	/*
@@ -503,7 +529,7 @@ sendsig(catcher, sig, mask, code)
  * Return to previous pc and psl as specified by
  * context left by sendsig. Check carefully to
  * make sure that the user has not modified the
- * psl to gain improper priviledges or to cause
+ * psl to gain improper privileges or to cause
  * a machine fault.
  */
 struct sigreturn_args {
@@ -558,11 +584,11 @@ sigreturn(p, uap, retval)
 #define null_sel(sel) \
 	(!ISLDT(sel) && IDXSEL(sel) == 0)
 
-	if ((scp->sc_cs&0xffff != _ucodesel && !valid_ldt_sel(scp->sc_cs)) ||
-	    (scp->sc_ss&0xffff != _udatasel && !valid_ldt_sel(scp->sc_ss)) ||
-	    (scp->sc_ds&0xffff != _udatasel && !valid_ldt_sel(scp->sc_ds) &&
+	if (((scp->sc_cs&0xffff) != _ucodesel && !valid_ldt_sel(scp->sc_cs)) ||
+	    ((scp->sc_ss&0xffff) != _udatasel && !valid_ldt_sel(scp->sc_ss)) ||
+	    ((scp->sc_ds&0xffff) != _udatasel && !valid_ldt_sel(scp->sc_ds) &&
 	     !null_sel(scp->sc_ds)) ||
-	    (scp->sc_es&0xffff != _udatasel && !valid_ldt_sel(scp->sc_es) &&
+	    ((scp->sc_es&0xffff) != _udatasel && !valid_ldt_sel(scp->sc_es) &&
 	     !null_sel(scp->sc_es))) {
 #ifdef DEBUG
     		printf("sigreturn:  cs=0x%x ss=0x%x ds=0x%x es=0x%x\n",
@@ -709,10 +735,10 @@ boot(arghowto)
 #endif
 die:
 	printf("Rebooting...\n");
-	DELAY (100000);	/* wait 100ms for printf's to complete */
+	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
 	cpu_reset();
 	for(;;) ;
-	/*NOTREACHED*/
+	/* NOTREACHED */
 }
 
 unsigned long	dumpmag = 0x8fca0101UL;	/* magic number for savecore */
@@ -781,36 +807,6 @@ microtime(tvp)
 	splx(s);
 }
 #endif /* HZ */
-
-void
-physstratdone(bp)
-	struct buf *bp;
-{
-	wakeup((caddr_t) bp);
-	bp->b_flags &= ~B_CALL;
-}
-
-void
-physstrat(bp, strat, prio)
-	struct buf *bp;
-	int (*strat)(), prio;
-{
-	register int s;
-	caddr_t baddr;
-
-	bp->b_flags |= B_CALL;
-	bp->b_iodone = physstratdone;
-	vmapbuf(bp);
-	(*strat)(bp);
-	/* pageout daemon doesn't wait for pushed pages */
-	if (bp->b_flags & B_DIRTY)
-		return;
-	s = splbio();
-	while ((bp->b_flags & B_DONE) == 0)
-	  tsleep((caddr_t)bp, prio, "physstr", 0);
-	splx(s);
-	vunmapbuf(bp);
-}
 
 static void
 initcpu()
@@ -1001,7 +997,7 @@ setidt(idx, func, typ, dpl)
 	ip->gd_hioffset = ((int)func)>>16 ;
 }
 
-#define	IDTVEC(name)	__CONCAT(X, name)
+#define	IDTVEC(name)	__CONCAT(X,name)
 typedef void idtvec_t();
 
 extern idtvec_t
@@ -1012,7 +1008,7 @@ extern idtvec_t
 	IDTVEC(rsvd1), IDTVEC(rsvd2), IDTVEC(rsvd3), IDTVEC(rsvd4),
 	IDTVEC(rsvd5), IDTVEC(rsvd6), IDTVEC(rsvd7), IDTVEC(rsvd8),
 	IDTVEC(rsvd9), IDTVEC(rsvd10), IDTVEC(rsvd11), IDTVEC(rsvd12),
-	IDTVEC(rsvd13), IDTVEC(rsvd14), IDTVEC(rsvd14), IDTVEC(syscall);
+	IDTVEC(rsvd13), IDTVEC(rsvd14), IDTVEC(syscall);
 
 int _gsel_tss;
 
@@ -1044,8 +1040,9 @@ init386(first)
 	 * the address space
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(i386_round_page(&etext)) - 1;
-	gdt_segs[GDATA_SEL].ssd_limit = 0xffffffffUL;	/* XXX constant? */
+	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;
 	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, gdt+x);
+
 	/* make ldt memory segments */
 	/*
 	 * The data segment limit must not cover the user area because we
@@ -1146,7 +1143,7 @@ init386(first)
 #ifndef LARGEMEM
 	if (biosextmem > 65536) {
 		panic("extended memory beyond limit of 64MB");
-		/* NOT REACHED */
+		/* NOTREACHED */
 	}
 #endif
 
@@ -1168,25 +1165,6 @@ init386(first)
 	 */
 	if ((pagesinext > 3840) && (pagesinext < 4096))
 		pagesinext = 3840;
-
-#if defined(GENERICAH) || defined(GENERICBT)
-	/* XXX This is an ugle hack so that machines with >16MB of memory
-	 * can be booted using the GENERIC* kernels and not have to worry
-	 * about bus mastered DMA on the ISA bus.  It is ONLY compiled into
-	 * the GENERIC* kernels and can be disabled by tweaking the global
-	 * generic_hack to be zero using gdb.
-	 */
-	if (generic_hack) {
-		if (pagesinext > 3840) {
-		printf("WARNING WARNING WARNING WARNING WARNING WARNING\n");
-		printf("GENERIC* kernels only USE the first 16MB of your ");
-		printf("%dMB.\n", (pagesinext + 256) / 256);
-		printf("Read the RELNOTES.FreeBSD file for the reason.\n");
-		printf("WARNING WARNING WARNING WARNING WARNING WARNING\n");
-		pagesinext = 3840;
-		}
-	}
-#endif	/* defined (GENERICAH) || defiend(GENERICBT) */
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's the highest page of
@@ -1266,9 +1244,9 @@ init386(first)
 		}
 	}
 	printf("done.\n");
-		
-	maxmem = Maxmem - 1;	/* highest page of usable memory */
-	avail_end = (maxmem << PAGE_SHIFT) - i386_round_page(sizeof(struct msgbuf));
+
+	avail_end = (Maxmem << PAGE_SHIFT)
+		    - i386_round_page(sizeof(struct msgbuf));
 
 	/*
 	 * Initialize pointers to the two chunks of memory; for use
@@ -1332,15 +1310,6 @@ test_page(address, pattern)
 			return (1);
 	}
 	return(0);
-}
-
-/*aston() {
-	schednetisr(NETISR_AST);
-}*/
-
-void
-setsoftclock() {
-	schednetisr(NETISR_SCLK);
 }
 
 /*

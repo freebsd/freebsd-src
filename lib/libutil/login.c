@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: login.c,v 1.2 1994/02/23 09:56:47 rgrimes Exp $
+ *	$Id: login.c,v 1.3 1994/04/07 17:47:36 ache Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -41,23 +41,42 @@ static char sccsid[] = "@(#)login.c	5.4 (Berkeley) 6/1/90";
 #include <sys/file.h>
 #include <utmp.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <ttyent.h>
+
+typedef struct utmp UTMP;
 
 void
 login(ut)
-	struct utmp *ut;
+	UTMP *ut;
 {
 	register int fd;
 	int tty;
-	off_t lseek();
+	UTMP utmp;
 
-	tty = ttyslot();
-	if (tty > 0 && (fd = open(_PATH_UTMP, O_WRONLY|O_CREAT, 0644)) >= 0) {
-		(void)lseek(fd, (long)(tty * sizeof(struct utmp)), L_SET);
-		(void)write(fd, (char *)ut, sizeof(struct utmp));
-		(void)close(fd);
+	if ((fd = open(_PATH_UTMP, O_RDWR|O_CREAT, 0644)) >= 0) {
+		if ((tty = ttyslot()) > 0) {
+			(void)lseek(fd, (long)(tty * sizeof(UTMP)), L_SET);
+			(void)write(fd, (char *)ut, sizeof(UTMP));
+			(void)close(fd);
+		} else {
+			setttyent();
+			for (tty = 0; getttyent(); tty++)
+				;
+			endttyent();
+			(void)lseek(fd, (long)(tty * sizeof(UTMP)), L_SET);
+			while (read(fd, (char *)&utmp, sizeof(UTMP)) == sizeof(UTMP)) {
+				if (!utmp.ut_name[0]) {
+					(void)lseek(fd, -(long)sizeof(UTMP), L_INCR);
+					break;
+				}
+			}
+			(void)write(fd, (char *)ut, sizeof(UTMP));
+			(void)close(fd);
+		}
 	}
 	if ((fd = open(_PATH_WTMP, O_WRONLY|O_APPEND, 0)) >= 0) {
-		(void)write(fd, (char *)ut, sizeof(struct utmp));
+		(void)write(fd, (char *)ut, sizeof(UTMP));
 		(void)close(fd);
 	}
 }

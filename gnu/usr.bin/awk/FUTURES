@@ -1,14 +1,26 @@
 This file lists future projects and enhancements for gawk.  Items are listed
 in roughly the order they will be done for a given release.  This file is
-mainly for use by the developers to help keep themselves on track, please
+mainly for use by the developer(s) to help keep themselves on track, please
 don't bug us too much about schedules or what all this really means.
+
+(An `x' indicates that some progress has been made, but that the feature is
+not complete yet.)
 
 For 2.16
 ========
-David:
-	Move to autoconf-based configure system.
+x	Move to autoconf-based configure system.
 
-	Allow RS to be a regexp.
+x	Research awk `fflush' function.
+
+x	Generalize IGNORECASE
+		any value makes it work, not just numeric non-zero
+		make it apply to *all* string comparisons
+
+x	Fix FILENAME to have an initial value of "", not "-"
+
+In 2.17
+=======
+x	Allow RS to be a regexp.
 
 	RT variable to hold text of record terminator
 
@@ -16,45 +28,23 @@ David:
 
 	Feedback alloca.s changes to FSF
 
-	Extensible hashing in memory of awk arrays
+x	Split() with null string as third arg to split up strings
 
-	Split() with null string as third arg to split up strings
-
-	Analogously, setting FS="" would split the input record into individual
+x	Analogously, setting FS="" would split the input record into individual
 	characters.
 
-Arnold:
-	Generalize IGNORECASE
-		any value makes it work, not just numeric non-zero
-		make it apply to *all* string comparisons
-
-	Fix FILENAME to have an initial value of "", not "-"
-
-	Clean up code by isolating system-specific functions in separate files.
+x	Clean up code by isolating system-specific functions in separate files.
 
 	Undertake significant directory reorganization.
 
-	Extensive manual cleanup:
+x	Extensive manual cleanup:
 		Use of texinfo 2.0 features
 		Lots more examples
 		Document all of the above.
 
-In 2.17
-=======
-David:
-
-	Incorporate newer dfa.c and regex.c (go to POSIX regexps)
+x	Go to POSIX regexps
 
 	Make regex + dfa less dependant on gawk header file includes
-
-	General sub functions:
-		edit(line, pat, sub) and gedit(line, pat, sub)
-	that return the substituted strings and allow \1 etc. in the sub string.
-
-Arnold:
-	DBM storage of awk arrays. Try to allow multiple dbm packages
-
-	? Have strftime() pay attention to the value of ENVIRON["TZ"]
 
 	Additional manual features:
 		Document posix regexps
@@ -67,19 +57,26 @@ Arnold:
 
 For 2.18
 ========
+	DBM storage of awk arrays. Try to allow multiple dbm packages
 
-Arnold:
+	General sub functions:
+		edit(line, pat, sub) and gedit(line, pat, sub)
+	that return the substituted strings and allow \1 etc. in the sub
+	string.
+
+	? Have strftime() pay attention to the value of ENVIRON["TZ"]
+
+For 2.19
+========
 	Add chdir and stat built-in functions.
 
 	Add function pointers as valid variable types.
 
 	Add an `ftw' built-in function that takes a function pointer.
 
-David:
-
 	Do an optimization pass over parse tree?
 
-For 2.19 or later:
+For 2.20 or later:
 ==================
 Add variables similar to C's __FILE__ and __LINE__ for better diagnostics
 from within awk programs.
@@ -101,7 +98,7 @@ Make 	awk '/foo/' files...	run at egrep speeds
 
 Do a reference card
 
-Allow OFMT to be other than a floating point format.
+Allow OFMT and CONVFMT to be other than a floating point format.
 
 Allow redefining of builtin functions?
 

@@ -1,16 +1,17 @@
 # Makefile for uuxqt
-# $Id: Makefile,v 1.2 1993/08/06 23:38:29 rgrimes Exp $
+# $Id: Makefile,v 1.5 1994/05/31 05:46:42 ache Exp $
 
 BINDIR=		$(sbindir)
 BINOWN=		$(owner)
-BINMODE=	4555
+BINGRP=         $(group)
+BINMODE=        4550
 
 PROG=		uuxqt
 SRCS=		uuxqt.c util.c log.c copy.c
 LDADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 DPADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 CFLAGS+=	-I$(.CURDIR)/../common_sources\
-		-DVERSION=\"$(VERSION)\"
+		-DVERSION=\"$(VERSION)\" -DOWNER=\"$(owner)\"
 
 MAN8=		uuxqt.8
 

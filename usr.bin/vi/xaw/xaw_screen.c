@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1993 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,8 +32,20 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)xaw_screen.c	8.4 (Berkeley) 1/11/94";
+static char sccsid[] = "@(#)xaw_screen.c	8.5 (Berkeley) 3/8/94";
 #endif /* not lint */
+
+#include <queue.h>
+#include <sys/time.h>
+
+#include <bitstring.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 

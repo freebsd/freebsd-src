@@ -12,3 +12,5 @@ Characters in a character class:  2^(# of bits per byte)
 # of pipe redirections:  min(# of processes per user, # of open files)
 double-precision floating point
 Length of source line:  unlimited
+Number of input records in one file: MAX_LONG
+Number of input records total: MAX_LONG

@@ -27,29 +27,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.3 1994/02/13 20:42:43 jkh Exp $
+ *	$Id: ldd.c,v 1.4 1994/06/15 22:41:03 rich Exp $
  */
 
-#include <sys/param.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <fcntl.h>
 #include <sys/wait.h>
 #include <a.out.h>
-
-static char	*progname;
+#include <err.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 void
 usage()
 {
-	fprintf(stderr, "Usage: %s <filename> ...\n", progname);
+	extern char *__progname;
+
+	fprintf(stderr, "Usage: %s <filename> ...\n", __progname);
+	exit(1);
 }
 
 int
@@ -57,20 +58,14 @@ main(argc, argv)
 int	argc;
 char	*argv[];
 {
-	int		rval = 0;
+	int		rval;
 	int		c;
-	extern int	optind;
-
-	if ((progname = strrchr(argv[0], '/')) == NULL)
-		progname = argv[0];
-	else
-		progname++;
 
 	while ((c = getopt(argc, argv, "")) != EOF) {
 		switch (c) {
 		default:
 			usage();
-			exit(1);
+			/*NOTREACHED*/
 		}
 	}
 	argc -= optind;
@@ -78,27 +73,29 @@ char	*argv[];
 
 	if (argc <= 0) {
 		usage();
-		exit(1);
+		/*NOTREACHED*/
 	}
 
 	/* ld.so magic */
 	setenv("LD_TRACE_LOADED_OBJECTS", "", 1);
 
+	rval = 0;
 	while (argc--) {
 		int	fd;
 		struct exec hdr;
 		int	status;
 
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
-			perror(*argv);
+			warn("%s", *argv);
 			rval |= 1;
 			argv++;
 			continue;
 		}
 		if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
-					!(N_GETFLAG(hdr) & EX_DYNAMIC)) {
-			fprintf(stderr, "%s: not a dynamic executable\n",
-						*argv);
+		    !(N_GETFLAG(hdr) & EX_DYNAMIC) ||
+		    hdr.a_entry < __LDPGSZ) {
+
+			warnx("%s: not a dynamic executable", *argv);
 			(void)close(fd);
 			rval |= 1;
 			argv++;
@@ -111,14 +108,13 @@ char	*argv[];
 
 		switch (fork()) {
 		case -1:
-			perror("fork");
-			exit(1);
+			err(1, "fork");
 			break;
 		default:
-			if (wait(&status) <= 0)
-				perror("wait");
-
-			if (WIFSIGNALED(status)) {
+			if (wait(&status) <= 0) {
+				warn("wait");
+				rval |= 1;
+			} else if (WIFSIGNALED(status)) {
 				fprintf(stderr, "%s: signal %d\n",
 						*argv, WTERMSIG(status));
 				rval |= 1;
@@ -129,7 +125,7 @@ char	*argv[];
 			}
 			break;
 		case 0:
-			rval != execl(*argv, *argv, NULL) != 0;
+			rval |= execl(*argv, *argv, NULL) != 0;
 			perror(*argv);
 			_exit(1);
 		}

@@ -36,7 +36,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)fflush.c	5.1 (Berkeley) 1/20/91";*/
-static char *rcsid = "$Id: fflush.c,v 1.1 1994/01/30 04:24:37 proven Exp $";
+static char *rcsid = "$Id: fflush.c,v 1.2 1994/04/09 15:37:44 ats Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <pthread.h>
@@ -51,7 +51,7 @@ fflush(fp)
 	int retval;
 
 	if (fp == NULL)
-		return (__swalk_sflush);
+		return (__swalk_sflush());
 	flockfile(fp);
 
 	if ((fp->_flags & (__SWR | __SRW)) == 0) {

@@ -199,6 +199,7 @@ typedef struct termios SGTTY;
 extern SGTTY          __orig_termios;   /* Terminal state before curses */
 extern SGTTY          __baset;          /* Our base terminal state */
 extern int __tcaction;			/* If terminal hardware set. */
+extern int __tty_fileno;		/* Terminal file descriptor */
 
 extern int	 COLS;			/* Columns on the screen. */
 extern int	 LINES;			/* Lines on the screen. */

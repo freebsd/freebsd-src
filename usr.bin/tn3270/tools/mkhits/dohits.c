@@ -257,7 +257,7 @@ char	*aidfile, *fcnfile;
     }
     scanwhite(fcnfile, "FCN_");
 
-    while (gets(line) != NULL) {
+    while (fgets(line, sizeof line - 1, stdin) != NULL) {
 	if (!isdigit(line[0])) {
 	    continue;
 	}

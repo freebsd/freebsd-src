@@ -14,7 +14,7 @@
  *    must display the following acknowledgement:
  *      This product includes software developed by Winning Strategies, Inc.
  * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,11 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: memcmp.S,v 1.1.2.1 1994/03/07 02:19:34 rgrimes Exp $
+ *	$Id: memcmp.S,v 1.3 1994/03/31 14:10:59 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-        .asciz "$Id: memcmp.S,v 1.1.2.1 1994/03/07 02:19:34 rgrimes Exp $"
+        .asciz "$Id: memcmp.S,v 1.3 1994/03/31 14:10:59 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -48,16 +48,15 @@ ENTRY(memcmp)
 	pushl	%esi
 	movl	12(%esp),%edi
 	movl	16(%esp),%esi
-	movl	20(%esp),%edx
 	cld				/* set compare direction forward */
 
-	movl	%edx,%ecx		/* compare by words */
+	movl	20(%esp),%ecx		/* compare by words */
 	shrl	$2,%ecx
 	repe
 	cmpsl
 	jne	L5			/* do we match so far? */
 
-	movl	%edx,%ecx		/* compare remainder by bytes */
+	movl	20(%esp),%ecx		/* compare remainder by bytes */
 	andl	$3,%ecx
 	repe
 	cmpsb
@@ -73,8 +72,8 @@ L5:	movl	$4,%ecx			/* We know that one of the next	*/
 	subl	%ecx,%esi		/* match.			*/
 	repe
 	cmpsb
-L6:     movzbl  -1(%edi),%eax           /* Perform unsigned comparison  */
-	movzbl  -1(%esi),%edx
+L6:	movzbl  -1(%edi),%eax		/* Perform unsigned comparison	*/
+        movzbl  -1(%esi),%edx
         subl    %edx,%eax
 	popl	%esi
 	popl	%edi

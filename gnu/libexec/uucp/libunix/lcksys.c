@@ -8,20 +8,32 @@
 #include "sysdep.h"
 #include "system.h"
 
+/* Get the name of a system lock file.  */
+
+static char *zssys_lock_name P((const struct uuconf_system *qsys, char *z));
+
+#define LOCKNAMELEN (sizeof "LCK..12345678")
+
+static char *
+zssys_lock_name (qsys, z)
+     const struct uuconf_system *qsys;
+     char *z;
+{
+  strcpy (z, "LCK..");
+  strncpy (z + sizeof "LCK.." - 1, qsys->uuconf_zname, 8);
+  z[sizeof "LCK.." - 1 + 8] = '\0';
+  return z;
+}
+
 /* Lock a remote system.  */
 
 boolean
 fsysdep_lock_system (qsys)
      const struct uuconf_system *qsys;
 {
-  char *z;
-  boolean fret;
+  char ab[LOCKNAMELEN];
 
-  z = zbufalc (strlen (qsys->uuconf_zname) + sizeof "LCK..");
-  sprintf (z, "LCK..%.8s", qsys->uuconf_zname);
-  fret = fsdo_lock (z, FALSE, (boolean *) NULL);
-  ubuffree (z);
-  return fret;
+  return fsdo_lock (zssys_lock_name (qsys, ab), FALSE, (boolean *) NULL);
 }
 
 /* Unlock a remote system.  */
@@ -30,12 +42,7 @@ boolean
 fsysdep_unlock_system (qsys)
      const struct uuconf_system *qsys;
 {
-  char *z;
-  boolean fret;
+  char ab[LOCKNAMELEN];
 
-  z = zbufalc (strlen (qsys->uuconf_zname) + sizeof "LCK..");
-  sprintf (z, "LCK..%.8s", qsys->uuconf_zname);
-  fret = fsdo_unlock (z, FALSE);
-  ubuffree (z);
-  return fret;
+  return fsdo_unlock (zssys_lock_name (qsys, ab), FALSE);
 }

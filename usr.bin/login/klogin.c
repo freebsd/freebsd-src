@@ -171,7 +171,7 @@ klogin(pw, instance, localhost, password)
 	}
 
 	/* undecipherable: probably didn't have a srvtab on the local host */
-	if (kerror = RD_AP_UNDEC) {
+	if (kerror == RD_AP_UNDEC) {
 		syslog(LOG_NOTICE, "krb_rd_req: (%s)\n", krb_err_txt[kerror]);
 		dest_tkt();
 		return(1);

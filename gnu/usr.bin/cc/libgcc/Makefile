@@ -1,10 +1,9 @@
-#	$Id: Makefile,v 1.11 1993/12/24 02:35:33 jkh Exp $
+#	$Id: Makefile,v 1.13 1994/06/21 16:00:55 jkh Exp $
 
 LIB=	gcc
-NOPROFILE=
-INSTALL_PIC_ARCHIVE=
+INSTALL_PIC_ARCHIVE=yes
 SHLIB_MAJOR= 1
-SHLIB_MINOR= 0
+SHLIB_MINOR= 1
 
 
 CFLAGS+=-I${.CURDIR}/../lib -I${.CURDIR}/../${MACHINE}
@@ -28,6 +27,8 @@ LIB2OBJS= _muldi3.o _divdi3.o _moddi3.o _udivdi3.o _umoddi3.o _negdi2.o \
 OBJS= ${LIB1OBJS} ${LIB2OBJS}
 LIB1SOBJS=${LIB1OBJS:.o=.so}
 LIB2SOBJS=${LIB2OBJS:.o=.so}
+P1OBJS=${LIB1OBJS:.o=.po}
+P2OBJS=${LIB2OBJS:.o=.po}
 
 ${LIB1OBJS}: libgcc1.c
 	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.CURDIR}/libgcc1.c
@@ -45,6 +46,14 @@ ${LIB1SOBJS}: libgcc1.c
 
 ${LIB2SOBJS}: libgcc2.c
 	${CC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.CURDIR}/libgcc2.c
+.endif
+
+.if !defined(NOPROFILE)
+${P1OBJS}: libgcc1.c
+	${CC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.CURDIR}/libgcc1.c
+
+${P2OBJS}: libgcc2.c
+	${CC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.CURDIR}/libgcc2.c
 .endif
 
 .include <bsd.lib.mk>

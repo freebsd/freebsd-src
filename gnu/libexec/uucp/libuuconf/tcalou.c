@@ -1,7 +1,7 @@
 /* tcalou.c
    Find callout login name and password from Taylor UUCP configuration files.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tcalou_rcsid[] = "$Id: tcalou.c,v 1.1 1993/08/05 18:26:00 conklin Exp $";
+const char _uuconf_tcalou_rcsid[] = "$Id: tcalou.c,v 1.2 1994/05/07 18:13:00 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -99,7 +99,7 @@ uuconf_taylor_callout (pglobal, qsys, pzlog, pzpass)
     }
 
   as[0].uuconf_zcmd = qsys->uuconf_zname;
-  as[0].uuconf_itype = UUCONF_CMDTABTYPE_FN | 3;
+  as[0].uuconf_itype = UUCONF_CMDTABTYPE_FN | 0;
   if (*pzlog == NULL)
     as[0].uuconf_pvar = (pointer) pzlog;
   else
@@ -168,6 +168,9 @@ icsys (pglobal, argc, argv, pvar, pinfo)
   char **pzlog = (char **) pvar;
   char **pzpass = (char **) pinfo;
 
+  if (argc < 2 || argc > 3)
+    return UUCONF_SYNTAX_ERROR | UUCONF_CMDTABRET_EXIT;
+
   if (pzlog != NULL)
     {
       *pzlog = strdup (argv[1]);
@@ -182,7 +185,10 @@ icsys (pglobal, argc, argv, pvar, pinfo)
 
   if (pzpass != NULL)
     {
-      *pzpass = strdup (argv[2]);
+      if (argc < 3)
+	*pzpass = strdup ("");
+      else
+	*pzpass = strdup (argv[2]);
       if (*pzpass == NULL)
 	{
 	  qglobal->ierrno = errno;

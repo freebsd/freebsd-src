@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,23 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_line.c	8.18 (Berkeley) 1/22/94";
+static char sccsid[] = "@(#)svi_line.c	8.22 (Berkeley) 3/24/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <curses.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <string.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "svi_screen.h"
@@ -165,11 +175,23 @@ svi_line(sp, ep, smp, yp, xp)
 		smp->c_sboff = smp->c_eboff = 0;
 		smp->c_scoff = smp->c_eclen = 0;
 
-		if (p == NULL) {
-			if (smp->lno != 1)
-				ADDCH(listset && skip_screens == 0 ? '$' : '~');
-		} else if (listset && skip_screens == 0)
-			ADDCH('$');
+		/* Lots of special cases for empty lines. */
+		if (skip_screens == 0)
+			if (p == NULL) {
+				if (smp->lno == 1) {
+					if (listset) {
+						ch = '$';
+						goto empty;
+					}
+				} else {
+					ch = '~';
+					goto empty;
+				}
+			} else
+				if (listset) {
+					ch = '$';
+empty:					ADDCH(ch);
+				}
 
 		clrtoeol();
 		MOVEA(sp, oldy, oldx);
@@ -384,9 +406,8 @@ svi_number(sp, ep)
 	EXF *ep;
 {
 	SMAP *smp;
-	recno_t lno;
 	size_t oldy, oldx;
-	char *lp, *p, nbuf[10];
+	char *lp, nbuf[10];
 
 	/*
 	 * Try and avoid getting the last line in the file, by getting the
@@ -410,7 +431,7 @@ svi_number(sp, ep)
 		if (ISINFOLINE(sp, smp))
 			break;
 		if (smp->lno != 1 && lp == NULL &&
-		    (p = file_gline(sp, ep, smp->lno, NULL)) == NULL)
+		    file_gline(sp, ep, smp->lno, NULL) == NULL)
 			break;
 		MOVE(sp, smp - HMAP, 0);
 		(void)snprintf(nbuf, sizeof(nbuf), O_NUMBER_FMT, smp->lno);

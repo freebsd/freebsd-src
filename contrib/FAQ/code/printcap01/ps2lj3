@@ -1,0 +1,4 @@
+
+#!/bin/sh
+/usr/gnu/bin/gs -dNOPAUSE -r300 -q -sDEVICE=ljet3 -sOutputFile=- -f -
+

@@ -1,0 +1,249 @@
+#!/usr/local/bin/perl
+
+#  Copyright (c) 1994 GB Data Consulting
+#  All rights reserved.
+#  VERSION 0.8 BETA 
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#  3. The name of the Author may not be used to endorse or promote products 
+#     derived from this software without specific prior written permission.
+#  4. This license extends only to beta and network distributed versions.
+#     All even number versions are non-network.
+#  THIS SOFTWARE IS PROVIDED BY GB DATA AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL GB DATA OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF    
+#  SUCH DAMAGE.
+
+# You will need to define these if you wish to have defaults or use
+# that function.
+
+$defgroupid = 30;               # Default ID
+$defusrdir = "\/usr\/u";        # Default User Dir 
+$usequota = "";                 # Use quotas 
+$usemail = "";                  # Use mailings
+$mailfile = "";                 # File to use with mailings 
+$userdefshell = "\/bin\/csh";   # Default user shell 
+$useforward = "";                # Use a forward file 
+$protouser= "";                 # Prototypical user for quotas
+
+# Start getting information and print a banner
+
+print "                                 AddIt\n";
+print "             A system utility for adding users with defaults\n";
+print "                     Copyright 1994 GB Data Consulting\n";
+print "\n\n";
+
+#
+# User ID
+#
+
+print "Please enter the login name of the user: ";
+chop ($userlogin = <STDIN>);
+print "Please enter the user id or hit enter for the next id: ";
+chop ($userid = <STDIN>);
+
+if (!$userid) {
+     open (USERID, "+<userids");
+     chop ($xxuserid = <USERID>);
+     $userid = $xxuserid + 1;
+     close USERID;
+     open (USERID, "+>userids");
+     print (USERID "$userid\n");
+     close USERID;
+   }
+
+#
+# Group ID
+#
+
+print "Please enter the group id or hit enter for the default id: ";
+chop ($groupid = <STDIN>);
+
+if (!$groupid) {
+$groupid = "$defgroupid";
+}
+
+#
+#  User name
+#
+
+print "Please enter the user's name: ";
+chop ($username = <STDIN>);
+
+#
+# Home directory
+#
+
+print "Please enter the users home directory or hit enter for default: ";
+chop ($userdir = <STDIN>);
+
+if (!$userdir) {
+	$userdir = "$defusrdir\/$userlogin";
+	print "$userdir\n";
+}
+
+#
+# Login Shell
+#
+
+print "Please enter the users login shell or hit enter for default: ";
+chop ($usershell = <STDIN>);
+
+if (!$usershell) {
+	$usershell = "$userdefshell";
+	print "$usershell\n";
+}
+
+#
+# Create password file entry
+#
+
+print "Opening and locking passwd file in blocking mode.\n";
+open (PASS, '>>/etc/master.passwd');
+flock (PASS, 2) || die "Can't lock passwd file, must be in use!!\n";
+print (PASS "$userlogin::$userid:$groupid::0:0:$username,,,:$userdir:$usershell\n");
+print "Unlocking and closing password file\n";
+flock (PASS,8);
+close PASS;
+print "Re-indexing password databases\n";
+system 'pwd_mkdb -p /etc/master.passwd';
+system "passwd $userlogin";
+
+#
+# Create user directory
+#
+print "Creating user directory\n";
+if (! -e $defusrdir)
+   {
+    print "$defusrdir does not exist, exiting!\n";
+    exit;
+   }
+system "mkdir $userdir";
+if (! -e $userdir)
+   {
+   print "$userdir does not exist!!\n";
+   print "This may be due to a parent dir not being there...\n";
+   exit; 
+   }
+
+print "Copying user shell files\n";
+system "cp dot.login $userdir\/\.login";
+system "cp dot.profile $userdir\/\.profile";
+
+if ($usershell eq "\/bin\/csh" || $usershell eq "\/usr\/local\/bin\/tcsh")
+   {
+   system "cp dot.cshrc $userdir\/.cshrc";
+   }
+system  "chmod -R 654 $userdir";
+system  "chown -R $userid.$groupid $userdir";
+
+#
+# Mailings
+#
+if ($usemail) 
+   {
+   print "Mailing new user notice\n";
+   system "elm \-s \"New User Mailing\" $userid $mailfile";
+   }
+
+#
+# Quotas
+#
+if ($usequota)
+   {
+  print "Editing quotas for user $userlogin\n";
+  if ($protouser) {
+     system "edquota -u -p $protouser $userlogin";
+  } else {
+     system "edquota -u $userlogin";
+  }
+}
+
+#
+# Forward files
+#
+if ($useforward)
+   {
+   print "Please enter the name of the account to forward to:";
+   chop ($account = <STDIN>);
+   if (!$account)
+      {
+      $acc = $defaccount;
+      }
+   else
+      {
+      $acc = $account;
+      }
+   print "Please enter the name of the system to forward to:";
+   chop ($system = <STDIN>);
+   if (!$system)
+      {
+      $sys = $defsystem;
+      }
+   else 
+      {
+      $sys = $system; 
+      }
+   print "Creating \.forward file for user $userlogin\n"; 
+   open (FORWARD, ">$userdir\/\.forward");
+   print (FORWARD "$acc@$sys\n");
+   close FORWARD;
+   system "chown $userid\.$groupid $userdir\/\.forward";
+}
+
+#
+# Print out information used in creation of this account
+#
+print "\n\n";
+print "Information used to create this account follows.\n";
+print "\n";
+print "Login Name:      $userlogin\n";
+print "UserId:          $userid\n";
+print "GroupId:         $groupid\n";
+print "UserName:        $username\n";
+print "HomeDir:         $userdir\n";
+print "Shell:           $usershell\n";
+if ($usemail) 
+   {
+   $mailyn = "Using mailing";
+   }
+else
+   {
+   $mailyn = "Not using mailing";
+   }
+print "Mailing:         $mailyn\n";
+if ($usequota)
+   {
+   $quotayn = "Using quotas";
+   }
+else
+   {
+   $quotayn = "Not using quotas";
+   }
+print "Quotas:          $quotayn\n";
+if ($useforward)
+   {
+   $forwardyn = "forwarded to $acc@$sys";
+   }
+else 
+   {
+   $forwardyn = "Not using forward file";
+   }
+print "ForwardFile:      $forwardyn\n";
+print "\nDONE\n\n";
+
+
+

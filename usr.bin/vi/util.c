@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,24 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.34 (Berkeley) 12/23/93";
+static char sccsid[] = "@(#)util.c	8.44 (Berkeley) 3/15/94";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <ctype.h>
 #include <curses.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #ifdef __STDC__
@@ -50,6 +57,9 @@ static char sccsid[] = "@(#)util.c	8.34 (Berkeley) 12/23/93";
 #else
 #include <varargs.h>
 #endif
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 
@@ -84,14 +94,15 @@ msgq(sp, mt, fmt, va_alist)
 	 */
 	switch (mt) {
 	case M_BERR:
-		if (sp != NULL && !O_ISSET(sp, O_VERBOSE)) {
+		if (sp != NULL && !F_ISSET(sp, S_EXSILENT) &&
+		    F_ISSET(sp->gp, G_STDIN_TTY) && !O_ISSET(sp, O_VERBOSE)) {
 			F_SET(sp, S_BELLSCHED);
 			return;
 		}
 		mt = M_ERR;
 		break;
 	case M_VINFO:
-		if (sp != NULL && !O_ISSET(sp, O_VERBOSE))
+		if (sp == NULL || !O_ISSET(sp, O_VERBOSE))
 			return;
 		mt = M_INFO;
 		/* FALLTHROUGH */
@@ -209,6 +220,13 @@ ret:	reenter = 0;
  * This isn't true -- edit a large file and do "100d|1".  We don't implement
  * this semantic as it would require that we track each line that changes
  * during a command instead of just keeping count.
+ *
+ * Line counts weren't right in historic vi, either.  For example, given the
+ * file:
+ *	abc
+ *	def
+ * the command 2d}, from the 'b' would report that two lines were deleted,
+ * not one.
  */
 int
 msg_rpt(sp, is_message)
@@ -216,7 +234,7 @@ msg_rpt(sp, is_message)
 	int is_message;
 {
 	static const char *const action[] = {
-		"added", "changed", "copied", "deleted", "joined", "moved",	
+		"added", "changed", "copied", "deleted", "joined", "moved",
 		"put", "left shifted", "right shifted", "yanked", NULL,
 	};
 	recno_t total;
@@ -276,36 +294,45 @@ norpt:	memset(sp->rptlines, 0, sizeof(sp->rptlines));
  */
 int
 binc(sp, argp, bsizep, min)
-	SCR *sp;			/* MAY BE NULL */
+	SCR *sp;			/* sp MAY BE NULL!!! */
 	void *argp;
 	size_t *bsizep, min;
 {
-	void *bpp;
 	size_t csize;
+	void *bpp;
 
 	/* If already larger than the minimum, just return. */
-	csize = *bsizep;
-	if (min && csize >= min)
+	if (min && *bsizep >= min)
 		return (0);
 
-	csize += MAX(min, 256);
+	/*
+	 * If the initial pointer is null, use calloc (for non-ANSI
+	 * C realloc implementations).
+	 */
 	bpp = *(char **)argp;
-
-	/* For non-ANSI C realloc implementations. */
-	if (bpp == NULL)
-		bpp = malloc(csize * sizeof(CHAR_T));
-	else
-		bpp = realloc(bpp, csize * sizeof(CHAR_T));
+	csize = *bsizep + MAX(min, 256);
 	if (bpp == NULL) {
-		msgq(sp, M_SYSERR, NULL);
+		MALLOC(sp, bpp, void *, csize);
+	} else
+		REALLOC(sp, bpp, void *, csize);
+
+	if (bpp == NULL) {
+		/*
+		 * Theoretically, realloc is supposed to leave any already
+		 * held memory alone if it can't get more.  Don't trust it.
+		 */
 		*bsizep = 0;
 		return (1);
 	}
+	/*
+	 * Memory is guaranteed to be zero-filled, various parts of
+	 * nvi depend on this.
+	 */
+	memset((char *)bpp + *bsizep, 0, csize - *bsizep);
 	*(char **)argp = bpp;
 	*bsizep = csize;
 	return (0);
 }
-
 /*
  * nonblank --
  *	Set the column number of the first non-blank character
@@ -499,6 +526,9 @@ baud_from_bval(sp)
 {
 	speed_t v;
 
+	if (!F_ISSET(sp->gp, G_TERMIOS_SET))
+		return (9600);
+
 	switch (v = cfgetospeed(&sp->gp->original_termios)) {
 	case B50:
 		return (50);
@@ -524,13 +554,37 @@ baud_from_bval(sp)
 		return (2400);
 	case B4800:
 		return (4800);
+#ifdef B7200
+	case B7200:
+		return (7200);
+#endif
 	case B0:				/* Hangup -- ignore. */
 	case B9600:
 		return (9600);
+#ifdef B14400
+	case B14400:
+		return (14400);
+#endif
 	case B19200:
 		return (19200);
+#ifdef B28800
+	case B28800:
+		return (28800);
+#endif
 	case B38400:
 		return (38400);
+#ifdef B57600
+	case B57600:
+		return (57600);
+#endif
+#ifdef B115200
+	case B115200:
+		return (115200);
+#endif
+#ifdef B230400
+	case B230400:
+		return (230400);
+#endif
 	default:
 		/*
 		 * EXTA and EXTB aren't required by POSIX 1003.1, and
@@ -544,14 +598,6 @@ baud_from_bval(sp)
 #ifdef EXTB
 		if (v == EXTB)
 			return (38400);
-#endif
-#ifdef B57600
-		if (v == B57600)
-			return (57600);
-#endif
-#ifdef B115200
-		if (v == B115200)
-			return (115200);
 #endif
 		msgq(sp, M_ERR, "Unknown terminal baud rate %u.\n", v);
 		return (9600);

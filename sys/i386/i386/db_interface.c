@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.5 1993/12/19 00:50:00 wollman Exp $
+ *	$Id: db_interface.c,v 1.7 1994/06/22 05:52:28 jkh Exp $
  */
 
 /*
@@ -178,8 +178,6 @@ db_read_bytes(addr, size, data)
 	db_nofault = 0;
 }
 
-struct pte *pmap_pte(pmap_t, vm_offset_t);
-
 /*
  * Write bytes to kernel address space for debugger.
  */
@@ -234,9 +232,24 @@ db_write_bytes(addr, size, data)
 	}
 }
 
+/*
+ * XXX move this to machdep.c and allow it to be called iff any debugger is
+ * installed.
+ * XXX msg is not printed.
+ */
 void
 Debugger (msg)
 	const char *msg;
 {
-	asm ("int $3");
+	static volatile u_char in_Debugger;
+ 
+	if (!in_Debugger) {
+		in_Debugger = 1;
+#ifdef __GNUC__
+		asm("int $3");
+#else
+		int3();
+#endif
+		in_Debugger = 0;
+	}
 }

@@ -1,7 +1,7 @@
 /* remunk.c
    Get the name of the remote.unknown shell script.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_remunk_rcsid[] = "$Id: remunk.c,v 1.1 1993/08/05 18:25:52 conklin Exp $";
+const char _uuconf_remunk_rcsid[] = "$Id: remunk.c,v 1.2 1994/05/07 18:12:50 ache Exp $";
 #endif
 
 /* Get the name of the remote.unknown shell script.  */
@@ -37,9 +37,18 @@ uuconf_remote_unknown (pglobal, pzname)
      pointer pglobal;
      char **pzname;
 {
-#if HAVE_TAYLOR_CONFIG || ! HAVE_HDB_CONFIG
+#if ! HAVE_HDB_CONFIG
   return UUCONF_NOT_FOUND;
 #else
+#if HAVE_TAYLOR_CONFIG
+  struct sglobal *qglobal = (struct sglobal *) pglobal;
+
+  /* If ``unknown'' commands were used in the config file, then ignore
+     any remote.unknown script.  */
+  if (qglobal->qprocess->qunknown != NULL)
+    return UUCONF_NOT_FOUND;
+#endif /* HAVE_TAYLOR_CONFIG */
+
   return uuconf_hdb_remote_unknown (pglobal, pzname);
-#endif
+#endif /* HAVE_HDB_CONFIG */
 }

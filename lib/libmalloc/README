@@ -1,0 +1,68 @@
+This is a complete set of memory allocation functions (malloc and
+friends). 
+	The allocator is small, fast and space-efficient. 
+
+	It performs coalescing on frees. 
+
+	It has hooks for profiling, tracing and memory leak detection. 
+
+	It has very comprehensive and paranoid errorchecking as a compile
+	time option, enough to detect most forms of heap corruption.
+
+	Optionally, it attempts to be compatible with the proposed ANSI C
+	Standard definition for the standard library functions malloc(),
+	calloc(), realloc() and free(). By default, it is more or less
+	compatible with existing Unix malloc() functions - some
+	differences do exist. (Notably free(), cfree() returning void,
+	realloc() not accepting a freed block)
+
+See the file malloc.doc for the full details.
+
+Porting to other machines shouldn't be hard if they have a civilized C
+compiler, and an sbrk().
+
+Eventually, the goal is to make this malloc() conformant with ANSI C -
+it's getting there. It can be convinced to return void * and accept
+size_t, so you can use it for ANSI C conformant programs by defining
+ANSI_TYPES. Till then it's meant to be broadly conformant with Unix
+malloc()s.
+
+To compile it, make sure ALIGN (in align.h) is correct for your machine, and
+make it. testmalloc should run correctly and say Test done if it is
+working, producing amazing amounts of heap trace. If it dumps core, it
+isn't working...
+
+Depending on which end of the philosophical spectrum you lie, define
+-DBUGCOMPATIBILITY. If defined, malloc(0) will do the same thing as
+malloc(1). If not defined, the debugging malloc will abort() with an
+error, while the non-debugging malloc will return NULL. (and set errno
+to EINVAL). Note that the SVID requires malloc(0) to return NULL, and
+the May 13, 1988 ANSI C draft says that you can either return a NULL
+pointer or a unique pointer (typically decisive standard...)
+
+libmalloc.a is a fast, small version, with no
+debugging/profiling/tracing, while libmalloc_d.a is the version with
+all those three. (Profiling and tracing should not introduce serious
+overhead, since profiling is simple and fast, (one 'if' and increment),
+while tracing is turned off by default. So you may want to keep
+profiling and tracing in the fast version as well) 
+	make clean all
+will make libmalloc_d.a and the test programs.
+
+	make clean libmalloc
+will make libmalloc.a.
+
+For linking convenience, you may want to compile the malloc as one
+file instead. To do that, simply make onefile.o. It concatenates all
+the src together and compiles it - the include files are protected
+against multiple inclusion. This has the advantage of compiling in
+things like mal_verify() and mal_trace() even if they aren't used, so
+you can use them when debugging.
+
+		Mark Moraes.
+		Computer Systems Research Institute, 
+		Univerity of Toronto.
+		moraes@csri.toronto.{edu,cdn}
+		moraes@csri.utoronto.ca
+		moraes@utcsri.uucp
+		{your favourite backbone}!uunet!utai!utcsri!moraes

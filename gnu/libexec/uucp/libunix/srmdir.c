@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -35,7 +35,7 @@
 #include <ftw.h>
 #endif
 
-static int isremove_dir P((const char *, const struct stat *, int));
+static int isremove_dir P((const char *, struct stat *, int));
 
 /* Keep a list of directories to be removed.  */
 
@@ -90,7 +90,7 @@ fsysdep_rmdir (zdir)
 static int
 isremove_dir (zfile, qstat, iflag)
      const char *zfile;
-     const struct stat *qstat;
+     struct stat *qstat;
      int iflag;
 {
   if (iflag == FTW_D || iflag == FTW_DNR)

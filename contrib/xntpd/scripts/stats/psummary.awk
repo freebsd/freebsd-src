@@ -1,5 +1,7 @@
 # program to scan peer_summary file and produce summary of daily summaries
 #
+# usage: awk -f psummary.awk peer_summary
+#
 {
 	if (NF < 8 || $1 == "ident")
 		continue

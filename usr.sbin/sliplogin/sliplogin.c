@@ -280,7 +280,7 @@ main(argc, argv)
 #ifdef POSIX
 		if (fork() > 0)
 			exit(0);
-		if (setsid() != 0)
+		if (setsid() == -1)
 			perror("setsid");
 #else
 		if ((fd = open("/dev/tty", O_RDONLY, 0)) >= 0) {
@@ -317,6 +317,11 @@ main(argc, argv)
 			exit(1);
 		}
 		findid(name);
+	}
+	if (!isatty(0)) {
+		(void) fprintf(stderr, "access denied - stdin is not a tty\n");
+		syslog(LOG_ERR, "access denied - stdin is not a tty\n");
+		exit(1);
 	}
 	(void) fchmod(0, 0600);
 	(void) fprintf(stderr, "starting slip login for %s\n", loginname);

@@ -1,7 +1,7 @@
 /* uuconv.c
    Convert one type of UUCP configuration file to another.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char uuconv_rcsid[] = "$Id: uuconv.c,v 1.1 1993/08/05 18:27:29 conklin Exp $";
+const char uuconv_rcsid[] = "$Id: uuconv.c,v 1.2 1994/05/07 18:14:06 ache Exp $";
 #endif
 
 #include "getopt.h"
@@ -34,6 +34,7 @@ const char uuconv_rcsid[] = "$Id: uuconv.c,v 1.1 1993/08/05 18:27:29 conklin Exp
 /* Local functions.  */
 
 static void uvusage P((void));
+static void uvhelp P((void));
 static void uvwrite_time P((FILE *e, struct uuconf_timespan *qtime));
 static void uvwrite_string P((FILE *e, const char *zarg, const char *zcmd));
 static void uvwrite_size P((FILE *e, struct uuconf_timespan *qsize,
@@ -76,6 +77,9 @@ static void uvwrite_taylor_dialer P((FILE *e, struct uuconf_dialer *qdialer,
 static void uvwrite_hdb_dialer P((FILE *e, struct uuconf_dialer *qdialer));
 static void uvuuconf_error P((pointer puuconf, int iret));
 
+/* The program name.  */
+const char *zProgram;
+
 /* A list of Permissions entries built when writing out HDB system
    information.  */
 static struct shpermissions *qVperms;
@@ -89,7 +93,17 @@ enum tconfig
 };
 
 /* Long getopt options.  */
-static const struct option asVlongopts[] = { { NULL, 0, NULL, 0 } };
+static const struct option asVlongopts[] =
+{
+  { "input", required_argument, NULL, 'i' },
+  { "output", required_argument, NULL, 'o' },
+  { "program", required_argument, NULL, 'p' },
+  { "config", required_argument, NULL, 'I' },
+  { "debug", required_argument, NULL, 'x' },
+  { "version", no_argument, NULL, 'v' },
+  { "help", no_argument, NULL, 1 },
+  { NULL, 0, NULL, 0 }
+};
 
 int
 main (argc, argv)
@@ -109,7 +123,9 @@ main (argc, argv)
   int iret;
   pointer pinput;
 
-  while ((iopt = getopt_long (argc, argv, "i:I:o:p:x:", asVlongopts,
+  zProgram = argv[0];
+
+  while ((iopt = getopt_long (argc, argv, "i:I:o:p:vx:", asVlongopts,
 			      (int *) NULL)) != EOF)
     {
       switch (iopt)
@@ -138,8 +154,23 @@ main (argc, argv)
 	  /* Set the debugging level.  */
 	  break;
 
+	case 'v':
+	  /* Print version and exit.  */
+	  fprintf
+	    (stderr,
+	     "%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	     zProgram, VERSION);
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
+	case 1:
+	  /* --help.  */
+	  uvhelp ();
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
 	case 0:
-	  /* Long option found and flag set.  */
+	  /* Long option found, and flag value set.  */
 	  break;
 
 	default:
@@ -471,6 +502,9 @@ main (argc, argv)
     }
 
   exit (EXIT_SUCCESS);
+
+  /* Avoid complaints about not returning.  */
+  return 0;
 }
 
 /* Print out a usage message and die.  */
@@ -478,20 +512,35 @@ main (argc, argv)
 static void
 uvusage ()
 {
-  fprintf (stderr,
-	   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
-	   VERSION);
-  fprintf (stderr,
-	   "Usage: uuconv -i input -o output [-p program] [-I file]\n");
-  fprintf (stderr,
-	   " -i input: Set input type (one of taylor, v2, hdb)\n");
-  fprintf (stderr,
-	   " -o output: Set output type (one of taylor, v2, hdb)\n");
-  fprintf (stderr,
-	   " -p program: Program to convert (e.g., uucp or cu)\n");
-  fprintf (stderr,
-	   " -I file: Set Taylor UUCP configuration file to use\n");
+  fprintf (stderr, "Usage: %s -i input-type -o output-type [-p program]\n",
+	   zProgram);
+  fprintf (stderr, "Use %s --help for help\n", zProgram);
   exit (EXIT_FAILURE);
+}
+
+/* Print a help message.  */
+
+static void
+uvhelp ()
+{
+  fprintf (stderr,
+	   "Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	   VERSION);
+  fprintf (stderr, "Converts UUCP configuration files from one format to another.\n");
+  fprintf (stderr,
+	   "Usage: %s -i input -o output [-p program] [-I file]\n", zProgram);
+  fprintf (stderr,
+	   " -i,--input input: Set input type (one of taylor, v2, hdb)\n");
+  fprintf (stderr,
+	   " -o,--output output: Set output type (one of taylor, v2, hdb)\n");
+  fprintf (stderr,
+	   " -p,--program program: Program to convert (e.g., uucp or cu)\n");
+  fprintf (stderr,
+	   " -I,--config file: Set Taylor UUCP configuration file to use\n");
+  fprintf (stderr,
+	   " -v,--version: Print version and exit\n");
+  fprintf (stderr,
+	   " --help: Print help and exit\n");
 }
 
 /* Write out a timespan.  */
@@ -1229,18 +1278,17 @@ uvwrite_hdb_system (e, qsys)
 
 /* Compare two strings from a Permissions entry, returning TRUE if
    they are the same.  */
+
 static boolean
 fvperm_string_cmp (z1, z2)
      const char *z1;
      const char *z2;
 {
-  if (z1 == NULL
-      ? z2 != NULL
-      : z2 == NULL)
-    return FALSE;
-
   if (z1 == NULL)
-    return TRUE;
+    return z2 == NULL;
+
+  if (z2 == NULL)
+    return FALSE;
 
   return strcmp (z1, z2) == 0;
 }
@@ -1253,13 +1301,11 @@ fvperm_array_cmp (pz1, pz2)
      const char **pz1;
      const char **pz2;
 {
-  if (pz1 == NULL
-      ? pz2 != NULL
-      : pz2 == NULL)
-    return FALSE;
-
   if (pz1 == NULL)
-    return TRUE;
+    return pz2 == NULL;
+
+  if (pz2 == NULL)
+    return FALSE;
 
   for (; *pz1 != NULL && *pz2 != NULL; pz1++, pz2++)
     if (strcmp (*pz1, *pz2) != 0)
@@ -1629,6 +1675,9 @@ uvwrite_taylor_port (e, qport, zprefix)
     case UUCONF_PORTTYPE_TLI:
       ztype = "tli";
       break;
+    case UUCONF_PORTTYPE_PIPE:
+      ztype = "pipe";
+      break;
     }
 
   fprintf (e, "%stype %s\n", zprefix, ztype);
@@ -1681,6 +1730,8 @@ uvwrite_taylor_port (e, qport, zprefix)
 		   qm->uuconf_ihighbaud);
 	if (! qm->uuconf_fcarrier)
 	  fprintf (e, "%scarrier false\n", zprefix);
+	if (! qm->uuconf_fhardflow)
+	  fprintf (e, "%shardflow false\n", zprefix);
 	if (qm->uuconf_pzdialer != NULL)
 	  {
 	    if (qm->uuconf_pzdialer[1] == NULL)
@@ -1707,12 +1758,23 @@ uvwrite_taylor_port (e, qport, zprefix)
 	  fprintf (e, "%sdevice %s\n", zprefix, qd->uuconf_zdevice);
 	if (qd->uuconf_ibaud != 0)
 	  fprintf (e, "%sbaud %ld\n", zprefix, qd->uuconf_ibaud);
+	if (qd->uuconf_fcarrier)
+	  fprintf (e, "%scarrier true\n", zprefix);
+	if (! qd->uuconf_fhardflow)
+	  fprintf (e, "%shardflow false\n", zprefix);
       }
       break;
     case UUCONF_PORTTYPE_TCP:
       if (qport->uuconf_u.uuconf_stcp.uuconf_zport != NULL)
 	fprintf (e, "%sservice %s\n", zprefix,
 		 qport->uuconf_u.uuconf_stcp.uuconf_zport);
+      if (qport->uuconf_u.uuconf_stcp.uuconf_pzdialer != NULL)
+	{
+	  sprintf (ab, "%sdialer-sequence", zprefix);
+	  uvwrite_string_array (e,
+				qport->uuconf_u.uuconf_stcp.uuconf_pzdialer,
+				ab);
+	}
       break;
     case UUCONF_PORTTYPE_TLI:
       {
@@ -1736,6 +1798,18 @@ uvwrite_taylor_port (e, qport, zprefix)
 	if (qt->uuconf_zservaddr != NULL)
 	  fprintf (e, "%sserver-address %s\n", zprefix,
 		   qt->uuconf_zservaddr);
+      }
+      break;
+    case UUCONF_PORTTYPE_PIPE:
+      {
+	struct uuconf_pipe_port *qp;
+
+	qp = &qport->uuconf_u.uuconf_spipe;
+	if (qp->uuconf_pzcmd != NULL)
+	  {
+	    sprintf (ab, "%scommad", zprefix);
+	    uvwrite_string_array (e, qp->uuconf_pzcmd, ab);
+	  }
       }
       break;
     }
@@ -1849,6 +1923,8 @@ ivwrite_hdb_port (qport, pinfo)
     }
   else if (qport->uuconf_ttype == UUCONF_PORTTYPE_TCP)
     {
+      char **pz;
+
       fprintf (e, "TCP");
       if (qport->uuconf_zprotocols != NULL)
 	fprintf (e, ",%s", qport->uuconf_zprotocols);
@@ -1858,6 +1934,10 @@ ivwrite_hdb_port (qport, pinfo)
       else
 	fprintf (e, "%s", qport->uuconf_u.uuconf_stcp.uuconf_zport);
       fprintf (e, " - -");
+      pz = qport->uuconf_u.uuconf_stcp.uuconf_pzdialer;
+      if (pz != NULL)
+	for (; *pz != NULL; pz++)
+	  fprintf (e, " %s", *pz);
     }
   else if (qport->uuconf_ttype == UUCONF_PORTTYPE_TLI)
     {

@@ -1,7 +1,7 @@
 /* tport.c
    Find a port in the Taylor UUCP configuration files.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tport_rcsid[] = "$Id: tport.c,v 1.1 1993/08/05 18:26:11 conklin Exp $";
+const char _uuconf_tport_rcsid[] = "$Id: tport.c,v 1.2 1994/05/07 18:13:09 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -290,6 +290,10 @@ ipunknown (pglobal, argc, argv, pvar, pinfo)
 {
   struct sglobal *qglobal = (struct sglobal *) pglobal;
   struct uuconf_port *qport = (struct uuconf_port *) pinfo;
+  int iret;
 
-  return _uuconf_iport_cmd (qglobal, argc, argv, qport);
+  iret = _uuconf_iport_cmd (qglobal, argc, argv, qport);
+  if (UUCONF_ERROR_VALUE (iret) != UUCONF_SUCCESS)
+    iret |= UUCONF_CMDTABRET_EXIT;
+  return iret;
 }

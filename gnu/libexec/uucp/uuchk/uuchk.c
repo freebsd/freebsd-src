@@ -1,7 +1,7 @@
 /* uuchk.c
    Display what we think the permissions of systems are.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uuchk_rcsid[] = "$Id: uuchk.c,v 1.1 1993/08/05 18:27:06 conklin Exp $";
+const char uuchk_rcsid[] = "$Id: uuchk.c,v 1.2 1994/05/07 18:13:37 ache Exp $";
 #endif
 
 #include "getopt.h"
@@ -36,6 +36,7 @@ const char uuchk_rcsid[] = "$Id: uuchk.c,v 1.1 1993/08/05 18:27:06 conklin Exp $
 /* Local functions.  */
 
 static void ukusage P((void));
+static void ukhelp P((void));
 static void ukshow P((const struct uuconf_system *qsys,
 		      pointer puuconf));
 static int ikshow_port P((struct uuconf_port *qport, pointer pinfo));
@@ -44,6 +45,7 @@ static void ukshow_chat P((const struct uuconf_chat *qchat,
 			   const char *zhdr));
 static void ukshow_size P((struct uuconf_timespan *q, boolean fcall,
 			   boolean flocal));
+static void ukshow_reliable P ((int i, const char *zhdr));
 static void ukshow_proto_params P((struct uuconf_proto_param *pas,
 				   int cindent));
 static void ukshow_time P((const struct uuconf_timespan *));
@@ -62,8 +64,18 @@ struct sinfo
   boolean fgot;
 };
 
+/* Program name.  */
+static const char *zKprogram;
+
 /* Long getopt options.  */
-static const struct option asKlongopts[] = { { NULL, 0, NULL, 0 } };
+static const struct option asKlongopts[] =
+{
+  { "config", required_argument, NULL, 'I' },
+  { "debug", required_argument, NULL, 'x' },
+  { "version", no_argument, NULL, 'v' },
+  { "help", no_argument, NULL, 1 },
+  { NULL, 0, NULL, 0 }
+};
 
 int
 main (argc, argv)
@@ -77,7 +89,9 @@ main (argc, argv)
   pointer puuconf;
   char **pzsystems;
 
-  while ((iopt = getopt_long (argc, argv, "I:x:", asKlongopts,
+  zKprogram = argv[0];
+
+  while ((iopt = getopt_long (argc, argv, "I:vx:", asKlongopts,
 			      (int *) NULL)) != EOF)
     {
       switch (iopt)
@@ -92,18 +106,34 @@ main (argc, argv)
 	     information for this program.  */
 	  break;
 
+	case 'v':
+	  /* Print version and exit.  */
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+		  zKprogram, VERSION);
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+	  
+	case 1:
+	  /* --help.  */
+	  ukhelp ();
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
 	case 0:
 	  /* Long option found and flag set.  */
 	  break;
 
 	default:
 	  ukusage ();
-	  break;
+	  /*NOTREACHED*/
 	}
     }
 
   if (optind != argc)
-    ukusage ();
+    {
+      fprintf (stderr, "%s: too many arguments", zKprogram);
+      ukusage ();
+    }
 
   iret = uuconf_init (&puuconf, (const char *) NULL, zconfig);
   if (iret != UUCONF_SUCCESS)
@@ -112,6 +142,12 @@ main (argc, argv)
   iret = uuconf_system_names (puuconf, &pzsystems, FALSE);
   if (iret != UUCONF_SUCCESS)
     ukuuconf_error (puuconf, iret);
+
+  if (*pzsystems == NULL)
+    {
+      fprintf (stderr, "%s: no systems found\n", zKprogram);
+      exit (EXIT_FAILURE);
+    }
 
   while (*pzsystems != NULL)
     {
@@ -136,17 +172,25 @@ main (argc, argv)
 
 /* Print a usage message and die.  */
 
-static void
-ukusage ()
+static void ukusage ()
 {
-  fprintf (stderr,
-	   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
-	   VERSION);
-  fprintf (stderr,
-	   "Usage: uuchk [-I file]\n");
-  fprintf (stderr,
-	   " -I file: Set configuration file to use\n");
+  fprintf (stderr, "Usage: %s [{-I,--config} file]\n", zKprogram);
+  fprintf (stderr, "Use %s --help for help\n", zKprogram);
   exit (EXIT_FAILURE);
+}
+
+/* Print a help message.  */
+
+static void
+ukhelp ()
+{
+  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	  VERSION);
+  printf ("Usage: %s [{-I,--config} file] [-v] [--version] [--help]\n",
+	  zKprogram);
+  printf (" -I,--config file: Set configuration file to use\n");
+  printf (" -v,--version: Print version and exit\n");
+  printf (" --help: Print help and exit\n");
 }
 
 /* Dump out the information for a system.  */
@@ -310,6 +354,8 @@ ukshow (qsys, puuconf)
 	      iret = uuconf_callout (puuconf, qsys, &zlogin, &zpass);
 	      if (iret == UUCONF_NOT_FOUND)
 		printf (" Can not determine login name or password\n");
+	      else if (UUCONF_ERROR_VALUE (iret) == UUCONF_FOPEN_FAILED)
+		printf (" Can not read call out file\n");
 	      else if (iret != UUCONF_SUCCESS)
 		ukuuconf_error (puuconf, iret);
 	      else
@@ -401,7 +447,7 @@ ukshow (qsys, puuconf)
       if (fcalled)
 	{
 	  ukshow_size (qsys->uuconf_qcalled_local_size, FALSE, TRUE);
-	  ukshow_size (qsys->uuconf_qcalled_remote_size, FALSE, TRUE);
+	  ukshow_size (qsys->uuconf_qcalled_remote_size, FALSE, FALSE);
 	}
 
       if (fcall)
@@ -498,7 +544,9 @@ ikshow_port (qport, pinfo)
   struct sinfo *qi = (struct sinfo *) pinfo;
   char **pz;
   struct uuconf_modem_port *qmodem;
+  struct uuconf_tcp_port *qtcp;
   struct uuconf_tli_port *qtli;
+  struct uuconf_pipe_port *qpipe;
 
   qi->fgot = TRUE;
 
@@ -513,13 +561,21 @@ ikshow_port (qport, pinfo)
       if (qport->uuconf_u.uuconf_sdirect.uuconf_zdevice != NULL)
 	printf ("   Device %s\n",
 		qport->uuconf_u.uuconf_sdirect.uuconf_zdevice);
+      else
+	printf ("   Using port name as device name\n");
       printf ("   Speed %ld\n", qport->uuconf_u.uuconf_sdirect.uuconf_ibaud);
+      printf ("   Carrier %savailable\n",
+	      qport->uuconf_u.uuconf_sdirect.uuconf_fcarrier ? "" : "not ");
+      printf ("   Hardware flow control %savailable\n",
+	      qport->uuconf_u.uuconf_sdirect.uuconf_fhardflow ? "" : "not ");
       break;
     case UUCONF_PORTTYPE_MODEM:
       qmodem = &qport->uuconf_u.uuconf_smodem;
       printf ("   Port type modem\n");
       if (qmodem->uuconf_zdevice != NULL)
 	printf ("   Device %s\n", qmodem->uuconf_zdevice);
+      else
+	printf ("   Using port name as device name\n");
       if (qmodem->uuconf_zdial_device != NULL)
 	printf ("   Dial device %s\n", qmodem->uuconf_zdial_device);
       printf ("   Speed %ld\n", qmodem->uuconf_ibaud);
@@ -528,6 +584,8 @@ ikshow_port (qport, pinfo)
 		qmodem->uuconf_ihighbaud);
       printf ("   Carrier %savailable\n",
 	      qmodem->uuconf_fcarrier ? "" : "not ");
+      printf ("   Hardware flow control %savailable\n",
+	      qmodem->uuconf_fhardflow ? "" : "not ");
       if (qmodem->uuconf_qdialer != NULL)
 	{
 	  printf ("   Specially defined dialer\n");
@@ -589,9 +647,17 @@ ikshow_port (qport, pinfo)
 	printf ("   *** No dialer information\n");
       break;
     case UUCONF_PORTTYPE_TCP:
+      qtcp = &qport->uuconf_u.uuconf_stcp;
       printf ("   Port type tcp\n");
-      printf ("   TCP service %s\n",
-	      qport->uuconf_u.uuconf_stcp.uuconf_zport);
+      printf ("   TCP service %s\n", qtcp->uuconf_zport);
+      if (qtcp->uuconf_pzdialer != NULL
+	  && qtcp->uuconf_pzdialer[0] != NULL)
+	{
+	  printf ("   Dialer sequence");
+	  for (pz = qtcp->uuconf_pzdialer; *pz != NULL; pz++)
+	    printf (" %s", *pz);
+	  printf ("\n");
+	}
       break;
     case UUCONF_PORTTYPE_TLI:
       qtli = &qport->uuconf_u.uuconf_stli;
@@ -599,6 +665,8 @@ ikshow_port (qport, pinfo)
 	      qtli->uuconf_fstream ? "S" : "");
       if (qtli->uuconf_zdevice != NULL)
 	printf ("   Device %s\n", qtli->uuconf_zdevice);
+      else
+	printf ("   Using port name as device name\n");
       if (qtli->uuconf_pzpush != NULL)
 	{
 	  printf ("   Push");
@@ -617,6 +685,17 @@ ikshow_port (qport, pinfo)
       if (qtli->uuconf_zservaddr != NULL)
 	printf ("   Server address %s\n", qtli->uuconf_zservaddr);
       break;
+    case UUCONF_PORTTYPE_PIPE:
+      qpipe = &qport->uuconf_u.uuconf_spipe;
+      printf ("   Port type pipe\n");
+      if (qpipe->uuconf_pzcmd != NULL)
+	{
+	  printf ("   Command");
+	  for (pz = qpipe->uuconf_pzcmd; *pz != NULL; pz++)
+	    printf (" %s", *pz);
+	  printf ("\n");
+	}
+      break;
     default:
       fprintf (stderr, "   CAN'T HAPPEN\n");
       break;
@@ -627,6 +706,9 @@ ikshow_port (qport, pinfo)
 
   if (qport->uuconf_zlockname != NULL)
     printf ("   Will use lockname %s\n", qport->uuconf_zlockname);
+
+  if ((qport->uuconf_ireliable & UUCONF_RELIABLE_SPECIFIED) != 0)
+    ukshow_reliable (qport->uuconf_ireliable, "   ");
 
   if (qport->uuconf_qproto_params != NULL)
     ukshow_proto_params (qport->uuconf_qproto_params, 3);
@@ -656,6 +738,8 @@ ukshow_dialer (q)
     }
   ukshow_chat (&q->uuconf_scomplete, "    When complete chat");
   ukshow_chat (&q->uuconf_sabort, "    When aborting chat");
+  if ((q->uuconf_ireliable & UUCONF_RELIABLE_SPECIFIED) != 0)
+    ukshow_reliable (q->uuconf_ireliable, "   ");
   if (q->uuconf_qproto_params != NULL)
     ukshow_proto_params (q->uuconf_qproto_params, 4);
 }
@@ -742,6 +826,29 @@ ukshow_size (qspan, fcall, flocal)
 
   if (fother)
     printf ("  (At other times may send files of any size)\n");
+}
+
+/* Show reliability information.  */
+
+static void
+ukshow_reliable (i, zhdr)
+     int i;
+     const char *zhdr;
+{
+  printf ("%sCharacteristics:", zhdr);
+  if ((i & UUCONF_RELIABLE_EIGHT) != 0)
+    printf (" eight-bit-clean");
+  else
+    printf (" not-eight-bit-clean");
+  if ((i & UUCONF_RELIABLE_RELIABLE) != 0)
+    printf (" reliable");
+  if ((i & UUCONF_RELIABLE_ENDTOEND) != 0)
+    printf (" end-to-end");
+  if ((i & UUCONF_RELIABLE_FULLDUPLEX) != 0)
+    printf (" fullduplex");
+  else
+    printf (" halfduplex");
+  printf ("\n");
 }
 
 /* Show protocol parameters.  */
@@ -849,8 +956,8 @@ ukuuconf_error (puuconf, iret)
 
   (void) uuconf_error_string (puuconf, iret, ab, sizeof ab);
   if ((iret & UUCONF_ERROR_FILENAME) == 0)
-    fprintf (stderr, "uuchk: %s\n", ab);
+    fprintf (stderr, "%s: %s\n", zKprogram, ab);
   else
-    fprintf (stderr, "uuchk:%s\n", ab);
+    fprintf (stderr, "%s:%s\n", zKprogram, ab);
   exit (EXIT_FAILURE);
 }

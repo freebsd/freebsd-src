@@ -5,5 +5,5 @@
 
 PATH=/bin:/sbin:/usr/sbin:/usr/bin
 
-kill -9 `cat /var/run/named.pid`
+kill -TERM `cat /var/run/named.pid`
 named 

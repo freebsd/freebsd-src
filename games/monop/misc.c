@@ -303,6 +303,8 @@ shell_out() {
 		shell = shell_in();
 	fflush(stdout);
 	if (!fork()) {
+		setuid(getuid());
+		setgid(getgid());
 		signal(SIGINT, SIG_DFL);
 		execsh(shell);
 	}

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_pager.h	7.2 (Berkeley) 4/20/91
- *	$Id: vm_pager.h,v 1.6 1994/01/31 04:21:50 davidg Exp $
+ *	$Id: vm_pager.h,v 1.7 1994/03/07 11:39:17 davidg Exp $
  */
 
 /*
@@ -69,6 +69,7 @@ struct	pagerops {
 	int		(*pgo_getpage)();	/* get (read) page */
 	int		(*pgo_getmulti)();	/* get (read) multiple pages */
 	int		(*pgo_putpage)();	/* put (write) page */
+	int		(*pgo_putmulti)();	/* get (read) multiple pages */
 	boolean_t  	(*pgo_haspage)();	/* does pager have page? */
 };
 
@@ -91,6 +92,7 @@ struct	pagerops {
 #define	VM_PAGER_GET(pg, m, s)		(*(pg)->pg_ops->pgo_getpage)(pg, m, s)
 #define	VM_PAGER_GET_MULTI(pg, m, c, r, s)	(*(pg)->pg_ops->pgo_getmulti)(pg, m, c, r, s)
 #define	VM_PAGER_PUT(pg, m, s)		(*(pg)->pg_ops->pgo_putpage)(pg, m, s)
+#define	VM_PAGER_PUT_MULTI(pg, m, c, s, rtval)		(*(pg)->pg_ops->pgo_putmulti)(pg, m, c, s, rtval)
 #define	VM_PAGER_HASPAGE(pg, o)		(*(pg)->pg_ops->pgo_haspage)(pg, o)
 
 #ifdef KERNEL

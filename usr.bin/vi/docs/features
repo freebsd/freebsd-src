@@ -1,0 +1,47 @@
+List of things that should be added at some point:
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
++ X11 interface.
+
++ Forms editing package; use RE's to verify field contents.
+
++ Internationalization, including wide character support.
+
++ Make db, curses real libraries that we load against instead of
+  compiling directly.
+
++ Add a ":resize =N" command, that sets the window to a specific
+  size.
+
+List of suggested features:
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++ Change tags to also attempt to find the file using the directory
+  where it found the tags file.
+
++ Add versioning based on a "set version" variable, that would
+  create backup copies when the file was written back, i.e. the
+  ":w" and autowrite's would copy the original.
+
++ Add "set searchdir" for a list of directories to look in for
+  files to edit.  The semantic is that ":e foo" is replaced with
+  the file name that is found, so there's no confusion as to
+  which file is written.
+
++ Change
+	:di[splay] tags		-> :tags
+	:di[splay] screens	-> :screens
+	:di[splay] buffers	-> :buffers
+
++ A macro record function.  Add the ability to record a sequence
+  of keystrokes into a named buffer for later use.  Handy when
+  you're trying to build a semi-complex macro.
+
++ Put multiple messages on a single line if they fit in their entirety,
+  so that ":n" with autowrite set doesn't force users to hit return to
+  get see both the "written" and "new file status" messages.
+
++ The semantics of :split, :bg, and :fg aren't right.  Someone needs to
+  rethink how they should interact.  The main problem arises when users
+  want to get a window into a new file.  Currently, the necessary sequence
+  is  ":split newfile|^W|:bg".  It would be nice if you could simply
+  background the current screen and edit a new one.

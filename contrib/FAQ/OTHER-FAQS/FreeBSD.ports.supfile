@@ -1,0 +1,18 @@
+
+ports-audio release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-base release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-comm release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-db release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-devel release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-editor release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-game release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-lang release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-mail release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-math release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-net release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-news release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-print release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-shell release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-util release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+ports-x11 release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete compress
+

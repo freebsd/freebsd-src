@@ -27,7 +27,7 @@
  */
 
 #ifndef lint
-static char *rcsid = "@(#)$Id: sub.c,v 1.1 1994/02/01 00:34:44 alm Exp $";
+static char *rcsid = "@(#)sub.c,v 1.1 1994/02/01 00:34:44 alm Exp";
 #endif /* not lint */
 
 #include "ed.h"

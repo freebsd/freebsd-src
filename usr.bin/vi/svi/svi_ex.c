@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,27 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_ex.c	8.36 (Berkeley) 12/23/93";
+static char sccsid[] = "@(#)svi_ex.c	8.39 (Berkeley) 3/14/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <ctype.h>
 #include <curses.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "vcmd.h"
@@ -154,7 +164,7 @@ svi_ex_run(sp, ep, rp)
 		 */
 		if (F_ISSET(sp, S_MAJOR_CHANGE))
 			break;
-		
+
 		/*
 		 * If continue not required, and one or no lines, and there
 		 * are no waiting messages, don't wait, but don't overwrite
@@ -173,7 +183,7 @@ svi_ex_run(sp, ep, rp)
 		/* If the screen is trashed, go into ex mode. */
 		if (!in_exmode && F_ISSET(sp, S_REFRESH)) {
 			/* Initialize the terminal state. */
-			if (F_ISSET(sp->gp, G_ISFROMTTY)) {
+			if (F_ISSET(sp->gp, G_STDIN_TTY)) {
 				SEX_RAW(t, rawt);
 				get = sex_get;
 			} else
@@ -181,7 +191,7 @@ svi_ex_run(sp, ep, rp)
 			flags = TXT_CR | TXT_NLECHO | TXT_PROMPT;
 			in_exmode = 1;
 		}
-			
+
 		/*
 		 * If the user hasn't already indicated that they're done,
 		 * they may continue in ex mode by entering a ':'.
@@ -221,7 +231,7 @@ svi_ex_run(sp, ep, rp)
 
 ret:	if (in_exmode) {
 		/* Reset the terminal state. */
-		if (F_ISSET(sp->gp, G_ISFROMTTY) && SEX_NORAW(t))
+		if (F_ISSET(sp->gp, G_STDIN_TTY) && SEX_NORAW(t))
 			rval = 1;
 		F_SET(sp, S_REFRESH);
 	} else

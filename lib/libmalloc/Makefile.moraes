@@ -1,0 +1,187 @@
+# $Id: Makefile.moraes,v 1.1 1994/03/06 22:59:15 nate Exp $
+#
+# This Makefile is set up to make a debugging malloc called libmalloc_d.a
+# Also generates testmalloc and simumalloc, two regression tests.
+#
+# To make a production malloc, type 'make clean libmalloc'
+#
+# If you're impatient, and want it all in one file, type 'make one'
+# and it'll merge the all the source into one file. Bit bigger, but
+# avoids Unix linker misunderstandings if these are not in libc, and
+# ensures the debugging routines are linked in whether called or not.
+# On some machines, mv onefile.o libmalloc_d.a will work. On some, it
+# upsets the linker and you will need to "ar ruv libmalloc_d.a onefile.o".
+#
+# 'make dist' runs 'bundle' to create a shell archive on stdout.
+#
+# 'make veryclean' cleans out lib*.a as well.
+#
+# 'make depend' runs 'mkdep' (from BSD src or named) to create dependencies.
+#
+# 'make install' puts all the OBJS in $(ARCHIVE), ranlibs it, and
+# puts malloc.h in INCDIR.
+#
+
+# neutralize SystemV genius
+SHELL=/bin/sh
+
+# DEBUGDEFS are set for libmalloc_d.a. Say 'make libmalloc' for nondebug
+# version. (DEBUGDEFS=$(FASTDEFS))
+#
+DEBUGDEFS=-DDEBUG -DTRACE -DPROFILESIZES
+
+# FASTDEFS are used when the 'libmalloc' target is made.
+#
+# -DTRACE and -DPROFILESIZES shouldn't introduce very much overhead since the
+# former is turned off (one 'if'), and the latter is one 'if' + increment.
+# So you can keep them even in the fast production version. 
+# You may want to define -DBUGCOMPATIBILITY if you want malloc(0) to
+# do the same thing as malloc(1). Some suntools programs expect this 
+# behaviour. So does Xlib, and the X server has done it at least once.
+# (Note that SVID requires malloc(0) to return NULL, and the 
+# May 13, 1988 ANSI C draft says that you can either return a NULL pointer
+# or a unique pointer (typically decisive standard...) 
+#
+FASTDEFS=#-DBUGCOMPATIBILITY -DTRACE -DPROFILESIZES
+
+
+#  NORMALDEFS are used for both debugging and non-debugging versions
+# -DSHORTNAMES makes sure all internal global symbols are unique within 6
+# characters. Avoid defining unless your linker is braindead.
+# -DUSESTDIO is to make this use fputs() instead of write() for trace
+# and debugging output. write() is preferable since it is unbuffered,
+# and does not call malloc() or suchlike. Avoid defining if possible.
+# -DSTDHEADERS if you have ANSI standard header files (stdlib.h, string.h)
+# This can be defined on Solaris2.1, Irix3.3.x, BSD3.3,
+# 386BSD, BSD386 and other sufficiently Posix systems.
+# -DHAVE_MMAP should be defined for SunOS4.x and other systems
+# that have a general purpose mmap call that allows memory-mapped files.
+#
+NORMALDEFS=-DHAVE_MMAP -DSTDHEADERS # -DSHORTNAMES -DUSESTDIO
+
+LIBMALLOC=libmalloc_d.a
+ARCHIVE = $(HOME)/lib/$(LIBMALLOC)
+
+DEFINES= $(NORMALDEFS) $(DEBUGDEFS)
+
+LIBDIR=$(HOME)/lib
+INCDIR=$(HOME)/include
+
+CC = gcc -Wall # -pedantic # add -pedantic if you fixed your includes.
+# SGI needs cc -xansi -D__STDC__ on Irix4.0.5.
+
+EXTRAINCLUDES=-I$(HOME)/include
+CDEBUGFLAGS=-g -O
+
+SPLAYOBJ = splay/sptree.o
+SPLAYSRC = splay/sptree.c
+SPLAYHDR = splay/sptree.h
+
+SRCS =  _emalloc.c _malloc.c _memalign.c \
+	_strdup.c _strsave.c botch.c \
+	dumpheap.c emalloc.c getmem.c leak.c \
+	malloc.c memalign.c setopts.c \
+	stats.c strdup.c strsave.c verify.c
+
+OBJS =  _emalloc.o _malloc.o _memalign.o \
+	_strdup.o _strsave.o botch.o \
+	dumpheap.o emalloc.o getmem.o leak.o \
+	malloc.o memalign.o setopts.o \
+	stats.o strdup.o strsave.o verify.o
+
+# HDRS, DOCS, TESTS and EXTRAS are used when making distributions.
+# so please keep them uptodate.
+# bundle is smart enough not to include object files, RCS, executables,
+# etc, and does subdirectories right, but there's often other files
+# in the development directory...
+
+# globals.c, version.c are included in malloc.c.
+HDRS = align.h assert.h defs.h externs.h globals.c globals.h globrename.h \
+	malloc.h trace.h version.c
+
+DOCS = README NOTE TODO CHANGES malloc.doc Makefile
+
+TESTS = testmalloc.c test.out testsbrk.c teststomp.c tests regress \
+	simumalloc.c testrun.sh plot.sh munge.sh
+
+EXTRAS = splay
+
+INCLUDES=-I./splay $(EXTRAINCLUDES)
+
+LN = ln -s
+OLDCC = cc
+OLDCFLAGS = -O
+AR = ar
+ARFLAGS = ruv
+RANLIB = ranlib
+
+LDFLAGS=#-Bstatic
+
+CFLAGS = $(CDEBUGFLAGS) $(INCLUDES) $(DEFINES)
+
+all: $(LIBMALLOC) testmalloc simumalloc teststomp
+
+libmalloc:
+	make -f Makefile $(MFLAGS) CC="$(CC)" DEBUGDEFS="$(FASTDEFS)" \
+		LIBMALLOC=libmalloc.a CDEBUGFLAGS="$(CDEBUGFLAGS)"
+
+testmalloc: testmalloc.o $(LIBMALLOC)
+	$(CC) $(CFLAGS) -o testmalloc testmalloc.o $(LIBMALLOC) ${LDFLAGS}
+
+teststomp: teststomp.o $(LIBMALLOC)
+	$(CC) $(CFLAGS) -o teststomp teststomp.o $(LIBMALLOC) ${LDFLAGS}
+
+simumalloc: simumalloc.c $(LIBMALLOC)
+	$(CC) $(CFLAGS) -DMYMALLOC -o simumalloc \
+		simumalloc.c $(LIBMALLOC) ${LDFLAGS}
+
+$(LIBMALLOC): $(OBJS) $(SPLAYOBJ)
+	rm -f $(LIBMALLOC)
+	$(AR) $(ARFLAGS) $(LIBMALLOC) $(OBJS) $(SPLAYOBJ)
+	-$(RANLIB) $(LIBMALLOC)
+
+$(SPLAYOBJ): .foo
+	cd splay; make $(MFLAGS) DEFINES="$(DEFINES)" \
+		LIBMALLOC=../$(LIBMALLOC) CC="$(CC)"
+
+one: onefile.o
+
+onefile.c: $(SRCS) $(SPLAYSRC)
+	rm -f onefile.c
+	cat $(SRCS) $(SPLAYSRC) | sed '/RCSID/d' > onefile.c
+	
+.foo:
+
+clean:
+	-rm -f *.o \#* *~ core a.out gmon.out mon.out testmalloc simumalloc \
+		teststomp onefile.c *.sL prof.out
+	cd splay; make clean
+
+veryclean: clean
+	-rm -f libmalloc.a libmalloc_d.a make.log make.out
+
+install:
+	$(AR) $(ARFLAGS) $(ARCHIVE) $(OBJS) $(SPLAYOBJ)
+	-$(RANLIB) $(ARCHIVE)
+	install -c -m 644 malloc.h $(INCDIR)
+	
+.id: $(SRCS)
+	mkid $(SRCS) $(SPLAYSRC) $(HDRS) $(SPLAYHDR)
+	touch .id
+
+dist:
+	@rm -f Makefile.bak
+	@mv Makefile Makefile.bak;\
+	sed '/^# DO NOT PUT ANYTHING/,$$d' Makefile.bak > Makefile; \
+	(bundle -v $(DOCS) $(SRCS) $(HDRS) $(TESTS) $(EXTRAS)); \
+	mv Makefile.bak Makefile
+
+files:
+	find * -type f -print | \
+		egrep -v '(,v|\.o|core|make.log|simumalloc|testmalloc|teststomp)$$' | \
+		egrep -v '(libmalloc.*\.a|res\..*)$$' > FILES
+
+depend: onefile.c
+	mkdep $(INCLUDES) $(DEFINES) $(SRCS) onefile.c
+# DO NOT DELETE THIS LINE -- mkdep uses it.
+# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.

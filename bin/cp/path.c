@@ -50,7 +50,7 @@ static char sccsid[] = "@(#)path.c	5.2 (Berkeley) 10/27/91";
  */
 
 #define	STRIP_TRAILING_SLASH(p) { \
-	while ((p)->p_end > (p)->p_path && (p)->p_end[-1] == '/') \
+	while ((p)->p_end > ((p)->p_path + 1) && (p)->p_end[-1] == '/') \
 		*--(p)->p_end = 0; \
 }
 

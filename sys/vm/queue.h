@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	7.3 (Berkeley) 4/21/91
- *	$Id: queue.h,v 1.2 1993/10/16 16:20:18 rgrimes Exp $
+ *	$Id: queue.h,v 1.3 1994/04/14 07:50:17 davidg Exp $
  */
 
 /*
@@ -109,6 +109,30 @@ typedef	struct queue_entry	*queue_entry_t;
 		(head)->prev = (queue_entry_t)(elt);		\
 		((type)prev)->field.next = (queue_entry_t)(elt);\
 	}							\
+}
+
+#define queue_enter_head(head, elt, type, field) {		\
+	if (queue_empty((head))) {				\
+		(head)->next = (queue_entry_t) elt;		\
+		(head)->prev = (queue_entry_t) elt;		\
+		(elt)->field.next = head;			\
+		(elt)->field.prev = head;			\
+	} else {						\
+		register queue_entry_t next = (head)->next;	\
+		(elt)->field.prev = head;			\
+		(elt)->field.next = next;			\
+		(head)->next = (queue_entry_t)(elt);		\
+		((type)next)->field.prev = (queue_entry_t)(elt);\
+	}							\
+}
+
+/* insert 'item' after 'position' using field 'field' */
+/* XXX might be broken - BEWARE */
+#define queue_insert(position, item, type, field) {			\
+	((type) position->field.next)->field.prev = (queue_entry_t)(item);		\
+	(item)->field.next = (position)->field.next;		\
+	(position)->field.next = (queue_entry_t)(item);		\
+	(item)->field.prev = (queue_entry_t) position;		\
 }
 
 #define	queue_field(head, thing, type, field)			\

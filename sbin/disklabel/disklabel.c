@@ -88,13 +88,14 @@ static char sccsid[] = "@(#)disklabel.c	5.20 (Berkeley) 2/9/91";
 #define RAWPARTITION	'c'
 #endif
 
-#if defined(i386)
+#if defined(__386BSD__)
 /* with 386BSD, 'c' maps the portion of the disk given over to 386BSD,
    and 'd' maps the entire drive, ignoring any partition tables */
+#define LABELPARTITION	('c' - 'a')
 #define RAWPARTITION	'd'
 #endif
 
-#if defined(vax)==0 && defined(i386)==0
+#ifndef RAWPARTITION
 #define RAWPARTITION	'a'
 #endif
 
@@ -102,7 +103,7 @@ static char sccsid[] = "@(#)disklabel.c	5.20 (Berkeley) 2/9/91";
 #define	BBSIZE	8192			/* size of boot area, with label */
 #endif
 
-#if defined(vax) || defined(i386)
+#if defined(vax) || defined(__386BSD__)
 #define	BOOT				/* also have bootstrap in "boot area" */
 #define	BOOTDIR	_PATH_BOOTDIR		/* source of boot binaries */
 #else
@@ -226,12 +227,14 @@ main(argc, argv)
 	 * partition.
 	 */
 	dosdp = readmbr(f);
+#ifdef notdef /* not used (some bootstraps copy wd tables to 0x300) */
 	{ int mfd; unsigned char params[0x10];
 		/* sleezy, but we need it fast! */
 		mfd = open("/dev/mem", 0);
 		lseek(mfd, 0x300, 0);
 		read (mfd, params, 0x10);
 	}
+#endif
 
 #endif
 
@@ -240,6 +243,19 @@ main(argc, argv)
 		if (argc != 1)
 			usage();
 		lp = readlabel(f);
+		if (lp == NULL) {
+			/*
+			 * It's too much trouble to make -e -r work
+			 * when there is no on-disk label.
+			 *
+			 * XXX -e without -r will fail if there is no
+			 * on-disk label, but not until the user has
+			 * wasted time editing the in-core label.
+			 */
+			errno = ESRCH;
+			l_perror("-e flag is not suitable");
+			exit(1);
+		}
 		error = edit(lp, f);
 		break;
 	case NOWRITE: {
@@ -253,6 +269,12 @@ main(argc, argv)
 			usage();
 			
 		lp = readlabel(f);
+		if (lp == NULL) {
+			fprintf(stderr,
+			"Ignoring -r and trying to read in-core label\n");
+			rflag = 0;
+			lp = readlabel(f);
+		}
 		display(stdout, lp);
 		error = checklabel(lp);
 		break;
@@ -370,7 +392,7 @@ writelabel(f, boot, lp)
 	register int i;
 	int flag;
 #ifdef	__386BSD__
-	off_t lbl_off; struct partition *pp = lp->d_partitions;
+	off_t lbl_off; struct partition *pp = lp->d_partitions + LABELPARTITION;
 #endif
 
 	lp->d_magic = DISKMAGIC;
@@ -385,7 +407,7 @@ writelabel(f, boot, lp)
 		 * the label to be written is not within partition,
 		 * prompt first. Need to allow this in case operator
 		 * wants to convert the drive for dedicated use.
-		 * In this case, partition 'a' had better start at 0,
+		 * In this case, partition 'c' had better start at 0,
 		 * otherwise we reject the request as meaningless. -wfj
 		 */
 
@@ -394,15 +416,15 @@ writelabel(f, boot, lp)
 			lbl_off = pp->p_offset;
 		} else {
 			if (dosdp) {
-				char c;
+				int c;
 
-				printf("overwriting disk with DOS partition table? (n):");
+				printf("overwrite DOS partition table? [n]: ");
 				fflush(stdout);
 				c = getchar();
-				if (c != EOF && c != (int)'\n')
-					while (getchar() != (int)'\n')
+				if (c != EOF && c != '\n')
+					while (getchar() != '\n')
 						;
-				if  (c == (int)'n')
+				if  (c != 'y')
 					exit(0);
 			}
 			lbl_off = 0;
@@ -444,10 +466,23 @@ writelabel(f, boot, lp)
 	if (lp->d_type != DTYPE_SCSI && lp->d_flags & D_BADSECT) {
 		daddr_t alt;
 
-		alt = lp->d_ncylinders * lp->d_secpercyl - lp->d_nsectors;
+		/*
+		 * XXX this knows too much about bad144 internals
+		 */
+#ifdef __386BSD__
+#define BAD144_PART	2	/* XXX scattered magic numbers */
+#define BSD_PART	0	/* XXX should be 2 but bad144.c uses 0 */
+		if (lp->d_partitions[BSD_PART].p_offset != 0)
+			alt = lp->d_partitions[BAD144_PART].p_offset
+			      + lp->d_partitions[BAD144_PART].p_size;
+		else
+#endif
+			alt = lp->d_secperunit;
+		alt -= lp->d_nsectors;
 		for (i = 1; i < 11 && i < lp->d_nsectors; i += 2) {
-			(void)lseek(f, (off_t)((alt + i) * lp->d_secsize), L_SET);
-			if (write(f, boot, lp->d_secsize) < lp->d_secsize) {
+			lseek(f, (off_t)((alt + i) * lp->d_secsize), L_SET);
+			if (write(f, boot + (LABELSECTOR * lp->d_secsize),
+				  lp->d_secsize) < lp->d_secsize) {
 				int oerrno = errno;
 				fprintf(stderr, "alternate label %d ", i/2);
 				errno = oerrno;
@@ -471,7 +506,7 @@ l_perror(s)
 	case ESRCH:
 		fprintf(stderr, "No disk label on disk;\n");
 		fprintf(stderr,
-		    "use \"disklabel -r\" to install initial label\n");
+	"use flags \"-w -r\" or \"-R -r\" to install initial label\n");
 		break;
 
 	case EINVAL:
@@ -506,7 +541,7 @@ readmbr(f)
 {
 	static struct dos_partition dos_partitions[NDOSPART];
 	struct dos_partition *dp, *bsdp;
-	char mbr[DEV_BSIZE];
+	char mbr[DEV_BSIZE];	/* XXX - DOS_DEV_BSIZE */
 	int i, npart, nboot, njunk;
 
 	(void)lseek(f, (off_t)DOSBBSECTOR, L_SET);
@@ -519,6 +554,10 @@ readmbr(f)
 	 * Don't (yet) know disk geometry (BIOS), use
 	 * partition table to find 386BSD partition, and obtain
 	 * disklabel from there.
+	 *
+	 * XXX - the checks for a valid partition table are inadequate.
+	 * This gets called for floppies, which will never have an mbr
+	 * and may have junk that looks like a partition table...
 	 */
 	dp = dos_partitions;
 	npart = njunk = nboot = 0;
@@ -533,6 +572,11 @@ readmbr(f)
 	}
 
 	/* valid partition table? */
+	/*
+	 * XXX - ignore `nboot'.  Drives other than the first do not need a
+	 * boot flag.  The first drive doesn't need a boot flag when it is
+	 * booted from a multi-boot program.
+	 */
 	if (npart == 0 || njunk)			/* 18 Sep 92*/
 /* was:	if (nboot != 1 || npart == 0 || njunk)*/
 		return (0);
@@ -579,12 +623,9 @@ readlabel(f)
 		    dkcksum(lp) != 0) {
 			fprintf(stderr,
 	"Bad pack magic number (label is damaged, or pack is unlabeled)\n");
-			/* lp = (struct disklabel *)(bootarea + LABELOFFSET);
-			exit (1); */
-			goto tryioctl;
+			return (NULL);
 		}
 	} else {
-tryioctl:
 		lp = &lab;
 		if (ioctl(f, DIOCGDINFO, lp) < 0)
 			Perror("ioctl DIOCGDINFO");
@@ -746,7 +787,7 @@ display(f, lp)
 			    (pp->p_offset + 
 			    pp->p_size + lp->d_secpercyl - 1) /
 			    lp->d_secpercyl - 1);
-			if (pp->p_size % lp->d_secpercyl)
+			if ((pp->p_offset + pp->p_size) % lp->d_secpercyl)
 			    putc('*', f);
 			fprintf(f, ")\n");
 		}
@@ -791,10 +832,10 @@ edit(lp, f)
 		}
 		printf("re-edit the label? [y]: "); fflush(stdout);
 		c = getchar();
-		if (c != EOF && c != (int)'\n')
-			while (getchar() != (int)'\n')
+		if (c != EOF && c != '\n')
+			while (getchar() != '\n')
 				;
-		if  (c == (int)'n')
+		if  (c == 'n')
 			break;
 	}
 	(void) unlink(tmpfil);
@@ -1169,6 +1210,7 @@ checklabel(lp)
 	register struct partition *pp;
 	int i, errors = 0;
 	char part;
+	unsigned long secper;
 
 	if (lp->d_secsize == 0) {
 		fprintf(stderr, "sector size %d\n", lp->d_secsize);
@@ -1188,10 +1230,31 @@ checklabel(lp)
 	}
 	if (lp->d_rpm == 0)
 		Warning("revolutions/minute %d\n", lp->d_rpm);
+	secper = lp->d_nsectors * lp->d_ntracks;
 	if (lp->d_secpercyl == 0)
-		lp->d_secpercyl = lp->d_nsectors * lp->d_ntracks;
+		lp->d_secpercyl = secper;
+	else if (lp->d_secpercyl != secper) {
+		fprintf(stderr, "sectors/cylinder %lu should be %lu\n",
+			lp->d_secpercyl, secper);
+		errors++;
+	}
+	secper = lp->d_secpercyl * lp->d_ncylinders;
 	if (lp->d_secperunit == 0)
-		lp->d_secperunit = lp->d_secpercyl * lp->d_ncylinders;
+		lp->d_secperunit = secper;
+	else if (lp->d_secperunit != secper) {
+		/*
+		 * lp->d_secperunit makes sense as a limit on the disk size
+		 * independent of the product.  However, bad144 handling at
+		 * least requires it to be the same as the product, and the
+		 * "whole disk" partition may be used to limit the size.
+		 *
+		 * XXX It's silly to accept derived quantities as input only
+		 * to reject them.
+		 */
+		fprintf(stderr, "sectors/unit %lu should be %lu\n",
+			lp->d_secperunit, secper);
+		errors++;
+	}
 #ifdef __386BSD__notyet
 	if (dosdp && dosdp->dp_size && dosdp->dp_typ == DOSPTYP_386BSD
 		&& lp->d_secperunit > dosdp->dp_start + dosdp->dp_size) {

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,25 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_refresh.c	8.43 (Berkeley) 12/23/93";
+static char sccsid[] = "@(#)svi_refresh.c	8.49 (Berkeley) 3/11/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <ctype.h>
 #include <curses.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "svi_screen.h"
@@ -72,8 +82,8 @@ svi_refresh(sp, ep)
 		if (svi_curses_end(sp) || svi_curses_init(sp))
 			return (1);
 
-		/* Lose any svi_screens() cached information. */
-		SVP(sp)->ss_lno = OOBLNO;
+		/* Invalidate the line size cache. */
+		SVI_SCR_CFLUSH(SVP(sp));
 
 		/*
 		 * Fill the map, incidentally losing any svi_line()
@@ -150,7 +160,7 @@ svi_paint(sp, ep)
 	SVI_PRIVATE *svp;
 	recno_t lastline, lcnt;
 	size_t cwtotal, cnt, len, x, y;
-	int ch, didpaint;
+	int ch, didpaint, leftright_warp;
 	char *p;
 
 #define	 LNO	sp->lno
@@ -159,7 +169,7 @@ svi_paint(sp, ep)
 #define	OCNO	svp->ocno
 #define	SCNO	svp->sc_col
 
-	didpaint = 0;
+	didpaint = leftright_warp = 0;
 	svp = SVP(sp);
 
 	/*
@@ -170,14 +180,14 @@ svi_paint(sp, ep)
 	 * displayed if the leftright flag is set.
 	 */
 	if (F_ISSET(sp, S_REFORMAT)) {
-		/* Toss svi_screens() cached information. */
-		SVP(sp)->ss_lno = OOBLNO;
+		/* Invalidate the line size cache. */
+		SVI_SCR_CFLUSH(SVP(sp));
 
 		/* Toss svi_line() cached information. */
 		if (svi_sm_fill(sp, ep, HMAP->lno, P_TOP))
 			return (1);
 		if (O_ISSET(sp, O_LEFTRIGHT) &&
-		    (cnt = svi_screens(sp, ep, LNO, &CNO)) != 1)
+		    (cnt = svi_opt_screens(sp, ep, LNO, &CNO)) != 1)
 			for (smp = HMAP; smp <= TMAP; ++smp)
 				smp->off = cnt;
 		F_CLR(sp, S_REFORMAT);
@@ -209,7 +219,7 @@ svi_paint(sp, ep)
 			if (svi_sm_fill(sp, ep, LNO, P_BOTTOM))
 				return (1);
 		if (sp->t_rows == 1) {
-			HMAP->off = svi_screens(sp, ep, LNO, &CNO);
+			HMAP->off = svi_opt_screens(sp, ep, LNO, &CNO);
 			goto paint;
 		}
 		F_SET(sp, S_REDRAW);
@@ -288,15 +298,16 @@ small_fill:			MOVE(sp, INFOLINE(sp), 0);
 		}
 
 	/*
-	 * 3a: Line down.
+	 * 3a: Line down, or current screen.
 	 */
 	if (LNO >= HMAP->lno) {
+		/* Current screen. */
 		if (LNO <= TMAP->lno)
 			goto adjust;
 
 		/*
-		 * If less than half a screen away, scroll down until the
-		 * line is on the screen.
+		 * If less than half a screen above the line, scroll down
+		 * until the line is on the screen.
 		 */
 		lcnt = svi_sm_nlines(sp, ep, TMAP, LNO, HALFTEXT(sp));
 		if (lcnt < HALFTEXT(sp)) {
@@ -305,14 +316,31 @@ small_fill:			MOVE(sp, INFOLINE(sp), 0);
 					return (1);
 			goto adjust;
 		}
+		goto bottom;
+	}
+
+	/*
+	 * 3b: Line up.
+	 */
+	lcnt = svi_sm_nlines(sp, ep, HMAP, LNO, HALFTEXT(sp));
+	if (lcnt < HALFTEXT(sp)) {
+		/*
+		 * If less than half a screen below the line, scroll up until
+		 * the line is the first line on the screen.  Special check so
+		 * that if the screen has been emptied, we refill it.
+		 */
+		if (file_gline(sp, ep, HMAP->lno, &len) != NULL) {
+			while (lcnt--)
+				if (svi_sm_1down(sp, ep))
+					return (1);
+			goto adjust;
+		}
 
 		/*
-		 * If less than a full screen from the bottom of the file, put
-		 * the last line of the file on the bottom of the screen.  The
-		 * calculation is safe because we know there's at least one
-		 * full screen of lines, otherwise couldn't have gotten here.
+		 * If less than a full screen from the bottom of the file,
+		 * put the last line of the file on the bottom of the screen.
 		 */
-		if (file_lline(sp, ep, &lastline))
+bottom:		if (file_lline(sp, ep, &lastline))
 			return (1);
 		tmp.lno = LNO;
 		tmp.off = 1;
@@ -323,26 +351,8 @@ small_fill:			MOVE(sp, INFOLINE(sp), 0);
 			F_SET(sp, S_REDRAW);
 			goto adjust;
 		}
-
-		/*
-		 * If more than a full screen from the last line of the file,
-		 * put the new line in the middle of the screen.
-		 */
+		/* It's not close, just put the line in the middle. */
 		goto middle;
-	}
-
-	/*
-	 * 3b: Line up.
-	 *
-	 * If less than half a screen away, scroll up until the line is
-	 * the first line on the screen.
-	 */
-	lcnt = svi_sm_nlines(sp, ep, HMAP, LNO, HALFTEXT(sp));
-	if (lcnt < HALFTEXT(sp)) {
-		while (lcnt--)
-			if (svi_sm_1down(sp, ep))
-				return (1);
-		goto adjust;
 	}
 
 	/*
@@ -378,7 +388,7 @@ middle:		if (svi_sm_fill(sp, ep, LNO, P_MIDDLE))
 	 */
 adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 	    (LNO == HMAP->lno || LNO == TMAP->lno)) {
-		cnt = svi_screens(sp, ep, LNO, &CNO);
+		cnt = svi_opt_screens(sp, ep, LNO, &CNO);
 		if (LNO == HMAP->lno && cnt < HMAP->off)
 			if ((HMAP->off - cnt) > HALFTEXT(sp)) {
 				HMAP->off = cnt;
@@ -408,14 +418,10 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 	 *
 	 * Decide cursor position.  If the line has changed, the cursor has
 	 * moved over a tab, or don't know where the cursor was, reparse the
-	 * line.  Note, if we think that the cursor "hasn't moved", reparse
-	 * the line.  This is 'cause if it hasn't moved, we've almost always
-	 * lost track of it.
-	 *
-	 * Otherwise, we've just moved over fixed-width characters, and can
-	 * calculate the left/right scrolling and cursor movement without
-	 * reparsing the line.  Note that we don't know which (if any) of
-	 * the characters between the old and new cursor positions changed.
+	 * line.  Otherwise, we've just moved over fixed-width characters,
+	 * and can calculate the left/right scrolling and cursor movement
+	 * without reparsing the line.  Note that we don't know which (if any)
+	 * of the characters between the old and new cursor positions changed.
 	 *
 	 * XXX
 	 * With some work, it should be possible to handle tabs quickly, at
@@ -477,7 +483,7 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 			goto slow;
 
 		/*
-		 * Quit sanity check -- it's hard to figure out exactly when
+		 * Quick sanity check -- it's hard to figure out exactly when
 		 * we cross a screen boundary as we do in the cursor right
 		 * movement.  If cnt is so large that we're going to cross the
 		 * boundary no matter what, stop now.
@@ -507,13 +513,19 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 			cwtotal -= cname[ch].len - 1;
 
 		/*
-		 * If the new column moved us out of the current screen,
-		 * calculate a new screen.
+		 * If the new column moved us off of the current logical line,
+		 * calculate a new one.  If doing leftright scrolling, we've
+		 * moved off of the current screen, as well.  Since most files
+		 * don't have more than two screens, we optimize moving from
+		 * screen 2 to screen 1.
 		 */
 		if (SCNO < cwtotal) {
 lscreen:		if (O_ISSET(sp, O_LEFTRIGHT)) {
+				cnt = HMAP->off == 2 ? 1 :
+				    svi_opt_screens(sp, ep, LNO, &CNO);
 				for (smp = HMAP; smp <= TMAP; ++smp)
-					--smp->off;
+					smp->off = cnt;
+				leftright_warp = 1;
 				goto paint;
 			}
 			goto slow;
@@ -546,15 +558,13 @@ lscreen:		if (O_ISSET(sp, O_LEFTRIGHT)) {
 		 */
 		SCNO = cwtotal;
 
-		/*
-		 * If the new column moved us out of the current screen,
-		 * calculate a new screen.
-		 */
+		/* See screen change comment in section 4a. */
 		if (SCNO >= SCREEN_COLS(sp)) {
 			if (O_ISSET(sp, O_LEFTRIGHT)) {
-				SCNO -= SCREEN_COLS(sp);
+				cnt = svi_opt_screens(sp, ep, LNO, &CNO);
 				for (smp = HMAP; smp <= TMAP; ++smp)
-					++smp->off;
+					smp->off = cnt;
+				leftright_warp = 1;
 				goto paint;
 			}
 			goto slow;
@@ -582,13 +592,15 @@ fast:	getyx(stdscr, y, x);
 	 */
 slow:	for (smp = HMAP; smp->lno != LNO; ++smp);
 	if (O_ISSET(sp, O_LEFTRIGHT)) {
-		cnt = svi_screens(sp, ep, LNO, &CNO) % SCREEN_COLS(sp);
+		cnt = svi_opt_screens(sp, ep, LNO, &CNO) % SCREEN_COLS(sp);
 		if (cnt != HMAP->off) {
 			if (ISINFOLINE(sp, smp))
 				smp->off = cnt;
-			else
+			else {
 				for (smp = HMAP; smp <= TMAP; ++smp)
 					smp->off = cnt;
+				leftright_warp = 1;
+			}
 			goto paint;
 		}
 	}
@@ -679,6 +691,16 @@ number:	if (O_ISSET(sp, O_NUMBER) && F_ISSET(sp, S_RENUMBER) && !didpaint) {
 	/* Flush it all out. */
 	refresh();
 
+	/*
+	 * XXX
+	 * Recalculate the "most favorite" cursor position.  Vi doesn't know
+	 * that we've warped the screen and it's going to have a completely
+	 * wrong idea about where the cursor should be.  This is vi's problem,
+	 * and fixing it here is a gross violation of layering.
+	 */
+	if (leftright_warp)
+		(void)svi_column(sp, ep, &sp->rcm);
+
 	return (0);
 }
 
@@ -721,7 +743,7 @@ lcont:		/* Move to the message line and clear it. */
 		 * Print up to the "more" message.  Avoid the last character
 		 * in the last line, some hardware doesn't like it.
 		 */
-		if (svi_ncols(sp, p, mp->len, NULL) < sp->cols - 1)
+		if (svi_screens(sp, sp->ep, p, mp->len, 0, NULL) < sp->cols - 1)
 			len = sp->cols - 1;
 		else
 			len = (sp->cols - sizeof(MCONTMSG)) - 1;

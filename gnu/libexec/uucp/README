@@ -1,8 +1,8 @@
-This is the README file for version 1.04 of the Taylor UUCP package.
+This is the README file for version 1.05 of the Taylor UUCP package.
 
 It was written by Ian Lance Taylor.  I can be reached at ian@airs.com,
-or, equivalently, uunet!cygint!airs!ian, or c/o Cygnus Support, 4th
-Floor, Building 200, 1 Kendall Square, Cambridge MA, 02139, USA.
+or, equivalently, uunet!cygint!airs!ian, or c/o Cygnus Support,
+Building 200, 1 Kendall Square, Cambridge MA, 02139, USA.
 
 There is a mailing list for discussion of the package.  To join (or
 get off) the list, send mail to taylor-uucp-request@gnu.ai.mit.edu.
@@ -10,6 +10,10 @@ Mail to this address is answered by a person, not a program.  When
 joining the list, make sure you include the address at which you want
 to receive mail in the body of your message.  To send a message to the
 list, send it to taylor-uucp@gnu.ai.mit.edu.
+
+Jeff Ross has volunteered to maintain patches for UUCP releases.  They
+may be obtained via anonymous FTP from ftp.fdu.edu, in the directory
+pub/taylor-uucp.
 
 This package is covered by the Gnu Public License.  See the file
 COPYING for details.  If you would like to do something with this
@@ -25,8 +29,7 @@ uupick, and cu, as well as uuchk (a program to check configuration
 files), uuconv (a program to convert from one type of configuration
 file to another) and tstuu (a test harness for the package).
 
-The Free Software Foundation plans to make this their standard UUCP
-package.
+This is the standard UUCP package of the Free Software Foundation.
 
 The package currently supports the 'f', 'g' (in all window and packet
 sizes), 'G', 't' and 'e' protocols, as well a Zmodem protocol and two
@@ -77,80 +80,13 @@ If you start using this package, I suggest that you join the mailing
 list (see above) to keep up to date on patches and new versions.  I am
 also open to suggestions for improvements and modifications.
 
-CHANGES SINCE 1.03
-
-For a complete list, see ChangeLog.
-
-IMPORTANT: the default when talking to another version of 1.04 is to
-use the new bidirectional 'i' protocol.  If you are using a
-half-duplex modem, such as a Telebit T2500, you will want to either
-mark the port as half-duplex with the ``half-duplex'' command, or
-force use of the 'g' protocol by using the ``protocol'' command in the
-sys or port file or by adding ``,g'' after the port name in the
-Systems or L.sys or Devices file.
-
-    As usual, many bugs were fixed.
-
-    Bidirectional transfers are supported with the new 'i' protocol;
-    it requires an eight-bit clear datapath.
-
-    New programs: uusched, cu, uuto and uupick.
-
-    The 'G' protocol and a new Zmodem protocol were added.
-
-    A number of uustat options were added to support uuclean, and a
-    sample uuclean shell script was added to the contrib directory.
-    The uustat output formats were changed slightly.
-
-    A protocol extension eliminates transfer of the command file for
-    simple commands, such as rmail or rnews, when talking to another
-    version of 1.04.
-
-    Some TLI support was added.
-
-    UUCP forwarding was added, along with the ``forward-to'',
-    ``forward-from'' and ``forward'' commands.
-
-    If a file transfer fails in the middle, the retry will now start
-    from where it left off.  The implementation is compatible with
-    SVR4.
-
-    The work queue is checked every 10 minutes during a conversation;
-    if there is new work and a bidirectional protocol is not in use,
-    the receiving uucico requests the sender to transfer control.
-
-    The amount of free disk space is checked periodically as a file is
-    received, and if it drops too low the call is aborted.
-
-    The UUCP configuration file reading routines were moved into a
-    standalone library, uuconf.  All known bugs in V2 and HDB
-    configuration file reading were fixed.
-
-    The ``half-duplex'' command was added for the port and dialer
-    files.
-
-    The ``max-retries'', ``success-wait'', ``send-request'' and
-    ``receive-request'' commands were added for the sys file.  The
-    ``call-request'' and ``called-request'' commands were eliminated
-    (they did not work correctly anyhow).
-
-    \d in chat scripts now calls sleep (2) rather than sleep (1), so
-    it will sleep longer (on some systems sleep(1) may delay much less
-    than one second).
-
-    SPOOLDIR_SVR4 was added for SVR4 style spool directories.
-
-    Defaults are now permitted in the port and dialer files.
-
-    The ALIAS field is supported in the HDB Permissions file.
-
 DOCUMENTATION
 
 The documentation is in the file uucp.texi, which is a Texinfo file.
 Texinfo is a format used by the Free Software Foundation.  You can
 print the documentation using TeX in combination with the file
 texinfo.tex.  DVI, PostScript and info versions of the documentation
-are available in a separate package, uucp-doc-1.04.tar.Z.
+are available in a separate package, uucp-doc-1.05.tar.gz.
 
 See the TODO file for things which should be done.  Please feel free
 to do them, although you may want to check with me first.  Send me
@@ -174,7 +110,7 @@ The compilation instructions are in uucp.texi.  Here is a summary.
     what is available on your system, so if your system is at all
     unusual you will need to pass in $CC and $LIBS correctly.
 
-    The configure script will create conf.h from conf.h.in and
+    The configure script will create config.h from config.h.in and
     Makefile from Makefile.in.  It will also create config.status,
     which is a shell script which actually creates the files.  Please
     report any configuration problems, so that they can be fixed in
@@ -195,7 +131,23 @@ The compilation instructions are in uucp.texi.  Here is a summary.
     use -posix, instead I run gcc with -D_POSIX_SOURCE, and add
     -lcposix to LIBS.
 
-    Examine conf.h and Makefile to make sure they're right.
+    On some versions of BSDI there is a bug in the shell which causes
+    the default value for CFLAGS to be set incorrectly.  If ``echo
+    ${CFLAGS--g}'' echoes ``g'' rather than ``-g'', then you must set
+    CFLAGS in the environment before running configure.  There is a
+    patch available from BSDI for this bug.  (From David Vrona).
+
+    On AIX 3.2.5, and possibly other versions, cc -E does not work,
+    reporting ``Option NOROCONST is not valid.''  Test this before
+    running configure by doing something like
+	touch /tmp/foo.c
+	cc -E /tmp/foo.c
+    This may give a warning about the file being empty, but it should
+    not give the ``Option NOROCONST'' warning.  The workaround is to
+    remove the ",noroconst" entry from the "options" clause in the
+    "cc" stanza in /etc/xlc.cfg.  (From Chris Lewis).
+
+    Examine config.h and Makefile to make sure they're right.
 
     Edit policy.h for your local system.    
 
@@ -204,4 +156,7 @@ The compilation instructions are in uucp.texi.  Here is a summary.
     Use ``uuchk'' to check configuration files.  You can use
     ``uuconv'' to convert between configuration file formats.
 
-    Type ``make install'' to install.
+    Type ``make install'' to install.  Note that by default the
+    programs are compiled with debugging information, and they are not
+    stripped when they are installed.  Read the man page for strip for
+    more information.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993 Winning Strategies, Inc.
+ * Copyright (c) 1993,94 Winning Strategies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    must display the following acknowledgement:
  *      This product includes software developed by Winning Strategies, Inc.
  * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,20 +27,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: strncmp.S,v 1.1.2.1 1994/03/07 02:19:33 rgrimes Exp $
+ *	$Id: strncmp.S,v 1.3 1994/03/31 14:11:02 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-        .asciz "$Id: strncmp.S,v 1.1.2.1 1994/03/07 02:19:33 rgrimes Exp $"
+        .asciz "$Id: strncmp.S,v 1.3 1994/03/31 14:11:02 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
 
 /*
- * strncmp(s1, s2, n) 
- *	return an integer greater than, equal to, or less than 0, 
+ * strncmp(s1, s2, n)
+ *	return an integer greater than, equal to, or less than 0,
  *	according as the first n characters of string s1 is greater
- *	than, equal to, or less than the string s2.  
+ *	than, equal to, or less than the string s2.
  *
  * %eax - pointer to s1
  * %ecx - pointer to s2
@@ -53,7 +53,7 @@
 /*
  * I've unrolled the loop eight times: large enough to make a
  * significant difference, and small enough not to totally trash the
- * cashe.
+ * cache.
  */
 
 ENTRY(strncmp)
@@ -61,92 +61,93 @@ ENTRY(strncmp)
 	movl	8(%esp),%eax
 	movl	12(%esp),%ecx
 	movl	16(%esp),%edx
+	testl	%edx,%edx
 	jmp	L2			/* Jump into the loop! */
 
 	.align 2,0x90
 L1:	incl	%eax
 	incl	%ecx
 	decl	%edx
-L2:	testl	%edx,%edx		/* Have we compared n chars yet? */
-	jle	L4			/* Yes, strings are equal */
+L2:	jz	L4			/* strings are equal */
 	movb	(%eax),%bl
 	testb	%bl,%bl
-	je	L3
+	jz	L3
 	cmpb	%bl,(%ecx)
 	jne	L3
+
 	incl	%eax
 	incl	%ecx
 	decl	%edx
-	testl	%edx,%edx
-	jle	L4
+	jz	L4
 	movb	(%eax),%bl
 	testb	%bl,%bl
-	je	L3
+	jz	L3
 	cmpb	%bl,(%ecx)
 	jne	L3
+
 	incl	%eax
 	incl	%ecx
 	decl	%edx
-	testl	%edx,%edx
-	jle	L4
+	jz	L4
 	movb	(%eax),%bl
 	testb	%bl,%bl
-	je	L3
+	jz	L3
 	cmpb	%bl,(%ecx)
 	jne	L3
+
 	incl	%eax
 	incl	%ecx
 	decl	%edx
-	testl	%edx,%edx
-	jle	L4
+	jz	L4
 	movb	(%eax),%bl
 	testb	%bl,%bl
-	je	L3
+	jz	L3
 	cmpb	%bl,(%ecx)
 	jne	L3
+
 	incl	%eax
 	incl	%ecx
 	decl	%edx
-	testl	%edx,%edx
-	jle	L4
+	jz	L4
 	movb	(%eax),%bl
 	testb	%bl,%bl
-	je	L3
+	jz	L3
 	cmpb	%bl,(%ecx)
 	jne	L3
+
 	incl	%eax
 	incl	%ecx
 	decl	%edx
-	testl	%edx,%edx
-	jle	L4
+	jz	L4
 	movb	(%eax),%bl
 	testb	%bl,%bl
-	je	L3
+	jz	L3
 	cmpb	%bl,(%ecx)
 	jne	L3
+
 	incl	%eax
 	incl	%ecx
 	decl	%edx
-	testl	%edx,%edx
-	jle	L4
+	jz	L4
 	movb	(%eax),%bl
 	testb	%bl,%bl
-	je	L3
+	jz	L3
 	cmpb	%bl,(%ecx)
 	jne	L3
+
 	incl	%eax
 	incl	%ecx
 	decl	%edx
-	testl	%edx,%edx
-	jle	L4
+	jz	L4
 	movb	(%eax),%bl
 	testb	%bl,%bl
-	je	L3
+	jz	L3
 	cmpb	%bl,(%ecx)
 	je	L1
+
 	.align 2,0x90
-L3:     movzbl  (%eax),%eax             /* unsigned comparision */
-	movzbl  (%ecx),%ecx
+L3:	movzbl	(%eax),%eax		/* unsigned comparision */
+	movzbl	(%ecx),%ecx
 	subl	%ecx,%eax
 	popl	%ebx
 	ret

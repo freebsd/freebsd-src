@@ -315,7 +315,7 @@ loop:
 		break;
 	    }
 	}
-	else if (cmap(c, _META | _Q | _Q1 | _ESC)) {
+	else if (cmap(c, _META | _Q2 | _Q1 | _ESC)) {
 	    if (c == '\\') {
 		c = getC(0);
 		if (c == '\n') {
@@ -327,7 +327,7 @@ loop:
 		    *wp++ = '\\', --i;
 		c |= QUOTE;
 	    }
-	    else if (cmap(c, _Q | _Q1)) {	/* '"` */
+	    else if (cmap(c, _Q2 | _Q1)) {	/* '"` */
 		c1 = c;
 		dolflg = c == '"' ? DOALL : DOEXCL;
 	    }
@@ -366,7 +366,7 @@ getC1(flag)
 	    if ((c = *lap++) == 0)
 		lap = 0;
 	    else {
-		if (cmap(c, _META | _Q | _Q1))
+		if (cmap(c, _META | _Q2 | _Q1))
 		    c |= QUOTE;
 		return (c);
 	    }

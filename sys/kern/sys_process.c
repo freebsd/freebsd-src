@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_process.c	7.22 (Berkeley) 5/11/91
- *	$Id: sys_process.c,v 1.9.2.2 1994/05/03 20:44:01 rgrimes Exp $
+ *	$Id: sys_process.c,v 1.11 1994/04/02 23:03:01 jkh Exp $
  */
 
 #include "param.h"

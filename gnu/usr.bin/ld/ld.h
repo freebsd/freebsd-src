@@ -1,5 +1,5 @@
 /*
- *	$Id: ld.h,v 1.10 1994/02/13 20:41:34 jkh Exp $
+ *	$Id: ld.h,v 1.11 1994/06/15 22:39:46 rich Exp $
  */
 /*-
  * This code is derived from software copyrighted by the Free Software
@@ -47,13 +47,7 @@
 /* Align to machine dependent boundary */
 #define MALIGN(x)	PALIGN(x,MAX_ALIGNMENT)
 
-/* Name this program was invoked by.  */
-char	*progname;
-
-/* System dependencies */
-
 /* Define this to specify the default executable format.  */
-
 #ifndef DEFAULT_MAGIC
 #ifdef FreeBSD
 #define DEFAULT_MAGIC QMAGIC
@@ -596,20 +590,24 @@ extern int	n_search_dirs;	/* Length of above. */
 
 extern int	write_map;	/* write a load map (`-M') */
 
-extern void	(*fatal_cleanup_hook)__P((void));
-
 void	read_header __P((int, struct file_entry *));
 void	read_entry_symbols __P((int, struct file_entry *));
 void	read_entry_strings __P((int, struct file_entry *));
 void	read_entry_relocation __P((int, struct file_entry *));
 void	enter_file_symbols __P((struct file_entry *));
 void	read_file_symbols __P((struct file_entry *));
+int	set_element_prefixed_p __P((char *));
+int	text_offset __P((struct file_entry *));
+int	file_open __P((struct file_entry *));
+void	each_file __P((void (*)(), void *));
+void	each_full_file __P((void (*)(), void *));
+unsigned long	check_each_file __P((unsigned long (*)(), void *));
 void	mywrite __P((void *, int, int, int));
+void	padfile __P((int,int));
 
 /* In warnings.c: */
 void	perror_name __P((char *));
 void	perror_file __P((struct file_entry *));
-void	fatal_with_file __P((char *, struct file_entry *, ...));
 void	print_symbols __P((FILE *));
 char	*get_file_name __P((struct file_entry *));
 void	print_file_name __P((struct file_entry *, FILE *));
@@ -617,13 +615,9 @@ void	prline_file_name __P((struct file_entry *, FILE *));
 int	do_warnings __P((FILE *));
 
 /* In etc.c: */
-void	*xmalloc __P((int));
-void	*xrealloc __P((void *, int));
-void	fatal __P((char *, ...));
-void	error __P((char *, ...));
-void	padfile __P((int,int));
+void	*xmalloc __P((size_t));
+void	*xrealloc __P((void *, size_t));
 char	*concat __P((const char *, const char *, const char *));
-int	parse __P((char *, char *, char *));
 
 /* In symbol.c: */
 void	symtab_init __P((int));
@@ -637,7 +631,10 @@ int	findlib __P((struct file_entry *));
 /* In shlib.c: */
 char	*findshlib __P((char *, int *, int *, int));
 void	add_search_dir __P((char *));
-void	std_search_dirs __P((char *));
+void	add_search_path __P((char *));
+void	std_search_path __P((void));
+int	getdewey __P((int[], char *));
+int	cmpndewey __P((int[], int, int[], int));
 
 /* In rrs.c: */
 void	init_rrs __P((void));
@@ -654,6 +651,9 @@ long	claim_rrs_gotslot __P((struct file_entry *, struct relocation_info *, struc
 long	claim_rrs_internal_gotslot __P((struct file_entry *, struct relocation_info *, struct localsymbol *, long));
 void	claim_rrs_cpy_reloc __P((struct file_entry *, struct relocation_info *, symbol *));
 void	claim_rrs_segment_reloc __P((struct file_entry *, struct relocation_info *));
+void	consider_rrs_section_lengths __P((void));
+void	relocate_rrs_addresses __P((void));
+void	write_rrs __P((void));
 
 /* In <md>.c */
 void	md_init_header __P((struct exec *, int, int));
@@ -665,6 +665,7 @@ int	md_make_reloc __P((struct relocation_info *, struct relocation_info *, int))
 void	md_make_jmpreloc __P((struct relocation_info *, struct relocation_info *, int));
 void	md_make_gotreloc __P((struct relocation_info *, struct relocation_info *, int));
 void	md_make_copyreloc __P((struct relocation_info *, struct relocation_info *));
+void	md_set_breakpoint __P((long, long *));
 
 #ifdef NEED_SWAP
 void	md_swapin_exec_hdr __P((struct exec *));

@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: ar.h,v 1.1.1.1.2.1 1994/05/04 07:37:40 rgrimes Exp $
+ *	$Id: ar.h,v 1.2 1994/05/04 08:08:20 rgrimes Exp $
  */
 /*-
  * Copyright (c) 1991 The Regents of the University of California.

@@ -68,6 +68,7 @@ struct ntp_control {
 #define	CTL_SST_TS_UDPTIME	7	/* time source UDP/TIME */
 #define	CTL_SST_TS_WRSTWTCH	8	/* time source is wristwatch */
 #define	CTL_SST_TS_TELEPHONE	9	/* time source is telephone modem */
+#define CTL_SST_TS_PPS		0x20	/* time source is PPS signal */
 
 #define	CTL_SYS_MAXEVENTS	15
 

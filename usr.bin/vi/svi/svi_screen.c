@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,26 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_screen.c	8.57 (Berkeley) 1/9/94";
+static char sccsid[] = "@(#)svi_screen.c	8.69 (Berkeley) 3/16/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <curses.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "vcmd.h"
@@ -52,8 +61,6 @@ static char sccsid[] = "@(#)svi_screen.c	8.57 (Berkeley) 1/9/94";
 
 static void	d_to_h __P((SCR *, char *));
 static int	svi_initscr_kluge __P((SCR *, struct termios *));
-static void	svi_keypad __P((SCR *, int));
-static void	svi_keypad_pc __P((int));
 
 /*
  * svi_screen_init --
@@ -68,10 +75,11 @@ svi_screen_init(sp)
 	sp->s_bg		= svi_bg;
 	sp->s_busy		= svi_busy;
 	sp->s_change		= svi_change;
-	sp->s_chposition	= svi_chposition;
 	sp->s_clear		= svi_clear;
+	sp->s_colpos		= svi_cm_public;
 	sp->s_column		= svi_column;
 	sp->s_confirm		= svi_confirm;
+	sp->s_crel		= svi_crel;
 	sp->s_down		= svi_sm_down;
 	sp->s_edit		= svi_screen_edit;
 	sp->s_end		= svi_screen_end;
@@ -85,9 +93,8 @@ svi_screen_init(sp)
 	sp->s_optchange		= svi_optchange;
 	sp->s_position		= svi_sm_position;
 	sp->s_rabs		= svi_rabs;
+	sp->s_rcm		= svi_rcm;
 	sp->s_refresh		= svi_refresh;
-	sp->s_relative		= svi_relative;
-	sp->s_rrel		= svi_rrel;
 	sp->s_split		= svi_split;
 	sp->s_suspend		= svi_suspend;
 	sp->s_up		= svi_sm_up;
@@ -110,8 +117,8 @@ svi_screen_copy(orig, sp)
 	sp->svi_private = nsvi;
 
 /* INITIALIZED AT SCREEN CREATE. */
-	/* Lose svi_screens() cached information. */
-	nsvi->ss_lno = OOBLNO;
+	/* Invalidate the line size cache. */
+	SVI_SCR_CFLUSH(nsvi);
 
 /* PARTIALLY OR COMPLETELY COPIED FROM PREVIOUS SCREEN. */
 	if (orig == NULL) {
@@ -283,7 +290,7 @@ svi_curses_init(sp)
 	 */
 	if (svi_initscr_kluge(sp, &t))
 		return (1);
-	
+
 	/*
 	 * Start the screen.  Initscr() doesn't provide useful error values
 	 * or messages.  Generally, either malloc failed or the terminal
@@ -293,18 +300,18 @@ svi_curses_init(sp)
 	errno = 0;
 	if (initscr() == NULL) {
 		if (errno)
-			msgq(sp, M_SYSERR, "initscr failed");
+			msgq(sp, M_SYSERR, "Initscr failed");
 		else
-			msgq(sp, M_ERR, "Error: initscr failed.");
-		if ((p = getenv("TERM")) == NULL)
+			msgq(sp, M_ERR, "Initscr failed.");
+		if ((p = getenv("TERM")) == NULL || !strcmp(p, "unknown"))
 			msgq(sp, M_ERR,
-			    "Error: no terminal environment variable set.");
+	"No TERM environment variable set, or TERM set to \"unknown\".");
 		else if (tgetent(kbuf, p) != 1)
 			msgq(sp, M_ERR,
-"Error: %s: unknown terminal type, or terminal lacking necessary features.", p);
+"%s: unknown terminal type, or terminal lacks necessary features.", p);
 		else
 			msgq(sp, M_ERR,
-		    "Error: %s: terminal type lacking necessary features.", p);
+		    "%s: terminal type lacks necessary features.", p);
 		return (1);
 	}
 
@@ -319,9 +326,9 @@ svi_curses_init(sp)
 	idlok(stdscr, 1);		/* Use hardware insert/delete line. */
 
 	/*
-	 * Vi wants the cursor keys in application mode.  The historic version
-	 * of curses had no way to do this, and the newer versions (System V)
-	 * only enable it through the wgetch() interface.  Do it roughly, here.
+	 * Put the cursor keys into application mode.  Historic versions
+	 * of curses had no way to do this, and the newer versions (SunOS,
+	 * System V) only enable it through the wgetch() interface.
 	 */
 	svi_keypad(sp, 1);
 
@@ -375,11 +382,7 @@ svi_curses_init(sp)
 	sp->t_maxrows = sp->rows - 1;
 
 	/* Create the screen map. */
-	if ((HMAP = malloc(SIZE_HMAP(sp) * sizeof(SMAP))) == NULL) {
-		msgq(sp, M_SYSERR, NULL);
-		return (1);
-	}
-	memset(HMAP, 0, SIZE_HMAP(sp) * sizeof(SMAP));
+	CALLOC_RET(sp, HMAP, SMAP *, SIZE_HMAP(sp), sizeof(SMAP));
 	TMAP = HMAP + (sp->t_rows - 1);
 
 	F_SET(sp->gp, G_CURSES_INIT);		/* Curses initialized. */
@@ -388,11 +391,11 @@ svi_curses_init(sp)
 }
 
 /*
- * svi_rrel --
+ * svi_crel --
  *	Change the relative size of the current screen.
  */
 int
-svi_rrel(sp, count)
+svi_crel(sp, count)
 	SCR *sp;
 	long count;
 {
@@ -436,42 +439,10 @@ svi_curses_end(sp)
 		    TCSASOFT | TCSADRAIN, &sp->gp->s5_curses_botch);
 	F_CLR(sp->gp, G_CURSES_S5CB);
 
+	/* Restore the cursor keys to normal mode. */
 	svi_keypad(sp, 0);
 	endwin();
 	return (0);
-}
-
-/*
- * svi_keypad --
- *	Put the keypad/cursor arrows into or out of application mode.
- */
-static void
-svi_keypad(sp, on)
-	SCR *sp;
-	int on;
-{
-	char *sbp, *t, kbuf[2048], sbuf[128];
-
-	if (tgetent(kbuf, O_STR(sp, O_TERM)) != 1)
-		return;
-	sbp = sbuf;
-	if ((t = tgetstr(on ? "ks" : "ke", &sbp)) == NULL)
-		return;
-	(void)tputs(t, 0, svi_keypad_pc);
-}
-
-/*
- * svi_keypad_pc --
- *	putchar routine for tputs().
- */
-static void
-svi_keypad_pc(argch)
-	int argch;
-{
-	char ch;
-
-	ch = argch;
-	(void)write(STDOUT_FILENO, &ch, sizeof(ch));
 }
 
 /*
@@ -520,8 +491,10 @@ d_to_h(sp, emsg)
 
 	for (hidden = 0;
 	    (tsp = sp->gp->dq.cqh_first) != (void *)&sp->gp->dq; ++hidden) {
-		if (_HMAP(tsp) != NULL)
+		if (_HMAP(tsp) != NULL) {
 			FREE(_HMAP(tsp), SIZE_HMAP(tsp) * sizeof(SMAP));
+			_HMAP(tsp) = NULL;
+		}
 		CIRCLEQ_REMOVE(&sp->gp->dq, tsp, q);
 		CIRCLEQ_INSERT_TAIL(&sp->gp->hq, tsp, q);
 	}

@@ -5,7 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
- *	$Id: df.c,v 1.3.2.2 1994/05/04 07:35:01 rgrimes Exp $
+ *	$Id: df.c,v 1.5 1994/05/04 08:04:22 rgrimes Exp $
  */
 /*
  * Copyright (c) 1980, 1990 The Regents of the University of California.

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_execve.c,v 1.15.2.2 1994/03/24 08:57:16 rgrimes Exp $
+ *	$Id: kern_execve.c,v 1.20 1994/03/26 12:24:27 davidg Exp $
  */
 
 #include "param.h"
@@ -78,9 +78,6 @@ execve(p, uap, retval)
 	char *stringbase, *stringp;
 	int *stack_base;
 	int error, resid, len, i;
-#if 0
-	char image_header[256];
-#endif
 	struct image_params image_params, *iparams;
 	struct vnode *vnodep;
 	struct vattr attr;
@@ -147,33 +144,13 @@ interpret:
 	if (error)
 		goto exec_fail_dealloc;
 
-#if 0
-	/*
-	 * Read the image header from the file.
-	 */
-	error = vn_rdwr(UIO_READ,
-			vnodep,
-			image_header,
-			sizeof(image_header),
-			0,
-			UIO_SYSSPACE, IO_NODELOCKED,
-			p->p_ucred,
-			&resid,
-			p);
-	if (error)
-		goto exec_fail_dealloc;
-
-	/* Clear out junk in image_header if a partial read (small file) */
-	if (resid)
-		bzero(image_header + (sizeof(image_header) - resid), resid);
-#endif
 	/*
 	 * Map the image header (first page) of the file into
 	 *	kernel address space
 	 */
 	error = vm_mmap(kernel_map,			/* map */
 			(vm_offset_t *)&image_header,	/* address */
-			NBPG,				/* size */
+			PAGE_SIZE,			/* size */
 			VM_PROT_READ, 			/* protection */
 			VM_PROT_READ, 			/* max protection */
 			MAP_FILE, 			/* flags */
@@ -208,7 +185,7 @@ interpret:
 			vput(ndp->ni_vp);
 			FREE(ndp->ni_pnbuf, M_NAMEI);
 			if (vm_deallocate(kernel_map, 
-					  (vm_offset_t)image_header, NBPG))
+					  (vm_offset_t)image_header, PAGE_SIZE))
 				panic("execve: header dealloc failed (1)");
 
 			/* set new name to that of the interpreter */
@@ -231,14 +208,15 @@ interpret:
 	stack_base = exec_copyout_strings(iparams);
 	p->p_vmspace->vm_minsaddr = (char *)stack_base;
 
-
 	/*
 	 * Stuff argument count as first item on stack
 	 */
 	*(--stack_base) = iparams->argc;
 
-	/* close files on exec, fixup signals */
+	/* close files on exec */
 	fdcloseexec(p);
+
+	/* reset caught signals */
 	execsigs(p);
 
 	/* name this process - nameiexec(p, ndp) */
@@ -269,12 +247,12 @@ interpret:
 		vrele(p->p_tracep);
 		p->p_tracep = 0;
 	}
-	if ((attr.va_mode&VSUID) && (p->p_flag & STRC) == 0) {
+	if ((attr.va_mode & VSUID) && (p->p_flag & STRC) == 0) {
 		p->p_ucred = crcopy(p->p_ucred);
 		p->p_ucred->cr_uid = attr.va_uid;
 		p->p_flag |= SUGID;
 	}
-	if ((attr.va_mode&VSGID) && (p->p_flag & STRC) == 0) {
+	if ((attr.va_mode & VSGID) && (p->p_flag & STRC) == 0) {
 		p->p_ucred = crcopy(p->p_ucred);
 		p->p_ucred->cr_groups[0] = attr.va_gid;
 		p->p_flag |= SUGID;
@@ -305,10 +283,9 @@ interpret:
 	/*
 	 * free various allocated resources
 	 */
-	if (vm_deallocate(kernel_map, (vm_offset_t)iparams->stringbase,
-			  ARG_MAX))
+	if (vm_deallocate(kernel_map, (vm_offset_t)iparams->stringbase, ARG_MAX))
 		panic("execve: string buffer dealloc failed (1)");
-	if (vm_deallocate(kernel_map, (vm_offset_t)image_header, NBPG))
+	if (vm_deallocate(kernel_map, (vm_offset_t)image_header, PAGE_SIZE))
 		panic("execve: header dealloc failed (2)");
 	vput(ndp->ni_vp);
 	FREE(ndp->ni_pnbuf, M_NAMEI);
@@ -322,7 +299,7 @@ exec_fail_dealloc:
 			panic("execve: string buffer dealloc failed (2)");
 	if (iparams->image_header && iparams->image_header != (char *)-1)
 		if (vm_deallocate(kernel_map, 
-				  (vm_offset_t)iparams->image_header, NBPG))
+				  (vm_offset_t)iparams->image_header, PAGE_SIZE))
 			panic("execve: header dealloc failed (3)");
 	vput(ndp->ni_vp);
 	FREE(ndp->ni_pnbuf, M_NAMEI);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,21 +30,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)msg.h	8.8 (Berkeley) 11/18/93
+ *	@(#)msg.h	8.10 (Berkeley) 3/16/94
  */
 
 /*
- * M_BERR	-- Error: ring a bell if O_VERBOSE not set, else
- *		   display in inverse video.
- * M_ERR	-- Error: display in inverse video.
- * M_INFO	-- Info: display in normal video.
- * M_SYSERR	-- M_ERR, but use standard error message.
- * M_VINFO	-- Info: display only if O_VERBOSE set.
+ * Message types.
  *
- * In historical vi, O_VERBOSE didn't exist, and O_TERSE made the
- * error messages shorter.  In this version, O_TERSE has no effect
- * and O_VERBOSE results in informational displays about common
- * errors.
+ * !!!
+ * In historical vi, O_VERBOSE didn't exist, and O_TERSE made the error
+ * messages shorter.  In this implementation, O_TERSE has no effect and
+ * O_VERBOSE results in informational displays about common errors for
+ * naive users.
+ *
+ * M_BERR	Error: M_ERR if O_VERBOSE, else bell.
+ * M_ERR	Error: Display in inverse video.
+ * M_INFO	 Info: Display in normal video.
+ * M_SYSERR	Error: M_ERR, using strerror(3) message.
+ * M_VINFO	 Info: M_INFO if O_VERBOSE, else ignore.
  */
 enum msgtype { M_BERR, M_ERR, M_INFO, M_SYSERR, M_VINFO };
 

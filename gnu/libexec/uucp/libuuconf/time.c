@@ -1,7 +1,7 @@
 /* time.c
    Parse a time string into a uuconf_timespan structure.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_time_rcsid[] = "$Id: time.c,v 1.1 1993/08/05 18:26:07 conklin Exp $";
+const char _uuconf_time_rcsid[] = "$Id: time.c,v 1.2 1994/05/07 18:13:06 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -61,6 +61,7 @@ static const struct
   { "fr", 5, 5 },
   { "sa", 6, 6 },
   { "never", -1, -2 },
+  { "none", -1, -2 },
   { NULL, 0, 0 }
 };
 
@@ -106,7 +107,7 @@ _uuconf_itime_parse (qglobal, ztime, ival, cretry, picmp, pqspan, pblock)
 	{
 	  if ((bfirst == (*pz)[0]
 	       || (isupper (BUCHAR ((*pz)[0]))
-		   && bfirst == tolower (BUCHAR ((*pz)[0]))))
+		   && (int) bfirst == (int) tolower (BUCHAR ((*pz)[0]))))
 	      && strcasecmp (ztime, *pz) == 0)
 	    zfound = pz[1];
 	  pz += 2;

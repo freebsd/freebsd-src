@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,25 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_get.c	8.19 (Berkeley) 1/2/94";
+static char sccsid[] = "@(#)svi_get.c	8.22 (Berkeley) 3/24/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
 
+#include <bitstring.h>
 #include <ctype.h>
 #include <curses.h>
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "vcmd.h"
@@ -60,8 +70,8 @@ svi_get(sp, ep, tiqh, prompt, flags)
 {
 	MARK save;
 	SMAP *esmp;
-	recno_t bot_lno, top_lno;
-	size_t bot_off, cnt, top_off;
+	recno_t bot_lno;
+	size_t bot_off, cnt;
 	int eval;
 
 	/*
@@ -74,8 +84,6 @@ svi_get(sp, ep, tiqh, prompt, flags)
 	 */
 	bot_lno = TMAP->lno;
 	bot_off = TMAP->off;
-	top_lno = HMAP->lno;
-	top_off = HMAP->off;
 	save.lno = sp->lno;
 	save.cno = sp->cno;
 
@@ -140,11 +148,13 @@ svi_get(sp, ep, tiqh, prompt, flags)
 			return (INP_ERR);
 
 	/*
-	 * Invalidate the cursor, the line never really existed.  This fixes
-	 * a bug where the user searches for the last line on the screen + 1
-	 * and the refresh routine thinks that's where we just were.
+	 * Invalidate the cursor and the line size cache, the line never
+	 * really existed.  This fixes bugs where the user searches for
+	 * the last line on the screen + 1 and the refresh routine thinks
+	 * that's where we just were.
 	 */
 	F_SET(SVP(sp), SVI_CUR_INVALID);
+	SVI_SCR_CFLUSH(SVP(sp));
 
 	return (eval ? INP_ERR : INP_OK);
 }

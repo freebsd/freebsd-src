@@ -1,28 +1,34 @@
                                  RELEASE NOTES
                                     FreeBSD
-                                  Release 1.1
+                                 Release 1.1.5
 
 1. Technical overview
 ---------------------
 
 FreeBSD is a freely available, full source 4.3 (+4.4 enhancements) BSD
 release for Intel i386/i486 (or compatable) based PC's.  It is based
-heavily on Bill Jolitz's 386BSD 0.1, with additions from "the patchkit",
+on Bill Jolitz's 386BSD 0.1, with additions from "the patchkit",
 NetBSD, CSRG, and the Free Software Foundation.
 
-Many hundreds of bugs from the 386BSD 0.1 distribution were fixed,
-and many out-of-date pieces of software were upgraded to their current
-releases in the GAMMA distribution.  This 1.0 distribution fixes
-many of the first-run problems our GAMMA and EPSILON users reported back
-to us.
+Since our first release of FreeBSD 1.0, many hundreds of bugs have been
+fixed, features added, and the overall quality of the system improved
+almost imeasurably.  FreeBSD 1.1.5 represents the culmination of almost
+18 months of work and many thousands of man hours put in by our all-volunteer
+working group.  We hope you enjoy it!
 
-Additionally, many packages such as XFree86 2.1, xview 3.2, elm, nntp,
-mh, InterViews and dozens of other miscellaneous utilities have been ported
-and are now available as add-ons.  See then next section of this document
-for more details.
+Many packages have also been upgraded or added, such as XFree86 2.1,
+xview 3.2, elm, nntp, mh, InterViews and dozens of other miscellaneous
+utilities have been ported and are now available as add-ons.  See the next
+section of this document for more details.
 
 For a list of contributors, please see the files "CONTRIB.FreeBSD" and
 "CONTRIB.386BSD", which should be bundled with your distribution.
+
+Also see the new "REGISTER.FreeBSD" file for information on registering
+with the "Free BSD user counter".  We've also provided a list of who's
+responsible for what (so that you may query them directly) in the
+"ROSTER.FreeBSD" file; use of this file is encouraged to ensure faster
+resolution of an problems you may have!
 
 The core of FreeBSD does not contain DES code which would inhibit its
 being exported outside the United States.  There is an add-on package
@@ -36,8 +42,8 @@ and is described in the FreeBSD FAQ.
 2. Supported Configurations
 ---------------------------
 
-FreeBSD currently runs on a wide variety of ISA and EISA bus based
-PC's, ranging from 386sx to 486 class machines (though the 386sx is
+FreeBSD currently runs on a wide variety of ISA, EISA and PCI bus based
+PC's, ranging from 386sx to Pentium class machines (though the 386sx is
 not recommended).  Support for generic IDE or ESDI drive configurations,
 various SCSI controller, network and serial cards is also provided.
 
@@ -61,18 +67,24 @@ Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Buslogic 545S.
 Buslogic 445S VLB SCSI controller
 Buslogic 742A and 747.
+Buslogic 942A PCI
+
 Please see special notes in /usr/src/KNOWNBUGS (filed under bt742a.c) for
 details concerning possible buggy firmware and undocumented switch settings
-that may be necessary for proper operation of your controller.
+that may be necessary for proper operation of your Bt445S controller.
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
 Ultra Store 14F and 34F.
 
+Seagate ST01/02 SCSI controllers.
+
+Future Domain 8xx/950 series SCSI controllers.
+
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
 DAT) and CD ROM drives.  Note:  This and the mcd driver (Mitsumi CDROM
-inteface card) is the only way a CD ROM drive may be currently
+interface card) is the only way a CD ROM drive may be currently
 attached to a FreeBSD system; we do not support SoundBlaster CDROM
 interface, or other "mini SCSI" adapters.
 
@@ -84,7 +96,9 @@ EISA controllers (which are normally 32 bit) when they're configured to
 emulate an ISA card, which they then do in *all* respects.  This problem
 is avoided entirely by IDE controllers (which do not use DMA), true EISA
 controllers (like the UltraStor or Adaptec 1742A) and most VLB (local bus)
-controllers.
+controllers.  In the cases where it's necessary, the system will use
+"bounce buffers" to to talk to the controller so that you can still use
+more than 16Mb of memory without difficulty.
 
 
 2.2. Ethernet cards
@@ -110,9 +124,9 @@ SMC Elite Ultra
 
 2.3. Misc
 
-Various 2 and 4 port serial/parallel cards.
+AST 4 port serial card using shared IRQ.
 
-Simple (AST-like) multiport serial cards.
+ARNET 8 port serial card using shared IRQ.
 
 BOCA ATIO66 6 port serial card using shared IRQ.
 
@@ -125,7 +139,7 @@ and Roland MPU-401 sound cards.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus, but
 support is apparently close to materializing.  Details will be posted
-as they develop.
+as the situation develops.
 
 
 3. Obtaining FreeBSD.
@@ -153,7 +167,7 @@ resort!
 
 2. CDROM
 
-FreeBSD may be ordered on CDROM from:
+FreeBSD 1.1 may be ordered on CDROM from:
 
 	Walnut Creek CDROM
 	4041 Pike Lane, Suite D
@@ -245,21 +259,21 @@ The Computer Systems Research Group (CSRG), U.C. Berkeley.
 
 Bill Jolitz, for his extensive work with 386BSD.
 
-The FreeBSD "core" group:
+The FreeBSD "core" team:
 
-		Andrew A. Chernov
-		John Dyson
-		David Greenman
-		Rodney W. Grimes
-		Jordan K. Hubbard
-		Scott Mace
-		Andrew Moore
-		Rich Murphey
-		Paul Richards
-		Christoph Robitschko
-		Andreas Schulz
-		Nate Williams
-		Garrett A. Wollman
+	Andrew A. Chernov
+	John Dyson
+	David Greenman
+	Rodney W. Grimes
+	Jordan K. Hubbard
+	Scott Mace
+	Andrew Moore
+	Rich Murphey
+	Geoff Rehmet
+	Paul Richards
+	Andreas Schulz
+	Nate Williams
+	Garrett A. Wollman
 
 
 Special mention to:
@@ -285,6 +299,7 @@ Special mention to:
 	Chris Provenzano 			Dave Rivers
 	Guido van Rooij				Steven Wallace
 	Rick Weldon				Terry Williams
+	Atsushi Murai
 
 	And everyone at Montana State University for their initial support.
 
@@ -293,6 +308,6 @@ Thanks to everyone, especially those not mentioned, and we sincerely
 hope you enjoy this release of FreeBSD!
 
 
-			The FreeBSD Core Group
+			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.23.2.4 1994/05/02 02:23:48 rgrimes Exp $
+$Id: RELNOTES.FreeBSD,v 1.34 1994/06/28 08:09:31 jkh Exp $

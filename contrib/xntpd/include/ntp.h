@@ -173,6 +173,7 @@ struct interface {
 #define	INT_BROADCAST	1	/* can broadcast out this interface */
 #define	INT_BCASTOPEN	2	/* broadcast socket is open */
 #define	INT_LOOPBACK	4	/* the loopback interface */
+#define INT_MULTICAST	8	/* multicasting enabled */
 
 /*
  * Define flasher bits (tests 1 through 8 in packet procedure)
@@ -222,7 +223,7 @@ struct peer {
 	U_LONG keyid;			/* encription key ID */
 	U_LONG pkeyid;			/* keyid used to encrypt last message */
 	u_short associd;		/* association ID, a unique integer */
-	u_char unused;
+	u_char ttl;			/* time to live (multicast) */
 /* **Start of clear-to-zero area.*** */
 /* Everything that is cleared to zero goes below here */
 	u_char valid;			/* valid counter */
@@ -248,12 +249,6 @@ struct peer {
 	s_fp soffset;			/* fp version of above */
 	s_fp synch;			/* synch distance from above */
 	u_fp selectdisp;		/* select dispersion */
-
-	/*
-	 * Stuff related to the experimental broadcast delay
-	 * determination code.  The registers will probably go away
-	 * later.
-	 */
 	U_LONG estbdelay;		/* broadcast delay, as a ts fraction */
 
 	/*
@@ -346,7 +341,7 @@ struct peer {
  */
 #define	REFCLK_NONE		0	/* unknown or missing */
 #define	REFCLK_LOCALCLOCK	1	/* external (e.g., ACTS) */
-#define	REFCLK_WWV_HEATH	2	/* Heath GC-1000 WWV/H */
+#define	REFCLK_GPS_TRAK		2	/* TRAK 8810 GPS Receiver */
 #define	REFCLK_WWV_PST		3	/* PST/Traconex 1020 WWV/H */
 #define	REFCLK_WWVB_SPECTRACOM	4	/* Spectracom 8170/Netclock WWVB */
 #define	REFCLK_GOES_TRUETIME	5	/* TrueTime 468-DC GOES */
@@ -579,8 +574,8 @@ struct recvbuf {
 #define	PROTO_AUTHENTICATE	3
 #define	PROTO_BROADDELAY	4
 #define	PROTO_AUTHDELAY		5
-#define	PROTO_MAXSKEW		6
-#define	PROTO_SELECT		7
+#define PROTO_MULTICAST_ADD	6
+#define PROTO_MULTICAST_DEL	7
 
 /*
  * Configuration items for the loop filter
@@ -603,7 +598,7 @@ struct recvbuf {
  */
 #define	DEFPRECISION	(-5)		/* conservatively low */
 #define	DEFBROADDELAY	(0x020c49ba)	/* 8 ms.  This is round trip delay */
-
+#define INADDR_NTP	0xe0000101	/* NTP multicast address 224.0.1.1 */
 /*
  * Structure used optionally for monitoring when this is turned on.
  */
@@ -612,6 +607,9 @@ struct mon_data {
 	struct mon_data *hash_prev;	/* previous structure in hash list */
 	struct mon_data *mru_next;	/* next structure in MRU list */
 	struct mon_data *mru_prev;	/* previous structure in MRU list */
+	struct mon_data *fifo_next;	/* next structure in FIFO list */
+	struct mon_data *fifo_prev;	/* previous structure in FIFO list */
+	U_LONG lastdrop;		/* last time dropped due to RES_LIMIT*/
 	U_LONG lasttime;		/* last time data updated */
 	U_LONG firsttime;		/* time structure initialized */
 	U_LONG count;			/* count we have seen */
@@ -621,7 +619,12 @@ struct mon_data {
 	u_char version;			/* version of incoming packet */
 };
 
-
+/*
+ * Values used with mon_enabled to indicate reason for enabling monitoring
+ */
+#define MON_OFF    0x00			/* no monitoring */
+#define MON_ON     0x01			/* monitoring explicitly enabled */
+#define MON_RES    0x02			/* implicit monitoring for RES_LIMITED */
 /*
  * Structure used for restrictlist entries
  */
@@ -645,10 +648,11 @@ struct restrictlist {
 #define	RES_NOPEER		0x20	/* don't allocate memory resources */
 #define	RES_NOTRAP		0x40	/* don't allow him to set traps */
 #define	RES_LPTRAP		0x80	/* traps set by him are low priority */
+#define RES_LIMITED		0x100   /* limit per net number of clients */
 
 #define	RES_ALLFLAGS \
     (RES_IGNORE|RES_DONTSERVE|RES_DONTTRUST|RES_NOQUERY\
-    |RES_NOMODIFY|RES_NOPEER|RES_NOTRAP|RES_LPTRAP)
+    |RES_NOMODIFY|RES_NOPEER|RES_NOTRAP|RES_LPTRAP|RES_LIMITED)
 
 /*
  * Match flags

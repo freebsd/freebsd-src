@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)config.8	6.5 (Berkeley) 3/16/91
-.\"	$Id: config.8,v 1.2 1993/09/26 23:11:06 rgrimes Exp $
+.\"	$Id: config.8,v 1.3 1994/06/01 09:50:08 phk Exp $
 .\"
 .Dd March 16, 1991
 .Dt CONFIG 8
@@ -133,6 +133,10 @@ the problems in the configuration file should be corrected and
 should be run again.
 Attempts to compile a system that had configuration errors
 are likely to fail.
+.Pp
+The entire input file is embedded in the new kernel.  This means that
+.Xr strings 1
+can be used to extract it from a kernel.
 .Sh FILES
 .Bl -tag -width /sys/i386/conf/Makefile.i386 -compact
 .It Pa /sys/conf/files

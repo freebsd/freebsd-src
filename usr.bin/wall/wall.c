@@ -103,7 +103,8 @@ usage:
 	/* NOSTRICT */
 	while (fread((char *)&utmp, sizeof(utmp), 1, fp) == 1) {
 		if (!utmp.ut_name[0] ||
-		    !strncmp(utmp.ut_name, IGNOREUSER, sizeof(utmp.ut_name)))
+		    !strncmp(utmp.ut_name, IGNOREUSER, sizeof(utmp.ut_name)) ||
+		    !strncmp(utmp.ut_line, "uu", 2))
 			continue;
 		if (p = ttymsg(&iov, 1, utmp.ut_line))
 			(void)fprintf(stderr, "wall: %s\n", p);

@@ -1,0 +1,277 @@
+Hello, Emacs, this is an -*- Indented-Text -*- file!
+
+$Id: Changes,v 1.5 1994/04/20 19:22:38 wollman Exp $
+
+This file is intended to keep track of important kernel and user
+changes in FreeBSD between releases.  Entries are in reverse
+chronological order; userids can be decoded with the chart at the end
+of this file.
+
+---------------
+Since 1.1 BETA:
+---------------
+
+- I/O clustering is implemented for all block devices.  This should
+  substantially improve the performance of disk drives which don't
+  have write-behind caches, especially on IDE drives.  (dyson/davidg)
+
+- Allow mbufs to point to other ``external'' objects than just
+  clusters, and add in performance enhancements for NFS from Yuval
+  Yarom.  (davidg)
+
+- Yet more VM system improvements.  (dyson/davidg)
+  o 4-MB systems should now spend substantially less time in the VM
+    system.
+  o General cleanup and some portability fixes.
+  o A new system process is now responsible for keeping page
+    statistics, rather than making the pagedaemon do it, which was
+    getting impractical.  Performance is improved on small-memory
+    machines.
+  o Process resource usage counters are now properly updated for
+    faults and swaps.
+
+- Fixed bugs in truncating mapped files.  (dyson/davidg)
+
+- A new version of the interrupt-handler glue code has been added, which
+  is faster and architecturally cleaner than the previous version.  The
+  beginnings of better profiling support have also been added.  (bde/davidg)
+
+- This file moved from /sys/i386/doc to /sys/doc. (wollman)
+
+- Bounce buffers have been implemented for ISA devices which use
+  DMA (although not all devices can make use of it yet).  (davidg/dyson)
+
+- The set*id() functions have been changed (wollman):
+  o A significant security hole involving the POSIX saved uid and gid
+    has been plugged.
+  o The setreuid() and setregid() functions now never change the real
+    ID, but rather only ensure that you will be able to change the
+    EFFECTIVE ID back to what you specified as a real ID.  This change
+    breaks the setruid() and setrgid() functions, which were a bad
+    idea in a POSIX environment anyway.  Logic taken from 4.4BSD.
+  o The SUGID process flag bit has been implemented as in 4.4, and the
+    `ps' program modified to print it out.
+
+- The scheduling algorithm has been changed to penalize
+  processes that fork a lot, like `make', which should enhance
+  interactive performance during such operations significantly.
+  (davidg/dyson)
+
+- MCLBYTES is now 4096, so each mbuf cluster is given a whole page, in
+  preparation for page flipping.  (davidg/dyson)
+
+- More VM system improvements (dyson/davidg):
+  o Pre-faulting of initial pages on process startup and mmap (faster
+    than starting and immediately taking a fault).
+  o Even more efficient physical map (pmap) code.
+  o Pageouts are now clustered, similar to pagein clustering in 1.1.
+  o The pageout code is more efficient and keeps better statistics.
+  o The procfs can now provide more information from the VM system.
+  o Some pager bugs have been fixed.
+
+- Improved IP checksum and bzero routines.  (bde/dyson)
+
+- The Mitsumi CD-ROM driver is more careful about recognizing Ethernet
+  cards as CD-ROMs.  (jkh)
+
+- `struct tty's now allocated dynamically, and ring buffers can be
+  deallocated. (guido)
+
+
+---------------------------
+Between 1.1 BETA and 1.0.2:
+---------------------------
+
+- QIC-40 and QIC-80 tapes are now supported, using the `ft' driver
+  from Jim Babb.  (alm/nate)
+
+- Improved lpt driver, should no longer lock up when lprm is done on
+  an active job.  Fixed up the probe routine so that it works on most
+  if not all printers now. (csgr/rgrimes)
+
+- Substantial changes to system configuration; you MUST re-build
+  `config' before attempting to build a 1.1 kernel.  (nate/martin)
+
+- Improved the quality of the information given to the user when
+  a fatal trap occurs.  (davidg)
+
+- Added support in the if_ed driver for the WD8013W, WD8003W, and
+  WD8003EB.  (davidg)
+
+- Change to generic console code to eliminate console hangs with all 
+  `pc' consoles.  (davidg)
+
+- Upgrade to new version of syscons which handles the `hanging console'
+  problem and adds some new features and code cleanup.  (nate)
+
+- Various TCP bugs fixed - don't forward loopback packets; Nagel
+  congestion avoidence - immediately ack small packets.  (davidg)
+
+- TCP debugging code is now truly optional, thus reducing kernel size
+  when it is disabled (the default).  (davidg)
+
+- Because the `sio' FIFOs are now configurable, the `com' driver is no
+  longer supported.  (team sighs with relief)
+
+- Performance and stylistic improvements to the `sio' serial driver.
+  Probe code now works somewhat better for oddball devices.  The 16550
+  FIFO length is now configurable using `flags' in the config
+  declaration.  (ache/bde)
+
+- Performance improvements and complete implementation of POSIX VMIN
+  and VTIME for the generic TTY code.  (ache/bde)
+
+- Crash dumps on SCSI disks now work and are standard.  (rgrimes/davidg)
+
+- QMAGIC is now the official default executable format.  (davidg)
+
+- Network booting is now supported, as is booting from DOS.  (martin)
+
+- Local LDTs are now supported for WINE (based on work by John Brezak).
+  (hsu/davidg)
+
+- DDB will now print symbolic arguments and line numbers in
+  backtraces (from John Brezak).  (davidg)
+
+- Added four pattern memory test to eliminate problems with buggy
+  chipsets that incorrectly map memory, and to find problems with
+  defective memory. The memory sizing code has been improved to
+  further eliminate problems with buggy chipsets/BIOSs.  (davidg)
+
+- USE_486_WRITE_PROTECT is now gone; the system will automatically
+  detect 486 CPUs and behave accordingly.  (davidg)
+
+- Added SysV IPC, messaging, and semaphore code by Danny Boulet.
+  (hsu/davidg)
+
+- Because of the VM system changes, Paul Kranenburg's process
+  filesystem is now MANDATORY in order for `ps' and friends to be able
+  to dig up process information which has been paged out.  (davidg)
+
+- Substantial VM system improvements: (dyson/davidg)
+	o FreeBSD once again works on 4-MB machines.
+	o Maximum and default size limits set to reasonable values.
+	o The user area is now in the process address space, and can
+	  now be paged out along with the rest of the process.
+	o Process page tables can now be paged out.
+	o The physical map (pmap) module has been mostly rewritten for
+	  efficiency, and is considerably faster than it used to be.
+	o The pageout system now actually implements modified LRU.
+	o Process RSS soft limits implemented. Hooks are in place for
+	  RSS hard limits.
+	o Pagers can now do multiple-page operations ("page fault
+	  clustering"), and page fault read behind and read ahead
+	  have been implemented to take advantage of this.
+	o The vnode pager no longer drags pages through the buffer
+	  cache, eliminating an expensive memory copy and flushing
+	  of cached data.
+	o When the system runs out of swap space, the faulting process
+	  is killed off (with a message to syslog); the old code would
+	  just deadlock.
+	o Swap space allocation is much more efficient, and swap
+	  striping actually works now. It's now possible for every
+	  last block of swap space to be used before the systems runs
+	  out.
+	o The pagedaemon's algorithms are considerably improved, thus
+	  reducing the amount of CPU time used by the pagedaemon.
+	o All kernels MUST now load at virtual address 0xf010000, and
+	  the lower 640k is reclaimed for system use. This removes
+	  the 640K kernel size limit.
+	o VM object cache size is now dynamic and a function of the
+	  kernel `maxusers' parameter.
+	o Memory in the I/O hole is explicitly marked non-cacheable.
+
+- Added 3C509 driver written by Herb Peyerl. (ats/nate)
+
+- Added a new `wd' driver which does a much better job of probing, handles
+  stray interrupts better, and supports multiple controllers.  In addition
+  this driver supports DOS partitions much better and conforms to ATA specs
+  much better.  NB: configuration lines for this driver are different
+  than those for pervious versions; see a GENERIC for details.
+  (nate/bde/guido)
+
+- Added support in the if_ed driver for the Toshiba ethernet cards.The
+  support must be enabled with an "options TOSH_ETHER" in the config
+  file. Done it this way, because I don't know how widespread the cards
+  are. (ats)
+
+- Added support in the if_ed driver for the SMC Ultra via patches from
+  Glen Lowe. (davidg)
+
+- Updated Mitsumi CD driver to work with FX models.  (jkh/Gary
+  Clark II)
+
+- Add extended formats set to floppy driver, improve autoconfiguration,
+  add "fdformat" utility for floppy formatting.
+  The format of floppy disk minor numbers has changed, thus
+  necessitating a new `MAKEDEV fd'.  (ache/joerg/Serge Vakulenko)
+
+- Add XNTPD to contrib section, and (un-compilable) kernel support for
+  same to /sys/kern.  (wollman)
+
+- Use linker-constructed sets to initialize certain system tables
+  rather than manually enumerating all the options in the source files.
+  This makes certain pseudo-devices and all image activators drop-in at
+  link time, if desired.  (wollman)
+
+- Added YP code from Theo Deraadt.  (paul/nate)
+
+- Make all mandatory options ``standard''.  (wollman)
+
+- Update `wt' driver to support more devices and controllers.  The
+  driver will also auto-detect tape density on models which support
+  it.  The structure of `wt' device minor numbers has changed;
+  `MAKEDEV wt' must be run to create the new device nodes.
+
+- Re-design execve() system call to allow for multiple ``image activators''
+  which recognize and load various file formats.  Currently only
+  a.out and interpreted formats are recognized.  (davidg)
+
+- Provide the address of the faulting reference to signal handlers, to
+  make life easier for smart garbage-collection algorithms.  (hsu)
+
+- New, improved process tracing code from Sean Eric Fagan.  (davidg)
+
+- Re-organize locore into several different source files according to
+  function.  (davidg)
+
+- On panic, don't reboot right away but give the user some time to
+  abort the reboot or at least write down the panic message.  (davidg)
+
+- Kernel timezone handling is now delegated to an external program,
+  `adjkerntz'.  No more bogus summer time jumps.  (ache)
+
+- Separate all IP-related variables that users might want to modify into
+  netinet/in_var.c.  (wollman)
+
+- New, redesigned SCSI system; should run faster and have fewer bugs.
+  (julian)
+
+- Make it possible to mmap(2) /dev/mem.  (julian)
+
+
+-----------------------
+Userids map as follows:
+-----------------------
+ache		Andrew Chernov
+alm		Andrew Moore
+ats		Andreas Schulz
+chmr		Christoph Robitscho
+csgr		Geoff Rehmet
+davidg		David Greenman
+dyson		John Dyson
+guido		Guido van Rooij
+hsu		Jeffrey Hsu
+jkh		Jordan Hubbard
+joerg		Joerg Wunsch
+jtc		J.T. Conklin
+ljo		L. Jonas Olson
+martin		Martin Renters
+nate		Nate Williams
+paul		Paul Richards
+proven		Chris Provenzano
+rich		Rich Murphey
+rls		Rob Shady
+smace		Scott Mace
+swallace	Steven Wallace
+wollman		Garrett Wollman

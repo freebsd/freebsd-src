@@ -1,7 +1,7 @@
 /* uupick.c
    Get files stored in the public directory by uucp -t.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uupick_rcsid[] = "$Id: uupick.c,v 1.1 1993/08/05 18:27:50 conklin Exp $";
+const char uupick_rcsid[] = "$Id: uupick.c,v 1.2 1994/05/07 18:14:15 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -43,15 +43,21 @@ static void upmovedir P((const char *zfull, const char *zrelative,
 			 pointer pinfo));
 static void upmove P((const char *zfrom, const char *zto));
 
-/* The program name.  */
-char abProgram[] = "uupick";
-
 /* Long getopt options.  */
-static const struct option asPlongopts[] = { { NULL, 0, NULL, 0 } };
+static const struct option asPlongopts[] =
+{
+  { "system", required_argument, NULL, 's' },
+  { "config", required_argument, NULL, 'I' },
+  { "debug", required_argument, NULL, 'x' },
+  { "version", no_argument, NULL, 'v' },
+  { "help", no_argument, NULL, 1 },
+  { NULL, 0, NULL, 0 }
+};
 
 /* Local functions.  */
 
 static void upusage P((void));
+static void uphelp P((void));
 
 int
 main (argc, argv)
@@ -72,7 +78,9 @@ main (argc, argv)
   char ab[1000];
   boolean fquit;
 
-  while ((iopt = getopt_long (argc, argv, "I:s:x:", asPlongopts,
+  zProgram = "uupick";
+
+  while ((iopt = getopt_long (argc, argv, "I:s:vx:", asPlongopts,
 			      (int *) NULL)) != EOF)
     {
       switch (iopt)
@@ -95,13 +103,28 @@ main (argc, argv)
 #endif
 	  break;
 
+	case 'v':
+	  /* Print version and exit.  */
+	  fprintf
+	    (stderr,
+	     "%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	     zProgram, VERSION);
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
+	case 1:
+	  /* --help.  */
+	  uphelp ();
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
 	case 0:
 	  /* Long option found and flag set.  */
 	  break;
 
 	default:
 	  upusage ();
-	  break;
+	  /*NOTREACHED*/
 	}
     }
 
@@ -152,6 +175,8 @@ main (argc, argv)
 
       do
 	{
+	  boolean fbadname;
+
 	  fcontinue = FALSE;
 
 	  if (zallsys == NULL
@@ -196,9 +221,15 @@ main (argc, argv)
 	    case 'a':
 	      zto = ab + 1 + strspn (ab + 1, " \t");
 	      zto[strcspn (zto, " \t\n")] = '\0';
-	      zlocal = zsysdep_uupick_local_file (zto);
+	      zlocal = zsysdep_uupick_local_file (zto, &fbadname);
 	      if (zlocal == NULL)
-		usysdep_exit (FALSE);
+		{
+		  if (! fbadname)
+		    usysdep_exit (FALSE);
+		  ulog (LOG_ERROR, "%s: bad local file name", zto);
+		  fcontinue = TRUE;
+		  break;
+		}
 	      zto = zsysdep_in_dir (zlocal, zfile);
 	      ubuffree (zlocal);
 	      if (zto == NULL)
@@ -271,25 +302,37 @@ main (argc, argv)
   return 0;
 }
 
-/* Print usage message.  */
+/* Print usage message and die.  */
 
 static void
 upusage ()
 {
   fprintf (stderr,
-	   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
+	   "Usage: %s [-s system] [-I config] [-x debug]\n", zProgram);
+  fprintf (stderr, "Use %s --help for help\n", zProgram);
+  exit (EXIT_FAILURE);
+}
+
+/* Print help message.  */
+
+static void
+uphelp ()
+{
+  fprintf (stderr,
+	   "Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
 	   VERSION);
   fprintf (stderr,
-	   "Usage: uupick [-s system] [-I config] [-x debug]\n");
+	   " -s,--system system: Only consider files from named system\n");
   fprintf (stderr,
-	   " -s system: Only consider files from named system\n");
-  fprintf (stderr,
-	   " -x debug: Set debugging level\n");
+	   " -x,--debug debug: Set debugging level\n");
 #if HAVE_TAYLOR_CONFIG
   fprintf (stderr,
-	   " -I file: Set configuration file to use\n");
+	   " -I,--config file: Set configuration file to use\n");
 #endif /* HAVE_TAYLOR_CONFIG */
-  exit (EXIT_FAILURE);
+  fprintf (stderr,
+	   " -v,--version: Print version and exit\n");
+  fprintf (stderr,
+	   " --help: Print help and exit\n");
 }
 
 /* This routine is called by usysdep_walk_tree when moving the

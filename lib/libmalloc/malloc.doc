@@ -1,0 +1,653 @@
+$Header: /home/cvs/386BSD/src/lib/libmalloc/malloc.doc,v 1.1 1994/03/06 22:59:48 nate Exp $
+                          Yet another malloc()
+                          --------------------
+                              Mark Moraes
+                        <moraes@csri.toronto.edu>
+
+	Standard calls
+
+It provides the standard calls we expect from any self-respecting
+malloc, viz.
+
+	char *
+	malloc(nbytes)
+
+	unsigned int nbytes;
+
+which returns pointer to a contiguous memory block, at least nbytes
+bytes long,
+
+	char *
+	calloc(nelements, element_size)
+
+	unsigned int nelements, element_size;
+
+which returns a pointer to a contiguous memory block, at least
+nelements * element_size bytes long, with all locations set to zero,
+
+	char *
+	realloc(ptr, nbytes)
+
+	char *ptr;
+	unsigned int nbytes;
+
+attempts to change the size of the previously malloc'ed block pointed
+to by ptr to nbytes, and failing that, returns a pointer to a new block
+nbytes long, after copying the contents of the old block to it.
+Realloc returns NULL if it fails, and DOES NOTHING WITH THE OLD BLOCK.
+(This is not defined; some reallocs may free the old block they were
+passed)
+
+	void
+	free(ptr)
+
+	char *ptr;
+
+returns the previously malloc'ed block pointed to by ptr to the
+storage pool. It will do its best to keep storage as unfragmented as
+possible.
+
+	void
+	cfree(ptr)
+
+	char *ptr;
+
+The same as free(), used to free calloc()ed blocks.
+
+There are a couple of additional functions that Sun malloc provides,
+and that some programs need (notably the X Windows server on Suns)
+
+	char *
+	memalign(alignment, nbytes)
+
+	unsigned int alignment;
+	unsigned int nbytes;
+
+This returns a pointer to a memory block at least nbytes long,
+guaranteeing that the block starting address is an even multiple of
+alignment. Alignment must be a power of 2.
+
+	char *
+	valloc(nbytes)
+
+	unsigned int nbytes;
+
+This is the same as memalign(getpagesize(), nbytes).
+
+A frequently used function is to save a copy of a NULL-terminated
+character array (a C string) in storage malloc'ed exactly to fit it,
+for example when reading or parsing some input line from a large
+buffer. Newer systems provide the strdup() function to do just this.
+(This may not appear a complex funtion - using it eliminates the
+all-too-frequent error where you forget to add 1 to the length of the
+string to allow for the NULL terminator)
+
+	char *
+	strdup(s)
+
+	char *s;
+
+strdup returns NULL if the malloc fails.
+
+	Additional functions
+
+In addition to the usual functions, this malloc provides some
+debugging and profiling functions, which we discuss in more detail
+below. (NOTE: To use these special features, you have to include the
+header file "malloc.h" provided with this malloc. This header file
+also defines the C preprocessor symbol CSRIMALLOC. This allows anyone
+using any of the special features of this malloc to enclose any calls
+to the new features within #ifdef CSRIMALLOC, thus preserving code
+portability)
+
+Since this malloc library is usually installed as libmalloc.a, to use
+it instead of a regular system malloc, you need to specify something
+like -lmalloc on your link/load command line before -lc, if any.
+Make sure your program has at least one call to any one of
+malloc/free/calloc/realloc or the Unix loader may not link in this
+malloc, and will instead use the system one from libc, since it makes
+only one pass.
+
+Most of the debugging features will be available in a version of the
+malloc called malloc_d, which is what you should use for development
+and testing by specifying -lmalloc_d. For production programs, link
+with -lmalloc to get the fast version.
+
+Frequently, people forget to check the return value on a malloc()
+assuming that modern systems never run out of memory. Inevitably,
+Murphy ensures that some system will run out of memory, and a user
+will be faced with the illuminating error message "Segmentation
+violation - core dumped". Alas, when memory runs out, the core dump is
+likely to be large. This malloc provides an emalloc() function which
+exits if NULL is returned, with an out of memory message. Using this
+in place of malloc is advised if running out of memory is a fatal
+condition. (If not, either write your own emalloc() to recover
+gracefully, or check the value returned by malloc)
+
+	char *
+	emalloc(nbytes)
+
+	unsigned nbytes;
+
+Similarly, a realloc which will die instead of returning NULL is
+erealloc().
+
+	char *
+	erealloc(ptr, nbytes)
+
+	unsigned nbytes;
+
+A similar function, like strdup() but not returning NULL is strsave().
+
+	char *
+	strsave(s)
+
+	char *s;
+
+
+	Debugging support
+
+Alas, one of the more common, and unpleasant errors a C programmer can
+make is to accidentally exceed the bounds of an array, and write over
+the data that immediately follows (or less frequently, precedes) it in
+memory. Such "corruption" errors usually show up at a completely
+different place in the program from the place the actual overwriting
+occurs (A corollary to Murphy's Law suggests the error will appear in
+the last related module of the program), thus making it at least as
+hard to track down as the proverbial needle in the haystack. While
+there is little that we can do to help detect errors in static,
+automatic or global data, we can at least try to ensure the validity
+of the malloc()ed data.
+
+To get this support, the malloc() must be compiled with -DDEBUG -
+since this reduces performance somewhat, it is usually done in a
+separate object module from the one usually used in production code.
+This debugging malloc() makes sure all internal heap pointers relevant
+to an allocation (or free) are correct on every call to one of the
+allocation routines, and aborts if it detects any trouble, with a
+message starting with "assertion botched". This is
+useful because it causes the program to die nearer the trouble spot
+than would otherwise be the case, helping to pinpoint the error.
+This narrows down the location of the error to something less than the
+aforementioned haystack, but the problem is still somewhat large.
+
+	int
+	mal_verify(fullcheck)
+
+	int fullcheck;
+
+lends a helping hand in such distressing situations. It runs through
+all allocated and free blocks, checking all heap pointers for
+validity. Since the heap pointers (and block size values) are at the
+beginning and end of allocated (and free) blocks, any overwriting off
+the end of a memory block usually results in the corruption of the
+heap size values, or the pointer values of the next block. If
+'fullcheck' is non-zero, then additional checking of the contents of
+free blocks is done, to ensure that they haven't been written into
+after being freed. Calling mal_verify() with fullcheck as 1 is
+recommended. (More on this later)
+
+On detecting an error, mal_verify() aborts the program, on the not
+unreasonable grounds that such an error is A BAD THING and should be
+fixed immediately.
+
+A careful programmer will probably want to put calls to mal_verify()
+at frequent points in any code, as checkpoints to trap any stray
+overwriting or memory corruption that may take place. Since
+mal_verify() does nothing in a malloc compiled without -DDEBUG, it
+has no overhead in production code other than the procedure call.
+("But I can't be overwriting any data between X and Y in my code" are
+famous last words)
+
+Instead of putting calls to mal_verify(), the programmer can set
+the debugging level of the allocator.
+
+	void
+	mal_debug(level)
+
+	int level;
+
+Most debugging is done at level 1, which is the default. This only
+checks the internal pointers that are encountered during a malloc() or
+free(). Setting level to 2 with the mal_debug() call results in a
+complete check of the heap (i.e. a call to mal_verify(0) ) every time
+malloc(), realloc() or free() are called. (The other allocation
+routines call these three) This can be very slow if your program does
+a lot of debugging, but is worth turning on for a specific segment of
+the program where you suspect trouble. (The author uses this mode when
+writing and debugging a program initially, switches to normal
+debugging for alpha and beta test) Level 3 asks for mal_verify(1) on
+every malloc(), realloc() or free() which checks all free blocks'
+insides for any signs of someone writing to them.
+
+We recommend the use of a binary search technique for pinpointing the
+needle, er, the overwriting. This presupposes that malloc(), free(),
+or a previously (wisely) inserted mal_verify() has caused the
+program to die at some point with an "assertion botched" error. (If
+the programmer has not been using this malloc so far, or a variant
+compiled without -DDEBUG, then the only indication of a memory
+corruption error is utterly strange things happening to the program,
+possibly variable changing values when they're not supposed to, or
+mysterious deaths of the program in malloc(), free() or some such
+call)
+
+Insert a mal_verify() call (Referred to from now on as Checkpoint
+1) at some point well before the error occurs, if necessary, at the
+first executable statement in the program. Insert another
+mal_verify call on the statement just before you suspect the error
+manifesting itself. (Checkpoint 2)
+
+(Note that when we say insert a mal_verify() call at some point
+"before" an error occurs, we are referring to a temporal location,
+i.e some piece of code that is executed by the program in the time
+before the error occurs. Physically, this may be in a different
+procedure, or a different file altogether.)
+
+Run the program.
+
+If Checkpoint 1 causes the program to die, then the error is trapped
+in between it and the start of the program. (case A) If Checkpoint 2
+causes the program to die, then the error is trapped between it and
+Checkpoint 1, (case B) and if neither dies, the error is after
+Checkpoint 2, (case C) or is not an overwriting error at all, or is an
+error subtle enough to avoid the heap pointer checking. In the last
+case, we wish you luck...
+
+Case A: (The bug is before checkpoint 1)
+
+Move Checkpoint 2 to where checkpoint 1 presently is, and move
+checkpoint 1 further back. Run the program again.
+
+Case B: (The bug is between checkpoint 1 and checkpoint 2 - narrow the
+search area down further)
+
+This is the case we attempt to maintain. Having attained it, we
+promptly attempt to lose it again. (Why is this starting to sound like
+Zen...) To do so, we move either Checkpoint 1 or Checkpoint 2 closer
+to the other, and run the program again.
+
+Case C: (The bug is after checkpoint 2)
+
+Move Checkpoint 1 to where checkpoint 2 presently is, and move
+checkpoint 2 further ahead. Run the program again.
+
+The objective is to bring the two checkpoints as close to each other
+as is necessary to spot the bug.  (Recognizing the bug is up to the
+programmer - loops exceeding the bound by one are a common problem
+causing this error - confusion with C's starting arrays at 0 unlike
+other languages which start them at 1 is another problem).
+
+Those familiar with numerical methods will see the similarity between
+this method and the binary search method for finding a root of an
+equation. (It also bears a resemblance to the binary search method on
+sorted data, but the resemblance is less striking)
+
+In a modular program, which has been well structured, placing such
+checkpoints is easy to do; simply start at the top level, narrow it
+down to some procedure call at that level, insert them at the entry and
+exit points of that procedure, narrow it down to some procedure call
+at this level, and recurse downward till the fault is detected.
+
+We noted earlier that some corruption bugs manifest themselves (Why is
+this starting to read like a ghostbusters' script...) as data values
+that change when they shouldn't. In this case, a simpler method to
+trace the bug is often to put a trace on that data location by setting
+a global pointer variable to point to it, and printing the value at
+the two checkpoints. The same search strategy can be employed. This
+has been found useful in at least one bug the author has encountered,
+which sneakily refused to corrupt the heap pointers, jumping over them
+straight into another block to do its dirty work.
+
+A vicious form of heap corruption is when someone frees a block of
+memory, but forgets to NULL or reset all pointers pointing to that
+block. At some point in the future, if that block is accessed, strange
+things can happen. If that block is still free, and in the heap, there
+is a chance of corrupting malloc's internal pointers and structures
+used to maintain the free list, in which case mal_verify() will detect
+the corruption and abort. Or the corruption may go into the middle of
+the block and go undetected. Even worse, the block or part of the
+block may have been allocated to the program for some other purpose,
+and the corruption may now be smashing data in another part of the
+program. This sort of corruption is insidious, and very hard to
+reproduce, let alone trace down. To help trace this down, when a block
+is freed, in debugging mode, the allocator scribbles a magic pattern
+all over it, thus making sure any data in there is likely to be wrong.
+Invoking mal_verify(1) will check every free block to make sure its
+contents are that magic pattern and abort if it detects corruption.
+Setting debug level to 3 with mal_debug() will force this sort of
+verification on every call to malloc(), realloc() or free().
+Obviously, if the block gets allocated, and then corrupted, the malloc
+verification cannot detect it, since it has no idea what goes on
+inside allocated blocks.
+
+
+	Advanced debugging tools.
+
+	void
+	mal_heapdump(fd)
+
+	FILE *fd;
+	
+If all else fails, the programmer may obtain a printout of the entire
+heap by calling mal_heapdump() with a file descriptor to an already
+open file (fopen(3)). This will print the start address of
+all blocks, allocated or free, and their sizes. These can be matched
+with pointer addresses in the program and used to trace heap
+corruption. If you use this call, you probably know how to do this.
+Large doses of intuition (and strong beverages) are recommended.
+mal_heapdump() performs the same checking that mal_verify(1) does, but
+does not abort unless the error makes it impossible to dump the heap
+further. A knowledge of the malloc internals is necessary to fully
+exploit this call's output.
+
+	Profiling support
+
+This malloc() is faster than most other mallocs that I've seen - the
+search strategy is a first-free, which is not excitingly fast in
+theory, but, with small modifications turns out to be quite fast in
+practice; See Knuth for more details. (Theoretically, the time is of
+the same order as the size of the free list, so the free list is kept
+as small as possible by coalescing a block with adjacent freed blocks
+if possible, when it is freed) The free() is based on a boundary tags
+scheme, as described in Knuth. It is linear-time, for those who care
+about such things, and is a few statements of C code - 4 comparisons
+and a little pointer arithmetic. It also accesses memory locations
+next to the block only, so it has good virtual memory performance. (The
+malloc turns out to have good VM performance most of the time, but
+will occasionally scan through a few pages, and in worst case, through
+a lot of pages. If however, those pages are all being used, then the
+VM performance is likely to be influenced more by the program using
+the malloc than the malloc itself)
+
+Nonetheless, a program which calls malloc and free *very* frequently
+might be slow. In order to track down malloc usage, if compiled with
+-DPROFILEDSIZES, this malloc keeps count of the number of block sizes
+being used by the program. To print out these collected statistics,
+call
+
+	void
+	mal_statsdump(fd)
+
+	FILE *fd;
+
+where fd is an already opened file descriptor, and it will print a
+list of block sizes, and the number of times a block of that size was
+allocated. This information provides some indication of the allocation
+profile of the calling program.
+
+When mal_statsdump() is called, it zeroes all the counters, so that
+you can check the allocation profile of specific segments of a program
+by calling mal_statsdump() repeatedly.
+
+If more detailed tracing information is needed, the malloc must be
+compiled with -DTRACE. This prints out the size of every allocation
+or free. This can be turned on or off using
+
+	void
+	mal_trace(flag)
+
+	int flag;
+
+If flag is 0, tracing is turned off, (this is the default state), if
+it is non-zero, then tracing commences.
+
+The trace records are of the form:
+For a malloc,
+	+ <nbytes> <realsize> <address> 
+
+	where <nbytes> is the number of
+bytes requested, <realsize> is the number of bytes allocated (usually
+nbytes rounded up to a multiple of the word size, plus any slop if
+that is requested with mal_slopset), and <address> is the block
+returned.
+
+	If the malloc results in the system being asked for more memory,
+via sbrk(), it prints
+	sbrk <bytesobtained>
+where <bytesobtained> is the number of bytes the system was asked for.
+After the first such call, it will then print
+	heapstart <address>
+where <address> is the
+
+For a free, 
+	- <realsize> <address> 
+where <address> is the address of the block being freed
+and <realsize> is the malloc'ed size of the block. (the size requested
+by the user, rounded up to the word size with slop, if any)
+
+For a realloc, it may print out 
+	the same as as a free if we're shrinking and the part of the
+block was freed
+
+	no-op
+	if we're shrinking and the remaining part of the block
+was too small to be freed, it prints
+
+	++ <nbytes> <realsize> <address> <realsize_free> <address_free> 
+where <nbytes> is the number of bytes requested, <realsize> is the actual
+number of bytes in the block returned, and <address> is the address of
+the block returned, <realsize_free> is the actual size of the free
+block after the one we're returning, which we grew into, <address_free>
+is the address of the free block after the one we're returning. The
+free block information is internal to the malloc and is of little use
+to the user.
+
+	the same as for a malloc and a free if the block ends up being
+copied to a new block.
+
+
+The trace records may be prefixed by the filename and linenumber of
+the call is the source if the file malloc.h was included and the C
+preprocessor symbol MALLOC_TRACE defined when compiling the program,
+and the malloc library was compield with the tracing option enabled.
+(Ask your system adminstrator, or whoever installed the malloc)
+(typically with the flag -DMALLOC_TRACE on the cc command line) This
+is advised - it makes debugging and leak tracing much easier.
+
+The file to which this information is printed can be set with
+
+	void
+	mal_setstatsfile(fd)
+
+	FILE *fd;
+
+The default is stderr.
+
+
+There are two variables in this malloc that can be set to tune
+performance somewhat, and keep memory fragmentation down. One is
+'slop', the other is the sbrk() size. 
+
+	void
+	mal_slopset(slop)
+
+	int slop;
+
+The minimum size block allocated is slop. (The default for this is the
+minimum possible to maintain the heap pointers required for a free
+block, denoted by a slop of 0) If you notice however, that a lot of
+blocks are being used in a specific small size, or small range of
+small sizes, then you might want to increase slop so that slop is big
+enough to cover all those sizes - while this may waste some memory, it
+will speed up allocation for those sizes by guaranteeing that all
+blocks in the free list are at least that size, so the first fit
+becomes as fast as possible, and the memory fragmentation is reduced
+because of the more uniform block size.
+
+	void
+	mal_sbrkset(nbytes)
+	
+	int nbytes;
+
+If there isn't a block large enough to supply a malloc request, then
+the allocator asks for the system to increase the data space of the
+process using the sbrk call. By default, sbrk() is called with 1K *
+sizeof(Word). (unless the malloc request is for a larger size) If your
+program uses less memory than this, you may want to reduce the size.
+On the other hand, in a program that allocates a lot of memory, to
+reduce the number of system calls, you may want to increase this size,
+using the mal_sbrkset() call.
+
+	Performance
+
+The 4.3 malloc, (variants of which are distributed with perl, tcsh,
+GNU and so on) is slightly faster than this malloc but it wastes more
+space because it allocates blocks in powers of 2. It does not coalesce
+free space, which can lead to it wasting lots of space. (There are some
+pathological allocation sequences where it will ask for more space
+from the system even though it has enough free space)
+
+The Sun malloc wastes somewhat less than this malloc, but is
+twice as slow, and causes more paging because it stores free blocks
+and their headers separately. It has debugging support similar to
+mal_verify() and mal_debug(), but not quite as thorough.
+
+The 4.1 malloc is much slower than this malloc, and wastes about the
+same space.
+
+	Incompatibilities
+
+There is only one serious incompatibility that I know of with some
+other malloc()s. In the old 4.1 malloc(), free was kept fast by not
+having it merge adjacent free blocks. This resulted in seriously
+fragmented arenas for programs that did a lot of allocation and
+freeing.
+
+The realloc() kludge provided a hook to force the merging of such
+blocks - the user called realloc() with a a block which had been freed.
+
+I think this practice is bad (Also, both ANSI and SVID do not support
+it) - since this malloc does a fast free that also merges the freed
+block to maintain the largest possible contiguous free blocks, there
+is no need for storage compaction. If compiled with -DDEBUG, this
+realloc() will die with an error if a freed block is passed to
+realloc() which would enable fixing programs that adhere to the old
+convention. If not compiled with -DDEBUG, it sets errno to EINVAL and
+returns NULL.
+
+	Memory leaks
+
+Some memory allocated by a program is meant for the entire lifetime of
+the program. (For many simple programs, this constitutes all the
+allocation done by the program, and this section does not apply to
+such programs) Some memory however is allocated for some time, and is
+later freed.
+
+Keeping track of memory to be freed is often a nuisance, and
+sometimes, programs may change the only pointer to an allocated block
+without freeing the block first. such unreferenced, but allocated
+memory is called "garbage" or a "memory leak", and is wasted, since
+the program has no way of finding it again. (Other languages, like
+Lisp, perform garbage collection frequently, finding all blocks that
+are unreferenced, and freeing them. In the Unix/C environment, this is
+difficult to do, even though garbage collecting mallocs exist. Even
+worse, it is often inefficient)
+
+Memory leaks are serious for programs that run for a long time -
+window managers, daemons, and suchlike, since the total memory wasted
+over time may be large. Meticulously freeing everything allocated
+by a program is the best solution - alas, for object-oriented
+programming styles, it becomes very hard to keep track of every object
+ever created so that open can free it.
+
+One method or providing temporary storage is the alloca() function.
+This is used to allocate space off the run-time stack so that it is
+automatically reclaimed upon procedure exit. It can therefore be used
+to provide temporary storage needed by a procedure and the procedures
+called by the procedure. Whether or not to use the alloca() call is a
+somewhat controversial matter.  The manual page warns that
+     "alloca() is both machine- and compiler-dependent; its use is
+     discouraged."
+On the other hand, a fairly portable implementation using malloc() and
+free() does exist, and some compilers (eg) GNU cc provide a
+__builtin_alloca function, which they translate into a couple of
+machine instructions to extend the frame pointer in the appropriate
+direction. With these compilers, alloca() can be very fast - much
+faster than any other memory allocation technique short of statically
+allocated buffers.
+
+Alloca() still does not address the problem of storage which is needed
+temporarily, but which may be passed to a routine's parent.
+
+Another way for a programmer to trace what is going on is to define
+the preprocessor symbol MALLOC_TRACE (for example, with -DMALLOC_TRACE
+on the cc command line when compiling the program) and then include
+the header file "malloc.h" in the program. When MALLOC_TRACE is
+defined, this header redefines malloc() and friends to macros, which
+invoke _malloc() etc; the latter are routines which take the filename
+and linenumber at which they are called. Calling
+
+	void
+	mal_leaktrace(value)
+
+	int value;
+
+with value > 0 will start the leaktracing process, recording the
+address of each block returned by malloc, calloc, etc, along with the
+filename:linenumber at which it was called. If that block is freed, it
+deletes the record for that block. (Calling mal_leaktrace() with
+value == 0 turns off tracing)
+
+At any time, the programmer can call
+
+	void
+	mal_dumpleaktrace(fd)
+
+	FILE *fd;
+
+where fd is a file pointer onto a file openeed for writing with
+fopen() or freopen(), into which a list of unfreed blocks is dumped.
+This list is in the form
+
+	filename:linenumber: sequence-no. address-in-decimal (address-in-hex)
+
+This permits the programmer to examine the places in the program where
+blocks were allocated and not freed. These represent potential memory
+leaks. (Several text-editors will understand this sort of output as
+output from grep -n, and will be able to load and step through these
+files, eg. Jove)
+
+Typically, memory leaks take place within the main loop of a program,
+so the general structure of the program may look something like
+
+	initialization allocation
+	while (something) {
+		things to do
+	}
+
+The initial allocation is at worst a one-time memory wastage and does
+not concern us that much. Memory that is allocated inside the loop,
+and is not freed does concern us since it is a continuous loss, so
+after the initialization allocation, we insert a call to
+mal_leaktrace() to start tracing.  When the second iteration starts,
+we call mal_dumpleaktrace() to dump the blocks that were presumably
+allocated during the first iteration and have not yet been freed, and
+do the same at the start of the third iteration for unfreed blocks
+from the second iteration and so on. The code now looks something like
+
+	initialization allocation
+	mal_leaktrace(1);
+	while(something) {
+		mal_dumpleaktrace(stderr);
+		things to do;
+	}
+
+The above is a simple example - more complex control-flow may require
+turning leak tracing on and off repeatedly, so as not to get deluged
+with information.
+
+If you use allocation functions within your code that layer on top of
+malloc, this leak tracing as it is will not be too useful since it
+will only report the location of your allocation functions. In that
+case, you have to define subsidiary allocation functions like
+_malloc() and #defines like those in the malloc.h file so that you can
+record the real address of the call. See the _malloc.c file and the
+malloc.h header for examples on how to do this. (You have to call the
+real allocation and then use the RECORD_FILE_AND_LINE() macro from
+trace.h to store the address of the allocated block. When you free the
+block you have to call the DELETE_RECORD() macro to remove that
+address. Do not include malloc.c in these files, and make sure you do
+call the real malloc from your allocation function - otherwise the
+allocation package will attempt to record the same address twice and
+fail) You may also want to include defs.h and then use PRTRACE() to
+print the line number and file name in the trace file.

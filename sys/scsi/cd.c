@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.16 1994/02/05 09:08:46 swallace Exp $
+ *      $Id: cd.c,v 1.18 1994/04/20 07:06:51 davidg Exp $
  */
 
 #define SPLCD splbio
@@ -415,9 +415,20 @@ cdstrategy(bp)
 		if (bounds_check_with_label(bp, &cd->disklabel, 1) <= 0)
 			goto done;
 		/* otherwise, process transfer request */
+	} else {
+		bp->b_pblkno = bp->b_blkno;
+		bp->b_resid = 0;
 	}
 	opri = SPLCD();
 	dp = &cd->buf_queue;
+
+	/*
+	 * Use a bounce buffer if necessary
+	 */
+#ifndef NOBOUNCE
+	if (cd->sc_link->flags & SDEV_BOUNCE)
+		vm_bounce_alloc(bp);
+#endif
 
 	/*
 	 * Place it in the queue of disk activities for this disk

@@ -1,7 +1,7 @@
 /* xcmd.c
    Routines to handle work requests.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xcmd_rcsid[] = "$Id: xcmd.c,v 1.1 1993/08/05 18:27:25 conklin Exp $";
+const char xcmd_rcsid[] = "$Id: xcmd.c,v 1.2 1994/05/07 18:14:04 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -77,6 +77,13 @@ flocal_xcmd_request (qtrans, qdaemon)
   ulog (LOG_NORMAL, "Requesting work: %s to %s", qtrans->s.zfrom,
 	qtrans->s.zto);
 
+
+  qtrans->fcmd = TRUE;
+  qtrans->precfn = flocal_xcmd_await_reply;
+
+  if (! fqueue_receive (qdaemon, qtrans))
+    return FALSE;
+
   /* We send the string
      X from to user options
      We put a dash in front of options.  */
@@ -89,16 +96,11 @@ flocal_xcmd_request (qtrans, qdaemon)
   fret = (*qdaemon->qproto->pfsendcmd) (qdaemon, zsend, qtrans->ilocal,
 					qtrans->iremote);
   ubuffree (zsend);
+
   if (! fret)
-    {
-      utransfree (qtrans);
-      return FALSE;
-    }
+    utransfree (qtrans);
 
-  qtrans->fcmd = TRUE;
-  qtrans->precfn = flocal_xcmd_await_reply;
-
-  return fqueue_receive (qdaemon, qtrans);
+  return fret;
 }
 
 /* Get a reply to an execution request from the remote system.  */
@@ -179,7 +181,8 @@ fremote_xcmd_init (qdaemon, qcmd, iremote)
       else
 	zconst = zexclam + 1;
 
-      zdestfile = zsysdep_local_file (zconst, qsys->uuconf_zpubdir);
+      zdestfile = zsysdep_local_file (zconst, qsys->uuconf_zpubdir,
+				      (boolean *) NULL);
       if (zdestfile == NULL)
 	return FALSE;
 
@@ -252,7 +255,8 @@ fremote_xcmd_init (qdaemon, qcmd, iremote)
 
   /* Now we have to process each source file.  The source
      specification may or may use wildcards.  */
-  zfrom = zsysdep_local_file (qcmd->zfrom, qsys->uuconf_zpubdir);
+  zfrom = zsysdep_local_file (qcmd->zfrom, qsys->uuconf_zpubdir,
+			      (boolean *) NULL);
   if (zfrom == NULL)
     {
       ubuffree (zdestfile);
@@ -341,6 +345,7 @@ fremote_xcmd_init (qdaemon, qcmd, iremote)
 	  char *zjobid;
 
 	  ssend.bcmd = 'S';
+	  ssend.bgrade = BDEFAULT_UUCP_GRADE;
 	  ssend.pseq = NULL;
 	  ssend.zfrom = zfile;
 	  ssend.zto = zdestfile;

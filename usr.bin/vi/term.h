@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,54 +30,69 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)term.h	8.26 (Berkeley) 1/7/94
+ *	@(#)term.h	8.37 (Berkeley) 3/22/94
  */
+
+/*
+ * Fundamental character types.
+ *
+ * CHAR_T	An integral type that can hold any character.
+ * ARG_CHAR_T	The type of a CHAR_T when passed as an argument using
+ *		traditional promotion rules.  It should also be able
+ *		to be compared against any CHAR_T for equality without
+ *		problems.
+ * MAX_CHAR_T	The maximum value of any character.
+ *
+ * If no integral type can hold a character, don't even try the port.
+ */
+typedef	u_char		CHAR_T;
+typedef	u_int		ARG_CHAR_T;
+#define	MAX_CHAR_T	0xff
+
+/* The maximum number of columns any character can take up on a screen. */
+#define	MAX_CHARACTER_COLUMNS	4
 
 /* Structure to return a character and associated information. */
 struct _ch {
 	CHAR_T	 ch;		/* Character. */
 
+#define K_NOTUSED	 0
 #define	K_CARAT		 1
-#define	K_CNTRLR	 2
-#define	K_CNTRLT	 3
-#define	K_CNTRLZ	 4
-#define	K_COLON	 	 5
-#define	K_CR		 6
-#define	K_ESCAPE	 7
-#define	K_FORMFEED	 8
-#define	K_NL		 9
-#define	K_RIGHTBRACE	10
-#define	K_RIGHTPAREN	11
-#define	K_TAB		12
-#define	K_VEOF	 	13
+#define	K_CNTRLD	 2
+#define	K_CNTRLR	 3
+#define	K_CNTRLT	 4
+#define	K_CNTRLZ	 5
+#define	K_COLON	 	 6
+#define	K_CR		 7
+#define	K_ESCAPE	 8
+#define	K_FORMFEED	 9
+#define	K_NL		10
+#define	K_RIGHTBRACE	11
+#define	K_RIGHTPAREN	12
+#define	K_TAB		13
 #define	K_VERASE	14
 #define	K_VINTR		15
 #define	K_VKILL		16
 #define	K_VLNEXT	17
 #define	K_VWERASE	18
 #define	K_ZERO		19
-	u_char	 value;		/* Special character flag values. */
+	u_int8_t value;		/* Special character flag values. */
 
 #define	CH_ABBREVIATED	0x01	/* Character from an abbreviation. */
 #define	CH_NOMAP	0x02	/* Do not attempt to map the character. */
 #define	CH_QUOTED	0x04	/* Character is already quoted. */
-	u_char	 flags;
+	u_int8_t flags;
 };
 
-/*
- * Structure for the key input buffer.
- *
- * MAX_MAP_COUNT was chosen based on the vi maze script, which remaps
- * characters roughly 250 times.
- */
+/* Structure for the key input buffer. */
 struct _ibuf {
-	CHAR_T	*ch;		/* Array of characters. */
-	u_char	*chf;		/* Array of character flags (CH_*). */
-#define	MAX_MAP_COUNT	270	/* Maximum times a character can remap. */
-	u_char	*cmap;		/* Number of times character has been mapped. */
+	CHAR_T	 *ch;		/* Array of characters. */
+	u_int8_t *chf;		/* Array of character flags (CH_*). */
+#define	MAX_MAP_COUNT	50	/* Infinite loop check. */
+	u_int8_t *cmap;		/* Number of times character has been mapped. */
 
 	size_t	 cnt;		/* Count of remaining characters. */
-	size_t	 len;		/* Array length. */
+	size_t	 nelem;		/* Numer of array elements. */
 	size_t	 next;		/* Offset of next array entry. */
 };
 				/* Return if more keys in queue. */
@@ -91,7 +106,7 @@ struct _ibuf {
  */
 struct _chname {
 	char	*name;		/* Character name. */
-	u_char	 len;		/* Length of the character name. */
+	u_int8_t len;		/* Length of the character name. */
 };
 
 /*
@@ -130,53 +145,55 @@ enum confirm	{ CONF_NO, CONF_QUIT, CONF_YES };
 #define	isblank(ch)	((ch) == ' ' || (ch) == '\t')
 #endif
 
+/* The "standard" tab width, for displaying things to users. */
+#define	STANDARD_TAB	6
+
 /* Various special characters, messages. */
 #define	CURSOR_CH	' '			/* Cursor character. */
 #define	END_CH		'$'			/* End of a range. */
 #define	HEX_CH		'x'			/* Leading hex number. */
+#define	LITERAL_CH	'\026'			/* Standard literal ^V. */
 #define	NOT_DIGIT_CH	'a'			/* A non-isdigit() character. */
 #define	NO_CH		'n'			/* No. */
 #define	QUIT_CH		'q'			/* Quit. */
 #define	YES_CH		'y'			/* Yes. */
+
 #define	CONFSTRING	"confirm? [ynq]"
 #define	CONTMSG		"Enter return to continue: "
 #define	CONTMSG_I	"Enter return to continue [q to quit]: "
 
 /* Flags describing how input is handled. */
-#define	TXT_AICHARS	0x000001	/* Leading autoindent chars. */
-#define	TXT_ALTWERASE	0x000002	/* Option: altwerase. */
-#define	TXT_APPENDEOL	0x000004	/* Appending after EOL. */
-#define	TXT_AUTOINDENT	0x000008	/* Autoindent set this line. */
-#define	TXT_BEAUTIFY	0x000010	/* Only printable characters. */
-#define	TXT_BS		0x000020	/* Backspace returns the buffer. */
-#define	TXT_CNTRLT	0x000040	/* Control-T is an indent special. */
-#define	TXT_CR		0x000080	/* CR returns the buffer. */
-#define	TXT_EMARK	0x000100	/* End of replacement mark. */
-#define	TXT_ESCAPE	0x000200	/* Escape returns the buffer. */
-#define	TXT_INFOLINE	0x000400	/* Editing the info line. */
-#define	TXT_MAPCOMMAND	0x000800	/* Apply the command map. */
-#define	TXT_MAPINPUT	0x001000	/* Apply the input map. */
-#define	TXT_MAPNODIGIT	0x002000	/* Return to a digit. */
-#define	TXT_NLECHO	0x004000	/* Echo the newline. */
-#define	TXT_OVERWRITE	0x008000	/* Overwrite characters. */
-#define	TXT_PROMPT	0x010000	/* Display a prompt. */
-#define	TXT_RECORD	0x020000	/* Record for replay. */
-#define	TXT_REPLACE	0x040000	/* Replace; don't delete overwrite. */
-#define	TXT_REPLAY	0x080000	/* Replay the last input. */
-#define	TXT_RESOLVE	0x100000	/* Resolve the text into the file. */
-#define	TXT_SHOWMATCH	0x200000	/* Option: showmatch. */
-#define	TXT_TTYWERASE	0x400000	/* Option: ttywerase. */
-#define	TXT_WRAPMARGIN	0x800000	/* Option: wrapmargin. */
-
-#define	TXT_VALID_EX							\
-	(TXT_BEAUTIFY | TXT_CR | TXT_NLECHO | TXT_PROMPT)
+#define	TXT_AICHARS	0x0000001	/* Leading autoindent chars. */
+#define	TXT_ALTWERASE	0x0000002	/* Option: altwerase. */
+#define	TXT_APPENDEOL	0x0000004	/* Appending after EOL. */
+#define	TXT_AUTOINDENT	0x0000008	/* Autoindent set this line. */
+#define	TXT_BEAUTIFY	0x0000010	/* Only printable characters. */
+#define	TXT_BS		0x0000020	/* Backspace returns the buffer. */
+#define	TXT_CNTRLD	0x0000040	/* Control-D is a special command. */
+#define	TXT_CNTRLT	0x0000080	/* Control-T is an indent special. */
+#define	TXT_CR		0x0000100	/* CR returns the buffer. */
+#define	TXT_EMARK	0x0000200	/* End of replacement mark. */
+#define	TXT_ESCAPE	0x0000400	/* Escape returns the buffer. */
+#define	TXT_INFOLINE	0x0000800	/* Editing the info line. */
+#define	TXT_MAPCOMMAND	0x0001000	/* Apply the command map. */
+#define	TXT_MAPINPUT	0x0002000	/* Apply the input map. */
+#define	TXT_MAPNODIGIT	0x0004000	/* Return to a digit. */
+#define	TXT_NLECHO	0x0008000	/* Echo the newline. */
+#define	TXT_OVERWRITE	0x0010000	/* Overwrite characters. */
+#define	TXT_PROMPT	0x0020000	/* Display a prompt. */
+#define	TXT_RECORD	0x0040000	/* Record for replay. */
+#define	TXT_REPLACE	0x0080000	/* Replace; don't delete overwrite. */
+#define	TXT_REPLAY	0x0100000	/* Replay the last input. */
+#define	TXT_RESOLVE	0x0200000	/* Resolve the text into the file. */
+#define	TXT_SHOWMATCH	0x0400000	/* Option: showmatch. */
+#define	TXT_TTYWERASE	0x0800000	/* Option: ttywerase. */
+#define	TXT_WRAPMARGIN	0x1000000	/* Option: wrapmargin. */
 
 /* Support keyboard routines. */
 int		__term_key_val __P((SCR *, ARG_CHAR_T));
 void		term_ab_flush __P((SCR *, char *));
 int		term_init __P((SCR *));
 enum input	term_key __P((SCR *, CH *, u_int));
-int		term_key_ch __P((SCR *, int, CHAR_T *));
 int		term_key_queue __P((SCR *));
 void		term_map_flush __P((SCR *, char *));
 int		term_push __P((SCR *, CHAR_T *, size_t, u_int, u_int));

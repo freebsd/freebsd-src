@@ -2,7 +2,7 @@ Copyright (c) UNIX System Laboratories, Inc.
 All or some portions of this software are derived from
 material licensed to the University of California by
 American Telephone and Telegraph Co. or UNIX System Laboratories, Inc.
-and are reporduced herein with the permission of
+and are reproduced herein with the permission of
 UNIX System Laboratories, Inc.
 
 Additionally, the following files contained herein constitute
@@ -42,4 +42,4 @@ usr.bin/cpio/cpio.c		[*]
      copyright and/or trade secret.
     
 
-$Id: COPYRIGHT.USL,v 1.1.2.1 1994/05/04 06:32:01 rgrimes Exp $
+$Id: COPYRIGHT.USL,v 1.3 1994/05/18 22:53:56 rgrimes Exp $

@@ -1,7 +1,7 @@
 /* tli.c
    Code to handle TLI connections.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char tli_rcsid[] = "$Id: tli.c,v 1.1 1993/08/05 18:22:46 conklin Exp $";
+const char tli_rcsid[] = "$Id: tli.c,v 1.2 1994/05/07 18:09:03 ache Exp $";
 #endif
 
 #if HAVE_TLI
@@ -92,8 +92,10 @@ extern int t_errno;
 extern char *t_errlist[];
 extern int t_nerr;
 
+#ifndef HAVE_TIUSER_H
 #ifndef t_alloc
 extern pointer t_alloc ();
+#endif
 #endif
 
 /* This code handles TLI connections.  It's Unix specific.  It's
@@ -110,7 +112,6 @@ static boolean ftli_close P((struct sconnection *qconn,
 			     pointer puuconf,
 			     struct uuconf_dialer *qdialer,
 			     boolean fsuccess));
-static boolean ftli_reset P((struct sconnection *qconn));
 static boolean ftli_dial P((struct sconnection *qconn, pointer puuconf,
 			    const struct uuconf_system *qsys,
 			    const char *zphone,
@@ -125,7 +126,6 @@ static const struct sconncmds stlicmds =
   NULL, /* pfunlock */
   ftli_open,
   ftli_close,
-  ftli_reset,
   ftli_dial,
   fsysdep_conn_read,
   fsysdep_conn_write,
@@ -149,7 +149,8 @@ ztlierror ()
   return t_errlist[t_errno];
 } 
 
-/* Initialize a TLI connection.  */
+/* Initialize a TLI connection.  This may be called with qconn->qport
+   NULL, when opening standard input as a TLI connection.  */
 
 boolean
 fsysdep_tli_init (qconn)
@@ -159,9 +160,11 @@ fsysdep_tli_init (qconn)
 
   q = (struct ssysdep_conn *) xmalloc (sizeof (struct ssysdep_conn));
   q->o = -1;
+  q->ord = -1;
+  q->owr = -1;
   q->zdevice = NULL;
   q->iflags = -1;
-  q->istdout_flags = -1;
+  q->iwr_flags = -1;
   q->fterminal = FALSE;
   q->ftli = TRUE;
   q->ibaud = 0;
@@ -294,6 +297,10 @@ ftli_open (qconn, ibaud, fwait)
       qsysdep->o = -1;
       return FALSE;
     }
+
+  /* We save our process ID in the qconn structure.  This is checked
+     in ftli_close.  */
+  qsysdep->ipid = getpid ();
 
   /* If we aren't waiting for a connection, we can bind to any local
      address, and then we're finished.  */
@@ -463,23 +470,15 @@ ftli_close (qconn, puuconf, qdialer, fsuccess)
       qsysdep->o = -1;
     }
 
-  return fret;
-}
-
-/* Reset the port.  This will be called by a child which was forked
-   off in ftli_open, above.  We don't want uucico to continue looping
-   and giving login prompts, so we pretend that we received a SIGINT
-   signal.  This should probably be handled more cleanly.  The signal
-   will not be recorded in the log file because we don't set
-   afLog_signal[INDEXSIG_SIGINT].  */
+  /* If the current pid is not the one we used to open the port, then
+     we must have forked up above and we are now the child.  In this
+     case, we are being called from within the fendless loop in
+     uucico.c.  We return FALSE to force the loop to end and the child
+     to exit.  This should be handled in a cleaner fashion.  */
+  if (qsysdep->ipid != getpid ())
+    fret = FALSE;
 
-/*ARGSUSED*/
-static boolean
-ftli_reset (qconn)
-     struct sconnection *qconn;
-{
-  afSignal[INDEXSIG_SIGINT] = TRUE;
-  return TRUE;
+  return fret;
 }
 
 /* Dial out on a TLI port, so to speak: connect to a remote computer.  */
@@ -569,73 +568,12 @@ ftli_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialerfound)
   if (! ftli_push (qconn))
     return FALSE;      
 
-  /* Handle the rest of the dialer sequence.  This is similar to
-     fmodem_dial, and they should, perhaps, be combined somehow.  */
-  if (pzdialer != NULL)
+  /* Handle the rest of the dialer sequence.  */
+  if (pzdialer != NULL && *pzdialer != NULL)
     {
-      boolean ffirst;
-
-      ffirst = TRUE;
-      while (*pzdialer != NULL)
-	{
-	  int iuuconf;
-	  struct uuconf_dialer *q;
-	  struct uuconf_dialer s;
-	  const char *ztoken;
-	  boolean ftranslate;
-
-	  if (! ffirst)
-	    q = &s;
-	  else
-	    q = qdialer;
-
-	  iuuconf = uuconf_dialer_info (puuconf, *pzdialer, q);
-	  if (iuuconf == UUCONF_NOT_FOUND)
-	    {
-	      ulog (LOG_ERROR, "%s: Dialer not found", *pzdialer);
-	      return FALSE;
-	    }
-	  else if (iuuconf != UUCONF_SUCCESS)
-	    {
-	      ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
-	      return FALSE;
-	    }
-
-	  ++pzdialer;
-	  ztoken = *pzdialer;
-
-	  ftranslate = FALSE;
-	  if (ztoken == NULL
-	      || strcmp (ztoken, "\\D") == 0)
-	    ztoken = zphone;
-	  else if (strcmp (ztoken, "\\T") == 0)
-	    {
-	      ztoken = zphone;
-	      ftranslate = TRUE;
-	    }
-
-	  if (! fchat (qconn, puuconf, &q->uuconf_schat,
-		       (const struct uuconf_system *) NULL, q,
-		       zphone, ftranslate, qconn->qport->uuconf_zname,
-		       (long) 0))
-	    {
-	      (void) uuconf_dialer_free (puuconf, q);
-	      if (! ffirst)
-		(void) uuconf_dialer_free (puuconf, qdialer);
-	      return FALSE;
-	    }
-
-	  if (ffirst)
-	    {
-	      *ptdialerfound = DIALERFOUND_FREE;
-	      ffirst = FALSE;
-	    }
-	  else
-	    (void) uuconf_dialer_free (puuconf, q);
-
-	  if (*pzdialer != NULL)
-	    ++pzdialer;
-	}
+      if (! fconn_dial_sequence (qconn, puuconf, pzdialer, qsys, zphone,
+				 qdialer, ptdialerfound))
+	return FALSE;
     }
 
   return TRUE;

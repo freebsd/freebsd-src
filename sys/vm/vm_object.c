@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_object.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_object.c,v 1.21.2.1 1994/03/07 02:22:13 rgrimes Exp $
+ *	$Id: vm_object.c,v 1.25 1994/04/14 07:50:21 davidg Exp $
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -401,7 +401,7 @@ vm_object_terminate(object)
 		VM_PAGE_CHECK(p);
 
 		vm_page_lock_queues();
-		s = vm_disable_intr();
+		s = splimp();
 		if (p->flags & PG_ACTIVE) {
 			queue_remove(&vm_page_queue_active, p, vm_page_t,
 						pageq);
@@ -415,7 +415,7 @@ vm_object_terminate(object)
 			p->flags &= ~PG_INACTIVE;
 			vm_page_inactive_count--;
 		}
-		vm_set_intr(s);
+		splx(s);
 		vm_page_unlock_queues();
 		p = (vm_page_t) queue_next(&p->listq);
 	}
@@ -514,15 +514,7 @@ again:
 				vm_page_deactivate(p);
 
 			if ((p->flags & PG_CLEAN) == 0) {
-				p->flags |= PG_BUSY;
-				object->paging_in_progress++;
-				vm_object_unlock(object);
-				(void) vm_pager_put(object->pager, p, TRUE);
-				vm_object_lock(object);
-				object->paging_in_progress--;
-				if (object->paging_in_progress == 0)
-					wakeup((caddr_t) object);
-				PAGE_WAKEUP(p);
+				vm_pageout_clean(p,1);
 				goto again;
 			}
 		}
@@ -551,7 +543,7 @@ vm_object_deactivate_pages(object)
 		next = (vm_page_t) queue_next(&p->listq);
 		vm_page_lock_queues();
 		if ((p->flags & (PG_INACTIVE|PG_BUSY)) == 0 &&
-			p->wire_count == 0)
+			(p->wire_count == 0 && p->hold_count == 0))
 			vm_page_deactivate(p);	/* optimisation from mach 3.0 -
 						 * andrew@werple.apana.org.au,
 						 * Feb '93
@@ -658,13 +650,13 @@ vm_object_pmap_copy(object, start, end)
 	register vm_page_t	p;
 	vm_offset_t amount;
 
+	if (object == NULL)
+		return;
+
 	start = trunc_page(start);
 	end = round_page(end);
 
 	amount = ((end - start) + PAGE_SIZE - 1) / PAGE_SIZE;
-
-	if (object == NULL)
-		return;
 
 	vm_object_lock(object);
 	p = (vm_page_t) queue_first(&object->memq);

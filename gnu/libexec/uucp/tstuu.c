@@ -1,7 +1,7 @@
 /* tstuu.c
    Test the uucp package on a UNIX system.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char tstuu_rcsid[] = "$Id: tstuu.c,v 1.1 1993/08/05 18:22:27 conklin Exp $";
+const char tstuu_rcsid[] = "$Id: tstuu.c,v 1.2 1994/05/07 18:08:16 ache Exp $";
 #endif
 
 #include "sysdep.h"
@@ -46,7 +46,9 @@ const char tstuu_rcsid[] = "$Id: tstuu.c,v 1.1 1993/08/05 18:22:27 conklin Exp $
 #endif
 
 #if HAVE_SELECT
+#if HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #if HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
@@ -75,8 +77,10 @@ const char tstuu_rcsid[] = "$Id: tstuu.c,v 1.1 1993/08/05 18:22:27 conklin Exp $
 #define O_RDWR 2
 #endif
 
-#if HAVE_TIME_H && (HAVE_SYS_TIME_AND_TIME_H || ! HAVE_SELECT)
+#if HAVE_TIME_H
+#if ! HAVE_SYS_TIME_H || ! HAVE_SELECT || TIME_WITH_SYS_TIME
 #include <time.h>
+#endif
 #endif
 
 #if HAVE_SYS_WAIT_H
@@ -264,7 +268,7 @@ main (argc, argv)
 	  break;
 	default:
 	  fprintf (stderr,
-		   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
+		   "Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
 		   VERSION);
 	  fprintf (stderr,
 		   "Usage: tstuu [-xn] [-t #] [-u] [-1 cmd] [-2 cmd]\n");
@@ -501,6 +505,9 @@ main (argc, argv)
       if (close (oslave1) < 0)
 	perror ("close");
 
+      /* This is said to improve the tests on Linux.  */
+      sleep (3);
+
       if (zDebug != NULL)
 	fprintf (stderr, "About to exec first process\n");
 
@@ -537,6 +544,9 @@ main (argc, argv)
 
       if (close (oslave2) < 0)
 	perror ("close");
+
+      /* This is said to improve the tests on Linux.  */
+      sleep (5);
 
       if (zDebug != NULL)
 	fprintf (stderr, "About to exec second process\n");
@@ -959,14 +969,13 @@ uprepare_test (fmake, itest, fcall_uucico, zsys)
 
       fprintf (e, "port stdin\n");
       fprintf (e, "type stdin\n");
-      fprintf (e, "pty true\n");
 
       xfclose (e);
 
       e = xfopen ("/usr/tmp/tstuu/Call1", "w");
 
       fprintf (e, "Call out password file\n");
-      fprintf (e, "%s test1 pass1\n", zsys);
+      fprintf (e, "%s test1 pass\\s1\n", zsys);
 
       xfclose (e);
 
@@ -1035,7 +1044,7 @@ uprepare_test (fmake, itest, fcall_uucico, zsys)
 	  e = xfopen ("/usr/tmp/tstuu/Pass2", "w");
 
 	  fprintf (e, "# Call in password file\n");
-	  fprintf (e, "test1 pass1\n");
+	  fprintf (e, "test1 pass\\s1\n");
 
 	  xfclose (e);
 	}

@@ -1,3 +1,4 @@
+
 /*
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
@@ -24,7 +25,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.3 1993/10/16 19:11:36 rgrimes Exp $
+ *	$Id: io.c,v 1.6 1994/06/16 03:53:29 adam Exp $
  */
 
 #include <i386/include/pio.h>
@@ -38,10 +39,10 @@
 
 #define KC_CMD_WIN	0xd0		/* read  output port */
 #define KC_CMD_WOUT	0xd1		/* write output port */
-#define KB_A20		0x9f		/* enable A20,
+#define KB_A20		0xdf		/* enable A20,
 					   enable output buffer full interrupt
 					   enable data line
-					   disable clock line */
+					   enable clock line */
 
 /*
  * Gate A20 for high memory
@@ -137,13 +138,24 @@ getchar()
 	return(c);
 }
 
+#if BOOTWAIT
+spinwait(i)
+int i;
+{
+	while (--i >= 0)
+		(void)inb(0x84);
+}
+#endif
+
 gets(buf)
 char *buf;
 {
 	int	i;
 	char *ptr=buf;
 
-	for (i = 240000; i>0; i--)
+#if BOOTWAIT
+	for (i = BOOTWAIT; i>0; spinwait(10000),i--)
+#endif
 		if (ischar())
 			for (;;)
 				switch(*ptr = getchar() & 0xff) {

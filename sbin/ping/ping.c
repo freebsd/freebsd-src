@@ -105,6 +105,12 @@ int options;
 #define	F_SO_DONTROUTE	0x080
 #define	F_VERBOSE	0x100
 
+/* multicast options */
+int moptions;
+#define MULTICAST_NOLOOP	0x001
+#define MULTICAST_TTL		0x002
+#define MULTICAST_IF		0x004
+
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
  * number of received sequence numbers we can keep track of.  Change 128
@@ -149,17 +155,19 @@ main(argc, argv)
 	struct hostent *hp;
 	struct sockaddr_in *to;
 	struct protoent *proto;
-	register int i;
+	struct in_addr ifaddr;
+	int i;
 	int ch, fdmask, hold, packlen, preload;
 	u_char *datap, *packet;
 	char *target, hnamebuf[MAXHOSTNAMELEN], *malloc();
+	u_char ttl, loop;
 #ifdef IP_OPTIONS
 	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
 #endif
 
 	preload = 0;
 	datap = &outpack[8 + sizeof(struct timeval)];
-	while ((ch = getopt(argc, argv, "Rc:dfh:i:l:np:qrs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "I:LRc:dfh:i:l:np:qrs:t:v")) != EOF)
 		switch(ch) {
 		case 'c':
 			npackets = atoi(optarg);
@@ -230,12 +238,40 @@ main(argc, argv)
 		case 'v':
 			options |= F_VERBOSE;
 			break;
+		case 'L':
+			moptions |= MULTICAST_NOLOOP;
+			loop = 0;
+			break;
+		case 't':
+			moptions |= MULTICAST_TTL;
+			i = atoi(optarg);
+			if (i < 0 || i > 255) {
+				printf("ttl %u out of range\n", i);
+				exit(1);
+			}
+			ttl = i;
+			break;
+		case 'I':
+			moptions |= MULTICAST_IF;
+			{
+				int i1, i2, i3, i4;
+
+				if (sscanf(optarg, "%u.%u.%u.%u%c",
+					   &i1, &i2, &i3, &i4, &i) != 4) {
+					printf("bad interface address '%s'\n",
+					       optarg);
+					exit(1);
+				}
+				ifaddr.s_addr = (i1<<24)|(i2<<16)|(i3<<8)|i4;
+				ifaddr.s_addr = htonl(ifaddr.s_addr);
+			}
+			break;
 		default:
 			usage();
 		}
 	argc -= optind;
 	argv += optind;
-
+	
 	if (argc != 1)
 		usage();
 	target = *argv;
@@ -321,6 +357,28 @@ main(argc, argv)
 	hold = 48 * 1024;
 	(void)setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char *)&hold,
 	    sizeof(hold));
+
+	if (moptions & MULTICAST_NOLOOP) {
+		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP,
+							&loop, 1) == -1) {
+			perror ("can't disable multicast loopback");
+			exit(92);
+		}
+	}
+	if (moptions & MULTICAST_TTL) {
+		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL,
+							&ttl, 1) == -1) {
+			perror ("can't set multicast time-to-live");
+			exit(93);
+		}
+	}
+	if (moptions & MULTICAST_IF) {
+		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF,
+					&ifaddr, sizeof(ifaddr)) == -1) {
+			perror ("can't set multicast source interface");
+			exit(94);
+		}
+	}
 
 	if (to->sin_family == AF_INET)
 		(void)printf("PING %s (%s): %d data bytes\n", hostname,
@@ -990,6 +1048,6 @@ fill(bp, patp)
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: ping [-Rdfnqrv] [-c count] [-i wait] [-l preload]\n\t[-p pattern] [-s packetsize] host\n");
+	    "usage: ping [-LRdfnqrv] [-c count] [-i wait] [-l preload]\n\t[-p pattern] [-s packetsize] [-t ttl] [-I interface address] host\n");
 	exit(1);
 }

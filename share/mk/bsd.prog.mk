@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.18 1994/01/31 06:10:37 rgrimes Exp $
+#	$Id: bsd.prog.mk,v 1.28 1994/06/15 10:14:41 ache Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -8,6 +8,10 @@
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
 CFLAGS+=${COPTS}
+.if defined(DESTDIR)
+CFLAGS+= -I${DESTDIR}/usr/include
+CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
+.endif
 
 STRIP?=	-s
 
@@ -15,6 +19,8 @@ BINGRP?=	bin
 BINOWN?=	bin
 BINMODE?=	555
 
+INSTALL?=	install
+.if !defined(DESTDIR)
 LIBCRT0?=	/usr/lib/crt0.o
 LIBC?=		/usr/lib/libc.a
 LIBCOMPAT?=	/usr/lib/libcompat.a
@@ -31,12 +37,38 @@ LIBM?=		/usr/lib/libm.a
 LIBMP?=		/usr/lib/libmp.a
 LIBPC?=		/usr/lib/libpc.a
 LIBPLOT?=	/usr/lib/libplot.a
+LIBREADLINE?=	/usr/lib/libreadline.a
 LIBRESOLV?=	/usr/lib/libresolv.a
 LIBRPCSVC?=	/usr/lib/librpcsvc.a
+LIBSKEY?=	/usr/lib/libskey.a
 LIBTELNET?=	/usr/lib/libtelnet.a
-LIBTERM?=	/usr/lib/libterm.a
+LIBTERM?=       /usr/lib/libtermcap.a
 LIBUTIL?=	/usr/lib/libutil.a
-
+.else
+LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
+LIBC?=		${DESTDIR}/usr/lib/libc.a
+LIBCOMPAT?=	${DESTDIR}/usr/lib/libcompat.a
+LIBCRYPT?=	${DESTDIR}/usr/lib/libcrypt.a
+LIBCURSES?=	${DESTDIR}/usr/lib/libcurses.a
+LIBDBM?=	${DESTDIR}/usr/lib/libdbm.a
+LIBDES?=	${DESTDIR}/usr/lib/libdes.a
+LIBGNUMALLOC?=	${DESTDIR}/usr/lib/libgnumalloc.a
+LIBGNUREGEX?=	${DESTDIR}/usr/lib/libgnuregex.a
+LIBL?=		${DESTDIR}/usr/lib/libl.a
+LIBKDB?=	${DESTDIR}/usr/lib/libkdb.a
+LIBKRB?=	${DESTDIR}/usr/lib/libkrb.a
+LIBM?=		${DESTDIR}/usr/lib/libm.a
+LIBMP?=		${DESTDIR}/usr/lib/libmp.a
+LIBPC?=		${DESTDIR}/usr/lib/libpc.a
+LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a
+LIBREADLINE?=	${DESTDIR}/usr/lib/libreadline.a
+LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a
+LIBRPCSVC?=	${DESTDIR}/usr/lib/librpcsvc.a
+LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
+LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
+LIBTERM?=       ${DESTDIR}/usr/lib/libtermcap.a
+LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
+.endif
 .if defined(NOSHARED)
 LDFLAGS+= -static
 .endif
@@ -55,6 +87,10 @@ CLEANFILES+=strings
 
 .endif
 
+.if defined(DESTDIR)
+LDDESTDIR?=	-L${DESTDIR}/usr/lib
+.endif
+
 .if defined(PROG)
 .if defined(SRCS)
 
@@ -64,12 +100,13 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 .if defined(LDONLY)
 
 ${PROG}: ${LIBCRT0} ${LIBC} ${DPSRCS} ${OBJS} ${DPADD} 
-	${LD} ${LDFLAGS} -o ${.TARGET} ${LIBCRT0} ${OBJS} ${LIBC} ${LDADD}
+	${LD} ${LDFLAGS} -o ${.TARGET} ${LIBCRT0} ${OBJS} ${LIBC} ${LDDESTDR} \
+		${LDADD}
 
 .else defined(LDONLY)
 
 ${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
-	${CC} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
 
 .endif
 
@@ -78,7 +115,8 @@ ${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
 SRCS= ${PROG}.c
 
 ${PROG}: ${DPSRCS} ${SRCS} ${LIBC} ${DPADD}
-	${CC} ${LDFLAGS} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${SRCS} ${LDADD}
+	${CC} ${LDFLAGS} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${SRCS} \
+		${LDDESTDIR} ${LDADD}
 
 MKDEP=	-p
 
@@ -129,7 +167,7 @@ afterinstall:
 
 realinstall: _PROGSUBDIR
 .if defined(PROG)
-	install ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${PROG} ${DESTDIR}${BINDIR}
 .endif
 .if defined(HIDEGAME)

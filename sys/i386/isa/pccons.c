@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
- *	$Id: pccons.c,v 1.13.2.1 1994/05/04 05:09:30 rgrimes Exp $
+ *	$Id: pccons.c,v 1.17 1994/05/30 03:15:09 ache Exp $
  */
 
 /*
@@ -63,7 +63,7 @@
 int pc_xmode;
 #endif /* XSERVER */
 
-struct	tty pccons;
+struct	tty *pccons;
 
 struct	pcconsoftc {
 	char	cs_flags;
@@ -289,13 +289,12 @@ pcopen(dev, flag, mode, p)
 
 	if (minor(dev) != 0)
 		return (ENXIO);
-	tp = &pccons;
+	tp = pccons = ttymalloc(pccons);
 	tp->t_oproc = pcstart;
 	tp->t_param = pcparam;
 	tp->t_dev = dev;
 	openf++;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
-		tp->t_state |= TS_WOPEN;
 		ttychars(tp);
 		tp->t_iflag = TTYDEF_IFLAG;
 		tp->t_oflag = TTYDEF_OFLAG;
@@ -316,8 +315,12 @@ pcclose(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
-	(*linesw[pccons.t_line].l_close)(&pccons, flag);
-	ttyclose(&pccons);
+	(*linesw[pccons->t_line].l_close)(pccons, flag);
+	ttyclose(pccons);
+#ifdef broken /* session holds a ref to the tty; can't deallocate */
+	ttyfree(pccons);
+	pccons = (struct tty *)NULL;
+#endif
 	return(0);
 }
 
@@ -328,7 +331,7 @@ pcread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	return ((*linesw[pccons.t_line].l_read)(&pccons, uio, flag));
+	return ((*linesw[pccons->t_line].l_read)(pccons, uio, flag));
 }
 
 /*ARGSUSED*/
@@ -338,7 +341,7 @@ pcwrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	return ((*linesw[pccons.t_line].l_write)(&pccons, uio, flag));
+	return ((*linesw[pccons->t_line].l_write)(pccons, uio, flag));
 }
 
 /*
@@ -347,10 +350,8 @@ pcwrite(dev, uio, flag)
  * Catch the character, and see who it goes to.
  */
 void
-pcrint(dev, irq, cpl)
-	dev_t dev;
-	int irq;		/* XXX ??? */
-	int cpl;
+pcrint(unit)
+	int unit;
 {
 	int c;
 	char *cp;
@@ -361,7 +362,7 @@ pcrint(dev, irq, cpl)
 	if (pcconsoftc.cs_flags & CSF_POLLING)
 		return;
 #ifdef KDB
-	if (kdbrintr(c, &pccons))
+	if (kdbrintr(c, pccons))
 		return;
 #endif
 	if (!openf)
@@ -369,11 +370,11 @@ pcrint(dev, irq, cpl)
 
 #ifdef XSERVER						/* 15 Aug 92*/
 	/* send at least one character, because cntl-space is a null */
-	(*linesw[pccons.t_line].l_rint)(*cp++ & 0xff, &pccons);
+	(*linesw[pccons->t_line].l_rint)(*cp++ & 0xff, pccons);
 #endif /* XSERVER */
 
 	while (*cp)
-		(*linesw[pccons.t_line].l_rint)(*cp++ & 0xff, &pccons);
+		(*linesw[pccons->t_line].l_rint)(*cp++ & 0xff, pccons);
 }
 
 #ifdef XSERVER						/* 15 Aug 92*/
@@ -389,7 +390,7 @@ pcioctl(dev, cmd, data, flag)
 	caddr_t data;
 	int flag;
 {
-	register struct tty *tp = &pccons;
+	register struct tty *tp = pccons;
 	register error;
 
 #ifdef XSERVER						/* 15 Aug 92*/
@@ -436,12 +437,12 @@ pcxint(dev)
 
 	if (!pcconsintr)
 		return;
-	pccons.t_state &= ~TS_BUSY;
+	pccons->t_state &= ~TS_BUSY;
 	pcconsoftc.cs_timo = 0;
-	if (pccons.t_line)
-		(*linesw[pccons.t_line].l_start)(&pccons);
+	if (pccons->t_line)
+		(*linesw[pccons->t_line].l_start)(pccons);
 	else
-		pcstart(&pccons);
+		pcstart(pccons);
 }
 
 void
@@ -454,20 +455,11 @@ pcstart(tp)
 	if (tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP))
 		goto out;
 	do {
-	if (RB_LEN(&tp->t_out) <= tp->t_lowat) {
-		if (tp->t_state&TS_ASLEEP) {
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t)&tp->t_out);
-		}
-		if (tp->t_wsel) {
-			selwakeup(tp->t_wsel, tp->t_state & TS_WCOLL);
-			tp->t_wsel = 0;
-			tp->t_state &= ~TS_WCOLL;
-		}
-	}
-	if (RB_LEN(&tp->t_out) == 0)
+	if (tp->t_state & (TS_SO_OCOMPLETE | TS_SO_OLOWAT) || tp->t_wsel)
+		ttwwakeup(tp);
+	if (RB_LEN(tp->t_out) == 0)
 		goto out;
-	c = getc(&tp->t_out);
+	c = getc(tp->t_out);
 	tp->t_state |= TS_BUSY;				/* 21 Aug 92*/
 	splx(s);
 	sput(c, 0);
@@ -491,7 +483,7 @@ pccnprobe(cp)
 
 	/* initialize required fields */
 	cp->cn_dev = makedev(maj, 0);
-	cp->cn_tp = &pccons;
+	cp->cn_tp = pccons;
 	cp->cn_pri = CN_INTERNAL;
 }
 
@@ -639,26 +631,13 @@ static u_char shift_down, ctrl_down, alt_down, caps, num, scroll;
 /* translate ANSI color codes to standard pc ones */
 static char fgansitopc[] =
 {	FG_BLACK, FG_RED, FG_GREEN, FG_BROWN, FG_BLUE,
-	FG_MAGENTA, FG_CYAN, FG_LIGHTGREY};
+	FG_MAGENTA, FG_CYAN, FG_LIGHTGREY
+};
 
 static char bgansitopc[] =
 {	BG_BLACK, BG_RED, BG_GREEN, BG_BROWN, BG_BLUE,
-	BG_MAGENTA, BG_CYAN, BG_LIGHTGREY};
-
-static void move_up(u_short *s, u_short *d, u_int len)
-{
-	s += len;
-	d += len;
-	while (len-- > 0)
-		*--d = *--s;
-}
-
-
-static void move_down(u_short *s, u_short *d, u_int len)
-{
-	while (len-- > 0)
-		*d++ = *s++;
-}
+	BG_MAGENTA, BG_CYAN, BG_LIGHTGREY
+};
 
 /*
  *   sput has support for emulation of the 'pc3' termcap entry.
@@ -872,7 +851,7 @@ sput(c,  ka)
 					posy = (crtat - Crtat) / vs.ncol;
 					if (vs.cx > posy)
 						vs.cx = posy;
-					bcopy(Crtat+vs.ncol*vs.cx, Crtat, vs.ncol*(vs.nrow-vs.cx)*CHR);
+					bcopyw(Crtat+vs.ncol*vs.cx, Crtat, vs.ncol*(vs.nrow-vs.cx)*CHR);
 					fillw((at <<8)+' ',
 						(Crtat + vs.ncol * (vs.nrow - vs.cx)),
 						vs.ncol * vs.cx);
@@ -884,7 +863,7 @@ sput(c,  ka)
 					posy = (crtat - Crtat) / vs.ncol;
 					if (vs.cx > vs.nrow - posy)
 						vs.cx = vs.nrow - posy;
-					bcopy(Crtat, Crtat+vs.ncol*vs.cx, vs.ncol*(vs.nrow-vs.cx)*CHR);
+					bcopyw(Crtat, Crtat+vs.ncol*vs.cx, vs.ncol*(vs.nrow-vs.cx)*CHR);
 					fillw((at <<8)+' ', Crtat, vs.ncol*vs.cx);
 					/* crtat += vs.ncol*vs.cx;*/ /* XXX */
 					vs.esc = 0; vs.ebrac = 0; vs.eparm = 0;
@@ -897,7 +876,7 @@ sput(c,  ka)
 					src = Crtat + posy * vs.ncol;
 					dst = src + vs.cx * vs.ncol;
 					count = vs.nrow - (posy + vs.cx);
-					move_up(src, dst, count * vs.ncol);
+					bcopyw(src, dst, count * vs.ncol * CHR);
 					fillw((at <<8)+' ', src, vs.cx * vs.ncol);
 					vs.esc = 0; vs.ebrac = 0; vs.eparm = 0;
 					break;
@@ -909,7 +888,7 @@ sput(c,  ka)
 					dst = Crtat + posy * vs.ncol;
 					src = dst + vs.cx * vs.ncol;
 					count = vs.nrow - (posy + vs.cx);
-					move_down(src, dst, count * vs.ncol);
+					bcopyw(src, dst, count * vs.ncol * CHR);
 					src = dst + count * vs.ncol;
 					fillw((at <<8)+' ', src, vs.cx * vs.ncol);
 					vs.esc = 0; vs.ebrac = 0; vs.eparm = 0;
@@ -999,7 +978,7 @@ sput(c,  ka)
 	}
 	if (sc && crtat >= Crtat+vs.ncol*vs.nrow) { /* scroll check */
 		if (openf) do (void)sgetc(1); while (scroll);
-		bcopy(Crtat+vs.ncol, Crtat, vs.ncol*(vs.nrow-1)*CHR);
+		bcopyw(Crtat+vs.ncol, Crtat, vs.ncol*(vs.nrow-1)*CHR);
 		fillw ((at << 8) + ' ', Crtat + vs.ncol*(vs.nrow-1),
 			vs.ncol);
 		crtat -= vs.ncol;
@@ -1557,6 +1536,12 @@ loop:
 #endif /* !XSERVER*/
 	}
 
+	/*
+	 *   Check for cntl-alt-del
+	 */
+	if ((dt == 83) && ctrl_down && alt_down)
+		cpu_reset();
+
 #include "ddb.h"
 #if NDDB > 0
 	/*
@@ -1564,7 +1549,7 @@ loop:
 	 */
 	if ((dt == 1) && ctrl_down && alt_down) {
 		Debugger("manual escape to debugger");
-		dt |= 0x80;	/* discard esc (ddb discarded ctrl-alt) */
+		goto loop;
 	}
 #endif
 
@@ -1797,7 +1782,7 @@ void cons_normal()
 
 int pcmmap(dev_t dev, int offset, int nprot)
 {
-	if (offset > 0x20000)
+	if (offset > 0x20000 - PAGE_SIZE)
 		return -1;
 	return i386_btop((0xa0000 + offset));
 }

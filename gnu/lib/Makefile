@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.1 1994/01/30 01:03:08 rgrimes Exp $
+#	$Id: Makefile,v 1.2 1994/05/09 16:11:10 ache Exp $
 
-SUBDIR=	libg++ libmalloc libregex
+SUBDIR= libg++ libmalloc libregex libreadline
 
 .include <bsd.subdir.mk>

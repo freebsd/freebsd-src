@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)route.c	7.22 (Berkeley) 6/27/91
- *	$Id: route.c,v 1.5.2.1 1994/03/24 07:42:12 rgrimes Exp $
+ *	$Id: route.c,v 1.6 1994/03/22 02:02:25 davidg Exp $
  */
 
 #include "param.h"

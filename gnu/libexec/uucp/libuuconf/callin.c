@@ -1,7 +1,7 @@
 /* callin.c
    Check a login name and password against the UUCP password file.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,35 +20,46 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_callin_rcsid[] = "$Id: callin.c,v 1.1 1993/08/05 18:25:04 conklin Exp $";
+const char _uuconf_callin_rcsid[] = "$Id: callin.c,v 1.2 1994/05/07 18:11:58 ache Exp $";
 #endif
 
 #include <errno.h>
 
-static int iplogin P((pointer pglobal, int argc, char **argv,
+static int ipcheck P((pointer pglobal, int argc, char **argv,
 		      pointer pvar, pointer pinfo));
+
+struct sinfo
+{
+  int (*pcmpfn) P((int, pointer, const char *));
+  pointer pinfo;
+  boolean ffound;
+  boolean fmatched;
+};
 
 /* Check a login name and password against the UUCP password file.
    This looks at the Taylor UUCP password file, but will work even if
-   uuconf_taylor_init was not called.  */
+   uuconf_taylor_init was not called.  It accepts either spaces or
+   colons as field delimiters.  */
 
 int
-uuconf_callin (pglobal, zlogin, zpassword)
+uuconf_callin (pglobal, pcmpfn, pinfo)
      pointer pglobal;
-     const char *zlogin;
-     const char *zpassword;
+     int (*pcmpfn) P((int, pointer, const char *));
+     pointer pinfo;
 {
   struct sglobal *qglobal = (struct sglobal *) pglobal;
   int iret;
   char **pz;
-  struct uuconf_cmdtab as[2];
-  char *zfilepass;
+  struct uuconf_cmdtab as[1];
+  struct sinfo s;
+  char *zline;
+  size_t cline;
 
   /* If we have no password file names, fill in the default name.  */
   if (qglobal->qprocess->pzpwdfiles == NULL)
@@ -66,14 +77,15 @@ uuconf_callin (pglobal, zlogin, zpassword)
 	return iret;
     }
 
-  as[0].uuconf_zcmd = zlogin;
-  as[0].uuconf_itype = UUCONF_CMDTABTYPE_FN | 2;
-  as[0].uuconf_pvar = (pointer) &zfilepass;
-  as[0].uuconf_pifn = iplogin;
+  as[0].uuconf_zcmd = NULL;
 
-  as[1].uuconf_zcmd = NULL;
+  s.pcmpfn = pcmpfn;
+  s.pinfo = pinfo;
+  s.ffound = FALSE;
+  s.fmatched = FALSE;
 
-  zfilepass = NULL;
+  zline = NULL;
+  cline = 0;
 
   iret = UUCONF_SUCCESS;
 
@@ -91,52 +103,82 @@ uuconf_callin (pglobal, zlogin, zpassword)
 	  break;
 	}
 
-      iret = uuconf_cmd_file (pglobal, e, as, (pointer) NULL,
-			      (uuconf_cmdtabfn) NULL,
-			      UUCONF_CMDTABFLAG_CASE, (pointer) NULL);
+      qglobal->ilineno = 0;
+
+      iret = UUCONF_SUCCESS;
+
+      while (getline (&zline, &cline, e) > 0)
+	{
+	  char *zcolon;
+
+	  ++qglobal->ilineno;
+
+	  /* Turn the first two colon characters into spaces.  This is
+	     a hack to make Unix style passwd files work.  */
+	  zcolon = strchr (zline, ':');
+	  if (zcolon != NULL)
+	    {
+	      *zcolon = ' ';
+	      zcolon = strchr (zcolon, ':');
+	      if (zcolon != NULL)
+		*zcolon = ' ';
+	    }		  
+	  iret = uuconf_cmd_line (pglobal, zline, as, (pointer) &s,
+				  ipcheck, 0, (pointer) NULL);
+	  if ((iret & UUCONF_CMDTABRET_EXIT) != 0)
+	    {
+	      iret &=~ UUCONF_CMDTABRET_EXIT;
+	      if (iret != UUCONF_SUCCESS)
+		iret |= UUCONF_ERROR_LINENO;
+	      break;
+	    }
+
+	  iret = UUCONF_SUCCESS;
+	}
+
       (void) fclose (e);
 
-      if (iret != UUCONF_SUCCESS || zfilepass != NULL)
+      if (iret != UUCONF_SUCCESS || s.ffound)
 	break;
     }
+
+  if (zline != NULL)
+    free ((pointer) zline);
 
   if (iret != UUCONF_SUCCESS)
     {
       qglobal->zfilename = *pz;
       iret |= UUCONF_ERROR_FILENAME;
     }
-  else if (zfilepass == NULL
-	   || strcmp (zfilepass, zpassword) != 0)
+  else if (! s.ffound || ! s.fmatched)
     iret = UUCONF_NOT_FOUND;
-
-  if (zfilepass != NULL)
-    free ((pointer) zfilepass);
 
   return iret;
 }
 
-/* This is called if it is the name we are looking for.  The pvar
-   argument points to zfilepass, and we set it to the password.  */
+/* This is called on each line of the file.  It checks to see if the
+   login name from the file is the one we are looking for.  If it is,
+   it sets ffound, and then sets fmatched according to whether the
+   password matches or not.  */
 
 static int
-iplogin (pglobal, argc, argv, pvar, pinfo)
+ipcheck (pglobal, argc, argv, pvar, pinfo)
      pointer pglobal;
      int argc;
      char **argv;
      pointer pvar;
      pointer pinfo;
 {
-  struct sglobal *qglobal = (struct sglobal *) pglobal;
-  char **pzpass = (char **) pvar;
+  struct sinfo *q = (struct sinfo *) pinfo;
 
-  *pzpass = strdup (argv[1]);
-  if (*pzpass == NULL)
-    {
-      qglobal->ierrno = errno;
-      return (UUCONF_MALLOC_FAILED
-	      | UUCONF_ERROR_ERRNO
-	      | UUCONF_CMDTABRET_EXIT);
-    }
+  if (argc != 2)
+    return UUCONF_SYNTAX_ERROR | UUCONF_CMDTABRET_EXIT;
+
+  if (! (*q->pcmpfn) (0, q->pinfo, argv[0]))
+    return UUCONF_CMDTABRET_CONTINUE;
+
+  q->ffound = TRUE;
+  q->fmatched = (*q->pcmpfn) (1, q->pinfo, argv[1]) != 0;
 
   return UUCONF_CMDTABRET_EXIT;
 }

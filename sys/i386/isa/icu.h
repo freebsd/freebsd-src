@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.2 1993/10/16 13:45:51 rgrimes Exp $
+ *	$Id: icu.h,v 1.3 1994/04/02 07:00:40 davidg Exp $
  */
 
 /*
@@ -51,12 +51,6 @@
  * Interrupt "level" mechanism variables, masks, and macros
  */
 extern	unsigned imen;		/* interrupt mask enable */
-extern	unsigned cpl;		/* current priority level mask */
-
-extern	unsigned highmask;	/* group of interrupts masked with splhigh() */
-extern	unsigned ttymask;	/* group of interrupts masked with spltty() */
-extern	unsigned biomask;	/* group of interrupts masked with splbio() */
-extern	unsigned netmask;	/* group of interrupts masked with splimp() */
 
 #define	INTREN(s)	(imen &= ~(s), SET_ICUS())
 #define	INTRDIS(s)	(imen |= (s), SET_ICUS())
@@ -74,7 +68,7 @@ extern	unsigned netmask;	/* group of interrupts masked with splimp() */
 #endif
 
 /*
- * Interrupt enable bits -- in order of priority
+ * Interrupt enable bits - in normal order of priority (which we change)
  */
 #define	IRQ0		0x0001		/* highest priority - timer */
 #define	IRQ1		0x0002
@@ -88,7 +82,7 @@ extern	unsigned netmask;	/* group of interrupts masked with splimp() */
 #define	IRQ13		0x2000
 #define	IRQ14		0x4000
 #define	IRQ15		0x8000
-#define	IRQ3		0x0008
+#define	IRQ3		0x0008		/* this is highest after rotation */
 #define	IRQ4		0x0010
 #define	IRQ5		0x0020
 #define	IRQ6		0x0040

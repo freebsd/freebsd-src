@@ -35,11 +35,16 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)gets.c	5.3 (Berkeley) 1/20/91";
+static char sccsid[] = "From: @(#)gets.c	5.3 (Berkeley) 1/20/91";
+static char rcsid[] = 
+	"$Id: gets.c,v 1.3 1994/04/23 20:35:27 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
+
+#define MESSAGE ": warning: this program uses gets(), which is unsafe.\r\n"
 
 char *
 gets(buf)
@@ -48,11 +53,11 @@ gets(buf)
 	register int c;
 	register char *s;
 	static int warned;
-	static char w[] =
-	    "warning: this program uses gets(), which is unsafe.\r\n";
 
 	if (!warned) {
-		(void) write(STDERR_FILENO, w, sizeof(w) - 1);
+		extern char *__progname;
+		write(2, __progname, strlen(__progname));
+		write(2, MESSAGE, sizeof(MESSAGE) - 1);
 		warned = 1;
 	}
 	for (s = buf; (c = getchar()) != '\n';)

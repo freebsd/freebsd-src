@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,21 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sex_refresh.c	8.5 (Berkeley) 11/18/93";
+static char sccsid[] = "@(#)sex_refresh.c	8.6 (Berkeley) 3/8/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <queue.h>
+#include <sys/time.h>
+
+#include <bitstring.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <termios.h>
+
+#include <db.h>
+#include <regex.h>
 
 #include "vi.h"
 #include "sex_screen.h"

@@ -186,8 +186,6 @@ extern char *getenv ();
 extern FILE *fdopen ();
 extern char *version_string;
 extern struct tm *localtime ();
-extern int sys_nerr;
-extern char *sys_errlist[];
 
 #ifndef errno
 extern int errno;

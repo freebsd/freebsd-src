@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tty_conf.c	7.6 (Berkeley) 5/9/91
- *	$Id: tty_conf.c,v 1.6.2.1 1994/05/04 07:54:52 rgrimes Exp $
+ *	$Id: tty_conf.c,v 1.9 1994/05/30 03:23:14 ache Exp $
  */
 
 #include "param.h"
@@ -85,14 +85,14 @@ struct	linesw linesw[] =
 
 #if NTB > 0
 	tbopen, tbclose, tbread, IE(enodev), tbioctl,
-	tbinput, enodev, nullop, ttstart, nullmodem,	/* 3- TABLDISC */
+	tbinput, enodev, nullop, ttstart, ttymodem,	/* 3- TABLDISC */
 #else
 	IE(enodev), VE(enodev), IE(enodev), IE(enodev), IE(enodev),
 	VE(enodev), IE(enodev), IE(enodev), VE(enodev), IE(enodev),
 #endif
 #if NSL > 0
 	slopen, VE(slclose), IE(enodev), IE(enodev), sltioctl,
-	VE(slinput), enodev, nullop, VE(slstart), nullmodem, /* 4- SLIPDISC */
+	VE(slinput), enodev, nullop, VE(slstart), ttymodem, /* 4- SLIPDISC */
 #else
 	IE(enodev), VE(enodev), IE(enodev), IE(enodev), IE(enodev),
 	VE(enodev), IE(enodev), IE(enodev), VE(enodev), IE(enodev),

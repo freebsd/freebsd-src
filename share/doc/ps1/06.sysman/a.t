@@ -86,10 +86,10 @@ madvise\(dg	give memory management advice
 mincore\(dg	determine core residency of pages
 msleep\(dg	sleep on a lock
 mwakeup\(dg	wakeup process sleeping on a lock
+.TE
 .FS
 \(dg Not supported in 4.3BSD.
 .FE
-.TE
 .in -5
 .h 1.3 "Signals
 .in +5
@@ -128,10 +128,10 @@ close	close descriptor
 select	multiplex input/output
 fcntl	control descriptor options
 wrap\(dg	wrap descriptor with protocol
+.TE
 .FS
 \(dg Not supported in 4.3BSD.
 .FE
-.TE
 .in -5
 .h 1.6 "Resource controls
 .in +5

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: shlib.c,v 1.8 1994/02/13 20:41:43 jkh Exp $
+ *	$Id: shlib.c,v 1.9 1994/06/15 22:39:54 rich Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <err.h>
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
@@ -53,7 +54,7 @@ char	*strsep();
  * Standard directories to search for files specified by -l.
  */
 #ifndef STANDARD_SEARCH_DIRS
-#define	STANDARD_SEARCH_DIRS	"/usr/lib", "/usr/X386/lib", "/usr/local/lib"
+#define	STANDARD_SEARCH_DIRS	"/usr/lib", "/usr/X11R6/lib", "/usr/X386/lib", "/usr/local/lib"
 #endif
 
 /*
@@ -73,25 +74,32 @@ add_search_dir(name)
 	char	*name;
 {
 	n_search_dirs++;
-	search_dirs = (char **)xrealloc(search_dirs,
-				n_search_dirs * sizeof(char *));
+	search_dirs = (char **)
+		xrealloc(search_dirs, n_search_dirs * sizeof(char *));
 	search_dirs[n_search_dirs - 1] = strdup(name);
 }
 
 void
-std_search_dirs(paths)
-char	*paths;
+add_search_path(path)
+char	*path;
 {
-	char	*cp;
-	int	i, n;
+	register char	*cp;
 
-	if (paths != NULL)
+	if (path == NULL)
+		return;
+
 		/* Add search directories from `paths' */
-		while ((cp = strsep(&paths, ":")) != NULL) {
+	while ((cp = strsep(&path, ":")) != NULL) {
 			add_search_dir(cp);
-			if (paths)
-				*(paths-1) = ':';
+		if (path)
+			*(path-1) = ':';
 		}
+}
+
+void
+std_search_path()
+{
+	int	i, n;
 
 	/* Append standard search directories */
 	n = sizeof standard_search_dirs / sizeof standard_search_dirs[0];
@@ -137,7 +145,7 @@ cmpndewey(d1, n1, d2, n2)
 int	d1[], d2[];
 int	n1, n2;
 {
-	int	i;
+	register int	i;
 
 	for (i = 0; i < n1 && i < n2; i++) {
 		if (d1[i] < d2[i])
@@ -154,6 +162,9 @@ int	n1, n2;
 
 	if (i == n2)
 		return 1;
+
+	errx(1, "cmpndewey: cant happen");
+	return 0;
 }
 
 /*
@@ -200,7 +211,7 @@ int	do_dot_a;
 			continue;
 
 		while ((dp = readdir(dd)) != NULL) {
-			int	n, j, might_take_it = 0;
+			int	n, might_take_it = 0;
 
 			if (do_dot_a && path == NULL &&
 					dp->d_namlen == len + 2 &&

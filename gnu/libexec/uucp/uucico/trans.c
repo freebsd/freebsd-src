@@ -1,7 +1,7 @@
 /* trans.c
    Routines to handle file transfers.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char trans_rcsid[] = "$Id: trans.c,v 1.1 1993/08/05 18:27:21 conklin Exp $";
+const char trans_rcsid[] = "$Id: trans.c,v 1.2 1994/05/07 18:13:59 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -233,7 +233,39 @@ fqueue_send (qdaemon, qtrans)
     ulog (LOG_FATAL, "fqueue_send: Bad call");
 #endif
   utdequeue (qtrans);
-  utqueue (&qTsend, qtrans, FALSE);
+
+  /* Sort the send queue to always send commands before files, and to
+     sort jobs by grade.  */
+  if (qTsend == NULL)
+    utqueue (&qTsend, qtrans, FALSE);
+  else
+    {
+      register struct stransfer *q;
+      boolean ffirst;
+
+      ffirst = TRUE;
+      q = qTsend;
+      do
+	{
+	  if (! qtrans->fsendfile && q->fsendfile)
+	    break;
+	  if ((! qtrans->fsendfile || q->fsendfile)
+	      && UUCONF_GRADE_CMP (qtrans->s.bgrade, q->s.bgrade) < 0)
+	    break;
+
+	  ffirst = FALSE;
+	  q = q->qnext;
+	}
+      while (q != qTsend);
+
+      qtrans->qnext = q;
+      qtrans->qprev = q->qprev;
+      q->qprev = qtrans;
+      qtrans->qprev->qnext = qtrans;
+      if (ffirst)
+	qTsend = qtrans;
+      qtrans->pqqueue = &qTsend;
+    }
 
   /* Since we're now going to wait to send data, don't charge this
      transfer for receive time.  */
@@ -273,7 +305,7 @@ utchanalc (qdaemon, qtrans)
   do
     {
       ++iTchan;
-      if (iTchan > qdaemon->qproto->cchans)
+      if (iTchan > qdaemon->cchans)
 	iTchan = 1;
     }
   while (aqTchan[iTchan] != NULL);
@@ -388,6 +420,7 @@ utransfree (q)
     }
 
 #if DEBUG > 0
+  q->e = EFILECLOSED;
   q->zcmd = NULL;
   q->s.zfrom = NULL;
   q->s.zto = NULL;
@@ -625,18 +658,12 @@ static boolean
 fcheck_queue (qdaemon)
      struct sdaemon *qdaemon;
 {
-  int cchans;
-
   /* Only check if we are the master, or if there are multiple
      channels, or if we aren't already trying to get the other side to
      hang up.  Otherwise, there's nothing we can do with any new jobs
      we might find.  */
-  if ((qdaemon->ireliable & UUCONF_RELIABLE_FULLDUPLEX) == 0)
-    cchans = 1;
-  else
-    cchans = qdaemon->qproto->cchans;
   if (qdaemon->fmaster
-      || cchans > 1
+      || qdaemon->cchans > 1
       || ! qdaemon->frequest_hangup)
     {
       boolean fany;
@@ -649,7 +676,7 @@ fcheck_queue (qdaemon)
       /* If we found something to do, and we're not the master, and we
 	 don't have multiple channels to send new jobs over, try to
 	 get the other side to hang up.  */
-      if (fany && ! qdaemon->fmaster && cchans <= 1)
+      if (fany && ! qdaemon->fmaster && qdaemon->cchans <= 1)
 	qdaemon->frequest_hangup = TRUE;
     }
 
@@ -663,16 +690,7 @@ boolean
 floop (qdaemon)
      struct sdaemon *qdaemon;
 {
-  int cchans;
   boolean fret;
-
-  /* If we are using a half-duplex line, act as though we have only a
-     single channel; otherwise we might start a send and a receive at
-     the same time.  */
-  if ((qdaemon->ireliable & UUCONF_RELIABLE_FULLDUPLEX) == 0)
-    cchans = 1;
-  else
-    cchans = qdaemon->qproto->cchans;
 
   fret = TRUE;
 
@@ -759,9 +777,9 @@ floop (qdaemon)
 
       /* If we are the master, or if we have multiple channels, try to
 	 queue up additional local jobs.  */
-      if (qdaemon->fmaster || cchans > 1)
+      if (qdaemon->fmaster || qdaemon->cchans > 1)
 	{
-	  while (qTlocal != NULL && cTchans < cchans)
+	  while (qTlocal != NULL && cTchans < qdaemon->cchans)
 	    {
 	      /* We have room for an additional channel.  */
 	      q = qTlocal;
@@ -821,11 +839,14 @@ floop (qdaemon)
 		  q->zlog = NULL;
 		}
 
-	      /* We can read the file in a tight loop until qTremote
-		 changes or until we have transferred the entire file.
-		 We can disregard any changes to qTlocal since we
-		 already have something to send anyhow.  */
-	      while (qTremote == NULL)
+	      /* We can read the file in a tight loop until we have a
+		 command to send, or the file send has been cancelled,
+		 or we have a remote job to deal with.  We can
+		 disregard any changes to qTlocal since we already
+		 have something to send anyhow.  */
+	      while (q == qTsend
+		     && q->fsendfile
+		     && qTremote == NULL)
 		{
 		  char *zdata;
 		  size_t cdata;
@@ -864,11 +885,6 @@ floop (qdaemon)
 		      fret = FALSE;
 		      break;
 		    }
-
-		  /* It is possible that this transfer has just been
-		     cancelled.  */
-		  if (q != qTsend || ! q->fsendfile)
-		    break;
 
 		  if (cdata == 0)
 		    {
@@ -978,7 +994,6 @@ fgot_data (qdaemon, zfirst, cfirst, zsecond, csecond, ilocal, iremote, ipos,
   else
     {
       /* Get the transfer structure this data is intended for.  */
-
       q = qtchan (ilocal);
     }
 
@@ -1014,7 +1029,8 @@ fgot_data (qdaemon, zfirst, cfirst, zsecond, csecond, ilocal, iremote, ipos,
 	  else
 	    cnew = cfirst;
 	  znew = zbufalc (q->ccmd + cnew + 1);
-	  memcpy (znew, q->zcmd, q->ccmd);
+	  if (q->ccmd > 0)
+	    memcpy (znew, q->zcmd, q->ccmd);
 	  memcpy (znew + q->ccmd, zfirst, cnew);
 	  znew[q->ccmd + cnew] = '\0';
 	  ubuffree (q->zcmd);
@@ -1206,6 +1222,12 @@ ftadd_cmd (qdaemon, z, clen, iremote, flast)
       return TRUE;
     }
 
+  /* Some systems seem to sometimes send garbage at the end of the
+     command.  Avoid interpreting it as a size if sizes are not
+     supported.  */
+  if ((qdaemon->ifeatures & FEATURE_SIZES) == 0)
+    s.cbytes = -1;
+
   if (s.bcmd != 'H' && s.bcmd != 'Y' && s.bcmd != 'N')
     ulog_user (s.zuser);
   else
@@ -1391,9 +1413,15 @@ ufailed (qdaemon)
 	{
 	  if ((q->fsendfile || q->frecfile)
 	      && q->cbytes > 0)
-	    ustats (FALSE, q->s.zuser, qdaemon->qsys->uuconf_zname,
-		    q->fsendfile, q->cbytes, q->isecs, q->imicros,
-		    FALSE);
+	    {
+	      ustats (FALSE, q->s.zuser, qdaemon->qsys->uuconf_zname,
+		      q->fsendfile, q->cbytes, q->isecs, q->imicros,
+		      FALSE);
+	      if (q->fsendfile)
+		qdaemon->csent += q->cbytes;
+	      else
+		qdaemon->creceived += q->cbytes;
+	    }
 	  if (q->frecfile)
 	    (void) frec_discard_temp (qdaemon, q);
 	  q = q->qnext;
@@ -1408,9 +1436,15 @@ ufailed (qdaemon)
 	{
 	  if ((q->fsendfile || q->frecfile)
 	      && q->cbytes > 0)
-	    ustats (FALSE, q->s.zuser, qdaemon->qsys->uuconf_zname,
-		    q->fsendfile, q->cbytes, q->isecs, q->imicros,
-		    FALSE);
+	    {
+	      ustats (FALSE, q->s.zuser, qdaemon->qsys->uuconf_zname,
+		      q->fsendfile, q->cbytes, q->isecs, q->imicros,
+		      FALSE);
+	      if (q->fsendfile)
+		qdaemon->csent += q->cbytes;
+	      else
+		qdaemon->creceived += q->cbytes;
+	    }
 	  if (q->frecfile)
 	    (void) frec_discard_temp (qdaemon, q);
 	  q = q->qnext;

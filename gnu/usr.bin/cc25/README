@@ -1,0 +1,209 @@
+ ----------------------------------------------------------------------------
+ "THE BEER-WARE LICENSE" (Revision 42):
+ <phk@login.dkuug.dk> wrote this file.  As long as you retain this notice you
+ can do whatever you want with this stuff. If we meet some day, and you think
+ this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+ ----------------------------------------------------------------------------
+
+ $Id: README,v 1.2 1994/02/27 21:42:34 phk Exp $
+
+"If you're looking for trouble, 
+ you've come to the right place !"
+			The King.
+
+(I have taken the time to rewrite the README.  It had become a proper mess,
+just like any other workspace of mine.)
+
+What is this ?  
+--------------
+My intention is that this will be the link between the GNU-release of GCC,
+and the FreeBSD integrated version of GCC.  The problem^H^H^H^H^H^Hchallenge
+is that FreeBSD uses BSD style Makefiles, whereas GNU uses their own scheme.
+Thus, everytime GNU adds a file, changes a flag and so on, we have to find
+out what consequences this should have for the FreeBSD Makefiles.  This 
+stuff, should make that process easier, and reproducible.
+
+The next challenge^H^H^H^H^H^H^H^H^Hproblem is that we need some modifications
+to the GNU source.  For instance: we use gcc to compile FORTRAN via f2c, so
+we need to add the rules for that to gcc.c.
+
+In case you have ever wondered about what "dark runes" was, this is that.
+
+Overview:
+---------
+When a new release of GCC is to be brought into FreeBSD, this is what must
+be done:
+
+	- modify gnu2bsd.tcl as needed, until the resulting FreeBSD-tree
+	  is compilable.  It may not yet be correct, but it must be compilable.
+	- patch the GNU-tree as needed until the compiler generated from
+	  the BSD-tree is correct.
+
+I think this will be the simplest way to do the second part:
+
+	- Run a virgin GNU-gcc-(N) through gnu2bsd.tcl.
+	- Create a patch from this to the patched FreeBSD-gcc-(N).
+	- Run a virgin GNU-gcc-(N+a) through gnu2bsd.tcl
+	- Apply as much of the above patch as makes sense.
+	- Twiddle until it works.
+	- Submit the needed patches to the GNU people, to avoid
+	  needless diversion from their base.
+
+It is of course clear from the above, that unless you feel that you are
+sure why you need to do this, you shouldn't do it.  There is some very
+interesting ways this can hose your system.  Don't tell me I didn't
+warn you.
+
+Installation:
+-------------
+
+    0. Needed ingredients:
+    ======================
+	bison and tcl.
+
+    1. Create a emergency ready copy of your old gcc.
+    =================================================
+	Move the old compiler to a safe place
+		mv /usr/src/gnu/usr.bin/cc /usr/src/gnu/usr.bin/cc.old
+	for instance. 
+
+	cd into the directory of the old compiler, and do:
+		find . -name 'obj' -exec rm -f {} \;
+		make clean all
+	
+	It is necessary to remove the 'obj' sym-links, as a make world
+	is likely to remove the stuff they point at.  Doing it this way
+	you can, in case you hose the installed c-compiler, go down here
+	and do a 
+		make install
+	and things should work for you again.
+
+    2. Create the foundations for a new gcc.
+    ========================================
+	Create a new directory /usr/src/gnu/usr.bin/cc  The name can
+	be anything you like actually, but some Makefiles "know" this place.
+	This directory is $BSDDIR in the rest of this instruction.
+	
+	Copy the usr.bin.cpp and usr.bin.f77 with contents to $BSDDIR from
+	somewhere, either they came with this stuff, or you can take it
+	from the old cc on your system.
+
+	Copy Makefile and gnu2bsd.tcl also, and if any gcc???-freebsd.patch
+	files are there, you should copy those along too.  This file (README)
+	will be nice to have too.
+
+    3. Install a GNU-release of GCC somewhere.
+    ==========================================
+	This can be anywhere you have the necesary disk-space. ($GNUDIR)
+
+	Apply patches to the GNU-dist.  If any of the gcc???-freebsd.patch
+	has the same version as the GCC you're installing, use that, if you
+	are installing a newer version of gcc, you're a bit on your own.  Try
+	the most recent of the gcc???-freebsd.patch files, and prepare for
+	some work.
+
+    4. Create the BSD-tree from the GNU-tree
+    ========================================
+	Edit gnu2bsd.tcl so that the various "TWEAKS" are right.  If this is
+	a new version of GCC, all bets are off, and you might need to modify
+	in the main-part of the script too.
+
+	And now, the great moment: 
+		cd $GNUDIR
+		configure
+		make realclean
+		configure
+		cd $BSDDIR
+		tclsh gnu2bsd.tcl
+
+    5. Bootstrap the new compiler
+    =============================
+
+	cd $BSDDIR
+	make clean obj clean depend
+	make -k ; make -k install
+	    # The first make might fail on libgcc for instance,
+	    # install the bits which was OK.
+	make clean all install
+	    # this should succeed.
+	make clean all install
+	    # Now things should be A1-OK.
+
+History:
+--------
+
+199402272230
+	Received blessed patch for the ((packed)) problem from GNU.
+
+199402211500 (v5):
+
+	Got more patches from Richard to expmed.c, not quite right yet.
+
+	Tried to make a patch from 245 to 258 (FreeBSD-style directories),
+	uncompressed size: 4.4 Mb (the whole 258 is 10Mb).  This actually
+	resolves my doubts about the renaming of 'lib' to 'gcc_int' &c &c.
+	We save nothing really by trying to make a patch.
+	
+	I think that we should move from src/gnu/usr.bin/cc to
+	src/gnu/usr.bin/cc25 (and so on) to facilitate testing.
+
+	People tell me that usr.bin.cpp usr.bin.f77 should stay as
+	subdirs of gcc.  OK, I don't really care...
+
+	Added %{Z} to gcc.c as per patch to -current.
+
+	README rewritten.
+	
+revision: 199402140030 (v4)
+
+	Added the same patch to expmed.c for reading bit-fields.
+
+	The patch in v3 to gcc was wrong, sorry.
+
+revision: 199402132300 (v3)
+
+	Please notice that the both the patchfiles have changed.
+
+        Please use -O2 as much as possible, we must try to stress this
+	bugger to the limit.  If you want to change the global defaults
+	you should change CFLAGS in /usr/src/share/mk/sys.mk and do a
+	make (or directly in /usr/share/mk/sys.mk but make world will
+	loose that change then).  I suggest -O2, and -m486 in case you
+	have one.  Sideeffect is faster machine, you can insert wait-
+	states or disable cache-memory if this is a problem for you :-)
+
+	cc1, abort(3)'s on this bit of code, modelled on 
+	init386() in sys/i386/i386/machdep.c:
+
+		extern union descriptor gdt[40];
+		struct region_descriptor {
+			unsigned rd_limit:16;
+			unsigned rd_base:32 __attribute__ ((packed));
+		};
+		void foo() {
+			struct region_descriptor r_gdt;
+			r_gdt.rd_base =  (unsigned) gdt;
+		}
+
+	I got a new expmed.c from Richard, and had to fix a problem
+	in it.  This is all in the gcc258-freebsd.patch.3 file.
+
+	It seems that groff/grops chokes, but this could be libg++ which
+	should be updated.  Nothing done about it for now.
+
+	Richard Kenner said that there will probably never be a 2.5.9 and that
+	2.6.0 should hit the ground between late March and May.  I think that
+	if 1.2 is at 1st June, then we need to go ahead with 2.5.8, and
+	if 2.6.0 comes early, consider defecting to it.  Comments invited.
+
+revision: 199402121100 (v2)
+	.size was -1 in /usr/src/lib/libc/errlst.o, this choked ld(1), which
+	went into a spin.  Fixed by pulling in stuff from osfrose.h.  As a
+	consequence the patch against the gnu-dist changed.
+	I have made the linked compier static for now, this is a temporary 
+	measure to curtail havoc when things break.  It works just as fine
+	when linked dynamic.
+
+revision: 199402111700 (v1)
+	First released version.
+

@@ -1,0 +1,40 @@
+				 AddIt	
+			    Version 0.8-Beta
+
+
+This is the README file for AddIt version 0.8Beta.  AddIt is a
+perl script that is intended to make adding a user to the system simple
+and easy.  Installation and use are very easy and directions follow.
+
+1. Un-tar the distribution on your system. It must have its own directory
+   due to other files it uses.
+2. Use vi to edit the userids file if your planning on using the auto id
+   option of the system.  Make the userid one lower than what you want
+   to start at.
+3. Edit AddIt itself to configure the following options for use with the
+   system.
+
+   A. $defgroupid: This is the default group id the system will use.
+   B. $defusrdir: This is the default place for the system to create
+      user directories and copy needed files.
+   C. $usequota: Define this variable if you wish to use quotas on your
+      system.  Make sure that you have a kernel that has this defined.
+   D. $usemail: Define this variable if you wish to have a flyer 
+      mailed to the user after account creation.
+   E. $usedefshell: Define this to be the default shell on your system.
+   F. $useforward: Define this variable if you wish to have .forward
+      files created for use on the system.
+   G. $protouser: Define this variable to be the proto user for use with
+      quotas. 
+   H. $mailfile: This is the file to mail to a new user when $usemail is
+      defined.
+
+5. Make sure that the default user directory ($defusrdir) exists.
+6. Run AddIt.  The program will ask you questions about the user and
+   automaticly create their directory, copy startup files and then 
+   do other things depending on how you have the system configured. 
+
+
+As normal sugestions and bug reports to bugs@radon.gbdata.com. 
+
+

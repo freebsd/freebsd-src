@@ -1,7 +1,7 @@
 /* util.c
    A couple of UUCP utility functions.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char util_rcsid[] = "$Id: util.c,v 1.1 1993/08/05 18:22:48 conklin Exp $";
+const char util_rcsid[] = "$Id: util.c,v 1.2 1994/05/07 18:09:07 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -95,6 +95,46 @@ funknown_system (puuconf, zsystem, qsys)
   return TRUE;
 }
 
+/* Remove all occurrences of the local system name followed by an
+   exclamation point from the front of a string, returning the new
+   string.  This is used by uucp and uux.  */
+
+char *
+zremove_local_sys (qlocalsys, z)
+     struct uuconf_system *qlocalsys;
+     char *z;
+{
+  size_t clen;
+  char *zexclam;
+
+  clen = strlen (qlocalsys->uuconf_zname);
+  zexclam = strchr (z, '!');
+  while (zexclam != NULL)
+    {
+      if (z == zexclam
+	  || (zexclam - z == clen
+	      && strncmp (z, qlocalsys->uuconf_zname, clen) == 0))
+	;
+      else if (qlocalsys->uuconf_pzalias == NULL)
+	break;
+      else
+	{
+	  char **pzal;
+
+	  for (pzal = qlocalsys->uuconf_pzalias; *pzal != NULL; pzal++)
+	    if (strlen (*pzal) == zexclam - z
+		&& strncmp (z, *pzal, (size_t) (zexclam - z)) == 0)
+	      break;
+	  if (*pzal == NULL)
+	    break;
+	}
+      z = zexclam + 1;
+      zexclam = strchr (z, '!');
+    }
+
+  return z;
+}
+
 /* See whether a file is in a directory list, and make sure the user
    has appropriate access.  */
 
@@ -118,7 +158,7 @@ fin_directory_list (zfile, pzdirs, zpubdir, fcheck, freadable, zuser)
 
       if (pz[0][0] == '!')
 	{
-	  zuse = zsysdep_local_file (*pz + 1, zpubdir);
+	  zuse = zsysdep_local_file (*pz + 1, zpubdir, (boolean *) NULL);
 	  if (zuse == NULL)
 	    return FALSE;
 
@@ -128,7 +168,7 @@ fin_directory_list (zfile, pzdirs, zpubdir, fcheck, freadable, zuser)
 	}
       else
 	{
-	  zuse = zsysdep_local_file (*pz, zpubdir);
+	  zuse = zsysdep_local_file (*pz, zpubdir, (boolean *) NULL);
 	  if (zuse == NULL)
 	    return FALSE;
 

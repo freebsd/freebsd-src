@@ -15,7 +15,7 @@
  *
  *  October 1992
  *
- *	$Id: pcfs_vnops.c,v 1.4 1993/12/19 00:54:32 wollman Exp $
+ *	$Id: pcfs_vnops.c,v 1.7 1994/06/12 04:05:44 davidg Exp $
  */
 
 #include "param.h"
@@ -95,6 +95,8 @@ printf("pcfs_create(ndp %08x, vap %08x, p %08x\n", ndp, vap, p);
 		(union dostime *)&ndirp->deTime);
 	unix2dosfn((u_char *)ndp->ni_ptr, ndirp->deName, ndp->ni_namelen);
 	ndirp->deAttributes = (vap->va_mode & VWRITE) ? 0 : ATTR_READONLY;
+	if (vap->va_mode & VEXEC)
+		ndirp->deAttributes |= ATTR_HIDDEN;
 	ndirp->deStartCluster = 0;
 	ndirp->deFileSize = 0;
 	ndirent.de_pmp = pdep->de_pmp;
@@ -219,7 +221,11 @@ pcfs_getattr(vp, vap, cred, p)
 		cn = (cn << 16) | (dep->de_diroffset & 0xffff);
 	}
 	vap->va_fileid = cn;
-	vap->va_mode = (dep->de_Attributes & ATTR_READONLY) ? 0555 : 0777;
+	vap->va_mode = (dep->de_Attributes & ATTR_READONLY) ? 0444 : 0666;
+	if (   dep->de_Attributes & ATTR_HIDDEN
+	    || dep->de_Attributes & ATTR_DIRECTORY
+	   )
+		vap->va_mode |= 0111;
 	if (dep->de_Attributes & ATTR_DIRECTORY)
 		vap->va_mode |= S_IFDIR;
 	vap->va_nlink = 1;
@@ -300,7 +306,11 @@ printf("    va_uid %x, va_gid %x, va_atime.tv_sec %x\n",
  *  write bit to set the readonly attribute.
  */
 	if (vap->va_mode != (u_short)VNOVAL) {
-		/* We ignore the read and execute bits */
+		/* We ignore the read bits */
+		if (vap->va_mode & VEXEC && vp->v_type != VDIR)
+			dep->de_Attributes |= ATTR_HIDDEN;
+		else
+			dep->de_Attributes &= ~ATTR_HIDDEN;
 		if (vap->va_mode & VWRITE)
 			dep->de_Attributes &= ~ATTR_READONLY;
 		else
@@ -393,17 +403,6 @@ pcfs_read(vp, uio, ioflag, cred)
 			return error;
 		}
 		error = uiomove(bp->b_un.b_addr + on, (int)n, uio);
-/*
- *  If we have read everything from this block or
- *  have read to end of file then we are done with
- *  this block.  Mark it to say the buffer can be reused if
- *  need be.
- */
-#if 0
-		if (n + on == pmp->pm_bpcluster  ||
-		    uio->uio_offset == dep->de_FileSize)
-			bp->b_flags |= B_AGE;
-#endif
 		brelse(bp);
 	} while (error == 0  &&  uio->uio_resid > 0  && n != 0);
 	return error;
@@ -558,7 +557,6 @@ printf("pcfs_write(): diroff %d, dirclust %d, startcluster %d\n",
 			(void) bwrite(bp);
 		else
 		if (n + croffset == pmp->pm_bpcluster) {
-			bp->b_flags |= B_AGE;
 			bawrite(bp);
 		} else
 			bdwrite(bp);
@@ -1450,17 +1448,6 @@ printf("pcfs_readdir(): vp %08x, uio %08x, cred %08x, eofflagp %08x\n",
 				uio);
 		}
 
-/*
- *  If we have read everything from this block or
- *  have read to end of file then we are done with
- *  this block.  Mark it to say the buffer can be reused if
- *  need be.
- */
-#if 0
-		if (n + on == pmp->pm_bpcluster  ||
-		    (uio->uio_offset-bias) == dep->de_FileSize)
-			bp->b_flags |= B_AGE;
-#endif
 		brelse(bp);
 	} while (error == 0  &&  uio->uio_resid > 0  && n != 0);
 out:;
@@ -1550,7 +1537,7 @@ pcfs_bmap(vp, bn, vpp, bnp)
 		*vpp = dep->de_devvp;
 	if (bnp == NULL)
 		return 0;
-	return pcbmap(dep, bn << (pmp->pm_cnshift - pmp->pm_bnshift), bnp, 0);
+	return pcbmap(dep, bn, bnp, 0);
 }
 
 int
