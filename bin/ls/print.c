@@ -46,11 +46,6 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 
-#ifdef COLORLS
-#include <ctype.h>
-#include <termcap.h>
-#include <term.h>       /* for tparm */
-#endif
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
@@ -61,6 +56,12 @@ static const char rcsid[] =
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef COLORLS
+#include <ctype.h>
+#include <termcap.h>
+#include <term.h>       /* for tparm */
+#include <signal.h>
+#endif
 
 #include "ls.h"
 #include "extern.h"
@@ -463,12 +464,14 @@ char *cs;
 	}
 }
 
-/* ARGSUSED */
 void colorquit(sig)
 	int sig;
 {
 	endcolor();
-	exit(1);
+	fflush(stdout);
+
+	(void) signal(sig, SIG_DFL);
+	(void) kill(getpid(), sig);
 }
 #endif /*COLORLS*/
  
