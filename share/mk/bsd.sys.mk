@@ -21,7 +21,6 @@ CFLAGS		+=	-std=iso9899:1999
 .  else
 CFLAGS		+=	-std=${CSTD}
 .  endif
-CFLAGS		+=	-pedantic
 . endif
 . if defined(WARNS)
 .  if ${WARNS} > 0
@@ -41,6 +40,9 @@ CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-al
 .  endif
 # BDECFLAGS
 .  if ${WARNS} > 5
+.   if defined(CSTD)
+CFLAGS		+=	-pedantic
+.   endif
 CFLAGS		+=	-Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
 .  endif
 .  if ${WARNS} > 1 && ${WARNS} < 5
