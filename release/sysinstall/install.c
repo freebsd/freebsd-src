@@ -230,6 +230,8 @@ installInitial(void)
 	msgConfirm("Unable to chroot to /mnt - this is bad!");
 	return DITEM_FAILURE;
     }
+    else
+	Chrooted = TRUE;
 
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
@@ -441,21 +443,6 @@ installExpress(dialogMenuItem *self)
     if (DITEM_STATUS((i = diskLabelEditor(self))) == DITEM_FAILURE)
 	return i;
 
-    if (!Dists) {
-	dialog_clear_norefresh();
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE) || !Dists)
-	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
-
-    if (!mediaDevice) {
-	dialog_clear_norefresh();
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
-
-    if (!mediaDevice->init(mediaDevice))
-	return DITEM_FAILURE | DITEM_REDRAW;
-
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
 	/* Give user the option of one last configuration spree */
@@ -494,24 +481,6 @@ installNovice(dialogMenuItem *self)
 
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
-
-    while (1) {
-	dialog_clear_norefresh();
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE))
-	    return DITEM_FAILURE | DITEM_RESTORE;
-
-	if (Dists)
-	    break;
-
-	if (msgYesNo("No distributions selected.  Revisit the distributions menu?"))
-	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
-
-    if (!mediaDevice && (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice))
-	return DITEM_FAILURE | DITEM_RESTORE;
-
-    if (!mediaDevice->init(mediaDevice))
-	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
 	dialog_clear_norefresh();
@@ -669,42 +638,28 @@ int
 installCommit(dialogMenuItem *self)
 {
     int i;
-    char *str;
     Boolean need_bin;
 
     if (!Dists) {
-	if (!msgYesNo("No distributions are selected for installation!  Do you\n"
-		      "want to do this now?")) {
-	    if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-		return DITEM_FAILURE | DITEM_RESTORE;
-	}
-	else
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
+media:
     if (!mediaDevice) {
-	if (!msgYesNo("You need to select a media type first.  Do you want\n"
-		      "to do this now?")) {
-	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-		return DITEM_FAILURE | DITEM_RESTORE;
-	}
-	else
-		return DITEM_FAILURE | DITEM_RESTORE;
+	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
     if (!mediaDevice->init(mediaDevice)) {
 	if (!msgYesNo("Unable to initialize selected media. Would you like to\n"
-		      "adjust your media configuration?")) {
-	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-		return DITEM_FAILURE | DITEM_RESTORE;
+		      "adjust your media configuration and try again?")) {
+	    mediaDevice = NULL;
+	    goto media;
 	}
 	else
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
-
-    str = variable_get(SYSTEM_STATE);
-    if (isDebug())
-	msgDebug("installCommit: System state is `%s'\n", str);
 
     if (RunningAsInit) {
 	/* Do things we wouldn't do to a multi-user system */
