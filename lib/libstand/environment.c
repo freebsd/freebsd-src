@@ -207,7 +207,7 @@ env_discard(struct env_var *ev)
 }
 
 int
-env_noset(struct env_var *ev, int flags, void *value)
+env_noset(struct env_var *ev, int flags, const void *value)
 {
     return(EPERM);
 }
