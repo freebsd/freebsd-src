@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.131 1999/08/09 10:34:40 phk Exp $
+ *	$Id: autoconf.c,v 1.132 1999/08/13 10:29:16 phk Exp $
  */
 
 /*
@@ -72,28 +72,12 @@
 #include <machine/smp.h>
 #endif /* APIC_IO */
 
-#include <i386/isa/icu.h>
-
 #include "pnp.h"
 #if NPNP > 0
-#include <i386/isa/isa_device.h>
 #include <i386/isa/pnp.h>
 #endif
 
-#include "eisa.h"
-#if NEISA > 0
-#include <i386/eisa/eisaconf.h>
-#endif
-
-#include "pci.h"
-#if NPCI > 0
-#include <pci/pcivar.h>
-#endif
-
-#include "isa.h"
-#if NISA > 0
 device_t isa_bus_device = 0;
-#endif
 
 static void	configure_first __P((void *));
 static void	configure __P((void *));
@@ -206,19 +190,21 @@ configure(dummy)
 	void *dummy;
 {
 
-	/* Allow all routines to decide for themselves if they want intrs */
 	/*
-	 * XXX Since this cannot be achieved on all architectures, we should
-	 * XXX go back to disabling all interrupts until configuration is
-	 * XXX completed and switch any devices that rely on the current
-	 * XXX behavior to no longer rely on interrupts or to register an
-	 * XXX interrupt_driven_config_hook for the task.
-	 */
-	/*
-	 * XXX The above is wrong, because we're implicitly at splhigh(),
-	 * XXX and should stay there, so enabling interrupts in the CPU
-	 * XXX and the ICU at most gives pending interrupts which just get
-	 * XXX in the way.
+	 * Activate the ICU's.  Note that we are explicitly at splhigh()
+	 * at present as we have no way to disable stray PCI level triggered
+	 * interrupts until the devices have had a driver attached.  This
+	 * is particularly a problem when the interrupts are shared.  For
+	 * example, if IRQ 10 is shared between a disk and network device
+	 * and the disk device generates an interrupt, if we "activate"
+	 * IRQ 10 when the network driver is set up, then we will get
+	 * recursive interrupt 10's as nothing will know how to turn off
+	 * the disk device's interrupt.
+	 *
+	 * Having the ICU's active means we can probe interrupt routing to
+	 * see if a device causes the corresponding pending bit to be set.
+	 *
+	 * This is all rather inconvenient.
 	 */
 #ifdef APIC_IO
 	bsp_apic_configure();
@@ -228,20 +214,23 @@ configure(dummy)
 	INTREN(IRQ_SLAVE);
 #endif /* APIC_IO */
 
-#if NPNP > 0
-	pnp_configure();
-#endif
-
 	/* nexus0 is the top of the i386 device tree */
 	device_add_child(root_bus, "nexus", 0, 0);
 
 	/* initialize new bus architecture */
 	root_bus_configure();
 
-#if NISA > 0
+#if NPNP > 0
+	/* Activate PNP. If no drivers are found, let ISA probe them.. */
+	pnp_configure();
+#endif
+
+	/*
+	 * Explicitly probe and attach ISA last.  The isa bus saves
+	 * it's device node at attach time for us here.
+	 */
 	if (isa_bus_device)
 		bus_generic_attach(isa_bus_device);
-#endif
 
 	/*
 	 * Now we're ready to handle (pending) interrupts.
