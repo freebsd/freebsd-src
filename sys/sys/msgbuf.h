@@ -44,6 +44,7 @@ struct msgbuf {
 	int	msg_bufx;		/* write pointer */
 	int	msg_bufr;		/* read pointer */
 	char	*msg_ptr;		/* pointer to buffer */
+	u_int	msg_cksum;		/* checksum of contents */
 };
 
 #ifdef _KERNEL
