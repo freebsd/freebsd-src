@@ -52,11 +52,27 @@ da-			deka
 d-			deci
 c-			centi
 m-			milli
+n-			nano
 p-			pico
 f-			femto
 a-			atto
 z-			zopto
 y-			yocto
+
+/ binary prefixes introduced in 1999
+exbi-			1152921504606846976
+pebi-			1125899906842624
+tebi-			1099511627776
+gibi-			1073741824
+mebi-			1048576
+kibi-			1024
+
+Ei-			exbi
+Pi-			pebi
+Ti-			tebi
+Gi-			gibi
+Mi-			mebi
+Ki-			kibi
 
 / constants
 
@@ -104,14 +120,12 @@ week			7 day
 year			365.24219879 day fuzz
 yr			year
 month			1|12 year
-ms			millisec
 us			microsec
 
 / Mass
 
 gram			millikg
 gm			gram
-mg			milligram
 metricton		kilokg
 
 / Avoirdupois
@@ -140,10 +154,6 @@ troypound		appound
 / Length
 
 meter			m
-cm			centimeter
-mm			millimeter
-km			kilometer
-nm			nanometer
 micron			micrometer
 angstrom		decinanometer
 
@@ -429,9 +439,6 @@ hz			/sec
 imaginarycubicfoot	1.4 ft3
 jeroboam		4|5 gal
 karat			1|24
-kcal			kilocal
-kcalorie		kilocal
-kev			1e+3 e-volt
 key			kg
 khz			1e+3 /sec
 kilderkin		18 gal
@@ -466,7 +473,6 @@ nauticalmile		nmile
 nit			cd/m2
 noggin			1|8 qt
 nox			1e-3 lux
-ns			nanosec
 oersted			2.5e+2 pi-amp/m
 oe			oersted
 pace			36 in
