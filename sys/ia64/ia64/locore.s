@@ -136,7 +136,7 @@ ENTRY(sigcode,0)
 	mov	r9=ar.bsp		// save ar.bsp
 	;;
 	st8	[r8]=r9
-	cmp.eq	p1,p0=r0,r18		// check for new bs
+	cmp.eq	p1,p2=r0,r18		// check for new bs
 (p1)	br.cond.sptk.few 1f		// branch if not switching
 	flushrs				// flush out to old bs
 	mov	ar.rsc=0		// switch off RSE
@@ -151,8 +151,9 @@ ENTRY(sigcode,0)
 	;; 
 1:	mov	out1=r15		// siginfo
 	mov	out2=r16		// ucontext
-	mov	r4=r17			// save ucontext pointer from call
+	mov	r4=r16			// save from call
 	br.call.sptk.few rp=b6		// call the signal handler
+	;; 
 (p1)	br.cond.sptk.few 2f		// note: p1 is preserved
 	flushrs
 	mov	ar.rsc=0
@@ -168,8 +169,10 @@ ENTRY(sigcode,0)
 	;;
 	mov	ar.rnat=r9
 	mov	ar.rsc=15
-2:	
-	CALLSYS_NOERROR(sigreturn)	// and call sigreturn() with it.
+	
+2:	alloc	r14=ar.pfs,0,0,0,0	// no frame for sigreturn
+	CALLSYS_NOERROR(sigreturn)	// call sigreturn()
+	alloc	r14=ar.pfs,0,0,1,0 ;;
 	mov	out0=ret0		// if that failed, get error code
 	CALLSYS_NOERROR(exit)		// and call exit() with it.
 XENTRY(esigcode)

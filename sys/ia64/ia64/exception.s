@@ -905,8 +905,8 @@ ENTRY(exception_restore, 0)
 	ldf.fill f9=[r1],-32		// r1=&tf_f[FRAME_F7]
 	ldf.fill f8=[r2],-32		// r2=&tf_f[FRAME_F6]
 	;; 
-	ldf.fill f7=[r1],-32		// r1=&tf_r[FRAME_R31]
-	ldf.fill f6=[r2],-24		// r2=&tf_r[FRAME_R30]
+	ldf.fill f7=[r1],-24		// r1=&tf_r[FRAME_R31]
+	ldf.fill f6=[r2],-16		// r2=&tf_r[FRAME_R30]
 	;; 
 	ld8.fill r31=[r1],-16		// r1=&tf_r[FRAME_R29]
 	ld8.fill r30=[r2],-16		// r2=&tf_r[FRAME_R28]
@@ -1068,9 +1068,10 @@ ENTRY(exception_save, 0)
 	mov	rR1=r1
 	mov	rR2=r2
 	;; 
-	dep	r1=0,sp,61,3		// r1=&tf_cr_iip
+	dep	r1=0,sp,61,3		// r1=&tf_flags
 	;;
-	add	r2=8,r1			// r2=&tf_cr_ipsr
+	add	r2=16,r1		// r2=&tf_cr_ipsr
+	st8	[r1]=r0,8		// zero flags, r1=&tf_cr_iip
 	;; 
 	st8	[r1]=rIIP,16		// r1=&tf_cr_isr
 	st8	[r2]=rIPSR,16		// r2=&tf_cr_ifa
@@ -1215,9 +1216,9 @@ ENTRY(exception_save, 0)
 	st8.spill [r1]=r29,16		// r1=&tf_r[FRAME_R31]
 	;; 
 	.mem.offset 8,0
-	st8.spill [r2]=r30,24		// r2=&tf_f[FRAME_F6]
+	st8.spill [r2]=r30,16		// r2=&tf_f[FRAME_F6]
 	.mem.offset 0,0
-	st8.spill [r1]=r31,32		// r1=&tf_f[FRAME_F7]
+	st8.spill [r1]=r31,24		// r1=&tf_f[FRAME_F7]
 	;; 
 	stf.spill [r2]=f6,32		// r2=&tf_f[FRAME_F8]
 	stf.spill [r1]=f7,32		// r1=&tf_f[FRAME_F9]
@@ -1258,12 +1259,15 @@ ENTRY(do_syscall, 0)
 	mov	sp=ar.k6;;		// switch to kernel sp
 	add	sp=-SIZEOF_TRAPFRAME,sp;; // reserve trapframe
 	dep	r30=0,sp,61,3;;		// physical address
-	add	r31=8,r30;;		// secondary pointer
+	add	r31=16,r30;;		// secondary pointer
 
 	// save minimal state for syscall
 	mov	r18=cr.iip
 	mov	r19=cr.ipsr
 	mov	r20=cr.isr
+	mov	r21=FRAME_SYSCALL
+	;;
+	st8	[r30]=r21,8
 	;;
 	st8	[r30]=r18,16		// save cr.iip
 	st8	[r31]=r19,16		// save cr.ipsr
@@ -1302,8 +1306,16 @@ ENTRY(do_syscall, 0)
 	st8	[r31]=r21,16		// save ar.fpsr
 	mov	r16=b0
 	;;
-	st8	[r30]=r16,TF_R-TF_B+FRAME_SP*8 // save b0, r1=&tf_r[FRAME_SP]
+	st8	[r30]=r16,TF_R-TF_B+FRAME_R4*8 // save b0, r1=&tf_r[FRAME_SP]
 	;;
+	st8.spill [r30]=r4,8		// save r4
+	;; 
+	st8.spill [r30]=r5,8		// save r5
+	;; 
+	st8.spill [r30]=r6,8		// save r6
+	;; 
+	st8.spill [r30]=r7,(FRAME_SP-FRAME_R7)*8 // save r7
+	;; 
 	st8	[r30]=r17		// save user sp
 	;;
 	bsw.1				// switch back to bank 1
@@ -1353,9 +1365,10 @@ ENTRY(do_syscall, 0)
 	;;
 	br.call.sptk.many rp=syscall	// do the work
 
-	cmp.eq	p6,p0=59,loc0 		// do a full restore for execve
+	ld8	r14=[loc1]		// check tf_flags
 	;;
-(p6)	add	sp=-16,loc1
+	tbit.z p6,p0=r14,0		// check FRAME_SYSCALL bit
+(p6)	add	sp=-16,loc1		// do a full restore if clear
 (p6)	br.dpnt.many exception_restore
 
 	rsm 	psr.dt|psr.ic|psr.i	// get ready to restore

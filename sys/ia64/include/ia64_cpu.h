@@ -136,6 +136,8 @@
 #define IA64_PHYS_TO_RR6(x)	((x) | IA64_RR_BASE(6))
 #define IA64_PHYS_TO_RR7(x)	((x) | IA64_RR_BASE(7))
 
+#ifndef LOCORE
+
 /*
  * Various special ia64 instructions.
  */
@@ -426,6 +428,8 @@ ia64_set_rr(u_int64_t rrbase, u_int64_t v)
 {
 	__asm __volatile("mov rr[%0]=%1" :: "r"(rrbase), "r"(v) : "memory");
 }
+
+#endif
 
 #endif /* _MACHINE_IA64_CPU_H_ */
 

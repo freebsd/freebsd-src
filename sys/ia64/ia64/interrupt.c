@@ -46,11 +46,11 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 
 #include <machine/reg.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
-#include <machine/mutex.h>
 
 #ifdef EVCNT_COUNTERS
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
