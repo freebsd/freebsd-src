@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mail.local.c,v 1.10.2.1 1997/12/04 08:04:21 imp Exp $
+ *	$Id: mail.local.c,v 1.10.2.2 1998/01/31 17:06:48 joerg Exp $
  */
 
 #ifndef lint
@@ -94,7 +94,7 @@ main(argc, argv)
 
 	from = NULL;
 	nobiff = 0;
-	while ((ch = getopt(argc, argv, "bdf:r:")) !=  -1)
+	while ((ch = getopt(argc, argv, "bdf:r:")) != -1)
 		switch(ch) {
 		case 'b':
 			nobiff++;
@@ -370,7 +370,8 @@ notifybiff(msg)
 			return;
 		}
 		addr.sin_family = hp->h_addrtype;
-		memmove(&addr.sin_addr, hp->h_addr, hp->h_length);
+		memmove(&addr.sin_addr, hp->h_addr, 
+		    MIN(hp->h_length,sizeof(addr.sin_addr)));
 		addr.sin_port = sp->s_port;
 	}
 	if (f < 0 && (f = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {

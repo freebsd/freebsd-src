@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)extern.h	8.1 (Berkeley) 6/4/93
- *	$Id: extern.h,v 1.2 1996/05/05 19:01:07 joerg Exp $
+ *	$Id: extern.h,v 1.2.2.1 1997/05/11 05:28:53 davidn Exp $
  */
 
 struct delayval;
@@ -61,4 +61,3 @@ void	 setdefaults __P((void));
 void	 setflags __P((int));
 int	 speed __P((int));
 int	 getty_chat __P((char *, int, int));
-
