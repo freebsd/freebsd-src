@@ -8,9 +8,7 @@
 # Format:
 # <deprecated_locale>	<new_locale>
 #
-ja_JP.EUC		ja_JP.eucJP
-ko_KR.EUC		ko_KR.eucKR
+ru_RU.ISO_8859-5	ru_RU.ISO8859-5
 ru_SU.CP866		ru_RU.CP866
-ru_SU.ISO_8859-5	ru_RU.ISO8859-5
 ru_SU.KOI8-R		ru_RU.KOI8-R
-zh_CN.EUC		zh_CN.eucCN
+ru_SU.ISO_8859-5	ru_RU.ISO8859-5

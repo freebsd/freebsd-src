@@ -309,6 +309,8 @@
             ..
         ..
     ..
+    libdata
+    ..
     libexec
     ..
     man

@@ -16,7 +16,8 @@ case "$weekly_noid_enable" in
 	echo ""
 	echo "Check for files with an unknown user or group:"
 
-	rc=$(find -H ${weekly_noid_dirs:-/} -fstype local \
+	rc=$(find -H ${weekly_noid_dirs:-/} \
+	    \( ! -fstype local -prune -or -name \* \) -and \
 	    \( -nogroup -o -nouser \) -print | sed 's/^/  /' |
 	    tee /dev/stderr | wc -l)
 	[ $rc -gt 1 ] && rc=1

@@ -1,8 +1,11 @@
 # $FreeBSD$
 #
 # Host Database
-# This file should contain the addresses and aliases
-# for local hosts that share this file.
+#
+# This file should contain the addresses and aliases for local hosts that
+# share this file.  Replace 'my.domain' below with the domainname of your
+# machine.
+#
 # In the presence of the domain name service or NIS, this file may
 # not be consulted at all; see /etc/host.conf for the resolution order.
 #
@@ -22,8 +25,6 @@
 #	192.168.0.0	-   192.168.255.255
 #
 # In case you want to be able to connect to the Internet, you need
-# real official assigned numbers.  PLEASE PLEASE PLEASE do not try
-# to invent your own network numbers but instead get one from your
-# network provider (if any) or from the Internet Registry (ftp to
-# rs.internic.net, directory `/templates').
+# real official assigned numbers.  Do not try to invent your own network
+# numbers but instead get one from your network provider (if any).
 #

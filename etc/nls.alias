@@ -3,6 +3,8 @@
 ASCII                   C
 POSIX                   C
 US-ASCII                C
+af_ZA.ISO_8859-1        af_ZA.ISO8859-1
+af_ZA.ISO_8859-15       af_ZA.ISO8859-15
 cs_CZ.ISO_8859-2        cs_CZ.ISO8859-2
 da_DK.ISO_8859-1        da_DK.ISO8859-1
 da_DK.ISO_8859-15       da_DK.ISO8859-15
