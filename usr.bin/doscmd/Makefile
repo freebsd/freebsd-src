@@ -7,9 +7,9 @@ SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
 	cwd.c debug.c disktab.c doscmd.c ems.c emuint.c exe.c i386-pinsn.c \
 	int.c int10.c int13.c int14.c int16.c int17.c int1a.c int2f.c intff.c \
 	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c \
-	tty.c video.c xms.c
+	tty.c video.c xms.c ${FONTHDRS}
 
-CFLAGS+=	-DDISASSEMBLER -I${.OBJDIR}
+CFLAGS+=	-I. -DDISASSEMBLER
 CLEANFILES=	${FONTFILES} ${FONTHDRS} emsdriv.sys redir.com
 
 .if ${OBJFORMAT} == "aout"
@@ -37,8 +37,6 @@ CFLAGS+=	-DNO_X
 
 FONTFILES=	cp437-8x8.pcf.gz cp437-8x14.pcf.gz cp437-8x16.pcf.gz
 FONTHDRS=	font8x8.h font8x14.h font8x16.h
-
-beforedepend:	${FONTHDRS}
 
 beforeinstall:
 .if ${OBJFORMAT} == "aout"
@@ -76,16 +74,16 @@ cp437-8x14.pcf.gz: cp437-8x14.pcf.gz.uu
 cp437-8x16.pcf.gz: cp437-8x16.pcf.gz.uu
 	uudecode ${.CURDIR}/cp437-8x16.pcf.gz.uu
 
-font8x8.h:
-	uudecode -p ${.CURDIR}/share/syscons/fonts/cp437-8x8.fnt | \
+font8x8.h: ${.CURDIR}/../../share/syscons/fonts/cp437-8x8.fnt
+	uudecode -p ${.ALLSRC} | \
 		file2c 'u_int8_t font8x8[] = {' '};' > ${.TARGET}
 
-font8x14.h:
-	uudecode -p ${.CURDIR}/share/syscons/fonts/cp437-8x14.fnt | \
+font8x14.h: ${.CURDIR}/../../share/syscons/fonts/cp437-8x8.fnt
+	uudecode -p ${.ALLSRC} | \
 		file2c 'u_int8_t font8x14[] = {' '};' > ${.TARGET}
 
-font8x16.h:
-	uudecode -p ${.CURDIR}/share/syscons/fonts/cp437-8x16.fnt | \
+font8x16.h: ${.CURDIR}/../../share/syscons/fonts/cp437-8x8.fnt
+	uudecode -p ${.ALLSRC} | \
 		file2c 'u_int8_t font8x16[] = {' '};' > ${.TARGET}
 
 emsdriv.sys: emsdriv.sys.uu
