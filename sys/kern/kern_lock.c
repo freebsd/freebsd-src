@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.9 1997/08/18 03:29:15 fsmp Exp $
+ * $Id: kern_lock.c,v 1.10 1997/08/19 00:27:07 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -443,7 +443,7 @@ lockmgr(lkp, flags, interlkp, p)
 
 /*
  * Print out information about state of a lock. Used by VOP_PRINT
- * routines to display ststus about contained locks.
+ * routines to display status about contained locks.
  */
 void
 lockmgr_printinfo(lkp)
