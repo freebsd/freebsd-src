@@ -88,6 +88,16 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 * provider based on that.
 	 */
 	for (sb=0; (superblock = superblocks[sb]) != -1; sb++) {
+		/*
+		 * Take care not to issue an invalid I/O request.  The
+		 * offset and size of the superblock candidate must be
+		 * multiples of the provider's sector size, otherwise an
+		 * FFS can't exist on the provider anyway.
+		 */
+		if (superblock % cp->provider->sectorsize != 0 ||
+		    SBLOCKSIZE % cp->provider->sectorsize != 0)
+			continue;
+
 		fs = (struct fs *) g_read_data(cp, superblock,
 			SBLOCKSIZE, &error);
 		if (fs == NULL || error != 0)
